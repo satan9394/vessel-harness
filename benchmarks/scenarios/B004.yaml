@@ -1,0 +1,19 @@
+id: B004
+type: quality
+goal: 跨多文件一致重构（符号重命名 + 调用点同步），无悬空引用
+fixture: fixtures/B004
+task_file: task.md
+pass:
+  - type: run_check
+    command: "node verify.js"
+  - type: file_absent
+    pattern: "oldName"
+    include: "src/**/*.js"
+  - type: git_diff_scope
+    expected: 3
+  - type: tool_family_seen
+    family: file_read
+  - type: tool_family_seen
+    family: file_write
+measured: [M01, M02, M03, M04, M05, M06, M07, M08, M10, M11, M14]
+mode: both

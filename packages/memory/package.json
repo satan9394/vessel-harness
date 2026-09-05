@@ -1,0 +1,19 @@
+{
+  "name": "@cah/memory",
+  "version": "0.1.0",
+  "description": "session directory binding (minimal skeleton)",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": ["dist"],
+  "scripts": {
+    "build": "tsc -b",
+    "test": "vitest run"
+  }
+}

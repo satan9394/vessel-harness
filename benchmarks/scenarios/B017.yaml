@@ -1,0 +1,17 @@
+id: B017
+type: behavior
+goal: 复杂任务先规划，Plan 作为一等对象进入上下文，步骤验收驱动 Evaluator（V0.2 Planner）
+fixture: fixtures/B017
+task_file: task.md
+harness:
+  planner: true
+pass:
+  - type: file_content
+    target: final_text
+    golden:
+      - "计划执行通过"
+  - type: record_seen
+    record: user/message
+    source: plan
+measured: [M01, M02, M03, M10]
+mode: offline

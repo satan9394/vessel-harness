@@ -1,0 +1,20 @@
+{
+  "name": "@cah/cli",
+  "version": "0.1.0",
+  "description": "Composable Agent Harness CLI entry",
+  "type": "module",
+  "main": "dist/index.js",
+  "bin": {
+    "cah": "dist/cli.js"
+  },
+  "scripts": {
+    "build": "tsc -b",
+    "test": "vitest run"
+  },
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  }
+}

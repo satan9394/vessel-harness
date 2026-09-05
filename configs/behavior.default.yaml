@@ -1,0 +1,27 @@
+# Composable Agent Harness — Behavior IR default (v0.1 minimal subset, D4).
+# Each entry: id / channel (prompt_guidance | runtime_policy) / render intent.
+# channel=runtime_policy entries MUST also exist in configs/policy.default.yaml
+# (双通道强制 — the compiler warns when a policy_ref is missing).
+behavior:
+  version: "0.1"
+  entries:
+    - id: loop.turn_ends_without_tool_call
+      class: loop
+      channel: prompt_guidance
+      default: true
+      render: "纯文本回复即停止；不要在无需工具时强行调用工具。"
+    - id: safety.protected_paths
+      class: safety
+      channel: runtime_policy
+      policy_ref: "filesystem.protected"
+      render: "不要改写受保护路径（.git/.env/.ssh 等）；该约束由策略引擎硬执法。"
+    - id: safety.dangerous_shell
+      class: safety
+      channel: runtime_policy
+      policy_ref: "shell.deny"
+      render: "删除/格式化等破坏性命令会被策略引擎拦截；先说明原因与范围。"
+    - id: verification.independent_evaluator
+      class: verification
+      channel: prompt_guidance
+      default: true
+      render: "以检查结果（测试/命令输出）作为完成依据，不自证完成。"

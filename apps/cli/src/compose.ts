@@ -1,0 +1,219 @@
+import * as path from 'node:path';
+import type { ChatProvider, ChatToolDef, ToolCall } from '@cah/shared';
+import { AgentLoop, EventBus, Session } from '@cah/core';
+import { ContextBuilder, Compaction } from '@cah/context';
+import { ToolRegistry, createFsTools, createSearchTools, createShellTool, McpClient, registerMcpTools, type McpTransport } from '@cah/tools';
+import { PolicyEngine, loadPolicyArtifacts } from '@cah/policy';
+import { Executor, Sandbox } from '@cah/runtime';
+import { loadBehaviorIR, compileBehavior } from '@cah/behavior';
+import { discoverInstructions } from '@cah/context';
+import { listIndex, formatIndexText } from '@cah/skills';
+import { Telemetry } from '@cah/telemetry';
+import { SubagentManager, createSubagentTool } from '@cah/agents';
+
+export interface ComposeMcpConnection {
+  serverName: string;
+  transport: McpTransport;
+}
+
+export interface ComposeOptions {
+  workspaceRoot: string;
+  cwd?: string;
+  provider: ChatProvider;
+  model: string;
+  policySystemPath: string;
+  /** project-scope policy override (.harness/policy.yaml) — merged when present */
+  policyProjectPath?: string;
+  behaviorIRPath: string;
+  sessionId?: string;
+  maxSteps?: number;
+  contextWindow?: number;
+  /** injected compaction summarizer (LLM); defaults to heuristic */
+  summarize?: (regionText: string, context: { userRequest: string }) => Promise<string>;
+  /** V0.2: register the `Subagent` tool (isolated child sessions, concurrency 1–3) */
+  subagent?: { enabled?: boolean; maxConcurrent?: number; maxDepth?: number; delegationDepth?: number };
+  /** V0.2: register MCP server tools dynamically (mcp__<server>__<tool>) */
+  mcp?: ComposeMcpConnection[];
+}
+
+export interface ComposedHarness {
+  bus: EventBus;
+  session: Session;
+  registry: ToolRegistry;
+  policyEngine: PolicyEngine;
+  builder: ContextBuilder;
+  compaction: Compaction;
+  loop: AgentLoop;
+  telemetry: Telemetry;
+  artifacts: ReturnType<typeof loadPolicyArtifacts>;
+  behaviorWarnings: string[];
+  subagentManager?: SubagentManager;
+  mcpClients: McpClient[];
+  close(): Promise<void>;
+}
+
+/**
+ * Composition root — wires the modular monolith for one session (apps/cli).
+ * Dependency direction: mechanism packages never import each other's internals;
+ * the CLI composes them through their public interfaces.
+ */
+export async function composeHarness(opts: ComposeOptions): Promise<ComposedHarness> {
+  const workspaceRoot = path.resolve(opts.workspaceRoot);
+  const cwd = path.resolve(opts.cwd ?? workspaceRoot);
+
+  const session = await Session.open({ workspaceRoot, sessionId: opts.sessionId });
+  const bus = new EventBus();
+
+  // Policy: one declaration -> four artifacts -> engine (hard) + guidance (soft)
+  const artifacts = loadPolicyArtifacts({
+    systemPath: opts.policySystemPath,
+    projectPath: opts.policyProjectPath,
+  });
+  const policyEngine = new PolicyEngine(artifacts);
+
+  // Tools: 6 builtin, bound to workspace + fs guards from the policy artifacts
+  const fsPolicy = {
+    protected: artifacts.fsConfig?.protected ?? [],
+    denyRead: artifacts.fsConfig?.denyRead ?? [],
+    allow: [],
+  };
+  const sandbox = new Sandbox();
+  const tools = [
+    ...createFsTools({ workspaceRoot, fsPolicy }),
+    ...createSearchTools({ workspaceRoot, fsPolicy }),
+    createShellTool({ workspaceRoot, sandbox }),
+  ];
+
+  // Executor: pre-execute policy recheck (tool layer never trusts the caller)
+  const executor = new Executor({
+    decide: async (call, spec) => policyEngine.decide({ toolName: call.toolName, arguments: call.arguments }, spec),
+  });
+  const runTool = async (call: ToolCall) => {
+    const spec = registry.spec(call.toolName);
+    if (!spec) {
+      return {
+        record: null,
+        content: '',
+        error: { errorClass: 'INVALID_ARGS' as const, message: `unknown tool: ${call.toolName}` },
+        meta: {},
+      };
+    }
+    const result = await executor.runTool(spec, call, { workspaceRoot, cwd, sandbox });
+    return { record: null, content: result.content, error: result.error, meta: result.meta };
+  };
+
+  // Behavior: IR -> compiler -> stable prompt sections (+ dual-channel warnings)
+  const ir = loadBehaviorIR(opts.behaviorIRPath);
+  const compiled = compileBehavior(ir, artifacts);
+  const behaviorWarnings = compiled.warnings;
+
+  // V0.2 subagent: manager + `Subagent` tool (isolated child sessions, caps 1–3)
+  let subagentManager: SubagentManager | undefined;
+  if (opts.subagent?.enabled) {
+    subagentManager = new SubagentManager({
+      workspaceRoot,
+      cwd,
+      provider: opts.provider,
+      model: opts.model,
+      policyArtifacts: artifacts,
+      tools,
+      bus,
+      maxConcurrent: opts.subagent.maxConcurrent,
+      maxDepth: opts.subagent.maxDepth,
+      parentSessionId: session.sessionId,
+      stableSections: compiled.promptSections,
+      policyGuidance: artifacts.promptGuidance,
+    });
+  }
+  const finalTools = subagentManager ? [...tools, createSubagentTool(subagentManager)] : tools;
+  const registry = new ToolRegistry(finalTools, { deniedTools: artifacts.deniedTools });
+
+  // V0.2 MCP: dynamically register remote tools (same pipeline as builtins)
+  const mcpClients: McpClient[] = [];
+  for (const conn of opts.mcp ?? []) {
+    const client = new McpClient(conn.transport, conn.serverName);
+    await registerMcpTools(registry, conn.serverName, client);
+    mcpClients.push(client);
+  }
+
+  // Context: builder (stable cached per session) + compaction (pressure-triggered)
+  const instructions = () => discoverInstructions(cwd, workspaceRoot);
+  const skillsIndex = () => formatIndexText(listIndex(workspaceRoot));
+  const builder = new ContextBuilder({
+    session,
+    model: opts.model,
+    stableSections: () => compiled.promptSections,
+    policyGuidance: () => artifacts.promptGuidance,
+    instructions,
+    getVisibleTools: () => registry.listVisible(),
+    volatileText: skillsIndex,
+    contextWindow: opts.contextWindow,
+  });
+  const compaction = new Compaction({ session, summarize: opts.summarize });
+
+  // BeforeTool authoritative listener: the policy engine
+  bus.on(
+    'before_tool',
+    async (payload) => {
+      const p = payload as { toolName: string; arguments: Record<string, unknown> };
+      const verdict = await policyEngine.decide({ toolName: p.toolName, arguments: p.arguments }, registry.spec(p.toolName));
+      if (verdict.action === 'deny') {
+        return { kind: 'deny' as const, reason: verdict.reason ?? 'denied', ref: verdict.ruleRef };
+      }
+      if (verdict.action === 'ask') {
+        return { kind: 'ask' as const, ref: verdict.ruleRef, reason: verdict.reason };
+      }
+      return { kind: 'allow' as const, updatedInput: verdict.updatedInput };
+    },
+    'policy:engine',
+  );
+
+  // Telemetry: observation-only subscriber
+  const telemetry = new Telemetry();
+  telemetry.attach(bus);
+
+  const toChatTools = (): ChatToolDef[] =>
+    registry.listVisible().map((t) => ({
+      type: 'function' as const,
+      function: { name: t.name, description: t.description, parameters: t.inputSchema as unknown as Record<string, unknown> },
+    }));
+
+  const loop = new AgentLoop({
+    session,
+    bus,
+    provider: opts.provider,
+    model: opts.model,
+    buildContext: async (step) => {
+      const envelope = await builder.assemble(step);
+      if (compaction.shouldCompact(envelope.estimateTokens, builder.window)) {
+        await compaction.compact('pressure');
+      }
+      return envelope;
+    },
+    runTool,
+    getVisibleTools: toChatTools,
+    maxSteps: opts.maxSteps,
+  });
+
+  return {
+    bus,
+    session,
+    registry,
+    policyEngine,
+    builder,
+    compaction,
+    loop,
+    telemetry,
+    artifacts,
+    behaviorWarnings,
+    subagentManager,
+    mcpClients,
+    async close() {
+      telemetry.detach();
+      await session.close();
+      for (const c of mcpClients) {
+        await c.close();
+      }
+    },
+  };
+}

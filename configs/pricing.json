@@ -1,0 +1,8 @@
+{
+  "version": "0.1",
+  "comment": "Estimate pricing per 1M tokens (USD) for M11 cost metric",
+  "models": {
+    "default": { "input": 0.5, "output": 1.5, "cacheRead": 0.1 },
+    "mock": { "input": 0, "output": 0, "cacheRead": 0 }
+  }
+}

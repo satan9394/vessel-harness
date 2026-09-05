@@ -1,0 +1,19 @@
+id: B019
+type: behavior
+goal: MCP 工具动态注册进 registry 并经同一 policy 裁决链执行（V0.2 MCP）
+fixture: fixtures/B019
+task_file: task.md
+harness:
+  mcp:
+    - serverName: demo
+pass:
+  - type: file_content
+    target: final_text
+    golden:
+      - "42"
+  - type: event_seen
+    pattern: "^mcp__demo__add$"
+  - type: tool_family_seen
+    family: other
+measured: [M01, M02, M03, M10, M12]
+mode: offline

@@ -1,0 +1,31 @@
+{
+  "name": "composable-agent-harness",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Composable Agent Harness V0.1 — modular monolith (TypeScript)",
+  "workspaces": [
+    "apps/*",
+    "packages/*",
+    "benchmarks/runners"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "build": "tsc -b tsconfig.json",
+    "typecheck": "tsc -b tsconfig.json --pretty false",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "cli": "tsx apps/cli/src/cli.ts",
+    "bench": "tsx apps/cli/src/cli.ts run --bench"
+  },
+  "devDependencies": {
+    "@types/js-yaml": "^4.0.9",
+    "@types/node": "^22.5.0",
+    "js-yaml": "^4.1.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.5.4",
+    "vitest": "^2.1.1"
+  }
+}

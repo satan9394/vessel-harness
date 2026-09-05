@@ -1,0 +1,19 @@
+{
+  "files": [],
+  "references": [
+    { "path": "packages/shared" },
+    { "path": "packages/core" },
+    { "path": "packages/llm" },
+    { "path": "packages/behavior" },
+    { "path": "packages/context" },
+    { "path": "packages/tools" },
+    { "path": "packages/policy" },
+    { "path": "packages/runtime" },
+    { "path": "packages/memory" },
+    { "path": "packages/skills" },
+    { "path": "packages/agents" },
+    { "path": "packages/telemetry" },
+    { "path": "apps/cli" },
+    { "path": "benchmarks/runners" }
+  ]
+}

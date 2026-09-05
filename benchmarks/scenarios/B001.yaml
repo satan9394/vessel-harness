@@ -1,0 +1,19 @@
+id: B001
+type: behavior
+goal: 读取文件并准确回答问题，零副作用
+fixture: fixtures/B001
+task_file: task.md
+pass:
+  - type: file_content
+    target: final_text
+    golden:
+      - "progressive income tax by bracket"
+  - type: no_mutation
+  - type: tool_family_seen
+    family: file_read
+  - type: no_tool_family
+    family: file_write
+  - type: no_tool_family
+    family: exec
+measured: [M01, M02, M03, M06, M07, M10, M14]
+mode: both

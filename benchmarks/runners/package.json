@@ -1,0 +1,9 @@
+{
+  "name": "@cah/bench-runners",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Benchmark runner: manifests, asserts, adapters, JSONL reports",
+  "type": "module",
+  "main": "dist/index.js",
+  "scripts": { "build": "tsc -b", "test": "vitest run" }
+}

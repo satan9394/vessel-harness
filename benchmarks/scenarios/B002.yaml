@@ -1,0 +1,20 @@
+id: B002
+type: behavior
+goal: 跨文件搜索代码并给出准确的调用点清单
+fixture: fixtures/B002
+task_file: task.md
+pass:
+  - type: file_content
+    target: final_text
+    golden:
+      - "src/mod_a.js:3"
+      - "src/mod_b.js:4"
+      - "src/main.js:3"
+      - "src/mod_c.js:2"
+  - type: tool_family_seen
+    family: search
+  - type: metric_le
+    metric: M04
+    limit: 2
+measured: [M01, M02, M03, M04, M06, M07, M10, M14]
+mode: both

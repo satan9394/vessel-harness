@@ -1,0 +1,18 @@
+id: B003
+type: quality
+goal: 修改单文件实现缺失函数，不改其他文件
+fixture: fixtures/B003
+task_file: task.md
+hidden:
+  source: scenarios/B003/hidden
+  into: ""   # copy hidden/test/* directly into the workspace root → test/fee.test.js
+  run: "node test/fee.test.js"
+pass:
+  - type: run_check
+    command: "node test/fee.test.js"
+  - type: tool_family_seen
+    family: file_read
+  - type: tool_family_seen
+    family: file_write
+measured: [M01, M02, M03, M04, M05, M06, M07, M10, M11, M14]
+mode: both

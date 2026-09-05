@@ -1,0 +1,16 @@
+id: B005
+type: mechanism
+goal: Bash 执行并把命令结果用于后续决策（真执行链路）
+fixture: fixtures/B005
+task_file: task.md
+policy:
+  profile: danger-full-access   # scenario-level policy injection: shell (node -e) needs danger profile
+pass:
+  - type: file_content
+    target: "file:config.json"
+    json_path: derived
+    golden_expr: "(seed * 31 + 7) % 100000"   # runner independently recomputes from the file's own seed
+  - type: tool_family_seen
+    family: exec
+measured: [M01, M02, M03, M04, M05, M06, M07, M10, M11, M14]
+mode: both

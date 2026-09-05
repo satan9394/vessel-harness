@@ -1,0 +1,18 @@
+id: B018
+type: behavior
+goal: Evaluator Agent 在隔离上下文独立评审 Generator 产出，判定拒绝并给出证据（V0.2）
+fixture: fixtures/B018
+task_file: task.md
+harness:
+  evaluator: true
+pass:
+  - type: file_content
+    target: final_text
+    golden:
+      - "not_met"
+      - "缺少证据"
+  - type: record_seen
+    record: user/message
+    source: inject
+measured: [M01, M02, M03, M10]
+mode: offline

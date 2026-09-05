@@ -1,0 +1,9 @@
+node_modules/
+dist/
+*.tsbuildinfo
+.harness/
+.harness-sessions/
+benchmarks/reports/run_*/
+benchmarks/reports/B*/run_*/
+*.log
+.DS_Store
