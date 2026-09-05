@@ -86,7 +86,7 @@ npx tsx packages/tools/src/mcp/fixtures/echo-server.ts
 
 ## 6. 已知限制与建议
 
-1. **沙箱环境限制（本会话）**：`npx vitest run` 无法启动（esbuild 服务进程 spawn 被 OS 级拦截）；Shell/run_check 类真实子进程测试（4 项）在沙箱内 EPERM 失败。**非沙箱环境跑 `npx vitest run` 即可恢复 104 全绿**。
+1. **沙箱环境限制（实现会话）**：`npx vitest run` 无法启动（esbuild 服务进程 spawn 被 OS 级拦截）；Shell/run_check 类真实子进程测试（4 项）在沙箱内 EPERM 失败。**非沙箱环境跑 `npx vitest run` 即可恢复 104 全绿**——该项已由独立核验在非沙箱环境复核通过（104 全绿 + MCP StdioTransport 真实 spawn + 真实 git worktree round-trip 冒烟均过，见 docs/REVIEW-REPORT-V02.md §〇）。
 2. **MCP StdioTransport 未在沙箱内运行时验证**：真实 `node <server>` spawn 被沙箱拦截；协议逻辑经 in-process transport 全量测试（initialize/tools/list/tools/call/错误路径）。非沙箱环境建议补一条 `StdioTransport` 冒烟（起 `echo-server.ts`）。
 3. **Git Worktree 默认 GitRunner 未在沙箱内运行时验证**：真实 git spawn 被拦截；模块逻辑（branch 清洗、路径解析、参数构造、porcelain 解析）经 fake runner 全量测试。非沙箱环境建议补真实 `git worktree add/remove/list` 冒烟。
 4. **Planner 步骤评估**：离线车道用确定性验收评估（golden 子串）；LLM 深度评审走 Evaluator Agent（M3）。`generatePlan` 依赖模型输出合法 JSON，失败 fail loud。

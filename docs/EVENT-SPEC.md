@@ -158,7 +158,7 @@ seq        : number        # 会话内事件序号（不变式校验用）
 
 #### A01 SessionStart（新增）
 - **触发时机**：一次会话进入「可跑」状态时，按来源**每会话至多一次**（启动/恢复/清空/压缩后/子代理派生），在任何 BeforeTurn 之前；会话创建事务发布 `session/created` 之后（DSH：构造 → setup → 发布 `session/created`/`agent/created`/`agent/session-start` → 启动驱动器，行 53）。
-- **载荷字段**：`source: 'startup'|'resume'|'fork'|'clear'|'compact'|'subagent'`（对应 DSH `SessionStartSource`，行 209/315）；`sessionHeader:{formatVersion, cwd, parentSession?, isSeeded, delegationDepth, agentPreset, origin?}`（对照 DSH SessionHeader，行 308）；`settings:{sandboxMode, approvalPolicy, toolRestrictions, model}`。
+- **载荷字段**：`source: 'startup'|'resume'|'fork'|'clear'|'compact'|'subagent'|'evaluator'|'plan'`（V0.2 新增 `'evaluator'`/`'plan'`，对应 Evaluator Agent 隔离会话与 Planner 注入；对应 DSH `SessionStartSource`，行 209/315）；`sessionHeader:{formatVersion, cwd, parentSession?, isSeeded, delegationDepth, agentPreset, origin?}`（对照 DSH SessionHeader，行 308）；`settings:{sandboxMode, approvalPolicy, toolRestrictions, model}`。
 - **flow**：`waterfall`——可**拦截**（如：工作区信任门拒绝、resume 的健康探针失败）→ 拒绝本轮启动并给出 `reason`；可**改载荷**（按 source 装载：恢复时注入 resume 提示、clear 时装载新 seed、子代理按 frontmatter 裁剪工具/模型）。
 - **消费方示例**：工作区指令装载器（把 AGENTS.md 基线作为带来源的持久 user/message 注入，H02 共同抽象）、技能目录索引装载、MCP 工具名快照装载、外部 hooks（Codex `SessionStart` matcher 按 source 匹配）、审计（会话创建/恢复留痕）。
 - **关联机制/镜像**：`agent/session-start`（DSH）；`SessionStart`（Codex/Claude）；记录：`session/created`、`session/end-seed`。
@@ -364,7 +364,7 @@ seq        : number        # 会话内事件序号（不变式校验用）
 
 > 设计约束：日志=唯一真源；surface 派生模型历史只投影三种记录（`user/message`、`assistant/message`、`tool/result`，DSH 行 107）；边界/审计/账目记录不产生消息但可回放、可做不变式校验（H12 invariant_selfcheck）。所有记录含 §4 通用字段。
 
-- **B01 `user/message`** —— 用户输入/排队消息/注入上下文（带 `source` 区分生产方：user/steering/inject/skill-instructions/compacted-summary），`surface:true`。触发：BeforeTurn 放行批次、`agent.inject()` 队列化消息在下一次获准 pre-step 进入。可被压缩 replace。
+- **B01 `user/message`** —— 用户输入/排队消息/注入上下文（带 `source` 区分生产方：user/steering/inject/skill-instructions/compacted-summary/plan（V0.2 新增：Planner 注入的 Plan 一等对象）），`surface:true`。触发：BeforeTurn 放行批次、`agent.inject()` 队列化消息在下一次获准 pre-step 进入。可被压缩 replace。
 - **B02 `assistant/message`** —— 模型纯文本终态（无未决 tool_call），`surface:true`，含 `finishReason`。
 - **B03 `assistant/attempt`** —— 模型**尝试**（含中间产物或被 `interrupted:true` 前缀打断的流），`surface:false`；与 B02 关系：终态 message 覆盖尝试（DSH 词汇）。
 - **B04 `tool/call`** —— 每个进入分发的工具调用，`surface:false`（原始 arguments JSON，供配对不变式）。字段：`toolCallId, toolName, arguments, mode`。
