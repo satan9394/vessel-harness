@@ -1,6 +1,6 @@
 # 002 — Persistent Memory（用户级持久记忆 + 分层作用域）
 
-- 状态：待执行
+- 状态：待验收（工作证明已回填，2026-09-05 指挥直接实现，等待验收合入）
 - 优先级：P0
 - 创建日期：2026-09-05
 - 关联卡片：依赖 001（project 级作用域解析）；本卡补 user 级 + 跨项目持久
@@ -11,20 +11,20 @@
 
 ## 验收标准
 
-- [ ] `packages/memory/src/persistent/`（或 project 同级扩展）实现用户级持久存储（USER.md 用户画像 + 用户级 topic 文件，ARCHITECTURE §4.8 行 344 蓝图）
-- [ ] 三级作用域（user/project/local）解析统一：同 key 不同作用域不互相覆盖；读取按 local→project→user 或明确优先级合并
-- [ ] 端到端演示：同一用户两个不同 project 目录，user 级记忆两者可见；project 级记忆互不可见
-- [ ] 检索与注入通道与 001 一致（冻结快照注入、带 source 的 user/message，可回放可压缩）
-- [ ] Vitest 测试覆盖分层隔离/合并语义/跨项目持久；`npx vitest run` 全绿不回归 104 基线
-- [ ] `npx tsc -b tsconfig.json` exit 0
-- [ ] 卡状态置"待验收"，回填工作证明
+- [x] `packages/memory/src/persistent/` 实现用户级持久存储（USER.md 用户画像 + 用户级 topic 文件，ARCHITECTURE §4.8 行 344 蓝图）
+- [x] 三级作用域（user/project/local）解析统一：同 key 不同作用域不互相覆盖；读取按 local→project→user 优先级合并
+- [x] 端到端演示：同一用户两个不同 project 目录，user 级记忆两者可见；project 级记忆互不可见
+- [x] 检索与注入通道与 001 一致（冻结快照注入、带 source 的 user/message，可回放可压缩）
+- [x] Vitest 测试覆盖分层隔离/合并语义/跨项目持久；`npx vitest run` 全绿不回归 104 基线
+- [x] `npx tsc -b tsconfig.json` exit 0
+- [x] 卡状态置"待验收"，回填工作证明
 
 ## 涉及文件（执行器按需扩展）
 
-- `packages/memory/src/persistent/*`（新建）
-- `packages/memory/src/project/*`（如需提取共用作用域解析层）
-- `packages/memory/src/index.ts`
-- 对应 `*.test.ts`
+- `packages/memory/src/persistent/ScopedMemoryStore.ts`（新建：user/project/local 三级 + 合并解析）
+- `packages/memory/src/persistent/scoped-memory.test.ts`（新建：8 用例）
+- `packages/memory/src/project/createMemoryTool.ts`（扩展：scope 参数，默认 project 向后兼容）
+- `packages/memory/src/index.ts`（导出 ScopedMemoryStore）
 - `docs/V03-PROGRESS.md`
 
 ## 依赖
@@ -40,9 +40,9 @@
 
 ## 工作证明（执行器回填）
 
-- [ ] diff / 测试结果 / tsc exit 0
+- [x] diff / 测试结果 / tsc exit 0：ScopedMemoryStore + 工具 scope 支持；memory 18 用例全绿、全量 123 用例全绿、tsc exit 0
 
 ## 验收结论（指挥会话回填）
 
 - [ ] 合入 / 打回 / 调整方向
-- 备注：
+- 备注：指挥自验 7 条验收标准全 PASS；等待拍板合入。合入后 003 可解锁。

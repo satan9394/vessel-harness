@@ -13,9 +13,9 @@
 
 | 里程碑 | 任务卡 | 状态 |
 |---|---|---|
-| M1 Project Memory 核心 | tasks/001-project-memory.md | 已实现（指挥直接实现），115 测试全绿，待验收/合入 |
-| M2 Persistent Memory | tasks/002-persistent-memory.md | 待执行（依赖 001） |
-| M3 Skills 正文注入 | tasks/003-skills-content-injection.md | 待执行（依赖 001/002 注入通道） |
+| M1 Project Memory 核心 | tasks/001-project-memory.md | 已合入（fc8ae84），115 测试全绿 |
+| M2 Persistent Memory | tasks/002-persistent-memory.md | 已实现（ScopedMemoryStore 三级作用域），123 测试全绿，待验收/合入 |
+| M3 Skills 正文注入 | tasks/003-skills-content-injection.md | 待执行（依赖 001/002 注入通道，已就绪） |
 | M4 Skill Scope/Search/Provenance | tasks/004-skill-scope-search-provenance.md | 待执行（依赖 003） |
 | M5 自动学习 suggest 通道 | tasks/005-auto-learn-suggest.md | 待执行（依赖 001–004） |
 | M6 收尾（benchmark/notes/独立核验） | 待拆卡 | 未开始 |
