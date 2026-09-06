@@ -1,6 +1,6 @@
 # 005 — 自动学习 suggest 通道（只建议，不自动改）
 
-- 状态：待执行
+- 状态：已合入（2026-09-05 指挥实现并验收）
 - 优先级：P1
 - 创建日期：2026-09-05
 - 关联卡片：依赖 001–004（记忆 + 技能面就绪后才有 suggest 对象）
@@ -11,18 +11,19 @@
 
 ## 验收标准
 
-- [ ] suggest 通道：产出结构化候选（内容 + 类型：skill/memory + 理由 + 来源证据）
-- [ ] 独立评审：候选经 Evaluator Agent（或确定性判据）评审，不通过不落盘
-- [ ] 用户拍板门：只有明确批准才写入；未批准候选只留建议记录
-- [ ] 只写 learned/：写入目标是隔离的 `learned/` 区（如 `<scope>/learned/`），与用户技能/记忆区物理分离
-- [ ] 测试实证无 auto modify：候选未批准时用户区零改动（快照对比）
-- [ ] Vitest 全绿不回归 104 基线；`npx tsc -b` exit 0
-- [ ] 卡状态置"待验收"，回填工作证明
+- [x] suggest 通道：产出结构化候选（内容 + 类型：skill/memory + 理由 + 来源证据）
+- [x] 独立评审：候选经 Evaluator Agent（或确定性判据）评审，不通过不落盘
+- [x] 用户拍板门：只有明确批准才写入；未批准候选只留建议记录
+- [x] 只写 learned/：写入目标是隔离的 `learned/` 区（如 `<scope>/learned/`），与用户技能/记忆区物理分离
+- [x] 测试实证无 auto modify：候选未批准时用户区零改动（快照对比）
+- [x] Vitest 全绿不回归 104 基线；`npx tsc -b` exit 0
+- [x] 卡状态置"待验收"，回填工作证明
 
 ## 涉及文件
 
-- `packages/memory/src/learned/*` 或 `packages/skills/src/learned/*`（suggest + learned 区）
-- 评审接线复用 agents/evaluator（Evaluator Agent）
+- `packages/memory/src/learned/LearnedStore.ts`（新建：suggest/recordVerdict/approve/reject + learned 区）
+- `packages/memory/src/learned/learned-store.test.ts`（新建：6 用例）
+- `packages/memory/src/index.ts`（导出）
 - `docs/V03-PROGRESS.md`
 
 ## 依赖
@@ -38,9 +39,9 @@
 
 ## 工作证明（执行器回填）
 
-- [ ] diff / 测试结果 / tsc exit 0
+- [x] diff / 测试结果 / tsc exit 0：LearnedStore 状态机（suggest→verdict→approve/reject）+ learned/ 隔离 + 无 auto modify 快照实证；memory 24 用例全绿、全量 144 用例全绿、tsc exit 0
 
 ## 验收结论（指挥会话回填）
 
-- [ ] 合入 / 打回 / 调整方向
-- 备注：
+- [x] 合入 / 打回 / 调整方向：合入（2026-09-05 指挥验收）
+- 备注：7 条验收标准全 PASS；V0.3 实现范围 001–005 全部完成，进入 M6 收尾。
