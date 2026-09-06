@@ -10,6 +10,7 @@ import { discoverInstructions } from '@cah/context';
 import { listIndex, formatIndexText } from '@cah/skills';
 import { Telemetry } from '@cah/telemetry';
 import { SubagentManager, createSubagentTool } from '@cah/agents';
+import { ProjectStore, createMemoryTool } from '@cah/memory';
 
 export interface ComposeMcpConnection {
   serverName: string;
@@ -34,6 +35,8 @@ export interface ComposeOptions {
   subagent?: { enabled?: boolean; maxConcurrent?: number; maxDepth?: number; delegationDepth?: number };
   /** V0.2: register MCP server tools dynamically (mcp__<server>__<tool>) */
   mcp?: ComposeMcpConnection[];
+  /** V0.3: Project Memory (file-based, .harness/memory) — Memory tool + frozen snapshot injection */
+  memory?: { enabled?: boolean };
 }
 
 export interface ComposedHarness {
@@ -78,10 +81,14 @@ export async function composeHarness(opts: ComposeOptions): Promise<ComposedHarn
     allow: [],
   };
   const sandbox = new Sandbox();
+  // V0.3 project memory: file-based store + Memory tool + frozen snapshot for context injection
+  const memoryEnabled = opts.memory?.enabled ?? true;
+  const projectStore = memoryEnabled ? new ProjectStore(workspaceRoot) : null;
   const tools = [
     ...createFsTools({ workspaceRoot, fsPolicy }),
     ...createSearchTools({ workspaceRoot, fsPolicy }),
     createShellTool({ workspaceRoot, sandbox }),
+    ...(projectStore ? [createMemoryTool({ workspaceRoot })] : []),
   ];
 
   // Executor: pre-execute policy recheck (tool layer never trusts the caller)
@@ -147,6 +154,7 @@ export async function composeHarness(opts: ComposeOptions): Promise<ComposedHarn
     instructions,
     getVisibleTools: () => registry.listVisible(),
     volatileText: skillsIndex,
+    projectMemory: projectStore ? () => projectStore.snapshot() : undefined,
     contextWindow: opts.contextWindow,
   });
   const compaction = new Compaction({ session, summarize: opts.summarize });

@@ -25,6 +25,8 @@ export interface BuilderDeps {
   policyGuidance: () => string[];
   /** AGENTS.md chain — injected once per session as user messages (可回放可压缩) */
   instructions: () => Instruction[];
+  /** Project Memory frozen snapshot — injected once per session as a user message with source='memory' (V0.3-M1) */
+  projectMemory?: () => string;
   getVisibleTools: () => ToolSpec[];
   /** volatile layer (skills index / environment / timestamp) */
   volatileText?: () => string;
@@ -104,6 +106,18 @@ export class ContextBuilder {
           role: 'user',
           content: `[指令文件 ${instr.sourcePath}]\n${instr.content}`,
           source: 'instruction',
+          surface: true,
+        });
+      }
+      // Project Memory frozen snapshot — once per session, source='memory' (可回放可压缩)
+      const memSnap = this.deps.projectMemory?.() ?? '';
+      if (memSnap) {
+        await session.append({
+          type: 'user/message',
+          msgId: `m_mem_${crypto.randomBytes(4).toString('hex')}`,
+          role: 'user',
+          content: memSnap,
+          source: 'memory',
           surface: true,
         });
       }

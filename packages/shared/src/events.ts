@@ -23,7 +23,7 @@ export interface UserMessageRecord extends SessionRecordBase {
   msgId: string;
   role: 'user';
   content: string;
-  source?: 'user' | 'inject' | 'instruction' | 'compacted-summary' | 'plan';
+  source?: 'user' | 'inject' | 'instruction' | 'compacted-summary' | 'plan' | 'memory';
   surface: true;
 }
 

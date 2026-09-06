@@ -13,7 +13,7 @@
 
 | 里程碑 | 任务卡 | 状态 |
 |---|---|---|
-| M1 Project Memory 核心 | tasks/001-project-memory.md | 执行中（子代理 b6f63a88） |
+| M1 Project Memory 核心 | tasks/001-project-memory.md | 已实现（指挥直接实现），115 测试全绿，待验收/合入 |
 | M2 Persistent Memory | tasks/002-persistent-memory.md | 待执行（依赖 001） |
 | M3 Skills 正文注入 | tasks/003-skills-content-injection.md | 待执行（依赖 001/002 注入通道） |
 | M4 Skill Scope/Search/Provenance | tasks/004-skill-scope-search-provenance.md | 待执行（依赖 003） |

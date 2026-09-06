@@ -116,6 +116,26 @@ describe('context/builder — three-layer assembly', () => {
     await session.close();
   });
 
+  it('project memory frozen snapshot injected once as a user message with source=memory', async () => {
+    const session = await Session.open({ workspaceRoot: dir, sessionId: 'b3' });
+    const tools: ToolSpec[] = [];
+    const builder = new ContextBuilder({
+      session, model: 'm',
+      stableSections: () => [], policyGuidance: () => [],
+      instructions: () => [],
+      projectMemory: () => '[Project Memory 快照]\n## arch\ncore 薄核',
+      getVisibleTools: () => tools,
+      volatileText: () => '',
+    });
+    const env = await builder.assemble(1);
+    expect(env.messages.some((m) => m.role === 'user' && m.content.includes('[Project Memory 快照]'))).toBe(true);
+    // injected once — second assemble does not duplicate the snapshot record
+    await builder.assemble(2);
+    const snapRecs = session.replay().filter((r) => r.type === 'user/message' && (r as { source?: string }).source === 'memory');
+    expect(snapRecs).toHaveLength(1);
+    await session.close();
+  });
+
   it('denied tools never reach the model (schema-level trimming)', async () => {
     const session = await Session.open({ workspaceRoot: dir, sessionId: 'b2' });
     const visible: ToolSpec[] = [
