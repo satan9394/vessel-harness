@@ -77,3 +77,5 @@ export function formatIndexText(entries: SkillIndexEntry[]): string {
   if (entries.length === 0) return '';
   return entries.map((s) => `- ${s.name}: ${s.description}`).join('\n');
 }
+
+export * from './load/SkillLoader.js';

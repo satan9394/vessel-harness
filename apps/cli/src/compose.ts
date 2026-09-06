@@ -7,7 +7,7 @@ import { PolicyEngine, loadPolicyArtifacts } from '@cah/policy';
 import { Executor, Sandbox } from '@cah/runtime';
 import { loadBehaviorIR, compileBehavior } from '@cah/behavior';
 import { discoverInstructions } from '@cah/context';
-import { listIndex, formatIndexText } from '@cah/skills';
+import { listIndex, formatIndexText, createSkillTool } from '@cah/skills';
 import { Telemetry } from '@cah/telemetry';
 import { SubagentManager, createSubagentTool } from '@cah/agents';
 import { ProjectStore, createMemoryTool } from '@cah/memory';
@@ -88,6 +88,7 @@ export async function composeHarness(opts: ComposeOptions): Promise<ComposedHarn
     ...createFsTools({ workspaceRoot, fsPolicy }),
     ...createSearchTools({ workspaceRoot, fsPolicy }),
     createShellTool({ workspaceRoot, sandbox }),
+    createSkillTool({ workspaceRoot }),
     ...(projectStore ? [createMemoryTool({ workspaceRoot })] : []),
   ];
 
