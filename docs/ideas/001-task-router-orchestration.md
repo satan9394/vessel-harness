@@ -20,11 +20,9 @@ OmO 火爆核心不是 Agent 技术代差，而是产品化：预设 Agent 角�
 
 ## 候选去向（用户拍板）
 
-- A：排 V0.4（推荐——V0.3 记忆/技能线先收口，Task Router 作为下阶段一级主线）
-- B：插队拆执行卡（动 llm/router + 新增 task-classifier，与 memory 卡不同包可并行 1 worker）
-- C：只先做"预设 Agent 角色库"最小切片（Opinionated roles），Task Router 后置
-- D：仅记录，不排期
+- **已定：A → 排 V0.4**（用户 2026-09-05 选"尽量往下推 V0.4"；V0.3 收口后作为 V0.4 主线拆卡执行）
 
 ## 沉淀结论（复盘时回填）
 
-（待用户拍板后更新）
+- （待 V0.3 收口后拆 V0.4 任务书时更新）
+- 关键约束备忘：Task Router 衔接 D3 决策点 13/14（model profile）与任务书 V0.5 Loop Engine Task Selection；实现落点 packages/llm/src/router/（现 SimpleRouter 仅 18 行透传）+ 新增 task-classifier；预设 Agent 角色库可参考 ARCHITECTURE 对 agents/ 的 preset 描述（Evaluator 非新原语先例），不抄 OmO 具体角色名。
