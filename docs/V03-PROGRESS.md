@@ -15,9 +15,9 @@
 |---|---|---|
 | M1 Project Memory 核心 | tasks/001-project-memory.md | 已合入（fc8ae84），115 测试全绿 |
 | M2 Persistent Memory | tasks/002-persistent-memory.md | 已合入（3bcf37f），123 测试全绿 |
-| M3 Skills 正文注入 | tasks/003-skills-content-injection.md | 已实现（SkillLoader + Skill 工具），131 测试全绿，待验收/合入 |
-| M4 Skill Scope/Search/Provenance | tasks/004-skill-scope-search-provenance.md | 待执行（依赖 003） |
-| M5 自动学习 suggest 通道 | tasks/005-auto-learn-suggest.md | 待执行（依赖 001–004） |
+| M3 Skills 正文注入 | tasks/003-skills-content-injection.md | 已合入（64832d0），131 测试全绿 |
+| M4 Skill Scope/Search/Provenance | tasks/004-skill-scope-search-provenance.md | 已合入（SkillSearch/resolveSkill/UNTRUSTED），138 测试全绿 |
+| M5 自动学习 suggest 通道 | tasks/005-auto-learn-suggest.md | 待执行（依赖 001–004，已就绪） |
 | M6 收尾（benchmark/notes/独立核验） | 待拆卡 | 未开始 |
 
 ## 2. 验收标准映射（MISSION-V0.3 第六节）
