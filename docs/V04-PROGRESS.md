@@ -13,8 +13,8 @@
 
 | 里程碑 | 任务卡 | 状态 |
 |---|---|---|
-| M1 Task Category 分类器 | tasks/006-task-category.md | 已合入，155 测试全绿 |
-| M2 Preset 库 + TaskRouter | tasks/007-task-router.md | 待执行（依赖 006） |
+| M1 Task Category 分类器 | tasks/006-task-category.md | 已合入（1d49838），155 测试全绿 |
+| M2 Preset 库 + TaskRouter | tasks/007-task-router.md | 已合入（TaskRouter + DEFAULT_PRESETS），166 测试全绿 |
 | M3 接线（compose/subagent preset） | tasks/008-task-router-wiring.md | 待执行（依赖 007） |
 | M4 收尾（B022 + notes + 核验） | tasks/009-v04-closeout.md | 待执行（依赖 008） |
 
