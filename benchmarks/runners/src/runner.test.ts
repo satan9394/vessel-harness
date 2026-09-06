@@ -76,3 +76,26 @@ describe('benchmarks/runner — V0.2 batch B016–B019 (offline mock lane)', () 
     }, 60_000);
   }
 });
+
+describe('benchmarks/runner — V0.3 batch B020–B021 (offline mock lane)', () => {
+  for (const id of ['B020', 'B021']) {
+    it(`${id} passes all manifest assertions (project memory / skill content)`, async () => {
+      const report = await runScenario({
+        scenarioId: id,
+        repoRoot: REPO_ROOT,
+        reportsDir: REPORTS,
+        provider: null,
+        model: 'mock-model',
+        policyPath: path.join(REPO_ROOT, 'configs', 'policy.default.yaml'),
+        behaviorIRPath: path.join(REPO_ROOT, 'configs', 'behavior.default.yaml'),
+      });
+      tempDirs.push(report.workspace);
+      expect(report.success, `asserts: ${JSON.stringify(report.asserts)}`).toBe(true);
+      expect(report.metrics.M01).toBe(1);
+      expect(fs.existsSync(report.reportPath)).toBe(true);
+      const jsonl = fs.readFileSync(report.reportPath, 'utf8');
+      const lines = jsonl.trim().split('\n').map((l) => JSON.parse(l));
+      expect(lines.some((l) => l.type === 'assert' && l.result === 'pass')).toBe(true);
+    }, 60_000);
+  }
+});

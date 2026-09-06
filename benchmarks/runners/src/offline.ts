@@ -177,4 +177,28 @@ export const OFFLINE_SCRIPTS: Record<string, MockScriptEntry[]> = {
     },
     { when: /.*/, minToolResults: 1, response: { text: 'MCP 计算完成：{last_tool_result}' } },
   ],
+  // V0.3: project memory — write then read a topic via the Memory tool
+  B020: [
+    {
+      when: /Memory|记忆/i,
+      ifNoToolResult: true,
+      response: { toolCalls: [{ name: 'Memory', arguments: { op: 'write', name: 'bench-note', content: 'bench 记忆内容 MEM-GOLDEN-2026' } }] },
+    },
+    {
+      when: /.*/,
+      minToolResults: 1,
+      maxToolResults: 1,
+      response: { toolCalls: [{ name: 'Memory', arguments: { op: 'read', name: 'bench-note' } }] },
+    },
+    { when: /.*/, minToolResults: 2, response: { text: '项目记忆已写入并读出：{last_tool_result}' } },
+  ],
+  // V0.3: skill content — load the bench-demo skill body via the Skill tool
+  B021: [
+    {
+      when: /Skill|技能/i,
+      ifNoToolResult: true,
+      response: { toolCalls: [{ name: 'Skill', arguments: { name: 'bench-demo' } }] },
+    },
+    { when: /.*/, minToolResults: 1, response: { text: '技能正文关键内容：SKILL-GOLDEN-77（{last_tool_result}）' } },
+  ],
 };

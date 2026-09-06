@@ -1,0 +1,16 @@
+id: B020
+type: behavior
+goal: 主代理用 Memory 工具写入并读取项目记忆（V0.3 Project Memory）
+fixture: fixtures/B020
+task_file: task.md
+pass:
+  - type: file_content
+    target: final_text
+    golden:
+      - "MEM-GOLDEN-2026"
+  - type: event_seen
+    pattern: "^Memory$"
+  - type: tool_family_seen
+    family: other
+measured: [M01, M02, M03, M10, M12]
+mode: offline

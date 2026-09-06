@@ -1,0 +1,16 @@
+id: B021
+type: behavior
+goal: 主代理用 Skill 工具按需加载技能正文并汇报（V0.3 Skills 正文注入）
+fixture: fixtures/B021
+task_file: task.md
+pass:
+  - type: file_content
+    target: final_text
+    golden:
+      - "SKILL-GOLDEN-77"
+  - type: event_seen
+    pattern: "^Skill$"
+  - type: tool_family_seen
+    family: other
+measured: [M01, M02, M03, M10, M12]
+mode: offline
