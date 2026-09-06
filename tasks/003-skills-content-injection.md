@@ -34,7 +34,8 @@
 ## 设计锚点
 
 - 决策点 11 原文：SKILL.md 开放标准 + rank 分层 + 索引渐进披露 + 调用时重读（docs/DESIGN-DECISIONS.md 行 47）
-- ARCHITECTURE §4.9 skills 蓝图：正文按需注入、作用域冲突、Search/Provenance（V0.3 全量）
+- ARCHITECTURE §4.9 已写死注入形态（行 353-355）：正文经 `skill({name})` 工具按 cwd 重读注入，返回 `<skill_content>/<skill_resources>/<skill_instructions>` 三段式；`readContent(name, cwd)`；技能正文是建议性知识，执行强制在权限/沙箱（技能执行不豁免权限）；跨 harness 兼容目录（~/.claude/skills、~/.codex/skills）
+- 注入通道走 agent.inject / 既有 source 纪律（context Builder 现 source='instruction'，对齐它）
 - 薄核纪律：skills 不进 core；正文注入是 context seam 职责
 
 ## 工作证明（执行器回填）
