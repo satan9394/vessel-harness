@@ -28,3 +28,8 @@
 | 011 | V0.5-M2 Task Selection + Trigger | 已合入 5f266fe |
 | 012 | V0.5-M3 隔离工作区 | 已合入 0af4139 |
 | 013 | V0.5-M4 收尾（B023 + notes + 核验） | 已合入 a82889d + （收尾提交） |
+| 014 | 供应商 SSOT 存储 | 已合入 3544f0f |
+| 015 | models 命令（拉取模型列表） | 已合入 3544f0f + 1314e41 |
+| 016 | provider 命令组 | 已合入 1314e41 |
+| 017 | run 默认 + pricing 扩展 | 已合入 1314e41 + d759f3a |
+| 018 | 收尾（PROVIDER-MANAGEMENT 文档） | 已合入 |
