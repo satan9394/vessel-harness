@@ -99,3 +99,22 @@ describe('benchmarks/runner — V0.3 batch B020–B021 (offline mock lane)', () 
     }, 60_000);
   }
 });
+
+describe('benchmarks/runner — V0.4 batch B022 (offline task-routing lane)', () => {
+  it('B022 routes an implementation task to the pro tier (machine-asserted golden)', async () => {
+    const report = await runScenario({
+      scenarioId: 'B022',
+      repoRoot: REPO_ROOT,
+      reportsDir: REPORTS,
+      provider: null,
+      model: 'mock-model',
+      policyPath: path.join(REPO_ROOT, 'configs', 'policy.default.yaml'),
+      behaviorIRPath: path.join(REPO_ROOT, 'configs', 'behavior.default.yaml'),
+    });
+    tempDirs.push(report.workspace);
+    expect(report.success, `asserts: ${JSON.stringify(report.asserts)}`).toBe(true);
+    expect(report.metrics.M01).toBe(1);
+    expect(report.finalText).toContain('ROUTED-TO-PRO-TIER');
+    expect(fs.existsSync(report.reportPath)).toBe(true);
+  }, 60_000);
+});

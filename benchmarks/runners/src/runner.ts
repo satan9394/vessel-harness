@@ -170,6 +170,28 @@ export async function runScenario(opts: RunScenarioOptions): Promise<ScenarioRep
       transport: createInProcessTransport((method, params) => handleMcpRequest(method, params)),
     }));
   }
+  // V0.4 task routing lane: two offline mock providers (pro/fast tiers); the
+  // task prompt is classified and the session routed to a tier. Machine proof:
+  // only the tier the task routes to emits the golden marker in its reply.
+  if (manifest.harness?.taskRouter) {
+    const proProvider = new MockProvider(
+      [{ when: /.*/, ifNoToolResult: true, response: { text: 'ROUTED-TO-PRO-TIER GOLDEN-ROUTE-2026' } }],
+      { model: 'pro-model' },
+    );
+    const fastProvider = new MockProvider(
+      [{ when: /.*/, ifNoToolResult: true, response: { text: 'ROUTED-TO-FAST-TIER' } }],
+      { model: 'fast-model' },
+    );
+    composeOpts.taskRouter = {
+      providers: { pro: proProvider, fast: fastProvider },
+      tierModel: {
+        pro: { providerId: 'pro', model: 'pro-model' },
+        fast: { providerId: 'fast', model: 'fast-model' },
+        mini: { providerId: 'fast', model: 'mini-model' },
+      },
+      taskPrompt: prompt,
+    };
+  }
 
   const harness = await composeHarness(composeOpts);
 

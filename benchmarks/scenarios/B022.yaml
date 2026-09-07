@@ -1,0 +1,15 @@
+id: B022
+type: behavior
+goal: 实现类任务经 TaskRouter 自动路由到 pro tier（V0.4 Task Router）
+fixture: fixtures/B022
+task_file: task.md
+harness:
+  taskRouter:
+    enabled: true
+pass:
+  - type: file_content
+    target: final_text
+    golden:
+      - "GOLDEN-ROUTE-2026"
+measured: [M01, M02, M03, M10, M12]
+mode: offline

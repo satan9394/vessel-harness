@@ -51,6 +51,13 @@ export interface HarnessSpec {
   planner?: boolean;
   /** evaluator driver: run generator, then EvaluatorAgent reviews the output */
   evaluator?: boolean;
+  /**
+   * V0.4: task routing driver — compose is wired with a TaskRouter over two
+   * offline mock providers (pro/fast tiers); the scenario task is classified
+   * and routed to a tier. Assertions (e.g. event_seen on a marker only the
+   * routed provider returns) prove the route machine-wise.
+   */
+  taskRouter?: { enabled?: boolean };
 }
 
 export interface ScenarioManifest {
