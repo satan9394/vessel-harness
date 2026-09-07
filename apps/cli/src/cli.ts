@@ -5,6 +5,7 @@ import { MockProvider, createProvider } from '@cah/llm';
 import { composeHarness } from './compose.js';
 import { ProviderStore, type ProviderConfig } from './providers/ProviderStore.js';
 import { fetchOpenAIModels, modelsForProtocol } from './providers/modelFetcher.js';
+import { createClackIO, runSetupWizard } from './providers/setup.js';
 
 const USAGE = `Composable Agent Harness CLI (V0.1)
 
@@ -14,6 +15,7 @@ const USAGE = `Composable Agent Harness CLI (V0.1)
   cah run [选项]                  单发模式：跑一轮用户输入
   cah run --bench <scenarioId>    基准模式：运行 benchmarks/ 场景并产出 JSONL 报告
   cah models [--provider p]       列出某供应商可用模型（OpenAI 兼容实时拉取 / Anthropic 内置清单）
+  cah setup                       交互向导：搜索选供应商 → 输 key → 拉模型 → 空格勾选 → 提交
   cah provider list               列出所有供应商（* = 当前默认）
   cah provider current            显示当前默认供应商
   cah provider add <id> --protocol <p> --model <m> [--base-url] [--api-key]   添加供应商
@@ -308,12 +310,30 @@ async function cmdProvider(args: string[], flags: Map<string, string>): Promise<
   }
 }
 
+/** `cah setup` — interactive guided provider wizard (cc-switch-style UX). */
+async function cmdSetup(_flags: Map<string, string>): Promise<number> {
+  if (!process.stdin.isTTY) {
+    console.log('cah setup 需要交互终端。非交互环境请用：cah provider add <id> --protocol <p> --base-url <url> --api-key <key> --model <model>');
+    return 2;
+  }
+  const store = new ProviderStore();
+  const io = createClackIO(store);
+  const id = await runSetupWizard({ store, io });
+  if (id) {
+    console.log(`\n✔ 已保存供应商 "${id}"。用 cah run 开始（或 cah provider switch 切换）。`);
+    return 0;
+  }
+  console.log('已取消，未做任何修改。');
+  return 1;
+}
+
 export async function main(argv: string[] = process.argv.slice(2)): Promise<number> {
   const parsed = parseArgs(argv);
   // subcommand forms: `cah provider <sub>`, `cah models`
   const first = parsed.positionals[0];
   if (first === 'provider') return cmdProvider(parsed.positionals.slice(1), parsed.flags);
   if (first === 'models') return cmdModels(parsed.flags);
+  if (first === 'setup') return cmdSetup(parsed.flags);
   switch (parsed.command) {
     case 'help':
       console.log(USAGE);
