@@ -1,7 +1,7 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { VERSION } from '@cah/shared';
-import { MockProvider, OpenAICompatibleProvider } from '@cah/llm';
+import { MockProvider, createProvider } from '@cah/llm';
 import { composeHarness } from './compose.js';
 
 const USAGE = `Composable Agent Harness CLI (V0.1)
@@ -15,14 +15,20 @@ const USAGE = `Composable Agent Harness CLI (V0.1)
 run 选项:
   --prompt <text>                 用户输入（缺省从 stdin 读取）
   --workspace <dir>               工作区（默认当前目录）
-  --provider <mock|openai-compatible>   模型提供方（默认 mock）
-  --model <name>                  模型名（OpenAI-compatible 必填，或环境变量 CAH_MODEL）
-  --base-url <url>                OpenAI-compatible 端点（或 CAH_BASE_URL）
+  --provider <mock|openai-compatible|anthropic>   模型提供方（默认 mock）
+  --model <name>                  模型名（OpenAI/Anthropic 协议需指定，或 CAH_MODEL）
+  --base-url <url>                端点：openai-compatible 用 {base}/chat/completions，
+                                  anthropic 用 {base}/v1/messages（或 CAH_BASE_URL）
   --api-key <key>                 API 密钥（或 CAH_API_KEY；本地端点可不填）
   --max-steps <n>                 单轮步数上限（默认 64）
   --policy <path>                 系统级策略文件（默认 configs/policy.default.yaml）
   --behavior <path>               Behavior IR 文件（默认 configs/behavior.default.yaml）
   --session-dir <dir>             会话日志目录（默认 <workspace>/.harness/sessions/<id>）
+
+provider 协议说明:
+  openai-compatible    OpenAI chat/completions 协议：OpenAI / DeepSeek / Qwen / vLLM / Ollama 等
+  anthropic            Anthropic Messages API 协议：Anthropic Claude 及兼容端点
+  mock                 确定性离线脚本（测试 / 冒烟，不发网络请求）
 `;
 
 interface ParsedArgs {
@@ -78,15 +84,15 @@ async function cmdRun(flags: Map<string, string>): Promise<number> {
 
   const providerName = flags.get('provider') ?? 'mock';
   const model = flags.get('model') ?? process.env.CAH_MODEL ?? 'mock-model';
+  const baseUrl = flags.get('base-url') ?? process.env.CAH_BASE_URL;
+  const apiKey = flags.get('api-key') ?? process.env.CAH_API_KEY;
   let provider;
-  if (providerName === 'openai-compatible') {
-    const baseUrl = flags.get('base-url') ?? process.env.CAH_BASE_URL;
-    const apiKey = flags.get('api-key') ?? process.env.CAH_API_KEY;
+  if (providerName === 'openai-compatible' || providerName === 'anthropic') {
     if (!baseUrl) {
-      console.error('[cah] openai-compatible 需要 --base-url 或 CAH_BASE_URL');
+      console.error(`[cah] ${providerName} 需要 --base-url 或 CAH_BASE_URL`);
       return 2;
     }
-    provider = new OpenAICompatibleProvider({ baseUrl, apiKey, model });
+    provider = createProvider(providerName, { baseUrl, apiKey, model });
   } else {
     // default smoke script: read README.md (if prompt asks) then answer from the result
     const smokeScript = [
@@ -145,8 +151,8 @@ async function cmdBench(flags: Map<string, string>): Promise<number> {
   const providerName = flags.get('provider') ?? 'mock';
   const model = flags.get('model') ?? process.env.CAH_MODEL ?? 'mock-model';
   const provider =
-    providerName === 'openai-compatible'
-      ? new OpenAICompatibleProvider({
+    providerName === 'openai-compatible' || providerName === 'anthropic'
+      ? createProvider(providerName, {
           baseUrl: flags.get('base-url') ?? process.env.CAH_BASE_URL ?? '',
           apiKey: flags.get('api-key') ?? process.env.CAH_API_KEY,
           model,
