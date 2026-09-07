@@ -6,6 +6,7 @@ import { composeHarness } from './compose.js';
 import { ProviderStore, type ProviderConfig } from './providers/ProviderStore.js';
 import { fetchOpenAIModels, modelsForProtocol } from './providers/modelFetcher.js';
 import { createClackIO, runSetupWizard } from './providers/setup.js';
+import { runChat } from './tui/chat.js';
 
 const USAGE = `Composable Agent Harness CLI (V0.1)
 
@@ -337,6 +338,22 @@ export async function main(argv: string[] = process.argv.slice(2)): Promise<numb
   if (first === 'provider') return cmdProvider(parsed.positionals.slice(1), parsed.flags);
   if (first === 'models') return cmdModels(parsed.flags);
   if (first === 'setup') return cmdSetup(parsed.flags);
+  // bare `cah` (no subcommand): interactive TUI in a TTY; guide otherwise.
+  if (first === undefined && parsed.command === 'run' && !parsed.flags.has('bench')) {
+    if (!parsed.flags.has('prompt') && process.stdin.isTTY) {
+      const root = repoRoot();
+      return runChat({
+        workspaceRoot: path.resolve(parsed.flags.get('workspace') ?? process.cwd()),
+        policySystemPath: parsed.flags.get('policy') ?? path.join(root, 'configs', 'policy.default.yaml'),
+        behaviorIRPath: parsed.flags.get('behavior') ?? path.join(root, 'configs', 'behavior.default.yaml'),
+        permission: (parsed.flags.get('permission') ?? 'workspace-write') as 'read-only' | 'workspace-write' | 'danger-full-access',
+      });
+    }
+    if (!parsed.flags.has('prompt')) {
+      console.log('[cah] 交互模式需要终端。一次性任务请用：cah run --prompt "..."；配置供应商用 cah setup。');
+      return 2;
+    }
+  }
   switch (parsed.command) {
     case 'help':
       console.log(USAGE);
