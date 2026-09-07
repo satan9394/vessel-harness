@@ -1,6 +1,6 @@
 # 014 — 供应商配置 SSOT 存储（~/.dsh/providers.json）
 
-- 状态：待执行
+- 状态：待验收（执行器 2026-09-05 完成核心+测试，全绿）
 - 优先级：P0
 - 创建日期：2026-09-05
 - 关联卡片：015-018 都依赖本卡；目标 goal-575e1e4b
@@ -38,7 +38,12 @@
 
 ## 工作证明（执行器回填）
 
-- [ ] diff / 测试结果 / tsc exit 0
+- [x] diff / 测试结果 / tsc exit 0
+- 改动文件：
+  - 新增 `apps/cli/src/providers/ProviderStore.ts`（ProviderConfig/ProviderStore/内置 mock/原子写/校验 fail-loud）
+  - 新增 `apps/cli/src/providers/ProviderStore.test.ts`（21 用例）
+- 证据：`npx tsc -b` exit 0；`npx vitest run` 238 passed（含 ProviderStore 21 新用例，无回归）；定向跑 ProviderStore.test.ts 21/21 绿。
+- 未完成：无（卡验收标准逐条 PASS，见回传 message）。
 
 ## 验收结论（指挥会话回填）
 

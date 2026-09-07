@@ -12,7 +12,7 @@
 
 | 里程碑 | 任务卡 | 状态 |
 |---|---|---|
-| SSOT 存储 | tasks/014-provider-ssot.md | 待执行 → 派子代理 |
+| SSOT 存储 | tasks/014-provider-ssot.md | 实现完成（ProviderStore 21 用例绿 + tsc 0）→ 待验收 |
 | models 命令 | tasks/015-models-command.md | 待执行（依赖 014） |
 | provider 命令组 | tasks/016-provider-commands.md | 待执行（依赖 014） |
 | run 默认 + TaskRouter/pricing | tasks/017-run-default-wiring.md | 待执行（依赖 014-016） |
