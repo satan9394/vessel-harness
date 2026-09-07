@@ -125,3 +125,74 @@ describe('CLI (apps/cli)', () => {
     await h.close();
   });
 });
+
+describe('CLI provider/models commands (task 016/015)', () => {
+  let cfgDir: string;
+  let oldRoot: string | undefined;
+
+  beforeEach(() => {
+    cfgDir = fs.mkdtempSync(path.join(os.tmpdir(), 'cah-pcfg-'));
+    oldRoot = process.env.CAH_PROVIDER_ROOT;
+    process.env.CAH_PROVIDER_ROOT = cfgDir;
+  });
+  afterEach(() => {
+    if (oldRoot === undefined) delete process.env.CAH_PROVIDER_ROOT;
+    else process.env.CAH_PROVIDER_ROOT = oldRoot;
+    // isolated temp cfg dir — same cleanup convention as the rest of the suite
+    fs.rmSync(cfgDir, { recursive: true, force: true });
+  });
+
+  it('provider list shows built-in mock and current defaults to mock', async () => {
+    const { logs, restore } = capture();
+    const code = await main(['provider', 'list']);
+    restore();
+    expect(code).toBe(0);
+    expect(logs.join('\n')).toContain('mock');
+    expect(logs.join('\n')).toContain('*');
+  });
+
+  it('provider add + switch + current round-trip', async () => {
+    const addLogs: string[] = [];
+    const spyAdd = vi.spyOn(console, 'log').mockImplementation((...a) => addLogs.push(a.join(' ')));
+    const code1 = await main(['provider', 'add', 'ds', '--protocol', 'openai-compatible', '--base-url', 'https://api.deepseek.com/v1', '--api-key', 'sk-x', '--model', 'deepseek-chat']);
+    spyAdd.mockRestore();
+    expect(code1).toBe(0);
+    expect(addLogs.join('\n')).toContain('已添加');
+    const code2 = await main(['provider', 'switch', 'ds']);
+    expect(code2).toBe(0);
+    const { logs, restore } = capture();
+    const code3 = await main(['provider', 'current']);
+    restore();
+    expect(code3).toBe(0);
+    expect(logs[0]).toBe('ds');
+  });
+
+  it('provider add without base-url for a real protocol fails with exit 2', async () => {
+    const code = await main(['provider', 'add', 'bad', '--protocol', 'anthropic', '--model', 'claude-x']);
+    expect(code).toBe(2);
+  });
+
+  it('provider remove refuses to remove built-in mock', async () => {
+    const code = await main(['provider', 'remove', 'mock']);
+    expect(code).toBe(1);
+  });
+
+  it('models with no provider (current=mock) prints the offline note and exits 0', async () => {
+    const { logs, restore } = capture();
+    const code = await main(['models']);
+    restore();
+    expect(code).toBe(0);
+    expect(logs.join('\n')).toContain('mock');
+  });
+
+  it('models for an anthropic provider falls back to the built-in list', async () => {
+    await main(['provider', 'add', 'ant', '--protocol', 'anthropic', '--base-url', 'https://api.anthropic.com', '--api-key', 'k', '--model', 'claude-sonnet-4']);
+    await main(['provider', 'switch', 'ant']);
+    const { logs, restore } = capture();
+    const code = await main(['models']);
+    restore();
+    expect(code).toBe(0);
+    expect(logs.join('\n')).toContain('claude');
+    expect(logs.join('\n')).toContain('内置清单');
+  });
+});

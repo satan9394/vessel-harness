@@ -89,7 +89,9 @@ export class ProviderStore {
   readonly rootDir: string;
 
   constructor(opts: ProviderStoreOptions = {}) {
-    this.rootDir = opts.rootDir ?? defaultProviderRoot();
+    // env override (CAH_PROVIDER_ROOT) lets CLI tests isolate from the real
+    // ~/.dsh without touching it; explicit opts.rootDir wins over env.
+    this.rootDir = opts.rootDir ?? process.env.CAH_PROVIDER_ROOT ?? defaultProviderRoot();
   }
 
   /** providers.json 的完整路径。 */
