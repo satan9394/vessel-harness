@@ -1,6 +1,6 @@
 # 011 — V0.5-M2 Task Selection + Trigger/Discovery
 
-- 状态：待执行
+- 状态：已合入（2026-09-05，子代理核心 + 指挥补测试验收）
 - 优先级：P1
 - 创建日期：2026-09-05
 - 关联卡片：依赖 010；MISSION-V0.5
@@ -11,18 +11,19 @@ Loop Engine 的迭代输入源：任务队列（Trigger）+ 候选选择（Task 
 
 ## 验收标准
 
-- [ ] 任务队列接口（enqueue/next/drain），迭代按队列顺序消费
-- [ ] Task Selection：每任务经 TaskRouter（或注入的 selector）得 {category, preset, tier} → 决定 Generator 的执行配置（model/provider/agentPreset 引用）
-- [ ] Discovery seam：迭代完成后的"下个任务来源"可注入（默认取队列；未来可接记忆/backlog）
-- [ ] Vitest：队列顺序消费、selection 映射正确、队列空则迭代停止
-- [ ] `npx vitest run` 全绿不回归；`npx tsc -b` exit 0
-- [ ] 卡状态置"待验收"，回填工作证明
+- [x] 任务队列接口（enqueue/next/peek/drain/isEmpty/size），迭代按 FIFO 顺序消费；next() 空返 null
+- [x] Task Selection：selectTaskFor(task) 经 classifyTask → category → DEFAULT_PRESETS → preset/tier；router 可注入得具体 model
+- [x] Discovery seam：TaskQueue 接口即 seam（未来 backlog/记忆发现实现同接口）；queueSelectTask 适配器对接 LoopEngine.selectTask
+- [x] Vitest 13 用例：FIFO/peek/drain/isEmpty/queueSelectTask 对接 LoopEngine/分类映射/review→reviewer/search→fast/注入覆盖/unknown 兜底
+- [x] `npx vitest run` 全绿不回归（195 全绿）；`npx tsc -b` exit 0
+- [x] 卡状态置"待验收"，回填工作证明
 
-## 涉及文件（按需扩展）
+## 涉及文件
 
-- `packages/engine/src/`：taskQueue.ts + selection.ts（新建）
-- 测试：taskQueue.test.ts / selection.test.ts
-- 复用 `packages/llm/src/router/TaskRouter.ts`（V0.4，不重造）
+- `packages/engine/src/taskQueue.ts`（新建，子代理）：TaskQueue 接口 + ArrayTaskQueue + createTaskQueue + queueSelectTask
+- `packages/engine/src/selection.ts`（新建，子代理）：selectTaskFor + classifyTaskFor + 三 seam（classify/presets/router）
+- `packages/engine/src/task-selection.test.ts`（新建，指挥补 13 用例）
+- `packages/engine/src/index.ts`（导出，子代理）、`packages/engine/tsconfig.json`（references + llm，子代理）
 - `docs/V05-PROGRESS.md`
 
 ## 依赖
@@ -38,9 +39,9 @@ Loop Engine 的迭代输入源：任务队列（Trigger）+ 候选选择（Task 
 
 ## 工作证明（执行器回填）
 
-- [ ] diff / 测试结果 / tsc exit 0
+- [x] diff / 测试结果 / tsc exit 0：taskQueue.ts + selection.ts（子代理，tsc exit 0 + 冒烟通过）+ task-selection.test.ts 13 用例（指挥补）；全量 195 用例全绿、tsc exit 0
 
 ## 验收结论（指挥会话回填）
 
-- [ ] 合入 / 打回 / 调整方向
-- 备注：
+- [x] 合入 / 打回 / 调整方向：合入（2026-09-05 指挥验收）
+- 备注：6 条验收标准全 PASS。执行记录：子代理初始 ~9 分钟零产出，steering 消息后立即产出核心并交证（教训 6：011/012 类小范围卡派活需含"限时 + steering 兜底"）。分工有效：子代理实现核心、指挥补测试。
