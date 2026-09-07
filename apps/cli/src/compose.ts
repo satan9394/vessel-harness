@@ -11,6 +11,7 @@ import { listIndex, formatIndexText, createSkillTool, createSkillSearchTool } fr
 import { Telemetry } from '@cah/telemetry';
 import { SubagentManager, createSubagentTool } from '@cah/agents';
 import { ProjectStore, createMemoryTool } from '@cah/memory';
+import { TaskRouter, type TierModelMap, type TaskCategoryPresets } from '@cah/llm';
 
 export interface ComposeMcpConnection {
   serverName: string;
@@ -37,6 +38,18 @@ export interface ComposeOptions {
   mcp?: ComposeMcpConnection[];
   /** V0.3: Project Memory (file-based, .harness/memory) — Memory tool + frozen snapshot injection */
   memory?: { enabled?: boolean };
+  /**
+   * V0.4: Task Router wiring. When `providers` + `tierModel` are given and the
+   * caller does NOT pin an explicit provider/model, the session is routed from
+   * the first task prompt via TaskRouter (category → preset → tier). Explicit
+   * opts.provider/opts.model always win (backward compatible).
+   */
+  taskRouter?: {
+    providers: Record<string, ChatProvider>;
+    tierModel: TierModelMap;
+    presets?: TaskCategoryPresets;
+    taskPrompt?: string;
+  };
 }
 
 export interface ComposedHarness {
@@ -52,6 +65,10 @@ export interface ComposedHarness {
   behaviorWarnings: string[];
   subagentManager?: SubagentManager;
   mcpClients: McpClient[];
+  /** V0.4: TaskRouter instance (when task routing was wired) — callers can re-route per task */
+  taskRouter?: TaskRouter;
+  /** category the session was routed to on start (when taskPrompt given) */
+  routedCategory?: string;
   close(): Promise<void>;
 }
 
@@ -63,6 +80,26 @@ export interface ComposedHarness {
 export async function composeHarness(opts: ComposeOptions): Promise<ComposedHarness> {
   const workspaceRoot = path.resolve(opts.workspaceRoot);
   const cwd = path.resolve(opts.cwd ?? workspaceRoot);
+
+  // V0.4 task routing: when the caller explicitly provides a router AND a
+  // taskPrompt, the session's provider/model are resolved from the task
+  // (category → preset → tier). Callers that want to pin provider/model
+  // simply omit taskPrompt (explicit pinning wins by construction).
+  let effectiveProvider = opts.provider;
+  let effectiveModel = opts.model;
+  let taskRouter: TaskRouter | undefined;
+  let routedCategory: string | undefined;
+  if (opts.taskRouter?.providers && opts.taskRouter?.tierModel && opts.taskRouter.taskPrompt) {
+    taskRouter = new TaskRouter({
+      providers: opts.taskRouter.providers,
+      tierModel: opts.taskRouter.tierModel,
+      presets: opts.taskRouter.presets,
+    });
+    const route = taskRouter.resolve({ task: opts.taskRouter.taskPrompt });
+    routedCategory = route.category;
+    effectiveModel = route.model;
+    effectiveProvider = route.provider;
+  }
 
   const session = await Session.open({ workspaceRoot, sessionId: opts.sessionId });
   const bus = new EventBus();
@@ -122,8 +159,8 @@ export async function composeHarness(opts: ComposeOptions): Promise<ComposedHarn
     subagentManager = new SubagentManager({
       workspaceRoot,
       cwd,
-      provider: opts.provider,
-      model: opts.model,
+      provider: effectiveProvider,
+      model: effectiveModel,
       policyArtifacts: artifacts,
       tools,
       bus,
@@ -150,7 +187,7 @@ export async function composeHarness(opts: ComposeOptions): Promise<ComposedHarn
   const skillsIndex = () => formatIndexText(listIndex(workspaceRoot));
   const builder = new ContextBuilder({
     session,
-    model: opts.model,
+    model: effectiveModel,
     stableSections: () => compiled.promptSections,
     policyGuidance: () => artifacts.promptGuidance,
     instructions,
@@ -191,8 +228,8 @@ export async function composeHarness(opts: ComposeOptions): Promise<ComposedHarn
   const loop = new AgentLoop({
     session,
     bus,
-    provider: opts.provider,
-    model: opts.model,
+    provider: effectiveProvider,
+    model: effectiveModel,
     buildContext: async (step) => {
       const envelope = await builder.assemble(step);
       if (compaction.shouldCompact(envelope.estimateTokens, builder.window)) {
@@ -218,6 +255,8 @@ export async function composeHarness(opts: ComposeOptions): Promise<ComposedHarn
     behaviorWarnings,
     subagentManager,
     mcpClients,
+    taskRouter,
+    routedCategory,
     async close() {
       telemetry.detach();
       await session.close();

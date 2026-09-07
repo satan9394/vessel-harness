@@ -28,7 +28,9 @@ export interface AgentPresetRef {
 }
 
 /** default preset table — category → role/tier intent (config data). */
-export const DEFAULT_PRESETS: Record<TaskCategory, AgentPresetRef> = {
+export type TaskCategoryPresets = Record<TaskCategory, AgentPresetRef>;
+
+export const DEFAULT_PRESETS: TaskCategoryPresets = {
   implementation: { category: 'implementation', agentPreset: 'developer', modelTier: 'pro', description: '功能实现：深度编码，用最强模型' },
   simple_fix: { category: 'simple_fix', agentPreset: 'developer', modelTier: 'fast', description: '简单修复：快模型即可' },
   search: { category: 'search', agentPreset: 'explorer', modelTier: 'fast', description: '代码库检索/探索：快模型' },

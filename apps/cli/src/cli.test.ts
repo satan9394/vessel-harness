@@ -73,4 +73,55 @@ describe('CLI (apps/cli)', () => {
     expect(fs.existsSync(path.join(dir, 'node_modules'))).toBe(false);
     await h.close();
   });
+
+  it('V0.4 task routing: taskPrompt routes the session provider/model by category', async () => {
+    const pro = new MockProvider([{ when: /.*/, ifNoToolResult: true, response: { text: 'ROUTED-TO-PRO' } }], { model: 'claude-pro' });
+    const fast = new MockProvider([{ when: /.*/, ifNoToolResult: true, response: { text: 'ROUTED-TO-FAST' } }], { model: 'gpt-fast' });
+    const tierModel = {
+      pro: { providerId: 'pro', model: 'claude-pro' },
+      fast: { providerId: 'fast', model: 'gpt-fast' },
+      mini: { providerId: 'fast', model: 'mini' },
+    };
+    const fallback = fast; // never used when routing succeeds
+
+    // implementation task → pro tier → 'pro' provider
+    const h = await composeHarness({
+      workspaceRoot: dir,
+      provider: fallback,
+      model: 'fallback',
+      policySystemPath: POLICY,
+      behaviorIRPath: BEHAVIOR,
+      taskRouter: {
+        providers: { pro, fast },
+        tierModel,
+        taskPrompt: '请实现一个用户登录功能',
+      },
+    });
+    expect(h.routedCategory).toBe('implementation');
+    expect(h.taskRouter).toBeDefined();
+    const result = await h.loop.runTurn('继续实现');
+    expect(result.finalText).toContain('ROUTED-TO-PRO');
+    await h.close();
+  });
+
+  it('V0.4 task routing: no taskPrompt keeps the explicit provider/model (backward compatible)', async () => {
+    const explicit = new MockProvider([{ when: /.*/, ifNoToolResult: true, response: { text: 'EXPLICIT-MODEL' } }], { model: 'pinned' });
+    const other = new MockProvider([], { model: 'unused' });
+    const h = await composeHarness({
+      workspaceRoot: dir,
+      provider: explicit,
+      model: 'pinned',
+      policySystemPath: POLICY,
+      behaviorIRPath: BEHAVIOR,
+      taskRouter: {
+        providers: { pro: other, fast: other },
+        tierModel: { pro: { providerId: 'pro', model: 'x' }, fast: { providerId: 'fast', model: 'y' }, mini: { providerId: 'fast', model: 'z' } },
+        // no taskPrompt → no routing
+      },
+    });
+    expect(h.routedCategory).toBeUndefined();
+    const result = await h.loop.runTurn('do something');
+    expect(result.finalText).toContain('EXPLICIT-MODEL');
+    await h.close();
+  });
 });

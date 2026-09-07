@@ -246,4 +246,20 @@ describe('V0.2-M1 subagent — delegation (H11)', () => {
     expect(rec.parentSession).toBe('parent-sess-1');
     await runtime.close();
   });
+
+  it('Subagent tool passes an agent preset label through to the delegation (V0.4 roles-as-presets)', async () => {
+    const bus = new EventBus();
+    const provider = new MockProvider([{ when: /.*/, ifNoToolResult: true, response: { text: 'PRESET-CHILD-DONE' } }], { model: 'child-model' });
+    const manager = new SubagentManager({ workspaceRoot: workspace, provider, model: 'child-model', policyArtifacts: artifacts(), tools: [], bus });
+    const delegateSpy = vi.spyOn(manager, 'delegate');
+    const subagentTool = createSubagentTool(manager);
+    const registry = new ToolRegistry([subagentTool]);
+    const ctx = { workspaceRoot: workspace, cwd: workspace, sandbox: { confine: async () => ({ argv: [], enforcement: 'none' as const }), status: () => ({ enabled: false, supported: 'none' as const, active: false }) } };
+
+    const r = await registry.execute({ toolCallId: 'p1', toolName: 'Subagent', arguments: { prompt: '审查这段代码', preset: 'reviewer' } }, ctx);
+    expect(r.error).toBeUndefined();
+    expect(delegateSpy).toHaveBeenCalledWith(expect.objectContaining({ preset: 'reviewer' }));
+    expect((r.meta.subagent as { preset?: string }).preset).toBe('reviewer');
+    delegateSpy.mockRestore();
+  });
 });
