@@ -1,0 +1,363 @@
+claudeDesktopProviderPresets.ts	aggregator	9527CODE	https://9527.codes	
+claudeDesktopProviderPresets.ts	aggregator	A6API	https://api.a6api.com	
+claudeDesktopProviderPresets.ts	aggregator	AICodeWith	https://api.aicodewith.ai	
+claudeDesktopProviderPresets.ts	aggregator	AiHubMix	https://aihubmix.com	
+claudeDesktopProviderPresets.ts	aggregator	Amux	https://api.amux.ai	
+claudeDesktopProviderPresets.ts	aggregator	AtlasCloud	https://api.atlascloud.ai	
+claudeDesktopProviderPresets.ts	aggregator	CCSub	https://www.ccsub.net	
+claudeDesktopProviderPresets.ts	aggregator	CherryIN	https://open.cherryin.net	
+claudeDesktopProviderPresets.ts	aggregator	ClaudeAPI	https://gw.apito.ai	
+claudeDesktopProviderPresets.ts	aggregator	Code0	https://code0.ai	
+claudeDesktopProviderPresets.ts	aggregator	Compshare	https://api.modelverse.cn	
+claudeDesktopProviderPresets.ts	aggregator	Compshare Coding Plan	https://cp.compshare.cn	
+claudeDesktopProviderPresets.ts	aggregator	DMXAPI	https://www.dmxapi.cn	
+claudeDesktopProviderPresets.ts	aggregator	FennoAI	https://api.fenno.ai	
+claudeDesktopProviderPresets.ts	aggregator	JieKou AI	https://api.jiekou.ai/anthropic	
+claudeDesktopProviderPresets.ts	aggregator	ModelScope	https://api-inference.modelscope.cn	
+claudeDesktopProviderPresets.ts	aggregator	Novita AI	https://api.novita.ai/anthropic	
+claudeDesktopProviderPresets.ts	aggregator	Nvidia	https://integrate.api.nvidia.com	
+claudeDesktopProviderPresets.ts	aggregator	OpenRouter	https://openrouter.ai/api	
+claudeDesktopProviderPresets.ts	aggregator	PIPELLM	https://cc-api.pipellm.ai	
+claudeDesktopProviderPresets.ts	aggregator	PPIO	https://api.ppio.com/anthropic	
+claudeDesktopProviderPresets.ts	aggregator	Qiniu	https://api.qnaigc.com	
+claudeDesktopProviderPresets.ts	aggregator	RunAPI	https://runapi.host	
+claudeDesktopProviderPresets.ts	aggregator	Shengsuanyun	https://router.shengsuanyun.com/api	
+claudeDesktopProviderPresets.ts	aggregator	SiliconFlow	https://api.siliconflow.cn	
+claudeDesktopProviderPresets.ts	aggregator	SiliconFlow en	https://api.siliconflow.com	
+claudeDesktopProviderPresets.ts	aggregator	SoleAPI	https://soleapi.com	
+claudeDesktopProviderPresets.ts	aggregator	SubRouter	https://subrouter.ai	
+claudeDesktopProviderPresets.ts	aggregator	TeamoRouter	https://api.teamorouter.cn	
+claudeDesktopProviderPresets.ts	aggregator	TheRouter	https://api.therouter.ai	
+claudeDesktopProviderPresets.ts	aggregator	XycAi	https://apicdn.xycai.us	
+claudeDesktopProviderPresets.ts	aggregator	ZetaAPI	https://api.zetaapi.ai	
+claudeDesktopProviderPresets.ts	cn_official	火山 Agent Plan	https://ark.cn-beijing.volces.com/api/plan	
+claudeDesktopProviderPresets.ts	cn_official	火山 Coding Plan	https://ark.cn-beijing.volces.com/api/coding	
+claudeDesktopProviderPresets.ts	cn_official	Baidu Qianfan Coding Plan	https://qianfan.baidubce.com/anthropic/coding	
+claudeDesktopProviderPresets.ts	cn_official	Baidu Qianfan Token Plan	https://qianfan.baidubce.com/anthropic/tokenplan/personal	
+claudeDesktopProviderPresets.ts	cn_official	Bailian	https://dashscope.aliyuncs.com/apps/anthropic	
+claudeDesktopProviderPresets.ts	cn_official	Bailian For Coding	https://coding.dashscope.aliyuncs.com/apps/anthropic	
+claudeDesktopProviderPresets.ts	cn_official	BaiLing	https://api.tbox.cn/api/anthropic	
+claudeDesktopProviderPresets.ts	cn_official	BytePlus	https://ark.ap-southeast.bytepluses.com/api/coding	
+claudeDesktopProviderPresets.ts	cn_official	DeepSeek	https://api.deepseek.com/anthropic	
+claudeDesktopProviderPresets.ts	cn_official	DouBaoSeed	https://ark.cn-beijing.volces.com/api/compatible	
+claudeDesktopProviderPresets.ts	cn_official	Kimi	https://api.moonshot.cn/anthropic	
+claudeDesktopProviderPresets.ts	cn_official	Kimi For Coding	https://api.kimi.com/coding/	
+claudeDesktopProviderPresets.ts	cn_official	Longcat	https://api.longcat.chat/anthropic	
+claudeDesktopProviderPresets.ts	cn_official	MiniMax	https://api.minimaxi.com/anthropic	
+claudeDesktopProviderPresets.ts	cn_official	MiniMax en	https://api.minimax.io/anthropic	
+claudeDesktopProviderPresets.ts	cn_official	QwenCloud	https://dashscope-intl.aliyuncs.com/apps/anthropic	
+claudeDesktopProviderPresets.ts	cn_official	QwenCloud For Coding	https://coding-intl.dashscope.aliyuncs.com/apps/anthropic	
+claudeDesktopProviderPresets.ts	cn_official	QwenCloud Token Plan	https://token-plan.ap-southeast-1.maas.aliyuncs.com/apps/anthropic	
+claudeDesktopProviderPresets.ts	cn_official	StepFun	https://api.stepfun.com/step_plan	
+claudeDesktopProviderPresets.ts	cn_official	StepFun en	https://api.stepfun.ai/step_plan	
+claudeDesktopProviderPresets.ts	cn_official	Tencent Token Plan	https://api.lkeap.cloud.tencent.com/plan/anthropic	
+claudeDesktopProviderPresets.ts	cn_official	Tencent Token Plan (Intl)	https://tokenhub-intl.tencentcloudmaas.com/plan/anthropic	
+claudeDesktopProviderPresets.ts	cn_official	Tencent Token Plan Enterprise Lite	https://tokenhub.tencentmaas.com/plan/anthropic	
+claudeDesktopProviderPresets.ts	cn_official	Tencent Token Plan Enterprise Lite (Intl)	https://tokenhub-intl.tencentcloudmaas.com/plan/anthropic	
+claudeDesktopProviderPresets.ts	cn_official	Tencent Token Plan Enterprise Pro	https://tokenhub.tencentmaas.com/plan/anthropic	
+claudeDesktopProviderPresets.ts	cn_official	Tencent Token Plan Enterprise Pro (Intl)	https://tokenhub-intl.tencentcloudmaas.com/plan/anthropic	
+claudeDesktopProviderPresets.ts	cn_official	Xiaomi MiMo	https://api.xiaomimimo.com/anthropic	
+claudeDesktopProviderPresets.ts	cn_official	Xiaomi MiMo Token Plan (China)	https://token-plan-cn.xiaomimimo.com/anthropic	
+claudeDesktopProviderPresets.ts	cn_official	Zhipu GLM	https://open.bigmodel.cn/api/anthropic	
+claudeDesktopProviderPresets.ts	cn_official	Zhipu GLM en	https://api.z.ai/api/anthropic	
+claudeDesktopProviderPresets.ts	official	Claude Desktop Official		
+claudeDesktopProviderPresets.ts	third_party	AICodeMirror	https://api.aicodemirror.ai/api/claudecode	
+claudeDesktopProviderPresets.ts	third_party	AICoding	https://api.aicoding.inc	
+claudeDesktopProviderPresets.ts	third_party	AIGoCode	https://api.aigocode.app	
+claudeDesktopProviderPresets.ts	third_party	APIKEY.FUN	https://api.apikey.fun	
+claudeDesktopProviderPresets.ts	third_party	APINebula	https://apinebula.ai	
+claudeDesktopProviderPresets.ts	third_party	ClaudeCN	https://claudecn.top	
+claudeDesktopProviderPresets.ts	third_party	Codex	https://chatgpt.com/backend-api/codex	
+claudeDesktopProviderPresets.ts	third_party	CrazyRouter	https://cn.crazyrouter.com	
+claudeDesktopProviderPresets.ts	third_party	Cubence	https://api.cubence.com	
+claudeDesktopProviderPresets.ts	third_party	E-FlowCode	https://e-flowcode.cc	
+claudeDesktopProviderPresets.ts	third_party	ETok.ai	https://api.etok.ai	
+claudeDesktopProviderPresets.ts	third_party	Gemini Native	https://generativelanguage.googleapis.com	
+claudeDesktopProviderPresets.ts	third_party	GitHub Copilot	https://api.githubcopilot.com	
+claudeDesktopProviderPresets.ts	third_party	Micu	https://www.micuapi.ai	
+claudeDesktopProviderPresets.ts	third_party	OpenCode Go	https://opencode.ai/zen/go	
+claudeDesktopProviderPresets.ts	third_party	PackyCode	https://www.packyapi.ai	
+claudeDesktopProviderPresets.ts	third_party	PatewayAI	https://api.pateway.ai	
+claudeDesktopProviderPresets.ts	third_party	RelaxyCode	https://www.relaxycode.com	
+claudeDesktopProviderPresets.ts	third_party	RightCode	https://www.rightapi.ai/claude	
+claudeDesktopProviderPresets.ts	third_party	SSSAiCode	https://node-hk.sssaicodeapi.com/api	
+claudeDesktopProviderPresets.ts	third_party	SudoCode.chat	https://api.sudocode.chat	
+claudeDesktopProviderPresets.ts	third_party	SudoCode.us	https://sudocode.us	
+claudeDesktopProviderPresets.ts	third_party	xAI (Grok)	https://api.x.ai/v1	
+claudeProviderPresets.ts	aggregator	9527CODE	https://9527.codes	
+claudeProviderPresets.ts	aggregator	A6API	https://api.a6api.com	
+claudeProviderPresets.ts	aggregator	AICodeWith	https://api.aicodewith.ai	
+claudeProviderPresets.ts	aggregator	AiHubMix	https://aihubmix.com	
+claudeProviderPresets.ts	aggregator	Amux	https://api.amux.ai	
+claudeProviderPresets.ts	aggregator	AtlasCloud	https://api.atlascloud.ai	
+claudeProviderPresets.ts	aggregator	CCSub	https://www.ccsub.net	
+claudeProviderPresets.ts	aggregator	CherryIN	https://open.cherryin.net	
+claudeProviderPresets.ts	aggregator	ClaudeAPI	https://gw.apito.ai	
+claudeProviderPresets.ts	aggregator	Code0	https://code0.ai	
+claudeProviderPresets.ts	aggregator	Compshare	https://api.modelverse.cn	
+claudeProviderPresets.ts	aggregator	Compshare Coding Plan	https://cp.compshare.cn	
+claudeProviderPresets.ts	aggregator	DMXAPI	https://www.dmxapi.cn	
+claudeProviderPresets.ts	aggregator	FennoAI	https://api.fenno.ai	
+claudeProviderPresets.ts	aggregator	JieKou AI	https://api.jiekou.ai/anthropic	
+claudeProviderPresets.ts	aggregator	ModelScope	https://api-inference.modelscope.cn	
+claudeProviderPresets.ts	aggregator	Novita AI	https://api.novita.ai/anthropic	
+claudeProviderPresets.ts	aggregator	Nvidia	https://integrate.api.nvidia.com	
+claudeProviderPresets.ts	aggregator	OpenRouter	https://openrouter.ai/api	
+claudeProviderPresets.ts	aggregator	PIPELLM	https://cc-api.pipellm.ai	
+claudeProviderPresets.ts	aggregator	PPIO	https://api.ppio.com/anthropic	
+claudeProviderPresets.ts	aggregator	Qiniu	https://api.qnaigc.com	
+claudeProviderPresets.ts	aggregator	RunAPI	https://runapi.host	
+claudeProviderPresets.ts	aggregator	Shengsuanyun	https://router.shengsuanyun.com/api	
+claudeProviderPresets.ts	aggregator	SiliconFlow	https://api.siliconflow.cn	
+claudeProviderPresets.ts	aggregator	SiliconFlow en	https://api.siliconflow.com	
+claudeProviderPresets.ts	aggregator	SoleAPI	https://soleapi.com	
+claudeProviderPresets.ts	aggregator	SubRouter	https://subrouter.ai	
+claudeProviderPresets.ts	aggregator	TeamoRouter	https://api.teamorouter.cn	
+claudeProviderPresets.ts	aggregator	TheRouter	https://api.therouter.ai	
+claudeProviderPresets.ts	aggregator	XycAi	https://apicdn.xycai.us	
+claudeProviderPresets.ts	aggregator	ZetaAPI	https://api.zetaapi.ai	
+claudeProviderPresets.ts	cloud_provider	AWS Bedrock (AKSK)	https://bedrock-runtime.${AWS_REGION}.amazonaws.com	
+claudeProviderPresets.ts	cloud_provider	AWS Bedrock (API Key)	https://bedrock-runtime.${AWS_REGION}.amazonaws.com	
+claudeProviderPresets.ts	cn_official	火山 Agent Plan	https://ark.cn-beijing.volces.com/api/plan	
+claudeProviderPresets.ts	cn_official	火山 Coding Plan	https://ark.cn-beijing.volces.com/api/coding	
+claudeProviderPresets.ts	cn_official	Baidu Qianfan Coding Plan	https://qianfan.baidubce.com/anthropic/coding	
+claudeProviderPresets.ts	cn_official	Baidu Qianfan Token Plan	https://qianfan.baidubce.com/anthropic/tokenplan/personal	
+claudeProviderPresets.ts	cn_official	Bailian	https://dashscope.aliyuncs.com/apps/anthropic	
+claudeProviderPresets.ts	cn_official	Bailian For Coding	https://coding.dashscope.aliyuncs.com/apps/anthropic	
+claudeProviderPresets.ts	cn_official	BaiLing	https://api.tbox.cn/api/anthropic	
+claudeProviderPresets.ts	cn_official	BytePlus	https://ark.ap-southeast.bytepluses.com/api/coding	
+claudeProviderPresets.ts	cn_official	DeepSeek	https://api.deepseek.com/anthropic	
+claudeProviderPresets.ts	cn_official	DouBaoSeed	https://ark.cn-beijing.volces.com/api/compatible	
+claudeProviderPresets.ts	cn_official	KAT-Coder	https://vanchin.streamlake.ai/api/gateway/v1/endpoints/${ENDPOINT_ID}/claude-code-proxy	
+claudeProviderPresets.ts	cn_official	Kimi	https://api.moonshot.cn/anthropic	
+claudeProviderPresets.ts	cn_official	Kimi For Coding	https://api.kimi.com/coding/	
+claudeProviderPresets.ts	cn_official	Longcat	https://api.longcat.chat/anthropic	
+claudeProviderPresets.ts	cn_official	MiniMax	https://api.minimaxi.com/anthropic	
+claudeProviderPresets.ts	cn_official	MiniMax en	https://api.minimax.io/anthropic	
+claudeProviderPresets.ts	cn_official	QwenCloud	https://dashscope-intl.aliyuncs.com/apps/anthropic	
+claudeProviderPresets.ts	cn_official	QwenCloud For Coding	https://coding-intl.dashscope.aliyuncs.com/apps/anthropic	
+claudeProviderPresets.ts	cn_official	QwenCloud Token Plan	https://token-plan.ap-southeast-1.maas.aliyuncs.com/apps/anthropic	
+claudeProviderPresets.ts	cn_official	StepFun	https://api.stepfun.com/step_plan	
+claudeProviderPresets.ts	cn_official	StepFun en	https://api.stepfun.ai/step_plan	
+claudeProviderPresets.ts	cn_official	Tencent Token Plan	https://api.lkeap.cloud.tencent.com/plan/anthropic	
+claudeProviderPresets.ts	cn_official	Tencent Token Plan (Intl)	https://tokenhub-intl.tencentcloudmaas.com/plan/anthropic	
+claudeProviderPresets.ts	cn_official	Tencent Token Plan Enterprise Lite	https://tokenhub.tencentmaas.com/plan/anthropic	
+claudeProviderPresets.ts	cn_official	Tencent Token Plan Enterprise Lite (Intl)	https://tokenhub-intl.tencentcloudmaas.com/plan/anthropic	
+claudeProviderPresets.ts	cn_official	Tencent Token Plan Enterprise Pro	https://tokenhub.tencentmaas.com/plan/anthropic	
+claudeProviderPresets.ts	cn_official	Tencent Token Plan Enterprise Pro (Intl)	https://tokenhub-intl.tencentcloudmaas.com/plan/anthropic	
+claudeProviderPresets.ts	cn_official	Xiaomi MiMo	https://api.xiaomimimo.com/anthropic	
+claudeProviderPresets.ts	cn_official	Xiaomi MiMo Token Plan (China)	https://token-plan-cn.xiaomimimo.com/anthropic	
+claudeProviderPresets.ts	cn_official	Zhipu GLM	https://open.bigmodel.cn/api/anthropic	
+claudeProviderPresets.ts	cn_official	Zhipu GLM en	https://api.z.ai/api/anthropic	
+claudeProviderPresets.ts	official	Claude Official		
+claudeProviderPresets.ts	third_party	AICodeMirror	https://api.aicodemirror.ai/api/claudecode	
+claudeProviderPresets.ts	third_party	AICoding	https://api.aicoding.inc	
+claudeProviderPresets.ts	third_party	AIGoCode	https://api.aigocode.app	
+claudeProviderPresets.ts	third_party	APIKEY.FUN	https://api.apikey.fun	
+claudeProviderPresets.ts	third_party	APINebula	https://apinebula.ai	
+claudeProviderPresets.ts	third_party	ClaudeCN	https://claudecn.top	
+claudeProviderPresets.ts	third_party	Codex	https://chatgpt.com/backend-api/codex	
+claudeProviderPresets.ts	third_party	CrazyRouter	https://cn.crazyrouter.com	
+claudeProviderPresets.ts	third_party	Cubence	https://api.cubence.com	
+claudeProviderPresets.ts	third_party	E-FlowCode	https://e-flowcode.cc	
+claudeProviderPresets.ts	third_party	ETok.ai	https://api.etok.ai	
+claudeProviderPresets.ts	third_party	Gemini Native	https://generativelanguage.googleapis.com	
+claudeProviderPresets.ts	third_party	GitHub Copilot	https://api.githubcopilot.com	
+claudeProviderPresets.ts	third_party	Micu	https://www.micuapi.ai	
+claudeProviderPresets.ts	third_party	OpenCode Go	https://opencode.ai/zen/go	
+claudeProviderPresets.ts	third_party	PackyCode	https://www.packyapi.ai	
+claudeProviderPresets.ts	third_party	PatewayAI	https://api.pateway.ai	
+claudeProviderPresets.ts	third_party	RelaxyCode	https://www.relaxycode.com	
+claudeProviderPresets.ts	third_party	RightCode	https://www.rightapi.ai/claude	
+claudeProviderPresets.ts	third_party	SSSAiCode	https://node-hk.sssaicodeapi.com/api	
+claudeProviderPresets.ts	third_party	SudoCode.chat	https://api.sudocode.chat	
+claudeProviderPresets.ts	third_party	SudoCode.us	https://sudocode.us	
+claudeProviderPresets.ts	third_party	xAI (Grok)	https://api.x.ai/v1	
+codexProviderPresets.ts		AICodeMirror		
+codexProviderPresets.ts		AICoding		
+codexProviderPresets.ts		CrazyRouter		
+codexProviderPresets.ts	aggregator	9527CODE		
+codexProviderPresets.ts	aggregator	A6API		
+codexProviderPresets.ts	aggregator	AICodeWith		
+codexProviderPresets.ts	aggregator	AiHubMix		
+codexProviderPresets.ts	aggregator	Amux		
+codexProviderPresets.ts	aggregator	AtlasCloud		
+codexProviderPresets.ts	aggregator	CCSub		
+codexProviderPresets.ts	aggregator	CherryIN		
+codexProviderPresets.ts	aggregator	Code0		
+codexProviderPresets.ts	aggregator	Compshare		
+codexProviderPresets.ts	aggregator	Compshare Coding Plan		
+codexProviderPresets.ts	aggregator	DMXAPI		
+codexProviderPresets.ts	aggregator	FennoAI		
+codexProviderPresets.ts	aggregator	JieKou AI		
+codexProviderPresets.ts	aggregator	ModelScope		
+codexProviderPresets.ts	aggregator	Novita AI		
+codexProviderPresets.ts	aggregator	Nvidia		
+codexProviderPresets.ts	aggregator	OpenRouter		
+codexProviderPresets.ts	aggregator	PIPELLM		
+codexProviderPresets.ts	aggregator	PPIO		
+codexProviderPresets.ts	aggregator	Qiniu		
+codexProviderPresets.ts	aggregator	RunAPI		
+codexProviderPresets.ts	aggregator	Shengsuanyun		
+codexProviderPresets.ts	aggregator	SiliconFlow		
+codexProviderPresets.ts	aggregator	SiliconFlow en		
+codexProviderPresets.ts	aggregator	SoleAPI		
+codexProviderPresets.ts	aggregator	SubRouter		
+codexProviderPresets.ts	aggregator	TeamoRouter		
+codexProviderPresets.ts	aggregator	TheRouter		
+codexProviderPresets.ts	aggregator	XycAi		
+codexProviderPresets.ts	aggregator	ZetaAPI		
+codexProviderPresets.ts	cn_official	火山 Agent Plan		
+codexProviderPresets.ts	cn_official	火山 Coding Plan		
+codexProviderPresets.ts	cn_official	Baidu Qianfan Coding Plan		
+codexProviderPresets.ts	cn_official	Baidu Qianfan Token Plan		
+codexProviderPresets.ts	cn_official	Bailian		
+codexProviderPresets.ts	cn_official	BaiLing		
+codexProviderPresets.ts	cn_official	BytePlus		
+codexProviderPresets.ts	cn_official	DeepSeek		
+codexProviderPresets.ts	cn_official	DouBaoSeed		
+codexProviderPresets.ts	cn_official	Kimi		
+codexProviderPresets.ts	cn_official	Kimi For Coding		
+codexProviderPresets.ts	cn_official	Longcat		
+codexProviderPresets.ts	cn_official	MiniMax		
+codexProviderPresets.ts	cn_official	MiniMax en		
+codexProviderPresets.ts	cn_official	QwenCloud		
+codexProviderPresets.ts	cn_official	QwenCloud For Coding		
+codexProviderPresets.ts	cn_official	QwenCloud Token Plan		
+codexProviderPresets.ts	cn_official	StepFun		
+codexProviderPresets.ts	cn_official	StepFun en		
+codexProviderPresets.ts	cn_official	Tencent Hunyuan		
+codexProviderPresets.ts	cn_official	Tencent Token Plan		
+codexProviderPresets.ts	cn_official	Tencent Token Plan (Intl)		
+codexProviderPresets.ts	cn_official	Tencent Token Plan Enterprise Lite		
+codexProviderPresets.ts	cn_official	Tencent Token Plan Enterprise Lite (Intl)		
+codexProviderPresets.ts	cn_official	Tencent Token Plan Enterprise Pro		
+codexProviderPresets.ts	cn_official	Tencent Token Plan Enterprise Pro (Intl)		
+codexProviderPresets.ts	cn_official	Xiaomi MiMo		
+codexProviderPresets.ts	cn_official	Xiaomi MiMo Token Plan (China)		
+codexProviderPresets.ts	cn_official	Zhipu GLM		
+codexProviderPresets.ts	cn_official	Zhipu GLM en		
+codexProviderPresets.ts	official	OpenAI Official		
+codexProviderPresets.ts	third_party	AIGoCode		
+codexProviderPresets.ts	third_party	APIKEY.FUN		
+codexProviderPresets.ts	third_party	APINebula		
+codexProviderPresets.ts	third_party	Azure OpenAI		
+codexProviderPresets.ts	third_party	ClaudeCN		
+codexProviderPresets.ts	third_party	Cubence		
+codexProviderPresets.ts	third_party	E-FlowCode		
+codexProviderPresets.ts	third_party	ETok.ai		
+codexProviderPresets.ts	third_party	Micu		
+codexProviderPresets.ts	third_party	OpenCode Go		
+codexProviderPresets.ts	third_party	PackyCode		
+codexProviderPresets.ts	third_party	PatewayAI		
+codexProviderPresets.ts	third_party	RelaxyCode		
+codexProviderPresets.ts	third_party	RightCode		
+codexProviderPresets.ts	third_party	SSSAiCode		
+codexProviderPresets.ts	third_party	SudoCode.chat		
+codexProviderPresets.ts	third_party	SudoCode.us		
+codexProviderPresets.ts	third_party	xAI (Grok)		
+codexProviderPresets.ts	third_party	xAI (Grok) OAuth		
+geminiProviderPresets.ts	aggregator	9527CODE	https://9527.codes	
+geminiProviderPresets.ts	aggregator	A6API	https://api.a6api.com	
+geminiProviderPresets.ts	aggregator	AICodeWith	https://api.aicodewith.ai/gemini_cli	
+geminiProviderPresets.ts	aggregator	CherryIN	https://open.cherryin.net	
+geminiProviderPresets.ts	aggregator	Code0	https://code0.ai	
+geminiProviderPresets.ts	aggregator	OpenRouter	https://openrouter.ai/api	
+geminiProviderPresets.ts	aggregator	Qiniu	https://api.qnaigc.com/bypass/vertex	
+geminiProviderPresets.ts	aggregator	Shengsuanyun	https://router.shengsuanyun.com/api	
+geminiProviderPresets.ts	aggregator	SoleAPI	https://soleapi.com	
+geminiProviderPresets.ts	aggregator	SubRouter	https://subrouter.ai/v1beta	
+geminiProviderPresets.ts	aggregator	TheRouter	https://api.therouter.ai	
+geminiProviderPresets.ts	aggregator	XycAi	https://apicdn.xycai.us	
+geminiProviderPresets.ts	custom	自定义		
+geminiProviderPresets.ts	official	Google Official		
+geminiProviderPresets.ts	third_party	AICodeMirror	https://api.aicodemirror.ai/api/gemini	
+geminiProviderPresets.ts	third_party	AICoding	https://api.aicoding.inc	
+geminiProviderPresets.ts	third_party	AIGoCode	https://api.aigocode.app	
+geminiProviderPresets.ts	third_party	APIKEY.FUN	https://api.apikey.fun	
+geminiProviderPresets.ts	third_party	APINebula	https://apinebula.ai	
+geminiProviderPresets.ts	third_party	CrazyRouter	https://cn.crazyrouter.com	
+geminiProviderPresets.ts	third_party	Cubence	https://api.cubence.com	
+geminiProviderPresets.ts	third_party	E-FlowCode	https://e-flowcode.cc	
+geminiProviderPresets.ts	third_party	ETok.ai	https://api.etok.ai/v1beta	
+geminiProviderPresets.ts	third_party	PackyCode	https://www.packyapi.ai	
+geminiProviderPresets.ts	third_party	SSSAiCode	https://node-hk.sssaicodeapi.com/api	
+geminiProviderPresets.ts	third_party	SudoCode.us	https://sudocode.us	
+opencodeProviderPresets.ts		MiniMax M2.7		
+opencodeProviderPresets.ts	aggregator	9527CODE	https://9527.codes/v1	@ai-sdk/anthropic
+opencodeProviderPresets.ts	aggregator	A6API	https://api.a6api.com/v1	@ai-sdk/openai-compatible
+opencodeProviderPresets.ts	aggregator	AICodeWith	https://api.aicodewith.ai/v1	@ai-sdk/anthropic
+opencodeProviderPresets.ts	aggregator	AiHubMix	https://aihubmix.com/v1	@ai-sdk/anthropic
+opencodeProviderPresets.ts	aggregator	Amux	https://api.amux.ai/v1	@ai-sdk/openai-compatible
+opencodeProviderPresets.ts	aggregator	AtlasCloud	https://api.atlascloud.ai/v1	@ai-sdk/openai-compatible
+opencodeProviderPresets.ts	aggregator	CCSub	https://www.ccsub.net/v1	@ai-sdk/openai-compatible
+opencodeProviderPresets.ts	aggregator	CherryIN	https://open.cherryin.net/v1	@ai-sdk/anthropic
+opencodeProviderPresets.ts	aggregator	Code0	https://code0.ai/v1	@ai-sdk/openai-compatible
+opencodeProviderPresets.ts	aggregator	DMXAPI	https://www.dmxapi.cn/v1	@ai-sdk/anthropic
+opencodeProviderPresets.ts	aggregator	FennoAI	https://api.fenno.ai/v1	@ai-sdk/openai-compatible
+opencodeProviderPresets.ts	aggregator	JieKou AI	https://api.jiekou.ai/openai/v1	@ai-sdk/openai-compatible
+opencodeProviderPresets.ts	aggregator	ModelScope	https://api-inference.modelscope.cn/v1	@ai-sdk/openai-compatible
+opencodeProviderPresets.ts	aggregator	Novita AI	https://api.novita.ai/openai	@ai-sdk/openai-compatible
+opencodeProviderPresets.ts	aggregator	Nvidia	https://integrate.api.nvidia.com/v1	@ai-sdk/openai-compatible
+opencodeProviderPresets.ts	aggregator	OpenRouter	https://openrouter.ai/api/v1	@ai-sdk/anthropic
+opencodeProviderPresets.ts	aggregator	PIPELLM	https://cc-api.pipellm.ai	@ai-sdk/anthropic
+opencodeProviderPresets.ts	aggregator	PPIO	https://api.ppio.com/openai/v1	@ai-sdk/openai-compatible
+opencodeProviderPresets.ts	aggregator	Qiniu	https://api.qnaigc.com/v1	@ai-sdk/openai-compatible
+opencodeProviderPresets.ts	aggregator	RunAPI	https://runapi.host	@ai-sdk/anthropic
+opencodeProviderPresets.ts	aggregator	Shengsuanyun	https://router.shengsuanyun.com/api/v1	@ai-sdk/anthropic
+opencodeProviderPresets.ts	aggregator	SoleAPI	https://soleapi.com/v1	@ai-sdk/anthropic
+opencodeProviderPresets.ts	aggregator	SubRouter	https://subrouter.ai/v1	@ai-sdk/openai-compatible
+opencodeProviderPresets.ts	aggregator	TeamoRouter	https://api.teamorouter.cn/v1	@ai-sdk/openai-compatible
+opencodeProviderPresets.ts	aggregator	TheRouter	https://api.therouter.ai/v1	@ai-sdk/openai-compatible
+opencodeProviderPresets.ts	aggregator	XycAi	https://apicdn.xycai.us/v1	@ai-sdk/openai-compatible
+opencodeProviderPresets.ts	aggregator	ZetaAPI	https://api.zetaapi.ai/v1	@ai-sdk/openai-compatible
+opencodeProviderPresets.ts	cloud_provider	AWS Bedrock		@ai-sdk/amazon-bedrock
+opencodeProviderPresets.ts	cn_official	火山 Agent Plan	https://ark.cn-beijing.volces.com/api/plan/v3	@ai-sdk/openai-compatible
+opencodeProviderPresets.ts	cn_official	火山 Coding Plan	https://ark.cn-beijing.volces.com/api/coding/v3	@ai-sdk/openai-compatible
+opencodeProviderPresets.ts	cn_official	Baidu Qianfan Token Plan	https://qianfan.baidubce.com/v2/tokenplan/personal	@ai-sdk/openai-compatible
+opencodeProviderPresets.ts	cn_official	Bailian	https://dashscope.aliyuncs.com/compatible-mode/v1	@ai-sdk/openai-compatible
+opencodeProviderPresets.ts	cn_official	BaiLing	https://api.tbox.cn/v1	@ai-sdk/openai-compatible
+opencodeProviderPresets.ts	cn_official	BytePlus	https://ark.ap-southeast.bytepluses.com/api/coding/v3	@ai-sdk/openai-compatible
+opencodeProviderPresets.ts	cn_official	DeepSeek	https://api.deepseek.com/v1	@ai-sdk/openai-compatible
+opencodeProviderPresets.ts	cn_official	DouBaoSeed	https://ark.cn-beijing.volces.com/api/v3	@ai-sdk/openai-compatible
+opencodeProviderPresets.ts	cn_official	KAT-Coder	https://vanchin.streamlake.ai/api/gateway/v1/endpoints/${ENDPOINT_ID}/openai	@ai-sdk/openai-compatible
+opencodeProviderPresets.ts	cn_official	Kimi	https://api.moonshot.cn/v1	@ai-sdk/openai-compatible
+opencodeProviderPresets.ts	cn_official	Kimi For Coding	https://api.kimi.com/coding/v1	@ai-sdk/anthropic
+opencodeProviderPresets.ts	cn_official	Longcat	https://api.longcat.chat/openai/v1	@ai-sdk/openai-compatible
+opencodeProviderPresets.ts	cn_official	MiniMax	https://api.minimaxi.com/v1	@ai-sdk/openai-compatible
+opencodeProviderPresets.ts	cn_official	MiniMax en	https://api.minimax.io/v1	@ai-sdk/openai-compatible
+opencodeProviderPresets.ts	cn_official	QwenCloud	https://dashscope-intl.aliyuncs.com/compatible-mode/v1	@ai-sdk/openai-compatible
+opencodeProviderPresets.ts	cn_official	QwenCloud For Coding	https://coding-intl.dashscope.aliyuncs.com/apps/anthropic/v1	@ai-sdk/anthropic
+opencodeProviderPresets.ts	cn_official	QwenCloud Token Plan	https://token-plan.ap-southeast-1.maas.aliyuncs.com/apps/anthropic/v1	@ai-sdk/anthropic
+opencodeProviderPresets.ts	cn_official	StepFun	https://api.stepfun.com/step_plan/v1	@ai-sdk/openai-compatible
+opencodeProviderPresets.ts	cn_official	StepFun en	https://api.stepfun.ai/step_plan/v1	@ai-sdk/openai-compatible
+opencodeProviderPresets.ts	cn_official	StepFun Step Plan	https://api.stepfun.com/step_plan/v1	@ai-sdk/openai-compatible
+opencodeProviderPresets.ts	cn_official	Tencent Token Plan	https://api.lkeap.cloud.tencent.com/plan/v3	@ai-sdk/openai-compatible
+opencodeProviderPresets.ts	cn_official	Tencent Token Plan (Intl)	https://tokenhub-intl.tencentcloudmaas.com/plan/v3	@ai-sdk/openai-compatible
+opencodeProviderPresets.ts	cn_official	Tencent Token Plan Enterprise Lite	https://tokenhub.tencentmaas.com/plan/v3	@ai-sdk/openai-compatible
+opencodeProviderPresets.ts	cn_official	Tencent Token Plan Enterprise Lite (Intl)	https://tokenhub-intl.tencentcloudmaas.com/plan/v3	@ai-sdk/openai-compatible
+opencodeProviderPresets.ts	cn_official	Tencent Token Plan Enterprise Pro	https://tokenhub.tencentmaas.com/plan/v3	@ai-sdk/openai-compatible
+opencodeProviderPresets.ts	cn_official	Tencent Token Plan Enterprise Pro (Intl)	https://tokenhub-intl.tencentcloudmaas.com/plan/v3	@ai-sdk/openai-compatible
+opencodeProviderPresets.ts	cn_official	Xiaomi MiMo	https://api.xiaomimimo.com/v1	@ai-sdk/openai-compatible
+opencodeProviderPresets.ts	cn_official	Xiaomi MiMo Token Plan (China)	https://token-plan-cn.xiaomimimo.com/v1	@ai-sdk/openai-compatible
+opencodeProviderPresets.ts	cn_official	Zhipu GLM	https://open.bigmodel.cn/api/coding/paas/v4	@ai-sdk/openai-compatible
+opencodeProviderPresets.ts	cn_official	Zhipu GLM en	https://api.z.ai/api/coding/paas/v4	@ai-sdk/openai-compatible
+opencodeProviderPresets.ts	omo	Oh My OpenCode		
+opencodeProviderPresets.ts	omo-slim	Oh My OpenCode Slim		
+opencodeProviderPresets.ts	third_party	AICodeMirror	https://api.aicodemirror.ai/api/claudecode	@ai-sdk/anthropic
+opencodeProviderPresets.ts	third_party	AICoding	https://api.aicoding.inc	@ai-sdk/anthropic
+opencodeProviderPresets.ts	third_party	AIGoCode	https://api.aigocode.app	@ai-sdk/anthropic
+opencodeProviderPresets.ts	third_party	APIKEY.FUN	https://api.apikey.fun/v1	@ai-sdk/anthropic
+opencodeProviderPresets.ts	third_party	APINebula	https://apinebula.ai/v1	@ai-sdk/openai-compatible
+opencodeProviderPresets.ts	third_party	ClaudeCN	https://claudecn.top	@ai-sdk/anthropic
+opencodeProviderPresets.ts	third_party	CrazyRouter	https://cn.crazyrouter.com	@ai-sdk/anthropic
+opencodeProviderPresets.ts	third_party	Cubence	https://api.cubence.com/v1	@ai-sdk/anthropic
+opencodeProviderPresets.ts	third_party	E-FlowCode	https://e-flowcode.cc/v1	@ai-sdk/openai
+opencodeProviderPresets.ts	third_party	ETok.ai	https://api.etok.ai/v1	@ai-sdk/anthropic
+opencodeProviderPresets.ts	third_party	Micu	https://www.micuapi.ai/v1	@ai-sdk/anthropic
+opencodeProviderPresets.ts	third_party	OpenCode Go	https://opencode.ai/zen/go/v1	@ai-sdk/openai-compatible
+opencodeProviderPresets.ts	third_party	PackyCode	https://www.packyapi.ai/v1	@ai-sdk/anthropic
+opencodeProviderPresets.ts	third_party	RightCode	https://www.rightapi.ai/codex/v1	@ai-sdk/openai
+opencodeProviderPresets.ts	third_party	SSSAiCode	https://node-hk.sssaicodeapi.com/api/v1	@ai-sdk/anthropic
+opencodeProviderPresets.ts	third_party	SudoCode.chat	https://api.sudocode.chat/v1	@ai-sdk/openai
+opencodeProviderPresets.ts	third_party	SudoCode.us	https://sudocode.us/v1	@ai-sdk/openai
