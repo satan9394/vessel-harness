@@ -1,13 +1,39 @@
 # 供应商配置管理（PROVIDER-MANAGEMENT.md）
 
-> 版本：2026-09-05 · 对标 cc-switch 的"配置管理/一键切换"体验，但本项目自己是 Harness 运行时
-> 关联：docs/PROVIDER-INTEGRATION.md（协议层接入）、docs/MISSION-V0.4.md（TaskRouter 多模型路由）
+> 版本：2026-09-05（V0.7：交互 TUI + 52 供应商 + 三档权限）· 对标 cc-switch 的"配置管理/一键切换"体验，但本项目自己是 Harness 运行时
+> 关联：docs/PROVIDER-INTEGRATION.md（协议层接入）、docs/MISSION-V0.4.md（TaskRouter 多模型路由）、docs/ideas/PROVIDER-TUI-RESEARCH.md（交互/供应商/权限设计调研）
 
 ---
 
 ## 1. 一句话
 
-把"供应商 + 模型"存成可管理的配置（`~/.dsh/providers.json`），`cah provider switch` 一键切换默认供应商，`cah models` 拉取可用模型——`cah run` 不传参时自动用当前默认供应商跑。
+把"供应商 + 模型"存成可管理的配置（`~/.dsh/providers.json`），`cah provider switch` 一键切换默认供应商，`cah models` 拉取可用模型——`cah run` 不传参时自动用当前默认供应商跑。**V0.7 起：直接敲 `cah` 进入交互对话界面**（opencode 式），供应商配置/模型/权限全是界面内斜杠命令，不用先记参数。
+
+## 1.5 交互体验（V0.7，一条命令开始）
+
+```powershell
+cah            # 直接进交互对话（需要终端）：输入文字跑任务，斜杠命令管配置
+cah setup      # 或：引导式配置供应商向导（搜索选→key→拉模型→勾选）
+```
+
+TUI 内斜杠命令：`/provider`（配置供应商）、`/models`（当前供应商模型）、`/model <id>`（切模型）、`/permission`（切权限）、`/help`、`/quit`。全局 `cah` 命令：`npm link`（apps/cli 已配 bin.cah）后任意目录可 `cah`。
+
+## 1.6 供应商目录（52 条，V0.7）
+
+内置 52 个预填端点的供应商（数据在 `apps/cli/src/providers/presets.data.ts`，来源见 `docs/ideas/PROVIDER-TUI-RESEARCH.md` §A3）：官方国际（Anthropic/OpenAI/Gemini/xAI/Groq/Mistral…）、国产官方（DeepSeek/Qwen/Kimi/GLM/MiniMax/豆包/混元/百炼/千帆…）、聚合（OpenRouter/硅基流动/魔搭/Novita/302AI…）、本地（Ollama/vLLM/LM Studio/llama.cpp/Jan）+ mock。向导里搜索即得，自定义端点随时可加。
+
+## 1.7 权限三档（V0.7，对齐市面 agent）
+
+`--permission <mode>`（run）或 TUI `/permission`：
+| 模式 | 行为 |
+|---|---|
+| read-only | 只读探索：Read/Grep/Glob 放行，写/执行拒绝 |
+| workspace-write（默认） | 写工作区放行，高危操作 fail-closed 拒绝 |
+| danger-full-access | 全权限（protected 路径与 .env 读取仍拒绝，保留电路熔断） |
+
+映射到既有 policy profile（`configs/policy.default.yaml` 的 read-only/workspace-write/danger-full-access）+ approval never。
+
+---
 
 ## 2. 存储（SSOT）
 
