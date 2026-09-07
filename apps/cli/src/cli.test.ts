@@ -196,3 +196,44 @@ describe('CLI provider/models commands (task 016/015)', () => {
     expect(logs.join('\n')).toContain('内置清单');
   });
 });
+
+describe('V0.7 permission modes — three-level policy enforcement (task 022)', () => {
+  let dir: string;
+  beforeEach(() => { dir = fs.mkdtempSync(path.join(os.tmpdir(), 'cah-perm-')); });
+  afterEach(() => { fs.rmSync(dir, { recursive: true, force: true }); });
+
+  async function runWithPermission(permission: string, toolScript: { name: string; arguments: Record<string, unknown> }[]): Promise<{ finalText: string; denials: number; toolCalls: number }> {
+    const provider = new MockProvider([
+      { when: /.*/, ifNoToolResult: true, response: { toolCalls: toolScript } },
+      { when: /.*/, response: { text: 'DONE-AFTER-TOOL' } },
+    ], { model: 'mock', vars: { cwd: dir } });
+    const h = await composeHarness({
+      workspaceRoot: dir, provider, model: 'mock',
+      policySystemPath: POLICY, behaviorIRPath: BEHAVIOR,
+      permission: permission as 'read-only' | 'workspace-write' | 'danger-full-access',
+    });
+    const result = await h.loop.runTurn('做个操作');
+    const denials = h.session.replay().filter((r) => r.type === 'audit/denial').length;
+    const toolCalls = h.session.replay().filter((r) => r.type === 'tool/call').length;
+    await h.close();
+    return { finalText: result.finalText, denials, toolCalls };
+  }
+
+  it('read-only denies a Write tool call (write not allowed under read-only profile)', async () => {
+    const r = await runWithPermission('read-only', [{ name: 'Write', arguments: { path: 'x.txt', content: 'y' } }]);
+    expect(r.denials).toBeGreaterThanOrEqual(1);
+  });
+
+  it('read-only allows a Read tool call', async () => {
+    fs.writeFileSync(path.join(dir, 'a.txt'), 'hi', 'utf8');
+    const r = await runWithPermission('read-only', [{ name: 'Read', arguments: { path: 'a.txt' } }]);
+    expect(r.denials).toBe(0);
+    expect(r.toolCalls).toBeGreaterThanOrEqual(1);
+  });
+
+  it('workspace-write (default) allows a Write tool call', async () => {
+    const w = await runWithPermission('workspace-write', [{ name: 'Write', arguments: { path: 'ok.txt', content: 'x' } }]);
+    expect(w.denials).toBe(0);
+    expect(w.toolCalls).toBeGreaterThanOrEqual(1);
+  });
+});

@@ -1,6 +1,6 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
-import type { PolicyArtifacts, PolicyDeclaration } from '@cah/shared';
+import type { PolicyArtifacts, PolicyDeclaration, ProfileMode } from '@cah/shared';
 import { compilePolicy, compilePolicyYaml, parsePolicyYaml } from './Compiler.js';
 
 export interface PolicyLoadOptions {
@@ -8,7 +8,7 @@ export interface PolicyLoadOptions {
   systemPath?: string;
   /** project-scope override (.harness/policy.yaml) — loaded when workspace trust passes */
   projectPath?: string;
-  sessionOverrides?: { approval?: 'ask' | 'never'; profile?: string };
+  sessionOverrides?: { approval?: 'ask' | 'never'; profile?: ProfileMode };
 }
 
 /**
@@ -31,7 +31,11 @@ export function loadPolicyArtifacts(opts: PolicyLoadOptions = {}): PolicyArtifac
   }
 
   const merged = mergeScopes(decls);
+  // V0.7: session-level overrides — approval mode and/or permission profile
+  // (permission modes read-only / workspace-write / danger-full-access map to
+  // the policy profile slot at the compose layer).
   if (opts.sessionOverrides?.approval) merged.approval = opts.sessionOverrides.approval;
+  if (opts.sessionOverrides?.profile) merged.profile = opts.sessionOverrides.profile;
 
   return compilePolicy(merged);
 }

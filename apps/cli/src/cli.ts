@@ -31,6 +31,8 @@ run 选项:
                                   anthropic 用 {base}/v1/messages（或 CAH_BASE_URL）
   --api-key <key>                 API 密钥（或 CAH_API_KEY；本地端点可不填）
   --max-steps <n>                 单轮步数上限（默认 64）
+  --permission <mode>             权限模式：read-only（只读探索）| workspace-write（默认，写工作区）|
+                                  danger-full-access（全权限，高危可执行）
   --policy <path>                 系统级策略文件（默认 configs/policy.default.yaml）
   --behavior <path>               Behavior IR 文件（默认 configs/behavior.default.yaml）
   --session-dir <dir>             会话日志目录（默认 <workspace>/.harness/sessions/<id>）
@@ -129,6 +131,7 @@ async function cmdRun(flags: Map<string, string>): Promise<number> {
     policySystemPath: flags.get('policy') ?? path.join(root, 'configs', 'policy.default.yaml'),
     behaviorIRPath: flags.get('behavior') ?? path.join(root, 'configs', 'behavior.default.yaml'),
     maxSteps: Number(flags.get('max-steps') ?? 64),
+    permission: (flags.get('permission') ?? 'workspace-write') as 'read-only' | 'workspace-write' | 'danger-full-access',
   });
 
   for (const w of harness.behaviorWarnings) console.warn(`[behavior] ${w}`);

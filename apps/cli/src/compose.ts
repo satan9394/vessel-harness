@@ -38,6 +38,8 @@ export interface ComposeOptions {
   mcp?: ComposeMcpConnection[];
   /** V0.3: Project Memory (file-based, .harness/memory) — Memory tool + frozen snapshot injection */
   memory?: { enabled?: boolean };
+  /** V0.7: permission mode → policy profile override (read-only / workspace-write / danger-full-access) */
+  permission?: 'read-only' | 'workspace-write' | 'danger-full-access';
   /**
    * V0.4: Task Router wiring. When `providers` + `tierModel` are given and the
    * caller does NOT pin an explicit provider/model, the session is routed from
@@ -108,6 +110,10 @@ export async function composeHarness(opts: ComposeOptions): Promise<ComposedHarn
   const artifacts = loadPolicyArtifacts({
     systemPath: opts.policySystemPath,
     projectPath: opts.policyProjectPath,
+    // V0.7: permission mode maps to the policy profile slot (read-only /
+    // workspace-write / danger-full-access). approval stays fail-closed
+    // (never) unless an interactive ask surface (TUI) is present.
+    sessionOverrides: opts.permission ? { profile: opts.permission } : undefined,
   });
   const policyEngine = new PolicyEngine(artifacts);
 
