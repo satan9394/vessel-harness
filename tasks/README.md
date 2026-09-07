@@ -9,9 +9,9 @@
 
 ## 当前迭代
 
-- V0.3（docs/MISSION-V0.3.md）：**已完成并验收 PASS**（REVIEW-REPORT-V03.md）。
-- V0.4（docs/MISSION-V0.4.md）：Task Router / Orchestration Policy 主线，**已完成并验收 PASS**（REVIEW-REPORT-V04.md）。
-- 下一阶段候选：V0.5 Loop Engine（任务书第十四节）/ 可继续子代理 / learned 完整化。拆卡前先出 MISSION-V0.5。
+- **V0.1–V0.5 全部完成并独立验收 PASS**（docs/REVIEW-REPORT-V0{1,2,3,4,5}.md）。
+- V0.5 = 任务书最后一个版本里程碑（Loop Engine），至此任务书 V0.1–V0.5 版本路线全部落地。
+- 后续候选（超任务书路线 / V0.5 之后的增强）：可继续子代理（send_message/interrupt）、真实 generator 接线、记忆发现 Discovery、learned 完整化、Cross-Harness Conformance Suite 实跑。拆卡前先出新 MISSION。
 
 | 卡 | 标题 | 状态 |
 |---|---|---|
@@ -24,3 +24,7 @@
 | 007 | V0.4-M2 Preset 库 + TaskRouter | 已合入 be345bf |
 | 008 | V0.4-M3 接线（compose/subagent preset） | 已合入 ef7ac13 |
 | 009 | V0.4-M4 收尾（B022 + notes + 核验） | 已合入 9e0b556 + dbbec94 |
+| 010 | V0.5-M1 Loop Engine 核心 | 已合入 b21f86e |
+| 011 | V0.5-M2 Task Selection + Trigger | 已合入 5f266fe |
+| 012 | V0.5-M3 隔离工作区 | 已合入 0af4139 |
+| 013 | V0.5-M4 收尾（B023 + notes + 核验） | 已合入 a82889d + （收尾提交） |
