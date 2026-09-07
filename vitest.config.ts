@@ -19,6 +19,7 @@ const packages = [
   'skills',
   'agents',
   'telemetry',
+  'engine',
 ];
 
 const alias: Record<string, string> = {};
