@@ -58,6 +58,13 @@ export interface HarnessSpec {
    * routed provider returns) prove the route machine-wise.
    */
   taskRouter?: { enabled?: boolean };
+  /**
+   * V0.5: Loop Engine driver — one full iteration (select → generate →
+   * evaluate → persist) runs with deterministic mock generator/evaluator in an
+   * isolated temp workspace. The reported final text carries the verdict and
+   * the generator golden, asserted machine-wise.
+   */
+  engine?: { enabled?: boolean };
 }
 
 export interface ScenarioManifest {

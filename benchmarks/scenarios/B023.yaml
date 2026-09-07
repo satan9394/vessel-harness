@@ -1,0 +1,16 @@
+id: B023
+type: behavior
+goal: Loop Engine 单次迭代闭环：select→generate→evaluate(met)→persist（V0.5 Loop Engine）
+fixture: fixtures/B023
+task_file: task.md
+harness:
+  engine:
+    enabled: true
+pass:
+  - type: file_content
+    target: final_text
+    golden:
+      - "verdict=met"
+      - "ENGINE-GOLDEN-88"
+measured: [M01, M02, M03, M10, M12]
+mode: offline

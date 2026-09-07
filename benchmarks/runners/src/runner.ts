@@ -6,7 +6,9 @@ import type { ChatProvider } from '@cah/shared';
 import { MockProvider } from '@cah/llm';
 import { composeHarness, type ComposeOptions } from '@cah/cli';
 import { EvaluatorAgent, createReadOnlyExplorationTools, executePlan, generatePlan, injectPlan } from '@cah/agents';
+import type { EvaluatorVerdict } from '@cah/agents';
 import { McpClient, createInProcessTransport, handleMcpRequest } from '@cah/tools';
+import { LoopEngine, createTaskQueue, queueSelectTask, TempDirWorkspaceFactory } from '@cah/engine';
 import { loadManifest } from './manifest.js';
 import { runAssert } from './asserts.js';
 import { OFFLINE_SCRIPTS } from './offline.js';
@@ -100,6 +102,38 @@ async function driveScenario(
       surface: true,
     });
     return `评估结论：${verdict.verdict}（${verdict.reason}）`;
+  }
+  if (manifest.harness?.engine) {
+    // V0.5 Loop Engine lane: one full iteration with deterministic
+    // generator/evaluator in an isolated temp workspace. The reported text
+    // carries the machine-checkable verdict + generator golden.
+    const queue = createTaskQueue([{ id: 'b023', goal: prompt, acceptance: ['ENGINE-GOLDEN-88'] }]);
+    const wsFactory = new TempDirWorkspaceFactory('cah-b023-');
+    const persisted: { verdict: string; taskId: string; evidence: string[] }[] = [];
+    const engine = new LoopEngine(
+      {
+        selectTask: queueSelectTask(queue),
+        generate: async (ctx) => {
+          const p = path.join(ctx.workspace.root, 'engine-result.txt');
+          fs.writeFileSync(p, 'ENGINE-GOLDEN-88 produced by loop-engine iteration', 'utf8');
+          return { output: '迭代产物已写入隔离工作区 ENGINE-GOLDEN-88', artifactPaths: [p] };
+        },
+        evaluate: async ({ generatorOutput }) =>
+          generatorOutput.output.includes('ENGINE-GOLDEN-88')
+            ? ({ verdict: 'met', evidence: ['ENGINE-GOLDEN-88 in output'], reason: 'generator artifact present' } as EvaluatorVerdict)
+            : ({ verdict: 'not_met', evidence: ['missing golden'], reason: 'artifact missing' } as EvaluatorVerdict),
+        persist: async (r) => {
+          persisted.push({ verdict: r.verdict, taskId: r.taskId, evidence: r.evidence });
+        },
+        workspaceFactory: (t) => wsFactory.create(t),
+        disposeWorkspace: (ws) => wsFactory.dispose(ws),
+      },
+      { maxIterations: 1 },
+    );
+    const report = await engine.run();
+    const verdict = report?.result.verdict ?? 'error';
+    const taskId = report?.result.taskId ?? 'none';
+    return `Loop Engine 迭代完成：verdict=${verdict}（任务 ${taskId}，iteration ${report?.result.iteration ?? 0}）；产物含 ENGINE-GOLDEN-88；persist 记录 ${persisted.length} 条`;
   }
   const result = await harness.loop.runTurn(prompt);
   return result.finalText;

@@ -118,3 +118,24 @@ describe('benchmarks/runner — V0.4 batch B022 (offline task-routing lane)', ()
     expect(fs.existsSync(report.reportPath)).toBe(true);
   }, 60_000);
 });
+
+describe('benchmarks/runner — V0.5 batch B023 (Loop Engine lane)', () => {
+  it('B023 runs one Loop Engine iteration (verdict=met + engine golden), machine-asserted', async () => {
+    const report = await runScenario({
+      scenarioId: 'B023',
+      repoRoot: REPO_ROOT,
+      reportsDir: REPORTS,
+      provider: null,
+      model: 'mock-model',
+      policyPath: path.join(REPO_ROOT, 'configs', 'policy.default.yaml'),
+      behaviorIRPath: path.join(REPO_ROOT, 'configs', 'behavior.default.yaml'),
+    });
+    tempDirs.push(report.workspace);
+    expect(report.success, `asserts: ${JSON.stringify(report.asserts)}`).toBe(true);
+    expect(report.metrics.M01).toBe(1);
+    expect(report.finalText).toContain('verdict=met');
+    expect(report.finalText).toContain('ENGINE-GOLDEN-88');
+    expect(report.finalText).toContain('persist 记录 1 条');
+    expect(fs.existsSync(report.reportPath)).toBe(true);
+  }, 60_000);
+});
