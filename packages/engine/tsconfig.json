@@ -11,6 +11,7 @@
     { "path": "../core" },
     { "path": "../agents" },
     { "path": "../llm" },
+    { "path": "../policy" },
     { "path": "../tools" }
   ]
 }
