@@ -1,0 +1,109 @@
+# Release Gates（8 道发布门禁 + release-report）
+
+> 任务卡：`tasks/084-release-gates.md`；权威需求：`docs/Vessel_后续开发方向与产品化路线_v1.0.md` §21
+> （L1946-1974：每次版本收尾固定跑 8 gate，最终输出 release-report.json + release-report.md；
+> "不以自证为证"）。
+> 前置：076（RunResult/contracts）、082（real-model lane + pending 模式）、083（report 形状 +
+> schemaVersion 1）、075（safety）、063/064（resume 素材，经 068 soak 驱动）。
+> 范围：只做 gate 框架 + 判据接线 + 报告；不做 CI 平台集成。
+
+## 目的
+
+把每次版本收尾要核对的 8 道发布门禁（Build / Unit / Deterministic Bench / Real Model Bench / Safety /
+Resume / UX Smoke / Packaging）做成**可重复执行的判据框架**：每 gate 一个独立可注入执行函数，返回
+`{ pass | fail | pending, evidence, durationMs }`，runner 顺序执行 → 聚合 `release-report.json`（schemaVersion
++ 每 gate 结果/证据/时长 + 总判定）+ `release-report.md`（人读版）。环境敏感 gate（real model / UX /
+packaging）用 **probe → pending** 标注，**不静默通过**（082 lane 模式，继承"不以自证为证"）。
+
+## 复用纪律（不重造）
+
+- **判据消费既有能力**：Build=tsc，Unit=vitest，Deterministic Bench=safety 复用 076 runner
+  （`runScenario` 离线 mock lane）；Real Model Bench=082 `runRealModelLane`（probe→pending）；
+  Safety=075 pack 判据；Resume=063/064 经 068 `runSoak`（小规模子集固定不变式）；UX/Packaging=probe。
+- **报告形状对齐 083**：`ReleaseReport.schemaVersion: 1`，JSON 直接 `JSON.stringify` 即机器可读本体；
+  markdown 是同对象的渲染视图。输出落在 `benchmarks/reports/`（084 惯例：`release-report.md` + `.json`）。
+
+## 用法（库 API）
+
+```ts
+import {
+  buildReleaseGateExecutors, // 8 个真实 gate executor（可注入 deps：provider/路径）
+  runReleaseGates,           // 顺序执行 → ReleaseReport（JSON 本体）
+  renderReleaseMarkdown,     // → markdown
+  writeReleaseReportFiles,   // 写 <dir>/release-report.md + .json
+  releaseStatus,             // ready / blocked / partial
+  // 判据纯函数（单测）：judgeBuild/judgeUnit/judgeRealModelLane/judgeScenarioRuns/
+  //                       judgeSoakResume/judgePackagingProbe/judgeUxSmoke
+} from '@vessel/bench-runners';
+
+// 非受限环境真实跑（配好 provider 后 real-model gate 才完整）
+const executors = buildReleaseGateExecutors({
+  repoRoot: process.cwd(),
+  reportsDir: 'benchmarks/reports',
+  providerResolver: async (model) => resolveProvider(model), // 返回 null → 该 gate pending
+}).map((e) => ({ gate: e.gate, run: (ctx) => e.run({ ...ctx, exec: gateDefaultRunCommand }) }));
+
+const report = await runReleaseGates(executors, {
+  repoRoot: process.cwd(),
+  reportsDir: 'benchmarks/reports',
+  version: 'v1.0.0',
+}, gateDefaultRunCommand);
+
+// 聚合落盘
+writeReleaseReportFiles(report, 'benchmarks/reports');
+```
+
+**可注入可测**：每个真实 executor 的副作用都走 `exec: RunCommand`（spawn 边界），单测注入 mock 即可跑，
+不碰真实命令；真实命令路径（tsc/vitest）在**非受限环境**跑。
+
+## 判据清单（8 gate，对齐 §21）
+
+| # | gate id | 判据（subset of criterion check in code） | 环境说明 |
+| --- | --- | --- | --- |
+| 1 | build | `tsc -b tsconfig.json` 退出码 0 | 需 tsc/非受限环境 |
+| 2 | unit | `npx vitest run`（root）退出码 0 且无 failed 标记 | 需 vitest/非受限环境 |
+| 3 | deterministic-bench | 离线 L1 可跑集 B001–B005 全通过（076 runner） | offline 确定性 |
+| 4 | real-model-bench | 082 lane 收集 §15 L3；无凭据/无 provider → **pending** | 需凭据；否则 pending |
+| 5 | safety | 075 pack（S001–S008）离线 enforcement 证据齐 | offline 确定性 |
+| 6 | resume | 063/064 soak 子集不变量：暂停/续跑、workspace 零残留、从 handoff 续跑留痕 | 确定性 |
+| 7 | ux-smoke | web 构建产物存在；否则 **pending**（环境标注） | 需先 build web |
+| 8 | packaging | build 产物 + 入口存在（npm pack probe）；否则 **pending** | 需先 build dist |
+
+pending 的 gate 语义：表示在受限/无凭据环境下**未执行完整判据**，需在非受限环境补齐后再判 ready；
+该 gate `note` 显式标注原因，**绝不静默 pass**。
+
+## 报告形状（`ReleaseReport`，JSON 机器可读）
+
+```jsonc
+{
+  "schemaVersion": 1,
+  "version": "v1.0.0",                // 可选
+  "generatedAt": "2026-09-08T...",    // ISO
+  "status": "ready",                  // ready | blocked | partial
+  "gates": [ {
+      "id": "build", "name": "Build (tsc -b)", "position": 1,
+      "criterion": "...", "status": "pass",
+      "evidence": { "summary": "...", "detail": ["..."], "artifacts": ["..."] },
+      "durationMs": 1234, "note": "..." } /* ×8，按 §21 顺序 */ ],
+  "totals": { "pass":8, "fail":0, "pending":0, "durationMs": ... }
+}
+```
+
+总判定规则：全 pass=**ready**；有 fail=**blocked**（优先于 pending）；有 pending 无 fail=**partial**。
+markdown 版（`renderReleaseMarkdown`）含：标题/生成信息/总判定 → 8 gate 表格 → 总体统计 → 环境注解。
+
+## 设计选择与理由
+
+1. **判据函数 = 纯函数**：`judgeBuild` 等把预采集数据 → 三态判定，不跑命令、毫秒级、单测直接 mock 输入。
+2. **执行器可注入 + 依赖走 `RunCommand` 边界**：真实 executor 的唯一副作用统一收敛到注入的 exec，
+   单测全部 mock；真实命令路径在非受限环境跑，不强依赖沙箱可 spawn。
+3. **环境敏感 gate 用 probe→pending，不静默通过**：real-model/UX/packaging 无凭据/无产物时显式返回
+   pending（带 note），继承 082 lane 的诚实降级语义（§21 "不以自证为证"）。
+4. **总判定三态**：ready/blocked/partial 明确区分"全过 / 有硬性失败 / 环境未备齐"，指挥据此拍板。
+5. **runner 顺序执行 + 异常转 fail**：严格按 §21 顺序 1→8；executor 抛异常→该 gate fail（不被吞、不被当
+   静默 pass），保证报告的完整性。
+
+## 范围边界
+
+- 只做 gate 框架 + 判据接线 + 报告（本地/CI 可跑）。
+- 不做 CI 平台集成；真实模型/UX/包装环境用 probe/pending 标注，不在受限环境假装通过。

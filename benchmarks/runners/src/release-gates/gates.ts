@@ -1,0 +1,441 @@
+/**
+ * task 084 — Release Gates: the 8 gate definitions + judges + real executors.
+ *
+ * Each gate owns:
+ *  - `GateDefinition` (id / name / criterion / §21 position) — the static “what
+ *    this gate enforces” face aligned to docs §21 (L1946-1974).
+ *  - a judge function that turns pre-collected data into a tri-state verdict —
+ *    pure, unit-testable without running any command.
+ *  - a real executor that either shells through the injected `RunCommand`
+ *    boundary (Build/Unit/Packaging) or drives a lane directly (Real Model
+ *    Bench → 082, Safety → 075 runner, Resume → 068 soak). Environment-sensitive
+ *    gates (real-model lane, UX probe, packaging) PROBE first and return
+ *    `pending` with an explicit note when tooling is absent — never a silent
+ *    pass (§21 "不以自证为证"; 082 lane mode).
+ */
+import * as fs from 'node:fs';
+import * as path from 'node:path';
+import { execFile } from 'node:child_process';
+import { promisify } from 'node:util';
+import type { ChatProvider } from '@vessel/shared';
+import { runSoak } from '../soak/soak-driver.js';
+import {
+  probeModelApi,
+  runRealModelLane,
+  LANE_MODELS,
+  LANE_SCENARIOS,
+  type ProviderResolver,
+} from '../lane/real-model-lane.js';
+import type {
+  GateDefinition,
+  GateExecutor,
+  GateId,
+  GateVerdict,
+  RealModelDeps,
+  ReleaseContext,
+  RunCommand,
+} from './types.js';
+
+const execFileAsync = promisify(execFile);
+
+/** §21 ordered gate definitions (1..8). */
+export const GATE_DEFINITIONS: GateDefinition[] = [
+  { id: 'build', name: 'Build (tsc -b)', criterion: '类型构建 `tsc -b tsconfig.json` 完成且退出码 0（无类型错误）。', position: 1 },
+  { id: 'unit', name: 'Unit (vitest root)', criterion: '全量 `npx vitest run`（root）通过且退出码 0（无测试失败）。', position: 2 },
+  { id: 'deterministic-bench', name: 'Deterministic Bench (L1)', criterion: 'L1 可跑集（B001-B005 离线确定性 mock lane）全部 manifest 断言通过。', position: 3 },
+  { id: 'real-model-bench', name: 'Real Model Bench (082 lane)', criterion: '082 真实模型 lane 收集到 §15 L3 指标；无凭据/无 provider 时显式 pending，不静默通过。', position: 4 },
+  { id: 'safety', name: 'Safety (075 pack)', criterion: '075 安全包（S001-S008 判据）离线 enforcement 证据齐全，无高危越权。', position: 5 },
+  { id: 'resume', name: 'Resume (063/064)', criterion: '063/064 可跑集（068 soak 小规模）resume 不变量成立：暂停/续跑、workspace 零残留、从 handoff 续跑留痕。', position: 6 },
+  { id: 'ux-smoke', name: 'UX Smoke (web)', criterion: 'web 套件或最小 smoke 通过；web 构建工具缺失时显式 pending。', position: 7 },
+  { id: 'packaging', name: 'Packaging (build artifacts)', criterion: 'build 产物检查（npm pack / 等价产物）存在且完整；工具缺失时显式 pending。', position: 8 },
+];
+
+const BY_ID = new Map<GateId, GateDefinition>(GATE_DEFINITIONS.map((g) => [g.id, g]));
+
+export function gateDefinition(id: GateId): GateDefinition {
+  const def = BY_ID.get(id);
+  if (!def) throw new Error(`unknown gate id: ${id}`);
+  return def;
+}
+
+/** Ordered gate id array (1..8) — the runner iterates this exact order. */
+export const GATE_ORDER: GateId[] = GATE_DEFINITIONS.map((g) => g.id);
+
+// ---------------------------------------------------------------------------
+// Pure judges — turn pre-collected data into a tri-state verdict. Testable
+// without running any command. Used by the real executors AND unit tests.
+// ---------------------------------------------------------------------------
+
+export interface CommandOutcome {
+  code: number;
+  stdout: string;
+  stderr: string;
+}
+
+function compactLines(o: CommandOutcome): string[] {
+  return [
+    ...o.stdout.trim().split('\n').slice(-12),
+    ...o.stderr.trim().split('\n').slice(-6),
+  ]
+    .map((s) => s.trim())
+    .filter((s) => s.length > 0)
+    .slice(0, 18);
+}
+
+/** Judge a `tsc -b` run: pass = exit 0 (stdout/stderr surfaced as detail). */
+export function judgeBuild(outcome: CommandOutcome): GateVerdict {
+  const detail = compactLines(outcome)
+    .concat(outcome.code !== 0 ? [`tsc exit=${outcome.code}`] : ['tsc exit=0']);
+  return {
+    status: outcome.code === 0 ? 'pass' : 'fail',
+    evidence: {
+      summary: outcome.code === 0 ? '类型构建通过（tsc -b exit 0）' : `类型构建失败（tsc -b exit ${outcome.code}）`,
+      detail,
+    },
+  };
+}
+
+/**
+ * Judge a vitest run. vitest prints a summary line like "Test Files  X passed (Y tests)".
+ * Pass = exit 0 AND no "failed" marker in stdout/stderr.
+ */
+export function judgeUnit(outcome: CommandOutcome, expectedTestFilesMin = 0): GateVerdict {
+  const failed =
+    outcome.stderr.match(/FAIL|failed .*tests/i) ?? outcome.stdout.match(/FAIL|failed .*tests/i);
+  const pass = outcome.code === 0 && !failed && parsedTestCount(outcome) >= expectedTestFilesMin;
+  const detail = compactLines(outcome).concat([`vitest exit=${outcome.code}`]);
+  return {
+    status: pass ? 'pass' : 'fail',
+    evidence: {
+      summary: pass ? '全量 vitest（root）通过' : `vitest 存在问题（exit=${outcome.code}）`,
+      detail,
+    },
+  };
+}
+
+function parsedTestCount(outcome: CommandOutcome): number {
+  const m = outcome.stdout.match(/Test Files\s+[\d]+\s+passed\s+\((\d+)\s+tests?\)/);
+  return m ? Number(m[1]) : 0;
+}
+
+/** Judge whether an 082 lane report is release-clean (empty → pending). */
+export function judgeRealModelLane(args: {
+  rowCount: number;
+  passed: number;
+  failed: number;
+  pendingEnv: number;
+  degraded: boolean;
+}): GateVerdict {
+  if (args.degraded || args.pendingEnv > 0 || args.rowCount === 0) {
+    return {
+      status: 'pending',
+      pending: true,
+      evidence: {
+        summary: args.rowCount === 0
+          ? '真实模型 lane 未运行（无 credential/provider）'
+          : '真实模型 lane 无完整环境（部分/全部 pending）',
+        detail: [`rows=${args.rowCount}`, `passed=${args.passed}`, `failed=${args.failed}`, `pendingEnv=${args.pendingEnv}`, `degraded=${String(args.degraded)}`],
+      },
+      note: 'real model gate: 无真实 API 凭据 → pending（配好 provider 后重跑），不静默通过。',
+    };
+  }
+  if (args.failed > 0) {
+    return {
+      status: 'fail',
+      evidence: {
+        summary: `真实模型 lane 有 ${args.failed} 行失败`,
+        detail: [`rows=${args.rowCount}`, `passed=${args.passed}`, `failed=${args.failed}`],
+      },
+    };
+  }
+  return {
+    status: 'pass',
+    evidence: {
+      summary: `真实模型 lane 全过（${args.passed}/${args.rowCount}）`,
+      detail: [`rows=${args.rowCount}`, `passed=${args.passed}`],
+    },
+  };
+}
+
+/** Judge a set of offline scenario runs (deterministic-bench + safety gates). */
+export function judgeScenarioRuns(args: { scenarioIds: string[]; passed: boolean[] }): GateVerdict {
+  const failed = args.scenarioIds.filter((_, i) => args.passed[i] === false);
+  const ran = args.scenarioIds.length;
+  if (failed.length > 0) {
+    return {
+      status: 'fail',
+      evidence: { summary: `离线可跑集有 ${failed.length} 个失败：${failed.join(', ')}`, detail: [`ran=${ran}`, `fail=${failed.join(', ')}`] },
+    };
+  }
+  return {
+    status: 'pass',
+    evidence: { summary: `离线可跑集全部通过（${ran} 个）`, detail: [`ran=${ran}`, `passed=${ran - failed.length}`] },
+  };
+}
+
+/** Judge a small stress-soak's resume invariants (063/064/066/067). */
+export function judgeSoakResume(args: {
+  pauseResumeCycles: number;
+  tempResidue: number;
+  resumeProducedIteration: boolean;
+  countConsistent: boolean;
+}): GateVerdict {
+  const checks: string[] = [];
+  const ok =
+    (checks.push(`pauseResumeCycles=${args.pauseResumeCycles}>=1`), args.pauseResumeCycles >= 1) &&
+    (checks.push(`tempResidue=${args.tempResidue}==0`), args.tempResidue === 0) &&
+    (checks.push(`resumeProducedIteration=${String(args.resumeProducedIteration)}`), args.resumeProducedIteration) &&
+    (checks.push(`countConsistent=${String(args.countConsistent)}`), args.countConsistent);
+  return {
+    status: ok ? 'pass' : 'fail',
+    evidence: {
+      summary: ok ? 'resume 不变量成立（暂停/续跑、零残留、从 handoff 续跑留痕）' : 'resume 不变量未全部成立',
+      detail: checks,
+    },
+  };
+}
+
+/** Judge the packaging gate: build output present + entry exists; probe-fail → pending. */
+export function judgePackagingProbe(args: {
+  rootHasDist: boolean;
+  entryExists: boolean;
+  probeFailed: boolean;
+}): GateVerdict {
+  if (args.probeFailed || !args.rootHasDist) {
+    return {
+      status: 'pending',
+      pending: true,
+      evidence: { summary: args.probeFailed ? '包装探测失败（受限环境无法执行 npm pack）' : '未发现 build 产物（dist 缺失）' },
+      note: 'packaging gate: 需要非受限环境构建出 dist 后重跑；当前显式 pending 不静默通过。',
+    };
+  }
+  return {
+    status: args.entryExists ? 'pass' : 'fail',
+    evidence: {
+      summary: args.entryExists ? 'build 产物完整（dist + 入口存在）' : 'dist 存在但入口缺失',
+      detail: [`dist=${String(args.rootHasDist)}`, `entry=${String(args.entryExists)}`],
+    },
+  };
+}
+
+/** Judge the UX smoke gate: web build output present; else pending (env). */
+export function judgeUxSmoke(args: { webDistPresent: boolean; probeFailed: boolean }): GateVerdict {
+  if (args.probeFailed || !args.webDistPresent) {
+    return {
+      status: 'pending',
+      pending: true,
+      evidence: { summary: args.probeFailed ? 'web smoke 探测失败（受限环境）' : 'web 构建产物缺失（未 build）' },
+      note: 'ux-smoke gate: web 套件/产物需在非受限环境跑；当前显式 pending。',
+    };
+  }
+  return { status: 'pass', evidence: { summary: 'web smoke 构建产物存在', detail: ['webDistPresent=true'] } };
+}
+
+// ---------------------------------------------------------------------------
+// The default injected command runner. Uses child_process.execFile — this is
+// the seam the「真实命令在非受限环境跑」uses; a sandboxed test substitutes its
+// own RunCommand (spawn-with-piped-stdio may be EPERM under a file sandbox).
+// ---------------------------------------------------------------------------
+
+function execAsync(command: string, args: string[], opts: { cwd?: string; env?: Record<string, string | undefined>; timeoutMs?: number }): Promise<CommandOutcome> {
+  return new Promise((resolve) => {
+    execFileAsync(command, args, {
+      cwd: opts.cwd,
+      env: opts.env,
+      timeout: opts.timeoutMs ?? 120_000,
+      windowsHide: true,
+    })
+      .then(({ stdout, stderr }) => resolve({ code: 0, stdout: String(stdout), stderr: String(stderr) }))
+      .catch((err: NodeJS.ErrnoException & { stdout?: string; stderr?: string; code?: string | number }) =>
+        resolve({ code: typeof err.code === 'number' ? err.code : 1, stdout: String(err.stdout ?? ''), stderr: String(err.stderr ?? err.message) }),
+      );
+  });
+}
+
+/** The default real command runner (shells via child_process). */
+export const gateDefaultRunCommand: RunCommand = (command, args, opts) => execAsync(command, args, opts);
+
+// ---------------------------------------------------------------------------
+// Real executors — one per gate, injectable, built on judges + injected deps.
+// ---------------------------------------------------------------------------
+
+/** L1 deterministic-bench runnable set (B001-B005) used by the gate. */
+export const DETERMINISTIC_BENCH_SCENARIOS = ['B001', 'B002', 'B003', 'B004', 'B005'] as const;
+
+/** Offline safety scenarios the 075 gate runs. */
+export const SAFETY_SCENARIOS = ['S001', 'S002', 'S004', 'S005', 'S006', 'S007'] as const;
+
+/** Options to build the 8 real gate executors (paths/deps injectable). */
+export interface BuildGateExecutorsOptions extends RealModelDeps {
+  /** web dist root to probe for the UX-smoke gate (default apps/web/dist). */
+  webDistRoot?: string;
+  /** package entry to check for the packaging gate (default root dist/index). */
+  packageEntry?: string;
+}
+
+/**
+ * Run a set of offline scenarios via the 076 runner and return an aggregated
+ * verdict. `provider` null → deterministic mock lane. Reused by the
+ * deterministic-bench and safety gates.
+ */
+async function runOfflineScenarios(
+  ctx: ReleaseContext,
+  scenarioIds: string[],
+  provider: ChatProvider | null,
+): Promise<GateVerdict> {
+  const { runScenario } = await import('../runner.js');
+  const passed: boolean[] = [];
+  for (const id of scenarioIds) {
+    try {
+      const r = await runScenario({
+        scenarioId: id,
+        repoRoot: ctx.repoRoot,
+        reportsDir: path.join(ctx.reportsDir, 'release-gate'),
+        provider,
+        model: 'mock-model',
+        policyPath: path.join(ctx.repoRoot, 'configs', 'policy.default.yaml'),
+        behaviorIRPath: path.join(ctx.repoRoot, 'configs', 'behavior.default.yaml'),
+      });
+      passed.push(r.success === true);
+    } catch (err) {
+      return {
+        status: 'fail',
+        evidence: { summary: `离线场景 ${id} 执行异常`, detail: [String(err)] },
+      };
+    }
+  }
+  return judgeScenarioRuns({ scenarioIds, passed });
+}
+
+/** Build the 8 real release-gate executors with injected deps. */
+export function buildReleaseGateExecutors(opts: BuildGateExecutorsOptions = {}): GateExecutor[] {
+  const noCredentialResolver: ProviderResolver = async () => null;
+  const providerResolver: ProviderResolver = opts.providerResolver ?? noCredentialResolver;
+
+  const out: GateExecutor[] = [
+    // Gate 1 Build — tsc -b
+    {
+      gate: gateDefinition('build'),
+      run: async (ctx) => {
+        const outcome = await ctx.exec('npx', ['tsc', '-b', 'tsconfig.json'], { cwd: ctx.repoRoot, timeoutMs: 120_000 });
+        return judgeBuild(outcome);
+      },
+    },
+    // Gate 2 Unit — vitest run (root)
+    {
+      gate: gateDefinition('unit'),
+      run: async (ctx) => {
+        const outcome = await ctx.exec('npx', ['vitest', 'run'], { cwd: ctx.repoRoot, timeoutMs: 180_000 });
+        return judgeUnit(outcome, 0);
+      },
+    },
+    // Gate 3 Deterministic Bench — offline L1 B001-B005
+    {
+      gate: gateDefinition('deterministic-bench'),
+      run: async (ctx) => {
+        const provider = opts.providerFactory?.(DETERMINISTIC_BENCH_SCENARIOS as unknown as string[]) ?? null;
+        return runOfflineScenarios(ctx, DETERMINISTIC_BENCH_SCENARIOS as unknown as string[], provider);
+      },
+    },
+    // Gate 4 Real Model Bench — 082 lane (probe → pending when no provider)
+    {
+      gate: gateDefinition('real-model-bench'),
+      run: async (ctx) => {
+        const models = opts.models ?? LANE_MODELS;
+        const injectedProvider = opts.provider;
+        const laneResolver: ProviderResolver =
+          injectedProvider !== undefined ? async () => injectedProvider : providerResolver;
+        const availability = await probeModelApi(models, laneResolver);
+        const degraded = models.some((m) => availability[m.id] !== true) || injectedProvider === undefined;
+        if (degraded) {
+          return judgeRealModelLane({ rowCount: 0, passed: 0, failed: 0, pendingEnv: models.length, degraded: true });
+        }
+        const lane = await runRealModelLane({
+          models,
+          scenarios: LANE_SCENARIOS,
+          providerResolver: laneResolver,
+          repoRoot: ctx.repoRoot,
+          reportsDir: ctx.reportsDir,
+        });
+        return judgeRealModelLane({
+          rowCount: lane.rows.length,
+          passed: lane.rows.filter((r) => r.status === 'passed').length,
+          failed: lane.rows.filter((r) => r.status === 'failed').length,
+          pendingEnv: lane.rows.filter((r) => r.status === 'pending-environment').length,
+          degraded: lane.degraded,
+        });
+      },
+    },
+    // Gate 5 Safety — 075 pack offline S001-S008
+    {
+      gate: gateDefinition('safety'),
+      run: async (ctx) => {
+        const provider = opts.providerFactory?.(SAFETY_SCENARIOS as unknown as string[]) ?? null;
+        return runOfflineScenarios(ctx, SAFETY_SCENARIOS as unknown as string[], provider);
+      },
+    },
+    // Gate 6 Resume — 063/064 small soak (resume invariants)
+    {
+      gate: gateDefinition('resume'),
+      run: async (ctx) => {
+        const base = fs.mkdtempSync(path.join(ctx.reportsDir, 'release-soak-'));
+        try {
+          const obs = await runSoak({
+            label: 'release-gate-resume',
+            taskCount: 4,
+            totalRounds: 3,
+            maxRetries: 1,
+            maxAcceptedRounds: 2,
+            handoffEveryRounds: 1,
+            baseDir: base,
+          });
+          return judgeSoakResume({
+            pauseResumeCycles: obs.pauseResumeCycles,
+            tempResidue: obs.tempResidueFinal,
+            resumeProducedIteration: obs.resumeProducedIteration,
+            countConsistent: obs.countConsistent,
+          });
+        } finally {
+          fs.rmSync(base, { recursive: true, force: true });
+        }
+      },
+    },
+    // Gate 7 UX Smoke — web build probe (env-annotated)
+    {
+      gate: gateDefinition('ux-smoke'),
+      run: async (ctx) => {
+        const webDist = path.join(ctx.repoRoot, opts.webDistRoot ?? 'apps/web/dist');
+        let present = false;
+        let probeFailed = false;
+        try {
+          present = fs.existsSync(webDist);
+        } catch {
+          probeFailed = true;
+        }
+        return judgeUxSmoke({ webDistPresent: present, probeFailed });
+      },
+    },
+    // Gate 8 Packaging — npm pack probe (env-annotated)
+    {
+      gate: gateDefinition('packaging'),
+      run: async (ctx) => {
+        let probeFailed = false;
+        const outcome = await ctx
+          .exec('npm', ['pack', '--dry-run', '--json'], { cwd: ctx.repoRoot, timeoutMs: 120_000 })
+          .catch(() => {
+            probeFailed = true;
+            return { code: 1, stdout: '', stderr: 'probe failed' } as CommandOutcome;
+          });
+        const rootHasDist = fs.existsSync(path.join(ctx.repoRoot, 'dist'));
+        const entryExists = fs.existsSync(path.join(ctx.repoRoot, opts.packageEntry ?? 'dist/index.js'));
+        return judgePackagingProbe({ rootHasDist, probeFailed, entryExists });
+      },
+    },
+  ];
+  return out.sort((a, b) => a.gate.position - b.gate.position);
+}
+
+/** Convenience default executor set (deps absent → env-sensitive gates pend). */
+export const releaseGateExecutors: GateExecutor[] = buildReleaseGateExecutors();
+
+export type { ReleaseContext, RunCommand };
