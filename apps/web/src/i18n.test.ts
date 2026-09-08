@@ -36,8 +36,8 @@ describe('i18n translate(t)', () => {
     const enKeys = Object.keys(DICT.en).sort();
     expect(zhKeys).toEqual(enKeys);
     for (const key of zhKeys) {
-      expect((DICT.zh as Record<string, string>)[key]).toBeTruthy();
-      expect((DICT.en as Record<string, string>)[key]).toBeTruthy();
+      expect(DICT.zh[key as keyof typeof DICT.zh]).toBeTruthy();
+      expect(DICT.en[key as keyof typeof DICT.en]).toBeTruthy();
     }
   });
 

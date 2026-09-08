@@ -55,11 +55,26 @@ export interface PolicyDelta {
   ts: number;
 }
 
+import type { TeamRunState } from './team';
+
+/**
+ * team delta — one snapshot frame of the session's team run (task 060). The
+ * local server pushes the whole TeamProjection state after each team/phase/turn
+ * event so the panel can render live without a delta-reconciliation protocol.
+ */
+export interface TeamDelta {
+  kind: 'start' | 'phase' | 'end' | 'turn' | 'tool' | 'delegate';
+  state: TeamRunState | null;
+  ts: number;
+}
+
 export interface StreamHandlers {
   onConversation?: (delta: ConversationDelta) => void;
   onTool?: (delta: ToolDelta) => void;
   onUsage?: (delta: UsageDelta) => void;
   onPolicy?: (delta: PolicyDelta) => void;
+  /** team run snapshot frames (task 060) */
+  onTeam?: (delta: TeamDelta) => void;
   /** called for every well-formed frame (default handlers above are the main path). */
   onEvent?: (frame: SseFrame) => void;
   /** schema-validation / parse failures; non-fatal. */
@@ -112,6 +127,9 @@ export function createEventStream(url: string, handlers: StreamHandlers = {}): E
         break;
       case 'policy':
         handlers.onPolicy?.({ ...delta, ts } as unknown as PolicyDelta);
+        break;
+      case 'team':
+        handlers.onTeam?.({ ...delta, ts } as unknown as TeamDelta);
         break;
       default:
         // unknown frame types (e.g. 'ping') are ignored unless the caller wants them.

@@ -7,6 +7,9 @@
  * custom base for tests or direct cross-origin use.
  */
 
+// Team/route/review wire shapes (task 060) — see ./team for the full mirrors.
+import type { ReviewRecord, RouteMode, RouteState, TeamRunState } from './team';
+
 export interface ApiOptions {
   /** base URL, default '/api'. May be 'http://127.0.0.1:5678/api'. */
   base?: string;
@@ -133,6 +136,100 @@ export function createApiClient(opts: ApiOptions = {}) {
       return request<{ ok: boolean }>(`/sessions/${encodeURIComponent(id)}/interrupt`, {
         method: 'POST',
       });
+    },
+
+    // ------------------------------------------------------------------
+    // Team UI (task 060) — route selection + team run + external review
+    // ------------------------------------------------------------------
+
+    /** GET /api/sessions/:id/route — session mode + pin + last resolution */
+    async getRoute(id: string): Promise<RouteState> {
+      return request<RouteState>(`/sessions/${encodeURIComponent(id)}/route`);
+    },
+    /** POST /api/sessions/:id/route — set the user's Auto/Fast/Pro choice */
+    async setRouteMode(id: string, mode: RouteMode): Promise<RouteState> {
+      return request<RouteState>(`/sessions/${encodeURIComponent(id)}/route`, {
+        method: 'POST',
+        body: JSON.stringify({ mode }),
+      });
+    },
+    /** POST /api/sessions/:id/route/resolve — resolve mode → actual model(s) */
+    async resolveRoute(id: string, task?: string): Promise<RouteState> {
+      return request<RouteState>(`/sessions/${encodeURIComponent(id)}/route/resolve`, {
+        method: 'POST',
+        body: JSON.stringify({ task: task ?? '' }),
+      });
+    },
+    /** POST /api/sessions/:id/route/pin — lock the auto resolution for the session */
+    async pinRoute(id: string): Promise<RouteState> {
+      return request<RouteState>(`/sessions/${encodeURIComponent(id)}/route/pin`, { method: 'POST' });
+    },
+    /** POST /api/sessions/:id/route/unpin — release the session lock */
+    async unpinRoute(id: string): Promise<RouteState> {
+      return request<RouteState>(`/sessions/${encodeURIComponent(id)}/route/unpin`, { method: 'POST' });
+    },
+
+    /** GET /api/sessions/:id/team-runs/current — latest TeamProjection snapshot */
+    async getTeamRun(id: string): Promise<{ team: TeamRunState | null }> {
+      return request<{ team: TeamRunState | null }>(`/sessions/${encodeURIComponent(id)}/team-runs/current`);
+    },
+    /** POST /api/sessions/:id/team-runs — start a team run for this session */
+    async startTeamRun(
+      id: string,
+      input: { task: string; acceptance?: string[]; mode?: RouteMode; roster?: unknown[] },
+    ): Promise<{ run: { runId: string; status: string } }> {
+      return request<{ run: { runId: string; status: string } }>(`/sessions/${encodeURIComponent(id)}/team-runs`, {
+        method: 'POST',
+        body: JSON.stringify(input),
+      });
+    },
+
+    /** GET /api/reviews — external review handoff records (059) */
+    async listReviews(): Promise<{ reviews: ReviewRecord[] }> {
+      return request<{ reviews: ReviewRecord[] }>('/reviews');
+    },
+    /** GET /api/reviews/:id — one record */
+    async getReview(id: string): Promise<{ review: ReviewRecord }> {
+      return request<{ review: ReviewRecord }>(`/reviews/${encodeURIComponent(id)}`);
+    },
+    /** POST /api/reviews — create a handoff artifact */
+    async createReview(input: {
+      task: string;
+      acceptance?: string[];
+      changedFiles?: string[];
+      diffSummary?: string;
+      testResults?: string;
+      workspaceRoot?: string;
+    }): Promise<{ review: ReviewRecord }> {
+      return request<{ review: ReviewRecord }>('/reviews', {
+        method: 'POST',
+        body: JSON.stringify(input),
+      });
+    },
+    /** POST /api/reviews/:id/import — import an external review result (paste/file) */
+    async importReview(id: string, text: string, source?: 'external' | 'internal'): Promise<{ review: ReviewRecord }> {
+      return request<{ review: ReviewRecord }>(`/reviews/${encodeURIComponent(id)}/import`, {
+        method: 'POST',
+        body: JSON.stringify({ text, source }),
+      });
+    },
+    /** GET /api/reviews/:id/handoff.md — the raw artifact text (for Copy Handoff) */
+    async handoffMarkdown(id: string): Promise<string> {
+      let res: Response;
+      try {
+        res = await doFetch(`${base}/reviews/${encodeURIComponent(id)}/handoff.md`);
+      } catch {
+        throw new ApiError('无法连接 local server——请先 vessel serve（127.0.0.1:5678）', 0, undefined);
+      }
+      if (!res.ok) {
+        const bodyText = await res.text().catch(() => '');
+        throw new ApiError(`HTTP ${res.status}`, res.status, bodyText);
+      }
+      return res.text();
+    },
+    /** POST /api/reviews/:id/open — ask the local server to open the folder */
+    async openReviewFolder(id: string): Promise<{ ok: boolean }> {
+      return request<{ ok: boolean }>(`/reviews/${encodeURIComponent(id)}/open`, { method: 'POST' });
     },
   };
 }

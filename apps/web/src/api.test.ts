@@ -154,3 +154,101 @@ describe('createApiClient', () => {
     }
   });
 });
+
+describe('createApiClient — team/route/review methods (task 060)', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it('GETs route / team-run / review list on the documented paths', async () => {
+    const urls: string[] = [];
+    const mockFetch = vi.fn(async (url: string) => {
+      urls.push(url);
+      if (url.endsWith('/route')) return jsonResponse(200, { mode: 'auto', pinned: false, route: null });
+      if (url.endsWith('/team-runs/current')) return jsonResponse(200, { team: null });
+      return jsonResponse(200, { reviews: [] });
+    });
+    vi.stubGlobal('fetch', mockFetch);
+
+    const api = createApiClient({ base: '/api' });
+    const route = await api.getRoute('s1');
+    expect(route.mode).toBe('auto');
+    const team = await api.getTeamRun('s1');
+    expect(team.team).toBeNull();
+    const list = await api.listReviews();
+    expect(list.reviews).toEqual([]);
+    expect(urls).toEqual([
+      '/api/sessions/s1/route',
+      '/api/sessions/s1/team-runs/current',
+      '/api/reviews',
+    ]);
+  });
+
+  it('POSTs mode / resolve / pin / unpin with the right path and body', async () => {
+    const calls: { url: string; init?: RequestInit }[] = [];
+    const mockFetch = vi.fn(async (url: string, init?: RequestInit) => {
+      calls.push({ url, init });
+      return jsonResponse(200, { mode: 'pro', pinned: true, route: null });
+    });
+    vi.stubGlobal('fetch', mockFetch);
+
+    const api = createApiClient({ base: '/api' });
+    await api.setRouteMode('s1', 'pro');
+    await api.resolveRoute('s1', '写一个导出功能');
+    await api.pinRoute('s1');
+    await api.unpinRoute('s1');
+
+    expect(calls.map((c) => c.url)).toEqual([
+      '/api/sessions/s1/route',
+      '/api/sessions/s1/route/resolve',
+      '/api/sessions/s1/route/pin',
+      '/api/sessions/s1/route/unpin',
+    ]);
+    expect(JSON.parse(String(calls[0]?.init?.body))).toEqual({ mode: 'pro' });
+    expect(JSON.parse(String(calls[1]?.init?.body))).toEqual({ task: '写一个导出功能' });
+    expect(calls[2]?.init?.method).toBe('POST');
+  });
+
+  it('starts a team run and imports review results on /team-runs and /reviews/:id/import', async () => {
+    const calls: { url: string; init?: RequestInit }[] = [];
+    const mockFetch = vi.fn(async (url: string, init?: RequestInit) => {
+      calls.push({ url, init });
+      if (url.endsWith('/team-runs')) {
+        return jsonResponse(202, { run: { runId: 'run_1', status: 'running' } });
+      }
+      return jsonResponse(200, { review: { id: 'review_1', status: 'imported', results: [] } });
+    });
+    vi.stubGlobal('fetch', mockFetch);
+
+    const api = createApiClient({ base: '/api' });
+    const run = await api.startTeamRun('s1', { task: '重构', acceptance: ['AC-1'], mode: 'auto' });
+    expect(run.run.runId).toBe('run_1');
+    const imported = await api.importReview('review_1', '{"verdict":"met"}');
+    expect(imported.review.status).toBe('imported');
+    expect(calls[0].url).toBe('/api/sessions/s1/team-runs');
+    expect(JSON.parse(String(calls[0].init?.body))).toEqual({ task: '重构', acceptance: ['AC-1'], mode: 'auto' });
+    expect(calls[1].url).toBe('/api/reviews/review_1/import');
+    expect(JSON.parse(String(calls[1].init?.body))).toEqual({ text: '{"verdict":"met"}', source: undefined });
+  });
+
+  it('handoffMarkdown fetches the raw artifact text and openReviewFolder POSTs', async () => {
+    const calls: { url: string; init?: RequestInit }[] = [];
+    const mockFetch = vi.fn(async (url: string, init?: RequestInit) => {
+      calls.push({ url, init });
+      if (url.includes('handoff.md')) {
+        return { ok: true, status: 200, text: async () => '# External Review Handoff\n' } as unknown as Response;
+      }
+      return jsonResponse(200, { ok: true });
+    });
+    vi.stubGlobal('fetch', mockFetch);
+
+    const api = createApiClient({ base: '/api' });
+    const md = await api.handoffMarkdown('review_1');
+    expect(md).toContain('# External Review Handoff');
+    const opened = await api.openReviewFolder('review_1');
+    expect(opened.ok).toBe(true);
+    expect(calls[0].url).toBe('/api/reviews/review_1/handoff.md');
+    expect(calls[1].url).toBe('/api/reviews/review_1/open');
+    expect(calls[1].init?.method).toBe('POST');
+  });
+});

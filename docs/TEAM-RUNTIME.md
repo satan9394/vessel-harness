@@ -146,3 +146,22 @@ projection.attach(bus);
 const summary = await runtime.runTeam({ task, route });
 console.log(summary.outcome, summary.members.map((m) => `${m.memberId}:${m.status}`));
 ```
+
+## 9. Web / Local Server seam（task 060）
+
+060 把本投影消费进 web Team 面板：`apps/local-server` 的 `createVesselServer` 现在持有
+每个会话的团队 seam（`apps/local-server/src/teamSeam.ts`），对 web 暴露 REST + SSE：
+
+- `GET/POST /api/sessions/:id/route*` —— 056 路由 seam（Auto/Fast/Pro 模式、resolve、
+  pin/unpin），由 RouteSeam 复用 `@vessel/llm` 的 classify/complexity/roles/tiers/bindings
+  纯函数链解析（与 AutoTaskRouter 同一来源）。
+- `POST /api/sessions/:id/team-runs` —— 起一次真实 `TeamRuntime` 运行（mock 成员默认，
+  `tierBindings/teamProviders` 可注入真实 provider 绑定）；每会话单运行互斥（409）。
+- `GET /api/sessions/:id/team-runs/current` —— TeamProjection.state() 快照。
+- SSE `/events` 新增 `type:'team'` 帧：每次 team_start/team_phase/before_turn/after_turn/
+  after_tool/subagent_start/subagent_stop/team_end 事件推送**全量快照**（`{kind, state}`），
+  web 无需增量协议。
+- 050/051 的会话事件（conversation/tool/usage/policy）与 team 帧互不干扰（team 跑在独立
+  EventBus，SSE 只做转发）。
+
+详见 `docs/WEB-TEAM-UI.md`（web 消费端组件 + API 形状）。

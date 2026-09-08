@@ -3,7 +3,7 @@ import * as os from 'node:os';
 import * as path from 'node:path';
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { MockProvider } from '@vessel/llm';
-import { SessionRegistry, ProjectRegistry, type SessionController } from '@vessel/application';
+import { SessionRegistry, ProjectRegistry, ReviewHandoffStore, type SessionController } from '@vessel/application';
 import { createVesselServer, type VesselServer } from './server.js';
 import type { ChatProvider, ChatRequest, ChatResponse, StreamChunk } from '@vessel/shared';
 
@@ -480,5 +480,305 @@ describe('local server — POST /steer caches mid-turn and injects at the next b
     expect(recs[0]!.content).toBe('先别改这个文件');
     expect(recs[0]!.source).toBe('steer');
     expect(typeof recs[0]!.ts).toBe('string');
+  });
+});
+
+describe('local server — task 060 seams (route mode/pin + team runs + external review)', () => {
+  let dir: string;
+  let ws: string;
+  let home: string;
+  let reviewsRoot: string;
+  let opened: string[] = [];
+  let server: VesselServer;
+  let base: string;
+
+  beforeEach(async () => {
+    dir = fs.mkdtempSync(path.join(os.tmpdir(), 'cah-team-server-'));
+    ws = path.join(dir, 'workspace');
+    home = path.join(dir, 'vessel-home');
+    reviewsRoot = path.join(dir, 'reviews');
+    opened = [];
+    fs.mkdirSync(ws, { recursive: true });
+
+    const projectRegistry = new ProjectRegistry({ vesselHome: home });
+    const sessionRegistry = new SessionRegistry({ vesselHome: home });
+    server = createVesselServer({
+      port: 0,
+      projectRegistry,
+      sessionRegistry,
+      reviewStore: new ReviewHandoffStore({ reviewsRoot }),
+      openFolder: (d) => void opened.push(d),
+      sessionFactory: async (input) => {
+        const { SessionController: SC } = await import('@vessel/application');
+        const provider = new MockProvider([{ when: /.*/, response: { text: `SERVER-ECHO:${input.model ?? 'default'}` } }], {
+          model: input.model ?? 'default',
+        });
+        return SC.create({
+          workspaceRoot: input.workspaceRoot,
+          provider,
+          model: input.model ?? 'default',
+          policySystemPath: POLICY,
+          behaviorIRPath: BEHAVIOR,
+          permission: input.permission ?? 'workspace-write',
+          registry: input.registry,
+        });
+      },
+      staticDir: ws,
+    });
+    await server.listen();
+    base = `http://127.0.0.1:${server.port}`;
+  });
+
+  afterEach(async () => {
+    await server.close();
+    fs.rmSync(dir, { recursive: true, force: true });
+  });
+
+  async function createSession(): Promise<string> {
+    const create = await fetch(`${base}/api/sessions`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ workspaceRoot: ws }),
+    });
+    expect(create.status).toBe(201);
+    const body = (await create.json()) as { session: { id: string } };
+    return body.session.id;
+  }
+
+  it('route defaults to auto/unpinned, mode POST switches the session choice', async () => {
+    const id = await createSession();
+    const get1 = await fetch(`${base}/api/sessions/${id}/route`);
+    expect(get1.status).toBe(200);
+    const s1 = (await get1.json()) as { mode: string; pinned: boolean; route: unknown };
+    expect(s1).toEqual({ mode: 'auto', pinned: false, route: null });
+
+    const set = await fetch(`${base}/api/sessions/${id}/route`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ mode: 'pro' }),
+    });
+    expect(set.status).toBe(200);
+    expect(((await set.json()) as { mode: string }).mode).toBe('pro');
+
+    const bad = await fetch(`${base}/api/sessions/${id}/route`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ mode: 'ultra' }),
+    });
+    expect(bad.status).toBe(400);
+  });
+
+  it('resolve returns the actual model chain (Fast/Pro bypass classify; auto uses §8.2 roles)', async () => {
+    const id = await createSession();
+    // explicit pro → single developer at the pro binding
+    const pro = await fetch(`${base}/api/sessions/${id}/route/resolve`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ task: '', mode: 'pro' }),
+    });
+    expect(pro.status).toBe(200);
+    const routePro = (await pro.json()) as {
+      route: { mode: string; roles: string[]; roleModels: { role: string; tier: string; model: string }[]; primary: { model: string } };
+    };
+    expect(routePro.route.mode).toBe('pro');
+    expect(routePro.route.roles).toEqual(['developer']);
+    expect(routePro.route.roleModels[0]?.tier).toBe('pro');
+    expect(routePro.route.primary.model).toBe('mock-pro');
+
+    // auto with a task → roster plan aligned to roleModels (§8.2)
+    const auto = await fetch(`${base}/api/sessions/${id}/route/resolve`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ task: '重构导出模块并补测试' }),
+    });
+    expect(auto.status).toBe(200);
+    const routeAuto = (await auto.json()) as {
+      route: { mode: string; roles: string[]; roleModels: { role: string; model: string }[]; complexity?: string };
+    };
+    expect(routeAuto.route.mode).toBe('auto');
+    expect(routeAuto.route.roles.length).toBeGreaterThan(0);
+    expect(routeAuto.route.roles.length).toBe(routeAuto.route.roleModels.length);
+    expect(routeAuto.route.roleModels.every((r) => r.model.startsWith('mock-'))).toBe(true);
+  });
+
+  it('pin locks the auto resolution until unpin (session-level, no re-judge)', async () => {
+    const id = await createSession();
+    const first = await fetch(`${base}/api/sessions/${id}/route/resolve`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ task: '实现一个导出功能' }),
+    });
+    const firstBody = (await first.json()) as { route: { roles: string[]; roleModels: { model: string }[] } };
+
+    const pin = await fetch(`${base}/api/sessions/${id}/route/pin`, { method: 'POST' });
+    expect(pin.status).toBe(200);
+    const pinnedState = (await pin.json()) as { pinned: boolean; route: { pinned: boolean; roles: string[] } };
+    expect(pinnedState.pinned).toBe(true);
+    expect(pinnedState.route.pinned).toBe(true);
+
+    // resolving again (auto) returns the pinned plan — same roster, no re-judge
+    const again = await fetch(`${base}/api/sessions/${id}/route/resolve`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ task: '完全不同的一句话任务' }),
+    });
+    const againBody = (await again.json()) as { pinned: boolean; route: { roles: string[]; roleModels: { model: string }[] } };
+    expect(againBody.pinned).toBe(true);
+    expect(againBody.route.roles).toEqual(firstBody.route.roles);
+
+    const unpin = await fetch(`${base}/api/sessions/${id}/route/unpin`, { method: 'POST' });
+    expect((await unpin.json()) as { pinned: boolean }).toMatchObject({ pinned: false });
+  });
+
+  it('POST /team-runs starts a real 057 run; GET current serves the done projection', async () => {
+    const id = await createSession();
+    const start = await fetch(`${base}/api/sessions/${id}/team-runs`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ task: '实现一个导出功能', acceptance: ['AC-1: 能导出'] }),
+    });
+    expect(start.status).toBe(202);
+    const started = (await start.json()) as { run: { runId: string; status: string } };
+    expect(started.run.status).toBe('running');
+    expect(started.run.runId.startsWith('run_')).toBe(true);
+
+    // poll until the run settles
+    type RunSnapshot = {
+      team: { status: string; outcome?: string; roster: { memberId: string }[]; phases: { phase: string; status: string }[] } | null;
+    };
+    let state: RunSnapshot | null = null;
+    const deadline = Date.now() + 30000;
+    while (Date.now() < deadline) {
+      const current = await fetch(`${base}/api/sessions/${id}/team-runs/current`);
+      const body = (await current.json()) as RunSnapshot;
+      state = body;
+      if (state?.team?.status === 'done') break;
+      await new Promise((r) => setTimeout(r, 100));
+    }
+    expect(state?.team?.status).toBe('done');
+    expect(state?.team?.outcome).toBe('completed');
+    // §8.2 medium plan resolved from the auto chain: developer + reviewer
+    expect(state?.team?.roster.map((m) => m.memberId).sort()).toEqual(['developer', 'reviewer']);
+    expect(state?.team?.phases.map((p) => p.phase).sort()).toEqual(['evaluate', 'generate']);
+    expect(state?.team?.phases.every((p) => p.status === 'completed')).toBe(true);
+  });
+
+  it('SSE streams live team snapshot frames while a team run executes', async () => {
+    const id = await createSession();
+    const res = await fetch(`${base}/api/sessions/${id}/events`);
+    expect(res.status).toBe(200);
+    const reader = res.body!.getReader();
+    const decoder = new TextDecoder();
+    let buf = '';
+
+    const startPromise = fetch(`${base}/api/sessions/${id}/team-runs`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ task: '重构并实现导出' }),
+    });
+    expect((await startPromise).status).toBe(202);
+
+    let gotTeamDone = false;
+    for (let i = 0; i < 400 && !gotTeamDone; i++) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      buf += decoder.decode(value, { stream: true });
+      const frames = buf.split('\n\n');
+      buf = frames.pop() ?? '';
+      for (const frame of frames) {
+        const m = /^data: (.*)$/m.exec(frame);
+        if (!m) continue;
+        const evt = JSON.parse(m[1]!) as { type: string; delta?: { kind: string; state?: { status?: string } } };
+        if (evt.type === 'team' && evt.delta?.state?.status === 'done') {
+          gotTeamDone = true;
+          break;
+        }
+      }
+    }
+    await reader.cancel();
+    expect(gotTeamDone).toBe(true);
+  });
+
+  it('creates review handoffs, serves raw handoff.md, imports results and reports folder', async () => {
+    // create
+    const create = await fetch(`${base}/api/reviews`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        task: '实现一个导出功能',
+        acceptance: ['AC-1 导出 run'],
+        changedFiles: ['src/out.ts'],
+        workspaceRoot: ws,
+      }),
+    });
+    expect(create.status).toBe(201);
+    const created = (await create.json()) as { review: { id: string; status: string; acceptance: string[] } };
+    expect(created.review.status).toBe('pending');
+    expect(created.review.acceptance).toEqual(['AC-1 导出 run']);
+
+    // handoff.md artifact is complete (§9.1 eight-section skeleton)
+    const md = await fetch(`${base}/api/reviews/${created.review.id}/handoff.md`);
+    expect(md.status).toBe(200);
+    const text = await md.text();
+    expect(text).toContain('# External Review Handoff');
+    expect(text).toContain('## Acceptance Criteria');
+    expect(text).toContain('## Required Output Schema');
+
+    // import a result (058-compatible JSON) → record flips to imported
+    const imp = await fetch(`${base}/api/reviews/${created.review.id}/import`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        text: '{"verdict":"not_met","unmet":["AC-1"],"suggestions":["补证据"],"reason":"缺测试","evidence":[]}',
+      }),
+    });
+    expect(imp.status).toBe(200);
+    const imported = (await imp.json()) as {
+      review: { status: string; results: { source: string; conclusion: { verdict: string } }[] };
+    };
+    expect(imported.review.status).toBe('imported');
+    expect(imported.review.results).toHaveLength(1);
+    expect(imported.review.results[0]?.source).toBe('external');
+    expect(imported.review.results[0]?.conclusion.verdict).toBe('not_met');
+
+    // folder endpoint + Open Folder action (injected recorder)
+    const folder = await fetch(`${base}/api/reviews/${created.review.id}/folder`);
+    expect(folder.status).toBe(200);
+    const dirRes = (await folder.json()) as { folder: string };
+    expect(dirRes.folder).toContain(created.review.id);
+
+    const open = await fetch(`${base}/api/reviews/${created.review.id}/open`, { method: 'POST' });
+    expect(open.status).toBe(200);
+    expect(opened).toEqual([dirRes.folder]);
+
+    // list shows it once
+    const list = await fetch(`${base}/api/reviews`);
+    const listed = (await list.json()) as { reviews: { id: string }[] };
+    expect(listed.reviews.some((r) => r.id === created.review.id)).toBe(true);
+  });
+
+  it('review endpoints validate: missing task 400, unknown id 404, empty import 400', async () => {
+    const bad = await fetch(`${base}/api/reviews`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({}),
+    });
+    expect(bad.status).toBe(400);
+
+    const missing = await fetch(`${base}/api/reviews/nope`);
+    expect(missing.status).toBe(404);
+
+    const created = await fetch(`${base}/api/reviews`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ task: 'task' }),
+    });
+    const { review } = (await created.json()) as { review: { id: string } };
+    const emptyImport = await fetch(`${base}/api/reviews/${review.id}/import`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text: '   ' }),
+    });
+    expect(emptyImport.status).toBe(400);
   });
 });

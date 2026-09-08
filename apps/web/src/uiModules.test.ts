@@ -7,7 +7,6 @@ import {
   saveModules,
   toggleModule,
   type PersistStorage,
-  type UiModuleState,
 } from './uiModules';
 
 /** In-memory localStorage stub (node env has no real localStorage). */

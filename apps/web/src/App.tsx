@@ -9,6 +9,7 @@ import LanguageSwitcher from './components/LanguageSwitcher';
 import { LanguageProvider, useI18n } from './components/LanguageProvider';
 import UsageBar, { emptyUsage } from './components/UsageBar';
 import ToolActivityRow from './components/ToolActivityRow';
+import TeamModule from './components/TeamModule';
 import type { ToolDelta } from './sse';
 import {
   loadModules,
@@ -29,7 +30,7 @@ const SECTION_ORDER: UiModuleId[] = [
   'MCP',
   'Policy',
 ];
-const UNIMPLEMENTED: UiModuleId[] = ['Team', 'Context', 'Logs', 'MCP', 'Policy'];
+const UNIMPLEMENTED: UiModuleId[] = ['Context', 'Logs', 'MCP', 'Policy'];
 
 export default function App() {
   return (
@@ -109,12 +110,12 @@ function AppShell() {
                 {t('serverDown')} <code>vessel serve</code>
               </p>
             )}
-            <ModuleSections modules={modules} />
+            <ModuleSections modules={modules} api={api} sessionId={null} />
           </section>
         ) : (
           <div className="conversation-wrap">
             <ConversationView sessionId={selectedSessionId as string} api={api} />
-            <ModuleSections modules={modules} />
+            <ModuleSections modules={modules} api={api} sessionId={selectedSessionId as string} />
           </div>
         )}
       </main>
@@ -124,21 +125,56 @@ function AppShell() {
 }
 
 /** Render the enabled UI module sections in display order (placeholders for now). */
-function ModuleSections({ modules }: { modules: UiModuleState }) {
+function ModuleSections({
+  modules,
+  api,
+  sessionId,
+}: {
+  modules: UiModuleState;
+  api: ApiClient;
+  sessionId: string | null;
+}) {
   const enabled = SECTION_ORDER.filter((key) => modules[key]);
   if (enabled.length === 0) return null;
   return (
     <div className="module-sections">
       {enabled.map((key) => (
-        <ModuleSection key={key} id={key} />
+        <ModuleSection key={key} id={key} api={api} sessionId={sessionId} />
       ))}
     </div>
   );
 }
 
-function ModuleSection({ id }: { id: UiModuleId }) {
+function ModuleSection({
+  id,
+  api,
+  sessionId,
+}: {
+  id: UiModuleId;
+  api: ApiClient;
+  sessionId: string | null;
+}) {
   const { t } = useI18n();
   switch (id) {
+    case 'Team':
+      // task 060: real Team module (model select + team panel + external review)
+      // needs a session; without one show the friendly prompt.
+      if (!sessionId) {
+        return (
+          <div className="module-card">
+            <div className="module-card-title">Team</div>
+            <div className="module-card-body dim">{t('teamModuleNoSession')}</div>
+          </div>
+        );
+      }
+      return (
+        <div className="module-card module-card-team">
+          <div className="module-card-title">Team</div>
+          <div className="module-card-body">
+            <TeamModule sessionId={sessionId} api={api} />
+          </div>
+        </div>
+      );
     case 'Tasks':
       return <PlaceholderCard title="Tasks">{t('tasksPlaceholder')}</PlaceholderCard>;
     case 'ChangedFiles':

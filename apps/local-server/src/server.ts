@@ -3,11 +3,16 @@ import * as http from 'node:http';
 import * as path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { once } from 'node:events';
-import { SessionController, SessionRegistry, ProjectRegistry } from '@vessel/application';
-import type { SessionPermission } from '@vessel/application';
+import { spawn } from 'node:child_process';
+import { SessionController, SessionRegistry, ProjectRegistry, ReviewHandoffStore } from '@vessel/application';
+import type { SessionPermission, ReviewHandoffRecord } from '@vessel/application';
 import type { Listener } from '@vessel/core';
 import { MockProvider } from '@vessel/llm';
+import type { ChatProvider } from '@vessel/shared';
+import { loadPolicyArtifacts } from '@vessel/policy';
 import type { SessionMeta } from '@vessel/application';
+import { DEFAULT_TIER_BINDINGS, RouteSeam, startTeamRun } from './teamSeam.js';
+import type { ActiveTeamRun, TeamEventKind } from './teamSeam.js';
 
 /**
  * SessionController factory. The server never composes a session itself — that
@@ -35,6 +40,22 @@ export interface VesselServerOptions {
   providers?: Record<string, { providerLabel?: string; model?: string }>;
   /** session factory override (defaults to a mock-backed smoke controller). */
   sessionFactory?: SessionFactory;
+  /**
+   * task 060 team/route seam:
+   * - tierBindings: tier → { providerId, model } for the route chain and team
+   *   runs (defaults to the offline mock bindings).
+   * - teamProviders: providerId → ChatProvider the members run on (defaults to
+   *   a single mock provider). Real wiring (CLI/provider layer) injects these.
+   * - policySystemPath: policy declaration used to compose member runtimes
+   *   (defaults to the repo policy.default.yaml).
+   */
+  tierBindings?: Record<string, { providerId: string; model: string }>;
+  teamProviders?: Record<string, ChatProvider>;
+  policySystemPath?: string;
+  /** review handoff store (059) — defaults to ReviewHandoffStore() (~/.vessel/reviews) */
+  reviewStore?: ReviewHandoffStore;
+  /** "Open Folder" action — defaults to a best-effort OS opener; tests inject */
+  openFolder?: (dir: string) => void;
 }
 
 export interface VesselServer {
@@ -101,6 +122,13 @@ function summarizeArgs(args: Record<string, unknown> | undefined): string | unde
   }
 }
 
+/** Best-effort OS "reveal folder" (Explorer / Finder / xdg-open), fire-and-forget. */
+function defaultOpenFolder(dir: string): void {
+  const opener = process.platform === 'win32' ? 'explorer' : process.platform === 'darwin' ? 'open' : 'xdg-open';
+  const child = spawn(opener, [dir], { detached: true, stdio: 'ignore' });
+  child.unref();
+}
+
 export function createVesselServer(opts: VesselServerOptions = {}): VesselServer {
   const port = opts.port ?? DEFAULT_PORT;
   const staticDir = path.resolve(opts.staticDir ?? DEFAULT_STATIC);
@@ -124,6 +152,49 @@ export function createVesselServer(opts: VesselServerOptions = {}): VesselServer
 
   /** live session controllers keyed by session id (owns the run loop). */
   const controllers = new Map<string, SessionController>();
+
+  // ------------------------------------------------------------------
+  // task 060 team seam — route state + live team run per session id
+  // ------------------------------------------------------------------
+
+  const tierBindings = (opts.tierBindings ?? DEFAULT_TIER_BINDINGS) as Record<string, { providerId: string; model: string }>;
+  const teamProviders: Record<string, ChatProvider> =
+    opts.teamProviders ??
+    ({
+      mock: new MockProvider([{ when: /.*/, response: { text: '(mock team member turn)' } }], { model: 'mock' }),
+    } as Record<string, ChatProvider>);
+  const policyArtifacts = loadPolicyArtifacts({ systemPath: opts.policySystemPath ?? DEFAULT_POLICY });
+  const reviewStore = opts.reviewStore ?? new ReviewHandoffStore();
+  const openFolder = opts.openFolder ?? defaultOpenFolder;
+
+  interface SessionTeamState {
+    route: RouteSeam;
+    /** current run handle (finished or running) — snapshot source for the UI */
+    run: ActiveTeamRun | null;
+    /** a run is currently executing (blocks a second concurrent run) */
+    inFlight: boolean;
+    /** last run failure detail (surfaced via GET /team-runs/current) */
+    error?: string;
+  }
+  const teamStates = new Map<string, SessionTeamState>();
+
+  function teamStateFor(id: string): SessionTeamState {
+    let st = teamStates.get(id);
+    if (!st) {
+      st = { route: new RouteSeam({ bindings: tierBindings }), run: null, inFlight: false };
+      teamStates.set(id, st);
+    }
+    return st;
+  }
+
+  /** live team-frame senders per session id (registered by open SSE streams). */
+  const teamSenders = new Map<string, Set<(kind: TeamEventKind, state: unknown) => void>>();
+
+  function broadcastTeam(sessionId: string, kind: TeamEventKind, state: unknown): void {
+    const set = teamSenders.get(sessionId);
+    if (!set) return;
+    for (const send of set) send(kind, state);
+  }
 
   const server = http.createServer((req, res) => {
     void handleRequest(req, res).catch((err) => {
@@ -205,6 +276,11 @@ export function createVesselServer(opts: VesselServerOptions = {}): VesselServer
       }
     }
 
+    // /api/reviews — external review handoffs (059) + task 060 UI actions
+    if (segs[1] === 'reviews' && segs.length >= 2) {
+      return handleReviews(method, segs, req, res);
+    }
+
     // /api/sessions/:id/...
     if (segs.length >= 3 && segs[1] === 'sessions') {
       const id = segs[2] ?? '';
@@ -265,7 +341,184 @@ export function createVesselServer(opts: VesselServerOptions = {}): VesselServer
         return streamEvents(ctl, req, res);
       }
 
+      // ---------------- task 060: route selection (Auto/Fast/Pro + pin) ----------------
+      // GET /api/sessions/:id/route
+      if (segs.length === 4 && sub === 'route' && method === 'GET') {
+        if (!ctl) return json(res, 404, suggestNotFound(id));
+        return json(res, 200, teamStateFor(id).route.state());
+      }
+      // POST /api/sessions/:id/route — { mode: 'auto'|'fast'|'pro' }
+      if (segs.length === 4 && sub === 'route' && method === 'POST') {
+        if (!ctl) return json(res, 404, suggestNotFound(id));
+        const body = (await readJsonBody(req)) as { mode?: unknown } | null;
+        const state = teamStateFor(id).route;
+        if (!state.setMode(body?.mode)) {
+          return json(res, 400, { error: 'invalid_mode', message: 'mode must be one of auto | fast | pro' });
+        }
+        return json(res, 200, state.state());
+      }
+      // POST /api/sessions/:id/route/resolve — { task?, mode? } → actual route
+      if (segs.length === 5 && sub === 'route' && segs[4] === 'resolve' && method === 'POST') {
+        if (!ctl) return json(res, 404, suggestNotFound(id));
+        const body = (await readJsonBody(req)) as { task?: string; mode?: 'auto' | 'fast' | 'pro' } | null;
+        const state = teamStateFor(id).route;
+        try {
+          state.resolve({ task: body?.task ?? '', mode: body?.mode });
+          return json(res, 200, state.state());
+        } catch (err) {
+          return json(res, 400, { error: 'route_resolve_failed', message: err instanceof Error ? err.message : String(err) });
+        }
+      }
+      // POST /api/sessions/:id/route/pin — lock the auto resolution
+      if (segs.length === 5 && sub === 'route' && segs[4] === 'pin' && method === 'POST') {
+        if (!ctl) return json(res, 404, suggestNotFound(id));
+        const state = teamStateFor(id).route;
+        try {
+          state.pin();
+          return json(res, 200, state.state());
+        } catch (err) {
+          return json(res, 400, { error: 'route_pin_failed', message: err instanceof Error ? err.message : String(err) });
+        }
+      }
+      // POST /api/sessions/:id/route/unpin — release the session lock
+      if (segs.length === 5 && sub === 'route' && segs[4] === 'unpin' && method === 'POST') {
+        if (!ctl) return json(res, 404, suggestNotFound(id));
+        teamStateFor(id).route.unpin();
+        return json(res, 200, teamStateFor(id).route.state());
+      }
+
+      // ---------------- task 060: team runs (057 TeamRuntime projection) ----------------
+      // GET /api/sessions/:id/team-runs/current — latest TeamProjection snapshot
+      if (segs.length === 5 && sub === 'team-runs' && segs[4] === 'current' && method === 'GET') {
+        if (!ctl) return json(res, 404, suggestNotFound(id));
+        const st = teamStateFor(id);
+        return json(res, 200, { team: st.run?.snapshot() ?? null, error: st.error });
+      }
+      // POST /api/sessions/:id/team-runs — { task, acceptance?, mode? } start a run
+      if (segs.length === 4 && sub === 'team-runs' && method === 'POST') {
+        if (!ctl) return json(res, 404, suggestNotFound(id));
+        const body = (await readJsonBody(req)) as { task?: string; acceptance?: string[]; mode?: 'auto' | 'fast' | 'pro' } | null;
+        if (!body || typeof body.task !== 'string' || body.task.trim() === '') {
+          return json(res, 400, { error: 'missing_task' });
+        }
+        const st = teamStateFor(id);
+        if (st.inFlight) {
+          return json(res, 409, { error: 'team_run_in_progress', message: 'a team run is already executing for this session' });
+        }
+        try {
+          const route = st.route.resolve({ task: body.task, mode: body.mode });
+          const handle = await startTeamRun({
+            workspaceRoot: ctl.state.workspaceRoot,
+            task: body.task,
+            acceptance: Array.isArray(body.acceptance) ? body.acceptance : undefined,
+            route,
+            providers: teamProviders,
+            policyArtifacts,
+          });
+          // replace the previous run: detach its bus listeners, wire the new one
+          st.run?.close();
+          st.run = handle;
+          st.inFlight = true;
+          st.error = undefined;
+          const offUpdate = handle.onUpdate((kind, state) => broadcastTeam(id, kind, state));
+          void handle.settled.then((result) => {
+            st.inFlight = false;
+            if (result.error) st.error = result.error;
+            offUpdate();
+          });
+          // push the initial snapshot so already-open SSE streams render immediately
+          broadcastTeam(id, 'start', handle.snapshot());
+          return json(res, 202, { run: { runId: handle.runId, status: 'running' } });
+        } catch (err) {
+          return json(res, 400, { error: 'team_run_failed', message: err instanceof Error ? err.message : String(err) });
+        }
+      }
+
       return json(res, 404, { error: 'not_found' });
+    }
+
+    return json(res, 404, { error: 'not_found' });
+  }
+
+  /** /api/reviews* — External Review Handoff store operations (059) + 060 actions. */
+  async function handleReviews(
+    method: string,
+    segs: string[],
+    req: http.IncomingMessage,
+    res: http.ServerResponse,
+  ): Promise<void> {
+    // GET /api/reviews
+    if (segs.length === 2 && method === 'GET') {
+      return json(res, 200, { reviews: reviewStore.list() });
+    }
+    // POST /api/reviews — create a handoff artifact
+    if (segs.length === 2 && method === 'POST') {
+      const body = (await readJsonBody(req)) as Partial<ReviewHandoffRecord> | null;
+      if (!body || typeof body.task !== 'string' || body.task.trim() === '') {
+        return json(res, 400, { error: 'missing_task' });
+      }
+      try {
+        const review = reviewStore.createHandoff({
+          task: body.task,
+          acceptance: body.acceptance,
+          changedFiles: body.changedFiles,
+          diffSummary: body.diffSummary,
+          testResults: body.testResults,
+          constraints: body.constraints,
+          checklist: body.checklist,
+          workspaceRoot: body.workspaceRoot,
+        });
+        return json(res, 201, { review });
+      } catch (err) {
+        return json(res, 400, { error: 'review_create_failed', message: err instanceof Error ? err.message : String(err) });
+      }
+    }
+
+    const id = segs[2] ?? '';
+    const review = reviewStore.get(id);
+    if (!review) {
+      return json(res, 404, { error: 'review_not_found', reviewId: id });
+    }
+
+    // GET /api/reviews/:id
+    if (segs.length === 3 && method === 'GET') {
+      return json(res, 200, { review });
+    }
+    // POST /api/reviews/:id/import — { text, source? } → parsed external result
+    if (segs.length === 4 && segs[3] === 'import' && method === 'POST') {
+      const body = (await readJsonBody(req)) as { text?: string; source?: 'external' | 'internal' } | null;
+      if (!body || typeof body.text !== 'string' || body.text.trim() === '') {
+        return json(res, 400, { error: 'missing_text' });
+      }
+      try {
+        const updated = reviewStore.importResult(id, { source: body.source, text: body.text });
+        return json(res, 200, { review: updated });
+      } catch (err) {
+        return json(res, 400, { error: 'review_import_failed', message: err instanceof Error ? err.message : String(err) });
+      }
+    }
+    // GET /api/reviews/:id/handoff.md — raw artifact (Copy Handoff source)
+    if (segs.length === 4 && segs[3] === 'handoff.md' && method === 'GET') {
+      const file = reviewStore.handoffPath(id);
+      if (!fs.existsSync(file)) {
+        return json(res, 404, { error: 'handoff_missing', reviewId: id });
+      }
+      res.writeHead(200, { 'Content-Type': 'text/markdown; charset=utf-8' });
+      res.end(fs.readFileSync(file, 'utf8'));
+      return;
+    }
+    // GET /api/reviews/:id/folder — the record directory (UI shows it)
+    if (segs.length === 4 && segs[3] === 'folder' && method === 'GET') {
+      return json(res, 200, { folder: reviewStore.dirFor(id) });
+    }
+    // POST /api/reviews/:id/open — reveal the folder in the OS file manager
+    if (segs.length === 4 && segs[3] === 'open' && method === 'POST') {
+      try {
+        openFolder(reviewStore.dirFor(id));
+        return json(res, 200, { ok: true, folder: reviewStore.dirFor(id) });
+      } catch (err) {
+        return json(res, 500, { error: 'open_folder_failed', message: err instanceof Error ? err.message : String(err) });
+      }
     }
 
     return json(res, 404, { error: 'not_found' });
@@ -280,6 +533,17 @@ export function createVesselServer(opts: VesselServerOptions = {}): VesselServer
       // best-effort; responder may already be closed
       res.write(`data: ${JSON.stringify({ type, delta, ts: Date.now() })}\n\n`);
     };
+
+    // task 060: forward team-run snapshots to this connection (session-scoped).
+    const teamSend = (kind: TeamEventKind, state: unknown) => sse('team', { kind, state });
+    let senders = teamSenders.get(ctl.sessionId);
+    if (!senders) {
+      senders = new Set();
+      teamSenders.set(ctl.sessionId, senders);
+    }
+    senders.add(teamSend);
+    const current = teamStates.get(ctl.sessionId)?.run?.snapshot?.();
+    if (current) teamSend('start', current);
 
     const forwards = new Map<string, () => void>();
     const forward = (key: string, type: string, fn: Listener): void => {
@@ -343,6 +607,8 @@ export function createVesselServer(opts: VesselServerOptions = {}): VesselServer
     const cleanup = () => {
       clearInterval(heartbeat);
       for (const off of forwards.values()) off();
+      senders.delete(teamSend);
+      if (senders.size === 0) teamSenders.delete(ctl.sessionId);
     };
     req.on('close', cleanup);
     res.on('close', cleanup);
@@ -395,6 +661,11 @@ export function createVesselServer(opts: VesselServerOptions = {}): VesselServer
         }
       }
       controllers.clear();
+      for (const st of teamStates.values()) {
+        st.run?.close();
+      }
+      teamStates.clear();
+      teamSenders.clear();
       if (server.listening) {
         server.close();
         await once(server, 'close');
