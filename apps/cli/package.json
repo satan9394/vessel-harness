@@ -1,6 +1,6 @@
 {
   "name": "@vessel/cli",
-  "version": "0.1.0",
+  "version": "0.10.0",
   "description": "Vessel CLI — 可组合 Agent Harness 命令入口",
   "type": "module",
   "main": "dist/index.js",

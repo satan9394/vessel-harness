@@ -1,7 +1,7 @@
 {
   "name": "composable-agent-harness",
   "private": true,
-  "version": "0.1.0",
+  "version": "0.10.0",
   "type": "module",
   "description": "Composable Agent Harness V0.1 — modular monolith (TypeScript)",
   "workspaces": [
