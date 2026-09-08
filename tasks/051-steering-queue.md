@@ -1,6 +1,6 @@
 # 051 — Steering Queue（运行中注入 user steer，step boundary 消费）
 
-- 状态：待验收
+- 状态：已合入
 - 优先级：P0（Wave 1 / Milestone C）
 - 创建日期：2026-09-08
 - 关联：049（AgentLoop stream wiring，前置已合入）；050（interrupt controller，前置，串行在 051 之前）；040 SSE
@@ -130,5 +130,10 @@
 
 ## 验收结论（指挥回填）
 
-- [ ] 合入 / 打回
-- 备注：
+- [x] 合入（commits：4bf5851 feat(loop) + ca75a8f docs，HEAD ca75a8f）
+- 备注：指挥独立复核——全量 vitest 53 文件 426 测试全绿（413+13 新增，零回归）、npx tsc -b 0 错误，与执行器自报一致。
+  设计要点认可：SteeringQueue 归属 AgentLoop（对称 050 InterruptController）；steer 以 B01 user/message(source:'steer')
+  记录表达（不新增事件词汇，与 050 一致）；消费点=step 循环顶部（interrupt 检查后、buildContext 前），in-flight 工具
+  不被打断、未消费跨 turn 保留；SessionController.steer 转发 loop.steer 使 POST /api/sessions/:id/steer 实时接通。
+  Wave 1 / Milestone C 至此完成 046+049+050+051（streaming/interrupt/steering 三件套齐）。052/053（live projections/resume UI）
+  可后置并入 web——下一张按用户决策推进或并入 web。
