@@ -1,6 +1,6 @@
 # 078 — OpenCode Adapter（外部 harness 适配器）
 
-- 状态：待验收
+- 状态：已合入
 - 优先级：P0（Wave 5 / Milestone G）
 - 创建日期：2026-09-08
 - 关联：076（Harness Adapter Contract）；077（DSH adapter——同批模式范本）；079-081（Codex/Pi/Claude Code adapters）
@@ -75,10 +75,9 @@ OpenCode Adapter：实现 076 契约，使同一 benchmark fixture 能在 OpenCo
 
 ## 验收结论（指挥回填）
 
-- [ ] 合入 / 打回
-- 备注：
-
-## 验收结论（指挥回填）
-
-- [ ] 合入 / 打回
-- 备注：
+- [x] 合入（commit ea7c9b4）
+- 备注：指挥独立复核——全量 vitest 762 passed（唯一失败为 process-tree timing 并发 flaky，sandbox 隔离单跑 23+1
+  skipped 全绿，非本卡回归）+ 1 skipped、tsc -b 0 错误、opencode 11 例全绿。
+  认可：opencodeAdapter 照 077 模式实现 076 契约（opencode run --json 命令面，command/runCommand 可注入 mock；
+  probeOpencodeEnv 探活 pending-environment 不 throw；normalizeOpencodeRun §15 L3 采集归一 + pricing 估成本；
+  capabilities 诚实降级）；clean-room 合规。下一张：079（Codex adapter——同批模式）。
