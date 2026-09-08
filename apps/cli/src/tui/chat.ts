@@ -84,17 +84,58 @@ export function makeLineReader(rl: readline.Interface): LineReader {
   };
 }
 
-/** stdio implementation (real stdin/stdout; Ctrl+C → graceful EOF). */
-export function createStdioIO(): ChatSessionIO {
+/**
+ * Two-stage Ctrl+C policy (task 050, roadmap §7.3): the FIRST Ctrl+C while a
+ * turn is active interrupts that turn; the SECOND Ctrl+C (or any Ctrl+C with
+ * no active turn) exits the TUI. Pure decision logic — tests drive it without
+ * a real terminal or signal; only createStdioIO's SIGINT handler calls press().
+ */
+export class TwoStageCtrlC {
+  private stage: 'none' | 'interrupted' = 'none';
+
+  constructor(
+    private readonly deps: {
+      /** true while a turn is running (its runTurn promise is in flight) */
+      hasActiveTurn: () => boolean;
+      /** interrupt the active turn (AgentLoop.interrupt / controller seam) */
+      interruptTurn: () => void;
+    },
+  ) {}
+
+  /** Route one Ctrl+C press. Returns 'stay' (keep running) or 'exit' (quit). */
+  press(): 'stay' | 'exit' {
+    if (!this.deps.hasActiveTurn()) {
+      // idle at the prompt → first press exits (like the pre-050 behavior)
+      this.stage = 'none';
+      return 'exit';
+    }
+    if (this.stage === 'interrupted') return 'exit'; // second press → exit
+    this.stage = 'interrupted';
+    this.deps.interruptTurn();
+    return 'stay';
+  }
+
+  /** Clear the latch when a NEW turn begins (first press interrupts it again). */
+  reset(): void {
+    this.stage = 'none';
+  }
+}
+
+/** stdio implementation (real stdin/stdout; Ctrl+C → two-stage / graceful EOF). */
+export function createStdioIO(ctrlC?: TwoStageCtrlC): ChatSessionIO {
   const rl = readline.createInterface({ input: process.stdin, output: process.stdout, terminal: false });
   const reader = makeLineReader(rl);
 
-  // Ctrl+C → resolve any pending read with null (runChat breaks and returns 0)
-  // instead of Node's default, which kills the session mid-line. A terminal-mode
+  // Ctrl+C: idle → exit (EOF). With an active turn (two-stage, task 050) the
+  // FIRST press interrupts it ('stay'), the SECOND press exits. A terminal-mode
   // interface emits its own 'SIGINT'; with terminal:false the process signal
-  // fires — wire both, only one ever triggers.
+  // fires — wire both, only one ever triggers (same guard as before 050).
   const onSigint = () => {
     process.stdout.write('\n'); // move off the half-typed prompt line
+    if (ctrlC && ctrlC.press() === 'stay') {
+      process.stdout.write('^C 已请求中断当前 turn（再次 Ctrl+C 退出）\n');
+      return;
+    }
     reader.close();
     rl.close();
   };
@@ -135,7 +176,20 @@ export interface SlashResult {
  */
 export async function runChat(opts: ChatOptions): Promise<number> {
   const store = opts.store ?? new ProviderStore();
-  const io = opts.io ?? createStdioIO();
+
+  // real-stdio mode wires two-stage Ctrl+C (task 050): the first press
+  // interrupts the active turn, the second press (or a press with no active
+  // turn) exits. Scripted IO (tests) never registers signals.
+  let activeTurnInterrupt: (() => void) | null = null;
+  const ctrlC = opts.io
+    ? null
+    : new TwoStageCtrlC({
+        hasActiveTurn: () => activeTurnInterrupt !== null,
+        interruptTurn: () => {
+          if (activeTurnInterrupt) activeTurnInterrupt();
+        },
+      });
+  const io = opts.io ?? createStdioIO(ctrlC ?? undefined);
 
   // current provider resolution (like cmdRun): explicit > current default > mock
   const currentId = store.getCurrent();
@@ -191,12 +245,19 @@ export async function runChat(opts: ChatOptions): Promise<number> {
 
     // natural language → run the harness loop (lazy-build once)
     if (!harness) harness = await buildHarness();
+    ctrlC?.reset(); // fresh turn → first Ctrl+C interrupts (not exits)
+    activeTurnInterrupt = () => {
+      harness!.loop.interrupt();
+    };
     try {
       const result = await harness.loop.runTurn(input);
-      if (result.finalText) io.write(`\n${result.finalText}`);
+      if (result.kind === 'interrupted') io.write('\n^C turn 已中断（kind=interrupted）');
+      else if (result.finalText) io.write(`\n${result.finalText}`);
       else io.write('(无文本回复)');
     } catch (err) {
       io.write(`[错误] ${(err as Error).message}`);
+    } finally {
+      activeTurnInterrupt = null;
     }
   }
 

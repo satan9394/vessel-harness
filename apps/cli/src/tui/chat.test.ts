@@ -6,7 +6,7 @@ import * as readline from 'node:readline';
 import { PassThrough } from 'node:stream';
 import { fileURLToPath } from 'node:url';
 import { ProviderStore } from '../providers/ProviderStore.js';
-import { dispatchSlash, runChat, makeLineReader, type ChatSessionIO } from './chat.js';
+import { dispatchSlash, runChat, makeLineReader, TwoStageCtrlC, type ChatSessionIO } from './chat.js';
 
 const REPO_ROOT = fileURLToPath(new URL('../../../../', import.meta.url)); // apps/cli/src/tui → repo root
 const POLICY = path.join(REPO_ROOT, 'configs', 'policy.default.yaml');
@@ -30,6 +30,53 @@ function scriptedIO(inputs: string[]): { io: ChatSessionIO; output: string[]; co
     consumed: () => i,
   };
 }
+
+describe('TwoStageCtrlC — first press interrupts, second press exits (task 050)', () => {
+  it('press with no active turn exits immediately (first press too)', () => {
+    const c = new TwoStageCtrlC({ hasActiveTurn: () => false, interruptTurn: () => {} });
+    expect(c.press()).toBe('exit');
+  });
+
+  it('first press interrupts the active turn and stays; second press exits', () => {
+    let active = true;
+    let interrupts = 0;
+    const c = new TwoStageCtrlC({
+      hasActiveTurn: () => active,
+      interruptTurn: () => {
+        interrupts += 1;
+      },
+    });
+    expect(c.press()).toBe('stay');
+    expect(interrupts).toBe(1);
+    expect(c.press()).toBe('exit'); // second press → exit, no double interrupt
+    expect(interrupts).toBe(1);
+  });
+
+  it('reset() gives the next turn fresh first-press semantics', () => {
+    let active = true;
+    let interrupts = 0;
+    const c = new TwoStageCtrlC({
+      hasActiveTurn: () => active,
+      interruptTurn: () => {
+        interrupts += 1;
+      },
+    });
+    expect(c.press()).toBe('stay'); // turn A interrupted
+    expect(interrupts).toBe(1);
+
+    c.reset(); // a new turn begins
+    expect(c.press()).toBe('stay'); // first press of turn B interrupts again
+    expect(interrupts).toBe(2);
+  });
+
+  it('an interrupt that already happened still exits if pressed while idle', () => {
+    let active = true;
+    const c = new TwoStageCtrlC({ hasActiveTurn: () => active, interruptTurn: () => {} });
+    expect(c.press()).toBe('stay'); // interrupt turn
+    active = false; // the interrupted turn settled; back at the prompt
+    expect(c.press()).toBe('exit');
+  });
+});
 
 describe('chat TUI — slash dispatch (task 021)', () => {
   let root: string;
