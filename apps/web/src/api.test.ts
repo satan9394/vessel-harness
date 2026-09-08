@@ -98,6 +98,23 @@ describe('createApiClient', () => {
     expect(JSON.parse(String(calls[1].init?.body))).toEqual({ prompt: 'hello' });
   });
 
+  it('POST /sessions/:id/interrupt hits the interrupt route (task 050)', async () => {
+    const calls: { url: string; init?: RequestInit }[] = [];
+    const mockFetch = vi.fn(async (url: string, init?: RequestInit) => {
+      calls.push({ url, init });
+      return jsonResponse(200, { ok: true });
+    });
+    vi.stubGlobal('fetch', mockFetch);
+
+    const api = createApiClient({ base: '/api' });
+    const res = await api.interruptSession('s9');
+
+    expect(res).toEqual({ ok: true });
+    expect(calls).toHaveLength(1);
+    expect(calls[0].url).toBe('/api/sessions/s9/interrupt');
+    expect(calls[0].init?.method).toBe('POST');
+  });
+
   it('throws ApiError with the server message on a 4xx response', async () => {
     const mockFetch = vi.fn(async () =>
       jsonResponse(400, { error: 'missing_workspaceRoot', message: 'workspaceRoot required' }),

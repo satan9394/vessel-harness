@@ -128,6 +128,12 @@ export function createApiClient(opts: ApiOptions = {}) {
         body: JSON.stringify({ prompt }),
       });
     },
+    /** POST /api/sessions/:id/interrupt — stop the current turn (task 050) */
+    async interruptSession(id: string): Promise<{ ok: boolean }> {
+      return request<{ ok: boolean }>(`/sessions/${encodeURIComponent(id)}/interrupt`, {
+        method: 'POST',
+      });
+    },
   };
 }
 

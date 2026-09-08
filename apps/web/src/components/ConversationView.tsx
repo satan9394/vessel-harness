@@ -102,7 +102,11 @@ export default function ConversationView({ sessionId, api }: Props) {
       setError(null);
       setServerDown(false);
       try {
-        await api.runTurn(sessionId, prompt);
+        const result = await api.runTurn(sessionId, prompt);
+        if (result.kind === 'interrupted') {
+          // task 050 minimal feedback: the turn was stopped mid-flight by Stop
+          appendMessage({ role: 'assistant', text: '[interrupted]', ts: Date.now() });
+        }
       } catch (err) {
         if (err instanceof ApiError && err.status === 0) {
           setServerDown(true);
@@ -118,9 +122,10 @@ export default function ConversationView({ sessionId, api }: Props) {
   );
 
   const stop = useCallback(() => {
-    // Stop 占位：直接调用 server 的 POST /interrupt（默认同源 /api 基址）。
-    void fetch(`/api/sessions/${encodeURIComponent(sessionId)}/interrupt`, { method: 'POST' });
-  }, [sessionId]);
+    // Stop (task 050): ask the server to interrupt the in-flight turn. Best
+    // effort — the server answers quickly; ignore failures (turn may end first).
+    void api.interruptSession(sessionId).catch(() => undefined);
+  }, [api, sessionId]);
 
   // Keep the newest row scrolled into view.
   useEffect(() => {
