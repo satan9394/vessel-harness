@@ -24,3 +24,18 @@ export {
   runOpencodeFixture,
   opencodeAdapter,
 } from '../adapters/opencode.js';
+// codex-specific symbols only — ResultStub / defaultRunCommand are shared with
+// dsh.js and already re-exported above (identical definitions), so re-exporting
+// them here would be an ambiguous duplicate in the `export *` surface.
+export {
+  CODEX_ADAPTER_ID,
+  CODEX_ADAPTER_VERSION,
+  CODEX_RUN_SUBCOMMAND,
+  type CodexAdapterOptions,
+  type CodexRawRun,
+  probeCodexEnv,
+  codexCapabilities,
+  normalizeCodexRun,
+  runCodexFixture,
+  codexAdapter,
+} from '../adapters/codex.js';
