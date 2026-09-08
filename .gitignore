@@ -7,3 +7,4 @@ benchmarks/reports/run_*/
 benchmarks/reports/B*/run_*/
 *.log
 .DS_Store
+.dsh-vision-router/
