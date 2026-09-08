@@ -38,11 +38,11 @@
 -->
 <style>
   :root{
-    --bg:#0d1117; --panel:#161b22; --panel2:#1c2333; --panel3:#11161f;
-    --border:#30363d; --border-soft:#21262d;
-    --text:#e6edf3; --dim:#8b949e; --faint:#6e7681;
-    --accent:#58a6ff; --green:#3fb950; --yellow:#d29922; --red:#f85149;
-    --purple:#bc8cff; --pink:#f778ba; --cyan:#39c5cf;
+    --bg:#ffffff; --panel:#f6f8fa; --panel2:#eef1f5; --panel3:#fafbfc;
+    --border:#d0d7de; --border-soft:#e3e8ee;
+    --text:#1f2328; --dim:#57606a; --faint:#6e7781;
+    --accent:#0969da; --green:#1a7f37; --yellow:#9a6700; --red:#cf222e;
+    --purple:#8250df; --pink:#bf3989; --cyan:#1b7c83;
     --mono:'Cascadia Code','JetBrains Mono',Consolas,'SF Mono',monospace;
   }
   *{box-sizing:border-box;margin:0;padding:0}
@@ -159,8 +159,19 @@
   .keys-help kbd{font:10.5px var(--mono);color:var(--text);background:var(--panel2);border:1px solid var(--border);border-radius:4px;padding:0 5px}
   /* 滚动条 */
   ::-webkit-scrollbar{width:9px;height:9px}
-  ::-webkit-scrollbar-thumb{background:#2b333d;border-radius:5px}
+  ::-webkit-scrollbar-thumb{background:#c1c9d1;border-radius:5px}
   ::-webkit-scrollbar-track{background:transparent}
+  /* 深色模式：跟随系统 prefers-color-scheme */
+  @media (prefers-color-scheme: dark){
+    :root{
+      --bg:#0d1117; --panel:#161b22; --panel2:#1c2333; --panel3:#11161f;
+      --border:#30363d; --border-soft:#21262d;
+      --text:#e6edf3; --dim:#8b949e; --faint:#6e7681;
+      --accent:#58a6ff; --green:#3fb950; --yellow:#d29922; --red:#f85149;
+      --purple:#bc8cff; --pink:#f778ba; --cyan:#39c5cf;
+    }
+    ::-webkit-scrollbar-thumb{background:#2b333d}
+  }
 </style>
 </head>
 <body>

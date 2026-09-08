@@ -6,9 +6,11 @@
 <title>Vessel — 设计来源可视化（原名 cah · Composable Agent Harness）</title>
 <style>
   :root {
-    --bg:#0d1117; --panel:#161b22; --panel2:#1c2333; --border:#30363d;
-    --text:#e6edf3; --dim:#8b949e; --accent:#58a6ff; --green:#3fb950; --yellow:#d29922;
-    --purple:#bc8cff; --pink:#f778ba; --red:#f85149; --mono:'Cascadia Code','JetBrains Mono',Consolas,monospace;
+    --bg:#ffffff; --panel:#f6f8fa; --panel2:#eef1f5; --border:#d0d7de;
+    --text:#1f2328; --dim:#57606a; --accent:#0969da; --green:#1a7f37; --yellow:#9a6700;
+    --purple:#8250df; --pink:#bf3989; --red:#cf222e; --mono:'Cascadia Code','JetBrains Mono',Consolas,monospace;
+    --text-soft:#3d444d; --pre-bg:#f6f8fa; --pre-fg:#1f2328; --pre-cmt:#6e7781;
+    --hover:#eef1f5; --code-bg:#eef1f5; --row-line:#e3e8ee;
   }
   * { box-sizing:border-box; margin:0; padding:0; }
   body { background:var(--bg); color:var(--text); font:15px/1.65 -apple-system,'Segoe UI','PingFang SC','Microsoft YaHei',sans-serif; padding:32px 20px 80px; }
@@ -17,12 +19,12 @@
   h1 { font-size:28px; letter-spacing:.5px; }
   h1 .badge { font-size:12px; vertical-align:middle; background:var(--panel2); border:1px solid var(--border); color:var(--accent); padding:3px 10px; border-radius:20px; margin-left:10px; }
   .sub { color:var(--dim); margin-top:6px; font-size:14px; }
-  .tagline { margin-top:14px; background:var(--panel); border:1px solid var(--border); border-left:3px solid var(--purple); border-radius:8px; padding:14px 16px; font-size:14px; color:#c9d1d9; }
+  .tagline { margin-top:14px; background:var(--panel); border:1px solid var(--border); border-left:3px solid var(--purple); border-radius:8px; padding:14px 16px; font-size:14px; color:var(--text-soft); }
   .tagline b { color:var(--purple); }
   nav.tabs { display:flex; gap:8px; margin:24px 0 20px; flex-wrap:wrap; }
   nav.tabs button { background:var(--panel); color:var(--dim); border:1px solid var(--border); padding:9px 18px; border-radius:8px; cursor:pointer; font-size:14px; transition:.15s; }
   nav.tabs button:hover { color:var(--text); border-color:var(--accent); }
-  nav.tabs button.active { background:var(--accent); color:#0d1117; border-color:var(--accent); font-weight:600; }
+  nav.tabs button.active { background:var(--accent); color:#fff; border-color:var(--accent); font-weight:600; }
   section.page { display:none; }
   section.page.active { display:block; animation:fade .25s ease; }
   @keyframes fade { from{opacity:0; transform:translateY(6px)} to{opacity:1} }
@@ -31,8 +33,8 @@
   h3 { font-size:15px; margin:22px 0 10px; color:var(--accent); }
   table { width:100%; border-collapse:collapse; font-size:13px; margin-bottom:8px; background:var(--panel); }
   th { text-align:left; color:var(--dim); font-weight:600; padding:8px 10px; border-bottom:1px solid var(--border); font-size:12px; text-transform:uppercase; letter-spacing:.4px; }
-  td { padding:8px 10px; border-bottom:1px solid #21262d; vertical-align:top; }
-  tr:hover td { background:#1b2230; }
+  td { padding:8px 10px; border-bottom:1px solid var(--row-line); vertical-align:top; }
+  tr:hover td { background:var(--hover); }
   td.who { white-space:nowrap; font-weight:600; }
   .who .src { color:var(--accent); }
   .who .cn { color:var(--green); }
@@ -43,21 +45,31 @@
   .ref { font-size:11px; color:var(--dim); }
   .card { background:var(--panel); border:1px solid var(--border); border-radius:10px; padding:16px 18px; margin-bottom:14px; }
   .card h4 { font-size:14px; margin-bottom:8px; }
-  .card p { font-size:13px; color:#c9d1d9; }
-  pre { background:#0d1117; border:1px solid var(--border); border-radius:8px; padding:14px 16px; font:13px/1.7 var(--mono); overflow-x:auto; margin:10px 0; color:#d2d8e0; white-space:pre-wrap; }
-  pre .c { color:#566070; }
+  .card p { font-size:13px; color:var(--text-soft); }
+  pre { background:var(--pre-bg); border:1px solid var(--border); border-radius:8px; padding:14px 16px; font:13px/1.7 var(--mono); overflow-x:auto; margin:10px 0; color:var(--pre-fg); white-space:pre-wrap; }
+  pre .c { color:var(--pre-cmt); }
   pre.prompt { border-left:3px solid var(--green); }
   .split { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
   @media(max-width:760px){ .split{grid-template-columns:1fr} }
-  .phil-row { display:grid; grid-template-columns:150px 1fr; gap:0 16px; padding:12px 4px; border-bottom:1px solid #21262d; }
+  .phil-row { display:grid; grid-template-columns:150px 1fr; gap:0 16px; padding:12px 4px; border-bottom:1px solid var(--row-line); }
   .phil-row .layer { font-weight:700; font-size:14px; color:var(--accent); }
-  .phil-row .desc { font-size:13.5px; color:#c9d1d9; }
+  .phil-row .desc { font-size:13.5px; color:var(--text-soft); }
   .phil-row .desc .opp{ color:var(--yellow); font-size:12.5px; }
   .foot { margin-top:34px; color:var(--dim); font-size:12px; border-top:1px solid var(--border); padding-top:14px; }
   .count { color:var(--accent); font-weight:600; }
   .gauge { display:flex; gap:6px; margin:6px 0 4px; }
   .gauge span { height:8px; border-radius:4px; }
-  code { font-family:var(--mono); font-size:12px; background:#232a36; padding:1px 6px; border-radius:4px; }
+  code { font-family:var(--mono); font-size:12px; background:var(--code-bg); padding:1px 6px; border-radius:4px; }
+  /* 深色模式：跟随系统 prefers-color-scheme */
+  @media (prefers-color-scheme: dark){
+    :root {
+      --bg:#0d1117; --panel:#161b22; --panel2:#1c2333; --border:#30363d;
+      --text:#e6edf3; --dim:#8b949e; --accent:#58a6ff; --green:#3fb950; --yellow:#d29922;
+      --purple:#bc8cff; --pink:#f778ba; --red:#f85149;
+      --text-soft:#c9d1d9; --pre-bg:#0d1117; --pre-fg:#d2d8e0; --pre-cmt:#566070;
+      --hover:#1b2230; --code-bg:#232a36; --row-line:#21262d;
+    }
+  }
 </style>
 </head>
 <body>
