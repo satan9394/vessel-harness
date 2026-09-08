@@ -213,6 +213,22 @@ seq        : number        # 会话内事件序号（不变式校验用）
 >   `POST /api/sessions/:id/interrupt`（040 框架已留缝）与 web Stop 按钮同一 interrupt 缝。
 >   部分文本保留 / resume UI 属 053，steering 属 051，均不在 050 范围内。
 
+> **实现注记（051，SteeringQueue 落地）**：运行中 steer 不新增事件词汇——steer 以既有
+> B01 `user/message` 持久记录表达（`source:'steer'` 判别值扩展，@vessel/shared
+> `UserMessageRecord.source` 联合；实现见 packages/core/src/agent-loop/SteeringQueue.ts）：
+> - **SteeringQueue**：`enqueue`/`drain` 均同步（无 await 间隙，单线程事件循环下取整批原子，
+>   不丢不重）；每项带 `source`（user/api/cli/web）与 `ts`（ISO 入队时间戳）——pending 态
+>   可审计；AgentLoop 持有一个实例，公开 `steer(content, source?)` 与 `pendingSteerCount`。
+> - **只改方向、永不打断**：AgentLoop 只在 step boundary（下一 step 的 buildContext/模型调用
+>   之前）drain 队列，把每条 steer 落为 `user/message {source:'steer', surface:true}` 记录；
+>   in-flight 的模型采样 / 工具执行（含原子文件写入）期间的入队只缓存，下一 boundary 才注入。
+>   与 A05 语义互补：interrupt 停 turn、steer 改下一轮方向；turn 内无剩余 boundary 时未消费
+>   steer 跨 turn 保留，于下一 turn 首 boundary 注入。注入后队列即清空（消费即清）。
+> - **消息形态**：模型上下文经由既有 surface 投影（模型可见 ⟺ 已记录）派生，ContextBuilder
+>   无需改动——B01 记录的 seq/ts 即持久审计轨迹。
+> - **server seam**：`POST /api/sessions/:id/steer`（040 框架已留缝；SessionController.steer →
+>   loop.steer）；web/CLI 后续复用同一缝（053 resume/UI 不在本卡）。
+
 #### A06 AfterTurn（草案）
 - **触发时机**：`turn/end` 已落盘、驱动器把控制权交还宿主时；每轮恰好一次。
 - **载荷字段**：`turnId`；`kind:'success'|'error'|'interrupted'|'budget'`（对照 DSH `turn/end {kind}` 与 H01 词汇，行 84）；`stats:{steps, toolCalls, tokensUsed?, durationMs, costEstimate?}`；`lastAssistantMsgSeq?`。
