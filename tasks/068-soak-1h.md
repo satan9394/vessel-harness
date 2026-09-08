@@ -1,6 +1,6 @@
 # 068 — 1h Soak（长跑稳定性验证）
 
-- 状态：待验收
+- 状态：已合入
 - 优先级：P1（Wave 3 / Milestone E 收官）
 - 创建日期：2026-09-08
 - 关联：061-067 全部（真实运行链 + 运行控制 + handoff）；V0.2 曾有 long-run 经验
@@ -106,5 +106,10 @@
 
 ## 验收结论（指挥回填）
 
-- [ ] 合入 / 打回
-- 备注：
+- [x] 合入（commit 3859c97）
+- 备注：指挥独立复核——全量 vitest 73 文件 636 测试全绿（634+2，零回归）、tsc -b 0 错误，与执行器自报一致。
+  soak 认可：300 任务/1801 attempts/1051 迭代/750 handoffs/chain 5 全 met，tempResidue=0（064 零泄漏）、
+  countConsistent=true（063/066 round-trip）、resumeProducedIteration=true（067 续跑）、pauseResumeCycles=6/
+  budgetChanges=12（066）、exhausted 哨兵可查；1h 等价换算（≈10-50×）合理。发现 2 个转后续问题记录清晰：
+  adapter history 无界（建议有界环/retention）+ 队列 O(N) 扫描（建议游标/索引）——转 069+ 或后续优化。
+  **Milestone E（V1.3 Goal Loop）全部完成（061-068）。** 下一波 Wave 4 / Milestone F（V1.4 Security，069-075）。
