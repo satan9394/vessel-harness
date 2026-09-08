@@ -1,6 +1,6 @@
 # 073 — Filesystem Confinement（文件系统访问约束）
 
-- 状态：待验收
+- 状态：已合入
 - 优先级：P0（Wave 4 / Milestone F）
 - 创建日期：2026-09-08
 - 关联：071/072（进程隔离 + 树约束，本卡补文件面）；既有 tools/filesystem/guards.ts（路径守卫基础）
@@ -120,7 +120,10 @@ npx tsc -b tsconfig.json   # exit 0，无类型错误
 
 ### 验收结论
 
-- [ ] 合入 / 打回（指挥回填）
-- 备注：
-
-<!-- 合并后执行器可删除本占位 -->
+- [x] 合入（commit f4cb415）
+- 备注：指挥独立复核——全量 vitest 78 文件 712 测试全绿 + 1 skipped（零失败）、tsc -b 0 错误，与执行器自报一致。
+  设计认可：allow-set confinement（工作区根 ∪ 显式 allow 授权路径，Mode 区分 read/write）+ canonicalize 显式绝对
+  allow hatch + symlink 出界永远拒绝（比词法 allow 更严）；硬执法点=工具执行 seam（Read/Write/Edit/Grep 首步
+  assertConfined，越界 DENIED+meta.guard）+ policy 层 fs-confinement 词法预检（Executor 前置拒绝 → audit/denial，
+  072 风格可查）；`allow` 死字段接通贯穿 policy→compose；默认关闭 back-compat。下一张：074（runtime enforcement
+  telemetry）。
