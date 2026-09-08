@@ -1,6 +1,6 @@
 # 056 — TaskRouter 默认 Auto（用户只选 Auto/Fast/Pro，默认 Auto）
 
-- 状态：待验收
+- 状态：已合入
 - 优先级：P0（Wave 2 / Milestone D）
 - 创建日期：2026-09-08
 - 关联：054/055（preset 体系，前置）；057（TeamRuntime 用路由决定团队规模）
@@ -118,5 +118,10 @@ classify category → choose role → choose tier → resolve provider/model 解
 
 ## 验收结论（指挥回填）
 
-- [ ] 合入 / 打回
-- 备注：
+- [x] 合入（commit 5c1d219）
+- 备注：指挥独立复核——全量 vitest 57 文件 475 测试全绿（450+25，零回归）、npx tsc -b 0 错误，与执行器自报一致。
+  设计认可：解析链每步纯函数可注入可单测（classify→complexity→roles→tier→model）；§8.2 三档角色映射
+  （小=developer/中=dev+reviewer/复杂=lead+dev+reviewer）；开放 TierBindings 含 review 档、provider/config 层注入；
+  显式 fast/pro 绕过 classify；pin 锁 lastAutoRoute（session 内不再重判）；routeSelectionLabel→「auto → model」；
+  compose seam 触发条件容纳无 taskPrompt 的显式模式（保住旧契约回归绿）。分层遵守（llm 只透传 preset id 不 import
+  agents）；V0.4 TaskRouter 原样未动。下一张：057（TeamRuntime/TeamProjection）。
