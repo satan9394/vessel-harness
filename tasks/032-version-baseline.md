@@ -26,7 +26,15 @@
 
 ## 工作证明（执行器回填）
 
-- [ ] version diff / clean 链每个命令的真实输出 / vitest 数 / tsc / vessel --version
+- [x] product version: root + apps/cli + packages/shared package.json `0.1.0`→`0.10.0`；`packages/shared/src/constants.ts` `VERSION='0.10.0'`；cli.test.ts 断言同步 `Vessel CLI v0.10.0`；package-lock.json 对应 workspace entry（root/apps-cli/packages-shared）同步为 0.10.0 保持一致
+- [x] clean 链（build 代替 npm install，本环境不动 node_modules）：
+  - `npx tsc -b tsconfig.json` → exit 0
+  - `npx vitest run` → 297 passed（37 files），exit 0
+  - `node apps/cli/dist/cli.js --version` → `Vessel CLI v0.10.0`，exit 0
+  - `node apps/cli/dist/cli.js run --prompt "你好"` → turn kind=success steps=1 toolCalls=0，会话日志写入 `.harness/sessions/...`，exit 0
+- [x] commit `ad0a654`：`chore(version): V0.10 product version 0.1.0 -> 0.10.0 + clean-install baseline verified`
+- [x] `git status --short` 干净
+- 说明：未执行 `npm install`（任务要求规避 node_modules 变更/耗时），用 `tsc -b` 重新构建产物代替；若路线强制 strict `npm install` 才算验收，需指挥在真机补跑。其他 workspace（packages/agents 等）package.json 及 lockfile 仍为 0.1.0，未在本次范围改动。
 
 ## 验收结论（指挥回填）
 
