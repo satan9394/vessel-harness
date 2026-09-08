@@ -4,6 +4,7 @@ import { ApiError } from '../api';
 import { createEventStream, type ConversationDelta, type ToolDelta, type UsageDelta } from '../sse';
 import MessageList, { type ChatItem } from './MessageList';
 import UsageBar, { applyUsageDelta, emptyUsage, type UsageTotals } from './UsageBar';
+import { useI18n } from './LanguageProvider';
 
 interface Props {
   sessionId: string;
@@ -26,6 +27,7 @@ function conversationItem(delta: ConversationDelta): ChatItem {
  * tool activity, usage and policy deltas as they happen.
  */
 export default function ConversationView({ sessionId, api }: Props) {
+  const { t } = useI18n();
   const [items, setItems] = useState<ChatItem[]>([]);
   const [usage, setUsage] = useState<UsageTotals>(emptyUsage);
   const [input, setInput] = useState('');
@@ -104,7 +106,7 @@ export default function ConversationView({ sessionId, api }: Props) {
       } catch (err) {
         if (err instanceof ApiError && err.status === 0) {
           setServerDown(true);
-          setError('无法连接 local server——请先 vessel serve（127.0.0.1:5678）');
+          setError(t('serverDown'));
         } else {
           setError(err instanceof Error ? err.message : String(err));
         }
@@ -112,7 +114,7 @@ export default function ConversationView({ sessionId, api }: Props) {
         setBusy(false);
       }
     },
-    [api, busy, input, sessionId, appendMessage],
+    [api, busy, input, sessionId, appendMessage, t],
   );
 
   const stop = useCallback(() => {
@@ -133,9 +135,7 @@ export default function ConversationView({ sessionId, api }: Props) {
       </header>
       <div className="message-list-scroll" ref={listRef}>
         {serverDown ? (
-          <div className="error-text conversation-empty">
-            无法连接 local server——请先 vessel serve（127.0.0.1:5678），然后重试。
-          </div>
+          <div className="error-text conversation-empty">{t('serverDown')}</div>
         ) : (
           <MessageList items={items} thinking={busy} />
         )}
@@ -146,21 +146,21 @@ export default function ConversationView({ sessionId, api }: Props) {
           className="input composer-input"
           value={input}
           onChange={(e) => setInput(e.target.value)}
-          placeholder="输入消息… (Enter 发送)"
+          placeholder={t('inputPlaceholder')}
           disabled={serverDown}
           autoFocus
         />
         <button type="submit" className="btn btn-primary" disabled={busy || !input.trim() || serverDown}>
-          {busy ? '运行中…' : '发送'}
+          {busy ? t('running') : t('send')}
         </button>
         <button
           type="button"
           className="btn"
           disabled={!busy}
-          title="中断当前回合（占位：直接 POST /interrupt）"
+          title={t('interruptTitle')}
           onClick={stop}
         >
-          Stop
+          {t('stop')}
         </button>
       </form>
     </div>

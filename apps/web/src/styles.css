@@ -474,6 +474,57 @@ code {
   border-bottom: none;
 }
 
+.topbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* ---------- language switch (task 045) ---------- */
+.lang-switch {
+  position: relative;
+}
+
+.lang-switch-toggle {
+  white-space: nowrap;
+}
+
+.lang-switch-popover {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 20;
+  min-width: 130px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.16);
+  padding: 4px;
+  display: flex;
+  flex-direction: column;
+}
+
+.lang-option {
+  appearance: none;
+  border: none;
+  background: transparent;
+  color: var(--text-soft);
+  text-align: left;
+  padding: 6px 10px;
+  border-radius: 6px;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.lang-option:hover {
+  background: var(--hover);
+}
+
+.lang-option-active {
+  color: var(--accent);
+  font-weight: 600;
+}
+
 .customize {
   position: relative;
 }

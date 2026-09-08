@@ -5,6 +5,8 @@ import StatusBar from './components/StatusBar';
 import NewSessionForm, { type NewSessionResult } from './components/NewSessionForm';
 import ConversationView from './components/ConversationView';
 import CustomizePanel from './components/CustomizePanel';
+import LanguageSwitcher from './components/LanguageSwitcher';
+import { LanguageProvider, useI18n } from './components/LanguageProvider';
 import UsageBar, { emptyUsage } from './components/UsageBar';
 import ToolActivityRow from './components/ToolActivityRow';
 import type { ToolDelta } from './sse';
@@ -30,6 +32,15 @@ const SECTION_ORDER: UiModuleId[] = [
 const UNIMPLEMENTED: UiModuleId[] = ['Team', 'Context', 'Logs', 'MCP', 'Policy'];
 
 export default function App() {
+  return (
+    <LanguageProvider>
+      <AppShell />
+    </LanguageProvider>
+  );
+}
+
+function AppShell() {
+  const { t } = useI18n();
   const [api] = useState<ApiClient>(() => createApiClient());
   const [health, setHealth] = useState<Health | null>(null);
   const [projects, setProjects] = useState<Project[]>([]);
@@ -84,17 +95,18 @@ export default function App() {
       <main className="main">
         <div className="topbar">
           <StatusBar health={health} error={serverError} />
-          <CustomizePanel modules={modules} onChange={handleModulesChange} />
+          <div className="topbar-actions">
+            <CustomizePanel modules={modules} onChange={handleModulesChange} />
+            <LanguageSwitcher />
+          </div>
         </div>
         {nothingSelected ? (
           <section className="main-body">
-            <h2>选择或新建会话</h2>
-            <p className="dim">
-              从左侧 Recent Sessions 选择一个会话开始对话，或点击 <strong>+ New Session</strong> 打开一个项目。
-            </p>
+            <h2>{t('emptyTitle')}</h2>
+            <p className="dim">{t('emptyBody')}</p>
             {serverError && (
               <p className="error-text">
-                无法连接 local server——请先运行 <code>vessel serve</code>（127.0.0.1:5678）。
+                {t('serverDown')} <code>vessel serve</code>
               </p>
             )}
             <ModuleSections modules={modules} />
@@ -125,11 +137,12 @@ function ModuleSections({ modules }: { modules: UiModuleState }) {
 }
 
 function ModuleSection({ id }: { id: UiModuleId }) {
+  const { t } = useI18n();
   switch (id) {
     case 'Tasks':
-      return <PlaceholderCard title="Tasks">任务列表占位（开发中）。</PlaceholderCard>;
+      return <PlaceholderCard title="Tasks">{t('tasksPlaceholder')}</PlaceholderCard>;
     case 'ChangedFiles':
-      return <PlaceholderCard title="Changed Files">变更文件列表占位（开发中）。</PlaceholderCard>;
+      return <PlaceholderCard title="Changed Files">{t('changedFilesPlaceholder')}</PlaceholderCard>;
     case 'Cost':
       // 042 UsageBar reuse; placeholders until live usage is lifted up from a session.
       return (
@@ -142,8 +155,8 @@ function ModuleSection({ id }: { id: UiModuleId }) {
       return (
         <PlaceholderCard title="Tool Activity">
           <div className="tool-activity-list">
-            {SAMPLE_TOOL_ACTIVITY.map((t, i) => (
-              <ToolActivityRow key={i} delta={t} />
+            {SAMPLE_TOOL_ACTIVITY.map((tool, i) => (
+              <ToolActivityRow key={i} delta={tool} />
             ))}
           </div>
         </PlaceholderCard>
@@ -153,7 +166,7 @@ function ModuleSection({ id }: { id: UiModuleId }) {
         return (
           <div className="module-card">
             <div className="module-card-title">{id}</div>
-            <div className="module-card-body dim">未实现（占位）。</div>
+            <div className="module-card-body dim">{t('unimplemented')}</div>
           </div>
         );
       }
@@ -162,10 +175,11 @@ function ModuleSection({ id }: { id: UiModuleId }) {
 }
 
 function PlaceholderCard({ title, children }: { title: string; children?: React.ReactNode }) {
+  const { t } = useI18n();
   return (
     <div className="module-card">
       <div className="module-card-title">{title}</div>
-      <div className="module-card-body dim">{children ?? '（开发中）'}</div>
+      <div className="module-card-body dim">{children ?? t('placeholderDev')}</div>
     </div>
   );
 }

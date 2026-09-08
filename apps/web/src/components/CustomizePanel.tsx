@@ -5,6 +5,7 @@ import {
   type UiModuleId,
   type UiModuleState,
 } from '../uiModules';
+import { useI18n } from './LanguageProvider';
 
 interface Props {
   modules: UiModuleState;
@@ -17,6 +18,7 @@ interface Props {
  * caller persists to localStorage. The panel closes on outside click or Escape.
  */
 export default function CustomizePanel({ modules, onChange }: Props) {
+  const { t } = useI18n();
   const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement | null>(null);
 
@@ -49,11 +51,11 @@ export default function CustomizePanel({ modules, onChange }: Props) {
         aria-expanded={open}
         onClick={() => setOpen((o) => !o)}
       >
-        Customize
+        {t('customize')}
       </button>
       {open && (
-        <div className="customize-popover" role="dialog" aria-label="Customize UI modules">
-          <div className="customize-head">显示模块</div>
+        <div className="customize-popover" role="dialog" aria-label={t('customizeHead')}>
+          <div className="customize-head">{t('customizeHead')}</div>
           <div className="customize-list">
             {UI_MODULES.map((key) => (
               <label key={key} className="customize-item">

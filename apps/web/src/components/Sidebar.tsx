@@ -1,5 +1,6 @@
 import type { Project, SessionMeta } from '../api';
 import { VesselLogo } from './VesselLogo';
+import { useI18n } from './LanguageProvider';
 
 export interface SidebarProps {
   projects: Project[];
@@ -19,6 +20,7 @@ export default function Sidebar({
   selectedSessionId,
   onSelectSession,
 }: SidebarProps) {
+  const { t } = useI18n();
   return (
     <aside className="sidebar">
       <div className="brand">
@@ -27,14 +29,14 @@ export default function Sidebar({
       </div>
 
       <button type="button" className="btn btn-primary" onClick={onNewSession}>
-        + New Session
+        {t('newSession')}
       </button>
 
       <nav className="side-nav">
-        <div className="side-label">Projects</div>
+        <div className="side-label">{t('projects')}</div>
         <ul className="side-list">
           {projects.length === 0 ? (
-            <li className="side-empty">暂无项目</li>
+            <li className="side-empty">{t('noProjects')}</li>
           ) : (
             projects.map((p) => (
               <li key={p.root} className="side-item" title={p.root}>
@@ -44,10 +46,10 @@ export default function Sidebar({
           )}
         </ul>
 
-        <div className="side-label">Recent Sessions</div>
+        <div className="side-label">{t('recentSessions')}</div>
         <ul className="side-list">
           {sessions.length === 0 ? (
-            <li className="side-empty">暂无会话</li>
+            <li className="side-empty">{t('noSessions')}</li>
           ) : (
             sessions.map((s) => (
               <li
@@ -72,7 +74,7 @@ export default function Sidebar({
       </nav>
 
       <div className="side-footer">
-        <span className="side-item">Settings</span>
+        <span className="side-item">{t('settings')}</span>
       </div>
     </aside>
   );
