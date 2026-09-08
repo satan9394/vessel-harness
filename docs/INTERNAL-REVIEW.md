@@ -81,6 +81,7 @@ const conclusion: ReviewConclusion = await reviewer.review({
 
 ## 5. 范围边界（058 不做）
 
-- External Review（059：External Gemini/AGY handoff adapter）不在本卡；
+- External Review（059：External Gemini/AGY handoff adapter，见
+  docs/EXTERNAL-REVIEW.md）不在本卡；
 - 自动 rework 循环（根据 review 反馈自动重产出）不在本卡（结构化反馈已为其备好输入）；
 - 不改写 core / AgentLoop / Evaluator contract；不新造 Agent primitive。

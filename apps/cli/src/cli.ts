@@ -13,6 +13,7 @@ import { runChat } from './tui/chat.js';
 import { VESSEL_LOGO, VESSEL_TAGLINE } from './brand.js';
 import { UsageStore } from './usage/UsageStore.js';
 import { runVesselMigration } from './migrate.js';
+import { cmdReview } from './review/reviewCommands.js';
 import { loadModelCatalog, findCatalogModelByBase, listCatalogModels } from './providers/modelCatalog.js';
 import { loadPricing } from './providers/pricing.js';
 
@@ -34,6 +35,9 @@ Vessel CLI v${VERSION} — 可组合 Agent Harness（品牌 Vessel）
   vessel provider remove <id>        删除供应商
   vessel provider switch|use <id>    切换当前默认供应商
   vessel migrate                     一次性迁移旧状态目录 ~/.dsh → ~/.vessel（数据复制 + 旧目录进回收站）
+  vessel review handoff <request.json>   生成外部评审 handoff（.vessel/reviews/<id>/handoff.md；task 059）
+  vessel review import <id> <result 文件>  导入外部评审结果（[--source external|internal]，落库）
+  vessel review list                 列出外部评审 reviews
   vessel serve [--port <n>]          启动本地服务（默认 http://127.0.0.1:5678，不开浏览器）
   vessel web                         启动本地服务并打开浏览器
 
@@ -575,6 +579,7 @@ export async function main(argv: string[] = process.argv.slice(2)): Promise<numb
   if (first === 'usage') return cmdUsage(parsed.flags);
   if (first === 'pricing') return cmdPricing(parsed.positionals[1], parsed.flags);
   if (first === 'migrate') return cmdMigrate();
+  if (first === 'review') return cmdReview(parsed.positionals.slice(1), parsed.flags);
   if (first === 'serve') return cmdServe(parsed.flags);
   if (first === 'web') return cmdWeb(parsed.flags);
   // bare `vessel` (no subcommand): interactive TUI in a TTY; guide otherwise.

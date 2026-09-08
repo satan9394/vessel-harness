@@ -12,4 +12,6 @@ export type { SessionControllerOptions, SessionState, SessionPermission, Session
 
 export * from './projections/index.js';
 
+export * from './review/index.js';
+
 export * from './credential/index.js';
