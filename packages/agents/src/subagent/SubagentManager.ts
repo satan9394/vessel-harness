@@ -2,6 +2,8 @@ import * as crypto from 'node:crypto';
 import type { ChatProvider, PolicyArtifacts, SubagentResultContract, ToolSpec } from '@vessel/shared';
 import { EventBus, type TurnResult } from '@vessel/core';
 import { createIsolatedRuntime } from './IsolatedRuntime.js';
+import type { AgentPreset } from '../presets/types.js';
+import { applyPresetToolFace } from '../presets/capabilities.js';
 
 export type SubagentStopReason = SubagentResultContract['stopReason'];
 
@@ -46,6 +48,14 @@ export interface SubagentManagerOptions {
   policyGuidance?: string[];
   /** parent session id recorded in the child's session/created (B10) */
   parentSessionId?: string;
+  /**
+   * Task 055: preset resolver — resolves a delegation's `preset` label to a
+   * registered AgentPreset. When present, the child tool face is narrowed by
+   * applyPresetToolFace (tools allow-list / write:false read-only / canDelegate:false
+   * strips the Subagent tool) BEFORE the caller's explicit toolFilter (both shrink-only).
+   * Absent => preset stays a label only (legacy behavior, existing callers unchanged).
+   */
+  presetLookup?: (presetId: string) => AgentPreset | undefined;
 }
 
 /**
@@ -127,11 +137,18 @@ export class SubagentManager {
       // shrink-only tool set: child ⊆ parent tools; Subagent excluded by default
       // (recursion is additionally guarded by maxDepth)
       const filter = new Set(req.toolFilter ?? []);
-      const childTools = this.opts.tools.filter((t) => {
+      let childTools = this.opts.tools.filter((t) => {
         if (t.name === 'Subagent') return false;
-        if (req.toolFilter && !filter.has(t.name)) return false;
         return true;
       });
+      // task 055: delegation names a role preset -> narrow by its capability face first
+      const rolePreset = req.preset !== undefined ? this.opts.presetLookup?.(req.preset) : undefined;
+      if (rolePreset !== undefined) {
+        childTools = applyPresetToolFace(rolePreset, childTools);
+      }
+      if (req.toolFilter) {
+        childTools = childTools.filter((t) => filter.has(t.name));
+      }
 
       const runtime = await createIsolatedRuntime({
         workspaceRoot: this.opts.workspaceRoot,

@@ -1,10 +1,13 @@
 # AgentPreset 体系（preset = 角色配置，非 runtime primitive）
 
-> 实现卡：`tasks/054-agent-preset-spec.md`；权威需求：`docs/Vessel_后续开发方向与产品化路线_v1.0.md` §8.1-8.3（L992-1080）。
-> 代码位置：`packages/agents/src/presets/`（types.ts / registry.ts），经 `packages/agents/src/index.ts` 从 `@vessel/agents` 导出。
-> 范围：本体系只定义 preset 的规格/形状/注册/取用。三角色实例（Lead/Developer/Reviewer）→ 055；
-> TaskRouter Auto 用 preset 选型 → 056；TeamRuntime/TeamProjection → 057。能力字段的运行时接线
-> 也在 055/056/057，本层只定义「映射点」并用类型与本文档讲清。
+> 实现卡：`tasks/054-agent-preset-spec.md`（形状/registry）→ `tasks/055-three-role-presets.md`（三角色实例 + 能力映射接线）；
+> 权威需求：`docs/Vessel_后续开发方向与产品化路线_v1.0.md` §8.1-8.3（L992-1080）。
+> 代码位置：`packages/agents/src/presets/`（types.ts / registry.ts / defaults.ts / capabilities.ts），
+> 经 `packages/agents/src/index.ts` 从 `@vessel/agents` 导出。
+> 范围：054 定义 preset 的规格/形状/注册/取用；055 提供三角色默认实例（defaults.ts）与能力映射层
+> （capabilities.ts，write/canDelegate/tools → 既有运行时开关）并把第一处接线落到
+> `SubagentManager.delegate`（presetLookup）。TaskRouter Auto 用 preset 选型 → 056；
+> TeamRuntime/TeamProjection → 057。
 
 ## 1. 概念
 
@@ -59,8 +62,29 @@ export interface AgentPreset extends AgentPresetInput { modelTier: ModelTier }  
 ```
 
 对应关系：orchestrator ↔ Lead（编排/可委派）；generator ↔ Developer（产出/可写）；
-evaluator ↔ Reviewer（独立评估/只读，Generator 不得自证完成）。三角色的**具体实例**由 055 注册，
-054 的 registry 默认集为空。
+evaluator ↔ Reviewer（独立评估/只读，Generator 不得自证完成）。三角色的**具体实例**已由 055 注册，
+见 §3.1 默认三角色与 §5 能力映射接线。
+
+### 3.1 默认三角色实例（055 落地）
+
+代码位置：`packages/agents/src/presets/defaults.ts`（数据实例）与 `packages/agents/src/presets/capabilities.ts`（能力映射）。
+导出：`DEFAULT_AGENT_PRESETS`（输入集）、`DEFAULT_{LEAD,DEVELOPER,REVIEWER}_PRESET`（规范化冻结实例）、
+`createDefaultPresetRegistry()` / `seedDefaultPresets(registry)`。
+
+| id | role | modelTier | write | canDelegate | §8.1 语义 |
+|---|---|---|---|---|---|
+| `lead` | `orchestrator` | `pro` | 未声明 | `true` | 编排：pro 档 + 可委派；写能力继承运行时默认 |
+| `developer` | `generator` | `pro` | `true` | 未声明 | 产出：pro 档（§8.3 按复杂度可降 `fast`，由 056 路由选档）+ 可写 |
+| `reviewer` | `evaluator` | `review` | `false` | 未声明 | 评审：review 档 + 强只读（write:false 即硬性只读面声明） |
+
+设计选择（记录）：
+
+- **developer 的 modelTier 取单值 `pro`**：§8.1 的 `pro|fast` 表达的是「档位随任务复杂度浮动」的意图，
+  不是单值档位；preset 只注册默认档（pro），降档选择归 056 TaskRouter（按任务复杂度解析 tier）。
+- **未声明字段不落键**（`write`/`canDelegate` 缺省即继承运行时默认面），与 054 `normalizePreset`
+  的「显式 false 与未指定可区分」语义一致；三角色只显式声明语义锚点字段 + `description`。
+- **tools 未声明**：lead/developer/reviewer 默认都不收窄工具面（`tools` 显式 allow-list 才触发
+  收窄），与 §8.1 yaml 中 lead 的 `tools: [...]` 占位符保持一致——默认面由运行时组装方决定。
 
 ## 4. 校验、规范化与注册 API（`packages/agents/src/presets/registry.ts`）
 
@@ -87,15 +111,19 @@ class PresetRegistry {
 - **未知字段 fail loud**：schema 白名单外的键（如 yaml 里的 `model_tier` / `can_delegate` snake_case）
   直接报错而不是静默失效——防配置拼写错误产生「看起来生效实则没用」的 preset。
 
-## 5. 能力映射点（本卡只定义形状，接线在 055/056/057）
+## 5. 能力映射点（054 定义形状与语义；055 起逐卡接线）
 
-| preset 字段 | 既有运行时开关 | 现状/接线位置 |
+054 只定义形状与映射点；055 提供三角色实例 + 纯能力映射层（`presets/capabilities.ts`：
+`applyPresetToolFace` / `policyProfileForPreset`）并把第一处接线落到 agents 运行时
+（`SubagentManager.delegate` 可选 `presetLookup`：委派带已注册 preset 标签时，子代理工具面先按
+角色能力面收窄，再叠加调用方 toolFilter，两者都 shrink-only）。下表标注每行的接线状态。
+
+| preset 字段 | 既有运行时开关 | 接线状态 |
 |---|---|---|
-| `tools` | 工具可见性收窄 | 现状：`SubagentManager.delegate({ toolFilter })` 是 shrink-only 收窄；`EvaluatorAgent` 以只读工具集构造会话。接线：preset.tools → 会话构造时对工具集过滤 / toolFilter |
-| `write` | file_write 族可见性 + 权限档 | 现状：`ToolSpec.requiredPermission: 'read'\|'workspace-write'\|'danger-full-access'`（@vessel/shared tools.ts）；Evaluator 只读面先例 `createReadOnlyExplorationTools`。接线：`write:false` → 剔除 file_write 族/降档 workspace-write |
-| `canDelegate` | Subagent 工具可见性 + 服务端上限 | 现状：`SubagentManager.canDelegate`（maxDepth/maxConcurrent，fail-closed）；delegationDepth 随委派持久。接线：`canDelegate:false` → 不注册 Subagent 工具 |
-| `modelTier` | 模型档位 → 具体模型 | 现状：`llm/router` `ModelTier` + `TierModelMap`；TaskRouter `preset.modelTier ?? 'pro'`。接线：056 TaskRouter Auto 用 preset.modelTier 走 tier 绑定 |
-| `budget` / `maxSteps` 等 | （未来） | 本卡不设字段，扩展见 §7；接线留后续卡 |
+| `tools` | 工具可见性收窄（shrink-only） | ✅ 055：`applyPresetToolFace`（tools allow-list intersection）接入 `SubagentManager.delegate`（presetLookup 命中时） |
+| `write` | file_write 族 / 写权限工具可见性；policy profile 降档 | ✅ 055：`write:false` → 只保留 `requiredPermission === 'read'` 工具（等价 EvaluatorAgent 只读面先例），接入 delegate；`policyProfileForPreset` 输出 'read-only' 意图，落 PolicyEngine profile 的接线在 057/会话构造方 |
+| `canDelegate` | Subagent 工具注册 + 服务端上限 | ◑ 055：`canDelegate:false` → 从可见面剔除 'Subagent' 工具（子代理始终无 Subagent，递归另有 maxDepth 上限，fail-closed）；`canDelegate:true`（lead 编排）不因 preset 剔除，顶层会话是否注册 Subagent 工具由 057/组装方决定 |
+| `modelTier` | 模型档位 → 具体模型 | ⏳ 056：`llm/router` ModelTier + TierModelMap（现仅 pro/fast/mini；review 档绑定由 056 扩展） |
 
 design 总则：**preset 只声明意图（形状），运行时开关仍由机制层权威裁决**；preset 收窄能力，
 不能放大（角色只能收窄父权限，参照 BEHAVIOR-IR-SPEC §7.2 覆盖规则 `default < project < preset < role < flag`）。

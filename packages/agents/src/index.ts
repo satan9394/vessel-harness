@@ -6,3 +6,5 @@ export * from './subagent/createSubagentTool.js';
 export * from './planner/Planner.js';
 export * from './presets/types.js';
 export * from './presets/registry.js';
+export * from './presets/capabilities.js';
+export * from './presets/defaults.js';
