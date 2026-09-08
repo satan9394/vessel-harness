@@ -1,9 +1,17 @@
 # V0.7 执行进度（V07-PROGRESS.md）— cah 交互 TUI + 50+ 供应商 + 三档权限
 
 > 接力文档：personal-dev-workflow 拆卡（tasks/ 看板 020-022）。
+
+> ⚠ 历史快照（V0.9 改名后）：文内 cah / CAH_* / @cah 为当时名称，现已迁移为 vessel / VESSEL_* / @vessel（见 docs/VESSEL.md）。
 > 触发：用户睡前反馈（供应商太少 / 应一条 cah 进交互 / 三档权限对齐）。**已完成**。
+
+> ⚠ 历史快照（V0.9 改名后）：文内 cah / CAH_* / @cah 为当时名称，现已迁移为 vessel / VESSEL_* / @vessel（见 docs/VESSEL.md）。
 > 调研：docs/ideas/PROVIDER-TUI-RESEARCH.md（40KB，供应商全表 + opencode TUI 架构 + 权限矩阵）。
+
+> ⚠ 历史快照（V0.9 改名后）：文内 cah / CAH_* / @cah 为当时名称，现已迁移为 vessel / VESSEL_* / @vessel（见 docs/VESSEL.md）。
 > 最后更新：2026-09（**V0.7 三卡全部合入**，276 测试绿）。
+
+> ⚠ 历史快照（V0.9 改名后）：文内 cah / CAH_* / @cah 为当时名称，现已迁移为 vessel / VESSEL_* / @vessel（见 docs/VESSEL.md）。
 
 ## 0. 基线
 

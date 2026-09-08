@@ -1,7 +1,7 @@
 # Vessel — 品牌宣言 · Vessel Constitution · 三角色
 
 > 2026-09 · 任务卡 `tasks/024-vessel-rename-philosophy.md` 交付文档（用户可读）。
-> 命名分层一句话：**品牌/命令层 = Vessel（bin：`vessel`，别名 `cah` 兼容）；内部包名历史遗留 `@vessel/*`，不随品牌改名**（避免全仓重命名爆炸；`cah` 命令仍可用）。
+> 命名分层一句话：**品牌/命令层与内部包名统一为 Vessel（bin `vessel`，包名 `@vessel/*`）；`cah` 别名与 `@cah/*` 已在 V0.9 彻底移除。**
 
 ---
 
@@ -10,12 +10,12 @@
 Vessel（器）取名自「大器免成 / 无器之器」：**系统本身不是任何一个组件**。
 Model、Prompt、Agent、工具都只是可替换的"器"；Vessel 是承载这些器、并让它们各自可靠运转的框架——器可以一件件换掉，系统不因此失效。
 
-本项目由 Composable Agent Harness（CLI：`cah`，内部包 `@vessel/*`）更名而来。改名**只动品牌与命令层**，不重命名内部包：
+本项目由 Composable Agent Harness（旧 CLI `cah`、旧包 `@cah/*`）更名而来，V0.9 完成全量迁移：命令与包名统一为 Vessel / `@vessel/*`。
 
 | 层 | 名称 | 说明 |
 |---|---|---|
-| 品牌 / 命令 | **Vessel**（`vessel run` …） | `apps/cli` bin 同时注册 `vessel` 与 `cah` |
-| 内部包 | `@vessel/*`（历史遗留） | 避免全仓重命名爆炸，代码/文档中保留 |
+| 品牌 / 命令 | **Vessel**（`vessel run` …） | `apps/cli` bin：`vessel`（唯一命令） |
+| 内部包 | `@vessel/*` | 全部包已迁移为 `@vessel/*`（原 `@cah/*` 已移除） |
 | 语义 | 可组合 Agent Harness | Vessel = 同一个项目的延续称呼 |
 
 Vessel 与六条哲学不是宣传语，而是**以行为 IR 存在**的操作原则：它们编译进每个 Agent 的 stable system（`configs/behavior.default.yaml` 的 `vessel.*` 条目 → Behavior Compiler → system），可版本化、可校验、可替换——哲学本身也遵守"无器之器"。
@@ -26,7 +26,7 @@ Vessel 与六条哲学不是宣传语，而是**以行为 IR 存在**的操作�
 # ① 一次性的准备（构建 + 让 vessel 命令全局可用）
 cd C:\work\Vessel_Harness
 npm run build            # 编译全部 TS
-npm link ./apps/cli      # 注册全局命令 vessel（别名 cah 同时注册；换环境后重跑一次）
+npm link ./apps/cli      # 注册全局命令 vessel（换环境后重跑一次）
 
 # ② 启动方式（三种等价）
 vessel                  # 全局命令：直接进交互对话（无参即进 TUI/chat）
@@ -48,7 +48,7 @@ npx vitest run           # 全量测试（当前 285 绿）
 npx tsc -b               # 类型检查
 ```
 
-> 版本输出：`vessel --version` → `Vessel CLI v0.1.0`。`cah` 为历史别名，仍可用；`@vessel/*` 为内部包名（历史遗留，见上表）。
+> 版本输出：`vessel --version` → `Vessel CLI v0.1.0`。`cah` 别名与 `@cah/*` 包名已在 V0.9 彻底移除（历史 commit 与调研快照除外）。
 
 ---
 
@@ -131,5 +131,5 @@ npx tsc -b               # 类型检查
 
 - IR 落地：`configs/behavior.default.yaml`（`vessel.*` 条目）
 - 固定句：`packages/context/src/builder/Builder.ts`（"你是 Vessel 系统中的一个 Agent（Composable Agent Harness 核心）。"）
-- 命令层：`apps/cli/package.json`（bin `vessel` + `cah`）、`apps/cli/src/cli.ts`（help/version/greeting）
+- 命令层：`apps/cli/package.json`（bin `vessel`）、`apps/cli/src/cli.ts`（help/version/greeting）
 - 进度：`docs/V08-PROGRESS.md` · 任务卡 `tasks/024-vessel-rename-philosophy.md`

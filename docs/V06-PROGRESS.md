@@ -1,8 +1,14 @@
 # V0.6 执行进度（V06-PROGRESS.md）— 多供应商配置管理 + 模型拉取 + 交互向导
 
 > 接力文档：personal-dev-workflow 拆卡（tasks/ 看板 014-019）。
+
+> ⚠ 历史快照（V0.9 改名后）：文内 cah / CAH_* / @cah 为当时名称，现已迁移为 vessel / VESSEL_* / @vessel（见 docs/VESSEL.md）。
 > 目标：docs/PROVIDER-MANAGEMENT.md + docs/ideas/PROVIDER-UX-RESEARCH.md；SSOT 在 ~/.dsh/providers.json。
+
+> ⚠ 历史快照（V0.9 改名后）：文内 cah / CAH_* / @cah 为当时名称，现已迁移为 vessel / VESSEL_* / @vessel（见 docs/VESSEL.md）。
 > 最后更新：2026-09-05（**V0.6 + cah setup 全部完成**）。
+
+> ⚠ 历史快照（V0.9 改名后）：文内 cah / CAH_* / @cah 为当时名称，现已迁移为 vessel / VESSEL_* / @vessel（见 docs/VESSEL.md）。
 
 ## 0. 基线
 

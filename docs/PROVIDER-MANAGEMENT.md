@@ -2,7 +2,7 @@
 
 > 版本：2026-09（V0.8：品牌 Vessel）· 对标 cc-switch 的"配置管理/一键切换"体验，但本项目自己是 Harness 运行时
 > 关联：docs/VESSEL.md（品牌与运行）、docs/PROVIDER-INTEGRATION.md（协议层接入）、docs/MISSION-V0.4.md（TaskRouter 多模型路由）、docs/ideas/PROVIDER-TUI-RESEARCH.md（交互/供应商/权限设计调研）
-> 命令前缀：**`vessel`**（`cah` 为历史别名，仍可用；本文统一写 `vessel`）
+> 命令前缀：**`vessel`**（V0.9 起唯一命令名，cah 已彻底移除）
 
 ---
 
@@ -46,7 +46,7 @@ TUI 内斜杠命令：`/provider`（配置供应商）、`/models`（当前供�
 - 目录沿用项目 ~/.dsh 约定（memory/skills 同款）。
 - 原子写：先写 `.tmp` 再 rename，防半写损坏。
 - **apiKey 明文存本机**（与 cc-switch 同款取舍）——仅本机用户目录可读；别把 `~/.dsh` 同步到不受信的地方。不做加密（YAGNI）。
-- 测试/多环境隔离：设 `VESSEL_PROVIDER_ROOT` 环境变量可改存储根（CI/测试不碰真实 ~/.dsh；历史名 `CAH_PROVIDER_ROOT` 仍兼容）。
+- 测试/多环境隔离：设 `VESSEL_PROVIDER_ROOT` 环境变量可改存储根（CI/测试不碰真实 ~/.dsh；唯一环境变量）。
 - `mock` 是内置供应商：永不持久化、不可删除、`list` 首项、无配置时默认。
 
 ## 3. 命令参考
@@ -84,7 +84,7 @@ vessel models --provider ds       # 指定供应商
 ## 5. vessel run 的供应商解析（优先级从高到低）
 
 1. 显式 `--provider/--model/--base-url/--api-key`（最优先，向后兼容）
-2. 环境变量（历史名）`CAH_MODEL/CAH_BASE_URL/CAH_API_KEY`
+2. 环境变量 `VESSEL_MODEL/VESSEL_BASE_URL/VESSEL_API_KEY`
 3. 当前默认供应商（`vessel provider switch` 设的；model/baseUrl/apiKey 从配置取）
 4. 兜底 `mock`（无任何配置时的离线冒烟，会提示）
 

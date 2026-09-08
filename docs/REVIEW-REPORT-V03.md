@@ -1,10 +1,20 @@
 # V0.3 独立核验报告（Evaluator Review Report）
 
 > 核验对象：Composable Agent Harness V0.3 实现（docs/MISSION-V0.3.md 第六节 7 条验收标准）
+
+> ⚠ 历史快照（V0.9 改名后）：文内 cah / CAH_* / @cah 为当时名称，现已迁移为 vessel / VESSEL_* / @vessel（见 docs/VESSEL.md）。
 > 核验角色：独立 Evaluator（Generator/Evaluator 分离——本报告只做取证核验，不参与实现、不修改实现代码）
+
+> ⚠ 历史快照（V0.9 改名后）：文内 cah / CAH_* / @cah 为当时名称，现已迁移为 vessel / VESSEL_* / @vessel（见 docs/VESSEL.md）。
 > 核验日期：2026-09-05
+
+> ⚠ 历史快照（V0.9 改名后）：文内 cah / CAH_* / @cah 为当时名称，现已迁移为 vessel / VESSEL_* / @vessel（见 docs/VESSEL.md）。
 > 工作区：`C:\work\Vessel_Harness`（Windows / PowerShell / Node v24 / vitest 2.x）
+
+> ⚠ 历史快照（V0.9 改名后）：文内 cah / CAH_* / @cah 为当时名称，现已迁移为 vessel / VESSEL_* / @vessel（见 docs/VESSEL.md）。
 > 权威依据（已通读）：docs/MISSION-V0.3.md（§3 范围 / §4 硬性约束 / §6 验收）、docs/V03-IMPLEMENTATION-NOTES.md（实现方自述——以下每条独立实测验证，不采信自述）、docs/REVIEW-REPORT-V02.md（V0.2 基线 104 测试）、docs/DESIGN-DECISIONS.md（决策点 10/11）、docs/ARCHITECTURE.md（§4.8/§4.9）。
+
+> ⚠ 历史快照（V0.9 改名后）：文内 cah / CAH_* / @cah 为当时名称，现已迁移为 vessel / VESSEL_* / @vessel（见 docs/VESSEL.md）。
 
 ---
 

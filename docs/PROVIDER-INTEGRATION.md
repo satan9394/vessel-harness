@@ -64,7 +64,7 @@ node apps/cli/dist/cli.js run --workspace . `
   --base-url https://api.anthropic.com --api-key $env:ANTHROPIC_API_KEY --model claude-sonnet-4-5 `
   --prompt "实现一个功能…"
 
-# 环境变量可替代参数：CAH_MODEL / CAH_BASE_URL / CAH_API_KEY
+# 环境变量可替代参数：VESSEL_MODEL / VESSEL_BASE_URL / VESSEL_API_KEY
 ```
 
 TaskRouter（V0.4）接多供应商：TierModelMap 的 providerId 直接绑 `anthropic`/`openai-compatible`/`mock`——任务类别自动路由到对应厂商（`docs/MISSION-V0.4.md`）。

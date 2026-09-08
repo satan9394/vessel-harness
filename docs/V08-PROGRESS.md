@@ -1,8 +1,14 @@
 # V0.8 执行进度（V08-PROGRESS.md）— TUI 修复 + Vessel 改名/哲学 + 供应商/UI + 品牌
 
 > 接力：tasks 023-025 + 后续品牌/目录收尾。
+
+> ⚠ 历史快照（V0.9 改名后）：文内 cah / CAH_* / @cah 为当时名称，现已迁移为 vessel / VESSEL_* / @vessel（见 docs/VESSEL.md）。
 > 触发：用户实测 TUI 每轮退出 + 要求改名 Vessel 融哲学 + opencode 式分栏 UI + LOGO + cah 残留清理。
+
+> ⚠ 历史快照（V0.9 改名后）：文内 cah / CAH_* / @cah 为当时名称，现已迁移为 vessel / VESSEL_* / @vessel（见 docs/VESSEL.md）。
 > 最后更新：2026-09（**023/024/025 全部合入**；后续品牌、UI 主题、供应商 71 条、命令统一全部完成）。
+
+> ⚠ 历史快照（V0.9 改名后）：文内 cah / CAH_* / @cah 为当时名称，现已迁移为 vessel / VESSEL_* / @vessel（见 docs/VESSEL.md）。
 
 ## 0. 基线
 

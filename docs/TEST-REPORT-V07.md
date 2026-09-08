@@ -1,3 +1,5 @@
+
+> ⚠ 历史快照（V0.9 改名后）：文内 cah / CAH_* / @cah 为当时名称，现已迁移为 vessel / VESSEL_* / @vessel（见 docs/VESSEL.md）。
 # TEST-REPORT-V07 — 全量测试 + 功能测试验证报告
 
 - 日期：2026-09-07 17:2x
