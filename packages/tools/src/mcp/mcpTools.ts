@@ -1,4 +1,4 @@
-import type { ToolInputSchema, ToolSpec } from '@vessel/shared';
+import type { ToolExecutionResult, ToolInputSchema, ToolSpec } from '@vessel/shared';
 import type { ToolRegistry } from '../registry/Registry.js';
 import type { McpClient, McpToolDescriptor } from './McpClient.js';
 
@@ -45,9 +45,13 @@ export function mcpToolToSpec(serverName: string, desc: McpToolDescriptor, clien
     requiredPermission: 'workspace-write',
     exclusive: false,
     inputSchema,
-    async execute(args) {
+    async execute(args, ctx) {
       try {
-        const res = await client.callTool(desc.name, args);
+        // task 050 boundary: don't start a new RPC once the turn is interrupted
+        if (ctx?.signal?.aborted) {
+          return interruptedResult(serverName, desc.name);
+        }
+        const res = await withSignal(client.callTool(desc.name, args), ctx?.signal);
         const text = (res.content ?? [])
           .filter((c) => c.type === 'text' && typeof c.text === 'string')
           .map((c) => c.text)
@@ -58,6 +62,7 @@ export function mcpToolToSpec(serverName: string, desc: McpToolDescriptor, clien
           meta: { mcpServer: serverName, mcpTool: desc.name },
         };
       } catch (err) {
+        if (ctx?.signal?.aborted) return interruptedResult(serverName, desc.name);
         return {
           content: '',
           error: { errorClass: 'TOOL_FAILURE', message: `MCP call failed (${serverName}/${desc.name}): ${(err as Error).message}` },
@@ -66,4 +71,38 @@ export function mcpToolToSpec(serverName: string, desc: McpToolDescriptor, clien
       }
     },
   };
+}
+
+/** Tool result used when the turn was interrupted before/during the MCP call. */
+function interruptedResult(serverName: string, toolName: string): ToolExecutionResult {
+  return {
+    content: '',
+    error: { errorClass: 'TOOL_FAILURE', message: 'interrupted' },
+    meta: { mcpServer: serverName, mcpTool: toolName, interrupted: true },
+  };
+}
+
+/**
+ * Race a promise against a turn signal (task 050). When the signal aborts
+ * first, the caller's await rejects ('interrupted') instead of waiting out a
+ * possibly long RPC; the underlying request keeps running best-effort and its
+ * late resolution is discarded (no unhandled rejection — handlers attached).
+ */
+function withSignal<T>(p: Promise<T>, signal?: AbortSignal): Promise<T> {
+  if (!signal) return p;
+  if (signal.aborted) return Promise.reject(new Error('interrupted'));
+  return new Promise<T>((resolve, reject) => {
+    const onAbort = () => reject(new Error('interrupted'));
+    signal.addEventListener('abort', onAbort, { once: true });
+    p.then(
+      (v) => {
+        signal.removeEventListener('abort', onAbort);
+        resolve(v);
+      },
+      (e) => {
+        signal.removeEventListener('abort', onAbort);
+        reject(e);
+      },
+    );
+  });
 }

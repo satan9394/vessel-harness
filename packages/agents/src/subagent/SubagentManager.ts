@@ -1,6 +1,6 @@
 import * as crypto from 'node:crypto';
 import type { ChatProvider, PolicyArtifacts, SubagentResultContract, ToolSpec } from '@vessel/shared';
-import type { EventBus } from '@vessel/core';
+import { EventBus, type TurnResult } from '@vessel/core';
 import { createIsolatedRuntime } from './IsolatedRuntime.js';
 
 export type SubagentStopReason = SubagentResultContract['stopReason'];
@@ -92,7 +92,7 @@ export class SubagentManager {
     return delegationDepth < this.maxDepth && this.active < this.maxConcurrent;
   }
 
-  async delegate(req: DelegateRequest): Promise<SubagentResult> {
+  async delegate(req: DelegateRequest, opts: { signal?: AbortSignal } = {}): Promise<SubagentResult> {
     // fail-closed service-side caps first (EVENT-SPEC A22 semantics)
     if (req.delegationDepth >= this.maxDepth) {
       return this.denied(req, `delegation depth ${req.delegationDepth} reaches maxDepth ${this.maxDepth}`, 'depth');
@@ -160,7 +160,36 @@ export class SubagentManager {
         isContinuable: false,
       });
 
-      const turn = await runtime.loop.runTurn(req.prompt);
+      // task 050: thread the parent turn's signal into the child. An abort
+      // interrupts the child's own loop (child turn ends kind='interrupted' →
+      // stopReason 'aborted'), so the delegation resolves promptly instead of
+      // the parent waiting out the whole child turn. Note the child's interrupt
+      // scope opens synchronously when its runTurn() is invoked below, so
+      // interrupting an already-aborted parent still lands on an active scope.
+      const childTurn = runtime.loop.runTurn(req.prompt);
+      let detachAbort: (() => void) | null = null;
+      const stopChild = () => {
+        try {
+          runtime.loop.interrupt();
+        } catch {
+          // best-effort: the child may already be closing
+        }
+      };
+      const parentSignal = opts.signal;
+      if (parentSignal) {
+        if (parentSignal.aborted) stopChild();
+        else {
+          parentSignal.addEventListener('abort', stopChild, { once: true });
+          detachAbort = () => parentSignal.removeEventListener('abort', stopChild);
+        }
+      }
+
+      let turn!: TurnResult;
+      try {
+        turn = await childTurn;
+      } finally {
+        detachAbort?.();
+      }
 
       const stopReason: SubagentStopReason = mapTurnKind(turn.kind);
       const result: SubagentResult = {

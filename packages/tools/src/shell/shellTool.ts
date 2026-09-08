@@ -69,19 +69,22 @@ export function createShellTool(opts: { workspaceRoot: string; sandbox: Sandbox 
           timeoutMs,
           maxOutputBytes: 1024 * 1024,
           shell: true,
+          // task 050: turn interrupt kills the child (result resolves killed:true)
+          signal: ctx?.signal,
         });
         const output = (r.stdout + (r.stderr ? '\n[stderr]\n' + r.stderr : '')).trim();
-        if (r.exitCode !== 0) {
+        if (r.exitCode !== 0 || r.killed) {
           return {
             content: output.slice(0, 200_000),
             error: {
               errorClass: 'TOOL_FAILURE',
-              message: `exit code ${r.exitCode}${r.timedOut ? ' (timed out)' : ''}`,
-              detail: { exitCode: r.exitCode, timedOut: r.timedOut },
+              message: `exit code ${r.exitCode ?? 'null'}${r.timedOut ? ' (timed out)' : ''}${r.killed && !r.timedOut ? ' (interrupted)' : ''}`,
+              detail: { exitCode: r.exitCode, timedOut: r.timedOut, killed: r.killed },
             },
             meta: {
               exitCode: r.exitCode,
               timedOut: r.timedOut,
+              killed: r.killed,
               readonly: isReadonlyCommand(command),
               sandbox: { enforcement: confined.enforcement, status: status.supported },
             },

@@ -184,6 +184,13 @@ export class AnthropicProvider implements ChatProvider {
   async chat(request: ChatRequest): Promise<ChatResponse> {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), this.opts.timeoutMs ?? 60_000);
+    // task 050: forward the turn-level signal onto the fetch controller
+    const external = request.signal;
+    const forwardAbort = () => controller.abort();
+    if (external) {
+      if (external.aborted) controller.abort();
+      else external.addEventListener('abort', forwardAbort, { once: true });
+    }
     const url = this.opts.baseUrl.replace(/\/$/, '') + '/v1/messages';
     const { system, rest } = splitSystem(request.messages);
     const headers: Record<string, string> = {
@@ -211,6 +218,7 @@ export class AnthropicProvider implements ChatProvider {
       resp = await fetch(url, { method: 'POST', headers, body: JSON.stringify(body), signal: controller.signal });
     } finally {
       clearTimeout(timer);
+      external?.removeEventListener('abort', forwardAbort);
     }
 
     if (!resp.ok) {
@@ -288,40 +296,54 @@ export class AnthropicProvider implements ChatProvider {
       body.tool_choice = { type: 'auto' };
     }
 
-    const resp = await fetch(url, { method: 'POST', headers, body: JSON.stringify(body) });
-    if (!resp.ok) {
-      const text = await resp.text().catch(() => '');
-      throw new Error(`Anthropic ${resp.status} ${resp.statusText}: ${text.slice(0, 500)}`);
+    // task 050: forward the turn-level signal so an interrupt aborts the fetch
+    // and the in-flight reader.read() rejects (the consumer stops promptly).
+    const controller = new AbortController();
+    const external = request.signal;
+    const forwardAbort = () => controller.abort();
+    if (external) {
+      if (external.aborted) controller.abort();
+      else external.addEventListener('abort', forwardAbort, { once: true });
     }
 
-    const rbody = resp.body;
-    if (!rbody) throw new Error('Anthropic stream: response has no body');
-    const reader = rbody.getReader();
-    const decoder = new TextDecoder();
-    let buffer = '';
-    const parser = new AnthropicStreamParser();
-
     try {
-      for (;;) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        buffer += decoder.decode(value, { stream: true });
-        let newlineIdx: number;
-        while ((newlineIdx = buffer.indexOf('\n')) !== -1) {
-          const line = buffer.slice(0, newlineIdx);
-          buffer = buffer.slice(newlineIdx + 1);
-          const chunks = parser.feed(line);
+      const resp = await fetch(url, { method: 'POST', headers, body: JSON.stringify(body), signal: controller.signal });
+      if (!resp.ok) {
+        const text = await resp.text().catch(() => '');
+        throw new Error(`Anthropic ${resp.status} ${resp.statusText}: ${text.slice(0, 500)}`);
+      }
+
+      const rbody = resp.body;
+      if (!rbody) throw new Error('Anthropic stream: response has no body');
+      const reader = rbody.getReader();
+      const decoder = new TextDecoder();
+      let buffer = '';
+      const parser = new AnthropicStreamParser();
+
+      try {
+        for (;;) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          buffer += decoder.decode(value, { stream: true });
+          let newlineIdx: number;
+          while ((newlineIdx = buffer.indexOf('\n')) !== -1) {
+            const line = buffer.slice(0, newlineIdx);
+            buffer = buffer.slice(newlineIdx + 1);
+            const chunks = parser.feed(line);
+            for (const c of chunks) yield c;
+          }
+        }
+        if (buffer.trim().length > 0) {
+          const chunks = parser.feed(buffer);
           for (const c of chunks) yield c;
         }
+        const finalChunks = parser.finish();
+        for (const c of finalChunks) yield c;
+      } finally {
+        reader.releaseLock();
       }
-      if (buffer.trim().length > 0) {
-        const chunks = parser.feed(buffer);
-        for (const c of chunks) yield c;
-      }
-      const finalChunks = parser.finish();
-      for (const c of finalChunks) yield c;
     } finally {
-      reader.releaseLock();
+      external?.removeEventListener('abort', forwardAbort);
     }
   }
 }

@@ -76,6 +76,13 @@ export class OpenAICompatibleProvider implements ChatProvider {
   async chat(request: ChatRequest): Promise<ChatResponse> {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), this.opts.timeoutMs ?? 60_000);
+    // task 050: forward the turn-level signal onto the fetch controller
+    const external = request.signal;
+    const forwardAbort = () => controller.abort();
+    if (external) {
+      if (external.aborted) controller.abort();
+      else external.addEventListener('abort', forwardAbort, { once: true });
+    }
     const url = this.opts.baseUrl.replace(/\/$/, '') + '/chat/completions';
     const headers: Record<string, string> = { 'Content-Type': 'application/json' };
     if (this.opts.apiKey) headers.Authorization = `Bearer ${this.opts.apiKey}`;
@@ -97,6 +104,7 @@ export class OpenAICompatibleProvider implements ChatProvider {
       });
     } finally {
       clearTimeout(timer);
+      external?.removeEventListener('abort', forwardAbort);
     }
 
     if (!resp.ok) {
@@ -147,52 +155,67 @@ export class OpenAICompatibleProvider implements ChatProvider {
     const headers: Record<string, string> = { 'Content-Type': 'application/json' };
     if (this.opts.apiKey) headers.Authorization = `Bearer ${this.opts.apiKey}`;
 
-    const resp = await fetch(url, {
-      method: 'POST',
-      headers,
-      body: JSON.stringify({
-        model: this.opts.model,
-        messages: toOpenAIMessages(request.messages),
-        tools: request.tools && request.tools.length > 0 ? toOpenAITools(request.tools) : undefined,
-        temperature: request.temperature ?? 0,
-        max_tokens: request.maxTokens,
-        stream: true,
-      }),
-    });
-
-    if (!resp.ok) {
-      const text = await resp.text().catch(() => '');
-      throw new Error(`OpenAI-compatible ${resp.status} ${resp.statusText}: ${text.slice(0, 500)}`);
+    // task 050: forward the turn-level signal so an interrupt aborts the fetch
+    // and the in-flight reader.read() rejects (the consumer stops promptly).
+    const controller = new AbortController();
+    const external = request.signal;
+    const forwardAbort = () => controller.abort();
+    if (external) {
+      if (external.aborted) controller.abort();
+      else external.addEventListener('abort', forwardAbort, { once: true });
     }
 
-    const body = resp.body;
-    if (!body) throw new Error('OpenAI-compatible stream: response has no body');
-    const reader = body.getReader();
-    const decoder = new TextDecoder();
-    let buffer = '';
-    const parser = new OpenAIStreamParser();
-
     try {
-      for (;;) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        buffer += decoder.decode(value, { stream: true });
-        let newlineIdx: number;
-        while ((newlineIdx = buffer.indexOf('\n')) !== -1) {
-          const line = buffer.slice(0, newlineIdx);
-          buffer = buffer.slice(newlineIdx + 1);
-          const chunks = parser.feed(line);
+      const resp = await fetch(url, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({
+          model: this.opts.model,
+          messages: toOpenAIMessages(request.messages),
+          tools: request.tools && request.tools.length > 0 ? toOpenAITools(request.tools) : undefined,
+          temperature: request.temperature ?? 0,
+          max_tokens: request.maxTokens,
+          stream: true,
+        }),
+        signal: controller.signal,
+      });
+
+      if (!resp.ok) {
+        const text = await resp.text().catch(() => '');
+        throw new Error(`OpenAI-compatible ${resp.status} ${resp.statusText}: ${text.slice(0, 500)}`);
+      }
+
+      const body = resp.body;
+      if (!body) throw new Error('OpenAI-compatible stream: response has no body');
+      const reader = body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = '';
+      const parser = new OpenAIStreamParser();
+
+      try {
+        for (;;) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          buffer += decoder.decode(value, { stream: true });
+          let newlineIdx: number;
+          while ((newlineIdx = buffer.indexOf('\n')) !== -1) {
+            const line = buffer.slice(0, newlineIdx);
+            buffer = buffer.slice(newlineIdx + 1);
+            const chunks = parser.feed(line);
+            for (const c of chunks) yield c;
+          }
+        }
+        if (buffer.trim().length > 0) {
+          const chunks = parser.feed(buffer);
           for (const c of chunks) yield c;
         }
+        const finalChunks = parser.finish();
+        for (const c of finalChunks) yield c;
+      } finally {
+        reader.releaseLock();
       }
-      if (buffer.trim().length > 0) {
-        const chunks = parser.feed(buffer);
-        for (const c of chunks) yield c;
-      }
-      const finalChunks = parser.finish();
-      for (const c of finalChunks) yield c;
     } finally {
-      reader.releaseLock();
+      external?.removeEventListener('abort', forwardAbort);
     }
   }
 }

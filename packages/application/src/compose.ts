@@ -156,7 +156,7 @@ export async function composeHarness(opts: ComposeOptions): Promise<ComposedHarn
   const executor = new Executor({
     decide: async (call, spec) => policyEngine.decide({ toolName: call.toolName, arguments: call.arguments }, spec),
   });
-  const runTool = async (call: ToolCall) => {
+  const runTool = async (call: ToolCall, exec?: { signal?: AbortSignal | null }) => {
     const spec = registry.spec(call.toolName);
     if (!spec) {
       return {
@@ -166,7 +166,8 @@ export async function composeHarness(opts: ComposeOptions): Promise<ComposedHarn
         meta: {},
       };
     }
-    const result = await executor.runTool(spec, call, { workspaceRoot, cwd, sandbox });
+    // task 050: forward the turn's AbortSignal so in-flight tools (shell/MCP/subagent) can stop
+    const result = await executor.runTool(spec, call, { workspaceRoot, cwd, sandbox, signal: exec?.signal ?? undefined });
     return { record: null, content: result.content, error: result.error, meta: result.meta };
   };
 

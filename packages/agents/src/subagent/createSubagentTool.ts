@@ -36,7 +36,7 @@ export function createSubagentTool(manager: SubagentManager, opts: SubagentToolO
       },
       required: ['prompt'],
     },
-    async execute(args) {
+    async execute(args, ctx) {
       const prompt = String(args.prompt ?? '');
       if (!prompt.trim()) {
         return {
@@ -48,14 +48,18 @@ export function createSubagentTool(manager: SubagentManager, opts: SubagentToolO
       const preset = args.preset != null ? String(args.preset) : opts.preset;
       const toolFilter = Array.isArray(args.tool_filter) ? args.tool_filter.map(String) : undefined;
       const depthLimit = args.depth_limit != null ? Number(args.depth_limit) : opts.depthLimit;
-      const result = await manager.delegate({
+      const request = {
         prompt,
         delegationDepth: opts.delegationDepth ?? 0,
         preset,
         toolFilter,
         outputSchema: args.output_schema as Record<string, unknown> | undefined,
         depthLimit,
-      });
+      };
+      // task 050: forward the parent turn's signal — an interrupt aborts the
+      // child turn. When no turn signal is present the call keeps its legacy
+      // single-argument shape.
+      const result = ctx?.signal ? await manager.delegate(request, { signal: ctx.signal }) : await manager.delegate(request);
 
       if (result.stopReason === 'denied') {
         return {

@@ -77,7 +77,7 @@ describe('SessionController', () => {
     await ctl.close();
   });
 
-  it('interrupt()/steer() are safe no-op seams that never crash', async () => {
+  it('interrupt() on an idle session is a safe no-op; steer() buffers (task 050/051)', async () => {
     const provider = new MockProvider([{ when: /.*/, response: { text: 'OK' } }], { model: 'm' });
     const ctl = await SessionController.create({
       workspaceRoot: ws,
@@ -87,16 +87,16 @@ describe('SessionController', () => {
       behaviorIRPath: BEHAVIOR,
     });
 
-    // must not throw
-    ctl.interrupt();
+    // no active turn → interrupt must not throw and changes nothing
+    expect(() => ctl.interrupt()).not.toThrow();
     ctl.steer('please keep it short');
     expect(ctl.pendingSteerCount).toBe(1);
 
-    // still fully usable after a steer
+    // still fully usable after an interrupt/steer
     const result = await ctl.runTurn('hi');
     expect(result.finalText).toBeDefined();
 
-    // close also cleans up the abort controller
+    // close cleans up the session
     await ctl.close();
   });
 

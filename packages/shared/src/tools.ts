@@ -31,6 +31,13 @@ export interface ToolExecutionContext {
   guard?: (call: { toolName: string; arguments: Record<string, unknown> }) => Promise<ToolGuardDecision>;
   sandbox?: SandboxSeam;
   events?: unknown;
+  /**
+   * Turn-level cancellation (task 050): present while a tool runs inside a
+   * turn. Tools that spawn long work (shell processes, MCP calls, subagent
+   * delegation) should stop promptly when it aborts; the AgentLoop also stops
+   * at its own boundaries, so ignoring it can only delay (never prevent) stop.
+   */
+  signal?: AbortSignal;
 }
 
 export interface ToolGuardDecision {

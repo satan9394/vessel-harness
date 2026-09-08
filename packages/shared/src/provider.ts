@@ -33,6 +33,13 @@ export interface ChatRequest {
   temperature?: number;
   maxTokens?: number;
   requestKind?: 'main' | 'compaction-summary' | 'goal-eval';
+  /**
+   * Turn-level cancellation (task 050): forwarded by AgentLoop so provider
+   * chat()/stream() fetches abort promptly when the turn is interrupted.
+   * Providers without abort support simply ignore it — the loop additionally
+   * stops at its own checkpoint boundaries.
+   */
+  signal?: AbortSignal;
 }
 
 export interface ChatToolCall {

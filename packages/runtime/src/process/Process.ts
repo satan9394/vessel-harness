@@ -8,6 +8,13 @@ export interface SpawnOptions {
   maxOutputBytes?: number;
   /** run through the platform shell (cmd.exe /bin/sh) — required for command strings */
   shell?: boolean;
+  /**
+   * turn-level cancellation (task 050): when the signal aborts the child is
+   * killed (SIGKILL like the timeout path) and the result resolves with
+   * `killed: true`. The caller decides whether that means an error result
+   * (shell tool) or an interrupt stop (AgentLoop boundary).
+   */
+  signal?: AbortSignal;
 }
 
 export interface SpawnResult {
@@ -54,6 +61,25 @@ export function runCommand(
       child.kill('SIGKILL');
     }, timeoutMs);
 
+    // task 050: external cancel (turn interrupt) kills the child like a timeout
+    let onAbort: (() => void) | null = null;
+    if (opts.signal) {
+      if (opts.signal.aborted) {
+        killed = true;
+        child.kill('SIGKILL');
+      } else {
+        onAbort = () => {
+          killed = true;
+          try {
+            child.kill('SIGKILL');
+          } catch {
+            // child already exited — the close handler below settles the promise
+          }
+        };
+        opts.signal.addEventListener('abort', onAbort, { once: true });
+      }
+    }
+
     child.stdout?.on('data', (d: Buffer) => {
       if (stdout.length < maxOut) stdout += d.toString('utf8');
     });
@@ -62,10 +88,12 @@ export function runCommand(
     });
     child.on('error', (err) => {
       clearTimeout(timer);
+      if (onAbort) opts.signal?.removeEventListener('abort', onAbort);
       reject(err);
     });
     child.on('close', (code) => {
       clearTimeout(timer);
+      if (onAbort) opts.signal?.removeEventListener('abort', onAbort);
       resolve({ stdout, stderr, exitCode: code, timedOut, killed });
     });
   });

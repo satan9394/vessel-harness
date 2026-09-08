@@ -55,9 +55,10 @@ export interface SessionProjections {
  * compose→run→close wiring. The underlying loop/session stay reachable for
  * event subscription via the public `session` and `bus` fields.
  *
- * `interrupt`/`steer` are reserved seams for Milestone C (real implementation);
- * this card keeps them as safe no-ops that never crash, storing their inputs so
- * a future card can consume them without changing the public shape.
+ * `interrupt` (task 050) aborts the loop's active turn scope in real time —
+ * the turn then closes with kind='interrupted'. `steer` stays a reserved seam
+ * for Milestone C (task 051): this card only stores steer messages without
+ * consuming them, so the public shape never changes.
  */
 export class SessionController {
   private readonly harness: ComposedHarness;
@@ -66,7 +67,6 @@ export class SessionController {
   private readonly model: string;
   private readonly permission: SessionPermission;
 
-  private abortController: AbortController | null = null;
   private readonly pendingSteers: string[] = [];
 
   /** bus-attached event projections (read-only UI facts). */
@@ -144,20 +144,23 @@ export class SessionController {
     return this.harness.loop;
   }
 
-  /** Run one user turn through the session loop. */
+  /**
+   * Run one user turn through the session loop. The loop owns a per-turn
+   * interrupt scope (AgentLoop.begin/end), so calling runTurn while an older
+   * turn is still running aborts that stale turn (same semantics as the
+   * controller's previous per-call AbortController).
+   */
   async runTurn(prompt: string) {
-    this.abortController?.abort();
-    this.abortController = new AbortController();
     return this.harness.loop.runTurn(prompt);
   }
 
   /**
-   * Reserved seam: request an interrupt of the current turn. Milestone C wires
-   * this into the loop's checkpoints; for now it attaches/aborts an
-   * AbortController so the plumbing is in place without changing behavior.
+   * Request an interrupt of the current turn (task 050). Aborts the loop's
+   * active turn scope: in-flight provider streams / tool executions stop and
+   * the turn ends with kind='interrupted'. No-op when no turn is running.
    */
   interrupt(): void {
-    this.abortController?.abort();
+    this.harness.loop.interrupt();
   }
 
   /**
@@ -175,7 +178,6 @@ export class SessionController {
 
   /** Close the composed harness (session log, MCP clients, telemetry detach). */
   async close(): Promise<void> {
-    this.abortController?.abort();
     this.detachProjections();
     await this.harness.close();
   }

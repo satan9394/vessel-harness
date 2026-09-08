@@ -5,9 +5,48 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { MockProvider } from '@vessel/llm';
 import { SessionRegistry, ProjectRegistry, type SessionController } from '@vessel/application';
 import { createVesselServer, type VesselServer } from './server.js';
+import type { ChatProvider, ChatRequest, ChatResponse, StreamChunk } from '@vessel/shared';
 
 const POLICY = path.resolve('configs/policy.default.yaml');
 const BEHAVIOR = path.resolve('configs/behavior.default.yaml');
+
+async function waitFor(fn: () => boolean, timeoutMs = 4000, stepMs = 10): Promise<void> {
+  const start = Date.now();
+  while (Date.now() - start < timeoutMs) {
+    if (fn()) return;
+    await new Promise((r) => setTimeout(r, stepMs));
+  }
+  throw new Error(`waitFor timed out after ${timeoutMs}ms`);
+}
+
+/**
+ * Gated streaming provider for interrupt tests: yields a prefix, then pauses on
+ * a gate until release() — a deterministic "turn in flight" window.
+ */
+class GatedServerProvider implements ChatProvider {
+  readonly id = 'gated';
+  private waiters: (() => void)[] = [];
+  private startedResolve!: () => void;
+  readonly started = new Promise<void>((r) => (this.startedResolve = r));
+
+  async chat(): Promise<ChatResponse> {
+    throw new Error('chat() must not be called when provider.stream is present');
+  }
+
+  async *stream(_request: ChatRequest): AsyncGenerator<StreamChunk> {
+    this.startedResolve();
+    yield { type: 'message_start', model: 'g' };
+    yield { type: 'text_delta', text: 'prefix ' };
+    await new Promise<void>((resolve) => this.waiters.push(resolve));
+    yield { type: 'text_delta', text: 'suffix' };
+    yield { type: 'usage', inputTokens: 2, outputTokens: 2 };
+    yield { type: 'message_end', finishReason: 'stop' };
+  }
+
+  release(): void {
+    this.waiters.shift()?.();
+  }
+}
 
 describe('local server HTTP API + SSE', () => {
   let dir: string;
@@ -225,5 +264,91 @@ describe('local server HTTP API + SSE', () => {
     await turnPromise;
     await reader.cancel();
     expect(gotConversation).toBe(true);
+  });
+});
+
+describe('local server — POST /interrupt stops an in-flight turn (task 050)', () => {
+  let dir: string;
+  let ws: string;
+  let home: string;
+  let server: VesselServer;
+  let base: string;
+  let ctl: SessionController | undefined;
+  let gated: GatedServerProvider;
+
+  beforeEach(async () => {
+    dir = fs.mkdtempSync(path.join(os.tmpdir(), 'cah-interrupt-server-'));
+    ws = path.join(dir, 'workspace');
+    home = path.join(dir, 'vessel-home');
+    fs.mkdirSync(ws, { recursive: true });
+
+    gated = new GatedServerProvider();
+    const sessionRegistry = new SessionRegistry({ vesselHome: home });
+    server = createVesselServer({
+      port: 0,
+      sessionRegistry,
+      sessionFactory: async (input) => {
+        const { SessionController: SC } = await import('@vessel/application');
+        ctl = await SC.create({
+          workspaceRoot: input.workspaceRoot,
+          provider: gated,
+          model: input.model ?? 'default',
+          policySystemPath: POLICY,
+          behaviorIRPath: BEHAVIOR,
+          permission: input.permission ?? 'workspace-write',
+          registry: input.registry,
+        });
+        return ctl;
+      },
+      staticDir: ws,
+    });
+    await server.listen();
+    base = `http://127.0.0.1:${server.port}`;
+  });
+
+  afterEach(async () => {
+    if (server) await server.close();
+    fs.rmSync(dir, { recursive: true, force: true });
+  });
+
+  it('a turn in flight ends kind=interrupted with turn/start → turn/end pairing kept', async () => {
+    const create = await fetch(`${base}/api/sessions`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ workspaceRoot: ws }),
+    });
+    expect(create.status).toBe(201);
+    const created = (await create.json()) as { session: { id: string } };
+    const id = created.session.id;
+
+    const turnPromise = fetch(`${base}/api/sessions/${id}/turns`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ prompt: 'stream something' }),
+    });
+
+    // wait until the turn's interrupt scope is really open, then stop it
+    expect(ctl).toBeDefined();
+    await waitFor(() => ctl!.loop.turnActive);
+    const interrupt = await fetch(`${base}/api/sessions/${id}/interrupt`, { method: 'POST' });
+    expect(interrupt.status).toBe(200);
+    expect((await interrupt.json()) as { ok: boolean }).toEqual({ ok: true });
+
+    // release the gate so the in-flight stream settles; the turn must close interrupted
+    gated.release();
+    const turnRes = await turnPromise;
+    expect(turnRes.status).toBe(200);
+    const result = (await turnRes.json()) as { finalText: string; kind: string; turnId: string };
+    expect(result.kind).toBe('interrupted');
+
+    // session log: turn/start → turn/end{kind:interrupted}, nothing after turn/end
+    const records = ctl!.session.replay();
+    const kinds = records.filter((r) => r.type === 'turn/start' || r.type === 'turn/end');
+    expect(kinds.map((r) => r.type)).toEqual(['turn/start', 'turn/end']);
+    const end = kinds[1] as { kind: string; turnId: string };
+    expect(end.kind).toBe('interrupted');
+    expect(end.turnId).toBe(result.turnId);
+    // scope is released once the turn settles → the session can run again
+    expect(ctl!.loop.turnActive).toBe(false);
   });
 });

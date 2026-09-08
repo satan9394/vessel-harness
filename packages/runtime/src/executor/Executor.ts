@@ -18,6 +18,8 @@ export interface ExecutorCtx {
   workspaceRoot: string;
   cwd: string;
   sandbox: SandboxSeam;
+  /** turn-level cancellation (task 050) — forwarded into every tool execution context */
+  signal?: AbortSignal;
 }
 
 /**
@@ -46,6 +48,7 @@ export class Executor {
       workspaceRoot: ctx.workspaceRoot,
       cwd: ctx.cwd,
       sandbox: ctx.sandbox,
+      signal: ctx.signal,
       guard: this.hooks.decide
         ? async (c: { toolName: string; arguments: Record<string, unknown> }) => {
             const v = await this.hooks.decide!(

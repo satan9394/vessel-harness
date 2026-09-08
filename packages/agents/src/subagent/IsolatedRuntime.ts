@@ -1,7 +1,7 @@
 import * as path from 'node:path';
 import * as crypto from 'node:crypto';
 import type { ChatProvider, PolicyArtifacts, ToolCall, ToolSpec } from '@vessel/shared';
-import { AgentLoop, EventBus, Session } from '@vessel/core';
+import { AgentLoop, EventBus, Session, type ToolResultOutcome } from '@vessel/core';
 import { Compaction, ContextBuilder, discoverInstructions } from '@vessel/context';
 import { PolicyEngine } from '@vessel/policy';
 import { Executor, Sandbox } from '@vessel/runtime';
@@ -81,7 +81,7 @@ export async function createIsolatedRuntime(opts: IsolatedRuntimeOptions): Promi
   const executor = new Executor({
     decide: async (call, spec) => policyEngine.decide({ toolName: call.toolName, arguments: call.arguments }, spec),
   });
-  const runTool = async (call: ToolCall) => {
+  const runTool = async (call: ToolCall, exec?: { signal?: AbortSignal | null }): Promise<ToolResultOutcome> => {
     const spec = registry.spec(call.toolName);
     if (!spec) {
       return {
@@ -91,7 +91,7 @@ export async function createIsolatedRuntime(opts: IsolatedRuntimeOptions): Promi
         meta: {},
       };
     }
-    const result = await executor.runTool(spec, call, { workspaceRoot, cwd, sandbox });
+    const result = await executor.runTool(spec, call, { workspaceRoot, cwd, sandbox, signal: exec?.signal ?? undefined });
     return { record: null, content: result.content, error: result.error, meta: result.meta };
   };
 

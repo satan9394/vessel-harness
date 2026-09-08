@@ -16,6 +16,7 @@ import {
 import { EventBus } from '../events/EventBus.js';
 import { LoopState } from '../state/State.js';
 import { Session } from '../session/Session.js';
+import { InterruptController, TurnInterruptedError } from './InterruptController.js';
 
 export interface RequestEnvelope {
   model: string;
@@ -31,8 +32,14 @@ export interface LoopDeps {
   model: string;
   /** context builder — assembled per step at BeforeModel (A07) */
   buildContext: (step: number) => Promise<RequestEnvelope>;
-  /** executor — runs one tool call after policy pre-execute recheck; returns frozen result */
-  runTool: (call: ToolCall) => Promise<ToolResultOutcome>;
+  /**
+   * executor — runs one tool call after policy pre-execute recheck; returns
+   * frozen result. The optional second argument carries the turn's
+   * AbortSignal (task 050): implementations that spawn long work (shell
+   * processes, MCP, subagent) forward it; ones that ignore it still get
+   * stopped at the loop's next boundary.
+   */
+  runTool: (call: ToolCall, ctx?: { signal?: AbortSignal | null }) => Promise<ToolResultOutcome>;
   getVisibleTools: () => ChatToolDef[];
   maxSteps?: number;
   llmRetry?: {
@@ -108,13 +115,45 @@ export class AgentLoop {
   private readonly deps: LoopDeps;
   private readonly state = new LoopState();
   private readonly maxSteps: number;
+  /** turn-level interrupt scope (task 050): begin per turn, abort on interrupt, end on teardown */
+  private readonly interruptCtl = new InterruptController();
 
   constructor(deps: LoopDeps) {
     this.deps = deps;
     this.maxSteps = deps.maxSteps ?? MAX_STEPS_PER_TURN;
   }
 
+  /**
+   * Request interruption of the current turn (if one is running).
+   * External surfaces (CLI first Ctrl+C, POST /interrupt, web Stop) call this.
+   * @returns true when an active, not-yet-aborted turn was interrupted.
+   */
+  interrupt(): boolean {
+    return this.interruptCtl.interrupt();
+  }
+
+  /** Whether the current turn scope has been interrupted. */
+  get interrupted(): boolean {
+    return this.interruptCtl.aborted;
+  }
+
+  /** Whether a turn scope is currently open (a turn is running). */
+  get turnActive(): boolean {
+    return this.interruptCtl.active;
+  }
+
   async runTurn(input: string): Promise<TurnResult> {
+    // per-turn lifecycle: open the scope (aborting any stale predecessor),
+    // and ALWAYS close it afterwards — even when the inner run throws.
+    this.interruptCtl.begin();
+    try {
+      return await this.runTurnInner(input);
+    } finally {
+      this.interruptCtl.end();
+    }
+  }
+
+  private async runTurnInner(input: string): Promise<TurnResult> {
     const startedAt = Date.now();
     const { session, bus, provider, model } = this.deps;
     const turnId = `turn_${Date.now()}_${crypto.randomBytes(3).toString('hex')}`;
@@ -171,6 +210,13 @@ export class AgentLoop {
 
     try {
       for (let step = 1; step <= this.maxSteps; step++) {
+        // task 050: an interrupt that arrived between steps stops the turn here
+        // (no step/start is opened for a ghost step — the previous step/end
+        // already closed its step, so step pairing stays intact).
+        if (this.interruptCtl.aborted) {
+          kind = 'interrupted';
+          break;
+        }
         this.state.beginStep();
         const stepId = `step_${turnId}_${step}`;
         await session.appendSync({ type: 'step/start', stepId, turnId, surface: false });
@@ -224,6 +270,12 @@ export class AgentLoop {
 
         await session.appendSync({ type: 'step/end', stepId, turnId, surface: false });
 
+        // task 050: an interrupt that landed while tools were dispatched stops here
+        if (this.interruptCtl.aborted) {
+          kind = 'interrupted';
+          break;
+        }
+
         // Continue while work remains owed (denials feed back to the model as tool results)
         const snapshot = this.state.snapshot();
         if (snapshot.steps >= this.maxSteps) {
@@ -232,7 +284,12 @@ export class AgentLoop {
         }
       }
     } catch (err) {
-      if (err instanceof DenialLimitError) {
+      if (err instanceof TurnInterruptedError || this.interruptCtl.aborted) {
+        // task 050: user interrupt terminates the path — close the turn properly
+        // (pairing invariant: turn/start → turn/end) with kind='interrupted'
+        kind = 'interrupted';
+        finalText = finalText || '';
+      } else if (err instanceof DenialLimitError) {
         // denial breaker: same intent denied ≥3 terminates this path — close the
         // turn properly (pairing invariant: turn/start → turn/end) with kind=error
         kind = 'error';
@@ -291,12 +348,16 @@ export class AgentLoop {
       messages: envelope.messages,
       tools: envelope.tools.length > 0 ? envelope.tools : undefined,
       temperature: 0,
+      // task 050: forward the turn's AbortSignal so provider fetches abort promptly
+      signal: this.interruptCtl.signal ?? undefined,
     };
     // deterministic per (turnId, step); retry attempts of one logical request share it
     const requestId = `req_${turnId}_step${step}`;
     let attempt = 0;
     // eslint-disable-next-line no-constant-condition
     while (true) {
+      // task 050: interruption that landed between attempts stops retrying at once
+      if (this.interruptCtl.aborted) throw new TurnInterruptedError();
       try {
         const provider = this.deps.provider;
         if (typeof provider.stream === 'function') {
@@ -304,6 +365,8 @@ export class AgentLoop {
         }
         return await provider.chat(request);
       } catch (err) {
+        // task 050: an abort wins over retry — interruption is never retried
+        if (this.interruptCtl.aborted) throw new TurnInterruptedError();
         const cls = classifyModelError(err);
         attempt += 1;
         await this.deps.bus.emit('llm_retry', { turnId, step, attempt, errorClass: cls });
@@ -359,6 +422,11 @@ export class AgentLoop {
 
     try {
       for await (const chunk of stream) {
+        // task 050: boundary check — an interrupt may have landed while the
+        // previous chunk was in flight (signal-blind providers stop here at
+        // the latest; signal-aware ones abort the fetch and throw out of the
+        // iterator, which the catch below also turns into a stop).
+        if (this.interruptCtl.aborted) throw new TurnInterruptedError();
         switch (chunk.type) {
           case 'message_start':
             break; // model identity already carried on model_stream_start
@@ -396,7 +464,7 @@ export class AgentLoop {
       }
     } catch (err) {
       // attempt-level pairing: close the stream (finishReason 'error'), then let
-      // the retry wrapper in callModel decide (llm_retry) or rethrow
+      // the retry wrapper in callModel decide (interrupt ⇒ no retry) or rethrow
       await bus.emit('model_stream_end', {
         turnId,
         step,
@@ -493,8 +561,34 @@ export class AgentLoop {
       return;
     }
 
-    // allow → execute (executor re-checks policy at pre-execute; tools never trust the caller)
-    const outcome = await this.deps.runTool(call);
+    // allow → execute (executor re-checks policy at pre-execute; tools never
+    // trust the caller). The turn signal is forwarded into the tool context and
+    // the await is raced against interruption so signal-blind tools cannot
+    // stall a stop (task 050).
+    let outcome: ToolResultOutcome;
+    try {
+      outcome = await this.raceToolRun(call);
+    } catch (err) {
+      if (this.interruptCtl.aborted) {
+        // In-flight tool was interrupted: close tool/call → tool/result pairing
+        // with an explicit interrupted result, then let the turn end interrupted.
+        const interruptedError: ToolErrorPayload = { errorClass: 'TOOL_FAILURE', message: 'interrupted' };
+        await session.appendSync({
+          type: 'tool/result',
+          toolCallId: call.toolCallId,
+          toolName: call.toolName,
+          error: interruptedError,
+          meta: { interrupted: true },
+          surface: true,
+        });
+        await bus.emit('after_tool', {
+          toolCallId: call.toolCallId,
+          toolName: call.toolName,
+          result: { error: interruptedError },
+        });
+      }
+      throw err;
+    }
     await session.appendSync({
       type: 'tool/result',
       toolCallId: call.toolCallId,
@@ -509,6 +603,29 @@ export class AgentLoop {
       toolName: call.toolName,
       result: { content: outcome.content, error: outcome.error },
     });
+  }
+
+  /**
+   * Execute one tool call, racing it against a turn interrupt. When the
+   * interrupt fires first a TurnInterruptedError is thrown (the caller records
+   * an interrupted tool/result and the turn ends kind='interrupted').
+   */
+  private async raceToolRun(call: ToolCall): Promise<ToolResultOutcome> {
+    const signal = this.interruptCtl.signal;
+    // already interrupted → never start (possibly long) tool work
+    if (signal?.aborted) throw new TurnInterruptedError();
+    const run = this.deps.runTool(call, { signal: signal ?? null });
+    if (!signal) return run;
+    let onAbort: (() => void) | null = null;
+    const interrupted = new Promise<never>((_, reject) => {
+      onAbort = () => reject(new TurnInterruptedError());
+      signal.addEventListener('abort', onAbort, { once: true });
+    });
+    try {
+      return await Promise.race([run, interrupted]);
+    } finally {
+      if (onAbort) signal.removeEventListener('abort', onAbort);
+    }
   }
 
   private async recordDenial(call: ToolCall, reason: string, ref: string | undefined, stage: string): Promise<void> {
