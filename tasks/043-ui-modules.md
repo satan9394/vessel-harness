@@ -1,6 +1,6 @@
 # 043 — UI 模块勾选（Customize：Team/Tasks/Changed Files/Context/Tool Activity/Logs/Cost/MCP/Policy）
 
-- 状态：待执行
+- 状态：待验收
 - 优先级：P1（Milestone B；路线 §6.3）
 - 创建日期：2026-09
 - 关联：路线卡 043；goal（V1.0 产品化）；依赖 042（已合入 292cfd2）
@@ -35,7 +35,7 @@ apps/web 右上 Customize 面板：可勾选显示模块（Team/Tasks/Changed Fi
 
 ## 工作证明（执行器回填）
 
-- [ ] CustomizePanel / 勾选持久 / 模块渲染 / build
+- [x] CustomizePanel / 勾选持久 / 模块渲染 / build（web vitest 18 绿、vite build ok、root tsc -b 0 / root vitest 362 绿；commit 835b06d）
 
 ## 验收结论（指挥回填）
 
