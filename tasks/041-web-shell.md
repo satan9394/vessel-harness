@@ -1,6 +1,6 @@
 # 041 — apps/web shell（React + Vite，本地 Web UI 骨架）
 
-- 状态：待执行
+- 状态：待验收
 - 优先级：P0（Milestone B；路线 §6、卡 041）
 - 创建日期：2026-09
 - 关联：路线卡 041/042/043；goal（V1.0 产品化）；依赖 039/040（server + SSE 已合入）、044（serve/web 命令）
@@ -37,7 +37,15 @@
 
 ## 工作证明（执行器回填）
 
-- [ ] web 结构 / 构建 / dev 冒烟 / 测试
+- [x] web 结构 / 构建 / dev 冒烟 / 测试
+  - `apps/web/`（React 18 + Vite 5 + TS）：package.json（@vessel/web@0.10.0）、vite.config.ts（/api 代理到 127.0.0.1:5678）、tsconfig、index.html、src/{main.tsx,App.tsx,styles.css,api.ts,api.test.ts}、src/components/{Sidebar,StatusBar,NewSessionForm,VesselLogo}.tsx、vitest.config.ts
+  - 主题：styles.css 双套 CSS 变量（:root 浅色 + @media prefers-color-scheme dark），遵循 UI-THEME.md；`color-scheme: light dark`
+  - 布局：左侧栏固定 240px（品牌 + New Session + Projects + Recent Sessions + Settings）+ 主区（health 状态点/version + 欢迎占位）
+  - api.ts：fetch 封装 health/projects/sessions/openProject/createSession/runTurn，base 默认 /api 可注入；网络失败抛友好"请先 vessel serve"ApiError
+  - 测试：apps/web vitest 7 passed（mock fetch 断言 URL/方法/body + 错误路径）
+  - 构建：`npx vite build` 成功，产出 dist/（gitignore 覆盖，不提交）
+  - root vitest: 337 passed；apps/web tsc --noEmit exit 0
+  - 注意：根 `tsc -b` 因**其他并行任务的未提交 WIP**（packages/application/src/credential/ + apps/cli/src/providers/ProviderStore.ts 重构）报错，与本卡无关；本卡未动这些文件
 
 ## 验收结论（指挥回填）
 
