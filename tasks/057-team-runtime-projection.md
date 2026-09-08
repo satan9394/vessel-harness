@@ -1,6 +1,6 @@
 # 057 — TeamRuntime / TeamProjection（多 Agent 协作运行时 + 事件投影）
 
-- 状态：待验收
+- 状态：已合入
 - 优先级：P0（Wave 2 / Milestone D）
 - 创建日期：2026-09-08
 - 关联：054-056（preset/路由，前置）；058（Internal Reviewer）；060（team UI 消费投影）
@@ -141,5 +141,10 @@ TeamRuntime：按 056 路由结果组合多个 preset 化的 Agent 协作用于�
 
 ## 验收结论（指挥回填）
 
-- [ ] 合入 / 打回
-- 备注：
+- [x] 合入（commit a86adda）
+- 备注：指挥独立复核——全量 vitest 61 文件 496 测试全绿（475+21，零回归）、npx tsc -b 0 错误，与执行器自报一致。
+  设计认可：TeamRuntime 按 056 route.roles/roleModels（TeamRouteLike 结构类型，agents 零 @vessel/llm 依赖）或显式
+  roster 组合 preset Agent（小1/中2/复杂3）；gen→eval 顺序骨架；含 lead 阵容的 developer/reviewer 经真实
+  SubagentManager.delegate+presetLookup（055）以 lead 子代理执行（B10 parentSession/delegationDepth 区分）；
+  新增 3 个 emit 事件 team_start/team_phase/team_end（EVENT-SPEC §5.H 理由注明）+ B10 source 'team'，成员回合/工具/
+  delegate 复用既有词汇；TeamProjection 照 040/052 模式给 060。下一张：058（Internal Reviewer 真流程）。
