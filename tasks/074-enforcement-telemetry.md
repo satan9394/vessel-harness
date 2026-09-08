@@ -1,6 +1,6 @@
 # 074 — Runtime Enforcement Telemetry（安全执法遥测）
 
-- 状态：待验收
+- 状态：已合入
 - 优先级：P0（Wave 4 / Milestone F）
 - 创建日期：2026-09-08
 - 关联：071-073（sandbox/process-tree/fs-confinement 的执法事件）；049-051（事件词汇/audit 惯例）
@@ -87,5 +87,10 @@ Runtime Enforcement Telemetry：把 071-073 的安全执法（sandbox 拒绝/逃
 
 ### 验收结论（指挥回填）
 
-- [ ] 合入 / 打回
-- 备注：
+- [x] 合入（commit a264193）
+- 备注：指挥独立复核——全量 vitest 78 文件 719 测试全绿 + 1 skipped（零失败）、tsc -b 0 错误，与执行器自报一致。
+  设计认可：EnforcementProjection（040 投影模式）统一 071-073 执法 + 050 audit 为一可查询遥测面——聚合点优先
+  复用既有记录（policy deny 走 bus、fs DENIED 走 Session tool/result 折叠），process-tree audit/sandbox status
+  走注入 seam（recordProcessTree/reportStatus），最小接入不改 core；查询 API（events/counts/sourceCounts/recent/
+  status/treeAudit/snapshot）可注入可断言；CLI 最小查询 seam；EVENT-SPEC §7.3 语义文档。下一张：075（safety
+  benchmark pack——Wave 4 收官）。
