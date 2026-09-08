@@ -1,0 +1,33 @@
+{
+  "name": "@vessel/application",
+  "version": "0.10.0",
+  "description": "Shared application layer — Composition Root wiring a full session from @vessel/* mechanism packages (used by apps/cli and future apps/web)",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": ["dist"],
+  "scripts": {
+    "build": "tsc -b",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@vessel/shared": "^0.10.0",
+    "@vessel/core": "^0.1.0",
+    "@vessel/context": "^0.1.0",
+    "@vessel/tools": "^0.1.0",
+    "@vessel/policy": "^0.1.0",
+    "@vessel/runtime": "^0.1.0",
+    "@vessel/behavior": "^0.1.0",
+    "@vessel/skills": "^0.1.0",
+    "@vessel/telemetry": "^0.1.0",
+    "@vessel/agents": "^0.1.0",
+    "@vessel/memory": "^0.1.0",
+    "@vessel/llm": "^0.1.0"
+  }
+}

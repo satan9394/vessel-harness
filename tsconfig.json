@@ -14,6 +14,7 @@
     { "path": "packages/agents" },
     { "path": "packages/telemetry" },
     { "path": "packages/engine" },
+    { "path": "packages/application" },
     { "path": "apps/cli" },
     { "path": "benchmarks/runners" }
   ]

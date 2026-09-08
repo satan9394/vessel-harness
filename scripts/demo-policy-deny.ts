@@ -10,7 +10,7 @@ import * as os from 'node:os';
 import * as path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { MockProvider } from '@vessel/llm';
-import { composeHarness } from '../apps/cli/src/compose.js';
+import { composeHarness } from '@vessel/application';
 
 const REPO_ROOT = fileURLToPath(new URL('..', import.meta.url));
 

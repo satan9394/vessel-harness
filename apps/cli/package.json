@@ -16,5 +16,8 @@
       "import": "./dist/index.js",
       "types": "./dist/index.d.ts"
     }
+  },
+  "dependencies": {
+    "@vessel/application": "^0.10.0"
   }
 }

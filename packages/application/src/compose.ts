@@ -13,6 +13,16 @@ import { SubagentManager, createSubagentTool } from '@vessel/agents';
 import { ProjectStore, createMemoryTool } from '@vessel/memory';
 import { TaskRouter, type TierModelMap, type TaskCategoryPresets } from '@vessel/llm';
 
+/**
+ * Minimal structural contract for a persistent usage store. apps/cli wires its
+ * own UsageStore (apps/cli/src/usage, tied to the CLI pricing catalog); the
+ * application layer only needs `.record()` to stay free of a cli dependency
+ * (dependency zero-cycle), so we type the option against this small surface.
+ */
+export interface UsageStoreLike {
+  record(input: { provider: string; model: string; inputTokens: number; outputTokens: number; cacheReadTokens?: number }): void;
+}
+
 export interface ComposeMcpConnection {
   serverName: string;
   transport: McpTransport;
@@ -53,7 +63,7 @@ export interface ComposeOptions {
     taskPrompt?: string;
   };
   /** V0.9: persistent usage statistics — record after_model usage into this store */
-  usageStore?: import('./usage/UsageStore.js').UsageStore;
+  usageStore?: UsageStoreLike;
   /** provider id label attached to usage records (when usageStore wired) */
   usageProvider?: string;
 }
@@ -76,7 +86,7 @@ export interface ComposedHarness {
   /** category the session was routed to on start (when taskPrompt given) */
   routedCategory?: string;
   /** V0.9: usage store wired (when provided) */
-  usageStore?: import('./usage/UsageStore.js').UsageStore;
+  usageStore?: UsageStoreLike;
   close(): Promise<void>;
 }
 

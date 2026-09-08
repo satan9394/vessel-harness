@@ -3,7 +3,7 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { VERSION } from '@vessel/shared';
 import { MockProvider, createProvider } from '@vessel/llm';
-import { composeHarness } from './compose.js';
+import { composeHarness } from '@vessel/application';
 import { ProviderStore, type ProviderConfig } from './providers/ProviderStore.js';
 import { fetchOpenAIModels, modelsForProtocol } from './providers/modelFetcher.js';
 import { createClackIO, runSetupWizard } from './providers/setup.js';
