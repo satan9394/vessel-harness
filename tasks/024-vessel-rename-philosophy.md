@@ -1,6 +1,6 @@
 # 024 — 改名 Vessel + 六条哲学融入系统提示词（IR 形态）+ 三角色
 
-- 状态：待执行
+- 状态：待验收
 - 优先级：P0
 - 创建日期：2026-09
 - 关联：goal-a0b7e372
@@ -11,14 +11,14 @@
 
 ## 验收标准
 
-- [ ] **改名（品牌/命令层）**：apps/cli package.json bin 加 `vessel`（保留 cah 别名或文档说明）；问候/欢迎语 "Vessel"；help/HTML/文档标题 Vessel
-- [ ] 内部 @cah/* 包别名保留（避免全仓重命名爆炸）——在 README/文档注明"内部包名历史遗留 @cah/*，命令/品牌为 vessel"
-- [ ] **哲学进 system 提示词（必须 IR 形态，不写死）**：Vessel Constitution 的 6 条主张转成 `configs/behavior.default.yaml` 的新 IR 条目（channel=prompt_guidance，id 前缀 vessel.*，render 为精炼中文主张），经 Behavior Compiler 编译进 stable system（沿用现有管线）——这正是"哲学以行为 IR 存在"的自洽
-- [ ] Builder.ts 固定句改 "你是 Vessel 系统中的一个 Agent（Composable Agent Harness 核心）。"（或等价，含 Vessel）
-- [ ] **三角色 constitution**：定义 Lead/Developer/Reviewer 三 preset（角色卡，含 Vessel 哲学继承句），落到 `docs/`（如 docs/VESSEL.md 或 agent-roles 更新）——不强制实现成代码 preset，先文档化（机制决策点 12：角色=配置）
-- [ ] `docs/VESSEL.md`：品牌宣言 + 六条哲学 + constitution 全文 + 三角色
-- [ ] `npx vitest run` 全绿（改固定句后 context 测试若断言旧句需同步改）；`npx tsc -b` exit 0
-- [ ] 卡置"待验收"
+- [x] **改名（品牌/命令层）**：apps/cli package.json bin 加 `vessel`（保留 cah 别名或文档说明）；问候/欢迎语 "Vessel"；help/HTML/文档标题 Vessel
+- [x] 内部 @cah/* 包别名保留（避免全仓重命名爆炸）——在 README/文档注明"内部包名历史遗留 @cah/*，命令/品牌为 vessel"
+- [x] **哲学进 system 提示词（必须 IR 形态，不写死）**：Vessel Constitution 的 6 条主张转成 `configs/behavior.default.yaml` 的新 IR 条目（channel=prompt_guidance，id 前缀 vessel.*，render 为精炼中文主张），经 Behavior Compiler 编译进 stable system（沿用现有管线）——这正是"哲学以行为 IR 存在"的自洽
+- [x] Builder.ts 固定句改 "你是 Vessel 系统中的一个 Agent（Composable Agent Harness 核心）。"（或等价，含 Vessel）
+- [x] **三角色 constitution**：定义 Lead/Developer/Reviewer 三 preset（角色卡，含 Vessel 哲学继承句），落到 `docs/`（如 docs/VESSEL.md 或 agent-roles 更新）——不强制实现成代码 preset，先文档化（机制决策点 12：角色=配置）
+- [x] `docs/VESSEL.md`：品牌宣言 + 六条哲学 + constitution 全文 + 三角色
+- [x] `npx vitest run` 全绿（改固定句后 context 测试若断言旧句需同步改）；`npx tsc -b` exit 0
+- [x] 卡置"待验收"
 
 ## 涉及文件
 
@@ -38,7 +38,10 @@
 
 ## 工作证明（执行器回填）
 
-- [ ] diff / 测试 / tsc
+- [x] diff / 测试 / tsc
+- 改动清单：见 `docs/V08-PROGRESS.md` §3（024 交付记录）。
+- 验证：`npx vitest run` 35 files / 285 tests 全绿 exit 0；`npx tsc -b` exit 0；
+  行为 IR 直编译：10 entries（6 条 vessel.*）· promptSections 10 · warnings 0（loadBehaviorIR + compilePolicyYaml + compileBehavior）。
 
 ## 验收结论（指挥回填）
 
