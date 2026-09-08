@@ -1,6 +1,6 @@
 # 076 — Harness Adapter Contract（跨 Harness 统一契约）
 
-- 状态：待验收
+- 状态：已合入
 - 优先级：P0（Wave 5 / Milestone G 首发）
 - 创建日期：2026-09-08
 - 关联：077-081（DSH/OpenCode/Codex/Pi/Claude Code adapters 实现此契约）；075（safety benchmark 判据复用）；
@@ -109,5 +109,9 @@ Harness Adapter Contract：定义跨 harness 的统一执行/采集契约（TS �
 
 ## 验收结论（指挥回填）
 
-- [ ] 合入 / 打回
-- 备注：
+- [x] 合入（commit bc24468）
+- 备注：指挥独立复核——全量 vitest 80 文件 741 测试全绿 + 1 skipped（零失败）、tsc -b 0 错误，与执行器自报一致。
+  认可：HarnessAdapter{id/version/run/capabilities} + RunResult 含 §15 L3 全字段 + validate 校验（字段/类型/范围）；
+  Vessel 自适配用 composeHarness+loop.runTurn（临时隔离拷贝→provider 追踪 contextPeak→telemetry 汇总→pricing
+  估成本）证明契约可用；硬故障 throw、运行期失败返回 success=false 合法 RunResult；077-081 实现指引入文档。
+  下一张：077（DSH adapter）——同批 adapters（077-081）可连续推进。
