@@ -1,6 +1,6 @@
 # 049 — AgentLoop stream wiring（模型调用路径 stream 优先 + model_stream 事件）
 
-- 状态：待验收
+- 状态：已合入
 - 优先级：P0（Wave 1 / Milestone C 首发）
 - 创建日期：2026-09-08
 - 关联：046（streaming contract v2，已完成）；050 interrupt；052/053 live projections UI（后置）
@@ -173,5 +173,5 @@ npx vitest run packages/core/src/agent-loop/AgentLoop.stream.test.ts packages/co
 
 ## 验收结论（指挥回填）
 
-- [ ] 合入 / 打回
-- 备注：
+- [x] 合入（commit 0dafe31）
+- 备注：指挥独立复核——全量 vitest 48 文件 395 测试全绿（基线 385+10 新增，零回归）、npx tsc -b 0 错误，与执行器自报一致。事件命名（扁平三事件族替代 A09 单事件判别字段）理由充分、与仓库扁平 EventType 惯例一致；回退/重试/配对不变式均有测试覆盖。050 衔接点（end 关闭 attempt）已在备注注明，供 050 参考。
