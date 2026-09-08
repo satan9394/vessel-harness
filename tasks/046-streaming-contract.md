@@ -1,6 +1,6 @@
 # 046 — Streaming Contract v2（typed chunks：message_start/text_delta/tool_call/usage/end）
 
-- 状态：待验收
+- 状态：已合入
 - 优先级：P0（Milestone C 首发；路线 §7.1）
 - 创建日期：2026-09
 - 关联：路线卡 046-049；goal（V1.0 产品化）
@@ -57,5 +57,8 @@
 
 ## 验收结论（指挥回填）
 
-- [ ] 合入 / 打回
-- 备注：
+- [x] 合入
+- 状态：已合入（commit bef4476，checkpoint 后续验收）
+- 备注：确认交付齐备——@vessel/shared/src/provider.ts 的 StreamChunk 联合类型 + ChatProvider.stream?；
+  packages/llm/src/stream/{types,parseOpenAI,parseAnthropic}.ts + 各 9/7 例解析器测试；三个 provider 均实现 stream()。
+  针对性跑 packages/llm：55 测试全绿（含 parseOpenAI 9 + parseAnthropic 7 + provider stream 7）。385 全量绿（046 合入基线，已在 checkpoint 记录）。
