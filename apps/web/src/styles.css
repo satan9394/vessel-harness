@@ -458,3 +458,113 @@ code {
 .composer-input {
   flex: 1;
 }
+
+/* ---------- top bar: status + customize (task 043) ---------- */
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding-right: 16px;
+  border-bottom: 1px solid var(--border);
+}
+
+.topbar .statusbar {
+  flex: 1;
+  border-bottom: none;
+}
+
+.customize {
+  position: relative;
+}
+
+.customize-toggle {
+  white-space: nowrap;
+}
+
+.customize-popover {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 20;
+  min-width: 220px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.16);
+  padding: 8px;
+}
+
+.customize-head {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  color: var(--dim);
+  padding: 4px 6px 8px;
+}
+
+.customize-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.customize-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  border-radius: 6px;
+  cursor: pointer;
+  color: var(--text-soft);
+}
+
+.customize-item:hover {
+  background: var(--hover);
+}
+
+.customize-item input[type='checkbox'] {
+  accent-color: var(--accent);
+}
+
+/* ---------- module sections (task 043) ---------- */
+.conversation-wrap {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+}
+
+.module-sections {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 12px;
+  padding: 20px 24px;
+  border-top: 1px solid var(--border);
+}
+
+.module-card {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 12px 14px;
+}
+
+.module-card-title {
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  font-weight: 600;
+  color: var(--text-soft);
+  margin-bottom: 8px;
+}
+
+.module-card-body {
+  font-size: 13px;
+}
+
+.tool-activity-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
