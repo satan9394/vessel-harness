@@ -1,6 +1,6 @@
 # 046 — Streaming Contract v2（typed chunks：message_start/text_delta/tool_call/usage/end）
 
-- 状态：待执行
+- 状态：待验收
 - 优先级：P0（Milestone C 首发；路线 §7.1）
 - 创建日期：2026-09
 - 关联：路线卡 046-049；goal（V1.0 产品化）
@@ -48,6 +48,12 @@
 ## 工作证明（执行器回填）
 
 - [ ] types/解析器/测试/tsc/vitest
+
+> 执行器回填（2026-09）：StreamChunk 联合类型放 @vessel/shared/src/provider.ts（ChatProvider 契约所在地，
+> 与既有约定一致）；packages/llm/src/stream/ 新增 types.ts（re-export）+ parseOpenAI.ts（SSE data: 行 → chunks，
+> tool_calls 跨帧 id/name 状态跟踪）+ parseAnthropic.ts（event/data 帧 → chunks，block index→id 解析）；
+> 三个 provider（OpenAICompatibleProvider / AnthropicProvider / MockProvider）均实现 stream()；index.ts 导出。
+> 新增测试 23 例（parseOpenAI 9 + parseAnthropic 7 + provider stream 7）；全量 vitest 385 全绿、tsc exit 0。
 
 ## 验收结论（指挥回填）
 

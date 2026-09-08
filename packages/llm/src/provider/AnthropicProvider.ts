@@ -5,7 +5,9 @@ import type {
   ChatResponse,
   ChatToolCall,
   ChatToolDef,
+  StreamChunk,
 } from '@vessel/shared';
+import { AnthropicStreamParser } from '../stream/parseAnthropic.js';
 
 /**
  * llm/provider — Anthropic native protocol provider (Messages API + tool_use).
@@ -256,5 +258,70 @@ export class AnthropicProvider implements ChatProvider {
       },
       raw: data,
     };
+    // prettier-ignore
+  }
+
+  /**
+   * Streaming variant of chat() (task 046): POST {base}/v1/messages with
+   * stream:true, read the SSE `event:`/`data:` frames and yield typed
+   * StreamChunk[]. Does not change chat()'s one-shot behavior.
+   */
+  async *stream(request: ChatRequest): AsyncGenerator<StreamChunk> {
+    const url = this.opts.baseUrl.replace(/\/$/, '') + '/v1/messages';
+    const { system, rest } = splitSystem(request.messages);
+    const headers: Record<string, string> = {
+      'content-type': 'application/json',
+      'anthropic-version': this.opts.anthropicVersion ?? '2023-06-01',
+      'x-api-key': this.opts.apiKey ?? '',
+    };
+
+    const body: Record<string, unknown> = {
+      model: this.opts.model,
+      max_tokens: request.maxTokens ?? this.opts.defaultMaxTokens ?? 4096,
+      messages: toAnthropicMessages(rest),
+      stream: true,
+    };
+    if (request.temperature != null) body.temperature = request.temperature;
+    if (system) body.system = system;
+    if (request.tools && request.tools.length > 0) {
+      body.tools = toAnthropicTools(request.tools);
+      body.tool_choice = { type: 'auto' };
+    }
+
+    const resp = await fetch(url, { method: 'POST', headers, body: JSON.stringify(body) });
+    if (!resp.ok) {
+      const text = await resp.text().catch(() => '');
+      throw new Error(`Anthropic ${resp.status} ${resp.statusText}: ${text.slice(0, 500)}`);
+    }
+
+    const rbody = resp.body;
+    if (!rbody) throw new Error('Anthropic stream: response has no body');
+    const reader = rbody.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+    const parser = new AnthropicStreamParser();
+
+    try {
+      for (;;) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        let newlineIdx: number;
+        while ((newlineIdx = buffer.indexOf('\n')) !== -1) {
+          const line = buffer.slice(0, newlineIdx);
+          buffer = buffer.slice(newlineIdx + 1);
+          const chunks = parser.feed(line);
+          for (const c of chunks) yield c;
+        }
+      }
+      if (buffer.trim().length > 0) {
+        const chunks = parser.feed(buffer);
+        for (const c of chunks) yield c;
+      }
+      const finalChunks = parser.finish();
+      for (const c of finalChunks) yield c;
+    } finally {
+      reader.releaseLock();
+    }
   }
 }

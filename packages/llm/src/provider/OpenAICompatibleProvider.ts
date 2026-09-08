@@ -5,7 +5,9 @@ import type {
   ChatResponse,
   ChatToolCall,
   ChatToolDef,
+  StreamChunk,
 } from '@vessel/shared';
+import { OpenAIStreamParser } from '../stream/parseOpenAI.js';
 
 interface OpenAIChatMessage {
   role: string;
@@ -132,5 +134,65 @@ export class OpenAICompatibleProvider implements ChatProvider {
       },
       raw: body,
     };
+    // prettier-ignore
+  }
+
+  /**
+   * Streaming variant of chat() (task 046): POST {base}/chat/completions with
+   * stream:true, read the SSE `data:` lines from the response body and yield
+   * typed StreamChunk[]. Does not change chat()'s one-shot behavior.
+   */
+  async *stream(request: ChatRequest): AsyncGenerator<StreamChunk> {
+    const url = this.opts.baseUrl.replace(/\/$/, '') + '/chat/completions';
+    const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+    if (this.opts.apiKey) headers.Authorization = `Bearer ${this.opts.apiKey}`;
+
+    const resp = await fetch(url, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({
+        model: this.opts.model,
+        messages: toOpenAIMessages(request.messages),
+        tools: request.tools && request.tools.length > 0 ? toOpenAITools(request.tools) : undefined,
+        temperature: request.temperature ?? 0,
+        max_tokens: request.maxTokens,
+        stream: true,
+      }),
+    });
+
+    if (!resp.ok) {
+      const text = await resp.text().catch(() => '');
+      throw new Error(`OpenAI-compatible ${resp.status} ${resp.statusText}: ${text.slice(0, 500)}`);
+    }
+
+    const body = resp.body;
+    if (!body) throw new Error('OpenAI-compatible stream: response has no body');
+    const reader = body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+    const parser = new OpenAIStreamParser();
+
+    try {
+      for (;;) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        let newlineIdx: number;
+        while ((newlineIdx = buffer.indexOf('\n')) !== -1) {
+          const line = buffer.slice(0, newlineIdx);
+          buffer = buffer.slice(newlineIdx + 1);
+          const chunks = parser.feed(line);
+          for (const c of chunks) yield c;
+        }
+      }
+      if (buffer.trim().length > 0) {
+        const chunks = parser.feed(buffer);
+        for (const c of chunks) yield c;
+      }
+      const finalChunks = parser.finish();
+      for (const c of finalChunks) yield c;
+    } finally {
+      reader.releaseLock();
+    }
   }
 }

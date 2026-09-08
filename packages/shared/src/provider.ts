@@ -55,10 +55,20 @@ export interface ChatResponse {
   raw?: unknown;
 }
 
-export interface ChatStreamChunk {
-  delta: string;
-  done: boolean;
-}
+/**
+ * Streaming contract v2 (task 046): one typed chunk per discrete event in the
+ * provider's response stream. Consumers (AgentLoop, UI) switch on `type`.
+ * Parsers in @vessel/llm/stream map wire-specific events (OpenAI SSE `data:`
+ * lines, Anthropic SSE `event:` frames) onto this unified vocabulary.
+ */
+export type StreamChunk =
+  | { type: 'message_start'; model?: string }
+  | { type: 'text_delta'; text: string }
+  | { type: 'tool_call_start'; id: string; name: string; arguments: string }
+  | { type: 'tool_call_delta'; id: string; argumentsDelta: string }
+  | { type: 'tool_call_end'; id: string }
+  | { type: 'usage'; inputTokens?: number; outputTokens?: number; cacheReadTokens?: number }
+  | { type: 'message_end'; finishReason?: string };
 
 /**
  * Provider interface (v0.1): a chat completion provider.
@@ -68,7 +78,7 @@ export interface ChatProvider {
   readonly id: string;
   chat(request: ChatRequest): Promise<ChatResponse>;
   /** Optional streaming; v0.1 loop uses chat() and only consumes chunks when provided. */
-  stream?(request: ChatRequest): AsyncIterable<ChatStreamChunk>;
+  stream?(request: ChatRequest): AsyncIterable<StreamChunk>;
 }
 
 export interface RouterHints {
