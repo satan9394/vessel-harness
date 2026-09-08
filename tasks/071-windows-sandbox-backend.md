@@ -1,6 +1,6 @@
 # 071 — Windows Sandbox Backend（进程隔离后端）
 
-- 状态：待验收（执行器已回填工作证明）
+- 状态：已合入（指挥验收）
 - 优先级：P0（Wave 4 / Milestone F）
 - 创建日期：2026-09-08
 - 关联：070（Sidecar 协议可承载 sandbox 能力方法占位）；072（process-tree confinement）；073（filesystem confinement）
@@ -90,5 +90,10 @@ Windows Sandbox Backend：在既有 runtime/sandbox（Sandbox.ts）基础上落�
 
 ## 验收结论（指挥回填）
 
-- [ ] 合入 / 打回
-- 备注：
+- [x] 合入（commit c834e0a）
+- 备注：指挥独立复核——全量 vitest 76 文件 682 测试全绿 + 1 skipped（首跑 1 例为已知 Windows 瞬态 flaky，重跑全绿，
+  非本卡回归）、tsc -b 0 错误，与执行器自报一致。设计认可：Windows Job Object 真实现（命名 job holder 活动进程数
+  上限 + 跨进程 TerminateJobObject 整树终止，root+grandchild 双杀实测）；os.tmpdir 隔离目录回收站清理；050 衔接
+  （超时/abort 整树 kill）；Sandbox.ts 诚实状态上报 backend='job-object'；070 关系明确（TS 原生不走协议，机制须在
+  spawn 点，占位保留注明）。限制诚实记录（受限令牌未实现不宣称、attach 时序窗口、CPU/内存上限留后续）。
+  下一张：072（process-tree confinement）。
