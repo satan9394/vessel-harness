@@ -6,6 +6,11 @@
  *  - live extension events (A##) -> emit / waterfall decision points
  */
 
+// Type-only import from provider.js (erased at emit time — no runtime cycle).
+// Model-stream payloads reuse the provider streaming contract types so the
+// event vocabulary and the ChatProvider seam can never drift apart.
+import type { ChatFinishReason, ChatToolCall, ChatUsage, StreamChunk } from './provider.js';
+
 // ---------------------------------------------------------------------------
 // Persistent records (B## subset used by V0.1)
 // ---------------------------------------------------------------------------
@@ -167,6 +172,9 @@ export type EventType =
   | 'before_turn'
   | 'turn_started'
   | 'before_model'
+  | 'model_stream_start'
+  | 'model_stream_delta'
+  | 'model_stream_end'
   | 'after_model'
   | 'before_tool'
   | 'policy_decision'
@@ -229,6 +237,51 @@ export interface AfterDelegatePayload {
   delegateId: string;
   result: SubagentResultContract;
   followUp: { continuable: boolean; canSendMessage: boolean };
+}
+
+// ---------------------------------------------------------------------------
+// A09 ModelStream family (task 049) — granular streaming extension events (emit)
+//
+// EVENT-SPEC §5.C A09 defines a single ModelStream event discriminated by
+// `event: 'start'|'delta'|'end'`. The implemented vocabulary granularizes that
+// discriminator into three flat EventType members (matching this repo's
+// per-decision-point naming: before_model/after_model, before_tool/after_tool),
+// so `bus.on('model_stream_delta')` subscribes to exactly one thing. Payloads
+// correlate to the model request at (turnId, step) via a deterministic
+// requestId (attempt-invariant: retries of one logical request share it).
+// ---------------------------------------------------------------------------
+
+/** Correlation envelope shared by all model_stream_* payloads. */
+export interface ModelStreamEnvelope {
+  turnId: string;
+  step: number;
+  /** logical model request id at (turnId, step); retry attempts share it */
+  requestId: string;
+}
+
+/** model_stream_start — fired once, right before a provider.stream() iteration is consumed. */
+export interface ModelStreamStartPayload extends ModelStreamEnvelope {
+  model: string;
+}
+
+/**
+ * model_stream_delta — one incremental chunk, fired per text/tool-call chunk:
+ * text_delta (increment of finalText) or tool_call_start/delta/end (fragments
+ * that consumers may accumulate; AgentLoop assembles the final arguments).
+ * Terminal bookkeeping chunks (usage, message_end) do NOT fire deltas — they
+ * fold into the accumulated model_stream_end payload instead.
+ */
+export interface ModelStreamDeltaPayload extends ModelStreamEnvelope {
+  chunk: StreamChunk;
+}
+
+/** model_stream_end — fired exactly once per model_stream_start, after the stream terminates. */
+export interface ModelStreamEndPayload extends ModelStreamEnvelope {
+  /** accumulated assistant payload — identical to what chat() would have returned */
+  finishReason: ChatFinishReason;
+  text: string;
+  toolCalls: ChatToolCall[];
+  usage: ChatUsage;
 }
 
 export interface BeforeToolPayload {

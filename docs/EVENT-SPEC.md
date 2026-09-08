@@ -223,6 +223,25 @@ seq        : number        # 会话内事件序号（不变式校验用）
 - **消费方示例**：UI/CLI 增量渲染、prefix-cache 与 token 实时记账、成本/速率监控、内容安全旁路扫描（盲化：不看 tool results，H07 共同抽象）。
 - **关联机制/镜像**：`agent/assistant-stream`（start/chunk*/end，DSH）；记录：结束后落 `assistant/message`/`assistant/attempt`。
 
+> **实现注记（049，flat 事件族落地）**：共享词汇 `@vessel/shared` 把 A09 的
+> `event:'start'|'delta'|'end'` 判别字段粒度化为三个可独立订阅的 EventType 成员——
+> `model_stream_start` / `model_stream_delta` / `model_stream_end`（沿用仓库扁平扩展事件
+> 命名惯例 before_model/after_model、before_tool/after_tool，见 packages/shared/src/events.ts）：
+> - 三个事件共享相关信封 `{turnId, step, requestId}`；`requestId = req_{turnId}_step{step}`
+>   为确定性 id，同一次逻辑请求的重试 attempt 共享（按 step 区分，跨 attempt 稳定）。
+> - `model_stream_start`：`{turnId, step, requestId, model}`——开始消费 provider.stream()
+>   迭代前恰好一次。
+> - `model_stream_delta`：`{turnId, step, requestId, chunk}`——每段 text_delta /
+>   tool_call_start / tool_call_delta / tool_call_end 增量各一次；`chunk` 为 StreamChunk
+>   原始联合（消费方自累积 tool arguments / UI 增量渲染）。
+> - `model_stream_end`：`{turnId, step, requestId, finishReason, text, toolCalls, usage}`
+>   ——流终止后恰好一次（与 start 配对）；`finishReason` 归一化到
+>   `'stop'|'tool_calls'|'length'|'error'`，`usage` 为逐字段 last-wins 合并的
+>   ChatUsage，`text/toolCalls` 为与 chat() 等价的累积终态。失败的 attempt 以
+>   `finishReason:'error'` 关闭流再走 llm/retry（attempt 级配对不变式）。
+> - 终止记账 chunk（usage / message_end）不单独发 delta，折叠进 end payload；
+>   增量 token 实时记账如需逐帧 usage 可在 v0.2 扩展 delta 载荷。
+
 #### A10 AfterModel（草案）
 - **触发时机**：流结束、assistant 最终载荷（文本或 tool_calls 列表）组装完成后、进入工具分发**之前**；对照 DSH `agent/assistant-stream` end + `assistant/message|attempt` 持久化（行 208）。
 - **载荷字段**：`requestId`；`stepId`；`finalText?`；`toolCalls:[{toolCallId, name, arguments}]`（原始 JSON，DSH `tool/call` 原始 arguments 词汇，行 166）；`finishReason`；`attemptNo`。

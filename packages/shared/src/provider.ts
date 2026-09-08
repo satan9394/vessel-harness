@@ -41,6 +41,9 @@ export interface ChatToolCall {
   arguments: Record<string, unknown>;
 }
 
+/** Normalized finish reason shared by chat()/stream accumulation and the model_stream events. */
+export type ChatFinishReason = 'stop' | 'tool_calls' | 'length' | 'error';
+
 export interface ChatUsage {
   inputTokens: number;
   outputTokens: number;
@@ -50,7 +53,7 @@ export interface ChatUsage {
 export interface ChatResponse {
   content: string;
   toolCalls: ChatToolCall[];
-  finishReason: 'stop' | 'tool_calls' | 'length' | 'error';
+  finishReason: ChatFinishReason;
   usage: ChatUsage;
   raw?: unknown;
 }

@@ -1,11 +1,15 @@
 import * as crypto from 'node:crypto';
 import {
   MAX_STEPS_PER_TURN,
+  type ChatFinishReason,
   type ChatProvider,
   type ChatRequest,
   type ChatResponse,
+  type ChatToolCall,
   type ChatToolDef,
+  type ChatUsage,
   type SessionRecord,
+  type StreamChunk,
   type ToolCall,
   type ToolErrorPayload,
 } from '@vessel/shared';
@@ -63,6 +67,36 @@ function classifyModelError(err: unknown): string {
   if (/5\d\d|server/i.test(m)) return 'SERVER_ERROR';
   if (/network|fetch|econn/i.test(m)) return 'NETWORK';
   return 'UNKNOWN';
+}
+
+/**
+ * chat()/stream equivalence for finishReason: a stream whose wire finishReason
+ * says nothing meaningful is normalized by what was actually produced —
+ * hasToolCalls ⇒ 'tool_calls' (matches MockProvider.chat() semantics);
+ * explicit length/error pass through.
+ */
+function normalizeFinishReason(wire: string | undefined, hasToolCalls: boolean): ChatFinishReason {
+  if (wire === 'length' || wire === 'error') return wire;
+  if (wire === 'tool_calls' || hasToolCalls) return 'tool_calls';
+  return 'stop';
+}
+
+/**
+ * Parse accumulated tool-call arguments at tool_call_end. Mirrors the defensive
+ * fallback of the OpenAI chat() provider (JSON.parse failure -> { _raw: <raw> })
+ * so a malformed/truncated fragment can never break a turn; an empty string is a
+ * zero-argument call and yields {}.
+ */
+function parseToolArguments(raw: string): Record<string, unknown> {
+  const trimmed = raw.trim();
+  if (trimmed === '') return {};
+  try {
+    const parsed: unknown = JSON.parse(trimmed);
+    if (parsed !== null && typeof parsed === 'object') return parsed as Record<string, unknown>;
+    return { value: parsed }; // valid JSON that is not an object (string/number/…)
+  } catch {
+    return { _raw: raw };
+  }
 }
 
 /**
@@ -239,6 +273,17 @@ export class AgentLoop {
     };
   }
 
+  /**
+   * Model invocation (task 049 — stream first): when the provider implements
+   * stream() the loop consumes the AsyncIterable<StreamChunk> and emits the
+   * model_stream_* event family per chunk, accumulating a ChatResponse that is
+   * semantically identical to what chat() would have returned (same content /
+   * toolCalls / usage / finishReason). Providers without stream() fall back to
+   * the existing chat() path unchanged. Retry/backoff (A11 + llm_retry) wraps
+   * both paths identically; a failed attempt closes its stream with
+   * model_stream_end {finishReason:'error'} so every attempt keeps a
+   * start → end pairing.
+   */
   private async callModel(envelope: RequestEnvelope, turnId: string, step: number): Promise<ChatResponse> {
     const maxRetries = this.deps.llmRetry?.maxRetries ?? 5;
     const request: ChatRequest = {
@@ -247,11 +292,17 @@ export class AgentLoop {
       tools: envelope.tools.length > 0 ? envelope.tools : undefined,
       temperature: 0,
     };
+    // deterministic per (turnId, step); retry attempts of one logical request share it
+    const requestId = `req_${turnId}_step${step}`;
     let attempt = 0;
     // eslint-disable-next-line no-constant-condition
     while (true) {
       try {
-        return await this.deps.provider.chat(request);
+        const provider = this.deps.provider;
+        if (typeof provider.stream === 'function') {
+          return await this.consumeStream(provider.stream(request), request, turnId, step, requestId);
+        }
+        return await provider.chat(request);
       } catch (err) {
         const cls = classifyModelError(err);
         attempt += 1;
@@ -266,6 +317,115 @@ export class AgentLoop {
         await new Promise((r) => setTimeout(r, backoffMs));
       }
     }
+  }
+
+  /**
+   * Stream-first branch (task 049): map each typed chunk onto the model_stream
+   * vocabulary and accumulate the same ChatResponse shape the chat() path
+   * produces. Chunk mapping:
+   *  - text_delta             -> append to text, emit model_stream_delta
+   *  - tool_call_start/delta/ -> accumulate per tool-call id (arguments
+   *    tool_call_end            fragments joined across deltas), emit
+   *                              model_stream_delta; the call is finalized
+   *                              (parsed) at tool_call_end
+   *  - usage                  -> fold into usage (per-field last-wins; wire usage
+   *                              frames are cumulative or terminal)
+   *  - message_end            -> carry its finishReason into the terminal payload
+   * Streaming tool calls may interleave (parallel tool use), so open
+   * accumulators are keyed by id and finalized in start order.
+   */
+  private async consumeStream(
+    stream: AsyncIterable<StreamChunk>,
+    request: ChatRequest,
+    turnId: string,
+    step: number,
+    requestId: string,
+  ): Promise<ChatResponse> {
+    const { bus } = this.deps;
+    await bus.emit('model_stream_start', { turnId, step, requestId, model: request.model });
+
+    let text = '';
+    const open = new Map<string, { name: string; args: string }>();
+    const order: string[] = [];
+    const closed = new Set<string>();
+    const toolCalls: ChatToolCall[] = [];
+    const usage: ChatUsage = { inputTokens: 0, outputTokens: 0 };
+    let wireFinish: string | undefined;
+
+    const finalize = (id: string, acc: { name: string; args: string }): void => {
+      toolCalls.push({ id, name: acc.name, arguments: parseToolArguments(acc.args) });
+      closed.add(id);
+    };
+
+    try {
+      for await (const chunk of stream) {
+        switch (chunk.type) {
+          case 'message_start':
+            break; // model identity already carried on model_stream_start
+          case 'text_delta':
+            text += chunk.text;
+            await bus.emit('model_stream_delta', { turnId, step, requestId, chunk });
+            break;
+          case 'tool_call_start': {
+            open.set(chunk.id, { name: chunk.name, args: chunk.arguments });
+            order.push(chunk.id);
+            await bus.emit('model_stream_delta', { turnId, step, requestId, chunk });
+            break;
+          }
+          case 'tool_call_delta': {
+            const acc = open.get(chunk.id);
+            if (acc) acc.args += chunk.argumentsDelta;
+            await bus.emit('model_stream_delta', { turnId, step, requestId, chunk });
+            break;
+          }
+          case 'tool_call_end': {
+            const acc = open.get(chunk.id);
+            if (acc && !closed.has(chunk.id)) finalize(chunk.id, acc);
+            await bus.emit('model_stream_delta', { turnId, step, requestId, chunk });
+            break;
+          }
+          case 'usage':
+            if (chunk.inputTokens !== undefined) usage.inputTokens = chunk.inputTokens;
+            if (chunk.outputTokens !== undefined) usage.outputTokens = chunk.outputTokens;
+            if (chunk.cacheReadTokens !== undefined) usage.cacheReadTokens = chunk.cacheReadTokens;
+            break;
+          case 'message_end':
+            if (chunk.finishReason) wireFinish = chunk.finishReason;
+            break;
+        }
+      }
+    } catch (err) {
+      // attempt-level pairing: close the stream (finishReason 'error'), then let
+      // the retry wrapper in callModel decide (llm_retry) or rethrow
+      await bus.emit('model_stream_end', {
+        turnId,
+        step,
+        requestId,
+        finishReason: 'error',
+        text,
+        toolCalls,
+        usage,
+      });
+      throw err;
+    }
+
+    // Truncated stream: finalize any tool call that never saw tool_call_end.
+    for (const id of order) {
+      const acc = open.get(id);
+      if (acc && !closed.has(id)) finalize(id, acc);
+    }
+
+    const finishReason: ChatFinishReason = normalizeFinishReason(wireFinish, toolCalls.length > 0);
+    await bus.emit('model_stream_end', {
+      turnId,
+      step,
+      requestId,
+      finishReason,
+      text,
+      toolCalls,
+      usage,
+    });
+    return { content: text, toolCalls, finishReason, usage };
   }
 
   /**
