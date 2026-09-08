@@ -1,6 +1,6 @@
 # 062 — RealEvaluatorAdapter（真实 Evaluator 接入 LoopEngine）
 
-- 状态：待验收
+- 状态：已合入
 - 优先级：P0（Wave 3 / Milestone E）
 - 创建日期：2026-09-08
 - 关联：061（RealGeneratorAdapter，对称前置）；058（Internal Reviewer/review 结论已结构化）
@@ -87,5 +87,9 @@ Evaluator seam——generator 产出（061）→ 测试结果 + reviewer 评估 
 
 ## 验收结论（指挥回填）
 
-- [ ] 合入 / 打回
-- 备注：
+- [x] 合入（commit 9d6a027）
+- 备注：指挥独立复核——全量 vitest 66 文件 564 测试全绿（554+10，零回归）、npx tsc -b 0 错误，与执行器自报一致。
+  设计认可：RealEvaluatorAdapter 对称 061 接入 LoopEngine evaluate seam；内部复用 058 InternalReviewer（结论=
+  TeamReviewConclusion 零新造解析）；acceptance 唯一判据来源、061 artifactPaths→绝对只读证据路径进评审、provider
+  中断→verdict error 不抛；061↔062 真 e2e（not_met→恰一次重试→met，评审恰 2 次）验证默认上限 1/1。
+  Gen→Eval 真实闭环打通。下一张：063（ProjectTaskQueue + IterationStore 持久化）。
