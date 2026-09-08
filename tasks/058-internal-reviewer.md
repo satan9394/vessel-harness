@@ -1,6 +1,6 @@
 # 058 — Internal Reviewer flow（内部评审真流程）
 
-- 状态：待验收
+- 状态：已合入
 - 优先级：P0（Wave 2 / Milestone D）
 - 创建日期：2026-09-08
 - 关联：055（reviewer preset）；057（TeamRuntime 骨架，前置）；061-062（Wave 3 真 adapter 延伸）
@@ -114,5 +114,10 @@ Internal Reviewer flow：developer/generator 产出（改动的文件、diff、�
 
 ## 验收结论（指挥回填）
 
-- [ ] 合入 / 打回
-- 备注：
+- [x] 合入（commit 8081a24）
+- 备注：指挥独立复核——全量 vitest 62 文件 518 测试全绿（496+22，零回归）、npx tsc -b 0 错误，与执行器自报一致。
+  设计认可：reviewer 模块（InternalReviewer + conclusion.ts）复用 EvaluatorAgent 隔离会话与 parseVerdict
+  单一实现；构造期强校验 reviewer preset role=evaluator/write:false + applyPresetToolFace 只读面（preset 语义
+  运行时保证而非只靠 prompt）；provider/loop 异常 catch 为 verdict 'error' 不误判 met；TeamRuntime 058 接线：
+  acceptance 进 evaluate prompt、产出按 review JSON 解析附成员摘要（top-level 与 delegate 双形态覆盖，
+  not_met 是结论不改 run outcome）；TeamProjection 阶段行带 review。下一张：059（External Review Handoff）。
