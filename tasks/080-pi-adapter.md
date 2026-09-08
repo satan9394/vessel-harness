@@ -1,6 +1,6 @@
 # 080 — Pi Adapter（外部 harness 适配器）
 
-- 状态：待验收
+- 状态：已合入
 - 优先级：P0（Wave 5 / Milestone G）
 - 创建日期：2026-09-08
 - 关联：076（契约）；077-079（DSH/OpenCode/Codex adapters——同批模式范本）；081（Claude Code）
@@ -81,5 +81,9 @@ Pi Adapter：实现 076 契约，使同一 benchmark fixture 能在 Pi CLI 上�
 
 ## 验收结论（指挥回填）
 
-- [ ] 合入 / 打回
-- 备注：
+- [x] 合入（commit e19fe5d）
+- 备注：指挥独立复核——全量 vitest 787 测试全绿 + 1 skipped（零失败；执行器首跑的 process-tree flaky 重跑
+  未复现，为 task 072 预存并发 flaky，非本卡回归）、tsc -b 0 错误。
+  认可：piAdapter 照 077-079 模式实现 076 契约（pi run --json 命令面可注入 mock；probePiEnv pending-environment
+  不 throw；normalizePiRun §15 L3 采集归一；capabilities 诚实降级；显式导出规避 TS2308）；clean-room 合规。
+  下一张：081（Claude Code adapter——adapters 收官）。
