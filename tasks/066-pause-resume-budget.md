@@ -1,6 +1,6 @@
 # 066 — Pause / Resume / Budget（运行控制 + 默认自治限制）
 
-- 状态：待验收
+- 状态：已合入
 - 优先级：P0（Wave 3 / Milestone E）
 - 创建日期：2026-09-08
 - 关联：061/062（LoopEngine 运行链）；063（队列/迭代）；065（Goal UI 已留 501 占位端点 + disabled 按钮 seam）；050（interrupt 语义）
@@ -141,5 +141,9 @@
 
 ## 验收结论（指挥回填）
 
-- [ ] 合入 / 打回
-- 备注：
+- [x] 合入（commit e8fa760）
+- 备注：指挥独立复核——root vitest 71 文件 618 测试全绿（607+11，零回归）、tsc -b 0 错误、web 独立套件 74
+  测试全绿（+3）。设计认可：RunControl（挂起门 await resume gate 绝不 abort——与 050 interrupt 硬区分；budget
+  默认 1/1 §11.1、setBudget 活值运行中即时生效、exhausted 哨兵可查）；LoopEngine 边界 seam（无 control 时静态
+  1/1 兜底，061/062 语义零回归）；ProjectTaskQueue +paused 状态（in-progress⇄paused 持久可见）；goalSeam 501→
+  真实现 + web 按钮按状态门控。partial budget 更新显式判 undefined 保留现值。下一张：067（Context Reset Handoff）。
