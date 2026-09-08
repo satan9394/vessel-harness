@@ -1,6 +1,6 @@
 # 083 — Report / Dashboard（Benchmark 报告与看板）
 
-- 状态：待验收
+- 状态：已合入
 - 优先级：P0（Wave 5 / Milestone G）
 - 创建日期：2026-09-08
 - 关联：076-082（RunResult/adapters/lane 产出）；084（release gates 消费报告）
@@ -100,5 +100,9 @@ Report / Dashboard：把 076-082 的 benchmark 产出（RunResult 集：多 harn
 
 ## 验收结论（指挥回填）
 
-- [ ] 合入 / 打回
-- 备注：
+- [x] 合入（commit 3e73d33）
+- 备注：指挥独立复核——全量 vitest 87 文件 822 测试全绿 + 1 skipped（零失败）、tsc -b 0 错误，与执行器自报一致。
+  认可：report.ts 聚合核心（ReportRow 复用 076 §15 L3 字段；aggregateRows 汇总/空集安全；buildComparisons 同场景
+  跨 harness 对比；BenchmarkReport JSON schemaVersion 1 供 084 消费；renderReportMarkdown/CliSummary/DashboardSeam；
+  writeReportFiles）+ vessel bench-report CLI 摘要 + docs/REPORT-DASHBOARD.md。演示产物走回收站清理（删除铁律）。
+  下一张：084（release gates——V1.0 收官卡）。
