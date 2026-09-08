@@ -9,6 +9,9 @@ import { fetchOpenAIModels, modelsForProtocol } from './providers/modelFetcher.j
 import { createClackIO, runSetupWizard } from './providers/setup.js';
 import { runChat } from './tui/chat.js';
 import { VESSEL_LOGO, VESSEL_TAGLINE } from './brand.js';
+import { UsageStore } from './usage/UsageStore.js';
+import { loadModelCatalog, findCatalogModelByBase, listCatalogModels } from './providers/modelCatalog.js';
+import { loadPricing } from './providers/pricing.js';
 
 const USAGE = `${VESSEL_LOGO}
 Vessel CLI v${VERSION} — 可组合 Agent Harness（品牌 Vessel）
@@ -20,6 +23,8 @@ Vessel CLI v${VERSION} — 可组合 Agent Harness（品牌 Vessel）
   vessel run --bench <scenarioId>    基准模式：运行 benchmarks/ 场景并产出 JSONL 报告
   vessel models [--provider p]       列出某供应商可用模型（OpenAI 兼容实时拉取 / Anthropic 内置清单）
   vessel setup                       交互向导：搜索选供应商 → 输 key → 拉模型 → 空格勾选 → 提交
+  vessel usage [--recent <n>]          查看使用统计（tokens/调用/成本，落盘 ~/.dsh/usage.json）
+  vessel pricing [model]               模型价目（configs/model-catalog.json，USD/1M tokens）
   vessel provider list               列出所有供应商（* = 当前默认）
   vessel provider current            显示当前默认供应商
   vessel provider add <id> --protocol <p> --model <m> [--base-url] [--api-key]   添加供应商
@@ -136,6 +141,9 @@ async function cmdRun(flags: Map<string, string>): Promise<number> {
     behaviorIRPath: flags.get('behavior') ?? path.join(root, 'configs', 'behavior.default.yaml'),
     maxSteps: Number(flags.get('max-steps') ?? 64),
     permission: (flags.get('permission') ?? 'workspace-write') as 'read-only' | 'workspace-write' | 'danger-full-access',
+    // V0.9 usage statistics: record this session's model usage persistently
+    usageStore: new UsageStore({ pricing: loadPricing(root) }),
+    usageProvider: currentId,
   });
 
   for (const w of harness.behaviorWarnings) console.warn(`[behavior] ${w}`);
@@ -334,6 +342,56 @@ async function cmdSetup(_flags: Map<string, string>): Promise<number> {
   return 1;
 }
 
+/** `vessel usage [--recent <n>]` — persistent usage statistics (V0.9). */
+async function cmdUsage(flags: Map<string, string>): Promise<number> {
+  const root = repoRoot();
+  const store = new UsageStore({ pricing: loadPricing(root) });
+  const t = store.totals();
+  console.log('=== 使用统计（~/.dsh/usage.json）===');
+  console.log(`总消耗: input ${t.inputTokens.toLocaleString()} · output ${t.outputTokens.toLocaleString()} · cache ${t.cacheReadTokens.toLocaleString()} · 调用 ${t.calls}`);
+  console.log(`估算成本: $${t.costUsd.toFixed(4)}（${t.providers} 供应商 / ${t.models} 模型）`);
+  const byProv = store.byProvider();
+  if (byProv.length > 0) {
+    console.log('\n按供应商:');
+    for (const p of byProv) console.log(`  ${p.provider}: ${p.inputTokens.toLocaleString()}in/${p.outputTokens.toLocaleString()}out · ${p.calls} 次 · $${p.costUsd.toFixed(4)}`);
+  }
+  const byModel = store.byModel();
+  if (byModel.length > 0) {
+    console.log('\n按模型:');
+    for (const m of byModel.slice(0, 10)) console.log(`  ${m.provider}/${m.model}: $${m.costUsd.toFixed(4)} · ${m.calls} 次`);
+  }
+  const recent = store.recent(Number(flags.get('recent') ?? 5));
+  if (recent.length > 0) {
+    console.log(`\n最近 ${recent.length} 条:`);
+    for (const r of recent) console.log(`  ${r.ts.slice(0, 19)} ${r.provider}/${r.model}: ${r.inputTokens}in/${r.outputTokens}out · $${r.costUsd.toFixed(4)}`);
+  }
+  return 0;
+}
+
+/** `vessel pricing [model]` — model price lookup (V0.9). */
+async function cmdPricing(modelArg: string | undefined, flags: Map<string, string>): Promise<number> {
+  const root = repoRoot();
+  const catalog = loadModelCatalog(root);
+  const target = flags.get('model') ?? modelArg;
+  if (modelArg) {
+    const entry = findCatalogModelByBase(catalog, modelArg);
+    if (!entry) {
+      console.log(`未找到模型 "${modelArg}" 的目录条目（可用 vessel pricing 列出）。`);
+      return 1;
+    }
+    console.log(`模型: ${entry.model}（${entry.provider}）`);
+    console.log(`  上下文: ${entry.contextWindow?.toLocaleString() ?? '?'} tokens · 输出上限: ${entry.outputLimit?.toLocaleString() ?? '?'}`);
+    console.log(`  价格: in $${entry.priceIn} / out $${entry.priceOut} / cache $${entry.priceCache ?? 0}（每 1M tokens）`);
+    return 0;
+  }
+  console.log('=== 模型价目（configs/model-catalog.json，USD/1M tokens）===');
+  for (const m of listCatalogModels(catalog)) {
+    console.log(`  ${m.provider.padEnd(16)} ${m.model.padEnd(28)} in $${m.priceIn ?? '-'} out $${m.priceOut ?? '-'} ctx ${(m.contextWindow ?? 0).toLocaleString()}`);
+  }
+  console.log(`\n共 ${catalog.models.length} 条。查询单个: vessel pricing --model <id>`);
+  return 0;
+}
+
 export async function main(argv: string[] = process.argv.slice(2)): Promise<number> {
   const parsed = parseArgs(argv);
   // subcommand forms: `vessel provider <sub>`, `vessel models`
@@ -341,6 +399,8 @@ export async function main(argv: string[] = process.argv.slice(2)): Promise<numb
   if (first === 'provider') return cmdProvider(parsed.positionals.slice(1), parsed.flags);
   if (first === 'models') return cmdModels(parsed.flags);
   if (first === 'setup') return cmdSetup(parsed.flags);
+  if (first === 'usage') return cmdUsage(parsed.flags);
+  if (first === 'pricing') return cmdPricing(parsed.positionals[1], parsed.flags);
   // bare `vessel` (no subcommand): interactive TUI in a TTY; guide otherwise.
   if (first === undefined && parsed.command === 'run' && !parsed.flags.has('bench')) {
     if (!parsed.flags.has('prompt') && process.stdin.isTTY) {

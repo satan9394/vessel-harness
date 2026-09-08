@@ -237,3 +237,41 @@ describe('V0.7 permission modes — three-level policy enforcement (task 022)', 
     expect(w.toolCalls).toBeGreaterThanOrEqual(1);
   });
 });
+
+describe('V0.9 usage/pricing commands (task 031)', () => {
+  let cfgDir: string;
+  let oldRoot: string | undefined;
+  beforeEach(() => {
+    cfgDir = fs.mkdtempSync(path.join(os.tmpdir(), 'vessel-usage-cmd-'));
+    oldRoot = process.env.VESSEL_USAGE_ROOT;
+    process.env.VESSEL_USAGE_ROOT = cfgDir;
+  });
+  afterEach(() => {
+    if (oldRoot === undefined) delete process.env.VESSEL_USAGE_ROOT;
+    else process.env.VESSEL_USAGE_ROOT = oldRoot;
+    fs.rmSync(cfgDir, { recursive: true, force: true });
+  });
+
+  it('vessel usage shows empty stats when nothing recorded', async () => {
+    const { logs, restore } = capture();
+    const code = await main(['usage']);
+    restore();
+    expect(code).toBe(0);
+    expect(logs.join('\n')).toContain('使用统计');
+    expect(logs.join('\n')).toContain('调用 0');
+  });
+
+  it('vessel pricing lists catalog and queries a single model', async () => {
+    const { logs, restore } = capture();
+    const code = await main(['pricing']);
+    restore();
+    expect(code).toBe(0);
+    expect(logs.join('\n')).toContain('模型价目');
+    const { logs: logs2, restore: restore2 } = capture();
+    const code2 = await main(['pricing', 'claude-sonnet-4-5']);
+    restore2();
+    expect(code2).toBe(0);
+    expect(logs2.join('\n')).toContain('claude-sonnet-4-5');
+    expect(logs2.join('\n')).toContain('$3');
+  });
+});
