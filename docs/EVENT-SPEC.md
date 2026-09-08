@@ -436,6 +436,12 @@ seq        : number        # 会话内事件序号（不变式校验用）
   `agentPreset`/`parentSession`/`delegationDepth` 区分成员）；编排事实（team 事件）为瞬态
   扩展事件（同其余扩展事件"镜像记录落在成员会话日志"的语义）。
 
+> **058 扩展注记（TeamMemberSummary.review）**：T03 `team_end` 载荷的逐成员摘要新增可选
+> `review`（`TeamReviewConclusion`：verdict/reason/unmet/suggestions/evidence）—— evaluate
+> 成员产出按 review JSON schema（agents/reviewer）解析出的**结构化内部评审结论**。载荷为
+> 纯数据镜像（reviewer 领域结论的 payload 级镜像，同 TeamRoleName 镜像规矩），投影直接渲染
+> 无需解析文本；解析失败时 verdict='error'（如实暴露、绝不误判 met）。
+
 ---
 
 ## 6. 自动持久记录清单（21，会话日志）

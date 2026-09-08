@@ -7,6 +7,18 @@ export interface EvaluatorVerdict {
   /** evidence references (transcript lines / disk paths / metrics) */
   evidence: string[];
   reason: string;
+  /**
+   * Internal Review feedback (task 058 review mode): acceptance criteria
+   * judged unmet. Only present when the review output schema asks for it
+   * (EvaluatorAgent review mode); deterministic/LL evaluators leave it unset.
+   */
+  unmet?: string[];
+  /**
+   * Internal Review feedback (task 058 review mode): improvement suggestions
+   * handed back to the generator side (rework-loop input). Only present in
+   * review output mode.
+   */
+  suggestions?: string[];
 }
 
 export interface SessionEvidence {

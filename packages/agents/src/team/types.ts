@@ -49,6 +49,11 @@ export interface TeamRunRequest {
   roster?: TeamRoster;
   /** 056 路由结果（roles + roleModels → roster） */
   route?: TeamRouteLike;
+  /**
+   * 任务对象的验收标准字段（task 058；与 engine LoopTask.acceptance / planner Plan.acceptance
+   * 同形的结构字段）—— reviewer 阶段按此评估 generator 产出并输出结构化结论。
+   */
+  acceptance?: readonly string[];
 }
 
 /** 已解析团队成员计划（运行时内部/校验后形状：role/phase/preset 已解析）。 */

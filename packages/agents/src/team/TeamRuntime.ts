@@ -40,6 +40,7 @@ import { applyPresetToolFace } from '../presets/capabilities.js';
 import { PresetRegistry } from '../presets/registry.js';
 import { createDefaultPresetRegistry } from '../presets/defaults.js';
 import { composeRosterFromRoute, resolveRoster } from './roster.js';
+import { parseReviewConclusion, REVIEW_OUTPUT_SCHEMA } from '../reviewer/conclusion.js';
 import type { ResolvedTeamMember, TeamRunRequest, TeamRunSummary } from './types.js';
 
 export interface TeamRuntimeOptions {
@@ -144,7 +145,7 @@ export class TeamRuntime {
         const plan = plans[i]!;
         const delegateParentIdx = this.findDelegateParent(plans, i);
         const delegateOf = delegateParentIdx !== undefined ? plans[delegateParentIdx]!.memberId : undefined;
-        const prompt = this.buildPhasePrompt(plan, req.task, members);
+        const prompt = this.buildPhasePrompt(plan, req.task, members, req.acceptance);
         await this.bus.emit('team_phase', {
           teamRunId,
           ordinal: i + 1,
@@ -161,6 +162,12 @@ export class TeamRuntime {
             delegateOf !== undefined
               ? await this.runDelegatePhase(plan, prompt, delegateOf, openRuntimes)
               : await this.runMemberPhase(plan, prompt, openRuntimes);
+          // task 058: evaluate 成员产出按 review JSON schema 解析为结构化结论（review 字段进
+          // team_end/投影；not_met 的 unmet/suggestions 即回读反馈）。解析失败 = verdict 'error'
+          // （如实暴露，绝不误判 met）—— 评审结论是数据，不是运行失败。
+          if (plan.phase === 'evaluate' && summary.status === 'completed' && summary.output) {
+            summary.review = parseReviewConclusion(summary.output);
+          }
           members.push(summary);
           if (summary.status === 'failed') {
             outcome = 'failed';
@@ -298,9 +305,15 @@ export class TeamRuntime {
 
   /**
    * 阶段 prompt（交接 = 前序成员产出进入后续 prompt：orchestrator 计划 → generator；
-   * generator 产出 → evaluator 独立评估）。
+   * generator 产出 → evaluator 独立评估）。evaluate 阶段（task 058 真流程）要求 reviewer
+   * 按验收标准评估并只回复一行 review JSON（REVIEW_OUTPUT_SCHEMA —— 运行体解析为结构化结论）。
    */
-  private buildPhasePrompt(plan: ResolvedTeamMember, task: string, members: readonly TeamMemberSummary[]): string {
+  private buildPhasePrompt(
+    plan: ResolvedTeamMember,
+    task: string,
+    members: readonly TeamMemberSummary[],
+    acceptance?: readonly string[],
+  ): string {
     const lines: string[] = [`# 团队任务\n${task}`, `# 你的角色\n${ROLE_TITLES[plan.role]}`];
     if (plan.role === 'orchestrator') {
       lines.push(
@@ -320,9 +333,16 @@ export class TeamRuntime {
     const genOutput = lastCompleted(members, 'generate');
     lines.push(
       '请作为独立 Reviewer 评估下面的 Generator 产出是否满足任务要求——不信任其自证：',
-      '先核对产出覆盖度与可验证性，再输出结论（met / not_met + 理由与差距）。',
-      `# Generator 产出\n${genOutput?.output ?? '(无 generator 产出可评估)'}`,
+      '先核对产出覆盖度与可验证性，再输出结论。',
     );
+    if (acceptance && acceptance.length > 0) {
+      lines.push(`# 验收标准\n${acceptance.map((a) => `- ${a}`).join('\n')}`);
+    } else {
+      lines.push('# 验收标准\n（任务未给出显式验收标准——按任务要求自行判断覆盖度）');
+    }
+    lines.push(`# Generator 产出\n${genOutput?.output ?? '(无 generator 产出可评估)'}`);
+    lines.push('');
+    lines.push(REVIEW_OUTPUT_SCHEMA);
     return lines.join('\n');
   }
 }

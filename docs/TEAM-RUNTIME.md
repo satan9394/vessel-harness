@@ -66,9 +66,14 @@ const summary = await runtime.runTeam({
 - 执行顺序 = roster 顺序；**交接 = 前序成员产出进入后序 prompt**：lead 计划 → developer
   prompt；developer 产出 → reviewer prompt（"Generator 产出"节 + 明确要求独立核验、不信任自证）。
 - **成员失败即中止后续阶段**（骨架 fail-fast），以 `outcome:'failed'` + `error` 收尾
-  （不抛异常——运行失败是返回态）。058 将在此骨架上接入 Reviewer 真流程（结构化 met/not_met）。
-- reviewer 真流程（结构化结论）不在本卡：本卡只保证"阵容可组合、可顺序驱动
-  （generator 产出 → evaluator 检查）"的骨架，且 evaluator 成员以 preset 只读面运行。
+  （不抛异常——运行失败是返回态）。
+- **058 已接线 Internal Reviewer 真流程**：`TeamRunRequest.acceptance`（验收标准）进 evaluate
+  阶段 prompt；evaluate 成员按 review JSON schema（`agents/src/reviewer/conclusion.ts`，与
+  EvaluatorAgent review 模式同源）回复，运行体解析出**结构化评审结论**附到
+  `TeamMemberSummary.review`（verdict met/not_met/impossible/error + reason + unmet +
+  suggestions + evidence）→ 经 team_end 上投影阶段行。解析失败 = verdict 'error'（如实暴露、
+  不误判 met）；not_met 的 unmet/suggestions 即回读反馈（Wave 3 rework 输入）。
+  评审流程细节见 docs/INTERNAL-REVIEW.md。
 
 ## 4. 成员跑在既有机制上（复用，不新造）
 
@@ -117,6 +122,11 @@ const state = projection.state();            // TeamRunState | null
 `turns`（成员回合归属）、`delegates`（父子关系/产出）、`toolActivities`（按成员工具活动）。
 与其它投影一致：监听器只观察不短路决策点；`detach()` 注销；新 `team_start` 自动重置旧 run。
 060 team 面板按本投影渲染（Lead/Developer/Reviewer 的活动、turn、阶段、产出摘要）。
+
+> 058 扩展：evaluate 阶段行的 `review` 字段带**结构化评审结论**
+> （`TeamReviewConclusion`：verdict/reason/unmet/suggestions/evidence）——评审判定与反馈
+> 不靠解析文本，投影直接可断言；原始评审回复仍在 `outputPreview` 可回读。来源 =
+> `TeamMemberSummary.review`（team_end 载荷）。
 
 ## 7. 范围边界（057 不做）
 

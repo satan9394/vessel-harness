@@ -338,4 +338,173 @@ describe('agents/team — TeamRuntime（057）', () => {
     expect(t.events.filter((e) => e.name === 'team_start')).toHaveLength(0);
     expect(t.events.filter((e) => e.name === 'team_end')).toHaveLength(0);
   });
+
+  // ---- task 058: Internal Reviewer 真流程集成 ----
+
+  it('058 e2e：mock generator 产出 → reviewer 判 not_met → 结构化结论附 evaluate 成员（反馈可回读）', async () => {
+    const bus = new EventBus();
+    const runtime = new TeamRuntime({
+      workspaceRoot: workspace,
+      providers: {
+        pro: prov([{ when: /.*/, text: 'IMPL-7-DONE: 已实现登录接口（改动 src/login.ts），单测 2/2' }], 'pro-model'),
+        review: prov(
+          [{ when: /IMPL-7-DONE/, text: '{"verdict":"not_met","unmet":["错误路径未覆盖"],"suggestions":["补 401/500 分支用例"],"reason":"验收标准 2 未满足","evidence":["tests/login.test.ts"]}' }],
+          'review-model',
+        ),
+      },
+      policyArtifacts: artifacts(),
+      tools: [],
+      bus,
+    });
+
+    const summary = await runtime.runTeam({
+      task: '实现登录接口',
+      acceptance: ['登录成功分支', '错误路径覆盖'],
+      route: {
+        complexity: 'medium',
+        roles: ['developer', 'reviewer'],
+        roleModels: [
+          { role: 'developer', tier: 'pro', providerId: 'pro', model: 'pro-model' },
+          { role: 'reviewer', tier: 'review', providerId: 'review', model: 'review-model' },
+        ],
+      },
+    });
+
+    // not_met 是评审结论不是运行失败 —— run 仍 completed，结论在 evaluate 成员上
+    expect(summary.outcome).toBe('completed');
+    expect(summary.error).toBeUndefined();
+    const reviewer = summary.members[1]!;
+    expect(reviewer.phase).toBe('evaluate');
+    expect(reviewer.status).toBe('completed');
+    expect(reviewer.review).toBeDefined();
+    expect(reviewer.review!.verdict).toBe('not_met');
+    expect(reviewer.review!.unmet).toEqual(['错误路径未覆盖']);
+    expect(reviewer.review!.suggestions).toEqual(['补 401/500 分支用例']);
+    expect(reviewer.review!.reason).toBe('验收标准 2 未满足');
+    // 反馈可回读：结构化 review + 原始产出文本都在
+    expect(reviewer.output).toContain('not_met');
+    expect(reviewer.review!.evidence).toEqual(['tests/login.test.ts']);
+  });
+
+  it('058：reviewer 判 met → review.verdict met；无验收标准时提示不阻塞', async () => {
+    const bus = new EventBus();
+    const runtime = new TeamRuntime({
+      workspaceRoot: workspace,
+      providers: {
+        pro: prov([{ when: /.*/, text: 'IMPL-8-DONE: 完成' }], 'pro-model'),
+        review: prov(
+          [{ when: /IMPL-8-DONE/, text: '{"verdict":"met","unmet":[],"suggestions":[],"reason":"符合验收","evidence":[]}' }],
+          'review-model',
+        ),
+      },
+      policyArtifacts: artifacts(),
+      tools: [],
+      bus,
+    });
+
+    const summary = await runtime.runTeam({
+      task: '做一个导出',
+      roster: [
+        { memberId: 'developer', presetId: 'developer', model: 'pro-model', providerId: 'pro' },
+        { memberId: 'reviewer', presetId: 'reviewer', model: 'review-model', providerId: 'review' },
+      ],
+    });
+    expect(summary.outcome).toBe('completed');
+    expect(summary.members[1]?.review?.verdict).toBe('met');
+    expect(summary.members[1]?.review?.suggestions).toEqual([]);
+  });
+
+  it('058 异常路径：reviewer 产出非 JSON → review.verdict error（如实暴露、运行不崩）', async () => {
+    const bus = new EventBus();
+    const runtime = new TeamRuntime({
+      workspaceRoot: workspace,
+      providers: {
+        pro: prov([{ when: /.*/, text: 'IMPL-9-DONE: 实现完成' }], 'pro-model'),
+        review: prov([{ when: /IMPL-9-DONE/, text: '评审结论：实现完成，无测试证据' }], 'review-model'),
+      },
+      policyArtifacts: artifacts(),
+      tools: [],
+      bus,
+    });
+    const summary = await runtime.runTeam({
+      task: '实现 X',
+      roster: [
+        { memberId: 'developer', presetId: 'developer', model: 'pro-model', providerId: 'pro' },
+        { memberId: 'reviewer', presetId: 'reviewer', model: 'review-model', providerId: 'review' },
+      ],
+    });
+    expect(summary.outcome).toBe('completed');
+    expect(summary.members[1]?.review?.verdict).toBe('error');
+    expect(summary.members[1]?.review?.reason).toContain('not a valid');
+  });
+
+  it('058 复杂阵容 delegate：reviewer 结论同样解析到 delegate 成员摘要（review.verdict not_met）', async () => {
+    const bus = new EventBus();
+    const runtime = new TeamRuntime({
+      workspaceRoot: workspace,
+      providers: {
+        lead: prov([{ when: /.*/, text: 'PLAN-58: 分工方案' }], 'lead-model'),
+        dev: prov([{ when: /PLAN-58/, text: 'IMPL-58-OK: 已实现（改动 src/a.ts）' }], 'dev-model'),
+        rev: prov(
+          [{ when: /IMPL-58-OK/, text: '{"verdict":"not_met","unmet":["a.ts 缺导出"],"suggestions":["补导出"],"reason":"AC-1 不满足","evidence":["src/a.ts"]}' }],
+          'rev-model',
+        ),
+      },
+      policyArtifacts: artifacts(),
+      tools: [],
+      bus,
+    });
+
+    const summary = await runtime.runTeam({
+      task: '复杂任务',
+      acceptance: ['AC-1: a.ts 导出 api', 'AC-2: 测试通过'],
+      route: {
+        complexity: 'complex',
+        roles: ['lead', 'developer', 'reviewer'],
+        roleModels: [
+          { role: 'lead', tier: 'pro', providerId: 'lead', model: 'lead-model' },
+          { role: 'developer', tier: 'pro', providerId: 'dev', model: 'dev-model' },
+          { role: 'reviewer', tier: 'review', providerId: 'rev', model: 'rev-model' },
+        ],
+      },
+    });
+    expect(summary.outcome).toBe('completed');
+    const reviewer = summary.members[2]!;
+    expect(reviewer.phase).toBe('evaluate');
+    expect(reviewer.delegationDepth).toBe(1);
+    expect(reviewer.review?.verdict).toBe('not_met');
+    expect(reviewer.review?.unmet).toEqual(['a.ts 缺导出']);
+    expect(reviewer.review?.suggestions).toEqual(['补导出']);
+  });
+
+  it('058：reviewer 会话可区分（evaluate 成员 B10 agentPreset=reviewer 且 review 结论上团队总线事件）', async () => {
+    const bus = new EventBus();
+    const runtime = new TeamRuntime({
+      workspaceRoot: workspace,
+      providers: {
+        pro: prov([{ when: /.*/, text: 'IMPL-10-DONE: ok' }], 'pro-model'),
+        review: prov(
+          [{ when: /IMPL-10-DONE/, text: '{"verdict":"not_met","unmet":["缺证据"],"suggestions":[],"reason":"r","evidence":[]}' }],
+          'review-model',
+        ),
+      },
+      policyArtifacts: artifacts(),
+      tools: [],
+      bus,
+    });
+    const summary = await runtime.runTeam({
+      task: '任务',
+      roster: [
+        { memberId: 'developer', presetId: 'developer', model: 'pro-model', providerId: 'pro' },
+        { memberId: 'reviewer', presetId: 'reviewer', model: 'review-model', providerId: 'review' },
+      ],
+    });
+    const rev = summary.members[1]!;
+    // 成员会话记录 source=team + agentPreset=reviewer
+    const log = sessionLog(workspace, rev.sessionId);
+    expect(log).toContain('"source":"team"');
+    expect(log).toContain('"agentPreset":"reviewer"');
+    // team_end 成员摘要带结构化 review（投影消费面）
+    expect(rev.review?.verdict).toBe('not_met');
+  });
 });

@@ -191,6 +191,45 @@ describe('TeamProjection（057）', () => {
     detach();
   });
 
+  it('058：evaluate 成员的结构化 review 结论上阶段行（评审结论可直接读，不需解析文本）', async () => {
+    const bus = new EventBus();
+    const projection = new TeamProjection();
+    const detach = projection.attach(bus);
+
+    await bus.emit('team_start', startPayload());
+    await bus.emit('team_phase', phasePayload({ ordinal: 1, phase: 'generate', memberId: 'developer' }));
+    await bus.emit('team_phase', phasePayload({ ordinal: 2, phase: 'evaluate', memberId: 'reviewer', presetId: 'reviewer', role: 'evaluator' }));
+    await bus.emit('team_end', endPayload({
+      members: [
+        memberSummary({ memberId: 'developer', phase: 'generate', output: 'DEV-OUT' }),
+        memberSummary({
+          memberId: 'reviewer',
+          phase: 'evaluate',
+          role: 'evaluator',
+          output: '{"verdict":"not_met","unmet":["AC-1 未满足"],"suggestions":["补实现"],"reason":"差距","evidence":["src/a.ts"]}',
+          review: {
+            verdict: 'not_met',
+            unmet: ['AC-1 未满足'],
+            suggestions: ['补实现'],
+            reason: '差距',
+            evidence: ['src/a.ts'],
+          },
+        }),
+      ],
+    }));
+
+    const state = projection.state()!;
+    const revRow = state.phases[1]!;
+    expect(revRow.review).toBeDefined();
+    expect(revRow.review).toMatchObject({
+      verdict: 'not_met',
+      unmet: ['AC-1 未满足'],
+      suggestions: ['补实现'],
+    });
+    expect(revRow.outputPreview).toContain('"verdict":"not_met"');
+    detach();
+  });
+
   it('detach 后不再接收事件；第二次 team_start 重置旧 run 状态', async () => {
     const bus = new EventBus();
     const projection = new TeamProjection();

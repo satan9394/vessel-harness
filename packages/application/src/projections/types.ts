@@ -1,5 +1,5 @@
 import type { EventBus } from '@vessel/core';
-import type { TeamMemberBrief, TeamPhaseName, TeamRoleName } from '@vessel/shared';
+import type { TeamMemberBrief, TeamPhaseName, TeamReviewConclusion, TeamRoleName } from '@vessel/shared';
 
 /**
  * Shared types for the application event-projection layer (task 040).
@@ -86,6 +86,8 @@ export interface TeamPhaseRow {
   delegateOf?: string;
   promptPreview?: string;
   outputPreview?: string;
+  /** structured Internal Review conclusion (task 058) — evaluate member 产出解析结果 */
+  review?: TeamReviewConclusion;
   stopReason?: string;
   ts: number;
 }

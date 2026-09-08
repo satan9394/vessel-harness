@@ -128,6 +128,8 @@ export class TeamProjection {
       row.status = m.status;
       row.stopReason = m.stopReason;
       if (m.output) row.outputPreview = trim(m.output, PREVIEW_LIMIT);
+      // task 058: 结构化 Internal Review 结论（evaluate 成员）直接可读，不靠解析文本
+      if (m.review) row.review = m.review;
     }
     // 兜底：仍为 running 的阶段行（理论上每个 phase 都有摘要）按 outcome 落定
     if (this.currentPhase && this.currentPhase.status === 'running') {

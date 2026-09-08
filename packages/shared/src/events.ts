@@ -306,6 +306,26 @@ export interface TeamPhasePayload {
   promptPreview?: string;
 }
 
+/** Internal Review verdict kind (task 058) — mirror of the reviewer's met/not_met conclusion space. */
+export type TeamReviewVerdict = 'met' | 'not_met' | 'impossible' | 'error';
+
+/**
+ * Structured Internal Review conclusion (task 058) — attached to the evaluate
+ * member's summary after its output is parsed against the review JSON schema.
+ * Plain-data mirror so TeamProjection can render it without importing agents.
+ */
+export interface TeamReviewConclusion {
+  verdict: TeamReviewVerdict;
+  /** why met / not_met (or why the review failed to conclude) */
+  reason: string;
+  /** acceptance criteria judged unmet (not_met feedback to the generator side) */
+  unmet: string[];
+  /** improvement suggestions for the generator (rework-loop input) */
+  suggestions: string[];
+  /** evidence references (output lines / files / test names) */
+  evidence: string[];
+}
+
 /** Per-member phase outcome inside team_end. */
 export interface TeamMemberSummary {
   memberId: string;
@@ -321,6 +341,8 @@ export interface TeamMemberSummary {
   stopReason?: string;
   /** member output — finalText (top-level member) or delegate result.output */
   output?: string;
+  /** structured Internal Review conclusion (task 058) — set on the evaluate member */
+  review?: TeamReviewConclusion;
 }
 
 /** team_end — a team run finishes (emit; outcome + per-member summaries). */

@@ -133,4 +133,53 @@ describe('TeamRuntime × TeamProjection e2e（057 → 060 数据源）', () => {
     expect(state.phases[1]?.outputPreview).toContain('IMPL-E2E');
     expect(state.phases[2]?.outputPreview).toContain('REV-E2E');
   });
+
+  it('058 Internal Review e2e：mock generator → reviewer not_met → 评审结论可见于投影阶段行', async () => {
+    const bus = new EventBus();
+    const projection = new TeamProjection();
+    projection.attach(bus);
+    const runtime = new TeamRuntime({
+      workspaceRoot: workspace,
+      providers: {
+        pro: prov([{ when: /.*/, text: 'IMPL-REV-NM: 已实现导出（改动 src/out.ts）' }], 'pro-model'),
+        review: prov(
+          [
+            {
+              when: /IMPL-REV-NM/,
+              text: '{"verdict":"not_met","unmet":["AC-2 测试结果未提供"],"suggestions":["补跑单测并附输出"],"reason":"缺测试证据","evidence":["tests/out.test.ts"]}',
+            },
+          ],
+          'review-model',
+        ),
+      },
+      policyArtifacts: artifacts(),
+      tools: [],
+      bus,
+    });
+
+    const summary = await runtime.runTeam({
+      task: '实现导出功能',
+      acceptance: ['AC-1: src/out.ts 导出 run', 'AC-2: 提供测试结果'],
+      route: {
+        complexity: 'medium',
+        roles: ['developer', 'reviewer'],
+        roleModels: [
+          { role: 'developer', tier: 'pro', providerId: 'pro', model: 'pro-model' },
+          { role: 'reviewer', tier: 'review', providerId: 'review', model: 'review-model' },
+        ],
+      },
+    });
+
+    expect(summary.outcome).toBe('completed');
+    expect(summary.members[1]?.review?.verdict).toBe('not_met');
+    const state = projection.state()!;
+    expect(state.status).toBe('done');
+    expect(state.outcome).toBe('completed');
+    const revRow = state.phases[1]!;
+    expect(revRow.memberId).toBe('reviewer');
+    // 结构化评审结论直接可见（可断言，无需解析文本）；原始反馈 JSON 亦在 outputPreview
+    expect(revRow.review).toMatchObject({ verdict: 'not_met', unmet: ['AC-2 测试结果未提供'], suggestions: ['补跑单测并附输出'] });
+    expect(revRow.outputPreview).toContain('"not_met"');
+    expect(summary.members[1]?.review?.suggestions).toContain('补跑单测并附输出');
+  });
 });

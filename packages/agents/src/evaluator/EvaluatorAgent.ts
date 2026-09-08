@@ -18,6 +18,12 @@ export interface EvaluatorAgentOptions {
   tools?: ToolSpec[];
   stableSections?: string[];
   policyGuidance?: string[];
+  /**
+   * Session/record label (task 058): recorded in the isolated session's B10
+   * session/created.agentPreset so an Internal Reviewer run is distinguishable
+   * from a plain evaluator run. Default: 'evaluator'.
+   */
+  agentPreset?: string;
 }
 
 export interface EvaluationRequest {
@@ -29,6 +35,12 @@ export interface EvaluationRequest {
   /** read-only disk evidence paths the evaluator MAY inspect (transcript_and_disk, E49) */
   evidencePaths?: string[];
   delegationDepth?: number;
+  /**
+   * Internal Review output mode (task 058): when true the brief additionally
+   * requires unmet (failed acceptance criteria) + suggestions (feedback for the
+   * generator side) and the parser captures them on the returned verdict.
+   */
+  review?: boolean;
 }
 
 /** Default read-only exploration toolset for the evaluator agent (transcript + disk evidence). */
@@ -39,6 +51,14 @@ export function createReadOnlyExplorationTools(workspaceRoot: string, fsPolicy?:
 }
 
 const VERDICTS: ReadonlySet<string> = new Set(['met', 'not_met', 'impossible', 'error']);
+
+/**
+ * Review-mode JSON line (task 058): evaluator emits unmet + suggestions so the
+ * Internal Reviewer conclusion carries generator-side feedback, not just a verdict.
+ */
+export const REVIEW_OUTPUT_SCHEMA =
+  '只输出一行 JSON：{"verdict":"met|not_met|impossible|error","evidence":["..."],"reason":"...",' +
+  '"unmet":["..."],"suggestions":["..."]}（not_met/impossible 时 unmet=未满足的验收标准、suggestions=给生成方的改进建议）';
 
 function buildReviewBrief(req: EvaluationRequest): string {
   const lines = [
@@ -51,28 +71,36 @@ function buildReviewBrief(req: EvaluationRequest): string {
     lines.push('可用只读证据（可用 Read/Glob/Grep 检查）：\n' + req.evidencePaths.map((p) => `- ${p}`).join('\n'));
   }
   lines.push('');
-  lines.push('只输出一行 JSON：{"verdict":"met|not_met|impossible|error","evidence":["..."],"reason":"..."}');
+  lines.push(req.review ? REVIEW_OUTPUT_SCHEMA : '只输出一行 JSON：{"verdict":"met|not_met|impossible|error","evidence":["..."],"reason":"..."}');
   return lines.join('\n');
 }
 
-function parseVerdict(text: string): EvaluatorVerdict {
+/**
+ * 容错解析评审/评估 JSON（单一实现，供 evaluator 会话与 TeamRuntime/InternalReviewer 共用）：
+ * 优先整段 JSON，其次抽取文本中的 {…} 对象；verdict 不合法 → verdict 'error'
+ * （如实暴露、绝不误判 met，Generator 不得自证完成）。文本前后可有叙述（真实模型常见）。
+ * review 模式要求 unmet/suggestions，缺省给空数组（verdict 模式不受影响）。
+ */
+export function parseVerdict(text: string): EvaluatorVerdict {
   const candidates = [text.trim(), /(\{[\s\S]*\})/.exec(text)?.[1] ?? ''];
   for (const c of candidates) {
     if (!c) continue;
     try {
-      const parsed = JSON.parse(c) as { verdict?: string; evidence?: unknown; reason?: unknown };
+      const parsed = JSON.parse(c) as { verdict?: string; evidence?: unknown; reason?: unknown; unmet?: unknown; suggestions?: unknown };
       if (parsed.verdict && VERDICTS.has(parsed.verdict)) {
         return {
           verdict: parsed.verdict as EvaluatorVerdictKind,
           evidence: Array.isArray(parsed.evidence) ? parsed.evidence.map(String) : [],
           reason: typeof parsed.reason === 'string' ? parsed.reason : 'no reason',
+          unmet: Array.isArray(parsed.unmet) ? parsed.unmet.map(String) : [],
+          suggestions: Array.isArray(parsed.suggestions) ? parsed.suggestions.map(String) : [],
         };
       }
     } catch {
       // try next candidate
     }
   }
-  return { verdict: 'error', evidence: [], reason: `evaluator agent output is not a valid verdict JSON: ${text.slice(0, 200)}` };
+  return { verdict: 'error', evidence: [], reason: `evaluator agent output is not a valid verdict JSON: ${text.slice(0, 200)}`, unmet: [], suggestions: [] };
 }
 
 /**
@@ -106,6 +134,7 @@ export class EvaluatorAgent {
       policyArtifacts: this.opts.policyArtifacts,
       tools: this.tools,
       source: 'evaluator',
+      agentPreset: this.opts.agentPreset,
       delegationDepth: req.delegationDepth ?? 0,
       stableSections: this.opts.stableSections,
       policyGuidance: this.opts.policyGuidance,
@@ -117,7 +146,7 @@ export class EvaluatorAgent {
           delegateId: `eval_${Date.now()}_${crypto.randomBytes(3).toString('hex')}`,
           childAgentId: `eval_agent_${runtime.session.sessionId}`,
           childSessionId: runtime.session.sessionId,
-          preset: 'evaluator',
+          preset: this.opts.agentPreset ?? 'evaluator',
           isContinuable: false,
         });
       }
