@@ -26,9 +26,12 @@ describe('provider catalog (V0.8, task 025)', () => {
     for (const c of cats) expect(PROVIDER_CATEGORY_LABELS[c as keyof typeof PROVIDER_CATEGORY_LABELS]).toBeTruthy();
   });
 
-  it('non-mock presets that need auth carry a non-empty baseUrl (except env/oauth note)', () => {
+  it('non-mock presets that need auth carry a non-empty baseUrl (except env/oauth/placeholder note)', () => {
+    // exempt: env-credential auth (azure/vertex/bedrock/cloudflare), self-host
+    // placeholders (newapi/oneapi-override), subscription-no-public-endpoint (packycode)
+    const exempt = new Set(['mock', 'azure-openai', 'cloudflare', 'newapi', 'github-copilot', 'packycode']);
     for (const p of PROVIDER_CATALOG) {
-      if (p.id === 'mock' || p.auth === 'oauth' || p.id === 'azure-openai' || p.id === 'newapi') continue;
+      if (exempt.has(p.id) || p.auth === 'env' || p.auth === 'oauth') continue;
       if (p.protocol !== 'mock') {
         expect(p.baseUrl.length, `baseUrl empty on ${p.id}`).toBeGreaterThan(0);
       }

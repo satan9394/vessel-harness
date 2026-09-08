@@ -19,9 +19,9 @@ vessel setup   # 或：引导式配置供应商向导（搜索选→key→拉模
 
 TUI 内斜杠命令：`/provider`（配置供应商）、`/models`（当前供应商模型）、`/model <id>`（切模型）、`/permission`（切权限）、`/help`、`/quit`。全局 `vessel` 命令：`npm link ./apps/cli` 后任意目录可用。
 
-## 1.6 供应商目录（56 条）
+## 1.6 供应商目录（71 条）
 
-内置 56 个预填端点的供应商（数据在 `apps/cli/src/providers/presets.data.ts`，来源见 `docs/ideas/PROVIDER-TUI-RESEARCH.md` §A3）：官方国际（Anthropic/OpenAI/Gemini/xAI/Groq/Mistral…）、国产官方（DeepSeek/Qwen/Kimi/GLM/MiniMax/豆包/混元/百炼/千帆…）、聚合（OpenRouter/硅基流动/魔搭/Novita/302AI…）、本地（Ollama/vLLM/LM Studio/llama.cpp/Jan）+ mock。向导里按类别标签（[官方]/[国产]/[国际]/[聚合]/[本地]）搜索即得，"自定义端点"随时可加。
+内置 71 个预填端点的供应商（数据在 `apps/cli/src/providers/presets.data.ts`，来源见 `docs/ideas/PROVIDER-TUI-RESEARCH.md` §A3）：官方国际（Anthropic/OpenAI/Gemini/xAI/Groq/Mistral…）、国产官方（DeepSeek/Qwen/Kimi/GLM/MiniMax/豆包/混元/百炼/千帆…）、聚合（OpenRouter/硅基流动/魔搭/Novita/302AI…）、本地（Ollama/vLLM/LM Studio/llama.cpp/Jan）+ mock。向导里按类别标签（[官方]/[国产]/[国际]/[聚合]/[本地]）搜索即得，"自定义端点"随时可加。
 
 ## 1.7 权限三档（对齐市面 agent）
 

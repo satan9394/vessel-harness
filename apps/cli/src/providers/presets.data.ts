@@ -68,6 +68,12 @@ export const PROVIDER_CATALOG: ProviderPreset[] = [
   { id: 'baseten', name: 'Baseten', protocol: 'openai-compatible', baseUrl: 'https://inference.baseten.co/v1', defaultModel: '', category: 'intl', hint: '推理托管：按自部署模型命名' },
   { id: 'scaleway', name: 'Scaleway AI', protocol: 'openai-compatible', baseUrl: 'https://api.scaleway.ai/v1', defaultModel: '', category: 'intl', hint: '托管 Llama/Qwen 等开源模型' },
 
+  // ---- 应用型官方网关（用户点名的 OpenCode 等；cc-switch 标准集含这些）----
+  { id: 'opencode', name: 'OpenCode Zen', protocol: 'openai-compatible', baseUrl: 'https://opencode.ai/zen/v1', defaultModel: 'gpt-5.1-codex', category: 'intl', hint: 'OpenCode 官方网关（OpenAI 兼容）；OPENCODE_API_KEY' },
+  { id: 'opencode-go', name: 'OpenCode Go', protocol: 'openai-compatible', baseUrl: 'https://opencode.ai/zen/go/v1', defaultModel: '', category: 'intl', hint: 'OpenCode Go 套餐端点（OpenAI 兼容）' },
+  { id: 'kimi-coding', name: 'Kimi For Coding（编程专用）', protocol: 'anthropic', baseUrl: 'https://api.kimi.com/coding/v1', defaultModel: '', category: 'cn', hint: 'Moonshot 编程专用端点（Anthropic 兼容），配 Kimi For Coding 订阅' },
+  { id: 'doubao-seed', name: '豆包 Seed（Coding Plan）', protocol: 'openai-compatible', baseUrl: 'https://ark.cn-beijing.volces.com/api/coding/v3', defaultModel: '', category: 'cn', hint: '火山 Coding Plan 端点（编程套餐）' },
+
   // ---- cn (China official) ----
   { id: 'deepseek', name: 'DeepSeek', protocol: 'openai-compatible', baseUrl: 'https://api.deepseek.com/v1', defaultModel: 'deepseek-chat', category: 'cn', hint: 'deepseek-chat / deepseek-reasoner' },
   { id: 'qwen', name: '通义千问 Qwen（DashScope）', protocol: 'openai-compatible', baseUrl: 'https://dashscope.aliyuncs.com/compatible-mode/v1', defaultModel: 'qwen-max', category: 'cn' },
@@ -99,6 +105,19 @@ export const PROVIDER_CATALOG: ProviderPreset[] = [
   { id: 'requesty', name: 'Requesty', protocol: 'openai-compatible', baseUrl: 'https://router.requesty.ai/v1', defaultModel: '', category: 'aggregator' },
   { id: 'oneapi', name: 'OneAPI（自部署网关）', protocol: 'openai-compatible', baseUrl: 'http://localhost:3000/v1', defaultModel: '', category: 'aggregator', hint: '自部署 OpenAI 兼容网关' },
   { id: 'newapi', name: 'NewAPI（自部署网关）', protocol: 'openai-compatible', baseUrl: '', defaultModel: '', category: 'aggregator', hint: '自部署；base-url 填你的域名' },
+
+  // ---- 常用第三方中转（对照 cc-switch 标准集；带 hint 提示自测稳定性）----
+  { id: 'aihubmix', name: 'AiHubMix', protocol: 'openai-compatible', baseUrl: 'https://aihubmix.com/v1', defaultModel: '', category: 'aggregator', hint: '第三方中转；支持多模型，稳定性自测' },
+  { id: 'cherryin', name: 'CherryIN', protocol: 'openai-compatible', baseUrl: 'https://open.cherryin.net/v1', defaultModel: '', category: 'aggregator', hint: '第三方中转（cc-switch 标准集）' },
+  { id: 'ppio', name: 'PPIO', protocol: 'openai-compatible', baseUrl: 'https://api.ppio.com/openai/v1', defaultModel: '', category: 'aggregator', hint: '第三方中转' },
+  { id: 'subrouter', name: 'SubRouter', protocol: 'openai-compatible', baseUrl: 'https://subrouter.ai/v1', defaultModel: '', category: 'aggregator', hint: '第三方聚合' },
+  { id: 'therouter', name: 'TheRouter', protocol: 'openai-compatible', baseUrl: 'https://api.therouter.ai/v1', defaultModel: '', category: 'aggregator', hint: '第三方中转（cc-switch 标准集）' },
+  { id: 'soleapi', name: 'SoleAPI', protocol: 'openai-compatible', baseUrl: 'https://soleapi.com/v1', defaultModel: '', category: 'aggregator', hint: '第三方中转（Anthropic 系）' },
+  { id: 'zetaapi', name: 'ZetaAPI', protocol: 'openai-compatible', baseUrl: 'https://api.zetaapi.ai/v1', defaultModel: '', category: 'aggregator', hint: '第三方中转' },
+  { id: 'runapi', name: 'RunAPI', protocol: 'openai-compatible', baseUrl: 'https://runapi.host', defaultModel: '', category: 'aggregator', hint: '第三方中转（Anthropic 系）' },
+  { id: 'pipellm', name: 'PIPELLM', protocol: 'openai-compatible', baseUrl: 'https://cc-api.pipellm.ai', defaultModel: '', category: 'aggregator', hint: '第三方中转' },
+  { id: 'qiniu', name: 'Qiniu 七牛', protocol: 'openai-compatible', baseUrl: 'https://api.qnaigc.com/v1', defaultModel: '', category: 'aggregator', hint: '第三方中转' },
+  { id: 'packycode', name: 'PackyCode', protocol: 'openai-compatible', baseUrl: '', defaultModel: '', category: 'aggregator', hint: '订阅制（cc-switch 常见）；base-url 交互填' },
 
   // ---- local ----
   { id: 'ollama', name: 'Ollama（本地）', protocol: 'openai-compatible', baseUrl: 'http://localhost:11434/v1', defaultModel: 'llama3.1', category: 'local', hint: '本地' },
