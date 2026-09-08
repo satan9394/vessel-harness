@@ -1,6 +1,6 @@
 # 067 — Context Reset Handoff（结构化交接，长任务续跑）
 
-- 状态：待验收
+- 状态：已合入
 - 优先级：P0（Wave 3 / Milestone E）
 - 创建日期：2026-09-08
 - 关联：063（IterationStore/任务状态可作 handoff 素材）；064（worktree 生命周期）；066（Goal/Loop 模式）
@@ -142,5 +142,10 @@ $ npx vitest run（apps/web 独立套件）             → 8 files / 74 tests p
 
 ## 验收结论（指挥回填）
 
-- [ ] 合入 / 打回
-- 备注：
+- [x] 合入（commit 0bc85d6）
+- 备注：指挥独立复核——全量 vitest 72 文件 634 测试全绿（618+16，零回归）、tsc -b 0 错误，与执行器自报一致。
+  设计认可：handoff 六模块（Handoff 九字段逐字 snake_case 对齐 §12 / HandoffStore 059 模式 / HandoffMaterial 素材
+  聚合自 063+064 / HandoffTrigger budget 0.9×window 晚于 Compaction 0.8 + 长度阈值 + force / StartFromHandoff
+  seedSessionFromHandoff 注入 B01 source='handoff' + handoffToTaskSeed 接运行链）；模块放 engine（避免跨层依赖，
+  与 context/Compaction 分工清晰：compact=同会话压缩、reset=新会话结构化交接）。路线文档追加 §12.1 实现注记（未改
+  原文）。下一张：068（1h soak——Milestone E 收官）。
