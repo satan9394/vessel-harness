@@ -8,3 +8,4 @@
 export * from './types.js';
 export * from './validate.js';
 export * from './vessel.js';
+export * from '../adapters/dsh.js';
