@@ -28,6 +28,7 @@ for (const p of packages) {
   alias[`@vessel/${p}`] = path.join(root, `packages/${p}/src/index.ts`);
 }
 alias['@vessel/bench-runners'] = path.join(root, 'benchmarks/runners/src/index.ts');
+alias['@vessel/local-server'] = path.join(root, 'apps/local-server/src/index.ts');
 
 export default defineConfig({
   resolve: { alias },
@@ -36,6 +37,7 @@ export default defineConfig({
     include: [
       'packages/*/src/**/*.test.ts',
       'apps/cli/src/**/*.test.ts',
+      'apps/local-server/src/**/*.test.ts',
       'benchmarks/runners/src/**/*.test.ts',
     ],
     testTimeout: 30000,

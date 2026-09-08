@@ -1,0 +1,23 @@
+{
+  "name": "@vessel/local-server",
+  "version": "0.10.0",
+  "description": "Vessel Local Server — HTTP API + SSE event stream + static Web assets on 127.0.0.1:5678 via @vessel/application",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "files": ["dist"],
+  "scripts": {
+    "build": "tsc -b",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@vessel/application": "^0.10.0",
+    "@vessel/llm": "^0.1.0"
+  }
+}

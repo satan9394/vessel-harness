@@ -16,6 +16,7 @@
     { "path": "packages/engine" },
     { "path": "packages/application" },
     { "path": "apps/cli" },
+    { "path": "apps/local-server" },
     { "path": "benchmarks/runners" }
   ]
 }

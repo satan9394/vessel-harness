@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Vessel Local Server</title>
+    <style>
+      :root {
+        color-scheme: light dark;
+        --bg: #f7f7f8;
+        --fg: #1a1a1a;
+        --accent: #4f46e5;
+        --muted: #6b7280;
+        --card: #ffffff;
+        --border: #e5e7eb;
+      }
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --bg: #111113;
+          --fg: #ececf1;
+          --accent: #818cf8;
+          --muted: #9ca3af;
+          --card: #1b1b1f;
+          --border: #2a2a30;
+        }
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        min-height: 100vh;
+        display: grid;
+        place-items: center;
+        background: var(--bg);
+        color: var(--fg);
+        font-family: -apple-system, system-ui, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      }
+      .card {
+        background: var(--card);
+        border: 1px solid var(--border);
+        border-radius: 16px;
+        padding: 40px 48px;
+        text-align: center;
+        max-width: 420px;
+        box-shadow: 0 8px 30px rgba(0, 0, 0, 0.06);
+      }
+      .logo {
+        width: 56px;
+        height: 56px;
+        border-radius: 14px;
+        background: var(--accent);
+        color: #fff;
+        display: inline-grid;
+        place-items: center;
+        font-weight: 800;
+        font-size: 24px;
+        margin-bottom: 20px;
+      }
+      h1 { margin: 0 0 8px; font-size: 20px; font-weight: 700; }
+      p { margin: 0; color: var(--muted); font-size: 14px; line-height: 1.6; }
+      code { background: var(--border); padding: 2px 6px; border-radius: 5px; font-size: 13px; }
+    </style>
+  </head>
+  <body>
+    <div class="card">
+      <div class="logo">V</div>
+      <h1>Vessel Local Server running</h1>
+      <p>
+        HTTP API + SSE + static Web assets are live on
+        <code>127.0.0.1:5678</code>. See <code>/api/health</code>.
+      </p>
+    </div>
+  </body>
+</html>

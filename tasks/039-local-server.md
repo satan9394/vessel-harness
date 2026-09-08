@@ -1,6 +1,6 @@
 # 039 — Local Server（127.0.0.1:5678，API + SSE + 静态资源）
 
-- 状态：待执行
+- 状态：待验收（实现完成，执行器回填工作证明）
 - 优先级：P0（Milestone B；路线 §五 Local Server、§5.2 API）
 - 创建日期：2026-09
 - 关联：路线卡 039/040；goal（V1.0 产品化）；依赖 037/038（已合入）
@@ -45,7 +45,11 @@
 
 ## 工作证明（执行器回填）
 
-- [ ] server 文件 / 测试 / API 冒烟 curl / tsc/vitest
+- [x] server 文件 / 测试 / API 冒烟 curl / tsc/vitest
+  - 文件：`apps/local-server/{package.json,tsconfig.json,src/server.ts,src/index.ts,public/index.html}` + `src/server.test.ts`（7 例）
+  - 冒烟：`tsx` 起服务于 127.0.0.1:5678，`/api/health` → `{"ok":true,"version":"0.10.0"}`，`/` → text/html
+  - tsc -b exit 0；vitest 全量 323 全绿（基线 316 + 新增 7）
+  - 根注册：tsconfig references + vitest alias/include
 
 ## 验收结论（指挥回填）
 
