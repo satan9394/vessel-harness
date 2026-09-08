@@ -20,6 +20,36 @@ Model、Prompt、Agent、工具都只是可替换的"器"；Vessel 是承载这�
 
 Vessel 与六条哲学不是宣传语，而是**以行为 IR 存在**的操作原则：它们编译进每个 Agent 的 stable system（`configs/behavior.default.yaml` 的 `vessel.*` 条目 → Behavior Compiler → system），可版本化、可校验、可替换——哲学本身也遵守"无器之器"。
 
+## 一·五、如何运行（Vessel 命令）
+
+```powershell
+# ① 一次性的准备（构建 + 让 vessel 命令全局可用）
+cd C:\work\Vessel_Harness
+npm run build            # 编译全部 TS
+npm link ./apps/cli      # 注册全局命令 vessel（别名 cah 同时注册；换环境后重跑一次）
+
+# ② 启动方式（三种等价）
+vessel                  # 全局命令：直接进交互对话（无参即进 TUI/chat）
+npm run vessel          # 项目内入口（未全局安装时）
+vessel run --prompt "…" # 一次性任务（不进交互）
+
+# ③ 配置供应商（首次使用）
+vessel setup            # 交互向导：搜索选供应商 → 输 key → 拉模型 → 勾选 → 设为默认
+vessel provider list    # 查看已配置（mock 内置默认）
+vessel provider add deepseek --protocol openai-compatible --base-url https://api.deepseek.com/v1 --api-key <key> --model deepseek-chat
+vessel provider switch deepseek
+
+# ④ 交互界面内的斜杠命令
+#   /provider 配置供应商 · /models 拉模型 · /model <id> 切模型 · /permission 切权限档
+#   /setup 引导配置 · /help · /quit
+
+# ⑤ 测试与构建
+npx vitest run           # 全量测试（当前 285 绿）
+npx tsc -b               # 类型检查
+```
+
+> 版本输出：`vessel --version` → `Vessel CLI v0.1.0`。`cah` 为历史别名，仍可用；`@cah/*` 为内部包名（历史遗留，见上表）。
+
 ---
 
 ## 二、Vessel 六条哲学 → 行为 IR 映射
