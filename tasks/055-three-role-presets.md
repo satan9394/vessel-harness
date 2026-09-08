@@ -1,6 +1,6 @@
 # 055 — Lead / Developer / Reviewer presets（三角色默认实例）
 
-- 状态：待验收
+- 状态：已合入
 - 优先级：P0（Wave 2 / Milestone D）
 - 创建日期：2026-09-08
 - 关联：054（AgentPreset spec，前置须先合入）；056（TaskRouter Auto）；057（TeamRuntime）
@@ -76,5 +76,9 @@
 
 ## 验收结论（指挥回填）
 
-- [ ] 合入 / 打回
-- 备注：
+- [x] 合入（commit 0b66b2c）
+- 备注：指挥独立复核——全量 vitest 55 文件 450 测试全绿（437+13，零回归）、npx tsc -b 0 错误，与执行器自报一致。
+  设计认可：三角色默认实例（defaults.ts）语义对齐 §8.1；能力映射走 shrink-only 收窄（applyPresetToolFace/
+  policyProfileForPreset），接线点选 SubagentManager.delegate 可选 presetLookup（零破坏）；reviewer 只读面复用
+  EvaluatorAgent 先例；developer 取单值 pro（浮动意图归 056）；tier→model 与 TeamRuntime 组装留 056/057。
+  测试以真实 mock 子代理验证映射可观察性（reviewer 委派下 Write 不落盘）。下一张：056（TaskRouter 默认 Auto）。
