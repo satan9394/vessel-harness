@@ -1,6 +1,6 @@
 # 081 — Claude Code Adapter（外部 harness 适配器）
 
-- 状态：待验收
+- 状态：已合入
 - 优先级：P0（Wave 5 / Milestone G）
 - 创建日期：2026-09-08
 - 关联：076（契约）；077-080（DSH/OpenCode/Codex/Pi adapters——同批模式范本）
@@ -100,5 +100,9 @@ prompt 不引入。Claude Code 交互式/授权限制照 §15 "可自动化的�
 
 ## 验收结论（指挥回填）
 
-- [ ] 合入 / 打回
-- 备注：
+- [x] 合入（commit 4a00381）
+- 备注：指挥独立复核——全量 vitest 85 文件 799 测试全绿 + 1 skipped（零失败）、tsc -b 0 错误，与执行器自报一致。
+  认可：claudeAdapter 照 077-080 模式实现 076 契约（claude -p --output-format json headless 面，contract §6 声明；
+  command/runCommand 可注入 mock；probeClaudeEnv pending-environment 不 throw；normalizeClaudeRun §15 L3 采集归一；
+  capabilities 诚实降级含"可自动化部分"边界；命名单导出规避 TS2308）；clean-room 合规。
+  **adapters 收官（077-081 全部完成）**。下一张：082（real-model benchmark lane——需真实模型 API）。
