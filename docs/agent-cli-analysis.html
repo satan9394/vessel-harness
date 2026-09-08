@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>cah · Composable Agent Harness — 设计来源可视化</title>
+<style>
+  :root {
+    --bg:#0d1117; --panel:#161b22; --panel2:#1c2333; --border:#30363d;
+    --text:#e6edf3; --dim:#8b949e; --accent:#58a6ff; --green:#3fb950; --yellow:#d29922;
+    --purple:#bc8cff; --pink:#f778ba; --red:#f85149; --mono:'Cascadia Code','JetBrains Mono',Consolas,monospace;
+  }
+  * { box-sizing:border-box; margin:0; padding:0; }
+  body { background:var(--bg); color:var(--text); font:15px/1.65 -apple-system,'Segoe UI','PingFang SC','Microsoft YaHei',sans-serif; padding:32px 20px 80px; }
+  .wrap { max-width:1080px; margin:0 auto; }
+  header { border-bottom:1px solid var(--border); padding-bottom:20px; margin-bottom:28px; }
+  h1 { font-size:28px; letter-spacing:.5px; }
+  h1 .badge { font-size:12px; vertical-align:middle; background:var(--panel2); border:1px solid var(--border); color:var(--accent); padding:3px 10px; border-radius:20px; margin-left:10px; }
+  .sub { color:var(--dim); margin-top:6px; font-size:14px; }
+  .tagline { margin-top:14px; background:var(--panel); border:1px solid var(--border); border-left:3px solid var(--purple); border-radius:8px; padding:14px 16px; font-size:14px; color:#c9d1d9; }
+  .tagline b { color:var(--purple); }
+  nav.tabs { display:flex; gap:8px; margin:24px 0 20px; flex-wrap:wrap; }
+  nav.tabs button { background:var(--panel); color:var(--dim); border:1px solid var(--border); padding:9px 18px; border-radius:8px; cursor:pointer; font-size:14px; transition:.15s; }
+  nav.tabs button:hover { color:var(--text); border-color:var(--accent); }
+  nav.tabs button.active { background:var(--accent); color:#0d1117; border-color:var(--accent); font-weight:600; }
+  section.page { display:none; }
+  section.page.active { display:block; animation:fade .25s ease; }
+  @keyframes fade { from{opacity:0; transform:translateY(6px)} to{opacity:1} }
+  h2 { font-size:20px; margin:8px 0 6px; }
+  .pdesc { color:var(--dim); font-size:13px; margin-bottom:16px; }
+  h3 { font-size:15px; margin:22px 0 10px; color:var(--accent); }
+  table { width:100%; border-collapse:collapse; font-size:13px; margin-bottom:8px; background:var(--panel); }
+  th { text-align:left; color:var(--dim); font-weight:600; padding:8px 10px; border-bottom:1px solid var(--border); font-size:12px; text-transform:uppercase; letter-spacing:.4px; }
+  td { padding:8px 10px; border-bottom:1px solid #21262d; vertical-align:top; }
+  tr:hover td { background:#1b2230; }
+  td.who { white-space:nowrap; font-weight:600; }
+  .who .src { color:var(--accent); }
+  .who .cn { color:var(--green); }
+  .pill { display:inline-block; font-size:11px; padding:1px 8px; border-radius:10px; border:1px solid var(--border); color:var(--dim); margin-right:6px; }
+  .pill.kernel{color:var(--purple)} .pill.ctx{color:var(--accent)} .pill.tool{color:var(--green)} .pill.safe{color:var(--red)} .pill.verify{color:var(--yellow)} .pill.ux{color:var(--pink)}
+  .mod { font-family:var(--mono); font-size:12px; color:var(--dim); }
+  .where { font-family:var(--mono); font-size:12px; color:var(--accent); }
+  .ref { font-size:11px; color:var(--dim); }
+  .card { background:var(--panel); border:1px solid var(--border); border-radius:10px; padding:16px 18px; margin-bottom:14px; }
+  .card h4 { font-size:14px; margin-bottom:8px; }
+  .card p { font-size:13px; color:#c9d1d9; }
+  pre { background:#0d1117; border:1px solid var(--border); border-radius:8px; padding:14px 16px; font:13px/1.7 var(--mono); overflow-x:auto; margin:10px 0; color:#d2d8e0; white-space:pre-wrap; }
+  pre .c { color:#566070; }
+  pre.prompt { border-left:3px solid var(--green); }
+  .split { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+  @media(max-width:760px){ .split{grid-template-columns:1fr} }
+  .phil-row { display:grid; grid-template-columns:150px 1fr; gap:0 16px; padding:12px 4px; border-bottom:1px solid #21262d; }
+  .phil-row .layer { font-weight:700; font-size:14px; color:var(--accent); }
+  .phil-row .desc { font-size:13.5px; color:#c9d1d9; }
+  .phil-row .desc .opp{ color:var(--yellow); font-size:12.5px; }
+  .foot { margin-top:34px; color:var(--dim); font-size:12px; border-top:1px solid var(--border); padding-top:14px; }
+  .count { color:var(--accent); font-weight:600; }
+  .gauge { display:flex; gap:6px; margin:6px 0 4px; }
+  .gauge span { height:8px; border-radius:4px; }
+  code { font-family:var(--mono); font-size:12px; background:#232a36; padding:1px 6px; border-radius:4px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+<header>
+  <h1>cah · Composable Agent Harness<span class="badge">设计来源可视化 · 2026-09</span></h1>
+  <div class="sub">参考了哪些 Agent 的优点 · 对应哪些 Agent 的哲学 · 真实系统提示词 · 分析依据：<code>docs/ideas/AGENT-CLI-ANALYSIS.md</code></div>
+  <div class="tagline"><b>一句话定位：</b>以 <b>DSH 事件溯源薄核</b>为骨架、<b>Pi 极简工具</b>与 <b>Hermes 缓存纪律</b>为约束、<b>Claude Code 行为语义与验证外部化</b> + <b>Codex 三档/沙箱</b>为安全基准、<b>opencode / cc-switch 第三方优先引导</b>为产品面——最终把一切行为收敛为 <b>Behavior IR + Compiler + Policy Runtime + Conformance Suite</b> 的自研编码代理。它的 system 提示词不是人设，而是从行为 IR 编译出的可验证产物。</div>
+</header>
+
+<nav class="tabs">
+  <button class="active" data-t="t1">① 参考了哪些 Agent</button>
+  <button data-t="t2">② 对应谁的哲学</button>
+  <button data-t="t3">③ 系统提示词是什么</button>
+</nav>
+
+<!-- ============ Q1 ============ -->
+<section class="page active" id="t1">
+  <h2>① 它参考了哪些 Agent 的优点</h2>
+  <p class="pdesc">来源：DESIGN-DECISIONS 16 决策点「类 X 型」候选取舍 + 横向解剖（harness-matrix）+ 产品 UX 调研。每一处借鉴都以"候选 A/B/C = 类某型"记录取舍，<b>借鉴 ≠ 照抄</b>（clean-room）。</p>
+
+  <h3>内核 / 会话 / 上下文层</h3>
+  <table><tr><th>借鉴对象</th><th>借鉴的机制 / 优点</th><th>落地位置</th></tr>
+  <tr><td class="who"><span class="src">DeepSeek Harness</span></td><td>事件溯源会话：append-only 类型化事件日志=唯一真源，历史由 surface 投影派生；崩溃恢复=重放</td><td class="where">core/session · context/builder</td></tr>
+  <tr><td class="who"><span class="src">DSH</span></td><td>薄核 + 单一权威 loop（Model→Tool→Result→State→Stop）</td><td class="where">core/agent-loop</td></tr>
+  <tr><td class="who"><span class="src">DSH</span></td><td>waterfall 中间件（短路=决策）、guard 单调只收窄、fail loud</td><td class="where">core/events · policy/engine</td></tr>
+  <tr><td class="who"><span class="src">DSH</span></td><td>注入即数据：指令/记忆=带 source 的持久 user/message</td><td class="where">context/builder</td></tr>
+  <tr><td class="who"><span class="src">DSH</span></td><td>沙箱 confine seam + fail-closed + enforcement 透明上报</td><td class="where">runtime/sandbox</td></tr>
+  <tr><td class="who"><span class="src">DSH</span></td><td>Compaction 事务化：平衡区域替换、配对不拆、尾部逐字</td><td class="where">context/compaction</td></tr>
+  <tr><td class="who"><span class="src">Claude Code</span></td><td>终止判据"纯文本即停"；gather→act→verify；读并发/写串行</td><td class="where">core/agent-loop</td></tr>
+  <tr><td class="who"><span class="src">Claude Code</span></td><td>AGENTS.md 指令以 <b>user message</b> 注入而非 system</td><td class="where">context/builder</td></tr>
+  <tr><td class="who"><span class="src">Claude Code</span></td><td>缓存纪律：动态内容往消息层放、保 prefix cache</td><td class="where">Builder stableLayer</td></tr>
+  <tr><td class="who"><span class="src">Hermes</span></td><td>三层 stable/context/volatile + 每会话构建一次跨轮复用</td><td class="where">context/builder</td></tr>
+  <tr><td class="who"><span class="src">Hermes</span></td><td>文件式长期记忆：MEMORY.md 冻结快照、单一 memory 工具</td><td class="where">memory/ (V0.3-M1)</td></tr>
+  <tr><td class="who"><span class="cn">Pi</span></td><td>最小内建工具 + schema DSL 贯穿；定义与 Operations 解耦</td><td class="where">tools/registry</td></tr>
+  <tr><td class="who"><span class="cn">Claw Code</span></td><td>压缩后健康探针；部分成功诚实纪律</td><td class="where">context/compaction</td></tr>
+  <tr><td class="who"><span class="cn">Codex</span></td><td>压缩保留全部用户消息原文</td><td class="where">context/compaction</td></tr>
+  <tr><td class="who"><span class="cn">OpenCode</span></td><td>doom-loop 检测、参数错 INVALID_ARGS 让模型自修复</td><td class="where">policy/risk · tools</td></tr>
+  </table>
+
+  <h3>策略 / 安全 / 沙箱层</h3>
+  <table><tr><th>借鉴对象</th><th>借鉴的机制</th><th>落地位置</th></tr>
+  <tr><td class="who"><span class="src">Claude Code</span></td><td>permission 叠加：deny→ask→allow 先匹配、deny 不可被更细 allow 豁免；Behavior/Runtime Safety 分离</td><td class="where">policy/engine ①-⑥ 裁决序</td></tr>
+  <tr><td class="who"><span class="src">Claude Code</span></td><td>危险操作任何模式不自批（circuit breaker）</td><td class="where">never_auto 危险集合</td></tr>
+  <tr><td class="who"><span class="src">DSH</span></td><td>fail-closed + guard 单调 + 审计事件对 + approval never 服务内强制</td><td class="where">policy/engine</td></tr>
+  <tr><td class="who"><span class="src">Codex</span></td><td><b>三档命名来源</b>：read-only / workspace-write / danger-full-access</td><td class="where">policy profile · CLI --permission</td></tr>
+  <tr><td class="who"><span class="src">Codex</span></td><td>只读根 + 可写覆盖 + 受保护子路径强制只读</td><td class="where">runtime/sandbox 参照</td></tr>
+  <tr><td class="who"><span class="src">Codex</span></td><td>execpolicy 规则引擎 + 危险命令黑名单三层</td><td class="where">policy/risk</td></tr>
+  <tr><td class="who"><span class="src">Pi/OpenCode</span></td><td><span style="color:var(--red)">反例吸收</span>：无工具权限/无 OS 沙箱被拒；默认读边界=workspace+显式 allow（比 Claude 全盘读更保守）</td><td class="where">filesystem.deny_read</td></tr>
+  </table>
+
+  <h3>工具 / 扩展 / 委派 / 验证层</h3>
+  <table><tr><th>借鉴对象</th><th>借鉴的机制</th><th>落地位置</th></tr>
+  <tr><td class="who"><span class="src">Claude Code</span></td><td>hooks 事件面作覆盖度参考；/goal 独立小模型只读评估三态</td><td class="where">EVENT-SPEC 48 事件 · agents/evaluator</td></tr>
+  <tr><td class="who"><span class="src">Codex</span></td><td>codex review 受限评审：独立模型 + rubric + review-only 工具</td><td class="where">agents/evaluator 参照</td></tr>
+  <tr><td class="who"><span class="src">Codex</span></td><td>子代理 fork 线程：FullHistory/LastNTurns；权限只收窄</td><td class="where">agents/subagent</td></tr>
+  <tr><td class="who"><span class="src">DSH</span></td><td>subagent seam + 统一结果契约；非 completed=错误</td><td class="where">SubagentManager</td></tr>
+  <tr><td class="who"><span class="src">Claw Code</span></td><td>mock-parity 方法论：确定性 mock 端到端回归、verification-map</td><td class="where">benchmarks/ B001-B019</td></tr>
+  <tr><td class="who"><span class="src">DSH</span></td><td>invariants 机械自检：编号/配对/重试回放校验</td><td class="where">benchmarks 断言</td></tr>
+  <tr><td class="who"><span class="src">Claude/Hermes</span></td><td>技能=SKILL.md + 目录渐进披露 + 正文按需加载</td><td class="where">skills/</td></tr>
+  <tr><td class="who"><span class="src">CL4R1T4S</span></td><td>行为语料矿藏→只作候选来源，经 §18 管道，<b>绝不直进 system</b></td><td class="where">configs/behavior.default.yaml</td></tr>
+  </table>
+
+  <h3>产品 UX 层（向导 / 模型 / TUI / 权限档位）</h3>
+  <table><tr><th>借鉴对象</th><th>借鉴的机制</th><th>落地位置</th></tr>
+  <tr><td class="who"><span class="src">opencode</span></td><td>/connect（接供应商）与 /models（选模型）两命令解耦、分组+“怎么登”备注</td><td class="where">cah setup 向导</td></tr>
+  <tr><td class="who"><span class="src">opencode</span></td><td>模型目录来自 Models.dev 预置 + /v1/models 实时拉取</td><td class="where">presets.data.ts (52)</td></tr>
+  <tr><td class="who"><span class="src">cc-switch</span></td><td>Fetch Models 按钮语义 + 错误分类降级（401 查 key / 404 手填）</td><td class="where">modelFetcher.ts</td></tr>
+  <tr><td class="who"><span class="src">cc-switch</span></td><td>供应商 category 分类，不照抄分销长尾</td><td class="where">020 category 体系</td></tr>
+  <tr><td class="who"><span class="src">Claude Code</span></td><td>/model 双语义 Enter=持久 / s=仅会话；作用域明示</td><td class="where">021 /model 接口位</td></tr>
+  <tr><td class="who"><span class="src">Pi</span></td><td>30+ 第三方预置、/login 统一认证、凭证解析优先级成文</td><td class="where">setup 向导</td></tr>
+  <tr><td class="who"><span class="src">opencode</span></td><td><b>无参 opencode = 直接进 TUI</b>（回放区+底部输入）</td><td class="where">cah 无参进 chat (021)</td></tr>
+  <tr><td class="who"><span class="src">Codex</span></td><td>权限三档命名 → cah --permission / TUI /permission</td><td class="where">022</td></tr>
+  </table>
+</section>
+
+<!-- ============ Q2 ============ -->
+<section class="page" id="t2">
+  <h2>② 它对应哪些 Agent 的哲学（分层合成定位）</h2>
+  <p class="pdesc">依据 HARNESS-ANATOMY 七种范式分类 + D3 各决策点"组合取各家可迁移点"。没有哪一层是单家原样照搬——每层都是"某家骨架 + 另一家纪律"的合成。</p>
+
+  <div class="card">
+    <div class="phil-row"><div class="layer">内核 / Loop</div><div class="desc"><b>DSH 事件溯源薄核哲学</b>（模型可见 ⟺ 已记录、崩溃=重放）+ <b>Claude Code 终止语义哲学</b>（纯文本即停）+ Claw 健康探针。<span class="opp">拒：Pi 双轨 loop / Claw 循环拆到 CLI / Codex 2881 行单文件。</span></div></div>
+    <div class="phil-row"><div class="layer">上下文</div><div class="desc"><b>Hermes 缓存纪律哲学</b>（三层拼接、每会话一次、prefix cache 神圣）+ <b>DSH 注入即数据哲学</b> + <b>Claude 按需加载与 user-message 指令哲学</b>。<span class="opp">拒：Claw 全量重发 / Pi 每轮重放。</span></div></div>
+    <div class="phil-row"><div class="layer">工具</div><div class="desc"><b>Pi 极简内核工具哲学</b>（最小集 + 定义/执行解耦）+ <b>DSH 统一流水线与并行原语哲学</b>（guard 单调、独占屏障）+ <b>OpenCode 健壮性哲学</b>（INVALID_ARGS 自修复）。<span class="opp">拒：Claw 万行 tools、Claude 40+ 工具面。</span></div></div>
+    <div class="phil-row"><div class="layer">策略 / 安全</div><div class="desc"><b>Claude Code 行为分层哲学</b>（软硬分离、deny→ask→allow、protected 铁律）+ <b>DSH fail-closed 哲学</b>（guard 单调、审计对、never 强制）+ <b>Codex 工程语义哲学</b>（三档命名 + 沙箱边界模型）。<span class="opp">拒：Pi 以用户权限跑 / OpenCode 无 OS 沙箱。</span></div></div>
+    <div class="phil-row"><div class="layer">验证 / 多智能体</div><div class="desc"><b>Claude 验证外部化哲学</b>（干活模型不自证）+ <b>Codex 受限评审哲学</b> + <b>DSH 机制非角色哲学</b>（Evaluator 不是新原语）+ <b>Claw mock-parity 方法论哲学</b>。</div></div>
+    <div class="phil-row"><div class="layer">会话 / 记忆</div><div class="desc"><b>DSH 事件日志哲学</b>（会话=发生过什么）+ <b>Hermes 文件式记忆哲学</b>（冻结快照、写盘不改当前提示、只归档不删除）。</div></div>
+    <div class="phil-row"><div class="layer">产品 UX</div><div class="desc"><b>opencode 第三方优先哲学</b>（/connect+/models 解耦、TUI 无参进入）+ <b>cc-switch 向导完整性哲学</b>（预设填充、Fetch Models、错误降级）+ <b>Claude /model 双语义</b> + <b>Codex 三档命名</b>；@clack 轻量（吸收 opencode 弃 React-ink 的教训）。</div></div>
+    <div class="phil-row" style="border-bottom:none"><div class="layer" style="color:var(--purple)">总纲（差异点）</div><div class="desc"><b>Behavior IR 保存"该怎么行为"而非"某家 prompt 写了什么"——没有任何一家的现成哲学。</b>CL4R1T4S 证明行为可归纳（跨产品一致性极高）是前提；anat:0.3-5："没有哪家把行为做成显式 IR"。这是与 7 家 harness 的根本差异。</div></div>
+  </div>
+
+  <h3>一句话层叠定位</h3>
+  <div class="tagline"><b>cah</b> = <b>DSH 事件溯源薄核</b> + <b>Claude Code 行为语义/分层哲学</b> + <b>Pi 极简内核工具纪律</b> + <b>Hermes 缓存纪律与文件式记忆</b> + <b>Codex 三档/沙箱工程语义</b> + <b>Claw mock-parity 验证方法论</b> + <b>opencode / cc-switch 第三方优先产品体验</b> —— 全部经 <b>Behavior IR + Compiler + Policy Runtime</b> 这条自研管线重新表达。</div>
+</section>
+
+<!-- ============ Q3 ============ -->
+<section class="page" id="t3">
+  <h2>③ 真实系统提示词（源码提取）</h2>
+  <p class="pdesc">组装链路：<code>compose.ts</code> → <code>ContextBuilder.assemble()</code>：stable = 固定句 + behavior 编译段 + policy guidance，join('\n\n') 成唯一一条 role:'system'，每会话缓存一次。AGENTS.md/记忆/技能<b>都不进 system</b>（以 user 消息注入）。</p>
+
+  <h3>3.2 固定句（Builder.ts L93）</h3>
+  <pre class="prompt">你是 Composable Agent Harness V0.1 的编码代理。</pre>
+
+  <h3>3.3 Behavior 编译段（4 条 IR render）</h3>
+  <pre>纯文本回复即停止；不要在无需工具时强行调用工具。                      <span class="c"># loop.turn_ends_without_tool_call (prompt_guidance)</span>
+不要改写受保护路径（.git/.env/.ssh 等）；该约束由策略引擎硬执法。      <span class="c"># safety.protected_paths (runtime_policy→filesystem.protected)</span>
+删除/格式化等破坏性命令会被策略引擎拦截；先说明原因与范围。            <span class="c"># safety.dangerous_shell (runtime_policy→shell.deny)</span>
+以检查结果（测试/命令输出）作为完成依据，不自证完成。                  <span class="c"># verification.independent_evaluator (prompt_guidance)</span></pre>
+  <p class="pdesc">注：channel=runtime_policy 的两条<b>同时</b>软渲染进 system + 硬执法（策略引擎），即"同样的话既写进提示引导、又被运行时强制执行"——双通道原则。</p>
+
+  <h3>3.4 Policy Guidance 段（顶层原文 + 编译器按声明自动生成）</h3>
+  <pre>这是硬执法策略：受保护路径写入与危险命令会被引擎拒绝并记录审计事件。                    <span class="c">← 顶层 guidance 原文</span>
+不要改写受保护路径：.git, .git/**, .claude, .ssh, .harness/credentials, .env（硬执法，不可豁免）。  <span class="c">← filesystem.protected 自动生成</span>
+不要读取凭据/敏感文件：**/.aws/credentials, **/.ssh/**, **/.env（硬执法）。                  <span class="c">← filesystem.deny_read 自动生成</span>
+破坏性命令（destructive-delete, disk-format, partition-write）被硬拦截，先说明原因与范围再考虑受管替代。  <span class="c">← shell.deny 自动生成</span>
+不要 force push 重写共享分支历史。                                                       <span class="c">← git.force_push 自动生成</span></pre>
+  <p class="pdesc" style="color:var(--yellow)">实现备注：policy.default.yaml 的 shell.guidance 两条目前未生效（类型/编译器只消费顶层 guidance）——冗余声明，见报告 3.4。</p>
+
+  <h3>3.5 完整拼接（默认配置实际发给模型）</h3>
+  <pre class="prompt">你是 Composable Agent Harness V0.1 的编码代理。
+
+纯文本回复即停止；不要在无需工具时强行调用工具。
+不要改写受保护路径（.git/.env/.ssh 等）；该约束由策略引擎硬执法。
+删除/格式化等破坏性命令会被策略引擎拦截；先说明原因与范围。
+以检查结果（测试/命令输出）作为完成依据，不自证完成。
+
+这是硬执法策略：受保护路径写入与危险命令会被引擎拒绝并记录审计事件。
+不要改写受保护路径：.git, .git/**, .claude, .ssh, .harness/credentials, .env（硬执法，不可豁免）。
+不要读取凭据/敏感文件：**/.aws/credentials, **/.ssh/**, **/.env（硬执法）。
+破坏性命令（destructive-delete, disk-format, partition-write）被硬拦截，先说明原因与范围再考虑受管替代。
+不要 force push 重写共享分支历史。</pre>
+
+  <h3>3.6 与 Claude Code / Codex"整段人设"的本质差异</h3>
+  <div class="split">
+    <div class="card"><h4 style="color:var(--dim)">cc / codex / claw / pi</h4><p>行为 = 手写整段人设长 prompt（身份→语气→工具纪律→护栏…），文本与运行时<b>无编译契约</b>，行为散落 system 段落/指令/hook/权限/compaction 五处。</p></div>
+    <div class="card"><h4 style="color:var(--green)">cah</h4><p>system 只含"一句身份 + 编译产物"。行为是 behavior.default.yaml 里可版本化、可校验、带 channel/conformance 的<b>声明式 IR</b>，经 Behavior Compiler 编译而来。同一条 IR 将来对 Claude/GPT/DeepSeek 渲染不同措辞，但 IR 只有一个。</p></div>
+  </div>
+  <div class="card" style="margin-top:0"><p><b>四条分界：</b>① 保存"该怎么行为"而非"某家 prompt 写了什么"；② 软硬分离——"不要删 .git"同时是 prompt 文字 + Policy Engine 硬执法（禁止只写 prompt）；③ 每条 IR 带 conformance 供 Evaluator/Conformance Suite 机器断言；④ CL4R1T4S 等 UNTRUSTED 语料只能经 Raw Prompt→Parser→Behavior Extraction→Review→IR 进入，禁止原文直进 system。</p></div>
+</section>
+
+<div class="foot">可视化数据来源：<code>docs/ideas/AGENT-CLI-ANALYSIS.md</code>（子代理 606b8b1d 只读分析）· DESIGN-DECISIONS / ARCHITECTURE / HARNESS-ANATOMY / harness-matrix · PROVIDER-UX / PROVIDER-TUI-RESEARCH · 源码 Builder.ts / Compiler.ts / compose.ts / behavior·policy.default.yaml。</div>
+</div>
+
+<script>
+document.querySelectorAll('nav.tabs button').forEach(b=>b.addEventListener('click',()=>{
+  document.querySelectorAll('nav.tabs button').forEach(x=>x.classList.remove('active'));
+  document.querySelectorAll('section.page').forEach(x=>x.classList.remove('active'));
+  b.classList.add('active');
+  document.getElementById(b.dataset.t).classList.add('active');
+  window.scrollTo({top:0});
+}));
+</script>
+</body>
+</html>
