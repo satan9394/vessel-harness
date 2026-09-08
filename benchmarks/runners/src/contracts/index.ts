@@ -39,3 +39,18 @@ export {
   runCodexFixture,
   codexAdapter,
 } from '../adapters/codex.js';
+// pi-specific symbols only — ResultStub / defaultRunCommand are shared with
+// dsh.js and already re-exported above (identical definitions), so re-exporting
+// them here would be an ambiguous duplicate in the `export *` surface.
+export {
+  PI_ADAPTER_ID,
+  PI_ADAPTER_VERSION,
+  PI_RUN_SUBCOMMAND,
+  type PiAdapterOptions,
+  type PiRawRun,
+  probePiEnv,
+  piCapabilities,
+  normalizePiRun,
+  runPiFixture,
+  piAdapter,
+} from '../adapters/pi.js';
