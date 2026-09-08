@@ -413,6 +413,29 @@ seq        : number        # 会话内事件序号（不变式校验用）
 - **消费方示例**：上下文重建器、token 账目、健康探针、缓存统计。
 - **关联机制/镜像**：记录：`compaction/end`（恰好一次）、`compaction/summary`；机制：H04 continuation/auto-continue。
 
+### 5.H 团队（Team，task 057 新增三个 emit 扩展事件）
+
+> **实现注记（057，TeamRuntime/TeamProjection 落地）**：多 Agent 协作运行时（§8.2：小→1 /
+> 中→2 / 复杂→3 个 preset 化 Agent）需要把"一次团队运行"的编排事实表达为可订阅事件。
+> 按 §10.3.5「新增事件须走声明合并 + 本文件修订」规矩，新增三个 emit 事件（`@vessel/shared`
+> `EventType` 成员 + 载荷类型，flat 命名沿用本仓库惯例）；**成员回合/工具/delegate 一律复用既有词汇**，
+> 不复制 loop 事件。设计取舍与理由见 docs/TEAM-RUNTIME.md §5（新增 `team_phase` 的原因：既有
+> turn 事件载荷不带成员/会话身份，需要阶段-成员激活锚点做事件归属）。
+
+| # | 事件 | 触发时机 | 载荷要点 | flow | 镜像/复用 |
+|---|---|---|---|---|---|
+| T01 | `team_start` | 团队运行开始（阵容快照） | `teamRunId/task/complexity?/roster[]`（roster 行=memberId/presetId/role/tier?/model/providerId） | emit | 成员会话 B10 `session/created{source:'team'|'subagent', agentPreset, parentSession}` |
+| T02 | `team_phase` | 每个成员阶段开始（成员激活/阶段切换锚点） | `teamRunId/ordinal/phase('orchestrate'\|'generate'\|'evaluate')/memberId/presetId/role/delegateOf?/promptPreview?` | emit | 阶段事件后的 `before_turn/after_turn/after_tool` 归当前成员窗口 |
+| T03 | `team_end` | 团队运行收尾（逐成员摘要） | `teamRunId/outcome('completed'\|'failed')/members[]`（含 sessionId/parentSessionId/delegationDepth/status/output/stopReason）/durationMs/error? | emit | 成员阶段行闭合、delegate 行（A23/A24）闭合 |
+
+- **成员回合/工具/产出**：不新增事件 —— top-level 成员会话跑在团队共享 EventBus 上
+  （`IsolatedRuntimeOptions.bus` 注入），`before_turn`/`after_turn`/`after_tool` 原样流转，
+  TeamProjection 以 `team_phase` 窗口归属到成员；delegate 子代理（复杂阵容 lead 的
+  developer/reviewer）按 info-hiding 惯例只以 A23/A24（`subagent_start/stop`）上团队总线。
+- **持久记录**：不新增 B 记录 —— 成员出处用既有 B10（source 扩展 `'team'` 判别值 +
+  `agentPreset`/`parentSession`/`delegationDepth` 区分成员）；编排事实（team 事件）为瞬态
+  扩展事件（同其余扩展事件"镜像记录落在成员会话日志"的语义）。
+
 ---
 
 ## 6. 自动持久记录清单（21，会话日志）

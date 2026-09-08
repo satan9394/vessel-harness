@@ -142,11 +142,12 @@ export interface CompactionEndRecord extends SessionRecordBase {
   surface: false;
 }
 
-/** B10 session/created — session lifecycle record (V0.2: subagent/evaluator/plan sources) */
+/** B10 session/created — session lifecycle record (V0.2: subagent/evaluator/plan sources; task 057: 'team') */
 export interface SessionCreatedRecord extends SessionRecordBase {
   type: 'session/created';
   sessionId: string;
-  source: 'startup' | 'resume' | 'fork' | 'clear' | 'compact' | 'subagent' | 'evaluator' | 'plan';
+  /** 'team' (task 057) = a TeamRuntime member session (agentPreset = member/preset id). */
+  source: 'startup' | 'resume' | 'fork' | 'clear' | 'compact' | 'subagent' | 'evaluator' | 'plan' | 'team';
   parentSession?: string;
   delegationDepth?: number;
   isSeeded?: boolean;
@@ -194,7 +195,11 @@ export type EventType =
   | 'before_delegate'
   | 'subagent_start'
   | 'subagent_stop'
-  | 'after_delegate';
+  | 'after_delegate'
+  // task 057 — team-run extension events (emit; vocabulary added per EVENT-SPEC, see §5.H)
+  | 'team_start'
+  | 'team_phase'
+  | 'team_end';
 
 /** Subagent result contract (H11 / EVENT-SPEC A24): stopReason≠completed ⇒ isError */
 export interface SubagentResultContract {
@@ -243,6 +248,89 @@ export interface AfterDelegatePayload {
   delegateId: string;
   result: SubagentResultContract;
   followUp: { continuable: boolean; canSendMessage: boolean };
+}
+
+// ---------------------------------------------------------------------------
+// Team extension events (task 057) — TeamRuntime orchestrates preset-based
+// agents for one task (small→1 / medium→2 / complex→3, §8.2) on ONE shared
+// team EventBus; members run on the existing AgentLoop/Session mechanism
+// (isolated runtimes joined to the team bus). These three flat emit events are
+// the ONLY new vocabulary — member turns/tools reuse before_turn/after_turn/
+// after_tool, delegation reuses subagent_start/subagent_stop, and member
+// provenance lives in each session's B10 session/created (source 'team' +
+// agentPreset, or 'subagent' + parentSession for lead delegates).
+// ---------------------------------------------------------------------------
+
+/** Team member role discriminant (mirrors agents/presets AgentRole — payload-level mirror of the canonical value). */
+export type TeamRoleName = 'orchestrator' | 'generator' | 'evaluator';
+
+/** Team phase (task 057 skeleton): orchestrator→orchestrate, generator→generate, evaluator→evaluate. */
+export type TeamPhaseName = 'orchestrate' | 'generate' | 'evaluate';
+
+/** One roster row as published on team_start (public brief). */
+export interface TeamMemberBrief {
+  /** roster-unique member id (defaults to the preset id) */
+  memberId: string;
+  /** agents/presets registry key (lead/developer/reviewer…) */
+  presetId: string;
+  role: TeamRoleName;
+  /** resolved model tier (route output; explicit roster may omit) */
+  tier?: string;
+  /** resolved model */
+  model: string;
+  /** providers map key */
+  providerId: string;
+}
+
+/** team_start — a team run begins (emit; roster snapshot). */
+export interface TeamStartPayload {
+  teamRunId: string;
+  task: string;
+  /** §8.2 complexity (small/medium/complex) when derived from a route */
+  complexity?: string;
+  roster: readonly TeamMemberBrief[];
+}
+
+/** team_phase — phase/member activation (emit; attribution anchor for member events on the team bus). */
+export interface TeamPhasePayload {
+  teamRunId: string;
+  /** 1-based phase ordinal */
+  ordinal: number;
+  phase: TeamPhaseName;
+  memberId: string;
+  presetId: string;
+  role: TeamRoleName;
+  /** when the phase executes as a delegate child (complex: lead's developer/reviewer), the parent member id */
+  delegateOf?: string;
+  /** prompt handed to the member (trimmed preview; full prompt flows as before_turn / delegate request) */
+  promptPreview?: string;
+}
+
+/** Per-member phase outcome inside team_end. */
+export interface TeamMemberSummary {
+  memberId: string;
+  presetId: string;
+  role: TeamRoleName;
+  phase: TeamPhaseName;
+  status: 'completed' | 'failed';
+  sessionId: string;
+  parentSessionId?: string;
+  delegationDepth: number;
+  durationMs: number;
+  /** turn kind (top-level member) or delegate stopReason */
+  stopReason?: string;
+  /** member output — finalText (top-level member) or delegate result.output */
+  output?: string;
+}
+
+/** team_end — a team run finishes (emit; outcome + per-member summaries). */
+export interface TeamEndPayload {
+  teamRunId: string;
+  outcome: 'completed' | 'failed';
+  members: readonly TeamMemberSummary[];
+  durationMs: number;
+  /** failure reason (failed phase kind / delegate stopReason / diagnostic) */
+  error?: string;
 }
 
 // ---------------------------------------------------------------------------

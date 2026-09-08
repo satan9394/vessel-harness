@@ -7,7 +7,16 @@ import { PolicyEngine } from '@vessel/policy';
 import { Executor, Sandbox } from '@vessel/runtime';
 import { ToolRegistry } from '@vessel/tools';
 
-export type IsolatedSessionSource = 'startup' | 'resume' | 'fork' | 'clear' | 'compact' | 'subagent' | 'evaluator' | 'plan';
+export type IsolatedSessionSource =
+  | 'startup'
+  | 'resume'
+  | 'fork'
+  | 'clear'
+  | 'compact'
+  | 'subagent'
+  | 'evaluator'
+  | 'plan'
+  | 'team';
 
 export interface IsolatedRuntimeOptions {
   workspaceRoot: string;
@@ -19,11 +28,18 @@ export interface IsolatedRuntimeOptions {
   tools: ToolSpec[];
   sessionId?: string;
   sessionDir?: string;
-  /** B10 session/created source — distinguishes subagent/evaluator/plan sessions */
+  /** B10 session/created source — distinguishes subagent/evaluator/plan/team sessions */
   source?: IsolatedSessionSource;
   parentSession?: string;
   delegationDepth?: number;
   agentPreset?: string;
+  /**
+   * Task 057: shared team EventBus. When provided, this session joins the
+   * team bus so its loop events (before_turn/after_turn/after_tool…) are
+   * observable by TeamProjection (member attribution is anchored by the
+   * runtime's team_phase markers). Absent => private bus (legacy behavior).
+   */
+  bus?: EventBus;
   /** behavior-compiled stable prompt sections (soft channel) */
   stableSections?: string[];
   policyGuidance?: string[];
@@ -72,7 +88,7 @@ export async function createIsolatedRuntime(opts: IsolatedRuntimeOptions): Promi
     surface: false,
   });
 
-  const bus = new EventBus();
+  const bus = opts.bus ?? new EventBus();
   const policyEngine = new PolicyEngine(opts.policyArtifacts);
   const sandbox = new Sandbox();
   const registry = new ToolRegistry(opts.tools);

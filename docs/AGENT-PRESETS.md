@@ -116,14 +116,15 @@ class PresetRegistry {
 054 只定义形状与映射点；055 提供三角色实例 + 纯能力映射层（`presets/capabilities.ts`：
 `applyPresetToolFace` / `policyProfileForPreset`）并把第一处接线落到 agents 运行时
 （`SubagentManager.delegate` 可选 `presetLookup`：委派带已注册 preset 标签时，子代理工具面先按
-角色能力面收窄，再叠加调用方 toolFilter，两者都 shrink-only）。下表标注每行的接线状态。
+角色能力面收窄，再叠加调用方 toolFilter，两者都 shrink-only）。057（TeamRuntime）把能力面落到
+团队运行时的每成员会话/子代理构造（见 docs/TEAM-RUNTIME.md §4）。下表标注每行的接线状态。
 
 | preset 字段 | 既有运行时开关 | 接线状态 |
 |---|---|---|
-| `tools` | 工具可见性收窄（shrink-only） | ✅ 055：`applyPresetToolFace`（tools allow-list intersection）接入 `SubagentManager.delegate`（presetLookup 命中时） |
-| `write` | file_write 族 / 写权限工具可见性；policy profile 降档 | ✅ 055：`write:false` → 只保留 `requiredPermission === 'read'` 工具（等价 EvaluatorAgent 只读面先例），接入 delegate；`policyProfileForPreset` 输出 'read-only' 意图，落 PolicyEngine profile 的接线在 057/会话构造方 |
-| `canDelegate` | Subagent 工具注册 + 服务端上限 | ◑ 055：`canDelegate:false` → 从可见面剔除 'Subagent' 工具（子代理始终无 Subagent，递归另有 maxDepth 上限，fail-closed）；`canDelegate:true`（lead 编排）不因 preset 剔除，顶层会话是否注册 Subagent 工具由 057/组装方决定 |
-| `modelTier` | 模型档位 → 具体模型 | ✅ 056：`packages/llm/src/router/autoRouter.ts`（AutoTaskRouter，默认 Auto）—— 档位经开放 `TierBindings`（含 review 档）由 provider/config 层注入；未配置档位清晰回落默认档 + hints（见 docs/TASKROUTER-AUTO.md） |
+| `tools` | 工具可见性收窄（shrink-only） | ✅ 055：`applyPresetToolFace`（tools allow-list intersection）接入 `SubagentManager.delegate`（presetLookup 命中时）；✅ 057：TeamRuntime 对每个 top-level 成员会话（`applyPresetToolFace(preset, 基座工具面)`）与 delegate 子代理（manager presetLookup）施加 |
+| `write` | file_write 族 / 写权限工具可见性；policy profile 降档 | ✅ 055：`write:false` → 只保留 `requiredPermission === 'read'` 工具（等价 EvaluatorAgent 只读面先例），接入 delegate；✅ 057：reviewer 成员（top-level 或 delegate）都以只读工具面构造；`policyProfileForPreset` 输出 'read-only' 意图，落 PolicyEngine profile 的接线仍在组装方/058 |
+| `canDelegate` | Subagent 工具注册 + 服务端上限 | ◑ 055：`canDelegate:false` → 从可见面剔除 'Subagent' 工具（子代理始终无 Subagent，递归另有 maxDepth 上限，fail-closed）；✅ 057：TeamRuntime 的 delegate 语义 = roster 含 orchestrator（lead）时其后成员作为 lead 会话的子代理执行（SubagentManager + presetLookup）；lead 会话内注册 Subagent 工具（模型驱动委派，createSubagentTool）留 058/组装方 |
+| `modelTier` | 模型档位 → 具体模型 | ✅ 056：`packages/llm/src/router/autoRouter.ts`（AutoTaskRouter，默认 Auto）—— 档位经开放 `TierBindings`（含 review 档）由 provider/config 层注入；未配置档位清晰回落默认档 + hints（见 docs/TASKROUTER-AUTO.md）；✅ 057：TeamRuntime 消费 route.roleModels 的 model/providerId 逐成员构造会话（结构类型 TeamRouteLike，agents 不 import llm） |
 
 design 总则：**preset 只声明意图（形状），运行时开关仍由机制层权威裁决**；preset 收窄能力，
 不能放大（角色只能收窄父权限，参照 BEHAVIOR-IR-SPEC §7.2 覆盖规则 `default < project < preset < role < flag`）。
@@ -134,9 +135,11 @@ design 总则：**preset 只声明意图（形状），运行时开关仍由机�
   的路由表数据（`agentPreset` 字段目前是透传标签，记录进会话 B10）。054 的 `AgentPreset` 是这些标签
   背后的**完整角色规格**（带 role/tools/write/canDelegate）。056 的角色选型走另一条路径：
   `autoRouter.ts` 的 AutoTaskRouter 按 §8.2 复杂度给角色计划，角色出参是 registry 里的
-  `lead/developer/reviewer` preset id（llm 层只透传数据，不 import agents）；类别 preset 表的
-  `agentPreset` 标签（explorer/planner/architect…）到本 registry 的解析留在 057 消费方统一做
-  （标签不在 registry 时 fail loud 或回落，由 057 定）。
+  `lead/developer/reviewer` preset id（llm 层只透传数据，不 import agents）；057 TeamRuntime 消费
+  route.roles + roleModels 组合成员（`composeRosterFromRoute`，结构类型 TeamRouteLike）。V0.4 类别
+  preset 表的 `agentPreset` 标签（explorer/planner/architect…）不在默认 registry 时由调用方自行
+  注册对应 preset 或给显式阵容（057 roster 路径已覆盖）；经 compose 主会话路径的标签解析仍未接线
+  （留给 060/组装方）。
 - `EVENT-SPEC` A22/A23 的 `preset` 载荷字段与 `session/created.agentPreset` 即本 registry 的 id。
 - 现有 Evaluator Agent 硬编码只读工具面、Subagent 委派标签透传，是 054 之前「preset 语义未成形」的
   过渡形态；054 后新形态由 055 按 preset 重新装载，旧路径保留兼容。
