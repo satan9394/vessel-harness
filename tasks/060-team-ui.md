@@ -1,6 +1,6 @@
 # 060 — Team UI（web 3-Agents 面板 + 模型选择 Auto/Fast/Pro/Pin）
 
-- 状态：待验收
+- 状态：已合入
 - 优先级：P1（Wave 2 / Milestone D 收尾）
 - 创建日期：2026-09-08
 - 关联：056（Auto 路由显示/Pin）；057（TeamProjection 数据源）；058/059（评审可见性）
@@ -130,5 +130,10 @@ TeamProjection）；模型选择显示 Auto/Fast/Pro + 实际解析结果 + Pin 
 
 ## 验收结论（指挥回填）
 
-- [ ] 合入 / 打回
-- 备注：
+- [x] 合入（commit aadfead）
+- 备注：指挥独立复核——root vitest 64 文件 544 测试全绿（首跑 1 例为已知 Windows 瞬态 flaky，重跑全绿，非本卡回归）、
+  tsc -b 0 错误、web 独立套件 6 文件 54 测试全绿（537+7 root 新增 +24 web 新增）。设计认可：local-server teamSeam
+  （RouteSeam 复用 056 纯函数链 + startTeamRun 跑真实 057 TeamRuntime/TeamProjection；route/pin/team-runs/reviews
+  端点 + SSE type:'team' 全量快照帧 live）；web TeamModule/TeamPanel/ModelSelector/ReviewRequiredPanel（按 057 投影渲染、
+  Auto→model + Pin、External Review Copy/Open/Import）。052/053 未并入（repo 无其卡，roadmap 标可后置）——seam 已落
+  live 快照帧，052/053 如日后要做可基于此。**Milestone D（V1.2 Team）全部完成 054-060。**
