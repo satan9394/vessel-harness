@@ -38,6 +38,7 @@ Vessel CLI v${VERSION} — 可组合 Agent Harness（品牌 Vessel）
   vessel review handoff <request.json>   生成外部评审 handoff（.vessel/reviews/<id>/handoff.md；task 059）
   vessel review import <id> <result 文件>  导入外部评审结果（[--source external|internal]，落库）
   vessel review list                 列出外部评审 reviews
+  vessel bench-report --input <json>  基准报告看板：聚合 076 RunResult[]（或 082 lane report）→ 打印 CLI 摘要表 + 写 md/json（任务 083）
   vessel serve [--port <n>]          启动本地服务（默认 http://127.0.0.1:5678，不开浏览器）
   vessel web                         启动本地服务并打开浏览器
 
@@ -510,6 +511,52 @@ function isPortTaken(err: unknown): boolean {
 }
 
 /**
+ * `vessel bench-report <runResults.json> [--out <dir>]` (task 083 dashboard).
+ *
+ * Reads a JSON array of 076 RunResult objects, aggregates them into a
+ * BenchmarkReport, prints the CLI dashboard summary to stdout, and persists
+ * `<dir>/benchmark-report-<ts>.md` + `.json` (JSON consumed by task-084 release
+ * gates). Also accepts a 082 RealModelLaneReport JSON — its run rows are
+ * converted via rowsFromLaneReport.
+ */
+async function cmdBenchReport(flags: Map<string, string>): Promise<number> {
+  const input = flags.get('input');
+  if (!input) {
+    console.error('[vessel] bench-report 需要 --input <runResults.json>（076 RunResult[] 或 082 lane report JSON）');
+    return 2;
+  }
+  let json: unknown;
+  try {
+    json = JSON.parse(fs.readFileSync(input, 'utf8'));
+  } catch (err) {
+    console.error(`[vessel] 无法读取/解析输入 JSON: ${(err as Error).message}`);
+    return 2;
+  }
+  const { buildReportFromRunResults, buildReport, rowsFromLaneReport, renderCliSummary, writeReportFiles } =
+    await import('@vessel/bench-runners');
+
+  const isArray = Array.isArray(json);
+  const isLaneReport = !isArray && typeof json === 'object' && (json as { modelSummaries?: unknown })?.modelSummaries !== undefined;
+
+  let rep;
+  if (isArray) {
+    rep = buildReportFromRunResults(json as Parameters<typeof buildReportFromRunResults>[0]);
+  } else if (isLaneReport) {
+    const rows = rowsFromLaneReport(json as Parameters<typeof rowsFromLaneReport>[0]);
+    rep = buildReport(rows, 'task-082 real-model lane report');
+  } else {
+    console.error('[vessel] bench-report 输入必须是 076 RunResult[] 数组或 082 RealModelLaneReport JSON');
+    return 2;
+  }
+
+  const outDir = path.resolve(flags.get('out') ?? path.join(repoRoot(), 'benchmarks', 'reports'));
+  console.log(renderCliSummary(rep));
+  const paths = writeReportFiles(rep, outDir);
+  console.log(`\n报告已写入:\n  ${paths.mdPath}\n  ${paths.jsonPath}`);
+  return 0;
+}
+
+/**
  * Park the process (keep the event loop alive) until Ctrl+C / SIGTERM.
  * Exposed as a seam so tests can replace it with an immediately-resolving
  * no-op and assert serve dispatch without ever really hanging.
@@ -608,6 +655,7 @@ export async function main(argv: string[] = process.argv.slice(2)): Promise<numb
   if (first === 'pricing') return cmdPricing(parsed.positionals[1], parsed.flags);
   if (first === 'migrate') return cmdMigrate();
   if (first === 'review') return cmdReview(parsed.positionals.slice(1), parsed.flags);
+  if (first === 'bench-report') return cmdBenchReport(parsed.flags);
   if (first === 'serve') return cmdServe(parsed.flags);
   if (first === 'web') return cmdWeb(parsed.flags);
   // bare `vessel` (no subcommand): interactive TUI in a TTY; guide otherwise.

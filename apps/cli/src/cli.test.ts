@@ -18,6 +18,14 @@ function capture() {
   return { logs, restore: () => spy.mockRestore() };
 }
 
+/** Capture both stdout (console.log) and stderr (console.error). */
+function captureBoth() {
+  const logs: string[] = [];
+  const spyLog = vi.spyOn(console, 'log').mockImplementation((...a) => logs.push(a.join(' ')));
+  const spyErr = vi.spyOn(console, 'error').mockImplementation((...a) => logs.push(a.join(' ')));
+  return { logs, restore: () => { spyLog.mockRestore(); spyErr.mockRestore(); } };
+}
+
 describe('CLI (apps/cli)', () => {
   let dir: string;
   beforeEach(() => { dir = fs.mkdtempSync(path.join(os.tmpdir(), 'cah-cli-')); });
@@ -274,6 +282,69 @@ describe('V0.9 usage/pricing commands (task 031)', () => {
     expect(code2).toBe(0);
     expect(logs2.join('\n')).toContain('claude-sonnet-4-5');
     expect(logs2.join('\n')).toContain('$3');
+  });
+});
+
+describe('vessel bench-report (task 083 dashboard)', () => {
+  let dir: string;
+  beforeEach(() => { dir = fs.mkdtempSync(path.join(os.tmpdir(), 'cah-br-')); });
+  afterEach(() => { try { fs.rmSync(dir, { recursive: true, force: true }); } catch { /* best-effort */ } });
+
+  function runResultsJson(harnesses: string[]): string {
+    const arr = harnesses.map((h, i) => ({
+      adapterId: h,
+      adapterVersion: '1.0.0',
+      fixtureId: 'B001',
+      metrics: {
+        success: i % 2 === 0,
+        wallTimeMs: 100 + i,
+        toolCalls: 2, invalidCalls: 0, retries: 0,
+        inputTokens: 50, outputTokens: 20, cacheReadTokens: 5,
+        costUsd: 0.01 + i / 100, contextPeak: 70, compactions: 0,
+        humanIntervention: 0, policyViolations: 0, resumeSuccess: false,
+      },
+      startedAt: '2026-09-08T00:00:00.000Z',
+    }));
+    const p = path.join(dir, 'runs.json');
+    fs.writeFileSync(p, JSON.stringify(arr), 'utf8');
+    return p;
+  }
+
+  it('bench-report without --input fails with exit 2', async () => {
+    const { logs, restore } = captureBoth();
+    const code = await main(['bench-report']);
+    restore();
+    expect(code).toBe(2);
+    expect(logs.join('\n')).toContain('bench-report 需要 --input');
+  });
+
+  it('bench-report reads RunResult[] and prints dashboard summary + writes md/json', async () => {
+    const runs = runResultsJson(['vessel', 'dsh', 'opencode']);
+    const out = path.join(dir, 'reports');
+    const { logs, restore } = capture();
+    const code = await main(['bench-report', '--input', runs, '--out', out]);
+    restore();
+    expect(code).toBe(0);
+    const joined = logs.join('\n');
+    expect(joined).toContain('totals:');
+    expect(joined).toContain('vessel');
+    expect(joined).toContain('dsh');
+    expect(joined).toContain('opencode');
+    expect(joined).toContain('B001:');
+    // reports written
+    const files = fs.readdirSync(out);
+    expect(files.some((f) => f.endsWith('.md'))).toBe(true);
+    expect(files.some((f) => f.endsWith('.json'))).toBe(true);
+  });
+
+  it('bench-report rejects a JSON object that is neither RunResult[] nor a lane report', async () => {
+    const bad = path.join(dir, 'bad.json');
+    fs.writeFileSync(bad, JSON.stringify({ hello: 'world' }), 'utf8');
+    const { logs, restore } = captureBoth();
+    const code = await main(['bench-report', '--input', bad]);
+    restore();
+    expect(code).toBe(2);
+    expect(logs.join('\n')).toContain('必须是 076 RunResult[] 数组或 082 RealModelLaneReport JSON');
   });
 });
 
