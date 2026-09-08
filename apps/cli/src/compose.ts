@@ -52,6 +52,10 @@ export interface ComposeOptions {
     presets?: TaskCategoryPresets;
     taskPrompt?: string;
   };
+  /** V0.9: persistent usage statistics — record after_model usage into this store */
+  usageStore?: import('./usage/UsageStore.js').UsageStore;
+  /** provider id label attached to usage records (when usageStore wired) */
+  usageProvider?: string;
 }
 
 export interface ComposedHarness {
@@ -71,6 +75,8 @@ export interface ComposedHarness {
   taskRouter?: TaskRouter;
   /** category the session was routed to on start (when taskPrompt given) */
   routedCategory?: string;
+  /** V0.9: usage store wired (when provided) */
+  usageStore?: import('./usage/UsageStore.js').UsageStore;
   close(): Promise<void>;
 }
 
@@ -225,6 +231,26 @@ export async function composeHarness(opts: ComposeOptions): Promise<ComposedHarn
   const telemetry = new Telemetry();
   telemetry.attach(bus);
 
+  // V0.9 usage statistics: persist after_model usage into the store when wired
+  if (opts.usageStore) {
+    const usageProvider = opts.usageProvider ?? 'default';
+    bus.on(
+      'after_model',
+      (payload) => {
+        const p = payload as { usage?: { inputTokens?: number; outputTokens?: number; cacheReadTokens?: number } };
+        if (!p.usage) return;
+        opts.usageStore!.record({
+          provider: usageProvider,
+          model: effectiveModel,
+          inputTokens: p.usage.inputTokens ?? 0,
+          outputTokens: p.usage.outputTokens ?? 0,
+          cacheReadTokens: p.usage.cacheReadTokens,
+        });
+      },
+      'vessel:usage',
+    );
+  }
+
   const toChatTools = (): ChatToolDef[] =>
     registry.listVisible().map((t) => ({
       type: 'function' as const,
@@ -263,6 +289,7 @@ export async function composeHarness(opts: ComposeOptions): Promise<ComposedHarn
     mcpClients,
     taskRouter,
     routedCategory,
+    usageStore: opts.usageStore,
     async close() {
       telemetry.detach();
       await session.close();
