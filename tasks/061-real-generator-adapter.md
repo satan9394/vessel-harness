@@ -1,6 +1,6 @@
 # 061 — RealGeneratorAdapter（真实 Generator 接入 LoopEngine）
 
-- 状态：待验收
+- 状态：已合入
 - 优先级：P0（Wave 3 / Milestone E 首发）
 - 创建日期：2026-09-08
 - 关联：062（RealEvaluatorAdapter，对称）；063（持久 TaskQueue）；058（Internal Reviewer 产出结论）——本卡做 Generator 真接线
@@ -90,5 +90,9 @@ RealGeneratorAdapter：把 054-058 建的 preset 化 Developer Agent（generator
 
 ## 验收结论（指挥回填）
 
-- [ ] 合入 / 打回
-- 备注：
+- [x] 合入（commit adc0215）
+- 备注：指挥独立复核——全量 vitest 65 文件 554 测试全绿（544+10，零回归）、npx tsc -b 0 错误，与执行器自报一致。
+  设计认可：RealGeneratorAdapter 把 057 TeamRuntime 单成员 developer（preset generator、既有 AgentLoop 隔离会话）
+  接到 LoopEngine generate seam；task(goal+acceptance)→developer run→output+disk-evidence（snapshot diff，不自我宣称）
+  →GeneratorRunRecord 可回读；默认 maxIterations=1/maxRetries=1 e2e 验证（§11.1）；复用机制不写 core 不新造
+  primitive。证据扫描纯函数独立测试。下一张：062（RealEvaluatorAdapter，对称消费 GeneratorRunRecord + acceptance）。
