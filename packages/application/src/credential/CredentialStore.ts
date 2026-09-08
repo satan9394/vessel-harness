@@ -49,7 +49,9 @@ export interface SyncCredentialStore {
 }
 
 /** 同时满足异步（对外）与同步（ProviderStore 内部）两套接口的后端跑批。 */
-export type CredentialBackend = CredentialStore & SyncCredentialStore;
+export type CredentialBackend = CredentialStore &
+  SyncCredentialStore &
+  Partial<{ probe(): BackendProbe }>;
 
 export function defaultSecretsFile(home = os.homedir()): string {
   return path.join(home, '.vessel', 'secrets.json');
@@ -58,6 +60,9 @@ export function defaultSecretsFile(home = os.homedir()): string {
 export interface CredentialStoreOptions {
   /** 覆盖 secrets.json 路径（测试注入 os.tmpdir() 下临时目录；默认 ~/.vessel/secrets.json）。 */
   secretsFile?: string;
+  /** 损坏隔离恢复：存储文件损坏时改名备份（.corrupted-<ts>）并以空结构继续。
+   *  false（默认）沿用 034 语义 fail loud。仅对显式开启的调用生效，不静默。 */
+  recoverCorrupted?: boolean;
 }
 
 interface SecretEntry {
@@ -78,36 +83,98 @@ const SECRETS_VERSION = 1;
 
 /** 原子写 secrets.json：<file>.tmp 写完 fsync 后 rename 覆盖（防半写；跨文件改写非删除，安全）。 */
 function writeSecretsFile(file: string, data: SecretsFileShape): void {
-  fs.mkdirSync(path.dirname(file), { recursive: true });
+  try {
+    fs.mkdirSync(path.dirname(file), { recursive: true });
+  } catch (err) {
+    throw new CredentialError(
+      `write secrets file: cannot create directory for "${file}"`,
+      { code: (err as NodeJS.ErrnoException).code, cause: err },
+    );
+  }
   const tmp = `${file}.tmp`;
-  fs.writeFileSync(tmp, `${JSON.stringify(data, null, 2)}\n`, 'utf8');
-  fs.renameSync(tmp, file);
+  try {
+    fs.writeFileSync(tmp, `${JSON.stringify(data, null, 2)}\n`, 'utf8');
+    fs.renameSync(tmp, file);
+  } catch (err) {
+    throw new CredentialError(
+      `write secrets file failed: "${file}"`,
+      { code: (err as NodeJS.ErrnoException).code, cause: err },
+    );
+  }
 }
 
-/** 读 secrets.json；不存在 → 空结构；损坏 → fail loud。 */
-function readSecretsFile(file: string): SecretsFileShape {
+/**
+ * 读 secrets.json；不存在 → 空结构。
+ *
+ * 损坏时有两种边界策略：
+ *   - recover=false（默认）→ fail loud，抛 CredentialError（延续 034 语义）。
+ *   - recover=true  → 把损坏文件动态改名为 `<file>.corrupted-<epochMs>` 备份（改名留档，
+ *     非删除），记录一次 console.warn，再以空结构继续。适用于"凭据可重建、服务不被
+ *     单个损坏文件打死"的场景，由创建方按成本/合规取向显式开启。
+ */
+function readSecretsFile(file: string, opts: { recover?: boolean } = {}): SecretsFileShape {
   let text: string;
   try {
     text = fs.readFileSync(file, 'utf8');
   } catch (err) {
     const e = err as NodeJS.ErrnoException;
     if (e.code === 'ENOENT') return { version: SECRETS_VERSION, backend: 'plaintext', secrets: [] };
-    throw err;
+    throw new CredentialError(`read secrets file failed: "${file}"`, {
+      code: e.code,
+      cause: err,
+    });
   }
   let raw: unknown;
   try {
     raw = JSON.parse(text);
   } catch (err) {
-    throw new Error(`secrets file corrupted (invalid JSON): ${file}`, { cause: err });
+    if (opts.recover) {
+      return quarantineCorrupted(file, `invalid JSON (${(err as Error).message})`);
+    }
+    throw new CredentialError(`secrets file corrupted (invalid JSON): ${file}`, { cause: err });
   }
   if (
     typeof raw !== 'object' ||
     raw === null ||
     !Array.isArray((raw as { secrets?: unknown }).secrets)
   ) {
-    throw new Error(`secrets file corrupted (expected {version,backend,secrets[]}): ${file}`);
+    const msg = 'expected {version,backend,secrets[]}';
+    if (opts.recover) return quarantineCorrupted(file, msg);
+    throw new CredentialError(`secrets file corrupted (${msg}): ${file}`);
   }
   return raw as SecretsFileShape;
+}
+
+/**
+ * 把损坏的 secrets 文件改名隔离到 `<file>.corrupted-<epochMs>`（动态重命名留档，
+ * 符合回收站纪律——不删除任何内容），返回空结构并 console.warn。
+ */
+function quarantineCorrupted(file: string, why: string): SecretsFileShape {
+  const bak = `${file}.corrupted-${Date.now()}`;
+  try {
+    fs.renameSync(file, bak);
+    // eslint-disable-next-line no-console
+    console.warn(
+      `[credential] secrets 文件损坏（${why}）已隔离备份到 "${bak}"，凭据被重置为空；请核对后重建。`,
+    );
+  } catch (err) {
+    // 备份失败也不静默：仍以空结构继续，但明确告警。
+    // eslint-disable-next-line no-console
+    console.warn(
+      `[credential] secrets 文件损坏（${why}）且备份失败：${(err as Error).message}；以空结构继续，原文件保留。`,
+    );
+  }
+  return { version: SECRETS_VERSION, backend: 'plaintext', secrets: [] };
+}
+
+/** 凭据存储领域错误：携带底层 fs/OS errno（code）供上层分级处理。 */
+export class CredentialError extends Error {
+  readonly code?: string;
+  constructor(message: string, opts: { code?: string; cause?: unknown } = {}) {
+    super(message, opts.cause !== undefined ? { cause: opts.cause } : undefined);
+    this.name = 'CredentialError';
+    this.code = opts.code;
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -141,13 +208,24 @@ export function parseSecretRef(
 export class PlaintextCredentialStore implements CredentialBackend {
   readonly backend = 'plaintext';
   private readonly secretsFile: string;
+  private readonly recoverCorrupted: boolean;
 
   constructor(opts: CredentialStoreOptions = {}) {
     this.secretsFile = opts.secretsFile ?? defaultSecretsFile();
+    this.recoverCorrupted = opts.recoverCorrupted ?? false;
   }
 
   get secretsPath(): string {
     return this.secretsFile;
+  }
+
+  /** 运行时可用性自检：明文后端总是可用（无外部依赖）。 */
+  probe(): BackendProbe {
+    return { backend: this.backend, available: true };
+  }
+
+  private read(): SecretsFileShape {
+    return readSecretsFile(this.secretsFile, { recover: this.recoverCorrupted });
   }
 
   set(service: string, account: string, secret: string): Promise<void> {
@@ -165,7 +243,7 @@ export class PlaintextCredentialStore implements CredentialBackend {
   }
 
   setSync(service: string, account: string, secret: string): void {
-    const file = readSecretsFile(this.secretsFile);
+    const file = this.read();
     file.backend = this.backend;
     file.version = SECRETS_VERSION;
     const existing = file.secrets.find(
@@ -186,13 +264,13 @@ export class PlaintextCredentialStore implements CredentialBackend {
   }
 
   getSync(service: string, account: string): string | null {
-    const file = readSecretsFile(this.secretsFile);
+    const file = this.read();
     const entry = file.secrets.find((s) => s.service === service && s.account === account);
     return entry ? entry.cipher : null;
   }
 
   deleteSync(service: string, account: string): void {
-    const file = readSecretsFile(this.secretsFile);
+    const file = this.read();
     const next = file.secrets.filter((s) => !(s.service === service && s.account === account));
     if (next.length === file.secrets.length) return; // no-op
     file.secrets = next;
@@ -221,6 +299,36 @@ function protectedDataReadyCheck(): boolean {
     return r.length === 0;
   } catch {
     return false;
+  }
+}
+
+/**
+ * DPAPI 后端整段失败（powershell 不可用/EACCES/超时）时抛的领域错误，供上唤醒 fail-over。
+ */
+export interface DpapiFailureInfo {
+  readonly reason: 'not-ready' | 'protect' | 'unprotect';
+  readonly code?: string;
+}
+
+/** 归一 DPAPI 调用失败为带 reason 的 CredentialError，便于 fail-over/诊断（不吞错）。 */
+function dpapiCall(
+  reason: DpapiFailureInfo['reason'],
+  fn: () => string,
+): string {
+  try {
+    return fn();
+  } catch (err) {
+    const e = err as NodeJS.ErrnoException;
+    const msg =
+      reason === 'not-ready'
+        ? 'DPAPI backend not ready'
+        : reason === 'protect'
+          ? 'DPAPI Protect failed'
+          : 'DPAPI Unprotect failed';
+    throw new CredentialError(`[windows-dpapi] ${msg}`, {
+      code: typeof e.code === 'string' ? e.code : 'DPAPI_' + reason,
+      cause: err,
+    });
   }
 }
 
@@ -269,17 +377,48 @@ function dpapiUnprotect(cipherB64: string, entropyB64: string): string {
 export class WindowsDpapiCredentialStore implements CredentialBackend {
   readonly backend = 'windows-dpapi';
   private readonly secretsFile: string;
+  private readonly recoverCorrupted: boolean;
   /** 应用层熵（base64）：随文件持久化，Protect/Unprotect 同值才能解（跨实例稳定）。 */
   private entropyB64: string;
 
   constructor(opts: CredentialStoreOptions & { entropyB64?: string } = {}) {
     this.secretsFile = opts.secretsFile ?? defaultSecretsFile();
+    this.recoverCorrupted = opts.recoverCorrupted ?? false;
     // 注入优先（测试）；否则沿用文件里已持久化的熵，没有则派生新的。
     this.entropyB64 = opts.entropyB64 ?? this.readOrCreateEntropy();
   }
 
   get secretsPath(): string {
     return this.secretsFile;
+  }
+
+  /**
+   * 运行时可用性自检：用当前熵做一次真实 Protect/Unprotect 往返。powershell
+   * 缺失/权限拒绝/DPAPI 失效 → available=false + 原因（不抛，供上层 fail-over）。
+   */
+  probe(): BackendProbe {
+    try {
+      const probePlain = 'vessel-probe';
+      const cipher = dpapiCall('protect', () =>
+        dpapiProtect(Buffer.from(probePlain, 'utf8').toString('base64'), this.entropyB64),
+      );
+      const plainB64 = dpapiCall('unprotect', () => dpapiUnprotect(cipher, this.entropyB64));
+      if (Buffer.from(plainB64, 'base64').toString('utf8') !== probePlain) {
+        return { backend: this.backend, available: false, reason: 'DPAPI round-trip mismatch' };
+      }
+      return { backend: this.backend, available: true };
+    } catch (err) {
+      const e = err as CredentialError;
+      return {
+        backend: this.backend,
+        available: false,
+        reason: e.code === 'EPERM' || e.code === 'EACCES' ? 'permission denied' : e.message,
+      };
+    }
+  }
+
+  private read(): SecretsFileShape {
+    return readSecretsFile(this.secretsFile, { recover: this.recoverCorrupted });
   }
 
   set(service: string, account: string, secret: string): Promise<void> {
@@ -304,13 +443,13 @@ export class WindowsDpapiCredentialStore implements CredentialBackend {
   }
 
   setSync(service: string, account: string, secret: string): void {
-    const file = readSecretsFile(this.secretsFile);
+    const file = this.read();
     file.backend = this.backend;
     file.version = SECRETS_VERSION;
     if (!file.entropy) file.entropy = this.entropyB64;
     else this.entropyB64 = file.entropy;
     const plainB64 = Buffer.from(secret, 'utf8').toString('base64');
-    const cipher = dpapiProtect(plainB64, this.entropyB64);
+    const cipher = dpapiCall('protect', () => dpapiProtect(plainB64, this.entropyB64));
     const existing = file.secrets.find((s) => s.service === service && s.account === account);
     if (existing) {
       existing.cipher = cipher;
@@ -322,7 +461,7 @@ export class WindowsDpapiCredentialStore implements CredentialBackend {
   }
 
   getSync(service: string, account: string): string | null {
-    const file = readSecretsFile(this.secretsFile);
+    const file = this.read();
     if (file.backend !== this.backend || !file.entropy) {
       // backend 标签不符 / 无熵 → 视作不可解，返回 null，别错解。
       return null;
@@ -339,7 +478,7 @@ export class WindowsDpapiCredentialStore implements CredentialBackend {
   }
 
   deleteSync(service: string, account: string): void {
-    const file = readSecretsFile(this.secretsFile);
+    const file = this.read();
     const next = file.secrets.filter((s) => !(s.service === service && s.account === account));
     if (next.length === file.secrets.length) return;
     file.secrets = next;
@@ -351,42 +490,172 @@ export class WindowsDpapiCredentialStore implements CredentialBackend {
 // 工厂
 // ---------------------------------------------------------------------------
 
+/** 一次后端可用性探测的结果。 */
+export interface BackendProbe {
+  readonly backend: string;
+  /** 是否可用（可被选中）。 */
+  readonly available: boolean;
+  /** 不可用时的具体原因（平台不符/依赖缺失/权限等），用于 warn 与诊断。 */
+  readonly reason?: string;
+}
+
+/** 候选 OS 凭据后端（按优先级序）。 069 首期只装 Windows DPAPI；macOS/Linux 为文档化占位。 */
+export type CandidateOsBackend = 'windows-dpapi' | 'macos-keychain' | 'linux-libsecret';
+
+export interface ProbeBackendsOptions {
+  isWindows?: boolean;
+  isDpapiAvailable?: boolean;
+  /** 真实探测某项依赖是否就绪（linux/macos 在无 OS 工具链时置 false + reason）。 */
+  probeCommand?: (cmd: string) => boolean;
+  // eslint-disable-next-line @typescript-eslint/naming-convention
+  engine?: typeof process;
+}
+
+/**
+ * 探测各 OS 凭据后端可用性。注入项优先（测试），否则按当前平台真实探测：
+ *   - windows-dpapi：platform==='win32' 且 PowerShell/ProtectedData 就绪
+ *   - macos-keychain：platform==='darwin' 且 security 工具可用
+ *   - linux-libsecret：platform==='linux' 且 secret-tool 可用
+ * 不可测平台/缺依赖 → available=false + 明确 reason（供 fail-over 与文档化降级）。
+ */
+export function probeBackends(
+  opts: ProbeBackendsOptions = {},
+): BackendProbe[] {
+  const platform = (opts.engine ?? process).platform;
+  const probeCommand =
+    opts.probeCommand ??
+    ((cmd: string): boolean => {
+      try {
+        execFileSync(cmd, ['--help'], { stdio: 'ignore', windowsHide: true, timeout: 5_000 });
+        return true;
+      } catch {
+        return false;
+      }
+    });
+
+  const win = opts.isWindows ?? platform === 'win32';
+  const winProbe: BackendProbe =
+    win === false
+      ? { backend: 'windows-dpapi', available: false, reason: 'not Windows platform' }
+      : (opts.isDpapiAvailable ?? protectedDataReadyCheck())
+        ? { backend: 'windows-dpapi', available: true }
+        : {
+            backend: 'windows-dpapi',
+            available: false,
+            reason: 'PowerShell/ProtectedData unavailable',
+          };
+
+  const macProbe: BackendProbe =
+    platform === 'darwin'
+      ? probeCommand('security')
+        ? { backend: 'macos-keychain', available: true }
+        : { backend: 'macos-keychain', available: false, reason: 'security tool unavailable' }
+      : { backend: 'macos-keychain', available: false, reason: `platform is ${platform}` };
+
+  const linuxProbe: BackendProbe =
+    platform === 'linux'
+      ? probeCommand('secret-tool')
+        ? { backend: 'linux-libsecret', available: true }
+        : {
+            backend: 'linux-libsecret',
+            available: false,
+            reason: 'secret-tool (libsecret) unavailable',
+          }
+      : { backend: 'linux-libsecret', available: false, reason: `platform is ${platform}` };
+
+  return [winProbe, macProbe, linuxProbe];
+}
+
+/** 后端实例的构造签名——让选择层与实现解耦，便于按 probe 结果实例化。 */
+export type BackendCtor = (opts?: CredentialStoreOptions) => CredentialBackend;
+
+const REGISTERED_BACKENDS: Record<CandidateOsBackend, BackendCtor | undefined> = {
+  'windows-dpapi': (o) => new WindowsDpapiCredentialStore(o),
+  'macos-keychain': undefined,
+  'linux-libsecret': undefined,
+};
+
 export interface CreateCredentialStoreOptions {
   secretsFile?: string;
   /** 覆盖平台探测（测试注入）；默认 process.platform === 'win32'。 */
   isWindows?: boolean;
   /** 覆盖 PowerShell/DPAPI 可用性探测（测试注入）；默认自动探测。 */
   isDpapiAvailable?: boolean;
+  /** 覆盖后端探测集（测试注入）；默认 probeBackends()。 */
+  probes?: BackendProbe[];
   /** 降级/选择提示打印器（测试注入静默 spy）；默认 console.warn。 */
   onWarn?: (msg: string) => void;
+  /** 损坏隔离恢复：存储文件损坏时改名备份并以空结构继续（默认 false = fail loud）。 */
+  recoverCorrupted?: boolean;
+}
+
+export interface BackendSelection {
+  backend: string;
+  /** 选择的这一层。 */
+  kind: 'os' | 'plaintext-fallback';
+  /** 降级链路：当前未选中但探测到不可用/被跳过的候选及原因（用于清晰 warn）。 */
+  skipped: BackendProbe[];
 }
 
 /**
- * 默认选择逻辑：
- *   Windows + DPAPI 可用 → WindowsDpapiCredentialStore（secrets 加密）；
- *   否则 → PlaintextCredentialStore（显式 console.warn，不静默）。
+ * 选择可用后端（显式 fail-over）：
+ *   优先取探测 available 的最高优先级 OS 后端；若无任何 OS 后端可用 → plaintext
+ *   降级路径。每层跳过原因都收集进 skipped，供上层打印清晰 warn（不静默）。
+ */
+export function selectBackend(
+  opts: { probes?: BackendProbe[]; isWindows?: boolean } = {},
+): BackendSelection {
+  const probes = opts.probes ?? probeBackends({ isWindows: opts.isWindows });
+  const available = probes.filter((p) => p.available);
+  const skipped = probes.filter((p) => !p.available);
+  if (available.length > 0) {
+    const first = available.reduce((a, b) => (priorityOf(a.backend) < priorityOf(b.backend) ? a : b));
+    return { backend: first.backend, kind: 'os', skipped };
+  }
+  return { backend: 'plaintext', kind: 'plaintext-fallback', skipped };
+}
+
+/** OS 后端期望优先级（数字越小越优先）。非 OS 标签永远排最后。 */
+function priorityOf(backend: string): number {
+  const order: string[] = ['windows-dpapi', 'macos-keychain', 'linux-libsecret', 'plaintext'];
+  const i = order.indexOf(backend);
+  return i === -1 ? order.length + 1 : i;
+}
+
+/**
+ * 默认选择逻辑（fail-over，不静默）：
+ *   probe 各 OS 后端 → 首个可用者选中；全不可用 → Plaintext 显式降级 + 逐条 warn
+ *   已跳过原因。macOS/Linux 有适配层注册但本机无工具链时，会把探测到的 reason
+ *   打进降级说明，供用户在文档对照平台启用。
  */
 export function createCredentialStore(
   opts: CreateCredentialStoreOptions = {},
 ): CredentialBackend {
-  const isWindows = opts.isWindows ?? process.platform === 'win32';
   const warn = opts.onWarn ?? ((m: string) => console.warn(m));
   const platform = process.platform;
+  const probes =
+    opts.probes ??
+    probeBackends({ isWindows: opts.isWindows, isDpapiAvailable: opts.isDpapiAvailable });
+  const selection = selectBackend({ probes });
+  const storeOptions: CredentialStoreOptions = {
+    secretsFile: opts.secretsFile,
+    recoverCorrupted: opts.recoverCorrupted,
+  };
 
-  if (isWindows) {
-    const dpapiOk = opts.isDpapiAvailable ?? protectedDataReadyCheck();
-    if (dpapiOk) {
-      return new WindowsDpapiCredentialStore({ secretsFile: opts.secretsFile });
-    }
+  if (selection.kind === 'os') {
+    const osCtor = REGISTERED_BACKENDS[selection.backend as CandidateOsBackend];
+    if (osCtor) return osCtor(storeOptions);
+    // 有文档化适配层但本部署未实现（安全失败）：告警后降级 plaintext。
     warn(
-      `[credential] Windows 平台但 PowerShell/DPAPI 不可用（platform=${platform}），` +
-        '降级为 plaintext 明文后端，secret 未加密落盘 secrets.json。',
+      `[credential] 探测到 OS 凭据后端 "${selection.backend}" 可用但本构建未注册实现，` +
+        '降级为 plaintext 明文后端。',
     );
   } else {
+    const reasons = selection.skipped.map((p) => `${p.backend}(${p.reason ?? 'reason unknown'})`);
     warn(
-      `[credential] 当前非 Windows 平台（platform=${platform}），无 DPAPI —— ` +
-        '使用 plaintext 明文后端，secret 未加密落盘 secrets.json，建议 OS 凭据管理器。',
+      `[credential] 当前平台（${platform}）无可用 OS 凭据后端[${reasons.join('; ')}]，` +
+        '降级为 plaintext 明文后端，secret 未加密落盘 secrets.json，建议启用 OS 凭据管理器。',
     );
   }
-  return new PlaintextCredentialStore({ secretsFile: opts.secretsFile });
+  return new PlaintextCredentialStore(storeOptions);
 }

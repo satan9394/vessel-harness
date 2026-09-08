@@ -47,8 +47,23 @@ TUI 内斜杠命令：`/provider`（配置供应商）、`/models`（当前供�
 - 目录沿用项目 ~/.vessel 约定（memory/skills 同款）。
 - 原子写：先写 `.tmp` 再 rename，防半写损坏。
 - **apiKey 经 CredentialStore 管理（`packages/application/src/credential/`）**：
-  - Windows + PowerShell/DPAPI 可用 → `WindowsDpapiCredentialStore`（密钥加密落盘 secrets.json，providers.json 只存 secretRef）。
-  - 其它/不可用 → `PlaintextCredentialStore` 显式降级（明文 + console.warn，不静默）。
+  - 后端选择（069 起显式 probe + fail-over，不静默）：`probeBackends()` 探测各 OS 凭据后端可用性 →
+    `selectBackend()` 按优先级取首个可用 OS 后端；全部不可用才降级 plaintext，并把每个被跳过
+    后端的 reason（平台不符/工具链缺失）随 warn 一并输出，供用户对照平台矩阵排查。
+  - 平台支持矩阵（069）：
+    | 平台 | 首选后端 | 探测条件 | 本机可测 |
+    |---|---|---|---|
+    | Windows | `windows-dpapi`（ProtectedData，绑定当前用户） | platform=win32 且 PowerShell/ProtectedData 就绪 | ✅（DPAPI 真实现 + 往返自检 `probe()`） |
+    | macOS | `macos-keychain`（适配层占位，未注册实现） | platform=darwin 且 `security` 可用 | ❌（本机不可测；探测/选择逻辑已实现并测试） |
+    | Linux | `linux-libsecret`（适配层占位，未注册实现） | platform=linux 且 `secret-tool`(libsecret) 可用 | ❌（同上） |
+    | 全部不可用 | `plaintext` 显式降级 | — | ✅（写时 console.warn 不静默） |
+  - 降级路径：OS 后端全部不可用 → `PlaintextCredentialStore`（明文 + 每次写入 console.warn）。
+    降级后 secret 未加密落盘 secrets.json，泄露风险等同旧版明文存储——不要把 `~/.vessel`
+    同步到不受信的地方。
+  - 错误边界（069）：损坏文件默认 fail loud（`CredentialError`，延续 034 语义）；显式
+    `recoverCorrupted: true` 时损坏文件改名隔离为 `secrets.json.corrupted-<ts>` 备份并以空结构
+    继续（改名留档非删除）；IO/权限失败统一抛带 errno `code` 的 `CredentialError`；运行时
+    可用性可用 `store.probe()` 自检（DPAPI 做真实 Protect/Unprotect 往返）。
   - 读取时 ProviderStore 自动把 secretRef 解析回 apiKey（`get(id).apiKey` 无感可用）。
   - 旧 providers.json 含明文 apiKey → 加载时自动迁入 store 并改写为 secretRef（原子写；幂等）。
   - 仍别把 `~/.vessel` 同步到不受信的地方——非 Windows 降级明文时泄露风险等同旧版。
