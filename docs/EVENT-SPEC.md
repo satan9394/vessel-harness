@@ -193,6 +193,26 @@ seq        : number        # 会话内事件序号（不变式校验用）
 - **消费方示例**：取消令牌广播、在飞 shell 进程组终止、部分文本保留与「未完成」标记注入、审计 `audit/safety`（人为介入留痕）。
 - **关联机制/镜像**：`Interrupt`（Codex 12 事件之一）；记录：`turn/end`、`tool/result`。
 
+> **实现注记（050，InterruptController 落地）**：turn 级中断不新增事件词汇——沿用既有 flat
+> 事件与持久记录表达（packages/core/src/agent-loop/InterruptController.ts）：
+> - 每个 active turn 持有一个 AbortController 作用域（AgentLoop 内 InterruptController：
+>   turn 开始 `begin()`、外部 `interrupt()` 触发 abort、turn 收尾 `end()` 清理并释放信号；
+>   可查询 `active/aborted`）。外部表面（CLI 首次 Ctrl+C、`POST /api/sessions/:id/interrupt`、
+>   web Stop）统一走 `loop.interrupt()`。
+> - **采样中断**：在飞 stream 以既有 attempt 级收尾 `model_stream_end {finishReason:'error'}`
+>   关闭（flat 词汇无 interrupted finishReason，与失败 attempt 同一种 attempt 配对表达）；
+>   重试包装不再重试（abort 优先于 retry）；轮次以 `turn/end {kind:'interrupted'}` 落盘，
+>   `turn/start → turn/end` 配对不变式保持。
+> - **在飞工具**：能传则传——`ChatRequest.signal`（provider fetch 即时 abort）、
+>   `ToolExecutionContext.signal` → shell 子进程（runCommand signal → kill）、MCP call
+>   （信号 race）、subagent 委托（父 abort → 子 loop interrupt → 子 turn kind=interrupted）；
+>   不能传的边界检查中断并停止（AgentLoop 在 step 边界 / 每 chunk / 工具 await 处检查）。
+>   被中断的在飞工具以 `tool/result {error:{…'interrupted'}, meta:{interrupted:true}}` 显式关闭
+>   （`tool/call → tool/result` 配对保持）。
+> - **UI/CLI**：Ctrl+C 第一次 = interrupt 当前 turn，第二次 = exit（readline 层两段式状态机）；
+>   `POST /api/sessions/:id/interrupt`（040 框架已留缝）与 web Stop 按钮同一 interrupt 缝。
+>   部分文本保留 / resume UI 属 053，steering 属 051，均不在 050 范围内。
+
 #### A06 AfterTurn（草案）
 - **触发时机**：`turn/end` 已落盘、驱动器把控制权交还宿主时；每轮恰好一次。
 - **载荷字段**：`turnId`；`kind:'success'|'error'|'interrupted'|'budget'`（对照 DSH `turn/end {kind}` 与 H01 词汇，行 84）；`stats:{steps, toolCalls, tokensUsed?, durationMs, costEstimate?}`；`lastAssistantMsgSeq?`。
