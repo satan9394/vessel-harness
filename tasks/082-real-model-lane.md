@@ -1,6 +1,6 @@
 # 082 — Real-Model Benchmark Lane（真实模型回归跑道）
 
-- 状态：待验收
+- 状态：已合入
 - 优先级：P0（Wave 5 / Milestone G）
 - 创建日期：2026-09-08
 - 关联：076-081（adapters 与契约）；L1 B001-B023 + 075 safety（场景资产）；084（release gates 会跑此 lane）
@@ -92,5 +92,10 @@ Real-Model Benchmark Lane：固定真实模型（DeepSeek V4 Pro/Flash，可注�
 
 ## 验收结论（指挥回填）
 
-- [ ] 合入 / 打回
-- 备注：
+- [x] 合入（commit 54ba52e）
+- 备注：指挥独立复核——全量 vitest 809 passed（唯一失败为已知并发 flaky：sandbox process-tree/usage-store
+  隔离单跑 28+1 skipped 全绿，非本卡回归）+ 1 skipped、tsc -b 0 错误、lane 11 例全绿。
+  认可：runRealModelLane 固定 DeepSeek V4 Pro/Flash（可注入）+ 21 场景集（B001-B005 + S001-S008 可跑，
+  B016-B023 feature-lane 枚举 skipped 不烧配额）+ 复用 076 RunResult/validate + probeModelApi 无凭据
+  pending-environment 降级不 throw + 报告 .md+.json。streaming/interrupt/steering 无资产已文档标注待补。
+  下一张：083（report/dashboard）。
