@@ -90,7 +90,7 @@ export class ContextBuilder {
     // stable layer — assembled once per session, reused across turns (prefix cache)
     if (!this.stableLayer) {
       const stable = [
-        '你是 Composable Agent Harness V0.1 的编码代理。',
+        '你是 Vessel 系统中的一个 Agent（Composable Agent Harness 核心）。',
         ...this.deps.stableSections(),
         ...this.deps.policyGuidance(),
       ].join('\n\n');

@@ -35,7 +35,7 @@ describe('CLI (apps/cli)', () => {
     const code = await main(['--version']);
     restore();
     expect(code).toBe(0);
-    expect(logs[0]).toContain('cah v0.1.0');
+    expect(logs[0]).toContain('Vessel CLI v0.1.0');
   });
 
   it('run with mock provider completes read → tool → answer (acceptance 2 smoke)', async () => {

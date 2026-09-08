@@ -9,20 +9,20 @@ import { fetchOpenAIModels, modelsForProtocol } from './providers/modelFetcher.j
 import { createClackIO, runSetupWizard } from './providers/setup.js';
 import { runChat } from './tui/chat.js';
 
-const USAGE = `Composable Agent Harness CLI (V0.1)
+const USAGE = `Vessel CLI v${VERSION} — 可组合 Agent Harness（原名 Composable Agent Harness · cah；命令别名 cah 仍可用）
 
 用法:
-  cah --help                      显示本帮助
-  cah --version                   显示版本
-  cah run [选项]                  单发模式：跑一轮用户输入
-  cah run --bench <scenarioId>    基准模式：运行 benchmarks/ 场景并产出 JSONL 报告
-  cah models [--provider p]       列出某供应商可用模型（OpenAI 兼容实时拉取 / Anthropic 内置清单）
-  cah setup                       交互向导：搜索选供应商 → 输 key → 拉模型 → 空格勾选 → 提交
-  cah provider list               列出所有供应商（* = 当前默认）
-  cah provider current            显示当前默认供应商
-  cah provider add <id> --protocol <p> --model <m> [--base-url] [--api-key]   添加供应商
-  cah provider remove <id>        删除供应商
-  cah provider switch|use <id>    切换当前默认供应商
+  vessel --help                      显示本帮助
+  vessel --version                   显示版本
+  vessel run [选项]                  单发模式：跑一轮用户输入
+  vessel run --bench <scenarioId>    基准模式：运行 benchmarks/ 场景并产出 JSONL 报告
+  vessel models [--provider p]       列出某供应商可用模型（OpenAI 兼容实时拉取 / Anthropic 内置清单）
+  vessel setup                       交互向导：搜索选供应商 → 输 key → 拉模型 → 空格勾选 → 提交
+  vessel provider list               列出所有供应商（* = 当前默认）
+  vessel provider current            显示当前默认供应商
+  vessel provider add <id> --protocol <p> --model <m> [--base-url] [--api-key]   添加供应商
+  vessel provider remove <id>        删除供应商
+  vessel provider switch|use <id>    切换当前默认供应商
 
 run 选项:
   --prompt <text>                 用户输入（缺省从 stdin 读取）
@@ -109,7 +109,7 @@ async function cmdRun(flags: Map<string, string>): Promise<number> {
   let provider;
   if (providerName === 'openai-compatible' || providerName === 'anthropic') {
     if (!baseUrl) {
-      console.error(`[cah] ${providerName} 需要 --base-url 或 CAH_BASE_URL（或先 cah provider add 配置）`);
+      console.error(`[vessel] ${providerName} 需要 --base-url 或 CAH_BASE_URL（或先 vessel provider add 配置）`);
       return 2;
     }
     provider = createProvider(providerName, { baseUrl, apiKey, model });
@@ -153,7 +153,7 @@ async function cmdRun(flags: Map<string, string>): Promise<number> {
     console.log(`会话日志: ${harness.session.logPath}`);
     return 0;
   } catch (err) {
-    console.error(`[cah] run failed: ${(err as Error).message}`);
+    console.error(`[vessel] run failed: ${(err as Error).message}`);
     return 1;
   } finally {
     await harness.close();
@@ -163,7 +163,7 @@ async function cmdRun(flags: Map<string, string>): Promise<number> {
 async function cmdBench(flags: Map<string, string>): Promise<number> {
   const scenarioId = flags.get('bench');
   if (!scenarioId) {
-    console.error('[cah] run --bench 需要 scenarioId（如 B001）');
+    console.error('[vessel] run --bench 需要 scenarioId（如 B001）');
     return 2;
   }
   const { runScenario } = await import('@cah/bench-runners');
@@ -197,13 +197,13 @@ async function cmdBench(flags: Map<string, string>): Promise<number> {
   return report.success ? 0 : 1;
 }
 
-/** `cah models [--provider p]` — list a provider's available models. */
+/** `vessel models [--provider p]` — list a provider's available models. */
 async function cmdModels(flags: Map<string, string>): Promise<number> {
   const store = new ProviderStore();
   const id = flags.get('provider') ?? store.getCurrent();
   const cfg = store.get(id);
   if (!cfg) {
-    console.error(`[cah] provider "${id}" 不存在（cah provider list 查看；cah provider add 添加）`);
+    console.error(`[vessel] provider "${id}" 不存在（vessel provider list 查看；vessel provider add 添加）`);
     return 2;
   }
   if (cfg.protocol === 'mock') {
@@ -217,7 +217,7 @@ async function cmdModels(flags: Map<string, string>): Promise<number> {
       for (const m of src.models) console.log(`  ${m}`);
       return 0;
     } catch (err) {
-      console.error(`[cah] ${(err as Error).message}`);
+      console.error(`[vessel] ${(err as Error).message}`);
       console.error('提示：可先用内置清单，或确认 base-url/api-key 正确。');
       return 1;
     }
@@ -229,7 +229,7 @@ async function cmdModels(flags: Map<string, string>): Promise<number> {
   return 0;
 }
 
-/** `cah provider <list|add|remove|switch|use|current> [...]` — manage providers. */
+/** `vessel provider <list|add|remove|switch|use|current> [...]` — manage providers. */
 async function cmdProvider(args: string[], flags: Map<string, string>): Promise<number> {
   const store = new ProviderStore();
   const sub = args[0] ?? 'list';
@@ -250,7 +250,7 @@ async function cmdProvider(args: string[], flags: Map<string, string>): Promise<
     case 'add': {
       const id = args[1];
       if (!id) {
-        console.error('用法: cah provider add <id> --protocol <mock|openai-compatible|anthropic> [--base-url <url>] [--api-key <key>] --model <model> [--name <显示名>]');
+        console.error('用法: vessel provider add <id> --protocol <mock|openai-compatible|anthropic> [--base-url <url>] [--api-key <key>] --model <model> [--name <显示名>]');
         return 2;
       }
       const protocol = flags.get('protocol') as ProviderConfig['protocol'] | undefined;
@@ -265,7 +265,7 @@ async function cmdProvider(args: string[], flags: Map<string, string>): Promise<
         note: flags.get('note'),
       };
       if ((cfg.protocol === 'openai-compatible' || cfg.protocol === 'anthropic') && !cfg.baseUrl) {
-        console.error(`[cah] ${cfg.protocol} 需要 --base-url`);
+        console.error(`[vessel] ${cfg.protocol} 需要 --base-url`);
         return 2;
       }
       try {
@@ -273,14 +273,14 @@ async function cmdProvider(args: string[], flags: Map<string, string>): Promise<
         console.log(`已添加 provider "${id}"（protocol=${cfg.protocol}, model=${cfg.model}）`);
         return 0;
       } catch (err) {
-        console.error(`[cah] ${(err as Error).message}`);
+        console.error(`[vessel] ${(err as Error).message}`);
         return 1;
       }
     }
     case 'remove': {
       const id = args[1];
       if (!id) {
-        console.error('用法: cah provider remove <id>');
+        console.error('用法: vessel provider remove <id>');
         return 2;
       }
       try {
@@ -288,7 +288,7 @@ async function cmdProvider(args: string[], flags: Map<string, string>): Promise<
         console.log(`已移除 provider "${id}"`);
         return 0;
       } catch (err) {
-        console.error(`[cah] ${(err as Error).message}`);
+        console.error(`[vessel] ${(err as Error).message}`);
         return 1;
       }
     }
@@ -296,7 +296,7 @@ async function cmdProvider(args: string[], flags: Map<string, string>): Promise<
     case 'use': {
       const id = args[1];
       if (!id) {
-        console.error(`用法: cah provider ${sub} <id>`);
+        console.error(`用法: vessel provider ${sub} <id>`);
         return 2;
       }
       try {
@@ -304,28 +304,28 @@ async function cmdProvider(args: string[], flags: Map<string, string>): Promise<
         console.log(`已切换到 provider "${id}"`);
         return 0;
       } catch (err) {
-        console.error(`[cah] ${(err as Error).message}`);
+        console.error(`[vessel] ${(err as Error).message}`);
         return 1;
       }
     }
     default: {
-      console.error(`[cah] 未知 provider 子命令 "${sub}"（可用: list/add/remove/switch/use/current）`);
+      console.error(`[vessel] 未知 provider 子命令 "${sub}"（可用: list/add/remove/switch/use/current）`);
       return 2;
     }
   }
 }
 
-/** `cah setup` — interactive guided provider wizard (cc-switch-style UX). */
+/** `vessel setup` — interactive guided provider wizard (cc-switch-style UX). */
 async function cmdSetup(_flags: Map<string, string>): Promise<number> {
   if (!process.stdin.isTTY) {
-    console.log('cah setup 需要交互终端。非交互环境请用：cah provider add <id> --protocol <p> --base-url <url> --api-key <key> --model <model>');
+    console.log('vessel setup 需要交互终端。非交互环境请用：vessel provider add <id> --protocol <p> --base-url <url> --api-key <key> --model <model>');
     return 2;
   }
   const store = new ProviderStore();
   const io = createClackIO(store);
   const id = await runSetupWizard({ store, io });
   if (id) {
-    console.log(`\n✔ 已保存供应商 "${id}"。用 cah run 开始（或 cah provider switch 切换）。`);
+    console.log(`\n✔ 已保存供应商 "${id}"。用 vessel run 开始（或 vessel provider switch 切换）。`);
     return 0;
   }
   console.log('已取消，未做任何修改。');
@@ -334,12 +334,12 @@ async function cmdSetup(_flags: Map<string, string>): Promise<number> {
 
 export async function main(argv: string[] = process.argv.slice(2)): Promise<number> {
   const parsed = parseArgs(argv);
-  // subcommand forms: `cah provider <sub>`, `cah models`
+  // subcommand forms: `vessel provider <sub>`, `vessel models`
   const first = parsed.positionals[0];
   if (first === 'provider') return cmdProvider(parsed.positionals.slice(1), parsed.flags);
   if (first === 'models') return cmdModels(parsed.flags);
   if (first === 'setup') return cmdSetup(parsed.flags);
-  // bare `cah` (no subcommand): interactive TUI in a TTY; guide otherwise.
+  // bare `vessel` (no subcommand): interactive TUI in a TTY; guide otherwise.
   if (first === undefined && parsed.command === 'run' && !parsed.flags.has('bench')) {
     if (!parsed.flags.has('prompt') && process.stdin.isTTY) {
       const root = repoRoot();
@@ -351,7 +351,7 @@ export async function main(argv: string[] = process.argv.slice(2)): Promise<numb
       });
     }
     if (!parsed.flags.has('prompt')) {
-      console.log('[cah] 交互模式需要终端。一次性任务请用：cah run --prompt "..."；配置供应商用 cah setup。');
+      console.log('[vessel] 交互模式需要终端。一次性任务请用：vessel run --prompt "..."；配置供应商用 vessel setup。');
       return 2;
     }
   }
@@ -360,13 +360,13 @@ export async function main(argv: string[] = process.argv.slice(2)): Promise<numb
       console.log(USAGE);
       return 0;
     case 'version':
-      console.log(`cah v${VERSION}`);
+      console.log(`Vessel CLI v${VERSION}`);
       return 0;
     case 'run':
       if (parsed.flags.has('bench')) return cmdBench(parsed.flags);
       return cmdRun(parsed.flags);
   }
-  // bare `cah models` (no positionals parsed as command) — treat as run
+  // bare `vessel models` (no positionals parsed as command) — treat as run
   return cmdRun(parsed.flags);
 }
 

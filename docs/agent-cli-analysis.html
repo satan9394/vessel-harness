@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>cah · Composable Agent Harness — 设计来源可视化</title>
+<title>Vessel — 设计来源可视化（原名 cah · Composable Agent Harness）</title>
 <style>
   :root {
     --bg:#0d1117; --panel:#161b22; --panel2:#1c2333; --border:#30363d;
@@ -63,7 +63,7 @@
 <body>
 <div class="wrap">
 <header>
-  <h1>cah · Composable Agent Harness<span class="badge">设计来源可视化 · 2026-09</span></h1>
+  <h1>Vessel<span class="badge">设计来源可视化 · 原名 cah · 2026-09 更名 Vessel</span></h1>
   <div class="sub">参考了哪些 Agent 的优点 · 对应哪些 Agent 的哲学 · 真实系统提示词 · 分析依据：<code>docs/ideas/AGENT-CLI-ANALYSIS.md</code></div>
   <div class="tagline"><b>一句话定位：</b>以 <b>DSH 事件溯源薄核</b>为骨架、<b>Pi 极简工具</b>与 <b>Hermes 缓存纪律</b>为约束、<b>Claude Code 行为语义与验证外部化</b> + <b>Codex 三档/沙箱</b>为安全基准、<b>opencode / cc-switch 第三方优先引导</b>为产品面——最终把一切行为收敛为 <b>Behavior IR + Compiler + Policy Runtime + Conformance Suite</b> 的自研编码代理。它的 system 提示词不是人设，而是从行为 IR 编译出的可验证产物。</div>
 </header>
@@ -123,14 +123,14 @@
 
   <h3>产品 UX 层（向导 / 模型 / TUI / 权限档位）</h3>
   <table><tr><th>借鉴对象</th><th>借鉴的机制</th><th>落地位置</th></tr>
-  <tr><td class="who"><span class="src">opencode</span></td><td>/connect（接供应商）与 /models（选模型）两命令解耦、分组+“怎么登”备注</td><td class="where">cah setup 向导</td></tr>
+  <tr><td class="who"><span class="src">opencode</span></td><td>/connect（接供应商）与 /models（选模型）两命令解耦、分组+“怎么登”备注</td><td class="where">vessel setup 向导</td></tr>
   <tr><td class="who"><span class="src">opencode</span></td><td>模型目录来自 Models.dev 预置 + /v1/models 实时拉取</td><td class="where">presets.data.ts (52)</td></tr>
   <tr><td class="who"><span class="src">cc-switch</span></td><td>Fetch Models 按钮语义 + 错误分类降级（401 查 key / 404 手填）</td><td class="where">modelFetcher.ts</td></tr>
   <tr><td class="who"><span class="src">cc-switch</span></td><td>供应商 category 分类，不照抄分销长尾</td><td class="where">020 category 体系</td></tr>
   <tr><td class="who"><span class="src">Claude Code</span></td><td>/model 双语义 Enter=持久 / s=仅会话；作用域明示</td><td class="where">021 /model 接口位</td></tr>
   <tr><td class="who"><span class="src">Pi</span></td><td>30+ 第三方预置、/login 统一认证、凭证解析优先级成文</td><td class="where">setup 向导</td></tr>
-  <tr><td class="who"><span class="src">opencode</span></td><td><b>无参 opencode = 直接进 TUI</b>（回放区+底部输入）</td><td class="where">cah 无参进 chat (021)</td></tr>
-  <tr><td class="who"><span class="src">Codex</span></td><td>权限三档命名 → cah --permission / TUI /permission</td><td class="where">022</td></tr>
+  <tr><td class="who"><span class="src">opencode</span></td><td><b>无参 opencode = 直接进 TUI</b>（回放区+底部输入）</td><td class="where">vessel 无参进 chat (021)</td></tr>
+  <tr><td class="who"><span class="src">Codex</span></td><td>权限三档命名 → vessel --permission / TUI /permission</td><td class="where">022</td></tr>
   </table>
 </section>
 
@@ -151,7 +151,7 @@
   </div>
 
   <h3>一句话层叠定位</h3>
-  <div class="tagline"><b>cah</b> = <b>DSH 事件溯源薄核</b> + <b>Claude Code 行为语义/分层哲学</b> + <b>Pi 极简内核工具纪律</b> + <b>Hermes 缓存纪律与文件式记忆</b> + <b>Codex 三档/沙箱工程语义</b> + <b>Claw mock-parity 验证方法论</b> + <b>opencode / cc-switch 第三方优先产品体验</b> —— 全部经 <b>Behavior IR + Compiler + Policy Runtime</b> 这条自研管线重新表达。</div>
+  <div class="tagline"><b>Vessel（原 cah）</b> = <b>DSH 事件溯源薄核</b> + <b>Claude Code 行为语义/分层哲学</b> + <b>Pi 极简内核工具纪律</b> + <b>Hermes 缓存纪律与文件式记忆</b> + <b>Codex 三档/沙箱工程语义</b> + <b>Claw mock-parity 验证方法论</b> + <b>opencode / cc-switch 第三方优先产品体验</b> —— 全部经 <b>Behavior IR + Compiler + Policy Runtime</b> 这条自研管线重新表达。</div>
 </section>
 
 <!-- ============ Q3 ============ -->
@@ -160,13 +160,20 @@
   <p class="pdesc">组装链路：<code>compose.ts</code> → <code>ContextBuilder.assemble()</code>：stable = 固定句 + behavior 编译段 + policy guidance，join('\n\n') 成唯一一条 role:'system'，每会话缓存一次。AGENTS.md/记忆/技能<b>都不进 system</b>（以 user 消息注入）。</p>
 
   <h3>3.2 固定句（Builder.ts L93）</h3>
-  <pre class="prompt">你是 Composable Agent Harness V0.1 的编码代理。</pre>
+  <pre class="prompt">你是 Vessel 系统中的一个 Agent（Composable Agent Harness 核心）。</pre>
 
-  <h3>3.3 Behavior 编译段（4 条 IR render）</h3>
+  <h3>3.3 Behavior 编译段（10 条 IR render：既有 4 条 + Vessel Constitution 6 条）</h3>
   <pre>纯文本回复即停止；不要在无需工具时强行调用工具。                      <span class="c"># loop.turn_ends_without_tool_call (prompt_guidance)</span>
 不要改写受保护路径（.git/.env/.ssh 等）；该约束由策略引擎硬执法。      <span class="c"># safety.protected_paths (runtime_policy→filesystem.protected)</span>
 删除/格式化等破坏性命令会被策略引擎拦截；先说明原因与范围。            <span class="c"># safety.dangerous_shell (runtime_policy→shell.deny)</span>
 以检查结果（测试/命令输出）作为完成依据，不自证完成。                  <span class="c"># verification.independent_evaluator (prompt_guidance)</span></pre>
+  <p class="pdesc">Vessel Constitution 六条（任务 024 新增，channel=prompt_guidance，经同一 Compiler 进 stable system——哲学以行为 IR 存在）：</p>
+  <pre>模型/工具/Agent 都可被替换——输出结构化、可交接、不制造对当前模型/会话的隐性依赖。            <span class="c"># vessel.replaceable (prompt_guidance)</span>
+以最低必要复杂度完成任务：够用即止，不堆多余 Agent/工具/步骤；新增能力先证其必要。                <span class="c"># vessel.minimal_complexity (prompt_guidance)</span>
+模型负责聪明、系统负责可靠——动手前先定：调谁、给什么上下文、允许做什么、如何验证、何时停、出错怎么办。  <span class="c"># vessel.harness_carries (prompt_guidance)</span>
+重要规则不只靠自觉：Prompt 引导 + 策略识别 + Runtime 拦截 + 审计记录四层执行；被拦截即服从并解释，不绕行。  <span class="c"># vessel.soft_guidance_hard_boundaries (prompt_guidance)</span>
+不自证完成：产出须经独立评估（Evaluator / 确定性判据 / 测试证据）确认后才可宣告完成。              <span class="c"># vessel.no_self_certification (prompt_guidance)</span>
+自动化只管执行、判断权留给人：重大、不可逆或证据不足的决策先停下升级给用户，不擅自推进。          <span class="c"># vessel.human_above_loop (prompt_guidance)</span></pre>
   <p class="pdesc">注：channel=runtime_policy 的两条<b>同时</b>软渲染进 system + 硬执法（策略引擎），即"同样的话既写进提示引导、又被运行时强制执行"——双通道原则。</p>
 
   <h3>3.4 Policy Guidance 段（顶层原文 + 编译器按声明自动生成）</h3>
@@ -178,12 +185,18 @@
   <p class="pdesc" style="color:var(--yellow)">实现备注：policy.default.yaml 的 shell.guidance 两条目前未生效（类型/编译器只消费顶层 guidance）——冗余声明，见报告 3.4。</p>
 
   <h3>3.5 完整拼接（默认配置实际发给模型）</h3>
-  <pre class="prompt">你是 Composable Agent Harness V0.1 的编码代理。
+  <pre class="prompt">你是 Vessel 系统中的一个 Agent（Composable Agent Harness 核心）。
 
 纯文本回复即停止；不要在无需工具时强行调用工具。
 不要改写受保护路径（.git/.env/.ssh 等）；该约束由策略引擎硬执法。
 删除/格式化等破坏性命令会被策略引擎拦截；先说明原因与范围。
 以检查结果（测试/命令输出）作为完成依据，不自证完成。
+模型/工具/Agent 都可被替换——输出结构化、可交接、不制造对当前模型/会话的隐性依赖。
+以最低必要复杂度完成任务：够用即止，不堆多余 Agent/工具/步骤；新增能力先证其必要。
+模型负责聪明、系统负责可靠——动手前先定：调谁、给什么上下文、允许做什么、如何验证、何时停、出错怎么办。
+重要规则不只靠自觉：Prompt 引导 + 策略识别 + Runtime 拦截 + 审计记录四层执行；被拦截即服从并解释，不绕行。
+不自证完成：产出须经独立评估（Evaluator / 确定性判据 / 测试证据）确认后才可宣告完成。
+自动化只管执行、判断权留给人：重大、不可逆或证据不足的决策先停下升级给用户，不擅自推进。
 
 这是硬执法策略：受保护路径写入与危险命令会被引擎拒绝并记录审计事件。
 不要改写受保护路径：.git, .git/**, .claude, .ssh, .harness/credentials, .env（硬执法，不可豁免）。
@@ -194,12 +207,12 @@
   <h3>3.6 与 Claude Code / Codex"整段人设"的本质差异</h3>
   <div class="split">
     <div class="card"><h4 style="color:var(--dim)">cc / codex / claw / pi</h4><p>行为 = 手写整段人设长 prompt（身份→语气→工具纪律→护栏…），文本与运行时<b>无编译契约</b>，行为散落 system 段落/指令/hook/权限/compaction 五处。</p></div>
-    <div class="card"><h4 style="color:var(--green)">cah</h4><p>system 只含"一句身份 + 编译产物"。行为是 behavior.default.yaml 里可版本化、可校验、带 channel/conformance 的<b>声明式 IR</b>，经 Behavior Compiler 编译而来。同一条 IR 将来对 Claude/GPT/DeepSeek 渲染不同措辞，但 IR 只有一个。</p></div>
+    <div class="card"><h4 style="color:var(--green)">Vessel（原 cah）</h4><p>system 只含"一句身份 + 编译产物"。行为是 behavior.default.yaml 里可版本化、可校验、带 channel/conformance 的<b>声明式 IR</b>，经 Behavior Compiler 编译而来。同一条 IR 将来对 Claude/GPT/DeepSeek 渲染不同措辞，但 IR 只有一个。</p></div>
   </div>
   <div class="card" style="margin-top:0"><p><b>四条分界：</b>① 保存"该怎么行为"而非"某家 prompt 写了什么"；② 软硬分离——"不要删 .git"同时是 prompt 文字 + Policy Engine 硬执法（禁止只写 prompt）；③ 每条 IR 带 conformance 供 Evaluator/Conformance Suite 机器断言；④ CL4R1T4S 等 UNTRUSTED 语料只能经 Raw Prompt→Parser→Behavior Extraction→Review→IR 进入，禁止原文直进 system。</p></div>
 </section>
 
-<div class="foot">可视化数据来源：<code>docs/ideas/AGENT-CLI-ANALYSIS.md</code>（子代理 606b8b1d 只读分析）· DESIGN-DECISIONS / ARCHITECTURE / HARNESS-ANATOMY / harness-matrix · PROVIDER-UX / PROVIDER-TUI-RESEARCH · 源码 Builder.ts / Compiler.ts / compose.ts / behavior·policy.default.yaml。</div>
+<div class="foot">可视化数据来源：<code>docs/ideas/AGENT-CLI-ANALYSIS.md</code>（子代理 606b8b1d 只读分析）· DESIGN-DECISIONS / ARCHITECTURE / HARNESS-ANATOMY / harness-matrix · PROVIDER-UX / PROVIDER-TUI-RESEARCH · 源码 Builder.ts / Compiler.ts / compose.ts / behavior·policy.default.yaml · 2026-09 品牌由 cah 更名 <b>Vessel</b>（命令 vessel，别名 cah；内部 @cah/* 保留）——本文 prompt 段落已按 Vessel 固定句 + 含 Vessel Constitution 的 10 条 IR 更新。</div>
 </div>
 
 <script>
