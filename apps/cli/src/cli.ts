@@ -220,11 +220,20 @@ async function cmdModels(flags: Map<string, string>): Promise<number> {
     console.log('(mock provider 是离线的，无模型列表)');
     return 0;
   }
+  // V0.9: annotate each model with context window + USD/1M price from the model catalog
+  const catalog = loadModelCatalog(repoRoot());
+  const line = (m: string): string => {
+    const e = findCatalogModelByBase(catalog, m);
+    if (!e) return `  ${m}`;
+    const ctx = e.contextWindow ? (e.contextWindow / 1000).toFixed(0) + 'k' : '-';
+    const price = e.priceIn != null ? `in $${e.priceIn} / out $${e.priceOut ?? '-'}` : '';
+    return `  ${m.padEnd(30)} ctx ${ctx.padEnd(7)} ${price}`;
+  };
   if (cfg.protocol === 'openai-compatible' && cfg.baseUrl) {
     try {
       const src = await fetchOpenAIModels(cfg.baseUrl, cfg.apiKey);
       console.log(`模型列表（${src.origin === 'live' ? '实时拉取' : src.note}）：`);
-      for (const m of src.models) console.log(`  ${m}`);
+      for (const m of src.models) console.log(line(m));
       return 0;
     } catch (err) {
       console.error(`[vessel] ${(err as Error).message}`);
@@ -235,7 +244,7 @@ async function cmdModels(flags: Map<string, string>): Promise<number> {
   // anthropic (no live enumeration) or openai-compatible without baseUrl
   const src = modelsForProtocol(cfg.protocol);
   console.log(src.note ? `模型列表（${src.note}）：` : '模型列表：');
-  for (const m of src.models) console.log(`  ${m}`);
+  for (const m of src.models) console.log(line(m));
   return 0;
 }
 
