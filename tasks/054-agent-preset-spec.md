@@ -1,6 +1,6 @@
 # 054 — AgentPreset spec（角色 = 配置，非新原语）
 
-- 状态：待验收
+- 状态：已合入
 - 优先级：P0（Wave 2 / Milestone D 首发）
 - 创建日期：2026-09-08
 - 关联：055（三角色 presets）；056（TaskRouter Auto）；057（TeamRuntime）——本卡打地基
@@ -91,5 +91,8 @@ Auto 用 preset 选型）铺路。角色与模型解绑（preset 只声明 model
 
 ## 验收结论（指挥回填）
 
-- [ ] 合入 / 打回
-- 备注：
+- [x] 合入（commit 1c0ef65）
+- 备注：指挥独立复核——全量 vitest 54 文件 437 测试全绿（426+11，零回归）、npx tsc -b 0 错误，与执行器自报一致。
+  schema 设计认可：camelCase + fail loud（防 §8.1 yaml snake_case 静默失效）；role 判别 orchestrator/generator/evaluator
+  与 Generator/Evaluator 分离纪律呼应；modelTier 开放 string（角色与模型解绑，解析归 056）；可选能力缺省不落键可区分
+  "未指定"与显式 false；错误带 id。能力接线零实现符合范围纪律（055/056/057 各自成卡）。下一张：055（三角色 presets）。
