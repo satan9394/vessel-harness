@@ -32,9 +32,11 @@ export interface UserMessageRecord extends SessionRecordBase {
    * B01 production discriminator. 'steer' (task 051) marks a live steering
    * directive injected by the SteeringQueue at a step boundary — it is a
    * user-level message that redirects the model's next steps without
-   * interrupting the step that was in flight.
+   * interrupting the step that was in flight. 'handoff' (task 067) marks a
+   * Context Reset Handoff resume context injected when a new Session starts
+   * from a structured handoff (goal/completed/next_actions seeded context).
    */
-  source?: 'user' | 'steer' | 'inject' | 'instruction' | 'compacted-summary' | 'plan' | 'memory';
+  source?: 'user' | 'steer' | 'inject' | 'instruction' | 'compacted-summary' | 'plan' | 'memory' | 'handoff';
   surface: true;
 }
 

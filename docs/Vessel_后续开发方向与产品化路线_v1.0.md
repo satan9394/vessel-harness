@@ -1261,6 +1261,23 @@ handoff:
 
 ---
 
+> **§12.1 实现落地（task 067，2026-09）**：上述 Context Reset + Structured Handoff 已实现于
+> `packages/engine/src/handoff/`（docs/CONTEXT-RESET-HANDOFF.md）：
+> - handoff 记录字段名与本节 yaml **逐字一致**（goal/completed/current_state/changed_files/tests/
+>   decisions/blockers/next_actions/evidence，snake_case），JSON 存储即 §12 结构；
+> - 存储走 059/063 模式（`~/.vessel/handoffs`，env `VESSEL_HANDOFFS_ROOT` 覆盖；id 前缀 `handoff_`；
+>   tmp+rename 原子写；目录布局 meta.json + handoff.md 文本投影）；
+> - 素材聚合自 063 IterationStore / 任务对象 + 064 清理前快照（collectHandoffMaterial）；
+> - 触发 = 066 budget（0.9×contextWindow，晚于 Compaction 0.8）或会话长度阈值（1500 条）或手动 force；
+>   065 Goal UI 可见 seam = handoffSeamState（纯状态，本卡不深做 UI）；
+> - 新 Session 从 handoff 启动：seedSessionFromHandoff（B01 user/message source='handoff' 注入
+>   goal/completed/next_actions 起始上下文，blockers/decisions 透传，完整记录按 handoff id 可查）
+>   + handoffToTaskSeed（接 061-064 LoopEngine 运行链）。
+> - 与既有 Compaction 并存：compact = 同一 session 内压缩；reset = 新 Session 从 handoff 重启
+>   （何时 compact vs reset 见 CONTEXT-RESET-HANDOFF.md §1）。
+
+---
+
 # 十三、安全必须成为 Vessel 的核心产品差异
 
 ## 13.1 Sandbox：稳定版 blocker

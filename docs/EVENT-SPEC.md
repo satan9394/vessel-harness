@@ -448,7 +448,7 @@ seq        : number        # 会话内事件序号（不变式校验用）
 
 > 设计约束：日志=唯一真源；surface 派生模型历史只投影三种记录（`user/message`、`assistant/message`、`tool/result`，DSH 行 107）；边界/审计/账目记录不产生消息但可回放、可做不变式校验（H12 invariant_selfcheck）。所有记录含 §4 通用字段。
 
-- **B01 `user/message`** —— 用户输入/排队消息/注入上下文（带 `source` 区分生产方：user/steering/inject/skill-instructions/compacted-summary/plan（V0.2 新增：Planner 注入的 Plan 一等对象）/memory（V0.3 新增：Project Memory 冻结快照注入）），`surface:true`。触发：BeforeTurn 放行批次、`agent.inject()` 队列化消息在下一次获准 pre-step 进入。可被压缩 replace。
+- **B01 `user/message`** —— 用户输入/排队消息/注入上下文（带 `source` 区分生产方：user/steering/inject/skill-instructions/compacted-summary/plan（V0.2 新增：Planner 注入的 Plan 一等对象）/memory（V0.3 新增：Project Memory 冻结快照注入）/handoff（V1.3 新增：Context Reset Handoff 续跑上下文注入，task 067——新 Session 从 handoff 启动时固化为起始上下文）），`surface:true`。触发：BeforeTurn 放行批次、`agent.inject()` 队列化消息在下一次获准 pre-step 进入。可被压缩 replace。
 - **B02 `assistant/message`** —— 模型纯文本终态（无未决 tool_call），`surface:true`，含 `finishReason`。
 - **B03 `assistant/attempt`** —— 模型**尝试**（含中间产物或被 `interrupted:true` 前缀打断的流），`surface:false`；与 B02 关系：终态 message 覆盖尝试（DSH 词汇）。
 - **B04 `tool/call`** —— 每个进入分发的工具调用，`surface:false`（原始 arguments JSON，供配对不变式）。字段：`toolCallId, toolName, arguments, mode`。
