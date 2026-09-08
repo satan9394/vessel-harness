@@ -21,9 +21,20 @@ export interface PricingTable {
   protocols: Record<string, TokenPrice>;
 }
 
-export function resolvePrice(table: PricingTable, model: string, protocol?: string): TokenPrice {
+/** price lookup source — a catalog entry's per-1M-token prices (V0.9 task 030). */
+export interface CatalogPriceSource {
+  findPrice(model: string): { input: number; output: number; cacheRead?: number } | undefined;
+}
+
+/**
+ * Resolve per-1M-token price with fallback chain:
+ *   pricing.json modelPrices[model] > model-catalog price > protocol > default.
+ */
+export function resolvePrice(table: PricingTable, model: string, protocol?: string, catalog?: CatalogPriceSource): TokenPrice {
   const byModel = table.models[model];
   if (byModel) return byModel;
+  const catPrice = catalog?.findPrice(model);
+  if (catPrice) return catPrice;
   const def = table.models.default ?? { input: 0.5, output: 1.5 };
   if (protocol) {
     const byProto = table.protocols[protocol] ?? table.protocols[protocol === 'anthropic' ? 'anthropic' : 'openai-compatible'];

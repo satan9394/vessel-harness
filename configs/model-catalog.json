@@ -1,0 +1,249 @@
+{
+  "version": 1,
+  "source": "models.dev 快照 2026-09（docs/ideas/data/models.dev-api.json）；价目单位 USD/1M tokens",
+  "models": [
+    {
+      "model": "llama-3.3-70b-versatile",
+      "provider": "groq",
+      "contextWindow": 131072,
+      "outputLimit": 32768,
+      "priceIn": 0.59,
+      "priceOut": 0.79,
+      "priceCache": null
+    },
+    {
+      "model": "qwen-max",
+      "provider": "alibaba-cn",
+      "contextWindow": 131072,
+      "outputLimit": 8192,
+      "priceIn": 0.345,
+      "priceOut": 1.377,
+      "priceCache": null
+    },
+    {
+      "model": "deepseek-v4-flash",
+      "provider": "alibaba-cn",
+      "contextWindow": 1000000,
+      "outputLimit": 384000,
+      "priceIn": 0.14,
+      "priceOut": 0.28,
+      "priceCache": 0.0028
+    },
+    {
+      "model": "qwen-plus",
+      "provider": "alibaba-cn",
+      "contextWindow": 1000000,
+      "outputLimit": 32768,
+      "priceIn": 0.115,
+      "priceOut": 0.287,
+      "priceCache": 0.012
+    },
+    {
+      "model": "glm-5",
+      "provider": "alibaba-cn",
+      "contextWindow": 202752,
+      "outputLimit": 16384,
+      "priceIn": 0.573,
+      "priceOut": 2.58,
+      "priceCache": null
+    },
+    {
+      "model": "deepseek-v4-pro",
+      "provider": "alibaba-cn",
+      "contextWindow": 1000000,
+      "outputLimit": 384000,
+      "priceIn": 0.435,
+      "priceOut": 0.87,
+      "priceCache": 0.003625
+    },
+    {
+      "model": "claude-opus-4-5",
+      "provider": "anthropic",
+      "contextWindow": 200000,
+      "outputLimit": 64000,
+      "priceIn": 5,
+      "priceOut": 25,
+      "priceCache": 0.5
+    },
+    {
+      "model": "claude-haiku-4-5",
+      "provider": "anthropic",
+      "contextWindow": 200000,
+      "outputLimit": 64000,
+      "priceIn": 1,
+      "priceOut": 5,
+      "priceCache": 0.1
+    },
+    {
+      "model": "claude-sonnet-4-5",
+      "provider": "anthropic",
+      "contextWindow": 1000000,
+      "outputLimit": 64000,
+      "priceIn": 3,
+      "priceOut": 15,
+      "priceCache": 0.3
+    },
+    {
+      "model": "gemini-2.5-pro",
+      "provider": "google",
+      "contextWindow": 1048576,
+      "outputLimit": 65536,
+      "priceIn": 1.25,
+      "priceOut": 10,
+      "priceCache": 0.125
+    },
+    {
+      "model": "gemini-2.5-flash",
+      "provider": "google",
+      "contextWindow": 1048576,
+      "outputLimit": 65536,
+      "priceIn": 0.3,
+      "priceOut": 2.5,
+      "priceCache": 0.03
+    },
+    {
+      "model": "deepseek-v4-flash",
+      "provider": "deepseek",
+      "contextWindow": 1000000,
+      "outputLimit": 384000,
+      "priceIn": 0.14,
+      "priceOut": 0.28,
+      "priceCache": 0.0028
+    },
+    {
+      "model": "deepseek-v4-pro",
+      "provider": "deepseek",
+      "contextWindow": 1000000,
+      "outputLimit": 384000,
+      "priceIn": 0.435,
+      "priceOut": 0.87,
+      "priceCache": 0.003625
+    },
+    {
+      "model": "gpt-5.1",
+      "provider": "openai",
+      "contextWindow": 400000,
+      "outputLimit": 128000,
+      "priceIn": 1.25,
+      "priceOut": 10,
+      "priceCache": 0.125
+    },
+    {
+      "model": "gpt-4o",
+      "provider": "openai",
+      "contextWindow": 128000,
+      "outputLimit": 16384,
+      "priceIn": 2.5,
+      "priceOut": 10,
+      "priceCache": 1.25
+    },
+    {
+      "model": "gpt-4o-mini",
+      "provider": "openai",
+      "contextWindow": 128000,
+      "outputLimit": 16384,
+      "priceIn": 0.15,
+      "priceOut": 0.6,
+      "priceCache": 0.075
+    },
+    {
+      "model": "gpt-5-mini",
+      "provider": "openai",
+      "contextWindow": 400000,
+      "outputLimit": 128000,
+      "priceIn": 0.25,
+      "priceOut": 2,
+      "priceCache": 0.025
+    },
+    {
+      "model": "gpt-5",
+      "provider": "openai",
+      "contextWindow": 400000,
+      "outputLimit": 128000,
+      "priceIn": 1.25,
+      "priceOut": 10,
+      "priceCache": 0.125
+    },
+    {
+      "model": "deepseek-ai/DeepSeek-V4-Flash",
+      "provider": "siliconflow",
+      "contextWindow": 1000000,
+      "outputLimit": 384000,
+      "priceIn": 0.14,
+      "priceOut": 0.28,
+      "priceCache": 0.028
+    },
+    {
+      "model": "deepseek-ai/DeepSeek-V4-Pro",
+      "provider": "siliconflow",
+      "contextWindow": 1000000,
+      "outputLimit": 384000,
+      "priceIn": 1.74,
+      "priceOut": 3.48,
+      "priceCache": 0.145
+    },
+    {
+      "model": "zai-org/GLM-5",
+      "provider": "siliconflow",
+      "contextWindow": 205000,
+      "outputLimit": 205000,
+      "priceIn": 0.95,
+      "priceOut": 2.55,
+      "priceCache": 0.2
+    },
+    {
+      "model": "kimi-k2.7-code",
+      "provider": "moonshotai",
+      "contextWindow": 262144,
+      "outputLimit": 262144,
+      "priceIn": 0.95,
+      "priceOut": 4,
+      "priceCache": 0.19
+    },
+    {
+      "model": "kimi-k3",
+      "provider": "moonshotai",
+      "contextWindow": 1048576,
+      "outputLimit": 131072,
+      "priceIn": 3,
+      "priceOut": 15,
+      "priceCache": 0.3
+    },
+    {
+      "model": "grok-4.3",
+      "provider": "xai",
+      "contextWindow": 1000000,
+      "outputLimit": 30000,
+      "priceIn": 1.25,
+      "priceOut": 2.5,
+      "priceCache": 0.2
+    },
+    {
+      "model": "glm-5",
+      "provider": "zai",
+      "contextWindow": 204800,
+      "outputLimit": 131072,
+      "priceIn": 1,
+      "priceOut": 3.2,
+      "priceCache": 0.2
+    },
+    {
+      "model": "mistral-small-latest",
+      "provider": "mistral",
+      "contextWindow": 256000,
+      "outputLimit": 256000,
+      "priceIn": 0.15,
+      "priceOut": 0.6,
+      "priceCache": null
+    },
+    {
+      "model": "mistral-large-latest",
+      "provider": "mistral",
+      "contextWindow": 262144,
+      "outputLimit": 262144,
+      "priceIn": 0.5,
+      "priceOut": 1.5,
+      "priceCache": null
+    }
+  ]
+}
