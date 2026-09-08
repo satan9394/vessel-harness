@@ -1,4 +1,5 @@
 import type { ChatProvider } from '@vessel/shared';
+import type { SteerSource } from '@vessel/core';
 import type { ComposedHarness, ComposeOptions } from '../compose.js';
 import { composeHarness } from '../compose.js';
 import { SessionRegistry, type SessionMeta } from './SessionRegistry.js';
@@ -56,9 +57,11 @@ export interface SessionProjections {
  * event subscription via the public `session` and `bus` fields.
  *
  * `interrupt` (task 050) aborts the loop's active turn scope in real time —
- * the turn then closes with kind='interrupted'. `steer` stays a reserved seam
- * for Milestone C (task 051): this card only stores steer messages without
- * consuming them, so the public shape never changes.
+ * the turn then closes with kind='interrupted'. `steer` (task 051) enqueues a
+ * user direction-change directive into the loop's SteeringQueue — it never
+ * stops anything, and is consumed at the next step boundary where it becomes a
+ * B01 user/message record (source='steer') injected into the next model
+ * context (interrupt = 停, steer = 改方向继续).
  */
 export class SessionController {
   private readonly harness: ComposedHarness;
@@ -66,8 +69,6 @@ export class SessionController {
   private readonly providerId: string;
   private readonly model: string;
   private readonly permission: SessionPermission;
-
-  private readonly pendingSteers: string[] = [];
 
   /** bus-attached event projections (read-only UI facts). */
   readonly projections: SessionProjections;
@@ -164,16 +165,18 @@ export class SessionController {
   }
 
   /**
-   * Reserved seam: steer the session with a control message. Milestone C will
-   * consume these from a pending queue during a turn; this card stores them.
+   * Steer the session with a user control message (task 051). Forwards into the
+   * loop's SteeringQueue: the directive is consumed at the next step boundary
+   * and injected as a user-level message into the next model context — it never
+   * interrupts an in-flight tool call or atomic file write.
    */
-  steer(message: string): void {
-    this.pendingSteers.push(message);
+  steer(message: string, source?: SteerSource): void {
+    this.harness.loop.steer(message, source);
   }
 
-  /** Number of buffered, unconsumed steer messages (Milestone C). */
+  /** Number of buffered, unconsumed steer directives (task 051). */
   get pendingSteerCount(): number {
-    return this.pendingSteers.length;
+    return this.harness.loop.pendingSteerCount;
   }
 
   /** Close the composed harness (session log, MCP clients, telemetry detach). */

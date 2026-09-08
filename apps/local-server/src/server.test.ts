@@ -46,6 +46,11 @@ class GatedServerProvider implements ChatProvider {
   release(): void {
     this.waiters.shift()?.();
   }
+
+  /** true while a model call is blocked at the gate (a waiter is registered). */
+  get holding(): boolean {
+    return this.waiters.length > 0;
+  }
 }
 
 describe('local server HTTP API + SSE', () => {
@@ -350,5 +355,130 @@ describe('local server — POST /interrupt stops an in-flight turn (task 050)', 
     expect(end.turnId).toBe(result.turnId);
     // scope is released once the turn settles → the session can run again
     expect(ctl!.loop.turnActive).toBe(false);
+  });
+});
+
+describe('local server — POST /steer caches mid-turn and injects at the next boundary (task 051)', () => {
+  let dir: string;
+  let ws: string;
+  let home: string;
+  let server: VesselServer;
+  let base: string;
+  let ctl: SessionController | undefined;
+  let gated: GatedServerProvider;
+
+  beforeEach(async () => {
+    dir = fs.mkdtempSync(path.join(os.tmpdir(), 'cah-steer-server-'));
+    ws = path.join(dir, 'workspace');
+    home = path.join(dir, 'vessel-home');
+    fs.mkdirSync(ws, { recursive: true });
+
+    gated = new GatedServerProvider();
+    const sessionRegistry = new SessionRegistry({ vesselHome: home });
+    server = createVesselServer({
+      port: 0,
+      sessionRegistry,
+      sessionFactory: async (input) => {
+        const { SessionController: SC } = await import('@vessel/application');
+        ctl = await SC.create({
+          workspaceRoot: input.workspaceRoot,
+          provider: gated,
+          model: input.model ?? 'default',
+          policySystemPath: POLICY,
+          behaviorIRPath: BEHAVIOR,
+          permission: input.permission ?? 'workspace-write',
+          registry: input.registry,
+        });
+        return ctl;
+      },
+      staticDir: ws,
+    });
+    await server.listen();
+    base = `http://127.0.0.1:${server.port}`;
+  });
+
+  afterEach(async () => {
+    if (server) await server.close();
+    fs.rmSync(dir, { recursive: true, force: true });
+  });
+
+  it('a steer posted while a turn is in flight is cached, then consumed at the next turn boundary as source=steer', async () => {
+    const create = await fetch(`${base}/api/sessions`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ workspaceRoot: ws }),
+    });
+    expect(create.status).toBe(201);
+    const created = (await create.json()) as { session: { id: string } };
+    const id = created.session.id;
+
+    // turn 1 in flight (single pure-text step gated mid-stream). Wait until the
+    // model call is truly blocked at the gate (holding) — that point is AFTER
+    // turn 1's step-1 boundary, so a steer landing now is deterministically
+    // cached rather than consumed by turn 1.
+    const turn1 = fetch(`${base}/api/sessions/${id}/turns`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ prompt: 'stream something' }),
+    });
+    await waitFor(() => gated.holding, 15000);
+
+    // steer lands mid-turn: cached, acknowledged with the pending count
+    const steer = await fetch(`${base}/api/sessions/${id}/steer`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ message: '先别改这个文件' }),
+    });
+    expect(steer.status).toBe(200);
+    const steerBody = (await steer.json()) as { ok: boolean; pendingSteerCount: number };
+    expect(steerBody.ok).toBe(true);
+    expect(steerBody.pendingSteerCount).toBe(1);
+
+    // turn 1 completes as pure text — it has no further step boundary, so the
+    // steer is NOT injected into it and stays pending (steer never interrupts)
+    gated.release();
+    const turn1Res = await turn1;
+    expect(turn1Res.status).toBe(200);
+    const result1 = (await turn1Res.json()) as { finalText: string; kind: string };
+    expect(result1.kind).toBe('success');
+    expect(ctl!.pendingSteerCount).toBe(1);
+    const steerRecs = () =>
+      ctl!.session.replay().filter((r) => r.type === 'user/message' && (r as { source?: string }).source === 'steer');
+    expect(steerRecs()).toHaveLength(0);
+
+    // turn 2 drains the queue at its first step boundary (record appears before
+    // its model call) and the steer redirects the next round
+    const turn2 = fetch(`${base}/api/sessions/${id}/turns`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ prompt: 'continue' }),
+    });
+    await waitFor(() => steerRecs().length > 0, 15000);
+    // turn 2's model call is gated again — release in a loop until the turn
+    // settles (extra releases are no-ops, so timing is not sensitive)
+    const turn2Settled = (async () => {
+      const res = await turn2;
+      return (await res.json()) as { kind: string };
+    })();
+    let turn2Done = false;
+    turn2Settled.then(
+      () => (turn2Done = true),
+      () => (turn2Done = true),
+    );
+    const deadline = Date.now() + 15000;
+    while (!turn2Done && Date.now() < deadline) {
+      gated.release();
+      await new Promise((r) => setTimeout(r, 5));
+    }
+    const result2 = await turn2Settled;
+    expect(result2.kind).toBe('success');
+
+    // consumed + recorded as an auditable source=steer user/message
+    expect(ctl!.pendingSteerCount).toBe(0);
+    const recs = steerRecs() as { content: string; source?: string; ts?: string }[];
+    expect(recs).toHaveLength(1);
+    expect(recs[0]!.content).toBe('先别改这个文件');
+    expect(recs[0]!.source).toBe('steer');
+    expect(typeof recs[0]!.ts).toBe('string');
   });
 });

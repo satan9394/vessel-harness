@@ -17,6 +17,7 @@ import { EventBus } from '../events/EventBus.js';
 import { LoopState } from '../state/State.js';
 import { Session } from '../session/Session.js';
 import { InterruptController, TurnInterruptedError } from './InterruptController.js';
+import { SteeringQueue, type SteerSource } from './SteeringQueue.js';
 
 export interface RequestEnvelope {
   model: string;
@@ -117,6 +118,8 @@ export class AgentLoop {
   private readonly maxSteps: number;
   /** turn-level interrupt scope (task 050): begin per turn, abort on interrupt, end on teardown */
   private readonly interruptCtl = new InterruptController();
+  /** running-steer queue (task 051): enqueued any time, drained only at step boundaries */
+  private readonly steerQueue = new SteeringQueue();
 
   constructor(deps: LoopDeps) {
     this.deps = deps;
@@ -140,6 +143,24 @@ export class AgentLoop {
   /** Whether a turn scope is currently open (a turn is running). */
   get turnActive(): boolean {
     return this.interruptCtl.active;
+  }
+
+  /**
+   * Steer the running session (task 051): enqueue a user direction-change
+   * directive ("先别改这个文件", "把范围缩小到 backend", "先跑测试再继续").
+   * Unlike interrupt() a steer NEVER stops anything: it is consumed at the next
+   * step boundary and injected as a user-level message into the next model
+   * context, redirecting subsequent steps only. A steer enqueued while no turn
+   * is running stays pending and applies to the next turn.
+   * @returns true when the steer was accepted (non-empty content).
+   */
+  steer(content: string, source?: SteerSource): boolean {
+    return this.steerQueue.enqueue(content, source) !== null;
+  }
+
+  /** Number of buffered, unconsumed steer directives (task 051). */
+  get pendingSteerCount(): number {
+    return this.steerQueue.pending;
   }
 
   async runTurn(input: string): Promise<TurnResult> {
@@ -217,6 +238,14 @@ export class AgentLoop {
           kind = 'interrupted';
           break;
         }
+        // task 051 — steering boundary: consume pending steers BEFORE the next
+        // context build / model call. Each steer becomes a persisted B01
+        // user/message record (source='steer') that the context builder's
+        // surface projection folds into the next request. Because the queue is
+        // drained only here, a steer that arrived while the previous step's
+        // model/tool work was in flight never interrupts it — it only
+        // redirects the step about to run (interrupt = stop, steer = redirect).
+        await this.drainSteers();
         this.state.beginStep();
         const stepId = `step_${turnId}_${step}`;
         await session.appendSync({ type: 'step/start', stepId, turnId, surface: false });
@@ -625,6 +654,28 @@ export class AgentLoop {
       return await Promise.race([run, interrupted]);
     } finally {
       if (onAbort) signal.removeEventListener('abort', onAbort);
+    }
+  }
+
+  /**
+   * Task 051 — step-boundary steering consumption. Atomically takes every
+   * pending steer and persists each as a user-level message record
+   * (B01 user/message, source='steer', surface=true) so the next buildContext
+   * derives it through the session surface projection (模型可见 ⟺ 已记录).
+   * The message shape follows the shared session-record contract: role 'user',
+   * raw directive content, msgId per record, seq/ts assigned by the Session.
+   */
+  private async drainSteers(): Promise<void> {
+    const pending = this.steerQueue.drain();
+    for (const steer of pending) {
+      await this.deps.session.appendSync({
+        type: 'user/message',
+        msgId: `m_steer_${crypto.randomBytes(4).toString('hex')}`,
+        role: 'user',
+        content: steer.content,
+        source: 'steer',
+        surface: true,
+      });
     }
   }
 

@@ -100,6 +100,35 @@ describe('SessionController', () => {
     await ctl.close();
   });
 
+  it('steer() is consumed at the next step boundary: recorded as source=steer and pending cleared (task 051)', async () => {
+    const provider = new MockProvider([{ when: /.*/, response: { text: 'OK' } }], { model: 'm' });
+    const ctl = await SessionController.create({
+      workspaceRoot: ws,
+      provider,
+      model: 'm',
+      policySystemPath: POLICY,
+      behaviorIRPath: BEHAVIOR,
+    });
+
+    ctl.steer('please keep it short');
+    expect(ctl.pendingSteerCount).toBe(1);
+
+    const result = await ctl.runTurn('hello');
+    expect(result.kind).toBe('success');
+
+    // the pending steer was injected as a B01 user/message record (source='steer')
+    // and consumed — pending is back to zero
+    expect(ctl.pendingSteerCount).toBe(0);
+    const steerRecs = ctl.session
+      .replay()
+      .filter((r) => r.type === 'user/message' && (r as { source?: string }).source === 'steer') as { content: string; source?: string; ts?: string }[];
+    expect(steerRecs).toHaveLength(1);
+    expect(steerRecs[0]!.content).toBe('please keep it short');
+    expect(steerRecs[0]!.source).toBe('steer');
+
+    await ctl.close();
+  });
+
   it('run with a workspace pin works and session uses the given workspace', async () => {
     const provider = new MockProvider([{ when: /.*/, response: { text: 'PINNED' } }], { model: 'p' });
     const ctl = await SessionController.create({

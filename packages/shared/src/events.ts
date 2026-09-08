@@ -28,7 +28,13 @@ export interface UserMessageRecord extends SessionRecordBase {
   msgId: string;
   role: 'user';
   content: string;
-  source?: 'user' | 'inject' | 'instruction' | 'compacted-summary' | 'plan' | 'memory';
+  /**
+   * B01 production discriminator. 'steer' (task 051) marks a live steering
+   * directive injected by the SteeringQueue at a step boundary — it is a
+   * user-level message that redirects the model's next steps without
+   * interrupting the step that was in flight.
+   */
+  source?: 'user' | 'steer' | 'inject' | 'instruction' | 'compacted-summary' | 'plan' | 'memory';
   surface: true;
 }
 
