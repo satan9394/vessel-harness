@@ -109,3 +109,9 @@ node apps/cli/dist/cli.js provider add demo --protocol mock --model mock
 node apps/cli/dist/cli.js provider list
 node apps/cli/dist/cli.js models --provider ant   # anthropic 内置清单
 ```
+
+## 9. 使用统计与定价（V0.9）
+
+- `vessel usage [--recent <n>]`：显示累计消耗（tokens in/out/cache、估算成本、调用次数），按供应商与模型聚合；加 `--recent <n>` 看最近 n 条记录。数据落盘 `~/.dsh/usage.json`（原子写，tmp+rename；`VESSEL_USAGE_ROOT` 可隔离测试）。
+- `vessel pricing [model]`：查模型价目；`vessel pricing claude-sonnet-4-5` 查单个模型；无参列出 configs/model-catalog.json 主流模型价目表。价目单位为 USD / 1M tokens，解析顺序 model > catalog > protocol > default。
+- mock 会话也会产生 usage 记录（E2E 接线验证），可 `vessel usage` 直接看到。
