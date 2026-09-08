@@ -12,6 +12,13 @@ import type { EvaluatorVerdict } from '@vessel/agents';
  * Generator = a single-session loop run by the caller (injected); Evaluator =
  * agents/evaluator (injected); the verdict that decides met/not_met comes from
  * the Evaluator — the Generator never self-certifies.
+ *
+ * Workspace lifecycle (task 064): when `workspaceFactory` is wired, every
+ * generate attempt runs in its own fresh workspace that is disposed exactly
+ * once when that attempt ends — met/stopped admit, retry, exception, or
+ * interruption all unwind through the per-attempt finally. No workspace ever
+ * outlives its attempt, so earlier attempts cannot leak when a retry creates a
+ * fresh one (062 known issue: "attempt1 workspace 不 dispose").
  */
 
 /** Loop Engine phases of a single iteration lifecycle. */
@@ -69,9 +76,18 @@ export interface LoopEngineDeps {
    * Defaults to false (stop after the first admitted iteration).
    */
   shouldContinue?: (ctx: ContinueContext) => Promise<boolean>;
-  /** Optional: fresh workspace each generate attempt (try/retry). */
+  /**
+   * Optional: fresh workspace each generate attempt (try/retry). When provided,
+   * `disposeWorkspace` MUST also be provided (guardDeps fails loud otherwise) —
+   * a created workspace without a disposal seam would leak on every attempt.
+   */
   workspaceFactory?: (task: LoopTask) => Promise<Workspace>;
-  /** Optional: called with the workspace when the engine is done with it. */
+  /**
+   * Optional: called exactly once per workspace the engine created (per-attempt,
+   * on every exit path incl. exception/interruption — task 064). Delegates to
+   * the factory seam (TempDir rmSync / git worktree remove); never touches the
+   * main workspace.
+   */
   disposeWorkspace?: (ws: Workspace) => Promise<void>;
 }
 
@@ -153,6 +169,11 @@ function guardDeps(deps: LoopEngineDeps): void {
       throw new Error(`LoopEngine: dependency "${key}" must be a function`);
     }
   }
+  // task 064 lifecycle invariant: a workspace factory without a disposal seam
+  // would leak on every attempt — wiring that shape is a runner bug, fail loud.
+  if (deps.workspaceFactory && typeof deps.disposeWorkspace !== 'function') {
+    throw new Error('LoopEngine: disposeWorkspace must be a function when workspaceFactory is provided');
+  }
 }
 
 function fmtVerdict(v: EvaluatorVerdict): string {
@@ -218,13 +239,27 @@ export class LoopEngine {
     return lastReport;
   }
 
-  /** Runs one candidate task through generate→evaluate→persist, returning the iteration report. */
+  /**
+   * Runs one candidate task through generate→evaluate→persist, returning the iteration report.
+   *
+   * Workspace lifecycle (task 064): each generate attempt owns a FRESH isolated
+   * workspace whose disposal is guaranteed on EVERY exit path of that attempt —
+   * met/stopped admit return, retry-continue, and exceptions/interruptions
+   * thrown inside generate/evaluate/workspaceFactory all unwind through the
+   * per-attempt finally below before the next attempt (or the caller) proceeds.
+   * This closes the 062 known-issue: previously a workspace created on attempt 1
+   * was silently leaked when a retry (attempt > 1) replaced the reference, and
+   * only the LAST workspace was disposed. Disposal delegates to the injected
+   * factory seam (disposeWorkspace) exactly once per created workspace, so the
+   * TempDir/GitWorktree isolation guarantees in workspace.ts are preserved and
+   * the engine never touches the main workspace itself. A dispose failure is
+   * loud (never a silent leak) — it surfaces from the attempt's finally.
+   */
   async runTask(task: LoopTask, iteration = 1): Promise<LoopRunReport> {
     if (!task?.id || !task.goal) {
       throw new Error(`LoopEngine: task needs id + goal (got ${JSON.stringify(task)})`);
     }
     let outputPath: string | undefined;
-    let workspace: Workspace | undefined;
 
     const admit = async (finalVerdict: EvaluatorVerdict, attempts: number, metAfterRetries: boolean): Promise<IterationResult> => {
       const result: IterationResult = {
@@ -242,13 +277,18 @@ export class LoopEngine {
       return result;
     };
 
-    try {
-      const attempts = this.maxRetries + 1;
-      for (let attempt = 1; attempt <= attempts; attempt += 1) {
-        const phaseLabel: LoopPhase = attempt === 1 ? 'generating' : 'retry';
-        this.phase(phaseLabel, { iteration, taskId: task.id });
+    const attempts = this.maxRetries + 1;
+    for (let attempt = 1; attempt <= attempts; attempt += 1) {
+      const phaseLabel: LoopPhase = attempt === 1 ? 'generating' : 'retry';
+      this.phase(phaseLabel, { iteration, taskId: task.id });
 
-        if (this.deps.workspaceFactory && (!workspace || attempt > 1)) {
+      // task 064: attempt-scoped workspace — created here, disposed in this
+      // attempt's finally on every exit path (return/retry/throw). The
+      // workspace variable never outlives its attempt, so no earlier attempt's
+      // workspace can be stranded when a later attempt creates a fresh one.
+      let workspace: Workspace | undefined;
+      try {
+        if (this.deps.workspaceFactory) {
           workspace = await this.deps.workspaceFactory(task);
           outputPath = workspace.root;
         }
@@ -272,16 +312,18 @@ export class LoopEngine {
           return { iteration, taskId: task.id, outcome: 'met', result };
         }
         if (attempt < attempts) {
-          // not_met / impossible / error → retry up to maxRetries (attempts-1 retries)
+          // not_met / impossible / error → retry up to maxRetries (attempts-1
+          // retries); this attempt's workspace is disposed by the finally below
+          // before the next attempt creates a fresh one.
           continue;
         }
         const result = await admit(verdict, attempt, false);
         this.phase('done', { iteration, taskId: task.id });
         return { iteration, taskId: task.id, outcome: 'stopped', result };
-      }
-    } finally {
-      if (workspace && this.deps.disposeWorkspace) {
-        await this.deps.disposeWorkspace(workspace);
+      } finally {
+        if (workspace && this.deps.disposeWorkspace) {
+          await this.deps.disposeWorkspace(workspace);
+        }
       }
     }
     // unreachable — the loop above always returns or throws
