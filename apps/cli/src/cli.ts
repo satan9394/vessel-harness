@@ -4,7 +4,7 @@ import * as path from 'node:path';
 import { spawn } from 'node:child_process';
 import { VERSION } from '@vessel/shared';
 import { MockProvider, createProvider } from '@vessel/llm';
-import { composeHarness } from '@vessel/application';
+import { composeHarness, createCredentialStore } from '@vessel/application';
 import { createVesselServer } from '@vessel/local-server';
 import { ProviderStore, type ProviderConfig } from './providers/ProviderStore.js';
 import { fetchOpenAIModels, modelsForProtocol } from './providers/modelFetcher.js';
@@ -104,6 +104,17 @@ function repoRoot(): string {
   return process.cwd();
 }
 
+/**
+ * 默认 ProviderStore（task 034）：附加 CredentialStore —— Windows 优先 DPAPI 加密
+ * secrets.json，其余显式降级 plaintext。apiKey 写入走 secretRef，providers.json 不再
+ * 落明文；读取经 store 解析回 apiKey。真实 ~/.vessel 下的凭据迁移只在 CLI 真正运行
+ * 时触发（测试一律注入 rootDir/temp，绝不碰真实目录）。
+ */
+function defaultProviderStore(): ProviderStore {
+  const credentialStore = createCredentialStore();
+  return new ProviderStore({ credentialStore });
+}
+
 async function cmdRun(flags: Map<string, string>): Promise<number> {
   const workspace = path.resolve(flags.get('workspace') ?? process.cwd());
   const root = repoRoot();
@@ -111,7 +122,7 @@ async function cmdRun(flags: Map<string, string>): Promise<number> {
 
   // provider resolution: explicit --provider wins; else the current default
   // provider from ~/.vessel (provider switch); else mock with a hint.
-  const store = new ProviderStore();
+  const store = defaultProviderStore();
   const explicitProvider = flags.get('provider');
   const currentId = explicitProvider ?? (store.getCurrent() !== 'mock' ? store.getCurrent() : 'mock');
   const currentCfg: ProviderConfig | undefined = currentId === 'mock' ? undefined : store.get(currentId);
@@ -215,7 +226,7 @@ async function cmdBench(flags: Map<string, string>): Promise<number> {
 
 /** `vessel models [--provider p]` — list a provider's available models. */
 async function cmdModels(flags: Map<string, string>): Promise<number> {
-  const store = new ProviderStore();
+  const store = defaultProviderStore();
   const id = flags.get('provider') ?? store.getCurrent();
   const cfg = store.get(id);
   if (!cfg) {
@@ -256,7 +267,7 @@ async function cmdModels(flags: Map<string, string>): Promise<number> {
 
 /** `vessel provider <list|add|remove|switch|use|current> [...]` — manage providers. */
 async function cmdProvider(args: string[], flags: Map<string, string>): Promise<number> {
-  const store = new ProviderStore();
+  const store = defaultProviderStore();
   const sub = args[0] ?? 'list';
   switch (sub) {
     case 'list': {
@@ -346,7 +357,7 @@ async function cmdSetup(_flags: Map<string, string>): Promise<number> {
     console.log('vessel setup 需要交互终端。非交互环境请用：vessel provider add <id> --protocol <p> --base-url <url> --api-key <key> --model <model>');
     return 2;
   }
-  const store = new ProviderStore();
+  const store = defaultProviderStore();
   const io = createClackIO(store);
   const id = await runSetupWizard({ store, io });
   if (id) {
@@ -571,6 +582,7 @@ export async function main(argv: string[] = process.argv.slice(2)): Promise<numb
     if (!parsed.flags.has('prompt') && process.stdin.isTTY) {
       const root = repoRoot();
       return runChat({
+        store: defaultProviderStore(),
         workspaceRoot: path.resolve(parsed.flags.get('workspace') ?? process.cwd()),
         policySystemPath: parsed.flags.get('policy') ?? path.join(root, 'configs', 'policy.default.yaml'),
         behaviorIRPath: parsed.flags.get('behavior') ?? path.join(root, 'configs', 'behavior.default.yaml'),

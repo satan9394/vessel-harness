@@ -36,13 +36,13 @@ Vessel 的安全策略遵循「软引导硬边界」哲学：重要规则不能�
 
 ## 凭据存储
 
-- 供应商配置（含 `apiKey`）保存在 `~/.vessel/providers.json`，**当前为明文存储，不上锁**——这是为追求本地简单而做的取舍（与主流同类工具一致）。
-- 因此：
-  - **不要**把 `~/.vessel` 目录同步 / 备份到不受信的位置（网盘、远端仓库、共享主机）。
-  - 确认该目录仅本机用户可读（勿用 `chmod`/ACL 放宽）。
-  - 常见公共端点本身不作为安全边界；`apiKey` 属于敏感凭据。
-- 备用存储根：可用环境变量 `VESSEL_PROVIDER_ROOT` 切换（CI/测试隔离，也便于在更安全的位置落盘）。
-- 凭据加密属于后续安全里程碑（YAGNI：当前不做，避免过度设计）。
+- **task 034 起**：供应商 `apiKey` 经 `CredentialStore` 抽象管理（`packages/application/src/credential/`），providers.json 只存 `secretRef`（如 `credential:vessel/<id>`），**密钥不再明文写进 providers.json**。
+- **Windows（本机）**：默认 `WindowsDpapiCredentialStore` —— 用 PowerShell `[System.Security.Cryptography.ProtectedData]`（DPAPI，绑定当前 Windows 用户）加密，密文 base64 存 `~/.vessel/secrets.json`。
+- **其它/不可用平台**：显式降级 `PlaintextCredentialStore` —— `secrets.json` 明文 + 写入时 `console.warn` 显式提示"建议用 OS 凭据管理器"（不静默）。
+- 选择逻辑在 `createCredentialStore()`：Windows 且 PowerShell/DPAPI 可用 → DPAPI；否则 → plaintext（带显式警告）。工厂支持注入 `isWindows/isDpapiAvailable` 便于测试隔离。
+- 旧 providers.json 若仍含明文 `apiKey`：ProviderStore 加载时**自动迁入** CredentialStore 并把 providers.json 改写为 `secretRef`（原子写改写，非删除；幂等）。
+- 因此仍不要同步/备份 `~/.vessel` 到不受信位置：非 Windows 降级为明文时泄露风险等同旧版。确认目录仅本机用户可读。
+- 备用存储根：环境变量 `VESSEL_PROVIDER_ROOT` 可切换（CI/测试隔离；真实 ~/.vessel 凭据迁移只在 CLI 真跑时触发，测试全部注入 temp 目录）。
 
 ## 上报渠道
 

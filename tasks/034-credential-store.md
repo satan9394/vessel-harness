@@ -11,28 +11,21 @@
 
 ## 验收标准
 
-- [ ] `packages/application/src/credential/CredentialStore.ts`：接口
-  ```ts
-  interface CredentialStore {
-    set(service: string, account: string, secret: string): Promise<void>;
-    get(service: string, account: string): Promise<string | null>;
-    delete(service: string, account: string): Promise<void>;
-  }
-  ```
-- [ ] 后端：`WindowsCredentialStore`（用 `cmdkey` 或 PowerShell `CredentialManager` 或 node 原生？——**零新依赖**：Windows 用 PowerShell `[System.Security.Cryptography.ProtectedData]` 或 cmdkey；本卡可行做法：Windows 上用 `powershell -Command` 调 Windows Credential Manager 经 `cmdkey /generic:... /pass:...` 存、`cmdkey /list` 查——若复杂，首期可做**加密文件 store**（ProtectedData DPAPI，Windows only）+ 跨平台 plaintext 带显式提示）——**由执行器选实现，保证接口 + 测试 + 显式降级**
-- [ ] `PlaintextCredentialStore`（显式降级，写入时提示"明文存储，建议 OS store"）
-- [ ] 默认选择逻辑：Windows → ProtectedData/DPAPI 加密文件 `~/.vessel/secrets.json`（加密）；非 Windows → plaintext + 显式警告
-- [ ] ProviderStore 集成：`apiKey` 字段从 providers.json 移除（或可选），改存 `secretRef`（如 `credential:vessel/<providerId>`）；读取时经 CredentialStore 取 key；向后兼容：旧 providers.json 含明文 apiKey 时自动迁入 credential store 并清明文（迁移逻辑，删除走回收站/改写文件）
-- [ ] 文档：SECURITY.md/PROVIDER-MANAGEMENT 更新（key 不再明文/默认加密/降级显式）
-- [ ] 测试：WindowsCredentialStore（若可用）/PlaintextCredentialStore/加密 store 的 set/get/delete、ProviderStore 迁移旧明文到 secretRef
-- [ ] 全量 vitest/tsc 绿（337+ 无回归）
-- [ ] 卡置"待验收"
+- [x] `packages/application/src/credential/CredentialStore.ts`：接口（async CredentialStore + 同步 SyncCredentialStore 供 ProviderStore 复用）+ SecretRef 助手
+- [x] 后端：`WindowsDpapiCredentialStore`（node:child_process 调 PowerShell ProtectedData Protect/Unprotect，0034 实测本机 Windows 可用）+ `PlaintextCredentialStore`（写时显式 warn）
+- [x] `PlaintextCredentialStore`（显式降级，写入时提示"明文存储，建议 OS store"）
+- [x] 默认选择逻辑 `createCredentialStore()`：Windows + DPAPI 可用 → DPAPI；否则 plaintext + 显式警告（注入 isWindows/isDpapiAvailable 可测）
+- [x] ProviderStore 集成：apiKey 保留向后兼容读取；写 secretRef（`credential:vessel/<id>`）；加载时自动迁移旧明文 apiKey → store + 改写 providers.json 为 secretRef（原子写，幂等）
+- [x] 文档：SECURITY.md / PROVIDER-MANAGEMENT.md 已更新（默认 DPAPI 加密 / plaintext 显式降级 / secretRef 说明）
+- [x] 测试：PlaintextCredentialStore set/get/delete、DPAPI store（本机 Windows DPAPI 实测）、工厂选择、ProviderStore 迁移旧明文→secretRef、secretRef 读取解析回 apiKey
+- [x] 全量 vitest/tsc 绿（337+ 无回归）
+- [ ] 卡置"待验收"（指挥回填）
 
 ## 涉及文件
 
-- 新建 `packages/application/src/credential/`（接口 + 后端 + 测试）或放 apps/cli（若 providers 在 cli 层）——执行器定，倾向 application 便于 web 复用
-- `apps/cli/src/providers/ProviderStore.ts`（apiKey→secretRef 集成）
-- `apps/cli/src/providers/setup.ts`（向导写 key 改走 store）
+- 新建 `packages/application/src/credential/`（接口 + 后端 + 测试）
+- `apps/cli/src/providers/ProviderStore.ts`（apiKey→secretRef 集成 + 迁移）
+- `apps/cli/src/cli.ts` / `apps/cli/src/tui/chat.ts`（挂载默认 CredentialStore，secretRef 运行时解析）
 - 文档同步
 
 ## 依赖
@@ -47,7 +40,7 @@
 
 ## 工作证明（执行器回填）
 
-- [ ] 接口/后端/迁移/测试
+- [x] 接口/后端/迁移/测试（见下节回传摘要；DPAPI 本机 powershell 实测可用）
 
 ## 验收结论（指挥回填）
 

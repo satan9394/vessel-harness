@@ -2,6 +2,7 @@ import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { PlaintextCredentialStore } from '@vessel/application';
 import {
   BUILTIN_MOCK_PROVIDER,
   ProviderStore,
@@ -208,5 +209,107 @@ describe('ProviderStore', () => {
     fs.mkdirSync(dir, { recursive: true });
     fs.writeFileSync(store.providersFile, JSON.stringify({ id: 'x' }), 'utf8');
     expect(() => store.load()).toThrow(/expected array/);
+  });
+});
+
+describe('ProviderStore × CredentialStore integration (task 034)', () => {
+  let dir: string;
+  let credFile: string;
+  let cred: PlaintextCredentialStore;
+  let store: ProviderStore;
+
+  beforeEach(() => {
+    dir = fs.mkdtempSync(path.join(os.tmpdir(), 'cah-provider-cred-'));
+    credFile = path.join(dir, 'secrets.json');
+    cred = new PlaintextCredentialStore({ secretsFile: credFile });
+    store = new ProviderStore({ rootDir: dir, credentialStore: cred });
+  });
+
+  afterEach(() => {
+    fs.rmSync(dir, { recursive: true, force: true });
+  });
+
+  it('add() with apiKey stores the secret and writes secretRef, NOT plaintext in providers.json', () => {
+    store.add({ ...SAMPLE }); // SAMPLE.apiKey = 'sk-test'
+    // providers.json 不再落明文
+    const raw = fs.readFileSync(store.providersFile, 'utf8');
+    expect(raw).not.toContain('sk-test');
+    const persisted = JSON.parse(raw) as ProviderConfig[];
+    expect(persisted[0]?.secretRef).toBe('credential:vessel/ds');
+    expect(persisted[0]?.apiKey).toBeUndefined();
+    // secret 已入 secrets.json
+    expect(cred.getSync('vessel', 'ds')).toBe('sk-test');
+  });
+
+  it('get() resolves secretRef back to apiKey transparently', () => {
+    store.add({ ...SAMPLE });
+    const got = store.get('ds');
+    expect(got?.secretRef).toBe('credential:vessel/ds');
+    expect(got?.apiKey).toBe('sk-test'); // 解析回 apiKey，调用方无感
+  });
+
+  it('migrates a legacy plaintext apiKey in providers.json to secretRef on load', () => {
+    // 直接手写旧格式 providers.json（含明文 apiKey、无 secretRef）
+    fs.mkdirSync(dir, { recursive: true });
+    fs.writeFileSync(
+      store.providersFile,
+      JSON.stringify([
+        { id: 'ds', name: 'DeepSeek', protocol: 'openai-compatible', baseUrl: 'https://api.deepseek.com', apiKey: 'sk-legacy', model: 'deepseek-chat' },
+      ]),
+      'utf8',
+    );
+    const list = store.load();
+    expect(list[0]?.apiKey).toBe('sk-legacy'); // 仍能读出
+    // 迁移后：providers.json 改 secretRef、清明文；secret 已入 store
+    const raw = JSON.parse(fs.readFileSync(store.providersFile, 'utf8')) as ProviderConfig[];
+    expect(raw[0]?.secretRef).toBe('credential:vessel/ds');
+    expect(raw[0]?.apiKey).toBeUndefined();
+    expect(raw[0]?.name).toBe('DeepSeek'); // 其它字段不受影响
+    expect(cred.getSync('vessel', 'ds')).toBe('sk-legacy');
+  });
+
+  it('migration is idempotent: second load does not rewrite or re-store', () => {
+    fs.mkdirSync(dir, { recursive: true });
+    fs.writeFileSync(
+      store.providersFile,
+      JSON.stringify([{ id: 'ds', name: 'DeepSeek', protocol: 'openai-compatible', apiKey: 'sk-x', model: 'm' }]),
+      'utf8',
+    );
+    store.load();
+    const afterFirst = fs.readFileSync(store.providersFile, 'utf8');
+    const beforeSecond = fs.readFileSync(store.providersFile, 'utf8');
+    store.load();
+    const afterSecond = fs.readFileSync(store.providersFile, 'utf8');
+    expect(afterSecond).toBe(beforeSecond);
+    expect(afterSecond).toBe(afterFirst);
+    expect(afterSecond).not.toContain('sk-x');
+  });
+
+  it('secretRef-only providers (no apiKey) resolve through the store', () => {
+    cred.setSync('vessel', 'claude', 'sk-ant-resolved');
+    const cfg: ProviderConfig = {
+      id: 'claude',
+      name: 'Anthropic',
+      protocol: 'anthropic',
+      baseUrl: 'https://api.anthropic.com',
+      secretRef: 'credential:vessel/claude',
+      model: 'claude-sonnet-4-5',
+    };
+    store.add(cfg);
+    expect(store.get('claude')?.apiKey).toBe('sk-ant-resolved');
+  });
+
+  it('without a credentialStore, providers.json keeps plaintext apiKey (backward compat)', () => {
+    const plainStore = new ProviderStore({ rootDir: dir });
+    plainStore.add({ ...SAMPLE });
+    const persisted = JSON.parse(fs.readFileSync(plainStore.providersFile, 'utf8')) as ProviderConfig[];
+    expect(persisted[0]?.apiKey).toBe('sk-test');
+    expect(persisted[0]?.secretRef).toBeUndefined();
+  });
+
+  it('secrets.json uses atomic write (no .tmp residue)', () => {
+    store.add({ ...SAMPLE });
+    expect(fs.existsSync(`${credFile}.tmp`)).toBe(false);
+    expect(fs.existsSync(`${store.providersFile}.tmp`)).toBe(false);
   });
 });

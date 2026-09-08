@@ -11,3 +11,5 @@ export { SessionController } from './session/SessionController.js';
 export type { SessionControllerOptions, SessionState, SessionPermission, SessionProjections } from './session/SessionController.js';
 
 export * from './projections/index.js';
+
+export * from './credential/index.js';

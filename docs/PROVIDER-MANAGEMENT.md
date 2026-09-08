@@ -40,13 +40,19 @@ TUI 内斜杠命令：`/provider`（配置供应商）、`/models`（当前供�
 
 | 文件 | 内容 |
 |---|---|
-| `~/.dsh/providers.json` | 供应商列表（id/name/protocol/baseUrl/apiKey/model/models?/note?） |
-| `~/.dsh/current.json` | 当前默认供应商 id（缺省 `mock`） |
+| `~/.vessel/providers.json` | 供应商列表（id/name/protocol/baseUrl/secretRef/model/models?/note?）——含密钥的写 `secretRef`（`credential:vessel/<id>`），不再落明文 apiKey |
+| `~/.vessel/secrets.json` | 凭据存储（task 034）：Windows 默认 DPAPI 加密（`ProtectedData`），否则 plaintext 显式降级（写时 warn 提示） |
+| `~/.vessel/current.json` | 当前默认供应商 id（缺省 `mock`） |
 
-- 目录沿用项目 ~/.dsh 约定（memory/skills 同款）。
+- 目录沿用项目 ~/.vessel 约定（memory/skills 同款）。
 - 原子写：先写 `.tmp` 再 rename，防半写损坏。
-- **apiKey 明文存本机**（与 cc-switch 同款取舍）——仅本机用户目录可读；别把 `~/.dsh` 同步到不受信的地方。不做加密（YAGNI）。
-- 测试/多环境隔离：设 `VESSEL_PROVIDER_ROOT` 环境变量可改存储根（CI/测试不碰真实 ~/.dsh；唯一环境变量）。
+- **apiKey 经 CredentialStore 管理（`packages/application/src/credential/`）**：
+  - Windows + PowerShell/DPAPI 可用 → `WindowsDpapiCredentialStore`（密钥加密落盘 secrets.json，providers.json 只存 secretRef）。
+  - 其它/不可用 → `PlaintextCredentialStore` 显式降级（明文 + console.warn，不静默）。
+  - 读取时 ProviderStore 自动把 secretRef 解析回 apiKey（`get(id).apiKey` 无感可用）。
+  - 旧 providers.json 含明文 apiKey → 加载时自动迁入 store 并改写为 secretRef（原子写；幂等）。
+  - 仍别把 `~/.vessel` 同步到不受信的地方——非 Windows 降级明文时泄露风险等同旧版。
+- 测试/多环境隔离：设 `VESSEL_PROVIDER_ROOT` 环境变量可改存储根（CI/测试不碰真实 ~/.vessel；唯一环境变量）。
 - `mock` 是内置供应商：永不持久化、不可删除、`list` 首项、无配置时默认。
 
 ## 3. 命令参考

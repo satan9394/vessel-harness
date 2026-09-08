@@ -2,6 +2,11 @@ import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import type { ProviderName } from '@vessel/llm';
+import {
+  parseSecretRef,
+  makeSecretRef,
+  type SyncCredentialStore,
+} from '@vessel/application';
 
 /**
  * apps/cli/providers/ProviderStore — 供应商配置 SSOT 存储（task 014）。
@@ -32,8 +37,15 @@ export interface ProviderConfig {
   protocol: ProviderName;
   /** endpoint URL（openai-compatible / anthropic 需要） */
   baseUrl?: string;
-  /** API 密钥——本地明文存储，注意泄露风险（不做加密） */
+  /**
+   * API 密钥——task 034 起默认不再明文写 providers.json：写入时经 CredentialStore
+   * 存到 secretRef（`credential:vessel/<id>`），apiKey 字段清明文。保留本字段向后
+   * 兼容读取：有 apiKey 用 apiKey；有 secretRef 则经 store 解析出 apiKey（get/load
+   * 返回时都带 apiKey）。旧 providers.json 含明文 apiKey → 加载时自动迁入 store。
+   */
   apiKey?: string;
+  /** 凭据引用（`credential:<service>/<account>`）；与 apiKey 互斥，存 apiKey 后写 secretRef。 */
+  secretRef?: string;
   /** 默认模型名（add 时必填） */
   model: string;
   /** 可选：可用模型清单（fetch 后缓存/用户维护） */
@@ -45,6 +57,14 @@ export interface ProviderConfig {
 export interface ProviderStoreOptions {
   /** 覆盖存储根目录（测试注入 os.tmpdir() 下临时目录；默认 ~/.vessel） */
   rootDir?: string;
+  /**
+   * CredentialStore（同步后端）+ 凭据 service 名。提供后：add/save 会把 apiKey 移入
+   * store 写 secretRef，load/get 解析 secretRef 回 apiKey，并自动迁移旧明文 apiKey。
+   * 不提供则不启用凭据抽象（纯向后兼容路径，明文字段照原样读写）。
+   */
+  credentialStore?: SyncCredentialStore;
+  /** 凭据 service 名（默认 'vessel'），secretRef ＝ `credential:<service>/<id>`。 */
+  credentialService?: string;
 }
 
 export const PROVIDER_PROTOCOLS: readonly ProviderName[] = [
@@ -87,11 +107,17 @@ function isProviderConfig(v: unknown): v is ProviderConfig {
 export class ProviderStore {
   /** 存储根目录（public：测试注入断言 / CLI 诊断用）。 */
   readonly rootDir: string;
+  /** 可选的 CredentialStore 同步后端（启用了凭据抽象时才非空）。 */
+  readonly credentialStore?: SyncCredentialStore;
+  /** 凭据 service 名（secretRef = `credential:<service>/<id>`）。 */
+  readonly credentialService: string;
 
   constructor(opts: ProviderStoreOptions = {}) {
     // env override lets CLI tests isolate from the real ~/.vessel without touching
     // it; explicit opts.rootDir wins over env.
     this.rootDir = opts.rootDir ?? process.env.VESSEL_PROVIDER_ROOT ?? defaultProviderRoot();
+    this.credentialStore = opts.credentialStore;
+    this.credentialService = opts.credentialService ?? 'vessel';
   }
 
   /** providers.json 的完整路径。 */
@@ -104,44 +130,31 @@ export class ProviderStore {
     return path.join(this.rootDir, 'current.json');
   }
 
+  /** 凭据是否启用：有后端即启用（否则纯明文字段向后兼容）。 */
+  get credentialsEnabled(): boolean {
+    return this.credentialStore !== undefined;
+  }
+
   /**
    * 读用户配置列表（不含内置 mock）。首次运行无文件 → 返回 []（不报错）；
    * 文件存在但损坏/结构非法 → fail loud。
+   *
+   * 启用 CredentialStore 时：加载后逐项解析 secretRef→apiKey，并把仍留在
+   * providers.json 里的旧明文 apiKey 自动迁入 store＋改写为 secretRef（幂等：迁移后
+   * 无剩余明文，下次加载不再触发）。
    */
   load(): ProviderConfig[] {
-    let text: string;
-    try {
-      text = fs.readFileSync(this.providersFile, 'utf8');
-    } catch (err) {
-      const e = err as NodeJS.ErrnoException;
-      if (e.code === 'ENOENT') return [];
-      throw err;
-    }
-    let raw: unknown;
-    try {
-      raw = JSON.parse(text);
-    } catch (err) {
-      throw new Error(`providers file corrupted (invalid JSON): ${this.providersFile}`, { cause: err });
-    }
-    if (!Array.isArray(raw)) {
-      throw new Error(`providers file corrupted (expected array): ${this.providersFile}`);
-    }
-    // mock 永不持久化：文件里若出现（手工编辑），load 时过滤掉，保证 list 无重复。
-    const list: ProviderConfig[] = [];
-    for (const item of raw) {
-      if (!isProviderConfig(item)) {
-        throw new Error(`providers file corrupted (bad entry): ${this.providersFile}`);
-      }
-      if (item.id === 'mock') continue;
-      this.assertValid(item);
-      list.push(item);
-    }
-    return list;
+    const list = this.rawLoad();
+    return this.resolveSecrets(list);
   }
 
   /**
    * 全量校验 + 原子写盘。任一配置非法（重复 id / 非法 protocol / 缺 model）
    * 即 throw，不落盘任何内容。
+   *
+   * 启用 CredentialStore 时：写盘前把每项的 apiKey 迁入 store（service=credentialService，
+   * account=id）并改为 secretRef，providers.json 不再落明文；未启用则原样保留 apiKey
+   * 字段（纯向后兼容路径）。
    */
   save(configs: ProviderConfig[]): void {
     const seen = new Set<string>();
@@ -152,7 +165,8 @@ export class ProviderStore {
       }
       seen.add(c.id);
     }
-    this.writeJsonAtomic(this.providersFile, configs.filter((c) => c.id !== 'mock'));
+    const toPersist = configs.map((c) => this.stripSecretForPersist(c));
+    this.writeJsonAtomic(this.providersFile, toPersist.filter((c) => c.id !== 'mock'));
   }
 
   /** 内置 mock 首项 + 用户配置（存储顺序 = 插入顺序）。 */
@@ -237,6 +251,91 @@ export class ProviderStore {
     const tmp = `${file}.tmp`;
     fs.writeFileSync(tmp, `${JSON.stringify(data, null, 2)}\n`, 'utf8');
     fs.renameSync(tmp, file);
+  }
+
+  /** 读盘 + 校验（不做任何凭据解析/迁移的纯读取）。 */
+  private rawLoad(): ProviderConfig[] {
+    let text: string;
+    try {
+      text = fs.readFileSync(this.providersFile, 'utf8');
+    } catch (err) {
+      const e = err as NodeJS.ErrnoException;
+      if (e.code === 'ENOENT') return [];
+      throw err;
+    }
+    let raw: unknown;
+    try {
+      raw = JSON.parse(text);
+    } catch (err) {
+      throw new Error(`providers file corrupted (invalid JSON): ${this.providersFile}`, { cause: err });
+    }
+    if (!Array.isArray(raw)) {
+      throw new Error(`providers file corrupted (expected array): ${this.providersFile}`);
+    }
+    // mock 永不持久化：文件里若出现（手工编辑），load 时过滤掉，保证 list 无重复。
+    const list: ProviderConfig[] = [];
+    for (const item of raw) {
+      if (!isProviderConfig(item)) {
+        throw new Error(`providers file corrupted (bad entry): ${this.providersFile}`);
+      }
+      const entry = item as ProviderConfig;
+      if (entry.id === 'mock') continue;
+      this.assertValid(entry);
+      list.push(entry);
+    }
+    return list;
+  }
+
+  /**
+   * 凭据解析 + 迁移（load 的核心）：返回读到的配置，每项保证带 apiKey：
+   *   - 有明文 apiKey（旧格式）→ 启用 store 时迁入 store 并改 secretRef 写回；
+   *     未启用则原样返回。
+   *   - 有 secretRef → 经 store 解析出 apiKey（解析失败返回 null）。
+   * 迁移是文件改写（原子写 providers.json），不是删除，安全。
+   */
+  private resolveSecrets(list: ProviderConfig[]): ProviderConfig[] {
+    const cred = this.credentialStore;
+    if (!cred) return list;
+    let migrated = false;
+    const resolved: ProviderConfig[] = list.map((c) => {
+      const out = { ...c };
+      if (typeof c.apiKey === 'string' && c.apiKey.length > 0 && !c.secretRef) {
+        // 旧明文 apiKey → 迁入 store，改写为 secretRef。
+        cred.setSync(this.credentialService, c.id, c.apiKey);
+        out.apiKey = c.apiKey; // 解析结果仍供调用方直接用
+        out.secretRef = makeSecretRef(this.credentialService, c.id);
+        migrated = true;
+      } else if (typeof c.secretRef === 'string' && !c.apiKey) {
+        const parsed = parseSecretRef(c.secretRef);
+        if (parsed && parsed.service === this.credentialService) {
+          out.apiKey = cred.getSync(parsed.service, parsed.account) ?? undefined;
+        }
+      }
+      return out;
+    });
+    // 有明文迁走 → 把 providers.json 改写为 secretRef（幂等；此后再读无明文）。
+    if (migrated) {
+      const toPersist = resolved.map((r) => this.stripSecretForPersist(r));
+      this.writeJsonAtomic(this.providersFile, toPersist.filter((p) => p.id !== 'mock'));
+    }
+    return resolved;
+  }
+
+  /**
+   * 写盘前移除/改写敏感字段：启用 store 时把 apiKey 存进 store 并换成交给
+   * providers.json 的 secretRef（apiKey 清明文）；未启用则原样返回。
+   */
+  private stripSecretForPersist(c: ProviderConfig): ProviderConfig {
+    const cred = this.credentialStore;
+    if (!cred) return c;
+    const out: ProviderConfig = { ...c };
+    if (typeof out.apiKey === 'string' && out.apiKey.length > 0 && !out.secretRef) {
+      cred.setSync(this.credentialService, out.id, out.apiKey);
+      out.secretRef = makeSecretRef(this.credentialService, out.id);
+    }
+    // 启用 store 时 providers.json 永不落明文。
+    delete out.apiKey;
+    return out;
   }
 
   /** 单项校验（fail loud）。 */
