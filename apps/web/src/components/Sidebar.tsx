@@ -5,10 +5,20 @@ export interface SidebarProps {
   projects: Project[];
   sessions: SessionMeta[];
   onNewSession: () => void;
+  /** currently open session id (if any); highlights its row. */
+  selectedSessionId?: string | null;
+  /** invoked when the user clicks a session row. */
+  onSelectSession: (id: string) => void;
 }
 
 /** Left rail (240px): brand, New Session, Projects, Recent Sessions, Settings. */
-export default function Sidebar({ projects, sessions, onNewSession }: SidebarProps) {
+export default function Sidebar({
+  projects,
+  sessions,
+  onNewSession,
+  selectedSessionId,
+  onSelectSession,
+}: SidebarProps) {
   return (
     <aside className="sidebar">
       <div className="brand">
@@ -40,7 +50,20 @@ export default function Sidebar({ projects, sessions, onNewSession }: SidebarPro
             <li className="side-empty">暂无会话</li>
           ) : (
             sessions.map((s) => (
-              <li key={s.id} className="side-item" title={s.workspaceRoot}>
+              <li
+                key={s.id}
+                className={`side-item${s.id === selectedSessionId ? ' side-item-active' : ''}`}
+                title={s.workspaceRoot}
+                role="button"
+                tabIndex={0}
+                onClick={() => onSelectSession(s.id)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    onSelectSession(s.id);
+                  }
+                }}
+              >
                 {s.workspaceRoot}
               </li>
             ))
