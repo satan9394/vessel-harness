@@ -123,7 +123,7 @@ class PresetRegistry {
 | `tools` | 工具可见性收窄（shrink-only） | ✅ 055：`applyPresetToolFace`（tools allow-list intersection）接入 `SubagentManager.delegate`（presetLookup 命中时） |
 | `write` | file_write 族 / 写权限工具可见性；policy profile 降档 | ✅ 055：`write:false` → 只保留 `requiredPermission === 'read'` 工具（等价 EvaluatorAgent 只读面先例），接入 delegate；`policyProfileForPreset` 输出 'read-only' 意图，落 PolicyEngine profile 的接线在 057/会话构造方 |
 | `canDelegate` | Subagent 工具注册 + 服务端上限 | ◑ 055：`canDelegate:false` → 从可见面剔除 'Subagent' 工具（子代理始终无 Subagent，递归另有 maxDepth 上限，fail-closed）；`canDelegate:true`（lead 编排）不因 preset 剔除，顶层会话是否注册 Subagent 工具由 057/组装方决定 |
-| `modelTier` | 模型档位 → 具体模型 | ⏳ 056：`llm/router` ModelTier + TierModelMap（现仅 pro/fast/mini；review 档绑定由 056 扩展） |
+| `modelTier` | 模型档位 → 具体模型 | ✅ 056：`packages/llm/src/router/autoRouter.ts`（AutoTaskRouter，默认 Auto）—— 档位经开放 `TierBindings`（含 review 档）由 provider/config 层注入；未配置档位清晰回落默认档 + hints（见 docs/TASKROUTER-AUTO.md） |
 
 design 总则：**preset 只声明意图（形状），运行时开关仍由机制层权威裁决**；preset 收窄能力，
 不能放大（角色只能收窄父权限，参照 BEHAVIOR-IR-SPEC §7.2 覆盖规则 `default < project < preset < role < flag`）。
@@ -132,8 +132,11 @@ design 总则：**preset 只声明意图（形状），运行时开关仍由机�
 
 - `packages/llm/src/router/TaskRouter.ts` 的 `DEFAULT_PRESETS` 是「任务类别 → { agentPreset?, modelTier }」
   的路由表数据（`agentPreset` 字段目前是透传标签，记录进会话 B10）。054 的 `AgentPreset` 是这些标签
-  背后的**完整角色规格**（带 role/tools/write/canDelegate）。056 应把类别 preset 的 `agentPreset` 标签
-  解析到本 registry 的 `AgentPreset`（标签不在 registry 时 fail loud 或回落标签透传，由 056 定）。
+  背后的**完整角色规格**（带 role/tools/write/canDelegate）。056 的角色选型走另一条路径：
+  `autoRouter.ts` 的 AutoTaskRouter 按 §8.2 复杂度给角色计划，角色出参是 registry 里的
+  `lead/developer/reviewer` preset id（llm 层只透传数据，不 import agents）；类别 preset 表的
+  `agentPreset` 标签（explorer/planner/architect…）到本 registry 的解析留在 057 消费方统一做
+  （标签不在 registry 时 fail loud 或回落，由 057 定）。
 - `EVENT-SPEC` A22/A23 的 `preset` 载荷字段与 `session/created.agentPreset` 即本 registry 的 id。
 - 现有 Evaluator Agent 硬编码只读工具面、Subagent 委派标签透传，是 054 之前「preset 语义未成形」的
   过渡形态；054 后新形态由 055 按 preset 重新装载，旧路径保留兼容。

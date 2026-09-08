@@ -5,6 +5,7 @@ export * from './provider/createProvider.js';
 export * from './router/Router.js';
 export * from './router/taskCategory.js';
 export * from './router/TaskRouter.js';
+export * from './router/autoRouter.js';
 export * from './stream/types.js';
 export * from './stream/parseOpenAI.js';
 export * from './stream/parseAnthropic.js';

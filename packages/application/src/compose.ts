@@ -11,7 +11,7 @@ import { listIndex, formatIndexText, createSkillTool, createSkillSearchTool } fr
 import { Telemetry } from '@vessel/telemetry';
 import { SubagentManager, createSubagentTool } from '@vessel/agents';
 import { ProjectStore, createMemoryTool } from '@vessel/memory';
-import { TaskRouter, type TierModelMap, type TaskCategoryPresets } from '@vessel/llm';
+import { AutoTaskRouter, type AutoRoute, type RouteMode, type TierBindings, type TierModelMap } from '@vessel/llm';
 
 /**
  * Minimal structural contract for a persistent usage store. apps/cli wires its
@@ -51,16 +51,27 @@ export interface ComposeOptions {
   /** V0.7: permission mode → policy profile override (read-only / workspace-write / danger-full-access) */
   permission?: 'read-only' | 'workspace-write' | 'danger-full-access';
   /**
-   * V0.4: Task Router wiring. When `providers` + `tierModel` are given and the
-   * caller does NOT pin an explicit provider/model, the session is routed from
-   * the first task prompt via TaskRouter (category → preset → tier). Explicit
-   * opts.provider/opts.model always win (backward compatible).
+   * V0.4/V0.5 task routing (056: 默认 Auto 产品路径). When `providers` + a tier
+   * binding are given AND a routing trigger is present (taskPrompt, or an
+   * explicit mode fast/pro), the session is routed via AutoTaskRouter —
+   * Auto default: classify category → choose role (§8.2) → choose tier (§8.3)
+   * → resolve provider/model from the injected bindings. Explicit mode fast/pro
+   * bypasses classification straight to that tier. Callers that pin
+   * provider/model simply omit the triggers (explicit pinning wins by
+   * construction, backward compatible).
    */
   taskRouter?: {
     providers: Record<string, ChatProvider>;
+    /** legacy core-tier binding (pro/fast/mini) — provider layer supplies */
     tierModel: TierModelMap;
-    presets?: TaskCategoryPresets;
+    /** open tier → model binding (review 等扩展档) — merged over tierModel */
+    bindings?: TierBindings;
+    /** first-task prompt that triggers Auto routing */
     taskPrompt?: string;
+    /** user choice: auto (default) | fast | pro */
+    mode?: RouteMode;
+    /** pin the resolved choice for this session (no re-judge on later turns) */
+    pin?: boolean;
   };
   /** V0.9: persistent usage statistics — record after_model usage into this store */
   usageStore?: UsageStoreLike;
@@ -81,9 +92,11 @@ export interface ComposedHarness {
   behaviorWarnings: string[];
   subagentManager?: SubagentManager;
   mcpClients: McpClient[];
-  /** V0.4: TaskRouter instance (when task routing was wired) — callers can re-route per task */
-  taskRouter?: TaskRouter;
-  /** category the session was routed to on start (when taskPrompt given) */
+  /** V0.4/056: AutoTaskRouter instance (when task routing was wired) — callers can re-route per task */
+  taskRouter?: AutoTaskRouter;
+  /** 056: the actual resolved route (mode/category/complexity/roles/primary model/hints) — 「Auto → <model>」展示依据 */
+  route?: AutoRoute;
+  /** category the session was routed to on start (when routing triggered) */
   routedCategory?: string;
   /** V0.9: usage store wired (when provided) */
   usageStore?: UsageStoreLike;
@@ -99,24 +112,42 @@ export async function composeHarness(opts: ComposeOptions): Promise<ComposedHarn
   const workspaceRoot = path.resolve(opts.workspaceRoot);
   const cwd = path.resolve(opts.cwd ?? workspaceRoot);
 
-  // V0.4 task routing: when the caller explicitly provides a router AND a
-  // taskPrompt, the session's provider/model are resolved from the task
-  // (category → preset → tier). Callers that want to pin provider/model
-  // simply omit taskPrompt (explicit pinning wins by construction).
+  // V0.4/056 task routing: when the caller wires providers + tier bindings AND a
+  // trigger is present (taskPrompt, or explicit mode fast/pro without a prompt),
+  // the session's provider/model are resolved through AutoTaskRouter — Auto by
+  // default: classify category → choose role (§8.2) → choose tier (§8.3) →
+  // resolve provider/model from the injected bindings. Explicit mode fast/pro
+  // bypasses classification. Callers that want to pin provider/model simply
+  // omit the triggers (explicit pinning wins by construction).
   let effectiveProvider = opts.provider;
   let effectiveModel = opts.model;
-  let taskRouter: TaskRouter | undefined;
+  let taskRouter: AutoTaskRouter | undefined;
+  let route: AutoRoute | undefined;
   let routedCategory: string | undefined;
-  if (opts.taskRouter?.providers && opts.taskRouter?.tierModel && opts.taskRouter.taskPrompt) {
-    taskRouter = new TaskRouter({
-      providers: opts.taskRouter.providers,
-      tierModel: opts.taskRouter.tierModel,
-      presets: opts.taskRouter.presets,
+  const trOpts = opts.taskRouter;
+  const routingTriggered = Boolean(trOpts?.taskPrompt) || trOpts?.mode === 'fast' || trOpts?.mode === 'pro';
+  if (trOpts?.providers && trOpts?.tierModel && routingTriggered) {
+    // open bindings = caller extensions (review 等) merged over the legacy core tiers
+    const bindings: TierBindings = Object.assign({}, trOpts.tierModel, trOpts.bindings ?? {}) as TierBindings;
+    taskRouter = new AutoTaskRouter({
+      providers: trOpts.providers,
+      bindings,
+      mode: trOpts.mode ?? 'auto',
     });
-    const route = taskRouter.resolve({ task: opts.taskRouter.taskPrompt });
+    route = taskRouter.resolve(
+      trOpts.taskPrompt !== undefined
+        ? { task: trOpts.taskPrompt, mode: trOpts.mode }
+        : { mode: trOpts.mode },
+    );
+    // pin for this session: the resolved choice is locked (no automatic re-judge)
+    if (trOpts.pin) route = taskRouter.pinCurrent();
     routedCategory = route.category;
-    effectiveModel = route.model;
-    effectiveProvider = route.provider;
+    effectiveModel = route.primary.model;
+    const routedProvider = trOpts.providers[route.primary.providerId];
+    if (!routedProvider) {
+      throw new Error(`task route resolved to unknown provider "${route.primary.providerId}"`);
+    }
+    effectiveProvider = routedProvider;
   }
 
   const session = await Session.open({ workspaceRoot, sessionId: opts.sessionId });
@@ -299,6 +330,7 @@ export async function composeHarness(opts: ComposeOptions): Promise<ComposedHarn
     subagentManager,
     mcpClients,
     taskRouter,
+    route,
     routedCategory,
     usageStore: opts.usageStore,
     async close() {
