@@ -1,0 +1,12 @@
+label=soak-068-200t-6r durationMs=41365
+tasks=200 rounds=6 enqueued=200
+attempts=598 iterations=399
+finalQueueStatuses{met:200}
+handoffCount=0 chain=0
+pauseResumeCycles=0 budgetChanges=6
+tempResidue=0 (0=clean, 064)
+storeDirKB=407
+heapStartMB=13.3 heapEndMB=16 deltaMB=2.7
+roundTrip queue=true itersTasks=200 handoffs=true countConsistent=true
+resumeProducedIteration=false resumeExtraIteration=null
+exhausted={"paused":false,"budget":{"maxIterations":1,"maxRetries":1},"exhausted":{"kind":"iterations","atIteration":67}}

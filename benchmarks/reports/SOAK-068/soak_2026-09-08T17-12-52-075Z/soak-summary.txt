@@ -1,0 +1,12 @@
+label=soak-068-300t-8r durationMs=154281
+tasks=300 rounds=8 enqueued=300
+attempts=1801 iterations=1051
+finalQueueStatuses{met:300}
+handoffCount=750 chain=5
+pauseResumeCycles=6 budgetChanges=12
+tempResidue=0 (0=clean, 064)
+storeDirKB=3265
+heapStartMB=13.5 heapEndMB=24.3 deltaMB=10.8
+roundTrip queue=true itersTasks=300 handoffs=true countConsistent=true
+resumeProducedIteration=true resumeExtraIteration=1
+exhausted={"paused":false,"budget":{"maxIterations":1,"maxRetries":1},"exhausted":{"kind":"iterations","atIteration":51}}
