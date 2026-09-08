@@ -112,4 +112,44 @@ describe('SessionController', () => {
     expect(ctl.session.workspaceRoot).toBe(path.resolve(ws));
     await ctl.close();
   });
+
+  it('exposes projections and drives them from bus events (integration)', async () => {
+    const provider = new MockProvider([{ when: /.*/, response: { text: 'OK' } }], { model: 'm' });
+    const ctl = await SessionController.create({
+      workspaceRoot: ws,
+      provider,
+      model: 'm',
+      policySystemPath: POLICY,
+      behaviorIRPath: BEHAVIOR,
+    });
+
+    // projections attached to the session bus are readable.
+    expect(ctl.projections.conversation).toBeDefined();
+    expect(ctl.projections.toolActivity).toBeDefined();
+    expect(ctl.projections.usage).toBeDefined();
+    expect(ctl.projections.policy).toBeDefined();
+
+    // feed the bus directly → projections update incrementally.
+    await ctl.bus.waterfall('before_turn', { turnId: 't1', input: 'hello' });
+    await ctl.bus.emit('after_model', {
+      turnId: 't1',
+      step: 1,
+      response: { content: 'hi', toolCalls: [] },
+      usage: { inputTokens: 10, outputTokens: 4 },
+    });
+    await ctl.bus.waterfall('before_tool', { toolCallId: 'tc1', toolName: 'Read', arguments: {} });
+    await ctl.bus.emit('after_tool', { toolCallId: 'tc1', toolName: 'Read', result: { content: 'x', error: undefined } });
+    await ctl.bus.emit('policy_decision', { toolCallId: 'tc9', toolName: 'Shell', verdict: 'deny', ruleRef: 'r1', reason: 'no' });
+
+    expect(ctl.projections.conversation.messages().length).toBe(2);
+    expect(ctl.projections.toolActivity.activities()).toHaveLength(1);
+    expect(ctl.projections.usage.usage().inputTokens).toBe(10);
+    expect(ctl.projections.policy.denials()).toHaveLength(1);
+
+    await ctl.close();
+
+    // after close, projections no longer react to bus events.
+    await ctl.bus.waterfall('before_turn', { turnId: 't2', input: 'again' });
+    expect(ctl.projections.conversation.messages().length).toBe(2);
+  });
 });

@@ -2,6 +2,13 @@ import type { ChatProvider } from '@vessel/shared';
 import type { ComposedHarness, ComposeOptions } from '../compose.js';
 import { composeHarness } from '../compose.js';
 import { SessionRegistry, type SessionMeta } from './SessionRegistry.js';
+import {
+  ConversationProjection,
+  ToolActivityProjection,
+  UsageProjection,
+  PolicyProjection,
+  type PricingTable,
+} from '../projections/index.js';
 
 /** Permission profiles a session can be composed with. */
 export type SessionPermission = 'read-only' | 'workspace-write' | 'danger-full-access';
@@ -16,6 +23,8 @@ export interface SessionControllerOptions extends ComposeOptions {
    * ChatProvider's own `id` when the options override it is not given.
    */
   providerId?: string;
+  /** optional pricing table for the Usage projection cost estimate. */
+  pricingTable?: PricingTable;
 }
 
 /** Snapshot of the current session control-plane state. */
@@ -25,6 +34,17 @@ export interface SessionState {
   provider: string;
   model: string;
   permission: SessionPermission;
+}
+
+/**
+ * Projection bundle attached to the session's bus. The Web/CLI surface reads
+ * these read-only facts instead of parsing the raw event JSONL.
+ */
+export interface SessionProjections {
+  conversation: ConversationProjection;
+  toolActivity: ToolActivityProjection;
+  usage: UsageProjection;
+  policy: PolicyProjection;
 }
 
 /**
@@ -49,12 +69,32 @@ export class SessionController {
   private abortController: AbortController | null = null;
   private readonly pendingSteers: string[] = [];
 
+  /** bus-attached event projections (read-only UI facts). */
+  readonly projections: SessionProjections;
+  private readonly detachProjections: () => void;
+
   private constructor(harness: ComposedHarness, opts: SessionControllerOptions) {
     this.harness = harness;
     this.sessionId = opts.id ?? harness.session.sessionId;
     this.providerId = opts.providerId ?? opts.provider.id;
     this.model = opts.model;
     this.permission = (opts.permission ?? 'workspace-write') as SessionPermission;
+
+    this.projections = {
+      conversation: new ConversationProjection(),
+      toolActivity: new ToolActivityProjection(),
+      usage: new UsageProjection({ model: this.model, pricingTable: opts.pricingTable }),
+      policy: new PolicyProjection(),
+    };
+    const detaches = [
+      this.projections.conversation.attach(harness.bus),
+      this.projections.toolActivity.attach(harness.bus),
+      this.projections.usage.attach(harness.bus),
+      this.projections.policy.attach(harness.bus),
+    ];
+    this.detachProjections = () => {
+      for (const off of detaches) off();
+    };
   }
 
   /**
@@ -136,6 +176,7 @@ export class SessionController {
   /** Close the composed harness (session log, MCP clients, telemetry detach). */
   async close(): Promise<void> {
     this.abortController?.abort();
+    this.detachProjections();
     await this.harness.close();
   }
 }

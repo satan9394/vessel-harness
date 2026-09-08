@@ -5,6 +5,7 @@ import { fileURLToPath } from 'node:url';
 import { once } from 'node:events';
 import { SessionController, SessionRegistry, ProjectRegistry } from '@vessel/application';
 import type { SessionPermission } from '@vessel/application';
+import type { Listener } from '@vessel/core';
 import { MockProvider } from '@vessel/llm';
 import type { SessionMeta } from '@vessel/application';
 
@@ -87,6 +88,17 @@ function json(res: http.ServerResponse, status: number, body: unknown): void {
   const payload = JSON.stringify(body);
   res.writeHead(status, { 'Content-Type': 'application/json; charset=utf-8' });
   res.end(payload);
+}
+
+/** Compact single-line tool-arguments summary for SSE tool deltas. */
+function summarizeArgs(args: Record<string, unknown> | undefined): string | undefined {
+  if (!args) return undefined;
+  try {
+    const json = JSON.stringify(args);
+    return json.length > 120 ? `${json.slice(0, 120)}…` : json;
+  } catch {
+    return String(args);
+  }
 }
 
 export function createVesselServer(opts: VesselServerOptions = {}): VesselServer {
@@ -263,16 +275,66 @@ export function createVesselServer(opts: VesselServerOptions = {}): VesselServer
     res.writeHead(200, SSE_HEADERS);
     res.write(`data: ${JSON.stringify({ type: 'ping', ts: Date.now() })}\n\n`);
 
-    const forwards = new Map<string, () => void>();
-    const forward = (type: string) => {
-      const off = ctl.bus.on(type, (payload) => {
-        // best-effort; responder may already be closed
-        res.write(`data: ${JSON.stringify({ type, payload, ts: Date.now() })}\n\n`);
-      }, `local-server:sse:${type}`);
-      forwards.set(type, off);
+    // Emit a single SSE data frame from a projection delta.
+    const sse = (type: string, delta: unknown) => {
+      // best-effort; responder may already be closed
+      res.write(`data: ${JSON.stringify({ type, delta, ts: Date.now() })}\n\n`);
     };
-    forward('after_turn');
-    forward('after_model');
+
+    const forwards = new Map<string, () => void>();
+    const forward = (key: string, type: string, fn: Listener): void => {
+      const off = ctl.bus.on(type, (payload, ctx) => fn(payload, ctx), `local-server:sse:${key}`);
+      forwards.set(key, off);
+    };
+
+    // after_model → conversation delta (assistant text / tool-call summary)
+    forward('conversation', 'after_model', (payload) => {
+      const p = payload as { response?: { content?: string; toolCalls?: { name?: string }[] } };
+      const response = p.response;
+      if (!response) return;
+      if (response.toolCalls && response.toolCalls.length > 0) {
+        for (const tc of response.toolCalls) {
+          sse('conversation', { role: 'assistant', toolName: tc.name });
+        }
+      } else if (typeof response.content === 'string' && response.content !== '') {
+        sse('conversation', { role: 'assistant', text: response.content });
+      }
+    });
+
+    // after_model usage → usage delta (incremental tokens from this call)
+    forward('usage', 'after_model', (payload) => {
+      const p = payload as { usage?: { inputTokens?: number; outputTokens?: number; cacheReadTokens?: number } };
+      const usage = p.usage;
+      if (!usage) return;
+      sse('usage', {
+        inputTokens: usage.inputTokens ?? 0,
+        outputTokens: usage.outputTokens ?? 0,
+        cacheReadTokens: usage.cacheReadTokens ?? 0,
+        calls: ctl.projections.usage.usage().calls,
+      });
+    });
+
+    // before_tool → tool delta (started). Listener returns void (noop) so it
+    // never short-circuits the policy waterfall.
+    forward('tool:start', 'before_tool', (payload) => {
+      const p = payload as { toolName?: string; arguments?: Record<string, unknown> };
+      sse('tool', { toolName: p.toolName, status: 'started', argsSummary: summarizeArgs(p.arguments) });
+    });
+
+    // after_tool → tool delta (terminal status)
+    forward('tool:end', 'after_tool', (payload) => {
+      const p = payload as { toolName?: string; result?: { error?: { errorClass?: string } } };
+      let status = 'done';
+      if (p.result?.error) status = p.result.error.errorClass === 'DENIED' ? 'denied' : 'error';
+      sse('tool', { toolName: p.toolName, status });
+    });
+
+    // policy_decision (deny) → policy delta
+    forward('policy', 'policy_decision', (payload) => {
+      const p = payload as { verdict?: string; toolName?: string; ruleRef?: string; reason?: string };
+      if (p.verdict !== 'deny') return;
+      sse('policy', { toolName: p.toolName, rule: p.ruleRef, reason: p.reason });
+    });
 
     const heartbeat = setInterval(() => {
       res.write(`data: ${JSON.stringify({ type: 'ping', ts: Date.now() })}\n\n`);

@@ -177,4 +177,53 @@ describe('local server HTTP API + SSE', () => {
     const get = await fetch(`${base}/api/sessions/nope`);
     expect(get.status).toBe(404);
   });
+
+  it('SSE emits a conversation delta after a turn (projection-based)', async () => {
+    const create = await fetch(`${base}/api/sessions`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ workspaceRoot: ws }),
+    });
+    const created = (await create.json()) as { session: { id: string } };
+    const id = created.session.id;
+
+    // open the SSE stream before the turn so its projection events are captured
+    const res = await fetch(`${base}/api/sessions/${id}/events`);
+    expect(res.status).toBe(200);
+    expect(res.headers.get('content-type')).toContain('text/event-stream');
+
+    const reader = res.body!.getReader();
+    const decoder = new TextDecoder();
+    let buf = '';
+
+    // trigger a turn in parallel with the open stream
+    const turnPromise = fetch(`${base}/api/sessions/${id}/turns`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ prompt: 'hello sse' }),
+    });
+
+    // read frames until we see a conversation delta (or bail)
+    let gotConversation = false;
+    for (let i = 0; i < 200 && !gotConversation; i++) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      buf += decoder.decode(value, { stream: true });
+      // split on blank-line-terminated data frames
+      const frames = buf.split('\n\n');
+      buf = frames.pop() ?? '';
+      for (const frame of frames) {
+        const m = /^data: (.*)$/m.exec(frame);
+        if (!m) continue;
+        const evt = JSON.parse(m[1]!) as { type: string; delta?: unknown };
+        if (evt.type === 'conversation') {
+          gotConversation = true;
+          break;
+        }
+      }
+    }
+    await turnPromise;
+    await reader.cancel();
+    expect(gotConversation).toBe(true);
+  });
 });
