@@ -1,6 +1,6 @@
 # 072 — Process-Tree Confinement（进程树完整约束）
 
-- 状态：待验收
+- 状态：已合入
 - 优先级：P0（Wave 4 / Milestone F）
 - 创建日期：2026-09-08
 - 关联：071（Windows Job Object 后端：kill-tree 整树终止已实现）；073（filesystem confinement）
@@ -114,5 +114,10 @@ npx tsc -b tsconfig.json   # exit 0，无类型错误
 
 ### 验收结论（指挥回填）
 
-- [ ] 合入 / 打回
-- 备注：
+- [x] 合入（commit 277ef9d）
+- 备注：指挥独立复核——全量 vitest 77 文件 693 测试全绿 + 1 skipped（零失败）、tsc -b 0 错误，与执行器自报一致。
+  设计认可：ProcessTreeTracker（跨平台树跟踪 + append-only 审计）+ detectEscapes（纯规则逃逸检测，terminateEscaped
+  硬终止）+ windows-job-object 扩展（enumerateDescendants CIM BFS / attachPidsToJob 关 071 时序窗口 / terminatePids /
+  CPU+内存资源上限）+ 修复 071 ACTIVE_PROCESS flag 笔误（0x4→0x8）。诚实限制标注（逃逸检测非实时、极小残窗、
+  工作集软目标、仅 Windows）。真实 Windows 时序窗口集成实测（孙进程纳管 + dispose 双杀）。下一张：073（filesystem
+  confinement）。
