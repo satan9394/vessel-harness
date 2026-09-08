@@ -1,6 +1,6 @@
 # 059 — External Review Handoff（.vessel/reviews/<id>/handoff.md）
 
-- 状态：待验收
+- 状态：已合入
 - 优先级：P0（Wave 2 / Milestone D）
 - 创建日期：2026-09-08
 - 关联：058（Internal Review 后接外部评审）；060（UI：Copy Handoff / Open Folder / Import Result）
@@ -118,5 +118,9 @@ External Review Handoff：把待外部评审的任务打包成 handoff artifact�
 
 ## 验收结论（指挥回填）
 
-- [ ] 合入 / 打回
-- 备注：
+- [x] 合入（commit f27ea36）
+- 备注：指挥独立复核——全量 vitest 64 文件 537 测试全绿（518+19，零回归）、npx tsc -b 0 错误，与执行器自报一致。
+  设计认可：ReviewHandoffStore（.vessel/reviews/<review-id>/handoff.md 八 section + meta.json，review_<ts>_<hex> id
+  沿用 sess_/team_ 同款；tmp+rename 原子写；VESSEL_REVIEWS_ROOT 可覆盖）；importResult 复用 058 parseReviewConclusion
+  单点解析（来源 external/internal 可区分）；CLI seam（vessel review handoff/import/list）。明确不做 AGY 当
+  ChatProvider/Local CLI Adapter shell hack（遵守 §9.2）。下一张：060（Team UI + 052/053 web 收尾）。
