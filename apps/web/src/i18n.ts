@@ -52,6 +52,8 @@ export interface Messages {
   interruptTitle: MessageTemplate;
   /** Team module placeholder when no session is selected (task 060) */
   teamModuleNoSession: MessageTemplate;
+  /** Goal module placeholder when no session is selected (task 065) */
+  goalModuleNoSession: MessageTemplate;
 }
 
 export const zh: Messages = {
@@ -81,6 +83,7 @@ export const zh: Messages = {
   customizeHead: '显示模块',
   interruptTitle: '中断当前回合（占位：直接 POST /interrupt）',
   teamModuleNoSession: '选择或新建一个会话后，Team 面板（模型选择 / 3-Agents 活动 / External Review）将在此显示。',
+  goalModuleNoSession: '选择或新建一个会话后，Goal 面板（任务队列 / 迭代回放 / 每次运行）将在此显示。',
 };
 
 export const en: Messages = {
@@ -111,6 +114,8 @@ export const en: Messages = {
   interruptTitle: 'Interrupt the current turn (placeholder: POST /interrupt)',
   teamModuleNoSession:
     'Select or start a session and the Team panel (model select / 3-agent activity / External Review) appears here.',
+  goalModuleNoSession:
+    'Select or start a session and the Goals panel (task queue / iteration replay / per-run control) appears here.',
 };
 
 /** All dictionaries keyed by language. */

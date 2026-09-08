@@ -10,6 +10,7 @@ import { LanguageProvider, useI18n } from './components/LanguageProvider';
 import UsageBar, { emptyUsage } from './components/UsageBar';
 import ToolActivityRow from './components/ToolActivityRow';
 import TeamModule from './components/TeamModule';
+import GoalModule from './components/GoalModule';
 import type { ToolDelta } from './sse';
 import {
   loadModules,
@@ -176,7 +177,24 @@ function ModuleSection({
         </div>
       );
     case 'Tasks':
-      return <PlaceholderCard title="Tasks">{t('tasksPlaceholder')}</PlaceholderCard>;
+      // task 065: real Goal module (task queue + iteration replay + run control)
+      // needs a session; without one show the friendly prompt.
+      if (!sessionId) {
+        return (
+          <div className="module-card">
+            <div className="module-card-title">Goals</div>
+            <div className="module-card-body dim">{t('goalModuleNoSession')}</div>
+          </div>
+        );
+      }
+      return (
+        <div className="module-card module-card-goal">
+          <div className="module-card-title">Goals</div>
+          <div className="module-card-body">
+            <GoalModule sessionId={sessionId} api={api} />
+          </div>
+        </div>
+      );
     case 'ChangedFiles':
       return <PlaceholderCard title="Changed Files">{t('changedFilesPlaceholder')}</PlaceholderCard>;
     case 'Cost':

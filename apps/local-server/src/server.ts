@@ -13,6 +13,8 @@ import { loadPolicyArtifacts } from '@vessel/policy';
 import type { SessionMeta } from '@vessel/application';
 import { DEFAULT_TIER_BINDINGS, RouteSeam, startTeamRun } from './teamSeam.js';
 import type { ActiveTeamRun, TeamEventKind } from './teamSeam.js';
+import { GoalSeam } from './goalSeam.js';
+import type { GoalRunResult, GoalTaskStatus } from './goalSeam.js';
 
 /**
  * SessionController factory. The server never composes a session itself — that
@@ -56,6 +58,8 @@ export interface VesselServerOptions {
   reviewStore?: ReviewHandoffStore;
   /** "Open Folder" action — defaults to a best-effort OS opener; tests inject */
   openFolder?: (dir: string) => void;
+  /** task 065 goal seam — persistent task queue + iteration log + real run chain */
+  goalSeam?: GoalSeam;
 }
 
 export interface VesselServer {
@@ -166,6 +170,7 @@ export function createVesselServer(opts: VesselServerOptions = {}): VesselServer
   const policyArtifacts = loadPolicyArtifacts({ systemPath: opts.policySystemPath ?? DEFAULT_POLICY });
   const reviewStore = opts.reviewStore ?? new ReviewHandoffStore();
   const openFolder = opts.openFolder ?? defaultOpenFolder;
+  const goalSeam = opts.goalSeam ?? new GoalSeam();
 
   interface SessionTeamState {
     route: RouteSeam;
@@ -279,6 +284,11 @@ export function createVesselServer(opts: VesselServerOptions = {}): VesselServer
     // /api/reviews — external review handoffs (059) + task 060 UI actions
     if (segs[1] === 'reviews' && segs.length >= 2) {
       return handleReviews(method, segs, req, res);
+    }
+
+    // ---------------- task 065: Goal/Loop seam (task queue + iterations + run) ----------------
+    if (segs[1] === 'goal' && segs.length >= 3) {
+      return handleGoal(method, segs, req, res);
     }
 
     // /api/sessions/:id/...
@@ -518,6 +528,98 @@ export function createVesselServer(opts: VesselServerOptions = {}): VesselServer
         return json(res, 200, { ok: true, folder: reviewStore.dirFor(id) });
       } catch (err) {
         return json(res, 500, { error: 'open_folder_failed', message: err instanceof Error ? err.message : String(err) });
+      }
+    }
+
+    return json(res, 404, { error: 'not_found' });
+  }
+
+  /**
+   * /api/goal* — Goal/Loop seam (065): persistent task queue + iteration replay +
+   * one real run per task. 066 (pause/resume/budget) is a UI-only seam — no
+   * control endpoints yet (the buttons are disabled placeholders).
+   */
+  async function handleGoal(
+    method: string,
+    segs: string[],
+    req: http.IncomingMessage,
+    res: http.ServerResponse,
+  ): Promise<void> {
+    // /api/goal/tasks
+    if (segs.length === 3 && segs[2] === 'tasks') {
+      if (method === 'GET') {
+        const q = new URL(req.url ?? '/', `http://${req.headers.host ?? '127.0.0.1'}`).searchParams;
+        const tasks = goalSeam.listTasks({
+          projectRoot: q.get('projectRoot') ?? undefined,
+          status: (q.get('status') as GoalTaskStatus | null) ?? undefined,
+        });
+        return json(res, 200, { tasks });
+      }
+      if (method === 'POST') {
+        const body = (await readJsonBody(req)) as { projectRoot?: string; goal?: string; acceptance?: string[] } | null;
+        if (!body || typeof body.goal !== 'string' || body.goal.trim() === '') {
+          return json(res, 400, { error: 'missing_goal' });
+        }
+        if (!body.projectRoot || typeof body.projectRoot !== 'string') {
+          return json(res, 400, { error: 'missing_projectRoot' });
+        }
+        try {
+          const task = goalSeam.enqueue({
+            projectRoot: body.projectRoot,
+            goal: body.goal,
+            acceptance: Array.isArray(body.acceptance) ? body.acceptance : undefined,
+          });
+          return json(res, 201, { task });
+        } catch (err) {
+          return json(res, 400, { error: 'goal_enqueue_failed', message: err instanceof Error ? err.message : String(err) });
+        }
+      }
+    }
+
+    // /api/goal/tasks/:id
+    if (segs.length === 4 && segs[2] === 'tasks') {
+      const id = segs[3] ?? '';
+      if (method === 'GET') {
+        const task = goalSeam.getTask(id);
+        if (!task) return json(res, 404, { error: 'goal_task_not_found', taskId: id });
+        return json(res, 200, { task });
+      }
+      // POST /api/goal/tasks/:id — no generic POST; actions live at /:id/run|pause|resume|budget
+    }
+
+    // /api/goal/tasks/:id/run — trigger one bounded task run (§11.1)
+    if (segs.length === 5 && segs[2] === 'tasks' && segs[4] === 'run' && method === 'POST') {
+      const id = segs[3] ?? '';
+      if (!goalSeam.getTask(id)) return json(res, 404, { error: 'goal_task_not_found', taskId: id });
+      try {
+        const result: GoalRunResult = await goalSeam.runTask(id, {
+          providers: teamProviders,
+          policyArtifacts,
+          developerProviderId: 'mock',
+          developerModel: 'mock-pro',
+          reviewerProviderId: 'mock',
+          reviewerModel: 'mock-review',
+        });
+        return json(res, 200, { result });
+      } catch (err) {
+        return json(res, 400, { error: 'goal_run_failed', message: err instanceof Error ? err.message : String(err) });
+      }
+    }
+
+    // /api/goal/tasks/:id/iterations — replay the per-task iteration log
+    if (segs.length === 5 && segs[2] === 'tasks' && segs[4] === 'iterations' && method === 'GET') {
+      const id = segs[3] ?? '';
+      if (!goalSeam.getTask(id)) return json(res, 404, { error: 'goal_task_not_found', taskId: id });
+      const iterations = goalSeam.replay(id);
+      const record = goalSeam.taskRecord(id);
+      return json(res, 200, { taskId: id, iterations, record });
+    }
+
+    // 066 seam — pause/resume/budget are reserved (UI placeholders), not implemented.
+    if (segs.length === 5 && segs[2] === 'tasks' && method === 'POST') {
+      const action = segs[4];
+      if (action === 'pause' || action === 'resume' || action === 'budget') {
+        return json(res, 501, { error: 'not_implemented_066', taskId: segs[3], action, message: `"${action}" lands in task 066 (Pause/Resume/Budget)` });
       }
     }
 

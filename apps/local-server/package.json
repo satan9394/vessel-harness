@@ -18,6 +18,7 @@
   },
   "dependencies": {
     "@vessel/application": "^0.10.0",
+    "@vessel/engine": "^0.1.0",
     "@vessel/llm": "^0.1.0"
   }
 }

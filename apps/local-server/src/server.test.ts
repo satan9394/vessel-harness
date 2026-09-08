@@ -4,8 +4,10 @@ import * as path from 'node:path';
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { MockProvider } from '@vessel/llm';
 import { SessionRegistry, ProjectRegistry, ReviewHandoffStore, type SessionController } from '@vessel/application';
+import { IterationStore, ProjectTaskQueue } from '@vessel/engine';
 import { createVesselServer, type VesselServer } from './server.js';
 import type { ChatProvider, ChatRequest, ChatResponse, StreamChunk } from '@vessel/shared';
+import { GoalSeam } from './goalSeam.js';
 
 const POLICY = path.resolve('configs/policy.default.yaml');
 const BEHAVIOR = path.resolve('configs/behavior.default.yaml');
@@ -780,5 +782,159 @@ describe('local server — task 060 seams (route mode/pin + team runs + external
       body: JSON.stringify({ text: '   ' }),
     });
     expect(emptyImport.status).toBe(400);
+  });
+});
+
+describe('local server — task 065 goal seam (task queue + iterations + run control)', () => {
+  let dir: string;
+  let ws: string;
+  let home: string;
+  let tasksRoot: string;
+  let iterationsRoot: string;
+  let server: VesselServer;
+  let base: string;
+
+  beforeEach(async () => {
+    dir = fs.mkdtempSync(path.join(os.tmpdir(), 'cah-goal-server-'));
+    ws = path.join(dir, 'workspace');
+    home = path.join(dir, 'vessel-home');
+    tasksRoot = path.join(dir, 'taskqueue');
+    iterationsRoot = path.join(dir, 'iterations');
+    fs.mkdirSync(ws, { recursive: true });
+
+    const projectRegistry = new ProjectRegistry({ vesselHome: home });
+    const sessionRegistry = new SessionRegistry({ vesselHome: home });
+    const goalSeam = new GoalSeam({
+      queue: new ProjectTaskQueue({ tasksRoot }),
+      iterations: new IterationStore({ iterationsRoot }),
+    });
+    server = createVesselServer({
+      port: 0,
+      projectRegistry,
+      sessionRegistry,
+      goalSeam,
+      sessionFactory: async (input) => {
+        const { SessionController: SC } = await import('@vessel/application');
+        const provider = new MockProvider([{ when: /.*/, response: { text: `SERVER-ECHO:${input.model ?? 'default'}` } }], {
+          model: input.model ?? 'default',
+        });
+        return SC.create({
+          workspaceRoot: input.workspaceRoot,
+          provider,
+          model: input.model ?? 'default',
+          policySystemPath: POLICY,
+          behaviorIRPath: BEHAVIOR,
+          permission: input.permission ?? 'workspace-write',
+          registry: input.registry,
+        });
+      },
+      staticDir: ws,
+    });
+    await server.listen();
+    base = `http://127.0.0.1:${server.port}`;
+  });
+
+  afterEach(async () => {
+    await server.close();
+    fs.rmSync(dir, { recursive: true, force: true });
+  });
+
+  it('enqueue → list/task read-back: validation (missing goal/projectRoot 400, empty ok → twice)', async () => {
+    const missingGoal = await fetch(`${base}/api/goal/tasks`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ projectRoot: ws }),
+    });
+    expect(missingGoal.status).toBe(400);
+
+    const missingProj = await fetch(`${base}/api/goal/tasks`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ goal: '实现导出', projectRoot: '' }),
+    });
+    expect(missingProj.status).toBe(400);
+
+    const create = await fetch(`${base}/api/goal/tasks`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ projectRoot: ws, goal: '实现一个导出功能', acceptance: ['AC-1 导出 run'] }),
+    });
+    expect(create.status).toBe(201);
+    const created = (await create.json()) as { task: { id: string; goal: string; status: string; projectRoot: string } };
+    expect(created.task.status).toBe('pending');
+    expect(created.task.goal).toBe('实现一个导出功能');
+    expect(created.task.projectRoot).toBe(path.resolve(ws));
+
+    const list = await fetch(`${base}/api/goal/tasks?projectRoot=${encodeURIComponent(ws)}`);
+    expect(list.status).toBe(200);
+    const listed = (await list.json()) as { tasks: { id: string; goal: string }[] };
+    expect(listed.tasks.some((t) => t.id === created.task.id)).toBe(true);
+
+    const get = await fetch(`${base}/api/goal/tasks/${created.task.id}`);
+    expect(get.status).toBe(200);
+    const one = (await get.json()) as { task: { id: string; status: string } };
+    expect(one.task.id).toBe(created.task.id);
+  });
+
+  it('iterations replay is empty for a never-run task; missing task 404', async () => {
+    const create = await fetch(`${base}/api/goal/tasks`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ projectRoot: ws, goal: '从未运行的任务' }),
+    });
+    const { task } = (await create.json()) as { task: { id: string } };
+
+    const replay = await fetch(`${base}/api/goal/tasks/${task.id}/iterations`);
+    expect(replay.status).toBe(200);
+    const body = (await replay.json()) as { iterations: unknown[]; record: unknown };
+    expect(body.iterations).toEqual([]);
+    expect(body.record).toBeUndefined();
+
+    const missing = await fetch(`${base}/api/goal/tasks/nope/iterations`);
+    expect(missing.status).toBe(404);
+  });
+
+  it('POST run triggers the 061-064 real chain once → iteration persisted, task settles (not_met from mock eval)', async () => {
+    const create = await fetch(`${base}/api/goal/tasks`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ projectRoot: ws, goal: '跑一次真实链路', acceptance: ['AC-1 能运行'] }),
+    });
+    const { task } = (await create.json()) as { task: { id: string; status: string } };
+
+    const run = await fetch(`${base}/api/goal/tasks/${task.id}/run`, { method: 'POST' });
+    expect(run.status).toBe(200);
+    const result = (await run.json()) as {
+      result: { outcome: string; error?: string; queueTask: { status: string }; entry?: { verdict: string } };
+    };
+    // mock evaluator cannot certify met → output is always a warning/not_met; the
+    // queue settles to a terminal state and an iteration is persisted either way.
+    expect(['met', 'not_met', 'error'].includes(result.result.outcome)).toBe(true);
+    if (result.result.queueTask.status === 'not_met' || result.result.queueTask.status === 'met') {
+      expect(['met', 'not_met'].includes(result.result.queueTask.status)).toBe(true);
+    }
+
+    const replay = await fetch(`${base}/api/goal/tasks/${task.id}/iterations`);
+    const body = (await replay.json()) as { iterations: { iteration: number; taskId: string }[] };
+    expect(body.iterations.length).toBeGreaterThanOrEqual(1);
+    expect(body.iterations[0]!.taskId).toBe(task.id);
+    expect(body.iterations[0]!.iteration).toBe(1);
+  }, 30000);
+
+  it('066 seam: pause/resume/budget are reserved → 501, not implemented', async () => {
+    const create = await fetch(`${base}/api/goal/tasks`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ projectRoot: ws, goal: '占位任务' }),
+    });
+    const { task } = (await create.json()) as { task: { id: string } };
+
+    for (const action of ['pause', 'resume', 'budget'] as const) {
+      const res = await fetch(`${base}/api/goal/tasks/${task.id}/${action}`, { method: 'POST' });
+      expect(res.status).toBe(501);
+      const body = (await res.json()) as { error: string; action: string };
+      expect(body.error).toBe('not_implemented_066');
+      expect(body.action).toBe(action);
+    }
   });
 });

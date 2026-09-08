@@ -19,6 +19,7 @@
     { "path": "../../packages/skills" },
     { "path": "../../packages/agents" },
     { "path": "../../packages/telemetry" },
+    { "path": "../../packages/engine" },
     { "path": "../../packages/application" }
   ]
 }

@@ -9,6 +9,8 @@
 
 // Team/route/review wire shapes (task 060) — see ./team for the full mirrors.
 import type { ReviewRecord, RouteMode, RouteState, TeamRunState } from './team';
+// Goal/Loop wire shapes (task 065) — see ./goal for the full mirrors.
+import type { GoalIteration, GoalRunResult, GoalTask } from './goal';
 
 export interface ApiOptions {
   /** base URL, default '/api'. May be 'http://127.0.0.1:5678/api'. */
@@ -182,6 +184,37 @@ export function createApiClient(opts: ApiOptions = {}) {
         method: 'POST',
         body: JSON.stringify(input),
       });
+    },
+
+    // ------------------------------------------------------------------
+    // Goal/Loop UI (task 065) — task queue + iteration replay + run control
+    // ------------------------------------------------------------------
+
+    /** GET /api/goal/tasks — persistent task queue (optional projectRoot filter) */
+    async listGoalTasks(projectRoot?: string): Promise<{ tasks: GoalTask[] }> {
+      const query = projectRoot ? `?projectRoot=${encodeURIComponent(projectRoot)}` : '';
+      return request<{ tasks: GoalTask[] }>(`/goal/tasks${query}`);
+    },
+    /** POST /api/goal/tasks — enqueue a goal into the project task queue */
+    async enqueueGoal(projectRoot: string, goal: string, acceptance?: string[]): Promise<{ task: GoalTask }> {
+      return request<{ task: GoalTask }>('/goal/tasks', {
+        method: 'POST',
+        body: JSON.stringify({ projectRoot, goal, acceptance }),
+      });
+    },
+    /** GET /api/goal/tasks/:id — one task record */
+    async getGoalTask(id: string): Promise<{ task: GoalTask }> {
+      return request<{ task: GoalTask }>(`/goal/tasks/${encodeURIComponent(id)}`);
+    },
+    /** GET /api/goal/tasks/:id/iterations — replay the per-task iteration log */
+    async goalIterations(id: string): Promise<{ taskId: string; iterations: GoalIteration[] }> {
+      return request<{ taskId: string; iterations: GoalIteration[] }>(
+        `/goal/tasks/${encodeURIComponent(id)}/iterations`,
+      );
+    },
+    /** POST /api/goal/tasks/:id/run — trigger one bounded real run (§11.1) */
+    async runGoalTask(id: string): Promise<{ result: GoalRunResult }> {
+      return request<{ result: GoalRunResult }>(`/goal/tasks/${encodeURIComponent(id)}/run`, { method: 'POST' });
     },
 
     /** GET /api/reviews — external review handoff records (059) */

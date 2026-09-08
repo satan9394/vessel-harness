@@ -704,3 +704,88 @@ code {
 .review-import-input { display: none; }
 .review-import-label { cursor: pointer; }
 .team-notice { font-size: 11px; }
+
+/* ===== Goal/Loop module (task 065) ===== */
+.goal-module { display: flex; flex-direction: column; gap: 10px; }
+
+.goal-composer { display: flex; gap: 8px; }
+
+.goal-panel { display: flex; flex-direction: column; gap: 10px; }
+
+.goal-queue { display: flex; flex-direction: column; gap: 6px; }
+.goal-queue-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+
+.goal-label { font-size: 10px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--dim); font-weight: 600; }
+
+.goal-note { font-size: 11px; }
+
+.goal-empty { font-size: 12px; }
+.goal-empty-title { font-weight: 600; margin-bottom: 2px; }
+
+.goal-task-list { display: flex; flex-direction: column; gap: 4px; }
+.goal-task-row {
+  appearance: none;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--text);
+  border-radius: 6px;
+  padding: 6px 8px;
+  font-size: 12px;
+  text-align: left;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+}
+.goal-task-row:hover { background: var(--hover); }
+.goal-task-row-active { border-color: var(--accent); background: var(--panel2); }
+.goal-task-goal { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; }
+
+.goal-status { font-size: 10px; text-transform: uppercase; border: 1px solid var(--border); border-radius: 8px; padding: 0 6px; flex: none; }
+.goal-status-pending { color: var(--dim); }
+.goal-status-in-progress { color: var(--accent); border-color: var(--accent); }
+.goal-status-met { color: var(--green); border-color: var(--green); }
+.goal-status-not_met { color: var(--yellow); border-color: var(--yellow); }
+.goal-status-cancelled { color: var(--red); border-color: var(--red); }
+
+.goal-detail { border-top: 1px solid var(--row-line); padding-top: 10px; display: flex; flex-direction: column; gap: 8px; }
+.goal-detail-head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.goal-task-title { font-weight: 600; max-width: 40ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.goal-outcome-reason { font-size: 11px; }
+
+.goal-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.goal-run-hint { font-size: 11px; }
+.goal-controls { display: inline-flex; gap: 6px; margin-left: 2px; }
+.goal-control-btn { padding: 4px 10px; font-size: 12px; }
+.goal-control-btn:disabled { cursor: not-allowed; }
+.goal-control-reserved { opacity: 0.6; }
+
+.goal-iterations { display: flex; flex-direction: column; gap: 6px; }
+.goal-iterations-list { display: flex; flex-direction: column; gap: 8px; }
+
+.goal-iteration { border: 1px solid var(--border); border-radius: 8px; padding: 8px 10px; background: var(--panel); display: flex; flex-direction: column; gap: 4px; }
+.goal-iteration-head { display: flex; align-items: center; gap: 8px; font-size: 12px; flex-wrap: wrap; }
+.goal-iteration-num { font-family: ui-monospace, monospace; font-size: 11px; color: var(--dim); }
+.goal-verdict { font-size: 10px; text-transform: uppercase; border-radius: 8px; padding: 0 6px; border: 1px solid var(--border); }
+.goal-verdict-met { color: var(--green); border-color: var(--green); }
+.goal-verdict-not_met { color: var(--yellow); border-color: var(--yellow); }
+.goal-verdict-impossible, .goal-verdict-error { color: var(--red); border-color: var(--red); }
+.goal-iteration-reason { font-size: 11px; }
+
+.goal-gen-eval { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 4px; }
+.goal-gen, .goal-eval { display: flex; flex-direction: column; gap: 4px; font-size: 12px; }
+.goal-pre { font-size: 11px; white-space: pre-wrap; word-break: break-word; background: var(--panel2); border-radius: 6px; padding: 6px 8px; max-height: 6em; overflow: auto; }
+.goal-artifact-count { font-size: 11px; }
+
+.goal-review { border: 1px solid var(--border); border-radius: 6px; padding: 6px 8px; font-size: 12px; }
+.goal-review-met { border-color: var(--green); }
+.goal-review-not_met { border-color: var(--yellow); }
+.goal-review-impossible, .goal-review-error { border-color: var(--red); }
+.goal-review-verdict { font-weight: 600; }
+.goal-review-list { margin: 4px 0 0; padding-left: 16px; font-size: 11px; }
+
+.goal-acceptance { display: flex; flex-direction: column; gap: 4px; font-size: 11px; }
+.goal-acceptance-list { margin: 0; padding-left: 16px; }
+
+.goal-module-hint { font-size: 11px; }
