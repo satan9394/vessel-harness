@@ -37,7 +37,11 @@
 
 ## 工作证明（执行器回填）
 
-- [ ] 新增文件 / 测试 / 持久化验证 / tsc/vitest
+- [x] 新增文件 / 测试 / 持久化验证 / tsc/vitest
+  - 新增：`packages/application/src/project/ProjectRegistry.ts`(+test)、`packages/application/src/session/SessionRegistry.ts`(+test)、`packages/application/src/session/SessionController.ts`(+test)；`index.ts` 导出 ProjectRegistry/SessionRegistry/SessionController + 类型
+  - 测试：ProjectRegistry 5 / SessionRegistry 5 / SessionController 4 = 新增 14 例；全量 vitest 311 passed（40 files）
+  - tsc -b：exit 0；CLI mock 冒烟：kind=success
+  - 持久化：sessions.json/projects.json 写 `<vesselHome>`（默认 ~/.vessel；测试注入 os.tmpdir 假 home，不碰真目录）；原子 tmp+rename；跨实例可恢复
 
 ## 验收结论（指挥回填）
 
