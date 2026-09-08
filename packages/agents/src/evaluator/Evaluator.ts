@@ -1,4 +1,4 @@
-import type { ChatProvider } from '@cah/shared';
+import type { ChatProvider } from '@vessel/shared';
 
 export type EvaluatorVerdictKind = 'met' | 'not_met' | 'impossible' | 'error';
 

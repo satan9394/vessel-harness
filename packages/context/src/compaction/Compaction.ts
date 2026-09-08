@@ -1,6 +1,6 @@
 import * as crypto from 'node:crypto';
-import { COMPACTION_RETAIN_RATIO, COMPACTION_THRESHOLD_RATIO, type SessionRecord } from '@cah/shared';
-import { Session } from '@cah/core';
+import { COMPACTION_RETAIN_RATIO, COMPACTION_THRESHOLD_RATIO, type SessionRecord } from '@vessel/shared';
+import { Session } from '@vessel/core';
 
 export type CompactionTrigger = 'pressure' | 'overflow' | 'manual';
 

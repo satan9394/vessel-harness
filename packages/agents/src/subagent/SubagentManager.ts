@@ -1,6 +1,6 @@
 import * as crypto from 'node:crypto';
-import type { ChatProvider, PolicyArtifacts, SubagentResultContract, ToolSpec } from '@cah/shared';
-import type { EventBus } from '@cah/core';
+import type { ChatProvider, PolicyArtifacts, SubagentResultContract, ToolSpec } from '@vessel/shared';
+import type { EventBus } from '@vessel/core';
 import { createIsolatedRuntime } from './IsolatedRuntime.js';
 
 export type SubagentStopReason = SubagentResultContract['stopReason'];

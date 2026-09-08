@@ -3,9 +3,9 @@ import type {
   MetricValue,
   ReportLine,
   SessionRecord,
-} from '@cah/shared';
-import type { EventBus } from '@cah/core';
-import { EventBus as Bus, Session } from '@cah/core';
+} from '@vessel/shared';
+import type { EventBus } from '@vessel/core';
+import { EventBus as Bus, Session } from '@vessel/core';
 
 export interface TelemetryCounters {
   turns: number;

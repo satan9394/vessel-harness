@@ -3,7 +3,7 @@ import * as http from 'node:http';
 import type { AddressInfo } from 'node:net';
 import { AnthropicProvider } from './AnthropicProvider.js';
 import { createProvider } from './createProvider.js';
-import type { ChatMessage } from '@cah/shared';
+import type { ChatMessage } from '@vessel/shared';
 
 /** Boot a local HTTP server that records requests and responds with a canned body. */
 function fakeAnthropicServer(handler: (body: unknown) => unknown) {

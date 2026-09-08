@@ -1,4 +1,4 @@
-import type { ChatProvider } from '@cah/shared';
+import type { ChatProvider } from '@vessel/shared';
 import { classifyTask, type TaskCategory } from './taskCategory.js';
 
 /**

@@ -1,6 +1,6 @@
 import type { LoopTask } from './LoopEngine.js';
-import { classifyTask, type TaskCategory } from '@cah/llm';
-import { DEFAULT_PRESETS, type AgentPresetRef, type TaskRouter } from '@cah/llm';
+import { classifyTask, type TaskCategory } from '@vessel/llm';
+import { DEFAULT_PRESETS, type AgentPresetRef, type TaskRouter } from '@vessel/llm';
 
 /**
  * engine/selection — V0.5-M2 Task Selection (task 011; MISSION-V0.5 §三.2).

@@ -51,7 +51,7 @@ scripts/dev-test/                 沙箱内 vitest 兼容验证通道（见 §5�
 
 ## 3. 架构/规范对齐
 
-- **Core 薄核不变**：所有 V0.2 机制挂在 core 之外的 seam 上；core/ 未新增 import。委派事件词汇只在 `@cah/shared` 扩展（EVENT-SPEC 表 A A22–A25 的 snake_case 落地 + B10 记录），EventBus 原语复用（waterfall/emit/serial）。
+- **Core 薄核不变**：所有 V0.2 机制挂在 core 之外的 seam 上；core/ 未新增 import。委派事件词汇只在 `@vessel/shared` 扩展（EVENT-SPEC 表 A A22–A25 的 snake_case 落地 + B10 记录），EventBus 原语复用（waterfall/emit/serial）。
 - **Subagent = 普通 Session 同构复用**（D3 决策点 12）：独立上下文/独立会话日志/自建薄 loop；父只见结果契约（info hiding，EVENT-SPEC A24）；并发 1–3、深度上限服务端强制（fail-closed，EVENT-SPEC A22）。
 - **Evaluator 不是新原语**：Evaluator Agent = 隔离会话 + 只读工具面 + 独立模型/判定的 preset（H12）；Generator 产出只是其评审数据，`impossible/error` 不产生误判通过。
 - **MCP 唯一动态扩展通道**（D3 决策点 7）：`mcp__<server>__<tool>` 注册进同一 ToolRegistry → 同一 BeforeTool→Policy→Execute→AfterTool 管线；deny 规则/denied_tools 对 MCP 工具同名生效。
@@ -80,7 +80,7 @@ npx tsx packages/tools/src/mcp/fixtures/echo-server.ts
 ## 5. 沙箱内验证通道（scripts/dev-test/）
 
 - `vitest-shim.mjs`：vitest API 子集（describe/it/test/expect/vi/beforeEach/afterEach/beforeAll/afterAll、常用 matcher、expect.any/objectContaining、rejects/resolves、vi.fn/spyOn/waitFor）基于 node:test + node:assert。
-- `test-alias.mjs`：module resolve hook —— `vitest`→shim、`@cah/*`→src/index.ts、相对 `.js`→`.ts`。
+- `test-alias.mjs`：module resolve hook —— `vitest`→shim、`@vessel/*`→src/index.ts、相对 `.js`→`.ts`。
 - `run.mjs`：与 vitest.config.ts include 一致的 `*.test.ts` 发现 + 顺序 import（node:test 内联执行）。
 - 用途：本会话沙箱内验证；**规范仍以 `npx vitest run` 为准**（非沙箱环境）。
 

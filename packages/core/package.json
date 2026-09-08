@@ -1,5 +1,5 @@
 {
-  "name": "@cah/core",
+  "name": "@vessel/core",
   "version": "0.1.0",
   "description": "thin core: events, session, state, agent-loop",
   "type": "module",

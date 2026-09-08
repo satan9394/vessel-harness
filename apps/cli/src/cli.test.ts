@@ -5,7 +5,7 @@ import { fileURLToPath } from 'node:url';
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { main } from './cli.js';
 import { composeHarness } from './compose.js';
-import { MockProvider } from '@cah/llm';
+import { MockProvider } from '@vessel/llm';
 
 const REPO_ROOT = fileURLToPath(new URL('../../../', import.meta.url));
 const POLICY = path.join(REPO_ROOT, 'configs', 'policy.default.yaml');

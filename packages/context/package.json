@@ -1,5 +1,5 @@
 {
-  "name": "@cah/context",
+  "name": "@vessel/context",
   "version": "0.1.0",
   "description": "context builder + basic compaction + instructions",
   "type": "module",

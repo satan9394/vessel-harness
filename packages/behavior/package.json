@@ -1,5 +1,5 @@
 {
-  "name": "@cah/behavior",
+  "name": "@vessel/behavior",
   "version": "0.1.0",
   "description": "behavior IR load/validate + compiler",
   "type": "module",

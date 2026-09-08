@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import type { ToolCall, ToolSpec } from '@cah/shared';
+import type { ToolCall, ToolSpec } from '@vessel/shared';
 import { ToolRegistry } from './Registry.js';
 import { ParallelScheduler, isReadFamily } from './parallel.js';
 

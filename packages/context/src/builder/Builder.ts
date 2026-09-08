@@ -4,9 +4,9 @@ import type {
   ChatToolDef,
   SessionRecord,
   ToolSpec,
-} from '@cah/shared';
-import { COMPACTION_THRESHOLD_RATIO, DEFAULT_CONTEXT_WINDOW } from '@cah/shared';
-import { Session } from '@cah/core';
+} from '@vessel/shared';
+import { COMPACTION_THRESHOLD_RATIO, DEFAULT_CONTEXT_WINDOW } from '@vessel/shared';
+import { Session } from '@vessel/core';
 import type { Instruction } from '../instructions/Instructions.js';
 
 export interface RequestEnvelope {

@@ -6,7 +6,7 @@ import {
   type GeneratorOutput,
   type Workspace,
 } from './LoopEngine.js';
-import type { EvaluatorVerdict } from '@cah/agents';
+import type { EvaluatorVerdict } from '@vessel/agents';
 
 const TASK: LoopTask = { id: 't1', goal: '完成一个实现', acceptance: ['GOLDEN'] };
 

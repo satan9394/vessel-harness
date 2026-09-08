@@ -2,8 +2,8 @@ import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { Session } from '@cah/core';
-import { MockProvider } from '@cah/llm';
+import { Session } from '@vessel/core';
+import { MockProvider } from '@vessel/llm';
 import { createPlan, executePlan, formatPlan, generatePlan, injectPlan, type Plan, type StepEvaluator } from './Planner.js';
 
 function tempDir(): string {

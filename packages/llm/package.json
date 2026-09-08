@@ -1,5 +1,5 @@
 {
-  "name": "@cah/llm",
+  "name": "@vessel/llm",
   "version": "0.1.0",
   "description": "model providers (OpenAI-compatible, mock) + router",
   "type": "module",

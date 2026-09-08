@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import type { PolicyArtifacts, PolicyRule } from '@cah/shared';
+import type { PolicyArtifacts, PolicyRule } from '@vessel/shared';
 import { compileBehavior, hasDomainEnforcement } from './Compiler.js';
 import type { BehaviorIR } from '../ir/BehaviorIR.js';
 

@@ -4,7 +4,7 @@ import * as os from 'node:os';
 import * as path from 'node:path';
 import { listIndex } from '../index.js';
 import { loadSkillContent, createSkillTool, formatSkillBody, SKILL_CONTENT_MAX_CHARS } from './SkillLoader.js';
-import type { ToolExecutionContext } from '@cah/shared';
+import type { ToolExecutionContext } from '@vessel/shared';
 
 function tmpDir(prefix: string): string {
   return fs.mkdtempSync(path.join(os.tmpdir(), prefix));

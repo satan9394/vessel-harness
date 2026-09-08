@@ -33,7 +33,7 @@ composable-agent-harness/
 │   └── reports/B00X/run_*/    # 每 run 的 JSONL + summary.json
 ├── configs/                   # policy.default.yaml / behavior.default.yaml / pricing.json
 ├── scripts/demo-policy-deny.ts  # Policy DENY 演示（验收 3）
-└── vitest.config.ts           # @cah/* → src 别名，测试直跑源码
+└── vitest.config.ts           # @vessel/* → src 别名，测试直跑源码
 ```
 
 依赖方向铁律（ARCHITECTURE §1.2/§4）：core/ 只依赖 shared 的类型契约；机制包（llm/behavior/context/tools/policy/runtime/agents/telemetry）只依赖 core 的公开接口与 shared；policy/ 不反向依赖 tools（glob 匹配器包内自备）；无环。Provider seam 接口（ChatProvider）放 shared，实现放 llm/——core/agent-loop 不 import 任何机制实现。

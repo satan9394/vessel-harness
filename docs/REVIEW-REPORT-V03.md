@@ -24,7 +24,7 @@ V0.3 五项范围（Project Memory / Persistent Memory / Skills 正文注入 / S
 | 4 | `npx vitest run packages/skills` | 15 用例全绿（load 8 + search 7） |
 | 5 | `npx vitest run benchmarks/runners` | 12 用例全绿（B001–B005 / B016–B021） |
 | 6 | 核心文件逐行精读（4 个：ProjectStore、ScopedMemoryStore、LearnedStore、SkillLoader） | 无空壳，逻辑完整 |
-| 7 | `@cah/*` import 图谱 grep | 依赖方向正确、无反向/环依赖、core 零新增 import |
+| 7 | `@vessel/*` import 图谱 grep | 依赖方向正确、无反向/环依赖、core 零新增 import |
 | 8 | EVENT-SPEC B01 source 枚举比对 | `source:'memory'` 已同步（V0.3 新增） |
 
 ---
@@ -119,8 +119,8 @@ V0.3 六个模块的可运行代码与测试：
 
 ### 2. 依赖方向 / 环依赖
 
-`@cah/*` import 图谱扫描（新增 V0.3 文件）：
-- memory 与 skills 的 V0.3 文件**零 import `@cah/core`**（薄核保持，core 零新增 import）。
+`@vessel/*` import 图谱扫描（新增 V0.3 文件）：
+- memory 与 skills 的 V0.3 文件**零 import `@vessel/core`**（薄核保持，core 零新增 import）。
 - memory 与 skills **互不 import**（grep 双向零命中）——无环。
 - 唯一跨包消费在组合根 apps/cli/src/compose.ts（Memory/Skill/SkillSearch 工具 + projectMemory 快照接线），设计允许。
 - 包内避免循环：SkillLoader 不 import ../index.js（index re-export 它），注释声明共享目录约定。

@@ -1,4 +1,4 @@
-import type { MockScriptEntry } from '@cah/llm';
+import type { MockScriptEntry } from '@vessel/llm';
 
 /**
  * Offline mock lane (D3 decision point 16 / BENCHMARK-SPEC §6.4):

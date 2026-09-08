@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { compilePolicyYaml, parsePolicyYaml, PolicyEngine } from './index.js';
-import type { PolicyArtifacts } from '@cah/shared';
+import type { PolicyArtifacts } from '@vessel/shared';
 
 const BASE_POLICY = `
 policy:

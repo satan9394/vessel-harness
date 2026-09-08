@@ -20,7 +20,7 @@
 ## 2. 关键决策
 
 - Vessel 哲学以 behavior IR 条目落地（不自相矛盾地写死 prompt）。
-- 改名只动品牌/命令层（bin vessel + cah 别名），内部 @cah/* 保留防爆炸。
+- 改名只动品牌/命令层（bin vessel + cah 别名），内部 @vessel/* 保留防爆炸。
 - UI 主题：浅色默认 + 系统深色自动适配（prefers-color-scheme），无手动切换。
 - 供应商目录按用户要求对照 cc-switch 标准集补足（不再"宁少而准"收窄），长尾中转带 hint 自测提示。
 
@@ -75,4 +75,4 @@
 ## 10. 待办 / 遗留
 
 - 无未完成开发任务（25 张卡全部合入）。
-- 可选项：真全屏分栏 TUI（按 ui-split-layout 设计稿实现）；MCP 实时 online/offline 心跳；成本卡落库；`cah` 命令别名是否最终移除（当前保留向后兼容）；内部 @cah/* 包名是否最终迁移（工程量大，当前注明历史遗留）。
+- 可选项：真全屏分栏 TUI（按 ui-split-layout 设计稿实现）；MCP 实时 online/offline 心跳；成本卡落库；`cah` 命令别名是否最终移除（当前保留向后兼容）；内部 @vessel/* 包名是否最终迁移（工程量大，当前注明历史遗留）。

@@ -1,5 +1,5 @@
-import type { Session } from '@cah/core';
-import type { ChatProvider } from '@cah/shared';
+import type { Session } from '@vessel/core';
+import type { ChatProvider } from '@vessel/shared';
 import type { EvaluatorVerdict } from '../evaluator/Evaluator.js';
 
 export interface PlanStep {

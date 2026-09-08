@@ -8,7 +8,7 @@ import {
   type SessionRecord,
   type ToolCall,
   type ToolErrorPayload,
-} from '@cah/shared';
+} from '@vessel/shared';
 import { EventBus } from '../events/EventBus.js';
 import { LoopState } from '../state/State.js';
 import { Session } from '../session/Session.js';

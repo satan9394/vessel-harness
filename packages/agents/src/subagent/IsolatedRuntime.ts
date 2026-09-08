@@ -1,11 +1,11 @@
 import * as path from 'node:path';
 import * as crypto from 'node:crypto';
-import type { ChatProvider, PolicyArtifacts, ToolCall, ToolSpec } from '@cah/shared';
-import { AgentLoop, EventBus, Session } from '@cah/core';
-import { Compaction, ContextBuilder, discoverInstructions } from '@cah/context';
-import { PolicyEngine } from '@cah/policy';
-import { Executor, Sandbox } from '@cah/runtime';
-import { ToolRegistry } from '@cah/tools';
+import type { ChatProvider, PolicyArtifacts, ToolCall, ToolSpec } from '@vessel/shared';
+import { AgentLoop, EventBus, Session } from '@vessel/core';
+import { Compaction, ContextBuilder, discoverInstructions } from '@vessel/context';
+import { PolicyEngine } from '@vessel/policy';
+import { Executor, Sandbox } from '@vessel/runtime';
+import { ToolRegistry } from '@vessel/tools';
 
 export type IsolatedSessionSource = 'startup' | 'resume' | 'fork' | 'clear' | 'compact' | 'subagent' | 'evaluator' | 'plan';
 

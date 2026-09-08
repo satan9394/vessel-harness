@@ -1,6 +1,6 @@
-import type { ToolSpec } from '@cah/shared';
-import { runCommand } from '@cah/runtime';
-import type { Sandbox } from '@cah/runtime';
+import type { ToolSpec } from '@vessel/shared';
+import { runCommand } from '@vessel/runtime';
+import type { Sandbox } from '@vessel/runtime';
 
 const WRAPPERS = /^(timeout|time|nice|nohup)\s+/i;
 

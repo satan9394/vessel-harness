@@ -4,7 +4,7 @@ import * as os from 'node:os';
 import * as path from 'node:path';
 import { ScopedMemoryStore, userMemoryRoot } from './ScopedMemoryStore.js';
 import { createMemoryTool } from '../project/createMemoryTool.js';
-import type { ToolExecutionContext } from '@cah/shared';
+import type { ToolExecutionContext } from '@vessel/shared';
 
 function tmpDir(prefix: string): string {
   return fs.mkdtempSync(path.join(os.tmpdir(), prefix));

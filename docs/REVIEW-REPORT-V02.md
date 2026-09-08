@@ -21,7 +21,7 @@ V0.2 六项范围（Subagent / Planner / Evaluator Agent / MCP / Parallel Explor
 | 1 | `npx vitest run` | **18 files / 104 tests 全绿**（exit 0，含真实子进程的 Shell 用例） |
 | 2 | `npx tsc -b tsconfig.json` | **exit 0** |
 | 3 | 核心文件精读（15 个 V0.2 文件，每个逐行读） | 无空壳，逻辑完整 |
-| 4 | `@cah/*` import 图谱全仓 grep | 依赖方向正确、无反向/环依赖 |
+| 4 | `@vessel/*` import 图谱全仓 grep | 依赖方向正确、无反向/环依赖 |
 | 5 | EVENT-SPEC A22–A25/B10 词汇比对 | 代码落地与规范一致（1 条 MINOR，见 §二-6） |
 | 6 | runner.test.ts B001–B005 + B016–B019（vitest 内） | 全过 |
 | 7 | 独立跑 `runScenario` B016–B019（offline lane，临时目录） | success=true 全过，断言逐条 pass |
@@ -147,9 +147,9 @@ V0.2 六个模块的可运行代码与对应测试文件：
 
 ### 2. 依赖方向 / 环依赖
 
-全仓 `@cah/*` import 扫描（含 grep `from '@cah/agents'`）结论：
+全仓 `@vessel/*` import 扫描（含 grep `from '@vessel/agents'`）结论：
 - **无反向/环依赖**。core/ 不 import 任何机制包（仅 AgentLoop.test.ts 测试文件 import llm/tools/runtime——测试装配，非模块依赖，且与 V0.1 相同形态）。tools/ 无 agents import。context/policy/runtime/shared 均无 agents import。
-- 唯一 `@cah/agents` 消费方为组合根：apps/cli/src/compose.ts 与 benchmarks/runners/src/runner.ts（设计允许的组合根）。agents→{core,context,policy,runtime,tools,llm,shared}；tools→{shared,core,runtime,policy}。包级 package.json 均声明 deps=[]（workspace 别名经 tsconfig paths），tsc -b exit 0 佐证无编译环。
+- 唯一 `@vessel/agents` 消费方为组合根：apps/cli/src/compose.ts 与 benchmarks/runners/src/runner.ts（设计允许的组合根）。agents→{core,context,policy,runtime,tools,llm,shared}；tools→{shared,core,runtime,policy}。包级 package.json 均声明 deps=[]（workspace 别名经 tsconfig paths），tsc -b exit 0 佐证无编译环。
 - 新代码未给 core 加 import（Core 薄核保持，V0.2 机制全部挂在 core 之外 seam 上，符合 DESIGN-DECISIONS/ARCHITECTURE）。
 
 ### 3. Generator/Evaluator 分离

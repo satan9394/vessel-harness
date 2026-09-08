@@ -23,7 +23,7 @@ V0.5 Loop Engine（外层编排层：状态机 + Task Selection/Trigger + 隔离
 | 3 | `npx vitest run packages/engine` | 32 用例全绿（loop 12 + selection 13 + workspace 7） |
 | 4 | `npx vitest run benchmarks/runners` | 14 用例全绿（B001–B005/B016–B023） |
 | 5 | 核心文件逐行精读（LoopEngine.ts、taskQueue.ts、selection.ts、workspace.ts） | 非空壳，逻辑完整 |
-| 6 | `@cah/*` import 图谱 grep（engine 全源码） | engine 零 `@cah/core` import；只依赖 agents(llm/tools)——编排层位置正确 |
+| 6 | `@vessel/*` import 图谱 grep（engine 全源码） | engine 零 `@vessel/core` import；只依赖 agents(llm/tools)——编排层位置正确 |
 | 7 | git log 核对 V0.5 提交链 | a7f2fce/b21f86e/5f266fe/0af4139/a82889d 每里程碑独立可回滚 |
 
 ---
@@ -74,7 +74,7 @@ V0.5 交付模块：
 ### 验收 4 — Task Selection 复用 TaskRouter 语义（preset 决定执行配置），不重造　**PASS**
 
 **证据（精读 + 测试）：**
-- selection.ts import `@cah/llm` 的 classifyTask + DEFAULT_PRESETS + TaskRouter（**直接复用 V0.4**，grep 证实非复制实现）；selectTaskFor 的 router seam 可注入完整 TaskRouter。
+- selection.ts import `@vessel/llm` 的 classifyTask + DEFAULT_PRESETS + TaskRouter（**直接复用 V0.4**，grep 证实非复制实现）；selectTaskFor 的 router seam 可注入完整 TaskRouter。
 - 测试实证：implementation→developer/pro、review→reviewer/pro、search→fast、unknown 兜底、注入覆盖（classify/presets/router）。
 - taskQueue.ts 的 TaskQueue 接口即 Discovery seam（backlog/记忆发现未来实现同接口即可）——任务书 §14 Discovery 的最小显式形态，克制不越界。
 
@@ -99,14 +99,14 @@ V0.5 交付模块：
 
 ### 2. 依赖方向 / 薄核纪律（V0.5 关键核验）
 
-engine 全源码 `@cah/*` import 图谱：
+engine 全源码 `@vessel/*` import 图谱：
 ```
-import type { EvaluatorVerdict } from '@cah/agents';   (类型)
-import { classifyTask, ... } from '@cah/llm';          (值——V0.4 复用)
-import { DEFAULT_PRESETS, ... } from '@cah/llm';       (值——V0.4 复用)
-import { createWorktree, removeWorktree, ... } from '@cah/tools';  (值——V0.2 复用)
+import type { EvaluatorVerdict } from '@vessel/agents';   (类型)
+import { classifyTask, ... } from '@vessel/llm';          (值——V0.4 复用)
+import { DEFAULT_PRESETS, ... } from '@vessel/llm';       (值——V0.4 复用)
+import { createWorktree, removeWorktree, ... } from '@vessel/tools';  (值——V0.2 复用)
 ```
-**engine 零 `@cah/core` import**——"不建新内核"纪律机器证实（ARCHITECTURE §7 V0.5 行：Loop Engine 用已就绪模块组合，不加 core 机制）。core 零新增 import。benchmarks/runners（组合根）import @cah/engine，设计允许。npm workspaces 新包经 npm install 软链注册（package-lock 更新，无手工路径 hack）。
+**engine 零 `@vessel/core` import**——"不建新内核"纪律机器证实（ARCHITECTURE §7 V0.5 行：Loop Engine 用已就绪模块组合，不加 core 机制）。core 零新增 import。benchmarks/runners（组合根）import @vessel/engine，设计允许。npm workspaces 新包经 npm install 软链注册（package-lock 更新，无手工路径 hack）。
 
 ### 3. Generator/Evaluator 分离（铁律专项）
 

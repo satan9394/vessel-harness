@@ -5,7 +5,7 @@ import type {
   ChatResponse,
   ChatToolCall,
   ChatToolDef,
-} from '@cah/shared';
+} from '@vessel/shared';
 
 /**
  * llm/provider — Anthropic native protocol provider (Messages API + tool_use).

@@ -1,4 +1,4 @@
-import type { ToolSpec } from '@cah/shared';
+import type { ToolSpec } from '@vessel/shared';
 import type { SubagentManager } from './SubagentManager.js';
 
 export interface SubagentToolOptions {

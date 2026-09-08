@@ -1,5 +1,5 @@
 /**
- * @cah/shared — Model Provider seam (contract only; implementations live in @cah/llm).
+ * @vessel/shared — Model Provider seam (contract only; implementations live in @vessel/llm).
  * core/agent-loop depends on this interface; it never imports llm implementations.
  */
 

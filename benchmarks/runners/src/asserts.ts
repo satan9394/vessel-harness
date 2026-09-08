@@ -1,9 +1,9 @@
 import * as crypto from 'node:crypto';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
-import type { SessionRecord } from '@cah/shared';
-import type { TelemetryCounters } from '@cah/telemetry';
-import { runCommand } from '@cah/runtime';
+import type { SessionRecord } from '@vessel/shared';
+import type { TelemetryCounters } from '@vessel/telemetry';
+import { runCommand } from '@vessel/runtime';
 import type { AssertResult, AssertionSpec } from './types.js';
 
 /** minimal glob -> regex (runner-local; supports **, *, ?) */

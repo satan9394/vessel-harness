@@ -1,5 +1,5 @@
 {
-  "name": "@cah/engine",
+  "name": "@vessel/engine",
   "version": "0.1.0",
   "description": "V0.5 Loop Engine — outer orchestration state machine (select → generate → evaluate → persist → next)",
   "type": "module",

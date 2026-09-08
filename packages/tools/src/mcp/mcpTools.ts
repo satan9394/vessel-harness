@@ -1,4 +1,4 @@
-import type { ToolInputSchema, ToolSpec } from '@cah/shared';
+import type { ToolInputSchema, ToolSpec } from '@vessel/shared';
 import type { ToolRegistry } from '../registry/Registry.js';
 import type { McpClient, McpToolDescriptor } from './McpClient.js';
 

@@ -19,7 +19,7 @@
 | 5 | `npx tsx scripts/demo-policy-deny.ts` | 验收 3：Policy DENY 演示 |
 | 6 | `node apps/cli/dist/cli.js run --bench B001|B002|B003|B004|B005 --workspace <repo> --out <%TEMP% 报告目录>` | 验收 4：5 个场景全量运行（out 全部用临时目录） |
 | 7 | 读取 `docs/V01-IMPLEMENTATION-NOTES.md` | 验收 5：交付说明核对 |
-| 8 | import 图谱 grep（`from '@cah/...'` 全仓扫描）+ 核心文件精读 + 边界路径实测探针（临时脚本，位于 %TEMP%） | 验收 6：依赖方向 / 软硬分离 / Gen-Eval 分离 / 代码质量 |
+| 8 | import 图谱 grep（`from '@vessel/...'` 全仓扫描）+ 核心文件精读 + 边界路径实测探针（临时脚本，位于 %TEMP%） | 验收 6：依赖方向 / 软硬分离 / Gen-Eval 分离 / 代码质量 |
 
 约束遵守：全程 PowerShell；未做任何永久删除（全部临时目录用唯一命名留在 %TEMP%，探针脚本亦在 %TEMP%）；未修改任何实现代码（只读审查，唯一写入的仓库文件是本报告）。
 
@@ -153,11 +153,11 @@ EXIT=0（全部）
 
 | 包 | 依赖 | 判定 |
 |---|---|---|
-| core | 仅 `@cah/shared` + 包内（events/session/state） | ✔ core 不 import memory/skills/runtime/sandbox/agents（源码无任何机制包 import；`AgentLoop.test.ts` 引用 @cah/llm|tools|runtime 属测试侧组合，非实现依赖） |
-| policy | 仅 `@cah/shared` + 包内 `risk/globmatch.ts` | ✔ 不反向依赖 @cah/tools，glob 匹配器包内自备 |
-| tools | `@cah/shared` + `@cah/runtime`（sandbox seam） | ✔ 符合 ARCHITECTURE §4.5 |
-| runtime / llm / behavior / agents | 仅 `@cah/shared` | ✔ |
-| context / telemetry | `@cah/shared` + `@cah/core`（公开接口 Session/EventBus） | ✔ |
+| core | 仅 `@vessel/shared` + 包内（events/session/state） | ✔ core 不 import memory/skills/runtime/sandbox/agents（源码无任何机制包 import；`AgentLoop.test.ts` 引用 @vessel/llm|tools|runtime 属测试侧组合，非实现依赖） |
+| policy | 仅 `@vessel/shared` + 包内 `risk/globmatch.ts` | ✔ 不反向依赖 @vessel/tools，glob 匹配器包内自备 |
+| tools | `@vessel/shared` + `@vessel/runtime`（sandbox seam） | ✔ 符合 ARCHITECTURE §4.5 |
+| runtime / llm / behavior / agents | 仅 `@vessel/shared` | ✔ |
+| context / telemetry | `@vessel/shared` + `@vessel/core`（公开接口 Session/EventBus） | ✔ |
 | apps/cli（组合根） | 依赖全部机制包的公开接口 | ✔ 唯一组装点，机制包之间无互相 import 实现细节，无环 |
 
 **6.2 软/硬分离是否真落地（非只写 prompt/behavior IR）：**

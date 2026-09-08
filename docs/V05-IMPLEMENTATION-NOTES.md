@@ -8,7 +8,7 @@
 ## 1. 模块地图（V0.5 增量，相对 V0.4）
 
 ```text
-packages/engine/（新包 @cah/engine，V0.5 编排层）
+packages/engine/（新包 @vessel/engine，V0.5 编排层）
   src/LoopEngine.ts      V0.5-M1 外层循环状态机：select→generate→evaluate→persist→done/retry；
                          IterationResult{iteration,taskId,verdict,evidence,reason,outputPath?,retryCount,
                          metAfterRetries?}；verdict 权威=注入的 Evaluator（Generator 永不自证）；
@@ -66,7 +66,7 @@ npx vitest run benchmarks/runners    # runner 14 用例（B001–B005/B016–B02
 - **显式 vs 注入**：全部协作方（selectTask/generate/evaluate/persist/shouldContinue/workspaceFactory/disposeWorkspace）依赖注入——LoopEngine 本身零 IO，纯状态机，确定性可测。
 - **隔离纪律**：workspace 三工厂只创建/清理自己的隔离目录；git worktree 清理走 `git worktree remove`（git 管理）；tempdir 走 os.tmpdir()（仓库测试统一约定）。绝不删除主工作区。
 - **复用而非重造**（任务书 §1"取各家长处→抽象公共机制"）：Task Selection 复用 V0.4 llm/router；Worktree 复用 V0.2 tools/git；TaskQueue 接口即 Discovery seam（未来 backlog/记忆发现实现同接口）。
-- **依赖方向**：engine→{shared,core(类型),agents,llm,tools}；core 零新增 import；benchmarks/runners（组合根）import @cah/engine。npm workspaces 新包 @cah/engine 经 npm install 软链（package-lock 更新）。
+- **依赖方向**：engine→{shared,core(类型),agents,llm,tools}；core 零新增 import；benchmarks/runners（组合根）import @vessel/engine。npm workspaces 新包 @vessel/engine 经 npm install 软链（package-lock 更新）。
 
 ## 6. 已知限制与后续
 

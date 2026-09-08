@@ -1,6 +1,6 @@
 /**
  * Dev-only module resolver for the sandboxed test lane.
- * Maps `vitest` -> in-process shim and `@cah/*` -> package src (mirroring
+ * Maps `vitest` -> in-process shim and `@vessel/*` -> package src (mirroring
  * vitest.config.ts aliases) so tests run against source directly.
  *
  * Usage: node --experimental-transform-types --import ./scripts/dev-test/test-alias.mjs ...
@@ -13,20 +13,20 @@ import * as fs from 'node:fs';
 const root = path.resolve(fileURLToPath(new URL('../../', import.meta.url)));
 
 const ALIASES = new Map([
-  ['@cah/shared', 'packages/shared/src/index.ts'],
-  ['@cah/core', 'packages/core/src/index.ts'],
-  ['@cah/llm', 'packages/llm/src/index.ts'],
-  ['@cah/behavior', 'packages/behavior/src/index.ts'],
-  ['@cah/context', 'packages/context/src/index.ts'],
-  ['@cah/tools', 'packages/tools/src/index.ts'],
-  ['@cah/policy', 'packages/policy/src/index.ts'],
-  ['@cah/runtime', 'packages/runtime/src/index.ts'],
-  ['@cah/memory', 'packages/memory/src/index.ts'],
-  ['@cah/skills', 'packages/skills/src/index.ts'],
-  ['@cah/agents', 'packages/agents/src/index.ts'],
-  ['@cah/telemetry', 'packages/telemetry/src/index.ts'],
-  ['@cah/cli', 'apps/cli/src/index.ts'],
-  ['@cah/bench-runners', 'benchmarks/runners/src/index.ts'],
+  ['@vessel/shared', 'packages/shared/src/index.ts'],
+  ['@vessel/core', 'packages/core/src/index.ts'],
+  ['@vessel/llm', 'packages/llm/src/index.ts'],
+  ['@vessel/behavior', 'packages/behavior/src/index.ts'],
+  ['@vessel/context', 'packages/context/src/index.ts'],
+  ['@vessel/tools', 'packages/tools/src/index.ts'],
+  ['@vessel/policy', 'packages/policy/src/index.ts'],
+  ['@vessel/runtime', 'packages/runtime/src/index.ts'],
+  ['@vessel/memory', 'packages/memory/src/index.ts'],
+  ['@vessel/skills', 'packages/skills/src/index.ts'],
+  ['@vessel/agents', 'packages/agents/src/index.ts'],
+  ['@vessel/telemetry', 'packages/telemetry/src/index.ts'],
+  ['@vessel/cli', 'apps/cli/src/index.ts'],
+  ['@vessel/bench-runners', 'benchmarks/runners/src/index.ts'],
 ]);
 
 const SHIM_URL = pathToFileURL(path.join(root, 'scripts/dev-test/vitest-shim.mjs')).href;
@@ -35,7 +35,7 @@ export async function resolve(specifier, context, nextResolve) {
   if (specifier === 'vitest') {
     return { url: SHIM_URL, shortCircuit: true };
   }
-  if (specifier.startsWith('@cah/')) {
+  if (specifier.startsWith('@vessel/')) {
     const rel = ALIASES.get(specifier);
     if (rel) {
       return { url: pathToFileURL(path.join(root, rel)).href, shortCircuit: true };

@@ -1,6 +1,6 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
-import { MAX_FILE_BYTES } from '@cah/shared';
+import { MAX_FILE_BYTES } from '@vessel/shared';
 import { globMatch } from '../globmatch.js';
 
 export interface FsPolicyConfig {

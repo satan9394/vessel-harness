@@ -5,7 +5,7 @@ import type {
   PolicyRule,
   ProfileMode,
   VerdictAction,
-} from '@cah/shared';
+} from '@vessel/shared';
 import { globMatch } from './globmatch.js';
 const KNOWN_TOP_KEYS = new Set([
   'version', 'profile', 'approval', 'filesystem', 'shell', 'network', 'git', 'tools', 'audit', 'session', 'guidance',

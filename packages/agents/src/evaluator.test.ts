@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { DeterministicEvaluator, LLEvaluator } from './evaluator/Evaluator.js';
-import { MockProvider } from '@cah/llm';
+import { MockProvider } from '@vessel/llm';
 
 describe('agents/evaluator — contract (Generator/Evaluator separation)', () => {
   it('DeterministicEvaluator: met when all golden substrings present', async () => {

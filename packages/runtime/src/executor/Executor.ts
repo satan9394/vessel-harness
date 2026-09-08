@@ -5,7 +5,7 @@ import type {
   ToolExecutionResult,
   ToolSpec,
   Verdict,
-} from '@cah/shared';
+} from '@vessel/shared';
 
 export interface ExecutorHooks {
   /** policy re-check at pre-execute — tool layer never trusts who called it */

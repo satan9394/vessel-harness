@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 import * as fs from 'node:fs';
 import * as path from 'node:path';
-import { VERSION } from '@cah/shared';
-import { MockProvider, createProvider } from '@cah/llm';
+import { VERSION } from '@vessel/shared';
+import { MockProvider, createProvider } from '@vessel/llm';
 import { composeHarness } from './compose.js';
 import { ProviderStore, type ProviderConfig } from './providers/ProviderStore.js';
 import { fetchOpenAIModels, modelsForProtocol } from './providers/modelFetcher.js';
@@ -168,7 +168,7 @@ async function cmdBench(flags: Map<string, string>): Promise<number> {
     console.error('[vessel] run --bench 需要 scenarioId（如 B001）');
     return 2;
   }
-  const { runScenario } = await import('@cah/bench-runners');
+  const { runScenario } = await import('@vessel/bench-runners');
   const workspace = path.resolve(flags.get('workspace') ?? process.cwd());
   const outDir = path.resolve(flags.get('out') ?? path.join(workspace, 'benchmarks', 'reports'));
   const providerName = flags.get('provider') ?? 'mock';

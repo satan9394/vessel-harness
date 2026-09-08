@@ -1,5 +1,5 @@
 /**
- * @cah/shared — tool contracts (D3 decision point 7: minimal builtin set + schema DSL).
+ * @vessel/shared — tool contracts (D3 decision point 7: minimal builtin set + schema DSL).
  */
 
 export type ToolFamily = 'file_read' | 'file_write' | 'search' | 'exec' | 'other';

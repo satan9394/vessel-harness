@@ -1,6 +1,6 @@
 # 多 API 供应商接入指南（PROVIDER-INTEGRATION.md）
 
-> 版本：2026-09-05 · 适用范围：Composable Agent Harness（@cah/llm provider 层）
+> 版本：2026-09-05 · 适用范围：Composable Agent Harness（@vessel/llm provider 层）
 > 目标：让第三方厂商 API 能**快速接入**——两条线协议（OpenAI 系 / Anthropic 系）+ 一个工厂入口，新增厂商多数情况零代码。
 
 ---

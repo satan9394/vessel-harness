@@ -2,7 +2,7 @@ import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { EventBus, Session } from '@cah/core';
+import { EventBus, Session } from '@vessel/core';
 import { Telemetry } from './Telemetry.js';
 
 describe('telemetry — event subscriber + JSONL report', () => {

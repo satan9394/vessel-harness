@@ -3,7 +3,7 @@ import {
   type ToolCall,
   type ToolExecutionResult,
   type ToolSpec,
-} from '@cah/shared';
+} from '@vessel/shared';
 
 export interface RegistryOptions {
   deniedTools?: string[];

@@ -1,5 +1,5 @@
 {
-  "name": "@cah/tools",
+  "name": "@vessel/tools",
   "version": "0.1.0",
   "description": "tool registry + 6 builtin tools",
   "type": "module",

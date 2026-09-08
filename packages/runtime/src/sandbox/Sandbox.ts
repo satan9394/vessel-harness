@@ -1,4 +1,4 @@
-import type { ConfinedArgv, SandboxStatus } from '@cah/shared';
+import type { ConfinedArgv, SandboxStatus } from '@vessel/shared';
 
 /**
  * runtime/sandbox — language-neutral confine seam (ARCHITECTURE §4.7 / D3 decision point 9).

@@ -3,7 +3,7 @@ import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { searchSkills, resolveSkill, createSkillSearchTool } from './SkillSearch.js';
-import type { ToolExecutionContext } from '@cah/shared';
+import type { ToolExecutionContext } from '@vessel/shared';
 
 function tmpDir(prefix: string): string {
   return fs.mkdtempSync(path.join(os.tmpdir(), prefix));

@@ -1,4 +1,4 @@
-import type { ChatProvider, ChatRequest, ChatResponse, ChatToolCall } from '@cah/shared';
+import type { ChatProvider, ChatRequest, ChatResponse, ChatToolCall } from '@vessel/shared';
 
 export interface MockScriptEntry {
   /** regex tested against the LAST user message; first match wins */

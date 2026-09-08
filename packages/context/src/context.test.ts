@@ -2,11 +2,11 @@ import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { Session } from '@cah/core';
+import { Session } from '@vessel/core';
 import { Compaction } from './compaction/Compaction.js';
 import { ContextBuilder } from './builder/Builder.js';
 import { discoverInstructions } from './instructions/Instructions.js';
-import type { ToolSpec } from '@cah/shared';
+import type { ToolSpec } from '@vessel/shared';
 
 describe('context/compaction — Basic Compaction', () => {
   let dir: string;

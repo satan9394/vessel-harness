@@ -1,5 +1,5 @@
 {
-  "name": "@cah/policy",
+  "name": "@vessel/policy",
   "version": "0.1.0",
   "description": "policy compiler (four artifacts) + engine + hooks stub",
   "type": "module",

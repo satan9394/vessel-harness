@@ -1,4 +1,4 @@
-import type { ProviderName } from '@cah/llm';
+import type { ProviderName } from '@vessel/llm';
 
 /**
  * apps/cli/providers/modelFetcher — fetch a provider's model list (task 015).

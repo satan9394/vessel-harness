@@ -23,7 +23,7 @@
     R1 权限三档      → configs/policy.default.yaml policy.profile：
                      read-only | workspace-write | danger-full-access（approval:never）。
     R1 会话计数      → compose.session（packages/core Session）/ telemetry M02 Turns。
-    R2 MCP servers  → compose.ts 的 mcpClients（McpClient[]，@cah/tools），工具按
+    R2 MCP servers  → compose.ts 的 mcpClients（McpClient[]，@vessel/tools），工具按
                      mcp__<server>__<tool> 注册。⚠ online/offline 实时心跳 = 待实现
                      （当前 McpClient 无 status 上报，本稿为占位形态）。
     R3 Token 数      → packages/telemetry Telemetry.recordUsage 来自 after_model 的
@@ -298,7 +298,7 @@
         </div>
 
         <!-- R2 · MCP servers — 数据源：apps/cli/src/compose.ts mcpClients（McpClient[]，
-             @cah/tools，按 opts.mcp 连接，工具注册为 mcp__&lt;server&gt;__&lt;tool&gt;）。
+             @vessel/tools，按 opts.mcp 连接，工具注册为 mcp__&lt;server&gt;__&lt;tool&gt;）。
              ⚠ “online/offline 实时状态”为占位：当前 McpClient 只提供连接期工具清单，
              无运行中 status 上报/心跳 —— 状态列待实现（进程存活可先探测，远程 SSEx 需 ping）。 -->
         <div class="card">

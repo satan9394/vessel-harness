@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { createTaskQueue, queueSelectTask, ArrayTaskQueue } from './taskQueue.js';
 import { selectTaskFor, classifyTaskFor } from './selection.js';
 import { LoopEngine, type LoopTask } from './LoopEngine.js';
-import type { EvaluatorVerdict } from '@cah/agents';
+import type { EvaluatorVerdict } from '@vessel/agents';
 
 const A: LoopTask = { id: 'a', goal: '实现登录功能' };
 const B: LoopTask = { id: 'b', goal: '审查代码' };

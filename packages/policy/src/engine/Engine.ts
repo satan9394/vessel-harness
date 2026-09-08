@@ -1,4 +1,4 @@
-import type { PolicyArtifacts, Verdict } from '@cah/shared';
+import type { PolicyArtifacts, Verdict } from '@vessel/shared';
 
 export interface PermissionSpec {
   requiredPermission?: 'read' | 'workspace-write' | 'danger-full-access';

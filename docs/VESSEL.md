@@ -1,7 +1,7 @@
 # Vessel — 品牌宣言 · Vessel Constitution · 三角色
 
 > 2026-09 · 任务卡 `tasks/024-vessel-rename-philosophy.md` 交付文档（用户可读）。
-> 命名分层一句话：**品牌/命令层 = Vessel（bin：`vessel`，别名 `cah` 兼容）；内部包名历史遗留 `@cah/*`，不随品牌改名**（避免全仓重命名爆炸；`cah` 命令仍可用）。
+> 命名分层一句话：**品牌/命令层 = Vessel（bin：`vessel`，别名 `cah` 兼容）；内部包名历史遗留 `@vessel/*`，不随品牌改名**（避免全仓重命名爆炸；`cah` 命令仍可用）。
 
 ---
 
@@ -10,12 +10,12 @@
 Vessel（器）取名自「大器免成 / 无器之器」：**系统本身不是任何一个组件**。
 Model、Prompt、Agent、工具都只是可替换的"器"；Vessel 是承载这些器、并让它们各自可靠运转的框架——器可以一件件换掉，系统不因此失效。
 
-本项目由 Composable Agent Harness（CLI：`cah`，内部包 `@cah/*`）更名而来。改名**只动品牌与命令层**，不重命名内部包：
+本项目由 Composable Agent Harness（CLI：`cah`，内部包 `@vessel/*`）更名而来。改名**只动品牌与命令层**，不重命名内部包：
 
 | 层 | 名称 | 说明 |
 |---|---|---|
 | 品牌 / 命令 | **Vessel**（`vessel run` …） | `apps/cli` bin 同时注册 `vessel` 与 `cah` |
-| 内部包 | `@cah/*`（历史遗留） | 避免全仓重命名爆炸，代码/文档中保留 |
+| 内部包 | `@vessel/*`（历史遗留） | 避免全仓重命名爆炸，代码/文档中保留 |
 | 语义 | 可组合 Agent Harness | Vessel = 同一个项目的延续称呼 |
 
 Vessel 与六条哲学不是宣传语，而是**以行为 IR 存在**的操作原则：它们编译进每个 Agent 的 stable system（`configs/behavior.default.yaml` 的 `vessel.*` 条目 → Behavior Compiler → system），可版本化、可校验、可替换——哲学本身也遵守"无器之器"。
@@ -48,7 +48,7 @@ npx vitest run           # 全量测试（当前 285 绿）
 npx tsc -b               # 类型检查
 ```
 
-> 版本输出：`vessel --version` → `Vessel CLI v0.1.0`。`cah` 为历史别名，仍可用；`@cah/*` 为内部包名（历史遗留，见上表）。
+> 版本输出：`vessel --version` → `Vessel CLI v0.1.0`。`cah` 为历史别名，仍可用；`@vessel/*` 为内部包名（历史遗留，见上表）。
 
 ---
 

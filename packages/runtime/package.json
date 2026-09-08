@@ -1,5 +1,5 @@
 {
-  "name": "@cah/runtime",
+  "name": "@vessel/runtime",
   "version": "0.1.0",
   "description": "executor + sandbox confine seam + process spawn",
   "type": "module",

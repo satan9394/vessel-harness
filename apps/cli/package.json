@@ -1,5 +1,5 @@
 {
-  "name": "@cah/cli",
+  "name": "@vessel/cli",
   "version": "0.1.0",
   "description": "Vessel CLI — Composable Agent Harness command entry (brand vessel, alias cah)",
   "type": "module",

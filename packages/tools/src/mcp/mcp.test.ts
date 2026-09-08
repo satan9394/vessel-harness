@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
-import type { PolicyArtifacts } from '@cah/shared';
-import { compilePolicyYaml, PolicyEngine } from '@cah/policy';
-import { Executor } from '@cah/runtime';
+import type { PolicyArtifacts } from '@vessel/shared';
+import { compilePolicyYaml, PolicyEngine } from '@vessel/policy';
+import { Executor } from '@vessel/runtime';
 import { McpClient, createInProcessTransport } from './McpClient.js';
 import { registerMcpTools, mcpToolToSpec } from './mcpTools.js';
 import { handleMcpRequest, MCP_DEMO_TOOLS } from './fixtures/echoServerCore.js';

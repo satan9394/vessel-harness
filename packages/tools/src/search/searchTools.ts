@@ -1,6 +1,6 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
-import type { ToolSpec } from '@cah/shared';
+import type { ToolSpec } from '@vessel/shared';
 import { globToRegExp } from '../globmatch.js';
 import { canonicalize, matchesGlobList } from '../filesystem/guards.js';
 import type { FsPolicyConfig } from '../filesystem/guards.js';

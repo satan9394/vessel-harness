@@ -1,4 +1,4 @@
-import type { ProviderName } from '@cah/llm';
+import type { ProviderName } from '@vessel/llm';
 
 /**
  * apps/cli/providers/presets.data.ts — provider catalog (V0.8, task 025).

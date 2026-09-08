@@ -3,7 +3,7 @@ import type {
   EventType,
   VerdictAction,
   WaterfallResult,
-} from '@cah/shared';
+} from '@vessel/shared';
 
 export type Listener<T = unknown> = (
   payload: T,

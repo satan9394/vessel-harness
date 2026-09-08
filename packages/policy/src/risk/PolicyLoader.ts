@@ -1,6 +1,6 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
-import type { PolicyArtifacts, PolicyDeclaration, ProfileMode } from '@cah/shared';
+import type { PolicyArtifacts, PolicyDeclaration, ProfileMode } from '@vessel/shared';
 import { compilePolicy, compilePolicyYaml, parsePolicyYaml } from './Compiler.js';
 
 export interface PolicyLoadOptions {

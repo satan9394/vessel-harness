@@ -1,5 +1,5 @@
 {
-  "name": "@cah/agents",
+  "name": "@vessel/agents",
   "version": "0.1.0",
   "description": "evaluator contract + deterministic/LLM implementations",
   "type": "module",

@@ -1,4 +1,4 @@
-import type { ToolCall, ToolExecutionResult, ToolSpec } from '@cah/shared';
+import type { ToolCall, ToolExecutionResult, ToolSpec } from '@vessel/shared';
 import type { ToolRegistry } from './Registry.js';
 
 export interface RegistryExecuteContext {

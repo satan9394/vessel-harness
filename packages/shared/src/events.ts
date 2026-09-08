@@ -1,5 +1,5 @@
 /**
- * @cah/shared — event vocabulary (v0.1 subset of EVENT-SPEC).
+ * @vessel/shared — event vocabulary (v0.1 subset of EVENT-SPEC).
  *
  * Two domains per DESIGN-DECISIONS D3 / EVENT-SPEC:
  *  - persistent session records (B##) -> append-only JSONL log, single source of truth

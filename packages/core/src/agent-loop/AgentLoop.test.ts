@@ -2,12 +2,12 @@ import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { MockProvider } from '@cah/llm';
-import type { MockScriptEntry } from '@cah/llm';
-import { EventBus, Session, AgentLoop } from '@cah/core';
-import { ToolRegistry, createFsTools, createSearchTools, createShellTool } from '@cah/tools';
-import { Executor, Sandbox } from '@cah/runtime';
-import type { ToolCall, ToolSpec } from '@cah/shared';
+import { MockProvider } from '@vessel/llm';
+import type { MockScriptEntry } from '@vessel/llm';
+import { EventBus, Session, AgentLoop } from '@vessel/core';
+import { ToolRegistry, createFsTools, createSearchTools, createShellTool } from '@vessel/tools';
+import { Executor, Sandbox } from '@vessel/runtime';
+import type { ToolCall, ToolSpec } from '@vessel/shared';
 
 const FS_POLICY = { protected: ['.git', '.git/**', '.env'], denyRead: [], allow: [] };
 

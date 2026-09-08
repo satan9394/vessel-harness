@@ -1,7 +1,7 @@
 import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
-import type { ProviderName } from '@cah/llm';
+import type { ProviderName } from '@vessel/llm';
 
 /**
  * apps/cli/providers/ProviderStore — 供应商配置 SSOT 存储（task 014）。
@@ -18,7 +18,7 @@ import type { ProviderName } from '@cah/llm';
  *     残留 .tmp，原文件保持完整）。
  *   - 校验 fail-loud：重复 id、非法 protocol、add 时缺 model 一律 throw。
  *
- * protocol 字段直接复用 @cah/llm 的 ProviderName（'mock'|'openai-compatible'
+ * protocol 字段直接复用 @vessel/llm 的 ProviderName（'mock'|'openai-compatible'
  * |'anthropic'），与 createProvider() 工厂天然对齐，015-018 的 CLI 命令可
  * 直接消费（list 出的配置 → createProvider(config.protocol, config)）。
  */
@@ -28,7 +28,7 @@ export interface ProviderConfig {
   id: string;
   /** 展示名 */
   name: string;
-  /** 线协议，与 @cah/llm ProviderName 对齐 */
+  /** 线协议，与 @vessel/llm ProviderName 对齐 */
   protocol: ProviderName;
   /** endpoint URL（openai-compatible / anthropic 需要） */
   baseUrl?: string;

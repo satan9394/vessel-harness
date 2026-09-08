@@ -3,7 +3,7 @@ import * as os from 'node:os';
 import * as path from 'node:path';
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { ToolRegistry, createFsTools, createSearchTools, createShellTool } from './index.js';
-import { Sandbox } from '@cah/runtime';
+import { Sandbox } from '@vessel/runtime';
 import { globMatch } from './globmatch.js';
 
 const FS_POLICY = { protected: ['.git', '.git/**', '.env'], denyRead: ['**/.ssh/**'], allow: [] };

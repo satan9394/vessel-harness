@@ -24,9 +24,9 @@ const packages = [
 
 const alias: Record<string, string> = {};
 for (const p of packages) {
-  alias[`@cah/${p}`] = path.join(root, `packages/${p}/src/index.ts`);
+  alias[`@vessel/${p}`] = path.join(root, `packages/${p}/src/index.ts`);
 }
-alias['@cah/bench-runners'] = path.join(root, 'benchmarks/runners/src/index.ts');
+alias['@vessel/bench-runners'] = path.join(root, 'benchmarks/runners/src/index.ts');
 
 export default defineConfig({
   resolve: { alias },

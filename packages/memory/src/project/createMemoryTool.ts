@@ -1,4 +1,4 @@
-import type { ToolExecutionResult, ToolSpec, ToolErrorPayload } from '@cah/shared';
+import type { ToolExecutionResult, ToolSpec, ToolErrorPayload } from '@vessel/shared';
 import type { MemoryScope } from '../persistent/ScopedMemoryStore.js';
 import { ScopedMemoryStore, projectMemoryRoot } from '../persistent/ScopedMemoryStore.js';
 

@@ -1,5 +1,5 @@
 {
-  "name": "@cah/bench-runners",
+  "name": "@vessel/bench-runners",
   "version": "0.1.0",
   "private": true,
   "description": "Benchmark runner: manifests, asserts, adapters, JSONL reports",

@@ -1,4 +1,4 @@
-import type { ChatProvider, Router, RouterHints } from '@cah/shared';
+import type { ChatProvider, Router, RouterHints } from '@vessel/shared';
 
 export interface SimpleRouterOptions {
   providers: Record<string, ChatProvider>;

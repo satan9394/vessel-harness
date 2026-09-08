@@ -1,5 +1,5 @@
 /**
- * @cah/shared — session/telemetry contracts (BENCHMARK-SPEC metrics M01–M14, JSONL report shape).
+ * @vessel/shared — session/telemetry contracts (BENCHMARK-SPEC metrics M01–M14, JSONL report shape).
  */
 
 export type MetricId =

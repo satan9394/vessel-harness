@@ -1,4 +1,4 @@
-import type { WaterfallResult } from '@cah/shared';
+import type { WaterfallResult } from '@vessel/shared';
 
 export interface HooksCommandConfig {
   /** Claude Code / Codex dialect matcher (prefix/glob) */

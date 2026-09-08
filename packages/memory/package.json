@@ -1,5 +1,5 @@
 {
-  "name": "@cah/memory",
+  "name": "@vessel/memory",
   "version": "0.1.0",
   "description": "session directory binding (minimal skeleton)",
   "type": "module",

@@ -1,4 +1,4 @@
-import type { ChatProvider } from '@cah/shared';
+import type { ChatProvider } from '@vessel/shared';
 import { OpenAICompatibleProvider, type OpenAICompatibleOptions } from './OpenAICompatibleProvider.js';
 import { AnthropicProvider, type AnthropicProviderOptions } from './AnthropicProvider.js';
 import { MockProvider, type MockProviderOptions, type MockScriptEntry } from './MockProvider.js';

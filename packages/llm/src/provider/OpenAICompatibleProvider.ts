@@ -5,7 +5,7 @@ import type {
   ChatResponse,
   ChatToolCall,
   ChatToolDef,
-} from '@cah/shared';
+} from '@vessel/shared';
 
 interface OpenAIChatMessage {
   role: string;

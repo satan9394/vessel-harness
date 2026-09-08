@@ -2,10 +2,10 @@ import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import type { PolicyArtifacts } from '@cah/shared';
-import { EventBus } from '@cah/core';
-import { MockProvider } from '@cah/llm';
-import { compilePolicyYaml } from '@cah/policy';
+import type { PolicyArtifacts } from '@vessel/shared';
+import { EventBus } from '@vessel/core';
+import { MockProvider } from '@vessel/llm';
+import { compilePolicyYaml } from '@vessel/policy';
 import { EvaluatorAgent, createReadOnlyExplorationTools } from './EvaluatorAgent.js';
 import { SubagentManager } from '../subagent/SubagentManager.js';
 

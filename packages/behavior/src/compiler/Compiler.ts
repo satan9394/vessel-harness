@@ -1,4 +1,4 @@
-import type { PolicyArtifacts } from '@cah/shared';
+import type { PolicyArtifacts } from '@vessel/shared';
 import type { BehaviorEntry, BehaviorIR } from '../ir/BehaviorIR.js';
 
 export interface CompileResult {

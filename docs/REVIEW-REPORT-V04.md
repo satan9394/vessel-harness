@@ -23,7 +23,7 @@ V0.4 Task Router / Orchestration Policy 主线（任务分类器 + Preset 库 + 
 | 3 | `npx vitest run packages/llm` | 24 用例全绿（taskCategory 9 + taskRouter 11 + provider 4） |
 | 4 | `npx vitest run benchmarks/runners -t B022` | B022 路由场景通过（GOLDEN-ROUTE-2026） |
 | 5 | 核心文件逐行精读（taskCategory.ts、TaskRouter.ts、compose taskRouter 接线、createSubagentTool preset） | 非空壳，逻辑完整 |
-| 6 | `@cah/*` import 图谱 grep | 依赖方向正确；agents 源码零 llm import（仅 .test.ts 装配）；llm 新增文件零 core import |
+| 6 | `@vessel/*` import 图谱 grep | 依赖方向正确；agents 源码零 llm import（仅 .test.ts 装配）；llm 新增文件零 core import |
 | 7 | git log 核对 V0.4 提交链 | 13e74b4/1d49838/be345bf/ef7ac13/9e0b556 每里程碑独立可回滚 |
 
 ---
@@ -95,8 +95,8 @@ V0.4 交付模块：
 
 ### 2. 依赖方向 / 环依赖
 
-- V0.4 新增 llm 文件零 `@cah/core` import（薄核）。
-- agents 源码零 `@cah/llm` import（仅 .test.ts 装配 MockProvider——测试装配，非模块依赖，V0.2 同形态确认）。
+- V0.4 新增 llm 文件零 `@vessel/core` import（薄核）。
+- agents 源码零 `@vessel/llm` import（仅 .test.ts 装配 MockProvider——测试装配，非模块依赖，V0.2 同形态确认）。
 - 接线只在组合根（apps/cli compose、benchmarks/runners runner）——设计允许。
 - llm 包引用 shared 类型（ChatProvider/RouterHints），无环；tsc -b exit 0 佐证。
 

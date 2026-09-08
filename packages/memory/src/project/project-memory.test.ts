@@ -4,7 +4,7 @@ import * as os from 'node:os';
 import * as path from 'node:path';
 import { ProjectStore } from './ProjectStore.js';
 import { createMemoryTool } from './createMemoryTool.js';
-import type { ToolExecutionContext } from '@cah/shared';
+import type { ToolExecutionContext } from '@vessel/shared';
 
 function tmpWorkspace(): string {
   return fs.mkdtempSync(path.join(os.tmpdir(), 'cah-mem-'));

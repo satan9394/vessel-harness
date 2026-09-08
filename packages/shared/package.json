@@ -1,5 +1,5 @@
 {
-  "name": "@cah/shared",
+  "name": "@vessel/shared",
   "version": "0.1.0",
   "description": "shared types / event vocabulary / constants",
   "type": "module",

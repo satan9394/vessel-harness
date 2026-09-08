@@ -1,8 +1,8 @@
 import * as path from 'node:path';
 import * as crypto from 'node:crypto';
-import type { ChatProvider, PolicyArtifacts, ToolSpec } from '@cah/shared';
-import type { EventBus } from '@cah/core';
-import { createFsTools, createSearchTools, type FsPolicyConfig } from '@cah/tools';
+import type { ChatProvider, PolicyArtifacts, ToolSpec } from '@vessel/shared';
+import type { EventBus } from '@vessel/core';
+import { createFsTools, createSearchTools, type FsPolicyConfig } from '@vessel/tools';
 import { createIsolatedRuntime } from '../subagent/IsolatedRuntime.js';
 import type { EvaluatorVerdict, EvaluatorVerdictKind } from './Evaluator.js';
 

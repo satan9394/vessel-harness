@@ -4,7 +4,7 @@ import * as os from 'node:os';
 import * as path from 'node:path';
 import { TempDirWorkspaceFactory, GitWorktreeWorkspaceFactory, createDefaultWorkspaceFactory } from './workspace.js';
 import { LoopEngine, type Workspace, type LoopTask } from './LoopEngine.js';
-import type { EvaluatorVerdict } from '@cah/agents';
+import type { EvaluatorVerdict } from '@vessel/agents';
 
 function tmpDir(prefix: string): string {
   return fs.mkdtempSync(path.join(os.tmpdir(), prefix));

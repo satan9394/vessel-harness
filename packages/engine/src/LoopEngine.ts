@@ -1,4 +1,4 @@
-import type { EvaluatorVerdict } from '@cah/agents';
+import type { EvaluatorVerdict } from '@vessel/agents';
 
 /**
  * V0.5 Loop Engine core (MISSION-V0.5 §三.1 / task 010).

@@ -1,17 +1,17 @@
 import * as path from 'node:path';
-import type { ChatProvider, ChatToolDef, ToolCall } from '@cah/shared';
-import { AgentLoop, EventBus, Session } from '@cah/core';
-import { ContextBuilder, Compaction } from '@cah/context';
-import { ToolRegistry, createFsTools, createSearchTools, createShellTool, McpClient, registerMcpTools, type McpTransport } from '@cah/tools';
-import { PolicyEngine, loadPolicyArtifacts } from '@cah/policy';
-import { Executor, Sandbox } from '@cah/runtime';
-import { loadBehaviorIR, compileBehavior } from '@cah/behavior';
-import { discoverInstructions } from '@cah/context';
-import { listIndex, formatIndexText, createSkillTool, createSkillSearchTool } from '@cah/skills';
-import { Telemetry } from '@cah/telemetry';
-import { SubagentManager, createSubagentTool } from '@cah/agents';
-import { ProjectStore, createMemoryTool } from '@cah/memory';
-import { TaskRouter, type TierModelMap, type TaskCategoryPresets } from '@cah/llm';
+import type { ChatProvider, ChatToolDef, ToolCall } from '@vessel/shared';
+import { AgentLoop, EventBus, Session } from '@vessel/core';
+import { ContextBuilder, Compaction } from '@vessel/context';
+import { ToolRegistry, createFsTools, createSearchTools, createShellTool, McpClient, registerMcpTools, type McpTransport } from '@vessel/tools';
+import { PolicyEngine, loadPolicyArtifacts } from '@vessel/policy';
+import { Executor, Sandbox } from '@vessel/runtime';
+import { loadBehaviorIR, compileBehavior } from '@vessel/behavior';
+import { discoverInstructions } from '@vessel/context';
+import { listIndex, formatIndexText, createSkillTool, createSkillSearchTool } from '@vessel/skills';
+import { Telemetry } from '@vessel/telemetry';
+import { SubagentManager, createSubagentTool } from '@vessel/agents';
+import { ProjectStore, createMemoryTool } from '@vessel/memory';
+import { TaskRouter, type TierModelMap, type TaskCategoryPresets } from '@vessel/llm';
 
 export interface ComposeMcpConnection {
   serverName: string;

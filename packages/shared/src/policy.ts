@@ -1,5 +1,5 @@
 /**
- * @cah/shared — policy contracts (POLICY-SPEC D6 v0.1 subset).
+ * @vessel/shared — policy contracts (POLICY-SPEC D6 v0.1 subset).
  */
 
 export type ProfileMode = 'read-only' | 'workspace-write' | 'danger-full-access';

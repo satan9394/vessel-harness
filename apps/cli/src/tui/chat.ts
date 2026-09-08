@@ -1,6 +1,6 @@
 import * as readline from 'node:readline';
-import type { ChatProvider } from '@cah/shared';
-import { createProvider, MockProvider } from '@cah/llm';
+import type { ChatProvider } from '@vessel/shared';
+import { createProvider, MockProvider } from '@vessel/llm';
 import { composeHarness, type ComposedHarness } from '../compose.js';
 import { ProviderStore, type ProviderConfig } from '../providers/ProviderStore.js';
 import { runSetupWizard, createClackIO, fetchModelOutcome } from '../providers/setup.js';

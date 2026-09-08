@@ -1,5 +1,5 @@
 {
-  "name": "@cah/skills",
+  "name": "@vessel/skills",
   "version": "0.1.0",
   "description": "SKILL.md frontmatter parse + directory index (minimal)",
   "type": "module",
