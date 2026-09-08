@@ -66,11 +66,10 @@ vessel run --prompt "总结当前工作区 README"   # 一次性任务
 | `vessel usage [--recent <n>]` | 使用统计（tokens / 调用 / 估算成本，落盘 `~/.vessel/usage.json`） |
 | `vessel pricing [model]` | 模型价目查询（`configs/model-catalog.json`，USD/1M tokens） |
 | `vessel migrate` | 一次性迁移旧状态目录 `~/.dsh` → `~/.vessel` |
-| `vessel serve` | **开发中**（Milestone B · 本地 HTTP 服务 127.0.0.1:5678，未实现） |
-| `vessel web` | **开发中**（Milestone B · 起服务 + 开本地 Web UI，未实现） |
+| `vessel serve` | 启动本地服务（默认 `http://127.0.0.1:5678`，不开浏览器；`--port <n>` 换端口） |
+| `vessel web` | 启动本地服务并打开默认浏览器 |
 
 > 交互界面的斜杠命令：`/provider` 配置供应商 · `/models` 拉模型 · `/model <id>` 切模型 · `/permission` 切权限档 · `/help` · `/quit`。
-> `vessel serve` / `vessel web` 属于 V1.0 路线 Milestone B（Local Server + Web UI），目前尚未实现，敬请关注路线进度。
 
 ## 哲学与架构要点
 

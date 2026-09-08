@@ -11,6 +11,7 @@
   - 抽离 `@vessel/application` 组合根（`composeHarness`），CLI 组合入口可移植（task 037）。
   - `SessionController` / `ProjectRegistry` / `SessionRegistry`：会话与应用层可编程接口，为后续本地 server/web 打底（task 038）。
   - 一次性状态迁移命令 `vessel migrate`：`~/.dsh` → `~/.vessel`（数据复制 + 旧目录进回收站，替身 task 039 的前置）。
+- CLI 入口 `vessel serve`（起本地服务 127.0.0.1:5678，不开浏览器）与 `vessel web`（起服务并打开默认浏览器）可用（task 044）。
 - 公开产品文档（本批次）：`README.md`、`LICENSE`、`SECURITY.md`、`CHANGELOG.md`（task 035）。
 
 ### Changed
@@ -20,7 +21,7 @@
 
 ### 备注
 
-- `vessel serve`（本地 HTTP 服务 127.0.0.1:5678）与 `vessel web`（本地 Web UI）属于 Milestone B，**尚未实现**（见 `docs/V1.0-ROADMAP-PROGRESS.md`）。
+- `vessel serve` / `vessel web`（task 044）已可用；Milestone B 其余项见 `docs/V1.0-ROADMAP-PROGRESS.md`。
 
 ## [0.9.0] - 2026-09
 
@@ -102,6 +103,7 @@
   - 抽离 `@vessel/application` 组合根（`composeHarness`），组合入口可移植（task 037）。
   - `SessionController` / `ProjectRegistry` / `SessionRegistry`：会话与应用层可编程接口，为后续本地 server/web 打底（task 038）。
   - 一次性状态迁移命令 `vessel migrate`：`~/.dsh` → `~/.vessel`（数据复制 + 旧目录进回收站）。
+- CLI 入口 `vessel serve` 与 `vessel web` 可用：起本地服务 127.0.0.1:5678，web 额外打开默认浏览器（task 044）。
 - 公开产品文档（本批次）：`README.md`、`LICENSE`、`SECURITY.md`、`CHANGELOG.md`（task 035）。
 
 ### Changed
@@ -111,7 +113,7 @@
 
 ### 备注
 
-- `vessel serve`（本地 HTTP 服务 127.0.0.1:5678）与 `vessel web`（本地 Web UI）属于 Milestone B，**尚未实现**（见 `docs/V1.0-ROADMAP-PROGRESS.md`）。
+- `vessel serve` / `vessel web`（task 044）已可用；Milestone B 其余项见 `docs/V1.0-ROADMAP-PROGRESS.md`。
 
 ## [0.9.0] - 2026-09
 

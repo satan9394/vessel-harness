@@ -18,6 +18,7 @@
     }
   },
   "dependencies": {
-    "@vessel/application": "^0.10.0"
+    "@vessel/application": "^0.10.0",
+    "@vessel/local-server": "^0.10.0"
   }
 }

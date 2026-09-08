@@ -1,9 +1,11 @@
 #!/usr/bin/env node
 import * as fs from 'node:fs';
 import * as path from 'node:path';
+import { spawn } from 'node:child_process';
 import { VERSION } from '@vessel/shared';
 import { MockProvider, createProvider } from '@vessel/llm';
 import { composeHarness } from '@vessel/application';
+import { createVesselServer } from '@vessel/local-server';
 import { ProviderStore, type ProviderConfig } from './providers/ProviderStore.js';
 import { fetchOpenAIModels, modelsForProtocol } from './providers/modelFetcher.js';
 import { createClackIO, runSetupWizard } from './providers/setup.js';
@@ -32,6 +34,8 @@ Vessel CLI v${VERSION} — 可组合 Agent Harness（品牌 Vessel）
   vessel provider remove <id>        删除供应商
   vessel provider switch|use <id>    切换当前默认供应商
   vessel migrate                     一次性迁移旧状态目录 ~/.dsh → ~/.vessel（数据复制 + 旧目录进回收站）
+  vessel serve [--port <n>]          启动本地服务（默认 http://127.0.0.1:5678，不开浏览器）
+  vessel web                         启动本地服务并打开浏览器
 
 run 选项:
   --prompt <text>                 用户输入（缺省从 stdin 读取）
@@ -423,6 +427,133 @@ async function cmdMigrate(): Promise<number> {
   return 0;
 }
 
+export interface ServeHandle {
+  /** bound URL, e.g. http://127.0.0.1:5678 (echoes the real bound port). */
+  url: string;
+  /** stop the http server; resolves once it has fully closed. */
+  close(): Promise<void>;
+}
+
+/** `vessel serve` body (task 044): create + listen the local server and print its address. */
+export async function startServe(opts: { port?: number; workspace?: string } = {}): Promise<ServeHandle> {
+  const port = Number(opts.port ?? 5678);
+  const workspace = path.resolve(opts.workspace ?? process.cwd());
+  const server = createVesselServer({ port, staticDir: undefined });
+  try {
+    await server.listen();
+  } catch (err) {
+    // 端口被占：明确提示并建议换端口（return 2 由调用方决定，这里只区分成功/失败）
+    const cause = (err as { code?: string }).code;
+    if (cause === 'EADDRINUSE' || /listen EADDRINUSE/.test(String(err))) {
+      throw Object.assign(err as Error, { vesselEaddrInUse: true });
+    }
+    throw err;
+  }
+  const url = `http://127.0.0.1:${server.port}`;
+  console.log(`Vessel local server: ${url}`);
+  console.log(`工作区: ${workspace}`);
+  return {
+    url,
+    close: () => server.close(),
+  };
+}
+
+/** Turn a bind failure into a friendly, actionable exit. */
+function isPortTaken(err: unknown): boolean {
+  return err instanceof Error && (
+    (err as { vesselEaddrInUse?: boolean }).vesselEaddrInUse === true ||
+    /EADDRINUSE/.test(err.message)
+  );
+}
+
+/**
+ * Park the process (keep the event loop alive) until Ctrl+C / SIGTERM.
+ * Exposed as a seam so tests can replace it with an immediately-resolving
+ * no-op and assert serve dispatch without ever really hanging.
+ */
+export async function parkServe(): Promise<number> {
+  return new Promise<number>(() => {
+    const ping = setInterval(() => {}, 1 << 30); // keep the loop alive
+    const stop = () => clearInterval(ping);
+    process.once('SIGINT', stop);
+    process.once('SIGTERM', stop);
+  });
+}
+
+/** `vessel serve [--port <n>]` — launch the local server, stay resident. */
+export async function cmdServe(flags: Map<string, string>): Promise<number> {
+  const port = Number(flags.get('port') ?? 5678);
+  let handle: ServeHandle;
+  try {
+    handle = await startServe({ port, workspace: flags.get('workspace') });
+  } catch (err) {
+    if (isPortTaken(err)) {
+      console.error('[vessel] 端口被占用，试 --port 5679');
+      return 2;
+    }
+    console.error(`[vessel] 启动本地服务失败: ${(err as Error).message}`);
+    return 2;
+  }
+  try {
+    return await serveRuntime.park();
+  } finally {
+    await handle.close();
+  }
+}
+
+/** Open the system default browser at `url` (zero-dependency). Never blocks. */
+export function openBrowser(url: string): void {
+  const { platform } = process;
+  try {
+    if (platform === 'win32') {
+      // `cmd /c start "" <url>` — the empty "" is the window title; without it
+      // URLs starting with an HTTP scheme can be swallowed as a title.
+      spawn('cmd', ['/c', 'start', '', url], { stdio: 'ignore', detached: true, windowsHide: true }).unref();
+    } else if (platform === 'darwin') {
+      spawn('open', [url], { stdio: 'ignore', detached: true }).unref();
+    } else if (platform === 'linux') {
+      spawn('xdg-open', [url], { stdio: 'ignore', detached: true }).unref();
+    } else {
+      console.log(`[vessel] 请手动打开浏览器访问 ${url}`);
+    }
+  } catch {
+    console.log(`[vessel] 无法自动打开浏览器，请手动访问 ${url}`);
+  }
+}
+
+/**
+ * Runtime seam for `vessel serve|web`. Tests stub `park` (so dispatch never
+ * hangs) and `open` (so no browser spawn). Replace members in place.
+ */
+export const serveRuntime = {
+  park: parkServe,
+  open(url: string): void {
+    openBrowser(url);
+  },
+};
+
+/** `vessel web` — launch the server and open the default browser. */
+export async function cmdWeb(flags: Map<string, string>): Promise<number> {
+  const port = Number(flags.get('port') ?? 5678);
+  let handle: ServeHandle;
+  try {
+    handle = await startServe({ port, workspace: flags.get('workspace') });
+  } catch (err) {
+    if (isPortTaken(err)) {
+      console.error('[vessel] 端口被占用，试 --port 5679');
+      return 2;
+    }
+    console.error(`[vessel] 启动本地服务失败: ${(err as Error).message}`);
+    return 2;
+  }
+  serveRuntime.open(handle.url);
+  try {
+    return await serveRuntime.park();
+  } finally {
+    await handle.close();
+  }
+}
+
 export async function main(argv: string[] = process.argv.slice(2)): Promise<number> {
   const parsed = parseArgs(argv);
   // subcommand forms: `vessel provider <sub>`, `vessel models`
@@ -433,6 +564,8 @@ export async function main(argv: string[] = process.argv.slice(2)): Promise<numb
   if (first === 'usage') return cmdUsage(parsed.flags);
   if (first === 'pricing') return cmdPricing(parsed.positionals[1], parsed.flags);
   if (first === 'migrate') return cmdMigrate();
+  if (first === 'serve') return cmdServe(parsed.flags);
+  if (first === 'web') return cmdWeb(parsed.flags);
   // bare `vessel` (no subcommand): interactive TUI in a TTY; guide otherwise.
   if (first === undefined && parsed.command === 'run' && !parsed.flags.has('bench')) {
     if (!parsed.flags.has('prompt') && process.stdin.isTTY) {

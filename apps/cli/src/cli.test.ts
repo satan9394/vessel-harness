@@ -3,7 +3,8 @@ import * as os from 'node:os';
 import * as path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { main } from './cli.js';
+import { main, startServe } from './cli.js';
+import * as cli from './cli.js';
 import { composeHarness } from '@vessel/application';
 import { MockProvider } from '@vessel/llm';
 
@@ -273,5 +274,67 @@ describe('V0.9 usage/pricing commands (task 031)', () => {
     expect(code2).toBe(0);
     expect(logs2.join('\n')).toContain('claude-sonnet-4-5');
     expect(logs2.join('\n')).toContain('$3');
+  });
+});
+
+describe('vessel serve / vessel web (task 044)', () => {
+  // Exported const object; stub its members directly (cmdServe/cmdWeb call them
+  // at runtime) and restore them after each test so real serve keeps working.
+  let realPark: typeof cli.serveRuntime.park;
+  let realOpen: typeof cli.serveRuntime.open;
+
+  beforeEach(() => {
+    realPark = cli.serveRuntime.park;
+    realOpen = cli.serveRuntime.open;
+  });
+  afterEach(() => {
+    cli.serveRuntime.park = realPark;
+    cli.serveRuntime.open = realOpen;
+  });
+
+  it('startServe with port 0 binds a real server on 127.0.0.1 and close() frees it', async () => {
+    const { logs, restore } = capture();
+    const handle = await startServe({ port: 0 });
+    expect(handle.url).toMatch(/^http:\/\/127\.0\.0\.1:\d+$/);
+    expect(logs.join('\n')).toContain('Vessel local server: http://127.0.0.1:');
+    // the bound server is live: hit /api/health over the returned URL
+    const res = await fetch(new URL('/api/health', handle.url));
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as { ok: boolean };
+    expect(body.ok).toBe(true);
+    restore();
+    // close() returns normally and frees the port
+    await expect(handle.close()).resolves.toBeUndefined();
+  });
+
+  it('main dispatch: vessel serve --port 0 starts a real server and parks without hanging', async () => {
+    cli.serveRuntime.park = async () => 0;
+    const { logs, restore } = capture();
+    const code = await main(['serve', '--port', '0']);
+    restore();
+    expect(code).toBe(0);
+    expect(logs.join('\n')).toContain('Vessel local server: http://127.0.0.1:');
+  });
+
+  it('main dispatch: vessel web starts the server, opens the browser, and parks', async () => {
+    let opened = '';
+    cli.serveRuntime.park = async () => 0;
+    cli.serveRuntime.open = (url: string) => { opened = url; };
+    const { logs, restore } = capture();
+    const code = await main(['web', '--port', '0']);
+    restore();
+    expect(code).toBe(0);
+    expect(opened).toMatch(/^http:\/\/127\.0\.0\.1:\d+$/);
+    expect(logs.join('\n')).toContain('Vessel local server:');
+  });
+
+  it('help text mentions vessel serve and vessel web', async () => {
+    const { logs, restore } = capture();
+    const code = await main(['--help']);
+    restore();
+    expect(code).toBe(0);
+    const out = logs.join('\n');
+    expect(out).toContain('vessel serve');
+    expect(out).toContain('vessel web');
   });
 });
