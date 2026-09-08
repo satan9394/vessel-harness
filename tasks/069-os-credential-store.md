@@ -1,6 +1,6 @@
 # 069 — OS Credential Store 完善（跨平台凭据后端）
 
-- 状态：待验收
+- 状态：已合入
 - 优先级：P0（Wave 4 / Milestone F 首发）
 - 创建日期：2026-09-08
 - 关联：034（已做 CredentialStore：Windows DPAPI 真实现 + plaintext 显式降级 + secretRef 迁移）——本卡在其上完善
@@ -110,5 +110,8 @@ macOS Keychain、Linux secret-service/libsecret 或等价；无 OS 后端时安�
 
 ## 验收结论（指挥回填）
 
-- [ ] 合入 / 打回
-- 备注：
+- [x] 合入（commit 1caaaa1）
+- 备注：指挥独立复核——全量 vitest 73 文件 650 测试全绿（636+14，零回归）、tsc -b 0 错误，与执行器自报一致。
+  完善项认可：probeBackends/selectBackend fail-over（三平台候选，Windows DPAPI 本机实测；macOS/Linux 适配层+文档
+  标注）；损坏文件隔离恢复（.corrupted-<ts> 备份留档）；CredentialError 带 errno；明文不落盘断言 + probe() 自检
+  （真实 Protect/Unprotect 往返）；零新依赖，034 既有 API/迁移未破坏。下一张：070（Rust sidecar 协议 PoC）。
