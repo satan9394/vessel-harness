@@ -54,3 +54,18 @@ export {
   runPiFixture,
   piAdapter,
 } from '../adapters/pi.js';
+// claude-code-specific symbols only — ResultStub / defaultRunCommand are shared
+// with dsh.js and already re-exported above (identical definitions), so
+// re-exporting them here would be an ambiguous duplicate in the `export *` surface.
+export {
+  CLAUDE_ADAPTER_ID,
+  CLAUDE_ADAPTER_VERSION,
+  CLAUDE_PRINT_FLAG,
+  type ClaudeAdapterOptions,
+  type ClaudeRawRun,
+  probeClaudeEnv,
+  claudeCapabilities,
+  normalizeClaudeRun,
+  runClaudeFixture,
+  claudeAdapter,
+} from '../adapters/claude.js';
