@@ -11,10 +11,18 @@ export function globToRegExp(pattern: string): RegExp {
     const c = pattern[i];
     if (c === '*') {
       if (pattern[i + 1] === '*') {
-        re += '.*';
-        i += 2;
-        if (re.endsWith('/.*')) {
-          re = re.slice(0, -3) + '(?:/.*)?';
+        if (pattern[i + 2] === '/') {
+          // `**/` = zero or more directory segments (so `**/.env` also hits
+          // a root-level `.env`, and `dir/**/foo` also hits `dir/foo`).
+          re += '(?:[^/\\\\]*/)*';
+          i += 3; // consume `**` and the following `/`
+        } else {
+          re += '.*';
+          i += 2;
+          if (re.endsWith('/.*')) {
+            // `dir/**` must also match `dir` itself.
+            re = re.slice(0, -3) + '(?:/.*)?';
+          }
         }
         continue;
       }

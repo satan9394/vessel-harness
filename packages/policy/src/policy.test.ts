@@ -165,3 +165,31 @@ policy:
     expect(a.rules.some((r) => r.id === 'fs-confinement')).toBe(false);
   });
 });
+
+describe('policy/risk — task V1.1-A: deny_read `**/.env` intercepts root-level `.env`', () => {
+  const DENY_ENV = `
+policy:
+  version: "0.1"
+  profile: workspace-write
+  approval: never
+  filesystem:
+    protected: [".git"]
+    deny_read: ["**/.env"]
+`;
+
+  it('`**/.env` deny_read rule denies a Read of the root-level `.env` (zero-level globstar)', async () => {
+    const e = new PolicyEngine(compilePolicyYaml(DENY_ENV));
+    const root = await e.decide({ toolName: 'Read', arguments: { path: '.env' } });
+    expect(root.action).toBe('deny');
+    expect(root.ruleRef).toContain('fs-deny-read');
+    // nested credentials remain denied too
+    const nested = await e.decide({ toolName: 'Read', arguments: { path: 'a/.env' } });
+    expect(nested.action).toBe('deny');
+    expect(nested.ruleRef).toContain('fs-deny-read');
+    // a non-.env file is not denied by this rule (Read needs a `read` spec so
+    // profile compare approves it — otherwise it'd fail-closed on danger)
+    const readSpec = { requiredPermission: 'read' as const };
+    const ok = await e.decide({ toolName: 'Read', arguments: { path: 'index.ts' } }, readSpec);
+    expect(ok.action).not.toBe('deny');
+  });
+});
