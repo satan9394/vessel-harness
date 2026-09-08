@@ -4,6 +4,7 @@ import { ConversationProjection } from './ConversationProjection.js';
 import { ToolActivityProjection } from './ToolActivityProjection.js';
 import { UsageProjection } from './UsageProjection.js';
 import { PolicyProjection } from './PolicyProjection.js';
+import { EnforcementProjection } from './EnforcementProjection.js';
 import { DEFAULT_PRICING } from './types.js';
 
 describe('ConversationProjection', () => {
@@ -156,5 +157,123 @@ describe('PolicyProjection', () => {
   it('exposes empty denials before any policy event', () => {
     const projection = new PolicyProjection();
     expect(projection.denials()).toEqual([]);
+  });
+});
+
+describe('EnforcementProjection (task 074 runtime enforcement telemetry)', () => {
+  it('aggregates policy denials from the policy_decision bus event (050 reuse)', async () => {
+    const bus = new EventBus();
+    const ep = new EnforcementProjection();
+    const detach = ep.attach(bus);
+
+    await bus.emit('policy_decision', { toolCallId: 'tc1', toolName: 'Shell', verdict: 'deny', ruleRef: 'policy:no-rm', reason: 'rm -rf' });
+    await bus.emit('policy_decision', { toolCallId: 'tc2', toolName: 'Read', verdict: 'allow' }); // ignored
+
+    const events = ep.events();
+    expect(events).toHaveLength(1);
+    expect(events[0]).toMatchObject({ type: 'deny', source: 'policy', detail: 'rm -rf' });
+    expect(events[0]?.meta).toMatchObject({ toolName: 'Shell', ruleRef: 'policy:no-rm' });
+    detach();
+  });
+
+  it('counts per classified type and per source across multiple enforcement seams', () => {
+    const ep = new EnforcementProjection();
+    ep.recordProcessTree({ kind: 'escape-detected', pid: 42, detail: 'pid 42 escaped', at: 1 });
+    ep.recordProcessTree({ kind: 'escape-terminated', pid: 42, detail: 'pid 42 terminated', at: 2 });
+    ep.reportStatus({ enabled: true, supported: 'windows-job-object', active: true, backend: 'job-object' }, ['maxActiveProcesses=8']);
+
+    const counts = ep.counts();
+    expect(counts['escape-detected']).toBe(1);
+    expect(counts['escape-terminated']).toBe(1);
+    expect(counts.report).toBe(1);
+    expect(ep.sourceCounts()).toMatchObject({ 'process-tree': 2, 'sandbox-status': 1, policy: 0, 'fs-confinement': 0 });
+  });
+
+  it('recent(n) returns the newest n events in reverse order', async () => {
+    const bus = new EventBus();
+    const ep = new EnforcementProjection();
+    const detach = ep.attach(bus);
+
+    await bus.emit('policy_decision', { toolCallId: 'a', toolName: 'T1', verdict: 'deny', reason: 'one' });
+    await bus.emit('policy_decision', { toolCallId: 'b', toolName: 'T2', verdict: 'deny', reason: 'two' });
+    ep.recordProcessTree({ kind: 'spawn', pid: 7, detail: 's', at: Date.now() });
+
+    const recent = ep.recent(2);
+    expect(recent).toHaveLength(2);
+    expect(recent[0]?.type).toBe('spawn'); // newest first
+    expect(recent[1]?.type).toBe('deny');
+    expect(ep.recent(99)).toHaveLength(3);
+    detach();
+  });
+
+  it('reports sandbox backend/resource-limit status via the injectable seam', () => {
+    const ep = new EnforcementProjection();
+    expect(ep.status()).toBeUndefined();
+    ep.reportStatus(
+      { enabled: true, supported: 'windows-job-object', active: true, backend: 'job-object', fallbackReason: 'restricted-token not implemented' },
+      ['maxWorkingSetBytes=524288000'],
+    );
+    const st = ep.status();
+    expect(st).toMatchObject({ backend: 'job-object', active: true });
+    expect(ep.treeAudit()).toEqual([]);
+  });
+
+  it('folds fs-confinement guard DENIED from session tool/result records (073 reuse)', () => {
+    const ep = new EnforcementProjection();
+    const session = {
+      replay: (): Array<{
+        type: 'tool/result';
+        toolCallId: string;
+        toolName: string;
+        error?: { errorClass: 'DENIED' | 'TOOL_FAILURE'; message: string };
+        meta: Record<string, unknown>;
+      }> => [
+        { type: 'tool/result', toolCallId: 'x1', toolName: 'Write', error: { errorClass: 'DENIED', message: 'path outside confinement allow set' }, meta: { guard: 'confinement' } },
+        // size guard denied → folded
+        { type: 'tool/result', toolCallId: 'x2', toolName: 'Read', error: { errorClass: 'DENIED', message: 'file too large' }, meta: { guard: 'size' } },
+        // DENIED without guard → not an enforcement record, skipped
+        { type: 'tool/result', toolCallId: 'x3', toolName: 'Shell', error: { errorClass: 'DENIED', message: 'policy' }, meta: {} },
+        // non-DENIED error with guard-like meta → skipped
+        { type: 'tool/result', toolCallId: 'x4', toolName: 'Read', error: { errorClass: 'TOOL_FAILURE', message: 'io' }, meta: { guard: 'escape' } },
+      ],
+    };
+    ep.foldSession(session);
+    const events = ep.events();
+    expect(events).toHaveLength(2);
+    expect(events.map((e) => e.type).sort()).toEqual(['confinement', 'size']);
+    expect(events.every((e) => e.source === 'fs-confinement')).toBe(true);
+    expect(ep.counts()).toMatchObject({ confinement: 1, size: 1 });
+  });
+
+  it('multi-source aggregation keeps each event type/source distinct in one snapshot', async () => {
+    const bus = new EventBus();
+    const ep = new EnforcementProjection();
+    const detach = ep.attach(bus);
+
+    await bus.emit('policy_decision', { toolCallId: 'a', toolName: 'Shell', verdict: 'deny', reason: 'no-shell' });
+    ep.recordProcessTree({ kind: 'escape-detected', pid: 5, detail: 'esc', at: Date.now() });
+    ep.reportStatus({ enabled: true, supported: 'windows-job-object', active: true, backend: 'job-object' });
+
+    const snap = ep.snapshot();
+    expect(snap.sources).toMatchObject({ policy: 1, 'process-tree': 1, 'sandbox-status': 1 });
+    expect(snap.counts.deny).toBe(1);
+    expect(snap.counts['escape-detected']).toBe(1);
+    expect(snap.recent(1)[0]?.source).toBe('sandbox-status');
+    expect(snap.treeAudit()).toHaveLength(1);
+    detach();
+  });
+
+  it('exposes an empty aggregate before any enforcement event, and defensive copies on queries', () => {
+    const ep = new EnforcementProjection();
+    expect(ep.events()).toEqual([]);
+    expect(ep.counts()).toEqual({});
+    expect(ep.recent(0)).toEqual([]);
+    ep.reportStatus({ enabled: false, supported: 'none', active: false });
+    const st1 = ep.status();
+    expect(st1).toBeDefined();
+    ep.reportStatus({ enabled: true, supported: 'windows-job-object', active: true, backend: 'job-object' });
+    // status() returns a copy, not the stored ref
+    expect(ep.status()).toMatchObject({ backend: 'job-object' });
+    expect(st1).not.toEqual(ep.status());
   });
 });

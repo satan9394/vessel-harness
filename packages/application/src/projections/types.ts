@@ -1,5 +1,11 @@
 import type { EventBus } from '@vessel/core';
-import type { TeamMemberBrief, TeamPhaseName, TeamReviewConclusion, TeamRoleName } from '@vessel/shared';
+import type {
+  SandboxStatus,
+  TeamMemberBrief,
+  TeamPhaseName,
+  TeamReviewConclusion,
+  TeamRoleName,
+} from '@vessel/shared';
 
 /**
  * Shared types for the application event-projection layer (task 040).
@@ -146,3 +152,84 @@ export interface TeamRunState {
   delegates: readonly TeamDelegateRow[];
   toolActivities: readonly TeamToolRow[];
 }
+
+// ---------------------------------------------------------------------------
+// Runtime enforcement telemetry (task 074) — unified view over 071-073 +
+// 050 audit/denial sources
+// ---------------------------------------------------------------------------
+
+/**
+ * Source module that produced an enforcement event. Mirrors the enforcement
+ * seams so a query can attribute events to their module.
+ *
+ *  - `policy`         → 050 `policy_decision` (verdict deny) via the EventBus.
+ *  - `fs-confinement` → 073 filesystem guard DENIED (`tool/result` record with
+ *                       `errorClass:'DENIED'` + `meta.guard`), folded from session.
+ *  - `process-tree`   → 071/072 process-tree audit (spawn/attach/escape/terminate…).
+ *  - `sandbox-status` → 071 sandbox backend/resource-limit status report.
+ */
+export type EnforcementSource = 'policy' | 'fs-confinement' | 'process-tree' | 'sandbox-status';
+
+/**
+ * Classified enforcement event type (the `type` dimension used for counting).
+ * Assigned per source from the underlying record:
+ *  - policy            → `deny`      (policy deny verdict)
+ *  - fs-confinement    → the guard kind carried in `meta.guard`
+ *                        (`escape` | `protected` | `deny-read` | `confinement` | `size` | `nul`)
+ *  - process-tree      → the `ProcessTreeAuditKind` (`spawn` | `exit` | `attached` |
+ *                        `escape-detected` | `escape-terminated` | `window-closed`)
+ *  - sandbox-status    → `report`    (a status snapshot was pushed)
+ */
+export type EnforcementType = string;
+
+/** One aggregated runtime-enforcement telemetry event. */
+export interface EnforcementEvent {
+  /** classified type (deny / guard kind / tree kind / report). */
+  type: EnforcementType;
+  /** source module that produced the event. */
+  source: EnforcementSource;
+  /** epoch ms when the enforcement happened (injected; bus replay uses now). */
+  ts: number;
+  /** human-readable / machine detail (rule, reason, message, guard detail). */
+  detail: string;
+  /** optional structured payload (tool name, pid, guard kind, …). */
+  meta?: Record<string, unknown>;
+}
+
+/** Aggregated enforcement telemetry snapshot — injectable & assertable. */
+export interface EnforcementTelemetrySnapshot {
+  /** all aggregated events, oldest-first. */
+  events: readonly EnforcementEvent[];
+  /** count per classified type. */
+  counts: Record<string, number>;
+  /** count per source module. */
+  sources: Record<EnforcementSource, number>;
+  /** last `n` events (newest-first). */
+  recent(n: number): readonly EnforcementEvent[];
+  /** current sandbox backend/resource-limit status (undefined if never reported). */
+  status(): SandboxStatus | undefined;
+  /** process-tree audit events pushed through the runtime seam. */
+  treeAudit(): readonly ProcessTreeAuditEvent[];
+}
+
+/**
+ * A process-tree audit event (071/072) pushed through the runtime seam. This is
+ * a structural mirror of the runtime `ProcessTreeAuditEvent` shape (kind/pid/
+ * detail/at) so the application layer stays decoupled from @vessel/runtime's
+ * precise export; the runtime event is structurally assignable here.
+ */
+export interface ProcessTreeAuditEvent {
+  kind: ProcessTreeAuditKind;
+  pid?: number;
+  detail: string;
+  at: number;
+}
+
+/** Process-tree audit event kind (071/072 vocabulary). */
+export type ProcessTreeAuditKind =
+  | 'spawn'
+  | 'exit'
+  | 'attached'
+  | 'escape-detected'
+  | 'escape-terminated'
+  | 'window-closed';

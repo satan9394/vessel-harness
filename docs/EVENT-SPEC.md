@@ -491,6 +491,26 @@ Agent → Tool Call        →    AfterModel(A10) 产出 toolCalls → 每调用
 3. **软/硬分离不变**：Behavior IR 编译产物经 BeforeModel/BeforeTool 注入引导（软）；强制走 Policy/审批/沙箱（硬），prompt 段不产生 Audit 事实，只有执法路径产生（D1 结论 4a、任务书 §2.3）。
 4. **deny 反馈循环纪律**：deny 文本回灌模型后可继续（模型改写），但**同调用连续 deny ≥3 次即终结该意图路径**（denial breaker/doom-loop 纪律，Hermes/OpenCode），避免死循环追问。
 
+### 7.3 Runtime Enforcement Telemetry（task 074 语义与查询）
+
+> 把 071-073 的安全执法（sandbox/process-tree/fs-confinement）+ 050 audit/denial 惯例汇成可观测的遥测面。
+> 实现：`packages/application/src/projections/EnforcementProjection.ts`（040 投影模式，组合根 `compose.ts` 注入）。
+
+**聚合点（复用既有记录，不自造第二套事件管线）：**
+
+| 来源模块 | 复用的事件/记录 | 归类 type |
+|---|---|---|
+| `policy` | `policy_decision`（verdict=`deny`）bus 事件，即 PolicyProjection 同一来源 | `deny` |
+| `fs-confinement` | Session 回放 `tool/result`（`error.errorClass='DENIED'` + `meta.guard`）；bus `after_tool` 丢弃 `meta`，故以 Session 为权威 | guard 种类 `escape`\|`protected`\|`deny-read`\|`confinement`\|`size`\|`nul` |
+| `process-tree` | `Sandbox` 运行期 `ProcessTreeAuditEvent`（071/072 audit 落点，不在 bus/session）→ 经注入 seam | `spawn`\|`exit`\|`attached`\|`escape-detected`\|`escape-terminated`\|`window-closed` |
+| `sandbox-status` | `SandboxStatus`（071 backend 状态）→ 经注入 seam | `report` |
+
+**EnforcementEvent 形状**：`{ type, source, ts, detail, meta? }`。
+
+**查询 API（`EnforcementProjection.snapshot()`）**：`events()`（全量，oldest-first）、`counts()`（按 type 计数）、`sourceCounts()`（按来源）、`recent(n)`（最近 N 条，newest-first）、`status()`（sandbox backend 状态）、`treeAudit()`（process-tree 审计流水）。CLI `vessel run` 尾部打印最小遥测摘要（计数 + 来源 + 状态 + 最近 3 条）；075 benchmark 判据可按 `EnforcementTelemetrySnapshot` 复用。
+
+**形状可注入可断言**：`attach(bus)` + `foldSession(session)` + `recordProcessTree(event)` + `reportStatus(status, limits?)` 四个入口可单测注入。
+
 ---
 
 ## 8. 一轮完整 turn 的事件流（文本时序图）

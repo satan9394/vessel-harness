@@ -4,7 +4,7 @@ import * as path from 'node:path';
 import { spawn } from 'node:child_process';
 import { VERSION } from '@vessel/shared';
 import { MockProvider, createProvider } from '@vessel/llm';
-import { composeHarness, createCredentialStore } from '@vessel/application';
+import { composeHarness, createCredentialStore, type EnforcementProjection } from '@vessel/application';
 import { createVesselServer } from '@vessel/local-server';
 import { ProviderStore, type ProviderConfig } from './providers/ProviderStore.js';
 import { fetchOpenAIModels, modelsForProtocol } from './providers/modelFetcher.js';
@@ -181,6 +181,8 @@ async function cmdRun(flags: Map<string, string>): Promise<number> {
         console.log(`  - ${(d as { toolName: string }).toolName} ${(d as { reason: string }).reason} [ref=${(d as { ruleRef?: string }).ruleRef}]`);
       }
     }
+    // task 074 enforcement telemetry query seam (data face: list + counts + status)
+    printEnforcementTelemetry(harness.enforcement);
     console.log(`会话日志: ${harness.session.logPath}`);
     return 0;
   } catch (err) {
@@ -188,6 +190,32 @@ async function cmdRun(flags: Map<string, string>): Promise<number> {
     return 1;
   } finally {
     await harness.close();
+  }
+}
+
+/**
+ * task 074 enforcement telemetry query seam (minimal CLI data face). Prints the
+ * aggregated counts + last few enforcement events + sandbox status from the
+ * harness's EnforcementProjection. The full query API (`events / counts /
+ * recent(n) / status / treeAudit`) lives on the projection itself.
+ */
+function printEnforcementTelemetry(enforcement: EnforcementProjection): void {
+  const snap = enforcement.snapshot();
+  if (snap.events.length === 0) return;
+  console.log(`\n=== 安全执法遥测 (enforcement telemetry) ===`);
+  const counts = Object.entries(snap.counts);
+  if (counts.length > 0) {
+    console.log(`  计数: ${counts.map(([k, v]) => `${k}=${v}`).join(', ')}`);
+  }
+  const srcs = snap.sources;
+  console.log(`  来源: policy=${srcs.policy} fs-confinement=${srcs['fs-confinement']} process-tree=${srcs['process-tree']} sandbox-status=${srcs['sandbox-status']}`);
+  const st = snap.status();
+  if (st) {
+    console.log(`  状态: backend=${st.backend ?? 'none'} enabled=${st.enabled} active=${st.active}${st.fallbackReason ? ` (${st.fallbackReason})` : ''}`);
+  }
+  for (const ev of snap.recent(3)) {
+    const m = ev.meta && Object.keys(ev.meta).length > 0 ? ` ${JSON.stringify(ev.meta)}` : '';
+    console.log(`    [${ev.source}] ${ev.type} @ ${ev.ts}: ${ev.detail}${m}`);
   }
 }
 

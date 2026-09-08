@@ -12,6 +12,7 @@ import { Telemetry } from '@vessel/telemetry';
 import { SubagentManager, createSubagentTool } from '@vessel/agents';
 import { ProjectStore, createMemoryTool } from '@vessel/memory';
 import { AutoTaskRouter, type AutoRoute, type RouteMode, type TierBindings, type TierModelMap } from '@vessel/llm';
+import { EnforcementProjection } from './projections/EnforcementProjection.js';
 
 /**
  * Minimal structural contract for a persistent usage store. apps/cli wires its
@@ -100,6 +101,8 @@ export interface ComposedHarness {
   routedCategory?: string;
   /** V0.9: usage store wired (when provided) */
   usageStore?: UsageStoreLike;
+  /** task 074: runtime enforcement telemetry projection (071-073 + 050 overload) */
+  enforcement: EnforcementProjection;
   close(): Promise<void>;
 }
 
@@ -276,6 +279,12 @@ export async function composeHarness(opts: ComposeOptions): Promise<ComposedHarn
   const telemetry = new Telemetry();
   telemetry.attach(bus);
 
+  // Task 074 runtime enforcement telemetry: unify 071-073 + 050 audit sources
+  // into one queryable projection (reuses policy_decision + session tool/result
+  // records; runtime-side process-tree/status injected via the seam).
+  const enforcement = new EnforcementProjection();
+  const enforcementDetach = enforcement.attach(bus);
+
   // V0.9 usage statistics: persist after_model usage into the store when wired
   if (opts.usageStore) {
     const usageProvider = opts.usageProvider ?? 'default';
@@ -336,8 +345,10 @@ export async function composeHarness(opts: ComposeOptions): Promise<ComposedHarn
     route,
     routedCategory,
     usageStore: opts.usageStore,
+    enforcement,
     async close() {
       telemetry.detach();
+      enforcementDetach();
       await session.close();
       for (const c of mcpClients) {
         await c.close();
