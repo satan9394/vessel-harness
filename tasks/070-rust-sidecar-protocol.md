@@ -1,6 +1,6 @@
 # 070 — Rust Sidecar 协议（JSON-RPC/stdio，PoC）
 
-- 状态：待验收
+- 状态：已合入
 - 优先级：P0（Wave 4 / Milestone F）
 - 创建日期：2026-09-08
 - 关联：071-073（sandbox backend 会用 sidecar 协议）；069（凭据 sidecar 候选）
@@ -87,5 +87,10 @@ Rust Sidecar 协议 PoC：定义 sidecar 进程与宿主之间的 **JSON-RPC 2.0
 
 ## 验收结论（指挥回填）
 
-- [ ] 合入 / 打回
-- 备注：
+- [x] 合入（commit 87cef7a）
+- 备注：指挥独立复核——全量 vitest 75 文件 670 测试全绿（650+20，零回归）、tsc -b 0 错误，与执行器自报一致。
+  协议设计认可：JSON-RPC 2.0 over stdio、单行 JSON 分帧（JSON.stringify 无裸 \n，一消息一行无歧义；长度前缀留 v2
+  备选）；方法集 initialize/ping/shutdown + capabilities + 能力方法占位；Vessel 域错误码 -32000..-32099；
+  id 对齐响应（与到达顺序无关，测试含反向序回复证明）；TS 侧 SidecarClient + 可注入 transport（createTransportPair
+  内存管道）+ MockSidecar 故障注入；Rust 参考实现要点入文档（无工具链不做编译产物，符合卡范围）。
+  下一张：071（Windows sandbox backend）。
