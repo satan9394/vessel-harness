@@ -1,6 +1,6 @@
 # 063 — 持久 TaskQueue（ProjectTaskQueue + IterationStore）
 
-- 状态：待验收
+- 状态：已合入
 - 优先级：P0（Wave 3 / Milestone E）
 - 创建日期：2026-09-08
 - 关联：061/062（Real Gen/Eval adapter 跑的任务）；064（worktree）；066（budget）
@@ -88,5 +88,10 @@ gen→test→eval→met/not_met 迭代留痕），供 Goal/Loop 真实运行与 
 
 ## 验收结论（指挥回填）
 
-- [ ] 合入 / 打回
-- 备注：
+- [x] 合入（commit f2a520b）
+- 备注：指挥独立复核——全量 vitest 68 文件 590 测试全绿（564+26，零回归）、npx tsc -b 0 错误，与执行器自报一致。
+  设计认可：ProjectTaskQueue（持久队列：enqueue/claimNext/claim/settle/requeue/cancel + 状态机转移表，
+  task_<ts>_<hex> id，~/.vessel/taskqueue + root 覆盖，原子写；projectQueueSelectTask 接 LoopEngine selectTask）；
+  IterationStore（per-task 迭代日志 ordinal 1..n，appendEngineResult 直连 persist seam，061/062 run 快照整落库可
+  回放给 065 UI/067 handoff）。严格复用 059 存储模式。并发安全测试（20 轮跨实例交替零重复零 .tmp 残留）。
+  下一张：064（worktree 生命周期）——需先拆卡。
