@@ -1,8 +1,8 @@
-# Windows Sandbox Backend（071）能力与限制
+# Windows Sandbox Backend（071/072）能力与限制
 
-> 状态：任务 071 交付（Windows Job Object 后端）
+> 状态：任务 071（Job Object 后端）+ 072（process-tree confinement）交付
 > 关联：`packages/runtime/src/sandbox/`、`packages/runtime/src/process/Process.ts`、路线文档 §13.1–13.3
-> 本文档描述 071 落地后的**真实能力**与**诚实限制**——不宣称"看起来启用、实际 passthrough"（§13.3）。
+> 本文档描述 071/072 落地后的**真实能力**与**诚实限制**——不宣称"看起来启用、实际 passthrough"（§13.3）。
 
 ## 一句话
 
@@ -65,6 +65,48 @@ Process.ts 注释）；shell tool 已切到 `sandbox.run`（真实接线上路�
 4. **仅 Windows**：非 win32 平台 `status()` 保持 passthrough（bwrap/Seatbelt 后续卡）。
 5. **回收站纪律**：隔离目录清理走 `SendToRecycleBin`（`Microsoft.VisualBasic`），holder 临时脚本
    自删；os.tmpdir 下的自建工件按仓库既有约定清理，绝不触碰主工作区路径。
+
+## 072 — Process-Tree Confinement（在 071 之上新增）
+
+### 能力（delivered）
+
+| 能力 | 机制 | 强度 |
+| --- | --- | --- |
+| 进程树跟踪/审计 | `ProcessTreeTracker`（纯状态机，跨平台可单测）：登记 spawn（pid+父 pid+命令）、记录 exit、枚举子树、快照全树、追加式审计日志（spawn/exit/attached/escape-detected/escape-terminated/window-closed） | `run()`/`openConfinement()` 暴露 `processTree` 快照 + `audit` 日志 |
+| attach 时序窗口关闭 | 071 的限制：holder 挂接前已派生的孙进程不 retroactively 入 job。072 在 attach 后立即用 CIM（`Win32_Process` ParentProcessId BFS）枚举当前后代，逐个 `AssignProcessToJobObject` 拉进同一 job（`attachDescendants`） | 本机可测：即时派生的孙进程在窗口内被枚举并纳管；可关（`closeTimingWindow:false`） |
+| 树外逃逸检测 | 逃逸 = 当前存活后代 pid 不在「已确认纳管集合」（root+已 attach 后代）。`detectEscapes` 纯规则 + CIM 复举实现验证 | 记录 `escape-detected` 审计；`terminateEscaped:true` 时用 `TerminateProcess` 逐个硬终止（pid 级，不动 root/job） |
+| 资源上限（071 遗留） | holder 的 `SetInformationJobObject` 现按传入限制组合 flag：`JOB_OBJECT_LIMIT_ACTIVE_PROCESS`(0x8) 活动进程、`JOB_OBJECT_LIMIT_PROCESS_TIME`(0x2) 每进程 CPU 时间（100ns tick）、`JOB_OBJECT_LIMIT_WORKINGSET`(0x1) 工作集 | OS 强制（best-effort，见限制）。**修复 071 笔误**：071 用 `0x4`（实际是 JOB_TIME）却标注 ACTIVE_PROCESS；072 改为正确的 `0x8` |
+
+### 限制（honest）
+
+1. **逃逸检测非实时**：逃逸检测在 `dispose()`/`run()` 结束后 CIM 复举触发——不是每 N ms 轮询实时执行。适合"命令结束后审计"，不适合"毫秒级封堵 fork 炸弹"（后者靠活动进程上限兜底）。
+2. **工作集上限是软目标**：`JOB_OBJECT_LIMIT_WORKINGSET` 在许多 Windows 配置下是软目标（内存压力下可超），不是硬性提交上限——按此诚实描述，不宣称硬内存墙。
+3. **逃逸只能在"看得到"时检测**：若某进程脱离我们枚举窗口（如已 exit 被 PID 复用、或 breakaway 进别的 job 且不在 root 后代链），检测不到。Windows 无 TS 侧的秒级进程原语遍历，依赖 CIM 快照。
+4. **时序窗口有最小残窗**：enumeration 与 attach 之间仍有极小竞态（进程在枚举后、attach 前 fork 的新孙进程）。窗口显著小于 071（由"完全不纳管"降为"覆盖枚举时刻已存在的后代"），但仍非数学零窗口。
+5. **CPU/内存上限 best-effort**：struct P/Invoke 布局在 PowerShell 下未做穷尽验证；`SetInformationJobObject` 失败静默降级（tree-kill 不受影响，见 071 限制 3）。
+6. **仅 Windows**：CIM/PowerShell 与 Job Object 均仅 win32；非 win32 `status()` 保持 passthrough。
+
+### 新增 API
+
+```ts
+// run() 现在返回进程树快照 + 审计（可枚举/可审计）
+const r = await sandbox.run('node', ['-e', '...'], {
+  limits: {
+    maxActiveProcesses: 8,
+    maxProcessTimeMs: 5000,          // 每进程 CPU 预算（best-effort）
+    maxWorkingSetBytes: 256*1024*1024, // 每进程工作集上限（软目标）
+    terminateEscaped: true,          // 逃逸硬终止
+    closeTimingWindow: true,         // 默认开：attach 后枚举并纳管已派生后代
+  },
+});
+r.processTree.nodes;   // [{pid,parentPid,command,spawnedAt,alive,...}]
+r.audit;               // [{kind:'escape-detected',pid,detail,at}, ...]
+
+// openConfinement() 会话新增 tree()/audit()
+const s = await sandbox.openConfinement({ terminateEscaped: true });
+await s.attach(child.pid!);
+s.tree().nodes; s.audit();
+```
 
 ## 验证
 

@@ -39,12 +39,35 @@ import { join } from 'node:path';
 export interface JobObjectLimits {
   /** max number of processes allowed in the job (anti fork-bomb). */
   maxActiveProcesses?: number;
+  /**
+   * per-process CPU time limit in MILLISECONDS (task 072). Mapped to
+   * `JOBOBJECT_BASIC_LIMIT_INFORMATION.PerProcessUserTimeLimit` (100ns ticks)
+   * with `JOB_OBJECT_LIMIT_PROCESS_TIME`. OS-enforced: a process exceeding its
+   * own CPU budget is terminated. Best-effort (struct P/Invoke — see notes).
+   */
+  maxProcessTimeMs?: number;
+  /**
+   * per-process working-set ceiling in BYTES (task 072). Mapped to
+   * `MaximumWorkingSetSize` with `JOB_OBJECT_LIMIT_WORKINGSET`. Note: the
+   * working-set limit is a *soft* target on many Windows configs (a process
+   * can be allowed above it under memory pressure); it is NOT a hard commit
+   * cap and we do not claim otherwise.
+   */
+  maxWorkingSetBytes?: number;
 }
 
 /** The spawn-time confinement handle fed to `runCommand`. */
 export interface JobObjectConfinement {
   /** durable name of the Job Object (used to reopen + terminate). */
   jobName: string;
+  /** pid the job was created around (the confinement root). */
+  rootPid?: number;
+  /**
+   * Pull existing descendant pids into the job (task 072: closes the 071 attach
+   * timing window for pre-attach grandchildren). Returns count assigned. Optional
+   * so minimal mocks / degraded backends stay compatible.
+   */
+  attachDescendants?(pids: number[]): Promise<number>;
   /** terminate the ENTIRE job tree (all descendant processes). */
   terminate(): Promise<void>;
   /** release the confinement (terminates the tree too — idempotent). */
@@ -99,6 +122,8 @@ export const WindowsJobObject = {
       `$name=${psSq(jobName)}\n` +
       `$tpid=${Math.trunc(targetPid)}\n` +
       `$maxProc=${Math.trunc(limits.maxActiveProcesses ?? 0)}\n` +
+      `$procMs=${Math.trunc(limits.maxProcessTimeMs ?? 0)}\n` +
+      `$wsBytes=${Math.trunc(limits.maxWorkingSetBytes ?? 0)}\n` +
       `$ready=${psSq(readyFile)}\n` +
       `$errFile=${psSq(errorFile)}\n` +
       '$src=@"\n' +
@@ -118,8 +143,14 @@ export const WindowsJobObject = {
       ` $job=[JobHolder]::CreateJobObject([IntPtr]::Zero,$name)\n` +
       ' if($job -eq [IntPtr]::Zero){ throw "CreateJobObject failed: $([Runtime.InteropServices.Marshal]::GetLastWin32Error())" }\n' +
       ' $lim=New-Object JobHolder+BLI\n' +
-      ' $lim.Flags=0x4\n' + // JOB_OBJECT_LIMIT_ACTIVE_PROCESS
-      ' if($maxProc -gt 0){ $lim.Active=$maxProc }\n' +
+      // JOB_OBJECT_LIMIT_WORKINGSET=0x1, JOB_OBJECT_LIMIT_PROCESS_TIME=0x2,
+      // JOB_OBJECT_LIMIT_ACTIVE_PROCESS=0x8. (071 hard-coded 0x4 which is
+      // actually JOB_OBJECT_LIMIT_JOB_TIME, not ACTIVE_PROCESS — fixed in 072.)
+      ' $flags=0\n' +
+      ' if($maxProc -gt 0){ $flags=$flags -bor 0x8; $lim.Active=$maxProc }\n' +
+      ' if($procMs -gt 0){ $flags=$flags -bor 0x2; $lim.Ppt=[long]($procMs*10000) }\n' +
+      ' if($wsBytes -gt 0){ $flags=$flags -bor 0x1; $lim.MaxW=[IntPtr]$wsBytes }\n' +
+      ' $lim.Flags=$flags\n' +
       ' $sz=[Runtime.InteropServices.Marshal]::SizeOf([type][JobHolder+BLI])\n' +
       ' $ptr=[Runtime.InteropServices.Marshal]::AllocHGlobal($sz)\n' +
       ' [Runtime.InteropServices.Marshal]::StructureToPtr($lim,$ptr,$false) | Out-Null\n' +
@@ -189,6 +220,115 @@ export const WindowsJobObject = {
       // job already gone — idempotent
     }
   },
+
+  /**
+   * Enumerate the CURRENT live descendants of `rootPid` (by ParentProcessId
+   * walk in CIM). Task 072: this is the OS truth used to (a) close the attach
+   * timing window and (b) detect tree escapes. Returns [] on failure (callers
+   * treat an empty read as "nothing observed", not "nothing alive").
+   */
+  async enumerateDescendants(rootPid: number): Promise<number[]> {
+    if (!WindowsJobObject.isSupported()) return [];
+    const script =
+      '$ErrorActionPreference="SilentlyContinue"\n' +
+      `$all = @(Get-CimInstance Win32_Process 2>$null)\n` +
+      `$root = ${Math.trunc(rootPid)}\n` +
+      'if($all.Count -eq 0){ exit 0 }\n' +
+      '$found = New-Object System.Collections.Generic.List[int]\n' +
+      '$queue = New-Object System.Collections.Generic.Queue[int]\n' +
+      '$queue.Enqueue($root)\n' +
+      'while($queue.Count -gt 0){\n' +
+      '  $cur = $queue.Dequeue()\n' +
+      '  foreach($p in $all){ if($p.ParentProcessId -eq $cur){ $found.Add($p.ProcessId); $queue.Enqueue($p.ProcessId) } }\n' +
+      '}\n' +
+      '$found\n';
+    try {
+      const out = await runPs(script);
+      return out
+        .split(/\s+/)
+        .map((s) => Number(s.trim()))
+        .filter((n) => Number.isInteger(n) && n > 0);
+    } catch {
+      return [];
+    }
+  },
+
+  /**
+   * Attach a list of existing pids into a running named job. Used to pull
+   * pre-attach grandchildren into the confinement boundary (closes the 071
+   * timing window). Best-effort: a pid that already exited or is already in
+   * the job is skipped. Returns the number successfully assigned.
+   */
+  async attachPidsToJob(jobName: string, pids: number[]): Promise<number> {
+    if (!WindowsJobObject.isSupported() || pids.length === 0) return 0;
+    const pidList = pids.map((p) => Math.trunc(p)).filter((p) => p > 0);
+    if (pidList.length === 0) return 0;
+    const script =
+      '$ErrorActionPreference="SilentlyContinue"\n' +
+      `$name=${psSq(jobName)}\n` +
+      `$pidList=@(${pidList.join(',')})\n` +
+      '$src=@"\n' +
+      'using System; using System.Runtime.InteropServices;\n' +
+      'public class JobAttach {\n' +
+      ' [DllImport("kernel32.dll", SetLastError=true, CharSet=CharSet.Unicode)] public static extern IntPtr OpenJobObject(uint a,bool i,string n);\n' +
+      ' [DllImport("kernel32.dll", SetLastError=true)] public static extern bool AssignProcessToJobObject(IntPtr j,IntPtr p);\n' +
+      ' [DllImport("kernel32.dll", SetLastError=true)] public static extern IntPtr OpenProcess(uint a,bool i,uint pid);\n' +
+      ' [DllImport("kernel32.dll")] public static extern void CloseHandle(IntPtr h);\n' +
+      '}\n' +
+      '"@\n' +
+      'Add-Type -TypeDefinition $src -ErrorAction SilentlyContinue\n' +
+      '$h=[JobAttach]::OpenJobObject(0x8,$false,$name)\n' + // JOB_OBJECT_TERMINATE enough
+      'if($h -eq [IntPtr]::Zero){ "0"; exit 0 }\n' +
+      '$done=0\n' +
+      'foreach($p in $pidList){\n' +
+      '  $proc=[JobAttach]::OpenProcess(0x101,$false,$p) 2>$null\n' + // PROCESS_SET_QUOTA|PROCESS_TERMINATE (same as holder)
+      '  if($proc -ne [IntPtr]::Zero){ if([JobAttach]::AssignProcessToJobObject($h,$proc)){ $done++ }; [JobAttach]::CloseHandle($proc) }\n' +
+      '}\n' +
+      '[JobAttach]::CloseHandle($h)\n' +
+      '"$done"\n';
+    try {
+      const out = await runPs(script);
+      const n = Number(out.split(/\s+/)[0]);
+      return Number.isInteger(n) ? n : 0;
+    } catch {
+      return 0;
+    }
+  },
+
+  /**
+   * Terminate a list of pids directly (task 072 tree-escape hard response).
+   * Unlike `terminate()` this does not touch the job tree — it targets only the
+   * escaped processes. Best-effort; a pid that already exited is skipped.
+   */
+  async terminatePids(pids: number[]): Promise<number> {
+    const clean = pids.map((p) => Math.trunc(p)).filter((p) => p > 0);
+    if (clean.length === 0) return 0;
+    const script =
+      '$ErrorActionPreference="SilentlyContinue"\n' +
+      `$pidList=@(${clean.join(',')})\n` +
+      '$src=@"\n' +
+      'using System; using System.Runtime.InteropServices;\n' +
+      'public class ProcKill {\n' +
+      ' [DllImport("kernel32.dll", SetLastError=true)] public static extern IntPtr OpenProcess(uint a,bool i,uint pid);\n' +
+      ' [DllImport("kernel32.dll", SetLastError=true)] public static extern bool TerminateProcess(IntPtr p,uint c);\n' +
+      ' [DllImport("kernel32.dll")] public static extern void CloseHandle(IntPtr h);\n' +
+      '}\n' +
+      '"@\n' +
+      'Add-Type -TypeDefinition $src -ErrorAction SilentlyContinue\n' +
+      '$done=0\n' +
+      'foreach($p in $pidList){\n' +
+      '  $h=[ProcKill]::OpenProcess(0x0001,$false,$p) 2>$null\n' + // PROCESS_TERMINATE
+      '  if($h -ne [IntPtr]::Zero){ if([ProcKill]::TerminateProcess($h,0x42)){ $done++ }; [ProcKill]::CloseHandle($h) }\n' +
+      '}\n' +
+      '"$done"\n';
+    try {
+      const out = await runPs(script);
+      const n = Number(out.split(/\s+/)[0]);
+      return Number.isInteger(n) ? n : 0;
+    } catch {
+      return 0;
+    }
+  },
 };
 
 /**
@@ -227,6 +367,10 @@ export async function createJobObject(
   }
   return {
     jobName,
+    rootPid: targetPid,
+    async attachDescendants(pids: number[]): Promise<number> {
+      return WindowsJobObject.attachPidsToJob(jobName, pids);
+    },
     async terminate(): Promise<void> {
       await WindowsJobObject.terminate(jobName);
     },
