@@ -1,6 +1,6 @@
 import * as clack from '@clack/prompts';
 import { ProviderStore, type ProviderConfig } from './ProviderStore.js';
-import { findPreset, PROVIDER_PRESETS, type ProviderPreset } from './presets.js';
+import { findPreset, providerPickerOptions, CUSTOM_ENDPOINT_VALUE, type ProviderPreset } from './presets.js';
 import { fetchOpenAIModels, modelsForProtocol } from './modelFetcher.js';
 
 /**
@@ -45,17 +45,20 @@ export function maskKey(key: string): string {
 export function createClackIO(_store: ProviderStore): SetupIO {
   return {
     async pickProvider() {
-      const options = [
-        ...PROVIDER_PRESETS.map((p) => ({ value: p.id, label: p.name, hint: p.hint })),
-        { value: '__custom__', label: '自定义端点（聚合/自托管/未列出）', hint: '手动输入 base-url 与协议' },
-      ];
+      // task 025 visibility: providerPickerOptions() prefixes every preset label
+      // with its category tag ([官方]/[国产]/[国际]/[聚合]/[本地]) and pins the
+      // custom-endpoint entry (value '__custom__') last. clack's default filter
+      // matches label|hint|value (substring, lowercase), so typing an English id
+      // (value), a Chinese name/category (label) or custom/自定义 all hit.
+      // maxItems only caps the on-screen viewport — filtering still sees all 56.
+      const options = providerPickerOptions();
       const picked = (await clack.autocomplete({
-        message: '选择供应商（输入即搜索）',
+        message: '选择供应商（输入即搜索：中文名 / 英文 id / 类别词 / 自定义）',
         options,
         maxItems: 12,
       })) as string | symbol;
       if (typeof picked !== 'string') return clack.cancel as unknown as symbol;
-      if (picked === '__custom__') return { kind: 'custom' };
+      if (picked === CUSTOM_ENDPOINT_VALUE) return { kind: 'custom' };
       const preset = findPreset(picked);
       return preset ? { kind: 'preset', preset } : { kind: 'custom' };
     },

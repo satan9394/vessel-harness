@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>cah · opencode 式分栏 UI 设计稿（task 025）</title>
+<!--
+  ============================================================================
+  docs/ui-split-layout.html — 设计稿（非实现）· task 025 · 2026-09
+  ============================================================================
+  目标：opencode 启动后「左对话 / 右面板(MCP + 模型/成本)」的静态可截图原型，
+  视觉基调沿用 docs/agent-cli-analysis.html（GitHub-dark 系：#0d1117 底）。
+
+  字段数据源索引（每块下方另有行内注释）：
+    L1 消息流       → apps/cli/src/compose.ts runCompose 的 AgentLoop + EventBus
+                     （packages/core/src/agent-loop/AgentLoop.ts emit before_turn/
+                     after_model/after_tool/after_turn）；气泡=after_model 的
+                     response.usage/text，工具摘要行=tool/call + after_tool result。
+    L2 输入行/斜杠  → 待实现（本次只画形状；斜杠命令表 = cli.ts 子命令集，
+                     /compact = context/Compaction，/permission = policy profile）。
+    R1 供应商/模型  → ProviderStore.getCurrent()（~/.dsh/providers.json，见
+                     apps/cli/src/providers/ProviderStore.ts）+ preset id。
+    R1 权限三档      → configs/policy.default.yaml policy.profile：
+                     read-only | workspace-write | danger-full-access（approval:never）。
+    R1 会话计数      → compose.session（packages/core Session）/ telemetry M02 Turns。
+    R2 MCP servers  → compose.ts 的 mcpClients（McpClient[]，@cah/tools），工具按
+                     mcp__<server>__<tool> 注册。⚠ online/offline 实时心跳 = 待实现
+                     （当前 McpClient 无 status 上报，本稿为占位形态）。
+    R3 Token 数      → packages/telemetry Telemetry.recordUsage 来自 after_model 的
+                     usage {inputTokens, outputTokens, cacheReadTokens} →
+                     metrics M06 InputTokens（detail.cacheRead）/ M07 OutputTokens。
+    R3 成本估算      → configs/pricing.json × apps/cli/src/providers/pricing.ts
+                     resolvePrice(model > protocol > default)；M11 = 成本指标位
+                     （packages/shared/src/metrics.ts MetricId）。此处为示例卡：
+                     按 claude-sonnet-4-5 价目 $3/$15/$0.30 每 1M token（USD）。
+    R4 按键帮助      → 设计建议（Enter 发送 / Esc 中断 / / 斜杠命令 / ctrl+k 面板）。
+  ============================================================================
+-->
+<style>
+  :root{
+    --bg:#0d1117; --panel:#161b22; --panel2:#1c2333; --panel3:#11161f;
+    --border:#30363d; --border-soft:#21262d;
+    --text:#e6edf3; --dim:#8b949e; --faint:#6e7681;
+    --accent:#58a6ff; --green:#3fb950; --yellow:#d29922; --red:#f85149;
+    --purple:#bc8cff; --pink:#f778ba; --cyan:#39c5cf;
+    --mono:'Cascadia Code','JetBrains Mono',Consolas,'SF Mono',monospace;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%}
+  body{
+    background:var(--bg);color:var(--text);
+    font:13px/1.55 -apple-system,'Segoe UI','PingFang SC','Microsoft YaHei',sans-serif;
+    display:flex;flex-direction:column;height:100vh;overflow:hidden;
+  }
+  /* ---------- 顶层栏 ---------- */
+  .topbar{
+    display:flex;align-items:center;gap:10px;padding:7px 14px;
+    background:var(--panel);border-bottom:1px solid var(--border);flex:0 0 auto;
+  }
+  .topbar .brand{font-weight:700;letter-spacing:.3px}
+  .topbar .brand .sub{color:var(--accent)}
+  .topbar .crumb{color:var(--dim);font-size:12px}
+  .topbar .crumb b{color:var(--text);font-weight:600}
+  .topbar .live{margin-left:auto;display:flex;align-items:center;gap:6px;color:var(--dim);font-size:12px}
+  .dot{width:8px;height:8px;border-radius:50%;display:inline-block}
+  .dot.on{background:var(--green);box-shadow:0 0 6px var(--green)}
+  .dot.off{background:var(--faint)}
+  .chip{font:11px var(--mono);color:var(--accent);border:1px solid var(--border);border-radius:20px;padding:0 8px}
+  /* ---------- 左右分栏 ---------- */
+  .split{display:flex;flex:1 1 auto;min-height:0}
+  .chat{flex:1 1 auto;display:flex;flex-direction:column;min-width:0;border-right:1px solid var(--border)}
+  .side{flex:0 0 322px;display:flex;flex-direction:column;min-height:0;background:var(--panel3)}
+  /* ============ 左栏：对话区 ============ */
+  .chat-scroll{flex:1 1 auto;overflow-y:auto;padding:18px 20px 10px;display:flex;flex-direction:column;gap:14px}
+  .msg{display:flex;flex-direction:column;gap:4px}
+  .who{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--dim)}
+  .who .av{width:20px;height:20px;border-radius:5px;display:inline-flex;align-items:center;justify-content:center;font-size:11px;font-weight:700}
+  .av.user{background:#263041;color:var(--accent)}
+  .av.agent{background:#2c2438;color:var(--purple)}
+  .who .role{font-weight:600;color:var(--text)}
+  .who .meta{font-size:11px;color:var(--faint)}
+  .bubble{max-width:92%;padding:9px 13px;border-radius:10px;font-size:13px}
+  .msg.user .bubble{background:#1f2a44;border:1px solid #2a3a5e;align-self:flex-end}
+  .msg.user{align-items:flex-end}
+  .msg.user .who{flex-direction:row-reverse}
+  .msg.agent .bubble{background:var(--panel);border:1px solid var(--border-soft)}
+  .bubble .t{margin-top:6px;border-top:1px dashed var(--border);padding-top:6px;font-size:11.5px;color:var(--dim)}
+  .bubble .t b{color:var(--cyan);font-weight:600}
+  .bubble code,.tok{font-family:var(--mono);font-size:11.5px;background:var(--panel2);border:1px solid var(--border-soft);padding:0 4px;border-radius:4px;color:#d2e3ff}
+  /* 工具调用摘要行 */
+  .toolline{
+    align-self:flex-start;display:flex;align-items:center;gap:8px;
+    font-family:var(--mono);font-size:11.5px;color:var(--dim);
+    background:var(--panel3);border:1px solid var(--border-soft);border-radius:7px;padding:5px 10px;
+  }
+  .toolline .tt{color:var(--cyan)}
+  .toolline .st{color:var(--green)}
+  .toolline .er{color:var(--red)}
+  .toolline .path{color:var(--faint)}
+  .toolline .dur{margin-left:auto}
+  /* 输入行 */
+  .composer{flex:0 0 auto;padding:10px 14px 6px;background:var(--panel);border-top:1px solid var(--border)}
+  .composer .box{
+    display:flex;align-items:center;gap:10px;background:var(--panel3);
+    border:1px solid var(--border);border-radius:9px;padding:8px 12px;
+  }
+  .composer .box:focus-within{border-color:var(--accent)}
+  .composer .caret{color:var(--green);font-weight:700}
+  .composer .ph{color:var(--faint);flex:1;font-size:13px}
+  .composer .ph kbd{font:11px var(--mono);border:1px solid var(--border);border-radius:4px;padding:0 5px;color:var(--dim);background:var(--panel2)}
+  .composer .send{background:var(--accent);color:#0b1626;border:0;border-radius:6px;width:24px;height:24px;font-weight:800;cursor:pointer}
+  .slashhint{display:flex;gap:14px;padding:6px 4px 0;font-size:11px;color:var(--faint)}
+  .slashhint .sc{color:var(--accent);font-family:var(--mono)}
+  .keys{display:flex;gap:16px;padding:4px 2px 2px;font-size:11px;color:var(--faint)}
+  .keys b{color:var(--dim);font-family:var(--mono);font-weight:600}
+  /* ============ 右栏：状态面板 ============ */
+  .side-scroll{flex:1 1 auto;overflow-y:auto;display:flex;flex-direction:column}
+  .card{border-bottom:1px solid var(--border-soft);padding:11px 13px}
+  .card .h{display:flex;align-items:center;gap:7px;font-size:10.5px;letter-spacing:1.2px;text-transform:uppercase;color:var(--faint);margin-bottom:9px}
+  .card .h .ic{font-size:12px;color:var(--accent);letter-spacing:0}
+  .card .h .tag{margin-left:auto;text-transform:none;letter-spacing:0;font:10.5px var(--mono);color:var(--dim);border:1px solid var(--border-soft);border-radius:4px;padding:1px 6px}
+  .row{display:flex;align-items:center;gap:8px;padding:3px 0}
+  .row .k{width:76px;flex:0 0 auto;color:var(--dim);font-size:12px}
+  .row .v{flex:1 1 auto;font-size:12.5px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .row .v.mono,.mono{font-family:var(--mono)}
+  .badge{font-size:10.5px;font-family:var(--mono);padding:1px 7px;border-radius:4px;border:1px solid var(--border)}
+  .badge.proto{color:var(--purple);border-color:#4a3663}
+  .badge.cn{color:var(--green)}
+  /* 权限三档 */
+  .perm{display:flex;border:1px solid var(--border);border-radius:7px;overflow:hidden;margin:4px 0 2px;font-size:11.5px}
+  .perm span{flex:1;text-align:center;padding:4px 2px;color:var(--dim);cursor:default}
+  .perm span.on{background:var(--yellow);color:#241a02;font-weight:700}
+  .seg2{display:flex;gap:8px;font-size:12px;color:var(--dim);padding:2px 0}
+  .seg2 .now{color:var(--yellow)}
+  /* MCP 表 */
+  table.mcp{width:100%;border-collapse:collapse;font-size:12px}
+  table.mcp td{padding:4px 0;border-bottom:1px solid #1b2129;vertical-align:middle}
+  table.mcp tr:last-child td{border-bottom:0}
+  table.mcp .srv{font-family:var(--mono);color:var(--text)}
+  table.mcp .trp{color:var(--faint);font-size:10.5px;font-family:var(--mono)}
+  table.mcp .tools{color:var(--dim);font-size:11px}
+  table.mcp .st{font-size:11px}
+  .st.on{color:var(--green)} .st.off{color:var(--faint)}
+  .pending{font:10px var(--mono);color:var(--yellow);border:1px dashed #6b5a22;border-radius:4px;padding:0 5px}
+  /* 成本卡 */
+  .cost-table{font-size:12px}
+  .cost-row{display:flex;padding:4px 0;border-bottom:1px solid #1b2129;font-family:var(--mono)}
+  .cost-row:last-child{border-bottom:0}
+  .cost-row .ck{color:var(--dim);flex:1}
+  .cost-row .cv{text-align:right;color:var(--text)}
+  .cost-row .cv small{color:var(--faint);font-size:10.5px}
+  .cost-row.total{font-weight:700;border-top:1px solid var(--border);border-bottom:0;margin-top:2px;padding-top:6px}
+  .cost-row.total .cv{color:var(--yellow)}
+  .foot{font-size:10.5px;color:var(--faint);margin-top:7px;line-height:1.5}
+  .foot code{font:10.5px var(--mono);color:var(--dim)}
+  /* 右栏底部按键帮助 */
+  .keys-help{border-top:1px solid var(--border-soft);padding:9px 13px;font-size:11px;color:var(--dim)}
+  .keys-help .kh{display:flex;justify-content:space-between;padding:2px 0}
+  .keys-help kbd{font:10.5px var(--mono);color:var(--text);background:var(--panel2);border:1px solid var(--border);border-radius:4px;padding:0 5px}
+  /* 滚动条 */
+  ::-webkit-scrollbar{width:9px;height:9px}
+  ::-webkit-scrollbar-thumb{background:#2b333d;border-radius:5px}
+  ::-webkit-scrollbar-track{background:transparent}
+</style>
+</head>
+<body>
+  <!-- 顶层状态栏：进程 + 当前供应商/模型 + 会话（ProviderStore + compose.session） -->
+  <header class="topbar">
+    <span class="brand">cah<span class="sub"> run</span></span>
+    <span class="crumb">C:\work\Vessel_Harness</span>
+    <span class="chip mono">anthropic/claude-sonnet-4-5</span>
+    <span class="live"><span class="dot on"></span>已连接 · turn 6/∞ · <span class="mono">cah-s-0a1f9c</span></span>
+  </header>
+
+  <div class="split">
+    <!-- ==================== 左栏：对话区 ==================== -->
+    <section class="chat">
+      <div class="chat-scroll">
+
+        <!-- ↓ 工具调用摘要行 — 数据源：bus 'tool/call' + 'after_tool' result（AgentLoop.ts L3xx），
+             after_tool 由 ToolRegistry 执行后 emit；行内展示 toolName/入参摘要/耗时。 -->
+        <div class="toolline">
+          <span>⛭</span><span class="tt">Read</span><span class="path">tasks/025-providers-ui-design.md</span>
+          <span class="st">✓ done</span><span class="dur">0.4s</span>
+        </div>
+
+        <!-- ↓ assistant 气泡 — 数据源：bus 'after_model' response.text（AgentLoop.ts after_model，
+             usage 计入 telemetry M06/M07）；渲染层 = 待实现（现为纯文本 CLI log）。 -->
+        <div class="msg agent">
+          <div class="who"><span class="av agent">✦</span><span class="role">assistant</span><span class="meta">claude-sonnet-4-5 · 12:41:03</span></div>
+          <div class="bubble">
+            任务 025 要求供应商目录从 52 → ≥55。我按 models.dev 2026-09 快照补了
+            <code>amazon-bedrock</code> / <code>google-vertex</code>（官方云，env 鉴权占位端点）和
+            <code>baseten</code> / <code>scaleway</code>（国际推理，OpenAI 兼容 key 端点），
+            现在共 56 条，长尾中转一律不收。
+            <div class="t">presets.data.test.ts <b>56 ≥ 55</b> · id 唯一 · baseUrl 非空校验通过</div>
+          </div>
+        </div>
+
+        <!-- ↓ user 气泡 — 数据源：会话输入（session/input；EVENT-SPEC D5 message 类事件，待 UI 接线）。 -->
+        <div class="msg user">
+          <div class="who"><span class="av user">U</span><span class="role">你</span><span class="meta">12:41:20</span></div>
+          <div class="bubble">向导里“找不到 XX 供应商”的问题呢？cc-switch 有几百个，我只想要稳定的。custom 入口可不可靠？</div>
+        </div>
+
+        <!-- ↓ 工具调用摘要行 ×2（并行） -->
+        <div class="toolline">
+          <span>⛭</span><span class="tt">Grep</span><span class="path">docs/ideas/data/models.dev-providers.csv · bedrock|vertex|sambanova</span>
+          <span class="st">✓ done</span><span class="dur">0.2s</span>
+        </div>
+        <div class="toolline">
+          <span>⛭</span><span class="tt">Read</span><span class="path">apps/cli/src/providers/setup.ts · pickProvider</span>
+          <span class="st">✓ done</span><span class="dur">0.3s</span>
+        </div>
+
+        <div class="msg agent">
+          <div class="who"><span class="av agent">✦</span><span class="role">assistant</span><span class="meta">12:41:35</span></div>
+          <div class="bubble">
+            三个原因，已分别处理：
+            <br>① <b>可见性</b> — picker 已给每行加类别前缀（<code>[官方]</code> <code>[国产]</code>
+            <code>[国际]</code> <code>[聚合]</code> <code>[本地]</code>），输入类别词、中文名或英文 id 都能搜到
+            （clack 默认 filter 同时匹配 label｜hint｜value，56 条无截断，<code>maxItems</code> 只限视口）。
+            <br>② <b>custom 入口</b> — 末位固定 <code>[自定义] 自定义端点（聚合/自托管/未列出）</code>，
+            输 <code>custom</code>（value）或 <code>自定义</code>（label）都能命中，流程 = 协议+base-url → key → 拉/手动模型，等价 opencode /connect Other。
+            <br>③ <b>数量</b> — 长尾分销（cc-switch 里 a6api 之类）不收录，宁可自己填 base-url。
+            <div class="t">改动文件：<code>presets.ts</code> providerPickerOptions · <code>presets.data.ts</code> +4 · <code>setup.test.ts</code> 20 passed</div>
+          </div>
+        </div>
+
+        <!-- ↓ 用户提出分栏 UI 需求 -->
+        <div class="msg user">
+          <div class="who"><span class="av user">U</span><span class="role">你</span><span class="meta">12:41:52</span></div>
+          <div class="bubble">对，另外把界面做成 opencode 那样左右分栏吧——左边对话，右边实时看 MCP 服务器和这轮花了多少 token / 多少钱。现在这个设计稿先定形状。</div>
+        </div>
+
+        <!-- ↓ 底部输入行 — 数据源：chat 输入发送 → session/input；斜杠命令 = cli.ts 子命令 + /compact(Compaction) + /permission(policy profile)，待实现。 -->
+        <div class="msg agent">
+          <div class="who"><span class="av agent">✦</span><span class="role">assistant</span><span class="meta">12:42:08</span></div>
+          <div class="bubble">
+            可以。本稿的右栏数据大部分已有来源：<code>compose.ts</code> 的
+            <code>mcpClients</code>（<span class="tok">MCP servers 状态在线</span>，仅实时心跳待实现）、
+            telemetry usage 记账（<span class="tok">M06/M07 token</span>）× <code>configs/pricing.json</code>
+            （<span class="tok">resolvePrice</span>）＝ 成本卡；供应商/模型/权限档来自 ProviderStore +
+            <code>policy.default.yaml</code>。先看右栏成本卡示例——
+            <div class="t">每块都有 HTML 注释标“字段数据源：…”，实现时逐格对账</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 输入行 -->
+      <div class="composer">
+        <div class="box">
+          <span class="caret">&gt;</span>
+          <span class="ph">Ask anything or type <kbd>/</kbd> for commands…</span>
+          <button class="send" title="发送 (Enter)">↵</button>
+        </div>
+        <div class="slashhint">
+          <span><span class="sc">/model</span> 切换模型</span>
+          <span><span class="sc">/compact</span> 压缩上下文</span>
+          <span><span class="sc">/permission</span> 权限档</span>
+          <span><span class="sc">/mcp</span> 服务器</span>
+        </div>
+        <div class="keys"><b>Enter</b>发送 <b>Esc</b>中断 <b>/</b>斜杠命令 <b>↑</b>历史</div>
+      </div>
+    </section>
+
+    <!-- ==================== 右栏：状态面板 ==================== -->
+    <aside class="side">
+      <div class="side-scroll">
+
+        <!-- R1 · 当前会话 — 数据源：ProviderStore.getCurrent()（providers.json 的 id/name/model/
+             protocol/baseUrl）+ 运行时 Session（turns = telemetry M02）。权限档 =
+             configs/policy.default.yaml 的 policy.profile 三值 + approval（当前 never，
+             后续 ask 落地后读运行时 PolicyEngine 档位）。 -->
+        <div class="card">
+          <div class="h"><span class="ic">◈</span>当前会话<span class="tag">running</span></div>
+          <div class="row"><span class="k">供应商</span><span class="v"><span class="badge proto">anthropic</span> &nbsp;Anthropic（Claude 官方）</span></div>
+          <div class="row"><span class="k">模型</span><span class="v mono">claude-sonnet-4-5</span></div>
+          <div class="row"><span class="k">端点</span><span class="v mono" style="color:var(--faint)">https://api.anthropic.com</span></div>
+          <div class="row"><span class="k">会话数</span><span class="v">turn <b>6</b> · 本会话 id <span class="mono" style="color:var(--faint)">cah-s-0a1f9c</span></span></div>
+          <div class="row" style="align-items:flex-start"><span class="k" style="padding-top:3px">权限档</span>
+            <span class="v">
+              <div class="perm"><span>read-only</span><span class="on">workspace-write</span><span>danger-full-access</span></div>
+              <div class="seg2">approval <span class="now">never</span> · 命中策略 <span class="now">2 deny</span>（audit M12）</div>
+            </span>
+          </div>
+        </div>
+
+        <!-- R2 · MCP servers — 数据源：apps/cli/src/compose.ts mcpClients（McpClient[]，
+             @cah/tools，按 opts.mcp 连接，工具注册为 mcp__&lt;server&gt;__&lt;tool&gt;）。
+             ⚠ “online/offline 实时状态”为占位：当前 McpClient 只提供连接期工具清单，
+             无运行中 status 上报/心跳 —— 状态列待实现（进程存活可先探测，远程 SSEx 需 ping）。 -->
+        <div class="card">
+          <div class="h"><span class="ic">⛭</span>MCP Servers<span class="tag">2 online / 3</span></div>
+          <table class="mcp">
+            <tr><td><span class="srv">filesystem</span><br><span class="trp">stdio · c:\tools\mcp-fs</span></td>
+                <td style="text-align:right"><span class="dot on"></span> <span class="st on">online</span><br><span class="tools">9 tools · mcp__filesystem__*</span></td></tr>
+            <tr><td><span class="srv">fetch</span><br><span class="trp">ssEx · https://mcp.example/fetch</span></td>
+                <td style="text-align:right"><span class="dot on"></span> <span class="st on">online</span><br><span class="tools">3 tools</span></td></tr>
+            <tr><td><span class="srv">playwright</span><br><span class="trp">stdio · (未启动)</span></td>
+                <td style="text-align:right"><span class="dot off"></span> <span class="st off">offline</span><br><span class="tools">— <span class="pending">占位 · 实时状态待实现</span></span></td></tr>
+          </table>
+        </div>
+
+        <!-- R3 · Token / 成本估算（本会话） — 数据源：packages/telemetry Telemetry 记账，
+             after_model usage {inputTokens, outputTokens, cacheReadTokens} → metrics M06（detail.cacheRead）/
+             M07；价目 = configs/pricing.json（每 1M token USD）：modelPrices[model] >
+             protocolPrices[protocol] > models.default，查价实现 apps/cli/src/providers/pricing.ts
+             resolvePrice()；M11 = 成本指标位（metrics.ts）。以下为示例数（输入 128.4k，
+             其中 96.1k 命中缓存；输出 21.3k；价目取 claude-sonnet-4-5 $3/$15/$0.30）。 -->
+        <div class="card">
+          <div class="h"><span class="ic">¥</span>Token &amp; 成本（本会话）<span class="tag">M06 M07 M11</span></div>
+          <div class="cost-table">
+            <div class="cost-row"><span class="ck">input · 非缓存</span><span class="cv">32.3k <small>× $3.00/M</small></span></div>
+            <div class="cost-row"><span class="ck">cache read</span><span class="cv">96.1k <small>× $0.30/M</small></span></div>
+            <div class="cost-row"><span class="ck">output</span><span class="cv">21.3k <small>× $15.00/M</small></span></div>
+            <div class="cost-row"><span class="ck">·</span><span class="cv" style="color:var(--faint)">$0.097 + $0.029 + $0.320</span></div>
+            <div class="cost-row total"><span class="ck">≈ 本会话成本</span><span class="cv">$0.45</span></div>
+          </div>
+          <div class="foot">估算法：<code>tokens ÷ 1M × price</code>；查价回退链
+            <code>model &gt; protocol &gt; default</code>（resolvePrice）。按模型累计后可写
+            M11 cost 指标与 JSONL report（BENCHMARK-SPEC §4.2）。</div>
+        </div>
+      </div>
+
+      <!-- R4 · 按键帮助（设计建议） -->
+      <div class="keys-help">
+        <div class="kh"><span><kbd>Enter</kbd> 发送</span><span><kbd>Esc</kbd> 中断当前轮</span></div>
+        <div class="kh"><span><kbd>/</kbd> 斜杠命令</span><span><kbd>ctrl+k</kbd> 折叠/展开右栏</span></div>
+        <div class="kh"><span><kbd>alt+m</kbd> MCP 面板</span><span><kbd>alt+c</kbd> 成本面板</span></div>
+      </div>
+    </aside>
+  </div>
+</body>
+</html>

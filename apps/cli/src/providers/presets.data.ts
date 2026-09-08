@@ -1,13 +1,19 @@
 import type { ProviderName } from '@cah/llm';
 
 /**
- * apps/cli/providers/presets.data.ts — provider catalog (V0.7, task 020).
+ * apps/cli/providers/presets.data.ts — provider catalog (V0.8, task 025).
  *
  * Sourced from docs/ideas/PROVIDER-TUI-RESEARCH.md §A3 (each base-url verified
  * against models.dev API and/or cc-switch source, 2026-09 snapshot) +
  * models.dev long-tail. Categories: official (intl official) / cn (China
  * official) / aggregator (stable gateways only — long-tail resellers are
  * deliberately EXCLUDED; use a custom base-url for those) / local / intl.
+ *
+ * Task 025 added 4 stable entries from docs/ideas/data/models.dev-providers.csv
+ * (2026-09 snapshot): amazon-bedrock + google-vertex (official cloud majors,
+ * auth via env credentials like the existing azure-openai/cloudflare presets)
+ * and baseten + scaleway (international inference platforms with plain
+ * OpenAI-compatible endpoints). Long-tail resellers stay excluded.
  *
  * Notes:
  *  - Protocol is openai-compatible for almost all (Anthropic-compatible CN
@@ -52,9 +58,15 @@ export const PROVIDER_CATALOG: ProviderPreset[] = [
   { id: 'azure-openai', name: 'Azure OpenAI', protocol: 'openai-compatible', baseUrl: '', defaultModel: '', category: 'official', auth: 'env', hint: '需 Azure resource；base-url 交互填 <res>.openai.azure.com/openai/v1' },
   { id: 'cloudflare', name: 'Cloudflare Workers AI', protocol: 'openai-compatible', baseUrl: 'https://api.cloudflare.com/client/v4/accounts/{account}/ai/v1', defaultModel: '', category: 'official', hint: '需 account id；base-url 交互替换 {account}' },
   { id: 'watsonx', name: 'IBM watsonx', protocol: 'openai-compatible', baseUrl: 'https://api.au-syd.ai.watson.cloud.ibm.com/ml/v1', defaultModel: '', category: 'official', hint: 'IBM 云；区域端点交互填' },
+  // task 025: official cloud majors (env-credential auth, mirroring azure-openai/cloudflare placeholders)
+  { id: 'amazon-bedrock', name: 'Amazon Bedrock（Claude 等）', protocol: 'anthropic', baseUrl: 'https://bedrock-runtime.{region}.amazonaws.com', defaultModel: '', category: 'official', auth: 'env', hint: 'AWS 区域端点；需 SigV4 凭证（env）而非单 key；base-url 交互替换 {region}' },
+  { id: 'google-vertex', name: 'Google Vertex AI（Gemini 等）', protocol: 'openai-compatible', baseUrl: 'https://{location}-aiplatform.googleapis.com/v1beta1/openai', defaultModel: '', category: 'official', auth: 'env', hint: '需 GCP project/region + ADC 凭证（env）；base-url 交互替换 {location}' },
   { id: 'upstage', name: 'Upstage', protocol: 'openai-compatible', baseUrl: 'https://api.upstage.ai/v1/solar', defaultModel: '', category: 'intl' },
   { id: 'sakana', name: 'Sakana AI', protocol: 'openai-compatible', baseUrl: 'https://api.sakana.ai/v1', defaultModel: '', category: 'intl' },
   { id: 'poolside', name: 'Poolside', protocol: 'openai-compatible', baseUrl: 'https://api.poolside.ai/v1', defaultModel: '', category: 'intl' },
+  // task 025: international inference platforms with plain OpenAI-compatible endpoints (models.dev 2026-09 snapshot)
+  { id: 'baseten', name: 'Baseten', protocol: 'openai-compatible', baseUrl: 'https://inference.baseten.co/v1', defaultModel: '', category: 'intl', hint: '推理托管：按自部署模型命名' },
+  { id: 'scaleway', name: 'Scaleway AI', protocol: 'openai-compatible', baseUrl: 'https://api.scaleway.ai/v1', defaultModel: '', category: 'intl', hint: '托管 Llama/Qwen 等开源模型' },
 
   // ---- cn (China official) ----
   { id: 'deepseek', name: 'DeepSeek', protocol: 'openai-compatible', baseUrl: 'https://api.deepseek.com/v1', defaultModel: 'deepseek-chat', category: 'cn', hint: 'deepseek-chat / deepseek-reasoner' },
