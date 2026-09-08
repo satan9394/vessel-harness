@@ -1,6 +1,6 @@
 # 065 — Goal UI（web Goal/Loop 面板：队列 + 迭代 + 运行控制）
 
-- 状态：待验收
+- 状态：已合入
 - 优先级：P0（Wave 3 / Milestone E）
 - 创建日期：2026-09-08
 - 关联：061-064（Real Gen/Eval + TaskQueue/IterationStore + worktree）；066（budget/控制）；060（Team UI seam 模式）
@@ -121,5 +121,9 @@ web Goal/Loop 面板：消费 063 的 ProjectTaskQueue + IterationStore（经 lo
 
 ## 验收结论（指挥回填）
 
-- [ ] 合入 / 打回
-- 备注：
+- [x] 合入（commit 5ab3536）
+- 备注：指挥独立复核——root vitest 69 文件 607 测试全绿、tsc -b 0 错误、web 独立套件 8 文件 71 测试全绿
+  （执行器自报的 Session EPERM flaky 重跑未复现，与既有已知 flaky 同类，非本卡回归）。
+  设计认可：goalSeam 组合 063 队列/迭代 store + LoopEngine + 061/062 真实 adapter 运行链（runTask=
+  claim→LoopEngine→append 迭代快照→settle）；/api/goal/tasks* 路由 + 066 端点 501 占位；web GoalPanel
+  （队列状态机+迭代卡片+Run 触发）+ 066 disabled 占位按钮 seam 清晰。下一张：066（pause/resume/budget）。
