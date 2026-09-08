@@ -89,9 +89,11 @@ export class ProviderStore {
   readonly rootDir: string;
 
   constructor(opts: ProviderStoreOptions = {}) {
-    // env override (CAH_PROVIDER_ROOT) lets CLI tests isolate from the real
-    // ~/.dsh without touching it; explicit opts.rootDir wins over env.
-    this.rootDir = opts.rootDir ?? process.env.CAH_PROVIDER_ROOT ?? defaultProviderRoot();
+    // env override lets CLI tests isolate from the real ~/.dsh without touching
+    // it; explicit opts.rootDir wins over env. VESSEL_PROVIDER_ROOT is the
+    // current name; CAH_PROVIDER_ROOT kept as a legacy alias.
+    this.rootDir =
+      opts.rootDir ?? process.env.VESSEL_PROVIDER_ROOT ?? process.env.CAH_PROVIDER_ROOT ?? defaultProviderRoot();
   }
 
   /** providers.json 的完整路径。 */

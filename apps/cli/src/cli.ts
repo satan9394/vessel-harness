@@ -8,8 +8,10 @@ import { ProviderStore, type ProviderConfig } from './providers/ProviderStore.js
 import { fetchOpenAIModels, modelsForProtocol } from './providers/modelFetcher.js';
 import { createClackIO, runSetupWizard } from './providers/setup.js';
 import { runChat } from './tui/chat.js';
+import { VESSEL_LOGO, VESSEL_TAGLINE } from './brand.js';
 
-const USAGE = `Vessel CLI v${VERSION} — 可组合 Agent Harness（原名 Composable Agent Harness · cah；命令别名 cah 仍可用）
+const USAGE = `${VESSEL_LOGO}
+Vessel CLI v${VERSION} — 可组合 Agent Harness（原名 Composable Agent Harness · cah；命令别名 cah 仍可用）
 
 用法:
   vessel --help                      显示本帮助
@@ -360,7 +362,7 @@ export async function main(argv: string[] = process.argv.slice(2)): Promise<numb
       console.log(USAGE);
       return 0;
     case 'version':
-      console.log(`Vessel CLI v${VERSION}`);
+      console.log(`${VESSEL_LOGO}Vessel CLI v${VERSION} — ${VESSEL_TAGLINE}`);
       return 0;
     case 'run':
       if (parsed.flags.has('bench')) return cmdBench(parsed.flags);

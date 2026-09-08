@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 420 96" width="420" height="96" role="img" aria-label="Vessel — carry intelligence, guard execution">
+  <style>
+    /* 独立 SVG：默认浅色（GitHub light 系）；宿主深色时自动切亮色 */
+    .wall { fill:#0969da; }
+    .inner{ fill:#ddf4ff; }
+    .wave { stroke:#1a7f37; stroke-width:3.5; fill:none; stroke-linecap:round; }
+    .txt  { fill:#1f2328; font-family:'Segoe UI',system-ui,sans-serif; font-size:30px; font-weight:700; letter-spacing:2px; }
+    .sub  { fill:#57606a; font-family:'Segoe UI',system-ui,sans-serif; font-size:12.5px; letter-spacing:1px; }
+    @media (prefers-color-scheme: dark){
+      .wall { fill:#58a6ff; }
+      .inner{ fill:#0d3a5c; }
+      .wave { stroke:#3fb950; }
+      .txt  { fill:#e6edf3; }
+      .sub  { fill:#8b949e; }
+    }
+  </style>
+  <!-- 容器（碗/皿）：敞开、可替换 —— "无器之器" -->
+  <path class="wall" d="M40 20 L30 72 Q60 86 96 86 Q132 86 162 72 L152 20 Z"/>
+  <path class="inner" d="M48 24 L40 66 Q64 77 96 77 Q128 77 152 66 L144 24 Z"/>
+  <!-- 承载的"智能"：一条穿过容器的波线 -->
+  <path class="wave" d="M36 50 C 56 42, 76 58, 96 50 S 136 58, 156 50"/>
+  <!-- 文字 -->
+  <text class="txt" x="190" y="52">VESSEL</text>
+  <text class="sub" x="192" y="72">carry intelligence · guard execution</text>
+</svg>
