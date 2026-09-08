@@ -2,16 +2,18 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
+import * as readline from 'node:readline';
+import { PassThrough } from 'node:stream';
 import { fileURLToPath } from 'node:url';
 import { ProviderStore } from '../providers/ProviderStore.js';
-import { dispatchSlash, runChat, type ChatSessionIO } from './chat.js';
+import { dispatchSlash, runChat, makeLineReader, type ChatSessionIO } from './chat.js';
 
 const REPO_ROOT = fileURLToPath(new URL('../../../../', import.meta.url)); // apps/cli/src/tui → repo root
 const POLICY = path.join(REPO_ROOT, 'configs', 'policy.default.yaml');
 const BEHAVIOR = path.join(REPO_ROOT, 'configs', 'behavior.default.yaml');
 
 /** Scripted chat IO: feeds inputs from an array, captures output lines. */
-function scriptedIO(inputs: string[]): { io: ChatSessionIO; output: string[] } {
+function scriptedIO(inputs: string[]): { io: ChatSessionIO; output: string[]; consumed: () => number } {
   const output: string[] = [];
   let i = 0;
   return {
@@ -25,6 +27,7 @@ function scriptedIO(inputs: string[]): { io: ChatSessionIO; output: string[] } {
         output.push(line);
       },
     },
+    consumed: () => i,
   };
 }
 
@@ -103,5 +106,80 @@ describe('chat TUI — runChat loop (task 021)', () => {
     const { io } = scriptedIO([]);
     const code = await runChat({ workspaceRoot: dir, policySystemPath: POLICY, behaviorIRPath: BEHAVIOR, io });
     expect(code).toBe(0);
+  });
+
+  it('runs three rounds (/help → 你好 → /quit) without exiting early (task 023 regression)', async () => {
+    const { io, output, consumed } = scriptedIO(['/help', '你好', '/quit']);
+    const code = await runChat({
+      workspaceRoot: dir,
+      policySystemPath: POLICY,
+      behaviorIRPath: BEHAVIOR,
+      io,
+    });
+    expect(code).toBe(0);
+    // all three scripted inputs were served — the loop did NOT break after round 1
+    expect(consumed()).toBe(3);
+    const joined = output.join('\n');
+    expect(joined).toContain('/provider'); // round 1: /help table rendered
+    expect(joined).toContain('mock'); // round 2: NL turn hit the mock fallback reply
+  });
+});
+
+describe('makeLineReader — sequential reads over ONE readline interface (task 023)', () => {
+  /** Real node:readline over in-memory streams — same code path createStdioIO uses. */
+  function setup() {
+    const input = new PassThrough();
+    const rl = readline.createInterface({ input, output: new PassThrough(), terminal: false });
+    const reader = makeLineReader(rl);
+    return { input, rl, reader };
+  }
+  const tick = () => new Promise<void>((r) => setImmediate(r));
+
+  it('serves 3 sequential reads from the same interface without EOF', async () => {
+    const { input, rl, reader } = setup();
+    // strict one-read-at-a-time: exactly how runChat consumes stdin
+    const a = reader.readLine();
+    input.write('/help\n');
+    await expect(a).resolves.toBe('/help');
+
+    const b = reader.readLine();
+    input.write('你好\n');
+    await expect(b).resolves.toBe('你好');
+
+    const c = reader.readLine();
+    input.write('/quit\n');
+    await expect(c).resolves.toBe('/quit');
+
+    reader.close();
+    rl.close();
+    input.end();
+  });
+
+  it('buffers lines that arrive before the next read is requested', async () => {
+    const { input, rl, reader } = setup();
+    input.write('one\ntwo\n');
+    await tick(); // let readline emit both 'line' events with no waiter attached
+    await expect(reader.readLine()).resolves.toBe('one');
+    await expect(reader.readLine()).resolves.toBe('two');
+    reader.close();
+    rl.close();
+    input.end();
+  });
+
+  it('resolves a pending read with null when the interface closes (EOF)', async () => {
+    const { input, rl, reader } = setup();
+    const read = reader.readLine();
+    input.end(); // EOF → rl 'close' → reader end
+    await expect(read).resolves.toBeNull();
+    rl.close();
+  });
+
+  it('close() ends the reader with null — the SIGINT path', async () => {
+    const { rl, reader } = setup();
+    const read = reader.readLine();
+    reader.close(); // exactly what createStdioIO's SIGINT handler does
+    await expect(read).resolves.toBeNull();
+    await expect(reader.readLine()).resolves.toBeNull();
+    rl.close();
   });
 });

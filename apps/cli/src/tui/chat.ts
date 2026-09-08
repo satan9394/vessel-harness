@@ -7,7 +7,7 @@ import { runSetupWizard, createClackIO, fetchModelOutcome } from '../providers/s
 import { modelsForProtocol } from '../providers/modelFetcher.js';
 
 /**
- * apps/cli/src/tui/chat.ts — `cah` interactive chat TUI (V0.7, task 021).
+ * apps/cli/src/tui/chat.ts — `vessel` interactive chat TUI (V0.7, task 021; brand vessel, alias cah).
  *
  * One command → chat loop, opencode-style: natural language runs the harness
  * loop; slash commands configure providers / models / permission inside the
@@ -33,18 +33,77 @@ export interface ChatSessionIO {
   hasMore?(): boolean;
 }
 
-/** stdio implementation. */
+/**
+ * Reader over one readline.Interface that supports arbitrarily many sequential
+ * readLine() calls on the SAME interface.
+ *
+ * Why a dedicated reader instead of `for await (const line of rl)`? Breaking
+ * out of that loop invokes the async iterator's return(), which Node wires to
+ * rl.close() — the interface is closed after the very first line, so a second
+ * readLine() would report EOF and the TUI would exit after one round. Instead
+ * we attach ONE 'line' listener up front and resolve pending reads FIFO.
+ */
+export interface LineReader {
+  /** Resolve with the next input line; null once the reader is ended. */
+  readLine(): Promise<string | null>;
+  /** End the reader: pending reads resolve null, later reads return null. */
+  close(): void;
+}
+
+export function makeLineReader(rl: readline.Interface): LineReader {
+  const waiters: Array<(line: string | null) => void> = [];
+  const buffered: string[] = [];
+  let closed = false;
+
+  function end(): void {
+    if (closed) return;
+    closed = true;
+    for (const waiter of waiters.splice(0)) waiter(null);
+    // buffered lines already read off the stream stay readable (drain-then-EOF)
+  }
+
+  rl.on('line', (line: string) => {
+    if (closed) return;
+    const waiter = waiters.shift();
+    if (waiter) waiter(line);
+    else buffered.push(line);
+  });
+  // EOF / Ctrl+D / interface close / stream error → end the reader.
+  rl.on('close', end);
+  rl.on('error', end);
+
+  return {
+    readLine(): Promise<string | null> {
+      const line = buffered.shift();
+      if (line !== undefined) return Promise.resolve(line);
+      if (closed) return Promise.resolve(null);
+      return new Promise<string | null>((resolve) => waiters.push(resolve));
+    },
+    close: end,
+  };
+}
+
+/** stdio implementation (real stdin/stdout; Ctrl+C → graceful EOF). */
 export function createStdioIO(): ChatSessionIO {
   const rl = readline.createInterface({ input: process.stdin, output: process.stdout, terminal: false });
-  const queue: string[] = [];
+  const reader = makeLineReader(rl);
+
+  // Ctrl+C → resolve any pending read with null (runChat breaks and returns 0)
+  // instead of Node's default, which kills the session mid-line. A terminal-mode
+  // interface emits its own 'SIGINT'; with terminal:false the process signal
+  // fires — wire both, only one ever triggers.
+  const onSigint = () => {
+    process.stdout.write('\n'); // move off the half-typed prompt line
+    reader.close();
+    rl.close();
+  };
+  process.on('SIGINT', onSigint);
+  rl.on('SIGINT', onSigint);
+
   return {
-    async readLine(prompt: string) {
+    readLine(prompt: string) {
       process.stdout.write(prompt);
-      if (queue.length > 0) return queue.shift() ?? null;
-      for await (const line of rl) {
-        return line;
-      }
-      return null;
+      return reader.readLine();
     },
     write(line: string) {
       console.log(line);
@@ -112,7 +171,7 @@ export async function runChat(opts: ChatOptions): Promise<number> {
     });
   };
 
-  io.write(`cah — 交互会话开始（当前 ${providerId} · ${model} · ${permission}）。输入 /help 查看命令，/quit 退出。`);
+  io.write(`Vessel — 交互会话开始（命令 vessel · 别名 cah；当前 ${providerId} · ${model} · ${permission}）。输入 /help 查看命令，/quit 退出。`);
 
   // eslint-disable-next-line no-constant-condition
   while (true) {
