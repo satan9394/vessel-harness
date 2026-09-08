@@ -1,6 +1,6 @@
 # 084 — Release Gates（8 道发布门禁 + release-report）
 
-- 状态：待验收
+- 状态：已合入
 - 优先级：P0（Wave 5 / Milestone G 收官——V1.0 路线收官卡）
 - 创建日期：2026-09-08
 - 关联：全部前卡（各 gate 消费对应能力）；083（report 形状；082 lane）
@@ -108,5 +108,10 @@ gates/totals）、总分 ready/blocked/partial（含"blocked 优先于 pending"�
 
 ## 验收结论（指挥回填）
 
-- [ ] 合入 / 打回
-- 备注：
+- [x] 合入（commit 45bd835）
+- 备注：指挥独立复核——全量 vitest 88 文件 836 测试全绿 + 1 skipped（零失败）、tsc -b 0 错误，与执行器自报一致。
+  认可：8 gate 定义（Build/Unit/Deterministic Bench/Real Model Bench/Safety/Resume/UX Smoke/Packaging 对齐 §21）；
+  判据函数纯函数可测 + 副作用收敛注入 ctx.exec（单测 mock，真实命令非受限环境跑）；runner 顺序执行 → 
+  release-report.json/.md（schemaVersion 1 + gates + totals，总判定 ready/blocked/partial）；环境敏感 gate
+  probe→pending 不静默通过（不以自证为证）。
+  **V1.0 路线全部完成（Milestone A-G，卡 032-084）。**
