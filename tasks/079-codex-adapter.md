@@ -1,6 +1,6 @@
 # 079 — Codex Adapter（外部 harness 适配器）
 
-- 状态：待验收
+- 状态：已合入
 - 优先级：P0（Wave 5 / Milestone G）
 - 创建日期：2026-09-08
 - 关联：076（Harness Adapter Contract）；077/078（DSH/OpenCode adapters——同批模式范本）；080/081（Pi/Claude Code）
@@ -99,5 +99,8 @@ Codex Adapter：实现 076 契约，使同一 benchmark fixture 能在 Codex CLI
 
 ## 验收结论（指挥回填）
 
-- [ ] 合入 / 打回
-- 备注：
+- [x] 合入（commit f1f2e81）
+- 备注：指挥独立复核——全量 vitest 775 测试全绿 + 1 skipped（零失败）、tsc -b 0 错误，与执行器自报一致。
+  认可：codexAdapter 照 077/078 模式实现 076 契约（codex exec -C --json 命令面，command/runCommand 可注入 mock；
+  probeCodexEnv 探活 pending-environment 不 throw；normalizeCodexRun §15 L3 采集归一；capabilities 诚实降级；
+  选择性 re-export 规避 TS2308 歧义）；clean-room 合规。下一张：080（Pi adapter——同批模式）。
