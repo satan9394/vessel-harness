@@ -1,6 +1,6 @@
 # 064 — Worktree 生命周期（workspace 创建→使用→清理完整闭环）
 
-- 状态：待验收
+- 状态：已合入
 - 优先级：P0（Wave 3 / Milestone E）
 - 创建日期：2026-09-08
 - 关联：061/062（Real Gen/Eval adapters 的迭代 workspace）；063（IterationStore 接 persist）
@@ -113,5 +113,9 @@ tools/git/Worktree.ts（V0.2）与 engine/workspace.ts（TempDir/GitWorktree 工
 
 ## 验收结论（指挥回填）
 
-- [ ] 合入 / 打回
-- 备注：
+- [x] 合入（commit 6c35ec3）
+- 备注：指挥独立复核——全量 vitest 69 文件 603 测试全绿（590+13，零回归）、npx tsc -b 0 错误，与执行器自报一致。
+  根因修复认可：workspace 收进单 attempt 作用域 + per-attempt try/finally dispose（met/stopped/retry/异常/中断
+  全路径清理），利用 try 内 continue 先执行 finally 的语义保证 retry 前先 dispose；guardDeps 增 workspaceFactory↔
+  disposeWorkspace 成对校验 fail loud。13 例含 062 回归（重试双 attempt 清理 + os.tmpdir 前缀清零）、异常/中断/
+  幂等/主工作区不触碰/Git worktree 闭环。下一张：065（Goal UI）——需先拆卡。
