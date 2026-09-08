@@ -60,8 +60,15 @@ export interface ConfinedArgv {
 
 export interface SandboxStatus {
   enabled: boolean;
-  supported: 'linux-bwrap' | 'macos-seatbelt' | 'windows-acl-partial' | 'none';
+  supported:
+    | 'linux-bwrap'
+    | 'macos-seatbelt'
+    | 'windows-job-object'
+    | 'windows-acl-partial'
+    | 'none';
   active: boolean;
+  /** backend handle kind currently in use (e.g. 'job-object' | 'acl-partial' | 'none'). */
+  backend?: 'job-object' | 'acl-partial' | 'none';
   fallbackReason?: string;
 }
 

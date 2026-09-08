@@ -15,6 +15,22 @@ export interface SpawnOptions {
    * (shell tool) or an interrupt stop (AgentLoop boundary).
    */
   signal?: AbortSignal;
+  /**
+   * process-tree confinement (task 071, Windows Job Object): when present, on
+   * timeout or abort we terminate the WHOLE job tree (grandchildren included)
+   * via `terminate()`, not just the direct child — closing the Windows gap where
+   * `child.kill` only TerminateProcess the direct child. Callers obtain this
+   * handle from `Sandbox.openConfinement()`/`createJobObject()`.
+   */
+  confinement?: {
+    terminate(): Promise<void>;
+  } | null;
+  /**
+   * called right after the child process is spawned (Windows: after
+   * `spawn()` resolves) with its pid. Used to attach a Job Object around the
+   * child so the 050/timeout paths can kill the whole tree.
+   */
+  onSpawn?: (child: { pid?: number; command: string }) => void;
 }
 
 export interface SpawnResult {
@@ -50,6 +66,8 @@ export function runCommand(
       return;
     }
 
+    opts.onSpawn?.({ pid: child.pid, command });
+
     let stdout = '';
     let stderr = '';
     let timedOut = false;
@@ -59,6 +77,8 @@ export function runCommand(
       timedOut = true;
       killed = true;
       child.kill('SIGKILL');
+      // task 071: kill the whole job tree on Windows (grandchildren too)
+      void opts.confinement?.terminate();
     }, timeoutMs);
 
     // task 050: external cancel (turn interrupt) kills the child like a timeout
@@ -67,6 +87,7 @@ export function runCommand(
       if (opts.signal.aborted) {
         killed = true;
         child.kill('SIGKILL');
+        void opts.confinement?.terminate();
       } else {
         onAbort = () => {
           killed = true;
@@ -75,6 +96,7 @@ export function runCommand(
           } catch {
             // child already exited — the close handler below settles the promise
           }
+          void opts.confinement?.terminate(); // task 071: whole-tree kill
         };
         opts.signal.addEventListener('abort', onAbort, { once: true });
       }

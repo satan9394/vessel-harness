@@ -1,5 +1,4 @@
 import type { ToolSpec } from '@vessel/shared';
-import { runCommand } from '@vessel/runtime';
 import type { Sandbox } from '@vessel/runtime';
 
 const WRAPPERS = /^(timeout|time|nice|nohup)\s+/i;
@@ -38,7 +37,7 @@ export function isReadonlyCommand(command: string): boolean {
 }
 
 export function createShellTool(opts: { workspaceRoot: string; sandbox: Sandbox }): ToolSpec {
-  const { workspaceRoot: root, sandbox } = opts;
+  const { sandbox } = opts;
 
   return {
     name: 'Shell',
@@ -60,12 +59,12 @@ export function createShellTool(opts: { workspaceRoot: string; sandbox: Sandbox 
       if (!command) {
         return { content: '', error: { errorClass: 'INVALID_ARGS', message: 'command required' }, meta: {} };
       }
-      // confine seam: v0.1 reports partial enforcement transparently
+      // confine seam: with the Windows Job Object backend this reports real
+      // enforcement ('full') and `run` below actually confines the spawn.
       const confined = await sandbox.confine(command.split(/\s+/));
       const status = sandbox.statusSnapshot();
       try {
-        const r = await runCommand(command, [], {
-          cwd: root,
+        const r = await sandbox.run(command, [], {
           timeoutMs,
           maxOutputBytes: 1024 * 1024,
           shell: true,
