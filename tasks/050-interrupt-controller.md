@@ -1,6 +1,6 @@
 # 050 — Interrupt Controller（AbortController 贯穿 + Ctrl+C 两段式 / web Stop）
 
-- 状态：待验收
+- 状态：已合入
 - 优先级：P0（Wave 1 / Milestone C）
 - 创建日期：2026-09-08
 - 关联：049（AgentLoop stream wiring，前置，须先合入）；051 steering queue；040 SSE 框架
@@ -151,5 +151,9 @@ CLI 支持 Ctrl+C 第一次 = interrupt current turn / 第二次 = exit；web su
 
 ## 验收结论（指挥回填）
 
-- [ ] 合入 / 打回
-- 备注：
+- [x] 合入（4 commits：e1026d7 core + 5e9c6c4 cli + 944de4d web + 838ddca docs/card，HEAD 838ddca）
+- 备注：指挥独立复核——全量 vitest 51 文件 413 测试全绿（395+18 新增，零回归）、npx tsc -b 0 错误，与执行器自报一致。
+  设计要点认可：InterruptController 放 core 由 AgentLoop 持有（begin/finally end 配对）；不新增事件词汇（turn/end{interrupted}
+  + model_stream_end{error} + tool/result{interrupted} 沿用既有配对）；信号三件套贯穿 provider/shell/MCP/subagent，abort 优先于
+  llm_retry；CLI TwoStageCtrlC 做成可测状态机只在真实 stdio 接线。050 与 049 衔接干净（在飞流 attempt 关闭）。051 拆卡已备，
+  下一张串行派活。
