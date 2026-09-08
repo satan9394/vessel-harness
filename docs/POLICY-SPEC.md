@@ -279,6 +279,7 @@ policy:
 |---|---|---|---|---|
 | `filesystem.protected` | 引导"不改写受保护路径" | 文件写工具上下文约束 | BeforeWrite 守卫 deny（不可豁免） | audit/denial |
 | `filesystem.deny_read` | 引导"不读凭据文件" | Read 工具暴露面裁剪（schema 提示） | Read 守卫 deny + 沙箱 denyRead | audit/denial |
+| `filesystem.confinement` (task 073) | 引导"文件访问限于允许集合"（工作区根 + 显式 allow） | 工具层 `assertConfined` 硬执法（Mode 区分） | `fs-confinement` 规则执行前词法预检（逃逸/绝对越界）+ 工具 canonical 权威拒绝 | audit/denial |
 | `shell.deny.*` | 引导"破坏性命令先说明" | Shell 工具暴露面裁剪 | Policy Engine deny（never_auto 服务内强制）+ 沙箱兜底 | audit/denial |
 | `shell.scoped_rules[ask]` | 引导"此命令需确认" | — | Policy Engine → ask → ApprovalRequest | approval/asked→decided |
 | `network.default/domains` | 引导"只访问必需域名" | （WebFetch 类工具暴露面） | 域名裁决 + （v0.2）代理 allowlist | audit/decision |

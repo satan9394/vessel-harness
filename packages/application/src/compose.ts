@@ -164,11 +164,14 @@ export async function composeHarness(opts: ComposeOptions): Promise<ComposedHarn
   });
   const policyEngine = new PolicyEngine(artifacts);
 
-  // Tools: 6 builtin, bound to workspace + fs guards from the policy artifacts
+  // Tools: 6 builtin, bound to workspace + fs guards from the policy artifacts.
+  // task 073: allow-set confinement — pass explicit authorization paths + the
+  // confinement flag through to the tool-layer guards (hard enforcement point).
   const fsPolicy = {
     protected: artifacts.fsConfig?.protected ?? [],
     denyRead: artifacts.fsConfig?.denyRead ?? [],
-    allow: [],
+    allow: artifacts.fsConfig?.allow ?? [],
+    confinement: artifacts.fsConfig?.confinement ?? false,
   };
   const sandbox = new Sandbox();
   // V0.3 project memory: file-based store + Memory tool + frozen snapshot for context injection

@@ -2,7 +2,7 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import type { ToolSpec } from '@vessel/shared';
 import { globToRegExp } from '../globmatch.js';
-import { canonicalize, matchesGlobList } from '../filesystem/guards.js';
+import { canonicalize, matchesGlobList, assertConfined } from '../filesystem/guards.js';
 import type { FsPolicyConfig } from '../filesystem/guards.js';
 
 const DEFAULT_IGNORE = new Set(['.git', 'node_modules', 'dist']);
@@ -101,8 +101,9 @@ export function createSearchTools(opts: { workspaceRoot: string; fsPolicy: FsPol
         if (includeRe && !includeRe.test(rel)) continue;
         let canonical: string;
         try {
-          canonical = canonicalize(root, f);
+          canonical = canonicalize(root, f, fsPolicy);
           if (matchesGlobList(root, canonical, fsPolicy.denyRead)) continue;
+          assertConfined(root, canonical, 'read', fsPolicy);
         } catch {
           continue;
         }

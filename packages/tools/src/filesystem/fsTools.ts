@@ -2,6 +2,7 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import type { ToolSpec } from '@vessel/shared';
 import {
+  assertConfined,
   assertNoNul,
   assertReadable,
   assertSizeWithin,
@@ -29,8 +30,9 @@ export function createFsTools(opts: { workspaceRoot: string; fsPolicy: FsPolicyC
       const p = String(args.path ?? '');
       if (!p) return { content: '', error: { errorClass: 'INVALID_ARGS', message: 'path required' }, meta: {} };
       try {
-        const canonical = canonicalize(root, p);
+        const canonical = canonicalize(root, p, fsPolicy);
         assertReadable(root, canonical, fsPolicy);
+        assertConfined(root, canonical, 'read', fsPolicy);
         const stat = fs.statSync(canonical);
         if (!stat.isFile()) {
           return { content: '', error: { errorClass: 'TOOL_FAILURE', message: `not a file: ${p}` }, meta: {} };
@@ -42,7 +44,7 @@ export function createFsTools(opts: { workspaceRoot: string; fsPolicy: FsPolicyC
       } catch (err) {
         const e = err as Error & { guard?: string };
         if (e.guard) {
-          return { content: '', error: { errorClass: 'TOOL_FAILURE', message: e.message }, meta: { guard: e.guard } };
+          return { content: '', error: { errorClass: 'DENIED', message: e.message }, meta: { guard: e.guard } };
         }
         return { content: '', error: { errorClass: 'TOOL_FAILURE', message: `read failed: ${(err as Error).message}` }, meta: {} };
       }
@@ -68,9 +70,10 @@ export function createFsTools(opts: { workspaceRoot: string; fsPolicy: FsPolicyC
       const content = String(args.content ?? '');
       if (!p) return { content: '', error: { errorClass: 'INVALID_ARGS', message: 'path required' }, meta: {} };
       try {
-        const canonical = canonicalize(root, p);
+        const canonical = canonicalize(root, p, fsPolicy);
         assertNoNul(content);
         assertWritable(root, canonical, fsPolicy);
+        assertConfined(root, canonical, 'write', fsPolicy);
         fs.mkdirSync(path.dirname(canonical), { recursive: true });
         fs.writeFileSync(canonical, content, 'utf8');
         return { content: `wrote ${path.relative(root, canonical)} (${Buffer.byteLength(content, 'utf8')} bytes)`, meta: { path: path.relative(root, canonical), bytes: Buffer.byteLength(content, 'utf8') } };
@@ -109,8 +112,9 @@ export function createFsTools(opts: { workspaceRoot: string; fsPolicy: FsPolicyC
         return { content: '', error: { errorClass: 'INVALID_ARGS', message: 'path and old_string required' }, meta: {} };
       }
       try {
-        const canonical = canonicalize(root, p);
+        const canonical = canonicalize(root, p, fsPolicy);
         assertWritable(root, canonical, fsPolicy);
+        assertConfined(root, canonical, 'write', fsPolicy);
         const data = fs.readFileSync(canonical, 'utf8');
         assertNoNul(data);
         if (!data.includes(oldStr)) {

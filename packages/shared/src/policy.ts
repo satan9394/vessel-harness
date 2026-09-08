@@ -40,7 +40,14 @@ export interface PolicyArtifacts {
   profile: ProfileMode;
   approval: ApprovalPolicy;
   /** filesystem guard config for the file tools (defense in depth at tool layer) */
-  fsConfig?: { protected: string[]; denyRead: string[] };
+  fsConfig?: {
+    protected: string[];
+    denyRead: string[];
+    /** task 073 explicit authorization paths ({path, mode}); enforced when confinement on */
+    allow?: { path: string; mode: 'read' | 'write' }[];
+    /** task 073 allow-set confinement flag — see tools/guards.ts */
+    confinement?: boolean;
+  };
   /** readonly shell command prefixes (readonly identification; exempt from approval) */
   shellAllow?: string[];
 }
@@ -53,6 +60,8 @@ export interface PolicyDeclaration {
     protected?: string[];
     deny_read?: string[];
     allow?: { path: string; mode: 'read' | 'write' }[];
+    /** task 073: when true, enforce allow-set confinement (workspace root + explicit allow dirs) */
+    confinement?: boolean;
   };
   shell?: {
     deny?: string[];

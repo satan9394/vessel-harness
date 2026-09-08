@@ -110,6 +110,13 @@ export function compilePolicy(declaration: PolicyDeclaration): PolicyArtifacts {
   if (declaration.filesystem?.deny_read?.length) {
     promptGuidance.push(`不要读取凭据/敏感文件：${declaration.filesystem.deny_read.join(', ')}（硬执法）。`);
   }
+  if (declaration.filesystem?.confinement) {
+    const allowed = declaration.filesystem.allow ?? [];
+    const spec = allowed.length
+      ? `显式授权路径：${allowed.map((a) => `${a.path}(${a.mode})`).join(', ')}`
+      : '无显式授权路径（仅工作区根可达）';
+    promptGuidance.push(`文件访问被限制在允许集合：工作区根 + 显式授权路径。${spec}。越界读写会硬拒绝。`);
+  }
   if (declaration.shell?.deny?.length) {
     promptGuidance.push(`破坏性命令（${declaration.shell.deny.join(', ')}）被硬拦截，先说明原因与范围再考虑受管替代。`);
   }
@@ -126,6 +133,44 @@ export function compilePolicy(declaration: PolicyDeclaration): PolicyArtifacts {
   }
   for (const d of declaration.filesystem?.deny_read ?? []) {
     rules.push(fsPathRule(['Read', 'Grep'], d, 'deny', `fs-deny-read:${d}`, '凭据文件禁止读取'));
+  }
+
+  // task 073 — allow-set confinement lexical pre-check at the Executor seam.
+  // Authoritative canonical allow-set enforcement lives in tools/guards.ts
+  // `assertConfined` (has workspace root + realpath). This rule gives a second,
+  // earlier hard deny (→ audit/denial via AgentLoop) for the unambiguous lexical
+  // cases: `..` escapes and absolute paths not covered by an absolute allow entry.
+  // Workspace-relative paths are left to the tool guard so the lexical rule never
+  // false-positives on normal workspace ops.
+  const confinement = declaration.filesystem?.confinement;
+  if (confinement === true) {
+    const allowAbs = (declaration.filesystem?.allow ?? [])
+      .filter((a) => a.path.startsWith('/') || /^[A-Za-z]:[\\/]/.test(a.path))
+      .map((a) => a.path);
+    const coversAbs = (abs: string): boolean => {
+      const norm = abs.replace(/[\\/]+/g, '/');
+      return allowAbs.some((ap) => {
+        const aNorm = ap.replace(/[\\/]+/g, '/');
+        return norm === aNorm || norm.startsWith(aNorm.replace(/\/$/, '') + '/');
+      });
+    };
+    rules.push({
+      id: 'fs-confinement',
+      domain: 'filesystem',
+      action: 'deny',
+      reason: 'path outside filesystem confinement allow set (workspace root + explicit allow)',
+      match: (call) => {
+        if (!['Read', 'Write', 'Edit'].includes(call.toolName)) return false;
+        const p = String(call.arguments.path ?? '');
+        if (!p) return false;
+        const hasDotDot = p.split(/[\\/]+/).includes('..');
+        if (hasDotDot) return true;
+        // absolute path not covered by an explicit absolute allow → deny
+        const isAbsolute = p.startsWith('/') || p.startsWith('\\\\') || /^[A-Za-z]:[\\/]/.test(p);
+        if (isAbsolute && !coversAbs(p)) return true;
+        return false;
+      },
+    });
   }
 
   for (const cat of declaration.shell?.deny ?? []) {
@@ -205,6 +250,8 @@ export function compilePolicy(declaration: PolicyDeclaration): PolicyArtifacts {
     fsConfig: {
       protected: declaration.filesystem?.protected ?? [],
       denyRead: declaration.filesystem?.deny_read ?? [],
+      allow: declaration.filesystem?.allow ?? [],
+      confinement: declaration.filesystem?.confinement === true,
     },
     shellAllow: declaration.shell?.allow ?? [],
   };

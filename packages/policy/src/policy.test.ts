@@ -101,3 +101,67 @@ describe('policy/engine — authoritative BeforeTool decision (POLICY-SPEC §4.2
     expect(v.action).toBe('deny'); // rule deny stays deny even under danger profile
   });
 });
+
+describe('policy/risk — task 073 filesystem confinement (allow-set)', () => {
+  const CONFINED = `
+policy:
+  version: "0.1"
+  profile: workspace-write
+  approval: never
+  filesystem:
+    protected: [".git", ".git/**"]
+    deny_read: ["**/.aws/credentials"]
+    allow:
+      - { path: "C:/shared-assets", mode: "read" }
+      - { path: "cache/out", mode: "write" }
+    confinement: true
+`;
+
+  it('compiles confinement:true into fsConfig.allow + fsConfig.confinement', () => {
+    const a = compilePolicyYaml(CONFINED);
+    expect(a.fsConfig?.confinement).toBe(true);
+    expect(a.fsConfig?.allow).toEqual([
+      { path: 'C:/shared-assets', mode: 'read' },
+      { path: 'cache/out', mode: 'write' },
+    ]);
+    // existing protected/deny_read still flow through (coexists with confinement)
+    expect(a.fsConfig?.protected).toContain('.git');
+    expect(a.fsConfig?.denyRead).toContain('**/.aws/credentials');
+  });
+
+  it('mints a fs-confinement deny rule (pre-execute seam -> audit/denial)', () => {
+    const a = compilePolicyYaml(CONFINED);
+    expect(a.rules.some((r) => r.id === 'fs-confinement' && r.domain === 'filesystem')).toBe(true);
+  });
+
+  it('pre-execute deny: ".." escape on a file tool is denied by fs-confinement', async () => {
+    const e = new PolicyEngine(compilePolicyYaml(CONFINED));
+    const v = await e.decide({ toolName: 'Read', arguments: { path: '../../etc/passwd' } });
+    expect(v.action).toBe('deny');
+    expect(v.ruleRef).toBe('fs-confinement');
+  });
+
+  it('pre-execute deny: uncovered absolute path is denied; covered absolute allow passes', async () => {
+    const e = new PolicyEngine(compilePolicyYaml(CONFINED));
+    const readSpec = { requiredPermission: 'read' as const };
+    const uncovered = await e.decide({ toolName: 'Write', arguments: { path: 'D:/elsewhere/out.txt' } }, { requiredPermission: 'workspace-write' });
+    expect(uncovered.action).toBe('deny');
+    const covered = await e.decide({ toolName: 'Read', arguments: { path: 'C:/shared-assets/a.txt' } }, readSpec);
+    expect(covered.action).toBe('allow');
+  });
+
+  it('pre-execute allow: normal workspace-relative file ops are not false-denied by fs-confinement', async () => {
+    const e = new PolicyEngine(compilePolicyYaml(CONFINED));
+    const readSpec = { requiredPermission: 'read' as const };
+    for (const p of ['src/a.ts', 'cache/out/x.json', 'README.md']) {
+      const v = await e.decide({ toolName: 'Read', arguments: { path: p } }, readSpec);
+      expect(v.action).not.toBe('deny'); // workspace-relative is left to the tool guard (never false-positive)
+    }
+  });
+
+  it('confinement off (default): no fs-confinement rule is minted (back-compat routes)', () => {
+    const a = compilePolicyYaml(BASE_POLICY);
+    expect(a.fsConfig?.confinement).toBeFalsy();
+    expect(a.rules.some((r) => r.id === 'fs-confinement')).toBe(false);
+  });
+});

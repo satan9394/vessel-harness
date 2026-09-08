@@ -114,3 +114,49 @@ s.tree().nodes; s.audit();
   隔离目录/异常/050 衔接/非 win32 门控）。
 - kill-tree 用例真实 spawn root→grandchild，root 先入 job、grandchild 后派生（继承 job），
   `terminate()` 后两者均须死亡。
+
+## 073 — Filesystem Confinement（在 071/072 之上新增文件面）
+
+相关：`packages/tools/src/filesystem/guards.ts`、`packages/tools/src/filesystem/fsTools.ts`、
+`packages/policy/src/risk/Compiler.ts`、`packages/application/src/compose.ts`。
+
+### 能力（delivered）
+
+| 能力 | 机制 | 强度 |
+| --- | --- | --- |
+| 允许集合（allow-set） | 允许集合 = 工作区根 ∪ 显式 `filesystem.allow`（绝对或 workspace-relative 目录，Mode 区分 read/write）。`filesystem.confinement: true` 启用 | 机制层：`canonicalize`（识标 + 词法）先跑，`assertConfined` 按 Mode 校验允许集合 |
+| 越界读写拒绝 | `canonicalize` 拒绝 `..`/绝对路径逃逸（除非命中显式绝对 allow）；`assertConfined` 拒绝不覆盖 Mode 匹配 allow 的越界访问 | 工具层硬执法（`DENIED` + `meta.guard`） |
+| 逃逸路径 / 符号链接出界 | `canonicalize` 保留 workspace-escape 拒绝；symlink 出界永远拒绝（即使目标在 allow 目录，也比 allow 更严——allow 指向真实路径而非重定向链接） | 词法 + realpath 双关，best-effort on Windows |
+| 执行前校验 seam（policy 层） | 编译器在有 `confinement:true` 时铸 `fs-confinement` deny 规则：对文件工具做词法预检（`..` 逃逸、未被绝对 allow 覆盖的绝对路径 → 提前 deny） | Executor `decide` 前置拒绝 → AgentLoop 落 `audit/denial`（072 风格可查）；canonical 权威判断仍在工具层守卫 |
+| fail-closed 可选 | 越界一律 deny（不静默放行）；`assertConfined` 命中即抛、工具层映射 `DENIED` | 无条件拒绝 |
+
+### API / 接线
+
+```yaml
+# .harness/policy.yaml
+filesystem:
+  protected: [".git", ".git/**", ".env"]
+  deny_read: ["**/.aws/credentials"]
+  allow:
+    - { path: "C:/shared-assets", mode: "read" }   # 显式授权外部读目录
+    - { path: "cache/out", mode: "write" }          # workspace-relative 写目录
+  confinement: true                                 # 启用 allow-set 强制
+```
+
+`createFsTools` / `createSearchTools` 现把 `canonicalize(root, p, fsPolicy)` 与 `assertConfined(...)`
+作为 Read/Write/Edit/Grep 的第一步守卫；越界返回 `errorClass:'DENIED'` + `meta.guard`。
+`Configs/policy.default.yaml` 未默认开启 confinement（保持既有默认工作区边界），由显式声明开启。
+
+### 限制（honest）
+
+1. **confinement 不削弱既有守卫**：`protected`（写保护）、`deny_read`（凭据）继续在 `assertConfined`
+   前后独立执行，语义叠加（质更严的一方生效），不互相豁免。
+2. **显式外部目录的 symlink 仍被拒**：允许集合走词法目录名；内部指向外部的 symlink/junction 违反
+   "符号链接出界" 拒绝规则，即使目标文本上在 allow 目录内。这是故意的保守选择。
+3. **policy 层 fs-confinement 是词法预检**：无工作区根，只拒绝明确的 `..` 逃逸与未被绝对 allow 覆盖的
+   绝对路径；workspace-relative 路径交给工具守卫做 canonical 权威判断，避免词法层误伤正常工作区操作。
+   因此"执行前拒绝"覆盖逃逸类与显式越界类，其余由工具层兜底。
+4. **Windows symlink/junction 语义**：`realpathSync.native` 在 junction 上可解析到目标目录，故目录
+   junction 出界可被检测；测试在无权限建立 symlink 的主机上会跳过（诚实降级）。
+5. **`allow` 原为死字段**：073 前的 `FsPolicyConfig.allow` 仅声明未强制；本次接通。`confinement:false`
+   时行为与 073 前完全一致（`allow` 仍无效果），不回退既有安全。
