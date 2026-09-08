@@ -132,12 +132,12 @@ describe('CLI provider/models commands (task 016/015)', () => {
 
   beforeEach(() => {
     cfgDir = fs.mkdtempSync(path.join(os.tmpdir(), 'cah-pcfg-'));
-    oldRoot = process.env.CAH_PROVIDER_ROOT;
-    process.env.CAH_PROVIDER_ROOT = cfgDir;
+    oldRoot = process.env.VESSEL_PROVIDER_ROOT;
+    process.env.VESSEL_PROVIDER_ROOT = cfgDir;
   });
   afterEach(() => {
-    if (oldRoot === undefined) delete process.env.CAH_PROVIDER_ROOT;
-    else process.env.CAH_PROVIDER_ROOT = oldRoot;
+    if (oldRoot === undefined) delete process.env.VESSEL_PROVIDER_ROOT;
+    else process.env.VESSEL_PROVIDER_ROOT = oldRoot;
     // isolated temp cfg dir — same cleanup convention as the rest of the suite
     fs.rmSync(cfgDir, { recursive: true, force: true });
   });

@@ -11,7 +11,7 @@ import { runChat } from './tui/chat.js';
 import { VESSEL_LOGO, VESSEL_TAGLINE } from './brand.js';
 
 const USAGE = `${VESSEL_LOGO}
-Vessel CLI v${VERSION} — 可组合 Agent Harness（原名 Composable Agent Harness · cah；命令别名 cah 仍可用）
+Vessel CLI v${VERSION} — 可组合 Agent Harness（品牌 Vessel）
 
 用法:
   vessel --help                      显示本帮助
@@ -30,10 +30,10 @@ run 选项:
   --prompt <text>                 用户输入（缺省从 stdin 读取）
   --workspace <dir>               工作区（默认当前目录）
   --provider <mock|openai-compatible|anthropic>   模型提供方（默认 mock）
-  --model <name>                  模型名（OpenAI/Anthropic 协议需指定，或 CAH_MODEL）
+  --model <name>                  模型名（OpenAI/Anthropic 协议需指定，或 VESSEL_MODEL）
   --base-url <url>                端点：openai-compatible 用 {base}/chat/completions，
-                                  anthropic 用 {base}/v1/messages（或 CAH_BASE_URL）
-  --api-key <key>                 API 密钥（或 CAH_API_KEY；本地端点可不填）
+                                  anthropic 用 {base}/v1/messages（或 VESSEL_BASE_URL）
+  --api-key <key>                 API 密钥（或 VESSEL_API_KEY；本地端点可不填）
   --max-steps <n>                 单轮步数上限（默认 64）
   --permission <mode>             权限模式：read-only（只读探索）| workspace-write（默认，写工作区）|
                                   danger-full-access（全权限，高危可执行）
@@ -105,13 +105,13 @@ async function cmdRun(flags: Map<string, string>): Promise<number> {
   const currentId = explicitProvider ?? (store.getCurrent() !== 'mock' ? store.getCurrent() : 'mock');
   const currentCfg: ProviderConfig | undefined = currentId === 'mock' ? undefined : store.get(currentId);
   const providerName = explicitProvider ?? currentCfg?.protocol ?? 'mock';
-  const model = flags.get('model') ?? process.env.CAH_MODEL ?? currentCfg?.model ?? 'mock-model';
-  const baseUrl = flags.get('base-url') ?? process.env.CAH_BASE_URL ?? currentCfg?.baseUrl;
-  const apiKey = flags.get('api-key') ?? process.env.CAH_API_KEY ?? currentCfg?.apiKey;
+  const model = flags.get('model') ?? process.env.VESSEL_MODEL ?? currentCfg?.model ?? 'mock-model';
+  const baseUrl = flags.get('base-url') ?? process.env.VESSEL_BASE_URL ?? currentCfg?.baseUrl;
+  const apiKey = flags.get('api-key') ?? process.env.VESSEL_API_KEY ?? currentCfg?.apiKey;
   let provider;
   if (providerName === 'openai-compatible' || providerName === 'anthropic') {
     if (!baseUrl) {
-      console.error(`[vessel] ${providerName} 需要 --base-url 或 CAH_BASE_URL（或先 vessel provider add 配置）`);
+      console.error(`[vessel] ${providerName} 需要 --base-url 或 VESSEL_BASE_URL（或先 vessel provider add 配置）`);
       return 2;
     }
     provider = createProvider(providerName, { baseUrl, apiKey, model });
@@ -172,12 +172,12 @@ async function cmdBench(flags: Map<string, string>): Promise<number> {
   const workspace = path.resolve(flags.get('workspace') ?? process.cwd());
   const outDir = path.resolve(flags.get('out') ?? path.join(workspace, 'benchmarks', 'reports'));
   const providerName = flags.get('provider') ?? 'mock';
-  const model = flags.get('model') ?? process.env.CAH_MODEL ?? 'mock-model';
+  const model = flags.get('model') ?? process.env.VESSEL_MODEL ?? 'mock-model';
   const provider =
     providerName === 'openai-compatible' || providerName === 'anthropic'
       ? createProvider(providerName, {
-          baseUrl: flags.get('base-url') ?? process.env.CAH_BASE_URL ?? '',
-          apiKey: flags.get('api-key') ?? process.env.CAH_API_KEY,
+          baseUrl: flags.get('base-url') ?? process.env.VESSEL_BASE_URL ?? '',
+          apiKey: flags.get('api-key') ?? process.env.VESSEL_API_KEY,
           model,
         })
       : null;

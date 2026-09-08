@@ -1,12 +1,11 @@
 {
   "name": "@vessel/cli",
   "version": "0.1.0",
-  "description": "Vessel CLI — Composable Agent Harness command entry (brand vessel, alias cah)",
+  "description": "Vessel CLI — 可组合 Agent Harness 命令入口",
   "type": "module",
   "main": "dist/index.js",
   "bin": {
-    "vessel": "dist/cli.js",
-    "cah": "dist/cli.js"
+    "vessel": "dist/cli.js"
   },
   "scripts": {
     "build": "tsc -b",

@@ -8,7 +8,7 @@ import { modelsForProtocol } from '../providers/modelFetcher.js';
 import { VESSEL_LOGO } from '../brand.js';
 
 /**
- * apps/cli/src/tui/chat.ts — `vessel` interactive chat TUI (V0.7, task 021; brand vessel, alias cah).
+ * apps/cli/src/tui/chat.ts — `vessel` interactive chat TUI (V0.7, task 021; brand Vessel).
  *
  * One command → chat loop, opencode-style: natural language runs the harness
  * loop; slash commands configure providers / models / permission inside the
@@ -172,7 +172,7 @@ export async function runChat(opts: ChatOptions): Promise<number> {
     });
   };
 
-  io.write(`${VESSEL_LOGO}Vessel — 交互会话开始（命令 vessel · 别名 cah；当前 ${providerId} · ${model} · ${permission}）。输入 /help 查看命令，/quit 退出。`);
+  io.write(`${VESSEL_LOGO}Vessel — 交互会话开始（当前 ${providerId} · ${model} · ${permission}）。输入 /help 查看命令，/quit 退出。`);
 
   // eslint-disable-next-line no-constant-condition
   while (true) {
