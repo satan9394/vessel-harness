@@ -12,7 +12,7 @@ import * as os from 'node:os';
  * approval gate — an independent evaluator verdict of `met` AND a user/commander
  * approve() call.
  *
- * Layout under the learned root (default ~/.dsh/learned):
+ * Layout under the learned root (default ~/.vessel/learned):
  *   suggestions/<id>.json        — pending/rejected candidates (audit trail)
  *   skills/<name>/SKILL.md       — approved skill (only after approve)
  *   memory/<name>.md             — approved memory topic (only after approve)
@@ -42,7 +42,7 @@ export interface LearnSuggestion {
 }
 
 export interface LearnedStoreOptions {
-  /** learned root; defaults to ~/.dsh/learned */
+  /** learned root; defaults to ~/.vessel/learned */
   rootDir?: string;
 }
 
@@ -57,7 +57,7 @@ export class LearnedStore {
   private readonly memoryDir: string;
 
   constructor(opts: LearnedStoreOptions = {}) {
-    this.root = opts.rootDir ?? path.join(os.homedir(), '.dsh', 'learned');
+    this.root = opts.rootDir ?? path.join(os.homedir(), '.vessel', 'learned');
     this.suggestionsDir = path.join(this.root, 'suggestions');
     this.skillsDir = path.join(this.root, 'skills');
     this.memoryDir = path.join(this.root, 'memory');

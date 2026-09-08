@@ -19,8 +19,8 @@ describe('skills/load — content loading (V0.3-M3)', () => {
 
   beforeEach(() => {
     ws = tmpDir('cah-skills-');
-    // project-scope skill root: <ws>/.dsh/skills/<name>/SKILL.md
-    skillDir = path.join(ws, '.dsh', 'skills', 'demo-skill');
+    // project-scope skill root: <ws>/.vessel/skills/<name>/SKILL.md
+    skillDir = path.join(ws, '.vessel', 'skills', 'demo-skill');
     fs.mkdirSync(skillDir, { recursive: true });
   });
 
@@ -77,7 +77,7 @@ describe('skills/load — Skill tool', () => {
   beforeEach(() => {
     ws = tmpDir('cah-skills-tool-');
     ctx = { workspaceRoot: ws, cwd: ws };
-    const skillDir = path.join(ws, '.dsh', 'skills', 'demo-skill');
+    const skillDir = path.join(ws, '.vessel', 'skills', 'demo-skill');
     fs.mkdirSync(skillDir, { recursive: true });
     fs.writeFileSync(path.join(skillDir, 'SKILL.md'), SKILL_MD('tool-body'), 'utf8');
   });

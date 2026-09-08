@@ -6,14 +6,14 @@ import type { ProviderName } from '@vessel/llm';
 /**
  * apps/cli/providers/ProviderStore — 供应商配置 SSOT 存储（task 014）。
  *
- * 单一事实源（SSOT）：用户级 ~/.dsh/providers.json + ~/.dsh/current.json
- * （沿用项目 memory/skills 已用的 ~/.dsh 用户目录约定，不另造 ~/.cah）。
+ * 单一事实源（SSOT）：用户级 ~/.vessel/providers.json + ~/.vessel/current.json
+ * （沿用项目 memory/skills 已用的 ~/.vessel 用户目录约定，不另造 ~/.cah）。
  *
  * 约定：
  *   - mock 是内置默认供应商（id='mock'），永不写进 providers.json、不可
  *     add/remove；list() 时作为首项内置显示；getCurrent() 缺省 'mock'。
  *   - apiKey 本地明文存储（与 cc-switch 同款取舍）：仅本机用户目录可读，
- *     不做加密（YAGNI）。风险：任何能读 ~/.dsh 的进程/备份都能看到密钥。
+ *     不做加密（YAGNI）。风险：任何能读 ~/.vessel 的进程/备份都能看到密钥。
  *   - 原子写：先写 <file>.tmp 再 rename 覆盖，防半写状态（crash 时最多
  *     残留 .tmp，原文件保持完整）。
  *   - 校验 fail-loud：重复 id、非法 protocol、add 时缺 model 一律 throw。
@@ -43,7 +43,7 @@ export interface ProviderConfig {
 }
 
 export interface ProviderStoreOptions {
-  /** 覆盖存储根目录（测试注入 os.tmpdir() 下临时目录；默认 ~/.dsh） */
+  /** 覆盖存储根目录（测试注入 os.tmpdir() 下临时目录；默认 ~/.vessel） */
   rootDir?: string;
 }
 
@@ -62,9 +62,9 @@ export const BUILTIN_MOCK_PROVIDER: ProviderConfig = {
   note: 'built-in offline provider (deterministic scripts, never persisted)',
 };
 
-/** 默认用户级根目录：~/.dsh（与 ScopedMemoryStore 的 userMemoryRoot 同风格）。 */
+/** 默认用户级根目录：~/.vessel（与 ScopedMemoryStore 的 userMemoryRoot 同风格）。 */
 export function defaultProviderRoot(home = os.homedir()): string {
-  return path.join(home, '.dsh');
+  return path.join(home, '.vessel');
 }
 
 function isProviderConfig(v: unknown): v is ProviderConfig {
@@ -89,7 +89,7 @@ export class ProviderStore {
   readonly rootDir: string;
 
   constructor(opts: ProviderStoreOptions = {}) {
-    // env override lets CLI tests isolate from the real ~/.dsh without touching
+    // env override lets CLI tests isolate from the real ~/.vessel without touching
     // it; explicit opts.rootDir wins over env.
     this.rootDir = opts.rootDir ?? process.env.VESSEL_PROVIDER_ROOT ?? defaultProviderRoot();
   }

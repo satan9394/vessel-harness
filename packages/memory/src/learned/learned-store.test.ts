@@ -68,7 +68,7 @@ describe('memory/learned — suggest-only auto-learn (V0.3-M5)', () => {
   it('no auto-modify: user skill/memory dirs stay untouched while suggestions are pending (snapshot compare)', () => {
     // simulate pre-existing user skill area OUTSIDE the learned root
     const userArea = tmpDir('cah-user-area-');
-    const userSkill = path.join(userArea, '.dsh', 'skills', 'precious');
+    const userSkill = path.join(userArea, '.vessel', 'skills', 'precious');
     fs.mkdirSync(userSkill, { recursive: true });
     fs.writeFileSync(path.join(userSkill, 'SKILL.md'), 'user content', 'utf8');
     const snap = (p: string) => fs.readFileSync(p, 'utf8');

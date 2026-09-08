@@ -20,15 +20,15 @@ describe('memory/persistent — ScopedMemoryStore (V0.3-M2)', () => {
     home = tmpDir('cah-mem-home-');
     wsA = tmpDir('cah-mem-projA-');
     wsB = tmpDir('cah-mem-projB-');
-    store = new ScopedMemoryStore({ workspaceRoot: wsA, userRoot: path.join(home, '.dsh', 'memory') });
+    store = new ScopedMemoryStore({ workspaceRoot: wsA, userRoot: path.join(home, '.vessel', 'memory') });
   });
 
   afterEach(() => {
     for (const d of [home, wsA, wsB]) fs.rmSync(d, { recursive: true, force: true });
   });
 
-  it('userRoot defaults under os.homedir()/.dsh/memory', () => {
-    expect(userMemoryRoot('fake-home')).toBe(path.join('fake-home', '.dsh', 'memory'));
+  it('userRoot defaults under os.homedir()/.vessel/memory', () => {
+    expect(userMemoryRoot('fake-home')).toBe(path.join('fake-home', '.vessel', 'memory'));
   });
 
   it('writes to explicit scopes stay isolated (user vs project vs local)', () => {
@@ -55,14 +55,14 @@ describe('memory/persistent — ScopedMemoryStore (V0.3-M2)', () => {
   });
 
   it('user memory is visible across two different project workspaces', () => {
-    const storeB = new ScopedMemoryStore({ workspaceRoot: wsB, userRoot: path.join(home, '.dsh', 'memory') });
+    const storeB = new ScopedMemoryStore({ workspaceRoot: wsB, userRoot: path.join(home, '.vessel', 'memory') });
     store.write('user', 'prefs', 'prefer concise replies');
     // a different project shares the same user root
     expect(storeB.read('user', 'prefs')).toContain('prefer concise');
   });
 
   it('project memory is NOT visible across workspaces', () => {
-    const storeB = new ScopedMemoryStore({ workspaceRoot: wsB, userRoot: path.join(home, '.dsh', 'memory') });
+    const storeB = new ScopedMemoryStore({ workspaceRoot: wsB, userRoot: path.join(home, '.vessel', 'memory') });
     store.write('project', 'secret', 'project-a-only');
     expect(storeB.read('project', 'secret')).toBeUndefined();
     expect(storeB.readMerged('secret')).toBeUndefined();
@@ -95,7 +95,7 @@ describe('memory/persistent — Memory tool scope support', () => {
   });
 
   it('write respects an explicit scope; read merges across scopes', async () => {
-    const tool = createMemoryTool({ workspaceRoot: ws, userRoot: path.join(home, '.dsh', 'memory') });
+    const tool = createMemoryTool({ workspaceRoot: ws, userRoot: path.join(home, '.vessel', 'memory') });
     await tool.execute({ op: 'write', scope: 'user', name: 'name', content: 'bob' }, ctx);
     await tool.execute({ op: 'write', scope: 'project', name: 'name', content: 'bob-project' }, ctx);
     // merged read: project shadows user
@@ -107,10 +107,10 @@ describe('memory/persistent — Memory tool scope support', () => {
   });
 
   it('default scope remains project for backward compatibility (no scope arg)', async () => {
-    const tool = createMemoryTool({ workspaceRoot: ws, userRoot: path.join(home, '.dsh', 'memory') });
+    const tool = createMemoryTool({ workspaceRoot: ws, userRoot: path.join(home, '.vessel', 'memory') });
     await tool.execute({ op: 'write', name: 'note', content: 'default-project' }, ctx);
     // landed in project scope, not user
-    const s = new ScopedMemoryStore({ workspaceRoot: ws, userRoot: path.join(home, '.dsh', 'memory') });
+    const s = new ScopedMemoryStore({ workspaceRoot: ws, userRoot: path.join(home, '.vessel', 'memory') });
     expect(s.read('project', 'note')).toContain('default-project');
     expect(s.read('user', 'note')).toBeUndefined();
   });

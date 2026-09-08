@@ -28,11 +28,11 @@ export function parseSkillFrontmatter(text: string): { name?: string; descriptio
 function discoveryRoots(workspaceRoot: string, scope: 'system' | 'user' | 'project' | 'session'): { dir: string; rank: number }[] {
   const roots: { dir: string; rank: number }[] = [];
   if (scope === 'project' || scope === 'session') {
-    roots.push({ dir: path.join(workspaceRoot, '.dsh', 'skills'), rank: 100 });
+    roots.push({ dir: path.join(workspaceRoot, '.vessel', 'skills'), rank: 100 });
     roots.push({ dir: path.join(workspaceRoot, '.agents', 'skills'), rank: 200 });
   }
   if (scope === 'user' || scope === 'system') {
-    roots.push({ dir: path.join(os.homedir(), '.dsh', 'skills'), rank: 400 });
+    roots.push({ dir: path.join(os.homedir(), '.vessel', 'skills'), rank: 400 });
     roots.push({ dir: path.join(os.homedir(), '.claude', 'skills'), rank: 500 });
   }
   return roots;

@@ -39,11 +39,11 @@ export function skillDiscoveryDirs(workspaceRoot: string, scope: SkillScope): { 
     if (!out.some((o) => o.dir === dir)) out.push({ dir, rank, scope: s });
   };
   if (scope === 'project' || scope === 'session') {
-    push(path.join(workspaceRoot, '.dsh', 'skills'), 100, 'project');
+    push(path.join(workspaceRoot, '.vessel', 'skills'), 100, 'project');
     push(path.join(workspaceRoot, '.agents', 'skills'), 200, 'project');
   }
   if (scope === 'user' || scope === 'system' || scope === 'session') {
-    push(path.join(os.homedir(), '.dsh', 'skills'), 400, 'user');
+    push(path.join(os.homedir(), '.vessel', 'skills'), 400, 'user');
     push(path.join(os.homedir(), '.claude', 'skills'), 500, 'user');
     push(path.join(os.homedir(), '.codex', 'skills'), 500, 'user');
   }

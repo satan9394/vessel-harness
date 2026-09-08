@@ -10,6 +10,7 @@ import { createClackIO, runSetupWizard } from './providers/setup.js';
 import { runChat } from './tui/chat.js';
 import { VESSEL_LOGO, VESSEL_TAGLINE } from './brand.js';
 import { UsageStore } from './usage/UsageStore.js';
+import { runVesselMigration } from './migrate.js';
 import { loadModelCatalog, findCatalogModelByBase, listCatalogModels } from './providers/modelCatalog.js';
 import { loadPricing } from './providers/pricing.js';
 
@@ -23,13 +24,14 @@ Vessel CLI v${VERSION} — 可组合 Agent Harness（品牌 Vessel）
   vessel run --bench <scenarioId>    基准模式：运行 benchmarks/ 场景并产出 JSONL 报告
   vessel models [--provider p]       列出某供应商可用模型（OpenAI 兼容实时拉取 / Anthropic 内置清单）
   vessel setup                       交互向导：搜索选供应商 → 输 key → 拉模型 → 空格勾选 → 提交
-  vessel usage [--recent <n>]          查看使用统计（tokens/调用/成本，落盘 ~/.dsh/usage.json）
+  vessel usage [--recent <n>]          查看使用统计（tokens/调用/成本，落盘 ~/.vessel/usage.json）
   vessel pricing [model]               模型价目（configs/model-catalog.json，USD/1M tokens）
   vessel provider list               列出所有供应商（* = 当前默认）
   vessel provider current            显示当前默认供应商
   vessel provider add <id> --protocol <p> --model <m> [--base-url] [--api-key]   添加供应商
   vessel provider remove <id>        删除供应商
   vessel provider switch|use <id>    切换当前默认供应商
+  vessel migrate                     一次性迁移旧状态目录 ~/.dsh → ~/.vessel（数据复制 + 旧目录进回收站）
 
 run 选项:
   --prompt <text>                 用户输入（缺省从 stdin 读取）
@@ -104,7 +106,7 @@ async function cmdRun(flags: Map<string, string>): Promise<number> {
   const prompt = flags.get('prompt') ?? (process.stdin.isTTY ? '' : fs.readFileSync(0, 'utf8').trim());
 
   // provider resolution: explicit --provider wins; else the current default
-  // provider from ~/.dsh (provider switch); else mock with a hint.
+  // provider from ~/.vessel (provider switch); else mock with a hint.
   const store = new ProviderStore();
   const explicitProvider = flags.get('provider');
   const currentId = explicitProvider ?? (store.getCurrent() !== 'mock' ? store.getCurrent() : 'mock');
@@ -356,7 +358,7 @@ async function cmdUsage(flags: Map<string, string>): Promise<number> {
   const root = repoRoot();
   const store = new UsageStore({ pricing: loadPricing(root) });
   const t = store.totals();
-  console.log('=== 使用统计（~/.dsh/usage.json）===');
+  console.log('=== 使用统计（~/.vessel/usage.json）===');
   console.log(`总消耗: input ${t.inputTokens.toLocaleString()} · output ${t.outputTokens.toLocaleString()} · cache ${t.cacheReadTokens.toLocaleString()} · 调用 ${t.calls}`);
   console.log(`估算成本: $${t.costUsd.toFixed(4)}（${t.providers} 供应商 / ${t.models} 模型）`);
   const byProv = store.byProvider();
@@ -401,6 +403,26 @@ async function cmdPricing(modelArg: string | undefined, flags: Map<string, strin
   return 0;
 }
 
+/** `vessel migrate` — one-time ~/.dsh → ~/.vessel state migration (task 033). */
+async function cmdMigrate(): Promise<number> {
+  const res = await runVesselMigration();
+  if (res.status === 'skipped' && res.reason === 'legacy-absent') {
+    console.log('[vessel migrate] 未发现旧状态目录 ~/.dsh，无需迁移。');
+    return 0;
+  }
+  if (res.status === 'skipped' && res.reason === 'vessel-present') {
+    console.log('[vessel migrate] 已存在 ~/.vessel（跳过；保留 ~/.dsh 未动）。');
+    return 0;
+  }
+  console.log(`[vessel migrate] 已把 ~/.dsh 复制到 ~/.vessel（${res.copiedCount} 个条目）。`);
+  if (res.recycled) {
+    console.log('[vessel migrate] 旧目录 ~/.dsh 已送进回收站。');
+  } else {
+    console.warn(`[vessel migrate] 旧目录 ~/.dsh 未能自动回收（${res.recycleError ?? 'unknown'}\n  数据已在 ~/.vessel，请手工把旧目录移入回收站（不要永久删除）。`);
+  }
+  return 0;
+}
+
 export async function main(argv: string[] = process.argv.slice(2)): Promise<number> {
   const parsed = parseArgs(argv);
   // subcommand forms: `vessel provider <sub>`, `vessel models`
@@ -410,6 +432,7 @@ export async function main(argv: string[] = process.argv.slice(2)): Promise<numb
   if (first === 'setup') return cmdSetup(parsed.flags);
   if (first === 'usage') return cmdUsage(parsed.flags);
   if (first === 'pricing') return cmdPricing(parsed.positionals[1], parsed.flags);
+  if (first === 'migrate') return cmdMigrate();
   // bare `vessel` (no subcommand): interactive TUI in a TTY; guide otherwise.
   if (first === undefined && parsed.command === 'run' && !parsed.flags.has('bench')) {
     if (!parsed.flags.has('prompt') && process.stdin.isTTY) {

@@ -8,7 +8,7 @@ import { resolvePrice, type PricingTable } from '../providers/pricing.js';
  *
  * Reference model: cc-switch usage tracking — accumulate tokens, calls and
  * estimated cost per model / per provider across sessions, persisted to
- * `~/.dsh/usage.json` (atomic tmp+rename, same as ProviderStore).
+ * `~/.vessel/usage.json` (atomic tmp+rename, same as ProviderStore).
  *
  * Cost estimation uses pricing resolvePrice(model, protocol): model-specific
  * price wins, then protocol, then default — see configs/pricing.json.
@@ -44,7 +44,7 @@ export interface UsageStoreOptions {
 }
 
 export function defaultUsageRoot(home = os.homedir()): string {
-  return path.join(home, '.dsh');
+  return path.join(home, '.vessel');
 }
 
 export class UsageStore {

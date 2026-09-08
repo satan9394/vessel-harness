@@ -10,7 +10,7 @@ import { ProjectStore, type MemoryIndexEntry } from '../project/ProjectStore.js'
  * (file-based MEMORY.md index + topic files) so there is a single storage
  * abstraction, not two drifted implementations:
  *
- *   user    — ~/.dsh/memory            (跨项目, per-user persistent)
+ *   user    — ~/.vessel/memory            (跨项目, per-user persistent)
  *   project — <ws>/.harness/memory     (per-project, from task 001)
  *   local   — <ws>/.harness/memory/local (session/ephemeral-local notes)
  *
@@ -26,7 +26,7 @@ export const MEMORY_SCOPES: MemoryScope[] = ['user', 'project', 'local'];
 
 /** user-level memory lives under the user home (跨项目 persistent). */
 export function userMemoryRoot(home = os.homedir()): string {
-  return path.join(home, '.dsh', 'memory');
+  return path.join(home, '.vessel', 'memory');
 }
 
 /** project-level root (matches task-001 ProjectStore default). */

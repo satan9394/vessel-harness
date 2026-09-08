@@ -11,7 +11,7 @@ import {
 /**
  * apps/cli/providers/ProviderStore.test.ts — task 014 验收测试。
  * 临时目录一律 mkdtempSync(os.tmpdir()/...) 并在 afterEach rmSync 清理
- * （仓库统一先例；不触碰真实 ~/.dsh，也不做任何永久删除）。
+ * （仓库统一先例；不触碰真实 ~/.vessel，也不做任何永久删除）。
  */
 
 const SAMPLE: ProviderConfig = {
@@ -175,7 +175,7 @@ describe('ProviderStore', () => {
     expect(fs.existsSync(`${store.currentFile}.tmp`)).toBe(false);
   });
 
-  it('rootDir injection isolates stores from real ~/.dsh and from each other', () => {
+  it('rootDir injection isolates stores from real ~/.vessel and from each other', () => {
     expect(store.rootDir).toBe(dir);
     expect(store.providersFile.startsWith(dir)).toBe(true);
 
@@ -191,11 +191,11 @@ describe('ProviderStore', () => {
     }
   });
 
-  it('default root is ~/.dsh (os.homedir()/.dsh convention)', () => {
+  it('default root is ~/.vessel (os.homedir()/.vessel convention)', () => {
     const dflt = new ProviderStore();
-    expect(dflt.providersFile).toBe(path.join(os.homedir(), '.dsh', 'providers.json'));
-    expect(dflt.currentFile).toBe(path.join(os.homedir(), '.dsh', 'current.json'));
-    // 缺省实例只做路径断言，绝不读写真实 ~/.dsh
+    expect(dflt.providersFile).toBe(path.join(os.homedir(), '.vessel', 'providers.json'));
+    expect(dflt.currentFile).toBe(path.join(os.homedir(), '.vessel', 'current.json'));
+    // 缺省实例只做路径断言，绝不读写真实 ~/.vessel
   });
 
   it('load() fails loud on corrupted providers.json', () => {

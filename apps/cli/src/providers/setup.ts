@@ -71,7 +71,7 @@ export function createClackIO(_store: ProviderStore): SetupIO {
     },
     async askApiKey(presetName: string, hint: string) {
       const key = (await clack.password({
-        message: `输入 ${presetName} 的 API Key（不回显；明文存 ~/.dsh）${hint ? ` — ${hint}` : ''}`,
+        message: `输入 ${presetName} 的 API Key（不回显；明文存 ~/.vessel）${hint ? ` — ${hint}` : ''}`,
       })) as string | symbol;
       return key;
     },
@@ -265,7 +265,7 @@ export async function runSetupWizard(deps: WizardDeps): Promise<string | null> {
     `  端点: ${(baseUrl as string) || '(mock)'}`,
     apiKey ? `  API Key: ${maskKey(apiKey)}` : '  API Key: (沿用已存)',
     `  模型: ${models.length > 0 ? models.join(', ') : '(默认)'}`,
-    `  作用域: ~/.dsh（影响本机所有 cah run）`,
+    `  作用域: ~/.vessel（影响本机所有 cah run）`,
   ].join('\n');
   const confirmed = (await io.confirmWrite(summary)) as boolean | symbol;
   if (confirmed !== true) return null;
@@ -301,6 +301,6 @@ export async function runSetupWizard(deps: WizardDeps): Promise<string | null> {
       clack.log.success(`已切换。cah run 现在走 ${presetName}/${defaultModel}（热生效，无需重启）`);
     }
   }
-  clack.log.success(`已保存供应商 "${finalId}" 到 ~/.dsh/providers.json`);
+  clack.log.success(`已保存供应商 "${finalId}" 到 ~/.vessel/providers.json`);
   return finalId;
 }
