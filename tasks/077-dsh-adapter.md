@@ -1,6 +1,6 @@
 # 077 — DSH Adapter（DeepSeek Harness 适配器）
 
-- 状态：待验收
+- 状态：已合入
 - 优先级：P0（Wave 5 / Milestone G）
 - 创建日期：2026-09-08
 - 关联：076（Harness Adapter Contract，已合入）；078-081（同批外部 harness adapters）
@@ -96,5 +96,9 @@ human intervention/policy violations/resume success）。DSH 是外部 harness�
 
 ## 验收结论（指挥回填）
 
-- [ ] 合入 / 打回
-- 备注：
+- [x] 合入（commit 02a9ca8）
+- 备注：指挥独立复核——全量 vitest 81 文件 752 测试全绿 + 1 skipped（零失败；执行器首跑的 usage-store EPERM
+  flaky 重跑未复现，为既有已知 Windows flaky 同类，非本卡回归）、tsc -b 0 错误。
+  认可：dshAdapter 实现 076 契约（CLI 命令面 dsh run --json，command/runCommand 可注入便于 mock；probeDshEnv
+  探活，不可用标 pending-environment 不 throw；normalizeDshRun §15 L3 采集归一 + pricing 估成本；capabilities
+  诚实降级）；clean-room 合规（未读 DSH 源码、prompt 未引入）。下一张：078（OpenCode adapter——同批 adapters 模式）。
