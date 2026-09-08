@@ -1,6 +1,7 @@
 import {
   generatorArtifactCount,
   generatorOutputSummary,
+  goalControlEnabled,
   goalStatusClass,
   goalVerdictDisplay,
   GOAL_CONTROL_SEAM,
@@ -15,7 +16,7 @@ import {
  * Goal panel (task 065) — renders a task queue + the selected task's iteration
  * replay (generator output summary / evaluator met·not_met·reason). Presentational
  * only: all data mounts come from <GoalModule>. Friendly empty states + the
- * reserved 066 control seam (pause/resume/budget as disabled placeholders).
+ * 066 run-control seam (pause/resume/budget, wired via onPause/onResume/onBudget).
  */
 export default function GoalPanel({
   tasks,
@@ -25,6 +26,10 @@ export default function GoalPanel({
   busy,
   onSelect,
   onRun,
+  onPause,
+  onResume,
+  onBudget,
+  budget,
   enqueueCancelled,
 }: {
   tasks: GoalTask[];
@@ -37,9 +42,18 @@ export default function GoalPanel({
   busy: boolean;
   onSelect: (id: string) => void;
   onRun: () => void;
+  /** task 066: control the selected task's live run */
+  onPause: () => void;
+  onResume: () => void;
+  onBudget: () => void;
+  /** current budget (maxIterations/maxRetries) of the selected task */
+  budget?: { maxIterations: number; maxRetries: number };
   enqueueCancelled: boolean;
 }) {
   const selected = tasks.find((t) => t.id === selectedId) ?? null;
+  const controls = selected
+    ? goalControlEnabled(GOAL_CONTROL_SEAM, selected.status, running)
+    : GOAL_CONTROL_SEAM;
 
   return (
     <div className="goal-panel" data-testid="goal-panel">
@@ -95,14 +109,26 @@ export default function GoalPanel({
             {!runnable(selected.status) && (
               <span className="dim goal-run-hint">&#8226; {selected.status} &mdash; run not available on a terminal task</span>
             )}
-            {/* 066 seam — reserved control placeholders, disabled until task 066 */}
+            {/* 066 run control — pause/resume/budget wired to the API */}
             <span className="goal-controls">
-              {GOAL_CONTROL_SEAM.map((ctl) => (
-                <button key={ctl.id} type="button" className="btn goal-control-btn" disabled title={ctl.reservedText}>
-                  {ctl.label}
-                  <span className="goal-control-reserved"> 066</span>
-                </button>
-              ))}
+              {controls.map((ctl) => {
+                const handler = ctl.id === 'pause' ? onPause : ctl.id === 'resume' ? onResume : onBudget;
+                return (
+                  <button
+                    key={ctl.id}
+                    type="button"
+                    className="btn goal-control-btn"
+                    disabled={busy || !ctl.enabled}
+                    onClick={handler}
+                    title={ctl.hint}
+                  >
+                    {ctl.label}
+                    {ctl.id === 'budget' && budget ? (
+                      <span className="goal-budget-line"> {budget.maxIterations}/{budget.maxRetries}</span>
+                    ) : null}
+                  </button>
+                );
+              })}
             </span>
           </div>
 

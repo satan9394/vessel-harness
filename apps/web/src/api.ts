@@ -10,7 +10,7 @@
 // Team/route/review wire shapes (task 060) — see ./team for the full mirrors.
 import type { ReviewRecord, RouteMode, RouteState, TeamRunState } from './team';
 // Goal/Loop wire shapes (task 065) — see ./goal for the full mirrors.
-import type { GoalIteration, GoalRunResult, GoalTask } from './goal';
+import type { GoalBudget, GoalIteration, GoalRunResult, GoalTask } from './goal';
 
 export interface ApiOptions {
   /** base URL, default '/api'. May be 'http://127.0.0.1:5678/api'. */
@@ -215,6 +215,31 @@ export function createApiClient(opts: ApiOptions = {}) {
     /** POST /api/goal/tasks/:id/run — trigger one bounded real run (§11.1) */
     async runGoalTask(id: string): Promise<{ result: GoalRunResult }> {
       return request<{ result: GoalRunResult }>(`/goal/tasks/${encodeURIComponent(id)}/run`, { method: 'POST' });
+    },
+    /** POST /api/goal/tasks/:id/pause — suspend a live run (066, not an abort) */
+    async pauseGoalTask(id: string): Promise<{ task: GoalTask; paused: boolean }> {
+      return request<{ task: GoalTask; paused: boolean }>(`/goal/tasks/${encodeURIComponent(id)}/pause`, {
+        method: 'POST',
+      });
+    },
+    /** POST /api/goal/tasks/:id/resume — continue a paused run from the same boundary (066) */
+    async resumeGoalTask(id: string): Promise<{ task: GoalTask; paused: boolean }> {
+      return request<{ task: GoalTask; paused: boolean }>(`/goal/tasks/${encodeURIComponent(id)}/resume`, {
+        method: 'POST',
+      });
+    },
+    /** GET /api/goal/tasks/:id/budget — query maxIterations/maxRetries + paused (066) */
+    async getGoalBudget(id: string): Promise<{ taskId: string; budget: GoalBudget; paused: boolean }> {
+      return request<{ taskId: string; budget: GoalBudget; paused: boolean }>(
+        `/goal/tasks/${encodeURIComponent(id)}/budget`,
+      );
+    },
+    /** POST /api/goal/tasks/:id/budget — set maxIterations/maxRetries (Goal/Loop relax, 066) */
+    async setGoalBudget(id: string, budget: Partial<GoalBudget>): Promise<{ taskId: string; budget: GoalBudget }> {
+      return request<{ taskId: string; budget: GoalBudget }>(`/goal/tasks/${encodeURIComponent(id)}/budget`, {
+        method: 'POST',
+        body: JSON.stringify(budget),
+      });
     },
 
     /** GET /api/reviews — external review handoff records (059) */

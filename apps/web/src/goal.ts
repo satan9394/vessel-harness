@@ -15,11 +15,12 @@
 // Task queue (063 ProjectTaskQueue) — wire shape of GET /api/goal/tasks
 // ---------------------------------------------------------------------------
 
-export type GoalTaskStatus = 'pending' | 'in-progress' | 'met' | 'not_met' | 'cancelled';
+export type GoalTaskStatus = 'pending' | 'in-progress' | 'paused' | 'met' | 'not_met' | 'cancelled';
 
 export const GOAL_TASK_STATUSES: readonly GoalTaskStatus[] = [
   'pending',
   'in-progress',
+  'paused',
   'met',
   'not_met',
   'cancelled',
@@ -29,6 +30,7 @@ export const GOAL_TASK_STATUSES: readonly GoalTaskStatus[] = [
 export const GOAL_STATUS_LABELS: Record<GoalTaskStatus, string> = {
   pending: 'Pending',
   'in-progress': 'In progress',
+  paused: 'Paused',
   met: 'Met',
   not_met: 'Not met',
   cancelled: 'Cancelled',
@@ -184,26 +186,53 @@ export function evaluatorConclusionText(evalSnap?: GoalEvaluatorSnapshot): strin
 }
 
 // ---------------------------------------------------------------------------
-// 066 control seam — reserved states + labels (no logic, UI placeholder only)
+// 066 control seam — pause/resume/budget (+ budget wire type)
 // ---------------------------------------------------------------------------
 
-/** Reserved Goal loop controls (066 pauses/resume/budget). UI renders disabled. */
+/** maxIterations/maxRetries budget (066, §11.1 default 1/1). */
+export interface GoalBudget {
+  maxIterations: number;
+  maxRetries: number;
+}
+
+/** Goal loop control ids (066 — wired to the local server endpoints). */
 export type GoalControlId = 'pause' | 'resume' | 'budget';
 
+/** A control button's render description (enabled per run/running state). */
 export interface GoalControlSeam {
   id: GoalControlId;
   label: string;
-  /** reserved for task 066 — never enabled from here */
-  enabled: false;
-  /** hint shown in the UI ("see 066") */
-  reservedText: string;
+  /** enabled when a live run is running (pause) / paused (resume); budget always */
+  enabled: boolean;
+  /** hint shown in the UI */
+  hint: string;
 }
 
 export const GOAL_CONTROL_SEAM: readonly GoalControlSeam[] = [
-  { id: 'pause', label: 'Pause', enabled: false, reservedText: '— Pause lands in 066' },
-  { id: 'resume', label: 'Resume', enabled: false, reservedText: '— Resume lands in 066' },
-  { id: 'budget', label: 'Budget', enabled: false, reservedText: '— Budget lands in 066' },
+  { id: 'pause', label: 'Pause', enabled: true, hint: 'Suspend the running task (not an abort)' },
+  { id: 'resume', label: 'Resume', enabled: true, hint: 'Continue a paused task from the same boundary' },
+  { id: 'budget', label: 'Budget', enabled: true, hint: 'Query/set maxIterations & maxRetries ($11.1 default 1/1)' },
 ];
+
+/** Which controls are usable for a given queue status (gate the enable flags). */
+export function goalControlEnabled(
+  controls: readonly GoalControlSeam[],
+  status: GoalTaskStatus,
+  running: boolean,
+): readonly GoalControlSeam[] {
+  return controls.map((c) => {
+    if (c.id === 'pause') return { ...c, enabled: running && status === 'in-progress' };
+    if (c.id === 'resume') return { ...c, enabled: running && status === 'paused' };
+    // budget is always available (query/set on a task whether or not it is live)
+    return { ...c, enabled: true };
+  });
+}
+
+/** Friendly budget line for the UI (default §11.1 1/1). */
+export function budgetDisplay(budget?: GoalBudget): string {
+  if (!budget) return '1 / 1';
+  return `${budget.maxIterations} / ${budget.maxRetries}`;
+}
 
 /** Normalize a raw task list (tolerant of partial/junk entries). */
 export function normalizeGoalTasks(raw: unknown): GoalTask[] {

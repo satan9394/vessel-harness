@@ -921,20 +921,44 @@ describe('local server — task 065 goal seam (task queue + iterations + run con
     expect(body.iterations[0]!.iteration).toBe(1);
   }, 30000);
 
-  it('066 seam: pause/resume/budget are reserved → 501, not implemented', async () => {
+  it('066 run control endpoints: pause/resume/budget are implemented (not 501)', async () => {
     const create = await fetch(`${base}/api/goal/tasks`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ projectRoot: ws, goal: '占位任务' }),
+      body: JSON.stringify({ projectRoot: ws, goal: '运行控制任务' }),
     });
-    const { task } = (await create.json()) as { task: { id: string } };
+    const { task } = (await create.json()) as { task: { id: string; status: string } };
 
-    for (const action of ['pause', 'resume', 'budget'] as const) {
-      const res = await fetch(`${base}/api/goal/tasks/${task.id}/${action}`, { method: 'POST' });
-      expect(res.status).toBe(501);
-      const body = (await res.json()) as { error: string; action: string };
-      expect(body.error).toBe('not_implemented_066');
-      expect(body.action).toBe(action);
-    }
+    // budget query returns the §11.1 default 1/1 even before any run
+    const budgetGet = await fetch(`${base}/api/goal/tasks/${task.id}/budget`);
+    expect(budgetGet.status).toBe(200);
+    const budgetBody = (await budgetGet.json()) as { budget: { maxIterations: number; maxRetries: number } };
+    expect(budgetBody.budget).toEqual({ maxIterations: 1, maxRetries: 1 });
+
+    // budget set — Goal/Loop relax raises the caps
+    const budgetSet = await fetch(`${base}/api/goal/tasks/${task.id}/budget`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ maxIterations: 3, maxRetries: 2 }),
+    });
+    expect(budgetSet.status).toBe(200);
+    const setBody = (await budgetSet.json()) as { budget: { maxIterations: number; maxRetries: number } };
+    expect(setBody.budget).toEqual({ maxIterations: 3, maxRetries: 2 });
+
+    // pause on a not-running task → 400 (no live run to suspend)
+    const pause = await fetch(`${base}/api/goal/tasks/${task.id}/pause`, { method: 'POST' });
+    expect(pause.status).toBe(400);
+    const pauseBody = (await pause.json()) as { error: string };
+    expect(pauseBody.error).toBe('goal_pause_failed');
+
+    // resume on a not-running task → 400
+    const resume = await fetch(`${base}/api/goal/tasks/${task.id}/resume`, { method: 'POST' });
+    expect(resume.status).toBe(400);
+    const resumeBody = (await resume.json()) as { error: string };
+    expect(resumeBody.error).toBe('goal_resume_failed');
+
+    // missing task → 404
+    const missing = await fetch(`${base}/api/goal/tasks/nope/budget`);
+    expect(missing.status).toBe(404);
   });
 });

@@ -6,3 +6,4 @@ export * from './real-generator-adapter.js';
 export * from './real-evaluator-adapter.js';
 export * from './project-task-queue.js';
 export * from './iteration-store.js';
+export * from './run-control.js';

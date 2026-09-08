@@ -1,8 +1,10 @@
 import { describe, it, expect } from 'vitest';
 import {
+  budgetDisplay,
   evaluatorConclusionText,
   generatorArtifactCount,
   generatorOutputSummary,
+  goalControlEnabled,
   goalRunnable,
   goalStatusClass,
   goalTaskSummary,
@@ -72,9 +74,30 @@ describe('goal pure selectors (task 065 data consumption)', () => {
     expect(normalizeGoalTasks(null)).toEqual([]);
   });
 
-  it('GOAL_CONTROL_SEAM is the reserved 066 placeholder set (never enabled)', () => {
+  it('GOAL_CONTROL_SEAM exposes the 066 control set (pause/resume/budget), enabled by default', () => {
     expect(GOAL_CONTROL_SEAM.map((c) => c.id)).toEqual(['pause', 'resume', 'budget']);
-    expect(GOAL_CONTROL_SEAM.every((c) => c.enabled === false)).toBe(true);
-    expect(GOAL_CONTROL_SEAM.every((c) => c.reservedText.includes('066'))).toBe(true);
+    expect(GOAL_CONTROL_SEAM.every((c) => c.enabled === true)).toBe(true);
+    expect(GOAL_CONTROL_SEAM.every((c) => c.hint.length > 0)).toBe(true);
+  });
+
+  it('goalControlEnabled gates pause on running in-progress, resume on paused, budget always', () => {
+    const running = goalControlEnabled(GOAL_CONTROL_SEAM, 'in-progress', true);
+    expect(running.find((c) => c.id === 'pause')?.enabled).toBe(true);
+    expect(running.find((c) => c.id === 'resume')?.enabled).toBe(false);
+    expect(running.find((c) => c.id === 'budget')?.enabled).toBe(true);
+
+    const paused = goalControlEnabled(GOAL_CONTROL_SEAM, 'paused', true);
+    expect(paused.find((c) => c.id === 'pause')?.enabled).toBe(false);
+    expect(paused.find((c) => c.id === 'resume')?.enabled).toBe(true);
+
+    const idle = goalControlEnabled(GOAL_CONTROL_SEAM, 'pending', false);
+    expect(idle.find((c) => c.id === 'pause')?.enabled).toBe(false);
+    expect(idle.find((c) => c.id === 'resume')?.enabled).toBe(false);
+    expect(idle.find((c) => c.id === 'budget')?.enabled).toBe(true);
+  });
+
+  it('budgetDisplay renders the §11.1 1/1 default and explicit budgets', () => {
+    expect(budgetDisplay(undefined)).toBe('1 / 1');
+    expect(budgetDisplay({ maxIterations: 3, maxRetries: 2 })).toBe('3 / 2');
   });
 });

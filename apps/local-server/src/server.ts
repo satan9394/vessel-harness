@@ -536,8 +536,7 @@ export function createVesselServer(opts: VesselServerOptions = {}): VesselServer
 
   /**
    * /api/goal* — Goal/Loop seam (065): persistent task queue + iteration replay +
-   * one real run per task. 066 (pause/resume/budget) is a UI-only seam — no
-   * control endpoints yet (the buttons are disabled placeholders).
+   * one real run per task + 066 run control (pause/resume/budget).
    */
   async function handleGoal(
     method: string,
@@ -615,11 +614,50 @@ export function createVesselServer(opts: VesselServerOptions = {}): VesselServer
       return json(res, 200, { taskId: id, iterations, record });
     }
 
-    // 066 seam — pause/resume/budget are reserved (UI placeholders), not implemented.
-    if (segs.length === 5 && segs[2] === 'tasks' && method === 'POST') {
-      const action = segs[4];
-      if (action === 'pause' || action === 'resume' || action === 'budget') {
-        return json(res, 501, { error: 'not_implemented_066', taskId: segs[3], action, message: `"${action}" lands in task 066 (Pause/Resume/Budget)` });
+    // ---------------- task 066: run control (pause/resume/budget) ----------------
+    // POST /api/goal/tasks/:id/pause — suspend a live run (not abort)
+    if (segs.length === 5 && segs[2] === 'tasks' && segs[4] === 'pause' && method === 'POST') {
+      const id = segs[3] ?? '';
+      if (!goalSeam.getTask(id)) return json(res, 404, { error: 'goal_task_not_found', taskId: id });
+      try {
+        const task = goalSeam.pauseTask(id);
+        return json(res, 200, { task, paused: true });
+      } catch (err) {
+        return json(res, 400, { error: 'goal_pause_failed', message: err instanceof Error ? err.message : String(err) });
+      }
+    }
+    // POST /api/goal/tasks/:id/resume — continue a paused run from the same boundary
+    if (segs.length === 5 && segs[2] === 'tasks' && segs[4] === 'resume' && method === 'POST') {
+      const id = segs[3] ?? '';
+      if (!goalSeam.getTask(id)) return json(res, 404, { error: 'goal_task_not_found', taskId: id });
+      try {
+        const task = goalSeam.resumeTask(id);
+        return json(res, 200, { task, paused: false });
+      } catch (err) {
+        return json(res, 400, { error: 'goal_resume_failed', message: err instanceof Error ? err.message : String(err) });
+      }
+    }
+    // GET /api/goal/tasks/:id/budget — query maxIterations/maxRetries + paused/exhausted
+    if (segs.length === 5 && segs[2] === 'tasks' && segs[4] === 'budget' && method === 'GET') {
+      const id = segs[3] ?? '';
+      const info = goalSeam.getTaskBudget(id);
+      if (!info) return json(res, 404, { error: 'goal_task_not_found', taskId: id });
+      return json(res, 200, { taskId: id, budget: info.budget, paused: info.paused });
+    }
+    // POST /api/goal/tasks/:id/budget — set maxIterations/maxRetries (Goal/Loop relax)
+    if (segs.length === 5 && segs[2] === 'tasks' && segs[4] === 'budget' && method === 'POST') {
+      const id = segs[3] ?? '';
+      if (!goalSeam.getTask(id)) return json(res, 404, { error: 'goal_task_not_found', taskId: id });
+      const body = (await readJsonBody(req)) as { maxIterations?: unknown; maxRetries?: unknown } | null;
+      const asInt = (v: unknown): number | undefined => (typeof v === 'number' && Number.isInteger(v) ? v : undefined);
+      try {
+        const budget = goalSeam.setTaskBudget(id, {
+          maxIterations: asInt(body?.maxIterations),
+          maxRetries: asInt(body?.maxRetries),
+        });
+        return json(res, 200, { taskId: id, budget });
+      } catch (err) {
+        return json(res, 400, { error: 'goal_budget_failed', message: err instanceof Error ? err.message : String(err) });
       }
     }
 

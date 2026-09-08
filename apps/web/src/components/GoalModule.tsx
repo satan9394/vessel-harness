@@ -1,6 +1,12 @@
 import { useCallback, useEffect, useState } from 'react';
 import type { ApiClient } from '../api';
-import { normalizeGoalTasks, sortGoalTasks, type GoalIteration, type GoalTask } from '../goal';
+import {
+  normalizeGoalTasks,
+  sortGoalTasks,
+  type GoalBudget,
+  type GoalIteration,
+  type GoalTask,
+} from '../goal';
 import GoalPanel from './GoalPanel';
 
 interface Props {
@@ -15,12 +21,15 @@ interface Props {
  *  - GET /api/goal/tasks/:id/iterations (replay) on selection
  *  - POST /api/goal/tasks (enqueue a goal)
  *  - POST /api/goal/tasks/:id/run (trigger the 061-064 real run chain once)
- * Renders <GoalPanel>. 066 control (pause/resume/budget) stays a UI seam.
+ *  - POST /api/goal/tasks/:id/pause|resume — 066 run control (suspend/continue)
+ *  - GET/POST /api/goal/tasks/:id/budget — 066 iteration/retry budget (§11.1 1/1)
+ * Renders <GoalPanel>.
  */
 export default function GoalModule({ sessionId, api }: Props) {
   const [tasks, setTasks] = useState<GoalTask[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [iterations, setIterations] = useState<GoalIteration[]>([]);
+  const [budget, setBudget] = useState<GoalBudget | null>(null);
   const [projectRoot, setProjectRoot] = useState<string | null>(null);
   const [goal, setGoal] = useState('');
   const [running, setRunning] = useState(false);
@@ -87,9 +96,18 @@ export default function GoalModule({ sessionId, api }: Props) {
   const select = useCallback(
     (id: string) => {
       setSelectedId(id);
+      setBudget(null);
       void loadIterations(id);
+      void api
+        .getGoalBudget(id)
+        .then(({ budget: b }) => {
+          setBudget(b);
+        })
+        .catch(() => {
+          // budget query is best-effort; a non-live task still shows defaults
+        });
     },
-    [loadIterations],
+    [api, loadIterations],
   );
 
   const enqueue = useCallback(async () => {
@@ -136,6 +154,61 @@ export default function GoalModule({ sessionId, api }: Props) {
     }
   }, [api, selectedId, busy, running, refreshTasks, loadIterations, showError]);
 
+  /** task 066: suspend the selected task's live run (not an abort). */
+  const pause = useCallback(async () => {
+    if (!selectedId || busy) return;
+    setBusy(true);
+    setError(null);
+    try {
+      await api.pauseGoalTask(selectedId);
+      await refreshTasks();
+    } catch (err) {
+      showError(err);
+    } finally {
+      setBusy(false);
+    }
+  }, [api, selectedId, busy, refreshTasks, showError]);
+
+  /** task 066: continue a paused run from the same boundary. */
+  const resume = useCallback(async () => {
+    if (!selectedId || busy) return;
+    setBusy(true);
+    setError(null);
+    try {
+      await api.resumeGoalTask(selectedId);
+      await refreshTasks();
+    } catch (err) {
+      showError(err);
+    } finally {
+      setBusy(false);
+    }
+  }, [api, selectedId, busy, refreshTasks, showError]);
+
+  /**
+   * task 066: budget control — bump §11.1 default 1/1 caps (Goal/Loop mode relax).
+   * Reads the current budget, then writes maxIterations+1 / maxRetries+1 so the
+   * button is a simple "more budget" pivot from the UI-selected defaults.
+   */
+  const budgetStep = useCallback(async () => {
+    if (!selectedId || busy) return;
+    setBusy(true);
+    setError(null);
+    try {
+      const current = await api.getGoalBudget(selectedId);
+      const next = {
+        maxIterations: (current.budget?.maxIterations ?? 1) + 1,
+        maxRetries: (current.budget?.maxRetries ?? 1) + 1,
+      };
+      const { budget: b } = await api.setGoalBudget(selectedId, next);
+      setBudget(b);
+      await refreshTasks();
+    } catch (err) {
+      showError(err);
+    } finally {
+      setBusy(false);
+    }
+  }, [api, selectedId, busy, refreshTasks, showError]);
+
   return (
     <div className="goal-module">
       <form
@@ -165,10 +238,14 @@ export default function GoalModule({ sessionId, api }: Props) {
         busy={busy}
         onSelect={select}
         onRun={run}
+        onPause={pause}
+        onResume={resume}
+        onBudget={budgetStep}
+        budget={budget ?? undefined}
         enqueueCancelled={enqueueCancelled}
       />
       <div className="dim goal-module-hint">
-        One bounded run per trigger (maxIterations / maxRetries = 1). Richer control (pause / resume / budget) lands in 066.
+        Run control: Pause suspends, Resume continues; Budget sets maxIterations/maxRetries (§11.1 default 1/1).
       </div>
     </div>
   );

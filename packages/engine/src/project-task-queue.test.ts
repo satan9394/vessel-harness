@@ -47,12 +47,22 @@ describe('engine/project-task-queue — default root / id / 状态机约定（ta
     expect(canTransitionTaskStatus('not_met', 'pending')).toBe(true);
     expect(canTransitionTaskStatus('pending', 'cancelled')).toBe(true);
     expect(canTransitionTaskStatus('in-progress', 'cancelled')).toBe(true);
+    // 066 pause/resume：仅运行中可挂起、挂起可恢复（原样继续，非 abort）
+    expect(canTransitionTaskStatus('in-progress', 'paused')).toBe(true);
+    expect(canTransitionTaskStatus('paused', 'in-progress')).toBe(true);
+    expect(canTransitionTaskStatus('paused', 'cancelled')).toBe(true);
     // 表外路径一律非法
     expect(canTransitionTaskStatus('pending', 'met')).toBe(false);
     expect(canTransitionTaskStatus('pending', 'not_met')).toBe(false);
+    expect(canTransitionTaskStatus('pending', 'paused')).toBe(false);
+    expect(canTransitionTaskStatus('paused', 'pending')).toBe(false);
+    expect(canTransitionTaskStatus('paused', 'met')).toBe(false);
+    expect(canTransitionTaskStatus('paused', 'not_met')).toBe(false);
     expect(canTransitionTaskStatus('met', 'pending')).toBe(false);
     expect(canTransitionTaskStatus('met', 'not_met')).toBe(false);
+    expect(canTransitionTaskStatus('met', 'paused')).toBe(false);
     expect(canTransitionTaskStatus('cancelled', 'pending')).toBe(false);
+    expect(canTransitionTaskStatus('cancelled', 'paused')).toBe(false);
     expect(canTransitionTaskStatus('in-progress', 'in-progress')).toBe(false);
   });
 
@@ -174,6 +184,38 @@ describe('engine/project-task-queue — ProjectTaskQueue 持久队列（task 063
     expect(s.claimNext()).toBeNull();
     // cancelled 是终态：claim 它 → 非法
     expect(() => s.claim(c.id)).toThrow(/cannot transition from "cancelled" to "in-progress"/);
+  });
+
+  it('pause/resume（066）：in-progress → paused → in-progress 原样恢复；持久可见、跨实例可读', () => {
+    const s = makeStore();
+    const t = s.enqueue({ projectRoot: ROOT_PROJECT, goal: '任务 P' });
+    // 未 claim 就 pause → fail loud（仅运行中可挂起）
+    expect(() => s.pause(t.id)).toThrow(/cannot transition from "pending" to "paused"/);
+    s.claim(t.id);
+    // claim 后 pause：in-progress → paused（持久中间态）
+    const paused = s.pause(t.id);
+    expect(paused.status).toBe('paused');
+    expect(s.get(t.id)?.status).toBe('paused');
+    // 重复 pause → fail loud（paused 不能再 pause；幂等由上层 RunControl 保证）
+    expect(() => s.pause(t.id)).toThrow(/cannot transition from "paused" to "paused"/);
+    // resume：paused → in-progress（原样继续，不丢半步）
+    const resumed = s.resume(t.id);
+    expect(resumed.status).toBe('in-progress');
+    expect(s.get(t.id)?.status).toBe('in-progress');
+    // paused 持久可见：新实例读回 paused 状态（跨实例可查）
+    const t2 = s.enqueue({ projectRoot: ROOT_PROJECT, goal: '任务 P2' });
+    s.claim(t2.id);
+    s.pause(t2.id);
+    const fresh = new ProjectTaskQueue({ tasksRoot: root });
+    expect(fresh.get(t2.id)?.status).toBe('paused');
+    // paused 任务不出队（claimNext 只挑 pending）—— 挂起不影响队列协调
+    expect(s.claimNext()).toBeNull();
+    // resume 后任务可 settle（in-progress → met）
+    s.resume(t2.id);
+    s.settle(t2.id, 'met');
+    expect(s.get(t2.id)?.status).toBe('met');
+    // 终态不可 resume
+    expect(() => s.resume(t2.id)).toThrow(/cannot transition from "met" to "in-progress"/);
   });
 
   it('持久化 round-trip：跨实例 get/list 读回状态机终态，meta.json 结构完整', () => {

@@ -1,4 +1,5 @@
 import type { EvaluatorVerdict } from '@vessel/agents';
+import type { RunControl } from './run-control.js';
 
 /**
  * V0.5 Loop Engine core (MISSION-V0.5 §三.1 / task 010).
@@ -147,6 +148,15 @@ export interface LoopEngineOptions {
   /** max generate→evaluate retries per iteration before it is admitted as not_met */
   maxRetries?: number;
   progress?: LoopProgress;
+  /**
+   * task 066 control seam — shared, mutable pause/resume + budget gate. When
+   * provided, the engine consults it at every iteration/attempt boundary for
+   * pause suspension and budget exhaustion, and reads maxIterations/maxRetries
+   * from it (default 1/1, §11.1). When omitted the engine falls back to the
+   * static maxIterations/maxRetries options (default 1/1) — 061/062 default
+   * autonomy is unchanged.
+   */
+  control?: RunControl;
 }
 
 export interface LoopRunReport {
@@ -192,6 +202,8 @@ export class LoopEngine {
   private readonly maxIterations: number;
   private readonly maxRetries: number;
   private readonly progress?: LoopProgress;
+  /** task 066 control seam (optional). When set, it is authoritative for budget + pause. */
+  private readonly control?: RunControl;
 
   constructor(deps: LoopEngineDeps, opts: LoopEngineOptions = {}) {
     guardDeps(deps);
@@ -199,8 +211,32 @@ export class LoopEngine {
     this.maxIterations = opts.maxIterations ?? 1;
     this.maxRetries = opts.maxRetries ?? 1;
     this.progress = opts.progress;
+    this.control = opts.control;
     if (this.maxIterations < 1) throw new Error('LoopEngine: maxIterations must be ≥ 1');
     if (this.maxRetries < 0) throw new Error('LoopEngine: maxRetries must be ≥ 0');
+    if (this.control) {
+      // guardDeps-level fail-loud: an injected control that violates budget bounds
+      // is a runner bug — surface it now, not mid-loop. Default stays 1/1.
+      const budget = this.control.getBudget();
+      if (budget.maxIterations < 1) throw new Error('LoopEngine: control maxIterations must be ≥ 1');
+      if (budget.maxRetries < 0) throw new Error('LoopEngine: control maxRetries must be ≥ 0');
+    }
+  }
+
+  /**
+   * Effective iteration cap at a given moment: the live control when injected,
+   * else the static option (default 1/1). Querying live allows the UI to raise
+   * the budget mid-run (Goal/Loop mode relax) without rebuilding the engine.
+   */
+  private iterationCap(): number {
+    return this.control ? this.control.getBudget().maxIterations : this.maxIterations;
+  }
+
+  /**
+   * Effective retry cap: live control when injected, else the static default 1/1.
+   */
+  private retryCap(): number {
+    return this.control ? this.control.getBudget().maxRetries : this.maxRetries;
   }
 
   private phase(phase: LoopPhase, ctx: { iteration: number; taskId?: string }): void {
@@ -220,7 +256,16 @@ export class LoopEngine {
    */
   async run(): Promise<LoopRunReport | null> {
     let lastReport: LoopRunReport | null = null;
-    for (let iteration = 1; iteration <= this.maxIterations; iteration += 1) {
+    for (let iteration = 1; ; iteration += 1) {
+      // task 066 control boundary: suspend at this hop if paused (await the
+      // resume gate — never abort); stop when the (live) iteration budget runs out.
+      if (this.control) {
+        const canRun = await this.control.awaitIterationBoundary(iteration);
+        if (!canRun) return lastReport; // maxIterations exhausted → stop, reason queryable
+      } else if (iteration > this.maxIterations) {
+        return lastReport; // default/static cap (1/1) — unchanged 061/062 semantics
+      }
+
       this.phase('selecting', { iteration });
       const task = await this.deps.selectTask();
       if (!task) {
@@ -236,7 +281,6 @@ export class LoopEngine {
           : false;
       if (!cont) return report;
     }
-    return lastReport;
   }
 
   /**
@@ -277,8 +321,13 @@ export class LoopEngine {
       return result;
     };
 
-    const attempts = this.maxRetries + 1;
+    const attempts = this.retryCap() + 1;
     for (let attempt = 1; attempt <= attempts; attempt += 1) {
+      // task 066 control boundary: suspend before this attempt if paused (await
+      // the resume gate — never abort; a paused/resumed attempt continues intact).
+      if (this.control) {
+        await this.control.awaitAttemptBoundary();
+      }
       const phaseLabel: LoopPhase = attempt === 1 ? 'generating' : 'retry';
       this.phase(phaseLabel, { iteration, taskId: task.id });
 
@@ -316,6 +365,11 @@ export class LoopEngine {
           // retries); this attempt's workspace is disposed by the finally below
           // before the next attempt creates a fresh one.
           continue;
+        }
+        // retry budget exhausted: the last attempt admits with its verdict — the
+        // stop reason is queryable (result.retryCount + control.exhausted).
+        if (this.control) {
+          this.control.noteRetryExhausted(iteration, attempt);
         }
         const result = await admit(verdict, attempt, false);
         this.phase('done', { iteration, taskId: task.id });

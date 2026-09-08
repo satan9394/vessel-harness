@@ -26,8 +26,15 @@ import type { LoopTask } from './LoopEngine.js';
  *       ▲                  │                        ▲
  *       │                  ├──settle(not_met)──────▶│──▶ not_met（终态；可 requeue 开新轮）
  *       │                  ├──cancel───────────────▶│──▶ cancelled（终态：软移除）
+ *       │                  ├──pause────────────────▶│──▶ paused（066：挂起可恢复）
+ *       │                  │      │                 │
+ *       │                  │      └─resume──────────┘（paused → in-progress）
  *       │                  └──requeue───────────────┘
  *       └──── requeue ◀────┘（not_met → pending）
+ *
+ * 066 pause/resume：`in-progress ⇄ paused`（仅运行中可挂起；paused 是持久可见的
+ * 中间态，非 abort，可原样恢复）。其余转移与原一致；pause/resume 与 050 interrupt
+ * （中止）语义区分 —— 队列状态机只有「挂起/恢复」两个方向，没有「已中断」终态。
  *
  * 并发安全：单进程同步 IO + 原子 tmp+rename（写坏/半写不可能落盘，崩溃后重读仍完整）；
  * claim 前重读 meta 校验仍为 pending，同进程多实例顺序调用不会重复领取同一个任务。
@@ -35,7 +42,7 @@ import type { LoopTask } from './LoopEngine.js';
  */
 
 /** 队列任务状态。 */
-export type TaskStatus = 'pending' | 'in-progress' | 'met' | 'not_met' | 'cancelled';
+export type TaskStatus = 'pending' | 'in-progress' | 'paused' | 'met' | 'not_met' | 'cancelled';
 
 /** evaluator 瞬时结论全集（058/062 语义：met/not_met/impossible/error）。 */
 export type TerminalVerdict = 'met' | 'not_met' | 'impossible' | 'error';
@@ -50,7 +57,8 @@ export type QueueSettleStatus = 'met' | 'not_met';
  */
 export const TASK_TRANSITIONS: Readonly<Record<TaskStatus, readonly TaskStatus[]>> = {
   pending: ['in-progress', 'cancelled'],
-  'in-progress': ['pending', 'met', 'not_met', 'cancelled'],
+  'in-progress': ['pending', 'paused', 'met', 'not_met', 'cancelled'],
+  paused: ['in-progress', 'cancelled'],
   met: [],
   not_met: ['pending'],
   cancelled: [],
@@ -284,6 +292,27 @@ export class ProjectTaskQueue {
   /** cancel（软移除，不删文件）：pending / in-progress → cancelled（终态，留审计记录）。 */
   cancel(id: string): QueueTask {
     const record = this.transition(id, 'cancelled');
+    this.writeMeta(record);
+    return record;
+  }
+
+  /**
+   * pause（066）：in-progress → paused —— 运行中任务挂起（持久可见中间态，非 abort，
+   * 可原样恢复）。与 050 interrupt（终止）区分：这里只改状态，不产生任何中止信号。
+   * 仅运行中可挂起；pending/终态 → fail loud（调用方 bug）。
+   */
+  pause(id: string): QueueTask {
+    const record = this.transition(id, 'paused');
+    this.writeMeta(record);
+    return record;
+  }
+
+  /**
+   * resume（066）：paused → in-progress —— 恢复之前挂起的运行（原样继续，不丢半步）。
+   * 仅 paused 可恢复；其余状态 → fail loud（调用方 bug）。
+   */
+  resume(id: string): QueueTask {
+    const record = this.transition(id, 'in-progress');
     this.writeMeta(record);
     return record;
   }
