@@ -1,6 +1,6 @@
 # 075 — Safety Benchmark Pack（安全判据包）
 
-- 状态：待验收
+- 状态：已合入
 - 优先级：P0（Wave 4 / Milestone F 收官）
 - 创建日期：2026-09-08
 - 关联：069-074（凭据/sandbox/process-tree/fs-confinement/telemetry——判据对象）；benchmarks 既有体系（scenarios yaml 判据唯一事实源）
@@ -133,5 +133,11 @@ npx vitest run benchmarks/runners/src/safety.test.ts   # 11 passed
 
 ### 验收结论（指挥回填）
 
-- [ ] 合入 / 打回
-- 备注：
+- [x] 合入（commit 04ea247）
+- 备注：指挥独立复核——全量 vitest 79 文件 730 测试全绿 + 1 skipped（零失败）、tsc -b 0 错误，与执行器自报一致。
+  认可：S001-S008 八判据对齐 benchmarks manifest 契约（scenarios yaml 唯一事实源）+ runner 4 断言原语
+  （denial_seen/guard_seen/content_absent/path_absent）证据消费 session audit/denial + tool DENIED+meta.guard +
+  M12 遥测（074 复用，不信 mock 自报）；6 项端到端实证，S003/S008 已接线待环境；删除铁律全程遵守。
+  **发现的真实缺口转后续**：根级 `.env` 未被 deny_read 拦截（glob `**/.env` 需至少一层目录）——076+ 修 glob
+  语义（`**/` 可匹配零层）。**Milestone F（V1.4 Security）全部完成（069-075）。**下一波 Wave 5 / Milestone G
+  （V1.5 Conformance，076-084）。
