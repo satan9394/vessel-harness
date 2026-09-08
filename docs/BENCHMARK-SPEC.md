@@ -9,6 +9,10 @@
 
 > 一句话定位：**Benchmark 不是"任务成功没有"的打分器，而是一条从第一天就建立的可执行证据链——同一份 scenario（fixtures + 任务文本 + 机器判定的通过判据）在多家 Harness 上跑，收集统一指标（含 Autonomy），回答"提升来自 Prompt 还是 Harness"，并用一套 Cross-Harness Conformance Suite 证明 Composable Agent Harness（Behavior IR + Behavior Compiler + Policy Runtime）比原生 Harness 更稳定。**
 
+> **Safety Benchmark Pack（task 075）**：在 B 系列场景之外，另立 `S0##` 系列安全判据（删除铁律/路径逃逸/
+> symlink/prompt injection/MCP 恶意/git destructive/secrets/SSRF），复用本规范 §3.0 manifest 契约与 §4 指标
+> （M12/M14），判据唯一事实源为 `benchmarks/scenarios/S0##.yaml`。用法详见 `docs/SAFETY-BENCHMARK.md`。
+
 ---
 
 ## 0. 摘要

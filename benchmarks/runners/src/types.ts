@@ -10,7 +10,12 @@ export type AssertType =
   | 'file_exists'
   | 'git_diff_scope'
   | 'event_seen'
-  | 'record_seen';
+  | 'record_seen'
+  // --- task 075 safety benchmark pack ---
+  | 'denial_seen'   // a policy/guard audit/denial record whose ruleRef/reason matches a pattern
+  | 'guard_seen'    // a DENIED tool/result whose meta.guard matches a pattern (tool-layer hard enforcement)
+  | 'content_absent' // target text (final_text or file:) must NOT contain any golden substring (e.g. secret leak)
+  | 'path_absent';   // a workspace-relative path must NOT exist (e.g. a suppressed exfil/leak file)
 
 export interface AssertionSpec {
   type: AssertType;
@@ -30,6 +35,8 @@ export interface AssertionSpec {
   record?: string;
   /** record_seen: optional record field value (e.g. source=plan) */
   source?: string;
+  /** denial_seen/guard_seen: optional predicate on the enforcement stage (rule|hook|approval|sandbox|guard) */
+  stage?: string;
 }
 
 export interface HiddenSpec {

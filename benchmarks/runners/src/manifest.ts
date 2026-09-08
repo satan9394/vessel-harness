@@ -8,7 +8,7 @@ const KNOWN_KEYS = new Set([
 ]);
 const PASS_KEYS = new Set([
   'type', 'target', 'golden', 'golden_expr', 'json_path', 'family', 'metric', 'limit',
-  'command', 'pattern', 'include', 'expected', 'paths', 'record', 'source',
+  'command', 'pattern', 'include', 'expected', 'paths', 'record', 'source', 'stage',
 ]);
 const HARNESS_KEYS = new Set(['subagent', 'mcp', 'planner', 'evaluator', 'taskRouter', 'engine']);
 
