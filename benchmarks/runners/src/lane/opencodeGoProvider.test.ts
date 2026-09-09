@@ -65,12 +65,14 @@ describe('V1.1-C — env key 读取与 resolver（密钥不落盘）', () => {
     expect(resolveOpencodeGoProvider(LANE_MODELS[0]!, { keyResolver: () => undefined })).toBeNull();
   });
 
-  it('env 有 key（注入固定值，非真实密钥）→ 构造真实 openai-compatible ChatProvider', () => {
+  it('env 有 key（注入固定值，非真实密钥）→ 构造真实 opencode-go ChatProvider', () => {
     const p = resolveOpencodeGoProvider(m('mimo-v2.5', 'flash'), {
       keyResolver: () => 'sk-test-not-a-real-key',
     });
     expect(p).not.toBeNull();
-    expect(p!.id).toBe('openai-compatible');
+    // task 102：线协议客户端换成 OpencodeGoProvider（能注入 x-opencode-session / 具名 UA）；
+    // 通用 openai-compatible 客户端无法加自定义头，会被 Go 端点判 400 MissingSessionID。
+    expect(p!.id).toBe('opencode-go');
     // baseUrl 落在 opencode-go 端点
     expect(opencodeGoEndpoint(() => 'k').baseUrl).toBe('https://opencode.ai/zen/go/v1');
   });

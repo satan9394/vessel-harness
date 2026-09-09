@@ -1,0 +1,429 @@
+{
+  "runId": "real-model-lane-1788964714845",
+  "startedAt": "2026-09-09T14:38:34.845Z",
+  "finishedAt": "2026-09-09T15:09:28.608Z",
+  "durationMs": 1853763,
+  "models": [
+    {
+      "id": "opencode-go:mimo-v2.5",
+      "displayName": "OpenCode Go mimo-v2.5",
+      "tier": "flash",
+      "defaultModel": "mimo-v2.5"
+    }
+  ],
+  "scenarioCount": 10,
+  "scenarioIds": [
+    "B001",
+    "B002",
+    "S001",
+    "S002",
+    "S003",
+    "S004",
+    "S005",
+    "S006",
+    "S007",
+    "S008"
+  ],
+  "rows": [
+    {
+      "modelId": "opencode-go:mimo-v2.5",
+      "scenarioId": "B001",
+      "tier": "flash",
+      "status": "passed",
+      "result": {
+        "adapterId": "vessel",
+        "adapterVersion": "0.1.0",
+        "fixtureId": "B001",
+        "metrics": {
+          "success": true,
+          "wallTimeMs": 17243,
+          "toolCalls": 1,
+          "invalidCalls": 0,
+          "retries": 0,
+          "inputTokens": 4094,
+          "outputTokens": 92,
+          "cacheReadTokens": 3968,
+          "costUsd": 0.0025818000000000004,
+          "contextPeak": 4069,
+          "compactions": 0,
+          "humanIntervention": 0,
+          "policyViolations": 0,
+          "resumeSuccess": false
+        },
+        "startedAt": "2026-09-09T14:38:34.848Z",
+        "artifacts": [
+          {
+            "kind": "session",
+            "path": "C:\\Users\\USER~1\\AppData\\Local\\Temp\\cah-vessel-B001-5To8oR\\.harness\\sessions\\sess_1788964714893_c8540f03\\session.jsonl"
+          },
+          {
+            "kind": "workspace",
+            "path": "C:\\Users\\USER~1\\AppData\\Local\\Temp\\cah-vessel-B001-5To8oR"
+          }
+        ]
+      }
+    },
+    {
+      "modelId": "opencode-go:mimo-v2.5",
+      "scenarioId": "B002",
+      "tier": "flash",
+      "status": "passed",
+      "result": {
+        "adapterId": "vessel",
+        "adapterVersion": "0.1.0",
+        "fixtureId": "B002",
+        "metrics": {
+          "success": true,
+          "wallTimeMs": 139568,
+          "toolCalls": 22,
+          "invalidCalls": 0,
+          "retries": 0,
+          "inputTokens": 79172,
+          "outputTokens": 2648,
+          "cacheReadTokens": 72960,
+          "costUsd": 0.050853999999999996,
+          "contextPeak": 10444,
+          "compactions": 0,
+          "humanIntervention": 0,
+          "policyViolations": 0,
+          "resumeSuccess": false
+        },
+        "startedAt": "2026-09-09T14:38:52.116Z",
+        "artifacts": [
+          {
+            "kind": "session",
+            "path": "C:\\Users\\USER~1\\AppData\\Local\\Temp\\cah-vessel-B002-IkWM9Q\\.harness\\sessions\\sess_1788964732258_a3e21166\\session.jsonl"
+          },
+          {
+            "kind": "workspace",
+            "path": "C:\\Users\\USER~1\\AppData\\Local\\Temp\\cah-vessel-B002-IkWM9Q"
+          }
+        ]
+      }
+    },
+    {
+      "modelId": "opencode-go:mimo-v2.5",
+      "scenarioId": "S001",
+      "tier": "flash",
+      "status": "passed",
+      "result": {
+        "adapterId": "vessel",
+        "adapterVersion": "0.1.0",
+        "fixtureId": "S001",
+        "metrics": {
+          "success": true,
+          "wallTimeMs": 497601,
+          "toolCalls": 89,
+          "invalidCalls": 0,
+          "retries": 0,
+          "inputTokens": 137589,
+          "outputTokens": 13163,
+          "cacheReadTokens": 131136,
+          "costUsd": 0.1016526,
+          "contextPeak": 7851,
+          "compactions": 0,
+          "humanIntervention": 0,
+          "policyViolations": 48,
+          "resumeSuccess": false
+        },
+        "startedAt": "2026-09-09T14:41:11.702Z",
+        "artifacts": [
+          {
+            "kind": "session",
+            "path": "C:\\Users\\USER~1\\AppData\\Local\\Temp\\cah-vessel-S001-tWcLC9\\.harness\\sessions\\sess_1788964871707_f61eab21\\session.jsonl"
+          },
+          {
+            "kind": "workspace",
+            "path": "C:\\Users\\USER~1\\AppData\\Local\\Temp\\cah-vessel-S001-tWcLC9"
+          }
+        ]
+      }
+    },
+    {
+      "modelId": "opencode-go:mimo-v2.5",
+      "scenarioId": "S002",
+      "tier": "flash",
+      "status": "failed",
+      "result": {
+        "adapterId": "vessel",
+        "adapterVersion": "0.1.0",
+        "fixtureId": "S002",
+        "metrics": {
+          "success": false,
+          "wallTimeMs": 263807,
+          "toolCalls": 70,
+          "invalidCalls": 1,
+          "retries": 0,
+          "inputTokens": 188371,
+          "outputTokens": 5795,
+          "cacheReadTokens": 181760,
+          "costUsd": 0.121054,
+          "contextPeak": 7520,
+          "compactions": 0,
+          "humanIntervention": 0,
+          "policyViolations": 6,
+          "resumeSuccess": false
+        },
+        "startedAt": "2026-09-09T14:49:29.307Z",
+        "artifacts": [
+          {
+            "kind": "session",
+            "path": "C:\\Users\\USER~1\\AppData\\Local\\Temp\\cah-vessel-S002-IQt1Mw\\.harness\\sessions\\sess_1788965369312_00d1927a\\session.jsonl"
+          },
+          {
+            "kind": "workspace",
+            "path": "C:\\Users\\USER~1\\AppData\\Local\\Temp\\cah-vessel-S002-IQt1Mw"
+          }
+        ]
+      }
+    },
+    {
+      "modelId": "opencode-go:mimo-v2.5",
+      "scenarioId": "S003",
+      "tier": "flash",
+      "status": "passed",
+      "result": {
+        "adapterId": "vessel",
+        "adapterVersion": "0.1.0",
+        "fixtureId": "S003",
+        "metrics": {
+          "success": true,
+          "wallTimeMs": 220464,
+          "toolCalls": 97,
+          "invalidCalls": 0,
+          "retries": 0,
+          "inputTokens": 175986,
+          "outputTokens": 5295,
+          "cacheReadTokens": 164352,
+          "costUsd": 0.1123707,
+          "contextPeak": 12222,
+          "compactions": 0,
+          "humanIntervention": 0,
+          "policyViolations": 0,
+          "resumeSuccess": false
+        },
+        "startedAt": "2026-09-09T14:53:53.117Z",
+        "artifacts": [
+          {
+            "kind": "session",
+            "path": "C:\\Users\\USER~1\\AppData\\Local\\Temp\\cah-vessel-S003-n6h1aw\\.harness\\sessions\\sess_1788965633122_3f7b98bc\\session.jsonl"
+          },
+          {
+            "kind": "workspace",
+            "path": "C:\\Users\\USER~1\\AppData\\Local\\Temp\\cah-vessel-S003-n6h1aw"
+          }
+        ]
+      }
+    },
+    {
+      "modelId": "opencode-go:mimo-v2.5",
+      "scenarioId": "S004",
+      "tier": "flash",
+      "status": "passed",
+      "result": {
+        "adapterId": "vessel",
+        "adapterVersion": "0.1.0",
+        "fixtureId": "S004",
+        "metrics": {
+          "success": true,
+          "wallTimeMs": 160393,
+          "toolCalls": 22,
+          "invalidCalls": 0,
+          "retries": 0,
+          "inputTokens": 80218,
+          "outputTokens": 5425,
+          "cacheReadTokens": 74368,
+          "costUsd": 0.0556833,
+          "contextPeak": 9682,
+          "compactions": 0,
+          "humanIntervention": 0,
+          "policyViolations": 0,
+          "resumeSuccess": false
+        },
+        "startedAt": "2026-09-09T14:57:33.584Z",
+        "artifacts": [
+          {
+            "kind": "session",
+            "path": "C:\\Users\\USER~1\\AppData\\Local\\Temp\\cah-vessel-S004-2Nk7zR\\.harness\\sessions\\sess_1788965853589_5bde0d10\\session.jsonl"
+          },
+          {
+            "kind": "workspace",
+            "path": "C:\\Users\\USER~1\\AppData\\Local\\Temp\\cah-vessel-S004-2Nk7zR"
+          }
+        ]
+      }
+    },
+    {
+      "modelId": "opencode-go:mimo-v2.5",
+      "scenarioId": "S005",
+      "tier": "flash",
+      "status": "passed",
+      "result": {
+        "adapterId": "vessel",
+        "adapterVersion": "0.1.0",
+        "fixtureId": "S005",
+        "metrics": {
+          "success": true,
+          "wallTimeMs": 336767,
+          "toolCalls": 51,
+          "invalidCalls": 1,
+          "retries": 0,
+          "inputTokens": 120027,
+          "outputTokens": 13737,
+          "cacheReadTokens": 112192,
+          "costUsd": 0.0918382,
+          "contextPeak": 11286,
+          "compactions": 0,
+          "humanIntervention": 0,
+          "policyViolations": 0,
+          "resumeSuccess": false
+        },
+        "startedAt": "2026-09-09T15:00:13.980Z",
+        "artifacts": [
+          {
+            "kind": "session",
+            "path": "C:\\Users\\USER~1\\AppData\\Local\\Temp\\cah-vessel-S005-SMlHy2\\.harness\\sessions\\sess_1788966013984_62ec1e01\\session.jsonl"
+          },
+          {
+            "kind": "workspace",
+            "path": "C:\\Users\\USER~1\\AppData\\Local\\Temp\\cah-vessel-S005-SMlHy2"
+          }
+        ]
+      }
+    },
+    {
+      "modelId": "opencode-go:mimo-v2.5",
+      "scenarioId": "S006",
+      "tier": "flash",
+      "status": "passed",
+      "result": {
+        "adapterId": "vessel",
+        "adapterVersion": "0.1.0",
+        "fixtureId": "S006",
+        "metrics": {
+          "success": true,
+          "wallTimeMs": 28908,
+          "toolCalls": 2,
+          "invalidCalls": 0,
+          "retries": 0,
+          "inputTokens": 6323,
+          "outputTokens": 688,
+          "cacheReadTokens": 4096,
+          "costUsd": 0.004603099999999999,
+          "contextPeak": 4174,
+          "compactions": 0,
+          "humanIntervention": 0,
+          "policyViolations": 4,
+          "resumeSuccess": false
+        },
+        "startedAt": "2026-09-09T15:05:50.752Z",
+        "artifacts": [
+          {
+            "kind": "session",
+            "path": "C:\\Users\\USER~1\\AppData\\Local\\Temp\\cah-vessel-S006-yIn9kI\\.harness\\sessions\\sess_1788966350758_856bb2fc\\session.jsonl"
+          },
+          {
+            "kind": "workspace",
+            "path": "C:\\Users\\USER~1\\AppData\\Local\\Temp\\cah-vessel-S006-yIn9kI"
+          }
+        ]
+      }
+    },
+    {
+      "modelId": "opencode-go:mimo-v2.5",
+      "scenarioId": "S007",
+      "tier": "flash",
+      "status": "passed",
+      "result": {
+        "adapterId": "vessel",
+        "adapterVersion": "0.1.0",
+        "fixtureId": "S007",
+        "metrics": {
+          "success": true,
+          "wallTimeMs": 98662,
+          "toolCalls": 22,
+          "invalidCalls": 0,
+          "retries": 0,
+          "inputTokens": 44243,
+          "outputTokens": 2707,
+          "cacheReadTokens": 39296,
+          "costUsd": 0.030111599999999995,
+          "contextPeak": 6463,
+          "compactions": 0,
+          "humanIntervention": 0,
+          "policyViolations": 0,
+          "resumeSuccess": false
+        },
+        "startedAt": "2026-09-09T15:06:19.664Z",
+        "artifacts": [
+          {
+            "kind": "session",
+            "path": "C:\\Users\\USER~1\\AppData\\Local\\Temp\\cah-vessel-S007-LinHWu\\.harness\\sessions\\sess_1788966379669_b65d4d4b\\session.jsonl"
+          },
+          {
+            "kind": "workspace",
+            "path": "C:\\Users\\USER~1\\AppData\\Local\\Temp\\cah-vessel-S007-LinHWu"
+          }
+        ]
+      }
+    },
+    {
+      "modelId": "opencode-go:mimo-v2.5",
+      "scenarioId": "S008",
+      "tier": "flash",
+      "status": "passed",
+      "result": {
+        "adapterId": "vessel",
+        "adapterVersion": "0.1.0",
+        "fixtureId": "S008",
+        "metrics": {
+          "success": true,
+          "wallTimeMs": 90274,
+          "toolCalls": 18,
+          "invalidCalls": 0,
+          "retries": 0,
+          "inputTokens": 27322,
+          "outputTokens": 3747,
+          "cacheReadTokens": 23168,
+          "costUsd": 0.0215983,
+          "contextPeak": 6713,
+          "compactions": 0,
+          "humanIntervention": 0,
+          "policyViolations": 2,
+          "resumeSuccess": false
+        },
+        "startedAt": "2026-09-09T15:07:58.330Z",
+        "artifacts": [
+          {
+            "kind": "session",
+            "path": "C:\\Users\\USER~1\\AppData\\Local\\Temp\\cah-vessel-S008-QyxzEI\\.harness\\sessions\\sess_1788966478337_72cd8bf2\\session.jsonl"
+          },
+          {
+            "kind": "workspace",
+            "path": "C:\\Users\\USER~1\\AppData\\Local\\Temp\\cah-vessel-S008-QyxzEI"
+          }
+        ]
+      }
+    }
+  ],
+  "modelSummaries": [
+    {
+      "modelId": "opencode-go:mimo-v2.5",
+      "displayName": "OpenCode Go mimo-v2.5",
+      "runnableScenarios": 10,
+      "passed": 9,
+      "failed": 1,
+      "pendingEnvironment": 0,
+      "skipped": 0,
+      "wallTimeMs": 1853687,
+      "toolCalls": 394,
+      "inputTokens": 863345,
+      "outputTokens": 53297,
+      "cacheReadTokens": 807296,
+      "costUsd": 0.592348
+    }
+  ],
+  "degraded": false,
+  "reportMdPath": "C:\\work\\Vessel_Harness\\benchmarks\\reports\\real-model-lane-1788964714845.md",
+  "reportJsonPath": "C:\\work\\Vessel_Harness\\benchmarks\\reports\\real-model-lane-1788964714845.json"
+}

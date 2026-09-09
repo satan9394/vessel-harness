@@ -1,13 +1,16 @@
 /**
  * task V1.1-E/F / 097 — Release Gates 实跑驱动（产出 V1.1 release-report）。
  *
- * 用法：`npx tsx benchmarks/runners/src/run-release-gates.ts`
+ * 用法：`npx tsx benchmarks/runners/src/run-release-gates.ts [--key-source=auto|env|store] [--models=<id,...>]`
  *
  * 流程：
  *   1. （V1.1-F / 097）凭据来源：仓库 CredentialStore（034/069 DPAPI 密文，用户经
  *      `vessel provider add` / setup 向导主动写入）→ 环境变量 `OPENCODE_API_KEY`；
  *      **不读取任何用户本机应用数据**。real-model-bench gate 用 credentialAware resolver
  *      （凭证库优先，env 回退）→ 有 key 时真实跑 082 lane。
+ *      task 102：`--key-source` 可显式指定来源（本机 store 里的 opencode-go key 与用户新提供的
+ *      key 可能不是同一把 → 默认优先级会静默选中失效 key 并返回 401 CreditsError）。
+ *      `--models=` 可把 gate 4 的模型档收敛到指定 id（最小配额）。
  *   2. buildReleaseGateExecutors() 装配 8 个 §21 / 084 gate executor。
  *   3. 按 V1.1-E 任务卡要求，把 deterministic-bench 的 L1 可跑集从 084 默认的 B001-B005
  *      扩展为「L1 B001-B027 可跑集」（B001-B005 + B016-B027，全部 offline 确定性），
@@ -38,11 +41,16 @@ import {
   type RunCommand,
 } from './release-gates/index.js';
 import {
-  credentialAwareOpencodeGoKey,
+  credentialStoreOpencodeGoKey,
+  envOpencodeGoKey,
+  OPCODE_GO_CRED_ACCOUNT,
+  OPCODE_GO_CRED_SERVICE,
+  OPENCODE_API_KEY_ENV,
   OPENCODE_GO_CREDENTIAL_SOURCES,
   opencodeGoProviderResolver,
   fetchOpencodeGoModels,
   defaultMimoLaneModels,
+  type LaneModel,
 } from './lane/index.js';
 import { runScenario } from './runner.js';
 
@@ -50,6 +58,12 @@ const execFileAsync = promisify(execFile);
 
 const REPO_ROOT = fileURLToPath(new URL('../../../', import.meta.url));
 const REPORTS_DIR = path.join(REPO_ROOT, 'benchmarks', 'reports');
+
+/** `--name=value` 取值（缺省 undefined）。 */
+function argValue(name: string): string | undefined {
+  const hit = process.argv.find((a) => a.startsWith(`--${name}=`));
+  return hit ? hit.slice(name.length + 3) : undefined;
+}
 
 /**
  * L1 确定性可跑集（V1.1-E 扩展）：084 默认 B001-B005 + B016-B027（V1.0 新能力 feature-lane +
@@ -128,14 +142,51 @@ async function main(): Promise<void> {
 
   // V1.1-F / 097 — 凭据来源：CredentialStore（DPAPI 密文）→ env OPENCODE_API_KEY。
   // 不读取任何用户本机应用数据（cc-switch 应用库路径已于 task 097 移除）。
+  // task 102：`--key-source` 显式选源（默认 auto 保持 097 优先级）。只打印来源名/长度，不出密钥。
   const store = createCredentialStore();
+  const storeKey = credentialStoreOpencodeGoKey(store)();
+  const envKey = envOpencodeGoKey();
+  const keySourceMode = argValue('key-source') ?? 'auto';
+  let key: string | undefined;
+  let keySourceLabel: string;
+  if (keySourceMode === 'env') {
+    key = envKey;
+    keySourceLabel = `env ${OPENCODE_API_KEY_ENV}`;
+  } else if (keySourceMode === 'store') {
+    key = storeKey;
+    keySourceLabel = `CredentialStore ${OPCODE_GO_CRED_SERVICE}/${OPCODE_GO_CRED_ACCOUNT}`;
+  } else if (typeof storeKey === 'string' && storeKey.length > 0) {
+    key = storeKey;
+    keySourceLabel = `CredentialStore ${OPCODE_GO_CRED_SERVICE}/${OPCODE_GO_CRED_ACCOUNT}`;
+  } else if (typeof envKey === 'string' && envKey.length > 0) {
+    key = envKey;
+    keySourceLabel = `env ${OPENCODE_API_KEY_ENV}`;
+  } else {
+    key = undefined;
+    keySourceLabel = 'none';
+  }
+  const keyResolver = (): string | undefined => key;
   // eslint-disable-next-line no-console
   console.log(`[097] opencode-go 凭据来源：${OPENCODE_GO_CREDENTIAL_SOURCES.join(' → ')}`);
-  const providerResolver = opencodeGoProviderResolver({ keyResolver: credentialAwareOpencodeGoKey({ store }) });
+  // eslint-disable-next-line no-console
+  console.log(
+    `[102] key-source=${keySourceMode} → ${keySourceLabel}（storeLen=${storeKey?.length ?? 0} envLen=${envKey?.length ?? 0}` +
+      `${storeKey && envKey ? ` same=${storeKey === envKey}` : ''}）`,
+  );
+  const providerResolver = opencodeGoProviderResolver({ keyResolver });
 
   // V1.1-F — real-model gate 用 MIMO V2.5 真实模型档（live 拉取为准；无 key 时回退内置参考清单）。
-  const { source } = await fetchOpencodeGoModels(credentialAwareOpencodeGoKey({ store }));
-  const laneModels = defaultMimoLaneModels(source.models);
+  const { source } = await fetchOpencodeGoModels(keyResolver);
+  const autoModels = defaultMimoLaneModels(source.models);
+  const explicitModels = argValue('models');
+  const laneModels: LaneModel[] = explicitModels
+    ? explicitModels.split(',').map((s) => s.trim()).filter((s) => s.length > 0).map((id) => ({
+        id: `opencode-go:${id}`,
+        displayName: `OpenCode Go ${id}`,
+        tier: 'flash' as const,
+        defaultModel: id,
+      }))
+    : autoModels;
   // eslint-disable-next-line no-console
   console.log(`[V1.1-F] real-model gate models: ${laneModels.map((m) => `${m.displayName}(${m.tier})`).join(', ') || '(none)'}（source=${source.origin}）`);
 
@@ -162,6 +213,12 @@ async function main(): Promise<void> {
   // deterministic-bench 已从 084 默认 B001-B005 扩到全 L1（含 V1.1-D B024-B027），补注范围。
   const bench = report.gates.find((g) => g.id === 'deterministic-bench');
   if (bench) bench.note = '扩至 L1 全离线可跑集（B001-B005 + B016-B027，含 V1.1-D streaming/interrupt/steering/resume）。';
+  // task 102：real-model-bench 的凭据来源/模型档写进 gate note（不含密钥）。
+  const realModel = report.gates.find((g) => g.id === 'real-model-bench');
+  if (realModel) {
+    const extra = `凭据来源=${keySourceLabel}；模型档=${laneModels.map((m) => m.defaultModel).join(',') || '(none)'}（task 102：Go 端点 x-opencode-session + 具名 UA + 路径分流）。`;
+    realModel.note = realModel.note ? `${realModel.note} ${extra}` : extra;
+  }
 
   const { mdPath, jsonPath } = writeReleaseReportFiles(report, REPORTS_DIR);
   // eslint-disable-next-line no-console

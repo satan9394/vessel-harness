@@ -326,13 +326,19 @@ export async function runRealModelLane(opts: {
         const result = await vesselAdapter.run(fixture);
         const issues = validateRunResult(result);
         const status: LaneRowStatus = issues.length === 0 && result.metrics.success ? 'passed' : 'failed';
+        // task 102：failed 行必须带可见原因（此前 success=false 的行 note 为空，gate 无法归类）。
+        const note = issues.length > 0
+          ? `invalid RunResult: ${issues.map((i) => i.field).join(', ')}`
+          : result.metrics.success
+            ? undefined
+            : `RunResult success=false：finalText 为空（toolCalls=${result.metrics.toolCalls}，多为模型未在步数/预算内收敛）`;
         rows.push({
           modelId: model.id,
           scenarioId: scenario.id,
           tier: scenario.tier,
           status,
           result,
-          note: issues.length > 0 ? `invalid RunResult: ${issues.map((i) => i.field).join(', ')}` : undefined,
+          note,
         });
       } catch (err) {
         rows.push({

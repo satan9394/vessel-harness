@@ -1,0 +1,15 @@
+{
+  "keyPresent": true,
+  "model": "mimo-v2.5",
+  "probe": {
+    "ok": true,
+    "model": "mimo-v2.5",
+    "content": "Pong! 🏓 \n\nHow can I help you today?",
+    "reasoningChars": 567,
+    "usage": {
+      "inputTokens": 248,
+      "outputTokens": 142,
+      "cacheReadTokens": 192
+    }
+  }
+}

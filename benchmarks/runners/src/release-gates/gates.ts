@@ -164,6 +164,16 @@ export function isBalanceBlockedLane(noteLines: string[]): boolean {
 }
 
 /**
+ * 失败原因内在「真实模型未在步数/预算内收敛」（task 102 实测）：
+ * 082 lane 的 `RunResult success=false`（finalText 为空，模型对同一场景反复工具调用直到
+ * `MAX_STEPS_PER_TURN` 预算耗尽）——**非协议/凭据/实现回归**，且**跨次运行不稳定**
+ * （同一场景两次实跑一次 passed 一次 failed，见 102 两份 lane 报告）。
+ */
+export function isModelNonConvergentLane(noteLines: string[]): boolean {
+  return noteLines.some((n) => /success=false/i.test(n) && /finalText\s*为空/.test(n));
+}
+
+/**
  * 判断真实模型 lane 是否因「账户余额不足」整体阻塞（V1.1-F 实测现象）：
  * 有 failed 行，但其失败原因均为模型聊天的 billing 阻塞 → 环境性 pending（不伪造 pass，
  * 也不误判为模型回归 fail）。
@@ -196,6 +206,42 @@ export function judgeRealModelLaneWithBilling(args: {
     };
   }
   return base;
+}
+
+/**
+ * 判断真实模型 lane 是否因「模型未在步数/预算内收敛」而失败（task 102）：
+ * 真实 lane 已跑通（凭据/协议/连接面全通，多数行 passed），但个别场景模型反复工具调用直到
+ * 64 步预算耗尽、拿不到最终答复 → 显式 **pending**（需复跑/换模型档再判），
+ * 不伪造 pass，也不当作 harness 回归 fail。与 billing 分类并列、互不覆盖。
+ */
+export function judgeRealModelLaneWithNonConvergence(args: {
+  rowCount: number;
+  passed: number;
+  failed: number;
+  pendingEnv: number;
+  degraded: boolean;
+  failedNotes: string[];
+}): GateVerdict {
+  const base = judgeRealModelLaneWithBilling(args);
+  if (base.status !== 'fail') return base;
+  if (!isModelNonConvergentLane(args.failedNotes)) return base;
+  return {
+    status: 'pending',
+    pending: true,
+    evidence: {
+      summary: `真实模型 lane 已跑通（${args.passed}/${args.rowCount} 行 passed，${args.failed} 行模型未在步数预算内收敛）——非协议/凭据/实现回归`,
+      detail: [
+        `rows=${args.rowCount}`,
+        `passed=${args.passed}`,
+        `failed=${args.failed}`,
+        'cause=model non-convergence (MAX_STEPS_PER_TURN budget exhausted, empty finalText)',
+      ],
+    },
+    note:
+      'real model gate: 真实 lane 真实执行（x-opencode-session 协议头 + 具名 UA + 凭据来源选对），' +
+      '失败行为模型对同一场景反复工具调用直到 64 步预算耗尽（跨次运行不稳定：同一场景两次实跑一 passed 一 failed）' +
+      '→ 如实 pending（复跑/换模型档后再判），不伪造 pass、不误判为 harness 回归。',
+  };
 }
 
 /** Judge a set of offline scenario runs (deterministic-bench + safety gates). */
@@ -412,7 +458,7 @@ export function buildReleaseGateExecutors(opts: BuildGateExecutorsOptions = {}):
           if (r.note) failedNotes.push(r.note);
           else if (r.result?.notes) failedNotes.push(...r.result.notes);
         }
-        return judgeRealModelLaneWithBilling({
+        return judgeRealModelLaneWithNonConvergence({
           rowCount: lane.rows.length,
           passed: lane.rows.filter((r) => r.status === 'passed').length,
           failed: failedRows.length,

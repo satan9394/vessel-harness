@@ -3,4 +3,5 @@
  */
 export * from './real-model-lane.js';
 export * from './opencodeGoCredential.js';
+export * from './opencodeGoChatProvider.js';
 export * from './opencodeGoProvider.js';

@@ -187,7 +187,8 @@ describe('097 — 凭据来源 ↔ 082 lane 集成（有 key 实跑 / 无 key �
       keyResolver: credentialAwareOpencodeGoKey({ store: { getSync: () => 'sk-t' }, env: {} }),
     });
     expect(p).not.toBeNull();
-    expect(p!.id).toBe('openai-compatible');
+    // task 102：Go 端点线协议客户端（可注入 x-opencode-session / 具名 UA）
+    expect(p!.id).toBe('opencode-go');
   });
 
   it('注入 mock provider → lane 可跑并采集 §15 L3（passed）', async () => {

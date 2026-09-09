@@ -66,12 +66,20 @@ writeReleaseReportFiles(report, 'benchmarks/reports');
 | 3 | deterministic-bench | 离线 L1 可跑集 B001–B005 全通过（076 runner） | offline 确定性 |
 | 4 | real-model-bench | 082 lane 收集 §15 L3；无凭据/无 provider → **pending** | 需凭据；否则 pending |
 
-> gate 4（real-model-bench）默认 resolver 接 **opencode-go**（V1.1-C/F）：key 经
+> gate 4（real-model-bench）默认 resolver 接 **opencode-go**（V1.1-C/F，协议修正见 task 102）：key 经
 > **凭据来源**（task 097 收敛为两条：仓库 CredentialStore 034/069 Windows DPAPI + `secretRef`
 > `credential:vessel/opencode-go`，用户经 `vessel provider add` / setup 向导主动写入；回退
-> 环境变量 `OPENCODE_API_KEY`）读取，`credentialAwareOpencodeGoKey` 先凭证库、再回退 env，
-> **key 绝不落盘**、**不读取任何用户本机应用数据**；有 key 时以确认的 MIMO 模型跑 082 lane；
-> 无 key / 余额不足 → probe→pending，继承 082 诚实降级语义（"不以自证为证"）。
+> 环境变量 `OPENCODE_API_KEY`）读取，**key 绝不落盘**、**不读取任何用户本机应用数据**；
+> 有 key 时以确认的 MIMO 模型跑 082 lane；无 key → probe→pending，继承 082 诚实降级语义
+> （"不以自证为证"）。
+>
+> task 102 追加三点：① **协议**：Go 端点强制 `x-opencode-session`（缺失 400 `MissingSessionID`），
+> lane 客户端补齐稳定会话 UUID + 具名 User-Agent + 按模型分流路径（见 `docs/REAL-MODEL-LANE.md`）；
+> ② **凭据来源要显式**：本机 CredentialStore 里存的 opencode-go key 可能与你要用的 key 不是同一把
+> （097 的 store 优先会静默选中）→ 驱动脚本加 `--key-source=auto|env|store`；③ **判据**：新增
+> `judgeRealModelLaneWithNonConvergence` / `isModelNonConvergentLane`——真实 lane 跑通但个别行
+> 「模型反复工具调用直到 64 步预算耗尽、finalText 为空」（跨次运行不稳定）→ 显式 **pending** 并注明
+> 原因（与 billing 分类并列，不伪造 pass、不误判为 harness 回归）。
 | 5 | safety | 075 pack（S001–S008）离线 enforcement 证据齐 | offline 确定性 |
 | 6 | resume | 063/064 soak 子集不变量：暂停/续跑、workspace 零残留、从 handoff 续跑留痕 | 确定性 |
 | 7 | ux-smoke | web 构建产物存在；否则 **pending**（环境标注） | 需先 build web |

@@ -100,10 +100,63 @@ V1.1-C 把「内置 preset + OPENCODE_API_KEY 环境变量 + MIMO 目标模型�
   与 **`mimo-v2.5-pro`**（另有 mimo-v2-pro / mimo-v2-omni）。`selectMimoModel()` 在 live 清单里做
   确定性选择（精确 `mimo-v2.5` → V2.5 系回退 → 任一 MIMO → null）；`defaultMimoLaneModels()` 映射为
   pro/flash 两档 LaneModel。
-- **最小连通**：`probeOpencodeGoOnce()` 用构造的 provider 发一次最小 chat（仅 `ping`，maxTokens=4），
+- **最小连通**：`probeOpencodeGoOnce()` 用构造的 provider 发一次最小 chat（仅 `ping`，maxTokens=256），
   返回鉴权/响应/usage 快照；无 key 或网络受限 → 记录 pending，不反复重试真实调用。
 - **实跑接线**：真实跑时 `providerResolver` 用 `opencodeGoProviderResolver()`；无 key → pending。
   有 key + 拉到 MIMO V2.5 后用其做 defaultModel 跑授权场景子集，报告写 `benchmarks/reports/`。
+
+## opencode-go 协议修正与真实跑通（task 102）
+
+实测报告 `docs/OPENCODE-KEY-VERIFY.md`（提交 8e15e66）证明：Go 端点鉴权通过后，**聊天请求缺
+`x-opencode-session` 会返回 400 `MissingSessionID`**（不是 401——鉴权已过，失败在路由阶段）；
+补一个稳定 UUID 后同一请求 200。task 102 据此把线协议客户端从通用 `createProvider('openai-compatible')`
+换成专用 `benchmarks/runners/src/lane/opencodeGoChatProvider.ts`（通用客户端无法注入自定义头）：
+
+- **会话头**：`OpencodeGoProvider` 构造时生成一个 UUID 作为 `x-opencode-session`，同一会话的**所有请求
+  与退避重试复用同一个 id**；`opencodeGoProviderResolver()` 为一次 lane 会话生成一个 id，跨模型共用。
+- **具名 User-Agent**：`vessel-harness/1.1.0 (opencode-go; …)`（官方要求，不用通用 SDK/HTTP 库名）。
+- **错误分类**（`classifyOpencodeGoError`）：400 `MissingSessionID` → `missing-session`；
+  401 `CreditsError`/`Insufficient balance` → `credits`；429/免费档限流 → `rate-limit`；
+  其余 401/403 → `auth`；404 → `not-found`；5xx → `server`；网络/超时 → `network`/`timeout`。
+  仅 `rate-limit|server|timeout|network` 做有限退避重试（默认 2 次），其余立即上抛，**不重试轰炸**。
+  错误文案先剥 URL 再截断，不带凭据/内部标识。
+- **路径分流**（`resolveOpencodeGoRoute`，按官方 Endpoints 表）：
+  | 路径 | 线协议 | 模型家族 | 本卡实现度 |
+  | --- | --- | --- | --- |
+  | `/chat/completions` | `openai-chat` | GLM / Kimi / LongCat / DeepSeek / **MiMo** / Hy / Omen | **implemented** |
+  | `/messages` | `anthropic-messages` | MiniMax / Qwen | declared-only（调用即抛 `unsupported-route`） |
+  | `/responses` | `openai-responses` | Grok / GPT-5.6-Luna / Muse Spark | declared-only（同上） |
+
+  未命中家族的模型回落到 `/chat/completions`（记录 `family='default'`）。
+- **推理模型预算**：`mimo-v2.5` 是推理模型（`content` 可为 null 而 `reasoning` 有值），
+  默认 `max_tokens=8192`（`OPENCODE_GO_DEFAULT_MAX_TOKENS`），并保留 `reasoning` / `reasoning_tokens`
+  到 `raw`，便于诊断「思维链吃光预算」。
+- **凭据来源选择**：`run-opencode-lane.ts --key-source=auto|env|store`。**踩坑**：本机仓库
+  CredentialStore 里已存的 `credential:vessel/opencode-go` 与用户新提供的 key **不是同一把**
+  （长度相同、`same=false`），按 097 的「store 优先」优先级会被静默选中并返回
+  401 `CreditsError`——真实跑必须显式 `--key-source=env`（或让用户用 `vessel provider add` 更新 store）。
+  driver 只打印来源名/长度/是否一致，**不打印任何密钥片段**。
+
+## 真实跑观测（task 102，mimo-v2.5）
+
+用用户提供的 key（指纹 `sk-8Dl…Cp4n1`，`--key-source=env`）在 Go 端点跑 082 lane：
+
+| 运行 | 场景集 | 结果 | 备注 |
+| --- | --- | --- | --- |
+| `real-model-lane-1788964644907` | B001 | 1/1 passed | 单场景最小验证（toolCalls 1，in 4094/out 127） |
+| `real-model-lane-1788964714845` | B001、B002、S001-S008 | 9 passed / 1 failed | 失败行 = S002（模型 70 次工具调用后 64 步预算耗尽） |
+| `real-model-lane-1788966911284`（084 gate 4） | 同上 + 4 个 feature-lane（skipped） | 8 passed / 2 failed / 4 skipped | 失败行 = **B002、S005**（65/100 次工具调用后预算耗尽），而 **S002 这次 passed** |
+
+**结论（重要）**：`mimo-v2.5` 在这类多步任务上**收敛不稳定**——同一场景跨次运行可能 passed 也可能
+failed（S002 先 failed 后 passed；B002/S005 先 passed 后 failed）。失败模式统一为
+`RunResult success=false`（finalText 为空，工具调用一直持续到 `MAX_STEPS_PER_TURN=64`）。
+这**不是**协议/凭据/连接问题（同批其它场景均 passed，且 `x-opencode-session` + 具名 UA 的 probe 稳定 200），
+而是模型在长工具链上的行为特征。因此：
+
+- lane 对 `success=false` 的行**必须写清原因**（task 102 已补：`RunResult success=false：finalText 为空
+  （toolCalls=N，多为模型未在步数/预算内收敛）`），否则 gate 无从归类。
+- 084 gate 4 用 `judgeRealModelLaneWithNonConvergence` 把该模式判为 **pending**（复跑/换模型档再判），
+  与 billing 分类并列——不伪造 pass，也不当作 harness 回归 fail。
 
 ## 凭据来源（env / CredentialStore，task 097 纠偏）
 

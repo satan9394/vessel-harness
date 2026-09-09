@@ -9,6 +9,8 @@ import {
   judgeUnit,
   judgeRealModelLane,
   judgeRealModelLaneWithBilling,
+  judgeRealModelLaneWithNonConvergence,
+  isModelNonConvergentLane,
   judgeScenarioRuns,
   judgeSoakResume,
   judgePackagingProbe,
@@ -81,6 +83,32 @@ describe('gate criteria judges (tasks 084) — pure, no commands', () => {
     expect(reg.status).toBe('fail');
     // 空参退化到原 judge
     expect(judgeRealModelLaneWithBilling({ rowCount: 8, passed: 8, failed: 0, pendingEnv: 0, degraded: false, failedNotes: [] }).status).toBe('pass');
+  });
+
+  it('judgeRealModelLaneWithNonConvergence : 模型未收敛 → pending；其它失败仍 fail（task 102）', () => {
+    const nonConvergent =
+      'RunResult success=false：finalText 为空（toolCalls=65，多为模型未在步数/预算内收敛）';
+    const v = judgeRealModelLaneWithNonConvergence({
+      rowCount: 14, passed: 8, failed: 2, pendingEnv: 0, degraded: false,
+      failedNotes: [nonConvergent, nonConvergent],
+    });
+    expect(v.status).toBe('pending');
+    expect(v.pending).toBe(true);
+    expect(v.note).toContain('步预算');
+    expect(v.evidence.detail).toContain('passed=8');
+    // 非「未收敛」的失败仍按原语义 fail（不掩盖真实回归）
+    expect(
+      judgeRealModelLaneWithNonConvergence({
+        rowCount: 8, passed: 7, failed: 1, pendingEnv: 0, degraded: false,
+        failedNotes: ['model returned malformed JSON'],
+      }).status,
+    ).toBe('fail');
+    // 无失败 → pass 原样透传
+    expect(
+      judgeRealModelLaneWithNonConvergence({ rowCount: 8, passed: 8, failed: 0, pendingEnv: 0, degraded: false, failedNotes: [] }).status,
+    ).toBe('pass');
+    expect(isModelNonConvergentLane([nonConvergent])).toBe(true);
+    expect(isModelNonConvergentLane(['fixture not found: B009'])).toBe(false);
   });
 
   it('judgeScenarioRuns : all pass → pass; any fail → fail', () => {

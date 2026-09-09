@@ -1,9 +1,51 @@
 {
+  "label": "102-real-flash",
   "keyPresent": true,
-  "keySource": "CredentialStore (DPAPI encrypted, from CC Switch)",
+  "keySource": "env OPENCODE_API_KEY",
+  "keySourceMode": "env",
+  "keySourceAllowed": "CredentialStore (034/069 DPAPI, secretRef credential:vessel/opencode-go) / env OPENCODE_API_KEY",
   "modelSource": "live",
   "modelNote": "live from https://opencode.ai/zen/go/v1/models",
-  "ccSwitchBaseUrl": "https://opencode.ai/zen/go/v1",
-  "ccSwitchRowId": "hs",
-  "runId": "real-model-lane-1788923240648"
+  "runId": "real-model-lane-1788964714845",
+  "models": [
+    {
+      "id": "opencode-go:mimo-v2.5",
+      "tier": "flash",
+      "route": "/chat/completions"
+    }
+  ],
+  "scenarios": [
+    "B001",
+    "B002",
+    "S001",
+    "S002",
+    "S003",
+    "S004",
+    "S005",
+    "S006",
+    "S007",
+    "S008"
+  ],
+  "probe": {
+    "ok": true,
+    "model": "mimo-v2.5",
+    "content": "pong! 🏓 \n\nHello there! I'm MiMo, ready to help. What can I do for you today?",
+    "reasoningChars": 751,
+    "usage": {
+      "inputTokens": 248,
+      "outputTokens": 187,
+      "cacheReadTokens": 192
+    }
+  },
+  "summary": [
+    {
+      "modelId": "opencode-go:mimo-v2.5",
+      "passed": 9,
+      "failed": 1,
+      "pendingEnvironment": 0,
+      "skipped": 0,
+      "inputTokens": 863345,
+      "outputTokens": 53297
+    }
+  ]
 }

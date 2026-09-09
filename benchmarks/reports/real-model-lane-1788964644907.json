@@ -1,0 +1,78 @@
+{
+  "runId": "real-model-lane-1788964644907",
+  "startedAt": "2026-09-09T14:37:24.907Z",
+  "finishedAt": "2026-09-09T14:37:42.779Z",
+  "durationMs": 17872,
+  "models": [
+    {
+      "id": "opencode-go:mimo-v2.5",
+      "displayName": "OpenCode Go mimo-v2.5",
+      "tier": "flash",
+      "defaultModel": "mimo-v2.5"
+    }
+  ],
+  "scenarioCount": 1,
+  "scenarioIds": [
+    "B001"
+  ],
+  "rows": [
+    {
+      "modelId": "opencode-go:mimo-v2.5",
+      "scenarioId": "B001",
+      "tier": "flash",
+      "status": "passed",
+      "result": {
+        "adapterId": "vessel",
+        "adapterVersion": "0.1.0",
+        "fixtureId": "B001",
+        "metrics": {
+          "success": true,
+          "wallTimeMs": 17860,
+          "toolCalls": 1,
+          "invalidCalls": 0,
+          "retries": 0,
+          "inputTokens": 4094,
+          "outputTokens": 127,
+          "cacheReadTokens": 1984,
+          "costUsd": 0.0024359000000000004,
+          "contextPeak": 4069,
+          "compactions": 0,
+          "humanIntervention": 0,
+          "policyViolations": 0,
+          "resumeSuccess": false
+        },
+        "startedAt": "2026-09-09T14:37:24.911Z",
+        "artifacts": [
+          {
+            "kind": "session",
+            "path": "C:\\Users\\USER~1\\AppData\\Local\\Temp\\cah-vessel-B001-aJpVPb\\.harness\\sessions\\sess_1788964644939_8da06112\\session.jsonl"
+          },
+          {
+            "kind": "workspace",
+            "path": "C:\\Users\\USER~1\\AppData\\Local\\Temp\\cah-vessel-B001-aJpVPb"
+          }
+        ]
+      }
+    }
+  ],
+  "modelSummaries": [
+    {
+      "modelId": "opencode-go:mimo-v2.5",
+      "displayName": "OpenCode Go mimo-v2.5",
+      "runnableScenarios": 1,
+      "passed": 1,
+      "failed": 0,
+      "pendingEnvironment": 0,
+      "skipped": 0,
+      "wallTimeMs": 17860,
+      "toolCalls": 1,
+      "inputTokens": 4094,
+      "outputTokens": 127,
+      "cacheReadTokens": 1984,
+      "costUsd": 0.002436
+    }
+  ],
+  "degraded": false,
+  "reportMdPath": "C:\\work\\Vessel_Harness\\benchmarks\\reports\\real-model-lane-1788964644907.md",
+  "reportJsonPath": "C:\\work\\Vessel_Harness\\benchmarks\\reports\\real-model-lane-1788964644907.json"
+}
