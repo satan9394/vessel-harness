@@ -1,0 +1,260 @@
+{
+  "runId": "real-model-lane-1788915135375",
+  "startedAt": "2026-09-09T00:52:15.375Z",
+  "finishedAt": "2026-09-09T00:52:15.380Z",
+  "durationMs": 5,
+  "models": [
+    {
+      "id": "opencode-go:mimo-v2.5-pro",
+      "displayName": "OpenCode Go mimo-v2.5-pro",
+      "tier": "pro",
+      "defaultModel": "mimo-v2.5-pro"
+    },
+    {
+      "id": "opencode-go:mimo-v2.5",
+      "displayName": "OpenCode Go mimo-v2.5",
+      "tier": "flash",
+      "defaultModel": "mimo-v2.5"
+    }
+  ],
+  "scenarioCount": 25,
+  "scenarioIds": [
+    "B001",
+    "B002",
+    "B003",
+    "B004",
+    "B005",
+    "S001",
+    "S002",
+    "S003",
+    "S004",
+    "S005",
+    "S006",
+    "S007",
+    "S008",
+    "B016",
+    "B017",
+    "B018",
+    "B019",
+    "B020",
+    "B021",
+    "B022",
+    "B023",
+    "B024",
+    "B025",
+    "B026",
+    "B027"
+  ],
+  "rows": [
+    {
+      "modelId": "opencode-go:mimo-v2.5-pro",
+      "scenarioId": "B003",
+      "tier": "pro",
+      "status": "pending-environment",
+      "note": "no resolvable provider (probe failed / no credentials)"
+    },
+    {
+      "modelId": "opencode-go:mimo-v2.5-pro",
+      "scenarioId": "B004",
+      "tier": "pro",
+      "status": "pending-environment",
+      "note": "no resolvable provider (probe failed / no credentials)"
+    },
+    {
+      "modelId": "opencode-go:mimo-v2.5-pro",
+      "scenarioId": "B005",
+      "tier": "pro",
+      "status": "pending-environment",
+      "note": "no resolvable provider (probe failed / no credentials)"
+    },
+    {
+      "modelId": "opencode-go:mimo-v2.5-pro",
+      "scenarioId": "B016",
+      "tier": "pro",
+      "status": "skipped",
+      "note": "subagent driver (offline deterministic)"
+    },
+    {
+      "modelId": "opencode-go:mimo-v2.5-pro",
+      "scenarioId": "B017",
+      "tier": "pro",
+      "status": "skipped",
+      "note": "planner driver (offline deterministic)"
+    },
+    {
+      "modelId": "opencode-go:mimo-v2.5-pro",
+      "scenarioId": "B018",
+      "tier": "pro",
+      "status": "skipped",
+      "note": "evaluator driver (offline deterministic)"
+    },
+    {
+      "modelId": "opencode-go:mimo-v2.5-pro",
+      "scenarioId": "B022",
+      "tier": "pro",
+      "status": "skipped",
+      "note": "taskRouter driver (offline deterministic)"
+    },
+    {
+      "modelId": "opencode-go:mimo-v2.5-pro",
+      "scenarioId": "B023",
+      "tier": "pro",
+      "status": "skipped",
+      "note": "loop-engine driver (offline deterministic)"
+    },
+    {
+      "modelId": "opencode-go:mimo-v2.5-pro",
+      "scenarioId": "B024",
+      "tier": "pro",
+      "status": "skipped",
+      "note": "streaming driver (interleaved text/tool, offline deterministic)"
+    },
+    {
+      "modelId": "opencode-go:mimo-v2.5-pro",
+      "scenarioId": "B025",
+      "tier": "pro",
+      "status": "skipped",
+      "note": "interrupt driver (kind=interrupted, offline deterministic)"
+    },
+    {
+      "modelId": "opencode-go:mimo-v2.5-pro",
+      "scenarioId": "B027",
+      "tier": "pro",
+      "status": "skipped",
+      "note": "resume driver (handoff source=handoff continuation, offline deterministic)"
+    },
+    {
+      "modelId": "opencode-go:mimo-v2.5",
+      "scenarioId": "B001",
+      "tier": "flash",
+      "status": "pending-environment",
+      "note": "no resolvable provider (probe failed / no credentials)"
+    },
+    {
+      "modelId": "opencode-go:mimo-v2.5",
+      "scenarioId": "B002",
+      "tier": "flash",
+      "status": "pending-environment",
+      "note": "no resolvable provider (probe failed / no credentials)"
+    },
+    {
+      "modelId": "opencode-go:mimo-v2.5",
+      "scenarioId": "S001",
+      "tier": "flash",
+      "status": "pending-environment",
+      "note": "no resolvable provider (probe failed / no credentials)"
+    },
+    {
+      "modelId": "opencode-go:mimo-v2.5",
+      "scenarioId": "S002",
+      "tier": "flash",
+      "status": "pending-environment",
+      "note": "no resolvable provider (probe failed / no credentials)"
+    },
+    {
+      "modelId": "opencode-go:mimo-v2.5",
+      "scenarioId": "S003",
+      "tier": "flash",
+      "status": "pending-environment",
+      "note": "no resolvable provider (probe failed / no credentials)"
+    },
+    {
+      "modelId": "opencode-go:mimo-v2.5",
+      "scenarioId": "S004",
+      "tier": "flash",
+      "status": "pending-environment",
+      "note": "no resolvable provider (probe failed / no credentials)"
+    },
+    {
+      "modelId": "opencode-go:mimo-v2.5",
+      "scenarioId": "S005",
+      "tier": "flash",
+      "status": "pending-environment",
+      "note": "no resolvable provider (probe failed / no credentials)"
+    },
+    {
+      "modelId": "opencode-go:mimo-v2.5",
+      "scenarioId": "S006",
+      "tier": "flash",
+      "status": "pending-environment",
+      "note": "no resolvable provider (probe failed / no credentials)"
+    },
+    {
+      "modelId": "opencode-go:mimo-v2.5",
+      "scenarioId": "S007",
+      "tier": "flash",
+      "status": "pending-environment",
+      "note": "no resolvable provider (probe failed / no credentials)"
+    },
+    {
+      "modelId": "opencode-go:mimo-v2.5",
+      "scenarioId": "S008",
+      "tier": "flash",
+      "status": "pending-environment",
+      "note": "no resolvable provider (probe failed / no credentials)"
+    },
+    {
+      "modelId": "opencode-go:mimo-v2.5",
+      "scenarioId": "B019",
+      "tier": "flash",
+      "status": "skipped",
+      "note": "MCP driver (offline deterministic)"
+    },
+    {
+      "modelId": "opencode-go:mimo-v2.5",
+      "scenarioId": "B020",
+      "tier": "flash",
+      "status": "skipped",
+      "note": "memory driver (offline deterministic)"
+    },
+    {
+      "modelId": "opencode-go:mimo-v2.5",
+      "scenarioId": "B021",
+      "tier": "flash",
+      "status": "skipped",
+      "note": "skill driver (offline deterministic)"
+    },
+    {
+      "modelId": "opencode-go:mimo-v2.5",
+      "scenarioId": "B026",
+      "tier": "flash",
+      "status": "skipped",
+      "note": "steering driver (source=steer redirect, offline deterministic)"
+    }
+  ],
+  "modelSummaries": [
+    {
+      "modelId": "opencode-go:mimo-v2.5-pro",
+      "displayName": "OpenCode Go mimo-v2.5-pro",
+      "runnableScenarios": 11,
+      "passed": 0,
+      "failed": 0,
+      "pendingEnvironment": 3,
+      "skipped": 8,
+      "wallTimeMs": 0,
+      "toolCalls": 0,
+      "inputTokens": 0,
+      "outputTokens": 0,
+      "cacheReadTokens": 0,
+      "costUsd": 0
+    },
+    {
+      "modelId": "opencode-go:mimo-v2.5",
+      "displayName": "OpenCode Go mimo-v2.5",
+      "runnableScenarios": 14,
+      "passed": 0,
+      "failed": 0,
+      "pendingEnvironment": 10,
+      "skipped": 4,
+      "wallTimeMs": 0,
+      "toolCalls": 0,
+      "inputTokens": 0,
+      "outputTokens": 0,
+      "cacheReadTokens": 0,
+      "costUsd": 0
+    }
+  ],
+  "degraded": true,
+  "reportMdPath": "C:\\work\\Vessel_Harness\\benchmarks\\reports\\real-model-lane-1788915135375.md",
+  "reportJsonPath": "C:\\work\\Vessel_Harness\\benchmarks\\reports\\real-model-lane-1788915135375.json"
+}

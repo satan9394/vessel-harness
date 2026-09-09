@@ -82,6 +82,43 @@ console.log(report.modelSummaries);   // 每模型汇总（passed/failed/pending
 - assert 级判定（offline lane 的 `runScenario` 职责）**不**在真实 lane 重复评估；本 lane 采集 §15 L3
   指标 + 单轮成功信号。feature-lane 驱动（subagent/planner/…）保持在 offline 确定性车道。
 
+## opencode-go 真实 provider 接入（V1.1-C）
+
+V1.1-C 把「内置 preset + OPENCODE_API_KEY 环境变量 + MIMO 目标模型」收敛成一个可注入解析面
+`benchmarks/runners/src/lane/opencodeGoProvider.ts`，供本 lane 与 084 release gates 消费。
+
+- **preset 复用（SSOT）**：`opencode-go` preset 来自 `apps/cli/src/providers/presets.data.ts`
+  （protocol=`openai-compatible`，baseUrl=`https://opencode.ai/zen/go/v1`），经 `@vessel/cli`
+  `findPreset()` 读取——不重复定义常量。
+- **密钥安全铁律**：apiKey 只经注入的 keyResolver 读取（默认 `process.env.OPENCODE_API_KEY`），
+  **绝不写盘/写日志**。无 key → `resolveOpencodeGoProvider()` 返回 `null` → lane 降级
+  `pending-environment`（既有诚实降级语义保持）。
+- **模型确认**：`fetchOpencodeGoModels()` 复用 `@vessel/cli` 的 `fetchOpenAIModels()` 实时拉取
+  `{base}/v1/models`（404 回退 `{base}/models`），可注入 fetch 便于 mock。仓库内置的
+  models.dev 参考快照（`docs/ideas/data/models.dev-api.json` 的 opencode-go 项）列出 **`mimo-v2.5`**
+  与 **`mimo-v2.5-pro`**（另有 mimo-v2-pro / mimo-v2-omni）。`selectMimoModel()` 在 live 清单里做
+  确定性选择（精确 `mimo-v2.5` → V2.5 系回退 → 任一 MIMO → null）；`defaultMimoLaneModels()` 映射为
+  pro/flash 两档 LaneModel。
+- **最小连通**：`probeOpencodeGoOnce()` 用构造的 provider 发一次最小 chat（仅 `ping`，maxTokens=4），
+  返回鉴权/响应/usage 快照；无 key 或网络受限 → 记录 pending，不反复重试真实调用。
+- **实跑接线**：真实跑时 `providerResolver` 用 `opencodeGoProviderResolver()`；无 key → pending。
+  有 key + 拉到 MIMO V2.5 后用其做 defaultModel 跑授权场景子集，报告写 `benchmarks/reports/`。
+
+```ts
+import {
+  runRealModelLane, opencodeGoProviderResolver,
+  fetchOpencodeGoModels, selectMimoModel, defaultMimoLaneModels,
+} from '@vessel/bench-runners';
+
+const { source } = await fetchOpencodeGoModels();       // live /v1/models（有 key）或内置参考（无 key）
+const laneModels = defaultMimoLaneModels(source.models); // pro/flash 两档
+const resolver = opencodeGoProviderResolver();            // 读 OPENCODE_API_KEY，无 key → null → pending
+const report = await runRealModelLane({
+  models: laneModels, scenarios: LANE_SCENARIOS, providerResolver: resolver,
+  repoRoot: process.cwd(), reportsDir: 'benchmarks/reports',
+});
+```
+
 ## 设计选择与理由
 
 1. **复用 076 RunResult**：每（模型 × 场景）产出 076 `validate` 通过的 RunResult，L3 采集字段与

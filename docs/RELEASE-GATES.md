@@ -40,7 +40,8 @@ import {
 const executors = buildReleaseGateExecutors({
   repoRoot: process.cwd(),
   reportsDir: 'benchmarks/reports',
-  providerResolver: async (model) => resolveProvider(model), // 返回 null → 该 gate pending
+  // 默认 real-model-bench resolver 已接 opencode-go（读 OPENCODE_API_KEY 环境变量；
+  // 无 key → probe→pending，不静默通过）。也可显式注入 providerResolver 覆盖。
 }).map((e) => ({ gate: e.gate, run: (ctx) => e.run({ ...ctx, exec: gateDefaultRunCommand }) }));
 
 const report = await runReleaseGates(executors, {
@@ -64,6 +65,10 @@ writeReleaseReportFiles(report, 'benchmarks/reports');
 | 2 | unit | `npx vitest run`（root）退出码 0 且无 failed 标记 | 需 vitest/非受限环境 |
 | 3 | deterministic-bench | 离线 L1 可跑集 B001–B005 全通过（076 runner） | offline 确定性 |
 | 4 | real-model-bench | 082 lane 收集 §15 L3；无凭据/无 provider → **pending** | 需凭据；否则 pending |
+
+> gate 4（real-model-bench）默认 resolver 接 **opencode-go**（V1.1-C）：读 `OPENCODE_API_KEY`
+> 环境变量（key 绝不落盘），有 key 时以确认的 MIMO 模型跑 082 lane；无 key → probe→pending，
+> 继承 082 诚实降级语义（"不以自证为证"）。
 | 5 | safety | 075 pack（S001–S008）离线 enforcement 证据齐 | offline 确定性 |
 | 6 | resume | 063/064 soak 子集不变量：暂停/续跑、workspace 零残留、从 handoff 续跑留痕 | 确定性 |
 | 7 | ux-smoke | web 构建产物存在；否则 **pending**（环境标注） | 需先 build web |
