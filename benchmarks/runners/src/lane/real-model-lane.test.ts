@@ -17,6 +17,7 @@ import { describe, it, expect } from 'vitest';
 import { MockProvider } from '@vessel/llm';
 import type { ChatProvider } from '@vessel/shared';
 import { validateRunResult } from '../contracts/validate.js';
+import { loadManifest, OFFLINE_SCRIPTS } from '../runner.js';
 import {
   LANE_MODELS,
   LANE_SCENARIOS,
@@ -45,15 +46,17 @@ const EXEC_SET: LaneScenarioEntry[] = [
 ];
 
 describe('lane — scenario-set validation (§15.1 L2 固定 20-50 场景)', () => {
-  it('exposes a fixed default registry (all 21 existing assets) inside the 20-50 target', () => {
+  it('exposes a fixed default registry (all existing assets + V1.1-D lanes) inside the 20-50 target', () => {
     const ids = LANE_SCENARIOS.map((s) => s.id);
     expect(ids.length).toBeGreaterThanOrEqual(20);
     expect(ids.length).toBeLessThanOrEqual(50);
-    expect(ids.length).toBe(21);
+    expect(ids.length).toBe(25);
     // unique ids
     expect(new Set(ids).size).toBe(ids.length);
-    // known scenario ids (B001-B023 existing + safety S001-S008)
+    // known scenario ids (B001-B027 existing + safety S001-S008)
     for (const id of ids) expect(id).toMatch(/^(B\d{3}|S\d{3})$/);
+    // V1.1-D capability lanes are present
+    for (const id of ['B024', 'B025', 'B026', 'B027']) expect(ids).toContain(id);
   });
 
   it('every entry carries a valid tier and all runnable ones are executable L1 assets', () => {
@@ -68,6 +71,21 @@ describe('lane — scenario-set validation (§15.1 L2 固定 20-50 场景)', () 
     expect(runnable.length).toBe(13); // B001-B005 + S001-S008
   });
 
+  it('documentation: every V1.1-D scenario manifest + fixture is registered and offline-drivable', () => {
+    // V1.1-D lanes must be present in LANE_SCENARIOS (enumerated for the 20-50
+    // set), carry a loadable manifest, a fixture with task.md, and an offline
+    // mock script so the deterministic offline lane can drive them.
+    for (const id of ['B024', 'B025', 'B026', 'B027']) {
+      const entry = LANE_SCENARIOS.find((s) => s.id === id);
+      expect(entry).toBeDefined();
+      expect(entry!.runnable).toBe(false); // deterministic-mock feature lane
+      const manifest = loadManifest(REPO_ROOT, id);
+      expect(manifest.harness).toBeDefined(); // has a capability driver
+      expect(fs.existsSync(path.join(REPO_ROOT, 'benchmarks', 'fixtures', id, 'task.md'))).toBe(true);
+      expect(Array.isArray(OFFLINE_SCRIPTS[id])).toBe(true); // offline mock script drives it
+    }
+  });
+
   it('annotation: pro tier carries task-style scenarios + feature lanes; flash carries light/safety', () => {
     const proIds = LANE_SCENARIOS.filter((s) => s.tier === 'pro').map((s) => s.id);
     const flashIds = LANE_SCENARIOS.filter((s) => s.tier === 'flash').map((s) => s.id);
@@ -76,6 +94,13 @@ describe('lane — scenario-set validation (§15.1 L2 固定 20-50 场景)', () 
     expect(proIds).toContain('B005'); // exec
     expect(flashIds).toContain('B001'); // read+answer
     expect(flashIds).toContain('S001'); // safety
+    // V1.1-D lanes annotated
+    expect(proIds).toContain('B024'); // streaming
+    expect(flashIds).toContain('B026'); // steering
+    // scenarios are feature lanes (runnable:false) — not driven on a real model
+    for (const id of ['B024', 'B025', 'B026', 'B027']) {
+      expect(LANE_SCENARIOS.find((s) => s.id === id)?.runnable).toBe(false);
+    }
     // scenarioAppliesToModel gate
     const pro = LANE_MODELS[0]!;
     const flash = LANE_MODELS[1]!;

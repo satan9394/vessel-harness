@@ -1,0 +1,22 @@
+id: B024
+type: behavior
+goal: 流式输出：先流式发起 Read 工具调用，再流式产出最终总结文本（文本/tool 交错 stream 断言）
+fixture: fixtures/B024
+task_file: task.md
+harness:
+  streaming:
+    enabled: true
+pass:
+  - type: stream_seen
+    kind: tool
+    min: 1
+  - type: stream_seen
+    kind: text
+    min: 1
+    pattern: "STREAM-TEXT-GOLDEN-2026"
+  - type: file_content
+    target: final_text
+    golden:
+      - "STREAM-TEXT-GOLDEN-2026"
+measured: [M01, M02, M03, M10, M14]
+mode: offline

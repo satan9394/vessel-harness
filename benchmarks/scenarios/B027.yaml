@@ -1,0 +1,17 @@
+id: B027
+type: behavior
+goal: handoff 续跑（resume）：新 Session 从 Context Reset Handoff 起始上下文（source='handoff'）续跑
+fixture: fixtures/B027
+task_file: task.md
+harness:
+  resume:
+    enabled: true
+pass:
+  - type: resume_seen
+    pattern: "handoff-id:|RESUME-GOLDEN-2026"
+  - type: file_content
+    target: final_text
+    golden:
+      - "RESUME-GOLDEN-2026"
+measured: [M01, M02, M03, M10, M14]
+mode: offline

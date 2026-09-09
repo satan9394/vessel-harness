@@ -1,0 +1,19 @@
+id: B026
+type: behavior
+goal: 运行中注入改向（steering）：steer 在 step 边界被消费为 source='steer' 记录并重定向后续步骤
+fixture: fixtures/B026
+task_file: task.md
+harness:
+  steering:
+    enabled: true
+pass:
+  - type: steer_seen
+    pattern: "STEER-GOLDEN-2026|收窄"
+  - type: tool_family_seen
+    family: file_read
+  - type: file_content
+    target: final_text
+    golden:
+      - "STEER-GOLDEN-2026"
+measured: [M01, M02, M03, M10, M14]
+mode: offline

@@ -1,0 +1,15 @@
+id: B025
+type: behavior
+goal: 运行中被打断（interrupt）：后半程输出不完成，本轮以 kind=interrupted 收尾
+fixture: fixtures/B025
+task_file: task.md
+harness:
+  interrupt:
+    enabled: true
+pass:
+  - type: turn_interrupted
+  - type: stream_seen
+    kind: tool
+    min: 1
+measured: [M01, M02, M03, M14]
+mode: offline

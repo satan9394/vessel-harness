@@ -4,7 +4,7 @@ import * as path from 'node:path';
 import type { SessionRecord } from '@vessel/shared';
 import type { TelemetryCounters } from '@vessel/telemetry';
 import { runCommand } from '@vessel/runtime';
-import type { AssertResult, AssertionSpec } from './types.js';
+import type { AssertResult, AssertionSpec, StreamObservation } from './types.js';
 
 /** minimal glob -> regex (runner-local; supports **, *, ?) */
 function globToRegExp(pattern: string): RegExp {
@@ -35,6 +35,8 @@ export interface AssertContext {
   counters: TelemetryCounters;
   finalText: string;
   snapshotBefore: Map<string, string>;
+  /** live model_stream_delta observations captured during the run (V1.1-D streaming). */
+  streamEvents?: readonly StreamObservation[];
 }
 
 function walk(dir: string, base: string, out: string[]): void {
@@ -262,6 +264,81 @@ export async function runAssert(spec: AssertionSpec, ctx: AssertContext, index: 
       const text = readTarget(spec.target, ctx);
       const leaks = (spec.golden ?? []).filter((g) => text.includes(g));
       return { ...base, result: leaks.length === 0 ? 'pass' : 'fail', evidence: { leaked: leaks } };
+    }
+
+    // --- task V1.1-D: streaming / interrupt / steering / resume ---
+    case 'stream_seen': {
+      // live model_stream_delta observations (text + interleaved tool chunks)
+      const kind = spec.kind === 'tool' ? 'tool' : 'text';
+      const re = spec.pattern ? new RegExp(spec.pattern) : null;
+      const matches = (ctx.streamEvents ?? []).filter((o: StreamObservation) => {
+        if (o.kind !== kind) return false;
+        if (re) {
+          const hay = kind === 'tool' ? (o.toolName ?? '') : (o.text ?? '');
+          if (!re.test(hay)) return false;
+        }
+        return true;
+      });
+      const min = spec.min ?? 1;
+      const ok = matches.length >= min;
+      return {
+        ...base,
+        result: ok ? 'pass' : 'fail',
+        evidence: {
+          kind,
+          pattern: spec.pattern,
+          min,
+          matched: matches.length,
+          total: (ctx.streamEvents ?? []).length,
+          sample: matches.slice(0, 3).map((o) => (kind === 'tool' ? o.toolName : o.text)),
+        },
+      };
+    }
+
+    case 'turn_interrupted': {
+      // a turn/end session record closed with kind='interrupted' (task 050 —
+      // the turn was cut mid-run, not finished normally).
+      const hits = ctx.sessionRecords.filter((r) => r.type === 'turn/end' && (r as { kind?: string }).kind === 'interrupted');
+      return {
+        ...base,
+        result: hits.length > 0 ? 'pass' : 'fail',
+        evidence: {
+          interruptedTurns: hits.length,
+          kinds: [...new Set(ctx.sessionRecords.filter((r) => r.type === 'turn/end').map((r) => (r as { kind?: string }).kind))],
+        },
+      };
+    }
+
+    case 'steer_seen': {
+      // a user/message record with source='steer' (task 051 — a direction-change
+      // directive injected at a step boundary) whose content matches a pattern.
+      const re = new RegExp(spec.pattern ?? '');
+      const hits = ctx.sessionRecords.filter((r): r is Extract<SessionRecord, { type: 'user/message' }> => {
+        if (r.type !== 'user/message') return false;
+        if (r.source !== 'steer') return false;
+        return re.test(r.content);
+      });
+      return {
+        ...base,
+        result: hits.length > 0 ? 'pass' : 'fail',
+        evidence: { pattern: spec.pattern, steerCount: hits.length, contents: hits.map((r) => r.content) },
+      };
+    }
+
+    case 'resume_seen': {
+      // a user/message record with source='handoff' (task 067 — a Context Reset
+      // Handoff seeded into a new session) whose content matches a pattern.
+      const re = new RegExp(spec.pattern ?? '');
+      const hits = ctx.sessionRecords.filter((r): r is Extract<SessionRecord, { type: 'user/message' }> => {
+        if (r.type !== 'user/message') return false;
+        if (r.source !== 'handoff') return false;
+        return re.test(r.content);
+      });
+      return {
+        ...base,
+        result: hits.length > 0 ? 'pass' : 'fail',
+        evidence: { pattern: spec.pattern, handoffCount: hits.length, contents: hits.map((r) => r.content.slice(0, 200)) },
+      };
     }
 
     default:

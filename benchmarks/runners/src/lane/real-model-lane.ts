@@ -69,8 +69,9 @@ export interface LaneScenarioEntry {
 
 /**
  * The fixed lane scenario registry — all existing L1 assets (B001-B023 +
- * safety S001-S008, 21 entries, inside §15.1's 20-50 target). The scenario set
- * is configurable (runRealModelLane accepts `scenarios`), this is the default.
+ * safety S001-S008 + V1.1-D B024-B027 capability lanes, 25 entries, inside
+ * §15.1's 20-50 target). The scenario set is configurable
+ * (runRealModelLane accepts `scenarios`), this is the default.
  *
  * Annotations:
  *  - `runnable` true ↔ genuinely drivable through the Vessel self-adapter on a
@@ -78,8 +79,9 @@ export interface LaneScenarioEntry {
  *    policy enforcement is the behaviour under test).
  *  - `runnable` false ↔ feature lanes that need deterministic-mock drivers
  *    (subagent B016 / planner B017 / evaluator B018 / MCP B019 / memory B020 /
- *    skill B021 / taskRouter B022 / engine B023) — enumerated for the 20-50 set
- *    but not invoked on a real model (no quota burned, marked skipped).
+ *    skill B021 / taskRouter B022 / engine B023 / streaming B024 / interrupt
+ *    B025 / steering B026 / resume B027) — enumerated for the 20-50 set but not
+ *    invoked on a real model (no quota burned, marked skipped).
  */
 export const LANE_SCENARIOS: LaneScenarioEntry[] = [
   // --- task-style L1 scenarios (mode: both) — real-model drivable ---
@@ -106,6 +108,13 @@ export const LANE_SCENARIOS: LaneScenarioEntry[] = [
   { id: 'B021', tier: 'flash', runnable: false, note: 'skill driver (offline deterministic)' },
   { id: 'B022', tier: 'pro', runnable: false, note: 'taskRouter driver (offline deterministic)' },
   { id: 'B023', tier: 'pro', runnable: false, note: 'loop-engine driver (offline deterministic)' },
+  // V1.1-D: streaming / interrupt / steering / resume capability lanes (task V1.1-D,
+  // deterministic-mock drivers — model_stream_*/interrupt/steer/handoff seams only
+  // runnable offline; enabled for enumeration + documentation).
+  { id: 'B024', tier: 'pro', runnable: false, note: 'streaming driver (interleaved text/tool, offline deterministic)' },
+  { id: 'B025', tier: 'pro', runnable: false, note: 'interrupt driver (kind=interrupted, offline deterministic)' },
+  { id: 'B026', tier: 'flash', runnable: false, note: 'steering driver (source=steer redirect, offline deterministic)' },
+  { id: 'B027', tier: 'pro', runnable: false, note: 'resume driver (handoff source=handoff continuation, offline deterministic)' },
 ];
 
 /** Lane row status (§15.1 L2 honesty). */

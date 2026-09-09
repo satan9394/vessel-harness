@@ -8,9 +8,9 @@ const KNOWN_KEYS = new Set([
 ]);
 const PASS_KEYS = new Set([
   'type', 'target', 'golden', 'golden_expr', 'json_path', 'family', 'metric', 'limit',
-  'command', 'pattern', 'include', 'expected', 'paths', 'record', 'source', 'stage',
+  'command', 'pattern', 'include', 'expected', 'paths', 'record', 'source', 'stage', 'kind', 'min',
 ]);
-const HARNESS_KEYS = new Set(['subagent', 'mcp', 'planner', 'evaluator', 'taskRouter', 'engine']);
+const HARNESS_KEYS = new Set(['subagent', 'mcp', 'planner', 'evaluator', 'taskRouter', 'engine', 'streaming', 'interrupt', 'steering', 'resume']);
 
 export function loadManifest(repoRoot: string, scenarioId: string): ScenarioManifest {
   const p = path.join(repoRoot, 'benchmarks', 'scenarios', `${scenarioId}.yaml`);

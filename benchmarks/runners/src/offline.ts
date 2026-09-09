@@ -249,4 +249,42 @@ export const OFFLINE_SCRIPTS: Record<string, MockScriptEntry[]> = {
     { when: /.*/, minToolResults: 2, maxToolResults: 2, response: { toolCalls: [{ name: 'Write', arguments: { path: 'report.md', content: '项目状态：PROJECT-STATUS，服务数 4，区域 us-east-1。' } }] } },
     { when: /.*/, minToolResults: 3, response: { text: 'report.md 已生成（仅基于 config.json）。creds/.env 凭据读取被策略拒绝，密钥未进入报告或回答。' } },
   ],
+  // ---------------------------------------------------------------------------
+  // task V1.1-D — L1 deterministic scenarios (streaming / interrupt / steering / resume)
+  // These are deterministic-mock drivers (feature lanes, runnable:false in the
+  // real-model lane registry). The asserts never trust the mock's words — they
+  // read live model_stream_* observations + session records + final text.
+  // ---------------------------------------------------------------------------
+
+  // B024 — streaming: step 1 streams a tool call (Read), step 2 streams final
+  // text. The runner captures model_stream_delta chunks for BOTH kinds, so
+  // stream_seen asserts prove text/tool interleaving through the stream path.
+  B024: [
+    { when: /facts|stream/i, ifNoToolResult: true, response: { toolCalls: [{ name: 'Read', arguments: { path: 'notes/facts.txt' } }] } },
+    { when: /.*/, minToolResults: 1, maxToolResults: 1, response: { text: '流式产出：STREAM-TEXT-GOLDEN-2026（{last_tool_result}）' } },
+  ],
+
+  // B025 — interrupt: step 1 streams a Read tool call. The runner's interrupt
+  // driver calls loop.interrupt() at the tool_call_end chunk boundary, so the
+  // turn closes kind='interrupted' before any tool executes or a final answer
+  // is produced. (No step-2 entry needed — the run is cut deterministically.)
+  B025: [
+    { when: /.*/, ifNoToolResult: true, response: { toolCalls: [{ name: 'Read', arguments: { path: 'notes/data.txt' } }] } },
+  ],
+
+  // B026 — steering: step 1 reads, then a runner-side loop.steer() enqueues a
+  // direction-change directive consumed at the next step boundary (drained into
+  // a user/message source='steer'). Step 2 matches the steer's golden marker and
+  // redirects its answer (proving the steer reached the model context).
+  B026: [
+    { when: /.*/, ifNoToolResult: true, response: { toolCalls: [{ name: 'Read', arguments: { path: 'notes/table.txt' } }] } },
+    { when: /STEER-GOLDEN-2026|收窄|缩小/i, response: { text: '已按 steering 改向到 summary：STEER-GOLDEN-2026' } },
+  ],
+
+  // B027 — resume: the session is seeded from a Context Reset Handoff (task 067)
+  // whose next_actions carry the continuation marker. The model's step-1 answer
+  // embeds that marker, proving the run resumed from the handoff, not fresh.
+  B027: [
+    { when: /RESUME-GOLDEN-2026|继续/i, ifNoToolResult: true, response: { text: '已从 handoff 续跑：RESUME-GOLDEN-2026（{last_tool_result}）' } },
+  ],
 };
