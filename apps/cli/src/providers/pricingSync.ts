@@ -243,7 +243,16 @@ async function fetchModelsDev(
       const data = await res.json();
       return { ok: true, data, attempts: attempt };
     } catch (error) {
-      lastError = (error as Error)?.message ?? String(error);
+      // Node 的 fetch 把连接层错误包成 `TypeError: fetch failed`，原因在 `cause`
+      // （ECONNREFUSED / ENOTFOUND / ETIMEDOUT…）。离线提示要能直接看出是哪一类失败。
+      const err = error as Error & { cause?: { code?: unknown; message?: unknown } };
+      const cause = typeof err?.cause?.code === 'string'
+        ? err.cause.code
+        : typeof err?.cause?.message === 'string'
+          ? err.cause.message
+          : undefined;
+      const message = err?.message ?? String(error);
+      lastError = cause !== undefined && !message.includes(cause) ? `${message}（${cause}）` : message;
     } finally {
       clearTimeout(timer);
     }

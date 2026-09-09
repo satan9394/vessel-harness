@@ -228,6 +228,14 @@ describe('093 — sync 写盘 / dry-run / 幂等 / 离线回退', () => {
     expect(res.error).toContain('ENOTFOUND');
     expect(res.total).toBe(4); // 旧表条目数原样
     expect(fs.readFileSync(catalogPath, 'utf8')).toBe(before); // 不静默清空
+
+    // Node fetch 把连接层错误包成 `fetch failed`，原因在 cause → 提示里要带上
+    const wrapped = Object.assign(new TypeError('fetch failed'), { cause: { code: 'ECONNREFUSED' } });
+    const refused: SyncFetch = async () => { throw wrapped; };
+    const res2 = await syncModelCatalog({ catalogPath, fetchImpl: refused, retries: 0 });
+    expect(res2.status).toBe('offline');
+    expect(res2.error).toContain('ECONNREFUSED');
+    expect(fs.readFileSync(catalogPath, 'utf8')).toBe(before);
   });
 
   it('离线回退：HTTP 5xx 与非法 JSON 同样保留旧表', async () => {
