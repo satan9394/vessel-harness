@@ -903,3 +903,218 @@ describe('vessel pricing sync / provider costMultiplier (task 093/094)', () => {
     expect(codeNan).toBe(2);
   });
 });
+
+describe('vessel provider export/import + endpoint (task 095/096)', () => {
+  let dir: string;
+  let outDir: string;
+  let oldRoot: string | undefined;
+  const FAKE_KEY = 'sk-fake-cli-export-9876';
+
+  beforeEach(() => {
+    dir = fs.mkdtempSync(path.join(os.tmpdir(), 'vessel-095-cfg-'));
+    outDir = fs.mkdtempSync(path.join(os.tmpdir(), 'vessel-095-out-'));
+    oldRoot = process.env.VESSEL_PROVIDER_ROOT;
+    process.env.VESSEL_PROVIDER_ROOT = dir;
+  });
+
+  afterEach(() => {
+    if (oldRoot === undefined) delete process.env.VESSEL_PROVIDER_ROOT;
+    else process.env.VESSEL_PROVIDER_ROOT = oldRoot;
+    fs.rmSync(dir, { recursive: true, force: true });
+    fs.rmSync(outDir, { recursive: true, force: true });
+  });
+
+  async function addDs(): Promise<void> {
+    const code = await main([
+      'provider', 'add', 'ds',
+      '--protocol', 'openai-compatible',
+      '--base-url', 'https://api.deepseek.com/v1',
+      '--api-key', FAKE_KEY,
+      '--model', 'deepseek-chat',
+    ]);
+    expect(code).toBe(0);
+  }
+
+  it('export --out 写出脱敏 JSON（无明文 key，带 secretRef 占位）', async () => {
+    await addDs();
+    const outFile = path.join(outDir, 'export.json');
+    const cap = capture();
+    const code = await main(['provider', 'export', '--out', outFile]);
+    cap.restore();
+    expect(code).toBe(0);
+    const text = fs.readFileSync(outFile, 'utf8');
+    expect(text).not.toContain(FAKE_KEY);
+    expect(text).not.toContain('"apiKey"');
+    const parsed = JSON.parse(text) as { kind: string; redacted: boolean; keysRedacted: number; providers: { id: string; secretRef?: string }[] };
+    expect(parsed.kind).toBe('vessel-provider-export');
+    expect(parsed.redacted).toBe(true);
+    expect(parsed.keysRedacted).toBe(1);
+    expect(parsed.providers[0]?.secretRef).toBe('credential:vessel/ds');
+    expect(fs.existsSync(`${outFile}.tmp`)).toBe(false); // 原子写无残留
+  });
+
+  it('export --with-secrets 直接拒绝（exit 2），不产生任何文件', async () => {
+    await addDs();
+    const outFile = path.join(outDir, 'nope.json');
+    const cap = captureBoth();
+    const code = await main(['provider', 'export', '--out', outFile, '--with-secrets']);
+    cap.restore();
+    expect(code).toBe(2);
+    expect(cap.logs.join('\n')).toContain('--with-secrets 不支持');
+    expect(fs.existsSync(outFile)).toBe(false);
+  });
+
+  it('export 无 --out → JSON 打到 stdout；import 合并（默认跳过同名）', async () => {
+    await addDs();
+    const cap = capture();
+    const code = await main(['provider', 'export']);
+    cap.restore();
+    expect(code).toBe(0);
+    const json = cap.logs.join('\n');
+    expect(json).not.toContain(FAKE_KEY);
+    expect(JSON.parse(json).count).toBe(1);
+
+    const file = path.join(outDir, 'x.json');
+    fs.writeFileSync(file, json, 'utf8');
+    // 再导入同一个文件 → 同名冲突默认跳过
+    const cap2 = captureBoth();
+    const code2 = await main(['provider', 'import', file]);
+    cap2.restore();
+    expect(code2).toBe(0);
+    expect(cap2.logs.join('\n')).toContain('跳过 1');
+    // 导入后 providers.json 仍无明文 key
+    expect(fs.readFileSync(path.join(dir, 'providers.json'), 'utf8')).not.toContain(FAKE_KEY);
+  });
+
+  it('import --dry-run 不写盘；--on-conflict overwrite 覆盖字段', async () => {
+    const file = path.join(outDir, 'in.json');
+    fs.writeFileSync(
+      file,
+      JSON.stringify({
+        kind: 'vessel-provider-export',
+        version: 1,
+        providers: [{ id: 'ds', name: 'DS-new', protocol: 'openai-compatible', baseUrl: 'https://new.example/v1', model: 'deepseek-v4' }],
+      }),
+      'utf8',
+    );
+    const dry = capture();
+    const codeDry = await main(['provider', 'import', file, '--dry-run']);
+    dry.restore();
+    expect(codeDry).toBe(0);
+    expect(dry.logs.join('\n')).toContain('[dry-run]');
+    expect(fs.existsSync(path.join(dir, 'providers.json'))).toBe(false);
+
+    const real = capture();
+    const codeReal = await main(['provider', 'import', file, '--on-conflict', 'overwrite']);
+    real.restore();
+    expect(codeReal).toBe(0);
+    const persisted = JSON.parse(fs.readFileSync(path.join(dir, 'providers.json'), 'utf8')) as { id: string; model: string }[];
+    expect(persisted[0]?.model).toBe('deepseek-v4');
+    // 备份目录已生成
+    expect(fs.existsSync(path.join(dir, 'backups'))).toBe(false); // 首次写无旧文件
+  });
+
+  it('import 非法 --on-conflict / 读不到文件 → 明确退出码', async () => {
+    const bad = captureBoth();
+    const codeBad = await main(['provider', 'import', 'whatever.json', '--on-conflict', 'ask']);
+    bad.restore();
+    expect(codeBad).toBe(2);
+    expect(bad.logs.join('\n')).toContain('非法 --on-conflict');
+
+    const missing = captureBoth();
+    const codeMissing = await main(['provider', 'import', path.join(outDir, 'nope.json')]);
+    missing.restore();
+    expect(codeMissing).toBe(1);
+    expect(missing.logs.join('\n')).toContain('读不到文件');
+  });
+
+  it('endpoint add/list/remove：候选池落盘，baseUrl 不变', async () => {
+    await addDs();
+    const add = capture();
+    const codeAdd = await main(['provider', 'endpoint', 'add', 'ds', 'https://backup.example/v1', '--label', 'backup']);
+    add.restore();
+    expect(codeAdd).toBe(0);
+    expect(add.logs.join('\n')).toContain('现有候选 2 个');
+
+    const list = capture();
+    const codeList = await main(['provider', 'endpoint', 'list', 'ds']);
+    list.restore();
+    expect(codeList).toBe(0);
+    const text = list.logs.join('\n');
+    expect(text).toContain('https://api.deepseek.com/v1');
+    expect(text).toContain('[backup]');
+
+    const remove = capture();
+    const codeRemove = await main(['provider', 'endpoint', 'remove', 'ds', 'https://backup.example/v1']);
+    remove.restore();
+    expect(codeRemove).toBe(0);
+    expect(remove.logs.join('\n')).toContain('剩余候选 0 个');
+    const persisted = JSON.parse(fs.readFileSync(path.join(dir, 'providers.json'), 'utf8')) as { baseUrl?: string; endpoints?: unknown[] }[];
+    expect(persisted[0]?.baseUrl).toBe('https://api.deepseek.com/v1');
+    expect(persisted[0]?.endpoints).toBeUndefined();
+  });
+
+  it('endpoint test 探测本地端点 → 输出建议但不改默认端点；--set-default 才改', async () => {
+    // 两个本地服务：baseUrl 返 503（可达但不可用），候选端点返 200（更快且可用）
+    const badServer = http.createServer((_req, res) => { res.statusCode = 503; res.end('nope'); });
+    const goodServer = http.createServer((_req, res) => {
+      res.setHeader('content-type', 'application/json');
+      res.end(JSON.stringify({ data: [] }));
+    });
+    await new Promise<void>((resolve) => badServer.listen(0, '127.0.0.1', resolve));
+    await new Promise<void>((resolve) => goodServer.listen(0, '127.0.0.1', resolve));
+    const badUrl = `http://127.0.0.1:${(badServer.address() as AddressInfo).port}/v1`;
+    const goodUrl = `http://127.0.0.1:${(goodServer.address() as AddressInfo).port}/v1`;
+    try {
+      await main(['provider', 'add', 'svc', '--protocol', 'openai-compatible', '--base-url', badUrl, '--model', 'm']);
+      await main(['provider', 'endpoint', 'add', 'svc', goodUrl, '--label', 'local']);
+
+      const cap = capture();
+      const code = await main(['provider', 'endpoint', 'test', 'svc', '--timeout', '2000']);
+      cap.restore();
+      expect(code).toBe(0);
+      const text = cap.logs.join('\n');
+      expect(text).toContain(`建议：${goodUrl}`);
+      expect(text).toContain('未改动默认端点');
+      // 默认端点未被自动修改
+      let persisted = JSON.parse(fs.readFileSync(path.join(dir, 'providers.json'), 'utf8')) as { baseUrl?: string }[];
+      expect(persisted[0]?.baseUrl).toBe(badUrl);
+
+      // 显式 --set-default 才改
+      const cap2 = capture();
+      const code2 = await main(['provider', 'endpoint', 'test', 'svc', '--set-default', '--timeout', '2000']);
+      cap2.restore();
+      expect(code2).toBe(0);
+      persisted = JSON.parse(fs.readFileSync(path.join(dir, 'providers.json'), 'utf8')) as { baseUrl?: string }[];
+      expect(persisted[0]?.baseUrl).toBe(goodUrl);
+      expect(fs.readdirSync(path.join(dir, 'backups')).length).toBeGreaterThan(0); // 改默认端点前已备份
+    } finally {
+      await new Promise<void>((resolve) => badServer.close(() => resolve()));
+      await new Promise<void>((resolve) => goodServer.close(() => resolve()));
+    }
+  });
+
+  it('endpoint test 全不可达 → exit 1 且不写盘', async () => {
+    await main(['provider', 'add', 'down', '--protocol', 'openai-compatible', '--base-url', 'http://127.0.0.1:1/v1', '--model', 'm']);
+    const before = fs.readFileSync(path.join(dir, 'providers.json'), 'utf8');
+    const cap = capture();
+    const code = await main(['provider', 'endpoint', 'test', 'down', '--timeout', '500']);
+    cap.restore();
+    expect(code).toBe(1);
+    expect(cap.logs.join('\n')).toContain('全部不可达');
+    expect(fs.readFileSync(path.join(dir, 'providers.json'), 'utf8')).toBe(before);
+  });
+
+  it('endpoint test 用法错误：无 id 无 --all / --all 配 --set-default → exit 2', async () => {
+    const noArgs = captureBoth();
+    const codeNoArgs = await main(['provider', 'endpoint', 'test']);
+    noArgs.restore();
+    expect(codeNoArgs).toBe(2);
+
+    const badAll = captureBoth();
+    const codeBadAll = await main(['provider', 'endpoint', 'test', '--all', '--set-default']);
+    badAll.restore();
+    expect(codeBadAll).toBe(2);
+    expect(badAll.logs.join('\n')).toContain('--set-default 需要指定单个');
+  });
+});

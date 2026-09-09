@@ -40,9 +40,10 @@ TUI 内斜杠命令：`/provider`（配置供应商）、`/models`（当前供�
 
 | 文件 | 内容 |
 |---|---|
-| `~/.vessel/providers.json` | 供应商列表（id/name/protocol/baseUrl/secretRef/model/models?/note?）——含密钥的写 `secretRef`（`credential:vessel/<id>`），不再落明文 apiKey |
+| `~/.vessel/providers.json` | 供应商列表（id/name/protocol/baseUrl/endpoints?/secretRef/model/models?/costMultiplier?/note?）——含密钥的写 `secretRef`（`credential:vessel/<id>`），不再落明文 apiKey |
 | `~/.vessel/secrets.json` | 凭据存储（task 034）：Windows 默认 DPAPI 加密（`ProtectedData`），否则 plaintext 显式降级（写时 warn 提示） |
 | `~/.vessel/current.json` | 当前默认供应商 id（缺省 `mock`） |
+| `~/.vessel/backups/` | 写前自动备份（task 095）：`providers.<ts>.json` / `current.<ts>.json`，每类保留 N 份（默认 5） |
 
 - 目录沿用项目 ~/.vessel 约定（memory/skills 同款）。
 - 原子写：先写 `.tmp` 再 rename，防半写损坏。
@@ -91,6 +92,59 @@ vessel provider switch ant        # 或 use
 vessel models                     # 当前默认供应商的模型
 vessel models --provider ds       # 指定供应商
 ```
+
+## 3.1 导入导出与备份轮转（task 095）
+
+```powershell
+# 导出（默认脱敏：apiKey 永不出现在导出文件里）
+vessel provider export --out providers-export.json   # 写文件（原子写：.tmp → rename）
+vessel provider export > providers-export.json       # 不传 --out → JSON 打到 stdout，可直接重定向
+
+# 导入（合并；同名冲突默认跳过）
+vessel provider import providers-export.json                       # 默认 --on-conflict skip
+vessel provider import providers-export.json --on-conflict overwrite
+vessel provider import providers-export.json --dry-run             # 只预演，不写盘
+vessel provider import providers-export.json --keep 10             # 本次写盘保留 10 份备份
+```
+
+**导出脱敏语义（硬要求，没有例外）**
+
+| 情形 | 导出结果 |
+|---|---|
+| 配置有明文 apiKey（旧格式/未启用凭据库） | 剥离 `apiKey`，写 `secretRef: credential:vessel/<id>` **占位引用** |
+| 配置已有 secretRef | 原样保留该**引用**（引用不是密钥，它指向本机凭据库） |
+| `secretRef` 里被塞了非 `credential:` 的值 | 一律替换为占位引用（防止任何形态的明文密钥被导出） |
+| `--with-secrets` | **直接拒绝（exit 2）**——本项目不存在明文导出路径 |
+
+- 导出文件是信封结构：`{kind: "vessel-provider-export", version: 1, exportedAt, redacted: true, keysRedacted, current, count, providers[]}`；`buildExport()` 落盘前自检「序列化结果里不得出现 `apiKey` 字段」，命中即抛错拒绝输出。
+- **换机迁移**：导出文件不含密钥；密钥要么整体搬运 `~/.vessel`（含 DPAPI 加密的 secrets.json），要么在新机器 `vessel provider set <id> --api-key <key>` 重新录入（经 CredentialStore 加密落盘，不进 providers.json）。
+- **导入合并策略**：默认 `skip`（同名 id 保留本地）；`--on-conflict overwrite` 用文件内容覆盖，但**文件未带密钥时保留本地 secretRef 绑定**（避免覆盖把本机密钥引用弄丢）；非交互 CLI 不「询问」。内置 `mock` 一律跳过；文件里的明文 `apiKey`（手写/第三方文件）一律剥离并在结果里报告。全部同名跳过时**不写盘**（无变更）。
+- 文件校验 fail loud：非 JSON、缺 `kind`、`version` 不匹配、`protocol` 非法、id 重复 → 抛错且一个字节都不写。
+
+**备份轮转（写配置前自动备份）**
+
+- 每次写 `providers.json` / `current.json` **之前**，把旧文件字节原样复制到 `~/.vessel/backups/<kind>.<ISO 时间戳>.json`（可直接拷回目标文件回滚）。
+- 保留份数：默认 5，可配 `--keep <n>`（import 命令）或环境变量 `VESSEL_PROVIDER_BACKUP_KEEP`（0 = 关闭备份）；每类文件各自计数。
+- **轮转不做任何删除**（项目删除铁律）：达到上限时把最旧一份**改名**成新时间戳再覆盖，文件数恒 ≤ N；改名失败（Windows 偶发 EPERM）退化为原地覆盖。
+- 写盘仍是原子写（`.tmp` → rename），备份先于写盘，因此任何时刻都有一份完整旧配置。
+
+## 3.2 多端点与测速（task 096）
+
+```powershell
+vessel provider endpoint list ds                                  # * = 默认端点（baseUrl）
+vessel provider endpoint add ds https://backup.example/v1 --label backup
+vessel provider endpoint remove ds https://backup.example/v1
+vessel provider endpoint test ds                                  # 探测该 provider 全部候选端点 + 给建议
+vessel provider endpoint test ds --set-default                    # 显式采纳建议（唯一会改默认端点的形式）
+vessel provider endpoint test --all                               # 探测所有已配置供应商
+vessel provider endpoint test ds --timeout 5000                   # 单端点超时（默认 3000ms）
+```
+
+- 数据结构：`ProviderConfig.endpoints?: {url, label?}[]`；`baseUrl` 恒为**默认端点**，`endpoints` 是**候选池**。候选池为空/缺省时按 `[baseUrl]` 处理（`effectiveEndpoints()`）；`endpoint add` 首次会把当前 baseUrl 物化进候选池首项，保证默认端点不被挤掉。
+- 校验 fail loud：`endpoints` 必须是 `{url, label?}` 数组，url 非空且不重复，label 非空字符串。
+- **测速 = 最小探测**：对 `{base}/models` 发一个 **不带任何凭据** 的 `GET`（避免把 key 送到用户临时填的候选地址），只取「是否可达 + 延迟」；HTTP 401/403 也算可达（网络/TLS 通了，只是未鉴权）。
+- 结果形状：`{url, label?, probeUrl, reachable, ok, status?, latencyMs, error?}`；排序为「2xx/3xx 优先 → 可达但需鉴权 → 不可达」，同档按延迟升序。
+- **只给建议**：默认只打印建议（`建议：<url>（最快可达，123ms）——仅建议，未改动默认端点。`），**绝不自动改 baseUrl**；只有显式 `--set-default` 才把 baseUrl 改成建议端点（且要求单个 id，`--all --set-default` 直接拒绝）。全部不可达 → exit 1，配置不变。
 
 ## 4. 模型拉取（vessel models）行为
 

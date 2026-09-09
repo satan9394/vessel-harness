@@ -33,6 +33,20 @@ import {
  * 直接消费（list 出的配置 → createProvider(config.protocol, config)）。
  */
 
+/**
+ * 候选端点（task 096）：同一供应商的多个 baseUrl（容灾/加速候选）。
+ *
+ * 语义：`baseUrl` 仍是**默认端点**（`vessel run` 用它的那个）；`endpoints` 是
+ * **候选池**，供 `vessel provider endpoint test` 测速排序给出建议。缺省（未配
+ * endpoints）时候选池 = [baseUrl]（见 `effectiveEndpoints`）。
+ */
+export interface ProviderEndpoint {
+  /** 端点 URL，与 baseUrl 同格式 */
+  url: string;
+  /** 可选标签（如 'cn' / 'us' / 'proxy'），仅用于展示 */
+  label?: string;
+}
+
 export interface ProviderConfig {
   /** 唯一 id（键；'mock' 为内置保留） */
   id: string;
@@ -40,8 +54,13 @@ export interface ProviderConfig {
   name: string;
   /** 线协议，与 @vessel/llm ProviderName 对齐 */
   protocol: ProviderName;
-  /** endpoint URL（openai-compatible / anthropic 需要） */
+  /** endpoint URL（openai-compatible / anthropic 需要）——**默认端点** */
   baseUrl?: string;
+  /**
+   * 候选端点池（task 096）。非空时 `effectiveEndpoints()` 以它为准；为空/缺省时
+   * 回退到 `[baseUrl]`。**测速只给建议，绝不自动改 `baseUrl`**。
+   */
+  endpoints?: ProviderEndpoint[];
   /**
    * API 密钥——task 034 起默认不再明文写 providers.json：写入时经 CredentialStore
    * 存到 secretRef（`credential:vessel/<id>`），apiKey 字段清明文。保留本字段向后
@@ -78,6 +97,57 @@ export interface ProviderStoreOptions {
   credentialStore?: SyncCredentialStore;
   /** 凭据 service 名（默认 'vessel'），secretRef ＝ `credential:<service>/<id>`。 */
   credentialService?: string;
+  /**
+   * 备份保留份数（task 095）：每次**写盘前**把旧文件复制到 `<root>/backups/`，
+   * 每类文件各保留 N 份（默认 5；0 = 不备份）。缺省可用环境变量
+   * `VESSEL_PROVIDER_BACKUP_KEEP` 覆盖，显式 opts 优先级最高。
+   */
+  backupKeep?: number;
+}
+
+/** 备份保留份数默认值（task 095）。 */
+export const DEFAULT_BACKUP_KEEP = 5;
+
+/** 备份文件名形如 `providers.2026-09-09T12-34-56-789Z.json`。 */
+const BACKUP_STAMP_RE = /^(\d{4})-(\d{2})-(\d{2})T(\d{2})-(\d{2})-(\d{2})-(\d{3})Z(?:-(\d+))?$/;
+
+/** 一条备份的元信息（task 095）。 */
+export interface ProviderBackupInfo {
+  /** 备份的源文件类型（providers / current） */
+  kind: string;
+  /** 备份文件绝对路径 */
+  file: string;
+  /** 备份时刻（ISO 8601，取自文件名） */
+  takenAt: string;
+  /** 文件 mtime（同毫秒时间戳时的排序兜底） */
+  mtimeMs: number;
+}
+
+/** 备份时间戳（文件名安全：冒号/点换成短横；字典序 = 时间序）。 */
+function backupStamp(now: Date): string {
+  return now.toISOString().replace(/[:.]/g, '-');
+}
+
+/** 解析备份文件名 → {kind, takenAt}；不匹配返回 null。 */
+function parseBackupName(name: string): { kind: string; takenAt: string } | null {
+  if (!name.endsWith('.json')) return null;
+  const body = name.slice(0, -'.json'.length);
+  const dot = body.indexOf('.');
+  if (dot <= 0) return null;
+  const kind = body.slice(0, dot);
+  const stamp = body.slice(dot + 1);
+  const m = BACKUP_STAMP_RE.exec(stamp);
+  if (!m) return null;
+  const [, y, mo, d, h, mi, s, ms] = m;
+  return { kind, takenAt: `${y}-${mo}-${d}T${h}:${mi}:${s}.${ms}Z` };
+}
+
+export function parseBackupKeep(raw: string | number, label = 'backupKeep'): number {
+  const n = typeof raw === 'number' ? raw : Number(raw);
+  if (!Number.isInteger(n) || n < 0) {
+    throw new Error(`${label} 必须是非负整数（收到 "${String(raw)}"；0 = 关闭备份）`);
+  }
+  return n;
 }
 
 export const PROVIDER_PROTOCOLS: readonly ProviderName[] = [
@@ -124,6 +194,8 @@ export class ProviderStore {
   readonly credentialStore?: SyncCredentialStore;
   /** 凭据 service 名（secretRef = `credential:<service>/<id>`）。 */
   readonly credentialService: string;
+  /** 备份保留份数（0 = 关闭备份）。 */
+  readonly backupKeep: number;
 
   constructor(opts: ProviderStoreOptions = {}) {
     // env override lets CLI tests isolate from the real ~/.vessel without touching
@@ -131,6 +203,18 @@ export class ProviderStore {
     this.rootDir = opts.rootDir ?? process.env.VESSEL_PROVIDER_ROOT ?? defaultProviderRoot();
     this.credentialStore = opts.credentialStore;
     this.credentialService = opts.credentialService ?? 'vessel';
+    const envKeep = process.env.VESSEL_PROVIDER_BACKUP_KEEP;
+    this.backupKeep =
+      opts.backupKeep !== undefined
+        ? parseBackupKeep(opts.backupKeep)
+        : envKeep === undefined
+          ? DEFAULT_BACKUP_KEEP
+          : parseBackupKeep(envKeep, 'VESSEL_PROVIDER_BACKUP_KEEP');
+  }
+
+  /** 备份目录（`~/.vessel/backups/`，task 095）。 */
+  get backupsDir(): string {
+    return path.join(this.rootDir, 'backups');
   }
 
   /** providers.json 的完整路径。 */
@@ -244,6 +328,9 @@ export class ProviderStore {
     if ('costMultiplier' in patch && patch.costMultiplier === undefined) {
       delete next.costMultiplier;
     }
+    if ('endpoints' in patch && patch.endpoints === undefined) {
+      delete next.endpoints;
+    }
     list[index] = next;
     this.save(list);
     return next;
@@ -261,6 +348,100 @@ export class ProviderStore {
     for (const cfg of this.load()) {
       if (cfg.costMultiplier !== undefined) out[cfg.id] = cfg.costMultiplier;
     }
+    return out;
+  }
+
+  /**
+   * 有效候选端点（task 096）：配了 `endpoints`（非空）→ 用它；否则回退
+   * `[baseUrl]`；两者都没有 → []。`source` 标出该条目来自候选池还是 baseUrl 回退。
+   */
+  effectiveEndpoints(id: string): (ProviderEndpoint & { source: 'endpoints' | 'baseUrl' })[] {
+    const cfg = this.get(id);
+    if (!cfg) throw new Error(`provider not found: "${id}"`);
+    if (cfg.endpoints !== undefined && cfg.endpoints.length > 0) {
+      return cfg.endpoints.map((e) => ({ ...e, source: 'endpoints' as const }));
+    }
+    return cfg.baseUrl ? [{ url: cfg.baseUrl, source: 'baseUrl' as const }] : [];
+  }
+
+  /**
+   * 追加候选端点（task 096）。首次追加时把当前 `baseUrl` 物化进候选池首项，
+   * 保证「默认端点」不会被候选池挤掉；重复 url / 空 url fail loud。
+   */
+  addEndpoint(id: string, url: string, label?: string): ProviderEndpoint[] {
+    const cfg = this.get(id);
+    if (!cfg) throw new Error(`provider not found: "${id}"`);
+    if (typeof url !== 'string' || url.trim() === '') {
+      throw new Error(`invalid endpoint url: "${String(url)}" (must be a non-empty string)`);
+    }
+    const pool: ProviderEndpoint[] = this.effectiveEndpoints(id).map((e) => ({
+      url: e.url,
+      ...(e.label !== undefined ? { label: e.label } : {}),
+    }));
+    if (pool.some((e) => e.url === url)) {
+      throw new Error(`endpoint already exists for provider "${id}": ${url}`);
+    }
+    pool.push(label !== undefined && label !== '' ? { url, label } : { url });
+    const next = this.update(id, { endpoints: pool });
+    return next.endpoints ?? pool;
+  }
+
+  /** 移除候选端点（按 url 精确匹配）；不存在 fail loud。 */
+  removeEndpoint(id: string, url: string): ProviderEndpoint[] {
+    const cfg = this.get(id);
+    if (!cfg) throw new Error(`provider not found: "${id}"`);
+    const pool = this.effectiveEndpoints(id);
+    const match = pool.find((e) => e.url === url);
+    if (!match) {
+      throw new Error(`endpoint not found for provider "${id}": ${url}`);
+    }
+    if (match.source === 'baseUrl') {
+      throw new Error(
+        `endpoint "${url}" 是 provider "${id}" 的默认端点（baseUrl），不在候选池里；` +
+          `改默认端点请用 vessel provider set ${id} --base-url <url>`,
+      );
+    }
+    const remaining = pool
+      .filter((e) => e.url !== url)
+      .map((e) => ({ url: e.url, ...(e.label !== undefined ? { label: e.label } : {}) }));
+    // 移除后候选池为空、或只剩「与 baseUrl 等价的单条」→ 清空字段，回退 baseUrl 语义
+    // （保持 providers.json 最小：不留下与默认端点重复的冗余候选）。
+    const redundant = remaining.length === 0 || (remaining.length === 1 && remaining[0]!.url === cfg.baseUrl);
+    const next = this.update(id, { endpoints: redundant ? undefined : remaining });
+    return next.endpoints ?? [];
+  }
+
+  /**
+   * 列出备份（task 095），最新在前。目录不存在 → []（不建目录、不报错）。
+   */
+  listBackups(): ProviderBackupInfo[] {
+    let names: string[];
+    try {
+      names = fs.readdirSync(this.backupsDir);
+    } catch (err) {
+      const e = err as NodeJS.ErrnoException;
+      if (e.code === 'ENOENT') return [];
+      throw err;
+    }
+    const out: ProviderBackupInfo[] = [];
+    for (const name of names) {
+      const parsed = parseBackupName(name);
+      if (!parsed) continue;
+      const file = path.join(this.backupsDir, name);
+      let mtimeMs = 0;
+      try {
+        mtimeMs = fs.statSync(file).mtimeMs;
+      } catch {
+        // 并发改名/删除竞态：mtime 缺失时退化为仅按文件名排序
+      }
+      out.push({ kind: parsed.kind, file, takenAt: parsed.takenAt, mtimeMs });
+    }
+    // 最新在前：文件名时间戳优先，同毫秒用 mtime 兜底。
+    out.sort((a, b) => {
+      if (a.takenAt !== b.takenAt) return a.takenAt < b.takenAt ? 1 : -1;
+      if (a.mtimeMs !== b.mtimeMs) return b.mtimeMs - a.mtimeMs;
+      return a.file < b.file ? 1 : -1;
+    });
     return out;
   }
 
@@ -298,12 +479,62 @@ export class ProviderStore {
 
   // ---- internal ----
 
-  /** 原子写：<file>.tmp 写完 fsync 后 rename 覆盖目标（防半写）。 */
+  /** 原子写：<file>.tmp 写完 fsync 后 rename 覆盖目标（防半写）。写前先备份旧文件。 */
   private writeJsonAtomic(file: string, data: unknown): void {
     fs.mkdirSync(this.rootDir, { recursive: true });
+    this.backupBeforeWrite(file);
     const tmp = `${file}.tmp`;
     fs.writeFileSync(tmp, `${JSON.stringify(data, null, 2)}\n`, 'utf8');
     fs.renameSync(tmp, file);
+  }
+
+  /**
+   * 写盘前备份（task 095）：把目标文件**原样**复制成 `backups/<kind>.<ts>.json`，
+   * 每类文件各保留 `backupKeep` 份。
+   *
+   * 轮转**不做任何删除**（删除铁律：禁止永久删除）——达到上限时把最旧的一份
+   * **改名**成新时间戳再覆盖，文件数恒定 ≤ N；改名失败（Windows 偶发 EPERM）
+   * 时退化为原地覆盖最旧文件，同样不产生删除动作。备份内容 = 旧文件字节原样，
+   * 可直接拷回 providers.json 回滚。
+   */
+  private backupBeforeWrite(file: string): void {
+    if (this.backupKeep <= 0) return;
+    let bytes: Buffer;
+    try {
+      bytes = fs.readFileSync(file);
+    } catch (err) {
+      const e = err as NodeJS.ErrnoException;
+      if (e.code === 'ENOENT') return; // 首次写：无旧文件可备份
+      throw err;
+    }
+    fs.mkdirSync(this.backupsDir, { recursive: true });
+    const kind = path.basename(file, '.json');
+    const existing = this.listBackups().filter((b) => b.kind === kind);
+    if (existing.length >= this.backupKeep) {
+      // 最旧一份改名 + 覆盖：文件数不变，且不删除任何东西。
+      const oldest = existing[existing.length - 1]!.file;
+      const target = this.uniqueBackupPath(kind, backupStamp(new Date()));
+      try {
+        fs.renameSync(oldest, target);
+      } catch {
+        fs.writeFileSync(oldest, bytes); // 改名失败 → 原地覆盖（仍无删除）
+        return;
+      }
+      fs.writeFileSync(target, bytes);
+      return;
+    }
+    fs.writeFileSync(this.uniqueBackupPath(kind, backupStamp(new Date())), bytes);
+  }
+
+  /** 备份路径去重：同毫秒多次写盘时追加 `-1`/`-2` 后缀。 */
+  private uniqueBackupPath(kind: string, stamp: string): string {
+    let candidate = path.join(this.backupsDir, `${kind}.${stamp}.json`);
+    let n = 0;
+    while (fs.existsSync(candidate)) {
+      n += 1;
+      candidate = path.join(this.backupsDir, `${kind}.${stamp}-${n}.json`);
+    }
+    return candidate;
   }
 
   /** 读盘 + 校验（不做任何凭据解析/迁移的纯读取）。 */
@@ -414,6 +645,28 @@ export class ProviderStore {
     // task 094：倍率直接乘在钱上，非法值必须 fail loud（负数 / NaN / Infinity / 非数字）。
     if (c.costMultiplier !== undefined) {
       assertCostMultiplier(c.costMultiplier, `provider "${c.id}" costMultiplier`);
+    }
+    // task 096：候选端点必须是 {url, label?} 数组，url 非空且不重复。
+    if (c.endpoints !== undefined) {
+      if (!Array.isArray(c.endpoints)) {
+        throw new Error(`provider "${c.id}" endpoints must be an array of {url, label?}`);
+      }
+      const seenUrls = new Set<string>();
+      for (const [i, ep] of c.endpoints.entries()) {
+        if (typeof ep !== 'object' || ep === null) {
+          throw new Error(`provider "${c.id}" endpoints[${i}] must be an object {url, label?}`);
+        }
+        if (typeof ep.url !== 'string' || ep.url.trim() === '') {
+          throw new Error(`provider "${c.id}" endpoints[${i}].url must be a non-empty string`);
+        }
+        if (ep.label !== undefined && (typeof ep.label !== 'string' || ep.label.trim() === '')) {
+          throw new Error(`provider "${c.id}" endpoints[${i}].label must be a non-empty string when present`);
+        }
+        if (seenUrls.has(ep.url)) {
+          throw new Error(`provider "${c.id}" has duplicate endpoint url: ${ep.url}`);
+        }
+        seenUrls.add(ep.url);
+      }
     }
   }
 }

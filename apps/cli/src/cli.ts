@@ -6,7 +6,15 @@ import { VERSION } from '@vessel/shared';
 import { MockProvider } from '@vessel/llm';
 import { composeHarness, createCredentialStore, type EnforcementProjection } from '@vessel/application';
 import { createVesselServer } from '@vessel/local-server';
-import { ProviderStore, type ProviderConfig } from './providers/ProviderStore.js';
+import { ProviderStore, parseBackupKeep, type ProviderConfig } from './providers/ProviderStore.js';
+import {
+  PROVIDER_EXPORT_VERSION,
+  buildExport,
+  importProviders,
+  serializeExport,
+  type ImportConflictStrategy,
+} from './providers/providerTransfer.js';
+import { DEFAULT_PROBE_TIMEOUT_MS, probeProviderEndpoints, suggestEndpoint } from './providers/endpointProbe.js';
 import { buildRealProvider, describeProviderError, missingBaseUrl, planProvider } from './providers/providerFactory.js';
 import { fetchOpenAIModels, modelsForProtocol } from '@vessel/application';
 import { createClackIO, runSetupWizard } from './providers/setup.js';
@@ -53,6 +61,13 @@ Vessel CLI v${VERSION} — 可组合 Agent Harness（品牌 Vessel）
   vessel provider set <id> [--model <m>] [--base-url <u>] [--cost-multiplier <n>]   修改供应商（倍率只乘总额）
   vessel provider remove <id>        删除供应商
   vessel provider switch|use <id>    切换当前默认供应商
+  vessel provider export [--out <file>]   导出配置（默认脱敏：key 只写 secretRef 占位，永不含明文）
+  vessel provider import <file> [--on-conflict skip|overwrite] [--dry-run] [--keep <n>]   合并导入（默认跳过同名）
+  vessel provider endpoint list <id>            列出候选端点（* = 默认端点 baseUrl）
+  vessel provider endpoint add <id> <url> [--label <l>]     添加候选端点
+  vessel provider endpoint remove <id> <url>                移除候选端点
+  vessel provider endpoint test <id> [--set-default]        端点最小探测 + 建议（默认不改默认端点）
+  vessel provider endpoint test --all                       探测所有供应商的端点
   vessel migrate                     一次性迁移旧状态目录 ~/.dsh → ~/.vessel（数据复制 + 旧目录进回收站）
   vessel review handoff <request.json>   生成外部评审 handoff（.vessel/reviews/<id>/handoff.md；task 059）
   vessel review import <id> <result 文件>  导入外部评审结果（[--source external|internal]，落库）
@@ -176,9 +191,17 @@ function parseCostMultiplier(raw: string, label = '--cost-multiplier'): number {
  * 落明文；读取经 store 解析回 apiKey。真实 ~/.vessel 下的凭据迁移只在 CLI 真正运行
  * 时触发（测试一律注入 rootDir/temp，绝不碰真实目录）。
  */
-function defaultProviderStore(): ProviderStore {
+function defaultProviderStore(opts: { backupKeep?: number } = {}): ProviderStore {
   const credentialStore = createCredentialStore();
-  return new ProviderStore({ credentialStore });
+  return new ProviderStore({ credentialStore, ...(opts.backupKeep !== undefined ? { backupKeep: opts.backupKeep } : {}) });
+}
+
+/** 原子写文本文件（<file>.tmp → rename），用于 `vessel provider export --out`。 */
+function writeTextAtomic(file: string, text: string): void {
+  fs.mkdirSync(path.dirname(file), { recursive: true });
+  const tmp = `${file}.tmp`;
+  fs.writeFileSync(tmp, text, 'utf8');
+  fs.renameSync(tmp, file);
 }
 
 async function cmdRun(flags: Map<string, string>): Promise<number> {
@@ -378,13 +401,23 @@ async function cmdProvider(args: string[], flags: Map<string, string>): Promise<
         const mark = p.id === current ? ' *' : '';
         const protocol = p.protocol === 'mock' ? '' : ` [${p.protocol}]`;
         const mult = p.costMultiplier !== undefined ? ` ×${p.costMultiplier}` : '';
-        console.log(`  ${p.id}${mark}${protocol}  ${p.name} (model: ${p.model})${mult}`);
+        const eps = p.endpoints !== undefined && p.endpoints.length > 0 ? ` +${p.endpoints.length} 端点` : '';
+        console.log(`  ${p.id}${mark}${protocol}  ${p.name} (model: ${p.model})${mult}${eps}`);
       }
       return 0;
     }
     case 'current': {
       console.log(store.getCurrent());
       return 0;
+    }
+    case 'export': {
+      return cmdProviderExport(store, flags);
+    }
+    case 'import': {
+      return cmdProviderImport(args, flags);
+    }
+    case 'endpoint': {
+      return cmdProviderEndpoint(args, flags);
     }
     case 'add': {
       const id = args[1];
@@ -497,10 +530,282 @@ async function cmdProvider(args: string[], flags: Map<string, string>): Promise<
       }
     }
     default: {
-      console.error(`[vessel] 未知 provider 子命令 "${sub}"（可用: list/add/set/remove/switch/use/current）`);
+      console.error(`[vessel] 未知 provider 子命令 "${sub}"（可用: list/add/set/remove/switch/use/current/export/import/endpoint）`);
       return 2;
     }
   }
+}
+
+/** `vessel provider export [--out <file>]` — 导出配置（**默认脱敏，永不含明文密钥**；task 095）。 */
+async function cmdProviderExport(store: ProviderStore, flags: Map<string, string>): Promise<number> {
+  if (flags.has('with-secrets')) {
+    console.error('[vessel provider export] --with-secrets 不支持：本项目没有任何「明文导出」路径（导出只写 secretRef 占位）。');
+    console.error('  迁移密钥请整体搬运 ~/.vessel（含 DPAPI 加密的 secrets.json），或在新机器执行');
+    console.error('  `vessel provider set <id> --api-key <key>` 重新录入（经 CredentialStore 加密落盘）。');
+    return 2;
+  }
+  let file;
+  try {
+    file = buildExport(store);
+  } catch (err) {
+    console.error(`[vessel provider export] ${(err as Error).message}`);
+    return 1;
+  }
+  const text = serializeExport(file);
+  const out = flags.get('out');
+  if (out === undefined) {
+    // stdout 只放 JSON（可重定向/管道）；人类可读提示走 stderr。
+    console.log(text.replace(/\n$/, ''));
+    console.error(`[vessel provider export] 已导出 ${file.count} 个供应商到 stdout（脱敏：剥离密钥 ${file.keysRedacted} 条）。`);
+    return 0;
+  }
+  const target = path.resolve(out);
+  try {
+    writeTextAtomic(target, text);
+  } catch (err) {
+    console.error(`[vessel provider export] 写文件失败 ${target}: ${(err as Error).message}`);
+    return 1;
+  }
+  console.log(`已导出 ${file.count} 个供应商到 ${target}（格式 v${PROVIDER_EXPORT_VERSION}，脱敏：剥离密钥 ${file.keysRedacted} 条）`);
+  console.log('  导出文件不含明文密钥；换机后需 `vessel provider set <id> --api-key <key>` 重新录入。');
+  return 0;
+}
+
+/** `vessel provider import <file>` — 合并导入（同名冲突默认跳过；task 095）。 */
+async function cmdProviderImport(args: string[], flags: Map<string, string>): Promise<number> {
+  const file = args[1];
+  if (!file) {
+    console.error('用法: vessel provider import <file> [--on-conflict skip|overwrite] [--dry-run] [--keep <n>]');
+    console.error('  --on-conflict：同名 id 冲突策略（默认 skip 跳过；overwrite 用文件内容覆盖，但保留本机密钥引用）');
+    console.error('  --keep <n>：本次导入的备份保留份数（默认 5；0 = 不备份）');
+    return 2;
+  }
+  const strategy = (flags.get('on-conflict') ?? 'skip') as ImportConflictStrategy;
+  if (strategy !== 'skip' && strategy !== 'overwrite') {
+    console.error(`[vessel provider import] 非法 --on-conflict "${String(strategy)}"（可用: skip | overwrite）`);
+    return 2;
+  }
+  let backupKeep: number | undefined;
+  const keepRaw = flags.get('keep');
+  if (keepRaw !== undefined) {
+    try {
+      backupKeep = parseBackupKeep(keepRaw, '--keep');
+    } catch (err) {
+      console.error(`[vessel provider import] ${(err as Error).message}`);
+      return 2;
+    }
+  }
+  const store = defaultProviderStore(backupKeep !== undefined ? { backupKeep } : {});
+  const target = path.resolve(file);
+  let text: string;
+  try {
+    text = fs.readFileSync(target, 'utf8');
+  } catch (err) {
+    console.error(`[vessel provider import] 读不到文件 ${target}: ${(err as Error).message}`);
+    return 1;
+  }
+  let result;
+  try {
+    result = importProviders(store, text, { onConflict: strategy, dryRun: flags.has('dry-run') }, target);
+  } catch (err) {
+    console.error(`[vessel provider import] ${(err as Error).message}`);
+    return 1;
+  }
+  const label = result.written
+    ? '已导入'
+    : flags.has('dry-run')
+      ? '[dry-run] 未写盘（预演结果）'
+      : '无变更，未写盘（全部同名跳过）';
+  console.log(
+    `${label}：新增 ${result.added.length}，覆盖 ${result.overwritten.length}，跳过 ${result.skipped.length}`,
+  );
+  if (result.added.length > 0) console.log(`  新增: ${result.added.join(', ')}`);
+  if (result.overwritten.length > 0) console.log(`  覆盖: ${result.overwritten.join(', ')}`);
+  if (result.skipped.length > 0) console.log(`  跳过（同名冲突策略 ${strategy}）: ${result.skipped.join(', ')}`);
+  if (result.strippedKeys.length > 0) {
+    console.error(`[vessel provider import] 已剥离文件中的明文 apiKey（写盘永不落明文）: ${result.strippedKeys.join(', ')}`);
+    console.error('  密钥请单独录入：vessel provider set <id> --api-key <key>（经 CredentialStore 加密落盘）。');
+  }
+  if (result.written && store.backupKeep > 0 && store.listBackups().length > 0) {
+    console.log(`  写盘前已备份到 ${store.backupsDir}（每类保留 ${store.backupKeep} 份）。`);
+  }
+  return 0;
+}
+
+/** `vessel provider endpoint <list|add|remove|test>` — 多端点管理与测速（task 096）。 */
+async function cmdProviderEndpoint(args: string[], flags: Map<string, string>): Promise<number> {
+  const store = defaultProviderStore();
+  const sub = args[1] ?? 'list';
+  switch (sub) {
+    case 'list': {
+      const id = args[2];
+      if (!id) {
+        console.error('用法: vessel provider endpoint list <id>');
+        return 2;
+      }
+      let eps;
+      try {
+        eps = store.effectiveEndpoints(id);
+      } catch (err) {
+        console.error(`[vessel] ${(err as Error).message}`);
+        return 1;
+      }
+      if (eps.length === 0) {
+        console.log(`provider "${id}" 没有端点（baseUrl 与 endpoints 都为空）。`);
+        return 0;
+      }
+      const baseUrl = store.get(id)?.baseUrl;
+      console.log(`provider "${id}" 的端点（* = 默认端点 baseUrl）:`);
+      for (const e of eps) {
+        const mark = e.url === baseUrl ? ' *' : '  ';
+        const label = e.label !== undefined ? `  [${e.label}]` : '';
+        const src = e.source === 'baseUrl' ? '  (baseUrl 回退)' : '';
+        console.log(`${mark} ${e.url}${label}${src}`);
+      }
+      return 0;
+    }
+    case 'add': {
+      const id = args[2];
+      const url = args[3];
+      if (!id || !url) {
+        console.error('用法: vessel provider endpoint add <id> <url> [--label <标签>]');
+        return 2;
+      }
+      try {
+        const pool = store.addEndpoint(id, url, flags.get('label'));
+        console.log(`已为 provider "${id}" 添加端点 ${url}（现有候选 ${pool.length} 个；默认端点 baseUrl 不变）`);
+        return 0;
+      } catch (err) {
+        console.error(`[vessel provider endpoint add] ${(err as Error).message}`);
+        return 1;
+      }
+    }
+    case 'remove': {
+      const id = args[2];
+      const url = args[3];
+      if (!id || !url) {
+        console.error('用法: vessel provider endpoint remove <id> <url>');
+        return 2;
+      }
+      try {
+        const pool = store.removeEndpoint(id, url);
+        console.log(`已移除 provider "${id}" 的端点 ${url}（剩余候选 ${pool.length} 个）`);
+        return 0;
+      } catch (err) {
+        console.error(`[vessel provider endpoint remove] ${(err as Error).message}`);
+        return 1;
+      }
+    }
+    case 'test': {
+      return cmdProviderEndpointTest(store, args[2], flags);
+    }
+    default: {
+      console.error(`[vessel] 未知 endpoint 子命令 "${sub}"（可用: list/add/remove/test）`);
+      return 2;
+    }
+  }
+}
+
+/**
+ * `vessel provider endpoint test [<id>] [--all] [--set-default] [--timeout <ms>]`。
+ *
+ * 语义（任务卡 096 选型）：给 `<id>` 就测该 provider 的**全部候选端点**（比较才是
+ * 目的）；`--all`（不带 id）测**所有已配置供应商**。默认只输出建议，**不改默认
+ * 端点**；只有显式 `--set-default`（且只允许单个 id）才把 baseUrl 改成建议端点。
+ */
+async function cmdProviderEndpointTest(
+  store: ProviderStore,
+  id: string | undefined,
+  flags: Map<string, string>,
+): Promise<number> {
+  const all = flags.has('all');
+  if (!id && !all) {
+    console.error('用法: vessel provider endpoint test <id> [--set-default] [--timeout <ms>]');
+    console.error('      vessel provider endpoint test --all [--timeout <ms>]');
+    return 2;
+  }
+  if (flags.has('set-default') && !id) {
+    console.error('[vessel provider endpoint test] --set-default 需要指定单个 <id>（--all 会同时改多个供应商，拒绝执行）');
+    return 2;
+  }
+  let timeoutMs = DEFAULT_PROBE_TIMEOUT_MS;
+  const rawTimeout = flags.get('timeout');
+  if (rawTimeout !== undefined) {
+    const n = Number(rawTimeout);
+    if (!Number.isFinite(n) || n <= 0) {
+      console.error(`[vessel provider endpoint test] 非法 --timeout "${rawTimeout}"（毫秒正整数）`);
+      return 2;
+    }
+    timeoutMs = Math.floor(n);
+  }
+  let targets: { id: string; cfg: ProviderConfig }[];
+  if (id) {
+    const cfg = store.get(id);
+    if (!cfg) {
+      console.error(`[vessel] provider "${id}" 不存在（vessel provider list 查看）`);
+      return 2;
+    }
+    targets = [{ id, cfg }];
+  } else {
+    targets = store.load().map((cfg) => ({ id: cfg.id, cfg }));
+    if (targets.length === 0) {
+      console.log('没有已配置的供应商（内置 mock 无需探测）。');
+      return 0;
+    }
+  }
+  let anyReachable = false;
+  const suggestions = new Map<string, { url: string; latencyMs: number }>();
+  for (const t of targets) {
+    const pool =
+      t.cfg.endpoints !== undefined && t.cfg.endpoints.length > 0
+        ? t.cfg.endpoints
+        : t.cfg.baseUrl
+          ? [{ url: t.cfg.baseUrl }]
+          : [];
+    if (pool.length === 0) {
+      console.log(`provider "${t.id}": 没有端点可测（未配 baseUrl/endpoints）。`);
+      continue;
+    }
+    console.log(`探测 provider "${t.id}" 的 ${pool.length} 个端点（GET {base}/models，不带凭据，超时 ${timeoutMs}ms）:`);
+    const results = await probeProviderEndpoints(t.cfg, { timeoutMs });
+    for (const r of results) {
+      const state = r.ok ? '✔' : r.reachable ? '~' : '✖';
+      const detail = r.reachable ? `HTTP ${r.status}` : (r.error ?? 'unreachable');
+      const label = r.label !== undefined ? ` [${r.label}]` : '';
+      console.log(`  ${state} ${r.url}${label}  ${detail}  ${r.latencyMs}ms`);
+    }
+    if (results.some((r) => r.reachable)) anyReachable = true;
+    const best = suggestEndpoint(results);
+    if (!best) {
+      console.log('  建议：无可用端点（全部不可达）——仅建议，未改动默认端点。');
+      continue;
+    }
+    const isDefault = best.url === t.cfg.baseUrl;
+    console.log(
+      `  建议：${best.url}（${isDefault ? '已是默认端点' : '最快可达'}，${best.latencyMs}ms）——仅建议，未改动默认端点。`,
+    );
+    suggestions.set(t.id, { url: best.url, latencyMs: best.latencyMs });
+  }
+  if (flags.has('set-default') && id) {
+    const best = suggestions.get(id);
+    if (!best) {
+      console.error('[vessel provider endpoint test] 没有可达端点，未改动默认端点。');
+      return 1;
+    }
+    if (store.get(id)?.baseUrl === best.url) {
+      console.log(`默认端点已是 ${best.url}，无需改动。`);
+      return 0;
+    }
+    try {
+      const next = store.update(id, { baseUrl: best.url });
+      console.log(`已按建议把 provider "${id}" 的默认端点设为 ${next.baseUrl}（写盘前已备份到 ${store.backupsDir}）。`);
+      return 0;
+    } catch (err) {
+      console.error(`[vessel] ${(err as Error).message}`);
+      return 1;
+    }
+  }
+  return anyReachable ? 0 : 1;
 }
 
 /** `vessel setup` — interactive guided provider wizard (cc-switch-style UX). */
