@@ -1,7 +1,7 @@
 # 100 — 定价管理（历史回填 recompute + 用户价目覆盖）
 
 - 编号：100（合并 CC-SWITCH-MODULE-STUDY 候选卡 091/092）
-- 状态：待验收
+- 状态：已合入
 - 优先级：P1
 - 创建日期：2026-09-08
 - 关联：085（source/estimated 语义，已合入）；089/099（usage 分项与 daily 分桶，已合入）；docs/CC-SWITCH-IMPROVEMENTS-PROGRESS.md
@@ -167,5 +167,11 @@ vessel pricing override restore deepseek-chat  # 撤销
 
 ## 验收结论（指挥回填）
 
-- [ ] 合入 / 打回
-- 备注：
+- [x] 合入（commits ecf422a 实现 + 2a209a9 回填）
+- 备注：指挥独立复核——`tsc -b` exit 0；全量 vitest 1039 passed + 1 skipped（唯一失败为已知 process-tree 时序
+  flaky，隔离重跑通过；执行器另一次全量出现的 project-task-queue EPERM 亦为已知 flaky）；web 74 passed。
+  认可：接手执行器**审查+补缺+验证**而非重写（前一执行器失败时留下的半成品经逐条核对实现完整正确）；
+  recompute 幂等有硬证据（同价目第二次 changed=0/written=false/usage.json 逐字节不变，1e-9 容差 + recomputedAt
+  仅真变更时写）；--dry-run 不落盘且文件不变；优先级链 override > 内置 > catalog > protocol > default（覆盖命中即
+  终结，strict 下仍生效；墓碑按 0 计价且不回退）；值守卫 repair 三态（applied/skipped-user-modified）；
+  补 7 例 CLI 端到端测试（+44 总，基线 994→1038 零新增回归）。**100 关闭。**
