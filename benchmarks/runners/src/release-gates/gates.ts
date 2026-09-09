@@ -26,6 +26,7 @@ import {
   LANE_SCENARIOS,
   type ProviderResolver,
 } from '../lane/real-model-lane.js';
+import { opencodeGoProviderResolver } from '../lane/opencodeGoProvider.js';
 import type {
   GateDefinition,
   GateExecutor,
@@ -309,8 +310,12 @@ async function runOfflineScenarios(
 
 /** Build the 8 real release-gate executors with injected deps. */
 export function buildReleaseGateExecutors(opts: BuildGateExecutorsOptions = {}): GateExecutor[] {
-  const noCredentialResolver: ProviderResolver = async () => null;
-  const providerResolver: ProviderResolver = opts.providerResolver ?? noCredentialResolver;
+  // V1.1-C: default to the opencode-go provider resolver (reads OPENCODE_API_KEY from env,
+  // never writes a key to disk). No key → null → real-model-bench probes and returns
+  // pending (preserving the existing "no silent pass" semantics); key present → opencode-go
+  // drives the 082 lane with the confirmed MIMO model.
+  const defaultProviderResolver = opencodeGoProviderResolver();
+  const providerResolver: ProviderResolver = opts.providerResolver ?? defaultProviderResolver;
 
   const out: GateExecutor[] = [
     // Gate 1 Build — tsc -b
