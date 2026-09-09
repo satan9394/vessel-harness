@@ -13,14 +13,13 @@
 | 089 | 统计增强：daily 本地日分桶（complete=date<今日）+ `--by-day/--since/--until` + cache_creation 计价（explicit/derived/absent 三档） | cdf1374 | 980 测试 + tsc 0 |
 | 099 | cache_creation 端到端采集：AnthropicProvider 非流式 + parseAnthropic 流式 message_start → ChatUsage.cacheCreationTokens → AgentLoop 折叠 → 统计分项（core 仅 1 行） | 69502c5 | 994 测试 + tsc 0 |
 | 100 | 定价管理：`vessel usage recompute`（幂等 + dry-run）+ `~/.vessel/pricing.override.json`（覆盖 + 墓碑 + 值守卫 repair）；优先级 override>内置>catalog>protocol>default | ecf422a | 1038 测试 + tsc 0 |
+| 101 | P2：models.dev 价目同步（离线语义硬：不改文件 + exit 1）+ provider 成本倍率（只乘总额 + fail loud） | f276724 | 针对性 193 + tsc 0 |
 
 ## 待做（按报告优先级）
 
 | 卡 | 内容 | 优先级 | 备注 |
 |---|---|---|---|
 | — | cache_creation 展示层（apps/web UsageBar + local-server usage SSE 仍只 cacheRead） | P2 | 099 记录的后续 |
-| 093 | models.dev 同步 `vessel pricing sync`（拉取生成/更新 model-catalog，离线回退） | P2 | |
-| 094 | provider 成本倍率 `costMultiplier`（只乘总额） | P2 | |
 | 095 | 供应商导入导出 + 备份轮转（导出默认脱敏，key 走 secretRef 占位） | P2 | |
 | 096 | 多端点 + 测速 `ProviderConfig.endpoints[]` | P2 | |
 

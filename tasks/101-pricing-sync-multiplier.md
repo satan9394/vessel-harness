@@ -1,7 +1,7 @@
 # 101 — P2：models.dev 价目同步 + provider 成本倍率
 
 - 编号：101（合并 CC-SWITCH-MODULE-STUDY 候选卡 093/094）
-- 状态：待验收
+- 状态：已合入
 - 优先级：P2
 - 创建日期：2026-09-09
 - 关联：085（resolvePrice/source 语义）；100（override/优先级链）；docs/CC-SWITCH-IMPROVEMENTS-PROGRESS.md
@@ -142,5 +142,13 @@ cd apps/web && npm test                     → 8 files / 74 passed
 
 ## 验收结论（指挥回填）
 
-- [ ] 合入 / 打回
-- 备注：
+- [x] 合入（commits f276724 + 64aa66d + 1d8aaa3/4698020）
+- 备注：指挥独立复核——`tsc -b` exit 0；针对性测试（apps/cli/src/providers + apps/cli/src/usage +
+  packages/shared/src/pricing.test.ts）**193 passed**；执行器全量 1081 passed + 1 skipped（唯一失败为已知
+  process-tree flaky，单跑通过）；web 74。全量最终复核在 102 完成后统一做（101 期间工作区有 102 在途改动）。
+  认可：093 sync（models.dev 拉取 15s 超时 + 重试 1 次；cost/limit → priceIn/priceOut/priceCache/priceCacheWrite/
+  contextWindow/outputLimit；过滤非文本/弃用/缺价/--provider/--exclude；**离线语义硬**：超时/连接失败/5xx/非法 JSON/
+  解析 0 条 → status=offline + 目标文件逐字节不动 + ⚠ 原因 + exit 1；同步只写 catalog，不读不写 override）；
+  094 倍率（costMultiplier 缺省 1；`totalUsd = rawTotalUsd × multiplier`，分项单价与金额不变；负数/NaN/Infinity/
+  非数字在 ProviderStore 与 costBreakdown 两处 fail loud，CLI exit 2 不落盘；倍率 0 合法）；28 新测试（CLI 端到端用
+  node:http 本地服务冒充 models.dev，零真实网络）。**101 关闭。**
