@@ -105,41 +105,45 @@ V1.1-C 把「内置 preset + OPENCODE_API_KEY 环境变量 + MIMO 目标模型�
 - **实跑接线**：真实跑时 `providerResolver` 用 `opencodeGoProviderResolver()`；无 key → pending。
   有 key + 拉到 MIMO V2.5 后用其做 defaultModel 跑授权场景子集，报告写 `benchmarks/reports/`。
 
-## CC Switch 凭据转接（V1.1-F）
+## 凭据来源（env / CredentialStore，task 097 纠偏）
 
-V1.1-F 把 opencode-go 的 API key 从 **CC Switch 配置**转接到仓库 CredentialStore（034/069，
-Windows DPAPI 加密落库），provider 运行时经 resolver **从 CredentialStore 读取**（env 回退 +
-可注入 mock），**明文密钥绝不落盘/git/日志/报告**。
+opencode-go 的 API key **只有两条来源**，provider 运行时经 resolver 读取（可注入、可 mock），
+**明文密钥绝不落盘/git/日志/报告**：
 
-- **CC Switch 配置探查**（实测 2026-09）：配置主体是 **SQLite 库** `~/.cc-switch/cc-switch.db`，
-  表 `providers`，`app_type='opencode'` 的“OpenCode Go”条目，其 `settings_config`（AI SDK
-  openai-compatible 形状）含 `options.baseURL=https://opencode.ai/zen/go/v1` 与
-  `options.apiKey`。apiKey 采用 opencode 的 **`{file:<path>}` 文件引用**语法（引用了
-  `~/.config/opencode/secrets/{hs,zl}-api-key` 两个 key 文件），而非内联明文。
-- **凭据转接模块** `benchmarks/runners/src/lane/ccSwitchCredential.ts`：
-  `probeCcSwitchOpencode()`（只读根 SQLite）/ `resolveApiKeyField()`（解析 `{file}` / `{env}` /
-  内联明文）/ `migrateOpencodeGoCredential()`（把 key 经注入 CredentialStore.set 加密落库，
-  返回值**不含 key**）。全程只读 DB、进程内读 key 文件，任何写盘都走 CredentialStore（DPAPI 密文）。
-- **resolver 集成**（opencodeGoProvider.ts）：`credentialStoreOpencodeGoKey()`（读
-  `credential:vessel/opencode-go`，同步 getSync）与 `credentialAwareOpencodeGoKey()`（CredentialStore
-  优先 → env `OPENCODE_API_KEY` 回退 → undefined→pending）。单测/驱动注入 mock store，不碰真实密钥。
-- **实跑接线**：`run-opencode-lane.ts` / `run-release-gates.ts` / `run-v11f-verify.ts` 开头先
-  `migrateOpencodeGoCredential()`（CC Switch→CredentialStore），再用 `credentialAwareOpencodeGoKey`
-  构造 resolver 跑 lane/gate/probe。真实 key 只在进程内 + DPAPI 密文；报告/证据文件记录
-  `{synced,baseUrl,rowId,keyPresent}`，**不含密钥片段**。
+1. **仓库 CredentialStore**（034/069：Windows DPAPI 密文 + `secretRef`
+   `credential:vessel/opencode-go`），由用户经 `vessel provider add` / `vessel setup` 向导
+   **主动写入** `~/.vessel/secrets.json`；
+2. **环境变量** `OPENCODE_API_KEY`（进程环境，回退用）。
+
+> **不读取任何用户本机应用数据**（task 097 纠偏）：V1.1-F 曾把「读取本机安装的 CC Switch 应用
+> 数据库 `~/.cc-switch/cc-switch.db`」当作凭据来源（模块 `ccSwitchCredential.ts`，已移除）。
+> 学习对象是 **cc-switch 开源项目的模块设计**（见 `docs/ideas/CC-SWITCH-MODULE-STUDY.md`），
+> 不是去动用户本机应用数据；仓库内已无任何指向 `~/.cc-switch` 的代码路径（有源码树守卫测试）。
+
+- **凭据来源模块** `benchmarks/runners/src/lane/opencodeGoCredential.ts`（唯一入口）：
+  `envOpencodeGoKey()`（env 来源）/ `credentialStoreOpencodeGoKey(store)`（读
+  `credential:vessel/opencode-go`，同步 `getSync`，后端不可用→undefined 不抛）/
+  `credentialAwareOpencodeGoKey({store,createStore,env,fallback})`（CredentialStore 优先 →
+  env 回退 → 注入兜底 → undefined 即 lane 降级 pending）。**不 import `node:fs`，不读任何文件**。
+- **resolver 集成**（`opencodeGoProvider.ts`）：lane/gate/driver 统一用
+  `credentialAwareOpencodeGoKey({ store })` 构造 resolver，再交给
+  `opencodeGoProviderResolver()` / `fetchOpencodeGoModels()` / `probeOpencodeGoOnce()`。
+  单测/驱动注入 mock store 或 mock provider，**不碰真实密钥**。
+- **实跑接线**：`run-opencode-lane.ts` / `run-release-gates.ts` / `run-v11f-verify.ts` 用
+  `createCredentialStore()` + `credentialAwareOpencodeGoKey()` 直接读凭据（**无迁移步骤**）。
+  真实 key 只在进程内 + DPAPI 密文；报告/证据文件只记录 `{keyPresent, keySource}`，**不含密钥片段**。
 
 ```ts
 import {
   runRealModelLane, opencodeGoProviderResolver,
   fetchOpencodeGoModels, selectMimoModel, defaultMimoLaneModels,
-  migrateOpencodeGoCredential, credentialAwareOpencodeGoKey,
+  credentialAwareOpencodeGoKey, OPENCODE_GO_CREDENTIAL_SOURCES,
   createCredentialStore,
 } from '...';
-const store = createCredentialStore();               // Windows DPAPI（本机）
-const migrated = await migrateOpencodeGoCredential({ store }); // CC Switch → store
-const keyResolver = credentialAwareOpencodeGoKey({ store });   // store 优先，env 回退
-const { source } = await fetchOpencodeGoModels(keyResolver);   // live /v1/models
-const laneModels = defaultMimoLaneModels(source.models);       // pro/flash 两档
+const store = createCredentialStore();                       // Windows DPAPI（本机）
+const keyResolver = credentialAwareOpencodeGoKey({ store }); // store 优先，env 回退
+const { source } = await fetchOpencodeGoModels(keyResolver); // live /v1/models
+const laneModels = defaultMimoLaneModels(source.models);     // pro/flash 两档
 const resolver = opencodeGoProviderResolver({ keyResolver });
 const report = await runRealModelLane({
   models: laneModels, scenarios: LANE_SCENARIOS, providerResolver: resolver,

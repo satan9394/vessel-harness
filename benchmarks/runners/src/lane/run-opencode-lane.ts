@@ -1,11 +1,12 @@
 /**
- * task V1.1-F — opencode-go 真实模型 lane 驱动脚本（含 CC Switch 凭据转接）。
+ * task V1.1-F / 097 — opencode-go 真实模型 lane 驱动脚本。
  *
- * 用法：`npx tsx benchmarks/runners/src/lane/run-opencode-lane.ts [--keep] [--db <cc-switch.db>]`
+ * 用法：`npx tsx benchmarks/runners/src/lane/run-opencode-lane.ts [--keep]`
  *
  * 流程：
- *   1. （V1.1-F）凭据转接：从 CC Switch 库（~/.cc-switch/cc-switch.db，可 --db 覆盖）探查
- *      opencode-go 条目 → 经 CredentialStore（034/069 Windows DPAPI）加密落库；key 只在进程内
+ *   1. 凭据来源（task 097 收敛为两条）：仓库 CredentialStore（034/069 Windows DPAPI 密文，
+ *      用户经 `vessel provider add` / setup 向导主动写入）→ 环境变量 `OPENCODE_API_KEY`。
+ *      **不读取任何用户本机应用数据**（V1.1-F 的 cc-switch 应用库路径已移除）。key 只在进程内
  *      出现，绝不写明文/git/日志/报告。
  *   2. fetchOpencodeGoModels() 拉 /v1/models（key 经 credentialAware 读取；无 key → 内置参考清单）。
  *   3. selectMimoModel/defaultMimoLaneModels 映射 pro/flash 档（MIMO V2.5 优先）。
@@ -26,35 +27,21 @@ import {
   defaultMimoLaneModels,
   opencodeGoProviderResolver,
   credentialAwareOpencodeGoKey,
-  migrateOpencodeGoCredential,
+  OPENCODE_GO_CREDENTIAL_SOURCES,
 } from './index.js';
 
 const REPO_ROOT = fileURLToPath(new URL('../../../../', import.meta.url));
 const REPORTS_DIR = path.join(REPO_ROOT, 'benchmarks', 'reports');
 
-function argValue(flag: string): string | undefined {
-  const i = process.argv.indexOf(flag);
-  return i >= 0 && i + 1 < process.argv.length ? process.argv[i + 1] : undefined;
-}
-
 async function main(): Promise<void> {
   const keep = process.argv.includes('--keep');
-  const dbPath = argValue('--db');
 
-  // V1.1-F — must run BEFORE rendering the key resolver so the cached getter sees the migrated value.
+  // 凭据来源：CredentialStore（DPAPI 密文）→ env OPENCODE_API_KEY。不读任何本机应用数据。
   const store = createCredentialStore();
-  const migrated = await migrateOpencodeGoCredential({ store, dbPath });
-  // eslint-disable-next-line no-console
-  console.log(
-    `[V1.1-F] cc-switch opencode-go 凭据转接：synced=${migrated.synced}` +
-      (migrated.rowId ? ` rowId=${migrated.rowId}` : '') +
-      (migrated.baseUrl ? ` baseUrl=${migrated.baseUrl}` : '') +
-      (migrated.reason ? ` reason=${migrated.reason}` : ''),
-  );
-
-  // key resolver：先 CredentialStore（034/069 DPAPI 落库），再回退 env，最后 undefined→pending。
   const keyResolver = credentialAwareOpencodeGoKey({ store });
   const keyPresent = (keyResolver() ?? '').length > 0;
+  // eslint-disable-next-line no-console
+  console.log(`[097] opencode-go 凭据来源：${OPENCODE_GO_CREDENTIAL_SOURCES.join(' → ')}`);
   // eslint-disable-next-line no-console
   console.log(`[V1.1-F] opencode-go key=${keyPresent ? 'present' : 'MISSING (pending)'} → base https://opencode.ai/zen/go/v1`);
 
@@ -85,11 +72,9 @@ async function main(): Promise<void> {
     path.join(REPORTS_DIR, 'V1.1-F-openmodel-lane.json'),
     JSON.stringify({
       keyPresent,
-      keySource: 'CredentialStore (DPAPI encrypted, from CC Switch)',
+      keySource: OPENCODE_GO_CREDENTIAL_SOURCES.join(' / '),
       modelSource: source.origin,
       modelNote: source.note,
-      ccSwitchBaseUrl: migrated.baseUrl ?? null,
-      ccSwitchRowId: migrated.rowId ?? null,
       runId: report.runId,
     }, null, 2),
     'utf8',

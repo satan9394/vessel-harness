@@ -21,13 +21,15 @@ import { MockProvider } from '@vessel/llm';
 import { findPreset } from '@vessel/application';
 import { LANE_MODELS, type LaneModel } from './real-model-lane.js';
 import {
-  OPENCODE_GO_PRESET_ID,
   OPENCODE_API_KEY_ENV,
+  envOpencodeGoKey,
+} from './opencodeGoCredential.js';
+import {
+  OPENCODE_GO_PRESET_ID,
   MIMO_V25_MODEL_ID,
   MIMO_V25_PRO_MODEL_ID,
   opencodeGoBaseUrl,
   opencodeGoEndpoint,
-  envOpencodeGoKey,
   resolveOpencodeGoProvider,
   opencodeGoProviderResolver,
   selectMimoModel,

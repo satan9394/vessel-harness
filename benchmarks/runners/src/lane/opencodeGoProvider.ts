@@ -4,9 +4,10 @@
  * 把「opencode-go 供应商 + OPENCODE_API_KEY 环境变量 + MIMO 目标模型」收敛成一个可注入、
  * 可 mock 的真实 ChatProvider 解析面，供 082 real-model lane 与 084 release gates 消费。
  *
- * 密钥安全铁律：**凭据绝不落盘**。apiKey 只经注入的 keyResolver 读取（默认
- * process.env.OPENCODE_API_KEY）；无 key 就不构造 provider，由 lane/gate 降级为
- * pending-environment。本模块不做任何写盘/持久化。
+ * 密钥安全铁律：**凭据绝不落盘**。apiKey 只经注入的 keyResolver 读取（task 097 收敛为两条
+ * 来源：仓库 CredentialStore 034/069 DPAPI + 环境变量 `OPENCODE_API_KEY`，见
+ * `opencodeGoCredential.ts`；**不读任何用户本机应用数据**）；无 key 就不构造 provider，
+ * 由 lane/gate 降级为 pending-environment。本模块不做任何写盘/持久化。
  *
  * 复用既有机制：
  *   - 内置 preset `@vessel/application` 的 packages/application/src/providers/presets.data.ts
@@ -25,14 +26,11 @@ import type { ChatProvider } from '@vessel/shared';
 import { createProvider } from '@vessel/llm';
 import { findPreset } from '@vessel/application';
 import { fetchOpenAIModels, type ModelSource } from '@vessel/application';
-import { OPCODE_GO_CRED_SERVICE, OPCODE_GO_CRED_ACCOUNT } from './ccSwitchCredential.js';
+import { envOpencodeGoKey, type OpencodeGoKeyResolver } from './opencodeGoCredential.js';
 import type { LaneModel } from './real-model-lane.js';
 
 /** opencode-go preset id（对齐 packages/application/src/providers/presets.data.ts）。 */
 export const OPENCODE_GO_PRESET_ID = 'opencode-go';
-
-/** 密钥环境变量约定（任务卡/模型清单唯一事实源；不读写磁盘）。 */
-export const OPENCODE_API_KEY_ENV = 'OPENCODE_API_KEY';
 
 /** MIMO V2.5 目标模型 id（用户指定；live 清单确认后用实际 id 覆盖解析）。 */
 export const MIMO_V25_MODEL_ID = 'mimo-v2.5';
@@ -51,58 +49,11 @@ export function opencodeGoBaseUrl(): string {
   return preset.baseUrl;
 }
 
-/** 密钥读取注入点（默认环境变量；测试注入固定值，不碰真实凭据）。 */
-export type OpencodeGoKeyResolver = () => string | undefined;
-
-/** 默认 keyResolver：只读 env，绝不落盘。 */
-export const envOpencodeGoKey: OpencodeGoKeyResolver = () => process.env[OPENCODE_API_KEY_ENV];
-
 /**
- * CredentialStore 读取 key（task V1.1-F）：读 `credential:<service>/<account>` 存的那一项
- * （DPAPI 加密落库，明文只在进程内）。store 可注入（测试 mock）；读不到返回 undefined。
- * 用同步 getSync 对齐 `OpencodeGoKeyResolver` 的同步签名（034/069 CredentialBackend 同时
- * 提供 sync/async 两套）。只读、不写盘——写盘由迁移动作（ccSwitchCredential.migrate）负责。
+ * 凭据来源（task 097）：**只有两条**——① CredentialStore（034/069 DPAPI + secretRef，
+ * 用户经 `vessel provider add` / setup 向导主动写入）；② 环境变量 `OPENCODE_API_KEY`。
+ * 实现见 `opencodeGoCredential.ts`（不读任何用户本机应用数据）。本模块只消费 resolver。
  */
-export function credentialStoreOpencodeGoKey(
-  store: { getSync(service: string, account: string): string | null },
-  service = OPCODE_GO_CRED_SERVICE,
-  account = OPCODE_GO_CRED_ACCOUNT,
-): () => string | undefined {
-  return () => {
-    const v = store.getSync(service, account);
-    return typeof v === 'string' && v.length > 0 ? v : undefined;
-  };
-}
-
-/**
- * 组合 key resolver（task V1.1-F）：先读 CredentialStore（034/069 DPAPI 加密落库，用同步
- * getSync），再回退环境变量 `OPENCODE_API_KEY`，最后回退注入的兜底 resolver（如 undefined）。
- * 测试可注入 store/env/fallback；不注入时构造真实 CredentialStore（Windows DPAPI），但
- * **懒加载 + 尽力而为**（读不到/不可用绝不抛，落到下一级）。
- */
-export function credentialAwareOpencodeGoKey(opts: {
-  store?: { getSync(service: string, account: string): string | null };
-  createStore?: () => { getSync(service: string, account: string): string | null };
-  env?: NodeJS.ProcessEnv;
-  fallback?: OpencodeGoKeyResolver;
-} = {}): OpencodeGoKeyResolver {
-  const env = opts.env ?? process.env;
-  const fallback = opts.fallback ?? (() => undefined);
-  const store = opts.store ?? opts.createStore?.();
-  const credResolver = store ? credentialStoreOpencodeGoKey(store) : undefined;
-  return () => {
-    // 1) CredentialStore（DPAPI 加密落库）优先
-    if (credResolver) {
-      const fromStore = credResolver();
-      if (typeof fromStore === 'string' && fromStore.length > 0) return fromStore;
-    }
-    // 2) 环境变量回退
-    const fromEnv = env[OPENCODE_API_KEY_ENV];
-    if (typeof fromEnv === 'string' && fromEnv.length > 0) return fromEnv;
-    // 3) 注入兜底（正常为 undefined → lane 降级 pending）
-    return fallback();
-  };
-}
 
 /** opencode-go 真实 provider 的组装参数（供单测与诊断复现）。 */
 export interface OpencodeGoEndpoint {

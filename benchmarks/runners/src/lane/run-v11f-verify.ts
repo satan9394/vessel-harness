@@ -1,10 +1,12 @@
 /**
- * task V1.1-F — 真实模型验证驱动（真实 key：migrate → /v1/models → 最小连通 probe）。
+ * task V1.1-F / 097 — 真实模型验证驱动（真实 key：/v1/models → 最小连通 probe）。
  *
- * 用法：`npx tsx benchmarks/runners/src/lane/run-v11f-verify.ts [--db <cc-switch.db>] [--model <id>]`
+ * 用法：`npx tsx benchmarks/runners/src/lane/run-v11f-verify.ts [--model <id>]`
  *
  * 流程：
- *   1. （可复用）凭据转接：CC Switch → CredentialStore（DPAPI 加密落库）。
+ *   1. 凭据来源（task 097 收敛为两条）：CredentialStore（034/069 DPAPI 密文，用户经
+ *      `vessel provider add` / setup 向导主动写入）→ 环境变量 `OPENCODE_API_KEY`；
+ *      **不读取任何用户本机应用数据**。
  *   2. 真实 GET {base}/v1/models 拉取清单（key 经 CredentialStore 读取），确认 MIMO V2.5 系模型 id。
  *   3. 最小真实聊天 probe（仅 `ping`，maxTokens 极小），验证鉴权/响应/usage 连通。
  *   4. 证据（不含密钥）写 `benchmarks/reports/V1.1-F-verify.json`；失败如实 pending + reason。
@@ -17,11 +19,11 @@ import * as path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createCredentialStore } from '@vessel/application';
 import {
-  migrateOpencodeGoCredential,
   fetchOpencodeGoModels,
   selectMimoModel,
   probeOpencodeGoOnce,
   credentialAwareOpencodeGoKey,
+  OPENCODE_GO_CREDENTIAL_SOURCES,
   MIMO_V25_MODEL_ID,
 } from './index.js';
 
@@ -34,22 +36,19 @@ function argValue(flag: string): string | undefined {
 }
 
 async function main(): Promise<void> {
-  const dbPath = argValue('--db');
   const modelOverride = argValue('--model');
 
   const store = createCredentialStore();
-  const migrated = await migrateOpencodeGoCredential({ store, dbPath });
-  // eslint-disable-next-line no-console
-  console.log(`[V1.1-F] migrate synced=${migrated.synced}${migrated.rowId ? ` rowId=${migrated.rowId}` : ''}${migrated.reason ? ` reason=${migrated.reason}` : ''}`);
-
   const keyResolver = credentialAwareOpencodeGoKey({ store });
   const hasKey = (keyResolver() ?? '').length > 0;
+  // eslint-disable-next-line no-console
+  console.log(`[097] opencode-go 凭据来源：${OPENCODE_GO_CREDENTIAL_SOURCES.join(' → ')}`);
   // eslint-disable-next-line no-console
   console.log(`[V1.1-F] key=${hasKey ? 'present' : 'MISSING'}`);
 
   const evidence: Record<string, unknown> = {
     generatedAt: new Date().toISOString(),
-    migrated,
+    credentialSources: OPENCODE_GO_CREDENTIAL_SOURCES,
     hasKey,
     models: null,
     probe: null,
