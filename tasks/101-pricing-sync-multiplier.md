@@ -133,7 +133,8 @@ cd apps/web && npm test                     → 8 files / 74 passed
 
 ### 6. 提交
 
-- 实现提交：`<见下条 docs 提交>`（`feat(usage): 101 models.dev pricing sync + provider cost multiplier`）
+- 实现提交：`f276724`（`feat(pricing): 101 models.dev pricing sync + provider cost multiplier`，14 files changed,
+  1744 insertions(+)，47 deletions(-)；本条 docs 提交只记录哈希）
 - 未 force push；删除一律走回收站（本卡未删任何文件）。
 
 ## 验收结论（指挥回填）
