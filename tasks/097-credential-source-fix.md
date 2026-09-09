@@ -122,7 +122,8 @@ benchmarks/runners/src/lane/opencodeGoCredential.ts:6   学习对象是 cc-switc
 `node_modules`、`dist`），断言上述 4 个 needle 命中数为 0 —— 任何人再引入本机应用数据读取都会红。
 
 docs/tasks 中的 `~/.cc-switch` 提及为**历史记录与开源项目调研**（`docs/ideas/CC-SWITCH-MODULE-STUDY.md`、
-`docs/ideas/PROVIDER-UX-RESEARCH.md`、V1.1-F 卡历史正文、本卡），按任务卡要求保留。
+`docs/ideas/PROVIDER-UX-RESEARCH.md`、`docs/V1.1-ROADMAP.md` 的 V1.1-F 历史条目、V1.1-F 卡历史正文、本卡），
+按任务卡要求保留（**不篡改历史记录**）。
 `benchmarks/reports/V1.1-F-openmodel-lane.json` 是 2026-09-08 历史实跑证据（含 `ccSwitchBaseUrl` 字段），
 **未改写**（不伪造历史证据）；下次跑 `run-opencode-lane.ts` 会按新字段集重写该文件。
 
@@ -160,6 +161,12 @@ cd apps/web && npx vitest run                    → 8 files / 74 passed
    原先靠 `--db` 指定 CC Switch 库；参数已无意义，一并删除（含 release-gates 中随之变成死代码的 `argValue`）。
 5. **环境**：本会话 `tsc` / `vitest` 均直跑成功，无 EPERM/沙箱阻塞，无需降级记录。
 6. **未做**：不改 CredentialStore、不改 lane 其它逻辑、不动 pricing、不删用户本机任何文件、不加依赖。
+
+### 6. 提交
+
+- 实现提交：`6be5527` — `refactor(bench): 097 drop local cc-switch app-data credential source`（14 files changed,
+  +521 / -677）。本行由 docs 提交补记。
+- 工作树提交前只含本卡改动（无 `docs/V1.0-CHECKPOINT.md` 等指挥侧改动，未混入其它任务卡）。
 
 ## 验收结论（指挥回填）
 
