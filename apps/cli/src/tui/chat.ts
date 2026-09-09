@@ -4,7 +4,7 @@ import { createProvider, MockProvider } from '@vessel/llm';
 import { composeHarness, type ComposedHarness } from '@vessel/application';
 import { ProviderStore, type ProviderConfig } from '../providers/ProviderStore.js';
 import { runSetupWizard, createClackIO, fetchModelOutcome } from '../providers/setup.js';
-import { modelsForProtocol } from '../providers/modelFetcher.js';
+import { modelsForProtocol } from '@vessel/application';
 import { VESSEL_LOGO } from '../brand.js';
 
 /**

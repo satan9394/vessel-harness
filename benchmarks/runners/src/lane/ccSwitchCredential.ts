@@ -18,7 +18,7 @@
  * 复用既有机制：
  *   - `@vessel/application` 的 `createCredentialStore`（034/069：Windows DPAPI / plaintext
  *     显式降级）；本模块只在 **Windows + DPAPI 可用** 时把 key 加密落库，绝不写明文。
- *   - baseUrl 仍以仓库内置 preset（apps/cli presets.data.ts id='opencode-go'）为 SSOT；
+ *   - baseUrl 仍以仓库内置 preset（@vessel/application 的 presets.data.ts id='opencode-go'）为 SSOT；
  *     本模块的 CC Switch 探查用于「确认该供应商对应的真实 baseURL + 取出 key」，两者对齐后库内
  *     preset 为准。若 CC Switch baseUrl 与 preset 不一致，以 CC Switch 为准并记录（不臆断）。
  *

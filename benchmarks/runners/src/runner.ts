@@ -4,7 +4,7 @@ import * as path from 'node:path';
 import * as yaml from 'js-yaml';
 import type { ChatProvider } from '@vessel/shared';
 import { MockProvider } from '@vessel/llm';
-import { composeHarness, type ComposeOptions } from '@vessel/cli';
+import { composeHarness, type ComposeOptions } from '@vessel/application';
 import { EvaluatorAgent, createReadOnlyExplorationTools, executePlan, generatePlan, injectPlan } from '@vessel/agents';
 import type { EvaluatorVerdict } from '@vessel/agents';
 import { McpClient, createInProcessTransport, handleMcpRequest } from '@vessel/tools';

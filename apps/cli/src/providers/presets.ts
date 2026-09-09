@@ -1,12 +1,14 @@
 /**
- * apps/cli/providers/presets — provider preset surface for the `cah setup`
- * wizard. Data lives in presets.data.ts (V0.8 catalog, 55+ sourced entries);
+ * apps/cli/providers/presets — provider preset surface for the `vessel setup`
+ * wizard. Data lives in @vessel/application (packages/application/src/providers/
+ * presets.data.ts — V0.8 catalog, 55+ sourced entries; task 098 moved it down so
+ * apps/cli and benchmarks/runners share one SSOT without a build-graph cycle);
  * this module re-exports it with the historical names so setup.ts / tests keep
  * working, and groups by category for the picker.
  */
-export { PROVIDER_CATALOG, PROVIDER_CATEGORY_LABELS, findPreset, type ProviderPreset, type ProviderCategory } from './presets.data.js';
+export { PROVIDER_CATALOG, PROVIDER_CATEGORY_LABELS, findPreset, type ProviderPreset, type ProviderCategory } from '@vessel/application';
 
-import { PROVIDER_CATALOG, type ProviderCategory } from './presets.data.js';
+import { PROVIDER_CATALOG, type ProviderCategory } from '@vessel/application';
 
 /** all presets (same list; kept for compatibility with existing imports). */
 export const PROVIDER_PRESETS = PROVIDER_CATALOG;

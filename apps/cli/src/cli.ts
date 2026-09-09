@@ -7,7 +7,7 @@ import { MockProvider, createProvider } from '@vessel/llm';
 import { composeHarness, createCredentialStore, type EnforcementProjection } from '@vessel/application';
 import { createVesselServer } from '@vessel/local-server';
 import { ProviderStore, type ProviderConfig } from './providers/ProviderStore.js';
-import { fetchOpenAIModels, modelsForProtocol } from './providers/modelFetcher.js';
+import { fetchOpenAIModels, modelsForProtocol } from '@vessel/application';
 import { createClackIO, runSetupWizard } from './providers/setup.js';
 import { runChat } from './tui/chat.js';
 import { VESSEL_LOGO, VESSEL_TAGLINE } from './brand.js';

@@ -1,7 +1,7 @@
 import * as clack from '@clack/prompts';
 import { ProviderStore, type ProviderConfig } from './ProviderStore.js';
-import { findPreset, providerPickerOptions, CUSTOM_ENDPOINT_VALUE, type ProviderPreset } from './presets.js';
-import { fetchOpenAIModels, modelsForProtocol } from './modelFetcher.js';
+import { findPreset, fetchOpenAIModels, modelsForProtocol, type ProviderPreset } from '@vessel/application';
+import { providerPickerOptions, CUSTOM_ENDPOINT_VALUE } from './presets.js';
 
 /**
  * apps/cli/providers/setup — `cah setup` interactive wizard.

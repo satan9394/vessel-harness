@@ -1,7 +1,10 @@
 import type { ProviderName } from '@vessel/llm';
 
 /**
- * apps/cli/providers/modelFetcher — fetch a provider's model list (task 015).
+ * packages/application/providers/modelFetcher — fetch a provider's model list (task 015).
+ *
+ * task 098: moved here from apps/cli/src/providers/ (same reason as
+ * presets.data.ts — break the cli <-> bench-runners tsc -b type cycle).
  *
  *   - OpenAI-compatible endpoints expose GET {base}/v1/models → enumerate for
  *     real (cc-switch's "Fetch Models" behavior).

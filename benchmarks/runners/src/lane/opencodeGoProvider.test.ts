@@ -18,7 +18,7 @@ import * as path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import type { ChatProvider } from '@vessel/shared';
 import { MockProvider } from '@vessel/llm';
-import { findPreset } from '@vessel/cli';
+import { findPreset } from '@vessel/application';
 import { LANE_MODELS, type LaneModel } from './real-model-lane.js';
 import {
   OPENCODE_GO_PRESET_ID,

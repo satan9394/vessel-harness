@@ -1,7 +1,12 @@
 import type { ProviderName } from '@vessel/llm';
 
 /**
- * apps/cli/providers/presets.data.ts — provider catalog (V0.8, task 025).
+ * packages/application/providers/presets.data.ts — provider catalog (V0.8, task 025).
+ *
+ * task 098: moved here from apps/cli/src/providers/ so the CLI wizard and the
+ * benchmark runners share one SSOT through the application layer instead of the
+ * runners importing '@vessel/cli' (which made the tsc -b project graph cyclic:
+ * cli --dynamic import--> bench-runners --> cli, i.e. TS5055).
  *
  * Sourced from docs/ideas/PROVIDER-TUI-RESEARCH.md §A3 (each base-url verified
  * against models.dev API and/or cc-switch source, 2026-09 snapshot) +

@@ -87,13 +87,14 @@ console.log(report.modelSummaries);   // 每模型汇总（passed/failed/pending
 V1.1-C 把「内置 preset + OPENCODE_API_KEY 环境变量 + MIMO 目标模型」收敛成一个可注入解析面
 `benchmarks/runners/src/lane/opencodeGoProvider.ts`，供本 lane 与 084 release gates 消费。
 
-- **preset 复用（SSOT）**：`opencode-go` preset 来自 `apps/cli/src/providers/presets.data.ts`
-  （protocol=`openai-compatible`，baseUrl=`https://opencode.ai/zen/go/v1`），经 `@vessel/cli`
-  `findPreset()` 读取——不重复定义常量。
+- **preset 复用（SSOT）**：`opencode-go` preset 来自 `packages/application/src/providers/presets.data.ts`
+  （protocol=`openai-compatible`，baseUrl=`https://opencode.ai/zen/go/v1`），经 `@vessel/application`
+  `findPreset()` 读取——不重复定义常量。task 098 起该 SSOT 由 `apps/cli` 下沉到 application 层，
+  runner 不再 `import '@vessel/cli'`（消除 cli ↔ bench-runners 的 `tsc -b` 类型环 TS5055）。
 - **密钥安全铁律**：apiKey 只经注入的 keyResolver 读取（默认 `process.env.OPENCODE_API_KEY`），
   **绝不写盘/写日志**。无 key → `resolveOpencodeGoProvider()` 返回 `null` → lane 降级
   `pending-environment`（既有诚实降级语义保持）。
-- **模型确认**：`fetchOpencodeGoModels()` 复用 `@vessel/cli` 的 `fetchOpenAIModels()` 实时拉取
+- **模型确认**：`fetchOpencodeGoModels()` 复用 `@vessel/application` 的 `fetchOpenAIModels()` 实时拉取
   `{base}/v1/models`（404 回退 `{base}/models`），可注入 fetch 便于 mock。仓库内置的
   models.dev 参考快照（`docs/ideas/data/models.dev-api.json` 的 opencode-go 项）列出 **`mimo-v2.5`**
   与 **`mimo-v2.5-pro`**（另有 mimo-v2-pro / mimo-v2-omni）。`selectMimoModel()` 在 live 清单里做

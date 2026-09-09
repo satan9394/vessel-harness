@@ -415,12 +415,20 @@ composable-agent-harness/
 │   ├── skills/               # 发现根 + frontmatter + 索引（§4.9）
 │   ├── agents/               # evaluator（§4.10）
 │   ├── telemetry/            #（§4.11）
+│   ├── application/          # 组合根 + 共享应用层（compose / projections / credential /
+│   │                         #   providers：供应商目录 + /v1 models 拉取 SSOT，task 098）
 │   └── shared/               # 类型/事件词汇表/常量（JSON Schema、profile 声明类型）
 ├── benchmarks/               # fixtures/ scenarios/ runners/ reports/（D7 §2 契约）
 ├── configs/                  # behavior.default.yaml、policy 基线（system 作用域内置）、pricing.json
 ├── docs/                     # D1–D8 规范（本文件属 D8）
 └── vitest.workspace.ts       # Vitest 多包工作区
 ```
+
+模块依赖方向（task 098 起显式约束）：`apps/cli` 与 `benchmarks/runners` 都只**向下**依赖
+`@vessel/application` 等机制包；供应商目录与模型拉取（`packages/application/src/providers/`）是两侧
+共用 SSOT。runner **不得** `import '@vessel/cli'`——cli 的 `bench-report` 命令静态解析
+`@vessel/bench-runners`（V1.1-E），一旦反向引用就会让 `tsc -b` 的项目图成环并把
+`apps/cli/dist/*.d.ts` 同时当作输入与输出（TS5055）。
 
 ### 6.2 SQLite 用在哪
 

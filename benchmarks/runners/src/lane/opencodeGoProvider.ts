@@ -9,10 +9,12 @@
  * pending-environment。本模块不做任何写盘/持久化。
  *
  * 复用既有机制：
- *   - 内置 preset apps/cli/src/providers/presets.data.ts（id='opencode-go'，
- *     protocol='openai-compatible'，baseUrl='https://opencode.ai/zen/go/v1'）。
+ *   - 内置 preset `@vessel/application` 的 packages/application/src/providers/presets.data.ts
+ *     （id='opencode-go'，protocol='openai-compatible'，baseUrl='https://opencode.ai/zen/go/v1'）。
+ *     task 098：该 SSOT 由 apps/cli 下沉到 application 层，runner 不再 import '@vessel/cli'
+ *     （消除 cli ↔ bench-runners 的 tsc -b 类型环）。
  *   - @vessel/llm createProvider('openai-compatible', …) 线协议客户端。
- *   - apps/cli/src/providers/modelFetcher.fetchOpenAIModels 拉取 /v1/models 清单。
+ *   - @vessel/application 的 fetchOpenAIModels 拉取 /v1/models 清单。
  *
  * 模型确认：真实 GET {base}/v1/models 验证 MIMO V2.5 确切 id。仓库内置的 models.dev
  * 参考快照（docs/ideas/data/models.dev-api.json 的 opencode-go 项）列出 `mimo-v2.5` 与
@@ -21,12 +23,12 @@
  */
 import type { ChatProvider } from '@vessel/shared';
 import { createProvider } from '@vessel/llm';
-import { findPreset } from '@vessel/cli';
-import { fetchOpenAIModels, type ModelSource } from '@vessel/cli';
+import { findPreset } from '@vessel/application';
+import { fetchOpenAIModels, type ModelSource } from '@vessel/application';
 import { OPCODE_GO_CRED_SERVICE, OPCODE_GO_CRED_ACCOUNT } from './ccSwitchCredential.js';
 import type { LaneModel } from './real-model-lane.js';
 
-/** opencode-go preset id（对齐 apps/cli/src/providers/presets.data.ts）。 */
+/** opencode-go preset id（对齐 packages/application/src/providers/presets.data.ts）。 */
 export const OPENCODE_GO_PRESET_ID = 'opencode-go';
 
 /** 密钥环境变量约定（任务卡/模型清单唯一事实源；不读写磁盘）。 */

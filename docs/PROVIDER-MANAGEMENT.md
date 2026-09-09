@@ -21,7 +21,7 @@ TUI 内斜杠命令：`/provider`（配置供应商）、`/models`（当前供�
 
 ## 1.6 供应商目录（71 条）
 
-内置 71 个预填端点的供应商（数据在 `apps/cli/src/providers/presets.data.ts`，来源见 `docs/ideas/PROVIDER-TUI-RESEARCH.md` §A3）：官方国际（Anthropic/OpenAI/Gemini/xAI/Groq/Mistral…）、国产官方（DeepSeek/Qwen/Kimi/GLM/MiniMax/豆包/混元/百炼/千帆…）、聚合（OpenRouter/硅基流动/魔搭/Novita/302AI…）、本地（Ollama/vLLM/LM Studio/llama.cpp/Jan）+ mock。向导里按类别标签（[官方]/[国产]/[国际]/[聚合]/[本地]）搜索即得，"自定义端点"随时可加。
+内置 71 个预填端点的供应商（数据在 `packages/application/src/providers/presets.data.ts`——task 098 起由 `apps/cli` 下沉到 application 层，CLI 向导与 benchmark runner 共用同一 SSOT，避免 `tsc -b` 项目图成环；来源见 `docs/ideas/PROVIDER-TUI-RESEARCH.md` §A3）：官方国际（Anthropic/OpenAI/Gemini/xAI/Groq/Mistral…）、国产官方（DeepSeek/Qwen/Kimi/GLM/MiniMax/豆包/混元/百炼/千帆…）、聚合（OpenRouter/硅基流动/魔搭/Novita/302AI…）、本地（Ollama/vLLM/LM Studio/llama.cpp/Jan）+ mock。向导里按类别标签（[官方]/[国产]/[国际]/[聚合]/[本地]）搜索即得，"自定义端点"随时可加。
 
 ## 1.7 权限三档（对齐市面 agent）
 

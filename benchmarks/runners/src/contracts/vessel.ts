@@ -14,7 +14,7 @@
 import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
-import { composeHarness, type ComposeOptions } from '@vessel/cli';
+import { composeHarness, type ComposeOptions } from '@vessel/application';
 import type { ChatProvider, ChatResponse, ChatRequest } from '@vessel/shared';
 import { MockProvider } from '@vessel/llm';
 import { OFFLINE_SCRIPTS } from '../offline.js';
