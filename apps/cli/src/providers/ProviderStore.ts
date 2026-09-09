@@ -2,6 +2,7 @@ import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import type { ProviderName } from '@vessel/llm';
+import { assertCostMultiplier, DEFAULT_COST_MULTIPLIER } from '@vessel/shared';
 import {
   parseSecretRef,
   makeSecretRef,
@@ -54,6 +55,14 @@ export interface ProviderConfig {
   model: string;
   /** 可选：可用模型清单（fetch 后缓存/用户维护） */
   models?: string[];
+  /**
+   * 成本倍率（task 094）：中转/代理加价场景。
+   *
+   * 语义：**只乘计费总额**（`总额 = 分项合计 × 倍率`），不改分项单价
+   * （input/output/cacheRead/cacheWrite 的每 1M tokens 价一律不动）。
+   * 缺省 1；必须是非负有限数字，非法值 fail loud（见 `assertValid`）。
+   */
+  costMultiplier?: number;
   /** 可选备注 */
   note?: string;
 }
@@ -215,6 +224,46 @@ export class ProviderStore {
     }
   }
 
+  /**
+   * 更新已有配置的字段（task 094：`vessel provider set`）。id 不存在 fail loud。
+   *
+   * `costMultiplier` 用 `'costMultiplier' in patch` 判定：显式传 `undefined` 表示
+   * 清除该字段（回到缺省 1），不传则保持原值。合并后仍走 `save()` 的全量校验 + 原子写。
+   */
+  update(id: string, patch: Partial<Omit<ProviderConfig, 'id'>>): ProviderConfig {
+    if (id === 'mock') {
+      throw new Error('provider "mock" is built-in and cannot be modified');
+    }
+    const list = this.load();
+    const index = list.findIndex((c) => c.id === id);
+    if (index < 0) {
+      throw new Error(`provider not found: "${id}"`);
+    }
+    const current = list[index]!;
+    const next: ProviderConfig = { ...current, ...patch, id: current.id };
+    if ('costMultiplier' in patch && patch.costMultiplier === undefined) {
+      delete next.costMultiplier;
+    }
+    list[index] = next;
+    this.save(list);
+    return next;
+  }
+
+  /** 单个 provider 的成本倍率（094；未设置或不存在 → 缺省 1）。 */
+  costMultiplierOf(id: string): number {
+    const cfg = this.get(id);
+    return cfg?.costMultiplier ?? DEFAULT_COST_MULTIPLIER;
+  }
+
+  /** 全部**显式设置**的成本倍率（provider id → 倍率）；缺省 1 的不列出。 */
+  costMultipliers(): Record<string, number> {
+    const out: Record<string, number> = {};
+    for (const cfg of this.load()) {
+      if (cfg.costMultiplier !== undefined) out[cfg.id] = cfg.costMultiplier;
+    }
+    return out;
+  }
+
   /** 设当前默认供应商；id 必须存在（含内置 mock）。 */
   setCurrent(id: string): void {
     if (this.get(id) === undefined) {
@@ -361,6 +410,10 @@ export class ProviderStore {
     }
     if (typeof c.name !== 'string' || c.name.trim() === '') {
       throw new Error(`provider "${c.id}" requires a non-empty "name"`);
+    }
+    // task 094：倍率直接乘在钱上，非法值必须 fail loud（负数 / NaN / Infinity / 非数字）。
+    if (c.costMultiplier !== undefined) {
+      assertCostMultiplier(c.costMultiplier, `provider "${c.id}" costMultiplier`);
     }
   }
 }

@@ -1,7 +1,7 @@
 # 计价与用量成本（PRICING.md）
 
 > 任务卡：085（模型名归一）/ 086（缺价显式化）/ 087（统一计价）/ 089（统计时间维度）/ 090（cache 写入计价）/
-> 091（定价变更回填 recompute）/ 092（用户价目覆盖 + 值守卫）。
+> 091（定价变更回填 recompute）/ 092（用户价目覆盖 + 值守卫）/ 093（models.dev 同步）/ 094（provider 成本倍率）。
 > 实现单一入口：`packages/shared/src/pricing.ts`（纯函数、零 I/O）。
 
 ## 1. 一句话
@@ -9,16 +9,20 @@
 价格不是猜出来的：**能查到就报来源，查不到就明说是估算**（或 `--strict` 下按 0 记），
 且 CLI / application / benchmarks 三条路径共用同一份查价实现，不会各算各的。
 用量统计同时给**累计**与**本地日分桶**两个口径（089），成本按
-input / output / cacheRead / **cacheWrite** 四项分算（090）。
+input / output / cacheRead / **cacheWrite** 四项分算（090）；
+价目可用 `vessel pricing sync` 从 models.dev 增量更新（093），
+中转/代理加价用 provider 级**成本倍率**（094，只乘总额）。
 
 ## 2. 单一实现（为什么）
 
 | 层 | 文件 | 角色 |
 |---|---|---|
-| 规则 | `packages/shared/src/pricing.ts` | 模型名归一 + 回退链 + `estimated` 语义（唯一实现） |
+| 规则 | `packages/shared/src/pricing.ts` | 模型名归一 + 回退链 + `estimated` 语义 + 成本倍率（唯一实现） |
 | CLI | `apps/cli/src/providers/pricing.ts` | 只负责读 `configs/pricing.json`，re-export 规则 |
+| CLI 目录 | `apps/cli/src/providers/modelCatalog.ts` | 读 `configs/model-catalog.json`（models.dev 快照） |
+| CLI 同步 | `apps/cli/src/providers/pricingSync.ts` | models.dev 拉取/解析/增量合并/原子写（093） |
 | CLI 覆盖 | `apps/cli/src/usage/pricingOverride.ts` | 读/写 `~/.vessel/pricing.override.json` + 值守卫修复（092） |
-| CLI 落盘 | `apps/cli/src/usage/UsageStore.ts` | 每条记录落 `estimated` / `pricingSource`；`recompute()` 按当前价目回填（091） |
+| CLI 落盘 | `apps/cli/src/usage/UsageStore.ts` | 每条记录落 `estimated` / `pricingSource`；`recompute()` 按当前价目回填（091）；provider 倍率只乘总额（094） |
 | application | `packages/application/src/projections/UsageProjection.ts` | 复用同一 `resolvePrice`（不再有硬编码默认价） |
 | benchmarks | `benchmarks/runners/src/adapters/pricing.ts` | 6 个 adapter 共用（原先各自抄了一份） |
 
@@ -85,6 +89,8 @@ pricing.override.json（用户覆盖，092）  →  pricing.json models[<归一�
 - `cacheWriteDerivedCostUsd: number` / `cacheWriteDerived: boolean` —— 其中用了推导写入价的部分（见 §7）
 - `recomputedAt?: string` / `recomputedFromLegacy?: boolean` —— `recompute` 实际改价时间与
   「曾是无来源 legacy 条目」的痕迹（091；无变更时不写，保证幂等，见 §11）
+- `costMultiplier?: number` / `costMultiplierMixed?: boolean` —— 该条目用的 provider 成本倍率
+  （094；缺省 1 时不写字段；历次倍率不一致时省略数值并标 `mixed`，见 §14）
 
 `recent[]` 每条同样带 `estimated` / `pricingSource` / `cacheCreationTokens`。
 `daily` 见 §6。
@@ -199,8 +205,8 @@ default / strict 五种来源各一例 + 真实 `configs/` 价目一例）。
 ## 10. 不做的（后续卡）
 
 - `input_token_semantics`（input 是否含 cache）未做，故 cache 写入不从 inputTokens 扣减。
-- 本卡不引入汇率/多币种、不引入成本倍率（094 候选）。
-- P2（093-096）与 UI 未做；091/092 见 §11/§12。
+- 本卡不引入汇率/多币种。
+- 095（导入导出）/ 096（多端点）与 UI 未做；091/092 见 §11/§12，093/094 见 §13/§14。
 
 ## 11. 定价变更回填：`vessel usage recompute`（091）
 
@@ -322,3 +328,88 @@ vessel pricing claude-sonnet-4-5                   # 查询时同时显示覆盖
 - OpenAI-compatible 系无此概念 → 字段缺省 `undefined`（**不写 0 假值**），
   下游按「未上报」处理：`cacheWriteUsd` 为 0、不产生推导写入价。
 - MockProvider 可注入 `usage`（`MockProviderOptions.usage`），用于离线断言整条链路。
+
+## 13. models.dev 价目同步：`vessel pricing sync`（093）
+
+```powershell
+vessel pricing sync                                  # 拉 models.dev → 更新 configs/model-catalog.json
+vessel pricing sync --dry-run                        # 只打印差异，不写盘
+vessel pricing sync --provider anthropic             # 只同步某供应商（逗号分隔可多个）
+vessel pricing sync --exclude 'openai/*,*embedding*' # 排除 glob（逗号分隔可多个）
+vessel pricing sync --catalog D:\tmp\catalog.json    # 换目标文件（用户态目录）
+vessel pricing sync --url http://127.0.0.1:8080/api.json --timeout 5000   # 自建镜像/测试
+```
+
+**三通道（学 cc-switch 的设计思路，实现自写）**：
+
+| 通道 | 载体 | 谁维护 |
+|---|---|---|
+| 1. seed | `configs/pricing.json` | 版本（发版/手工） |
+| 2. 值守卫修复 | `~/.vessel/pricing.override.json` 的 `repair`（§12） | 用户 / 版本给补丁（只改「现值 = 旧值」的行） |
+| 3. models.dev 同步 | `configs/model-catalog.json` | 本命令（增量 upsert） |
+
+**同步做什么**：拉 `https://models.dev/api.json`（默认 15s 超时、失败**重试 1 次**），
+按 `provider → model` 增量 upsert 目录条目：
+
+| 远端字段 | 目录字段 |
+|---|---|
+| `cost.input` / `cost.output` | `priceIn` / `priceOut` |
+| `cost.cache_read` / `cost.cache_write` | `priceCache` / `priceCacheWrite` |
+| `limit.context` / `limit.output` | `contextWindow` / `outputLimit` |
+
+过滤：非文本输出（embedding/语音/图像，`modalities.output` 不含 `text`）、已弃用（`deprecated`）、
+缺价（没有 input 或 output）、被 `--provider`/`--exclude` 排除的条目一律不收录，且**逐类计数打印**（不静默丢）。
+
+**语义边界（与 cc-switch 刻意不同）**：
+
+1. **离线/失败保留旧表**：拉取超时、连接失败、HTTP 5xx、响应非法 JSON、解析后 0 条可用模型，
+   一律 `status=offline`：**不写盘、不清空**，打印 `⚠ 拉取/解析失败（已重试至多 1 次）：<原因>`
+   + `未改动 <path>（保留旧表 N 条）`，并以 **exit 1** 收尾（同步没发生就要能被脚本看出来）。
+2. **不覆盖用户覆盖**：同步只写 catalog，`~/.vessel/pricing.override.json` 一个字节都不动；
+   优先级链 `override > 内置 pricing.json > catalog > protocols > default` 不变（§4）。
+   cc-switch 的批量同步会静默覆盖同名手动价——这里刻意避开。
+3. **不删条目**：远端未覆盖的既有条目**原样保留**（打印「保留 N 条」）。删价是显式操作
+   （`pricing override delete` 墓碑，§12），同步不制造空洞。
+4. **幂等**：远端数据与既有目录一致 → `status=unchanged`、**不写盘**（文件逐字节不变，
+   连 `lastSyncAt` 都不动）。差异比较忽略 `null` 与「字段缺失」的区别。
+5. **原子写**：`tmp + rename`（同 ProviderStore/UsageStore；Windows 上 EPERM/EBUSY 有界重试）。
+6. `--dry-run` 只打印差异（新增/更新/未变/保留四类计数 + 前 10 条明细），不写盘。
+
+`lastSyncAt` 记录最后一次成功写盘的 ISO 时间；`source` 字段写明来源 URL 与单位说明
+（时间戳单独放 `lastSyncAt`，所以「只有时间变」不会触发写盘）。
+
+## 14. provider 成本倍率（094）
+
+用于中转/代理加价：`ProviderConfig.costMultiplier`（`~/.vessel/providers.json`，缺省 1）。
+
+```powershell
+vessel provider add proxy --protocol openai-compatible --base-url https://proxy.example/v1 --model gpt-5.1 --cost-multiplier 1.5
+vessel provider set proxy --cost-multiplier 2        # 改倍率（不传该参数则保持原值）
+vessel provider set proxy --cost-multiplier 1        # 回到缺省
+vessel provider list                                 # 显示 ×2 标记
+vessel usage                                         # 总额 + 分项合计 + 倍率说明
+```
+
+**计算点（唯一实现 `costBreakdown`）**：
+
+```
+分项：inputUsd = inputTokens × price.input / 1e6      （cacheRead/cacheWrite 同理）
+rawTotalUsd = inputUsd + outputUsd + cacheReadUsd + cacheWriteUsd
+totalUsd    = rawTotalUsd × costMultiplier            ← 倍率只乘总额
+```
+
+- **只乘总额**：四项分项单价与分项金额**一律不变**；因此「分项之和 ≠ 总额」是**预期**的，
+  差额就是倍率（`CostBreakdown.rawTotalUsd` / `costMultiplier` 显式给出这层关系）。
+- **倍率乘在最终价之上**：先走 §4 的回退链（override > 内置 > catalog > protocol > default）
+  拿到单价，再对总额乘倍率。所以与 `override`/`catalog` 天然共存，`pricingSource` 不受影响。
+- **fail loud**：倍率 < 0、NaN、Infinity、非数字一律 `RangeError`
+  （`ProviderStore.add/save/update` 校验 + `costBreakdown` 再校验），不静默按 1 处理——
+  倍率直接乘在钱上，静默回退会让人以为加价生效了。倍率 **0 合法**（免计费）。
+- **落盘留痕**：条目写 `costMultiplier`（缺省 1 不写）；同一 provider 中途改倍率导致历次不一致时，
+  省略数值并标 `costMultiplierMixed: true`（不假装有唯一倍率）。
+  `vessel usage recompute` 按**当前**倍率重算历史，重算后倍率收敛为唯一值、`mixed` 痕迹清除。
+- **展示**：`vessel usage` 在含倍率时打印
+  `成本倍率: N 条条目含 provider 倍率——总额 = 分项合计 × 倍率；分项合计 $X（分项单价未变）`；
+  「按供应商」行打印 `$总额（分项合计 $Y × 倍率 m）`；不一致时打印 `（倍率不一致，分项合计 $Y）`。
+- 覆盖/目录价源与倍率互不干扰：`vessel pricing override list` 与 `vessel pricing <model>`
+  显示的仍是**单价**（倍率只在计费总额上生效）。

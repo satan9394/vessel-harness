@@ -1,6 +1,8 @@
 import * as fs from 'node:fs';
+import * as http from 'node:http';
 import * as os from 'node:os';
 import * as path from 'node:path';
+import type { AddressInfo } from 'node:net';
 import { fileURLToPath } from 'node:url';
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { main, startServe } from './cli.js';
@@ -764,5 +766,140 @@ describe('vessel usage recompute / pricing override (task 091/092)', () => {
     const after = readJson(usageFile()) as unknown as { entries: Record<string, { costUsd: number; pricingSource: string }> };
     expect(after.entries['deepseek::deepseek-chat']!.pricingSource).toBe('override');
     expect(after.entries['deepseek::deepseek-chat']!.costUsd).toBeCloseTo(0.03, 9);
+  });
+});
+
+describe('vessel pricing sync / provider costMultiplier (task 093/094)', () => {
+  let dir: string;
+  let oldProviderRoot: string | undefined;
+  let oldUsageRoot: string | undefined;
+
+  const MODELS_DEV_FIXTURE = {
+    anthropic: {
+      id: 'anthropic',
+      models: {
+        'claude-sonnet-4-5': {
+          id: 'claude-sonnet-4-5',
+          limit: { context: 200000, output: 64000 },
+          cost: { input: 3, output: 15, cache_read: 0.3, cache_write: 3.75 },
+        },
+      },
+    },
+  };
+
+  beforeEach(() => {
+    dir = fs.mkdtempSync(path.join(os.tmpdir(), 'vessel-093-cmd-'));
+    oldProviderRoot = process.env.VESSEL_PROVIDER_ROOT;
+    oldUsageRoot = process.env.VESSEL_USAGE_ROOT;
+    process.env.VESSEL_PROVIDER_ROOT = dir;
+    process.env.VESSEL_USAGE_ROOT = dir;
+  });
+  afterEach(() => {
+    if (oldProviderRoot === undefined) delete process.env.VESSEL_PROVIDER_ROOT;
+    else process.env.VESSEL_PROVIDER_ROOT = oldProviderRoot;
+    if (oldUsageRoot === undefined) delete process.env.VESSEL_USAGE_ROOT;
+    else process.env.VESSEL_USAGE_ROOT = oldUsageRoot;
+    fs.rmSync(dir, { recursive: true, force: true });
+  });
+
+  /** 本地 HTTP 服务充当 models.dev（不依赖真实网络）。 */
+  async function withLocalModelsDev<T>(fn: (url: string) => Promise<T>): Promise<T> {
+    const server = http.createServer((_req, res) => {
+      res.setHeader('content-type', 'application/json');
+      res.end(JSON.stringify(MODELS_DEV_FIXTURE));
+    });
+    await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
+    const port = (server.address() as AddressInfo).port;
+    try {
+      return await fn(`http://127.0.0.1:${port}/api.json`);
+    } finally {
+      await new Promise<void>((resolve) => server.close(() => resolve()));
+    }
+  }
+
+  it('pricing sync --dry-run 只打印差异、不写盘', async () => {
+    const catalogPath = path.join(dir, 'model-catalog.json');
+    const out = await withLocalModelsDev(async (url) => {
+      const cap = capture();
+      const code = await main(['pricing', 'sync', '--catalog', catalogPath, '--url', url, '--dry-run']);
+      cap.restore();
+      return { code, text: cap.logs.join('\n') };
+    });
+    expect(out.code).toBe(0);
+    expect(out.text).toContain('vessel pricing sync');
+    expect(out.text).toContain('新增 1');
+    expect(out.text).toContain('--dry-run：未写盘');
+    expect(fs.existsSync(catalogPath)).toBe(false);
+  });
+
+  it('pricing sync 写盘后二次同步幂等（无变更、文件不变）', async () => {
+    const catalogPath = path.join(dir, 'model-catalog.json');
+    await withLocalModelsDev(async (url) => {
+      const first = capture();
+      const code1 = await main(['pricing', 'sync', '--catalog', catalogPath, '--url', url]);
+      first.restore();
+      expect(code1).toBe(0);
+      expect(first.logs.join('\n')).toContain('已写入');
+      const written = fs.readFileSync(catalogPath, 'utf8');
+      expect(written).toContain('models.dev');
+      expect(fs.existsSync(`${catalogPath}.tmp`)).toBe(false);
+
+      const second = capture();
+      const code2 = await main(['pricing', 'sync', '--catalog', catalogPath, '--url', url]);
+      second.restore();
+      expect(code2).toBe(0);
+      expect(second.logs.join('\n')).toContain('无变更');
+      expect(fs.readFileSync(catalogPath, 'utf8')).toBe(written);
+    });
+  });
+
+  it('pricing sync 拉取失败：保留旧表、exit 1、不静默清空', async () => {
+    const catalogPath = path.join(dir, 'model-catalog.json');
+    fs.writeFileSync(catalogPath, JSON.stringify({ version: 1, source: 'old', models: [{ model: 'keep-me', provider: 'acme', priceIn: 1, priceOut: 2 }] }), 'utf8');
+    const before = fs.readFileSync(catalogPath, 'utf8');
+    const cap = capture();
+    // 127.0.0.1:1 必然连接失败（不发起外网请求）
+    const code = await main(['pricing', 'sync', '--catalog', catalogPath, '--url', 'http://127.0.0.1:1/api.json']);
+    cap.restore();
+    expect(code).toBe(1);
+    const text = cap.logs.join('\n');
+    expect(text).toContain('⚠ 拉取/解析失败');
+    expect(text).toContain('保留旧表 1 条');
+    expect(fs.readFileSync(catalogPath, 'utf8')).toBe(before);
+  });
+
+  it('provider add/set --cost-multiplier 落盘；非法倍率 exit 2 不落盘', async () => {
+    const add = capture();
+    const codeAdd = await main(['provider', 'add', 'proxy', '--protocol', 'openai-compatible', '--base-url', 'https://proxy.example/v1', '--model', 'gpt-5.1', '--cost-multiplier', '1.5']);
+    add.restore();
+    expect(codeAdd).toBe(0);
+    expect(add.logs.join('\n')).toContain('costMultiplier=1.5');
+    const providersFile = path.join(dir, 'providers.json');
+    const persisted = JSON.parse(fs.readFileSync(providersFile, 'utf8')) as { id: string; costMultiplier?: number }[];
+    expect(persisted[0]?.costMultiplier).toBe(1.5);
+
+    const set = capture();
+    const codeSet = await main(['provider', 'set', 'proxy', '--cost-multiplier', '2']);
+    set.restore();
+    expect(codeSet).toBe(0);
+    expect(set.logs.join('\n')).toContain('总额 = 分项合计 × 倍率');
+
+    const list = capture();
+    await main(['provider', 'list']);
+    list.restore();
+    expect(list.logs.join('\n')).toContain('×2');
+
+    const bad = captureBoth();
+    const codeBad = await main(['provider', 'set', 'proxy', '--cost-multiplier', '-1']);
+    bad.restore();
+    expect(codeBad).toBe(2);
+    expect(bad.logs.join('\n')).toContain('非负有限数字');
+    const after = JSON.parse(fs.readFileSync(providersFile, 'utf8')) as { costMultiplier?: number }[];
+    expect(after[0]?.costMultiplier).toBe(2); // 非法值没改坏已存配置
+
+    const nan = captureBoth();
+    const codeNan = await main(['provider', 'add', 'x', '--protocol', 'mock', '--model', 'm', '--cost-multiplier', 'abc']);
+    nan.restore();
+    expect(codeNan).toBe(2);
   });
 });

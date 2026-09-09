@@ -16,7 +16,8 @@ import { PricingOverrideStore, type PricingRepair } from './usage/pricingOverrid
 import { runVesselMigration } from './migrate.js';
 import { cmdReview } from './review/reviewCommands.js';
 import { loadModelCatalog, findCatalogModelByBase, findCatalogModelMatch, catalogPriceSource, listCatalogModels } from './providers/modelCatalog.js';
-import { loadPricing, type TokenPrice } from './providers/pricing.js';
+import { syncModelCatalog, MODELS_DEV_URL, DEFAULT_SYNC_TIMEOUT_MS, MAX_SYNC_RETRIES } from './providers/pricingSync.js';
+import { loadPricing, assertCostMultiplier, DEFAULT_COST_MULTIPLIER, type TokenPrice } from './providers/pricing.js';
 
 const USAGE = `${VESSEL_LOGO}
 Vessel CLI v${VERSION} — 可组合 Agent Harness（品牌 Vessel）
@@ -34,6 +35,10 @@ Vessel CLI v${VERSION} — 可组合 Agent Harness（品牌 Vessel）
   vessel usage recompute [--dry-run] [--since <date>] [--until <date>]
                                       按当前价目重算历史成本（保留 token，只重算 cost/来源；幂等）
   vessel pricing [model]               模型价目（configs/model-catalog.json，USD/1M tokens）
+  vessel pricing sync [--dry-run] [--provider <p>] [--exclude <glob>]
+                                      从 models.dev 同步价目到 model-catalog.json
+                                      （超时 ${DEFAULT_SYNC_TIMEOUT_MS / 1000}s + 重试 ${MAX_SYNC_RETRIES} 次；失败保留旧表并提示；
+                                      不覆盖 ~/.vessel/pricing.override.json）
   vessel pricing override [list]       用户价目覆盖（~/.vessel/pricing.override.json；优先级最高）
   vessel pricing override set <key> --input <n> --output <n> [--cache-read <n>] [--cache-write <n>]
                                       覆盖单价（key = model 或 provider::model）
@@ -43,7 +48,8 @@ Vessel CLI v${VERSION} — 可组合 Agent Harness（品牌 Vessel）
                                       值守卫式修复：仅当覆盖现值 = from 才改成 to
   vessel provider list               列出所有供应商（* = 当前默认）
   vessel provider current            显示当前默认供应商
-  vessel provider add <id> --protocol <p> --model <m> [--base-url] [--api-key]   添加供应商
+  vessel provider add <id> --protocol <p> --model <m> [--base-url] [--api-key] [--cost-multiplier <n>]   添加供应商
+  vessel provider set <id> [--model <m>] [--base-url <u>] [--cost-multiplier <n>]   修改供应商（倍率只乘总额）
   vessel provider remove <id>        删除供应商
   vessel provider switch|use <id>    切换当前默认供应商
   vessel migrate                     一次性迁移旧状态目录 ~/.dsh → ~/.vessel（数据复制 + 旧目录进回收站）
@@ -136,7 +142,31 @@ function createUsageStore(opts: { strict?: boolean } = {}): UsageStore {
     catalog: catalogPriceSource(loadModelCatalog(root)),
     override,
     strict: opts.strict,
+    multiplierOf: providerCostMultiplierResolver(),
   });
+}
+
+/**
+ * provider 成本倍率解析（task 094）：读 `~/.vessel/providers.json`（`VESSEL_PROVIDER_ROOT` 可覆盖）。
+ *
+ * 只用**读**路径（不建 CredentialStore，不碰密钥/迁移）；读盘失败（文件损坏等）
+ * 按「没有倍率」处理——统计不该因为 provider 配置坏了就跑不出来，倍率问题由
+ * `vessel provider` 命令 fail loud 暴露。缺省倍率 1，金额不变。
+ */
+function providerCostMultiplierResolver(): (provider: string) => number {
+  let multipliers: Record<string, number> = {};
+  try {
+    multipliers = new ProviderStore({}).costMultipliers();
+  } catch {
+    multipliers = {};
+  }
+  return (provider: string) => multipliers[provider] ?? DEFAULT_COST_MULTIPLIER;
+}
+
+/** 解析 `--cost-multiplier`（094）：非负有限数字，非法 fail loud（exit 2）。 */
+function parseCostMultiplier(raw: string, label = '--cost-multiplier'): number {
+  const value = Number(raw);
+  return assertCostMultiplier(value, `${label}（收到 "${raw}"）`);
 }
 
 /**
@@ -339,7 +369,8 @@ async function cmdProvider(args: string[], flags: Map<string, string>): Promise<
       for (const p of store.list()) {
         const mark = p.id === current ? ' *' : '';
         const protocol = p.protocol === 'mock' ? '' : ` [${p.protocol}]`;
-        console.log(`  ${p.id}${mark}${protocol}  ${p.name} (model: ${p.model})`);
+        const mult = p.costMultiplier !== undefined ? ` ×${p.costMultiplier}` : '';
+        console.log(`  ${p.id}${mark}${protocol}  ${p.name} (model: ${p.model})${mult}`);
       }
       return 0;
     }
@@ -350,7 +381,7 @@ async function cmdProvider(args: string[], flags: Map<string, string>): Promise<
     case 'add': {
       const id = args[1];
       if (!id) {
-        console.error('用法: vessel provider add <id> --protocol <mock|openai-compatible|anthropic> [--base-url <url>] [--api-key <key>] --model <model> [--name <显示名>]');
+        console.error('用法: vessel provider add <id> --protocol <mock|openai-compatible|anthropic> [--base-url <url>] [--api-key <key>] --model <model> [--name <显示名>] [--cost-multiplier <n>]');
         return 2;
       }
       const protocol = flags.get('protocol') as ProviderConfig['protocol'] | undefined;
@@ -364,16 +395,65 @@ async function cmdProvider(args: string[], flags: Map<string, string>): Promise<
         model: model ?? 'mock-model',
         note: flags.get('note'),
       };
+      const multiplierRaw = flags.get('cost-multiplier');
+      if (multiplierRaw !== undefined) {
+        try {
+          cfg.costMultiplier = parseCostMultiplier(multiplierRaw);
+        } catch (error) {
+          console.error(`[vessel provider add] ${(error as Error).message}`);
+          return 2;
+        }
+      }
       if ((cfg.protocol === 'openai-compatible' || cfg.protocol === 'anthropic') && !cfg.baseUrl) {
         console.error(`[vessel] ${cfg.protocol} 需要 --base-url`);
         return 2;
       }
       try {
         store.add(cfg);
-        console.log(`已添加 provider "${id}"（protocol=${cfg.protocol}, model=${cfg.model}）`);
+        const multNote = cfg.costMultiplier !== undefined ? `, costMultiplier=${cfg.costMultiplier}` : '';
+        console.log(`已添加 provider "${id}"（protocol=${cfg.protocol}, model=${cfg.model}${multNote}）`);
         return 0;
       } catch (err) {
         console.error(`[vessel] ${(err as Error).message}`);
+        return 1;
+      }
+    }
+    case 'set': {
+      const id = args[1];
+      if (!id) {
+        console.error('用法: vessel provider set <id> [--name <显示名>] [--model <model>] [--base-url <url>] [--api-key <key>] [--cost-multiplier <n>]');
+        console.error('  --cost-multiplier：成本倍率（只乘总额，不改分项单价；缺省 1；<0 或非数字报错）');
+        return 2;
+      }
+      const patch: Partial<Omit<ProviderConfig, 'id'>> = {};
+      if (flags.has('name')) patch.name = flags.get('name');
+      if (flags.has('model')) patch.model = flags.get('model');
+      if (flags.has('base-url')) patch.baseUrl = flags.get('base-url');
+      if (flags.has('api-key')) patch.apiKey = flags.get('api-key');
+      if (flags.has('note')) patch.note = flags.get('note');
+      if (flags.has('cost-multiplier')) {
+        const raw = flags.get('cost-multiplier')!;
+        try {
+          patch.costMultiplier = parseCostMultiplier(raw);
+        } catch (error) {
+          console.error(`[vessel provider set] ${(error as Error).message}`);
+          return 2;
+        }
+      }
+      if (Object.keys(patch).length === 0) {
+        console.error('[vessel provider set] 没有要修改的字段（--name/--model/--base-url/--api-key/--cost-multiplier）。');
+        return 2;
+      }
+      try {
+        const next = store.update(id, patch);
+        const mult = next.costMultiplier !== undefined ? ` costMultiplier=${next.costMultiplier}` : ' costMultiplier=1（缺省）';
+        console.log(`已更新 provider "${id}"（model=${next.model},${mult}）`);
+        if (patch.costMultiplier !== undefined && patch.costMultiplier !== DEFAULT_COST_MULTIPLIER) {
+          console.log('  倍率只乘计费总额：总额 = 分项合计 × 倍率；分项单价不变（094）。');
+        }
+        return 0;
+      } catch (err) {
+        console.error(`[vessel provider set] ${(err as Error).message}`);
         return 1;
       }
     }
@@ -409,7 +489,7 @@ async function cmdProvider(args: string[], flags: Map<string, string>): Promise<
       }
     }
     default: {
-      console.error(`[vessel] 未知 provider 子命令 "${sub}"（可用: list/add/remove/switch/use/current）`);
+      console.error(`[vessel] 未知 provider 子命令 "${sub}"（可用: list/add/set/remove/switch/use/current）`);
       return 2;
     }
   }
@@ -511,6 +591,10 @@ async function cmdUsage(args: string[], flags: Map<string, string>): Promise<num
   console.log(`估算成本: $${t.costUsd.toFixed(4)}（${t.providers} 供应商 / ${t.models} 模型）`);
   const b = t.costBreakdown;
   console.log(`成本分项: input $${b.inputUsd.toFixed(4)} · output $${b.outputUsd.toFixed(4)} · cacheRead $${b.cacheReadUsd.toFixed(4)} · cacheWrite $${b.cacheWriteUsd.toFixed(4)}`);
+  if (t.multipliedEntries > 0 || t.mixedMultiplierEntries > 0) {
+    // 094：倍率只乘总额，分项单价不变——所以「分项合计 ≠ 总额」时差额就是倍率。
+    console.log(`成本倍率: ${t.multipliedEntries} 条条目含 provider 倍率${t.mixedMultiplierEntries > 0 ? `（另有 ${t.mixedMultiplierEntries} 条历次倍率不一致）` : ''}——总额 = 分项合计 × 倍率；分项合计 $${t.rawCostUsd.toFixed(4)}（分项单价未变）`);
+  }
   if (t.cacheWriteDerivedCostUsd > 0) {
     console.log(`⚠ cache 写入分项含推导价 $${t.cacheWriteDerivedCostUsd.toFixed(4)}（价目缺 cacheWrite 字段，按 input×1.25 估算）。`);
   }
@@ -574,7 +658,15 @@ async function cmdUsage(args: string[], flags: Map<string, string>): Promise<num
   const byProv = store.byProvider();
   if (byProv.length > 0) {
     console.log('\n按供应商:');
-    for (const p of byProv) console.log(`  ${p.provider}: ${p.inputTokens.toLocaleString()}in/${p.outputTokens.toLocaleString()}out · ${p.calls} 次 · $${p.costUsd.toFixed(4)}${p.estimated ? '（含估算）' : ''}`);
+    for (const p of byProv) {
+      // 094：倍率只乘总额——把「分项合计 × 倍率」显式写出来，避免读者以为分项被漏算。
+      const mult = p.costMultiplierMixed
+        ? `（倍率不一致，分项合计 $${p.rawCostUsd.toFixed(4)}）`
+        : p.costMultiplier !== undefined && p.costMultiplier !== DEFAULT_COST_MULTIPLIER
+          ? `（分项合计 $${p.rawCostUsd.toFixed(4)} × ${p.costMultiplier}）`
+          : '';
+      console.log(`  ${p.provider}: ${p.inputTokens.toLocaleString()}in/${p.outputTokens.toLocaleString()}out · ${p.calls} 次 · $${p.costUsd.toFixed(4)}${mult}${p.estimated ? '（含估算）' : ''}`);
+    }
   }
   const byModel = store.byModel();
   if (byModel.length > 0) {
@@ -729,11 +821,92 @@ async function cmdPricingOverride(args: string[], flags: Map<string, string>): P
   return 2;
 }
 
-/** `vessel pricing [model]` — model price lookup (V0.9 + 085 归一提示 + 092 覆盖). */
+/**
+ * `vessel pricing sync [--dry-run] [--provider <p>] [--exclude <glob>]`（task 093）。
+ *
+ * 从 models.dev 拉价目，**增量 upsert** `configs/model-catalog.json`（`--catalog` 可换路径）。
+ * 语义（与 cc-switch 的差异见 `pricingSync.ts` 头注释）：
+ *   - 拉取失败/超时（重试 1 次后）→ **保留旧表**，打印原因并 exit 1，绝不静默清空；
+ *   - 不覆盖 `~/.vessel/pricing.override.json`（优先级链 override > 内置 > catalog 不变）；
+ *   - `--dry-run` 只打印差异、不写盘；相同远端数据二次同步零变更、不写盘（幂等）；
+ *   - 远端未覆盖的既有条目**保留**（同步不删条目）。
+ */
+async function cmdPricingSync(flags: Map<string, string>): Promise<number> {
+  const root = repoRoot();
+  const catalogPath = path.resolve(flags.get('catalog') ?? path.join(root, 'configs', 'model-catalog.json'));
+  const listFlag = (name: string): string[] =>
+    (flags.get(name) ?? '')
+      .split(',')
+      .map((s) => s.trim())
+      .filter((s) => s !== '');
+  const providers = listFlag('provider');
+  const exclude = listFlag('exclude');
+  const dryRun = flags.has('dry-run') || flags.has('dryRun');
+  const url = flags.get('url') ?? MODELS_DEV_URL;
+  let timeoutMs = DEFAULT_SYNC_TIMEOUT_MS;
+  if (flags.has('timeout')) {
+    const n = Number(flags.get('timeout'));
+    if (!Number.isFinite(n) || n <= 0) {
+      console.error(`[vessel pricing sync] --timeout 需要正数毫秒（收到 "${flags.get('timeout')}"）。`);
+      return 2;
+    }
+    timeoutMs = n;
+  }
+
+  const result = await syncModelCatalog({
+    catalogPath,
+    dryRun,
+    providers: providers.length > 0 ? providers : undefined,
+    exclude: exclude.length > 0 ? exclude : undefined,
+    url,
+    timeoutMs,
+  });
+
+  console.log('=== vessel pricing sync（models.dev → model-catalog.json）===');
+  console.log(`远端: ${url}`);
+  console.log(`目标: ${catalogPath}`);
+  if (providers.length > 0 || exclude.length > 0) {
+    console.log(`过滤: ${providers.length > 0 ? `provider=${providers.join('|')}` : 'provider=全部'}${exclude.length > 0 ? ` · exclude=${exclude.join('|')}` : ''}`);
+  }
+
+  if (result.status === 'offline') {
+    console.log(`\n⚠ 拉取/解析失败（已重试至多 ${MAX_SYNC_RETRIES} 次）：${result.error ?? 'unknown error'}`);
+    console.log(`未改动 ${catalogPath}（保留旧表 ${result.total} 条）；目录价继续生效，可稍后重试。`);
+    return 1;
+  }
+
+  const p = result.parsed;
+  console.log(`\n远端解析: ${p.providers} 个供应商 / ${p.remoteModels} 条模型 → 收录 ${p.models.length} 条` +
+    `（跳过：非文本 ${p.skipped.nonText} · 无价 ${p.skipped.noPrice} · 已弃用 ${p.skipped.deprecated} · 被排除 ${p.skipped.excluded + p.skipped.provider}）`);
+  console.log(`差异: 新增 ${result.added.length} · 更新 ${result.updated.length} · 未变 ${result.unchanged} · 保留 ${result.kept.length}（远端未覆盖，未删除）`);
+  for (const m of result.added.slice(0, 10)) {
+    console.log(`  + ${m.provider}/${m.model}  in $${m.priceIn} / out $${m.priceOut}`);
+  }
+  if (result.added.length > 10) console.log(`  + …（另有 ${result.added.length - 10} 条新增）`);
+  for (const u of result.updated.slice(0, 10)) {
+    console.log(`  ~ ${u.after.provider}/${u.after.model}  in $${u.before.priceIn ?? '-'} → $${u.after.priceIn} · out $${u.before.priceOut ?? '-'} → $${u.after.priceOut}`);
+  }
+  if (result.updated.length > 10) console.log(`  ~ …（另有 ${result.updated.length - 10} 条更新）`);
+
+  if (result.status === 'dry-run') {
+    console.log('\n--dry-run：未写盘（去掉 --dry-run 才会写入）。');
+    return 0;
+  }
+  if (result.status === 'unchanged') {
+    console.log('\n无变更：远端数据与既有目录一致，未写盘（幂等）。');
+    return 0;
+  }
+  console.log(`\n✔ 已写入 ${catalogPath}（原子写；共 ${result.total} 条）。`);
+  console.log('  用户覆盖 ~/.vessel/pricing.override.json 未改动（优先级仍最高）。');
+  return 0;
+}
+
+/** `vessel pricing [model]` — model price lookup (V0.9 + 085 归一提示 + 092 覆盖 + 093 同步). */
 async function cmdPricing(args: string[], flags: Map<string, string>): Promise<number> {
   const root = repoRoot();
   const catalog = loadModelCatalog(root);
   if (args[0] === 'override') return cmdPricingOverride(args.slice(1), flags);
+  if (args[0] === 'sync') return cmdPricingSync(flags);
   const target = flags.get('model') ?? args[0];
   if (target) {
     // 092：先看用户覆盖 / 删除墓碑（它们优先于目录价）

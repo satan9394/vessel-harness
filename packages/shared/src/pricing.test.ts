@@ -1,8 +1,10 @@
 import { describe, it, expect } from 'vitest';
 import {
   CACHE_WRITE_INPUT_MULTIPLIER,
+  DEFAULT_COST_MULTIPLIER,
   DEFAULT_TOKEN_PRICE,
   ZERO_TOKEN_PRICE,
+  assertCostMultiplier,
   costBreakdown,
   costOf,
   createCatalogPriceSource,
@@ -399,5 +401,47 @@ describe('用户覆盖价源与优先级链 (task 092)', () => {
     const candidates = overrideModelCandidates('anthropic/claude-3.5-sonnet-20241022', 'anthropic');
     expect(candidates.indexOf('anthropic::claude-3-5-sonnet')).toBeGreaterThan(-1);
     expect(candidates.indexOf('anthropic::claude-3-5-sonnet')).toBeLessThan(candidates.indexOf('claude-3-5-sonnet'));
+  });
+});
+
+describe('provider 成本倍率只乘总额 (task 094)', () => {
+  const PRICE: TokenPrice = { input: 1, output: 2, cacheRead: 0.1, cacheWrite: 1.25 };
+  const TOKENS = {
+    inputTokens: 1_000_000,
+    outputTokens: 1_000_000,
+    cacheReadTokens: 1_000_000,
+    cacheCreationTokens: 1_000_000,
+  };
+
+  it('倍率乘在总额上：四项分项单价与金额完全不变', () => {
+    const base = costBreakdown(PRICE, TOKENS);
+    const scaled = costBreakdown(PRICE, TOKENS, { costMultiplier: 1.5 });
+    expect(scaled.inputUsd).toBe(base.inputUsd);
+    expect(scaled.outputUsd).toBe(base.outputUsd);
+    expect(scaled.cacheReadUsd).toBe(base.cacheReadUsd);
+    expect(scaled.cacheWriteUsd).toBe(base.cacheWriteUsd);
+    expect(scaled.rawTotalUsd).toBeCloseTo(base.totalUsd, 12);
+    expect(scaled.costMultiplier).toBe(1.5);
+    expect(scaled.totalUsd).toBeCloseTo(base.totalUsd * 1.5, 12);
+    // 分项单价推导与 cache 语义不受倍率影响
+    expect(scaled.cacheWritePriceSource).toBe('explicit');
+    expect(scaled.cacheWriteDerived).toBe(false);
+  });
+
+  it('缺省倍率 1：rawTotalUsd === totalUsd（旧行为逐位不变）', () => {
+    const b = costBreakdown(PRICE, TOKENS);
+    expect(b.costMultiplier).toBe(DEFAULT_COST_MULTIPLIER);
+    expect(b.rawTotalUsd).toBeCloseTo(b.totalUsd, 12);
+    expect(b.totalUsd).toBeCloseTo(1 + 2 + 0.1 + 1.25, 12);
+    expect(costOf(PRICE, TOKENS)).toBeCloseTo(b.totalUsd, 12);
+  });
+
+  it('非法倍率 fail loud（负数 / NaN / Infinity / 非数字），不静默按 1 处理', () => {
+    for (const bad of [-1, Number.NaN, Number.POSITIVE_INFINITY, '1.5' as unknown as number, null as unknown as number]) {
+      expect(() => costBreakdown(PRICE, TOKENS, { costMultiplier: bad }), String(bad)).toThrow(RangeError);
+    }
+    expect(assertCostMultiplier(0)).toBe(0); // 0 = 免计费，合法
+    expect(assertCostMultiplier(2.5)).toBe(2.5);
+    expect(() => costOf(PRICE, TOKENS, { costMultiplier: -0.01 })).toThrow(RangeError);
   });
 });

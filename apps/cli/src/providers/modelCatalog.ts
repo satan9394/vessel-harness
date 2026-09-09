@@ -13,6 +13,9 @@ import { createCatalogPriceSource, matchModelName, type CatalogPriceSource, type
  * 查名规则（task 085）：走 `@vessel/shared/pricing` 的 `matchModelName`——
  * 与 `resolvePrice` 共用同一套归一候选（命名空间/日期/effort/点号/大小写），
  * 本文件不再自己写 basename 逻辑。
+ *
+ * task 093：该文件由 `vessel pricing sync`（`pricingSync.ts`）从 models.dev 增量更新；
+ * 本文件只负责**读**与结构比较，拉取/合并/原子写都在 `pricingSync.ts`。
  */
 
 export interface CatalogModel {
@@ -31,18 +34,49 @@ export interface ModelCatalog {
   version: number;
   source: string;
   models: CatalogModel[];
+  /** 最近一次 `vessel pricing sync` 成功写盘的 ISO 时间（task 093；手工维护的目录可缺省）。 */
+  lastSyncAt?: string;
+}
+
+/** 目录条目键：`provider::model`（与 usage.json 条目键同格式）。 */
+export function catalogEntryKey(entry: Pick<CatalogModel, 'provider' | 'model'>): string {
+  return `${entry.provider}::${entry.model}`;
+}
+
+/**
+ * 条目等价比较（task 093 幂等判定）：`null` 与「字段缺失」等价，
+ * 其余数值按 `===` 比较（同步写盘用精确数值，不做容差——避免每次同步都写盘）。
+ */
+export function sameCatalogModel(a: CatalogModel, b: CatalogModel): boolean {
+  const num = (v: unknown): number | undefined => (typeof v === 'number' && Number.isFinite(v) ? v : undefined);
+  return (
+    a.model === b.model &&
+    a.provider === b.provider &&
+    num(a.contextWindow) === num(b.contextWindow) &&
+    num(a.outputLimit) === num(b.outputLimit) &&
+    num(a.priceIn) === num(b.priceIn) &&
+    num(a.priceOut) === num(b.priceOut) &&
+    num(a.priceCache) === num(b.priceCache) &&
+    num(a.priceCacheWrite) === num(b.priceCacheWrite)
+  );
+}
+
+/** 目录文件读取（缺失 / JSON 损坏 / 结构非法 → 空目录，不抛错）。 */
+export function readModelCatalog(file: string): ModelCatalog {
+  try {
+    const raw = JSON.parse(fs.readFileSync(file, 'utf8')) as ModelCatalog;
+    if (!Array.isArray(raw.models)) return { version: 1, source: '', models: [] };
+    const out: ModelCatalog = { version: raw.version ?? 1, source: raw.source ?? '', models: raw.models };
+    if (typeof raw.lastSyncAt === 'string') out.lastSyncAt = raw.lastSyncAt;
+    return out;
+  } catch {
+    return { version: 1, source: '', models: [] };
+  }
 }
 
 /** load configs/model-catalog.json; missing/corrupt → empty catalog. */
 export function loadModelCatalog(configRoot = process.cwd()): ModelCatalog {
-  const file = path.join(configRoot, 'configs', 'model-catalog.json');
-  try {
-    const raw = JSON.parse(fs.readFileSync(file, 'utf8')) as ModelCatalog;
-    if (!Array.isArray(raw.models)) return { version: 1, source: '', models: [] };
-    return { version: raw.version ?? 1, source: raw.source ?? '', models: raw.models };
-  } catch {
-    return { version: 1, source: '', models: [] };
-  }
+  return readModelCatalog(path.join(configRoot, 'configs', 'model-catalog.json'));
 }
 
 /** exact id lookup (model id as-is, e.g. claude-sonnet-4-5). */

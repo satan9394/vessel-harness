@@ -313,3 +313,73 @@ describe('ProviderStore × CredentialStore integration (task 034)', () => {
     expect(fs.existsSync(`${store.providersFile}.tmp`)).toBe(false);
   });
 });
+
+describe('ProviderStore 成本倍率 (task 094)', () => {
+  let dir: string;
+  let store: ProviderStore;
+
+  beforeEach(() => {
+    dir = fs.mkdtempSync(path.join(os.tmpdir(), 'cah-provider-mult-'));
+    store = new ProviderStore({ rootDir: dir });
+  });
+
+  afterEach(() => {
+    fs.rmSync(dir, { recursive: true, force: true });
+  });
+
+  it('add 写入 costMultiplier 并持久化到 providers.json（重开可读）', () => {
+    store.add({ ...SAMPLE, costMultiplier: 1.5 });
+    const raw = JSON.parse(fs.readFileSync(store.providersFile, 'utf8')) as ProviderConfig[];
+    expect(raw[0]?.costMultiplier).toBe(1.5);
+    const reopened = new ProviderStore({ rootDir: dir });
+    expect(reopened.get('ds')?.costMultiplier).toBe(1.5);
+    expect(reopened.costMultiplierOf('ds')).toBe(1.5);
+    expect(reopened.costMultipliers()).toEqual({ ds: 1.5 });
+  });
+
+  it('缺省倍率 = 1（字段不写盘；costMultiplierOf 对未设置/不存在的 id 都返回 1）', () => {
+    store.add({ ...SAMPLE });
+    expect(store.get('ds')?.costMultiplier).toBeUndefined();
+    expect(store.costMultiplierOf('ds')).toBe(1);
+    expect(store.costMultiplierOf('mock')).toBe(1);
+    expect(store.costMultiplierOf('nonexistent')).toBe(1);
+    expect(store.costMultipliers()).toEqual({});
+    expect(fs.readFileSync(store.providersFile, 'utf8')).not.toContain('costMultiplier');
+  });
+
+  it('update 可设 / 可清倍率，且不动其它字段（id 不存在 fail loud）', () => {
+    store.add({ ...SAMPLE });
+    const next = store.update('ds', { costMultiplier: 2 });
+    expect(next.costMultiplier).toBe(2);
+    expect(next.model).toBe(SAMPLE.model);
+    expect(store.get('ds')?.costMultiplier).toBe(2);
+
+    store.update('ds', { costMultiplier: undefined }); // 显式清除 → 回到缺省 1
+    expect(store.get('ds')?.costMultiplier).toBeUndefined();
+    expect(store.costMultiplierOf('ds')).toBe(1);
+
+    expect(() => store.update('nope', { costMultiplier: 2 })).toThrow(/provider not found/);
+    expect(() => store.update('mock', { costMultiplier: 2 })).toThrow(/built-in/);
+  });
+
+  it('非法倍率 fail loud（add / update / 读盘都拦），不落盘半成品', () => {
+    for (const bad of [-1, Number.NaN, Number.POSITIVE_INFINITY, '2' as unknown as number]) {
+      expect(() => store.add({ ...SAMPLE, id: `bad-${String(bad)}`, costMultiplier: bad }), String(bad)).toThrow(/costMultiplier/);
+    }
+    expect(fs.existsSync(store.providersFile)).toBe(false); // 一条都没写进去
+
+    store.add({ ...SAMPLE });
+    expect(() => store.update('ds', { costMultiplier: -0.5 })).toThrow(/必须是非负有限数字/);
+    expect(store.get('ds')?.costMultiplier).toBeUndefined(); // 原值未被改坏
+
+    // 手工把非法值写进 providers.json → 读盘 fail loud（不静默当 1）
+    fs.writeFileSync(store.providersFile, JSON.stringify([{ ...SAMPLE, costMultiplier: -3 }]), 'utf8');
+    expect(() => store.load()).toThrow(/costMultiplier/);
+  });
+
+  it('倍率 0 合法（免计费），并随 save/load 往返', () => {
+    store.add({ ...SAMPLE, costMultiplier: 0 });
+    expect(store.costMultiplierOf('ds')).toBe(0);
+    expect(store.costMultipliers()).toEqual({ ds: 0 });
+  });
+});

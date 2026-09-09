@@ -158,17 +158,55 @@ export function resolveCacheWritePrice(price: TokenPrice): { unitPrice: number; 
   return { unitPrice: 0, source: 'absent' };
 }
 
-/** 一次调用的成本分项（USD）——与 cc-switch `CostBreakdown` 同构，但不抄实现。 */
+/** provider 成本倍率缺省值（task 094：没有倍率就是 1 倍，不改动金额）。 */
+export const DEFAULT_COST_MULTIPLIER = 1;
+
+/**
+ * 校验成本倍率（task 094）：必须是非负**有限**数字。
+ *
+ * 为什么 fail loud 而不是「非法就当 1」：倍率直接乘在钱上，静默回退会让用户
+ * 以为加价生效了（实际没有），或反过来把负价算成「退款」。宁可报错。
+ */
+export function assertCostMultiplier(value: unknown, label = 'costMultiplier'): number {
+  if (typeof value !== 'number' || !Number.isFinite(value) || value < 0) {
+    throw new RangeError(
+      `${label} 必须是非负有限数字（收到 ${typeof value === 'number' ? String(value) : JSON.stringify(value) ?? String(value)}）`,
+    );
+  }
+  return value;
+}
+
+/**
+ * 一次调用的成本分项（USD）——与 cc-switch `CostBreakdown` 同构，但不抄实现。
+ *
+ * task 094：provider 成本倍率**只乘总额**——
+ *   `totalUsd = rawTotalUsd × costMultiplier`，四项分项单价与金额保持不变。
+ * 这样「分项之和 ≠ 总额」是可解释的（差的就是倍率），而不是算错了。
+ */
 export interface CostBreakdown {
   inputUsd: number;
   outputUsd: number;
   cacheReadUsd: number;
   cacheWriteUsd: number;
+  /** 分项合计（**未**乘倍率）：input + output + cacheRead + cacheWrite。 */
+  rawTotalUsd: number;
+  /** 实际计费总额 = `rawTotalUsd × costMultiplier`（倍率缺省 1 时两者相等）。 */
   totalUsd: number;
+  /** 本次应用的 provider 成本倍率（094；缺省 1）。 */
+  costMultiplier: number;
   /** cache 写入单价的来源（explicit / derived / absent），审计用。 */
   cacheWritePriceSource: CacheWritePriceSource;
   /** true = 该次计算的 cache 写入价是推导出来的（非价目显式值）。 */
   cacheWriteDerived: boolean;
+}
+
+/** `costBreakdown` 的可选项（094 起）。 */
+export interface CostBreakdownOptions {
+  /**
+   * provider 成本倍率（094）——中转/代理加价场景。**只乘总额**，不改分项单价。
+   * 非负有限数字；非法值抛 `RangeError`（fail loud）。
+   */
+  costMultiplier?: number;
 }
 
 /** 一次调用上报的 token 数（cache 写入为 task 090 新增）。 */
@@ -181,13 +219,24 @@ export interface UsageTokens {
 
 /**
  * 四项分算成本（task 090）：input / output / cacheRead / cacheWrite 各自
- * `tokens × 单价 / 1_000_000`，`totalUsd` 是四项之和。
+ * `tokens × 单价 / 1_000_000`，分项合计见 `rawTotalUsd`。
  *
  * 注意：`cacheCreationTokens` 是**独立**的一项，不从 inputTokens 里扣减——
  * 上报侧（`input_token_semantics`）尚未归一，扣减会让口径更乱；等有归一语义
  * 再在数据层处理（见 docs/PRICING.md §9）。
+ *
+ * task 094：`options.costMultiplier`（provider 级倍率）**只乘总额**——
+ * `totalUsd = rawTotalUsd × costMultiplier`，四项分项金额原样返回。
+ * 倍率非法（负数 / NaN / Infinity）抛 `RangeError`，不静默按 1 处理。
  */
-export function costBreakdown(price: TokenPrice, tokens: UsageTokens): CostBreakdown {
+export function costBreakdown(
+  price: TokenPrice,
+  tokens: UsageTokens,
+  options: CostBreakdownOptions = {},
+): CostBreakdown {
+  const multiplier = options.costMultiplier === undefined
+    ? DEFAULT_COST_MULTIPLIER
+    : assertCostMultiplier(options.costMultiplier);
   const input = tokens.inputTokens ?? 0;
   const output = tokens.outputTokens ?? 0;
   const cacheRead = tokens.cacheReadTokens ?? 0;
@@ -197,15 +246,26 @@ export function costBreakdown(price: TokenPrice, tokens: UsageTokens): CostBreak
   const outputUsd = (output / 1_000_000) * price.output;
   const cacheReadUsd = (cacheRead / 1_000_000) * (price.cacheRead ?? 0);
   const cacheWriteUsd = (cacheWrite / 1_000_000) * write.unitPrice;
+  const rawTotalUsd = inputUsd + outputUsd + cacheReadUsd + cacheWriteUsd;
   return {
     inputUsd,
     outputUsd,
     cacheReadUsd,
     cacheWriteUsd,
-    totalUsd: inputUsd + outputUsd + cacheReadUsd + cacheWriteUsd,
+    rawTotalUsd,
+    totalUsd: rawTotalUsd * multiplier,
+    costMultiplier: multiplier,
     cacheWritePriceSource: write.source,
     cacheWriteDerived: write.source === 'derived',
   };
+}
+
+/**
+ * 按一次调用的 token 数算成本（USD）——实现即 `costBreakdown().totalUsd`。
+ * 需要分项（input/output/cacheRead/cacheWrite）或 provider 倍率时用 `costBreakdown`。
+ */
+export function costOf(price: TokenPrice, tokens: UsageTokens, options: CostBreakdownOptions = {}): number {
+  return costBreakdown(price, tokens, options).totalUsd;
 }
 
 /** 空价目表（无模型、无协议价，只有兜底 default）。 */
@@ -611,10 +671,3 @@ export function resolvePrice(
   return { price: fallback, source: 'default', estimated: true, matchedKey: 'default' };
 }
 
-/**
- * 按一次调用的 token 数算成本（USD）——四项之和，实现即 `costBreakdown().totalUsd`。
- * 需要分项（input/output/cacheRead/cacheWrite）时用 `costBreakdown`。
- */
-export function costOf(price: TokenPrice, tokens: UsageTokens): number {
-  return costBreakdown(price, tokens).totalUsd;
-}

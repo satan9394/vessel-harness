@@ -4,6 +4,7 @@ import * as path from 'node:path';
 import {
   costBreakdown,
   resolvePrice,
+  DEFAULT_COST_MULTIPLIER,
   type CacheWritePriceSource,
   type CatalogPriceSource,
   type CostBreakdown,
@@ -11,6 +12,8 @@ import {
   type PriceResolution,
   type PriceSource,
   type PricingTable,
+  type TokenPrice,
+  type UsageTokens,
 } from '../providers/pricing.js';
 
 /**
@@ -35,6 +38,11 @@ import {
  * 定价变更回填（task 091）：`recompute()` 按**当前**价目重算历史成本——
  * 保留 token 原始值，只重算 `costUsd` / `estimated` / `pricingSource` / 分项。
  * 幂等（同一价目连跑两次第二次零变更、不落盘）；`dryRun` 只出差异摘要。
+ *
+ * 成本倍率（task 094）：`multiplierOf(provider)` 给的 provider 级倍率**只乘总额**
+ * （`costUsd = 分项合计 × 倍率`），分项单价与分项金额不变；条目上留
+ * `costMultiplier` / `costMultiplierMixed` 痕迹，`byProvider()` / `totals()`
+ * 同时给 `rawCostUsd`，于是「总额 = 分项合计 × 倍率」在 `vessel usage` 里可解释。
  *
  * 日口径（task 089）：分桶键是**本地日** `YYYY-MM-DD`（用本机时区，不是 UTC）。
  * 写入时按 `now()` 的本地日归档；查询时「完整本地日」= 已结束的本地日
@@ -85,6 +93,15 @@ export interface UsageEntry {
   recomputedAt?: string;
   /** true = 该条目曾是 085 之前的无来源记录，已被 `recompute` 按当前规则重算并标注（091） */
   recomputedFromLegacy?: boolean;
+  /**
+   * 该条目累计时用的 provider 成本倍率（094）。缺省 1 时不写字段。
+   *
+   * 只在该条目**历次记录的倍率一致**时存在；倍率变过（同一 provider 中途改倍率）
+   * 则置 `costMultiplierMixed: true` 并省略本字段——不假装有个「唯一倍率」。
+   */
+  costMultiplier?: number;
+  /** true = 该条目历次记录的倍率不一致（见上）。 */
+  costMultiplierMixed?: boolean;
 }
 
 export interface UsageRecentEntry {
@@ -196,6 +213,13 @@ export interface UsageStoreOptions {
   catalog?: CatalogPriceSource;
   /** 用户覆盖价源（092，`~/.vessel/pricing.override.json`）——优先级最高 */
   override?: OverridePriceSource;
+  /**
+   * provider 成本倍率解析（094）：provider id → 倍率（缺省 1）。
+   *
+   * **只乘总额**（`costUsd = 分项合计 × 倍率`），分项单价与分项金额不变。
+   * 返回非法值（负数/NaN/非数字）抛错（fail loud，见 `costBreakdown`）。
+   */
+  multiplierOf?: (provider: string) => number;
   /** strict mode: 只用模型专属价目（model/catalog/override），未收录模型按 0 计价（标 `unpriced`） */
   strict?: boolean;
   /** cap for the recent-entries ring buffer */
@@ -363,6 +387,7 @@ export class UsageStore {
   private readonly strict: boolean;
   private readonly recentCap: number;
   private readonly clock: () => Date;
+  private readonly multiplierOf: (provider: string) => number;
   private data: UsageFile;
   /** 读入的旧文件没有 daily 字段（089 之前的累计）：历史只保留累计，不伪造分桶 */
   private readonly legacyFile: boolean;
@@ -376,6 +401,7 @@ export class UsageStore {
     this.strict = opts.strict ?? false;
     this.recentCap = opts.recentCap ?? 200;
     this.clock = opts.now ?? (() => new Date());
+    this.multiplierOf = opts.multiplierOf ?? (() => DEFAULT_COST_MULTIPLIER);
     const loaded = this.load();
     this.data = loaded.file;
     this.legacyFile = loaded.legacy;
@@ -384,6 +410,22 @@ export class UsageStore {
   /** 唯一的查价入口：回退链 override > model > catalog > protocol > default（086/092）。 */
   private resolve(model: string, provider: string, strict = this.strict): PriceResolution {
     return resolvePrice(this.pricing, model, provider, this.catalog, { strict, override: this.override });
+  }
+
+  /**
+   * 唯一的计价入口（090/094）：分项单价算四项，provider 倍率**只乘总额**。
+   *
+   * 倍率来自 `multiplierOf(provider)`（094；缺省 1）；非法值在 `costBreakdown`
+   * 内抛 `RangeError`（fail loud，不静默按 1 处理）。
+   */
+  private cost(price: TokenPrice, tokens: UsageTokens, provider: string): CostBreakdown {
+    return costBreakdown(price, tokens, { costMultiplier: this.multiplierOf(provider) });
+  }
+
+  /** 分项合计（未乘倍率）——用于解释「总额 = 分项合计 × 倍率」（094）。 */
+  private static rawTotal(b: UsageCostBreakdown | CostBreakdown | undefined): number {
+    if (!b) return 0;
+    return b.inputUsd + b.outputUsd + b.cacheReadUsd + b.cacheWriteUsd;
   }
 
   private load(): { file: UsageFile; legacy: boolean } {
@@ -412,6 +454,12 @@ export class UsageStore {
           estimatedCostUsd: num(raw.estimatedCostUsd),
           pricingSource: raw.pricingSource ?? 'legacy',
         };
+        // 094：倍率字段读盘容错——非法值丢弃（当作未记录），mixed 只认 true。
+        const entry = entries[key]!;
+        if (typeof entry.costMultiplier !== 'number' || !Number.isFinite(entry.costMultiplier) || entry.costMultiplier < 0) {
+          delete entry.costMultiplier;
+        }
+        if (entry.costMultiplierMixed !== true) delete entry.costMultiplierMixed;
       }
       const recent: UsageRecentEntry[] = Array.isArray(parsed.recent)
         ? parsed.recent.map((r) => ({
@@ -517,12 +565,13 @@ export class UsageStore {
     const outT = input.outputTokens ?? 0;
     const cacheT = input.cacheReadTokens ?? 0;
     const cacheWT = input.cacheCreationTokens ?? 0;
-    const cost = costBreakdown(resolved.price, {
+    const cost = this.cost(resolved.price, {
       inputTokens: inT,
       outputTokens: outT,
       cacheReadTokens: cacheT,
       cacheCreationTokens: cacheWT,
-    });
+    }, provider);
+    const multiplier = cost.costMultiplier;
 
     const k = this.key(provider, model);
     const prev = this.data.entries[k];
@@ -538,6 +587,21 @@ export class UsageStore {
     const entryBreakdown: UsageCostBreakdown = { ...prevBreakdown };
     addBreakdown(entryBreakdown, cost);
     const derivedCost = cost.cacheWriteDerived ? cost.cacheWriteUsd : 0;
+    // 094：条目级倍率留痕——历次倍率一致才记数值，变过则标 mixed（不假装唯一）。
+    const prevMultiplier = prev === undefined ? undefined : prev.costMultiplier ?? DEFAULT_COST_MULTIPLIER;
+    let entryMultiplier: number | undefined;
+    let entryMixed = prev?.costMultiplierMixed ?? false;
+    if (prev === undefined) {
+      entryMultiplier = multiplier !== DEFAULT_COST_MULTIPLIER ? multiplier : undefined;
+      entryMixed = false;
+    } else if (entryMixed) {
+      entryMultiplier = undefined;
+    } else if (prevMultiplier === multiplier) {
+      entryMultiplier = multiplier !== DEFAULT_COST_MULTIPLIER ? multiplier : undefined;
+    } else {
+      entryMultiplier = undefined;
+      entryMixed = true;
+    }
     this.data.entries[k] = {
       model,
       provider,
@@ -555,6 +619,8 @@ export class UsageStore {
       pricingSource,
       lastTs: ts,
       events: (prev?.events ?? 0) + 1,
+      ...(entryMultiplier !== undefined ? { costMultiplier: entryMultiplier } : {}),
+      ...(entryMixed ? { costMultiplierMixed: true } : {}),
     };
 
     // 本地日分桶（task 089）：与累计总量并存，逐日累计，不做回填。
@@ -659,7 +725,7 @@ export class UsageStore {
       entries.scanned += 1;
       entries.beforeUsd += entry.costUsd;
       const resolved = this.resolve(entry.model, entry.provider);
-      const cost = costBreakdown(resolved.price, entry);
+      const cost = this.cost(resolved.price, entry, entry.provider);
       entries.afterUsd += cost.totalUsd;
       const nextBreakdown: UsageCostBreakdown = {
         inputUsd: cost.inputUsd,
@@ -669,6 +735,7 @@ export class UsageStore {
       };
       const nextEstimatedCost = resolved.estimated ? cost.totalUsd : 0;
       const nextDerivedCost = cost.cacheWriteDerived ? cost.cacheWriteUsd : 0;
+      const nextMultiplier = cost.costMultiplier !== DEFAULT_COST_MULTIPLIER ? cost.costMultiplier : undefined;
       const prevBreakdown = entry.costBreakdown ?? emptyBreakdown();
       const changed =
         !sameMoney(entry.costUsd, cost.totalUsd) ||
@@ -677,6 +744,8 @@ export class UsageStore {
         entry.estimated !== resolved.estimated ||
         (entry.cacheWriteDerived ?? false) !== cost.cacheWriteDerived ||
         entry.pricingSource !== resolved.source ||
+        entry.costMultiplier !== nextMultiplier ||
+        (entry.costMultiplierMixed ?? false) ||
         !sameMoney(prevBreakdown.inputUsd, nextBreakdown.inputUsd) ||
         !sameMoney(prevBreakdown.outputUsd, nextBreakdown.outputUsd) ||
         !sameMoney(prevBreakdown.cacheReadUsd, nextBreakdown.cacheReadUsd) ||
@@ -707,6 +776,10 @@ export class UsageStore {
           pricingSource: resolved.source,
           recomputedAt: nowIso,
         };
+        // 重算 = 用当前价目与当前倍率重新记录：倍率收敛为唯一值，mixed 痕迹清掉。
+        if (nextMultiplier !== undefined) next.costMultiplier = nextMultiplier;
+        else delete next.costMultiplier;
+        delete next.costMultiplierMixed;
         if (wasLegacy) next.recomputedFromLegacy = true;
         this.data.entries[key] = next;
       }
@@ -734,7 +807,7 @@ export class UsageStore {
         if (!sub) continue;
         const { provider, model } = splitEntryKey(mKey);
         const resolved = this.resolve(model, provider);
-        const cost = costBreakdown(resolved.price, sub);
+        const cost = this.cost(resolved.price, sub, provider);
         const nextSub: UsageDailyModelBucket = {
           inputTokens: sub.inputTokens,
           outputTokens: sub.outputTokens,
@@ -779,7 +852,7 @@ export class UsageStore {
       recent.scanned += 1;
       recent.beforeUsd += rec.costUsd;
       const resolved = this.resolve(rec.model, rec.provider);
-      const cost = costBreakdown(resolved.price, rec);
+      const cost = this.cost(resolved.price, rec, rec.provider);
       recent.afterUsd += cost.totalUsd;
       const changed = !sameMoney(rec.costUsd, cost.totalUsd) || rec.estimated !== resolved.estimated || rec.pricingSource !== resolved.source;
       if (!changed) continue;
@@ -828,10 +901,17 @@ export class UsageStore {
     estimatedCostUsd: number;
     unpricedEntries: number;
     legacyEntries: number;
+    /** 分项合计（未乘 provider 倍率；094：`costUsd ≈ rawCostUsd × 倍率`）。 */
+    rawCostUsd: number;
+    /** 含非 1 倍率的条目数（094）。 */
+    multipliedEntries: number;
+    /** 历次倍率不一致的条目数（094；这类条目没有唯一倍率）。 */
+    mixedMultiplierEntries: number;
   } {
     let input = 0, output = 0, cache = 0, cacheWrite = 0, calls = 0, cost = 0;
     let estimatedEntries = 0, estimatedCostUsd = 0, unpricedEntries = 0, legacyEntries = 0;
     let derivedCost = 0, withoutBreakdown = 0;
+    let rawCost = 0, multipliedEntries = 0, mixedMultiplierEntries = 0;
     const breakdown = emptyBreakdown();
     for (const e of Object.values(this.data.entries)) {
       input += e.inputTokens; output += e.outputTokens; cache += e.cacheReadTokens;
@@ -839,6 +919,9 @@ export class UsageStore {
       derivedCost += e.cacheWriteDerivedCostUsd ?? 0;
       const b = e.costBreakdown ?? emptyBreakdown();
       addBreakdown(breakdown, b);
+      rawCost += UsageStore.rawTotal(b);
+      if (e.costMultiplier !== undefined && e.costMultiplier !== DEFAULT_COST_MULTIPLIER) multipliedEntries += 1;
+      if (e.costMultiplierMixed) mixedMultiplierEntries += 1;
       const bTotal = b.inputUsd + b.outputUsd + b.cacheReadUsd + b.cacheWriteUsd;
       if (bTotal === 0 && e.costUsd !== 0) withoutBreakdown += 1;
       if (e.estimated) { estimatedEntries += 1; estimatedCostUsd += e.estimatedCostUsd; }
@@ -853,6 +936,7 @@ export class UsageStore {
       models: Object.keys(this.data.entries).length,
       providers: new Set(Object.values(this.data.entries).map((e) => e.provider)).size,
       estimatedEntries, estimatedCostUsd, unpricedEntries, legacyEntries,
+      rawCostUsd: rawCost, multipliedEntries, mixedMultiplierEntries,
     };
   }
 
@@ -937,7 +1021,7 @@ export class UsageStore {
     let unpricedCostUsd = 0;
     for (const e of Object.values(this.data.entries)) {
       const resolved = this.resolve(e.model, e.provider, true);
-      const cost = costBreakdown(resolved.price, e);
+      const cost = this.cost(resolved.price, e, e.provider);
       costUsd += cost.totalUsd;
       if (resolved.source === 'unpriced') {
         unpricedEntries += 1;
@@ -956,20 +1040,41 @@ export class UsageStore {
     calls: number;
     costUsd: number;
     estimated: boolean;
+    /** 分项合计（未乘倍率；094：`costUsd = rawCostUsd × costMultiplier`）。 */
+    rawCostUsd: number;
+    /** 该 provider 的统一成本倍率（094）；无倍率 = undefined，不一致 = undefined + mixed。 */
+    costMultiplier?: number;
+    /** true = 该 provider 的条目历次倍率不一致（无唯一倍率）。 */
+    costMultiplierMixed: boolean;
   }[] {
     const map = new Map<string, {
       provider: string; inputTokens: number; outputTokens: number; cacheReadTokens: number;
       cacheCreationTokens: number; calls: number; costUsd: number; estimated: boolean;
+      rawCostUsd: number; costMultiplier?: number; costMultiplierMixed: boolean;
     }>();
     for (const e of Object.values(this.data.entries)) {
       const cur = map.get(e.provider) ?? {
         provider: e.provider, inputTokens: 0, outputTokens: 0, cacheReadTokens: 0,
         cacheCreationTokens: 0, calls: 0, costUsd: 0, estimated: false,
+        rawCostUsd: 0, costMultiplier: undefined, costMultiplierMixed: false,
       };
       cur.inputTokens += e.inputTokens; cur.outputTokens += e.outputTokens;
       cur.cacheReadTokens += e.cacheReadTokens; cur.cacheCreationTokens += e.cacheCreationTokens ?? 0;
       cur.calls += e.calls; cur.costUsd += e.costUsd;
+      cur.rawCostUsd += UsageStore.rawTotal(e.costBreakdown);
       cur.estimated = cur.estimated || e.estimated;
+      // 094：provider 级倍率只在「该 provider 所有条目一致」时才敢报一个数。
+      if (e.costMultiplierMixed) {
+        cur.costMultiplier = undefined;
+        cur.costMultiplierMixed = true;
+      } else if (!cur.costMultiplierMixed) {
+        const m = e.costMultiplier ?? DEFAULT_COST_MULTIPLIER;
+        if (cur.costMultiplier === undefined) cur.costMultiplier = m;
+        else if (cur.costMultiplier !== m) {
+          cur.costMultiplier = undefined;
+          cur.costMultiplierMixed = true;
+        }
+      }
       map.set(e.provider, cur);
     }
     return [...map.values()].sort((a, b) => b.costUsd - a.costUsd);

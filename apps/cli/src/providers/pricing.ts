@@ -34,6 +34,8 @@ export {
   ZERO_TOKEN_PRICE,
   EMPTY_PRICING_TABLE,
   CACHE_WRITE_INPUT_MULTIPLIER,
+  DEFAULT_COST_MULTIPLIER,
+  assertCostMultiplier,
 } from '@vessel/shared';
 export type {
   TokenPrice,
@@ -47,6 +49,7 @@ export type {
   ModelMatch,
   ResolvePriceOptions,
   CostBreakdown,
+  CostBreakdownOptions,
   CacheWritePriceSource,
   UsageTokens,
 } from '@vessel/shared';
