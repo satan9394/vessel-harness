@@ -1,7 +1,7 @@
 # 099 — cache_creation 端到端采集（Anthropic cache write → 统计分项）
 
 - 编号：099
-- 状态：待验收
+- 状态：已合入
 - 优先级：P1（补齐 089 记录的边界：入口已就绪但上游未上报）
 - 创建日期：2026-09-08
 - 关联：089（cdf1374：cacheWrite 三档计价 + 入口 `cacheCreationTokens?` 已就绪）；046（stream 契约）；050（after_model）
@@ -160,5 +160,12 @@ $ cd apps/web && npx vitest run
 
 ## 验收结论（指挥回填）
 
-- [ ] 合入 / 打回
-- 备注：
+- [x] 合入（commits 69502c5 实现 + bfba63e 回填）
+- 备注：指挥独立复核——`tsc -b` exit 0；全量 vitest 994 passed + 1 skipped（失败为已知 process-tree 时序 flaky，
+  重跑确认仅此 1 例；另一次全量 2 failed 系偶发 rename EPERM flaky，均非本卡回归）；web 74 passed。
+  认可：缺口定位准确（不在 core after_model/统计层，而在类型契约无字段 + Anthropic 双路径未映射 + 流式折叠少一行）；
+  改动 5 处源码（shared/provider.ts ChatUsage.cacheCreationTokens、parseAnthropic 流式 message_start、
+  AnthropicProvider 非流式、AgentLoop 1 行折叠、MockProvider 可注入）+ 13 例测试（含 cache-creation-e2e 端到端 4 例）
+  + 文档 2 处；薄核纪律守住（core 仅 1 行、无新机制/依赖）；OpenAI 系保持 undefined 不写 0 假值。
+  **记录的后续**：apps/web UsageBar + local-server usage SSE 仍只展示 cacheRead（展示层，可另开小卡）。
+  **099 关闭。**

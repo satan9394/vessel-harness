@@ -11,6 +11,7 @@
 | 098 | 修复 `tsc -b` TS5055 类型环：provider SSOT 下沉 packages/application，runners 改依赖 application，cli 补单向 reference | ea67f38 | `tsc -b` 与 `--force` 双 exit 0 |
 | 097 | 移除本机 CC Switch 应用数据依赖：删 ccSwitchCredential，新增 opencodeGoCredential（env + CredentialStore），含源码树守卫测试 | 6be5527 | 957 测试 + grep 0 命中 |
 | 089 | 统计增强：daily 本地日分桶（complete=date<今日）+ `--by-day/--since/--until` + cache_creation 计价（explicit/derived/absent 三档） | cdf1374 | 980 测试 + tsc 0 |
+| 099 | cache_creation 端到端采集：AnthropicProvider 非流式 + parseAnthropic 流式 message_start → ChatUsage.cacheCreationTokens → AgentLoop 折叠 → 统计分项（core 仅 1 行） | 69502c5 | 994 测试 + tsc 0 |
 
 ## 待做（按报告优先级）
 
