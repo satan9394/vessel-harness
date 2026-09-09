@@ -134,15 +134,19 @@ re-export 外壳；协议语义（下列各点）不变：
 - **推理模型预算**：`mimo-v2.5` 是推理模型（`content` 可为 null 而 `reasoning` 有值），
   默认 `max_tokens=8192`（`OPENCODE_GO_DEFAULT_MAX_TOKENS`），并保留 `reasoning` / `reasoning_tokens`
   到 `raw`，便于诊断「思维链吃光预算」。
-- **凭据来源选择**：`run-opencode-lane.ts --key-source=auto|env|store`。**踩坑**：本机仓库
-  CredentialStore 里已存的 `credential:vessel/opencode-go` 与用户新提供的 key **不是同一把**
-  （长度相同、`same=false`），按 097 的「store 优先」优先级会被静默选中并返回
-  401 `CreditsError`——真实跑必须显式 `--key-source=env`（或让用户用 `vessel provider add` 更新 store）。
-  driver 只打印来源名/长度/是否一致，**不打印任何密钥片段**。
+- **凭据来源选择**：`run-opencode-lane.ts --key-source=auto|env|store`。driver 只打印来源名/长度/是否一致，
+  **不打印任何密钥片段**。
+  - **历史踩坑（task 102）**：本机 CredentialStore 里曾存的 `credential:vessel/opencode-go` 与用户提供的 key
+    **不是同一把**（长度相同、`same=false`），按 097 的「store 优先」优先级会被静默选中并返回
+    401 `CreditsError`——当时真实跑必须显式 `--key-source=env`。
+  - **已修复（task 105）**：用户 key 已用 `vessel provider add` 写入 store（DPAPI 密文，指纹一致
+    `same=true`），`--key-source=store` / `--key-source=env` / `--key-source=auto` 三条路径实测均 200；
+    `auto` 在 env 被塞假值时仍选 store（**store 优先**语义保持）。见下节「key 入库」。
 
 ## 真实跑观测（task 102，mimo-v2.5）
 
-用用户提供的 key（指纹 `sk-8Dl…Cp4n1`，`--key-source=env`）在 Go 端点跑 082 lane：
+用用户提供的 key（指纹 `sk-8Dl…Cp4n1`，`--key-source=env`）在 Go 端点跑 082 lane
+（task 105 起同一把 key 已写入 CredentialStore，`--key-source=store` 亦可，见下节「key 入库」）：
 
 | 运行 | 场景集 | 结果 | 备注 |
 | --- | --- | --- | --- |
@@ -206,6 +210,52 @@ const report = await runRealModelLane({
   repoRoot: process.cwd(), reportsDir: 'benchmarks/reports',
 });
 ```
+
+## key 入库（task 105：把用户 key 写进 CredentialStore）
+
+用户日常路径（`vessel run`）**不再需要每次指定 env**：key 写进仓库 CredentialStore
+（Windows DPAPI 密文），`providers.json` 只留 `secretRef`。（`vessel chat` 见下方 ⚠️。）
+
+```powershell
+# 1) 入库：key 只在命令行/进程内出现，仓库机制负责 DPAPI 加密 + 写 secretRef
+vessel provider add opencode-go --protocol openai-compatible `
+  --base-url https://opencode.ai/zen/go/v1 --model mimo-v2.5 --api-key <KEY>
+#    已有同名条目 → 用 vessel provider set opencode-go --api-key <KEY> 原地更新（不新建重复条目）
+
+# 2) 设为默认（一次性；此后 vessel run 直接用 store 里的 key，无需 env）
+vessel provider switch opencode-go
+
+# 3) 校验：读回 store 的 key，与用户 key 比对「前6+后4+长度+sha256 前 8 位」→ 只输出指纹与 same 布尔
+```
+
+```powershell
+# 指纹校验（不打印完整 key）
+Add-Type -AssemblyName System.Security
+$j   = Get-Content "$env:USERPROFILE\.vessel\secrets.json" -Raw | ConvertFrom-Json
+$ent = [Convert]::FromBase64String($j.entropy)
+$e   = $j.secrets | Where-Object { $_.service -eq 'vessel' -and $_.account -eq 'opencode-go' }
+$plain = [System.Text.Encoding]::UTF8.GetString(
+  [System.Security.Cryptography.ProtectedData]::Unprotect([Convert]::FromBase64String($e.cipher), $ent, 'CurrentUser'))
+# 与用户提供的 key 比对前6+后4+长度+sha8 → same=true
+```
+
+- 落盘形状：`~/.vessel/providers.json` = `[{id,name,protocol,baseUrl,model,secretRef:"credential:vessel/opencode-go"}]`
+  （**无 apiKey 明文**）；`~/.vessel/secrets.json` = `{backend:"windows-dpapi", entropy:"…", secrets:[{service:"vessel",
+  account:"opencode-go", cipher:"<DPAPI base64>"}]}`。仓库内任何文件/日志/报告都不含 key，只含指纹。
+- **两条来源实测均可用（task 105 证据）**：
+
+  | 命令 | 结果 |
+  | --- | --- |
+  | `run-opencode-lane.ts --key-source=store --probe-only` | `ok`，usage `input=248 / output=154 / cacheRead=192` |
+  | `run-opencode-lane.ts --key-source=env --probe-only` | `ok`（`storeLen=67 envLen=67 same=true`） |
+  | `run-opencode-lane.ts --key-source=auto`（env 塞假值） | 仍选 `CredentialStore vessel/opencode-go` → `ok` |
+
+- `vessel run` 真跑（store 路径，无需任何 env）：`vessel run --prompt "ping"` → 最终回复 `pong`、
+  `kind=success steps=1`，usage 落 `~/.vessel/usage.json`（`provider=opencode-go, model=mimo-v2.5,
+  inputTokens=3265, outputTokens=37`）。
+- ⚠️ **本机 `vessel chat`（TUI）仍不可用**：`runChat()` 的默认 `ProviderStore` 未接 CredentialStore
+  （`apps/cli/src/tui/chat.ts`），`secretRef` 解析不到 apiKey → 401 `Missing API key`。这是**独立缺陷**，
+  不在 105 范围内（105 只做 key 入库 + `vessel run` 真跑验证），待单独开卡修。
 
 ## 设计选择与理由
 

@@ -1,0 +1,15 @@
+{
+  "keyPresent": true,
+  "model": "mimo-v2.5",
+  "probe": {
+    "ok": true,
+    "model": "mimo-v2.5",
+    "content": "Pong! 🏓\n\nLooks like we've got a solid connection. How can I help you today?",
+    "reasoningChars": 579,
+    "usage": {
+      "inputTokens": 248,
+      "outputTokens": 143,
+      "cacheReadTokens": 192
+    }
+  }
+}
