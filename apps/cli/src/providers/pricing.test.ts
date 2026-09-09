@@ -3,7 +3,7 @@ import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { resolvePrice, loadPricing, type PricingTable } from './pricing.js';
+import { ZERO_TOKEN_PRICE, resolvePrice, loadPricing, type PricingTable } from './pricing.js';
 
 const TABLE: PricingTable = {
   models: {
@@ -53,7 +53,7 @@ describe('pricing — resolvePrice (task 017 + 085/086)', () => {
   it('strict mode only accepts model-specific prices (task 086)', () => {
     const r = resolvePrice(TABLE, 'zzz', undefined, undefined, { strict: true });
     expect(r).toMatchObject({ source: 'unpriced', estimated: false });
-    expect(r.price).toEqual({ input: 0, output: 0, cacheRead: 0 });
+    expect(r.price).toEqual(ZERO_TOKEN_PRICE);
     // 已知模型在 strict 下照常命中
     expect(resolvePrice(TABLE, 'deepseek-chat', undefined, undefined, { strict: true }).source).toBe('model');
     // 协议级兜底在 strict 下不可用（它不是该模型的价）

@@ -1,12 +1,14 @@
 # 计价与用量成本（PRICING.md）
 
-> 任务卡：085（模型名归一）/ 086（缺价显式化）/ 087（统一计价）。
+> 任务卡：085（模型名归一）/ 086（缺价显式化）/ 087（统一计价）/ 089（统计时间维度）/ 090（cache 写入计价）。
 > 实现单一入口：`packages/shared/src/pricing.ts`（纯函数、零 I/O）。
 
 ## 1. 一句话
 
 价格不是猜出来的：**能查到就报来源，查不到就明说是估算**（或 `--strict` 下按 0 记），
 且 CLI / application / benchmarks 三条路径共用同一份查价实现，不会各算各的。
+用量统计同时给**累计**与**本地日分桶**两个口径（089），成本按
+input / output / cacheRead / **cacheWrite** 四项分算（090）。
 
 ## 2. 单一实现（为什么）
 
@@ -67,17 +69,89 @@ pricing.json models[<归一后名>]  →  model-catalog.json  →  protocols[<pr
 
 ## 5. 持久化字段（UsageStore）
 
-`~/.vessel/usage.json` 的每个 `provider::model` 条目新增：
+`~/.vessel/usage.json`（`version: 2`）的每个 `provider::model` 条目：
 
 - `estimated: boolean` —— 是否含估算计价
 - `estimatedCostUsd: number` —— 其中估算部分的金额
 - `pricingSource: 'model'|'catalog'|'protocol'|'default'|'unpriced'|'mixed'|'legacy'`
   - `mixed` = 同一模型条目内多次调用来源不同
   - `legacy` = 085 之前写入、未保存来源的旧记录（不臆造来源，展示层单列）
+- `cacheCreationTokens: number` —— cache 写入 token（090）
+- `costBreakdown: { inputUsd, outputUsd, cacheReadUsd, cacheWriteUsd }` —— 成本分项（090）
+- `cacheWriteDerivedCostUsd: number` / `cacheWriteDerived: boolean` —— 其中用了推导写入价的部分（见 §7）
 
-`recent[]` 每条同样带 `estimated` / `pricingSource`。
+`recent[]` 每条同样带 `estimated` / `pricingSource` / `cacheCreationTokens`。
+`daily` 见 §6。
 
-## 6. `--strict` 模式（选型）
+## 6. 时间维度：本地日分桶（089）
+
+`usage.json` 的 `daily: Record<'YYYY-MM-DD', UsageDailyBucket>`，与 `entries` 的**累计总量并存**
+（累计不因分桶而消失；分桶也不回填历史）。
+
+```jsonc
+"daily": {
+  "2026-09-07": {            // 键 = 本地日（本机时区，不是 UTC）
+    "inputTokens": 0, "outputTokens": 0,
+    "cacheReadTokens": 0, "cacheCreationTokens": 0,
+    "costUsd": 0, "calls": 0,
+    "estimatedCostUsd": 0,       // 当日估算部分
+    "cacheWriteDerivedCostUsd": 0, // 当日用推导写入价的部分
+    "firstTs": "…ISO…", "lastTs": "…ISO…"
+  }
+}
+```
+
+**口径（学 cc-switch `usage_daily_rollups` 的思路，实现自写）**：
+
+1. **本地日**：按 `Date` 的本地 `getFullYear/getMonth/getDate` 归档，跨时区/跨夏令时不会漂到 UTC 日。
+2. **只把「完整本地日」计入完整日合计**：`complete = date < 今天(本地)`；今天与未来日都不完整，
+   `dailySummary()` 把它们放进 `partial`，**不混进 `complete` 的合计**（避免半天数据被当成一整天）。
+3. **不伪造历史分桶**：读入的旧文件（`version: 1`、无 `daily` 字段）→ 历史只保留 `entries` 的累计，
+   `daily` 从空开始，只记录读入之后的新事件；`migratedFromLegacy()` 为 true，CLI 会打印提示。
+   分桶键非法（非 `YYYY-MM-DD`）的行在读入时丢弃。
+
+**CLI**：
+
+```powershell
+vessel usage                                  # 累计 + 成本分项 + 今日/本月（有分桶数据时）
+vessel usage --by-day                         # 按本地日列出全部分桶
+vessel usage --since 2026-09-01 --until 2026-09-07 --by-day   # 窗口（含首含尾）
+```
+
+窗口汇总打印两组：`完整本地日合计`（参与统计）与 `未完整本地日（今天/未来，不计入上面合计）`。
+`--since/--until` 只接受 `YYYY-MM-DD`（含真实日期校验），非法值打印错误并 exit 2。
+默认行为（不带窗口参数）与 089 之前一致，只多打成本分项与今日/本月两行。
+
+## 7. cache 写入计价与缺字段回退（090）
+
+`TokenPrice.cacheWrite`（每 1M tokens）——Anthropic 的 `cache_creation_input_tokens` 单价，
+通常比 cache read 贵一个量级（Sonnet 4.5：read $0.30 / write $3.75）。
+
+**四项分算**：`costBreakdown(price, tokens)` 返回 `{inputUsd, outputUsd, cacheReadUsd, cacheWriteUsd, totalUsd}`
+（`costOf` 即 `totalUsd` 的别名）。`cacheCreationTokens` **不从 inputTokens 扣减**——上报侧的
+`input_token_semantics` 归一尚未落地，先只做「独立成项」，等有语义字段再谈扣减。
+
+**缺字段回退（`resolveCacheWritePrice`）**：
+
+| 情况 | 单价 | `cacheWritePriceSource` |
+|---|---|---|
+| 价目行显式写了 `cacheWrite` | 显式值（写 `0` = 该家不单独收写入费） | `explicit` |
+| 没写，但行内有 `cacheRead`（说明支持 cache 语义） | `input × 1.25` | `derived` |
+| 连 cache 语义都没有 | `0` | `absent` |
+
+- 为什么是 `input × 1.25` 而不是 `cacheRead × 倍率`：写入价与基础 input 价挂钩
+  （Anthropic 5m TTL 即 1.25×），而 read 价各家折扣差异极大（0.1× ~ 0.5× input），
+  拿它推导会让写入价随折扣乱跳。
+- 回退**只对确实上报了 cache 写入 token 的调用生效**（实践中即 Anthropic 系缓存），
+  不会给不写缓存的供应商凭空加钱。
+- 推导价在条目/分桶上留痕（`cacheWriteDerived` / `cacheWriteDerivedCostUsd`），
+  `vessel usage` 会提示「cache 写入分项含推导价 $X」。`--strict` 未收录模型的零价
+  （`ZERO_TOKEN_PRICE`）显式带 `cacheWrite: 0`，不参与推导。
+
+`configs/pricing.json` 与 `configs/model-catalog.json`（`priceCacheWrite`）已补该字段：
+Anthropic 系为真实价，OpenAI/DeepSeek 系写 `0`（不单独收写入费）。
+
+## 8. `--strict` 模式（选型）
 
 **语义**：只用**模型专属价目**（`model` / `catalog`）。`protocol` 级通用价与 `default`
 兜底价都属于「不是这个模型的价」，strict 下一并禁用 → 未收录模型 `source='unpriced'`、成本按 0 记。
@@ -100,13 +174,19 @@ vessel usage --strict            # 按 strict 口径重算历史（只审计，�
 `vessel usage --strict` 会打印：strict 口径成本、与当前成本的差额、以及「未收录条目 N 条
 （当前记了 $X，属猜测成本）」。
 
-## 7. 两条路径同价（回归断言）
+## 9. 两条路径同价（回归断言）
 
 `apps/cli/src/usage/pricing-parity.test.ts` 对同一模型、同一 token、同一价目表断言
 `UsageProjection.costUsd === UsageStore.record().costUsd`（model / catalog / protocol /
 default / strict 五种来源各一例 + 真实 `configs/` 价目一例）。
+两条路径现在都走 `costBreakdown`（090 起），分项也同源。
 
-## 8. 不做的（后续卡）
+## 10. 不做的（后续卡）
 
-- 089 统计时间维度、090 `cache_creation` 计价、091 定价变更回填、092 用户价目覆盖 + 值守卫。
+- 091 定价变更回填（`vessel usage recompute`）、092 用户价目覆盖 + 值守卫。
+- `cache_creation` 的**端到端采集**（AnthropicProvider 解析 `cache_creation_input_tokens` →
+  core `ChatUsage` → after_model → `UsageStore.record`）尚未接通：本卡范围内不改 core，
+  `UsageStore.record` / `UsageProjection` / `compose` 的入口已就绪（`cacheCreationTokens?`），
+  上游一旦上报即自动分项计价。另：`input_token_semantics`（input 是否含 cache）未做，
+  故 cache 写入不从 inputTokens 扣减。
 - 本卡不引入汇率/多币种、不引入成本倍率（094 候选）。

@@ -23,6 +23,8 @@ export interface CatalogModel {
   priceIn?: number;
   priceOut?: number;
   priceCache?: number;
+  /** cache **写入**价（Anthropic cache_creation），每 1M tokens；task 090。 */
+  priceCacheWrite?: number;
 }
 
 export interface ModelCatalog {
@@ -67,7 +69,9 @@ export function catalogPriceSource(catalog: ModelCatalog): CatalogPriceSource {
   return createCatalogPriceSource(catalog.models, {
     idOf: (m) => m.model,
     priceOf: (m) =>
-      m.priceIn == null ? undefined : { input: m.priceIn, output: m.priceOut ?? 0, cacheRead: m.priceCache },
+      m.priceIn == null
+        ? undefined
+        : { input: m.priceIn, output: m.priceOut ?? 0, cacheRead: m.priceCache, cacheWrite: m.priceCacheWrite },
   });
 }
 

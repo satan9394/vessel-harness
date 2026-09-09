@@ -1,10 +1,15 @@
 import { describe, it, expect } from 'vitest';
 import {
+  CACHE_WRITE_INPUT_MULTIPLIER,
   DEFAULT_TOKEN_PRICE,
+  ZERO_TOKEN_PRICE,
+  costBreakdown,
+  costOf,
   createCatalogPriceSource,
   isFamilyPrefix,
   matchModelName,
   modelNameCandidates,
+  resolveCacheWritePrice,
   resolvePrice,
   type PricingTable,
   type TokenPrice,
@@ -199,7 +204,7 @@ describe('resolvePrice 来源与 estimated 语义 (task 086)', () => {
   it('strict 模式不用 default 兜底 → source=unpriced + 零价', () => {
     const r = resolvePrice(TABLE, 'zzz-unknown', undefined, undefined, { strict: true });
     expect(r).toMatchObject({ source: 'unpriced', estimated: false });
-    expect(r.price).toEqual({ input: 0, output: 0, cacheRead: 0 });
+    expect(r.price).toEqual(ZERO_TOKEN_PRICE);
   });
 
   it('strict 模式只用模型专属价目：protocol 级与 default 都不用', () => {
@@ -208,7 +213,7 @@ describe('resolvePrice 来源与 estimated 语义 (task 086)', () => {
     // protocol 兜底在 strict 下不可用（否则 strict 形同虚设）
     const byProto = resolvePrice(TABLE, 'zzz', 'anthropic', undefined, { strict: true });
     expect(byProto).toMatchObject({ source: 'unpriced', estimated: false });
-    expect(byProto.price).toEqual({ input: 0, output: 0, cacheRead: 0 });
+    expect(byProto.price).toEqual(ZERO_TOKEN_PRICE);
   });
 
   it('mock 零价仍按 model 级命中（不是 default 估算）', () => {
@@ -229,5 +234,75 @@ describe('createCatalogPriceSource (task 085/087)', () => {
     expect(CATALOG_SOURCE.findPrice('moonshotai/kimi-k2.7-code')?.input).toBe(0.95);
     expect(CATALOG_SOURCE.findPrice('GLM-5')?.input).toBe(1);
     expect(CATALOG_SOURCE.findPrice('nope')).toBeUndefined();
+  });
+});
+
+describe('cache 写入计价 (task 090)', () => {
+  const SONNET: TokenPrice = { input: 3, output: 15, cacheRead: 0.3, cacheWrite: 3.75 };
+
+  it('costBreakdown 四项分算：input/output/cacheRead/cacheWrite', () => {
+    const b = costBreakdown(SONNET, {
+      inputTokens: 1_000_000,
+      outputTokens: 1_000_000,
+      cacheReadTokens: 1_000_000,
+      cacheCreationTokens: 1_000_000,
+    });
+    expect(b.inputUsd).toBeCloseTo(3, 10);
+    expect(b.outputUsd).toBeCloseTo(15, 10);
+    expect(b.cacheReadUsd).toBeCloseTo(0.3, 10);
+    expect(b.cacheWriteUsd).toBeCloseTo(3.75, 10);
+    expect(b.totalUsd).toBeCloseTo(22.05, 10);
+    expect(b.cacheWritePriceSource).toBe('explicit');
+    expect(b.cacheWriteDerived).toBe(false);
+  });
+
+  it('cache 写入不再被低估：只算 read 的旧口径 vs 含 write 的新口径', () => {
+    const tokens = { inputTokens: 1_000_000, cacheReadTokens: 1_000_000, cacheCreationTokens: 1_000_000 };
+    const withWrite = costOf(SONNET, tokens);
+    const withoutWrite = costOf(SONNET, { inputTokens: 1_000_000, cacheReadTokens: 1_000_000 });
+    expect(withWrite - withoutWrite).toBeCloseTo(3.75, 10);
+    expect(withWrite).toBeCloseTo(7.05, 10);
+  });
+
+  it('缺 cacheWrite → 按 input×1.25 推导并标 derived', () => {
+    const noWrite: TokenPrice = { input: 3, output: 15, cacheRead: 0.3 };
+    expect(CACHE_WRITE_INPUT_MULTIPLIER).toBe(1.25);
+    expect(resolveCacheWritePrice(noWrite)).toEqual({ unitPrice: 3 * CACHE_WRITE_INPUT_MULTIPLIER, source: 'derived' });
+    const b = costBreakdown(noWrite, { cacheCreationTokens: 1_000_000 });
+    expect(b.cacheWriteUsd).toBeCloseTo(3.75, 10);
+    expect(b.cacheWritePriceSource).toBe('derived');
+    expect(b.cacheWriteDerived).toBe(true);
+  });
+
+  it('显式 cacheWrite=0（不单独收写入费）不触发推导', () => {
+    const zero: TokenPrice = { input: 2.5, output: 10, cacheRead: 1.25, cacheWrite: 0 };
+    expect(resolveCacheWritePrice(zero)).toEqual({ unitPrice: 0, source: 'explicit' });
+    const b = costBreakdown(zero, { cacheCreationTokens: 1_000_000 });
+    expect(b.cacheWriteUsd).toBe(0);
+    expect(b.cacheWriteDerived).toBe(false);
+  });
+
+  it('价目行连 cache 语义都没有 → absent + 0（不凭空加钱）', () => {
+    const plain: TokenPrice = { input: 1, output: 2 };
+    expect(resolveCacheWritePrice(plain)).toEqual({ unitPrice: 0, source: 'absent' });
+    const b = costBreakdown(plain, { cacheCreationTokens: 1_000_000 });
+    expect(b.cacheWriteUsd).toBe(0);
+    expect(b.totalUsd).toBe(0);
+  });
+
+  it('未上报 cache 写入 token 时成本与旧口径完全一致（向后兼容）', () => {
+    const legacy = costOf(SONNET, { inputTokens: 1_000_000, outputTokens: 1_000_000, cacheReadTokens: 1_000_000 });
+    const withZeroWrite = costOf(SONNET, {
+      inputTokens: 1_000_000,
+      outputTokens: 1_000_000,
+      cacheReadTokens: 1_000_000,
+      cacheCreationTokens: 0,
+    });
+    expect(withZeroWrite).toBeCloseTo(legacy, 10);
+  });
+
+  it('ZERO_TOKEN_PRICE 的 cacheWrite 显式为 0（strict 未收录不推导）', () => {
+    expect(ZERO_TOKEN_PRICE.cacheWrite).toBe(0);
+    expect(resolveCacheWritePrice(ZERO_TOKEN_PRICE)).toEqual({ unitPrice: 0, source: 'explicit' });
   });
 });

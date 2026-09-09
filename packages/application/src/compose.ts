@@ -21,7 +21,15 @@ import { EnforcementProjection } from './projections/EnforcementProjection.js';
  * (dependency zero-cycle), so we type the option against this small surface.
  */
 export interface UsageStoreLike {
-  record(input: { provider: string; model: string; inputTokens: number; outputTokens: number; cacheReadTokens?: number }): void;
+  record(input: {
+    provider: string;
+    model: string;
+    inputTokens: number;
+    outputTokens: number;
+    cacheReadTokens?: number;
+    /** cache 写入 token（Anthropic cache_creation）——task 090 的落库入口 */
+    cacheCreationTokens?: number;
+  }): void;
 }
 
 export interface ComposeMcpConnection {
@@ -291,7 +299,9 @@ export async function composeHarness(opts: ComposeOptions): Promise<ComposedHarn
     bus.on(
       'after_model',
       (payload) => {
-        const p = payload as { usage?: { inputTokens?: number; outputTokens?: number; cacheReadTokens?: number } };
+        const p = payload as {
+          usage?: { inputTokens?: number; outputTokens?: number; cacheReadTokens?: number; cacheCreationTokens?: number };
+        };
         if (!p.usage) return;
         opts.usageStore!.record({
           provider: usageProvider,
@@ -299,6 +309,8 @@ export async function composeHarness(opts: ComposeOptions): Promise<ComposedHarn
           inputTokens: p.usage.inputTokens ?? 0,
           outputTokens: p.usage.outputTokens ?? 0,
           cacheReadTokens: p.usage.cacheReadTokens,
+          // task 090：cache 写入 token 透传（上游上报后即自动分项计价）
+          cacheCreationTokens: p.usage.cacheCreationTokens,
         });
       },
       'vessel:usage',

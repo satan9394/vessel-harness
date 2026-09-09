@@ -7,7 +7,7 @@ import { EventBus } from '@vessel/core';
 import { UsageProjection } from '@vessel/application';
 import { UsageStore } from './UsageStore.js';
 import { catalogPriceSource, loadModelCatalog } from '../providers/modelCatalog.js';
-import { loadPricing, type PricingTable } from '../providers/pricing.js';
+import { loadPricing, type PricingTable, type UsageTokens } from '../providers/pricing.js';
 
 /**
  * task 087 — 统一计价回归：UsageProjection（application 路径）与 UsageStore
@@ -30,8 +30,15 @@ const CATALOG_ENTRIES = [
 const CATALOG = catalogPriceSource({ version: 1, source: 'test', models: CATALOG_ENTRIES.map((m) => ({ ...m, provider: 'test' })) });
 
 const TOKENS = { inputTokens: 1_000_000, outputTokens: 500_000, cacheReadTokens: 250_000 };
+/** 带 cache 写入的 token（task 090：cache_creation 独立成项）。 */
+const CACHE_TOKENS = { ...TOKENS, cacheCreationTokens: 400_000 };
+/** 显式 cacheWrite 的价目表（与 TABLE 只差这一项）。 */
+const CACHE_TABLE: PricingTable = {
+  models: { ...TABLE.models, 'claude-3-5-sonnet': { input: 3, output: 15, cacheRead: 0.3, cacheWrite: 3.75 } },
+  protocols: TABLE.protocols,
+};
 
-async function projectionCost(model: string, protocol: string, tokens: typeof TOKENS, opts: { strict?: boolean } = {}): Promise<number> {
+async function projectionCost(model: string, protocol: string, tokens: UsageTokens, opts: { strict?: boolean } = {}): Promise<number> {
   return projectionCostWith(model, protocol, TABLE, CATALOG, tokens, opts);
 }
 
@@ -40,7 +47,7 @@ async function projectionCostWith(
   protocol: string,
   table: PricingTable,
   catalog: ReturnType<typeof catalogPriceSource>,
-  tokens: typeof TOKENS,
+  tokens: UsageTokens,
   opts: { strict?: boolean } = {},
 ): Promise<number> {
   const bus = new EventBus();
@@ -98,5 +105,25 @@ describe('087 统一计价 — projection 与 usage-store 同模型同价', () =
     const fromStore = realStore.record({ provider: 'openai-compatible', model, ...TOKENS }).costUsd;
     expect(fromStore).toBeCloseTo(fromProjection, 10);
     expect(fromStore).toBeGreaterThan(0);
+  });
+
+  // ---- task 090：cache 写入分项两条路径同价 ----
+  it('cache 写入（cache_creation）两条路径同价 + 分项一致', async () => {
+    const explicitStore = new UsageStore({ rootDir: dir, pricing: CACHE_TABLE, catalog: CATALOG });
+    const fromProjection = await projectionCostWith('claude-3-5-sonnet', 'anthropic', CACHE_TABLE, CATALOG, CACHE_TOKENS);
+    const res = explicitStore.record({ provider: 'anthropic', model: 'claude-3-5-sonnet', ...CACHE_TOKENS });
+    expect(res.costUsd).toBeCloseTo(fromProjection, 10);
+    expect(res.cacheWritePriceSource).toBe('explicit');
+    expect(res.breakdown.cacheWriteUsd).toBeCloseTo(1.5, 10); // 0.4M × 3.75
+  });
+
+  it('缺 cacheWrite 时两条路径同样按 input×1.25 推导（标记 derived）', async () => {
+    const derivedStore = new UsageStore({ rootDir: dir, pricing: TABLE, catalog: CATALOG });
+    const fromProjection = await projectionCostWith('claude-3-5-sonnet', 'anthropic', TABLE, CATALOG, CACHE_TOKENS);
+    const res = derivedStore.record({ provider: 'anthropic', model: 'claude-3-5-sonnet', ...CACHE_TOKENS });
+    expect(res.costUsd).toBeCloseTo(fromProjection, 10);
+    expect(res.cacheWritePriceSource).toBe('derived');
+    expect(res.breakdown.cacheWriteUsd).toBeCloseTo(1.5, 10); // 0.4M × (3 × 1.25)
+    expect(derivedStore.totals().cacheWriteDerivedCostUsd).toBeCloseTo(1.5, 10);
   });
 });

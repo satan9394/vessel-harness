@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "source": "models.dev 快照 2026-09（docs/ideas/data/models.dev-api.json）；价目单位 USD/1M tokens",
+  "source": "models.dev 快照 2026-09（docs/ideas/data/models.dev-api.json）；价目单位 USD/1M tokens。priceCache = 缓存读取价，priceCacheWrite = 缓存写入价（Anthropic cache_creation；缺省时按 input×1.25 推导，见 docs/PRICING.md §7）",
   "models": [
     {
       "model": "llama-3.3-70b-versatile",
@@ -63,7 +63,8 @@
       "outputLimit": 64000,
       "priceIn": 5,
       "priceOut": 25,
-      "priceCache": 0.5
+      "priceCache": 0.5,
+      "priceCacheWrite": 6.25
     },
     {
       "model": "claude-haiku-4-5",
@@ -72,7 +73,8 @@
       "outputLimit": 64000,
       "priceIn": 1,
       "priceOut": 5,
-      "priceCache": 0.1
+      "priceCache": 0.1,
+      "priceCacheWrite": 1.25
     },
     {
       "model": "claude-sonnet-4-5",
@@ -81,7 +83,8 @@
       "outputLimit": 64000,
       "priceIn": 3,
       "priceOut": 15,
-      "priceCache": 0.3
+      "priceCache": 0.3,
+      "priceCacheWrite": 3.75
     },
     {
       "model": "gemini-2.5-pro",

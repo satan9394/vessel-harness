@@ -23,6 +23,14 @@ export interface TokenPrice {
   input: number;
   output: number;
   cacheRead?: number;
+  /**
+   * cache **写入**单价（Anthropic `cache_creation_input_tokens`），每 1M tokens。
+   *
+   * task 090：Anthropic 的 cache write 价通常比 cache read 贵一个量级
+   * （如 Sonnet 4.5：read $0.30 / write $3.75），只按 read 计价会低估成本。
+   * 缺省时按 `resolveCacheWritePrice` 推导（见下）。
+   */
+  cacheWrite?: number;
 }
 
 /**
@@ -99,7 +107,92 @@ export interface MatchModelNameOptions {
 export const DEFAULT_TOKEN_PRICE: TokenPrice = Object.freeze({ input: 0.5, output: 1.5, cacheRead: 0.1 });
 
 /** `--strict` 未收录模型时的零价（标 0，而不是猜一个默认价）。 */
-export const ZERO_TOKEN_PRICE: TokenPrice = Object.freeze({ input: 0, output: 0, cacheRead: 0 });
+export const ZERO_TOKEN_PRICE: TokenPrice = Object.freeze({ input: 0, output: 0, cacheRead: 0, cacheWrite: 0 });
+
+/**
+ * cache 写入单价缺失时的推导倍率（task 090）。
+ *
+ * Anthropic 的 5 分钟缓存写入价 = 基础 input 价 × 1.25（read 价 = input × 0.1）。
+ * 只有当价目行**完全没有** `cacheWrite` 字段时才启用；一旦价目里显式写了
+ * （哪怕写 0，表示该家不单独收写入费），就按显式值算，不做推导。
+ */
+export const CACHE_WRITE_INPUT_MULTIPLIER = 1.25;
+
+/**
+ * cache 写入单价的来源（task 090，与 085 的 source/estimated 同一套「不猜价」纪律）：
+ *  - `explicit` 价目行显式给了 `cacheWrite`（真实价目）
+ *  - `derived`  价目行没给，但行内带 cache 语义（有 `cacheRead`）→ 按 `input × 1.25` 推导
+ *  - `absent`   价目行连 cache 语义都没有（无 `cacheRead`）→ 视为不单独收 cache 费，记 0
+ */
+export type CacheWritePriceSource = 'explicit' | 'derived' | 'absent';
+
+/**
+ * 解析「每 1M tokens 的 cache 写入单价」。
+ *
+ * 回退链（只在缺字段时生效，绝不动显式值）：
+ *   `cacheWrite` 显式 > `input × 1.25`（行内有 `cacheRead` 时）> 0
+ *
+ * 为什么用 `input × 1.25` 而不是 `cacheRead × 倍率`：cache 写入是「把新前缀写进
+ * 缓存」，与基础 input 价挂钩（Anthropic 5m TTL 即 1.25×），而 read 价各家折扣
+ * 差异极大（0.1× ~ 0.5× input），拿它推导会让写入价随折扣乱跳。
+ * 且该回退**只对确实上报了 cache 写入 token 的调用生效**（实践中即 Anthropic 系
+ * 缓存），不会给不写缓存的供应商凭空加钱。
+ */
+export function resolveCacheWritePrice(price: TokenPrice): { unitPrice: number; source: CacheWritePriceSource } {
+  if (price.cacheWrite !== undefined) return { unitPrice: price.cacheWrite, source: 'explicit' };
+  if (price.cacheRead !== undefined) return { unitPrice: price.input * CACHE_WRITE_INPUT_MULTIPLIER, source: 'derived' };
+  return { unitPrice: 0, source: 'absent' };
+}
+
+/** 一次调用的成本分项（USD）——与 cc-switch `CostBreakdown` 同构，但不抄实现。 */
+export interface CostBreakdown {
+  inputUsd: number;
+  outputUsd: number;
+  cacheReadUsd: number;
+  cacheWriteUsd: number;
+  totalUsd: number;
+  /** cache 写入单价的来源（explicit / derived / absent），审计用。 */
+  cacheWritePriceSource: CacheWritePriceSource;
+  /** true = 该次计算的 cache 写入价是推导出来的（非价目显式值）。 */
+  cacheWriteDerived: boolean;
+}
+
+/** 一次调用上报的 token 数（cache 写入为 task 090 新增）。 */
+export interface UsageTokens {
+  inputTokens?: number;
+  outputTokens?: number;
+  cacheReadTokens?: number;
+  cacheCreationTokens?: number;
+}
+
+/**
+ * 四项分算成本（task 090）：input / output / cacheRead / cacheWrite 各自
+ * `tokens × 单价 / 1_000_000`，`totalUsd` 是四项之和。
+ *
+ * 注意：`cacheCreationTokens` 是**独立**的一项，不从 inputTokens 里扣减——
+ * 上报侧（`input_token_semantics`）尚未归一，扣减会让口径更乱；等有归一语义
+ * 再在数据层处理（见 docs/PRICING.md §9）。
+ */
+export function costBreakdown(price: TokenPrice, tokens: UsageTokens): CostBreakdown {
+  const input = tokens.inputTokens ?? 0;
+  const output = tokens.outputTokens ?? 0;
+  const cacheRead = tokens.cacheReadTokens ?? 0;
+  const cacheWrite = tokens.cacheCreationTokens ?? 0;
+  const write = resolveCacheWritePrice(price);
+  const inputUsd = (input / 1_000_000) * price.input;
+  const outputUsd = (output / 1_000_000) * price.output;
+  const cacheReadUsd = (cacheRead / 1_000_000) * (price.cacheRead ?? 0);
+  const cacheWriteUsd = (cacheWrite / 1_000_000) * write.unitPrice;
+  return {
+    inputUsd,
+    outputUsd,
+    cacheReadUsd,
+    cacheWriteUsd,
+    totalUsd: inputUsd + outputUsd + cacheReadUsd + cacheWriteUsd,
+    cacheWritePriceSource: write.source,
+    cacheWriteDerived: write.source === 'derived',
+  };
+}
 
 /** 空价目表（无模型、无协议价，只有兜底 default）。 */
 export const EMPTY_PRICING_TABLE: PricingTable = Object.freeze({ models: {}, protocols: {} });
@@ -366,10 +459,10 @@ export function resolvePrice(
   return { price: fallback, source: 'default', estimated: true, matchedKey: 'default' };
 }
 
-/** 按一次调用的 token 数算成本（USD）。 */
-export function costOf(price: TokenPrice, tokens: { inputTokens?: number; outputTokens?: number; cacheReadTokens?: number }): number {
-  const input = tokens.inputTokens ?? 0;
-  const output = tokens.outputTokens ?? 0;
-  const cache = tokens.cacheReadTokens ?? 0;
-  return (input / 1_000_000) * price.input + (output / 1_000_000) * price.output + (cache / 1_000_000) * (price.cacheRead ?? 0);
+/**
+ * 按一次调用的 token 数算成本（USD）——四项之和，实现即 `costBreakdown().totalUsd`。
+ * 需要分项（input/output/cacheRead/cacheWrite）时用 `costBreakdown`。
+ */
+export function costOf(price: TokenPrice, tokens: UsageTokens): number {
+  return costBreakdown(price, tokens).totalUsd;
 }

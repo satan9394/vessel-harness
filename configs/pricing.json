@@ -1,17 +1,17 @@
 {
-  "version": "0.2",
-  "comment": "Estimate pricing per 1M tokens (USD) for M11 cost metric. Resolution: models[<normalized model>] > model-catalog.json > protocols[protocol] > models.default. 模型名先归一（去命名空间前缀/日期后缀/effort 后缀、点号→横线、大小写不敏感），规则与实现见 packages/shared/src/pricing.ts 与 docs/PRICING.md。命中 protocols/default 时结果标 estimated=true（非模型专属价目）；vessel run --strict 可禁用 default 兜底。`cah models` 拉到的模型 id 可直接作为 models 的键；供应商专属价目可在 providers.json 的 note 外另行维护，或在此按模型登记。",
+  "version": "0.3",
+  "comment": "Estimate pricing per 1M tokens (USD) for M11 cost metric. Resolution: models[<normalized model>] > model-catalog.json > protocols[protocol] > models.default. 模型名先归一（去命名空间前缀/日期后缀/effort 后缀、点号→横线、大小写不敏感），规则与实现见 packages/shared/src/pricing.ts 与 docs/PRICING.md。命中 protocols/default 时结果标 estimated=true（非模型专属价目）；vessel run --strict 可禁用 default 兜底。cacheRead = 缓存命中读取价；cacheWrite = 缓存写入价（Anthropic cache_creation，task 090）——Anthropic 系必填，OpenAI 系写 0（不单独收写入费），完全缺字段时按 input×1.25 推导并标 derived（见 docs/PRICING.md §7）。`cah models` 拉到的模型 id 可直接作为 models 的键；供应商专属价目可在 providers.json 的 note 外另行维护，或在此按模型登记。",
   "models": {
     "default": { "input": 0.5, "output": 1.5, "cacheRead": 0.1 },
-    "mock": { "input": 0, "output": 0, "cacheRead": 0 },
-    "deepseek-chat": { "input": 0.27, "output": 1.1, "cacheRead": 0.07 },
-    "deepseek-reasoner": { "input": 0.55, "output": 2.19, "cacheRead": 0.14 },
-    "claude-sonnet-4-5": { "input": 3, "output": 15, "cacheRead": 0.3 },
-    "claude-haiku-4-5": { "input": 0.8, "output": 4, "cacheRead": 0.08 },
-    "gpt-4o": { "input": 2.5, "output": 10, "cacheRead": 1.25 }
+    "mock": { "input": 0, "output": 0, "cacheRead": 0, "cacheWrite": 0 },
+    "deepseek-chat": { "input": 0.27, "output": 1.1, "cacheRead": 0.07, "cacheWrite": 0 },
+    "deepseek-reasoner": { "input": 0.55, "output": 2.19, "cacheRead": 0.14, "cacheWrite": 0 },
+    "claude-sonnet-4-5": { "input": 3, "output": 15, "cacheRead": 0.3, "cacheWrite": 3.75 },
+    "claude-haiku-4-5": { "input": 0.8, "output": 4, "cacheRead": 0.08, "cacheWrite": 1 },
+    "gpt-4o": { "input": 2.5, "output": 10, "cacheRead": 1.25, "cacheWrite": 0 }
   },
   "protocols": {
-    "openai-compatible": { "input": 0.5, "output": 1.5, "cacheRead": 0.1 },
-    "anthropic": { "input": 3, "output": 15, "cacheRead": 0.3 }
+    "openai-compatible": { "input": 0.5, "output": 1.5, "cacheRead": 0.1, "cacheWrite": 0 },
+    "anthropic": { "input": 3, "output": 15, "cacheRead": 0.3, "cacheWrite": 3.75 }
   }
 }

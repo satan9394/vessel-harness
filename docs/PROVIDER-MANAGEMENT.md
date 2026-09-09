@@ -131,10 +131,12 @@ node apps/cli/dist/cli.js provider list
 node apps/cli/dist/cli.js models --provider ant   # anthropic 内置清单
 ```
 
-## 9. 使用统计与定价（V0.9 / 085-087）
+## 9. 使用统计与定价（V0.9 / 085-090）
 
-- `vessel usage [--recent <n>] [--strict]`：显示累计消耗（tokens in/out/cache、估算成本、调用次数），按供应商与模型聚合；打印**价格来源分布**与**估算条目数**；`--strict` 按「不用 default 兜底」的口径重算历史（只审计不写盘）。数据落盘 `~/.vessel/usage.json`（原子写，tmp+rename；`VESSEL_USAGE_ROOT` 可隔离测试）。
-- `vessel pricing [model]`：查模型价目；`vessel pricing claude-sonnet-4-5` 查单个模型（命中归一化名时会打印「归一匹配: "输入" → "表键"」）；无参列出 configs/model-catalog.json 主流模型价目表。价目单位为 USD / 1M tokens。
-- 查价实现只有一份：`packages/shared/src/pricing.ts`（归一规则、回退链、`estimated` 语义），CLI / `UsageProjection` / benchmarks 共用；详见 `docs/PRICING.md`。
+- `vessel usage [--recent <n>] [--strict] [--since <date>] [--until <date>] [--by-day]`：显示累计消耗（tokens in/out/cache 读/cache 写、估算成本、调用次数）与**成本分项**（input/output/cacheRead/cacheWrite），按供应商与模型聚合；打印**价格来源分布**与**估算条目数**；`--strict` 按「不用 default 兜底」的口径重算历史（只审计不写盘）。
+  - 089 时间维度：`--since/--until`（本地日 `YYYY-MM-DD`，含首含尾）与 `--by-day`（按日列出）；**完整本地日**与今天（未完整）分开合计。有分桶数据时默认还会打印「今日 / 本月」两行。
+  - 数据落盘 `~/.vessel/usage.json`（`version: 2`，原子写 tmp+rename；`VESSEL_USAGE_ROOT` 可隔离测试）：`entries`（累计）+ `daily`（本地日分桶，见 `docs/PRICING.md` §6）。
+- `vessel pricing [model]`：查模型价目；`vessel pricing claude-sonnet-4-5` 查单个模型（命中归一化名时会打印「归一匹配: "输入" → "表键"」，并列出 cache 读/写单价）；无参列出 configs/model-catalog.json 主流模型价目表。价目单位为 USD / 1M tokens。
+- 查价实现只有一份：`packages/shared/src/pricing.ts`（归一规则、回退链、`estimated` 语义、`costBreakdown` 四项分算），CLI / `UsageProjection` / benchmarks 共用；详见 `docs/PRICING.md`。
 - `vessel run --strict`：本次会话按 strict 口径计价（未收录模型按 0 记并标 `unpriced`，token 计数仍保留）。
 - mock 会话也会产生 usage 记录（E2E 接线验证），可 `vessel usage` 直接看到。

@@ -353,6 +353,117 @@ describe('V0.9 usage/pricing commands (task 031)', () => {
     expect(out).toContain('未收录模型 1 条');
     expect(out).toContain('0.2700'); // strict 口径只剩 model 级条目
   });
+
+  // ---- task 089：本地日窗口 / 按日列出 ----
+  const dayKey = (d: Date): string =>
+    `${d.getFullYear()}-${`${d.getMonth() + 1}`.padStart(2, '0')}-${`${d.getDate()}`.padStart(2, '0')}`;
+  const dailyBucket = (costUsd: number, calls: number) => ({
+    inputTokens: 1000,
+    outputTokens: 200,
+    cacheReadTokens: 0,
+    cacheCreationTokens: 0,
+    costUsd,
+    calls,
+    estimatedCostUsd: 0,
+    cacheWriteDerivedCostUsd: 0,
+    firstTs: '2026-01-01T01:00:00.000Z',
+    lastTs: '2026-01-01T01:00:00.000Z',
+  });
+  /** 写入一份带 daily 分桶的 v2 usage.json（前两天完整、今天未完整）。 */
+  function writeDailyUsageFile(): { before: string; yesterday: string; today: string } {
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const yesterday = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1);
+    const before = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 2);
+    fs.writeFileSync(
+      path.join(cfgDir, 'usage.json'),
+      JSON.stringify({
+        version: 2,
+        entries: {
+          'anthropic::claude-sonnet-4-5': {
+            model: 'claude-sonnet-4-5', provider: 'anthropic',
+            inputTokens: 3000, outputTokens: 600, cacheReadTokens: 0, cacheCreationTokens: 1_000_000,
+            calls: 4, costUsd: 4.5,
+            costBreakdown: { inputUsd: 0.009, outputUsd: 0.009, cacheReadUsd: 0, cacheWriteUsd: 3.75 },
+            cacheWriteDerivedCostUsd: 0, cacheWriteDerived: false,
+            estimated: false, estimatedCostUsd: 0, pricingSource: 'model',
+            lastTs: now.toISOString(), events: 4,
+          },
+        },
+        recent: [],
+        daily: {
+          [dayKey(before)]: dailyBucket(1, 1),
+          [dayKey(yesterday)]: dailyBucket(2, 2),
+          [dayKey(today)]: dailyBucket(1.5, 1),
+        },
+      }),
+      'utf8',
+    );
+    return { before: dayKey(before), yesterday: dayKey(yesterday), today: dayKey(today) };
+  }
+
+  it('vessel usage --by-day lists local-day buckets and splits complete/partial days (task 089)', async () => {
+    const { before, yesterday, today } = writeDailyUsageFile();
+    const { logs, restore } = capture();
+    const code = await main(['usage', '--by-day', '--since', before, '--until', today]);
+    restore();
+    expect(code).toBe(0);
+    const out = logs.join('\n');
+    expect(out).toContain('时间窗口（本地日，含首含尾）');
+    expect(out).toContain('完整本地日合计: 2 天');
+    expect(out).toContain('未完整本地日（今天/未来，不计入上面合计）: 1 天');
+    expect(out).toContain(before);
+    expect(out).toContain(yesterday);
+    expect(out).toContain(`${today}（未完整）`);
+    expect(out).toContain('按日:');
+    expect(out).toContain('$3.0000'); // 完整两日合计 1 + 2
+  });
+
+  it('vessel usage prints the cost breakdown incl. cache write (task 090)', async () => {
+    writeDailyUsageFile();
+    const { logs, restore } = capture();
+    const code = await main(['usage']);
+    restore();
+    expect(code).toBe(0);
+    const out = logs.join('\n');
+    expect(out).toContain('成本分项: input');
+    expect(out).toContain('cacheWrite $3.7500');
+    expect(out).toContain('今日（本地日');
+    expect(out).toContain('本月（');
+  });
+
+  it('vessel usage --since rejects a malformed date with exit 2 (task 089)', async () => {
+    const { logs, restore } = captureBoth();
+    const code = await main(['usage', '--since', '2026-13-40']);
+    restore();
+    expect(code).toBe(2);
+    expect(logs.join('\n')).toContain('--since');
+  });
+
+  it('vessel usage notes a legacy file without daily buckets (task 089 migration)', async () => {
+    fs.writeFileSync(
+      path.join(cfgDir, 'usage.json'),
+      JSON.stringify({
+        version: 1,
+        entries: {
+          'deepseek::deepseek-chat': {
+            model: 'deepseek-chat', provider: 'deepseek', inputTokens: 1_000_000, outputTokens: 0, cacheReadTokens: 0,
+            calls: 1, costUsd: 0.27, estimated: false, estimatedCostUsd: 0, pricingSource: 'model',
+            lastTs: new Date().toISOString(), events: 1,
+          },
+        },
+        recent: [],
+      }),
+      'utf8',
+    );
+    const { logs, restore } = capture();
+    const code = await main(['usage']);
+    restore();
+    expect(code).toBe(0);
+    const out = logs.join('\n');
+    expect(out).toContain('无本地日分桶');
+    expect(out).toContain('历史条目 1 条无成本分项');
+  });
 });
 
 describe('vessel bench-report (task 083 dashboard)', () => {

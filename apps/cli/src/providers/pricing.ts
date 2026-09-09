@@ -23,12 +23,15 @@ import {
 export {
   resolvePrice,
   costOf,
+  costBreakdown,
+  resolveCacheWritePrice,
   modelNameCandidates,
   createCatalogPriceSource,
   matchModelName,
   DEFAULT_TOKEN_PRICE,
   ZERO_TOKEN_PRICE,
   EMPTY_PRICING_TABLE,
+  CACHE_WRITE_INPUT_MULTIPLIER,
 } from '@vessel/shared';
 export type {
   TokenPrice,
@@ -38,6 +41,9 @@ export type {
   CatalogPriceSource,
   ModelMatch,
   ResolvePriceOptions,
+  CostBreakdown,
+  CacheWritePriceSource,
+  UsageTokens,
 } from '@vessel/shared';
 
 /** Load pricing.json from a repo/config root; missing/corrupt → default-only table. */

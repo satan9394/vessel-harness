@@ -11,7 +11,7 @@ import { fetchOpenAIModels, modelsForProtocol } from '@vessel/application';
 import { createClackIO, runSetupWizard } from './providers/setup.js';
 import { runChat } from './tui/chat.js';
 import { VESSEL_LOGO, VESSEL_TAGLINE } from './brand.js';
-import { UsageStore } from './usage/UsageStore.js';
+import { UsageStore, isLocalDateKey, localDateKey } from './usage/UsageStore.js';
 import { runVesselMigration } from './migrate.js';
 import { cmdReview } from './review/reviewCommands.js';
 import { loadModelCatalog, findCatalogModelByBase, findCatalogModelMatch, catalogPriceSource, listCatalogModels } from './providers/modelCatalog.js';
@@ -27,7 +27,9 @@ Vessel CLI v${VERSION} — 可组合 Agent Harness（品牌 Vessel）
   vessel run --bench <scenarioId>    基准模式：运行 benchmarks/ 场景并产出 JSONL 报告
   vessel models [--provider p]       列出某供应商可用模型（OpenAI 兼容实时拉取 / Anthropic 内置清单）
   vessel setup                       交互向导：搜索选供应商 → 输 key → 拉模型 → 空格勾选 → 提交
-  vessel usage [--recent <n>] [--strict]  查看使用统计（tokens/调用/成本 + 价格来源分布；--strict 按不用兜底价重算）
+  vessel usage [--recent <n>] [--strict] [--since <date>] [--until <date>] [--by-day]
+                                      使用统计（tokens/调用/成本分项 + 价格来源分布；
+                                      --since/--until 本地日窗口、--by-day 按日列出；--strict 按不用兜底价重算）
   vessel pricing [model]               模型价目（configs/model-catalog.json，USD/1M tokens）
   vessel provider list               列出所有供应商（* = 当前默认）
   vessel provider current            显示当前默认供应商
@@ -417,17 +419,39 @@ async function cmdSetup(_flags: Map<string, string>): Promise<number> {
 }
 
 /**
- * `vessel usage [--recent <n>] [--strict]` — persistent usage statistics (V0.9).
+ * `vessel usage [--recent <n>] [--strict] [--since <date>] [--until <date>] [--by-day]`
+ * — persistent usage statistics (V0.9).
  *
  * task 086：显式标出「估算条目 / 价格来源分布」；`--strict` 按「只用模型专属
  * 价目（model/catalog）」的口径重算一遍，给出未收录条目与金额差（不写盘，只审计）。
+ * task 089：按**本地日**分桶查询（`--since` / `--until` 含首含尾、`--by-day` 按日列出）；
+ * 完整本地日与今日（未完整）分别合计，半天数据不混进完整日合计。
+ * task 090：成本分项（input/output/cacheRead/cacheWrite）展示 + 推导价提示。
  */
 async function cmdUsage(flags: Map<string, string>): Promise<number> {
   const store = createUsageStore();
+
+  const since = flags.get('since');
+  const until = flags.get('until');
+  for (const [name, value] of [['since', since], ['until', until]] as const) {
+    if (value !== undefined && !isLocalDateKey(value)) {
+      console.error(`[vessel usage] --${name} 需要本地日 YYYY-MM-DD（收到 "${value}"）。`);
+      return 2;
+    }
+  }
+
   const t = store.totals();
   console.log('=== 使用统计（~/.vessel/usage.json）===');
-  console.log(`总消耗: input ${t.inputTokens.toLocaleString()} · output ${t.outputTokens.toLocaleString()} · cache ${t.cacheReadTokens.toLocaleString()} · 调用 ${t.calls}`);
+  console.log(`总消耗: input ${t.inputTokens.toLocaleString()} · output ${t.outputTokens.toLocaleString()} · cache 读 ${t.cacheReadTokens.toLocaleString()} · cache 写 ${t.cacheCreationTokens.toLocaleString()} · 调用 ${t.calls}`);
   console.log(`估算成本: $${t.costUsd.toFixed(4)}（${t.providers} 供应商 / ${t.models} 模型）`);
+  const b = t.costBreakdown;
+  console.log(`成本分项: input $${b.inputUsd.toFixed(4)} · output $${b.outputUsd.toFixed(4)} · cacheRead $${b.cacheReadUsd.toFixed(4)} · cacheWrite $${b.cacheWriteUsd.toFixed(4)}`);
+  if (t.cacheWriteDerivedCostUsd > 0) {
+    console.log(`⚠ cache 写入分项含推导价 $${t.cacheWriteDerivedCostUsd.toFixed(4)}（价目缺 cacheWrite 字段，按 input×1.25 估算）。`);
+  }
+  if (t.entriesWithoutBreakdown > 0) {
+    console.log(`历史条目 ${t.entriesWithoutBreakdown} 条无成本分项（089 之前写入，分项不可重建；金额仍计入总额）。`);
+  }
   const dist = store.pricingSourceDistribution();
   if (dist.length > 0) {
     console.log(`价格来源分布: ${dist.map((d) => `${d.source} ${d.entries}条`).join(' · ')}`);
@@ -446,6 +470,42 @@ async function cmdUsage(flags: Map<string, string>): Promise<number> {
   if (t.legacyEntries > 0) {
     console.log(`来源未知条目 ${t.legacyEntries} 条（085 之前的记录，未保存来源，可能是 default 兜底）。`);
   }
+
+  // ---- task 089：本地日口径（今日 / 本月 / 时间窗口 / 按日明细）----
+  const todayKey = localDateKey(new Date());
+  const monthStart = `${todayKey.slice(0, 7)}-01`;
+  if (store.hasDailyData()) {
+    const today = store.dailySummary({ since: todayKey, until: todayKey });
+    const month = store.dailySummary({ since: monthStart, until: todayKey });
+    const todayTotals = today.complete.days > 0 ? today.complete : today.partial;
+    const monthTotals = { costUsd: month.complete.costUsd + month.partial.costUsd, calls: month.complete.calls + month.partial.calls };
+    console.log(`今日（本地日 ${todayKey}，未完整）: $${todayTotals.costUsd.toFixed(4)} · ${todayTotals.calls} 次`);
+    console.log(`本月（${monthStart} ~ ${todayKey}）: $${monthTotals.costUsd.toFixed(4)} · ${monthTotals.calls} 次`);
+  } else if (store.migratedFromLegacy()) {
+    console.log('无本地日分桶（089 之前的旧文件）：历史只保留累计，日分桶从下一次记录开始。');
+  }
+
+  if (since !== undefined || until !== undefined || flags.has('by-day')) {
+    const rows = store.daily({ since, until });
+    const summary = store.dailySummary({ since, until });
+    const from = since ?? rows[0]?.date ?? '(无数据)';
+    const to = until ?? rows[rows.length - 1]?.date ?? '(无数据)';
+    console.log(`\n=== 时间窗口（本地日，含首含尾）${from} ~ ${to} ===`);
+    console.log(`完整本地日合计: ${summary.complete.days} 天 · input ${summary.complete.inputTokens.toLocaleString()} · output ${summary.complete.outputTokens.toLocaleString()} · cache 读 ${summary.complete.cacheReadTokens.toLocaleString()} · cache 写 ${summary.complete.cacheCreationTokens.toLocaleString()} · ${summary.complete.calls} 次 · $${summary.complete.costUsd.toFixed(4)}`);
+    if (summary.hasPartial) {
+      console.log(`未完整本地日（今天/未来，不计入上面合计）: ${summary.partial.days} 天 · ${summary.partial.calls} 次 · $${summary.partial.costUsd.toFixed(4)}`);
+    }
+    if (rows.length === 0) {
+      console.log('（窗口内没有记录）');
+    } else if (flags.has('by-day')) {
+      console.log('按日:');
+      for (const r of rows) {
+        const mark = r.complete ? '' : '（未完整）';
+        console.log(`  ${r.date}${mark}: ${r.inputTokens.toLocaleString()}in/${r.outputTokens.toLocaleString()}out · cache 读 ${r.cacheReadTokens.toLocaleString()}/写 ${r.cacheCreationTokens.toLocaleString()} · ${r.calls} 次 · $${r.costUsd.toFixed(4)}`);
+      }
+    }
+  }
+
   const byProv = store.byProvider();
   if (byProv.length > 0) {
     console.log('\n按供应商:');
@@ -464,7 +524,8 @@ async function cmdUsage(flags: Map<string, string>): Promise<number> {
     console.log(`\n最近 ${recent.length} 条:`);
     for (const r of recent) {
       const mark = r.estimated ? '（估算）' : r.pricingSource === 'unpriced' ? '（未收录）' : '';
-      console.log(`  ${r.ts.slice(0, 19)} ${r.provider}/${r.model}: ${r.inputTokens}in/${r.outputTokens}out · $${r.costUsd.toFixed(4)}${mark}`);
+      const cacheMark = r.cacheCreationTokens > 0 ? ` · cache 写 ${r.cacheCreationTokens.toLocaleString()}` : '';
+      console.log(`  ${r.ts.slice(0, 19)} ${r.provider}/${r.model}: ${r.inputTokens}in/${r.outputTokens}out${cacheMark} · $${r.costUsd.toFixed(4)}${mark}`);
     }
   }
   if (flags.has('strict')) {
@@ -494,7 +555,7 @@ async function cmdPricing(modelArg: string | undefined, flags: Map<string, strin
       console.log(`  归一匹配: "${target}" → "${match.key}"（${match.exact ? '精确' : '家族前缀'}）`);
     }
     console.log(`  上下文: ${entry.contextWindow?.toLocaleString() ?? '?'} tokens · 输出上限: ${entry.outputLimit?.toLocaleString() ?? '?'}`);
-    console.log(`  价格: in $${entry.priceIn} / out $${entry.priceOut} / cache $${entry.priceCache ?? 0}（每 1M tokens）`);
+    console.log(`  价格: in $${entry.priceIn} / out $${entry.priceOut} / cache 读 $${entry.priceCache ?? 0} / cache 写 $${entry.priceCacheWrite ?? '推导(input×1.25)'}（每 1M tokens）`);
     return 0;
   }
   console.log('=== 模型价目（configs/model-catalog.json，USD/1M tokens）===');

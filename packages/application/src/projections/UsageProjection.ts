@@ -1,12 +1,20 @@
 import type { EventBus } from '@vessel/core';
-import { EMPTY_PRICING_TABLE, resolvePrice, type CatalogPriceSource, type PriceResolution, type PricingTable } from '@vessel/shared';
+import {
+  EMPTY_PRICING_TABLE,
+  costBreakdown,
+  resolvePrice,
+  type CatalogPriceSource,
+  type CostBreakdown,
+  type PriceResolution,
+  type PricingTable,
+} from '@vessel/shared';
 import type { UsageRecord } from './types.js';
 
 type AfterModelPayload = {
   turnId: string;
   step: number;
   response: unknown;
-  usage?: { inputTokens?: number; outputTokens?: number; cacheReadTokens?: number };
+  usage?: { inputTokens?: number; outputTokens?: number; cacheReadTokens?: number; cacheCreationTokens?: number };
 };
 
 export interface UsageProjectionOptions {
@@ -43,6 +51,7 @@ export class UsageProjection {
   private inputTokens = 0;
   private outputTokens = 0;
   private cacheReadTokens = 0;
+  private cacheCreationTokens = 0;
   private calls = 0;
 
   constructor(opts: UsageProjectionOptions = {}) {
@@ -66,6 +75,7 @@ export class UsageProjection {
         this.inputTokens += usage.inputTokens ?? 0;
         this.outputTokens += usage.outputTokens ?? 0;
         this.cacheReadTokens += usage.cacheReadTokens ?? 0;
+        this.cacheCreationTokens += usage.cacheCreationTokens ?? 0;
         this.calls += 1;
       },
       'projection:usage',
@@ -81,17 +91,22 @@ export class UsageProjection {
     const input = this.inputTokens;
     const output = this.outputTokens;
     const cache = this.cacheReadTokens;
-    const price = this.resolution.price;
-    const costUsd =
-      (input / 1_000_000) * price.input +
-      (output / 1_000_000) * price.output +
-      (cache / 1_000_000) * (price.cacheRead ?? 0);
+    const cacheWrite = this.cacheCreationTokens;
+    // task 090：与 UsageStore / benchmarks 共用 costBreakdown（四项分算，含 cache 写入）
+    const breakdown: CostBreakdown = costBreakdown(this.resolution.price, {
+      inputTokens: input,
+      outputTokens: output,
+      cacheReadTokens: cache,
+      cacheCreationTokens: cacheWrite,
+    });
     return {
       inputTokens: input,
       outputTokens: output,
       cacheReadTokens: cache,
+      cacheCreationTokens: cacheWrite,
       calls: this.calls,
-      costUsd,
+      costUsd: breakdown.totalUsd,
+      costBreakdown: breakdown,
       pricingSource: this.resolution.source,
       estimated: this.resolution.estimated,
     };

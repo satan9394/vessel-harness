@@ -48,8 +48,12 @@ export interface UsageRecord {
   inputTokens: number;
   outputTokens: number;
   cacheReadTokens: number;
+  /** cache 写入 token（Anthropic cache_creation；task 090） */
+  cacheCreationTokens: number;
   calls: number;
   costUsd: number;
+  /** 成本分项（input/output/cacheRead/cacheWrite；task 090） */
+  costBreakdown: CostBreakdown;
   /** 价格来源（task 086）：model / catalog / protocol / default / unpriced */
   pricingSource: PriceSource;
   /** true = 成本含通用 default 兜底价（估算，不是真实价目） */
@@ -72,13 +76,14 @@ export interface PolicyDenial {
  */
 export type {
   CatalogPriceSource,
+  CostBreakdown,
   PriceResolution,
   PriceSource,
   PricingTable,
   TokenPrice,
 } from '@vessel/shared';
 export { DEFAULT_TOKEN_PRICE, EMPTY_PRICING_TABLE } from '@vessel/shared';
-import type { PriceSource } from '@vessel/shared';
+import type { CostBreakdown, PriceSource } from '@vessel/shared';
 
 // ---------------------------------------------------------------------------
 // Team projection (task 057) — one team run rendered from bus events
