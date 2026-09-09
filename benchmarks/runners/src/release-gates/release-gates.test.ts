@@ -8,6 +8,7 @@ import {
   judgeBuild,
   judgeUnit,
   judgeRealModelLane,
+  judgeRealModelLaneWithBilling,
   judgeScenarioRuns,
   judgeSoakResume,
   judgePackagingProbe,
@@ -60,6 +61,26 @@ describe('gate criteria judges (tasks 084) — pure, no commands', () => {
     expect(judgeRealModelLane({ rowCount: 0, passed: 0, failed: 0, pendingEnv: 2, degraded: true }).status).toBe('pending');
     expect(judgeRealModelLane({ rowCount: 8, passed: 8, failed: 0, pendingEnv: 0, degraded: false }).status).toBe('pass');
     expect(judgeRealModelLane({ rowCount: 8, passed: 7, failed: 1, pendingEnv: 0, degraded: false }).status).toBe('fail');
+  });
+
+  it('judgeRealModelLaneWithBilling : 余额不足阻塞 → pending（不误判 fail，不伪造 pass）', () => {
+    const balanceNote = 'Model call failed: OpenAI-compatible 401 Unauthorized: {"type":"error","error":{"type":"CreditsError","message":"Insufficient balance."}}';
+    const regNote = 'model returned malformed JSON';
+    const v = judgeRealModelLaneWithBilling({
+      rowCount: 13, passed: 0, failed: 13, pendingEnv: 0, degraded: false,
+      failedNotes: [balanceNote, balanceNote],
+    });
+    expect(v.status).toBe('pending');
+    expect(v.pending).toBe(true);
+    expect(v.note).toContain('余额不足');
+    // 真实回归失败（非 balance）仍应 fail
+    const reg = judgeRealModelLaneWithBilling({
+      rowCount: 13, passed: 0, failed: 13, pendingEnv: 0, degraded: false,
+      failedNotes: [regNote],
+    });
+    expect(reg.status).toBe('fail');
+    // 空参退化到原 judge
+    expect(judgeRealModelLaneWithBilling({ rowCount: 8, passed: 8, failed: 0, pendingEnv: 0, degraded: false, failedNotes: [] }).status).toBe('pass');
   });
 
   it('judgeScenarioRuns : all pass → pass; any fail → fail', () => {
@@ -128,6 +149,36 @@ describe('real gate executors assemble + env-sensitive gates pend (tasks 084)', 
     expect((await unit.run(ctx)).status).toBe('pass');
     expect((await ux.run(ctx)).status).toBe('pending');
     expect((await pkg.run(ctx)).status).toBe('pending');
+  });
+
+  it('real-model-bench: resolver 能解析 provider → 跑 lane（不再误判 degraded）；resolver 无 key → pending', async () => {
+    const { buildReleaseGateExecutors } = await import('./gates.js');
+    const { MockProvider } = await import('@vessel/llm');
+    // 用 mock provider resolver（有 provider → anyAvailable=true → 跑 lane）
+    const executors = buildReleaseGateExecutors({
+      providerResolver: async () =>
+        new MockProvider([{ when: /.*/, ifNoToolResult: true, response: { text: 'G' } }], { model: 'm' }),
+      models: [{ id: 'opencode-go:mimo-v2.5', displayName: 'OpenCode Go mimo-v2.5', tier: 'flash', defaultModel: 'mimo-v2.5' }],
+    });
+    const real = executors.find((e) => e.gate.id === 'real-model-bench')!;
+    const ctx = {
+      repoRoot: os.tmpdir(),
+      reportsDir: path.join(os.tmpdir(), 'rg-real'),
+      exec: async () => ({ code: 0, stdout: '', stderr: '' }),
+    };
+    // 无真实 fixtures 目录 → lane 行会 failed（fixture missing），但 gate 不应退化为 degraded/pending-无provider
+    const verdict = await real.run(ctx);
+    // provider 已解析 → 不是「无 provider」pending
+    expect(verdict.evidence.summary).not.toContain('未运行（无 credential/provider）');
+    // 无 key resolver → pending（原语义保持）
+    const executorsNoKey = buildReleaseGateExecutors({
+      providerResolver: async () => null,
+      models: [{ id: 'x', displayName: 'X', tier: 'flash', defaultModel: 'm' }],
+    });
+    const realNoKey = executorsNoKey.find((e) => e.gate.id === 'real-model-bench')!;
+    const noKeyVerdict = await realNoKey.run(ctx);
+    expect(noKeyVerdict.status).toBe('pending');
+    expect(noKeyVerdict.note).toContain('无真实 API 凭据');
   });
 });
 

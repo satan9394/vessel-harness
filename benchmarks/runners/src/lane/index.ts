@@ -3,3 +3,4 @@
  */
 export * from './real-model-lane.js';
 export * from './opencodeGoProvider.js';
+export * from './ccSwitchCredential.js';

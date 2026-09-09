@@ -158,6 +158,46 @@ export function judgeRealModelLane(args: {
   };
 }
 
+/** 失败原因内在“余额不足 / credits / 401”等 billing 阻塞（非模型回归 / 非鉴权失败）。 */
+export function isBalanceBlockedLane(noteLines: string[]): boolean {
+  return noteLines.some((n) => /insufficient balance|credits|CreditsError|401 unauthorized/i.test(n));
+}
+
+/**
+ * 判断真实模型 lane 是否因「账户余额不足」整体阻塞（V1.1-F 实测现象）：
+ * 有 failed 行，但其失败原因均为模型聊天的 billing 阻塞 → 环境性 pending（不伪造 pass，
+ * 也不误判为模型回归 fail）。
+ */
+export function judgeRealModelLaneWithBilling(args: {
+  rowCount: number;
+  passed: number;
+  failed: number;
+  pendingEnv: number;
+  degraded: boolean;
+  failedNotes: string[];
+}): GateVerdict {
+  const base = judgeRealModelLane(args);
+  if (base.status !== 'fail') return base;
+  const blocked = args.failed > 0 && isBalanceBlockedLane(args.failedNotes);
+  if (blocked) {
+    return {
+      status: 'pending',
+      pending: true,
+      evidence: {
+        summary: `真实模型 lane 全部失败均为账户余额不足（billing 404/401 credits）——连接面已通，执行被计费阻塞`,
+        detail: [
+          `rows=${args.rowCount}`,
+          `passed=${args.passed}`,
+          `failed=${args.failed}`,
+          'cause=Insufficient balance (CreditsError 401)',
+        ],
+      },
+      note: 'real model gate: 凭据有效、/v1/models 连通、请求到达后端，但账户余额不足致聊天调用 401 → pending（充值后重跑），不静默通过。',
+    };
+  }
+  return base;
+}
+
 /** Judge a set of offline scenario runs (deterministic-bench + safety gates). */
 export function judgeScenarioRuns(args: { scenarioIds: string[]; passed: boolean[] }): GateVerdict {
   const failed = args.scenarioIds.filter((_, i) => args.passed[i] === false);
@@ -351,8 +391,12 @@ export function buildReleaseGateExecutors(opts: BuildGateExecutorsOptions = {}):
         const laneResolver: ProviderResolver =
           injectedProvider !== undefined ? async () => injectedProvider : providerResolver;
         const availability = await probeModelApi(models, laneResolver);
-        const degraded = models.some((m) => availability[m.id] !== true) || injectedProvider === undefined;
-        if (degraded) {
+        // V1.1-F 补齐：只有「无任何模型能解析出 provider」才算环境未备齐 → 显式 pending。
+        // 之前 `|| injectedProvider === undefined` 会把「经 providerResolver 正常供应 key」也误判
+        // 为 degraded，导致即便有 key 也永远 pending。改为按 probe 结果判定；部分/全体解析到时
+        // 跑 lane，lane 内部对无法解析的模型逐行 pending-environment（诚实降级，不静默通过）。
+        const anyAvailable = models.some((m) => availability[m.id] === true);
+        if (!anyAvailable) {
           return judgeRealModelLane({ rowCount: 0, passed: 0, failed: 0, pendingEnv: models.length, degraded: true });
         }
         const lane = await runRealModelLane({
@@ -362,12 +406,19 @@ export function buildReleaseGateExecutors(opts: BuildGateExecutorsOptions = {}):
           repoRoot: ctx.repoRoot,
           reportsDir: ctx.reportsDir,
         });
-        return judgeRealModelLane({
+        const failedRows = lane.rows.filter((r) => r.status === 'failed');
+        const failedNotes: string[] = [];
+        for (const r of failedRows) {
+          if (r.note) failedNotes.push(r.note);
+          else if (r.result?.notes) failedNotes.push(...r.result.notes);
+        }
+        return judgeRealModelLaneWithBilling({
           rowCount: lane.rows.length,
           passed: lane.rows.filter((r) => r.status === 'passed').length,
-          failed: lane.rows.filter((r) => r.status === 'failed').length,
+          failed: failedRows.length,
           pendingEnv: lane.rows.filter((r) => r.status === 'pending-environment').length,
           degraded: lane.degraded,
+          failedNotes,
         });
       },
     },

@@ -66,9 +66,11 @@ writeReleaseReportFiles(report, 'benchmarks/reports');
 | 3 | deterministic-bench | 离线 L1 可跑集 B001–B005 全通过（076 runner） | offline 确定性 |
 | 4 | real-model-bench | 082 lane 收集 §15 L3；无凭据/无 provider → **pending** | 需凭据；否则 pending |
 
-> gate 4（real-model-bench）默认 resolver 接 **opencode-go**（V1.1-C）：读 `OPENCODE_API_KEY`
-> 环境变量（key 绝不落盘），有 key 时以确认的 MIMO 模型跑 082 lane；无 key → probe→pending，
-> 继承 082 诚实降级语义（"不以自证为证"）。
+> gate 4（real-model-bench）默认 resolver 接 **opencode-go**（V1.1-C/F）：key 经
+> **CC Switch 凭据转接**（V1.1-F：`migrateOpencodeGoCredential` 从 `~/.cc-switch/cc-switch.db`
+> 探查 → CredentialStore（034/069 Windows DPAPI）加密落库）读取，`credentialAwareOpencodeGoKey`
+> 先凭证库、再回退 env `OPENCODE_API_KEY`，**key 绝不落盘**；有 key 时以确认的 MIMO 模型跑 082 lane；
+> 无 key / 余额不足 → probe→pending，继承 082 诚实降级语义（"不以自证为证"）。
 | 5 | safety | 075 pack（S001–S008）离线 enforcement 证据齐 | offline 确定性 |
 | 6 | resume | 063/064 soak 子集不变量：暂停/续跑、workspace 零残留、从 handoff 续跑留痕 | 确定性 |
 | 7 | ux-smoke | web 构建产物存在；否则 **pending**（环境标注） | 需先 build web |

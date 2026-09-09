@@ -23,6 +23,7 @@ import type { ChatProvider } from '@vessel/shared';
 import { createProvider } from '@vessel/llm';
 import { findPreset } from '@vessel/cli';
 import { fetchOpenAIModels, type ModelSource } from '@vessel/cli';
+import { OPCODE_GO_CRED_SERVICE, OPCODE_GO_CRED_ACCOUNT } from './ccSwitchCredential.js';
 import type { LaneModel } from './real-model-lane.js';
 
 /** opencode-go preset id（对齐 apps/cli/src/providers/presets.data.ts）。 */
@@ -53,6 +54,53 @@ export type OpencodeGoKeyResolver = () => string | undefined;
 
 /** 默认 keyResolver：只读 env，绝不落盘。 */
 export const envOpencodeGoKey: OpencodeGoKeyResolver = () => process.env[OPENCODE_API_KEY_ENV];
+
+/**
+ * CredentialStore 读取 key（task V1.1-F）：读 `credential:<service>/<account>` 存的那一项
+ * （DPAPI 加密落库，明文只在进程内）。store 可注入（测试 mock）；读不到返回 undefined。
+ * 用同步 getSync 对齐 `OpencodeGoKeyResolver` 的同步签名（034/069 CredentialBackend 同时
+ * 提供 sync/async 两套）。只读、不写盘——写盘由迁移动作（ccSwitchCredential.migrate）负责。
+ */
+export function credentialStoreOpencodeGoKey(
+  store: { getSync(service: string, account: string): string | null },
+  service = OPCODE_GO_CRED_SERVICE,
+  account = OPCODE_GO_CRED_ACCOUNT,
+): () => string | undefined {
+  return () => {
+    const v = store.getSync(service, account);
+    return typeof v === 'string' && v.length > 0 ? v : undefined;
+  };
+}
+
+/**
+ * 组合 key resolver（task V1.1-F）：先读 CredentialStore（034/069 DPAPI 加密落库，用同步
+ * getSync），再回退环境变量 `OPENCODE_API_KEY`，最后回退注入的兜底 resolver（如 undefined）。
+ * 测试可注入 store/env/fallback；不注入时构造真实 CredentialStore（Windows DPAPI），但
+ * **懒加载 + 尽力而为**（读不到/不可用绝不抛，落到下一级）。
+ */
+export function credentialAwareOpencodeGoKey(opts: {
+  store?: { getSync(service: string, account: string): string | null };
+  createStore?: () => { getSync(service: string, account: string): string | null };
+  env?: NodeJS.ProcessEnv;
+  fallback?: OpencodeGoKeyResolver;
+} = {}): OpencodeGoKeyResolver {
+  const env = opts.env ?? process.env;
+  const fallback = opts.fallback ?? (() => undefined);
+  const store = opts.store ?? opts.createStore?.();
+  const credResolver = store ? credentialStoreOpencodeGoKey(store) : undefined;
+  return () => {
+    // 1) CredentialStore（DPAPI 加密落库）优先
+    if (credResolver) {
+      const fromStore = credResolver();
+      if (typeof fromStore === 'string' && fromStore.length > 0) return fromStore;
+    }
+    // 2) 环境变量回退
+    const fromEnv = env[OPENCODE_API_KEY_ENV];
+    if (typeof fromEnv === 'string' && fromEnv.length > 0) return fromEnv;
+    // 3) 注入兜底（正常为 undefined → lane 降级 pending）
+    return fallback();
+  };
+}
 
 /** opencode-go 真实 provider 的组装参数（供单测与诊断复现）。 */
 export interface OpencodeGoEndpoint {

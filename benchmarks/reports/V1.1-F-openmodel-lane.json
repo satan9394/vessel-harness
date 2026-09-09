@@ -1,0 +1,9 @@
+{
+  "keyPresent": true,
+  "keySource": "CredentialStore (DPAPI encrypted, from CC Switch)",
+  "modelSource": "live",
+  "modelNote": "live from https://opencode.ai/zen/go/v1/models",
+  "ccSwitchBaseUrl": "https://opencode.ai/zen/go/v1",
+  "ccSwitchRowId": "hs",
+  "runId": "real-model-lane-1788923240648"
+}

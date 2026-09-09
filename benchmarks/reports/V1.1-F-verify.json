@@ -1,0 +1,33 @@
+{
+  "generatedAt": "2026-09-09T03:05:31.278Z",
+  "migrated": {
+    "synced": true,
+    "baseUrl": "https://opencode.ai/zen/go/v1",
+    "rowId": "hs"
+  },
+  "hasKey": true,
+  "models": {
+    "origin": "live",
+    "count": 35,
+    "note": "live from https://opencode.ai/zen/go/v1/models",
+    "selection": {
+      "selected": "mimo-v2.5",
+      "matchedV25": [
+        "mimo-v2.5"
+      ],
+      "matchedMimo": [
+        "mimo-v2.5"
+      ]
+    }
+  },
+  "probe": {
+    "ok": false,
+    "model": "mimo-v2.5",
+    "content": "",
+    "usage": {
+      "inputTokens": 0,
+      "outputTokens": 0
+    },
+    "error": "OpenAI-compatible 401 Unauthorized: {\"type\":\"error\",\"error\":{\"type\":\"CreditsError\",\"message\":\"Insufficient balance. Manage your billing here: https://opencode.ai/workspace/wrk_01KTPF63GN2N3P2PNVTTBEJFRT/billing\"}}"
+  }
+}

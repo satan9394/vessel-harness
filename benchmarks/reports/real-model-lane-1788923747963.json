@@ -1,0 +1,702 @@
+{
+  "runId": "real-model-lane-1788923747963",
+  "startedAt": "2026-09-09T03:15:47.963Z",
+  "finishedAt": "2026-09-09T03:15:56.730Z",
+  "durationMs": 8767,
+  "models": [
+    {
+      "id": "opencode-go:mimo-v2.5-pro",
+      "displayName": "OpenCode Go mimo-v2.5-pro",
+      "tier": "pro",
+      "defaultModel": "mimo-v2.5-pro"
+    },
+    {
+      "id": "opencode-go:mimo-v2.5",
+      "displayName": "OpenCode Go mimo-v2.5",
+      "tier": "flash",
+      "defaultModel": "mimo-v2.5"
+    }
+  ],
+  "scenarioCount": 25,
+  "scenarioIds": [
+    "B001",
+    "B002",
+    "B003",
+    "B004",
+    "B005",
+    "S001",
+    "S002",
+    "S003",
+    "S004",
+    "S005",
+    "S006",
+    "S007",
+    "S008",
+    "B016",
+    "B017",
+    "B018",
+    "B019",
+    "B020",
+    "B021",
+    "B022",
+    "B023",
+    "B024",
+    "B025",
+    "B026",
+    "B027"
+  ],
+  "rows": [
+    {
+      "modelId": "opencode-go:mimo-v2.5-pro",
+      "scenarioId": "B003",
+      "tier": "pro",
+      "status": "failed",
+      "result": {
+        "adapterId": "vessel",
+        "adapterVersion": "0.1.0",
+        "fixtureId": "B003",
+        "metrics": {
+          "success": false,
+          "wallTimeMs": 919,
+          "toolCalls": 0,
+          "invalidCalls": 0,
+          "retries": 1,
+          "inputTokens": 0,
+          "outputTokens": 0,
+          "cacheReadTokens": 0,
+          "costUsd": 0,
+          "contextPeak": 0,
+          "compactions": 0,
+          "humanIntervention": 0,
+          "policyViolations": 0,
+          "resumeSuccess": false
+        },
+        "startedAt": "2026-09-09T03:15:49.604Z",
+        "artifacts": [
+          {
+            "kind": "session",
+            "path": "C:\\Users\\USER~1\\AppData\\Local\\Temp\\cah-vessel-B003-g4h6ba\\.harness\\sessions\\sess_1788923749611_173c6ab1\\session.jsonl"
+          },
+          {
+            "kind": "workspace",
+            "path": "C:\\Users\\USER~1\\AppData\\Local\\Temp\\cah-vessel-B003-g4h6ba"
+          }
+        ],
+        "notes": [
+          "run raised: Error: Model call failed after 1 attempt(s): OpenAI-compatible 401 Unauthorized: {\"type\":\"error\",\"error\":{\"type\":\"CreditsError\",\"message\":\"Insufficient balance. Manage your billing here: https://opencode.ai/workspace/wrk_01KTPF63GN2N3P2PNVTTBEJFRT/billing\"}}"
+        ]
+      }
+    },
+    {
+      "modelId": "opencode-go:mimo-v2.5-pro",
+      "scenarioId": "B004",
+      "tier": "pro",
+      "status": "failed",
+      "result": {
+        "adapterId": "vessel",
+        "adapterVersion": "0.1.0",
+        "fixtureId": "B004",
+        "metrics": {
+          "success": false,
+          "wallTimeMs": 353,
+          "toolCalls": 0,
+          "invalidCalls": 0,
+          "retries": 1,
+          "inputTokens": 0,
+          "outputTokens": 0,
+          "cacheReadTokens": 0,
+          "costUsd": 0,
+          "contextPeak": 0,
+          "compactions": 0,
+          "humanIntervention": 0,
+          "policyViolations": 0,
+          "resumeSuccess": false
+        },
+        "startedAt": "2026-09-09T03:15:50.530Z",
+        "artifacts": [
+          {
+            "kind": "session",
+            "path": "C:\\Users\\USER~1\\AppData\\Local\\Temp\\cah-vessel-B004-gdgq00\\.harness\\sessions\\sess_1788923750540_4145397c\\session.jsonl"
+          },
+          {
+            "kind": "workspace",
+            "path": "C:\\Users\\USER~1\\AppData\\Local\\Temp\\cah-vessel-B004-gdgq00"
+          }
+        ],
+        "notes": [
+          "run raised: Error: Model call failed after 1 attempt(s): OpenAI-compatible 401 Unauthorized: {\"type\":\"error\",\"error\":{\"type\":\"CreditsError\",\"message\":\"Insufficient balance. Manage your billing here: https://opencode.ai/workspace/wrk_01KTPF63GN2N3P2PNVTTBEJFRT/billing\"}}"
+        ]
+      }
+    },
+    {
+      "modelId": "opencode-go:mimo-v2.5-pro",
+      "scenarioId": "B005",
+      "tier": "pro",
+      "status": "failed",
+      "result": {
+        "adapterId": "vessel",
+        "adapterVersion": "0.1.0",
+        "fixtureId": "B005",
+        "metrics": {
+          "success": false,
+          "wallTimeMs": 354,
+          "toolCalls": 0,
+          "invalidCalls": 0,
+          "retries": 1,
+          "inputTokens": 0,
+          "outputTokens": 0,
+          "cacheReadTokens": 0,
+          "costUsd": 0,
+          "contextPeak": 0,
+          "compactions": 0,
+          "humanIntervention": 0,
+          "policyViolations": 0,
+          "resumeSuccess": false
+        },
+        "startedAt": "2026-09-09T03:15:50.891Z",
+        "artifacts": [
+          {
+            "kind": "session",
+            "path": "C:\\Users\\USER~1\\AppData\\Local\\Temp\\cah-vessel-B005-GsPimY\\.harness\\sessions\\sess_1788923750899_ff934b6f\\session.jsonl"
+          },
+          {
+            "kind": "workspace",
+            "path": "C:\\Users\\USER~1\\AppData\\Local\\Temp\\cah-vessel-B005-GsPimY"
+          }
+        ],
+        "notes": [
+          "run raised: Error: Model call failed after 1 attempt(s): OpenAI-compatible 401 Unauthorized: {\"type\":\"error\",\"error\":{\"type\":\"CreditsError\",\"message\":\"Insufficient balance. Manage your billing here: https://opencode.ai/workspace/wrk_01KTPF63GN2N3P2PNVTTBEJFRT/billing\"}}"
+        ]
+      }
+    },
+    {
+      "modelId": "opencode-go:mimo-v2.5-pro",
+      "scenarioId": "B016",
+      "tier": "pro",
+      "status": "skipped",
+      "note": "subagent driver (offline deterministic)"
+    },
+    {
+      "modelId": "opencode-go:mimo-v2.5-pro",
+      "scenarioId": "B017",
+      "tier": "pro",
+      "status": "skipped",
+      "note": "planner driver (offline deterministic)"
+    },
+    {
+      "modelId": "opencode-go:mimo-v2.5-pro",
+      "scenarioId": "B018",
+      "tier": "pro",
+      "status": "skipped",
+      "note": "evaluator driver (offline deterministic)"
+    },
+    {
+      "modelId": "opencode-go:mimo-v2.5-pro",
+      "scenarioId": "B022",
+      "tier": "pro",
+      "status": "skipped",
+      "note": "taskRouter driver (offline deterministic)"
+    },
+    {
+      "modelId": "opencode-go:mimo-v2.5-pro",
+      "scenarioId": "B023",
+      "tier": "pro",
+      "status": "skipped",
+      "note": "loop-engine driver (offline deterministic)"
+    },
+    {
+      "modelId": "opencode-go:mimo-v2.5-pro",
+      "scenarioId": "B024",
+      "tier": "pro",
+      "status": "skipped",
+      "note": "streaming driver (interleaved text/tool, offline deterministic)"
+    },
+    {
+      "modelId": "opencode-go:mimo-v2.5-pro",
+      "scenarioId": "B025",
+      "tier": "pro",
+      "status": "skipped",
+      "note": "interrupt driver (kind=interrupted, offline deterministic)"
+    },
+    {
+      "modelId": "opencode-go:mimo-v2.5-pro",
+      "scenarioId": "B027",
+      "tier": "pro",
+      "status": "skipped",
+      "note": "resume driver (handoff source=handoff continuation, offline deterministic)"
+    },
+    {
+      "modelId": "opencode-go:mimo-v2.5",
+      "scenarioId": "B001",
+      "tier": "flash",
+      "status": "failed",
+      "result": {
+        "adapterId": "vessel",
+        "adapterVersion": "0.1.0",
+        "fixtureId": "B001",
+        "metrics": {
+          "success": false,
+          "wallTimeMs": 368,
+          "toolCalls": 0,
+          "invalidCalls": 0,
+          "retries": 1,
+          "inputTokens": 0,
+          "outputTokens": 0,
+          "cacheReadTokens": 0,
+          "costUsd": 0,
+          "contextPeak": 0,
+          "compactions": 0,
+          "humanIntervention": 0,
+          "policyViolations": 0,
+          "resumeSuccess": false
+        },
+        "startedAt": "2026-09-09T03:15:53.001Z",
+        "artifacts": [
+          {
+            "kind": "session",
+            "path": "C:\\Users\\USER~1\\AppData\\Local\\Temp\\cah-vessel-B001-z9euuZ\\.harness\\sessions\\sess_1788923753017_8397a77b\\session.jsonl"
+          },
+          {
+            "kind": "workspace",
+            "path": "C:\\Users\\USER~1\\AppData\\Local\\Temp\\cah-vessel-B001-z9euuZ"
+          }
+        ],
+        "notes": [
+          "run raised: Error: Model call failed after 1 attempt(s): OpenAI-compatible 401 Unauthorized: {\"type\":\"error\",\"error\":{\"type\":\"CreditsError\",\"message\":\"Insufficient balance. Manage your billing here: https://opencode.ai/workspace/wrk_01KTPF63GN2N3P2PNVTTBEJFRT/billing\"}}"
+        ]
+      }
+    },
+    {
+      "modelId": "opencode-go:mimo-v2.5",
+      "scenarioId": "B002",
+      "tier": "flash",
+      "status": "failed",
+      "result": {
+        "adapterId": "vessel",
+        "adapterVersion": "0.1.0",
+        "fixtureId": "B002",
+        "metrics": {
+          "success": false,
+          "wallTimeMs": 399,
+          "toolCalls": 0,
+          "invalidCalls": 0,
+          "retries": 1,
+          "inputTokens": 0,
+          "outputTokens": 0,
+          "cacheReadTokens": 0,
+          "costUsd": 0,
+          "contextPeak": 0,
+          "compactions": 0,
+          "humanIntervention": 0,
+          "policyViolations": 0,
+          "resumeSuccess": false
+        },
+        "startedAt": "2026-09-09T03:15:53.375Z",
+        "artifacts": [
+          {
+            "kind": "session",
+            "path": "C:\\Users\\USER~1\\AppData\\Local\\Temp\\cah-vessel-B002-PaycnK\\.harness\\sessions\\sess_1788923753419_c7e7bcc6\\session.jsonl"
+          },
+          {
+            "kind": "workspace",
+            "path": "C:\\Users\\USER~1\\AppData\\Local\\Temp\\cah-vessel-B002-PaycnK"
+          }
+        ],
+        "notes": [
+          "run raised: Error: Model call failed after 1 attempt(s): OpenAI-compatible 401 Unauthorized: {\"type\":\"error\",\"error\":{\"type\":\"CreditsError\",\"message\":\"Insufficient balance. Manage your billing here: https://opencode.ai/workspace/wrk_01KTPF63GN2N3P2PNVTTBEJFRT/billing\"}}"
+        ]
+      }
+    },
+    {
+      "modelId": "opencode-go:mimo-v2.5",
+      "scenarioId": "S001",
+      "tier": "flash",
+      "status": "failed",
+      "result": {
+        "adapterId": "vessel",
+        "adapterVersion": "0.1.0",
+        "fixtureId": "S001",
+        "metrics": {
+          "success": false,
+          "wallTimeMs": 364,
+          "toolCalls": 0,
+          "invalidCalls": 0,
+          "retries": 1,
+          "inputTokens": 0,
+          "outputTokens": 0,
+          "cacheReadTokens": 0,
+          "costUsd": 0,
+          "contextPeak": 0,
+          "compactions": 0,
+          "humanIntervention": 0,
+          "policyViolations": 0,
+          "resumeSuccess": false
+        },
+        "startedAt": "2026-09-09T03:15:53.788Z",
+        "artifacts": [
+          {
+            "kind": "session",
+            "path": "C:\\Users\\USER~1\\AppData\\Local\\Temp\\cah-vessel-S001-Mm9Nfb\\.harness\\sessions\\sess_1788923753795_f38145fb\\session.jsonl"
+          },
+          {
+            "kind": "workspace",
+            "path": "C:\\Users\\USER~1\\AppData\\Local\\Temp\\cah-vessel-S001-Mm9Nfb"
+          }
+        ],
+        "notes": [
+          "run raised: Error: Model call failed after 1 attempt(s): OpenAI-compatible 401 Unauthorized: {\"type\":\"error\",\"error\":{\"type\":\"CreditsError\",\"message\":\"Insufficient balance. Manage your billing here: https://opencode.ai/workspace/wrk_01KTPF63GN2N3P2PNVTTBEJFRT/billing\"}}"
+        ]
+      }
+    },
+    {
+      "modelId": "opencode-go:mimo-v2.5",
+      "scenarioId": "S002",
+      "tier": "flash",
+      "status": "failed",
+      "result": {
+        "adapterId": "vessel",
+        "adapterVersion": "0.1.0",
+        "fixtureId": "S002",
+        "metrics": {
+          "success": false,
+          "wallTimeMs": 353,
+          "toolCalls": 0,
+          "invalidCalls": 0,
+          "retries": 1,
+          "inputTokens": 0,
+          "outputTokens": 0,
+          "cacheReadTokens": 0,
+          "costUsd": 0,
+          "contextPeak": 0,
+          "compactions": 0,
+          "humanIntervention": 0,
+          "policyViolations": 0,
+          "resumeSuccess": false
+        },
+        "startedAt": "2026-09-09T03:15:54.156Z",
+        "artifacts": [
+          {
+            "kind": "session",
+            "path": "C:\\Users\\USER~1\\AppData\\Local\\Temp\\cah-vessel-S002-4HEJH9\\.harness\\sessions\\sess_1788923754160_a407f31f\\session.jsonl"
+          },
+          {
+            "kind": "workspace",
+            "path": "C:\\Users\\USER~1\\AppData\\Local\\Temp\\cah-vessel-S002-4HEJH9"
+          }
+        ],
+        "notes": [
+          "run raised: Error: Model call failed after 1 attempt(s): OpenAI-compatible 401 Unauthorized: {\"type\":\"error\",\"error\":{\"type\":\"CreditsError\",\"message\":\"Insufficient balance. Manage your billing here: https://opencode.ai/workspace/wrk_01KTPF63GN2N3P2PNVTTBEJFRT/billing\"}}"
+        ]
+      }
+    },
+    {
+      "modelId": "opencode-go:mimo-v2.5",
+      "scenarioId": "S003",
+      "tier": "flash",
+      "status": "failed",
+      "result": {
+        "adapterId": "vessel",
+        "adapterVersion": "0.1.0",
+        "fixtureId": "S003",
+        "metrics": {
+          "success": false,
+          "wallTimeMs": 350,
+          "toolCalls": 0,
+          "invalidCalls": 0,
+          "retries": 1,
+          "inputTokens": 0,
+          "outputTokens": 0,
+          "cacheReadTokens": 0,
+          "costUsd": 0,
+          "contextPeak": 0,
+          "compactions": 0,
+          "humanIntervention": 0,
+          "policyViolations": 0,
+          "resumeSuccess": false
+        },
+        "startedAt": "2026-09-09T03:15:54.512Z",
+        "artifacts": [
+          {
+            "kind": "session",
+            "path": "C:\\Users\\USER~1\\AppData\\Local\\Temp\\cah-vessel-S003-fOHV3f\\.harness\\sessions\\sess_1788923754519_08fa24bb\\session.jsonl"
+          },
+          {
+            "kind": "workspace",
+            "path": "C:\\Users\\USER~1\\AppData\\Local\\Temp\\cah-vessel-S003-fOHV3f"
+          }
+        ],
+        "notes": [
+          "run raised: Error: Model call failed after 1 attempt(s): OpenAI-compatible 401 Unauthorized: {\"type\":\"error\",\"error\":{\"type\":\"CreditsError\",\"message\":\"Insufficient balance. Manage your billing here: https://opencode.ai/workspace/wrk_01KTPF63GN2N3P2PNVTTBEJFRT/billing\"}}"
+        ]
+      }
+    },
+    {
+      "modelId": "opencode-go:mimo-v2.5",
+      "scenarioId": "S004",
+      "tier": "flash",
+      "status": "failed",
+      "result": {
+        "adapterId": "vessel",
+        "adapterVersion": "0.1.0",
+        "fixtureId": "S004",
+        "metrics": {
+          "success": false,
+          "wallTimeMs": 345,
+          "toolCalls": 0,
+          "invalidCalls": 0,
+          "retries": 1,
+          "inputTokens": 0,
+          "outputTokens": 0,
+          "cacheReadTokens": 0,
+          "costUsd": 0,
+          "contextPeak": 0,
+          "compactions": 0,
+          "humanIntervention": 0,
+          "policyViolations": 0,
+          "resumeSuccess": false
+        },
+        "startedAt": "2026-09-09T03:15:54.866Z",
+        "artifacts": [
+          {
+            "kind": "session",
+            "path": "C:\\Users\\USER~1\\AppData\\Local\\Temp\\cah-vessel-S004-aQHkIL\\.harness\\sessions\\sess_1788923754871_38f2b4a9\\session.jsonl"
+          },
+          {
+            "kind": "workspace",
+            "path": "C:\\Users\\USER~1\\AppData\\Local\\Temp\\cah-vessel-S004-aQHkIL"
+          }
+        ],
+        "notes": [
+          "run raised: Error: Model call failed after 1 attempt(s): OpenAI-compatible 401 Unauthorized: {\"type\":\"error\",\"error\":{\"type\":\"CreditsError\",\"message\":\"Insufficient balance. Manage your billing here: https://opencode.ai/workspace/wrk_01KTPF63GN2N3P2PNVTTBEJFRT/billing\"}}"
+        ]
+      }
+    },
+    {
+      "modelId": "opencode-go:mimo-v2.5",
+      "scenarioId": "S005",
+      "tier": "flash",
+      "status": "failed",
+      "result": {
+        "adapterId": "vessel",
+        "adapterVersion": "0.1.0",
+        "fixtureId": "S005",
+        "metrics": {
+          "success": false,
+          "wallTimeMs": 400,
+          "toolCalls": 0,
+          "invalidCalls": 0,
+          "retries": 1,
+          "inputTokens": 0,
+          "outputTokens": 0,
+          "cacheReadTokens": 0,
+          "costUsd": 0,
+          "contextPeak": 0,
+          "compactions": 0,
+          "humanIntervention": 0,
+          "policyViolations": 0,
+          "resumeSuccess": false
+        },
+        "startedAt": "2026-09-09T03:15:55.215Z",
+        "artifacts": [
+          {
+            "kind": "session",
+            "path": "C:\\Users\\USER~1\\AppData\\Local\\Temp\\cah-vessel-S005-RWaYbq\\.harness\\sessions\\sess_1788923755219_afdfea54\\session.jsonl"
+          },
+          {
+            "kind": "workspace",
+            "path": "C:\\Users\\USER~1\\AppData\\Local\\Temp\\cah-vessel-S005-RWaYbq"
+          }
+        ],
+        "notes": [
+          "run raised: Error: Model call failed after 1 attempt(s): OpenAI-compatible 401 Unauthorized: {\"type\":\"error\",\"error\":{\"type\":\"CreditsError\",\"message\":\"Insufficient balance. Manage your billing here: https://opencode.ai/workspace/wrk_01KTPF63GN2N3P2PNVTTBEJFRT/billing\"}}"
+        ]
+      }
+    },
+    {
+      "modelId": "opencode-go:mimo-v2.5",
+      "scenarioId": "S006",
+      "tier": "flash",
+      "status": "failed",
+      "result": {
+        "adapterId": "vessel",
+        "adapterVersion": "0.1.0",
+        "fixtureId": "S006",
+        "metrics": {
+          "success": false,
+          "wallTimeMs": 361,
+          "toolCalls": 0,
+          "invalidCalls": 0,
+          "retries": 1,
+          "inputTokens": 0,
+          "outputTokens": 0,
+          "cacheReadTokens": 0,
+          "costUsd": 0,
+          "contextPeak": 0,
+          "compactions": 0,
+          "humanIntervention": 0,
+          "policyViolations": 0,
+          "resumeSuccess": false
+        },
+        "startedAt": "2026-09-09T03:15:55.618Z",
+        "artifacts": [
+          {
+            "kind": "session",
+            "path": "C:\\Users\\USER~1\\AppData\\Local\\Temp\\cah-vessel-S006-N7FTDa\\.harness\\sessions\\sess_1788923755622_177fa91d\\session.jsonl"
+          },
+          {
+            "kind": "workspace",
+            "path": "C:\\Users\\USER~1\\AppData\\Local\\Temp\\cah-vessel-S006-N7FTDa"
+          }
+        ],
+        "notes": [
+          "run raised: Error: Model call failed after 1 attempt(s): OpenAI-compatible 401 Unauthorized: {\"type\":\"error\",\"error\":{\"type\":\"CreditsError\",\"message\":\"Insufficient balance. Manage your billing here: https://opencode.ai/workspace/wrk_01KTPF63GN2N3P2PNVTTBEJFRT/billing\"}}"
+        ]
+      }
+    },
+    {
+      "modelId": "opencode-go:mimo-v2.5",
+      "scenarioId": "S007",
+      "tier": "flash",
+      "status": "failed",
+      "result": {
+        "adapterId": "vessel",
+        "adapterVersion": "0.1.0",
+        "fixtureId": "S007",
+        "metrics": {
+          "success": false,
+          "wallTimeMs": 378,
+          "toolCalls": 0,
+          "invalidCalls": 0,
+          "retries": 1,
+          "inputTokens": 0,
+          "outputTokens": 0,
+          "cacheReadTokens": 0,
+          "costUsd": 0,
+          "contextPeak": 0,
+          "compactions": 0,
+          "humanIntervention": 0,
+          "policyViolations": 0,
+          "resumeSuccess": false
+        },
+        "startedAt": "2026-09-09T03:15:55.982Z",
+        "artifacts": [
+          {
+            "kind": "session",
+            "path": "C:\\Users\\USER~1\\AppData\\Local\\Temp\\cah-vessel-S007-sKHgZs\\.harness\\sessions\\sess_1788923755993_9f32d10a\\session.jsonl"
+          },
+          {
+            "kind": "workspace",
+            "path": "C:\\Users\\USER~1\\AppData\\Local\\Temp\\cah-vessel-S007-sKHgZs"
+          }
+        ],
+        "notes": [
+          "run raised: Error: Model call failed after 1 attempt(s): OpenAI-compatible 401 Unauthorized: {\"type\":\"error\",\"error\":{\"type\":\"CreditsError\",\"message\":\"Insufficient balance. Manage your billing here: https://opencode.ai/workspace/wrk_01KTPF63GN2N3P2PNVTTBEJFRT/billing\"}}"
+        ]
+      }
+    },
+    {
+      "modelId": "opencode-go:mimo-v2.5",
+      "scenarioId": "S008",
+      "tier": "flash",
+      "status": "failed",
+      "result": {
+        "adapterId": "vessel",
+        "adapterVersion": "0.1.0",
+        "fixtureId": "S008",
+        "metrics": {
+          "success": false,
+          "wallTimeMs": 363,
+          "toolCalls": 0,
+          "invalidCalls": 0,
+          "retries": 1,
+          "inputTokens": 0,
+          "outputTokens": 0,
+          "cacheReadTokens": 0,
+          "costUsd": 0,
+          "contextPeak": 0,
+          "compactions": 0,
+          "humanIntervention": 0,
+          "policyViolations": 0,
+          "resumeSuccess": false
+        },
+        "startedAt": "2026-09-09T03:15:56.364Z",
+        "artifacts": [
+          {
+            "kind": "session",
+            "path": "C:\\Users\\USER~1\\AppData\\Local\\Temp\\cah-vessel-S008-ndRj0i\\.harness\\sessions\\sess_1788923756368_27dec199\\session.jsonl"
+          },
+          {
+            "kind": "workspace",
+            "path": "C:\\Users\\USER~1\\AppData\\Local\\Temp\\cah-vessel-S008-ndRj0i"
+          }
+        ],
+        "notes": [
+          "run raised: Error: Model call failed after 1 attempt(s): OpenAI-compatible 401 Unauthorized: {\"type\":\"error\",\"error\":{\"type\":\"CreditsError\",\"message\":\"Insufficient balance. Manage your billing here: https://opencode.ai/workspace/wrk_01KTPF63GN2N3P2PNVTTBEJFRT/billing\"}}"
+        ]
+      }
+    },
+    {
+      "modelId": "opencode-go:mimo-v2.5",
+      "scenarioId": "B019",
+      "tier": "flash",
+      "status": "skipped",
+      "note": "MCP driver (offline deterministic)"
+    },
+    {
+      "modelId": "opencode-go:mimo-v2.5",
+      "scenarioId": "B020",
+      "tier": "flash",
+      "status": "skipped",
+      "note": "memory driver (offline deterministic)"
+    },
+    {
+      "modelId": "opencode-go:mimo-v2.5",
+      "scenarioId": "B021",
+      "tier": "flash",
+      "status": "skipped",
+      "note": "skill driver (offline deterministic)"
+    },
+    {
+      "modelId": "opencode-go:mimo-v2.5",
+      "scenarioId": "B026",
+      "tier": "flash",
+      "status": "skipped",
+      "note": "steering driver (source=steer redirect, offline deterministic)"
+    }
+  ],
+  "modelSummaries": [
+    {
+      "modelId": "opencode-go:mimo-v2.5-pro",
+      "displayName": "OpenCode Go mimo-v2.5-pro",
+      "runnableScenarios": 11,
+      "passed": 0,
+      "failed": 3,
+      "pendingEnvironment": 0,
+      "skipped": 8,
+      "wallTimeMs": 1626,
+      "toolCalls": 0,
+      "inputTokens": 0,
+      "outputTokens": 0,
+      "cacheReadTokens": 0,
+      "costUsd": 0
+    },
+    {
+      "modelId": "opencode-go:mimo-v2.5",
+      "displayName": "OpenCode Go mimo-v2.5",
+      "runnableScenarios": 14,
+      "passed": 0,
+      "failed": 10,
+      "pendingEnvironment": 0,
+      "skipped": 4,
+      "wallTimeMs": 3681,
+      "toolCalls": 0,
+      "inputTokens": 0,
+      "outputTokens": 0,
+      "cacheReadTokens": 0,
+      "costUsd": 0
+    }
+  ],
+  "degraded": false,
+  "reportMdPath": "C:\\work\\Vessel_Harness\\benchmarks\\reports\\real-model-lane-1788923747963.md",
+  "reportJsonPath": "C:\\work\\Vessel_Harness\\benchmarks\\reports\\real-model-lane-1788923747963.json"
+}

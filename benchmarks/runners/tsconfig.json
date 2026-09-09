@@ -25,6 +25,9 @@
       "path": "../../packages/tools"
     },
     {
+      "path": "../../packages/application"
+    },
+    {
       "path": "../../apps/cli"
     }
   ]

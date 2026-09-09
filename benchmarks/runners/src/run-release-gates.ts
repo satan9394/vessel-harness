@@ -1,18 +1,20 @@
 /**
- * task V1.1-E — Release Gates 实跑驱动（产出 V1.1 release-report）。
+ * task V1.1-E/F — Release Gates 实跑驱动（产出 V1.1 release-report；V1.1-F 接 CC Switch 凭据）。
  *
- * 用法：`npx tsx benchmarks/runners/src/run-release-gates.ts`
+ * 用法：`npx tsx benchmarks/runners/src/run-release-gates.ts [--db <cc-switch.db>]`
  *
  * 流程：
- *   1. buildReleaseGateExecutors() 装配 8 个 §21 / 084 gate executor（默认 resolver 已接
- *      opencode-go：无 OPENCODE_API_KEY → real-model-bench probe→pending，不静默通过）。
- *   2. 按 V1.1-E 任务卡要求，把 deterministic-bench 的 L1 可跑集从 084 默认的 B001-B005
+ *   1. （V1.1-F）凭据转接：从 CC Switch 库探查 opencode-go → CredentialStore（DPAPI）加密落库；
+ *      real-model-bench gate 用 credentialAware resolver（落库优先，env 回退）→ 有 key 时真实跑 082 lane。
+ *   2. buildReleaseGateExecutors() 装配 8 个 §21 / 084 gate executor。
+ *   3. 按 V1.1-E 任务卡要求，把 deterministic-bench 的 L1 可跑集从 084 默认的 B001-B005
  *      扩展为「L1 B001-B027 可跑集」（B001-B005 + B016-B027，全部 offline 确定性），
  *      纳入 V1.1-D（B024-B027）→ 复用 076 runner 的 runScenario + 084 的 judgeScenarioRuns。
- *   3. runReleaseGates() 顺序实跑 8 gate（每 gate 经注入的 exec: RunCommand 跑真实命令/判据），
+ *   4. runReleaseGates() 顺序实跑 8 gate（每 gate 经注入的 exec: RunCommand 跑真实命令/判据），
  *      聚合 release-report.json + .md 写到 benchmarks/reports/（084 惯例）。
  *
- * 密钥安全：key 只经环境变量读取，绝不落盘；报告不含任何密钥片段。
+ * 密钥安全：key 只经 CC Switch 探查 + CredentialStore（DPAPI 密文）转接，进程内使用，绝不落盘；
+ * 报告不含任何密钥片段。
  * 受限环境：真实命令（tsc/vitest）经 execFile 实跑；unavailable 的 gate 按 084 语义 probe→pending，
  *   由 runner 如实汇总为 partial，不伪造 pass。
  */
@@ -20,6 +22,7 @@ import * as path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
+import { createCredentialStore } from '@vessel/application';
 import type { ChatProvider } from '@vessel/shared';
 import {
   buildReleaseGateExecutors,
@@ -32,6 +35,13 @@ import {
   type ReleaseContext,
   type RunCommand,
 } from './release-gates/index.js';
+import {
+  credentialAwareOpencodeGoKey,
+  migrateOpencodeGoCredential,
+  opencodeGoProviderResolver,
+  fetchOpencodeGoModels,
+  defaultMimoLaneModels,
+} from './lane/index.js';
 import { runScenario } from './runner.js';
 
 const execFileAsync = promisify(execFile);
@@ -110,11 +120,35 @@ export function buildDeterministicBenchExecutor(provider: ChatProvider | null = 
   };
 }
 
+function argValue(flag: string): string | undefined {
+  const i = process.argv.indexOf(flag);
+  return i >= 0 && i + 1 < process.argv.length ? process.argv[i + 1] : undefined;
+}
+
 async function main(): Promise<void> {
   // eslint-disable-next-line no-console
-  console.log('[V1.1-E] repoRoot=' + REPO_ROOT);
+  console.log('[V1.1-E/F] repoRoot=' + REPO_ROOT);
+  const dbPath = argValue('--db');
 
-  const base = buildReleaseGateExecutors();
+  // V1.1-F — 凭据转接：CC Switch → CredentialStore（DPAPI 加密落库），real-model gate 用此 key。
+  const store = createCredentialStore();
+  const migrated = await migrateOpencodeGoCredential({ store, dbPath });
+  // eslint-disable-next-line no-console
+  console.log(
+    `[V1.1-F] cc-switch opencode-go 凭据转接：synced=${migrated.synced}` +
+      (migrated.rowId ? ` rowId=${migrated.rowId}` : '') +
+      (migrated.baseUrl ? ` baseUrl=${migrated.baseUrl}` : '') +
+      (migrated.reason ? ` reason=${migrated.reason}` : ''),
+  );
+  const providerResolver = opencodeGoProviderResolver({ keyResolver: credentialAwareOpencodeGoKey({ store }) });
+
+  // V1.1-F — real-model gate 用 MIMO V2.5 真实模型档（live 拉取为准；无 key 时回退内置参考清单）。
+  const { source } = await fetchOpencodeGoModels(credentialAwareOpencodeGoKey({ store }));
+  const laneModels = defaultMimoLaneModels(source.models);
+  // eslint-disable-next-line no-console
+  console.log(`[V1.1-F] real-model gate models: ${laneModels.map((m) => `${m.displayName}(${m.tier})`).join(', ') || '(none)'}（source=${source.origin}）`);
+
+  const base = buildReleaseGateExecutors({ providerResolver, models: laneModels.length > 0 ? laneModels : undefined });
   // 覆盖 deterministic-bench → 全 L1 可跑集（含 V1.1-D B024-B027）
   const executors = base.map((e) =>
     e.gate.id === 'deterministic-bench' ? buildDeterministicBenchExecutor() : e,
