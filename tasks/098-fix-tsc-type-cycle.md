@@ -1,7 +1,7 @@
 # 098 — 修复 `tsc -b` TS5055（cli ↔ bench-runners 类型环）
 
 - 编号：098
-- 状态：待验收
+- 状态：已合入
 - 优先级：P0（破坏项目标准类型检查命令 `npx tsc -b tsconfig.json`）
 - 创建日期：2026-09-08
 - 关联：V1.1-E（2069343，apps/cli 引入 bench-report 动态 import bench-runners）；V1.1-F（f4236d7，
@@ -168,5 +168,12 @@ TS5055 的 4 个文件恰好就是 `apps/cli/src/index.ts` 的再导出闭包
 
 ## 验收结论（指挥回填）
 
-- [ ] 合入 / 打回
-- 备注：
+- [x] 合入（commit ea67f38）
+- 备注：指挥独立复核——`npx tsc -b tsconfig.json` **exit 0**、`npx tsc -b tsconfig.json --force` **exit 0**
+  （修复前为 exit 2 + 4 行 TS5055）、全量 vitest 961 passed + 1 skipped（唯一失败为已知 process-tree 并发 flaky）、
+  web 74 passed。
+  认可断环方案 A：provider preset 目录 + /v1/models 拉取 SSOT 从 apps/cli 下沉到 packages/application/src/providers/
+  （git mv 保历史），apps/cli 与 benchmarks/runners 均只向下依赖 @vessel/application；runners 4 处 import 改为
+  @vessel/application 并删除 runners→apps/cli 反向 reference；cli 侧补单向 reference→benchmarks/runners 固定构建序
+  （cli.ts 静态解析 bench-runners 的既有事实）。未用 skipLibCheck/exclude/outDir 掩盖；无新依赖；分层方向更清晰
+  （SSOT 下沉）。**098 关闭。**
