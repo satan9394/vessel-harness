@@ -1,7 +1,7 @@
 # 097 — 凭据来源纠偏（移除对本机 CC Switch 应用数据的依赖）
 
 - 编号：097
-- 状态：待验收
+- 状态：已合入
 - 优先级：P0（边界与安全：不该读用户本机应用数据）
 - 创建日期：2026-09-08
 - 关联：V1.1-F（f4236d7 引入 `benchmarks/runners/src/lane/ccSwitchCredential.ts` 读 `~/.cc-switch/cc-switch.db`）；
@@ -170,5 +170,12 @@ cd apps/web && npx vitest run                    → 8 files / 74 passed
 
 ## 验收结论（指挥回填）
 
-- [ ] 合入 / 打回
-- 备注：
+- [x] 合入（commits 6be5527 实现 + 40aecc3 补记）
+- 备注：指挥独立复核——`tsc -b` exit 0；全量 vitest 957 passed + 1 skipped（唯一失败为已知 process-tree 并发
+  flaky；计数核对 961−16+12=957 吻合）；web 74；非测试源码 grep `.cc-switch`/`cc-switch.db`/`node:sqlite`/
+  `DatabaseSync` **0 命中**（命中仅存在于守卫测试文件内的注释与断言字符串，符合预期）。
+  认可：删除越界模块 `ccSwitchCredential.ts` + 16 例（回收站，符合删除铁律）；新增 `opencodeGoCredential.ts`
+  （凭据来源收敛为 CredentialStore DPAPI → env OPENCODE_API_KEY 两条，不 import node:fs，可注入可 mock）；
+  12 例新测试含**仓库源码树守卫**（再引入本机应用数据读取即红）+ 临时目录自建 .cc-switch fixture 不被读取断言；
+  驱动脚本去 --db/migrate；文档纠偏（REAL-MODEL-LANE/RELEASE-GATES/V1.1-F 卡更正备注）；CredentialStore 本体零改动；
+  未触碰用户本机任何文件。**097 关闭。**
