@@ -1,7 +1,7 @@
 # 085 — 计价正确性 P0（模型名归一 + 缺价显式化 + 统一计价 + 文案纠偏）
 
 - 编号：085（合并 CC-SWITCH-MODULE-STUDY 候选卡 085/086/087/088，同属计价模块、有依赖链）
-- 状态：待验收
+- 状态：已合入
 - 优先级：P0（修正确性：当前在用默认价制造"假成本"）
 - 创建日期：2026-09-08
 - 关联：docs/ideas/CC-SWITCH-MODULE-STUDY.md §5 差距清单/§6 P0；tasks/029-usage-store.md、tasks/030-model-catalog.md
@@ -212,5 +212,13 @@ CLI 展示（估算条目/来源分布/`--strict` 审计/`pricing` 归一提示�
 
 ## 验收结论（指挥回填）
 
-- [ ] 合入 / 打回
-- 备注：
+- [x] 合入（commits 8d57521 实现 + 43176f8 记录 hash）
+- 备注：指挥独立复核——全量 vitest 960 passed + 1 skipped（唯一失败为已知 process-tree 并发 flaky）、
+  **逐项目 `tsc -p <pkg> --noEmit` 17/17 全 OK**。
+  认可：085 归一（packages/shared/src/pricing.ts 唯一查价实现，命名空间/日期/effort/点号/大小写归一 +
+  精确优先于家族前缀 + 最长键；真实变体命中 4/16→13/16 = 25%→81%，剩余 3 个目录确未收录→protocol+estimated）；
+  086 显式化（resolvePrice 返回 source/estimated/matchedKey；UsageEntry 持久化 estimated/pricingSource；vessel usage
+  打印来源分布 + --strict 语义）；087 统一（UsageProjection 删硬编码 0.5/1.5/0.1 复用同一 resolvePrice +
+  pricing-parity 回归测试；benchmarks 6 处 loadPrices 收敛）；088 文案（ProviderStore 注释对齐 DPAPI）。
+  **遗留（另卡 098 修）**：`npx tsc -b tsconfig.json` 报 4 行 TS5055（cli ↔ bench-runners 类型环，dist/*.d.ts
+  既当输入又当输出）——破坏标准构建命令，已确认非本卡逻辑问题（逐项目 --noEmit 全绿），单独立卡修复。
