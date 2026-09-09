@@ -1,7 +1,7 @@
 # 102 — opencode-go 协议修正 + 真实 lane 跑通（x-opencode-session）
 
 - 编号：102
-- 状态：待验收
+- 状态：已合入
 - 优先级：P0（让 V1.1-C/F 的真实模型闭环真正跑通；此前 401 系 key 错误）
 - 创建日期：2026-09-09
 - 关联：V1.1-C（d0da3ed lane 接线）；V1.1-F（f4236d7，401 结论已作废）；097（移除本机 key 来源）；
@@ -196,5 +196,15 @@ declared-only 被调用时**显式抛 `unsupported-route`**（不发错端点、
 
 ## 验收结论（指挥回填）
 
-- [ ] 合入 / 打回
-- 备注：
+- [x] 合入（commit 5af2dfc）
+- 备注：指挥独立复核——`tsc -b` exit 0；全量 vitest 1082 passed + 1 skipped（唯一失败为已知 process-tree
+  时序 flaky）；web 74；真实 lane 报告已产出（real-model-lane-*.md 3 份 + gate 4 两次）。
+  **重大结论：真实模型跑通**——mimo-v2.5 走 Go 端点（`x-opencode-session` + 具名 UA）真实跑 082 lane 与 084
+  gate 4（B001 1/1、10 场景 9 passed/1 failed、gate 8/2 与 9/1；probe 稳定 200，usage 248+142/192）。协议修正
+  到位（session 稳定 UUID + 错误分类 400/401/429/5xx + 路径分流 /chat/completions implemented、/messages 与
+  /responses declared-only + 推理模型 max_tokens 8192）；文档纠偏（V1.1-F 401 系 key 来源错误）。
+  **两点待办（指挥已知悉，另卡处理）**：① 本机 CredentialStore 里的 opencode-go key 与用户 key 不是同一把
+  （`same=false`），097 的 store 优先会静默选失效 key → 真实跑须 `--key-source=env` 或用户更新 store；
+  ② mimo-v2.5 长工具链收敛不稳定（同一场景跨次 passed/failed，失败模式=finalText 空 + 工具调用到
+  MAX_STEPS_PER_TURN=64）→ gate 4 如实 pending（不伪造 pass）；③ CLI/TUI 侧仍走通用 openai-compatible 客户端，
+  对 Go 端点会 400（建议另卡上提 provider 或加 extraHeaders）。**102 关闭。**
