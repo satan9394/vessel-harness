@@ -1,0 +1,152 @@
+{
+  "schemaVersion": 1,
+  "version": "v1.1.0",
+  "generatedAt": "2026-09-09T01:15:30.256Z",
+  "status": "blocked",
+  "gates": [
+    {
+      "id": "build",
+      "name": "Build (tsc -b)",
+      "position": 1,
+      "criterion": "类型构建 `tsc -b tsconfig.json` 完成且退出码 0（无类型错误）。",
+      "status": "pass",
+      "evidence": {
+        "summary": "类型构建通过（tsc -b exit 0）",
+        "detail": [
+          "tsc exit=0"
+        ]
+      },
+      "durationMs": 2647
+    },
+    {
+      "id": "unit",
+      "name": "Unit (vitest root)",
+      "position": 2,
+      "criterion": "全量 `npx vitest run`（root）通过且退出码 0（无测试失败）。",
+      "status": "fail",
+      "evidence": {
+        "summary": "vitest 存在问题（exit=1）",
+        "detail": [
+          "✓ Sandbox — run() confined spawn (isolation dir + resource wiring) > passes limits to the job factory and attaches the child PID (unit: injected factory) 8461ms",
+          "✓ Sandbox — run() confined spawn (isolation dir + resource wiring) > attaches a job handle when openConfinement() is used (unit: injected factory) 8178ms",
+          "✓ Sandbox — isolated-directory backend (task 071) > createIsolatedDirectory() makes a dir under os.tmpdir and dispose recycles it 5795ms",
+          "✓ Sandbox — isolated-directory backend (task 071) > run() surfaces a clear error for an unavailable command 6008ms",
+          "✓ packages/engine/src/project-task-queue.test.ts (18 tests) 62481ms",
+          "✓ engine/project-task-queue — ProjectTaskQueue 持久队列（task 063） > 并发安全：多次 claim→settle 循环 + 跨实例交替后 meta 无 .tmp 残留、可完整读回（原子写不撕裂） 1088ms",
+          "✓ engine/project-task-queue — ProjectTaskQueue 持久队列（task 063） > 大队列性能（V1.1-B）：1500+ 任务下 claimNext/list 不随任务数线性退化（索引避免每调用全目录 meta 读） 60550ms",
+          "Test Files  1 failed | 90 passed (91)",
+          "Tests  1 failed | 882 passed | 1 skipped (884)",
+          "Start at  18:14:18",
+          "Duration  63.42s (transform 13.59s, setup 0ms, collect 44.65s, tests 303.44s, environment 30ms, prepare 23.36s)",
+          "⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯",
+          "FAIL  packages/runtime/src/sandbox/backend/process-tree.test.ts > Sandbox — real Windows timing-window enumeration (task 072, win32 only) > attaches a pre-spawned grandchild into the job and enumerates it",
+          "Error: Test timed out in 30000ms.",
+          "If this is a long-running test, pass a timeout value as the last argument or configure it globally with \"testTimeout\".",
+          "⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯",
+          "vitest exit=1"
+        ]
+      },
+      "durationMs": 65179,
+      "note": "唯一失败为既有 process-tree 计时 flaky（packages/runtime/src/sandbox/backend/process-tree.test.ts，task 072）：整机并行高负载下 30s 超时；隔离单跑 11/11 通过。非 V1.1-E 回归（该文件自 072 未改动），按项目惯例视为环境性 flaky。"
+    },
+    {
+      "id": "deterministic-bench",
+      "name": "Deterministic Bench (L1)",
+      "position": 3,
+      "criterion": "L1 可跑集（B001-B005 离线确定性 mock lane）全部 manifest 断言通过。",
+      "status": "pass",
+      "evidence": {
+        "summary": "离线可跑集全部通过（17 个）",
+        "detail": [
+          "ran=17",
+          "passed=17"
+        ]
+      },
+      "durationMs": 4488,
+      "note": "扩至 L1 全离线可跑集（B001-B005 + B016-B027，含 V1.1-D streaming/interrupt/steering/resume）。"
+    },
+    {
+      "id": "real-model-bench",
+      "name": "Real Model Bench (082 lane)",
+      "position": 4,
+      "criterion": "082 真实模型 lane 收集到 §15 L3 指标；无凭据/无 provider 时显式 pending，不静默通过。",
+      "status": "pending",
+      "evidence": {
+        "summary": "真实模型 lane 未运行（无 credential/provider）",
+        "detail": [
+          "rows=0",
+          "passed=0",
+          "failed=0",
+          "pendingEnv=2",
+          "degraded=true"
+        ]
+      },
+      "durationMs": 0,
+      "note": "real model gate: 无真实 API 凭据 → pending（配好 provider 后重跑），不静默通过。"
+    },
+    {
+      "id": "safety",
+      "name": "Safety (075 pack)",
+      "position": 5,
+      "criterion": "075 安全包（S001-S008 判据）离线 enforcement 证据齐全，无高危越权。",
+      "status": "pass",
+      "evidence": {
+        "summary": "离线可跑集全部通过（6 个）",
+        "detail": [
+          "ran=6",
+          "passed=6"
+        ]
+      },
+      "durationMs": 275
+    },
+    {
+      "id": "resume",
+      "name": "Resume (063/064)",
+      "position": 6,
+      "criterion": "063/064 可跑集（068 soak 小规模）resume 不变量成立：暂停/续跑、workspace 零残留、从 handoff 续跑留痕。",
+      "status": "pass",
+      "evidence": {
+        "summary": "resume 不变量成立（暂停/续跑、零残留、从 handoff 续跑留痕）",
+        "detail": [
+          "pauseResumeCycles=2>=1",
+          "tempResidue=0==0",
+          "resumeProducedIteration=true",
+          "countConsistent=true"
+        ]
+      },
+      "durationMs": 394
+    },
+    {
+      "id": "ux-smoke",
+      "name": "UX Smoke (web)",
+      "position": 7,
+      "criterion": "web 套件或最小 smoke 通过；web 构建工具缺失时显式 pending。",
+      "status": "pass",
+      "evidence": {
+        "summary": "web smoke 构建产物存在",
+        "detail": [
+          "webDistPresent=true"
+        ]
+      },
+      "durationMs": 1
+    },
+    {
+      "id": "packaging",
+      "name": "Packaging (build artifacts)",
+      "position": 8,
+      "criterion": "build 产物检查（npm pack / 等价产物）存在且完整；工具缺失时显式 pending。",
+      "status": "pending",
+      "evidence": {
+        "summary": "未发现 build 产物（dist 缺失）"
+      },
+      "durationMs": 3486,
+      "note": "packaging gate: 需要非受限环境构建出 dist 后重跑；当前显式 pending 不静默通过。"
+    }
+  ],
+  "totals": {
+    "pass": 5,
+    "fail": 1,
+    "pending": 2,
+    "durationMs": 76470
+  }
+}

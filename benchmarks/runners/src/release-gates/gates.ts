@@ -392,6 +392,11 @@ export function buildReleaseGateExecutors(opts: BuildGateExecutorsOptions = {}):
             maxRetries: 1,
             maxAcceptedRounds: 2,
             handoffEveryRounds: 1,
+            // V1.1-E 实跑发现：默认 pauseEveryRounds=7，而 totalRounds=3 时 round(1..3) 永不为
+            // 7 的倍数 → 暂停/续跑 flap 从不触发 → pauseResumeCycles 恒为 0 → judgeSoakResume
+            // 的 `pauseResumeCycles>=1` 判据恒 fail（gate 永不绿）。显式降为 1，让每次 round
+            // 边界都成 flap，真正行使 066 暂停/续跑，使判据如实判定。
+            pauseEveryRounds: 1,
             baseDir: base,
           });
           return judgeSoakResume({
