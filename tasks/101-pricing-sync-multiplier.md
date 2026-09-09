@@ -135,7 +135,7 @@ cd apps/web && npm test                     → 8 files / 74 passed
 
 - 实现提交：`f276724`（`feat(pricing): 101 models.dev pricing sync + provider cost multiplier`，14 files changed,
   1744 insertions(+)，47 deletions(-)；本条 docs 提交只记录哈希）
-- 跟进提交：`<见下条>`（`fix(pricing): 101 surface fetch failure cause in sync offline message`）——
+- 跟进提交：`fix(pricing): 101 surface fetch failure cause in sync offline message`（`git log --oneline` 可见，紧跟实现提交）——
   真实跑 CLI 时发现连接失败只显示 `fetch failed`，改为带上 `cause`（`ECONNREFUSED`/`ENOTFOUND`/`ETIMEDOUT`），
   离线提示才可诊断；同步测试补一条 `TypeError('fetch failed', {cause:{code}})` 用例。
 - 未 force push；删除一律走回收站（本卡未删任何文件）。
