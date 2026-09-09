@@ -59,6 +59,8 @@
 > 本次接手工作 = 审查（对照 091/092 全部验收标准）→ 补缺（CLI 端到端测试）→ 全量验证 → 交证 → 提交。
 > **未重写实现**；`npx tsc -b tsconfig.json` 接手时即 exit 0。
 
+- 实现提交：`ecf422a` `feat(usage): 100 pricing management — recompute + user override`（11 files, +2046/-48）
+
 ### 1. 改动文件与 diff 摘要
 
 | 文件 | 类型 | 摘要 |
