@@ -1,7 +1,7 @@
 # 105 — 用户 key 入库 + CLI 真跑验证（opencode-go / MIMO V2.5）
 
 - 编号：105
-- 状态：待验收
+- 状态：已合入
 - 优先级：P0（让用户日常 CLI 路径真正可用）
 - 创建日期：2026-09-09
 - 关联：102（5af2dfc：本机 store 的 key 与用户 key `same=false`）；103（afac81a：CLI/TUI 协议适配已合入）；
@@ -203,5 +203,14 @@
 
 ## 验收结论（指挥回填）
 
-- [ ] 合入 / 打回
-- 备注：
+- [x] 合入（commit e064209）
+- 备注：指挥独立复核——`tsc -b` exit 0；全量 vitest 1147 passed + 1 skipped（唯一失败为已知 process-tree
+  时序 flaky）；web 74；`~/.vessel/current.json` 已复位 `mock`（保测试与机器状态无关）。
+  **关键成果**：用户 key 经仓库机制 `vessel provider add` **原地更新**写入 CredentialStore（DPAPI 密文，
+  providers.json 只留 secretRef，`~/.vessel/*.json` 明文扫描 0 命中，session 日志 0 命中）；指纹入库后
+  **`same=true`**（`sk-8Dl…p4n1` len=67）；**`vessel run --prompt ping` 走 Go 端点真实成功**（`pong`，
+  kind=success steps=1，无 400/401；usage inputTokens=3265/outputTokens=37/costUsd=0.001688）；两条 key-source
+  路径实测 200 且 `auto` 在假 env 下仍选 store（store 优先语义保持）。
+  **三个发现转卡 106**：① `vessel chat`(TUI) 仍 401 —— `apps/cli/src/tui/chat.ts:180` `opts.store ?? new
+  ProviderStore()` 未接 CredentialStore（一行级修复，`vessel run` 不受影响）；② `cli.test.ts`/`chat.test.ts`
+  读真实 `~/.vessel`（需注入临时 root，否则机器状态影响测试）；③ process-tree 时序超时。**105 关闭。**
