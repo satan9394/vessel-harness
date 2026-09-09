@@ -8,3 +8,4 @@ benchmarks/reports/B*/run_*/
 *.log
 .DS_Store
 .dsh-vision-router/
+benchmarks/reports/release-gate/
