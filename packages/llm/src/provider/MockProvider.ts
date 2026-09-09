@@ -1,4 +1,4 @@
-import type { ChatProvider, ChatRequest, ChatResponse, ChatToolCall, StreamChunk } from '@vessel/shared';
+import type { ChatProvider, ChatRequest, ChatResponse, ChatToolCall, ChatUsage, StreamChunk } from '@vessel/shared';
 
 export interface MockScriptEntry {
   /** regex tested against the LAST user message; first match wins */
@@ -21,6 +21,13 @@ export interface MockProviderOptions {
   vars?: Record<string, string>;
   /** fallback text when no script entry matches */
   fallbackText?: string;
+  /**
+   * Usage reported by every scripted response (task 099). Lets tests drive the
+   * real chain — provider → ChatUsage → after_model → UsageProjection /
+   * UsageStore — with cache-write tokens (Anthropic `cache_creation_input_tokens`)
+   * without a live endpoint. Defaults to `{ inputTokens: 100, outputTokens: 20 }`.
+   */
+  usage?: ChatUsage;
 }
 
 /**
@@ -34,6 +41,11 @@ export class MockProvider implements ChatProvider {
     private readonly script: MockScriptEntry[],
     private readonly opts: MockProviderOptions = {},
   ) {}
+
+  /** Usage for every scripted response (task 099: injectable, copied per call). */
+  private usage(): ChatUsage {
+    return { ...(this.opts.usage ?? { inputTokens: 100, outputTokens: 20 }) };
+  }
 
   async chat(request: ChatRequest): Promise<ChatResponse> {
     const lastUser = [...request.messages].reverse().find((m) => m.role === 'user');
@@ -57,7 +69,7 @@ export class MockProvider implements ChatProvider {
         content: (this.opts.fallbackText ?? '(mock: no script entry matched)').replace(/\{last_tool_result\}/g, lastToolResult),
         toolCalls: [],
         finishReason: 'stop',
-        usage: { inputTokens: 100, outputTokens: 20 },
+        usage: this.usage(),
       };
     }
 
@@ -71,7 +83,7 @@ export class MockProvider implements ChatProvider {
       content: (entry.response.text ?? '').replace(/\{last_tool_result\}/g, lastToolResult),
       toolCalls,
       finishReason: toolCalls.length > 0 ? 'tool_calls' : 'stop',
-      usage: { inputTokens: 100, outputTokens: 20 },
+      usage: this.usage(),
     };
   }
 
@@ -129,7 +141,17 @@ export class MockProvider implements ChatProvider {
       if (text.length > 0) yield { type: 'text_delta', text };
     }
 
-    yield { type: 'usage', inputTokens: 100, outputTokens: 20 };
+    // task 099: usage chunk carries only the fields actually reported — the
+    // default shape stays exactly `{inputTokens, outputTokens}` (no 0/undefined
+    // padding), and an injected cacheCreationTokens rides along when present.
+    const usage = this.usage();
+    yield {
+      type: 'usage',
+      inputTokens: usage.inputTokens,
+      outputTokens: usage.outputTokens,
+      ...(usage.cacheReadTokens !== undefined ? { cacheReadTokens: usage.cacheReadTokens } : {}),
+      ...(usage.cacheCreationTokens !== undefined ? { cacheCreationTokens: usage.cacheCreationTokens } : {}),
+    };
     yield { type: 'message_end', finishReason: toolCalls.length > 0 ? 'tool_calls' : 'stop' };
   }
 }

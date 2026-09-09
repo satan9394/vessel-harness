@@ -263,6 +263,10 @@ export class AnthropicProvider implements ChatProvider {
         inputTokens: data.usage?.input_tokens ?? 0,
         outputTokens: data.usage?.output_tokens ?? 0,
         cacheReadTokens: data.usage?.cache_read_input_tokens,
+        // task 099: cache write tokens ride along as an optional field; absent
+        // on the wire stays undefined (never coerced to 0) so the pricing
+        // fallback chain can distinguish "no data" from "reported zero".
+        cacheCreationTokens: data.usage?.cache_creation_input_tokens,
       },
       raw: data,
     };

@@ -277,6 +277,9 @@ seq        : number        # 会话内事件序号（不变式校验用）
 >   `finishReason:'error'` 关闭流再走 llm/retry（attempt 级配对不变式）。
 > - 终止记账 chunk（usage / message_end）不单独发 delta，折叠进 end payload；
 >   增量 token 实时记账如需逐帧 usage 可在 v0.2 扩展 delta 载荷。
+> - 折叠字段即 `ChatUsage` 契约：`{inputTokens, outputTokens, cacheReadTokens?, cacheCreationTokens?}`
+>   （task 099 增 `cacheCreationTokens`——Anthropic 只在 message_start 上报，message_delta
+>   缺省该字段时**不覆盖**先前值；OpenAI 系无此概念，保持 undefined 而非 0）。
 
 #### A10 AfterModel（草案）
 - **触发时机**：流结束、assistant 最终载荷（文本或 tool_calls 列表）组装完成后、进入工具分发**之前**；对照 DSH `agent/assistant-stream` end + `assistant/message|attempt` 持久化（行 208）。

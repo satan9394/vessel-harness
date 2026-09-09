@@ -55,6 +55,15 @@ export interface ChatUsage {
   inputTokens: number;
   outputTokens: number;
   cacheReadTokens?: number;
+  /**
+   * Cache **write** tokens (Anthropic `cache_creation_input_tokens`; task 099).
+   *
+   * Contract: absent means "this provider/wire did not report cache writes" —
+   * never coerce to 0, so downstream (pricing fallback, usage store) can tell
+   * "no data" apart from "reported zero". Providers that lack the concept
+   * (OpenAI-compatible) leave it undefined.
+   */
+  cacheCreationTokens?: number;
 }
 
 export interface ChatResponse {
@@ -77,7 +86,14 @@ export type StreamChunk =
   | { type: 'tool_call_start'; id: string; name: string; arguments: string }
   | { type: 'tool_call_delta'; id: string; argumentsDelta: string }
   | { type: 'tool_call_end'; id: string }
-  | { type: 'usage'; inputTokens?: number; outputTokens?: number; cacheReadTokens?: number }
+  | {
+      type: 'usage';
+      inputTokens?: number;
+      outputTokens?: number;
+      cacheReadTokens?: number;
+      /** cache 写入 token（Anthropic message_start 携带；task 099，缺省即未上报） */
+      cacheCreationTokens?: number;
+    }
   | { type: 'message_end'; finishReason?: string };
 
 /**

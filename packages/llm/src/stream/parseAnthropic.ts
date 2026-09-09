@@ -31,7 +31,15 @@ export interface AnthropicEventData {
   content_block?: { type?: string; text?: string; id?: string; name?: string; input?: unknown };
   delta?: { type?: string; text?: string; partial_json?: string; stop_reason?: string };
   usage?: { input_tokens?: number; output_tokens?: number; cache_creation_input_tokens?: number; cache_read_input_tokens?: number };
-  message?: { model?: string; usage?: { input_tokens?: number; output_tokens?: number; cache_read_input_tokens?: number } };
+  message?: {
+    model?: string;
+    usage?: {
+      input_tokens?: number;
+      output_tokens?: number;
+      cache_creation_input_tokens?: number;
+      cache_read_input_tokens?: number;
+    };
+  };
   /** The `event:` name from the transport line (may be absent when parsing pure data payloads). */
   event?: string;
 }
@@ -115,13 +123,23 @@ export const toolIdPlaceholder = 'anthropic-tool';
 
 /** Rewrite for inputs whose id is known from the parser's per-index tracking. */
 export function anthropicUsageChunk(
-  usage: { input_tokens?: number; output_tokens?: number; cache_read_input_tokens?: number },
+  usage: {
+    input_tokens?: number;
+    output_tokens?: number;
+    cache_creation_input_tokens?: number;
+    cache_read_input_tokens?: number;
+  },
 ): Extract<StreamChunk, { type: 'usage' }> {
   return {
     type: 'usage',
     inputTokens: usage.input_tokens,
     outputTokens: usage.output_tokens,
     cacheReadTokens: usage.cache_read_input_tokens,
+    // task 099: Anthropic reports cache writes only on message_start (the
+    // message_delta frame carries output_tokens alone), so this stays
+    // undefined there — the consumer folds per-field last-wins and an
+    // undefined field never clobbers the earlier value.
+    cacheCreationTokens: usage.cache_creation_input_tokens,
   };
 }
 

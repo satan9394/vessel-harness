@@ -184,9 +184,19 @@ default / strict 五种来源各一例 + 真实 `configs/` 价目一例）。
 ## 10. 不做的（后续卡）
 
 - 091 定价变更回填（`vessel usage recompute`）、092 用户价目覆盖 + 值守卫。
-- `cache_creation` 的**端到端采集**（AnthropicProvider 解析 `cache_creation_input_tokens` →
-  core `ChatUsage` → after_model → `UsageStore.record`）尚未接通：本卡范围内不改 core，
-  `UsageStore.record` / `UsageProjection` / `compose` 的入口已就绪（`cacheCreationTokens?`），
-  上游一旦上报即自动分项计价。另：`input_token_semantics`（input 是否含 cache）未做，
-  故 cache 写入不从 inputTokens 扣减。
+- `input_token_semantics`（input 是否含 cache）未做，故 cache 写入不从 inputTokens 扣减。
 - 本卡不引入汇率/多币种、不引入成本倍率（094 候选）。
+
+### 10.1 cache_creation 端到端采集（099 已打通）
+
+链路：`AnthropicProvider`（`cache_creation_input_tokens`，非流式 + 流式 message_start）
+→ `ChatUsage.cacheCreationTokens?` / `StreamChunk` usage（`packages/shared/src/provider.ts`）
+→ `AgentLoop` 流式 usage 逐字段 last-wins 折叠 + `after_model`
+→ `UsageStore.record` / `UsageProjection` 分项计价（089/090 已就绪，未改）。
+
+- 非流式：`data.usage.cache_creation_input_tokens` → `usage.cacheCreationTokens`。
+- 流式：Anthropic 只在 `message_start` 上报写入 token；`message_delta` 只带 `output_tokens`，
+  故该帧 `cacheCreationTokens` 为 `undefined`，折叠时**不覆盖**前一帧的值（per-field last-wins）。
+- OpenAI-compatible 系无此概念 → 字段缺省 `undefined`（**不写 0 假值**），
+  下游按「未上报」处理：`cacheWriteUsd` 为 0、不产生推导写入价。
+- MockProvider 可注入 `usage`（`MockProviderOptions.usage`），用于离线断言整条链路。

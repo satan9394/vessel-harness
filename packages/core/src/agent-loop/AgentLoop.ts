@@ -485,6 +485,9 @@ export class AgentLoop {
             if (chunk.inputTokens !== undefined) usage.inputTokens = chunk.inputTokens;
             if (chunk.outputTokens !== undefined) usage.outputTokens = chunk.outputTokens;
             if (chunk.cacheReadTokens !== undefined) usage.cacheReadTokens = chunk.cacheReadTokens;
+            // task 099: pass the ChatUsage contract field through (no new
+            // mechanism) — Anthropic reports it on message_start only.
+            if (chunk.cacheCreationTokens !== undefined) usage.cacheCreationTokens = chunk.cacheCreationTokens;
             break;
           case 'message_end':
             if (chunk.finishReason) wireFinish = chunk.finishReason;

@@ -45,6 +45,13 @@ const TOOL_USE_RESPONSE = {
   usage: { input_tokens: 20, output_tokens: 8 },
 };
 
+/** Anthropic reports cache writes beside input/output (task 099). */
+const CACHE_WRITE_RESPONSE = {
+  content: [{ type: 'text', text: 'cached turn' }],
+  stop_reason: 'end_turn',
+  usage: { input_tokens: 12, output_tokens: 5, cache_creation_input_tokens: 2095, cache_read_input_tokens: 1024 },
+};
+
 describe('AnthropicProvider — wire format (local fake /v1/messages)', () => {
   it('POSTs to /v1/messages with x-api-key + anthropic-version, system as top-level', async () => {
     const fake = await fakeAnthropicServer(() => TEXT_RESPONSE);
@@ -153,6 +160,36 @@ describe('AnthropicProvider — wire format (local fake /v1/messages)', () => {
       const results = uBlocks.filter((b) => b.type === 'tool_result');
       expect(results).toHaveLength(2); // both tool results merged into one user message
       expect(results.map((r) => r.tool_use_id).sort()).toEqual(['ta', 'tb']);
+    } finally {
+      fake.close();
+    }
+  });
+});
+
+describe('AnthropicProvider — cache write usage (task 099)', () => {
+  it('maps cache_creation_input_tokens → ChatUsage.cacheCreationTokens (non-stream)', async () => {
+    const fake = await fakeAnthropicServer(() => CACHE_WRITE_RESPONSE);
+    try {
+      const p = new AnthropicProvider({ baseUrl: fake.url, apiKey: 'k', model: 'claude-sonnet-4' });
+      const r = await p.chat({ model: 'claude-sonnet-4', messages: [{ role: 'user', content: 'hi' }] });
+      expect(r.usage.inputTokens).toBe(12);
+      expect(r.usage.outputTokens).toBe(5);
+      expect(r.usage.cacheReadTokens).toBe(1024);
+      expect(r.usage.cacheCreationTokens).toBe(2095);
+    } finally {
+      fake.close();
+    }
+  });
+
+  it('leaves cacheCreationTokens undefined (not 0) when the wire omits cache_creation_input_tokens', async () => {
+    const fake = await fakeAnthropicServer(() => TEXT_RESPONSE);
+    try {
+      const p = new AnthropicProvider({ baseUrl: fake.url, apiKey: 'k', model: 'm' });
+      const r = await p.chat({ model: 'm', messages: [{ role: 'user', content: 'hi' }] });
+      expect(r.usage.cacheCreationTokens).toBeUndefined();
+      // 不写 0 假值：下游据 undefined 走「未上报」分支，而非「上报了 0」
+      expect(r.usage.cacheCreationTokens).not.toBe(0);
+      expect(r.usage.cacheReadTokens).toBeUndefined();
     } finally {
       fake.close();
     }

@@ -29,6 +29,33 @@ describe('parseAnthropicEvent — content_block_delta → text_delta', () => {
   });
 });
 
+describe('parseAnthropicEvent — cache write usage (task 099)', () => {
+  it('maps message_start message.usage.cache_creation_input_tokens → cacheCreationTokens', () => {
+    const chunks = parseAnthropicEvent(
+      JSON.stringify({
+        type: 'message_start',
+        message: { model: 'claude-sonnet-4', usage: { input_tokens: 12, cache_creation_input_tokens: 2095, cache_read_input_tokens: 1024 } },
+      }),
+    );
+    expect(chunks).toContainEqual({
+      type: 'usage',
+      inputTokens: 12,
+      outputTokens: undefined,
+      cacheReadTokens: 1024,
+      cacheCreationTokens: 2095,
+    });
+  });
+
+  it('message_delta without cache fields leaves cacheCreationTokens undefined (per-field merge, no clobber)', () => {
+    const chunks = parseAnthropicEvent(
+      JSON.stringify({ type: 'message_delta', delta: { stop_reason: 'end_turn' }, usage: { output_tokens: 9 } }),
+    );
+    const usage = chunks.find((c) => c.type === 'usage') as { cacheCreationTokens?: number } | undefined;
+    expect(usage).toBeDefined();
+    expect(usage!.cacheCreationTokens).toBeUndefined();
+  });
+});
+
 describe('parseAnthropicEvent — finish reason mapping', () => {
   it('maps anthropic stop reasons to ChatResponse-style values', () => {
     expect(anthropicFinishReason('end_turn')).toBe('stop');

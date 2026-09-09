@@ -302,6 +302,26 @@ describe('AgentLoop model call — stream first (task 049)', () => {
     await session.close();
   });
 
+  it('stream path: cacheCreationTokens folds per-field and survives a later frame that omits it (task 099)', async () => {
+    const provider = new PhasedStreamProvider([
+      () => [
+        startChunk(),
+        textChunk('cached'),
+        // Anthropic message_start frame: input + cache write + cache read
+        { type: 'usage', inputTokens: 12, cacheReadTokens: 1024, cacheCreationTokens: 2095 },
+        // message_delta frame: output only — must NOT clobber cacheCreationTokens
+        { type: 'usage', outputTokens: 5 },
+        endChunk('stop'),
+      ],
+    ]);
+    const { session, bus, loop } = await makeLoop(dir, provider);
+    const { ends, afterModel } = watch(bus);
+    await loop.runTurn('usage');
+    expect(ends[0]!.usage).toEqual({ inputTokens: 12, outputTokens: 5, cacheReadTokens: 1024, cacheCreationTokens: 2095 });
+    expect(afterModel[0]!.usage).toEqual({ inputTokens: 12, outputTokens: 5, cacheReadTokens: 1024, cacheCreationTokens: 2095 });
+    await session.close();
+  });
+
   it('fallback: provider without stream() uses chat() and emits no model_stream_* events', async () => {
     let chatCalls = 0;
     const chatOnly: ChatProvider = {

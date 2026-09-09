@@ -161,6 +161,93 @@ describe('AnthropicProvider.stream', () => {
       fake.close();
     }
   });
+
+  it('carries cache_creation_input_tokens from message_start and does not clobber it on message_delta (task 099)', async () => {
+    const sse = [
+      'event: message_start',
+      'data: {"type":"message_start","message":{"model":"claude-sonnet-4","usage":{"input_tokens":12,"cache_creation_input_tokens":2095,"cache_read_input_tokens":1024}}}',
+      'event: content_block_delta',
+      'data: {"type":"content_block_delta","index":0,"delta":{"type":"text_delta","text":"hi"}}',
+      'event: message_delta',
+      'data: {"type":"message_delta","delta":{"stop_reason":"end_turn"},"usage":{"output_tokens":5}}',
+      'event: message_stop',
+      'data: {"type":"message_stop"}',
+      '',
+    ].join('\n');
+    const fake = await fakeSSEServer(sse);
+    try {
+      const p = new AnthropicProvider({ baseUrl: fake.url, apiKey: 'sk-ant', model: 'claude-sonnet-4' });
+      const chunks = await collect(p.stream({ model: 'claude-sonnet-4', messages: [{ role: 'user', content: 'hi' }] }));
+      const usages = chunks.filter((c) => c.type === 'usage') as { inputTokens?: number; outputTokens?: number; cacheReadTokens?: number; cacheCreationTokens?: number }[];
+      expect(usages).toHaveLength(2);
+      // message_start frame: the only frame Anthropic reports cache writes on
+      expect(usages[0]!.cacheCreationTokens).toBe(2095);
+      expect(usages[0]!.cacheReadTokens).toBe(1024);
+      // message_delta frame: output_tokens only → cacheCreationTokens undefined,
+      // so AgentLoop's per-field last-wins fold keeps the earlier 2095
+      expect(usages[1]!.outputTokens).toBe(5);
+      expect(usages[1]!.cacheCreationTokens).toBeUndefined();
+    } finally {
+      fake.close();
+    }
+  });
+});
+
+describe('OpenAI-compatible wire — no cache write concept (task 099)', () => {
+  it('chat() leaves cacheCreationTokens undefined (no 0 fake value)', async () => {
+    const body = { choices: [{ message: { content: 'ok' }, finish_reason: 'stop' }], usage: { prompt_tokens: 10, completion_tokens: 5 } };
+    const server = http.createServer((_req, res) => {
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify(body));
+    });
+    await new Promise<void>((r) => server.listen(0, '127.0.0.1', r));
+    const addr = server.address() as AddressInfo;
+    try {
+      const p = new OpenAICompatibleProvider({ baseUrl: `http://127.0.0.1:${addr.port}`, model: 'm', apiKey: 'k' });
+      const r = await p.chat({ model: 'm', messages: [{ role: 'user', content: 'hi' }] });
+      expect(r.usage.inputTokens).toBe(10);
+      expect(r.usage.cacheCreationTokens).toBeUndefined();
+      expect(r.usage.cacheCreationTokens).not.toBe(0);
+    } finally {
+      server.close();
+    }
+  });
+
+  it('stream() usage chunk has cacheCreationTokens undefined', async () => {
+    const sse = ['data: {"choices":[],"usage":{"prompt_tokens":7,"completion_tokens":3}}', 'data: [DONE]', ''].join('\n');
+    const fake = await fakeSSEServer(sse);
+    try {
+      const p = new OpenAICompatibleProvider({ baseUrl: fake.url, model: 'm', apiKey: 'k' });
+      const chunks = await collect(p.stream({ model: 'm', messages: [{ role: 'user', content: 'hi' }] }));
+      const usage = chunks.find((c) => c.type === 'usage') as { cacheCreationTokens?: number } | undefined;
+      expect(usage).toBeDefined();
+      expect(usage!.cacheCreationTokens).toBeUndefined();
+    } finally {
+      fake.close();
+    }
+  });
+});
+
+describe('MockProvider — injectable usage (task 099)', () => {
+  it('chat() reports the injected cacheCreationTokens, stream() carries it in the usage chunk', async () => {
+    const p = new MockProvider([{ when: /.*/, response: { text: 'ok' } }], {
+      model: 'm',
+      usage: { inputTokens: 100, outputTokens: 20, cacheCreationTokens: 2095 },
+    });
+    const r = await p.chat({ model: 'm', messages: [{ role: 'user', content: 'hi' }] });
+    expect(r.usage).toEqual({ inputTokens: 100, outputTokens: 20, cacheCreationTokens: 2095 });
+    const chunks = await collect(p.stream({ model: 'm', messages: [{ role: 'user', content: 'hi' }] }));
+    expect(chunks).toContainEqual({ type: 'usage', inputTokens: 100, outputTokens: 20, cacheCreationTokens: 2095 });
+  });
+
+  it('default usage stays exactly {inputTokens, outputTokens} (no padded undefined/0 keys)', async () => {
+    const p = new MockProvider([{ when: /.*/, response: { text: 'ok' } }], { model: 'm' });
+    const r = await p.chat({ model: 'm', messages: [{ role: 'user', content: 'hi' }] });
+    expect(Object.keys(r.usage).sort()).toEqual(['inputTokens', 'outputTokens']);
+    const chunks = await collect(p.stream({ model: 'm', messages: [{ role: 'user', content: 'hi' }] }));
+    const usage = chunks.find((c) => c.type === 'usage')!;
+    expect(Object.keys(usage).sort()).toEqual(['inputTokens', 'outputTokens', 'type']);
+  });
 });
 
 describe('MockProvider.stream', () => {
