@@ -150,7 +150,13 @@ $ cd apps/web && npx vitest run
   与 `streamProvider.test.ts:170` 用 `toEqual` 断言整体形状，补 undefined 键虽被 `toEqual` 容忍，但会让
   「有没有上报」的语义变模糊，故流式 chunk 用条件展开只放有值字段。
 - 环境：全量 vitest 走后台 job 一次跑完（无 EPERM/spawn 问题）；未使用任何永久删除命令。
-- 提交：见本卡末尾「提交」行。
+
+### 6. 提交
+
+- 实现提交：`69502c5` `feat(usage): 099 cache_creation end-to-end capture (Anthropic cache write -> ChatUsage -> 分项计价)`
+  （13 files changed, 524 insertions(+), 22 deletions(-)）。
+- 本卡文件单独提交，工作树未混入指挥侧改动（`docs/V1.0-CHECKPOINT.md`、`docs/CC-SWITCH-IMPROVEMENTS-PROGRESS.md`
+  等当时无改动，亦未暂存其他任务卡）。无 force push。
 
 ## 验收结论（指挥回填）
 
