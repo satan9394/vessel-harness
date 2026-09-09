@@ -11,11 +11,12 @@ import { fetchOpenAIModels, modelsForProtocol } from '@vessel/application';
 import { createClackIO, runSetupWizard } from './providers/setup.js';
 import { runChat } from './tui/chat.js';
 import { VESSEL_LOGO, VESSEL_TAGLINE } from './brand.js';
-import { UsageStore, isLocalDateKey, localDateKey } from './usage/UsageStore.js';
+import { UsageStore, isLocalDateKey, localDateKey, resolveUsageRoot } from './usage/UsageStore.js';
+import { PricingOverrideStore, type PricingRepair } from './usage/pricingOverride.js';
 import { runVesselMigration } from './migrate.js';
 import { cmdReview } from './review/reviewCommands.js';
 import { loadModelCatalog, findCatalogModelByBase, findCatalogModelMatch, catalogPriceSource, listCatalogModels } from './providers/modelCatalog.js';
-import { loadPricing } from './providers/pricing.js';
+import { loadPricing, type TokenPrice } from './providers/pricing.js';
 
 const USAGE = `${VESSEL_LOGO}
 Vessel CLI v${VERSION} — 可组合 Agent Harness（品牌 Vessel）
@@ -30,7 +31,16 @@ Vessel CLI v${VERSION} — 可组合 Agent Harness（品牌 Vessel）
   vessel usage [--recent <n>] [--strict] [--since <date>] [--until <date>] [--by-day]
                                       使用统计（tokens/调用/成本分项 + 价格来源分布；
                                       --since/--until 本地日窗口、--by-day 按日列出；--strict 按不用兜底价重算）
+  vessel usage recompute [--dry-run] [--since <date>] [--until <date>]
+                                      按当前价目重算历史成本（保留 token，只重算 cost/来源；幂等）
   vessel pricing [model]               模型价目（configs/model-catalog.json，USD/1M tokens）
+  vessel pricing override [list]       用户价目覆盖（~/.vessel/pricing.override.json；优先级最高）
+  vessel pricing override set <key> --input <n> --output <n> [--cache-read <n>] [--cache-write <n>]
+                                      覆盖单价（key = model 或 provider::model）
+  vessel pricing override delete <key> 删除墓碑：显式删除内置条目（按 0 计价、不回退）
+  vessel pricing override restore <key> 撤销墓碑
+  vessel pricing override repair --file <repairs.json>
+                                      值守卫式修复：仅当覆盖现值 = from 才改成 to
   vessel provider list               列出所有供应商（* = 当前默认）
   vessel provider current            显示当前默认供应商
   vessel provider add <id> --protocol <p> --model <m> [--base-url] [--api-key]   添加供应商
@@ -113,14 +123,18 @@ function repoRoot(): string {
 }
 
 /**
- * UsageStore 工厂（task 086/087）：价目表 + 目录价源 + strict 开关。
+ * UsageStore 工厂（task 086/087/092）：价目表 + 目录价源 + 用户覆盖 + strict 开关。
  * 查价实现与 UsageProjection 共用 @vessel/shared/pricing。
+ * 用户覆盖文件 `~/.vessel/pricing.override.json` 与内置 configs/pricing.json 分离，
+ * 覆盖优先级最高（见 docs/PRICING.md §11）。
  */
 function createUsageStore(opts: { strict?: boolean } = {}): UsageStore {
   const root = repoRoot();
+  const override = new PricingOverrideStore({ rootDir: resolveUsageRoot() }).source();
   return new UsageStore({
     pricing: loadPricing(root),
     catalog: catalogPriceSource(loadModelCatalog(root)),
+    override,
     strict: opts.strict,
   });
 }
@@ -419,6 +433,55 @@ async function cmdSetup(_flags: Map<string, string>): Promise<number> {
 }
 
 /**
+ * `vessel usage recompute [--dry-run] [--since <date>] [--until <date>]`（task 091）。
+ *
+ * 按**当前**价目重算历史成本：保留 token 原始值，只重算 cost / estimated /
+ * pricingSource / 分项。幂等（同一价目连跑两次第二次零变更、不落盘）；
+ * `--dry-run` 只出差异摘要。
+ */
+async function cmdUsageRecompute(flags: Map<string, string>): Promise<number> {
+  const store = createUsageStore();
+  const since = flags.get('since');
+  const until = flags.get('until');
+  for (const [name, value] of [['since', since], ['until', until]] as const) {
+    if (value !== undefined && !isLocalDateKey(value)) {
+      console.error(`[vessel usage recompute] --${name} 需要本地日 YYYY-MM-DD（收到 "${value}"）。`);
+      return 2;
+    }
+  }
+  const dryRun = flags.has('dry-run') || flags.has('dryRun');
+  const result = store.recompute({ dryRun, since, until });
+  const usd = (n: number): string => `$${n.toFixed(4)}`;
+  const delta = (n: number): string => `${n >= 0 ? '+' : '-'}$${Math.abs(n).toFixed(4)}`;
+  const line = (label: string, s: { scanned: number; changed: number; beforeUsd: number; afterUsd: number; deltaUsd: number }): string =>
+    `${label}: 扫描 ${s.scanned} · 受影响 ${s.changed} · ${usd(s.beforeUsd)} → ${usd(s.afterUsd)}（${delta(s.deltaUsd)}）`;
+
+  console.log('=== vessel usage recompute（按当前价目重算历史成本）===');
+  console.log(`窗口: ${since !== undefined || until !== undefined ? `${since ?? '(最早)'} ~ ${until ?? '(最新)'}（本地日，含首含尾）` : '全部历史'}`);
+  console.log(line('累计条目', result.entries));
+  console.log(line('日分桶', result.daily) + (result.dailySkipped > 0 ? `（跳过 ${result.dailySkipped} 天：无按模型子分项，089 之前的旧分桶不猜）` : ''));
+  console.log(line('最近明细', result.recent));
+  if (result.legacyRecomputed > 0) {
+    console.log(`legacy 条目重算并标注: ${result.legacyRecomputed} 条（来源未知 → 按当前规则定来源，留 recomputedFromLegacy 痕迹）`);
+  }
+  const entryChanges = result.changes.filter((c) => c.scope === 'entry').sort((a, b) => Math.abs(b.deltaUsd) - Math.abs(a.deltaUsd));
+  if (entryChanges.length > 0) {
+    console.log('\n条目差异（按金额变化降序，最多 10 条）:');
+    for (const c of entryChanges.slice(0, 10)) {
+      console.log(`  ${c.key}: ${usd(c.beforeUsd)} → ${usd(c.afterUsd)}（${delta(c.deltaUsd)}）${c.beforeSource ?? '?'} → ${c.afterSource ?? '?'}${c.legacyRecomputed ? ' [legacy]' : ''}`);
+    }
+  }
+  if (result.changed === 0) {
+    console.log('\n无差异：当前价目下历史成本已是最新（幂等）。');
+  } else if (dryRun) {
+    console.log(`\n--dry-run：未落盘（共 ${result.changed} 处差异）。去掉 --dry-run 才会写入 ~/.vessel/usage.json。`);
+  } else {
+    console.log(`\n已落盘: ${result.changed} 处差异写入 ~/.vessel/usage.json（token 原始值未改动）。`);
+  }
+  return 0;
+}
+
+/**
  * `vessel usage [--recent <n>] [--strict] [--since <date>] [--until <date>] [--by-day]`
  * — persistent usage statistics (V0.9).
  *
@@ -427,8 +490,10 @@ async function cmdSetup(_flags: Map<string, string>): Promise<number> {
  * task 089：按**本地日**分桶查询（`--since` / `--until` 含首含尾、`--by-day` 按日列出）；
  * 完整本地日与今日（未完整）分别合计，半天数据不混进完整日合计。
  * task 090：成本分项（input/output/cacheRead/cacheWrite）展示 + 推导价提示。
+ * task 091：`vessel usage recompute` 子命令按当前价目重算历史成本（幂等 + dry-run）。
  */
-async function cmdUsage(flags: Map<string, string>): Promise<number> {
+async function cmdUsage(args: string[], flags: Map<string, string>): Promise<number> {
+  if (args[0] === 'recompute') return cmdUsageRecompute(flags);
   const store = createUsageStore();
 
   const since = flags.get('since');
@@ -538,24 +603,165 @@ async function cmdUsage(flags: Map<string, string>): Promise<number> {
   return 0;
 }
 
-/** `vessel pricing [model]` — model price lookup (V0.9 + 085 归一提示). */
-async function cmdPricing(modelArg: string | undefined, flags: Map<string, string>): Promise<number> {
+/**
+ * `vessel pricing override [list|set|delete|restore|repair]`（task 092）。
+ *
+ * 用户覆盖文件 `~/.vessel/pricing.override.json` 只存「覆盖 + 删除墓碑」，
+ * 与内置 `configs/pricing.json` 分离：内置更新不冲用户覆盖，用户也不必 fork 内置文件。
+ * `repair` 是值守卫式修复（仅当现值 = 旧值才改），用于随版本修正官方调价。
+ */
+async function cmdPricingOverride(args: string[], flags: Map<string, string>): Promise<number> {
+  const store = new PricingOverrideStore({ rootDir: resolveUsageRoot() });
+  const sub = args[0] ?? 'list';
+  const numberFlag = (name: string): number | undefined => {
+    const raw = flags.get(name);
+    if (raw === undefined) return undefined;
+    const n = Number(raw);
+    if (!Number.isFinite(n) || n < 0) throw new RangeError(`--${name} 需要非负数字（收到 "${raw}"）`);
+    return n;
+  };
+
+  if (sub === 'list') {
+    const entries = store.entries();
+    const tombstones = store.tombstones();
+    console.log(`=== 用户价目覆盖（${store.file}）===`);
+    if (entries.length === 0) {
+      console.log('（无覆盖条目）');
+    } else {
+      for (const e of entries) {
+        console.log(`  ${e.key}: in $${e.price.input} / out $${e.price.output} / cache 读 $${e.price.cacheRead ?? 0} / cache 写 ${e.price.cacheWrite ?? '推导(input×1.25)'}（每 1M tokens）`);
+      }
+    }
+    if (tombstones.length > 0) console.log(`删除墓碑: ${tombstones.join(' · ')}（命中即按 0 计价、不回退内置/目录）`);
+    console.log('加载优先级: override > 内置 pricing.json > model-catalog > protocols > default');
+    return 0;
+  }
+
+  if (sub === 'set') {
+    const key = args[1];
+    if (!key) {
+      console.error('用法: vessel pricing override set <model|provider::model> --input <n> --output <n> [--cache-read <n>] [--cache-write <n>]');
+      return 2;
+    }
+    try {
+      const input = numberFlag('input');
+      const output = numberFlag('output');
+      if (input === undefined || output === undefined) {
+        console.error('[vessel pricing override set] 必须给 --input 与 --output（每 1M tokens USD）。');
+        return 2;
+      }
+      const price: TokenPrice = { input, output };
+      const cacheRead = numberFlag('cache-read');
+      const cacheWrite = numberFlag('cache-write');
+      if (cacheRead !== undefined) price.cacheRead = cacheRead;
+      if (cacheWrite !== undefined) price.cacheWrite = cacheWrite;
+      store.set(key, price);
+      console.log(`✔ 已写入覆盖: ${key} → in $${price.input} / out $${price.output}${price.cacheRead !== undefined ? ` / cache 读 $${price.cacheRead}` : ''}${price.cacheWrite !== undefined ? ` / cache 写 $${price.cacheWrite}` : ''}`);
+      console.log('  生效于后续记录与 vessel usage recompute（覆盖优先级最高）。');
+      return 0;
+    } catch (error) {
+      console.error(`[vessel pricing override set] ${(error as Error).message}`);
+      return 2;
+    }
+  }
+
+  if (sub === 'delete') {
+    const key = args[1];
+    if (!key) {
+      console.error('用法: vessel pricing override delete <model|provider::model>   # 删除墓碑（按 0 计价、不回退）');
+      return 2;
+    }
+    try {
+      store.tombstone(key);
+      console.log(`✔ 已删除内置条目 "${key}"（墓碑写入覆盖文件；该模型按 0 计价且不回退目录/协议/兜底）。`);
+      console.log('  撤销: vessel pricing override restore ' + key);
+      return 0;
+    } catch (error) {
+      console.error(`[vessel pricing override delete] ${(error as Error).message}`);
+      return 2;
+    }
+  }
+
+  if (sub === 'restore') {
+    const key = args[1];
+    if (!key) {
+      console.error('用法: vessel pricing override restore <model|provider::model>');
+      return 2;
+    }
+    const restored = store.restore(key);
+    console.log(restored ? `✔ 已撤销墓碑 "${key}"（回到内置/目录价）。` : `未找到墓碑 "${key}"，无改动。`);
+    return restored ? 0 : 1;
+  }
+
+  if (sub === 'repair') {
+    const file = flags.get('file');
+    if (!file) {
+      console.error('用法: vessel pricing override repair --file <repairs.json>');
+      console.error('  repairs.json: [{"key":"claude-sonnet-4-5","from":{"input":3,"output":15,"cacheRead":0.3,"cacheWrite":3.75},"to":{"input":3.5,"output":17.5,"cacheRead":0.35,"cacheWrite":4.375}}]');
+      console.error('  语义：仅当覆盖现值 = from 时才改成 to（用户手改过的行不动）。');
+      return 2;
+    }
+    try {
+      const raw = JSON.parse(fs.readFileSync(path.resolve(file), 'utf8')) as unknown;
+      const list = Array.isArray(raw) ? raw : (raw as { repairs?: unknown }).repairs;
+      if (!Array.isArray(list)) throw new RangeError('repairs.json 需要是数组或 { repairs: [...] }');
+      const repairs: PricingRepair[] = list.map((item) => {
+        const row = item as { key?: unknown; from?: unknown; to?: unknown };
+        if (typeof row.key !== 'string' || row.key.trim() === '') throw new RangeError('repair 项缺少 key');
+        return { key: row.key, from: row.from as TokenPrice, to: row.to as TokenPrice };
+      });
+      const outcomes = store.repair(repairs);
+      const applied = outcomes.filter((o) => o.status === 'applied').length;
+      console.log(`=== 值守卫式修复（${store.file}）===`);
+      for (const o of outcomes) {
+        const note = o.status === 'applied' ? '已改' : o.status === 'skipped-absent' ? '跳过（无该覆盖键）' : '跳过（现值已被用户改过）';
+        console.log(`  ${o.key}: ${note}`);
+      }
+      console.log(`共 ${applied}/${outcomes.length} 条生效（无变更时不写文件）。`);
+      return 0;
+    } catch (error) {
+      console.error(`[vessel pricing override repair] ${(error as Error).message}`);
+      return 2;
+    }
+  }
+
+  console.error(`未知子命令 "${sub}"。用法: vessel pricing override [list|set|delete|restore|repair]`);
+  return 2;
+}
+
+/** `vessel pricing [model]` — model price lookup (V0.9 + 085 归一提示 + 092 覆盖). */
+async function cmdPricing(args: string[], flags: Map<string, string>): Promise<number> {
   const root = repoRoot();
   const catalog = loadModelCatalog(root);
-  const target = flags.get('model') ?? modelArg;
+  if (args[0] === 'override') return cmdPricingOverride(args.slice(1), flags);
+  const target = flags.get('model') ?? args[0];
   if (target) {
+    // 092：先看用户覆盖 / 删除墓碑（它们优先于目录价）
+    const override = new PricingOverrideStore({ rootDir: resolveUsageRoot() }).source();
+    const overrideHit = override.findMatch?.(target);
+    const tombstone = override.findDeleted?.(target);
     const match = findCatalogModelMatch(catalog, target);
-    if (!match) {
+    if (!match && !overrideHit && tombstone === undefined) {
       console.log(`未找到模型 "${target}" 的目录条目（可用 vessel pricing 列出）。`);
       return 1;
     }
-    const entry = match.entry;
-    console.log(`模型: ${entry.model}（${entry.provider}）`);
-    if (match.key !== target) {
-      console.log(`  归一匹配: "${target}" → "${match.key}"（${match.exact ? '精确' : '家族前缀'}）`);
+    if (match) {
+      const entry = match.entry;
+      console.log(`模型: ${entry.model}（${entry.provider}）`);
+      if (match.key !== target) {
+        console.log(`  归一匹配: "${target}" → "${match.key}"（${match.exact ? '精确' : '家族前缀'}）`);
+      }
+      console.log(`  上下文: ${entry.contextWindow?.toLocaleString() ?? '?'} tokens · 输出上限: ${entry.outputLimit?.toLocaleString() ?? '?'}`);
+      console.log(`  价格: in $${entry.priceIn} / out $${entry.priceOut} / cache 读 $${entry.priceCache ?? 0} / cache 写 $${entry.priceCacheWrite ?? '推导(input×1.25)'}（每 1M tokens）`);
+    } else {
+      console.log(`模型: ${target}（未收录在 model-catalog.json）`);
     }
-    console.log(`  上下文: ${entry.contextWindow?.toLocaleString() ?? '?'} tokens · 输出上限: ${entry.outputLimit?.toLocaleString() ?? '?'}`);
-    console.log(`  价格: in $${entry.priceIn} / out $${entry.priceOut} / cache 读 $${entry.priceCache ?? 0} / cache 写 $${entry.priceCacheWrite ?? '推导(input×1.25)'}（每 1M tokens）`);
+    if (overrideHit) {
+      console.log(`  用户覆盖: in $${overrideHit.price.input} / out $${overrideHit.price.output} / cache 读 $${overrideHit.price.cacheRead ?? 0} / cache 写 ${overrideHit.price.cacheWrite ?? '推导(input×1.25)'}（键 "${overrideHit.key}"，优先级最高）`);
+    }
+    if (tombstone !== undefined) {
+      console.log(`  删除墓碑: 命中 "${tombstone}" → 按 0 计价，不回退内置/目录/协议/兜底。`);
+    }
     return 0;
   }
   console.log('=== 模型价目（configs/model-catalog.json，USD/1M tokens）===');
@@ -766,8 +972,8 @@ export async function main(argv: string[] = process.argv.slice(2)): Promise<numb
   if (first === 'provider') return cmdProvider(parsed.positionals.slice(1), parsed.flags);
   if (first === 'models') return cmdModels(parsed.flags);
   if (first === 'setup') return cmdSetup(parsed.flags);
-  if (first === 'usage') return cmdUsage(parsed.flags);
-  if (first === 'pricing') return cmdPricing(parsed.positionals[1], parsed.flags);
+  if (first === 'usage') return cmdUsage(parsed.positionals.slice(1), parsed.flags);
+  if (first === 'pricing') return cmdPricing(parsed.positionals.slice(1), parsed.flags);
   if (first === 'migrate') return cmdMigrate();
   if (first === 'review') return cmdReview(parsed.positionals.slice(1), parsed.flags);
   if (first === 'bench-report') return cmdBenchReport(parsed.flags);

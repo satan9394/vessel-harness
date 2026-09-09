@@ -6,9 +6,11 @@ import {
   costBreakdown,
   costOf,
   createCatalogPriceSource,
+  createOverridePriceSource,
   isFamilyPrefix,
   matchModelName,
   modelNameCandidates,
+  overrideModelCandidates,
   resolveCacheWritePrice,
   resolvePrice,
   type PricingTable,
@@ -304,5 +306,98 @@ describe('cache 写入计价 (task 090)', () => {
   it('ZERO_TOKEN_PRICE 的 cacheWrite 显式为 0（strict 未收录不推导）', () => {
     expect(ZERO_TOKEN_PRICE.cacheWrite).toBe(0);
     expect(resolveCacheWritePrice(ZERO_TOKEN_PRICE)).toEqual({ unitPrice: 0, source: 'explicit' });
+  });
+});
+
+describe('用户覆盖价源与优先级链 (task 092)', () => {
+  it('override > 内置 model 表 > catalog > protocol > default', () => {
+    const override = createOverridePriceSource({ models: { 'deepseek-chat': { input: 9, output: 9 } } });
+    // 覆盖赢内置
+    const r1 = resolvePrice(TABLE, 'deepseek-chat', 'openai-compatible', CATALOG_SOURCE, { override });
+    expect(r1).toMatchObject({ source: 'override', estimated: false, matchedKey: 'deepseek-chat' });
+    expect(r1.price.input).toBe(9);
+    // 未覆盖的模型照旧：model > catalog > protocol > default
+    expect(resolvePrice(TABLE, 'claude-opus-4-5', 'anthropic', CATALOG_SOURCE, { override }).source).toBe('model');
+    expect(resolvePrice(TABLE, 'gemini-2.5-pro', 'anthropic', CATALOG_SOURCE, { override }).source).toBe('catalog');
+    expect(resolvePrice(TABLE, 'zzz', 'anthropic', CATALOG_SOURCE, { override }).source).toBe('protocol');
+    expect(resolvePrice(TABLE, 'zzz', undefined, undefined, { override }).source).toBe('default');
+  });
+
+  it('覆盖键走同一套归一（大小写/命名空间/日期/effort 后缀）', () => {
+    const override = createOverridePriceSource({ models: { 'claude-3-5-sonnet': { input: 1, output: 2 } } });
+    for (const name of [
+      'claude-3-5-sonnet',
+      'CLAUDE-3.5-SONNET',
+      'anthropic/claude-3-5-sonnet',
+      'claude-3-5-sonnet-20241022',
+      'claude-3-5-sonnet-thinking',
+    ]) {
+      const r = resolvePrice(TABLE, name, 'anthropic', undefined, { override });
+      expect(r.source, name).toBe('override');
+      expect(r.price.input, name).toBe(1);
+    }
+  });
+
+  it('provider::model 作用域键只对该 provider 生效，且同键时胜过通用键', () => {
+    const override = createOverridePriceSource({
+      models: {
+        'deepseek-chat': { input: 1, output: 1 },
+        'deepseek::deepseek-chat': { input: 2, output: 2 },
+      },
+    });
+    expect(resolvePrice(TABLE, 'deepseek-chat', 'deepseek', undefined, { override }).price.input).toBe(2);
+    expect(resolvePrice(TABLE, 'deepseek-chat', 'siliconflow', undefined, { override }).price.input).toBe(1);
+    expect(resolvePrice(TABLE, 'deepseek-chat', 'deepseek', undefined, { override }).matchedKey).toBe('deepseek::deepseek-chat');
+  });
+
+  it('删除墓碑：命中即按 0 计价 + deletedByOverride，且不回退 catalog/protocol/default', () => {
+    const override = createOverridePriceSource({ deleted: ['gemini-2.5-pro', 'deepseek-chat'] });
+    const tomb = resolvePrice(TABLE, 'gemini-2.5-pro', 'openai-compatible', CATALOG_SOURCE, { override });
+    expect(tomb).toMatchObject({ source: 'unpriced', estimated: false, matchedKey: 'gemini-2.5-pro', deletedByOverride: true });
+    expect(tomb.price).toEqual(ZERO_TOKEN_PRICE);
+    // 内置 model 表条目被删 → 不再回退 protocol/default
+    const builtin = resolvePrice(TABLE, 'deepseek-chat', 'openai-compatible', CATALOG_SOURCE, { override });
+    expect(builtin.deletedByOverride).toBe(true);
+    expect(builtin.price).toEqual(ZERO_TOKEN_PRICE);
+    // 未删除的模型不受影响
+    expect(resolvePrice(TABLE, 'claude-opus-4-5', 'anthropic', undefined, { override }).source).toBe('model');
+  });
+
+  it('墓碑只精确匹配（归一后），不会因前缀连坐误杀', () => {
+    const override = createOverridePriceSource({ deleted: ['gpt-4o'] });
+    expect(resolvePrice(TABLE, 'gpt-4o-mini', 'openai-compatible', undefined, { override }).source).toBe('model');
+    expect(resolvePrice(TABLE, 'gpt-4o-2024-08-06', 'openai-compatible', undefined, { override }).deletedByOverride).toBe(true);
+  });
+
+  it('墓碑在 strict 下同样生效（先于 strict 判定）', () => {
+    const override = createOverridePriceSource({ deleted: ['deepseek-chat'] });
+    const r = resolvePrice(TABLE, 'deepseek-chat', 'deepseek', undefined, { strict: true, override });
+    expect(r).toMatchObject({ source: 'unpriced', deletedByOverride: true });
+  });
+
+  it('覆盖在 strict 下仍生效（覆盖是用户对该模型的专属价）', () => {
+    const override = createOverridePriceSource({ models: { 'claude-3-5-sonnet': { input: 7, output: 8 } } });
+    const r = resolvePrice(TABLE, 'claude-3-5-sonnet', 'anthropic', undefined, { strict: true, override });
+    expect(r).toMatchObject({ source: 'override', estimated: false });
+    expect(r.price.input).toBe(7);
+  });
+
+  it('非法覆盖行被忽略（缺字段/非数字/负价），不污染整张覆盖表', () => {
+    const override = createOverridePriceSource({
+      models: {
+        broken: { input: Number.NaN, output: 1 } as TokenPrice,
+        negative: { input: -1, output: 1 } as TokenPrice,
+        'claude-opus-4-5': { input: 0.1, output: 0.2 },
+      },
+    });
+    expect(override.findMatch?.('broken')).toBeUndefined();
+    expect(override.findMatch?.('negative')).toBeUndefined();
+    expect(resolvePrice(TABLE, 'claude-opus-4-5', 'anthropic', undefined, { override }).source).toBe('override');
+  });
+
+  it('overrideModelCandidates 把 provider 作用域候选排在通用候选之前', () => {
+    const candidates = overrideModelCandidates('anthropic/claude-3.5-sonnet-20241022', 'anthropic');
+    expect(candidates.indexOf('anthropic::claude-3-5-sonnet')).toBeGreaterThan(-1);
+    expect(candidates.indexOf('anthropic::claude-3-5-sonnet')).toBeLessThan(candidates.indexOf('claude-3-5-sonnet'));
   });
 });

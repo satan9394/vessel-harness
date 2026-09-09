@@ -590,3 +590,179 @@ describe('vessel serve / vessel web (task 044)', () => {
     expect(out).toContain('vessel web');
   });
 });
+
+describe('vessel usage recompute / pricing override (task 091/092)', () => {
+  let cfgDir: string;
+  let oldRoot: string | undefined;
+  beforeEach(() => {
+    cfgDir = fs.mkdtempSync(path.join(os.tmpdir(), 'vessel-091-cmd-'));
+    oldRoot = process.env.VESSEL_USAGE_ROOT;
+    process.env.VESSEL_USAGE_ROOT = cfgDir;
+  });
+  afterEach(() => {
+    if (oldRoot === undefined) delete process.env.VESSEL_USAGE_ROOT;
+    else process.env.VESSEL_USAGE_ROOT = oldRoot;
+    fs.rmSync(cfgDir, { recursive: true, force: true });
+  });
+
+  const usageFile = (): string => path.join(cfgDir, 'usage.json');
+  const overrideFile = (): string => path.join(cfgDir, 'pricing.override.json');
+  const readJson = (file: string): Record<string, never> => JSON.parse(fs.readFileSync(file, 'utf8')) as Record<string, never>;
+
+  /** 一条被旧价钉死的历史条目（costUsd 9.99 ≠ 当前 deepseek-chat 价 0.27+1.1）。 */
+  function writeStaleUsage(): void {
+    fs.writeFileSync(
+      usageFile(),
+      JSON.stringify({
+        version: 2,
+        entries: {
+          'deepseek::deepseek-chat': {
+            model: 'deepseek-chat', provider: 'deepseek',
+            inputTokens: 1_000_000, outputTokens: 1_000_000, cacheReadTokens: 0, cacheCreationTokens: 0,
+            calls: 1, costUsd: 9.99,
+            costBreakdown: { inputUsd: 9.99, outputUsd: 0, cacheReadUsd: 0, cacheWriteUsd: 0 },
+            cacheWriteDerivedCostUsd: 0, cacheWriteDerived: false,
+            estimated: false, estimatedCostUsd: 0, pricingSource: 'model',
+            lastTs: new Date().toISOString(), events: 1,
+          },
+        },
+        recent: [], daily: {},
+      }, null, 2),
+      'utf8',
+    );
+  }
+
+  it('vessel usage recompute 按当前价目重算并落盘，第二次幂等（无差异）', async () => {
+    writeStaleUsage();
+    const first = capture();
+    const code1 = await main(['usage', 'recompute']);
+    first.restore();
+    expect(code1).toBe(0);
+    const out1 = first.logs.join('\n');
+    expect(out1).toContain('按当前价目重算历史成本');
+    expect(out1).toContain('已落盘');
+    const after = readJson(usageFile()) as unknown as { entries: Record<string, { costUsd: number; pricingSource: string; inputTokens: number }> };
+    expect(after.entries['deepseek::deepseek-chat']!.costUsd).toBeCloseTo(1.37, 9); // 当前内置价 0.27 + 1.1
+    expect(after.entries['deepseek::deepseek-chat']!.inputTokens).toBe(1_000_000); // token 原样
+    expect(after.entries['deepseek::deepseek-chat']!.pricingSource).toBe('model');
+
+    const second = capture();
+    const code2 = await main(['usage', 'recompute']);
+    second.restore();
+    expect(code2).toBe(0);
+    expect(second.logs.join('\n')).toContain('无差异');
+  });
+
+  it('vessel usage recompute --dry-run 出差异摘要且不落盘', async () => {
+    writeStaleUsage();
+    const before = fs.readFileSync(usageFile(), 'utf8');
+    const { logs, restore } = capture();
+    const code = await main(['usage', 'recompute', '--dry-run']);
+    restore();
+    expect(code).toBe(0);
+    const out = logs.join('\n');
+    expect(out).toContain('--dry-run：未落盘');
+    expect(out).toContain('9.9900'); // 差异摘要里能看到旧金额
+    expect(fs.readFileSync(usageFile(), 'utf8')).toBe(before); // 未落盘
+  });
+
+  it('vessel usage recompute --since 非法日期 exit 2（与 vessel usage 同一校验）', async () => {
+    const { logs, restore } = captureBoth();
+    const code = await main(['usage', 'recompute', '--since', '2026-13-40']);
+    restore();
+    expect(code).toBe(2);
+    expect(logs.join('\n')).toContain('--since 需要本地日 YYYY-MM-DD');
+  });
+
+  it('vessel pricing override set/list/delete/restore 落盘并驱动查价', async () => {
+    const set = capture();
+    const codeSet = await main(['pricing', 'override', 'set', 'deepseek-chat', '--input', '0.1', '--output', '0.2', '--cache-read', '0.01']);
+    set.restore();
+    expect(codeSet).toBe(0);
+    expect(set.logs.join('\n')).toContain('已写入覆盖');
+    const file = readJson(overrideFile()) as unknown as { models: Record<string, unknown>; deleted: string[] };
+    expect(file.models['deepseek-chat']).toEqual({ input: 0.1, output: 0.2, cacheRead: 0.01 });
+
+    const list = capture();
+    const codeList = await main(['pricing', 'override', 'list']);
+    list.restore();
+    expect(codeList).toBe(0);
+    const outList = list.logs.join('\n');
+    expect(outList).toContain('deepseek-chat');
+    expect(outList).toContain('加载优先级: override > 内置 pricing.json > model-catalog > protocols > default');
+
+    // 目录查询同时显示覆盖（优先级最高）
+    const query = capture();
+    const codeQuery = await main(['pricing', 'deepseek-chat']);
+    query.restore();
+    expect(codeQuery).toBe(0);
+    expect(query.logs.join('\n')).toContain('用户覆盖');
+
+    const del = capture();
+    const codeDel = await main(['pricing', 'override', 'delete', 'deepseek-chat']);
+    del.restore();
+    expect(codeDel).toBe(0);
+    const tombstoned = readJson(overrideFile()) as unknown as { models: Record<string, unknown>; deleted: string[] };
+    expect(tombstoned.deleted).toEqual(['deepseek-chat']);
+    expect(tombstoned.models['deepseek-chat']).toBeUndefined(); // 覆盖与墓碑互斥
+
+    const back = capture();
+    const codeBack = await main(['pricing', 'override', 'restore', 'deepseek-chat']);
+    back.restore();
+    expect(codeBack).toBe(0);
+    expect((readJson(overrideFile()) as unknown as { deleted: string[] }).deleted).toEqual([]);
+  });
+
+  it('vessel pricing override set 缺 --input/--output exit 2，非法价不落盘', async () => {
+    const missing = captureBoth();
+    const codeMissing = await main(['pricing', 'override', 'set', 'deepseek-chat', '--input', '0.1']);
+    missing.restore();
+    expect(codeMissing).toBe(2);
+    expect(missing.logs.join('\n')).toContain('必须给 --input 与 --output');
+
+    const negative = captureBoth();
+    const codeNeg = await main(['pricing', 'override', 'set', 'deepseek-chat', '--input', '-1', '--output', '2']);
+    negative.restore();
+    expect(codeNeg).toBe(2);
+    expect(fs.existsSync(overrideFile())).toBe(false);
+  });
+
+  it('vessel pricing override repair --file 走值守卫：现值=from 才改，手改过的行不动', async () => {
+    const seed = capture();
+    await main(['pricing', 'override', 'set', 'claude-sonnet-4-5', '--input', '3', '--output', '15', '--cache-read', '0.3', '--cache-write', '3.75']);
+    await main(['pricing', 'override', 'set', 'deepseek-chat', '--input', '0.5', '--output', '5']);
+    seed.restore();
+    const repairs = path.join(cfgDir, 'repairs.json');
+    fs.writeFileSync(repairs, JSON.stringify([
+      { key: 'claude-sonnet-4-5', from: { input: 3, output: 15, cacheRead: 0.3, cacheWrite: 3.75 }, to: { input: 4, output: 20, cacheRead: 0.4, cacheWrite: 5 } },
+      { key: 'deepseek-chat', from: { input: 0.27, output: 1.1 }, to: { input: 0.99, output: 9.9 } },
+    ]), 'utf8');
+
+    const { logs, restore } = capture();
+    const code = await main(['pricing', 'override', 'repair', '--file', repairs]);
+    restore();
+    expect(code).toBe(0);
+    const out = logs.join('\n');
+    expect(out).toContain('已改');
+    expect(out).toContain('跳过（现值已被用户改过）');
+    expect(out).toContain('共 1/2 条生效');
+    const file = readJson(overrideFile()) as unknown as { models: Record<string, { input: number }> };
+    expect(file.models['claude-sonnet-4-5']!.input).toBe(4); // 现值 = from → 改
+    expect(file.models['deepseek-chat']!.input).toBe(0.5); // 手改值保住
+  });
+
+  it('覆盖 + recompute 联动：加了覆盖后 recompute 把历史条目按覆盖价重算', async () => {
+    writeStaleUsage();
+    const set = capture();
+    await main(['pricing', 'override', 'set', 'deepseek-chat', '--input', '0.01', '--output', '0.02']);
+    set.restore();
+    const { logs, restore } = capture();
+    const code = await main(['usage', 'recompute']);
+    restore();
+    expect(code).toBe(0);
+    expect(logs.join('\n')).toContain('override');
+    const after = readJson(usageFile()) as unknown as { entries: Record<string, { costUsd: number; pricingSource: string }> };
+    expect(after.entries['deepseek::deepseek-chat']!.pricingSource).toBe('override');
+    expect(after.entries['deepseek::deepseek-chat']!.costUsd).toBeCloseTo(0.03, 9);
+  });
+});

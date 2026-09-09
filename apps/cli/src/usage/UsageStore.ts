@@ -7,6 +7,8 @@ import {
   type CacheWritePriceSource,
   type CatalogPriceSource,
   type CostBreakdown,
+  type OverridePriceSource,
+  type PriceResolution,
   type PriceSource,
   type PricingTable,
 } from '../providers/pricing.js';
@@ -23,14 +25,22 @@ import {
  * （与 UsageProjection / benchmarks 同一实现、同一回退链）。每条记录落
  * `estimated` / `pricingSource`：
  *   - source='protocol'/'default' → estimated=true（不是该模型的专属价目）
- *   - strict 模式 → 只用 model/catalog，未收录模型标 `unpriced` + 0 成本
+ *   - source='override'（092）→ 用户覆盖文件里的该模型专属价，estimated=false
+ *   - 命中删除墓碑（092）→ `unpriced` + `deletedByOverride`，按 0 计价且不回退
+ *   - strict 模式 → 只用 model/catalog/override，未收录模型标 `unpriced` + 0 成本
  *     （保留 token 计数待回填）
  *   - cache 写入（cache_creation）独立计价；价目缺 `cacheWrite` 时按
  *     `input × 1.25` 推导并标 `cacheWriteDerived`（见 docs/PRICING.md §7）
  *
+ * 定价变更回填（task 091）：`recompute()` 按**当前**价目重算历史成本——
+ * 保留 token 原始值，只重算 `costUsd` / `estimated` / `pricingSource` / 分项。
+ * 幂等（同一价目连跑两次第二次零变更、不落盘）；`dryRun` 只出差异摘要。
+ *
  * 日口径（task 089）：分桶键是**本地日** `YYYY-MM-DD`（用本机时区，不是 UTC）。
  * 写入时按 `now()` 的本地日归档；查询时「完整本地日」= 已结束的本地日
  * （今天与未来日都不完整，单列 partial，不混进完整日合计）。
+ * 091 起每个日分桶额外记录**按模型的子分项**（`models`），这样改价后日成本
+ * 也能被精确重算（旧数据没有子分项 → 该日跳过，不猜）。
  */
 
 /** 持久化的价格来源：查价来源 + `legacy`（085 之前写入、未记录来源的旧条目）。 */
@@ -71,6 +81,10 @@ export interface UsageEntry {
   lastTs: string;
   /** count of recording events merged into this entry */
   events: number;
+  /** 最近一次 `recompute` 实际改价的 ISO 时间（091；无变更时不写，保证幂等） */
+  recomputedAt?: string;
+  /** true = 该条目曾是 085 之前的无来源记录，已被 `recompute` 按当前规则重算并标注（091） */
+  recomputedFromLegacy?: boolean;
 }
 
 export interface UsageRecentEntry {
@@ -84,6 +98,24 @@ export interface UsageRecentEntry {
   costUsd: number;
   estimated: boolean;
   pricingSource: UsagePricingSource;
+}
+
+/**
+ * 一个本地日分桶里的**单个模型**子分项（task 091）。
+ *
+ * 为什么要它：日分桶原本只有跨模型的总量，改价后无法按模型价重算（会猜）。
+ * 091 起写入时同时记子分项，于是 `recompute` 能对「有子分项的日子」做精确重算；
+ * 旧数据（无 `models`）该日跳过并计数，不伪造。
+ */
+export interface UsageDailyModelBucket {
+  inputTokens: number;
+  outputTokens: number;
+  cacheReadTokens: number;
+  cacheCreationTokens: number;
+  costUsd: number;
+  calls: number;
+  estimatedCostUsd: number;
+  cacheWriteDerivedCostUsd: number;
 }
 
 /**
@@ -104,6 +136,8 @@ export interface UsageDailyBucket {
   /** 当日首/末一条记录时间（ISO） */
   firstTs: string;
   lastTs: string;
+  /** 按模型的当日子分项（091 起记录；旧数据无此字段 → 该日无法精确重算） */
+  models?: Record<string, UsageDailyModelBucket>;
 }
 
 /** 查询返回的一行：分桶 + 本地日键 + 「是否完整本地日」。 */
@@ -160,7 +194,9 @@ export interface UsageStoreOptions {
   pricing?: PricingTable;
   /** catalog price source (model-catalog.json) — second link of the fallback chain */
   catalog?: CatalogPriceSource;
-  /** strict mode: 只用模型专属价目（model/catalog），未收录模型按 0 计价（标 `unpriced`） */
+  /** 用户覆盖价源（092，`~/.vessel/pricing.override.json`）——优先级最高 */
+  override?: OverridePriceSource;
+  /** strict mode: 只用模型专属价目（model/catalog/override），未收录模型按 0 计价（标 `unpriced`） */
   strict?: boolean;
   /** cap for the recent-entries ring buffer */
   recentCap?: number;
@@ -178,6 +214,69 @@ export interface UsageRecordResult {
   cacheWritePriceSource: CacheWritePriceSource;
   /** 本次记录归档到的本地日 */
   date: string;
+}
+
+/** `recompute` 的选项（091）。 */
+export interface UsageRecomputeOptions {
+  /** true = 只算差异、不落盘 */
+  dryRun?: boolean;
+  /** 起始本地日 `YYYY-MM-DD`（含） */
+  since?: string;
+  /** 结束本地日 `YYYY-MM-DD`（含） */
+  until?: string;
+}
+
+/** 一条被重算影响的记录（条目 / 日分桶 / 明细）。 */
+export interface UsageRecomputeChange {
+  scope: 'entry' | 'daily' | 'recent';
+  /** 条目键 `provider::model` / 本地日 / 明细时间戳 */
+  key: string;
+  beforeUsd: number;
+  afterUsd: number;
+  deltaUsd: number;
+  /** 仅条目有来源；日分桶 / 明细按模型聚合，无单一来源 */
+  beforeSource?: UsagePricingSource;
+  afterSource?: UsagePricingSource;
+  /** true = 该条原本是无来源的 legacy 记录，本次按当前规则重算并标注 */
+  legacyRecomputed?: boolean;
+}
+
+/** 一个范围的汇总（扫描数 / 受影响数 / 金额前后）。 */
+export interface UsageRecomputeScopeSummary {
+  scanned: number;
+  changed: number;
+  beforeUsd: number;
+  afterUsd: number;
+  deltaUsd: number;
+}
+
+export interface UsageRecomputeResult {
+  dryRun: boolean;
+  since?: string;
+  until?: string;
+  /** 累计条目（权威成本口径；窗口按条目 lastTs 的本地日筛选） */
+  entries: UsageRecomputeScopeSummary;
+  /** 本地日分桶（窗口按日期键筛选） */
+  daily: UsageRecomputeScopeSummary;
+  /** 最近明细环形缓冲（窗口按 ts 的本地日筛选） */
+  recent: UsageRecomputeScopeSummary;
+  /** 无按模型子分项、无法精确重算而被跳过的日分桶数（089 之前的旧数据） */
+  dailySkipped: number;
+  /** 从 legacy（无来源）重算并标注的条目数 */
+  legacyRecomputed: number;
+  /** 三范围合计的受影响记录数 */
+  changed: number;
+  /** 是否真的落盘（dry-run 或零变更 → false） */
+  written: boolean;
+  /** 变更明细（按扫描顺序；CLI 自行截断展示） */
+  changes: UsageRecomputeChange[];
+}
+
+/** 金额比较容差：重算是「累计 token 一次算」而写入是「逐次累加」，浮点尾差必须忽略。 */
+const MONEY_EPSILON = 1e-9;
+
+function sameMoney(a: number, b: number): boolean {
+  return Math.abs(a - b) <= MONEY_EPSILON;
 }
 
 /** 本地日键 `YYYY-MM-DD`（本机时区；不是 UTC——089 口径与 cc-switch 一致）。 */
@@ -231,6 +330,26 @@ export function defaultUsageRoot(home = os.homedir()): string {
   return path.join(home, '.vessel');
 }
 
+/** 生效的 usage 根目录（`VESSEL_USAGE_ROOT` 覆盖；覆盖价目文件与 usage.json 同根）。 */
+export function resolveUsageRoot(): string {
+  return process.env.VESSEL_USAGE_ROOT ?? defaultUsageRoot();
+}
+
+/** 从 ISO 时间戳取本地日键（非法/缺失 → undefined）。 */
+function localDateOfTs(ts: string | undefined): string | undefined {
+  if (typeof ts !== 'string' || ts === '') return undefined;
+  const d = new Date(ts);
+  if (Number.isNaN(d.getTime())) return undefined;
+  return localDateKey(d);
+}
+
+/** `provider::model` 键 → { provider, model }（无分隔符时 provider 为空串）。 */
+function splitEntryKey(key: string): { provider: string; model: string } {
+  const at = key.indexOf('::');
+  if (at < 0) return { provider: '', model: key };
+  return { provider: key.slice(0, at), model: key.slice(at + 2) };
+}
+
 /**
  * UsageStore — 落盘用量与成本。
  * 成本公式用 `@vessel/shared` 的 `costBreakdown`（唯一实现，勿再复制）。
@@ -240,6 +359,7 @@ export class UsageStore {
   private readonly file: string;
   private readonly pricing: PricingTable;
   private readonly catalog: CatalogPriceSource | undefined;
+  private readonly override: OverridePriceSource | undefined;
   private readonly strict: boolean;
   private readonly recentCap: number;
   private readonly clock: () => Date;
@@ -248,16 +368,22 @@ export class UsageStore {
   private readonly legacyFile: boolean;
 
   constructor(opts: UsageStoreOptions = {}) {
-    this.rootDir = opts.rootDir ?? process.env.VESSEL_USAGE_ROOT ?? defaultUsageRoot();
+    this.rootDir = opts.rootDir ?? resolveUsageRoot();
     this.file = path.join(this.rootDir, 'usage.json');
     this.pricing = opts.pricing ?? { models: {}, protocols: {} };
     this.catalog = opts.catalog;
+    this.override = opts.override;
     this.strict = opts.strict ?? false;
     this.recentCap = opts.recentCap ?? 200;
     this.clock = opts.now ?? (() => new Date());
     const loaded = this.load();
     this.data = loaded.file;
     this.legacyFile = loaded.legacy;
+  }
+
+  /** 唯一的查价入口：回退链 override > model > catalog > protocol > default（086/092）。 */
+  private resolve(model: string, provider: string, strict = this.strict): PriceResolution {
+    return resolvePrice(this.pricing, model, provider, this.catalog, { strict, override: this.override });
   }
 
   private load(): { file: UsageFile; legacy: boolean } {
@@ -302,7 +428,24 @@ export class UsageStore {
       if (rawDaily && typeof rawDaily === 'object') {
         for (const [date, bucket] of Object.entries(rawDaily)) {
           if (!isLocalDateKey(date) || !bucket || typeof bucket !== 'object') continue;
-          daily[date] = {
+          const models: Record<string, UsageDailyModelBucket> = {};
+          const rawModels = (bucket as Partial<UsageDailyBucket>).models;
+          if (rawModels && typeof rawModels === 'object') {
+            for (const [mKey, mBucket] of Object.entries(rawModels)) {
+              if (!mBucket || typeof mBucket !== 'object' || mKey.trim() === '') continue;
+              models[mKey] = {
+                inputTokens: num(mBucket.inputTokens),
+                outputTokens: num(mBucket.outputTokens),
+                cacheReadTokens: num(mBucket.cacheReadTokens),
+                cacheCreationTokens: num(mBucket.cacheCreationTokens),
+                costUsd: num(mBucket.costUsd),
+                calls: num(mBucket.calls),
+                estimatedCostUsd: num(mBucket.estimatedCostUsd),
+                cacheWriteDerivedCostUsd: num(mBucket.cacheWriteDerivedCostUsd),
+              };
+            }
+          }
+          const parsedBucket: UsageDailyBucket = {
             inputTokens: num(bucket.inputTokens),
             outputTokens: num(bucket.outputTokens),
             cacheReadTokens: num(bucket.cacheReadTokens),
@@ -314,6 +457,8 @@ export class UsageStore {
             firstTs: typeof bucket.firstTs === 'string' ? bucket.firstTs : '',
             lastTs: typeof bucket.lastTs === 'string' ? bucket.lastTs : '',
           };
+          if (Object.keys(models).length > 0) parsedBucket.models = models;
+          daily[date] = parsedBucket;
         }
       }
       const hasDailyField = rawDaily !== undefined && rawDaily !== null;
@@ -367,7 +512,7 @@ export class UsageStore {
     date?: string;
   }): UsageRecordResult {
     const { provider, model } = input;
-    const resolved = resolvePrice(this.pricing, model, provider, this.catalog, { strict: this.strict });
+    const resolved = this.resolve(model, provider);
     const inT = input.inputTokens ?? 0;
     const outT = input.outputTokens ?? 0;
     const cacheT = input.cacheReadTokens ?? 0;
@@ -413,6 +558,7 @@ export class UsageStore {
     };
 
     // 本地日分桶（task 089）：与累计总量并存，逐日累计，不做回填。
+    // 091 起同时累计**按模型子分项**，使日成本在改价后可被精确重算。
     const bucket = this.data.daily[date] ?? emptyBucket();
     bucket.inputTokens += inT;
     bucket.outputTokens += outT;
@@ -424,6 +570,21 @@ export class UsageStore {
     bucket.cacheWriteDerivedCostUsd += derivedCost;
     if (!bucket.firstTs) bucket.firstTs = ts;
     bucket.lastTs = ts;
+    const bucketModels = bucket.models ?? {};
+    const modelBucket = bucketModels[k] ?? {
+      inputTokens: 0, outputTokens: 0, cacheReadTokens: 0, cacheCreationTokens: 0,
+      costUsd: 0, calls: 0, estimatedCostUsd: 0, cacheWriteDerivedCostUsd: 0,
+    };
+    modelBucket.inputTokens += inT;
+    modelBucket.outputTokens += outT;
+    modelBucket.cacheReadTokens += cacheT;
+    modelBucket.cacheCreationTokens += cacheWT;
+    modelBucket.costUsd += cost.totalUsd;
+    modelBucket.calls += 1;
+    modelBucket.estimatedCostUsd += resolved.estimated ? cost.totalUsd : 0;
+    modelBucket.cacheWriteDerivedCostUsd += derivedCost;
+    bucketModels[k] = modelBucket;
+    bucket.models = bucketModels;
     this.data.daily[date] = bucket;
 
     this.data.recent.push({
@@ -449,6 +610,204 @@ export class UsageStore {
       cacheWritePriceSource: cost.cacheWritePriceSource,
       date,
     };
+  }
+
+  /**
+   * 按**当前**价目重算历史成本（task 091）——改价后历史不再钉死。
+   *
+   * 口径：
+   *   - **保留 token 原始值**（input/output/cacheRead/cacheWrite 一律不动），
+   *     只重算 `costUsd` / `costBreakdown` / `estimated` / `estimatedCostUsd` /
+   *     `pricingSource` / `cacheWriteDerived*`。
+   *   - 重算即「用当前价目重新记录同样的 token」：`costBreakdown(price, 累计 token)`。
+   *   - 重算后来源统一为本次命中的来源（原先的 `mixed` 会收敛——这正是重算的目的）。
+   *   - 旧条目（无 `pricingSource`，读入时标 `legacy`）按当前规则重算，并标
+   *     `recomputedFromLegacy: true` 留痕。
+   *   - **幂等**：同一价目下第二次调用零变更（金额比较带 1e-9 容差），不写盘。
+   *   - `dryRun: true` 只算差异、不落盘。
+   *   - `since`/`until`（本地日，含首含尾）：条目按 `lastTs` 的本地日筛选、
+   *     日分桶按日期键、明细按 `ts`。
+   *
+   * 日分桶：只有带按模型子分项（091 起写入）的日子才能精确重算；旧日分桶跳过并计入
+   * `dailySkipped`（不猜、不按比例摊）。
+   */
+  recompute(options: UsageRecomputeOptions = {}): UsageRecomputeResult {
+    const dryRun = options.dryRun ?? false;
+    const { since, until } = options;
+    if (since !== undefined && !isLocalDateKey(since)) throw new RangeError(`invalid since date: ${since}`);
+    if (until !== undefined && !isLocalDateKey(until)) throw new RangeError(`invalid until date: ${until}`);
+    const windowed = since !== undefined || until !== undefined;
+    const inWindow = (date: string | undefined): boolean => {
+      if (!windowed) return true;
+      if (date === undefined) return false;
+      if (since !== undefined && date < since) return false;
+      if (until !== undefined && date > until) return false;
+      return true;
+    };
+
+    const changes: UsageRecomputeChange[] = [];
+    const nowIso = this.clock().toISOString();
+    let legacyRecomputed = 0;
+    let dailySkipped = 0;
+
+    const zeroScope = (): UsageRecomputeScopeSummary => ({ scanned: 0, changed: 0, beforeUsd: 0, afterUsd: 0, deltaUsd: 0 });
+
+    // ---- 1) 累计条目（权威成本口径）----
+    const entries = zeroScope();
+    for (const [key, entry] of Object.entries(this.data.entries)) {
+      if (windowed && !inWindow(localDateOfTs(entry.lastTs))) continue;
+      entries.scanned += 1;
+      entries.beforeUsd += entry.costUsd;
+      const resolved = this.resolve(entry.model, entry.provider);
+      const cost = costBreakdown(resolved.price, entry);
+      entries.afterUsd += cost.totalUsd;
+      const nextBreakdown: UsageCostBreakdown = {
+        inputUsd: cost.inputUsd,
+        outputUsd: cost.outputUsd,
+        cacheReadUsd: cost.cacheReadUsd,
+        cacheWriteUsd: cost.cacheWriteUsd,
+      };
+      const nextEstimatedCost = resolved.estimated ? cost.totalUsd : 0;
+      const nextDerivedCost = cost.cacheWriteDerived ? cost.cacheWriteUsd : 0;
+      const prevBreakdown = entry.costBreakdown ?? emptyBreakdown();
+      const changed =
+        !sameMoney(entry.costUsd, cost.totalUsd) ||
+        !sameMoney(entry.estimatedCostUsd, nextEstimatedCost) ||
+        !sameMoney(entry.cacheWriteDerivedCostUsd ?? 0, nextDerivedCost) ||
+        entry.estimated !== resolved.estimated ||
+        (entry.cacheWriteDerived ?? false) !== cost.cacheWriteDerived ||
+        entry.pricingSource !== resolved.source ||
+        !sameMoney(prevBreakdown.inputUsd, nextBreakdown.inputUsd) ||
+        !sameMoney(prevBreakdown.outputUsd, nextBreakdown.outputUsd) ||
+        !sameMoney(prevBreakdown.cacheReadUsd, nextBreakdown.cacheReadUsd) ||
+        !sameMoney(prevBreakdown.cacheWriteUsd, nextBreakdown.cacheWriteUsd);
+      if (!changed) continue;
+      const wasLegacy = entry.pricingSource === 'legacy';
+      if (wasLegacy) legacyRecomputed += 1;
+      entries.changed += 1;
+      changes.push({
+        scope: 'entry',
+        key,
+        beforeUsd: entry.costUsd,
+        afterUsd: cost.totalUsd,
+        deltaUsd: cost.totalUsd - entry.costUsd,
+        beforeSource: entry.pricingSource,
+        afterSource: resolved.source,
+        legacyRecomputed: wasLegacy,
+      });
+      if (!dryRun) {
+        const next: UsageEntry = {
+          ...entry,
+          costUsd: cost.totalUsd,
+          costBreakdown: nextBreakdown,
+          estimated: resolved.estimated,
+          estimatedCostUsd: nextEstimatedCost,
+          cacheWriteDerivedCostUsd: nextDerivedCost,
+          cacheWriteDerived: cost.cacheWriteDerived,
+          pricingSource: resolved.source,
+          recomputedAt: nowIso,
+        };
+        if (wasLegacy) next.recomputedFromLegacy = true;
+        this.data.entries[key] = next;
+      }
+    }
+    entries.deltaUsd = entries.afterUsd - entries.beforeUsd;
+
+    // ---- 2) 本地日分桶（按模型子分项精确重算）----
+    const daily = zeroScope();
+    for (const [date, bucket] of Object.entries(this.data.daily)) {
+      if (!inWindow(date)) continue;
+      daily.scanned += 1;
+      daily.beforeUsd += bucket.costUsd;
+      const modelKeys = Object.keys(bucket.models ?? {});
+      if (modelKeys.length === 0) {
+        dailySkipped += 1;
+        daily.afterUsd += bucket.costUsd; // 无法重算 → 保持原值
+        continue;
+      }
+      const nextModels: Record<string, UsageDailyModelBucket> = {};
+      let costUsd = 0;
+      let estimatedCostUsd = 0;
+      let derivedCostUsd = 0;
+      for (const mKey of modelKeys) {
+        const sub = bucket.models?.[mKey];
+        if (!sub) continue;
+        const { provider, model } = splitEntryKey(mKey);
+        const resolved = this.resolve(model, provider);
+        const cost = costBreakdown(resolved.price, sub);
+        const nextSub: UsageDailyModelBucket = {
+          inputTokens: sub.inputTokens,
+          outputTokens: sub.outputTokens,
+          cacheReadTokens: sub.cacheReadTokens,
+          cacheCreationTokens: sub.cacheCreationTokens,
+          costUsd: cost.totalUsd,
+          calls: sub.calls,
+          estimatedCostUsd: resolved.estimated ? cost.totalUsd : 0,
+          cacheWriteDerivedCostUsd: cost.cacheWriteDerived ? cost.cacheWriteUsd : 0,
+        };
+        nextModels[mKey] = nextSub;
+        costUsd += nextSub.costUsd;
+        estimatedCostUsd += nextSub.estimatedCostUsd;
+        derivedCostUsd += nextSub.cacheWriteDerivedCostUsd;
+      }
+      daily.afterUsd += costUsd;
+      const changed =
+        !sameMoney(bucket.costUsd, costUsd) ||
+        !sameMoney(bucket.estimatedCostUsd, estimatedCostUsd) ||
+        !sameMoney(bucket.cacheWriteDerivedCostUsd, derivedCostUsd);
+      if (!changed) continue;
+      daily.changed += 1;
+      changes.push({ scope: 'daily', key: date, beforeUsd: bucket.costUsd, afterUsd: costUsd, deltaUsd: costUsd - bucket.costUsd });
+      if (!dryRun) {
+        this.data.daily[date] = {
+          ...bucket,
+          costUsd,
+          estimatedCostUsd,
+          cacheWriteDerivedCostUsd: derivedCostUsd,
+          models: nextModels,
+        };
+      }
+    }
+    daily.deltaUsd = daily.afterUsd - daily.beforeUsd;
+
+    // ---- 3) 最近明细（单次调用记录，token 与 ts 齐全 → 精确重算）----
+    const recent = zeroScope();
+    for (let i = 0; i < this.data.recent.length; i += 1) {
+      const rec = this.data.recent[i];
+      if (!rec) continue;
+      if (windowed && !inWindow(localDateOfTs(rec.ts))) continue;
+      recent.scanned += 1;
+      recent.beforeUsd += rec.costUsd;
+      const resolved = this.resolve(rec.model, rec.provider);
+      const cost = costBreakdown(resolved.price, rec);
+      recent.afterUsd += cost.totalUsd;
+      const changed = !sameMoney(rec.costUsd, cost.totalUsd) || rec.estimated !== resolved.estimated || rec.pricingSource !== resolved.source;
+      if (!changed) continue;
+      recent.changed += 1;
+      changes.push({
+        scope: 'recent',
+        key: rec.ts,
+        beforeUsd: rec.costUsd,
+        afterUsd: cost.totalUsd,
+        deltaUsd: cost.totalUsd - rec.costUsd,
+        beforeSource: rec.pricingSource,
+        afterSource: resolved.source,
+      });
+      if (!dryRun) {
+        this.data.recent[i] = {
+          ...rec,
+          costUsd: cost.totalUsd,
+          estimated: resolved.estimated,
+          pricingSource: resolved.source,
+        };
+      }
+    }
+    recent.deltaUsd = recent.afterUsd - recent.beforeUsd;
+
+    const changed = entries.changed + daily.changed + recent.changed;
+    const written = !dryRun && changed > 0;
+    if (written) this.save();
+    return { dryRun, since, until, entries, daily, recent, dailySkipped, legacyRecomputed, changed, written, changes };
   }
 
   /** aggregate totals across all entries */
@@ -577,7 +936,7 @@ export class UsageStore {
     let unpricedEntries = 0;
     let unpricedCostUsd = 0;
     for (const e of Object.values(this.data.entries)) {
-      const resolved = resolvePrice(this.pricing, e.model, e.provider, this.catalog, { strict: true });
+      const resolved = this.resolve(e.model, e.provider, true);
       const cost = costBreakdown(resolved.price, e);
       costUsd += cost.totalUsd;
       if (resolved.source === 'unpriced') {

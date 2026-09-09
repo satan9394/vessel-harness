@@ -1,6 +1,7 @@
 # 计价与用量成本（PRICING.md）
 
-> 任务卡：085（模型名归一）/ 086（缺价显式化）/ 087（统一计价）/ 089（统计时间维度）/ 090（cache 写入计价）。
+> 任务卡：085（模型名归一）/ 086（缺价显式化）/ 087（统一计价）/ 089（统计时间维度）/ 090（cache 写入计价）/
+> 091（定价变更回填 recompute）/ 092（用户价目覆盖 + 值守卫）。
 > 实现单一入口：`packages/shared/src/pricing.ts`（纯函数、零 I/O）。
 
 ## 1. 一句话
@@ -16,7 +17,8 @@ input / output / cacheRead / **cacheWrite** 四项分算（090）。
 |---|---|---|
 | 规则 | `packages/shared/src/pricing.ts` | 模型名归一 + 回退链 + `estimated` 语义（唯一实现） |
 | CLI | `apps/cli/src/providers/pricing.ts` | 只负责读 `configs/pricing.json`，re-export 规则 |
-| CLI 落盘 | `apps/cli/src/usage/UsageStore.ts` | 每条记录落 `estimated` / `pricingSource` |
+| CLI 覆盖 | `apps/cli/src/usage/pricingOverride.ts` | 读/写 `~/.vessel/pricing.override.json` + 值守卫修复（092） |
+| CLI 落盘 | `apps/cli/src/usage/UsageStore.ts` | 每条记录落 `estimated` / `pricingSource`；`recompute()` 按当前价目回填（091） |
 | application | `packages/application/src/projections/UsageProjection.ts` | 复用同一 `resolvePrice`（不再有硬编码默认价） |
 | benchmarks | `benchmarks/runners/src/adapters/pricing.ts` | 6 个 adapter 共用（原先各自抄了一份） |
 
@@ -54,16 +56,18 @@ effort 后缀集合：`high` / `medium` / `low` / `minimal` / `none` / `thinking
 ## 4. 回退链与价格来源
 
 ```
-pricing.json models[<归一后名>]  →  model-catalog.json  →  protocols[<protocol>]  →  models.default
+pricing.override.json（用户覆盖，092）  →  pricing.json models[<归一后名>]  →  model-catalog.json
+    →  protocols[<protocol>]  →  models.default
 ```
 
 | `source` | 含义 | `estimated` |
 |---|---|---|
+| `override` | 命中 `~/.vessel/pricing.override.json` 的覆盖价（092） | false |
 | `model` | 命中 `configs/pricing.json` 模型级价 | false |
 | `catalog` | 命中 `configs/model-catalog.json`（models.dev 快照） | false |
 | `protocol` | 只命中协议级通用价（同协议所有未收录模型同价） | **true** |
 | `default` | 落到 `models.default` 通用兜底价 | **true** |
-| `unpriced` | `--strict` 下未收录（按 0 计价） | false |
+| `unpriced` | `--strict` 下未收录、或命中删除墓碑（按 0 计价） | false |
 `estimated = true` 的含义：**这个价不是该模型的专属价目**。展示层必须把它标出来
 （`vessel usage` 会打印「含估算条目 N 条 / 价格来源分布」）。
 
@@ -73,12 +77,14 @@ pricing.json models[<归一后名>]  →  model-catalog.json  →  protocols[<pr
 
 - `estimated: boolean` —— 是否含估算计价
 - `estimatedCostUsd: number` —— 其中估算部分的金额
-- `pricingSource: 'model'|'catalog'|'protocol'|'default'|'unpriced'|'mixed'|'legacy'`
-  - `mixed` = 同一模型条目内多次调用来源不同
+- `pricingSource: 'override'|'model'|'catalog'|'protocol'|'default'|'unpriced'|'mixed'|'legacy'`
+  - `override` = 命中用户覆盖文件（092）；`mixed` = 同一模型条目内多次调用来源不同
   - `legacy` = 085 之前写入、未保存来源的旧记录（不臆造来源，展示层单列）
 - `cacheCreationTokens: number` —— cache 写入 token（090）
 - `costBreakdown: { inputUsd, outputUsd, cacheReadUsd, cacheWriteUsd }` —— 成本分项（090）
 - `cacheWriteDerivedCostUsd: number` / `cacheWriteDerived: boolean` —— 其中用了推导写入价的部分（见 §7）
+- `recomputedAt?: string` / `recomputedFromLegacy?: boolean` —— `recompute` 实际改价时间与
+  「曾是无来源 legacy 条目」的痕迹（091；无变更时不写，保证幂等，见 §11）
 
 `recent[]` 每条同样带 `estimated` / `pricingSource` / `cacheCreationTokens`。
 `daily` 见 §6。
@@ -96,10 +102,19 @@ pricing.json models[<归一后名>]  →  model-catalog.json  →  protocols[<pr
     "costUsd": 0, "calls": 0,
     "estimatedCostUsd": 0,       // 当日估算部分
     "cacheWriteDerivedCostUsd": 0, // 当日用推导写入价的部分
-    "firstTs": "…ISO…", "lastTs": "…ISO…"
+    "firstTs": "…ISO…", "lastTs": "…ISO…",
+    "models": {                  // 091 起：按模型子分项（改价后日成本可精确重算）
+      "anthropic::claude-sonnet-4-5": {
+        "inputTokens": 0, "outputTokens": 0, "cacheReadTokens": 0, "cacheCreationTokens": 0,
+        "costUsd": 0, "calls": 0, "estimatedCostUsd": 0, "cacheWriteDerivedCostUsd": 0
+      }
+    }
   }
 }
 ```
+
+`models` 是**可选**字段（091 起写入；089~091 之间的旧分桶没有它）。缺它时该日分桶在
+`recompute` 中跳过并计入 `dailySkipped`——宁可不动，也不按比例摊出假数字（见 §11）。
 
 **口径（学 cc-switch `usage_daily_rollups` 的思路，实现自写）**：
 
@@ -183,9 +198,116 @@ default / strict 五种来源各一例 + 真实 `configs/` 价目一例）。
 
 ## 10. 不做的（后续卡）
 
-- 091 定价变更回填（`vessel usage recompute`）、092 用户价目覆盖 + 值守卫。
 - `input_token_semantics`（input 是否含 cache）未做，故 cache 写入不从 inputTokens 扣减。
 - 本卡不引入汇率/多币种、不引入成本倍率（094 候选）。
+- P2（093-096）与 UI 未做；091/092 见 §11/§12。
+
+## 11. 定价变更回填：`vessel usage recompute`（091）
+
+改价后历史成本不再「钉死」——按**当前**价目重算一遍即可对齐口径。
+
+```powershell
+vessel usage recompute                    # 全量重算并落盘
+vessel usage recompute --dry-run          # 只看差异摘要，不写盘
+vessel usage recompute --since 2026-09-01 --until 2026-09-07   # 只重算窗口内
+```
+
+**重算什么**：保留 token 原始值（input/output/cacheRead/cacheWrite 一律不动），
+只重算 `costUsd` / `costBreakdown` / `estimated` / `estimatedCostUsd` /
+`pricingSource` / `cacheWriteDerived*`。算法就是「用当前价目重新记录同样的 token」：
+`costBreakdown(resolvePrice(...).price, 累计 token)`。
+
+| 范围 | 重算方式 | 窗口筛选依据 |
+|---|---|---|
+| `entries`（累计条目，权威成本口径） | 按累计 token × 当前价 | `lastTs` 的本地日 |
+| `daily`（本地日分桶） | 按 `models` 子分项逐模型重算后求和 | 日期键 |
+| `recent`（最近明细） | 按单次记录 token × 当前价 | `ts` 的本地日 |
+
+**口径与边界**：
+
+1. **幂等**：同一价目连跑两次，第二次 `changed = 0`、`written = false`，`usage.json`
+   逐字节不变（金额比较带 `1e-9` 容差，吸收「逐次累加 vs 累计一次算」的浮点尾差）。
+2. **重算 = 重新记录**：测试断言「旧价记录 → recompute」与「新价直接记录」的
+   成本/分项/来源一致（`apps/cli/src/usage/recompute.test.ts`）。
+3. **来源收敛**：原 `mixed`（同一模型多次调用来源不同）重算后统一为本次命中的来源；
+   这正是重算的目的——一条历史条目只该有一个当前价。
+4. **legacy 条目**（085 之前无 `pricingSource`）：按当前规则重算，`pricingSource`
+   更新为实际来源，并打 `recomputedFromLegacy: true` 留痕（不假装它从来就有来源）。
+5. **旧日分桶**（无 `models` 子分项）：跳过并计数 `dailySkipped`，保持原值——
+   跨模型总量无法反推模型价，按比例摊是猜数字，不做。
+6. `--strict` 口径同样可重算：未收录条目变 `unpriced` + 0 成本，token 仍在（待补价回填）。
+7. 非法 `--since/--until` 抛 `RangeError`（CLI 打印错误并 exit 2），与 `vessel usage` 同一校验。
+
+## 12. 用户价目覆盖 + 值守卫（092）
+
+**文件**：`~/.vessel/pricing.override.json`（与内置 `configs/pricing.json` **分离**）
+
+```jsonc
+{
+  "version": 1,
+  "models": {
+    "claude-sonnet-4-5":            { "input": 3, "output": 15, "cacheRead": 0.3, "cacheWrite": 3.75 },
+    "deepseek::deepseek-chat":      { "input": 0.1, "output": 0.2 }   // 只对 deepseek 生效
+  },
+  "deleted": ["gemini-2.0-flash"]   // 删除墓碑：显式删除内置/目录条目
+}
+```
+
+**为什么分离**（学 cc-switch 的设计思路，实现自写）：该文件只存「用户覆盖 + 删除墓碑」，
+内置价目仍由版本维护。于是应用升级能继续修内置价，而不会把内置价固化成覆盖值；
+用户覆盖可 diff、可审计、可回滚，也不必 fork 内置文件。
+
+**键格式**：`model` 或 `provider::model`（与 `usage.json` 条目键同格式）。同一模型
+两种键都存在时 **`provider::model` 胜**。键同样走 085 的归一（大小写/命名空间/日期/
+effort 后缀/点号），所以 `ANTHROPIC/claude-3.5-sonnet-20241022` 也能命中
+`claude-sonnet-4-5` 之外的 `claude-3-5-sonnet` 覆盖。
+
+**优先级链**：`override` > 内置 `pricing.json` > `model-catalog.json` > `protocols` > `default`。
+覆盖命中即终结（不再看后面任何一层）；`--strict` 下覆盖仍然生效（覆盖是用户对该模型的
+专属价，strict 只禁 protocol 通用价与 default 兜底价）。
+
+**删除墓碑**：命中即 `source='unpriced'` + `deletedByOverride`，按 0 计价且**不回退**
+目录/协议/兜底（否则「删了还在算钱」）。墓碑只做**归一后精确匹配**——删 `gpt-4o`
+不会连坐 `gpt-4o-mini`。`vessel pricing override restore <key>` 可撤销。
+
+**CLI**：
+
+```powershell
+vessel pricing override list                  # 当前覆盖 + 墓碑 + 优先级链
+vessel pricing override set deepseek-chat --input 0.1 --output 0.2 [--cache-read 0.01] [--cache-write 0]
+vessel pricing override set deepseek::deepseek-chat --input 0.1 --output 0.2   # provider 作用域
+vessel pricing override delete gemini-2.0-flash    # 删除墓碑
+vessel pricing override restore gemini-2.0-flash   # 撤销墓碑
+vessel pricing override repair --file repairs.json # 值守卫式修复
+vessel pricing claude-sonnet-4-5                   # 查询时同时显示覆盖/墓碑
+```
+
+**值守卫式修复**（`repair`）：输入一组「旧值 → 新值」对，**仅当覆盖现值等于旧值**才改成
+新值：
+
+| 情况 | 结果 |
+|---|---|
+| 现值 = `from` | `applied`（改成 `to`） |
+| 现值 ≠ `from`（用户手改过） | `skipped-user-modified`（绝不冲掉手改） |
+| 键不存在 | `skipped-absent`（修复不新建条目） |
+
+```jsonc
+// repairs.json（也接受 { "repairs": [...] }）
+[
+  { "key": "claude-sonnet-4-5",
+    "from": { "input": 3, "output": 15, "cacheRead": 0.3, "cacheWrite": 3.75 },
+    "to":   { "input": 3.5, "output": 17.5, "cacheRead": 0.35, "cacheWrite": 4.375 } }
+]
+```
+
+无一条生效时不写文件（幂等）。读盘容错：文件缺失 / JSON 损坏 / 非法行（缺字段、非数字、
+负价）→ 按空覆盖处理，不抛错也不猜价。
+
+**内置更新不冲用户覆盖**：内置 `configs/pricing.json` 换新价后，覆盖文件内容不变，
+解析结果仍用覆盖价（测试 `092 — 覆盖接入 UsageStore` 断言）。
+
+**与 recompute 的关系**：覆盖改了价之后，`vessel usage recompute` 会把历史条目
+按覆盖价重算（`source='override'`），两边口径自动对齐。
 
 ### 10.1 cache_creation 端到端采集（099 已打通）
 
