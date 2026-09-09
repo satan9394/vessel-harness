@@ -1,7 +1,7 @@
 # 089 — 统计增强（时间维度 + cache_creation 计价）
 
 - 编号：089（合并 CC-SWITCH-MODULE-STUDY 候选卡 089/090，同属 UsageStore/计价层）
-- 状态：待验收
+- 状态：已合入
 - 优先级：P1（能力补齐：答得出"本月花了多少"、cache 写入不再低估）
 - 创建日期：2026-09-08
 - 关联：docs/ideas/CC-SWITCH-MODULE-STUDY.md §2 统计模块/§3 计价模块/§6 P1；085（计价正确性，已合入）
@@ -184,5 +184,12 @@ root 基线 957 passed + 1 skipped → 本次 **981 passed**（+24 新用例；w
 
 ## 验收结论（指挥回填）
 
-- [ ] 合入 / 打回
-- 备注：
+- [x] 合入（commit cdf1374）
+- 备注：指挥独立复核——`tsc -b` exit 0；全量 vitest 980 passed + 1 skipped（失败为已知 process-tree 时序 flaky，
+  重跑确认 94 files passed；另一次全量出现 2 failed 系偶发 rename EPERM flaky，均非本卡回归）；web 74 passed。
+  认可：daily 本地日分桶（`complete = date < 今天(本地)`，完整日与今日分开合计；旧文件只保累计不伪造历史分桶 +
+  migratedFromLegacy 提示）；cacheWrite 三档（explicit / derived=input×1.25 / absent 0）+ 留痕与 CLI 提示；
+  原子写加有界重试（3 次）抗 Windows 杀软锁文件；新增 24 用例。
+  **记录的边界（后续卡）**：① cache_creation **端到端采集未做**（卡边界"不改 core"）——AnthropicProvider→core
+  ChatUsage 未上报 cacheCreationTokens，入口已就绪，需另卡打通；② `input_token_semantics` 未做（cache 写入不从
+  inputTokens 扣减）。**089 关闭。**
