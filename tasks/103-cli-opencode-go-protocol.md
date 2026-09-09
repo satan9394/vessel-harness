@@ -1,7 +1,7 @@
 # 103 — CLI/TUI 侧 opencode-go 协议适配（消除 400 MissingSessionID）
 
 - 编号：103
-- 状态：待验收
+- 状态：已合入
 - 优先级：P1（用户日常用 CLI/TUI 走 Go 端点会 400）
 - 创建日期：2026-09-09
 - 关联：102（5af2dfc：lane 侧 opencodeGoChatProvider 已带 x-opencode-session）；docs/OPENCODE-KEY-VERIFY.md
@@ -209,5 +209,13 @@ vessel run --prompt "ping"
 
 ## 验收结论（指挥回填）
 
-- [ ] 合入 / 打回
-- 备注：
+- [x] 合入（commit afac81a）
+- 备注：指挥独立复核——`tsc -b` exit 0；全量 vitest 1102 passed + 1 skipped（基线 1082，+20 无回归；唯一失败为
+  已知 process-tree 时序 flaky）；web 74。
+  认可方案 A（协议上提 `packages/llm/src/provider/OpencodeGoProvider.ts` 作 SSOT，CLI/TUI/lane 共用）：理由充分
+  （Go 专属语义除头外还有路由分流/错误分类/推理预算，方案 B 只塞头会继续分叉）；lane 侧 485 行重复实现删除为
+  re-export 外壳；新增 `apps/cli/src/providers/providerFactory.ts` 作为 CLI/TUI 唯一构造路径（baseUrl 优先级
+  flag>config>preset；TUI 每会话稳定 session id）；顺带修既有缺陷（`--provider <已存 id>` 被当协议名传导致
+  unknown provider）；20 例新测试全用 node:http mock（含"通用 openai-compatible 对同端点 400"对照，证明头是唯一
+  差别）；401 文案剥 URL/内部标识；坑（AgentLoop 重新包装错误丢 `kind`）用文案还原规避、未改 core。
+  **103 关闭。**
