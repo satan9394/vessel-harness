@@ -1,0 +1,1 @@
+Streaming fixture facts: streaming output interleaves tool calls with text deltas.

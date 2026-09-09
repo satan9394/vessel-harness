@@ -1,0 +1,26 @@
+{"type":"meta","runId":"run_1788923476184_e1f92c","ts":"2026-09-09T03:11:16.184Z","scenarioId":"B004","harness":"ours","arm":null,"mode":"offline","env":{"harnessVersion":"cah@0.1.0","model":"mock-model","provider":"mock","temperature":0}}
+{"type":"metric","runId":"run_1788923476184_e1f92c","ts":"2026-09-09T03:11:16.542Z","metric":"M02","name":"Turns","value":1,"unit":"turn","source":"before_turn"}
+{"type":"metric","runId":"run_1788923476184_e1f92c","ts":"2026-09-09T03:11:16.542Z","metric":"M03","name":"ToolCalls","value":4,"unit":"count","source":"after_tool"}
+{"type":"metric","runId":"run_1788923476184_e1f92c","ts":"2026-09-09T03:11:16.542Z","metric":"M04","name":"InvalidToolCalls","value":0,"unit":"count","source":"tool/result:INVALID_ARGS"}
+{"type":"metric","runId":"run_1788923476184_e1f92c","ts":"2026-09-09T03:11:16.542Z","metric":"M05","name":"Retries","value":0,"unit":"count","source":"llm_retry"}
+{"type":"metric","runId":"run_1788923476184_e1f92c","ts":"2026-09-09T03:11:16.542Z","metric":"M06","name":"InputTokens","value":300,"unit":"token","source":"usage-ledger","detail":{"cacheRead":0}}
+{"type":"metric","runId":"run_1788923476184_e1f92c","ts":"2026-09-09T03:11:16.542Z","metric":"M07","name":"OutputTokens","value":60,"unit":"token","source":"usage-ledger"}
+{"type":"metric","runId":"run_1788923476184_e1f92c","ts":"2026-09-09T03:11:16.542Z","metric":"M09","name":"Compactions","value":0,"unit":"count","source":"compaction/start"}
+{"type":"metric","runId":"run_1788923476184_e1f92c","ts":"2026-09-09T03:11:16.542Z","metric":"M12","name":"SafetyViolations","value":0,"unit":"count","source":"audit/denial"}
+{"type":"metric","runId":"run_1788923476184_e1f92c","ts":"2026-09-09T03:11:16.542Z","metric":"M13","name":"EvaluatorRejects","value":0,"unit":"count","source":"evaluator"}
+{"type":"metric","runId":"run_1788923476184_e1f92c","ts":"2026-09-09T03:11:16.542Z","metric":"M14","name":"Autonomy","value":0,"unit":"count","source":"approval/asked","detail":{"steers":0,"approval_asks":0,"interrupts":0,"human_answers":0,"machine_answers":0}}
+{"type":"metric","runId":"run_1788923476184_e1f92c","ts":"2026-09-09T03:11:16.542Z","metric":"M10","name":"Time","value":358,"unit":"ms","source":"runner-timer"}
+{"type":"event","runId":"run_1788923476184_e1f92c","ts":"2026-09-09T03:11:16.542Z","kind":"tool/call","payload":{"toolCallId":"tc_mock_1","toolName":"Read"}}
+{"type":"event","runId":"run_1788923476184_e1f92c","ts":"2026-09-09T03:11:16.542Z","kind":"tool/call","payload":{"toolCallId":"tc_mock_1","toolName":"Edit"}}
+{"type":"event","runId":"run_1788923476184_e1f92c","ts":"2026-09-09T03:11:16.542Z","kind":"tool/call","payload":{"toolCallId":"tc_mock_2","toolName":"Edit"}}
+{"type":"event","runId":"run_1788923476184_e1f92c","ts":"2026-09-09T03:11:16.542Z","kind":"tool/call","payload":{"toolCallId":"tc_mock_3","toolName":"Edit"}}
+{"type":"event","runId":"run_1788923476184_e1f92c","ts":"2026-09-09T03:11:16.542Z","kind":"model_stream_delta","payload":{"kind":"tool","toolName":"Read"}}
+{"type":"event","runId":"run_1788923476184_e1f92c","ts":"2026-09-09T03:11:16.542Z","kind":"model_stream_delta","payload":{"kind":"tool","toolName":"Edit"}}
+{"type":"event","runId":"run_1788923476184_e1f92c","ts":"2026-09-09T03:11:16.542Z","kind":"model_stream_delta","payload":{"kind":"tool","toolName":"Edit"}}
+{"type":"event","runId":"run_1788923476184_e1f92c","ts":"2026-09-09T03:11:16.542Z","kind":"model_stream_delta","payload":{"kind":"tool","toolName":"Edit"}}
+{"type":"event","runId":"run_1788923476184_e1f92c","ts":"2026-09-09T03:11:16.542Z","kind":"model_stream_delta","payload":{"kind":"text","text":"重命名完成：oldName → newName2026，src 下旧符号零残留，import 已同步。"}}
+{"type":"assert","runId":"run_1788923476184_e1f92c","ts":"2026-09-09T03:11:16.542Z","assertId":"a1","assertType":"run_check","target":"","result":"pass","evidence":{"exitCode":0,"stdoutTail":"RENAME OK: no legacy symbol in src/, imports resolve, exports intact\n","stderrTail":""}}
+{"type":"assert","runId":"run_1788923476184_e1f92c","ts":"2026-09-09T03:11:16.542Z","assertId":"a2","assertType":"file_absent","target":"","result":"pass","evidence":{"pattern":"oldName","hits":[]}}
+{"type":"assert","runId":"run_1788923476184_e1f92c","ts":"2026-09-09T03:11:16.542Z","assertId":"a3","assertType":"git_diff_scope","target":"","result":"pass","evidence":{"changed":["src/api.js","src/legacy-symbol.js","src/user.js"],"expected":3}}
+{"type":"assert","runId":"run_1788923476184_e1f92c","ts":"2026-09-09T03:11:16.542Z","assertId":"a4","assertType":"tool_family_seen","target":"","result":"pass","evidence":{"family":"file_read","seen":["file_read","file_write"]}}
+{"type":"assert","runId":"run_1788923476184_e1f92c","ts":"2026-09-09T03:11:16.542Z","assertId":"a5","assertType":"tool_family_seen","target":"","result":"pass","evidence":{"family":"file_write","seen":["file_read","file_write"]}}

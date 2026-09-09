@@ -1,0 +1,7 @@
+# facts.txt — golden facts for B001
+
+The module `tax.js` defines a function named `computeTax`.
+
+RESPONSIBILITY: computeTax computes progressive income tax by bracket:
+it reads the annual income and returns the owed amount according to the
+applicable tax bracket table (progressive rates, not a flat rate).

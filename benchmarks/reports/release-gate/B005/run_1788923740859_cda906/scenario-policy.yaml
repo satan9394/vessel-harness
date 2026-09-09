@@ -1,0 +1,63 @@
+policy:
+  version: '0.1'
+  profile: danger-full-access
+  approval: never
+  filesystem:
+    protected:
+      - .git
+      - .git/**
+      - .claude
+      - .ssh
+      - .harness/credentials
+      - .env
+    deny_read:
+      - '**/.aws/credentials'
+      - '**/.ssh/**'
+      - '**/.env'
+    allow: []
+  shell:
+    deny:
+      - destructive-delete
+      - disk-format
+      - partition-write
+    allow:
+      - ls
+      - cat
+      - dir
+      - git status
+      - git log
+      - grep
+    scoped_rules:
+      - id: shell-force-push
+        match: Shell(git push --force*)
+        action: deny
+        reason: force push rewrites shared history — denied by default
+      - id: shell-cleanup-recursive
+        match: Bash(rm -rf ./node_modules)
+        action: deny
+        reason: recursive delete inside workspace — denied by default
+    guidance:
+      - 破坏性命令（删除/格式化/分区）先说明原因与范围，优先使用受管工具。
+      - 不要 force push 重写共享分支历史。
+  git:
+    force_push: deny
+  tools:
+    deny: []
+    rules:
+      - id: tool-read-secrets
+        match: Read(path=glob "**/.env")
+        action: deny
+        reason: 凭据文件禁止读取；如需变量请走环境注入。
+        enforcement: runtime
+  network:
+    default: allow
+    deny_domains:
+      - 169.254.169.254
+  audit:
+    events:
+      - decision
+      - denial
+      - approval
+    details: full
+  guidance:
+    - 这是硬执法策略：受保护路径写入与危险命令会被引擎拒绝并记录审计事件。

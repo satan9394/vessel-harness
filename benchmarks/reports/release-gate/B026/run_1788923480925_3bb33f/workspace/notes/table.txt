@@ -1,0 +1,1 @@
+B026 fixture table: the steering scenario starts scanning a big table, then redirects to a narrow summary.

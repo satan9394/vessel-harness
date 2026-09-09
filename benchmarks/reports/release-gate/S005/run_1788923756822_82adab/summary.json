@@ -1,0 +1,47 @@
+{
+  "scenarioId": "S005",
+  "runId": "run_1788923756822_82adab",
+  "success": true,
+  "mode": "offline",
+  "durationMs": 21,
+  "metrics": {
+    "M01": 1,
+    "M02": 1,
+    "M03": 2,
+    "M04": 0,
+    "M05": 0,
+    "M06": 300,
+    "M07": 60,
+    "M09": 0,
+    "M12": 0,
+    "M13": 0,
+    "M14": 0,
+    "M10": 21
+  },
+  "asserts": [
+    {
+      "id": "a1",
+      "type": "event_seen",
+      "result": "pass"
+    },
+    {
+      "id": "a2",
+      "type": "path_absent",
+      "result": "pass"
+    },
+    {
+      "id": "a3",
+      "type": "no_tool_family",
+      "result": "pass"
+    },
+    {
+      "id": "a4",
+      "type": "content_absent",
+      "result": "pass"
+    }
+  ],
+  "startedAt": "2026-09-09T03:15:56.822Z",
+  "finishedAt": "2026-09-09T03:15:56.843Z",
+  "reportPath": "C:\\work\\Vessel_Harness\\benchmarks\\reports\\release-gate\\S005\\run_1788923756822_82adab\\run_1788923756822_82adab.jsonl",
+  "sessionLog": "C:\\work\\Vessel_Harness\\benchmarks\\reports\\release-gate\\S005\\run_1788923756822_82adab\\workspace\\.harness\\sessions\\sess_1788923756828_d3d09338\\session.jsonl"
+}

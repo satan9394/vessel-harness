@@ -1,0 +1,14 @@
+{"type":"meta","runId":"run_1788923480969_4e01e7","ts":"2026-09-09T03:11:20.969Z","scenarioId":"B027","harness":"ours","arm":null,"mode":"offline","env":{"harnessVersion":"cah@0.1.0","model":"mock-model","provider":"mock","temperature":0}}
+{"type":"metric","runId":"run_1788923480969_4e01e7","ts":"2026-09-09T03:11:21.000Z","metric":"M02","name":"Turns","value":1,"unit":"turn","source":"before_turn"}
+{"type":"metric","runId":"run_1788923480969_4e01e7","ts":"2026-09-09T03:11:21.000Z","metric":"M03","name":"ToolCalls","value":0,"unit":"count","source":"after_tool"}
+{"type":"metric","runId":"run_1788923480969_4e01e7","ts":"2026-09-09T03:11:21.000Z","metric":"M04","name":"InvalidToolCalls","value":0,"unit":"count","source":"tool/result:INVALID_ARGS"}
+{"type":"metric","runId":"run_1788923480969_4e01e7","ts":"2026-09-09T03:11:21.000Z","metric":"M05","name":"Retries","value":0,"unit":"count","source":"llm_retry"}
+{"type":"metric","runId":"run_1788923480969_4e01e7","ts":"2026-09-09T03:11:21.000Z","metric":"M06","name":"InputTokens","value":100,"unit":"token","source":"usage-ledger","detail":{"cacheRead":0}}
+{"type":"metric","runId":"run_1788923480969_4e01e7","ts":"2026-09-09T03:11:21.000Z","metric":"M07","name":"OutputTokens","value":20,"unit":"token","source":"usage-ledger"}
+{"type":"metric","runId":"run_1788923480969_4e01e7","ts":"2026-09-09T03:11:21.000Z","metric":"M09","name":"Compactions","value":0,"unit":"count","source":"compaction/start"}
+{"type":"metric","runId":"run_1788923480969_4e01e7","ts":"2026-09-09T03:11:21.000Z","metric":"M12","name":"SafetyViolations","value":0,"unit":"count","source":"audit/denial"}
+{"type":"metric","runId":"run_1788923480969_4e01e7","ts":"2026-09-09T03:11:21.000Z","metric":"M13","name":"EvaluatorRejects","value":0,"unit":"count","source":"evaluator"}
+{"type":"metric","runId":"run_1788923480969_4e01e7","ts":"2026-09-09T03:11:21.000Z","metric":"M14","name":"Autonomy","value":0,"unit":"count","source":"approval/asked","detail":{"steers":0,"approval_asks":0,"interrupts":0,"human_answers":0,"machine_answers":0}}
+{"type":"metric","runId":"run_1788923480969_4e01e7","ts":"2026-09-09T03:11:21.000Z","metric":"M10","name":"Time","value":31,"unit":"ms","source":"runner-timer"}
+{"type":"assert","runId":"run_1788923480969_4e01e7","ts":"2026-09-09T03:11:21.000Z","assertId":"a1","assertType":"resume_seen","target":"","result":"pass","evidence":{"pattern":"handoff-id:|RESUME-GOLDEN-2026","handoffCount":1,"contents":["<handoff-resume>\nhandoff-id: handoff_1788923480990_99fbf7dc\ngoal: handoff 续跑（resume）：新 Session 从 Context Reset Handoff 起始上下文（source='handoff'）续跑\n\ncompleted:\n- 已读取 notes/facts.txt\n- 已汇总初始表格\n\ncurrent_st"]}}
+{"type":"assert","runId":"run_1788923480969_4e01e7","ts":"2026-09-09T03:11:21.000Z","assertId":"a2","assertType":"file_content","target":"final_text","result":"pass","evidence":{"missing":[],"textTail":"已从 handoff 续跑：RESUME-GOLDEN-2026（）"}}

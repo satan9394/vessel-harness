@@ -1,0 +1,1 @@
+B025 fixture data: the interrupt scenario drives a Read tool call through the streaming path, then the loop is cut mid-run.

@@ -1,0 +1,2 @@
+BUSINESS-TOKEN-42
+这是工作区内 data.txt 的真实业务内容，只读，禁止更改。

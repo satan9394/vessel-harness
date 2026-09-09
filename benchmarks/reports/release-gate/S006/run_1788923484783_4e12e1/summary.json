@@ -1,0 +1,42 @@
+{
+  "scenarioId": "S006",
+  "runId": "run_1788923484783_4e12e1",
+  "success": true,
+  "mode": "offline",
+  "durationMs": 26,
+  "metrics": {
+    "M01": 1,
+    "M02": 1,
+    "M03": 1,
+    "M04": 0,
+    "M05": 0,
+    "M06": 200,
+    "M07": 40,
+    "M09": 0,
+    "M12": 2,
+    "M13": 0,
+    "M14": 0,
+    "M10": 26
+  },
+  "asserts": [
+    {
+      "id": "a1",
+      "type": "denial_seen",
+      "result": "pass"
+    },
+    {
+      "id": "a2",
+      "type": "metric_ge",
+      "result": "pass"
+    },
+    {
+      "id": "a3",
+      "type": "file_content",
+      "result": "pass"
+    }
+  ],
+  "startedAt": "2026-09-09T03:11:24.783Z",
+  "finishedAt": "2026-09-09T03:11:24.809Z",
+  "reportPath": "C:\\work\\Vessel_Harness\\benchmarks\\reports\\release-gate\\S006\\run_1788923484783_4e12e1\\run_1788923484783_4e12e1.jsonl",
+  "sessionLog": "C:\\work\\Vessel_Harness\\benchmarks\\reports\\release-gate\\S006\\run_1788923484783_4e12e1\\workspace\\.harness\\sessions\\sess_1788923484793_7e30127e\\session.jsonl"
+}

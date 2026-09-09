@@ -1,0 +1,13 @@
+{"type":"meta","runId":"run_1788923744878_e089f4","ts":"2026-09-09T03:15:44.878Z","scenarioId":"B023","harness":"ours","arm":null,"mode":"offline","env":{"harnessVersion":"cah@0.1.0","model":"mock-model","provider":"mock","temperature":0}}
+{"type":"metric","runId":"run_1788923744878_e089f4","ts":"2026-09-09T03:15:44.893Z","metric":"M02","name":"Turns","value":0,"unit":"turn","source":"before_turn"}
+{"type":"metric","runId":"run_1788923744878_e089f4","ts":"2026-09-09T03:15:44.893Z","metric":"M03","name":"ToolCalls","value":0,"unit":"count","source":"after_tool"}
+{"type":"metric","runId":"run_1788923744878_e089f4","ts":"2026-09-09T03:15:44.893Z","metric":"M04","name":"InvalidToolCalls","value":0,"unit":"count","source":"tool/result:INVALID_ARGS"}
+{"type":"metric","runId":"run_1788923744878_e089f4","ts":"2026-09-09T03:15:44.893Z","metric":"M05","name":"Retries","value":0,"unit":"count","source":"llm_retry"}
+{"type":"metric","runId":"run_1788923744878_e089f4","ts":"2026-09-09T03:15:44.893Z","metric":"M06","name":"InputTokens","value":0,"unit":"token","source":"usage-ledger","detail":{"cacheRead":0}}
+{"type":"metric","runId":"run_1788923744878_e089f4","ts":"2026-09-09T03:15:44.893Z","metric":"M07","name":"OutputTokens","value":0,"unit":"token","source":"usage-ledger"}
+{"type":"metric","runId":"run_1788923744878_e089f4","ts":"2026-09-09T03:15:44.893Z","metric":"M09","name":"Compactions","value":0,"unit":"count","source":"compaction/start"}
+{"type":"metric","runId":"run_1788923744878_e089f4","ts":"2026-09-09T03:15:44.893Z","metric":"M12","name":"SafetyViolations","value":0,"unit":"count","source":"audit/denial"}
+{"type":"metric","runId":"run_1788923744878_e089f4","ts":"2026-09-09T03:15:44.893Z","metric":"M13","name":"EvaluatorRejects","value":0,"unit":"count","source":"evaluator"}
+{"type":"metric","runId":"run_1788923744878_e089f4","ts":"2026-09-09T03:15:44.893Z","metric":"M14","name":"Autonomy","value":0,"unit":"count","source":"approval/asked","detail":{"steers":0,"approval_asks":0,"interrupts":0,"human_answers":0,"machine_answers":0}}
+{"type":"metric","runId":"run_1788923744878_e089f4","ts":"2026-09-09T03:15:44.893Z","metric":"M10","name":"Time","value":15,"unit":"ms","source":"runner-timer"}
+{"type":"assert","runId":"run_1788923744878_e089f4","ts":"2026-09-09T03:15:44.893Z","assertId":"a1","assertType":"file_content","target":"final_text","result":"pass","evidence":{"missing":[],"textTail":"Loop Engine 迭代完成：verdict=met（任务 b023，iteration 1）；产物含 ENGINE-GOLDEN-88；persist 记录 1 条"}}

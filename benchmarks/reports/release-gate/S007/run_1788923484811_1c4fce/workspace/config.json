@@ -1,0 +1,6 @@
+{
+  "project": "cah-demo",
+  "status": "PROJECT-STATUS-healthy",
+  "services": 4,
+  "region": "us-east-1"
+}
