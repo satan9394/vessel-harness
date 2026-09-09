@@ -6,6 +6,7 @@ import type { EventBus } from '@vessel/core';
 import { TeamRuntime } from '@vessel/agents';
 import { DEVELOPER_PRESET_ID, createDefaultPresetRegistry, type PresetRegistry } from '@vessel/agents';
 import type { GenerateContext, GeneratorOutput } from './LoopEngine.js';
+import { DEFAULT_HISTORY_LIMIT, RingHistory } from './bounded-history.js';
 
 /**
  * engine/RealGeneratorAdapter — task 061（V1.3 Goal Loop 真接线，docs/Vessel…§11）。
@@ -60,6 +61,13 @@ export interface RealGeneratorAdapterOptions {
   maxSteps?: number;
   /** workspace 改动扫描排除目录（缺省 DEFAULT_EXCLUDE_DIRS） */
   excludeDirs?: readonly string[];
+  /**
+   * history 有界上限（V1.1-B）：adapter 内存内保最近 N 条运行记录（FIFO 覆盖最旧；计数走 total，
+   * 覆盖不清零）。缺省 100 —— 约 6KB/record，内存上界 ≈600KB，杜绝 soak 观察到的 13.5→24.3MB
+   * 单调上行。`lastRun` 恒在环内可得；`runs` 返回最近 N 条。IterationStore 不做全量 history 扫描
+   * （append 时 lastRun 整记录即时入参），故有界不破坏迭代完整性。传 0 或负数 → fail loud。
+   */
+  historyLimit?: number;
 }
 
 /** 一次 developer 运行的输入（任务对象形状 —— 与 engine LoopTask 同构）。 */
@@ -166,7 +174,9 @@ export class RealGeneratorAdapter {
   private readonly opts: RealGeneratorAdapterOptions;
   private readonly registry: PresetRegistry;
   private readonly excludeDirs: readonly string[];
-  private readonly history: GeneratorRunRecord[] = [];
+  private readonly history: RingHistory<GeneratorRunRecord>;
+  /** history 有界上限（= options.historyLimit ?? DEFAULT_HISTORY_LIMIT）。 */
+  readonly historyLimit: number;
 
   constructor(opts: RealGeneratorAdapterOptions) {
     if (!opts.developerProviderId || !opts.developerProviderId.trim()) {
@@ -193,19 +203,29 @@ export class RealGeneratorAdapter {
       fail(`preset "${presetId}" has role "${preset.role}" — RealGeneratorAdapter is generator-side, use a generator preset (e.g. "${DEVELOPER_PRESET_ID}")`);
     }
     this.excludeDirs = opts.excludeDirs ?? DEFAULT_EXCLUDE_DIRS;
+    this.historyLimit = opts.historyLimit ?? DEFAULT_HISTORY_LIMIT;
+    this.history = new RingHistory<GeneratorRunRecord>(this.historyLimit);
   }
 
   get presetId(): string {
     return this.opts.developerPresetId ?? DEVELOPER_PRESET_ID;
   }
 
-  /** 已完成的运行记录（按调用序）—— 结论可回读。 */
+  /**
+   * 已完成的运行记录（按调用序，保最近 historyLimit 条）—— 结论可回读。
+   * 有界环：超过上限后最旧条目被覆盖（计数看 totalRuns），lastRun 恒在环内。
+   */
   get runs(): readonly GeneratorRunRecord[] {
-    return this.history;
+    return this.history.items;
+  }
+
+  /** 单调已产生运行总数（覆盖不清零 —— 计数消费方不因有界环失真）。 */
+  get totalRuns(): number {
+    return this.history.total;
   }
 
   get lastRun(): GeneratorRunRecord | undefined {
-    return this.history[this.history.length - 1];
+    return this.history.last;
   }
 
   /**

@@ -163,6 +163,19 @@ export class ProjectTaskQueue {
   readonly root: string;
   private readonly now: () => number;
 
+  /**
+   * 索引状态（V1.1-B：claimNext/list 不再每次全目录扫描 + 读遍所有 meta —— 改内存索引 + mtime 校验）。
+   * `byId`：id → { 最近一次解析的任务快照, 该 meta.json 的 mtimeMs }。写操作在本实例落盘即透传；
+   * 跨实例改动经 runSync 的 mtime 校验廉价刷新（只重读真正变过的文件，不重读未变 meta —— 命中磁盘 IO
+   * 退化为 stat，远低于旧的「每调用全目录 meta 读 + JSON parse」）。
+   * `pendingDirty`：pending 顺序需按 byId 重建（写操作/刷新后置脏，claim 前惰性重建 —— O(N) 内存，仅 stat）。
+   * `loaded`：是否已完成首次装载（每实例一次；跨实例各自装载，正确性以 disk 为锚）。
+   */
+  private readonly byId = new Map<string, { record: QueueTask; mtimeMs: number }>();
+  private _pendingIds: string[] = [];
+  private pendingDirty = true;
+  private loaded = false;
+
   constructor(opts: ProjectTaskQueueOptions = {}) {
     this.root = path.resolve(opts.tasksRoot ?? defaultTaskQueueRoot());
     this.now = opts.now ?? Date.now;
@@ -178,15 +191,20 @@ export class ProjectTaskQueue {
     return path.join(this.dirFor(id), META_FILE);
   }
 
-  /** 全部任务（最新 createdAt 在前；损坏条目跳过）—— list 是管理视图。 */
+  /**
+   * 全部任务（最新 createdAt 在前；损坏条目跳过）—— list 是管理视图。
+   * V1.1-B：读内存索引（每实例装载一次 + 增量 sync + 本实例写透传），不每次读全目录 meta。
+   */
   list(opts: TaskListOptions = {}): QueueTask[] {
-    const all = this.readAll();
-    const filtered = all.filter((t) => {
-      if (opts.projectRoot !== undefined && t.projectRoot !== path.resolve(opts.projectRoot)) return false;
-      if (opts.status !== undefined && t.status !== opts.status) return false;
-      return true;
-    });
-    return filtered.sort(compareNewestFirst);
+    this.runSync();
+    const project = opts.projectRoot !== undefined ? path.resolve(opts.projectRoot) : undefined;
+    const out: QueueTask[] = [];
+    for (const { record } of this.byId.values()) {
+      if (opts.status !== undefined && record.status !== opts.status) continue;
+      if (project !== undefined && record.projectRoot !== project) continue;
+      out.push(record);
+    }
+    return out.sort(compareNewestFirst);
   }
 
   /** 按 id 读；不存在/损坏 → undefined（registry 同款容忍）。 */
@@ -222,26 +240,18 @@ export class ProjectTaskQueue {
   /**
    * dequeue（领取下一个待办）：FIFO 取最早 pending 的任务 → in-progress。
    * 空队列 / 无该项目的 pending → null（与 LoopEngine selectTask null=stop 契约一致）。
-   * 领取前重读 meta 校验仍 pending（并发领取不重复）；同进程内绝无重复领取。
+   * V1.1-B：候选来自内存 pending 顺序（惰性重建，无全目录 meta 读）；领取前仍重读 meta 校验
+   * 仍 pending（并发领取不重复）；同进程内绝无重复领取。
    */
   claimNext(opts: { projectRoot?: string } = {}): QueueTask | null {
-    const all = this.readAll();
+    this.ensureLoaded();
+    if (this.pendingDirty) this.rebuildPending();
     const project = opts.projectRoot !== undefined ? path.resolve(opts.projectRoot) : undefined;
-    const candidates = all
-      .filter((t) => t.status === 'pending' && (project === undefined || t.projectRoot === project))
-      .sort(compareOldestFirst);
-    for (const candidate of candidates) {
-      const fresh = this.readMeta(candidate.id);
-      if (!fresh || fresh.status !== 'pending') continue; // 已被并发领取/变更 → 跳过
-      const now = isoOf(this.now());
-      const record: QueueTask = {
-        ...fresh,
-        status: 'in-progress',
-        updatedAt: now,
-        startedAt: now,
-      };
-      this.writeMeta(record);
-      return record;
+    for (const pendingId of this.pendingIds()) {
+      const fresh = this.readMeta(pendingId);
+      if (!fresh || fresh.status !== 'pending') continue; // 已被并发领取/变更 → 跳过（锚定 disk）
+      if (project !== undefined && fresh.projectRoot !== project) continue;
+      return this.claimCandidate(fresh);
     }
     return null;
   }
@@ -337,23 +347,6 @@ export class ProjectTaskQueue {
     return record;
   }
 
-  private readAll(): QueueTask[] {
-    if (!fs.existsSync(this.root)) return [];
-    let entries: fs.Dirent[];
-    try {
-      entries = fs.readdirSync(this.root, { withFileTypes: true });
-    } catch {
-      return [];
-    }
-    const out: QueueTask[] = [];
-    for (const e of entries) {
-      if (!e.isDirectory()) continue;
-      const rec = this.readMeta(e.name);
-      if (rec) out.push(rec);
-    }
-    return out;
-  }
-
   private readMeta(id: string): QueueTask | undefined {
     const file = this.metaPath(id);
     if (!fs.existsSync(file)) return undefined;
@@ -379,7 +372,8 @@ export class ProjectTaskQueue {
     }
   }
 
-  /** meta.json —— tmp+rename 原子写（同 SessionRegistry.persist / ReviewHandoffStore.writeMeta）。 */
+  /** meta.json —— tmp+rename 原子写（同 SessionRegistry.persist / ReviewHandoffStore.writeMeta）。
+   *  写透传索引：每次落盘同步更新内存 byId + 记录该文件 mtime（本实例后续 list/claimNext 免重读）。 */
   private writeMeta(record: QueueTask): void {
     const dir = this.dirFor(record.id);
     fs.mkdirSync(dir, { recursive: true });
@@ -387,6 +381,98 @@ export class ProjectTaskQueue {
     const tmp = path.join(dir, `${META_FILE}.${process.pid}.${Date.now()}.tmp`);
     fs.writeFileSync(tmp, JSON.stringify(record, null, 2), 'utf8');
     fs.renameSync(tmp, file);
+    let mtimeMs = Date.now();
+    try {
+      mtimeMs = fs.statSync(file).mtimeMs;
+    } catch {
+      /* 目录立即被清等极端竞态 —— 用当前时钟兜底（保守置脏，下次 sync 会以 disk 为准） */
+    }
+    this.byId.set(record.id, { record, mtimeMs });
+    this.pendingDirty = true;
+  }
+
+  // ------------------------------------------------------------------
+  // index helpers（V1.1-B）
+  // ------------------------------------------------------------------
+
+  /** pending 候选 id 列表（最旧在前）。调用方需先 ensureLoaded/runSync + （必要时）rebuildPending。 */
+  private pendingIds(): string[] {
+    return this._pendingIds;
+  }
+
+  /**
+   * claimNext 热路径装载：首次做全量索引装载；之后本实例作为（文档约定的）单写者自行写透传 byId，
+   * 不重复 readdir/stat 全部 —— 领取 O(1) 候选 + 单条 disk 重读校验。跨实例改动靠 list 的 runSync
+   * 兜底刷新（管理视图恒盘面为准）。
+   */
+  private ensureLoaded(): void {
+    if (this.loaded) return;
+    this.runSync();
+  }
+
+  /** 惰性重建 pending 顺序（byId 内存计算，仅 stat，无 meta 重读）。 */
+  private rebuildPending(): void {
+    const pending: QueueTask[] = [];
+    for (const { record } of this.byId.values()) {
+      if (record.status === 'pending') pending.push(record);
+    }
+    pending.sort(compareOldestFirst);
+    this._pendingIds = pending.map((t) => t.id);
+    this.pendingDirty = false;
+  }
+
+  /**
+   * 装载 + 增量 sync（list 每次调用；claimNext 仅首次）：readdir + 按 meta mtime 校验刷新。
+   * - 首次：全目录扫描读各 meta 建索引（每实例一次；跨实例各自装载）。
+   * - 之后/每调用：readdir 合并新增 id；对每个已知 id `statSync(meta.json).mtimeMs`，
+   *   与缓存不一致（本实例写或跨实例改）才重读 meta，未变条目只 stat 不 parse —— 磁盘IO从
+   *   旧「全目录 meta 读 + JSON parse」退化为 stat（内容读降为 O(changed)）。正确性以 disk 为锚。
+   */
+  private runSync(): void {
+    if (!fs.existsSync(this.root)) {
+      this.byId.clear();
+      this._pendingIds = [];
+      this.pendingDirty = false;
+      this.loaded = true;
+      return;
+    }
+    let entries: fs.Dirent[];
+    try {
+      entries = fs.readdirSync(this.root, { withFileTypes: true });
+    } catch {
+      return;
+    }
+    for (const e of entries) {
+      if (!e.isDirectory()) continue;
+      const id = e.name;
+      const cached = this.byId.get(id);
+      const file = this.metaPath(id);
+      let mtimeMs: number;
+      try {
+        mtimeMs = fs.statSync(file).mtimeMs;
+      } catch {
+        continue; // 目录存在但 meta 缺失/不可读 —— 视同损坏，跳过
+      }
+      if (cached && cached.mtimeMs === mtimeMs) continue; // 未变条目：仅 stat，不重读
+      const rec = this.readMeta(id);
+      if (rec) this.byId.set(id, { record: rec, mtimeMs });
+      else if (cached) this.byId.delete(id); // 已损坏/被删 —— 移除（软，不删文件）
+    }
+    this.loaded = true;
+    this.pendingDirty = true;
+  }
+
+  /** claimNext 内部：把已校验仍 pending 的候选落盘 in-progress 并写透传索引，返回写后记录。 */
+  private claimCandidate(fresh: QueueTask): QueueTask {
+    const now = isoOf(this.now());
+    const record: QueueTask = {
+      ...fresh,
+      status: 'in-progress',
+      updatedAt: now,
+      startedAt: now,
+    };
+    this.writeMeta(record);
+    return record;
   }
 }
 

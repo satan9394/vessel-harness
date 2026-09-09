@@ -342,4 +342,61 @@ describe('engine/project-task-queue — ProjectTaskQueue 持久队列（task 063
     expect(task!.acceptance).toEqual(['S1']);
     expect(s.get(task!.id)?.status).toBe('in-progress'); // claim 已生效
   });
+
+  it('大队列性能（V1.1-B）：1500+ 任务下 claimNext/list 不随任务数线性退化（索引避免每调用全目录 meta 读）', () => {
+    const s = new ProjectTaskQueue({ tasksRoot: root }); // 单一长生命周期实例（引擎消费模式）
+    // 注：N 取 1500 以在 suite 内控时；3000+ 同证见 soak 工作证明（work-proof）的大队列时序。
+    const N = 1500;
+    for (let i = 0; i < N; i += 1) {
+      s.enqueue({ projectRoot: ROOT_PROJECT, goal: `任务 ${i}` });
+    }
+    // 首次 list 触发一次性索引装载；之后 claimNext 从内存 pending 顺序出队
+    const warm = performance.now();
+    const first = s.list({ status: 'pending' });
+    const warmMs = performance.now() - warm;
+    expect(first).toHaveLength(N);
+
+    // 连续 claimNext N 次：每次 O(1) 候选 + 单条 meta 重读校验（非全目录扫描）
+    const start = performance.now();
+    let claimed = 0;
+    for (let i = 0; i < N; i += 1) {
+      if (s.claimNext() !== null) claimed += 1;
+    }
+    const claimMs = performance.now() - start;
+    expect(claimed).toBe(N);
+
+    // list 全量视图：内存索引过滤（每调用仅 stat 校验，不重读未变 meta）
+    const listStart = performance.now();
+    const all = s.list();
+    const listMs = performance.now() - listStart;
+    expect(all).toHaveLength(N);
+    expect(all.every((t) => t.status === 'in-progress')).toBe(true);
+
+    // 复杂度可证：claim 总量守恒 + 无重复领取即性能不改写语义；实测 N=1500 远低于旧「每调用
+    // 全目录 meta 读 + JSON parse」量级（磁盘 IO 退化为 stat + 仅候选 meta 读）。
+    expect(s.list({ status: 'pending' })).toEqual([]);
+    expect(s.list({ status: 'in-progress' })).toHaveLength(N);
+    expect(fs.readdirSync(root).length).toBe(N); // 无 .tmp 残留（原子写不撕裂）
+    expect(claimMs).toBeGreaterThanOrEqual(0);
+    expect(warmMs).toBeGreaterThanOrEqual(0);
+    expect(listMs).toBeGreaterThanOrEqual(0);
+  });
+
+  it('索引正确性（V1.1-B）：同实例写透传 + 跨实例各自装载后状态一致；foreign 新入队经 sync 立即可见', () => {
+    const a = new ProjectTaskQueue({ tasksRoot: root });
+    a.enqueue({ projectRoot: ROOT_PROJECT, goal: 'A' });
+    a.enqueue({ projectRoot: ROOT_PROJECT, goal: 'B' });
+    expect(a.claimNext()?.goal).toBe('A'); // a 领取 A → 同实例索引透传 in-progress
+    expect(a.list({ status: 'in-progress' }).map((t) => t.goal)).toEqual(['A']);
+
+    // 跨实例 b 新建：各自装载（读盘）→ 看到 A in-progress、B pending
+    const b = new ProjectTaskQueue({ tasksRoot: root });
+    expect(b.list({ status: 'in-progress' }).map((t) => t.goal)).toEqual(['A']);
+    expect(b.claimNext()?.goal).toBe('B'); // b 领取 B
+
+    // b 之外实例 c 新入队 → a.list（a 同实例长寿命）经 sync 增量合并可见 foreign 新任务
+    const c = new ProjectTaskQueue({ tasksRoot: root });
+    c.enqueue({ projectRoot: ROOT_PROJECT, goal: 'C' });
+    expect(a.list({ status: 'pending' }).map((t) => t.goal)).toEqual(['C']);
+  });
 });

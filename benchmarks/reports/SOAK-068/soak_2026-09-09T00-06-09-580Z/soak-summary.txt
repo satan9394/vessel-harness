@@ -1,0 +1,12 @@
+label=soak-068-60t-40r durationMs=38580
+tasks=60 rounds=40 enqueued=60
+attempts=1201 iterations=631
+finalQueueStatuses{met:60}
+handoffCount=48 chain=2
+pauseResumeCycles=2 budgetChanges=40
+tempResidue=0 (0=clean, 064)
+storeDirKB=835
+heapStartMB=11.8 heapEndMB=15.1 deltaMB=3.3
+roundTrip queue=true itersTasks=60 handoffs=true countConsistent=true
+resumeProducedIteration=true resumeExtraIteration=1
+exhausted={"paused":false,"budget":{"maxIterations":1,"maxRetries":1},"exhausted":{"kind":"iterations","atIteration":4}}

@@ -1,0 +1,12 @@
+label=soak-068-120t-30r durationMs=54300
+tasks=120 rounds=30 enqueued=120
+attempts=360 iterations=240
+finalQueueStatuses{met:120}
+handoffCount=0 chain=0
+pauseResumeCycles=0 budgetChanges=6
+tempResidue=0 (0=clean, 064)
+storeDirKB=247
+heapStartMB=13.6 heapEndMB=13.3 deltaMB=-0.3
+roundTrip queue=true itersTasks=120 handoffs=true countConsistent=true
+resumeProducedIteration=false resumeExtraIteration=null
+exhausted={"paused":false,"budget":{"maxIterations":1,"maxRetries":1},"exhausted":{"kind":"iterations","atIteration":41}}

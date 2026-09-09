@@ -441,4 +441,25 @@ describe('engine — RealEvaluatorAdapter (task 062)', () => {
     expect(evaluator.runs.map((r) => r.taskId)).toEqual(['t-hand', 't-hand2']);
     expect(evaluator.runs.map((r) => r.conclusion.verdict)).toEqual(['met', 'not_met']);
   });
+
+  it('history 有界环（V1.1-B）：超上限覆盖最旧、保最近 N 条；totalRuns 单调；lastRun 仍可读（retry 决策消费方）', async () => {
+    const evaluator = new RealEvaluatorAdapter(
+      opts({ providers: { rev: gatedReviewer(SATISFIED) }, historyLimit: 2 }),
+    );
+    expect(evaluator.historyLimit).toBe(2);
+    const ids: string[] = [];
+    for (let i = 0; i < 4; i += 1) {
+      const r = await evaluator.evaluateRun({
+        id: `e-${i}`,
+        goal: `goal ${i}`,
+        workspaceRoot: workspace,
+        generatorOutput: i % 2 === 0 ? SATISFIED_OUTPUT : UNSATISFIED_OUTPUT,
+      });
+      ids.push(r.taskId);
+    }
+    expect(evaluator.runs.map((r) => r.taskId)).toEqual(['e-2', 'e-3']); // 保最近 2；e-0/e-1 覆盖
+    expect(evaluator.totalRuns).toBe(4); // 计数单调
+    expect(evaluator.lastRun?.taskId).toBe('e-3'); // 消费方（lastRun 附入 IterationStore）恒得最近
+    expect(evaluator.lastRun!.conclusion.verdict).toBe('not_met');
+  });
 });

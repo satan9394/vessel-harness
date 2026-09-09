@@ -266,4 +266,27 @@ describe('engine — RealGeneratorAdapter (task 061)', () => {
     expect(generator.runs.map((r) => r.taskId)).toEqual(['a', 'b']);
     expect(generator.runs[0]!.developer!.sessionId).not.toBe(generator.runs[1]!.developer!.sessionId);
   });
+
+  it('history 有界环（V1.1-B）：超上限覆盖最旧、保最近 N 条；totalRuns 单调；lastRun/消费方仍可读', async () => {
+    const generator = new RealGeneratorAdapter(
+      opts({ providers: { pro: prov('DEV-61: 输出') }, historyLimit: 3 }),
+    );
+    expect(generator.historyLimit).toBe(3);
+    const runIds: string[] = [];
+    for (let i = 0; i < 5; i += 1) {
+      const r = await generator.run({ id: `t-${i}`, goal: `goal ${i}`, workspaceRoot: workspace });
+      runIds.push(r.taskId);
+    }
+    // 有界：只保最近 3 条（FIFO 覆盖 t-0/t-1）
+    expect(generator.runs.map((r) => r.taskId)).toEqual(['t-2', 't-3', 't-4']);
+    expect(generator.runs.length).toBe(3);
+    // 计数单调：覆盖不清零
+    expect(generator.totalRuns).toBe(5);
+    // 消费方兼容：lastRun 恒为最近一条（goalSeam persist 依赖）
+    expect(generator.lastRun?.taskId).toBe('t-4');
+    expect(generator.lastRun!.output).toContain('DEV-61');
+    // 失败构造：非正 limit fail loud
+    expect(() => new RealGeneratorAdapter(opts({ historyLimit: 0 }))).toThrow(/historyLimit/);
+    expect(() => new RealGeneratorAdapter(opts({ historyLimit: -1 }))).toThrow(/historyLimit/);
+  });
 });

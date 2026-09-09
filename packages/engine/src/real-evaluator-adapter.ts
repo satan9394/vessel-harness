@@ -12,6 +12,7 @@ import {
   type ReviewConclusion,
 } from '@vessel/agents';
 import type { EvaluateContext } from './LoopEngine.js';
+import { RingHistory, DEFAULT_HISTORY_LIMIT } from './bounded-history.js';
 
 /**
  * engine/RealEvaluatorAdapter — task 062（V1.3 Goal Loop 真接线，docs/Vessel…§11；
@@ -61,6 +62,13 @@ export interface RealEvaluatorAdapterOptions {
   bus?: EventBus;
   stableSections?: string[];
   policyGuidance?: string[];
+  /**
+   * history 有界上限（V1.1-B）：adapter 内存内保最近 N 条评审记录（FIFO 覆盖最旧；计数走 total）。
+   * 缺省 100（见 DEFAULT_HISTORY_LIMIT）—— 约数 KB/record，内存上界稳定，杜绝 soak 观察到的
+   * heap 单调上行。lastRun 恒在环内可得；runs 返回最近 N 条；IterationStore 不做全量 history 扫描
+   * （append 时 lastRun 整记录即时入参），有界不破坏迭代完整性。传 0/负数 → fail loud。
+   */
+  historyLimit?: number;
 }
 
 /** 一次评审的输入（评审对象形状 —— 与 061 GeneratorRunRecord / engine GeneratorOutput 同构）。 */
@@ -129,7 +137,9 @@ export class RealEvaluatorAdapter {
   private readonly opts: RealEvaluatorAdapterOptions;
   private readonly registry: PresetRegistry;
   private readonly reviewerPreset: AgentPreset;
-  private readonly history: EvaluatorRunRecord[] = [];
+  private readonly history: RingHistory<EvaluatorRunRecord>;
+  /** history 有界上限（= options.historyLimit ?? DEFAULT_HISTORY_LIMIT）。 */
+  readonly historyLimit: number;
 
   constructor(opts: RealEvaluatorAdapterOptions) {
     if (!opts.reviewerProviderId || !opts.reviewerProviderId.trim()) {
@@ -161,19 +171,30 @@ export class RealEvaluatorAdapter {
       fail(`preset "${presetId}" must be write:false (evaluator review face is read-only)`);
     }
     this.reviewerPreset = preset;
+    this.historyLimit = opts.historyLimit ?? DEFAULT_HISTORY_LIMIT;
+    this.history = new RingHistory<EvaluatorRunRecord>(this.historyLimit);
   }
 
   get presetId(): string {
     return this.opts.reviewerPresetId ?? REVIEWER_PRESET_ID;
   }
 
-  /** 已完成的评审记录（按调用序）—— 结论可回读（retry 决策数据：verdict/unmet/suggestions）。 */
+  /**
+   * 已完成的评审记录（按调用序，保最近 historyLimit 条）—— 结论可回读
+   * （retry 决策数据：verdict/unmet/suggestions）。有界环超过上限后覆盖最旧；
+   * 计数看 totalRuns（覆盖不清零），lastRun 恒在环内。
+   */
   get runs(): readonly EvaluatorRunRecord[] {
-    return this.history;
+    return this.history.items;
+  }
+
+  /** 单调已产生评审总数（覆盖不清零 —— 计数消费方不因有界环失真）。 */
+  get totalRuns(): number {
+    return this.history.total;
   }
 
   get lastRun(): EvaluatorRunRecord | undefined {
-    return this.history[this.history.length - 1];
+    return this.history.last;
   }
 
   /**
