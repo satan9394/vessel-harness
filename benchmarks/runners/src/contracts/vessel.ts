@@ -7,8 +7,9 @@
  * External adapters (077-081) implement the SAME HarnessAdapter surface.
  *
  * Isolation: the fixture workspace is copied into a temp dir (the adapter never
- * mutates the pristine fixture in benchmarks/fixtures). Cost is estimated from
- * configs/pricing.json via the same fallback chain as apps/cli/providers/pricing.
+ * mutates the pristine fixture in benchmarks/fixtures). Cost is estimated via
+ * `@vessel/shared/pricing` (task 087) — the SAME resolver the CLI UsageStore and
+ * the application UsageProjection use, so all three paths cannot drift.
  */
 import * as fs from 'node:fs';
 import * as os from 'node:os';
@@ -17,6 +18,7 @@ import { composeHarness, type ComposeOptions } from '@vessel/cli';
 import type { ChatProvider, ChatResponse, ChatRequest } from '@vessel/shared';
 import { MockProvider } from '@vessel/llm';
 import { OFFLINE_SCRIPTS } from '../offline.js';
+import { resolveBenchPrice } from '../adapters/pricing.js';
 import { assertValidHarnessAdapter, assertValidRunResult } from './validate.js';
 import type { CapabilityKey, HarnessAdapter, HarnessFixture, RunResult } from './types.js';
 
@@ -73,26 +75,14 @@ function trackingProvider(base: ChatProvider, peak: { value: number }): ChatProv
   };
 }
 
-/** Load per-1M-token prices from configs/pricing.json (fallback chain). */
-export interface TokenPrice {
+/** Load per-1M-token prices via the shared resolver (task 087) — single price source. */
+interface TokenPrice {
   input: number;
   output: number;
   cacheRead?: number;
 }
 function loadPrices(configRoot: string, model: string, protocol?: string): TokenPrice {
-  const fallback: TokenPrice = { input: 0.5, output: 1.5, cacheRead: 0.1 };
-  let table: { models?: Record<string, TokenPrice>; protocols?: Record<string, TokenPrice> } = {};
-  try {
-    table = JSON.parse(fs.readFileSync(path.join(configRoot, 'configs', 'pricing.json'), 'utf8'));
-  } catch {
-    /* corrupt/missing → default */
-  }
-  const byModel = table.models?.[model];
-  if (byModel) return byModel;
-  const protoKey = protocol && table.protocols?.[protocol] ? protocol : 'openai-compatible';
-  const byProto = table.protocols?.[protoKey];
-  if (byProto) return byProto;
-  return table.models?.default ?? fallback;
+  return resolveBenchPrice(configRoot, model, protocol);
 }
 
 function copyDir(src: string, dest: string): void {

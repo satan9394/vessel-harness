@@ -1,5 +1,6 @@
 import type { EventBus } from '@vessel/core';
-import { DEFAULT_PRICING, type PricingTable, type UsageRecord } from './types.js';
+import { EMPTY_PRICING_TABLE, resolvePrice, type CatalogPriceSource, type PriceResolution, type PricingTable } from '@vessel/shared';
+import type { UsageRecord } from './types.js';
 
 type AfterModelPayload = {
   turnId: string;
@@ -9,10 +10,19 @@ type AfterModelPayload = {
 };
 
 export interface UsageProjectionOptions {
-  /** model id to look up in the pricing table (falls back to `default`). */
+  /** model id used for the price lookup (normalized by @vessel/shared/pricing). */
   model?: string;
-  /** optional injected pricing per 1M tokens (USD). Defaults to 0.5/1.5/0.1. */
+  /**
+   * 注入的价目表（configs/pricing.json 形状）。缺省 → 空表，查价落到
+   * `default` 兜底并把 `estimated` 标为 true（task 086：估算必须显式）。
+   */
   pricingTable?: PricingTable;
+  /** 目录价源（configs/model-catalog.json）——回退链第二级（task 087）。 */
+  catalog?: CatalogPriceSource;
+  /** 线协议（protocol 级价）；不传则不参与回退。 */
+  protocol?: string;
+  /** strict：只用模型专属价目（model/catalog），未收录模型按 0 计价（标 unpriced）。 */
+  strict?: boolean;
 }
 
 /**
@@ -22,13 +32,14 @@ export interface UsageProjectionOptions {
  * is emitted with a `usage` field shaped like `ChatUsage`
  * (`{ inputTokens, outputTokens, cacheReadTokens? }`).
  *
- * Cost is estimated from the injected pricing table (or the task-card default
- * 0.5 / 1.5 / 0.1 per 1M tokens when absent) — @vessel/application has no
- * `loadPricing` helper, so the table is injected rather than read from disk.
+ * 计价（task 087）：与 apps/cli UsageStore / benchmarks 共用
+ * `@vessel/shared/pricing` 的 `resolvePrice` —— 同一份归一规则、同一条回退链
+ * （model > catalog > protocol > default）、同一套 estimated 语义。本类不再
+ * 持有任何硬编码价目或默认价。
  */
 export class UsageProjection {
   private readonly model: string;
-  private readonly pricing: PricingTable;
+  private readonly resolution: PriceResolution;
   private inputTokens = 0;
   private outputTokens = 0;
   private cacheReadTokens = 0;
@@ -36,7 +47,13 @@ export class UsageProjection {
 
   constructor(opts: UsageProjectionOptions = {}) {
     this.model = opts.model ?? 'default';
-    this.pricing = opts.pricingTable ?? DEFAULT_PRICING;
+    this.resolution = resolvePrice(
+      opts.pricingTable ?? EMPTY_PRICING_TABLE,
+      this.model,
+      opts.protocol,
+      opts.catalog,
+      { strict: opts.strict },
+    );
   }
 
   attach(bus: EventBus): () => void {
@@ -55,20 +72,28 @@ export class UsageProjection {
     );
   }
 
-  private rate(key: 'input' | 'output' | 'cacheRead'): number {
-    const row =
-      this.pricing[this.model] ?? this.pricing.default ?? { input: 0.5, output: 1.5, cacheRead: 0.1 };
-    return row?.[key] ?? 0;
+  /** 本次会话的查价结果（价格 / 来源 / 是否估算）——审计与 UI 展示用。 */
+  pricing(): PriceResolution {
+    return this.resolution;
   }
 
   usage(): UsageRecord {
     const input = this.inputTokens;
     const output = this.outputTokens;
     const cache = this.cacheReadTokens;
+    const price = this.resolution.price;
     const costUsd =
-      (input / 1_000_000) * this.rate('input') +
-      (output / 1_000_000) * this.rate('output') +
-      (cache / 1_000_000) * this.rate('cacheRead');
-    return { inputTokens: input, outputTokens: output, cacheReadTokens: cache, calls: this.calls, costUsd };
+      (input / 1_000_000) * price.input +
+      (output / 1_000_000) * price.output +
+      (cache / 1_000_000) * (price.cacheRead ?? 0);
+    return {
+      inputTokens: input,
+      outputTokens: output,
+      cacheReadTokens: cache,
+      calls: this.calls,
+      costUsd,
+      pricingSource: this.resolution.source,
+      estimated: this.resolution.estimated,
+    };
   }
 }

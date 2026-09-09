@@ -5,7 +5,8 @@
   "description": "Benchmark runner: manifests, asserts, adapters, JSONL reports",
   "type": "module",
   "dependencies": {
-    "@vessel/application": "^0.10.0"
+    "@vessel/application": "^0.10.0",
+    "@vessel/shared": "^0.10.0"
   },
   "main": "dist/index.js",
   "scripts": { "build": "tsc -b", "test": "vitest run" }

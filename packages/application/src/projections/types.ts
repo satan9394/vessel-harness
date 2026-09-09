@@ -50,6 +50,10 @@ export interface UsageRecord {
   cacheReadTokens: number;
   calls: number;
   costUsd: number;
+  /** 价格来源（task 086）：model / catalog / protocol / default / unpriced */
+  pricingSource: PriceSource;
+  /** true = 成本含通用 default 兜底价（估算，不是真实价目） */
+  estimated: boolean;
 }
 
 /** One row of the Policy projection (audit / denials). */
@@ -61,19 +65,20 @@ export interface PolicyDenial {
 }
 
 /**
- * Pricing per 1M tokens in USD. `default` is the fallback when the model id is
- * not present in the table. Keys map directly to model ids (e.g. `gpt-4o`).
- * Mirrors configs/pricing.json's `models` shape.
+ * Pricing per 1M tokens in USD（task 087：与 apps/cli / benchmarks 同一份实现）。
+ *
+ * 类型与查价规则都来自 `@vessel/shared/pricing`，这里只做 re-export ——
+ * application 层不再维护第二套价表形状与硬编码默认价。
  */
-export interface PricingTable {
-  default?: { input?: number; output?: number; cacheRead?: number };
-  [model: string]: { input?: number; output?: number; cacheRead?: number } | undefined;
-}
-
-/** Task card default pricing (~default model entry in configs/pricing.json). */
-export const DEFAULT_PRICING: PricingTable = {
-  default: { input: 0.5, output: 1.5, cacheRead: 0.1 },
-};
+export type {
+  CatalogPriceSource,
+  PriceResolution,
+  PriceSource,
+  PricingTable,
+  TokenPrice,
+} from '@vessel/shared';
+export { DEFAULT_TOKEN_PRICE, EMPTY_PRICING_TABLE } from '@vessel/shared';
+import type { PriceSource } from '@vessel/shared';
 
 // ---------------------------------------------------------------------------
 // Team projection (task 057) — one team run rendered from bus events

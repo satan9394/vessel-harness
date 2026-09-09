@@ -22,6 +22,7 @@ import * as os from 'node:os';
 import * as path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { assertValidHarnessAdapter, assertValidRunResult } from '../contracts/validate.js';
+import { resolveBenchPrice } from './pricing.js';
 import type { CapabilityKey, HarnessAdapter, HarnessFixture, RunResult } from '../contracts/types.js';
 
 export const DSH_ADAPTER_ID = 'dsh';
@@ -121,20 +122,6 @@ function copyDir(src: string, dest: string): void {
     if (e.isDirectory()) copyDir(s, d);
     else if (e.isFile()) fs.copyFileSync(s, d);
   }
-}
-
-/** Load per-1M-token prices from configs/pricing.json (same fallback as vessel). */
-interface TokenPrice { input: number; output: number; cacheRead?: number; }
-function loadPrices(configRoot: string, model: string): TokenPrice {
-  const fallback: TokenPrice = { input: 0.5, output: 1.5, cacheRead: 0.1 };
-  let table: { models?: Record<string, TokenPrice>; protocols?: Record<string, TokenPrice> } = {};
-  try {
-    table = JSON.parse(fs.readFileSync(path.join(configRoot, 'configs', 'pricing.json'), 'utf8'));
-  } catch {
-    /* corrupt/missing → default */
-  }
-  if (table.models?.[model]) return table.models![model];
-  return table.models?.default ?? fallback;
 }
 
 /**
@@ -331,7 +318,7 @@ export async function runDshFixture(fixture: HarnessFixture): Promise<RunResult>
     acc.notes.push(`run raised: ${String(runError)}`);
   }
 
-  const prices = loadPrices(configRoot, model);
+  const prices = resolveBenchPrice(configRoot, model);
   const costUsd =
     (acc.inputTokens / 1_000_000) * (prices.input ?? 0) +
     (acc.outputTokens / 1_000_000) * (prices.output ?? 0) +

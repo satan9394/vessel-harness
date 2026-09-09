@@ -14,7 +14,7 @@ import { VESSEL_LOGO, VESSEL_TAGLINE } from './brand.js';
 import { UsageStore } from './usage/UsageStore.js';
 import { runVesselMigration } from './migrate.js';
 import { cmdReview } from './review/reviewCommands.js';
-import { loadModelCatalog, findCatalogModelByBase, listCatalogModels } from './providers/modelCatalog.js';
+import { loadModelCatalog, findCatalogModelByBase, findCatalogModelMatch, catalogPriceSource, listCatalogModels } from './providers/modelCatalog.js';
 import { loadPricing } from './providers/pricing.js';
 
 const USAGE = `${VESSEL_LOGO}
@@ -27,7 +27,7 @@ Vessel CLI v${VERSION} — 可组合 Agent Harness（品牌 Vessel）
   vessel run --bench <scenarioId>    基准模式：运行 benchmarks/ 场景并产出 JSONL 报告
   vessel models [--provider p]       列出某供应商可用模型（OpenAI 兼容实时拉取 / Anthropic 内置清单）
   vessel setup                       交互向导：搜索选供应商 → 输 key → 拉模型 → 空格勾选 → 提交
-  vessel usage [--recent <n>]          查看使用统计（tokens/调用/成本，落盘 ~/.vessel/usage.json）
+  vessel usage [--recent <n>] [--strict]  查看使用统计（tokens/调用/成本 + 价格来源分布；--strict 按不用兜底价重算）
   vessel pricing [model]               模型价目（configs/model-catalog.json，USD/1M tokens）
   vessel provider list               列出所有供应商（* = 当前默认）
   vessel provider current            显示当前默认供应商
@@ -56,6 +56,7 @@ run 选项:
   --policy <path>                 系统级策略文件（默认 configs/policy.default.yaml）
   --behavior <path>               Behavior IR 文件（默认 configs/behavior.default.yaml）
   --session-dir <dir>             会话日志目录（默认 <workspace>/.harness/sessions/<id>）
+  --strict                        计价严格模式：只用模型专属价目（model/catalog），未收录模型按 0 计价并标「未收录」
 
 provider 协议说明:
   openai-compatible    OpenAI chat/completions 协议：OpenAI / DeepSeek / Qwen / vLLM / Ollama 等
@@ -107,6 +108,19 @@ function repoRoot(): string {
     dir = parent;
   }
   return process.cwd();
+}
+
+/**
+ * UsageStore 工厂（task 086/087）：价目表 + 目录价源 + strict 开关。
+ * 查价实现与 UsageProjection 共用 @vessel/shared/pricing。
+ */
+function createUsageStore(opts: { strict?: boolean } = {}): UsageStore {
+  const root = repoRoot();
+  return new UsageStore({
+    pricing: loadPricing(root),
+    catalog: catalogPriceSource(loadModelCatalog(root)),
+    strict: opts.strict,
+  });
 }
 
 /**
@@ -164,7 +178,8 @@ async function cmdRun(flags: Map<string, string>): Promise<number> {
     maxSteps: Number(flags.get('max-steps') ?? 64),
     permission: (flags.get('permission') ?? 'workspace-write') as 'read-only' | 'workspace-write' | 'danger-full-access',
     // V0.9 usage statistics: record this session's model usage persistently
-    usageStore: new UsageStore({ pricing: loadPricing(root) }),
+    // （task 086：--strict 只用模型专属价目，未收录模型按 0 计价）
+    usageStore: createUsageStore({ strict: flags.has('strict') }),
     usageProvider: currentId,
   });
 
@@ -401,44 +416,83 @@ async function cmdSetup(_flags: Map<string, string>): Promise<number> {
   return 1;
 }
 
-/** `vessel usage [--recent <n>]` — persistent usage statistics (V0.9). */
+/**
+ * `vessel usage [--recent <n>] [--strict]` — persistent usage statistics (V0.9).
+ *
+ * task 086：显式标出「估算条目 / 价格来源分布」；`--strict` 按「只用模型专属
+ * 价目（model/catalog）」的口径重算一遍，给出未收录条目与金额差（不写盘，只审计）。
+ */
 async function cmdUsage(flags: Map<string, string>): Promise<number> {
-  const root = repoRoot();
-  const store = new UsageStore({ pricing: loadPricing(root) });
+  const store = createUsageStore();
   const t = store.totals();
   console.log('=== 使用统计（~/.vessel/usage.json）===');
   console.log(`总消耗: input ${t.inputTokens.toLocaleString()} · output ${t.outputTokens.toLocaleString()} · cache ${t.cacheReadTokens.toLocaleString()} · 调用 ${t.calls}`);
   console.log(`估算成本: $${t.costUsd.toFixed(4)}（${t.providers} 供应商 / ${t.models} 模型）`);
+  const dist = store.pricingSourceDistribution();
+  if (dist.length > 0) {
+    console.log(`价格来源分布: ${dist.map((d) => `${d.source} ${d.entries}条`).join(' · ')}`);
+  }
+  if (t.estimatedEntries > 0) {
+    const countOf = (s: string) => dist.find((d) => d.source === s)?.entries ?? 0;
+    console.log(
+      `⚠ 含估算条目 ${t.estimatedEntries} 条（非该模型专属价目：protocol 级 ${countOf('protocol')} 条 / default 兜底 ${countOf('default')} 条 / 来源未知 ${countOf('legacy')} 条；估算金额 $${t.estimatedCostUsd.toFixed(4)}）`,
+    );
+  } else if (t.calls > 0) {
+    console.log('价格来源全部命中模型专属价目（model/catalog），无估算条目。');
+  }
+  if (t.unpricedEntries > 0) {
+    console.log(`未收录条目 ${t.unpricedEntries} 条（strict 模式下按 0 计价，token 已保留待回填）。`);
+  }
+  if (t.legacyEntries > 0) {
+    console.log(`来源未知条目 ${t.legacyEntries} 条（085 之前的记录，未保存来源，可能是 default 兜底）。`);
+  }
   const byProv = store.byProvider();
   if (byProv.length > 0) {
     console.log('\n按供应商:');
-    for (const p of byProv) console.log(`  ${p.provider}: ${p.inputTokens.toLocaleString()}in/${p.outputTokens.toLocaleString()}out · ${p.calls} 次 · $${p.costUsd.toFixed(4)}`);
+    for (const p of byProv) console.log(`  ${p.provider}: ${p.inputTokens.toLocaleString()}in/${p.outputTokens.toLocaleString()}out · ${p.calls} 次 · $${p.costUsd.toFixed(4)}${p.estimated ? '（含估算）' : ''}`);
   }
   const byModel = store.byModel();
   if (byModel.length > 0) {
     console.log('\n按模型:');
-    for (const m of byModel.slice(0, 10)) console.log(`  ${m.provider}/${m.model}: $${m.costUsd.toFixed(4)} · ${m.calls} 次`);
+    for (const m of byModel.slice(0, 10)) {
+      const mark = m.pricingSource === 'default' || m.pricingSource === 'legacy' ? '（估算）' : m.pricingSource === 'unpriced' ? '（未收录）' : '';
+      console.log(`  ${m.provider}/${m.model}: $${m.costUsd.toFixed(4)} · ${m.calls} 次${mark}`);
+    }
   }
   const recent = store.recent(Number(flags.get('recent') ?? 5));
   if (recent.length > 0) {
     console.log(`\n最近 ${recent.length} 条:`);
-    for (const r of recent) console.log(`  ${r.ts.slice(0, 19)} ${r.provider}/${r.model}: ${r.inputTokens}in/${r.outputTokens}out · $${r.costUsd.toFixed(4)}`);
+    for (const r of recent) {
+      const mark = r.estimated ? '（估算）' : r.pricingSource === 'unpriced' ? '（未收录）' : '';
+      console.log(`  ${r.ts.slice(0, 19)} ${r.provider}/${r.model}: ${r.inputTokens}in/${r.outputTokens}out · $${r.costUsd.toFixed(4)}${mark}`);
+    }
+  }
+  if (flags.has('strict')) {
+    const audit = store.strictAudit();
+    console.log('\n=== --strict 审计（只用模型专属价目 model/catalog）===');
+    console.log(`strict 口径成本: $${audit.costUsd.toFixed(4)}（当前 $${t.costUsd.toFixed(4)}，差 $${audit.deltaUsd.toFixed(4)}）`);
+    console.log(`未收录模型 ${audit.unpricedEntries} 条 → 按 0 计价（这些条目当前记了 $${audit.unpricedCostUsd.toFixed(4)}，属猜测成本）`);
+    if (audit.unpricedEntries === 0) console.log('没有未收录模型：所有条目在 strict 口径下同样可计价。');
   }
   return 0;
 }
 
-/** `vessel pricing [model]` — model price lookup (V0.9). */
+/** `vessel pricing [model]` — model price lookup (V0.9 + 085 归一提示). */
 async function cmdPricing(modelArg: string | undefined, flags: Map<string, string>): Promise<number> {
   const root = repoRoot();
   const catalog = loadModelCatalog(root);
   const target = flags.get('model') ?? modelArg;
-  if (modelArg) {
-    const entry = findCatalogModelByBase(catalog, modelArg);
-    if (!entry) {
-      console.log(`未找到模型 "${modelArg}" 的目录条目（可用 vessel pricing 列出）。`);
+  if (target) {
+    const match = findCatalogModelMatch(catalog, target);
+    if (!match) {
+      console.log(`未找到模型 "${target}" 的目录条目（可用 vessel pricing 列出）。`);
       return 1;
     }
+    const entry = match.entry;
     console.log(`模型: ${entry.model}（${entry.provider}）`);
+    if (match.key !== target) {
+      console.log(`  归一匹配: "${target}" → "${match.key}"（${match.exact ? '精确' : '家族前缀'}）`);
+    }
     console.log(`  上下文: ${entry.contextWindow?.toLocaleString() ?? '?'} tokens · 输出上限: ${entry.outputLimit?.toLocaleString() ?? '?'}`);
     console.log(`  价格: in $${entry.priceIn} / out $${entry.priceOut} / cache $${entry.priceCache ?? 0}（每 1M tokens）`);
     return 0;

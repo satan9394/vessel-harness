@@ -8,6 +8,7 @@ import {
   ToolActivityProjection,
   UsageProjection,
   PolicyProjection,
+  type CatalogPriceSource,
   type PricingTable,
 } from '../projections/index.js';
 
@@ -26,6 +27,10 @@ export interface SessionControllerOptions extends ComposeOptions {
   providerId?: string;
   /** optional pricing table for the Usage projection cost estimate. */
   pricingTable?: PricingTable;
+  /** optional catalog price source (model-catalog.json) — fallback chain 2nd link (task 087). */
+  pricingCatalog?: CatalogPriceSource;
+  /** strict pricing: 只用模型专属价目（model/catalog），未收录模型按 0 计价（task 086）. */
+  strictPricing?: boolean;
 }
 
 /** Snapshot of the current session control-plane state. */
@@ -84,7 +89,13 @@ export class SessionController {
     this.projections = {
       conversation: new ConversationProjection(),
       toolActivity: new ToolActivityProjection(),
-      usage: new UsageProjection({ model: this.model, pricingTable: opts.pricingTable }),
+      usage: new UsageProjection({
+        model: this.model,
+        pricingTable: opts.pricingTable,
+        catalog: opts.pricingCatalog,
+        protocol: this.providerId,
+        strict: opts.strictPricing,
+      }),
       policy: new PolicyProjection(),
     };
     const detaches = [

@@ -112,7 +112,7 @@ vessel models --provider ds       # 指定供应商
 ## 6. 与 TaskRouter / pricing 的衔接
 
 - **TaskRouter**（V0.4，任务→类别→模型档位）：TierModelMap 的 providerId 可直接绑 `anthropic`/`openai-compatible`，tier 的 model 用供应商默认模型即可（`docs/MISSION-V0.4.md`）。
-- **pricing**：`configs/pricing.json` v0.2 支持 `models.<model-id>` 精确价（deepseek/claude/gpt 已有预设）与 `protocols.<protocol>` 兜底价；`loadPricing()`/`resolvePrice(model, protocol)` 按 模型 > 协议 > default 解析（mock 零价）。`vessel models` 拉到的模型 id 可登记进 models 表。
+- **pricing**：`configs/pricing.json` v0.2 支持 `models.<model-id>` 精确价（deepseek/claude/gpt 已有预设）与 `protocols.<protocol>` 兜底价；`loadPricing()`/`resolvePrice()` 按 模型 > catalog > 协议 > default 解析（mock 零价），模型名先经归一（命名空间/日期/effort/点号/大小写），`default`/`protocol` 命中会标 `estimated=true`。规则与实现见 `docs/PRICING.md`；`vessel models` 拉到的模型 id 可登记进 models 表。
 - **TaskRouter（V0.4）与 run 默认（V0.6）**是两条独立路径：显式 --provider 定会话用哪个协议端点；TaskRouter 在"多 provider 可用、按任务自动选"时接管。
 
 ## 7. 新增一个厂商（回顾，详见 PROVIDER-INTEGRATION.md）
@@ -131,8 +131,10 @@ node apps/cli/dist/cli.js provider list
 node apps/cli/dist/cli.js models --provider ant   # anthropic 内置清单
 ```
 
-## 9. 使用统计与定价（V0.9）
+## 9. 使用统计与定价（V0.9 / 085-087）
 
-- `vessel usage [--recent <n>]`：显示累计消耗（tokens in/out/cache、估算成本、调用次数），按供应商与模型聚合；加 `--recent <n>` 看最近 n 条记录。数据落盘 `~/.dsh/usage.json`（原子写，tmp+rename；`VESSEL_USAGE_ROOT` 可隔离测试）。
-- `vessel pricing [model]`：查模型价目；`vessel pricing claude-sonnet-4-5` 查单个模型；无参列出 configs/model-catalog.json 主流模型价目表。价目单位为 USD / 1M tokens，解析顺序 model > catalog > protocol > default。
+- `vessel usage [--recent <n>] [--strict]`：显示累计消耗（tokens in/out/cache、估算成本、调用次数），按供应商与模型聚合；打印**价格来源分布**与**估算条目数**；`--strict` 按「不用 default 兜底」的口径重算历史（只审计不写盘）。数据落盘 `~/.vessel/usage.json`（原子写，tmp+rename；`VESSEL_USAGE_ROOT` 可隔离测试）。
+- `vessel pricing [model]`：查模型价目；`vessel pricing claude-sonnet-4-5` 查单个模型（命中归一化名时会打印「归一匹配: "输入" → "表键"」）；无参列出 configs/model-catalog.json 主流模型价目表。价目单位为 USD / 1M tokens。
+- 查价实现只有一份：`packages/shared/src/pricing.ts`（归一规则、回退链、`estimated` 语义），CLI / `UsageProjection` / benchmarks 共用；详见 `docs/PRICING.md`。
+- `vessel run --strict`：本次会话按 strict 口径计价（未收录模型按 0 记并标 `unpriced`，token 计数仍保留）。
 - mock 会话也会产生 usage 记录（E2E 接线验证），可 `vessel usage` 直接看到。

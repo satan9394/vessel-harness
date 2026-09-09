@@ -17,8 +17,12 @@ import {
  * 约定：
  *   - mock 是内置默认供应商（id='mock'），永不写进 providers.json、不可
  *     add/remove；list() 时作为首项内置显示；getCurrent() 缺省 'mock'。
- *   - apiKey 本地明文存储（与 cc-switch 同款取舍）：仅本机用户目录可读，
- *     不做加密（YAGNI）。风险：任何能读 ~/.vessel 的进程/备份都能看到密钥。
+ *   - 密钥安全（task 034 起）：apiKey **不再明文落 providers.json**。写入时经
+ *     CredentialStore 存成 `secretRef`（`credential:vessel/<id>`），Windows 上
+ *     走 DPAPI 加密的 secrets.json（其他平台显式降级 plaintext 并打印告警）；
+ *     读取时经 store 解析回 apiKey，旧 providers.json 里的明文 apiKey 在加载时
+ *     自动迁入 store 并从配置中移除。风险提示：plaintext 降级后端下
+ *     secrets.json 仍可被能读 ~/.vessel 的进程读到——这是显式降级，不是默认。
  *   - 原子写：先写 <file>.tmp 再 rename 覆盖，防半写状态（crash 时最多
  *     残留 .tmp，原文件保持完整）。
  *   - 校验 fail-loud：重复 id、非法 protocol、add 时缺 model 一律 throw。

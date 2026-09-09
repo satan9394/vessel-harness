@@ -5,7 +5,7 @@ import { ToolActivityProjection } from './ToolActivityProjection.js';
 import { UsageProjection } from './UsageProjection.js';
 import { PolicyProjection } from './PolicyProjection.js';
 import { EnforcementProjection } from './EnforcementProjection.js';
-import { DEFAULT_PRICING } from './types.js';
+import { DEFAULT_TOKEN_PRICE, type PricingTable } from './types.js';
 
 describe('ConversationProjection', () => {
   it('projects user prompt (before_turn) + assistant text (after_model)', async () => {
@@ -118,25 +118,67 @@ describe('UsageProjection', () => {
     detach();
   });
 
-  it('estimates costUsd from the injected pricing table', async () => {
+  it('estimates costUsd from the injected pricing table (shared resolvePrice, task 087)', async () => {
     const bus = new EventBus();
     // gpt-4o tariffs per 1M tokens: input 2.5, output 10, cacheRead 1.25
-    const projection = new UsageProjection({ model: 'gpt-4o', pricingTable: DEFAULT_PRICING });
     const full = new UsageProjection({
       model: 'gpt-4o',
-      pricingTable: { 'gpt-4o': { input: 2.5, output: 10, cacheRead: 1.25 } },
+      pricingTable: { models: { 'gpt-4o': { input: 2.5, output: 10, cacheRead: 1.25 } }, protocols: {} },
     });
     const detachFull = full.attach(bus);
     await bus.emit('after_model', { turnId: 't', step: 1, response: {}, usage: { inputTokens: 1_000_000, outputTokens: 1_000_000 } });
     const usage = full.usage();
     expect(usage.costUsd).toBeCloseTo(12.5, 6); // 2.5 + 10
+    expect(usage.pricingSource).toBe('model');
+    expect(usage.estimated).toBe(false);
+    expect(full.pricing().matchedKey).toBe('gpt-4o');
     detachFull();
+  });
 
-    // default pricing (0.5 / 1.5) applies when the model has no row
-    const dflt = new UsageProjection({ model: 'unknown-model' });
-    expect(dflt).toBeDefined();
-    const detachDflt = projection.attach(bus);
-    void detachDflt;
+  it('normalized model name hits the table (task 085 in the projection path)', async () => {
+    const bus = new EventBus();
+    const projection = new UsageProjection({
+      model: 'openrouter/anthropic/claude-3.5-sonnet-20241022',
+      pricingTable: { models: { 'claude-3-5-sonnet': { input: 3, output: 15, cacheRead: 0.3 } }, protocols: {} },
+    });
+    const detach = projection.attach(bus);
+    await bus.emit('after_model', { turnId: 't', step: 1, response: {}, usage: { inputTokens: 1_000_000 } });
+    expect(projection.usage().costUsd).toBeCloseTo(3, 6);
+    expect(projection.usage().pricingSource).toBe('model');
+    expect(projection.usage().estimated).toBe(false);
+    detach();
+  });
+
+  it('no pricing table → default fallback is explicitly marked estimated (task 086)', () => {
+    const projection = new UsageProjection({ model: 'unknown-model' });
+    const record = projection.usage();
+    expect(record.pricingSource).toBe('default');
+    expect(record.estimated).toBe(true);
+    expect(projection.pricing().price).toEqual(DEFAULT_TOKEN_PRICE);
+  });
+
+  it('strict mode leaves unknown models unpriced at zero cost (task 086)', () => {
+    const projection = new UsageProjection({ model: 'unknown-model', strict: true });
+    const record = projection.usage();
+    expect(record.pricingSource).toBe('unpriced');
+    expect(record.estimated).toBe(false);
+    expect(record.costUsd).toBe(0);
+  });
+
+  it('catalog price source is used before the default fallback (task 087)', () => {
+    const catalog = {
+      findPrice: (m: string) => (m === 'gemini-2.5-pro' ? { input: 1.25, output: 10, cacheRead: 0.12 } : undefined),
+    };
+    const projection = new UsageProjection({ model: 'gemini-2.5-pro', catalog });
+    expect(projection.pricing().source).toBe('catalog');
+    expect(projection.pricing().price.input).toBe(1.25);
+  });
+
+  it('protocol fallback is available when a protocol is injected', () => {
+    const table: PricingTable = { models: {}, protocols: { anthropic: { input: 3, output: 15, cacheRead: 0.3 } } };
+    const projection = new UsageProjection({ model: 'whatever', pricingTable: table, protocol: 'anthropic' });
+    expect(projection.pricing().source).toBe('protocol');
+    expect(projection.pricing().price.input).toBe(3);
   });
 });
 

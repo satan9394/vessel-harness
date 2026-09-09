@@ -1,52 +1,49 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
+import {
+  DEFAULT_TOKEN_PRICE,
+  EMPTY_PRICING_TABLE,
+  resolvePrice,
+  type CatalogPriceSource,
+  type PricingTable,
+  type TokenPrice,
+} from '@vessel/shared';
 
 /**
- * apps/cli/providers/pricing — load configs/pricing.json (task 017).
+ * apps/cli/providers/pricing — load configs/pricing.json（task 017 / 085-087）。
  *
- * Per-1M-token USD price lookup with fallback chain:
- *   modelPrices[model] > protocolPrices[protocol] > default.
- * `cah models`-fetched model ids can be registered as modelPrices keys;
- * unknown models fall back to their protocol or the generic default.
+ * 本文件只负责**读盘**：查价规则（模型名归一 + 回退链 + estimated 语义）在
+ * `@vessel/shared/pricing` 里，CLI / application / benchmarks 共用同一实现，
+ * 这里只 re-export，禁止再写第二套。
+ *
+ * 回退链：pricing.json models[model]（含归一）> model-catalog 价 > protocols[protocol] > default。
+ * 命中 protocol / default 时 `estimated=true`（086：只要不是该模型的专属价目就显式标估算）。
  */
 
-export interface TokenPrice {
-  input: number;
-  output: number;
-  cacheRead?: number;
-}
+export {
+  resolvePrice,
+  costOf,
+  modelNameCandidates,
+  createCatalogPriceSource,
+  matchModelName,
+  DEFAULT_TOKEN_PRICE,
+  ZERO_TOKEN_PRICE,
+  EMPTY_PRICING_TABLE,
+} from '@vessel/shared';
+export type {
+  TokenPrice,
+  PricingTable,
+  PriceSource,
+  PriceResolution,
+  CatalogPriceSource,
+  ModelMatch,
+  ResolvePriceOptions,
+} from '@vessel/shared';
 
-export interface PricingTable {
-  models: Record<string, TokenPrice>;
-  protocols: Record<string, TokenPrice>;
-}
-
-/** price lookup source — a catalog entry's per-1M-token prices (V0.9 task 030). */
-export interface CatalogPriceSource {
-  findPrice(model: string): { input: number; output: number; cacheRead?: number } | undefined;
-}
-
-/**
- * Resolve per-1M-token price with fallback chain:
- *   pricing.json modelPrices[model] > model-catalog price > protocol > default.
- */
-export function resolvePrice(table: PricingTable, model: string, protocol?: string, catalog?: CatalogPriceSource): TokenPrice {
-  const byModel = table.models[model];
-  if (byModel) return byModel;
-  const catPrice = catalog?.findPrice(model);
-  if (catPrice) return catPrice;
-  const def = table.models.default ?? { input: 0.5, output: 1.5 };
-  if (protocol) {
-    const byProto = table.protocols[protocol] ?? table.protocols[protocol === 'anthropic' ? 'anthropic' : 'openai-compatible'];
-    if (byProto) return byProto;
-  }
-  return def;
-}
-
-/** Load pricing.json from a repo/config root; missing/corrupt → default table. */
+/** Load pricing.json from a repo/config root; missing/corrupt → default-only table. */
 export function loadPricing(configRoot = process.cwd()): PricingTable {
   const file = path.join(configRoot, 'configs', 'pricing.json');
-  const fallbackModels: Record<string, TokenPrice> = { default: { input: 0.5, output: 1.5, cacheRead: 0.1 } };
+  const fallbackModels: Record<string, TokenPrice> = { default: { ...DEFAULT_TOKEN_PRICE } };
   try {
     const raw = JSON.parse(fs.readFileSync(file, 'utf8')) as {
       models?: Record<string, TokenPrice>;
@@ -57,6 +54,6 @@ export function loadPricing(configRoot = process.cwd()): PricingTable {
       protocols: raw.protocols ?? {},
     };
   } catch {
-    return { models: fallbackModels, protocols: {} };
+    return { ...EMPTY_PRICING_TABLE, models: fallbackModels };
   }
 }

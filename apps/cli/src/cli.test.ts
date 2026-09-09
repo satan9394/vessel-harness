@@ -283,6 +283,76 @@ describe('V0.9 usage/pricing commands (task 031)', () => {
     expect(logs2.join('\n')).toContain('claude-sonnet-4-5');
     expect(logs2.join('\n')).toContain('$3');
   });
+
+  it('vessel pricing shows the normalized match for a namespaced/dated model (task 085)', async () => {
+    const { logs, restore } = capture();
+    const code = await main(['pricing', 'openrouter/anthropic/claude-sonnet-4-5-20250929']);
+    restore();
+    expect(code).toBe(0);
+    const out = logs.join('\n');
+    expect(out).toContain('claude-sonnet-4-5');
+    expect(out).toContain('归一匹配');
+  });
+
+  it('vessel usage flags estimated entries + source distribution (task 086)', async () => {
+    const now = new Date().toISOString();
+    fs.writeFileSync(
+      path.join(cfgDir, 'usage.json'),
+      JSON.stringify({
+        version: 1,
+        entries: {
+          'deepseek::deepseek-chat': {
+            model: 'deepseek-chat', provider: 'deepseek', inputTokens: 1_000_000, outputTokens: 0, cacheReadTokens: 0,
+            calls: 1, costUsd: 0.27, estimated: false, estimatedCostUsd: 0, pricingSource: 'model', lastTs: now, events: 1,
+          },
+          'unknown::zzz': {
+            model: 'zzz', provider: 'unknown', inputTokens: 1_000_000, outputTokens: 0, cacheReadTokens: 0,
+            calls: 1, costUsd: 0.5, estimated: true, estimatedCostUsd: 0.5, pricingSource: 'default', lastTs: now, events: 1,
+          },
+        },
+        recent: [],
+      }),
+      'utf8',
+    );
+    const { logs, restore } = capture();
+    const code = await main(['usage']);
+    restore();
+    expect(code).toBe(0);
+    const out = logs.join('\n');
+    expect(out).toContain('价格来源分布');
+    expect(out).toContain('含估算条目 1 条');
+    expect(out).toContain('model 1条');
+  });
+
+  it('vessel usage --strict reports unpriced models without the fallback (task 086)', async () => {
+    const now = new Date().toISOString();
+    fs.writeFileSync(
+      path.join(cfgDir, 'usage.json'),
+      JSON.stringify({
+        version: 1,
+        entries: {
+          'deepseek::deepseek-chat': {
+            model: 'deepseek-chat', provider: 'deepseek', inputTokens: 1_000_000, outputTokens: 0, cacheReadTokens: 0,
+            calls: 1, costUsd: 0.27, estimated: false, estimatedCostUsd: 0, pricingSource: 'model', lastTs: now, events: 1,
+          },
+          'unknown::zzz': {
+            model: 'zzz', provider: 'unknown', inputTokens: 1_000_000, outputTokens: 0, cacheReadTokens: 0,
+            calls: 1, costUsd: 0.5, estimated: true, estimatedCostUsd: 0.5, pricingSource: 'default', lastTs: now, events: 1,
+          },
+        },
+        recent: [],
+      }),
+      'utf8',
+    );
+    const { logs, restore } = capture();
+    const code = await main(['usage', '--strict']);
+    restore();
+    expect(code).toBe(0);
+    const out = logs.join('\n');
+    expect(out).toContain('--strict 审计');
+    expect(out).toContain('未收录模型 1 条');
+    expect(out).toContain('0.2700'); // strict 口径只剩 model 级条目
+  });
 });
 
 describe('vessel bench-report (task 083 dashboard)', () => {
