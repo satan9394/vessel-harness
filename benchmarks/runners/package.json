@@ -6,6 +6,7 @@
   "type": "module",
   "dependencies": {
     "@vessel/application": "^0.10.0",
+    "@vessel/llm": "^0.1.0",
     "@vessel/shared": "^0.10.0"
   },
   "main": "dist/index.js",

@@ -18,6 +18,9 @@
  *     `x-opencode-session` + 具名 User-Agent + 路径分流 + 错误分类）。**不再用通用
  *     `createProvider('openai-compatible')`**——它无法注入自定义头，会被 Go 端点判 400
  *     MissingSessionID（实测见 docs/OPENCODE-KEY-VERIFY.md §4.2）。
+ *   - task 103：该实现**上提到 `@vessel/llm`**（`packages/llm/src/provider/OpencodeGoProvider.ts`），
+ *     CLI（`vessel run`）/TUI（`vessel chat`）与 lane 共用；本目录的 `opencodeGoChatProvider.ts`
+ *     只剩 re-export 外壳（无第二份协议逻辑），本文件无需改动即继续工作。
  *   - @vessel/application 的 fetchOpenAIModels 拉取 /v1/models 清单。
  *
  * 模型确认：真实 GET {base}/v1/models 验证 MIMO V2.5 确切 id。仓库内置的 models.dev

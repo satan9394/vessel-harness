@@ -110,7 +110,10 @@ V1.1-C 把「内置 preset + OPENCODE_API_KEY 环境变量 + MIMO 目标模型�
 实测报告 `docs/OPENCODE-KEY-VERIFY.md`（提交 8e15e66）证明：Go 端点鉴权通过后，**聊天请求缺
 `x-opencode-session` 会返回 400 `MissingSessionID`**（不是 401——鉴权已过，失败在路由阶段）；
 补一个稳定 UUID 后同一请求 200。task 102 据此把线协议客户端从通用 `createProvider('openai-compatible')`
-换成专用 `benchmarks/runners/src/lane/opencodeGoChatProvider.ts`（通用客户端无法注入自定义头）：
+换成专用客户端（通用客户端无法注入自定义头）。**task 103 起实现上提到 `@vessel/llm`**
+（`packages/llm/src/provider/OpencodeGoProvider.ts`）——CLI（`vessel run`）、TUI（`vessel chat`）
+与 lane 共用同一份实现，lane 侧 `benchmarks/runners/src/lane/opencodeGoChatProvider.ts` 只是
+re-export 外壳；协议语义（下列各点）不变：
 
 - **会话头**：`OpencodeGoProvider` 构造时生成一个 UUID 作为 `x-opencode-session`，同一会话的**所有请求
   与退避重试复用同一个 id**；`opencodeGoProviderResolver()` 为一次 lane 会话生成一个 id，跨模型共用。

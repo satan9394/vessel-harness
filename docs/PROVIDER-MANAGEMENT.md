@@ -109,6 +109,46 @@ vessel models --provider ds       # 指定供应商
 3. 当前默认供应商（`vessel provider switch` 设的；model/baseUrl/apiKey 从配置取）
 4. 兜底 `mock`（无任何配置时的离线冒烟，会提示）
 
+## 5.1 opencode-go（Go 端点）协议要求与配置（task 102 / 103）
+
+**端点**：`https://opencode.ai/zen/go/v1`（preset id `opencode-go`，线协议仍是 `openai-compatible`）。
+
+**协议硬要求**（实测见 `docs/OPENCODE-KEY-VERIFY.md`）：Go 端点鉴权通过后，聊天请求**必须**带
+`x-opencode-session`（每个会话一个稳定 UUID），否则返回 **400 `MissingSessionID`**（不是 401——
+鉴权已过，失败在路由阶段）；并且要求具名 `User-Agent`（不要用通用 SDK/HTTP 库名）。
+
+**实现只有一份（task 103 SSOT）**：`packages/llm/src/provider/OpencodeGoProvider.ts`。
+CLI（`vessel run`）、TUI（`vessel chat`）与 benchmark lane 都经 `createProvider('opencode-go', …)`
+构造它——`providerFactory.ts` 按 **preset id**（而不是线协议名）解析，所以配了 `opencode-go`
+就自动带会话头 + 具名 UA。lane 侧 `benchmarks/runners/src/lane/opencodeGoChatProvider.ts`
+只是 re-export 外壳，**不存在第二份协议逻辑**。
+
+**怎么配**（密钥不落明文：写入 `~/.vessel` 时经 CredentialStore，或走环境变量）：
+
+```powershell
+vessel provider add opencode-go --protocol openai-compatible `
+  --base-url https://opencode.ai/zen/go/v1 --model mimo-v2.5 --api-key sk-...
+vessel provider switch opencode-go
+vessel run --prompt "ping"          # 自动带 x-opencode-session + 具名 UA
+vessel chat                          # TUI 同一份实现；一个会话内 session id 稳定
+# 单发临时指定（不写盘）：--provider opencode-go 缺省即用 preset base-url
+vessel run --provider opencode-go --api-key sk-... --model mimo-v2.5 --prompt "ping"
+```
+
+**错误分类**（`classifyOpencodeGoError`，CLI/TUI 会打印 kind + 一句可操作提示）：
+
+| wire | kind | 处理 |
+|---|---|---|
+| 400 `MissingSessionID` | `missing-session` | 用内置 opencode-go provider（自动注入会话头）；不重试 |
+| 401 `CreditsError` / `Insufficient balance` | `credits` | 余额/额度不足 → 充值或换 key；不重试 |
+| 401 / 403 其它 | `auth` | key 无效/无权限 |
+| 429 / `FreeUsageLimitError` | `rate-limit` | 有限退避重试（复用同一 session id） |
+| 5xx / 超时 / 网络 | `server` / `timeout` / `network` | 有限退避重试 |
+| `/messages`、`/responses` 家族（MiniMax/Qwen、Grok/GPT-5.6-Luna/Muse Spark） | `unsupported-route` | 本卡只做能力声明，显式抛错不静默走错端点 |
+
+模型家族走 `/chat/completions` 的：GLM / Kimi / LongCat / DeepSeek / **MiMo** / Hy / Omen
+（`resolveOpencodeGoRoute`）。推理模型（`mimo-v2.5`）默认 `max_tokens=8192`，留思维链预算。
+
 ## 6. 与 TaskRouter / pricing 的衔接
 
 - **TaskRouter**（V0.4，任务→类别→模型档位）：TierModelMap 的 providerId 可直接绑 `anthropic`/`openai-compatible`，tier 的 model 用供应商默认模型即可（`docs/MISSION-V0.4.md`）。

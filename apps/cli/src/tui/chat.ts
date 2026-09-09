@@ -1,9 +1,11 @@
 import * as readline from 'node:readline';
+import { randomUUID } from 'node:crypto';
 import type { ChatProvider } from '@vessel/shared';
-import { createProvider, MockProvider } from '@vessel/llm';
+import { MockProvider } from '@vessel/llm';
 import { composeHarness, type ComposedHarness } from '@vessel/application';
 import { ProviderStore, type ProviderConfig } from '../providers/ProviderStore.js';
 import { runSetupWizard, createClackIO, fetchModelOutcome } from '../providers/setup.js';
+import { buildRealProvider, describeProviderError, planProvider } from '../providers/providerFactory.js';
 import { modelsForProtocol } from '@vessel/application';
 import { VESSEL_LOGO } from '../brand.js';
 
@@ -200,14 +202,20 @@ export async function runChat(opts: ChatOptions): Promise<number> {
   let providerId = currentCfg?.id ?? 'mock';
   let harness: ComposedHarness | null = null;
   let sessionWorkspace = opts.workspaceRoot;
+  // task 103: opencode-go 的会话 id 在**一个 TUI 会话**内稳定（换模型 / 重建 harness 不换），
+  // 与 102 lane 的「一次 lane 会话一个 UUID」语义对齐。
+  const opencodeGoSessionId = randomUUID();
 
   const buildHarness = async (): Promise<ComposedHarness> => {
     const cfg = providerId === 'mock' ? undefined : store.get(providerId);
     let effProvider = provider;
     let effModel = model;
     if (cfg && cfg.protocol !== 'mock') {
-      effProvider = createProvider(cfg.protocol, { baseUrl: cfg.baseUrl, apiKey: cfg.apiKey, model: cfg.model });
-      effModel = cfg.model;
+      // task 103: CLI/TUI 共用 providerFactory —— preset id `opencode-go` 自动解析为专用
+      // provider（x-opencode-session + 具名 UA），与 benchmark lane 是同一份实现。
+      const plan = planProvider({ config: cfg });
+      effProvider = buildRealProvider(plan, { sessionId: opencodeGoSessionId }) ?? undefined;
+      effModel = plan.model;
     }
     if (!effProvider) {
       const smoke = [
@@ -255,7 +263,7 @@ export async function runChat(opts: ChatOptions): Promise<number> {
       else if (result.finalText) io.write(`\n${result.finalText}`);
       else io.write('(无文本回复)');
     } catch (err) {
-      io.write(`[错误] ${(err as Error).message}`);
+      io.write(`[错误] ${describeProviderError(err)}`);
     } finally {
       activeTurnInterrupt = null;
     }

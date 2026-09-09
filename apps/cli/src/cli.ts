@@ -3,10 +3,11 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { spawn } from 'node:child_process';
 import { VERSION } from '@vessel/shared';
-import { MockProvider, createProvider } from '@vessel/llm';
+import { MockProvider } from '@vessel/llm';
 import { composeHarness, createCredentialStore, type EnforcementProjection } from '@vessel/application';
 import { createVesselServer } from '@vessel/local-server';
 import { ProviderStore, type ProviderConfig } from './providers/ProviderStore.js';
+import { buildRealProvider, describeProviderError, missingBaseUrl, planProvider } from './providers/providerFactory.js';
 import { fetchOpenAIModels, modelsForProtocol } from '@vessel/application';
 import { createClackIO, runSetupWizard } from './providers/setup.js';
 import { runChat } from './tui/chat.js';
@@ -191,29 +192,35 @@ async function cmdRun(flags: Map<string, string>): Promise<number> {
   const explicitProvider = flags.get('provider');
   const currentId = explicitProvider ?? (store.getCurrent() !== 'mock' ? store.getCurrent() : 'mock');
   const currentCfg: ProviderConfig | undefined = currentId === 'mock' ? undefined : store.get(currentId);
-  const providerName = explicitProvider ?? currentCfg?.protocol ?? 'mock';
-  const model = flags.get('model') ?? process.env.VESSEL_MODEL ?? currentCfg?.model ?? 'mock-model';
-  const baseUrl = flags.get('base-url') ?? process.env.VESSEL_BASE_URL ?? currentCfg?.baseUrl;
-  const apiKey = flags.get('api-key') ?? process.env.VESSEL_API_KEY ?? currentCfg?.apiKey;
-  let provider;
-  if (providerName === 'openai-compatible' || providerName === 'anthropic') {
-    if (!baseUrl) {
-      console.error(`[vessel] ${providerName} 需要 --base-url 或 VESSEL_BASE_URL（或先 vessel provider add 配置）`);
-      return 2;
-    }
-    provider = createProvider(providerName, { baseUrl, apiKey, model });
-  } else {
-    // default smoke script: read README.md (if prompt asks) then answer from the result
-    const smokeScript = [
-      {
-        when: /阅读|read|总结|summary/i,
-        ifNoToolResult: true,
-        response: { toolCalls: [{ name: 'Read', arguments: { path: '{cwd}/README.md' } }] },
-      },
-      { when: /.*/, minToolResults: 1, response: { text: '已通过 Read 工具读取工作区文件。内容开头：\n{last_tool_result}' } },
-    ];
-    provider = new MockProvider(smokeScript, { model, vars: { cwd: workspace } });
+  // task 103: 供应商构造收敛到 providerFactory 一条路径 —— preset id `opencode-go`
+  // 自动解析为专用 provider（x-opencode-session + 具名 UA），不再走通用 openai-compatible 客户端。
+  const plan = planProvider({
+    config: currentCfg,
+    explicitProvider,
+    baseUrl: flags.get('base-url') ?? process.env.VESSEL_BASE_URL,
+    apiKey: flags.get('api-key') ?? process.env.VESSEL_API_KEY,
+    model: flags.get('model') ?? process.env.VESSEL_MODEL,
+  });
+  const model = plan.model;
+  if (missingBaseUrl(plan)) {
+    console.error(`[vessel] ${plan.providerName} 需要 --base-url 或 VESSEL_BASE_URL（或先 vessel provider add 配置）`);
+    return 2;
   }
+  const realProvider = buildRealProvider(plan);
+  const provider =
+    realProvider ??
+    // default smoke script: read README.md (if prompt asks) then answer from the result
+    new MockProvider(
+      [
+        {
+          when: /阅读|read|总结|summary/i,
+          ifNoToolResult: true,
+          response: { toolCalls: [{ name: 'Read', arguments: { path: '{cwd}/README.md' } }] },
+        },
+        { when: /.*/, minToolResults: 1, response: { text: '已通过 Read 工具读取工作区文件。内容开头：\n{last_tool_result}' } },
+      ],
+      { model, vars: { cwd: workspace } },
+    );
 
   const harness = await composeHarness({
     workspaceRoot: workspace,
@@ -248,7 +255,7 @@ async function cmdRun(flags: Map<string, string>): Promise<number> {
     console.log(`会话日志: ${harness.session.logPath}`);
     return 0;
   } catch (err) {
-    console.error(`[vessel] run failed: ${(err as Error).message}`);
+    console.error(`[vessel] run failed: ${describeProviderError(err)}`);
     return 1;
   } finally {
     await harness.close();
@@ -292,14 +299,15 @@ async function cmdBench(flags: Map<string, string>): Promise<number> {
   const outDir = path.resolve(flags.get('out') ?? path.join(workspace, 'benchmarks', 'reports'));
   const providerName = flags.get('provider') ?? 'mock';
   const model = flags.get('model') ?? process.env.VESSEL_MODEL ?? 'mock-model';
-  const provider =
-    providerName === 'openai-compatible' || providerName === 'anthropic'
-      ? createProvider(providerName, {
-          baseUrl: flags.get('base-url') ?? process.env.VESSEL_BASE_URL ?? '',
-          apiKey: flags.get('api-key') ?? process.env.VESSEL_API_KEY,
-          model,
-        })
-      : null;
+  // task 103: 与 cmdRun 同一条构造路径（--provider opencode-go 自动带 session 头 + 具名 UA）
+  const provider = buildRealProvider(
+    planProvider({
+      explicitProvider: providerName,
+      baseUrl: flags.get('base-url') ?? process.env.VESSEL_BASE_URL,
+      apiKey: flags.get('api-key') ?? process.env.VESSEL_API_KEY,
+      model,
+    }),
+  );
   const root = repoRoot();
   const report = await runScenario({
     scenarioId,
