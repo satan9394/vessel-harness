@@ -1,7 +1,7 @@
 # 104 — P2：供应商导入导出 + 备份轮转 + 多端点测速
 
 - 编号：104（合并 CC-SWITCH-MODULE-STUDY 候选卡 095/096）
-- 状态：待验收
+- 状态：已合入
 - 优先级：P2
 - 创建日期：2026-09-09
 - 关联：101（ProviderStore costMultiplier 已加）；docs/CC-SWITCH-IMPROVEMENTS-PROGRESS.md
@@ -169,5 +169,14 @@ chat.test 单跑（隔离 VESSEL_PROVIDER_ROOT）   16 passed；不隔离则 1 f
 
 ## 验收结论（指挥回填）
 
-- [ ] 合入 / 打回
-- 备注：
+- [x] 合入（commit 812a382）
+- 备注：指挥独立复核——`tsc -b` exit 0；针对性测试（apps/cli/src/providers）**115 passed**；执行器全量 1148 passed
+  + 1 skipped（108 files EXIT=0）；web 74。全量最终复核待 105 完成后统一做（105 期间在改用户态 `~/.vessel/`）。
+  认可：095 导出**默认脱敏 + 自检**（apiKey 一律改 secretRef 占位 `credential:vessel/<id>`，导出前自检无 apiKey
+  字段；真跑 grep 假 key 零匹配；`--with-secrets` 直接拒绝 exit 2）；导入合并（同名默认 skip、`--on-conflict
+  overwrite` 保留本地 secretRef、`--dry-run`、文件内明文一律剥离）；备份轮转**零删除**（写前备份 + 保留 N 份默认 5 +
+  原子写 + 改名覆盖，文件数恒 ≤N；真跑 7 写→5 份、KEEP=2→2 份）；096 endpoints[] + add/remove/list + test（最小探测、
+  401 算可达、排序建议、默认不改 baseUrl、仅 `--set-default` 应用、全不可达 exit 1）；44 新测试。
+  **两个既有问题（非本卡引入，另卡 106 修）**：① `apps/cli/src/tui/chat.test.ts` 未隔离 `VESSEL_PROVIDER_ROOT`，
+  读真实 `~/.vessel/current.json`，单跑会调真供应商（105 真跑后是 opencode-go）→ 全量并行时靠 env 泄漏"意外通过"，
+  属竞态；② `process-tree.test.ts` Windows 时序 flaky（30s 默认超时不足，加长后全绿）。**104 关闭。**

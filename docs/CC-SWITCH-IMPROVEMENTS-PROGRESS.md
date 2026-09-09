@@ -16,15 +16,15 @@
 | 101 | P2：models.dev 价目同步（离线语义硬：不改文件 + exit 1）+ provider 成本倍率（只乘总额 + fail loud） | f276724 | 针对性 193 + tsc 0 |
 | 102 | **真实模型跑通**：opencode-go 协议修正（x-opencode-session + 具名 UA + 错误分类 + 路径分流）+ mimo-v2.5 真实跑 082 lane/084 gate | 5af2dfc | 1082 测试 + tsc 0 |
 | 103 | CLI/TUI 侧协议适配（方案 A：协议上提 packages/llm 作 SSOT，lane 485 行重复删除；providerFactory 唯一构造路径；顺带修 `--provider <id>` 缺陷） | afac81a | 1102 测试 + tsc 0 |
+| 104 | P2：供应商导出**默认脱敏+自检** / 导入合并 / 备份轮转零删除 / 多端点测速（建议不改默认） | 812a382 | 1148 测试 + tsc 0 |
 
 ## 待做（按报告优先级）
 
 | 卡 | 内容 | 优先级 | 备注 |
-| — | 用户 key 更新到 CredentialStore（本机 store 里的 key 与用户 key 不同，`same=false`） | P1 | 102 记录；`vessel provider add` 可更新 |
+| — | 用户 key 入库 + CLI 真跑验证（105，执行中） | P0 | 102 记录 `same=false` |
+| 106 | 测试基础设施：`chat.test.ts` 隔离 `VESSEL_PROVIDER_ROOT`（现读真实 current.json，单跑会调真供应商）+ process-tree 时序 flaky（超时放宽） | P1 | 104 记录 |
 | — | mimo-v2.5 长工具链收敛不稳定（finalText 空 + 工具到 64 步）→ 调整场景集/判据或接受为模型特性 | P1 | 102 记录；**需用户决策** |
 | — | cache_creation 展示层（apps/web UsageBar + local-server SSE 仍只 cacheRead） | P2 | 099 记录 |
-| 095 | 供应商导入导出 + 备份轮转（导出默认脱敏，key 走 secretRef 占位） | P2 | |
-| 096 | 多端点 + 测速 `ProviderConfig.endpoints[]` | P2 | |
 
 ## 暂不做（P3，报告结论）
 
