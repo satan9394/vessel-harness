@@ -20,11 +20,14 @@
 | 105 | 用户 key 入库（DPAPI 密文，`same=true`）+ **`vessel run` 真实成功**（ping→pong，无 400/401，usage 3265/37） | e064209 | 1147 测试 + tsc 0 |
 | 106 | chat 凭据（defaultStore 唯一工厂 + resolveChatStore）+ 测试隔离（临时 root + 3 新用例）+ process-tree 超时 120s | 0c6175a | **1152 测试 + 0 failed** + web 74 |
 | 107 | cache_creation 展示层：local-server SSE usage 帧 + web UsageBar 渲染 `cache 读 X / 写 Y`（derived 提示） | d5fba0a | **1153 测试** + web 82 |
+| 108 | 真实模型对比 deepseek-flash vs mimo-v2.5：deepseek 恒 0/10 = 线协议不兼容（tool_calls 前导 + reasoning_content），非收敛问题；不建议换默认；gate4 新增 wire-format 判据 pending | 087977c | **1155 测试** + web 82 |
 
 ## 进行中 / 待做
 
 | 卡 | 内容 | 优先级 | 备注 |
-| — | mimo-v2.5 长工具链收敛不稳定（finalText 空 + 工具到 64 步）→ 调整场景集/判据或接受为模型特性 | P1 | 102 记录；**需用户决策** |
+| — | **线协议修复**（deepseek-flash 跑通前提）：surface 投影补 assistant tool_calls + thinking 回传 reasoning_content | P0 | 108 转卡 109 |
+| — | judgeUnit 正则对通过运行误报（release-report Unit gate） | P1 | 108 §9.6 转卡 109 |
+| — | Packaging gate（无 dist → pending） | P2 | 构建 dist 后重跑 |
 
 ## 暂不做（P3，报告结论）
 

@@ -1,7 +1,7 @@
 # 108 — 真实模型对比：deepseek-flash vs mimo-v2.5（收敛稳定性）
 
 - 编号：108
-- 状态：待验收
+- 状态：已合入
 - 优先级：P0（用户指定：换模型验证长工具链收敛）
 - 创建日期：2026-09-10
 - 关联：102（5af2dfc：opencode-go 协议 + mimo-v2.5 真实跑通；长工具链收敛不稳）；103（afac81a：协议上提
@@ -204,5 +204,13 @@
 
 ## 验收结论（指挥回填）
 
-- [ ] 合入 / 打回
-- 备注：
+- [x] 合入（commit 087977c）
+- 备注：指挥独立复核——`tsc -b` exit 0；全量 vitest **1155 passed + 1 skipped / exit 0**（108 files）；web 82。
+  **结论认可**：deepseek-flash 恒 0/10（3 次）系 100% 可复现的 **harness 线协议不兼容**（上游 400：tool 消息缺前导
+  tool_calls + thinking 模式需回传 reasoning_content），*非*收敛问题——与 mimo-v2.5（跨次翻转、64 步预算耗尽未
+  收敛）性质不同；**不建议现在换默认模型**（换则 lane 全红）；gate 4 新增 `isWireFormatBlockedLane` 诚实归类
+  pending 不伪造；对比表 + 建议入卡，报告 4 份落盘；+2 新测试（describeLaneFailureNote 等）。
+  **转卡项（另开卡 109）**：① 线协议修复——surface 投影补 assistant tool_calls + 回传 reasoning_content
+  （修后 deepseek-flash 才可能跑通）；② release-report Unit gate 的 judgeUnit 正则对通过运行误报
+  （vitest 实为全绿 exit 0）；③ Packaging 仍 pending（无 dist）、Real Model pending 与 102 同构无新增回归。
+  **108 关闭。**
