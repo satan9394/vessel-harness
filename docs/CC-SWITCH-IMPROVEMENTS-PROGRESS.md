@@ -28,10 +28,9 @@
 ## 进行中 / 待做
 
 | 卡 | 内容 | 优先级 | 备注 |
-| — | **112 已合入（bd99582）**：根发布入口 + 8 门禁重跑 → **READY（8/0/0）**——Packaging pass、RealModel pass（deepseek-flash）、Unit pass | ✅ | release gates 里程碑达成 |
-| — | 已知 flaky 治理（rename EPERM 观察；process-tree 已随 106 放宽） | P2 | 持续观察 |
+| — | **113 已合入（98eee82）**：原子写统一 EPERM/EBUSY 有界重试（shared atomicWrite.ts renameWithRetry，8 处迁移 + 11 测试）——**rename EPERM flaky 消除（连续 2 次全量 0 failed，1186 测试）** | ✅ | 治理项闭环 |
+| — | 113 记录的范围外观察：engine 侧 3 处裸 rename（HandoffStore/iteration-store/project-task-queue）+ cli.ts writeTextAtomic 无重试 | P2 | 后续卡候选 |
 | — | deepseek-flash 成本与上下文膨胀观察（run2 S001 in 1.31M/$0.786） | — | 已记录，可再评估 |
-| — | 文档/实现漂移：死代码/TODO（仅 1 处注释）、一致性审查 | P2 | 下批优先 |
 | — | web apps UsageBar cacheRead/cacheWrite 展示已随 107 完成 | ✅ | — |
 
 ## 暂不做（P3，报告结论）
