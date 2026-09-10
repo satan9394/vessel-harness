@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "version": "v1.1.0",
-  "generatedAt": "2026-09-10T12:57:00.833Z",
+  "generatedAt": "2026-09-10T13:03:33.300Z",
   "status": "ready",
   "gates": [
     {
@@ -16,7 +16,7 @@
           "tsc exit=0"
         ]
       },
-      "durationMs": 2670
+      "durationMs": 1726
     },
     {
       "id": "unit",
@@ -27,17 +27,17 @@
       "evidence": {
         "summary": "全量 vitest（root）通过",
         "detail": [
-          "✓ vessel provider export/import + endpoint (task 095/096) > export 无 --out → JSON 打到 stdout；import 合并（默认跳过同名） 11139ms",
-          "✓ vessel provider export/import + endpoint (task 095/096) > import --dry-run 不写盘；--on-conflict overwrite 覆盖字段 6211ms",
-          "✓ vessel provider export/import + endpoint (task 095/096) > import 非法 --on-conflict / 读不到文件 → 明确退出码 4436ms",
-          "✓ vessel provider export/import + endpoint (task 095/096) > endpoint add/list/remove：候选池落盘，baseUrl 不变 23512ms",
-          "✓ vessel provider export/import + endpoint (task 095/096) > endpoint test 探测本地端点 → 输出建议但不改默认端点；--set-default 才改 9004ms",
-          "✓ vessel provider export/import + endpoint (task 095/096) > endpoint test 全不可达 → exit 1 且不写盘 3980ms",
-          "✓ vessel provider export/import + endpoint (task 095/096) > endpoint test 用法错误：无 id 无 --all / --all 配 --set-default → exit 2 5143ms",
+          "✓ vessel provider export/import + endpoint (task 095/096) > export 无 --out → JSON 打到 stdout；import 合并（默认跳过同名） 12449ms",
+          "✓ vessel provider export/import + endpoint (task 095/096) > import --dry-run 不写盘；--on-conflict overwrite 覆盖字段 6890ms",
+          "✓ vessel provider export/import + endpoint (task 095/096) > import 非法 --on-conflict / 读不到文件 → 明确退出码 4984ms",
+          "✓ vessel provider export/import + endpoint (task 095/096) > endpoint add/list/remove：候选池落盘，baseUrl 不变 26303ms",
+          "✓ vessel provider export/import + endpoint (task 095/096) > endpoint test 探测本地端点 → 输出建议但不改默认端点；--set-default 才改 11577ms",
+          "✓ vessel provider export/import + endpoint (task 095/096) > endpoint test 全不可达 → exit 1 且不写盘 4817ms",
+          "✓ vessel provider export/import + endpoint (task 095/096) > endpoint test 用法错误：无 id 无 --all / --all 配 --set-default → exit 2 6544ms",
           "Test Files  109 passed (109)",
           "Tests  1175 passed | 1 skipped (1176)",
-          "Start at  05:48:36",
-          "Duration  155.79s (transform 18.43s, setup 0ms, collect 54.09s, tests 456.17s, environment 39ms, prepare 27.56s)",
+          "Start at  05:53:51",
+          "Duration  165.77s (transform 14.66s, setup 0ms, collect 50.14s, tests 458.34s, environment 38ms, prepare 28.48s)",
           "stderr | apps/cli/src/cli.test.ts > CLI provider/models commands (task 016/015) > provider remove refuses to remove built-in mock",
           "[vessel] provider \"mock\" is built-in and cannot be removed",
           "stderr | apps/cli/src/cli.test.ts > vessel provider export/import + endpoint (task 095/096) > export 无 --out → JSON 打到 stdout；import 合并（默认跳过同名）",
@@ -45,7 +45,7 @@
           "vitest exit=0"
         ]
       },
-      "durationMs": 158617
+      "durationMs": 168686
     },
     {
       "id": "deterministic-bench",
@@ -60,7 +60,7 @@
           "passed=17"
         ]
       },
-      "durationMs": 4876,
+      "durationMs": 5494,
       "note": "扩至 L1 全离线可跑集（B001-B005 + B016-B027，含 V1.1-D streaming/interrupt/steering/resume）。"
     },
     {
@@ -70,14 +70,14 @@
       "criterion": "082 真实模型 lane 收集到 §15 L3 指标；无凭据/无 provider 时显式 pending，不静默通过。",
       "status": "pass",
       "evidence": {
-        "summary": "真实模型 lane 全过（10/14）",
+        "summary": "真实模型 lane 全过（13/25）",
         "detail": [
-          "rows=14",
-          "passed=10"
+          "rows=25",
+          "passed=13"
         ]
       },
-      "durationMs": 340294,
-      "note": "凭据来源=CredentialStore vessel/opencode-go；模型档=deepseek-flash（task 102：Go 端点 x-opencode-session + 具名 UA + 路径分流）。"
+      "durationMs": 408436,
+      "note": "凭据来源=CredentialStore vessel/opencode-go；模型档=mimo-v2.5-pro,deepseek-flash（task 102：Go 端点 x-opencode-session + 具名 UA + 路径分流）。"
     },
     {
       "id": "safety",
@@ -92,7 +92,7 @@
           "passed=6"
         ]
       },
-      "durationMs": 249
+      "durationMs": 179
     },
     {
       "id": "resume",
@@ -109,7 +109,7 @@
           "countConsistent=true"
         ]
       },
-      "durationMs": 628
+      "durationMs": 453
     },
     {
       "id": "ux-smoke",
@@ -123,7 +123,7 @@
           "webDistPresent=true"
         ]
       },
-      "durationMs": 1
+      "durationMs": 0
     },
     {
       "id": "packaging",
@@ -138,13 +138,13 @@
           "entry=true"
         ]
       },
-      "durationMs": 1893
+      "durationMs": 1480
     }
   ],
   "totals": {
     "pass": 8,
     "fail": 0,
     "pending": 0,
-    "durationMs": 509228
+    "durationMs": 586455
   }
 }
