@@ -1,7 +1,7 @@
 # 107 — cache_creation 展示层（web UsageBar + local-server SSE）
 
 - 编号：107
-- 状态：待验收
+- 状态：已合入
 - 优先级：P2
 - 创建日期：2026-09-10
 - 关联：099（69502c5：cacheCreationTokens 采集链路已打通）；089（cdf1374：cacheWrite 计价三档）；
@@ -170,9 +170,11 @@ data: {"type":"usage","delta":{"inputTokens":10,"outputTokens":5,"cacheReadToken
 - [x] 文档同步（若涉 usage 展示说明）——本卡工作证明即为展示说明；未新增独立文档（改动为纯展示层，usage 文档在 docs/PRICING.md §7 已有 cacheWrite 计价说明，未失真）。
 - [x] 本卡"工作证明"节回填 + 状态改"待验收"。
 
-## 状态：待验收
-
 ## 验收结论（指挥回填）
 
-- [ ] 合入 / 打回
-- 备注：
+- [x] 合入（commit d5fba0a）
+- 备注：指挥独立复核——`tsc -b` exit 0；全量 vitest **1153 passed + 1 skipped / exit 0**（108 files）；
+  web **82 passed**（基线 74 + 新 8）。
+  认可：展示链路（after_model usage（099 透传 cacheCreationTokens）→ local-server SSE usage 帧 → web
+  UsageDelta/UsageTotals → UsageBar 渲染 `cache 读 X / 写 Y` 并列，写价按 input×1.25 derived 提示——089 语义）；
+  纯展示层消费，未动采集/计价、未加依赖。**107 关闭。**

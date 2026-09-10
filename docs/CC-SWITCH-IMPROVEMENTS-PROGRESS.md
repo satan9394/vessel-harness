@@ -18,14 +18,13 @@
 | 103 | CLI/TUI 侧协议适配（方案 A：协议上提 packages/llm 作 SSOT，lane 485 行重复删除；providerFactory 唯一构造路径；顺带修 `--provider <id>` 缺陷） | afac81a | 1102 测试 + tsc 0 |
 | 104 | P2：供应商导出**默认脱敏+自检** / 导入合并 / 备份轮转零删除 / 多端点测速（建议不改默认） | 812a382 | 1148 测试 + tsc 0 |
 | 105 | 用户 key 入库（DPAPI 密文，`same=true`）+ **`vessel run` 真实成功**（ping→pong，无 400/401，usage 3265/37） | e064209 | 1147 测试 + tsc 0 |
-| 106 | chat 凭据（defaultStore 唯一工厂 + resolveChatStore）+ 测试隔离（临时 root + 3 新用例）+ process-tree 超时 120s | c9e4aab（随本批提交） | **1152 测试 + 0 failed** + web 74 |
+| 106 | chat 凭据（defaultStore 唯一工厂 + resolveChatStore）+ 测试隔离（临时 root + 3 新用例）+ process-tree 超时 120s | 0c6175a | **1152 测试 + 0 failed** + web 74 |
+| 107 | cache_creation 展示层：local-server SSE usage 帧 + web UsageBar 渲染 `cache 读 X / 写 Y`（derived 提示） | d5fba0a | **1153 测试** + web 82 |
 
 ## 进行中 / 待做
 
 | 卡 | 内容 | 优先级 | 备注 |
 | — | mimo-v2.5 长工具链收敛不稳定（finalText 空 + 工具到 64 步）→ 调整场景集/判据或接受为模型特性 | P1 | 102 记录；**需用户决策** |
-| — | cache_creation 展示层（apps/web UsageBar + local-server SSE 仍只 cacheRead） | P2 | 099 记录 |
-| — | 已知 flaky 观察：process-tree 已随 106 放宽（120s）；rename EPERM（Windows 杀软锁）已有界重试 | — | 持续观察 |
 
 ## 暂不做（P3，报告结论）
 
