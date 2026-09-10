@@ -107,6 +107,38 @@ describe('OpenAICompatibleProvider.stream', () => {
       server.close();
     }
   });
+
+  it('stream() 请求体带 assistant tool_calls + reasoning_content（task 109 流式路径）', async () => {
+    const sse = ['data: {"choices":[{"delta":{"role":"assistant"}}]}', 'data: [DONE]', ''].join('\n');
+    const fake = await fakeSSEServer(sse);
+    try {
+      const p = new OpenAICompatibleProvider({ baseUrl: fake.url, model: 'deepseek-flash', apiKey: 'k' });
+      const messages = [
+        { role: 'user' as const, content: '任务' },
+        {
+          role: 'assistant' as const,
+          content: '',
+          reasoningContent: '想：先读文件',
+          toolCalls: [{ id: 'tc1', name: 'Read', arguments: { path: 'a.txt' } }],
+        },
+        { role: 'tool' as const, toolCallId: 'tc1', name: 'Read', content: 'DATA' },
+      ];
+      await collect(p.stream({ model: 'deepseek-flash', messages }));
+
+      const sent = fake.received[0] as { body: { messages: Array<Record<string, unknown>>; stream: boolean } };
+      expect(sent.body.stream).toBe(true);
+      const wireAsst = sent.body.messages.find((m) => m.role === 'assistant') as {
+        reasoning_content?: string;
+        tool_calls?: { id: string; function: { name: string; arguments: string } }[];
+      };
+      expect(wireAsst.reasoning_content).toBe('想：先读文件');
+      expect(wireAsst.tool_calls).toEqual([{ id: 'tc1', type: 'function', function: { name: 'Read', arguments: '{"path":"a.txt"}' } }]);
+      const wireTool = sent.body.messages.find((m) => m.role === 'tool') as { tool_call_id?: string };
+      expect(wireTool.tool_call_id).toBe('tc1');
+    } finally {
+      fake.close();
+    }
+  });
 });
 
 describe('AnthropicProvider.stream', () => {

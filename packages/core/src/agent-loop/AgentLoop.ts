@@ -265,6 +265,8 @@ export class AgentLoop {
             msgId: `m_${crypto.randomBytes(4).toString('hex')}`,
             role: 'assistant',
             content: response.content,
+            // task 109: thinking 模式思维链随消息持久化，供 ContextBuilder 回传 reasoning_content
+            reasoningContent: response.reasoningContent,
             surface: true,
           });
           void rec;
@@ -286,6 +288,8 @@ export class AgentLoop {
           role: 'assistant',
           content: response.content,
           toolCalls: toolCalls.map((t) => ({ toolCallId: t.toolCallId, name: t.toolName, arguments: t.arguments })),
+          // task 109: thinking 模式思维链随尝试持久化，供 ContextBuilder 回传 reasoning_content
+          reasoningContent: response.reasoningContent,
           attemptNo: 1,
           surface: false,
         });
@@ -437,6 +441,7 @@ export class AgentLoop {
     await bus.emit('model_stream_start', { turnId, step, requestId, model: request.model });
 
     let text = '';
+    let reasoning = '';
     const open = new Map<string, { name: string; args: string }>();
     const order: string[] = [];
     const closed = new Set<string>();
@@ -461,6 +466,11 @@ export class AgentLoop {
             break; // model identity already carried on model_stream_start
           case 'text_delta':
             text += chunk.text;
+            await bus.emit('model_stream_delta', { turnId, step, requestId, chunk });
+            break;
+          case 'reasoning_delta':
+            // task 109: thinking 模式思维链增量累计进 reasoningContent（回传 reasoning_content 用）
+            reasoning += chunk.text;
             await bus.emit('model_stream_delta', { turnId, step, requestId, chunk });
             break;
           case 'tool_call_start': {
@@ -525,7 +535,7 @@ export class AgentLoop {
       toolCalls,
       usage,
     });
-    return { content: text, toolCalls, finishReason, usage };
+    return { content: text, toolCalls, finishReason, usage, reasoningContent: reasoning.length > 0 ? reasoning : undefined };
   }
 
   /**

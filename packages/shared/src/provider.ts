@@ -15,6 +15,12 @@ export interface ChatMessage {
   toolCallId?: string;
   /** assistant tool_calls (OpenAI function-calling round trip) */
   toolCalls?: { id: string; name: string; arguments: Record<string, unknown> }[];
+  /**
+   * Thinking-mode chain-of-thought (task 109): normalized reasoning text carried
+   * on assistant messages. DeepSeek 系 wire 字段为 `reasoning_content`，opencode-go
+   * 为 `message.reasoning`；请求时须按上游要求回传（thinking 模式校验），响应时归一进本字段。
+   */
+  reasoningContent?: string;
 }
 
 export interface ChatToolDef {
@@ -72,6 +78,8 @@ export interface ChatResponse {
   finishReason: ChatFinishReason;
   usage: ChatUsage;
   raw?: unknown;
+  /** Thinking-mode reasoning text normalized from the wire (task 109). */
+  reasoningContent?: string;
 }
 
 /**
@@ -86,6 +94,15 @@ export type StreamChunk =
   | { type: 'tool_call_start'; id: string; name: string; arguments: string }
   | { type: 'tool_call_delta'; id: string; argumentsDelta: string }
   | { type: 'tool_call_end'; id: string }
+  | {
+      /**
+       * Thinking-mode reasoning text fragment (task 109): DeepSeek 系流式
+       * `delta.reasoning_content`。AgentLoop 累加进 ChatResponse.reasoningContent，
+       * 供下一轮请求回传（strict 上游 thinking 校验）。
+       */
+      type: 'reasoning_delta';
+      text: string;
+    }
   | {
       type: 'usage';
       inputTokens?: number;

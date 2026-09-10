@@ -134,4 +134,30 @@ describe('AgentLoop (thin core)', () => {
     expect(endRecord).toMatchObject({ turnId: result.turnId, kind: 'error' });
     await session.close();
   });
+
+  it('thinking 模式：model 返回 reasoningContent → 落 assistant/attempt 与 assistant/message 记录（task 109 回传链路）', async () => {
+    fs.writeFileSync(path.join(dir, 'README.md'), 'GOLDEN-PHRASE-42', 'utf8');
+    const { session, loop } = await makeLoop(dir, [
+      {
+        when: /read|阅读/i,
+        ifNoToolResult: true,
+        response: { toolCalls: [{ name: 'Read', arguments: { path: 'README.md' } }], reasoningContent: '想：先读文件' },
+      },
+      {
+        when: /.*/,
+        response: { text: 'file content: {last_tool_result}', reasoningContent: '想：都已读完' },
+      },
+    ], '请阅读 README.md');
+
+    const result = await loop.runTurn('请阅读 README.md');
+    expect(result.kind).toBe('success');
+    expect(result.finalText).toContain('GOLDEN-PHRASE-42');
+
+    const records = session.replay();
+    const attempt = records.find((r) => r.type === 'assistant/attempt') as { reasoningContent?: string } | undefined;
+    expect(attempt?.reasoningContent).toBe('想：先读文件');
+    const finalMsg = records.find((r) => r.type === 'assistant/message') as { reasoningContent?: string } | undefined;
+    expect(finalMsg?.reasoningContent).toBe('想：都已读完');
+    await session.close();
+  });
 });

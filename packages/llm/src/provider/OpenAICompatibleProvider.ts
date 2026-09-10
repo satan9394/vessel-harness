@@ -14,6 +14,8 @@ interface OpenAIChatMessage {
   content?: string | null;
   name?: string;
   tool_call_id?: string;
+  /** DeepSeek 系 thinking 模式：assistant 消息须回传上一轮的思维链（task 109）。 */
+  reasoning_content?: string;
   tool_calls?: {
     id: string;
     type: 'function';
@@ -27,6 +29,9 @@ function toOpenAIMessages(messages: ChatMessage[]): OpenAIChatMessage[] {
       return { role: 'tool', tool_call_id: m.toolCallId, content: m.content, name: m.name };
     }
     const base: OpenAIChatMessage = { role: m.role, content: m.content };
+    if (m.reasoningContent) {
+      base.reasoning_content = m.reasoningContent;
+    }
     if (m.toolCalls && m.toolCalls.length > 0) {
       base.tool_calls = m.toolCalls.map((tc) => ({
         id: tc.id,
@@ -49,6 +54,8 @@ interface OpenAIResponseBody {
   choices?: {
     message?: {
       content?: string | null;
+      /** DeepSeek 系 thinking 模式的思维链字段（task 109）。 */
+      reasoning_content?: string | null;
       tool_calls?: { id?: string; function?: { name?: string; arguments?: string } }[];
     };
     finish_reason?: string;
@@ -141,6 +148,8 @@ export class OpenAICompatibleProvider implements ChatProvider {
         cacheReadTokens: body.usage?.prompt_tokens_details?.cached_tokens,
       },
       raw: body,
+      // task 109: DeepSeek 系 thinking 模式思维链归一进 ChatResponse（AgentLoop 持久化后回传）
+      reasoningContent: message?.reasoning_content ?? undefined,
     };
     // prettier-ignore
   }

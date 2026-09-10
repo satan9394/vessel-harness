@@ -311,6 +311,8 @@ interface OpenAIChatMessageWire {
   content?: string | null;
   name?: string;
   tool_call_id?: string;
+  /** DeepSeek 系 thinking 模式：assistant 消息须回传上一轮的思维链（task 109）。 */
+  reasoning_content?: string;
   tool_calls?: { id: string; type: 'function'; function: { name: string; arguments: string } }[];
 }
 
@@ -321,6 +323,9 @@ export function toOpencodeGoWireMessages(messages: ChatRequest['messages']): Ope
       return { role: 'tool', tool_call_id: m.toolCallId, content: m.content, name: m.name };
     }
     const base: OpenAIChatMessageWire = { role: m.role, content: m.content };
+    if (m.reasoningContent) {
+      base.reasoning_content = m.reasoningContent;
+    }
     if (m.toolCalls && m.toolCalls.length > 0) {
       base.tool_calls = m.toolCalls.map((tc) => ({
         id: tc.id,
@@ -337,8 +342,10 @@ interface OpenAIChatCompletionBody {
   choices?: {
     message?: {
       content?: string | null;
-      /** 推理模型（mimo-v2.5）的思维链正文。 */
+      /** 推理模型（mimo-v2.5）的思维链正文（opencode-go wire）。 */
       reasoning?: string | null;
+      /** DeepSeek 系 thinking 模式的思维链字段（task 109：响应归一进 reasoning）。 */
+      reasoning_content?: string | null;
       tool_calls?: { id?: string; function?: { name?: string; arguments?: string } }[];
     };
     finish_reason?: string;
@@ -395,8 +402,10 @@ export function parseOpencodeGoChatCompletion(body: unknown): OpencodeGoCompleti
   const cached = b.usage?.prompt_tokens_details?.cached_tokens;
   if (typeof cached === 'number') usage.cacheReadTokens = cached;
   const out: OpencodeGoCompletion = {
+    // task 109: DeepSeek 系 thinking 模式思维链在 `message.reasoning_content`，
+    // opencode-go 在 `message.reasoning` —— 归一进同一个 reasoning 字段（响应归一，请求回传）。
     content: message?.content ?? '',
-    reasoning: message?.reasoning ?? '',
+    reasoning: message?.reasoning ?? message?.reasoning_content ?? '',
     toolCalls,
     finishReason: mapFinishReason(choice?.finish_reason, toolCalls.length > 0),
     usage,
@@ -524,6 +533,8 @@ export class OpencodeGoProvider implements ChatProvider {
         finishReason: parsed.finishReason,
         usage: parsed.usage,
         raw: parsed,
+        // task 109: thinking 模式思维链归一进 ChatResponse，供 AgentLoop 持久化后回传
+        reasoningContent: parsed.reasoning,
       };
     }
     throw lastError ?? new OpencodeGoError({ kind: 'network', message: 'opencode-go: 请求未发出（无可用尝试）' });

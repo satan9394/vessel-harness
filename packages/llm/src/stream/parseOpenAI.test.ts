@@ -39,6 +39,23 @@ describe('parseOpenAIStreamChunk — plain text SSE → text_delta', () => {
     const state = createOpenAIToolState();
     expect(parseOpenAIStreamChunk('{not json', state)).toEqual([]);
   });
+
+  it('maps delta.reasoning_content to reasoning_delta (task 109 DeepSeek thinking 流式)', () => {
+    const state = createOpenAIToolState();
+    const chunks = parseOpenAIStreamChunk(
+      data('data: {"choices":[{"delta":{"reasoning_content":"先读文件"}}]}'),
+      state,
+    );
+    expect(chunks).toEqual([{ type: 'reasoning_delta', text: '先读文件' }]);
+    // 空增量不产生 chunk
+    expect(parseOpenAIStreamChunk(data('data: {"choices":[{"delta":{"reasoning_content":""}}]}'), state)).toEqual([]);
+    // reasoning 与 content 并行出现时都映射
+    const both = parseOpenAIStreamChunk(
+      data('data: {"choices":[{"delta":{"reasoning_content":"想","content":"答"}}]}'),
+      createOpenAIToolState(),
+    );
+    expect(both).toEqual([{ type: 'reasoning_delta', text: '想' }, { type: 'text_delta', text: '答' }]);
+  });
 });
 
 describe('parseOpenAIStreamChunk — tool_calls across deltas', () => {

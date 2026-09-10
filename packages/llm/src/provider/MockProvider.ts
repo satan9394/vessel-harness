@@ -12,6 +12,8 @@ export interface MockScriptEntry {
   response: {
     text?: string;
     toolCalls?: { name: string; arguments: Record<string, unknown> }[];
+    /** thinking 模式思维链（task 109）：注入后经 AgentLoop 持久化 → ContextBuilder 回传 reasoning_content。 */
+    reasoningContent?: string;
   };
 }
 
@@ -84,6 +86,7 @@ export class MockProvider implements ChatProvider {
       toolCalls,
       finishReason: toolCalls.length > 0 ? 'tool_calls' : 'stop',
       usage: this.usage(),
+      reasoningContent: entry.response.reasoningContent,
     };
   }
 
@@ -124,6 +127,11 @@ export class MockProvider implements ChatProvider {
       if (e.when instanceof RegExp) return e.when.test(haystack);
       return haystack.includes(e.when);
     });
+
+    // task 109: thinking 模式思维链先行（对齐 DeepSeek 系流式增量顺序：reasoning → content/tool）
+    if (entry?.response.reasoningContent) {
+      yield { type: 'reasoning_delta', text: entry.response.reasoningContent };
+    }
 
     const toolCalls: ChatToolCall[] = (entry?.response.toolCalls ?? []).map((tc, i) => ({
       id: `tc_mock_${i + 1}`,

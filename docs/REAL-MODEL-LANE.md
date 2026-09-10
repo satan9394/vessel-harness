@@ -193,6 +193,24 @@ task 108 按 102 的同一场景子集（B001、B002、S001-S008，10 场景）�
   mimo-v2.5 虽收敛不稳但可真实跑。线协议修复（补 assistant tool_calls 到请求历史 + 回传
   reasoning_content）应另开卡，修好后再重跑本对比。
 
+## 线协议修复落地（task 109，修后 deepseek-flash 才可能跑通）
+
+task 109 在 harness 侧修掉 108 确诊的两个线协议缺口（provider 层 + 上下文派生，未改 lane 默认模型）：
+
+1. **assistant tool_calls 投影**：`ContextBuilder` 的 wire 历史从 `session.surface()`（三型）扩展为
+   replay 过滤四型（`user/message`、`assistant/message`、`assistant/attempt`、`tool/result`）——
+   `assistant/attempt`（承载上一轮模型 tool_calls：toolCallId/name/arguments）随历史一并发给 provider，
+   序列化后 `role:'tool'` 消息永远紧跟含对应 `tool_calls` 的 `role:'assistant'` 消息
+   （OpenAI 兼容约定，strict 上游 400 消失）。
+2. **reasoning_content 回传**：响应侧 `reasoning_content`（DeepSeek 系）/ `reasoning`（opencode-go）
+   归一进 `ChatResponse.reasoningContent`（流式走新增 `reasoning_delta` chunk 累计），经
+   `assistant/message`/`assistant/attempt` 记录持久化；请求侧 assistant 消息序列化为
+   `reasoning_content` 发回（thinking 模式校验通过）。
+3. 两套 provider（`OpencodeGoProvider` / `OpenAICompatibleProvider`）非流式与流式路径共用同一
+   `ChatRequest.messages` 序列化逻辑；mimo-v2.5 等非推理模型不产 reasoning_content，行为不变。
+
+实跑验证与修复前后对比见 `tasks/109-wire-protocol-fix.md`「工作证明」。
+
 ## 凭据来源（env / CredentialStore，task 097 纠偏）
 
 opencode-go 的 API key **只有两条来源**，provider 运行时经 resolver 读取（可注入、可 mock），

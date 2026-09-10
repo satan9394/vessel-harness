@@ -43,11 +43,12 @@ function recordToMessage(r: SessionRecord): ChatMessage {
     case 'user/message':
       return { role: 'user', content: r.content };
     case 'assistant/message':
-      return { role: 'assistant', content: r.content };
+      return { role: 'assistant', content: r.content, reasoningContent: r.reasoningContent };
     case 'assistant/attempt': {
       return {
         role: 'assistant',
         content: r.content,
+        reasoningContent: r.reasoningContent,
         toolCalls: r.toolCalls.map((tc) => ({
           id: tc.toolCallId,
           name: tc.name,
@@ -66,6 +67,23 @@ function recordToMessage(r: SessionRecord): ChatMessage {
       return { role: 'user', content: '' };
   }
 }
+
+/**
+ * 模型可见历史 = surface 投影（user/message、assistant/message、tool/result）+ assistant/attempt。
+ *
+ * task 109（线协议修复）：严格上游（DeepSeek 等）要求 `role:'tool'` 消息必须紧跟一条含
+ * `tool_calls` 的 `role:'assistant'` 消息——assistant/attempt 恰恰承载上一轮模型的 tool_calls
+ * （含 toolCallId/name/arguments），surface()（EVENT-SPEC §6 仅三型）把它裁剪掉，导致 wire 里
+ * tool 消息无前导 tool_calls → 上游 400。此处以 replay 全部记录过滤出四型消息记录（顺序不变），
+ * 把 assistant 的 tool_calls 一并投影给 provider；`Session.surface()` 语义（EVENT-SPEC §6
+ * 三型）保持不变，仅模型可见历史按 OpenAI 工具协议补全。
+ */
+const WIRE_HISTORY_RECORD_TYPES: ReadonlySet<SessionRecord['type']> = new Set<SessionRecord['type']>([
+  'user/message',
+  'assistant/message',
+  'assistant/attempt',
+  'tool/result',
+]);
 
 /**
  * context/builder — L4 assembly (ARCHITECTURE §2.4):
@@ -124,8 +142,14 @@ export class ContextBuilder {
       this.injected = true;
     }
 
-    // derived history from surface projection
-    const history: ChatMessage[] = session.surface().map(recordToMessage).filter((m) => m.content !== '' || (m.toolCalls?.length ?? 0) > 0);
+    // derived history from the wire projection (surface superset incl.
+    // assistant/attempt so `tool` messages always follow an assistant with
+    // tool_calls — task 109)
+    const history: ChatMessage[] = session
+      .replay()
+      .filter((r) => WIRE_HISTORY_RECORD_TYPES.has(r.type))
+      .map(recordToMessage)
+      .filter((m) => m.content !== '' || (m.toolCalls?.length ?? 0) > 0);
 
     // volatile layer
     const volatileText = this.deps.volatileText?.() ?? '';

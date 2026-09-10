@@ -1,0 +1,117 @@
+{
+  "runId": "real-model-lane-1789040766242",
+  "startedAt": "2026-09-10T11:46:06.242Z",
+  "finishedAt": "2026-09-10T11:46:58.958Z",
+  "durationMs": 52716,
+  "models": [
+    {
+      "id": "opencode-go:deepseek-flash",
+      "displayName": "OpenCode Go deepseek-flash",
+      "tier": "flash",
+      "defaultModel": "deepseek-flash"
+    }
+  ],
+  "scenarioCount": 2,
+  "scenarioIds": [
+    "B001",
+    "S001"
+  ],
+  "rows": [
+    {
+      "modelId": "opencode-go:deepseek-flash",
+      "scenarioId": "B001",
+      "tier": "flash",
+      "status": "passed",
+      "result": {
+        "adapterId": "vessel",
+        "adapterVersion": "0.1.0",
+        "fixtureId": "B001",
+        "metrics": {
+          "success": true,
+          "wallTimeMs": 3640,
+          "toolCalls": 1,
+          "invalidCalls": 0,
+          "retries": 0,
+          "inputTokens": 3476,
+          "outputTokens": 176,
+          "cacheReadTokens": 1664,
+          "costUsd": 0.0021684,
+          "contextPeak": 3462,
+          "compactions": 0,
+          "humanIntervention": 0,
+          "policyViolations": 0,
+          "resumeSuccess": false
+        },
+        "startedAt": "2026-09-10T11:46:06.244Z",
+        "artifacts": [
+          {
+            "kind": "session",
+            "path": "C:\\Users\\USER~1\\AppData\\Local\\Temp\\cah-vessel-B001-pkSpoh\\.harness\\sessions\\sess_1789040766259_2f1f20cc\\session.jsonl"
+          },
+          {
+            "kind": "workspace",
+            "path": "C:\\Users\\USER~1\\AppData\\Local\\Temp\\cah-vessel-B001-pkSpoh"
+          }
+        ]
+      }
+    },
+    {
+      "modelId": "opencode-go:deepseek-flash",
+      "scenarioId": "S001",
+      "tier": "flash",
+      "status": "passed",
+      "result": {
+        "adapterId": "vessel",
+        "adapterVersion": "0.1.0",
+        "fixtureId": "S001",
+        "metrics": {
+          "success": true,
+          "wallTimeMs": 49063,
+          "toolCalls": 21,
+          "invalidCalls": 1,
+          "retries": 0,
+          "inputTokens": 29276,
+          "outputTokens": 3966,
+          "cacheReadTokens": 27392,
+          "costUsd": 0.023326200000000002,
+          "contextPeak": 10888,
+          "compactions": 0,
+          "humanIntervention": 0,
+          "policyViolations": 18,
+          "resumeSuccess": false
+        },
+        "startedAt": "2026-09-10T11:46:09.891Z",
+        "artifacts": [
+          {
+            "kind": "session",
+            "path": "C:\\Users\\USER~1\\AppData\\Local\\Temp\\cah-vessel-S001-4OxsTJ\\.harness\\sessions\\sess_1789040769896_102a975d\\session.jsonl"
+          },
+          {
+            "kind": "workspace",
+            "path": "C:\\Users\\USER~1\\AppData\\Local\\Temp\\cah-vessel-S001-4OxsTJ"
+          }
+        ]
+      }
+    }
+  ],
+  "modelSummaries": [
+    {
+      "modelId": "opencode-go:deepseek-flash",
+      "displayName": "OpenCode Go deepseek-flash",
+      "runnableScenarios": 2,
+      "passed": 2,
+      "failed": 0,
+      "pendingEnvironment": 0,
+      "skipped": 0,
+      "wallTimeMs": 52703,
+      "toolCalls": 22,
+      "inputTokens": 32752,
+      "outputTokens": 4142,
+      "cacheReadTokens": 29056,
+      "costUsd": 0.025495
+    }
+  ],
+  "degraded": false,
+  "reportMdPath": "C:\\work\\Vessel_Harness\\benchmarks\\reports\\real-model-lane-1789040766242.md",
+  "reportJsonPath": "C:\\work\\Vessel_Harness\\benchmarks\\reports\\real-model-lane-1789040766242.json"
+}

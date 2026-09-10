@@ -50,14 +50,31 @@ describe('gate criteria judges (tasks 084) — pure, no commands', () => {
     expect(fail.evidence.detail).toContain('tsc exit=1');
   });
 
-  it('judgeUnit passes only on exit 0 + no failure marker', () => {
+  it('judgeUnit：exit 0 + 汇总行 passed → pass；汇总行 failed / exit≠0 → fail（task 109 判据收紧）', () => {
     const ok = 'Test Files  10 passed (120 tests)';
     expect(judgeUnit({ code: 0, stdout: ok, stderr: '' }).status).toBe('pass');
-    // a failing test is surfaced as fail
+    // 真失败：非零退出
     expect(judgeUnit({ code: 1, stdout: '+ some failing tests', stderr: 'FAIL' }).status).toBe('fail');
-    expect(judgeUnit({ code: 0, stdout: 'FAIL  gates.test.ts', stderr: '' }).status).toBe('fail');
-    // exit 0 but a "failed" line → still fail (never a silent pass)
+    // 真失败：exit 0 但 vitest 汇总行报 failed（防御）
     expect(judgeUnit({ code: 0, stdout: 'Test Files  2 failed', stderr: '' }).status).toBe('fail');
+    expect(judgeUnit({ code: 0, stdout: 'Tests  3 failed | 1153 passed (1156)', stderr: '' }).status).toBe('fail');
+  });
+
+  it('judgeUnit：全绿运行输出含 FAIL/failed 字样不再误报（108 实测回归样本）', () => {
+    // 108：release-report Unit gate 对全绿运行误报 fail——通过用例自身的输出里含 "FAIL"/
+    // "failed ... tests" 字样（用例名、console 输出）命中旧正则；vitest 实际全绿 exit 0。
+    const greenRun =
+      '✓ benchmarks/runners/src/release-gates/release-gates.test.ts (12 tests) 12ms\n' +
+      '  ✓ judgeBuild passes only on tsc exit 0\n' +
+      '  ✓ judgeUnit passes only on exit 0 + no failure marker\n' +
+      'stdout note: test "should fail when tests are bad" skipped by design\n' +
+      'Test Files  108 passed (1156 tests)\n' +
+      '     Tests  1155 passed | 1 skipped (1156)';
+    expect(judgeUnit({ code: 0, stdout: greenRun, stderr: '' }).status).toBe('pass');
+    // stderr 里的非汇总 FAIL 字样同样不误报（如独立工具输出去往 stderr）
+    expect(judgeUnit({ code: 0, stdout: greenRun, stderr: 'npm warn: failed lookup, fallback ok' }).status).toBe('pass');
+    // 汇总行本身在 stderr 上且报 failed 仍是 fail（stderr 与 stdout 都纳入汇总行判定）
+    expect(judgeUnit({ code: 0, stdout: '', stderr: 'Test Files  1 failed (2 tests)' }).status).toBe('fail');
   });
 
   it('judgeRealModelLane : no provider → pending; clean run → pass; failed row → fail', () => {

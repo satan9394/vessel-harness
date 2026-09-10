@@ -97,13 +97,20 @@ export function judgeBuild(outcome: CommandOutcome): GateVerdict {
 }
 
 /**
- * Judge a vitest run. vitest prints a summary line like "Test Files  X passed (Y tests)".
- * Pass = exit 0 AND no "failed" marker in stdout/stderr.
+ * Judge a vitest run against its stable summary lines + exit code (task 109).
+ *
+ * 108 实测：旧的 `/FAIL|failed .*tests/i` 正则对**全绿运行**误报 fail——通过用例自身的输出里
+ * 只要含 "FAIL"/"failed …tests" 字样（用例名、console 输出）就命中正则，导致 release-report
+ * Unit gate 显示 fail 而 vitest 实际 1155+1 exit 0。本实现只认两类稳定信号：
+ *   1. 退出码：vitest 有失败用例必然非零退出；
+ *   2. vitest 汇总行：以 "Test Files"/"Tests" 开头的合计行（如
+ *      `Test Files  1 failed | 107 passed (108 tests)`）出现 failed 计数 → fail（防御性）,
+ *      全绿行的 `Tests  1155 passed | 1 skipped (1156)` 永不含 failed。
+ * 通过运行里出现的任意 "FAIL"/"failed" 字样（非汇总行）不再误判。
  */
 export function judgeUnit(outcome: CommandOutcome, expectedTestFilesMin = 0): GateVerdict {
-  const failed =
-    outcome.stderr.match(/FAIL|failed .*tests/i) ?? outcome.stdout.match(/FAIL|failed .*tests/i);
-  const pass = outcome.code === 0 && !failed && parsedTestCount(outcome) >= expectedTestFilesMin;
+  const summaryFailed = vitestSummaryHasFailed(outcome);
+  const pass = outcome.code === 0 && !summaryFailed && parsedTestCount(outcome) >= expectedTestFilesMin;
   const detail = compactLines(outcome).concat([`vitest exit=${outcome.code}`]);
   return {
     status: pass ? 'pass' : 'fail',
@@ -112,6 +119,12 @@ export function judgeUnit(outcome: CommandOutcome, expectedTestFilesMin = 0): Ga
       detail,
     },
   };
+}
+
+/** 只在 vitest 的稳定汇总行（"Test Files"/"Tests" 起首的合计行）上找 failed 计数。 */
+function vitestSummaryHasFailed(outcome: CommandOutcome): boolean {
+  const lines = [...outcome.stdout.split('\n'), ...outcome.stderr.split('\n')];
+  return lines.some((l) => /^\s*(Test Files|Tests)\s+[\d,]+\s+/.test(l) && /failed/i.test(l));
 }
 
 function parsedTestCount(outcome: CommandOutcome): number {

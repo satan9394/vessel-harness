@@ -22,7 +22,9 @@ import {
   classifyOpencodeGoError,
   opencodeGoErrorHint,
   opencodeGoKindFromMessage,
+  parseOpencodeGoChatCompletion,
   resolveOpencodeGoRoute,
+  toOpencodeGoWireMessages,
   type OpencodeGoFetch,
 } from './OpencodeGoProvider.js';
 import { createProvider, providerNameForConfig } from './createProvider.js';
@@ -191,5 +193,122 @@ describe('103 — 路径分流与降级', () => {
     const p = new OpencodeGoProvider({ baseUrl: BASE, apiKey: 'k', model: 'mimo-v2.5', fetchImpl: failing, maxAttempts: 2, retryDelayMs: 0 });
     await expect(p.chat(REQ)).rejects.toMatchObject({ kind: 'network', retryable: true });
     expect(n).toBe(2);
+  });
+});
+
+describe('109 — 线协议修复（assistant tool_calls 投影 + reasoning_content 回传）', () => {
+  it('wire 序列化：assistant tool_calls + reasoning_content 上 wire，tool 消息 tool_call_id 对应', () => {
+    const wire = toOpencodeGoWireMessages([
+      { role: 'user', content: '任务' },
+      {
+        role: 'assistant',
+        content: '',
+        reasoningContent: '想：先读文件',
+        toolCalls: [{ id: 'tc1', name: 'Read', arguments: { path: 'a.txt' } }],
+      },
+      { role: 'tool', toolCallId: 'tc1', name: 'Read', content: 'DATA' },
+    ]);
+    expect(wire[1]).toEqual({
+      role: 'assistant',
+      content: '',
+      reasoning_content: '想：先读文件',
+      tool_calls: [{ id: 'tc1', type: 'function', function: { name: 'Read', arguments: '{"path":"a.txt"}' } }],
+    });
+    expect(wire[2]).toEqual({ role: 'tool', tool_call_id: 'tc1', content: 'DATA', name: 'Read' });
+  });
+
+  it('非推理模型不受影响：无 reasoningContent → wire 不产生 reasoning_content 键', () => {
+    const wire = toOpencodeGoWireMessages([
+      { role: 'user', content: 'hi' },
+      { role: 'assistant', content: 'ok' },
+    ]);
+    expect(wire[1]).toEqual({ role: 'assistant', content: 'ok' });
+    expect(wire[1]).not.toHaveProperty('reasoning_content');
+  });
+
+  it('响应解析：DeepSeek 系 reasoning_content 与 opencode-go reasoning 归一进同一字段', () => {
+    const deepseek = parseOpencodeGoChatCompletion({
+      model: 'deepseek-flash',
+      choices: [{ finish_reason: 'stop', message: { role: 'assistant', content: '答', reasoning_content: '想：思考过程' } }],
+      usage: { prompt_tokens: 1, completion_tokens: 1 },
+    });
+    expect(deepseek.reasoning).toBe('想：思考过程');
+
+    const go = parseOpencodeGoChatCompletion({
+      model: 'mimo-v2.5',
+      choices: [{ finish_reason: 'stop', message: { role: 'assistant', content: null, reasoning: '想：go 字段' } }],
+      usage: { prompt_tokens: 1, completion_tokens: 1 },
+    });
+    expect(go.reasoning).toBe('想：go 字段');
+  });
+
+  it('mock 严格上游：修好的消息形状 200；旧形状 / 缺 reasoning_content → 400（108 复现→修复）', async () => {
+    // 复刻 108 的严格上游校验：
+    //  ① tool 消息必须紧跟含 tool_calls 的 assistant（tool_call_id 对应）；
+    //  ② 有 tool 序列时（thinking 模式）assistant 必须回传 reasoning_content。
+    const TOOL_400 = 'Messages with role \'tool\' must be a response to a preceding message with \'tool_calls\'';
+    const REASON_400 = 'The reasoning_content in the thinking mode must be passed back to the API';
+    const validator: OpencodeGoFetch = async (_url, init) => {
+      const messages = (JSON.parse(String(init.body)) as { messages: { role: string; tool_call_id?: string; tool_calls?: unknown[]; reasoning_content?: string }[] }).messages;
+      const toolIds = new Set<string>();
+      for (const m of messages) {
+        if (m.role === 'assistant') {
+          if (m.tool_calls?.length) toolIds.add((m.tool_calls[0] as { id: string }).id);
+        }
+        if (m.role === 'tool') {
+          if (!toolIds.has(m.tool_call_id ?? '')) {
+            return err(400, { type: 'error', error: { type: 'invalid_request_error', message: TOOL_400 } });
+          }
+          // thinking 模式：带 tool_calls 的 assistant 必须回传 reasoning_content
+          const prev = messages[messages.indexOf(m) - 1];
+          if (!prev || prev.role !== 'assistant' || !prev.reasoning_content) {
+            return err(400, { type: 'error', error: { type: 'invalid_request_error', message: REASON_400 } });
+          }
+        }
+      }
+      return ok({
+        model: 'deepseek-flash',
+        choices: [{ finish_reason: 'stop', message: { role: 'assistant', content: '最终答复', reasoning_content: '想' } }],
+        usage: { prompt_tokens: 5, completion_tokens: 3 },
+      });
+    };
+
+    const fixed = new OpencodeGoProvider({ baseUrl: BASE, apiKey: 'k', model: 'deepseek-flash', fetchImpl: validator });
+    // 修好的形状：user → assistant(tool_calls + reasoning_content) → tool → 200
+    const ok1 = await fixed.chat({
+      model: 'deepseek-flash',
+      messages: [
+        { role: 'user', content: '任务' },
+        { role: 'assistant', content: '', reasoningContent: '想：先读', toolCalls: [{ id: 'tc1', name: 'Read', arguments: { path: 'a.txt' } }] },
+        { role: 'tool', toolCallId: 'tc1', name: 'Read', content: 'DATA' },
+      ],
+    });
+    expect(ok1.content).toBe('最终答复');
+    // 响应归一：chat() 把 reasoning_content 归一进 reasoningContent（AgentLoop 持久化后回传）
+    expect(ok1.reasoningContent).toBe('想');
+
+    // 旧形状（108 实验①）：user → tool，无前导 assistant tool_calls → 400
+    const broken = new OpencodeGoProvider({ baseUrl: BASE, apiKey: 'k', model: 'deepseek-flash', fetchImpl: validator });
+    const e1 = (await broken
+      .chat({ model: 'deepseek-flash', messages: [{ role: 'user', content: '任务' }, { role: 'tool', toolCallId: 'tc1', name: 'Read', content: 'DATA' }] })
+      .catch((x: unknown) => x)) as OpencodeGoError;
+    expect(e1).toBeInstanceOf(OpencodeGoError);
+    expect(e1.message).toContain(TOOL_400);
+
+    // 缺 reasoning_content（108 实验②）：assistant(tool_calls) 无 reasoning_content → 400
+    const noReasoning = new OpencodeGoProvider({ baseUrl: BASE, apiKey: 'k', model: 'deepseek-flash', fetchImpl: validator });
+    const e2 = (await noReasoning
+      .chat({
+        model: 'deepseek-flash',
+        messages: [
+          { role: 'user', content: '任务' },
+          { role: 'assistant', content: '', toolCalls: [{ id: 'tc1', name: 'Read', arguments: { path: 'a.txt' } }] },
+          { role: 'tool', toolCallId: 'tc1', name: 'Read', content: 'DATA' },
+        ],
+      })
+      .catch((x: unknown) => x)) as OpencodeGoError;
+    expect(e2).toBeInstanceOf(OpencodeGoError);
+    // 缺 tool_calls 前导时先撞 ①；这里形状含前导 tool_calls → 撞 ②
+    expect(e2.message).toContain(REASON_400);
   });
 });

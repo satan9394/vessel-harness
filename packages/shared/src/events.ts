@@ -46,6 +46,8 @@ export interface AssistantMessageRecord extends SessionRecordBase {
   role: 'assistant';
   content: string;
   surface: true;
+  /** thinking 模式思维链（task 109）：随 assistant 消息持久化，供请求回传 reasoning_content。 */
+  reasoningContent?: string;
 }
 
 export interface AssistantAttemptRecord extends SessionRecordBase {
@@ -55,6 +57,8 @@ export interface AssistantAttemptRecord extends SessionRecordBase {
   toolCalls: ToolCallPayload[];
   attemptNo: number;
   surface: false;
+  /** thinking 模式思维链（task 109）：随 assistant 尝试持久化，供请求回传 reasoning_content。 */
+  reasoningContent?: string;
 }
 
 export interface ToolCallRecord extends SessionRecordBase {

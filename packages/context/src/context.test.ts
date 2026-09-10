@@ -152,3 +152,83 @@ describe('context/builder — three-layer assembly', () => {
     await session.close();
   });
 });
+
+describe('context/builder — wire 历史投影（task 109 线协议修复）', () => {
+  let dir: string;
+  beforeEach(() => { dir = fs.mkdtempSync(path.join(os.tmpdir(), 'cah-wire109-')); });
+  afterEach(() => { fs.rmSync(dir, { recursive: true, force: true }); });
+
+  async function makeBuilder(session: Session): Promise<ContextBuilder> {
+    return new ContextBuilder({
+      session, model: 'm',
+      stableSections: () => [], policyGuidance: () => [],
+      instructions: () => [], getVisibleTools: () => [],
+      volatileText: () => '',
+    });
+  }
+
+  /** 工具多轮序列：user → assistant/attempt(Read) → tool/result → assistant/attempt(Write) → tool/result → assistant/message。 */
+  async function seedToolSequence(session: Session): Promise<void> {
+    await session.appendSync({ type: 'turn/start', turnId: 't1', surface: false });
+    await session.appendSync({ type: 'user/message', msgId: 'm1', role: 'user', content: '任务', surface: true });
+    await session.appendSync({ type: 'assistant/attempt', msgId: 'a1', role: 'assistant', content: '', toolCalls: [{ toolCallId: 'tc1', name: 'Read', arguments: { path: 'a.txt' } }], reasoningContent: '想：先读文件', attemptNo: 1, surface: false });
+    await session.appendSync({ type: 'tool/call', toolCallId: 'tc1', toolName: 'Read', arguments: { path: 'a.txt' }, mode: 'auto', surface: false });
+    await session.appendSync({ type: 'tool/result', toolCallId: 'tc1', toolName: 'Read', content: 'DATA', meta: {}, surface: true });
+    await session.appendSync({ type: 'assistant/attempt', msgId: 'a2', role: 'assistant', content: '', toolCalls: [{ toolCallId: 'tc2', name: 'Write', arguments: { path: 'b.txt', content: 'x' } }], attemptNo: 1, surface: false });
+    await session.appendSync({ type: 'tool/call', toolCallId: 'tc2', toolName: 'Write', arguments: { path: 'b.txt', content: 'x' }, mode: 'auto', surface: false });
+    await session.appendSync({ type: 'tool/result', toolCallId: 'tc2', toolName: 'Write', content: 'ok', meta: {}, surface: true });
+    await session.appendSync({ type: 'assistant/message', msgId: 'a3', role: 'assistant', content: '完成', reasoningContent: '想：都做完了', surface: true });
+    await session.appendSync({ type: 'turn/end', turnId: 't1', kind: 'success', stats: { steps: 2, toolCalls: 2, durationMs: 1 }, surface: false });
+  }
+
+  it('assistant/attempt（承载 tool_calls）也投影进 wire 历史，tool 消息紧跟其后的 assistant', async () => {
+    const session = await Session.open({ workspaceRoot: dir, sessionId: 'w1' });
+    await seedToolSequence(session);
+    const env = await (await makeBuilder(session)).assemble(1);
+
+    const roles = env.messages.map((m) => m.role);
+    expect(roles).toEqual(['system', 'user', 'assistant', 'tool', 'assistant', 'tool', 'assistant']);
+
+    const asst1 = env.messages[2]!;
+    expect(asst1.toolCalls).toEqual([{ id: 'tc1', name: 'Read', arguments: { path: 'a.txt' } }]);
+    const asst2 = env.messages[4]!;
+    expect(asst2.toolCalls).toEqual([{ id: 'tc2', name: 'Write', arguments: { path: 'b.txt', content: 'x' } }]);
+    // 纯文本终态无 tool_calls
+    expect(env.messages[6]!.toolCalls).toBeUndefined();
+    await session.close();
+  });
+
+  it('严格上游形状：每条 tool 消息前都有带 tool_calls 的 assistant 且 tool_call_id 对应（108 400 复现反转）', async () => {
+    const session = await Session.open({ workspaceRoot: dir, sessionId: 'w2' });
+    await seedToolSequence(session);
+    const env = await (await makeBuilder(session)).assemble(1);
+
+    const msgs = env.messages.filter((m) => m.role !== 'system');
+    for (let i = 0; i < msgs.length; i++) {
+      if (msgs[i]!.role !== 'tool') continue;
+      const prev = msgs[i - 1]!;
+      expect(prev.role).toBe('assistant');
+      expect(prev.toolCalls?.map((tc) => tc.id)).toContain(msgs[i]!.toolCallId);
+    }
+    await session.close();
+  });
+
+  it('reasoning_content 回传：assistant 记录带 reasoningContent → 历史携带；非推理（无字段）不受影响', async () => {
+    const session = await Session.open({ workspaceRoot: dir, sessionId: 'w3' });
+    await seedToolSequence(session);
+    const env = await (await makeBuilder(session)).assemble(1);
+    const asst1 = env.messages[2]!;
+    expect(asst1.reasoningContent).toBe('想：先读文件');
+    const asstFinal = env.messages[6]!;
+    expect(asstFinal.reasoningContent).toBe('想：都做完了');
+
+    // 非推理模型：无 reasoningContent 字段 → 历史里是 undefined（wire 序列化不产生 reasoning_content）
+    const plain = await Session.open({ workspaceRoot: dir, sessionId: 'w4' });
+    await plain.appendSync({ type: 'user/message', msgId: 'p1', role: 'user', content: 'hi', surface: true });
+    await plain.appendSync({ type: 'assistant/message', msgId: 'p2', role: 'assistant', content: 'ok', surface: true });
+    const env2 = await (await makeBuilder(plain)).assemble(1);
+    expect(env2.messages.find((m) => m.role === 'assistant')?.reasoningContent).toBeUndefined();
+    await plain.close();
+    await session.close();
+  });
+});
