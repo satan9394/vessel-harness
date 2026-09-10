@@ -28,8 +28,11 @@
 ## 进行中 / 待做
 
 | 卡 | 内容 | 优先级 | 备注 |
-| — | Packaging gate（无 dist → pending） | P2 | 构建 dist 后重跑 |
-| — | 观察：deepseek-flash 成本波动（单轮最高 $0.94）与上下文膨胀（run2 S001 in 1.31M） | — | 110 记录，可再评估 |
+| — | **112 已合入（bd99582）**：根发布入口 + 8 门禁重跑 → **READY（8/0/0）**——Packaging pass、RealModel pass（deepseek-flash）、Unit pass | ✅ | release gates 里程碑达成 |
+| — | 已知 flaky 治理（rename EPERM 观察；process-tree 已随 106 放宽） | P2 | 持续观察 |
+| — | deepseek-flash 成本与上下文膨胀观察（run2 S001 in 1.31M/$0.786） | — | 已记录，可再评估 |
+| — | 文档/实现漂移：死代码/TODO（仅 1 处注释）、一致性审查 | P2 | 下批优先 |
+| — | web apps UsageBar cacheRead/cacheWrite 展示已随 107 完成 | ✅ | — |
 
 ## 暂不做（P3，报告结论）
 
