@@ -28,9 +28,8 @@
 ## 进行中 / 待做
 
 | 卡 | 内容 | 优先级 | 备注 |
-| — | **114 已合入（b83de45）**：engine 3 处 + cli.ts 裸 rename 收敛到 renameWithRetry——原子写重试**12 处全覆盖**，1190 测试 | ✅ | flaky 治理彻底闭环 |
-| — | 114 记录观察：project-task-queue runSync 裸 statSync 偶发 EPERM（Windows 杀软瞬锁静默 continue） | P2 | 另卡候选 |
-| — | deepseek-flash 成本与上下文膨胀观察（run2 S001 in 1.31M/$0.786） | — | 已记录，可再评估 |
+| — | **115 已合入（38e057f）**：queue statSync 有界重试（statWithRetry + runSync 去静默 continue → 锁错误降级置脏重读 disk）——**Windows 锁 flaky 全套治理完成（rename 12 处 + stat 路径）**，1198 测试 | ✅ | flaky 治理彻底闭环 |
+| — | deepseek-flash 成本与上下文膨胀观察（run2 S001 in 1.31M/$0.786；单轮最高 $0.94） | — | 已记录；成本特性明确（稳定性优先已定 deepseek-flash 默认），数值观察可再评估 |
 
 ## 暂不做（P3，报告结论）
 

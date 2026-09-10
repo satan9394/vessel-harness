@@ -116,5 +116,12 @@
 
 ## 验收结论（指挥回填）
 
-- [ ] 合入 / 打回
-- 备注：
+- [x] 合入（commit 38e057f）
+- 备注：指挥独立复核——`tsc -b` exit 0；全量 vitest **1198 passed + 1 skipped / exit 0**（111 files，= 1186 +
+  8 新用例）；web 82。
+  认可：shared 新增 `statWithRetry`（复用 113 语义：3 次/5-15ms，仅锁错误重试、其它立即抛）；queue 3 处 stat
+  路径（writeMeta L387 + runSync L453）改走 helper；**关键语义修正**——runSync 的 catch 不再静默 continue：
+  ENOENT/ENOTDIR 才跳过（meta 真缺失合法语义），锁错误重试尽降级**保守置脏**（mtimeMs=Date.now()）强制重读
+  disk（正确性以 disk 为锚）——从机制上消除 114 记录的 stale 索引 flaky；+8 测试（EPERM×2 第 3 次成功 /
+  非锁 ENOENT 不重试 / 6 个 EPERM 重试尽置脏重读见新状态且无残影）。**115 关闭——stat 读路径治理闭环
+  （rename+stat 全套 Windows 锁 flaky 治理完成）**。
