@@ -43,6 +43,8 @@ export interface UsageDelta {
   inputTokens?: number;
   outputTokens?: number;
   cacheReadTokens?: number;
+  /** cache 写入（cache_creation）tokens，task 107；缺省未上报时为 undefined */
+  cacheCreationTokens?: number;
   calls?: number;
   ts: number;
 }

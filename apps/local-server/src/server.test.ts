@@ -272,6 +272,85 @@ describe('local server HTTP API + SSE', () => {
     await reader.cancel();
     expect(gotConversation).toBe(true);
   });
+
+  it('SSE usage delta carries cacheWrite (cacheCreation) tokens beside cacheRead (task 107)', async () => {
+    // Dedicated server so the session factory can inject cache_creation usage:
+    // provider → after_model usage → SSE usage frame must keep cacheCreationTokens.
+    const dir2 = fs.mkdtempSync(path.join(os.tmpdir(), 'cah-cachewrite-sse-'));
+    const ws2 = path.join(dir2, 'workspace');
+    const home2 = path.join(dir2, 'vessel-home');
+    fs.mkdirSync(ws2, { recursive: true });
+    const srv = createVesselServer({
+      port: 0,
+      projectRegistry: new ProjectRegistry({ vesselHome: home2 }),
+      sessionRegistry: new SessionRegistry({ vesselHome: home2 }),
+      sessionFactory: async (input) => {
+        const provider = new MockProvider([{ when: /.*/, response: { text: 'cache-write-ok' } }], {
+          model: input.model ?? 'default',
+          usage: { inputTokens: 10, outputTokens: 5, cacheReadTokens: 1024, cacheCreationTokens: 2095 },
+        });
+        const { SessionController: SC } = await import('@vessel/application');
+        return SC.create({
+          workspaceRoot: input.workspaceRoot,
+          provider,
+          model: input.model ?? 'default',
+          policySystemPath: POLICY,
+          behaviorIRPath: BEHAVIOR,
+          permission: input.permission ?? 'workspace-write',
+          registry: input.registry,
+        });
+      },
+      staticDir: ws2,
+    });
+    await srv.listen();
+    const base2 = `http://127.0.0.1:${srv.port}`;
+    try {
+      const create = await fetch(`${base2}/api/sessions`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ workspaceRoot: ws2 }),
+      });
+      const created = (await create.json()) as { session: { id: string } };
+
+      const res = await fetch(`${base2}/api/sessions/${created.session.id}/events`);
+      const reader = res.body!.getReader();
+      const decoder = new TextDecoder();
+      let buf = '';
+      const turnPromise = fetch(`${base2}/api/sessions/${created.session.id}/turns`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ prompt: 'cache write please' }),
+      });
+
+      let usageDelta: { cacheReadTokens?: number; cacheCreationTokens?: number } | undefined;
+      for (let i = 0; i < 200 && !usageDelta; i++) {
+        const { value, done } = await reader.read();
+        if (done) break;
+        buf += decoder.decode(value, { stream: true });
+        const frames = buf.split('\n\n');
+        buf = frames.pop() ?? '';
+        for (const frame of frames) {
+          const m = /^data: (.*)$/m.exec(frame);
+          if (!m) continue;
+          const evt = JSON.parse(m[1]!) as { type: string; delta?: { cacheReadTokens?: number; cacheCreationTokens?: number } };
+          if (evt.type === 'usage') {
+            usageDelta = evt.delta;
+            break;
+          }
+        }
+      }
+      await turnPromise;
+      await reader.cancel();
+
+      expect(usageDelta).toBeTruthy();
+      // cacheRead unchanged at 1024; the new cacheWrite field rides along (not dropped).
+      expect(usageDelta!.cacheReadTokens).toBe(1024);
+      expect(usageDelta!.cacheCreationTokens).toBe(2095);
+    } finally {
+      await srv.close();
+      fs.rmSync(dir2, { recursive: true, force: true });
+    }
+  });
 });
 
 describe('local server — POST /interrupt stops an in-flight turn (task 050)', () => {

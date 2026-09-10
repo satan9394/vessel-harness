@@ -68,6 +68,25 @@ describe('createEventStream', () => {
     expect(onPolicy).toHaveBeenCalledWith({ toolName: 'rm', rule: 'rf1', reason: 'denied', ts: 3 });
   });
 
+  it('usage delta passes cacheCreationTokens through to onUsage (task 107)', () => {
+    vi.stubGlobal('EventSource', FakeEventSource);
+    const onUsage = vi.fn();
+    createEventStream('/url', { onUsage });
+    emit(FakeEventSource.instances[0], {
+      type: 'usage',
+      delta: { inputTokens: 10, outputTokens: 5, cacheReadTokens: 1024, cacheCreationTokens: 2095 },
+      ts: 7,
+    });
+    expect(onUsage).toHaveBeenCalledTimes(1);
+    expect(onUsage).toHaveBeenCalledWith({
+      inputTokens: 10,
+      outputTokens: 5,
+      cacheReadTokens: 1024,
+      cacheCreationTokens: 2095,
+      ts: 7,
+    });
+  });
+
   it('ignores unknown frame types (e.g. ping) without failing', () => {
     vi.stubGlobal('EventSource', FakeEventSource);
     const onEvent = vi.fn();

@@ -705,15 +705,21 @@ export function createVesselServer(opts: VesselServerOptions = {}): VesselServer
       }
     });
 
-    // after_model usage → usage delta (incremental tokens from this call)
+    // after_model usage → usage delta (incremental tokens from this call).
+    // task 107: carry cacheWrite (cache_creation) tokens alongside cacheRead so
+    // the web UsageBar can show both cache 读/写分项 (099 upstream pipes
+    // cacheCreationTokens through after_model usage already).
     forward('usage', 'after_model', (payload) => {
-      const p = payload as { usage?: { inputTokens?: number; outputTokens?: number; cacheReadTokens?: number } };
+      const p = payload as {
+        usage?: { inputTokens?: number; outputTokens?: number; cacheReadTokens?: number; cacheCreationTokens?: number };
+      };
       const usage = p.usage;
       if (!usage) return;
       sse('usage', {
         inputTokens: usage.inputTokens ?? 0,
         outputTokens: usage.outputTokens ?? 0,
         cacheReadTokens: usage.cacheReadTokens ?? 0,
+        cacheCreationTokens: usage.cacheCreationTokens ?? 0,
         calls: ctl.projections.usage.usage().calls,
       });
     });
