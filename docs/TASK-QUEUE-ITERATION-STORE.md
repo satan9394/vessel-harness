@@ -36,6 +36,9 @@ settle(met|not_met) ◀── 结果回写队列                      generator 
 - **存储模式照抄 059 不重造**：每条记录一个目录 + `meta.json`；写走 `tmp+rename` 原子替换
   （`meta.json.<pid>.<ts>.tmp` → rename，崩溃不撕裂）；rename 走 `@vessel/shared` 的 `renameWithRetry`
   （task 113 建 helper、114 engine 收敛：EPERM/EBUSY/EACCES 有界重试 3 次、5/15ms 退避）；
+  stat 读路径（runSync 索引 mtime 校验）走 `@vessel/shared` 的 `statWithRetry`（task 115：同语义
+  有界重试，锁错误重试尽时按队列语义保守置脏强制重读、不静默 continue —— 杜绝 Windows 杀软
+  瞬时锁下的 stale 索引）；
   缺省 `~/.vessel/<kind>`、env 可覆盖
   （`VESSEL_TASKQUEUE_ROOT` / `VESSEL_ITERATIONS_ROOT`），测试注入 tmp 根；id 沿用既有
   `<kind>_<ts>_<hex>` 约定（sess_/team_/review_ 同款）——队列 `task_…`、迭代条目 `iter_…`。

@@ -2,7 +2,7 @@ import * as crypto from 'node:crypto';
 import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
-import { renameWithRetry } from '@vessel/shared';
+import { renameWithRetry, statWithRetry } from '@vessel/shared';
 import type { LoopTask } from './LoopEngine.js';
 
 /**
@@ -384,9 +384,11 @@ export class ProjectTaskQueue {
     renameWithRetry(tmp, file);
     let mtimeMs = Date.now();
     try {
-      mtimeMs = fs.statSync(file).mtimeMs;
+      // statWithRetry（task 115）：Windows 杀软瞬时锁 stat EPERM 有界重试 3 次/5-15ms
+      mtimeMs = statWithRetry(file).mtimeMs;
     } catch {
-      /* 目录立即被清等极端竞态 —— 用当前时钟兜底（保守置脏，下次 sync 会以 disk 为准） */
+      /* 目录立即被清等极端竞态 —— 用当前时钟兜底（保守置脏，下次 sync 会以 disk 为准；
+         非静默 stale：此处 byId 刚写入本实例写后 record，mtime 仅作缓存校验值） */
     }
     this.byId.set(record.id, { record, mtimeMs });
     this.pendingDirty = true;
@@ -425,7 +427,8 @@ export class ProjectTaskQueue {
   /**
    * 装载 + 增量 sync（list 每次调用；claimNext 仅首次）：readdir + 按 meta mtime 校验刷新。
    * - 首次：全目录扫描读各 meta 建索引（每实例一次；跨实例各自装载）。
-   * - 之后/每调用：readdir 合并新增 id；对每个已知 id `statSync(meta.json).mtimeMs`，
+   * - 之后/每调用：readdir 合并新增 id；对每个已知 id `statWithRetry(meta.json).mtimeMs`
+   *   （task 115：stat 读路径的 Windows 锁 EPERM 有界重试 3 次/5-15ms，与 renameWithRetry 同语义），
    *   与缓存不一致（本实例写或跨实例改）才重读 meta，未变条目只 stat 不 parse —— 磁盘IO从
    *   旧「全目录 meta 读 + JSON parse」退化为 stat（内容读降为 O(changed)）。正确性以 disk 为锚。
    */
@@ -450,9 +453,16 @@ export class ProjectTaskQueue {
       const file = this.metaPath(id);
       let mtimeMs: number;
       try {
-        mtimeMs = fs.statSync(file).mtimeMs;
-      } catch {
-        continue; // 目录存在但 meta 缺失/不可读 —— 视同损坏，跳过
+        // statWithRetry（task 115）：Windows 杀软瞬时锁 stat EPERM 有界重试 3 次/5-15ms
+        mtimeMs = statWithRetry(file).mtimeMs;
+      } catch (error) {
+        // 锁类错误（EPERM/EBUSY/EACCES）已被 helper 重试 3 次尽；ENOENT/ENOTDIR 说明
+        // 目录存在但 meta 真缺失/被外部删除 —— 视同损坏，跳过（合法语义，非 stale）
+        const code = (error as NodeJS.ErrnoException).code;
+        if (code === 'ENOENT' || code === 'ENOTDIR') continue;
+        // 锁重试尽仍失败：**不静默 continue**（静默 = 沿用旧索引 = stale，114 实测 flaky 根源）。
+        // 按队列语义降级：保守置脏强制重读 meta，正确性以 disk 为锚（与 writeMeta 兜底同语义）
+        mtimeMs = Date.now();
       }
       if (cached && cached.mtimeMs === mtimeMs) continue; // 未变条目：仅 stat，不重读
       const rec = this.readMeta(id);

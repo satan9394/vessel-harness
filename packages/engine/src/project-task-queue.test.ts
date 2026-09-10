@@ -13,14 +13,16 @@ import {
 import type { QueueTask } from './project-task-queue.js';
 
 // node:fs 的 ESM 命名空间导出 non-configurable（vitest 2.1.9 报 "Cannot redefine property"），
-// 沿用 113 vi.mock 方案：默认真实委托的 renameSync，供 task 114 EPERM 有界重试注入；
-// 其余 API 原样委托，不影响本文件其它用例。
+// 沿用 113 vi.mock 方案：默认真实委托的 renameSync / statSync，供 task 114 rename +
+// task 115 stat EPERM 有界重试注入；其余 API 原样委托，不影响本文件其它用例。
 vi.mock('node:fs', async () => {
   const actual = await vi.importActual<typeof import('node:fs')>('node:fs');
   const renameSync = actual.renameSync;
+  const statSync = actual.statSync;
   return {
     ...actual,
     renameSync: vi.fn((...args: Parameters<typeof renameSync>) => renameSync(...args)),
+    statSync: vi.fn((...args: Parameters<typeof statSync>) => statSync(...args)),
   };
 });
 
@@ -439,5 +441,102 @@ describe('engine/project-task-queue — renameWithRetry 收敛（task 114）', (
     // 第 3 次真实 rename 生效：跨实例可完整读回
     const fresh = new ProjectTaskQueue({ tasksRoot: root });
     expect(fresh.get(rec.id)!.goal).toBe('任务 114');
+  });
+});
+
+describe('engine/project-task-queue — statWithRetry 收敛（task 115）', () => {
+  let root: string;
+  beforeEach(() => {
+    root = tempDir();
+  });
+  afterEach(() => {
+    fs.rmSync(root, { recursive: true, force: true });
+  });
+
+  /** 单调递增时钟（与 063 同款）：enqueue/claim/settle 时间严格递增。 */
+  function makeStore(): ProjectTaskQueue {
+    let clock = 1_000_000;
+    return new ProjectTaskQueue({ tasksRoot: root, now: () => (clock += 7) });
+  }
+
+  function lockError(code: string, message = 'locked'): NodeJS.ErrnoException {
+    return Object.assign(new Error(message), { code });
+  }
+
+  it('enqueue 的 writeMeta stat（L387）瞬时 EPERM×2 经 statWithRetry 第 3 次成功（索引透传正确）', () => {
+    const s = new ProjectTaskQueue({ tasksRoot: root });
+    const statSync = vi.mocked(fs.statSync);
+    statSync.mockClear();
+    statSync.mockImplementationOnce(() => {
+      throw lockError('EPERM');
+    });
+    statSync.mockImplementationOnce(() => {
+      throw lockError('EPERM');
+    });
+    const rec = s.enqueue({ projectRoot: ROOT_PROJECT, goal: '任务 115' });
+    expect(rec.status).toBe('pending');
+    // helper 复用确认：裸 fs.statSync 第 2 次 EPERM 即抛；走到 3 次 = statWithRetry 接管
+    expect(statSync).toHaveBeenCalledTimes(3);
+    // 写透传索引用重试后的真实 mtime：同实例 list 立即可见，无 stale
+    expect(s.list({ status: 'pending' }).map((t) => t.goal)).toEqual(['任务 115']);
+  });
+
+  it('跨实例装载：runSync 对条目 stat（L453）瞬时 EPERM×2 经 statWithRetry 第 3 次成功（索引装载正确）', () => {
+    const s = makeStore();
+    s.enqueue({ projectRoot: ROOT_PROJECT, goal: '单任务' });
+    s.claimNext(); // pending → in-progress（disk 落盘）
+    const statSync = vi.mocked(fs.statSync);
+    statSync.mockClear();
+    statSync.mockImplementationOnce(() => {
+      throw lockError('EPERM');
+    });
+    statSync.mockImplementationOnce(() => {
+      throw lockError('EPERM');
+    });
+    // 新实例首装载：runSync stat 该条目。旧行为（裸 statSync + 静默 continue）：EPERM → 条目不进
+    // 索引 → list 为空（stale 缺失，114 实测 flaky 同型）；现经 helper 第 3 次成功 → 装载正确
+    const fresh = new ProjectTaskQueue({ tasksRoot: root });
+    expect(fresh.list({ status: 'in-progress' }).map((t) => t.goal)).toEqual(['单任务']);
+    expect(statSync).toHaveBeenCalledTimes(3);
+  });
+
+  it('非锁错误（ENOENT）经 helper 立即抛、不重试：runSync 视同损坏跳过（不误重试非锁错误）', () => {
+    const s = makeStore();
+    s.enqueue({ projectRoot: ROOT_PROJECT, goal: '任务' });
+    const statSync = vi.mocked(fs.statSync);
+    statSync.mockClear();
+    statSync.mockImplementationOnce(() => {
+      throw lockError('ENOENT', 'missing');
+    });
+    const fresh = new ProjectTaskQueue({ tasksRoot: root });
+    expect(fresh.list()).toEqual([]); // meta 缺失/被删 → 视同损坏跳过（合法语义，非 stale）
+    // 非锁错误不重试：helper 层 1 次即抛（与前 2 例的 3 次形成对照）
+    expect(statSync).toHaveBeenCalledTimes(1);
+  });
+
+  it('runSync 增量 sync：cached 条目 stat 锁错误重试尽 —— 不静默 continue，置脏强制重读 disk（stale 消除证据）', () => {
+    const s = makeStore();
+    const a = s.enqueue({ projectRoot: ROOT_PROJECT, goal: 'A' });
+    s.enqueue({ projectRoot: ROOT_PROJECT, goal: 'B' });
+    expect(s.claimNext()?.id).toBe(a.id); // a → in-progress（s 缓存旧索引）
+    // 跨实例把 a settle 成 met：disk mtime 变化 → s 的 cached in-progress 变 stale
+    const bInst = new ProjectTaskQueue({ tasksRoot: root });
+    bInst.settle(a.id, 'met');
+    expect(bInst.get(a.id)!.status).toBe('met');
+    // s 增量 sync 遇 stat 瞬时锁且重试尽：两条目（readdir 次序不定）各 3 次重试全失败 = 6 个 EPERM
+    const statSync = vi.mocked(fs.statSync);
+    statSync.mockClear();
+    for (let i = 0; i < 6; i += 1) {
+      statSync.mockImplementationOnce(() => {
+        throw lockError('EPERM');
+      });
+    }
+    // 旧行为（静默 continue + 沿用旧索引）：A 仍显示 in-progress（stale）；现行为：锁重试尽后
+    // 不静默 continue，保守置脏强制重读 meta —— 正确性以 disk 为锚
+    expect(s.list({ status: 'met' }).map((t) => t.goal)).toEqual(['A']);
+    expect(statSync).toHaveBeenCalledTimes(6); // helper 不吞错 → runSync 走降级重读，非静默 continue
+    // 6 个 EPERM 耗尽后恢复真实 stat：再 sync 仍以 disk 为准（索引收敛，无 stale 残影）
+    expect(s.list({ status: 'in-progress' })).toEqual([]);
+    expect(s.list({ status: 'pending' }).map((t) => t.goal)).toEqual(['B']);
   });
 });
