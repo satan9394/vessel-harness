@@ -97,9 +97,12 @@ V1.1-C 把「内置 preset + OPENCODE_API_KEY 环境变量 + MIMO 目标模型�
 - **模型确认**：`fetchOpencodeGoModels()` 复用 `@vessel/application` 的 `fetchOpenAIModels()` 实时拉取
   `{base}/v1/models`（404 回退 `{base}/models`），可注入 fetch 便于 mock。仓库内置的
   models.dev 参考快照（`docs/ideas/data/models.dev-api.json` 的 opencode-go 项）列出 **`mimo-v2.5`**
-  与 **`mimo-v2.5-pro`**（另有 mimo-v2-pro / mimo-v2-omni）。`selectMimoModel()` 在 live 清单里做
-  确定性选择（精确 `mimo-v2.5` → V2.5 系回退 → 任一 MIMO → null）；`defaultMimoLaneModels()` 映射为
-  pro/flash 两档 LaneModel。
+  与 **`mimo-v2.5-pro`**（另有 mimo-v2-pro / mimo-v2-omni）。**默认档（task 111 起）**由
+  `defaultLaneModels()` 决定：flash 档优先 `deepseek-flash`（live 清单含则选；110 终对比稳定性
+  10/10），pro 档保持 MIMO V2.5 Pro；live 清单无 `deepseek-flash`（如无 key 内置参考快照）→ 回退
+  `selectMimoModel()` 的既定确定性选择（精确 `mimo-v2.5` → V2.5 系回退 → 任一 MIMO → null）。
+  `defaultMimoLaneModels()` 保留为 MIMO 专属选择/回退语义；显式 `--model=mimo-v2.5` /
+  `--models=mimo-v2.5` 经 `explicitLaneModels()` 直接映射指定 id（**不删除 mimo 复跑能力**）。
 - **最小连通**：`probeOpencodeGoOnce()` 用构造的 provider 发一次最小 chat（仅 `ping`，maxTokens=256），
   返回鉴权/响应/usage 快照；无 key 或网络受限 → 记录 pending，不反复重试真实调用。
 - **实跑接线**：真实跑时 `providerResolver` 用 `opencodeGoProviderResolver()`；无 key → pending。
@@ -133,7 +136,9 @@ re-export 外壳；协议语义（下列各点）不变：
   未命中家族的模型回落到 `/chat/completions`（记录 `family='default'`）。
 - **推理模型预算**：`mimo-v2.5` 是推理模型（`content` 可为 null 而 `reasoning` 有值），
   默认 `max_tokens=8192`（`OPENCODE_GO_DEFAULT_MAX_TOKENS`），并保留 `reasoning` / `reasoning_tokens`
-  到 `raw`，便于诊断「思维链吃光预算」。
+  到 `raw`，便于诊断「思维链吃光预算」。`deepseek-flash`（DeepSeek thinking 模式）走同一
+  `OpencodeGoProvider`，`max_tokens` 默认相同；其思维链字段 `reasoning_content` 的归一/回传由
+  task 109 线协议修复承载（见「线协议修复落地（task 109）」节）。
 - **凭据来源选择**：`run-opencode-lane.ts --key-source=auto|env|store`。driver 只打印来源名/长度/是否一致，
   **不打印任何密钥片段**。
   - **历史踩坑（task 102）**：本机 CredentialStore 里曾存的 `credential:vessel/opencode-go` 与用户提供的 key
@@ -233,6 +238,26 @@ task 110 在 109 线协议修复后，把 deepseek-flash 全场景集（B001、B
   更快、gate 4 从 pending 转 pass；注意 usage 波动（单轮成本可达 $0.94，高于 mimo），换默认由指挥/用户
   拍板，本卡**未改默认**。报告 + gate 4 判定见 `tasks/110-deepseek-full-retest.md`。
 
+## 默认模型档切换（task 111：mimo-v2.5 → deepseek-flash）
+
+指挥采纳 110 终对比建议（deepseek-flash 全场景 ×2 双轮 **10/10 全过**、gate 4 pending→pass；mimo-v2.5
+三轮失败集每次不同、gate 4 恒 pending）——**lane 默认 flash 档从 `mimo-v2.5` 换成 `deepseek-flash`**
+（`defaultLaneModels()`，`benchmarks/runners/src/lane/opencodeGoProvider.ts`）：
+
+- **默认生效路径**：live `/v1/models` 含 `deepseek-flash` → flash 档一律选它；pro 档保持 MIMO V2.5 Pro
+  （110 未对比、无证据不动）。无 key / live 拉不到 `deepseek-flash`（如内置参考快照，无此 id）→ 回退
+  既定 MIMO V2.5 系确定性选择（mimo-v2.5），不 throw（诚实降级语义保持）。
+- **理由 = 稳定性**：deepseek-flash 10/10 全过且跨次稳定；长链收敛更快（S002 4 步 vs mimo 70 步、全程
+  零 400）；084 gate 4 由 pending 转 pass。
+- **成本特性（已记录，未优化）**：**单轮最高 $0.94**（110 run2：S001 上下文膨胀 in 1.31M、policyViolations
+  =38 被 hard-deny 拦截后收敛）vs mimo-v2.5 全集 **$0.592**——deepseek usage 波动大，预算敏感需在
+  release 持续观察成本分布。
+- **覆盖能力保留**：显式 `--model=mimo-v2.5`（run-opencode-lane.ts，可逗号分隔 + `--tier=`）/
+  `--models=mimo-v2.5`（run-release-gates.ts）经 `explicitLaneModels()` 直接映射指定 id 复跑 mimo，
+  **参数未删除、语义不变**。
+- **协议/判据未动**：deepseek 走 `/chat/completions`（109 线协议修复后零 400）；推理预算
+  `OPENCODE_GO_DEFAULT_MAX_TOKENS=8192` 对两模型相同；gate 判据（non-convergence / wire-format）不变。
+
 ## 凭据来源（env / CredentialStore，task 097 纠偏）
 
 opencode-go 的 API key **只有两条来源**，provider 运行时经 resolver 读取（可注入、可 mock），
@@ -264,14 +289,14 @@ opencode-go 的 API key **只有两条来源**，provider 运行时经 resolver 
 ```ts
 import {
   runRealModelLane, opencodeGoProviderResolver,
-  fetchOpencodeGoModels, selectMimoModel, defaultMimoLaneModels,
+  fetchOpencodeGoModels, selectMimoModel, defaultMimoLaneModels, defaultLaneModels,
   credentialAwareOpencodeGoKey, OPENCODE_GO_CREDENTIAL_SOURCES,
   createCredentialStore,
 } from '...';
 const store = createCredentialStore();                       // Windows DPAPI（本机）
 const keyResolver = credentialAwareOpencodeGoKey({ store }); // store 优先，env 回退
 const { source } = await fetchOpencodeGoModels(keyResolver); // live /v1/models
-const laneModels = defaultMimoLaneModels(source.models);     // pro/flash 两档
+const laneModels = defaultLaneModels(source.models);         // 默认 pro/flash 两档（flash=deepseek-flask，task 111）
 const resolver = opencodeGoProviderResolver({ keyResolver });
 const report = await runRealModelLane({
   models: laneModels, scenarios: LANE_SCENARIOS, providerResolver: resolver,

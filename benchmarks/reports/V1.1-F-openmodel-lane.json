@@ -1,13 +1,18 @@
 {
-  "label": "deepseek-final-run2",
+  "label": "111-default-b001",
   "keyPresent": true,
   "keySource": "CredentialStore vessel/opencode-go",
   "keySourceMode": "store",
   "keySourceAllowed": "CredentialStore (034/069 DPAPI, secretRef credential:vessel/opencode-go) / env OPENCODE_API_KEY",
   "modelSource": "live",
   "modelNote": "live from https://opencode.ai/zen/go/v1/models",
-  "runId": "real-model-lane-1789041722946",
+  "runId": "real-model-lane-1789042974212",
   "models": [
+    {
+      "id": "opencode-go:mimo-v2.5-pro",
+      "tier": "flash",
+      "route": "/chat/completions"
+    },
     {
       "id": "opencode-go:deepseek-flash",
       "tier": "flash",
@@ -15,37 +20,37 @@
     }
   ],
   "scenarios": [
-    "B001",
-    "B002",
-    "S001",
-    "S002",
-    "S003",
-    "S004",
-    "S005",
-    "S006",
-    "S007",
-    "S008"
+    "B001"
   ],
   "probe": {
     "ok": true,
-    "model": "deepseek-flash",
-    "content": "pong 🏓",
-    "reasoningChars": 108,
+    "model": "mimo-v2.5-pro",
+    "content": "Ah, \"ping\"! A classic opener. Depending on the context, it can mean a few things:\n\n1.  **The technical one:** You're sending a signal to check if I'm here and responsive. In that case:\n    **Pong!** 🏓 Connection established.\n\n2.  **The social one:** You're just saying a quick \"hello\" or checking in. In that case:\n    **Hey there!** 👋 I'm here and ready to chat.\n\nSo, which is it? Or did you have something else in mind entirely?",
+    "reasoningChars": 883,
     "usage": {
-      "inputTokens": 31,
-      "outputTokens": 34,
-      "cacheReadTokens": 0
+      "inputTokens": 252,
+      "outputTokens": 308,
+      "cacheReadTokens": 192
     }
   },
   "summary": [
     {
-      "modelId": "opencode-go:deepseek-flash",
-      "passed": 10,
+      "modelId": "opencode-go:mimo-v2.5-pro",
+      "passed": 1,
       "failed": 0,
       "pendingEnvironment": 0,
       "skipped": 0,
-      "inputTokens": 1517367,
-      "outputTokens": 32039
+      "inputTokens": 4142,
+      "outputTokens": 141
+    },
+    {
+      "modelId": "opencode-go:deepseek-flash",
+      "passed": 1,
+      "failed": 0,
+      "pendingEnvironment": 0,
+      "skipped": 0,
+      "inputTokens": 3481,
+      "outputTokens": 179
     }
   ]
 }

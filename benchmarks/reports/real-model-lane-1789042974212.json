@@ -1,0 +1,137 @@
+{
+  "runId": "real-model-lane-1789042974212",
+  "startedAt": "2026-09-10T12:22:54.212Z",
+  "finishedAt": "2026-09-10T12:23:07.633Z",
+  "durationMs": 13421,
+  "models": [
+    {
+      "id": "opencode-go:mimo-v2.5-pro",
+      "displayName": "OpenCode Go mimo-v2.5-pro",
+      "tier": "flash",
+      "defaultModel": "mimo-v2.5-pro"
+    },
+    {
+      "id": "opencode-go:deepseek-flash",
+      "displayName": "OpenCode Go deepseek-flash",
+      "tier": "flash",
+      "defaultModel": "deepseek-flash"
+    }
+  ],
+  "scenarioCount": 1,
+  "scenarioIds": [
+    "B001"
+  ],
+  "rows": [
+    {
+      "modelId": "opencode-go:mimo-v2.5-pro",
+      "scenarioId": "B001",
+      "tier": "flash",
+      "status": "passed",
+      "result": {
+        "adapterId": "vessel",
+        "adapterVersion": "0.1.0",
+        "fixtureId": "B001",
+        "metrics": {
+          "success": true,
+          "wallTimeMs": 9515,
+          "toolCalls": 1,
+          "invalidCalls": 0,
+          "retries": 0,
+          "inputTokens": 4142,
+          "outputTokens": 141,
+          "cacheReadTokens": 1984,
+          "costUsd": 0.0024809,
+          "contextPeak": 4117,
+          "compactions": 0,
+          "humanIntervention": 0,
+          "policyViolations": 0,
+          "resumeSuccess": false
+        },
+        "startedAt": "2026-09-10T12:22:54.215Z",
+        "artifacts": [
+          {
+            "kind": "session",
+            "path": "C:\\Users\\USER~1\\AppData\\Local\\Temp\\cah-vessel-B001-XJAXcn\\.harness\\sessions\\sess_1789042974238_cfc7356b\\session.jsonl"
+          },
+          {
+            "kind": "workspace",
+            "path": "C:\\Users\\USER~1\\AppData\\Local\\Temp\\cah-vessel-B001-XJAXcn"
+          }
+        ]
+      }
+    },
+    {
+      "modelId": "opencode-go:deepseek-flash",
+      "scenarioId": "B001",
+      "tier": "flash",
+      "status": "passed",
+      "result": {
+        "adapterId": "vessel",
+        "adapterVersion": "0.1.0",
+        "fixtureId": "B001",
+        "metrics": {
+          "success": true,
+          "wallTimeMs": 3888,
+          "toolCalls": 1,
+          "invalidCalls": 0,
+          "retries": 0,
+          "inputTokens": 3481,
+          "outputTokens": 179,
+          "cacheReadTokens": 1664,
+          "costUsd": 0.0021754,
+          "contextPeak": 3467,
+          "compactions": 0,
+          "humanIntervention": 0,
+          "policyViolations": 0,
+          "resumeSuccess": false
+        },
+        "startedAt": "2026-09-10T12:23:03.739Z",
+        "artifacts": [
+          {
+            "kind": "session",
+            "path": "C:\\Users\\USER~1\\AppData\\Local\\Temp\\cah-vessel-B001-Y6Ijm5\\.harness\\sessions\\sess_1789042983751_8989605b\\session.jsonl"
+          },
+          {
+            "kind": "workspace",
+            "path": "C:\\Users\\USER~1\\AppData\\Local\\Temp\\cah-vessel-B001-Y6Ijm5"
+          }
+        ]
+      }
+    }
+  ],
+  "modelSummaries": [
+    {
+      "modelId": "opencode-go:mimo-v2.5-pro",
+      "displayName": "OpenCode Go mimo-v2.5-pro",
+      "runnableScenarios": 1,
+      "passed": 1,
+      "failed": 0,
+      "pendingEnvironment": 0,
+      "skipped": 0,
+      "wallTimeMs": 9515,
+      "toolCalls": 1,
+      "inputTokens": 4142,
+      "outputTokens": 141,
+      "cacheReadTokens": 1984,
+      "costUsd": 0.002481
+    },
+    {
+      "modelId": "opencode-go:deepseek-flash",
+      "displayName": "OpenCode Go deepseek-flash",
+      "runnableScenarios": 1,
+      "passed": 1,
+      "failed": 0,
+      "pendingEnvironment": 0,
+      "skipped": 0,
+      "wallTimeMs": 3888,
+      "toolCalls": 1,
+      "inputTokens": 3481,
+      "outputTokens": 179,
+      "cacheReadTokens": 1664,
+      "costUsd": 0.002175
+    }
+  ],
+  "degraded": false,
+  "reportMdPath": "C:\\work\\Vessel_Harness\\benchmarks\\reports\\real-model-lane-1789042974212.md",
+  "reportJsonPath": "C:\\work\\Vessel_Harness\\benchmarks\\reports\\real-model-lane-1789042974212.json"
+}

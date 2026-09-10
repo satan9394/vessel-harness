@@ -5,7 +5,8 @@
  *
  * 选项：
  *   --scenarios=B001,S001   只跑给定场景子集（默认 LANE_SCENARIOS 全集）
- *   --model=mimo-v2.5       显式指定模型（可逗号分隔；默认从 /v1/models 自动选 MIMO V2.5 系）
+ *   --model=deepseek-flash  显式指定模型（可逗号分隔；默认 flash 档从 /v1/models 自动选 deepseek-flash，
+ *                           MIMO V2.5 系回退；--model=mimo-v2.5 保留 mimo 复跑能力，task 111）
  *   --tier=flash|pro|both   模型档（决定跑哪些场景；默认 flash）
  *   --max-tokens=N          单次补全 max_tokens（推理模型需留思维链预算；默认 8192）
  *   --probe-only            只做一次最小连通探针（不跑 lane，最省配额）
@@ -34,7 +35,7 @@ import {
   LANE_SCENARIOS,
   runRealModelLane,
   fetchOpencodeGoModels,
-  defaultMimoLaneModels,
+  defaultLaneModels,
   opencodeGoProviderResolver,
   probeOpencodeGoOnce,
   resolveOpencodeGoRoute,
@@ -45,7 +46,9 @@ import {
   OPENCODE_API_KEY_ENV,
   OPENCODE_GO_CREDENTIAL_SOURCES,
   OPENCODE_GO_DEFAULT_MAX_TOKENS,
+  explicitLaneModels,
   type LaneModel,
+  type LaneModelTier,
   type LaneScenarioEntry,
   type LaneScenarioTier,
 } from './index.js';
@@ -61,15 +64,10 @@ function argValue(name: string): string | undefined {
 function buildModels(explicit: string | undefined, auto: readonly string[], tier: LaneScenarioTier): LaneModel[] {
   const ids = explicit
     ? explicit.split(',').map((s) => s.trim()).filter((s) => s.length > 0)
-    : auto;
-  const tiers: ('pro' | 'flash')[] = tier === 'both' ? ['pro', 'flash'] : [tier === 'pro' ? 'pro' : 'flash'];
-  const out: LaneModel[] = [];
-  for (const id of ids) {
-    for (const t of tiers) {
-      out.push({ id: `opencode-go:${id}`, displayName: `OpenCode Go ${id}`, tier: t, defaultModel: id });
-    }
-  }
-  return out;
+    : [...auto];
+  const tiers: LaneModelTier[] = tier === 'both' ? ['pro', 'flash'] : [tier === 'pro' ? 'pro' : 'flash'];
+  // 显式 --model=... → explicitLaneModels 直接映射指定 id（mimo-v2.5 复跑能力）；无 --model → 默认档
+  return explicitLaneModels(ids, tiers);
 }
 
 function pickScenarios(spec: string | undefined, tier: LaneScenarioTier): LaneScenarioEntry[] {
@@ -131,9 +129,9 @@ async function main(): Promise<void> {
   // eslint-disable-next-line no-console
   console.log(`[V1.1-F] model source=${source.origin}; note=${source.note}`);
   // eslint-disable-next-line no-console
-  console.log(`[V1.1-F] MIMO target from list: ${defaultMimoLaneModels(source.models).map((m) => `${m.displayName}(${m.tier})`).join(', ') || '(none)'}`);
+  console.log(`[111] lane 默认模型档（flash 优先 deepseek-flash）：${defaultLaneModels(source.models).map((m) => `${m.displayName}(${m.tier})`).join(', ') || '(none)'}`);
 
-  const autoIds = defaultMimoLaneModels(source.models).map((m) => m.defaultModel);
+  const autoIds = defaultLaneModels(source.models).map((m) => m.defaultModel);
   const models = buildModels(explicitModels, autoIds, tier);
   const scenarios = pickScenarios(argValue('scenarios'), tier);
   // eslint-disable-next-line no-console

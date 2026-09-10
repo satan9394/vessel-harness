@@ -10,6 +10,8 @@
  *   6. 采集归一 defaultMimoLaneModels：从可用清单映射出 pro/flash LaneModel 档。
  *   7. 降级：fetchOpencodeGoModels 无 key → builtin 参考清单（非实时 note），不抛；probe 无 key → null。
  *   8. 最小连通 probe：注入 mock provider 的鉴权/响应/usage 快照（不打真实 API）。
+ *   9. task 111 默认切换：defaultLaneModels（flash 优先 deepseek-flash，MIMO 回退）+ explicitLaneModels
+ *      （显式 --model/--models 覆盖保留 mimo 复跑能力）。
  */
 import { describe, it, expect } from 'vitest';
 import * as fs from 'node:fs';
@@ -28,12 +30,15 @@ import {
   OPENCODE_GO_PRESET_ID,
   MIMO_V25_MODEL_ID,
   MIMO_V25_PRO_MODEL_ID,
+  DEEPSEEK_FLASH_MODEL_ID,
   opencodeGoBaseUrl,
   opencodeGoEndpoint,
   resolveOpencodeGoProvider,
   opencodeGoProviderResolver,
   selectMimoModel,
   defaultMimoLaneModels,
+  defaultLaneModels,
+  explicitLaneModels,
   fetchOpencodeGoModels,
   probeOpencodeGoOnce,
   OPENCODE_GO_REFERENCE_MODELS,
@@ -118,6 +123,46 @@ describe('V1.1-C — 模型确认与选择（selectMimoModel / defaultMimoLaneMo
     const flash = models.find((x) => x.tier === 'flash');
     expect(pro?.defaultModel).toBe(MIMO_V25_PRO_MODEL_ID);
     expect(flash?.defaultModel).toBe(MIMO_V25_MODEL_ID);
+  });
+});
+
+describe('task 111 — lane 默认模型档（mimo-v2.5 → deepseek-flash）', () => {
+  it('CLI 无 --models/--model 时（live 清单含 deepseek-flash）→ 默认 flash 档=deepseek-flash，pro 档=mimo-v2.5-pro', () => {
+    const models = defaultLaneModels(['qwen3.7-max', 'deepseek-flash', 'mimo-v2.5', 'mimo-v2.5-pro']);
+    const pro = models.find((x) => x.tier === 'pro');
+    const flash = models.find((x) => x.tier === 'flash');
+    expect(flash?.defaultModel).toBe(DEEPSEEK_FLASH_MODEL_ID);
+    expect(pro?.defaultModel).toBe(MIMO_V25_PRO_MODEL_ID);
+    // flash 档不是 MIMO（默认已切换）
+    expect(flash?.defaultModel).not.toBe(MIMO_V25_MODEL_ID);
+  });
+
+  it('live 清单无 deepseek-flash（如无 key 内置参考快照）→ 回退 MIMO V2.5 系（mimo-v2.5），不 throw', () => {
+    const models = defaultLaneModels(['qwen3.7-max', 'mimo-v2.5', 'mimo-v2.5-pro']);
+    expect(models.find((x) => x.tier === 'flash')?.defaultModel).toBe(MIMO_V25_MODEL_ID);
+  });
+
+  it('显式 --models=mimo-v2.5 覆盖默认：explicitLaneModels 直接映射指定 id（保留 mimo 复跑能力）', () => {
+    const models = explicitLaneModels(['mimo-v2.5'], ['flash']);
+    expect(models).toEqual([
+      { id: 'opencode-go:mimo-v2.5', displayName: 'OpenCode Go mimo-v2.5', tier: 'flash', defaultModel: 'mimo-v2.5' },
+    ]);
+  });
+
+  it('显式 --model=deepseek-flash,mimo-v2.5 --tier=both → 两 id × 两档全部映射', () => {
+    const models = explicitLaneModels(['deepseek-flash', 'mimo-v2.5'], ['pro', 'flash']);
+    expect(models.map((m) => `${m.defaultModel}/${m.tier}`)).toEqual([
+      'deepseek-flash/pro',
+      'deepseek-flash/flash',
+      'mimo-v2.5/pro',
+      'mimo-v2.5/flash',
+    ]);
+  });
+
+  it('defaultMimoLaneModels 保留 MIMO 语义（MIMO 显式选择/回退不动）', () => {
+    const models = defaultMimoLaneModels(['deepseek-flash', 'mimo-v2.5', 'mimo-v2.5-pro']);
+    expect(models.find((x) => x.tier === 'flash')?.defaultModel).toBe(MIMO_V25_MODEL_ID);
+    expect(models.find((x) => x.tier === 'pro')?.defaultModel).toBe(MIMO_V25_PRO_MODEL_ID);
   });
 });
 

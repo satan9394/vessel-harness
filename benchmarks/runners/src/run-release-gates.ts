@@ -49,7 +49,8 @@ import {
   OPENCODE_GO_CREDENTIAL_SOURCES,
   opencodeGoProviderResolver,
   fetchOpencodeGoModels,
-  defaultMimoLaneModels,
+  defaultLaneModels,
+  explicitLaneModels,
   type LaneModel,
 } from './lane/index.js';
 import { runScenario } from './runner.js';
@@ -175,17 +176,16 @@ async function main(): Promise<void> {
   );
   const providerResolver = opencodeGoProviderResolver({ keyResolver });
 
-  // V1.1-F — real-model gate 用 MIMO V2.5 真实模型档（live 拉取为准；无 key 时回退内置参考清单）。
+  // V1.1-F — real-model gate 用 lane 默认模型档（task 111 起默认 flash=deepseek-flash，MIMO V2.5 系回退；
+  // live 拉取为准；无 key 时回退内置参考清单；显式 `--models=mimo-v2.5` 保留 mimo 复跑能力）。
   const { source } = await fetchOpencodeGoModels(keyResolver);
-  const autoModels = defaultMimoLaneModels(source.models);
+  const autoModels = defaultLaneModels(source.models);
   const explicitModels = argValue('models');
   const laneModels: LaneModel[] = explicitModels
-    ? explicitModels.split(',').map((s) => s.trim()).filter((s) => s.length > 0).map((id) => ({
-        id: `opencode-go:${id}`,
-        displayName: `OpenCode Go ${id}`,
-        tier: 'flash' as const,
-        defaultModel: id,
-      }))
+    ? explicitLaneModels(
+        explicitModels.split(',').map((s) => s.trim()).filter((s) => s.length > 0),
+        ['flash'],
+      )
     : autoModels;
   // eslint-disable-next-line no-console
   console.log(`[V1.1-F] real-model gate models: ${laneModels.map((m) => `${m.displayName}(${m.tier})`).join(', ') || '(none)'}（source=${source.origin}）`);

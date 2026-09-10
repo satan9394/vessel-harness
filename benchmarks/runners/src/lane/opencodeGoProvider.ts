@@ -23,10 +23,14 @@
  *     只剩 re-export 外壳（无第二份协议逻辑），本文件无需改动即继续工作。
  *   - @vessel/application 的 fetchOpenAIModels 拉取 /v1/models 清单。
  *
- * 模型确认：真实 GET {base}/v1/models 验证 MIMO V2.5 确切 id。仓库内置的 models.dev
+ * 模型确认：真实 GET {base}/v1/models 验证目标模型确切 id。仓库内置的 models.dev
  * 参考快照（docs/ideas/data/models.dev-api.json 的 opencode-go 项）列出 `mimo-v2.5` 与
  * `mimo-v2.5-pro`（以及 mimo-v2-pro / mimo-v2-omni）；live 清单以拉取为准。无 key / 网络
  * 受限时由调用方记录「待非受限环境验证」，本模块只做可注入接线。
+ *
+ * task 111：lane 默认 flash 档从 `mimo-v2.5` 换成 `deepseek-flash`（110 终对比稳定性 10/10、
+ * gate 4 pending→pass）——默认选择由 `defaultLaneModels()` 决定（deepseek-flash 优先，MIMO V2.5 系
+ * 回退）；`mimo-v2.5` 显式复跑能力保留（`--model=...` / `--models=...` → `explicitLaneModels()`）。
  */
 import { randomUUID } from 'node:crypto';
 import type { ChatProvider } from '@vessel/shared';
@@ -37,7 +41,7 @@ import {
   OpencodeGoProvider,
   type OpencodeGoFetch,
 } from './opencodeGoChatProvider.js';
-import type { LaneModel } from './real-model-lane.js';
+import type { LaneModel, LaneModelTier } from './real-model-lane.js';
 
 /** opencode-go preset id（对齐 packages/application/src/providers/presets.data.ts）。 */
 export const OPENCODE_GO_PRESET_ID = 'opencode-go';
@@ -46,6 +50,9 @@ export const OPENCODE_GO_PRESET_ID = 'opencode-go';
 export const MIMO_V25_MODEL_ID = 'mimo-v2.5';
 /** MIMO V2.5 Pro（同代 Pro 档，备选/Pro 档记录）。 */
 export const MIMO_V25_PRO_MODEL_ID = 'mimo-v2.5-pro';
+
+/** DeepSeek Flash 目标模型 id（task 111：lane 默认 flash 档；110 终对比稳定性 10/10）。 */
+export const DEEPSEEK_FLASH_MODEL_ID = 'deepseek-flash';
 
 /** 匹配“MIMO V2.5 系”模型 id 的正则（用于在 live 清单里挑最接近的目标）。 */
 export const MIMO_V25_RE = /mimo[.-]v?2\.5/i;
@@ -156,20 +163,64 @@ export function selectMimoModel(
   return { selected: mimo[0] ?? null, matchedV25: [], matchedMimo: mimo };
 }
 
-/** 默认 opencode-go 真实模型档：pro=尽力选 MIMO V2.5 Pro，flash=尽力选 MIMO V2.5。 */
+/** 把 pro/flash 两档的选定模型装配成 LaneModel 列表（pro 档优先；flash 与 pro 同 id 时去重）。 */
+function assembleLaneModels(
+  proModel: string | null | undefined,
+  flashModel: string | null | undefined,
+): LaneModel[] {
+  const out: LaneModel[] = [];
+  if (proModel) {
+    out.push({ id: `opencode-go:${proModel}`, displayName: `OpenCode Go ${proModel}`, tier: 'pro', defaultModel: proModel });
+  }
+  if (flashModel && flashModel !== proModel) {
+    out.push({ id: `opencode-go:${flashModel}`, displayName: `OpenCode Go ${flashModel}`, tier: 'flash', defaultModel: flashModel });
+  }
+  return out;
+}
+
+/**
+ * MIMO 专属选择：pro=尽力选 MIMO V2.5 Pro，flash=尽力选 MIMO V2.5（task 111 前是 lane 默认；
+ * 现保留为 MIMO 显式选择/回退语义，`defaultLaneModels` 的 MIMO 回退复用同一确定性逻辑）。
+ */
 export function defaultMimoLaneModels(
   available: readonly string[],
 ): LaneModel[] {
   const pro = selectMimoModel(available, { preferred: MIMO_V25_PRO_MODEL_ID, matcher: /mimo[.-]v?2\.5/ });
   const flash = selectMimoModel(available, { preferred: MIMO_V25_MODEL_ID, matcher: /mimo[.-]v?2\.5/ });
+  return assembleLaneModels(pro.selected ?? pro.matchedMimo[0], flash.selected ?? flash.matchedMimo[0]);
+}
+
+/**
+ * 默认 opencode-go lane 模型档（task 111：默认 flash 档 = deepseek-flash；pro 档保持 MIMO V2.5 Pro）。
+ * 110 终对比：deepseek-flash 全场景 ×2 双轮 10/10（mimo-v2.5 三轮失败集每次不同、gate 4 恒 pending）
+ * → 作为 lane 默认；显式 `--model=mimo-v2.5` / `--models=mimo-v2.5` 仍可覆盖（保留 mimo 复跑能力）。
+ * live 清单无 `deepseek-flash`（如无 key 时的内置参考快照）→ 回退既定 MIMO V2.5 系确定性选择，不抛。
+ */
+export function defaultLaneModels(
+  available: readonly string[],
+): LaneModel[] {
+  const pro = selectMimoModel(available, { preferred: MIMO_V25_PRO_MODEL_ID, matcher: /mimo[.-]v?2\.5/ });
+  const flash = selectMimoModel(available, { preferred: MIMO_V25_MODEL_ID, matcher: /mimo[.-]v?2\.5/ });
   const proModel = pro.selected ?? pro.matchedMimo[0];
-  const flashModel = flash.selected ?? flash.matchedMimo[0];
+  const flashModel = available.includes(DEEPSEEK_FLASH_MODEL_ID)
+    ? DEEPSEEK_FLASH_MODEL_ID
+    : (flash.selected ?? flash.matchedMimo[0]);
+  return assembleLaneModels(proModel, flashModel);
+}
+
+/**
+ * 显式 `--model=...` / `--models=...` 覆盖（task 111：保留 mimo-v2.5 复跑能力）：把逗号分隔的
+ * 模型 id 按给定档位（默认 flash）直接映射为 LaneModel，**不经过**默认选择。
+ */
+export function explicitLaneModels(
+  ids: readonly string[],
+  tiers: readonly LaneModelTier[],
+): LaneModel[] {
   const out: LaneModel[] = [];
-  if (proModel) out.push({ id: `opencode-go:${proModel}`, displayName: `OpenCode Go ${proModel}`, tier: 'pro', defaultModel: proModel });
-  if (flashModel && flashModel !== proModel) {
-    out.push({ id: `opencode-go:${flashModel}`, displayName: `OpenCode Go ${flashModel}`, tier: 'flash', defaultModel: flashModel });
-  } else if (flashModel && proModel === undefined) {
-    out.push({ id: `opencode-go:${flashModel}`, displayName: `OpenCode Go ${flashModel}`, tier: 'flash', defaultModel: flashModel });
+  for (const id of ids) {
+    for (const t of tiers) {
+      out.push({ id: `opencode-go:${id}`, displayName: `OpenCode Go ${id}`, tier: t, defaultModel: id });
+    }
   }
   return out;
 }
