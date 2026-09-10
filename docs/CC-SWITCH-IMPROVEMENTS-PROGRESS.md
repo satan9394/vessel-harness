@@ -21,12 +21,12 @@
 | 106 | chat 凭据（defaultStore 唯一工厂 + resolveChatStore）+ 测试隔离（临时 root + 3 新用例）+ process-tree 超时 120s | 0c6175a | **1152 测试 + 0 failed** + web 74 |
 | 107 | cache_creation 展示层：local-server SSE usage 帧 + web UsageBar 渲染 `cache 读 X / 写 Y`（derived 提示） | d5fba0a | **1153 测试** + web 82 |
 | 108 | 真实模型对比 deepseek-flash vs mimo-v2.5：deepseek 恒 0/10 = 线协议不兼容（tool_calls 前导 + reasoning_content），非收敛问题；不建议换默认；gate4 新增 wire-format 判据 pending | 087977c | **1155 测试** + web 82 |
+| 109 | **线协议修复**（deepseek 跑通）：ContextBuilder wire 四型（assistant tool_calls 投影）+ reasoning_content 回传（chat+流式）；judgeUnit 改 exit code 判据；真实 B001/S001 双双 passed（S001 21 轮工具链无 400） | 9ec20df | **1166 测试** + web 82 |
 
 ## 进行中 / 待做
 
 | 卡 | 内容 | 优先级 | 备注 |
-| — | **线协议修复**（deepseek-flash 跑通前提）：surface 投影补 assistant tool_calls + thinking 回传 reasoning_content | P0 | 108 转卡 109 |
-| — | judgeUnit 正则对通过运行误报（release-report Unit gate） | P1 | 108 §9.6 转卡 109 |
+| — | 线协议修复后 deepseek-flash 全场景集复测（10 场景 × 1-2 次，与 mimo-v2.5 终对比；是否换 lane 默认模型由用户定） | P0 | 109 后自然延续；108 曾因线协议阻塞 |
 | — | Packaging gate（无 dist → pending） | P2 | 构建 dist 后重跑 |
 
 ## 暂不做（P3，报告结论）

@@ -1,7 +1,7 @@
 # 109 — 线协议修复（deepseek-flash 跑通前提）+ judgeUnit 误报
 
 - 编号：109
-- 状态：待验收
+- 状态：已合入
 - 优先级：P0（线协议是 deepseek 系真实模型跑通前提；judgeUnit 误报影响门禁可信度）
 - 创建日期：2026-09-10
 - 关联：108（087977c：deepseek-flash 恒 0/10 = 100% 可复现线协议不兼容，转卡）；
@@ -179,5 +179,13 @@ export function judgeUnit(outcome: CommandOutcome, expectedTestFilesMin = 0): Ga
 
 ## 验收结论（指挥回填）
 
-- [ ] 合入 / 打回
-- 备注：
+- [x] 合入（commit 9ec20df）
+- 备注：指挥独立复核——`tsc -b` exit 0；全量 vitest 两次：首次 1165 passed + 1 failed（偶发 flaky）+ 1 skipped、
+  重跑 **exit 0 全绿**（无 FAIL；与执行器自报 1166 一致，首次差值即该 flaky）；web 82。
+  **关键成果（真实模型）**：线协议修复到位——deepseek-flash B001（1 调用）与 S001（**21 轮工具链**）真实
+  **双双 passed**（108 时恒 0/10 全红 400）；probe 显示 thinking 链 reasoning=143B。
+  认可：① ContextBuilder wire 历史三型→四型（补 assistant tool_calls 投影，tool 消息前必有含 tool_calls 的
+  assistant，严格上游 400 消除）；② reasoning_content（deepseek）/reasoning（opencode-go）归一进
+  `ChatResponse.reasoningContent`，持久化后回传，chat + 流式（新增 reasoning_delta chunk）双路径；③ judgeUnit
+  改 exit code + 稳定汇总行（108 误报样本回归 pass）；+11 测试；EVENT-SPEC/REAL-MODEL-LANE 同步。
+  **109 关闭。**
