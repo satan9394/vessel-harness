@@ -1,0 +1,469 @@
+{
+  "runId": "real-model-lane-1789037658724",
+  "startedAt": "2026-09-10T10:54:18.724Z",
+  "finishedAt": "2026-09-10T10:55:00.285Z",
+  "durationMs": 41561,
+  "models": [
+    {
+      "id": "opencode-go:deepseek-flash",
+      "displayName": "OpenCode Go deepseek-flash",
+      "tier": "flash",
+      "defaultModel": "deepseek-flash"
+    }
+  ],
+  "scenarioCount": 10,
+  "scenarioIds": [
+    "B001",
+    "B002",
+    "S001",
+    "S002",
+    "S003",
+    "S004",
+    "S005",
+    "S006",
+    "S007",
+    "S008"
+  ],
+  "rows": [
+    {
+      "modelId": "opencode-go:deepseek-flash",
+      "scenarioId": "B001",
+      "tier": "flash",
+      "status": "failed",
+      "result": {
+        "adapterId": "vessel",
+        "adapterVersion": "0.1.0",
+        "fixtureId": "B001",
+        "metrics": {
+          "success": false,
+          "wallTimeMs": 1934,
+          "toolCalls": 1,
+          "invalidCalls": 0,
+          "retries": 1,
+          "inputTokens": 1678,
+          "outputTokens": 46,
+          "cacheReadTokens": 0,
+          "costUsd": 0.000908,
+          "contextPeak": 1678,
+          "compactions": 0,
+          "humanIntervention": 0,
+          "policyViolations": 0,
+          "resumeSuccess": false
+        },
+        "startedAt": "2026-09-10T10:54:18.727Z",
+        "artifacts": [
+          {
+            "kind": "session",
+            "path": "C:\\Users\\USER~1\\AppData\\Local\\Temp\\cah-vessel-B001-7EC6Au\\.harness\\sessions\\sess_1789037658737_1f737ff5\\session.jsonl"
+          },
+          {
+            "kind": "workspace",
+            "path": "C:\\Users\\USER~1\\AppData\\Local\\Temp\\cah-vessel-B001-7EC6Au"
+          }
+        ],
+        "notes": [
+          "run raised: Error: Model call failed after 1 attempt(s): opencode-go 400 invalid_request_error (http): Error from provider (Console Go): Upstream request failed: [invalid_request_error] Messages with role 'tool' must be a response to a preceding message with 'tool_calls'"
+        ]
+      },
+      "note": "RunResult success=false：finalText 为空（toolCalls=1）；运行异常：run raised: Error: Model call failed after 1 attempt(s): opencode-go 400 invalid_request_error (http): Error from provider (Console Go): Upstream request failed: [invalid_request_error] Messages with role 'tool' must be a response to a preceding message with 'tool_calls'"
+    },
+    {
+      "modelId": "opencode-go:deepseek-flash",
+      "scenarioId": "B002",
+      "tier": "flash",
+      "status": "failed",
+      "result": {
+        "adapterId": "vessel",
+        "adapterVersion": "0.1.0",
+        "fixtureId": "B002",
+        "metrics": {
+          "success": false,
+          "wallTimeMs": 2058,
+          "toolCalls": 2,
+          "invalidCalls": 0,
+          "retries": 1,
+          "inputTokens": 1698,
+          "outputTokens": 84,
+          "cacheReadTokens": 1408,
+          "costUsd": 0.0011158000000000001,
+          "contextPeak": 3106,
+          "compactions": 0,
+          "humanIntervention": 0,
+          "policyViolations": 0,
+          "resumeSuccess": false
+        },
+        "startedAt": "2026-09-10T10:54:20.667Z",
+        "artifacts": [
+          {
+            "kind": "session",
+            "path": "C:\\Users\\USER~1\\AppData\\Local\\Temp\\cah-vessel-B002-emJ1bQ\\.harness\\sessions\\sess_1789037660708_74f99e77\\session.jsonl"
+          },
+          {
+            "kind": "workspace",
+            "path": "C:\\Users\\USER~1\\AppData\\Local\\Temp\\cah-vessel-B002-emJ1bQ"
+          }
+        ],
+        "notes": [
+          "run raised: Error: Model call failed after 1 attempt(s): opencode-go 400 invalid_request_error (http): Error from provider (Console Go): Upstream request failed: [invalid_request_error] Messages with role 'tool' must be a response to a preceding message with 'tool_calls'"
+        ]
+      },
+      "note": "RunResult success=false：finalText 为空（toolCalls=2）；运行异常：run raised: Error: Model call failed after 1 attempt(s): opencode-go 400 invalid_request_error (http): Error from provider (Console Go): Upstream request failed: [invalid_request_error] Messages with role 'tool' must be a response to a preceding message with 'tool_calls'"
+    },
+    {
+      "modelId": "opencode-go:deepseek-flash",
+      "scenarioId": "S001",
+      "tier": "flash",
+      "status": "failed",
+      "result": {
+        "adapterId": "vessel",
+        "adapterVersion": "0.1.0",
+        "fixtureId": "S001",
+        "metrics": {
+          "success": false,
+          "wallTimeMs": 5683,
+          "toolCalls": 2,
+          "invalidCalls": 0,
+          "retries": 1,
+          "inputTokens": 1816,
+          "outputTokens": 164,
+          "cacheReadTokens": 1408,
+          "costUsd": 0.0012948,
+          "contextPeak": 3224,
+          "compactions": 0,
+          "humanIntervention": 0,
+          "policyViolations": 0,
+          "resumeSuccess": false
+        },
+        "startedAt": "2026-09-10T10:54:22.738Z",
+        "artifacts": [
+          {
+            "kind": "session",
+            "path": "C:\\Users\\USER~1\\AppData\\Local\\Temp\\cah-vessel-S001-AecCq4\\.harness\\sessions\\sess_1789037662744_d498227a\\session.jsonl"
+          },
+          {
+            "kind": "workspace",
+            "path": "C:\\Users\\USER~1\\AppData\\Local\\Temp\\cah-vessel-S001-AecCq4"
+          }
+        ],
+        "notes": [
+          "run raised: Error: Model call failed after 1 attempt(s): opencode-go 400 invalid_request_error (http): Error from provider (Console Go): Upstream request failed: [invalid_request_error] Messages with role 'tool' must be a response to a preceding message with 'tool_calls'"
+        ]
+      },
+      "note": "RunResult success=false：finalText 为空（toolCalls=2）；运行异常：run raised: Error: Model call failed after 1 attempt(s): opencode-go 400 invalid_request_error (http): Error from provider (Console Go): Upstream request failed: [invalid_request_error] Messages with role 'tool' must be a response to a preceding message with 'tool_calls'"
+    },
+    {
+      "modelId": "opencode-go:deepseek-flash",
+      "scenarioId": "S002",
+      "tier": "flash",
+      "status": "failed",
+      "result": {
+        "adapterId": "vessel",
+        "adapterVersion": "0.1.0",
+        "fixtureId": "S002",
+        "metrics": {
+          "success": false,
+          "wallTimeMs": 2478,
+          "toolCalls": 2,
+          "invalidCalls": 0,
+          "retries": 1,
+          "inputTokens": 1736,
+          "outputTokens": 122,
+          "cacheReadTokens": 1408,
+          "costUsd": 0.0011917999999999998,
+          "contextPeak": 3144,
+          "compactions": 0,
+          "humanIntervention": 0,
+          "policyViolations": 0,
+          "resumeSuccess": false
+        },
+        "startedAt": "2026-09-10T10:54:28.426Z",
+        "artifacts": [
+          {
+            "kind": "session",
+            "path": "C:\\Users\\USER~1\\AppData\\Local\\Temp\\cah-vessel-S002-zWsbsK\\.harness\\sessions\\sess_1789037668446_a60934de\\session.jsonl"
+          },
+          {
+            "kind": "workspace",
+            "path": "C:\\Users\\USER~1\\AppData\\Local\\Temp\\cah-vessel-S002-zWsbsK"
+          }
+        ],
+        "notes": [
+          "run raised: Error: Model call failed after 1 attempt(s): opencode-go 400 invalid_request_error (http): Error from provider (Console Go): Upstream request failed: [invalid_request_error] Messages with role 'tool' must be a response to a preceding message with 'tool_calls'"
+        ]
+      },
+      "note": "RunResult success=false：finalText 为空（toolCalls=2）；运行异常：run raised: Error: Model call failed after 1 attempt(s): opencode-go 400 invalid_request_error (http): Error from provider (Console Go): Upstream request failed: [invalid_request_error] Messages with role 'tool' must be a response to a preceding message with 'tool_calls'"
+    },
+    {
+      "modelId": "opencode-go:deepseek-flash",
+      "scenarioId": "S003",
+      "tier": "flash",
+      "status": "failed",
+      "result": {
+        "adapterId": "vessel",
+        "adapterVersion": "0.1.0",
+        "fixtureId": "S003",
+        "metrics": {
+          "success": false,
+          "wallTimeMs": 4548,
+          "toolCalls": 2,
+          "invalidCalls": 0,
+          "retries": 1,
+          "inputTokens": 1778,
+          "outputTokens": 75,
+          "cacheReadTokens": 1408,
+          "costUsd": 0.0011423,
+          "contextPeak": 3186,
+          "compactions": 0,
+          "humanIntervention": 0,
+          "policyViolations": 0,
+          "resumeSuccess": false
+        },
+        "startedAt": "2026-09-10T10:54:30.908Z",
+        "artifacts": [
+          {
+            "kind": "session",
+            "path": "C:\\Users\\USER~1\\AppData\\Local\\Temp\\cah-vessel-S003-8VetU2\\.harness\\sessions\\sess_1789037670913_ac08d351\\session.jsonl"
+          },
+          {
+            "kind": "workspace",
+            "path": "C:\\Users\\USER~1\\AppData\\Local\\Temp\\cah-vessel-S003-8VetU2"
+          }
+        ],
+        "notes": [
+          "run raised: Error: Model call failed after 1 attempt(s): opencode-go 400 invalid_request_error (http): Error from provider (Console Go): Upstream request failed: [invalid_request_error] Messages with role 'tool' must be a response to a preceding message with 'tool_calls'"
+        ]
+      },
+      "note": "RunResult success=false：finalText 为空（toolCalls=2）；运行异常：run raised: Error: Model call failed after 1 attempt(s): opencode-go 400 invalid_request_error (http): Error from provider (Console Go): Upstream request failed: [invalid_request_error] Messages with role 'tool' must be a response to a preceding message with 'tool_calls'"
+    },
+    {
+      "modelId": "opencode-go:deepseek-flash",
+      "scenarioId": "S004",
+      "tier": "flash",
+      "status": "failed",
+      "result": {
+        "adapterId": "vessel",
+        "adapterVersion": "0.1.0",
+        "fixtureId": "S004",
+        "metrics": {
+          "success": false,
+          "wallTimeMs": 2631,
+          "toolCalls": 1,
+          "invalidCalls": 0,
+          "retries": 1,
+          "inputTokens": 1809,
+          "outputTokens": 48,
+          "cacheReadTokens": 1408,
+          "costUsd": 0.0011173,
+          "contextPeak": 3217,
+          "compactions": 0,
+          "humanIntervention": 0,
+          "policyViolations": 0,
+          "resumeSuccess": false
+        },
+        "startedAt": "2026-09-10T10:54:35.461Z",
+        "artifacts": [
+          {
+            "kind": "session",
+            "path": "C:\\Users\\USER~1\\AppData\\Local\\Temp\\cah-vessel-S004-P9Qhgl\\.harness\\sessions\\sess_1789037675477_617b40ea\\session.jsonl"
+          },
+          {
+            "kind": "workspace",
+            "path": "C:\\Users\\USER~1\\AppData\\Local\\Temp\\cah-vessel-S004-P9Qhgl"
+          }
+        ],
+        "notes": [
+          "run raised: Error: Model call failed after 1 attempt(s): opencode-go 400 invalid_request_error (http): Error from provider (Console Go): Upstream request failed: [invalid_request_error] Messages with role 'tool' must be a response to a preceding message with 'tool_calls'"
+        ]
+      },
+      "note": "RunResult success=false：finalText 为空（toolCalls=1）；运行异常：run raised: Error: Model call failed after 1 attempt(s): opencode-go 400 invalid_request_error (http): Error from provider (Console Go): Upstream request failed: [invalid_request_error] Messages with role 'tool' must be a response to a preceding message with 'tool_calls'"
+    },
+    {
+      "modelId": "opencode-go:deepseek-flash",
+      "scenarioId": "S005",
+      "tier": "flash",
+      "status": "failed",
+      "result": {
+        "adapterId": "vessel",
+        "adapterVersion": "0.1.0",
+        "fixtureId": "S005",
+        "metrics": {
+          "success": false,
+          "wallTimeMs": 6187,
+          "toolCalls": 2,
+          "invalidCalls": 0,
+          "retries": 1,
+          "inputTokens": 1811,
+          "outputTokens": 258,
+          "cacheReadTokens": 1408,
+          "costUsd": 0.0014332999999999998,
+          "contextPeak": 3219,
+          "compactions": 0,
+          "humanIntervention": 0,
+          "policyViolations": 0,
+          "resumeSuccess": false
+        },
+        "startedAt": "2026-09-10T10:54:38.097Z",
+        "artifacts": [
+          {
+            "kind": "session",
+            "path": "C:\\Users\\USER~1\\AppData\\Local\\Temp\\cah-vessel-S005-ENwt1L\\.harness\\sessions\\sess_1789037678100_d3fa1f9b\\session.jsonl"
+          },
+          {
+            "kind": "workspace",
+            "path": "C:\\Users\\USER~1\\AppData\\Local\\Temp\\cah-vessel-S005-ENwt1L"
+          }
+        ],
+        "notes": [
+          "run raised: Error: Model call failed after 1 attempt(s): opencode-go 400 invalid_request_error (http): Error from provider (Console Go): Upstream request failed: [invalid_request_error] Messages with role 'tool' must be a response to a preceding message with 'tool_calls'"
+        ]
+      },
+      "note": "RunResult success=false：finalText 为空（toolCalls=2）；运行异常：run raised: Error: Model call failed after 1 attempt(s): opencode-go 400 invalid_request_error (http): Error from provider (Console Go): Upstream request failed: [invalid_request_error] Messages with role 'tool' must be a response to a preceding message with 'tool_calls'"
+    },
+    {
+      "modelId": "opencode-go:deepseek-flash",
+      "scenarioId": "S006",
+      "tier": "flash",
+      "status": "failed",
+      "result": {
+        "adapterId": "vessel",
+        "adapterVersion": "0.1.0",
+        "fixtureId": "S006",
+        "metrics": {
+          "success": false,
+          "wallTimeMs": 7206,
+          "toolCalls": 1,
+          "invalidCalls": 0,
+          "retries": 1,
+          "inputTokens": 1750,
+          "outputTokens": 486,
+          "cacheReadTokens": 1408,
+          "costUsd": 0.0017448,
+          "contextPeak": 3158,
+          "compactions": 0,
+          "humanIntervention": 0,
+          "policyViolations": 0,
+          "resumeSuccess": false
+        },
+        "startedAt": "2026-09-10T10:54:44.288Z",
+        "artifacts": [
+          {
+            "kind": "session",
+            "path": "C:\\Users\\USER~1\\AppData\\Local\\Temp\\cah-vessel-S006-I6oHzX\\.harness\\sessions\\sess_1789037684294_979555c3\\session.jsonl"
+          },
+          {
+            "kind": "workspace",
+            "path": "C:\\Users\\USER~1\\AppData\\Local\\Temp\\cah-vessel-S006-I6oHzX"
+          }
+        ],
+        "notes": [
+          "run raised: Error: Model call failed after 1 attempt(s): opencode-go 400 invalid_request_error (http): Error from provider (Console Go): Upstream request failed: [invalid_request_error] Messages with role 'tool' must be a response to a preceding message with 'tool_calls'"
+        ]
+      },
+      "note": "RunResult success=false：finalText 为空（toolCalls=1）；运行异常：run raised: Error: Model call failed after 1 attempt(s): opencode-go 400 invalid_request_error (http): Error from provider (Console Go): Upstream request failed: [invalid_request_error] Messages with role 'tool' must be a response to a preceding message with 'tool_calls'"
+    },
+    {
+      "modelId": "opencode-go:deepseek-flash",
+      "scenarioId": "S007",
+      "tier": "flash",
+      "status": "failed",
+      "result": {
+        "adapterId": "vessel",
+        "adapterVersion": "0.1.0",
+        "fixtureId": "S007",
+        "metrics": {
+          "success": false,
+          "wallTimeMs": 2861,
+          "toolCalls": 2,
+          "invalidCalls": 0,
+          "retries": 1,
+          "inputTokens": 1777,
+          "outputTokens": 117,
+          "cacheReadTokens": 1408,
+          "costUsd": 0.0012047999999999998,
+          "contextPeak": 3185,
+          "compactions": 0,
+          "humanIntervention": 0,
+          "policyViolations": 0,
+          "resumeSuccess": false
+        },
+        "startedAt": "2026-09-10T10:54:51.498Z",
+        "artifacts": [
+          {
+            "kind": "session",
+            "path": "C:\\Users\\USER~1\\AppData\\Local\\Temp\\cah-vessel-S007-LrwGag\\.harness\\sessions\\sess_1789037691504_e8a717c8\\session.jsonl"
+          },
+          {
+            "kind": "workspace",
+            "path": "C:\\Users\\USER~1\\AppData\\Local\\Temp\\cah-vessel-S007-LrwGag"
+          }
+        ],
+        "notes": [
+          "run raised: Error: Model call failed after 1 attempt(s): opencode-go 400 invalid_request_error (http): Error from provider (Console Go): Upstream request failed: [invalid_request_error] Messages with role 'tool' must be a response to a preceding message with 'tool_calls'"
+        ]
+      },
+      "note": "RunResult success=false：finalText 为空（toolCalls=2）；运行异常：run raised: Error: Model call failed after 1 attempt(s): opencode-go 400 invalid_request_error (http): Error from provider (Console Go): Upstream request failed: [invalid_request_error] Messages with role 'tool' must be a response to a preceding message with 'tool_calls'"
+    },
+    {
+      "modelId": "opencode-go:deepseek-flash",
+      "scenarioId": "S008",
+      "tier": "flash",
+      "status": "failed",
+      "result": {
+        "adapterId": "vessel",
+        "adapterVersion": "0.1.0",
+        "fixtureId": "S008",
+        "metrics": {
+          "success": false,
+          "wallTimeMs": 5919,
+          "toolCalls": 2,
+          "invalidCalls": 0,
+          "retries": 1,
+          "inputTokens": 1813,
+          "outputTokens": 406,
+          "cacheReadTokens": 1408,
+          "costUsd": 0.0016562999999999999,
+          "contextPeak": 3221,
+          "compactions": 0,
+          "humanIntervention": 0,
+          "policyViolations": 0,
+          "resumeSuccess": false
+        },
+        "startedAt": "2026-09-10T10:54:54.363Z",
+        "artifacts": [
+          {
+            "kind": "session",
+            "path": "C:\\Users\\USER~1\\AppData\\Local\\Temp\\cah-vessel-S008-pgrWgc\\.harness\\sessions\\sess_1789037694370_4f5e06cb\\session.jsonl"
+          },
+          {
+            "kind": "workspace",
+            "path": "C:\\Users\\USER~1\\AppData\\Local\\Temp\\cah-vessel-S008-pgrWgc"
+          }
+        ],
+        "notes": [
+          "run raised: Error: Model call failed after 1 attempt(s): opencode-go 400 invalid_request_error (http): Error from provider (Console Go): Upstream request failed: [invalid_request_error] Messages with role 'tool' must be a response to a preceding message with 'tool_calls'"
+        ]
+      },
+      "note": "RunResult success=false：finalText 为空（toolCalls=2）；运行异常：run raised: Error: Model call failed after 1 attempt(s): opencode-go 400 invalid_request_error (http): Error from provider (Console Go): Upstream request failed: [invalid_request_error] Messages with role 'tool' must be a response to a preceding message with 'tool_calls'"
+    }
+  ],
+  "modelSummaries": [
+    {
+      "modelId": "opencode-go:deepseek-flash",
+      "displayName": "OpenCode Go deepseek-flash",
+      "runnableScenarios": 10,
+      "passed": 0,
+      "failed": 10,
+      "pendingEnvironment": 0,
+      "skipped": 0,
+      "wallTimeMs": 41505,
+      "toolCalls": 17,
+      "inputTokens": 17666,
+      "outputTokens": 1806,
+      "cacheReadTokens": 12672,
+      "costUsd": 0.012809
+    }
+  ],
+  "degraded": false,
+  "reportMdPath": "C:\\work\\Vessel_Harness\\benchmarks\\reports\\real-model-lane-1789037658724.md",
+  "reportJsonPath": "C:\\work\\Vessel_Harness\\benchmarks\\reports\\real-model-lane-1789037658724.json"
+}

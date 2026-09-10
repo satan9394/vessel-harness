@@ -17,6 +17,7 @@ import { describe, it, expect } from 'vitest';
 import { MockProvider } from '@vessel/llm';
 import type { ChatProvider } from '@vessel/shared';
 import { validateRunResult } from '../contracts/validate.js';
+import type { RunResult } from '../contracts/types.js';
 import { loadManifest, OFFLINE_SCRIPTS } from '../runner.js';
 import {
   LANE_MODELS,
@@ -25,6 +26,7 @@ import {
   probeModelApi,
   scenarioAppliesToModel,
   renderLaneMarkdown,
+  describeLaneFailureNote,
   type LaneModel,
   type LaneScenarioEntry,
 } from './real-model-lane.js';
@@ -261,5 +263,23 @@ describe('lane — degradation & exceptions', () => {
     // B003 is pro-tier; the flash model has no applicable scenarios → zero rows
     expect(report.rows).toHaveLength(0);
     expect(report.modelSummaries[0]!.runnableScenarios).toBe(0);
+  });
+
+  it('describeLaneFailureNote: success=false 原因含真实运行异常（task 108），无异常保留未收敛基线', () => {
+    const wireNote = describeLaneFailureNote({
+      metrics: { success: false, toolCalls: 2 },
+      notes: [
+        "run raised: opencode-go 400 invalid_request_error (http): Messages with role 'tool' must be a response to a preceding message with 'tool_calls'",
+      ],
+    } as unknown as RunResult);
+    // 保留「finalText 为空」基线子串（gate 判据兼容）+ 追加真实异常
+    expect(wireNote).toContain('RunResult success=false：finalText 为空');
+    expect(wireNote).toContain('toolCalls=2');
+    expect(wireNote).toContain('运行异常');
+    expect(wireNote).toContain("role 'tool' must be a response");
+    // 无 notes（如 mimo 未收敛：步数预算耗尽、无异常）→ 保持原「多为模型未在步数/预算内收敛」文案
+    const convNote = describeLaneFailureNote({ metrics: { success: false, toolCalls: 65 } } as unknown as RunResult);
+    expect(convNote).toContain('多为模型未在步数/预算内收敛');
+    expect(convNote).not.toContain('运行异常');
   });
 });

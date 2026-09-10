@@ -1,15 +1,15 @@
 {
-  "label": "102-real-flash",
+  "label": "ds-flash-run3",
   "keyPresent": true,
-  "keySource": "env OPENCODE_API_KEY",
-  "keySourceMode": "env",
+  "keySource": "CredentialStore vessel/opencode-go",
+  "keySourceMode": "store",
   "keySourceAllowed": "CredentialStore (034/069 DPAPI, secretRef credential:vessel/opencode-go) / env OPENCODE_API_KEY",
   "modelSource": "live",
   "modelNote": "live from https://opencode.ai/zen/go/v1/models",
-  "runId": "real-model-lane-1788964714845",
+  "runId": "real-model-lane-1789037658724",
   "models": [
     {
-      "id": "opencode-go:mimo-v2.5",
+      "id": "opencode-go:deepseek-flash",
       "tier": "flash",
       "route": "/chat/completions"
     }
@@ -28,24 +28,24 @@
   ],
   "probe": {
     "ok": true,
-    "model": "mimo-v2.5",
-    "content": "pong! 🏓 \n\nHello there! I'm MiMo, ready to help. What can I do for you today?",
-    "reasoningChars": 751,
+    "model": "deepseek-flash",
+    "content": "pong 🏓\n\nI'm here — what can I help you with?",
+    "reasoningChars": 0,
     "usage": {
-      "inputTokens": 248,
-      "outputTokens": 187,
-      "cacheReadTokens": 192
+      "inputTokens": 31,
+      "outputTokens": 63,
+      "cacheReadTokens": 0
     }
   },
   "summary": [
     {
-      "modelId": "opencode-go:mimo-v2.5",
-      "passed": 9,
-      "failed": 1,
+      "modelId": "opencode-go:deepseek-flash",
+      "passed": 0,
+      "failed": 10,
       "pendingEnvironment": 0,
       "skipped": 0,
-      "inputTokens": 863345,
-      "outputTokens": 53297
+      "inputTokens": 17666,
+      "outputTokens": 1806
     }
   ]
 }

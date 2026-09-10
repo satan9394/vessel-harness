@@ -1,0 +1,82 @@
+{
+  "runId": "real-model-lane-1789037319747",
+  "startedAt": "2026-09-10T10:48:39.747Z",
+  "finishedAt": "2026-09-10T10:48:41.960Z",
+  "durationMs": 2213,
+  "models": [
+    {
+      "id": "opencode-go:deepseek-flash",
+      "displayName": "OpenCode Go deepseek-flash",
+      "tier": "flash",
+      "defaultModel": "deepseek-flash"
+    }
+  ],
+  "scenarioCount": 1,
+  "scenarioIds": [
+    "B001"
+  ],
+  "rows": [
+    {
+      "modelId": "opencode-go:deepseek-flash",
+      "scenarioId": "B001",
+      "tier": "flash",
+      "status": "failed",
+      "result": {
+        "adapterId": "vessel",
+        "adapterVersion": "0.1.0",
+        "fixtureId": "B001",
+        "metrics": {
+          "success": false,
+          "wallTimeMs": 2209,
+          "toolCalls": 1,
+          "invalidCalls": 0,
+          "retries": 1,
+          "inputTokens": 1678,
+          "outputTokens": 46,
+          "cacheReadTokens": 0,
+          "costUsd": 0.000908,
+          "contextPeak": 1678,
+          "compactions": 0,
+          "humanIntervention": 0,
+          "policyViolations": 0,
+          "resumeSuccess": false
+        },
+        "startedAt": "2026-09-10T10:48:39.750Z",
+        "artifacts": [
+          {
+            "kind": "session",
+            "path": "C:\\Users\\USER~1\\AppData\\Local\\Temp\\cah-vessel-B001-zsZFmI\\.harness\\sessions\\sess_1789037319769_9eb867e2\\session.jsonl"
+          },
+          {
+            "kind": "workspace",
+            "path": "C:\\Users\\USER~1\\AppData\\Local\\Temp\\cah-vessel-B001-zsZFmI"
+          }
+        ],
+        "notes": [
+          "run raised: Error: Model call failed after 1 attempt(s): opencode-go 400 invalid_request_error (http): Error from provider (Console Go): Upstream request failed: [invalid_request_error] Messages with role 'tool' must be a response to a preceding message with 'tool_calls'"
+        ]
+      },
+      "note": "RunResult success=false：finalText 为空（toolCalls=1，多为模型未在步数/预算内收敛）"
+    }
+  ],
+  "modelSummaries": [
+    {
+      "modelId": "opencode-go:deepseek-flash",
+      "displayName": "OpenCode Go deepseek-flash",
+      "runnableScenarios": 1,
+      "passed": 0,
+      "failed": 1,
+      "pendingEnvironment": 0,
+      "skipped": 0,
+      "wallTimeMs": 2209,
+      "toolCalls": 1,
+      "inputTokens": 1678,
+      "outputTokens": 46,
+      "cacheReadTokens": 0,
+      "costUsd": 0.000908
+    }
+  ],
+  "degraded": false,
+  "reportMdPath": "C:\\work\\Vessel_Harness\\benchmarks\\reports\\real-model-lane-1789037319747.md",
+  "reportJsonPath": "C:\\work\\Vessel_Harness\\benchmarks\\reports\\real-model-lane-1789037319747.json"
+}

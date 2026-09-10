@@ -174,6 +174,20 @@ export function isModelNonConvergentLane(noteLines: string[]): boolean {
 }
 
 /**
+ * 失败原因内在「模型与 harness 当前线协议不兼容」（task 108 实测）：严格上游（DeepSeek 等）
+ * 校验 OpenAI 工具序列——`Messages with role 'tool' must be a response to a preceding message with
+ * 'tool_calls'`（harness 的会话历史由 surface 投影裁剪，不含 assistant tool_calls 消息）、推理模型
+ * thinking 模式要求 `reasoning_content` 回传、以及 wire 层反序列化失败（missing field `tool_call_id`）。
+ * 表现为 400 `invalid_request_error`。**非模型收敛问题、非 harness 回归**（同 pipeline 对 mimo 可用），
+ * 是模型与当前线协议不兼容 → pending（需 harness 侧补 tool_calls 序列/回传 reasoning_content 后重跑）。
+ */
+export function isWireFormatBlockedLane(noteLines: string[]): boolean {
+  return noteLines.some((n) =>
+    /invalid_request_error|role 'tool'[^]*tool_calls|reasoning_content[^]*passed back|missing field `tool_call_id`/i.test(n),
+  );
+}
+
+/**
  * 判断真实模型 lane 是否因「账户余额不足」整体阻塞（V1.1-F 实测现象）：
  * 有 failed 行，但其失败原因均为模型聊天的 billing 阻塞 → 环境性 pending（不伪造 pass，
  * 也不误判为模型回归 fail）。
@@ -224,6 +238,29 @@ export function judgeRealModelLaneWithNonConvergence(args: {
 }): GateVerdict {
   const base = judgeRealModelLaneWithBilling(args);
   if (base.status !== 'fail') return base;
+  // task 108：线协议不兼容优先归类（如 deepseek-flash 全部行 0/10 失败、toolCalls≤2、note 带
+  // 上游 400 invalid_request_error）——不是「未收敛」也不是 harness 回归，如实 pending 并注明原因。
+  if (isWireFormatBlockedLane(args.failedNotes)) {
+    return {
+      status: 'pending',
+      pending: true,
+      evidence: {
+        summary: `真实模型 lane 有 ${args.failed} 行线协议不兼容失败——harness 当前 OpenAI 工具序列与严格上游（DeepSeek 等）不兼容（缺 assistant tool_calls 消息 / thinking 模式 reasoning_content 回传）`,
+        detail: [
+          `rows=${args.rowCount}`,
+          `passed=${args.passed}`,
+          `failed=${args.failed}`,
+          'cause=wire-format incompatibility (upstream 400 invalid_request_error)',
+        ],
+      },
+      note:
+        'real model gate: 真实 lane 真实执行（x-opencode-session 协议头 + 具名 UA + 凭据来源选对），' +
+        '失败行为模型多步工具链被严格上游以 400 invalid_request_error 拒绝（tool 消息未跟在带 tool_calls 的 ' +
+        'assistant 消息后 / 推理模型要求 reasoning_content 回传）——harness 侧线协议与所选模型不兼容，' +
+        '非模型收敛问题、非 harness 回归（同 pipeline 对 mimo-v2.5 可用）→ 如实 pending（harness 补齐 ' +
+        'tool_calls 序列/回传 reasoning_content 后重跑），不伪造 pass。',
+    };
+  }
   if (!isModelNonConvergentLane(args.failedNotes)) return base;
   return {
     status: 'pending',

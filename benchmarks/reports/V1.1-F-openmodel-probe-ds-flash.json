@@ -1,0 +1,15 @@
+{
+  "keyPresent": true,
+  "model": "deepseek-flash",
+  "probe": {
+    "ok": true,
+    "model": "deepseek-flash",
+    "content": "Pong! 🏓\n\nI'm here and ready. What can I help you with today?",
+    "reasoningChars": 0,
+    "usage": {
+      "inputTokens": 31,
+      "outputTokens": 256,
+      "cacheReadTokens": 0
+    }
+  }
+}

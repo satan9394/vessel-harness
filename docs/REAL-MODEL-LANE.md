@@ -165,6 +165,34 @@ failed（S002 先 failed 后 passed；B002/S005 先 passed 后 failed）。失�
 - 084 gate 4 用 `judgeRealModelLaneWithNonConvergence` 把该模式判为 **pending**（复跑/换模型档再判），
   与 billing 分类并列——不伪造 pass，也不当作 harness 回归 fail。
 
+## 真实跑观测（task 108，deepseek-flash vs mimo-v2.5 收敛对比）
+
+task 108 按 102 的同一场景子集（B001、B002、S001-S008，10 场景）实跑 `deepseek-flash`
+（`--key-source=store`，报告 `real-model-lane-1789037140071(-deepseek-flash).md` 等 4 份），结论：
+
+| 维度 | mimo-v2.5（102 基线） | deepseek-flash（本卡 3 次全量） |
+| --- | --- | --- |
+| 同场景集结果 | 9/10（同一场景跨次 passed/failed 翻转，失败集每次不同） | **0/10 × 3 次（完全可复现）** |
+| 失败模式 | 模型未收敛：finalText 空 + 工具调用到 64 步预算耗尽 | **harness 线协议不兼容**：第 2 次请求被严格上游 400 |
+| 工具步数 | 1~97（失败场景 64~70） | 全部 1~2（未及长链即被 400） |
+| usage/耗时 | in 863k / out 53k / 1853.7s / $0.592 | in 17.7k / out 2.3k / 40.6s / $0.0135 |
+
+- **probe**：`deepseek-flash` 在 live `/v1/models`（36 项）确认存在，走 `/chat/completions`，200 + usage
+  （`{31,48~256,0}`），单轮纯文本直接回 content（provider 按 `message.reasoning` 解析为 reasoning=0B；
+  DeepSeek thinking 模式的思维链字段实为 `reasoning_content`）。
+- **根因（直发 Go 端点实验证明）**：① harness `ContextBuilder` 的请求历史来自 `session.surface()`
+  （EVENT-SPEC §6 仅 user/message、assistant/message、tool/result），`assistant/attempt`（承载 tool_calls）
+  被裁剪 → wire 里 `tool` 消息无前导 `tool_calls` → 严格上游（DeepSeek）400
+  `Messages with role 'tool' must be a response to a preceding message with 'tool_calls'`；
+  ② 修正形状后进入下一校验：thinking 模式要求回传 `reasoning_content`，harness 不回传 → 400。
+  mimo-v2.5 的上游容忍该形状，DeepSeek 严格校验 → 只有 deepseek/严格上游模型现形。
+- **gate 4 归类（task 108 新增判据）**：`isWireFormatBlockedLane` + `judgeRealModelLaneWithNonConvergence`
+  线协议优先归类 → **pending**（note 注明「线协议不兼容，非收敛问题」）；lane failed 行 note 追加真实
+  运行异常（`describeLaneFailureNote`，无异常时保留原「未收敛」基线文案）。
+- **建议**：**当前不建议换默认模型**——deepseek-flash 在现有线协议下 0/10 全红，无法跑长工具链；
+  mimo-v2.5 虽收敛不稳但可真实跑。线协议修复（补 assistant tool_calls 到请求历史 + 回传
+  reasoning_content）应另开卡，修好后再重跑本对比。
+
 ## 凭据来源（env / CredentialStore，task 097 纠偏）
 
 opencode-go 的 API key **只有两条来源**，provider 运行时经 resolver 读取（可注入、可 mock），

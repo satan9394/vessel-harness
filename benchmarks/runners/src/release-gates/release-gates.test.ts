@@ -11,6 +11,7 @@ import {
   judgeRealModelLaneWithBilling,
   judgeRealModelLaneWithNonConvergence,
   isModelNonConvergentLane,
+  isWireFormatBlockedLane,
   judgeScenarioRuns,
   judgeSoakResume,
   judgePackagingProbe,
@@ -109,6 +110,32 @@ describe('gate criteria judges (tasks 084) — pure, no commands', () => {
     ).toBe('pass');
     expect(isModelNonConvergentLane([nonConvergent])).toBe(true);
     expect(isModelNonConvergentLane(['fixture not found: B009'])).toBe(false);
+  });
+
+  it('judgeRealModelLaneWithNonConvergence : 线协议不兼容 → pending（task 108，deepseek-flash 实测）', () => {
+    const wire =
+      "RunResult success=false：finalText 为空（toolCalls=1）；运行异常：opencode-go 400 invalid_request_error (http): " +
+      "Messages with role 'tool' must be a response to a preceding message with 'tool_calls'";
+    const v = judgeRealModelLaneWithNonConvergence({
+      rowCount: 14, passed: 0, failed: 10, pendingEnv: 0, degraded: false,
+      failedNotes: [wire, wire],
+    });
+    expect(v.status).toBe('pending');
+    expect(v.pending).toBe(true);
+    expect(v.note).toContain('线协议');
+    expect((v.evidence.detail ?? []).some((d) => d.startsWith('cause=wire-format incompatibility'))).toBe(true);
+    // thinking 模式 reasoning_content 回传缺失同样是线协议不兼容
+    expect(isWireFormatBlockedLane([
+      '… The `reasoning_content` in the thinking mode must be passed back to the API.',
+    ])).toBe(true);
+    expect(isWireFormatBlockedLane(['model returned malformed JSON'])).toBe(false);
+    // 非线协议失败不归类为 pending（保持原语义 fail）
+    expect(
+      judgeRealModelLaneWithNonConvergence({
+        rowCount: 8, passed: 7, failed: 1, pendingEnv: 0, degraded: false,
+        failedNotes: ['model returned malformed JSON'],
+      }).status,
+    ).toBe('fail');
   });
 
   it('judgeScenarioRuns : all pass → pass; any fail → fail', () => {

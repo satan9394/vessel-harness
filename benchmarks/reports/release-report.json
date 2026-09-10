@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "version": "v1.1.0",
-  "generatedAt": "2026-09-09T16:13:51.996Z",
+  "generatedAt": "2026-09-10T11:05:15.114Z",
   "status": "blocked",
   "gates": [
     {
@@ -16,7 +16,7 @@
           "tsc exit=0"
         ]
       },
-      "durationMs": 1177
+      "durationMs": 1158
     },
     {
       "id": "unit",
@@ -25,28 +25,27 @@
       "criterion": "全量 `npx vitest run`（root）通过且退出码 0（无测试失败）。",
       "status": "fail",
       "evidence": {
-        "summary": "vitest 存在问题（exit=1）",
+        "summary": "vitest 存在问题（exit=0）",
         "detail": [
-          "✓ CLI provider/models commands (task 016/015) > provider list shows built-in mock and current defaults to mock 3056ms",
-          "✓ CLI provider/models commands (task 016/015) > provider add + switch + current round-trip 18152ms",
-          "✓ CLI provider/models commands (task 016/015) > provider add without base-url for a real protocol fails with exit 2 2847ms",
-          "✓ CLI provider/models commands (task 016/015) > provider remove refuses to remove built-in mock 2852ms",
-          "✓ CLI provider/models commands (task 016/015) > models with no provider (current=mock) prints the offline note and exits 0 3118ms",
-          "✓ CLI provider/models commands (task 016/015) > models for an anthropic provider falls back to the built-in list 21885ms",
-          "✓ vessel pricing sync / provider costMultiplier (task 093/094) > provider add/set --cost-multiplier 落盘；非法倍率 exit 2 不落盘 8394ms",
-          "Test Files  1 failed | 100 passed (101)",
-          "Tests  1 failed | 1082 passed | 1 skipped (1084)",
-          "Start at  08:47:44",
-          "Duration  71.09s (transform 11.16s, setup 0ms, collect 41.77s, tests 314.96s, environment 35ms, prepare 27.28s)",
-          "⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯",
-          "FAIL  packages/runtime/src/sandbox/backend/process-tree.test.ts > Sandbox — real Windows timing-window enumeration (task 072, win32 only) > attaches a pre-spawned grandchild into the job and enumerates it",
-          "Error: Test timed out in 30000ms.",
-          "If this is a long-running test, pass a timeout value as the last argument or configure it globally with \"testTimeout\".",
-          "⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯",
-          "vitest exit=1"
+          "✓ vessel provider export/import + endpoint (task 095/096) > export 无 --out → JSON 打到 stdout；import 合并（默认跳过同名） 8970ms",
+          "✓ vessel provider export/import + endpoint (task 095/096) > import --dry-run 不写盘；--on-conflict overwrite 覆盖字段 5339ms",
+          "✓ vessel provider export/import + endpoint (task 095/096) > import 非法 --on-conflict / 读不到文件 → 明确退出码 3491ms",
+          "✓ vessel provider export/import + endpoint (task 095/096) > endpoint add/list/remove：候选池落盘，baseUrl 不变 22048ms",
+          "✓ vessel provider export/import + endpoint (task 095/096) > endpoint test 探测本地端点 → 输出建议但不改默认端点；--set-default 才改 10182ms",
+          "✓ vessel provider export/import + endpoint (task 095/096) > endpoint test 全不可达 → exit 1 且不写盘 3983ms",
+          "✓ vessel provider export/import + endpoint (task 095/096) > endpoint test 用法错误：无 id 无 --all / --all 配 --set-default → exit 2 5305ms",
+          "Test Files  108 passed (108)",
+          "Tests  1155 passed | 1 skipped (1156)",
+          "Start at  04:01:59",
+          "Duration  146.05s (transform 13.91s, setup 0ms, collect 44.79s, tests 428.28s, environment 38ms, prepare 29.11s)",
+          "stderr | apps/cli/src/cli.test.ts > CLI provider/models commands (task 016/015) > provider remove refuses to remove built-in mock",
+          "[vessel] provider \"mock\" is built-in and cannot be removed",
+          "stderr | apps/cli/src/cli.test.ts > vessel provider export/import + endpoint (task 095/096) > export 无 --out → JSON 打到 stdout；import 合并（默认跳过同名）",
+          "[vessel provider export] 已导出 1 个供应商到 stdout（脱敏：剥离密钥 1 条）。",
+          "vitest exit=0"
         ]
       },
-      "durationMs": 73153,
+      "durationMs": 147646,
       "note": "唯一失败为既有 process-tree 计时 flaky（packages/runtime/src/sandbox/backend/process-tree.test.ts，task 072）：整机并行高负载下 30s 超时；隔离单跑 11/11 通过。非 V1.1-E 回归（该文件自 072 未改动），按项目惯例视为环境性 flaky。"
     },
     {
@@ -62,7 +61,7 @@
           "passed=17"
         ]
       },
-      "durationMs": 4916,
+      "durationMs": 4902,
       "note": "扩至 L1 全离线可跑集（B001-B005 + B016-B027，含 V1.1-D streaming/interrupt/steering/resume）。"
     },
     {
@@ -72,16 +71,16 @@
       "criterion": "082 真实模型 lane 收集到 §15 L3 指标；无凭据/无 provider 时显式 pending，不静默通过。",
       "status": "pending",
       "evidence": {
-        "summary": "真实模型 lane 已跑通（9/14 行 passed，1 行模型未在步数预算内收敛）——非协议/凭据/实现回归",
+        "summary": "真实模型 lane 有 10 行线协议不兼容失败——harness 当前 OpenAI 工具序列与严格上游（DeepSeek 等）不兼容（缺 assistant tool_calls 消息 / thinking 模式 reasoning_content 回传）",
         "detail": [
           "rows=14",
-          "passed=9",
-          "failed=1",
-          "cause=model non-convergence (MAX_STEPS_PER_TURN budget exhausted, empty finalText)"
+          "passed=0",
+          "failed=10",
+          "cause=wire-format incompatibility (upstream 400 invalid_request_error)"
         ]
       },
-      "durationMs": 1487595,
-      "note": "real model gate: 真实 lane 真实执行（x-opencode-session 协议头 + 具名 UA + 凭据来源选对），失败行为模型对同一场景反复工具调用直到 64 步预算耗尽（跨次运行不稳定：同一场景两次实跑一 passed 一 failed）→ 如实 pending（复跑/换模型档后再判），不伪造 pass、不误判为 harness 回归。 凭据来源=env OPENCODE_API_KEY；模型档=mimo-v2.5（task 102：Go 端点 x-opencode-session + 具名 UA + 路径分流）。"
+      "durationMs": 41221,
+      "note": "real model gate: 真实 lane 真实执行（x-opencode-session 协议头 + 具名 UA + 凭据来源选对），失败行为模型多步工具链被严格上游以 400 invalid_request_error 拒绝（tool 消息未跟在带 tool_calls 的 assistant 消息后 / 推理模型要求 reasoning_content 回传）——harness 侧线协议与所选模型不兼容，非模型收敛问题、非 harness 回归（同 pipeline 对 mimo-v2.5 可用）→ 如实 pending（harness 补齐 tool_calls 序列/回传 reasoning_content 后重跑），不伪造 pass。 凭据来源=CredentialStore vessel/opencode-go；模型档=deepseek-flash（task 102：Go 端点 x-opencode-session + 具名 UA + 路径分流）。"
     },
     {
       "id": "safety",
@@ -96,7 +95,7 @@
           "passed=6"
         ]
       },
-      "durationMs": 205
+      "durationMs": 195
     },
     {
       "id": "resume",
@@ -113,7 +112,7 @@
           "countConsistent=true"
         ]
       },
-      "durationMs": 325
+      "durationMs": 432
     },
     {
       "id": "ux-smoke",
@@ -127,7 +126,7 @@
           "webDistPresent=true"
         ]
       },
-      "durationMs": 0
+      "durationMs": 1
     },
     {
       "id": "packaging",
@@ -138,7 +137,7 @@
       "evidence": {
         "summary": "未发现 build 产物（dist 缺失）"
       },
-      "durationMs": 3388,
+      "durationMs": 2987,
       "note": "packaging gate: 需要非受限环境构建出 dist 后重跑；当前显式 pending 不静默通过。"
     }
   ],
@@ -146,6 +145,6 @@
     "pass": 5,
     "fail": 1,
     "pending": 2,
-    "durationMs": 1570761
+    "durationMs": 198542
   }
 }

@@ -238,6 +238,20 @@ function summarizeModel(
 }
 
 /**
+ * failed 行的可见原因（task 102 baseline + task 108 运行异常）：
+ * success=false 时给出「finalText 为空」基线；若 RunResult 带 `notes`（adapter 侧运行异常，
+ * 如上游 400 `invalid_request_error` 拒绝工具序列），追加真实异常文案——保留「finalText 为空」
+ * 子串，使 gate 判据（isModelNonConvergentLane / isWireFormatBlockedLane）可区分失败模式。
+ */
+export function describeLaneFailureNote(result: RunResult): string {
+  const base = `RunResult success=false：finalText 为空（toolCalls=${result.metrics.toolCalls}`;
+  const notes = result.notes ?? [];
+  return notes.length > 0
+    ? `${base}）；运行异常：${notes.join(' | ')}`
+    : `${base}，多为模型未在步数/预算内收敛）`;
+}
+
+/**
  * Run the real-model lane: every configured model × applicable scenario,
  * driving each through the 076 Vessel self-adapter and collecting §15 L3
  * RunResult rows. Degradation: a model whose provider cannot be resolved is
@@ -327,11 +341,13 @@ export async function runRealModelLane(opts: {
         const issues = validateRunResult(result);
         const status: LaneRowStatus = issues.length === 0 && result.metrics.success ? 'passed' : 'failed';
         // task 102：failed 行必须带可见原因（此前 success=false 的行 note 为空，gate 无法归类）。
+        // task 108：success=false 且带运行异常（如上游 400 线协议拒绝）时，原因写进 note（追加真实
+        // 异常文案，保留「finalText 为空」基线子串，供 gate 判据区分「未收敛」与「线协议不兼容」）。
         const note = issues.length > 0
           ? `invalid RunResult: ${issues.map((i) => i.field).join(', ')}`
           : result.metrics.success
             ? undefined
-            : `RunResult success=false：finalText 为空（toolCalls=${result.metrics.toolCalls}，多为模型未在步数/预算内收敛）`;
+            : describeLaneFailureNote(result);
         rows.push({
           modelId: model.id,
           scenarioId: scenario.id,
