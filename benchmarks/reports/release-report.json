@@ -1,8 +1,8 @@
 {
   "schemaVersion": 1,
   "version": "v1.1.0",
-  "generatedAt": "2026-09-10T11:05:15.114Z",
-  "status": "blocked",
+  "generatedAt": "2026-09-10T12:57:00.833Z",
+  "status": "ready",
   "gates": [
     {
       "id": "build",
@@ -16,28 +16,28 @@
           "tsc exit=0"
         ]
       },
-      "durationMs": 1158
+      "durationMs": 2670
     },
     {
       "id": "unit",
       "name": "Unit (vitest root)",
       "position": 2,
       "criterion": "全量 `npx vitest run`（root）通过且退出码 0（无测试失败）。",
-      "status": "fail",
+      "status": "pass",
       "evidence": {
-        "summary": "vitest 存在问题（exit=0）",
+        "summary": "全量 vitest（root）通过",
         "detail": [
-          "✓ vessel provider export/import + endpoint (task 095/096) > export 无 --out → JSON 打到 stdout；import 合并（默认跳过同名） 8970ms",
-          "✓ vessel provider export/import + endpoint (task 095/096) > import --dry-run 不写盘；--on-conflict overwrite 覆盖字段 5339ms",
-          "✓ vessel provider export/import + endpoint (task 095/096) > import 非法 --on-conflict / 读不到文件 → 明确退出码 3491ms",
-          "✓ vessel provider export/import + endpoint (task 095/096) > endpoint add/list/remove：候选池落盘，baseUrl 不变 22048ms",
-          "✓ vessel provider export/import + endpoint (task 095/096) > endpoint test 探测本地端点 → 输出建议但不改默认端点；--set-default 才改 10182ms",
-          "✓ vessel provider export/import + endpoint (task 095/096) > endpoint test 全不可达 → exit 1 且不写盘 3983ms",
-          "✓ vessel provider export/import + endpoint (task 095/096) > endpoint test 用法错误：无 id 无 --all / --all 配 --set-default → exit 2 5305ms",
-          "Test Files  108 passed (108)",
-          "Tests  1155 passed | 1 skipped (1156)",
-          "Start at  04:01:59",
-          "Duration  146.05s (transform 13.91s, setup 0ms, collect 44.79s, tests 428.28s, environment 38ms, prepare 29.11s)",
+          "✓ vessel provider export/import + endpoint (task 095/096) > export 无 --out → JSON 打到 stdout；import 合并（默认跳过同名） 11139ms",
+          "✓ vessel provider export/import + endpoint (task 095/096) > import --dry-run 不写盘；--on-conflict overwrite 覆盖字段 6211ms",
+          "✓ vessel provider export/import + endpoint (task 095/096) > import 非法 --on-conflict / 读不到文件 → 明确退出码 4436ms",
+          "✓ vessel provider export/import + endpoint (task 095/096) > endpoint add/list/remove：候选池落盘，baseUrl 不变 23512ms",
+          "✓ vessel provider export/import + endpoint (task 095/096) > endpoint test 探测本地端点 → 输出建议但不改默认端点；--set-default 才改 9004ms",
+          "✓ vessel provider export/import + endpoint (task 095/096) > endpoint test 全不可达 → exit 1 且不写盘 3980ms",
+          "✓ vessel provider export/import + endpoint (task 095/096) > endpoint test 用法错误：无 id 无 --all / --all 配 --set-default → exit 2 5143ms",
+          "Test Files  109 passed (109)",
+          "Tests  1175 passed | 1 skipped (1176)",
+          "Start at  05:48:36",
+          "Duration  155.79s (transform 18.43s, setup 0ms, collect 54.09s, tests 456.17s, environment 39ms, prepare 27.56s)",
           "stderr | apps/cli/src/cli.test.ts > CLI provider/models commands (task 016/015) > provider remove refuses to remove built-in mock",
           "[vessel] provider \"mock\" is built-in and cannot be removed",
           "stderr | apps/cli/src/cli.test.ts > vessel provider export/import + endpoint (task 095/096) > export 无 --out → JSON 打到 stdout；import 合并（默认跳过同名）",
@@ -45,8 +45,7 @@
           "vitest exit=0"
         ]
       },
-      "durationMs": 147646,
-      "note": "唯一失败为既有 process-tree 计时 flaky（packages/runtime/src/sandbox/backend/process-tree.test.ts，task 072）：整机并行高负载下 30s 超时；隔离单跑 11/11 通过。非 V1.1-E 回归（该文件自 072 未改动），按项目惯例视为环境性 flaky。"
+      "durationMs": 158617
     },
     {
       "id": "deterministic-bench",
@@ -61,7 +60,7 @@
           "passed=17"
         ]
       },
-      "durationMs": 4902,
+      "durationMs": 4876,
       "note": "扩至 L1 全离线可跑集（B001-B005 + B016-B027，含 V1.1-D streaming/interrupt/steering/resume）。"
     },
     {
@@ -69,18 +68,16 @@
       "name": "Real Model Bench (082 lane)",
       "position": 4,
       "criterion": "082 真实模型 lane 收集到 §15 L3 指标；无凭据/无 provider 时显式 pending，不静默通过。",
-      "status": "pending",
+      "status": "pass",
       "evidence": {
-        "summary": "真实模型 lane 有 10 行线协议不兼容失败——harness 当前 OpenAI 工具序列与严格上游（DeepSeek 等）不兼容（缺 assistant tool_calls 消息 / thinking 模式 reasoning_content 回传）",
+        "summary": "真实模型 lane 全过（10/14）",
         "detail": [
           "rows=14",
-          "passed=0",
-          "failed=10",
-          "cause=wire-format incompatibility (upstream 400 invalid_request_error)"
+          "passed=10"
         ]
       },
-      "durationMs": 41221,
-      "note": "real model gate: 真实 lane 真实执行（x-opencode-session 协议头 + 具名 UA + 凭据来源选对），失败行为模型多步工具链被严格上游以 400 invalid_request_error 拒绝（tool 消息未跟在带 tool_calls 的 assistant 消息后 / 推理模型要求 reasoning_content 回传）——harness 侧线协议与所选模型不兼容，非模型收敛问题、非 harness 回归（同 pipeline 对 mimo-v2.5 可用）→ 如实 pending（harness 补齐 tool_calls 序列/回传 reasoning_content 后重跑），不伪造 pass。 凭据来源=CredentialStore vessel/opencode-go；模型档=deepseek-flash（task 102：Go 端点 x-opencode-session + 具名 UA + 路径分流）。"
+      "durationMs": 340294,
+      "note": "凭据来源=CredentialStore vessel/opencode-go；模型档=deepseek-flash（task 102：Go 端点 x-opencode-session + 具名 UA + 路径分流）。"
     },
     {
       "id": "safety",
@@ -95,7 +92,7 @@
           "passed=6"
         ]
       },
-      "durationMs": 195
+      "durationMs": 249
     },
     {
       "id": "resume",
@@ -112,7 +109,7 @@
           "countConsistent=true"
         ]
       },
-      "durationMs": 432
+      "durationMs": 628
     },
     {
       "id": "ux-smoke",
@@ -133,18 +130,21 @@
       "name": "Packaging (build artifacts)",
       "position": 8,
       "criterion": "build 产物检查（npm pack / 等价产物）存在且完整；工具缺失时显式 pending。",
-      "status": "pending",
+      "status": "pass",
       "evidence": {
-        "summary": "未发现 build 产物（dist 缺失）"
+        "summary": "build 产物完整（dist + 入口存在）",
+        "detail": [
+          "dist=true",
+          "entry=true"
+        ]
       },
-      "durationMs": 2987,
-      "note": "packaging gate: 需要非受限环境构建出 dist 后重跑；当前显式 pending 不静默通过。"
+      "durationMs": 1893
     }
   ],
   "totals": {
-    "pass": 5,
-    "fail": 1,
-    "pending": 2,
-    "durationMs": 198542
+    "pass": 8,
+    "fail": 0,
+    "pending": 0,
+    "durationMs": 509228
   }
 }

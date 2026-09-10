@@ -4,6 +4,19 @@
   "version": "0.10.0",
   "type": "module",
   "description": "Composable Agent Harness V0.1 — modular monolith (TypeScript)",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
   "workspaces": [
     "apps/*",
     "packages/*",
@@ -14,6 +27,7 @@
   },
   "scripts": {
     "build": "tsc -b tsconfig.json",
+    "build:release": "tsc -p tsconfig.release.json",
     "typecheck": "tsc -b tsconfig.json --pretty false",
     "test": "vitest run",
     "test:watch": "vitest",

@@ -35,6 +35,7 @@ export default defineConfig({
   test: {
     environment: 'node',
     include: [
+      'index.test.ts',
       'packages/*/src/**/*.test.ts',
       'apps/cli/src/**/*.test.ts',
       'apps/local-server/src/**/*.test.ts',

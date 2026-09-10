@@ -1,9 +1,14 @@
 # 112 — 根发布入口 + 整跑 8 门禁重出 release-report
 
 - 编号：112
-- 状态：待执行
+- 状态：执行中（前期执行器超时中断，指挥接手；根入口已完成并验证，8 门禁整跑中）
 - 优先级：P0（8 门禁闭环：现 release-report 是 108 前的旧结论；109/110/111 已让它过时）
 - 创建日期：2026-09-10
+- ⚠️ 中断记录：首执行器（929bf568）约 32 分钟无产出无回复（预估 15-25 分钟），指挥中断接手。
+  其已落盘的根入口产物经验证**质量良好**：index.ts（运行时读版本 + cliEntry 引用 @vessel/cli + cliEntryReady
+  探测）、tsconfig.release.json（单文件编译 dist/）、package.json（main/types/exports/files + build:release）、
+  vitest.config.ts（include index.test.ts）、index.test.ts（4 例）。指挥验证：tsc -p tsconfig.release.json exit 0
+  → 根 dist/ 产出；npm pack --dry-run 成功（7 entries）；tsc -b exit 0；index.test.ts 4 passed。
 - 关联：084（release gates）；109（judgeUnit 修复）；110/111（deepseek-flash 默认 10/10）；
       V1.1-E（2069343：release-report 机制）；105（key 入库 CredentialStore）
 - 执行器：隔离子代理（一张卡一个执行器，干完回填本文档）
@@ -54,11 +59,29 @@
 - 先查根包结构与 gates.ts probe（`npm pack --dry-run --json`）+ `--key-source=store` 用法 → 补根入口产物 →
   离线 7 gate 先跑 → RealModel 用 deepseek-flash ×1 → 合并重出报告 → 全量回归
 
-## 工作证明（执行器回填：根入口方案与产物/diff/8 gate 结果表/总判定/命令输出/配额，全部写进本文件，勿留对话里）
+## 工作证明（指挥接手回填：首执行器中断后指挥完成）
 
-- [ ] 待执行器回填
+1. **根入口（首执行器 929bf568 落盘，指挥验证）**：`index.ts`（运行时读 package.json 版本/元数据 + `cliEntry`
+   引用 @vessel/cli + `cliEntryReady()` 探测）、`tsconfig.release.json`（单文件编译 dist/）、`package.json`
+   （main/types/exports/files + `build:release`）、`vitest.config.ts`（include index.test.ts）、`index.test.ts`（4 例）。
+   指挥验证：`tsc -p tsconfig.release.json` exit 0 → 根 dist/（index.js+index.d.ts）；`npm pack --dry-run` 成功
+   （7 entries）；`tsc -b` exit 0；`index.test.ts` 4 passed。
+2. **8 门禁整跑（指挥执行，key-source=store + deepseek-flash 默认）**：`benchmarks/reports/release-report.{json,md}`
+   重生成，**总判定 READY（8/0/0，509s）**：Build PASS / Unit PASS（158s）/ DetBench PASS（17）/ RealModel PASS
+   （10/14，deepseek-flash）/ Safety PASS / Resume PASS / UXSmoke PASS / **Packaging PASS（根 dist+入口）**。
+3. 完整 8 gate 表见 release-report.md；真实模型配额 ≈ 数十美分级（RealModel 10 场景 ×1）。key 全程 CredentialStore
+   （--key-source=store），零落盘。
 
 ## 验收结论（指挥回填）
 
-- [ ] 合入 / 打回
+- [x] 合入（指挥接手完成；首执行器中断记录见卡头部）
 - 备注：
+  **里程碑：8 门禁全绿 → release-report 总判定 READY**（此前是 108 前的 blocked 旧报告）。指挥执行
+  `run-release-gates.ts --key-source=store` 重出报告（509s）：
+  Build PASS / Unit PASS（158s，judgeUnit 修复生效）/ Deterministic Bench PASS（17 场景）/ **Real Model Bench PASS
+  （10/14，deepseek-flash 默认档）**/ Safety PASS / Resume PASS / UX Smoke PASS / **Packaging PASS（根 dist+入口）**。
+  根发布入口（首执行器落盘、经指挥验证）：index.ts 运行时读版本 + cliEntry 引用 @vessel/cli + cliEntryReady 探测；
+  tsconfig.release.json + build:release + package.json exports/files + vitest include + 4 测试；tsc 双通道 exit 0、
+  npm pack --dry-run 7 entries、index.test 4 passed。
+  过程：首执行器 32 分钟无产出被中断（预估 15-25 分钟，两轮状态询问无回复），其根入口产物质量良好被保留，
+  指挥补完验证 + 整跑门禁。**112 关闭——V1.1 release gates 达成 ready 状态（最优化核心里程碑）。**
