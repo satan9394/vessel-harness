@@ -4,9 +4,10 @@ import * as path from 'node:path';
 import { spawn } from 'node:child_process';
 import { VERSION } from '@vessel/shared';
 import { MockProvider } from '@vessel/llm';
-import { composeHarness, createCredentialStore, type EnforcementProjection } from '@vessel/application';
+import { composeHarness, type EnforcementProjection } from '@vessel/application';
 import { createVesselServer } from '@vessel/local-server';
 import { ProviderStore, parseBackupKeep, type ProviderConfig } from './providers/ProviderStore.js';
+import { createDefaultProviderStore } from './providers/defaultStore.js';
 import {
   PROVIDER_EXPORT_VERSION,
   buildExport,
@@ -186,14 +187,15 @@ function parseCostMultiplier(raw: string, label = '--cost-multiplier'): number {
 }
 
 /**
- * 默认 ProviderStore（task 034）：附加 CredentialStore —— Windows 优先 DPAPI 加密
- * secrets.json，其余显式降级 plaintext。apiKey 写入走 secretRef，providers.json 不再
- * 落明文；读取经 store 解析回 apiKey。真实 ~/.vessel 下的凭据迁移只在 CLI 真正运行
- * 时触发（测试一律注入 rootDir/temp，绝不碰真实目录）。
+ * 默认 ProviderStore（task 034；task 106 起收敛到 `createDefaultProviderStore`）。
+ *
+ * 语义不变：附加 CredentialStore —— Windows 优先 DPAPI 加密 secrets.json，其余显式
+ * 降级 plaintext；apiKey 写入走 secretRef，providers.json 不再落明文，读取经 store
+ * 解析回 apiKey。TUI（`runChat`）复用同一工厂，避免两条构造路径漂移。
+ * 真实 ~/.vessel 下的凭据迁移只在 CLI 真正运行时触发（测试一律注入临时 root，绝不碰真实目录）。
  */
 function defaultProviderStore(opts: { backupKeep?: number } = {}): ProviderStore {
-  const credentialStore = createCredentialStore();
-  return new ProviderStore({ credentialStore, ...(opts.backupKeep !== undefined ? { backupKeep: opts.backupKeep } : {}) });
+  return createDefaultProviderStore(opts);
 }
 
 /** 原子写文本文件（<file>.tmp → rename），用于 `vessel provider export --out`。 */

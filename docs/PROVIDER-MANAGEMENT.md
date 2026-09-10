@@ -169,12 +169,14 @@ vessel run --prompt "ping"
   provider 报「API key 无效或无权限」。lane/驱动侧另有 `--key-source=auto|env|store` 显式选源
   （诊断用，只打印来源名/长度/是否一致，**不出密钥**）。实测（task 105）：`store` / `env` / `auto`
   三路均可用；`auto` 在 env 被塞假值时仍选 store（store 优先语义保持）。
-- ⚠️ **`vessel chat`（TUI）目前未接 CredentialStore**：`runChat()` 的默认 `ProviderStore` 没有凭据后端，
-  `secretRef` 解析不出 apiKey → 401 `Missing API key`；`vessel run` 不受影响（走 `defaultProviderStore()`）。
-  属独立缺陷，待单独修。
-- ⚠️ **测试机器状态耦合**：`apps/cli/src/cli.test.ts` 的 run smoke 与 `apps/cli/src/tui/chat.test.ts` 的
-  TUI 用例会读真实 `~/.vessel`，把默认 provider 切成真实供应商后它们会打真实网络/断言 `mock` 而失败。
-  切默认前先确认这两个用例已改为注入临时 root（建议后续卡处理）。
+- ✅ **`vessel chat`（TUI）已接 CredentialStore（task 106 修复）**：`runChat()` 的默认 `ProviderStore` 与
+  `vessel run` 共用 `createDefaultProviderStore()`（`apps/cli/src/providers/defaultStore.ts`），
+  `secretRef` 正常解析回 apiKey。修复前是裸 `new ProviderStore()`（无凭据后端）→ 401 `Missing API key`。
+  回归证据：`apps/cli/src/tui/chat.test.ts` 的「secretRef → apiKey」用例（本地 loopback 端点断言
+  `Authorization: Bearer <key>`，不打真实网络）。
+- ✅ **测试不再耦合机器状态（task 106 修复）**：`cli.test.ts` 的 run smoke 与 `chat.test.ts` 的 TUI 用例
+  现在显式注入临时 `VESSEL_PROVIDER_ROOT`（provider 状态根，`secrets.json` 同根）+ `VESSEL_USAGE_ROOT`，
+  默认 store 的根目录由 `providerStateRoot()` 断言。把默认 provider 切成真实供应商后这两个文件仍全绿。
 
 ## 4. 模型拉取（vessel models）行为
 

@@ -9,10 +9,59 @@ import { main, startServe } from './cli.js';
 import * as cli from './cli.js';
 import { composeHarness } from '@vessel/application';
 import { MockProvider } from '@vessel/llm';
+import { ProviderStore } from './providers/ProviderStore.js';
+import { providerStateRoot } from './providers/defaultStore.js';
 
 const REPO_ROOT = fileURLToPath(new URL('../../../', import.meta.url));
 const POLICY = path.join(REPO_ROOT, 'configs', 'policy.default.yaml');
 const BEHAVIOR = path.join(REPO_ROOT, 'configs', 'behavior.default.yaml');
+
+/** 本地 loopback 端点替身（不发起真实网络）：记录请求头，回一句固定文本（SSE / JSON 都支持）。 */
+async function startLoopback(
+  marker: string,
+): Promise<{ baseUrl: string; seen: http.IncomingHttpHeaders[]; close: () => Promise<void> }> {
+  const seen: http.IncomingHttpHeaders[] = [];
+  const server = http.createServer((req, res) => {
+    let raw = '';
+    req.on('data', (c) => { raw += c; });
+    req.on('end', () => {
+      seen.push(req.headers);
+      // AgentLoop 是 stream-first：请求带 stream:true 时必须回 SSE，否则正文为空。
+      let stream = false;
+      try {
+        stream = (JSON.parse(raw) as { stream?: boolean }).stream === true;
+      } catch {
+        stream = false;
+      }
+      if (stream) {
+        res.writeHead(200, { 'content-type': 'text/event-stream' });
+        res.write(
+          `data: ${JSON.stringify({
+            choices: [{ delta: { content: marker }, finish_reason: 'stop' }],
+            usage: { prompt_tokens: 3, completion_tokens: 2 },
+          })}\n\n`,
+        );
+        res.write('data: [DONE]\n\n');
+        res.end();
+        return;
+      }
+      res.writeHead(200, { 'content-type': 'application/json' });
+      res.end(
+        JSON.stringify({
+          choices: [{ index: 0, finish_reason: 'stop', message: { role: 'assistant', content: marker } }],
+          usage: { prompt_tokens: 3, completion_tokens: 2 },
+        }),
+      );
+    });
+  });
+  await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
+  const port = (server.address() as AddressInfo).port;
+  return {
+    baseUrl: `http://127.0.0.1:${port}/v1`,
+    seen,
+    close: () => new Promise<void>((resolve) => server.close(() => resolve())),
+  };
+}
 
 function capture() {
   const logs: string[] = [];
@@ -30,8 +79,31 @@ function captureBoth() {
 
 describe('CLI (apps/cli)', () => {
   let dir: string;
-  beforeEach(() => { dir = fs.mkdtempSync(path.join(os.tmpdir(), 'cah-cli-')); });
-  afterEach(() => { fs.rmSync(dir, { recursive: true, force: true }); });
+  let cfgDir: string;
+  let usageDir: string;
+  let oldProviderRoot: string | undefined;
+  let oldUsageRoot: string | undefined;
+
+  // task 106 隔离：`main()` 内部的默认 store / usage store 一律落在临时目录，
+  // 绝不读写真实 ~/.vessel（否则机器上 current=真实供应商时 run smoke 会打真网络）。
+  beforeEach(() => {
+    dir = fs.mkdtempSync(path.join(os.tmpdir(), 'cah-cli-'));
+    cfgDir = fs.mkdtempSync(path.join(os.tmpdir(), 'cah-cli-cfg-'));
+    usageDir = fs.mkdtempSync(path.join(os.tmpdir(), 'cah-cli-usage-'));
+    oldProviderRoot = process.env.VESSEL_PROVIDER_ROOT;
+    oldUsageRoot = process.env.VESSEL_USAGE_ROOT;
+    process.env.VESSEL_PROVIDER_ROOT = cfgDir;
+    process.env.VESSEL_USAGE_ROOT = usageDir;
+  });
+  afterEach(() => {
+    if (oldProviderRoot === undefined) delete process.env.VESSEL_PROVIDER_ROOT;
+    else process.env.VESSEL_PROVIDER_ROOT = oldProviderRoot;
+    if (oldUsageRoot === undefined) delete process.env.VESSEL_USAGE_ROOT;
+    else process.env.VESSEL_USAGE_ROOT = oldUsageRoot;
+    fs.rmSync(dir, { recursive: true, force: true });
+    fs.rmSync(cfgDir, { recursive: true, force: true });
+    fs.rmSync(usageDir, { recursive: true, force: true });
+  });
 
   it('--help prints usage and exits 0', async () => {
     const { logs, restore } = capture();
@@ -64,6 +136,40 @@ describe('CLI (apps/cli)', () => {
     const out = logs.join('\n');
     expect(out).toContain('CLI-SMOKE-GOLDEN-77'); // final answer reflects real file content
     expect(out).toContain('kind=success');
+  });
+
+  it('② run 只读 VESSEL_PROVIDER_ROOT 临时 root：临时 current.json 决定 provider（不读真实 ~/.vessel）', async () => {
+    const endpoint = await startLoopback('CLI-106-MARKER');
+    try {
+      // 临时 root 里放一个 loopback provider 并设为当前：若 run 读的是真实 ~/.vessel，
+      // 这个端点永远收不到请求（真实 root 的 current 是 mock 或真实供应商）。
+      fs.writeFileSync(
+        path.join(cfgDir, 'providers.json'),
+        JSON.stringify([
+          { id: 'iso106', name: 'iso106', protocol: 'openai-compatible', baseUrl: endpoint.baseUrl, model: 'm' },
+        ]),
+        'utf8',
+      );
+      fs.writeFileSync(path.join(cfgDir, 'current.json'), JSON.stringify({ id: 'iso106' }), 'utf8');
+
+      const { logs, restore } = capture();
+      const code = await main([
+        'run', '--workspace', dir, '--prompt', 'ping',
+        '--policy', POLICY, '--behavior', BEHAVIOR,
+      ]);
+      restore();
+
+      expect(code).toBe(0);
+      expect(endpoint.seen.length).toBeGreaterThanOrEqual(1); // 临时 root 的 provider 真的被用了
+      expect(logs.join('\n')).toContain('CLI-106-MARKER');
+      // 默认 store / 状态根都指向临时目录（不是真实 ~/.vessel）
+      expect(providerStateRoot()).toBe(cfgDir);
+      expect(new ProviderStore({}).rootDir).toBe(cfgDir);
+      // usage 也落在临时 root（不写真实 ~/.vessel/usage.json）
+      expect(fs.existsSync(path.join(usageDir, 'usage.json'))).toBe(true);
+    } finally {
+      await endpoint.close();
+    }
   });
 
   it('policy DENY demo: destructive shell command is DENIED + audited, not just prompted (acceptance 3)', async () => {

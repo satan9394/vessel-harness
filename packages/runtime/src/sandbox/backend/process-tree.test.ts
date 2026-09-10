@@ -225,6 +225,11 @@ describe('Sandbox — escape detection at dispose kills escaped descendants (tas
 describe('Sandbox — real Windows timing-window enumeration (task 072, win32 only)', () => {
   const onWindows = process.platform === 'win32';
 
+  // task 106：本用例是真的 spawn/枚举/杀进程，单跑就要 29–39 s（实测），贴着全局
+  // testTimeout=30000ms，全量并发（多文件同时跑 + 杀软扫描）下偶发超时。修法是把**这条
+  // 用例**的超时放宽到 120 s（4× 余量），**不跳过、不放松断言**——断言仍要求
+  // 「预生成的孙进程被枚举进 tree + dispose 后 root/孙进程都死了」，跳过它就等于放弃
+  // 072 在 Windows 上的唯一真机验证。
   it.skipIf(!onWindows)('attaches a pre-spawned grandchild into the job and enumerates it', async () => {
     // A root that forks its grandchild IMMEDIATELY on spawn — so by the time we
     // attach, the grandchild already exists (the exact 071 timing-window gap).
@@ -273,5 +278,5 @@ describe('Sandbox — real Windows timing-window enumeration (task 072, win32 on
     };
     expect(pidAlive(root.pid!)).toBe(false);
     expect(pidAlive(grandchild)).toBe(false);
-  });
+  }, 120_000);
 });

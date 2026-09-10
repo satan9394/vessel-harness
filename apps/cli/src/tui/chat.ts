@@ -2,8 +2,9 @@ import * as readline from 'node:readline';
 import { randomUUID } from 'node:crypto';
 import type { ChatProvider } from '@vessel/shared';
 import { MockProvider } from '@vessel/llm';
-import { composeHarness, type ComposedHarness } from '@vessel/application';
+import { composeHarness, type ComposedHarness, type SyncCredentialStore } from '@vessel/application';
 import { ProviderStore, type ProviderConfig } from '../providers/ProviderStore.js';
+import { createDefaultProviderStore } from '../providers/defaultStore.js';
 import { runSetupWizard, createClackIO, fetchModelOutcome } from '../providers/setup.js';
 import { buildRealProvider, describeProviderError, planProvider } from '../providers/providerFactory.js';
 import { modelsForProtocol } from '@vessel/application';
@@ -163,7 +164,28 @@ export interface ChatOptions {
   behaviorIRPath: string;
   permission?: PermissionMode;
   store?: ProviderStore;
+  /**
+   * 凭据后端（task 106）：**仅在 `store` 缺省时生效**——用于给 TUI 默认 ProviderStore
+   * 接上 CredentialStore（测试注入内存后端，不碰真实 secrets.json）。
+   */
+  credentialStore?: SyncCredentialStore;
   io?: ChatSessionIO;
+}
+
+/**
+ * TUI 的 ProviderStore 解析（task 106，导出供测试断言隔离与凭据接线）。
+ *
+ * `store` 显式传入 → 原样使用（调用方负责凭据后端）；否则走 `createDefaultProviderStore()`：
+ * 状态根 = `VESSEL_PROVIDER_ROOT` / `~/.vessel`，并**接上 CredentialStore** —— 这是 106 的
+ * 修复点：修前是 `new ProviderStore()`，`secretRef` 解析不出 apiKey → 401 `Missing API key`。
+ */
+export function resolveChatStore(
+  opts: { store?: ProviderStore; credentialStore?: SyncCredentialStore } = {},
+): ProviderStore {
+  if (opts.store) return opts.store;
+  return createDefaultProviderStore(
+    opts.credentialStore ? { credentialStore: opts.credentialStore } : {},
+  );
 }
 
 export interface SlashResult {
@@ -177,7 +199,8 @@ export interface SlashResult {
  * Run the interactive chat session. Returns the exit code.
  */
 export async function runChat(opts: ChatOptions): Promise<number> {
-  const store = opts.store ?? new ProviderStore();
+  // task 106：默认 store 必须接 CredentialStore（否则 secretRef → apiKey 解析失败 → 401）。
+  const store = resolveChatStore(opts);
 
   // real-stdio mode wires two-stage Ctrl+C (task 050): the first press
   // interrupts the active turn, the second press (or a press with no active

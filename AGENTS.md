@@ -33,7 +33,11 @@
 5. 模块化单体、依赖零环（core 只依赖 shared 类型契约；policy 不反向依赖 tools）。
 6. 默认技术栈 TypeScript + Node；无任何永久删除（回收站纪律）；禁止 force push。
 7. 新功能必须有 Vitest 测试；不得回归既有测试与 benchmark（全量验证后再收尾）。
-8. 克制：不追求 Agent 数量（并行 1–3）；不加几十个 Provider；不做无关重构。
+8. 测试隔离（task 106 起）：凡是会构造**默认** ProviderStore / UsageStore 的用例（`main()`、`runChat()` 的默认路径），
+   必须显式注入临时 `VESSEL_PROVIDER_ROOT` / `VESSEL_USAGE_ROOT`（`mkdtemp` + afterEach 还原环境变量），
+   断言不得读写真实 `~/.vessel`——机器上的 `current.json` 是真实供应商时，否则会打真网络/断言失败。
+   默认 store 的根目录用 `providerStateRoot()`（`apps/cli/src/providers/defaultStore.ts`）断言；凭据后端用内存假后端注入。
+9. 克制：不追求 Agent 数量（并行 1–3）；不加几十个 Provider；不做无关重构。
 
 ## 开发工作流（六步循环）
 

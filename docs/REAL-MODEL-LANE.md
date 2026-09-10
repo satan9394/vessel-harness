@@ -253,9 +253,10 @@ $plain = [System.Text.Encoding]::UTF8.GetString(
 - `vessel run` 真跑（store 路径，无需任何 env）：`vessel run --prompt "ping"` → 最终回复 `pong`、
   `kind=success steps=1`，usage 落 `~/.vessel/usage.json`（`provider=opencode-go, model=mimo-v2.5,
   inputTokens=3265, outputTokens=37`）。
-- ⚠️ **本机 `vessel chat`（TUI）仍不可用**：`runChat()` 的默认 `ProviderStore` 未接 CredentialStore
-  （`apps/cli/src/tui/chat.ts`），`secretRef` 解析不到 apiKey → 401 `Missing API key`。这是**独立缺陷**，
-  不在 105 范围内（105 只做 key 入库 + `vessel run` 真跑验证），待单独开卡修。
+- ✅ **`vessel chat`（TUI）已可用（task 106 修复）**：`runChat()` 的默认 `ProviderStore` 改为与
+  `vessel run` 共用 `createDefaultProviderStore()`（接 CredentialStore），`secretRef` 能解析回 apiKey。
+  修复前是裸 `new ProviderStore()` → 401 `Missing API key`（105 发现 2）；回归用例见
+  `apps/cli/src/tui/chat.test.ts`（本地 loopback 端点断言 Bearer 头，不打真实网络）。
 
 ## 设计选择与理由
 

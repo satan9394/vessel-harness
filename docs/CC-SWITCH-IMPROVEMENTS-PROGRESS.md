@@ -17,14 +17,15 @@
 | 102 | **真实模型跑通**：opencode-go 协议修正（x-opencode-session + 具名 UA + 错误分类 + 路径分流）+ mimo-v2.5 真实跑 082 lane/084 gate | 5af2dfc | 1082 测试 + tsc 0 |
 | 103 | CLI/TUI 侧协议适配（方案 A：协议上提 packages/llm 作 SSOT，lane 485 行重复删除；providerFactory 唯一构造路径；顺带修 `--provider <id>` 缺陷） | afac81a | 1102 测试 + tsc 0 |
 | 104 | P2：供应商导出**默认脱敏+自检** / 导入合并 / 备份轮转零删除 / 多端点测速（建议不改默认） | 812a382 | 1148 测试 + tsc 0 |
+| 105 | 用户 key 入库（DPAPI 密文，`same=true`）+ **`vessel run` 真实成功**（ping→pong，无 400/401，usage 3265/37） | e064209 | 1147 测试 + tsc 0 |
+| 106 | chat 凭据（defaultStore 唯一工厂 + resolveChatStore）+ 测试隔离（临时 root + 3 新用例）+ process-tree 超时 120s | c9e4aab（随本批提交） | **1152 测试 + 0 failed** + web 74 |
 
-## 待做（按报告优先级）
+## 进行中 / 待做
 
 | 卡 | 内容 | 优先级 | 备注 |
-| — | 用户 key 入库 + CLI 真跑验证（105，执行中） | P0 | 102 记录 `same=false` |
-| 106 | 测试基础设施：`chat.test.ts` 隔离 `VESSEL_PROVIDER_ROOT`（现读真实 current.json，单跑会调真供应商）+ process-tree 时序 flaky（超时放宽） | P1 | 104 记录 |
 | — | mimo-v2.5 长工具链收敛不稳定（finalText 空 + 工具到 64 步）→ 调整场景集/判据或接受为模型特性 | P1 | 102 记录；**需用户决策** |
 | — | cache_creation 展示层（apps/web UsageBar + local-server SSE 仍只 cacheRead） | P2 | 099 记录 |
+| — | 已知 flaky 观察：process-tree 已随 106 放宽（120s）；rename EPERM（Windows 杀软锁）已有界重试 | — | 持续观察 |
 
 ## 暂不做（P3，报告结论）
 
