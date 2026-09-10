@@ -2,7 +2,7 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { spawn } from 'node:child_process';
-import { VERSION } from '@vessel/shared';
+import { VERSION, renameWithRetry } from '@vessel/shared';
 import { MockProvider } from '@vessel/llm';
 import { composeHarness, type EnforcementProjection } from '@vessel/application';
 import { createVesselServer } from '@vessel/local-server';
@@ -203,7 +203,7 @@ function writeTextAtomic(file: string, text: string): void {
   fs.mkdirSync(path.dirname(file), { recursive: true });
   const tmp = `${file}.tmp`;
   fs.writeFileSync(tmp, text, 'utf8');
-  fs.renameSync(tmp, file);
+  renameWithRetry(tmp, file);
 }
 
 async function cmdRun(flags: Map<string, string>): Promise<number> {

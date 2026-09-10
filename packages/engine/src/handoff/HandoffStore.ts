@@ -1,6 +1,7 @@
 import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
+import { renameWithRetry } from '@vessel/shared';
 import { buildHandoff, newHandoffId, parseHandoff, serializeHandoff, type HandoffMaterial, type HandoffRecord } from './Handoff.js';
 import { renderHandoffText } from './HandoffRender.js';
 
@@ -122,7 +123,7 @@ export class HandoffStore {
     const file = path.join(dir, META_FILE);
     const tmp = path.join(dir, `${META_FILE}.${process.pid}.${Date.now()}.tmp`);
     fs.writeFileSync(tmp, serializeHandoff(record), 'utf8');
-    fs.renameSync(tmp, file);
+    renameWithRetry(tmp, file);
   }
 }
 

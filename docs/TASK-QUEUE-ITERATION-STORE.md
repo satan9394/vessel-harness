@@ -34,7 +34,9 @@ settle(met|not_met) ◀── 结果回写队列                      generator 
 - 队列/迭代的领域模型（`LoopTask`、`IterationResult`、061/062 run 记录）全在 engine——存储作为
   它们的持久化面放同包，不新增包、不新增 npm 依赖、不引入跨层引用（全部 node 内建 + engine 自产类型）。
 - **存储模式照抄 059 不重造**：每条记录一个目录 + `meta.json`；写走 `tmp+rename` 原子替换
-  （`meta.json.<pid>.<ts>.tmp` → rename，崩溃不撕裂）；缺省 `~/.vessel/<kind>`、env 可覆盖
+  （`meta.json.<pid>.<ts>.tmp` → rename，崩溃不撕裂）；rename 走 `@vessel/shared` 的 `renameWithRetry`
+  （task 113 建 helper、114 engine 收敛：EPERM/EBUSY/EACCES 有界重试 3 次、5/15ms 退避）；
+  缺省 `~/.vessel/<kind>`、env 可覆盖
   （`VESSEL_TASKQUEUE_ROOT` / `VESSEL_ITERATIONS_ROOT`），测试注入 tmp 根；id 沿用既有
   `<kind>_<ts>_<hex>` 约定（sess_/team_/review_ 同款）——队列 `task_…`、迭代条目 `iter_…`。
 - IO 同步（与 SessionRegistry / ReviewHandoffStore / ProjectRegistry 同风格）；读取容忍损坏条目

@@ -51,6 +51,7 @@ handoff:
 ```
 
 - 原子写：meta.json 走 tmp+rename（写坏/半写不可能落盘）；读取容忍损坏条目（get → undefined，list 跳过）。
+  task 114 起 rename 统一走 `@vessel/shared` 的 `renameWithRetry`（EPERM/EBUSY/EACCES 有界重试 3 次、5/15ms 退避）。
 - API：`HandoffStore.create(material, opts)` / `get(id)` / `list()` / `latest()`。
 - 并发安全：单进程同步 IO + 原子写；多写者需自行串行（本卡不引入锁）。
 

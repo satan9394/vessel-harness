@@ -1,10 +1,22 @@
 import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { IterationStore, defaultIterationRoot, newIterationEntryId } from './iteration-store.js';
 import type { IterationEntry, IterationTaskRecord } from './iteration-store.js';
 import type { IterationResult } from './LoopEngine.js';
+
+// node:fs 的 ESM 命名空间导出 non-configurable（vitest 2.1.9 报 "Cannot redefine property"），
+// 沿用 113 vi.mock 方案：默认真实委托的 renameSync，供 task 114 EPERM 有界重试注入；
+// 其余 API 原样委托，不影响本文件其它用例。
+vi.mock('node:fs', async () => {
+  const actual = await vi.importActual<typeof import('node:fs')>('node:fs');
+  const renameSync = actual.renameSync;
+  return {
+    ...actual,
+    renameSync: vi.fn((...args: Parameters<typeof renameSync>) => renameSync(...args)),
+  };
+});
 
 function tempDir(): string {
   return fs.mkdtempSync(path.join(os.tmpdir(), 'cah-iteration-store-'));
@@ -254,5 +266,34 @@ describe('engine/iteration-store — IterationStore 迭代日志（task 063）',
     expect(replay[0]!.transition).toEqual({ from: 'in-progress', to: 'met' });
     expect(rec.taskId).toBe(queueTaskId);
     expect(rec.goal).toBe('任务 Q');
+  });
+});
+
+describe('engine/iteration-store — renameWithRetry 收敛（task 114）', () => {
+  let root: string;
+  beforeEach(() => {
+    root = tempDir();
+  });
+  afterEach(() => {
+    fs.rmSync(root, { recursive: true, force: true });
+  });
+
+  it('appendIteration 在 rename 瞬时 EPERM 下经 helper 有界重试后成功落盘（helper 复用确认）', () => {
+    const renameSync = vi.mocked(fs.renameSync);
+    renameSync.mockClear();
+    renameSync.mockImplementationOnce(() => {
+      throw Object.assign(new Error('locked'), { code: 'EPERM' });
+    });
+    renameSync.mockImplementationOnce(() => {
+      throw Object.assign(new Error('locked'), { code: 'EPERM' });
+    });
+    const s = new IterationStore({ iterationsRoot: root });
+    const rec = s.appendIteration(TASK, { verdict: 'met', reason: 'ok' });
+    expect(rec.taskId).toBe(TASK.taskId);
+    // helper 复用确认：裸 fs.renameSync 第 2 次 EPERM 即抛出；走到 3 次 = renameWithRetry 接管
+    expect(renameSync).toHaveBeenCalledTimes(3);
+    // 第 3 次真实 rename 生效：跨实例可完整回读
+    const fresh = new IterationStore({ iterationsRoot: root });
+    expect(fresh.get(TASK.taskId)!.iterations).toHaveLength(1);
   });
 });

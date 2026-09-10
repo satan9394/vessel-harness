@@ -1,7 +1,7 @@
 import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import {
   ProjectTaskQueue,
   defaultTaskQueueRoot,
@@ -11,6 +11,18 @@ import {
   projectQueueSelectTask,
 } from './project-task-queue.js';
 import type { QueueTask } from './project-task-queue.js';
+
+// node:fs 的 ESM 命名空间导出 non-configurable（vitest 2.1.9 报 "Cannot redefine property"），
+// 沿用 113 vi.mock 方案：默认真实委托的 renameSync，供 task 114 EPERM 有界重试注入；
+// 其余 API 原样委托，不影响本文件其它用例。
+vi.mock('node:fs', async () => {
+  const actual = await vi.importActual<typeof import('node:fs')>('node:fs');
+  const renameSync = actual.renameSync;
+  return {
+    ...actual,
+    renameSync: vi.fn((...args: Parameters<typeof renameSync>) => renameSync(...args)),
+  };
+});
 
 function tempDir(): string {
   return fs.mkdtempSync(path.join(os.tmpdir(), 'cah-taskqueue-'));
@@ -398,5 +410,34 @@ describe('engine/project-task-queue — ProjectTaskQueue 持久队列（task 063
     const c = new ProjectTaskQueue({ tasksRoot: root });
     c.enqueue({ projectRoot: ROOT_PROJECT, goal: 'C' });
     expect(a.list({ status: 'pending' }).map((t) => t.goal)).toEqual(['C']);
+  });
+});
+
+describe('engine/project-task-queue — renameWithRetry 收敛（task 114）', () => {
+  let root: string;
+  beforeEach(() => {
+    root = tempDir();
+  });
+  afterEach(() => {
+    fs.rmSync(root, { recursive: true, force: true });
+  });
+
+  it('enqueue 在 rename 瞬时 EPERM 下经 helper 有界重试后成功落盘（helper 复用确认）', () => {
+    const renameSync = vi.mocked(fs.renameSync);
+    renameSync.mockClear();
+    renameSync.mockImplementationOnce(() => {
+      throw Object.assign(new Error('locked'), { code: 'EPERM' });
+    });
+    renameSync.mockImplementationOnce(() => {
+      throw Object.assign(new Error('locked'), { code: 'EPERM' });
+    });
+    const s = new ProjectTaskQueue({ tasksRoot: root });
+    const rec = s.enqueue({ projectRoot: ROOT_PROJECT, goal: '任务 114' });
+    expect(rec.status).toBe('pending');
+    // helper 复用确认：裸 fs.renameSync 第 2 次 EPERM 即抛出；走到 3 次 = renameWithRetry 接管
+    expect(renameSync).toHaveBeenCalledTimes(3);
+    // 第 3 次真实 rename 生效：跨实例可完整读回
+    const fresh = new ProjectTaskQueue({ tasksRoot: root });
+    expect(fresh.get(rec.id)!.goal).toBe('任务 114');
   });
 });
