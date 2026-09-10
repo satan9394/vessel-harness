@@ -150,5 +150,15 @@
 
 ## 验收结论（指挥回填）
 
-- [ ] 合入 / 打回
+- [x] 合入（指挥接手复核：执行器第 1 次全量后中断，其补录完整工作证明；指挥独立全量确认一致）
+- 备注：
+  **指挥独立复核**：`tsc -b` exit 0；全量 vitest **110 files / 1186 passed + 1 skipped / exit 0**（= 基线 1171 + 15 新用例：
+  helper 9 + EPERM 集成测试；无回归）；web **82 passed**；`renameWithRetry` 迁移 **8 处全覆盖**
+  （Session/ProjectRegistry/ReviewHandoffStore/SessionRegistry + UsageStore/pricingOverride/pricingSync/
+  ProviderStore/CredentialStore——含已有实现收敛）。
+  认可：helper 选址 `packages/shared/src/atomicWrite.ts`（叶子包，依赖环检查无环）；语义与 101 对齐
+  （3 次/5-15ms/仅 EPERM·EBUSY·EACCES 重试、其它立即抛、不吞错）；注入式 rename/sleep 便于 mock；默认用
+  fs 命名空间动态访问兼容 vitest spyOn；+15 用例含 helper 单测与 2 条 EPERM 集成测试；文档三处同步。
+  过程：执行器两次健康回复后第 2 次全量期间指挥误中断（其补录第 2 次全量 1186 与 web 82 全绿），指挥独立全量
+  确认无差异。**113 关闭——原子写 EPERM flaky 治理达成（全量连续 0 failed）**。
 - 备注：
