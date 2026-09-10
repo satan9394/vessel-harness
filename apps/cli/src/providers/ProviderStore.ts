@@ -2,7 +2,7 @@ import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import type { ProviderName } from '@vessel/llm';
-import { assertCostMultiplier, DEFAULT_COST_MULTIPLIER } from '@vessel/shared';
+import { assertCostMultiplier, DEFAULT_COST_MULTIPLIER, renameWithRetry } from '@vessel/shared';
 import {
   parseSecretRef,
   makeSecretRef,
@@ -479,13 +479,15 @@ export class ProviderStore {
 
   // ---- internal ----
 
-  /** 原子写：<file>.tmp 写完 fsync 后 rename 覆盖目标（防半写）。写前先备份旧文件。 */
+  /** 原子写：<file>.tmp 写完 fsync 后 rename 覆盖目标（防半写）。写前先备份旧文件。
+   *  task 113 起 rename 走共享有界重试（EPERM/EBUSY/EACCES，3 次 5/15ms）——
+   *  实为治理升级：此前该点无任何重试。 */
   private writeJsonAtomic(file: string, data: unknown): void {
     fs.mkdirSync(this.rootDir, { recursive: true });
     this.backupBeforeWrite(file);
     const tmp = `${file}.tmp`;
     fs.writeFileSync(tmp, `${JSON.stringify(data, null, 2)}\n`, 'utf8');
-    fs.renameSync(tmp, file);
+    renameWithRetry(tmp, file);
   }
 
   /**

@@ -1,6 +1,7 @@
 import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
+import { renameWithRetry } from '@vessel/shared';
 import {
   costBreakdown,
   resolvePrice,
@@ -522,21 +523,10 @@ export class UsageStore {
     const tmp = `${this.file}.tmp`;
     fs.writeFileSync(tmp, JSON.stringify(this.data, null, 2), 'utf8');
     // 原子写：tmp + rename。Windows 上杀软/索引器可能短暂锁住 tmp 或目标文件，
-    // rename 偶发 EPERM/EBUSY——有界重试（3 次，5/15ms 退避），仍失败则抛出，
-    // 不吞错、不改语义（要么完整旧文件，要么完整新文件）。
-    let lastError: unknown;
-    for (let attempt = 0; attempt < 3; attempt += 1) {
-      try {
-        fs.renameSync(tmp, this.file);
-        return;
-      } catch (error) {
-        lastError = error;
-        const code = (error as NodeJS.ErrnoException).code;
-        if (code !== 'EPERM' && code !== 'EBUSY' && code !== 'EACCES') throw error;
-        Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, attempt === 0 ? 5 : 15);
-      }
-    }
-    throw lastError;
+    // rename 偶发 EPERM/EBUSY——共享有界重试（task 113：3 次，5/15ms 退避，
+    // 仅 EPERM/EBUSY/EACCES 重试），仍失败则抛出，不吞错、不改语义
+    // （要么完整旧文件，要么完整新文件）。
+    renameWithRetry(tmp, this.file);
   }
 
   private key(provider: string, model: string): string {

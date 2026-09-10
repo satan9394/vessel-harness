@@ -1,7 +1,7 @@
 import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { Session } from './Session.js';
 
 describe('Session (append-only JSONL event log)', () => {
@@ -69,6 +69,29 @@ describe('Session (append-only JSONL event log)', () => {
     expect(removed).toBe(1);
     const seqs = s.replay().map((r) => r.seq);
     expect(seqs).toEqual([1, 2]);
+    await s.close();
+  });
+
+  it('replaceRegion survives transient EPERM on rename (task 113 bounded retry)', async () => {
+    const s = await Session.open({ workspaceRoot: dir, sessionId: 's6' });
+    await s.appendSync({ type: 'user/message', msgId: 'm1', role: 'user', content: 'a', surface: true });
+    await s.appendSync({ type: 'user/message', msgId: 'm2', role: 'user', content: 'b', surface: true });
+    const original = fs.promises.rename.bind(fs.promises);
+    const spy = vi
+      .spyOn(fs.promises, 'rename')
+      .mockRejectedValueOnce(Object.assign(new Error('locked'), { code: 'EPERM' }))
+      .mockRejectedValueOnce(Object.assign(new Error('locked'), { code: 'EPERM' }))
+      .mockImplementation((a, b) => original(a, b));
+    try {
+      const removed = await s.replaceRegion(1, 1, {
+        type: 'user/message', msgId: 'mc', role: 'user', content: '<compacted-summary>…', source: 'compacted-summary', surface: true,
+      });
+      expect(removed).toBe(1);
+      expect(spy).toHaveBeenCalledTimes(3);
+      expect(s.replay().map((r) => r.seq)).toEqual([1, 2]);
+    } finally {
+      spy.mockRestore();
+    }
     await s.close();
   });
 });

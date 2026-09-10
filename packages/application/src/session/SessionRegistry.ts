@@ -2,6 +2,7 @@ import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import * as crypto from 'node:crypto';
+import { renameWithRetry } from '@vessel/shared';
 
 /** Persisted metadata describing one application session. */
 export interface SessionMeta {
@@ -133,6 +134,7 @@ export class SessionRegistry {
     fs.mkdirSync(dir, { recursive: true });
     const tmp = path.join(dir, `${SESSIONS_FILE}.${process.pid}.${Date.now()}.tmp`);
     fs.writeFileSync(tmp, payload, 'utf8');
-    fs.renameSync(tmp, this.file);
+    // task 113: 共享有界重试（EPERM/EBUSY/EACCES，3 次 5/15ms），原子语义不变。
+    renameWithRetry(tmp, this.file);
   }
 }

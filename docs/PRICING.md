@@ -372,7 +372,7 @@ vessel pricing sync --url http://127.0.0.1:8080/api.json --timeout 5000   # 自�
    （`pricing override delete` 墓碑，§12），同步不制造空洞。
 4. **幂等**：远端数据与既有目录一致 → `status=unchanged`、**不写盘**（文件逐字节不变，
    连 `lastSyncAt` 都不动）。差异比较忽略 `null` 与「字段缺失」的区别。
-5. **原子写**：`tmp + rename`（同 ProviderStore/UsageStore；Windows 上 EPERM/EBUSY 有界重试）。
+5. **原子写**：`tmp + rename`（task 113 起统一走 `@vessel/shared` 的 `renameWithRetry`；Windows 上 EPERM/EBUSY/EACCES 有界重试 3 次、5/15ms 退避，仍失败则抛最后一次错误）。
 6. `--dry-run` 只打印差异（新增/更新/未变/保留四类计数 + 前 10 条明细），不写盘。
 
 `lastSyncAt` 记录最后一次成功写盘的 ISO 时间；`source` 字段写明来源 URL 与单位说明

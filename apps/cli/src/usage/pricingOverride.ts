@@ -1,5 +1,6 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
+import { renameWithRetry } from '@vessel/shared';
 import {
   createOverridePriceSource,
   type OverridePriceSource,
@@ -124,24 +125,12 @@ export class PricingOverrideStore {
     }
   }
 
-  /** 原子写盘（tmp + rename；目标目录按需创建）。 */
+  /** 原子写盘（tmp + rename；目标目录按需创建；task 113 起走共享有界重试）。 */
   write(file: PricingOverrideFile): void {
     fs.mkdirSync(this.rootDir, { recursive: true });
     const tmp = `${this.file}.tmp`;
     fs.writeFileSync(tmp, `${JSON.stringify(file, null, 2)}\n`, 'utf8');
-    let lastError: unknown;
-    for (let attempt = 0; attempt < 3; attempt += 1) {
-      try {
-        fs.renameSync(tmp, this.file);
-        return;
-      } catch (error) {
-        lastError = error;
-        const code = (error as NodeJS.ErrnoException).code;
-        if (code !== 'EPERM' && code !== 'EBUSY' && code !== 'EACCES') throw error;
-        Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, attempt === 0 ? 5 : 15);
-      }
-    }
-    throw lastError;
+    renameWithRetry(tmp, this.file);
   }
 
   /** 当前覆盖条目（键 → 价）。 */

@@ -3,6 +3,7 @@ import * as os from 'node:os';
 import * as path from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { randomBytes } from 'node:crypto';
+import { renameWithRetry } from '@vessel/shared';
 
 /**
  * packages/application/credential/CredentialStore — OS 凭据存储抽象（task 034）。
@@ -81,7 +82,9 @@ interface SecretsFileShape {
 
 const SECRETS_VERSION = 1;
 
-/** 原子写 secrets.json：<file>.tmp 写完 fsync 后 rename 覆盖（防半写；跨文件改写非删除，安全）。 */
+/** 原子写 secrets.json：<file>.tmp 写完 fsync 后 rename 覆盖（防半写；跨文件改写非删除，安全）。
+   *  task 113 起 rename 走共享有界重试（EPERM/EBUSY/EACCES，3 次 5/15ms）——
+   *  实为治理升级：此前该点无任何重试；失败仍包装成 CredentialError（域错误契约不变）。 */
 function writeSecretsFile(file: string, data: SecretsFileShape): void {
   try {
     fs.mkdirSync(path.dirname(file), { recursive: true });
@@ -94,7 +97,7 @@ function writeSecretsFile(file: string, data: SecretsFileShape): void {
   const tmp = `${file}.tmp`;
   try {
     fs.writeFileSync(tmp, `${JSON.stringify(data, null, 2)}\n`, 'utf8');
-    fs.renameSync(tmp, file);
+    renameWithRetry(tmp, file);
   } catch (err) {
     throw new CredentialError(
       `write secrets file failed: "${file}"`,

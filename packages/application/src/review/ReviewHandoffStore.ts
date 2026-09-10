@@ -22,6 +22,7 @@ import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { parseReviewConclusion, REVIEW_OUTPUT_SCHEMA } from '@vessel/agents';
+import { renameWithRetry } from '@vessel/shared';
 import type {
   HandoffCreateInput,
   ReviewHandoffRecord,
@@ -281,10 +282,11 @@ export class ReviewHandoffStore {
     if (opts.writeMarkdown) {
       fs.writeFileSync(path.join(dir, HANDOFF_FILE), renderHandoffMarkdown(record), 'utf8');
     }
-    // meta.json —— tmp+rename 原子写（同 SessionRegistry.persist）
+    // meta.json —— tmp+rename 原子写（同 SessionRegistry.persist）；task 113 起走
+    // 共享有界重试（EPERM/EBUSY/EACCES，3 次 5/15ms），原子语义不变。
     const file = path.join(dir, META_FILE);
     const tmp = path.join(dir, `${META_FILE}.${process.pid}.${Date.now()}.tmp`);
     fs.writeFileSync(tmp, JSON.stringify(record, null, 2), 'utf8');
-    fs.renameSync(tmp, file);
+    renameWithRetry(tmp, file);
   }
 }

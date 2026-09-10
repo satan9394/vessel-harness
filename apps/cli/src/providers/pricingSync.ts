@@ -1,5 +1,6 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
+import { renameWithRetry } from '@vessel/shared';
 import {
   catalogEntryKey,
   readModelCatalog,
@@ -260,24 +261,12 @@ async function fetchModelsDev(
   return { ok: false, error: lastError, attempts: maxAttempts };
 }
 
-/** 原子写（tmp + rename；Windows 上 EPERM/EBUSY 有界重试）。 */
+/** 原子写（tmp + rename；task 113 起走共享有界重试：EPERM/EBUSY/EACCES，3 次 5/15ms）。 */
 function writeCatalogAtomic(file: string, catalog: ModelCatalog): void {
   fs.mkdirSync(path.dirname(file), { recursive: true });
   const tmp = `${file}.tmp`;
   fs.writeFileSync(tmp, `${JSON.stringify(catalog, null, 2)}\n`, 'utf8');
-  let lastError: unknown;
-  for (let attempt = 0; attempt < 3; attempt += 1) {
-    try {
-      fs.renameSync(tmp, file);
-      return;
-    } catch (error) {
-      lastError = error;
-      const code = (error as NodeJS.ErrnoException).code;
-      if (code !== 'EPERM' && code !== 'EBUSY' && code !== 'EACCES') throw error;
-      Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, attempt === 0 ? 5 : 15);
-    }
-  }
-  throw lastError;
+  renameWithRetry(tmp, file);
 }
 
 /**

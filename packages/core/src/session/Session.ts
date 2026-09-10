@@ -1,6 +1,7 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import * as crypto from 'node:crypto';
+import { renameWithRetryAsync } from '@vessel/shared';
 import type { SessionRecord, SessionRecordBase } from '@vessel/shared';
 
 export interface SessionOptions {
@@ -191,7 +192,9 @@ export class Session {
     // rewrite file (append-only violated only by compaction replace — the sanctioned exception)
     const tmp = this.logPath + '.tmp';
     await fs.promises.writeFile(tmp, renumbered.map((r) => JSON.stringify(r)).join('\n') + '\n');
-    await fs.promises.rename(tmp, this.logPath);
+    // task 113: tmp+rename 走共享有界重试（EPERM/EBUSY/EACCES，3 次 5/15ms），
+    // Windows 杀软/索引器瞬时锁文件不再偶发失败；原子语义不变。
+    await renameWithRetryAsync(tmp, this.logPath);
     return removed;
   }
 

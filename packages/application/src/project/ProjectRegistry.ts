@@ -1,6 +1,7 @@
 import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
+import { renameWithRetry } from '@vessel/shared';
 
 /** A project workspace opened on the control plane. */
 export interface Project {
@@ -93,6 +94,7 @@ export class ProjectRegistry {
     fs.mkdirSync(dir, { recursive: true });
     const tmp = path.join(dir, `${PROJECTS_FILE}.${process.pid}.${Date.now()}.tmp`);
     fs.writeFileSync(tmp, payload, 'utf8');
-    fs.renameSync(tmp, this.file);
+    // task 113: 共享有界重试（EPERM/EBUSY/EACCES，3 次 5/15ms），原子语义不变。
+    renameWithRetry(tmp, this.file);
   }
 }

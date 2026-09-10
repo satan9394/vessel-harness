@@ -59,7 +59,8 @@ evidence`），仅按结果条目 `source`（external / internal）区分来源�
 - `get(id)` / `list()`（createdAt 倒序）—— registry 同款读 meta.json，损坏目录跳过；
 - `importResult(id, { source?, text? | conclusion? })` → 解析/结构化结论追加进
   `results[]`，status → `imported`，updatedAt 刷新；未知 id fail loud；
-- IO 同步（SessionRegistry/ProviderStore 同风格），meta.json 写走 tmp+rename 原子替换。
+- IO 同步（SessionRegistry/ProviderStore 同风格），meta.json 写走 tmp+rename 原子替换
+  （task 113 起 rename 统一走 `@vessel/shared` 的 `renameWithRetry`，EPERM/EBUSY/EACCES 有界重试）。
 
 ## 5. CLI seam（apps/cli/src/review/reviewCommands.ts）
 

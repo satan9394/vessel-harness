@@ -5,4 +5,5 @@ export * from './policy.js';
 export * from './metrics.js';
 export * from './pricing.js';
 export * from './constants.js';
+export * from './atomicWrite.js';
 export { VERSION } from './constants.js';

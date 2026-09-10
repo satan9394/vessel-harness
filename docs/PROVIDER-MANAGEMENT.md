@@ -46,7 +46,8 @@ TUI 内斜杠命令：`/provider`（配置供应商）、`/models`（当前供�
 | `~/.vessel/backups/` | 写前自动备份（task 095）：`providers.<ts>.json` / `current.<ts>.json`，每类保留 N 份（默认 5） |
 
 - 目录沿用项目 ~/.vessel 约定（memory/skills 同款）。
-- 原子写：先写 `.tmp` 再 rename，防半写损坏。
+- 原子写：先写 `.tmp` 再 rename，防半写损坏（task 113 起 rename 统一走
+  `@vessel/shared` 的 `renameWithRetry`：EPERM/EBUSY/EACCES 有界重试 3 次、5/15ms 退避）。
 - **apiKey 经 CredentialStore 管理（`packages/application/src/credential/`）**：
   - 后端选择（069 起显式 probe + fail-over，不静默）：`probeBackends()` 探测各 OS 凭据后端可用性 →
     `selectBackend()` 按优先级取首个可用 OS 后端；全部不可用才降级 plaintext，并把每个被跳过
