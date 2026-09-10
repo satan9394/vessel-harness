@@ -1,7 +1,7 @@
 # 111 — lane 默认模型切换：mimo-v2.5 → deepseek-flash
 
 - 编号：111
-- 状态：待验收
+- 状态：已合入
 - 优先级：P1（110 建议 + 指挥采纳；改善 real-model lane 稳定性）
 - 创建日期：2026-09-10
 - 关联：110（1b076e2：deepseek 全场景 10/10、收敛快）；108/109（wire 修复打通 deepseek）；
@@ -109,5 +109,12 @@ tier 收敛行为：无 `--tier` 时 autoIds 均标 flash，pro 档也会跑 fla
 
 ## 验收结论（指挥回填）
 
-- [ ] 合入 / 打回
-- 备注：
+- [x] 合入（commit 8b2a9b3）
+- 备注：指挥独立复核——`tsc -b` exit 0；全量 vitest **1171 passed + 1 skipped / exit 0**（108 files，+5 新断言
+  零回归）；web 82。
+  认可：`DEEPSEEK_FLASH_MODEL_ID` + `defaultLaneModels()`（默认 flash 档：deepseek-flash 优先、live 无则回退
+  MIMO V2.5 系）+ `explicitLaneModels()`（`--model/--models` 覆盖助手，mimo 复跑保留）；run 驱动默认走
+  defaultLaneModels；**真实验证**（无 --model + CredentialStore key）默认解析为 deepseek-flash 且 **B001 passed**
+  （$0.002175）；文档同步（REAL-MODEL-LANE 默认档节：理由=稳定性 10/10、成本注明 $0.94 vs $0.59、
+  `--models=mimo-v2.5` 复跑）；配额 ≈ $0.005 零密钥落盘。**111 关闭。**
+  **决策生效：082 lane 默认模型 = deepseek-flash（用户授权自主决策下采纳 110 建议）。**

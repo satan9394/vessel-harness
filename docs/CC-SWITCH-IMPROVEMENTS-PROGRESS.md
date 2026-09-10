@@ -23,12 +23,13 @@
 | 108 | 真实模型对比 deepseek-flash vs mimo-v2.5：deepseek 恒 0/10 = 线协议不兼容（tool_calls 前导 + reasoning_content），非收敛问题；不建议换默认；gate4 新增 wire-format 判据 pending | 087977c | **1155 测试** + web 82 |
 | 109 | **线协议修复**（deepseek 跑通）：ContextBuilder wire 四型（assistant tool_calls 投影）+ reasoning_content 回传（chat+流式）；judgeUnit 改 exit code 判据；真实 B001/S001 双双 passed（S001 21 轮工具链无 400） | 9ec20df | **1166 测试** + web 82 |
 | 110 | deepseek-flash 终对比（线协议修复后）：全场景 ×2 双轮 **10/10 全过、gate 4 pending→pass**（mimo 恒 pending）；收敛更快（S002 4 步 vs 70 步）但成本更高（$0.94 vs $0.59）；建议换默认 | 1b076e2 | 1166 测试（无源码改动）+ web 82 |
+| 111 | **lane 默认模型切换到 deepseek-flash**（110 建议采纳）：defaultLaneModels 默认 flash 档 + explicitLaneModels 覆盖（--models=mimo-v2.5 保留）；真实 B001 passed 确认默认生效 | 8b2a9b3 | **1171 测试** + web 82 |
 
 ## 进行中 / 待做
 
 | 卡 | 内容 | 优先级 | 备注 |
-| — | **111** lane 默认模型换 deepseek-flash（110 建议 + 指挥采纳；成本波动注明） | P1 | 待拆卡 |
 | — | Packaging gate（无 dist → pending） | P2 | 构建 dist 后重跑 |
+| — | 观察：deepseek-flash 成本波动（单轮最高 $0.94）与上下文膨胀（run2 S001 in 1.31M） | — | 110 记录，可再评估 |
 
 ## 暂不做（P3，报告结论）
 
