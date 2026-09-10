@@ -116,5 +116,12 @@
 
 ## 验收结论（指挥回填）
 
-- [ ] 合入 / 打回
-- 备注：
+- [x] 合入（commit b83de45）
+- 备注：指挥独立复核——`tsc -b` exit 0；全量 vitest **1190 passed + 1 skipped / exit 0**（111 files，= 基线 1186 +
+  4 新用例）；web 82。
+  认可：4 处裸 rename 全收敛到 113 helper（engine iteration-store:280 / project-task-queue:383 /
+  HandoffStore:125 各 writeMeta/writeRecord + cli.ts writeTextAtomic），全部确认 tmp+rename 原子写语义、复用
+  `@vessel/shared` renameWithRetry（engine→shared 无环确认），未加依赖；+4 测试（3 engine EPERM×2 注入沿用
+  vi.mock('node:fs') + helper 复用断言 renameSync 恰 3 次 + 跨实例回读 + cli.writeTextAtomic 端到端）；
+  文档 2 处同步；踩坑记录（project-task-queue 既有 Windows stat EPERM 竞态——runSync 裸 statSync 遇杀软静默
+  continue，非本卡 rename 范围，另卡候选）。**114 关闭——原子写重试全覆盖（8+4=12 处收敛）**。
