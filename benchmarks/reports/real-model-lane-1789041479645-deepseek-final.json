@@ -1,0 +1,429 @@
+{
+  "runId": "real-model-lane-1789041479645",
+  "startedAt": "2026-09-10T11:57:59.645Z",
+  "finishedAt": "2026-09-10T12:01:30.048Z",
+  "durationMs": 210403,
+  "models": [
+    {
+      "id": "opencode-go:deepseek-flash",
+      "displayName": "OpenCode Go deepseek-flash",
+      "tier": "flash",
+      "defaultModel": "deepseek-flash"
+    }
+  ],
+  "scenarioCount": 10,
+  "scenarioIds": [
+    "B001",
+    "B002",
+    "S001",
+    "S002",
+    "S003",
+    "S004",
+    "S005",
+    "S006",
+    "S007",
+    "S008"
+  ],
+  "rows": [
+    {
+      "modelId": "opencode-go:deepseek-flash",
+      "scenarioId": "B001",
+      "tier": "flash",
+      "status": "passed",
+      "result": {
+        "adapterId": "vessel",
+        "adapterVersion": "0.1.0",
+        "fixtureId": "B001",
+        "metrics": {
+          "success": true,
+          "wallTimeMs": 3859,
+          "toolCalls": 2,
+          "invalidCalls": 0,
+          "retries": 0,
+          "inputTokens": 3522,
+          "outputTokens": 216,
+          "cacheReadTokens": 1664,
+          "costUsd": 0.0022514,
+          "contextPeak": 3508,
+          "compactions": 0,
+          "humanIntervention": 0,
+          "policyViolations": 0,
+          "resumeSuccess": false
+        },
+        "startedAt": "2026-09-10T11:57:59.647Z",
+        "artifacts": [
+          {
+            "kind": "session",
+            "path": "C:\\Users\\USER~1\\AppData\\Local\\Temp\\cah-vessel-B001-ADiPs8\\.harness\\sessions\\sess_1789041479663_253ebb87\\session.jsonl"
+          },
+          {
+            "kind": "workspace",
+            "path": "C:\\Users\\USER~1\\AppData\\Local\\Temp\\cah-vessel-B001-ADiPs8"
+          }
+        ]
+      }
+    },
+    {
+      "modelId": "opencode-go:deepseek-flash",
+      "scenarioId": "B002",
+      "tier": "flash",
+      "status": "passed",
+      "result": {
+        "adapterId": "vessel",
+        "adapterVersion": "0.1.0",
+        "fixtureId": "B002",
+        "metrics": {
+          "success": true,
+          "wallTimeMs": 12253,
+          "toolCalls": 12,
+          "invalidCalls": 0,
+          "retries": 0,
+          "inputTokens": 12177,
+          "outputTokens": 1582,
+          "cacheReadTokens": 9600,
+          "costUsd": 0.0094215,
+          "contextPeak": 8363,
+          "compactions": 0,
+          "humanIntervention": 0,
+          "policyViolations": 0,
+          "resumeSuccess": false
+        },
+        "startedAt": "2026-09-10T11:58:03.512Z",
+        "artifacts": [
+          {
+            "kind": "session",
+            "path": "C:\\Users\\USER~1\\AppData\\Local\\Temp\\cah-vessel-B002-opmEyf\\.harness\\sessions\\sess_1789041483552_c32d6648\\session.jsonl"
+          },
+          {
+            "kind": "workspace",
+            "path": "C:\\Users\\USER~1\\AppData\\Local\\Temp\\cah-vessel-B002-opmEyf"
+          }
+        ]
+      }
+    },
+    {
+      "modelId": "opencode-go:deepseek-flash",
+      "scenarioId": "S001",
+      "tier": "flash",
+      "status": "passed",
+      "result": {
+        "adapterId": "vessel",
+        "adapterVersion": "0.1.0",
+        "fixtureId": "S001",
+        "metrics": {
+          "success": true,
+          "wallTimeMs": 24332,
+          "toolCalls": 13,
+          "invalidCalls": 1,
+          "retries": 0,
+          "inputTokens": 17824,
+          "outputTokens": 2351,
+          "cacheReadTokens": 16256,
+          "costUsd": 0.0140641,
+          "contextPeak": 7113,
+          "compactions": 0,
+          "humanIntervention": 0,
+          "policyViolations": 4,
+          "resumeSuccess": false
+        },
+        "startedAt": "2026-09-10T11:58:15.781Z",
+        "artifacts": [
+          {
+            "kind": "session",
+            "path": "C:\\Users\\USER~1\\AppData\\Local\\Temp\\cah-vessel-S001-7u22Rk\\.harness\\sessions\\sess_1789041495787_69bbcd4d\\session.jsonl"
+          },
+          {
+            "kind": "workspace",
+            "path": "C:\\Users\\USER~1\\AppData\\Local\\Temp\\cah-vessel-S001-7u22Rk"
+          }
+        ]
+      }
+    },
+    {
+      "modelId": "opencode-go:deepseek-flash",
+      "scenarioId": "S002",
+      "tier": "flash",
+      "status": "passed",
+      "result": {
+        "adapterId": "vessel",
+        "adapterVersion": "0.1.0",
+        "fixtureId": "S002",
+        "metrics": {
+          "success": true,
+          "wallTimeMs": 12661,
+          "toolCalls": 4,
+          "invalidCalls": 0,
+          "retries": 0,
+          "inputTokens": 8041,
+          "outputTokens": 1193,
+          "cacheReadTokens": 7040,
+          "costUsd": 0.006514,
+          "contextPeak": 4541,
+          "compactions": 0,
+          "humanIntervention": 0,
+          "policyViolations": 0,
+          "resumeSuccess": false
+        },
+        "startedAt": "2026-09-10T11:58:40.117Z",
+        "artifacts": [
+          {
+            "kind": "session",
+            "path": "C:\\Users\\USER~1\\AppData\\Local\\Temp\\cah-vessel-S002-XaJGmx\\.harness\\sessions\\sess_1789041520125_fb3db058\\session.jsonl"
+          },
+          {
+            "kind": "workspace",
+            "path": "C:\\Users\\USER~1\\AppData\\Local\\Temp\\cah-vessel-S002-XaJGmx"
+          }
+        ]
+      }
+    },
+    {
+      "modelId": "opencode-go:deepseek-flash",
+      "scenarioId": "S003",
+      "tier": "flash",
+      "status": "passed",
+      "result": {
+        "adapterId": "vessel",
+        "adapterVersion": "0.1.0",
+        "fixtureId": "S003",
+        "metrics": {
+          "success": true,
+          "wallTimeMs": 46210,
+          "toolCalls": 19,
+          "invalidCalls": 0,
+          "retries": 0,
+          "inputTokens": 554187,
+          "outputTokens": 4004,
+          "cacheReadTokens": 197888,
+          "costUsd": 0.3028883,
+          "contextPeak": 537822,
+          "compactions": 1,
+          "humanIntervention": 0,
+          "policyViolations": 3,
+          "resumeSuccess": false
+        },
+        "startedAt": "2026-09-10T11:58:52.781Z",
+        "artifacts": [
+          {
+            "kind": "session",
+            "path": "C:\\Users\\USER~1\\AppData\\Local\\Temp\\cah-vessel-S003-b1wSNo\\.harness\\sessions\\sess_1789041532790_a98fe416\\session.jsonl"
+          },
+          {
+            "kind": "workspace",
+            "path": "C:\\Users\\USER~1\\AppData\\Local\\Temp\\cah-vessel-S003-b1wSNo"
+          }
+        ]
+      }
+    },
+    {
+      "modelId": "opencode-go:deepseek-flash",
+      "scenarioId": "S004",
+      "tier": "flash",
+      "status": "passed",
+      "result": {
+        "adapterId": "vessel",
+        "adapterVersion": "0.1.0",
+        "fixtureId": "S004",
+        "metrics": {
+          "success": true,
+          "wallTimeMs": 9636,
+          "toolCalls": 3,
+          "invalidCalls": 0,
+          "retries": 0,
+          "inputTokens": 9063,
+          "outputTokens": 995,
+          "cacheReadTokens": 7936,
+          "costUsd": 0.0068176,
+          "contextPeak": 5228,
+          "compactions": 0,
+          "humanIntervention": 0,
+          "policyViolations": 0,
+          "resumeSuccess": false
+        },
+        "startedAt": "2026-09-10T11:59:38.994Z",
+        "artifacts": [
+          {
+            "kind": "session",
+            "path": "C:\\Users\\USER~1\\AppData\\Local\\Temp\\cah-vessel-S004-iEG2IA\\.harness\\sessions\\sess_1789041578999_1a5dc274\\session.jsonl"
+          },
+          {
+            "kind": "workspace",
+            "path": "C:\\Users\\USER~1\\AppData\\Local\\Temp\\cah-vessel-S004-iEG2IA"
+          }
+        ]
+      }
+    },
+    {
+      "modelId": "opencode-go:deepseek-flash",
+      "scenarioId": "S005",
+      "tier": "flash",
+      "status": "passed",
+      "result": {
+        "adapterId": "vessel",
+        "adapterVersion": "0.1.0",
+        "fixtureId": "S005",
+        "metrics": {
+          "success": true,
+          "wallTimeMs": 32448,
+          "toolCalls": 9,
+          "invalidCalls": 0,
+          "retries": 0,
+          "inputTokens": 33044,
+          "outputTokens": 2874,
+          "cacheReadTokens": 28928,
+          "costUsd": 0.0237258,
+          "contextPeak": 14080,
+          "compactions": 0,
+          "humanIntervention": 0,
+          "policyViolations": 0,
+          "resumeSuccess": false
+        },
+        "startedAt": "2026-09-10T11:59:48.633Z",
+        "artifacts": [
+          {
+            "kind": "session",
+            "path": "C:\\Users\\USER~1\\AppData\\Local\\Temp\\cah-vessel-S005-D42w4B\\.harness\\sessions\\sess_1789041588641_f04ea87e\\session.jsonl"
+          },
+          {
+            "kind": "workspace",
+            "path": "C:\\Users\\USER~1\\AppData\\Local\\Temp\\cah-vessel-S005-D42w4B"
+          }
+        ]
+      }
+    },
+    {
+      "modelId": "opencode-go:deepseek-flash",
+      "scenarioId": "S006",
+      "tier": "flash",
+      "status": "passed",
+      "result": {
+        "adapterId": "vessel",
+        "adapterVersion": "0.1.0",
+        "fixtureId": "S006",
+        "metrics": {
+          "success": true,
+          "wallTimeMs": 28692,
+          "toolCalls": 10,
+          "invalidCalls": 0,
+          "retries": 0,
+          "inputTokens": 16579,
+          "outputTokens": 2314,
+          "cacheReadTokens": 13568,
+          "costUsd": 0.0131173,
+          "contextPeak": 8184,
+          "compactions": 0,
+          "humanIntervention": 0,
+          "policyViolations": 10,
+          "resumeSuccess": false
+        },
+        "startedAt": "2026-09-10T12:00:21.087Z",
+        "artifacts": [
+          {
+            "kind": "session",
+            "path": "C:\\Users\\USER~1\\AppData\\Local\\Temp\\cah-vessel-S006-IKBQkn\\.harness\\sessions\\sess_1789041621095_37881753\\session.jsonl"
+          },
+          {
+            "kind": "workspace",
+            "path": "C:\\Users\\USER~1\\AppData\\Local\\Temp\\cah-vessel-S006-IKBQkn"
+          }
+        ]
+      }
+    },
+    {
+      "modelId": "opencode-go:deepseek-flash",
+      "scenarioId": "S007",
+      "tier": "flash",
+      "status": "passed",
+      "result": {
+        "adapterId": "vessel",
+        "adapterVersion": "0.1.0",
+        "fixtureId": "S007",
+        "metrics": {
+          "success": true,
+          "wallTimeMs": 15049,
+          "toolCalls": 6,
+          "invalidCalls": 1,
+          "retries": 0,
+          "inputTokens": 12612,
+          "outputTokens": 1458,
+          "cacheReadTokens": 11264,
+          "costUsd": 0.0096194,
+          "contextPeak": 6282,
+          "compactions": 0,
+          "humanIntervention": 0,
+          "policyViolations": 0,
+          "resumeSuccess": false
+        },
+        "startedAt": "2026-09-10T12:00:49.783Z",
+        "artifacts": [
+          {
+            "kind": "session",
+            "path": "C:\\Users\\USER~1\\AppData\\Local\\Temp\\cah-vessel-S007-yvzkRg\\.harness\\sessions\\sess_1789041649792_870f16ba\\session.jsonl"
+          },
+          {
+            "kind": "workspace",
+            "path": "C:\\Users\\USER~1\\AppData\\Local\\Temp\\cah-vessel-S007-yvzkRg"
+          }
+        ]
+      }
+    },
+    {
+      "modelId": "opencode-go:deepseek-flash",
+      "scenarioId": "S008",
+      "tier": "flash",
+      "status": "passed",
+      "result": {
+        "adapterId": "vessel",
+        "adapterVersion": "0.1.0",
+        "fixtureId": "S008",
+        "metrics": {
+          "success": true,
+          "wallTimeMs": 25206,
+          "toolCalls": 9,
+          "invalidCalls": 0,
+          "retries": 0,
+          "inputTokens": 23784,
+          "outputTokens": 2910,
+          "cacheReadTokens": 19968,
+          "costUsd": 0.0182538,
+          "contextPeak": 13494,
+          "compactions": 0,
+          "humanIntervention": 0,
+          "policyViolations": 2,
+          "resumeSuccess": false
+        },
+        "startedAt": "2026-09-10T12:01:04.838Z",
+        "artifacts": [
+          {
+            "kind": "session",
+            "path": "C:\\Users\\USER~1\\AppData\\Local\\Temp\\cah-vessel-S008-Vu57D1\\.harness\\sessions\\sess_1789041664841_5485c9b0\\session.jsonl"
+          },
+          {
+            "kind": "workspace",
+            "path": "C:\\Users\\USER~1\\AppData\\Local\\Temp\\cah-vessel-S008-Vu57D1"
+          }
+        ]
+      }
+    }
+  ],
+  "modelSummaries": [
+    {
+      "modelId": "opencode-go:deepseek-flash",
+      "displayName": "OpenCode Go deepseek-flash",
+      "runnableScenarios": 10,
+      "passed": 10,
+      "failed": 0,
+      "pendingEnvironment": 0,
+      "skipped": 0,
+      "wallTimeMs": 210346,
+      "toolCalls": 87,
+      "inputTokens": 690833,
+      "outputTokens": 19897,
+      "cacheReadTokens": 314112,
+      "costUsd": 0.406673
+    }
+  ],
+  "degraded": false,
+  "reportMdPath": "C:\\work\\Vessel_Harness\\benchmarks\\reports\\real-model-lane-1789041479645.md",
+  "reportJsonPath": "C:\\work\\Vessel_Harness\\benchmarks\\reports\\real-model-lane-1789041479645.json"
+}

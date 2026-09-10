@@ -211,6 +211,28 @@ task 109 在 harness 侧修掉 108 确诊的两个线协议缺口（provider 层
 
 实跑验证与修复前后对比见 `tasks/109-wire-protocol-fix.md`「工作证明」。
 
+## 终对比（task 110，修复后 deepseek-flash 全场景集复测）
+
+task 110 在 109 线协议修复后，把 deepseek-flash 全场景集（B001、B002、S001-S008，同 108 子集）
+实跑 ×2（`--key-source=store`，报告 `real-model-lane-1789041479645-deepseek-final.md` + run2
+`real-model-lane-1789041722946.md`；mimo 数据取 102 基线不重跑），结论：
+
+| 维度 | mimo-v2.5（102 基线） | deepseek-flash（110 final） |
+| --- | --- | --- |
+| 通过率 | 9/10；三次实跑 9/1、8/2、9/1，失败集每次不同 | **2/2 轮 × 10/10 全过** |
+| 失败模式 | 未收敛：finalText 空 + 工具调用冲满 64 步预算 | 无失败（108 修复前为 wire 400，零复现） |
+| 工具步数 | 1~97；失败场景 64~100 | 1~39，长链收敛更快（S002 4 步 vs 70 步） |
+| usage/耗时 | in 863k / out 53k / 1853.7s / $0.592 | run1 in 691k/210s/$0.407；run2 in 1.52M/360s/$0.937（**波动大**：S001 in 17.8k↔1.31M） |
+| 跨次稳定性 | 不稳定（同场景跨次翻转） | 状态稳定（双轮全过）；usage 波动 |
+| 084 gate 4 | pending（non-convergence） | **pass（10/10，双轮）** |
+
+- **跨次稳定性**：deepseek-flash 状态级稳定（2 轮 10/10），109 线协议修复（assistant tool_calls 投影 +
+  reasoning_content 回传）在全场景集上验证通过；usage 级波动（run2 S001 上下文膨胀 in 1.31M、
+  policyViolations=38 反复试探删除被 hard-deny 拦截，最终收敛）。
+- **建议**：**建议换 lane 默认模型**（mimo-v2.5 → deepseek-flash）——通过率/收敛稳定性方向性改善、长链收敛
+  更快、gate 4 从 pending 转 pass；注意 usage 波动（单轮成本可达 $0.94，高于 mimo），换默认由指挥/用户
+  拍板，本卡**未改默认**。报告 + gate 4 判定见 `tasks/110-deepseek-full-retest.md`。
+
 ## 凭据来源（env / CredentialStore，task 097 纠偏）
 
 opencode-go 的 API key **只有两条来源**，provider 运行时经 resolver 读取（可注入、可 mock），

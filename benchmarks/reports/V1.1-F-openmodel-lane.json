@@ -1,12 +1,12 @@
 {
-  "label": "run",
+  "label": "deepseek-final-run2",
   "keyPresent": true,
   "keySource": "CredentialStore vessel/opencode-go",
   "keySourceMode": "store",
   "keySourceAllowed": "CredentialStore (034/069 DPAPI, secretRef credential:vessel/opencode-go) / env OPENCODE_API_KEY",
   "modelSource": "live",
   "modelNote": "live from https://opencode.ai/zen/go/v1/models",
-  "runId": "real-model-lane-1789040766242",
+  "runId": "real-model-lane-1789041722946",
   "models": [
     {
       "id": "opencode-go:deepseek-flash",
@@ -16,28 +16,36 @@
   ],
   "scenarios": [
     "B001",
-    "S001"
+    "B002",
+    "S001",
+    "S002",
+    "S003",
+    "S004",
+    "S005",
+    "S006",
+    "S007",
+    "S008"
   ],
   "probe": {
     "ok": true,
     "model": "deepseek-flash",
-    "content": "pong 🏓\n\nWhat can I help you with?",
-    "reasoningChars": 143,
+    "content": "pong 🏓",
+    "reasoningChars": 108,
     "usage": {
       "inputTokens": 31,
-      "outputTokens": 47,
+      "outputTokens": 34,
       "cacheReadTokens": 0
     }
   },
   "summary": [
     {
       "modelId": "opencode-go:deepseek-flash",
-      "passed": 2,
+      "passed": 10,
       "failed": 0,
       "pendingEnvironment": 0,
       "skipped": 0,
-      "inputTokens": 32752,
-      "outputTokens": 4142
+      "inputTokens": 1517367,
+      "outputTokens": 32039
     }
   ]
 }
