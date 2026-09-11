@@ -37,7 +37,7 @@ const POSIX_PATH_RE = /\/(?!\/)[^\s"']+/g;
 
 /** 去掉路径尾部的标点残留（`...,` / `...)` / `...）。` 等）。 */
 function trimTrailingPunctuation(candidate: string): string {
-  return candidate.replace(/[.,;:)\]}>"'`]+$/g, '');
+  return candidate.replace(/[.,;:)\]}>"'`）】\]、。:：;；]+$/g, '');
 }
 
 /** 从一段文本里收集疑似绝对路径（保持出现顺序，去重）。 */

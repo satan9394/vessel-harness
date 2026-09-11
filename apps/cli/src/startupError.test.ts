@@ -131,4 +131,21 @@ describe('describeStartupFailure', () => {
     expect(noPath.path).toBeUndefined();
     expect(noPath.message).not.toContain('涉及文件');
   });
+
+  it('路径尾随标点被剥离：涉及文件行以 .json 干净结尾', () => {
+    // 实测缺陷：`settings.json 损坏（C:\...\settings.json）: Expected property name...`
+    // 这类文案里路径紧跟全角右括号与冒号，清洗失效时「涉及文件：」行会以 `）:` 收尾。
+    // 既有用例只用 toContain 断言路径，漏过尾随标点，故这里做精确断言锁死。
+    const res = describeStartupFailure(
+      new SyntaxError(
+        String.raw`settings.json 损坏（C:\Users\x\.vessel\settings.json）: Expected property name or '}' in JSON at position 1`,
+      ),
+    );
+
+    expect(res.kind).toBe('config-corrupted');
+    expect(res.path).toMatch(/\.json$/);
+    const line = res.message.split('\n').find((l) => l.startsWith('涉及文件：'));
+    expect(line).toBeDefined();
+    expect(line!.endsWith('.json')).toBe(true);
+  });
 });
