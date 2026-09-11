@@ -9,6 +9,7 @@ import { runSetupWizard, createClackIO, fetchModelOutcome } from '../providers/s
 import { buildRealProvider, describeProviderError, planProvider } from '../providers/providerFactory.js';
 import { modelsForProtocol } from '@vessel/application';
 import { VESSEL_LOGO } from '../brand.js';
+import { findTerm, renderExplain } from '../guide/glossary.js';
 
 /**
  * apps/cli/src/tui/chat.ts — `vessel` interactive chat TUI (V0.7, task 021; brand Vessel).
@@ -266,8 +267,8 @@ export async function runChat(opts: ChatOptions): Promise<number> {
     const input = line.trim();
     if (input === '') continue;
 
-    // slash command dispatch
-    if (input.startsWith('/')) {
+    // slash command dispatch（`? <term>` 与 `/explain <term>` 同义，task 117 引导体系）
+    if (input.startsWith('/') || input.startsWith('?')) {
       const res = await dispatchSlash(input, { store, io, sessionWorkspace: opts.workspaceRoot });
       if (res?.output) io.write(res.output);
       if (res?.quit) break;
@@ -302,6 +303,17 @@ async function mockProvider(model: string) {
 
 /** Slash command table — reused by tests. */
 export async function dispatchSlash(input: string, ctx: { store: ProviderStore; io: ChatSessionIO; sessionWorkspace: string }): Promise<SlashResult> {
+  // `? <term>` 前缀 = `/explain <term>`（task 117：TUI 内解释，复用同一词库，不重复实现）
+  if (input.startsWith('?')) {
+    const raw = input.slice(1).trim();
+    if (raw === '') return { output: '用法: ? <术语>（如 ? Call）；或用 /explain <术语>' };
+    const hit = findTerm(raw);
+    return {
+      output: hit
+        ? renderExplain(hit)
+        : `未收录术语 "${raw}"（vessel list-terms 查看全部词条）`,
+    };
+  }
   const [cmd, ...rest] = input.slice(1).trim().split(/\s+/);
   const arg = rest.join(' ').trim();
   switch (cmd) {
@@ -314,6 +326,7 @@ export async function dispatchSlash(input: string, ctx: { store: ProviderStore; 
           '  /model <id>      切换模型（如 /model deepseek-chat）',
           '  /permission      切换权限模式（read-only / workspace-write / danger-full-access）',
           '  /setup           完整引导配置',
+          '  /explain <术语>  查术语中英文解释（同 ? <术语>，如 /explain Call）',
           '  /help            本帮助',
           '  /quit            退出',
           '直接输入文字 = 对话跑任务',
@@ -348,6 +361,12 @@ export async function dispatchSlash(input: string, ctx: { store: ProviderStore; 
     case 'permission': {
       if (!arg) return { output: '用法：/permission <read-only|workspace-write|danger-full-access>' };
       return { output: `权限切换为 "${arg}"（会话内生效）` };
+    }
+    case 'explain':
+    case 'term': {
+      if (!arg) return { output: '用法：/explain <术语>（如 /explain Call）；或用 ? <术语>' };
+      const hit = findTerm(arg);
+      return { output: hit ? renderExplain(hit) : `未收录术语 "${arg}"（vessel list-terms 查看全部词条）` };
     }
     case 'quit':
     case 'exit':

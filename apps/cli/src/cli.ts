@@ -25,6 +25,7 @@ import { UsageStore, isLocalDateKey, localDateKey, resolveUsageRoot } from './us
 import { PricingOverrideStore, type PricingRepair } from './usage/pricingOverride.js';
 import { runVesselMigration } from './migrate.js';
 import { cmdReview } from './review/reviewCommands.js';
+import { cmdExplain, cmdListTerms, cmdGuide, cmdSettings } from './guide/guideCommands.js';
 import { loadModelCatalog, findCatalogModelByBase, findCatalogModelMatch, catalogPriceSource, listCatalogModels } from './providers/modelCatalog.js';
 import { syncModelCatalog, MODELS_DEV_URL, DEFAULT_SYNC_TIMEOUT_MS, MAX_SYNC_RETRIES } from './providers/pricingSync.js';
 import { loadPricing, assertCostMultiplier, DEFAULT_COST_MULTIPLIER, type TokenPrice } from './providers/pricing.js';
@@ -73,6 +74,12 @@ Vessel CLI v${VERSION} — 可组合 Agent Harness（品牌 Vessel）
   vessel review handoff <request.json>   生成外部评审 handoff（.vessel/reviews/<id>/handoff.md；task 059）
   vessel review import <id> <result 文件>  导入外部评审结果（[--source external|internal]，落库）
   vessel review list                 列出外部评审 reviews
+  vessel explain <term>              术语中英双语解释（别名: vessel term <term>；未收录给提示）
+  vessel list-terms                  列出全部术语（中英双语词库）
+  vessel guide [--locale zh|en]      新手分步引导（①这是什么 ②怎么问术语 ③常用命令 ④怎么设置主题/语言；
+                                      输出语言跟随 settings locale，--locale 可覆盖）
+  vessel settings list               显示设置项说明与当前值（theme/locale，中英文说明 + 可选值）
+  vessel settings set <key> <value>  设置（theme: dark|light；locale: zh|en；非法值给说明）
   vessel bench-report --input <json>  基准报告看板：聚合 076 RunResult[]（或 082 lane report）→ 打印 CLI 摘要表 + 写 md/json（任务 083）
   vessel serve [--port <n>]          启动本地服务（默认 http://127.0.0.1:5678，不开浏览器）
   vessel web                         启动本地服务并打开浏览器
@@ -1464,6 +1471,10 @@ export async function main(argv: string[] = process.argv.slice(2)): Promise<numb
   if (first === 'pricing') return cmdPricing(parsed.positionals.slice(1), parsed.flags);
   if (first === 'migrate') return cmdMigrate();
   if (first === 'review') return cmdReview(parsed.positionals.slice(1), parsed.flags);
+  if (first === 'explain' || first === 'term') return cmdExplain(parsed.positionals.slice(1), parsed.flags);
+  if (first === 'list-terms') return cmdListTerms(parsed.positionals.slice(1), parsed.flags);
+  if (first === 'guide') return cmdGuide(parsed.positionals.slice(1), parsed.flags);
+  if (first === 'settings') return cmdSettings(parsed.positionals.slice(1), parsed.flags);
   if (first === 'bench-report') return cmdBenchReport(parsed.flags);
   if (first === 'serve') return cmdServe(parsed.flags);
   if (first === 'web') return cmdWeb(parsed.flags);

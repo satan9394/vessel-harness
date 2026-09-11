@@ -66,10 +66,14 @@ vessel run --prompt "总结当前工作区 README"   # 一次性任务
 | `vessel usage [--recent <n>] [--strict]` | 使用统计（tokens / 调用 / 估算成本 + 价格来源分布，落盘 `~/.vessel/usage.json`；`--strict` 不用兜底价重算） |
 | `vessel pricing [model]` | 模型价目查询（`configs/model-catalog.json`，USD/1M tokens；模型名自动归一） |
 | `vessel migrate` | 一次性迁移旧状态目录 `~/.dsh` → `~/.vessel` |
+| `vessel explain <term>` | 术语中英双语解释（别名 `vessel term <term>`；未收录词给提示 + `list-terms`） |
+| `vessel list-terms` | 列出全部术语（中英双语词库） |
+| `vessel guide [--locale zh\|en]` | 新手分步引导（①这是什么 ②怎么问术语 ③常用命令 ④怎么设置主题/语言；输出语言跟随 settings locale） |
+| `vessel settings list / set <theme\|locale> <v>` | 设置项中英文说明与可选值（`theme: dark\|light`；`locale: zh\|en`） |
 | `vessel serve` | 启动本地服务（默认 `http://127.0.0.1:5678`，不开浏览器；`--port <n>` 换端口） |
 | `vessel web` | 启动本地服务并打开默认浏览器 |
 
-> 交互界面的斜杠命令：`/provider` 配置供应商 · `/models` 拉模型 · `/model <id>` 切模型 · `/permission` 切权限档 · `/help` · `/quit`。
+> 交互界面的斜杠命令：`/provider` 配置供应商 · `/models` 拉模型 · `/model <id>` 切模型 · `/permission` 切权限档 · `/explain <术语>` 或 `? <术语>` 查术语解释 · `/help` · `/quit`。
 
 ## 哲学与架构要点
 
