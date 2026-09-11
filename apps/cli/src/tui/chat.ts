@@ -2,7 +2,7 @@ import * as readline from 'node:readline';
 import { randomUUID } from 'node:crypto';
 import type { ChatProvider } from '@vessel/shared';
 import { MockProvider } from '@vessel/llm';
-import { composeHarness, type ComposedHarness, type SyncCredentialStore } from '@vessel/application';
+import { composeHarness, SessionRegistry, type ComposedHarness, type SessionMeta, type SyncCredentialStore } from '@vessel/application';
 import { ProviderStore, type ProviderConfig } from '../providers/ProviderStore.js';
 import { createDefaultProviderStore } from '../providers/defaultStore.js';
 import { runSetupWizard, createClackIO, fetchModelOutcome } from '../providers/setup.js';
@@ -175,6 +175,8 @@ export interface ChatOptions {
    * 接上 CredentialStore（测试注入内存后端，不碰真实 secrets.json）。
    */
   credentialStore?: SyncCredentialStore;
+  /** G-10：复用既有会话 id（resume 或重建 harness 时保持一致）；缺省则新建会话。 */
+  sessionId?: string;
   io?: ChatSessionIO;
 }
 
@@ -263,7 +265,7 @@ export async function runChat(opts: ChatOptions): Promise<number> {
         fallbackText: '（mock 离线冒烟）已收到你的输入。当前无匹配脚本应答——配置真实模型后即可获得完整回答：vessel setup（交互向导）或 vessel provider add。',
       });
     }
-    return composeHarness({
+    const harness = await composeHarness({
       workspaceRoot: sessionWorkspace,
       provider: effProvider,
       model: effModel,
@@ -274,7 +276,30 @@ export async function runChat(opts: ChatOptions): Promise<number> {
       // 缺了它每回合恒为 $0.0000（无用量记录）、/cost 恒为「本会话暂无用量记录」。
       usageStore: opts.usageStore,
       usageProvider: providerId,
+      // G-10：复用既有会话 id（resume 或重建 harness 时保持一致）；缺省则新建。
+      sessionId: opts.sessionId,
     });
+
+    // G-10：让 TUI 建的会话也进入会话登记表，否则 `vessel sessions list` 看不到它、无法 resume。
+    try {
+      const registry = new SessionRegistry();
+      const now = new Date().toISOString();
+      const existing = registry.get(harness.session.sessionId);
+      const meta: SessionMeta = {
+        id: harness.session.sessionId,
+        workspaceRoot: sessionWorkspace,
+        provider: providerId,
+        model: effModel,
+        permission,
+        createdAt: existing?.createdAt ?? now,
+        updatedAt: now,
+      };
+      registry.put(meta);
+    } catch (err) {
+      console.warn(`[vessel] 会话登记失败（不影响本次会话）：${(err as Error).message}`);
+    }
+
+    return harness;
   };
 
   io.write(`${VESSEL_LOGO}Vessel — 交互会话开始（当前 ${providerId} · ${model} · ${permission}）。输入 /help 查看命令，/explain <术语> 或 ? <术语> 查术语解释，/quit 退出；命令行「vessel guide」有新手指引。`);

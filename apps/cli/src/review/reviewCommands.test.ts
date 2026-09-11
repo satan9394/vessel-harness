@@ -143,11 +143,21 @@ describe('apps/cli review — `vessel review` 命令族（task 059）', () => {
   });
 
   it('main() 分发 `vessel review ...`（review 子命令经 CLI 入口可达）', async () => {
-    const logs: string[] = [];
-    const spy = vi.spyOn(console, 'log').mockImplementation((...a) => logs.push(a.join(' ')));
-    const code = await main(['review', 'list', '--root', root]);
-    spy.mockRestore();
-    expect(code).toBe(0);
-    expect(logs.join('\n')).toContain('暂无 reviews');
+    // G-10 兜底：本用例驱动的是 CLI 入口 `main()`（默认 store 的汇聚点）。review 分支当前
+    // 不构造 SessionRegistry，但仍把会话登记根钉在临时 root——入口一旦长出新默认路径，
+    // 这里也不会写真实 ~/.vessel/sessions.json（AGENTS.md §8）。
+    const savedSessionRoot = process.env.VESSEL_SESSION_ROOT;
+    process.env.VESSEL_SESSION_ROOT = root;
+    try {
+      const logs: string[] = [];
+      const spy = vi.spyOn(console, 'log').mockImplementation((...a) => logs.push(a.join(' ')));
+      const code = await main(['review', 'list', '--root', root]);
+      spy.mockRestore();
+      expect(code).toBe(0);
+      expect(logs.join('\n')).toContain('暂无 reviews');
+    } finally {
+      if (savedSessionRoot === undefined) delete process.env.VESSEL_SESSION_ROOT;
+      else process.env.VESSEL_SESSION_ROOT = savedSessionRoot;
+    }
   });
 });

@@ -128,6 +128,41 @@
 
 **方法论教训（写入纪律）**：**E2E 必须走真实用户路径**；用组件级渲染替代端到端接线，会把"功能未接通"误判为"功能已实现"。
 
+## Round 9（G-10 resume 最小切片）— 实现完成，评审在途
+
+**定位**：与 G-09 同款"**机制已在、只差接线**"——`Session.loadExisting()` 早已实现"重开日志 + 补 `turn/end{interrupted}`"，`Builder` 每步从日志重建模型历史；缺的是 CLI/TUI 没有 sessionId 通道、且 `apps/cli` **零处**引用 `SessionRegistry`（登记表只由 local-server 写）。
+
+**交付（提交 c46a90a / e3582ab）**：
+- **陈旧租约回收**（前置卡）：`Session.acquireLease` —— pid **ESRCH** 或租约内容不可解析 → warn + 回收重取；pid **存活/EPERM** → 仍 fail-closed。修掉了"崩溃后 `.lease` 永久残留 → 最需要 resume 的场景必然失败"这一头号风险；活 pid 文案统一为含 `already open` 的英文句（修掉一次既有断言回归）。
+- **`SessionRegistry`**：补上全仓唯一缺失的状态根 env 覆盖 `VESSEL_SESSION_ROOT`（AGENTS.md 约束 8 的隔离前提）+ `list()` 按 `updatedAt` 倒序；桶导出 `defaultSessionRoot`/`resolveSessionRoot`；`migrate` 清单补 `sessions.json`。
+- **CLI 通路**：`vessel sessions list`（registry 为唯一事实源）+ `vessel resume <id>|--last`；`resolveResumeTarget` 做**存在性 + 日志文件双重校验**（`Session.open` 对任意 id 都会 mkdir，不拦就会把 resume 静默变成新建空会话）；`cmdRun` 透传 `sessionId` 并在 composeHarness 后 `registry.put`（`createdAt` 取旧值、仅 `updatedAt` 刷新）；USAGE 登记两行并删除死文档 `--session-dir`。
+- **测试**：`SessionLease.test.ts` 5 例、`resume.test.ts` 9 例（含"登记命中但日志缺失 → exit 2 且目录/文件/.harness 全不存在"的**凭空新建回归保护**）。
+
+**验收侧证据（真实 CLI + 记录型 provider）**：`tsc 0`；**124 文件 / 1309 passed + 1 skipped / exit 0**；`run` 后 `sessions list` **列出该会话**（接线前必然为空）；`resume <id> --prompt …` exit 0 且**会话目录数仍为 1**；`resume --last` 空表 / `resume <不存在id>` 均 **exit 2 且零新建目录**；**记录型 provider 探针**：第二轮（同 sessionId 重建 harness）模型收到的 messages **含第一轮写入的口令** → `SECOND_TURN_SEES_HISTORY=true`。
+
+**本切片显式剥离**（防 scope 膨胀）：快照回滚（全仓零实现，建议独立立项）、会话级用量恢复（`UsageEntry` 无 `sessionId`，需先改 schema）、多会话管理 UI、fork/rewind、云同步。
+
+**验证纪律（第 3 条，本轮新增）**：**验收断言必须打到"因果链末端"**——"resume 有效"必须证明**模型收到了历史**（记录型 provider 捕获 messages），而不是"日志变长 / 能读回记录"（存储层证据），否则会假绿。
+
+## Round 9（G-10 resume 最小切片）— 已闭环（ACCEPT + AC1 已实证）
+
+**独立裁定 `EVALUATION-REPORT-11.md`：ACCEPT（有条件）**——AC2 fail-closed、AC3 绝不静默新建、AC4 登记接线、AC5 测试真实性、AC6 回归越界**全部通过**；AC1（"模型看到历史"）原判 **无法判定**，理由充分：我的首版探针产物未入库、且 `TURN2_MESSAGE_COUNT=1` 与真实回放形状矛盾（第二轮至少应有 system + user1 + assistant1 + user2），无法排除"口令来自 prompt 本身/工作区文件/指令层注入"。
+
+**AC1 补强后已实证**（按评审给的最小证伪方案重做，探针含**负对照**）：
+- 轮1 写入 `NONCE_A`；轮2 prompt **只含 `NONCE_B`**；断言轮2 实际发给 provider 的 messages：
+  - `roles = ["system","user","assistant","user"]`（**真实回放形状**，而非单条）；
+  - `TURN2_SEES_NONCE_A = true`（历史确实被回放）；
+  - **`CONTROL_SEES_NONCE_A = false`**（负对照：换新 sessionId 则看不到 A）→ 排除 prompt 自带 / 全局注入；
+  - `WORKSPACE_HAS_NONCE_A = false` → 排除"来自工作区文件"；
+  - `SESSION_DIR_COUNT = 2`（主路径与对照组各 1 个，符合预期）。
+
+**本轮由验证捕获的问题（延续"验证优先"纪律）**：
+1. **真实用户状态被污染**（AGENTS.md §8 破坏）：G-10 的登记接线让**未钉 `VESSEL_SESSION_ROOT` 的测试**写进了真实 `~/.vessel/sessions.json`（实测 8 条测试会话：`C:\tmp\vessel-smoke-*`、`%TEMP%\cah-cli-*`、`cah-oc-go-*`）。→ 已派卡给受影响测试补 session 根注入；残留条目待清理（走回收站备份）。**教训：新增"默认状态根"的写入路径时，必须同步审计所有会构造默认 store 的测试**。
+2. 规格漏项自查：BRIEF-09 §4 的 TUI 通道与"TUI 会话登记"在实现里漏做（TUI 会话不在 list、重建 harness 丢上下文）→ 我在评审前自查发现并补齐（`ChatOptions.sessionId` + 透传 + 登记块；`cli.ts` 交互式 `resume` 直接进 TUI）。
+3. 评审指出：`resume` 时**静默改写 `--workspace`**（`cli.ts:1547`）与 SCOPING 风险⑥ 的 fail-loud 建议相悖 → 记为 P3 待处置。
+
+**Round 9 显式未做**（写入状态，防被误认为已完成）：快照回滚、会话级用量恢复（需先给 `UsageEntry` 加 `sessionId`）、多会话管理 UI、fork/rewind、云同步。
+
 ## 纪律
 
 - 并发执行器上限 2；一卡一执行器；删除走回收站；密钥不落盘；测试隔离（`VESSEL_*_ROOT` 注入）。

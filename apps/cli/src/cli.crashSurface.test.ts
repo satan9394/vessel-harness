@@ -18,13 +18,20 @@ import { describeStartupFailure } from './startupError.js';
  */
 
 const TMP_PREFIX = 'vessel-crashsurface-';
-const ROOT_ENV = ['VESSEL_SETTINGS_ROOT', 'VESSEL_PROVIDER_ROOT', 'VESSEL_USAGE_ROOT'] as const;
+const ROOT_ENV = [
+  'VESSEL_SETTINGS_ROOT',
+  'VESSEL_PROVIDER_ROOT',
+  'VESSEL_USAGE_ROOT',
+  // G-10：会话登记会写 <VESSEL_SESSION_ROOT ?? ~/.vessel>/sessions.json（AGENTS.md §8 必须隔离）。
+  'VESSEL_SESSION_ROOT',
+] as const;
 
 /** TMP_PREFIX 下的一次性临时根 + 三个子 root（每个用例重建，原值存 Map 供 afterEach 还原）。 */
 let dir: string;
 let settingsDir: string;
 let providerDir: string;
 let usageDir: string;
+let sessionDir: string;
 const savedEnv = new Map<string, string | undefined>();
 
 describe('CLI 崩溃面（main → describeStartupFailure）', () => {
@@ -33,7 +40,8 @@ describe('CLI 崩溃面（main → describeStartupFailure）', () => {
     settingsDir = path.join(dir, 'settings');
     providerDir = path.join(dir, 'provider');
     usageDir = path.join(dir, 'usage');
-    for (const sub of [settingsDir, providerDir, usageDir]) {
+    sessionDir = path.join(dir, 'sessions');
+    for (const sub of [settingsDir, providerDir, usageDir, sessionDir]) {
       fs.mkdirSync(sub, { recursive: true });
     }
     for (const key of ROOT_ENV) {
@@ -42,6 +50,7 @@ describe('CLI 崩溃面（main → describeStartupFailure）', () => {
     process.env.VESSEL_SETTINGS_ROOT = settingsDir;
     process.env.VESSEL_PROVIDER_ROOT = providerDir;
     process.env.VESSEL_USAGE_ROOT = usageDir;
+    process.env.VESSEL_SESSION_ROOT = sessionDir;
   });
 
   afterEach(() => {

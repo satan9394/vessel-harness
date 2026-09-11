@@ -1547,6 +1547,23 @@ export async function main(argv: string[] = process.argv.slice(2)): Promise<numb
     parsed.flags.set('workspace', target.meta.workspaceRoot);
     parsed.flags.set('session-id', target.meta.id);
     console.log(`[vessel] 恢复会话 ${target.meta.id}（${target.meta.workspaceRoot}）`);
+    // 交互终端下无 --prompt 时进入 TUI 恢复（sessionId 显式取该会话登记 id）；
+    // 有 --prompt 仍走一次性 cmdRun。非 TTY 保持原行为（cmdRun 自行报错）。
+    if (!parsed.flags.has('prompt') && process.stdin.isTTY) {
+      const root = repoRoot();
+      return runChat({
+        store: defaultProviderStore(),
+        workspaceRoot: target.meta.workspaceRoot,
+        policySystemPath: parsed.flags.get('policy') ?? path.join(root, 'configs', 'policy.default.yaml'),
+        behaviorIRPath: parsed.flags.get('behavior') ?? path.join(root, 'configs', 'behavior.default.yaml'),
+        permission: (parsed.flags.get('permission') ?? target.meta.permission) as
+          | 'read-only'
+          | 'workspace-write'
+          | 'danger-full-access',
+        usageStore: createUsageStore({ strict: parsed.flags.has('strict') }),
+        sessionId: target.meta.id,
+      });
+    }
     return cmdRun(parsed.flags);
   }
   // G-02: any other first positional is an unknown/misspelled subcommand
@@ -1567,6 +1584,7 @@ export async function main(argv: string[] = process.argv.slice(2)): Promise<numb
         behaviorIRPath: parsed.flags.get('behavior') ?? path.join(root, 'configs', 'behavior.default.yaml'),
         permission: (parsed.flags.get('permission') ?? 'workspace-write') as 'read-only' | 'workspace-write' | 'danger-full-access',
         usageStore: createUsageStore({ strict: parsed.flags.has('strict') }),
+        sessionId: parsed.flags.get('session-id'),
       });
     }
     if (!parsed.flags.has('prompt')) {

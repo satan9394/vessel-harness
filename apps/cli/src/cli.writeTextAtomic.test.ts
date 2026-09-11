@@ -24,9 +24,13 @@ describe('cli.ts writeTextAtomic → renameWithRetry（task 114）', () => {
     dir = fs.mkdtempSync(path.join(os.tmpdir(), 'cah-cli-114-'));
     out = fs.mkdtempSync(path.join(os.tmpdir(), 'cah-cli-114-out-'));
     process.env.VESSEL_PROVIDER_ROOT = dir;
+    // G-10：会话登记根同款指向临时 dir（本用例的 main() 路径若构造默认 SessionRegistry，
+    // 也绝不写真实 ~/.vessel/sessions.json）。本文件沿用「直接 delete」的既有还原写法。
+    process.env.VESSEL_SESSION_ROOT = dir;
   });
   afterEach(() => {
     delete process.env.VESSEL_PROVIDER_ROOT;
+    delete process.env.VESSEL_SESSION_ROOT;
     fs.rmSync(dir, { recursive: true, force: true });
     fs.rmSync(out, { recursive: true, force: true });
   });

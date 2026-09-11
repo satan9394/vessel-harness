@@ -83,23 +83,30 @@ describe('CLI (apps/cli)', () => {
   let usageDir: string;
   let oldProviderRoot: string | undefined;
   let oldUsageRoot: string | undefined;
+  let oldSessionRoot: string | undefined;
 
   // task 106 隔离：`main()` 内部的默认 store / usage store 一律落在临时目录，
   // 绝不读写真实 ~/.vessel（否则机器上 current=真实供应商时 run smoke 会打真网络）。
+  // G-10 起 `cmdRun` 还会 new SessionRegistry()（无参 = 缺省根），VESSEL_SESSION_ROOT
+  // 必须同款钉住，否则这些用例会把测试会话写进真实 ~/.vessel/sessions.json（AGENTS.md §8）。
   beforeEach(() => {
     dir = fs.mkdtempSync(path.join(os.tmpdir(), 'cah-cli-'));
     cfgDir = fs.mkdtempSync(path.join(os.tmpdir(), 'cah-cli-cfg-'));
     usageDir = fs.mkdtempSync(path.join(os.tmpdir(), 'cah-cli-usage-'));
     oldProviderRoot = process.env.VESSEL_PROVIDER_ROOT;
     oldUsageRoot = process.env.VESSEL_USAGE_ROOT;
+    oldSessionRoot = process.env.VESSEL_SESSION_ROOT;
     process.env.VESSEL_PROVIDER_ROOT = cfgDir;
     process.env.VESSEL_USAGE_ROOT = usageDir;
+    process.env.VESSEL_SESSION_ROOT = usageDir; // 会话登记同样落在临时 root（sessions.json 随 usageDir 一起清掉）
   });
   afterEach(() => {
     if (oldProviderRoot === undefined) delete process.env.VESSEL_PROVIDER_ROOT;
     else process.env.VESSEL_PROVIDER_ROOT = oldProviderRoot;
     if (oldUsageRoot === undefined) delete process.env.VESSEL_USAGE_ROOT;
     else process.env.VESSEL_USAGE_ROOT = oldUsageRoot;
+    if (oldSessionRoot === undefined) delete process.env.VESSEL_SESSION_ROOT;
+    else process.env.VESSEL_SESSION_ROOT = oldSessionRoot;
     fs.rmSync(dir, { recursive: true, force: true });
     fs.rmSync(cfgDir, { recursive: true, force: true });
     fs.rmSync(usageDir, { recursive: true, force: true });
@@ -246,15 +253,21 @@ describe('CLI (apps/cli)', () => {
 describe('CLI provider/models commands (task 016/015)', () => {
   let cfgDir: string;
   let oldRoot: string | undefined;
+  let oldSessionRoot: string | undefined;
 
   beforeEach(() => {
     cfgDir = fs.mkdtempSync(path.join(os.tmpdir(), 'cah-pcfg-'));
     oldRoot = process.env.VESSEL_PROVIDER_ROOT;
+    oldSessionRoot = process.env.VESSEL_SESSION_ROOT;
     process.env.VESSEL_PROVIDER_ROOT = cfgDir;
+    // G-10：`main()` 的默认 SessionRegistry 根同样钉到临时目录（不写真实 ~/.vessel/sessions.json）。
+    process.env.VESSEL_SESSION_ROOT = cfgDir;
   });
   afterEach(() => {
     if (oldRoot === undefined) delete process.env.VESSEL_PROVIDER_ROOT;
     else process.env.VESSEL_PROVIDER_ROOT = oldRoot;
+    if (oldSessionRoot === undefined) delete process.env.VESSEL_SESSION_ROOT;
+    else process.env.VESSEL_SESSION_ROOT = oldSessionRoot;
     // isolated temp cfg dir — same cleanup convention as the rest of the suite
     fs.rmSync(cfgDir, { recursive: true, force: true });
   });
@@ -358,14 +371,20 @@ describe('V0.7 permission modes — three-level policy enforcement (task 022)', 
 describe('V0.9 usage/pricing commands (task 031)', () => {
   let cfgDir: string;
   let oldRoot: string | undefined;
+  let oldSessionRoot: string | undefined;
   beforeEach(() => {
     cfgDir = fs.mkdtempSync(path.join(os.tmpdir(), 'vessel-usage-cmd-'));
     oldRoot = process.env.VESSEL_USAGE_ROOT;
+    oldSessionRoot = process.env.VESSEL_SESSION_ROOT;
     process.env.VESSEL_USAGE_ROOT = cfgDir;
+    // G-10：会话登记根一并钉住（这些用例驱动 main()，不能漏到真实 ~/.vessel/sessions.json）。
+    process.env.VESSEL_SESSION_ROOT = cfgDir;
   });
   afterEach(() => {
     if (oldRoot === undefined) delete process.env.VESSEL_USAGE_ROOT;
     else process.env.VESSEL_USAGE_ROOT = oldRoot;
+    if (oldSessionRoot === undefined) delete process.env.VESSEL_SESSION_ROOT;
+    else process.env.VESSEL_SESSION_ROOT = oldSessionRoot;
     fs.rmSync(cfgDir, { recursive: true, force: true });
   });
 
@@ -642,14 +661,24 @@ describe('vessel serve / vessel web (task 044)', () => {
   // at runtime) and restore them after each test so real serve keeps working.
   let realPark: typeof cli.serveRuntime.park;
   let realOpen: typeof cli.serveRuntime.open;
+  // G-10：startServe → createVesselServer 会 `new SessionRegistry()`（缺省根）；
+  // 这里同样钉住会话登记根，serve 用例绝不写真实 ~/.vessel/sessions.json。
+  let sessionDir: string;
+  let oldSessionRoot: string | undefined;
 
   beforeEach(() => {
     realPark = cli.serveRuntime.park;
     realOpen = cli.serveRuntime.open;
+    sessionDir = fs.mkdtempSync(path.join(os.tmpdir(), 'cah-cli-serve-session-'));
+    oldSessionRoot = process.env.VESSEL_SESSION_ROOT;
+    process.env.VESSEL_SESSION_ROOT = sessionDir;
   });
   afterEach(() => {
     cli.serveRuntime.park = realPark;
     cli.serveRuntime.open = realOpen;
+    if (oldSessionRoot === undefined) delete process.env.VESSEL_SESSION_ROOT;
+    else process.env.VESSEL_SESSION_ROOT = oldSessionRoot;
+    fs.rmSync(sessionDir, { recursive: true, force: true });
   });
 
   it('startServe with port 0 binds a real server on 127.0.0.1 and close() frees it', async () => {
@@ -702,14 +731,20 @@ describe('vessel serve / vessel web (task 044)', () => {
 describe('vessel usage recompute / pricing override (task 091/092)', () => {
   let cfgDir: string;
   let oldRoot: string | undefined;
+  let oldSessionRoot: string | undefined;
   beforeEach(() => {
     cfgDir = fs.mkdtempSync(path.join(os.tmpdir(), 'vessel-091-cmd-'));
     oldRoot = process.env.VESSEL_USAGE_ROOT;
+    oldSessionRoot = process.env.VESSEL_SESSION_ROOT;
     process.env.VESSEL_USAGE_ROOT = cfgDir;
+    // G-10：会话登记根一并钉住（这些用例驱动 main()，不能漏到真实 ~/.vessel/sessions.json）。
+    process.env.VESSEL_SESSION_ROOT = cfgDir;
   });
   afterEach(() => {
     if (oldRoot === undefined) delete process.env.VESSEL_USAGE_ROOT;
     else process.env.VESSEL_USAGE_ROOT = oldRoot;
+    if (oldSessionRoot === undefined) delete process.env.VESSEL_SESSION_ROOT;
+    else process.env.VESSEL_SESSION_ROOT = oldSessionRoot;
     fs.rmSync(cfgDir, { recursive: true, force: true });
   });
 
@@ -879,6 +914,7 @@ describe('vessel pricing sync / provider costMultiplier (task 093/094)', () => {
   let dir: string;
   let oldProviderRoot: string | undefined;
   let oldUsageRoot: string | undefined;
+  let oldSessionRoot: string | undefined;
 
   const MODELS_DEV_FIXTURE = {
     anthropic: {
@@ -897,14 +933,19 @@ describe('vessel pricing sync / provider costMultiplier (task 093/094)', () => {
     dir = fs.mkdtempSync(path.join(os.tmpdir(), 'vessel-093-cmd-'));
     oldProviderRoot = process.env.VESSEL_PROVIDER_ROOT;
     oldUsageRoot = process.env.VESSEL_USAGE_ROOT;
+    oldSessionRoot = process.env.VESSEL_SESSION_ROOT;
     process.env.VESSEL_PROVIDER_ROOT = dir;
     process.env.VESSEL_USAGE_ROOT = dir;
+    // G-10：会话登记根同样钉到临时 dir（main() 的默认 SessionRegistry 不碰真实 ~/.vessel）。
+    process.env.VESSEL_SESSION_ROOT = dir;
   });
   afterEach(() => {
     if (oldProviderRoot === undefined) delete process.env.VESSEL_PROVIDER_ROOT;
     else process.env.VESSEL_PROVIDER_ROOT = oldProviderRoot;
     if (oldUsageRoot === undefined) delete process.env.VESSEL_USAGE_ROOT;
     else process.env.VESSEL_USAGE_ROOT = oldUsageRoot;
+    if (oldSessionRoot === undefined) delete process.env.VESSEL_SESSION_ROOT;
+    else process.env.VESSEL_SESSION_ROOT = oldSessionRoot;
     fs.rmSync(dir, { recursive: true, force: true });
   });
 
@@ -1014,18 +1055,24 @@ describe('vessel provider export/import + endpoint (task 095/096)', () => {
   let dir: string;
   let outDir: string;
   let oldRoot: string | undefined;
+  let oldSessionRoot: string | undefined;
   const FAKE_KEY = 'sk-fake-cli-export-9876';
 
   beforeEach(() => {
     dir = fs.mkdtempSync(path.join(os.tmpdir(), 'vessel-095-cfg-'));
     outDir = fs.mkdtempSync(path.join(os.tmpdir(), 'vessel-095-out-'));
     oldRoot = process.env.VESSEL_PROVIDER_ROOT;
+    oldSessionRoot = process.env.VESSEL_SESSION_ROOT;
     process.env.VESSEL_PROVIDER_ROOT = dir;
+    // G-10：会话登记根同样钉到临时 dir（main() 的默认 SessionRegistry 不碰真实 ~/.vessel）。
+    process.env.VESSEL_SESSION_ROOT = dir;
   });
 
   afterEach(() => {
     if (oldRoot === undefined) delete process.env.VESSEL_PROVIDER_ROOT;
     else process.env.VESSEL_PROVIDER_ROOT = oldRoot;
+    if (oldSessionRoot === undefined) delete process.env.VESSEL_SESSION_ROOT;
+    else process.env.VESSEL_SESSION_ROOT = oldSessionRoot;
     fs.rmSync(dir, { recursive: true, force: true });
     fs.rmSync(outDir, { recursive: true, force: true });
   });

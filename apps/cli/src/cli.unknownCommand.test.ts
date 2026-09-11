@@ -11,7 +11,9 @@ import { main } from './cli.js';
  * （不创建目录）——三条用例都在 store 访问之前返回，不写盘、不碰真实 ~/.vessel。
  */
 const STATE_DIR = path.join(os.tmpdir(), 'vessel-unknowncmd-test');
-const ROOT_ENV = ['VESSEL_PROVIDER_ROOT', 'VESSEL_USAGE_ROOT', 'VESSEL_SETTINGS_ROOT'] as const;
+// G-10：`main()` 的默认会话登记（`new SessionRegistry()`）也解析 env 根，
+// 加进数组即自动获得 beforeEach 注入 + afterEach 还原（一处改动覆盖全部用例）。
+const ROOT_ENV = ['VESSEL_PROVIDER_ROOT', 'VESSEL_USAGE_ROOT', 'VESSEL_SETTINGS_ROOT', 'VESSEL_SESSION_ROOT'] as const;
 const saved = new Map<string, string | undefined>();
 
 beforeEach(() => {

@@ -189,16 +189,23 @@ describe('chat TUI — slash dispatch (task 021)', () => {
 describe('chat TUI — runChat loop (task 021)', () => {
   let dir: string;
   let oldProviderRoot: string | undefined;
+  let oldSessionRoot: string | undefined;
   beforeEach(() => {
     dir = fs.mkdtempSync(path.join(os.tmpdir(), 'cah-tui-run-'));
     // task 106 隔离：runChat 的默认 ProviderStore 必须落在这个临时 root，
     // 绝不能读真实 ~/.vessel（否则机器上 current=真实供应商时这些用例会打真网络）。
     oldProviderRoot = process.env.VESSEL_PROVIDER_ROOT;
+    // G-10：runChat 的 `buildHarness` 还会 new SessionRegistry()（缺省根）——同款钉住，
+    // 否则每个用例都会把测试会话写进真实 ~/.vessel/sessions.json（AGENTS.md §8）。
+    oldSessionRoot = process.env.VESSEL_SESSION_ROOT;
     process.env.VESSEL_PROVIDER_ROOT = dir;
+    process.env.VESSEL_SESSION_ROOT = dir;
   });
   afterEach(() => {
     if (oldProviderRoot === undefined) delete process.env.VESSEL_PROVIDER_ROOT;
     else process.env.VESSEL_PROVIDER_ROOT = oldProviderRoot;
+    if (oldSessionRoot === undefined) delete process.env.VESSEL_SESSION_ROOT;
+    else process.env.VESSEL_SESSION_ROOT = oldSessionRoot;
     fs.rmSync(dir, { recursive: true, force: true });
   });
 
@@ -330,15 +337,21 @@ describe('makeLineReader — sequential reads over ONE readline interface (task 
 describe('task 106 — TUI 凭据接线 + 测试隔离', () => {
   let dir: string;
   let oldProviderRoot: string | undefined;
+  let oldSessionRoot: string | undefined;
 
   beforeEach(() => {
     dir = fs.mkdtempSync(path.join(os.tmpdir(), 'cah-106-'));
     oldProviderRoot = process.env.VESSEL_PROVIDER_ROOT;
     process.env.VESSEL_PROVIDER_ROOT = dir; // 临时状态根：不读不写真实 ~/.vessel
+    // G-10：会话登记根同款隔离（runChat 的 buildHarness → new SessionRegistry()）。
+    oldSessionRoot = process.env.VESSEL_SESSION_ROOT;
+    process.env.VESSEL_SESSION_ROOT = dir;
   });
   afterEach(() => {
     if (oldProviderRoot === undefined) delete process.env.VESSEL_PROVIDER_ROOT;
     else process.env.VESSEL_PROVIDER_ROOT = oldProviderRoot;
+    if (oldSessionRoot === undefined) delete process.env.VESSEL_SESSION_ROOT;
+    else process.env.VESSEL_SESSION_ROOT = oldSessionRoot;
     fs.rmSync(dir, { recursive: true, force: true });
   });
 
@@ -416,6 +429,9 @@ describe('task 106 — TUI 凭据接线 + 测试隔离', () => {
 
       // 控制组：不注入 VESSEL_PROVIDER_ROOT → 默认 root 就是 home/.vessel，哨兵确实会被读到
       delete process.env.VESSEL_PROVIDER_ROOT;
+      // G-10：控制组只放开 provider root——会话登记根必须继续钉在临时目录，
+      // 否则 runChat 的 `new SessionRegistry()` 会往真实 ~/.vessel/sessions.json 写测试会话（AGENTS.md §8）。
+      process.env.VESSEL_SESSION_ROOT = dir;
       const control = scriptedIO(['ping', '/quit']);
       await runChat({
         workspaceRoot: dir,
@@ -455,6 +471,7 @@ describe('G-09 — TUI 会话内成本显示（/cost · /usage · 每回合增�
   let usageRoot: string;
   let oldProviderRoot: string | undefined;
   let oldUsageRoot: string | undefined;
+  let oldSessionRoot: string | undefined;
 
   /**
    * 固定价目（形状照抄 `UsageStore.recovery.test.ts` 的 PRICING）：
@@ -473,10 +490,14 @@ describe('G-09 — TUI 会话内成本显示（/cost · /usage · 每回合增�
     usageRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'vessel-tui-'));
     // task 106 / AGENTS.md 硬性约束 8：runChat 默认路径会构造默认 ProviderStore / UsageStore，
     // 两个 root 都必须指到临时目录 —— 绝不读真实 ~/.vessel（也不写真实用量历史）。
+    // G-10 起还要加第三个：`buildHarness` 的 `new SessionRegistry()`（缺省根），
+    // 漏钉就会把测试会话写进真实 ~/.vessel/sessions.json。
     oldProviderRoot = process.env.VESSEL_PROVIDER_ROOT;
     oldUsageRoot = process.env.VESSEL_USAGE_ROOT;
+    oldSessionRoot = process.env.VESSEL_SESSION_ROOT;
     process.env.VESSEL_PROVIDER_ROOT = root;
     process.env.VESSEL_USAGE_ROOT = usageRoot;
+    process.env.VESSEL_SESSION_ROOT = usageRoot;
   });
 
   afterEach(() => {
@@ -484,6 +505,8 @@ describe('G-09 — TUI 会话内成本显示（/cost · /usage · 每回合增�
     else process.env.VESSEL_PROVIDER_ROOT = oldProviderRoot;
     if (oldUsageRoot === undefined) delete process.env.VESSEL_USAGE_ROOT;
     else process.env.VESSEL_USAGE_ROOT = oldUsageRoot;
+    if (oldSessionRoot === undefined) delete process.env.VESSEL_SESSION_ROOT;
+    else process.env.VESSEL_SESSION_ROOT = oldSessionRoot;
     fs.rmSync(root, { recursive: true, force: true });
     fs.rmSync(usageRoot, { recursive: true, force: true });
   });

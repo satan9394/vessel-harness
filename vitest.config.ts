@@ -34,6 +34,9 @@ export default defineConfig({
   resolve: { alias },
   test: {
     environment: 'node',
+    // 全局隔离兜底（AGENTS.md §8）：把新增的状态根指向一次性临时目录，
+    // 详见 vitest.setup.ts 的说明。
+    setupFiles: ['./vitest.setup.ts'],
     include: [
       'index.test.ts',
       'packages/*/src/**/*.test.ts',

@@ -143,18 +143,27 @@ function scriptedIO(inputs: string[]): { io: ChatSessionIO; output: string[] } {
 
 describe('103 — CLI 端到端：vessel run 走 opencode-go（mock HTTP 服务）', () => {
   let dir: string;
-  const saved = { provider: process.env.VESSEL_PROVIDER_ROOT, usage: process.env.VESSEL_USAGE_ROOT };
+  // G-10：`main(['run', ...])` 与 `runChat()` 都会 new SessionRegistry()（缺省根），
+  // 所以 session 根必须与 provider/usage 一起快照——否则会写真实 ~/.vessel/sessions.json（AGENTS.md §8）。
+  const saved = {
+    provider: process.env.VESSEL_PROVIDER_ROOT,
+    usage: process.env.VESSEL_USAGE_ROOT,
+    session: process.env.VESSEL_SESSION_ROOT,
+  };
 
   beforeEach(() => {
     dir = fs.mkdtempSync(path.join(os.tmpdir(), 'cah-oc-go-'));
     process.env.VESSEL_PROVIDER_ROOT = dir;
     process.env.VESSEL_USAGE_ROOT = dir;
+    process.env.VESSEL_SESSION_ROOT = dir;
   });
   afterEach(() => {
     if (saved.provider === undefined) delete process.env.VESSEL_PROVIDER_ROOT;
     else process.env.VESSEL_PROVIDER_ROOT = saved.provider;
     if (saved.usage === undefined) delete process.env.VESSEL_USAGE_ROOT;
     else process.env.VESSEL_USAGE_ROOT = saved.usage;
+    if (saved.session === undefined) delete process.env.VESSEL_SESSION_ROOT;
+    else process.env.VESSEL_SESSION_ROOT = saved.session;
     fs.rmSync(dir, { recursive: true, force: true });
   });
 

@@ -67,16 +67,23 @@ const SECRET_REF_CONFIG = {
 describe('默认 ProviderStore 的 secrets.json 损坏恢复（G-05 / BRIEF-06 §2）', () => {
   let dir: string;
   let savedRoot: string | undefined;
+  let savedSessionRoot: string | undefined;
 
   beforeEach(() => {
     dir = fs.mkdtempSync(path.join(os.tmpdir(), 'vessel-provider-recover-'));
     savedRoot = process.env.VESSEL_PROVIDER_ROOT;
     process.env.VESSEL_PROVIDER_ROOT = dir; // 临时 root：默认 store 整体隔离，不碰真实 ~/.vessel
+    // G-10：同一文件里若有默认路径被驱动到 SessionRegistry，会话根也必须在临时目录
+    // （与 provider 根同款快照/还原，AGENTS.md §8）。
+    savedSessionRoot = process.env.VESSEL_SESSION_ROOT;
+    process.env.VESSEL_SESSION_ROOT = dir;
   });
 
   afterEach(() => {
     if (savedRoot === undefined) delete process.env.VESSEL_PROVIDER_ROOT;
     else process.env.VESSEL_PROVIDER_ROOT = savedRoot;
+    if (savedSessionRoot === undefined) delete process.env.VESSEL_SESSION_ROOT;
+    else process.env.VESSEL_SESSION_ROOT = savedSessionRoot;
     vi.restoreAllMocks();
     fs.rmSync(dir, { recursive: true, force: true });
   });
