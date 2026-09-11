@@ -1,7 +1,7 @@
 # 116 — 参考 OpenCode/Codex/Claude Code 系统提示词，审计并增强 behavior 层
 
 - 编号：116
-- 状态：待验收
+- 状态：已合入
 - 优先级：P1（用户授权方向：参考开源 Agent 的系统提示词工程，优化我们的行为层）
 - 创建日期：2026-09-10
 - 完成日期：2026-09-11（执行器回填）
@@ -169,5 +169,13 @@ RUN  v2.1.9 C:/work/Vessel_Harness
 
 ## 验收结论（指挥回填）
 
-- [ ] 合入 / 打回
-- 备注：
+- [x] 合入（commit 7042f62）
+- 备注：指挥独立复核——`tsc -b` exit 0；全量 vitest **1220 passed + 1 skipped / exit 0**（112 files；含 117
+  在途 guide 用例，116 本身 +3 无回归）；web 82。
+  认可：素材获取（opencode prompts / Codex AGENTS.md / Claude 公开知识，仅落 .harness/reference/ 不入 git，
+  clean-room 合规——提交无他人 prompt 原文）；对比表 + 差距清单完整；behavior.default.yaml **v0.1→v0.2 新增
+  8 条实质增强**（retry.exponential_backoff / planning.plan_before_execute / verification.honest_failure /
+  context.rules_in_files / resume_after_compaction / budget_awareness / communication.concise_direct +
+  safety.secret_handling 走 runtime_policy 复用 deny_read 硬通道——全部自有中文表述）；Compiler.test +3
+  （rule 级 deny_read 校验 + 真实 configs 双通道零告警 + 新条目渲染）；docs/BEHAVIOR-DEFAULTS.md。
+  **记录**：secret 写入侧弱项需新 policy 卡（已注明）；117（guide 工程）并行在途。**116 关闭。**
