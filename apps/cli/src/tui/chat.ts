@@ -244,9 +244,19 @@ export async function runChat(opts: ChatOptions): Promise<number> {
     if (!effProvider) {
       const smoke = [
         { when: /阅读|read|总结/i, ifNoToolResult: true, response: { toolCalls: [{ name: 'Read', arguments: { path: '{cwd}/README.md' } }] } },
+        {
+          when: /.*/,
+          minToolResults: 1,
+          whenToolResult: /^\[(TOOL_FAILURE|DENIED|INVALID_ARGS|TIMEOUT|SANDBOX_DENIAL)\]/,
+          response: { text: '（mock）未能读取工作区 README.md——文件可能不存在或被拒。请确认工作区包含 README.md；要获得真实回答请配置模型：vessel setup。' },
+        },
         { when: /.*/, minToolResults: 1, response: { text: '（mock）读取结果：\n{last_tool_result}' } },
       ];
-      effProvider = new MockProvider(smoke, { model: effModel, vars: { cwd: sessionWorkspace } });
+      effProvider = new MockProvider(smoke, {
+        model: effModel,
+        vars: { cwd: sessionWorkspace },
+        fallbackText: '（mock 离线冒烟）已收到你的输入。当前无匹配脚本应答——配置真实模型后即可获得完整回答：vessel setup（交互向导）或 vessel provider add。',
+      });
     }
     return composeHarness({
       workspaceRoot: sessionWorkspace,

@@ -40,14 +40,24 @@ export interface ChatMessage {
 
 /**
  * `ChatMessage.source` values that mark **context-injected** user messages
- * (never real surface input). Kept next to the contract so the context builder
- * (producer) and MockProvider (consumer) cannot drift apart.
+ * (never real surface input): volatile environment/skills index (`environment`),
+ * AGENTS.md instructions (`instruction`), project-memory snapshot (`memory`),
+ * compaction summary (`compacted-summary`), plan context (`plan`), Context Reset
+ * handoff resume context (`handoff`) and explicitly injected context (`inject`).
+ * Kept next to the contract so the context builder (producer) and MockProvider
+ * (consumer) cannot drift apart.
+ *
+ * `steer` is deliberately **not** in this set: it is live operator-driven input
+ * (SteeringQueue at a step boundary), so MockProvider keeps matching on it.
  */
 export const INJECTED_MESSAGE_SOURCES: ReadonlySet<string> = new Set([
   'environment',
   'instruction',
   'memory',
   'compacted-summary',
+  'plan',
+  'handoff',
+  'inject',
 ]);
 
 export interface ChatToolDef {

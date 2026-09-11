@@ -4,7 +4,7 @@ import { findPreset, fetchOpenAIModels, modelsForProtocol, type ProviderPreset }
 import { providerPickerOptions, CUSTOM_ENDPOINT_VALUE } from './presets.js';
 
 /**
- * apps/cli/providers/setup — `cah setup` interactive wizard.
+ * apps/cli/providers/setup — `vessel setup` interactive wizard.
  *
  * Upgraded per docs/ideas/PROVIDER-UX-RESEARCH.md §10/§11 (research across
  * opencode /connect, Pi /model, cc-switch Add-Provider + Fetch Models):
@@ -100,7 +100,7 @@ export function createClackIO(_store: ProviderStore): SetupIO {
       return input.split(',').map((s) => s.trim()).filter(Boolean);
     },
     async confirmSetDefault(id: string) {
-      return (await clack.confirm({ message: `把 "${id}" 设为当前默认供应商？（cah run 立即使用）`, initialValue: true })) as boolean | symbol;
+      return (await clack.confirm({ message: `把 "${id}" 设为当前默认供应商？（vessel run 立即使用）`, initialValue: true })) as boolean | symbol;
     },
     async confirmOverwrite(id: string) {
       return (await clack.confirm({ message: `供应商 "${id}" 已存在，覆盖它？` })) as boolean | symbol;
@@ -234,7 +234,7 @@ export async function runSetupWizard(deps: WizardDeps): Promise<string | null> {
     modelNames = outcome.models;
     modelNote = outcome.note;
   } else if (outcome.reason === 'auth') {
-    clack.log.error('多次尝试后 API Key 仍无效。可稍后用 cah provider add / cah models 再试。');
+    clack.log.error('多次尝试后 API Key 仍无效。可稍后用 vessel provider add / vessel models 再试。');
     return null;
   } else {
     clack.log.warn(`${outcome.message} — 转手动输入模型 id（或留空退出）。`);
@@ -265,7 +265,7 @@ export async function runSetupWizard(deps: WizardDeps): Promise<string | null> {
     `  端点: ${(baseUrl as string) || '(mock)'}`,
     apiKey ? `  API Key: ${maskKey(apiKey)}` : '  API Key: (沿用已存)',
     `  模型: ${models.length > 0 ? models.join(', ') : '(默认)'}`,
-    `  作用域: ~/.vessel（影响本机所有 cah run）`,
+    `  作用域: ~/.vessel（影响本机所有 vessel run）`,
   ].join('\n');
   const confirmed = (await io.confirmWrite(summary)) as boolean | symbol;
   if (confirmed !== true) return null;
@@ -298,7 +298,7 @@ export async function runSetupWizard(deps: WizardDeps): Promise<string | null> {
     const makeDefault = (await io.confirmSetDefault(finalId)) as boolean | symbol;
     if (makeDefault === true) {
       store.setCurrent(finalId);
-      clack.log.success(`已切换。cah run 现在走 ${presetName}/${defaultModel}（热生效，无需重启）`);
+      clack.log.success(`已切换。vessel run 现在走 ${presetName}/${defaultModel}（热生效，无需重启）`);
     }
   }
   clack.log.success(`已保存供应商 "${finalId}" 到 ~/.vessel/providers.json`);
