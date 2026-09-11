@@ -16,7 +16,7 @@
 
 - **G-01（P0）首跑示例失效**：仓库工作区 `run --prompt` 曾 100% 输出 `(mock: no script entry matched)` 且 exit 0（假成功）。根因：ContextBuilder 将 volatile skills index 作为**最后一条 user 消息**追加，MockProvider 只匹配最后一条 user 消息。修复：`ChatMessage.source` 溯源 + Builder 标记 volatile 为 `environment` + MockProvider 只匹配真实 surface 输入 + 确定性兜底文案。
 - **G-02（P0）未知命令静默 run**：`vessel foo`、`vessel chat` 曾静默跑一次 mock 任务并 exit 0。修复：main() 未知子命令 → stderr「未知命令 <x>。可用：vessel --help」+ **exit 2**（实测）。
-- **G-14（文案）**：TUI 欢迎语补 `/explain`·`? <术语>`·`vessel guide`；`cah *` 经核验为审计**误报**（仅测试临时目录名命中），未做无谓改动。
+- **G-14（文案）**：TUI 欢迎语补 `/explain`·`? <术语>`·`vessel guide`（已完成）。**订正**：`cah *` 并非审计误报——指挥早前 PowerShell 检索失效误判，独立 Evaluator 已证伪并定位 `apps/cli/src/providers/setup.ts:7/103/237/268/301`（4 处用户可见文案）→ 列入 FIX 轮（`FIX-BRIEF-01.md` S2）。
 - 附带：空工作区/无 README 时给友好提示，不再把裸 `TOOL_FAILURE` 当"最终回复"。
 
 验收侧证据（Orchestrator）：`tsc -b` exit 0；`vitest` 113 文件 **1225 passed + 1 skipped**；CLI 冒烟 A–E 全通过；`source` 经查不进入任何真实 provider 请求体（三路均显式挑字段）。**独立 Evaluator 裁定：待回填。**

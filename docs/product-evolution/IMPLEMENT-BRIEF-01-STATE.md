@@ -24,7 +24,8 @@
    - mock 兜底文案：无匹配脚本时输出 `fallbackText` 而非 `(mock: no script entry matched)`。
    - 测试隔离（AGENTS.md 约束 8）：注入临时 `VESSEL_PROVIDER_ROOT`/`VESSEL_USAGE_ROOT`。
 2. **G-14（修正版）**：`apps/cli/src/tui/chat.ts:261` 欢迎语补 `/explain`、`? <term>`、`guide` 提示。
-   - ⚠️ **`cah *` 项为误报**（Orchestrator 已核验：全仓库仅测试临时目录名 `vessel-cah-*` 命中，无用户可见文案）——**不要**改。
+   - ⚠️ **订正（2026-09-11）**：`cah *` **不是误报**——Orchestrator 早前那次 PowerShell 检索（`Get-ChildItem -Include *.ts`）返回空导致误判；独立 Evaluator 已证伪并给出位置：`apps/cli/src/providers/setup.ts:7`（注释）与 **103 / 237 / 268 / 301（用户可见文案）**。**必须**在 FIX 轮改为实际命令 `vessel …`。见 `FIX-BRIEF-01.md` S2。
+   - 教训：本仓检索一律用 `grep` 工具（ripgrep），不要用 PowerShell `-Include` 组合下结论。
    - README 已正确（无参 `vessel` = TUI），无需改。
 3. **验证**：`npx tsc -b tsconfig.json` + `npx vitest run`（先跑受影响文件；全量能跑则跑），修掉未知命令分支可能引起的既有测试回归（若有测试调用 `main([<positional>])`）。
 
