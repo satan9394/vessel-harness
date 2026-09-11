@@ -21,6 +21,7 @@ export const KNOWN_STATE_ENTRIES = [
   'providers.json',
   'current.json',
   'usage.json',
+  'sessions.json',
   'memory',
   'learned',
   'skills',

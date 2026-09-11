@@ -27,6 +27,7 @@ import { PricingOverrideStore, type PricingRepair } from './usage/pricingOverrid
 import { runVesselMigration } from './migrate.js';
 import { cmdReview } from './review/reviewCommands.js';
 import { cmdExplain, cmdListTerms, cmdGuide, cmdSettings } from './guide/guideCommands.js';
+import { cmdSessionsList } from './sessions/commands.js';
 import { loadModelCatalog, findCatalogModelByBase, findCatalogModelMatch, catalogPriceSource, listCatalogModels } from './providers/modelCatalog.js';
 import { syncModelCatalog, MODELS_DEV_URL, DEFAULT_SYNC_TIMEOUT_MS, MAX_SYNC_RETRIES } from './providers/pricingSync.js';
 import { loadPricing, assertCostMultiplier, DEFAULT_COST_MULTIPLIER, type TokenPrice } from './providers/pricing.js';
@@ -72,6 +73,7 @@ Vessel CLI v${VERSION} — 可组合 Agent Harness（品牌 Vessel）
   vessel provider endpoint test <id> [--set-default]        端点最小探测 + 建议（默认不改默认端点）
   vessel provider endpoint test --all                       探测所有供应商的端点
   vessel migrate                     一次性迁移旧状态目录 ~/.dsh → ~/.vessel（数据复制 + 旧目录进回收站）
+  vessel sessions list               列出历史会话（最近活动在前）
   vessel review handoff <request.json>   生成外部评审 handoff（.vessel/reviews/<id>/handoff.md；task 059）
   vessel review import <id> <result 文件>  导入外部评审结果（[--source external|internal]，落库）
   vessel review list                 列出外部评审 reviews
@@ -98,7 +100,6 @@ run 选项:
                                   danger-full-access（全权限，高危可执行）
   --policy <path>                 系统级策略文件（默认 configs/policy.default.yaml）
   --behavior <path>               Behavior IR 文件（默认 configs/behavior.default.yaml）
-  --session-dir <dir>             会话日志目录（默认 <workspace>/.harness/sessions/<id>）
   --strict                        计价严格模式：只用模型专属价目（model/catalog），未收录模型按 0 计价并标「未收录」
 
 provider 协议说明:
@@ -1491,6 +1492,14 @@ export async function main(argv: string[] = process.argv.slice(2)): Promise<numb
   if (first === 'bench-report') return cmdBenchReport(parsed.flags);
   if (first === 'serve') return cmdServe(parsed.flags);
   if (first === 'web') return cmdWeb(parsed.flags);
+  if (first === 'sessions') {
+    const sub = parsed.positionals[1] ?? 'list';
+    if (sub !== 'list') {
+      console.error(`未知 sessions 子命令 ${sub}。可用：vessel sessions list`);
+      return 2;
+    }
+    return cmdSessionsList();
+  }
   // G-02: any other first positional is an unknown/misspelled subcommand
   // (`vessel foo`, `vessel chat`, ...) → explicit error + exit 2, NEVER a
   // silent run. TUI's real entry is the no-arg `vessel`.
