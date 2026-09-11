@@ -29,7 +29,10 @@
 
 | 卡 | 内容 | 优先级 | 备注 |
 | — | **115 已合入（38e057f）**：queue statSync 有界重试（statWithRetry + runSync 去静默 continue → 锁错误降级置脏重读 disk）——**Windows 锁 flaky 全套治理完成（rename 12 处 + stat 路径）**，1198 测试 | ✅ | flaky 治理彻底闭环 |
-| — | deepseek-flash 成本与上下文膨胀观察（run2 S001 in 1.31M/$0.786；单轮最高 $0.94） | — | 已记录；成本特性明确（稳定性优先已定 deepseek-flash 默认），数值观察可再评估 |
+| — | **116 已合入（7042f62）**：behavior IR v0.2（审计 opencode/Codex/Claude 提示词工程 → +8 条自有表述增强） | ✅ | 提示词工程线 |
+| — | **117 已合入（546c60c）**：交互引导体系（14 条中英双语词库 + explain/list-terms/guide/settings + TUI /explain 与 ?） | ✅ | 引导工程线 |
+| — | 116 记录：secret 写入侧弱项需新 policy 卡 | P2 | 候选 |
+| — | deepseek-flash 成本与上下文膨胀观察（run2 S001 in 1.31M/$0.786；单轮最高 $0.94） | — | 已记录；稳定性优先已定默认 |
 
 ## 暂不做（P3，报告结论）
 

@@ -160,5 +160,12 @@ $ vessel settings set theme neon     # exit 2（非法值 fail loud，带可选�
 
 ## 验收结论（指挥回填）
 
-- [ ] 合入 / 打回
-- 备注：
+- [x] 合入（commit 546c60c）
+- 备注：指挥独立复核——`tsc -b` exit 0；全量 vitest **1220 passed + 1 skipped / exit 0**（112 files）；web 82。
+  认可：词库 **14 条**中英双语（小小蜜/小助手别名 vessel·xiaoxiaomi、Call、Collect、Agent、Harness、Policy、
+  Prompt、Lane、Bench、theme、locale、token 等；每条 {term, name, aliases, zh, en, usage}）；命令
+  `vessel explain|list-terms|guide|settings list|set`（未收录词友好提示 exit 2；settings 非法值 fail loud；
+  guide 跟随 settings locale）；TUI `/explain` 与 `? <term>` 复用同一词库；README 同步；19 例 guide 测试含
+  词库完整性/命中/未收录/locale 切换/设置 root 隔离（VESSEL_SETTINGS_ROOT 优先，不碰真实 ~/.vessel）；
+  踩坑记录（? 分发、key 收窄、归一化、回收站纪律）。**117 关闭——交互引导体系落地（术语中英解释 +
+  设置引导 + 新手 guide）。**
