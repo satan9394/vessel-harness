@@ -243,7 +243,7 @@ export async function runChat(opts: ChatOptions): Promise<number> {
     }
     if (!effProvider) {
       const smoke = [
-        { when: /阅读|read|总结/i, ifNoToolResult: true, response: { toolCalls: [{ name: 'Read', arguments: { path: '{cwd}/README.md' } }] } },
+        { when: /阅读|read|总结|summary/i, ifNoToolResult: true, response: { toolCalls: [{ name: 'Read', arguments: { path: '{cwd}/README.md' } }] } },
         {
           when: /.*/,
           minToolResults: 1,
