@@ -8,11 +8,14 @@ import type { AddressInfo } from 'node:net';
 import { PassThrough } from 'node:stream';
 import { fileURLToPath } from 'node:url';
 import type { SyncCredentialStore } from '@vessel/application';
+import { SessionRegistry } from '@vessel/application';
+import { MockProvider, type MockProviderOptions, type MockScriptEntry } from '@vessel/llm';
+import type { ChatRequest, ChatResponse, StreamChunk } from '@vessel/shared';
 import { ProviderStore } from '../providers/ProviderStore.js';
 import { providerStateRoot } from '../providers/defaultStore.js';
 import type { PricingTable } from '../providers/pricing.js';
 import { UsageStore } from '../usage/UsageStore.js';
-import { dispatchSlash, runChat, makeLineReader, resolveChatStore, TwoStageCtrlC, type ChatSessionIO } from './chat.js';
+import { dispatchSlash, runChat, makeLineReader, resolveChatStore, TwoStageCtrlC, type ChatOptions, type ChatSessionIO } from './chat.js';
 
 const REPO_ROOT = fileURLToPath(new URL('../../../../', import.meta.url)); // apps/cli/src/tui → repo root
 const POLICY = path.join(REPO_ROOT, 'configs', 'policy.default.yaml');
@@ -641,5 +644,280 @@ describe('G-09 — TUI 会话内成本显示（/cost · /usage · 每回合增�
     expect(out).toContain('本会话'); // 空表时为「本会话暂无用量记录」，三行结构不变
     expect(out).toContain('今日'); // 本地日聚合行（dispatchSlash 内 daily() 成功即出现）
     expect(out).toContain('累计');
+  });
+});
+
+/**
+ * G-13-P1 / G-13-P2 回归 —— Round 11 复评 REJECT 必修 3。
+ *
+ * 复评事实：`/permission`、`/model` 的实现看起来是对的（改状态 → 置空 harness →
+ * `syncSessionMeta` 落盘），但 `apps/cli/src/tui` **零测试覆盖**——把 `runChat`
+ * 主循环里「应用 `SlashResult`」那一段整块删掉，全量测试仍然全绿。同时 AC1 当时
+ * 只有「文件没被写」一个 bit，无法排除「harness 重建抛错导致回合根本没跑」这一
+ * 替代解释。
+ *
+ * 本块全部走**真实 `runChat`**（不是直接调 `dispatchSlash` 的纯函数旁路），并用
+ * 负对照让每条断言都有判别性：
+ *   ① /permission 返回值契约：合法值带 `permission` 字段；非法值**不带**字段（不假成功）
+ *   ② /model 返回值契约：带 `model` 字段；无参数则不带
+ *   ③ 主循环**真的**把 permission 应用进会话并落盘（负对照：不切 → 仍是 workspace-write）
+ *   ④ 主循环**真的**把新 model 下达到 provider（负对照：不切 → 仍是旧 model）（AC2 仓内版）
+ *   ⑤ AC1 的 deny 面证据：read-only 下 Write 被真实拒绝、且回合照常跑完（无 `[错误]`）；
+ *      负对照：不切权限则同一个 Write **成功**（文件真被创建）
+ *   ⑥ G-13-P2 locale 接线：`settings.json` 的 locale 真的被 `? <术语>` 消费
+ *      （负对照：zh / 缺文件 → 中文头），并证明没有回落到真实 `~/.vessel`
+ *
+ * 隔离（AGENTS.md §8）：四个状态根（provider/usage/session/settings）全部
+ * `mkdtempSync` 注入 env，afterEach 还原并清理——不读也不写真实 `~/.vessel`。
+ * （`runChat` 在进循环前会 `resolveChatLocale(opts.settingsRoot)`，因此
+ * `VESSEL_SETTINGS_ROOT` 必须与另外三个一起钉住，否则解释类断言随机器而变。）
+ */
+describe('G-13-P1/P2 — /permission 与 /model 在 runChat 主循环真正生效（含四根隔离）', () => {
+  /** 四个状态根 env：全部钉到临时目录，afterEach 逐个还原。 */
+  const ENV_KEYS = [
+    'VESSEL_PROVIDER_ROOT',
+    'VESSEL_USAGE_ROOT',
+    'VESSEL_SESSION_ROOT',
+    'VESSEL_SETTINGS_ROOT',
+  ] as const;
+
+  let providerRoot: string;
+  let usageRoot: string;
+  let sessionRoot: string;
+  let sessionControlRoot: string;
+  let sessionUpdateRoot: string;
+  let settingsRoot: string;
+  let altSettingsRoot: string;
+  let workspace: string;
+  let savedEnv: Array<[string, string | undefined]>;
+
+  beforeEach(() => {
+    providerRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'cah-g13-prov-'));
+    usageRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'cah-g13-usage-'));
+    sessionRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'cah-g13-sess-'));
+    sessionControlRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'cah-g13-sess-ctl-'));
+    sessionUpdateRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'cah-g13-sess-upd-'));
+    settingsRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'cah-g13-set-'));
+    altSettingsRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'cah-g13-set-alt-'));
+    workspace = fs.mkdtempSync(path.join(os.tmpdir(), 'cah-g13-ws-'));
+    savedEnv = ENV_KEYS.map((k): [string, string | undefined] => [k, process.env[k]]);
+    process.env.VESSEL_PROVIDER_ROOT = providerRoot;
+    process.env.VESSEL_USAGE_ROOT = usageRoot;
+    process.env.VESSEL_SESSION_ROOT = sessionRoot;
+    process.env.VESSEL_SETTINGS_ROOT = settingsRoot;
+  });
+
+  afterEach(() => {
+    for (const [k, v] of savedEnv) {
+      if (v === undefined) delete process.env[k];
+      else process.env[k] = v;
+    }
+    for (const d of [providerRoot, usageRoot, sessionRoot, sessionControlRoot, sessionUpdateRoot, settingsRoot, altSettingsRoot, workspace]) {
+      fs.rmSync(d, { recursive: true, force: true });
+    }
+  });
+
+  /**
+   * 走真实 `runChat`：脚本化输入 → 退出码 + 逐行输出。
+   *
+   * 只开放 `provider` / `model` 两个注入口（显式传递，不做对象展开）——`runChat`
+   * 的其余选项（四个状态根、policy/behavior 路径）一律走本块的临时环境。
+   */
+  const runScripted = async (
+    inputs: string[],
+    extra: { provider?: ChatOptions['provider']; model?: ChatOptions['model'] } = {},
+  ): Promise<{ code: number; output: string[]; text: string }> => {
+    const { io, output } = scriptedIO(inputs);
+    const code = await runChat({
+      workspaceRoot: workspace,
+      policySystemPath: POLICY,
+      behaviorIRPath: BEHAVIOR,
+      io,
+      provider: extra.provider,
+      model: extra.model,
+    });
+    return { code, output, text: output.join('\n') };
+  };
+
+  const slashCtx = () => ({
+    store: new ProviderStore({ rootDir: providerRoot }),
+    io: scriptedIO([]).io,
+    sessionWorkspace: workspace,
+  });
+
+  /** 本会话登记的 meta（临时会话根；`list()` 最近活动在前）。 */
+  const sessionMetaList = (root: string) => new SessionRegistry({ vesselHome: root }).list();
+
+  /**
+   * 记录型 provider（④⑤ 共用）：继承 `MockProvider` 保留脚本化行为，额外记录
+   * 每次 model 调用收到的 **完整 `ChatRequest`** —— 直接证明主循环把什么 model /
+   * 什么工具结果交给了 provider，而不是只看 runChat 打印了什么。
+   */
+  class RecordingProvider extends MockProvider {
+    readonly requests: ChatRequest[] = [];
+
+    constructor(script: MockScriptEntry[], opts: MockProviderOptions = {}) {
+      super(script, opts);
+    }
+
+    override async chat(request: ChatRequest): Promise<ChatResponse> {
+      this.requests.push(request);
+      return super.chat(request);
+    }
+
+    override async *stream(request: ChatRequest): AsyncGenerator<StreamChunk> {
+      this.requests.push(request);
+      yield* super.stream(request);
+    }
+  }
+
+  const PLAIN_SCRIPT: MockScriptEntry[] = [{ when: /.*/, response: { text: 'PONG' } }];
+
+  it('① /permission 合法值返回 permission 字段；非法值绝不返回该字段（不得宣称成功）', async () => {
+    const ok = await dispatchSlash('/permission read-only', slashCtx());
+    expect('permission' in ok).toBe(true); // 字段存在 = 主循环会应用
+    expect(ok.permission).toBe('read-only'); // 且是校验后的字面量，不是原样回显
+    expect(ok.output).toContain('已切换权限为 read-only');
+
+    // 非法值：只回用法，**不返回** permission 字段 —— 否则就是「文案说切了、实际没切」。
+    const bogus = await dispatchSlash('/permission bogus', slashCtx());
+    expect('permission' in bogus).toBe(false);
+    expect(Object.keys(bogus)).not.toContain('permission');
+    expect(bogus.output).not.toContain('已切换权限'); // 不得出现成功文案
+    expect(bogus.output).toContain('用法');
+
+    // 无参数：同样不得返回字段。
+    const bare = await dispatchSlash('/permission', slashCtx());
+    expect('permission' in bare).toBe(false);
+  });
+
+  it('② /model <id> 返回 model 字段；无参数则不返回（用法提示）', async () => {
+    const ok = await dispatchSlash('/model deepseek-chat', slashCtx());
+    expect(ok.model).toBe('deepseek-chat');
+    expect(ok.output).toContain('已切换模型为 deepseek-chat');
+
+    const bare = await dispatchSlash('/model', slashCtx());
+    expect('model' in bare).toBe(false);
+    expect(bare.output).toContain('用法');
+  });
+
+  it('③ 主循环应用 /permission 并落盘会话 meta；负对照：不切权限 → 仍是 workspace-write', async () => {
+    // —— 判别组：先 /permission read-only，再跑一个自然语言回合（harness 懒建 → 登记）——
+    const switched = await runScripted(['/permission read-only', '你好', '/quit']);
+    expect(switched.code).toBe(0);
+    expect(switched.text).toContain('已切换权限为 read-only'); // 命令确实被执行
+
+    const listed = sessionMetaList(sessionRoot);
+    expect(listed).toHaveLength(1);
+    expect(listed[0]!.provider).toBe('mock'); // 确实是这次 TUI 会话登记的那条
+    expect(listed[0]!.permission).toBe('read-only'); // 主循环的应用结果落了盘
+
+    // —— 负对照：同一份脚本去掉 /permission → 同一路径下仍是缺省权限 ——
+    // 若 ③ 的断言只是某个恒定值，这里必然一起变红。
+    process.env.VESSEL_SESSION_ROOT = sessionControlRoot;
+    const control = await runScripted(['你好', '/quit']);
+    expect(control.code).toBe(0);
+    const controlListed = sessionMetaList(sessionControlRoot);
+    expect(controlListed).toHaveLength(1);
+    expect(controlListed[0]!.permission).toBe('workspace-write'); // 缺省值，未被 /permission 改过
+    expect(controlListed[0]!.permission).not.toBe(listed[0]!.permission); // 两条路径确实不同
+
+    // —— 追加判别：harness **已建**之后才切换 → 覆盖 syncSessionMeta 回写既有登记项 ——
+    // 顺序反过来（先自然语言回合建会话，再 /permission）时，登记项已存在，只能靠
+    // syncSessionMeta 的 get → put 刷新；只改内存状态而不回写，这里必然仍是 workspace-write。
+    process.env.VESSEL_SESSION_ROOT = sessionUpdateRoot;
+    const late = await runScripted(['你好', '/permission read-only', '/quit']);
+    expect(late.code).toBe(0);
+    const lateListed = sessionMetaList(sessionUpdateRoot);
+    expect(lateListed).toHaveLength(1); // 回写既有项，不是又新建一条
+    expect(lateListed[0]!.permission).toBe('read-only'); // 既有登记项被同步成新权限
+  });
+
+  it('④ /model 后 provider 真实收到新 model（AC2 仓内版）；负对照：不切 → 仍是旧 model', async () => {
+    const switched = new RecordingProvider(PLAIN_SCRIPT, { model: 'mock-model-1' });
+    const out = await runScripted(['/model mock-model-2', '你好', '/quit'], {
+      provider: switched,
+      model: 'mock-model-1',
+    });
+    expect(out.code).toBe(0);
+    expect(switched.requests.length).toBeGreaterThanOrEqual(1);
+    // 判别断言：切换后**每一次** model 调用都带新 model（切换前没有任何 model 调用）。
+    expect(switched.requests.map((r) => r.model)).toEqual(switched.requests.map(() => 'mock-model-2'));
+    expect(switched.requests.some((r) => r.model === 'mock-model-1')).toBe(false);
+
+    // 负对照：同一 provider 脚本、同一个 opts.model，去掉 /model → 仍是旧 model。
+    const control = new RecordingProvider(PLAIN_SCRIPT, { model: 'mock-model-1' });
+    const outControl = await runScripted(['你好', '/quit'], { provider: control, model: 'mock-model-1' });
+    expect(outControl.code).toBe(0);
+    expect(control.requests.length).toBeGreaterThanOrEqual(1);
+    expect(control.requests[control.requests.length - 1]!.model).toBe('mock-model-1');
+  });
+
+  it('⑤ AC1 deny 面：read-only 下 Write 被真实拒绝且回合照常跑完；负对照：不切权限则写入成功', async () => {
+    const probeName = 'deny-probe.txt';
+    const probePath = path.join(workspace, probeName);
+    // 脚本：第 1 步发一个真实 Write 工具调用；第 2 步把模型真正收到的工具结果回显出来。
+    const writeScript: MockScriptEntry[] = [
+      {
+        when: /.*/,
+        ifNoToolResult: true,
+        response: { toolCalls: [{ name: 'Write', arguments: { path: probeName, content: 'probe-content' } }] },
+      },
+      { when: /.*/, minToolResults: 1, response: { text: 'WRITE_PROBE={last_tool_result}' } },
+    ];
+
+    // —— 判别组：切到 read-only → Write 必须被硬执法拒绝 ——
+    const deniedProvider = new RecordingProvider(writeScript, { model: 'mock-model' });
+    const denied = await runScripted(['/permission read-only', '写一个探针文件', '/quit'], {
+      provider: deniedProvider,
+    });
+    expect(denied.code).toBe(0);
+    expect(fs.existsSync(probePath)).toBe(false); // AC1 旧判据：文件没被写
+    // 新增判据（deny 面）：模型**真的**收到了 [DENIED] 工具结果，而不是「回合没跑」。
+    expect(denied.text).toContain('DENIED');
+    expect(denied.text).toMatch(/\[DENIED\]/);
+    expect(denied.text).not.toContain('[错误]'); // 排除「重建 harness 抛错导致回合没跑」
+    expect(deniedProvider.requests.length).toBeGreaterThanOrEqual(2); // deny 之后模型被再次调用 → 回合继续跑完
+
+    // —— 负对照：不切权限（workspace-write）→ 同一个 Write 成功，文件真被创建 ——
+    const allowedProvider = new RecordingProvider(writeScript, { model: 'mock-model' });
+    const allowed = await runScripted(['写一个探针文件', '/quit'], { provider: allowedProvider });
+    expect(allowed.code).toBe(0);
+    expect(fs.existsSync(probePath)).toBe(true); // 工具真的执行了
+    expect(fs.readFileSync(probePath, 'utf8')).toBe('probe-content');
+    expect(allowed.text).toContain('wrote'); // 成功工具结果回显
+    expect(allowed.text).not.toContain('DENIED'); // ⑤ 的 DENIED 不是恒定文案
+  });
+
+  it('⑥ locale 接线：settings.json locale=en → 英文解释头；负对照 zh / 缺文件 → 中文头', async () => {
+    // en：临时 settings 根下写 locale=en —— 若 runChat 去读了真实 ~/.vessel，这里不会命中。
+    fs.writeFileSync(
+      path.join(settingsRoot, 'settings.json'),
+      JSON.stringify({ theme: 'dark', locale: 'en' }),
+      'utf8',
+    );
+    const en = await runScripted(['? Call', '/quit']);
+    expect(en.code).toBe(0);
+    expect(en.text).toContain('=== Glossary:'); // renderExplain(entry, 'en') 的特征头
+    expect(en.text).not.toContain('=== 术语解释:'); // 不是中文渲染
+
+    // 负对照 1：同一位置写 locale=zh → 走中文头。
+    process.env.VESSEL_SETTINGS_ROOT = altSettingsRoot;
+    fs.writeFileSync(
+      path.join(altSettingsRoot, 'settings.json'),
+      JSON.stringify({ theme: 'dark', locale: 'zh' }),
+      'utf8',
+    );
+    const zh = await runScripted(['? Call', '/quit']);
+    expect(zh.code).toBe(0);
+    expect(zh.text).toContain('=== 术语解释:');
+    expect(zh.text).not.toContain('=== Glossary:');
+
+    // 负对照 2：settings.json 缺失 → SettingsStore 缺省 'zh'（证明该路径不回落真实 ~/.vessel）。
+    process.env.VESSEL_SETTINGS_ROOT = path.join(altSettingsRoot, 'no-settings-here');
+    const missing = await runScripted(['? Call', '/quit']);
+    expect(missing.code).toBe(0);
+    expect(missing.text).toContain('=== 术语解释:');
+    expect(missing.text).not.toContain('=== Glossary:');
   });
 });
