@@ -8,8 +8,10 @@ import {
   composeHarness,
   createMcpConnections,
   SessionRegistry,
+  type ComposedHarness,
   type ComposeOptions,
   type EnforcementProjection,
+  type McpConnectionFailure,
   type SessionMeta,
 } from '@vessel/application';
 import { createVesselServer } from '@vessel/local-server';
@@ -228,6 +230,26 @@ function writeTextAtomic(file: string, text: string): void {
 }
 
 /**
+ * 缺口 2（BRIEF-13 独立验收）：win32 下 `.cmd` / `.bat` **不是可执行文件**，必须经 shell
+ * （cmd.exe）才能启动。`resolveSpawnCommand`（packages/tools，本卡不动）只对包管理器白名单
+ * 开 shell，所以 `command: "some-tool.cmd"` 会走直连 spawn —— Node 对 .cmd/.bat 直接拒绝
+ * （CVE-2024-27980 之后是显式 EINVAL），用户最终只看到一句含糊的 `spawn EINVAL`。
+ *
+ * 判定与 `resolveSpawnCommand` **逐字对齐**：win32 + `.cmd`/`.bat` 后缀 + 不在白名单。
+ * 白名单命令（npx/npm/pnpm/yarn/uvx 自身不带后缀）由那边开 shell，命不中这里。
+ *
+ * @returns 直接可读的原因文案；`null` = 该命令可照常直连 spawn。
+ */
+function windowsShimHint(command: string, platform: NodeJS.Platform = process.platform): string | null {
+  if (platform !== 'win32') return null;
+  const cmd = command.trim().toLowerCase();
+  if (!cmd.endsWith('.cmd') && !cmd.endsWith('.bat')) return null;
+  // 与 resolveSpawnCommand 同一份白名单：命中者会被开 shell，这里不拦（防御性，当前不可达）。
+  if (new Set(['npx', 'npm', 'pnpm', 'yarn', 'uvx']).has(command)) return null;
+  return `命令 "${command}" 在 Windows 上需要 shell 才能执行（.cmd/.bat shim）；请改用白名单命令（npx/npm/pnpm/yarn/uvx）或把命令指向 .exe / 绝对路径`;
+}
+
+/**
  * G-11 MCP 半（BRIEF-13）：读 `~/.vessel/mcp.json` → 构造 transport → 写进 compose 选项。
  *
  * 失败语义（CLI 与 TUI **故意不同**，各按自己的处境取舍）：
@@ -244,9 +266,18 @@ function applyMcpConnections(opts: ComposeOptions): string | null {
   try {
     const servers = new McpConfigStore().load();
     if (servers.length > 0) {
-      const { connections, failures } = createMcpConnections(servers);
+      // 缺口 2：win32 下非白名单的 .cmd/.bat **不 spawn**（注定失败），直接记入 failures，
+      // 走既有「未启动（已跳过）」输出通道并带上可操作原因 —— 不降级成含糊的 ENOENT/EINVAL。
+      const spawnable: typeof servers = [];
+      const shimFailures: McpConnectionFailure[] = [];
+      for (const s of servers) {
+        const hint = windowsShimHint(s.command);
+        if (hint === null) spawnable.push(s);
+        else shimFailures.push({ serverName: s.name, reason: hint });
+      }
+      const { connections, failures } = createMcpConnections(spawnable);
       if (connections.length > 0) opts.mcp = connections;
-      for (const f of failures) {
+      for (const f of [...shimFailures, ...failures]) {
         console.warn(`[vessel] MCP server "${f.serverName}" 未启动（已跳过）：${f.reason}`);
       }
     }
@@ -335,7 +366,24 @@ async function cmdRun(flags: Map<string, string>): Promise<number> {
     console.error(`[vessel] MCP 配置错误：${mcpConfigError}`);
     return 1;
   }
-  const harness = await composeHarness(composeOpts);
+  // 缺口 1（BRIEF-13 独立验收）：applyMcpConnections 里 `new StdioTransport(...)` 已经真的
+  // **spawn 了子进程**；若随后 composeHarness 抛错，这些连接没有任何 harness 持有（连返回值
+  // 都没有）→ 孤儿子进程 + 吊住事件循环。这里就地回收，与 TUI 侧 chat.ts 的同类兜底一致。
+  // 成功那份由下方 finally 的 harness.close() 负责，此处只补**失败**路径。
+  let harness: ComposedHarness;
+  try {
+    harness = await composeHarness(composeOpts);
+  } catch (err) {
+    for (const conn of composeOpts.mcp ?? []) {
+      try {
+        await conn.transport.close();
+      } catch {
+        /* 回收失败不掩盖原始错误 */
+      }
+    }
+    // 原样 rethrow：错误信息与既有路径逐字一致（不包装、不改写），交由既有错误处理。
+    throw err;
+  }
 
   // G-10：让 CLI 建的会话进入会话登记表，否则 `vessel sessions list` 看不到它、无法 resume。
   try {
