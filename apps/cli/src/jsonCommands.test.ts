@@ -22,8 +22,8 @@ import type { PricingTable } from './providers/pricing.js';
  *   2. 同一份数据下 `--json` 的 `totals.costUsd` 与文本报表解析出的数值**相等**（数值比，
  *      不比格式化字符串）——只改 JSON 分支就会挂；
  *   3. `provider list --json` **先 seed 真实 provider 再断言**：`providers` 非空（空登记表
- *      会让断言退化成「空集永真」，这正是 Round 10 复评点名的缺口）、seed 的 id 出现在输出
- *      里、逐字段白名单外扩时**不得**漏出密钥字段（整体展开 `ProviderConfig` 即 RED）；
+ *      会让「不含密钥」退化成空集永真，判别力为零）、seed 的 id 出现在输出里、逐字段白名单
+ *      外扩时**不得**漏出密钥字段（整体展开 `ProviderConfig` 即 RED）；
  *   4. 空登记表 `sessions list --json` → 恰好 `{sessions: []}`，且**不落**人类提示；
  *   5. `settings list --json` → `{settings: {...}}`（默认值补齐，仍是合法 JSON）；
  *   6. 回归保护：**不带** `--json` 的三条默认路径文案一字不变，且**不是**合法 JSON；
@@ -204,7 +204,7 @@ describe('--json 命令侧（G-11 / BRIEF-10）：走真实 main()', () => {
 
       // seed ②（CLI 自己的默认构造路径）：`main()` 用的是**默认凭据后端**（同根 secrets.json），
       // 只有它也存有密钥，`store.list()` 才会带着解析出来的明文 apiKey 进内存——否则下面的
-      // 「stdout 不含密钥」又会退化成「没有密钥可漏」的永真断言（Round 10 复评的判别力缺口）。
+      // 「stdout 不含密钥」又会退化成「没有密钥可漏」的永真断言（本轮要修的判别力缺口）。
       const cliStore = createDefaultProviderStore({ rootDir: tmpRoot });
       cliStore.add({
         id: 'ds2',
