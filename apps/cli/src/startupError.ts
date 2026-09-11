@@ -21,9 +21,13 @@ export interface StartupFailure {
   kind: 'config-corrupted' | 'file-missing' | 'permission' | 'unknown';
 }
 
-/** JSON 解析类错误的特征（Node / V8 各版本措辞不同，全部覆盖）。 */
+/**
+ * JSON 语法错误签名（Node / V8 各版本措辞不同，全部覆盖）。
+ * 只匹配真正的解析器报错句式——**不要**退回裸 `/JSON/i`：路径里带 "json"
+ * （如 `...\tmp\json\x`）的 `ENOENT` 会被误判成 config-corrupted。
+ */
 const CONFIG_CORRUPTED_RE =
-  /JSON|Unexpected token|Unexpected end of (JSON )?input|Unexpected non-whitespace/i;
+  /Unexpected token|Unexpected end of (JSON )?input|Unexpected non-whitespace|Expected property name|in JSON at position/i;
 
 const RECOVERY_CONFIG = '可把该文件移走后重试：vessel setup（交互向导）或 vessel provider add';
 const RECOVERY_MISSING = '请确认路径与文件名是否正确后重试；首次使用可先运行 vessel setup 生成配置';
@@ -96,13 +100,48 @@ function compose(lines: Array<string | undefined>): string {
 
 /**
  * 把 CLI 启动期抛出的任意异常渲染成「人话 + 一句恢复指引」。
- * 判定顺序：config-corrupted → file-missing → permission → unknown。
+ *
+ * 判定顺序（自上而下，先命中先返回，勿随意调换）：
+ *   1. 文件缺失 / 权限：ENOENT、EPERM/EACCES/EBUSY 优先——即使文案里同时出现
+ *      json 字样或 JSON 语法错误签名，也不得改判（否则给出错误指引）。
+ *   2. JSON 损坏：只认真正的 JSON 语法错误签名（精确正则）。
+ *   3. 兜底：unknown。
  */
 export function describeStartupFailure(err: unknown): StartupFailure {
   const raw = rawMessage(err).trim();
   const path = extractPath(raw);
-  // 先摘掉 `.json` 这种「文件扩展名」形式的 json 字样，避免把
-  // `ENOENT ... config.json` 误判成 JSON 语法错误（那属于 file-missing）。
+
+  // —— 1a. 文件缺失（最高优先级）——
+  if (/ENOENT/.test(raw)) {
+    return {
+      kind: 'file-missing',
+      path,
+      message: compose([
+        '文件不存在：启动所需的配置或状态文件没有找到（ENOENT）。',
+        path ? `涉及文件：${path}` : undefined,
+        raw ? `原始错误：${raw}` : undefined,
+        RECOVERY_MISSING,
+      ]),
+    };
+  }
+
+  // —— 1b. 权限不足 / 文件被占用 ——
+  if (/EPERM|EACCES|EBUSY/.test(raw)) {
+    return {
+      kind: 'permission',
+      path,
+      message: compose([
+        '权限不足或文件被占用：无法读写启动所需的配置或状态文件。',
+        path ? `涉及文件：${path}` : undefined,
+        raw ? `原始错误：${raw}` : undefined,
+        RECOVERY_PERMISSION,
+      ]),
+    };
+  }
+
+  // —— 2. 配置文件损坏（JSON 语法错误）——
+  // 先摘掉 `.json` 这种「文件扩展名」形式的 json 字样，避免路径/文件名片段
+  //（如 `...\tmp\json\x`、`config.json`）参与语法签名匹配。
   const syntaxProbe = raw.replace(/\.json\b/gi, '');
   const looksSyntax =
     err instanceof SyntaxError ||
@@ -122,32 +161,7 @@ export function describeStartupFailure(err: unknown): StartupFailure {
     };
   }
 
-  if (/ENOENT/.test(raw)) {
-    return {
-      kind: 'file-missing',
-      path,
-      message: compose([
-        '文件不存在：启动所需的配置或状态文件没有找到（ENOENT）。',
-        path ? `涉及文件：${path}` : undefined,
-        raw ? `原始错误：${raw}` : undefined,
-        RECOVERY_MISSING,
-      ]),
-    };
-  }
-
-  if (/EPERM|EACCES|EBUSY/.test(raw)) {
-    return {
-      kind: 'permission',
-      path,
-      message: compose([
-        '权限不足或文件被占用：无法读写启动所需的配置或状态文件。',
-        path ? `涉及文件：${path}` : undefined,
-        raw ? `原始错误：${raw}` : undefined,
-        RECOVERY_PERMISSION,
-      ]),
-    };
-  }
-
+  // —— 3. 兜底 ——
   return {
     kind: 'unknown',
     path,

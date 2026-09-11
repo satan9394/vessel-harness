@@ -148,4 +148,27 @@ describe('describeStartupFailure', () => {
     expect(line).toBeDefined();
     expect(line!.endsWith('.json')).toBe(true);
   });
+
+  it('ENOENT 优先于 json 字样（N2）：无条件是 file-missing', () => {
+    const res = describeStartupFailure(
+      new Error(String.raw`ENOENT: no such file or directory, open 'C:\tmp\json\x'`),
+    );
+
+    expect(res.kind).toBe('file-missing');
+    expect(res.kind).not.toBe('config-corrupted');
+    expect(res.message).toContain('文件不存在');
+    expect(res.message).not.toContain('配置文件损坏');
+    // 路径里出现 `json` 目录名不得被当成损坏签名参与判定。
+    expect(res.message).toContain(String.raw`C:\tmp\json\x`);
+    expect(res.message).toMatch(/vessel setup/);
+  });
+
+  it('真正的 JSON 语法签名仍判损坏（N2）：SyntaxError 即使无路径也判 config-corrupted', () => {
+    const res = describeStartupFailure(new SyntaxError('Unexpected token } in JSON at position 5'));
+
+    expect(res.kind).toBe('config-corrupted');
+    expect(res.kind).not.toBe('file-missing');
+    expect(res.message).toContain('配置文件损坏');
+    expect(res.message).toContain('Unexpected token } in JSON at position 5');
+  });
 });

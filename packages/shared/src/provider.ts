@@ -4,6 +4,7 @@
  */
 
 import type { ToolCallPayload } from './events.js';
+import type { MessageSource } from './events.js';
 
 export type Role = 'system' | 'user' | 'assistant' | 'tool';
 
@@ -35,7 +36,7 @@ export interface ChatMessage {
    * message (G-01). Wire serializers pick fields explicitly, so the marker never
    * leaks into a real provider's HTTP body.
    */
-  source?: string;
+  source?: MessageSource | 'environment';
 }
 
 /**
