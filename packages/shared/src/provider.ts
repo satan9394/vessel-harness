@@ -21,7 +21,34 @@ export interface ChatMessage {
    * 为 `message.reasoning`；请求时须按上游要求回传（thinking 模式校验），响应时归一进本字段。
    */
   reasoningContent?: string;
+  /**
+   * Provenance of a user-level message that was **injected by the context layer**
+   * instead of typed by the operator: volatile environment/skills index
+   * (`environment`), AGENTS.md instructions (`instruction`), project-memory
+   * snapshot (`memory`), compaction summary (`compacted-summary`), operator
+   * steering (`steer`). Absent = genuine surface user input.
+   *
+   * Session records already carry this provenance; the context builder now
+   * forwards it onto the wire projection so consumers can tell injected context
+   * apart from real input. MockProvider relies on it to keep script matching on
+   * real surface input even when the injected skills index is the last user
+   * message (G-01). Wire serializers pick fields explicitly, so the marker never
+   * leaks into a real provider's HTTP body.
+   */
+  source?: string;
 }
+
+/**
+ * `ChatMessage.source` values that mark **context-injected** user messages
+ * (never real surface input). Kept next to the contract so the context builder
+ * (producer) and MockProvider (consumer) cannot drift apart.
+ */
+export const INJECTED_MESSAGE_SOURCES: ReadonlySet<string> = new Set([
+  'environment',
+  'instruction',
+  'memory',
+  'compacted-summary',
+]);
 
 export interface ChatToolDef {
   type: 'function';

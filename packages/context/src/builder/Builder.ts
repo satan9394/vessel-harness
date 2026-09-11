@@ -41,7 +41,13 @@ export function estimateTokens(text: string): number {
 function recordToMessage(r: SessionRecord): ChatMessage {
   switch (r.type) {
     case 'user/message':
-      return { role: 'user', content: r.content };
+      return {
+        role: 'user',
+        content: r.content,
+        // provenance forwarded from the session record (G-01): injected
+        // context (instruction/memory/steer/compacted-summary) vs real surface input
+        ...(r.source !== undefined ? { source: r.source } : {}),
+      };
     case 'assistant/message':
       return { role: 'assistant', content: r.content, reasoningContent: r.reasoningContent };
     case 'assistant/attempt': {
@@ -151,10 +157,12 @@ export class ContextBuilder {
       .map(recordToMessage)
       .filter((m) => m.content !== '' || (m.toolCalls?.length ?? 0) > 0);
 
-    // volatile layer
+    // volatile layer (skills index / environment / timestamp) — marked
+    // source='environment' so matchers (MockProvider) never confuse it with
+    // real surface input even though it is appended as the LAST user message (G-01).
     const volatileText = this.deps.volatileText?.() ?? '';
     const volatileMsg: ChatMessage = volatileText
-      ? { role: 'user', content: `[环境] ${volatileText}` }
+      ? { role: 'user', content: `[环境] ${volatileText}`, source: 'environment' }
       : { role: 'user', content: '' };
 
     const messages: ChatMessage[] = [...this.stableLayer, ...history];

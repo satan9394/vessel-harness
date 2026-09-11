@@ -241,7 +241,9 @@ async function cmdRun(flags: Map<string, string>): Promise<number> {
   const realProvider = buildRealProvider(plan);
   const provider =
     realProvider ??
-    // default smoke script: read README.md (if prompt asks) then answer from the result
+    // default smoke script: read README.md (if prompt asks) then answer from the
+    // result; a failed read gets a friendly hint instead of the raw TOOL_FAILURE
+    // text; any other real input gets a deterministic readable fallback (G-01).
     new MockProvider(
       [
         {
@@ -249,9 +251,19 @@ async function cmdRun(flags: Map<string, string>): Promise<number> {
           ifNoToolResult: true,
           response: { toolCalls: [{ name: 'Read', arguments: { path: '{cwd}/README.md' } }] },
         },
+        {
+          when: /.*/,
+          minToolResults: 1,
+          whenToolResult: /^\[(TOOL_FAILURE|DENIED|INVALID_ARGS|TIMEOUT|SANDBOX_DENIAL)\]/,
+          response: { text: '（mock）未能读取工作区 README.md——文件可能不存在或被拒。请确认工作区包含 README.md；要获得真实回答请配置模型：vessel setup。' },
+        },
         { when: /.*/, minToolResults: 1, response: { text: '已通过 Read 工具读取工作区文件。内容开头：\n{last_tool_result}' } },
       ],
-      { model, vars: { cwd: workspace } },
+      {
+        model,
+        vars: { cwd: workspace },
+        fallbackText: '（mock 离线冒烟）已收到你的输入。当前无匹配脚本应答——配置真实模型后即可获得完整回答：vessel setup（交互向导）或 vessel provider add。',
+      },
     );
 
   const harness = await composeHarness({
@@ -1478,6 +1490,13 @@ export async function main(argv: string[] = process.argv.slice(2)): Promise<numb
   if (first === 'bench-report') return cmdBenchReport(parsed.flags);
   if (first === 'serve') return cmdServe(parsed.flags);
   if (first === 'web') return cmdWeb(parsed.flags);
+  // G-02: any other first positional is an unknown/misspelled subcommand
+  // (`vessel foo`, `vessel chat`, ...) → explicit error + exit 2, NEVER a
+  // silent run. TUI's real entry is the no-arg `vessel`.
+  if (first !== undefined) {
+    console.error(`未知命令 ${first}。可用：vessel --help`);
+    return 2;
+  }
   // bare `vessel` (no subcommand): interactive TUI in a TTY; guide otherwise.
   if (first === undefined && parsed.command === 'run' && !parsed.flags.has('bench')) {
     if (!parsed.flags.has('prompt') && process.stdin.isTTY) {

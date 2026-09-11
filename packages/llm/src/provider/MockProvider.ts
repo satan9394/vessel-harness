@@ -1,7 +1,16 @@
-import type { ChatProvider, ChatRequest, ChatResponse, ChatToolCall, ChatUsage, StreamChunk } from '@vessel/shared';
+import {
+  INJECTED_MESSAGE_SOURCES,
+  type ChatMessage,
+  type ChatProvider,
+  type ChatRequest,
+  type ChatResponse,
+  type ChatToolCall,
+  type ChatUsage,
+  type StreamChunk,
+} from '@vessel/shared';
 
 export interface MockScriptEntry {
-  /** regex tested against the LAST user message; first match wins */
+  /** regex tested against the LAST **surface** user message; first match wins */
   when: RegExp | string;
   /** only match when the request has no tool results yet (first model call) */
   ifNoToolResult?: boolean;
@@ -9,6 +18,8 @@ export interface MockScriptEntry {
   minToolResults?: number;
   /** only match when the request has at most N tool results (prevent re-entry) */
   maxToolResults?: number;
+  /** only match when the LAST tool result content matches (e.g. TOOL_FAILURE detection) */
+  whenToolResult?: RegExp | string;
   response: {
     text?: string;
     toolCalls?: { name: string; arguments: Record<string, unknown> }[];
@@ -33,6 +44,32 @@ export interface MockProviderOptions {
 }
 
 /**
+ * Last user message belonging to **real surface input** — context-injected
+ * user messages (volatile skills index / instructions / project memory /
+ * compaction summary) are skipped for script matching (G-01). A repo workspace
+ * appends the skills index as the LAST user message; without this filter the
+ * read/summary smoke script could never hit (`(mock: no script entry matched)`).
+ * Operator steering (`source='steer'`) is real drive input and stays matchable.
+ */
+function surfaceUserMessage(messages: ChatMessage[]): ChatMessage | undefined {
+  return [...messages].reverse().find(
+    (m) => m.role === 'user' && !INJECTED_MESSAGE_SOURCES.has(m.source ?? ''),
+  );
+}
+
+function testPattern(p: RegExp | string, text: string): boolean {
+  return p instanceof RegExp ? p.test(text) : text.includes(p);
+}
+
+interface MatchContext {
+  /** concatenated content of the last real (non-injected) user message */
+  haystack: string;
+  toolResultsCount: number;
+  hasToolResults: boolean;
+  lastToolResult: string;
+}
+
+/**
  * llm/provider — deterministic scripted provider for offline tests, the CLI
  * smoke demo, and the benchmark offline lane (no network, no real model).
  */
@@ -49,26 +86,40 @@ export class MockProvider implements ChatProvider {
     return { ...(this.opts.usage ?? { inputTokens: 100, outputTokens: 20 }) };
   }
 
-  async chat(request: ChatRequest): Promise<ChatResponse> {
-    const lastUser = [...request.messages].reverse().find((m) => m.role === 'user');
-    const haystack = lastUser?.content ?? '';
+  private context(request: ChatRequest): MatchContext {
+    const lastUser = surfaceUserMessage(request.messages);
     const toolResultsCount = request.messages.filter((m) => m.role === 'tool').length;
-    const hasToolResults = toolResultsCount > 0;
-    // {last_tool_result} placeholder: substituted with the most recent tool result content
     const lastTool = [...request.messages].reverse().find((m) => m.role === 'tool');
-    const lastToolResult = lastTool?.content ?? '';
-    const entry = this.script.find((e) => {
-      if (e.ifNoToolResult && hasToolResults) return false;
-      if (e.minToolResults !== undefined && toolResultsCount < e.minToolResults) return false;
-      if (e.maxToolResults !== undefined && toolResultsCount > e.maxToolResults) return false;
-      if (e.when instanceof RegExp) return e.when.test(haystack);
-      return haystack.includes(e.when);
-    });
+    return {
+      haystack: lastUser?.content ?? '',
+      toolResultsCount,
+      hasToolResults: toolResultsCount > 0,
+      // {last_tool_result} placeholder: substituted with the most recent tool result content
+      lastToolResult: lastTool?.content ?? '',
+    };
+  }
+
+  private matches(entry: MockScriptEntry, c: MatchContext): boolean {
+    if (entry.ifNoToolResult && c.hasToolResults) return false;
+    if (entry.minToolResults !== undefined && c.toolResultsCount < entry.minToolResults) return false;
+    if (entry.maxToolResults !== undefined && c.toolResultsCount > entry.maxToolResults) return false;
+    if (entry.whenToolResult !== undefined && !testPattern(entry.whenToolResult, c.lastToolResult)) return false;
+    return testPattern(entry.when, c.haystack);
+  }
+
+  /** First script entry matching the request (deterministic; chat() and stream() share it). */
+  private resolve(request: ChatRequest): { entry?: MockScriptEntry; ctx: MatchContext } {
+    const ctx = this.context(request);
+    return { entry: this.script.find((e) => this.matches(e, ctx)), ctx };
+  }
+
+  async chat(request: ChatRequest): Promise<ChatResponse> {
+    const { entry, ctx } = this.resolve(request);
     const model = this.opts.model ?? 'mock-model';
 
     if (!entry) {
       return {
-        content: (this.opts.fallbackText ?? '(mock: no script entry matched)').replace(/\{last_tool_result\}/g, lastToolResult),
+        content: (this.opts.fallbackText ?? '(mock: no script entry matched)').replace(/\{last_tool_result\}/g, ctx.lastToolResult),
         toolCalls: [],
         finishReason: 'stop',
         usage: this.usage(),
@@ -78,11 +129,11 @@ export class MockProvider implements ChatProvider {
     const toolCalls: ChatToolCall[] = (entry.response.toolCalls ?? []).map((tc, i) => ({
       id: `tc_mock_${i + 1}`,
       name: tc.name,
-      arguments: this.substitute(tc.arguments, lastToolResult),
+      arguments: this.substitute(tc.arguments, ctx.lastToolResult),
     }));
 
     return {
-      content: (entry.response.text ?? '').replace(/\{last_tool_result\}/g, lastToolResult),
+      content: (entry.response.text ?? '').replace(/\{last_tool_result\}/g, ctx.lastToolResult),
       toolCalls,
       finishReason: toolCalls.length > 0 ? 'tool_calls' : 'stop',
       usage: this.usage(),
@@ -113,20 +164,7 @@ export class MockProvider implements ChatProvider {
     const model = this.opts.model ?? 'mock-model';
     yield { type: 'message_start', model };
 
-    const lastUser = [...request.messages].reverse().find((m) => m.role === 'user');
-    const haystack = lastUser?.content ?? '';
-    const toolResultsCount = request.messages.filter((m) => m.role === 'tool').length;
-    const hasToolResults = toolResultsCount > 0;
-    const lastTool = [...request.messages].reverse().find((m) => m.role === 'tool');
-    const lastToolResult = lastTool?.content ?? '';
-
-    const entry = this.script.find((e) => {
-      if (e.ifNoToolResult && hasToolResults) return false;
-      if (e.minToolResults !== undefined && toolResultsCount < e.minToolResults) return false;
-      if (e.maxToolResults !== undefined && toolResultsCount > e.maxToolResults) return false;
-      if (e.when instanceof RegExp) return e.when.test(haystack);
-      return haystack.includes(e.when);
-    });
+    const { entry, ctx } = this.resolve(request);
 
     // task 109: thinking 模式思维链先行（对齐 DeepSeek 系流式增量顺序：reasoning → content/tool）
     if (entry?.response.reasoningContent) {
@@ -136,7 +174,7 @@ export class MockProvider implements ChatProvider {
     const toolCalls: ChatToolCall[] = (entry?.response.toolCalls ?? []).map((tc, i) => ({
       id: `tc_mock_${i + 1}`,
       name: tc.name,
-      arguments: this.substitute(tc.arguments ?? {}, lastToolResult),
+      arguments: this.substitute(tc.arguments ?? {}, ctx.lastToolResult),
     }));
 
     if (toolCalls.length > 0) {
@@ -145,7 +183,7 @@ export class MockProvider implements ChatProvider {
         yield { type: 'tool_call_end', id: tc.id };
       }
     } else {
-      const text = (entry?.response.text ?? this.opts.fallbackText ?? '(mock: no script entry matched)').replace(/\{last_tool_result\}/g, lastToolResult);
+      const text = (entry?.response.text ?? this.opts.fallbackText ?? '(mock: no script entry matched)').replace(/\{last_tool_result\}/g, ctx.lastToolResult);
       if (text.length > 0) yield { type: 'text_delta', text };
     }
 
