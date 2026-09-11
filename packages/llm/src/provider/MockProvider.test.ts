@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { MockProvider } from './MockProvider.js';
-import type { ChatMessage, ChatRequest } from '@vessel/shared';
+import type { ChatMessage, ChatRequest, MessageSource } from '@vessel/shared';
 
 /**
  * MockProvider — 脚本匹配必须落在**真实输入**上（G-01）。
@@ -87,7 +87,13 @@ describe('MockProvider — 注入消息不得遮蔽真实输入（G-01）', () =
 
   // A5：handoff / inject 是 Evaluator 点名的缺口；memory / compacted-summary 一并硬编码，
   // 使 7 个注入来源在本文件里全部有具名覆盖（不依赖从 shared 导入的集合本身）。
-  it.each(['handoff', 'inject', 'memory', 'compacted-summary'])(
+  const INJECTED_VARIANTS: readonly MessageSource[] = [
+    'handoff',
+    'inject',
+    'memory',
+    'compacted-summary',
+  ];
+  it.each(INJECTED_VARIANTS)(
     'A5: source=%s 的注入消息在最后 → 仍命中前置真实输入',
     async (source) => {
       const provider = new MockProvider([{ when: /summari[sz]e|总结/i, response: { text: 'OK' } }]);

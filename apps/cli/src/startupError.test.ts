@@ -2,9 +2,11 @@
  * startupError.test.ts — 启动期异常「人话渲染」的单元测试。
  *
  * 断言按 startupError.ts 实际实现对齐（不是按理想设计）：
- * - 判定顺序：config-corrupted → file-missing → permission → unknown；
- * - config-corrupted 的触发条件：`err instanceof SyntaxError`、`err.name === 'SyntaxError'`，
- *   或去掉 `.json` 字样后仍命中 JSON 报错特征（所以 `ENOENT ... config.json` 不会被误判为损坏）；
+ * - 判定顺序：ENOENT → file-missing；EPERM/EACCES/EBUSY → permission；
+ *   命中原生 JSON 语法签名、或 `err instanceof SyntaxError` / `err.name === 'SyntaxError'`、
+ *   或去掉 `.json` 字样后仍含 "corrupted"/"invalid JSON"（ProviderStore 的包装文案）→ config-corrupted；
+ *   其余 → unknown；
+ *   ENOENT/权限先命中，所以 `ENOENT ... config.json` 不会被误判为损坏；
  * - 路径由 extractPath() 从 message 中「尽力提取」（优先 `.json` 结尾片段，支持 Windows 与 POSIX
  *   绝对路径，并把 `\\` 还原为 `\`），提取不到时 path 为 undefined 且文案里不出现空占位；
  * - 每类文案末尾必带一句恢复指引（vessel setup / vessel provider add / vessel --help）；
@@ -170,5 +172,18 @@ describe('describeStartupFailure', () => {
     expect(res.kind).not.toBe('file-missing');
     expect(res.message).toContain('配置文件损坏');
     expect(res.message).toContain('Unexpected token } in JSON at position 5');
+  });
+
+  it('ProviderStore 措辞（providers file corrupted (invalid JSON): <path>）判为 config-corrupted', () => {
+    // E2E 实测回归：ProviderStore 的包装文案既不是 SyntaxError，也不含
+    // `in JSON at position` 这类 V8 句式，只能靠 `corrupted` / `invalid JSON` 关键词命中；
+    // 特征缺失时会退化成 unknown，丢失「配置文件损坏」分类与恢复指引。
+    const res = describeStartupFailure(
+      new Error(String.raw`providers file corrupted (invalid JSON): C:\Users\x\.vessel\providers.json`),
+    );
+
+    expect(res.kind).toBe('config-corrupted');
+    expect(res.path).toMatch(/providers\.json$/);
+    expect(res.message).toMatch(/vessel setup/);
   });
 });

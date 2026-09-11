@@ -22,12 +22,14 @@ export interface StartupFailure {
 }
 
 /**
- * JSON 语法错误签名（Node / V8 各版本措辞不同，全部覆盖）。
- * 只匹配真正的解析器报错句式——**不要**退回裸 `/JSON/i`：路径里带 "json"
+ * JSON 语法错误签名（Node / V8 各版本措辞不同 + 上游自定义措辞，全部覆盖）。
+ * 只匹配真正的解析器/存储层报错句式——**不要**退回裸 `/JSON/i`：路径里带 "json"
  * （如 `...\tmp\json\x`）的 `ENOENT` 会被误判成 config-corrupted。
+ * ProviderStore 等自身包装文案（如 `providers file corrupted (invalid JSON): ...json`）
+ * 也要识别，故补 `invalid JSON` / `corrupted` 两个分支（大小写由 /i 覆盖）。
  */
 const CONFIG_CORRUPTED_RE =
-  /Unexpected token|Unexpected end of (JSON )?input|Unexpected non-whitespace|Expected property name|in JSON at position/i;
+  /Unexpected token|Unexpected end of (JSON )?input|Unexpected non-whitespace|Expected property name|in JSON at position|invalid JSON|corrupted/i;
 
 const RECOVERY_CONFIG = '可把该文件移走后重试：vessel setup（交互向导）或 vessel provider add';
 const RECOVERY_MISSING = '请确认路径与文件名是否正确后重试；首次使用可先运行 vessel setup 生成配置';

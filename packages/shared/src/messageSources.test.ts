@@ -26,4 +26,16 @@ describe('注入来源集合漂移守卫（G-16）', () => {
   it('environment 是 Builder 合成标记，必须仍在注入集合内', () => {
     expect(INJECTED_MESSAGE_SOURCES.has('environment')).toBe(true);
   });
+
+  it('注入集合同联合全等：= MESSAGE_SOURCES 去掉真实输入 + 唯一的合成值 environment', () => {
+    const expected = [
+      ...MESSAGE_SOURCES.filter((s) => !SURFACE_SOURCES.includes(s)),
+      'environment',
+    ].sort();
+    expect([...INJECTED_MESSAGE_SOURCES].sort()).toEqual(expected);
+    const extras = [...INJECTED_MESSAGE_SOURCES].filter(
+      (s) => !(MESSAGE_SOURCES as readonly string[]).includes(s),
+    );
+    expect(extras).toEqual(['environment']);
+  });
 });
