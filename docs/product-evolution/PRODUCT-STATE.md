@@ -1,6 +1,6 @@
 # PRODUCT-STATE — Vessel 产品演进状态（Orchestrator 维护）
 
-> 每轮结束更新。**当前进度：第 11 轮**（Round 1–10 已闭环，Round 11 实现中）。基线：`tsc 0`、**126 文件 / 1322 passed + 1 skipped / exit 0**。
+> 每轮结束更新。**当前进度：第 13 轮**（Round 1–12 已闭环/待终评，Round 13 MCP 半实现中）。基线：`tsc 0`、**126 文件 / 1335 passed + 1 skipped / exit 0**。
 > 产物索引：`docs/PROJECT-BRIEF.md`、`docs/product-audit/*`（4 份独立审计）、`PRODUCT-GAP-MAP.md`（缺口+路线图）、`IMPLEMENTATION-BRIEF-0N.md` / `EVALUATION-REPORT-0N.md`（每轮规格与独立裁定）、本文档（状态与纪律）。
 
 ## 当前成熟度
@@ -10,7 +10,7 @@
 | 内部工程成熟度 | **高** — 依赖零环（Round 7b 又一次主动维护：把 `sanitizeWireSnippet` 下沉去环）、8 道发布门禁且 web 已纳入类型门禁、1300+ 测试 |
 | 对外可启动成熟度 | **中高** — 首跑可用（G-01/G-02/G-14）、崩溃面给人话+路径+恢复指引（G-03）、会话可续跑（G-10）、`--json` 机器面（G-11 半） |
 | 数据与密钥安全 | **显著改善** — usage 损坏隔离留档+备份轮转（G-04）、密钥不再进命令行、secrets 损坏默认可恢复（G-05a）、错误体全链路脱敏（G-05b + Round 7b） |
-| 主要短板（当前） | TUI `/permission`·`/model` **假成功**（Round 11 修复中）；CLI 面 MCP 配置缺失（G-11 另半，且传输层需扩签名）；locale 未接 explain / theme 无消费者（G-13 P2/P3）；快照回滚全仓零实现 |
+| 主要短板（当前） | 快照回滚全仓零实现（**已论证推迟**：Session 日志不记旧内容无法重放、Shell 写入绕过备份）；MCP 配置入口接线未完成（读取器/传输层已就绪）；CLI 面错误出口仍有约 30 处未 `--json` 化（P3）；locale/theme 已完成收口 |
 
 ## 已解决问题（本轮 NOW 切片）
 
@@ -40,15 +40,14 @@
 
 ## 当前最高价值下一步
 
-**进行中**：Round 11（G-13-P1）——TUI `/permission` 与 `/model` **去假成功**（安全类；文案宣称已切换而实际空转）。完成后按序：
+**进行中**：Round 13（G-11 MCP 半）——传输层扩签名 ✅、配置读取器 ✅、application 侧连接桥接（本轮新卡）、CLI/TUI 接线与降级、真跨进程 E2E。完成后按序：
 
-1. **Round 10 / 7b 终评**（核 AC1 三条补测与 7b 两条是否真闭合）。
-2. **G-13-P2/P3**（低成本）：locale 接 explain 两处（`renderExplain` 本就支持 locale，只差传参）、theme 文案诚实化（全仓零消费者却宣称"已设为"）、`/provider` 与 `/setup` 重复分支合并。
-3. **G-11 MCP 半**（中）：CLI 面 MCP 配置入口——库级管道已通（`compose.ts:246-250` + `mcp__<server>__<tool>`），但 `McpClient.ts:48-52` 的 StdioTransport 只认 `process.execPath`，需扩传输层签名；单独立项，不与 `--json` 混。
-4. **G-10 快照回滚**（大）：全仓零实现，建议独立立项并**先做 scoping**。
-5. LATER：全量 i18n 架构、`~/.vessel` 状态根重复收敛、门禁报告生成物重跑（`release-report.*` 仍是旧 criterion）。
+1. **Round 11/12 终评**（核 `/permission` 确认即生效 + 重建容错 + deny 面证据；locale 与 theme 收口）。
+2. **Round 13 收口**：`cli.ts`/`chat.ts` 加 `mcp:`；降级 failures 打印；**防重复 spawn**（`buildHarness` 会因切换权限/模型而重建，须由 `harness.close()` 回收或缓存连接）。
+3. **P3 集群**（低成本）：CLI 面其余错误出口 `--json` 化；`release-report.*` 生成物重跑；`docs` 里指向 `OpencodeGoProvider.ts:176` 的过期引用改指 `errorBody.ts`。
+4. **LATER**：全量 i18n 架构、`~/.vessel` 状态根重复收敛、`vessel diff --last` 式只读回滚提示（G-10 的克制替代）。
 
-**已定的"不做"**（竞品形态追逐，审计逐条论证）：插件市场、消息平台、云协作/多用户、公开排行榜、IDE/桌面表面；TUI 内不放 `migrate`/`serve`/`bench`/`pricing sync`/`--json`。
+**已定的"不做"**（均有论证，不因"竞品有"而做）：插件市场、消息平台、云协作/多用户、公开排行榜、IDE/桌面表面；TUI 内不放 `migrate`/`serve`/`bench`/`pricing sync`/`--json`；**不做**通用快照回滚（会让用户误以为 Shell 写入也可回滚）。
 
 ## Round 2（G-03 / G-12 / G-16）— 已闭环
 

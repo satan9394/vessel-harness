@@ -1,6 +1,11 @@
 export { composeHarness } from './compose.js';
 export type { ComposeOptions, ComposedHarness, ComposeMcpConnection, UsageStoreLike } from './compose.js';
 
+// G-11 MCP 半（BRIEF-13）：声明式 MCP server → StdioTransport 的桥接。放在 application
+// 是因为它需要 `@vessel/tools`（application 已合法依赖），apps/cli 只依赖本包、不直接碰 tools。
+export { createMcpConnections } from './mcp/connections.js';
+export type { McpServerDescriptor, McpConnectionFailure, McpConnectionsResult } from './mcp/connections.js';
+
 export { ProjectRegistry } from './project/ProjectRegistry.js';
 export type { Project, ProjectRegistryOptions } from './project/ProjectRegistry.js';
 
