@@ -148,54 +148,59 @@ describe('mcp — McpConfigStore 读取校验 / 根解析 / 原子写（config.t
 
   // ---- ④ 结构非法 ----------------------------------------------------------
 
-  it('④ 结构非法：根非对象 / servers 非数组 / 缺 servers 键 → 各自 throw', () => {
-    const cases: Array<[string, string, RegExp]> = [
-      ['根是数组', JSON.stringify([{ name: 'demo', command: 'npx' }]), /expected \{"servers": \[\.\.\.\]\}/],
-      ['根是字符串', JSON.stringify('nope'), /expected \{"servers": \[\.\.\.\]\}/],
-      ['servers 是对象', JSON.stringify({ servers: {} }), /"servers" must be an array/],
-      ['servers 是字符串', JSON.stringify({ servers: 'demo' }), /"servers" must be an array/],
-      ['缺 servers 键（{}）', JSON.stringify({}), /"servers" must be an array/],
-    ];
+  // 结构非法一律走 "mcp file corrupted" 分支（fail-loud，不静默返回 []）——逐例一个用例，
+  // 失败时用例名直接指明是哪种结构问题。
+  const structuralCases: Array<[string, string, RegExp]> = [
+    ['根是数组', JSON.stringify([{ name: 'demo', command: 'npx' }]), /expected \{"servers": \[\.\.\.\]\}/],
+    ['根是字符串', JSON.stringify('nope'), /expected \{"servers": \[\.\.\.\]\}/],
+    ['根是数字', JSON.stringify(42), /expected \{"servers": \[\.\.\.\]\}/],
+    ['servers 是对象', JSON.stringify({ servers: {} }), /"servers" must be an array/],
+    ['servers 是字符串', JSON.stringify({ servers: 'demo' }), /"servers" must be an array/],
+    ['缺 servers 键（{}）', JSON.stringify({}), /"servers" must be an array/],
+  ];
 
-    for (const [label, text, pattern] of cases) {
-      const store = new McpConfigStore({ rootDir: newRoot() });
+  for (const [label, text, pattern] of structuralCases) {
+    it(`④ 结构非法（${label}）→ load() throw`, () => {
+      const store = new McpConfigStore({ rootDir: dir });
       writeRaw(store, text);
-      expect(() => store.load(), label).toThrow(pattern);
-      // 结构非法一律走 "mcp file corrupted" 分支（fail-loud，不静默返回 []）
-      expect(() => store.load(), label).toThrow(/corrupted/i);
-    }
+      expect(() => store.load()).toThrow(pattern);
+      expect(() => store.load()).toThrow(/corrupted/i);
+      expect(() => store.load()).toThrow(store.configFile); // 报错指认文件
+    });
+  }
 
-    // 逐项校验分支（parseServerEntry）文案不含 "corrupted"，单列断言：
-    // 数组元素非对象同样 fail-loud，报错定位到 servers[0]
-    const itemStore = new McpConfigStore({ rootDir: newRoot() });
-    writeJson(itemStore, { servers: [null] });
-    expect(() => itemStore.load()).toThrow(/servers\[0\] must be an object \(got null\)/);
+  it('④-b 数组元素非对象（null）→ load() throw（逐项校验分支，定位 servers[0]）', () => {
+    const store = new McpConfigStore({ rootDir: dir });
+    writeJson(store, { servers: [null] });
+    // 注：这一分支的文案来自 parseServerEntry，不含 "corrupted" 字样
+    expect(() => store.load()).toThrow(/servers\[0\] must be an object \(got null\)/);
   });
 
   // ---- ⑤ 逐项校验 ----------------------------------------------------------
 
-  it('⑤ 逐项校验失败 → load() 各自 throw（name/command/args/env/cwd）', () => {
-    const cases: Array<[string, Record<string, unknown>, RegExp]> = [
-      ['name 缺失', { command: 'npx' }, /servers\[0\]\.name must be a non-empty string \(got undefined\)/],
-      ['name 空串', { name: '', command: 'npx' }, /servers\[0\]\.name must be a non-empty string/],
-      ['name 纯空白', { name: '   ', command: 'npx' }, /servers\[0\]\.name must be a non-empty string/],
-      ['name 非字符串', { name: 1, command: 'npx' }, /servers\[0\]\.name must be a non-empty string/],
-      ['command 缺失', { name: 'demo' }, /servers\[0\]\.command must be a non-empty string \(got undefined\)/],
-      ['command 空串', { name: 'demo', command: '' }, /servers\[0\]\.command must be a non-empty string/],
-      ['args 非数组', { name: 'demo', command: 'npx', args: '-y' }, /servers\[0\]\.args must be an array of strings/],
-      ['args 元素非 string', { name: 'demo', command: 'npx', args: ['-y', 1] }, /servers\[0\]\.args\[1\] must be a string \(got 1\)/],
-      ['env 非对象', { name: 'demo', command: 'npx', env: ['K'] }, /servers\[0\]\.env must be an object of string→string/],
-      ['env 值非 string', { name: 'demo', command: 'npx', env: { K: 1 } }, /servers\[0\]\.env\["K"\] must be a string \(got 1\)/],
-      ['cwd 空串', { name: 'demo', command: 'npx', cwd: '' }, /servers\[0\]\.cwd must be a non-empty string/],
-      ['cwd 纯空白', { name: 'demo', command: 'npx', cwd: '  ' }, /servers\[0\]\.cwd must be a non-empty string/],
-    ];
+  // 逐项校验：`load()` 的 where 前缀是 `<configFile> servers[i]`，故文案里带文件路径 + 下标。
+  const itemCases: Array<[string, Record<string, unknown>, RegExp]> = [
+    ['name 缺失', { command: 'npx' }, /servers\[0\]\.name must be a non-empty string \(got undefined\)/],
+    ['name 空串', { name: '', command: 'npx' }, /servers\[0\]\.name must be a non-empty string/],
+    ['name 纯空白', { name: '   ', command: 'npx' }, /servers\[0\]\.name must be a non-empty string/],
+    ['name 非字符串', { name: 1, command: 'npx' }, /servers\[0\]\.name must be a non-empty string \(got 1\)/],
+    ['command 缺失', { name: 'demo' }, /servers\[0\]\.command must be a non-empty string \(got undefined\)/],
+    ['command 空串', { name: 'demo', command: '' }, /servers\[0\]\.command must be a non-empty string/],
+    ['args 非数组', { name: 'demo', command: 'npx', args: '-y' }, /servers\[0\]\.args must be an array of strings/],
+    ['args 元素非 string', { name: 'demo', command: 'npx', args: ['-y', 1] }, /servers\[0\]\.args\[1\] must be a string \(got 1\)/],
+    ['env 非对象', { name: 'demo', command: 'npx', env: ['K'] }, /servers\[0\]\.env must be an object of string→string/],
+    ['env 值非 string', { name: 'demo', command: 'npx', env: { K: 1 } }, /servers\[0\]\.env\["K"\] must be a string \(got 1\)/],
+    ['cwd 空串', { name: 'demo', command: 'npx', cwd: '' }, /servers\[0\]\.cwd must be a non-empty string/],
+    ['cwd 纯空白', { name: 'demo', command: 'npx', cwd: '  ' }, /servers\[0\]\.cwd must be a non-empty string/],
+  ];
 
-    for (const [label, entry, pattern] of cases) {
-      const store = new McpConfigStore({ rootDir: newRoot() });
+  for (const [label, entry, pattern] of itemCases) {
+    it(`⑤ 逐项校验（${label}）→ load() throw`, () => {
+      const store = new McpConfigStore({ rootDir: dir });
       writeJson(store, { servers: [entry] });
-      expect(() => store.load(), label).toThrow(pattern);
-    }
-  });
+      expect(() => store.load()).toThrow(pattern);
+    });
+  }
 
   it('⑤-b 第二项才非法 → 报错定位到 servers[1]（不误指第一项）', () => {
     const store = new McpConfigStore({ rootDir: dir });
