@@ -226,6 +226,23 @@ describe('chat TUI — runChat loop (task 021)', () => {
     void code;
   });
 
+  it('mock smoke: a failing Read (no README.md) prints the friendly fallback, not the raw [TOOL_FAILURE]', async () => {
+    // 临时工作区刻意不放 README.md：mock 冒烟脚本第一轮会调 Read {cwd}/README.md，
+    // 工具结果以 [TOOL_FAILURE] 开头 → 应命中友好文案分支（而不是把原始工具结果回显给用户）。
+    expect(fs.existsSync(path.join(dir, 'README.md'))).toBe(false);
+    const { io, output } = scriptedIO(['read README', '/quit']);
+    const code = await runChat({
+      workspaceRoot: dir,
+      policySystemPath: POLICY,
+      behaviorIRPath: BEHAVIOR,
+      io,
+    });
+    expect(code).toBe(0);
+    const out = output.join('\n');
+    expect(out).toMatch(/未能读取工作区 README\.md/); // 友好文案
+    expect(out).not.toContain('[TOOL_FAILURE]'); // 原始工具失败文本不外泄
+  });
+
   it('EOF (null input) exits cleanly', async () => {
     const { io } = scriptedIO([]);
     const code = await runChat({ workspaceRoot: dir, policySystemPath: POLICY, behaviorIRPath: BEHAVIOR, io });
