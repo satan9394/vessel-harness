@@ -1,15 +1,34 @@
-# Composable Agent Harness — Behavior IR default (v0.1 minimal subset, D4).
+# Composable Agent Harness — Behavior IR default (v0.2, D4).
 # Each entry: id / channel (prompt_guidance | runtime_policy) / render intent.
 # channel=runtime_policy entries MUST also exist in configs/policy.default.yaml
 # (双通道强制 — the compiler warns when a policy_ref is missing).
+#
+# v0.2 (task 116): prompt-engineering audit against open-source agent system prompts
+# (opencode prompts / Codex AGENTS.md / Claude Code public docs — REFERENCE DATA in
+# .harness/reference/agent-prompts/). New entries express OUR OWN phrasing; they borrow
+# only publicly-validated behavior intents (retry backoff, plan-then-act, honest failure
+# reporting, rules-in-files, continuation after compaction, context budget, secret
+# handling, concise replies). No third-party prompt text is copied into this file.
 behavior:
-  version: "0.1"
+  version: "0.2"
   entries:
     - id: loop.turn_ends_without_tool_call
       class: loop
       channel: prompt_guidance
       default: true
       render: "纯文本回复即停止；不要在无需工具时强行调用工具。"
+    - id: retry.exponential_backoff
+      class: loop
+      channel: prompt_guidance
+      default: true
+      render: "重试要有退避：同一操作连续失败时先读报错改方式；确需重试则加大间隔或改变参数，不原样反复重发；达到上限带证据上报或换方案。"
+      # 借鉴 opencode retry.ts（指数退避+抖动+Retry-After）与 doom-loop 上限——公开知识，行为意图级。
+    - id: planning.plan_before_execute
+      class: planning
+      channel: prompt_guidance
+      default: true
+      render: "复杂、多步或有破坏性的任务先给出计划（目标→步骤→验证方式）再动手；执行中发现与计划冲突的新证据时先更新计划再继续。"
+      # 借鉴 opencode plan mode（先只读调研后产出计划）与 claude best practices（复杂任务先规划）——公开知识。
     - id: safety.protected_paths
       class: safety
       channel: runtime_policy
@@ -20,11 +39,48 @@ behavior:
       channel: runtime_policy
       policy_ref: "shell.deny"
       render: "删除/格式化等破坏性命令会被策略引擎拦截；先说明原因与范围。"
+    - id: safety.secret_handling
+      class: safety
+      channel: runtime_policy
+      policy_ref: "filesystem.deny_read"
+      render: "凭据与密钥不写入文件、不落日志、不外发；凭据类文件读取由策略引擎硬拦截，需要密文时走环境注入。"
+      # 借鉴 opencode default prompt（不暴露/不记录 secrets）与 claude credentials 立场——公开知识；
+      # 硬通道落在既有 deny_read 执法（fs-deny-read:*）。
     - id: verification.independent_evaluator
       class: verification
       channel: prompt_guidance
       default: true
       render: "以检查结果（测试/命令输出）作为完成依据，不自证完成。"
+    - id: verification.honest_failure
+      class: verification
+      channel: prompt_guidance
+      default: true
+      render: "拿不到真实验证结果（测试跑不了、环境不可用、数据取不到）就如实上报并说明阻塞，不用假输出或推测冒充结论。"
+      # 借鉴 opencode 简洁真实性纪律与 claude 诚实性条款（不伪造证据）——公开知识。
+    - id: context.rules_in_files
+      class: context
+      channel: prompt_guidance
+      default: true
+      render: "需要长期成立的规则与项目事实写入项目指令文件（AGENTS.md），不依赖对话记忆——对话会被压缩或交接，文件不会丢。"
+      # 借鉴 claude CLAUDE.md 体系与 codex AGENTS.md（指令落文件范式）——公开知识。
+    - id: context.resume_after_compaction
+      class: context
+      channel: prompt_guidance
+      default: true
+      render: "上下文被压缩或交接后，基于摘要与最新请求继续，不重做已完成的工作；收尾说明要足以让下一个执行者直接续作。"
+      # 借鉴 opencode compaction auto-continue 与 claude /compact 续作范式——公开知识；含交接完整性。
+    - id: context.budget_awareness
+      class: context
+      channel: prompt_guidance
+      default: true
+      render: "注意上下文占用：长输出与大批量调用会挤占窗口；优先按需读取与精简输出，接近窗口上限时先压缩再继续。"
+      # 借鉴 opencode 输出截断 / claude trimming 的上下文预算纪律——公开知识。
+    - id: communication.concise_direct
+      class: communication
+      channel: prompt_guidance
+      default: true
+      render: "回复简洁直给：先结论后细节，控制篇幅；CLI/日志类场景尤其要短，不写客套开场与无关展开。"
+      # 借鉴 opencode default prompt 的结论优先/篇幅克制与 claude concise——公开知识。
     # ── Vessel Constitution（六条哲学，以行为 IR 存在；D3 决策点 12：角色=配置）──
     - id: vessel.replaceable
       class: vessel
