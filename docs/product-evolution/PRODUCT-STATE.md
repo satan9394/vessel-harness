@@ -222,6 +222,23 @@
 
 **残留**：`cmdGuide`（`guideCommands.ts:104`）读 settings 无 catch，与 explain 口径不对称（P3）。
 
+## Round 13（G-11 之 MCP 半）— 实现完成，独立验收在途
+
+**定位**：把"**已有能力的出口**"接上——库级管道早已通（`compose.ts` 的 `mcp` + `registerMcpTools` + `mcp__<server>__<tool>`），但 `apps/cli` 内 `grep Mcp|MCP` **零命中**，用户只能编程接入。
+
+**交付（提交 20f4c73）**：
+- **传输层**：`StdioTransport(command, args?, opts?)` 支持任意命令（原硬编码 `process.execPath`）；`resolveSpawnCommand` **只在 win32 + 白名单**（npx/npm/pnpm/yarn/uvx）开 shell，避免 args 二次解析的命令注入；stdout 缺失**显式 throw**（原来是静默 fallback 到本进程 stdin，永远读不到行且掩盖真实错误）。爆炸半径为 0（全仓 `new StdioTransport` 零调用点）已先侦察确认。
+- **配置读取器**（`apps/cli/src/mcp/config.ts`）：纯读取器，**零 `@vessel/tools` import**（依赖边纪律）；ENOENT→`[]`、JSON/结构/重复 name→**throw**、原子写；根解析 `opts.rootDir` > `VESSEL_MCP_ROOT` > `~/.vessel`。
+- **application 桥接**（`packages/application/src/mcp/connections.ts`）：描述 → transport，**逐 server 降级**（失败进 `failures` 含原因，不影响其余）。
+- **接线**：`cli.ts` 的 `cmdRun`（配置错 → **exit 1**）；TUI `buildHarness`（配置错**只 warn 不拒启**，因为已进入交互）；`compose.ts` 的 mcp 装配改**逐连接 try/catch** + 新增 `ComposedHarness.mcpFailures`，catch 内 `client.close()` 兜底防子进程残留。
+- **测试**：真跨进程 E2E 9 例（含**反假绿自证**：断言本文件不含同进程传输函数名、断言 `child.pid` 存在且 ≠ `process.pid`、`process.kill(pid,0)` 探活；`afterEach`+`afterAll` 双重收尸）。
+
+**验收侧证据（真实 CLI，临时四根）**：`tsc 0`；**127 文件 / 1344 passed + 1 skipped / exit 0**；E2E 三情形——① 不可达 server → **exit 0** 且输出含 `broken`+「已跳过」；② `mcp.json` 损坏 → **exit 1** 且含「MCP 配置错误」；③ npx 起 `echo-server` → **exit 0 且无失败提示**。即"**配错一个 server 不再让 CLI 打不开，但配置本身坏了仍 fail-loud**"。
+
+**执行器主动报告的三条残留**（交独立验收判严重度）：① `StdioTransport.close()` 的 2s SIGKILL 兜底是**死代码**（50ms 的 resolve 先触发且 `clearTimeout`）→ 不响应 stdin EOF 的 server 可能成孤儿；② 重建失败回滚到旧 harness 时其 MCP transport 已关闭 → 该 TUI 会话内 MCP 工具永久失效（BRIEF-12/13 既有设计）；③ `VESSEL_MCP_ROOT` 在既有测试中零注入 → 开发机若真有 `~/.vessel/mcp.json`，默认路径测试会真 spawn 子进程（隔离隐患，补测中）。
+
+**新增纪律（第 7 条，本轮沉淀）**：**"已有能力的出口"类切片必须先侦察爆炸半径**——确认调用点为零才可直接改契约，否则应加兼容层而非改契约。
+
 ## 纪律
 
 **流程纪律**：并发执行器上限 2–3；一卡一执行器；删除走回收站；密钥不落盘；测试隔离（`VESSEL_*_ROOT` 注入）；写入型执行器**不跑命令**，由指挥复跑 `tsc`/vitest 并保命提交。
