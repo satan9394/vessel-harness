@@ -339,16 +339,19 @@ function dpapiCall(
 function dpapiProtect(plainB64: string, entropyB64: string): string {
   const script =
     'Add-Type -AssemblyName System.Security; ' +
+    '$o = $input | ConvertFrom-Json; ' +
     '[Convert]::ToBase64String(' +
     '[System.Security.Cryptography.ProtectedData]::Protect(' +
-    `[Convert]::FromBase64String('${plainB64}'), ` +
-    `[Convert]::FromBase64String('${entropyB64}'), ` +
+    '[Convert]::FromBase64String($o.payload), ' +
+    '[Convert]::FromBase64String($o.entropy), ' +
     "'CurrentUser'))";
   const r = execFileSync('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', script], {
     encoding: 'utf8',
     stdio: 'pipe',
     windowsHide: true,
     timeout: 30_000,
+    // 密钥/熵材料只走 stdin：命令行里不含任何材料（G-05）。
+    input: JSON.stringify({ payload: plainB64, entropy: entropyB64 }),
   });
   return r.trim();
 }
@@ -357,16 +360,19 @@ function dpapiProtect(plainB64: string, entropyB64: string): string {
 function dpapiUnprotect(cipherB64: string, entropyB64: string): string {
   const script =
     'Add-Type -AssemblyName System.Security; ' +
+    '$o = $input | ConvertFrom-Json; ' +
     '[Convert]::ToBase64String(' +
     '[System.Security.Cryptography.ProtectedData]::Unprotect(' +
-    `[Convert]::FromBase64String('${cipherB64}'), ` +
-    `[Convert]::FromBase64String('${entropyB64}'), ` +
+    '[Convert]::FromBase64String($o.payload), ' +
+    '[Convert]::FromBase64String($o.entropy), ' +
     "'CurrentUser'))";
   const r = execFileSync('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', script], {
     encoding: 'utf8',
     stdio: 'pipe',
     windowsHide: true,
     timeout: 30_000,
+    // 密钥/熵材料只走 stdin：命令行里不含任何材料（G-05）。
+    input: JSON.stringify({ payload: cipherB64, entropy: entropyB64 }),
   });
   return r.trim();
 }
@@ -440,7 +446,7 @@ export class WindowsDpapiCredentialStore implements CredentialBackend {
 
   /** 沿用文件已持久化的熵；无则派生随机熵并持久化。 */
   private readOrCreateEntropy(): string {
-    const existing = readSecretsFile(this.secretsFile);
+    const existing = readSecretsFile(this.secretsFile, { recover: this.recoverCorrupted });
     if (existing.entropy) return existing.entropy;
     return randomBytes(32).toString('base64');
   }

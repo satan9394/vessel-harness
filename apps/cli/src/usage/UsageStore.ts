@@ -400,6 +400,15 @@ export class UsageStore {
   /** 显式 opts 的备份保留份数（`undefined` = 未指定，走 env / 默认 5）。 */
   private readonly backupKeepOpt: number | undefined;
   private data: UsageFile;
+  /**
+   * true = 本进程内**不再写** `usage.json`（安全侧）。
+   *
+   * 置位场景只有两个，都是「文件存在但我们读不到/隔离不了」：
+   *   - `load()` 的 `readFileSync` 因 EACCES/EPERM/EBUSY 等失败（非 ENOENT）；
+   *   - `quarantineCorrupted` 的隔离改名失败。
+   * 两者若继续 `save()`，都会用空表（或新表）覆盖**存在但当时读不到**的原文。
+   */
+  private suppressWrite = false;
   /** 读入的旧文件没有 daily 字段（089 之前的累计）：历史只保留累计，不伪造分桶 */
   private readonly legacyFile: boolean;
 
@@ -445,7 +454,12 @@ export class UsageStore {
     let text: string;
     try {
       text = fs.readFileSync(this.file, 'utf8');
-    } catch {
+    } catch (err) {
+      const e = err as NodeJS.ErrnoException;
+      if (e.code === 'ENOENT') return { file: empty, legacy: false }; // 首次运行：静默空表
+      // 文件存在但读不到（EACCES/EPERM/EBUSY/杀软锁…）：不得静默当空表覆盖
+      this.suppressWrite = true;
+      console.warn(`[vessel] usage.json 读取失败（${e.code ?? 'unknown'}）：${this.file}；为避免覆盖，本次不写入该文件。`);
       return { file: empty, legacy: false };
     }
     try {
@@ -541,11 +555,17 @@ export class UsageStore {
    * （首次运行是正常状态，不打警告、不产生 `*.corrupted-*` 文件）。
    */
   private quarantineCorrupted(why: string): { file: UsageFile; legacy: boolean } {
-    const bak = `${this.file}.corrupted-${Date.now()}`;
+    // 同毫秒内二次损坏：循环取唯一名，避免覆盖上一份隔离文件（形态仍为
+    // `<file>.corrupted-<ts>[-N]`，与 CredentialStore 的既有约定一致）。
+    let bak = `${this.file}.corrupted-${Date.now()}`;
+    let n = 0;
+    while (fs.existsSync(bak)) bak = `${this.file}.corrupted-${Date.now()}-${++n}`;
     try {
       fs.renameSync(this.file, bak);
       console.warn(`[vessel] usage.json 损坏（${why}）：已隔离为 ${bak}（内容保留，未删除）；本次以空表继续，用量历史可从该文件手工恢复。`);
     } catch {
+      // 隔离失败 → 原文仍在原处（可能只是读不到）：必须抑制写入，否则 save() 会覆盖它。
+      this.suppressWrite = true;
       console.warn(`[vessel] usage.json 损坏（${why}）：隔离改名失败（文件被占用？）；为避免覆盖，本次不写入该文件。`);
     }
     return { file: { version: 2, entries: {}, recent: [], daily: {} }, legacy: false };
@@ -603,6 +623,8 @@ export class UsageStore {
   }
 
   private save(): void {
+    // 读不到原文 / 隔离失败 → 本进程不写该文件（安全侧：宁可不写，也不覆盖）。
+    if (this.suppressWrite) return;
     fs.mkdirSync(this.rootDir, { recursive: true });
     this.backupBeforeWrite();
     const tmp = `${this.file}.tmp`;

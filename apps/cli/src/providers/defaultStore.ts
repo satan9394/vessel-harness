@@ -35,7 +35,12 @@ export interface DefaultProviderStoreOptions {
 export function createDefaultProviderStore(opts: DefaultProviderStoreOptions = {}): ProviderStore {
   const rootDir = opts.rootDir ?? providerStateRoot();
   const credentialStore =
-    opts.credentialStore ?? createCredentialStore({ secretsFile: path.join(rootDir, 'secrets.json') });
+    opts.credentialStore ??
+    createCredentialStore({
+      secretsFile: path.join(rootDir, 'secrets.json'),
+      // secrets.json 损坏 → 改名隔离留档 + warn + 空结构继续（G-05 / 可靠性报告 R5）
+      recoverCorrupted: true,
+    });
   return new ProviderStore({
     rootDir,
     credentialStore,

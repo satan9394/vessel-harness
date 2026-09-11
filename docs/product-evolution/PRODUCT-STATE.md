@@ -80,6 +80,29 @@
 
 **残留 P3（均非阻断）**：① `provider.ts` 的 `source` JSDoc 仍把 `steer` 写成注入来源、漏 plan/handoff/inject；② 裸 `corrupted`/`invalid JSON` 关键词仍有极窄反向误报面（建议与 file/config/`.json` 同现）；③ `cli.crashSurface.test.ts` 干净对照用例不封"分类漂移"（该哨兵在 `startupError.test.ts`）；④ 路径清洗会截断以 `]`/`）` 结尾的真实路径（仅展示）；⑤ 内容类错误（格式非法/theme 非法值）落 `unknown`，指引偏弱；⑥ 未复用 `describeProviderError`（丢 opencode-go hint），unknown 分支不留 stack。
 
+## Round 4（G-07：web 拉进类型门禁）— 已闭环
+
+**交付**：`apps/web/package.json` 增 `typecheck`；`gates.ts` Gate1 现同时跑根 `tsc -b` 与 `tsc -p apps/web/tsconfig.json`，判定抽为纯函数 `judgeBuildPair`；criterion 文案与 `docs/RELEASE-GATES.md` 同步；web 侧探测失败**显式 pending**（不静默通过）。
+
+**判别性 E2E（决定性证据）**：注入 `apps/web/src/__probe_bad.ts`（类型错误）→ **根 `tsc -b` 仍 exit 0**（证明 web 原本在门禁视野外），而 **build 门禁 verdict=fail**（`web tsc exit=2`）；清理后回 `pass`。**独立裁定 `EVALUATION-REPORT-05.md`：ACCEPT**。
+
+## Round 5（G-04：用量数据不再静默丢失）— 实现完成，评审 ACCEPT，P2 补修在途
+
+**交付**：`UsageStore.quarantineCorrupted()`（损坏 → 改名 `<file>.corrupted-<ts>` 留档 + `console.warn` + 空表继续）、`backupKeepOpt` + `resolveBackupKeep()`（**opts > `VESSEL_USAGE_BACKUP_KEEP` > 默认 5**）、`backupBeforeWrite()`（`backups/usage.<ts>.json`，超限改名+覆盖最旧，**零删除**，失败只 warn）、`save()` 中调用；新增 5 例恢复测试。
+
+**验收侧证据（指挥真实 CLI E2E）**：损坏 `usage.json`（`{oops`）→ `vessel usage` 打出「已隔离为 …\`usage.json.corrupted-<epochMs>\`（内容保留，未删除）」、命令 exit 0、目录仅剩隔离文件且内容 = `{oops`；连跑 3 次 → `backups/` **5** 份（默认上限）；`KEEP=0` → 不建 backups 目录。全量 **118 文件 / 1263 passed + 1 skipped / exit 0**、`tsc 0`。
+
+**独立裁定 `EVALUATION-REPORT-06.md`：ACCEPT**，但列出两项 P2（其一按 BRIEF-05 硬验收项即为缺陷）：
+- **P2-1**：`load()` 的读失败 catch **未判 `err.code`** → EACCES/EPERM/EBUSY 与 ENOENT 一样静默空表，随后 `save()` 会用空表覆盖"存在但读不到"的文件（G-04 同类静默丢失路径残留）。
+- **P2-2**：`quarantineCorrupted` 的 rename 失败分支**只告警、无抑制写入状态位** → 若 tmp→rename 成功则损坏原文被覆盖，与 BRIEF-05「不得覆盖损坏文件」冲突。
+→ **已派 FIX 卡**（新增 `suppressWrite` 字段 + 读失败按 code 分流 + 隔离名去重 + `save()` 开头抑制检查），修完复验并请新一任 Evaluator 复核（Round 5b）。
+
+## Round 6（G-05a：密钥不进命令行 + secrets 损坏默认可恢复）— 实现中
+
+- **DPAPI 走 stdin**：`CredentialStore.dpapiProtect/dpapiUnprotect` 已改为固定脚本 + `input: JSON.stringify({payload, entropy})`，命令行不再含密钥/熵材料（待我以 spy + 真实往返验证）。
+- **secrets 损坏默认可恢复**：`defaultStore` 传 `recoverCorrupted: true`（在途）；库层默认仍 fail-loud，显式 `false` 语义不变。
+- 下一轮候选：错误体回显脱敏（R4，`OpenAICompatibleProvider` 500 字符原文）；其后 G-09（TUI 成本可见性）、G-10/G-11/G-13。
+
 ## 纪律
 
 - 并发执行器上限 2；一卡一执行器；删除走回收站；密钥不落盘；测试隔离（`VESSEL_*_ROOT` 注入）。
