@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { renderCostLines, renderTurnDelta, type UsageTotalsLike } from './costView.js';
+import { renderCostLines, renderTodayLine, renderTurnDelta, type UsageTotalsLike } from './costView.js';
 
 /** G-09 / BRIEF-08：会话内成本文案的纯函数渲染。 */
 const base: UsageTotalsLike = { costUsd: 0.0068, calls: 2, inputTokens: 300, outputTokens: 100 };
@@ -39,5 +39,17 @@ describe('costView（会话内成本文案）', () => {
     const big = { costUsd: 12.5, calls: 9, inputTokens: 1, outputTokens: 1 };
     expect(renderCostLines(big)).toContain('$12.5000');
     expect(renderTurnDelta(big)).toContain('$12.5000');
+  });
+
+  it('renderTodayLine：当日累计一行，金额 4 位小数', () => {
+    expect(renderTodayLine({ costUsd: 0.1234, calls: 3, inputTokens: 0, outputTokens: 0 })).toBe(
+      '今日: $0.1234 · 3 次',
+    );
+  });
+
+  it('renderTodayLine：零成本也给出稳定格式', () => {
+    expect(renderTodayLine({ costUsd: 0, calls: 0, inputTokens: 0, outputTokens: 0 })).toBe(
+      '今日: $0.0000 · 0 次',
+    );
   });
 });

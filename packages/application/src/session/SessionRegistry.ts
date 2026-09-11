@@ -25,11 +25,37 @@ export interface SessionMeta {
 export type SessionInput = Partial<Pick<SessionMeta, 'workspaceRoot' | 'provider' | 'model' | 'permission'>>;
 
 export interface SessionRegistryOptions {
-  /** vessel home dir; defaults to `~/.vessel`. Tests inject a tmp dir. */
+  /**
+   * vessel home dir. An explicit value wins; otherwise the effective root is
+   * `VESSEL_SESSION_ROOT` ?? `~/.vessel` (see `resolveSessionRoot`). Tests inject
+   * a tmp dir so the real home is never touched (AGENTS.md §8).
+   */
   vesselHome?: string;
 }
 
 const SESSIONS_FILE = 'sessions.json';
+
+/** 缺省会话注册表根目录：`~/.vessel`（与 ProviderStore/UsageStore 同款用户级约定）。 */
+export function defaultSessionRoot(home = os.homedir()): string {
+  return path.join(home, '.vessel');
+}
+
+/**
+ * 生效的会话注册表根目录：`VESSEL_SESSION_ROOT` > `~/.vessel`
+ * （与 `resolveUsageRoot()` / `defaultProviderRoot()` 同口径；env 覆盖是
+ * SessionRegistry 测试隔离的前提）。
+ */
+export function resolveSessionRoot(): string {
+  return process.env.VESSEL_SESSION_ROOT ?? defaultSessionRoot();
+}
+
+/**
+ * `list()` 的最近活动排序键：`updatedAt` 存在且非空白时用它，否则 undefined
+ * —— 缺字段的记录排最后，而不是被丢弃（不新增静默回退，仅排序语义）。
+ */
+function lastActivityAt(meta: SessionMeta): string | undefined {
+  return typeof meta.updatedAt === 'string' && meta.updatedAt.trim() !== '' ? meta.updatedAt : undefined;
+}
 
 /**
  * SessionRegistry — the control plane's persisted registry of known sessions.
@@ -44,7 +70,8 @@ export class SessionRegistry {
   private readonly sessions = new Map<string, SessionMeta>();
 
   constructor(opts: SessionRegistryOptions = {}) {
-    const home = opts.vesselHome ?? path.join(os.homedir(), '.vessel');
+    // 显式注入最优先（测试传 tmp），其次 env 覆盖，最后 ~/.vessel 缺省。
+    const home = opts.vesselHome ?? resolveSessionRoot();
     fs.mkdirSync(home, { recursive: true });
     this.file = path.join(home, SESSIONS_FILE);
     this.load();
@@ -91,9 +118,23 @@ export class SessionRegistry {
     return meta;
   }
 
-  /** All registered sessions, newest first. */
+  /**
+   * All registered sessions, most recently active first.
+   *
+   * 排序键 = 最后活动时间 `updatedAt`（create/put/touch 都会刷新），ISO 字符串
+   * 倒序；缺 `updatedAt` 的记录排最后；同一时刻按 id 倒序（与 HandoffStore.list
+   * 同款决定序）。返回元素仍是完整 `SessionMeta`，字段名/结构未变（CLI 与
+   * local-server 现有消费不受影响）。
+   */
   list(): SessionMeta[] {
-    return [...this.sessions.values()].sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1));
+    return [...this.sessions.values()].sort((a, b) => {
+      const ta = lastActivityAt(a);
+      const tb = lastActivityAt(b);
+      if (ta === undefined) return tb === undefined ? 0 : 1;
+      if (tb === undefined) return -1;
+      if (ta !== tb) return ta < tb ? 1 : -1;
+      return a.id < b.id ? 1 : a.id > b.id ? -1 : 0;
+    });
   }
 
   /** Look up a session by id, or undefined when missing. */

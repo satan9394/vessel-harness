@@ -54,23 +54,72 @@ export class Session {
     fs.mkdirSync(dir, { recursive: true });
     const logPath = path.join(dir, 'session.jsonl');
 
-    // single-writer lease (fail-closed: existing lease => refuse)
-    const leasePath = path.join(dir, '.lease');
-    try {
-      const fh = fs.openSync(leasePath, 'wx');
-      fs.writeSync(fh, `${process.pid}\n${new Date().toISOString()}\n`);
-      fs.closeSync(fh);
-    } catch (err) {
-      const e = err as NodeJS.ErrnoException;
-      if (e.code === 'EEXIST') {
-        throw new Error(`Session is already open by another writer: ${dir}`);
-      }
-      throw err;
-    }
+    // single-writer lease (fail-closed + stale reclaim, see acquireLease)
+    this.acquireLease(dir);
 
     const session = new Session(opts, { sessionId, dir, logPath });
     await session.loadExisting();
     return session;
+  }
+
+  /**
+   * 获取单写者租约（fail-closed + 陈旧回收）。
+   *
+   * 为什么需要回收：进程崩溃/被杀不会走 `close()`，`.lease` 会永久残留，
+   * 而"恢复被中断的会话"正是 resume 的主场景——若一律拒绝，resume 在最需要时失效。
+   * 判定规则：租约里记的 pid 已不存在（ESRCH）→ 视为陈旧，回收重取；
+   * pid 仍存活、或存在但非本用户（EPERM）→ 保持 fail-closed，绝不抢占。
+   */
+  private static acquireLease(dir: string): void {
+    const leasePath = path.join(dir, '.lease');
+    for (let attempt = 0; attempt < 2; attempt += 1) {
+      try {
+        const fh = fs.openSync(leasePath, 'wx');
+        fs.writeSync(fh, `${process.pid}\n${new Date().toISOString()}\n`);
+        fs.closeSync(fh);
+        return;
+      } catch (err) {
+        const e = err as NodeJS.ErrnoException;
+        if (e.code !== 'EEXIST') throw err;
+        if (attempt > 0) {
+          throw new Error(`Session is already open by another writer: ${dir}`);
+        }
+        const owner = Session.readLeaseOwner(leasePath);
+        if (owner !== null && Session.isProcessAlive(owner)) {
+          throw new Error(
+            `Session is already open by process ${owner}: ${dir} — 若确认该进程已退出，可删除 ${leasePath} 后重试`,
+          );
+        }
+        // 陈旧（pid 不存在 / 内容不可解析）→ 回收
+        console.warn(`[session] 回收陈旧租约（原属 pid=${owner ?? 'unknown'}）：${leasePath}`);
+        try {
+          fs.rmSync(leasePath, { force: true });
+        } catch {
+          /* 删不掉就让下一轮 openSync 抛出 fail-closed 错误 */
+        }
+      }
+    }
+  }
+
+  /** 读取租约文件里记录的 pid；不可解析返回 null（调用方按陈旧处理）。 */
+  private static readLeaseOwner(leasePath: string): number | null {
+    try {
+      const [pidLine] = fs.readFileSync(leasePath, 'utf8').split('\n');
+      const pid = Number.parseInt((pidLine ?? '').trim(), 10);
+      return Number.isInteger(pid) && pid > 0 ? pid : null;
+    } catch {
+      return null;
+    }
+  }
+
+  /** pid 是否存活：ESRCH = 已退出；EPERM = 存在但非本用户（按存活处理，保持 fail-closed）。 */
+  private static isProcessAlive(pid: number): boolean {
+    try {
+      process.kill(pid, 0);
+      return true;
+    } catch (err) {
+      return (err as NodeJS.ErrnoException).code === 'EPERM';
+    }
   }
 
   private async loadExisting(): Promise<void> {

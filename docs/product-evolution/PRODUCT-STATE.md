@@ -115,7 +115,7 @@
 - 设计要点：`UsageStore` 由 `cli.ts` TUI 入口注入（`cli.ts` 第 280 行已有同款用法），**未注入时全部成本显示静默关闭**（回归保护）。
 - 状态：两件实现卡首轮均未落盘，已重派。
 
-## Round 8（G-09：TUI 会话内成本可见性）— 评审 REJECT，FIX 中
+## Round 8（G-09：TUI 会话内成本可见性）— 已闭环（REJECT → FIX → ACCEPT）
 
 **交付（首版，提交 7073693）**：`costView.ts`（纯函数 `renderCostLines`/`renderTurnDelta`）、`chat.ts`（`ChatOptions.usageStore?`、会话起始基线 + 回合滚动基线、`/cost`/`/usage` 分支、回合末增量行、`/help` 列出 `/cost`）、`cli.ts`（TUI 入口注入 `usageStore`；`vessel usage` 标题改用实际 root）；新增 11 例测试。`tsc 0`、**122 文件 / 1291 passed + 1 skipped**。
 
