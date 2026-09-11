@@ -29,6 +29,12 @@
 
 ---
 
+- ✅ **Round 2 已闭环（提交 22c1463 / c5d491b）**：**G-03**（CLI 顶层无 catch → 崩溃面收敛为「人话 + 路径 + 恢复指引 + exit 1」）、**G-12**（`apps/cli/tsconfig.json` 补 local-server 构建边）、**G-16**（`MESSAGE_SOURCES` 运行时事实源 + 漂移守卫测试）。独立裁定：`EVALUATION-REPORT-03.md` **ACCEPT（7/7）**、`EVALUATION-REPORT-03-RECHECK.md` **ACCEPT（A–D）**；证据：`tsc 0`、`vitest 116 文件 / 1248 passed + 1 skipped`、崩溃面 E2E 双例 exit 1 且无裸栈。
+- 🆕 **N1（P2 → Round 3 NOW 首选）**：「坏配置 → exit 1」用户可见契约**无自动化测试**（删 `.catch` 不变红）。
+- 🆕 **N2（P3）**：JSON 特征探测过宽（裸 `/JSON/i`）→ 目录名含 json 的 ENOENT 误判。
+- 🆕 **N5（P3，跨轮）**：`ChatMessage.source` 仍裸 `string` → 收窄为 `MessageSource | 'environment'`。
+- 🆕 **LOW**：路径清洗截断以 `]`/`）` 结尾的真实路径（仅展示文案）。
+
 ## 状态更新（第 1 轮闭环 + 新增候选）
 
 - ✅ **已闭环（提交 080423d → 76a19e1）**：**G-01**（mock 遮蔽真实输入）、**G-02**（未知命令静默 run）、**G-14**（引导文案 + setup 向导 `cah`→`vessel`）。独立 Evaluator 两轮裁定：Round 1 **REJECT**（S1 未知命令零测试 / S2 `cah` 属实 / S3 注入源漏 plan·handoff·inject / S4 TUI 未同步）→ FIX 轮 → Round 2 **ACCEPT**（逐项行号证据）。验收侧证据：`tsc 0`、`vitest 114 文件 1235 passed + 1 skipped`、CLI E2E 冒烟 6 项全过。

@@ -42,6 +42,28 @@
 
 按 NEXT 组选**下一轮 NOW 切片**：优先 **G-03（CLI 顶层异常兜底）**——它是本轮 G-02 的自然延伸（同一处入口），一次改动消除"配置损坏 → 裸栈崩溃、无恢复指引"这一整类用户可见故障；可与 **G-12（tsconfig 补边，极低成本）** 合为一个小切片；若还有余量，顺手做 **N4 漂移守卫测试**（断言 events 联合里的注入类 source 全部在 `INJECTED_MESSAGE_SOURCES` 内，防止未来新增注入源静默退化）。
 
+## Round 2（G-03 / G-12 / G-16）— 已闭环
+
+**交付**：`apps/cli/src/startupError.ts`（纯函数：4 类判定 + 路径提取 + 恢复指引）＋ `apps/cli/src/cli.ts` 入口 `.catch` → 人话 + **exit 1**；`apps/cli/tsconfig.json` 补 local-server 构建边；`packages/shared/src/events.ts` 新增运行时事实源 `MESSAGE_SOURCES`（`MessageSource` 类型由此派生）＋ 漂移守卫测试 3 例；`startupError.test.ts` 10 例。
+
+**验收侧证据（指挥 E2E，非实现者自证）**：`tsc 0`；`vitest` **116 文件 / 1248 passed + 1 skipped / exit 0**；崩溃面 E2E 双例（写坏 `settings.json` / `providers.json`）→「配置文件损坏 + 涉及文件（路径干净收尾）+ 恢复指引」+ **exit 1** + 无裸栈行；带参数已知命令（`explain 小小蜜`/`provider list`/`settings list`）零回归。
+
+**独立裁定**：`EVALUATION-REPORT-03.md` **ACCEPT（7/7 必查点）**；`EVALUATION-REPORT-03-RECHECK.md` **ACCEPT（A–D）**，并给出判别力推演（回退正则后首个红灯为 `startupError.test.ts:146`）。
+
+**本轮由"验证"而非"实现者自证"捕获的 3 个缺陷**：
+1. `startupError.ts` JSDoc 内 `**/` 提前闭合块注释 → esbuild `Unexpected "*"`，**整个 CLI 无法运行**；
+2. `涉及文件：` 行尾残留全角 `）:`；
+3. 上述"修复"**实际未生效**——真根因是字符类内 `]` 未转义（正则永不匹配），需读实现才定位。
+   **教训**：执行器报"完成"与功能"生效"是两件事；**指挥 E2E + 读码定位 + 判别性断言**三者缺一不可。
+
+**残留（→ Round 3 候选）**：
+- **N1（P2，建议首选）**：「坏配置 → exit 1 + 路径 + 指引」这条**用户可见契约无自动化测试**（删掉 `.catch` 不变红）→ 补 `cli.crashSurface.test.ts`（in-process 断言 `main()` reject + `describeStartupFailure` 渲染，避开子进程 EPERM）。
+- **N2（P3）**：分类探测用裸 `/JSON/i` → 目录名含 "json" 的 ENOENT 会被误判为"配置文件损坏"。
+- **N3（P3）**：内容类错误（格式非法 / theme 非法值）落 `unknown`，指引偏弱。
+- **N4（P3）**：未复用 `describeProviderError`（丢掉 opencode-go 的 hint）；unknown 分支不再保留 stack。
+- **N5（P3，跨轮）**：`ChatMessage.source` 仍为裸 `string`（守卫只覆盖"联合→集合"一条边）→ 建议收窄为 `MessageSource | 'environment'`。
+- **LOW**：路径清洗会截断以 `]`/`）` 结尾的**真实**路径（仅影响展示文案）。
+
 ## 纪律
 
 - 并发执行器上限 2；一卡一执行器；删除走回收站；密钥不落盘；测试隔离（`VESSEL_*_ROOT` 注入）。
