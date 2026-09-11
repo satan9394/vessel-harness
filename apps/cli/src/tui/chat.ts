@@ -2,8 +2,9 @@ import * as readline from 'node:readline';
 import { randomUUID } from 'node:crypto';
 import type { ChatProvider } from '@vessel/shared';
 import { MockProvider } from '@vessel/llm';
-import { composeHarness, SessionRegistry, type ComposedHarness, type SessionMeta, type SyncCredentialStore } from '@vessel/application';
+import { composeHarness, createMcpConnections, SessionRegistry, type ComposedHarness, type ComposeMcpConnection, type SessionMeta, type SyncCredentialStore } from '@vessel/application';
 import { ProviderStore, type ProviderConfig } from '../providers/ProviderStore.js';
+import { McpConfigStore } from '../mcp/config.js';
 import { createDefaultProviderStore } from '../providers/defaultStore.js';
 import { runSetupWizard, createClackIO, fetchModelOutcome } from '../providers/setup.js';
 import { buildRealProvider, describeProviderError, planProvider } from '../providers/providerFactory.js';
@@ -231,6 +232,36 @@ export function resolveChatLocale(settingsRoot?: string): GuideLocale {
   }
 }
 
+/**
+ * G-11 MCP 半（BRIEF-13）：每次构建 harness 前读一次 `~/.vessel/mcp.json` 并构造连接
+ * （单个 server 失败降级、逐个 warn）。
+ *
+ * 与 CLI 一次性路径（`cli.ts` 的 `applyMcpConnections`）**故意不同**：这里配置本身坏了
+ * 只 `console.warn` 并返回 `undefined`，**绝不拒绝启动** —— TUI 已进入交互会话，用户
+ * 可以就地改配置（或直接 /quit 重开）；把"配置写错"升级成"TUI 起不来"是把用户锁在门外。
+ *
+ * 每次重建都新建连接是**安全**的：`harness.close()` 会 close 掉 `mcpClients`
+ * （`packages/application/src/compose.ts:365-367` → `McpClient.close()`
+ * → `McpTransport.close()`），而 `applyPendingChanges()` 是**先 `await previous.close()`
+ * 再 `buildHarness()`**，旧连接先释放、新连接后建立，不存在累积。
+ * 反过来**不能**做模块级缓存：transport 是一次性的，缓存会把已 `close()` 的 transport
+ * 交给新 harness（`StdioTransport.request` 此后恒 reject `MCP transport closed`）。
+ */
+function loadMcpConnections(): ComposeMcpConnection[] | undefined {
+  try {
+    const servers = new McpConfigStore().load();
+    if (servers.length === 0) return undefined;
+    const { connections, failures } = createMcpConnections(servers);
+    for (const f of failures) {
+      console.warn(`[vessel] MCP server "${f.serverName}" 未启动（已跳过）：${f.reason}`);
+    }
+    return connections.length > 0 ? connections : undefined;
+  } catch (err) {
+    console.warn(`[vessel] MCP 配置错误（已忽略）：${(err as Error).message}`);
+    return undefined; // TUI 里不因 MCP 配置坏掉而拒绝启动
+  }
+}
+
 export interface SlashResult {
   /** text to print after the command */
   output?: string;
@@ -317,23 +348,41 @@ export async function runChat(opts: ChatOptions): Promise<number> {
         fallbackText: '（mock 离线冒烟）已收到你的输入。当前无匹配脚本应答——配置真实模型后即可获得完整回答：vessel setup（交互向导）或 vessel provider add。',
       });
     }
-    const harness = await composeHarness({
-      workspaceRoot: sessionWorkspace,
-      provider: effProvider,
-      model: effModel,
-      policySystemPath: opts.policySystemPath,
-      behaviorIRPath: opts.behaviorIRPath,
-      permission,
-      // G-09 接线修复：只有把 usageStore 交给 composeHarness，after_model 才会记账；
-      // 缺了它每回合恒为 $0.0000（无用量记录）、/cost 恒为「本会话暂无用量记录」。
-      usageStore: opts.usageStore,
-      usageProvider: providerId,
-      // G-10：复用既有会话 id（resume 或重建 harness 时保持一致）；缺省则新建。
-      // BRIEF-13：会话内重建（/permission、/model 生效）必须沿用**本 TUI 会话已经建出的** id。
-      // 否则每次重建都会另开一个 session 目录：登记表里凭空多出一条「孤儿会话」（旧权限一条、
-      // 新权限一条），`vessel sessions list` 也会看到幽灵条目，而 syncSessionMeta 只回写新那条。
-      sessionId: currentSessionId ?? opts.sessionId,
-    });
+    // G-11 MCP 半：读 mcp.json → 构造连接（配置坏了只 warn、不拒绝启动，见 loadMcpConnections）。
+    const mcpConnections = loadMcpConnections();
+    let harness: ComposedHarness;
+    try {
+      harness = await composeHarness({
+        workspaceRoot: sessionWorkspace,
+        provider: effProvider,
+        model: effModel,
+        policySystemPath: opts.policySystemPath,
+        behaviorIRPath: opts.behaviorIRPath,
+        permission,
+        // G-09 接线修复：只有把 usageStore 交给 composeHarness，after_model 才会记账；
+        // 缺了它每回合恒为 $0.0000（无用量记录）、/cost 恒为「本会话暂无用量记录」。
+        usageStore: opts.usageStore,
+        usageProvider: providerId,
+        // G-10：复用既有会话 id（resume 或重建 harness 时保持一致）；缺省则新建。
+        // BRIEF-13：会话内重建（/permission、/model 生效）必须沿用**本 TUI 会话已经建出的** id。
+        // 否则每次重建都会另开一个 session 目录：登记表里凭空多出一条「孤儿会话」（旧权限一条、
+        // 新权限一条），`vessel sessions list` 也会看到幽灵条目，而 syncSessionMeta 只回写新那条。
+        sessionId: currentSessionId ?? opts.sessionId,
+        mcp: mcpConnections,
+      });
+    } catch (err) {
+      // 本次建出的连接不会被任何 harness 持有（compose 抛错时连返回值都没有），就地回收。
+      // 成功那份由 harness.close() 负责（compose.ts:365-367），这里只补**失败**路径：
+      // 否则 /permission、/model 反复触发失败重建时会一茬茬攒下孤儿子进程。
+      for (const conn of mcpConnections ?? []) {
+        try {
+          await conn.transport.close();
+        } catch {
+          /* 回收失败不掩盖原始错误 */
+        }
+      }
+      throw err;
+    }
     // G-13-P1：把会话 id 记到外层，供 /permission、/model 之后回写登记表（拿不到 id 就没法 put）。
     currentSessionId = harness.session.sessionId;
 

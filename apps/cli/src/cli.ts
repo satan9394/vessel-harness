@@ -6,6 +6,7 @@ import { VERSION, renameWithRetry } from '@vessel/shared';
 import { MockProvider } from '@vessel/llm';
 import {
   composeHarness,
+  createMcpConnections,
   SessionRegistry,
   type ComposeOptions,
   type EnforcementProjection,
@@ -27,6 +28,7 @@ import { describeStartupFailure } from './startupError.js';
 import { fetchOpenAIModels, modelsForProtocol } from '@vessel/application';
 import { createClackIO, runSetupWizard } from './providers/setup.js';
 import { runChat } from './tui/chat.js';
+import { McpConfigStore } from './mcp/config.js';
 import { VESSEL_LOGO, VESSEL_TAGLINE } from './brand.js';
 import { UsageStore, isLocalDateKey, localDateKey, resolveUsageRoot } from './usage/UsageStore.js';
 import { PricingOverrideStore, type PricingRepair } from './usage/pricingOverride.js';
@@ -225,6 +227,35 @@ function writeTextAtomic(file: string, text: string): void {
   renameWithRetry(tmp, file);
 }
 
+/**
+ * G-11 MCP 半（BRIEF-13）：读 `~/.vessel/mcp.json` → 构造 transport → 写进 compose 选项。
+ *
+ * 失败语义（CLI 与 TUI **故意不同**，各按自己的处境取舍）：
+ *  - **单个 server 起不来 → 降级**：warn 后跳过，其余 server 照常接上，不阻断本次运行
+ *    （`createMcpConnections` 已按 server 逐个 try/catch，failures 由调用方打印）；
+ *  - **配置本身坏了**（JSON 非法 / 缺 name·command / 重名…）→ **fail-loud**：返回错误描述，
+ *    由调用方中止（非 0 退出）。非交互场景若静默降级，用户只会看到"工具没接上"、
+ *    却不知道是 `mcp.json` 写错了 —— 本仓反复踩过的"文案说接上了、实际没接"。
+ *
+ * 返回 `null` = 成功（含"没配置文件 / 没 server"）；返回字符串 = 配置错误的人话描述。
+ * TUI 侧对应物是 `chat.ts` 的 `loadMcpConnections()`：那里配置坏了只警告、不拒绝启动。
+ */
+function applyMcpConnections(opts: ComposeOptions): string | null {
+  try {
+    const servers = new McpConfigStore().load();
+    if (servers.length > 0) {
+      const { connections, failures } = createMcpConnections(servers);
+      if (connections.length > 0) opts.mcp = connections;
+      for (const f of failures) {
+        console.warn(`[vessel] MCP server "${f.serverName}" 未启动（已跳过）：${f.reason}`);
+      }
+    }
+    return null;
+  } catch (err) {
+    return (err as Error).message;
+  }
+}
+
 async function cmdRun(flags: Map<string, string>): Promise<number> {
   const workspace = path.resolve(flags.get('workspace') ?? process.cwd());
   const root = repoRoot();
@@ -296,6 +327,14 @@ async function cmdRun(flags: Map<string, string>): Promise<number> {
     usageStore: createUsageStore({ strict: flags.has('strict') }),
     usageProvider: currentId,
   };
+  // G-11 MCP 半：读 ~/.vessel/mcp.json → 构造 transport → 传给 composeHarness。
+  // 配置非法由 McpConfigStore.load() fail-loud；**单个 server 起不来只降级**，不阻断本次运行。
+  const mcpConfigError = applyMcpConnections(composeOpts);
+  if (mcpConfigError !== null) {
+    // 配置本身坏了：明确报错并中止（fail-loud），不要静默继续
+    console.error(`[vessel] MCP 配置错误：${mcpConfigError}`);
+    return 1;
+  }
   const harness = await composeHarness(composeOpts);
 
   // G-10：让 CLI 建的会话进入会话登记表，否则 `vessel sessions list` 看不到它、无法 resume。

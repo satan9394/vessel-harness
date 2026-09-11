@@ -101,6 +101,11 @@ export interface ComposedHarness {
   behaviorWarnings: string[];
   subagentManager?: SubagentManager;
   mcpClients: McpClient[];
+  /**
+   * MCP 装载失败清单（BRIEF-13 §6 分区语义）：单个 server 起不来 / initialize 失败
+   * 时已降级（warn + 跳过），调用方据此提示用户或断言。空数组 = 全部装载成功。
+   */
+  mcpFailures?: { serverName: string; reason: string }[];
   /** V0.4/056: AutoTaskRouter instance (when task routing was wired) — callers can re-route per task */
   taskRouter?: AutoTaskRouter;
   /** 056: the actual resolved route (mode/category/complexity/roles/primary model/hints) — 「Auto → <model>」展示依据 */
@@ -242,12 +247,30 @@ export async function composeHarness(opts: ComposeOptions): Promise<ComposedHarn
   const finalTools = subagentManager ? [...tools, createSubagentTool(subagentManager)] : tools;
   const registry = new ToolRegistry(finalTools, { deniedTools: artifacts.deniedTools });
 
-  // V0.2 MCP: dynamically register remote tools (same pipeline as builtins)
+  // V0.2 MCP: dynamically register remote tools (same pipeline as builtins).
+  // BRIEF-13 §6 失败分区：**配置结构非法**由读取器更早 fail-loud（apps/cli/src/mcp/config.ts，
+  // application 不依赖 apps/cli）；**单个 server 起不来 / initialize 失败 → 降级**：warn
+  // （含 server 名与原因）后跳过它，其余 server 与主流程照常——用户 mcp.json 里写错一个
+  // server，不该让整个 CLI/TUI 都打不开。
   const mcpClients: McpClient[] = [];
+  const mcpFailures: { serverName: string; reason: string }[] = [];
   for (const conn of opts.mcp ?? []) {
-    const client = new McpClient(conn.transport, conn.serverName);
-    await registerMcpTools(registry, conn.serverName, client);
-    mcpClients.push(client);
+    // 循环体是唯一的作用域边界：任一环节抛错都只落在本连接上，不传播给其余 server。
+    let client: McpClient | undefined;
+    try {
+      client = new McpClient(conn.transport, conn.serverName);
+      await client.initialize(); // MCP 握手：server 起不来 / 协议错误在这里先暴露
+      await registerMcpTools(registry, conn.serverName, client);
+      mcpClients.push(client);
+    } catch (err) {
+      const reason = err instanceof Error ? err.message : String(err);
+      // 降级但不静默：warn 带 server 名与原因（与 apps/cli/src/cli.ts:250 同一文案）。
+      console.warn(`[vessel] MCP server "${conn.serverName}" 未启动（已跳过）：${reason}`);
+      mcpFailures.push({ serverName: conn.serverName, reason });
+      // 失败连接不进 mcpClients（close() 仍只关成功项），但已 spawn 的子进程就地收掉，
+      // 否则残留的子进程会吊住 Node 事件循环。清理失败不掩盖原始原因。
+      await client?.close().catch(() => {});
+    }
   }
 
   // Context: builder (stable cached per session) + compaction (pressure-triggered)
@@ -353,6 +376,7 @@ export async function composeHarness(opts: ComposeOptions): Promise<ComposedHarn
     behaviorWarnings,
     subagentManager,
     mcpClients,
+    mcpFailures,
     taskRouter,
     route,
     routedCategory,

@@ -183,7 +183,7 @@
 
 **方法论确认**：本轮我的 E2E 覆盖了"正常路径 + 数据损坏但被内部降级"两种情形，却**漏了"错误冒泡到 CLI 顶层"这一层**——独立 Evaluator 用一条反例就把它抓出来。**教训（第 5 条纪律）：错误路径的 `--json` 契约必须在"异常冒泡到入口"的层级验证**，而不是只验证命令内部已捕获的失败。
 
-## 纪律
+## Round 10（G-11 之 `--json` 半）— 已闭环（ACCEPT）
 
 **交付（提交 027410f）**：
 - 新增 `apps/cli/src/output.ts`：`isJson(flags)` / `emitJson(value)`（**唯一 stdout 出口**，只打一段 JSON）/ `fail(code,msg,flags,human?)`（JSON 模式打 stderr 信封 `{error:{message,code}}`）。
@@ -202,9 +202,39 @@
 
 **待办**：命令侧 `--json` 的 Vitest 覆盖（补 AGENTS.md 规则 7；走真实 `main()`）；`output.fail()` 与 guidance/sessions 两处失败路径的走线不统一（一处走 `error` seam、一处走 `console.error`）——记为 P3 一致性项。
 
+## Round 11（G-13-P1：`/permission`·`/model` 假成功）— 已闭环（ACCEPT）
+
+**问题**：文案宣称已切换，主循环只打印、从不回写变量且 harness 被缓存 → 用户以为切到 `read-only`，实际仍 `workspace-write`（**用界面欺骗用户的安全设置**）。
+
+**修复**：`SlashResult` 增 `permission?`/`model?`；命令侧校验（非法值**不宣称成功**、不返回字段）；主循环 `applyPendingChanges`（`chat.ts:402-435`）——**harness 已存在则确认即生效**（重建 + `syncSessionMeta` 回写登记表、保留 `createdAt`），尚未懒建则挂起；重建失败**回滚变量 + 保留旧 harness + 明确报错**（不崩、不留"宣称切了没生效"）；复用 `currentSessionId`（`:335`）消除孤儿会话；`planProvider` 收到会话内 `model`（修掉"只改状态行、真实请求仍用旧模型"这条**第二假成功路径**）。
+
+**证据**：`tsc 0`；全量 **126 文件 / 1335 passed + 1 skipped**；判别性 E2E（注入会发 Write 的 provider）→ `POSITIVE(切换 read-only)=未写入 / CONTROL(不切换)=写入 / DISCRIMINATES=true`；TUI 新增 6 例（字段存在性、SessionMeta 落盘 + 负对照、记录型 provider 实测 model、**deny 面 `[DENIED]` + 不含 `[错误]` + 文件未创建**、locale 中英差分）；评审 `EVALUATION-REPORT-15.md` **ACCEPT**。
+
+**过程教训（纪律 8）**：首版"延迟应用"使 `['你好','/permission read-only','/quit']` 场景变更**永不落地**（新测试实测失败）→ 裁定改为"确认即生效"。**安全设置的"已生效"必须在确认瞬间为真**，不能等到"下个回合"。
+
+**残留（下一批）**：① 重建失败时 `previous.close()` 已执行，而 `Session.append` 的惰性重开（`packages/core/src/session/Session.ts:168-170`）**不重取租约** → 回滚后本会话余下时间无租约写入，单写者 fail-closed 失效；该 harness 的遥测投影/MCP 客户端亦不复活。② 无"buildHarness 失败 → 回滚 + 报错"的回归测试；`createdAt` 保真无断言。
+
+## Round 12（G-13-P2/P3：locale 接入与 theme 诚实化）— 已闭环（ACCEPT）
+
+**交付**：`cmdExplain` 生效 locale = `--locale` > settings.locale > `'zh'`（读 settings **任何失败回落 `'zh'`**，不让 explain 失败；非法 `--locale` 报错返回 2）；TUI `resolveChatLocale`（`chat.ts:226-232`）会话启动解析一次、`/explain` 与 `? <术语>` 共用同一值；**theme 文案四处**（`settings.ts:54-55`、`guideCommands.ts:137/164`、`glossary.ts:114-116`、`guide.ts:25/36`）全部改为"仅保存该偏好、当前版本不影响任何输出/渲染"。
+
+**证据**：`tsc 0`；全量绿；评审确认"**无遗漏**、theme 侧合法值/校验/持久化**无行为改动**"，locale 唯一行为改动即本轮要求内的 catch 回落。
+
+**残留**：`cmdGuide`（`guideCommands.ts:104`）读 settings 无 catch，与 explain 口径不对称（P3）。
+
 ## 纪律
 
-- 并发执行器上限 2；一卡一执行器；删除走回收站；密钥不落盘；测试隔离（`VESSEL_*_ROOT` 注入）。
+**流程纪律**：并发执行器上限 2–3；一卡一执行器；删除走回收站；密钥不落盘；测试隔离（`VESSEL_*_ROOT` 注入）；写入型执行器**不跑命令**，由指挥复跑 `tsc`/vitest 并保命提交。
+
+**验证纪律（历轮实证沉淀，通用）**：
+1. **端到端必须走真实用户路径**——用组件级渲染替代接线验证，会把"功能未接通"误判为"功能已实现"（Round 8：`buildHarness` 未传 `usageStore`，TUI 成本恒 `$0.0000`）。
+2. **断言锁"因果链上必然变化的量"**（`calls`/`inputTokens`/子进程 pid），不锁经过格式化/舍入的展示值（`$0.0000`）——后者会把正确实现判红。
+3. **验收断言必须打到因果链末端**——"resume 有效"要证明**模型收到了历史**（记录型 provider 捕获 messages），而非"日志变长"（Round 9）。
+4. **新增"默认状态根"写入路径时，必须审计所有会构造默认 store 的测试**——否则真实用户目录被测试污染（Round 9：8 条测试会话写进真实 `~/.vessel/sessions.json`）。
+5. **错误路径的契约要在"异常冒泡到入口"的层级验证**——只验证命令内部已捕获的失败会漏（Round 10：`provider list --json` + 损坏配置仍打人类文案）。
+6. **判别性探针必须自带"旧行为会红"的对照**——`NAIVE_TRUNCATE_WOULD_LEAK=true` 这类自证，才能证明用例有判别力（Round 7b）。
+7. **"已有能力的出口"类切片先侦察爆炸半径**——确认调用点为零才可直接改契约，否则应加兼容层（Round 13 的 `StdioTransport`）。
+8. **"宣称已生效"必须在确认瞬间为真**——延迟到"下个回合"会让切换后立即退出的场景永不落地（Round 11）。
 
 ## 技术债
 
