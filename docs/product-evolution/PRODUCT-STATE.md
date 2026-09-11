@@ -222,7 +222,16 @@
 
 **残留**：`cmdGuide`（`guideCommands.ts:104`）读 settings 无 catch，与 explain 口径不对称（P3）。
 
-## Round 13（G-11 之 MCP 半）— 实现完成，独立验收在途
+## Round 13（G-11 之 MCP 半）— 评审判 **REJECT**（窄口径），FIX 中
+
+**独立裁定 `EVALUATION-REPORT-16.md`：REJECT**——E2E **确为真跨进程、非假绿**（`child.pid ≠ process.pid` + `execute` 真返回 `'42'`），验收 1/2/4 通过。但发现 **2 处真实缺陷 + 测试缺口**（详见下方"FIX 中"），其中两条是实现者与我都没抓到的**产品级问题**：
+1. **孤儿进程**：`StdioTransport.close()`（`McpClient.ts:142`）布的 2s SIGKILL 兜底，被 `:143-148` 的 50ms 乐观 resolve + `:149` 的 `clearTimeout` **提前取消** → 不响应 stdin EOF 的 MCP server **永不退出**。E2E 没暴露，是因为**测试自己在 `reap()` 里补了 SIGKILL——测试在替被测代码兜底**（此点由独立 Evaluator 点破，是"假绿"的另一种形态）。
+2. **`initialize()` 无超时** → BRIEF-13 要求的"server 不响应即超时降级"未实现，`composeHarness` 会**永久挂起**（CLI/TUI 卡死无提示）；且缺陷 1 让既有 2s 兜底也不可能生效。
+3. 验收 3（降级四断言）/5（重建不泄漏）**仓内零测试**；CLI 侧 `composeHarness` 抛错时已 spawn 的连接**无 close 兜底**（TUI 侧有）；win32 非白名单 `.cmd` 命令的失败信息含糊。
+
+**FIX（进行中，三卡并行）**：① `McpClient.ts`——SIGKILL 兜底不得被取消 + `initialize`/`request` 加超时（超时 reject 带明确原因、清理 pending）；② `cli.ts`——`composeHarness` 抛错时逐个 `close()` 已 spawn 连接 + win32 `.cmd` 明确提示；③ 新增降级四断言仓内测试（`connections.test.ts`）。
+
+## 纪律
 
 **定位**：把"**已有能力的出口**"接上——库级管道早已通（`compose.ts` 的 `mcp` + `registerMcpTools` + `mcp__<server>__<tool>`），但 `apps/cli` 内 `grep Mcp|MCP` **零命中**，用户只能编程接入。
 
