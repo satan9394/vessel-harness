@@ -115,6 +115,19 @@
 - 设计要点：`UsageStore` 由 `cli.ts` TUI 入口注入（`cli.ts` 第 280 行已有同款用法），**未注入时全部成本显示静默关闭**（回归保护）。
 - 状态：两件实现卡首轮均未落盘，已重派。
 
+## Round 8（G-09：TUI 会话内成本可见性）— 评审 REJECT，FIX 中
+
+**交付（首版，提交 7073693）**：`costView.ts`（纯函数 `renderCostLines`/`renderTurnDelta`）、`chat.ts`（`ChatOptions.usageStore?`、会话起始基线 + 回合滚动基线、`/cost`/`/usage` 分支、回合末增量行、`/help` 列出 `/cost`）、`cli.ts`（TUI 入口注入 `usageStore`；`vessel usage` 标题改用实际 root）；新增 11 例测试。`tsc 0`、**122 文件 / 1291 passed + 1 skipped**。
+
+**独立裁定 `EVALUATION-REPORT-09.md`：REJECT**，两条硬缺口：
+1. **主因**：`chat.ts` 的 `buildHarness()` **从未把 `usageStore`/`usageProvider` 传给 `composeHarness`**（记账开关在 `compose.ts:297`）→ 真实会话每回合恒为 `· 本回合 $0.0000（无用量记录）`、`/cost` 恒为"暂无记录"，**比改动前更误导**。→ 我那次 E2E 是"手工 record 后渲染 costView"，**绕过了 runChat 接线**，因此掩盖了该缺陷（评审明确指出）。
+2. `/cost` 缺「今日」行（验收标准 1 要求三行）；`costView` 注释承诺"由调用方追加"但调用方从未追加。
+其余 6 项通过：基线分离正确、未注入确为静默、纯函数与具体串断言扎实、回归无破坏、标题一致性（store 与标题同走 `resolveUsageRoot()`）、测试隔离合规。次要缺口：usage 标题改动无单测；启动期 `totals()` 抛错会静默关停成本行。
+
+**FIX（进行中）**：① `buildHarness()` 补传 `usageStore`/`usageProvider`；② 新增 `renderTodayLine` 并在 `/cost` 追加今日行（取不到则省略、不抛错）；③ 待补**判别性测试**：真实 `UsageStore` + mock provider 跑 `runChat`，断言 `· 本回合` 金额**非 0**（这是本轮的教训——只测渲染函数会漏掉接线）。
+
+**方法论教训（写入纪律）**：**E2E 必须走真实用户路径**；用组件级渲染替代端到端接线，会把"功能未接通"误判为"功能已实现"。
+
 ## 纪律
 
 - 并发执行器上限 2；一卡一执行器；删除走回收站；密钥不落盘；测试隔离（`VESSEL_*_ROOT` 注入）。

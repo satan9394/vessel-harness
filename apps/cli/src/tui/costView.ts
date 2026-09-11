@@ -35,3 +35,8 @@ export function renderTurnDelta(now: UsageTotalsLike, base?: UsageTotalsLike): s
   const detail = dIn + dOut === 0 ? '（无用量记录）' : `（${dIn} in / ${dOut} out）`;
   return `· 本回合 ${money(dCost)}${detail}`;
 }
+
+/** `/cost` 的「今日」行（当日累计；数据由调用方按本地日聚合后传入）。 */
+export function renderTodayLine(today: UsageTotalsLike): string {
+  return `今日: ${money(today.costUsd)} · ${today.calls} 次`;
+}

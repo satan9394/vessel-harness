@@ -558,4 +558,65 @@ describe('G-09 — TUI 会话内成本显示（/cost · /usage · 每回合增�
     expect(code).toBe(0);
     expect(output.join('\n')).toContain('· 本回合'); // 同一冒烟路径，注入后确有成本行
   });
+
+  /**
+   * ⑥ 端到端**接线**判别（G-09 REJECT 根因回归）。
+   *
+   * ④/⑤ 只证明「注入后有一行 `· 本回合`」——但**接线断裂**时（`buildHarness` 不把
+   * `usageStore` 传给 `composeHarness`）那行照样会打印，只是恒为
+   * `· 本回合 $0.0000（无用量记录）`；⑤ 因此漏掉了缺陷。本用例换判据：
+   * 不预置任何用量，全部数字只能来自 `runChat` 的真实记账链路
+   * （MockProvider stream → usage chunk → AgentLoop(`packages/core/.../AgentLoop.ts:275/296`
+   * 的 `after_model { usage }`) → `compose.ts:297-318` 的订阅者 → `UsageStore.record`）。
+   * 接线一断，`totals()` 停在空表，下面两条断言必然红。
+   *
+   * 注意：**不断言金额数值**——MockProvider 默认 100 in / 20 out，按 PRICING 折算约
+   * $0.00005，`toFixed(4)` 正确显示 `$0.0000`，断言「金额非 0」会把正确实现判红（假阴性）。
+   * 真正判别的是 `calls` / `inputTokens` 这类 token 级记账。
+   */
+  it('⑥ 接线判别性：真实 UsageStore（不预置）+ mock provider 跑 runChat → 记账真的写进了 store', async () => {
+    // 真 store、临时 root、固定价目；刻意**不** record → 一切只能由 runChat 产生。
+    const usageStore = new UsageStore({ rootDir: usageRoot, pricing: PRICING });
+    expect(usageStore.totals().calls).toBe(0); // 前置空表：下面的 > 0 不可能是既有数据
+
+    const { io, output } = scriptedIO(['你好', '/quit']);
+    const code = await runChat({
+      workspaceRoot: root,
+      policySystemPath: POLICY,
+      behaviorIRPath: BEHAVIOR,
+      io,
+      usageStore, // G-09 接线修复（chat.ts:275-276）：必须一路传到 composeHarness
+    });
+
+    expect(code).toBe(0);
+
+    // —— 判别断言（接线断裂时必然为 0 → 必然红）——
+    const totals = usageStore.totals();
+    expect(totals.calls).toBeGreaterThan(0);
+    // MockProvider 默认上报 { inputTokens: 100, outputTokens: 20 }（MockProvider.ts:85-86,125,139），
+    // 所以真实记账路径跑通后这里的 in 计数不可能低于 100。
+    expect(totals.inputTokens).toBeGreaterThanOrEqual(100);
+
+    // —— 输出层佐证：有 usage → 走「含 token 明细」分支 ——
+    const out = output.join('\n');
+    expect(out).toContain('· 本回合');
+    expect(out).toMatch(/· 本回合 \$[\d.]+（\d+ in \/ \d+ out）/); // 金额 + 明细都在
+    // 明细非空就说明 after_model 真带了 usage（renderTurnDelta 的「无用量记录」分支未被选中）
+    expect(out).not.toContain('· 本回合 $0.0000（无用量记录）');
+  });
+
+  it('⑦ /cost 输出三行：本会话 / 今日 / 累计（真实 UsageStore，空表也成立）', async () => {
+    const usageStore = new UsageStore({ rootDir: usageRoot, pricing: PRICING }); // 空表：第一行走「暂无用量记录」
+    const { io } = scriptedIO([]);
+    const res = await dispatchSlash('/cost', {
+      store: newStore(),
+      io,
+      sessionWorkspace: root,
+      usageStore,
+    });
+    const out = res?.output ?? '';
+    expect(out).toContain('本会话'); // 空表时为「本会话暂无用量记录」，三行结构不变
+    expect(out).toContain('今日'); // 本地日聚合行（dispatchSlash 内 daily() 成功即出现）
+    expect(out).toContain('累计');
+  });
 });

@@ -11,7 +11,8 @@ import { modelsForProtocol } from '@vessel/application';
 import { VESSEL_LOGO } from '../brand.js';
 import { findTerm, renderExplain } from '../guide/glossary.js';
 import type { UsageStore } from '../usage/UsageStore.js';
-import { renderCostLines, renderTurnDelta, type UsageTotalsLike } from './costView.js';
+import { localDateKey } from '../usage/UsageStore.js';
+import { renderCostLines, renderTurnDelta, renderTodayLine, type UsageTotalsLike } from './costView.js';
 
 /**
  * apps/cli/src/tui/chat.ts — `vessel` interactive chat TUI (V0.7, task 021; brand Vessel).
@@ -269,6 +270,10 @@ export async function runChat(opts: ChatOptions): Promise<number> {
       policySystemPath: opts.policySystemPath,
       behaviorIRPath: opts.behaviorIRPath,
       permission,
+      // G-09 接线修复：只有把 usageStore 交给 composeHarness，after_model 才会记账；
+      // 缺了它每回合恒为 $0.0000（无用量记录）、/cost 恒为「本会话暂无用量记录」。
+      usageStore: opts.usageStore,
+      usageProvider: providerId,
     });
   };
 
@@ -365,7 +370,18 @@ export async function dispatchSlash(input: string, ctx: {
       const costStore = ctx.usageStore;
       if (!costStore) return { output: '成本显示未启用（本会话未注入 usage store）' };
       try {
-        return { output: renderCostLines(costStore.totals(), ctx.usageBaseline) };
+        const now = costStore.totals();
+        const lines = [renderCostLines(now, ctx.usageBaseline)];
+        try {
+          const day = localDateKey(new Date());
+          const rows = costStore.daily({ since: day, until: day });
+          const costUsd = rows.reduce((acc, r) => acc + r.costUsd, 0);
+          const calls = rows.reduce((acc, r) => acc + r.calls, 0);
+          lines.push(renderTodayLine({ costUsd, calls, inputTokens: 0, outputTokens: 0 }));
+        } catch {
+          /* 今日数据不可得 → 省略该行，不影响本会话/累计 */
+        }
+        return { output: lines.join('\n') };
       } catch (err) {
         return { output: `成本读取失败: ${(err as Error).message}` };
       }
