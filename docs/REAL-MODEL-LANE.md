@@ -114,7 +114,7 @@ V1.1-C 把「内置 preset + OPENCODE_API_KEY 环境变量 + MIMO 目标模型�
 `x-opencode-session` 会返回 400 `MissingSessionID`**（不是 401——鉴权已过，失败在路由阶段）；
 补一个稳定 UUID 后同一请求 200。task 102 据此把线协议客户端从通用 `createProvider('openai-compatible')`
 换成专用客户端（通用客户端无法注入自定义头）。**task 103 起实现上提到 `@vessel/llm`**
-（`packages/llm/src/provider/OpencodeGoProvider.ts`）——CLI（`vessel run`）、TUI（`vessel chat`）
+（`packages/llm/src/provider/OpencodeGoProvider.ts`）——CLI（`vessel run`）、TUI（无参 `vessel`）
 与 lane 共用同一份实现，lane 侧 `benchmarks/runners/src/lane/opencodeGoChatProvider.ts` 只是
 re-export 外壳；协议语义（下列各点）不变：
 
@@ -307,7 +307,7 @@ const report = await runRealModelLane({
 ## key 入库（task 105：把用户 key 写进 CredentialStore）
 
 用户日常路径（`vessel run`）**不再需要每次指定 env**：key 写进仓库 CredentialStore
-（Windows DPAPI 密文），`providers.json` 只留 `secretRef`。（`vessel chat` 见下方 ⚠️。）
+（Windows DPAPI 密文），`providers.json` 只留 `secretRef`。（无参 `vessel`（交互/TUI）见下方 ⚠️。）
 
 ```powershell
 # 1) 入库：key 只在命令行/进程内出现，仓库机制负责 DPAPI 加密 + 写 secretRef
@@ -346,7 +346,7 @@ $plain = [System.Text.Encoding]::UTF8.GetString(
 - `vessel run` 真跑（store 路径，无需任何 env）：`vessel run --prompt "ping"` → 最终回复 `pong`、
   `kind=success steps=1`，usage 落 `~/.vessel/usage.json`（`provider=opencode-go, model=mimo-v2.5,
   inputTokens=3265, outputTokens=37`）。
-- ✅ **`vessel chat`（TUI）已可用（task 106 修复）**：`runChat()` 的默认 `ProviderStore` 改为与
+- ✅ **无参 `vessel`（交互/TUI）已可用（task 106 修复）**：`runChat()` 的默认 `ProviderStore` 改为与
   `vessel run` 共用 `createDefaultProviderStore()`（接 CredentialStore），`secretRef` 能解析回 apiKey。
   修复前是裸 `new ProviderStore()` → 401 `Missing API key`（105 发现 2）；回归用例见
   `apps/cli/src/tui/chat.test.ts`（本地 loopback 端点断言 Bearer 头，不打真实网络）。

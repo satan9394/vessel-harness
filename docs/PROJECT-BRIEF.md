@@ -18,7 +18,7 @@ Interceptor + Runtime Deny + Audit）是核心抽象。口号：Carry intelligen
 
 ## 核心任务（用户用 Vessel 做什么）
 
-1. **运行 Agent**：`vessel run --prompt "..."` / `vessel chat`（TUI）——带行为 IR + 策略边界的对话/任务执行。
+1. **运行 Agent**：`vessel run --prompt "..."` / 无参 `vessel`（TUI）——带行为 IR + 策略边界的对话/任务执行。
 2. **配置供应商**：`vessel provider`（71 个预填供应商 / 自定义端点 / 凭据 DPAPI 加密 / 导出导入 / 多端点测速）。
 3. **管理模型与定价**：`vessel pricing`（models.dev 同步 / 用户覆盖 / recompute / costMultiplier）。
 4. **统计用量**：`vessel usage`（分日分桶 / 来源分布 / cache 计价）。
@@ -49,7 +49,7 @@ Interceptor + Runtime Deny + Audit）是核心抽象。口号：Carry intelligen
 ## 主要入口
 
 - CLI：`npx tsx apps/cli/src/cli.ts`（run / chat / provider / pricing / usage / explain / guide / settings / models）
-- TUI：`vessel chat`（apps/cli/src/tui/chat.ts，支持 /explain、/help、? <term>）
+- TUI：无参 `vessel`（apps/cli/src/tui/chat.ts，支持 /explain、/help、? <term>）
 - Web：apps/web（UsageBar）+ apps/local-server（usage SSE）
 - 基准：benchmarks/runners（run-release-gates.ts / run-opencode-lane.ts）
 - 配置：configs/{behavior.default,policy.default}.yaml、model-catalog.json、pricing.json

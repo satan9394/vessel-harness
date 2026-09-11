@@ -19,7 +19,8 @@
 - **G-14（文案）**：TUI 欢迎语补 `/explain`·`? <术语>`·`vessel guide`（已完成）。**订正**：`cah *` 并非审计误报——指挥早前 PowerShell 检索失效误判，独立 Evaluator 已证伪并定位 `apps/cli/src/providers/setup.ts:7/103/237/268/301`（4 处用户可见文案）→ 列入 FIX 轮（`FIX-BRIEF-01.md` S2）。
 - 附带：空工作区/无 README 时给友好提示，不再把裸 `TOOL_FAILURE` 当"最终回复"。
 
-验收侧证据（Orchestrator）：`tsc -b` exit 0；`vitest` 113 文件 **1225 passed + 1 skipped**；CLI 冒烟 A–E 全通过；`source` 经查不进入任何真实 provider 请求体（三路均显式挑字段）。**独立 Evaluator 裁定：待回填。**
+验收侧证据（Orchestrator）：`tsc -b` exit 0；`vitest` **114 文件 / 1235 passed + 1 skipped / exit 0**（基线 1220+1 → 本轮 +15 用例）；CLI 冒烟 6 项 E2E 全通过（含**带参数已知命令** `explain 小小蜜` / `provider list` / `settings list` 均 exit 0，证明未知命令分支未过度拦截）；`source` 经查不进入任何真实 provider 请求体（三路均显式挑字段）。
+**独立 Evaluator 裁定：ACCEPT**（Round 1 全静态 → **REJECT**（S1–S4）→ FIX 轮 → Round 2 全静态 → **ACCEPT**，逐项行号证据见 `EVALUATION-REPORT-01.md` / `EVALUATION-REPORT-02.md`）。
 
 ## 仍存在缺口（按路线图）
 
@@ -31,11 +32,15 @@
 
 1. **提交者把 WIP 交证落盘的链条很脆**：连续 3 个 Implementer 在"读文件/跑命令"阶段失败（本环境子代理执行长命令会中断）→ 应对：改用**写入型窄任务**（禁跑命令）+ 由指挥跑验证 + 保命 WIP 提交。
 2. **第 4 轮 Implementer 引入语法回归**（模板字符串内嵌反引号 → TS1005，连带两个测试套件 transform 失败）——被验收侧复跑即时捕获，FIX 阶段修复。**教训：写入型执行器虽能完成，但必须强制验收侧复跑 tsc/测试**（否则该回归会静默进主干）。
-3. **审计报告存在误报**（G-14 的 `cah *`）——印证"审计结论必须经证据核验"，不可直接当工单执行。
+3. **"未检索到" ≠ "不存在"**：G-14 的 `cah *` **属实**（`setup.ts` 4 处用户可见文案）——我最初用 PowerShell `Get-ChildItem -Include` 组合检索返回空，据此误判"审计误报"并写进状态文件，被独立 Evaluator 证伪。教训：核验一律用 ripgrep 类工具，并复核检索式本身是否有效。
+4. **N4（Round-2 提出，建议下一轮小卡）**：`ChatMessage.source` 仍是裸 `string`、`INJECTED_MESSAGE_SOURCES` 手写集合 → 未来新增注入源会**静默退化**（无人报错）。建议：收窄为联合类型，或加"漂移守卫"测试（断言 events 联合里的注入类 source 全部在集合内）。
+5. **N5（低危）**：`MockProvider.ts:47-52` / `Builder.ts:47-48` 注释仍只列举 4 个 source（实际 7 个）。
+6. **N2 文档-命令漂移**：`vessel chat` 已不再是入口（现 exit 2），但有 3 份文档仍当它作 TUI 入口——本轮已修 `PROVIDER-MANAGEMENT.md`（3 处）、`REAL-MODEL-LANE.md`（3 处）、`PROJECT-BRIEF.md`（2 处）→ 建议后续把"文档命令一致性"纳入发布门禁或加一条 grep 检查。
+7. **偶发**：全量 vitest 有一次 exit 1 但仅伴随 "unhandled errors" 警告（测试全过），复跑 exit 0 —— 记为观察项，非本轮改动引入。
 
 ## 当前最高价值下一步
 
-按 NEXT 组选**下一轮 NOW 切片**：优先 **G-03（CLI 顶层异常兜底）**——它是本轮 G-02 的自然延伸（同一处入口），一次改动消除"配置损坏 → 裸栈崩溃、无恢复指引"这一整类用户可见故障；可与 **G-12（tsconfig 补边，极低成本）** 合为一个小切片。
+按 NEXT 组选**下一轮 NOW 切片**：优先 **G-03（CLI 顶层异常兜底）**——它是本轮 G-02 的自然延伸（同一处入口），一次改动消除"配置损坏 → 裸栈崩溃、无恢复指引"这一整类用户可见故障；可与 **G-12（tsconfig 补边，极低成本）** 合为一个小切片；若还有余量，顺手做 **N4 漂移守卫测试**（断言 events 联合里的注入类 source 全部在 `INJECTED_MESSAGE_SOURCES` 内，防止未来新增注入源静默退化）。
 
 ## 纪律
 
@@ -47,5 +52,7 @@ G-15 原子写 wrapper 各 Store 重复（P4）；architecture 审计的 T1–T9
 
 ## 风险
 
-- 执行器不稳定（长命令必中断）→ 已确立"写入型执行器 + 指挥验证 + 独立静态 Evaluator"三件套；
-- 独立 Evaluator 本轮连败 2 次（需跑命令）→ 降级为静态对抗审查（附指挥原始证据），**独立性靠"新上下文 + 对抗立场"维持，并在报告中如实标注"命令未复跑"**。
+- 执行器不稳定（跑 tsc/vitest/tsx 的子代理必中断；跨多文件中等任务亦常败）→ 已确立并**实证有效**的三件套：**写入型微任务（单文件、禁跑命令）+ 指挥跑验证 + 独立静态对抗 Evaluator**。
+- 独立 Evaluator：命令型 4 次连败 → 全部改为**静态对抗审查**（新上下文 + 对抗立场 + 附指挥原始证据，报告如实标注"命令未复跑"）。
+  **有效性已被证明**：Round 1 抓出 4 项实质缺陷（含指挥自身一处错误结论），Round 2 判 ACCEPT。
+- 交付链脆弱：多次出现"执行器写完即中断、交证丢失"——对策：指挥每步 `git` 保命提交 + 亲自复跑验证。

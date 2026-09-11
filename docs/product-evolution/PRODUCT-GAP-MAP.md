@@ -29,6 +29,13 @@
 
 ---
 
+## 状态更新（第 1 轮闭环 + 新增候选）
+
+- ✅ **已闭环（提交 080423d → 76a19e1）**：**G-01**（mock 遮蔽真实输入）、**G-02**（未知命令静默 run）、**G-14**（引导文案 + setup 向导 `cah`→`vessel`）。独立 Evaluator 两轮裁定：Round 1 **REJECT**（S1 未知命令零测试 / S2 `cah` 属实 / S3 注入源漏 plan·handoff·inject / S4 TUI 未同步）→ FIX 轮 → Round 2 **ACCEPT**（逐项行号证据）。验收侧证据：`tsc 0`、`vitest 114 文件 1235 passed + 1 skipped`、CLI E2E 冒烟 6 项全过。
+- 🆕 **G-16（P2/P3，低成本）**：`ChatMessage.source` 仍为裸 `string`、`INJECTED_MESSAGE_SOURCES` 手写 → 未来新增注入源会**静默退化**（`plan/handoff/inject` 正是本轮由 Evaluator 抓出的实例）。建议收窄类型或加"漂移守卫"测试（断言 events 联合中注入类 source 全在集合内）。
+- 🆕 **G-17（P3）**：**文档-命令一致性无门禁**——`vessel chat` 漂移由本轮暴露（3 份文档 + `PROJECT-BRIEF.md` 曾把它当 TUI 入口，实际 exit 2）。本轮已手工修正 8 处；建议发布门禁加一条 grep 检查或文档命令回归测试，防复发。
+- 观察（未定性为回归）：全量 vitest 偶发 exit 1，仅伴随 "unhandled errors" 警告且测试全过，复跑 exit 0。
+
 ## 冲突与依赖检测
 
 - **无冲突审计结论**：4 份报告对"引导体系（117）本身质量高"一致正面；对"settings/locale 接线不全"从 UX 与架构两视角互证（G-06/G-13）。

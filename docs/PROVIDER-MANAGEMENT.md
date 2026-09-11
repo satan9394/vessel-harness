@@ -170,7 +170,7 @@ vessel run --prompt "ping"
   provider 报「API key 无效或无权限」。lane/驱动侧另有 `--key-source=auto|env|store` 显式选源
   （诊断用，只打印来源名/长度/是否一致，**不出密钥**）。实测（task 105）：`store` / `env` / `auto`
   三路均可用；`auto` 在 env 被塞假值时仍选 store（store 优先语义保持）。
-- ✅ **`vessel chat`（TUI）已接 CredentialStore（task 106 修复）**：`runChat()` 的默认 `ProviderStore` 与
+- ✅ **无参 `vessel`（TUI）已接 CredentialStore（task 106 修复）**：`runChat()` 的默认 `ProviderStore` 与
   `vessel run` 共用 `createDefaultProviderStore()`（`apps/cli/src/providers/defaultStore.ts`），
   `secretRef` 正常解析回 apiKey。修复前是裸 `new ProviderStore()`（无凭据后端）→ 401 `Missing API key`。
   回归证据：`apps/cli/src/tui/chat.test.ts` 的「secretRef → apiKey」用例（本地 loopback 端点断言
@@ -205,7 +205,7 @@ vessel run --prompt "ping"
 鉴权已过，失败在路由阶段）；并且要求具名 `User-Agent`（不要用通用 SDK/HTTP 库名）。
 
 **实现只有一份（task 103 SSOT）**：`packages/llm/src/provider/OpencodeGoProvider.ts`。
-CLI（`vessel run`）、TUI（`vessel chat`）与 benchmark lane 都经 `createProvider('opencode-go', …)`
+CLI（`vessel run`）、TUI（无参 `vessel`）与 benchmark lane 都经 `createProvider('opencode-go', …)`
 构造它——`providerFactory.ts` 按 **preset id**（而不是线协议名）解析，所以配了 `opencode-go`
 就自动带会话头 + 具名 UA。lane 侧 `benchmarks/runners/src/lane/opencodeGoChatProvider.ts`
 只是 re-export 外壳，**不存在第二份协议逻辑**。
@@ -217,7 +217,7 @@ vessel provider add opencode-go --protocol openai-compatible `
   --base-url https://opencode.ai/zen/go/v1 --model mimo-v2.5 --api-key sk-...
 vessel provider switch opencode-go
 vessel run --prompt "ping"          # 自动带 x-opencode-session + 具名 UA
-vessel chat                          # TUI 同一份实现；一个会话内 session id 稳定
+vessel                               # TUI 同一份实现；一个会话内 session id 稳定
 # 单发临时指定（不写盘）：--provider opencode-go 缺省即用 preset base-url
 vessel run --provider opencode-go --api-key sk-... --model mimo-v2.5 --prompt "ping"
 ```
