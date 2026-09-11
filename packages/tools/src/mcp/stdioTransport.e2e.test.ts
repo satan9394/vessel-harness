@@ -32,6 +32,17 @@
  * - 每个 transport 都被 track，`afterEach`/`afterAll` 收尸；若 `close()` 的 50ms 宽限不够，
  *   补一次 `SIGKILL` 再等 exit——**不留孤儿子进程**。
  * - 本机条件不满足的用例一律 `it.skipIf` 并写明跳过条件，绝不写会假绿的断言。
+ *
+ * ## 全量并发下不假红（本文件的稳定性闸门）
+ *
+ * 单跑时 npx 用例约 2.8s；全量 `vitest run`（上百个测试文件并行）时 `npx` 链路
+ * （shell → `npx.cmd` → node → tsx → fixture）冷启动被 CPU/IO 挤压，**真正先咬人的不是
+ * 用例级 30s 超时，而是单次 JSON-RPC 请求的默认超时 `DEFAULT_MCP_TIMEOUT_MS`（5s）**——
+ * initialize 握手还没回来就被判死。因此闸门必须同时放宽两层：
+ *   ① 握手请求超时 → `E2E_REQUEST_TIMEOUT_MS`（30s），用例预算 → 120s；
+ *   ② 环境性启动/握手失败**有界退避重试 1 次**（`isRetryableEnvFailure` 精确分类）。
+ * **断言失败（AssertionError）永不重试**：`content !== '42'` 这类真实红必须第一次就原样抛。
+ * 判别性断言（`instanceof StdioTransport` / `child.pid !== process.pid` / `'42'`）一条不动。
  */
 import { describe, it, expect, afterEach, afterAll, vi } from 'vitest';
 import type { ChildProcess } from 'node:child_process';
@@ -87,6 +98,58 @@ const LOCAL_TSX_BIN = path.join(
   process.platform === 'win32' ? 'tsx.cmd' : 'tsx',
 );
 const NPX_E2E_AVAILABLE = commandOnPath('npx') && existsSync(LOCAL_TSX_BIN);
+
+/* ────────────────────────── 并发稳定性闸门（超时 + 仅环境性失败的有界重试） ────────────────────────── */
+
+/**
+ * 单次 JSON-RPC 请求的超时（默认 `DEFAULT_MCP_TIMEOUT_MS` = 5s）。
+ * 全量并发时 npx 链路冷启动会被拖长，5s 会在**握手阶段**就判死——抬到 30s
+ * （单跑整例约 2.8s，留 ~10x 余量）。
+ */
+const E2E_REQUEST_TIMEOUT_MS = 30_000;
+/** 单个用例的总预算：最坏 2 次尝试（每次 ≤ ~40s）+ 退避 3s，仍有余量。 */
+const E2E_TEST_TIMEOUT_MS = 120_000;
+/** 收尸钩子预算：默认 hookTimeout 30s 其实够（reap ≤ ~5s/子进程），显式写死免随全局配置漂移。 */
+const E2E_HOOK_TIMEOUT_MS = 60_000;
+/** 最多尝试次数：首次 + 1 次「环境性失败」重试（不针对断言失败重试）。 */
+const E2E_MAX_ATTEMPTS = 2;
+const E2E_RETRY_BACKOFF_MS = 3_000;
+
+/** 环境性失败用固定前缀标记，与真实断言失败区分开（便于日志定位假红来源）。 */
+const ENV_FLAKE_MARK = '[mcp-e2e env-flake]';
+
+function envFlake(message: string): Error {
+  return new Error(`${ENV_FLAKE_MARK} ${message}`);
+}
+
+/**
+ * **只**把环境性启动/握手失败判为可重试：请求超时、EPIPE、spawn ENOENT、子进程意外消失。
+ * 判别性断言失败（Vitest/Chai 的 `AssertionError`，如 `'41' !== '42'`）永不在此列，
+ * 也不能靠消息文本碰巧命中——否则就是拿判别力换稳定。
+ */
+function isRetryableEnvFailure(err: unknown): boolean {
+  if (!(err instanceof Error)) return false;
+  if (err.name === 'AssertionError') return false; // 断言失败：不重试，原样抛
+  if (err.message.includes(ENV_FLAKE_MARK)) return true;
+  return /mcp request timeout after \d+ms|EPIPE|ENOENT|ECONNRESET|socket hang up|MCP server exited/i.test(
+    err.message,
+  );
+}
+
+/**
+ * registry 执行结果里的**传输层**失败（`mcpTools` 会把 MCP RPC 错误包成 TOOL_FAILURE 结果
+ * 返回而**不抛错**）→ 抛可重试的环境性错误；其它错误（含真实业务失败）原样留给断言。
+ */
+function throwIfTransportFlake(result: { error?: { message?: string } }, label: string): void {
+  const message = result.error?.message;
+  if (message && isRetryableEnvFailure(new Error(message))) {
+    throw envFlake(`${label} 传输层失败：${message}`);
+  }
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
 
 /* ────────────────────────── 子进程句柄工具（判别性的关键） ────────────────────────── */
 
@@ -145,12 +208,12 @@ async function reap(transport: StdioTransport): Promise<void> {
 
 afterEach(async () => {
   for (const transport of live.splice(0)) await reap(transport);
-});
+}, E2E_HOOK_TIMEOUT_MS);
 
 // 兜底：某条用例在断言中途抛错时，afterEach 仍会跑；afterAll 只做最后一次清扫。
 afterAll(async () => {
   for (const transport of live.splice(0)) await reap(transport);
-});
+}, E2E_HOOK_TIMEOUT_MS);
 
 /* ────────────────────────── 与 mcp.test.ts 同形的 registry 上下文 ────────────────────────── */
 
@@ -189,7 +252,9 @@ async function assertRealStdioEndToEnd(transport: StdioTransport, spawned: Spawn
 
   // ③ 协议：initialize → tools/list（经 registerMcpTools 动态注册）
   const client = new McpClient(transport, 'demo');
-  const info = await client.initialize();
+  // 显式放宽**单次请求**超时：并发全量下 npx/tsx 冷启动可能远超默认 5s，
+  // 而超时会把 transport 永久置为 closed——那才是这条用例在全量里变红的直接原因。
+  const info = await client.initialize(E2E_REQUEST_TIMEOUT_MS);
   expect(info.protocolVersion).toBe('2024-11-05');
   expect(info.serverInfo.name).toBe('echo-server'); // fixture 自报的名字
 
@@ -207,6 +272,8 @@ async function assertRealStdioEndToEnd(transport: StdioTransport, spawned: Spawn
     { toolCallId: 'e2e', toolName: 'mcp__demo__add', arguments: { a: 20, b: 22 } },
     REGISTRY_CTX,
   );
+  // 传输层失败（RPC 超时 / 断连）不算断言失败——交给重试闸门；真实业务失败照常走断言。
+  throwIfTransportFlake(add, 'mcp__demo__add');
   expect(add.error).toBeUndefined();
   expect(add.content).toBe('42'); // 20 + 22，fixture 返回 String(a + b)
   expect(add.meta.mcpServer).toBe('demo');
@@ -217,6 +284,7 @@ async function assertRealStdioEndToEnd(transport: StdioTransport, spawned: Spawn
     { toolCallId: 'e2e-echo', toolName: 'mcp__demo__echo', arguments: { text: 'STDIO-E2E-OK' } },
     REGISTRY_CTX,
   );
+  throwIfTransportFlake(echo, 'mcp__demo__echo');
   expect(echo.error).toBeUndefined();
   expect(echo.content).toBe('STDIO-E2E-OK');
 }
@@ -231,6 +299,42 @@ async function closeAndAssertReaped(transport: StdioTransport): Promise<void> {
   }
 }
 
+/**
+ * 一次尝试：新建**真** transport（判别性句柄来自它）→ 判别性断言 + 完整链路断言 → 收尸。
+ * 失败先把这次尝试的子进程收干净再抛：请求超时后的 transport 已被永久 `closed`，
+ * 重试必须新建实例，绝不能把孤儿进程叠起来。
+ */
+async function runE2EAttempt(spawned: SpawnDescriptor, opts: { shell?: boolean }): Promise<void> {
+  const transport = track(new StdioTransport(spawned.command, spawned.args, { ...opts, cwd: REPO_ROOT }));
+  try {
+    await assertRealStdioEndToEnd(transport, spawned);
+    await closeAndAssertReaped(transport);
+  } catch (err) {
+    await reap(transport);
+    throw err;
+  }
+}
+
+/**
+ * 有界退避重试：并发全量下的**环境性**启动/握手失败最多重来 `E2E_MAX_ATTEMPTS - 1` 次；
+ * 真实断言失败（`isRetryableEnvFailure` 明确排除 AssertionError）第一次就原样抛出。
+ */
+async function runE2EWithEnvRetry(spawned: SpawnDescriptor, opts: { shell?: boolean }): Promise<void> {
+  for (let attempt = 1; ; attempt += 1) {
+    try {
+      await runE2EAttempt(spawned, opts);
+      return;
+    } catch (err) {
+      if (attempt >= E2E_MAX_ATTEMPTS || !isRetryableEnvFailure(err)) throw err;
+      console.warn(
+        `[e2e] 第 ${attempt}/${E2E_MAX_ATTEMPTS} 次尝试为环境性失败，` +
+          `${E2E_RETRY_BACKOFF_MS}ms 后退避重试：${(err as Error).message}`,
+      );
+      await sleep(E2E_RETRY_BACKOFF_MS);
+    }
+  }
+}
+
 /* ══════════════════════════════════════════════════════════════════════════════════════════ */
 
 describe('BRIEF-13 — StdioTransport 真跨进程 E2E（MCP over stdio）', () => {
@@ -240,12 +344,10 @@ describe('BRIEF-13 — StdioTransport 真跨进程 E2E（MCP over stdio）', () 
       // 走产品路径：resolveSpawnCommand 决定 shell（win32 上 npx 是 .cmd shim）
       const { command, shell } = resolveSpawnCommand('npx');
       const args = ['tsx', FIXTURE_REL];
-      const transport = track(new StdioTransport(command, args, { shell, cwd: REPO_ROOT }));
-
-      await assertRealStdioEndToEnd(transport, { command, args });
-      await closeAndAssertReaped(transport);
+      // 每次尝试都重新 spawn 一个真子进程；判别性断言仍在 assertRealStdioEndToEnd 里原样执行
+      await runE2EWithEnvRetry({ command, args }, { shell });
     },
-    30_000,
+    E2E_TEST_TIMEOUT_MS,
   );
 
   it.skipIf(!TSX_CLI)(
@@ -256,12 +358,11 @@ describe('BRIEF-13 — StdioTransport 真跨进程 E2E（MCP over stdio）', () 
       if (!tsxCli) return;
 
       const args = [tsxCli, FIXTURE_ABS];
-      const transport = track(new StdioTransport(process.execPath, args, { cwd: REPO_ROOT }));
-
-      await assertRealStdioEndToEnd(transport, { command: process.execPath, args });
-      await closeAndAssertReaped(transport);
+      // 同样走「超时放宽 + 仅环境性失败重试」：这条虽短（无 npx/shell），
+      // 冷启动仍受并发挤压，且它是全量下**始终执行**的那条真跨进程证据。
+      await runE2EWithEnvRetry({ command: process.execPath, args }, {});
     },
-    30_000,
+    E2E_TEST_TIMEOUT_MS,
   );
 
   it.skipIf(!existsSync(SELF_PATH))(
