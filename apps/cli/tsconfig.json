@@ -23,6 +23,7 @@
     // task 098: cli.ts / bench-report type-resolves '@vessel/bench-runners' (V1.1-E).
     // Declaring the edge makes the build order explicit; runners no longer imports
     // '@vessel/cli', so this stays one-way (no TS5055 cycle).
-    { "path": "../../benchmarks/runners" }
+    { "path": "../../benchmarks/runners" },
+    { "path": "../../apps/local-server" }
   ]
 }

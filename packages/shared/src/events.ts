@@ -23,6 +23,13 @@ export interface SessionRecordBase {
   [k: string]: unknown;
 }
 
+/**
+ * B01 production discriminators — runtime list so guards/tests can detect drift.
+ * The `source` field type is derived from this list (single source of truth).
+ */
+export const MESSAGE_SOURCES = ['user', 'steer', 'inject', 'instruction', 'compacted-summary', 'plan', 'memory', 'handoff'] as const;
+export type MessageSource = (typeof MESSAGE_SOURCES)[number];
+
 export interface UserMessageRecord extends SessionRecordBase {
   type: 'user/message';
   msgId: string;
@@ -36,7 +43,7 @@ export interface UserMessageRecord extends SessionRecordBase {
    * Context Reset Handoff resume context injected when a new Session starts
    * from a structured handoff (goal/completed/next_actions seeded context).
    */
-  source?: 'user' | 'steer' | 'inject' | 'instruction' | 'compacted-summary' | 'plan' | 'memory' | 'handoff';
+  source?: MessageSource;
   surface: true;
 }
 

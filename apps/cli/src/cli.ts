@@ -17,6 +17,7 @@ import {
 } from './providers/providerTransfer.js';
 import { DEFAULT_PROBE_TIMEOUT_MS, probeProviderEndpoints, suggestEndpoint } from './providers/endpointProbe.js';
 import { buildRealProvider, describeProviderError, missingBaseUrl, planProvider } from './providers/providerFactory.js';
+import { describeStartupFailure } from './startupError.js';
 import { fetchOpenAIModels, modelsForProtocol } from '@vessel/application';
 import { createClackIO, runSetupWizard } from './providers/setup.js';
 import { runChat } from './tui/chat.js';
@@ -1531,5 +1532,11 @@ export async function main(argv: string[] = process.argv.slice(2)): Promise<numb
 
 // ESM entry
 if (process.argv[1] && /cli\.(ts|js)$/.test(process.argv[1])) {
-  main().then((code) => process.exit(code));
+  main()
+    .then((code) => process.exit(code))
+    .catch((err: unknown) => {
+      // G-03: unified failure exit — never a raw unhandled stack.
+      console.error(describeStartupFailure(err).message);
+      process.exit(1);
+    });
 }
