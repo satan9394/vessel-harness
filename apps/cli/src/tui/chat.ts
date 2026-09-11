@@ -389,6 +389,10 @@ export async function runChat(opts: ChatOptions): Promise<number> {
   // 回合增量用「上一回合末」的基线；会话累计用「会话起始」基线（两者分开，避免重复计账）。
   const sessionBaseline = usageBaseline;
 
+  // G-13-P2：解释类命令的输出语言 —— 进循环前按 settings 解析**一次**，/explain 与 ?
+  // 共用同一个值，会话期间稳定（与 `vessel explain` 跟随 settings.locale 的口径一致）。
+  const locale = resolveChatLocale(opts.settingsRoot);
+
   // eslint-disable-next-line no-constant-condition
   while (true) {
     const line = await io.readLine(`\n${providerId}/${model} [${permission}]> `);
@@ -398,7 +402,7 @@ export async function runChat(opts: ChatOptions): Promise<number> {
 
     // slash command dispatch（`? <term>` 与 `/explain <term>` 同义，task 117 引导体系）
     if (input.startsWith('/') || input.startsWith('?')) {
-      const res = await dispatchSlash(input, { store, io, sessionWorkspace: opts.workspaceRoot, usageStore: usage, usageBaseline: sessionBaseline });
+      const res = await dispatchSlash(input, { store, io, sessionWorkspace: opts.workspaceRoot, usageStore: usage, usageBaseline: sessionBaseline, locale });
       if (res?.output) io.write(res.output);
       if (res?.quit) break;
       // G-13-P1：会话级变更必须真正生效，而不是只打印。
@@ -475,7 +479,7 @@ export async function dispatchSlash(input: string, ctx: {
     const hit = findTerm(raw);
     return {
       output: hit
-        ? renderExplain(hit)
+        ? renderExplain(hit, ctx.locale ?? 'zh')
         : `未收录术语 "${raw}"（vessel list-terms 查看全部词条）`,
     };
   }
@@ -563,7 +567,7 @@ export async function dispatchSlash(input: string, ctx: {
     case 'term': {
       if (!arg) return { output: '用法：/explain <术语>（如 /explain Call）；或用 ? <术语>' };
       const hit = findTerm(arg);
-      return { output: hit ? renderExplain(hit) : `未收录术语 "${arg}"（vessel list-terms 查看全部词条）` };
+      return { output: hit ? renderExplain(hit, ctx.locale ?? 'zh') : `未收录术语 "${arg}"（vessel list-terms 查看全部词条）` };
     }
     case 'quit':
     case 'exit':

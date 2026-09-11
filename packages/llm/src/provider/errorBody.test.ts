@@ -62,4 +62,44 @@ describe('sanitizeErrorBody（错误体脱敏）', () => {
     expect(out).not.toContain('abcdef123456');
     expect(out).toContain('<redacted>');
   });
+
+  it('遮蔽 gsk_ / hf_ / AIza 三类第三方前缀', () => {
+    const gsk = sanitizeErrorBody('bad credential gsk_abcdef123456 rejected');
+    expect(gsk).not.toContain('gsk_abcdef123456');
+    expect(gsk).toContain('<redacted>');
+
+    const hf = sanitizeErrorBody('bad credential hf_abcdefghijkl rejected');
+    expect(hf).not.toContain('hf_abcdefghijkl');
+    expect(hf).toContain('<redacted>');
+
+    const aiza = sanitizeErrorBody('bad credential AIzaSyABCDEFGHIJKLMNOP rejected');
+    expect(aiza).not.toContain('AIzaSyABCDEFGHIJKLMNOP');
+    expect(aiza).toContain('<redacted>');
+  });
+
+  it('跨 240 截断边界的密钥仍被完整遮蔽（先遮蔽后截断的回归保护）', () => {
+    const key = 'sk-abcdef1234567890';
+    // key 前留词边界（空格），且 key 起点在 240 之前、结尾在之后。
+    // 前缀取 225（而非 235）：遮蔽标记 `sk-<redacted>` 共 13 字符，须整体落在 240 内，
+    // 否则 `toContain('<redacted>')` 断言的正是被截掉的那半截，用例会误红。
+    const crossed = `${'x'.repeat(225)} ${key} trailing`;
+    const out = sanitizeErrorBody(crossed);
+    expect(out).not.toContain('abcdef1234567890'); // 不得残留 key 主体
+    expect(out).not.toContain('sk-abcdef'); // 不得残留 ≥6 字符的 key 片段
+    expect(out).toContain('<redacted>');
+    expect(out.length).toBeLessThanOrEqual(241); // 仍受 max 约束
+  });
+
+  it('负对照：旧行为（只截断不遮蔽）会泄漏该 key 片段', () => {
+    const key = 'sk-abcdef1234567890';
+    const crossed = `${'x'.repeat(225)} ${key} trailing`;
+    // 直接 slice(0,240) 模拟"截断先于遮蔽"的旧实现 → 必然出现 sk-a 之类碎片
+    expect(crossed.slice(0, 240).includes('sk-a')).toBe(true);
+  });
+
+  it('普通文本不被误遮蔽（误伤边界的负对照）', () => {
+    const out = sanitizeErrorBody('模型返回 503 service unavailable，请稍后重试');
+    expect(out).not.toContain('<redacted>');
+    expect(out).toContain('503');
+  });
 });
