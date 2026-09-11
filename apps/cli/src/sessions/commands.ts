@@ -8,6 +8,8 @@
  *
  * 约定：
  * - 登记表为空时明确提示「如何开始一段会话」，而不是打印一个空表头；
+ * - `--json`（G-11）：stdout 只打一段可解析 JSON（`{ sessions: [...] }`，空表即 `{"sessions":[]}`），
+ *   **不**走「暂无历史会话」的人类提示；读表失败时 stderr 打 JSON 信封并返回 1；
  * - 读表失败（如根目录不可写）返回退出码 1，错误走 stderr；
  * - **不调用 `process.exit`**：返回码交给调用方（`cli.ts`）决定进程行为，
  *   便于测试直接断言返回值。
@@ -17,10 +19,17 @@
  * 避免读到真实 `~/.vessel`（AGENTS.md §8 同款纪律）。
  */
 import { SessionRegistry, type SessionMeta } from '@vessel/application';
+import { emitJson } from '../output.js';
 
 export interface SessionsCliOptions {
   /** 覆盖会话登记根（测试注入 tmp）；缺省 `VESSEL_SESSION_ROOT ?? ~/.vessel` */
   vesselHome?: string;
+  /**
+   * `--json`（G-11）：stdout 只打 `{ sessions: [...] }`，不打人类表头/空表提示。
+   * 本文件是 opts 单一入参风格，故用布尔位而不是整张 flags（cli.ts 由另一张卡接线）。
+   * 成功输出走 `output.emitJson`（stdout，不经 `log` seam）；失败信封走 `error` seam（stderr）。
+   */
+  json?: boolean;
   /** 输出通道（测试 capture；缺省 console.log） */
   log?: (line: string) => void;
   /** 错误通道（测试 capture；缺省 console.error） */
@@ -50,8 +59,31 @@ export function cmdSessionsList(opts: SessionsCliOptions = {}): number {
   try {
     metas = registryFor(opts).list();
   } catch (err) {
-    error(`[vessel] 读取会话登记表失败：${err instanceof Error ? err.message : String(err)}`);
+    const msg = `[vessel] 读取会话登记表失败：${err instanceof Error ? err.message : String(err)}`;
+    if (opts.json) {
+      // --json 的失败出口：与 `output.fail(1, msg, flags)` 同一信封、同一落点（stderr）。
+      // 本文件已有 error seam（缺省即 console.error），JSON 字符串走 seam 便于测试捕获。
+      error(JSON.stringify({ error: { message: msg, code: 1 } }));
+      return 1;
+    }
+    error(msg);
     return 1;
+  }
+
+  if (opts.json) {
+    // 空表也照常给合法文档（{"sessions":[]}），不落进下面的「暂无历史会话」人类提示。
+    emitJson({
+      sessions: metas.map((m) => ({
+        id: m.id,
+        workspaceRoot: m.workspaceRoot,
+        provider: m.provider,
+        model: m.model,
+        permission: m.permission,
+        createdAt: m.createdAt,
+        updatedAt: m.updatedAt,
+      })),
+    });
+    return 0;
   }
 
   if (metas.length === 0) {

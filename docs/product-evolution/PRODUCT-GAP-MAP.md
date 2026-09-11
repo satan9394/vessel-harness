@@ -45,6 +45,12 @@
 - 🆕 **Round 7b 候选（P3 集群，同主题低成本）**：① 截断先于遮蔽 → 跨 240 边界的 key 残留 ≤5 字符（改 mask-then-truncate）；② `OpencodeGoProvider.ts:214` 只走 `sanitizeWireSnippet`、不遮密钥；③ HTTP 200 带 error 体时 `OpenAICompatibleProvider:125`/`AnthropicProvider:232` 仍原样回显；④ 非 `sk-` 形态（`gsk_`/`AIza`/`hf_`）；⑤ `dpapiArgv.test.ts` 未断言脚本含 `$input`。
 - 🎯 **Round 8 NOW = G-09（P2）**：TUI 会话内成本可见性——`/cost`（别名 `/usage`）+ 每回合一行成本增量；`vessel usage` 标题改为实际 root（修展示漂移）。数据与 `UsageStore` 早已存在，纯展示切片；未注入 store 时成本显示静默关闭（回归保护）。
 
+- ✅ **Round 8 已闭环（提交 7073693 / 8211dac）**：**G-09** TUI 会话内成本可见性（`/cost`+每回合增量+`costView` 纯渲染+`usage` 标题实际 root）。首轮评审判 **REJECT**（主因：`buildHarness` 未把 `usageStore/usageProvider` 传给 `composeHarness` → 真实 TUI 每回合恒 `$0.0000`；次因：`/cost` 缺"今日"行），FIX 后复评 **ACCEPT**（`EVALUATION-REPORT-10.md`）。**教训入库**：E2E 必须走真实用户路径。
+- ✅ **Round 9 已闭环（提交 c46a90a / e3582ab / 71e4049）**：**G-10 resume 最小切片**——陈旧租约回收（ESRCH-only，fail-closed 未放宽）、`SessionRegistry` 补 `VESSEL_SESSION_ROOT` + `updatedAt` 倒序、`vessel sessions list` / `vessel resume <id>|--last`（**存在性 + 日志双重校验**，绝不静默变新建）、`cmdRun`/TUI 登记接线、TUI `sessionId` 通道。裁定 **ACCEPT**（`EVALUATION-REPORT-11.md`）；AC1 原判"无法判定"，**补强探针（含负对照）后实证**：轮2 只给 NONCE_B 却看到轮1 的 NONCE_A，对照组换新 sessionId 则看不到，`roles=["system","user","assistant","user"]`，工作区文件不含 A。**并修复了真实状态泄漏**（测试曾写真实 `~/.vessel/sessions.json`；现全局 `vitest.setup.ts` 兜底 + 逐文件注入，全量后 `realRegistryTouched=False`）。
+- 🎯 **Round 10 NOW = G-11 之 `--json` 半（P2）**：五条只读命令的机器可读输出（`output.ts` 已就绪：`isJson`/`emitJson`/`fail`）。硬约束：**默认输出一字不改**（`cli.test.ts` 约百处文案断言）、`--json` 下 stdout 必须全量可解析（含抑制 `resume` 前置提示）。
+- 🆕 **G-11 之 MCP 半（P2，独立切片）**：侦察确认 CLI 面 **零** MCP 引用、库级管道已通（`compose.ts:246-250` + `mcpTools.ts:34` 的 `mcp__<server>__<tool>`），但 **StdioTransport 只认 `process.execPath`**（`McpClient.ts:48-52`）是真实技术缺口，需扩传输层签名；不与 `--json` 混合以免一轮多主题。
+- 🆕 **Round 7b 候选（P3 集群）**：错误体卫生 5 项（mask-then-truncate、`OpencodeGo:214`、HTTP 200 带 error 两处、`gsk_/AIza/hf_` 形态、`$input` 断言）。
+
 ## 状态更新（第 1 轮闭环 + 新增候选）
 
 - ✅ **已闭环（提交 080423d → 76a19e1）**：**G-01**（mock 遮蔽真实输入）、**G-02**（未知命令静默 run）、**G-14**（引导文案 + setup 向导 `cah`→`vessel`）。独立 Evaluator 两轮裁定：Round 1 **REJECT**（S1 未知命令零测试 / S2 `cah` 属实 / S3 注入源漏 plan·handoff·inject / S4 TUI 未同步）→ FIX 轮 → Round 2 **ACCEPT**（逐项行号证据）。验收侧证据：`tsc 0`、`vitest 114 文件 1235 passed + 1 skipped`、CLI E2E 冒烟 6 项全过。

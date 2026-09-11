@@ -595,8 +595,18 @@ describe('V0.9 usage/pricing commands (task 031)', () => {
 
 describe('vessel bench-report (task 083 dashboard)', () => {
   let dir: string;
-  beforeEach(() => { dir = fs.mkdtempSync(path.join(os.tmpdir(), 'cah-br-')); });
-  afterEach(() => { try { fs.rmSync(dir, { recursive: true, force: true }); } catch { /* best-effort */ } });
+  let oldSessionRoot: string | undefined;
+  // G-10：本 describe 同样驱动 CLI 入口 main()（默认 store 的汇聚点），会话登记根一并钉住。
+  beforeEach(() => {
+    dir = fs.mkdtempSync(path.join(os.tmpdir(), 'cah-br-'));
+    oldSessionRoot = process.env.VESSEL_SESSION_ROOT;
+    process.env.VESSEL_SESSION_ROOT = dir;
+  });
+  afterEach(() => {
+    if (oldSessionRoot === undefined) delete process.env.VESSEL_SESSION_ROOT;
+    else process.env.VESSEL_SESSION_ROOT = oldSessionRoot;
+    try { fs.rmSync(dir, { recursive: true, force: true }); } catch { /* best-effort */ }
+  });
 
   function runResultsJson(harnesses: string[]): string {
     const arr = harnesses.map((h, i) => ({

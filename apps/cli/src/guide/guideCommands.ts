@@ -6,7 +6,8 @@
  *     未收录 → 友好提示 + `vessel list-terms`。
  *   - `vessel list-terms` 列出全部术语（中英双语）。
  *   - `vessel guide [--locale zh|en]` 新手分步引导；locale 缺省跟随 settings。
- *   - `vessel settings list` 设置项说明（中英文 + 可选值 + 当前值）。
+ *   - `vessel settings list [--json]` 设置项说明（中英文 + 可选值 + 当前值）；
+ *     `--json`（G-11）时 stdout 只打 `{ settings: {...} }`。
  *   - `vessel settings set <theme|locale> <value>` 设置（带每项说明；非法值 fail loud）。
  *
  * opts（测试注入）：`settingsRoot` 覆盖设置根（缺省 resolveSettingsRoot()）、
@@ -17,6 +18,7 @@
 import { findTerm, listTerms, renderExplain, renderTermsList } from './glossary.js';
 import { renderGuide, type GuideLocale } from './guide.js';
 import { SettingsStore, renderSettingsList, renderSettingDetail, settingDef, type VesselSettings } from './settings.js';
+import { emitJson, fail, isJson } from '../output.js';
 
 export interface GuideCliOptions {
   /** 覆盖设置根（测试注入 tmp）；缺省 resolveSettingsRoot() */
@@ -88,9 +90,22 @@ export async function cmdGuide(
   return 0;
 }
 
-/** `vessel settings [list]` —— 显示设置项说明与当前值（设置引导）。 */
-async function cmdSettingsList(opts: GuideCliOptions): Promise<number> {
-  logOf(opts)(renderSettingsList(settingsStoreFor(opts)));
+/** `vessel settings [list]` —— 显示设置项说明与当前值（设置引导）；`--json` 给 `{ settings: {...} }`。 */
+async function cmdSettingsList(flags: Map<string, string>, opts: GuideCliOptions): Promise<number> {
+  const store = settingsStoreFor(opts);
+  if (isJson(flags)) {
+    // --json：stdout 只打 { settings: {...} }（缺文件/残缺字段走默认值，同样是合法 JSON）。
+    // 关键：**只有 JSON 模式**才把 settings.json 损坏降级为 stderr 上的 JSON 信封 + 退出码 1
+    // （与 main() 的 catch 同码）；非 JSON 路径必须保持 fail loud——cli.crashSurface.test.ts ①
+    // 要求 `main(['settings','list'])` 在损坏时 reject，绝不能被这里吞掉。
+    try {
+      emitJson({ settings: store.load() });
+      return 0;
+    } catch (err) {
+      return fail(1, `[vessel settings list] ${(err as Error).message}`, flags);
+    }
+  }
+  logOf(opts)(renderSettingsList(store));
   return 0;
 }
 
@@ -137,13 +152,13 @@ async function cmdSettingsSet(args: string[], opts: GuideCliOptions): Promise<nu
 /** `vessel settings <list|set> [...]` —— 命令族入口。 */
 export async function cmdSettings(
   args: string[],
-  _flags: Map<string, string> = new Map(),
+  flags: Map<string, string> = new Map(),
   opts: GuideCliOptions = {},
 ): Promise<number> {
   const sub = args[0] ?? 'list';
   switch (sub) {
     case 'list':
-      return cmdSettingsList(opts);
+      return cmdSettingsList(flags, opts);
     case 'set':
       return cmdSettingsSet(args, opts);
     default:

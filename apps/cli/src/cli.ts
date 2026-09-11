@@ -38,6 +38,7 @@ import { resolveResumeTarget } from './sessions/resume.js';
 import { loadModelCatalog, findCatalogModelByBase, findCatalogModelMatch, catalogPriceSource, listCatalogModels } from './providers/modelCatalog.js';
 import { syncModelCatalog, MODELS_DEV_URL, DEFAULT_SYNC_TIMEOUT_MS, MAX_SYNC_RETRIES } from './providers/pricingSync.js';
 import { loadPricing, assertCostMultiplier, DEFAULT_COST_MULTIPLIER, type TokenPrice } from './providers/pricing.js';
+import { emitJson, isJson } from './output.js';
 
 const USAGE = `${VESSEL_LOGO}
 Vessel CLI v${VERSION} — 可组合 Agent Harness（品牌 Vessel）
@@ -109,6 +110,7 @@ run 选项:
   --policy <path>                 系统级策略文件（默认 configs/policy.default.yaml）
   --behavior <path>               Behavior IR 文件（默认 configs/behavior.default.yaml）
   --strict                        计价严格模式：只用模型专属价目（model/catalog），未收录模型按 0 计价并标「未收录」
+  --json              以 JSON 输出（仅只读命令：usage / provider list / models / sessions list / settings list）
 
 provider 协议说明:
   openai-compatible    OpenAI chat/completions 协议：OpenAI / DeepSeek / Qwen / vLLM / Ollama 等
@@ -417,6 +419,11 @@ async function cmdModels(flags: Map<string, string>): Promise<number> {
     return 2;
   }
   if (cfg.protocol === 'mock') {
+    if (isJson(flags)) {
+      // mock 是内置离线脚本供应商，没有模型清单；`--json` 下仍只输出一段 JSON。
+      emitJson({ models: [] });
+      return 0;
+    }
     console.log('(mock provider 是离线的，无模型列表)');
     return 0;
   }
@@ -432,6 +439,10 @@ async function cmdModels(flags: Map<string, string>): Promise<number> {
   if (cfg.protocol === 'openai-compatible' && cfg.baseUrl) {
     try {
       const src = await fetchOpenAIModels(cfg.baseUrl, cfg.apiKey);
+      if (isJson(flags)) {
+        emitJson({ models: src.models });
+        return 0;
+      }
       console.log(`模型列表（${src.origin === 'live' ? '实时拉取' : src.note}）：`);
       for (const m of src.models) console.log(line(m));
       return 0;
@@ -443,6 +454,10 @@ async function cmdModels(flags: Map<string, string>): Promise<number> {
   }
   // anthropic (no live enumeration) or openai-compatible without baseUrl
   const src = modelsForProtocol(cfg.protocol);
+  if (isJson(flags)) {
+    emitJson({ models: src.models });
+    return 0;
+  }
   console.log(src.note ? `模型列表（${src.note}）：` : '模型列表：');
   for (const m of src.models) console.log(line(m));
   return 0;
@@ -455,6 +470,25 @@ async function cmdProvider(args: string[], flags: Map<string, string>): Promise<
   switch (sub) {
     case 'list': {
       const current = store.getCurrent();
+      if (isJson(flags)) {
+        // 只输出安全字段：ProviderConfig 含 apiKey（旧明文 / 经 CredentialStore 解析出的
+        // 密钥），逐字段白名单输出，绝不整体展开外扩密钥。
+        emitJson({
+          providers: store.list().map((p) => ({
+            id: p.id,
+            name: p.name,
+            protocol: p.protocol,
+            model: p.model,
+            baseUrl: p.baseUrl,
+            models: p.models,
+            endpoints: p.endpoints,
+            secretRef: p.secretRef,
+            costMultiplier: p.costMultiplier,
+            note: p.note,
+          })),
+        });
+        return 0;
+      }
       for (const p of store.list()) {
         const mark = p.id === current ? ' *' : '';
         const protocol = p.protocol === 'mock' ? '' : ` [${p.protocol}]`;
@@ -954,6 +988,19 @@ async function cmdUsage(args: string[], flags: Map<string, string>): Promise<num
       console.error(`[vessel usage] --${name} 需要本地日 YYYY-MM-DD（收到 "${value}"）。`);
       return 2;
     }
+  }
+
+  if (isJson(flags)) {
+    // 字段与人类报表同源（totals/daily/byProvider/byModel/recent 全取自 UsageStore）。
+    // 窗口口径必须与人类报表一致：复用同一批取值（since/until 取自 flags、条数同 1096 行口径）。
+    emitJson({
+      totals: store.totals(),
+      daily: store.daily({ since, until }),
+      byProvider: store.byProvider(),
+      byModel: store.byModel(),
+      recent: store.recent(Number(flags.get('recent') ?? 5)),
+    });
+    return 0;
   }
 
   const t = store.totals();
@@ -1533,7 +1580,7 @@ export async function main(argv: string[] = process.argv.slice(2)): Promise<numb
       console.error(`未知 sessions 子命令 ${sub}。可用：vessel sessions list`);
       return 2;
     }
-    return cmdSessionsList();
+    return cmdSessionsList({ json: isJson(parsed.flags) });
   }
   if (first === 'resume') {
     const args = parsed.positionals.slice(1);
@@ -1546,7 +1593,9 @@ export async function main(argv: string[] = process.argv.slice(2)): Promise<numb
     }
     parsed.flags.set('workspace', target.meta.workspaceRoot);
     parsed.flags.set('session-id', target.meta.id);
-    console.log(`[vessel] 恢复会话 ${target.meta.id}（${target.meta.workspaceRoot}）`);
+    if (!isJson(parsed.flags)) {
+      console.log(`[vessel] 恢复会话 ${target.meta.id}（${target.meta.workspaceRoot}）`);
+    }
     // 交互终端下无 --prompt 时进入 TUI 恢复（sessionId 显式取该会话登记 id）；
     // 有 --prompt 仍走一次性 cmdRun。非 TTY 保持原行为（cmdRun 自行报错）。
     if (!parsed.flags.has('prompt') && process.stdin.isTTY) {
