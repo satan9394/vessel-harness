@@ -329,7 +329,10 @@ export async function runChat(opts: ChatOptions): Promise<number> {
       usageStore: opts.usageStore,
       usageProvider: providerId,
       // G-10：复用既有会话 id（resume 或重建 harness 时保持一致）；缺省则新建。
-      sessionId: opts.sessionId,
+      // BRIEF-13：会话内重建（/permission、/model 生效）必须沿用**本 TUI 会话已经建出的** id。
+      // 否则每次重建都会另开一个 session 目录：登记表里凭空多出一条「孤儿会话」（旧权限一条、
+      // 新权限一条），`vessel sessions list` 也会看到幽灵条目，而 syncSessionMeta 只回写新那条。
+      sessionId: currentSessionId ?? opts.sessionId,
     });
     // G-13-P1：把会话 id 记到外层，供 /permission、/model 之后回写登记表（拿不到 id 就没法 put）。
     currentSessionId = harness.session.sessionId;
@@ -383,6 +386,54 @@ export async function runChat(opts: ChatOptions): Promise<number> {
     }
   };
 
+  /**
+   * BRIEF-13：把挂起的会话级变更（permission / model）连同重建一起就地应用。
+   *
+   * 两个调用点共用**同一套**语义，避免「两条路径各写一遍、早晚跑偏」：
+   *  - slash 命令确认后 harness **已存在** → 立即应用：重建 harness + 回写登记表，使
+   *    文案 / 状态行 / 会话登记表三者立刻一致（改前只挂起到下一回合：用户切完直接 /quit
+   *    这条变更就永不落地，而文案已经宣称切好了）；
+   *  - harness **尚未懒建** → 保持挂起，交给首次构建自然带上新值（没有旧会话可重建）。
+   *
+   * 一致性契约：只有 `buildHarness()` 成功才替换 harness 并落盘；失败一律回滚 permission/model、
+   * 保留原 harness 对象，TUI 继续可用 —— 既不退出，也不留「宣称切了却没生效」的状态。
+   * 任何情况下都会清掉挂起项：否则每一回合都拿同一个坏配置重试，用户只能看到刷屏的同一个错误。
+   */
+  const applyPendingChanges = async (): Promise<void> => {
+    if (pendingPermission === undefined && pendingModel === undefined) return;
+    const prevPermission = permission;
+    const prevModel = model;
+    const previous: ComposedHarness | null = harness; // 可能是 null（还没建过）：此时没有旧会话可保，等同首次懒建
+    try {
+      // 新值先落到外层变量：buildHarness 读的就是它们（policy profile、provider 的 model 覆盖）
+      permission = pendingPermission ?? permission;
+      model = pendingModel ?? model;
+      // 重建会沿用同一个会话 id（见 buildHarness），而 Session 的单写者租约按**目录** fail-closed：
+      // 旧 harness 不先 close 释放租约，新 harness 会以「目录已被本进程占用」失败。
+      // 关闭只影响旧对象自己（fd + mcp 客户端 + 遥测订阅）；Session.append 对已关闭的句柄是
+      // 惰性重开的，所以即便重建失败、回滚到 previous，会话下一步仍能继续追加。
+      if (previous) {
+        try {
+          await previous.close();
+        } catch {
+          /* 旧会话关闭失败不阻断重建：真取不到租约时 buildHarness 会给出明确错误 */
+        }
+      }
+      harness = await buildHarness();
+      pendingPermission = undefined;
+      pendingModel = undefined;
+      syncSessionMeta(); // 只有真切换成功才落盘（保留既有行为，且不写入未生效的值）
+    } catch (err) {
+      // 一致性：变量必须回滚到旧 harness 的构建参数，否则状态行会宣称一个没生效的值
+      permission = prevPermission;
+      model = prevModel;
+      harness = previous;
+      pendingPermission = undefined;
+      pendingModel = undefined;
+      io.write(`[错误] 重建会话失败（已保留原设置：${providerId}/${prevModel} · ${prevPermission}）：${describeProviderError(err)}`);
+    }
+  };
+
   io.write(`${VESSEL_LOGO}Vessel — 交互会话开始（当前 ${providerId} · ${model} · ${permission}）。输入 /help 查看命令，/explain <术语> 或 ? <术语> 查术语解释，/quit 退出；命令行「vessel guide」有新手指引。`);
 
   // 会话内成本显示（G-09）：基线 = 进入循环前的累计值；未注入 usageStore 则全程静默。
@@ -413,9 +464,9 @@ export async function runChat(opts: ChatOptions): Promise<number> {
       if (res?.output) io.write(res.output);
       if (res?.quit) break;
       // G-13-P1：会话级变更必须真正生效，而不是只打印。
-      // BRIEF-12：但**不在这里丢缓存**（不写 `permission = ...; harness = null`），而是挂起到
-      // 下一次懒建时应用。permission 直接决定 policy profile、旧 harness 不能继续用，所以重建
-      // 不可避免；可一旦 `buildHarness()` 抛错，「先置空」写法就只剩「新旧都没有」。
+      // BRIEF-12：仍然**不在这里丢缓存**（不写 `permission = ...; harness = null`）——「先置空」
+      // 一旦 `buildHarness()` 抛错就只剩「新旧都没有」。挂起项统一交给 applyPendingChanges：
+      // 新值先落变量 → buildHarness → 失败回滚 + 保留旧 harness。
       // 挂起期间 `permission`/`model` 仍等于**在用 harness 的**构建参数，两者始终自洽，
       // 状态行不会宣称一个尚未生效的值。
       // 「切回当前值」要清掉挂起项，否则被撤销的变更会被后一回合补上。
@@ -425,34 +476,21 @@ export async function runChat(opts: ChatOptions): Promise<number> {
       if (res?.model) {
         pendingModel = res.model === model ? undefined : res.model;
       }
+      // BRIEF-13：harness **已存在** → 立即应用（重建 + 回写登记表），使文案 / 状态行 /
+      // 会话登记表立刻一致；否则用户切完直接 /quit 时这条变更永不落地，而文案已经宣称切好了。
+      // harness 尚未懒建则继续挂起：首次构建自然带上新值，不为一条命令凭空建会话。
+      if (harness && (pendingPermission !== undefined || pendingModel !== undefined)) {
+        await applyPendingChanges();
+      }
       continue;
     }
 
     // natural language → run the harness loop (lazy-build once)
-    // BRIEF-12：挂起的会话级变更在这里才连同重建一起应用。成功才替换 harness；
-    // 失败则把 permission/model 回滚、保留旧 harness —— 会话继续可用，TUI 不退出。
+    // BRIEF-12/BRIEF-13：挂起的会话级变更（slash 分支已就地把「harness 已存在」的那些应用掉，
+    // 所以走到这里的一定是「harness 还没懒建」）连同重建一起应用。成功才替换 harness；
+    // 失败则回滚 permission/model、保留旧 harness —— 会话继续可用，TUI 不退出。
     if (pendingPermission !== undefined || pendingModel !== undefined) {
-      const prevPermission = permission;
-      const prevModel = model;
-      const previous: ComposedHarness | null = harness; // 可能是 null（还没建过）：此时没有旧会话可保，等同首次懒建
-      try {
-        // 新值先落到外层变量：buildHarness 读的就是它们（policy profile、provider 的 model 覆盖）
-        permission = pendingPermission ?? permission;
-        model = pendingModel ?? model;
-        harness = await buildHarness();
-        pendingPermission = undefined;
-        pendingModel = undefined;
-        syncSessionMeta(); // 只有真切换成功才落盘（保留既有行为，且不写入未生效的值）
-      } catch (err) {
-        // 一致性：变量必须回滚到旧 harness 的构建参数，否则状态行会宣称一个没生效的值
-        permission = prevPermission;
-        model = prevModel;
-        harness = previous;
-        // 清掉挂起项：否则每一回合都拿同一个坏配置重试，用户只能看到刷屏的同一个错误
-        pendingPermission = undefined;
-        pendingModel = undefined;
-        io.write(`[错误] 重建会话失败（已保留原设置：${providerId}/${prevModel} · ${prevPermission}）：${describeProviderError(err)}`);
-      }
+      await applyPendingChanges();
     } else if (!harness) {
       // 首次懒建同样不能把异常冒泡出去：否则一个建不出来的 provider 会直接终止整个 TUI
       try {

@@ -192,23 +192,37 @@ describe('chat TUI — slash dispatch (task 021)', () => {
 describe('chat TUI — runChat loop (task 021)', () => {
   let dir: string;
   let oldProviderRoot: string | undefined;
+  let oldUsageRoot: string | undefined;
   let oldSessionRoot: string | undefined;
+  let oldSettingsRoot: string | undefined;
   beforeEach(() => {
     dir = fs.mkdtempSync(path.join(os.tmpdir(), 'cah-tui-run-'));
     // task 106 隔离：runChat 的默认 ProviderStore 必须落在这个临时 root，
     // 绝不能读真实 ~/.vessel（否则机器上 current=真实供应商时这些用例会打真网络）。
     oldProviderRoot = process.env.VESSEL_PROVIDER_ROOT;
+    // task 106 / AGENTS.md §8：usage root 同款钉住（与 provider 同根，隔离口径一致）。
+    oldUsageRoot = process.env.VESSEL_USAGE_ROOT;
     // G-10：runChat 的 `buildHarness` 还会 new SessionRegistry()（缺省根）——同款钉住，
     // 否则每个用例都会把测试会话写进真实 ~/.vessel/sessions.json（AGENTS.md §8）。
     oldSessionRoot = process.env.VESSEL_SESSION_ROOT;
+    // G-13-P2：runChat 进循环前会 `resolveChatLocale(opts.settingsRoot)`，其根解析为
+    // `VESSEL_SETTINGS_ROOT > VESSEL_USAGE_ROOT > ~/.vessel`——不钉就会读真实
+    // `~/.vessel/settings.json`（本机 locale=en 时语义随机器而变）。
+    oldSettingsRoot = process.env.VESSEL_SETTINGS_ROOT;
     process.env.VESSEL_PROVIDER_ROOT = dir;
+    process.env.VESSEL_USAGE_ROOT = dir;
     process.env.VESSEL_SESSION_ROOT = dir;
+    process.env.VESSEL_SETTINGS_ROOT = dir;
   });
   afterEach(() => {
     if (oldProviderRoot === undefined) delete process.env.VESSEL_PROVIDER_ROOT;
     else process.env.VESSEL_PROVIDER_ROOT = oldProviderRoot;
+    if (oldUsageRoot === undefined) delete process.env.VESSEL_USAGE_ROOT;
+    else process.env.VESSEL_USAGE_ROOT = oldUsageRoot;
     if (oldSessionRoot === undefined) delete process.env.VESSEL_SESSION_ROOT;
     else process.env.VESSEL_SESSION_ROOT = oldSessionRoot;
+    if (oldSettingsRoot === undefined) delete process.env.VESSEL_SETTINGS_ROOT;
+    else process.env.VESSEL_SETTINGS_ROOT = oldSettingsRoot;
     fs.rmSync(dir, { recursive: true, force: true });
   });
 
@@ -340,21 +354,35 @@ describe('makeLineReader — sequential reads over ONE readline interface (task 
 describe('task 106 — TUI 凭据接线 + 测试隔离', () => {
   let dir: string;
   let oldProviderRoot: string | undefined;
+  let oldUsageRoot: string | undefined;
   let oldSessionRoot: string | undefined;
+  let oldSettingsRoot: string | undefined;
 
   beforeEach(() => {
     dir = fs.mkdtempSync(path.join(os.tmpdir(), 'cah-106-'));
     oldProviderRoot = process.env.VESSEL_PROVIDER_ROOT;
     process.env.VESSEL_PROVIDER_ROOT = dir; // 临时状态根：不读不写真实 ~/.vessel
+    // task 106 / AGENTS.md §8：usage root 同款钉住（与 provider 同根）。
+    oldUsageRoot = process.env.VESSEL_USAGE_ROOT;
+    process.env.VESSEL_USAGE_ROOT = dir;
     // G-10：会话登记根同款隔离（runChat 的 buildHarness → new SessionRegistry()）。
     oldSessionRoot = process.env.VESSEL_SESSION_ROOT;
     process.env.VESSEL_SESSION_ROOT = dir;
+    // G-13-P2：runChat 进循环前 `resolveChatLocale()` 会读 settings 根
+    // （`VESSEL_SETTINGS_ROOT > VESSEL_USAGE_ROOT > ~/.vessel`）——不钉就读真实
+    // `~/.vessel/settings.json`（只读，但违反 AGENTS.md §8 隔离，且语义随机器而变）。
+    oldSettingsRoot = process.env.VESSEL_SETTINGS_ROOT;
+    process.env.VESSEL_SETTINGS_ROOT = dir;
   });
   afterEach(() => {
     if (oldProviderRoot === undefined) delete process.env.VESSEL_PROVIDER_ROOT;
     else process.env.VESSEL_PROVIDER_ROOT = oldProviderRoot;
+    if (oldUsageRoot === undefined) delete process.env.VESSEL_USAGE_ROOT;
+    else process.env.VESSEL_USAGE_ROOT = oldUsageRoot;
     if (oldSessionRoot === undefined) delete process.env.VESSEL_SESSION_ROOT;
     else process.env.VESSEL_SESSION_ROOT = oldSessionRoot;
+    if (oldSettingsRoot === undefined) delete process.env.VESSEL_SETTINGS_ROOT;
+    else process.env.VESSEL_SETTINGS_ROOT = oldSettingsRoot;
     fs.rmSync(dir, { recursive: true, force: true });
   });
 
@@ -475,6 +503,7 @@ describe('G-09 — TUI 会话内成本显示（/cost · /usage · 每回合增�
   let oldProviderRoot: string | undefined;
   let oldUsageRoot: string | undefined;
   let oldSessionRoot: string | undefined;
+  let oldSettingsRoot: string | undefined;
 
   /**
    * 固定价目（形状照抄 `UsageStore.recovery.test.ts` 的 PRICING）：
@@ -498,9 +527,14 @@ describe('G-09 — TUI 会话内成本显示（/cost · /usage · 每回合增�
     oldProviderRoot = process.env.VESSEL_PROVIDER_ROOT;
     oldUsageRoot = process.env.VESSEL_USAGE_ROOT;
     oldSessionRoot = process.env.VESSEL_SESSION_ROOT;
+    // G-13-P2：runChat 进循环前会 `resolveChatLocale(opts.settingsRoot)`，根解析
+    // `VESSEL_SETTINGS_ROOT > VESSEL_USAGE_ROOT > ~/.vessel`——显式钉住第四根，
+    // 不再依赖「usage 根恰好是临时目录」这条隐式回落（AGENTS.md §8）。
+    oldSettingsRoot = process.env.VESSEL_SETTINGS_ROOT;
     process.env.VESSEL_PROVIDER_ROOT = root;
     process.env.VESSEL_USAGE_ROOT = usageRoot;
     process.env.VESSEL_SESSION_ROOT = usageRoot;
+    process.env.VESSEL_SETTINGS_ROOT = usageRoot;
   });
 
   afterEach(() => {
@@ -510,6 +544,8 @@ describe('G-09 — TUI 会话内成本显示（/cost · /usage · 每回合增�
     else process.env.VESSEL_USAGE_ROOT = oldUsageRoot;
     if (oldSessionRoot === undefined) delete process.env.VESSEL_SESSION_ROOT;
     else process.env.VESSEL_SESSION_ROOT = oldSessionRoot;
+    if (oldSettingsRoot === undefined) delete process.env.VESSEL_SETTINGS_ROOT;
+    else process.env.VESSEL_SETTINGS_ROOT = oldSettingsRoot;
     fs.rmSync(root, { recursive: true, force: true });
     fs.rmSync(usageRoot, { recursive: true, force: true });
   });
