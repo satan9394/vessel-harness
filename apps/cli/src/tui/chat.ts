@@ -32,6 +32,17 @@ import { renderCostLines, renderTurnDelta, renderTodayLine, type UsageTotalsLike
 
 export type PermissionMode = 'read-only' | 'workspace-write' | 'danger-full-access';
 
+/** G-13-P1：`/permission` 的唯一合法取值（顺序即用法提示的展示顺序）。 */
+const PERMISSION_MODES: readonly PermissionMode[] = ['read-only', 'workspace-write', 'danger-full-access'];
+
+/**
+ * G-13-P1：取值校验。只有字面量命中上表才算「切换成功」——非法值只回用法，
+ * 绝不返回 permission 字段（否则就是「文案说切了、实际没切」的假成功）。
+ */
+function isPermissionMode(value: string): value is PermissionMode {
+  return (PERMISSION_MODES as readonly string[]).includes(value);
+}
+
 export interface ChatSessionIO {
   /** read one line of user input; null = EOF (ctrl-d / quit) */
   readLine(prompt: string): Promise<string | null>;
@@ -201,6 +212,9 @@ export interface SlashResult {
   output?: string;
   /** true → exit the TUI */
   quit?: boolean;
+  /** 待应用的会话级变更（G-13-P1）：主循环负责真正生效，而不是只打印。 */
+  permission?: PermissionMode;
+  model?: string;
 }
 
 /**
@@ -232,6 +246,11 @@ export async function runChat(opts: ChatOptions): Promise<number> {
   let permission: PermissionMode = opts.permission ?? 'workspace-write';
   let providerId = currentCfg?.id ?? 'mock';
   let harness: ComposedHarness | null = null;
+  /**
+   * G-13-P1：最近一次 buildHarness 建出的会话 id。`/permission`、`/model` 之后要回写
+   * 会话登记表（保留 createdAt），而登记表只认 id —— 所以必须在构建时把它记到外层。
+   */
+  let currentSessionId: string | undefined;
   let sessionWorkspace = opts.workspaceRoot;
   // task 103: opencode-go 的会话 id 在**一个 TUI 会话**内稳定（换模型 / 重建 harness 不换），
   // 与 102 lane 的「一次 lane 会话一个 UUID」语义对齐。
@@ -244,7 +263,9 @@ export async function runChat(opts: ChatOptions): Promise<number> {
     if (cfg && cfg.protocol !== 'mock') {
       // task 103: CLI/TUI 共用 providerFactory —— preset id `opencode-go` 自动解析为专用
       // provider（x-opencode-session + 具名 UA），与 benchmark lane 是同一份实现。
-      const plan = planProvider({ config: cfg });
+      // G-13-P1：把会话内的 `model` 作为覆盖项传进去 —— 否则 `/model <id>` 只改了状态行，
+      // 真实 provider 仍按配置里的旧模型发请求（又是一条「文案说切了但没生效」的路径）。
+      const plan = planProvider({ config: cfg, model });
       effProvider = buildRealProvider(plan, { sessionId: opencodeGoSessionId }) ?? undefined;
       effModel = plan.model;
     }
@@ -279,6 +300,8 @@ export async function runChat(opts: ChatOptions): Promise<number> {
       // G-10：复用既有会话 id（resume 或重建 harness 时保持一致）；缺省则新建。
       sessionId: opts.sessionId,
     });
+    // G-13-P1：把会话 id 记到外层，供 /permission、/model 之后回写登记表（拿不到 id 就没法 put）。
+    currentSessionId = harness.session.sessionId;
 
     // G-10：让 TUI 建的会话也进入会话登记表，否则 `vessel sessions list` 看不到它、无法 resume。
     try {
@@ -300,6 +323,33 @@ export async function runChat(opts: ChatOptions): Promise<number> {
     }
 
     return harness;
+  };
+
+  /**
+   * G-13-P1：把会话级变更（permission / model）同步进会话登记表。
+   *
+   * 只在「harness 已经建过」时有意义：此时登记表里已有本会话的 meta，用 get → put
+   * 保留原 `createdAt`、刷新 `updatedAt`。拿不到 id（harness 尚未懒建）就直接返回 ——
+   * 下一次 buildHarness 会用新值登记，无需凭空补写。任何失败都只 warn，绝不阻断会话。
+   */
+  const syncSessionMeta = (): void => {
+    if (!currentSessionId) return;
+    try {
+      const registry = new SessionRegistry();
+      const prev = registry.get(currentSessionId);
+      if (!prev) return; // 没有既有登记项（例如登记当时就失败了）→ 不伪造一条
+      const meta: SessionMeta = {
+        ...prev,
+        provider: providerId,
+        model,
+        permission,
+        createdAt: prev.createdAt, // 保留原创建时间
+        updatedAt: new Date().toISOString(),
+      };
+      registry.put(meta);
+    } catch (err) {
+      console.warn(`[vessel] 会话登记更新失败（不影响本次会话）：${(err as Error).message}`);
+    }
   };
 
   io.write(`${VESSEL_LOGO}Vessel — 交互会话开始（当前 ${providerId} · ${model} · ${permission}）。输入 /help 查看命令，/explain <术语> 或 ? <术语> 查术语解释，/quit 退出；命令行「vessel guide」有新手指引。`);
@@ -327,6 +377,19 @@ export async function runChat(opts: ChatOptions): Promise<number> {
       const res = await dispatchSlash(input, { store, io, sessionWorkspace: opts.workspaceRoot, usageStore: usage, usageBaseline: sessionBaseline });
       if (res?.output) io.write(res.output);
       if (res?.quit) break;
+      // G-13-P1：会话级变更必须真正生效，而不是只打印。
+      // 权限/模型变了 → 丢弃已缓存的 harness，下一次自然语言回合按新值懒建
+      // （permission 直接决定 policy profile，旧 harness 不能继续用）。
+      if (res?.permission && res.permission !== permission) {
+        permission = res.permission;
+        harness = null;
+        syncSessionMeta();
+      }
+      if (res?.model && res.model !== model) {
+        model = res.model;
+        harness = null;
+        syncSessionMeta();
+      }
       continue;
     }
 
@@ -417,8 +480,8 @@ export async function dispatchSlash(input: string, ctx: {
           '命令：',
           '  /provider        配置供应商（搜索选 → key → 拉模型 → 勾选）',
           '  /models          拉取当前供应商模型列表',
-          '  /model <id>      切换模型（如 /model deepseek-chat）',
-          '  /permission      切换权限模式（read-only / workspace-write / danger-full-access）',
+          '  /model <id>      切换模型（本会话后续回合生效）',
+          '  /permission <mode>  切换权限模式（本会话后续回合生效：read-only / workspace-write / danger-full-access）',
           '  /setup           完整引导配置',
           '  /explain <术语>  查术语中英文解释（同 ? <术语>，如 /explain Call）',
           '  /cost            查看本会话成本与累计（同 /usage）',
@@ -451,11 +514,21 @@ export async function dispatchSlash(input: string, ctx: {
     }
     case 'model': {
       if (!arg) return { output: '用法：/model <id>（如 /model deepseek-chat）' };
-      return { output: `模型切换为 "${arg}"（会话内；持久请用 /provider 重配）` };
+      // G-13-P1：不再有「只打印不生效」的路径——返回 model 字段即由主循环落在会话状态上。
+      // 说明：本命令**不校验** id 是否在可用清单内。清单只有 /models（一次真实网络拉取）或
+      // modelsForProtocol 的内置表可得，前者会让一次廉价切换发起网络请求、后者对用户自定义
+      // 端点/自建模型不成立；拼错 id 会在下一回合由 provider 报错（可读、可恢复），
+      // 因此这里保持不校验，而不是引入一次可能误判的昂贵校验。
+      return { output: `已切换模型为 ${arg}（本会话后续回合生效）`, model: arg };
     }
     case 'permission': {
       if (!arg) return { output: '用法：/permission <read-only|workspace-write|danger-full-access>' };
-      return { output: `权限切换为 "${arg}"（会话内生效）` };
+      // 先校验取值：非法值**不返回** permission 字段 → 主循环不会应用任何变更，
+      // 也就不会出现「文案说切了、实际还是旧权限」的假成功。
+      if (!isPermissionMode(arg)) {
+        return { output: '用法：/permission <read-only|workspace-write|danger-full-access>' };
+      }
+      return { output: `已切换权限为 ${arg}（本会话后续回合生效）`, permission: arg };
     }
     case 'explain':
     case 'term': {

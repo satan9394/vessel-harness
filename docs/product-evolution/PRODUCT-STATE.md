@@ -1,16 +1,16 @@
 # PRODUCT-STATE — Vessel 产品演进状态（Orchestrator 维护）
 
-> 每轮结束更新。本轮 = Product Evolution Orchestrator 第 1 轮（Phase 1–8）。
-> 相关产物：`docs/PROJECT-BRIEF.md`、`docs/product-audit/*`（4 份独立审计）、`docs/product-evolution/PRODUCT-GAP-MAP.md`、`IMPLEMENTATION-BRIEF-01.md`、`IMPLEMENT-BRIEF-01-STATE.md`、`EVALUATION-BRIEF-01.md`、`EVALUATION-REPORT-01.md`（待）。
+> 每轮结束更新。**当前进度：第 11 轮**（Round 1–10 已闭环，Round 11 实现中）。基线：`tsc 0`、**126 文件 / 1322 passed + 1 skipped / exit 0**。
+> 产物索引：`docs/PROJECT-BRIEF.md`、`docs/product-audit/*`（4 份独立审计）、`PRODUCT-GAP-MAP.md`（缺口+路线图）、`IMPLEMENTATION-BRIEF-0N.md` / `EVALUATION-REPORT-0N.md`（每轮规格与独立裁定）、本文档（状态与纪律）。
 
 ## 当前成熟度
 
 | 维度 | 评估 |
 |---|---|
-| 内部工程成熟度 | **高** — 依赖零环、8 道发布门禁、1225+ 测试、存储层原子写与凭据纪律（审计一致确认） |
-| 对外可启动成熟度 | **本轮前：低**（新用户无法自行完成第一次成功使用）；**本轮后：显著改善**（首跑示例可用、未知命令不再静默） |
-| 差异化护城河 | **稳固** — Behavior IR + Policy 编译四伪物硬执法、Generator/Evaluator 分离 + review 交接单、供应商管理纵深 + 本地价格库（7 竞品均无持久成本库） |
-| 主要短板 | i18n 无统一架构（三套 locale 互不相通）；web 游离 `tsc -b` 图外；CLI 顶层无异常兜底；usage.json 损坏静默丢历史；密钥暴露面（DPAPI 命令行传参） |
+| 内部工程成熟度 | **高** — 依赖零环（Round 7b 又一次主动维护：把 `sanitizeWireSnippet` 下沉去环）、8 道发布门禁且 web 已纳入类型门禁、1300+ 测试 |
+| 对外可启动成熟度 | **中高** — 首跑可用（G-01/G-02/G-14）、崩溃面给人话+路径+恢复指引（G-03）、会话可续跑（G-10）、`--json` 机器面（G-11 半） |
+| 数据与密钥安全 | **显著改善** — usage 损坏隔离留档+备份轮转（G-04）、密钥不再进命令行、secrets 损坏默认可恢复（G-05a）、错误体全链路脱敏（G-05b + Round 7b） |
+| 主要短板（当前） | TUI `/permission`·`/model` **假成功**（Round 11 修复中）；CLI 面 MCP 配置缺失（G-11 另半，且传输层需扩签名）；locale 未接 explain / theme 无消费者（G-13 P2/P3）；快照回滚全仓零实现 |
 
 ## 已解决问题（本轮 NOW 切片）
 
@@ -40,7 +40,15 @@
 
 ## 当前最高价值下一步
 
-按 NEXT 组选**下一轮 NOW 切片**：优先 **G-03（CLI 顶层异常兜底）**——它是本轮 G-02 的自然延伸（同一处入口），一次改动消除"配置损坏 → 裸栈崩溃、无恢复指引"这一整类用户可见故障；可与 **G-12（tsconfig 补边，极低成本）** 合为一个小切片；若还有余量，顺手做 **N4 漂移守卫测试**（断言 events 联合里的注入类 source 全部在 `INJECTED_MESSAGE_SOURCES` 内，防止未来新增注入源静默退化）。
+**进行中**：Round 11（G-13-P1）——TUI `/permission` 与 `/model` **去假成功**（安全类；文案宣称已切换而实际空转）。完成后按序：
+
+1. **Round 10 / 7b 终评**（核 AC1 三条补测与 7b 两条是否真闭合）。
+2. **G-13-P2/P3**（低成本）：locale 接 explain 两处（`renderExplain` 本就支持 locale，只差传参）、theme 文案诚实化（全仓零消费者却宣称"已设为"）、`/provider` 与 `/setup` 重复分支合并。
+3. **G-11 MCP 半**（中）：CLI 面 MCP 配置入口——库级管道已通（`compose.ts:246-250` + `mcp__<server>__<tool>`），但 `McpClient.ts:48-52` 的 StdioTransport 只认 `process.execPath`，需扩传输层签名；单独立项，不与 `--json` 混。
+4. **G-10 快照回滚**（大）：全仓零实现，建议独立立项并**先做 scoping**。
+5. LATER：全量 i18n 架构、`~/.vessel` 状态根重复收敛、门禁报告生成物重跑（`release-report.*` 仍是旧 criterion）。
+
+**已定的"不做"**（竞品形态追逐，审计逐条论证）：插件市场、消息平台、云协作/多用户、公开排行榜、IDE/桌面表面；TUI 内不放 `migrate`/`serve`/`bench`/`pricing sync`/`--json`。
 
 ## Round 2（G-03 / G-12 / G-16）— 已闭环
 
