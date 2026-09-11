@@ -271,6 +271,13 @@ export async function runChat(opts: ChatOptions): Promise<number> {
   let providerId = currentCfg?.id ?? 'mock';
   let harness: ComposedHarness | null = null;
   /**
+   * BRIEF-12：`/permission`、`/model` 的会话级变更**先挂起**，等下一次真正需要 harness 时
+   * 再连同重建一起应用。**绝不预先置空 `harness`** —— 预置空会把「重建失败」退化成
+   * 「新设置没生效、旧会话也没了」：用户既没切成功，又丢掉了可用会话。
+   */
+  let pendingPermission: PermissionMode | undefined;
+  let pendingModel: string | undefined;
+  /**
    * G-13-P1：最近一次 buildHarness 建出的会话 id。`/permission`、`/model` 之后要回写
    * 会话登记表（保留 createdAt），而登记表只认 id —— 所以必须在构建时把它记到外层。
    */
@@ -406,23 +413,57 @@ export async function runChat(opts: ChatOptions): Promise<number> {
       if (res?.output) io.write(res.output);
       if (res?.quit) break;
       // G-13-P1：会话级变更必须真正生效，而不是只打印。
-      // 权限/模型变了 → 丢弃已缓存的 harness，下一次自然语言回合按新值懒建
-      // （permission 直接决定 policy profile，旧 harness 不能继续用）。
-      if (res?.permission && res.permission !== permission) {
-        permission = res.permission;
-        harness = null;
-        syncSessionMeta();
+      // BRIEF-12：但**不在这里丢缓存**（不写 `permission = ...; harness = null`），而是挂起到
+      // 下一次懒建时应用。permission 直接决定 policy profile、旧 harness 不能继续用，所以重建
+      // 不可避免；可一旦 `buildHarness()` 抛错，「先置空」写法就只剩「新旧都没有」。
+      // 挂起期间 `permission`/`model` 仍等于**在用 harness 的**构建参数，两者始终自洽，
+      // 状态行不会宣称一个尚未生效的值。
+      // 「切回当前值」要清掉挂起项，否则被撤销的变更会被后一回合补上。
+      if (res?.permission) {
+        pendingPermission = res.permission === permission ? undefined : res.permission;
       }
-      if (res?.model && res.model !== model) {
-        model = res.model;
-        harness = null;
-        syncSessionMeta();
+      if (res?.model) {
+        pendingModel = res.model === model ? undefined : res.model;
       }
       continue;
     }
 
     // natural language → run the harness loop (lazy-build once)
-    if (!harness) harness = await buildHarness();
+    // BRIEF-12：挂起的会话级变更在这里才连同重建一起应用。成功才替换 harness；
+    // 失败则把 permission/model 回滚、保留旧 harness —— 会话继续可用，TUI 不退出。
+    if (pendingPermission !== undefined || pendingModel !== undefined) {
+      const prevPermission = permission;
+      const prevModel = model;
+      const previous: ComposedHarness | null = harness; // 可能是 null（还没建过）：此时没有旧会话可保，等同首次懒建
+      try {
+        // 新值先落到外层变量：buildHarness 读的就是它们（policy profile、provider 的 model 覆盖）
+        permission = pendingPermission ?? permission;
+        model = pendingModel ?? model;
+        harness = await buildHarness();
+        pendingPermission = undefined;
+        pendingModel = undefined;
+        syncSessionMeta(); // 只有真切换成功才落盘（保留既有行为，且不写入未生效的值）
+      } catch (err) {
+        // 一致性：变量必须回滚到旧 harness 的构建参数，否则状态行会宣称一个没生效的值
+        permission = prevPermission;
+        model = prevModel;
+        harness = previous;
+        // 清掉挂起项：否则每一回合都拿同一个坏配置重试，用户只能看到刷屏的同一个错误
+        pendingPermission = undefined;
+        pendingModel = undefined;
+        io.write(`[错误] 重建会话失败（已保留原设置：${providerId}/${prevModel} · ${prevPermission}）：${describeProviderError(err)}`);
+      }
+    } else if (!harness) {
+      // 首次懒建同样不能把异常冒泡出去：否则一个建不出来的 provider 会直接终止整个 TUI
+      try {
+        harness = await buildHarness();
+        syncSessionMeta();
+      } catch (err) {
+        io.write(`[错误] 创建会话失败：${describeProviderError(err)}`);
+      }
+    }
+    // 建不出来也要活着：回到提示符，用户可重试、可 /model 换配置、可 /quit（不再 TypeError 崩栈）
+    if (!harness) continue;
     ctrlC?.reset(); // fresh turn → first Ctrl+C interrupts (not exits)
     activeTurnInterrupt = () => {
       harness!.loop.interrupt();
