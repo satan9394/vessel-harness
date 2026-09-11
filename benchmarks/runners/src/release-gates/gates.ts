@@ -41,7 +41,7 @@ const execFileAsync = promisify(execFile);
 
 /** §21 ordered gate definitions (1..8). */
 export const GATE_DEFINITIONS: GateDefinition[] = [
-  { id: 'build', name: 'Build (tsc -b)', criterion: '类型构建 `tsc -b tsconfig.json` 完成且退出码 0（无类型错误）。', position: 1 },
+  { id: 'build', name: 'Build (tsc -b)', criterion: '类型构建 `tsc -b tsconfig.json` 与 `apps/web` 类型检查（`tsc -p apps/web/tsconfig.json`）均完成且退出码 0（无类型错误）。', position: 1 },
   { id: 'unit', name: 'Unit (vitest root)', criterion: '全量 `npx vitest run`（root）通过且退出码 0（无测试失败）。', position: 2 },
   { id: 'deterministic-bench', name: 'Deterministic Bench (L1)', criterion: 'L1 可跑集（B001-B005 离线确定性 mock lane）全部 manifest 断言通过。', position: 3 },
   { id: 'real-model-bench', name: 'Real Model Bench (082 lane)', criterion: '082 真实模型 lane 收集到 §15 L3 指标；无凭据/无 provider 时显式 pending，不静默通过。', position: 4 },
@@ -91,6 +91,42 @@ export function judgeBuild(outcome: CommandOutcome): GateVerdict {
     status: outcome.code === 0 ? 'pass' : 'fail',
     evidence: {
       summary: outcome.code === 0 ? '类型构建通过（tsc -b exit 0）' : `类型构建失败（tsc -b exit ${outcome.code}）`,
+      detail,
+    },
+  };
+}
+
+/**
+ * Judge the Gate-1 build *pair*: root `tsc -b` AND the `apps/web` typecheck must both exit 0.
+ *
+ * 为什么合判：`apps/web` 不在根 `tsconfig.json` 的 project references 图内，只跑
+ * `tsc -b tsconfig.json` 时 web 的类型错误不会被编译到 → 静默通过门禁。这里把两次
+ * 构建当同一判据：任一非 0 即 fail，并在 summary/detail 里指明是哪一侧失败。
+ */
+export function judgeBuildPair(cliOutcome: { code: number }, webOutcome: { code: number }): GateVerdict {
+  const detail = [`tsc exit=${cliOutcome.code}`, `web tsc exit=${webOutcome.code}`];
+  if (cliOutcome.code !== 0) {
+    return {
+      status: 'fail',
+      evidence: {
+        summary: `类型构建失败（根 tsc -b exit ${cliOutcome.code}）`,
+        detail,
+      },
+    };
+  }
+  if (webOutcome.code !== 0) {
+    return {
+      status: 'fail',
+      evidence: {
+        summary: `web 类型检查失败（apps/web tsc -p exit ${webOutcome.code}）`,
+        detail,
+      },
+    };
+  }
+  return {
+    status: 'pass',
+    evidence: {
+      summary: '类型构建通过（根 tsc -b + apps/web typecheck 均 exit 0）',
       detail,
     },
   };
@@ -454,12 +490,43 @@ export function buildReleaseGateExecutors(opts: BuildGateExecutorsOptions = {}):
   const providerResolver: ProviderResolver = opts.providerResolver ?? defaultProviderResolver;
 
   const out: GateExecutor[] = [
-    // Gate 1 Build — tsc -b
+    // Gate 1 Build — tsc -b (root) + apps/web typecheck
     {
       gate: gateDefinition('build'),
       run: async (ctx) => {
         const outcome = await ctx.exec('npx', ['tsc', '-b', 'tsconfig.json'], { cwd: ctx.repoRoot, timeoutMs: 120_000 });
-        return judgeBuild(outcome);
+        // apps/web 不在根 tsconfig 的 project references 图内；单独再跑一次它的类型检查，
+        // 否则 web 的类型错误会静默通过门禁。
+        let webOutcome: CommandOutcome | null = null;
+        let webProbeFailed = false;
+        try {
+          webOutcome = await ctx.exec('npx', ['tsc', '-p', 'apps/web/tsconfig.json'], { cwd: ctx.repoRoot, timeoutMs: 120_000 });
+        } catch {
+          webProbeFailed = true;
+        }
+        if (webProbeFailed || webOutcome === null) {
+          // 根构建已经非 0：这是确定性的 fail，不被 web 侧探测失败掩盖（fail 优先于 pending）。
+          if (outcome.code !== 0) {
+            return {
+              status: 'fail' as const,
+              evidence: {
+                summary: `类型构建失败（根 tsc -b exit ${outcome.code}）；apps/web typecheck 探测失败未执行`,
+                detail: [`tsc exit=${outcome.code}`, 'web tsc 探测失败（未执行）'],
+              },
+            };
+          }
+          // 探测失败（tsc/web 配置不可用等环境问题）→ 显式 pending，不静默通过。
+          return {
+            status: 'pending' as const,
+            pending: true,
+            evidence: {
+              summary: 'web 类型检查探测失败（受限环境无法执行 apps/web tsc）',
+              detail: [`tsc exit=${outcome.code}`, 'web tsc 探测失败（未执行）'],
+            },
+            note: 'build gate: 根 tsc -b 与 apps/web typecheck 需同时完成；web 侧探测失败时显式 pending，不静默通过。',
+          };
+        }
+        return judgeBuildPair(outcome, webOutcome);
       },
     },
     // Gate 2 Unit — vitest run (root)

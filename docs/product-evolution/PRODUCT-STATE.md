@@ -64,6 +64,22 @@
 - **N5（P3，跨轮）**：`ChatMessage.source` 仍为裸 `string`（守卫只覆盖"联合→集合"一条边）→ 建议收窄为 `MessageSource | 'environment'`。
 - **LOW**：路径清洗会截断以 `]`/`）` 结尾的**真实**路径（仅影响展示文案）。
 
+## Round 3（N1 / N2 / N5）— 已闭环
+
+**交付**：`apps/cli/src/cli.crashSurface.test.ts`（新，3 例：坏 `settings.json` / 坏 `providers.json` → `main()` reject 且渲染含路径+`vessel setup`+无 stack；干净对照 → resolve 0）；`startupError.ts` N2（判定顺序 ENOENT→file-missing 最优先、`CONFIG_CORRUPTED_RE` 收紧为精确 JSON 签名**并补** `invalid JSON|corrupted` 以覆盖 ProviderStore 措辞）；`packages/shared/src/provider.ts` N5（`source?: MessageSource | 'environment'`）；`messageSources.test.ts` 双向全等守卫；`MockProvider.test.ts` 类型化适配。
+
+**验收侧证据（指挥 E2E + 全量）**：`tsc 0`；`vitest` **117 文件 / 1255 passed + 1 skipped / exit 0**；崩溃面 E2E：坏 `settings.json` →「配置文件损坏 + 干净路径 + 指引」exit 1；坏 `providers.json` → 同样（修复前曾退化为 unknown）；干净对照 exit 0；无裸栈行。
+
+**独立裁定**：`EVALUATION-REPORT-04.md` **ACCEPT**（5 点中 1–4 通过，第 5 点为 P3 文档残留）。
+
+**本轮由验证（非实现者自证）捕获的问题**：
+1. N5 类型收窄**立刻**让 `tsc` 变红（`MockProvider.test.ts:96` 传裸 `string`）——证明收窄有效；
+2. **N2 副作用**：ProviderStore 措辞被判 `unknown`（新增的 N1 用例②恰好变红把它暴露）→ 补 `invalid JSON|corrupted` 修；
+3. 修正则的执行器报"失败"实为**写完即死**（文件已改）→ 坚持"核验文件而非采信回报"；
+4. 想用 `Remove-Item` 清临时文件被**全局铁律拦截**（删除必须走回收站）→ 改用"另建干净 root" 做对照，零删除。
+
+**残留 P3（均非阻断）**：① `provider.ts` 的 `source` JSDoc 仍把 `steer` 写成注入来源、漏 plan/handoff/inject；② 裸 `corrupted`/`invalid JSON` 关键词仍有极窄反向误报面（建议与 file/config/`.json` 同现）；③ `cli.crashSurface.test.ts` 干净对照用例不封"分类漂移"（该哨兵在 `startupError.test.ts`）；④ 路径清洗会截断以 `]`/`）` 结尾的真实路径（仅展示）；⑤ 内容类错误（格式非法/theme 非法值）落 `unknown`，指引偏弱；⑥ 未复用 `describeProviderError`（丢 opencode-go hint），unknown 分支不留 stack。
+
 ## 纪律
 
 - 并发执行器上限 2；一卡一执行器；删除走回收站；密钥不落盘；测试隔离（`VESSEL_*_ROOT` 注入）。

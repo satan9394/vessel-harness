@@ -6,6 +6,7 @@ import {
   GATE_DEFINITIONS,
   GATE_ORDER,
   judgeBuild,
+  judgeBuildPair,
   judgeUnit,
   judgeRealModelLane,
   judgeRealModelLaneWithBilling,
@@ -332,5 +333,25 @@ describe('runner: sequential order + aggregation + overall verdict (tasks 084)',
     } finally {
       fs.rmSync(dir, { recursive: true, force: true });
     }
+  });
+});
+
+describe('judgeBuildPair（G-07：web 纳入 Build 门禁）', () => {
+  it('双 0 → pass', () => {
+    const v = judgeBuildPair({ code: 0 }, { code: 0 });
+    expect(v.status).toBe('pass');
+    expect((v.evidence.detail ?? []).join(' ')).toMatch(/web tsc exit=0/);
+  });
+
+  it('cli 0 + web 非 0 → fail 且指向 web', () => {
+    const v = judgeBuildPair({ code: 0 }, { code: 2 });
+    expect(v.status).toBe('fail');
+    expect(`${v.evidence.summary} ${(v.evidence.detail ?? []).join(' ')}`).toMatch(/web/);
+    expect(`${v.evidence.summary} ${(v.evidence.detail ?? []).join(' ')}`).toMatch(/2/);
+  });
+
+  it('cli 非 0 → fail', () => {
+    const v = judgeBuildPair({ code: 2 }, { code: 0 });
+    expect(v.status).toBe('fail');
   });
 });
