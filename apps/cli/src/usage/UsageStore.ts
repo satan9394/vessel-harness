@@ -225,6 +225,14 @@ export interface UsageStoreOptions {
   strict?: boolean;
   /** cap for the recent-entries ring buffer */
   recentCap?: number;
+  /**
+   * 写前备份保留份数：每次 `save()` 前把旧 `usage.json` 备份到
+   * `<rootDir>/backups/`，最多留 N 份（默认 5；**0 = 关闭备份**）。
+   *
+   * 缺省可用环境变量 `VESSEL_USAGE_BACKUP_KEEP` 覆盖（语义同 ProviderStore 的
+   * `VESSEL_PROVIDER_BACKUP_KEEP`）；显式 opts 优先级最高。
+   */
+  backupKeep?: number;
   /** 时钟（测试注入以模拟跨日/日边界；默认 `new Date()`，本地时区） */
   now?: () => Date;
 }
@@ -389,6 +397,8 @@ export class UsageStore {
   private readonly recentCap: number;
   private readonly clock: () => Date;
   private readonly multiplierOf: (provider: string) => number;
+  /** 显式 opts 的备份保留份数（`undefined` = 未指定，走 env / 默认 5）。 */
+  private readonly backupKeepOpt: number | undefined;
   private data: UsageFile;
   /** 读入的旧文件没有 daily 字段（089 之前的累计）：历史只保留累计，不伪造分桶 */
   private readonly legacyFile: boolean;
@@ -403,6 +413,7 @@ export class UsageStore {
     this.recentCap = opts.recentCap ?? 200;
     this.clock = opts.now ?? (() => new Date());
     this.multiplierOf = opts.multiplierOf ?? (() => DEFAULT_COST_MULTIPLIER);
+    this.backupKeepOpt = opts.backupKeep;
     const loaded = this.load();
     this.data = loaded.file;
     this.legacyFile = loaded.legacy;
@@ -439,7 +450,7 @@ export class UsageStore {
     }
     try {
       const parsed = JSON.parse(text) as Partial<UsageFile>;
-      if (!parsed.entries || typeof parsed.entries !== 'object') return { file: empty, legacy: false };
+      if (!parsed.entries || typeof parsed.entries !== 'object') return this.quarantineCorrupted('missing entries');
       const entries: Record<string, UsageEntry> = {};
       for (const [key, raw] of Object.entries(parsed.entries)) {
         // 085 之前的旧条目没有 estimated/pricingSource：标 'legacy'（来源未知），
@@ -513,13 +524,87 @@ export class UsageStore {
       const hasDailyField = rawDaily !== undefined && rawDaily !== null;
       const legacy = !hasDailyField && Object.keys(entries).length > 0;
       return { file: { version: 2, entries, recent, daily }, legacy };
+    } catch (err) {
+      return this.quarantineCorrupted(`invalid JSON (${(err as Error).message})`);
+    }
+  }
+
+  /**
+   * 损坏文件改名隔离留档（不删除），打一句警告，随后以空表继续。
+   *
+   * 动机（G-04 / 可靠性报告 R2）：`usage.json` 损坏时若静默回退空表，下一次 `save()`
+   * 会用空表覆盖唯一数据源 → 用量/成本历史永久丢失且用户无感知。这里把损坏文件
+   * **改名**为 `<file>.corrupted-<epochMs>`（内容保留，符合仓库删除纪律——不删除），
+   * 打警告说明原因，再返回空结构继续（本次进程可用，历史可从隔离文件手工恢复）。
+   *
+   * 注意：仅用于**真正的损坏**路径；文件**不存在**（ENOENT）仍静默返回空表
+   * （首次运行是正常状态，不打警告、不产生 `*.corrupted-*` 文件）。
+   */
+  private quarantineCorrupted(why: string): { file: UsageFile; legacy: boolean } {
+    const bak = `${this.file}.corrupted-${Date.now()}`;
+    try {
+      fs.renameSync(this.file, bak);
+      console.warn(`[vessel] usage.json 损坏（${why}）：已隔离为 ${bak}（内容保留，未删除）；本次以空表继续，用量历史可从该文件手工恢复。`);
     } catch {
-      return { file: empty, legacy: false };
+      console.warn(`[vessel] usage.json 损坏（${why}）：隔离改名失败（文件被占用？）；为避免覆盖，本次不写入该文件。`);
+    }
+    return { file: { version: 2, entries: {}, recent: [], daily: {} }, legacy: false };
+  }
+
+  /** 生效的备份保留份数：显式 opts > VESSEL_USAGE_BACKUP_KEEP > 默认 5（0 = 关闭）。 */
+  private resolveBackupKeep(): number {
+    const explicit = this.backupKeepOpt;
+    if (explicit !== undefined) return Number.isFinite(explicit) && explicit >= 0 ? explicit : 5;
+    const raw = process.env.VESSEL_USAGE_BACKUP_KEEP;
+    if (raw === undefined || raw.trim() === '') return 5;
+    const n = Number.parseInt(raw, 10);
+    return Number.isFinite(n) && n >= 0 ? n : 5;
+  }
+
+  /**
+   * 写盘前备份（同 ProviderStore task 095 语义）：把旧 usage.json 原样复制成
+   * `backups/usage.<ts>.json`，最多 `backupKeep` 份。**不做任何删除**——超限时把最旧
+   * 一份改名成新时间戳再覆盖（改名失败则原地覆盖最旧）。备份失败只 warn，不影响写入。
+   */
+  private backupBeforeWrite(): void {
+    const keep = this.resolveBackupKeep();
+    if (keep <= 0) return;
+    let bytes: Buffer;
+    try {
+      bytes = fs.readFileSync(this.file);
+    } catch (err) {
+      if ((err as NodeJS.ErrnoException).code === 'ENOENT') return; // 首次写：无旧文件
+      console.warn(`[vessel] usage 备份跳过（读取旧文件失败）：${(err as Error).message}`);
+      return;
+    }
+    try {
+      const dir = path.join(this.rootDir, 'backups');
+      fs.mkdirSync(dir, { recursive: true });
+      const stamp = new Date().toISOString().replace(/[:.]/g, '-');
+      let target = path.join(dir, `usage.${stamp}.json`);
+      let n = 0;
+      while (fs.existsSync(target)) target = path.join(dir, `usage.${stamp}-${++n}.json`);
+      const existing = fs.readdirSync(dir).filter((f) => /^usage\..+\.json$/.test(f)).sort();
+      if (existing.length >= keep) {
+        const oldest = path.join(dir, existing[0]!);
+        try {
+          fs.renameSync(oldest, target);
+        } catch {
+          fs.writeFileSync(oldest, bytes); // 改名失败 → 原地覆盖（仍无删除）
+          return;
+        }
+        fs.writeFileSync(target, bytes);
+        return;
+      }
+      fs.writeFileSync(target, bytes);
+    } catch (err) {
+      console.warn(`[vessel] usage 备份失败（不影响写入）：${(err as Error).message}`);
     }
   }
 
   private save(): void {
     fs.mkdirSync(this.rootDir, { recursive: true });
+    this.backupBeforeWrite();
     const tmp = `${this.file}.tmp`;
     fs.writeFileSync(tmp, JSON.stringify(this.data, null, 2), 'utf8');
     // 原子写：tmp + rename。Windows 上杀软/索引器可能短暂锁住 tmp 或目标文件，

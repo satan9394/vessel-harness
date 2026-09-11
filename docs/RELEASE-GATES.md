@@ -61,7 +61,7 @@ writeReleaseReportFiles(report, 'benchmarks/reports');
 
 | # | gate id | 判据（subset of criterion check in code） | 环境说明 |
 | --- | --- | --- | --- |
-| 1 | build | `tsc -b tsconfig.json` 退出码 0 | 需 tsc/非受限环境 |
+| 1 | build | 根 `npx tsc -b tsconfig.json` **与** `apps/web` 类型检查 `npx tsc -p apps/web/tsconfig.json` **两条命令均 exit 0 才 PASS**（判据纯函数 `judgeBuildPair`，`detail` 同时给出两条退出码）；任一侧非 0 → fail；web 侧无法执行 → 显式 **pending**，不静默通过 | 需 tsc/非受限环境 |
 | 2 | unit | `npx vitest run`（root）退出码 0 且无 failed 标记 | 需 vitest/非受限环境 |
 | 3 | deterministic-bench | 离线 L1 可跑集 B001–B005 全通过（076 runner） | offline 确定性 |
 | 4 | real-model-bench | 082 lane 收集 §15 L3；无凭据/无 provider → **pending** | 需凭据；否则 pending |
@@ -84,6 +84,12 @@ writeReleaseReportFiles(report, 'benchmarks/reports');
 | 6 | resume | 063/064 soak 子集不变量：暂停/续跑、workspace 零残留、从 handoff 续跑留痕 | 确定性 |
 | 7 | ux-smoke | web 构建产物存在；否则 **pending**（环境标注） | 需先 build web |
 | 8 | packaging | build 产物 + 入口存在（npm pack probe）；否则 **pending** | 需先 build dist |
+
+> gate 1（build）加严背景（Round 4）：`apps/web` 不在根 `tsconfig.json` 的 project references 图内，
+> 只跑根 `tsc -b tsconfig.json` 时 web 的类型错误不会进入编译 → 门禁静默通过；故 Gate1 同时执行两条
+> 命令、两者都 exit 0 才判 pass（`judgeBuildPair` @ `benchmarks/runners/src/release-gates/gates.ts`）。
+> web 侧命令探测失败（受限环境无法 spawn 等）时按既有 probe→pending 约定显式 pending 并带 note，
+> 不静默通过；根构建本身已非 0 时按 fail 优先于 pending 返回 fail。
 
 pending 的 gate 语义：表示在受限/无凭据环境下**未执行完整判据**，需在非受限环境补齐后再判 ready；
 该 gate `note` 显式标注原因，**绝不静默 pass**。
