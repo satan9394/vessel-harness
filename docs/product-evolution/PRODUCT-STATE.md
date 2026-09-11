@@ -229,7 +229,16 @@
 2. **`initialize()` 无超时** → BRIEF-13 要求的"server 不响应即超时降级"未实现，`composeHarness` 会**永久挂起**（CLI/TUI 卡死无提示）；且缺陷 1 让既有 2s 兜底也不可能生效。
 3. 验收 3（降级四断言）/5（重建不泄漏）**仓内零测试**；CLI 侧 `composeHarness` 抛错时已 spawn 的连接**无 close 兜底**（TUI 侧有）；win32 非白名单 `.cmd` 命令的失败信息含糊。
 
-**FIX（进行中，三卡并行）**：① `McpClient.ts`——SIGKILL 兜底不得被取消 + `initialize`/`request` 加超时（超时 reject 带明确原因、清理 pending）；② `cli.ts`——`composeHarness` 抛错时逐个 `close()` 已 spawn 连接 + win32 `.cmd` 明确提示；③ 新增降级四断言仓内测试（`connections.test.ts`）。
+**FIX（已完成，提交 b98bfc0）**：
+- ① `McpClient.ts`——`close()` 的 2s SIGKILL **只在子进程真退出/出错时解除**（`disarmKill` 挂 `exit`/`error`），50ms 快返路径**不再 clearTimeout**（孤儿缺陷已修）；`request()`/`initialize()` 加 **5s 超时**（双层：transport 层清理 pending + `McpClient.initialize` 的 `withTimeout` 兜底，覆盖忽略该参数的 in-process transport）。
+- ② `cli.ts`——`composeHarness` 抛错时逐个 `close()` 已 spawn 的连接（补齐 TUI 已有的兜底）；win32 非白名单 `.cmd/.bat` **直接降级并给出可操作原因**（判据：Node 对 `.cmd` 无 shell spawn 会 EINVAL，不存在"能跑却被误杀"）。
+- ③ 新增 `packages/application/src/mcp/connections.test.ts`（验收 3 四断言 + 对照组 + 2 条 opt-in 探针；默认 8 pass / 2 skip）。
+
+**疑似缺陷被实测否证（重要）**：测试卡与我**都从代码推断**"不可达 command 的 server 会吊住 CLI 启动"（spawn ENOENT 是异步事件 → 构造不抛 → 失败推迟到 `initialize`；疑撞 dead child 的 EPIPE）。探针实测：`createMcpConnections` 构造期 `CONNECTIONS=1/FAILURES=0`（推断正确），但真实 `initialize` **7ms 内 reject `spawn ... ENOENT`**、无挂起、无未处理异常 → 因 `compose.ts` 已把 `initialize` 包进逐 server `try/catch`，**该 server 正常降级、CLI 不挂**。结论：**该推断不成立、无需修复卡**——「实测优先于静态推断：推断只是候选，证据才算数」（第 10 条纪律）。
+
+**新发现（假红，修复中）**：`stdioTransport.e2e.test.ts` 的「npx shim」用例在**全量并发下连续两次失败、单跑 9/9 必过**（该例单跑 ~2.8s，timeout 30s 充裕）→ 判定为**并发资源竞争**（npx→node→tsx 子进程链在全量并行时被挤压）。这会让全量结果**不稳定（假红）**，已派卡加"提高超时 + 有界重试"，**且明令不得以降级判别力换稳定**（不得删真跨进程断言、不得改 in-process、不得对断言失败重试）。
+
+## 纪律
 
 ## 纪律
 
@@ -262,6 +271,8 @@
 7. **"已有能力的出口"类切片先侦察爆炸半径**——确认调用点为零才可直接改契约，否则应加兼容层（Round 13 的 `StdioTransport`）。
 8. **"宣称已生效"必须在确认瞬间为真**——延迟到"下个回合"会让切换后立即退出的场景永不落地（Round 11）。
 9. **测试不得替被测代码兜底**——若测试自己在收尾时补 `SIGKILL`/补清理/补重试，那么"被测代码能正确清理"这条断言就是**假绿**：Round 13 的 `StdioTransport.close()` 2s 兜底被 50ms 路径 `clearTimeout` 取消（孤儿子进程），而 E2E 全绿只因 `reap()` 自补了 kill。**验收清理/回收类行为时，必须确认测试没有替实现代劳**。
+10. **实测优先于静态推断**——推断只是候选，证据才算数。Round 13 中测试卡与编排者都从代码推断"不可达 MCP server 会吊住 CLI"，探针实测却显示 `initialize` **7ms 内 reject**、由既有逐 server `try/catch` 正常降级 → 该推断不成立，避免了一次不该开的修复卡。**开修复卡前先跑一个最小探针。**
+11. **区分"真红"与"并发假红"**——同一用例"单跑必过、全量必败"且失败信息指向启动/超时，通常是资源竞争而非逻辑缺陷；处置方式应是"提高超时 + 有界重试（仅对启动/握手类环境性失败）"，**绝不以删断言/改 in-process 换取稳定**。
 
 ## 技术债
 
