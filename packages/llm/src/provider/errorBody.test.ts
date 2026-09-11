@@ -46,4 +46,20 @@ describe('sanitizeErrorBody（错误体脱敏）', () => {
     expect(out.length).toBeLessThanOrEqual(11);
     expect(out.startsWith('y'.repeat(10))).toBe(true);
   });
+
+  it('遮蔽下划线分隔的密钥（sk_live_/sk_test_，Stripe 风格）', () => {
+    const live = sanitizeErrorBody('{"error":"invalid api key sk_live_51H8xQ2eZvKYlo2C"}');
+    expect(live).not.toContain('sk_live_51H8xQ2eZvKYlo2C');
+    expect(live).toContain('<redacted>');
+
+    const test = sanitizeErrorBody('bad credential sk_test_abcdef123456 rejected');
+    expect(test).not.toContain('abcdef123456');
+    expect(test).toContain('<redacted>');
+  });
+
+  it('紧贴单词字符的密钥也不漏（去掉 \\b 后的回归保护）', () => {
+    const out = sanitizeErrorBody('bad credential xxxxsk-abcdef123456 rejected');
+    expect(out).not.toContain('abcdef123456');
+    expect(out).toContain('<redacted>');
+  });
 });

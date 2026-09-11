@@ -26,7 +26,9 @@
  *      本卡**只做能力声明/路由映射**，调用时显式抛 unsupported-route，不静默走错端点）。
  *
  * 密钥安全铁律：apiKey 只作为构造参数在进程内流转；本模块**不写任何文件**，错误信息中的响应
- * 片段会先剥离 URL 再截断，避免把凭据/内部标识带进日志。
+ * 片段会先遮蔽密钥样式（`sanitizeErrorBody`），再剥 URL、压空白并截断，避免把凭据/内部标识
+ * 带进日志（Round 7b：`:214` 的 detail 原先只走 `sanitizeWireSnippet`，401 响应体里的
+ * `sk-live-…` 之类密钥会原样外显）。
  */
 import { randomUUID } from 'node:crypto';
 import type {
@@ -37,6 +39,16 @@ import type {
   ChatToolCall,
   ChatUsage,
 } from '@vessel/shared';
+import { sanitizeErrorBody, sanitizeWireSnippet } from './errorBody.js';
+
+/**
+ * `sanitizeWireSnippet` 已**下沉**到 `errorBody.ts`（Round 7b 去环）：本模块要用遮蔽口径
+ * `sanitizeErrorBody`，若再由 `errorBody` 反向 import 本模块的 `sanitizeWireSnippet`，
+ * 就形成 OpencodeGo ↔ errorBody 双向 import，违反仓库硬约束「依赖零环」。
+ * 这里保留**同名 re-export**：`@vessel/llm` barrel、benchmark lane 外壳与既有测试的
+ * 导入路径、导出名与函数行为完全不变（函数体原样搬移，未作任何修改）。
+ */
+export { sanitizeWireSnippet };
 
 /** opencode-go provider 名 / preset id（CLI preset、lane resolver、createProvider 三处共用）。 */
 export const OPENCODE_GO_PROVIDER_ID = 'opencode-go';
@@ -172,14 +184,10 @@ export class OpencodeGoError extends Error {
   }
 }
 
-/** 剥掉 URL、压缩空白并截断——错误信息里绝不带凭据/长内部串。 */
-export function sanitizeWireSnippet(text: string, max = 240): string {
-  const cleaned = text
-    .replace(/https?:\/\/\S+/gi, '<url>')
-    .replace(/\s+/g, ' ')
-    .trim();
-  return cleaned.length > max ? `${cleaned.slice(0, max)}…` : cleaned;
-}
+/**
+ * `sanitizeWireSnippet` 的实现已下沉到 `./errorBody.ts`（去环，见文件顶部 re-export 注释）；
+ * 本模块继续 import 并在下方使用，外部导入方（含 `@vessel/llm` barrel）不受影响。
+ */
 
 /** 从 wire 错误体里取 `error.type`（opencode 形如 {"type":"error","error":{"type":"…"}}）。 */
 export function extractWireErrorType(bodyText: string): string | undefined {
@@ -211,7 +219,9 @@ export function extractWireErrorMessage(bodyText: string): string | undefined {
 /** 把 (status, wire 错误体) 归类成 opencode-go 错误。纯函数，供测试直接覆盖。 */
 export function classifyOpencodeGoError(status: number, bodyText: string): OpencodeGoError {
   const wireType = extractWireErrorType(bodyText);
-  const detail = sanitizeWireSnippet(extractWireErrorMessage(bodyText) ?? bodyText);
+  // Round 7b（BRIEF-11 第 2 项）：detail 必须走**遮蔽**口径 —— 401 体里 `sk-live-…` 类密钥
+  // 不能外显；`sanitizeWireSnippet` 只剥 URL/压空白/截断，不遮密钥。
+  const detail = sanitizeErrorBody(extractWireErrorMessage(bodyText) ?? bodyText);
   const t = wireType ?? '';
   let kind: OpencodeGoErrorKind;
   if (status === 400 && /MissingSessionID/i.test(t)) kind = 'missing-session';
