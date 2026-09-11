@@ -122,7 +122,7 @@ export class OpenAICompatibleProvider implements ChatProvider {
 
     const body = (await resp.json()) as OpenAIResponseBody;
     if (body.error) {
-      throw new Error(`provider error: ${body.error.message ?? body.error.type}`);
+      throw new Error(`provider error: ${sanitizeErrorBody(body.error.message ?? body.error.type ?? 'unknown')}`);
     }
     const choice = body.choices?.[0];
     const message = choice?.message;

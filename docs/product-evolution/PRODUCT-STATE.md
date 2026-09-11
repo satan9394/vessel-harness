@@ -163,6 +163,38 @@
 
 **Round 9 显式未做**（写入状态，防被误认为已完成）：快照回滚、会话级用量恢复（需先给 `UsageEntry` 加 `sessionId`）、多会话管理 UI、fork/rewind、云同步。
 
+## Round 10（G-11 之 `--json` 半）— 评审判 **REJECT**，FIX 中
+
+**首轮交付（提交 027410f）**：`output.ts`（`isJson`/`emitJson`/`fail`）+ 五条只读命令的 `--json` 分支 + `resume` 提示抑制 + `USAGE` 说明；`tsc 0`、**125 文件 / 1313 passed + 1 skipped**。
+
+**独立裁定 `EVALUATION-REPORT-12.md`：REJECT（有条件）**：
+- **通过**：AC2 两模式口径一致（`totals` 同源、`daily` 同参、`recent` 同表达式）、AC3 stdout 纯净、AC5 默认路径零改动（既有断言无需改）、敏感字段白名单剔除 `apiKey`、`output.test.ts` 4 例非永真。
+- **必修 1（AC4，有直接反例）**：`provider list --json` 遇损坏 `providers.json` 时 `ProviderStore` 抛错冒泡到 `main()` 兜底 → **人类文案写 stderr**（我用真实 CLI 复现：`exit=1`、stderr 为「配置文件损坏：…」、`stderrIsJson=空`）。评审另点名 5 处同类未 JSON 化的错误出口。
+- **必修 2（AC1）**：五条命令的 `--json` **零用例覆盖**（违反 AGENTS.md 规则 7）。
+
+**FIX（进行中）**：① `jsonCommands.test.ts`（7 例，走真实 `main()`）**已落盘并通过**——含"两模式数值一致（比数值不比格式化串）"、"`provider list --json` 不含 `apiKey`"、"`sessions list --json` 空表恰为 `{sessions:[]}`"、"损坏 `usage.json` 时 `--json` 仍返回 0 且 stdout 可解析"（**AC1 已满足**）；② 把 `main()` 兜底 catch 与 5 处错误出口改为 `--json` 下输出 JSON 信封（`fail(...)`）——**实现卡在途**。
+
+**方法论确认**：本轮我的 E2E 覆盖了"正常路径 + 数据损坏但被内部降级"两种情形，却**漏了"错误冒泡到 CLI 顶层"这一层**——独立 Evaluator 用一条反例就把它抓出来。**教训（第 5 条纪律）：错误路径的 `--json` 契约必须在"异常冒泡到入口"的层级验证**，而不是只验证命令内部已捕获的失败。
+
+## 纪律
+
+**交付（提交 027410f）**：
+- 新增 `apps/cli/src/output.ts`：`isJson(flags)` / `emitJson(value)`（**唯一 stdout 出口**，只打一段 JSON）/ `fail(code,msg,flags,human?)`（JSON 模式打 stderr 信封 `{error:{message,code}}`）。
+- **五条只读命令**支持 `--json`：`usage`（`totals/daily/byProvider/byModel/recent`，**与人类报表同参**复用 `since`/`until`/`--recent`）、`provider list`（**逐字段白名单**）、`models`（三分支全覆盖，含 mock 分支原本会打人类提示的路径）、`sessions list`（空表输出 `{"sessions":[]}`）、`settings list`（`{settings:{theme,locale}}`）。
+- `resume` 的前置提示用 `!isJson` 抑制（否则破坏"stdout 只有一段 JSON"）；`USAGE` 补 `--json` 说明。
+- 沿用 `--json` 分支**全部提前 return** 的写法，保证**默认路径零改动**。
+
+**验收侧证据（真实 CLI E2E + 全量）**：`tsc 0`；**125 文件 / 1313 passed + 1 skipped / exit 0**；判别性结论：① `usage --json` 可解析、keys 正确、无「使用统计」标题；② **两模式数值一致**——写入 1M in + 0.5M out（有价目）→ `EXPECTED=2 / TEXT=2 / JSON=2 / NUMERIC_EQUAL=true`；③ `provider list --json` **无 `apiKey` 字段**；④ `sessions list --json` → `{"sessions": []}`，而人类模式仍为「暂无历史会话」提示（**默认路径未变**）；⑤ `settings list --json` 正常。
+
+**本轮由 E2E 捕获的 2 个真实缺口**（实现者自证均为"已完成"）：
+1. **`sessions list --json` 形同虚设**：JSON 分支挂在 `opts.json` 上，但 `cli.ts` 调 `cmdSessionsList()` 时**未传 opts**（正是侦察报告预言的"seam 有、未接线"）→ 已修为 `cmdSessionsList({ json: isJson(parsed.flags) })`。
+2. **口径分裂**：`usage --json` 用无参 `daily()/recent()`，人类报表用 `--since/--until/--recent` → 已改为复用同一批变量。
+3. **密钥泄露风险（由实现者主动发现并规避）**：`store.list()` 会经 CredentialStore 把 `secretRef` 解析成**明文 `apiKey`**，故 `provider list --json` 采用逐字段白名单而非 `{...p}` 展开。
+
+**测试隔离加固（延续 Round 9 的泄漏事故）**：`vitest.setup.ts` 全局兜底 + 8 个 describe 与 8 个测试文件逐处钉 `VESSEL_SESSION_ROOT`；全量跑完 `~/.vessel/sessions.json` mtime 未变（`realRegistryTouched=False`）；审计确认 5 处默认构造点、6 个导入 `main` 的测试文件与 6 处 `createVesselServer` 调用全部已覆盖，`apps/web` 独立配置且不触碰会话。
+
+**待办**：命令侧 `--json` 的 Vitest 覆盖（补 AGENTS.md 规则 7；走真实 `main()`）；`output.fail()` 与 guidance/sessions 两处失败路径的走线不统一（一处走 `error` seam、一处走 `console.error`）——记为 P3 一致性项。
+
 ## 纪律
 
 - 并发执行器上限 2；一卡一执行器；删除走回收站；密钥不落盘；测试隔离（`VESSEL_*_ROOT` 注入）。

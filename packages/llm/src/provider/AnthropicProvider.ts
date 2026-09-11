@@ -229,7 +229,7 @@ export class AnthropicProvider implements ChatProvider {
 
     const data = (await resp.json()) as AnthropicResponseBody;
     if (data.error) {
-      throw new Error(`anthropic error: ${data.error.message ?? data.error.type}`);
+      throw new Error(`anthropic error: ${sanitizeErrorBody(data.error.message ?? data.error.type ?? 'unknown')}`);
     }
 
     // Parse content blocks → text + tool_use calls.

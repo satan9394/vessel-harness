@@ -51,7 +51,7 @@ function argvText(call: ExecCall): string {
 
 /**
  * 核心断言：`forbidden` 里的任何材料都不得出现在 argv；`required` 里的材料必须全部
- * 出现在 options.input（stdin）里。
+ * 出现在 options.input（stdin）里；且脚本本身必须真的消费 stdin（`$input`）。
  */
 function expectMaterialsOnlyOnStdin(
   call: ExecCall,
@@ -69,6 +69,10 @@ function expectMaterialsOnlyOnStdin(
   for (const material of required) {
     expect(stdin).toContain(material);
   }
+  // 不仅要"材料走 input"，还要断言脚本真的读 $input（否则 input 传了也没人消费）。
+  // 非 Windows 上真实往返用例被 it.skipIf 跳过，这条断言是 mocked 用例里"stdin 确实被消费"的唯一证据。
+  const scriptArg = call[1].find((a) => String(a).includes('ConvertFrom-Json')) ?? '';
+  expect(String(scriptArg)).toContain('$input');
 }
 
 describe('WindowsDpapiCredentialStore — DPAPI 材料只走 stdin（G-05）', () => {

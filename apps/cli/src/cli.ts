@@ -38,7 +38,7 @@ import { resolveResumeTarget } from './sessions/resume.js';
 import { loadModelCatalog, findCatalogModelByBase, findCatalogModelMatch, catalogPriceSource, listCatalogModels } from './providers/modelCatalog.js';
 import { syncModelCatalog, MODELS_DEV_URL, DEFAULT_SYNC_TIMEOUT_MS, MAX_SYNC_RETRIES } from './providers/pricingSync.js';
 import { loadPricing, assertCostMultiplier, DEFAULT_COST_MULTIPLIER, type TokenPrice } from './providers/pricing.js';
-import { emitJson, isJson } from './output.js';
+import { emitJson, fail, isJson } from './output.js';
 
 const USAGE = `${VESSEL_LOGO}
 Vessel CLI v${VERSION} — 可组合 Agent Harness（品牌 Vessel）
@@ -415,8 +415,8 @@ async function cmdModels(flags: Map<string, string>): Promise<number> {
   const id = flags.get('provider') ?? store.getCurrent();
   const cfg = store.get(id);
   if (!cfg) {
-    console.error(`[vessel] provider "${id}" 不存在（vessel provider list 查看；vessel provider add 添加）`);
-    return 2;
+    const message = `[vessel] provider "${id}" 不存在（vessel provider list 查看；vessel provider add 添加）`;
+    return fail(2, message, flags, () => console.error(message));
   }
   if (cfg.protocol === 'mock') {
     if (isJson(flags)) {
@@ -447,9 +447,12 @@ async function cmdModels(flags: Map<string, string>): Promise<number> {
       for (const m of src.models) console.log(line(m));
       return 0;
     } catch (err) {
-      console.error(`[vessel] ${(err as Error).message}`);
-      console.error('提示：可先用内置清单，或确认 base-url/api-key 正确。');
-      return 1;
+      const detail = `[vessel] ${(err as Error).message}`;
+      const hint = '提示：可先用内置清单，或确认 base-url/api-key 正确。';
+      return fail(1, `${detail}\n${hint}`, flags, () => {
+        console.error(detail);
+        console.error(hint);
+      });
     }
   }
   // anthropic (no live enumeration) or openai-compatible without baseUrl
@@ -985,8 +988,8 @@ async function cmdUsage(args: string[], flags: Map<string, string>): Promise<num
   const until = flags.get('until');
   for (const [name, value] of [['since', since], ['until', until]] as const) {
     if (value !== undefined && !isLocalDateKey(value)) {
-      console.error(`[vessel usage] --${name} 需要本地日 YYYY-MM-DD（收到 "${value}"）。`);
-      return 2;
+      const message = `[vessel usage] --${name} 需要本地日 YYYY-MM-DD（收到 "${value}"）。`;
+      return fail(2, message, flags, () => console.error(message));
     }
   }
 
@@ -1556,8 +1559,13 @@ export async function cmdWeb(flags: Map<string, string>): Promise<number> {
   }
 }
 
-export async function main(argv: string[] = process.argv.slice(2)): Promise<number> {
-  const parsed = parseArgs(argv);
+/**
+ * 命令分派（原 `main()` 主体，逐字未改）。
+ *
+ * 异常语义保持「向上抛」：非 `--json` 时由下面的 `main()` 原样重新抛出，交给入口
+ * `.catch` 走 `describeStartupFailure` 人话渲染 + exit 1（与改动前逐字一致）。
+ */
+async function dispatch(parsed: ParsedArgs): Promise<number> {
   // subcommand forms: `vessel provider <sub>`, `vessel models`
   const first = parsed.positionals[0];
   if (first === 'provider') return cmdProvider(parsed.positionals.slice(1), parsed.flags);
@@ -1577,8 +1585,8 @@ export async function main(argv: string[] = process.argv.slice(2)): Promise<numb
   if (first === 'sessions') {
     const sub = parsed.positionals[1] ?? 'list';
     if (sub !== 'list') {
-      console.error(`未知 sessions 子命令 ${sub}。可用：vessel sessions list`);
-      return 2;
+      const message = `未知 sessions 子命令 ${sub}。可用：vessel sessions list`;
+      return fail(2, message, parsed.flags, () => console.error(message));
     }
     return cmdSessionsList({ json: isJson(parsed.flags) });
   }
@@ -1619,8 +1627,8 @@ export async function main(argv: string[] = process.argv.slice(2)): Promise<numb
   // (`vessel foo`, `vessel chat`, ...) → explicit error + exit 2, NEVER a
   // silent run. TUI's real entry is the no-arg `vessel`.
   if (first !== undefined) {
-    console.error(`未知命令 ${first}。可用：vessel --help`);
-    return 2;
+    const message = `未知命令 ${first}。可用：vessel --help`;
+    return fail(2, message, parsed.flags, () => console.error(message));
   }
   // bare `vessel` (no subcommand): interactive TUI in a TTY; guide otherwise.
   if (first === undefined && parsed.command === 'run' && !parsed.flags.has('bench')) {
@@ -1654,6 +1662,31 @@ export async function main(argv: string[] = process.argv.slice(2)): Promise<numb
   }
   // bare `vessel models` (no positionals parsed as command) — treat as run
   return cmdRun(parsed.flags);
+}
+
+/**
+ * CLI 入口（`main()` 的唯一导出名，签名与语义对调用方不变）。
+ *
+ * BRIEF-10 验收 4 的兜底出口：`--json` 下命令抛出的异常（如 `providers.json` 损坏时
+ * `ProviderStore` 的 `providers file corrupted (...)` 冒泡）**不得**再走人话渲染——
+ * 就地转成 stderr 上的 `{error:{message,code}}` 信封 + 退出码 1。
+ *
+ * 为什么在 `main()` 内部兜底而不是改入口 `.catch`：入口处在 `main().then(...).catch(...)`，
+ * 那时 `parsed.flags`（`parseArgs` 的产物）在 `main()` 作用域内，入口拿不到；在此处
+ * 分流是唯一无需暴露解析结果、也不改 `parseArgs` 的做法。
+ *
+ * 非 `--json` 分支**故意重新抛出**：入口 `.catch` 的 `describeStartupFailure` 渲染
+ * （P0 崩溃面契约，见 `cli.crashSurface.test.ts`：`main()` 在默认模式必须 reject）与
+ * 退出码 1 保持逐字不变。
+ */
+export async function main(argv: string[] = process.argv.slice(2)): Promise<number> {
+  const parsed = parseArgs(argv);
+  try {
+    return await dispatch(parsed);
+  } catch (err) {
+    if (!isJson(parsed.flags)) throw err;
+    return fail(1, describeStartupFailure(err).message, parsed.flags);
+  }
 }
 
 // ESM entry
