@@ -10,6 +10,8 @@ import { buildRealProvider, describeProviderError, planProvider } from '../provi
 import { modelsForProtocol } from '@vessel/application';
 import { VESSEL_LOGO } from '../brand.js';
 import { findTerm, renderExplain } from '../guide/glossary.js';
+import type { UsageStore } from '../usage/UsageStore.js';
+import { renderCostLines, renderTurnDelta, type UsageTotalsLike } from './costView.js';
 
 /**
  * apps/cli/src/tui/chat.ts — `vessel` interactive chat TUI (V0.7, task 021; brand Vessel).
@@ -165,6 +167,8 @@ export interface ChatOptions {
   behaviorIRPath: string;
   permission?: PermissionMode;
   store?: ProviderStore;
+  /** 会话内成本显示（G-09）：注入后每回合打印增量并启用 `/cost`；缺省则全部静默关闭。 */
+  usageStore?: UsageStore;
   /**
    * 凭据后端（task 106）：**仅在 `store` 缺省时生效**——用于给 TUI 默认 ProviderStore
    * 接上 CredentialStore（测试注入内存后端，不碰真实 secrets.json）。
@@ -270,6 +274,17 @@ export async function runChat(opts: ChatOptions): Promise<number> {
 
   io.write(`${VESSEL_LOGO}Vessel — 交互会话开始（当前 ${providerId} · ${model} · ${permission}）。输入 /help 查看命令，/explain <术语> 或 ? <术语> 查术语解释，/quit 退出；命令行「vessel guide」有新手指引。`);
 
+  // 会话内成本显示（G-09）：基线 = 进入循环前的累计值；未注入 usageStore 则全程静默。
+  const usage = opts.usageStore;
+  let usageBaseline: UsageTotalsLike | undefined;
+  try {
+    usageBaseline = usage ? usage.totals() : undefined;
+  } catch {
+    usageBaseline = undefined;
+  }
+  // 回合增量用「上一回合末」的基线；会话累计用「会话起始」基线（两者分开，避免重复计账）。
+  const sessionBaseline = usageBaseline;
+
   // eslint-disable-next-line no-constant-condition
   while (true) {
     const line = await io.readLine(`\n${providerId}/${model} [${permission}]> `);
@@ -279,7 +294,7 @@ export async function runChat(opts: ChatOptions): Promise<number> {
 
     // slash command dispatch（`? <term>` 与 `/explain <term>` 同义，task 117 引导体系）
     if (input.startsWith('/') || input.startsWith('?')) {
-      const res = await dispatchSlash(input, { store, io, sessionWorkspace: opts.workspaceRoot });
+      const res = await dispatchSlash(input, { store, io, sessionWorkspace: opts.workspaceRoot, usageStore: usage, usageBaseline: sessionBaseline });
       if (res?.output) io.write(res.output);
       if (res?.quit) break;
       continue;
@@ -301,6 +316,17 @@ export async function runChat(opts: ChatOptions): Promise<number> {
     } finally {
       activeTurnInterrupt = null;
     }
+
+    // 每回合成本增量（G-09）：成功 / 中断 / 出错三种分支都在 finally 后执行一次。
+    if (usage && usageBaseline) {
+      try {
+        const turnNow = usage.totals() as UsageTotalsLike;
+        io.write(renderTurnDelta(turnNow, usageBaseline));
+        usageBaseline = turnNow;
+      } catch {
+        io.write('· 本回合成本读取失败');
+      }
+    }
   }
 
   await harness?.close();
@@ -312,7 +338,14 @@ async function mockProvider(model: string) {
 }
 
 /** Slash command table — reused by tests. */
-export async function dispatchSlash(input: string, ctx: { store: ProviderStore; io: ChatSessionIO; sessionWorkspace: string }): Promise<SlashResult> {
+export async function dispatchSlash(input: string, ctx: {
+  store: ProviderStore;
+  io: ChatSessionIO;
+  sessionWorkspace: string;
+  /** G-09：注入后启用 `/cost`；缺省时 `/cost` 返回未启用提示。 */
+  usageStore?: UsageStore;
+  usageBaseline?: UsageTotalsLike;
+}): Promise<SlashResult> {
   // `? <term>` 前缀 = `/explain <term>`（task 117：TUI 内解释，复用同一词库，不重复实现）
   if (input.startsWith('?')) {
     const raw = input.slice(1).trim();
@@ -327,6 +360,16 @@ export async function dispatchSlash(input: string, ctx: { store: ProviderStore; 
   const [cmd, ...rest] = input.slice(1).trim().split(/\s+/);
   const arg = rest.join(' ').trim();
   switch (cmd) {
+    case 'cost':
+    case 'usage': {
+      const costStore = ctx.usageStore;
+      if (!costStore) return { output: '成本显示未启用（本会话未注入 usage store）' };
+      try {
+        return { output: renderCostLines(costStore.totals(), ctx.usageBaseline) };
+      } catch (err) {
+        return { output: `成本读取失败: ${(err as Error).message}` };
+      }
+    }
     case 'help':
       return {
         output: [
@@ -337,6 +380,7 @@ export async function dispatchSlash(input: string, ctx: { store: ProviderStore; 
           '  /permission      切换权限模式（read-only / workspace-write / danger-full-access）',
           '  /setup           完整引导配置',
           '  /explain <术语>  查术语中英文解释（同 ? <术语>，如 /explain Call）',
+          '  /cost            查看本会话成本与累计（同 /usage）',
           '  /help            本帮助',
           '  /quit            退出',
           '直接输入文字 = 对话跑任务',

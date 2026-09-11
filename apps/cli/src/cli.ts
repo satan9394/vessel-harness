@@ -921,7 +921,7 @@ async function cmdUsage(args: string[], flags: Map<string, string>): Promise<num
   }
 
   const t = store.totals();
-  console.log('=== 使用统计（~/.vessel/usage.json）===');
+  console.log(`=== 使用统计（${path.join(resolveUsageRoot(), 'usage.json')}）===`);
   console.log(`总消耗: input ${t.inputTokens.toLocaleString()} · output ${t.outputTokens.toLocaleString()} · cache 读 ${t.cacheReadTokens.toLocaleString()} · cache 写 ${t.cacheCreationTokens.toLocaleString()} · 调用 ${t.calls}`);
   console.log(`估算成本: $${t.costUsd.toFixed(4)}（${t.providers} 供应商 / ${t.models} 模型）`);
   const b = t.costBreakdown;
@@ -1508,6 +1508,7 @@ export async function main(argv: string[] = process.argv.slice(2)): Promise<numb
         policySystemPath: parsed.flags.get('policy') ?? path.join(root, 'configs', 'policy.default.yaml'),
         behaviorIRPath: parsed.flags.get('behavior') ?? path.join(root, 'configs', 'behavior.default.yaml'),
         permission: (parsed.flags.get('permission') ?? 'workspace-write') as 'read-only' | 'workspace-write' | 'danger-full-access',
+        usageStore: createUsageStore({ strict: parsed.flags.has('strict') }),
       });
     }
     if (!parsed.flags.has('prompt')) {

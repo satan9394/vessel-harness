@@ -38,6 +38,13 @@
 - ✅ **Round 3 已闭环（提交 eea9e4c / 28a1e9d）**：**N1**（"坏配置 → exit 1 + 路径 + 指引"契约的 in-process 测试）、**N2**（分类精度：ENOENT 无条件优先 + 精确 JSON 签名 + 覆盖 ProviderStore 措辞）、**N5**（`ChatMessage.source` 收窄 + 双向漂移守卫）。独立裁定 `EVALUATION-REPORT-04.md` **ACCEPT**；证据：`tsc 0`、`vitest 117 文件 / 1255 passed + 1 skipped`、崩溃面 E2E 三例（含干净对照）。
 - 🎯 **Round 4 NOW = G-07（P1）**：`apps/web` 游离于 `tsc -b` 项目图外 —— Gate1 只跑根 `tsc -b`、Gate7 只探 `apps/web/dist` 是否存在、`apps/web` 无 typecheck 脚本 ⇒ **web 的 TS 类型错误可静默通过全部 8 道发布门禁**。这是"验证机器自身的洞"（门禁本应拦住它），修法低成本（web 加 typecheck 脚本并纳入 Gate1，或把 web 纳入 tsc 图）。
 
+- ✅ **Round 4 已闭环（提交 84977ea / 5104419）**：**G-07** `apps/web` 拉进 Build 门禁（Gate1 同时跑根 `tsc -b` 与 `apps/web tsc -p`，纯函数 `judgeBuildPair`，web 探测失败显式 pending）。独立裁定 `EVALUATION-REPORT-05.md` **ACCEPT**；判别性 E2E：注入 web 类型错误 → 根构建仍 0 而门禁 FAIL。
+- ✅ **Round 5 / 5b 已闭环（提交 c2639ca → 50a395b）**：**G-04** usage 数据不再静默丢失（损坏 → 改名隔离留档 + warn + 空表继续；写前备份轮转 `backups/usage.<ts>.json`，`opts > VESSEL_USAGE_BACKUP_KEEP > 5`，零删除）+ P2 补修（读失败按 `err.code` 分流、`suppressWrite` 抑制覆盖、隔离名 `-N` 唯一化）。`EVALUATION-REPORT-06/07` 两轮 **ACCEPT**；真实 CLI E2E 双例通过。
+- ✅ **Round 6 已闭环（提交 50a395b）**：**G-05a** 密钥不入 argv（DPAPI 材料改走 stdin `$input`；探针实测 `[Console]::In.ReadToEnd()` 在本环境 spawn EPERM）+ secrets 损坏默认可恢复（含 **DPAPI 构造期**漏转发 `recoverCorrupted` 的修复，R5 残留）。`EVALUATION-REPORT-07` **ACCEPT**。
+- ✅ **Round 7 已闭环（提交 39a9b0d）**：**G-05b** provider 错误体回显脱敏（新增 `errorBody.ts`：剥 URL + 遮蔽 `sk-`/`Bearer`/JSON 字段，240 截断；OpenAI/Anthropic 四处 throw 改造）。`EVALUATION-REPORT-08` **ACCEPT（0 必修）**；真实 HTTP E2E 双 provider 零泄漏。
+- 🆕 **Round 7b 候选（P3 集群，同主题低成本）**：① 截断先于遮蔽 → 跨 240 边界的 key 残留 ≤5 字符（改 mask-then-truncate）；② `OpencodeGoProvider.ts:214` 只走 `sanitizeWireSnippet`、不遮密钥；③ HTTP 200 带 error 体时 `OpenAICompatibleProvider:125`/`AnthropicProvider:232` 仍原样回显；④ 非 `sk-` 形态（`gsk_`/`AIza`/`hf_`）；⑤ `dpapiArgv.test.ts` 未断言脚本含 `$input`。
+- 🎯 **Round 8 NOW = G-09（P2）**：TUI 会话内成本可见性——`/cost`（别名 `/usage`）+ 每回合一行成本增量；`vessel usage` 标题改为实际 root（修展示漂移）。数据与 `UsageStore` 早已存在，纯展示切片；未注入 store 时成本显示静默关闭（回归保护）。
+
 ## 状态更新（第 1 轮闭环 + 新增候选）
 
 - ✅ **已闭环（提交 080423d → 76a19e1）**：**G-01**（mock 遮蔽真实输入）、**G-02**（未知命令静默 run）、**G-14**（引导文案 + setup 向导 `cah`→`vessel`）。独立 Evaluator 两轮裁定：Round 1 **REJECT**（S1 未知命令零测试 / S2 `cah` 属实 / S3 注入源漏 plan·handoff·inject / S4 TUI 未同步）→ FIX 轮 → Round 2 **ACCEPT**（逐项行号证据）。验收侧证据：`tsc 0`、`vitest 114 文件 1235 passed + 1 skipped`、CLI E2E 冒烟 6 项全过。

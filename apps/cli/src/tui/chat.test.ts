@@ -10,6 +10,8 @@ import { fileURLToPath } from 'node:url';
 import type { SyncCredentialStore } from '@vessel/application';
 import { ProviderStore } from '../providers/ProviderStore.js';
 import { providerStateRoot } from '../providers/defaultStore.js';
+import type { PricingTable } from '../providers/pricing.js';
+import { UsageStore } from '../usage/UsageStore.js';
 import { dispatchSlash, runChat, makeLineReader, resolveChatStore, TwoStageCtrlC, type ChatSessionIO } from './chat.js';
 
 const REPO_ROOT = fileURLToPath(new URL('../../../../', import.meta.url)); // apps/cli/src/tui → repo root
@@ -445,5 +447,115 @@ describe('task 106 — TUI 凭据接线 + 测试隔离', () => {
       else process.env.USERPROFILE = savedHome;
       fs.rmSync(fakeHome, { recursive: true, force: true });
     }
+  });
+});
+
+describe('G-09 — TUI 会话内成本显示（/cost · /usage · 每回合增量）', () => {
+  let root: string;
+  let usageRoot: string;
+  let oldProviderRoot: string | undefined;
+  let oldUsageRoot: string | undefined;
+
+  /**
+   * 固定价目（形状照抄 `UsageStore.recovery.test.ts` 的 PRICING）：
+   * `deepseek-chat` 有专属单价 → 下面 `$` / `1000 in / 500 out` 的断言才非空转。
+   */
+  const PRICING: PricingTable = {
+    models: {
+      default: { input: 0.5, output: 1.5, cacheRead: 0.1 },
+      'deepseek-chat': { input: 0.27, output: 1.1, cacheRead: 0.07 },
+    },
+    protocols: {},
+  };
+
+  beforeEach(() => {
+    root = fs.mkdtempSync(path.join(os.tmpdir(), 'vessel-tui-'));
+    usageRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'vessel-tui-'));
+    // task 106 / AGENTS.md 硬性约束 8：runChat 默认路径会构造默认 ProviderStore / UsageStore，
+    // 两个 root 都必须指到临时目录 —— 绝不读真实 ~/.vessel（也不写真实用量历史）。
+    oldProviderRoot = process.env.VESSEL_PROVIDER_ROOT;
+    oldUsageRoot = process.env.VESSEL_USAGE_ROOT;
+    process.env.VESSEL_PROVIDER_ROOT = root;
+    process.env.VESSEL_USAGE_ROOT = usageRoot;
+  });
+
+  afterEach(() => {
+    if (oldProviderRoot === undefined) delete process.env.VESSEL_PROVIDER_ROOT;
+    else process.env.VESSEL_PROVIDER_ROOT = oldProviderRoot;
+    if (oldUsageRoot === undefined) delete process.env.VESSEL_USAGE_ROOT;
+    else process.env.VESSEL_USAGE_ROOT = oldUsageRoot;
+    fs.rmSync(root, { recursive: true, force: true });
+    fs.rmSync(usageRoot, { recursive: true, force: true });
+  });
+
+  /** 注入 store（临时 root + 固定价目）并预先记一条用量：本会话基线之前就有数据。 */
+  const seededUsageStore = (): UsageStore => {
+    const usageStore = new UsageStore({ rootDir: usageRoot, pricing: PRICING });
+    usageStore.record({ provider: 'deepseek', model: 'deepseek-chat', inputTokens: 1000, outputTokens: 500 });
+    return usageStore;
+  };
+
+  const newStore = (): ProviderStore => new ProviderStore({ rootDir: root });
+
+  it('① 注入 usageStore 后 /cost 给出本会话与累计', async () => {
+    const usageStore = seededUsageStore();
+    const { io } = scriptedIO([]);
+    const res = await dispatchSlash('/cost', {
+      store: newStore(),
+      io,
+      sessionWorkspace: root,
+      usageStore, // 不注入 usageBaseline → 基线 = 会话开始前的累计（0），本会话 = 全部
+    });
+    const out = res?.output ?? '';
+    expect(out).toContain('本会话:'); // 本会话一行
+    expect(out).toContain('累计:'); // 累计一行
+    expect(out).toContain('$'); // 金额带 $ 前缀
+    expect(out).toContain('次调用'); // 会话内调用次数
+    expect(out).toContain('1000 in / 500 out'); // 数字确实来自那一条 record，不是占位符
+  });
+
+  it('② /usage 与 /cost 同义：同一 ctx 下输出逐字相同', async () => {
+    const usageStore = seededUsageStore();
+    const ctx = { store: newStore(), io: scriptedIO([]).io, sessionWorkspace: root, usageStore };
+    const cost = await dispatchSlash('/cost', ctx);
+    const usage = await dispatchSlash('/usage', ctx);
+    expect(usage?.output).toBe(cost?.output); // 别名，不是另一套文案
+    expect(usage?.output).toContain('本会话:');
+    expect(usage?.output).toContain('累计:');
+  });
+
+  it('③ 未注入 usageStore 时 /cost（与 /usage）给出未启用提示', async () => {
+    const { io } = scriptedIO([]);
+    const res = await dispatchSlash('/cost', { store: newStore(), io, sessionWorkspace: root });
+    expect(res?.output).toContain('成本显示未启用');
+    const alias = await dispatchSlash('/usage', { store: newStore(), io, sessionWorkspace: root });
+    expect(alias?.output).toContain('成本显示未启用');
+  });
+
+  it('④ 回归保护：runChat 未注入 usageStore → 输出中绝无「· 本回合」成本行', async () => {
+    const { io, output } = scriptedIO(['你好', '/quit']);
+    const code = await runChat({
+      workspaceRoot: root,
+      policySystemPath: POLICY,
+      behaviorIRPath: BEHAVIOR,
+      io,
+    });
+    expect(code).toBe(0);
+    const out = output.join('\n');
+    expect(out).toContain('交互会话开始'); // 冒烟真的跑起来了 → 下面的阴性断言不是空转
+    expect(out).not.toContain('· 本回合'); // 未注入 = 全程静默，一行成本都不打印
+  });
+
+  it('⑤ 对照：注入 usageStore → runChat 每回合打印「· 本回合」（证明 ④ 的阴性断言非空洞）', async () => {
+    const { io, output } = scriptedIO(['你好', '/quit']);
+    const code = await runChat({
+      workspaceRoot: root,
+      policySystemPath: POLICY,
+      behaviorIRPath: BEHAVIOR,
+      io,
+      usageStore: new UsageStore({ rootDir: usageRoot, pricing: PRICING }),
+    });
+    expect(code).toBe(0);
+    expect(output.join('\n')).toContain('· 本回合'); // 同一冒烟路径，注入后确有成本行
   });
 });

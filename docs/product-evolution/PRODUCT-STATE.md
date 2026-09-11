@@ -101,6 +101,20 @@
 - **行为证据（真实 CLI）**：损坏 `secrets.json` → 「[credential] secrets 文件损坏（invalid JSON …）已隔离备份到 `<tmp>\secrets.json.corrupted-<epochMs>`，凭据被重置为空；请核对后重建。」+ `provider list` **exit 0**（此前硬抛、CLI 全灭）+ 隔离文件内容 = `{oops`。
 - 下一轮候选：**错误体回显脱敏**（R4：`OpenAICompatibleProvider` 回显 500 字符原文，建议复用 OpencodeGo 的 `sanitizeWireSnippet` 口径）；其后 G-09（TUI 成本可见性）、G-10/G-11/G-13。
 
+## Round 7（G-05b：错误体回显脱敏）— 已闭环
+
+**交付**：`packages/llm/src/provider/errorBody.ts`（`sanitizeErrorBody`：复用 `sanitizeWireSnippet` 剥 URL/压空白/截断 + 遮蔽 `sk-…`/`Bearer …`/JSON 的 `api_key|authorization|token`）；`OpenAICompatibleProvider:120/195`、`AnthropicProvider:227/318` 四处回显改造；`errorBody.test.ts` 7 例。
+
+**验收侧证据**：`tsc 0`；**121 文件 / 1280 passed + 1 skipped / exit 0**；**判别性 E2E**：本地假 provider 回 401（体内含 `sk-live-abcdef1234567890` 与 `api.internal.example.com`）→ 两 provider 抛出的 message 均为 `…: {"error":{"message":"invalid api key sk-<redacted> — see <url>`，`leaksKey=false leaksUrl=false`。
+
+**独立裁定 `EVALUATION-REPORT-08.md`：ACCEPT（0 必修项）**。新发现 4 项 P3（主题同一，留作下一小切片）：① 截断先于遮蔽 → 恰好跨 240 边界的 key 会残留 ≤5 字符片段（建议 mask-then-truncate）；② `OpencodeGoProvider.ts:214` 的 detail 只走 `sanitizeWireSnippet`、**不遮密钥**；③ HTTP 200 带 error 体时 `OpenAICompatibleProvider:125`/`AnthropicProvider:232` 仍原样回显 `body.error.message`；④ 非 `sk-` 形态（`gsk_`/`AIza`/`hf_`）在自由文本里不遮。另确认 Round 6 遗留 P3 属实：`dpapiArgv.test.ts` 未断言脚本含 `$input`。
+
+## Round 8（G-09：TUI 会话内成本可见性）— 实现中
+
+- 目标：`/cost`（别名 `/usage`）命令 + 每回合一行成本增量；`vessel usage` 标题不再硬编码 `~/.vessel`（展示与实际一致）。
+- 设计要点：`UsageStore` 由 `cli.ts` TUI 入口注入（`cli.ts` 第 280 行已有同款用法），**未注入时全部成本显示静默关闭**（回归保护）。
+- 状态：两件实现卡首轮均未落盘，已重派。
+
 ## 纪律
 
 - 并发执行器上限 2；一卡一执行器；删除走回收站；密钥不落盘；测试隔离（`VESSEL_*_ROOT` 注入）。
