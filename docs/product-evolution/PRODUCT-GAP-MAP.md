@@ -51,6 +51,9 @@
 - 🆕 **G-11 之 MCP 半（P2，独立切片）**：侦察确认 CLI 面 **零** MCP 引用、库级管道已通（`compose.ts:246-250` + `mcpTools.ts:34` 的 `mcp__<server>__<tool>`），但 **StdioTransport 只认 `process.execPath`**（`McpClient.ts:48-52`）是真实技术缺口，需扩传输层签名；不与 `--json` 混合以免一轮多主题。
 - 🆕 **Round 7b 候选（P3 集群）**：错误体卫生 5 项（mask-then-truncate、`OpencodeGo:214`、HTTP 200 带 error 两处、`gsk_/AIza/hf_` 形态、`$input` 断言）。
 
+- ✅ **Round 11 / 12 已闭环**：**G-13-P1**（TUI `/permission`·`/model` 假成功 → 确认即生效 + 重建立即重建 + 落盘 `SessionMeta`）、**G-13-P2/P3**（locale 接 CLI+TUI 的 explain；theme 文案四处诚实化）。独立裁定 `EVALUATION-REPORT-15.md` **双双 ACCEPT**。**教训（纪律 8）**：安全设置的"已生效"必须在确认瞬间为真。
+- ✅ **Round 13（G-11 之 MCP 半）已实现并修复**：CLI/TUI 可读 `~/.vessel/mcp.json`；`StdioTransport` 支持任意命令（win32 白名单 shell，避免 args 二次解析注入）；stdout 缺失显式 throw；配置读取器 fail-loud（ENOENT 静默/损坏拒绝）；**逐 server 降级**（配错一个不再让 CLI 打不开）；真跨进程 E2E（含反假绿自证）。首轮评审判 **REJECT**（`EVALUATION-REPORT-16.md`）：**孤儿子进程**（`close()` 的 2s SIGKILL 被 50ms 路径 `clearTimeout` 取消）+ **`initialize` 无超时**（会永久挂起）+ 测试缺口 → FIX 六项全部落盘（双层 5s 超时、close 定时器只在 `exit`/`error` 清除、CLI 抛错时 close 已 spawn 连接、`.cmd` 可操作降级、`connections.test.ts`、`config.test.ts` 入库）。**由此新增纪律 9（测试不得替被测代码兜底）/10（实测优先于静态推断）/11（区分真红与并发假红）**。
+
 ## 状态更新（第 1 轮闭环 + 新增候选）
 
 - ✅ **已闭环（提交 080423d → 76a19e1）**：**G-01**（mock 遮蔽真实输入）、**G-02**（未知命令静默 run）、**G-14**（引导文案 + setup 向导 `cah`→`vessel`）。独立 Evaluator 两轮裁定：Round 1 **REJECT**（S1 未知命令零测试 / S2 `cah` 属实 / S3 注入源漏 plan·handoff·inject / S4 TUI 未同步）→ FIX 轮 → Round 2 **ACCEPT**（逐项行号证据）。验收侧证据：`tsc 0`、`vitest 114 文件 1235 passed + 1 skipped`、CLI E2E 冒烟 6 项全过。
