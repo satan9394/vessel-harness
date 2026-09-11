@@ -4,7 +4,13 @@ import * as path from 'node:path';
 import { spawn } from 'node:child_process';
 import { VERSION, renameWithRetry } from '@vessel/shared';
 import { MockProvider } from '@vessel/llm';
-import { composeHarness, type EnforcementProjection } from '@vessel/application';
+import {
+  composeHarness,
+  SessionRegistry,
+  type ComposeOptions,
+  type EnforcementProjection,
+  type SessionMeta,
+} from '@vessel/application';
 import { createVesselServer } from '@vessel/local-server';
 import { ProviderStore, parseBackupKeep, type ProviderConfig } from './providers/ProviderStore.js';
 import { createDefaultProviderStore } from './providers/defaultStore.js';
@@ -28,6 +34,7 @@ import { runVesselMigration } from './migrate.js';
 import { cmdReview } from './review/reviewCommands.js';
 import { cmdExplain, cmdListTerms, cmdGuide, cmdSettings } from './guide/guideCommands.js';
 import { cmdSessionsList } from './sessions/commands.js';
+import { resolveResumeTarget } from './sessions/resume.js';
 import { loadModelCatalog, findCatalogModelByBase, findCatalogModelMatch, catalogPriceSource, listCatalogModels } from './providers/modelCatalog.js';
 import { syncModelCatalog, MODELS_DEV_URL, DEFAULT_SYNC_TIMEOUT_MS, MAX_SYNC_RETRIES } from './providers/pricingSync.js';
 import { loadPricing, assertCostMultiplier, DEFAULT_COST_MULTIPLIER, type TokenPrice } from './providers/pricing.js';
@@ -74,6 +81,7 @@ Vessel CLI v${VERSION} — 可组合 Agent Harness（品牌 Vessel）
   vessel provider endpoint test --all                       探测所有供应商的端点
   vessel migrate                     一次性迁移旧状态目录 ~/.dsh → ~/.vessel（数据复制 + 旧目录进回收站）
   vessel sessions list               列出历史会话（最近活动在前）
+  vessel resume <id>|--last           恢复历史会话（--last = 最近一条）
   vessel review handoff <request.json>   生成外部评审 handoff（.vessel/reviews/<id>/handoff.md；task 059）
   vessel review import <id> <result 文件>  导入外部评审结果（[--source external|internal]，落库）
   vessel review list                 列出外部评审 reviews
@@ -268,19 +276,46 @@ async function cmdRun(flags: Map<string, string>): Promise<number> {
       },
     );
 
-  const harness = await composeHarness({
+  // permission 提成局部变量：既传给 composeHarness，也用于 G-10 会话登记
+  // （ComposeOptions.permission 是可选的，登记表的 permission 字段必填）。
+  const permission = (flags.get('permission') ?? 'workspace-write') as 'read-only' | 'workspace-write' | 'danger-full-access';
+  const composeOpts: ComposeOptions = {
     workspaceRoot: workspace,
     provider,
     model,
     policySystemPath: flags.get('policy') ?? path.join(root, 'configs', 'policy.default.yaml'),
     behaviorIRPath: flags.get('behavior') ?? path.join(root, 'configs', 'behavior.default.yaml'),
     maxSteps: Number(flags.get('max-steps') ?? 64),
-    permission: (flags.get('permission') ?? 'workspace-write') as 'read-only' | 'workspace-write' | 'danger-full-access',
+    // `vessel resume` 透传：不给 sessionId 时 Session.open 会新建空会话，恢复语义失效。
+    sessionId: flags.get('session-id'),
+    permission,
     // V0.9 usage statistics: record this session's model usage persistently
     // （task 086：--strict 只用模型专属价目，未收录模型按 0 计价）
     usageStore: createUsageStore({ strict: flags.has('strict') }),
     usageProvider: currentId,
-  });
+  };
+  const harness = await composeHarness(composeOpts);
+
+  // G-10：让 CLI 建的会话进入会话登记表，否则 `vessel sessions list` 看不到它、无法 resume。
+  try {
+    const registry = new SessionRegistry();
+    const now = new Date().toISOString();
+    // resume（--session-id 已存在）时保留原 createdAt，只让 put() 刷新 updatedAt（最近活动）。
+    const existing = registry.get(harness.session.sessionId);
+    const meta: SessionMeta = {
+      id: harness.session.sessionId,
+      workspaceRoot: composeOpts.workspaceRoot,
+      provider: currentId,
+      model: composeOpts.model,
+      permission,
+      createdAt: existing?.createdAt ?? now,
+      updatedAt: now,
+    };
+    registry.put(meta);
+  } catch (err) {
+    // 登记失败不得阻断本次运行（只提示）
+    console.warn(`[vessel] 会话登记失败（不影响本次运行）：${(err as Error).message}`);
+  }
 
   for (const w of harness.behaviorWarnings) console.warn(`[behavior] ${w}`);
 
@@ -1499,6 +1534,20 @@ export async function main(argv: string[] = process.argv.slice(2)): Promise<numb
       return 2;
     }
     return cmdSessionsList();
+  }
+  if (first === 'resume') {
+    const args = parsed.positionals.slice(1);
+    // Agent 侦察结论：Session.open 对任意 id 都会建目录，故"不存在的 id"必须在此拦住，
+    // 否则 resume 会静默退化成"新建空会话"。
+    const target = resolveResumeTarget(args, { last: parsed.flags.has('last') });
+    if (!target.ok) {
+      console.error(`[vessel] ${target.message}`);
+      return target.exitCode;
+    }
+    parsed.flags.set('workspace', target.meta.workspaceRoot);
+    parsed.flags.set('session-id', target.meta.id);
+    console.log(`[vessel] 恢复会话 ${target.meta.id}（${target.meta.workspaceRoot}）`);
+    return cmdRun(parsed.flags);
   }
   // G-02: any other first positional is an unknown/misspelled subcommand
   // (`vessel foo`, `vessel chat`, ...) → explicit error + exit 2, NEVER a
