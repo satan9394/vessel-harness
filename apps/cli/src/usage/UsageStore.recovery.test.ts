@@ -14,9 +14,34 @@ import type { PricingTable } from '../providers/pricing.js';
  * (b) BRIEF-05 写盘前备份轮转：`<rootDir>/backups/usage.<ts>.json`，默认保留 5 份，
  *     环境变量 `VESSEL_USAGE_BACKUP_KEEP` 可覆盖（`0` = 完全关闭）。
  *
+ * (c) 读失败抑制写入（P2 补测）：`usage.json` **存在但读不到**（EACCES/EPERM/EBUSY…，非 ENOENT）时，
+ *     置位 `suppressWrite` + warn，本进程**不再写**该文件（连备份都不做）——宁可不写，也不覆盖。
+ * (d) 同毫秒二次损坏（P2 补测）：`<file>.corrupted-<ts>` 已存在时退化为 `-1`/`-2`，
+ *     第二份隔离不得覆盖第一份。
+ *
  * 隔离纪律：全部落在 `mkdtempSync(os.tmpdir(), 'vessel-usage-')`，绝不触碰真实 `~/.vessel`；
  * 断言一律「只读目录列举」，不用 unlink/rm 做「检查删除」。
  */
+
+// 注入「读 usage.json 失败」用 `vi.mock('node:fs')` 而非 `vi.spyOn(fs, 'readFileSync')`：
+// node:fs 的 ESM 命名空间导出 non-configurable，vitest 2.1.9 下 `vi.spyOn` 会报
+// "Cannot redefine property"（同 packages/engine/src/project-task-queue.test.ts 与
+// packages/application/src/credential/dpapiArgv.test.ts 的注释与写法）。
+// 这里默认**原样委托**真实实现，只有 `readFileSync` 且 `denyRead` 谓词命中时才抛注入的错误，
+// 其余 API / 其余路径不受影响（本文件既有用例照常走真实 fs）。
+const fsHooks = vi.hoisted(() => ({ denyRead: null as null | ((file: unknown) => boolean) }));
+
+vi.mock('node:fs', async () => {
+  const actual = await vi.importActual<typeof import('node:fs')>('node:fs');
+  const readFileSync = actual.readFileSync;
+  return {
+    ...actual,
+    readFileSync: vi.fn((...args: Parameters<typeof readFileSync>) => {
+      if (fsHooks.denyRead?.(args[0])) throw Object.assign(new Error('denied'), { code: 'EACCES' });
+      return readFileSync(...args);
+    }),
+  };
+});
 
 const PRICING: PricingTable = {
   models: {
@@ -152,5 +177,56 @@ describe('usage — 损坏隔离 + 写盘前备份轮转（G-04 / BRIEF-05）', 
     // 再次写盘不增长（上限恒定）
     recordOnce(store, 99);
     expect(listBackups(dir).length).toBe(5);
+  });
+
+  it('读失败（非 ENOENT，EACCES）不得静默覆盖：suppressWrite 生效，本进程不再写 usage.json', () => {
+    const usageFile = path.join(dir, 'usage.json');
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    // 只让「读 usage.json」失败；断言 / 备份等其它路径照旧走真实实现
+    fsHooks.denyRead = (file) => typeof file === 'string' && path.resolve(file) === path.resolve(usageFile);
+    try {
+      // 构造即触发 load()：EACCES（非 ENOENT）→ 置位 suppressWrite + 一句含路径的 warn
+      const store = new UsageStore({ rootDir: dir, pricing: PRICING });
+      expect(store.totals().calls).toBe(0); // 以空表继续，不抛错
+
+      expect(warn).toHaveBeenCalled();
+      const warned = warn.mock.calls.flat().join(' | ');
+      expect(warned).toContain('usage.json');
+      expect(warned).toContain('EACCES'); // 确系「读失败」告警，不是别的 warn 蒙混过关
+
+      // 读不到原文时仍记录一次：save() 必须提前返回，不得用空表覆盖
+      recordOnce(store);
+
+      expect(fs.existsSync(usageFile)).toBe(false); // 一个字节都没落盘（没被空表覆盖）
+      expect(listBackups(dir)).toEqual([]); // 抑制写入时连备份都不该做
+      expect(fs.existsSync(path.join(dir, 'backups'))).toBe(false);
+    } finally {
+      fsHooks.denyRead = null;
+      warn.mockRestore();
+    }
+  });
+
+  it('同毫秒二次损坏不覆盖前一份隔离文件（<file>.corrupted-<ts>-N 唯一化）', () => {
+    const usageFile = path.join(dir, 'usage.json');
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const nowSpy = vi.spyOn(Date, 'now').mockReturnValue(1_700_000_000_000); // 固定时钟：逼出同毫秒
+    try {
+      fs.writeFileSync(usageFile, '{bad1', 'utf8');
+      const first = new UsageStore({ rootDir: dir, pricing: PRICING }); // 第 1 次损坏隔离
+      expect(first.totals().calls).toBe(0);
+
+      fs.writeFileSync(usageFile, '{bad2', 'utf8');
+      const second = new UsageStore({ rootDir: dir, pricing: PRICING }); // 第 2 次（同一毫秒）
+      expect(second.totals().calls).toBe(0);
+
+      const quarantined = listCorrupted(dir).sort();
+      expect(quarantined).toHaveLength(2); // 二次损坏不得覆盖前一份
+      const contents = quarantined.map((n) => fs.readFileSync(path.join(dir, n), 'utf8')).sort();
+      expect(contents).toEqual(['{bad1', '{bad2']); // 两份原字节都在（只改名留档，不删除）
+      expect(fs.existsSync(usageFile)).toBe(false); // 两份都让位给隔离文件
+    } finally {
+      nowSpy.mockRestore();
+      warn.mockRestore();
+    }
   });
 });

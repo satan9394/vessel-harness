@@ -86,22 +86,20 @@
 
 **判别性 E2E（决定性证据）**：注入 `apps/web/src/__probe_bad.ts`（类型错误）→ **根 `tsc -b` 仍 exit 0**（证明 web 原本在门禁视野外），而 **build 门禁 verdict=fail**（`web tsc exit=2`）；清理后回 `pass`。**独立裁定 `EVALUATION-REPORT-05.md`：ACCEPT**。
 
-## Round 5（G-04：用量数据不再静默丢失）— 实现完成，评审 ACCEPT，P2 补修在途
+## Round 5（G-04：用量数据不再静默丢失）— 已闭环（含 P2 补修）
 
-**交付**：`UsageStore.quarantineCorrupted()`（损坏 → 改名 `<file>.corrupted-<ts>` 留档 + `console.warn` + 空表继续）、`backupKeepOpt` + `resolveBackupKeep()`（**opts > `VESSEL_USAGE_BACKUP_KEEP` > 默认 5**）、`backupBeforeWrite()`（`backups/usage.<ts>.json`，超限改名+覆盖最旧，**零删除**，失败只 warn）、`save()` 中调用；新增 5 例恢复测试。
+**交付**：`UsageStore.quarantineCorrupted()`（损坏 → 改名 `<file>.corrupted-<ts>[-N]` 留档 + `console.warn` + 空表继续）、`backupKeepOpt` + `resolveBackupKeep()`（**opts > `VESSEL_USAGE_BACKUP_KEEP` > 默认 5**）、`backupBeforeWrite()`（`backups/usage.<ts>.json`，超限改名+覆盖最旧，**零删除**，失败只 warn）、`save()` 中调用；新增 5 例恢复测试。**P2 补修**：`load()` 读失败按 `err.code` 分流（ENOENT 静默 / 其它 code warn + `suppressWrite`）、隔离名唯一化、rename 失败置 `suppressWrite`、`save()` 开头抑制检查。
 
-**验收侧证据（指挥真实 CLI E2E）**：损坏 `usage.json`（`{oops`）→ `vessel usage` 打出「已隔离为 …\`usage.json.corrupted-<epochMs>\`（内容保留，未删除）」、命令 exit 0、目录仅剩隔离文件且内容 = `{oops`；连跑 3 次 → `backups/` **5** 份（默认上限）；`KEEP=0` → 不建 backups 目录。全量 **118 文件 / 1263 passed + 1 skipped / exit 0**、`tsc 0`。
+**验收侧证据（指挥真实 CLI E2E）**：损坏 `usage.json`（`{oops`）→ `vessel usage` 打出「已隔离为 …\`usage.json.corrupted-<epochMs>\`（内容保留，未删除）」、exit 0、目录仅剩隔离文件且内容 = `{oops`；连跑 3 次 → `backups/` **5** 份（默认上限）；`KEEP=0` → 不建 backups 目录。全量 **120 文件 / 1271 passed + 1 skipped / exit 0**、`tsc 0`。独立裁定 `EVALUATION-REPORT-06.md`：**ACCEPT**（两项 P2 已补修，交 Round 5b 复核）。
 
-**独立裁定 `EVALUATION-REPORT-06.md`：ACCEPT**，但列出两项 P2（其一按 BRIEF-05 硬验收项即为缺陷）：
-- **P2-1**：`load()` 的读失败 catch **未判 `err.code`** → EACCES/EPERM/EBUSY 与 ENOENT 一样静默空表，随后 `save()` 会用空表覆盖"存在但读不到"的文件（G-04 同类静默丢失路径残留）。
-- **P2-2**：`quarantineCorrupted` 的 rename 失败分支**只告警、无抑制写入状态位** → 若 tmp→rename 成功则损坏原文被覆盖，与 BRIEF-05「不得覆盖损坏文件」冲突。
-→ **已派 FIX 卡**（新增 `suppressWrite` 字段 + 读失败按 code 分流 + 隔离名去重 + `save()` 开头抑制检查），修完复验并请新一任 Evaluator 复核（Round 5b）。
+## Round 6（G-05a：密钥不进命令行 + secrets 损坏默认可恢复）— 实现完成，评审在途
 
-## Round 6（G-05a：密钥不进命令行 + secrets 损坏默认可恢复）— 实现中
-
-- **DPAPI 走 stdin**：`CredentialStore.dpapiProtect/dpapiUnprotect` 已改为固定脚本 + `input: JSON.stringify({payload, entropy})`，命令行不再含密钥/熵材料（待我以 spy + 真实往返验证）。
-- **secrets 损坏默认可恢复**：`defaultStore` 传 `recoverCorrupted: true`（在途）；库层默认仍 fail-loud，显式 `false` 语义不变。
-- 下一轮候选：错误体回显脱敏（R4，`OpenAICompatibleProvider` 500 字符原文）；其后 G-09（TUI 成本可见性）、G-10/G-11/G-13。
+- **密钥不再进 argv**：`dpapiProtect/dpapiUnprotect` 改为固定脚本 + `$o = $input | ConvertFrom-Json`，材料只经 `execFileSync(..., { input })` 走 **stdin**（`CredentialStore.ts:342/363`）。
+- **secrets 损坏默认可恢复**：`defaultStore` 传 `recoverCorrupted: true`；并补上 **DPAPI 构造期路径**的漏转发（`CredentialStore.ts:449` → `readSecretsFile(this.secretsFile, { recover: this.recoverCorrupted })`，`readSecretsFile` 三处现已全部转发）；库层默认仍 fail-loud，显式 `false` 语义不变。
+- **测试**：新增 `dpapiArgv.test.ts`（4 例：argv 无材料 / 材料只在 `input` / probe 双调用 / **真实 ProtectedData 往返**）与 `defaultStore.recovery.test.ts`（4 例：默认可恢复 / 恢复后仍可用 / 显式 false 仍抛 / ENOENT 不误伤）。
+- **本轮由验证捕获的硬缺陷**（3 项）：① stdin 第一版用 `[Console]::In.ReadToEnd()` 使真实 DPAPI 往返 **5 例红**，探针实测该形态 `spawnSync EPERM`、`$input` 成功 → 改形态；② DPAPI **构造期**漏转发 `recoverCorrupted`（R5 残留，由测试作者独立发现）；③ 新测试用例②因 seed 占用 `id:'ds'` 报 duplicate（测试缺陷，非实现）。
+- **行为证据（真实 CLI）**：损坏 `secrets.json` → 「[credential] secrets 文件损坏（invalid JSON …）已隔离备份到 `<tmp>\secrets.json.corrupted-<epochMs>`，凭据被重置为空；请核对后重建。」+ `provider list` **exit 0**（此前硬抛、CLI 全灭）+ 隔离文件内容 = `{oops`。
+- 下一轮候选：**错误体回显脱敏**（R4：`OpenAICompatibleProvider` 回显 500 字符原文，建议复用 OpencodeGo 的 `sanitizeWireSnippet` 口径）；其后 G-09（TUI 成本可见性）、G-10/G-11/G-13。
 
 ## 纪律
 

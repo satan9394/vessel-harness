@@ -8,6 +8,7 @@ import type {
   StreamChunk,
 } from '@vessel/shared';
 import { OpenAIStreamParser } from '../stream/parseOpenAI.js';
+import { sanitizeErrorBody } from './errorBody.js';
 
 interface OpenAIChatMessage {
   role: string;
@@ -116,7 +117,7 @@ export class OpenAICompatibleProvider implements ChatProvider {
 
     if (!resp.ok) {
       const text = await resp.text().catch(() => '');
-      throw new Error(`OpenAI-compatible ${resp.status} ${resp.statusText}: ${text.slice(0, 500)}`);
+      throw new Error(`OpenAI-compatible ${resp.status} ${resp.statusText}: ${sanitizeErrorBody(text)}`);
     }
 
     const body = (await resp.json()) as OpenAIResponseBody;
@@ -191,7 +192,7 @@ export class OpenAICompatibleProvider implements ChatProvider {
 
       if (!resp.ok) {
         const text = await resp.text().catch(() => '');
-        throw new Error(`OpenAI-compatible ${resp.status} ${resp.statusText}: ${text.slice(0, 500)}`);
+        throw new Error(`OpenAI-compatible ${resp.status} ${resp.statusText}: ${sanitizeErrorBody(text)}`);
       }
 
       const body = resp.body;

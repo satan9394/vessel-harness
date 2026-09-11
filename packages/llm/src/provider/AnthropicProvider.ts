@@ -8,6 +8,7 @@ import type {
   StreamChunk,
 } from '@vessel/shared';
 import { AnthropicStreamParser } from '../stream/parseAnthropic.js';
+import { sanitizeErrorBody } from './errorBody.js';
 
 /**
  * llm/provider — Anthropic native protocol provider (Messages API + tool_use).
@@ -223,7 +224,7 @@ export class AnthropicProvider implements ChatProvider {
 
     if (!resp.ok) {
       const text = await resp.text().catch(() => '');
-      throw new Error(`Anthropic ${resp.status} ${resp.statusText}: ${text.slice(0, 500)}`);
+      throw new Error(`Anthropic ${resp.status} ${resp.statusText}: ${sanitizeErrorBody(text)}`);
     }
 
     const data = (await resp.json()) as AnthropicResponseBody;
@@ -314,7 +315,7 @@ export class AnthropicProvider implements ChatProvider {
       const resp = await fetch(url, { method: 'POST', headers, body: JSON.stringify(body), signal: controller.signal });
       if (!resp.ok) {
         const text = await resp.text().catch(() => '');
-        throw new Error(`Anthropic ${resp.status} ${resp.statusText}: ${text.slice(0, 500)}`);
+        throw new Error(`Anthropic ${resp.status} ${resp.statusText}: ${sanitizeErrorBody(text)}`);
       }
 
       const rbody = resp.body;
