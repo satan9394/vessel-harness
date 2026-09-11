@@ -9,8 +9,9 @@
  * 设置读写天然隔离，绝不碰真实 ~/.vessel；独立设置测试注入 VESSEL_SETTINGS_ROOT）。
  *
  * 当前设置项：theme（主题配色 dark|light）、locale（输出语言 zh|en）。
- * 职责边界：只做「说明 + 存取值」，不改 core/策略/定价；theme 的实际换肤在
- * UI 层使用（不在本卡范围做 UI 大改）。
+ * 职责边界：只做「说明 + 存取值」，不改 core/策略/定价。theme 目前**没有任何消费者**：
+ * 取值只被持久化到 settings.json，不影响输出/渲染（文案如实标注为未生效）；
+ * locale 会被 guide 真正消费（后续 explain 亦然）。
  */
 
 import * as fs from 'node:fs';
@@ -50,8 +51,8 @@ export interface SettingDef {
 export const SETTINGS_DEFS: readonly SettingDef[] = [
   {
     key: 'theme',
-    zh: '界面主题：CLI 输出使用的配色方案（展示用偏好，实际换肤由 UI 层消费）。',
-    en: 'UI theme: the color scheme the CLI output uses (a display preference consumed by the UI layer).',
+    zh: '界面主题：CLI 输出使用的配色方案（当前版本仅保存该偏好，尚未作用于任何输出/渲染；后续版本生效）。',
+    en: 'UI theme: the color scheme for CLI output (this version only stores the preference — it does not affect any output/rendering yet; effective in a later version).',
     values: [
       { value: 'dark', zh: '深色（默认）', en: 'dark (default)' },
       { value: 'light', zh: '浅色', en: 'light' },

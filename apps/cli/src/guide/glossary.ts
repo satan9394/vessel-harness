@@ -111,9 +111,9 @@ export const GLOSSARY: readonly GlossaryEntry[] = [
     term: 'theme',
     name: 'theme',
     aliases: ['主题', '配色'],
-    zh: '主题：界面/输出配色方案设置（dark 深色 / light 浅色）。用 `vessel settings set theme <dark|light>` 切换；`vessel settings list` 查看说明与当前值。',
-    en: 'Theme — the UI/display color scheme preference (dark | light).',
-    usage: '用途：自定义 CLI 观感。\nUsage: customizes the CLI look and feel.',
+    zh: '主题：界面/输出配色偏好设置（dark 深色 / light 浅色）。用 `vessel settings set theme <dark|light>` 保存该偏好；当前版本仅保存、不影响任何输出/渲染；`vessel settings list` 查看说明与当前值。',
+    en: 'Theme — the UI/display color-scheme preference (dark | light), stored via `vessel settings set theme <dark|light>`. This version only saves the preference and does not affect any output or rendering.',
+    usage: '用途：预留的界面配色偏好（当前仅保存、不生效）。\nUsage: a reserved UI color-scheme preference (stored only in this version; no effect yet).',
   },
   {
     term: 'locale',

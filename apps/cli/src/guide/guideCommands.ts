@@ -43,7 +43,7 @@ function settingsStoreFor(opts: GuideCliOptions): SettingsStore {
 /** `vessel explain <term>`（别名 `vessel term <term>`）——查词库给中英文解释。 */
 export async function cmdExplain(
   args: string[],
-  _flags: Map<string, string>,
+  flags: Map<string, string>,
   opts: GuideCliOptions = {},
 ): Promise<number> {
   const log = logOf(opts);
@@ -59,7 +59,24 @@ export async function cmdExplain(
     log(`未收录术语 "${term}"。试试: vessel list-terms（查看全部 ${listTerms().length} 条），或换个叫法（如 小蜜/Call/Collect）。`);
     return 2;
   }
-  log(renderExplain(entry));
+  // 生效 locale（优先级同 cmdGuide）：--locale 显式 > settings.locale > 'zh'。
+  let locale: GuideLocale;
+  const raw = flags.get('locale');
+  if (raw !== undefined) {
+    if (raw !== 'zh' && raw !== 'en') {
+      errorOf(opts)(`--locale 需要 zh|en（收到 "${raw}"）。`);
+      return 2;
+    }
+    locale = raw;
+  } else {
+    // 缺省跟随 settings；settings.json 缺失/损坏/字段残缺一律回退 zh，绝不让 explain 失败。
+    try {
+      locale = settingsStoreFor(opts).load().locale;
+    } catch {
+      locale = 'zh';
+    }
+  }
+  log(renderExplain(entry, locale));
   return 0;
 }
 
@@ -117,7 +134,7 @@ async function cmdSettingsSet(args: string[], opts: GuideCliOptions): Promise<nu
   const value = args[2];
   if (!key || value === undefined) {
     error('用法: vessel settings set <theme|locale> <value>');
-    error('  theme:  dark | light（界面配色）');
+    error('  theme:  dark | light（仅保存偏好；当前不影响输出/渲染）');
     error('  locale: zh | en（输出语言）');
     error('查看说明: vessel settings list');
     return 2;
@@ -144,7 +161,7 @@ async function cmdSettingsSet(args: string[], opts: GuideCliOptions): Promise<nu
     log(`  guide/解释输出语言已切换：vessel guide 现在用 ${value === 'en' ? 'English' : '中文'}。`);
   }
   if (key === 'theme') {
-    log(`  主题已设为 ${value === 'dark' ? '深色（dark）' : '浅色（light）'}（展示偏好，UI 换肤由 UI 层消费）。`);
+    log(`  主题偏好已保存为 ${value === 'dark' ? '深色（dark）' : '浅色（light）'}（仅保存该偏好；当前版本不影响任何输出/渲染）。`);
   }
   return 0;
 }

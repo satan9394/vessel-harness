@@ -10,6 +10,8 @@ import { buildRealProvider, describeProviderError, planProvider } from '../provi
 import { modelsForProtocol } from '@vessel/application';
 import { VESSEL_LOGO } from '../brand.js';
 import { findTerm, renderExplain } from '../guide/glossary.js';
+import type { GuideLocale } from '../guide/guide.js';
+import { SettingsStore } from '../guide/settings.js';
 import type { UsageStore } from '../usage/UsageStore.js';
 import { localDateKey } from '../usage/UsageStore.js';
 import { renderCostLines, renderTurnDelta, renderTodayLine, type UsageTotalsLike } from './costView.js';
@@ -188,6 +190,12 @@ export interface ChatOptions {
   credentialStore?: SyncCredentialStore;
   /** G-10：复用既有会话 id（resume 或重建 harness 时保持一致）；缺省则新建会话。 */
   sessionId?: string;
+  /**
+   * G-13-P2：设置根覆盖（测试注入 tmp；缺省走 resolveSettingsRoot()：
+   * `VESSEL_SETTINGS_ROOT` > `VESSEL_USAGE_ROOT` > `~/.vessel`）。
+   * 只影响解释类命令的 locale 解析，不影响其它任何行为。
+   */
+  settingsRoot?: string;
   io?: ChatSessionIO;
 }
 
@@ -205,6 +213,22 @@ export function resolveChatStore(
   return createDefaultProviderStore(
     opts.credentialStore ? { credentialStore: opts.credentialStore } : {},
   );
+}
+
+/**
+ * G-13-P2：TUI 的生效 locale（`/explain` 与 `? <术语>` 共用，**每会话解析一次**）。
+ *
+ * 优先级与 `vessel explain`（guideCommands.ts `cmdExplain`）逐字一致：settings.locale > 'zh'
+ * —— TUI 内没有 `--locale` 这种显式开关，所以只有 settings 一层。读取 settings 的**任何**失败
+ * （文件损坏 / locale 非法值 / IO 异常）一律回落 'zh'：解释类命令绝不能因为设置读不出来就失败；
+ * settings.json 缺失时 SettingsStore.load() 本身返回默认值 'zh'，行为与改前逐字一致。
+ */
+export function resolveChatLocale(settingsRoot?: string): GuideLocale {
+  try {
+    return new SettingsStore({ rootDir: settingsRoot ?? undefined }).load().locale;
+  } catch {
+    return 'zh';
+  }
 }
 
 export interface SlashResult {
@@ -438,6 +462,11 @@ export async function dispatchSlash(input: string, ctx: {
   /** G-09：注入后启用 `/cost`；缺省时 `/cost` 返回未启用提示。 */
   usageStore?: UsageStore;
   usageBaseline?: UsageTotalsLike;
+  /**
+   * G-13-P2：解释类命令（`/explain`、`? <术语>`）的输出语言，由 `runChat` 按 settings
+   * 解析后传入。**缺省 'zh'**：直接调 `dispatchSlash` 的既有调用方（测试）行为不变。
+   */
+  locale?: GuideLocale;
 }): Promise<SlashResult> {
   // `? <term>` 前缀 = `/explain <term>`（task 117：TUI 内解释，复用同一词库，不重复实现）
   if (input.startsWith('?')) {
