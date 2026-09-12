@@ -172,3 +172,27 @@
 3. **新契约未进 `DESIGN-DECISIONS.md`**：`WaterfallErrorPolicy` 是新增的架构契约（哪些点必须 fail-closed），属文档卡范畴。
 
 **同轮我做的文档同步（提交 `fccd325`）**：`docs/RELEASE-GATES.md` 补上 pending 的**第三类结构性成因**（manifest 声明的能力缺口 `type: indeterminate`；既不计通过也不计失败、在 evidence 里逐个点名、**fail 优先于 pending**）并写明"pending 名单由本次结果动态生成"；`PRODUCT-STATE.md` 标注 `run-release-gates.ts:139` 与脚注两处已修、回收站例外已拍板入 `AGENTS.md`，并列出真正仍待办项。
+
+## Round 46 — 我亲手取证的第五处：**流式解析里"参数先到"的片段被静默丢弃**（真实模型路径）
+
+**代码事实**：`packages/llm/src/stream/parseOpenAI.ts:105-131` 的 `delta.tool_calls` 处理里，`state` **只有** `idByIndex` / `nameByIndex`，**没有任何地方缓存参数片段**；而 `:116-119`：
+```ts
+if (!state.nameByIndex.has(index) && !state.idByIndex.has(index)) {
+  // no identity captured for this index yet — nothing meaningful to emit.
+  continue;                       // ← 该 delta 的 arguments 片段就此消失
+}
+```
+当身份稍后到达时，`:123` 发出的 `tool_call_start` 带的是**那一个 delta** 的 arguments（`tc.function?.arguments ?? ''`），**先前那段永不回补**。
+
+**我的实测（探针喂三帧：仅 arguments → id+name → 续传 arguments）**：
+```
+emitted=start(Read,args="") | delta(".txt\"}")
+assembledArgs=.txt"}
+assembledIsValidJson=false
+firstFragmentLost=true
+```
+⇒ 本该是 `Read {"path":"a.txt"}` 的一次调用，变成**空/残缺且非法 JSON** 的调用，而且**没有任何告警或审计**（既没铸事件，也没降级标记）。**可达性**：OpenAI 官方流通常先发 `id`+`name`，但**网关/代理重排序、以及部分"兼容"实现**会先发 `index`+参数片段 ⇒ 这是一条**真实可发生**的静默数据丢失路径，影响的是**真实模型**这条主路径。
+
+**修法方向**：按 `index` **缓存参数片段**（`argBufferByIndex`），在身份到齐时**先补发已缓存的片段**（`tool_call_start` 的 `arguments` 应为"已缓存片段 + 当前片段"），或在身份未到齐时也**先发一个带占位 id 的 start 并累积参数**；关键是**不丢数据**。配套：**顺序无关**（id/name/args 任意先后都要能正确组装），并补判别性用例——"参数先到"必须能拼出合法 JSON（旧实现拼不出 ⇒ 红）、"正常顺序"行为逐字不变（负对照）。
+
+**同族待查（同文件/同模块，未取证）**：`parseOpenAI.ts:80/199`、`parseAnthropic.ts:56/75/191/215/216/232` 的单帧解析失败 `return []`、结构缺字段整块跳过、EOF 不补 `message_end`（审计报告项，我尚未逐一实测）。
