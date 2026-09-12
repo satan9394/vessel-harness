@@ -292,3 +292,29 @@ finish(): StreamChunk[] {
 - 与既有 `timeoutMs` 选项的关系要定清（是复用该值作 idle 阈值，还是新增独立配置）；**两条路径（chat/stream）的语义差异要在文档或注释里写明**，避免下一个人再踩。
 **判别性验收**：① 上游**不发数据**（假 fetch/reader 永不 resolve）⇒ 必须在 idle 阈值后**以明确超时错误结束**（旧实现永不返回 ⇒ 必红）；② **负对照：慢但持续有数据**（间隔小于阈值）⇒ **不得**被误杀（防"把长回答掐死"）；③ chat 路径既有超时行为**逐字不回归**。
 **未派卡的原因**：`packages/llm` 已有卡在跑（Anthropic 解析），**我不在同一包内并发**；待其落定后派。
+
+## Round 55 — 本段**最严重**的一条（我已实测）：**Anthropic 流式工具调用的参数一直是坏的**
+
+**触发方式**：Anthropic 解析卡的执行者在报告里**主动**报告了一处"更严重、但必然触碰正常路径"的问题，并**没有顺手改**（只报告、等裁决）。我去实测，拿到铁证：
+
+**生产侧（种子）** `packages/llm/src/stream/parseAnthropic.ts:80`：
+```ts
+arguments: block.input == null ? '' : JSON.stringify(block.input)
+```
+**消费侧（累加）** `packages/core/src/agent-loop/AgentLoop.ts:485/492`：
+```ts
+case 'tool_call_start': open.set(chunk.id, { name: chunk.name, args: chunk.arguments });   // 把种子放进累加器
+case 'tool_call_delta': const acc = open.get(chunk.id); if (acc) acc.args += chunk.argumentsDelta;  // 片段"追加"
+```
+**探针原始输出**（规范 Anthropic 流：`content_block_start{tool_use,id,name,input:{}}` → `input_json_delta` 两段 `{"path":` + `"a.txt"}` → `content_block_stop` → `message_stop`，再按消费侧语义累加）：
+```
+seed="{}"
+appended="{\"path\":\"a.txt\"}"
+accumulated="{}{\"path\":\"a.txt\"}"
+parseFailed=true  ⇒ AgentLoop 退化成 {_raw:...}，工具拿不到 path
+```
+**根因与影响面**：Anthropic 流式的 `content_block_start.input` **恒为空对象 `{}`**（真正的 JSON 由 `input_json_delta` 分片到达），而解析器把 `'{}'` 当**种子**写进 `tool_call_start.arguments`、消费侧再**追加**片段 ⇒ 拼出 `'{}{...}'` ⇒ `parseToolArguments` JSON.parse 失败 ⇒ **工具拿到 `{_raw: …}`、没有 `path`**。`callModel` 有 `stream()` 就优先走流式 ⇒ **这是生产热路径**；非流式 `chat()` 直取 `block.input` 不受影响。⇒ **每一次 Anthropic 流式工具调用都是坏的，不是畸形流的边角**。
+**还有一层**：既有测试把它**锁成了期望**——`parseAnthropic.test.ts` 的负对照断言 `tool_call_start{arguments:'{}'}`，即"测试锁住缺陷"的又一例（本段第 3 次）。
+
+**修法决定（我做的取舍）**：倾向**生产侧最小修法 A**——`input` 为**空对象（无自有键）时不写种子**，非空 `input` 仍照旧序列化（兼容"把整份 input 放在 `content_block_start`"的实现）。**不选 B（消费侧首个 delta 覆盖）**：那会让"start 带真实种子"的 provider 丢参数，且改动核心消费逻辑、影响面更大。
+**验收硬要求**：**必须走消费侧**——断言"规范 Anthropic 流 ⇒ 工具最终参数是合法 JSON 且 `path === 'a.txt'`"（旧实现给 `{_raw:…}` ⇒ 必红）；**只测 chunk 形状不算**。允许按新语义更新那条 `'{}'` 旧断言，但须逐条说明改动、论证**不弱于**旧断言，并保留"除该处种子语义外其余 chunk 序列逐字一致"的负对照。**已派卡。**
