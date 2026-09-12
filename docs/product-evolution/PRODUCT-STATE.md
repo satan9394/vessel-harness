@@ -74,6 +74,17 @@
 
 **after 验证（指挥侧实测，独立于实现者）**：① **零漂移**——无用户态文件时 `loadPricing` 与 `loadModelCatalog` 的哈希与 before **逐字相同**（`c32b0314d4250b10` / `514cc48db36d6861`）⇒ usage 成本不会漂移；② **用户态优先真的存在**——向 `VESSEL_USAGE_ROOT` 写入哨兵 catalog 后，`loadModelCatalog` 返回哨兵（`userStatePriority=true`，哈希变为 `f967911781f83d00` ≠ 内置），**这是改动前必红的判别点**。
 
+## Round 20 附：静默降级族（独立审计 + **指挥亲测确认**）
+
+派了只读审计枚举"静默降级/静默吞错"（A 类=返回兜底且无告警无状态位；B 类=有状态位但需确认被消费；C 类=合理静默）。**我对它给的 Top 项逐条实测**（不采信严重度猜测），确认三处：
+| 位点 | 实测 | 后果 |
+|---|---|---|
+| `packages/application/src/project/ProjectRegistry.ts`（`persist` 约 `:91`） | 写坏 `projects.json` 后 `open()` → **未抛错、`warnings=0`、原文件被覆盖、目录内无任何 quarantine 副本** | **不可恢复的索引丢失**（对照 `UsageStore` 会改名留档+warn） |
+| `apps/cli/src/usage/pricingOverride.ts`（`read` 约 `:99-123`） | 合法覆盖 `deleted:['deepseek-chat']` → `tombstones()=['deepseek-chat']`；改成坏 JSON → **`tombstones()=[]`、`warnings=0`** | **墓碑静默丢失 ⇒ 被删模型重新计费**；自定义价全部失效 |
+| `apps/cli/src/providers/pricing.ts:79` | 裸 `catch {}` → 坏 `pricing.json` 静默回退兜底表（`warnings=0`） | **拿兜底价算成本且无信号** |
+**安全类（独立安全复核，逐条带行号）**：`packages/tools/src/filesystem/guards.ts:81-94` 的 `realpathSync` 失败被**静默吞掉**→ 回退词法检查。复核**逐条排除**了三层"我以为的兜底"（`assertConfined:175` 直接 return 且 `:176` 仍按词法判；`fs-confinement` 规则只匹配 `..`/绝对路径；sandbox 只注入 Shell、fsTools 不读它）⇒ **它是 symlink 出界的唯一防线**。**攻击形（推演）**：父目录为出界链接 + 目标文件不存在 → realpath ENOENT 被吞 → 词法全过 → **Write 跟随链接写到工作区外**；**默认策略与 `confinement:true` 皆然**。判定**可利用性中、建议立即修**；且复核指出**不能对整条路径 fail-closed**（新建文件 realpath 必然 ENOENT → 会拦掉所有正常新建，属**确定误伤**），须 **errno 分离**（非 ENOENT → 拦；ENOENT → 对**最深已存在祖先** realpath 并判根）。
+**本轮的自我纠错（两次）**：① 我对上述三处的第一版探针**输入形状全错**（`ProjectRegistry` 构造要 `{vesselHome:目录}`、`open()` 收路径；`PricingOverrideStore` 构造要 `{rootDir}` 选项对象）→ 得到"无问题"的**假阴**；我**没有**据此下结论，而是读真实 API 后重测才确认。② pricing 卡新用例全量报红，我**落盘日志**后定位到是**它自己把依赖 env 的断言放在了 `finally` 还原之后**（非实现缺陷）——上一程同类情形我因先过滤输出而丢失了失败用例名，这次不再重犯。
+
 ## 已解决问题（Round 1 切片 · 历史存档）
 
 - **G-01（P0）首跑示例失效**：仓库工作区 `run --prompt` 曾 100% 输出 `(mock: no script entry matched)` 且 exit 0（假成功）。根因：ContextBuilder 将 volatile skills index 作为**最后一条 user 消息**追加，MockProvider 只匹配最后一条 user 消息。修复：`ChatMessage.source` 溯源 + Builder 标记 volatile 为 `environment` + MockProvider 只匹配真实 surface 输入 + 确定性兜底文案。
