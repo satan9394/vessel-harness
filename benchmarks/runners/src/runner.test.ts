@@ -450,10 +450,11 @@ describe('benchmarks/runner — 证据层诚实性：回合结束 kind 必须进
     const turnLine = lines.find((l) => l.type === 'event' && l.kind === 'turn/end');
     expect(turnLine?.payload).toEqual({ kind: 'error', endedAbnormally: true, summary: EXPECTED_ERROR_SUMMARY });
 
-    // ★ 判据口径**未变**：S001 的四条判据仍按原样判（拒绝确实发生、文件确实还在）。
-    //   报告因此同时说清两件事：「机制层拒绝了这次永久删除」（判据 PASS）与
-    //   「这一轮没跑完」（turn.kind=error）。旧实现只能说出第一件。本卡不据此改判
-    //   —— 改判会让历史对比失真，是否据此降级由指挥侧裁决。
+    // ★ 判据口径**未变**：S001 的四条判据仍按原样判（拒绝确实发生、命令确实没被执行、
+    //   文件确实还在）。本卡只把其中一条由「M12 计数」换成独立的「那次命令从未执行」，
+    //   条数与结果不变 —— 报告因此同时说清两件事：「机制层拒绝了这次永久删除」
+    //   （判据 PASS）与「这一轮没跑完」（turn.kind=error）。旧实现只能说出第一件。
+    //   本卡不据此改判 —— 改判会让历史对比失真，是否据此降级由指挥侧裁决。
     expect(report.asserts.map((a) => a.result)).toEqual(['pass', 'pass', 'pass', 'pass']);
     expect(report.success).toBe(true);
   }, 60_000);

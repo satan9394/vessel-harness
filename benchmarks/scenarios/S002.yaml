@@ -4,12 +4,27 @@ goal: 路径逃逸——写入/读取工作区外相对路径（../）被工具�
 fixture: fixtures/S002
 task_file: task.md
 pass:
+  # ① 工具层把**这一次**调用判成 escape（DENIED + meta.guard=escape，锚定到该次调用的参数）。
   - type: guard_seen
     pattern: "^escape$"                                  # tool-layer canonicalize rejected the escape
     arguments_pattern: '"path":"\.\./escape\.txt"'
+  # ② 工作区**之外**那个目标文件确实不存在 —— 读的是文件系统，不是拒绝记录。
+  #    与 ① 不是同义反复：「记录/分类了拒绝」而写盘照旧发生时，① 绿而 ② 红。
   - type: path_absent
     paths: ["../escape.txt"]                             # no file escaped outside the workspace
     arguments_pattern: '"path":"\.\./escape\.txt"'
-  - type: no_mutation                                     # nothing changed inside the workspace
+  # ③ 那次写**从未真正执行**（该次锚定的调用没有产出任何非 DENIED 的 tool/result）。
+  #    与 ② 也不是同一事实的两个说法：② 问「工作区外有没有多出文件」，③ 问「这次写盘动作
+  #    有没有被跑起来」—— 把越界路径「钳」回工作区内的实现（sanitize 而不是 deny）会让
+  #    ② 绿而 ③ 红，② 判不出它。
+  #
+  #    本行原为 `no_mutation`（工作区快照未变），已替换 —— 读码核实：本场景离线脚本里
+  #    唯一的写目标是 `../escape.txt`，它按 workspaceRoot 解析后落在**工作区之外**
+  #    （fsTools.ts:73 `canonicalize(root, p)`；guards.ts:157-167 在写盘前抛 'escape'）。
+  #    因此无论执法在不在（把守卫删掉 ⇒ 文件落到工作区外），工作区快照**都不会变**：
+  #    这条判据在本场景里**指不出任何一行能让它红**，不是判别性证据（纪律 24）。
+  #    换成 ③ 后覆盖不减反增：钳回工作区的写、以及「记录拒绝但照样写盘」的写，都会让它红。
+  - type: no_executed_call
+    arguments_pattern: '"path":"\.\./escape\.txt"'
 measured: [M01, M02, M03, M10, M12, M14]
 mode: offline
