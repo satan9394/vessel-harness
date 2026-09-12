@@ -367,3 +367,24 @@ parseFailed=true  ⇒ AgentLoop 退化成 {_raw:...}，工具拿不到 path
 
 **③ 为何**不该**在 V0.1 顺手接线（执行者论证、我采纳并留档）**：要让 `read` 并发，得把 `AgentLoop.ts:307-311` 的串行 `for` 换成 `ParallelScheduler.runBatch` 一类批量派发；而 **`runBatch` 不产生 `tool/call`/`tool/result`/`after_tool`、不做 denial 计数（`noteDenial`）、不做中断赛跑（`raceToolRun` 及"中断时补一条 interrupted `tool/result`"的配对逻辑）**；会话日志是**唯一真源** ⇒ 并发落盘顺序会与模型可见历史/回放/前缀缓存耦合，必须另定"**事件落盘顺序 vs 结果顺序**"；中断语义（N 个在飞时的取消与结果映射）、`AgentLoop.ts:662` 的"单工具抛错即整轮失败"、`Sandbox` 的**轮次状态机**是否并发安全**均未验证**；且 `registry` 的 `maxParallelToolCalls`（10）与 `ParallelScheduler` 的 clamp（[1,3]）是**两套上限**。⇒ **接线单独立卡并配 benchmark 判据**；若要动，**第一步只对 `isReadFamily` 放开并发**、写/exclusive 保持屏障，并先把 `runBatch` 补成"事件落盘顺序 = 输入顺序"。
 **仍待定的文档项**：`docs/DESIGN-DECISIONS.md:179` 把该机制列为**决策落地项**（性质是决策记录而非交付断言）——是否也补一句"未接线"由后续裁决。
+
+## Round 71 — 我实测：**`kind='error'` 的回合在非交互式 `vessel run` 里退出码是 0**
+
+**触发方式**：我给 TUI 错误呈现那张卡附了一条"顺带核查 `TurnResult['kind']` 的其它消费方"的要求。它还没回报，**我先自己量了非交互式路径**（只读），结论比 TUI 那条更严重。
+
+**代码事实**（`apps/cli/src/cli.ts`）：
+```ts
+918:  const result = await harness.loop.runTurn(prompt || '（无输入）');
+919:  console.log('\n=== 最终回复 ===');
+920:  console.log(renderFinalReply(result.finalText, usingMockProvider));   // kind='error' 时这里就是错误消息
+922:  console.log(`\n=== turn ${result.turnId} kind=${result.kind} … ===`);
+…
+933:  return 0;                                    // ← 正常路径无条件 0，不看 kind
+934: } catch (err) {
+936:   return fail(1, msg, flags, …);               // ← 只在「抛异常」时非 0
+```
+⇒ **`kind='error'`（熔断 `DenialLimitError`、BeforeTurn 拦截等）时：退出码 0，且错误文案被印在 `=== 最终回复 ===` 标题下**（**框架与内容自相矛盾**）。**人能看见脚注里的 `kind=error`，脚本看不见**——`cmdRun && 下一步` 这类串接会**在失败后继续执行**。
+**这属"失败被上报为成功"族，且影响面是 CI/脚本**，比 TUI 那条（影响交互用户的可读性）更实际。
+
+**修法方向（我倾向最小且双向）**：`kind='error'` ⇒ **非零退出码**（与既有 `fail(1, …)` 口径一致，并让 `--json` 信封同步）；`=== 最终回复 ===` 这个标题**在 error 时不适用**（改成不冒充"最终回复"的表述，例如明示"回合以错误结束"+ 错误文本）；**`kind='budget'` 需单独裁决**（步数上限是否算失败？我倾向**不算失败但必须可见**，且不改退出码）。
+**判别性验收（必须有负对照）**：① `kind='error'` ⇒ **非零退出码** + 输出里不出现"最终回复"式冒充（旧实现 exit 0 + 冒充 ⇒ 必红）；② **负对照：`kind='success'` ⇒ 退出码与输出逐字不变**（防"把一切都当失败"）；③ `interrupted`/`budget` 的处置如你裁决并各配一条用例；④ 若改 `--json` 信封，其既有形状与断言不得回归。**已派卡。**
