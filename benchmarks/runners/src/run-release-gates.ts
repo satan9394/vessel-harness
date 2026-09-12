@@ -17,6 +17,8 @@
  *   3. 按 V1.1-E 任务卡要求，把 deterministic-bench 的 L1 可跑集从 084 默认的 B001-B005
  *      扩展为「L1 B001-B027 可跑集」（B001-B005 + B016-B027，全部 offline 确定性），
  *      纳入 V1.1-D（B024-B027）→ 复用 076 runner 的 runScenario + 084 的 judgeScenarioRuns。
+ *      同时把 packaging gate 的 executor 换成 buildPublishArtifactExecutor()（EVALUATION-REPORT-24 P2：
+ *      判「发布物形状」而非只查本地 dist 是否存在——离线 `npm pack --dry-run` 清单 + pack 期脚本静态断言）。
  *   4. runReleaseGates() 顺序实跑 8 gate（每 gate 经注入的 exec: RunCommand 跑真实命令/判据），
  *      聚合 release-report.json + .md 写到 benchmarks/reports/（084 惯例）。
  *
@@ -337,17 +339,20 @@ export function judgePublishArtifact(facts: PublishArtifactFacts): GateVerdict {
 
   // ① 干净检出前提（静态、确定性、不依赖"本地恰好已有 dist"）。
   if (!facts.packScriptsBuild) {
+    // 实测清单只作对照：本地 dist 存在与否**不参与**本分支判定（这正是"可回归"的要害）。
+    const compareRows = facts.listingParsed
+      ? ['当前工作区实测仅供对照（本地 dist 恰好存在，不代表干净检出）']
+      : ['npm pack 未产出可解析清单，无可对照的实测清单'];
     return {
       status: 'fail',
       evidence: {
         summary:
           'pack 期脚本（prepack / prepare）不构建 dist —— 干净检出（无 dist）下 `npm pack` 会打出缺 ' +
           'dist/cli.js 的坏包，安装后无可用入口',
-        detail: evidence([
-          ...shapeRows,
-          '当前工作区实测仅供对照（本地 dist 恰好存在，不代表干净检出）',
-          '判据：干净检出时包内不会出现 dist/cli.js → 本 gate 必须变红',
-        ]),
+        detail: evidence(
+          [...shapeRows, ...compareRows, '判据：干净检出时包内不会出现 dist/cli.js → 本 gate 必须变红'],
+          !facts.packOk,
+        ),
       },
     };
   }
@@ -429,10 +434,12 @@ export function judgePublishArtifact(facts: PublishArtifactFacts): GateVerdict {
  * 发布物形状 executor（方案 A：**并入** Gate 8 `packaging` —— 复用 gate id/position/criterion 位，
  * 不新增门禁 id，故无需改 gates.ts 的 8 门禁注册表与 types.ts 的 GateId 联合）。
  *
- * 离线：`npm pack` 对 directory spec 是纯本地操作（不查 registry）；`--dry-run` 不落 .tgz
- * （libnpmpack/lib/index.js:38 仅在 `dryRun === false` 时写文件），但会执行 pack 期脚本
- * （prepack 的 copy-configs.mjs 为幂等覆盖式复制，不删除任何文件）。
- * 确定性：判定 ① 不依赖本地 dist 是否存在；判定 ⑤ 以真实 tarball 清单为准。
+ * 离线：`npm pack` 对 directory spec 是纯本地操作（不查 registry），并显式传 `--offline` 把「不联网」
+ * 变成机械保证；`--dry-run` 不落 .tgz（libnpmpack/lib/index.js:38 仅在 `dryRun === false` 时写文件），
+ * 但会执行 pack 期脚本（prepack 的 copy-configs.mjs 为幂等覆盖式复制，不删除任何文件）。
+ * 确定性：判定 ① 不依赖本地 dist 是否存在；判定 ⑤ 以真实 tarball 清单为准；命令行显式传
+ * `--no-color`（不受 `color`/`FORCE_COLOR` 影响 → 清单行无 ANSI）与 `--loglevel=notice`
+ * （不受 .npmrc/env 的 loglevel 影响 → `npm notice` 行一定输出），避免环境配置改变判据输入。
  */
 export function buildPublishArtifactExecutor(): GateExecutor {
   return {
@@ -463,7 +470,10 @@ export function buildPublishArtifactExecutor(): GateExecutor {
       const staticCheck = packScriptsBuildDist(manifest);
 
       const outcome = await ctx
-        .exec('npm', ['pack', '--dry-run'], { cwd: packageDir, timeoutMs: 120_000 })
+        .exec('npm', ['pack', '--dry-run', '--offline', '--no-color', '--loglevel=notice'], {
+          cwd: packageDir,
+          timeoutMs: 120_000,
+        })
         .catch((err: unknown) => ({ code: 1, stdout: '', stderr: String(err) }));
       const output = `${outcome.stderr}\n${outcome.stdout}`;
       const listing = parsePackListing(output);
