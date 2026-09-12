@@ -356,3 +356,14 @@ parseFailed=true  ⇒ AgentLoop 退化成 {_raw:...}，工具拿不到 path
 3. **重复 start 携带不同 `name`**：`tool_call_delta` 词表里**没有 name 字段**（`packages/shared/src/provider.ts:133`）⇒ 名字无处可传，**属词表限制**。
 **执行者的建议（我采纳）**：为**协议违规**另设**独立**只读计数（如 `duplicateStarts`），**不要并进 `malformedFrames`**——后者口径是"字节层面不可解析（截断）"，混在一起会让"连接被截断"与"上游重发帧"两种事故不可区分。**边界必须写清**：`content_block_stop` 之后复用同一 index 是**合法**的（状态已清），**不得**计入；只有"块还开着又来 start"才算异常。
 **已派卡**：做"协议违规计数"（便宜、让上面第 1 条的丢数据**至少可见**），并把第 1 条的**数据保全**修复列为需单独裁决的设计项（它要新增第二个发射点，不能顺手做）。
+
+### Round 68–70 — 计数已落地；`Registry` 链修复 + 文档如实；并记下"**为何不该顺手接线**"
+
+**① 协议违规计数已提交（`2e53751`）**，且它**纠正了我一个说法**：我曾写"子形态②（无 id/name 的重复 start）需要**第二个发射点**才能计数"——**不成立**。把判定放在 `content_block_start` 的**既有记账 prelude**（mapper **之前**）即可**同一处覆盖两个子形态**；**计数器不产出任何 chunk，所以它不是发射点**——"第二个发射点"是**把该帧种子 surface 出去**（**数据保全**）才需要的。**我混淆了"计数"与"保存"。**
+**我裁决的口径**：保持"**块还开着（OPEN）**"判据——协议不变量是"一个 index 在 `content_block_stop` 之前只应有一次 start"，**第二次就是违规**（不论内部是否 started）；换成 `startedIndexes` 会漏掉"两次 start 都无 id/name"这一**同样违规、同样丢种子**的形态。该决定已被锁成具名用例。
+**一条我立刻处理的局限**：`malformedFrames` 与 `duplicateStarts` **当时全仓都没有消费者**（grep 只命中解析器与测试）⇒ **可见性只存在于 getter 里**。"数据在那里"≠"运维能看到"；若没人读，我们只是把"静默丢弃"换成了"**安静地记录在没人看的地方**"。⇒ **已派卡把它们消费掉**（流结束时读取、**计数 > 0 才可见**、**两类成因必须可区分**、规范流零输出；**不许动 `shared` 词表与 `message_end` 形状**）。
+
+**② `Registry` 链中毒已修 + 文档如实（`7e02b17`、`c6add13`）**：`exclusiveChain` 原先被赋成 `then()` 的 promise，一旦 `run()` 抛出就**永久 rejected** ⇒ 之后每次 `.then` 回调**永不执行**（写工具静默不跑）且调用方收到**别人那次的陈旧错误**。修法：回调**自身吸收失败**让链每次 settle 为 resolved，再用 `if (settled.failed) throw settled.failure;` 把**该次自己的**错误如实抛给当次调用方（每调用一个私有 `settled` ⇒ 不存在旧错误串台；既不吞成成功也不降级）。**文档 4 处**（`ARCHITECTURE.md:312/313`、`EVENT-SPEC.md:303/348`）把"已交付/由该 step 的调度保证"改成"**已实现但未接线**"，并**保留**"读并发/写串行"作为**设计意图**——**刻意没改成"安全风险"**（生产全程串行，写不交错这一**性质成立**）。
+
+**③ 为何**不该**在 V0.1 顺手接线（执行者论证、我采纳并留档）**：要让 `read` 并发，得把 `AgentLoop.ts:307-311` 的串行 `for` 换成 `ParallelScheduler.runBatch` 一类批量派发；而 **`runBatch` 不产生 `tool/call`/`tool/result`/`after_tool`、不做 denial 计数（`noteDenial`）、不做中断赛跑（`raceToolRun` 及"中断时补一条 interrupted `tool/result`"的配对逻辑）**；会话日志是**唯一真源** ⇒ 并发落盘顺序会与模型可见历史/回放/前缀缓存耦合，必须另定"**事件落盘顺序 vs 结果顺序**"；中断语义（N 个在飞时的取消与结果映射）、`AgentLoop.ts:662` 的"单工具抛错即整轮失败"、`Sandbox` 的**轮次状态机**是否并发安全**均未验证**；且 `registry` 的 `maxParallelToolCalls`（10）与 `ParallelScheduler` 的 clamp（[1,3]）是**两套上限**。⇒ **接线单独立卡并配 benchmark 判据**；若要动，**第一步只对 `isReadFamily` 放开并发**、写/exclusive 保持屏障，并先把 `runBatch` 补成"事件落盘顺序 = 输入顺序"。
+**仍待定的文档项**：`docs/DESIGN-DECISIONS.md:179` 把该机制列为**决策落地项**（性质是决策记录而非交付断言）——是否也补一句"未接线"由后续裁决。
