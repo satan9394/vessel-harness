@@ -941,9 +941,15 @@ describe('AnthropicProvider.stream — 流诊断（malformedFrames / duplicateSt
       expect(warns).toHaveLength(1);
       expect(warns[0]!).toContain('cause=duplicate-start');
       expect(warns[0]!).toMatch(/未丢/);
-      expect(warns[0]!).toMatch(/丢失/);
+      // **Round 123 改向（纪律 24）**：此前这里断言 `/丢失/` 必须在场，理由是"真正仍会丢的形态
+      // （无 id/name）必须仍在场"。形态 A 修好后**三个形态都不再丢** ⇒ 那句断言表面仍绿
+      // （"均不丢失"里含"丢失"二字），但**意图已落空**——一个名字上还叫"判别"、实际不再判别的
+      // 断言，正是纪律 24 要清掉的东西。现在改为**正面钉住真话**：
+      expect(warns[0]!).toMatch(/三种形态的 seed 均不丢失|均不丢失/);
       expect(warns[0]!).not.toMatch(/已丢弃/);
-      expect(warns[0]!).not.toMatch(/不同 id[^；。]*丢失/); // ← Round 68 的新方向锁
+      expect(warns[0]!).not.toMatch(/不同 id[^；。]*丢失/); // ← Round 68 的方向锁（保留）
+      // 并且**不许**再出现"某形态会丢"的措辞（形态 A 之后已无此形态）：
+      expect(warns[0]!).not.toMatch(/无 id\/name[^；。]*丢失/);
     } finally {
       fake.close();
     }

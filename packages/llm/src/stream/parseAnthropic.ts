@@ -306,12 +306,13 @@ export function anthropicSSELineData(line: string): string | null {
  * guard cannot even see: a repeat that carries no `id`/`name`, for which
  * `parseAnthropicEvent` emits no `tool_call_start` at all (its `block.id &&
  * block.name` guard is false), so feed()'s chunk loop never runs for that frame.
- * Its `input` seed is written into `toolInputJsonByIndex` and read by nobody —
- * `flushToolBlock`, the only reader, serves UNSTARTED blocks, and this index is
- * started — so that shape still loses its data silently. BOTH shapes are now
- * counted, once per violating frame, by the read-only `duplicateStarts` getter,
- * because the count is taken at the frame (before the mapper) rather than at the
- * emitted chunk.
+ * (As written, that shape also lost its `input` seed: it was written into
+ * `toolInputJsonByIndex` and read by nobody — `flushToolBlock`, the only reader,
+ * serves UNSTARTED blocks, and this index is started. Round 69 below closes that
+ * last loss with a fold of its own, taken at the same `identityFrozen` test.)
+ * BOTH shapes are now counted, once per violating frame, by the read-only
+ * `duplicateStarts` getter, because the count is taken at the frame (before the
+ * mapper) rather than at the emitted chunk.
  *
  * Deliberately NOT folded into `malformedFrames`: that one means "this frame's
  * `data:` payload failed JSON.parse — a byte-level failure, whose most common
@@ -340,6 +341,34 @@ export function anthropicSSELineData(line: string): string | null {
  * safe. A block whose identity is still INCOMPLETE is deliberately NOT frozen:
  * completing it from a later frame is Round 52's recovery (the identity-late
  * wire order), and such a block has no consumer-side call to address yet.
+ *
+ * Round 69 — shape A, the last member of the family, and the one no earlier fix
+ * could reach. A repeat that carries NO `id`/`name` but a non-empty `input`
+ * (the two earlier shapes both carry an identity, so they at least produce a
+ * `tool_call_start` for the chunk loop to intercept) makes
+ * `parseAnthropicEvent`'s `block.id && block.name` guard emit NOTHING, so
+ * feed()'s chunk loop — where Round 64's fold and Round 68's frozen address both
+ * live — never runs for that frame. The seed it wrote into
+ * `toolInputJsonByIndex` was read by nobody (`flushToolBlock` serves UNSTARTED
+ * blocks; this index is started), so the frame's arguments vanished with no
+ * chunk, no accumulator entry and no trace beyond the `duplicateStarts` count.
+ * The fold is therefore taken one level up, at the SAME `identityFrozen` test
+ * where the identity freeze is decided: a STARTED index + a frame carrying
+ * neither `id` nor `name` + a non-empty seed ⇒ one `tool_call_delta` addressed
+ * to the block's frozen id, i.e. the id the consumer opened its accumulator
+ * under. Empty seeds emit nothing, the same information-free rule Round 64 uses
+ * for `input:{}`/absent `input`. Every other frame takes the pre-existing path
+ * untouched: a canonical stream never freezes, and a repeat carrying `id`/`name`
+ * still folds in the chunk loop.
+ *
+ * That guard is deliberately the NARROW one. A repeat carrying only ONE of the
+ * two (`id` without `name`, or `name` without `id`) is invisible to the mapper
+ * for exactly the same reason — `block.id && block.name` is false — and still
+ * loses its seed. Widening the second conjunct to `!(block.id && block.name)`
+ * would cover those too and could not double-deliver (on a started index the
+ * `toolInputJsonByIndex` write has no reader at all), but it is a wire shape the
+ * card does not name, so it is left as a separate decision rather than smuggled
+ * in: see the guard's comment in feed().
  */
 export class AnthropicStreamParser {
   /** block index -> tool_use id (only content_block_start carries it). */
@@ -433,31 +462,34 @@ export class AnthropicStreamParser {
    * PEER re-sent a frame the protocol forbids — the UPSTREAM is confused, and
    * what happens to the argument seed riding on the repeat depends on the
    * repeat's SHAPE, which this counter does not look at: Round 64 folded a
-   * same-id repeat's non-empty seed into a `tool_call_delta`, and Round 68 made
+   * same-id repeat's non-empty seed into a `tool_call_delta`, Round 68 made
    * a different-id repeat behave the same by addressing that fold to the block's
-   * FROZEN identity — so a repeat carrying `id`+`name` DELIVERS its seed either
-   * way. Only a repeat carrying no `id`/`name` still loses it (the mapper emits
-   * no chunk for such a frame at all). "Dropped" is therefore NOT a property of
-   * this counter and must never be asserted from it. One merged number would
-   * make "the connection was cut" and "the upstream repeated itself"
-   * observationally identical.
+   * FROZEN identity, and Round 69 gave the last shape — a repeat carrying no
+   * `id`/`name`, which the mapper's identity guard turns into no chunk at all —
+   * a fold of its own at the `identityFrozen` test in feed(). A repeat carrying
+   * a non-empty seed therefore DELIVERS it in all three shapes, and one carrying
+   * an empty seed delivers nothing because there is nothing to deliver.
+   * "Dropped" is therefore NOT a property of this counter and must never be
+   * asserted from it. One merged number would make "the connection was cut" and
+   * "the upstream repeated itself" observationally identical.
    *
    * The criterion is deliberately the literal one — the block is OPEN (no
    * `content_block_stop` seen for this index) and another `content_block_start`
-   * arrives for it — because it is the only criterion that sees BOTH shapes of
-   * the violation:
+   * arrives for it — because it is the only criterion that sees ALL THREE shapes
+   * of the violation:
    *   - the shape Round 64's guard in feed() handles: the repeat carries
    *     `id`+`name`, so a `tool_call_start` IS produced, the guard suppresses it
    *     and folds its non-empty seed into a `tool_call_delta` — addressed, since
    *     Round 68, to the block's frozen identity, so it lands in the consumer's
    *     accumulator whether the repeat's id matches the first start's or not;
-   *   - the shape NOTHING else sees: the repeat carries no `id`/`name`, so
-   *     `parseAnthropicEvent`'s identity guard emits NOTHING for it, feed()'s
-   *     chunk loop never runs, and the seed it wrote into `toolInputJsonByIndex`
-   *     is read by nobody (that map serves unstarted blocks only). Counted here
-   *     all the same, because this test is taken at the FRAME, before the
-   *     mapper — no second emission point is needed for it.
-   * A narrower "already STARTED" test would silently miss the second shape.
+   *   - the shape the chunk loop never reaches: the repeat carries no `id`/`name`,
+   *     so `parseAnthropicEvent`'s identity guard emits NOTHING for it and
+   *     feed()'s chunk loop is never entered. Since Round 69 that frame's
+   *     non-empty seed is folded where the freeze is decided (the `identityFrozen`
+   *     branch of feed()'s content_block_start handling), so it is delivered too.
+   *     Counted here all the same, because this test is taken at the FRAME,
+   *     before the mapper — the count never depended on an emission point.
+   * A narrower "already STARTED" test would silently miss that second shape.
    *
    * NOT counted, by construction: the first start of an index; a start after
    * that index's `content_block_stop` (the entry is deleted there — index reuse
@@ -534,11 +566,45 @@ export class AnthropicStreamParser {
         const identityFrozen = this.startedIndexes.has(index);
         if (block.id && !identityFrozen) this.toolIdByIndex.set(index, block.id);
         if (block.name && !identityFrozen) this.toolNameByIndex.set(index, block.name);
+        const seed = anthropicToolInputSeed(block.input);
+        // Round 69 — shape A of the duplicate-start family, folded HERE because
+        // this is the only place it can be seen. A repeat that carries neither
+        // `id` nor `name` (but a non-empty `input`) makes the mapper's
+        // `block.id && block.name` guard emit no chunk at all, so the chunk loop
+        // below — where Round 64's fold lives — is never entered for that frame,
+        // and the seed it writes into `toolInputJsonByIndex` has no reader
+        // (`flushToolBlock` serves UNSTARTED blocks only). The chunk emitted here
+        // is the very shape the consumer accumulates, addressed to the block's
+        // FROZEN id: AgentLoop.consumeStream appends `argumentsDelta` to the
+        // accumulator opened by the first start's id (`open.get(chunk.id)`), so
+        // the repeat's arguments now land instead of vanishing.
+        //
+        // Three conjuncts, each load-bearing:
+        //   - `identityFrozen`  ⇒ the frame IS a repeat (a first start of an
+        //     incomplete-identity block must keep Round 52's recovery: it has no
+        //     consumer-side call yet, and its seed is delivered by flushToolBlock);
+        //   - `!block.id && !block.name` ⇒ exactly the shape the mapper drops —
+        //     a repeat carrying either one still goes through the chunk loop and
+        //     takes Round 64/68's path, byte-for-byte as before. Deliberately NOT
+        //     widened to `!(block.id && block.name)`: a repeat carrying only ONE
+        //     of the two is invisible to the mapper as well and still loses its
+        //     seed, but it is a shape outside this card, so it stays a named
+        //     residual instead of an unannounced behaviour change;
+        //   - `seed !== ''` ⇒ an information-free repeat (`input:{}` / absent
+        //     `input`) emits NOTHING, the same rule Round 64 applies there. A
+        //     `tool_call_delta` with an empty `argumentsDelta` would be a junk
+        //     chunk the consumer could not even notice.
+        // A canonical stream (one start per index) never has a frozen identity,
+        // so this branch is dead on it.
+        if (identityFrozen && !block.id && !block.name && seed !== '') {
+          out.push({ type: 'tool_call_delta', id: this.toolIdByIndex.get(index) ?? toolIdPlaceholder, argumentsDelta: seed });
+        }
         // Unaffected by the freeze on purpose: this map is read ONLY by
         // flushToolBlock (unstarted blocks), so on a started index the write is
         // inert either way — leaving it alone keeps the Round 52 identity-late
-        // path byte-for-byte as it was.
-        if (block.input != null) this.toolInputJsonByIndex.set(index, anthropicToolInputSeed(block.input));
+        // path byte-for-byte as it was. (Round 69 delivers shape A's seed through
+        // the fold above; this write is still never read.)
+        if (block.input != null) this.toolInputJsonByIndex.set(index, seed);
       }
     }
 
@@ -621,6 +687,12 @@ export class AnthropicStreamParser {
         // opened, the block's own `content_block_stop` still closes that same id,
         // and no orphan `tool_call_end` is produced. On a same-id repeat the two
         // expressions are the same string ⇒ byte-identical output.
+        //
+        // Round 69: this fold only ever sees a repeat that carries an identity —
+        // the mapper must produce a `tool_call_start` for the loop to run at all.
+        // The repeat that carries NEITHER `id` nor `name` is folded upstream, at
+        // the `identityFrozen` test in feed()'s content_block_start handling,
+        // which is the only place that frame is visible.
         if (this.startedIndexes.has(index)) {
           if (c.arguments !== '') {
             out.push({ type: 'tool_call_delta', id: this.toolIdByIndex.get(index) ?? c.id, argumentsDelta: c.arguments });

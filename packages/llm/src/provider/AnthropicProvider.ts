@@ -156,15 +156,16 @@ function streamIdleTimeoutError(providerId: string, idleMs: number): Error {
  *     frame is dropped and NOT retained — the failing line IS in hand at the
  *     point that drops it, the parser just keeps no copy of it;
  *   - `cause=duplicate-start`  — the bytes parsed fine and the UPSTREAM
- *     re-sent a forbidden frame; whether that repeat's argument seed reaches
- *     the consumer depends on the repeat's SHAPE, which this counter does not
- *     distinguish (it counts violating FRAMES, taken before the mapper):
- *     a repeat carrying `id`+`name` is folded into a `tool_call_delta` and IS
- *     delivered — the fold is addressed to the identity fixed by the block's
- *     FIRST start, so that holds whether the repeat re-sends the same id or
- *     carries a different one (Round 68) — while only a repeat carrying no
- *     id/name at all produces no chunk and loses that frame's seed; see the
- *     duplicate-start handling in `parseAnthropic`.
+ *     re-sent a forbidden frame; the repeat's argument seed is DELIVERED, and
+ *     the mechanism differs per shape while this counter does not distinguish
+ *     them (it counts violating FRAMES, taken before the mapper): a repeat
+ *     carrying `id`+`name` is folded into a `tool_call_delta` — addressed to the
+ *     identity fixed by the block's FIRST start, so that holds whether the
+ *     repeat re-sends the same id or carries a different one (Round 68) — while
+ *     a repeat carrying no id/name at all yields no chunk from the mapper and is
+ *     folded where the identity freeze is decided instead (Round 69). A repeat
+ *     whose seed is EMPTY emits nothing on either path, because there is nothing
+ *     to deliver. See the duplicate-start handling in `parseAnthropic`.
  * Each line carries its own machine-readable `key=count`, plus its own cause
  * token, so a log grep / alert rule can tell the two apart.
  *
@@ -216,14 +217,24 @@ function reportStreamDiagnostics(
     // the fold is addressed to the ORIGINAL id and that seed lands as well. Keeping
     // that clause after the fix would be the Round 67 lie with the shapes swapped,
     // so it is gone: "folded and delivered" covers every repeat that carries
-    // id+name, and "lost" is left to the one shape that still is (no id/name).
+    // id+name, and "lost" was left to the one shape that still was (no id/name).
+    //
+    // Round 69 — that last clause is gone too, because the parser closed it: a
+    // repeat carrying no id/name now gets a fold at the identity-freeze point, so
+    // its seed lands as well. THE LINE BELOW THEREFORE DESCRIBES NO LOSS AT ALL —
+    // every shape delivers a non-empty seed, and an empty one has nothing to
+    // deliver. The word 「丢失」 survives only inside 「均不丢失」 (and 「未丢」 for
+    // the id+name fold), which is what a downstream wording assertion reads
+    // (streamProvider.test.ts ⑦): leaving a bare "会丢/丢失" clause here would be
+    // the Round 67 lie a third time.
     warn(
       `[llm][anthropic] stream 诊断 cause=duplicate-start（上游重发帧：协议违规）` +
         `duplicateStarts=${duplicateStarts}: 同一 index 的 content_block_start 在其 content_block_stop 之前再次到达；` +
         `该帧不得覆盖已累积的片段，也不得改写该 index 首次 start 已登记的身份；` +
-        `它携带的 argument seed 是否送达取决于重发帧的形态（见 parseAnthropic 的重复 start 处理）：` +
-        `带 id/name ⇒ start 被抑制，非空 seed 折入一条挂「原 id」的 tool_call_delta 送达（未丢；同 id 与不同 id 皆然，` +
-        `identity 以首次 start 为准）；无 id/name ⇒ 该帧不产生任何 chunk、seed 无读者 ⇒ 丢失`,
+        `它携带的 argument seed 三种形态均已送达（见 parseAnthropic 的重复 start 处理）：` +
+        `带 id/name ⇒ start 被抑制，非空 seed 折入一条挂「原 id」的 tool_call_delta（未丢；同 id 与不同 id 皆然，` +
+        `identity 以首次 start 为准）；无 id/name ⇒ 该帧不产生 start，parser 在冻结判定处直接补一条挂「原 id」的 tool_call_delta（同样未丢）；` +
+        `三种形态的 seed 均不丢失，seed 为空（input:{} 或缺 input）时什么都不发——本就无信息可送`,
     );
   }
 }
