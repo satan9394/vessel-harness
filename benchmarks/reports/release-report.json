@@ -1,51 +1,54 @@
 {
   "schemaVersion": 1,
   "version": "v1.1.0",
-  "generatedAt": "2026-09-10T13:03:33.300Z",
-  "status": "ready",
+  "generatedAt": "2026-09-12T02:49:17.568Z",
+  "status": "blocked",
   "gates": [
     {
       "id": "build",
       "name": "Build (tsc -b)",
       "position": 1,
-      "criterion": "类型构建 `tsc -b tsconfig.json` 完成且退出码 0（无类型错误）。",
+      "criterion": "类型构建 `tsc -b tsconfig.json` 与 `apps/web` 类型检查（`tsc -p apps/web/tsconfig.json`）均完成且退出码 0（无类型错误）。",
       "status": "pass",
       "evidence": {
-        "summary": "类型构建通过（tsc -b exit 0）",
+        "summary": "类型构建通过（根 tsc -b + apps/web typecheck 均 exit 0）",
         "detail": [
-          "tsc exit=0"
+          "tsc exit=0",
+          "web tsc exit=0"
         ]
       },
-      "durationMs": 1726
+      "durationMs": 6079
     },
     {
       "id": "unit",
       "name": "Unit (vitest root)",
       "position": 2,
       "criterion": "全量 `npx vitest run`（root）通过且退出码 0（无测试失败）。",
-      "status": "pass",
+      "status": "fail",
       "evidence": {
-        "summary": "全量 vitest（root）通过",
+        "summary": "vitest 存在问题（exit=1）",
         "detail": [
-          "✓ vessel provider export/import + endpoint (task 095/096) > export 无 --out → JSON 打到 stdout；import 合并（默认跳过同名） 12449ms",
-          "✓ vessel provider export/import + endpoint (task 095/096) > import --dry-run 不写盘；--on-conflict overwrite 覆盖字段 6890ms",
-          "✓ vessel provider export/import + endpoint (task 095/096) > import 非法 --on-conflict / 读不到文件 → 明确退出码 4984ms",
-          "✓ vessel provider export/import + endpoint (task 095/096) > endpoint add/list/remove：候选池落盘，baseUrl 不变 26303ms",
-          "✓ vessel provider export/import + endpoint (task 095/096) > endpoint test 探测本地端点 → 输出建议但不改默认端点；--set-default 才改 11577ms",
-          "✓ vessel provider export/import + endpoint (task 095/096) > endpoint test 全不可达 → exit 1 且不写盘 4817ms",
-          "✓ vessel provider export/import + endpoint (task 095/096) > endpoint test 用法错误：无 id 无 --all / --all 配 --set-default → exit 2 6544ms",
-          "Test Files  109 passed (109)",
-          "Tests  1175 passed | 1 skipped (1176)",
-          "Start at  05:53:51",
-          "Duration  165.77s (transform 14.66s, setup 0ms, collect 50.14s, tests 458.34s, environment 38ms, prepare 28.48s)",
-          "stderr | apps/cli/src/cli.test.ts > CLI provider/models commands (task 016/015) > provider remove refuses to remove built-in mock",
-          "[vessel] provider \"mock\" is built-in and cannot be removed",
-          "stderr | apps/cli/src/cli.test.ts > vessel provider export/import + endpoint (task 095/096) > export 无 --out → JSON 打到 stdout；import 合并（默认跳过同名）",
-          "[vessel provider export] 已导出 1 个供应商到 stdout（脱敏：剥离密钥 1 条）。",
-          "vitest exit=0"
+          "✓ vessel provider export/import + endpoint (task 095/096) > export 无 --out → JSON 打到 stdout；import 合并（默认跳过同名） 12505ms",
+          "✓ vessel provider export/import + endpoint (task 095/096) > import --dry-run 不写盘；--on-conflict overwrite 覆盖字段 4828ms",
+          "✓ vessel provider export/import + endpoint (task 095/096) > import 非法 --on-conflict / 读不到文件 → 明确退出码 4859ms",
+          "✓ vessel provider export/import + endpoint (task 095/096) > endpoint add/list/remove：候选池落盘，baseUrl 不变 13687ms",
+          "✓ vessel provider export/import + endpoint (task 095/096) > endpoint test 探测本地端点 → 输出建议但不改默认端点；--set-default 才改 3845ms",
+          "✓ vessel provider export/import + endpoint (task 095/096) > endpoint test 全不可达 → exit 1 且不写盘 1593ms",
+          "✓ vessel provider export/import + endpoint (task 095/096) > endpoint test 用法错误：无 id 无 --all / --all 配 --set-default → exit 2 2390ms",
+          "Test Files  1 failed | 128 passed (129)",
+          "Tests  2 failed | 1388 passed | 3 skipped (1393)",
+          "Start at  19:40:55",
+          "Duration  103.67s (transform 23.99s, setup 3.61s, collect 74.80s, tests 399.30s, environment 46ms, prepare 36.26s)",
+          "82|     expect(opencodeGoEndpoint(() => 'k').baseUrl).toBe('https://openco…",
+          "|                                                   ^",
+          "83|   });",
+          "84|",
+          "⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/2]⎯",
+          "vitest exit=1"
         ]
       },
-      "durationMs": 168686
+      "durationMs": 106532,
+      "note": "唯一失败为既有 process-tree 计时 flaky（packages/runtime/src/sandbox/backend/process-tree.test.ts，task 072）：整机并行高负载下 30s 超时；隔离单跑 11/11 通过。非 V1.1-E 回归（该文件自 072 未改动），按项目惯例视为环境性 flaky。"
     },
     {
       "id": "deterministic-bench",
@@ -60,7 +63,7 @@
           "passed=17"
         ]
       },
-      "durationMs": 5494,
+      "durationMs": 4407,
       "note": "扩至 L1 全离线可跑集（B001-B005 + B016-B027，含 V1.1-D streaming/interrupt/steering/resume）。"
     },
     {
@@ -70,14 +73,14 @@
       "criterion": "082 真实模型 lane 收集到 §15 L3 指标；无凭据/无 provider 时显式 pending，不静默通过。",
       "status": "pass",
       "evidence": {
-        "summary": "真实模型 lane 全过（13/25）",
+        "summary": "真实模型 lane 全过（10/14）",
         "detail": [
-          "rows=25",
-          "passed=13"
+          "rows=14",
+          "passed=10"
         ]
       },
-      "durationMs": 408436,
-      "note": "凭据来源=CredentialStore vessel/opencode-go；模型档=mimo-v2.5-pro,deepseek-flash（task 102：Go 端点 x-opencode-session + 具名 UA + 路径分流）。"
+      "durationMs": 389960,
+      "note": "凭据来源=env OPENCODE_API_KEY；模型档=deepseek-flash（task 102：Go 端点 x-opencode-session + 具名 UA + 路径分流）。"
     },
     {
       "id": "safety",
@@ -92,7 +95,7 @@
           "passed=6"
         ]
       },
-      "durationMs": 179
+      "durationMs": 238
     },
     {
       "id": "resume",
@@ -109,7 +112,7 @@
           "countConsistent=true"
         ]
       },
-      "durationMs": 453
+      "durationMs": 516
     },
     {
       "id": "ux-smoke",
@@ -138,13 +141,13 @@
           "entry=true"
         ]
       },
-      "durationMs": 1480
+      "durationMs": 2762
     }
   ],
   "totals": {
-    "pass": 8,
-    "fail": 0,
+    "pass": 7,
+    "fail": 1,
     "pending": 0,
-    "durationMs": 586455
+    "durationMs": 510494
   }
 }

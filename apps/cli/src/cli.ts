@@ -309,8 +309,8 @@ async function cmdRun(flags: Map<string, string>): Promise<number> {
   });
   const model = plan.model;
   if (missingBaseUrl(plan)) {
-    console.error(`[vessel] ${plan.providerName} 需要 --base-url 或 VESSEL_BASE_URL（或先 vessel provider add 配置）`);
-    return 2;
+    const msg = `[vessel] ${plan.providerName} 需要 --base-url 或 VESSEL_BASE_URL（或先 vessel provider add 配置）`;
+    return fail(2, msg, flags, () => console.error(msg));
   }
   const realProvider = buildRealProvider(plan);
   const provider =
@@ -363,8 +363,8 @@ async function cmdRun(flags: Map<string, string>): Promise<number> {
   const mcpConfigError = applyMcpConnections(composeOpts);
   if (mcpConfigError !== null) {
     // 配置本身坏了：明确报错并中止（fail-loud），不要静默继续
-    console.error(`[vessel] MCP 配置错误：${mcpConfigError}`);
-    return 1;
+    const msg = `[vessel] MCP 配置错误：${mcpConfigError}`;
+    return fail(1, msg, flags, () => console.error(msg));
   }
   // 缺口 1（BRIEF-13 独立验收）：applyMcpConnections 里 `new StdioTransport(...)` 已经真的
   // **spawn 了子进程**；若随后 composeHarness 抛错，这些连接没有任何 harness 持有（连返回值
@@ -425,8 +425,8 @@ async function cmdRun(flags: Map<string, string>): Promise<number> {
     console.log(`会话日志: ${harness.session.logPath}`);
     return 0;
   } catch (err) {
-    console.error(`[vessel] run failed: ${describeProviderError(err)}`);
-    return 1;
+    const msg = `[vessel] run failed: ${describeProviderError(err)}`;
+    return fail(1, msg, flags, () => console.error(msg));
   } finally {
     await harness.close();
   }
@@ -461,8 +461,8 @@ function printEnforcementTelemetry(enforcement: EnforcementProjection): void {
 async function cmdBench(flags: Map<string, string>): Promise<number> {
   const scenarioId = flags.get('bench');
   if (!scenarioId) {
-    console.error('[vessel] run --bench 需要 scenarioId（如 B001）');
-    return 2;
+    const msg = '[vessel] run --bench 需要 scenarioId（如 B001）';
+    return fail(2, msg, flags, () => console.error(msg));
   }
   const { runScenario } = await import('@vessel/bench-runners');
   const workspace = path.resolve(flags.get('workspace') ?? process.cwd());
@@ -604,8 +604,8 @@ async function cmdProvider(args: string[], flags: Map<string, string>): Promise<
     case 'add': {
       const id = args[1];
       if (!id) {
-        console.error('用法: vessel provider add <id> --protocol <mock|openai-compatible|anthropic> [--base-url <url>] [--api-key <key>] --model <model> [--name <显示名>] [--cost-multiplier <n>]');
-        return 2;
+        const msg = '用法: vessel provider add <id> --protocol <mock|openai-compatible|anthropic> [--base-url <url>] [--api-key <key>] --model <model> [--name <显示名>] [--cost-multiplier <n>]';
+        return fail(2, msg, flags, () => console.error(msg));
       }
       const protocol = flags.get('protocol') as ProviderConfig['protocol'] | undefined;
       const model = flags.get('model');
@@ -623,13 +623,13 @@ async function cmdProvider(args: string[], flags: Map<string, string>): Promise<
         try {
           cfg.costMultiplier = parseCostMultiplier(multiplierRaw);
         } catch (error) {
-          console.error(`[vessel provider add] ${(error as Error).message}`);
-          return 2;
+          const msg = `[vessel provider add] ${(error as Error).message}`;
+          return fail(2, msg, flags, () => console.error(msg));
         }
       }
       if ((cfg.protocol === 'openai-compatible' || cfg.protocol === 'anthropic') && !cfg.baseUrl) {
-        console.error(`[vessel] ${cfg.protocol} 需要 --base-url`);
-        return 2;
+        const msg = `[vessel] ${cfg.protocol} 需要 --base-url`;
+        return fail(2, msg, flags, () => console.error(msg));
       }
       try {
         store.add(cfg);
@@ -637,16 +637,20 @@ async function cmdProvider(args: string[], flags: Map<string, string>): Promise<
         console.log(`已添加 provider "${id}"（protocol=${cfg.protocol}, model=${cfg.model}${multNote}）`);
         return 0;
       } catch (err) {
-        console.error(`[vessel] ${(err as Error).message}`);
-        return 1;
+        const msg = `[vessel] ${(err as Error).message}`;
+        return fail(1, msg, flags, () => console.error(msg));
       }
     }
     case 'set': {
       const id = args[1];
       if (!id) {
-        console.error('用法: vessel provider set <id> [--name <显示名>] [--model <model>] [--base-url <url>] [--api-key <key>] [--cost-multiplier <n>]');
-        console.error('  --cost-multiplier：成本倍率（只乘总额，不改分项单价；缺省 1；<0 或非数字报错）');
-        return 2;
+        const msgLines = [
+          '用法: vessel provider set <id> [--name <显示名>] [--model <model>] [--base-url <url>] [--api-key <key>] [--cost-multiplier <n>]',
+          '  --cost-multiplier：成本倍率（只乘总额，不改分项单价；缺省 1；<0 或非数字报错）',
+        ];
+        return fail(2, msgLines.join('\n'), flags, () => {
+          for (const msgLine of msgLines) console.error(msgLine);
+        });
       }
       const patch: Partial<Omit<ProviderConfig, 'id'>> = {};
       if (flags.has('name')) patch.name = flags.get('name');
@@ -659,13 +663,13 @@ async function cmdProvider(args: string[], flags: Map<string, string>): Promise<
         try {
           patch.costMultiplier = parseCostMultiplier(raw);
         } catch (error) {
-          console.error(`[vessel provider set] ${(error as Error).message}`);
-          return 2;
+          const msg = `[vessel provider set] ${(error as Error).message}`;
+          return fail(2, msg, flags, () => console.error(msg));
         }
       }
       if (Object.keys(patch).length === 0) {
-        console.error('[vessel provider set] 没有要修改的字段（--name/--model/--base-url/--api-key/--cost-multiplier）。');
-        return 2;
+        const msg = '[vessel provider set] 没有要修改的字段（--name/--model/--base-url/--api-key/--cost-multiplier）。';
+        return fail(2, msg, flags, () => console.error(msg));
       }
       try {
         const next = store.update(id, patch);
@@ -676,44 +680,44 @@ async function cmdProvider(args: string[], flags: Map<string, string>): Promise<
         }
         return 0;
       } catch (err) {
-        console.error(`[vessel provider set] ${(err as Error).message}`);
-        return 1;
+        const msg = `[vessel provider set] ${(err as Error).message}`;
+        return fail(1, msg, flags, () => console.error(msg));
       }
     }
     case 'remove': {
       const id = args[1];
       if (!id) {
-        console.error('用法: vessel provider remove <id>');
-        return 2;
+        const msg = '用法: vessel provider remove <id>';
+        return fail(2, msg, flags, () => console.error(msg));
       }
       try {
         store.remove(id);
         console.log(`已移除 provider "${id}"`);
         return 0;
       } catch (err) {
-        console.error(`[vessel] ${(err as Error).message}`);
-        return 1;
+        const msg = `[vessel] ${(err as Error).message}`;
+        return fail(1, msg, flags, () => console.error(msg));
       }
     }
     case 'switch':
     case 'use': {
       const id = args[1];
       if (!id) {
-        console.error(`用法: vessel provider ${sub} <id>`);
-        return 2;
+        const msg = `用法: vessel provider ${sub} <id>`;
+        return fail(2, msg, flags, () => console.error(msg));
       }
       try {
         store.setCurrent(id);
         console.log(`已切换到 provider "${id}"`);
         return 0;
       } catch (err) {
-        console.error(`[vessel] ${(err as Error).message}`);
-        return 1;
+        const msg = `[vessel] ${(err as Error).message}`;
+        return fail(1, msg, flags, () => console.error(msg));
       }
     }
     default: {
-      console.error(`[vessel] 未知 provider 子命令 "${sub}"（可用: list/add/set/remove/switch/use/current/export/import/endpoint）`);
-      return 2;
+      const msg = `[vessel] 未知 provider 子命令 "${sub}"（可用: list/add/set/remove/switch/use/current/export/import/endpoint）`;
+      return fail(2, msg, flags, () => console.error(msg));
     }
   }
 }
@@ -721,17 +725,21 @@ async function cmdProvider(args: string[], flags: Map<string, string>): Promise<
 /** `vessel provider export [--out <file>]` — 导出配置（**默认脱敏，永不含明文密钥**；task 095）。 */
 async function cmdProviderExport(store: ProviderStore, flags: Map<string, string>): Promise<number> {
   if (flags.has('with-secrets')) {
-    console.error('[vessel provider export] --with-secrets 不支持：本项目没有任何「明文导出」路径（导出只写 secretRef 占位）。');
-    console.error('  迁移密钥请整体搬运 ~/.vessel（含 DPAPI 加密的 secrets.json），或在新机器执行');
-    console.error('  `vessel provider set <id> --api-key <key>` 重新录入（经 CredentialStore 加密落盘）。');
-    return 2;
+    const msgLines = [
+      '[vessel provider export] --with-secrets 不支持：本项目没有任何「明文导出」路径（导出只写 secretRef 占位）。',
+      '  迁移密钥请整体搬运 ~/.vessel（含 DPAPI 加密的 secrets.json），或在新机器执行',
+      '  `vessel provider set <id> --api-key <key>` 重新录入（经 CredentialStore 加密落盘）。',
+    ];
+    return fail(2, msgLines.join('\n'), flags, () => {
+      for (const msgLine of msgLines) console.error(msgLine);
+    });
   }
   let file;
   try {
     file = buildExport(store);
   } catch (err) {
-    console.error(`[vessel provider export] ${(err as Error).message}`);
-    return 1;
+    const msg = `[vessel provider export] ${(err as Error).message}`;
+    return fail(1, msg, flags, () => console.error(msg));
   }
   const text = serializeExport(file);
   const out = flags.get('out');
@@ -745,8 +753,8 @@ async function cmdProviderExport(store: ProviderStore, flags: Map<string, string
   try {
     writeTextAtomic(target, text);
   } catch (err) {
-    console.error(`[vessel provider export] 写文件失败 ${target}: ${(err as Error).message}`);
-    return 1;
+    const msg = `[vessel provider export] 写文件失败 ${target}: ${(err as Error).message}`;
+    return fail(1, msg, flags, () => console.error(msg));
   }
   console.log(`已导出 ${file.count} 个供应商到 ${target}（格式 v${PROVIDER_EXPORT_VERSION}，脱敏：剥离密钥 ${file.keysRedacted} 条）`);
   console.log('  导出文件不含明文密钥；换机后需 `vessel provider set <id> --api-key <key>` 重新录入。');
@@ -757,15 +765,19 @@ async function cmdProviderExport(store: ProviderStore, flags: Map<string, string
 async function cmdProviderImport(args: string[], flags: Map<string, string>): Promise<number> {
   const file = args[1];
   if (!file) {
-    console.error('用法: vessel provider import <file> [--on-conflict skip|overwrite] [--dry-run] [--keep <n>]');
-    console.error('  --on-conflict：同名 id 冲突策略（默认 skip 跳过；overwrite 用文件内容覆盖，但保留本机密钥引用）');
-    console.error('  --keep <n>：本次导入的备份保留份数（默认 5；0 = 不备份）');
-    return 2;
+    const msgLines = [
+      '用法: vessel provider import <file> [--on-conflict skip|overwrite] [--dry-run] [--keep <n>]',
+      '  --on-conflict：同名 id 冲突策略（默认 skip 跳过；overwrite 用文件内容覆盖，但保留本机密钥引用）',
+      '  --keep <n>：本次导入的备份保留份数（默认 5；0 = 不备份）',
+    ];
+    return fail(2, msgLines.join('\n'), flags, () => {
+      for (const msgLine of msgLines) console.error(msgLine);
+    });
   }
   const strategy = (flags.get('on-conflict') ?? 'skip') as ImportConflictStrategy;
   if (strategy !== 'skip' && strategy !== 'overwrite') {
-    console.error(`[vessel provider import] 非法 --on-conflict "${String(strategy)}"（可用: skip | overwrite）`);
-    return 2;
+    const msg = `[vessel provider import] 非法 --on-conflict "${String(strategy)}"（可用: skip | overwrite）`;
+    return fail(2, msg, flags, () => console.error(msg));
   }
   let backupKeep: number | undefined;
   const keepRaw = flags.get('keep');
@@ -773,8 +785,8 @@ async function cmdProviderImport(args: string[], flags: Map<string, string>): Pr
     try {
       backupKeep = parseBackupKeep(keepRaw, '--keep');
     } catch (err) {
-      console.error(`[vessel provider import] ${(err as Error).message}`);
-      return 2;
+      const msg = `[vessel provider import] ${(err as Error).message}`;
+      return fail(2, msg, flags, () => console.error(msg));
     }
   }
   const store = defaultProviderStore(backupKeep !== undefined ? { backupKeep } : {});
@@ -783,15 +795,15 @@ async function cmdProviderImport(args: string[], flags: Map<string, string>): Pr
   try {
     text = fs.readFileSync(target, 'utf8');
   } catch (err) {
-    console.error(`[vessel provider import] 读不到文件 ${target}: ${(err as Error).message}`);
-    return 1;
+    const msg = `[vessel provider import] 读不到文件 ${target}: ${(err as Error).message}`;
+    return fail(1, msg, flags, () => console.error(msg));
   }
   let result;
   try {
     result = importProviders(store, text, { onConflict: strategy, dryRun: flags.has('dry-run') }, target);
   } catch (err) {
-    console.error(`[vessel provider import] ${(err as Error).message}`);
-    return 1;
+    const msg = `[vessel provider import] ${(err as Error).message}`;
+    return fail(1, msg, flags, () => console.error(msg));
   }
   const label = result.written
     ? '已导入'
@@ -822,15 +834,15 @@ async function cmdProviderEndpoint(args: string[], flags: Map<string, string>): 
     case 'list': {
       const id = args[2];
       if (!id) {
-        console.error('用法: vessel provider endpoint list <id>');
-        return 2;
+        const msg = '用法: vessel provider endpoint list <id>';
+        return fail(2, msg, flags, () => console.error(msg));
       }
       let eps;
       try {
         eps = store.effectiveEndpoints(id);
       } catch (err) {
-        console.error(`[vessel] ${(err as Error).message}`);
-        return 1;
+        const msg = `[vessel] ${(err as Error).message}`;
+        return fail(1, msg, flags, () => console.error(msg));
       }
       if (eps.length === 0) {
         console.log(`provider "${id}" 没有端点（baseUrl 与 endpoints 都为空）。`);
@@ -850,40 +862,40 @@ async function cmdProviderEndpoint(args: string[], flags: Map<string, string>): 
       const id = args[2];
       const url = args[3];
       if (!id || !url) {
-        console.error('用法: vessel provider endpoint add <id> <url> [--label <标签>]');
-        return 2;
+        const msg = '用法: vessel provider endpoint add <id> <url> [--label <标签>]';
+        return fail(2, msg, flags, () => console.error(msg));
       }
       try {
         const pool = store.addEndpoint(id, url, flags.get('label'));
         console.log(`已为 provider "${id}" 添加端点 ${url}（现有候选 ${pool.length} 个；默认端点 baseUrl 不变）`);
         return 0;
       } catch (err) {
-        console.error(`[vessel provider endpoint add] ${(err as Error).message}`);
-        return 1;
+        const msg = `[vessel provider endpoint add] ${(err as Error).message}`;
+        return fail(1, msg, flags, () => console.error(msg));
       }
     }
     case 'remove': {
       const id = args[2];
       const url = args[3];
       if (!id || !url) {
-        console.error('用法: vessel provider endpoint remove <id> <url>');
-        return 2;
+        const msg = '用法: vessel provider endpoint remove <id> <url>';
+        return fail(2, msg, flags, () => console.error(msg));
       }
       try {
         const pool = store.removeEndpoint(id, url);
         console.log(`已移除 provider "${id}" 的端点 ${url}（剩余候选 ${pool.length} 个）`);
         return 0;
       } catch (err) {
-        console.error(`[vessel provider endpoint remove] ${(err as Error).message}`);
-        return 1;
+        const msg = `[vessel provider endpoint remove] ${(err as Error).message}`;
+        return fail(1, msg, flags, () => console.error(msg));
       }
     }
     case 'test': {
       return cmdProviderEndpointTest(store, args[2], flags);
     }
     default: {
-      console.error(`[vessel] 未知 endpoint 子命令 "${sub}"（可用: list/add/remove/test）`);
-      return 2;
+      const msg = `[vessel] 未知 endpoint 子命令 "${sub}"（可用: list/add/remove/test）`;
+      return fail(2, msg, flags, () => console.error(msg));
     }
   }
 }
@@ -902,21 +914,25 @@ async function cmdProviderEndpointTest(
 ): Promise<number> {
   const all = flags.has('all');
   if (!id && !all) {
-    console.error('用法: vessel provider endpoint test <id> [--set-default] [--timeout <ms>]');
-    console.error('      vessel provider endpoint test --all [--timeout <ms>]');
-    return 2;
+    const msgLines = [
+      '用法: vessel provider endpoint test <id> [--set-default] [--timeout <ms>]',
+      '      vessel provider endpoint test --all [--timeout <ms>]',
+    ];
+    return fail(2, msgLines.join('\n'), flags, () => {
+      for (const msgLine of msgLines) console.error(msgLine);
+    });
   }
   if (flags.has('set-default') && !id) {
-    console.error('[vessel provider endpoint test] --set-default 需要指定单个 <id>（--all 会同时改多个供应商，拒绝执行）');
-    return 2;
+    const msg = '[vessel provider endpoint test] --set-default 需要指定单个 <id>（--all 会同时改多个供应商，拒绝执行）';
+    return fail(2, msg, flags, () => console.error(msg));
   }
   let timeoutMs = DEFAULT_PROBE_TIMEOUT_MS;
   const rawTimeout = flags.get('timeout');
   if (rawTimeout !== undefined) {
     const n = Number(rawTimeout);
     if (!Number.isFinite(n) || n <= 0) {
-      console.error(`[vessel provider endpoint test] 非法 --timeout "${rawTimeout}"（毫秒正整数）`);
-      return 2;
+      const msg = `[vessel provider endpoint test] 非法 --timeout "${rawTimeout}"（毫秒正整数）`;
+      return fail(2, msg, flags, () => console.error(msg));
     }
     timeoutMs = Math.floor(n);
   }
@@ -924,8 +940,8 @@ async function cmdProviderEndpointTest(
   if (id) {
     const cfg = store.get(id);
     if (!cfg) {
-      console.error(`[vessel] provider "${id}" 不存在（vessel provider list 查看）`);
-      return 2;
+      const msg = `[vessel] provider "${id}" 不存在（vessel provider list 查看）`;
+      return fail(2, msg, flags, () => console.error(msg));
     }
     targets = [{ id, cfg }];
   } else {
@@ -971,8 +987,8 @@ async function cmdProviderEndpointTest(
   if (flags.has('set-default') && id) {
     const best = suggestions.get(id);
     if (!best) {
-      console.error('[vessel provider endpoint test] 没有可达端点，未改动默认端点。');
-      return 1;
+      const msg = '[vessel provider endpoint test] 没有可达端点，未改动默认端点。';
+      return fail(1, msg, flags, () => console.error(msg));
     }
     if (store.get(id)?.baseUrl === best.url) {
       console.log(`默认端点已是 ${best.url}，无需改动。`);
@@ -983,8 +999,8 @@ async function cmdProviderEndpointTest(
       console.log(`已按建议把 provider "${id}" 的默认端点设为 ${next.baseUrl}（写盘前已备份到 ${store.backupsDir}）。`);
       return 0;
     } catch (err) {
-      console.error(`[vessel] ${(err as Error).message}`);
-      return 1;
+      const msg = `[vessel] ${(err as Error).message}`;
+      return fail(1, msg, flags, () => console.error(msg));
     }
   }
   return anyReachable ? 0 : 1;
@@ -1020,8 +1036,8 @@ async function cmdUsageRecompute(flags: Map<string, string>): Promise<number> {
   const until = flags.get('until');
   for (const [name, value] of [['since', since], ['until', until]] as const) {
     if (value !== undefined && !isLocalDateKey(value)) {
-      console.error(`[vessel usage recompute] --${name} 需要本地日 YYYY-MM-DD（收到 "${value}"）。`);
-      return 2;
+      const msg = `[vessel usage recompute] --${name} 需要本地日 YYYY-MM-DD（收到 "${value}"）。`;
+      return fail(2, msg, flags, () => console.error(msg));
     }
   }
   const dryRun = flags.has('dry-run') || flags.has('dryRun');
@@ -1240,15 +1256,15 @@ async function cmdPricingOverride(args: string[], flags: Map<string, string>): P
   if (sub === 'set') {
     const key = args[1];
     if (!key) {
-      console.error('用法: vessel pricing override set <model|provider::model> --input <n> --output <n> [--cache-read <n>] [--cache-write <n>]');
-      return 2;
+      const msg = '用法: vessel pricing override set <model|provider::model> --input <n> --output <n> [--cache-read <n>] [--cache-write <n>]';
+      return fail(2, msg, flags, () => console.error(msg));
     }
     try {
       const input = numberFlag('input');
       const output = numberFlag('output');
       if (input === undefined || output === undefined) {
-        console.error('[vessel pricing override set] 必须给 --input 与 --output（每 1M tokens USD）。');
-        return 2;
+        const msg = '[vessel pricing override set] 必须给 --input 与 --output（每 1M tokens USD）。';
+        return fail(2, msg, flags, () => console.error(msg));
       }
       const price: TokenPrice = { input, output };
       const cacheRead = numberFlag('cache-read');
@@ -1260,16 +1276,16 @@ async function cmdPricingOverride(args: string[], flags: Map<string, string>): P
       console.log('  生效于后续记录与 vessel usage recompute（覆盖优先级最高）。');
       return 0;
     } catch (error) {
-      console.error(`[vessel pricing override set] ${(error as Error).message}`);
-      return 2;
+      const msg = `[vessel pricing override set] ${(error as Error).message}`;
+      return fail(2, msg, flags, () => console.error(msg));
     }
   }
 
   if (sub === 'delete') {
     const key = args[1];
     if (!key) {
-      console.error('用法: vessel pricing override delete <model|provider::model>   # 删除墓碑（按 0 计价、不回退）');
-      return 2;
+      const msg = '用法: vessel pricing override delete <model|provider::model>   # 删除墓碑（按 0 计价、不回退）';
+      return fail(2, msg, flags, () => console.error(msg));
     }
     try {
       store.tombstone(key);
@@ -1277,16 +1293,16 @@ async function cmdPricingOverride(args: string[], flags: Map<string, string>): P
       console.log('  撤销: vessel pricing override restore ' + key);
       return 0;
     } catch (error) {
-      console.error(`[vessel pricing override delete] ${(error as Error).message}`);
-      return 2;
+      const msg = `[vessel pricing override delete] ${(error as Error).message}`;
+      return fail(2, msg, flags, () => console.error(msg));
     }
   }
 
   if (sub === 'restore') {
     const key = args[1];
     if (!key) {
-      console.error('用法: vessel pricing override restore <model|provider::model>');
-      return 2;
+      const msg = '用法: vessel pricing override restore <model|provider::model>';
+      return fail(2, msg, flags, () => console.error(msg));
     }
     const restored = store.restore(key);
     console.log(restored ? `✔ 已撤销墓碑 "${key}"（回到内置/目录价）。` : `未找到墓碑 "${key}"，无改动。`);
@@ -1296,10 +1312,14 @@ async function cmdPricingOverride(args: string[], flags: Map<string, string>): P
   if (sub === 'repair') {
     const file = flags.get('file');
     if (!file) {
-      console.error('用法: vessel pricing override repair --file <repairs.json>');
-      console.error('  repairs.json: [{"key":"claude-sonnet-4-5","from":{"input":3,"output":15,"cacheRead":0.3,"cacheWrite":3.75},"to":{"input":3.5,"output":17.5,"cacheRead":0.35,"cacheWrite":4.375}}]');
-      console.error('  语义：仅当覆盖现值 = from 时才改成 to（用户手改过的行不动）。');
-      return 2;
+      const msgLines = [
+        '用法: vessel pricing override repair --file <repairs.json>',
+        '  repairs.json: [{"key":"claude-sonnet-4-5","from":{"input":3,"output":15,"cacheRead":0.3,"cacheWrite":3.75},"to":{"input":3.5,"output":17.5,"cacheRead":0.35,"cacheWrite":4.375}}]',
+        '  语义：仅当覆盖现值 = from 时才改成 to（用户手改过的行不动）。',
+      ];
+      return fail(2, msgLines.join('\n'), flags, () => {
+        for (const msgLine of msgLines) console.error(msgLine);
+      });
     }
     try {
       const raw = JSON.parse(fs.readFileSync(path.resolve(file), 'utf8')) as unknown;
@@ -1320,13 +1340,13 @@ async function cmdPricingOverride(args: string[], flags: Map<string, string>): P
       console.log(`共 ${applied}/${outcomes.length} 条生效（无变更时不写文件）。`);
       return 0;
     } catch (error) {
-      console.error(`[vessel pricing override repair] ${(error as Error).message}`);
-      return 2;
+      const msg = `[vessel pricing override repair] ${(error as Error).message}`;
+      return fail(2, msg, flags, () => console.error(msg));
     }
   }
 
-  console.error(`未知子命令 "${sub}"。用法: vessel pricing override [list|set|delete|restore|repair]`);
-  return 2;
+  const msg = `未知子命令 "${sub}"。用法: vessel pricing override [list|set|delete|restore|repair]`;
+  return fail(2, msg, flags, () => console.error(msg));
 }
 
 /**
@@ -1355,8 +1375,8 @@ async function cmdPricingSync(flags: Map<string, string>): Promise<number> {
   if (flags.has('timeout')) {
     const n = Number(flags.get('timeout'));
     if (!Number.isFinite(n) || n <= 0) {
-      console.error(`[vessel pricing sync] --timeout 需要正数毫秒（收到 "${flags.get('timeout')}"）。`);
-      return 2;
+      const msg = `[vessel pricing sync] --timeout 需要正数毫秒（收到 "${flags.get('timeout')}"）。`;
+      return fail(2, msg, flags, () => console.error(msg));
     }
     timeoutMs = n;
   }
@@ -1524,15 +1544,15 @@ function isPortTaken(err: unknown): boolean {
 async function cmdBenchReport(flags: Map<string, string>): Promise<number> {
   const input = flags.get('input');
   if (!input) {
-    console.error('[vessel] bench-report 需要 --input <runResults.json>（076 RunResult[] 或 082 lane report JSON）');
-    return 2;
+    const msg = '[vessel] bench-report 需要 --input <runResults.json>（076 RunResult[] 或 082 lane report JSON）';
+    return fail(2, msg, flags, () => console.error(msg));
   }
   let json: unknown;
   try {
     json = JSON.parse(fs.readFileSync(input, 'utf8'));
   } catch (err) {
-    console.error(`[vessel] 无法读取/解析输入 JSON: ${(err as Error).message}`);
-    return 2;
+    const msg = `[vessel] 无法读取/解析输入 JSON: ${(err as Error).message}`;
+    return fail(2, msg, flags, () => console.error(msg));
   }
   const { buildReportFromRunResults, buildReport, rowsFromLaneReport, renderCliSummary, writeReportFiles } =
     await import('@vessel/bench-runners');
@@ -1547,8 +1567,8 @@ async function cmdBenchReport(flags: Map<string, string>): Promise<number> {
     const rows = rowsFromLaneReport(json as Parameters<typeof rowsFromLaneReport>[0]);
     rep = buildReport(rows, 'task-082 real-model lane report');
   } else {
-    console.error('[vessel] bench-report 输入必须是 076 RunResult[] 数组或 082 RealModelLaneReport JSON');
-    return 2;
+    const msg = '[vessel] bench-report 输入必须是 076 RunResult[] 数组或 082 RealModelLaneReport JSON';
+    return fail(2, msg, flags, () => console.error(msg));
   }
 
   const outDir = path.resolve(flags.get('out') ?? path.join(repoRoot(), 'benchmarks', 'reports'));
@@ -1580,11 +1600,11 @@ export async function cmdServe(flags: Map<string, string>): Promise<number> {
     handle = await startServe({ port, workspace: flags.get('workspace') });
   } catch (err) {
     if (isPortTaken(err)) {
-      console.error('[vessel] 端口被占用，试 --port 5679');
-      return 2;
+      const portMsg = '[vessel] 端口被占用，试 --port 5679';
+      return fail(2, portMsg, flags, () => console.error(portMsg));
     }
-    console.error(`[vessel] 启动本地服务失败: ${(err as Error).message}`);
-    return 2;
+    const msg = `[vessel] 启动本地服务失败: ${(err as Error).message}`;
+    return fail(2, msg, flags, () => console.error(msg));
   }
   try {
     return await serveRuntime.park();
@@ -1632,11 +1652,11 @@ export async function cmdWeb(flags: Map<string, string>): Promise<number> {
     handle = await startServe({ port, workspace: flags.get('workspace') });
   } catch (err) {
     if (isPortTaken(err)) {
-      console.error('[vessel] 端口被占用，试 --port 5679');
-      return 2;
+      const portMsg = '[vessel] 端口被占用，试 --port 5679';
+      return fail(2, portMsg, flags, () => console.error(portMsg));
     }
-    console.error(`[vessel] 启动本地服务失败: ${(err as Error).message}`);
-    return 2;
+    const msg = `[vessel] 启动本地服务失败: ${(err as Error).message}`;
+    return fail(2, msg, flags, () => console.error(msg));
   }
   serveRuntime.open(handle.url);
   try {
@@ -1683,8 +1703,8 @@ async function dispatch(parsed: ParsedArgs): Promise<number> {
     // 否则 resume 会静默退化成"新建空会话"。
     const target = resolveResumeTarget(args, { last: parsed.flags.has('last') });
     if (!target.ok) {
-      console.error(`[vessel] ${target.message}`);
-      return target.exitCode;
+      const msg = `[vessel] ${target.message}`;
+      return fail(target.exitCode, msg, parsed.flags, () => console.error(msg));
     }
     parsed.flags.set('workspace', target.meta.workspaceRoot);
     parsed.flags.set('session-id', target.meta.id);

@@ -57,8 +57,28 @@ export const DEEPSEEK_FLASH_MODEL_ID = 'deepseek-flash';
 /** 匹配“MIMO V2.5 系”模型 id 的正则（用于在 live 清单里挑最接近的目标）。 */
 export const MIMO_V25_RE = /mimo[.-]v?2\.5/i;
 
-/** 从内置 preset 解析 opencode-go 的 baseUrl（不存在则抛——注册不应缺失）。 */
-export function opencodeGoBaseUrl(): string {
+/**
+ * 解析 opencode-go 的 baseUrl（不存在则抛——注册不应缺失）。
+ *
+ * **本函数是 lane 唯一的端点覆盖入口**：环境变量 `VESSEL_OPENCODE_GO_BASE_URL`（trim 后非空）
+ * 优先于内置 preset 的 baseUrl，用于把发布门禁的 real-model lane（task 082/097/102）指向自有的
+ * OpenAI 兼容端点（`GET /v1/models` + `POST /v1/chat/completions`，例如 CI 网关 / 自建服务）。
+ * 覆盖值末尾的 `/` 会被剥掉（避免拼出 `//models`）。
+ *
+ * **未设置该环境变量、或值为纯空白时，行为与改动前逐字一致**：仍解析内置 preset 并返回其
+ * baseUrl，preset 缺失或协议不符仍抛同一错误。**默认值/注册表均未改动。**
+ *
+ * 作用域仅限 lane：产品运行时的 provider 解析（`@vessel/application` 的 preset 注册表、
+ * CLI/TUI 的 provider 选择、`@vessel/llm` 的 `OPENCODE_GO_DEFAULT_BASE_URL` 常量）都不经过
+ * 本函数，因此不受该环境变量影响。
+ *
+ * `env` 参数仅供测试注入，可选且缺省 `process.env`，既有调用点无需改动。
+ */
+export function opencodeGoBaseUrl(env: NodeJS.ProcessEnv = process.env): string {
+  // 显式覆盖：用于把门禁的 real-model lane 指向自有 OpenAI 兼容端点（例如 CI/自建网关）。
+  // 默认（未设置/空白）行为与改动前逐字一致。
+  const override = env.VESSEL_OPENCODE_GO_BASE_URL?.trim();
+  if (override) return override.replace(/\/+$/, ''); // 剥尾斜杠，避免与路径拼出 `//models`
   const preset = findPreset(OPENCODE_GO_PRESET_ID);
   if (!preset || preset.protocol !== 'openai-compatible') {
     throw new Error(`opencode-go preset 未注册或协议非 openai-compatible（preset id=${OPENCODE_GO_PRESET_ID}）`);
