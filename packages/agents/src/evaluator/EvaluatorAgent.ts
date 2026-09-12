@@ -225,10 +225,22 @@ export class EvaluatorAgent {
       policyGuidance: this.opts.policyGuidance,
     });
     try {
-      // A23/A24 mirrors: the evaluator child is observable on the parent bus
+      // A23/A24 mirrors: the evaluator child is observable on the parent bus.
+      //
+      // BRIEF-delegateId 不成对：A23 与 A24 的 `delegateId` 是**同一次委派**的关联键
+      // （EVENT-SPEC A23/A24 是同一个字段名，docs/EVENT-SPEC.md:384/391），必须由 start 建立、
+      // 由 stop 用**同一个字符串**闭合。旧实现两处各自现算：start = `eval_${Date.now()}_${hex}`、
+      // stop = `eval_${Date.now()}` —— 两者永不相等，于是所有按 id 反查的消费方（如
+      // application/src/projections/TeamProjection.ts:195-205，反查不到那一行就直接 `return`）
+      // **永远收不到 evaluator 的 stop**：stopReason / isError / durationMs / 产出预览全部静默丢失
+      // —— 「行为正确 ≠ 可观测」。
+      // 因此这里**只生成一次**、两处引用同一个常量。格式沿用 start 既有形状（毫秒 + 3 字节随机
+      // 后缀，同毫秒的两次评审不会撞 id）；stop 因此由 `eval_<ts>` 变为 `eval_<ts>_<hex>`
+      // —— 这是**有意的修正**（见同目录 evaluator-agent.test.ts 的 BRIEF 用例组）。
+      const delegateId = `eval_${Date.now()}_${crypto.randomBytes(3).toString('hex')}`;
       if (this.opts.bus) {
         await this.opts.bus.emit('subagent_start', {
-          delegateId: `eval_${Date.now()}_${crypto.randomBytes(3).toString('hex')}`,
+          delegateId,
           childAgentId: `eval_agent_${runtime.session.sessionId}`,
           childSessionId: runtime.session.sessionId,
           preset: this.opts.agentPreset ?? 'evaluator',
@@ -240,7 +252,8 @@ export class EvaluatorAgent {
       const outcome = resolveEvaluatorTurnOutcome(turn);
       if (this.opts.bus) {
         await this.opts.bus.emit('subagent_stop', {
-          delegateId: `eval_${Date.now()}`,
+          // 与上面 subagent_start **同一个** delegateId（A24 与 A23 共用同一次委派的关联键）
+          delegateId,
           childAgentId: `eval_agent_${runtime.session.sessionId}`,
           childSessionId: runtime.session.sessionId,
           result: {
