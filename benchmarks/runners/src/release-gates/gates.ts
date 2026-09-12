@@ -148,10 +148,63 @@ export const UX_SMOKE_GATE_CRITERION =
   '**免责声明**：本 gate 只探测该产物是否在位 —— 它**不执行任何 web 测试**、也不执行任何 smoke 用例；' +
   '故它判 pass 也不代表「web 测试已跑过且通过」，同样不代表 web 运行时行为正确';
 
+/**
+ * Gate 2（unit）**实跑**的 vitest root 清单 —— 判据文本与 executor 的**唯一事实源**。
+ *
+ * 背景（对抗评审 Round 110 发现，纪律 26）：`package.json` 有 `test:all`
+ * （= `vitest run && vitest run --root apps/web`），但它**没有任何调用方** ——
+ * `.github/workflows/ci.yml` 跑的是 `npm test`（根），本 gate 的 executor 也只跑根，
+ * 而 criterion 却写着「**全量** `npx vitest run`（root）」。
+ * ⇒ `apps/web` 那套（独立 root，`apps/web/vitest.config.ts`，根 `vitest.config.ts` 的
+ *   `include` 明确不含它）在 CI 与发布门禁里**一次都不跑**，而「全量」这个词在**判据**里
+ *   仍是 root-only —— 这正是纪律 26 要治的「范围未定义的全量」。
+ *
+ * 处置（本清单存在的原因）：
+ *   1. **criterion 由本清单插值生成**（`UNIT_GATE_CRITERION`）—— 判据里逐条点名实跑命令，
+ *      不再出现范围未定义的「全量」；
+ *   2. **executor 逐条执行本清单**（`buildReleaseGateExecutors` 的 unit 分支）——
+ *      两者同源 ⇒ 判据声称的 root 集合**必然**等于实跑的 root 集合；
+ *   3. `release-gates.test.ts` 另有一条**不引用任何常量**的守卫：从 criterion 文本里
+ *      正则解析出它点名的 `npx vitest run …` 命令，与 executor 实际发出的命令逐条比对
+ *      ⇒ 「改判据不改 executor」或「改 executor 不改判据」都必红；
+ *   4. 单测还硬性要求该集合覆盖 `apps/web`（把 web root 从清单里删掉 ⇒ 必红），
+ *      即「删掉本次修复就红」。
+ */
+export interface UnitTestRoot {
+  /** root 标签（进 evidence 的明细前缀，标识是哪一侧的退出码/汇总行）。 */
+  label: string;
+  /** 传给 vitest 的 argv（executor 逐条实跑；条件命令 = `npx ${args.join(' ')}`）。 */
+  args: readonly string[];
+  /** 该 root 覆盖的范围（人话；进 criterion，避免「全量」这类范围未定义的词）。 */
+  scope: string;
+}
+
+export const UNIT_TEST_ROOTS: readonly UnitTestRoot[] = [
+  {
+    label: 'root',
+    args: ['vitest', 'run'],
+    scope: '仓库根 `vitest.config.ts`：`index.test.ts` + `packages/*/src` + `apps/cli/src` + `apps/local-server/src` + `benchmarks/runners/src`',
+  },
+  {
+    label: 'apps/web',
+    args: ['vitest', 'run', '--root', 'apps/web'],
+    scope: '`apps/web/vitest.config.ts` 这一**独立 root**（根 `vitest.config.ts` 的 include 不含它，故必须单独跑）',
+  },
+];
+
+/** Gate 2 的 criterion —— 由 `UNIT_TEST_ROOTS` 插值生成，判据与实跑不可能静默漂移。 */
+export const UNIT_GATE_CRITERION =
+  `本 gate **实跑 ${UNIT_TEST_ROOTS.length} 个 vitest root**（清单 = UNIT_TEST_ROOTS，与 executor 共用同一常量、逐条执行）：` +
+  UNIT_TEST_ROOTS.map((r) => `\`npx ${r.args.join(' ')}\`（${r.label}：${r.scope}）`).join('；') +
+  '。两个 root **各自**「退出码 0 且汇总行（`Test Files`/`Tests`）无 failed 计数」⇒ **pass**（无测试失败）；' +
+  '任一 root 非 0、或任一 root 的汇总行报 failed ⇒ **fail**；' +
+  '某个 root 的命令探测失败（受限环境无法执行）⇒ 显式 **pending** 并带 note，不静默通过。' +
+  '这些命令由**同一份清单**派生，故本判据声称的 root 集合恒等于实跑的 root 集合。';
+
 /** §21 ordered gate definitions (1..8). */
 export const GATE_DEFINITIONS: GateDefinition[] = [
   { id: 'build', name: 'Build (tsc -b)', criterion: '类型构建 `tsc -b tsconfig.json` 与 `apps/web` 类型检查（`tsc -p apps/web/tsconfig.json`）均完成且退出码 0（无类型错误）。', position: 1 },
-  { id: 'unit', name: 'Unit (vitest root)', criterion: '全量 `npx vitest run`（root）通过且退出码 0（无测试失败）。', position: 2 },
+  { id: 'unit', name: 'Unit (vitest: root + apps/web)', criterion: UNIT_GATE_CRITERION, position: 2 },
   { id: 'deterministic-bench', name: 'Deterministic Bench (L1)', criterion: DETERMINISTIC_BENCH_GATE_CRITERION, position: 3 },
   { id: 'real-model-bench', name: 'Real Model Bench (082 lane)', criterion: '082 真实模型 lane 收集到 §15 L3 指标；无凭据/无 provider 时显式 pending，不静默通过。', position: 4 },
   { id: 'safety', name: 'Safety (075 pack)', criterion: SAFETY_GATE_CRITERION, position: 5 },
@@ -260,7 +313,70 @@ export function judgeUnit(outcome: CommandOutcome, expectedTestFilesMin = 0): Ga
   return {
     status: pass ? 'pass' : 'fail',
     evidence: {
-      summary: pass ? '全量 vitest（root）通过' : `vitest 存在问题（exit=${outcome.code}）`,
+      // 不再写「全量」：这是**单条命令**（某个 root）的判据，范围由调用方 `judgeUnitRoots` 汇总说明
+      // —— 纪律 26「范围未定义的『全量』」的病灶词不出现在判据/证据里。
+      summary: pass ? 'vitest（单个 root）通过' : `vitest 存在问题（exit=${outcome.code}）`,
+      detail,
+    },
+  };
+}
+
+/** 一个 vitest root 的实跑结果（executor 逐条采集；label 与 `UNIT_TEST_ROOTS` 的 label 同源）。 */
+export interface UnitRootOutcome {
+  /** root 标签（如 `root` / `apps/web`）——进 evidence 明细前缀，指明是哪一侧。 */
+  label: string;
+  outcome: CommandOutcome;
+  /** exec 通道本身失败（命令**未执行**）：环境问题，不是该 root 的测试失败。 */
+  probeFailed?: boolean;
+}
+
+/**
+ * Gate 2（unit）的判据 —— 对 `UNIT_TEST_ROOTS` **逐条**判定后再汇总（与 `judgeBuildPair` 同一形状）。
+ *
+ * 语义（顺序即优先级，**不放宽**）：
+ *  1. 任一**实跑过**的 root 由 `judgeUnit` 判 fail（非 0 退出 / 汇总行报 failed）⇒ 整个 gate **fail**；
+ *  2. 没有 fail 但有 root 的命令探测失败（受限环境无法 spawn）⇒ 显式 **pending** 并带 note
+ *     （环境不可用，既不算通过、也不算该 root 的失败 —— 与 gate 1 的 web 侧探测失败同款处理）；
+ *  3. 其余（全部 root 实跑且各自 exit 0 + 汇总行干净）⇒ **pass**。
+ *
+ * 为什么必须逐条汇总：web root 失败而根通过时，gate 必须红 —— 旧实现只跑根，web 的失败
+ * **不可能**被观测到（这就是本次修复的判别点）。
+ */
+export function judgeUnitRoots(results: readonly UnitRootOutcome[]): GateVerdict {
+  const ran = results.filter((r) => r.probeFailed !== true);
+  const judged = ran.map((r) => ({ label: r.label, verdict: judgeUnit(r.outcome) }));
+  const failed = judged.filter((j) => j.verdict.status === 'fail');
+  const detail = [
+    ...results.map((r) => `${r.label} vitest exit=${r.outcome.code}${r.probeFailed === true ? '（探测失败，命令未执行）' : ''}`),
+    ...judged.flatMap((j) => (j.verdict.evidence.detail ?? []).map((d) => `[${j.label}] ${d}`)),
+  ];
+  if (failed.length > 0) {
+    return {
+      status: 'fail',
+      evidence: {
+        summary: `vitest 失败（${failed.map((f) => f.label).join('、')}）；本 gate 实跑 ${results.length} 个 root：${results.map((r) => r.label).join('、')}`,
+        detail,
+      },
+    };
+  }
+  const unexecuted = results.filter((r) => r.probeFailed === true);
+  if (unexecuted.length > 0) {
+    return {
+      status: 'pending',
+      pending: true,
+      evidence: {
+        summary: `vitest 未全跑：${unexecuted.map((u) => u.label).join('、')} 探测失败（其余 root 已通过）`,
+        detail,
+      },
+      note:
+        'unit gate: 本 gate 逐条实跑 UNIT_TEST_ROOTS 列出的**全部** vitest root；某个 root 的命令探测失败' +
+        '（受限环境无法 spawn 等）⇒ 显式 pending（既不算通过、也不算该 root 的失败），不静默通过；修复环境后重跑即可判定。',
+    };
+  }
+  return {
+    status: 'pass',
+    evidence: {
+      summary: `vitest ${results.length} 个 root 全通过（${results.map((r) => r.label).join('、')}；各自 exit 0 且汇总行无 failed）`,
       detail,
     },
   };
@@ -853,12 +969,29 @@ export function buildReleaseGateExecutors(opts: BuildGateExecutorsOptions = {}):
         return judgeBuildPair(outcome, webOutcome);
       },
     },
-    // Gate 2 Unit — vitest run (root)
+    // Gate 2 Unit — 逐条实跑 UNIT_TEST_ROOTS（根 `vitest run` + `vitest run --root apps/web`）
     {
       gate: gateDefinition('unit'),
       run: async (ctx) => {
-        const outcome = await ctx.exec('npx', ['vitest', 'run'], { cwd: ctx.repoRoot, timeoutMs: 180_000 });
-        return judgeUnit(outcome, 0);
+        // 清单 = criterion 的同一事实源（UNIT_TEST_ROOTS）：判据里点名的命令 == 这里实跑的命令。
+        // 旧实现只跑一条 `npx vitest run`（根），而根 vitest.config.ts 的 include 不含 apps/web
+        // ⇒ web 套件的失败**不可观测**，配套的「全量」判据名不副实（纪律 26）。
+        const results: UnitRootOutcome[] = [];
+        for (const root of UNIT_TEST_ROOTS) {
+          try {
+            const outcome = await ctx.exec('npx', [...root.args], { cwd: ctx.repoRoot, timeoutMs: 180_000 });
+            results.push({ label: root.label, outcome });
+          } catch (err) {
+            // exec 通道本身失败（受限环境无法 spawn 等）：如实记为「未执行」→ judgeUnitRoots 计 pending，
+            // 既不冒充该 root 的通过、也不把它说成测试失败（与 gate 1 的 web 侧探测失败同款）。
+            results.push({
+              label: root.label,
+              outcome: { code: -1, stdout: '', stderr: `命令未执行（探测失败）：${String(err)}` },
+              probeFailed: true,
+            });
+          }
+        }
+        return judgeUnitRoots(results);
       },
     },
     // Gate 3 Deterministic Bench — 084 默认装配跑子集 B001-B005（发布实跑由

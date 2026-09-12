@@ -10,11 +10,15 @@ import {
   SAFETY_SCENARIOS,
   SAFETY_GATE_CRITERION,
   UX_SMOKE_GATE_CRITERION,
+  UNIT_GATE_CRITERION,
+  UNIT_TEST_ROOTS,
+  buildReleaseGateExecutors,
   classifyScenarioRun,
   gateDefinition,
   judgeBuild,
   judgeBuildPair,
   judgeUnit,
+  judgeUnitRoots,
   judgeRealModelLane,
   judgeRealModelLaneWithBilling,
   judgeRealModelLaneWithNonConvergence,
@@ -303,6 +307,109 @@ describe('gate definitions (tasks 084) — §21 registry', () => {
     //    「不代表 web 套件或最小 smoke 通过」是**更清楚**的写法，不该被这条绊倒；禁全文足以抓住回退。
     expect(criterion).not.toContain('web 构建工具缺失');
     expect(criterion).not.toContain('web 套件或最小 smoke 通过；web 构建工具缺失时显式 pending。');
+  });
+});
+
+/**
+ * Gate 2（unit）「判据声称的范围 == executor 实跑的范围」判别性守卫（纪律 26 的后半句）。
+ *
+ * 背景（对抗评审 Round 110）：`package.json` 有 `test:all`（根 + `--root apps/web`），但
+ * `.github/workflows/ci.yml` 跑 `npm test`（根）、本 gate 的 executor 也只跑根，而 criterion 却写
+ * 「**全量** `npx vitest run`（root）」—— 命令存在、没有调用方，web 套件在 CI 与门禁里一次都不跑。
+ * 本次修复把 criterion 与 executor 都接到同一份 `UNIT_TEST_ROOTS` 上，并在此加**可执行的**守卫：
+ *
+ *   ① `declaredUnitCommands()` 从 criterion **文本**里独立解析出它点名的 `npx vitest run …` 命令
+ *      （不引用任何常量、不走被测函数），逐条比对 executor 经注入 `exec` **实际发出**的命令
+ *      ⇒ 改判据不改 executor（或反过来）必红；
+ *   ② 两边都必须覆盖 `apps/web` ⇒ 「删掉修复」（清单退回 root-only）必红；
+ *   ③ criterion 不得再出现范围未定义的「全量」——纪律 26 的病灶词。
+ *
+ * 断言的是**结构性事实**（根集合相等），不是把某条命令的字面量钉成契约以外的实现选择。
+ */
+function declaredUnitCommands(criterion: string): string[] {
+  const out: string[] = [];
+  for (const m of criterion.matchAll(/`(npx vitest run[^`]*)`/g)) {
+    const cmd = m[1];
+    if (cmd !== undefined) out.push(cmd);
+  }
+  return out;
+}
+
+describe('gate 2 unit：判据声明的 root 集合 == executor 实跑的 root 集合（纪律 26 后半句的判别性守卫）', () => {
+  it('判别性①：criterion 文本点名的命令逐条等于 executor 实际发出的命令，且两侧都覆盖 apps/web', async () => {
+    const criterion = gateDefinition('unit').criterion;
+    // 注册表里挂的就是这条 criterion（改名/断线 ⇒ 红；与 gate 3/5/7 的 `toBe` 同款）
+    expect(criterion).toBe(UNIT_GATE_CRITERION);
+
+    const invoked: string[] = [];
+    const executors = buildReleaseGateExecutors();
+    const unit = executors.find((e) => e.gate.id === 'unit')!;
+    const verdict = await unit.run({
+      repoRoot: os.tmpdir(),
+      reportsDir: path.join(os.tmpdir(), 'rg-unit-roots'),
+      exec: async (command: string, args: string[]) => {
+        invoked.push([command, ...args].join(' '));
+        return { code: 0, stdout: 'Test Files  1 passed (1 test)', stderr: '' };
+      },
+    });
+    expect(verdict.status).toBe('pass');
+
+    // ① 判据文本点名的命令集合 == executor 实际发出的命令集合（多/少一条都必红）
+    const declared = declaredUnitCommands(criterion);
+    expect(declared.length).toBeGreaterThan(0); // 解析本身必须有效，否则下面两条会变成空集互等
+    expect([...declared].sort()).toEqual([...invoked].sort());
+    // ② 两侧都必须覆盖 web root —— 旧实现（判据只写根、executor 只跑根）下这两条必红
+    expect(declared).toContain('npx vitest run --root apps/web');
+    expect(invoked).toContain('npx vitest run --root apps/web');
+    expect(UNIT_TEST_ROOTS.map((r) => r.label)).toContain('apps/web');
+    // ③ 判据不得再用范围未定义的「全量」（纪律 26 的病灶词）：范围必须逐条点名
+    expect(criterion).not.toContain('全量');
+  });
+
+  it('判别性②：只有 web root 失败（根全绿）⇒ gate 必红，且 evidence 指向 apps/web', async () => {
+    // 旧 executor 只跑根 ⇒ 这个「web 红」输入**完全不可观测**，gate 会判 pass（本用例即红）。
+    const executors = buildReleaseGateExecutors();
+    const unit = executors.find((e) => e.gate.id === 'unit')!;
+    const v = await unit.run({
+      repoRoot: os.tmpdir(),
+      reportsDir: path.join(os.tmpdir(), 'rg-unit-web-only-fail'),
+      exec: async (_command: string, args: string[]) =>
+        args.includes('--root')
+          ? { code: 1, stdout: 'Test Files  1 failed | 3 passed (4)\n     Tests  2 failed | 94 passed (96)', stderr: '' }
+          : { code: 0, stdout: 'Test Files  193 passed (1932 tests)', stderr: '' },
+    });
+    expect(v.status).toBe('fail');
+    expect(`${v.evidence.summary} ${(v.evidence.detail ?? []).join(' ')}`).toContain('apps/web');
+  });
+
+  it('判别性③：命令探测失败（未执行）⇒ 显式 pending，不冒充 pass、也不冒充 fail', async () => {
+    const executors = buildReleaseGateExecutors();
+    const unit = executors.find((e) => e.gate.id === 'unit')!;
+    const v = await unit.run({
+      repoRoot: os.tmpdir(),
+      reportsDir: path.join(os.tmpdir(), 'rg-unit-probe-fail'),
+      exec: async () => {
+        throw new Error('spawn EPERM');
+      },
+    });
+    expect(v.status).toBe('pending');
+    expect(v.pending).toBe(true);
+    expect(v.status).not.toBe('pass');
+    expect(v.note).toContain('UNIT_TEST_ROOTS');
+  });
+
+  it('judgeUnitRoots：任一 root fail ⇒ fail；全部 exit 0 + 汇总行干净 ⇒ pass；探测失败 ⇒ pending', () => {
+    const green = { code: 0, stdout: 'Test Files  10 passed (100 tests)', stderr: '' };
+    expect(judgeUnitRoots([{ label: 'root', outcome: green }, { label: 'apps/web', outcome: green }]).status).toBe('pass');
+    // 汇总行报 failed（即使 exit 0 的防御分支）也判 fail
+    expect(
+      judgeUnitRoots([
+        { label: 'root', outcome: green },
+        { label: 'apps/web', outcome: { code: 1, stdout: 'Tests  1 failed | 95 passed (96)', stderr: '' } },
+      ]).status,
+    ).toBe('fail');
+    // 未执行（探测失败）既不算 pass 也不算该 root 的 fail
+    expect(judgeUnitRoots([{ label: 'root', outcome: { code: -1, stdout: '', stderr: '' }, probeFailed: true }]).status).toBe('pending');
   });
 });
 

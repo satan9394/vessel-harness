@@ -40,8 +40,13 @@ jobs:
       # the same file passes on re-run. We deliberately do NOT use
       # continue-on-error here so real test regressions still fail the job;
       # a flaky hit is resolved by re-running the failed check.
-      - name: Test (vitest run)
-        run: npm test
+      #
+      # `test:all` = BOTH vitest roots: the repo root (vitest.config.ts) AND
+      # `--root apps/web` (apps/web has its own vitest config; the root `include`
+      # deliberately does not scan apps/web). Running only `npm test` silently left
+      # the web suite out of CI (discipline 26).
+      - name: Test (vitest — root + apps/web)
+        run: npm run test:all
 
       - name: Smoke — CLI version
         run: node apps/cli/dist/cli.js --version
