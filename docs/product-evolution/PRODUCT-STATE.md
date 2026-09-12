@@ -21,6 +21,19 @@
 **LATER**：全量 i18n 架构；`~/.vessel` 状态根 7+ 处重复收敛；`vessel diff --last` 只读回滚提示（G-10 的克制替代）；`dist/.tsbuildinfo` 入包与 `npm pack --json` 被 prepack 输出污染（自动化卫生）。
 **NOT_NOW（明确不做，均有论证）**：全量 npm 发布（成本 ≫ 收益，本阶段无外部消费者）、单包 bundle、CI 自动发布、provenance/签名/SBOM、changesets、插件市场/云协作/排行榜/IDE 表面；TUI 内不放 `migrate`/`serve`/`bench`/`pricing sync`/`--json`；**不做**通用快照回滚（会让用户误以为 Shell 写入也可回滚）。
 
+## Round 16c（终评 `EVALUATION-REPORT-24.md`）— **ACCEPT**，但一项 P1 直接削弱里程碑结论
+
+**A（force-push 平台并集）PASS**：终评静态核到 Compiler 内部——并集确为**两次单向解析**（`:761-766`），递归全程传同一 `mode`（`:624/:633/:649`）**无二次取并**，故 `depth` 语义未被破坏；并集是 **deny 集合单调放大**，结构上**不可能新增放行**；cmd 下 `\` 确已非续行/非转义（`:258`、`:303/:311`、`:358/:366` 均以 posix 为门）；alias 的 `--get/--list` 短路与 `-f/--file/--blob` 跳值成立。残留 P3：读取动作短路对整段无序（`git config alias.p 'push --force' --get` 这类反常参数序放行）。
+**B（pricing 读路径）PASS**：三读路径确改（`:461/:921/:1852`），warn 与 `loadPricing`/`loadModelCatalog` 的路径拼接**逐字同源**且用同一个 `root`；归一函数对不存在路径走"最近已存在祖先"不抛。P3：新测试只测纯函数，**调用点 `:1793-1794` 无断言**（删掉仍全绿）。
+**C（打包）**：否定模式经 npm packlist **源码级**核验确为硬排除；包内优先在 `node_modules` 与 pnpm 形态均成立。**但 P1 未闭合**（见下）。
+**D（诚实化）PASS**（抽查）：命令表与 `dispatch` 逐项对得上；密钥按**实际生效后端**三态措辞。
+
+**P1（严重，已派卡）**：`prepack` **只复制 configs、不含构建**（`apps/cli/package.json:23` vs `:22` 的 `build`），而 `.gitignore` 排除 `dist/` ⇒ **干净检出**跑 `npm pack`/`publish` 会产出「**有 `dist/configs/*`、没有 `dist/cli.js`**」的坏包，`bin`/`main`/`exports` 全悬空、**安装仍 exit 0**。→ **我此前那三条 exit 0 之所以成立，只因工作区里已有一份手工 `tsc -b` 产物**；终评同时指出 `--version`/`--help` 与 `policy status`（恒 exit 0）**本身无判别力**，真正有判别力的是"system 层路径落在 `node_modules/.../dist/configs`"。
+**P2（已派卡）**：发布门禁只查本地 `dist` 是否存在（`release-gates/gates.ts:648-654`）→「270→62」是**一次性人工实测而非可回归门禁**。
+**P3×4**：pricing sync warn 调用点无用例；warn 文案补救指向 `node_modules`（重装即失效）且 `--dry-run` 也打印；`dist/.tsbuildinfo` 入包；alias 读取短路边界。
+
+**终评对"最大缺口"的判断（我采纳）**：不是这些单点语义，而是「**打包 → 安装 → 首跑 → 升级**」整条发布链路仍靠**人工实测一次**——tarball 形状、`dist` 随构建、安装态读路径、无 warn 冒烟**都没有自动门禁**，任何重构都能在**没有红灯**的情况下把"能用的包"变成"不能用的包"。→ 本轮的处置正是把 **P1 变为门禁红灯**（`prepack` 构建 + 门禁断言包形状）。**新增纪律 17**：**"能跑一次"不等于"可发布"**——一次性人工实测必须转化为**离线、确定性、可回归的门禁**，否则它只提供假安全感。
+
 ## 已解决问题（Round 1 切片 · 历史存档）
 
 - **G-01（P0）首跑示例失效**：仓库工作区 `run --prompt` 曾 100% 输出 `(mock: no script entry matched)` 且 exit 0（假成功）。根因：ContextBuilder 将 volatile skills index 作为**最后一条 user 消息**追加，MockProvider 只匹配最后一条 user 消息。修复：`ChatMessage.source` 溯源 + Builder 标记 volatile 为 `environment` + MockProvider 只匹配真实 surface 输入 + 确定性兜底文案。
@@ -317,6 +330,7 @@
 14. **只对"稳定版本"测量**——执行器是**边写边落盘**的：Round 15 我在 `PolicyLoader` 已加 `error` 字段、而 `cli.ts` 尚未接入该分支的**半写入窗口**里跑 E2E，得到"合法但未贡献声明"这个**错误结论**，差点据此开错修复卡；两张卡都落盘后重跑才正确（`saysInvalid=True`）。**测量前先确认没有并发写入者**（看 `git status`、卡是否仍在跑），必要时先等卡结束或对同一修订连测两次一致再采信。
 15. **测试若绕过生产入口，等于零证据**——Round 15b 的 C-1 是典型：`mergeScopes` 重建 `filesystem` 时**丢掉了 `confinement`**，使该硬执法特性在生产路径（`compose.ts` → `loadPolicyArtifacts`）**永不生效**；而 6 个 confinement 测试**直调 `compilePolicyYaml`**、跳过了合并层，于是 61/61 全绿**不可能**发现这个纯生产路径缺陷。**凡涉及"合并 / 装载 / 接线"的验收，必须至少有一条走完整生产入口**（用真实文件 + `loadPolicyArtifacts`），否则绿灯只证明"组件本身对"，不证明"用户拿到的行为对"。
 16. **安全守卫的默认值要按"代价不对称"选择，且两侧都要有边界**——force-push 守卫上，**漏放（allow）＝唯一防线失效**，**误拦（deny）＝用户少做一次罕见操作**；代价严重不对称时，**不确定就应拦（fail-closed）**，而不是"解析不了就当没发生、只在注释里说明"（后者工程上省事、安全上是错的默认值）。但**同时**必须给出**防过度拦截的硬边界**：与守卫目标无关的命令（不含 `git`+`push` 的段）**绝不能被兜底误拦**，并要求负对照用例（如 `xargs ls`）。**收紧与放宽都不许失控。**
+17. **"能跑一次"不等于"可发布"**——Round 17 我亲手跑通了"整仓 pack → 空项目安装 → 三条命令 exit 0"，但终评指出：`prepack` **只复制 configs 不构建**，而 `.gitignore` 排除 `dist/` ⇒ **干净检出**上打出的包**只有 `dist/configs/*`、没有 `dist/cli.js`**，`bin`/`main` 全悬空、**安装仍 exit 0**。我那次成功**只因工作区里恰有一份手工 `tsc -b` 产物**——**一次性人工实测提供的是假安全感**。凡"某个环境里能用"的结论，必须转化为**离线、确定性、可回归的门禁**（并让"前提不成立"这一情形**变红**），否则它证明的只是"我此刻的机器上恰好能用"。
 
 ## Round 15b（安全加固：策略执法本体的三处真实缺陷）— 已修并实测
 

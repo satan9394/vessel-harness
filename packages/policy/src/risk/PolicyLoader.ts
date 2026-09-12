@@ -89,6 +89,11 @@ export interface PolicyLayerFact {
  *
  * 返回顺序即**合成顺序**（system 在前、project 在后；`profile`/`approval`/`version` 与 **allow 类**列表取
  * **靠前的层**即高层优先；**deny 类**列表拼接为并集——逐字段口径见 `mergeScopes` 的 JSDoc）。
+ *
+ * 分工（G-18）：本函数只给**逐层事实**（存在性 / YAML 结构解析 / 哈希），**不判断策略能否真正编译**——
+ * `shell.deny: [not-a-real-category]` 这类只有编译器才认得出的错误，在逐层视角下就是「该层有效」。
+ * 判断「这套层跑得起来吗」用同文件的 `inspectCombinedPolicy`（它复用装载路径本身；为何不做
+ * 「逐层单独编译」见其 JSDoc）。两者都只读，且都**不写** `layers[].error`。
  */
 export function inspectPolicyLayers(
   opts: { systemPath?: string; projectPath?: string } = {},
@@ -131,6 +136,51 @@ function readLayerBytes(target: string): { ok: true; raw: Buffer } | { ok: false
 /** 异常 → 人话原因（`error` 字段的取值口径；非 Error 抛出物也兜住）。 */
 function errorMessage(err: unknown): string {
   return (err as Error | undefined)?.message ?? String(err);
+}
+
+/**
+ * **合成后可编译性**（G-18 / BRIEF-16 AC）：`inspectPolicyLayers` 的逐层视角**看不到**的
+ * 「只有编译器才认得出」的那类错误（如 `shell.deny: [not-a-real-category]`）——逐层说「该层有效」，
+ * 而 `run` 的装载路径当场抛 `policy compile error: unknown shell.deny category "…"`。
+ */
+export interface CombinedPolicyCompilability {
+  /** `true` = 这组层路径合并后能编译；`false` = `vessel run` 在同一组路径下会装载失败。 */
+  compiled: boolean;
+  /** `compiled === false` 时装载路径抛出的**原始**消息（不改写、不加路径前缀）；成功时无此字段。 */
+  error?: string;
+}
+
+/**
+ * 只读地检视**合成后**能否编译（G-18 / BRIEF-16 AC）——与真实装载**同一次调用**。
+ *
+ * 契约：**纯查询**，不抛、不写盘、不改执法。`loadPolicyArtifacts` 只做「读文件 → `mergeScopes`
+ * → `compilePolicy`」的纯计算（无副作用），故这里直接调它，而不是另写一套合并逻辑：
+ * `compiled === false` **当且仅当** `vessel run` 在同一组候选路径下装载失败（口径不可能再分裂）。
+ * 成功 `{compiled:true}`；抛错 `{compiled:false, error:<原始消息>}`（含「两层都没有声明」这种
+ * `policy loader: no policy declaration found` 的失败——那同样是 `run` 的真实结局）。
+ *
+ * **为何不做「逐层单独编译」**：层是否合法**不是逐层性质**，`mergeScopes` 会补兜底默认
+ * （`profile` / `approval` 在无任何层声明时补 `workspace-write` / `never`）并做跨层合成
+ * （allow 类取高层先声明者、deny 类取并集、**未知顶层键在合成期被丢弃**）。据此：
+ * - `shell: {deny: [destructive-delete]}` 单独编译会因缺 `version` / `profile` / `approval` 而
+ *   **合法地**抛错 ⇒ 逐层编译把**有效层误报为无效**（假阳）；
+ * - 未知**顶层**键 `totally_unknown_key` 在合成期被丢弃，合成后编译**不抛** ⇒ 逐层编译、或
+ *   「有没有未知键」这类猜测，会把**无效误报为有效**（假阴）。
+ * 两者都不可接受，故判据只能落在**真实编译这条路径**上。
+ *
+ * 与 `inspectPolicyLayers` 的分工：前者给**逐层事实**（存在性 / 声明条数 / 解析错误 / 哈希），
+ * 本函数给**合成后可编译性**。「层文件本身解析失败」与「合成后编译失败」是两件事——后者归属
+ * 哪一层是**歧义**的，故本函数的结果**不进** `layers[].error`，只作为独立的整体判据返回。
+ */
+export function inspectCombinedPolicy(
+  opts: { systemPath?: string; projectPath?: string } = {},
+): CombinedPolicyCompilability {
+  try {
+    loadPolicyArtifacts({ systemPath: opts.systemPath, projectPath: opts.projectPath });
+    return { compiled: true };
+  } catch (err) {
+    return { compiled: false, error: errorMessage(err) };
+  }
 }
 
 /** 动作严格度序（POLICY-SPEC §4.2 决策序 + §6.2「同 specificity 冲突取最严」）。 */

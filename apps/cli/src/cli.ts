@@ -4,7 +4,7 @@ import * as path from 'node:path';
 import { spawn } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { VERSION, renameWithRetry } from '@vessel/shared';
-import { inspectPolicyLayers, type PolicyLayerFact } from '@vessel/policy';
+import { inspectCombinedPolicy, inspectPolicyLayers, type PolicyLayerFact } from '@vessel/policy';
 import { MockProvider } from '@vessel/llm';
 import {
   composeHarness,
@@ -585,9 +585,23 @@ function applyMcpConnections(opts: ComposeOptions): string | null {
  * JSON 的每一层都带 `error`（无效时非空），并单列 `invalid`；人类模式在该层行显示
  * 「解析失败：…」。事实与装载路径同源：`inspectPolicyLayers`
  * （packages/policy/src/risk/PolicyLoader.ts）。
+ *
+ * G-18（**口径分裂修复**）：逐层事实**看不到**「只有编译器才认得出」的错误——如
+ * `shell.deny: [not-a-real-category]` 时各层齐备、无 `error`（界面说"该层有效"），
+ * 而 `run` 的装载路径当场抛 `policy compile error: unknown shell.deny category`。
+ * 故此处另加一项**合成后可编译性**（`inspectCombinedPolicy`，与 `loadPolicyArtifacts`
+ * 同一次调用）：JSON 增 `compiled` / 失败时 `compileError`（**additive**，既有字段
+ * `layers`/`effectiveOrder`/`missing`/`invalid`/`emptyDeclared` 语义与形状一律不变）；
+ * 人类模式加一行「合成校验」，失败时**显而易见**地点明 `vessel run` 会失败。
+ * 退出码**仍恒为 0**（只读查询；合成失败不塞进 `layers[].error`——那会把"层文件本身
+ * 解析失败"与"合成后编译失败"混为一谈，且后者归属哪一层是歧义的）。
  */
 export function cmdPolicyStatus(flags: Map<string, string>): number {
-  const layers = inspectPolicyLayers(policyLayerCandidates(flags));
+  const candidates = policyLayerCandidates(flags);
+  const layers = inspectPolicyLayers(candidates);
+  // G-18：合成后可编译性 = 真实装载路径（`loadPolicyArtifacts`：mergeScopes → compilePolicy）
+  // 的一次只读试跑；不抛、不写盘、不改执法。逐层 `layers` 与它**各司其职**，互不污染。
+  const combined = inspectCombinedPolicy(candidates);
   // 生效层序 = 真正贡献了声明的层，按合成顺序（system 在前、project 在后）
   const effectiveOrder = layers.filter((l) => l.declarationCount > 0).map((l) => l.layer);
   // 问题层**三分**（与 AC4 警告**同一判据**）：`missing` 沿用既有形状（声明 0 条，AC3 已锁），
@@ -605,6 +619,10 @@ export function cmdPolicyStatus(flags: Map<string, string>): number {
       missing: missing.map((l) => l.layer),
       invalid: invalid.map((l) => ({ layer: l.layer, path: l.path, error: l.error })),
       emptyDeclared: emptyDeclared.map((l) => l.layer),
+      // G-18（**additive**）：既有字段不动，仅追加「合成后可编译性」；`compileError` 只在失败时出现
+      // （成功时该键 `undefined`，`JSON.stringify` 会略去，消费方仍可只读 `compiled`）。
+      compiled: combined.compiled,
+      ...(combined.compiled ? {} : { compileError: combined.error }),
     });
     return 0;
   }
@@ -622,6 +640,13 @@ export function cmdPolicyStatus(flags: Map<string, string>): number {
     effectiveOrder.length > 0
       ? `  生效层序: ${effectiveOrder.join(' > ')}（左侧为高层：profile/approval 取高层先声明者；deny 类列表取并集；低层只能加限制、不能放宽）`
       : '  生效层序: （无层生效——没有任何声明被装载）',
+  );
+  // G-18：合成后可编译性——逐层全绿也可能一编译就炸（如 shell.deny 未知类别）。
+  // 只读查询不阻断（退出码仍 0），但必须让失败**显而易见**：说清这是 `vessel run` 的同一个装载路径。
+  console.log(
+    combined.compiled
+      ? '  合成校验: 可编译（与 vessel run 的装载路径同一套 mergeScopes → compilePolicy）'
+      : `  合成校验: **无法编译** —— ${combined.error}（当前配置下 vessel run 会直接失败）`,
   );
   // 末尾说明同样**三分**措辞：缺 X 层 / X 层存在但无法解析 / X 层合法但 0 条声明。
   const problems = layers.filter((l) => !l.exists || !!l.error || l.declarationCount === 0);

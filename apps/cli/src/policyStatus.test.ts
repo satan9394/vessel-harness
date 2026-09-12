@@ -64,6 +64,20 @@ const POLICY_B = [
 /** 语法非法 YAML（未闭合的 flow mapping，js-yaml 必抛）。 */
 const INVALID_YAML = '{oops';
 
+/**
+ * G-18 判别用策略：逐层解析**完全合法**（1 条声明、无 `error`），但 `shell.deny` 的类别
+ * 只有**编译器**认得出是假的 —— `mergeScopes` 会把它并进合成结果，`compilePolicy` 随即抛
+ * `policy compile error: unknown shell.deny category "not-a-real-category"`。
+ * 即：`inspectPolicyLayers` 说「该层有效」，`loadPolicyArtifacts` 当场炸 —— 这就是口径分裂。
+ */
+const BAD_SHELL_DENY_POLICY = [
+  'policy:',
+  '  version: "0.1"',
+  '  shell:',
+  '    deny: [not-a-real-category]',
+  '',
+].join('\n');
+
 /** 语法合法但**结构**非法（顶层不是 `policy:` 映射）——走 `parsePolicyYaml` 的同一条 throw 路径。 */
 const NOT_A_POLICY_MAPPING = '这只是一个标量，不是 policy 映射';
 
@@ -100,6 +114,9 @@ interface PolicyStatusDoc {
   layers: { layer: string; path: string; exists: boolean; declarationCount: number; hash?: string }[];
   effectiveOrder: string[];
   missing: string[];
+  /** G-18 追加的**合成后可编译性**（additive；既有键的形状/语义不变）。 */
+  compiled?: boolean;
+  compileError?: string;
 }
 
 let tmpRoot: string;
@@ -431,6 +448,66 @@ describe('policy status / 部分装载（BRIEF-15 AC2–AC4）：走真实 main(
       expect(cap.out()).toBe('');
       expect(cap.err()).toBe('未知 policy 子命令 bogus。可用：vessel policy status');
       expect(() => JSON.parse(cap.err())).toThrow();
+    } finally {
+      cap.restore();
+    }
+  });
+
+  it('11) 【G-18 判别点】合成后不可编译（shell.deny 未知类别）：逐层全绿 / exit 0 / compiled:false / 人类模式点明 run 必失败', async () => {
+    const ws = path.join(tmpRoot, 'ws-compile-bad');
+    const sysPath = path.join(tmpRoot, 'compile-system-policy.yaml');
+    writeText(sysPath, POLICY_A);
+    writeText(path.join(ws, '.harness', 'policy.yaml'), BAD_SHELL_DENY_POLICY);
+
+    const cap = capture();
+    try {
+      expect(await main(['policy', 'status', '--json', '--workspace', ws, '--policy', sysPath])).toBe(0); // 只读查询恒 0
+      expect(cap.err()).toBe('');
+      const text = cap.out();
+      expect(text.indexOf('{')).toBe(0); // 单一 JSON 信封（既有纪律不变）
+      expect(text.lastIndexOf('}')).toBe(text.length - 1);
+      const doc = JSON.parse(text) as PolicyStatusDoc;
+      // 分裂点本身：逐层事实说「两层都有效」——修复前这就是终点（"看着配了其实没配"）
+      expect(doc.effectiveOrder).toEqual(['system', 'project']);
+      expect(doc.missing).toEqual([]);
+      // 新判据：真实装载路径（mergeScopes → compilePolicy）在同一输入下**抛**
+      expect(doc.compiled).toBe(false);
+      expect(doc.compileError).toContain('unknown shell.deny category');
+
+      // 人类模式：退出码按契约仍为 0，故失败必须靠文案显而易见
+      cap.clear();
+      expect(await main(['policy', 'status', '--workspace', ws, '--policy', sysPath])).toBe(0);
+      const human = cap.out();
+      expect(human).toContain('生效层序: system > project'); // 逐层行仍在（新旧信息并列，不是二选一）
+      expect(human).toContain('无法编译');
+      expect(human).toContain('unknown shell.deny category');
+      expect(human).toContain('vessel run'); // 说清后果，而不是只丢一个错误串
+    } finally {
+      cap.restore();
+    }
+  });
+
+  it('12) 【负对照】同一条管线只换 deny 类别（合法）→ compiled:true、无 compileError，人类模式「可编译」', async () => {
+    const ws = path.join(tmpRoot, 'ws-compile-ok');
+    const sysPath = path.join(tmpRoot, 'ok-system-policy.yaml');
+    writeText(sysPath, POLICY_A);
+    writeText(
+      path.join(ws, '.harness', 'policy.yaml'),
+      ['policy:', '  version: "0.1"', '  shell:', '    deny: [destructive-delete]', ''].join('\n'),
+    );
+
+    const cap = capture();
+    try {
+      expect(await main(['policy', 'status', '--json', '--workspace', ws, '--policy', sysPath])).toBe(0);
+      const doc = JSON.parse(cap.out()) as PolicyStatusDoc;
+      expect(doc.compiled).toBe(true); // 与第 11 条唯一变量是 deny 类别 → compiled 必须翻面（证明它不是恒定值）
+      expect(doc.compileError).toBeUndefined();
+      expect(cap.out()).not.toContain('compileError'); // 成功时该键整个不出现
+
+      cap.clear();
+      expect(await main(['policy', 'status', '--workspace', ws, '--policy', sysPath])).toBe(0);
+      expect(cap.out()).toContain('合成校验: 可编译');
+      expect(cap.out()).not.toContain('无法编译');
     } finally {
       cap.restore();
     }
