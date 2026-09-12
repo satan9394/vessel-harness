@@ -37,7 +37,7 @@
 
 1. **`apps/web` 失败路径的鲁棒性**（**在跑**）：`api.ts` 的 `JSON.parse` 无 try/catch ⇒ 非 JSON 错误体（代理 HTML/纯文本）抛 `SyntaxError`、**绕过 `ApiError`，从而绕过刚落地的"显示真实原因"修复**；`smoke.ts` 对失败回合照旧打印 `SMOKE_OK`（**验证脚本谎报成功**）。
 2. **`AgentLoop` 的流末兜底 flush 零可见信号**：把"从未收到 `tool_call_end` 的调用"静默收尾；`model_stream_end` 形状被 `EVENT-SPEC` 钉死 ⇒ 最小改法是 `turn/end` 的**条件加法字段**（属记录形状变更，独立卡）。
-3. **三处"规格有、实现无"**：`EVENT-SPEC` 的 `turn/end.stats` 规格含 `tokensUsed?/costEstimate?` 而实现只有三字段；**B13 `llm/retry` 被定义为持久记录，`SessionRecord` 里没有该类型**；**B12 `request/header` 规格要求落盘可重建请求，实现里不存在** ⇒ **会话日志无法重建"这一轮用了哪个模型、上下文多大"**。
+3. **三处"规格有、实现无"（Round 107 我逐条读码核实并改写为精确表述）**：① `docs/EVENT-SPEC.md:234` 明确为 `turn/end` 规定 `stats:{steps, toolCalls, tokensUsed?, durationMs, costEstimate?}`，而 `packages/shared/src/events.ts` 的 `TurnEndRecord.stats` **只有 `steps`/`toolCalls`/`durationMs`** ⇒ **会话日志（本仓自称的"唯一真源"）里没有 token 与费用**（数据在 usage store 里，但**回放面查不到**）。② **B13 `llm/retry`：不是"不存在"，而是"降级成了实时事件"**——它在 `EventType`（`events.ts` 的实时总线联合）里有，但**不在 `SessionRecord`** 里，而 `EVENT-SPEC` 把它定为**持久记录** ⇒ **规格说落盘、实现只在内存**。③ **B12 `request/header`**（冻结 envelope、可重建请求）在实现里**没有对应的记录类型** ⇒ **无法重建"这一轮用了哪个模型、上下文多大"**。
 4. **`vessel policy status` 恒退 0**（即便 `compileError` 的注释自述"当前配置下 `vessel run` 会直接失败"）：代码里的注释是**既有裁决**（"不要混淆两种失败"），**不等于"CI 该绿灯"** ⇒ 我倾向 `compileError ⇒ 非零`、两种失败的区别由 body/文案承载（需连带改 `policyStatus.test.ts`）。
 5. **`bench-report --json` 把人类摘要写进 stdout**（违反 `output.ts` 的"`--json` 时 stdout 只允许一段可解析 JSON"）：**改动前就有**，测试**故意没锁它**（避免又一次"锁住缺陷"）。
 6. **形态 A（重复 `content_block_start` **无 id/name**）仍丢 seed**：最小改法已给（`feed()` 内新增 1 个发射点），代价是**必须反转**那条把"仍丢"钉死的既有断言；另 `flushToolBlock` 对未启动块取**最后一次**写入的 seed（**又一个静默覆盖点**）。
