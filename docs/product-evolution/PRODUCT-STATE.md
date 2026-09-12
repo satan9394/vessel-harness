@@ -774,3 +774,20 @@ G-15 原子写 wrapper 各 Store 重复（P4）；architecture 审计的 T1–T9
 6. **`request/header`、`turn/end.stats` 加法字段、`turn/end.toolCallsWithoutEnd`** 仍无回放消费方（已如实标注）。
 7. **`--model ''` 挡住 `VESSEL_MODEL` 回落**、**真实 provider 全链无 model 时发字面量 `"mock-model"`**、**`denials`/M12 实跑是真实拒绝数 2 倍**（`Math.max` 绕行）——**三条均为产品决策，我没有擅自动**。
 8. 被跟踪的 `release-report.{md,json}` 仍是旧判据快照（已加指引说明，**未**重跑刷新）。
+
+### Round 169 — **`BENCHMARK-SPEC` ⇄ 实现/yaml 的 11 条不符清单（正式落盘）**
+
+**为什么单独记这一节**：这份清单原本只存在于**子代理回给指挥侧的会话消息**里——下一张卡开工时明确报告"**在 `docs/`、`tasks/`、全仓 grep 都找不到它**"，并如实声明"未能读到原件、将独立重做对账"。⇒ **这是本段第二次犯同一个错**（第一次是环境变量那份 14 条清查，见 Round 151）。**记忆没有落盘，等于没有记忆**；而代价很具体：**下一张卡要重做一遍对账，且无法逐条对号**。已把原件发回该卡，并在此固定。
+
+**清单（编号照原样；行号为当时坐标，复核请按章节/符号）**：
+1. **【高】** §3.0 把 `expected`/`harnesses` 标为**必填**；实际 `manifest.ts` 的 `KNOWN_KEYS` **无这两个键**（写了反而抛错），`ScenarioManifest` 也无这两个字段。
+2. **【中高】** §3.0 判据原语表列了 `claim_truthful`/`metric_eq`/`exec_content`，而 `asserts.ts`/`AssertType` **都没有**；同时**漏列一批已实现原语**（`event_seen`/`record_seen`/`denial_seen`/`guard_seen`/`no_executed_call`/`content_absent`/`path_absent`/`stream_seen`/`turn_interrupted`/`steer_seen`/`resume_seen`/`indeterminate`）。**B006/B014 卡正在用 `claim_truthful`**。
+3. **【中高】** §3.0 对 `git_diff_scope` 的"与白名单一致（禁改文件集合）"与实现不符：实际**只比改动文件个数**（`changed.size >= expected`），不比文件名、无白名单。
+4. **【中高】** §2.1/§2.3 称 fixtures 含 `workspace/`、`expected/asserts.yaml`、`harness-config/`、"两车道共用同一份 expected"；实际 B001 只有 `a/ b/ package.json README.md task.md`、B018 只有 `task.md`；**判据全在 `scenarios/*.yaml` 的 `pass:`**。
+5. **【中】** §7.2/§8.1 称首批 adapter = `pi`+`claw`+`ours`；实际只有 `claude/codex/dsh/opencode/pi`。
+6. **【高】** **附录 A「指标→场景覆盖速查」整表陈旧**（M04 点 B016、M08 点 B016/B018、M09 点 B016、M14 写"全部"、M06/M07 写"全部（live）"、并把**无 manifest** 的场景当覆盖来源）；M13 行准确。**它是第二张覆盖矩阵，且不在 Round 167 新守卫的覆盖内。**
+7. **【高】** §0/§1.1/§8.2/§8.3 称"**B001–B015 全部逐一定义、每条判据机器可执行**""**19 scenario manifest + fixtures**""**B001–B019 全 manifest 校验过 ✔**"；实际**只有 9 张卡有 manifest**（实为 25 份 = B 系列 17 + S 系列 8），**B006–B015 既无 manifest 也无 fixture** ⇒ **触及"≥15"门槛的计分口径**。
+8. **【中】** §5.2 的 A/B 适用场景清单含 `B016–B019`（yaml 为 `offline`）与 `B008/B010/B013`（无 manifest）⇒ 该清单 9 个场景**今天跑不了 A/B**。
+9. **【中】** `harnesses` **只存在于文档**，yaml 无此键（与 1 同源）。
+10. **【低】** §3.0 对 `exec_content` 的举例"如 B017『用 pnpm 不用 npm』"在 B017 卡改准后**失去载体**。
+11. **【低】** `B003.yaml` 的 `hidden.source: scenarios/B003/hidden` 与实际文件位置一致 ✓，但**隐藏测试放在 `scenarios/` 而非 fixtures**，与 §2.1"每 scenario 一个 fixture pack"相悖。
