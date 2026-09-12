@@ -372,7 +372,7 @@
 | **C-1** | `mergeScopes` 重建 `filesystem` 时**丢掉 `confinement`** → 该硬执法特性在**生产路径永不生效**（`Compiler.ts:137/169/278` 读它，而唯一设置途径是策略文件、必经合并） | 读码确认（`:244-248` 只带三个键）。**6 个 confinement 测试直调 `compilePolicyYaml` 绕过合并** → 61/61 全绿掩盖此洞 |
 | **C-2** | **allow 类列表并集 = 低层可放宽执行**：project 追加 `shell.allow: ["bash"]` → `bash -c "rm -rf /tmp/x"` 从 **deny 变 allow** | ✅ **实测确认**：仅 system → `deny`；加项目层后 → **`allow`**（`rm -rf /tmp/x` 本身仍 deny，即"包一层即绕过"）。叠加无 trust 门 → **克隆仓库即可放宽执行** |
 | C-3 | force-push 仍可绕：`git push origin main --force`（尾置）、`sh -c`、`sudo`；且一个测试把 `sudo` 不命中**锁成"正确行为"** | 静态（规则要求 `--force` 紧跟 `push`） |
-| C-4 | `cli.ts:509` 仍打印"靠后的层覆盖标量"（唯一层事实展示通道，说反了） | ✅ 已修（改为"左侧为高层：profile/approval 取高层先声明者；deny 类列表取并集；低层只能加限制"） |
+| C-4 | `cli.ts:509` 仍打印"靠后的层覆盖标量"（唯一层事实展示通道，说反了） | ✅ 已修（改为"左侧为高层：profile/approval 取高层先声明者；deny 类列表取并集；低层只能加限制"）。**行号更正（Round 19 实测）**：文案实际在 **`cli.ts:641`**（非 `:509`）；`pricingSyncMismatchWarning` 定义在 **`:291`**、其**调用点**在 **`:1818-1819`**（非 `:1793-1794`）。 |
 | C-5 | `version` 仍后者覆盖（当前不可利用） | 静态 |
 
 **由此新增纪律 15**：**测试若绕过生产入口，等于零证据**——C-1 正是"组件级测试全绿、生产路径特性失效"的典型（详见纪律段）。
