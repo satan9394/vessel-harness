@@ -6,7 +6,7 @@
  * `（mock 离线冒烟）` 前缀）与 `tui/chat.ts`（`TUI_MOCK_PROVIDER_NOTICE` / `renderTurnReply`）
  * 落地，但全仓 **0 处**断言过 `MOCK_PROVIDER_NOTICE` / `TUI_MOCK_PROVIDER_NOTICE` /
  * 「未连接真实模型」；唯一触碰标记的 `policyStatus.test.ts:347,379` 把 `toContain` 打在
- * `fallbackText` 上——而 `fallbackText`（cli.ts:618 / chat.ts:436）**自身就以该标记开头**，
+ * `fallbackText` 上——而 `fallbackText`（`cli.ts` 的 mock 脚本 `fallbackText` / `chat.ts` 的对应常量）**自身就以该标记开头**，
  * 于是把 `renderFinalReply` 整段删掉那两条依旧绿（零判别力）。同理
  * `cli.test.ts:171` / `opencodeGoCli.test.ts:187` 用的是子串阳性断言
  * （`toContain('CLI-106-MARKER')`），给真 provider 回复加个 mock 前缀也打断不了它。
@@ -18,7 +18,7 @@
  *      最终回复行 `startsWith` 标记。注意本条**单独不具判别力**（fallbackText 自带标记），
  *      它的价值是锁「提示走 stderr」这条通道契约 —— 正是复评点名缺失的那处断言。
  *   2) 【强判别】CLI 正例：prompt 命中 mock 冒烟脚本（/总结/）+ 工作区存在 README.md
- *      → 走「脚本命中回显」，回显文案「已通过 Read 工具读取工作区文件。…」（cli.ts:613）
+ *      → 走「脚本命中回显」，回显文案「已通过 Read 工具读取工作区文件。…」（`cli.ts` 的 mock 脚本命中回显分支）
  *      **自身不带标记**，只有 `renderFinalReply` 生效才会以标记开头。**修复前必红。**
  *   3) CLI 幂等：fallback 与脚本回显两条路径的标记各出现**恰好一次**（`split` 计数），
  *      防「文案自带 + 出口再加」叠成两层。回显那条**修复前必红**（0 次 ≠ 1 次）。
@@ -28,11 +28,11 @@
  *      **不用**弱 `toContain` 阳性断言。
  *   5) TUI 正例：`runChat`（空 provider 根 → 内置 mock）→ 输出含提示、回显回复行以标记开头。
  *      **修复前必红。**
- *   6) TUI 负对照：注入的 provider（chat.ts:446-449 分支）与经 store 解析出的 loopback
- *      真 provider（chat.ts:410-418 分支）两条入口，都不含提示、回复不含标记。
+ *   6) TUI 负对照：注入的 provider（`chat.ts` 的 `opts.provider` 注入分支）与经 store 解析出的 loopback
+ *      真 provider（`chat.ts` 的 store 解析分支）两条入口，都不含提示、回复不含标记。
  *   7) AC2 边界（复评指出）：mock **空回复**（无 finalText）走 `(无文本回复)` 分支且**不带标记**
  *      —— `renderFinalReply` / `renderTurnReply` 的 `if (!finalText)` 分支在 mock 判定**之前**
- *      返回（cli.ts:556 / chat.ts:339）。本条**如实断言当前行为**并注明这是已知边界：
+ *      返回（`cli.ts` 的 `renderFinalReply` / `chat.ts` 的 `renderTurnReply` 的同一早退分支）。本条**如实断言当前行为**并注明这是已知边界：
  *      不为让它绿而放宽断言，也不顺手改实现。
  *      走真实内置 mock：`--max-steps 1` 时脚本第一步发 Read 工具调用 → `snapshot.steps >= maxSteps`
  *      → `kind=budget`、`finalText=''`（AgentLoop.ts:314-317）。
@@ -42,8 +42,8 @@
  * 一律摘除后还原——`planProvider`（providerFactory.ts:83-91）里 flags/env 的优先级**高于**
  * 已存配置的 baseUrl，不摘掉的话机器上带着真端点就会把负对照打成真实网络请求。
  *
- * 关于 `--json`：`cmdRun` 目前**没有** `--json` 成功回复分支（cli.ts:698-702 无条件
- * `console.log` 人类文案；`isJson` 只在 `fail()` 失败出口生效，见 cli.ts:552-553 的注释），
+ * 关于 `--json`：`cmdRun` 目前**没有** `--json` 成功回复分支（`cmdRun` 的成功分支无条件
+ * `console.log` 人类文案；`isJson` 只在 `fail()` 失败出口生效，见 `fail()` 的注释），
  * 因此本文件不设 JSON 回复用例——没有可断言的 JSON 回复字段，硬造一个只会是假绿。
  */
 import * as fs from 'node:fs';
@@ -63,7 +63,7 @@ const POLICY = path.join(REPO_ROOT, 'configs', 'policy.default.yaml');
 const BEHAVIOR = path.join(REPO_ROOT, 'configs', 'behavior.default.yaml');
 
 /**
- * 两个标注的**字面量**（逐字取自 cli.ts:540-542 / tui/chat.ts:325-327）。
+ * 两个标注的**字面量**（逐字取自 `cli.ts` 的 `MOCK_PROVIDER_NOTICE` / `tui/chat.ts` 的 `TUI_MOCK_PROVIDER_NOTICE`）。
  *
  * 两处实现故意内联（chat.ts 反向 import cli.ts 会成环），所以「CLI 与 TUI 说同一句话」这条
  * 契约在源码层面**没有任何编译期约束**；本文件用同一个常量同时断言两条路径的输出，
@@ -74,7 +74,7 @@ const MOCK_NOTICE =
 const MOCK_NOTICE_KEY = '未连接真实模型';
 const MOCK_REPLY_MARK = '（mock 离线冒烟）';
 
-/** 最终回复行在 stdout 里的定位标记（cli.ts:700 的固定表头）。 */
+/** 最终回复行在 stdout 里的定位标记（`cmdRun` 打印的固定表头）。 */
 const FINAL_REPLY_HEADER = '=== 最终回复 ===';
 
 /**
@@ -174,7 +174,7 @@ function capture() {
 type Cap = ReturnType<typeof capture>;
 
 /**
- * `=== 最终回复 ===` 表头的**下一行** = cmdRun 打印的最终回复（cli.ts:700-702）。
+ * `=== 最终回复 ===` 表头的**下一行** = `cmdRun` 打印的最终回复。
  * 取不到就断言失败（而不是回落到空串把断言变成空转）。
  */
 function finalReplyLine(cap: Cap): string {
@@ -341,7 +341,7 @@ describe('BRIEF-16 1C mock 运行期可见性：真实 main()/runChat() 上的�
       expect(cap.err()).toContain(MOCK_NOTICE_KEY);
 
       const reply = finalReplyLine(cap);
-      // 阳性控制一：确实走了「脚本命中回显」分支（cli.ts:613），而不是 fallbackText
+      // 阳性控制一：确实走了「脚本命中回显」分支（`cli.ts` 的脚本命中回显分支），而不是 fallbackText
       expect(reply).toContain('已通过 Read 工具读取工作区文件');
       // 阳性控制二：回显内容真的来自工作区文件（回合不是空转）
       expect(reply).toContain('MOCK-VIS-GOLDEN-1');
@@ -417,7 +417,7 @@ describe('BRIEF-16 1C mock 运行期可见性：真实 main()/runChat() 上的�
     });
 
     expect(code).toBe(0);
-    // 提示经可注入的 io.write 输出（chat.ts:442-445），且与 cli.ts 的常量**逐字同一句**
+    // 提示经可注入的 io.write 输出（`chat.ts` 的提示输出处），且与 cli.ts 的常量**逐字同一句**
     expect(output.some((l) => l.includes(MOCK_NOTICE))).toBe(true);
     expect(output.join('\n')).toContain(MOCK_NOTICE_KEY);
     // 每会话一行：本用例只建一次 harness，不得重复刷屏
@@ -430,7 +430,7 @@ describe('BRIEF-16 1C mock 运行期可见性：真实 main()/runChat() 上的�
   });
 
   it('6) TUI 负对照：注入的 provider 与 store 解析出的 loopback 真 provider 都不带标记', async () => {
-    // —— 入口 A：`opts.provider` 注入（chat.ts:446-449 的负对照分支；provider 根为空 → 内置 mock 分支不进）——
+    // —— 入口 A：`opts.provider` 注入（`chat.ts` 的 `opts.provider` 负对照分支；provider 根为空 → 内置 mock 分支不进）——
     const injected = scriptedIO(['ping', '/quit']);
     const fakeProvider = new MockProvider([{ when: /.*/, response: { text: 'TUI-VIS-INJECTED' } }], { model: 'm' });
     const codeA = await runChat({
@@ -446,7 +446,7 @@ describe('BRIEF-16 1C mock 运行期可见性：真实 main()/runChat() 上的�
     expect(textA).not.toContain(MOCK_NOTICE_KEY);
     expect(textA).not.toContain(MOCK_REPLY_MARK);
 
-    // —— 入口 B：store 解析出的真实（loopback）provider（chat.ts:410-418 分支）——
+    // —— 入口 B：store 解析出的真实（loopback）provider（`chat.ts` 的 store 解析分支）——
     const endpoint = await startLoopback('TUI-VIS-REAL-MARKER');
     try {
       useLoopbackProvider('tuisreal', endpoint.baseUrl);
@@ -489,7 +489,7 @@ describe('BRIEF-16 1C mock 运行期可见性：真实 main()/runChat() 上的�
 
       const reply = finalReplyLine(cap);
       // 已知边界（EVALUATION-REPORT-22 指出）：renderFinalReply 的 `if (!finalText)` 分支
-      // 在 mock 判定**之前**就返回（cli.ts:556），所以空回复不带标记。这里如实锁住现状：
+      // 在 mock 判定**之前**就返回（`renderFinalReply` 的早退），所以空回复不带标记。这里如实锁住现状：
       // 不为了让断言变绿而放宽，也不改实现把它改成带标记（那是另一个决策，需独立验收）。
       expect(reply).toBe('(无文本回复)');
       expect(reply).not.toContain(MOCK_REPLY_MARK);

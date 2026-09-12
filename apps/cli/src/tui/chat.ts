@@ -328,7 +328,7 @@ const TUI_MOCK_REPLY_MARK = '（mock 离线冒烟）';
 
 /**
  * TUI 最终回复的**唯一渲染出口**（BRIEF-16 1C②），口径与 `cli.ts` 的
- * `renderFinalReply`（apps/cli/src/cli.ts:555-559）逐字一致。
+ * `renderFinalReply` **逐字一致**（按纪律 25：此处原先带行号 `cli.ts:555-559`，已漂移；改用符号名）。
  *
  * 加在**统一出口**而不是逐条改 mock 文案：mock 的读文件回显、脚本命中回显、`fallbackText`
  * 全部经这里，标记只加一次、`chat()` / `stream()` 两条 provider 路径都覆盖。
