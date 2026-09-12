@@ -18,7 +18,7 @@ Job Object 进程隔离后端：进程树统一终止 + 活动进程数上限（
 | 活动进程数上限（anti fork-bomb） | `JOB_OBJECT_LIMIT_ACTIVE_PROCESS`（holder 创建时设置） | OS 强制（best-effort：struct 设置失败时静默降级，见限制） |
 | 隔离工作目录 | 每次 confine/run 在 `os.tmpdir()` 下新建 `vessel-sandbox-*`，作为 cwd 与 TMP/TEMP | 目录隔离；绝不落主工作区 |
 | 050 interrupt 衔接 | `runCommand({ signal, confinement })`：超时/abort 时先 `child.kill` 直杀，再 `confinement.terminate()` 整树终止 | 孙进程在 Windows 上不再漏杀 |
-| 诚实状态上报 | `status()`：win32 → `enabled/active=true, backend='job-object', supported='windows-job-object'` | 无 passthrough 伪装 |
+| 诚实状态上报 | `statusSnapshot()`：`win32` 只决定 `supported='windows-job-object'`；`enabled/active=true, backend='job-object'` **仅当本轮 job 真的附加成功**。未生效时如实给 `active=false, backend='none'` + 机器可读 `degraded`（`job-object-not-attempted` / `job-object-attach-failed` / `job-object-target-exited` / `job-object-unavailable`）与 `fallbackReason`；`vessel run` 末尾的执法遥测会打印这行状态，降级不再只留在运行时内存里 | 无 passthrough 伪装；生效/未生效都可见 |
 
 ## API 形态
 
@@ -54,10 +54,18 @@ Process.ts 注释）；shell tool 已切到 `sandbox.run`（真实接线上路�
 
 1. **受限令牌/降权未实现**：`CreateRestrictedToken`/低完整性令牌需要启动进程以受限令牌派生目标，
    TS/PowerShell 路径无法安全做到（需原生 helper）。`status()` 不宣称此项。
-2. **attach 时序窗口**：job 挂接发生在 spawn 之后（holder 需 `Add-Type` 编译 + 赋值，通常 <2s，
-   首次更慢）。**挂接之前已派生的孙进程不 retroactively 入 job**——只有挂接后派生的后代被整树终止
-   覆盖。`run()` 在 `onSpawn` 立即挂接，常规场景下命令尚未 fork 即已入 job；极端场景（spawn 后
-   立即 fork）存在窗口，已记录为已知限制。
+2. **attach 时序窗口**：job 挂接发生在 spawn 之后（holder 需 `Add-Type` 编译 + 赋值；真机实测 **1–10 s**，
+   并发下更慢——`tasks/078:59` 有一次 10759 ms 的实跑）。因此：
+   - **短命令常常在附加完成前就退出**。这种"目标已不在"（`OpenProcess` 报 87 = pid 不存在，**不是**权限问题：
+     权限是 5）按 **`target-exited`** 处理——独立 reason、**不 warn**、不算附加失败，因为已经没有进程需要约束；
+     但状态仍如实显示 `active=false, degraded='job-object-target-exited'`（不谎报生效，也不误报"沙箱坏了"）。
+   - 等待预算 `createJobObject(timeoutMs)` 默认 **30 s**（≈ 实测最坏编译耗时的 3 倍；旧的 10 s 在实测散布内，
+     并发下会白白降级一个本可附加的命令）。
+   - **挂接之前已派生的孙进程不 retroactively 入 job**——只有挂接后派生的后代被整树终止覆盖；`run()` 在
+     `onSpawn` 立即挂接，常规场景下命令尚未 fork 即已入 job；极端场景（spawn 后立即 fork）由 072 的
+     `closeTimingWindow` 枚举补齐（仍有最小残窗，见 072 限制 4）。
+   - **真失败仍照旧**：errno 5（`ERROR_ACCESS_DENIED`，缺 `PROCESS_SET_QUOTA`/`PROCESS_TERMINATE` 权限）、
+     holder 报错、超时一律 `job-object-attach-failed` + warn + `active=false`，绝不被 `target-exited` 吞掉。
 3. **资源上限 best-effort**：`JOB_OBJECT_LIMIT_ACTIVE_PROCESS` 通过 P/Invoke struct 设置，若
    `SetInformationJobObject` 失败则静默降级（tree-kill 不受影响）。CPU/内存上限（JOB_TIME /
    WORKINGSET）未做——受限 struct 在 PowerShell 下的 P/Invoke 布局验证不充分，留 072/073 或原生
@@ -114,6 +122,15 @@ s.tree().nodes; s.audit();
   隔离目录/异常/050 衔接/非 win32 门控）。
 - kill-tree 用例真实 spawn root→grandchild，root 先入 job、grandchild 后派生（继承 job），
   `terminate()` 后两者均须死亡。
+- **`target-exited` 与降级去重（本卡新增）**：
+  - `Sandbox.test.ts` —「target already exited ≠ attach failed」5 例：短命令给独立 reason 且 **0 条 warn**；
+    `openConfinement()` 同款且不误杀；`target-exited` **不掩盖**后续真失败；未识别的
+    `attached:false` 大声降级；同一会话重复真失败**只 warn 一次**且状态保留最新 detail。
+  - `backend/windows-job-object.test.ts` — 纯函数 `parseAttachMarker`（marker→outcome，含"半写/未知 ⇒ 继续等"）
+    ＋ 真机一例（`it.skipIf(!onWindows)`）：**已退出 pid** 应 `resolve {attached:false, reason:'target-exited'}`
+    而不是抛 attach 失败（该例先断言前提"该 pid 真的不存在"，前提不成立就红，不静默跳过）。
+  - `apps/cli/src/cli.test.ts` — `vessel run` 尾部真的打印沙箱状态行（`状态: backend=… active=… degraded=…`）：
+    `reportStatus()` 生产可达的负对照（删除 cli.ts 里那一行调用即红）。
 
 ## 073 — Filesystem Confinement（在 071/072 之上新增文件面）
 

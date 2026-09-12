@@ -115,6 +115,14 @@ export interface ComposedHarness {
   routedCategory?: string;
   /** V0.9: usage store wired (when provided) */
   usageStore?: UsageStoreLike;
+  /**
+   * task 074 § 死 seam 接线: the ONE sandbox instance the Shell tool confines
+   * with. Exposed so a consumer (the CLI's enforcement telemetry) can read the
+   * REAL `statusSnapshot()` instead of guessing from the platform — without it,
+   * `EnforcementProjection.reportStatus()` had no production caller and the
+   * CLI's sandbox status line was unreachable dead code.
+   */
+  sandbox: Sandbox;
   /** task 074: runtime enforcement telemetry projection (071-073 + 050 overload) */
   enforcement: EnforcementProjection;
   close(): Promise<void>;
@@ -393,6 +401,7 @@ export async function composeHarness(opts: ComposeOptions): Promise<ComposedHarn
     route,
     routedCategory,
     usageStore: opts.usageStore,
+    sandbox,
     enforcement,
     async close() {
       telemetry.detach();

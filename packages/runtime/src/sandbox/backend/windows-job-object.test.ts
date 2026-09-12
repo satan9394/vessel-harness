@@ -1,0 +1,78 @@
+import { describe, it, expect } from 'vitest';
+import { spawn, type ChildProcess } from 'node:child_process';
+import { once } from 'node:events';
+import { WindowsJobObject, createJobObject, parseAttachMarker } from './windows-job-object.js';
+
+/**
+ * windows-job-object — the "target already exited" split (BRIEF ①).
+ *
+ * Why this file exists: `OpenProcess` errno 87 (`ERROR_INVALID_PARAMETER` = the
+ * PID does not exist) used to be folded into the same throw as errno 5
+ * (`ERROR_ACCESS_DENIED`) and every other failure. For a short-lived command —
+ * the normal case, because the holder's `Add-Type` compile takes 1–10 s and runs
+ * AFTER the child spawns — that produced `job-object-attach-failed` plus a stderr
+ * warning for every command, i.e. "the sandbox is broken" when the truth is
+ * "the command was already over".
+ *
+ * Nothing here needs PowerShell to run: the marker → outcome decision is a pure
+ * function. The one case that must talk to the real OS (a PID that no longer
+ * exists) is `it.skipIf(!onWindows)` — skipped, never faked, elsewhere.
+ */
+describe('windows-job-object — attach marker → outcome (pure, no PowerShell)', () => {
+  it('maps the holder\'s "assigned" marker to a real attach', () => {
+    expect(parseAttachMarker('assigned')).toBe('attached');
+    expect(parseAttachMarker('  assigned\n')).toBe('attached');
+  });
+
+  it('maps "target-exited" to its OWN outcome (never attach-failed)', () => {
+    expect(parseAttachMarker('target-exited')).toBe('target-exited');
+    expect(parseAttachMarker(' target-exited \r\n')).toBe('target-exited');
+  });
+
+  it('treats an empty/partial/unrecognised marker as "no answer yet" — never a guess', () => {
+    // WriteAllText creates the file before writing it, so a poll can catch it
+    // empty; guessing "attached" there would be a silent lie.
+    expect(parseAttachMarker('')).toBe('pending');
+    expect(parseAttachMarker('   ')).toBe('pending');
+    expect(parseAttachMarker('ass')).toBe('pending');
+    expect(parseAttachMarker('target-exit')).toBe('pending');
+    expect(parseAttachMarker('anything else')).toBe('pending');
+  });
+
+  it('stays win32-gated', () => {
+    expect(WindowsJobObject.isSupported('win32')).toBe(true);
+    expect(WindowsJobObject.isSupported('linux')).toBe(false);
+    expect(WindowsJobObject.isSupported('darwin')).toBe(false);
+  });
+});
+
+describe('windows-job-object — real-machine attach outcome (win32 + PowerShell)', () => {
+  const onWindows = process.platform === 'win32';
+
+  it.skipIf(!onWindows)(
+    'an already-exited PID RESOLVES as target-exited instead of throwing an attach failure',
+    async () => {
+      const child: ChildProcess = spawn(process.execPath, ['-e', 'process.exit(0)'], {
+        windowsHide: true,
+        stdio: 'ignore',
+      });
+      const pid = child.pid;
+      expect(pid).toBeTruthy();
+      await once(child, 'exit');
+      // let the OS tear the process object down (the PID must be really gone)
+      await new Promise((r) => setTimeout(r, 300));
+      // PREMISE of this test: the PID no longer exists. If that ever stops
+      // holding, fail HERE — loudly — instead of silently asserting something
+      // the test is not about.
+      expect(() => process.kill(pid!, 0)).toThrow();
+
+      // The old behaviour threw here ("job-holder failed to confine pid …:
+      // OpenProcess failed: 87"); the fixed behaviour resolves with its own reason.
+      const conf = await createJobObject(pid!);
+      expect(conf.attached).toBe(false);
+      expect(conf.reason).toBe('target-exited');
+      await conf.dispose();
+    },
+    60_000,
+  );
+});

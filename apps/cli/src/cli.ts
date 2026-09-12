@@ -12,7 +12,6 @@ import {
   SessionRegistry,
   type ComposedHarness,
   type ComposeOptions,
-  type EnforcementProjection,
   type McpConnectionFailure,
   type SessionMeta,
 } from '@vessel/application';
@@ -879,7 +878,7 @@ async function cmdRun(flags: Map<string, string>): Promise<number> {
       }
     }
     // task 074 enforcement telemetry query seam (data face: list + counts + status)
-    printEnforcementTelemetry(harness.enforcement);
+    printEnforcementTelemetry(harness);
     console.log(`会话日志: ${harness.session.logPath}`);
     return 0;
   } catch (err) {
@@ -895,10 +894,23 @@ async function cmdRun(flags: Map<string, string>): Promise<number> {
  * aggregated counts + last few enforcement events + sandbox status from the
  * harness's EnforcementProjection. The full query API (`events / counts /
  * recent(n) / status / treeAudit`) lives on the projection itself.
+ *
+ * § 死 seam 接线（本卡 ③）：这里先调用 `reportStatus()`，生产路径才真的拿到 sandbox
+ * 状态。此前全仓只有测试调用它 ⇒ `snapshot().status()` 恒为 `undefined` ⇒ 下面那行
+ * 状态**永不打印**，用户既看不到"生效"也看不到"未生效"，唯一信号是 stderr 的降级刷屏。
+ * 读的是 `harness.sandbox`——Shell 工具真正用来 confine 的**同一个实例**
+ * （`compose.ts` 暴露），不是从平台猜出来的；`active` 只在该实例真的附加成功后才为真。
+ *
+ * 副作用（有意）：即便本回合零拒绝、零逃逸，沙箱状态行也会打印。这正是一张
+ * "状态可见性"卡要的效果；降级本身不会刷屏（Sandbox 侧按会话对每种 reason 只 warn
+ * 一次，见 `Sandbox.warnedDegradations`）。
  */
-function printEnforcementTelemetry(enforcement: EnforcementProjection): void {
+function printEnforcementTelemetry(harness: ComposedHarness): void {
+  const enforcement = harness.enforcement;
+  // report the REAL runtime status (the same Sandbox instance the Shell tool
+  // confines with) before snapshotting, so `status()` is production-reachable.
+  enforcement.reportStatus(harness.sandbox.statusSnapshot());
   const snap = enforcement.snapshot();
-  if (snap.events.length === 0) return;
   console.log(`\n=== 安全执法遥测 (enforcement telemetry) ===`);
   const counts = Object.entries(snap.counts);
   if (counts.length > 0) {
@@ -908,7 +920,12 @@ function printEnforcementTelemetry(enforcement: EnforcementProjection): void {
   console.log(`  来源: policy=${srcs.policy} fs-confinement=${srcs['fs-confinement']} process-tree=${srcs['process-tree']} sandbox-status=${srcs['sandbox-status']}`);
   const st = snap.status();
   if (st) {
-    console.log(`  状态: backend=${st.backend ?? 'none'} enabled=${st.enabled} active=${st.active}${st.fallbackReason ? ` (${st.fallbackReason})` : ''}`);
+    // `degraded` is the machine-readable "why confinement was not in force"
+    // (or 'none' when it was): the point of this line is that a user can tell
+    // 生效 from 未生效 without reading stderr.
+    console.log(
+      `  状态: backend=${st.backend ?? 'none'} enabled=${st.enabled} active=${st.active} degraded=${st.degraded ?? 'none'}${st.fallbackReason ? ` (${st.fallbackReason})` : ''}`,
+    );
   }
   for (const ev of snap.recent(3)) {
     const m = ev.meta && Object.keys(ev.meta).length > 0 ? ` ${JSON.stringify(ev.meta)}` : '';

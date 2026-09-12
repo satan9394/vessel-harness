@@ -267,7 +267,9 @@ export class Sandbox {
         ? `${supported} backend not active on this platform; confine is passthrough`
         : degraded === 'job-object-attach-failed'
           ? `windows job object attach FAILED${this.degradedDetail ? ` (${this.degradedDetail})` : ''}; this run had no process-tree confinement`
-          : `windows job object backend not attached yet; confinement engages per command (restricted-token not implemented, see task 071)`;
+          : degraded === 'job-object-target-exited'
+            ? 'target process had already exited before the job object attach completed (short-lived command); nothing was left to confine, so this is not an attach failure'
+            : `windows job object backend not attached yet; confinement engages per command (restricted-token not implemented, see task 071)`;
     return {
       enabled: active,
       supported,
@@ -282,6 +284,12 @@ export class Sandbox {
    * v0.1+ seam kept for compatibility: reports the enforcement the backend will
    * provide for a command. Doesn't spawn anything; consumers that want real
    * confinement should use `run()` / `openConfinement()`.
+   *
+   * Deliberate: a `job-object-target-exited` round does NOT downgrade this to
+   * 'partial'. That reason means the PREVIOUS command exited before the attach
+   * could complete — not that the backend cannot confine — so the next command
+   * is still genuinely attempted against a Job Object. Only a REAL attach failure
+   * (`job-object-attach-failed`) makes this report 'partial'.
    */
   async confine(argv: string[], _policyHint?: Record<string, unknown>): Promise<ConfinedArgv> {
     if (!this.canAttempt()) {
@@ -319,6 +327,7 @@ export class Sandbox {
     const attachPidsToJob = this.attachPidsToJob;
     const runEscapeDetection = this.runEscapeDetection.bind(this);
     const degradeJobObject = this.degradeJobObject.bind(this);
+    const noteTargetExited = this.noteTargetExited.bind(this);
     const markJobAttached = this.markJobAttached.bind(this);
     const tree = new ProcessTreeTracker();
     let job: JobObjectConfinement | null = null;
@@ -333,11 +342,24 @@ export class Sandbox {
         if (!attemptable || disposed || job) return;
         tree.registerNode(pid);
         try {
-          job = await jobFactory(pid, {
+          const j = await jobFactory(pid, {
             maxActiveProcesses: limits?.maxActiveProcesses,
             maxProcessTimeMs: limits?.maxProcessTimeMs,
             maxWorkingSetBytes: limits?.maxWorkingSetBytes,
           });
+          if (j.attached === false) {
+            if (j.reason === 'target-exited') {
+              // the PID was already gone — nothing to confine, no warning (see
+              // noteTargetExited), but the status must say so honestly.
+              job = null;
+              noteTargetExited();
+              return;
+            }
+            // attached:false for an UNRECOGNISED reason: never claim the job
+            // attached and never swallow it — degrade loudly.
+            throw new Error('job factory reported attached:false without a recognised reason');
+          }
+          job = j;
           // the job handle exists only once the factory resolved ⇒ confinement is
           // genuinely in force for this round (status must say so).
           markJobAttached();
@@ -433,6 +455,21 @@ export class Sandbox {
         // degrade — but say so: status goes non-active and a warn carries the cause.
         holder.current = null;
         this.degradeJobObject(err instanceof Error ? err.message : String(err));
+        return;
+      }
+      if (j.attached === false) {
+        if (j.reason === 'target-exited') {
+          // ① the target PID was already gone when the holder finished compiling
+          // (the normal case for a short-lived command). Nothing is left to
+          // confine ⇒ no job handle, no warning, but an honest status.
+          holder.current = null;
+          this.noteTargetExited();
+          return;
+        }
+        // attached:false for an UNRECOGNISED reason: never claim the job attached
+        // and never swallow it — degrade loudly (real failures stay real).
+        holder.current = null;
+        this.degradeJobObject('job factory reported attached:false without a recognised reason');
         return;
       }
       holder.current = j;

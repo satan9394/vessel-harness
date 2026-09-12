@@ -179,6 +179,133 @@ describe('Sandbox — degradation is visible, never silent (confine audit truthf
   });
 });
 
+describe('Sandbox — "target already exited" ≠ "attach failed" (BRIEF ①/③)', () => {
+  const makeIsolatedDir = async () => {
+    const p = mkdtempSync(join(tmpdir(), 'vessel-sb-'));
+    tmpAreas.push(p);
+    return { path: p, dispose: async () => {} };
+  };
+  const targetExitedJob = async (pid: number) => ({
+    jobName: `tx_${pid}`,
+    attached: false,
+    reason: 'target-exited' as const,
+    terminate: async () => {},
+    dispose: async () => {},
+  });
+
+  it('run(): a short command reports its OWN reason and does NOT warn', async () => {
+    const warnings: string[] = [];
+    const s = new Sandbox({
+      platform: 'win32',
+      makeIsolatedDir,
+      warn: (m) => warnings.push(m),
+      createJob: targetExitedJob,
+    });
+    const r = await s.run(process.execPath, ['-e', 'process.exit(0)'], { maxOutputBytes: 4096 });
+    expect(r.exitCode).toBe(0);
+    // honest status: nothing was confined, and the reason is its own
+    expect(r.sandbox.active).toBe(false);
+    expect(r.sandbox.enabled).toBe(false);
+    expect(r.sandbox.backend).toBe('none');
+    expect(r.sandbox.degraded).toBe('job-object-target-exited');
+    expect(r.sandbox.fallbackReason).toContain('already exited');
+    // …and zero stderr noise: a 3 ms command must not look like a broken sandbox
+    expect(warnings).toEqual([]);
+  });
+
+  it('openConfinement().attach(): target-exited ⇒ own reason, no warn, no job held', async () => {
+    const warnings: string[] = [];
+    const terminated: number[] = [];
+    const s = new Sandbox({
+      platform: 'win32',
+      makeIsolatedDir,
+      warn: (m) => warnings.push(m),
+      createJob: async (pid) => ({
+        ...(await targetExitedJob(pid)),
+        terminate: async () => {
+          terminated.push(pid);
+        },
+      }),
+    });
+    const session = await s.openConfinement();
+    await session.attach(4242);
+    const st = s.statusSnapshot();
+    expect(st.active).toBe(false);
+    expect(st.degraded).toBe('job-object-target-exited');
+    expect(warnings).toEqual([]);
+    await session.dispose();
+    expect(terminated).toEqual([]); // nothing was ever confined ⇒ nothing to kill
+  });
+
+  it('target-exited never masks a LATER real failure (real failures stay loud)', async () => {
+    const warnings: string[] = [];
+    let n = 0;
+    const s = new Sandbox({
+      platform: 'win32',
+      makeIsolatedDir,
+      warn: (m) => warnings.push(m),
+      createJob: async (pid) => {
+        n += 1;
+        if (n === 1) return targetExitedJob(pid);
+        throw new Error('OpenProcess failed: 5 (access denied)');
+      },
+    });
+    const first = await s.run(process.execPath, ['-e', 'process.exit(0)'], { maxOutputBytes: 1024 });
+    expect(first.sandbox.degraded).toBe('job-object-target-exited');
+    expect(warnings).toEqual([]);
+    // the NEXT round really fails → that must still degrade + warn (安全方向)
+    const second = await s.run(process.execPath, ['-e', 'process.exit(0)'], { maxOutputBytes: 1024 });
+    expect(second.sandbox.active).toBe(false);
+    expect(second.sandbox.degraded).toBe('job-object-attach-failed');
+    expect(second.sandbox.fallbackReason).toContain('OpenProcess failed: 5');
+    expect(warnings.length).toBe(1);
+    expect(warnings[0]).toContain('OpenProcess failed: 5');
+  });
+
+  it('attached:false with an UNRECOGNISED reason is degraded loudly (never read as attached)', async () => {
+    const warnings: string[] = [];
+    const s = new Sandbox({
+      platform: 'win32',
+      makeIsolatedDir,
+      warn: (m) => warnings.push(m),
+      createJob: async (pid) => ({
+        jobName: `u_${pid}`,
+        attached: false,
+        terminate: async () => {},
+        dispose: async () => {},
+      }),
+    });
+    const r = await s.run(process.execPath, ['-e', 'process.exit(0)'], { maxOutputBytes: 1024 });
+    expect(r.sandbox.active).toBe(false);
+    expect(r.sandbox.degraded).toBe('job-object-attach-failed');
+    expect(warnings.length).toBe(1);
+  });
+
+  it('repeated real failures warn ONCE per session, while the LATEST detail stays visible', async () => {
+    const warnings: string[] = [];
+    let n = 0;
+    const s = new Sandbox({
+      platform: 'win32',
+      makeIsolatedDir,
+      warn: (m) => warnings.push(m),
+      createJob: async () => {
+        n += 1;
+        throw new Error(`holder exploded #${n}`);
+      },
+    });
+    await s.run(process.execPath, ['-e', 'process.exit(0)'], { maxOutputBytes: 1024 });
+    await s.run(process.execPath, ['-e', 'process.exit(0)'], { maxOutputBytes: 1024 });
+    await s.run(process.execPath, ['-e', 'process.exit(0)'], { maxOutputBytes: 1024 });
+    // ③ no per-command stderr flood: three failures ⇒ ONE warning
+    expect(warnings.length).toBe(1);
+    expect(warnings[0]).toContain('holder exploded #1');
+    // …and de-duplication must not hide the newest cause: status carries #3
+    const st = s.statusSnapshot();
+    expect(st.degraded).toBe('job-object-attach-failed');
+    expect(st.fallbackReason).toContain('holder exploded #3');
+  });
+});
+
 describe('Sandbox — confine seam reports real enforcement (task 071)', () => {
   it('confine() returns enforcement full on the active Windows backend', async () => {
     const s = new Sandbox({ platform: 'win32', makeIsolatedDir: async () => ({ path: 'x', dispose: async () => {} }) });

@@ -146,6 +146,29 @@ describe('CLI (apps/cli)', () => {
     expect(out).toContain('kind=success');
   });
 
+  it('③ run 打印 sandbox 状态行：enforcement telemetry 的 reportStatus 生产可达（不再是死 seam）', async () => {
+    fs.writeFileSync(path.join(dir, 'README.md'), 'CLI-SANDBOX-STATUS-7', 'utf8');
+    const { logs, restore } = capture();
+    const code = await main([
+      'run',
+      '--workspace', dir,
+      '--prompt', '请阅读 README.md 并回答',
+      '--policy', POLICY,
+      '--behavior', BEHAVIOR,
+    ]);
+    restore();
+    expect(code).toBe(0);
+    const out = logs.join('\n');
+    // 修复前：reportStatus() 全仓只在测试里被调用 ⇒ snapshot().status() 恒 undefined
+    // ⇒ 这两行永不出现（用户既看不到"生效"也看不到"未生效"）。本用例就是那个负对照。
+    expect(out).toContain('安全执法遥测');
+    expect(out).toContain('状态: backend=none');
+    expect(out).toContain('active=false');
+    expect(out).toContain('degraded='); // machine-readable "why confinement was not in force"
+    // fallbackReason 文案随平台不同（win32 = 尚未附加；非 win32 = passthrough）
+    expect(out).toMatch(/backend not attached yet|backend not active on this platform/);
+  });
+
   it('② run 只读 VESSEL_PROVIDER_ROOT 临时 root：临时 current.json 决定 provider（不读真实 ~/.vessel）', async () => {
     const endpoint = await startLoopback('CLI-106-MARKER');
     try {

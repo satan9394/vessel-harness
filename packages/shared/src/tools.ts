@@ -74,10 +74,17 @@ export interface SandboxStatus {
    * `active`/`enabled` are true only when the backend genuinely attached; this
    * field makes a silent degradation visible instead of letting status keep
    * claiming the platform capability as if it were the real constraint.
+   *
+   * `'job-object-target-exited'` is NOT a failure: the target PID was already
+   * gone when the Windows holder finished compiling (errno 87 — the normal case
+   * for a short-lived command), so there was nothing to confine. It is reported
+   * (never as `'job-object-attach-failed'`) so "confinement was not in force for
+   * that command" stays accurate and visible; real failures keep their own value.
    */
   degraded?:
     | 'job-object-not-attempted'
     | 'job-object-attach-failed'
+    | 'job-object-target-exited'
     | 'job-object-unavailable';
   fallbackReason?: string;
 }
