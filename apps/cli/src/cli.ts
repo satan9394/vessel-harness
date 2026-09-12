@@ -256,10 +256,10 @@ function policyLayerFixHint(layer: PolicyLayerFact): string {
   }
   if (layer.error) {
     return layer.layer === 'system'
-      ? `修复 system 层：${where} 已存在但无法解析（${layer.error}）—— 修好该文件，或用 --policy <path> 指向可用策略`
-      : `修复 project 层：${where} 已存在但无法解析（${layer.error}）—— 修好该文件即可，无需新建`;
+      ? `修复 system 层：${where} 已存在但无法解析（${layer.error}），修好该文件即可，也可用 --policy <path> 指向可用策略`
+      : `修复 project 层：${where} 已存在但无法解析（${layer.error}），修好该文件即可，无需新建`;
   }
-  return `${layer.layer} 层：${where} 合法但未贡献任何声明（0 条）—— 检查文件内容是否为空`;
+  return `${layer.layer} 层：${where} 合法但未贡献任何声明（0 条），检查文件内容是否为空`;
 }
 
 /**
@@ -500,8 +500,9 @@ export function cmdPolicyStatus(flags: Map<string, string>): number {
     // 三态：缺失 / 解析失败（存在但无效）/ 存在（合法）
     const state = !l.exists ? '缺失' : l.error ? '解析失败' : '存在';
     const hash = l.hash ? `sha256:${l.hash}` : '-';
+    const where = l.path || '(未配置路径)';
     const note = l.error ? `  解析失败：${l.error}` : '';
-    console.log(`  ${l.layer.padEnd(7)} ${state}  声明 ${l.declarationCount} 条  ${hash}  ${l.path || '(未配置路径)'}${note}`);
+    console.log(`  ${l.layer.padEnd(7)} ${state}  声明 ${l.declarationCount} 条  ${hash}  ${where}${note}`);
   }
   console.log(
     effectiveOrder.length > 0
@@ -511,9 +512,7 @@ export function cmdPolicyStatus(flags: Map<string, string>): number {
   // 末尾说明同样**三分**措辞：缺 X 层 / X 层存在但无法解析 / X 层合法但 0 条声明。
   const problems = layers.filter((l) => !l.exists || !!l.error || l.declarationCount === 0);
   const issues = [
-    missing.filter((l) => !l.exists).length > 0
-      ? `缺 ${missing.filter((l) => !l.exists).map((l) => l.layer).join('、')} 层`
-      : '',
+    absent.length > 0 ? `缺 ${absent.map((l) => l.layer).join('、')} 层` : '',
     invalid.length > 0 ? `${invalid.map((l) => l.layer).join('、')} 层存在但无法解析` : '',
     emptyDeclared.length > 0
       ? `${emptyDeclared.map((l) => l.layer).join('、')} 层文件合法但未贡献任何声明`

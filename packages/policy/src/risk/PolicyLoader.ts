@@ -101,16 +101,14 @@ export function inspectPolicyLayers(
       // **缺失**：无 error —— 与「存在但无效」必须可区分（调用方据此决定"放置"还是"修复"）
       return { layer, path: target, exists: false, declarationCount: 0 };
     }
-    let raw: Buffer;
-    try {
-      raw = fs.readFileSync(target);
-    } catch (err) {
+    const read = readLayerBytes(target);
+    if (!read.ok) {
       // IO 异常不抛：文件在但读不到（权限 / 路径是目录等）→ exists:true / 0 条 / error / 无哈希
-      return { layer, path: target, exists: true, declarationCount: 0, error: errorMessage(err) };
+      return { layer, path: target, exists: true, declarationCount: 0, error: read.error };
     }
-    const hash = crypto.createHash('sha256').update(raw).digest('hex').slice(0, 12);
+    const hash = crypto.createHash('sha256').update(read.raw).digest('hex').slice(0, 12);
     try {
-      parsePolicyYaml(raw.toString('utf8'));
+      parsePolicyYaml(read.raw.toString('utf8'));
     } catch (err) {
       // YAML / 结构非法：仍算「文件在」，但 0 条 + error（**仍然不抛**；
       // 是否 fail-loud 由装载路径 `loadPolicyArtifacts` 决定）
@@ -118,6 +116,15 @@ export function inspectPolicyLayers(
     }
     return { layer, path: target, exists: true, declarationCount: 1, hash };
   });
+}
+
+/** 读取层文件字节；失败时**返回原因而不抛**（`inspectPolicyLayers` 的「绝不抛」契约要用）。 */
+function readLayerBytes(target: string): { ok: true; raw: Buffer } | { ok: false; error: string } {
+  try {
+    return { ok: true, raw: fs.readFileSync(target) };
+  } catch (err) {
+    return { ok: false, error: errorMessage(err) };
+  }
 }
 
 /** 异常 → 人话原因（`error` 字段的取值口径；非 Error 抛出物也兜住）。 */
