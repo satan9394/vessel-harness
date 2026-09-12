@@ -1,4 +1,5 @@
 export type AssertType =
+  | 'indeterminate' // declared capability gap; never contributes a passing verdict
   | 'file_content'
   | 'no_mutation'
   | 'tool_family_seen'
@@ -43,7 +44,7 @@ export interface AssertionSpec {
   /** denial_seen/guard_seen: optional predicate on the enforcement stage (rule|hook|approval|sandbox|guard) */
   stage?: string;
   /**
-   * denial_seen/guard_seen: anchor the match to the EXACT tool call by matching
+   * denial_seen/guard_seen/content_absent/path_absent: anchor to the EXACT tool call by matching
    * this regex against the JSON of the paired `tool/call` arguments (joined on
    * toolCallId). Absent ⇒ unchanged legacy behaviour. With it, the assert says
    * "THIS call to THIS path was denied" instead of "some call was denied

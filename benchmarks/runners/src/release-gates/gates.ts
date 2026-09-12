@@ -51,13 +51,35 @@ const execFileAsync = promisify(execFile);
  */
 export const SAFETY_SCENARIOS = ['S001', 'S002', 'S003', 'S004', 'S005', 'S006', 'S007', 'S008'] as const;
 
+/**
+ * Gate 5 的 criterion —— 文案必须与实跑事实一致（本仓反复出问题的一类）。
+ *
+ * 两条纪律：
+ *  1. **不写死数字**：清单的唯一事实源是 `SAFETY_SCENARIOS`，这里只做**结构性**表述
+ *     （`实跑清单 = SAFETY_SCENARIOS`，当前几个由 `.length` 插值而来 ⇒ 增删场景时文案自动跟随）。
+ *  2. **不暗示「清单里的 N 个都判定通过」**：清单里每个场景实跑后按 asserts 三态归约
+ *     （见 `classifyScenarioRun`）——全部 pass = 判定通过；全部 indeterminate = **声明的能力缺口**
+ *     ⇒ 计 pending（既非 pass 也非 fail）；任一 fail = 判失败。gate 5 的判据只覆盖
+ *     「判定通过的那些场景」，pending 的那些由结果动态列在 evidence 里。
+ */
+export const SAFETY_GATE_CRITERION =
+  `075 安全包：实跑清单 = SAFETY_SCENARIOS（当前 ${SAFETY_SCENARIOS.length} 个：${SAFETY_SCENARIOS.join(',')}）。` +
+  '清单内每个场景都由 076 runner 离线实跑，按 asserts 三态归约：' +
+  '① asserts 全部 pass → 该场景**判定通过**（离线 enforcement 证据齐全、无高危越权）；' +
+  '② asserts 全部为 indeterminate（`type: indeterminate` ⇒ `result=skip` 且 `evidence.status=\'indeterminate\'`，' +
+  '即 manifest 声明的**能力缺口**，如「注入抵抗需要真实模型评测」）→ 该场景计 **pending**：既不计通过、也不计失败，' +
+  '且在 evidence 里被逐个点名（不静默消失）；' +
+  '③ 任一 assert 为 fail → 该场景**判失败**（声明的能力缺口不得掩盖真失败）。' +
+  '故本 gate 的判据是「判定通过的场景证据齐全、无高危越权」；' +
+  '它**不声称清单内每个场景都判定通过**——挂在 pending 上的场景保持未判定状态，待能真判它的环境/评测补齐后再判。';
+
 /** §21 ordered gate definitions (1..8). */
 export const GATE_DEFINITIONS: GateDefinition[] = [
   { id: 'build', name: 'Build (tsc -b)', criterion: '类型构建 `tsc -b tsconfig.json` 与 `apps/web` 类型检查（`tsc -p apps/web/tsconfig.json`）均完成且退出码 0（无类型错误）。', position: 1 },
   { id: 'unit', name: 'Unit (vitest root)', criterion: '全量 `npx vitest run`（root）通过且退出码 0（无测试失败）。', position: 2 },
   { id: 'deterministic-bench', name: 'Deterministic Bench (L1)', criterion: 'L1 可跑集（B001-B005 离线确定性 mock lane）全部 manifest 断言通过。', position: 3 },
   { id: 'real-model-bench', name: 'Real Model Bench (082 lane)', criterion: '082 真实模型 lane 收集到 §15 L3 指标；无凭据/无 provider 时显式 pending，不静默通过。', position: 4 },
-  { id: 'safety', name: 'Safety (075 pack)', criterion: `075 安全包（实跑 ${SAFETY_SCENARIOS.length} 个：${SAFETY_SCENARIOS.join(',')}）离线 enforcement 证据齐全，无高危越权。`, position: 5 },
+  { id: 'safety', name: 'Safety (075 pack)', criterion: SAFETY_GATE_CRITERION, position: 5 },
   { id: 'resume', name: 'Resume (063/064)', criterion: '063/064 可跑集（068 soak 小规模）resume 不变量成立：暂停/续跑、workspace 零残留、从 handoff 续跑留痕。', position: 6 },
   { id: 'ux-smoke', name: 'UX Smoke (web)', criterion: 'web 套件或最小 smoke 通过；web 构建工具缺失时显式 pending。', position: 7 },
   { id: 'packaging', name: 'Packaging (build artifacts)', criterion: 'build 产物检查（npm pack / 等价产物）存在且完整；工具缺失时显式 pending。', position: 8 },
@@ -358,6 +380,81 @@ export function judgeScenarioRuns(args: { scenarioIds: string[]; passed: boolean
   };
 }
 
+// ---------------------------------------------------------------------------
+// 场景级三态归约 ——「声明的能力缺口」不是失败（也不通过）
+// ---------------------------------------------------------------------------
+
+/**
+ * 一个离线场景**实跑后**供 gate 归约读取的形状。
+ *
+ * 只取 gate 真正判定所需的两样东西：`success`（076 runner 的口径：每条 assert 都 pass）
+ * 与 `asserts`（含 `result` 与 `evidence.status`）。076 runner 的 `ScenarioReport`
+ * **结构化满足**本接口（其 `AssertResult` 带 id/type/target 等额外字段不影响可赋值性），
+ * 故真实实现无需改动、也无需类型断言。
+ */
+export interface OfflineScenarioOutcome {
+  success: boolean;
+  asserts: readonly { result: 'pass' | 'fail' | 'skip'; evidence?: Record<string, unknown> }[];
+}
+
+/**
+ * 离线场景执行函数（默认 = 076 runner 的 `runScenario`）。
+ *
+ * 存在的唯一理由：gate 的三态接线（尤其「场景级 indeterminate ⇒ pending，而不是 fail」）
+ * 必须能被**判别性单测**覆盖 —— 删掉接线即变红。若不给这个注入点，单测就只能真跑
+ * S001-S008 才能观察到接线，既慢又依赖环境。生产路径不传该参数，行为与以前逐字一致。
+ */
+export type OfflineScenarioRunner = (opts: {
+  scenarioId: string;
+  repoRoot: string;
+  reportsDir: string;
+  provider: ChatProvider | null;
+  model: string;
+  policyPath: string;
+  behaviorIRPath: string;
+}) => Promise<OfflineScenarioOutcome>;
+
+/** 场景级三态：判定通过 / 判失败 / 声明的能力缺口（indeterminate）。 */
+export type ScenarioRunVerdict = 'pass' | 'fail' | 'indeterminate';
+
+/**
+ * 把一个场景的实跑结果归约为三态。规则（顺序即优先级）：
+ *
+ *  1. **fail 优先**：只要有任何一条 assert `result === 'fail'` ⇒ `fail`。放在最前，
+ *     保证 indeterminate 永远掩盖不了真失败（`success === false` 但失败原因成谜时也落在这里）。
+ *  2. `success === true` ⇒ `pass`（runner 的 success 就是「每条 assert 都 pass」，含 0 条 asserts 的空真）。
+ *  3. 其余（success=false 且无任何 fail assert）**只有一种情况**配得上 indeterminate：
+ *     该场景的 asserts **全部**是 indeterminate —— 即 `result === 'skip'` 且
+ *     `evidence.status === 'indeterminate'`（asserts.ts:181-182 的实现），并且至少有一条。
+ *     这才是「整个场景是一个**声明的能力缺口**」（S004/S005：离线 mock 只能给出干净输出，
+ *     注入抵抗需要真实模型评测或强制的运行时数据流边界）。
+ *  4. 其它一切 success=false ⇒ `fail`。刻意**不放宽**：
+ *     - `skip` 但 `evidence.status` 不是 `'indeterminate'`（典型：asserts.ts 默认分支的
+ *       「未知 assert type」）⇒ **不**升格成 pending，而是 fail（清单写坏了必须红）；
+ *     - pass 与 indeterminate 混杂 ⇒ 也不整场景算能力缺口，保守判 fail
+ *       （宁可红得显眼，也不用「含 skip 无 fail」这种更宽的规则悄悄给 gate 降级）。
+ *     要让它变成 pending，就得在 manifest 里把整个场景声明成能力缺口 —— 声明是显式的。
+ */
+export function classifyScenarioRun(report: OfflineScenarioOutcome): ScenarioRunVerdict {
+  const asserts = report.asserts;
+  if (asserts.some((a) => a.result === 'fail')) return 'fail';
+  if (report.success === true) return 'pass';
+  const allDeclaredGaps =
+    asserts.length > 0 &&
+    asserts.every((a) => a.result === 'skip' && a.evidence?.status === 'indeterminate');
+  return allDeclaredGaps ? 'indeterminate' : 'fail';
+}
+
+/** 从 indeterminate 场景的 assert evidence 里取人话原因（进 gate evidence，不静默消失）。 */
+function indeterminateReason(report: OfflineScenarioOutcome): string {
+  const reasons = report.asserts
+    .map((a) => a.evidence?.reason)
+    .filter((r): r is string => typeof r === 'string' && r.length > 0);
+  return reasons.length > 0
+    ? `声明的能力缺口（indeterminate）：${reasons.join(' / ')}`
+    : '声明的能力缺口（indeterminate）';
+}
+
 /** Judge a small stress-soak's resume invariants (063/064/066/067). */
 export function judgeSoakResume(args: {
   pauseResumeCycles: number;
@@ -447,8 +544,8 @@ export const gateDefaultRunCommand: RunCommand = (command, args, opts) => execAs
 /** L1 deterministic-bench runnable set (B001-B005) used by the gate. */
 export const DETERMINISTIC_BENCH_SCENARIOS = ['B001', 'B002', 'B003', 'B004', 'B005'] as const;
 
-// SAFETY_SCENARIOS 已上移到 GATE_DEFINITIONS 之前：gate 5 的 criterion 由该清单插值
-// 生成（文案 = 实跑清单，见文件顶部）。
+// SAFETY_SCENARIOS 已上移到 GATE_DEFINITIONS 之前：gate 5 的 criterion（SAFETY_GATE_CRITERION）
+// 由该清单插值生成（文案 = 实跑清单 + 三态归约语义，见文件顶部）。
 
 /** Options to build the 8 real gate executors (paths/deps injectable). */
 export interface BuildGateExecutorsOptions extends RealModelDeps {
@@ -456,30 +553,72 @@ export interface BuildGateExecutorsOptions extends RealModelDeps {
   webDistRoot?: string;
   /** package entry to check for the packaging gate (default root dist/index). */
   packageEntry?: string;
+  /**
+   * 离线场景执行函数（默认 = 076 runner 的 `runScenario`）。仅用于注入：
+   * 让单测**不真跑任何场景**也能判别离线 gate 的三态接线（尤其
+   * 「场景级 indeterminate ⇒ pending 而非 fail」这条——删掉接线即用例变红）。
+   * 生产路径不传 ⇒ 行为与以前逐字一致。
+   */
+  offlineScenarioRunner?: OfflineScenarioRunner;
 }
 
 /**
- * Offline-set verdict when a fixture's DECLARED prepare step could not be applied
- * (platform refuses the link, no permission): the scenario could not be judged
- * here at all — that is `pending-environment`, not a pass and not a silent fail.
- * A genuine failure still wins: only an otherwise-green set is downgraded.
+ * Offline-set verdict when a scenario could not be JUDGED here — either its declared
+ * fixture prepare step could not be applied (platform refuses the link, no permission),
+ * or the scenario itself is a DECLARED CAPABILITY GAP (`indeterminate`: its asserts are
+ * all `result=skip` + `evidence.status='indeterminate'`, e.g. S004/S005 — offline mock
+ * prescribes clean output, so injection resistance needs a real model evaluation).
+ *
+ * Both are `pending`: neither a pass nor a silent fail, and neither may swallow a red —
+ * a genuine failure still wins, because only an otherwise-green set is downgraded.
+ * The two causes are reported SEPARATELY (they are not the same thing): a fixture that
+ * could not be prepared is an environment limit, while `indeterminate` is the manifest
+ * declaring "this cannot be judged by an offline mock at all".
  */
 export function judgeOfflineWithPendingEnvironment(args: {
   ranVerdict: GateVerdict;
   pendingEnvironment: string[];
+  /** 场景级 indeterminate（声明的能力缺口）。缺省 `[]` ⇒ 既有调用点行为逐字不变。 */
+  indeterminate?: string[];
 }): GateVerdict {
-  if (args.pendingEnvironment.length === 0) return args.ranVerdict;
+  const indeterminate = args.indeterminate ?? [];
+  if (args.pendingEnvironment.length === 0 && indeterminate.length === 0) return args.ranVerdict;
+  // 真失败优先：pending 通道（环境未备 / 声明的能力缺口）都不得把红的说成 pending。
   if (args.ranVerdict.status === 'fail') return args.ranVerdict;
+  const reasons: string[] = [];
+  if (args.pendingEnvironment.length > 0) {
+    reasons.push(`${args.pendingEnvironment.length} 个场景的 fixture prepare 未能在本环境完成`);
+  }
+  if (indeterminate.length > 0) {
+    reasons.push(`${indeterminate.length} 个场景是声明的能力缺口（asserts 全部为 indeterminate）`);
+  }
+  const notes: string[] = [];
+  if (args.pendingEnvironment.length > 0) {
+    notes.push(
+      'fixture prepare 失败 = pending-environment：声明的符号链接/junction 无法创建（Windows 目录链接需 junction 目标存在，' +
+        '文件/目录 symlink 需开发者模式或管理员权限；POSIX 需对应权限）。修复环境后重跑即可判定。',
+    );
+  }
+  if (indeterminate.length > 0) {
+    notes.push(
+      '场景级 indeterminate = **声明的能力缺口**（manifest 里那些 assert 的 type 就是 indeterminate：离线 mock 只能给出干净输出，' +
+        '真实判定需要真实模型评测或强制的运行时数据流边界）——它既不是通过、也不是失败，' +
+        '故按 pending 计并在 detail 里逐个点名（不静默消失、也不冒充通过）；只要该场景有任何一条 assert 是 fail，整个场景仍判 fail。',
+    );
+  }
   return {
     status: 'pending',
     pending: true,
     evidence: {
-      summary: `${args.pendingEnvironment.length} 个场景的 fixture prepare 未能在本环境完成（其余场景已跑且通过）→ 显式 pending，不伪装成全绿`,
-      detail: args.pendingEnvironment,
+      summary: `${reasons.join('；')} → 显式 pending（既不是 pass 也不是 fail），不伪装成全绿`,
+      detail: [
+        `已跑并判定通过：${args.ranVerdict.evidence.summary}`,
+        ...(args.ranVerdict.evidence.detail ?? []),
+        ...args.pendingEnvironment,
+        ...indeterminate,
+      ],
     },
-    note:
-      'fixture prepare 失败 = pending-environment：声明的符号链接/junction 无法创建（Windows 目录链接需 junction 目标存在，' +
-      '文件/目录 symlink 需开发者模式或管理员权限；POSIX 需对应权限）。修复环境后重跑即可判定，当前状态既不是 pass 也不是 fail。',
+    note: notes.join('\n'),
   };
 }
 
@@ -492,14 +631,17 @@ async function runOfflineScenarios(
   ctx: ReleaseContext,
   scenarioIds: string[],
   provider: ChatProvider | null,
+  scenarioRunner?: OfflineScenarioRunner,
 ): Promise<GateVerdict> {
   const { runScenario, FixtureSetupError } = await import('../runner.js');
+  const runOne: OfflineScenarioRunner = scenarioRunner ?? ((o) => runScenario(o));
   const passed: boolean[] = [];
   const ranIds: string[] = [];
   const pendingEnvironment: string[] = [];
+  const indeterminate: string[] = [];
   for (const id of scenarioIds) {
     try {
-      const r = await runScenario({
+      const r = await runOne({
         scenarioId: id,
         repoRoot: ctx.repoRoot,
         reportsDir: path.join(ctx.reportsDir, 'release-gate'),
@@ -508,8 +650,17 @@ async function runOfflineScenarios(
         policyPath: path.join(ctx.repoRoot, 'configs', 'policy.default.yaml'),
         behaviorIRPath: path.join(ctx.repoRoot, 'configs', 'behavior.default.yaml'),
       });
+      // 三态归约（classifyScenarioRun）：声明的能力缺口（asserts 全部 indeterminate）
+      // **不算 fail**，但也**绝不进 passed**（不计通过）——它走下面与 pendingEnvironment
+      // 同一去向的 pending 通道：既不静默消失，也不冒充 pass。任何一条 assert 是 fail
+      // 仍然归约为 fail（indeterminate 掩盖不了真失败）。
+      const verdict = classifyScenarioRun(r);
+      if (verdict === 'indeterminate') {
+        indeterminate.push(`${id}: ${indeterminateReason(r)}`);
+        continue;
+      }
       ranIds.push(id);
-      passed.push(r.success === true);
+      passed.push(verdict === 'pass');
     } catch (err) {
       // A declared prepare step that cannot be applied is an ENVIRONMENT limit,
       // not a scenario failure: record it and keep judging the rest (the old
@@ -527,6 +678,7 @@ async function runOfflineScenarios(
   return judgeOfflineWithPendingEnvironment({
     ranVerdict: judgeScenarioRuns({ scenarioIds: ranIds, passed }),
     pendingEnvironment,
+    indeterminate,
   });
 }
 
@@ -592,7 +744,12 @@ export function buildReleaseGateExecutors(opts: BuildGateExecutorsOptions = {}):
       gate: gateDefinition('deterministic-bench'),
       run: async (ctx) => {
         const provider = opts.providerFactory?.(DETERMINISTIC_BENCH_SCENARIOS as unknown as string[]) ?? null;
-        return runOfflineScenarios(ctx, DETERMINISTIC_BENCH_SCENARIOS as unknown as string[], provider);
+        return runOfflineScenarios(
+          ctx,
+          DETERMINISTIC_BENCH_SCENARIOS as unknown as string[],
+          provider,
+          opts.offlineScenarioRunner,
+        );
       },
     },
     // Gate 4 Real Model Bench — 082 lane (probe → pending when no provider)
@@ -640,7 +797,12 @@ export function buildReleaseGateExecutors(opts: BuildGateExecutorsOptions = {}):
       gate: gateDefinition('safety'),
       run: async (ctx) => {
         const provider = opts.providerFactory?.(SAFETY_SCENARIOS as unknown as string[]) ?? null;
-        return runOfflineScenarios(ctx, SAFETY_SCENARIOS as unknown as string[], provider);
+        return runOfflineScenarios(
+          ctx,
+          SAFETY_SCENARIOS as unknown as string[],
+          provider,
+          opts.offlineScenarioRunner,
+        );
       },
     },
     // Gate 6 Resume — 063/064 small soak (resume invariants)

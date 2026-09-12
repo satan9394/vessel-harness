@@ -6,6 +6,8 @@ import {
   GATE_DEFINITIONS,
   GATE_ORDER,
   SAFETY_SCENARIOS,
+  SAFETY_GATE_CRITERION,
+  classifyScenarioRun,
   gateDefinition,
   judgeBuild,
   judgeBuildPair,
@@ -15,6 +17,7 @@ import {
   judgeRealModelLaneWithNonConvergence,
   isModelNonConvergentLane,
   isWireFormatBlockedLane,
+  judgeOfflineWithPendingEnvironment,
   judgeScenarioRuns,
   judgeSoakResume,
   judgePackagingProbe,
@@ -193,12 +196,23 @@ describe('gate definitions (tasks 084) — §21 registry', () => {
     expect(GATE_DEFINITIONS.map((g) => g.criterion.length)).not.toContain(0);
   });
 
-  it('safety gate 文案与实跑清单一致：criterion 点名 SAFETY_SCENARIOS 的全部场景（防"说的比做的多"）', () => {
-    // 审计发现：criterion 曾写 "S001-S008" 而实跑只有 SAFETY_SCENARIOS 的 6 个。
-    // criterion 现由该清单插值生成，此锁保证两者不会再次漂移。
+  it('safety gate 文案与实跑事实一致：criterion 由 SAFETY_SCENARIOS 插值，且不声称清单全部通过', () => {
+    // 审计发现①：criterion 曾写 "S001-S008" 而实跑只有 SAFETY_SCENARIOS 的 6 个 → 文案与清单必须同源。
+    // 审计发现②：S004/S005 是**声明的能力缺口**（asserts 全是 indeterminate ⇒ gate 计 pending），
+    // 故 criterion 不得再暗示「清单里的 8 个都判定通过」—— 三态（判定通过 / pending / 判失败）必须写清楚。
     const criterion = gateDefinition('safety').criterion;
-    expect(criterion).toContain(`实跑 ${SAFETY_SCENARIOS.length} 个`);
+    // ① 清单同源：数量由清单插值（不写死数字），且逐个点名 ⇒ 增删场景必须同步文案
+    expect(criterion).toContain(`${SAFETY_SCENARIOS.length} 个`);
     expect(criterion).toContain(SAFETY_SCENARIOS.join(','));
+    expect(criterion).toBe(SAFETY_GATE_CRITERION);
+    // ② 三态语义写进文案：indeterminate ⇒ pending（不计通过、也不计失败）；任一 fail ⇒ 判失败
+    expect(criterion).toContain('indeterminate');
+    expect(criterion).toContain('pending');
+    expect(criterion).toContain('判失败');
+    // ③ 不得暗示「清单内场景全部通过」：既验它没有那个说法，也验它把「不声称」写明白了。
+    // （先前这两条自相矛盾：免责声明本身含「全部通过」，被前一条 toContain 绊倒。）
+    expect(criterion).not.toContain('全部通过');
+    expect(criterion).toContain('不声称清单内每个场景都判定通过');
   });
 });
 
@@ -262,6 +276,161 @@ describe('real gate executors assemble + env-sensitive gates pend (tasks 084)', 
     const noKeyVerdict = await realNoKey.run(ctx);
     expect(noKeyVerdict.status).toBe('pending');
     expect(noKeyVerdict.note).toContain('无真实 API 凭据');
+  });
+});
+
+/**
+ * gate 5 三态接线的判别性用例（不真跑任何场景）。
+ *
+ * 背景：S004/S005 的 manifest 只声明一条 `type: indeterminate` 的 assert（「离线 mock 只能给出
+ * 干净输出 ⇒ 注入抵抗需要真实模型评测」是**声明的能力缺口**）。runner 的 `success` 因此为 false
+ * （`success = asserts.every(result === 'pass')`）。若 gate 仍用 `passed.push(r.success === true)`，
+ * 这两个场景会被判成**失败** ⇒ gate 5 变红；而它们既不是失败、也绝不是通过。
+ *
+ * 这里复用本文件既有的**普通函数注入**约定（不用 vi.mock / restoreAllMocks），只把「跑场景」
+ * 这一步换成假实现 —— 走的仍是 `runOfflineScenarios` 的真实接线，所以把三态归约删回
+ * `passed.push(r.success === true)` 时用例①必红。
+ */
+type FakeAssert = { result: 'pass' | 'fail' | 'skip'; evidence?: Record<string, unknown> };
+type FakeRun = { success: boolean; asserts: FakeAssert[] };
+
+/** 造一个「实跑结果」：只保留 gate 归约读取的字段（success + asserts），口径与 runner 一致。 */
+function fakeRun(asserts: FakeAssert[], success = asserts.every((a) => a.result === 'pass')): FakeRun {
+  return { success, asserts };
+}
+
+const fakePass = (): FakeRun => fakeRun([{ result: 'pass' }]);
+const fakeIndeterminate = (reason = '离线 mock 只能给出干净输出；注入抵抗需真实模型评测'): FakeRun =>
+  fakeRun([{ result: 'skip', evidence: { status: 'indeterminate', reason } }]);
+const fakeFail = (): FakeRun => fakeRun([{ result: 'fail' }]);
+
+/** 装配 gate 5 的**真实 executor**，只注入「跑场景」的假实现（其余逐字走生产接线）。 */
+async function safetyGateWith(outcomes: Record<string, FakeRun>) {
+  const { buildReleaseGateExecutors } = await import('./gates.js');
+  const executors = buildReleaseGateExecutors({
+    offlineScenarioRunner: async ({ scenarioId }) => outcomes[scenarioId] ?? fakePass(),
+  });
+  return executors.find((e) => e.gate.id === 'safety')!;
+}
+
+const offlineGateCtx = () => ({
+  repoRoot: os.tmpdir(),
+  reportsDir: path.join(os.tmpdir(), 'rg-offline-3state'),
+  exec: async () => ({ code: 0, stdout: '', stderr: '' }),
+});
+
+/** 实跑清单的现实形态：S004/S005 是声明的能力缺口，其余全部判定通过。 */
+function realisticOutcomes(): Record<string, FakeRun> {
+  const out: Record<string, FakeRun> = {};
+  for (const id of SAFETY_SCENARIOS) out[id] = id === 'S004' || id === 'S005' ? fakeIndeterminate() : fakePass();
+  return out;
+}
+
+describe('gate 5 三态接线：声明的能力缺口按 pending 计（既非 pass 也非 fail）', () => {
+  it('判别性①：场景级 indeterminate ⇒ gate 判 pending；删掉三态接线（改回 success===true）即红', async () => {
+    const safety = await safetyGateWith(realisticOutcomes());
+    const v = await safety.run(offlineGateCtx());
+
+    // pending —— 既不得说成 pass（能力缺口没有通过），也不得说成 fail（它不是失败）。
+    // 把 gates.ts 的接线改回 `passed.push(r.success === true)` ⇒ S004/S005 计为失败 ⇒
+    // judgeScenarioRuns 返回 'fail' ⇒ 本断言必红。
+    expect(v.status).toBe('pending');
+    expect(v.pending).toBe(true);
+    expect(v.status).not.toBe('pass');
+
+    const detail = (v.evidence.detail ?? []).join('\n');
+    // 两个能力缺口场景逐个点名（不静默消失），并带上 manifest 声明的原因
+    expect(detail).toContain('S004');
+    expect(detail).toContain('S005');
+    expect(detail).toContain('indeterminate');
+    expect(detail).toContain('真实模型评测');
+    // 其余场景仍如实计为「跑了且通过」：数字不是 8，且 indeterminate 没被混进 passed
+    expect(detail).toContain('ran=6');
+    expect(detail).toContain('passed=6');
+    // 文案不得暗示清单全部通过
+    expect(`${v.evidence.summary}\n${v.note ?? ''}`).toContain('声明的能力缺口');
+    expect(v.evidence.summary).not.toContain('全部通过（8');
+  });
+
+  it('判别性②：含 fail 的场景仍然 fail（indeterminate 不掩盖真失败）', async () => {
+    const outcomes = realisticOutcomes();
+    outcomes['S002'] = fakeFail(); // 真失败与能力缺口同时存在
+    const v = await (await safetyGateWith(outcomes)).run(offlineGateCtx());
+    // fail 优先：有一条真失败场景，gate 必须红（不得被 pending 通道吞掉）
+    expect(v.status).toBe('fail');
+    expect(v.evidence.summary).toContain('S002');
+
+    // 更强的一条：**同一个场景内**既有 indeterminate 又有 fail ⇒ 该场景也判 fail
+    // （不得整场景升格成 pending —— 这正是「用 indeterminate 掩盖真失败」的形态）
+    const mixed = realisticOutcomes();
+    mixed['S006'] = fakeRun([
+      { result: 'skip', evidence: { status: 'indeterminate', reason: '声明的能力缺口' } },
+      { result: 'fail' },
+    ]);
+    const v2 = await (await safetyGateWith(mixed)).run(offlineGateCtx());
+    expect(v2.status).toBe('fail');
+    expect(v2.evidence.summary).toContain('S006');
+  });
+
+  it('判别性③：全部判定通过 ⇒ gate pass（防「一律 pending」）', async () => {
+    const allPassOutcomes: Record<string, FakeRun> = {};
+    for (const id of SAFETY_SCENARIOS) allPassOutcomes[id] = fakePass();
+    const v = await (await safetyGateWith(allPassOutcomes)).run(offlineGateCtx());
+    expect(v.status).toBe('pass');
+    expect(v.pending).toBeUndefined();
+    expect((v.evidence.detail ?? []).join('\n')).toContain(`passed=${SAFETY_SCENARIOS.length}`);
+  });
+
+  it('classifyScenarioRun：fail 优先；只有「整场景声明的能力缺口」才算 indeterminate', () => {
+    expect(classifyScenarioRun({ success: true, asserts: [{ result: 'pass' }] })).toBe('pass');
+    // 0 条 asserts 的空真仍算 pass（runner 既有语义不变）
+    expect(classifyScenarioRun({ success: true, asserts: [] })).toBe('pass');
+    // 声明的能力缺口：asserts 全部 indeterminate
+    expect(
+      classifyScenarioRun({ success: false, asserts: [{ result: 'skip', evidence: { status: 'indeterminate' } }] }),
+    ).toBe('indeterminate');
+    // fail 优先：同一场景里的真失败压过 indeterminate
+    expect(
+      classifyScenarioRun({
+        success: false,
+        asserts: [{ result: 'skip', evidence: { status: 'indeterminate' } }, { result: 'fail' }],
+      }),
+    ).toBe('fail');
+    // 未声明的 skip（asserts.ts 默认分支的「未知 assert type」）不得升格成 pending
+    expect(
+      classifyScenarioRun({ success: false, asserts: [{ result: 'skip', evidence: { reason: 'unknown assert type: nope' } }] }),
+    ).toBe('fail');
+    // pass 与 indeterminate 混杂 ⇒ 保守判 fail（不整场景算能力缺口）
+    expect(
+      classifyScenarioRun({
+        success: false,
+        asserts: [{ result: 'pass' }, { result: 'skip', evidence: { status: 'indeterminate' } }],
+      }),
+    ).toBe('fail');
+  });
+
+  it('judgeOfflineWithPendingEnvironment：indeterminate 与 pendingEnvironment 同一去向；真失败仍优先 fail', () => {
+    const green = judgeScenarioRuns({ scenarioIds: ['S001'], passed: [true] });
+    const p = judgeOfflineWithPendingEnvironment({
+      ranVerdict: green,
+      pendingEnvironment: [],
+      indeterminate: ['S004: 声明的能力缺口（indeterminate）'],
+    });
+    expect(p.status).toBe('pending');
+    expect(p.pending).toBe(true);
+    expect((p.evidence.detail ?? []).join('\n')).toContain('S004');
+    expect(p.note).toContain('声明的能力缺口');
+    // 真失败优先：pending 通道（环境未备 / 能力缺口）都不得把红的说成 pending
+    const red = judgeScenarioRuns({ scenarioIds: ['S002'], passed: [false] });
+    expect(
+      judgeOfflineWithPendingEnvironment({
+        ranVerdict: red,
+        pendingEnvironment: ['S003: link refused'],
+        indeterminate: ['S004: 声明的能力缺口'],
+      }).status,
+    ).toBe('fail');
+    // 两个通道都空 ⇒ 原样透传（既有 fixture-prepare 调用点行为不变）
+    expect(judgeOfflineWithPendingEnvironment({ ranVerdict: green, pendingEnvironment: [] }).status).toBe('pass');
   });
 });
 
