@@ -178,3 +178,6 @@ markdown 版（`renderReleaseMarkdown`）含：标题/生成信息/总判定 →
 
 - 只做 gate 框架 + 判据接线 + 报告（本地/CI 可跑）。
 - 不做 CI 平台集成；真实模型/UX/包装环境用 probe/pending 标注，不在受限环境假装通过。
+> **⚠️ 关于仓库里那份 `benchmarks/reports/release-report.{md,json}`（Round 153 记）**：它是**某一次运行的生成快照**，其中内嵌的**判据文本是当时版本**——此后 gate 3/4/8 的判据已改准（见上表与本节），而**产物未重跑刷新**。⇒ 读那份报告时：**判据以本文件与 `gates.ts` 为准，产物只作"那次运行的事实记录"**。
+> **不手改它**的理由：它是生成物（手改会让"生成物"变成"手写文件"，且 `.json` 装不下注释，加说明即坏 JSON）。
+> **刷新方式**（会改写被跟踪产物、并调用真实模型接口，故须**有意**执行）：`npx tsx benchmarks/runners/src/run-release-gates.ts`，跑完按纪律 27 处置产物（有意提交或写回 HEAD）——**不要** `git add -A`。
