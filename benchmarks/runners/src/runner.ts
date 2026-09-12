@@ -430,7 +430,14 @@ export const TURN_KIND_SUMMARY: Record<TurnOutcomeKind, string> = {
   budget: '回合预算耗尽（kind=budget）——本 run 未正常收尾：finalText 只是耗尽前的半截文本',
 };
 
-/** 人话摘要（导出以便报告/测试逐字引用同一份事实源，不另写字面量）。 */
+/**
+ * 人话摘要（导出以便**报告层**引用同一份事实源）。
+ *
+ * **纪律 23 更正**：此处原先写着"导出以便报告/测试**逐字引用**同一份事实源，不另写字面量"
+ * ——对**报告层**成立（它在渲染，不是判据），但对**测试**恰恰相反：测试若用本函数生成
+ * 期望值，那条断言就**恒真**（实现怎么改、期望就跟着改）。故 `runner.test.ts` 已改为
+ * **独立字面量**；本文案一变，那里的用例就会红，逼一次有意识的更新。
+ */
 export function turnKindSummary(kind: TurnOutcomeKind): string {
   return TURN_KIND_SUMMARY[kind];
 }

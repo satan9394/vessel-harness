@@ -4,10 +4,22 @@ import * as path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, it, expect, afterEach } from 'vitest';
 import type { ChatProvider, ChatResponse } from '@vessel/shared';
-import { runScenario, loadManifest, OFFLINE_SCRIPTS, turnKindSummary } from './runner.js';
+import { runScenario, loadManifest, OFFLINE_SCRIPTS } from './runner.js';
 import { runAssert } from './asserts.js';
 import { classifyScenarioRun, type OfflineScenarioOutcome } from './release-gates/gates.js';
 import type { ScenarioReport } from './types.js';
+
+/**
+ * **纪律 23**：期望值**不得由被测函数生成**。
+ *
+ * 这三条报告字段原先写作 `summary: turnKindSummary('error')`——而 `turnKindSummary`
+ * 正是产出该字段的**生产函数** ⇒ 实现怎么改、期望就跟着改，那条断言**恒真**。
+ * 这里改为**独立字面量**：文案变了就必须**有意识地**改测试（而"改了用户可见文案"
+ * 本来就该被注意到）。`runner.ts` 里"导出以便测试逐字引用"的注释也一并更正。
+ */
+const EXPECTED_ERROR_SUMMARY =
+  '回合以错误结束（kind=error）——本 run 未正常收尾：finalText 是错误信息而非模型答案';
+const EXPECTED_SUCCESS_SUMMARY = '回合正常结束（kind=success）';
 
 const REPO_ROOT = fileURLToPath(new URL('../../../', import.meta.url));
 const REPORTS = fs.mkdtempSync(path.join(os.tmpdir(), 'cah-bench-reports-'));
@@ -429,14 +441,14 @@ describe('benchmarks/runner — 证据层诚实性：回合结束 kind 必须进
 
     // 报告（summary.json）：既有键之外新增 turn 字段 + 人话摘要
     const summary = readSummary(report);
-    expect(summary.turn).toEqual({ kind: 'error', endedAbnormally: true, summary: turnKindSummary('error') });
+    expect(summary.turn).toEqual({ kind: 'error', endedAbnormally: true, summary: EXPECTED_ERROR_SUMMARY });
     expect(String((summary.turn as { summary: string }).summary)).toContain('kind=error');
 
     // 报告（JSONL 审计线）：run 的收尾事实可被外部读者读到（新增行，meta 仍在首行）
     const lines = readJsonl(report);
     expect(lines[0]!.type).toBe('meta');
     const turnLine = lines.find((l) => l.type === 'event' && l.kind === 'turn/end');
-    expect(turnLine?.payload).toEqual({ kind: 'error', endedAbnormally: true, summary: turnKindSummary('error') });
+    expect(turnLine?.payload).toEqual({ kind: 'error', endedAbnormally: true, summary: EXPECTED_ERROR_SUMMARY });
 
     // ★ 判据口径**未变**：S001 的四条判据仍按原样判（拒绝确实发生、文件确实还在）。
     //   报告因此同时说清两件事：「机制层拒绝了这次永久删除」（判据 PASS）与
@@ -480,7 +492,7 @@ describe('benchmarks/runner — 证据层诚实性：回合结束 kind 必须进
     expect(summary.reportPath).toBe(report.reportPath);
     expect(summary.sessionLog).toBe(report.sessionLog);
     expect(summary.asserts).toEqual(report.asserts.map((a) => ({ id: a.id, type: a.type, result: a.result })));
-    expect(summary.turn).toEqual({ kind: 'success', endedAbnormally: false, summary: turnKindSummary('success') });
+    expect(summary.turn).toEqual({ kind: 'success', endedAbnormally: false, summary: EXPECTED_SUCCESS_SUMMARY });
 
     // JSONL 也如实带一行收尾事实（新增行；既有行照旧）
     const turnLine = readJsonl(report).find((l) => l.type === 'event' && l.kind === 'turn/end');
