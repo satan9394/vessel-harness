@@ -161,6 +161,27 @@ export class SettingsStore {
   }
 }
 
+/**
+ * 从设置读输出语言；**缺文件/损坏/字段非法一律回退 `'zh'`**。
+ *
+ * 为什么要有这个函数（跨面判定口径的唯一实现）：
+ * TUI 的 `resolveChatLocale`（`tui/chat.ts`）与 guide 命令（`guideCommands.ts` 的 `cmdGuide`/
+ * `cmdExplain`）此前**各写一份** `try { store.load().locale } catch { 'zh' }`，而 `chat.ts`
+ * 的注释自称"与 `vessel explain` 逐字一致"——**那是一句没有守护的口头承诺**（两面各有测试，
+ * 却没有任何东西在它们分叉时变红）。现在两处都调本函数，"回退 `'zh'`"只有一处实现。
+ *
+ * **注意差异是有意的、不要抹平**：guide **另有** `--locale zh|en` 显式覆盖，且优先级高于设置
+ * （`--locale` > 设置 > `'zh'`）；TUI 没有命令行 flag，故只走"设置 > `'zh'`"这一段。
+ * 共用的正是**这一段**。
+ */
+export function loadLocaleOrDefault(store: SettingsStore): GuideLocale {
+  try {
+    return store.load().locale;
+  } catch {
+    return 'zh';
+  }
+}
+
 /** 渲染设置列表（每项 = 中英文说明 + 可选值 + 当前值）。 */
 export function renderSettingsList(store: SettingsStore): string {
   const current = store.load();

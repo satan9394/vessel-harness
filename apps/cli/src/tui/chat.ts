@@ -12,7 +12,7 @@ import { modelsForProtocol } from '@vessel/application';
 import { VESSEL_LOGO } from '../brand.js';
 import { findTerm, renderExplain } from '../guide/glossary.js';
 import type { GuideLocale } from '../guide/guide.js';
-import { SettingsStore } from '../guide/settings.js';
+import { loadLocaleOrDefault, SettingsStore } from '../guide/settings.js';
 import type { UsageStore } from '../usage/UsageStore.js';
 import { localDateKey } from '../usage/UsageStore.js';
 import { renderCostLines, renderTurnDelta, renderTodayLine, type UsageTotalsLike } from './costView.js';
@@ -235,11 +235,9 @@ export function resolveChatStore(
  * settings.json 缺失时 SettingsStore.load() 本身返回默认值 'zh'，行为与改前逐字一致。
  */
 export function resolveChatLocale(settingsRoot?: string): GuideLocale {
-  try {
-    return new SettingsStore({ rootDir: settingsRoot ?? undefined }).load().locale;
-  } catch {
-    return 'zh';
-  }
+  // 口径的唯一实现搬到了 guide/settings.ts 的 loadLocaleOrDefault（TUI 与 guide 共用这一段：
+  // 从设置取值、失败回退 'zh'）。**差异是有意的**：guide 另有 --locale 显式覆盖，TUI 无 flag。
+  return loadLocaleOrDefault(new SettingsStore({ rootDir: settingsRoot ?? undefined }));
 }
 
 /**

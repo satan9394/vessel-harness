@@ -17,7 +17,7 @@
 
 import { findTerm, listTerms, renderExplain, renderTermsList } from './glossary.js';
 import { renderGuide, type GuideLocale } from './guide.js';
-import { SettingsStore, renderSettingsList, renderSettingDetail, settingDef, type VesselSettings } from './settings.js';
+import { SettingsStore, loadLocaleOrDefault, renderSettingsList, renderSettingDetail, settingDef, type VesselSettings } from './settings.js';
 import { emitJson, fail, isJson } from '../output.js';
 
 export interface GuideCliOptions {
@@ -69,12 +69,9 @@ export async function cmdExplain(
     }
     locale = raw;
   } else {
-    // 缺省跟随 settings；settings.json 缺失/损坏/字段残缺一律回退 zh，绝不让 explain 失败。
-    try {
-      locale = settingsStoreFor(opts).load().locale;
-    } catch {
-      locale = 'zh';
-    }
+    // 缺省跟随 settings；口径的唯一实现见 guide/settings.ts 的 loadLocaleOrDefault
+    // （TUI 的 resolveChatLocale 共用同一段：缺失/损坏/字段残缺一律回退 zh，绝不让输出失败）。
+    locale = loadLocaleOrDefault(settingsStoreFor(opts));
   }
   log(renderExplain(entry, locale));
   return 0;
