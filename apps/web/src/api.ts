@@ -174,6 +174,44 @@ function rawBodyReason(text: string, status: number): string {
   return `HTTP ${status}: ${excerpt}`;
 }
 
+/**
+ * The `message` + machine-readable `body` of a **non-2xx** response, derived from
+ * the response body text in exactly one place for the whole client.
+ *
+ * Two readers must never fork here again. This is the same reason `request()`
+ * carries a non-2xx reason at all (`failureMessage`: top-level
+ * `finalText`/`message`/`error`, then the known nested paths, else
+ * `HTTP <status>`) and the same reason a body that is *not* JSON still yields
+ * something readable (`rawBodyReason`; a proxy's `<html>502 …</html>`, a
+ * plain-text `upstream timeout`, a blank body). `handoffMarkdown()` used to skip
+ * both — it read the body and threw `new ApiError(\`HTTP ${res.status}\`, …)`,
+ * so `404 { error: 'handoff_missing', reviewId }` reached the user as a bare
+ * `HTTP 404` while `handoff_missing` was dropped on the floor.
+ *
+ * The parse must never throw out of here: it runs *before* the caller can build
+ * its `ApiError`, so a `SyntaxError` escaping would drop `res.status` and render
+ * V8's `Unexpected token '<' …` to the user instead of a real reason or
+ * `HTTP <status>`.
+ *
+ * `body` keeps its existing meaning: the parsed JSON value when the body **is**
+ * JSON, otherwise the raw text verbatim and untruncated (`rawBodyReason` only
+ * clips the excerpt it folds into the message).
+ */
+function failureFromRawText(text: string, status: number): { message: string; body: unknown } {
+  let body: unknown;
+  let bodyIsRawText = false;
+  try {
+    body = text ? (JSON.parse(text) as unknown) : undefined;
+  } catch {
+    body = text;
+    bodyIsRawText = true;
+  }
+  return {
+    message: bodyIsRawText ? rawBodyReason(text, status) : failureMessage(body, status),
+    body,
+  };
+}
+
 export function createApiClient(opts: ApiOptions = {}) {
   const base = (opts.base ?? '/api').replace(/\/+$/, '');
   const doFetch = opts.fetch ?? globalThis.fetch.bind(globalThis);
@@ -210,19 +248,12 @@ export function createApiClient(opts: ApiOptions = {}) {
       // entirely, so the UI rendered `Unexpected token '<' …` instead of a real
       // reason or `HTTP <status>`. The raw text *is* the body, so it is kept
       // verbatim, and `rawBodyReason` turns it into the message.
-      let body: unknown;
-      let bodyIsRawText = false;
-      try {
-        body = text ? (JSON.parse(text) as unknown) : undefined;
-      } catch {
-        body = text;
-        bodyIsRawText = true;
-      }
-      throw new ApiError(
-        bodyIsRawText ? rawBodyReason(text, res.status) : failureMessage(body, res.status),
-        res.status,
-        body,
-      );
+      //
+      // Both of those live in `failureFromRawText` now, shared with
+      // `handoffMarkdown()` — the sibling reader that used to drop the body it
+      // had just read. The inputs and the expressions evaluated are unchanged.
+      const failure = failureFromRawText(text, res.status);
+      throw new ApiError(failure.message, res.status, failure.body);
     }
 
     // Success path — unchanged: a well-formed body is returned verbatim, and a
@@ -402,7 +433,22 @@ export function createApiClient(opts: ApiOptions = {}) {
         body: JSON.stringify({ text, source }),
       });
     },
-    /** GET /api/reviews/:id/handoff.md — the raw artifact text (for Copy Handoff) */
+    /**
+     * GET /api/reviews/:id/handoff.md — the raw artifact text (for Copy Handoff).
+     *
+     * The **success** body is markdown, not JSON: it is returned verbatim and is
+     * deliberately never parsed (the UI puts it on the clipboard as-is).
+     *
+     * Only the **failure** body is inspected, through the same
+     * `failureFromRawText` chain `request()` uses. The server answers `404
+     * { error: 'handoff_missing', reviewId }` (and the catch-all `404
+     * { error: 'not_found' }`) with a flat JSON body, and a failing intermediary
+     * may answer with HTML or plain text; both now reach the user as a readable
+     * reason. The previous `throw new ApiError(\`HTTP ${res.status}\`, …)` read
+     * the body into `bodyText` and then ignored it, so `COPY_HANDOFF` on a review
+     * whose artifact was never written showed the user exactly `HTTP 404` and
+     * `handoff_missing` never appeared.
+     */
     async handoffMarkdown(id: string): Promise<string> {
       let res: Response;
       try {
@@ -412,7 +458,8 @@ export function createApiClient(opts: ApiOptions = {}) {
       }
       if (!res.ok) {
         const bodyText = await res.text().catch(() => '');
-        throw new ApiError(`HTTP ${res.status}`, res.status, bodyText);
+        const failure = failureFromRawText(bodyText, res.status);
+        throw new ApiError(failure.message, res.status, failure.body);
       }
       return res.text();
     },

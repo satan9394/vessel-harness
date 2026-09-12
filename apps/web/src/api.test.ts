@@ -664,3 +664,212 @@ describe('createApiClient — 嵌套失败原因：goal run 结构性失败（BR
     expect((err as ApiError).body).toBe(html);
   });
 });
+
+/**
+ * BRIEF-25 — `handoffMarkdown()` **读出了 body 却丢掉**：失败时用户只看到 `HTTP <状态码>`。
+ *
+ * 复现（改前，代码路径必然如此；行号指 BRIEF-25 之前的 `api.ts`）：
+ * - `handoffMarkdown()`（:406-418）是 `api.ts` 里**唯一**绕开 `request()` 自己拿响应的
+ *   方法。它的 `!res.ok` 分支是
+ *   `const bodyText = await res.text().catch(() => ''); throw new ApiError(\`HTTP ${res.status}\`, res.status, bodyText)`（:413-416）
+ *   —— **body 已经读进 `bodyText`，然后被原封不动塞进 `ApiError.body`，一个字段都不读**。
+ *   模板串里只有 `res.status`，`failureMessage` / `rawBodyReason` 在这条路径上**根本不会被调用**
+ *   （二者在旧 `api.ts` 里的唯一调用点是 `request()` :222）。
+ * - 服务端该路由的失败体是**扁平 JSON**：`apps/local-server/src/server.ts:583`
+ *   `return json(res, 404, { error: 'handoff_missing', reviewId: id })`（artifact 文件不存在时），
+ *   以及兜底 `:603` `{ error: 'not_found' }`。
+ * - ⇒ `404` + `{error:'handoff_missing',reviewId}` 下 `ApiError.message` **恰为 `'HTTP 404'`**
+ *   （body 里的 `handoff_missing` 一个字符都拿不到）。这就是用例 ① 在改前**必然红**的那条断言
+ *   （`expect(message).toBe('handoff_missing')` 实测会得到 `'HTTP 404'`）。
+ * - 消费方：`components/TeamModule.tsx:146-158` 的 `copyHandoff` → `showError`（:39-41
+ *   `setError(err instanceof Error ? err.message : String(err))`）⇒ 点 Copy Handoff 失败时
+ *   界面只显示 `HTTP 404`。同批刚落地的 `failureMessage` 优先链（BRIEF-22）与
+ *   `rawBodyReason` 非 JSON 兜底（BRIEF-23）、嵌套 `result.error` 下钻（BRIEF-24）
+ *   在这条路径上**完全用不上**——同一个病，同一条 API 层的另一处。
+ *
+ * 修法（最小、与既有优先链一致，**不新写一套**）：把 `request()` 里那段"读文本 → 试解析 →
+ * JSON 走 `failureMessage` / 非 JSON 走 `rawBodyReason`"抽成模块级
+ * `failureFromRawText(text, status): { message, body }`，两条路径共用；
+ * `handoffMarkdown()` 的失败分支改为 `failureFromRawText(bodyText, res.status)`。
+ * 成功路径**逐字不变**：`res.ok` 时仍然 `return res.text()`（markdown 原文，绝不解析）。
+ *
+ * 判别性（纪律 24 —— 删/改哪一行会红）：
+ * - 把 `handoffMarkdown` 里的 `failureFromRawText(bodyText, res.status)` 改回
+ *   `` `HTTP ${res.status}` ``（即恢复旧实现）⇒ ① 的 `toBe('handoff_missing')` 拿到 `'HTTP 404'` ⇒ 红；
+ *   ③/③′ 同时红（原文丢失）。
+ * - 把 `failureFromRawText` 里的 try/catch 换成裸 `JSON.parse` ⇒ ③/③′ 拿到 SyntaxError
+ *   而非 ApiError（连 `status` 都没了）⇒ 红。
+ * - 删掉 `bodyIsRawText = true`（或 catch 里的 `body = text`）⇒ ③/③′ 退回
+ *   `failureMessage` 的 `'HTTP 404'`，不再带原始文本 ⇒ 红（BRIEF-23 组同样红）。
+ * - 把成功路径也"顺便统一"成 `JSON.parse`（照 `request()` 的做法）⇒ ②′ 红
+ *   （返回的是对象而不是 `'{"handoff":"raw"}'` 原文），② 红（markdown 不是 JSON，
+ *   裸 `JSON.parse` 抛 SyntaxError）。
+ * - 删掉失败分支里的 `const bodyText = await res.text().catch(() => '')`
+ *   （或把 `res.text()` 换成 `res.json()`）⇒ ① 的 `body` 断言 / ③ 的 `body` 断言红
+ *   （③ 还会变成 SyntaxError ⇒ 连 `status` 都没了 ⇒ 红）。
+ * - `request()` 侧：把它的 `failureFromRawText(text, res.status)` 换掉 ⇒ BRIEF-23 /
+ *   BRIEF-24 两组既有断言红（本卡不动它们的语义，见 ⑤）。
+ * 负对照：②/②′（成功路径逐字不变）、③/③′（非 JSON 体走 `rawBodyReason`，不是 SyntaxError）、
+ * ④/④′（空体/空白体回落 `HTTP <status>`）、⑤（`request()` 那条老路径逐字不变且与
+ * `handoffMarkdown` 对同一 body 给出同一原因）。
+ */
+describe('createApiClient — handoffMarkdown 失败原因不再丢掉 (BRIEF-25)', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  /** The exact 404 body `server.ts:583` sends when the artifact file does not exist. */
+  const HANDOFF_MISSING_BODY = { error: 'handoff_missing', reviewId: 'review_1' };
+
+  /** Read a rejection without letting it fail the test, preserving the thrown value. */
+  async function caught(p: Promise<unknown>): Promise<ApiError> {
+    const err: unknown = await p.then(
+      () => null,
+      (e: unknown) => e,
+    );
+    expect(err).toBeInstanceOf(ApiError);
+    return err as ApiError;
+  }
+
+  it('① 404 + {error:\'handoff_missing\'} surfaces that reason (改前 message 恰为 \'HTTP 404\')', async () => {
+    const calls: string[] = [];
+    const mockFetch = vi.fn(async (url: string) => {
+      calls.push(url);
+      return jsonResponse(404, HANDOFF_MISSING_BODY);
+    });
+    vi.stubGlobal('fetch', mockFetch);
+
+    const api = createApiClient({ base: '/api' });
+    const err = await caught(api.handoffMarkdown('review_1'));
+
+    // 改前这里恰为 'HTTP 404'（body 读出来就被丢掉了）⇒ 本用例在旧实现上是红的
+    expect(err.message).toBe('handoff_missing');
+    expect(err.message).toContain('handoff_missing');
+    expect(err.message).not.toBe('HTTP 404');
+    expect(err.status).toBe(404);
+    // 机器可读 body：JSON 体按 request() 的既有约定解析后原样交给调用方
+    expect(err.body).toEqual(HANDOFF_MISSING_BODY);
+    expect(calls).toEqual(['/api/reviews/review_1/handoff.md']);
+  });
+
+  it('①′ the catch-all 404 {error:\'not_found\'} body is surfaced too', async () => {
+    // server.ts:603 —— 路由没匹配上时的兜底失败体，同样是扁平 JSON
+    const mockFetch = vi.fn(async () => jsonResponse(404, { error: 'not_found' }));
+    vi.stubGlobal('fetch', mockFetch);
+
+    const api = createApiClient({ base: '/api' });
+    const err = await caught(api.handoffMarkdown('review_1'));
+
+    expect(err.message).toBe('not_found');
+    expect(err.message).not.toBe('HTTP 404');
+    expect(err.status).toBe(404);
+    expect(err.body).toEqual({ error: 'not_found' });
+  });
+
+  it('② (negative control) a 200 markdown body is returned verbatim — never parsed, never wrapped', async () => {
+    const md = '# External Review Handoff\n\n## 1. Task\n\n- nothing\n';
+    const mockFetch = vi.fn(async () => textResponse(200, md));
+    vi.stubGlobal('fetch', mockFetch);
+
+    const api = createApiClient({ base: '/api' });
+    const out = await api.handoffMarkdown('review_1');
+
+    // 逐字相等：没有裁剪、没有 trim、没有包装成对象
+    expect(out).toBe(md);
+    expect(out).toContain('# External Review Handoff');
+  });
+
+  it('②′ (negative control) a 200 body that happens to be JSON is still returned as RAW TEXT', async () => {
+    // 判别"顺便统一"：一旦把成功路径也交给 JSON.parse，这里会拿到对象而不是字符串 ⇒ 红
+    const raw = '{"handoff":"raw"}';
+    const mockFetch = vi.fn(async () => textResponse(200, raw));
+    vi.stubGlobal('fetch', mockFetch);
+
+    const api = createApiClient({ base: '/api' });
+    const out = await api.handoffMarkdown('review_1');
+
+    expect(typeof out).toBe('string');
+    expect(out).toBe(raw);
+    expect(out).not.toEqual(JSON.parse(raw));
+  });
+
+  it('③ (negative control) a 404 HTML body yields a readable reason, not a SyntaxError', async () => {
+    const html = '<html>\n  <body>404 Not Found</body>\n</html>';
+    const mockFetch = vi.fn(async () => textResponse(404, html));
+    vi.stubGlobal('fetch', mockFetch);
+
+    const api = createApiClient({ base: '/api' });
+    const err = await caught(api.handoffMarkdown('review_1'));
+
+    // 裸 JSON.parse ⇒ 这里根本不是 ApiError（连 status 都没有）⇒ 红
+    expect(err.status).toBe(404);
+    // 删掉 rawBodyReason 那条分支 ⇒ 消息退回 'HTTP 404' ⇒ 红
+    expect(err.message).toBe('HTTP 404: <html> <body>404 Not Found</body> </html>');
+    expect(err.message).not.toContain('Unexpected token');
+    expect(err.message.trim()).not.toBe('');
+    expect(err.message).not.toContain('undefined');
+    // 原始文本逐字保留在 body（改前是同一个字符串，故无既有消费方被破坏）
+    expect(err.body).toBe(html);
+  });
+
+  it('③′ (negative control) a 404 plain-text body keeps both the status and the text', async () => {
+    const mockFetch = vi.fn(async () => textResponse(404, 'handoff artifact not written yet'));
+    vi.stubGlobal('fetch', mockFetch);
+
+    const api = createApiClient({ base: '/api' });
+    const err = await caught(api.handoffMarkdown('review_1'));
+
+    expect(err.status).toBe(404);
+    expect(err.message).toBe('HTTP 404: handoff artifact not written yet');
+    expect(err.message.trim()).not.toBe('');
+    expect(err.body).toBe('handoff artifact not written yet');
+  });
+
+  it('④ (negative control) a 404 with an EMPTY body falls back to "HTTP 404"', async () => {
+    const mockFetch = vi.fn(async () => textResponse(404, ''));
+    vi.stubGlobal('fetch', mockFetch);
+
+    const api = createApiClient({ base: '/api' });
+    const err = await caught(api.handoffMarkdown('review_1'));
+
+    expect(err.status).toBe(404);
+    expect(err.message).toBe('HTTP 404');
+    expect(err.body).toBeUndefined();
+  });
+
+  it('④′ (negative control) a 404 with a blank-only body also falls back to "HTTP 404"', async () => {
+    const mockFetch = vi.fn(async () => textResponse(404, '\uFEFF   \n\t'));
+    vi.stubGlobal('fetch', mockFetch);
+
+    const api = createApiClient({ base: '/api' });
+    const err = await caught(api.handoffMarkdown('review_1'));
+
+    expect(err.status).toBe(404);
+    expect(err.message).toBe('HTTP 404');
+    expect(err.message.trim()).not.toBe('');
+    // 原始空白体仍是 body（rawBodyReason 只负责折叠进 message 的那份拷贝）
+    expect(err.body).toBe('\uFEFF   \n\t');
+  });
+
+  it('⑤ (negative control) the request() path is unchanged and both paths agree on one body', async () => {
+    // 同一个 404 JSON 体：request() 走的老路径（getReview）与 handoffMarkdown 的新路径
+    // 必须给出同一个可读原因 —— 成功路径由 ②/②′ 钉住，这里钉失败路径的一致性。
+    const body = { error: 'not_found' };
+    const urls: string[] = [];
+    const mockFetch = vi.fn(async (url: string) => {
+      urls.push(url);
+      return jsonResponse(404, body);
+    });
+    vi.stubGlobal('fetch', mockFetch);
+
+    const api = createApiClient({ base: '/api' });
+    const viaRequest = await caught(api.getReview('review_1'));
+    const viaHandoff = await caught(api.handoffMarkdown('review_1'));
+
+    expect(urls).toEqual(['/api/reviews/review_1', '/api/reviews/review_1/handoff.md']);
+    expect(viaRequest.message).toBe('not_found');
+    expect(viaHandoff.message).toBe(viaRequest.message);
+    expect(viaHandoff.status).toBe(viaRequest.status);
+    expect(viaHandoff.body).toEqual(viaRequest.body);
+  });
+});
