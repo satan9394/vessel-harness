@@ -24,6 +24,16 @@
  * parseOpenAISSE tracks per-index identity across sequential lines via a
  * persistent `state` object; OpenAISTreamParser wraps that with message_start /
  * tool_call_end / message_end bookkeeping.
+ *
+ * Wire order is NOT guaranteed (Round 46 fix): gateways/proxies that reorder
+ * frames, and some "OpenAI-compatible" implementations, emit `index` + an
+ * `arguments` fragment BEFORE the `id`/`name` that identify the call. The
+ * parser therefore buffers argument fragments per index (`pendingArgsByIndex`)
+ * until the identity is complete and replays them, in wire order, as the
+ * `arguments` of the eventual `tool_call_start`. Nothing is discarded on the
+ * floor: if the identity never completes, `flushPendingToolCalls()` surfaces
+ * the buffered fragments as an explicit (placeholder-id) tool call at the
+ * stream boundary instead of dropping them.
  */
 
 import type { StreamChunk } from './types.js';
@@ -53,10 +63,30 @@ export interface OpenAIToolState {
   idByIndex: Map<number, string>;
   /** tool index -> name (only present on the first delta of a call). */
   nameByIndex: Map<number, string>;
+  /**
+   * Round 46: tool index -> arguments fragments that arrived BEFORE the call's
+   * identity (id + name) was complete, held so they can be replayed on the
+   * eventual `tool_call_start` instead of being dropped. Fragments are stored
+   * concatenated in wire order; an entry only exists once a non-empty fragment
+   * has arrived.
+   */
+  pendingArgsByIndex: Map<number, string>;
+  /**
+   * Round 46: tool indices whose `tool_call_start` has already been emitted.
+   * Once started, every later fragment is a continuation delta — a frame that
+   * redundantly repeats id/name must NOT re-emit `tool_call_start`, because the
+   * consumer would overwrite the accumulator holding the earlier arguments.
+   */
+  startedIndexes: Set<number>;
 }
 
 export function createOpenAIToolState(): OpenAIToolState {
-  return { idByIndex: new Map(), nameByIndex: new Map() };
+  return {
+    idByIndex: new Map(),
+    nameByIndex: new Map(),
+    pendingArgsByIndex: new Map(),
+    startedIndexes: new Set(),
+  };
 }
 
 /**
@@ -64,6 +94,12 @@ export function createOpenAIToolState(): OpenAIToolState {
  * StreamChunk[]. Pass one `state` instance across the sequential lines of a
  * single stream so tool-call identity carries forward. Returns an empty array
  * for a bare `[DONE]` line or malformed JSON.
+ *
+ * Round 46: this function never discards an arguments fragment, but fragments
+ * that arrive before their call's identity are held in `state` and only surface
+ * once the identity is known — so a caller that drives the stream itself MUST
+ * call flushPendingToolCalls(state) at the end (OpenAIStreamParser does it on
+ * `[DONE]` / finish()).
  */
 export function parseOpenAIStreamChunk(
   payload: unknown,
@@ -113,22 +149,45 @@ export function parseOpenAIStreamChunk(
       const callName = state.nameByIndex.get(index);
       const callId = state.idByIndex.get(index) ?? `tc_${index}`;
 
-      if (!state.nameByIndex.has(index) && !state.idByIndex.has(index)) {
-        // no identity captured for this index yet — nothing meaningful to emit.
+      if (state.startedIndexes.has(index)) {
+        // Already started: every later fragment is a continuation, even when the
+        // frame redundantly repeats id/name. Re-emitting tool_call_start here
+        // (the pre-Round-46 behavior) made consumers that key by id overwrite
+        // the accumulator they already held — silently losing the earlier args.
+        if (argFragment) {
+          chunks.push({ type: 'tool_call_delta', id: callId, argumentsDelta: argFragment });
+        }
         continue;
       }
 
-      if (callName && tc.function?.name === callName && state.idByIndex.has(index)) {
-        // First delta of a tool call that now carries both id and name.
-        chunks.push({ type: 'tool_call_start', id: callId, name: callName, arguments: tc.function?.arguments ?? '' });
-      } else if (tc.function?.name) {
-        // First delta of a tool call where only name is known (id may be absent).
-        chunks.push({ type: 'tool_call_start', id: callId, name: tc.function.name, arguments: argFragment ?? '' });
-        state.nameByIndex.set(index, tc.function.name);
-      } else if (argFragment) {
-        // Continuation arguments fragment for a call already started.
-        chunks.push({ type: 'tool_call_delta', id: callId, argumentsDelta: argFragment });
+      // Round 46: identity may arrive AFTER the first arguments fragment
+      // (reordering gateway / "OpenAI-compatible" implementation). Buffer the
+      // fragment by index and replay it below — the old code `continue`d here
+      // and dropped the fragment forever.
+      if (argFragment) {
+        state.pendingArgsByIndex.set(index, (state.pendingArgsByIndex.get(index) ?? '') + argFragment);
       }
+
+      if (callName && state.idByIndex.has(index)) {
+        // First delta of a tool call that now carries both id and name.
+        // Normal wire order ⇒ the buffer is empty and this is byte-identical to
+        // the pre-Round-46 output; out-of-order ⇒ the buffered fragments are
+        // replayed (in arrival order) ahead of this delta's own fragment.
+        chunks.push({
+          type: 'tool_call_start',
+          id: callId,
+          name: callName,
+          arguments: state.pendingArgsByIndex.get(index) ?? '',
+        });
+        state.pendingArgsByIndex.delete(index);
+        state.startedIndexes.add(index);
+        continue;
+      }
+
+      // Identity still incomplete (id-only, name-only, or neither): nothing is
+      // emitted yet AND nothing is discarded — the buffered fragments stay in
+      // `pendingArgsByIndex` and are surfaced by flushPendingToolCalls() at the
+      // stream boundary (never silently dropped).
     }
   }
 
@@ -142,6 +201,51 @@ export function parseOpenAIStreamChunk(
   }
 
   return chunks;
+}
+
+/**
+ * Round 46: surface every tool call whose identity never completed.
+ *
+ * `parseOpenAIStreamChunk` buffers argument fragments that arrive before the
+ * call's `id`/`name`; when the identity finally arrives they are replayed on the
+ * `tool_call_start`. If it never arrives (the stream ends first, or the call is
+ * closed by a boundary), the fragments would otherwise be lost — so callers MUST
+ * invoke this at the end of a stream (OpenAIStreamParser does it for `[DONE]`
+ * and `finish()`).
+ *
+ * Policy for the never-identified case — explicit, never silent:
+ *   - one `tool_call_start` per pending index, with the placeholder id
+ *     `tc_<index>` (the same placeholder the continuation path already uses),
+ *     the buffered arguments, and the call name if it was seen (`''` otherwise);
+ *   - immediately followed by `tool_call_end` for that id.
+ * An empty name is deliberate: it is not a resolvable tool name, so the
+ * downstream registry answers with an explicit machine-readable
+ * `INVALID_ARGS: unknown tool: …` instead of the call vanishing. The flushed
+ * entries are removed from `state` so the driver's `tool_call_end` sweep does
+ * not emit a second end for the same id.
+ */
+export function flushPendingToolCalls(state: OpenAIToolState): StreamChunk[] {
+  const out: StreamChunk[] = [];
+  const unstarted = new Set<number>([
+    ...state.pendingArgsByIndex.keys(),
+    ...state.idByIndex.keys(),
+    ...state.nameByIndex.keys(),
+  ]);
+  for (const index of [...unstarted].filter((i) => !state.startedIndexes.has(i)).sort((a, b) => a - b)) {
+    const callName = state.nameByIndex.get(index);
+    const callId = state.idByIndex.get(index) ?? `tc_${index}`;
+    out.push({
+      type: 'tool_call_start',
+      id: callId,
+      name: callName ?? '',
+      arguments: state.pendingArgsByIndex.get(index) ?? '',
+    });
+    out.push({ type: 'tool_call_end', id: callId });
+    state.pendingArgsByIndex.delete(index);
+    state.idByIndex.delete(index);
+    state.nameByIndex.delete(index);
+  }
+  return out;
 }
 
 /**
@@ -183,14 +287,14 @@ export class OpenAIStreamParser {
 
     if (data === '[DONE]') {
       this.ended = true;
-      out.push(...this.closeToolCalls());
+      out.push(...this.closeToolCalls(true));
       out.push({ type: 'message_end' });
       return out;
     }
 
     const chunks = parseOpenAIStreamChunk(data, this.state);
     const hasToolChunks = chunks.some((c) => c.type.startsWith('tool_call'));
-    if (!hasToolChunks) out.push(...this.closeToolCalls());
+    if (!hasToolChunks) out.push(...this.closeToolCalls(false));
     out.push(...chunks);
     return out;
   }
@@ -199,16 +303,46 @@ export class OpenAIStreamParser {
   finish(): StreamChunk[] {
     if (this.ended) return [];
     this.ended = true;
-    return [...this.closeToolCalls(), { type: 'message_end' }];
+    return [...this.closeToolCalls(true), { type: 'message_end' }];
   }
 
-  private closeToolCalls(): StreamChunk[] {
+  /**
+   * Close the tool calls that have already STARTED (emitting their
+   * `tool_call_end`); `terminal` additionally flushes fragments whose identity
+   * never completed (see flushPendingToolCalls).
+   *
+   * Round 46: a non-terminal boundary MUST NOT touch state belonging to an
+   * identity that has not completed yet. `feed()` reaches this method on every
+   * frame that yields no tool chunk — and the very first frame of an
+   * arguments-first stream is exactly such a frame — so wiping
+   * `pendingArgsByIndex` here (pre-fix) dropped the buffered fragment on the
+   * real provider path even though the state machine had just saved it. The same
+   * argument applies to an id-only / name-only index: its identity may still be
+   * in flight, so it is left in place instead of being closed and cleared.
+   */
+  private closeToolCalls(terminal: boolean): StreamChunk[] {
     const out: StreamChunk[] = [];
-    for (const id of new Set(this.state.idByIndex.values())) {
-      out.push({ type: 'tool_call_end', id });
+
+    // Terminal boundary: surface every fragment whose identity never completed.
+    if (terminal) out.push(...flushPendingToolCalls(this.state));
+
+    // Emit ends for the started calls, in the historical order (idByIndex
+    // insertion order, de-duplicated by id) so normal streams stay byte-identical.
+    const closedIds = new Set<string>();
+    for (const [index, id] of this.state.idByIndex) {
+      if (this.state.startedIndexes.has(index)) closedIds.add(id);
     }
-    this.state.idByIndex.clear();
-    this.state.nameByIndex.clear();
+    for (const id of closedIds) out.push({ type: 'tool_call_end', id });
+
+    // Forget only what was just closed. Everything still waiting for its
+    // identity — id-only, name-only, fragments-only — stays in state;
+    // `pendingArgsByIndex` is emptied ONLY by the identity replay in
+    // parseOpenAIStreamChunk or by the explicit flush above, never here.
+    for (const index of this.state.startedIndexes) {
+      this.state.idByIndex.delete(index);
+      this.state.nameByIndex.delete(index);
+    }
+    this.state.startedIndexes.clear();
     return out;
   }
 }
