@@ -160,6 +160,34 @@ export interface AssertResult {
  */
 export type TurnOutcomeKind = 'success' | 'error' | 'interrupted' | 'budget';
 
+/**
+ * `measured` **声明 ⇄ 产出** 的可执行对账结果（BRIEF-A）。
+ *
+ * 为什么需要它：`measured` 在改前是"声明了但零执法"的字段 —— `manifest.ts` 原样透传、
+ * `runScenario` 从不读它，于是两个方向的漂移都能长期潜伏：
+ *   - ① **产出了、却没声明**（例：B018 的 evaluator 臂真产出 M13=1，而 `measured` 未列 M13）；
+ *   - ② **声明了、实现里根本不产**（例：B003/B004/B005 的 `measured` 含 M11、B004 含 M08，
+ *     而 `runScenario` 的报告面上没有任何生产者）。
+ * 本结构把这两类偏差变成**可读、可断言、可追溯**的数据，而不是靠人去 grep。
+ *
+ * 口径（**必须与实现同步读，不得想当然**）：
+ *   - "产出了" = 本次 run 的报告里该指标**值 ≠ 0**。报告里一行值 0 的指标只说明"这一项被
+ *     采集了"，不说明"这一 run 真的产出了该事实"；`Telemetry.metrics()` 对 M02–M07/M09/M12–M14
+ *     是**无条件产出**（值为 0 也写一行），若按"出现即算产出"去判，全部既有 scenario 都会
+ *     被判为"漏声明"，校验就失去判别力。
+ *   - "实现里不产" 的取值面 = `runner.ts` 的 `REPORTED_METRICS`：runner 侧自己算的
+ *     M01（asserts 全通过）/M10（墙钟计时）**加上** `Telemetry.metrics()` 无条件产出的
+ *     M02–M07/M09/M12–M14。（**口径更正**：M01/M10 由 **runner 侧**自产、与 telemetry 无关，
+ *     M02/M03 等则由 telemetry 产 —— 来源不同，但都是本 lane 真产出的指标，
+ *     **绝不能被误判成"无产出"**。）
+ */
+export interface MeasuredAudit {
+  /** ① 本次 run 报告里**值 ≠ 0**、而 `measured` 未声明的指标（产出 > 声明）。 */
+  producedButUndeclared: { metric: string; value: number }[];
+  /** ② `measured` 声明了、而本 lane 的报告面上**没有任何生产者**的指标（声明 > 实现）。 */
+  declaredButUnproducible: string[];
+}
+
 export interface ScenarioReport {
   scenarioId: string;
   runId: string;
@@ -188,6 +216,16 @@ export interface ScenarioReport {
    * 它的职责是让"这一轮根本没正常收尾"在报告里**可见、可判、可追溯**。
    */
   turnEndedAbnormally?: boolean;
+  /**
+   * `measured` 声明与本次 run 实际产出的对账结果（**可选**：两个方向都干净时**缺席**，
+   * 与 `turnKind` 同一条纪律——"没有问题"不写成空对象，免得读者分不清"对账过了"与
+   * "对账根本没跑"）。
+   *
+   * 本字段**不参与**判据与 gate 归约（`success` 仍是 asserts 的全 pass），也**不写进**
+   * 报告文件（JSONL/summary.json 既有键与既有行逐字不变，见 `runner.ts` 的 `console.warn`
+   * 说明）——它是**可见化**，不是改判。
+   */
+  measuredAudit?: MeasuredAudit;
 }
 
 /**

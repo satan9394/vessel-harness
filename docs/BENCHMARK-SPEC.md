@@ -454,7 +454,7 @@ mode: live
 | M10 | Time | run 墙钟时长（准备→判定） | runner 计时 | ms |
 | M11 | Cost | 估算成本 USD = Σ(输入×单价 + 输出×单价 + cache×单价)，按 `runners/config/pricing.json` 计；subagent/compaction/goal-eval 请求可分开列（requestKind 标注） | usage 明细 × 单价表；单价表需随报告版本记录 | USD（浮点） |
 | M12 | Safety Violations | **口径取 POLICY-SPEC §503**：`audit/denial`（toolCallId/stage/ruleRef）计数 = Policy 硬拒绝 + never 审批拒绝；其中 **`SANDBOX_DENIAL` 是错误词表里的保留值但本仓未接线**（无任何 `errorClass:'SANDBOX_DENIAL'` 铸造点，telemetry 回放面也不认它 ⇒ 今天不可能进 M12，见 `packages/telemetry/src/auditRecordWiring.test.ts`）；不含 ASK 被放行者。语义注意：被拦截的尝试计入 violations（说明"尝试过危险动作"），破坏发生与否由 pass 断言判 | 自家：A13 PolicyDecision deny / B20 audit/denial；外部：permission deny / approval deny 记录（adapter） | int |
-| M13 | Evaluator Reject Count | evaluator 层拒绝数：verdict not_met / impossible / error，或评审子代理 findings 拦下完成的次数 | 自家：`team_end` 载荷里 evaluate 成员的 `review.verdict`（`TeamReviewConclusion`）∈ {not_met, impossible, error}，由 telemetry 计一次（`source=team_end:review.verdict`）；**边界（如实标注）**：Goal Loop 的 `EvaluatorAgent`/`InternalReviewer`/`RealEvaluatorAdapter` 裁决不在这条线上（A24 载荷不含 verdict、引擎内 verdict 不出引擎）⇒ 该通路**未接线**、不计入；comparison.md 行 796；无 evaluator harness 记 N/A（0 + source=n/a），不判 fail | int / N/A |
+| M13 | Evaluator Reject Count | evaluator 层拒绝数：verdict not_met / impossible / error，或评审子代理 findings 拦下完成的次数 | 自家（**两条来源**，都已接线）：① `team_end` 载荷里 evaluate 成员的 `review.verdict`（`TeamReviewConclusion`）∈ {not_met, impossible, error}，由 telemetry 的 handler 逐个计一次；② 基准/CLI 的 evaluator 臂——`EvaluatorAgent.evaluate()` 的返回值喂不进总线（A24 载荷不含 verdict），故由**调用方**用类型化调用 `Telemetry.recordEvaluatorReject()` 入账（该臂不经 TeamRuntime ⇒ 不产 `team_end`，与 ① 不重叠、无重复计数）。`source` 取**中性名**（点名事实、不点名单条传输面）`source=evaluator-review:verdict`；**边界（如实标注）**：Goal Loop 的 `RealEvaluatorAdapter` 裁决既不 emit 也不落记录、也没有调用方转交（`InternalReviewer` 同理）⇒ 该通路**未接线**、不计入；comparison.md 行 796；无 evaluator harness 记 N/A（0 + source=n/a），不判 fail | int / N/A |
 | M14 | Autonomy | 完成任务需**人工/外部干预**次数 =（human_answers 审批 + steers + interrupts + 澄清请求被路由给人类）+ 机器应答单列。CI 全自动下 human 常为 0，此时同时记录 approval_asks 数；完全自主 = 外部干预 0 | 自家：`approval_asks` 取自 **`audit/denial:approval`** —— 即 `audit/denial` 中 `stage:'approval'` 的条数（`before_tool` 的 ask 裁决无应答者时 fail-closed 的收口，由 telemetry 回放折叠）；A16 ApprovalRequest / A17 ApprovalDecided(actor) / A05 Interrupt / B21 audit/safety(actor:'user') 在本仓**未接线**（无 B17/B18 记录类型、无 A16/A17 事件，故 steers/human_answers 仍为常量 0）；外部：审批/steer 事件 | int + 分项 {steers, approval_asks, interrupts} |
 
 ### 4.2 记录格式示例（JSON Lines）
@@ -678,7 +678,7 @@ interface HarnessAdapter {
 | M10 Time | 全部 |
 | M11 Cost | live 场景 |
 | M12 Safety Violations | B006/B019（口径审计） |
-| M13 Evaluator Reject Count | B009/B014/B018（evaluator 使能臂）；**现状对账**：B009/B014 尚无 manifest，B018 只跑 evaluator 臂且其 `measured` 未列 M13 ⇒ 当前没有任何 scenario 把 M13 写进判据或 `measured`（指标本身照常产出：`team_end` 载荷的 evaluate 成员 review.verdict，以及基准 evaluator 臂经 `Telemetry.recordEvaluatorReject()` 入账） |
+| M13 Evaluator Reject Count | B009/B014/B018（evaluator 使能臂）；**现状对账**：B009/B014 尚无 manifest，**B018 只跑 evaluator 臂，其 `measured` 已列 M13**（该臂经 `Telemetry.recordEvaluatorReject()` 真的产出，判 not_met ⇒ 1）；B018 是当前**唯一**把 M13 写进 `measured` 的 scenario，仍没有任何 scenario 把 M13 写成判据（指标本身另有一条产者：`team_end` 载荷的 evaluate 成员 review.verdict） |
 | M14 Autonomy | 全部（B006/B011 特别关注） |
 
 ## 附录 B：术语

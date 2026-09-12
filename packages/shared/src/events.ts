@@ -253,9 +253,28 @@ export interface AuditDenialRecord extends SessionRecordBase {
    * `'before_turn'` = A03 BeforeTurn 的**输入级**否决：该回合 0 步、0 次工具调用、0 次模型调用，
    * 被拒对象是"输入"而不是某次工具调用 ⇒ 否决者由 `listener` 承载、规则/钩子 ref 由 `ruleRef` 承载。
    *
+   * **两个值当前无生产者（本卡逐条复核，值一律保留、不删）**：
+   *  - `'sandbox'`：全仓没有任何 `audit/denial` 的铸造点会传它。仅有的两个落点分别是
+   *    `AgentLoop.recordDenial(...)`（调用处只传 `'rule'|'hook'|'approval'`，见
+   *    `packages/core/src/agent-loop/AgentLoop.ts` 的 `fromListenerError ? 'hook' : 'rule'` 与
+   *    ask 分支的 `'approval'`）与 `AgentLoop.recordTurnDenial(...)`（恒传 `'before_turn'`）。
+   *    沙箱层的事实走的是**另一条记录形状**：DENIED 的 `tool/result` +
+   *    `meta.guard`（`packages/tools/src/filesystem/fsTools.ts` 三处），以及 M12 规格里那个
+   *    "保留但未接线"的 `errorClass:'SANDBOX_DENIAL'`（`packages/telemetry/src/auditRecordWiring.test.ts`
+   *    把它钉成"零铸造点"）。本字段的 `sandboxMode` 另行填写，与本词表取值不是一回事。
+   *  - `'guard'`：guard 阶段的拒绝**只铸 DENIED 的 `tool/result`**（`meta.guard`，
+   *    同上 fsTools.ts 三处），**不铸 `audit/denial`** —— 这点由判据层逐字记录在案：
+   *    `benchmarks/runners/src/asserts.ts` 的 `denial_seen` 分支写明"`stage: 'guard'` reads the
+   *    DENIED `tool/result` instead: the guard stage is the only stage that never mints an
+   *    audit/denial record"，`guard_seen` 判据因此直接读 `tool/result`。
+   *  为什么**保留而不是删除**：它们是 `docs/EVENT-SPEC.md` §6 的 B20 词表与
+   *  `docs/POLICY-SPEC.md` §7.2 的契约（沙箱拒绝/工具层守卫同样是"拒绝终态所在阶段"）；
+   *  删值会让未来接线的人丢掉契约（且会让 `stage` 联合与两份规格静默分叉），
+   *  而把"无生产者"写进注释既不删值也不冒充证据链。接线时请一并改本段。
+   *
    * 注意：这条词表与 `PolicyDecision.decisionPath[].stage`
    * （`'rule'|'hook'|'guard'|'approval'|'profile'`，EVENT-SPEC §5.A A13）是**两个不同的词表**，
-   * 不要互相代入。
+   * 不要互相代入（`'guard'` 在**那张**表里是有生产者的）。
    */
   stage: 'rule' | 'hook' | 'approval' | 'sandbox' | 'guard' | 'before_turn';
   ruleRef?: string;

@@ -14,5 +14,5 @@ pass:
   - type: record_seen
     record: user/message
     source: inject
-measured: [M01, M02, M03, M10]
+measured: [M01, M02, M03, M10, M13]   # M13：本臂经 Telemetry.recordEvaluatorReject() 真的产出（判 not_met ⇒ 1）
 mode: offline

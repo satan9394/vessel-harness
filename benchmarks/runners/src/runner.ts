@@ -13,7 +13,7 @@ import { buildHandoff, seedSessionFromHandoff } from '@vessel/engine';
 import { loadManifest } from './manifest.js';
 import { runAssert } from './asserts.js';
 import { OFFLINE_SCRIPTS } from './offline.js';
-import type { AssertResult, DriverResult, ScenarioManifest, ScenarioReport, StreamObservation, TurnOutcomeKind } from './types.js';
+import type { AssertResult, DriverResult, MeasuredAudit, ScenarioManifest, ScenarioReport, StreamObservation, TurnOutcomeKind } from './types.js';
 
 export interface RunScenarioOptions {
   scenarioId: string;
@@ -440,6 +440,69 @@ export const TURN_KIND_SUMMARY: Record<TurnOutcomeKind, string> = {
  */
 export function turnKindSummary(kind: TurnOutcomeKind): string {
   return TURN_KIND_SUMMARY[kind];
+}
+
+// ---------------------------------------------------------------------------
+// `measured` 声明 ⇄ 产出 的可执行对账（BRIEF-A：`measured` 曾是"声明但零执法"）
+//
+// WHY：`manifest.ts:52` 把 `measured` 原样透传，`runScenario` 从不读它 —— 于是
+//   - "产出了却没声明"（B018 的 evaluator 臂真产出 M13=1，`measured` 未列 M13）；
+//   - "声明了却根本不产"（B003/B004/B005 的 `measured` 含 M11、B004 含 M08）
+// 两个方向都没有任何东西会报出来。下面这一组是它们的**唯一事实源**与**唯一校验入口**。
+//
+// 「谁能产什么」—— 逐条读源码得来，**不是**按指标名的直觉：
+//   - runner 侧（本文件的报告路径自己算的）：
+//       M01 = `success`（asserts 全 pass，`summary.metrics` 的**唯一**来源）；
+//       M10 = 墙钟计时（`Telemetry.metrics({durationMs})` 里由 runner 传进来的那一项）。
+//     **这两项与 telemetry 无关，绝不能被当成"没有产者"** —— 这是本卡口径的第一条纪律。
+//   - telemetry 侧（`packages/telemetry/src/Telemetry.ts` 的 `metrics()` **无条件**产出的
+//     10 项）：M02 M03 M04 M05 M06 M07 M09 M12 M13 M14。
+//   二者之和 = 本 lane 报告里可能出现的全部指标 = `REPORTED_METRICS`。
+//
+// 反例（**不在**本集合里，故 `measured` 声明它们就是"声明未实现"）：
+//   - M11 Cost / M08 Context Peak：本仓**只在** Cross-Harness 适配器那条契约里有产者
+//     （`contracts/vessel.ts` 的 `RunMetrics.costUsd`/`contextPeak`），而那条 lane 读的是
+//     `HarnessFixture`，**从不读 scenario 的 `measured`** ⇒ 在 `measured` 唯一的消费方
+//     `runScenario` 的报告面上，它们没有任何生产者。
+//
+// 为什么不 fail-loud（本卡作出的取舍，理由是可核的）：① 方向②当前会打红 B003/B004/B005
+// 三个既有 scenario；② 方向①按"值 ≠ 0"口径已经能命中 M06/M07（`MockProvider` 每条响应
+// 恒带 usage {input:100,output:20} ⇒ 每个 scenario 都 > 0，而 20 个 scenario 未声明它们）
+// 与 B025 的 M10 ⇒ fail-loud 会打红几乎全仓。**收紧与否由指挥侧裁决**，本卡只做
+// warn + 报告对象留痕，且**不写进报告文件**（既有 JSONL/summary.json 逐字不变）。
+// ---------------------------------------------------------------------------
+
+/** runner 侧自产的指标（与 telemetry 无关，但确实是本 lane 的产出）。 */
+export const RUNNER_REPORTED_METRICS: readonly string[] = ['M01', 'M10'];
+
+/** `Telemetry.metrics()` **无条件**产出的指标（值为 0 时也照样写一行）。 */
+export const TELEMETRY_REPORTED_METRICS: readonly string[] = [
+  'M02', 'M03', 'M04', 'M05', 'M06', 'M07', 'M09', 'M12', 'M13', 'M14',
+];
+
+/**
+ * 本 lane 的报告里**可能**出现的指标全集（runner 侧 ∪ telemetry 侧）。
+ * 它必须**逐字等于**真实 run 的 `summary.metrics` 键集，由 `runner.test.ts` 的
+ * 「④ 常量⇄实现」用例双向钉住（实现新增/删除一个指标 ⇒ 该用例先红）。
+ */
+export const REPORTED_METRICS: readonly string[] = [...RUNNER_REPORTED_METRICS, ...TELEMETRY_REPORTED_METRICS];
+
+/**
+ * `measured` 声明与本次 run 报告值的对账（纯函数，不落盘、不改判）。
+ *
+ * @param manifest 至少要有 `measured`（`loadManifest` 的产物，或测试里的同形对象）
+ * @param reported 本次 run 报告的指标 → 值（`runScenario` 传的是 `summary.metrics`）
+ */
+export function auditMeasuredDeclaration(
+  manifest: Pick<ScenarioManifest, 'measured'>,
+  reported: Readonly<Record<string, number>>,
+): MeasuredAudit {
+  const declared = new Set(manifest.measured);
+  const producedButUndeclared = Object.entries(reported)
+    .filter(([metric, value]) => value !== 0 && !declared.has(metric))
+    .map(([metric, value]) => ({ metric, value }));
+  const declaredButUnproducible = manifest.measured.filter((m) => !REPORTED_METRICS.includes(m));
+  return { producedButUndeclared, declaredButUnproducible };
 }
 
 /**
@@ -988,6 +1051,18 @@ export async function runScenario(opts: RunScenarioOptions): Promise<ScenarioRep
   };
   fs.writeFileSync(path.join(runDir, 'summary.json'), JSON.stringify(summary, null, 2), 'utf8');
 
+  // `measured` 声明 ⇄ 产出 的对账（BRIEF-A）。**刻意不写进报告文件**：既有 JSONL 行与
+  // summary.json 键逐字不变（负对照），留痕落在 stderr 一句话与返回对象的 `measuredAudit`
+  // 字段上；两个方向都干净时连字段都不出现。绝不据它改判（success 仍是 asserts 的归约）。
+  const measuredAudit = auditMeasuredDeclaration(manifest, summary.metrics as Record<string, number>);
+  if (measuredAudit.producedButUndeclared.length > 0 || measuredAudit.declaredButUnproducible.length > 0) {
+    console.warn(
+      `[bench] scenario ${manifest.id}: measured 声明与产出不一致 —— ` +
+        `产出未声明: [${measuredAudit.producedButUndeclared.map((m) => `${m.metric}=${m.value}`).join(', ')}]；` +
+        `声明未实现: [${measuredAudit.declaredButUnproducible.join(', ')}]`,
+    );
+  }
+
   const report: ScenarioReport = {
     scenarioId: opts.scenarioId,
     runId,
@@ -1006,8 +1081,12 @@ export async function runScenario(opts: RunScenarioOptions): Promise<ScenarioRep
     report.turnKind = turnKind;
     report.turnEndedAbnormally = turnEndedAbnormally;
   }
+  // 只有真的查出偏差才出现（干净的声明 ⇒ 字段缺席，不是空对象）。
+  if (measuredAudit.producedButUndeclared.length > 0 || measuredAudit.declaredButUnproducible.length > 0) {
+    report.measuredAudit = measuredAudit;
+  }
   return report;
 }
 
 export { loadManifest, OFFLINE_SCRIPTS };
-export type { ScenarioReport, AssertResult, ScenarioManifest } from './types.js';
+export type { ScenarioReport, AssertResult, ScenarioManifest, MeasuredAudit } from './types.js';

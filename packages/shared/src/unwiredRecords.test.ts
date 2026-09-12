@@ -111,19 +111,31 @@ describe('audit/decision(B19) —— 已登记但未接线：零生产者、零�
 });
 
 /**
- * 同族清单项（BRIEF-B）—— `compaction/summary`(B15) 与 `session/end-seed`(B11)。
+ * 同族清单项（BRIEF-B / BRIEF-C）—— `compaction/summary`(B15)、`session/end-seed`(B11)
+ * 与 `audit/safety`(B21)。
  *
- * `docs/EVENT-SPEC.md` 把二者写成**持久记录**（§6 自动持久记录清单的 B15/B11 行；
- * 词表另见 §3/§4），而全仓：
+ * `docs/EVENT-SPEC.md` 把三者都写成**持久记录**（§6 自动持久记录清单的 B15/B11 行、
+ * §6/§5.B 的 B21 行；词表另见 §3/§4），而全仓：
  *   - **零类型**：`packages/shared/src/events.ts` 的 `SessionRecord` 联合里没有成员，
  *     连接口都没有 —— 比 `audit/decision`(B19) 更彻底（B19 至少还有类型与联合成员）；
- *   - **零生产者**：任何非测试源码里都没有这两个字面量（无 `appendSync`、无 emit）；
+ *   - **零生产者**：任何非测试源码里都没有这三个字面量（无 `appendSync`、无 emit）；
  *   - **零消费者**：没有 `=== '<type>'` / `case '<type>':` 读取分支；回放面
  *     （`Telemetry.finalizeRecord`）与 UI/投影都不认识它们。
- * 复核证据（本卡当时的工作树）：全仓 `compaction/summary` / `session/end-seed` 的命中只有
- * `docs/**`（声明与对照研究）与 `packages/core/src/agent-loop/AgentLoop.llm-retry-record.test.ts`
- * 的 KNOWN 白名单 —— 后者正是 BRIEF-C 要修的那张"把不存在的类型写成允许出现"的表，
- * 本卡已把它删干净（`.test.ts` 不在本文件的扫描面内）。
+ * 复核证据（BRIEF-C 当时的工作树，逐条 grep）：
+ *   - `compaction/summary` / `session/end-seed` 的命中只有 `docs/**`（声明与对照研究）与
+ *     `packages/core/src/agent-loop/AgentLoop.llm-retry-record.test.ts` 的 KNOWN 白名单
+ *     —— 后者正是 BRIEF-C 要修的那张"把不存在的类型写成允许出现"的表，本卡已把它删干净
+ *     （`.test.ts` 不在本文件的扫描面内）。
+ *   - `audit/safety`(B21) 的命中只剩 `docs/EVENT-SPEC.md`（§5.B B21 词表、§6 自动持久记录
+ *     清单、§5.A/§5.C 的消费方示例）、`docs/POLICY-SPEC.md`（§7.2 安全度量、§7 审计出口）、
+ *     `docs/BENCHMARK-SPEC.md`（M14 行写明它"未接线"）与 `docs/product-evolution/**`
+ *     —— 全部是**文档**；`.ts` 侧唯一一处是 `packages/core/src/agent-loop/
+ *     AgentLoop.llm-retry-record.test.ts` 的注释（`.test.ts` 不在本文件的扫描面内），
+ *     那里的 KNOWN 白名单条目已随 BRIEF-C 删掉，但注释仍写着"**已删去**，它们改由
+ *     `unwiredRecords.test.ts` 的同族清单守卫钉住" —— 而当时那份清单里**并没有 B21**
+ *     ⇒ 那句话是假的。本卡把 B21 补进清单，那句话才成立（这正是"文档/注释声称的守卫"
+ *     与"守卫实际覆盖"必须对账的又一实例）。
+ * docs 不在扫描根里，故"零产零消"在源码面上成立。
  *
  * 处置（照 B19 那张卡的判例二选一：**接上**或**如实标注 + 可执行守卫**）：
  *   - `compaction/summary`：**不接线**。同族的 `compaction/start`(B14) 已有真实生产者
@@ -135,15 +147,20 @@ describe('audit/decision(B19) —— 已登记但未接线：零生产者、零�
  *   - `session/end-seed`：**不接线**。种子边界标记（fork = seed 前缀 + 谱系）；当前 fork/resume
  *     只用 `session/created` 的 `parentSession`/`isSeeded`/`delegationDepth` 表达谱系，没有任何
  *     "边界"记录。同族接线落在 `packages/core/**`（不在本卡改动范围）。
- *   - 两条都**不**属于 `docs/ARCHITECTURE.md` §4.11 那种"记录已落盘、回放侧无消费方"的措辞
+ *   - `audit/safety`(B21)：**不接线**（BRIEF-C1）。它的语义是"人为介入/紧急事件留痕
+ *     （Interrupt、Esc、审批人工决定、steer）"，而本仓**没有**这些事实源：无 A16/A17 审批事件、
+ *     无应答者链、steer/interrupt 不落记录（`docs/BENCHMARK-SPEC.md` 的 M14 行已把
+ *     `steers`/`human_answers` 标为常量 0）。接上它得先实现那批事实，属产品决策，不在本卡范围；
+ *     本卡只把它与同族的"已登记、未接线"并进同一张**接线绊线**。
+ *   - 三条都**不**属于 `docs/ARCHITECTURE.md` §4.11 那种"记录已落盘、回放侧无消费方"的措辞
  *     （那是 `request/header`/`turn/end.stats` 的情况）——它们连"已落盘"都还没有，
  *     所以只能靠**本守卫**证明"至今没有它"，而不是靠文档里的"未消费"。
  *
  * 「删哪行会红」：
- *   - 任何地方写出 `type: 'compaction/summary'` / `type: 'session/end-seed'`（即开始接线）
- *     ⇒ ② 红；
+ *   - 任何地方写出 `type: 'compaction/summary'` / `type: 'session/end-seed'` /
+ *     `type: 'audit/safety'`（即开始接线）⇒ ② 红；
  *   - 新增 `=== '…'` / `case '…':` 读取分支 ⇒ ③ 红；
- *   - 往 `events.ts` 补这两个记录的类型/联合成员（接线的第一步）⇒ ④ 红 —— 这正是本组用例作为
+ *   - 往 `events.ts` 补这些记录的类型/联合成员（接线的第一步）⇒ ④ 红 —— 这正是本组用例作为
  *     **接线绊线**的用途：逼接线的人同时更新本清单、`docs/EVENT-SPEC.md` 与
  *     `AgentLoop.llm-retry-record.test.ts` 的 KNOWN 白名单（BRIEF-C 已把这三项从那里删掉）；
  *   - 把扫描根写错 / 不再读文件 ⇒ ① 红。
@@ -159,17 +176,25 @@ const UNDECLARED_UNWIRED: readonly { type: string; spec: string; familyNote: str
     spec: 'B11',
     familyNote: '同族 session/created(B10) 已有产者；边界标记当前无落点',
   },
+  {
+    type: 'audit/safety',
+    spec: 'B21',
+    familyNote:
+      '语义是"人为介入/紧急事件留痕"（Interrupt/Esc/审批人工决定/steer），本仓这三类事实源都还没有（无 A16/A17、无应答者链、steer/interrupt 不落记录）⇒ 无产者；docs/POLICY-SPEC §7.2 与 EVENT-SPEC §5.B/§6 声明它是持久记录',
+  },
 ];
 
-describe('compaction/summary(B15) 与 session/end-seed(B11) —— 已登记但未接线：无类型、零生产、零消费（可执行守卫）', () => {
+describe('compaction/summary(B15)、session/end-seed(B11) 与 audit/safety(B21) —— 已登记但未接线：无类型、零生产、零消费（可执行守卫）', () => {
   const sources = collectSources();
-  /** 这两条连类型声明都没有 ⇒ 词表声明文件本身**不豁免**：`events.ts` 里出现字面量同样算接线。 */
+  /** 这三条连类型声明都没有 ⇒ 词表声明文件本身**不豁免**：`events.ts` 里出现字面量同样算接线。 */
   const all = sources;
 
-  it('① 负对照：扫描器确实读到了源码（同族**已接线**的 compaction/start 必须被扫到）', () => {
+  it('① 负对照：扫描器确实读到了源码（同族**已接线**的 compaction/start 与 audit/denial 必须被扫到）', () => {
     expect(sources.length).toBeGreaterThan(50);
     expect(sources.some((s) => s.text.includes("type: 'compaction/start'"))).toBe(true);
     expect(sources.some((s) => s.text.includes("case 'compaction/start':"))).toBe(true);
+    // B21 的同族对照：`audit/` 前缀的记录族确实在扫描面上（否则 `audit/safety` 的"0 处"是空断言）
+    expect(sources.some((s) => s.text.includes("type: 'audit/denial'"))).toBe(true);
   });
 
   it('② 生产侧 0 处：没有任何写入（appendSync / emit）—— 连带引号的字面量都不存在', () => {
@@ -190,7 +215,7 @@ describe('compaction/summary(B15) 与 session/end-seed(B11) —— 已登记但�
     }
   });
 
-  it('④ 类型未声明（**接线绊线**）：events.ts 里仍无这两个记录的类型/联合成员', () => {
+  it('④ 类型未声明（**接线绊线**）：events.ts 里仍无这三个记录的类型/联合成员', () => {
     const src = fs.readFileSync(EVENTS_TS, 'utf8');
     for (const item of UNDECLARED_UNWIRED) {
       // 一旦有人开始接线（第一步就是声明类型 + 加联合成员），本行先红：

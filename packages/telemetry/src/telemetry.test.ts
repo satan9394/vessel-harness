@@ -49,10 +49,14 @@ import { Telemetry } from './Telemetry.js';
  *
  * M13（本卡，与 M14 同病灶）：`TelemetryCounters.evaluatorRejects` 此前没有任何生产者
  * （`recordEvaluatorReject()` 全仓唯一命中是它的定义）⇒ 恒 0，却被 `metricValue('M13')` 读走、
- * 被 BENCHMARK-SPEC 列为被测量。本卡查清三条真实通路后只接**唯一可观测**的那面：
- * `team_end` 载荷里 evaluate 成员的 `review.verdict`（`TeamRuntime` 的 058 结论；
- * `EvaluatorAgent` 的 A24 载荷不含 verdict、LoopEngine 的 verdict 不出引擎 ⇒ 均不可观测，
- * 故 M13 **不覆盖** Goal Loop 的 evaluator 拒绝，规格里已写明该边界）。⑩⑪ 钉行为、⑫ 钉文档⇄代码。
+ * 被 BENCHMARK-SPEC 列为被测量。本卡查清三条真实通路后接**两条**来源：
+ * `team_end` 载荷里 evaluate 成员的 `review.verdict`（`TeamRuntime` 的 058 结论），
+ * 以及 `EvaluatorAgent.evaluate()` 的**调用方**（基准/CLI 的 evaluator 臂）用类型化调用
+ * `recordEvaluatorReject()` 转交的裁决；`LoopEngine` 的 verdict 不出引擎、也没有调用方转交
+ * ⇒ 仍未接线，故 M13 **不覆盖** Goal Loop 的 evaluator 拒绝，规格里已写明该边界）。
+ * ⑩⑪ 钉行为、⑫ 钉文档⇄代码。M13 的 `source` 是**中性名**（本卡更正）：它点名"被计数的
+ * 事实"（评估器评审的 verdict），不点名某一条传输面 —— 两条来源不同，点名 `team_end` 会让
+ * evaluator 臂那个 run 的 metric 行指向一个不是它生产者的来源。
  */
 
 const TELEMETRY_SRC = fileURLToPath(new URL('./Telemetry.ts', import.meta.url));
@@ -392,16 +396,20 @@ describe('telemetry — event subscriber + JSONL report', () => {
    * M13（本卡）：`TelemetryCounters.evaluatorRejects` 此前**没有任何调用方**
    * （`recordEvaluatorReject()` 全仓唯一命中是它的定义）⇒ 指标恒 0，却被
    * `benchmarks/runners/src/asserts.ts` 的 `metricValue('M13')` 读走、被 BENCHMARK-SPEC 列为被测量。
-   * 真实且**可观测**的通路只有一条：`packages/agents/src/team/TeamRuntime.ts` 的 evaluate 阶段成员
+   * 真实通路有两条且都已接线：① `packages/agents/src/team/TeamRuntime.ts` 的 evaluate 阶段成员
    * 把 `TeamReviewConclusion` 挂进 `team_end` 载荷的 `members[].review`（生产侧由
-   * `packages/agents/src/team/team-end-review-verdict.test.ts` 钉住）。
+   * `packages/agents/src/team/team-end-review-verdict.test.ts` 钉住）；② `EvaluatorAgent.evaluate()`
+   * 的**调用方**（基准/CLI 的 evaluator 臂，`benchmarks/runners/src/runner.ts`）把返回值经
+   * `recordEvaluatorReject()` 入账（该臂不经 TeamRuntime ⇒ 不产 `team_end`，两来源互不重叠）。
    *
    * 「删哪行会红」（M13）：
    *   - 删掉 `attach()` 里的 `bus.on('team_end', …)` 块（或去掉里面的 `this.recordEvaluatorReject()`）
    *     ⇒ ⑩ 红（改前正是这一支不存在 ⇒ M13 恒 0）；
    *   - 把 verdict 过滤放宽成"任何 verdict 都算"（删掉 `EVALUATOR_REJECT_VERDICTS.has(...)`）
    *     ⇒ ⑪ 红；把过滤换成 `subagent_stop`/`isError` 之类近似面 ⇒ ⑩ 红（那些事件在本用例里没有）；
-   *   - 把 M13 的 `source` 改回不存在的 `'evaluator'`（或只改文档）⇒ ⑫ 红。
+   *   - 把 M13 的 `source` 改成点名**单条传输面**的名字（例如回到 `'team_end:review.verdict'`，
+   *     它会让 evaluator 臂那个 run 的 metric 行指向不是它生产者的来源），或只改文档不改代码
+   *     （反之亦然）⇒ ⑫ 红。
    */
   const member = (
     memberId: string,
@@ -443,7 +451,7 @@ describe('telemetry — event subscriber + JSONL report', () => {
 
     const m13 = tel.metrics().find((m) => m.metric === 'M13')!;
     expect(m13.value).toBe(1); // 改前：recordEvaluatorReject() 无调用方 ⇒ 恒 0
-    expect(m13.source).toBe('team_end:review.verdict'); // 来源点名真实生产者
+    expect(m13.source).toBe('evaluator-review:verdict'); // 中性名：点名事实，不点名某一条传输面
     // 其它指标不因这一支而变（team_end 不是 turn/tool/denial 事件）
     const counters = tel.finalize(await openSession('t-m13'));
     expect(counters.evaluatorRejects).toBe(1);
@@ -498,7 +506,11 @@ describe('telemetry — event subscriber + JSONL report', () => {
     const m13Row = fs.readFileSync(BENCHMARK_SPEC_MD, 'utf8').split('\n').find((l) => l.startsWith('| M13 |'))!;
     expect(m13Row).toBeTruthy();
     const source = new Telemetry().metrics().find((m) => m.metric === 'M13')!.source;
-    expect(source).toBe('team_end:review.verdict');
+    // 中性名（本卡的更正）：M13 有**两条**来源 —— `team_end` handler 与基准/CLI 的 evaluator 臂
+    // （`benchmarks/runners/src/runner.ts` 的 `recordEvaluatorReject()` 调用）。改前这里是
+    // `'team_end:review.verdict'`，那串会让 evaluator 臂那个 run 的 metric 行指向一个**不是它
+    // 生产者**的来源 ⇒ 换成点名"事实"而不是"传输面"的中性名。
+    expect(source).toBe('evaluator-review:verdict');
     expect(m13Row).toContain(source);
     expect(m13Row).toContain('未接线');
     expect(m13Row).toContain('not_met'); // 判为拒绝的 verdict 词表写在定义列里

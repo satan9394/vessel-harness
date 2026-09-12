@@ -2,9 +2,9 @@ import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { describe, it, expect, afterEach } from 'vitest';
+import { describe, it, expect, afterEach, vi } from 'vitest';
 import type { ChatProvider, ChatResponse } from '@vessel/shared';
-import { runScenario, loadManifest, OFFLINE_SCRIPTS } from './runner.js';
+import { runScenario, loadManifest, OFFLINE_SCRIPTS, auditMeasuredDeclaration, REPORTED_METRICS } from './runner.js';
 import { runAssert } from './asserts.js';
 import { classifyScenarioRun, type OfflineScenarioOutcome } from './release-gates/gates.js';
 import type { ScenarioReport } from './types.js';
@@ -619,5 +619,161 @@ describe('benchmarks/runner — evaluator 臂的 verdict 结构化落点（M13�
     expect(injected[0]!.content).toBe('Evaluator Agent 结论：not_met（验收要求测试全绿，缺少证据）');
     expect(injected[0]!.role).toBe('user');
     expect(injected[0]!.surface).toBe(true);
+  }, 60_000);
+});
+
+/**
+ * ===========================================================================
+ * BRIEF-A —— `measured` 的"声明但零执法"必须变成**可执行对账**
+ * ===========================================================================
+ *
+ * 缺口（改前，静态可核）：`benchmarks/runners/src/types.ts` 声明了 `measured`，
+ * `manifest.ts:52` **原样透传**，`runner.ts` 从不读它 —— "产出的指标 ⊆ 声明的 `measured`"
+ * 没人查，"声明的 `measured` 里有没有根本没实现的指标"也没人查 ⇒ D 类不一致能长期潜伏：
+ *   - ① 产出未声明：B018 的 evaluator 臂经 `Telemetry.recordEvaluatorReject()` 真的产出
+ *     M13=1（本文件上面那组用例①已钉），而 B018 的 `measured` 当时未列 M13；
+ *   - ② 声明未实现：B003/B004/B005 的 `measured` 含 M11、B004 另含 M08，而本 lane 的报告面上
+ *     没有任何生产者（M11/M08 只在 Cross-Harness 适配器 `contracts/vessel.ts` 的
+ *     `RunMetrics.costUsd`/`contextPeak` 里有产者，而那条 lane 不读 `measured`）。
+ *
+ * 本组把两个方向钉成**分别可判**的可执行事实（① 与 ② 各自红，不互相掩盖）：
+ *   ① 判别性：构造"产出未声明" ⇒ `producedButUndeclared` 点名该指标；同一条里带**判别性负例**
+ *      （未声明但**值为 0** 的指标不得被误报）；
+ *   ② 判别性：构造"声明未实现" ⇒ `declaredButUnproducible` 点名该指标；并复现全仓当前清单；
+ *   ③ 负对照：声明与产出一致 ⇒ 两个清单都空；
+ *   ④ 端到端接线：`runScenario` 真的调对账（B003 声明了 M11 ⇒ 返回对象留痕 + stderr 一句话），
+ *      且报告文件的既有形状不变；
+ *   ⑤ 常量⇄实现：`REPORTED_METRICS` 逐字等于真实 run 的 `summary.metrics` 键集（双向）。
+ *
+ * 「删哪行会红」：
+ *   - 删掉 `auditMeasuredDeclaration` 里 `value !== 0` 那半条件（改成"报告里出现即算产出"）
+ *     ⇒ ① 红（未声明且值为 0 的 M12 会被误报为"产出了却没声明"）；
+ *   - 删掉 `declaredButUnproducible` 那一行（或把它写成恒空数组）⇒ ②④ 红；
+ *   - 把 `REPORTED_METRICS` 里的 M01 或 M10 去掉（把 runner 侧自产的指标误判成"没产者"）
+ *     ⇒ ②④ 红（M01/M10 被错报为 unproducible）；删/加任一 telemetry 指标 ⇒ ⑤ 红；
+ *   - 删掉 `runScenario` 里的对账调用或 `report.measuredAudit = measuredAudit` 那一行
+ *     ⇒ ④ 红（返回对象不再有留痕，stderr 也不再出声）。
+ *
+ * **口径（务必与实现同读）**：M01/M02/M03/M10 里 M01/M10 是 **runner 侧**自产的，
+ * M02/M03 由 telemetry 产 —— 来源不同，但都是本 lane 真产出的指标，绝不能被误判成"无产出"。
+ */
+describe('benchmarks/runner — `measured` 声明 ⇄ 产出的可执行对账（BRIEF-A）', () => {
+  const auditOpts = (scenarioId: string) => ({
+    scenarioId,
+    repoRoot: REPO_ROOT,
+    reportsDir: REPORTS,
+    provider: null,
+    model: 'mock-model',
+    policyPath: path.join(REPO_ROOT, 'configs', 'policy.default.yaml'),
+    behaviorIRPath: path.join(REPO_ROOT, 'configs', 'behavior.default.yaml'),
+  });
+
+  it('① 判别性：产出未声明 ⇒ 点名该指标（B018 的 M13 就是这一类）', () => {
+    // 合成输入（不依赖任何运行时事实）：M13 值 1 但 measured 未列它 ⇒ 必须被点名。
+    const undeclared = auditMeasuredDeclaration(
+      { measured: ['M01', 'M02', 'M03', 'M10'] },
+      { M01: 1, M02: 1, M03: 2, M10: 12, M13: 1 },
+    );
+    expect(undeclared.producedButUndeclared).toEqual([{ metric: 'M13', value: 1 }]);
+    expect(undeclared.declaredButUnproducible).toEqual([]);
+
+    // 同一个指标的**负对照**：声明了 M13（B018.yaml 现在正是这样）⇒ 不再被判"漏声明"
+    const declared = auditMeasuredDeclaration(
+      { measured: ['M01', 'M02', 'M03', 'M10', 'M13'] },
+      { M01: 1, M02: 1, M03: 2, M10: 12, M13: 1 },
+    );
+    expect(declared.producedButUndeclared).toEqual([]);
+
+    // 判别性负例（钉住"值 ≠ 0"这半条件）：未声明、但**值为 0** 的指标 **不得**被误报。
+    // `Telemetry.metrics()` 对 10 项是**无条件产出**（值为 0 也写一行），若按"报告里出现即算
+    // 产出"去判，全部既有 scenario 都会被判"漏声明" ⇒ 校验失去判别力。
+    const zeroValued = auditMeasuredDeclaration(
+      { measured: ['M01', 'M02', 'M03', 'M10', 'M13'] },
+      { M01: 1, M02: 1, M03: 2, M10: 12, M13: 1, M12: 0, M09: 0 },
+    );
+    expect(zeroValued.producedButUndeclared).toEqual([]);
+  });
+
+  it('② 判别性：声明未实现 ⇒ 点名该指标；并复现全仓当前清单（M11 / M08）', () => {
+    // 合成输入：measured 声明了本 lane 没有生产者的 M11/M08 ⇒ 必须被点名。
+    const bad = auditMeasuredDeclaration(
+      { measured: ['M01', 'M10', 'M08', 'M11'] },
+      { M01: 1, M10: 12 },
+    );
+    expect(bad.declaredButUnproducible).toEqual(['M08', 'M11']);
+    // 负对照：runner 侧自产的 M01/M10 **不得**被误判成"没有产者"
+    expect(bad.declaredButUnproducible).not.toContain('M01');
+    expect(bad.declaredButUnproducible).not.toContain('M10');
+
+    // 复现（全仓）：逐个读 manifest，把"声明了却没有产者"的实例**逐条**列出。
+    // 这是接线绊线：谁补上 M11/M08 的生产者、或把声明改准，都必须**有意识地**改本清单。
+    const scenarioIds = fs
+      .readdirSync(path.join(REPO_ROOT, 'benchmarks', 'scenarios'))
+      .filter((f) => f.endsWith('.yaml'))
+      .map((f) => f.replace(/\.yaml$/, ''))
+      .sort();
+    expect(scenarioIds.length).toBeGreaterThan(20); // 负对照：扫描器确实读到了 scenario 目录
+    const findings = scenarioIds
+      .map((id) => ({ id, unproducible: auditMeasuredDeclaration(loadManifest(REPO_ROOT, id), {}).declaredButUnproducible }))
+      .filter((f) => f.unproducible.length > 0);
+    expect(findings).toEqual([
+      { id: 'B003', unproducible: ['M11'] },
+      { id: 'B004', unproducible: ['M08', 'M11'] },
+      { id: 'B005', unproducible: ['M11'] },
+    ]);
+  });
+
+  it('③ 负对照：声明与产出一致 ⇒ 两个清单都空', () => {
+    // 把本 lane 能产的全部指标都声明上、值都给非零 ⇒ 一片干净。
+    const clean = auditMeasuredDeclaration(
+      { measured: [...REPORTED_METRICS] },
+      Object.fromEntries(REPORTED_METRICS.map((m): [string, number] => [m, 1])),
+    );
+    expect(clean.producedButUndeclared).toEqual([]);
+    expect(clean.declaredButUnproducible).toEqual([]);
+  });
+
+  it('④ 端到端接线 + 报告文件形状不变：B003 的 M11 如实进留痕（删掉那次调用 ⇒ 本行红）', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    try {
+      const report = await runScenario(auditOpts('B003'));
+      tempDirs.push(report.workspace);
+
+      // 判据不被本卡改写（与既有 B001–B005 批量用例同口径）
+      expect(report.success, `asserts: ${JSON.stringify(report.asserts)}`).toBe(true);
+
+      // ① 返回对象上的留痕：B003 声明了 M11，而本 lane 没有它的生产者 ⇒ **纯静态**必被点名
+      //    （不依赖任何运行时计数值，故这条是稳定的判别性断言）
+      expect(report.measuredAudit?.declaredButUnproducible).toEqual(['M11']);
+      // ② stderr 上的一句话留痕（runScenario 的那次对账调用是它的唯一来源）
+      const warned = warn.mock.calls.map((c) => String(c[0]));
+      expect(warned.some((l) => l.includes('B003') && l.includes('声明未实现: [M11]'))).toBe(true);
+
+      // ③ 报告文件：**没有**新增行类型、summary.json 的键集逐字不变（本卡的留痕不落盘）
+      const lines = readJsonl(report);
+      expect([...new Set(lines.map((l) => String(l.type)))].sort()).toEqual(['assert', 'event', 'meta', 'metric']);
+      expect(lines[0]!.type).toBe('meta');
+      const summary = readSummary(report);
+      expect(Object.keys(summary).sort()).toEqual(
+        [
+          'scenarioId', 'runId', 'success', 'mode', 'durationMs', 'metrics', 'asserts',
+          'startedAt', 'finishedAt', 'reportPath', 'sessionLog', 'turn',
+        ].sort(),
+      );
+      expect(summary.measuredAudit).toBeUndefined();
+    } finally {
+      warn.mockRestore();
+    }
+  }, 60_000);
+
+  it('⑤ 常量⇄实现：REPORTED_METRICS 逐字等于真实 run 报告的指标键集（双向钉住）', async () => {
+    // 一边：实现新增/删除一个指标（`Telemetry.metrics()` 或 runner 侧）⇒ 本行先红；
+    // 另一边：常量里多写一个根本没有产者的指标 ⇒ 同样先红（它是方向②的取值面）。
+    const report = await runScenario(auditOpts('B001'));
+    tempDirs.push(report.workspace);
+    expect([...REPORTED_METRICS].sort()).toEqual(Object.keys(report.metrics).sort());
+    // runner 侧的两项确实在报告里（M01 在 summary.metrics；M10 由 runner 计时传入）
+    expect(report.metrics.M01).toBe(1);
+    expect(report.metrics.M10).toBeGreaterThan(0);
   }, 60_000);
 });
