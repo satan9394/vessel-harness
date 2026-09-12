@@ -345,6 +345,35 @@ describe('policy status / 部分装载（BRIEF-15 AC2–AC4）：走真实 main(
     }
   });
 
+  /**
+   * C-4 文案锁（EVALUATION-REPORT-21 R-6）：人类模式的「生效层序」行**不能只锁前缀**
+   * `生效层序: system > project`——那样把后半句改回「靠后的层覆盖标量」这类**旧语义**
+   * 也不会变红。这里正向锁新语义的关键词（左侧为高层 / deny 类列表取并集 / 低层只能加限制），
+   * 反向锁旧文案「靠后的层覆盖」**不得出现**（回潮即 RED）。
+   * 只加不减：既有断言（第 6 条的前缀、路径、缺失说明）保持原样，未做任何放宽。
+   */
+  it('6b) 【C-4 文案锁】人类模式生效层序行含新语义关键词，且不含回潮文案「靠后的层覆盖」', async () => {
+    const ws = path.join(tmpRoot, 'ws-human-wording');
+    const sysPath = path.join(tmpRoot, 'wording-system-policy.yaml');
+    writeText(sysPath, POLICY_A);
+    writeText(path.join(ws, '.harness', 'policy.yaml'), POLICY_B);
+
+    const cap = capture();
+    try {
+      expect(await main(['policy', 'status', '--workspace', ws, '--policy', sysPath])).toBe(0);
+      const text = cap.out();
+
+      expect(text).toContain('生效层序: system > project'); // 既有语义不动（前缀）
+      expect(text).toContain('左侧为高层'); // 新语义①：合成顺序左侧 = 高层
+      expect(text).toContain('deny 类列表取并集'); // 新语义②：列表取并集（不是「后者覆盖」）
+      expect(text).toContain('低层只能加限制'); // 新语义③：低层不可放宽
+      expect(text).not.toContain('靠后的层覆盖'); // 反向锁：旧文案回潮即 RED
+      expect(cap.err()).toBe(''); // 文案走 stdout，未污染 stderr
+    } finally {
+      cap.restore();
+    }
+  });
+
   it('7) 【AC4 判别点】run：project 有声明 + --policy 不存在 → stderr 含「部分装载」且退出码 0（不阻断）', async () => {
     const ws = path.join(tmpRoot, 'ws-run-partial');
     writeText(path.join(ws, '.harness', 'policy.yaml'), POLICY_A);

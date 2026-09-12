@@ -13,6 +13,7 @@
   },
   "files": ["dist"],
   "dependencies": {
+    "@vessel/shared": "^0.10.0",
     "js-yaml": "^4.1.0"
   },
   "scripts": {

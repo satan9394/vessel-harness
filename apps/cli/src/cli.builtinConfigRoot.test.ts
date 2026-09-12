@@ -108,9 +108,15 @@ describe('读路径配置根 = builtinConfigRoot()（开发态与改动前 repoR
 
 /**
  * 5) 读写不对称（本卡补）：写路径仍按 `repoRoot()`（安装态 = `<cwd>/configs`），读路径取
- *    `builtinConfigRoot()`（安装态 = `<包>/dist/configs`）。判据已抽成纯函数：真跑 `pricing sync`
- *    必须联网（models.dev），故此处只对判据做表驱动断言；而 `cmdPricingSync` 里的
- *    `console.warn` 完全由该判据守卫（null ⇒ 不打印），故其即 warn 条数的等价断言。
+ *    `builtinConfigRoot()`（安装态 = `<包>/dist/configs`）。本文件只做**纯函数**表驱动断言
+ *    （两侧判等 + 文案），不动 `main()`、不起服务。
+ *
+ *    注意（EVALUATION-REPORT-24 B-⑤ 修正的旧说法）：这里**不是**「真跑 `pricing sync` 必须联网」——
+ *    `cli.test.ts` 的 pricing sync 用例用**本地 loopback 替身**当 models.dev，零真实网络。
+ *    因此 `cmdPricingSync` 里的**调用点**（写盘前 `if (mismatch !== null) console.warn(mismatch)`）
+ *    已由 `cli.test.ts`「pricing sync 调用点：--catalog 与读取目录不同 → 写盘前恰 1 条 warn；
+ *    默认目标 → 0 条」在真跑路径上锁定；本文件的纯函数断言只是判据侧的另一半，**不可**再被
+ *    当作「调用点无法覆盖」的理由（否则删掉那两行仍会全绿）。
  */
 describe('pricing sync 读写位置不同 → 1 条 warn；相同 → 0 条（开发态零回归）', () => {
   it('5) 开发态默认目标 == 读目录 → null；--catalog 指向他处 → 含读写路径与后果的文案', () => {

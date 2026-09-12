@@ -974,6 +974,42 @@ describe('vessel pricing sync / provider costMultiplier (task 093/094)', () => {
     }
   }
 
+  /**
+   * 独立重算**默认写目标**（= 实现里 `repoRoot()` 的口径：从 cwd 上溯至多 6 级找
+   * `configs/policy.default.yaml`，找不到就退回 cwd）——仅供前提校验，不共用实现代码。
+   */
+  function defaultSyncTargetFromCwd(): string {
+    let at = process.cwd();
+    for (let i = 0; i < 6; i++) {
+      if (fs.existsSync(path.join(at, 'configs', 'policy.default.yaml'))) {
+        return path.join(at, 'configs', 'model-catalog.json');
+      }
+      const parent = path.dirname(at);
+      if (parent === at) break;
+      at = parent;
+    }
+    return path.join(process.cwd(), 'configs', 'model-catalog.json');
+  }
+
+  /**
+   * 同时捕获 stdout（`console.log`）与 warn（`console.warn`），并保留**事件顺序**——
+   * 「写盘前 warn」这一语义只能靠顺序断言锁住（分开两个数组就丢了先后）。
+   */
+  function captureOrdered() {
+    const events: { kind: 'log' | 'warn'; text: string }[] = [];
+    const spyLog = vi.spyOn(console, 'log').mockImplementation((...a: unknown[]) => events.push({ kind: 'log', text: a.join(' ') }));
+    const spyWarn = vi.spyOn(console, 'warn').mockImplementation((...a: unknown[]) => events.push({ kind: 'warn', text: a.join(' ') }));
+    return {
+      events,
+      logs: (): string[] => events.filter((e) => e.kind === 'log').map((e) => e.text),
+      warns: (): string[] => events.filter((e) => e.kind === 'warn').map((e) => e.text),
+      restore: (): void => {
+        spyLog.mockRestore();
+        spyWarn.mockRestore();
+      },
+    };
+  }
+
   it('pricing sync --dry-run 只打印差异、不写盘', async () => {
     const catalogPath = path.join(dir, 'model-catalog.json');
     const out = await withLocalModelsDev(async (url) => {
@@ -1023,6 +1059,80 @@ describe('vessel pricing sync / provider costMultiplier (task 093/094)', () => {
     expect(text).toContain('⚠ 拉取/解析失败');
     expect(text).toContain('保留旧表 1 条');
     expect(fs.readFileSync(catalogPath, 'utf8')).toBe(before);
+  });
+
+  /**
+   * 终评 B-⑤（EVALUATION-REPORT-24 第 ⑤ 条）**调用点盲点闭合**：
+   * `pricingSyncMismatchWarning` 此前只被纯函数表驱动断言（cli.builtinConfigRoot.test.ts 第 5 条），
+   * 而 `cmdPricingSync` 里真正的调用点（写盘前的 `if (mismatch !== null) console.warn(mismatch)`）
+   * **零覆盖**——把那两行删掉，"warn 永不触发"没有任何测试会变红。本例在**调用点**上锁定它：
+   * 真跑 `pricing sync`（models.dev 用本地 loopback 替身，**零真实网络**）并捕获 `console.warn`。
+   *   ① 正例：`--catalog <临时目录>/…`（写目录 ≠ 读取目录）→ warn **恰好 1 条**，含写入路径 /
+   *      读取目录 / 后果 / `--catalog` 补救，且**发生在「已写入」之前**；
+   *   ② 负对照：不传 `--catalog`（开发态默认目标与读取目录**同处**）→ warn **0 条**
+   *      （证明 ① 不是恒定值——判据恒真 / 恒假的实现都会在这里或 ① 变红）。
+   * 注：② 必须带 `--dry-run`——默认写目标是仓库真实 `configs/model-catalog.json`，
+   * 非 dry-run 会把仓库文件写成这个 1 条模型的 fixture（测试绝不污染仓库文件）；
+   * 守卫在 `syncModelCatalog` 之前执行，与是否 dry-run 无关，故覆盖力不受影响。
+   */
+  it('pricing sync 调用点：--catalog 与读取目录不同 → 写盘前恰 1 条 warn；默认目标 → 0 条', async () => {
+    const readDir = path.join(cli.builtinConfigRoot(), 'configs'); // 本机实际读取 model-catalog.json 的目录
+    const catalogPath = path.join(dir, 'nested', 'model-catalog.json'); // 写目标在别处，且父目录尚不存在
+    // 前提校验（判别力前提）：两个目录确实不同、判据此刻确实非 null，否则本例无从谈起
+    expect(path.resolve(path.dirname(catalogPath))).not.toBe(path.resolve(readDir));
+    expect(cli.pricingSyncMismatchWarning(catalogPath, readDir)).not.toBeNull();
+
+    // 隔离加码（本用例局部）：settings / mcp 根同样钉进临时目录，绝不碰真实 ~/.vessel
+    const savedSettings = process.env.VESSEL_SETTINGS_ROOT;
+    const savedMcp = process.env.VESSEL_MCP_ROOT;
+    process.env.VESSEL_SETTINGS_ROOT = dir;
+    process.env.VESSEL_MCP_ROOT = dir;
+    try {
+      await withLocalModelsDev(async (url) => {
+        // ① 正例：真跑 sync（远端 = 本地 loopback，不发起外网请求）
+        const cap = captureOrdered();
+        let code = 0;
+        try {
+          code = await main(['pricing', 'sync', '--catalog', catalogPath, '--url', url]);
+        } finally {
+          cap.restore();
+        }
+        expect(code).toBe(0); // 守卫只 warn：不改退出码
+        expect(fs.existsSync(catalogPath)).toBe(true); // 写盘真的发生了（排除「提前退出才恰好 1 条」）
+
+        const warns = cap.warns();
+        expect(warns).toHaveLength(1); // 写目录 ≠ 读目录 → 恰好 1 条（删掉守卫 → 0 条，RED）
+        expect(warns[0]).toContain(path.resolve(catalogPath)); // 写入的绝对路径
+        expect(warns[0]).toContain(readDir); // 本机实际读取的目录
+        expect(warns[0]).toContain('此次同步的价格不会被本机读到'); // 后果
+        expect(warns[0]).toContain('--catalog'); // 补救
+
+        // 顺序锁：warn 必须在「已写入」之前（守卫语义 = **真正写盘之前**把话说清）
+        const warnAt = cap.events.findIndex((e) => e.kind === 'warn');
+        const wroteAt = cap.events.findIndex((e) => e.kind === 'log' && e.text.includes('已写入'));
+        expect(wroteAt).toBeGreaterThan(-1); // 前提：这条路径确实打印了「已写入」
+        expect(warnAt).toBeLessThan(wroteAt);
+
+        // ② 负对照：不传 --catalog（开发态默认写目标 == 读取目录）→ 0 条
+        const devTarget = defaultSyncTargetFromCwd();
+        expect(cli.pricingSyncMismatchWarning(devTarget, readDir)).toBeNull(); // 前提：此刻两者同值
+        const quiet = captureOrdered();
+        let codeDev = 0;
+        try {
+          codeDev = await main(['pricing', 'sync', '--url', url, '--dry-run']); // dry-run：不写仓库真实 catalog
+        } finally {
+          quiet.restore();
+        }
+        expect(codeDev).toBe(0);
+        expect(quiet.logs().join('\n')).toContain('--dry-run：未写盘'); // 前提：这条路确实跑到了
+        expect(quiet.warns()).toHaveLength(0); // 负对照：判据为 null → 一条都不许打（恒 warn 的实现 → RED）
+      });
+    } finally {
+      if (savedSettings === undefined) delete process.env.VESSEL_SETTINGS_ROOT;
+      else process.env.VESSEL_SETTINGS_ROOT = savedSettings;
+      if (savedMcp === undefined) delete process.env.VESSEL_MCP_ROOT;
+      else process.env.VESSEL_MCP_ROOT = savedMcp;
+    }
   });
 
   it('provider add/set --cost-multiplier 落盘；非法倍率 exit 2 不落盘', async () => {

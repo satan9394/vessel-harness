@@ -15,5 +15,9 @@
   "scripts": {
     "build": "tsc -b",
     "test": "vitest run"
+  },
+  "dependencies": {
+    "@vessel/core": "^0.1.0",
+    "@vessel/shared": "^0.10.0"
   }
 }
