@@ -1,19 +1,27 @@
 # PRODUCT-STATE — Vessel 产品演进状态（Orchestrator 维护）
 
-> 每轮结束更新。**当前进度：第 15 轮**（Round 1–14 已闭环，Round 15 P0 已修 + `policy status` 实现中）。基线：`tsc 0`、**131 文件 / 1421 passed + 3 skipped / 0 failed**、**发布门禁 8/8 `ready`**。
-> 产物索引：`docs/PROJECT-BRIEF.md`、`docs/product-audit/*`（4 份独立审计）、`PRODUCT-GAP-MAP.md`（缺口+路线图）、`IMPLEMENTATION-BRIEF-0N.md` / `EVALUATION-REPORT-0N.md`（每轮规格与独立裁定）、本文档（状态与纪律）。
+> 每轮结束更新。**当前进度：第 17 轮**（Round 1–16 已闭环；Round 17 = 策略执法本体加固的收尾 + 发布里程碑）。基线：`tsc 0`、**136 文件 / 1512 passed + 3 skipped / 0 failed**、**发布门禁 8/8 `ready`**、**装机 E2E 三条 exit 0**。
+> 产物索引：`docs/PROJECT-BRIEF.md`、`docs/product-audit/*`（4 份独立审计）、`ROUND-15-DIRECTION.md`（现状重审与定向）、`PRODUCT-GAP-MAP.md`（缺口 + **路线图 NOW/NEXT/LATER/NOT_NOW**）、`IMPLEMENTATION-BRIEF-0N.md` / `EVALUATION-REPORT-0N.md`（每轮规格与独立裁定，最新 24）、本文档（状态与**16 条纪律**）。
 
 ## 当前成熟度
 
 | 维度 | 评估 |
 |---|---|
-| 内部工程成熟度 | **高** — 依赖零环（Round 7b 主动维护：`sanitizeWireSnippet` 下沉去环）、**8 道发布门禁 8/8 `ready`**（`build` 判据已含 `apps/web` 类型检查）、**130 文件 / 1401 passed + 3 skipped / 0 failed** |
-| 对外可启动成熟度 | **中高** — 首跑可用（G-01/G-02/G-14）、崩溃面给人话+路径+恢复指引（G-03）、会话可续跑（G-10）、**机器面完整**（`--json`：五条只读命令 + **全部 57 处命令失败出口**统一错误信封，Round 14 A） |
-| 数据与密钥安全 | **显著改善** — usage 损坏隔离留档+备份轮转（G-04）、密钥不进命令行、secrets 损坏默认可恢复（G-05a）、错误体全链路脱敏（G-05b + Round 7b）、MCP 子进程不再泄漏为孤儿（Round 13 FIX） |
-| 可扩展性 | **中** — MCP 配置入口已通（Round 13：`~/.vessel/mcp.json` + 任意命令 + 逐 server 降级），真跨进程 E2E 有判别性证据 |
-| 主要短板（当前） | 快照回滚全仓零实现（**已论证推迟**：Session 日志不记旧内容无法重放、Shell 写入绕过备份 → 给用户错误安全感）；全量 i18n 架构未做（仅 guide/explain 双语文案）；`~/.vessel` 状态根解析在 7+ 处重复（P4）；`--json` 下 `console.warn` 仍打人类文案（P4） |
+| 内部工程成熟度 | **高** — 依赖零环；**8 道发布门禁 8/8 `ready`**（`build` 含 `apps/web` 类型检查）；**136 文件 / 1512 passed + 3 skipped / 0 failed**；打包卫生已修（tarball 270→62 文件、无测试产物与 source map） |
+| 对外可启动成熟度 | **高（本会话显著提升）** — 首跑可用；崩溃面给人话+路径+指引；会话可续跑；**机器面完整**（`--json` 覆盖五条只读命令 + **全部失败出口**信封）；**默认配置"装在哪儿就在哪儿"**（包内优先，**装机 E2E 三条命令 exit 0**）；**不需要 clone 仓库即可安装运行** |
+| 安全与执法正确性 | **高（本会话从"看着有"变成"真的生效"）** — 项目层**可提权**与**可放宽执行**两条路径已封堵（`profile/approval` 高层优先；`git/network/audit` 单调趋严；**allow 类列表高层先声明者胜**）；**`shell-force-push` 从死规则变活**（glob 化 matcher）；force-push 绕过形（续行/包装/alias/`+refspec`）以**平台并集 + fail-closed** 收口；`filesystem.confinement` 硬执法**首次真正可达**；错误体全链路脱敏 |
+| 可用性与诚实性 | **高** — mock **运行期可见**（CLI 与 TUI 双侧提示 + 回复标记）；产品名统一；密钥口径按平台如实；文档命令与 `dispatch` 对齐；`policy status` 可查层序/哈希/解析失败 |
+| 主要短板（当前） | 见 `PRODUCT-GAP-MAP.md` 的 NEXT：`@vessel/*` 依赖声明（14/16 包，阻塞"从 registry 单独装"）、pricing **写**路径仍在 cwd（读已包内，已 warn 去静默）、`policy status` 的**合成后可编译性**（在跑）、测试盲点清单；LATER：i18n 架构、`~/.vessel` 状态根收敛、`vessel diff --last` 只读回滚提示 |
 
-## 已解决问题（本轮 NOW 切片）
+## 当前最高价值下一步（Round 17 收口后）
+
+**Round 16 + 发布里程碑已完成**（详见下方 Round 16 / 16b 段与 `PRODUCT-GAP-MAP.md` 的路线图归位）：1C/1B/2B/2C 诚实化、依赖声明、打包卫生（`files` 否定模式）、**包内 configs 可达**、**装机 E2E 三条 exit 0**；策略执法侧则以**平台并集 + fail-closed**收口了续行/alias/包装/`+refspec` 全部已知绕过形。
+
+**NEXT（P2，已具证据，可独立开轮）**：① `@vessel/*` 依赖声明补全（14/16 包）+ `bench-runners` 运行期动态 import；② pricing 产品形态正解（读=用户目录优先+包内兜底，写=`~/.vessel`）；③ `policy status` 的**合成后可编译性**（**在跑**）；④ 测试盲点清单（如 C-4 文案未锁）。
+**LATER**：全量 i18n 架构；`~/.vessel` 状态根 7+ 处重复收敛；`vessel diff --last` 只读回滚提示（G-10 的克制替代）；`dist/.tsbuildinfo` 入包与 `npm pack --json` 被 prepack 输出污染（自动化卫生）。
+**NOT_NOW（明确不做，均有论证）**：全量 npm 发布（成本 ≫ 收益，本阶段无外部消费者）、单包 bundle、CI 自动发布、provenance/签名/SBOM、changesets、插件市场/云协作/排行榜/IDE 表面；TUI 内不放 `migrate`/`serve`/`bench`/`pricing sync`/`--json`；**不做**通用快照回滚（会让用户误以为 Shell 写入也可回滚）。
+
+## 已解决问题（Round 1 切片 · 历史存档）
 
 - **G-01（P0）首跑示例失效**：仓库工作区 `run --prompt` 曾 100% 输出 `(mock: no script entry matched)` 且 exit 0（假成功）。根因：ContextBuilder 将 volatile skills index 作为**最后一条 user 消息**追加，MockProvider 只匹配最后一条 user 消息。修复：`ChatMessage.source` 溯源 + Builder 标记 volatile 为 `environment` + MockProvider 只匹配真实 surface 输入 + 确定性兜底文案。
 - **G-02（P0）未知命令静默 run**：`vessel foo`、`vessel chat` 曾静默跑一次 mock 任务并 exit 0。修复：main() 未知子命令 → stderr「未知命令 <x>。可用：vessel --help」+ **exit 2**（实测）。
@@ -23,7 +31,7 @@
 验收侧证据（Orchestrator）：`tsc -b` exit 0；`vitest` **114 文件 / 1235 passed + 1 skipped / exit 0**（基线 1220+1 → 本轮 +15 用例）；CLI 冒烟 6 项 E2E 全通过（含**带参数已知命令** `explain 小小蜜` / `provider list` / `settings list` 均 exit 0，证明未知命令分支未过度拦截）；`source` 经查不进入任何真实 provider 请求体（三路均显式挑字段）。
 **独立 Evaluator 裁定：ACCEPT**（Round 1 全静态 → **REJECT**（S1–S4）→ FIX 轮 → Round 2 全静态 → **ACCEPT**，逐项行号证据见 `EVALUATION-REPORT-01.md` / `EVALUATION-REPORT-02.md`）。
 
-## 仍存在缺口（按路线图）
+## 仍存在缺口（Round 1 视角 · 历史存档；**当前路线图以 `PRODUCT-GAP-MAP.md` 的 NOW/NEXT/LATER/NOT_NOW 为准**）
 
 - **NEXT（低成本高价值，建议下一轮 NOW）**：G-03 CLI 顶层 `main()` 无 catch（配置损坏即裸栈崩溃、无恢复指引）；G-07 `apps/web` 游离 `tsc -b` 图外（类型错误可静默过 8 道门禁）；G-12 `apps/cli/tsconfig.json` 缺 `local-server` reference（干净 clone 构建顺序脆弱）；G-09 TUI 会话内成本可见性（数据已采集只缺展示，直击 deepseek-flash 成本波动痛点）。
 - **LATER**：G-04 usage.json 损坏静默清零 + 无备份轮转（数据丢失类）；G-05 密钥暴露面（DPAPI 经 PowerShell 命令行传密钥 ×  openai-compatible 错误体回显 500 字符 ×  secrets 损坏默认不恢复）；G-10 会话续跑 + 会话级快照回滚；G-11 CLI 面 MCP 配置命令 + 通用 JSON 出口；G-13 TUI/CLI 命令面不一致、`/permission` 不持久、theme 无消费者。
