@@ -63,6 +63,14 @@ policy:
       - "169.254.169.254"         # cloud metadata (SSRF surface)
 
   audit:
+    # 词表沿用 POLICY-SPEC §6.1 的三值（decision/denial/approval），但**本仓当前只产出 `denial`**：
+    #   - `denial` = `audit/denial`(B20) 硬拒绝记录，有生产者（`packages/core/src/agent-loop/AgentLoop.ts`
+    #     的 recordDenial/recordTurnDenial）与消费者（telemetry 回放 → M12/M14）⇒ **已接线**；
+    #   - `decision` = `audit/decision`(B19) **零产零消**（无 appendSync、无读取分支）⇒ **未接线**；
+    #   - `approval` = `approval/asked`(B17) / `approval/decided`(B18)：本仓**连记录类型都还不存在**
+    #     （审批询问目前以 `audit/denial` 的 stage:'approval' 收口）⇒ **未接线**。
+    # 接线这两项时，必须一并更新本注释、`packages/telemetry/src/auditRecordWiring.test.ts` 的守卫
+    # 与 `docs/BENCHMARK-SPEC.md`（守卫会在接线后先红，逼文档/配置跟上，而不是让声明继续撒谎）。
     events: [decision, denial, approval]
     details: full
 

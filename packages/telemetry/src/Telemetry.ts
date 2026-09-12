@@ -7,6 +7,13 @@ import type {
 import type { EventBus } from '@vessel/core';
 import { EventBus as Bus, Session } from '@vessel/core';
 
+/**
+ * M13 判为「评审拒绝」的 verdict 子集 —— 与 `docs/BENCHMARK-SPEC.md` §4.1 M13 行逐字同词表
+ * （四个 verdict 里除去 `met` 的三个：`not_met` / `impossible` / `error`）。
+ * 单一实现：`attach()` 的 `team_end` handler 用它过滤（`telemetry.test.ts` ⑫ 把三值与规格逐字对钉）。
+ */
+const EVALUATOR_REJECT_VERDICTS: ReadonlySet<string> = new Set(['not_met', 'impossible', 'error']);
+
 export interface TelemetryCounters {
   turns: number;
   steps: number;
@@ -66,6 +73,38 @@ export interface TelemetryCounters {
  *    再读 `metrics()`（`benchmarks/runners/src/runner.ts`、`contracts/vessel.ts`），故无缺口。
  *  - **不得**在无此记录时伪造数值：`approval: 'never'` 的运行里 Engine 直接走 deny
  *    （`decisionPath` 带 `approval:never`、stage 仍 `'rule'`），M14 如实为 0。
+ *
+ * M13 `evaluatorRejects` 的生产者（本卡接线；此前 `recordEvaluatorReject()` **全仓唯一命中是它的定义**，
+ * 指标恒 0，却被 `benchmarks/runners/src/asserts.ts` 的 `metricValue('M13')` 读走、被
+ * `docs/BENCHMARK-SPEC.md` 的 M13 行列为被测量）：
+ *
+ * 「评估器拒绝」在本仓有**三处**真实通路，逐条给位置与**可观测性**：
+ *  ① `packages/agents/src/team/TeamRuntime.ts` 的 evaluate 阶段成员：产出按 review JSON schema 解析为
+ *     `TeamReviewConclusion`（`review.verdict ∈ {met, not_met, impossible, error}`），随 **`team_end`
+ *     事件载荷**的 `members[].review` 一起对外 ⇒ **总线可观测**。生产侧由
+ *     `packages/agents/src/team/team-end-review-verdict.test.ts` 钉住（断言真实跑出的 `team_end`
+ *     载荷里确有 `review.verdict`）。本卡只取这一面。
+ *  ② `packages/agents/src/evaluator/EvaluatorAgent.ts` 的 `evaluate()`：verdict 只**返回给调用方**；
+ *     总线上只有 A23/A24（`subagent_start`/`subagent_stop`），而 A24 载荷 `{output, stopReason, isError}`
+ *     **不含 verdict** —— `not_met` 且回合正常结束时 `isError=false`、`stopReason='completed'`，与 `met`
+ *     逐字同形 ⇒ **不可观测**。该载荷形状另有既有用例钉死（`evaluator-agent.test.ts` 断言
+ *     `Object.keys(result)` 恰好是 `['output','stopReason']`），本卡不得为凑指标去改它。
+ *  ③ `packages/engine/src/real-evaluator-adapter.ts`（LoopEngine 的 Evaluator seam）：verdict 只在引擎
+ *     内部消费，既不 emit 也不落 Session 记录 ⇒ **不可观测**。
+ * 故 M13 = ①（且只取 ①）：②③ 没有可消费的面，硬凑（解析 runner 回投的 `user/message` 自由文本、
+ * 或按 `subagent_stop.isError` 近似）会引入假阳性或静默少计 —— 判据层绝不允许。
+ * 因此 M13 **不覆盖 Goal Loop 的 evaluator 拒绝**，`BENCHMARK-SPEC` 的 M13 行已把这条边界写清。
+ *
+ * 为什么 M13 取**加法**、不做身份去重（照 M14 那套"先读清职责再取舍"）：
+ *  - `team_end` 是这一事实的**唯一**观测面（全仓只有本文件的 handler 计它），不存在"同一事实两份证据"，
+ *    所以不需要 M05 那套身份去重；
+ *  - 也**不能**拿不唯一的 key 去重：成员摘要的 `presetId`/`role` 都不唯一（两个 evaluate 成员可以同名
+ *    同角色），用它去重会把两次真实评审静默并成一次 ⇒ **少计**；
+ *  - 计数口径 = 一次 `team_end` 载荷里 `review.verdict ∈ {not_met, impossible, error}` 的成员数
+ *    （`met` 不是拒绝；不带 `review` 的成员不是评审成员）。`TeamRuntime.runTeam` 的 `finally` 只 emit
+ *    一次 `team_end`，故按事件逐次计数与既有 `turns`/`toolCalls` 的加法口径一致。
+ *  - 边界记录：`docs/ARCHITECTURE.md` §4.11 的事件清单（before_turn / after_model / after_tool /
+ *    policy_decision / llm_retry）**尚未含 `team_end`** —— 该文件不在本卡改动范围，已如实记入交付报告。
  *
  * **刻意不消费**的三类新造记录（已落盘，但没有回放消费方——理由不是"以后再说"，是各自的取值面
  * 决定了照抄会造假）：
@@ -131,9 +170,27 @@ export class Telemetry {
         const payload = p as { verdict?: string };
         if (payload.verdict === 'deny') this.counters.denials += 1;
       }, 'telemetry:denials'),
+      // M13 的**唯一**生产者入口（见类注释「M13 evaluatorRejects 的生产者」）：
+      // `team_end` 的逐成员摘要里，evaluate 成员携带 `review`（`TeamReviewConclusion`，
+      // `TeamRuntime` 用 `parseReviewConclusion` 从该成员的产出解析）。只认被明确判为拒绝的三个
+      // verdict；`met` 不是拒绝，不带 `review` 的成员（generator/orchestrator）根本不是评审结论。
+      bus.on('team_end', (p) => {
+        const payload = (p ?? {}) as { members?: readonly { review?: { verdict?: unknown } }[] };
+        for (const member of payload.members ?? []) {
+          const verdict = member?.review?.verdict;
+          if (typeof verdict === 'string' && EVALUATOR_REJECT_VERDICTS.has(verdict)) {
+            this.recordEvaluatorReject();
+          }
+        }
+      }, 'telemetry:evaluator-rejects'),
     );
   }
 
+  /**
+   * M13 计数入口。生产者**唯一** = `attach()` 的 `team_end` handler（`team_end` 载荷里
+   * `review.verdict` 为拒绝的 evaluate 成员，一次一个）。本方法此前无任何调用方（指标恒 0），
+   * 接线后仍保持"只有这一处调用"由 `telemetry.test.ts` ⑫ 钉住。
+   */
   recordEvaluatorReject(): void {
     this.counters.evaluatorRejects += 1;
   }
@@ -204,7 +261,7 @@ export class Telemetry {
       { metric: 'M07', name: 'OutputTokens', value: c.outputTokens, unit: 'token', source: 'usage-ledger' },
       { metric: 'M09', name: 'Compactions', value: c.compactions, unit: 'count', source: 'compaction/start' },
       { metric: 'M12', name: 'SafetyViolations', value: c.denials, unit: 'count', source: 'audit/denial' },
-      { metric: 'M13', name: 'EvaluatorRejects', value: c.evaluatorRejects, unit: 'count', source: 'evaluator' },
+      { metric: 'M13', name: 'EvaluatorRejects', value: c.evaluatorRejects, unit: 'count', source: 'team_end:review.verdict' },
       { metric: 'M14', name: 'Autonomy', value: c.approvalAsks, unit: 'count', source: 'audit/denial:approval', detail: { steers: 0, approval_asks: c.approvalAsks, interrupts: 0, human_answers: 0, machine_answers: 0 } },
     ];
     if (extra?.durationMs !== undefined) {

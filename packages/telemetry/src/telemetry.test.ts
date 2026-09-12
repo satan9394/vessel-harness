@@ -4,7 +4,9 @@ import * as path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { AgentLoop, EventBus, Session } from '@vessel/core';
-import type { ChatProvider, ChatRequest, ChatResponse, SessionRecord } from '@vessel/shared';
+import type {
+  ChatProvider, ChatRequest, ChatResponse, SessionRecord, TeamEndPayload, TeamMemberSummary,
+} from '@vessel/shared';
 import { Telemetry } from './Telemetry.js';
 
 /**
@@ -44,6 +46,13 @@ import { Telemetry } from './Telemetry.js';
  *     ⇒ ⑥⑧ 红（改前正是这一行不存在，故 ⑥ 原本恒 0）；
  *   - 把 `stage === 'approval'` 放宽成"任何审计拒绝都算"（删掉 stage 判据）⇒ ⑦ 红；
  *   - 把 M14 的 `source` 改回不存在的 `'approval/asked'`（或只改文档）⇒ ⑨ 红。
+ *
+ * M13（本卡，与 M14 同病灶）：`TelemetryCounters.evaluatorRejects` 此前没有任何生产者
+ * （`recordEvaluatorReject()` 全仓唯一命中是它的定义）⇒ 恒 0，却被 `metricValue('M13')` 读走、
+ * 被 BENCHMARK-SPEC 列为被测量。本卡查清三条真实通路后只接**唯一可观测**的那面：
+ * `team_end` 载荷里 evaluate 成员的 `review.verdict`（`TeamRuntime` 的 058 结论；
+ * `EvaluatorAgent` 的 A24 载荷不含 verdict、LoopEngine 的 verdict 不出引擎 ⇒ 均不可观测，
+ * 故 M13 **不覆盖** Goal Loop 的 evaluator 拒绝，规格里已写明该边界）。⑩⑪ 钉行为、⑫ 钉文档⇄代码。
  */
 
 const TELEMETRY_SRC = fileURLToPath(new URL('./Telemetry.ts', import.meta.url));
@@ -377,5 +386,121 @@ describe('telemetry — event subscriber + JSONL report', () => {
     // 代码侧确实按 stage 取数（把判据放宽成"任何 audit/denial" ⇒ ⑦ 红；删掉 ⇒ ⑥⑧ 红）
     const src = fs.readFileSync(TELEMETRY_SRC, 'utf8');
     expect(src).toContain("if (r.stage === 'approval') this.counters.approvalAsks += 1;");
+  });
+
+  /**
+   * M13（本卡）：`TelemetryCounters.evaluatorRejects` 此前**没有任何调用方**
+   * （`recordEvaluatorReject()` 全仓唯一命中是它的定义）⇒ 指标恒 0，却被
+   * `benchmarks/runners/src/asserts.ts` 的 `metricValue('M13')` 读走、被 BENCHMARK-SPEC 列为被测量。
+   * 真实且**可观测**的通路只有一条：`packages/agents/src/team/TeamRuntime.ts` 的 evaluate 阶段成员
+   * 把 `TeamReviewConclusion` 挂进 `team_end` 载荷的 `members[].review`（生产侧由
+   * `packages/agents/src/team/team-end-review-verdict.test.ts` 钉住）。
+   *
+   * 「删哪行会红」（M13）：
+   *   - 删掉 `attach()` 里的 `bus.on('team_end', …)` 块（或去掉里面的 `this.recordEvaluatorReject()`）
+   *     ⇒ ⑩ 红（改前正是这一支不存在 ⇒ M13 恒 0）；
+   *   - 把 verdict 过滤放宽成"任何 verdict 都算"（删掉 `EVALUATOR_REJECT_VERDICTS.has(...)`）
+   *     ⇒ ⑪ 红；把过滤换成 `subagent_stop`/`isError` 之类近似面 ⇒ ⑩ 红（那些事件在本用例里没有）；
+   *   - 把 M13 的 `source` 改回不存在的 `'evaluator'`（或只改文档）⇒ ⑫ 红。
+   */
+  const member = (
+    memberId: string,
+    presetId: string,
+    role: TeamMemberSummary['role'],
+    phase: TeamMemberSummary['phase'],
+    review?: TeamMemberSummary['review'],
+  ): TeamMemberSummary => ({
+    memberId,
+    presetId,
+    role,
+    phase,
+    status: 'completed',
+    sessionId: `sess_${memberId}`,
+    delegationDepth: 0,
+    durationMs: 1,
+    output: 'out',
+    ...(review === undefined ? {} : { review }),
+  });
+
+  const teamEnd = (members: TeamMemberSummary[]): TeamEndPayload => ({
+    teamRunId: 'team_1',
+    outcome: 'completed',
+    members,
+    durationMs: 7,
+  });
+
+  it('⑩ M13 真实链路：`team_end` 的 evaluate 成员 review.verdict=not_met ⇒ evaluatorRejects 计数（改前恒 0）', async () => {
+    const bus = new EventBus();
+    const tel = new Telemetry();
+    tel.attach(bus);
+
+    await bus.emit('team_end', teamEnd([
+      member('developer', 'developer', 'generator', 'generate'),
+      member('reviewer', 'reviewer', 'evaluator', 'evaluate', {
+        verdict: 'not_met', reason: '验收标准 2 未满足', unmet: ['AC-2'], suggestions: ['补测试'], evidence: [],
+      }),
+    ]));
+
+    const m13 = tel.metrics().find((m) => m.metric === 'M13')!;
+    expect(m13.value).toBe(1); // 改前：recordEvaluatorReject() 无调用方 ⇒ 恒 0
+    expect(m13.source).toBe('team_end:review.verdict'); // 来源点名真实生产者
+    // 其它指标不因这一支而变（team_end 不是 turn/tool/denial 事件）
+    const counters = tel.finalize(await openSession('t-m13'));
+    expect(counters.evaluatorRejects).toBe(1);
+    expect(counters.turns).toBe(0);
+    expect(counters.toolCalls).toBe(0);
+    expect(counters.denials).toBe(0);
+    tel.detach();
+  });
+
+  it("⑪ 负对照：`met` 与无 `review` 的成员都不进 M13；一次载荷里的多个拒绝逐个计数", async () => {
+    const bus = new EventBus();
+    const tel = new Telemetry();
+    tel.attach(bus);
+
+    // 只有 met 的评审 + 不带 review 的成员 ⇒ M13 必须为 0（删掉 verdict 过滤 ⇒ 这里变 3 ⇒ 红）
+    await bus.emit('team_end', teamEnd([
+      member('developer', 'developer', 'generator', 'generate'),
+      member('reviewer', 'reviewer', 'evaluator', 'evaluate', {
+        verdict: 'met', reason: '符合验收', unmet: [], suggestions: [], evidence: [],
+      }),
+      member('lead', 'lead', 'orchestrator', 'orchestrate'),
+    ]));
+    expect(tel.metrics().find((m) => m.metric === 'M13')!.value).toBe(0);
+
+    // 一次载荷里两个拒绝（impossible / error）⇒ 计 2（加法口径，且不按不唯一的 presetId/role 去重）
+    await bus.emit('team_end', {
+      ...teamEnd([
+        member('reviewer-a', 'reviewer', 'evaluator', 'evaluate', {
+          verdict: 'impossible', reason: '依赖缺失', unmet: [], suggestions: [], evidence: [],
+        }),
+        member('reviewer-b', 'reviewer', 'evaluator', 'evaluate', {
+          verdict: 'error', reason: '产出不是合法 verdict JSON', unmet: [], suggestions: [], evidence: [],
+        }),
+      ]),
+      teamRunId: 'team_2',
+    });
+    expect(tel.metrics().find((m) => m.metric === 'M13')!.value).toBe(2);
+    tel.detach();
+  });
+
+  it('⑫ 文档⇄代码：BENCHMARK-SPEC M13 行点名的来源 == 代码实际计数的来源；且只有一处生产者调用', () => {
+    const src = fs.readFileSync(TELEMETRY_SRC, 'utf8');
+    // 代码事实 1：拒绝词表逐字 = 规格的 {not_met, impossible, error}（改词表 ⇒ 本行红）
+    expect(src).toContain("new Set(['not_met', 'impossible', 'error'])");
+    // 代码事实 2：唯一的生产者调用在 team_end handler 里（`recordEvaluatorReject()` 再次变成摆设 ⇒ 红）
+    const calls = src.match(/this\.recordEvaluatorReject\(\)/g) ?? [];
+    expect(calls).toHaveLength(1);
+    expect(src).toContain("bus.on('team_end'");
+    expect(src).toContain("}, 'telemetry:evaluator-rejects'),");
+
+    // 文档侧：M13 行必须点名代码的实际来源，且必须写明**未接线**的那两条通路（否则文档在撒谎）
+    const m13Row = fs.readFileSync(BENCHMARK_SPEC_MD, 'utf8').split('\n').find((l) => l.startsWith('| M13 |'))!;
+    expect(m13Row).toBeTruthy();
+    const source = new Telemetry().metrics().find((m) => m.metric === 'M13')!.source;
+    expect(source).toBe('team_end:review.verdict');
+    expect(m13Row).toContain(source);
+    expect(m13Row).toContain('未接线');
+    expect(m13Row).toContain('not_met'); // 判为拒绝的 verdict 词表写在定义列里
   });
 });

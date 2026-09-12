@@ -242,6 +242,24 @@ export async function runAssert(spec: AssertionSpec, ctx: AssertContext, index: 
     case 'metric_ge': {
       const value = metricValue(spec.metric ?? '', ctx.counters);
       const limit = spec.limit ?? 0;
+      // 未知指标 = **判据写错**，不是"测得 0"：显式判 fail 并给出可读证据。
+      //
+      // 改前：`metricValue` 的 `default: return 0` 把"指标名写错/未实现"静默折成 0，于是
+      // `metric_le` **恒真**、`metric_ge`（limit≥1）**恒假** —— 判据失效却不报错（本仓核心病在
+      // 判据层的实例）。现在：`value === null` ⇒ 红，且 evidence 里点名那个指标与已实现集合，
+      // 让人一眼看出是拼写/未实现，而不是"跑了但值是 0"。
+      if (value === null) {
+        return {
+          ...base,
+          result: 'fail',
+          evidence: {
+            metric: spec.metric,
+            value: null,
+            limit,
+            error: `unknown metric: ${JSON.stringify(spec.metric ?? '')} (implemented: ${IMPLEMENTED_METRICS.join(', ')})`,
+          },
+        };
+      }
       const ok = spec.type === 'metric_le' ? value <= limit : value >= limit;
       return { ...base, result: ok ? 'pass' : 'fail', evidence: { metric: spec.metric, value, limit } };
     }
@@ -542,7 +560,22 @@ function changedFiles(ctx: AssertContext): Set<string> {
   return changed;
 }
 
-function metricValue(metric: string, c: TelemetryCounters): number {
+/**
+ * `metric_le` / `metric_ge` 的**唯一**取值实现：指标名 → `TelemetryCounters` 字段。
+ *
+ * 返回 `null` = **未知指标**（写错名或本仓未实现），不是"测得 0"。这个区分是判据层的安全线：
+ * 先前的 `default: return 0` 让 `metric_le` 对任何错名**恒真**、`metric_ge`（limit≥1）**恒假**
+ * —— 判据静默失效（红/绿都不带原因）。调用点（`runAssert` 的 metric_le/metric_ge 分支）据此
+ * **显式判 fail** 并把指标名写进 evidence。
+ *
+ * 已实现集合 = `IMPLEMENTED_METRICS`（与下方 switch 的 `case` 一一对应，由
+ * `asserts.metric.test.ts` ④ 钉住；新增/删除分支必须同时改那张表与 `docs/BENCHMARK-SPEC.md`）。
+ * 注意 `Telemetry.metrics()` 还会产出 M10（runner 计时）与 M01/M08/M11（runner/用量侧，
+ * 不在 `TelemetryCounters` 里）——它们**不**在本函数取值面上，写进判据会如实红（见交付报告的只报告项）。
+ */
+export const IMPLEMENTED_METRICS: readonly string[] = ['M02', 'M03', 'M04', 'M05', 'M09', 'M12', 'M13', 'M14'];
+
+function metricValue(metric: string, c: TelemetryCounters): number | null {
   switch (metric) {
     case 'M02': return c.turns;
     case 'M03': return c.toolCalls;
@@ -552,6 +585,6 @@ function metricValue(metric: string, c: TelemetryCounters): number {
     case 'M12': return c.denials;
     case 'M13': return c.evaluatorRejects;
     case 'M14': return c.approvalAsks;
-    default: return 0;
+    default: return null;
   }
 }
