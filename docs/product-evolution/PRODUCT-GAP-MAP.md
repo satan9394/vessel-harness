@@ -63,12 +63,12 @@
 
 ## 路线图归位（Round 17 收口）
 
-**NOW（已完成）**：策略执法三处失效 + 其两条后续漏网（续行**平台并集**、alias 跨命令）+ pricing 读路径与静默 + 打包与装机。
+**NOW（已完成）**：策略执法三处失效 + 其两条后续漏网（续行**平台并集**、alias 跨命令）+ pricing 读路径与静默 + 打包与装机 + **发布链路门禁化**（`publish-artifact` 判据：pack 期脚本必须构建 `dist`、tarball 清单必须含 `dist/cli.js` 与四个 `dist/configs/*` 且零测试产物/零 map、不可解析则显式 `pending`；**该判据自身另有 28 条单测守护**）+ **`policy status` 合成后可编译性**（G-18：直接复用 `run` 的装载路径，`compiled=false` 当且仅当 `run` 会失败）。
 **NEXT（P2，已具证据，可独立开轮）**：
-1. **`@vessel/*` 依赖声明补全**（14/16 包缺失）——不阻塞"整包一起装"，但阻塞"从 registry 单独安装 `@vessel/cli`"；同时处理 `@vessel/bench-runners`（`private:true` 却被运行期 `await import` → 安装态 `run --bench` 必 MODULE_NOT_FOUND）。
-2. **pricing 产品形态正解**：读=用户目录优先 + 包内兜底，写=`~/.vessel/model-catalog.json`（现为"读包内 / 写 cwd"不对称，已用 warn 去静默）。
-3. **`policy status` 的编译期有效性**：`inspectPolicyLayers` 只跑 YAML 解析 → 编译期非法策略显示为"存在·1 条"而 `run` 立即 `policy compile error`（"看着配了其实没配"残留一格）。
-4. **测试盲点清单**（如 `policyStatus.test.ts` 未锁 C-4 新文案 → 回潮不变红）。
+1. **`@vessel/*` 依赖声明补全**（14/16 包缺失）——不阻塞"整包一起装"，但阻塞"从 registry 单独安装 `@vessel/cli`"；同时处理 `@vessel/bench-runners`（`private:true` 却被运行期 `await import` → 安装态 `run --bench` 必 MODULE_NOT_FOUND）。**已量化清单见 `PRODUCT-STATE.md` 发布里程碑段。**
+2. **pricing 产品形态正解**：读=用户目录优先 + 包内兜底，写=`~/.vessel/model-catalog.json`（现为"读包内 / 写 cwd"不对称，已用 warn 去静默 + 不对称可见化判据）。
+3. **测试盲点清单**：`policyStatus.test.ts` 未锁 C-4 新文案（回潮不变红）；`pricingSyncMismatchWarning` **调用点**无用例（删掉守卫测试仍全绿——终评 B-⑤ 指出）。
+4. **发布链路自动化**（终评的"最大缺口"）：`npm pack → 安装 → 首跑 → 升级` 目前只有 **shape 门禁**，尚无"**安装态无 warn 冒烟**"的自动门禁与"**升级路径**"检查；`npm pack --ignore-scripts` 可绕过 prepack（需门禁兜住）。
 **LATER**：全量 i18n 架构；`~/.vessel` 状态根 7+ 处重复收敛；`vessel diff --last` 只读回滚提示（G-10 克制替代）；`dist/.tsbuildinfo` 入包与 `npm pack --json` 被 prepack 输出污染（自动化卫生）。
 **NOT_NOW（明确不做）**：全量 npm 发布（17 包 + registry org + 版本治理——成本 ≫ 收益，本阶段无外部消费者）、单包 bundle（除非将来真要"陌生人一条命令安装"）、CI 自动发布、provenance/签名/SBOM、changesets 版本治理、插件市场/云协作/排行榜/IDE 表面。
 
