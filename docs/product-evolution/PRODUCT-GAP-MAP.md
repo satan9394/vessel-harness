@@ -409,4 +409,24 @@ parseFailed=true  ⇒ AgentLoop 退化成 {_raw:...}，工具拿不到 path
   - **其余三处我尚未独立核实，故只记为"待核实"而非缺陷**：`/api/goal/tasks/:id/run`（`outcome==='error'` 仍回 200）、`/api/sessions/:id/team-runs/current`（失败只在 body）、`POST /api/sessions/:id/team-runs`（202 异步接受）。异步接受本身是合理设计，缺的可能是"失败状态面"；**在读到代码前不下结论**。
 - **`Planner.executePlan` 的 `run` 签名抹掉 `kind`**（`Planner.ts:97,113`），`runner.ts:443` 传的却是 `TurnResult` ⇒ 步骤回合的 kind 只能以 `finalText` 进入 evaluate（不会假通过，但不可见）。
 - **web**：`apps/web/src/api.ts` 会在 `!res.ok` 抛 `ApiError`，而 `ConversationView` 只显示 `HTTP 500`、**未渲染 `err.body.finalText`** ⇒ 修完状态码后失败**可见但信息贫**（净改善，但应把真实文案渲染出来）。
-- **core 语义**（越界只报告）：`AgentLoop.ts:203-224` 的「输入被 BeforeTurn 拦截」按 **`kind='success'`**、`finalText='[blocked] …'` 返回 ⇒ **"被拦截"在 kind 上看起来是成功**（好在 `'[blocked]…'` 解析不出 verdict ⇒ evaluator 判 `error`，不会误报 `met`）。
+- **core 语义**（越界只报告）：`AgentLoop.ts:203-224` 的「输入被 BeforeTurn 拦截」按 **`kind='success'`**、`finalText='[blocked] …'` 返回 ⇒ **"被拦截"在 kind 上看起来是成功**（好在 `'[blocked]…'` 解析不出 verdict ⇒ evaluator 判 `error`，不会误报 `met`）。**已修（`70cd3e4`）**：三处一律 `kind='error'`，见下。
+
+## Round 77–81 — `kind` 修诚实 + **一次裁决** + **第四次更正我自己**
+
+**已修并提交**（全量 **1874 passed + 6 skipped**；本段起点 138/1555 ⇒ **+319**）：
+- `70cd3e4` **core：被 `BeforeTurn` 拦截的输入不再上报 `kind='success'`**——该分支（0 模型调用、0 步、无助手回答）三处（`turn/end`/`after_turn`/返回的 `TurnResult`）全标 `success`，**这一个错值击穿了我们刚修成"如实呈现"的四个消费面**：TUI 把 `[blocked]` 当正常助手回复、`vessel run` 退 0 且标题是"最终回复"、HTTP 回 200。改判 `kind='error'`（**不动词表**：既定四值；**不选 `interrupted`**：我们已裁决它不算失败，那样被拒输入在脚本眼里仍是成功）。**改一个值，四个面同时变正确** ⇒ **教训：修消费面之前先确认被消费的值本身是否真实**。
+- 同批：`real-model-lane` 异常行不再 `passed`（**不新增枚举**——`gates.ts:903/911` 按精确枚举计数，新值会造成"既不计 failed 也不计 pending"的空洞，**新状态本身就是再造绿灯**）；`bench-report` 聚合面同样修复（**复用** lane 的纯函数，不另写正则）；evaluator 镜像 `delegateId` 配对（**关系断言**强于常量）；**真实 `TeamProjection` 端到端**（证明**不需要新缝**，用与生产同形装配）。
+
+**我的裁决（执行者请求拍板）**：**接受**把 `finalText` 由裸 `'[blocked]'` 扩成含原因的同文——因为 CLI/TUI/HTTP 三面**只打印 `finalText`**，**我自己写的验收（"错误文本含原因"）在旧值下根本无法成立**；且只增不减（`[blocked]` 标记与原因都在）。
+
+**第四次更正我自己（这次是被读码推翻）**：我在卡里写"失败的性质由既有 `audit/denial stage:'before_turn'` 如实承载"——**错**。执行者读码指出：该分支**既不写 `audit/denial` 也不写 `policy_decision`**，且 `packages/shared/src/events.ts` 的 `stage` 词表是 `'rule'|'hook'|'approval'|'sandbox'|'guard'`，**根本没有 `'before_turn'`** ⇒ **一次输入级策略否决在审计面完全不可见**（`beforeTurn.vetoes` 被丢弃）。而 `AGENTS.md` 硬性约束 3 与 `docs/POLICY-SPEC.md` 的**"四件套"**（含 **Audit Event**）要求执法**必须有审计**；`before_tool` 的拒绝**有** `audit/denial`，`before_turn` 这条**没有** ⇒ **这不是"加新功能"，是同一个执法点缺了四件套的第四件**。**已派卡**（要求在"复用 `audit/denial`（需加 `stage` 值 ⇒ 必须给完整影响面）"与"不动词表复用 `policy_decision`"之间选一并论证；**若两条都得动词表，只报告由我裁决**）。
+
+**新队列（执行者复核后给定级；均只报告未改）**：
+- **`before_stop` 的裁决被完全无视**（`AgentLoop.ts:379-380`：`const stop = await bus.serial('before_stop', …); void stop;`）⇒ 监听器 `deny` 对回合结果**零影响**。**定级：同族缺陷、中高**；但**当前无生产监听器**（全仓只有 EventBus 单测直接调 `serial`）⇒ **潜伏死缝**（与本段已处理的三条同族：`reportStatus`、`foldSession`、`Registry.execute`）。**已派卡**：接线代价小且语义清楚就接线（**无监听器时行为须逐字不变**），否则**如实标注"未接线"并给最小改法**——**不许为了"看起来有用"而发明语义**。
+- **异常路径不落 `turn/end`**（`AgentLoop.ts:369 throw err`，此前 `turn/start` 已写）：`turn/start → turn/end` **配对破坏**（`EVENT-SPEC.md:600` 不变式）。**定级：中**，但**它不撒谎**（CLI `catch ⇒ fail(1)`、HTTP 500、TUI `[错误]`），是"崩溃"而非"误报成功"；`openTurns()` 在 resume 时会补 `interrupted` 关闭器。
+- **deny 分支写 `turn/end` 而不写 `turn/start`**（单向配对）：`openTurns()` 只看 start ⇒ 不会误合成关闭器，但 `EVENT-SPEC` 的"全部配对"字面不成立。**定级：低**（改它要动记录形状，另属决策）。
+- **报告对比表/看板仍未绿转**：`report.ts:390` 的 `buildComparisons` 用 `success: m.success`、`:506` md `✅/❌`、`:538` CLI `OK/FAIL`，且 **md/CLI 从不渲染 `notes`/`turnKind`** ⇒ **异常原因只在 JSON 行上可见**。**已派卡。**
+- **`report.ts:154` 的 `if (!r.result) continue`** 整行丢弃 lane 的 pending/skipped 行与 `r.note` ⇒ `--input lane.json` 的 `totals.runs` **小于 lane 行数**；`ReportRowStatus` 里的 `'pending'` 在 lane 路径**恒为 0**。**待排。**
+- **5 个外部 CLI adapter 的 success 归一化**（`adapters/dsh.ts:305`、`opencode.ts:307`、`codex.ts:318`、`pi.ts:310`、`claude.ts:333`：`acc.success && finalText 为空 ⇒ false`）⇒ "**CLI 非零退出但输出非空**"也算 success，**且它们连 notes 标记都没有**。**待排。**
+- **HTTP 把策略拒绝映成 500 语义不精确**（更该 403/422），但**需要新增判别信息**才能改（`TurnResult` 加可选机读字段 + `turn/end` 同步 + 四个消费面）⇒ **建议另开卡**（执行者与我判断一致）。
+- **076 契约缺结构化的回合结束 kind** ⇒ 现在靠**对 `notes` 文案的字符串耦合**（`^turn ended kind=`）识别异常；durable 修法是给 `RunResult` 加字段（动 `contracts/**` 与外部 adapter），届时正则可整段删除。**待排。**
