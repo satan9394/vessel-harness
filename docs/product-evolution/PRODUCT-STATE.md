@@ -721,3 +721,15 @@ G-15 原子写 wrapper 各 Store 重复（P4）；architecture 审计的 T1–T9
 **仍存（只报告，已定级）**：`VESSEL_BASE_URL`/`VESSEL_API_KEY` 的**纯空白**会被当端点/密钥（空串不静默）；`--model ''` 会**挡住** `VESSEL_MODEL` 回落（改它要动 flags/env 优先级结构）；`UsageStore.resolveBackupKeep()` 语义正确但**是第二份手写实现**（`ProviderStore` 同概念已走 `envRoot`）；`opencodeGoProvider.ts` 的 `hasKey` 判的是 **resolver 输出** ⇒ 自定义注入 resolver 返回 `'   '` 仍会真连；`run-soak.ts` 的五个数值参数走 `readInt`（结论已一致，但仍是第二份判据）；`installSmokeRequested()` 的 `=== '1'` 与 stdio 的 `{...process.env}` 透传**不是判据**（正确）。
 
 **另需产品裁决（未擅动）**：真实 provider 且全链无 model 时，仍会发字面量 `"mock-model"`（**既有语义**，本卡只保证 `''` 与"未设置"同路）；是否为真实 provider 补"model 缺失 ⇒ fail-loud"属产品决策。
+
+### Round 153 — **本段到达自然收口**（不是中断，也不是"全部做完"）
+
+**收口时的实测状态**：`tsc -b` 干净；`npm run test:all` **exit 0** ⇒ 根 **2093 passed + 6 skipped**、`apps/web` **120 passed**（**两个 root 都跑，不是只跑根**）；工作树干净；HEAD `32675f5`。本段（Round 58 → 153）**起点是根 138 passed / 1555 收集、web 从未被跑过**。
+
+**怎么判断"到了自然收口"**：① 我一直在追的队列（三次独立对抗评审的 REJECT + 各卡交出的只报告项）**逐条有了归宿**——修好、如实标注为残留、或明确记入待办并带定级；② **再往下开的新面不再是"已具证据的缺口"，而是产品决策或需要消耗外部配额的动作**（见下）；③ 用户明确授权"直到队列清空或达到自然收口"，且要求不要陷入死循环。⇒ **停在这里，而不是再找事做**。
+
+**明确不是"全部做完"的证据**（留给下一个人，不掩盖）：`PRODUCT-STATE` 里仍有带定级的开放项——环境变量族 6 条残留（`VESSEL_BASE_URL`/`VESSEL_API_KEY` 的纯空白、`--model ''` 挡住 env 回落、`UsageStore.resolveBackupKeep` 的第二份实现、lane 的 `hasKey` 判 resolver 输出、`run-soak` 的五个数值参数、`installSmokeRequested`）；`TelemetryCounters.approvalAsks` **无生产者**（M14 恒 0）；`audit/decision` **零产零消**；`request/header` 与 `turn/end.stats` 加法字段**仍无回放消费方**；`docs/product-audit/CAPABILITY-MATRIX.md` 之外可能还有描述旧行为的文档未被扫到；被跟踪的 `release-report.{md,json}` 仍是旧判据快照（已加指引说明，**未**重跑刷新）。
+
+**需要产品裁决（我没有擅自动）**：① 真实 provider 且全链无 model 时仍会发**字面量 `"mock-model"`**（既有语义）——是否为它补"model 缺失 ⇒ fail-loud"；② `VESSEL_HOLDER_DEBUG` 的"存在即开（含 `'0'`）"是否保持（我判为有意语义，只加测试钉住）；③ `denials`/M12 在实跑里因"事件 + 记录"相加而**是真实拒绝数的 2 倍**（`Math.max` 是消费方绕行）——要不要把去重规则统一到 `llm/retry` 那套身份去重上（会动既有 `denials=2` 用例）。
+
+**这一段的记忆在哪**：27 条纪律 + 分档队列（`PRODUCT-STATE.md`）；三次对抗评审的完整结论（`PRODUCT-GAP-MAP.md`：每条 REJECT 带位置与可证伪路径、**"查过未推翻"清单**、**"需实测"清单**）；本次收口的实测数字（本节）。
