@@ -13,11 +13,11 @@
 
 | 维度 | 评估 |
 |---|---|
-| 内部工程成熟度 | **高** — 依赖零环；**8 道发布门禁 8/8 `ready`**（`build` 含 `apps/web` 类型检查）；**136 文件 / 1512 passed + 3 skipped / 0 failed**；打包卫生已修（tarball 270→62 文件、无测试产物与 source map） |
+| 内部工程成熟度 | **高** — 依赖零环；**8 道发布门禁 8/8 `ready`**（`build` 含 `apps/web` 类型检查）；**全量 `1917 passed + 6 skipped / 0 failed`**（`tsc -b` 干净；本行为 Round 96 更新，此前记的是 1512 —— 那已是旧数）；打包卫生已修（tarball 270→62 文件、无测试产物与 source map） |
 | 对外可启动成熟度 | **高（本会话显著提升）** — 首跑可用；崩溃面给人话+路径+指引；会话可续跑；**机器面完整**（`--json` 覆盖五条只读命令 + **全部失败出口**信封）；**默认配置"装在哪儿就在哪儿"**（包内优先，**装机 E2E 三条命令 exit 0**）；**不需要 clone 仓库即可安装运行** |
 | 安全与执法正确性 | **高（Round 20 再加固）** — 项目层提权/放宽执行已封堵；force-push 以**平台并集 + fail-closed** 收口；`filesystem.confinement` 首次真正可达；错误体全链路脱敏；**symlink 出界**（唯一防线原为静默跳过）已修，并由**变异测试**证明"移除修复即攻击成功"；**损坏文件**不再静默销毁（索引/覆盖文件写前留档，留档失败抑制写入） |
 | 诚实性 | **高，但有一处已知未修** — mock 运行期可见、产品名统一、密钥口径按平台如实、文档命令与 `dispatch` 对齐、`policy status` 报告合成可编译性；**残留**：`pricingOverride` 抑制写入后 CLI 仍打印「✔ 已写入覆盖」⇒ **确认时刻的宣称不为真**（已排 NEXT 首位，修法已定：`write()` 回传落盘状态 + 双向验收） |
-| 主要短板（当前） | 见 `PRODUCT-GAP-MAP.md` 的 NEXT：① 上述假成功；② 静默降级族剩余项（`costMultipliers()` 抛→**倍率静默变 1**、行级坏价行静默忽略、locale 静默回退 zh、坏任务静默消失、B 类"产出状态没人读"若干）；③ `npm pack --ignore-scripts` 可绕过 prepack；LATER：i18n 架构、`~/.vessel` 状态根收敛、`vessel diff --last` 只读回滚提示 |
+| 主要短板（当前） | 见 `PRODUCT-GAP-MAP.md` 的 NEXT：① 上述假成功；② 静默降级族剩余项（行级坏价行静默忽略、locale 静默回退 zh、坏任务静默消失、B 类"产出状态没人读"若干）；③ `npm pack --ignore-scripts` 可绕过 prepack；LATER：i18n 架构、`~/.vessel` 状态根收敛、`vessel diff --last` 只读回滚提示。**Round 96 更正**：`costMultipliers()` 抛→倍率静默变 1 **已修**（`6fe93d4`：保留兜底但按"路径+原因"去重告警一次，健康文件零告警），故从"剩余项"中移除 |
 
 ## 当前最高价值下一步（Round 35 收口后）
 
@@ -28,8 +28,8 @@
 
 1. **`deny_domains` 是死规则**（`packages/policy/src/risk/Compiler.ts:976-984`：`net-deny:<domain>` 的 `match` 恒 `false`）⇒ 声明的域名级控制在运行时**从不拦任何东西**。**要么让它真的匹配，要么停止宣称**（与已修的 `shell-force-push` 死 matcher 同族）。
 2. **`packages/llm` 的 toolCallId 上游根因**（`MockProvider` 按响应编号 ⇒ 任何复用 id 的 provider 都会让**基于 id 的锚定 join 再次误绑**，而 `asserts.ts` 的后写覆盖语义未改）。**未接线旁路**：`evalProvider`、taskRouter 两个 tier provider、五个 adapter 各自的 `copyDir`（未接 prepare）。
-3. **第三处死 seam**：`EnforcementProjection.foldSession()` **只在测试里被调用** ⇒ `fs-confinement` 来源在生产**恒为 0**（与 `reportStatus` 同型缺陷，已修一处、此处仍在）。另：`shellTool.ts` 取的是 run **之前**的状态（`meta.sandbox` 描述**上一轮**，注释却称 "honest … for THIS spawn"）；短命令仍要等 1–10 s（可并行探活早退）。
-4. 其余：S008 未纳入 `SAFETY_SCENARIOS`；S002/S006 恒真判据待加锁；`cli.ts:517` 的 `costMultipliers()` 抛 → **倍率静默变 1**；`SkillSearch` 只扫正文前 400 字符的 UNTRUSTED 标记；`EventBus` 监听器抛错退化为 `defer`（当前无 deny 型监听器 ⇒ 潜伏陷阱）。
+3. ~~**第三处死 seam**：`EnforcementProjection.foldSession()` **只在测试里被调用**~~ ⇒ **已接线**（`packages/application/src/compose.ts:340-351`，`after_turn` 上 `foldSession`，并有两把去重锁保证幂等；Round 96 核实更正）。另：`shellTool.ts` 取的是 run **之前**的状态（`meta.sandbox` 描述**上一轮**，注释却称 "honest … for THIS spawn"）；短命令仍要等 1–10 s（可并行探活早退）。
+4. ~~其余：S008 未纳入 `SAFETY_SCENARIOS`~~ ⇒ **已纳入**（`benchmarks/runners/src/release-gates/gates.ts:48`「S008 已纳入」，Round 96 核实更正）；~~`cli.ts:517` 的 `costMultipliers()` 抛 → 倍率静默变 1~~ ⇒ **已修**（`6fe93d4`）；~~`EventBus` 监听器抛错退化为 `defer`（潜伏陷阱）~~ ⇒ **已在类型层收口**（`0ca7a94`：两个安全门禁点 `before_tool`/`before_delegate` **必填**错误策略；非安全事件仍可选 `defer`，那是**有意保留**、不再是"忘掉即退化为放行"的陷阱）。**仍待办**：S002/S006 恒真判据待加锁；`SkillSearch` 只扫正文前 400 字符的 UNTRUSTED 标记。
 
 ### 历史（Round 17 时的清单，**已过期**，保留仅作演变记录）
 
