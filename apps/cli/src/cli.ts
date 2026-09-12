@@ -506,7 +506,7 @@ export function cmdPolicyStatus(flags: Map<string, string>): number {
   }
   console.log(
     effectiveOrder.length > 0
-      ? `  生效层序: ${effectiveOrder.join(' > ')}（靠后的层覆盖标量 / 拼接数组）`
+      ? `  生效层序: ${effectiveOrder.join(' > ')}（左侧为高层：profile/approval 取高层先声明者；deny 类列表取并集；低层只能加限制、不能放宽）`
       : '  生效层序: （无层生效——没有任何声明被装载）',
   );
   // 末尾说明同样**三分**措辞：缺 X 层 / X 层存在但无法解析 / X 层合法但 0 条声明。
