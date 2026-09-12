@@ -20,6 +20,10 @@ import { renderCostLines, renderTurnDelta, renderTodayLine, type UsageTotalsLike
 // **同一份**；本文件不再自带第二份判据（`chat.ts` 不能反向 import `cli.ts`，但可以 import
 // 这个谁都不依赖的叶子模块 —— 成环理由见 turnText.ts 的文件头注释）。
 import { isModelReplyKind, type TurnKind } from '../turnText.js';
+// 本卡：windowsShim 判定的**唯一实现**（零依赖叶子模块 `../windowsShim.js`）—— TUI 与
+// `cli.ts` 各自 import **同一份**，本文件不再自带第二份判定（成环理由见 windowsShim.ts 的
+// 文件头注释：放进"谁都不依赖"的叶子模块后，"反向 import 会成环所以只能内联"就不成立了）。
+import { windowsShimHint } from '../windowsShim.js';
 
 /**
  * apps/cli/src/tui/chat.ts — `vessel` interactive chat TUI (V0.7, task 021; brand Vessel).
@@ -239,29 +243,26 @@ export function resolveChatLocale(settingsRoot?: string): GuideLocale {
 }
 
 /**
- * 复评未闭合项 2：window shim 判定的 TUI 侧复用。**必须与 `cli.ts` 的 `windowsShimHint()`
- * （`apps/cli/src/cli.ts:243-250`）逐字一致**：win32 + `.cmd`/`.bat` 后缀 + 不在包管理器白名单
- * → 该命令注定 spawn 失败（CVE-2024-27980 之后 Node 对 .cmd/.bat 直接 EINVAL），所以**不 spawn**，
- * 改走「未启动（已跳过）」通道并给出可操作原因，而不是把含糊的 ENOENT/EINVAL 丢给用户。
+ * 复评未闭合项 2：window shim 判定的 **TUI 侧消费点**（判定本体在别处，本文件只是调用方）。
  *
- * 为什么内联而不是 `import { windowsShimHint } from '../cli.js'`：`cli.ts:32` 已经
- * `import { runChat } from './tui/chat.js'` —— chat.ts 反向 import cli.ts 会**成环**
- * （ESM 下表现为 TDZ/undefined，属于会踩雷的隐式耦合），故按同一份逻辑内联。
- * 与 `resolveSpawnCommand`（packages/tools/src/mcp/McpClient.ts:55-64）的白名单同样逐字对齐：
- * 白名单命令（自身不带后缀）由那边开 shell，命不中这里。
+ * 本卡（**windowsShim 判定共用**）改前的事实：这里**另有一份**内联实现，注释自称
+ * 「**必须与 `cli.ts` 的 `windowsShimHint()` 逐字一致**」，理由是「反向 import `../cli.js`
+ * 会**成环**（`cli.ts` 已 `import { runChat } from './tui/chat.js'`），所以只能内联」。
+ * 两句都是真的，但**全仓零测试引用**该函数 ⇒ 只改一面会**无声分叉**：另一面对 `.cmd`/`.bat`
+ * 脚本要么**硬 spawn**（用户只看到含糊的 ENOENT/EINVAL），要么**拒绝一条本来可用的命令**。
  *
- * @returns 直接可读的原因文案；`null` = 该命令可照常直连 spawn。
- */
-function windowsShimHint(command: string, platform: NodeJS.Platform = process.platform): string | null {
-  if (platform !== 'win32') return null;
-  const cmd = command.trim().toLowerCase();
-  if (!cmd.endsWith('.cmd') && !cmd.endsWith('.bat')) return null;
-  // 与 cli.ts 同一份白名单判定（含「用原始 command 比对」这一细节，保持两处行为一致）。
-  if (new Set(['npx', 'npm', 'pnpm', 'yarn', 'uvx']).has(command)) return null;
-  return `命令 "${command}" 在 Windows 上需要 shell 才能执行（.cmd/.bat shim）；请改用白名单命令（npx/npm/pnpm/yarn/uvx）或把命令指向 .exe / 绝对路径`;
-}
-
-/**
+ * 现在（本卡修复）：判定收敛到**零依赖叶子模块** `../windowsShim.js` 的 `windowsShimHint`
+ * （**唯一实现**），本文件与 `cli.ts` **各自 import 同一份** —— 不再是"两份必须人工保持
+ * 同步"，也不需要"反向 import 会成环"这个理由（叶子模块谁都不依赖，见 windowsShim.ts
+ * 文件头；同一范式先例：`../turnText.js` 的 `isModelReplyKind`）。
+ *
+ * 消费语义（与 `cli.ts` 的 `applyMcpConnections` 逐字共用同一份判据）：win32 + `.cmd`/`.bat`
+ * 后缀 + 不在包管理器白名单 → 该命令注定 spawn 失败（CVE-2024-27980 之后 Node 对 .cmd/.bat
+ * 直接 EINVAL），所以**不 spawn**，改走「未启动（已跳过）」通道并给出可操作原因，而不是把
+ * 含糊的 ENOENT/EINVAL 丢给用户。白名单命令由 `resolveSpawnCommand` 开 shell，命不中该判定。
+ *
+ * ---
+ *
  * G-11 MCP 半（BRIEF-13）：每次构建 harness 前读一次 `~/.vessel/mcp.json` 并构造连接
  * （单个 server 失败降级、逐个 warn）。
  *
@@ -319,18 +320,18 @@ export interface SlashResult {
  * 回复里没有任何 mock 痕迹 → 新人确信"模型已接上"。TUI 是与 `cli.ts` 并列的第二个界面，
  * 所以两条标注必须在这里也同样存在（`cli.ts` 侧见 `MOCK_PROVIDER_NOTICE`/`renderFinalReply`）。
  *
- * 为什么**内联**而不是 `import { ... } from '../cli.js'`：`cli.ts:34` 已经
+ * 为什么**内联**而不是 `import { ... } from '../cli.js'`：`cli.ts` 已经
  * `import { runChat } from './tui/chat.js'` —— chat.ts 反向 import cli.ts 会**成环**
- * （ESM 下表现为 TDZ/undefined，与上面 `windowsShimHint` 同一理由）。因此下面两个常量
- * **必须与 `cli.ts` 的 `MOCK_PROVIDER_NOTICE` / `MOCK_REPLY_MARK`
- * （apps/cli/src/cli.ts:540-542）逐字保持同步**：用户在 `vessel run` 与 `vessel`（TUI）
- * 两处看到的必须是同一句话、同一个标记形态。
+ * （ESM 下表现为 TDZ/undefined）。因此下面两个常量
+ * **必须与 `cli.ts` 的 `MOCK_PROVIDER_NOTICE` / `MOCK_REPLY_MARK` 逐字保持同步**：
+ * 用户在 `vessel run` 与 `vessel`（TUI）两处看到的必须是同一句话、同一个标记形态。
  *
- * 本卡（回合判据共用）之后，这里**不再是"只能内联"的处境**：零依赖叶子模块
- * `../turnText.js` 就是范式（`isModelReplyKind` 已经这么共用，两个面各自 import 同一份）。
- * 下面这两条文案与 `renderTurnReply` 目前**仍是两份实现**——本卡只收敛**判据**，
+ * 这里**不再是"只能内联"的处境**：零依赖叶子模块 `../turnText.js` 就是范式
+ * （`isModelReplyKind` 已经这么共用，两个面各自 import 同一份），
+ * `windowsShimHint` 也已照此收敛到 `../windowsShim.js`（本卡）。
+ * 下面这两条文案与 `renderTurnReply` 目前**仍是两份实现**（本卡只收敛 windowsShim 判定），
  * 不动文案/渲染（见交付说明⑤「只报告」项）；要收敛它们，照 `turnText.ts` 建叶子模块即可，
- * 无需推翻上面这个"反向 import 会成环"的理由。
+ * 无需推翻"反向 import 会成环"这个理由（叶子模块谁都不依赖）。
  */
 const TUI_MOCK_PROVIDER_NOTICE =
   '[vessel] 当前使用内置 mock 模型（未连接真实模型）——配置真实模型：vessel setup 或 vessel provider add';

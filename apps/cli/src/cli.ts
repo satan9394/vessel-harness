@@ -55,6 +55,9 @@ import { emitJson, fail, isJson } from './output.js';
 // 本卡：回合文本的**共用判据**（唯一实现，零依赖叶子模块）——CLI 与 TUI 各自 import 同一份，
 // 不再各写一份（成环问题由"叶子模块"解决，见 turnText.ts 的文件头注释）。
 import { isModelReplyKind, type TurnKind } from './turnText.js';
+// 本卡：windowsShim 判定的**唯一实现**（零依赖叶子模块）——CLI 与 TUI 各自 import 同一份，
+// 不再各写一份（改前两份 + 全仓零测试 ⇒ 只改一面必无声分叉，见 windowsShim.ts 的文件头）。
+import { windowsShimHint } from './windowsShim.js';
 
 const USAGE = `${VESSEL_LOGO}
 Vessel CLI v${VERSION} — 可组合 Agent Harness（品牌 Vessel）
@@ -607,16 +610,14 @@ function writeTextAtomic(file: string, text: string): void {
  * 判定与 `resolveSpawnCommand` **逐字对齐**：win32 + `.cmd`/`.bat` 后缀 + 不在白名单。
  * 白名单命令（npx/npm/pnpm/yarn/uvx 自身不带后缀）由那边开 shell，命不中这里。
  *
- * @returns 直接可读的原因文案；`null` = 该命令可照常直连 spawn。
+ * 本卡（**windowsShim 判定共用**）：判定本体已搬进**零依赖叶子模块** `./windowsShim.js`
+ * （**唯一实现**），本文件与 `tui/chat.ts` **各自 import 同一份**、都不再自带第二份
+ * （改前是两份实现，且全仓零测试引用 ⇒ 只改一面必无声分叉：另一面对 `.cmd`/`.bat`
+ * 要么硬 spawn 得含糊的 ENOENT/EINVAL、要么拒绝一条本来可用的命令）。本文件只
+ * re-export 以保住既有导出面（`cli.windowsShimHint`，运行期身份守卫见
+ * `cli.test.ts`「本卡①/②」）——语义、注释与用例都在 `windowsShim.ts` 与两面的本卡块里。
  */
-function windowsShimHint(command: string, platform: NodeJS.Platform = process.platform): string | null {
-  if (platform !== 'win32') return null;
-  const cmd = command.trim().toLowerCase();
-  if (!cmd.endsWith('.cmd') && !cmd.endsWith('.bat')) return null;
-  // 与 resolveSpawnCommand 同一份白名单：命中者会被开 shell，这里不拦（防御性，当前不可达）。
-  if (new Set(['npx', 'npm', 'pnpm', 'yarn', 'uvx']).has(command)) return null;
-  return `命令 "${command}" 在 Windows 上需要 shell 才能执行（.cmd/.bat shim）；请改用白名单命令（npx/npm/pnpm/yarn/uvx）或把命令指向 .exe / 绝对路径`;
-}
+export { windowsShimHint };
 
 /**
  * G-11 MCP 半（BRIEF-13）：读 `~/.vessel/mcp.json` → 构造 transport → 写进 compose 选项。

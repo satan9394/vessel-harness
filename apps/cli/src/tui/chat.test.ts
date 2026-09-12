@@ -16,6 +16,9 @@ import { providerStateRoot } from '../providers/defaultStore.js';
 import type { PricingTable } from '../providers/pricing.js';
 import { UsageStore } from '../usage/UsageStore.js';
 import { dispatchSlash, renderTurnOutcome, runChat, makeLineReader, resolveChatStore, TwoStageCtrlC, type ChatOptions, type ChatSessionIO, type TurnOutcomeLike } from './chat.js';
+// 本卡（windowsShim 判定共用）：TUI 面消费的判定本体就是这个零依赖叶子模块 —— 读进来冻结其
+// 契约，并证明本文件的 import 与 `cli.ts` 的 import **解析到同一个文件**（静态唯一实现）。
+import { windowsShimHint as sharedWindowsShimHint } from '../windowsShim.js';
 
 const REPO_ROOT = fileURLToPath(new URL('../../../../', import.meta.url)); // apps/cli/src/tui → repo root
 const POLICY = path.join(REPO_ROOT, 'configs', 'policy.default.yaml');
@@ -1269,5 +1272,97 @@ describe('BRIEF-17 — TUI 回合 kind 呈现：error 必须可见 / success 逐
       //    本卡只搬判据，**不改**这条边界（不新增"未知 kind 就当失败/当提示"的裁决）。
       expect(line).toBeUndefined();
     }
+  });
+});
+
+/**
+ * 本卡（**windowsShim 判定共用**）—— TUI 侧的判别性验收（CLI 侧见 `cli.test.ts`「本卡①~④」）。
+ *
+ * 缺陷形态（对抗评审定级：高）：`tui/chat.ts` 曾**自带一份** `windowsShimHint`
+ * （`loadMcpConnections` 用它分流 MCP server），注释**自称**「必须与 `cli.ts` 的对应实现
+ * 逐字一致」；而全仓零测试引用该函数 ⇒ 只改一面必**无声分叉**：本文件的 `.cmd` 分流要么被
+ * 绕过（硬 spawn ⇒ 含糊的 ENOENT/EINVAL），要么把本来可用的命令拒掉。
+ *
+ * 判别性（"删掉修复就红"）：
+ *  - C（静态，唯一实现）：本文件不再 import 该判定 / 又抄回一份（含旧文案模板、旧白名单
+ *    字面量）/ 消费点不再调用它 ⇒ 红；两面 import **解析不到同一个文件**（例如有人另建了个
+ *    复制品模块）⇒ 红。
+ *  - D（负对照）：TUI 侧消费的判定契约**逐字不变**（白名单 / `.cmd`·`.bat` / 普通可执行文件 /
+ *    平台差异 / 返回值形状）——"顺手改行为"在这里红。
+ *
+ * 如实标注（见交付⑥）：这里**不**做运行期函数对象身份断言 —— `tui/chat.ts` 不导出
+ * `windowsShimHint`（本卡不扩大它的导出面），"两面拿到同一个函数对象"那条由
+ * `cli.test.ts`「本卡②」在 CLI 侧完成（`cli.windowsShimHint === windowsShim 的那个函数对象`）。
+ * 本文件用「解析后同一文件 + import/调用点守卫」证明 TUI 面拿到的是**同一个模块**；
+ * 其余（动态替换模块 ⇒ 两个面同时变）需要 `vi.mock` 专用文件，超出本卡改动范围。
+ */
+describe('本卡（windowsShim 判定共用）— TUI 侧：取用同一模块 + 契约逐字冻结', () => {
+  const TUI_SRC_ROOT = fileURLToPath(new URL('.', import.meta.url)); // apps/cli/src/tui
+
+  /**
+   * 旧实现（两份逐字相同）的提示文案 —— **逐字抄自改前的两份实现**，用作行为冻结的期望值
+   * （不 import 生产常量来算期望：那样"把文案改掉"永远不会红，是自证式断言）。
+   */
+  const hint = (command: string): string =>
+    `命令 "${command}" 在 Windows 上需要 shell 才能执行（.cmd/.bat shim）；请改用白名单命令（npx/npm/pnpm/yarn/uvx）或把命令指向 .exe / 绝对路径`;
+
+  it('本卡C（唯一实现·静态守卫）：本文件 import ../windowsShim.js、不再自带判定，且与 cli.ts 解析到同一个文件', () => {
+    const chatSrc = fs.readFileSync(path.join(TUI_SRC_ROOT, 'chat.ts'), 'utf8');
+    const cliSrc = fs.readFileSync(path.join(TUI_SRC_ROOT, '..', 'cli.ts'), 'utf8');
+
+    // (a) 从唯一实现（零依赖叶子模块）导入 ← 旧实现没有这个 import ⇒ 红
+    expect(chatSrc).toMatch(/import\s*\{[^}]*\bwindowsShimHint\b[^}]*\}\s*from\s*'\.\.\/windowsShim\.js'/);
+    // (b) 不得定义第二份判定，也不得出现旧实现的文案模板 / 白名单字面量 ← 旧实现本文件全中
+    expect(chatSrc).not.toMatch(/\b(?:function|const|let|var)\s+windowsShimHint\b/);
+    expect(chatSrc).not.toMatch(/在\s*Windows\s*上需要\s*shell\s*才能执行/);
+    expect(chatSrc).not.toMatch(/\[\s*'npx'\s*,\s*'npm'\s*,\s*'pnpm'\s*,\s*'yarn'\s*,\s*'uvx'\s*\]/);
+
+    // (c) 两面 import 的 specifier **解析到同一个文件**（"各自抄一份、各自 import 各自的复制品"
+    //     在运行期看起来一样，但不是同一份实现；这条会红）
+    const chatSpec = /from\s*'(\.\.\/windowsShim\.js)'/.exec(chatSrc)?.[1];
+    const cliSpec = /from\s*'(\.\/windowsShim\.js)'/.exec(cliSrc)?.[1];
+    expect(chatSpec).toBe('../windowsShim.js');
+    expect(cliSpec).toBe('./windowsShim.js');
+    const fromChat = path.resolve(TUI_SRC_ROOT, chatSpec!);
+    const fromCli = path.resolve(TUI_SRC_ROOT, '..', cliSpec!);
+    expect(fromChat).toBe(fromCli);
+    // 该目标确实存在（唯一实现就是这个文件），且它自己**零 import**（叶子模块：谁都不依赖）
+    const shimTs = `${fromChat.replace(/\.js$/, '')}.ts`;
+    expect(path.basename(shimTs)).toBe('windowsShim.ts');
+    expect(fs.existsSync(shimTs)).toBe(true);
+    expect(fs.readFileSync(shimTs, 'utf8')).not.toMatch(/^(?!\s*\*)\s*import\b/m);
+
+    // (d) **接线**：import 了必须用 —— TUI 的唯一消费点按判定分流（import 了不用 = 没接线）
+    const site = chatSrc.slice(chatSrc.indexOf('function loadMcpConnections'));
+    expect(site).toContain('const hint = windowsShimHint(s.command);');
+    expect(site).toContain('if (hint === null) spawnable.push(s);');
+    expect(site).toContain('else shimFailures.push({ serverName: s.name, reason: hint });');
+  });
+
+  it('本卡D（负对照·TUI 消费契约逐字不变）：白名单 / .cmd·.bat / 普通可执行文件 / 平台 / 形状', () => {
+    // 白名单命中的管理器（win32）⇒ null（与 `resolveSpawnCommand` 同一判据：那边开 shell）。
+    // 如实标注：这条走的是**后缀早退**，白名单分支本身结构性不可达 —— 白名单成员不带 `.cmd`/
+    // `.bat` 后缀（改前两份实现的注释同样写着「防御性，当前不可达」），此处不假装覆盖它。
+    for (const manager of ['npx', 'npm', 'pnpm', 'yarn', 'uvx'] as const) {
+      expect(sharedWindowsShimHint(manager, 'win32'), `${manager}（白名单）`).toBeNull();
+    }
+    // `.cmd` / `.bat`（win32，非白名单）⇒ 逐字提示串（TUI 的分流正是靠它）
+    expect(sharedWindowsShimHint('some-tool.cmd', 'win32')).toBe(hint('some-tool.cmd'));
+    expect(sharedWindowsShimHint('build.bat', 'win32')).toBe(hint('build.bat'));
+    // 普通可执行文件（win32）⇒ null（判据不拦本来可用的命令）
+    for (const plain of ['node', 'some-tool.exe', 'C:\\tools\\some-tool.exe'] as const) {
+      expect(sharedWindowsShimHint(plain, 'win32'), plain).toBeNull();
+    }
+    // 平台差异：**注入 platform 参数**，不依赖真实平台
+    for (const platform of ['linux', 'darwin'] as NodeJS.Platform[]) {
+      expect(sharedWindowsShimHint('some-tool.cmd', platform), platform).toBeNull();
+    }
+    // 形状：命中 ⇒ 非空提示串（带命令名 + 可操作建议）；不命中 ⇒ null
+    const hit = sharedWindowsShimHint('some-tool.cmd', 'win32');
+    expect(typeof hit).toBe('string');
+    expect(hit).not.toBe('');
+    expect(hit).toContain('some-tool.cmd');
+    expect(hit).toContain('npx/npm/pnpm/yarn/uvx');
+    expect(sharedWindowsShimHint('some-tool.cmd', 'linux')).toBeNull();
   });
 });

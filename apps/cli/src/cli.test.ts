@@ -19,6 +19,9 @@ import { renderTurnOutcome } from './tui/chat.js';
 // 本卡（回合文本判据共用）：把唯一实现读进来做**运行期身份守卫**——"两个面用同一个函数对象"
 // 是运行期事实，两份实现不可能满足它（静态守卫见下面「本卡⑤」）。
 import { isModelReplyKind as sharedIsModelReplyKind } from './turnText.js';
+// 本卡（windowsShim 判定共用）：把唯一实现读进来做**运行期身份守卫**——"两个面用同一个函数
+// 对象"是运行期事实，两份实现不可能满足它（静态守卫见下面「本卡①」）。
+import { windowsShimHint as sharedWindowsShimHint } from './windowsShim.js';
 
 const REPO_ROOT = fileURLToPath(new URL('../../../', import.meta.url));
 const POLICY = path.join(REPO_ROOT, 'configs', 'policy.default.yaml');
@@ -2938,6 +2941,163 @@ describe('BRIEF-20 — 被 BeforeTurn 拦截的输入不得在 vessel run 里被
     } finally {
       await h.close();
     }
+  });
+});
+
+/**
+ * 本卡（**windowsShim 判定共用**）—— 「两份实现 + 全仓零测试」的修复验收。
+ *
+ * 缺陷形态（对抗评审定级：高；本卡之前 `grep windowsShimHint` 只命中两处实现本身，
+ * **全仓没有任何测试引用它**）：
+ *  - `cli.ts` 里有一份 `windowsShimHint`（`applyMcpConnections` 用它分流 MCP server）；
+ *  - `tui/chat.ts` 里**另有一份**（`loadMcpConnections` 用它分流），且注释**自称**
+ *    「必须与 `cli.ts` 的对应实现逐字一致」，理由是「反向 import 会成环，所以只能内联」；
+ *  - ⇒ 只改一面会**无声分叉**：
+ *      · 对 `.cmd`/`.bat` 脚本：另一面**硬 spawn** ⇒ 用户只看到含糊的 ENOENT/EINVAL；
+ *      · 对白名单管理器（npx/npm/pnpm/yarn/uvx）：另一面若把判据改成"一律拦" ⇒
+ *        **拒绝一条本来可用的命令**（这些命令由 `resolveSpawnCommand` 开 shell，是可用的）。
+ *  「反向 import 会成环所以只能内联」这一理由**已被证伪**：零依赖叶子模块 `turnText.ts`
+ *  刚落地，`cli.ts` 与 `tui/chat.ts` 各自 import 它，不成环 ⇒ 同一范式直接套用。
+ *
+ * 判别性（"删掉修复就红"）：
+ *  - ①（静态，唯一实现）：把判定抄回 `cli.ts` / `tui/chat.ts`（= 旧实现两份）⇒ 红；
+ *    删掉任一面的 import、或把文案/白名单再抄一份、或让实现不再是零依赖叶子模块 ⇒ 红；
+ *  - ②（运行期身份）：`cli.windowsShimHint !== windowsShim.windowsShimHint` ⇒ 红 ——
+ *    **同一个函数对象**是"只有一份实现"在运行期无法伪造的事实；
+ *  - ③/④（负对照 + 形状）：既有语义（白名单 / 后缀 / 平台三类）与返回值形状**逐字不变**；
+ *    "顺手把 `npx.cmd` 放行"之类的行为改动在这里红。
+ *
+ * 如实标注（见交付⑥）：
+ *  - TUI 面**没有**同样的运行期函数对象断言：`tui/chat.ts` 不导出 `windowsShimHint`
+ *    （本卡不扩大它的导出面），"两面拿到同一个函数对象"由本块②在 CLI 侧完成；
+ *    TUI 侧的"拿到的是同一个模块"由 `tui/chat.test.ts`「本卡C」的**解析后同一文件**守卫 +
+ *    import/调用点守卫承担。
+ *  - 动态那条（把 `windowsShim.js` 换成替身 ⇒ 两个面同时变）需要 `vi.mock` 专用文件
+ *    （模块级 mock 会污染同文件全部用例；本仓既有做法是 `packages/agents/src/
+ *    turnStopReason.wiring.test.ts`），超出本卡声明的改动范围（只允许在 `cli.test.ts` /
+ *    `tui/chat.test.ts` 里加用例），故用 ①②③④ 替代。
+ */
+describe('本卡（windowsShim 判定共用）— 唯一实现 + 行为逐字冻结', () => {
+  const SRC_ROOT = fileURLToPath(new URL('.', import.meta.url));
+
+  /** 递归列出 apps/cli/src 下**非测试**的 .ts（与上面「本卡⑤」同一扫描口径）。 */
+  function walkCliSources(dir: string): string[] {
+    const out: string[] = [];
+    for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+      const full = path.join(dir, entry.name);
+      if (entry.isDirectory()) out.push(...walkCliSources(full));
+      else if (entry.isFile() && full.endsWith('.ts') && !full.endsWith('.test.ts')) out.push(full);
+    }
+    return out;
+  }
+
+  /**
+   * 旧实现的**文案指纹**（两份实现时两处都有它）。宽容空白的正则：重新排版不该让守卫失效；
+   * 这条是**写法级**的 —— 连注释里抄这句文案都算"又写了一遍判据"。
+   */
+  const OLD_HINT_TEXT = /在\s*Windows\s*上需要\s*shell\s*才能执行/;
+  /** 旧实现的**白名单字面量**（两份实现时两边各写一份 `new Set([...])`）。 */
+  const OLD_WHITELIST = /\[\s*'npx'\s*,\s*'npm'\s*,\s*'pnpm'\s*,\s*'yarn'\s*,\s*'uvx'\s*\]/;
+  const SHIM = path.join(SRC_ROOT, 'windowsShim.ts');
+
+  /**
+   * 旧实现（两份逐字相同）的提示文案 —— **逐字抄自改前的两份实现**，用作行为冻结的期望值
+   * （不 `import` 生产常量来算期望：那样"把文案改掉"就永远不会红，是自证式断言）。
+   */
+  const hint = (command: string): string =>
+    `命令 "${command}" 在 Windows 上需要 shell 才能执行（.cmd/.bat shim）；请改用白名单命令（npx/npm/pnpm/yarn/uvx）或把命令指向 .exe / 绝对路径`;
+
+  it('本卡①（唯一实现·静态守卫）：两面都 import windowsShim.js，且都不再自带判定；全包只有一份', () => {
+    const cliSrc = fs.readFileSync(path.join(SRC_ROOT, 'cli.ts'), 'utf8');
+    const chatSrc = fs.readFileSync(path.join(SRC_ROOT, 'tui', 'chat.ts'), 'utf8');
+
+    // (a) 两个消费点都从**同一个零依赖模块**导入**同一个符号**（相对路径各自正确）
+    //     ← 旧实现（两份）在这一条就红：chat.ts 当时根本没有这个 import。
+    expect(cliSrc).toMatch(/import\s*\{[^}]*\bwindowsShimHint\b[^}]*\}\s*from\s*'\.\/windowsShim\.js'/);
+    expect(chatSrc).toMatch(/import\s*\{[^}]*\bwindowsShimHint\b[^}]*\}\s*from\s*'\.\.\/windowsShim\.js'/);
+    // 并且真的**调用**它（import 了不用 = 换了种"没接线"）
+    expect(cliSrc).toContain('windowsShimHint(s.command)');
+    expect(chatSrc).toContain('windowsShimHint(s.command)');
+
+    for (const [name, src] of [['cli.ts', cliSrc], ['tui/chat.ts', chatSrc]] as const) {
+      // (b) 任一面都不得**定义**第二份判定 ← 旧实现两面都在这一条红
+      expect(src, `${name} 不得自带第二份判定`).not.toMatch(/\b(?:function|const|let|var)\s+windowsShimHint\b/);
+      // (c) 旧实现的文案模板只允许出现在唯一实现里 ← 旧实现两面都在这一条红
+      expect(src, `${name} 不得自带旧文案模板`).not.toMatch(OLD_HINT_TEXT);
+      // (d) 白名单字面量同理 ← 旧实现两面都在这一条红
+      expect(src, `${name} 不得自带第二份白名单字面量`).not.toMatch(OLD_WHITELIST);
+    }
+
+    // (e) 全包扫描：文案模板与白名单字面量在所有**非测试**源码里各**恰好出现一次**
+    //     （= windowsShim.ts 那一份）。多个载体 ⇒ 又分叉出了第二份实现 ⇒ 红。
+    const carriers = (pattern: RegExp): string[] =>
+      walkCliSources(SRC_ROOT)
+        .filter((f) => pattern.test(fs.readFileSync(f, 'utf8')))
+        .map((f) => path.relative(SRC_ROOT, f));
+    expect(carriers(OLD_HINT_TEXT)).toEqual(['windowsShim.ts']);
+    expect(carriers(OLD_WHITELIST)).toEqual(['windowsShim.ts']);
+
+    const impl = fs.readFileSync(SHIM, 'utf8');
+    // 恰好一条文案模板 + 一条白名单字面量（注释里再抄一份也算"又写了一遍判据"）
+    expect((impl.match(/在 Windows 上需要 shell 才能执行/g) ?? []).length).toBe(1);
+    expect((impl.match(new RegExp(OLD_WHITELIST.source, 'g')) ?? []).length).toBe(1);
+    // (f) 唯一实现必须是**零依赖叶子模块**（否则"共用"会重新引入 cli.ts ↔ tui/chat.ts 成环）
+    expect(impl, 'windowsShim.ts 必须零 import').not.toMatch(/^(?!\s*\*)\s*import\b/m);
+  });
+
+  it('本卡②（唯一实现·运行期身份）：cli.windowsShimHint 就是 windowsShim.ts 的那个函数对象', () => {
+    // ← 旧实现（cli.ts 自带一份）在这一条红：函数对象不同。
+    expect(cli.windowsShimHint).toBe(sharedWindowsShimHint);
+    expect(typeof cli.windowsShimHint).toBe('function');
+    // 语义（唯一实现）：win32 非白名单 `.cmd` ⇒ 提示串（逐条铺开见③/④）
+    expect(sharedWindowsShimHint('some-tool.cmd', 'win32')).toBe(hint('some-tool.cmd'));
+  });
+
+  it('本卡③（负对照·既有语义逐字不变）：白名单 / .cmd·.bat 后缀 / 普通可执行文件 / 平台差异', () => {
+    // (1) 白名单命中的管理器（win32）⇒ null：与 `resolveSpawnCommand` 同一判据
+    //     （这些命令由那边开 shell —— 改前两份实现都这么判，本卡逐字沿用）。
+    //     如实标注：这条**走的是后缀早退**，不是白名单分支 —— 白名单成员自身**不带** `.cmd`/
+    //     `.bat` 后缀，所以白名单那条 `if` 是**结构性不可达**（改前两份实现的注释也这么写：
+    //     「防御性，当前不可达」）。这里照旧断言可观测行为，不发明新语义，也不假装覆盖了它。
+    for (const manager of ['npx', 'npm', 'pnpm', 'yarn', 'uvx'] as const) {
+      expect(sharedWindowsShimHint(manager, 'win32'), `${manager}（白名单）`).toBeNull();
+    }
+    // (2) `.cmd` / `.bat` 后缀（win32，非白名单）⇒ 逐字提示串
+    expect(sharedWindowsShimHint('some-tool.cmd', 'win32')).toBe(hint('some-tool.cmd'));
+    expect(sharedWindowsShimHint('build.bat', 'win32')).toBe(hint('build.bat'));
+    expect(sharedWindowsShimHint('C:\\tools\\build.bat', 'win32')).toBe(hint('C:\\tools\\build.bat'));
+    // (3) 普通可执行文件 / 无后缀命令（win32）⇒ null（判据不拦本来可用的命令）
+    for (const plain of ['node', 'python', 'some-tool.exe', 'C:\\tools\\some-tool.exe', './scripts/run.sh'] as const) {
+      expect(sharedWindowsShimHint(plain, 'win32'), plain).toBeNull();
+    }
+    // (4) 平台差异（**注入 platform 参数**，不依赖真实平台）：非 win32 一律 null
+    for (const platform of ['linux', 'darwin', 'freebsd', 'aix'] as NodeJS.Platform[]) {
+      expect(sharedWindowsShimHint('some-tool.cmd', platform), platform).toBeNull();
+      expect(sharedWindowsShimHint('build.bat', platform), platform).toBeNull();
+    }
+    // (5) 缺省参数 = 真实 `process.platform`（不许把平台写死成 win32，也不许写死成非 win32）
+    expect(sharedWindowsShimHint('some-tool.cmd')).toBe(sharedWindowsShimHint('some-tool.cmd', process.platform));
+    // (6) 既有语义细节（逐字沿用，**不改**）：
+    //     · 后缀判定用**归一化**后的 cmd（trim + 小写），提示串里回显**原始** command
+    expect(sharedWindowsShimHint('SOME-TOOL.CMD', 'win32')).toBe(hint('SOME-TOOL.CMD'));
+    expect(sharedWindowsShimHint('  some-tool.cmd  ', 'win32')).toBe(hint('  some-tool.cmd  '));
+    //     · 白名单判定用**原始 command**：带后缀的 npx.cmd 命不中白名单 —— 这是既有（且正确）的
+    //       语义：`resolveSpawnCommand('npx.cmd')` 同样不会开 shell，直连 spawn 仍会失败。
+    expect(sharedWindowsShimHint('npx.cmd', 'win32')).toBe(hint('npx.cmd'));
+    expect(sharedWindowsShimHint('NPM.CMD', 'win32')).toBe(hint('NPM.CMD'));
+  });
+
+  it('本卡④（返回值形状）：命中 ⇒ 非空提示串（含命令名与可操作建议）；不命中 ⇒ null', () => {
+    const hit = sharedWindowsShimHint('some-tool.cmd', 'win32');
+    expect(typeof hit).toBe('string'); // 命中 ⇒ 提示串
+    expect(hit).not.toBe(''); // 不是空串
+    expect(hit).not.toBeUndefined(); // 也不是 undefined（`null` 才是"可直连 spawn"）
+    expect(hit).toContain('some-tool.cmd'); // 原因里带命令名（用户能对上号）
+    expect(hit).toContain('npx/npm/pnpm/yarn/uvx'); // 且给出可操作建议
+    // 不命中 ⇒ 恰恰是 `null`（不是 '' / false / undefined）
+    expect(sharedWindowsShimHint('node', 'win32')).toBeNull();
+    expect(sharedWindowsShimHint('npx', 'win32')).toBeNull();
+    expect(sharedWindowsShimHint('some-tool.cmd', 'linux')).toBeNull();
   });
 });
 
