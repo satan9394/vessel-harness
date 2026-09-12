@@ -253,6 +253,18 @@ export function anthropicSSELineData(line: string): string | null {
  * but it is now COUNTED, per stream, via the read-only `malformedFrames` getter.
  * No new event type, no change to feed()'s return shape, no change to
  * `message_end`, and no change to the shared event vocabulary.
+ *
+ * Duplicate `content_block_start` — the third member of the family this file
+ * keeps closing (Round 46 OpenAI "start after start", Round 52 here
+ * "identity-incomplete block", Round 53 "the `{}` seed"): a wire that repeats
+ * `content_block_start` for an index that already started used to re-emit
+ * `tool_call_start`, and AgentLoop.consumeStream's `open.set(...)` then
+ * OVERWROTE the accumulator holding every fragment received so far. The start
+ * is now suppressed for a started index; a non-empty seed it carries is folded
+ * into a `tool_call_delta` instead of being discarded, and an empty seed emits
+ * nothing. Canonical streams (one start per index) are byte-for-byte unchanged —
+ * see the `startedIndexes` guard in feed() and the duplicate-start cases in
+ * parseAnthropic.test.ts.
  */
 export class AnthropicStreamParser {
   /** block index -> tool_use id (only content_block_start carries it). */
@@ -393,6 +405,36 @@ export class AnthropicStreamParser {
           c.arguments += pending;
           this.pendingArgsByIndex.delete(index);
         }
+
+        // A SECOND `content_block_start` for a block index that already started
+        // — the Anthropic counterpart of the Round 46 guard in
+        // parseOpenAIStreamChunk (`state.startedIndexes.has(index)`), under the
+        // same policy. The block index IS the identity: everything after the
+        // first start is a continuation, so a repeated start must NOT be
+        // re-emitted. Re-emitting it makes the consumer OVERWRITE the
+        // accumulator it already holds (AgentLoop.consumeStream
+        // `case 'tool_call_start': open.set(chunk.id, { name, args: chunk.arguments })`),
+        // silently discarding every fragment accumulated since the first start.
+        //
+        // The repeated start is therefore dropped — but NOT the arguments it
+        // carries. A non-empty seed (`content_block_start.input` with own keys)
+        // is FOLDED into an append-only `tool_call_delta`, the one chunk shape
+        // the consumer accumulates, so the earlier fragments and this frame's
+        // data both survive. An empty seed (`input:{}` / absent `input`, i.e.
+        // what anthropicToolInputSeed turns into `''`) contributes nothing and
+        // is not emitted at all — a duplicate start carrying no information is
+        // byte-for-byte invisible downstream, exactly like a single start.
+        //
+        // `pendingArgsByIndex` is merged first, so even a (currently impossible)
+        // buffered fragment on an already-started index would be carried into
+        // the folded delta rather than disappear.
+        if (this.startedIndexes.has(index)) {
+          if (c.arguments !== '') {
+            out.push({ type: 'tool_call_delta', id: c.id, argumentsDelta: c.arguments });
+          }
+          continue;
+        }
+
         this.startedIndexes.add(index);
         out.push(c);
         continue;

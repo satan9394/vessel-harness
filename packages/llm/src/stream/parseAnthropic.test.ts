@@ -663,3 +663,199 @@ describe('AnthropicStreamParser — malformed frames are counted, not silent (Ro
     expect(p.malformedFrames).toBe(0);
   });
 });
+
+// ---------------------------------------------------------------------------
+// Duplicate `content_block_start` — the third member of the "same wire frame
+// arrives twice ⇒ the consumer's id-keyed accumulator is OVERWRITTEN" family
+// this file has been closing (Round 46 = OpenAI "start after start", Round 52
+// = the identity-incomplete block, Round 53 = the `{}` seed).
+//
+// The mechanism, in full, before the fix:
+//   feed()'s tool_call_start branch had no "has this index already started?"
+//   check (parseOpenAI.ts:152-161 has had one since Round 46), so a second
+//   `content_block_start` for the same index emitted a SECOND tool_call_start;
+//   AgentLoop.consumeStream (`case 'tool_call_start':
+//   open.set(chunk.id, { name: chunk.name, args: chunk.arguments })`) REPLACES
+//   the map entry wholesale, so every `input_json_delta` fragment accumulated
+//   since the first start was silently discarded — and because the replacement
+//   seed is itself valid JSON, the turn still LOOKED healthy.
+//
+// The fix keeps the Round-46 policy (suppress the repeated start) but not the
+// Round-46 outcome for the repeated frame's payload: a non-empty seed rides on
+// as an append-only `tool_call_delta`, so neither side of the duplicate is lost.
+// ---------------------------------------------------------------------------
+
+/** The seed a duplicate start carries in these cases (`input: { limit: 2 }`). */
+const DUP_SEED = JSON.stringify({ limit: 2 }); // '{"limit":2}'
+
+describe('AnthropicStreamParser — duplicate content_block_start must not overwrite the accumulator', () => {
+  it('REPRO ①: a repeated start carrying a non-empty input keeps BOTH the earlier fragments and the new seed', () => {
+    const p = new AnthropicStreamParser();
+    const chunks = feedAll(p, [
+      TOOL_START({ id: 'toolu_01', name: 'Read', input: {} }, 0),
+      TOOL_DELTA(ARG_A, 0), // a fragment already accumulated in the consumer
+      TOOL_START({ id: 'toolu_01', name: 'Read', input: { limit: 2 } }, 0), // ← the duplicate
+      TOOL_STOP(0),
+      MSG_STOP,
+    ]);
+
+    // Root cause first: the pre-fix parser emitted a SECOND tool_call_start here
+    // (that chunk is what makes the consumer overwrite). Post-fix there is one.
+    expect(chunks.filter((c) => c.type === 'tool_call_start')).toEqual([
+      { type: 'tool_call_start', id: 'toolu_01', name: 'Read', arguments: '' },
+    ]);
+
+    // ...and the repeated frame's seed is NOT thrown away with it: it becomes an
+    // append-only delta, which is exactly the shape the consumer accumulates.
+    expect(chunks).toEqual([
+      { type: 'tool_call_start', id: 'toolu_01', name: 'Read', arguments: '' },
+      { type: 'tool_call_delta', id: 'toolu_01', argumentsDelta: ARG_A },
+      { type: 'tool_call_delta', id: 'toolu_01', argumentsDelta: DUP_SEED },
+      { type: 'tool_call_end', id: 'toolu_01' },
+      { type: 'message_end' },
+    ]);
+
+    const accumulated = String(assembleByConsumer(chunks).get('toolu_01')?.args);
+    expect(accumulated).toBe(ARG_A + DUP_SEED);
+    expect(accumulated.includes(ARG_A)).toBe(true); // ← pre-fix FALSE: the fragment was overwritten
+    expect(accumulated.includes(DUP_SEED)).toBe(true); // the duplicate's data is present too
+
+    // PRE-FIX TRACE — the chunk sequence the pre-fix parser produced for this
+    // exact wire, transcribed (the only difference from `chunks` is the second
+    // tool_call_start, which the fix replaced with the folded delta). Replaying
+    // it through the SAME consumer algorithm shows the loss without depending on
+    // the fix being absent:
+    const preFix: StreamChunk[] = [
+      { type: 'tool_call_start', id: 'toolu_01', name: 'Read', arguments: '' },
+      { type: 'tool_call_delta', id: 'toolu_01', argumentsDelta: ARG_A },
+      { type: 'tool_call_start', id: 'toolu_01', name: 'Read', arguments: DUP_SEED }, // ← the overwrite
+      { type: 'tool_call_end', id: 'toolu_01' },
+      { type: 'message_end' },
+    ];
+    const preFixAccumulated = String(assembleByConsumer(preFix).get('toolu_01')?.args);
+    expect(preFixAccumulated).toBe(DUP_SEED);
+    expect(preFixAccumulated.includes(ARG_A)).toBe(false); // ARG_A is GONE
+    // ...and the turn still looked successful: the surviving value parses, so the
+    // tool is called — with arguments the model never sent (the model's actual
+    // `{"path":"` fragment is what disappeared).
+    expect(parseToolArgumentsLikeAgentLoop(preFixAccumulated)).toEqual({ limit: 2 });
+    expect(parseToolArgumentsLikeAgentLoop(preFixAccumulated)).not.toHaveProperty('_raw');
+  });
+
+  it('② a repeated start with an EMPTY seed injects no junk delta: identical to the single-start stream', () => {
+    const wire = (duplicate: boolean): StreamChunk[] => {
+      const p = new AnthropicStreamParser();
+      return feedAll(p, [
+        TOOL_START({ id: 'toolu_01', name: 'Read', input: {} }, 0),
+        TOOL_DELTA(ARG_A, 0),
+        ...(duplicate ? [TOOL_START({ id: 'toolu_01', name: 'Read', input: {} }, 0)] : []),
+        TOOL_DELTA(ARG_B, 0),
+        TOOL_STOP(0),
+        MSG_STOP,
+      ]);
+    };
+
+    // Chunk-for-chunk equal to the one-start stream. This is what goes red if the
+    // `c.arguments !== ''` guard is dropped: an empty `argumentsDelta: ''` chunk
+    // would be injected (the consumer would not even notice — hence the array
+    // assertion, not just the accumulator assertion).
+    expect(wire(true)).toEqual(wire(false));
+    expect(wire(true)).toEqual([
+      { type: 'tool_call_start', id: 'toolu_01', name: 'Read', arguments: '' },
+      { type: 'tool_call_delta', id: 'toolu_01', argumentsDelta: ARG_A },
+      { type: 'tool_call_delta', id: 'toolu_01', argumentsDelta: ARG_B },
+      { type: 'tool_call_end', id: 'toolu_01' },
+      { type: 'message_end' },
+    ]);
+    expect(String(assembleByConsumer(wire(true)).get('toolu_01')?.args)).toBe(FULL_ARGS);
+
+    // The other information-free shape (`input` absent altogether) behaves the
+    // same: Round 53's seed rule turns both into ''.
+    const dupNoInput = feedAll(new AnthropicStreamParser(), [
+      TOOL_START({ id: 'toolu_01', name: 'Read', input: {} }, 0),
+      TOOL_DELTA(ARG_A, 0),
+      TOOL_START({ id: 'toolu_01', name: 'Read' }, 0), // ← duplicate, no `input`
+      TOOL_DELTA(ARG_B, 0),
+      TOOL_STOP(0),
+      MSG_STOP,
+    ]);
+    expect(dupNoInput).toEqual(wire(false));
+  });
+
+  it('④ no second tool_call_start is ever emitted for an already-started index (repeat it three times)', () => {
+    const p = new AnthropicStreamParser();
+    const chunks = feedAll(p, [
+      TOOL_START({ id: 'toolu_01', name: 'Read', input: {} }, 0),
+      TOOL_DELTA(ARG_A, 0),
+      TOOL_START({ id: 'toolu_01', name: 'Read', input: {} }, 0), // repeat #1
+      TOOL_DELTA(ARG_B, 0),
+      TOOL_START({ id: 'toolu_01', name: 'Read', input: {} }, 0), // repeat #2
+      TOOL_STOP(0),
+      MSG_STOP,
+    ]);
+
+    // The invariant the fix installs, stated directly: one start per started
+    // index, no matter how many duplicate frames the wire delivers.
+    expect(chunks.filter((c) => c.type === 'tool_call_start')).toHaveLength(1);
+    // ...and the accumulation is complete (nothing was overwritten on the way).
+    const open = assembleByConsumer(chunks);
+    expect([...open.keys()]).toEqual(['toolu_01']);
+    expect(String(open.get('toolu_01')?.args)).toBe(FULL_ARGS);
+    expect(JSON.parse(String(open.get('toolu_01')?.args))).toEqual({ path: 'a.txt' });
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Negative control for the duplicate-start fix: a canonical stream carries
+// exactly one `content_block_start` per index, so the `startedIndexes` guard can
+// never fire on it. Asserted as a full literal array — the fix adds a branch to
+// the hot path, and "the branch is dead on a well-formed wire" has to be
+// evidence, not an argument.
+// ---------------------------------------------------------------------------
+
+describe('AnthropicStreamParser — negative control: canonical streams are untouched by the duplicate-start guard', () => {
+  it('③ two tool blocks + text: chunk-for-chunk unchanged (delete the guard ⇒ still green)', () => {
+    const p = new AnthropicStreamParser();
+    const chunks = feedAll(p, [
+      sse({ type: 'message_start', model: 'claude-sonnet-4' }),
+      sse({ type: 'content_block_start', index: 0, content_block: { type: 'text', text: '' } }),
+      sse({ type: 'content_block_delta', index: 0, delta: { type: 'text_delta', text: 'Reading ' } }),
+      sse({ type: 'content_block_stop', index: 0 }),
+      TOOL_START({ id: 'toolu_01', name: 'Read', input: {} }, 1),
+      TOOL_DELTA(ARG_A, 1),
+      TOOL_DELTA(ARG_B, 1),
+      TOOL_STOP(1),
+      TOOL_START({ id: 'toolu_02', name: 'Glob', input: {} }, 2),
+      TOOL_DELTA('{"pat":', 2),
+      TOOL_DELTA('"*"}', 2),
+      TOOL_STOP(2),
+      sse({ type: 'message_delta', delta: { stop_reason: 'tool_use' }, usage: { output_tokens: 8 } }),
+      MSG_STOP,
+    ]);
+
+    expect(chunks).toEqual([
+      { type: 'message_start', model: 'claude-sonnet-4' },
+      { type: 'text_delta', text: 'Reading ' },
+      { type: 'tool_call_start', id: 'toolu_01', name: 'Read', arguments: '' },
+      { type: 'tool_call_delta', id: 'toolu_01', argumentsDelta: ARG_A },
+      { type: 'tool_call_delta', id: 'toolu_01', argumentsDelta: ARG_B },
+      { type: 'tool_call_end', id: 'toolu_01' },
+      { type: 'tool_call_start', id: 'toolu_02', name: 'Glob', arguments: '' },
+      { type: 'tool_call_delta', id: 'toolu_02', argumentsDelta: '{"pat":' },
+      { type: 'tool_call_delta', id: 'toolu_02', argumentsDelta: '"*"}' },
+      { type: 'tool_call_end', id: 'toolu_02' },
+      { type: 'usage', inputTokens: undefined, outputTokens: 8, cacheReadTokens: undefined, cacheCreationTokens: undefined },
+      { type: 'message_end', finishReason: 'tool_calls' },
+      { type: 'message_end' },
+    ]);
+
+    // Both parallel calls assemble, keyed by their own id.
+    const open = assembleByConsumer(chunks);
+    expect([...open.keys()]).toEqual(['toolu_01', 'toolu_02']);
+    expect(parseToolArgumentsLikeAgentLoop(String(open.get('toolu_01')?.args))).toEqual({ path: 'a.txt' });
+    expect(parseToolArgumentsLikeAgentLoop(String(open.get('toolu_02')?.args))).toEqual({ pat: '*' });
+    // The text block's stop still yields no end (the deliberate Round 52 rule).
+    expect(chunks.filter((c) => c.type === 'tool_call_end')).toHaveLength(2);
+    expect(p.finish()).toEqual([]); // message_stop already closed the stream
+  });
+});
