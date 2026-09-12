@@ -21,6 +21,18 @@
  * success 仍为 true）的行不得报 `passed`。识别一律走 lane 的同一纯函数
  * `abnormalTurnKindOf`（或 lane 行已有的结构化字段），report 侧**不另写正则**；
  * 状态取值仍用既有枚举 `'failed'`（不新增枚举值，理由见 `ReportRowStatus`）。
+ *
+ * 证据层诚实性（本卡第三面，收口「失败被上报为成功」族的最后一块）：上面只改了
+ * `ReportRow.status`，**呈现层仍是绿的** —— `buildComparisons:390` 的 `success: m.success`、
+ * md:506 的 `r.success ? '✅' : '❌'`、CLI:538 的 `r.success ? 'OK' : 'FAIL'` 依旧只看
+ * 076 指标口径，且 md/CLI **从不渲染** `ReportRow.notes` / `turnKind` ⇒ 看板/对比表上
+ * 「被熔断打死」的运行照样 ✅/OK。
+ * 收口方式（与上游裁决一致，不自创第二套口径）：
+ *  ① `ScenarioCompareRow.success` **保持 076 指标原值**（语义裁决见该接口注释），
+ *     异常收尾由**加法**字段 `turnEndedAbnormally` / `turnKind` 承载（与 `ReportRow`
+ *     同名字段、同一来源、条件展开 ⇒ 正常行键集/顺序逐字不变）；
+ *  ② md/CLI 的**呈现**按同一谓词 `mustNotDisplayAsSuccess` 叠加 `⚠`，并把 `turnKind`
+ *     与原因文本渲染出来（`abnormalTurnReasonLine`，md/CLI 共用一份文案）。
  */
 import * as fs from 'node:fs';
 import * as path from 'node:path';
@@ -209,6 +221,21 @@ export interface ScenarioSummary {
 export interface ScenarioCompareRow {
   harnessId: string;
   modelId?: string;
+  /**
+   * 076 §15 L3 指标口径：`RunResultMetrics.success` 的**原值**（本卡裁决：不改判）。
+   *
+   * 为什么不把它直接改判成 `false`：本表是「同场景 §15 L3 **指标**并列」，
+   * `success` 与 `wallTimeMs` / `toolCalls` / `inputTokens` / … 同族，都是 076 契约字段的
+   * 原值；一旦按回合级判定改判，同一份 JSON 里 `rows[].metrics.success`（true）与
+   * `comparisons[].rows[].success`（false）会对**同一行**给出互相矛盾的两个值，
+   * 读者无从分辨哪个是「模型/工具层指标」哪个是「回合级判定」，对比表随之失去
+   * 「指标并列」的含义（也抹掉历史对比基线）。异常收尾因此由**加法**字段承载。
+   *
+   * **呈现纪律（消费方必读）**：`success === true` **不再**等于「这行可以显示为成功」——
+   * 必须同时看 `turnEndedAbnormally`。本仓的呈现消费方是 `renderReportMarkdown`
+   * （ok 列）与 `renderCliSummary`（对比行），二者已按本纪律改为 `⚠` + 原因文本；
+   * `release-gates/gates.ts:903/911` 只读 **lane 行** `status`，不读本表。
+   */
   success: boolean;
   wallTimeMs: number;
   toolCalls: number;
@@ -223,6 +250,14 @@ export interface ScenarioCompareRow {
   humanIntervention: number;
   policyViolations: number;
   resumeSuccess: boolean | null;
+  /**
+   * 证据层诚实性（本卡）：与 `ReportRow.turnEndedAbnormally` **同源同义**
+   * （`metrics.success === true` 且回合未正常收尾）。
+   * 缺席（undefined）= 正常行，键都不出现 ⇒ 行键集/顺序与改动前逐字一致。
+   */
+  turnEndedAbnormally?: boolean;
+  /** 未正常收尾时的回合 kind（'error' / 'interrupted' / 'budget'）；仅随上面一起出现。 */
+  turnKind?: string;
 }
 
 /** Overall totals across the whole batch. */
@@ -361,9 +396,68 @@ export function aggregateRows(rows: ReportRow[]): {
 }
 
 /**
+ * 对比表里「回合未正常收尾」行的统一标记（md ok 列 / CLI 行首共用）。
+ * 不用 `✅`/`OK`：本卡要治的正是「这行显示成成功」，`OK*` 一类仍读作 OK，故取 `⚠`。
+ */
+const ABNORMAL_TURN_MARK = '⚠';
+
+/**
+ * 「**呈现上不得显示为成功**」的对比行 —— 与缺陷族精确同界：
+ * `success === true`（076 指标说成功）**且** `turnEndedAbnormally === true`（回合没正常收尾）。
+ *
+ * 为什么把 `success === false` 的行排除在外：它们本就渲染 `❌` / `FAIL`（从来不是绿灯），
+ * 本卡不放宽也不改写这一族的既有呈现（`metrics.success === false` 的行逐字不变）。
+ * 注意：`turnEndedAbnormally` / `turnKind` 作为**数据**仍照 `ReportRow` 口径透传
+ * （JSON 里可读回原因），这里只是**呈现**的界。
+ */
+function mustNotDisplayAsSuccess(r: { success: boolean; turnEndedAbnormally?: boolean }): boolean {
+  return r.success === true && r.turnEndedAbnormally === true;
+}
+
+/**
+ * 对比表 ok 列的呈现：异常收尾行 `⚠`，其余沿用 `✅` / `❌`（逐字不变）。
+ */
+function compareOkMark(r: { success: boolean; turnEndedAbnormally?: boolean }): string {
+  if (mustNotDisplayAsSuccess(r)) return ABNORMAL_TURN_MARK;
+  return r.success ? '✅' : '❌';
+}
+
+/**
+ * CLI 对比行行首的呈现：异常收尾行 `⚠`，其余沿用 `OK` / `FAIL`（逐字不变）。
+ */
+function compareCliVerdict(r: { success: boolean; turnEndedAbnormally?: boolean }): string {
+  if (mustNotDisplayAsSuccess(r)) return ABNORMAL_TURN_MARK;
+  return r.success ? 'OK' : 'FAIL';
+}
+
+/**
+ * 异常收尾行在 md / CLI 上的**可见原因**（两处共用同一份文案，不写第二套）。
+ *
+ * 今天 md/CLI 完全不渲染 `ReportRow.notes` / `turnKind`，异常原因只在 JSON 行上可见；
+ * 本函数把 `turnKind` 与原因摆到人看的面上（md 用 `> ` 前缀、CLI 用缩进，见各渲染器）。
+ * 谓语与 lane 的 `describeAbnormalTurnNote`（只在 `metrics.success === true` 且未正常收尾时
+ * 生成原因）同一族，措辞沿用 lane 既有文案风格。
+ */
+function abnormalTurnReasonLine(r: {
+  harnessId: string;
+  modelId?: string;
+  turnKind?: string;
+}): string {
+  return (
+    `${ABNORMAL_TURN_MARK} ${r.harnessId}${r.modelId ? `/${r.modelId}` : ''}：回合未正常收尾` +
+    `${r.turnKind !== undefined ? `（turnKind=${r.turnKind}）` : ''}` +
+    `——finalText 是错误/半截文案而非模型答案 ⇒ 本行不计 passed` +
+    `（success 字段仍是 076 metrics 指标口径，非判定口径）`
+  );
+}
+
+/**
  * Build the cross-harness comparison for every scenario. For each scenario we
  * list one row per (harness × model) so identical fixtures can be eyeballed
  * across harnesses (§15 L3 对比).
+ *
+ * 证据层诚实性（本卡）：`success` 保持 076 指标原值（语义见 `ScenarioCompareRow.success`），
+ * 异常收尾另加**加法**字段（条件展开 ⇒ 正常行键集/顺序/取值逐字不变）。
  */
 export function buildComparisons(rows: ReportRow[]): Array<{ scenarioId: string; rows: ScenarioCompareRow[] }> {
   const byScenario = new Map<string, ReportRow[]>();
@@ -401,6 +495,12 @@ export function buildComparisons(rows: ReportRow[]): Array<{ scenarioId: string;
           humanIntervention: m.humanIntervention,
           policyViolations: m.policyViolations,
           resumeSuccess: m.resumeSuccess,
+          // 加法字段（条件展开）：只在异常收尾的行上出现 —— 正常行的键集/顺序/取值逐字不变。
+          ...(r.turnEndedAbnormally === true
+            ? r.turnKind !== undefined
+              ? { turnEndedAbnormally: true as const, turnKind: r.turnKind }
+              : { turnEndedAbnormally: true as const }
+            : {}),
         };
       }),
     });
@@ -503,10 +603,15 @@ export function renderReportMarkdown(rep: BenchmarkReport): string {
       o += line('| --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |');
       for (const r of cmp.rows) {
         o += line(
-          `| ${r.harnessId} | ${r.modelId ?? ''} | ${r.success ? '✅' : '❌'} | ${r.wallTimeMs} | ${r.toolCalls} | ${r.invalidCalls} | ` +
+          `| ${r.harnessId} | ${r.modelId ?? ''} | ${compareOkMark(r)} | ${r.wallTimeMs} | ${r.toolCalls} | ${r.invalidCalls} | ` +
             `${r.retries} | ${r.inputTokens} | ${r.outputTokens} | ${r.cacheReadTokens} | ${r.costUsd} | ${r.contextPeak} | ` +
             `${r.compactions} | ${r.humanIntervention} | ${r.policyViolations} |`,
         );
+      }
+      // 异常收尾行的可见原因（把 turnKind 渲染出来）：**只在存在该族行时**追加，
+      // 故无异常行的报告输出逐字不变（表头/列宽/分隔线一律不动，原因不进表格列）。
+      for (const r of cmp.rows) {
+        if (mustNotDisplayAsSuccess(r)) o += line(`> ${abnormalTurnReasonLine(r)}`);
       }
       o += line();
     }
@@ -535,7 +640,12 @@ export function renderCliSummary(rep: BenchmarkReport): string {
   rows.push('cross-harness comparison (by scenario)');
   for (const cmp of rep.comparisons) {
     for (const r of cmp.rows) {
-      rows.push(`  ${cmp.scenarioId}: ${r.harnessId}${r.modelId ? `/${r.modelId}` : ''} ${r.success ? 'OK' : 'FAIL'} wall=${r.wallTimeMs}ms in=${r.inputTokens} out=${r.outputTokens} cost=$${r.costUsd}`);
+      rows.push(`  ${cmp.scenarioId}: ${r.harnessId}${r.modelId ? `/${r.modelId}` : ''} ${compareCliVerdict(r)} wall=${r.wallTimeMs}ms in=${r.inputTokens} out=${r.outputTokens} cost=$${r.costUsd}`);
+    }
+    // 异常收尾行的可见原因（把 turnKind 渲染出来）：只在存在该族行时追加一行，
+    // 故无异常行的 CLI 摘要逐字不变。
+    for (const r of cmp.rows) {
+      if (mustNotDisplayAsSuccess(r)) rows.push(`    ${abnormalTurnReasonLine(r)}`);
     }
   }
   return rows.join('\n');

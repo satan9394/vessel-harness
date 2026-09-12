@@ -77,6 +77,50 @@ const LEGACY_ROW_KEYS = [
   'harnessId', 'harnessVersion', 'modelId', 'scenarioId', 'metrics', 'startedAt', 'status', 'notes',
 ];
 
+/** ScenarioCompareRow 的旧键集（改动前 `buildComparisons` 的 16 个键，含顺序）——负对照基准。 */
+const LEGACY_COMPARE_KEYS = [
+  'harnessId', 'modelId', 'success', 'wallTimeMs', 'toolCalls', 'invalidCalls', 'retries',
+  'inputTokens', 'outputTokens', 'cacheReadTokens', 'costUsd', 'contextPeak', 'compactions',
+  'humanIntervention', 'policyViolations', 'resumeSuccess',
+];
+
+/** 固定时间戳：md 里 `generatedAt` 是唯一非确定字段，钉住它才能做整篇逐字比对。 */
+const FROZEN_AT = '2026-09-08T00:00:00.000Z';
+
+/**
+ * **改动前** `renderReportMarkdown` 对「单个正常行报告」的逐字输出
+ * （`buildReportFromRunResults([run('vessel','B001', metrics())], { source:'byte-identical' })`
+ * + `generatedAt = FROZEN_AT`）。本卡只允许**异常行**多出内容 ⇒ 这张表必须一字不差。
+ */
+const NORMAL_REPORT_MD_LINES = [
+  '# Benchmark Report — byte-identical',
+  '> 任务卡：tasks/083-report-dashboard.md；权威需求：docs/Vessel路线 §15.1 L3（cross-harness 统一采集）；前置：076 RunResult 契约 + 082 lane 报告形状。',
+  `> 生成于 ${FROZEN_AT}；schema 1；JSON 供 084 release gates 消费。`,
+  '',
+  '## 总体汇总',
+  '| runs | passed | failed | success | harnesses | scenarios | wall(ms) | inTok | outTok | cacheTok | toolCalls | cost(USD) |',
+  '| ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |',
+  '| 1 | 1 | 0 | 100% | 1 | 1 | 100 | 50 | 20 | 5 | 2 | 0.01 |',
+  '',
+  '## 按 harness 汇总',
+  '| harness | runs | passed | failed | skipped | pending | success | avgWall(ms) | avgToolCalls | avgInTok | avgOutTok | avgCost | totalCost(USD) |',
+  '| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |',
+  '| vessel | 1 | 1 | 0 | 0 | 0 | 100% | 100 | 2 | 50 | 20 | 0.01 | 0.01 |',
+  '',
+  '## 按场景汇总',
+  '| scenario | harnesses | runs | passed | failed | success | totalCost(USD) |',
+  '| --- | --- | ---: | ---: | ---: | ---: | ---: |',
+  '| B001 | vessel | 1 | 1 | 0 | 100% | 0.01 |',
+  '',
+  '## 跨 harness 对比（同场景 §15 L3 指标并列）',
+  '### B001',
+  '| harness | model | ok | wall(ms) | toolCalls | invalid | retries | inTok | outTok | cacheTok | cost(USD) | ctxPeak | compactions | human | policyViol |',
+  '| --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |',
+  '| vessel |  | ✅ | 100 | 2 | 0 | 0 | 50 | 20 | 5 | 0.01 | 55 | 0 | 0 | 0 |',
+  '',
+  '> 说明：对比表把同一场景（fixture）在不同 harness（×可选 model）下的 §15 L3 指标并列；success 以 076 asserts 通过为准。',
+];
+
 describe('report aggregation (task 083)', () => {
   it('aggregateRows computes per-harness summary stats and totals', () => {
     const rows: ReportRow[] = [
@@ -433,5 +477,146 @@ describe('report aggregation (task 083)', () => {
     expect(rows[0]!.status).toBe('failed');
     expect(rows[0]!.notes).toBe(failed.notes);
     expect('turnEndedAbnormally' in rows[0]!).toBe(false);
+  });
+
+  /**
+   * ①d 复现 + 判别性（本卡）：`metrics.success === true` 但**回合未正常收尾**的行，
+   * 在**对比表（JSON 行） / md / CLI** 三处都不得再呈现为成功；且 `turnKind` 与原因
+   * 必须被渲染出来（本卡之前 md/CLI 完全不渲染 notes/turnKind）。
+   *
+   * 「删掉修复就红」（四处，逐处红）：
+   *  - 删掉 `buildComparisons` 的条件展开 ⇒ `turnEndedAbnormally` 不出现 ⇒ 红；
+   *  - `compareOkMark` 还原成 `r.success ? '✅' : '❌'` ⇒ md 里重现 ✅ ⇒ 红；
+   *  - `compareCliVerdict` 还原成 `r.success ? 'OK' : 'FAIL'` ⇒ CLI 重现
+   *    `  B001: vessel OK wall=…` ⇒ 红；
+   *  - 删掉 md/CLI 里的异常原因渲染 ⇒ `turnKind=error` 在两面消失 ⇒ 红。
+   */
+  it('①d 复现+修复：异常收尾行在对比表/md/CLI 三处都不再呈现为成功，且 turnKind 可见', () => {
+    const killed = run('vessel', 'B001', metrics({ success: true, costUsd: 0.03 }));
+    // 写入侧（contracts/vessel.ts:223-230）在熔断打死回合时的真实产物。
+    killed.notes = [
+      'turn ended kind=error：本 run 未正常收尾，finalText 是错误/半截文案而非模型答案（circuit breaker: same intent denied）',
+    ];
+    const row = rowFromRunResult(killed);
+    const rep = buildReport([row], 'abnormal-turn-overlay');
+
+    // —— ★复现（改动前实现，逐字）：report.ts:390 `success: m.success`；
+    //    :506 `r.success ? '✅' : '❌'`；:538 `r.success ? 'OK' : 'FAIL'`。
+    //    本输入下三处唯一取值就是「绿」——这正是「被熔断打死的运行仍显示 ✅/OK」。
+    const legacyCompareSuccess = row.metrics.success;
+    const legacyMdOk = row.metrics.success ? '✅' : '❌';
+    const legacyCliVerdict = row.metrics.success ? 'OK' : 'FAIL';
+    expect(legacyCompareSuccess).toBe(true);
+    expect(legacyMdOk).toBe('✅');
+    expect(legacyCliVerdict).toBe('OK');
+    expect(`| vessel |  | ${legacyMdOk} |`).toBe('| vessel |  | ✅ |');
+    expect(`  B001: vessel ${legacyCliVerdict} wall=100ms`).toBe('  B001: vessel OK wall=100ms');
+
+    // —— ① 对比表（JSON 数据面）：success 保持 076 指标口径（裁决 A，见
+    //    ScenarioCompareRow.success），但该行自带加法字段 ⇒ 不再是一行"裸绿"。
+    const cr = buildComparisons([row])[0]!.rows[0]!;
+    expect(cr.success).toBe(true); // 原始指标口径未被改判
+    expect(cr.turnEndedAbnormally).toBe(true);
+    expect(cr.turnKind).toBe('error');
+    expect(Object.keys(cr)).toEqual([...LEGACY_COMPARE_KEYS, 'turnEndedAbnormally', 'turnKind']);
+
+    // —— ② md：ok 列不再是 ✅，且 turnKind 与原因文本被渲染出来
+    const md = renderReportMarkdown(rep);
+    expect(md).not.toContain('✅');
+    expect(md).toContain('| vessel |  | ⚠ |');
+    expect(md).toContain('> ⚠ vessel：回合未正常收尾（turnKind=error）');
+
+    // —— ③ CLI 摘要：行首不再是 OK，且原因行紧随其后
+    const cli = renderCliSummary(rep);
+    expect(cli).not.toMatch(/\bOK\b/);
+    expect(cli).toContain('  B001: vessel ⚠ wall=100ms in=50 out=20 cost=$0.03');
+    expect(cli).toContain('    ⚠ vessel：回合未正常收尾（turnKind=error）');
+
+    // 上一张卡已修的汇总口径仍不看绿（本卡不改它，只锁住没被改坏）
+    expect(rep.totals.passed).toBe(0);
+    expect(rep.totals.failed).toBe(1);
+  });
+
+  /**
+   * ②d 负对照（最重要）：正常收尾 + `metrics.success === true` 的行，对比表键集、
+   * **整篇 md**、CLI 对比行**逐字不变**（防「把一切都标异常」）。
+   *
+   * 「删/改坏就红」：无条件加 `turnEndedAbnormally`/`turnKind` ⇒ 键集比对红；
+   * md 多加一行、改表头/分隔线/✅ ⇒ 整篇逐字比对红；CLI 多出原因行 ⇒ 行集合比对红。
+   */
+  it('②d 负对照：正常行 ⇒ 对比表键集 / 整篇 md / CLI 对比行逐字不变', () => {
+    const normal = run('vessel', 'B001', metrics());
+    const rep = buildReportFromRunResults([normal], { source: 'byte-identical' });
+    rep.generatedAt = FROZEN_AT; // 只钉时间戳（md 里唯一非确定字段），其余全部逐字比对
+
+    // 对比表：键集与顺序 = 旧 16 键，加法字段的键根本不出现
+    const cr = buildComparisons(rep.rows)[0]!.rows[0]!;
+    expect(Object.keys(cr)).toEqual(LEGACY_COMPARE_KEYS);
+    expect('turnEndedAbnormally' in cr).toBe(false);
+    expect('turnKind' in cr).toBe(false);
+    expect(JSON.stringify(cr)).not.toContain('turnEndedAbnormally');
+
+    // md：整篇逐字锁（汇总表 / 表头 / 分隔线 / ✅ / 末尾说明行一字不差）
+    const md = renderReportMarkdown(rep);
+    expect(md).toBe(NORMAL_REPORT_MD_LINES.join('\n') + '\n');
+    expect(md).not.toContain('⚠');
+
+    // CLI：对比行整行逐字锁，且没有多出任何原因行
+    const cli = renderCliSummary(rep);
+    expect(cli).not.toContain('⚠');
+    expect(cli.split('\n').filter((l) => l.includes('B001:'))).toEqual([
+      '  B001: vessel OK wall=100ms in=50 out=20 cost=$0.01',
+    ]);
+  });
+
+  /**
+   * ③b 既有行为不变：`metrics.success === false` 的行，呈现**只由 success 决定**——
+   * 普通失败行与「失败 + 回合标记」的子族都仍渲染 `❌` / `FAIL`，不出现 `⚠`、不出现原因行
+   * （标记作为**数据**仍在对比行上，供审计回读；只是不接管呈现）。
+   *
+   * 判别方式：把两行的回合标记从数据上抹掉后重建报告，md/CLI 必须**逐字相同** ⇒
+   * 回合标记对 success=false 一族的呈现零影响。
+   * 「改坏就红」：若 `mustNotDisplayAsSuccess` 去掉 `r.success === true` 这一半，
+   * 本用例的 `not.toContain('⚠')` 与逐字相同断言立刻红。
+   */
+  it('③b 既有行为：metrics.success===false 的对比表/md/CLI 呈现逐字不变（❌/FAIL，无 ⚠）', () => {
+    const plainFail = run('dsh', 'B002', metrics({ success: false, costUsd: 0.02 }));
+    const killedFail = run('vessel', 'B002', metrics({ success: false, costUsd: 0.04 }));
+    killedFail.notes = ['turn ended kind=interrupted：本 run 未正常收尾，finalText 是错误/半截文案而非模型答案'];
+    const rows = [rowFromRunResult(plainFail), rowFromRunResult(killedFail)];
+
+    // 数据面：两条都是 success=false；第二条带回合标记（本卡不改这一族的数据口径）
+    expect(rows.map((r) => r.metrics.success)).toEqual([false, false]);
+    expect(rows[0]!.turnEndedAbnormally).toBeUndefined();
+    expect(rows[1]!.turnEndedAbnormally).toBe(true);
+    expect(rows[1]!.turnKind).toBe('interrupted');
+    expect(rows[1]!.notes).toBe(killedFail.notes); // 新分支未改写 success=false 一族
+
+    const rep = buildReport(rows, 'existing-failure-presentation');
+    rep.generatedAt = FROZEN_AT;
+    const md = renderReportMarkdown(rep);
+    const cli = renderCliSummary(rep);
+
+    expect(md).toContain('| dsh |  | ❌ |');
+    expect(md).toContain('| vessel |  | ❌ |');
+    expect(md).not.toContain('⚠');
+    expect(cli).not.toContain('⚠');
+    expect(cli).not.toContain('turnKind');
+    expect(cli.split('\n').filter((l) => l.includes('B002:'))).toEqual([
+      '  B002: dsh FAIL wall=100ms in=50 out=20 cost=$0.02',
+      '  B002: vessel FAIL wall=100ms in=50 out=20 cost=$0.04',
+    ]);
+
+    // 把回合标记从数据上抹掉 ⇒ 呈现逐字相同（回合标记不接管 success=false 一族的呈现）
+    const stripped: ReportRow[] = rows.map((r) => {
+      const copy: ReportRow = { ...r };
+      delete copy.turnEndedAbnormally;
+      delete copy.turnKind;
+      return copy;
+    });
+    const repStripped = buildReport(stripped, 'existing-failure-presentation');
+    repStripped.generatedAt = FROZEN_AT;
+    expect(renderReportMarkdown(repStripped)).toBe(md);
+    expect(renderCliSummary(repStripped)).toBe(cli);
   });
 });
