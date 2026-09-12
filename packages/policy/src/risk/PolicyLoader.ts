@@ -162,7 +162,9 @@ const AUDIT_DETAIL_RANK: Readonly<Record<string, number>> = {
 function strictestAuditDetails(higher: string | undefined, lower: string | undefined): string | undefined {
   if (higher === undefined) return lower;
   if (lower === undefined) return higher;
-  const rank = (v: string): number => AUDIT_DETAIL_RANK[v.trim().toLowerCase()] ?? Number.MAX_SAFE_INTEGER;
+  // YAML 里 `details:` 空值解析为 null，做一次防御（未登记取值一律按最详尽处理，不抛）
+  const rank = (v: string): number =>
+    typeof v === 'string' ? (AUDIT_DETAIL_RANK[v.trim().toLowerCase()] ?? Number.MAX_SAFE_INTEGER) : Number.MAX_SAFE_INTEGER;
   return rank(lower) > rank(higher) ? lower : higher;
 }
 
