@@ -47,7 +47,7 @@ vessel provider add deepseek --protocol openai-compatible --base-url https://api
 vessel provider switch deepseek
 
 # ④ 跑起来
-vessel                       # 进交互对话（无参即进 TUI/chat）
+vessel                       # 进交互对话（无参即进 TUI；chat 不是子命令）
 vessel run --prompt "总结当前工作区 README"   # 一次性任务
 ```
 
@@ -58,7 +58,7 @@ vessel run --prompt "总结当前工作区 README"   # 一次性任务
 
 | 命令 | 说明 |
 |---|---|
-| `vessel` | 无参进交互对话（TUI/chat），斜杠命令管配置 |
+| `vessel` | 无参进交互对话（TUI，斜杠命令管配置；没有 `chat` 子命令，`vessel chat` 报未知命令） |
 | `vessel run --prompt "…"` | 一次性任务（单发模式）；`--bench <scenarioId>` 跑基准场景 |
 | `vessel setup` | 交互向导：配置供应商 |
 | `vessel provider list / current / add / remove / switch` | 供应商配置管理、一键切换默认 |
@@ -66,14 +66,19 @@ vessel run --prompt "总结当前工作区 README"   # 一次性任务
 | `vessel usage [--recent <n>] [--strict]` | 使用统计（tokens / 调用 / 估算成本 + 价格来源分布，落盘 `~/.vessel/usage.json`；`--strict` 不用兜底价重算） |
 | `vessel pricing [model]` | 模型价目查询（`configs/model-catalog.json`，USD/1M tokens；模型名自动归一） |
 | `vessel migrate` | 一次性迁移旧状态目录 `~/.dsh` → `~/.vessel` |
+| `vessel sessions list` | 列出历史会话（最近活动在前） |
+| `vessel resume <id> [--last]` | 恢复历史会话（`--last` = 最近一条；TTY 下不带 `--prompt` 时进入 TUI 恢复） |
+| `vessel review handoff / import / list` | 外部评审：生成 handoff、导入评审结果、列出 reviews |
 | `vessel explain <term>` | 术语中英双语解释（别名 `vessel term <term>`；未收录词给提示 + `list-terms`） |
 | `vessel list-terms` | 列出全部术语（中英双语词库） |
 | `vessel guide [--locale zh\|en]` | 新手分步引导（①这是什么 ②怎么问术语 ③常用命令 ④怎么设置主题/语言；输出语言跟随 settings locale） |
 | `vessel settings list / set <theme\|locale> <v>` | 设置项中英文说明与可选值（`theme: dark\|light`；`locale: zh\|en`） |
+| `vessel policy status` | 显示生效策略层次（system / project 的路径、是否存在、声明条数、哈希；只读） |
+| `vessel bench-report --input <json>` | 基准报告看板：聚合 RunResult[] → CLI 摘要表 + 写 md/json |
 | `vessel serve` | 启动本地服务（默认 `http://127.0.0.1:5678`，不开浏览器；`--port <n>` 换端口） |
 | `vessel web` | 启动本地服务并打开默认浏览器 |
 
-> 交互界面的斜杠命令：`/provider` 配置供应商 · `/models` 拉模型 · `/model <id>` 切模型 · `/permission` 切权限档 · `/explain <术语>` 或 `? <术语>` 查术语解释 · `/help` · `/quit`。
+> 交互界面的斜杠命令：`/provider` 配置供应商 · `/models` 拉模型 · `/model <id>` 切模型 · `/permission` 切权限档 · `/setup` 完整引导 · `/explain <术语>` 或 `? <术语>` 查术语解释 · `/cost`（同 `/usage`）看会话与累计成本 · `/help` · `/quit`。
 
 ## 哲学与架构要点
 

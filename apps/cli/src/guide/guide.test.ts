@@ -180,14 +180,16 @@ describe('CLI 命令 — explain / list-terms / guide / settings（task 117）',
     expect(unk.join('\n')).toContain('未知设置');
   });
 
-  it('guide 输出 zh 含中文步骤（①-④ 与小小蜜）；en 含英文', async () => {
+  it('guide 输出 zh 含中文步骤（①-④ 与 Vessel）；en 含英文', async () => {
     const zh = renderGuide('zh');
     expect(zh).toContain('①');
-    expect(zh).toContain('小小蜜');
+    expect(zh).toContain('新手引导 · Vessel');
+    expect(zh).not.toContain('小小蜜');
     expect(zh).toContain('vessel explain');
     expect(zh).toContain('④');
     const en = renderGuide('en');
-    expect(en).toContain('Xiaoxiaomi');
+    expect(en).toContain('Getting Started · Vessel');
+    expect(en).not.toContain('Xiaoxiaomi');
     expect(en).toContain('vessel explain');
     expect(en).toContain('④');
   });
@@ -197,7 +199,7 @@ describe('CLI 命令 — explain / list-terms / guide / settings（task 117）',
     const { logs: g0, restore: r0 } = capture();
     await cmdGuide([], new Map(), optsFor(root));
     r0();
-    expect(g0.join('\n')).toContain('小小蜜');
+    expect(g0.join('\n')).toContain('新手引导 · Vessel');
     // 切 en（持久化）→ guide 跟随
     const { logs: s1, restore: r1 } = capture();
     await cmdSettings(['set', 'locale', 'en'], new Map(), optsFor(root));
@@ -207,7 +209,7 @@ describe('CLI 命令 — explain / list-terms / guide / settings（task 117）',
     const code1 = await cmdGuide([], new Map(), optsFor(root));
     r2();
     expect(code1).toBe(0);
-    expect(g1.join('\n')).toContain('Xiaoxiaomi');
+    expect(g1.join('\n')).toContain('Getting Started · Vessel');
     // 切回 zh → guide 中文
     const { logs: s2, restore: r3 } = capture();
     await cmdSettings(['set', 'locale', 'zh'], new Map(), optsFor(root));
@@ -215,12 +217,12 @@ describe('CLI 命令 — explain / list-terms / guide / settings（task 117）',
     const { logs: g2, restore: r4 } = capture();
     await cmdGuide([], new Map(), optsFor(root));
     r4();
-    expect(g2.join('\n')).toContain('小小蜜');
+    expect(g2.join('\n')).toContain('新手引导 · Vessel');
     // --locale 显式覆盖 settings
     const { logs: g3, restore: r5 } = capture();
     await cmdGuide([], new Map([['locale', 'en']]), optsFor(root));
     r5();
-    expect(g3.join('\n')).toContain('Xiaoxiaomi');
+    expect(g3.join('\n')).toContain('Getting Started · Vessel');
   });
 
   it('settings set locale 非法值 → exit 2 且给出可选值', async () => {

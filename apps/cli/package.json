@@ -7,6 +7,12 @@
   "bin": {
     "vessel": "dist/cli.js"
   },
+  "files": [
+    "dist"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
   "scripts": {
     "build": "tsc -b",
     "test": "vitest run"
@@ -18,6 +24,7 @@
     }
   },
   "dependencies": {
+    "@clack/prompts": "^1.7.0",
     "@vessel/application": "^0.10.0",
     "@vessel/local-server": "^0.10.0"
   }

@@ -42,7 +42,31 @@ export function maskKey(key: string): string {
   return `${key.slice(0, 3)}****${key.slice(-3)}`;
 }
 
-export function createClackIO(_store: ProviderStore): SetupIO {
+/**
+ * 向导里的**密钥存储口径**（BRIEF-16 2B）：按**实际生效的凭据后端**如实说明，
+ * 不再写死"明文存 ~/.vessel"（Windows 上实为 DPAPI 密文）。
+ *
+ * 事实来源 = 注入 store 的 `credentialStore.backend`（`SyncCredentialStore.backend`，
+ * 由 `createCredentialStore()` 的探测/选择结果决定）：
+ *   - `windows-dpapi`  → Windows 且 PowerShell/ProtectedData 就绪（`probeBackends` 的
+ *     winProbe，CredentialStore.ts:545-555 / 654-656）→ 密文落盘；
+ *   - 其它取值（`plaintext`）→ 无可用 OS 凭据后端，**显式降级明文** + 写入时 console.warn
+ *     （CredentialStore.ts:614-625 / 662-669）。文案只描述事实，不改流程与退出码。
+ *   - 无凭据后端（`credentialStore` 为空，纯向后兼容路径）→ apiKey 明文写
+ *     providers.json（ProviderStore.ts:614-624），同样如实说明。
+ */
+function keyStorageNote(store: ProviderStore): string {
+  if (store.credentialStore?.backend === 'windows-dpapi') {
+    return '不回显；经 Windows DPAPI 加密存 ~/.vessel/secrets.json，绑定当前 Windows 用户';
+  }
+  if (store.credentialStore) {
+    return '不回显；本平台（或无 DPAPI 可用）降级为明文存 ~/.vessel/secrets.json，有泄露风险——建议收紧该目录权限，或改用 VESSEL_API_KEY 环境变量不落盘';
+  }
+  return '不回显；未启用凭据存储，明文写入 ~/.vessel/providers.json，有泄露风险——建议收紧该目录权限，或改用 VESSEL_API_KEY 环境变量不落盘';
+}
+
+export function createClackIO(store: ProviderStore): SetupIO {
+  const storageNote = keyStorageNote(store);
   return {
     async pickProvider() {
       // task 025 visibility: providerPickerOptions() prefixes every preset label
@@ -71,7 +95,7 @@ export function createClackIO(_store: ProviderStore): SetupIO {
     },
     async askApiKey(presetName: string, hint: string) {
       const key = (await clack.password({
-        message: `输入 ${presetName} 的 API Key（不回显；明文存 ~/.vessel）${hint ? ` — ${hint}` : ''}`,
+        message: `输入 ${presetName} 的 API Key（${storageNote}）${hint ? ` — ${hint}` : ''}`,
       })) as string | symbol;
       return key;
     },
