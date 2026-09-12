@@ -830,13 +830,14 @@ describe('vessel bench-report (task 083 dashboard)', () => {
     try { fs.rmSync(dir, { recursive: true, force: true }); } catch { /* best-effort */ }
   });
 
-  function runResultsJson(harnesses: string[]): string {
-    const arr = harnesses.map((h, i) => ({
-      adapterId: h,
+  /** 一行 076 RunResult（本组用例共用的载荷形状）。 */
+  function runResultRow(harnessId: string, i: number, success: boolean) {
+    return {
+      adapterId: harnessId,
       adapterVersion: '1.0.0',
       fixtureId: 'B001',
       metrics: {
-        success: i % 2 === 0,
+        success,
         wallTimeMs: 100 + i,
         toolCalls: 2, invalidCalls: 0, retries: 0,
         inputTokens: 50, outputTokens: 20, cacheReadTokens: 5,
@@ -844,10 +845,89 @@ describe('vessel bench-report (task 083 dashboard)', () => {
         humanIntervention: 0, policyViolations: 0, resumeSuccess: false,
       },
       startedAt: '2026-09-08T00:00:00.000Z',
-    }));
-    const p = path.join(dir, 'runs.json');
-    fs.writeFileSync(p, JSON.stringify(arr), 'utf8');
+    };
+  }
+
+  function writeJson(fileName: string, value: unknown): string {
+    const p = path.join(dir, fileName);
+    fs.writeFileSync(p, JSON.stringify(value), 'utf8');
     return p;
+  }
+
+  /** 交替成败（vessel ✅ / dsh ❌ / opencode ✅）：该数据集**含 1 行 failed**（i=1）。 */
+  function runResultsJson(harnesses: string[]): string {
+    return writeJson('runs.json', harnesses.map((h, i) => runResultRow(h, i, i % 2 === 0)));
+  }
+
+  /** 全 passed 数据集：负对照 ② 专用（「一份真全绿的报告不许报红」）。 */
+  function allPassedJson(harnesses: string[]): string {
+    return writeJson('runs-all-passed.json', harnesses.map((h, i) => runResultRow(h, i, true)));
+  }
+
+  /**
+   * 082 lane JSON —— `vessel bench-report --input lane.json` 在 CI 里的实际输入形状。
+   *
+   * 第一行是**异常收尾行**：`metrics.success === true`（076 指标口径）但
+   * `turnEndedAbnormally === true` ⇒ 报告 `status='failed'`（report.ts 已修）。
+   * 第二行正常 passed ⇒ totals = 2 runs / 1 passed / 1 failed。
+   */
+  function laneReportJson(): string {
+    return writeJson('lane.json', {
+      runId: 'real-model-lane-test',
+      startedAt: '2026-09-08T00:00:00.000Z',
+      finishedAt: '2026-09-08T00:00:01.000Z',
+      durationMs: 1000,
+      models: [],
+      scenarioCount: 1,
+      scenarioIds: ['B001'],
+      rows: [
+        {
+          modelId: 'deepseek-v4-pro', scenarioId: 'B001', tier: 'pro', status: 'failed',
+          result: runResultRow('vessel', 0, true), // 指标口径 success=true，回合却没收尾
+          turnEndedAbnormally: true, turnKind: 'error',
+        },
+        {
+          modelId: 'deepseek-v4-flash', scenarioId: 'B001', tier: 'flash', status: 'passed',
+          result: runResultRow('vessel', 1, true),
+        },
+      ],
+      modelSummaries: [],
+      degraded: false,
+      reportMdPath: 'x.md',
+      reportJsonPath: 'x.json',
+    });
+  }
+
+  /** 取回 out 目录里写出的两个产物（文件名带时间戳，故按后缀定位）；缺失即抛错（用例红）。 */
+  function reportFiles(outDir: string): { mdPath: string; jsonPath: string } {
+    const files = fs.readdirSync(outDir);
+    const md = files.find((f) => f.endsWith('.md'));
+    const json = files.find((f) => f.endsWith('.json'));
+    if (!md || !json) throw new Error(`报告产物缺失：${JSON.stringify(files)}`);
+    return { mdPath: path.join(outDir, md), jsonPath: path.join(outDir, json) };
+  }
+
+  /**
+   * 期望渲染的**唯一来源** = runners 自己的纯函数（不是手抄字符串），经 cli 用的同一条
+   * 动态 import 缝取回（未被替换时即真实模块）⇒「命令输出」与「纯函数渲染」可逐字比对。
+   */
+  async function expectedRenderings(input: unknown): Promise<{ cliSummary: string; md: string; json: unknown }> {
+    const r = await cli.benchRunnersRuntime.load();
+    const rep = Array.isArray(input)
+      ? r.buildReportFromRunResults(input as Parameters<typeof r.buildReportFromRunResults>[0])
+      : r.buildReport(
+          r.rowsFromLaneReport(input as Parameters<typeof r.rowsFromLaneReport>[0]),
+          'task-082 real-model lane report',
+        );
+    return { cliSummary: r.renderCliSummary(rep), md: r.renderReportMarkdown(rep), json: rep };
+  }
+
+  /** 报告里唯一非确定的字段是 `generatedAt`（时间戳）；归一化后其余必须逐字相等。 */
+  const normalizeTs = (s: string): string => s.replace(/^> 生成于 .*$/m, '> 生成于 <ts>');
+
+  /** md 逐字比对（仅归一化时间戳行）——比「目录里有 .md/.json」强，锁住整份产物。 */
+  function expectSameReport(actualPath: string, expectedMd: string): void {
+    expect(normalizeTs(fs.readFileSync(actualPath, 'utf8'))).toBe(normalizeTs(expectedMd));
   }
 
   it('bench-report without --input fails with exit 2', async () => {
@@ -858,23 +938,106 @@ describe('vessel bench-report (task 083 dashboard)', () => {
     expect(logs.join('\n')).toContain('bench-report 需要 --input');
   });
 
-  it('bench-report reads RunResult[] and prints dashboard summary + writes md/json', async () => {
+  /**
+   * ③（更新既有断言，原 cli.test.ts:867）：数据集 `['vessel','dsh','opencode']` 含
+   * **1 行 failed**（dsh，i=1）——旧断言 `expect(code).toBe(0)` **正是把缺陷锁住**。
+   *
+   * 新口径：含 failed ⇒ 非零（1）；同时把「产物逐字不变」一并断言 —— 旧断言只看 code
+   * 与「目录里有没有 .md/.json 两种后缀」，新断言把摘要 + md + json **整份**钉住，
+   * 并删掉旧的子串断言（`totals:` / `B001:` 等被逐字相等完全覆盖）⇒ **不弱于**旧断言。
+   *
+   * 「删掉修复就红」：删掉 cli.ts 的 `rep.totals.failed > 0 ⇒ fail(1, …)` ⇒ code 变 0 ⇒ 红。
+   */
+  it('bench-report 读 RunResult[]（含 1 行 failed）⇒ 退出码 1；摘要与 md/json 产物逐字不变', async () => {
     const runs = runResultsJson(['vessel', 'dsh', 'opencode']);
+    const expected = await expectedRenderings(JSON.parse(fs.readFileSync(runs, 'utf8')) as unknown);
     const out = path.join(dir, 'reports');
+    const { logs, restore } = captureBoth();
+    const code = await main(['bench-report', '--input', runs, '--out', out]);
+    restore();
+    expect(code).toBe(1);
+    const { mdPath, jsonPath } = reportFiles(out);
+    // stdout 逐字 = 纯函数渲染 + 既有「报告已写入」两行（顺序、内容都不许变）；
+    // 第三行是新增的失败文案（stderr），只查内容不锁措辞。
+    expect(logs.slice(0, 2)).toEqual([expected.cliSummary, `\n报告已写入:\n  ${mdPath}\n  ${jsonPath}`]);
+    expect(logs).toHaveLength(3);
+    expect(logs[2]).toContain('1/3 行 failed');
+    expectSameReport(mdPath, expected.md);
+    expect({ ...(JSON.parse(fs.readFileSync(jsonPath, 'utf8')) as object), generatedAt: '<ts>' })
+      .toEqual({ ...(expected.json as object), generatedAt: '<ts>' });
+  });
+
+  /**
+   * ① 判别性（含负对照的另一半）：报告含 failed / 异常收尾行 ⇒ 非零退出码，
+   * 且**渲染与落盘照常发生**——logs 的顺序本身就是证据（摘要 → 产物路径 → 判定），
+   * md 内容仍与纯函数渲染逐字一致（产物没有被失败吞掉/截断）。
+   *
+   * 输入走 082 lane JSON（CI 里的真实形状），首行是 report.ts 刚修好的「回合未正常收尾」
+   * 族（`metrics.success=true` 但 status='failed'）⇒ 证明**不另设第二套口径**，
+   * 用的就是报告已有的 `totals.failed`。
+   *
+   * 「删掉/改坏就红」：① 删 `fail(1, …)` 判据 ⇒ 0；② 把判据提到 `writeReportFiles` 之前
+   * ⇒ 产物不存在（reportFiles 抛错）+ logs 少一行 ⇒ 红。
+   */
+  it('① 报告含 failed/异常收尾行 ⇒ 退出码 1，且摘要先渲染、md/json 仍落盘', async () => {
+    const lane = laneReportJson();
+    const laneJson = JSON.parse(fs.readFileSync(lane, 'utf8')) as unknown;
+    const expected = await expectedRenderings(laneJson);
+    const out = path.join(dir, 'reports-lane');
+    const { logs, restore } = captureBoth();
+    const code = await main(['bench-report', '--input', lane, '--out', out]);
+    restore();
+    expect(code).toBe(1);
+    const { mdPath, jsonPath } = reportFiles(out);
+    expect(logs).toHaveLength(3); // 摘要 + 路径（stdout） + 失败文案（stderr）
+    expect(logs[0]).toBe(expected.cliSummary); // 渲染照常，且与全绿路径同一形状
+    expect(logs[1]).toBe(`\n报告已写入:\n  ${mdPath}\n  ${jsonPath}`);
+    expect(logs[2]).toContain('1/2 行 failed');
+    expect(logs[2]).toContain(mdPath);
+    expect(expected.cliSummary).toContain('1 failed');
+    expectSameReport(mdPath, expected.md); // 产物完整
+    expect((JSON.parse(fs.readFileSync(jsonPath, 'utf8')) as { totals: { failed: number } }).totals.failed).toBe(1);
+  });
+
+  /**
+   * ② 负对照（最重要）：**全 passed** 的报告 ⇒ 退出码 0，且 stdout / md 逐字不变。
+   * 防「总是非零」——那会让 CI 永远红灯，与缺陷正好相反。
+   *
+   * 「改坏就红」：判据写成无条件 / `>= 0` ⇒ code≠0；成功路径上多打或少打一行、
+   * 或改渲染顺序 ⇒ `logs` 逐字比对红。
+   */
+  it('② 负对照：全 passed 报告 ⇒ 退出码 0，stdout 与产物逐字不变', async () => {
+    const runs = allPassedJson(['vessel', 'dsh', 'opencode']);
+    const expected = await expectedRenderings(JSON.parse(fs.readFileSync(runs, 'utf8')) as unknown);
+    const out = path.join(dir, 'reports-green');
     const { logs, restore } = capture();
     const code = await main(['bench-report', '--input', runs, '--out', out]);
     restore();
     expect(code).toBe(0);
-    const joined = logs.join('\n');
-    expect(joined).toContain('totals:');
-    expect(joined).toContain('vessel');
-    expect(joined).toContain('dsh');
-    expect(joined).toContain('opencode');
-    expect(joined).toContain('B001:');
-    // reports written
-    const files = fs.readdirSync(out);
-    expect(files.some((f) => f.endsWith('.md'))).toBe(true);
-    expect(files.some((f) => f.endsWith('.json'))).toBe(true);
+    const { mdPath, jsonPath } = reportFiles(out);
+    expect(logs).toEqual([expected.cliSummary, `\n报告已写入:\n  ${mdPath}\n  ${jsonPath}`]);
+    expectSameReport(mdPath, expected.md);
+    expect(expected.cliSummary).toContain('0 failed');
+  });
+
+  /**
+   * ④ `--json`：退出码与 stderr 信封的 `code` **同源**（同一个数铸出），产物照旧落盘。
+   * 沿用既有 `fail(code, msg, flags, …)` 出口，不另造一套 JSON 失败面
+   * （既有 jsonErrorExits.test.ts 的 `bench-report --json` code=2 用例同源）。
+   */
+  it('④ --json：退出码与 stderr 信封 code 同源（1）；md/json 照旧落盘', async () => {
+    const lane = laneReportJson();
+    const out = path.join(dir, 'reports-lane-json');
+    const { logs, restore } = captureBoth();
+    const code = await main(['bench-report', '--input', lane, '--out', out, '--json']);
+    restore();
+    expect(code).toBe(1);
+    const doc = JSON.parse(logs[logs.length - 1]!) as { error: { message: string; code: number } };
+    expect(doc.error.code).toBe(code); // 同源
+    expect(doc.error.message).toContain('failed');
+    const { mdPath, jsonPath } = reportFiles(out);
+    expect(fs.statSync(mdPath).size).toBeGreaterThan(0);
+    expect(fs.statSync(jsonPath).size).toBeGreaterThan(0);
   });
 
   it('bench-report rejects a JSON object that is neither RunResult[] nor a lane report', async () => {

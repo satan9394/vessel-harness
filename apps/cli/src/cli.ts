@@ -2250,6 +2250,26 @@ function isPortTaken(err: unknown): boolean {
  * `<dir>/benchmark-report-<ts>.md` + `.json` (JSON consumed by task-084 release
  * gates). Also accepts a 082 RealModelLaneReport JSON — its run rows are
  * converted via rowsFromLaneReport.
+ *
+ * **退出码（本卡裁决）**：`rep.totals.failed > 0` ⇒ `1`；`failed === 0` ⇒ `0`。
+ *
+ * 复现（改前）：本函数**恒 `return 0`**，与 `totals.failed` 无关 ⇒ CI 里
+ * `vessel bench-report --input <lane.json>` 永远成功，哪怕报告里每一行都是
+ * failed / 回合未正常收尾（后者见 `report/report.ts` 的 `status='failed'` + `⚠`）。
+ * 本命令是 076/082 真实模型 lane 在 CI 里的**判定入口**，而退出码是脚本唯一能读的
+ * 信号 —— 同族先例有两处，口径一致：
+ *   - `vessel run` 的 `kind='error'` ⇒ 非零（`turnExitCode`，cli.ts:811-813）；
+ *   - `vessel run --bench` ⇒ `report.success ? 0 : 1`（cli.ts:1124）。
+ * 所以「有失败却报成功」在退出码这一面的一致做法是**非零**，取 `1`（`2` 在本族里
+ * 留给用法/校验错误：缺 `--input`、非法 JSON 形状、runners 不可用）。
+ *
+ * **顺序不可调换**：渲染 + 落盘**先**做完，退出码**后**定。失败不该让产物消失 ——
+ * CI 红灯之后，人仍要能拿到那份 md/json 复盘（`writeReportFiles` 的返回路径同时
+ * 进人话文案，照旧落 stdout）。
+ *
+ * 口径**只有一条**：判据是报告已有的 `totals.failed`（`aggregateRows` 按精确枚举
+ * `status === 'failed'` 计数，已包含「回合未正常收尾」行）——**不**另设一套
+ * 「异常收尾行」计数，避免两套口径漂移。
  */
 async function cmdBenchReport(flags: Map<string, string>): Promise<number> {
   const input = flags.get('input');
@@ -2289,6 +2309,14 @@ async function cmdBenchReport(flags: Map<string, string>): Promise<number> {
   console.log(renderCliSummary(rep));
   const paths = writeReportFiles(rep, outDir);
   console.log(`\n报告已写入:\n  ${paths.mdPath}\n  ${paths.jsonPath}`);
+  // 判定发生在渲染 + 落盘**之后**（见函数头注释：失败不吞产物）。走既有 `fail` 出口：
+  // `--json` 时 stderr 信封的 `code` 由同一个数铸出，退出码与信封不可能不一致。
+  if (rep.totals.failed > 0) {
+    const msg =
+      `[vessel] bench-report: ${rep.totals.failed}/${rep.totals.runs} 行 failed（含回合未正常收尾行）⇒ 退出码 1。` +
+      `报告已写入 ${paths.mdPath} 与 ${paths.jsonPath}（产物未因失败而丢弃）。`;
+    return fail(1, msg, flags, () => console.error(msg));
+  }
   return 0;
 }
 
