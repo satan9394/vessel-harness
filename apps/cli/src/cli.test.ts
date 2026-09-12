@@ -666,6 +666,144 @@ describe('vessel bench-report (task 083 dashboard)', () => {
   });
 });
 
+/**
+ * 安装态（tarball / registry 装出来的项目）缺 bench-runners 的失败面。
+ *
+ * `benchmarks/runners` 是 `"private": true`（永不发布），只在仓库内靠
+ * `apps/cli/tsconfig.json` 的 project reference + vitest alias 解析得到；装出来的项目里
+ * `vessel run --bench` / `vessel bench-report` 的动态 import 必然 `ERR_MODULE_NOT_FOUND`。
+ * 本组锁三件事：① 解析失败 → 人话 + 既有 `fail` 出口（不再是裸模块解析错误）；
+ * ② `--json` 下仍是既有的单一 JSON 信封出口；③ **非**解析失败的异常照旧抛出。
+ *
+ * 注入方式与既有 `serveRuntime` 同款（替换 `cli.benchRunnersRuntime.load`、用完还原）：
+ * 判别点在 cli.ts 自己的 catch + fail 出口语义上，不需要用 `vi.mock` 去劫持真实解析。
+ */
+describe('vessel bench-runners 安装态不可用（private 包不随 npm 包分发）', () => {
+  const ROOT_ENV = ['VESSEL_PROVIDER_ROOT', 'VESSEL_USAGE_ROOT', 'VESSEL_SESSION_ROOT'] as const;
+  let dir: string;
+  let savedRoots: Array<string | undefined>;
+  let realLoad: typeof cli.benchRunnersRuntime.load;
+
+  beforeEach(() => {
+    dir = fs.mkdtempSync(path.join(os.tmpdir(), 'cah-br-missing-'));
+    savedRoots = ROOT_ENV.map((k) => process.env[k]);
+    for (const k of ROOT_ENV) process.env[k] = dir;
+    realLoad = cli.benchRunnersRuntime.load;
+  });
+  afterEach(() => {
+    cli.benchRunnersRuntime.load = realLoad;
+    ROOT_ENV.forEach((k, i) => {
+      const prev = savedRoots[i];
+      if (prev === undefined) delete process.env[k];
+      else process.env[k] = prev;
+    });
+    fs.rmSync(dir, { recursive: true, force: true });
+  });
+
+  /** 安装态实测同款：Node ESM 解析不到「不存在的包」时报的错。 */
+  function failResolution(): void {
+    cli.benchRunnersRuntime.load = () => Promise.reject(
+      Object.assign(
+        new Error(
+          "Cannot find package '@vessel/bench-runners' imported from /tmp/installed/node_modules/@vessel/cli/dist/cli.js",
+        ),
+        { code: 'ERR_MODULE_NOT_FOUND' },
+      ),
+    );
+  }
+
+  /** stdout / stderr 分开收集（既有 `capture()` 只收 console.log）。 */
+  function captureStreams() {
+    const out: string[] = [];
+    const err: string[] = [];
+    const spyLog = vi.spyOn(console, 'log').mockImplementation((...a: unknown[]) => { out.push(a.join(' ')); });
+    const spyErr = vi.spyOn(console, 'error').mockImplementation((...a: unknown[]) => { err.push(a.join(' ')); });
+    return { out, err, restore: () => { spyLog.mockRestore(); spyErr.mockRestore(); } };
+  }
+
+  function writeRuns(): string {
+    const p = path.join(dir, 'runs.json');
+    fs.writeFileSync(p, JSON.stringify([]), 'utf8');
+    return p;
+  }
+
+  it('run --bench 解析失败 → 人话 + exit 2（不再抛裸 ERR_MODULE_NOT_FOUND）', async () => {
+    failResolution();
+    const { out, err, restore } = captureStreams();
+    let code: number;
+    try {
+      code = await main(['run', '--bench', 'B001']);
+    } finally {
+      restore();
+    }
+    expect(code).toBe(2);
+    const text = [...out, ...err].join('\n');
+    expect(text).toContain('需要在本仓库内以源码方式运行');
+    expect(text).toContain('不随 npm 包分发');
+    expect(text).toContain('npx tsx apps/cli/src/cli.ts run --bench');
+    expect(text).not.toContain('ERR_MODULE_NOT_FOUND');
+  });
+
+  it('bench-report 解析失败 → 同一人话出口 + exit 2', async () => {
+    failResolution();
+    const runs = writeRuns();
+    const { out, err, restore } = captureStreams();
+    let code: number;
+    try {
+      code = await main(['bench-report', '--input', runs]);
+    } finally {
+      restore();
+    }
+    expect(code).toBe(2);
+    const text = [...out, ...err].join('\n');
+    expect(text).toContain('需要在本仓库内以源码方式运行');
+    expect(text).toContain('不随 npm 包分发');
+    expect(text).toContain('npx tsx apps/cli/src/cli.ts bench-report --input');
+  });
+
+  it('--json：解析失败走既有 fail 信封（stderr 单一合法 JSON、code=2），stdout 零输出', async () => {
+    failResolution();
+    const runs = writeRuns();
+    const { out, err, restore } = captureStreams();
+    let code: number;
+    try {
+      code = await main(['bench-report', '--input', runs, '--json']);
+    } finally {
+      restore();
+    }
+    expect(code).toBe(2);
+    // output.ts 的契约：失败信封只进 stderr，stdout 只留给成功文档（此处零输出）
+    expect(out).toEqual([]);
+    expect(err).toHaveLength(1);
+    const doc = JSON.parse(err[0]!) as { error: { message: string; code: number } };
+    expect(Object.keys(doc)).toEqual(['error']);
+    expect(doc.error.code).toBe(2);
+    expect(doc.error.message).toContain('不随 npm 包分发');
+  });
+
+  it('负对照：非解析失败的异常照旧抛出（非 --json 下 main() reject，未被吞掉）', async () => {
+    cli.benchRunnersRuntime.load = () => Promise.reject(new Error('runners exploded'));
+    const runs = writeRuns();
+    await expect(main(['bench-report', '--input', runs])).rejects.toThrow('runners exploded');
+  });
+
+  it('负对照：非解析失败的异常在 --json 下走 main() 兜底信封（code=1，不是新出口的 2）', async () => {
+    cli.benchRunnersRuntime.load = () => Promise.reject(new Error('runners exploded'));
+    const runs = writeRuns();
+    const { out, err, restore } = captureStreams();
+    let code: number;
+    try {
+      code = await main(['bench-report', '--input', runs, '--json']);
+    } finally {
+      restore();
+    }
+    expect(code).toBe(1);
+    expect(out).toEqual([]);
+    const doc = JSON.parse(err[0]!) as { error: { code: number } };
+    expect(doc.error.code).toBe(1);
+  });
+});
+
 describe('vessel serve / vessel web (task 044)', () => {
   // Exported const object; stub its members directly (cmdServe/cmdWeb call them
   // at runtime) and restore them after each test so real serve keeps working.

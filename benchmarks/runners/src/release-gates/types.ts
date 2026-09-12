@@ -29,7 +29,14 @@ export type GateId =
   | 'safety'
   | 'resume'
   | 'ux-smoke'
-  | 'packaging';
+  | 'packaging'
+  /**
+   * V1.1-G：第 9 道「安装态冒烟」（**可选** / opt-in，`VESSEL_GATE_INSTALL_SMOKE=1` 启用；
+   * 默认 pending，不拖慢既有 8 道）。**刻意不进** `GATE_DEFINITIONS` / `GATE_ORDER`
+   * ——§21 八门禁注册表与其单测断言（position 1..8 连续、`allPass()` 长度 8）逐字不变；
+   * 该 executor 由 `run-release-gates.ts` 的驱动显式追加在 position 9。
+   */
+  | 'install-smoke';
 
 /** Machine evidence a gate executor collects. `urls`/`artifacts` remain optional. */
 export interface GateEvidence {

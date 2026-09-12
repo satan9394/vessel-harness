@@ -19,7 +19,8 @@
  *      纳入 V1.1-D（B024-B027）→ 复用 076 runner 的 runScenario + 084 的 judgeScenarioRuns。
  *      同时把 packaging gate 的 executor 换成 buildPublishArtifactExecutor()（EVALUATION-REPORT-24 P2：
  *      判「发布物形状」而非只查本地 dist 是否存在——离线 `npm pack --dry-run` 清单 + pack 期脚本静态断言）。
- *   4. runReleaseGates() 顺序实跑 8 gate（每 gate 经注入的 exec: RunCommand 跑真实命令/判据），
+ *   4. runReleaseGates() 顺序实跑 8 道 §21 门禁 + 第 9 道「安装态冒烟」（V1.1-G，**默认 pending**，
+ *      仅 `VESSEL_GATE_INSTALL_SMOKE=1` 时真跑 pack→install→首跑；未启用时零命令零 IO），
  *      聚合 release-report.json + .md 写到 benchmarks/reports/（084 惯例）。
  *
  * 密钥安全：key 只经 CredentialStore（DPAPI 密文）/ env 转接，进程内使用，绝不落盘；
@@ -28,6 +29,7 @@
  *   由 runner 如实汇总为 partial，不伪造 pass。
  */
 import * as fs from 'node:fs';
+import * as os from 'node:os';
 import * as path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { execFile } from 'node:child_process';
@@ -40,6 +42,7 @@ import {
   judgeScenarioRuns,
   runReleaseGates,
   writeReleaseReportFiles,
+  type CommandOutcome,
   type GateExecutor,
   type GateVerdict,
   type ReleaseContext,
@@ -493,6 +496,645 @@ export function buildPublishArtifactExecutor(): GateExecutor {
 }
 
 // ---------------------------------------------------------------------------
+// V1.1-G — 安装态冒烟门禁（第 9 道，**可选 / opt-in**）
+//
+// EVALUATION-REPORT-24 点名的「最大缺口」：「打包 → 安装 → 首跑 → 升级」整条链路只靠人工实测一次。
+// 既有 packaging gate 只判**发布物形状**（tarball 清单里有 dist/cli.js 与 4 个 dist/configs/*），
+// 判不出「装进一个项目后 CLI 真能跑、并且真的从**包内**读到自己那份 configs」。
+// 本段把那次人工实测（N 个 tarball → 全新空项目 `npm i` → 首跑）固化成**确定性、可回归**的判据。
+//
+// 判别力（为什么不能只断言 `--version` exit 0）：
+//   - `--version` / `--help` / `policy status` 的三个出口都不校验配置、恒 exit 0
+//     ——「命令跑起来了」与「包内配置读得到」是两件事；
+//   - 有判别力的是**读路径**：① `policy status` 报的 system 层路径必须逐字落在
+//     `<项目>/node_modules/@vessel/cli/dist/configs/policy.default.yaml`
+//     （apps/cli/src/cli.ts:199-215 `builtinConfigRoot()` 的①「包内·模块目录」命中）；
+//     ② `usage` 不得打印「未找到内置配置」（apps/cli/src/cli.ts:232-246 的守卫只在
+//     `<builtinConfigRoot>/configs/{pricing.json,model-catalog.json}` 缺失时触发）。
+//     两条同时成立 ⇒ policy / pricing / model-catalog 确实从**包内 dist/configs** 读到。
+//   包坏了时的红灯：prepack 没构建 / files 少带 configs / 自家依赖图不自洽 / 装完无入口
+//     —— 上述任一条会红（system 路径落到 ④ 回落分支 = fail；出现缺配置警告 = fail）。
+//
+// 永不假失败（pending 的四条通道，全部**不**判 fail）：
+//   ① 未启用（默认；零命令零 IO）② npm 不可用（spawn 级失败：**没有** npm 自己的日志行）
+//   ③ 超时（按**实测耗时 ≥ 传入 timeoutMs** 判定 —— execFile 的超时被 catch 成 exit 1，
+//      错误文案里未必有 "timeout"，不能只靠文本）
+//   ④ 环境不具备：离线装不上且原因是网络/缓存/解析（ENOTCACHED / EAI_AGAIN / ENOTFOUND /
+//      registry 404 / registry.npmjs.org …）——此时**离线无法区分**「缓存缺第三方依赖」与「依赖真不可达」。
+//   刻意**不做** registry 可达性探测（那要联网，违反本仓「不联网」）：改用 npm 错误文本 + 依赖图反解。
+//   反向判别：若离线解析失败的名字命中**本仓 workspace 包名**（来自 root package.json 的 workspaces），
+//   那就是「自家 tarball 集合满足不了自家依赖范围」= 真的坏了 → **fail**（不是 pending）。
+//
+// 不拖慢 / 不拖脆既有 8 道：本门禁是第 9 道，**默认（未设 VESSEL_GATE_INSTALL_SMOKE=1）直接返回 pending**，
+// 不执行任何命令与 IO；既有 8 道的注册表（gates.ts 的 GATE_DEFINITIONS / GATE_ORDER）与判据
+// **一个字节都不改**（本 id 只加在 types.ts 的 GateId 联合里，不进 §21 注册表 → 既有单测断言不受扰）。
+// ---------------------------------------------------------------------------
+
+/** 启用开关（唯一开关）：只有显式等于 `1` 才真跑；其余一切取值 = 默认关闭（pending）。 */
+export const INSTALL_SMOKE_ENV_VAR = 'VESSEL_GATE_INSTALL_SMOKE';
+
+/** 入口包（= 发布包；`bin.vessel` → `dist/cli.js`）。 */
+export const INSTALL_SMOKE_ROOT_PACKAGE = PUBLISH_PACKAGE_NAME;
+
+/**
+ * 安装态 CLI 入口（**项目内相对**路径）。
+ * 刻意用相对路径 + `cwd=项目目录`：Windows 上 RunCommand 走 `shell: true`，argv 不做引号转义，
+ * 绝对路径里的空白会把命令拆开 —— 相对路径（`node_modules/@vessel/...`）永不带空白。
+ */
+export const INSTALL_SMOKE_ENTRY_REL = 'node_modules/@vessel/cli/dist/cli.js';
+
+/** 安装态 system 层策略文件（项目内相对路径）——「读路径落在包内」的**唯一**期望值。 */
+export const INSTALL_SMOKE_SYSTEM_CONFIG_REL = 'node_modules/@vessel/cli/dist/configs/policy.default.yaml';
+
+/** 「内置配置缺失」警告标记（apps/cli/src/cli.ts:241 逐字文案；只有包内 configs 读不到才打印）。 */
+export const MISSING_BUILTIN_CONFIG_MARKER = '未找到内置配置';
+
+/** 第 9 道门禁的 criterion（进 release-report 的 criterion 列）。 */
+export const INSTALL_SMOKE_CRITERION =
+  '安装态冒烟（install-smoke，**可选**：VESSEL_GATE_INSTALL_SMOKE=1 时执行）：把入口包的 workspace 运行时依赖闭包' +
+  '逐个 `npm pack --offline` 成 tarball → 在**全新空项目**里 `npm install <全部 tarball> --offline --no-audit --no-fund`' +
+  '→ 以**安装态**跑 CLI，断言 ① `policy status --json` 的 system 层路径逐字等于' +
+  ' `<项目>/node_modules/@vessel/cli/dist/configs/policy.default.yaml` 且该文件真实存在；' +
+  '② `usage` 不打印「未找到内置配置」。两条同时成立才 pass（`--version`/`--help` 恒 exit 0，**不作判据**）。' +
+  '环境不具备（未启用 / npm 不可用 / 离线装不上（缓存缺第三方依赖或解析不可达）/ 超时 / 输出不可解析）→ 显式 **pending**；' +
+  '包真的坏了（自家 workspace 依赖未被同批 tarball 满足 / tarball 缺文件 / 装完无入口 / CLI 跑不起来 / ' +
+  '读路径落到包外 / 出现缺配置警告）→ **fail**；两者都不静默通过。';
+
+/** 是否显式启用（默认关闭 → 门禁 pending，不拖慢既有 8 道）。 */
+export function installSmokeRequested(env: Record<string, string | undefined>): boolean {
+  return env[INSTALL_SMOKE_ENV_VAR] === '1';
+}
+
+/** 从 `policy status` 输出取 system 层路径：优先 `--json`（稳定），退回人类输出行。 */
+export function parseSystemLayerPath(output: string): string | undefined {
+  const text = String(output);
+  const braceAt = text.indexOf('{');
+  if (braceAt >= 0) {
+    try {
+      const doc = JSON.parse(text.slice(braceAt)) as { layers?: Array<{ layer?: string; path?: string }> };
+      const sys = doc.layers?.find((l) => l.layer === 'system');
+      if (typeof sys?.path === 'string' && sys.path.length > 0) return sys.path;
+    } catch {
+      // 不是 JSON（人类输出）→ 走下面的行解析
+    }
+  }
+  for (const line of text.split(/\r?\n/)) {
+    if (!/^\s*system\b/.test(line)) continue;
+    const m = line.match(/(\S*policy\.default\.yaml)/);
+    if (m?.[1] !== undefined) return m[1];
+  }
+  return undefined;
+}
+
+/** system 层路径是否**逐字**落在安装态包内（分隔符归一 + Windows 大小写不敏感）。 */
+export function systemPathInInstalledPackage(systemPath: string | undefined, projectDir: string): boolean {
+  if (systemPath === undefined || systemPath.trim().length === 0) return false;
+  const expected = path.resolve(projectDir, ...INSTALL_SMOKE_SYSTEM_CONFIG_REL.split('/'));
+  const norm = (p: string): string => {
+    const abs = path.resolve(p);
+    return process.platform === 'win32' ? abs.toLowerCase() : abs;
+  };
+  return norm(systemPath) === norm(expected);
+}
+
+/** 输出里是否出现「未找到内置配置」警告（包内 configs 读不到的**唯一**可观测信号）。 */
+export function hasMissingBuiltinConfigWarn(output: string): boolean {
+  return String(output).includes(MISSING_BUILTIN_CONFIG_MARKER);
+}
+
+/**
+ * npm 是否根本没跑起来（工具缺失 / spawn 级失败）。
+ * **必须**先排除 npm 自己的日志行：`npm error ENOENT …` 是 npm 真跑了并失败（→ fail），
+ * 而 `'npm' is not recognized …` / 空输出才是工具缺失（→ pending）。
+ */
+export function isNpmToolMissing(text: string): boolean {
+  const t = String(text);
+  if (NPM_LOG_LINE_RE.test(t)) return false;
+  return (
+    t.trim().length === 0 ||
+    /ENOENT|not recognized|command not found|不是内部或外部命令|系统找不到指定的文件/i.test(t)
+  );
+}
+
+/**
+ * 「环境不具备」的离线证据：npm 因**网络 / 缓存 / 解析**原因失败（而不是包坏了）。
+ * 命中即 pending（离线环境下无法证伪「第三方依赖只是缓存里没有」）。
+ */
+export function isOfflineBlockedText(text: string): boolean {
+  return /ENOTCACHED|EAI_AGAIN|ENOTFOUND|ECONNREFUSED|ECONNRESET|ETIMEDOUT|ERR_SOCKET_TIMEOUT|ENETUNREACH|fetch failed|only-if-cached|network is unreachable|registry\.npmjs\.org|E404|404 Not Found/i.test(
+    String(text),
+  );
+}
+
+/** 正则转义（把包名安全地嵌进正则）。 */
+function escapeRegExp(text: string): string {
+  return text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+/**
+ * 从 npm 安装失败输出里反解「哪些**本仓 workspace 包**没被解析到」。
+ *
+ * 语义：离线安装时若某个自家包的范围没被同批 tarball 满足，npm 只能去 registry 找它 →
+ * 失败文案里出现该包名（`@vessel/llm` 与 URL 编码 `@vessel%2fllm` 两种形态都认）。
+ * 命中 ⇒「自家依赖图不自洽」= 真的坏了（fail）；命中不了（纯第三方包）⇒ pending（缓存缺失）。
+ */
+export function unresolvedWorkspaceDeps(text: string, workspaceNames: readonly string[]): string[] {
+  const t = String(text);
+  return workspaceNames.filter((name) => {
+    const encoded = escapeRegExp(name).replace(/\//g, '(?:/|%2[fF])');
+    return [
+      `(?:request to \\S*|No matching version found for |404 Not Found - GET \\S*)${encoded}(?![\\w-])`,
+      `${encoded}@[^\\s']*' is not in this registry`,
+    ].some((form) => new RegExp(form, 'i').test(t));
+  });
+}
+
+/** 一个 workspace 包（名 + 目录）。 */
+export interface WorkspacePackage {
+  name: string;
+  dir: string;
+}
+
+/** 解析 root package.json 的 workspaces → 包名/目录（只认含 `name` 的目录；解析不了则返回 `[]`）。 */
+export function resolveWorkspacePackages(repoRoot: string): WorkspacePackage[] {
+  let patterns: string[] = [];
+  try {
+    const doc = JSON.parse(fs.readFileSync(path.join(repoRoot, 'package.json'), 'utf8')) as {
+      workspaces?: string[] | { packages?: string[] };
+    };
+    const ws = doc.workspaces;
+    patterns = Array.isArray(ws) ? ws : (ws?.packages ?? []);
+  } catch {
+    return [];
+  }
+  const out: WorkspacePackage[] = [];
+  for (const pattern of patterns) {
+    if (typeof pattern !== 'string' || pattern.length === 0) continue;
+    let dirs: string[] = [];
+    if (pattern.endsWith('/*')) {
+      const base = pattern.slice(0, -2);
+      try {
+        dirs = fs
+          .readdirSync(path.join(repoRoot, base), { withFileTypes: true })
+          .filter((d) => d.isDirectory())
+          .map((d) => path.join(repoRoot, base, d.name));
+      } catch {
+        dirs = [];
+      }
+    } else {
+      dirs = [path.join(repoRoot, pattern)];
+    }
+    for (const dir of dirs) {
+      try {
+        const pkg = JSON.parse(fs.readFileSync(path.join(dir, 'package.json'), 'utf8')) as { name?: unknown };
+        if (typeof pkg.name === 'string' && pkg.name.length > 0) out.push({ name: pkg.name, dir });
+      } catch {
+        // 不是包目录 → 跳过
+      }
+    }
+  }
+  return out;
+}
+
+/**
+ * 入口包的**运行时依赖闭包**（只跟 `dependencies`，不跟 devDependencies —— `npm i <tarball>` 时
+ * npm 也只装 dependencies）。返回闭包内包目录 + 未解析到的包名（正常情况下只有入口包缺失才会非空）。
+ *
+ * 为什么取闭包而不是全 workspace：`apps/web` / `benchmarks/runners` 带着 react/vite 等重依赖，
+ * 把它们塞进判据只会让结论变成「本机缓存里有没有 react」，与「CLI 装进项目能不能跑」无关。
+ */
+export function resolveInstallClosure(
+  repoRoot: string,
+  rootName: string = INSTALL_SMOKE_ROOT_PACKAGE,
+): { packages: WorkspacePackage[]; unresolved: string[] } {
+  const all = resolveWorkspacePackages(repoRoot);
+  const byName = new Map(all.map((p) => [p.name, p]));
+  const ordered: WorkspacePackage[] = [];
+  const seen = new Set<string>();
+  const unresolved: string[] = [];
+  const queue: string[] = [rootName];
+  while (queue.length > 0) {
+    const name = queue.shift();
+    if (name === undefined || seen.has(name)) continue;
+    seen.add(name);
+    const pkg = byName.get(name);
+    if (pkg === undefined) {
+      unresolved.push(name);
+      continue;
+    }
+    ordered.push(pkg);
+    try {
+      const doc = JSON.parse(fs.readFileSync(path.join(pkg.dir, 'package.json'), 'utf8')) as {
+        dependencies?: Record<string, string>;
+      };
+      for (const dep of Object.keys(doc.dependencies ?? {})) if (byName.has(dep)) queue.push(dep);
+    } catch {
+      // manifest 读不了：由后面的 pack 阶段如实暴露
+    }
+  }
+  return { packages: ordered, unresolved };
+}
+
+/** 判定安装态冒烟所需的事实（全部来自真实命令输出 / 真实文件，不做推断）。 */
+export interface InstallSmokeFacts {
+  /** 是否显式启用（`VESSEL_GATE_INSTALL_SMOKE=1`）。 */
+  enabled: boolean;
+  /** 临时目录路径可用（含空白时 Windows `shell:true` 的 argv 拼接会失真 → pending，不判 fail）。 */
+  tempPathUsable: boolean;
+  /** npm 是否真的跑起来了（false = 工具缺失 / spawn 级失败）。 */
+  npmAvailable: boolean;
+  /** 任一命令按 timeoutMs **实测**超时（不看错误文案）。 */
+  timedOut: boolean;
+  /** workspace 闭包是否解析出来（root package.json 的 workspaces 里有入口包）。 */
+  closureResolved: boolean;
+  /** 全部 tarball 是否 pack 成功。 */
+  packOk: boolean;
+  /** pack 失败原因是离线 / 网络（→ pending 而非 fail）。 */
+  packBlockedOffline: boolean;
+  /** 产出的 tarball 数 / 闭包内包数。 */
+  tarballCount: number;
+  expectedPackages: number;
+  /** 空项目 `npm install <tarballs>` 是否 exit 0。 */
+  installOk: boolean;
+  /** install 失败原因是离线 / 网络 / 解析（→ pending）。 */
+  installBlockedOffline: boolean;
+  /** 离线解析失败里命中的**本仓 workspace 包名**（非空 = 自家依赖图不自洽 → fail）。 */
+  workspaceDepMissing: string[];
+  /** 装完 `<项目>/node_modules/@vessel/cli/dist/cli.js` 是否存在。 */
+  cliEntryExists: boolean;
+  /** `policy status --json` 是否 exit 0。 */
+  policyStatusOk: boolean;
+  /** 解析出的 system 层路径（原始值，未归一）。 */
+  systemPath?: string;
+  /** system 层路径是否逐字落在安装态包内。 */
+  systemPathInPackage: boolean;
+  /** 该包内配置文件是否真实存在。 */
+  systemConfigFileExists: boolean;
+  /** `usage` 是否打印「未找到内置配置」（= pricing/model-catalog 读路径没命中包内 configs）。 */
+  usageWarnsMissingConfig: boolean;
+  /** 证据行（命令退出码 / 路径 / 输出尾部）。 */
+  detail: string[];
+}
+
+/**
+ * 判定安装态冒烟（纯函数，无 IO；分支顺序即优先级）。
+ *
+ * pending 通道（**环境不具备**，绝不判 fail）：未启用 → 路径不可用 → 闭包解析不出 → npm 不可用 →
+ *   超时 → pack 因离线失败 → install 因离线失败 → system 路径不可解析。
+ * fail 通道（**包真的坏了**）：pack 非环境性失败 → tarball 数不足 → install 非环境性失败 →
+ *   自家 workspace 依赖未被满足 → 装完无入口 → `policy status` 非 0 → 读路径落包外 →
+ *   包内配置文件不存在 → 出现缺配置警告。
+ */
+export function judgeInstallSmoke(facts: InstallSmokeFacts): GateVerdict {
+  const detail = (...rows: string[]): string[] => [...rows, ...facts.detail].slice(0, 12);
+  const pending = (summary: string, note: string, rows: string[]): GateVerdict => ({
+    status: 'pending',
+    pending: true,
+    evidence: { summary, detail: detail(...rows) },
+    note,
+  });
+  const fail = (summary: string, rows: string[]): GateVerdict => ({
+    status: 'fail',
+    evidence: { summary, detail: detail(...rows) },
+  });
+
+  if (!facts.enabled) {
+    return pending(
+      `安装态冒烟未启用（${INSTALL_SMOKE_ENV_VAR}≠1）—— 未执行 pack / install / 首跑`,
+      `install-smoke gate: 默认不跑（避免拖慢既有 8 道门禁）；设 ${INSTALL_SMOKE_ENV_VAR}=1 后重跑，不静默通过。`,
+      ['未启用：零命令执行'],
+    );
+  }
+  if (!facts.tempPathUsable) {
+    return pending(
+      '临时目录路径含空白，Windows `shell:true` 的命令拼接不可靠 —— 未执行冒烟',
+      'install-smoke gate: 环境性（路径形态）不可判定 → 显式 pending，不静默通过。',
+      [],
+    );
+  }
+  if (!facts.closureResolved) {
+    return pending(
+      `无法从 root package.json 的 workspaces 解析出入口包 ${INSTALL_SMOKE_ROOT_PACKAGE} —— 未执行冒烟`,
+      'install-smoke gate: 仓库布局与判据预期不符 → 显式 pending，不静默通过。',
+      [],
+    );
+  }
+  if (!facts.npmAvailable) {
+    return pending(
+      'npm 不可用（spawn 级失败，无 npm 日志）—— 未判定安装态',
+      'install-smoke gate: 当前环境跑不了 npm pack / npm install → 显式 pending，不静默通过。',
+      [],
+    );
+  }
+  if (facts.timedOut) {
+    return pending(
+      '安装态冒烟超时（按实测耗时 ≥ 传入 timeoutMs 判定）—— 未判定安装态',
+      'install-smoke gate: 超时属环境性未完成 → 显式 pending（可加大超时或换机器重跑），不静默通过。',
+      [],
+    );
+  }
+  if (!facts.packOk) {
+    return facts.packBlockedOffline
+      ? pending(
+          'npm pack 因离线 / 网络原因失败 —— 环境不具备，未判定安装态',
+          'install-smoke gate: 离线缓存不满足 pack 需求 → 显式 pending，不静默通过。',
+          [],
+        )
+      : fail('npm pack 失败（npm 已执行且非环境原因）—— 发布物产不出来', []);
+  }
+  if (facts.tarballCount < facts.expectedPackages) {
+    return fail(
+      `pack 声称成功但 tarball 只有 ${facts.tarballCount}/${facts.expectedPackages} 个 —— 至少一个包没产出发布物`,
+      [],
+    );
+  }
+  if (!facts.installOk) {
+    if (facts.workspaceDepMissing.length > 0) {
+      return fail(
+        `空项目离线安装失败：自家 workspace 依赖未被同批 tarball 满足（${facts.workspaceDepMissing.join(', ')}）` +
+          ' —— 依赖图不自洽，装进任何项目都会失败',
+        [],
+      );
+    }
+    return facts.installBlockedOffline
+      ? pending(
+          'npm install 因离线 / 网络 / 解析原因失败 —— 环境不具备（缓存缺第三方依赖），未判定安装态',
+          'install-smoke gate: 离线无法证伪「依赖只是没缓存」→ 显式 pending，不静默通过。',
+          [],
+        )
+      : fail('空项目安装失败（npm 非 0 退出且非环境原因）—— 装不起来', []);
+  }
+  if (!facts.cliEntryExists) {
+    return fail('安装完成但 node_modules/@vessel/cli/dist/cli.js 不存在 —— 包内无可用入口', []);
+  }
+  if (!facts.policyStatusOk) {
+    return fail('安装态 `policy status` 非 0 退出 —— CLI 装完跑不起来', []);
+  }
+  if (facts.systemPath === undefined) {
+    return pending(
+      '`policy status` 输出里解析不出 system 层路径（输出形态变化）—— 未判定读路径',
+      'install-smoke gate: 判据输入不可解析 → 显式 pending，不静默通过。',
+      [],
+    );
+  }
+  if (!facts.systemPathInPackage) {
+    return fail(
+      `system 层路径落在**包外**（${facts.systemPath}）—— 包内 configs 没被读到，安装态会走 cwd 兜底路径`,
+      [],
+    );
+  }
+  if (!facts.systemConfigFileExists) {
+    return fail(`system 层路径指向包内但文件不存在（${INSTALL_SMOKE_SYSTEM_CONFIG_REL}）—— tarball 缺 configs`, []);
+  }
+  if (facts.usageWarnsMissingConfig) {
+    return fail(
+      '`usage` 打印「未找到内置配置」—— pricing.json / model-catalog.json 未从包内读到（成本会静默降级成兜底价）',
+      [],
+    );
+  }
+  return {
+    status: 'pass',
+    evidence: {
+      summary:
+        `安装态冒烟通过（${facts.expectedPackages} 个 tarball → 全新空项目离线安装 exit 0 → ` +
+        'system 层路径在包内 + `usage` 无缺配置警告）',
+      detail: detail('判据：读路径落在包内，而不是「命令 exit 0」'),
+    },
+  };
+}
+
+/** 一条命令的执行结果（含**实测**超时标志）。 */
+interface StepResult {
+  outcome: CommandOutcome;
+  timedOut: boolean;
+}
+
+/**
+ * 跑一条命令并判定是否超时。
+ * 超时判定以**实测耗时**为准：RunCommand 的约定是「失败一律 code=1」，execFile 超时被 catch 后
+ * 错误码不是数字 → 落成 1，与真实 exit 1 无法从 code 区分；文案也未必含 "timeout"。
+ */
+async function runStep(
+  ctx: ReleaseContext & { exec: RunCommand },
+  command: string,
+  args: string[],
+  opts: { cwd?: string; env?: Record<string, string | undefined>; timeoutMs: number },
+): Promise<StepResult> {
+  const started = Date.now();
+  let outcome: CommandOutcome;
+  try {
+    outcome = await ctx.exec(command, args, opts);
+  } catch (err) {
+    outcome = { code: 1, stdout: '', stderr: String(err) };
+  }
+  const elapsedMs = Date.now() - started;
+  const text = `${outcome.stdout}\n${outcome.stderr}`;
+  const timedOut = outcome.code !== 0 && (elapsedMs >= opts.timeoutMs || /ETIMEDOUT|timed out|SIGTERM/i.test(text));
+  return { outcome, timedOut };
+}
+
+/** 安装态冒烟 executor 的可注入参数（超时 / 环境变量口子）。 */
+export interface InstallSmokeOptions {
+  /** 单次 `npm pack` 超时（默认 300s：首次要跑各包 prepack 构建）。 */
+  packTimeoutMs?: number;
+  /** `npm install` 超时（默认 600s）。 */
+  installTimeoutMs?: number;
+  /** 单次 CLI 探测超时（默认 60s）。 */
+  cliTimeoutMs?: number;
+  /** 读环境变量的口子（默认 `process.env`；测试注入 `{}` 即走「未启用」的零命令分支）。 */
+  env?: Record<string, string | undefined>;
+}
+
+/**
+ * 安装态冒烟 executor（第 9 道门禁，**可选**）。
+ *
+ * 真实动作（仅在 `VESSEL_GATE_INSTALL_SMOKE=1` 时）：闭包内每个包 `npm pack --offline`
+ * （跑真实 prepack 构建，与「干净检出 npm pack」同语义 → 不落 .tgz 到仓库，全部进临时目录）
+ * → 全新空项目 `npm install <相对路径 tarball…> --offline --no-audit --no-fund`
+ * → 安装态跑 `--version`（仅证据）/ `policy status --json` / `usage`。
+ *
+ * 隔离：整条链在 `fs.mkdtempSync(os.tmpdir())` 里进行（`finally` 清理）；CLI 探测注入
+ * `VESSEL_USAGE_ROOT` / `VESSEL_PROVIDER_ROOT` 指向临时目录，**绝不读写真实 `~/.vessel`**。
+ */
+export function buildInstallSmokeExecutor(opts: InstallSmokeOptions = {}): GateExecutor {
+  return {
+    gate: {
+      id: 'install-smoke',
+      name: 'Install Smoke (opt-in, gate 9)',
+      criterion: INSTALL_SMOKE_CRITERION,
+      position: 9,
+    },
+    run: async (ctx: ReleaseContext & { exec: RunCommand }): Promise<GateVerdict> => {
+      const env = opts.env ?? process.env;
+      const facts: InstallSmokeFacts = {
+        enabled: installSmokeRequested(env),
+        tempPathUsable: true,
+        npmAvailable: true,
+        timedOut: false,
+        closureResolved: false,
+        packOk: false,
+        packBlockedOffline: false,
+        tarballCount: 0,
+        expectedPackages: 0,
+        installOk: false,
+        installBlockedOffline: false,
+        workspaceDepMissing: [],
+        cliEntryExists: false,
+        policyStatusOk: false,
+        systemPathInPackage: false,
+        systemConfigFileExists: false,
+        usageWarnsMissingConfig: false,
+        detail: [],
+      };
+      // 默认（未启用）：立即 pending 返回，**零命令、零 IO** —— 这是既有 8 道门禁不被拖慢的关键。
+      if (!facts.enabled) return judgeInstallSmoke(facts);
+
+      const packTimeoutMs = opts.packTimeoutMs ?? 300_000;
+      const installTimeoutMs = opts.installTimeoutMs ?? 600_000;
+      const cliTimeoutMs = opts.cliTimeoutMs ?? 60_000;
+
+      const closure = resolveInstallClosure(ctx.repoRoot);
+      facts.expectedPackages = closure.packages.length;
+      facts.closureResolved = closure.packages.some((p) => p.name === INSTALL_SMOKE_ROOT_PACKAGE);
+      facts.detail.push(`闭包 ${closure.packages.length} 个包：${closure.packages.map((p) => p.name).join(', ') || '(空)'}`);
+      if (!facts.closureResolved) return judgeInstallSmoke(facts);
+
+      const tmpRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'vessel-install-smoke-'));
+      try {
+        const tarballsDir = path.join(tmpRoot, 'tarballs');
+        const projectDir = path.join(tmpRoot, 'project');
+        fs.mkdirSync(tarballsDir, { recursive: true });
+        fs.mkdirSync(projectDir, { recursive: true });
+        fs.writeFileSync(
+          path.join(projectDir, 'package.json'),
+          JSON.stringify({ name: 'vessel-install-smoke', version: '0.0.0', private: true }, null, 2),
+          'utf8',
+        );
+        if (/\s/.test(tarballsDir)) {
+          facts.tempPathUsable = false;
+          facts.detail.push(`临时目录含空白：${tarballsDir}`);
+          return judgeInstallSmoke(facts);
+        }
+
+        // ① 逐个 pack（真实 prepack = 真实构建；--offline 把「不联网」变成机械保证）
+        for (const pkg of closure.packages) {
+          const step = await runStep(
+            ctx,
+            'npm',
+            ['pack', '--offline', '--no-color', '--pack-destination', tarballsDir],
+            { cwd: pkg.dir, timeoutMs: packTimeoutMs },
+          );
+          const text = `${step.outcome.stdout}\n${step.outcome.stderr}`;
+          if (step.timedOut) {
+            facts.timedOut = true;
+            facts.detail.push(`npm pack ${pkg.name} 超时（>${packTimeoutMs}ms）`);
+            return judgeInstallSmoke(facts);
+          }
+          if (step.outcome.code !== 0) {
+            facts.detail.push(`npm pack ${pkg.name} exit=${step.outcome.code}`, ...tailLines(text));
+            if (isNpmToolMissing(text)) {
+              facts.npmAvailable = false;
+              return judgeInstallSmoke(facts);
+            }
+            facts.packBlockedOffline = isOfflineBlockedText(text);
+            return judgeInstallSmoke(facts);
+          }
+        }
+        facts.packOk = true;
+
+        const tarballs = fs.readdirSync(tarballsDir).filter((f) => f.endsWith('.tgz'));
+        facts.tarballCount = tarballs.length;
+        facts.detail.push(`tarball ${tarballs.length}/${closure.packages.length} 个`);
+        if (tarballs.length < closure.packages.length) return judgeInstallSmoke(facts);
+
+        // ② 全新空项目安装（显式离线；tarball 用**项目内相对路径**，不带空白）
+        const specs = tarballs.map((f) => `./tarballs/${f}`);
+        const install = await runStep(
+          ctx,
+          'npm',
+          ['install', ...specs, '--offline', '--no-audit', '--no-fund', '--no-color'],
+          { cwd: projectDir, timeoutMs: installTimeoutMs },
+        );
+        const installText = `${install.outcome.stdout}\n${install.outcome.stderr}`;
+        facts.detail.push(`npm install exit=${install.outcome.code}`);
+        if (install.timedOut) {
+          facts.timedOut = true;
+          return judgeInstallSmoke(facts);
+        }
+        if (install.outcome.code !== 0) {
+          if (isNpmToolMissing(installText)) {
+            facts.npmAvailable = false;
+            return judgeInstallSmoke(facts);
+          }
+          facts.installBlockedOffline = isOfflineBlockedText(installText);
+          facts.workspaceDepMissing = unresolvedWorkspaceDeps(
+            installText,
+            closure.packages.map((p) => p.name),
+          );
+          facts.detail.push(...tailLines(installText));
+          return judgeInstallSmoke(facts);
+        }
+        facts.installOk = true;
+
+        // ③ 安装态首跑：判别力在**读路径**，不在「命令 exit 0」
+        const cliEnv: Record<string, string | undefined> = {
+          ...process.env,
+          VESSEL_USAGE_ROOT: path.join(tmpRoot, 'vessel-usage'),
+          VESSEL_PROVIDER_ROOT: path.join(tmpRoot, 'vessel-providers'),
+        };
+        facts.cliEntryExists = fs.existsSync(path.join(projectDir, ...INSTALL_SMOKE_ENTRY_REL.split('/')));
+        if (!facts.cliEntryExists) return judgeInstallSmoke(facts);
+
+        const version = await runStep(ctx, 'node', [INSTALL_SMOKE_ENTRY_REL, '--version'], {
+          cwd: projectDir,
+          env: cliEnv,
+          timeoutMs: cliTimeoutMs,
+        });
+        facts.timedOut = facts.timedOut || version.timedOut;
+        // `--version` **恒 exit 0、零判别力** —— 只作证据，绝不参与判定。
+        facts.detail.push(`--version exit=${version.outcome.code}（仅证据，不作判据）`);
+
+        const status = await runStep(ctx, 'node', [INSTALL_SMOKE_ENTRY_REL, 'policy', 'status', '--json'], {
+          cwd: projectDir,
+          env: cliEnv,
+          timeoutMs: cliTimeoutMs,
+        });
+        facts.timedOut = facts.timedOut || status.timedOut;
+        facts.policyStatusOk = status.outcome.code === 0;
+        if (!facts.timedOut) {
+          const sysPath = parseSystemLayerPath(status.outcome.stdout);
+          if (sysPath !== undefined) facts.systemPath = sysPath;
+          facts.systemPathInPackage = systemPathInInstalledPackage(sysPath, projectDir);
+          facts.systemConfigFileExists = fs.existsSync(
+            path.join(projectDir, ...INSTALL_SMOKE_SYSTEM_CONFIG_REL.split('/')),
+          );
+          facts.detail.push(`policy status exit=${status.outcome.code}；system 层路径=${sysPath ?? '(未解析出)'}`);
+        }
+        if (facts.timedOut || !facts.policyStatusOk) return judgeInstallSmoke(facts);
+
+        const usage = await runStep(ctx, 'node', [INSTALL_SMOKE_ENTRY_REL, 'usage'], {
+          cwd: projectDir,
+          env: cliEnv,
+          timeoutMs: cliTimeoutMs,
+        });
+        facts.timedOut = facts.timedOut || usage.timedOut;
+        facts.usageWarnsMissingConfig = hasMissingBuiltinConfigWarn(
+          `${usage.outcome.stdout}\n${usage.outcome.stderr}`,
+        );
+        facts.detail.push(`usage exit=${usage.outcome.code}；缺配置警告=${String(facts.usageWarnsMissingConfig)}`);
+        return judgeInstallSmoke(facts);
+      } finally {
+        try {
+          fs.rmSync(tmpRoot, { recursive: true, force: true });
+        } catch {
+          // 清理失败不影响判定（临时目录由 OS 回收）
+        }
+      }
+    },
+  };
+}
+
+// ---------------------------------------------------------------------------
 // V1.1-E 证据注解 —— unit gate 归因（注解机制保留，归因逻辑改为证据驱动）
 // ---------------------------------------------------------------------------
 
@@ -736,6 +1378,10 @@ async function main(): Promise<void> {
     if (e.gate.id === 'packaging') return buildPublishArtifactExecutor();
     return e;
   });
+  // V1.1-G（EVALUATION-REPORT-24「最大缺口」）：第 9 道「安装态冒烟」——**默认 pending**，
+  // 仅 `VESSEL_GATE_INSTALL_SMOKE=1` 时才真跑（pack → install → 首跑）。未启用时 executor
+  // 立即返回、零命令零 IO，故既有 8 道门禁既不变慢也不变脆；报告里仍如实列出该行（不静默通过）。
+  executors.push(buildInstallSmokeExecutor());
 
   const report = await runReleaseGates(
     executors,

@@ -885,13 +885,68 @@ function printEnforcementTelemetry(enforcement: EnforcementProjection): void {
   }
 }
 
+/**
+ * `@vessel/bench-runners`（`benchmarks/runners`，`private: true`）的模块类型。
+ * 该包**不随 npm 包分发**，只有在仓库内以源码方式运行时才解析得到它。
+ */
+type BenchRunnersModule = typeof import('@vessel/bench-runners');
+
+/**
+ * 动态加载 `@vessel/bench-runners` 的注入缝（与 `serveRuntime` 同款：测试替换成员、
+ * 用完还原）。仓库内靠 `apps/cli/tsconfig.json` 的 project reference + vitest alias 解析；
+ * 安装态（tarball / registry 装出来的项目）必然解析不到——由 `loadBenchRunners` 兜成人话。
+ */
+export const benchRunnersRuntime = {
+  load: (): Promise<BenchRunnersModule> => import('@vessel/bench-runners'),
+};
+
+/**
+ * 是否「解析不到 bench-runners」这一类**模块解析失败**（而不是该包内部抛出的其它异常）。
+ * 只认 Node 的解析错误码，以及**含该包名**的解析报错句式——不含包名的一律不算，
+ * 避免把无关异常一并吞掉。
+ */
+function isBenchRunnersResolutionFailure(err: unknown): boolean {
+  const code = (err as { code?: unknown } | null | undefined)?.code;
+  if (code === 'ERR_MODULE_NOT_FOUND' || code === 'MODULE_NOT_FOUND') return true;
+  const msg = err instanceof Error ? err.message : String(err);
+  // Node ESM 缺包时是 `Cannot find package '<name>' imported from ...`，
+  // 子路径缺失时是 `Cannot find module '<name>' ...`——两者都收，但必须带包名。
+  return /Cannot find (module|package) ['"]@vessel\/bench-runners['"]/.test(msg);
+}
+
+/** 安装态加载不到 bench-runners 的「人话」文案；`hint` 给出仓库内的替代命令。 */
+function benchRunnersUnavailableMessage(hint: string): string {
+  return [
+    '[vessel] 此功能需要在本仓库内以源码方式运行：@vessel/bench-runners 是 private 包（benchmarks/runners），不随 npm 包分发，安装态解析不到它。',
+    `        仓库内请改用：${hint}`,
+  ].join('\n');
+}
+
+/**
+ * 动态加载 bench-runners：**只**把模块解析失败转成 `null`（调用方走既有 `fail` 出口，
+ * 文案见 `benchRunnersUnavailableMessage`）；其它异常照旧向上抛，语义与改动前一致。
+ */
+async function loadBenchRunners(): Promise<BenchRunnersModule | null> {
+  try {
+    return await benchRunnersRuntime.load();
+  } catch (err) {
+    if (!isBenchRunnersResolutionFailure(err)) throw err;
+    return null;
+  }
+}
+
 async function cmdBench(flags: Map<string, string>): Promise<number> {
   const scenarioId = flags.get('bench');
   if (!scenarioId) {
     const msg = '[vessel] run --bench 需要 scenarioId（如 B001）';
     return fail(2, msg, flags, () => console.error(msg));
   }
-  const { runScenario } = await import('@vessel/bench-runners');
+  const runners = await loadBenchRunners();
+  if (runners === null) {
+    const msg = benchRunnersUnavailableMessage('npx tsx apps/cli/src/cli.ts run --bench <scenarioId>');
+    return fail(2, msg, flags, () => console.error(msg));
+  }
+  const { runScenario } = runners;
   const workspace = path.resolve(flags.get('workspace') ?? process.cwd());
   const outDir = path.resolve(flags.get('out') ?? path.join(workspace, 'benchmarks', 'reports'));
   const providerName = flags.get('provider') ?? 'mock';
@@ -1999,8 +2054,12 @@ async function cmdBenchReport(flags: Map<string, string>): Promise<number> {
     const msg = `[vessel] 无法读取/解析输入 JSON: ${(err as Error).message}`;
     return fail(2, msg, flags, () => console.error(msg));
   }
-  const { buildReportFromRunResults, buildReport, rowsFromLaneReport, renderCliSummary, writeReportFiles } =
-    await import('@vessel/bench-runners');
+  const runners = await loadBenchRunners();
+  if (runners === null) {
+    const msg = benchRunnersUnavailableMessage('npx tsx apps/cli/src/cli.ts bench-report --input <runResults.json>');
+    return fail(2, msg, flags, () => console.error(msg));
+  }
+  const { buildReportFromRunResults, buildReport, rowsFromLaneReport, renderCliSummary, writeReportFiles } = runners;
 
   const isArray = Array.isArray(json);
   const isLaneReport = !isArray && typeof json === 'object' && (json as { modelSummaries?: unknown })?.modelSummaries !== undefined;
