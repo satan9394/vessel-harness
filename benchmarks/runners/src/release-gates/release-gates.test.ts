@@ -976,8 +976,16 @@ describe('gate 3 deterministic-bench：判据点名的场景 == 两种装配实�
     expect([...driverRequested].sort()).toEqual([...declared].sort());
     // 更强的判别点：默认装配必须覆盖 L1 两端的代表性场景（旧子集只有 B001–B005 ⇒ 必红）
     for (const id of ['B001', 'B005', 'B016', 'B027']) expect(defaultRequested).toContain(id);
-    // 旧子集常量不得再是子集（有人把它退回 5 个 ⇒ 必红）
-    expect([...DETERMINISTIC_BENCH_SCENARIOS]).toEqual([...L1_DETERMINISTIC_BENCH_SCENARIOS]);
+    // 旧子集常量不得再是子集（有人把它退回 5 个 ⇒ 必红）。
+    // **独立期望（对抗评审 A6 修正）**：此处原写 `toEqual([...L1_DETERMINISTIC_BENCH_SCENARIOS])`，
+    // 而 `DETERMINISTIC_BENCH_SCENARIOS` 正是 `L1_DETERMINISTIC_BENCH_SCENARIOS` 的**同一引用**
+    // ⇒ 左右恒等、这条断言**删不出红**（纪律 24）。改为与**字面量清单**比对：谁改别名指向、
+    // 或改 L1 集合，都必须在此做一次**有意识的**更新。
+    expect([...DETERMINISTIC_BENCH_SCENARIOS]).toEqual([
+      'B001', 'B002', 'B003', 'B004', 'B005',
+      'B016', 'B017', 'B018', 'B019', 'B020',
+      'B021', 'B022', 'B023', 'B024', 'B025', 'B026', 'B027',
+    ]);
   });
 });
 
