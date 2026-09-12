@@ -236,7 +236,11 @@ if (n >= 3) throw new DenialLimitError(...);
   return (provider) => multipliers[provider] ?? DEFAULT_COST_MULTIPLIER;
   ```
   ⇒ 只要 `costMultipliers()` 抛错，**所有 provider 的倍率静默变默认值**，**成本展示随之静默失真、且无任何告警**（属"静默降级"族）。
-- **我尚未定级**：本仓此前已加固过供应商/用量状态损坏的留档与兜底（task 097 一系），所以 `costMultipliers()` 很可能**自己就兜底而不抛**——那样这个 `catch` 是防御性的、**不可达**。**需实测"store 损坏时它抛不抛"才能定级**；在拿到证据前**不派卡、不写成缺陷**。（这正是本段的纪律：**先测量，再定级**。）
+- **已实测定级（Round 53）：可达的真缺陷，不是防御性死代码。** 我用探针做了**双向实测**（临时 root 注入 `VESSEL_*` 之外的 `rootDir`）：
+  - **健康** `providers.json`（含 `costMultiplier: 2.5`）⇒ `costMultipliers()` 返回 `{"ds":2.5}`；
+  - **损坏**（非法 JSON）⇒ **抛 `providers file corrupted (invalid JSON)`** —— 因为 `rawLoad()`（`ProviderStore.ts:543-573`）对非法 JSON / 非数组 / 坏条目 / 非法配置**一律 throw**（`:556/:559/:565` + `assertValid`）。
+  ⇒ CLI 的 `catch { multipliers = {} }`（`cli.ts:513-518`）**真的会命中** ⇒ **`providers.json` 损坏时，所有 provider 的倍率静默变默认 1×、成本展示静默失真、无任何告警**。属"静默降级"族，**已派卡**（修法：保留兜底不阻断统计，但**必须可见**——warn 一次并说明原因；双向验收：损坏 ⇒ 有告警 + 仍走默认；健康 ⇒ 正常用倍率且**无**告警）。
+  （过程自纠：我的探针夹具先后因**缺 `name`**、**协议名写成 `openai`（实际是 `openai-compatible`）**被校验拒绝两次；**对照不成立时我没有拿它当证据**，补正后才定级。）
 
 ## Round 51 — 取证：**Anthropic 流式解析里两处同族"静默丢数据"**（与刚修好的 OpenAI 那处同族）
 
