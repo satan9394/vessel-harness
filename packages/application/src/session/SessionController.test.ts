@@ -166,7 +166,13 @@ describe('SessionController', () => {
       response: { content: 'hi', toolCalls: [] },
       usage: { inputTokens: 10, outputTokens: 4 },
     });
-    await ctl.bus.waterfall('before_tool', { toolCallId: 'tc1', toolName: 'Read', arguments: {} });
+    // before_tool 是安全门禁点：类型层要求显式声明 listenerErrorPolicy。本用例只驱动投影
+    // （没有拦截器监听器），故显式写出历史默认 'defer'——与改动前的隐式默认逐字等价。
+    await ctl.bus.waterfall(
+      'before_tool',
+      { toolCallId: 'tc1', toolName: 'Read', arguments: {} },
+      { listenerErrorPolicy: 'defer' },
+    );
     await ctl.bus.emit('after_tool', { toolCallId: 'tc1', toolName: 'Read', result: { content: 'x', error: undefined } });
     await ctl.bus.emit('policy_decision', { toolCallId: 'tc9', toolName: 'Shell', verdict: 'deny', ruleRef: 'r1', reason: 'no' });
 

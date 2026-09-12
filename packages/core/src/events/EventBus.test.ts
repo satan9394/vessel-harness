@@ -18,7 +18,9 @@ describe('EventBus', () => {
     bus.on('before_tool', () => { order.push('l1'); return { kind: 'allow' as const }; });
     bus.on('before_tool', () => { order.push('l2'); return { kind: 'deny' as const, reason: 'no' }; });
     bus.on('before_tool', () => { order.push('l3'); });
-    const out = await bus.waterfall('before_tool', {});
+    // 本用例验的是 waterfall 的通用机制（不是安全门禁）：安全门禁点现在在类型上要求显式声明策略，
+    // 这里写出历史默认 'defer'，与改动前的隐式默认逐字等价，断言不变。
+    const out = await bus.waterfall('before_tool', {}, { listenerErrorPolicy: 'defer' });
     expect(out.result.kind).toBe('allow');
     expect(order).toEqual(['l1']);
   });
@@ -46,7 +48,11 @@ describe('EventBus', () => {
     const onErr = vi.fn();
     bus.on('before_tool', () => { throw new Error('boom'); }, 'bad');
     bus.on('before_tool', () => ({ kind: 'deny' as const, reason: 'after-error' }));
-    const out = await bus.waterfall('before_tool', {}, { ctx: { onListenerError: onErr } });
+    // 同上：显式写出历史默认 'defer'（"抛错 = 该监听器没有意见 ⇒ 链继续"），断言不变。
+    const out = await bus.waterfall('before_tool', {}, {
+      listenerErrorPolicy: 'defer',
+      ctx: { onListenerError: onErr },
+    });
     expect(out.result.kind).toBe('deny');
     expect(onErr).toHaveBeenCalledWith('before_tool', 'bad', expect.any(Error));
   });

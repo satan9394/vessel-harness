@@ -60,7 +60,13 @@ describe('ToolActivityProjection', () => {
     const projection = new ToolActivityProjection();
     const detach = projection.attach(bus);
 
-    await bus.waterfall('before_tool', { toolCallId: 'tc1', toolName: 'Read', arguments: { path: '/a' } });
+    // before_tool 是安全门禁点：类型层要求显式声明 listenerErrorPolicy。本用例只驱动投影
+    // （没有拦截器监听器），故显式写出历史默认 'defer'——与改动前的隐式默认逐字等价。
+    await bus.waterfall(
+      'before_tool',
+      { toolCallId: 'tc1', toolName: 'Read', arguments: { path: '/a' } },
+      { listenerErrorPolicy: 'defer' },
+    );
     await bus.emit('after_tool', {
       toolCallId: 'tc1',
       toolName: 'Read',

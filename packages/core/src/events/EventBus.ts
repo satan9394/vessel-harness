@@ -36,15 +36,37 @@ export interface WaterfallOutcome {
  */
 export type WaterfallErrorPolicy = 'fail-closed' | 'ask' | 'defer';
 
+/**
+ * **安全门禁点**（safety-critical decision point）：放行即意味着一个能力面被打开 ——
+ * `before_tool` 是工具执行的闸口（Tool Interceptor 四件套的挂载点），
+ * `before_delegate` 是隔离子运行时被创建的闸口。
+ *
+ * 这两个事件名在 {@link EventBus.waterfall} 的类型签名里被**特殊对待**：
+ * `listenerErrorPolicy` 必填（见 {@link SafetyCriticalWaterfallOptions}）。
+ * 也就是说"漏声明"在类型层就是红的 —— 不会静默回落到运行期默认的 `'defer'`（= fail-open）。
+ */
+export type SafetyCriticalEvent = 'before_tool' | 'before_delegate';
+
 export interface WaterfallOptions {
   /** pre-existing restriction; narrow() can only make the result stricter */
   guard?: VerdictAction;
   ctx?: EventContext;
   /**
    * 本决策点的监听器错误策略。**省略 = `'defer'`**（保持历史语义不变，兼容既有/未接线调用点）。
-   * 生产中的安全门禁点（`before_tool`、`before_delegate`）必须显式声明 `'fail-closed'`。
+   *
+   * 省略只在**非安全点**上合法：安全门禁点（{@link SafetyCriticalEvent}）的类型签名要求
+   * 该字段必填（{@link SafetyCriticalWaterfallOptions}），生产中的 `before_tool`、
+   * `before_delegate` 声明 `'fail-closed'`。
    */
   listenerErrorPolicy?: WaterfallErrorPolicy;
+}
+
+/**
+ * 安全门禁点的选项：{@link WaterfallOptions} **再加必填的** `listenerErrorPolicy`。
+ * 这正是"新调用点漏声明 ⇒ 编译期红"的落点。
+ */
+export interface SafetyCriticalWaterfallOptions extends WaterfallOptions {
+  listenerErrorPolicy: WaterfallErrorPolicy;
 }
 
 /** 监听器抛错铸出的裁决里使用的可机读标记前缀：`listener-error:<listenerName>`。 */
@@ -127,9 +149,44 @@ export class EventBus {
    * 省略该选项时保持历史语义 `'defer'`。任何抛错都会 (a) 通过 `ctx.onListenerError`
    * 通知调用方，(b) 铸出诊断事件 `handler_error`（EVENT-SPEC §3.4），(c) 记入
    * `outcome.listenerErrors` —— 异常本身不逃逸（§3.2.3 绝不崩轮次）。
+   *
+   * **类型层必填（BRIEF-决策点 fail-closed 长期成立）** —— 用**函数重载**实现，三条口径：
+   *
+   * 1. `type` 是安全门禁点（{@link SafetyCriticalEvent}）⇒ 第三个参数**必填**，且必须是带
+   *    `listenerErrorPolicy` 的 {@link SafetyCriticalWaterfallOptions}；
+   * 2. `type` 是其它内建事件名（`Exclude<EventType, SafetyCriticalEvent>`）⇒ 保持可选
+   *    （既有非安全点调用点一字不用改）；
+   * 3. 其它字符串（自定义 / 动态事件名）⇒ 类型上无法判定"是不是安全点"，一律**要求**显式声明
+   *    （宁可在安全点多写一个字段，也不留"漏声明即静默 fail-open"的口子）。
+   *
+   * 于是 `waterfall('before_tool', payload)`（漏声明）**编译期就红**（TS2769 / TS2554），
+   * 而 `waterfall('before_turn', payload)`、`waterfall('before_tool', payload, { listenerErrorPolicy })`
+   * 照常。**运行期默认值仍是 `'defer'`，实现体与三种策略的行为一字未改。**
+   *
+   * 为什么不用"条件剩余元组"（`...rest: T extends SafetyCriticalEvent ? [opts: X] : [opts?: Y]`）：
+   * TS 在调用点对这种依赖泛型 `T` 的条件类型常按**约束**求值 ⇒ 落到"可选"分支 ⇒ 约束实际上
+   * 不生效（本仓用 `@ts-expect-error` 自检实测复现过 TS2578，见
+   * `EventBus.waterfall-error-policy.test.ts` ⑥ 段）。重载是能在调用点可靠生效的形态。
    */
   async waterfall(
-    type: EventType | string,
+    type: SafetyCriticalEvent,
+    payload: unknown,
+    opts: SafetyCriticalWaterfallOptions,
+  ): Promise<WaterfallOutcome>;
+  async waterfall(
+    type: Exclude<EventType, SafetyCriticalEvent>,
+    payload: unknown,
+    opts?: WaterfallOptions,
+  ): Promise<WaterfallOutcome>;
+  // 自定义 / 动态事件名：类型上无法判定"是不是安全点"，故一律要求显式声明策略
+  // （复用 SafetyCriticalWaterfallOptions 只是为了拿到"listenerErrorPolicy 必填"这个形状）。
+  async waterfall(
+    type: string,
+    payload: unknown,
+    opts: SafetyCriticalWaterfallOptions,
+  ): Promise<WaterfallOutcome>;
+  async waterfall(
+    type: string,
     payload: unknown,
     opts: WaterfallOptions = {},
   ): Promise<WaterfallOutcome> {
