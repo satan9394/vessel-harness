@@ -63,8 +63,8 @@ writeReleaseReportFiles(report, 'benchmarks/reports');
 | --- | --- | --- | --- |
 | 1 | build | 根 `npx tsc -b tsconfig.json` **与** `apps/web` 类型检查 `npx tsc -p apps/web/tsconfig.json` **两条命令均 exit 0 才 PASS**（判据纯函数 `judgeBuildPair`，`detail` 同时给出两条退出码）；任一侧非 0 → fail；web 侧无法执行 → 显式 **pending**，不静默通过 | 需 tsc/非受限环境 |
 | 2 | unit | **两个 vitest root 都实跑**：`npx vitest run`（仓库根 `vitest.config.ts`）**与** `npx vitest run --root apps/web`（`apps/web/vitest.config.ts` 是独立 root，根 `include` 不含它）**各自**退出码 0 且汇总行（`Test Files`/`Tests`）无 failed 标记才 PASS（判据纯函数 `judgeUnitRoots`，`detail` 同时给出两侧退出码）；任一侧非 0 或汇总行报 failed → fail；某侧命令探测失败 → 显式 **pending**，不静默通过。criterion（`UNIT_GATE_CRITERION`）由唯一事实源 `UNIT_TEST_ROOTS` 插值生成 | 需 vitest（两个 root）/非受限环境 |
-| 3 | deterministic-bench | 离线 L1 可跑集 B001–B005 全通过（076 runner） | offline 确定性 |
-| 4 | real-model-bench | 082 lane 收集 §15 L3；无凭据/无 provider → **pending** | 需凭据；否则 pending |
+| 3 | deterministic-bench | **默认装配与发布驱动跑同一份清单（17 个：B001–B005 + B016–B027）**，经 076 runner 离线实跑；判据文本由该清单插值、并有守卫从文本正则解析后与实发 scenarioId 逐条比对（Round 123 改准：此前默认装配只跑 B001–B005 而判据称 17 个） | offline 确定性 |
+| 4 | real-model-bench | **判定输入 = 逐行状态**（`passed`/`failed`/`pending-environment`）与行数；`failed`⇒fail，环境性失败/未收敛/0 行⇒**pending**，其余⇒pass。**§15 L3 指标由 lane 采集落盘，本 gate 不解析、不判定、evidence 里也不出现**（Round 123 改准：此前判据称"收集到 L3 指标"而判定从不读它） | 需凭据；否则 pending |
 
 > gate 4（real-model-bench）默认 resolver 接 **opencode-go**（V1.1-C/F，协议修正见 task 102）：key 经
 > **凭据来源**（task 097 收敛为两条：仓库 CredentialStore 034/069 Windows DPAPI + `secretRef`
@@ -84,6 +84,7 @@ writeReleaseReportFiles(report, 'benchmarks/reports');
 | 6 | resume | 063/064 soak 子集不变量：暂停/续跑、workspace 零残留、从 handoff 续跑留痕 | 确定性 |
 | 7 | ux-smoke | **只探测 web 构建产物是否存在**（默认 `apps/web/dist`，一次 `fs.existsSync`，无命令）：产物存在 ⇒ pass（**仅表示产物在位**）；产物缺失或探测（stat）失败 ⇒ 显式 **pending**（环境/产物不可用）。**本 gate 不执行任何 web 测试/smoke** ⇒ pass 不代表「web 测试已跑过且通过」 | 需先 `npm run -w @vessel/web build`；否则 pending |
 | 8 | packaging | **发布物形状判据（publish-artifact）**：① `apps/cli` 的 pack 期脚本（`prepack` / `prepare`）必须构建 dist——否则干净检出（无 dist）下 `npm pack` 会打出缺 `dist/cli.js` 的坏包 → **fail**；② `npm pack --dry-run` 的 tarball 清单必须含 `dist/cli.js` 与 4 个 `dist/configs/*`（policy/behavior/pricing/model-catalog），且零 `*.test.js` / `*.test.d.ts` / `*.map`；③ npm pack 不可用、目标包错位或清单不可解析 → 显式 **pending** | 离线：本地 `npm pack`（不联网、`--dry-run` 不写 tgz） |
+> **默认装配 vs 发布驱动（Round 123 补记）**：上表 gate 8 描述的是**驱动**覆盖后的 `buildPublishArtifactExecutor()` 判据。**默认装配**（`buildReleaseGateExecutors()` / 库 API 调用方）的判据更弱且现已**如实写明**：一次 `npm pack --dry-run --json`（**输出被丢弃**，只为探 npm 可用）+ 两次路径存在性探测（`<repoRoot>/dist` 与入口文件）⇒ pass **仅表示这两个路径存在**，**不校验产物完整性/内容/可安装性**。同理 gate 3 此前默认只跑 B001–B005、gate 4 此前声称收集 L3 指标——三处都在 Round 123 改准。
 
 > gate 5（safety）的"文案 = 实跑清单"：唯一事实源是
 > `benchmarks/runners/src/release-gates/gates.ts` 的 `SAFETY_SCENARIOS` = **S001…S008（8 个）**，
