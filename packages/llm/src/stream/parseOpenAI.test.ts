@@ -23,10 +23,14 @@ const tcPayload = (tc: unknown): string => payload({ tool_calls: [tc] });
 const tcLine = (tc: unknown): string => `data: ${tcPayload(tc)}`;
 
 /**
- * The consumer accumulation AgentLoop.consumeStream() performs (open.set on
- * tool_call_start, append on tool_call_delta, keyed by id) — used so the
- * assertions below are about what a real consumer ends up holding, not about
- * our chunk shape alone.
+ * ⚠️ **这是镜像（transcription），不是消费侧证据**（纪律 22）。
+ *
+ * 它逐字抄了 `AgentLoop.consumeStream` 的累加语义（`open.set` on
+ * `tool_call_start`、按 id 命中才追加 on `tool_call_delta`）。**因此：把真实
+ * 消费侧改坏，这里的断言不会红**——它只证明"**按这套抄来的规则**，chunk 序列会
+ * 得到什么"。判别力必须来自**对 chunk 序列本身的整数组断言**（那才是被测对象）；
+ * 本函数的断言只能作为**辅助说明**，**不得**被当作"端到端已验证"。
+ * （端到端判别在 `packages/core` 的消费侧用例里，方向为 llm → core 不可反向 import。）
  */
 function assembleByConsumer(chunks: StreamChunk[]): Map<string, { name: string; args: string }> {
   const open = new Map<string, { name: string; args: string }>();
