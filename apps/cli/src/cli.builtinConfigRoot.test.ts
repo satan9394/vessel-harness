@@ -5,16 +5,11 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { builtinConfigRoot } from './cli.js';
 
 /**
- * cli.builtinConfigRoot.test.ts — 内置配置根**查找顺序**的判别性用例。
- *
- * 缺陷背景：安装态 `node_modules/@vessel/cli/dist/cli.js` 向上 6 级也找不到 `configs/`
- * （只在仓库根），默认 policy/behavior 退化成 cwd 下的假路径。修法是「包内优先」：
- * ① 模块目录 ② 模块目录上一级 ③ 模块位置上溯 6 级 ④ 回落 repoRoot()（从 cwd 上溯）。
- *
- * 本文件用 `builtinConfigRoot(startDir)` 的测试注入参数构造临时目录树，断言**优先级顺序**；
- * 用例 2 同时验证「6 级内全无 → 回落 repoRoot()」不会误命中临时目录。
+ * cli.builtinConfigRoot.test.ts — 内置配置根**查找顺序**的判别性用例：
+ * ① 模块目录 ② 模块目录上一级 ③ 模块位置上溯 6 级 ④ 回落 repoRoot()（cwd 上溯）。
+ * 安装态 `node_modules/@vessel/cli/dist/cli.js` 曾在 ③④ 全落空后拼出 cwd 下的假路径；
+ * 这里用注入的 startDir 构造临时目录树，断言优先级与回落（且不误命中临时目录）。
  */
-
 /** 独立重算「从 cwd 上溯找 configs/policy.default.yaml，否则 cwd」——与实现同口径、不共用代码。 */
 function repoRootFromCwd(): string {
   let dir = process.cwd();

@@ -395,6 +395,17 @@
 **关键判断（决定优先级，避免过度投入）**：Node 的模块解析**会向上查找**——把 17 个 tarball **一起**装进一个临时项目时，`@vessel/context` 里 `import '@vessel/shared'` 会沿 `node_modules/@vessel/context/node_modules → node_modules/@vessel → node_modules` 上溯并在**项目顶层**找到它。所以**缺声明不阻塞"整仓一起 pack + 一起装"**（用户已选路线）；它只在"**从 registry 单独安装 `@vessel/cli`**"（路线 a）时才是硬阻塞。
 → **排序**：先做"包内 configs 可达"（在跑）→ 跑**整仓 pack + 装机 E2E**（用户选定路线的验收）→ 若通过，则把"14 包补 `@vessel/*` 声明"记为 **P2（仅为将来 registry 发布所需）**，不在本路线内扩张。另 `@vessel/bench-runners` 是**运行期 `await import`** 但 `benchmarks/runners` 为 `private:true` → `run --bench` 在安装态不可用，属**功能面缺口**，同样记 P2 并如实写入文档。
 
+## Round 16b（第三轮复评）— 片 A REJECT（我引入一处 P1 回归），B/C 通过，D 部分
+
+`EVALUATION-REPORT-23.md`：
+- **A（R-1）REJECT**：**续行修复在 Windows 上引入回归**——`\`+换行被**无条件**按 POSIX 语义当续行，但本产品 Windows 走 **cmd.exe**（`shellTool.ts:44/70` → `shell:true`），cmd 里 `\` **不是**续行。构造：`git status \`+换行+`git push --force origin main` → 被**合并**成一条弱命令（子命令 `status`）→ **allow**，而真实 cmd 执行两条、第二条是 force push（**修复前反而是 deny**）。另 alias 仍漏**跨命令形**（`git config alias.p 'push --force' && git p`）。
+  **处置（已派卡）**：**不用 `process.platform` 分支**（编译期与执行期可能不同平台，且会漏判），改为**平台无关的并集判定**——按 **POSIX 与 cmd 两种语义各解析一次，任一判定为 force push 即 deny**（符合纪律 16：不确定就拦）；并**保守封堵 alias 跨命令形**（整条命令里出现 `git config`/`git -c` 语境的 `alias.` 定义即 deny，不要求同段调用）。
+- **B（1C 测试）ACCEPT**、**C（1B/2B/2C）ACCEPT**（1B 的验收标准修订被判定"不掩盖问题"、2B 判据确来自**真实生效后端**、2C 与 `dispatch` 逐项一致）。
+- **D PARTIAL**：缺口清单少列 `@vessel/core`（CLI 未声明的是 shared/core/llm/policy 共 4 个）；**`@vessel/bench-runners` 为 `private:true` 却是运行期 `await import`（`cli.ts:755/1850`，无 try/catch）→ 装 tarball 后 `run --bench`/`bench-report` 必 MODULE_NOT_FOUND**。
+
+**本轮的"规格错误"（我犯的，已记录）**：我在卡里断言"policy/behavior/**pricing/model-catalog** 全用 `builtinConfigRoot()`"——**未核实即写**。执行者更正并被核实：`builtinConfigRoot()` **只覆盖 policy/behavior（4 处）**，pricing/model-catalog **仍走 `repoRoot()`（cwd）**，而 `loadPricing`/`loadModelCatalog` 对缺失路径**静默返回空表** → 安装态会**静默算错价目**（比崩溃更难发现）。已派卡改 3 个读路径 + **对"默认路径不存在"加明确 warn**（放大器必须一起修）；`cmdPricingSync` 的**写盘目标**属产品决策，要求只报告不改。
+**教训（并入纪律 4 的延伸）**：**给执行器的事实也必须先核实**——错误前提会把实现带偏，且往往让"看似修完"漏掉最难发现的那条（静默错数据）。
+
 ## 技术债
 
 G-15 原子写 wrapper 各 Store 重复（P4）；architecture 审计的 T1–T9 清单（详见 `docs/product-audit/ARCHITECTURE-REPORT.md`）。
