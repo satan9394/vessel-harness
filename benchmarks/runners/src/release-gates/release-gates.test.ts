@@ -31,6 +31,10 @@ import {
   type ReleaseGateResult,
   type ReleaseReport,
 } from './runner.js';
+// gate 3（L1 全量 deterministic-bench）的 executor 住在 run-release-gates.ts —— 它的三态归约
+// 必须与 gate 5 **同一份**（`gates.ts` 的 `runOfflineScenarios`），故判别性用例也要从那里取。
+// 该模块有 ESM entry 判定（被 import 时不跑 main()），静态导入是安全的（删掉判定本文件即爆红）。
+import { L1_DETERMINISTIC_RUNNABLE_SET, buildDeterministicBenchExecutor } from '../run-release-gates.js';
 import type { GateExecutor } from './types.js';
 
 /** A deterministic mock gate executor (fully injectable — no real commands). */
@@ -434,6 +438,80 @@ describe('gate 5 三态接线：声明的能力缺口按 pending 计（既非 pa
   });
 });
 
+/**
+ * gate 3（deterministic-bench，L1 全量 B001-B027）三态接线的判别性用例（不真跑任何场景）。
+ *
+ * 背景：`run-release-gates.ts` 的 `buildDeterministicBenchExecutor` 曾是**第二处同型模式** ——
+ * `passed.push(r.success === true)`。今天 B0xx 无人声明 `type: indeterminate` 故无影响，但将来
+ * 任一 B0xx 声明能力缺口（`success=false`、asserts 全为 indeterminate）就会**假红**。
+ * 修复方式不是再写一份循环，而是复用 `gates.ts` 导出的 `runOfflineScenarios`（gate 5 用的同一份）。
+ *
+ * 复用本文件既有的**普通函数注入**约定（不用 vi.mock）：只把「跑场景」这一步换成假实现，
+ * 走的仍是 `runOfflineScenarios` 的真实接线 —— 把 executor 改回 `success === true` 时用例①必红。
+ */
+async function benchGateWith(outcomes: Record<string, FakeRun>) {
+  return buildDeterministicBenchExecutor(null, async ({ scenarioId }) => outcomes[scenarioId] ?? fakePass());
+}
+
+/** L1 全体判定通过，只把 `gapId` 换成「声明的能力缺口」。 */
+function benchOutcomesWithGap(gapId: string): Record<string, FakeRun> {
+  const out: Record<string, FakeRun> = {};
+  for (const id of L1_DETERMINISTIC_RUNNABLE_SET) out[id] = fakePass();
+  out[gapId] = fakeIndeterminate();
+  return out;
+}
+
+describe('gate 3 三态接线：deterministic-bench（L1 全量）与 gate 5 共用同一份归约', () => {
+  it('判别性①：整场景 indeterminate ⇒ gate 判 pending；删掉三态接线（改回 success===true）即红', async () => {
+    const v = await (await benchGateWith(benchOutcomesWithGap('B027'))).run(offlineGateCtx());
+
+    // pending —— 能力缺口既不算通过（B027 的 success 就是 false），也不算失败。
+    // 把 executor 改回 `passed.push(r.success === true)` ⇒ B027 计为失败 ⇒ judgeScenarioRuns 返回
+    // 'fail' ⇒ 本断言必红（这就是「删掉修复就红」）。
+    expect(v.status).toBe('pending');
+    expect(v.pending).toBe(true);
+
+    const detail = (v.evidence.detail ?? []).join('\n');
+    // 能力缺口场景被逐个点名（不静默消失），并带上 manifest 声明的原因
+    expect(detail).toContain('B027');
+    expect(detail).toContain('indeterminate');
+    expect(detail).toContain('真实模型评测');
+    // 其余 16 个仍如实计为「跑了且通过」：indeterminate 没被混进 passed
+    expect(detail).toContain(`ran=${L1_DETERMINISTIC_RUNNABLE_SET.length - 1}`);
+    expect(detail).toContain(`passed=${L1_DETERMINISTIC_RUNNABLE_SET.length - 1}`);
+    expect(`${v.evidence.summary}\n${v.note ?? ''}`).toContain('声明的能力缺口');
+    expect(v.evidence.summary).not.toContain(`全部通过（${L1_DETERMINISTIC_RUNNABLE_SET.length}`);
+  });
+
+  it('判别性②：含 fail 的场景仍然 fail（indeterminate 不掩盖真失败）', async () => {
+    const outcomes = benchOutcomesWithGap('B027');
+    outcomes['B016'] = fakeFail();
+    const v = await (await benchGateWith(outcomes)).run(offlineGateCtx());
+    // fail 优先：有真失败场景 ⇒（真失败与能力缺口同时存在时）gate 必须红，不得退成 pending
+    expect(v.status).toBe('fail');
+    expect(v.evidence.summary).toContain('B016');
+
+    // 更强的一条：**同一个场景内**既有 indeterminate 又有 fail ⇒ 该场景也判 fail
+    const mixed = benchOutcomesWithGap('B027');
+    mixed['B017'] = fakeRun([
+      { result: 'skip', evidence: { status: 'indeterminate', reason: '声明的能力缺口' } },
+      { result: 'fail' },
+    ]);
+    const v2 = await (await benchGateWith(mixed)).run(offlineGateCtx());
+    expect(v2.status).toBe('fail');
+    expect(v2.evidence.summary).toContain('B017');
+  });
+
+  it('判别性③：全部判定通过 ⇒ pass（防「一律 pending」）', async () => {
+    const allPassOutcomes: Record<string, FakeRun> = {};
+    for (const id of L1_DETERMINISTIC_RUNNABLE_SET) allPassOutcomes[id] = fakePass();
+    const v = await (await benchGateWith(allPassOutcomes)).run(offlineGateCtx());
+    expect(v.status).toBe('pass');
+    expect(v.pending).toBeUndefined();
+    expect((v.evidence.detail ?? []).join('\n')).toContain(`passed=${L1_DETERMINISTIC_RUNNABLE_SET.length}`);
+  });
+});
+
 describe('runner: sequential order + aggregation + overall verdict (tasks 084)', () => {
   it('runs every gate in §21 order and aggregates schemaVersion/gates/totals (ready)', async () => {
     const report = await runReleaseGates(allPass(), { repoRoot: os.tmpdir(), reportsDir: os.tmpdir(), version: 'v1.0.0' }, async () => ({ code: 0, stdout: '', stderr: '' }));
@@ -522,6 +600,64 @@ describe('runner: sequential order + aggregation + overall verdict (tasks 084)',
     } finally {
       fs.rmSync(dir, { recursive: true, force: true });
     }
+  });
+});
+
+/**
+ * release-report 脚注：pending 的 gate 名单必须**由本次结果生成**，不得写死。
+ *
+ * 旧文案把可能 pending 的 gate 写死为「real model / UX / packaging」。三态归约落地后
+ * gate 5（safety）也**合法地可能 pending**（清单里某场景在 manifest 声明能力缺口
+ * ⇒ assert 全为 indeterminate），旧句既不完整又会误导。
+ *
+ * 判别点：脚注里出现的 gate 名单 == `report.gates` 中 `status === 'pending'` 的那些，
+ * 且**不再**出现写死的「real model / UX / packaging」字样；换一组 pending gate 名单跟着变。
+ */
+describe('release-report 脚注（runner）：pending 名单动态生成，不写死 gate 名单', () => {
+  /** 取脚注那一行（`> 说明：…`）；找不到则返回空串（本身即断言失败信号）。 */
+  const footnoteOf = (md: string): string => md.split('\n').find((l) => l.startsWith('> 说明：')) ?? '';
+
+  const renderWith = async (pendingIds: GateExecutor['gate']['id'][]) => {
+    const executors = GATE_ORDER.map((id) => mockExecutor(id, pendingIds.includes(id) ? 'pending' : 'pass'));
+    const report = await runReleaseGates(
+      executors,
+      { repoRoot: os.tmpdir(), reportsDir: os.tmpdir(), version: 'v0.1' },
+      async () => ({ code: 0, stdout: '', stderr: '' }),
+    );
+    return footnoteOf(renderReleaseMarkdown(report));
+  };
+
+  it('判别性④：safety pending 时脚注点名 safety，且不再声称 pending 只可能来自 real model / UX / packaging', async () => {
+    const footnote = await renderWith(['safety', 'real-model-bench']);
+
+    // 本次真正 pending 的 gate 逐个点名（safety 是**本次改动后才合法可能 pending** 的那道）
+    expect(footnote).toContain(gateDefinition('safety').name);
+    expect(footnote).toContain(gateDefinition('real-model-bench').name);
+    // 未 pending 的 gate 不得被点名（名单来自结果，不是「可能 pending 的 gate 全集」）
+    expect(footnote).not.toContain(gateDefinition('ux-smoke').name);
+    expect(footnote).not.toContain(gateDefinition('packaging').name);
+    // 旧写死文案（删掉修复即复现 ⇒ 这两条一起变红）
+    expect(footnote).not.toContain('real model / UX / packaging');
+    // 结构性表述：成因三类（环境不可用 / 无凭据 / 场景声明能力缺口），不写死具体 gate
+    expect(footnote).toContain('能力缺口');
+  });
+
+  it('判别性④b：换一组 pending gate ⇒ 脚注名单随之变化（证明是结果生成而非另一种写死）', async () => {
+    const footnote = await renderWith(['unit', 'resume']);
+
+    expect(footnote).toContain(gateDefinition('unit').name);
+    expect(footnote).toContain(gateDefinition('resume').name);
+    expect(footnote).not.toContain(gateDefinition('safety').name);
+    expect(footnote).not.toContain(gateDefinition('real-model-bench').name);
+    expect(footnote).not.toContain('real model / UX / packaging');
+  });
+
+  it('无 pending ⇒ 脚注明说「无 pending」（不给任何陈旧名单）', async () => {
+    const footnote = await renderWith([]);
+
+    expect(footnote).toContain('无 pending');
+    expect(footnote).not.toContain(gateDefinition('safety').name);
+    expect(footnote).not.toContain('real model / UX / packaging');
   });
 });
 

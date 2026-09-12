@@ -89,16 +89,35 @@ export function renderReleaseMarkdown(report: ReleaseReport): string {
   o.push(line());
 
   o.push(line('## 环境注解'));
+  // pending 的 gate **一律**列出：有 note 用 note；没有 note 也如实列（缺 note 不得让该 gate
+  // 从注解里消失）—— 下方脚注写的是「逐条见上方环境注解」，注解漏行会让那句话不成立。
   for (const g of report.gates) {
-    if (g.status === 'pending' && g.note) {
-      o.push(line(`- ${g.name}：${g.note}`));
-    }
+    if (g.status !== 'pending') continue;
+    o.push(line(`- ${g.name}：${g.note ?? '（pending，未附 note；判据情况见上表 evidence）'}`));
   }
   if (!report.gates.some((g) => g.status === 'pending')) {
     o.push(line('_（无 pending，全部判据已执行）_'));
   }
   o.push(line());
-  o.push(line('> 说明：pending 的 gate（real model / UX / packaging）表示该 gate 在受限/无凭据环境下未完整执行，需在非受限环境补齐后再判 ready；本报告不因 pending 静默通过。'));
+  // pending 的 gate 名单**由本次结果动态生成**，绝不写死。
+  // 旧文案把可能 pending 的 gate 写死成「real model / UX / packaging」——三态归约落地后
+  // gate 5（safety）也**合法地可能 pending**（清单里某场景在 manifest 声明了能力缺口
+  // `type: indeterminate`），旧句因此既不完整又会误导（读者会以为 safety 变 pending 是异常）。
+  // 现在只有一条结构性表述：pending 的成因是三类（环境不可用 / 无凭据 / 场景声明能力缺口），
+  // 具体是哪几道由 `report.gates` 里 `status === 'pending'` 的行如实列出（无 pending 时明说没有）。
+  const pendingGates = report.gates.filter((g) => g.status === 'pending');
+  o.push(
+    line(
+      pendingGates.length > 0
+        ? `> 说明：本次 pending 的 gate = ${pendingGates.map((g) => g.name).join(' / ')}（共 ${pendingGates.length} 道，逐条见上方「环境注解」）。` +
+            'pending 的成因是**结构性的、不限于某个固定名单**：① 该 gate 所需环境/工具/产物不可用；② 无凭据；' +
+            '③ 场景在 manifest 里**声明了能力缺口**（assert 全为 `type: indeterminate` ⇒ 离线 mock 判不了，既非通过也非失败）。' +
+            '需在可判定环境下补齐后再判 ready；本报告不因 pending 静默通过。'
+        : '> 说明：本次**无 pending 的 gate**（全部 gate 均已判定，逐条见上方「环境注解」）。' +
+            '本句的 pending 名单由本次结果动态生成、不写死：任何 gate（含 safety）若因环境不可用 / 无凭据 / ' +
+            '场景声明能力缺口而 pending，都会在此被逐个点名。本报告不因 pending 静默通过。',
+    ),
+  );
   return o.join('');
 }
 

@@ -16,7 +16,9 @@
  *   2. buildReleaseGateExecutors() 装配 8 个 §21 / 084 gate executor。
  *   3. 按 V1.1-E 任务卡要求，把 deterministic-bench 的 L1 可跑集从 084 默认的 B001-B005
  *      扩展为「L1 B001-B027 可跑集」（B001-B005 + B016-B027，全部 offline 确定性），
- *      纳入 V1.1-D（B024-B027）→ 复用 076 runner 的 runScenario + 084 的 judgeScenarioRuns。
+ *      纳入 V1.1-D（B024-B027）→ **复用 084 的离线三态归约 `runOfflineScenarios`**
+ *      （`release-gates/gates.ts`，与 gate 5 safety 逐字同一份：`classifyScenarioRun` +
+ *      `judgeOfflineWithPendingEnvironment`；不再自写 `success === true` 归约）。
  *      同时把 packaging gate 的 executor 换成 buildPublishArtifactExecutor()（EVALUATION-REPORT-24 P2：
  *      判「发布物形状」而非只查本地 dist 是否存在——离线 `npm pack --dry-run` 清单 + pack 期脚本静态断言）。
  *   4. runReleaseGates() 顺序实跑 8 道 §21 门禁 + 第 9 道「安装态冒烟」（V1.1-G，**默认 pending**，
@@ -42,12 +44,13 @@ import type { ChatProvider } from '@vessel/shared';
 import {
   buildReleaseGateExecutors,
   gateDefinition,
-  judgeScenarioRuns,
+  runOfflineScenarios,
   runReleaseGates,
   writeReleaseReportFiles,
   type CommandOutcome,
   type GateExecutor,
   type GateVerdict,
+  type OfflineScenarioRunner,
   type ReleaseContext,
   type ReleaseGateResult,
   type RunCommand,
@@ -65,7 +68,6 @@ import {
   explicitLaneModels,
   type LaneModel,
 } from './lane/index.js';
-import { runScenario } from './runner.js';
 
 const execFileAsync = promisify(execFile);
 
@@ -119,33 +121,33 @@ function windowsFriendlyRunCommand(): RunCommand {
   };
 }
 
-/** 构造 determinstic-bench executor：全 L1 可跑集离线跑（纳入 V1.1-D）。 */
-export function buildDeterministicBenchExecutor(provider: ChatProvider | null = null): GateExecutor {
+/**
+ * 构造 determinstic-bench executor：全 L1 可跑集离线跑（纳入 V1.1-D）。
+ *
+ * 归约**不自己实现**：直接复用 `release-gates/gates.ts` 导出的 `runOfflineScenarios` ——
+ * 与 gate 5（safety）**逐字同一份**三态归约（`classifyScenarioRun` + `judgeOfflineWithPendingEnvironment`）：
+ *   - 任一 assert 为 fail ⇒ fail（声明的能力缺口掩盖不了真失败）；
+ *   - `success === true` ⇒ pass；
+ *   - **整场景全为 indeterminate**（manifest 声明 `type: indeterminate`）⇒ **pending**
+ *     （既非通过、也非失败，并在 evidence 里逐个点名）；
+ *   - 其余含未声明 skip 的形态 ⇒ fail（不放宽）。
+ *
+ * 为什么之前是错的：本函数曾写作 `passed.push(r.success === true)` —— 同样的「第二处同型模式」。
+ * 今天 B0xx 无人声明 indeterminate 故无影响，但将来任一 B0xx 声明了能力缺口就会**假红**
+ * （`success=false` 被计成失败）。复用同一函数是让两条 gate 不可能再漂移的唯一办法。
+ *
+ * @param provider 离线 provider（默认 null = 确定性 mock lane）。
+ * @param scenarioRunner 场景执行函数注入点（默认 = 076 runner 的 `runScenario`）：
+ *   仅用于**不真跑任何场景**的判别性单测（把三态接线删回去即变红）；生产路径不传，行为不变。
+ */
+export function buildDeterministicBenchExecutor(
+  provider: ChatProvider | null = null,
+  scenarioRunner?: OfflineScenarioRunner,
+): GateExecutor {
   return {
     gate: gateDefinition('deterministic-bench'),
-    run: async (ctx: ReleaseContext & { exec: unknown }): Promise<GateVerdict> => {
-      const passed: boolean[] = [];
-      for (const id of L1_DETERMINISTIC_RUNNABLE_SET) {
-        try {
-          const r = await runScenario({
-            scenarioId: id,
-            repoRoot: ctx.repoRoot,
-            reportsDir: path.join(ctx.reportsDir, 'release-gate'),
-            provider,
-            model: 'mock-model',
-            policyPath: path.join(ctx.repoRoot, 'configs', 'policy.default.yaml'),
-            behaviorIRPath: path.join(ctx.repoRoot, 'configs', 'behavior.default.yaml'),
-          });
-          passed.push(r.success === true);
-        } catch (err) {
-          return {
-            status: 'fail',
-            evidence: { summary: `离线场景 ${id} 执行异常`, detail: [String(err)] },
-          };
-        }
-      }
-      return judgeScenarioRuns({ scenarioIds: [...L1_DETERMINISTIC_RUNNABLE_SET], passed });
-    },
+    run: async (ctx: ReleaseContext & { exec: unknown }): Promise<GateVerdict> =>
+      runOfflineScenarios(ctx, [...L1_DETERMINISTIC_RUNNABLE_SET], provider, scenarioRunner),
   };
 }
 
@@ -1908,8 +1910,15 @@ async function main(): Promise<void> {
     annotateUnitFailureNote(g);
   }
   // deterministic-bench 已从 084 默认 B001-B005 扩到全 L1（含 V1.1-D B024-B027），补注范围。
+  // task 三态归约：本 gate 现在**合法地可能 pending**（L1 里任一场景在 manifest 声明能力缺口
+  // `type: indeterminate` 时）——故范围注记必须**追加**而非覆盖：judgeOfflineWithPendingEnvironment
+  // 写下的 pending 原因（哪些场景是能力缺口）与 `pendingEnvironment` 说明不得被这一行抹掉。
+  // 当前 B0xx 无人声明 indeterminate ⇒ note 为 undefined ⇒ 行为与覆盖写法逐字等价（无回归）。
   const bench = report.gates.find((g) => g.id === 'deterministic-bench');
-  if (bench) bench.note = '扩至 L1 全离线可跑集（B001-B005 + B016-B027，含 V1.1-D streaming/interrupt/steering/resume）。';
+  if (bench) {
+    const benchScope = '扩至 L1 全离线可跑集（B001-B005 + B016-B027，含 V1.1-D streaming/interrupt/steering/resume）。';
+    bench.note = bench.note ? `${bench.note} ${benchScope}` : benchScope;
+  }
   // task 102：real-model-bench 的凭据来源/模型档写进 gate note（不含密钥）。
   const realModel = report.gates.find((g) => g.id === 'real-model-bench');
   if (realModel) {

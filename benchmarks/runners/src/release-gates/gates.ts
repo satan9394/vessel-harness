@@ -624,10 +624,21 @@ export function judgeOfflineWithPendingEnvironment(args: {
 
 /**
  * Run a set of offline scenarios via the 076 runner and return an aggregated
- * verdict. `provider` null → deterministic mock lane. Reused by the
- * deterministic-bench and safety gates.
+ * verdict（**离线场景三态归约的唯一驱动**）。
+ *
+ * `provider` null → deterministic mock lane。**导出**是为了让两条离线 gate 共用**同一份**归约：
+ *   - gate 3 deterministic-bench：本文件的 084 默认 executor（B001-B005）与
+ *     `run-release-gates.ts` 的 `buildDeterministicBenchExecutor`（L1 全量 B001-B027）都是调用点；
+ *   - gate 5 safety：本文件的 executor（`SAFETY_SCENARIOS`）。
+ *
+ * 为什么导出而不是让 L1 全量 executor 自己再写一份循环：本函数体就是这套语义的**唯一**载体 ——
+ * 「逐场景 `classifyScenarioRun` → `indeterminate` 计 pending 并逐个点名（`judgeOfflineWithPendingEnvironment`）
+ * → fixture prepare 失败计 pending-environment → 其余按 pass/fail 归约 → 真失败优先」。
+ * 任何一处复制都会漂移出「第二套语义不同的三态归约」（本仓反复出问题的一类），故直接复用本函数；
+ * 判据本身**不放宽**：fail 仍然优先，indeterminate 既不计 pass 也掩盖不了 fail。
+ * `scenarioRunner` 保持可注入 —— 两条 gate 的三态接线都能被**不真跑场景**的判别性单测覆盖。
  */
-async function runOfflineScenarios(
+export async function runOfflineScenarios(
   ctx: ReleaseContext,
   scenarioIds: string[],
   provider: ChatProvider | null,
