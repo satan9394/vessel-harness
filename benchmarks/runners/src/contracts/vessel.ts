@@ -18,7 +18,7 @@ import { composeHarness, type ComposeOptions } from '@vessel/application';
 import type { ChatProvider, ChatResponse, ChatRequest } from '@vessel/shared';
 import { MockProvider } from '@vessel/llm';
 import { OFFLINE_SCRIPTS } from '../offline.js';
-import { dropWorkspaceLinks, prepareFixtureSetup } from '../runner.js';
+import { dropWorkspaceLinks, prepareFixtureSetup, uniqueToolCallIds } from '../runner.js';
 import { resolveBenchPrice } from '../adapters/pricing.js';
 import { assertValidHarnessAdapter, assertValidRunResult } from './validate.js';
 import type { CapabilityKey, HarnessAdapter, HarnessFixture, RunResult } from './types.js';
@@ -123,8 +123,12 @@ export async function runVesselFixture(fixture: HarnessFixture): Promise<RunResu
   const task = fs.existsSync(taskPath) ? fs.readFileSync(taskPath, 'utf8').trim() : '';
 
   const peak = { value: 0 };
+  // Same re-keying as the runner lane: the scripted provider numbers tool-call ids
+  // per RESPONSE, so a multi-step script otherwise reuses one id and every
+  // toolCallId-joined record (evidence, audit) is ambiguous.
   const baseProvider =
-    opts.provider ?? new MockProvider(OFFLINE_SCRIPTS[fixture.id] ?? [], { model, vars: { cwd: workspace } });
+    opts.provider ??
+    uniqueToolCallIds(new MockProvider(OFFLINE_SCRIPTS[fixture.id] ?? [], { model, vars: { cwd: workspace } }));
   const provider = trackingProvider(baseProvider, peak);
 
   const composeOpts: ComposeOptions = {

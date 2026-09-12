@@ -2,7 +2,7 @@ import * as crypto from 'node:crypto';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import * as yaml from 'js-yaml';
-import type { ChatProvider } from '@vessel/shared';
+import type { ChatProvider, ChatRequest, ChatResponse, StreamChunk } from '@vessel/shared';
 import { MockProvider } from '@vessel/llm';
 import { composeHarness, type ComposeOptions } from '@vessel/application';
 import { EvaluatorAgent, createReadOnlyExplorationTools, executePlan, generatePlan, injectPlan } from '@vessel/agents';
@@ -130,6 +130,70 @@ export class FixtureSetupError extends Error {
   }
 }
 
+const SETUP_KEYS = new Set(['version', 'outside', 'links']);
+const OUTSIDE_KEYS = new Set(['name', 'files']);
+const OUTSIDE_FILE_KEYS = new Set(['path', 'content']);
+const LINK_KEYS = new Set(['name', 'target', 'kind']);
+
+function assertNoUnknownKeys(what: string, value: Record<string, unknown>, allowed: ReadonlySet<string>): void {
+  for (const k of Object.keys(value)) {
+    if (!allowed.has(k)) {
+      throw new FixtureSetupError(`fixture prepare: ${what} has unknown key "${k}" (allowed: ${[...allowed].join(', ')})`);
+    }
+  }
+}
+
+function assertMapping(what: string, value: unknown): Record<string, unknown> {
+  if (value === null || typeof value !== 'object' || Array.isArray(value)) {
+    throw new FixtureSetupError(`fixture prepare: ${what} must be a mapping`);
+  }
+  return value as Record<string, unknown>;
+}
+
+/**
+ * Refuse a declaration whose SHAPE is not the one the prepare step executes.
+ *
+ * WHY: a misspelled key is the silent form of "the declaration was never applied".
+ * `link:` instead of `links:` (or a scalar where a list is expected) used to parse
+ * fine, apply nothing, and hand the scenario a workspace without its subject — the
+ * exact class of defect `setup.yaml` exists to close. Every mis-shaped value is a
+ * loud `FixtureSetupError` (→ gate `pending-environment`), never a no-op.
+ */
+function assertSetupShape(p: string, doc: Record<string, unknown>): void {
+  assertNoUnknownKeys(`${FIXTURE_SETUP_FILE} (${p})`, doc, SETUP_KEYS);
+  if (doc.version !== undefined && typeof doc.version !== 'number') {
+    throw new FixtureSetupError(`fixture prepare: version must be a number (${p})`);
+  }
+  if (doc.outside !== undefined && !Array.isArray(doc.outside)) {
+    throw new FixtureSetupError(`fixture prepare: outside must be a list (${p})`);
+  }
+  if (doc.links !== undefined && !Array.isArray(doc.links)) {
+    throw new FixtureSetupError(`fixture prepare: links must be a list (${p})`);
+  }
+  for (const [i, raw] of ((doc.outside as unknown[] | undefined) ?? []).entries()) {
+    const art = assertMapping(`outside[${i}] (${p})`, raw);
+    assertNoUnknownKeys(`outside[${i}]`, art, OUTSIDE_KEYS);
+    if (typeof art.name !== 'string') throw new FixtureSetupError(`fixture prepare: outside[${i}].name must be a string (${p})`);
+    if (art.files !== undefined && !Array.isArray(art.files)) {
+      throw new FixtureSetupError(`fixture prepare: outside[${i}].files must be a list (${p})`);
+    }
+    for (const [j, rawFile] of ((art.files as unknown[] | undefined) ?? []).entries()) {
+      const file = assertMapping(`outside[${i}].files[${j}] (${p})`, rawFile);
+      assertNoUnknownKeys(`outside[${i}].files[${j}]`, file, OUTSIDE_FILE_KEYS);
+      if (typeof file.path !== 'string') throw new FixtureSetupError(`fixture prepare: outside[${i}].files[${j}].path must be a string (${p})`);
+      if (file.content !== undefined && typeof file.content !== 'string') {
+        throw new FixtureSetupError(`fixture prepare: outside[${i}].files[${j}].content must be a string (${p})`);
+      }
+    }
+  }
+  for (const [i, raw] of ((doc.links as unknown[] | undefined) ?? []).entries()) {
+    const link = assertMapping(`links[${i}] (${p})`, raw);
+    assertNoUnknownKeys(`links[${i}]`, link, LINK_KEYS);
+    if (typeof link.name !== 'string') throw new FixtureSetupError(`fixture prepare: links[${i}].name must be a string (${p})`);
+    if (typeof link.target !== 'string') throw new FixtureSetupError(`fixture prepare: links[${i}].target must be a string (${p})`);
+  }
+}
+
 export function loadFixtureSetup(fixtureRoot: string): FixtureSetupSpec | null {
   const p = path.join(fixtureRoot, FIXTURE_SETUP_FILE);
   if (!fs.existsSync(p)) return null;
@@ -143,6 +207,7 @@ export function loadFixtureSetup(fixtureRoot: string): FixtureSetupSpec | null {
   if (typeof doc !== 'object' || Array.isArray(doc)) {
     throw new FixtureSetupError(`fixture prepare declaration must be a mapping (${p})`);
   }
+  assertSetupShape(p, doc as Record<string, unknown>);
   return doc as FixtureSetupSpec;
 }
 
@@ -565,6 +630,58 @@ async function driveScenario(
 }
 
 /**
+ * Give every tool call of one RUN its own `toolCallId`.
+ *
+ * WHY (S003 root cause, read off the records): the offline scripted provider numbers
+ * ids PER RESPONSE — `tc_mock_${i + 1}` (packages/llm/src/provider/MockProvider.ts:130
+ * and :175) — so a script that issues one call per step reuses `tc_mock_1` on EVERY
+ * step. The anchoring join `toolCallArgsById` (asserts.ts:107-121) is a
+ * last-write-wins map keyed by that id, so an anchored assert (`arguments_pattern`)
+ * resolved the step-1 DENIED `tool/result` against the step-2 arguments and reported
+ * `guards: [] / anchoredCalls: []` while `toolCallsSeen` still showed the probe call —
+ * a red that reads as "the call happened but was never denied" even though the guard
+ * denied it. The provider is outside this lane's scope, so the benchmark lane re-keys
+ * at its own provider seam, where the ambiguity is created.
+ *
+ * Ids stay stable WITHIN one response, so `tool_call_start` / `tool_call_delta` /
+ * `tool_call_end` pairing and the loop's accumulation (`AgentLoop.consumeStream`) are
+ * untouched; only the cross-step collision is removed.
+ */
+export function uniqueToolCallIds(base: ChatProvider): ChatProvider {
+  let n = 0;
+  const rekey = (seen: Map<string, string>, id: string): string => {
+    const hit = seen.get(id);
+    if (hit !== undefined) return hit;
+    n += 1;
+    const next = `tc_${n}`;
+    seen.set(id, next);
+    return next;
+  };
+  return {
+    id: base.id,
+    async chat(request: ChatRequest): Promise<ChatResponse> {
+      const res = await base.chat(request);
+      if (!res.toolCalls?.length) return res;
+      const seen = new Map<string, string>();
+      return { ...res, toolCalls: res.toolCalls.map((tc) => ({ ...tc, id: rekey(seen, tc.id) })) };
+    },
+    stream: base.stream
+      ? async function* (request: ChatRequest): AsyncGenerator<StreamChunk> {
+          const seen = new Map<string, string>();
+          for await (const chunk of base.stream!(request)) {
+            if (chunk.type === 'tool_call_start' || chunk.type === 'tool_call_delta' || chunk.type === 'tool_call_end') {
+              const rekeyed: StreamChunk = { ...chunk, id: rekey(seen, chunk.id) };
+              yield rekeyed;
+            } else {
+              yield chunk;
+            }
+          }
+        }
+      : undefined,
+  };
+}
+
+/**
  * runScenario — headless benchmark seam (BENCHMARK-SPEC §6.1):
  * prepare (copy fixture + snapshot) → inject task → run our harness
  * → collect (session + telemetry) → assert (disk/command/event, never self-report)
@@ -603,13 +720,19 @@ export async function runScenario(opts: RunScenarioOptions): Promise<ScenarioRep
     policyPath = out;
   }
 
-  // provider: offline lane (deterministic) or live (real model)
+  // provider: offline lane (deterministic) or live (real model).
+  // The offline scripted provider is re-keyed so every tool call in the run owns a
+  // unique `toolCallId` (see `uniqueToolCallIds`): without it a one-call-per-step
+  // script reuses `tc_mock_1`, and the `arguments_pattern` evidence join binds a
+  // denial to the wrong call — S003's "denied but reported as never denied".
   const provider =
     opts.provider ??
-    new MockProvider(OFFLINE_SCRIPTS[opts.scenarioId] ?? [], {
-      model: opts.model,
-      vars: { cwd: workspace },
-    });
+    uniqueToolCallIds(
+      new MockProvider(OFFLINE_SCRIPTS[opts.scenarioId] ?? [], {
+        model: opts.model,
+        vars: { cwd: workspace },
+      }),
+    );
 
   const prompt = fs.readFileSync(path.join(workspace, manifest.task_file), 'utf8').trim();
 

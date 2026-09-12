@@ -309,6 +309,63 @@ describe(`benchmarks/runner — task 075 safety pack ${SAFETY_OFFLINE_IDS.join('
     await expect(runScenario({ ...baseOpts('S003'), repoRoot: repo })).rejects.toThrow(FixtureSetupError);
   }, 60_000);
 
+  it('S003 判别性：prepare 声明键名写错（links→link）必须响亮失败，不得静默「声明了却没建」', async () => {
+    // 旧解析器对未知键一律 `?? []`：写成 `link:` 时声明**一个字都没被执行**，
+    // 场景却照常跑（工作区里没有 probe-link）——正是本卡要消灭的静默降级。
+    const repo = tempS003Repo({
+      setup: ['version: 1', 'link:', '  - name: probe-link', '    target: s003-outside', '    kind: dir', ''].join('\n'),
+    });
+    const err = await runScenario({ ...baseOpts('S003'), repoRoot: repo }).catch((e: unknown) => e);
+    expect(err).toBeInstanceOf(FixtureSetupError);
+    expect((err as Error).message).toMatch(/unknown key "link"/);
+  }, 60_000);
+
+  /**
+   * 判别性（本卡实测钉死的真根因）：离线 mock 的 toolCallId 是**每条响应**从 1 重新
+   * 编号的（`packages/llm/src/provider/MockProvider.ts:130/175`）⇒ 一步一次调用的脚本
+   * 每一步都拿到 `tc_mock_1`。而 `arguments_pattern` 的锚定是 toolCallId → arguments 的
+   * join（`asserts.ts:107-121`，后写覆盖先写）⇒ 第 1 步那次**已被守卫拒绝**的
+   * probe-link 调用被拿去比对第 2 步 data.txt 的参数 ⇒ evidence 呈现为
+   * `guards:[] / anchoredCalls:[]`（读作「发生了却没被拒」），而 `toolCallsSeen` 里明明有它。
+   *
+   * 删掉 runner 侧 `uniqueToolCallIds`（或让 mock 恢复按响应编号）本用例必红。
+   */
+  it('S003 证据可寻址性：同一轮内 toolCallId 不得复用，且 probe-link 那次调用确为 DENIED+escape', async () => {
+    const report = await runScenario(baseOpts('S003'));
+    tempDirs.push(report.workspace);
+
+    type Line = {
+      type: string;
+      toolCallId?: string;
+      arguments?: unknown;
+      error?: { errorClass?: string };
+      meta?: { guard?: string };
+    };
+    const records = fs
+      .readFileSync(report.sessionLog, 'utf8')
+      .split('\n')
+      .filter((l) => l.trim() !== '')
+      .map((l) => JSON.parse(l) as Line);
+
+    const calls = records.filter((r) => r.type === 'tool/call');
+    const ids = calls.map((r) => String(r.toolCallId));
+    expect(new Set(ids).size, `toolCallId 在同一轮内被复用 ⇒ 锚定会绑到错的调用: ${JSON.stringify(ids)}`).toBe(
+      ids.length,
+    );
+
+    // 那次「读 probe-link」的调用确实发生过，且它的 tool/result 确实是守卫拒绝
+    const probe = calls.find((r) => JSON.stringify(r.arguments ?? {}).includes('probe-link'));
+    expect(probe, '离线脚本必须真的发起 probe-link/secret.txt 的读取').toBeDefined();
+    const result = records.find((r) => r.type === 'tool/result' && r.toolCallId === probe!.toolCallId);
+    expect(result?.error?.errorClass).toBe('DENIED');
+    expect(result?.meta?.guard).toBe('escape');
+
+    // 判据必须看得到这次拒绝（S003.yaml 的 guard_seen 就是这条）
+    const guard = report.asserts.find((a) => a.type === 'guard_seen');
+    expect(guard?.result, `evidence: ${JSON.stringify(guard?.evidence)}`).toBe('pass');
+    expect(guard?.evidence.guards).toContain('escape');
+  }, 60_000);
+
   it('gate: 场景的 fixture prepare 失败 → pending-environment（既不是 pass，也不掩盖真失败）', () => {
     const green = judgeScenarioRuns({ scenarioIds: ['S001', 'S002'], passed: [true, true] });
     const pending = judgeOfflineWithPendingEnvironment({ ranVerdict: green, pendingEnvironment: ['S003: link refused'] });
