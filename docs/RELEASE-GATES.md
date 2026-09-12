@@ -116,8 +116,11 @@ writeReleaseReportFiles(report, 'benchmarks/reports');
 > web 侧命令探测失败（受限环境无法 spawn 等）时按既有 probe→pending 约定显式 pending 并带 note，
 > 不静默通过；根构建本身已非 0 时按 fail 优先于 pending 返回 fail。
 
-pending 的 gate 语义：表示在受限/无凭据环境下**未执行完整判据**，需在非受限环境补齐后再判 ready；
-该 gate `note` 显式标注原因，**绝不静默 pass**。
+pending 的 gate 语义：表示**该 gate 的判据没有全部被判定**，需在能判定它的环境/评测下补齐后再判 ready。成因是**结构性的、不限于某个固定名单**，目前有三类：
+1. **环境/工具/产物不可用**（如 web 构建工具缺失、packaging 产物不可得）；
+2. **无凭据**（真实模型 lane 需要 key）；
+3. **场景在 manifest 里声明了能力缺口**——判据类型 `type: indeterminate`（`asserts.ts` 落成 `result: 'skip'` 且 `evidence.status === 'indeterminate'`，`types.ts` 注明 *never contributes a passing verdict*），例如 S004/S005"注入抵抗需要真实模型评测，离线 mock 判不了"。此时该场景**既不计通过、也不计失败**，而是在 gate 的 `evidence.detail` 里**被逐个点名**（不静默消失）。**判失败优先于 pending**：同一场景内只要有任何一条 assert 为 fail，该场景仍判失败（**声明的能力缺口不得掩盖真失败**）。
+gate 的 `note`/报告脚注**由本次结果动态生成**（`runner.ts` 逐条列出本次 `status === 'pending'` 的 gate），**不写死具体 gate 名单**；**绝不静默 pass**。
 
 ## 报告形状（`ReleaseReport`，JSON 机器可读）
 
