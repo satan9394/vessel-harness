@@ -3,7 +3,7 @@
 - **交付物**：D7 — Parity/Benchmark 规范（任务书第二十一节）
 - **版本**：v0.1（草案）
 - **日期**：2026-09-05
-- **状态**：供 Review；Scenario ≥15（B001–B019，其中 B016–B019 为新增）、统一指标 14 项（M01–M14）、A/B Test A–E 五组、Cross-Harness Conformance Suite 运行方式、runners/ 职责与 Adapter 清单齐备
+- **状态**：供 Review；Scenario 门槛 ≥15（**按有 manifest 的场景数=25 满足**：B 系列 17 + S 系列 8；**§3.1/§3.2 的 19 张卡里只有 9 张有 manifest**——B006–B015 既无 manifest 也无 fixture，见 §3.1 的「未实现（无 manifest）」标记）、统一指标 14 项（M01–M14）、A/B Test A–E 五组、Cross-Harness Conformance Suite 运行方式、runners/ 职责与 Adapter 清单齐备
 - **上游依据**：任务书.md §15（Parity/Benchmark 强制项与目录结构）/ §16（统一指标）/ §17（A/B Test）/ §21（D7）/ §22（验收门槛：Benchmark Scenario ≥15）/ 最终定位（Cross-Harness Conformance Suite，行 1425–1431）；docs/research/harness-matrix/comparison.md（H12 Evaluator 章节，行 743–804）；docs/HARNESS-ANATOMY.md（H12 章，行 439–470，含各家 Evaluator/验证机制对比与 benchmark 现状缺口）；docs/POLICY-SPEC.md（§503：audit/denial 构成 Safety Violations 口径）；docs/EVENT-SPEC.md（轨迹/审计事件词汇，A/B 类事件）；docs/BEHAVIOR-IR-SPEC.md（conformance 字段供本套件消费）
 - **下游消费方**：第三阶段实现（`benchmarks/` runner、scenarios/fixtures）、D8 ARCHITECTURE.md（core 的 evals/ 接线与 headless 运行面）、Evaluator（H12 Proposed Spec）、Policy Runtime（Safety Violations 口径验证）
 
@@ -36,7 +36,7 @@
 
 ```text
 Benchmark v0.1
-  = Scenario 集（B001–B019，机器通过判据）      # 任务书 §15
+  = Scenario 集（**有 manifest 的 25 个**：B 系列 17 + S 系列 8；§3.1/§3.2 的 19 张卡中 10 张无 manifest）      # 任务书 §15
   + 统一指标（M01–M14，含 Autonomy）            # 任务书 §16
   + A/B 归因实验（A–E 五组）                     # 任务书 §17：Prompt or Harness?
   + Cross-Harness Conformance Suite（C7 运行）   # 任务书最终定位
@@ -734,7 +734,7 @@ interface HarnessAdapter {
 
 | 里程碑 | 内容 | 验收 |
 |---|---|---|
-| M0 | 19 scenario manifest + fixtures + asserts.yaml 自检（mock 断言可跑通） | B001–B019 全 manifest 校验过 + fixture 黄金断言自洽 |
+| M0 | **有 manifest 的 25 个 scenario** 校验通过（mock 断言可跑通） | 25/25 校验过；**§3.1/§3.2 的 19 张卡里 10 张（B006–B015）无 manifest**，它们是规格意图而非当前判据 |
 | M1 | runner 核心 + offline mock lane（claw 场景脚本映射机制子集） | B001–B008/B010 机制类 offline 全绿（无模型、CI 可跑） |
 | M2 | pi adapter live 车道 + usage 采集 | B003/B009/B016–B019 live 首跑，JSONL 完整 |
 | M3 | A/B 配置（A–E × ≥3 seeds × 适用场景）首轮 | 出 §5.3 归因 delta 表 + 每臂 artifact |
@@ -743,7 +743,7 @@ interface HarnessAdapter {
 
 ### 8.3 验收对照（任务书 §22 门槛）
 
-- Benchmark Scenario ≥15：**B001–B019 = 19 ✔**
+- Benchmark Scenario ≥15：**有 manifest 的 scenario 数 = 25（B 系列 17 + S 系列 8）✔**；**注**：此前的写法"B001–B019 = 19 ✔"**字面不成立**（那 19 张卡里只有 9 张有 manifest）——**口径以"有 manifest 的场景数"为准**（Round 170 裁决）
 - `benchmarks/`（fixtures/scenarios/runners/reports）契约化 ✔
 - A/B Test A–E 五组实验设计 ✔（§5）
 - Conformance Suite 运行方式与 C7 adapter 清单 ✔（§6/§7，落地依赖 M2–M5）
