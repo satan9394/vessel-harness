@@ -57,6 +57,10 @@
 // BRIEF「截断信号到不了 loop」: the normalization target type is owned by @vessel/shared
 // (types.ts re-exports StreamChunk from there — same package, no new dependency).
 import type { ChatFinishReason } from '@vessel/shared';
+// BRIEF「最后一份未收敛的 finish-reason 归一表」: the verdicts themselves now come from the
+// package's single table — the SAME import path the sibling paths already use
+// (parseAnthropic.ts:40, OpencodeGoProvider.ts:42).
+import { wireFinishReason } from '../finishReason.js';
 import type { StreamChunk } from './types.js';
 
 /** A single streaming choice's delta fragment (subset of the wire shape). */
@@ -182,9 +186,12 @@ export function parseOpenAIStreamChunk(
   // 机制），由驱动在边界 `message_end` 上取出 —— 与 parseAnthropic 的
   // `message_delta{stop_reason} -> message_end{finishReason}` 同形。
   // 只记非空字符串：`null` / 缺失 / `''` 都不覆盖已记下的值（usage 尾帧常带 `choices: []`）。
-  const wireFinishReason = choice?.finish_reason;
-  if (typeof wireFinishReason === 'string' && wireFinishReason.length > 0) {
-    state.finishReason = wireFinishReason;
+  // 局部名刻意**不叫** `wireFinishReason`：那是本模块刚从 `../finishReason.js` import 的唯一表
+  // 的名字，同名会把它遮住（本函数不调用它，但遮住一个真函数是留给下一位读者的陷阱）。
+  // 纯改名，行为逐字不变。
+  const rawFinishReason = choice?.finish_reason;
+  if (typeof rawFinishReason === 'string' && rawFinishReason.length > 0) {
+    state.finishReason = rawFinishReason;
   }
 
   // message_start is emitted by OpenAIStreamParser.feed() (the per-stream
@@ -350,13 +357,27 @@ export function openAISSELineData(line: string): string | null {
 }
 
 /**
- * BRIEF「截断信号到不了 loop」修复: OpenAI wire `finish_reason` → 内部 `ChatFinishReason`.
+ * BRIEF「截断信号到不了 loop」修复 + BRIEF「最后一份未收敛的 finish-reason 归一表」收敛:
+ * OpenAI wire `finish_reason` → 内部 `ChatFinishReason`.
  *
  * 这是**两条路径共用的唯一一份**归一表 —— 非流式 `OpenAICompatibleProvider.chat()`
  * 与本文件流式的边界 `message_end` 都调它，所以 chat()/stream() 对同一个 wire 值
  * 必然给出同一个结果。修复前缺的正是这件事：chat() 把非 stop/tool_calls 的**一切**
  * （含 `'length'`）塌缩成 `'error'`（OpenAICompatibleProvider.ts:179-181），流式则
  * 完全不携带（→ AgentLoop 的 `normalizeFinishReason(undefined, …)` → `'stop'`）。
+ *
+ * **判定本身不再由本函数拥有**：它委托包内唯一表 `wireFinishReason`
+ * （`packages/llm/src/finishReason.ts`）——与 `anthropicFinishReason`（parseAnthropic.ts）、
+ * `OpencodeGoProvider.mapFinishReason` 是**同一个函数** ⇒「同一个 wire 值只有一个结论」
+ * 由实现保证，而不是由"两张形状相似的表在各家族上碰巧同值"保证。
+ *
+ * 改前的实情（可证伪，逐 token 对照见 parseOpenAI.test.ts 用例 ①②③ 与
+ * openai-finish-reason.test.ts 用例 ⑦⑧）：本函数原先是**独立 switch**，只认
+ * `stop`/`tool_calls`/`length`，其余一律 `'error'`。它在 **OpenAI wire 能携带的每个
+ * token 上**与共享表同值，但在**跨家族 token** 上不同解 —— `end_turn`/`stop_sequence`
+ * ⇒ 它给 `'error'`、共享表给 `'stop'`；`tool_use` ⇒ `'error'` vs `'tool_calls'`；
+ * `max_tokens` ⇒ `'error'` vs `'length'`。⇒ 同一个 wire 值在同一个包里有**两种结论**，
+ * 正是 R2 判为 REJECT 的那个病在**最后一处**的残留。委托后这四者与共享表同解。
  *
  * 取值域是 `@vessel/shared` 的四值闭集
  * `ChatFinishReason = 'stop' | 'tool_calls' | 'length' | 'error'`：
@@ -371,25 +392,30 @@ export function openAISSELineData(line: string): string | null {
  *   2. `function_call`：OpenAI 已废弃的旧 wire 值，本 provider 只把 `message.tool_calls`
  *      映成 tool_calls；不认识的值一律 fail-loud 到 'error'，不猜成 'tool_calls'；
  *   3. 未知值：同上（宁可报错，也不把不认识的终止原因说成"完成"）；
- *   4. **缺失**（`undefined`/`null`/`''`）：改前也是 'error'，本卡**不动**它 ——
- *      另一张卡正是以"wire 缺失 `finish_reason` 时会被误判"为由拒绝把 wire `'error'`
- *      当截断，所以这里必须保持 'error'，不得借机改成 'stop' 或 'length'。
+ *   4. **缺失**（`undefined`/`null`/`''`）：改前也是 'error'，**委托前后同值**（共享表的
+ *      `default` 正是 'error'，见 finishReason.ts:96-112），所以本函数**从未**、现在也
+ *      **没有**承担"缺失⇒stop"的语义 —— 另一张卡正是以"wire 缺失 `finish_reason` 时会被
+ *      误判"为由拒绝把 wire `'error'` 当截断，这里必须保持 'error'，不得借机改成
+ *      'stop' 或 'length'。
  *      注意两条路径的"既有值"不同也不得互相污染：**流式**缺失时根本不携带字段
- *      （`OpenAIStreamParser.messageEnd` 只在有值且归一结果非 'stop' 时才挂），
- *      消费者那边仍是既有的 'stop'/'tool_calls'；**非流式**缺失时保持既有的 'error'。
- *      两条路径都不会让"缺失"变成 'length'。
+ *      （`OpenAIStreamParser.messageEnd` 在 `wire === undefined` 时就早退，只在有值且
+ *      归一结果非 'stop' 时才挂），消费者那边仍是既有的 'stop'/'tool_calls'；
+ *      **非流式**缺失时保持既有的 'error'。两条路径都不会让"缺失"变成 'length'。
+ *
+ * 委托带来的**副作用**（只在**跨家族** token 上；OpenAI wire 能携带的 token 一个都不动）：
+ *   - `end_turn` / `stop_sequence`: `'error'` ⇒ `'stop'`——流式边界因此**不再挂**
+ *     `finishReason` 字段（因为归一结果是 'stop'）；**挂载规则本身逐字未变**（"归一是
+ *     'stop' ⇒ 不挂"），变的只是这两个 token 的归一结果；
+ *   - `tool_use`: `'error'` ⇒ `'tool_calls'`；`max_tokens`: `'error'` ⇒ `'length'`。
+ *   这四者都是 Anthropic Messages 的 token，**不在** OpenAI `finish_reason` 的官方枚举内
+ *   （`stop` / `length` / `tool_calls` / `content_filter` / 已废弃的 `function_call`），
+ *   故"OpenAI 侧既有结论不得改变"**未被触碰**。唯一的现实例外已申报：第三方/兼容网关
+ *   可能发出 `max_tokens`，那时本路径改前给 'error'，而 opencode-go 那条**同样是 OpenAI
+ *   形 wire** 的路径早就给 'length' ⇒ 委托后两者同解（这是本卡申报的**唯一**可能被观测到
+ *   的 OpenAI 侧值变化，逐条见 openai-finish-reason.test.ts 用例 ⑦/⑧）。
  */
 export function openAIFinishReason(wire: string | undefined): ChatFinishReason {
-  switch (wire) {
-    case 'stop':
-      return 'stop';
-    case 'tool_calls':
-      return 'tool_calls';
-    case 'length':
-      return 'length';
-    default:
-      return 'error';
-  }
+  return wireFinishReason(wire);
 }
 
 /**

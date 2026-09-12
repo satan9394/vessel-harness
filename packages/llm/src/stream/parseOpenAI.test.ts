@@ -4,8 +4,12 @@ import {
   OpenAIStreamParser,
   createOpenAIToolState,
   flushPendingToolCalls,
+  openAIFinishReason,
 } from './parseOpenAI.js';
-import type { StreamChunk } from '@vessel/shared';
+// BRIEF「最后一份未收敛的 finish-reason 归一表」: the shared table is the other side of the
+// comparison — the unit under test is `openAIFinishReason`, and "同解" means "equal to this".
+import { wireFinishReason } from '../finishReason.js';
+import type { ChatFinishReason, StreamChunk } from '@vessel/shared';
 
 const data = (line: string): string => line.replace(/^data: /, '');
 
@@ -769,5 +773,152 @@ describe('parseOpenAIStreamChunk / OpenAIStreamParser — 重复 tool-call 帧�
     const open = assembleByConsumer([...first, ...second, ...third, ...fourth]);
     expect(JSON.parse(String(open.get('c0')?.args))).toEqual({ x: 1 });
     expect(JSON.parse(String(open.get('c1')?.args))).toEqual({ y: 2 });
+  });
+});
+
+// ---------------------------------------------------------------------------
+// BRIEF「最后一份未收敛的 finish-reason 归一表」
+//   `openAIFinishReason` 委托唯一表 `wireFinishReason`（packages/llm/src/finishReason.ts）。
+//
+// 复现（源码级，可证伪）：改前本函数是**独立 switch** ——
+//     `stop ⇒ 'stop'`、`tool_calls ⇒ 'tool_calls'`、`length ⇒ 'length'`、`default ⇒ 'error'`
+// 而共享表还认 Anthropic 家族的四个 token。逐 token 对照（左=改前本函数，右=共享表）：
+//
+//   token                                  | openAIFinishReason（改前） | wireFinishReason | 同解?
+//   ---------------------------------------|---------------------------|------------------|------
+//   stop / tool_calls / length             | stop / tool_calls / length| 同左             | 同解
+//   content_filter / function_call / error | error                     | error            | 同解
+//   未知值 / '' / undefined                | error                     | error            | 同解
+//   end_turn / stop_sequence               | error                     | stop             | **不同解**
+//   tool_use                               | error                     | tool_calls       | **不同解**
+//   max_tokens                             | error                     | length           | **不同解**
+//
+// ⇒ `openAIFinishReason('end_turn') === 'error'` 而 `wireFinishReason('end_turn') === 'stop'`：
+//   **同一个 wire 值在同一个包里有两种结论**。"OpenAI wire 能携带哪些 token"的依据见
+//   下方 `OPENAI_WIRE_TOKENS` 的注释与用例 ③ 的挂载规则；缺失语义的改前值是 'error'
+//   （旧 switch 的 `default` 分支），委托后仍是 'error' —— **这一条本卡不得改变**。
+//
+// 判据分三层，缺一不可：
+//   ①（判别）跨家族 token 两条路径同解 —— 旧实现必红；
+//   ②（负对照）OpenAI wire 能携带的每个 token 的既有裁决逐字不变（与旧 switch 逐值对账）；
+//   ③（负对照）边界 `message_end` 的**挂载规则**逐字不变（归一是 'stop' ⇒ 不挂字段）。
+// ---------------------------------------------------------------------------
+describe('openAIFinishReason — 委托唯一表 wireFinishReason（跨家族同解 / OpenAI 侧逐字不变）', () => {
+  /**
+   * OpenAI Chat Completions 的 `finish_reason` 取值域：`stop` / `length` / `tool_calls` /
+   * `content_filter` /（已废弃的）`function_call`，外加"枚举外的未来/第三方 token"与
+   * "没有值"。Anthropic Messages 的 `end_turn` / `stop_sequence` / `tool_use` / `max_tokens`
+   * **不在**这个集合里（本仓 `OpenAIStreamChunk.finish_reason?: string | null` 只是把
+   * wire 原样收下，不对枚举做校验 —— 所以"能携带"按**协议枚举 + 实际 wire** 两层读，
+   * 这也是本卡只对 OpenAI 侧既有 token 保证"逐字不变"的原因）。
+   */
+  const OPENAI_WIRE_TOKENS = ['stop', 'length', 'tool_calls', 'content_filter', 'function_call'] as const;
+  /** Anthropic Messages 的 canonical token —— 只可能经由**跨家族**定义域进入本函数。 */
+  const CROSS_FAMILY_TOKENS = ['end_turn', 'stop_sequence', 'tool_use', 'max_tokens'] as const;
+
+  /** 改前实现的**逐字副本**（唯一用途：给负对照当对账基线，不作为被测对象）。 */
+  const preFixOpenAIFinishReason = (wire: string | undefined): ChatFinishReason =>
+    wire === 'stop' ? 'stop' : wire === 'tool_calls' ? 'tool_calls' : wire === 'length' ? 'length' : 'error';
+
+  /** 跑一条"一帧文本 + 一帧 finish_reason + [DONE]"，取末块（边界 `message_end`）。 */
+  const boundaryEnd = (wire?: string): StreamChunk => {
+    const p = new OpenAIStreamParser();
+    const lines = [
+      'data: ' + JSON.stringify({ choices: [{ delta: { content: 'x' } }] }),
+      ...(wire === undefined ? [] : ['data: ' + JSON.stringify({ choices: [{ delta: {}, finish_reason: wire }] })]),
+      'data: [DONE]',
+      '',
+    ];
+    const out: StreamChunk[] = [];
+    for (const l of lines) out.push(...p.feed(l));
+    return out[out.length - 1]!;
+  };
+
+  it("① 判别性：跨家族 token 与共享表**同解**（改前 end_turn/stop_sequence/tool_use/max_tokens 全是 'error' ⇒ 必红）", () => {
+    // —— 判据本体：与本包唯一表逐值相等（"同一个 wire 值只有一个结论"）——
+    for (const wire of CROSS_FAMILY_TOKENS) {
+      expect(openAIFinishReason(wire), `wire=${wire}`).toBe(wireFinishReason(wire));
+    }
+    // —— 再逐字钉死"同解**到哪个值**"，免得两侧一起漂移到同一个错值 ——
+    expect(openAIFinishReason('end_turn')).toBe('stop');
+    expect(openAIFinishReason('stop_sequence')).toBe('stop');
+    expect(openAIFinishReason('tool_use')).toBe('tool_calls');
+    expect(openAIFinishReason('max_tokens')).toBe('length');
+    // 旧实现对这四个值全是 'error' ⇒ 上面每一行在旧实现下都红（这就是判别线）。
+    for (const wire of CROSS_FAMILY_TOKENS) {
+      expect(preFixOpenAIFinishReason(wire), `旧实现 wire=${wire}`).toBe('error');
+      expect(openAIFinishReason(wire), `wire=${wire}`).not.toBe('error');
+    }
+  });
+
+  it('①′ 同解是**全定义域**的（不是抽样的"等"）：OpenAI 家族 ∪ Anthropic 家族 ∪ 未知 ∪ 空 ∪ 缺失，逐值相等', () => {
+    const union: (string | undefined)[] = [
+      ...OPENAI_WIRE_TOKENS,
+      ...CROSS_FAMILY_TOKENS,
+      'error',
+      'refusal',
+      'pause_turn',
+      'model_context_window_exceeded',
+      'some_future_value',
+      '',
+      undefined,
+    ];
+    for (const wire of union) {
+      expect(openAIFinishReason(wire), `wire=${String(wire)}`).toBe(wireFinishReason(wire));
+    }
+  });
+
+  it('② 负对照：OpenAI wire 能携带的每个 token 的既有裁决逐字不变（含未知/空/缺失；与旧 switch 逐值对账）', () => {
+    // (a) 逐字钉死（这些就是本卡**不得改变**的既有结论）
+    const pinned: readonly (readonly [string | undefined, ChatFinishReason])[] = [
+      ['stop', 'stop'],
+      ['length', 'length'],
+      ['tool_calls', 'tool_calls'],
+      ['content_filter', 'error'],
+      ['function_call', 'error'],
+      ['error', 'error'],
+      ['some_future_value', 'error'],
+      ['refusal', 'error'],
+      ['', 'error'],
+      [undefined, 'error'],
+    ];
+    for (const [wire, expected] of pinned) {
+      expect(openAIFinishReason(wire), `wire=${String(wire)}`).toBe(expected);
+    }
+    // (b) 与**改前实现**逐值对账：这一行是"本卡没动任何 OpenAI 侧结论"的证据本身。
+    for (const [wire] of pinned) {
+      expect(openAIFinishReason(wire), `改前/改后 wire=${String(wire)}`).toBe(preFixOpenAIFinishReason(wire));
+    }
+    // (c) 缺失**不得**被读成截断（另一张卡的前提），也不得变成 'stop'
+    expect(openAIFinishReason(undefined)).not.toBe('length');
+    expect(openAIFinishReason('')).not.toBe('length');
+    expect(openAIFinishReason(undefined)).toBe('error');
+    expect(openAIFinishReason('')).toBe('error');
+  });
+
+  it("③ 负对照：边界 `message_end` 的**挂载规则**逐字不变（归一为 'stop' ⇒ 不挂字段；undefined ⇒ 不挂字段）", () => {
+    // (a) 既有字面形状（改前/改后逐字相同）
+    expect(boundaryEnd('stop')).toEqual({ type: 'message_end' });
+    expect(boundaryEnd(undefined)).toEqual({ type: 'message_end' }); // 整条流没有 finish_reason
+    expect(boundaryEnd('')).toEqual({ type: 'message_end' }); // 空串同样不覆盖 state
+    expect(boundaryEnd('length')).toEqual({ type: 'message_end', finishReason: 'length' });
+    expect(boundaryEnd('tool_calls')).toEqual({ type: 'message_end', finishReason: 'tool_calls' });
+    expect(boundaryEnd('content_filter')).toEqual({ type: 'message_end', finishReason: 'error' });
+    expect(boundaryEnd('some_future_value')).toEqual({ type: 'message_end', finishReason: 'error' });
+
+    // (b) 规则本体 = "归一结果不是 'stop' 才挂"（**规则**未变；对跨家族 token 同样成立）
+    for (const wire of [...OPENAI_WIRE_TOKENS, ...CROSS_FAMILY_TOKENS, 'some_future_value']) {
+      const verdict = wireFinishReason(wire);
+      expect(boundaryEnd(wire), `wire=${wire}`).toEqual(
+        verdict === 'stop' ? { type: 'message_end' } : { type: 'message_end', finishReason: verdict },
+      );
+    }
+
+    // (c) 委托的**已知后果**（不是"挂载规则变了"）：end_turn/stop_sequence 归 'stop' ⇒ 不挂；
+    //     改前它们归 'error' ⇒ 挂 'error'。tool_use/max_tokens 改前也挂 'error'。
+    expect(boundaryEnd('end_turn')).toEqual({ type: 'message_end' });
+    expect(boundaryEnd('stop_sequence')).toEqual({ type: 'message_end' });
+    expect(boundaryEnd('tool_use')).toEqual({ type: 'message_end', finishReason: 'tool_calls' });
+    expect(boundaryEnd('max_tokens')).toEqual({ type: 'message_end', finishReason: 'length' });
   });
 });

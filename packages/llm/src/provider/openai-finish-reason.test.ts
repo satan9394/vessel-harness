@@ -4,6 +4,11 @@ import type { AddressInfo } from 'node:net';
 import type { ChatResponse, StreamChunk } from '@vessel/shared';
 import { OpenAICompatibleProvider } from '../index.js';
 import { OpenAIStreamParser, openAIFinishReason } from '../stream/parseOpenAI.js';
+// BRIEF「最后一份未收敛的 finish-reason 归一表」: the Anthropic path's verdict is the
+// INDEPENDENT oracle case ⑦ compares against — another real provider path of this package,
+// not a second copy of the table (`anthropicFinishReason` delegates to `wireFinishReason`
+// exactly like `openAIFinishReason` now does, so what is asserted is "两条真实路径同解").
+import { anthropicFinishReason } from '../stream/parseAnthropic.js';
 
 /**
  * BRIEF「OpenAI 系路径上**截断信号到不了 loop**：`max_tokens` 截断在 loop 眼里不存在」。
@@ -50,17 +55,30 @@ import { OpenAIStreamParser, openAIFinishReason } from '../stream/parseOpenAI.js
  *   - `anthropicFinishReason`（parseAnthropic.ts）**不再是**独立的一张表：它委托给
  *     `wireFinishReason`（packages/llm/src/finishReason.ts），`OpencodeGoProvider.mapFinishReason`
  *     同样委托它 ⇒ 这三条路径之间"同解"由**同一个函数**保证，而不是由形状相似保证；
- *   - `openAIFinishReason` **仍然是本文件自己的 OpenAI 专用 switch**（本卡的文件范围不含
- *     parseOpenAI.ts，未作改动）。它与 `wireFinishReason` 在**OpenAI wire 能携带的每一个
- *     token 上同值**（含"有值但不认识 ⇒ 'error'"，用例 ⑤ 逐条钉住），但在**跨家族 token 上
- *     不同解**：`openAIFinishReason('end_turn') === 'error'`，而
- *     `wireFinishReason('end_turn') === 'stop'`。⇒ 因此这里**不声称"两张表同解"**；
- *     把它也改成委托（两行）是**报告给指挥侧**的决定，不是本卡擅自扩的范围。
+ *   - `openAIFinishReason` **已不再是**本文件自己的 OpenAI 专用 switch：
+ *     **BRIEF「最后一份未收敛的 finish-reason 归一表」**把它改成**委托同一个**
+ *     `wireFinishReason` —— `openAIFinishReason` 现在是一行委托 ⇒ `@vessel/llm` 内
+ *     **全部** wire→finishReason 的判定只有**一份实现**，"同一个 wire 值只有一个结论"
+ *     由**同一个函数**保证（用例 ⑦ 拿 **Anthropic 侧的真实判定**当对照，parseOpenAI.test.ts
+ *     的 ①/①′/②/③ 拿共享表逐值上锁）。
+ *     逐条后果（**只在跨家族 token 上**；OpenAI wire 能携带的 token 一个都不动）：
+ *       `end_turn` / `stop_sequence`: 改前 `'error'` ⇒ 现在 `'stop'`（与共享表同解；流式
+ *         边界因此**不再挂** `finishReason` 字段 —— **挂载规则本身逐字未变**，新形状锁在
+ *         parseOpenAI.test.ts 用例 ③）；
+ *       `tool_use`: `'error'` ⇒ `'tool_calls'`；`max_tokens`: `'error'` ⇒ `'length'`。
+ *     一个**现实可达**的例外已按条申报：第三方/兼容网关可能把 Anthropic 形的 `max_tokens`
+ *     发进 OpenAI 形 wire，那时本路径改前给 `'error'`、而 opencode-go 那条**同样是 OpenAI
+ *     形 wire** 的路径早就给 `'length'` ⇒ 委托后两者同解（用例 ⑦/⑧ 就是它的判别式）。
+ *     OpenAI wire 能携带的 `stop`/`tool_calls`/`length`/`content_filter`/`function_call`/
+ *     未知值/缺失：**与旧 switch 逐值相同**（用例 ⑤ 逐条钉住，用例 ⑧ 再与旧实现逐值对账）。
  *     **这条路径内部**的 chat()/stream() 同解不受影响（两侧都调本函数）。
  *
  * ## 判别性（"删哪行会红"）
- *   - 删掉 `openAIFinishReason` 里的 `case 'length': return 'length';`（或改回 `'error'`）
- *     ⇒ 用例 ①/②/②′ 红；
+ *   - 删掉 `openAIFinishReason` 的 `return wireFinishReason(wire);`（改回旧的独立 switch
+ *     `stop/tool_calls/length` + `default ⇒ 'error'`）⇒ 用例 ⑦ 红（跨家族 token 上 OpenAI 侧
+ *     与 Anthropic 侧不再同解）、用例 ⑧ 仍绿（OpenAI 侧既有值本就未变，这正是负对照的意义）；
+ *   - 删掉 `parseOpenAI.ts` 里 `import { wireFinishReason } from '../finishReason.js';`
+ *     ⇒ 编译期红（未定义的标识符），用例 ⑦/⑧ 无法运行；
  *   - 删掉 `OpenAICompatibleProvider.ts:187` 的 `openAIFinishReason(...)` 改回旧三元
  *     ⇒ 用例 ① 红（非流式）；
  *   - 删掉 `OpenAIStreamParser.messageEnd()`（把两处收口改回 `{type:'message_end'}`）
@@ -70,8 +88,8 @@ import { OpenAIStreamParser, openAIFinishReason } from '../stream/parseOpenAI.js
  *   - 把 `messageEnd()` 放宽成"无条件携带"（连 `'stop'` 也挂）
  *     ⇒ 用例 ④ 的 `stop` 逐字不变断言红，且既有冻结用例
  *     parseOpenAI.test.ts:159 / streamProvider.test.ts:57 也会红；
- *   - 把 `openAIFinishReason` 的 `default` 从 `'error'` 改成 `'stop'`
- *     ⇒ 用例 ⑤ 红（content_filter/未知值被放宽成"正常收尾"）。
+ *   - 把共享表 `wireFinishReason` 的 `default` 从 `'error'` 改成 `'stop'`
+ *     ⇒ 用例 ⑤/⑧ 红（content_filter/未知值被放宽成"正常收尾"）。
  *
  * ## 端到端（不在本包内，只作链路说明）
  *   llm 侧送达信号后，链路是：`message_end{finishReason:'length'}` →
@@ -456,5 +474,117 @@ describe('OpenAI finish_reason 送达（非流式 chat() + 流式 stream()）', 
     expect(consumeLikeAgentLoop([{ type: 'tool_call_start', id: 'c', name: 'N', arguments: '' }, { type: 'message_end' }])).toBe(
       consumeLikeAgentLoop([{ type: 'tool_call_start', id: 'c', name: 'N', arguments: '' }, { type: 'message_end', finishReason: 'tool_calls' }]),
     );
+  });
+
+  /**
+   * 改前 `openAIFinishReason` 的**逐字副本**（独立 switch：只认 stop/tool_calls/length，
+   * 其余/default ⇒ 'error'）。唯一用途是给 ⑧ 的负对照当**对账基线** —— 它**不是**被测对象，
+   * 也**不是**真值源（真值源在 ⑦ 里是 Anthropic 侧的真实判定）。
+   */
+  const preFixOpenAIFinishReason = (wire: string | undefined): string =>
+    wire === 'stop' ? 'stop' : wire === 'tool_calls' ? 'tool_calls' : wire === 'length' ? 'length' : 'error';
+
+  /** OpenAI Chat Completions 的 `finish_reason` 取值域 + 未知 + 空 + 缺失。 */
+  const OPENAI_WIRE_TOKENS: readonly (string | undefined)[] = [
+    'stop',
+    'length',
+    'tool_calls',
+    'content_filter',
+    'function_call',
+    'error',
+    'some_future_value',
+    '',
+    undefined,
+  ];
+
+  it("⑦ 判别性：跨家族 token 上 OpenAI 侧与 Anthropic 侧**同解**（旧实现对这四个值全给 'error' ⇒ 必红）", async () => {
+    // 命题：**同一个 wire 值在同一个包里只有一个结论**。对照物是另一条真实 provider 路径
+    // （Anthropic Messages 的判定）—— 而不是共享表的第二份拷贝。
+    const CROSS_FAMILY = ['end_turn', 'stop_sequence', 'tool_use', 'max_tokens'] as const;
+
+    for (const wire of CROSS_FAMILY) {
+      const anthropicVerdict = anthropicFinishReason(wire);
+
+      // (a) 流式：边界 message_end 的归一结果，经 AgentLoop 的逐字重放落到 ChatResponse.finishReason
+      const streamed = driveParser([
+        sseLine({ choices: [{ delta: { content: 'x' } }] }),
+        sseLine({ choices: [{ delta: {}, finish_reason: wire }] }),
+        'data: [DONE]',
+      ]);
+      expect(consumeLikeAgentLoop(streamed), `wire=${wire}（流式）`).toBe(anthropicVerdict);
+
+      // (b) 非流式：同一条 wire 值在 chat() 上给出同一个结论
+      const fake = await fakeJsonServer({ choices: [{ message: { content: 'x' }, finish_reason: wire }], usage: {} });
+      try {
+        expect((await chatOnce(fake.url)).finishReason, `wire=${wire}（非流式）`).toBe(anthropicVerdict);
+      } finally {
+        fake.close();
+      }
+    }
+
+    // 逐字钉死"同解**到哪个值**"（免得两条路径一起漂移到同一个错值）
+    expect(anthropicFinishReason('end_turn')).toBe('stop');
+    expect(anthropicFinishReason('stop_sequence')).toBe('stop');
+    expect(anthropicFinishReason('tool_use')).toBe('tool_calls');
+    expect(anthropicFinishReason('max_tokens')).toBe('length');
+
+    // 判别线：旧实现（独立 switch）对这四个值一律 'error' ⇒ 上面 (a)(b) 的每一条断言都红。
+    for (const wire of CROSS_FAMILY) {
+      expect(preFixOpenAIFinishReason(wire), `旧实现 wire=${wire}`).toBe('error');
+      expect(anthropicFinishReason(wire), `wire=${wire}`).not.toBe('error');
+    }
+
+    // 挂载规则本身未变（变的只是这两个 token 的归一结果）：
+    // end_turn 归 'stop' ⇒ 边界块**不带字段**（单元级对照见 parseOpenAI.test.ts 用例 ③）。
+    const endTurnEnd = lastChunk(
+      driveParser([
+        sseLine({ choices: [{ delta: { content: 'x' } }] }),
+        sseLine({ choices: [{ delta: {}, finish_reason: 'end_turn' }] }),
+        'data: [DONE]',
+      ]),
+    );
+    expect(endTurnEnd).toEqual({ type: 'message_end' });
+    expect('finishReason' in endTurnEnd).toBe(false);
+  });
+
+  it('⑧ 负对照：OpenAI wire 能携带的每个 token 的既有裁决逐字不变 —— 表/非流式/流式三处都与**改前实现**逐值对账', async () => {
+    // (a) 归一表本尊
+    for (const wire of OPENAI_WIRE_TOKENS) {
+      expect(openAIFinishReason(wire), `table wire=${String(wire)}`).toBe(preFixOpenAIFinishReason(wire));
+    }
+
+    // (b) 非流式 chat()：逐值 = 改前（"缺失 ⇒ 'error'"这条既有裁决也在这一行上锁）
+    for (const wire of OPENAI_WIRE_TOKENS) {
+      const fake = await fakeJsonServer({
+        choices: [{ message: { content: 'x' }, ...(wire === undefined ? {} : { finish_reason: wire }) }],
+        usage: {},
+      });
+      try {
+        expect((await chatOnce(fake.url)).finishReason, `chat wire=${String(wire)}`).toBe(preFixOpenAIFinishReason(wire));
+      } finally {
+        fake.close();
+      }
+    }
+
+    // (c) 流式：**改前整条路径**的逐字重放 —— 记进 `state.finishReason` 的只有非空字符串
+    //     （这一条本卡未动），边界块按"归一结果不是 'stop' 才挂"挂载（这一条本卡也未动）。
+    for (const wire of OPENAI_WIRE_TOKENS) {
+      const chunks = driveParser([
+        sseLine({ choices: [{ delta: { content: 'x' } }] }),
+        ...(wire === undefined ? [] : [sseLine({ choices: [{ delta: {}, finish_reason: wire }] })]),
+        'data: [DONE]',
+      ]);
+      const recorded = typeof wire === 'string' && wire.length > 0 ? wire : undefined;
+      const verdict = recorded === undefined ? undefined : preFixOpenAIFinishReason(recorded);
+      const expectedEnd =
+        verdict === undefined || verdict === 'stop' ? { type: 'message_end' } : { type: 'message_end', finishReason: verdict };
+      expect(lastChunk(chunks), `stream wire=${String(wire)}`).toEqual(expectedEnd);
+      // 消费侧（AgentLoop 的逐字重放）：结果与改前同解
+      expect(consumeLikeAgentLoop(chunks), `stream consumer wire=${String(wire)}`).toBe(verdict === undefined ? 'stop' : verdict);
+      // 且"缺失/空"**永远不得**变成 'length'（另一张卡的前提；'length' 自身当然仍是 'length'）
+      if (recorded === undefined) {
+        expect(consumeLikeAgentLoop(chunks), `stream consumer wire=${String(wire)}`).not.toBe('length');
+      }
+    }
   });
 });
