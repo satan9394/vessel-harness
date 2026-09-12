@@ -20,7 +20,7 @@
 3. **分层与失效面**：Behavior Safety（模型"试图做什么"，prompt/引导 + 编译期 policy_ref 强制配套）与 Runtime Safety（命令/工具"能碰到什么"，规则 + 审批 + 沙箱）显式分离，各自文档化失效面（deny 规则拦不住任意子进程，最终防线是 OS 级沙箱边界）。
 4. **作用域与审计接线**：system / user / project / session 四级作用域与合并/覆盖规则（**实现状态：当前仅落地 `system` + `project` 两层，`user` / `session` 层与 workspace trust 门均未实现，详见 §6.1**）；与 D5 的 `PolicyDecision`(A13) / `ApprovalRequest`(A16) / `ApprovalDecided`(A17) 事件及 `audit/*` 持久记录对齐，Policy Engine 是 `BeforeTool` 链上的权威裁决监听器。
 
-**v0.1 纳入**：filesystem（protected / deny_read / 显式 allow）、shell（deny 危险集合 + 前缀 allowlist + scoped 规则）、network（default + 域名 allowlist 的声明与裁决，执行面受限）、git（force_push）、tools（三态 + 工具级 required_permission + denied_tools）、profile 三档 × approval ask|never、guard 单调、never_auto 危险集合、审批缓存、审计接线、workspace trust 门（**未实现**：见 §6.1 实现状态；无 trust 门时项目层仍只能加限制、不能放宽 `system` 的限制）、作用域合并。**留 v0.2+**：网络代理 MITM / 凭据 mask + 出站注入、容器/微 VM 沙箱后端、guardian/classifier 模型审查入主链、异步钩子、MCP 动态工具细粒度策略等（§8.2）。
+**v0.1 纳入**：filesystem（protected / deny_read / 显式 allow）、shell（deny 危险集合 + 前缀 allowlist + scoped 规则）、network（default + 域名 allowlist/denylist 仅声明，v0.1 不作域名级执法）、git（force_push）、tools（三态 + 工具级 required_permission + denied_tools）、profile 三档 × approval ask|never、guard 单调、never_auto 危险集合、审批缓存、审计接线、workspace trust 门（**未实现**：见 §6.1 实现状态；无 trust 门时项目层仍只能加限制、不能放宽 `system` 的限制）、作用域合并。**留 v0.2+**：网络代理 MITM / 凭据 mask + 出站注入、容器/微 VM 沙箱后端、guardian/classifier 模型审查入主链、异步钩子、MCP 动态工具细粒度策略等（§8.2）。
 
 名词口径沿用研究文档与 D5：**决策** = Policy Engine 对一次工具调用给出的 allow/deny/ask 终态；**guard** = 单调收窄守卫（只能否决，不能放行）；**ask 应答者** = 审批请求的响应方（CLI 人类 / ACP 机器），无应答者即拒绝。
 
@@ -154,7 +154,7 @@ policy:
 |---|---|---|---|
 | `filesystem` | `protected`（写保护，不可豁免）、`deny_read`（凭据默认）、`allow`（显式读/写目录）、`rules` | glob/路径匹配 + 读写方向 | 默认读 = workspace + 显式 allow；凭据 deny_read 默认 |
 | `shell` | `deny`（危险集合）、`allow`（只读命令前缀 allowlist）、`scoped_rules` | 命令前缀 + 标志组合 | 无内置黑名单兜底，deny 集合 + 沙箱兜底 |
-| `network` | `default`、`allow_domains`、`deny_domains`、`rules` | default + 域名 allowlist/denylist 声明与裁决 | v0.1 `default: allow`（任务书 §8 示例），执行面受限见 §8.1 |
+| `network` | `default`、`allow_domains`、`deny_domains`、`rules` | default + 域名 allowlist/denylist 仅声明 | v0.1 不作域名级执法；实际 profile/approval 门禁与声明分离，见 §8.1 |
 | `git` | `force_push` 等命令级开关 | 布尔 deny/ask/allow | `force_push: deny` |
 | `tools` | `deny`/`ask`/`allow`（裸工具名或 scoped） | 工具名 + 参数模式 | 未注册 required_permission 的工具默认 danger 级处理 |
 | `audit` | `events`、`details` | decision/denial/approval 开与关 | 全开 |
@@ -282,7 +282,7 @@ policy:
 | `filesystem.confinement` (task 073) | 引导"文件访问限于允许集合"（工作区根 + 显式 allow） | 工具层 `assertConfined` 硬执法（Mode 区分） | `fs-confinement` 规则执行前词法预检（逃逸/绝对越界）+ 工具 canonical 权威拒绝 | audit/denial |
 | `shell.deny.*` | 引导"破坏性命令先说明" | Shell 工具暴露面裁剪 | Policy Engine deny（never_auto 服务内强制）+ 沙箱兜底 | audit/denial |
 | `shell.scoped_rules[ask]` | 引导"此命令需确认" | — | Policy Engine → ask → ApprovalRequest | approval/asked→decided |
-| `network.default/domains` | 引导"只访问必需域名" | （WebFetch 类工具暴露面） | 域名裁决 + （v0.2）代理 allowlist | audit/decision |
+| `network.default/domains` | 引导"只访问必需域名" | v0.1 无网络工具 | v0.1 仅声明；实际生效的是 profile/approval 门禁，域名级代理执法待 v0.2 | 声明不产生 denial；门禁拒绝产生 audit/denial |
 | `git.force_push` | 引导"不重写共享历史" | Git 命令门控 | 命令裁决 deny/ask + 沙箱受保护 | audit/decision/denial |
 | `tools.deny[裸名]` | —（不提示禁工具） | **移出上下文**（不可见）+ 执行层拒绝 | denied_tools 无条件拒绝（先于一切） | audit/denial |
 | `tools.rules[scoped]` | 引导 | — | 规则引擎裁决 | audit/decision/denial |
@@ -314,7 +314,7 @@ Agent → Tool Call              AfterModel(A10) 产出 toolCalls → 每调用�
 
 ```text
 ① denied_tools     裸工具名 deny：无条件拒绝，先于一切；工具同时移出上下文
-② deny 规则        命中 deny（scoped/命令/路径/域名）→ DENY（不可被任何 allow 豁免）
+② deny 规则        命中可执行 deny（scoped/命令/路径；域名声明不参与）→ DENY（不可被任何 allow 豁免）
 ③ hook override    BeforeTool 监听器裁决（外部 PreToolUse 型 hooks / 工具拦截器）
                     → 可 deny/ask/defer（defer 不 bypass ①②）；不 bypass 规则
 ④ ask 规则         命中 ask → ASK（转 ApprovalRequest）
@@ -521,7 +521,7 @@ decisionPath:
 
 - `filesystem`：`protected`（写保护不可豁免）、`deny_read`（凭据默认）、`allow`（显式目录）、scoped 路径规则；canonical 规范化 + symlink/`..` 防逃逸；默认读 = workspace + 显式 allow（比 Claude 保守）。
 - `shell`：`deny` 危险集合（destructive-delete / disk-format / partition-write，never_auto）、只读命令前缀 allowlist（仅只读识别用）、scoped 规则（命令前缀 + 标志）。
-- `network`：`default`/`allow_domains`/`deny_domains` 的**声明与裁决**（default: allow 任务书语义）；执行面说明——v0.1 无 WebFetch 工具（6 工具集），域名裁决作用于 shell 命令的已知网络动词与未来工具声明，代理级执行（MITM/出站注入）v0.2。
+- `network`：`default`/`allow_domains`/`deny_domains` 在 v0.1 **仅声明，不作域名级运行期执法**（default: allow 任务书语义）。`deny_domains` 编译到 `PolicyArtifacts.declarationOnly`，每项显式 `enforced: false`，没有 `match`/`action`，不进入可执行的 `rules`；消费方不得将其计作有效拒绝规则。v0.1 无网络工具，也不按 Shell 参数中的域名文本匹配。真正生效的是 profile/approval 门禁（例如 workspace-write 下 Shell 需 danger-full-access，approval=never 时拒绝）；这不证明域名级防护。代理级执法（MITM/出站注入）留待 v0.2，当前未实现。
 - `git`：`force_push` 布尔 deny/ask（与 shell 层合并去重）。
 - `tools`：三态规则 + denied_tools（裸名 deny = 移出上下文）+ 工具 required_permission 声明（未注册默认 danger 级）。
 

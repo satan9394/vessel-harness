@@ -360,7 +360,7 @@ seq        : number        # 会话内事件序号（不变式校验用）
 - **触发时机**：shell/bash/pwsh 工具执行命令**前**（解析出可执行 argv 后、派生 sandbox 策略前）；命令级闸口。
 - **载荷字段**：`shellId`；`commandLine`；`argv`；`classification`（只读识别：git 子命令门控、重定向/就地改写标志/命令链标记——字符串解析仅作只读命令识别，Claw/Claude 纪律，H05 comparison 行 330）；`sandboxRequest:{mode, networkPolicy?, allowedMounts?}`；`workdir`；`envPolicy?`。
 - **flow**：`waterfall`——可 `deny(reason)`（危险命令前缀黑名单、deny 规则命中、策略 `never` 强制）；可 `ask()`（转 ApprovalRequest）；可**改载荷**：改写 argv/env、收紧 sandboxRequest、注入凭据出站（凭据 mask + 代理出站注入）。
-- **消费方示例**：危险命令黑名单（is_dangerous_command 前缀集合：destructive-delete/disk-format/partition-write 等，任务书 §8）、命令 allowlist、沙箱策略解析（`ctx.sandbox.confine(argv, policy)` fail-closed：无后端 SANDBOX_UNAVAILABLE，H08）、网络策略决策（代理/MITM + allowlist）、外部 hooks。
+- **消费方示例**：危险命令黑名单（is_dangerous_command 前缀集合：destructive-delete/disk-format/partition-write 等，任务书 §8）、命令 allowlist、沙箱策略解析（`ctx.sandbox.confine(argv, policy)` fail-closed：无后端 SANDBOX_UNAVAILABLE，H08）、网络策略决策（代理/MITM + allowlist，待 v0.2；v0.1 域名级 deny_domains 仅为 enforced: false 的声明，不参与运行期匹配、不产生 denial；实际拒绝由 profile/approval 等门禁产生）、外部 hooks。
 - **关联机制/镜像**：机制：H07 命令分类/allowlist、H08 confine、exec_delegate Operations 注入点（SSH/容器重定向 seam，H05 Proposed Spec）；记录：`tool/call` + `audit/denial`。
 
 #### A21 AfterShell（草案）

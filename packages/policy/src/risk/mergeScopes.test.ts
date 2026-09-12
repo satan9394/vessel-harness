@@ -203,7 +203,10 @@ policy:
     // 编译产物：git:force-push 规则必须仍是 deny（修复前：project 的 allow 浅覆盖 → action=allow）
     expect(artifacts.rules.find((r) => r.id === 'git:force-push')?.action).toBe('deny');
     // system 的 deny 域名不得被 project 的 deny_domains: [] 抹掉
-    expect(artifacts.rules.some((r) => r.id === 'net-deny:169.254.169.254')).toBe(true);
+    expect(artifacts.declarationOnly).toContainEqual(expect.objectContaining({
+      id: 'net-deny:169.254.169.254', enforced: false,
+    }));
+    expect(artifacts.rules.some((r) => r.id === 'net-deny:169.254.169.254')).toBe(false);
     // profile / approval 回归锁：project 不得抬升 profile / 放宽 approval
     expect(artifacts.profile).toBe('workspace-write');
     expect(artifacts.approval).toBe('never');

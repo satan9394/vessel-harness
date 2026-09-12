@@ -26,6 +26,26 @@ function artifacts(overrides: Partial<PolicyArtifacts> = {}): PolicyArtifacts {
 }
 
 describe('behavior compiler — rule-level dual-channel enforcement (D4 §7.2)', () => {
+  it('does not certify declaration-only network policy as runtime enforcement', () => {
+    const policy = compilePolicyYaml(`
+policy:
+  version: "0.1"
+  profile: workspace-write
+  approval: never
+  network:
+    deny_domains: [169.254.169.254]
+`);
+    expect(hasDomainEnforcement('network.deny_domains', policy)).toBe(false);
+    const result = compileBehavior({ version: '0.1', entries: [{
+      id: 'network-denial', class: 'safety', channel: 'runtime_policy',
+      policy_ref: 'network.deny_domains', render: 'Domain requests are blocked.',
+    }] }, policy);
+    expect(result.conformance[0]?.policyRuleFound).toBe(false);
+    expect(result.promptSections).not.toContain('Domain requests are blocked.');
+    expect(result.warnings).toHaveLength(1);
+    expect(result.warnings[0]).toContain('enforcement missing');
+  });
+
   it('filesystem.protected is satisfied only by an fs-protected:* rule, not by any filesystem deny', () => {
     // Old domain-level check passed this: a lone fs-deny-read rule satisfied
     // the claim "filesystem.protected". Rule-level must reject it.

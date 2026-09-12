@@ -28,7 +28,17 @@ export interface PolicyRule {
   match(call: { toolName: string; arguments: Record<string, unknown> }): boolean;
 }
 
-/** The four artifacts produced by the Policy Compiler from one Policy declaration. */
+/** Metadata only: deliberately not assignable to PolicyRule or executable by the engine. */
+export interface PolicyDeclarationOnly {
+  id: string;
+  domain: 'network';
+  enforced: false;
+  reason: string;
+  match?: never;
+  action?: never;
+}
+
+/** The four artifacts produced by the Policy Compiler, plus unimplemented declarations. */
 export interface PolicyArtifacts {
   /** Prompt Guidance — soft channel, injected at BeforeModel; produces no audit facts. */
   promptGuidance: string[];
@@ -36,6 +46,8 @@ export interface PolicyArtifacts {
   deniedTools: string[];
   /** Runtime Deny rules — hard channel evaluated by the engine. */
   rules: PolicyRule[];
+  /** Unimplemented declarations, never runtime rules or evidence of enforcement. */
+  declarationOnly?: PolicyDeclarationOnly[];
   /** profile mode + approval policy (service-enforced) */
   profile: ProfileMode;
   approval: ApprovalPolicy;

@@ -973,15 +973,15 @@ export function compilePolicy(declaration: PolicyDeclaration): PolicyArtifacts {
     });
   }
 
-  for (const d of declaration.network?.deny_domains ?? []) {
-    rules.push({
+  // No network tool/proxy enforcement in v0.1. Keep declarations outside rules
+  // so the engine and behavior conformance cannot mistake them for enforcement.
+  const declarationOnly: NonNullable<PolicyArtifacts['declarationOnly']> =
+    (declaration.network?.deny_domains ?? []).map((d) => ({
       id: `net-deny:${d}`,
       domain: 'network',
-      action: 'deny',
-      reason: `denied domain: ${d}`,
-      match: () => false, // no WebFetch tool in v0.1 six-tool plane; declared for audit completeness
-    });
-  }
+      enforced: false,
+      reason: `declared denied domain: ${d}; not enforced in v0.1; proxy enforcement deferred to v0.2`,
+    }));
 
   // 双通道强制: every safety claim with enforcement produced at least one runtime
   // rule above (per-domain check happens in behavior/compiler via policy_ref).
@@ -990,6 +990,7 @@ export function compilePolicy(declaration: PolicyDeclaration): PolicyArtifacts {
     promptGuidance,
     deniedTools,
     rules,
+    declarationOnly,
     profile,
     approval,
     fsConfig: {

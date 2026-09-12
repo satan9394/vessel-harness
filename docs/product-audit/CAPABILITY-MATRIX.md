@@ -115,7 +115,7 @@ IDE 扩展型（Roo Code 已停服、Cursor CLI 闭源）不入主矩阵，仅�
 - 结论：不是差异化点，够用即可。来源：`apps/cli/src/guide/settings.ts`。
 
 ### 10 策略安全
-- **Vessel：● 且机制独有**。`configs/policy.default.yaml` 单源编译出四伪物：Prompt Guidance（软引导）+ Tool Interceptor（工具层拦截）+ Runtime Deny（运行时拒绝）+ Audit Event（审计事件）；filesystem 保护/deny_read、shell deny + scoped_rules、git force_push deny、network deny_domains、tools deny/rules；三档权限 profile（read-only/workspace-write/danger-full-access）；audit 事件落地。**竞品没有"编译型策略 IR"概念**。
+- **Vessel：● 且机制独有**。`configs/policy.default.yaml` 单源编译出四伪物：Prompt Guidance（软引导）+ Tool Interceptor（工具层拦截）+ Runtime Deny（运行时拒绝）+ Audit Event（审计事件）；filesystem 保护/deny_read、shell deny + scoped_rules、git force_push deny、tools deny/rules；network deny_domains 在 v0.1 仅声明（独立 declarationOnly、enforced: false，无域名级执法；proxy 待 v0.2）；三档权限 profile（read-only/workspace-write/danger-full-access）；audit 事件落地。**竞品没有"编译型策略 IR"概念**。
 - 竞品侧重点不同：Codex 用 OS 沙箱（macOS Seatbelt / Linux Landlock）+ approve 模式（auto-edit / full-auto / on-failure-tool-call）+ execpolicy（公开知识）；Claude Code 用权限模式（plan/acceptEdits/bypassPermissions）+ bash 沙箱（Seatbelt/Landlock）+ 企业托管 hook（requirements.toml）；OpenCode 用 permissions（工具级 allow/deny）+ experimental policies（`provider.use` 资源级）；Gemini 用 trusted folders + bubblewrap；Aider 无（靠 git 回滚）。
 - 结论：方向不同——Vessel 是"声明式策略硬执法"，竞品是"审批 + OS 沙箱"。**OS 沙箱是 Vessel 缺的（见 §6-5），审批 UI 是路线明示未来项**（policy.default.yaml 注释 `approval: never`）。
 - 来源：`configs/policy.default.yaml`；POLICY-SPEC（仓库文档）；OpenCode policies 页；Codex docs/sandbox.md 与 docs/config.md；Claude Code docs（settings 导航）+ 公开知识。
