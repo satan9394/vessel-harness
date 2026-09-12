@@ -16,6 +16,10 @@ import { SettingsStore } from '../guide/settings.js';
 import type { UsageStore } from '../usage/UsageStore.js';
 import { localDateKey } from '../usage/UsageStore.js';
 import { renderCostLines, renderTurnDelta, renderTodayLine, type UsageTotalsLike } from './costView.js';
+// 本卡：回合文本的**共用判据**（唯一实现，零依赖叶子模块）—— TUI 与 `cli.ts` 各自 import
+// **同一份**；本文件不再自带第二份判据（`chat.ts` 不能反向 import `cli.ts`，但可以 import
+// 这个谁都不依赖的叶子模块 —— 成环理由见 turnText.ts 的文件头注释）。
+import { isModelReplyKind, type TurnKind } from '../turnText.js';
 
 /**
  * apps/cli/src/tui/chat.ts — `vessel` interactive chat TUI (V0.7, task 021; brand Vessel).
@@ -321,6 +325,12 @@ export interface SlashResult {
  * **必须与 `cli.ts` 的 `MOCK_PROVIDER_NOTICE` / `MOCK_REPLY_MARK`
  * （apps/cli/src/cli.ts:540-542）逐字保持同步**：用户在 `vessel run` 与 `vessel`（TUI）
  * 两处看到的必须是同一句话、同一个标记形态。
+ *
+ * 本卡（回合判据共用）之后，这里**不再是"只能内联"的处境**：零依赖叶子模块
+ * `../turnText.js` 就是范式（`isModelReplyKind` 已经这么共用，两个面各自 import 同一份）。
+ * 下面这两条文案与 `renderTurnReply` 目前**仍是两份实现**——本卡只收敛**判据**，
+ * 不动文案/渲染（见交付说明⑤「只报告」项）；要收敛它们，照 `turnText.ts` 建叶子模块即可，
+ * 无需推翻上面这个"反向 import 会成环"的理由。
  */
 const TUI_MOCK_PROVIDER_NOTICE =
   '[vessel] 当前使用内置 mock 模型（未连接真实模型）——配置真实模型：vessel setup 或 vessel provider add';
@@ -345,9 +355,13 @@ function renderTurnReply(finalText: string, usingMock: boolean): string {
  * BRIEF-17：回合结果里 TUI 呈现需要的字段（结构对齐 `AgentLoop` 的 `TurnResult`）。
  * 就地声明而不 import `@vessel/core`：apps/cli 不新增依赖边（与 `UsageTotalsLike` 同法）；
  * `TurnResult` 多出的字段（turnId/durationMs）结构可赋值，不参与呈现。
+ *
+ * `kind` 用**共用联合** `TurnKind`（`../turnText.js`）而不是就地再写一份字面量：同一联合
+ * 此前在 `cli.ts`（`CliTurnKind`）与本文件**各写一份**，各自增删取值时穷尽性检查会在一侧
+ * 生效、另一侧悄无声息。现在只有 `turnText.ts` 一处。
  */
 export interface TurnOutcomeLike {
-  kind: 'success' | 'error' | 'interrupted' | 'budget';
+  kind: TurnKind;
   finalText: string;
   steps: number;
   toolCalls: number;
@@ -379,10 +393,32 @@ export interface TurnOutcomeLike {
  * （`DenialLimitError.message` 由 loop 生成，不是 provider 的输出）。给非模型文本盖模型标记
  * 是另一种"说的和做的不一致"；既有 `(无文本回复)` 分支同样绕过标记，口径一致。
  *
+ * **本卡（回合文本判据共用）**：上面这条"哪些 kind 才走模型回复出口"的判断，此前是**本文件
+ * 自己的 `case 'success'`**（第二份实现），而 `cli.ts` 另有一份 `isModelReplyKind` ——
+ * **两份实现**，提交信息（`dfe55b9`）却称 "the two faces share one criterion"。
+ * 现在判据只有 `../turnText.js` 的 `isModelReplyKind` **一份**（CLI 与 TUI 各自 import 它），
+ * 本函数只保留"分支怎么排版"：模型回复出口 `renderTurnReply` 由该判据把门，
+ * **改判据即两个面同时变**（判别性用例见 chat.test.ts「本卡A/B」与 cli.test.ts「本卡⑤/⑥/⑦」）。
+ *
+ * 未识别 / 新增 kind 的兜底（**本族最危险的形态**：悄悄"当成功打印"）：
+ *  - **不改** `switch` 为 if/else —— 穷尽性靠"四个 case 全部列出、每支都有 return ⇒ 函数末尾
+ *    在类型层不可达"维持；新增第五种 kind ⇒ switch 不再穷尽、末尾变成可达，而返回类型是
+ *    `string`（不含 undefined）⇒ **编译期报错**（TS2366），逼实现者显式回答"新 kind 怎么呈现"，
+ *    绝不会静默落进某个兜底分支；
+ *  - 运行期真出现 union 之外的 kind（类型封闭时不可达）⇒ 与改前**逐字一致**：switch 落空、
+ *    返回 `undefined`（`runChat` 侧 `io.write(undefined)`，与改前同）——**绝不**"当成功打印"。
+ *    本卡只搬判据，**不改**未识别 kind 的既有行为。
+ *
  * 为什么抽成纯函数：`interrupted` 只能由 Ctrl+C / `loop.interrupt()` 触发，脚本化 IO
  * 驱动不到——抽出来才能在不碰 `runChat` 交互路径的前提下，把四种呈现逐字钉死。
  */
 export function renderTurnOutcome(result: TurnOutcomeLike, usingMock: boolean): string {
+  // ① **共用判据**（唯一实现 = `../turnText.js`；与 `cli.ts` 的 `renderTurnFinalText` **同源**）：
+  //    「这条文本是不是模型回答」。**是**才走模型回复出口 `renderTurnReply`（可能盖 mock 标记）。
+  if (isModelReplyKind(result.kind)) {
+    return result.finalText ? `\n${renderTurnReply(result.finalText, usingMock)}` : '(无文本回复)';
+  }
+  // ② 不是模型回答 ⇒ 逐 kind 的**状态文案**（`cli.ts` 同口径：非模型文本不盖模型标记）。
   switch (result.kind) {
     case 'interrupted':
       return '\n^C turn 已中断（kind=interrupted）';
@@ -392,7 +428,13 @@ export function renderTurnOutcome(result: TurnOutcomeLike, usingMock: boolean): 
     case 'budget':
       return `\n[提示] 本回合未产出最终回复（kind=budget，已跑 ${result.steps} 步 / ${result.toolCalls} 次工具调用）${result.finalText ? `：${result.finalText}` : ''}`;
     case 'success':
-      return result.finalText ? `\n${renderTurnReply(result.finalText, usingMock)}` : '(无文本回复)';
+      // **不可达**：① 的判据把 `success` 判为模型回答，已经返回。
+      // 保留本 case 是**双保险**，两条都不能少：
+      //   (a) 穷尽性 —— 四个 kind 全部出现在 switch 里，函数末尾才在类型层不可达
+      //       （新增 kind ⇒ 编译报错，见上方「未识别 / 新增 kind 的兜底」）；
+      //   (b) fail-closed —— 万一判据被改成"`success` 不算模型回答"，这一支也**绝不**冒充成功
+      //       回复（本族最危险的形态），而是如实说明本回合没有可展示的模型文本。
+      return `\n[提示] 本回合未产出模型文本（kind=success）${result.finalText ? `：${result.finalText}` : ''}`;
   }
 }
 

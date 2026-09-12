@@ -52,6 +52,9 @@ import {
 import { syncModelCatalog, MODELS_DEV_URL, DEFAULT_SYNC_TIMEOUT_MS, MAX_SYNC_RETRIES } from './providers/pricingSync.js';
 import { loadPricing, assertCostMultiplier, DEFAULT_COST_MULTIPLIER, type TokenPrice } from './providers/pricing.js';
 import { emitJson, fail, isJson } from './output.js';
+// 本卡：回合文本的**共用判据**（唯一实现，零依赖叶子模块）——CLI 与 TUI 各自 import 同一份，
+// 不再各写一份（成环问题由"叶子模块"解决，见 turnText.ts 的文件头注释）。
+import { isModelReplyKind, type TurnKind } from './turnText.js';
 
 const USAGE = `${VESSEL_LOGO}
 Vessel CLI v${VERSION} — 可组合 Agent Harness（品牌 Vessel）
@@ -805,8 +808,13 @@ function renderFinalReply(finalText: string, usingMock: boolean): string {
  * - `interrupted` ⇒ 退出码 0、标题不变。`vessel run` **当前到达不了**该分支：`cmdRun` 没有
  *   SIGINT → `loop.interrupt()` 的接线（全仓 SIGINT 只在 `startServe`，cli.ts:2256），真正的
  *   Ctrl+C 由 Node 默认信号处置直接终止进程，不经过这里；把它改成非零等于凭空发明一个失败信号。
+ *
+ * 取值联合**只有一处**（本卡收敛）：`turnText.ts` 的 `TurnKind`。此处原先写的是字面量
+ * `'success' | 'error' | 'interrupted' | 'budget'`，而 `tui/chat.ts` 的 `TurnOutcomeLike`
+ * 又各写了一份同样的字面量 —— 两份联合各自演进时，`switch` 的穷尽性检查会在一边生效、
+ * 在另一边悄无声息。
  */
-export type CliTurnKind = 'success' | 'error' | 'interrupted' | 'budget';
+export type CliTurnKind = TurnKind;
 
 /** 回合标题。刻意保留前导换行：`success` 时与旧写法逐字一致（一次 `console.log` 调用）。 */
 export function turnHeader(kind: CliTurnKind): string {
@@ -820,6 +828,7 @@ export function turnExitCode(kind: CliTurnKind): number {
 
 /**
  * 本卡 —— **哪些 kind 的 `finalText` 算「模型回答」**：CLI 侧的**唯一**口径。
+ * 判据本体在 `turnText.ts` 的 `isModelReplyKind`（本卡收敛；此前是 CLI/TUI 各一份）。
  *
  * 复现（改前）：`renderFinalReply`（本文件 :780-783）只接 `(finalText, usingMock)` 两个入参，
  * 而 `cmdRun` 的唯一出口（原 :959）**无条件**把 `usingMockProvider` 传下去 ⇒ mock 会话里
@@ -832,7 +841,8 @@ export function turnExitCode(kind: CliTurnKind): number {
  * `tui/chat.ts` 的 `renderTurnOutcome` 只把 `success` 交给 `renderTurnReply`（chat.ts:394-395），
  * `error` / `budget` / `interrupted` 三条各走自己的状态文案分支、**不盖**模型标记，
  * 且 chat.ts:377-380 写明了理由：**给非模型文本盖模型标记是另一种"说的和做的不一致"**。
- * 本卡的裁决就是把这句理由搬到 CLI —— 判据**只有一处**（本函数），`cmdRun` 的唯一出口调它。
+ * 本卡的裁决就是把这句理由搬到 CLI —— 判据**只有一处**（`turnText.ts` 的 `isModelReplyKind`，
+ * 本文件只 re-export），`cmdRun` 的唯一出口（`renderTurnFinalText`）调它。
  *
  * 逐条契约（与 TUI 逐字对齐；每条都有判别性用例，见 cli.test.ts「本卡」块）：
  *  - `success`     ⇒ 是模型回答 ⇒ mock 会话里**照旧**带标记（那是标记的**正当用途**，
@@ -847,15 +857,22 @@ export function turnExitCode(kind: CliTurnKind): number {
  * （BRIEF-16 1C②），把 kind 塞进去会让"这条文本是不是模型回答"与"要不要加前缀"两件事
  * 重新耦合回一个函数里——恰恰是本次漂移的成因。这里显式分成两步。
  *
- * （乙）的最小改法（本卡**未**采用，原因：本卡禁改 `tui/**`，且不许新增文件）：把
- * `isModelReplyKind` 抽到 `apps/cli/src/turnText.ts` 一类**新模块**，`cli.ts` 与 `tui/chat.ts`
- * 各自 import 它、`renderTurnOutcome` 的 `case 'success'` 分支用同一个判据 ⇒ 一处口径、两个面共用。
+ * （乙）**已采用**（本卡修复）：判据搬进零依赖叶子模块 `apps/cli/src/turnText.ts`，
+ * `cli.ts` 与 `tui/chat.ts` **各自 import 同一份实现**；`renderTurnOutcome` 的模型回复出口
+ * `renderTurnReply` 也由同一个判据把门。本文件**不再自带判据**，只 re-export 以保持既有
+ * 导出面（`cli.isModelReplyKind`）——语义、注释与用例都在 `turnText.ts` 与两面的「本卡」块里。
+ *
+ * **更正（本卡修；下面这段是旧文，留着做对照）**：本段原先写的是
+ * 「（乙）的最小改法（本卡**未**采用，原因：本卡禁改 `tui/**`，且不许新增文件）…… ⇒
+ * *一处口径、两个面共用*」—— 那句"一处口径、两个面共用"在**当时并不成立**，它描述的是
+ * **没被采用的设想**；同一提交（`dfe55b9`）的提交信息却据此声称
+ * "the two faces share one criterion" ⇒ **不实的提交信息**。事实是两份实现：
+ * TUI 自己 `case 'success'`（第二份），CLI 一份；扩展时必然分叉 —— TUI 的 `switch` 穷尽
+ * （新增 kind ⇒ 编译报错），CLI 那份对第五种 kind **静默返回 false**（不报错、悄悄走另一边）。
+ * 现在（乙）已采用，判据只有 `turnText.ts` 一份，那句话才成立。
+ * 判别性用例：`cli.test.ts`「本卡⑤/⑥/⑦」与 `tui/chat.test.ts`「本卡A/B」。
  */
-export function isModelReplyKind(kind: CliTurnKind): boolean {
-  // 四值里只有 success 是"模型说了话"；其余三种的 finalText 都是 harness 自己的状态文案
-  // （AgentLoop.ts:389-393 熔断、:378-381/:432-434 预算、:387 中断）或空串。
-  return kind === 'success';
-}
+export { isModelReplyKind };
 
 /**
  * CLI 回合文本的**唯一渲染出口**（`cmdRun` 里就这一行 `console.log(...)`）。
