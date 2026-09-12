@@ -142,6 +142,37 @@ export function turnStatusFor(kind: TurnResult['kind']): number {
   return kind === 'error' ? 500 : 200;
 }
 
+/**
+ * BRIEF-21（失败被上报为成功 · HTTP 面 · Goal run）—— `GoalRunResult.outcome` → HTTP
+ * 状态码的**唯一**决策点，与上方 `turnStatusFor` 同族裁决。
+ *
+ * 复现（改前）：`POST /api/goal/tasks/:id/run` 恒回 200（旧 :632，`return json(res, 200, { result })`），
+ * 而 `GoalSeam.runTask` 的两条出口语义**完全不同**却共用这一个 200：
+ * - 领域裁决（`met` / `not_met` / `stopped`）：run 跑完了，迭代已 persist、队列已 settle，
+ *   结论就写在 `outcome` 上——「评估结论未达成」不是运行失败。
+ * - **结构性失败**（`error`）：`goalSeam.ts:329-345` 的 catch——generate/evaluate/工作区
+ *   抛异常，run **根本没跑完**，任务被 `queue.requeue` 退回 pending 等重试，原因在 `error` 里
+ *   （`GoalRunResult.outcome` 的取值域见 `goalSeam.ts:83`；`'error'` 只由那个 catch 产出）。
+ * 于是只看状态码的客户端（`curl -f`、fetch 的 `res.ok`、HTTP 中间件）无法区分「跑完了、
+ * 结论 not_met」与「跑崩了、被 requeue」——两者都读成成功。
+ *
+ * 裁决（四个 outcome 全部钉死，与 `turnStatusFor` 逐条对齐）：
+ * - `error` ⇒ **500**：与回合的 `kind='error'` 同理——run 是本仓自己跑的，没有上游/代理可
+ *   归因，故不是 502/503（那是网关语义，本仓无此对象）。也不是 400：请求本身合法，
+ *   是运行崩了；400 留给既有的 `goal_run_failed` 分支（`runTask` 自身抛出：任务未知、
+ *   已终态、工作区不存在——`goalSeam.ts:226-232`，那条路径根本没进 try）。
+ * - `met` / `not_met` / `stopped` ⇒ **200**：领域裁决。把 `not_met` 一并变成 5xx 是
+ *   **把一种坏换成另一种坏**——那会让「结论未达成」与「运行崩溃」同样不可区分。
+ *
+ * body 形状不变（仍 `{ result }`：`outcome` / `error` / `queueTask` / `entry` / `record` 语义逐字
+ * 不变）：**不复用**本文件的 `{ error: 'goal_run_failed', message }` 形状——那个形状属于
+ * 「run 没能跑起来」，与「run 跑崩了但 seam 如实回传了 result」是两回事；在同一路径上塞
+ * 第二种 body 形状会逼客户端按字段存在性分支。
+ */
+export function goalRunStatusFor(outcome: GoalRunResult['outcome']): number {
+  return outcome === 'error' ? 500 : 200;
+}
+
 /** Compact single-line tool-arguments summary for SSE tool deltas. */
 function summarizeArgs(args: Record<string, unknown> | undefined): string | undefined {
   if (!args) return undefined;
@@ -629,7 +660,12 @@ export function createVesselServer(opts: VesselServerOptions = {}): VesselServer
           reviewerProviderId: 'mock',
           reviewerModel: 'mock-review',
         });
-        return json(res, 200, { result });
+        // BRIEF-21: outcome='error' is a structural failure (runTask's own catch —
+        // the run crashed and the task was requeued), not a domain verdict like
+        // not_met. Reporting both as 200 makes them indistinguishable to
+        // status-code-only clients. Body shape (and every field's meaning) is
+        // unchanged; only the status differs.
+        return json(res, goalRunStatusFor(result.outcome), { result });
       } catch (err) {
         return json(res, 400, { error: 'goal_run_failed', message: err instanceof Error ? err.message : String(err) });
       }
