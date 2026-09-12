@@ -211,3 +211,29 @@ if (n >= 3) throw new DenialLimitError(...);
 **后果（性质是可靠性/成本，不是泄漏）**：同一个"被拒的意图"可以在工具内**无限重复**而不触发 `DenialLimitError` ⇒ 模型可以反复调用一个必然被拒的工具**烧轮次与 token**。技能卡（`c78635c`）顺手报告了这一条，我读码确认属实。
 **修法方向**：熔断的口径应是"**同一 `toolName:arguments` 的 DENIED 结果**（无论来自执行前门禁还是工具内），≥3 次即结束回合"——即把计数点移到**任何** DENIED 的收口处（`tool/result.error.errorClass === 'DENIED'`），并保持既有语义（`stage`/审计/`DenialLimitError` 文案不变）；判别性验收：工具内 DENIED 连发 3 次 ⇒ 必须 `DenialLimitError`（旧实现不触发 ⇒ 红）、正常成功路径与"执行前拒绝"的既有熔断**逐字不回归**（负对照）。
 **未派卡的原因**：`AgentLoop.ts` 可能正被在跑的"决策点错误策略类型级必填"卡编辑（它此前改过该文件的 `before_tool` 调用点），**我不做同文件并发**；待其落定后再派。
+
+## Round 48 — 取证两处（一处定性为**潜伏**、一处**待实测定级**）
+
+**① `ToolRegistry` 的 exclusive 链"一次异常永久中毒"——定性为潜伏，且整条 execute 路径在生产是死代码**
+- 代码（`packages/tools/src/registry/Registry.ts:111-118`）：
+  ```ts
+  if (tool.exclusive) {
+    let result = {...};
+    this.exclusiveChain = this.exclusiveChain.then(async () => { result = await run(); });
+    await this.exclusiveChain;
+    return result;
+  }
+  ```
+  `run()`（`:97-107`）**会重新抛出**（`tool.execute` 抛错则 `finally` 后继续外抛）⇒ 若某个 exclusive 工具抛错，`.then(...)` 返回的就是 **rejected** ⇒ `exclusiveChain` **永久 rejected** ⇒ 之后每次 `.then(...)` **回调永不执行**（既不跑 `run()`，又把**上一次的陈旧错误**抛给调用方）⇒ **一次写工具异常，此后所有写工具静默不执行**，且诊断信息是错的、无状态位。
+- **但可达性经过我核实是"潜伏"**：`registry.execute` 的**唯一非测试调用方**是 `ParallelScheduler`（`registry/parallel.ts:58`），而 `ParallelScheduler` **本身只在 `parallel.test.ts` 里被使用**；生产 `compose.ts:268` 构造 `ToolRegistry` 后只用 `spec()`/`listVisible()`/`registerMcpTools`。⇒ **整条 `execute` 路径（含 exclusive 屏障与 rolling pool）在生产里是死代码**。
+- **意义（比"潜伏 bug"更值得记）**：这是一个**"看起来在保证写串行化、实际从未执行"的机制**——与本段反复出现的"死 seam/死规则"同族，只是这次死的是**并发安全机制本身**。**修法**（小）：给链补 `.catch()` 让**链本身恢复**、而失败仍如实抛给**当次**调用；并把"execute 路径生产未接线"如实记入文档/注释（要么接线、要么明确标注未接线）。
+
+**② `costMultipliers()` 抛错 ⇒ 倍率静默变默认（成本展示静默失真）——待实测定级**
+- 代码（`apps/cli/src/cli.ts:513-518`）：
+  ```ts
+  multipliers = new ProviderStore({}).costMultipliers();
+  } catch { multipliers = {}; }                       // ← 任何抛错 ⇒ 空表
+  return (provider) => multipliers[provider] ?? DEFAULT_COST_MULTIPLIER;
+  ```
+  ⇒ 只要 `costMultipliers()` 抛错，**所有 provider 的倍率静默变默认值**，**成本展示随之静默失真、且无任何告警**（属"静默降级"族）。
+- **我尚未定级**：本仓此前已加固过供应商/用量状态损坏的留档与兜底（task 097 一系），所以 `costMultipliers()` 很可能**自己就兜底而不抛**——那样这个 `catch` 是防御性的、**不可达**。**需实测"store 损坏时它抛不抛"才能定级**；在拿到证据前**不派卡、不写成缺陷**。（这正是本段的纪律：**先测量，再定级**。）
