@@ -28,6 +28,7 @@ import {
   type OpencodeGoFetch,
 } from './OpencodeGoProvider.js';
 import { createProvider, providerNameForConfig } from './createProvider.js';
+import { anthropicFinishReason, parseAnthropicEvent } from '../stream/parseAnthropic.js';
 
 const BASE = 'https://opencode.ai/zen/go/v1';
 
@@ -312,3 +313,108 @@ describe('109 — 线协议修复（assistant tool_calls 投影 + reasoning_cont
     expect(e2.message).toContain(REASON_400);
   });
 });
+
+// ---------------------------------------------------------------------------
+// BRIEF「同一个 wire 值，两个 provider 三套口径」 — 复现 ③（opencode-go）。
+//
+// 改前 `mapFinishReason` 是第三套口径：
+//   `if (wire === 'length' || wire === 'error') return wire;`
+//   `if (wire === 'tool_calls' || hasToolCalls) return 'tool_calls';`
+//   `return 'stop';`
+// ⇒ `content_filter`、`refusal`、**任何未知值**都被报成 `'stop'`（"模型正常说完了"），
+// 而同一个值在 Anthropic 非流式是 `'error'`。createProvider 真接线、
+// CLI `--provider opencode-go` 与真实模型 lane 都在用这条路径。
+// ---------------------------------------------------------------------------
+
+/** 一条 chat/completions 补全体，只关心 finish_reason。 */
+function completionWith(finishReason: string | undefined, withToolCall = false) {
+  const message: Record<string, unknown> = { role: 'assistant', content: 'x' };
+  if (withToolCall) {
+    message.tool_calls = [{ id: 'tc1', type: 'function', function: { name: 'Read', arguments: '{"path":"a.txt"}' } }];
+  }
+  const choice: Record<string, unknown> = { message };
+  if (finishReason !== undefined) choice.finish_reason = finishReason;
+  return { choices: [choice], usage: { prompt_tokens: 1, completion_tokens: 1 } };
+}
+
+describe('BRIEF「同一个 wire 值，两个 provider 三套口径」— opencode-go finishReason 收敛', () => {
+  it("③ 复现/判别：content_filter / 未知值 ⇒ 'error'（改前一律 'stop'），且绝不是 'stop'", () => {
+    for (const wire of ['content_filter', 'refusal', 'pause_turn', 'function_call', 'some_future_value']) {
+      const parsed = parseOpencodeGoChatCompletion(completionWith(wire));
+      expect(parsed.finishReason, `wire=${wire}`).toBe('error');
+      expect(parsed.finishReason, `wire=${wire}`).not.toBe('stop');
+      expect(parsed.finishReason, `wire=${wire}`).not.toBe('length');
+    }
+  });
+
+  it('③′ 未知值即便**伴随工具调用**也不得被洗成正常收尾（改前 ⇒ tool_calls；流式两路对同值都给 error）', () => {
+    const parsed = parseOpencodeGoChatCompletion(completionWith('content_filter', true));
+    expect(parsed.toolCalls).toHaveLength(1); // 工具调用本身不丢
+    expect(parsed.finishReason).toBe('error');
+    expect(parsed.finishReason).not.toBe('tool_calls');
+    expect(parsed.finishReason).not.toBe('stop');
+  });
+
+  it('② 负对照：既有裁决逐字不变（stop→stop、tool_calls→tool_calls、length→length、error→error；hasToolCalls 仍覆盖 stop）', () => {
+    expect(parseOpencodeGoChatCompletion(completionWith('stop')).finishReason).toBe('stop');
+    expect(parseOpencodeGoChatCompletion(completionWith('tool_calls')).finishReason).toBe('tool_calls');
+    expect(parseOpencodeGoChatCompletion(completionWith('length')).finishReason).toBe('length');
+    expect(parseOpencodeGoChatCompletion(completionWith('error')).finishReason).toBe('error');
+    // hasToolCalls 覆盖 'stop'（改前既有裁决：wire 说正常收尾但确实有 tool_calls ⇒ 去执行工具）
+    expect(parseOpencodeGoChatCompletion(completionWith('stop', true)).finishReason).toBe('tool_calls');
+    // 'length' 是第一优先级：有工具调用也仍是 'length'（截断信号不得被掩盖）
+    expect(parseOpencodeGoChatCompletion(completionWith('length', true)).finishReason).toBe('length');
+    expect(parseOpencodeGoChatCompletion(completionWith('error', true)).finishReason).toBe('error');
+    // Anthropic 形 token 与另一条路径同解（见 ④）
+    expect(parseOpencodeGoChatCompletion(completionWith('end_turn')).finishReason).toBe('stop');
+    expect(parseOpencodeGoChatCompletion(completionWith('max_tokens')).finishReason).toBe('length');
+  });
+
+  it("③″ 负对照：wire **缺失/空** 的既有语义逐字不变（'stop'；有工具调用时 'tool_calls'）——本卡不得顺手改成 'error'", () => {
+    expect(parseOpencodeGoChatCompletion(completionWith(undefined)).finishReason).toBe('stop');
+    expect(parseOpencodeGoChatCompletion(completionWith('')).finishReason).toBe('stop');
+    expect(parseOpencodeGoChatCompletion(completionWith(undefined, true)).finishReason).toBe('tool_calls');
+    expect(parseOpencodeGoChatCompletion(completionWith('', true)).finishReason).toBe('tool_calls');
+    // 两条边界都不得变成 'length'
+    expect(parseOpencodeGoChatCompletion(completionWith(undefined)).finishReason).not.toBe('length');
+    expect(parseOpencodeGoChatCompletion(completionWith('')).finishReason).not.toBe('length');
+  });
+
+  it('④ 同解：同一个 wire 值在 opencode-go、Anthropic 流式、Anthropic 非流式三处给出**同一个结论**', () => {
+    // Anthropic 非流式 = `anthropicFinishReason`（chat() 直接调它，见 anthropic-provider.test.ts ②）；
+    // Anthropic 流式 = `parseAnthropicEvent(message_delta{stop_reason})` 产出的 message_end，
+    // 再经 AgentLoop 的逐字重放（AgentLoop.ts:86-90）—— 两者都必须与 opencode-go 同值。
+    const streamVerdict = (wire: string): string => {
+      const chunks = parseAnthropicEvent(JSON.stringify({ type: 'message_delta', delta: { stop_reason: wire } }));
+      const end = chunks.find((c) => c.type === 'message_end') as { finishReason?: string } | undefined;
+      if (end?.finishReason === 'length' || end?.finishReason === 'error') return end.finishReason;
+      return end?.finishReason ?? 'stop';
+    };
+
+    for (const [wire, expected] of [
+      ['content_filter', 'error'],
+      ['refusal', 'error'],
+      ['some_future_value', 'error'],
+      ['stop', 'stop'],
+      ['end_turn', 'stop'],
+      ['stop_sequence', 'stop'],
+      ['tool_calls', 'tool_calls'],
+      ['tool_use', 'tool_calls'],
+      ['length', 'length'],
+      ['max_tokens', 'length'],
+      ['error', 'error'],
+    ] as const) {
+      const go = parseOpencodeGoChatCompletion(completionWith(wire)).finishReason;
+      const anthropic = anthropicFinishReason(wire);
+      const streamed = streamVerdict(wire);
+      expect(go, `wire=${wire}`).toBe(expected);
+      expect(anthropic, `wire=${wire}`).toBe(expected);
+      expect(streamed, `wire=${wire}`).toBe(expected);
+      // 判别线：三者**互相**相等 —— 改前 'content_filter' 在 opencode-go 是 'stop'、
+      // 在 Anthropic 非流式是 'error' ⇒ 本断言必红。
+      expect(go, `wire=${wire}`).toBe(anthropic);
+      expect(go, `wire=${wire}`).toBe(streamed);
+    }
+  });
+});
+

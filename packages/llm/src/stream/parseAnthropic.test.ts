@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { parseAnthropicEvent, AnthropicStreamParser, anthropicFinishReason, anthropicToolInputSeed } from './parseAnthropic.js';
+import { wireFinishReason } from '../finishReason.js';
 import type { StreamChunk } from '@vessel/shared';
 
 describe('parseAnthropicEvent — content_block_delta → text_delta', () => {
@@ -80,6 +81,150 @@ describe('parseAnthropicEvent — finish reason mapping', () => {
     expect(anthropicFinishReason('tool_use')).toBe('tool_calls');
     expect(anthropicFinishReason('max_tokens')).toBe('length');
     expect(anthropicFinishReason('stop_sequence')).toBe('stop');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// BRIEF「同一个 wire 值，两个 provider 三套口径」 — 复现 ①（Anthropic **流式**）。
+//
+// 改前 `anthropicFinishReason` 的 `default: return stopReason;` **原样透传**未知值：
+// `message_delta{stop_reason:'refusal'}` ⇒ `message_end{finishReason:'refusal'}`，
+// 而消费侧 `AgentLoop.normalizeFinishReason`（AgentLoop.ts:86-90）只对
+// `'length'`/`'error'`/`'tool_calls'` 特判、其余一律 `'stop'` ⇒ **真实路径**
+// （`AgentLoop.callModel` 只要 provider 有 `stream()` 就走流式）上
+// `'refusal'` = `kind='success'`（文本非空）/ `'budget'`（文本空）。
+// 同一个值在**非流式** `AnthropicProvider.chat()` 却是 `'error'`（另一套口径）。
+//
+// 本包不能 import @vessel/core（llm 的 package.json 只依赖 @vessel/shared），
+// 故下面的 `normalizeLikeAgentLoop` 是 AgentLoop 消费侧规则的**逐字重放**，
+// 用例 ⑥ 对它自带自检（真值源仍是 AgentLoop 本尊）。
+// ---------------------------------------------------------------------------
+
+/**
+ * `AgentLoop` 消费侧规则的逐字重放：
+ *   AgentLoop.ts:641-643 `case 'message_end': if (chunk.finishReason) wireFinish = chunk.finishReason;`
+ *   AgentLoop.ts:667     `normalizeFinishReason(wireFinish, toolCalls.length > 0)`
+ *   AgentLoop.ts:86-90   `if (wire === 'length' || wire === 'error') return wire;`
+ *                        `if (wire === 'tool_calls' || hasToolCalls) return 'tool_calls';`
+ *                        `return 'stop';`
+ */
+function normalizeLikeAgentLoop(chunks: readonly StreamChunk[]): string {
+  let wire: string | undefined;
+  let hasToolCalls = false;
+  for (const c of chunks) {
+    if (c.type === 'message_end') {
+      if (c.finishReason) wire = c.finishReason;
+    } else if (c.type === 'tool_call_start') {
+      hasToolCalls = true;
+    }
+  }
+  if (wire === 'length' || wire === 'error') return wire;
+  if (wire === 'tool_calls' || hasToolCalls) return 'tool_calls';
+  return 'stop';
+}
+
+describe('BRIEF「同一个 wire 值，两个 provider 三套口径」— Anthropic 流式未知值', () => {
+  it("① 复现/判别：未知 stop_reason（refusal/pause_turn/content_filter/未来值）⇒ message_end{finishReason:'error'}（改前原样透传 ⇒ 消费侧读成 'stop'）", () => {
+    for (const wire of ['refusal', 'pause_turn', 'content_filter', 'model_context_window_exceeded', 'some_future_value']) {
+      const chunks = parseAnthropicEvent(
+        JSON.stringify({ type: 'message_delta', delta: { stop_reason: wire }, usage: { output_tokens: 3 } }),
+      );
+      // 判别线 1：**不是** 'stop'，也不把不认识的值原样挂在 chunk 上
+      expect(chunks, `wire=${wire}`).toContainEqual({ type: 'message_end', finishReason: 'error' });
+      expect(
+        chunks.some((c) => c.type === 'message_end' && c.finishReason !== 'error'),
+        `wire=${wire}`,
+      ).toBe(false);
+      // 判别线 2：消费侧（AgentLoop 逐字重放）读到 'error' 而不是 'stop'
+      expect(normalizeLikeAgentLoop(chunks), `wire=${wire}`).toBe('error');
+      expect(normalizeLikeAgentLoop(chunks), `wire=${wire}`).not.toBe('stop');
+      // 判别线 3：本函数就是包内唯一那张表（不是"形状相似的又一张"）
+      expect(anthropicFinishReason(wire), `wire=${wire}`).toBe(wireFinishReason(wire));
+    }
+  });
+
+  it('①′ 同一条判定在真实驱动（AnthropicStreamParser，message_stop 收口）上成立，且不产生多余的 finishReason', () => {
+    const p = new AnthropicStreamParser();
+    const chunks = [
+      'event: message_start',
+      'data: {"type":"message_start","model":"claude-sonnet-4"}',
+      'event: content_block_delta',
+      'data: {"type":"content_block_delta","index":0,"delta":{"type":"text_delta","text":"抱歉，我不能协助。"}}',
+      'event: content_block_stop',
+      'data: {"type":"content_block_stop","index":0}',
+      'event: message_delta',
+      'data: {"type":"message_delta","delta":{"stop_reason":"refusal"},"usage":{"output_tokens":4}}',
+      'event: message_stop',
+      'data: {"type":"message_stop"}',
+    ].flatMap((line) => p.feed(line));
+
+    expect(chunks).toContainEqual({ type: 'message_end', finishReason: 'error' });
+    // message_stop 的收口 message_end 仍是既有的字面形状（不带 finishReason），
+    // 消费侧不会因此丢掉上一帧记下的值（AgentLoop.ts:642 只覆盖非空值）
+    expect(chunks.filter((c) => c.type === 'message_end' && c.finishReason === undefined)).toEqual([{ type: 'message_end' }]);
+    expect(normalizeLikeAgentLoop(chunks)).toBe('error');
+  });
+
+  it('② 负对照：既有映射逐字不变（含改前走 default 但值恰好相同的 OpenAI 形 token）', () => {
+    // Anthropic 形（本卡的既有裁决，逐字不变）
+    expect(anthropicFinishReason('end_turn')).toBe('stop');
+    expect(anthropicFinishReason('stop_sequence')).toBe('stop');
+    expect(anthropicFinishReason('tool_use')).toBe('tool_calls');
+    expect(anthropicFinishReason('max_tokens')).toBe('length');
+    // OpenAI 形：改前走 `default: return stopReason` **原样透传**，透传值与共享表同值
+    // ⇒ 这四者对同一个 wire 值改前改后同解（本卡不动它们）
+    expect(anthropicFinishReason('stop')).toBe('stop');
+    expect(anthropicFinishReason('tool_calls')).toBe('tool_calls');
+    expect(anthropicFinishReason('length')).toBe('length');
+    expect(anthropicFinishReason('error')).toBe('error');
+    // 既有 chunk 形状逐字不变
+    expect(parseAnthropicEvent(JSON.stringify({ type: 'message_delta', delta: { stop_reason: 'end_turn' } }))).toEqual([
+      { type: 'message_end', finishReason: 'stop' },
+    ]);
+    expect(parseAnthropicEvent(JSON.stringify({ type: 'message_delta', delta: { stop_reason: 'tool_use' } }))).toEqual([
+      { type: 'message_end', finishReason: 'tool_calls' },
+    ]);
+    expect(parseAnthropicEvent(JSON.stringify({ type: 'message_delta', delta: { stop_reason: 'max_tokens' } }))).toEqual([
+      { type: 'message_end', finishReason: 'length' },
+    ]);
+  });
+
+  it('③ 负对照：wire **缺失/空** 的既有语义逐字不变（本卡不得顺手把它们改成 error/length）', () => {
+    // 缺失：message_delta 不带 stop_reason ⇒ 该帧**不产出** message_end（既有守卫，
+    // `parseAnthropicEvent` 的 `if (ev.delta?.stop_reason)`），消费侧仍是既有的 'stop'
+    const missing = parseAnthropicEvent(JSON.stringify({ type: 'message_delta', usage: { output_tokens: 3 } }));
+    expect(missing.some((c) => c.type === 'message_end')).toBe(false);
+    // 空串同样是 falsy ⇒ 同上（不得变成 'error'，也不得变成 'length'）
+    const empty = parseAnthropicEvent(JSON.stringify({ type: 'message_delta', delta: { stop_reason: '' }, usage: { output_tokens: 3 } }));
+    expect(empty.some((c) => c.type === 'message_end')).toBe(false);
+    // message_stop 的收口 message_end 带不带 finishReason 的既有字面形状不变
+    expect(parseAnthropicEvent(JSON.stringify({ type: 'message_stop' }))).toEqual([{ type: 'message_end' }]);
+    expect(normalizeLikeAgentLoop([{ type: 'message_end' }])).toBe('stop');
+    // 缺 stop_reason 的完整流：既有读法仍是 'stop'（改前改后同值）
+    const p = new AnthropicStreamParser();
+    const chunks = ['data: {"type":"content_block_delta","index":0,"delta":{"type":"text_delta","text":"ok"}}', 'data: {"type":"message_stop"}'].flatMap(
+      (line) => p.feed(line),
+    );
+    expect(chunks.filter((c) => c.type === 'message_end')).toEqual([{ type: 'message_end' }]);
+    expect(normalizeLikeAgentLoop(chunks)).toBe('stop');
+  });
+
+  it('⑥ 消费侧重放自检：本地重放与 AgentLoop.ts:86-90 的规则逐一相符（防这张表被改后悄悄漂移）', () => {
+    expect(normalizeLikeAgentLoop([{ type: 'message_end', finishReason: 'length' }])).toBe('length');
+    expect(normalizeLikeAgentLoop([{ type: 'message_end', finishReason: 'error' }])).toBe('error');
+    expect(normalizeLikeAgentLoop([{ type: 'message_end', finishReason: 'tool_calls' }])).toBe('tool_calls');
+    expect(normalizeLikeAgentLoop([{ type: 'message_end', finishReason: 'stop' }])).toBe('stop');
+    expect(normalizeLikeAgentLoop([{ type: 'message_end' }])).toBe('stop');
+    expect(
+      normalizeLikeAgentLoop([{ type: 'message_end' }, { type: 'tool_call_start', id: 'call_1', name: 'Read', arguments: '{}' }]),
+    ).toBe('tool_calls');
+    // 'error' 不会被 hasToolCalls 掩盖（本卡依赖这条：未知值即便伴随工具调用也仍是 error）
+    expect(
+      normalizeLikeAgentLoop([
+        { type: 'message_end', finishReason: 'error' },
+        { type: 'tool_call_start', id: 'call_1', name: 'Read', arguments: '{}' },
+      ]),
+    ).toBe('error');
   });
 });
 

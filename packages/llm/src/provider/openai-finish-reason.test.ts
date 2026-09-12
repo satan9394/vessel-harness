@@ -32,9 +32,31 @@ import { OpenAIStreamParser, openAIFinishReason } from '../stream/parseOpenAI.js
  * ## 本卡的修法（两步，最小）
  *   (a) 非流式：`'length'` **透传**（不再把非 stop/tool_calls 一律塌缩）；
  *   (b) 流式：边界 `message_end` **携带** wire `finish_reason` 的归一值。
- * 两步共用**同一张**归一表 `openAIFinishReason`（parseOpenAI.ts，与 parseAnthropic.ts:202
- * 的 `anthropicFinishReason` 同形），所以 chat() 与 stream() 对同一个 wire 值必然同解 ——
- * 改前缺的正是这份一致性。**没有**把 wire `'error'` 当截断（另一张卡的前提保持不变）。
+ * 两步共用**同一张**归一表 `openAIFinishReason` ⇒ **这条 provider 路径内部**，chat() 与
+ * stream() 对同一个 wire 值必然同解 —— 改前缺的正是这份一致性。
+ * **没有**把 wire `'error'` 当截断（另一张卡的前提保持不变）。
+ *
+ * ## 更正（BRIEF「同一个 wire 值，两个 provider 三套口径」碰到的假句子）
+ * 上一版这里写的是"两步共用同一张归一表 `openAIFinishReason`（parseOpenAI.ts，**与
+ * parseAnthropic.ts:202 的 `anthropicFinishReason` 同形**），所以 chat() 与 stream() 对同一个
+ * wire 值必然同解"。那句话的**前提是假的**：两张表在**未知值**上恰恰不同形 —— 本表
+ * `default ⇒ 'error'`，而当时的 `anthropicFinishReason` 是 `default: return stopReason;`
+ * （**原样透传**：`'content_filter'` 一边归成 'error'、一边原封不动挂上 `message_end`，
+ * 随后被 `AgentLoop.normalizeFinishReason`（AgentLoop.ts:86-90）读成 `'stop'`）；
+ * 而"同一个 wire 值在两条路径上不同解"正是同一批在这个 provider 上修掉的病。
+ * **形状相似从来不是同解的依据。**
+ *
+ * 本卡之后的实情（逐条，不含推测）：
+ *   - `anthropicFinishReason`（parseAnthropic.ts）**不再是**独立的一张表：它委托给
+ *     `wireFinishReason`（packages/llm/src/finishReason.ts），`OpencodeGoProvider.mapFinishReason`
+ *     同样委托它 ⇒ 这三条路径之间"同解"由**同一个函数**保证，而不是由形状相似保证；
+ *   - `openAIFinishReason` **仍然是本文件自己的 OpenAI 专用 switch**（本卡的文件范围不含
+ *     parseOpenAI.ts，未作改动）。它与 `wireFinishReason` 在**OpenAI wire 能携带的每一个
+ *     token 上同值**（含"有值但不认识 ⇒ 'error'"，用例 ⑤ 逐条钉住），但在**跨家族 token 上
+ *     不同解**：`openAIFinishReason('end_turn') === 'error'`，而
+ *     `wireFinishReason('end_turn') === 'stop'`。⇒ 因此这里**不声称"两张表同解"**；
+ *     把它也改成委托（两行）是**报告给指挥侧**的决定，不是本卡擅自扩的范围。
+ *     **这条路径内部**的 chat()/stream() 同解不受影响（两侧都调本函数）。
  *
  * ## 判别性（"删哪行会红"）
  *   - 删掉 `openAIFinishReason` 里的 `case 'length': return 'length';`（或改回 `'error'`）
