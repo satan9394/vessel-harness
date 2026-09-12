@@ -363,6 +363,19 @@
 
 **方法论**：验证一律看"**它对真实输入的反应**"，而非"代码里有没有"——真实策略文件 → 编译出的 `decision`；真实命令 → 谓词返回值；真实工作区 → `run` 的退出码。
 
+## Round 16（G-18：宣称与实际不符，1C 首片）— 1C 完成，复评在途
+
+**1C（mock 运行期可见）**——原始实测痛点：无配置时 mock 会**真的调用工具读文件**，回复"看起来就是真模型"，新人确信已接上模型。已修（提交 `0c1abb8` + `7518b4e`）：
+
+| 侧 | 提示 | 回复标记 | 判定同源 |
+|---|---|---|---|
+| CLI | `MOCK_PROVIDER_NOTICE` 走 **stderr**，回合开始前（`cli.ts:696`） | `renderFinalReply` 单一出口加前缀（幂等） | `usingMockProvider = realProvider === null`（与实际使用的 provider 同源） |
+| TUI | `TUI_MOCK_PROVIDER_NOTICE` 走既有 `io`（`chat.ts:442-445`，每会话一次，重建不重复刷屏） | `renderTurnReply` 唯一出口加前缀（幂等） | `usingMockProvider` 唯一置 true 处紧邻 `new MockProvider(...)`（`chat.ts:422`） |
+
+**实测（Orchestrator E2E）**：临时工作区 `run --prompt '总结 README'` → stderr 含「未连接真实模型」提示，且**那条原本"像真模型"的回复**现带 `（mock 离线冒烟）` 前缀。**负对照**：真 provider 路径由既有 52 个 CLI 测试 + 41 个 TUI 测试覆盖（它们断言真 provider 输出**逐字**为 `CLI-106-MARKER` / `GO-MOCK-PONG`，若给真 provider 也加标记必红）。
+
+**诚实标注的边界（交决策，未做）**：① 标记加在**渲染出口**而非 `MockProvider` 内部 → **落盘 transcript 仍无标记**（要覆盖须改 `packages/llm`，属另一个决定——**我的判断：渲染层已解决"用户看见"，transcript 是事后审计，记入候补而不扩张**）；② TUI 的 `io` 无 stderr 面，提示走 stdout（TUI 无 `--json` 机器契约，可接受）；③ 测试注入 provider 的接缝**不加**标记（避免把任意 fake 误标为"内置 mock"）。
+
 ## 技术债
 
 G-15 原子写 wrapper 各 Store 重复（P4）；architecture 审计的 T1–T9 清单（详见 `docs/product-audit/ARCHITECTURE-REPORT.md`）。
