@@ -11,7 +11,7 @@ const PROJECT = path.join(path.parse(process.cwd()).root, 'tmp', 'vessel-install
 const IN_PKG = path.join(PROJECT, 'node_modules', '@vessel', 'cli', 'dist', 'configs', 'policy.default.yaml');
 /** 基线 = 全绿（读路径命中包内、无缺配置警告）；各用例只覆盖被测字段。 */
 function facts(o: Partial<InstallSmokeFacts> = {}): InstallSmokeFacts {
-  return { enabled: true, tempPathUsable: true, npmAvailable: true, timedOut: false, closureResolved: true, packOk: true, packBlockedOffline: false, tarballCount: 3, expectedPackages: 3, installOk: true, installBlockedOffline: false, workspaceDepMissing: [], cliEntryExists: true, policyStatusOk: true, systemPath: IN_PKG, systemPathInPackage: true, systemConfigFileExists: true, usageWarnsMissingConfig: false, detail: [], ...o };
+  return { enabled: true, tempPathUsable: true, npmAvailable: true, timedOut: false, closureResolved: true, packOk: true, packBlockedByEnv: false, tarballCount: 3, expectedPackages: 3, installOk: true, installBlockedByEnv: false, workspaceDepMissing: [], cliEntryExists: true, policyStatusOk: true, systemPath: IN_PKG, systemPathInPackage: true, systemConfigFileExists: true, usageWarnsMissingConfig: false, detail: [], ...o };
 }
 const status = (o: Partial<InstallSmokeFacts> = {}): string => judgeInstallSmoke(facts(o)).status;
 
@@ -34,12 +34,12 @@ describe('install-smoke 纯判据（V1.1-G）', () => {
   });
 
   it('pending 通道（环境不具备，绝不 fail）', () => {
-    const cases: Array<Partial<InstallSmokeFacts>> = [{ enabled: false }, { tempPathUsable: false }, { closureResolved: false }, { npmAvailable: false }, { timedOut: true }, { packOk: false, packBlockedOffline: true }, { installOk: false, installBlockedOffline: true }, { systemPath: undefined, systemPathInPackage: false }];
+    const cases: Array<Partial<InstallSmokeFacts>> = [{ enabled: false }, { tempPathUsable: false }, { closureResolved: false }, { npmAvailable: false }, { timedOut: true }, { packOk: false, packBlockedByEnv: true }, { installOk: false, installBlockedByEnv: true }, { systemPath: undefined, systemPathInPackage: false }];
     for (const c of cases) expect(status(c), JSON.stringify(c)).toBe('pending');
   });
 
   it('fail 通道（包真的坏了）', () => {
-    const cases: Array<Partial<InstallSmokeFacts>> = [{ packOk: false, packBlockedOffline: false }, { tarballCount: 2 }, { installOk: false, installBlockedOffline: true, workspaceDepMissing: ['@vessel/llm'] }, { installOk: false, installBlockedOffline: false }, { cliEntryExists: false }, { policyStatusOk: false }, { systemPath: path.join(PROJECT, 'configs', 'policy.default.yaml'), systemPathInPackage: false }, { systemConfigFileExists: false }, { usageWarnsMissingConfig: true }];
+    const cases: Array<Partial<InstallSmokeFacts>> = [{ packOk: false, packBlockedByEnv: false }, { tarballCount: 2 }, { installOk: false, installBlockedByEnv: true, workspaceDepMissing: ['@vessel/llm'] }, { installOk: false, installBlockedByEnv: false }, { cliEntryExists: false }, { policyStatusOk: false }, { systemPath: path.join(PROJECT, 'configs', 'policy.default.yaml'), systemPathInPackage: false }, { systemConfigFileExists: false }, { usageWarnsMissingConfig: true }];
     for (const c of cases) expect(status(c), JSON.stringify(c)).toBe('fail');
   });
 

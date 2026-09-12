@@ -520,7 +520,8 @@ export function buildPublishArtifactExecutor(): GateExecutor {
 //   ③ 超时（按**实测耗时 ≥ 传入 timeoutMs** 判定 —— execFile 的超时被 catch 成 exit 1，
 //      错误文案里未必有 "timeout"，不能只靠文本）
 //   ④ 环境不具备：离线装不上且原因是网络/缓存/解析（ENOTCACHED / EAI_AGAIN / ENOTFOUND /
-//      registry 404 / registry.npmjs.org …）——此时**离线无法区分**「缓存缺第三方依赖」与「依赖真不可达」。
+//      registry 404 / registry.npmjs.org …）或资源耗尽（ENOMEM / heap out of memory / SIGKILL）
+//      ——此时**离线无法区分**「缓存缺第三方依赖」与「依赖真不可达」，也分不清「机器跑不动」。
 //   刻意**不做** registry 可达性探测（那要联网，违反本仓「不联网」）：改用 npm 错误文本 + 依赖图反解。
 //   反向判别：若离线解析失败的名字命中**本仓 workspace 包名**（来自 root package.json 的 workspaces），
 //   那就是「自家 tarball 集合满足不了自家依赖范围」= 真的坏了 → **fail**（不是 pending）。
@@ -556,7 +557,7 @@ export const INSTALL_SMOKE_CRITERION =
   '→ 以**安装态**跑 CLI，断言 ① `policy status --json` 的 system 层路径逐字等于' +
   ' `<项目>/node_modules/@vessel/cli/dist/configs/policy.default.yaml` 且该文件真实存在；' +
   '② `usage` 不打印「未找到内置配置」。两条同时成立才 pass（`--version`/`--help` 恒 exit 0，**不作判据**）。' +
-  '环境不具备（未启用 / npm 不可用 / 离线装不上（缓存缺第三方依赖或解析不可达）/ 超时 / 输出不可解析）→ 显式 **pending**；' +
+  '环境不具备（未启用 / npm 不可用 / 离线装不上（缓存缺第三方依赖或解析不可达）/ 资源耗尽 / 超时 / 输出不可解析）→ 显式 **pending**；' +
   '包真的坏了（自家 workspace 依赖未被同批 tarball 满足 / tarball 缺文件 / 装完无入口 / CLI 跑不起来 / ' +
   '读路径落到包外 / 出现缺配置警告）→ **fail**；两者都不静默通过。';
 
@@ -782,7 +783,7 @@ export interface InstallSmokeFacts {
  * 判定安装态冒烟（纯函数，无 IO；分支顺序即优先级）。
  *
  * pending 通道（**环境不具备**，绝不判 fail）：未启用 → 路径不可用 → 闭包解析不出 → npm 不可用 →
- *   超时 → pack 因离线失败 → install 因离线失败 → system 路径不可解析。
+ *   超时 → pack 因环境原因失败 → install 因环境原因失败 → system 路径不可解析。
  * fail 通道（**包真的坏了**）：pack 非环境性失败 → tarball 数不足 → install 非环境性失败 →
  *   自家 workspace 依赖未被满足 → 装完无入口 → `policy status` 非 0 → 读路径落包外 →
  *   包内配置文件不存在 → 出现缺配置警告。
@@ -836,10 +837,10 @@ export function judgeInstallSmoke(facts: InstallSmokeFacts): GateVerdict {
     );
   }
   if (!facts.packOk) {
-    return facts.packBlockedOffline
+    return facts.packBlockedByEnv
       ? pending(
-          'npm pack 因离线 / 网络原因失败 —— 环境不具备，未判定安装态',
-          'install-smoke gate: 离线缓存不满足 pack 需求 → 显式 pending，不静默通过。',
+          'npm pack 因环境原因失败（离线 / 网络 / 缓存 / 资源耗尽）—— 环境不具备，未判定安装态',
+          'install-smoke gate: 环境不具备（离线缓存或机器资源）→ 显式 pending，不静默通过。',
           [],
         )
       : fail('npm pack 失败（npm 已执行且非环境原因）—— 发布物产不出来', []);
@@ -858,9 +859,9 @@ export function judgeInstallSmoke(facts: InstallSmokeFacts): GateVerdict {
         [],
       );
     }
-    return facts.installBlockedOffline
+    return facts.installBlockedByEnv
       ? pending(
-          'npm install 因离线 / 网络 / 解析原因失败 —— 环境不具备（缓存缺第三方依赖），未判定安装态',
+          'npm install 因环境原因失败（离线 / 网络 / 解析 / 资源耗尽）—— 环境不具备（缓存缺第三方依赖），未判定安装态',
           'install-smoke gate: 离线无法证伪「依赖只是没缓存」→ 显式 pending，不静默通过。',
           [],
         )
@@ -1070,7 +1071,7 @@ export function buildInstallSmokeExecutor(opts: InstallSmokeOptions = {}): GateE
             facts.npmAvailable = false;
             return judgeInstallSmoke(facts);
           }
-          facts.installBlockedOffline = isOfflineBlockedText(installText);
+          facts.installBlockedByEnv = isEnvironmentBlockedText(installText);
           facts.workspaceDepMissing = unresolvedWorkspaceDeps(
             installText,
             closure.packages.map((p) => p.name),

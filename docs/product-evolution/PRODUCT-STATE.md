@@ -58,7 +58,9 @@
 **② 两处测试盲点闭合**：`pricingSyncMismatchWarning` 的**调用点**改用**真跑**（既有 pricing sync 用例本就用**本地 loopback 替身**充当 models.dev，零外网）；C-4 文案用**正向关键词 + 反向 `not.toContain` 双锁**。执行者逐条给出"删哪行会红"，并**主动限定了一处断言边界**：顺序断言锁的是"warn 早于人类可读写入回执"，**不严格等价于"早于 `fs` 写盘"**，故另配 `fs.existsSync`。
 **③ 发布链路门禁化（终评点名的最大缺口）**：新增第 9 道门禁 **`install-smoke`**——**默认不跑**（`VESSEL_GATE_INSTALL_SMOKE=1` 才启用，未启用时**零命令零 IO** 直接 `pending`，故**不拖慢既有 8 道**）；判据是"**读路径逐字落在安装态包内**（仓库/cwd 下的 configs 一律不算）"，**而非"命令 exit 0"**；**7 种 pending**（环境不具备）与 **5 种 fail**（包真的坏了）严格分离。
 **④ 事实更正**：文档引用的行号已漂移，实测为 **`cli.ts:641`**（C-4 文案）、**`:291`**（判据定义）、**`:1818-1819`**（调用点），非 `:509`/`:1793-1794`。已修。
-**验证**：`tsc 0`；全量 **137 文件 / 1544 passed + 3 skipped**；`benchmarks/runners` **19 文件 / 251 passed**；`npm install --dry-run` exit 0。
+**验证**：`tsc 0`；全量 **138 文件 / 1555 passed + 3 skipped / exit 0**；`benchmarks/runners` **19 文件 / 250–251 passed**；`npm install --dry-run` exit 0。
+**⑤ 一次已观察但未复现的偶发（如实记录）**：一次全量运行报 `1 failed | Received: "fail"`；随后 **3 次运行全绿**（`benchmarks/runners` ×2、全量 ×2，末次 `1555 passed`）。**未复现**，故不据此改动实现。**取证失误**：我当时用 `Select-String` 过滤 vitest 输出，**把失败用例名连同堆栈滤掉了**——这违反本仓纪律（"不捕获即等于没有证据"）。**教训（并入纪律 14 的延伸）**：**定位失败时必须先把原始输出落盘再过滤**，否则会把"待定位的红"变成"记不清的偶发"。
+**⑥ 已知残余（执行者如实标注）**：`benchmarks/runners/src/report/runner.ts` 的 md 标题写死"8 道发布门禁"，启用第 9 道时表格会多一行与标题不符（一行可修）；第 9 道**只覆盖"打包→安装→首跑"，未覆盖"升级路径"**；Windows 下临时路径含空白时按 `pending` 降级（已显式处理，不会误判 `fail`）。
 
 ## 已解决问题（Round 1 切片 · 历史存档）
 
