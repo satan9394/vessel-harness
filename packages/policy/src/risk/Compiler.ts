@@ -59,6 +59,11 @@ function shellCommandPredicate(
 // 作用域纪律：本块只替换 `git:force-push` 这条**内置语义规则**的实现。
 // `shellCommandPredicate`（策略作者写的 `Shell(...)`/`Bash(...)`）的 `*` 语义
 // 按本卡要求**保持不变**（锚定 glob + 逐字转义，不做包装剥离），两者互不影响。
+//
+// C-3 残留盲区补充（放宽会话下实测仍可绕过）：`git push origin +main`（`+<refspec>`
+// 强制推送，标准惯用写法）、`env -S "git push --force" …`（env 的 split-string
+// 脚本模式）、`eval "git push --force origin main"`（与 `sh -c` 同类的字符串套壳）。
+// 三者的判定仍全部落在 `git:force-push` 这一条内置谓词里。
 // ─────────────────────────────────────────────────────────────────────────────
 
 /** 包装器递归剥离的最大深度（`sudo sh -c 'env x sh -c …'` 之类）。 */
@@ -202,7 +207,27 @@ function isForcePushOption(token: string): boolean {
   return /^-[A-Za-z]+$/.test(token) && token.includes('f');
 }
 
-/** 命令形如 `git <全局选项…> push <args…>`，且 push 之后出现 force 选项。 */
+/**
+ * `+<refspec>`（`git push origin +main`）：`git-push(1)` 把 refspec 前缀 `+` 定义为
+ * "allow non-fast-forward updates"，与 `--force` 等价 —— 这是强制推送的**标准惯用
+ * 写法**，只看 `-f`/`--force` 选项的旧实现必然漏判。
+ *
+ * 判定绑定到 **refspec 位置**（`push` 之后的参数），所以命令里任意位置出现 `+` 都不会
+ * 误命中：`git push origin a+b`（`+` 不在 token 开头）、`git push origin main && echo a+b`
+ * （`&&` 已切段，第二段段首是 `echo`）均为 false。
+ *
+ * 引号由 `tokenizeShellSegment` 剥掉：`git push origin "+main"` 得到 token `+main`
+ * ⇒ 命中（shell 引号不改变参数内容，语义上确为强制推送）。`+` 也**从不**是 git push
+ * 的选项前缀，故任何以 `+` 开头的参数按 fail-closed 记为强制推送。
+ */
+function isForceRefspec(token: string): boolean {
+  return token.startsWith('+');
+}
+
+/** `git push` 中**带独立值**的选项（`-o <opt>` / `--receive-pack <path>`）：其值不是 refspec。 */
+const GIT_PUSH_VALUE_OPTS = new Set(['-o', '--push-option', '--receive-pack', '--exec', '--repo']);
+
+/** 命令形如 `git <全局选项…> push <args…>`，且 push 之后出现 force 选项或 `+<refspec>`。 */
 function isGitPushWithForce(tokens: string[]): boolean {
   if (tokens.length === 0) return false;
   if (shellBasename(tokens[0]!) !== 'git') return false;
@@ -218,7 +243,14 @@ function isGitPushWithForce(tokens: string[]): boolean {
   }
   if (tokens[i] !== 'push') return false;
   for (let j = i + 1; j < tokens.length; j++) {
-    if (isForcePushOption(tokens[j]!)) return true;
+    const token = tokens[j]!;
+    if (isForcePushOption(token)) return true;
+    // `-o <opt>` 之类取独立值的选项：连它的值一起跳过，避免把值当 refspec
+    if (GIT_PUSH_VALUE_OPTS.has(token)) {
+      j++;
+      continue;
+    }
+    if (isForceRefspec(token)) return true;
   }
   return false;
 }
@@ -227,6 +259,35 @@ function isGitPushWithForce(tokens: string[]): boolean {
 function shellDashCArg(tokens: string[]): string | null {
   for (let i = 1; i < tokens.length; i++) {
     if (/^-[A-Za-z]*c[A-Za-z]*$/.test(tokens[i]!)) return tokens[i + 1] ?? null;
+  }
+  return null;
+}
+
+/**
+ * `env -S "<script>"` / `env --split-string="<script>"` → 被执行的命令文本。
+ *
+ * `-S` **不是**无值开关：GNU `env(1)` 的 split-string 模式把 `-S` 的值按空白切成
+ * 参数，再接上其后的其余参数，整体就是它要执行的命令行。旧实现把 `-S` 当无值开关
+ * （见 `WRAPPER_VALUE_OPTS.env` 的注释），于是脚本 token 被当成普通参数丢弃 ⇒
+ * `env -S "git push --force" origin main` fail-open。
+ */
+function envSplitScript(tokens: string[]): string | null {
+  const takesValue = WRAPPER_VALUE_OPTS.env ?? EMPTY_OPTS;
+  for (let i = 1; i < tokens.length; i++) {
+    const token = tokens[i]!;
+    if (/^[A-Za-z_][A-Za-z0-9_]*=/.test(token)) continue; // env VAR=x
+    if (!token.startsWith('-')) return null; // 到达命令本身，本段没有 -S
+    let split: string | null = null;
+    let restFrom = i + 1;
+    if (token.startsWith('--split-string=')) {
+      split = token.slice('--split-string='.length);
+    } else if (token === '-S' || token === '--split-string' || /^-[A-Za-z]*S[A-Za-z]*$/.test(token)) {
+      split = tokens[i + 1] ?? null;
+      restFrom = i + 2;
+    }
+    if (split !== null) return [split, ...tokens.slice(restFrom)].join(' ').trim();
+    if (token === '--') return null;
+    if (takesValue.has(token) && i + 1 < tokens.length) i++; // 跳过其他取值选项的值
   }
   return null;
 }
@@ -249,12 +310,29 @@ function stripWrapper(tokens: string[]): string[] {
   return tokens.slice(i);
 }
 
-/** 单段判定：循环剥离包装器，`sh -c` 取脚本递归，最后按 git push 语义判定。 */
+/** 单段判定：循环剥离包装器，`sh -c` / `env -S` / `eval` 取脚本递归，最后按 git push 语义判定。 */
 function detectForcePushInTokens(tokens: string[], depth: number): boolean {
   let current = tokens;
   for (let round = 0; round <= MAX_WRAPPER_DEPTH; round++) {
     if (current.length === 0) return false;
     const head = shellBasename(current[0]!);
+    // `env -S "<script>"`：`-S` 的**值**才是被执行的命令。必须在通用
+    // `PRIVILEGE_WRAPPERS` 剥离**之前**取出来递归，否则脚本 token 会被当作
+    // 普通参数丢掉（修复前的 fail-open 形）。`env -S "echo hi"` 递归后段首是
+    // `echo` ⇒ false，不会过度拦截。
+    if (head === 'env') {
+      const script = envSplitScript(current);
+      if (script !== null) return detectForcePush(script, depth + 1);
+    }
+    // `eval "<string>"`：与 `sh -c` 同类的「字符串套一层」。`eval` 会把**全部**参数
+    // 用空格拼接后再执行，故这里同样拼接后递归（`eval git push --force` 与
+    // `eval "git push --force"` 等价）。边界：只有 `eval` 位于**段首**（包装剥离后
+    // 的首 token）才按命令处理；出现在参数位（`git commit -m "eval …"`、
+    // `echo eval …`）一律不触发。
+    if (head === 'eval') {
+      const script = current.slice(1).join(' ').trim();
+      return script.length === 0 ? false : detectForcePush(script, depth + 1);
+    }
     if (PRIVILEGE_WRAPPERS.has(head)) {
       const stripped = stripWrapper(current);
       if (stripped.length === current.length) return false; // 防死循环
@@ -270,7 +348,26 @@ function detectForcePushInTokens(tokens: string[], depth: number): boolean {
   return false;
 }
 
-/** 入口：分段后逐段判定（`|` / `;` / `&&` / `||` / 换行 不互相污染）。 */
+/**
+ * 入口：分段后逐段判定（`|` / `;` / `&&` / `||` / 换行 不互相污染）。
+ *
+ * 覆盖的绕过形：位置无关的 `-f`/`--force`/`--force-with-lease[=…]`、`+<refspec>`
+ * 强制推送、`sudo`/`doas`/`env`/`command`/`nohup`/`nice`/`time`/`setsid`/`stdbuf`/
+ * `ionice` 前缀包装、`sh -c`/`bash -lc` 家族、`env -S`/`--split-string` 脚本模式、
+ * `eval` 字符串执行（后三者递归，递归/剥离深度上限 `MAX_WRAPPER_DEPTH` = 4）。
+ *
+ * **已知 fail-open 边界（静态判定原理上做不到，如实列出，不要当成已覆盖）**：
+ * - `xargs`：`… | xargs git push --force` —— 实际 argv 由输入流决定；
+ * - 变量 / 别名 / 函数 / 命令替换间接：`CMD="git push --force"; $CMD`、`alias gp=…`、
+ *   `$(cat cmds.txt)`、反引号、`bash -c "$CMD"`；
+ * - 外部脚本文件内容不可知：`sh deploy.sh`、`./release.sh`、`python x.py`；
+ * - heredoc / 标准输入喂给解释器：`bash <<EOF … EOF`、`… | sh`；
+ * - 包装深度 > `MAX_WRAPPER_DEPTH`(4) 的套娃（`sudo sh -c 'env x sh -c …'`）；
+ * - `env -S "-i git push --force"` 这类「split-string 值本身以 env 选项开头」的脚本：
+ *   拼接后段首是选项而非命令，递归判否；
+ * - 运行时构造后再执行（`base64 -d | sh`、字符串拼接后 `eval`）。
+ * 上述形下本谓词返回 false（allow），由 profile 门 / 沙箱等其他防线承担。
+ */
 function detectForcePush(command: string, depth = 0): boolean {
   if (depth > MAX_WRAPPER_DEPTH) return false;
   for (const segment of splitShellSegments(command)) {

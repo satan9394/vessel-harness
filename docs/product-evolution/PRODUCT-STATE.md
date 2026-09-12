@@ -350,7 +350,15 @@
 - ① **allow 补空档**：allow 类字段在"高层**完全未声明**该键"时低层仍可补。**实测确认在生产路径不可达**——`configs/policy.default.yaml:21` 显式声明 `filesystem.allow: []`、`:28` 声明 `shell.allow: [...]`，故 system+project 路径无空档。**该残留无害**。
 - ② **C-3 盲区（实测确认可利用）**：在 `--permission danger-full-access` 放宽会话下（profile 门不兜底、deny 规则是唯一防线），`git push origin +main`（**标准惯用写法**）、`env -S "git push --force" …`、`eval "git push --force …"` **均裁决为 `allow`**（而 `git push --force origin main` 与 `git push origin main --force` 均为 `deny`）。已派收口卡：`+refspec` 视为强制推送、`env -S`/`eval` 纳入"取字符串递归"同类处理；`xargs`/外部脚本/深度 >4 包装如实列为**已知 fail-open 边界**（不假装覆盖）。
 
-**验收证据**：`tsc 0`；**134 文件 / 1479 passed + 3 skipped / exit 0**；`packages/policy` **79/79**；`benchmarks/runners` **216/216`。**第二轮独立安全复评在途**（`EVALUATION-REPORT-21.md`）。
+**第二轮独立安全复评（`EVALUATION-REPORT-21.md`）：ACCEPT**——C-1→C-5 逐条核验**均真实落地、语义正确**（`PolicyLoader.ts:204-208/194-197/224-232/300`、`cli.ts:509`、`Compiler.ts:198-280/402-403`）；测试 32/16 例计数属实、端到端真走 `loadPolicyArtifacts` + 真实文件；**上一轮 C-1 的藏身处（测试绕过生产入口）已封闭**。
+
+**复评列出的未闭合项（R-1 已处置，其余记入候补）**：
+- **R-1 [中，处置中]** C-3 残留盲区经静态复核**全部成立**：`git push origin +main`、`env -S "…"`、`eval`/`xargs`、`sh script.sh`、深度 >4 fail-open。**默认策略下不可利用**（profile 门兜底），但 `--permission danger-full-access` 下可利用——**而这正是 S006 断言 force-push 被拒的那种会话**。复评给出更强立场：**"无法解析的间接形式应 fail-closed（判定命中/deny）"**。**Orchestrator 采纳该立场**（对 force-push 这条规则，**误拦代价远小于漏放**：合法 force push 极少），已定向追加给收口卡：精确判定优先，**仅在解析不完整/存在未跟随间接层时兜底 deny**；不含 `git`+`push` 的段**不得**被兜底误拦。
+- **R-2 [低-中]** `guidance` 无条件并集是无 trust 门的**提示注入面**（低层可注入任意软引导文本，不参与执法判定）。
+- **R-3 [低]** allow 空档仅在**非默认配置**可达（`--policy` 指向未声明该键的最小策略，或 system 层缺失时 project 变 `decls[0]`）。
+- **R-4 [低]** `firstDeclared` 遇 YAML 裸 `allow:`（null）会 TypeError（**fail-loud，非放行**）。
+- **R-5 [低]** `scoped_rules` 分流按"最高层"而非"首个声明者"；system 无 shell 块时 project 的 allow scoped 规则被丢（**fail-closed**）。
+- **R-6 [低]** 潜伏：`git/network/audit` 未登记键可补空位（当前无消费者）；顶层 `session` 键被 `mergeScopes` 静默丢弃；**`policyStatus.test.ts:323` 未锁 C-4 新文案**（回潮不会变红——测试盲点，建议补一行断言）。
 
 **方法论**：验证一律看"**它对真实输入的反应**"，而非"代码里有没有"——真实策略文件 → 编译出的 `decision`；真实命令 → 谓词返回值；真实工作区 → `run` 的退出码。
 
