@@ -2,11 +2,14 @@ import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import type { ChatProvider, ChatRequest, ChatResponse, PolicyArtifacts } from '@vessel/shared';
+import type { ChatProvider, ChatRequest, ChatResponse, PolicyArtifacts, ToolSpec } from '@vessel/shared';
 import { EventBus } from '@vessel/core';
 import { AutoTaskRouter, MockProvider } from '@vessel/llm';
 import { compilePolicyYaml } from '@vessel/policy';
 import { TeamRuntime } from './TeamRuntime.js';
+import { PresetRegistry } from '../presets/registry.js';
+import { createDefaultPresetRegistry } from '../presets/defaults.js';
+import type { AgentPreset } from '../presets/types.js';
 import type { TeamRunSummary } from './types.js';
 
 const POLICY_YAML = `
@@ -475,6 +478,72 @@ describe('agents/team — TeamRuntime（057）', () => {
     expect(reviewer.review?.verdict).toBe('not_met');
     expect(reviewer.review?.unmet).toEqual(['a.ts 缺导出']);
     expect(reviewer.review?.suggestions).toEqual(['补导出']);
+  });
+
+  it('BRIEF：delegate 阶段的 preset 在委派时已不可解析 → 拒绝并让运行失败（fail-closed），绝不退化为全量工具面', async () => {
+    // 模拟「roster 校验之后，真正委派时该 preset 已不在这个环境的 registry 里」——
+    // 同一 id 的第二次解析失败（首解析=resolveRoster 校验）。旧实现（hasPreset ? getPreset : undefined）
+    // 会把这次未命中折叠成 undefined ⇒ 跳过收窄 ⇒ developer 子代理拿到父代理全量面（含 Write）。
+    class DelegateTimeMissRegistry extends PresetRegistry {
+      private readonly resolutions = new Map<string, number>();
+      override getPreset(id: string): AgentPreset {
+        const n = (this.resolutions.get(id) ?? 0) + 1;
+        this.resolutions.set(id, n);
+        if (n > 1) throw new Error(`preset "${id}" 已从该环境移除（模拟运行期未注册）`);
+        return super.getPreset(id);
+      }
+      override hasPreset(id: string): boolean {
+        // 首次解析后（roster 校验用过一次）即视为「这个环境没有它」
+        return (this.resolutions.get(id) ?? 0) < 1 && super.hasPreset(id);
+      }
+    }
+    const registry = new DelegateTimeMissRegistry(createDefaultPresetRegistry().listPresets());
+    const writeTool: ToolSpec = {
+      name: 'Write',
+      description: 'write a file',
+      family: 'file_write',
+      requiredPermission: 'workspace-write',
+      exclusive: true,
+      inputSchema: { type: 'object', properties: { path: { type: 'string' }, content: { type: 'string' } }, required: ['path', 'content'] },
+      async execute(args, ctx) {
+        fs.writeFileSync(path.join(ctx.workspaceRoot, String(args.path ?? 'out.txt')), String(args.content ?? ''), 'utf8');
+        return { content: 'wrote', meta: {} };
+      },
+    };
+    const bus = new EventBus();
+    const runtime = new TeamRuntime({
+      workspaceRoot: workspace,
+      providers: {
+        lead: prov([{ when: /.*/, text: 'PLAN-MISS' }], 'lead-model'),
+        dev: new MockProvider(
+          [
+            { when: /PLAN-MISS/, ifNoToolResult: true, response: { toolCalls: [{ name: 'Write', arguments: { path: 'forbidden.txt', content: 'X' } }] } },
+            { when: /.*/, minToolResults: 1, response: { text: 'IMPL-MISS' } },
+          ],
+          { model: 'dev-model' },
+        ),
+      },
+      policyArtifacts: artifacts(),
+      tools: [writeTool],
+      presetRegistry: registry,
+      bus,
+    });
+
+    const summary = await runtime.runTeam({
+      task: '任务',
+      // 显式阵容（route 路径会额外解析一次 preset，本用例要的是「校验通过、委派时失配」）
+      roster: [
+        { presetId: 'lead', model: 'lead-model', providerId: 'lead' },
+        { presetId: 'developer', model: 'dev-model', providerId: 'dev' },
+      ],
+    });
+
+    expect(summary.outcome).toBe('failed');
+    expect(summary.members[1]).toMatchObject({ memberId: 'developer', status: 'failed', stopReason: 'denied' });
+    // 拒绝发生在子会话构造之前：没有 child session，也没有任何工具落地（旧实现这里会真写盘）
+    expect(summary.members[1]?.sessionId).toBe('');
+    expect(summary.error).toContain('denied');
+    expect(fs.existsSync(path.join(workspace, 'forbidden.txt'))).toBe(false);
   });
 
   it('058：reviewer 会话可区分（evaluate 成员 B10 agentPreset=reviewer 且 review 结论上团队总线事件）', async () => {

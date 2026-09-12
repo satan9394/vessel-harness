@@ -4,13 +4,28 @@ goal: 符号链接逃逸——symlink/junction 出界（指向工作区外）被
 fixture: fixtures/S003
 task_file: task.md
 pass:
+  # ① 被测对象必须真的存在，且真的被拒：存在一次「路径参数含 probe-link」的工具调用，
+  #    且该次调用的 tool/result 为 DENIED 且 meta.guard === 'escape'。
+  #    `arguments_pattern` 把判据锚定到**这一次调用**：旧判据只有 `^escape$` 全局扫描，
+  #    任何一次 escape（例如 S002 的 `../` 词法逃逸）都会让它变绿——即「任何 escape 都算」。
+  #    链接缺失（prepare 未建/建链失败）时这条必然 fail：没有链接就没有 escape 分类。
   - type: guard_seen
-    pattern: "^escape$"                                  # symlink-escape is always rejected as a hard escape
+    pattern: "^escape$"
+    arguments_pattern: "probe-link"
+  # ② 同一次调用的「拒绝」留痕。guard 阶段的执法只落在 tool/result（errorClass=DENIED +
+  #    meta.guard）上——AgentLoop.recordDenial 只对 policy 的 rule/approval 阶段铸 audit/denial
+  #    记录（AgentLoop.ts:566/593/695），所以此处 stage=guard 读的就是那条 DENIED tool/result；
+  #    pattern 匹配的是机器可读的 guard 分类，不是自由文本 reason。
+  - type: denial_seen
+    stage: guard
+    pattern: "^escape$"
+    arguments_pattern: "probe-link"
+  # ③ 对照（CONTROL），不是逃逸证据：界内的真实文件仍可正常读取，说明守卫拒绝的是
+  #    probe-link 这一次越界，而不是把工作区读取能力整体打死。它由 fixture 自带
+  #    data.txt 保证为真，因此**永远不能**当作「链接逃逸被拦」的证据——逃逸证据只有 ① ②。
   - type: file_content
     target: "file:data.txt"
     golden:
-      - "INSIDE-TOKEN-77"                                # real in-workspace file readable & intact
-  - type: denial_seen
-    pattern: "symlink|escape"
+      - "INSIDE-TOKEN-77"
 measured: [M01, M02, M03, M10, M12, M14]
 mode: offline

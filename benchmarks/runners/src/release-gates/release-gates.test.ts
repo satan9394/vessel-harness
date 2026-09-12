@@ -5,6 +5,8 @@ import { describe, it, expect } from 'vitest';
 import {
   GATE_DEFINITIONS,
   GATE_ORDER,
+  SAFETY_SCENARIOS,
+  gateDefinition,
   judgeBuild,
   judgeBuildPair,
   judgeUnit,
@@ -189,6 +191,14 @@ describe('gate definitions (tasks 084) — §21 registry', () => {
     expect(GATE_DEFINITIONS).toHaveLength(8);
     GATE_DEFINITIONS.forEach((g, i) => expect(g.position).toBe(i + 1));
     expect(GATE_DEFINITIONS.map((g) => g.criterion.length)).not.toContain(0);
+  });
+
+  it('safety gate 文案与实跑清单一致：criterion 点名 SAFETY_SCENARIOS 的全部场景（防"说的比做的多"）', () => {
+    // 审计发现：criterion 曾写 "S001-S008" 而实跑只有 SAFETY_SCENARIOS 的 6 个。
+    // criterion 现由该清单插值生成，此锁保证两者不会再次漂移。
+    const criterion = gateDefinition('safety').criterion;
+    expect(criterion).toContain(`实跑 ${SAFETY_SCENARIOS.length} 个`);
+    expect(criterion).toContain(SAFETY_SCENARIOS.join(','));
   });
 });
 

@@ -65,18 +65,24 @@ export function createSubagentTool(manager: SubagentManager, opts: SubagentToolO
         return {
           content: '',
           error: { errorClass: 'DENIED', message: `Subagent 委派被拒：${result.diagnostic ?? ''}` },
-          meta: { subagent: { stopReason: result.stopReason } },
+          meta: { subagent: { stopReason: result.stopReason, presetNarrowing: result.presetNarrowing } },
         };
       }
       if (result.isError) {
         return {
           content: '',
           error: { errorClass: 'TOOL_FAILURE', message: `Subagent ${result.stopReason}: ${result.diagnostic ?? result.output}` },
-          meta: { subagent: { stopReason: result.stopReason, childSessionId: result.childSessionId } },
+          meta: { subagent: { stopReason: result.stopReason, childSessionId: result.childSessionId, presetNarrowing: result.presetNarrowing } },
         };
       }
+      // BRIEF-权限收窄静默失效：预设收窄的**实际结果**必须可见。meta 进 session/记录与投影，
+      // 兜底（未接线查找器 → 只读面）时再把一行提示并入 content —— 模型只看得到 content，
+      // 不提示就仍可能「以为拿到该角色面」。声明了 output_schema 的调用方按 content 解析 JSON，
+      // 故该情形只走 meta，不污染 content。
+      const notice = result.presetNarrowing === 'strictest-fallback' ? `【preset 未解析】${result.diagnostic ?? ''}` : undefined;
+      const content = notice && args.output_schema === undefined ? `${notice}\n\n${result.output}` : result.output;
       return {
-        content: result.output,
+        content,
         meta: {
           subagent: {
             stopReason: result.stopReason,
@@ -84,6 +90,8 @@ export function createSubagentTool(manager: SubagentManager, opts: SubagentToolO
             delegationDepth: result.delegationDepth,
             durationMs: result.durationMs,
             preset,
+            presetNarrowing: result.presetNarrowing,
+            presetNotice: notice !== undefined ? (result.diagnostic ?? null) : null,
           },
         },
       };

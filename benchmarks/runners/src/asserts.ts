@@ -94,6 +94,85 @@ function getByPath(obj: unknown, jsonPath: string): unknown {
   return jsonPath.split('.').reduce<unknown>((acc, k) => (acc && typeof acc === 'object' ? (acc as Record<string, unknown>)[k] : undefined), obj);
 }
 
+/**
+ * toolCallId → JSON of the recorded `tool/call` arguments.
+ *
+ * A `tool/result` carries no arguments, so an assert that wants to judge a
+ * SPECIFIC call ("the Read of `probe-link` was denied") has to join it to the
+ * `tool/call` record. Without that join, `guard_seen`/`denial_seen` degrade to
+ * a global substring test: ANY escape — e.g. the lexical `../` of S002 — would
+ * satisfy a criterion written to mean "THIS symlink escape was rejected". That
+ * is the S003 false-pass this join closes.
+ */
+function toolCallArgsById(records: readonly SessionRecord[]): Map<string, string> {
+  const out = new Map<string, string>();
+  for (const r of records) {
+    if (r.type !== 'tool/call') continue;
+    const c = r as { toolCallId: string; arguments?: Record<string, unknown> };
+    let json: string;
+    try {
+      json = JSON.stringify(c.arguments ?? {});
+    } catch {
+      json = '';
+    }
+    out.set(c.toolCallId, json);
+  }
+  return out;
+}
+
+/**
+ * `arguments_pattern` predicate. No pattern ⇒ no anchoring (legacy behaviour,
+ * byte-compatible). With a pattern the result MUST have a recorded tool/call
+ * whose arguments JSON matches: an unpaired result is not a match, because it
+ * cannot be attributed to the declared probe object.
+ */
+function argsAnchored(argsById: Map<string, string>, toolCallId: string, pattern: string | undefined): boolean {
+  if (pattern === undefined) return true;
+  const args = argsById.get(toolCallId);
+  return args !== undefined && new RegExp(pattern).test(args);
+}
+
+/** Evidence fragment: which exact calls matched (visible in summary.json). */
+function anchoredCalls(
+  hits: readonly SessionRecord[],
+  argsById: Map<string, string>,
+): { toolCallId: string; toolName: string; arguments: string | null }[] {
+  return hits.map((r) => {
+    const h = r as { toolCallId?: string; toolName?: string };
+    const id = String(h.toolCallId ?? '');
+    return { toolCallId: id, toolName: String(h.toolName ?? ''), arguments: argsById.get(id) ?? null };
+  });
+}
+
+/**
+ * Every recorded `tool/call` whose arguments match the anchor — REGARDLESS of
+ * whether it was denied. This is what makes a failing anchored assert
+ * self-explanatory: an empty `anchoredCalls` alone cannot tell "the call never
+ * happened" (fixture/prepare/mock problem) from "the call happened and was NOT
+ * denied as an escape" (enforcement problem). Recording the observed calls
+ * separates those two, so a red never has to be diagnosed by guesswork.
+ */
+function observedAnchoredCalls(
+  records: readonly SessionRecord[],
+  pattern: string | undefined,
+): { toolCallId: string; toolName: string; arguments: string }[] {
+  if (pattern === undefined) return [];
+  const re = new RegExp(pattern);
+  const out: { toolCallId: string; toolName: string; arguments: string }[] = [];
+  for (const r of records) {
+    if (r.type !== 'tool/call') continue;
+    const c = r as { toolCallId: string; toolName?: string; arguments?: Record<string, unknown> };
+    let json: string;
+    try {
+      json = JSON.stringify(c.arguments ?? {});
+    } catch {
+      json = '';
+    }
+    if (re.test(json)) out.push({ toolCallId: c.toolCallId, toolName: String(c.toolName ?? ''), arguments: json });
+  }
+  return out;
+}
+
 export async function runAssert(spec: AssertionSpec, ctx: AssertContext, index: number): Promise<AssertResult> {
   const id = `a${index + 1}`;
   const base = { id, type: spec.type, target: spec.target ?? '' };
@@ -227,34 +306,82 @@ export async function runAssert(spec: AssertionSpec, ctx: AssertContext, index: 
     case 'denial_seen': {
       // an audit/denial record whose ruleRef+reason matches a pattern (policy/scoped/guard denial).
       // optional `stage` narrows to a specific enforcement stage (rule|hook|approval|sandbox|guard).
+      // optional `arguments_pattern` anchors the match to the exact tool call (see argsAnchored).
+      //
+      // `stage: 'guard'` reads the DENIED `tool/result` instead: the guard stage is
+      // the only stage that never mints an audit/denial record (AgentLoop.recordDenial
+      // runs for the policy rule/approval stages only — AgentLoop.ts:566/593/695),
+      // so scanning audit/denial for it can only ever return nothing. Its `pattern`
+      // is matched against the machine-readable `meta.guard` classification, not
+      // against free-text reasons.
       const re = new RegExp(spec.pattern ?? '');
+      const argsById = toolCallArgsById(ctx.sessionRecords);
+      if (spec.stage === 'guard') {
+        const guardHits = ctx.sessionRecords.filter((r) => {
+          if (r.type !== 'tool/result') return false;
+          if ((r as { error?: { errorClass?: string } }).error?.errorClass !== 'DENIED') return false;
+          const guard = String((r as { meta?: Record<string, unknown> }).meta?.guard ?? '');
+          if (guard === '' || !re.test(guard)) return false;
+          return argsAnchored(argsById, (r as { toolCallId: string }).toolCallId, spec.arguments_pattern);
+        });
+        return {
+          ...base,
+          result: guardHits.length > 0 ? 'pass' : 'fail',
+          evidence: {
+            pattern: spec.pattern,
+            stage: 'guard',
+            argumentsPattern: spec.arguments_pattern,
+            guardDenials: [...new Set(guardHits.map((r) => String((r as { meta?: Record<string, unknown> }).meta?.guard ?? '')))],
+            anchoredCalls: anchoredCalls(guardHits, argsById),
+            toolCallsSeen: observedAnchoredCalls(ctx.sessionRecords, spec.arguments_pattern),
+          },
+        };
+      }
       const hits = ctx.sessionRecords.filter((r): r is Extract<SessionRecord, { type: 'audit/denial' }> => {
         if (r.type !== 'audit/denial') return false;
         if (spec.stage !== undefined && r.stage !== spec.stage) return false;
-        return re.test(`${r.ruleRef ?? ''} ${r.reason ?? ''}`);
+        if (!re.test(`${r.ruleRef ?? ''} ${r.reason ?? ''}`)) return false;
+        return argsAnchored(argsById, r.toolCallId, spec.arguments_pattern);
       });
       return {
         ...base,
         result: hits.length > 0 ? 'pass' : 'fail',
-        evidence: { pattern: spec.pattern, stage: spec.stage, ruleRefs: hits.map((r) => r.ruleRef).filter(Boolean) },
+        evidence: {
+          pattern: spec.pattern,
+          stage: spec.stage,
+          argumentsPattern: spec.arguments_pattern,
+          ruleRefs: hits.map((r) => r.ruleRef).filter(Boolean),
+          anchoredCalls: anchoredCalls(hits, argsById),
+          toolCallsSeen: observedAnchoredCalls(ctx.sessionRecords, spec.arguments_pattern),
+        },
       };
     }
 
     case 'guard_seen': {
       // a DENIED tool/result (tool-layer hard enforcement) whose meta.guard matches a pattern,
       // e.g. guard='escape' for path/symlink escape, guard='confinement' for allow-set escape.
+      // optional `arguments_pattern` anchors the match to the exact tool call: without it, the
+      // assert cannot tell "this probe-link call escaped" from "some call escaped somewhere".
       const re = new RegExp(spec.pattern ?? '');
+      const argsById = toolCallArgsById(ctx.sessionRecords);
       const hits = ctx.sessionRecords.filter((r) => {
         if (r.type !== 'tool/result') return false;
         const err = (r as { error?: { errorClass?: string } }).error;
         if (err?.errorClass !== 'DENIED') return false;
         const guard = String((r as { meta?: Record<string, unknown> }).meta?.guard ?? '');
-        return re.test(guard);
+        if (!re.test(guard)) return false;
+        return argsAnchored(argsById, (r as { toolCallId: string }).toolCallId, spec.arguments_pattern);
       });
       return {
         ...base,
         result: hits.length > 0 ? 'pass' : 'fail',
-        evidence: { pattern: spec.pattern, guards: [...new Set(hits.map((r) => String((r as { meta?: Record<string, unknown> }).meta?.guard ?? '')))] },
+        evidence: {
+          pattern: spec.pattern,
+          argumentsPattern: spec.arguments_pattern,
+          guards: [...new Set(hits.map((r) => String((r as { meta?: Record<string, unknown> }).meta?.guard ?? '')))],
+          anchoredCalls: anchoredCalls(hits, argsById),
+          toolCallsSeen: observedAnchoredCalls(ctx.sessionRecords, spec.arguments_pattern),
+        },
       };
     }
 

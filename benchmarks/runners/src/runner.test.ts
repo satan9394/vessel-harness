@@ -121,7 +121,7 @@ describe('benchmarks/runner — V0.4 batch B022 (offline task-routing lane)', ()
 });
 
 describe('benchmarks/runner — V0.5 batch B023 (Loop Engine lane)', () => {
-  it('B023 runs one Loop Engine iteration (verdict=met + engine golden), machine-asserted', async () => {
+  it('B023 runs one Loop Engine iteration, machine-asserted against the ENGINE PRODUCT on disk', async () => {
     const report = await runScenario({
       scenarioId: 'B023',
       repoRoot: REPO_ROOT,
@@ -135,10 +135,50 @@ describe('benchmarks/runner — V0.5 batch B023 (Loop Engine lane)', () => {
     expect(report.success, `asserts: ${JSON.stringify(report.asserts)}`).toBe(true);
     expect(report.metrics.M01).toBe(1);
     expect(report.finalText).toContain('verdict=met');
-    expect(report.finalText).toContain('ENGINE-GOLDEN-88');
     expect(report.finalText).toContain('persist 记录 1 条');
     expect(fs.existsSync(report.reportPath)).toBe(true);
+    // 判据锚定引擎真实产物（不是 runner 的报告模板）：
+    // 1) Generator 写进隔离工作区、persist 收割出来的产物字节
+    const artifact = fs.readFileSync(path.join(report.workspace, 'engine-artifacts', 'engine-result.txt'), 'utf8');
+    expect(artifact).toContain('ENGINE-GOLDEN-88');
+    expect(artifact).toContain('task=b023');
+    // 2) 引擎 persist 落盘的结构化 IterationResult（verdict 由读盘 Evaluator 判定）
+    const record = JSON.parse(fs.readFileSync(path.join(report.workspace, 'engine-artifacts', 'iteration.json'), 'utf8'));
+    expect(record).toMatchObject({ taskId: 'b023', verdict: 'met', retryCount: 1 });
   }, 60_000);
+
+  it('B023 判别性回归锁：产物内容错误 → 判据 fail（判据不再恒真）', async () => {
+    const manifest = loadManifest(REPO_ROOT, 'B023');
+    const spec = manifest.pass.find((p) => p.type === 'file_content' && p.target === 'file:engine-artifacts/engine-result.txt');
+    expect(spec, 'B023 必须声明产物判据（file:engine-artifacts/engine-result.txt）').toBeTruthy();
+    const ws = fs.mkdtempSync(path.join(os.tmpdir(), 'cah-b023-negative-'));
+    tempDirs.push(ws);
+    fs.mkdirSync(path.join(ws, 'engine-artifacts'), { recursive: true });
+    // 一个「错误实现」的产物：文件存在但内容不满足 acceptance（旧实现下仍会绿）
+    fs.writeFileSync(path.join(ws, 'engine-artifacts', 'engine-result.txt'), 'WRONG-PRODUCT\n', 'utf8');
+    const res = await runAssert(
+      spec!,
+      {
+        workspace: ws,
+        sessionRecords: [],
+        counters: {} as never,
+        finalText: 'Loop Engine 迭代完成：verdict=not_met（任务 b023，iteration 1，attempts 2）；persist 记录 1 条',
+        snapshotBefore: new Map(),
+        streamEvents: [],
+      },
+      0,
+    );
+    expect(res.result).toBe('fail');
+    expect(res.evidence['missing']).toEqual(expect.arrayContaining(['ENGINE-GOLDEN-88']));
+  });
+
+  it('B023 回归锁：场景 golden 不出现在 runner.ts（generate/evaluate 不共享 runner 写死的期望值）', () => {
+    const manifest = loadManifest(REPO_ROOT, 'B023');
+    const goldens = manifest.pass.flatMap((p) => p.golden ?? []);
+    expect(goldens.length).toBeGreaterThan(0);
+    const runnerSrc = fs.readFileSync(path.join(REPO_ROOT, 'benchmarks', 'runners', 'src', 'runner.ts'), 'utf8');
+    for (const g of goldens) expect(runnerSrc, `runner.ts 不得内置 golden 串: ${g}`).not.toContain(g);
+  });
 });
 
 describe('benchmarks/runner — V1.1-D batch B024–B027 (L1 streaming/interrupt/steering/resume)', () => {

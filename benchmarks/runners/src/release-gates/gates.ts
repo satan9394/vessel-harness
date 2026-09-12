@@ -39,13 +39,23 @@ import type {
 
 const execFileAsync = promisify(execFile);
 
+/**
+ * Offline safety scenarios the 075 gate ACTUALLY runs — single source of truth for
+ * gate 5's criterion text (审计发现：criterion 曾声称 "S001-S008"，实跑却只有 6 个；
+ * 文案与实跑清单不得再漂移，故 criterion 直接由本清单插值生成)。
+ *
+ * 注：S003 已纳入（S003 prepare/判据修复卡：fixture 声明 setup.yaml → runner prepare 真实
+ * 创建 probe-link，判据锚定到该次调用），本清单是唯一需要改动的地方。
+ */
+export const SAFETY_SCENARIOS = ['S001', 'S002', 'S003', 'S004', 'S005', 'S006', 'S007'] as const;
+
 /** §21 ordered gate definitions (1..8). */
 export const GATE_DEFINITIONS: GateDefinition[] = [
   { id: 'build', name: 'Build (tsc -b)', criterion: '类型构建 `tsc -b tsconfig.json` 与 `apps/web` 类型检查（`tsc -p apps/web/tsconfig.json`）均完成且退出码 0（无类型错误）。', position: 1 },
   { id: 'unit', name: 'Unit (vitest root)', criterion: '全量 `npx vitest run`（root）通过且退出码 0（无测试失败）。', position: 2 },
   { id: 'deterministic-bench', name: 'Deterministic Bench (L1)', criterion: 'L1 可跑集（B001-B005 离线确定性 mock lane）全部 manifest 断言通过。', position: 3 },
   { id: 'real-model-bench', name: 'Real Model Bench (082 lane)', criterion: '082 真实模型 lane 收集到 §15 L3 指标；无凭据/无 provider 时显式 pending，不静默通过。', position: 4 },
-  { id: 'safety', name: 'Safety (075 pack)', criterion: '075 安全包（S001-S008 判据）离线 enforcement 证据齐全，无高危越权。', position: 5 },
+  { id: 'safety', name: 'Safety (075 pack)', criterion: `075 安全包（实跑 ${SAFETY_SCENARIOS.length} 个：${SAFETY_SCENARIOS.join(',')}）离线 enforcement 证据齐全，无高危越权。`, position: 5 },
   { id: 'resume', name: 'Resume (063/064)', criterion: '063/064 可跑集（068 soak 小规模）resume 不变量成立：暂停/续跑、workspace 零残留、从 handoff 续跑留痕。', position: 6 },
   { id: 'ux-smoke', name: 'UX Smoke (web)', criterion: 'web 套件或最小 smoke 通过；web 构建工具缺失时显式 pending。', position: 7 },
   { id: 'packaging', name: 'Packaging (build artifacts)', criterion: 'build 产物检查（npm pack / 等价产物）存在且完整；工具缺失时显式 pending。', position: 8 },
@@ -435,8 +445,8 @@ export const gateDefaultRunCommand: RunCommand = (command, args, opts) => execAs
 /** L1 deterministic-bench runnable set (B001-B005) used by the gate. */
 export const DETERMINISTIC_BENCH_SCENARIOS = ['B001', 'B002', 'B003', 'B004', 'B005'] as const;
 
-/** Offline safety scenarios the 075 gate runs. */
-export const SAFETY_SCENARIOS = ['S001', 'S002', 'S004', 'S005', 'S006', 'S007'] as const;
+// SAFETY_SCENARIOS 已上移到 GATE_DEFINITIONS 之前：gate 5 的 criterion 由该清单插值
+// 生成（文案 = 实跑清单，见文件顶部）。
 
 /** Options to build the 8 real gate executors (paths/deps injectable). */
 export interface BuildGateExecutorsOptions extends RealModelDeps {
@@ -444,6 +454,31 @@ export interface BuildGateExecutorsOptions extends RealModelDeps {
   webDistRoot?: string;
   /** package entry to check for the packaging gate (default root dist/index). */
   packageEntry?: string;
+}
+
+/**
+ * Offline-set verdict when a fixture's DECLARED prepare step could not be applied
+ * (platform refuses the link, no permission): the scenario could not be judged
+ * here at all — that is `pending-environment`, not a pass and not a silent fail.
+ * A genuine failure still wins: only an otherwise-green set is downgraded.
+ */
+export function judgeOfflineWithPendingEnvironment(args: {
+  ranVerdict: GateVerdict;
+  pendingEnvironment: string[];
+}): GateVerdict {
+  if (args.pendingEnvironment.length === 0) return args.ranVerdict;
+  if (args.ranVerdict.status === 'fail') return args.ranVerdict;
+  return {
+    status: 'pending',
+    pending: true,
+    evidence: {
+      summary: `${args.pendingEnvironment.length} 个场景的 fixture prepare 未能在本环境完成（其余场景已跑且通过）→ 显式 pending，不伪装成全绿`,
+      detail: args.pendingEnvironment,
+    },
+    note:
+      'fixture prepare 失败 = pending-environment：声明的符号链接/junction 无法创建（Windows 目录链接需 junction 目标存在，' +
+      '文件/目录 symlink 需开发者模式或管理员权限；POSIX 需对应权限）。修复环境后重跑即可判定，当前状态既不是 pass 也不是 fail。',
+  };
 }
 
 /**
@@ -456,8 +491,10 @@ async function runOfflineScenarios(
   scenarioIds: string[],
   provider: ChatProvider | null,
 ): Promise<GateVerdict> {
-  const { runScenario } = await import('../runner.js');
+  const { runScenario, FixtureSetupError } = await import('../runner.js');
   const passed: boolean[] = [];
+  const ranIds: string[] = [];
+  const pendingEnvironment: string[] = [];
   for (const id of scenarioIds) {
     try {
       const r = await runScenario({
@@ -469,15 +506,26 @@ async function runOfflineScenarios(
         policyPath: path.join(ctx.repoRoot, 'configs', 'policy.default.yaml'),
         behaviorIRPath: path.join(ctx.repoRoot, 'configs', 'behavior.default.yaml'),
       });
+      ranIds.push(id);
       passed.push(r.success === true);
     } catch (err) {
+      // A declared prepare step that cannot be applied is an ENVIRONMENT limit,
+      // not a scenario failure: record it and keep judging the rest (the old
+      // behaviour — a silent skip — is exactly the S003 false-pass).
+      if (err instanceof FixtureSetupError) {
+        pendingEnvironment.push(`${id}: ${err.message}`);
+        continue;
+      }
       return {
         status: 'fail',
         evidence: { summary: `离线场景 ${id} 执行异常`, detail: [String(err)] },
       };
     }
   }
-  return judgeScenarioRuns({ scenarioIds, passed });
+  return judgeOfflineWithPendingEnvironment({
+    ranVerdict: judgeScenarioRuns({ scenarioIds: ranIds, passed }),
+    pendingEnvironment,
+  });
 }
 
 /** Build the 8 real release-gate executors with injected deps. */
@@ -585,7 +633,7 @@ export function buildReleaseGateExecutors(opts: BuildGateExecutorsOptions = {}):
         });
       },
     },
-    // Gate 5 Safety — 075 pack offline S001-S008
+    // Gate 5 Safety — 075 pack offline（清单 = SAFETY_SCENARIOS，与 gate criterion 同源）
     {
       gate: gateDefinition('safety'),
       run: async (ctx) => {

@@ -42,6 +42,15 @@ export interface AssertionSpec {
   source?: string;
   /** denial_seen/guard_seen: optional predicate on the enforcement stage (rule|hook|approval|sandbox|guard) */
   stage?: string;
+  /**
+   * denial_seen/guard_seen: anchor the match to the EXACT tool call by matching
+   * this regex against the JSON of the paired `tool/call` arguments (joined on
+   * toolCallId). Absent ⇒ unchanged legacy behaviour. With it, the assert says
+   * "THIS call to THIS path was denied" instead of "some call was denied
+   * somewhere" — the difference between a real S003 criterion and a global
+   * `escape` substring that any lexical `../` would also satisfy.
+   */
+  arguments_pattern?: string;
   /** stream_seen: which kind of stream chunk to inspect ('text' | 'tool') */
   kind?: string;
   /** stream_seen: minimum number of matching stream chunks (default 1) */

@@ -70,6 +70,254 @@ function copyDir(src: string, dest: string): void {
   }
 }
 
+// ---------------------------------------------------------------------------
+// Fixture prepare declarations (benchmarks/fixtures/<id>/setup.yaml)
+//
+// WHY THIS EXISTS — the S003 false-pass: `copyDir` above only handles
+// isDirectory()/isFile(), so a symlink/junction is skipped in SILENCE. S003's
+// whole subject (`probe-link`) was therefore never created, its criteria could
+// not be evaluated at all, and nothing said so. A fixture can now DECLARE its
+// prepare step; the runner CREATES it, and any refusal is a loud
+// `FixtureSetupError` (→ gate `pending-environment`) instead of a silent skip.
+//
+// `copyDir` itself is untouched: ordinary files/directories keep being copied
+// byte-for-byte exactly as before — the prepare step only ADDS declared links.
+// ---------------------------------------------------------------------------
+
+/** An artifact created OUTSIDE the workspace (sibling of the workspace root). */
+export interface FixtureOutsideSpec {
+  /** single path segment → `<dirname(workspace)>/<name>` */
+  name: string;
+  files?: { path: string; content: string }[];
+}
+
+/** A link created INSIDE the workspace, after the fixture copy. */
+export interface FixtureLinkSpec {
+  /** workspace-relative link path, e.g. `probe-link`. */
+  name: string;
+  /**
+   * Where the link points:
+   *   - `<sibling-name>`  → `<dirname(workspace)>/<sibling-name>` (OUTSIDE — the
+   *     escape subject; the sibling is normally declared in `outside`).
+   *   - `inside:<rel>`    → `<workspace>/<rel>` (INSIDE — a LEGAL link; used by
+   *     the negative control that must NOT trip the escape guard).
+   */
+  target: string;
+  /** default 'dir' (junction on Windows, dir symlink elsewhere). */
+  kind?: 'dir' | 'file';
+}
+
+export interface FixtureSetupSpec {
+  version?: number;
+  outside?: FixtureOutsideSpec[];
+  links?: FixtureLinkSpec[];
+}
+
+/** Fixture file that declares the prepare step. */
+export const FIXTURE_SETUP_FILE = 'setup.yaml';
+
+/**
+ * A DECLARED prepare step could not be applied (platform refuses the link, no
+ * permission, malformed declaration). Thrown, never swallowed: degrading to
+ * "the probe object simply is not there" is exactly the defect this closes.
+ * Callers map it to `pending-environment` — an honest "cannot judge on this
+ * machine", which is neither a pass nor a silent failure.
+ */
+export class FixtureSetupError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'FixtureSetupError';
+  }
+}
+
+export function loadFixtureSetup(fixtureRoot: string): FixtureSetupSpec | null {
+  const p = path.join(fixtureRoot, FIXTURE_SETUP_FILE);
+  if (!fs.existsSync(p)) return null;
+  let doc: unknown;
+  try {
+    doc = yaml.load(fs.readFileSync(p, 'utf8'));
+  } catch (err) {
+    throw new FixtureSetupError(`fixture prepare declaration unreadable (${p}): ${(err as Error).message}`);
+  }
+  if (doc === null || doc === undefined) return null;
+  if (typeof doc !== 'object' || Array.isArray(doc)) {
+    throw new FixtureSetupError(`fixture prepare declaration must be a mapping (${p})`);
+  }
+  return doc as FixtureSetupSpec;
+}
+
+/** Reject absolute / traversing paths (a hostile setup.yaml must not reach outside). */
+function assertSafeRelPath(p: string, what: string): void {
+  if (!p || path.isAbsolute(p) || p.split(/[\\/]+/).some((s) => s === '..')) {
+    throw new FixtureSetupError(`fixture prepare: ${what} must be a relative path without ".." (got "${p}")`);
+  }
+}
+
+/** Reject anything but a single path segment for a sibling artifact name. */
+function assertSafeSiblingName(name: string, what: string): void {
+  if (!name || path.isAbsolute(name) || name.includes('/') || name.includes('\\') || name === '.' || name === '..') {
+    throw new FixtureSetupError(`fixture prepare: ${what} must be a single path segment (got "${name}")`);
+  }
+}
+
+/** Remove a pre-existing link WITHOUT following it and without deleting a real directory. */
+function dropExistingLink(linkPath: string): void {
+  let st: fs.Stats;
+  try {
+    st = fs.lstatSync(linkPath);
+  } catch (err) {
+    if ((err as NodeJS.ErrnoException).code === 'ENOENT') return;
+    throw err;
+  }
+  if (st.isDirectory() && !st.isSymbolicLink()) {
+    throw new FixtureSetupError(`fixture prepare: refusing to overwrite a real directory at "${linkPath}"`);
+  }
+  try {
+    fs.unlinkSync(linkPath);
+  } catch {
+    // Windows junction: DeleteFile refuses a directory reparse point; rmdir removes the link itself.
+    fs.rmdirSync(linkPath);
+  }
+}
+
+/** Path equality that survives Windows case/separator normalisation. */
+function sameResolvedPath(a: string, b: string): boolean {
+  const ra = path.resolve(a);
+  const rb = path.resolve(b);
+  return process.platform === 'win32' ? ra.toLowerCase() === rb.toLowerCase() : ra === rb;
+}
+
+/**
+ * Create ONE declared link. Windows junctions do not need elevation (unlike
+ * file/dir symlinks, which need Developer Mode or admin — a refusal there
+ * becomes a FixtureSetupError, i.e. pending-environment). POSIX uses symlink(2).
+ */
+function createFixtureLink(linkPath: string, targetPath: string, kind: 'dir' | 'file'): void {
+  dropExistingLink(linkPath);
+  const absLink = path.resolve(linkPath);
+  const absTarget = path.resolve(targetPath);
+  const type: 'junction' | 'dir' | 'file' = process.platform === 'win32' ? (kind === 'dir' ? 'junction' : 'file') : kind;
+  fs.symlinkSync(absTarget, absLink, type);
+  // Functional verification, deliberately not `isSymbolicLink()`: Windows
+  // reports junctions as directory reparse points, and whether lstat calls that
+  // a symlink is platform/Node dependent. What MUST hold is that the entry
+  // REDIRECTS to the declared target — a platform that materialised a plain
+  // copy/directory would otherwise make the scenario judge nothing while
+  // looking green.
+  let resolvedLink: string;
+  try {
+    resolvedLink = fs.realpathSync(absLink);
+  } catch (err) {
+    throw new FixtureSetupError(
+      `fixture prepare: "${absLink}" was created but cannot be resolved to its declared target ${absTarget} (${(err as Error).message})`,
+    );
+  }
+  if (!sameResolvedPath(resolvedLink, fs.realpathSync(absTarget))) {
+    throw new FixtureSetupError(
+      `fixture prepare: "${absLink}" does not redirect to ${absTarget} (realpath=${resolvedLink}) — the link was not applied`,
+    );
+  }
+}
+
+/**
+ * Remove every TOP-LEVEL link in a workspace WITHOUT following it.
+ *
+ * Windows junctions are directory reparse points: `fs.unlinkSync` may refuse
+ * them (DeleteFile needs backup semantics) while `fs.rmdirSync` removes the link
+ * itself. Dropping the links first also guarantees that a following recursive
+ * delete cannot walk THROUGH the link into the (outside) target.
+ *
+ * Best-effort by contract: cleanup must never throw over a link it cannot drop.
+ */
+export function dropWorkspaceLinks(ws: string): void {
+  let entries: fs.Dirent[];
+  try {
+    entries = fs.readdirSync(ws, { withFileTypes: true });
+  } catch {
+    return;
+  }
+  for (const e of entries) {
+    if (!e.isSymbolicLink()) continue;
+    const p = path.join(ws, e.name);
+    try {
+      fs.unlinkSync(p);
+    } catch {
+      try {
+        fs.rmdirSync(p);
+      } catch {
+        /* best-effort */
+      }
+    }
+  }
+}
+
+/**
+ * Apply a fixture's declared prepare step to the just-copied workspace.
+ *
+ * Call this on EVERY prepare path (runner `runScenario` AND the vessel adapter
+ * `runVesselFixture`): a prepare path that skips it silently hands the scenario
+ * a workspace without its subject. No declaration ⇒ no-op (every existing
+ * fixture is unaffected).
+ */
+export function prepareFixtureSetup(fixtureRoot: string, workspace: string): void {
+  const setup = loadFixtureSetup(fixtureRoot);
+  if (!setup) return;
+  const fixtureId = path.basename(path.resolve(fixtureRoot));
+  const ws = path.resolve(workspace);
+  const parent = path.dirname(ws);
+
+  // 1) outside artifacts (siblings of the workspace root) — the escape TARGETS
+  for (const art of setup.outside ?? []) {
+    const name = String(art?.name ?? '');
+    assertSafeSiblingName(name, 'outside[].name');
+    const dir = path.join(parent, name);
+    try {
+      fs.mkdirSync(dir, { recursive: true });
+      for (const f of art.files ?? []) {
+        const rel = String(f?.path ?? '');
+        assertSafeRelPath(rel, 'outside[].files[].path');
+        const dest = path.join(dir, rel);
+        fs.mkdirSync(path.dirname(dest), { recursive: true });
+        fs.writeFileSync(dest, String(f?.content ?? ''), 'utf8');
+      }
+    } catch (err) {
+      if (err instanceof FixtureSetupError) throw err;
+      throw new FixtureSetupError(
+        `fixture ${fixtureId}: cannot prepare outside artifact "${name}" at ${dir}: ${(err as Error).message}`,
+      );
+    }
+  }
+
+  // 2) links inside the workspace
+  for (const link of setup.links ?? []) {
+    const name = String(link?.name ?? '');
+    assertSafeRelPath(name, 'links[].name');
+    const kind = link?.kind ?? 'dir';
+    if (kind !== 'dir' && kind !== 'file') {
+      throw new FixtureSetupError(`fixture ${fixtureId}: links[].kind must be "dir" or "file" (got "${String(kind)}")`);
+    }
+    const rawTarget = String(link?.target ?? '');
+    let targetPath: string;
+    if (rawTarget.startsWith('inside:')) {
+      const rel = rawTarget.slice('inside:'.length);
+      assertSafeRelPath(rel, 'links[].target (inside:)');
+      targetPath = path.join(ws, rel);
+    } else {
+      assertSafeSiblingName(rawTarget, 'links[].target');
+      targetPath = path.join(parent, rawTarget);
+    }
+    const linkPath = path.join(ws, name);
+    try {
+      createFixtureLink(linkPath, targetPath, kind);
+    } catch (err) {
+      if (err instanceof FixtureSetupError) throw err;
+      throw new FixtureSetupError(
+        `fixture ${fixtureId}: cannot create link "${name}" → ${targetPath} (kind=${kind}, platform=${process.platform}): ${(err as Error).message}`,
+      );
+    }
+  }
+}
+
 /**
  * Live stream observation collector — subscribes to the loop's model_stream_delta
  * bus and normalizes each text / tool chunk into a StreamObservation. Used by the
@@ -159,7 +407,7 @@ async function driveScenario(
     // V0.5 Loop Engine lane: one full iteration with deterministic
     // generator/evaluator in an isolated temp workspace.
     //
-    // 判据来源（task 111）：manifest 里 target = file:<ENGINE_ARTIFACT_REL> 的断言既是
+    // 判据来源（task 111）：manifest 里 target = "file:" + ENGINE_ARTIFACT_REL 的断言既是
     // 断言、也是交给引擎 Generator 的 acceptance —— 场景 yaml 是唯一事实源，runner 里
     // 不再出现任何 golden 常量串。Generator 写盘、Evaluator 读盘判定、persist 收割留痕，
     // 报告文本只回述引擎自己的结果（verdict/taskId/iteration/persist 条数）。
@@ -217,9 +465,10 @@ async function driveScenario(
           try {
             const destDir = path.join(workspace, ENGINE_ARTIFACT_DIR);
             fs.mkdirSync(destDir, { recursive: true });
-            if (r.outputPath && fs.existsSync(r.outputPath)) {
-              for (const e of fs.readdirSync(r.outputPath, { withFileTypes: true })) {
-                if (e.isFile()) fs.copyFileSync(path.join(r.outputPath, e.name), path.join(destDir, e.name));
+            const src = r.outputPath;
+            if (src && fs.existsSync(src)) {
+              for (const e of fs.readdirSync(src, { withFileTypes: true })) {
+                if (e.isFile()) fs.copyFileSync(path.join(src, e.name), path.join(destDir, e.name));
               }
             }
             fs.writeFileSync(path.join(destDir, 'iteration.json'), JSON.stringify(r, null, 2) + '\n', 'utf8');
@@ -334,6 +583,11 @@ export async function runScenario(opts: RunScenarioOptions): Promise<ScenarioRep
     throw new Error(`fixture not found: ${fixtureDir}`);
   }
   copyDir(fixtureDir, workspace);
+  // declared prepare step (e.g. S003 `probe-link`): the copy above cannot carry
+  // a symlink/junction, so the fixture declares it and we create it here. A
+  // refusal throws FixtureSetupError (→ gate pending-environment), never a
+  // silent "the probe object just is not there".
+  prepareFixtureSetup(fixtureDir, workspace);
   const snapshotBefore = snapshotFiles(workspace);
 
   // scenario policy override (B005 needs danger-full-access for real shell)
@@ -451,7 +705,10 @@ export async function runScenario(opts: RunScenarioOptions): Promise<ScenarioRep
   }
   for (const r of records) {
     if (r.type === 'tool/call') {
-      lines.push(JSON.stringify({ type: 'event', runId, ts: finishedAt.toISOString(), kind: 'tool/call', payload: { toolCallId: r.toolCallId, toolName: r.toolName } }));
+      // `arguments` is included so an ANCHORED assert (arguments_pattern) can be
+      // checked against the report itself: without it, a red leaves "the call
+      // never happened" and "the call happened but was not denied" indistinguishable.
+      lines.push(JSON.stringify({ type: 'event', runId, ts: finishedAt.toISOString(), kind: 'tool/call', payload: { toolCallId: r.toolCallId, toolName: r.toolName, arguments: r.arguments } }));
     }
     if (r.type === 'audit/denial') {
       lines.push(JSON.stringify({ type: 'event', runId, ts: finishedAt.toISOString(), kind: 'audit/denial', payload: { toolCallId: r.toolCallId, ruleRef: r.ruleRef, reason: r.reason } }));

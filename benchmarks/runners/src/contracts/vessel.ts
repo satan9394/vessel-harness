@@ -18,6 +18,7 @@ import { composeHarness, type ComposeOptions } from '@vessel/application';
 import type { ChatProvider, ChatResponse, ChatRequest } from '@vessel/shared';
 import { MockProvider } from '@vessel/llm';
 import { OFFLINE_SCRIPTS } from '../offline.js';
+import { dropWorkspaceLinks, prepareFixtureSetup } from '../runner.js';
 import { resolveBenchPrice } from '../adapters/pricing.js';
 import { assertValidHarnessAdapter, assertValidRunResult } from './validate.js';
 import type { CapabilityKey, HarnessAdapter, HarnessFixture, RunResult } from './types.js';
@@ -112,6 +113,11 @@ export async function runVesselFixture(fixture: HarnessFixture): Promise<RunResu
   // isolation: temp copy of the fixture workspace
   const workspace = fs.mkdtempSync(path.join(os.tmpdir(), `cah-vessel-${fixture.id}-`));
   copyDir(fixture.workspaceRoot, workspace);
+  // declared prepare step — the SECOND prepare path (the runner has its own).
+  // `copyDir` cannot carry a symlink/junction, so a fixture that declares one
+  // (S003 `probe-link`) must have it created here too; otherwise this adapter
+  // hands the scenario a workspace without its subject while reporting success.
+  prepareFixtureSetup(fixture.workspaceRoot, workspace);
   const taskFile = fixture.taskFile ?? 'task.md';
   const taskPath = path.join(workspace, taskFile);
   const task = fs.existsSync(taskPath) ? fs.readFileSync(taskPath, 'utf8').trim() : '';
@@ -220,6 +226,10 @@ export const vesselAdapter: HarnessAdapter = {
     const ws = result.artifacts?.find((a) => a.kind === 'workspace')?.path;
     if (ws && !keep) {
       try {
+        // drop prepared links first: a Windows junction is a directory reparse
+        // point (unlink may refuse it) and a recursive delete must not walk
+        // through the link into the escape target.
+        dropWorkspaceLinks(ws);
         fs.rmSync(ws, { recursive: true, force: true });
       } catch {
         /* best-effort; temp dir is OS-managed */

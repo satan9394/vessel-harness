@@ -250,7 +250,8 @@ describe('V0.2-M1 subagent — delegation (H11)', () => {
   it('Subagent tool passes an agent preset label through to the delegation (V0.4 roles-as-presets)', async () => {
     const bus = new EventBus();
     const provider = new MockProvider([{ when: /.*/, ifNoToolResult: true, response: { text: 'PRESET-CHILD-DONE' } }], { model: 'child-model' });
-    const manager = new SubagentManager({ workspaceRoot: workspace, provider, model: 'child-model', policyArtifacts: artifacts(), tools: [], bus });
+    // onWarn 静音：本用例未接线 presetLookup，声明 preset 会走「最严格面兜底」并告警（BRIEF 新语义）
+    const manager = new SubagentManager({ workspaceRoot: workspace, provider, model: 'child-model', policyArtifacts: artifacts(), tools: [], bus, onWarn: () => {} });
     const delegateSpy = vi.spyOn(manager, 'delegate');
     const subagentTool = createSubagentTool(manager);
     const registry = new ToolRegistry([subagentTool]);
@@ -260,6 +261,31 @@ describe('V0.2-M1 subagent — delegation (H11)', () => {
     expect(r.error).toBeUndefined();
     expect(delegateSpy).toHaveBeenCalledWith(expect.objectContaining({ preset: 'reviewer' }));
     expect((r.meta.subagent as { preset?: string }).preset).toBe('reviewer');
+    // BRIEF：未接线查找器时「收窄到最严格面」在工具边界也可见（不再静默全量面）
+    expect((r.meta.subagent as { presetNarrowing?: string }).presetNarrowing).toBe('strictest-fallback');
     delegateSpy.mockRestore();
+  });
+
+  it('BRIEF：未解析 preset 的兜底状态在工具边界可见（meta + content 提示）；声明 output_schema 时不污染 content', async () => {
+    const provider = new MockProvider([{ when: /.*/, ifNoToolResult: true, response: { text: '{"verdict":"met"}' } }], { model: 'child-model' });
+    const manager = new SubagentManager({ workspaceRoot: workspace, provider, model: 'child-model', policyArtifacts: artifacts(), tools: [], bus: new EventBus(), onWarn: () => {} });
+    const registry = new ToolRegistry([createSubagentTool(manager)]);
+    const ctx = { workspaceRoot: workspace, cwd: workspace, sandbox: { confine: async () => ({ argv: [], enforcement: 'none' as const }), status: () => ({ enabled: false, supported: 'none' as const, active: false }) } };
+
+    // ① 普通委派：content 带一行可见提示（模型只看得到 content）
+    const plain = await registry.execute({ toolCallId: 'f1', toolName: 'Subagent', arguments: { prompt: '评审', preset: 'reviewer' } }, ctx);
+    expect(plain.error).toBeUndefined();
+    expect(plain.content.startsWith('【preset 未解析】')).toBe(true);
+    expect(plain.content).toContain('{"verdict":"met"}');
+    expect((plain.meta.subagent as { presetNarrowing?: string }).presetNarrowing).toBe('strictest-fallback');
+
+    // ② output_schema 委派：调用方按 content 解析 JSON ⇒ 不并入提示，只走 meta
+    const structured = await registry.execute(
+      { toolCallId: 'f2', toolName: 'Subagent', arguments: { prompt: '评审', preset: 'reviewer', output_schema: { type: 'object' } } },
+      ctx,
+    );
+    expect(structured.error).toBeUndefined();
+    expect(structured.content).toBe('{"verdict":"met"}');
+    expect((structured.meta.subagent as { presetNarrowing?: string }).presetNarrowing).toBe('strictest-fallback');
   });
 });

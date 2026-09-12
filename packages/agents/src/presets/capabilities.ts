@@ -80,3 +80,30 @@ export function applyPresetToolFace(
 export function policyProfileForPreset(preset: AgentPreset): 'read-only' | undefined {
   return preset.write === false ? 'read-only' : undefined;
 }
+
+/**
+ * 最严格能力面（fail-closed 兜底面）：`write:false` + `canDelegate:false` 的组合。
+ *
+ * **不新造工具面定义** —— 该常量只是把既有两个映射规则（只读 = `requiredPermission === 'read'`；
+ * 不可委派 = 剔除 Subagent 工具）固定成一个具名面，`applyStrictestPresetFace` 直接复用
+ * `applyPresetToolFace`，因此它与 `reviewer` 面在本模块的映射下逐字等价（见 role-presets.test.ts 断言）。
+ *
+ * 用途：preset **被声明**、但在当前组合里无法解析（查找器未接线 / 名字未注册）时，收窄到该面，
+ * 而不是静默退回父代理全量工具面（那会让「受限角色」实际拿到 Write/Shell）。
+ */
+export const STRICTEST_PRESET_FACE: AgentPreset = Object.freeze({
+  id: '(strictest-fallback)',
+  role: 'evaluator' as const,
+  modelTier: 'review',
+  write: false,
+  canDelegate: false,
+  description: 'fail-closed 兜底面：preset 未解析时的最严格面（等价 write:false + canDelegate:false，只读且不可委派）',
+});
+
+/** 施加最严格面（= `applyPresetToolFace(STRICTEST_PRESET_FACE, tools, opts)`；shrink-only）。 */
+export function applyStrictestPresetFace(
+  tools: readonly ToolSpec[],
+  opts: { subagentToolName?: string } = {},
+): ToolSpec[] {
+  return applyPresetToolFace(STRICTEST_PRESET_FACE, tools, opts);
+}

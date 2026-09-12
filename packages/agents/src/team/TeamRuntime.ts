@@ -283,7 +283,11 @@ export class TeamRuntime {
       maxConcurrent: 1,
       maxDepth: 3,
       parentSessionId: parentRuntime.session.sessionId,
-      presetLookup: (presetId) => (this.registry.hasPreset(presetId) ? this.registry.getPreset(presetId) : undefined),
+      // BRIEF-权限收窄静默失效：此前这里是 `hasPreset(id) ? getPreset(id) : undefined` —— 查找未命中
+      // 被折叠成 undefined，而 undefined 在 055 语义下等于「跳过收窄」，于是名字对不上就静默拿到全量面
+      // （fail-open）。registry 才是权威：未知 id 直接抛 PresetNotFoundError（带已注册列表），
+      // SubagentManager 把「解析抛错」判为 unresolved 并**拒绝委派**（fail-closed，错误可读）。
+      presetLookup: (presetId) => this.registry.getPreset(presetId),
       stableSections: this.opts.stableSections,
       policyGuidance: this.opts.policyGuidance,
     });
