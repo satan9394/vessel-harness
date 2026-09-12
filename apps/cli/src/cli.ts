@@ -172,22 +172,45 @@ function repoRoot(): string {
 }
 
 /**
- * 内置默认配置根：CLI 源码/产物所在位置向上找到含 configs/ 的目录。
+ * 内置默认配置根：CLI **自带的** `configs/` 所在目录（G-15「装在哪儿就在哪儿」）。
  *
- * G-15：默认配置必须"装在哪儿就在哪儿"——否则用户在自己工作区里跑 `vessel run` 时，
- * 默认 policy/behavior 会被拼成 `<cwd>/configs/*.yaml`（该目录只存在于本仓库），必然失败。
- * 源码 apps/cli/src/cli.ts 与产物 apps/cli/dist/cli.js 距仓库根同深（各上溯 3 级），
- * 且 `npm link` 默认按 realpath 解析包路径，故两种形态解析结果一致。
- * 都找不到时回落到 repoRoot()——保持旧行为，不抛。
+ * 查找顺序（自上而下，命中即返回；**包内优先**，结果不随 cwd 漂移）：
+ *   ① **包内·模块目录** —— `<dirname(cli.js)>/configs/policy.default.yaml`。
+ *      安装态命中 `node_modules/@vessel/cli/dist/configs/`（该目录由
+ *      `apps/cli/scripts/copy-configs.mjs` 在 `npm run build` / `prepack` 时从仓库根复制而来）。
+ *   ② **包内·上一级** —— `<dirname(cli.js)>/../configs/policy.default.yaml`。
+ *      兼容 `src/` 与 `dist/` 两种形态（例如包根直接放 configs/ 的另一套布局）。
+ *   ③ **模块位置上溯最多 6 级** —— 改动前的既有行为，逐字保留。开发态 `apps/cli/src`
+ *      （或 `apps/cli/dist`）上溯 2 级即仓库根，命中仓库 `configs/`；安装态包内若没带
+ *      configs，则 6 级内一级都命中不了。
+ *   ④ **回落 `repoRoot()`** —— 从 **cwd** 上溯，再退化为 cwd；保持旧行为，不抛。
+ *
+ * 两种形态各自命中什么：
+ *   - **开发态**（`npx tsx apps/cli/src/cli.ts`，或跑 `apps/cli/dist/cli.js` 且未 copy）：
+ *     ① 落空（`apps/cli/src/configs` 不存在）→ ② 落空（`apps/cli/configs` 不存在）
+ *     → ③ 命中 `<repo>/configs`。与改动前逐字相同。
+ *   - **安装态**（`node_modules/@vessel/cli/dist/cli.js`）：① 命中 `<pkg>/dist/configs`
+ *     （改动前 ③④ 全落空 → 拼出 `<cwd>/configs/*.yaml` 这种必然失败的路径）。
+ *
+ * `--policy` / `--behavior` 显式覆盖仍最高优先，语义不变（见 policyLayerCandidates / cmdRun）。
+ *
+ * `startDir` 仅为测试注入查找起点，缺省即本模块所在目录（运行时行为不变）。
  */
-function builtinConfigRoot(): string {
-  let dir = path.dirname(fileURLToPath(import.meta.url));
+export function builtinConfigRoot(startDir: string = path.dirname(fileURLToPath(import.meta.url))): string {
+  const moduleDir = startDir;
+  // ①② 包内优先：模块目录（安装态 = dist/configs）与其上一级（兼容 src/ 布局）
+  for (const pkgLocal of [moduleDir, path.dirname(moduleDir)]) {
+    if (fs.existsSync(path.join(pkgLocal, 'configs', 'policy.default.yaml'))) return pkgLocal;
+  }
+  // ③ 既有行为：模块位置上溯最多 6 级（开发态在此命中仓库根）
+  let dir = moduleDir;
   for (let i = 0; i < 6; i++) {
     if (fs.existsSync(path.join(dir, 'configs', 'policy.default.yaml'))) return dir;
     const parent = path.dirname(dir);
     if (parent === dir) break;
     dir = parent;
   }
+  // ④ 仍未命中：回落 repoRoot()（从 cwd 上溯，再退化为 cwd），保持旧行为、不抛
   return repoRoot();
 }
 

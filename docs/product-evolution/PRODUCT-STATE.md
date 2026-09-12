@@ -389,7 +389,11 @@
 
 **`npm pack --dry-run` 新发现（打包卫生，待处理）**：tarball **包含编译后的测试产物与 source map**（`dist/**/*.test.js`、`*.test.d.ts`、`*.js.map`）→ 发布物带测试代码与内部映射。处置方向：`files` 加否定模式（`!dist/**/*.test.*`、`!dist/**/*.map`）或独立 build 配置排除测试。**待 `apps/cli/package.json` 的在跑卡落盘后一并处理**（避免同文件冲突）。
 
-**仍未闭合的系统性缺口（侦察报告，超出已修范围）**：`apps/cli` 未声明 `@vessel/shared`/`policy`/`llm`（实际直接 import）；多个 packages **根本没有 `dependencies` 字段**（core/shared/policy/behavior 等）；`@vessel/bench-runners` 是**运行期 `await import`** 但 `benchmarks/runners` 为 `private:true`（`run --bench` 在非 hoisting 环境会挂）。→ 这些决定"装 tarball 是否直接失败"，需在装机验证前处理。
+**仍未闭合的系统性缺口（已完成精确量化）**：**16 个 workspace 包里有 14 个**存在缺失的 `@vessel/*` 依赖声明（只读扫描：逐包对比 `package.json` 的 `dependencies` 与其 `src/**` 非测试文件的实际 import）。清单：
+`agents`（缺 context/core/policy/runtime/shared/tools）、`engine`（缺 agents/core/llm/shared/tools）、`local-server`（缺 agents/core/policy/shared）、`cli`（缺 llm/policy/shared）、`context`（缺 core/shared）、`telemetry`（缺 core/shared）、`tools`（缺 runtime/shared）、`behavior`/`llm`/`memory`/`policy`/`runtime`/`skills`（各缺 shared）、`core`（缺 shared）。
+
+**关键判断（决定优先级，避免过度投入）**：Node 的模块解析**会向上查找**——把 17 个 tarball **一起**装进一个临时项目时，`@vessel/context` 里 `import '@vessel/shared'` 会沿 `node_modules/@vessel/context/node_modules → node_modules/@vessel → node_modules` 上溯并在**项目顶层**找到它。所以**缺声明不阻塞"整仓一起 pack + 一起装"**（用户已选路线）；它只在"**从 registry 单独安装 `@vessel/cli`**"（路线 a）时才是硬阻塞。
+→ **排序**：先做"包内 configs 可达"（在跑）→ 跑**整仓 pack + 装机 E2E**（用户选定路线的验收）→ 若通过，则把"14 包补 `@vessel/*` 声明"记为 **P2（仅为将来 registry 发布所需）**，不在本路线内扩张。另 `@vessel/bench-runners` 是**运行期 `await import`** 但 `benchmarks/runners` 为 `private:true` → `run --bench` 在安装态不可用，属**功能面缺口**，同样记 P2 并如实写入文档。
 
 ## 技术债
 

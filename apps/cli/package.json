@@ -14,7 +14,8 @@
     "node": ">=20"
   },
   "scripts": {
-    "build": "tsc -b",
+    "build": "tsc -b && node scripts/copy-configs.mjs",
+    "prepack": "node scripts/copy-configs.mjs",
     "test": "vitest run"
   },
   "exports": {
