@@ -388,3 +388,23 @@ parseFailed=true  ⇒ AgentLoop 退化成 {_raw:...}，工具拿不到 path
 
 **修法方向（我倾向最小且双向）**：`kind='error'` ⇒ **非零退出码**（与既有 `fail(1, …)` 口径一致，并让 `--json` 信封同步）；`=== 最终回复 ===` 这个标题**在 error 时不适用**（改成不冒充"最终回复"的表述，例如明示"回合以错误结束"+ 错误文本）；**`kind='budget'` 需单独裁决**（步数上限是否算失败？我倾向**不算失败但必须可见**，且不改退出码）。
 **判别性验收（必须有负对照）**：① `kind='error'` ⇒ **非零退出码** + 输出里不出现"最终回复"式冒充（旧实现 exit 0 + 冒充 ⇒ 必红）；② **负对照：`kind='success'` ⇒ 退出码与输出逐字不变**（防"把一切都当失败"）；③ `interrupted`/`budget` 的处置如你裁决并各配一条用例；④ 若改 `--json` 信封，其既有形状与断言不得回归。**已派卡。**
+
+## Round 72–75 — `kind='error'` 被当成成功：**四个消费面已修**，两处裁决 + 一串只报告项
+
+**已修并提交**（全量 **1849 passed + 6 skipped**；本段起点 138/1555 ⇒ **+294**）：
+- `de97da0` **TUI**：`error`/`budget` 原先落进"当助手回复打印"的兜底 ⇒ 熔断文案被当作模型发言。现为一个纯函数、四条分支显式处理；`success`/`interrupted` 逐字不变（`success` 有负对照）。
+- `e1be683` **local-server**：`POST /api/sessions/:id/turns` 对 `error` **恒回 200** ⇒ 只看状态码的客户端读成成功。现 `kind='error'` ⇒ **500**（body 形状与字段语义不变；**刻意不复用** `{error,message}` 信封——那形状表示"请求没跑起来"）。`success` 逐字不变（含键序），`budget`/`interrupted` 仍 200（与 CLI 裁决一致）。
+- `c04638c` **benchmark runner**：原先**只取 `finalText`、丢掉 `result.kind`** ⇒ **被熔断打死的运行把 `same intent denied 3 times: …` 当成"最终答案"交给断言层**（`asserts.ts` 只有 `interrupted` 判据、**没有 `error` 判据**）。现按"**记录 → 可见可判**"分层：`ScenarioReport.turnKind?`/`turnEndedAbnormally?`（可选、缺席≠success）、JSONL 增一行 `turn/end`、summary.json 增 `turn` 键（**既有 11 键一字未动**）、契约侧用**既有** `RunResult.notes` 承载"未正常收尾"（success 路径保持 `undefined`）。**未新增判据类型**（那要动 `manifest.ts` 的 `PASS_KEYS` + `asserts.ts` 词表 + 所有场景）——影响面远大于收益。
+- `9b0541f` **EvaluatorAgent**：`stopReason` 原为**字面量常量** `'completed'`、与 `turn.kind` 无关 ⇒ **被熔断的评审回合对上游看起来像"评审已完成"**。现按 kind 映射（error→error、budget→max_tokens、interrupted→aborted），对齐**既有先例** `SubagentManager.mapTurnKind` 与 `TeamRuntime`，且 `EvaluatorStopReason` 与子代理契约**同源类型**（不会漂移）；未跑完的回合 verdict 强制为既有词表的 `'error'`（**不新增词表**——`'met'` 是最危险的误报）。
+
+**我做的两处裁决**：
+1. **`isError` 取"并集"而非严格等式**（`stopReason!=='completed' || verdict==='error'`）：与 `SubagentManager:350` 的严格等式**只在"success 且解析不出 verdict"这一处不同**，此处取**旧值 `true`**。依据：`EVENT-SPEC.md:391` 是**单向蕴含**（"stopReason≠completed 一律 isError"，非 iff），且我要求 success 回合字段**逐字不变** —— 并集**只增不减、零放宽**，并保住 evaluator 既有的 fail-loud 信号。**裁决：接受。**
+2. **S001 注入变体下 `success=true` 与 `turnKind='error'` 并存不算误判**：S001 的判据问的是"**机制层有没有拒绝**"（拒绝了、文件也还在），而"**这轮没跑完**"是**旧实现说不出的第二件事**。⇒ **裁决：现在不据此改判**（改判会让历史对比失真），只让事实**可见可追溯**。执行者已**静态穷举**确认：`offline.ts` 里每个危险调用**至多发 1 次** ⇒ **没有任何既有场景触得到熔断阈值** ⇒ 无场景结果被改变；唯一新信号为 true 的既有场景是 **B025**（`kind='interrupted'`，正是它自己声明的判据）。
+
+**只报告、待排的队列（本次新增）**：
+- **`real-model-lane.ts:342`**：行状态 `status = passed` 只看 `metrics.success`，而 `notes`（现含"未正常收尾"）**只落在 `row.result.notes`** ⇒ **真实模型 lane 里被熔断打死的行仍报 `passed`**。这与 S003/S008 的"空洞证据"同族（**报告里的一行 PASS 必须能追溯**，纪律 20）。
+- **`EvaluatorAgent` 镜像事件 `delegateId` 不成对**（`eval_${Date.now()}_${hex}` vs `eval_${Date.now()}`）⇒ `TeamProjection.onSubagentStop` 按 id 找不到行、直接 return ⇒ **evaluator 的 stop 事件永远进不了 team 投影**，**我们刚修好的 `stopReason:'error'` 因此到不了投影**。
+- **local-server 另有 4 处"失败回 200"**：`/api/goal/tasks/:id/run`（`outcome==='error'` 仍 200）、`/api/sessions/:id/team-runs/current`（失败只在 body）、`POST /api/sessions/:id/team-runs`（202 异步接受，失败无状态面）、**`POST /api/reviews/:id/import`（`parseReviewConclusion` 解析失败时 `verdict='error'` 却把 status 置 `'imported'` ⇒ 解析失败被上报为导入成功）**。
+- **`Planner.executePlan` 的 `run` 签名抹掉 `kind`**（`Planner.ts:97,113`），`runner.ts:443` 传的却是 `TurnResult` ⇒ 步骤回合的 kind 只能以 `finalText` 进入 evaluate（不会假通过，但不可见）。
+- **web**：`apps/web/src/api.ts` 会在 `!res.ok` 抛 `ApiError`，而 `ConversationView` 只显示 `HTTP 500`、**未渲染 `err.body.finalText`** ⇒ 修完状态码后失败**可见但信息贫**（净改善，但应把真实文案渲染出来）。
+- **core 语义**（越界只报告）：`AgentLoop.ts:203-224` 的「输入被 BeforeTurn 拦截」按 **`kind='success'`**、`finalText='[blocked] …'` 返回 ⇒ **"被拦截"在 kind 上看起来是成功**（好在 `'[blocked]…'` 解析不出 verdict ⇒ evaluator 判 `error`，不会误报 `met`）。
