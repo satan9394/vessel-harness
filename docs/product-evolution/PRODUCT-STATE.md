@@ -72,6 +72,8 @@
 **before 基线（指挥侧实测，用于证明"无用户态文件时零漂移"）**：`VESSEL_USAGE_ROOT=<tmp>` 下 `loadPricing(repoRoot)` = 2 keys / hash `c32b0314d4250b10`；`loadModelCatalog(repoRoot)` = 3 keys（`version`/`source`/`models`）/ hash `514cc48db36d6861`；用户态 catalog 不存在。**改动后必须以同一探针得到相同哈希**。
 **另一片**：第 9 道门禁扩**升级路径**（覆盖安装后仍能跑、且无旧版本残留污染）；升级特有的断言**不得**用"文件存在即算过"的弱形式；默认仍**零命令零 IO**、不联网、环境不具备一律 `pending`。
 
+**after 验证（指挥侧实测，独立于实现者）**：① **零漂移**——无用户态文件时 `loadPricing` 与 `loadModelCatalog` 的哈希与 before **逐字相同**（`c32b0314d4250b10` / `514cc48db36d6861`）⇒ usage 成本不会漂移；② **用户态优先真的存在**——向 `VESSEL_USAGE_ROOT` 写入哨兵 catalog 后，`loadModelCatalog` 返回哨兵（`userStatePriority=true`，哈希变为 `f967911781f83d00` ≠ 内置），**这是改动前必红的判别点**。
+
 ## 已解决问题（Round 1 切片 · 历史存档）
 
 - **G-01（P0）首跑示例失效**：仓库工作区 `run --prompt` 曾 100% 输出 `(mock: no script entry matched)` 且 exit 0（假成功）。根因：ContextBuilder 将 volatile skills index 作为**最后一条 user 消息**追加，MockProvider 只匹配最后一条 user 消息。修复：`ChatMessage.source` 溯源 + Builder 标记 volatile 为 `environment` + MockProvider 只匹配真实 surface 输入 + 确定性兜底文案。
