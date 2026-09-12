@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { EventBus } from '@vessel/core';
+import type { ToolErrorPayload } from '@vessel/shared';
 import { ConversationProjection } from './ConversationProjection.js';
 import { ToolActivityProjection } from './ToolActivityProjection.js';
 import { UsageProjection } from './UsageProjection.js';
@@ -285,6 +286,80 @@ describe('EnforcementProjection (task 074 runtime enforcement telemetry)', () =>
     expect(events.map((e) => e.type).sort()).toEqual(['confinement', 'size']);
     expect(events.every((e) => e.source === 'fs-confinement')).toBe(true);
     expect(ep.counts()).toMatchObject({ confinement: 1, size: 1 });
+  });
+
+  /**
+   * task 074 § 死 seam 接线 ③ 的幂等性：生产折点在 `after_turn`（每回合一次），
+   * 所以 `foldSession()` 会被同一个会话反复调用 —— 同一记录只能计一次。
+   */
+  it('foldSession is idempotent: folding the same session twice never double-counts', () => {
+    const ep = new EnforcementProjection();
+    type Folded = {
+      type: 'tool/result';
+      toolCallId: string;
+      toolName: string;
+      // 用生产的共享类型（errorClass 是联合类型）而不是收窄成 'DENIED'：本夹具要能构造
+      // **非 DENIED** 的 tool/result（如 TOOL_FAILURE，真实会话里本就有），用来证明它们
+      // 不会被折成 enforcement 记录；而 string 又太宽、无法赋给 FoldableToolResultRecord。
+      error?: ToolErrorPayload;
+      meta: Record<string, unknown>;
+    };
+    const records: Folded[] = [
+      {
+        type: 'tool/result',
+        toolCallId: 'x1',
+        toolName: 'Read',
+        error: { errorClass: 'DENIED', message: 'path escapes workspace: ../a.txt' },
+        meta: { guard: 'escape' },
+      },
+      // 非 DENIED（guard 字段存在也不算）→ 从来不是 enforcement 记录
+      {
+        type: 'tool/result',
+        toolCallId: 'x2',
+        toolName: 'Read',
+        error: { errorClass: 'TOOL_FAILURE', message: 'io' },
+        meta: { guard: 'escape' },
+      },
+    ];
+    const session = { replay: () => records };
+    ep.foldSession(session);
+    ep.foldSession(session); // 同一会话对象再折一次
+    ep.foldSession({ replay: () => records }); // replay 视图重建（记录对象仍是同一批）
+    ep.foldSession({ replay: () => records.map((r) => ({ ...r })) }); // 连记录对象都是新的（按键去重）
+
+    expect(ep.events()).toHaveLength(1);
+    expect(ep.counts()).toEqual({ escape: 1 });
+    expect(ep.sourceCounts()['fs-confinement']).toBe(1);
+  });
+
+  it('foldSession dedups by log identity — two denials sharing a toolCallId are both kept', () => {
+    const ep = new EnforcementProjection();
+    // mock provider 的工具调用 id 是按位置生成的（`tc_mock_1`），同一个 id 会重复出现；
+    // 去重必须按日志身份（`seq`）而不是只按 toolCallId，否则会漏掉真实发生的第二次拒绝。
+    const session = {
+      replay: () => [
+        {
+          type: 'tool/result' as const,
+          seq: 5,
+          toolCallId: 'tc_mock_1',
+          toolName: 'Read',
+          error: { errorClass: 'DENIED' as const, message: 'path escapes workspace: ../a.txt' },
+          meta: { guard: 'escape' },
+        },
+        {
+          type: 'tool/result' as const,
+          seq: 9,
+          toolCallId: 'tc_mock_1',
+          toolName: 'Read',
+          error: { errorClass: 'DENIED' as const, message: 'path escapes workspace: ../b.txt' },
+          meta: { guard: 'escape' },
+        },
+      ],
+    };
+    ep.foldSession(session);
+    ep.foldSession(session); // 幂等：不因第二次折叠而翻倍
+    expect(ep.counts()).toEqual({ escape: 2 });
+    expect(ep.sourceCounts()['fs-confinement']).toBe(2);
   });
 
   it('multi-source aggregation keeps each event type/source distinct in one snapshot', async () => {

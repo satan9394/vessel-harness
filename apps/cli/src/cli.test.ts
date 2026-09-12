@@ -5,6 +5,7 @@ import * as path from 'node:path';
 import type { AddressInfo } from 'node:net';
 import { fileURLToPath } from 'node:url';
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { MAX_FILE_BYTES } from '@vessel/shared';
 import { main, startServe } from './cli.js';
 import * as cli from './cli.js';
 import { composeHarness } from '@vessel/application';
@@ -167,6 +168,105 @@ describe('CLI (apps/cli)', () => {
     expect(out).toContain('degraded='); // machine-readable "why confinement was not in force"
     // fallbackReason 文案随平台不同（win32 = 尚未附加；非 win32 = passthrough）
     expect(out).toMatch(/backend not attached yet|backend not active on this platform/);
+  });
+
+  /**
+   * task 074 § 死 seam 接线 ③ —— `foldSession()` 的生产可达性（判别性验收）。
+   *
+   * 接线前 `foldSession()` 全仓只有 `projections.test.ts` 调用 ⇒ 生产里
+   * `fs-confinement` 来源恒为 0：fs 守卫确实拒绝了，但**没有任何生产代码**把
+   * `tool/result` 上的 `meta.guard` 折进投影（bus 的 `after_tool` 载荷刻意丢掉 meta）。
+   * 接线点在 `compose.ts`（`after_turn`）：一次接线对所有消费方生效，本用例经
+   * **生产入口** `main(['run', ...])` 打印的遥测来判定。
+   */
+  it('死 seam 接线①（判别性）：真实 fs 守卫拒绝（guard=size）⇒ 生产遥测 fs-confinement≥1', async () => {
+    // 触发一次**工具层**守卫拒绝：Read 一个超过 10MiB 读取上限的文件 → FsGuardError('size')
+    // → tool/result 带 errorClass=DENIED + meta.guard='size'。
+    // 之所以选它：策略层**没有**对应的预执行规则（Compiler 只为 filesystem.protected /
+    // deny_read / confinement 生成规则），所以这次拒绝只能靠 session 回放折进投影 ——
+    // 正是这条死 seam 的判别点。
+    // 删掉 compose.ts 里 `enforcement.foldSession(foldableSession);` 那一行 ⇒
+    // 下面第一处断言立刻回到 `fs-confinement=0` ⇒ 红。
+    // 用 truncate 造"超限文件"（稀疏/纯元数据操作）：Read 在 statSync 之后、
+    // readFileSync **之前**就按 size 拒绝，所以这 10MiB 内容从不被读进内存。
+    const bigReadme = path.join(dir, 'README.md');
+    fs.writeFileSync(bigReadme, '');
+    fs.truncateSync(bigReadme, MAX_FILE_BYTES + 1);
+    const { logs, restore } = capture();
+    const code = await main([
+      'run',
+      '--workspace', dir,
+      '--prompt', '请阅读 README.md 并回答',
+      '--policy', POLICY,
+      '--behavior', BEHAVIOR,
+    ]);
+    restore();
+    expect(code).toBe(0);
+    const out = logs.join('\n');
+    expect(out).toContain('kind=success'); // 真的跑完了一个回合（不是异常早退）
+    expect(out).toContain('来源: policy=0 fs-confinement=1 process-tree=0 sandbox-status=1');
+    // 事件内容对得上：来源 fs-confinement、type=守卫种类、meta 带 guard 与工具名
+    expect(out).toContain('[fs-confinement] size');
+    expect(out).toContain(`file exceeds ${MAX_FILE_BYTES} bytes cap`);
+    expect(out).toContain('"guard":"size"');
+    expect(out).toContain('"toolName":"Read"');
+  });
+
+  it('死 seam 接线②（负对照）：没有守卫拒绝的正常 run ⇒ fs-confinement 仍为 0', async () => {
+    fs.writeFileSync(path.join(dir, 'README.md'), 'CLI-NO-GUARD-GOLDEN', 'utf8');
+    const { logs, restore } = capture();
+    const code = await main([
+      'run',
+      '--workspace', dir,
+      '--prompt', '请阅读 README.md 并回答',
+      '--policy', POLICY,
+      '--behavior', BEHAVIOR,
+    ]);
+    restore();
+    expect(code).toBe(0);
+    const out = logs.join('\n');
+    // 接线后仍然不得"一律造事件"：这一次零守卫拒绝 ⇒ 该来源必须还是 0。
+    expect(out).toContain('来源: policy=0 fs-confinement=0 process-tree=0 sandbox-status=1');
+    expect(out).not.toContain('[fs-confinement]');
+  });
+
+  it('死 seam 接线③（幂等）：两个回合折同一会话两次 ⇒ fs-confinement 不翻倍', async () => {
+    // 折点在 `after_turn`（每回合一次）⇒ "同一会话被折多次"是生产常态。
+    // 第 1 回合发生一次真实 escape 守卫拒绝（Read '../…' 被 canonicalize 硬拒），
+    // 第 2 回合零拒绝再折一次：那条拒绝必须仍然只计 1 次。
+    const provider = new MockProvider(
+      [
+        {
+          when: /.*/,
+          ifNoToolResult: true,
+          response: { toolCalls: [{ name: 'Read', arguments: { path: '../outside-secret.txt' } }] },
+        },
+        { when: /.*/, response: { text: '（mock）结束' } },
+      ],
+      { model: 'mock', vars: { cwd: dir } },
+    );
+    const h = await composeHarness({
+      workspaceRoot: dir,
+      provider,
+      model: 'mock',
+      policySystemPath: POLICY,
+      behaviorIRPath: BEHAVIOR,
+    });
+    try {
+      await h.loop.runTurn('第一回合：读一个越界文件');
+      expect(h.enforcement.sourceCounts()['fs-confinement']).toBe(1);
+      const ev = h.enforcement.events().find((e) => e.source === 'fs-confinement');
+      expect(ev).toMatchObject({ type: 'escape' });
+      expect(ev?.meta).toMatchObject({ toolName: 'Read', guard: 'escape' });
+
+      await h.loop.runTurn('第二回合：普通对话'); // 折第二次（同一会话）
+      expect(h.enforcement.sourceCounts()['fs-confinement']).toBe(1); // ← 幂等，不翻倍
+      expect(h.enforcement.counts()).toMatchObject({ escape: 1 });
+      // 同一次运行内的负对照：没有守卫拒绝的来源仍是 0
+      expect(h.enforcement.sourceCounts()).toMatchObject({ policy: 0, 'process-tree': 0 });
+    } finally {
+      await h.close();
+    }
   });
 
   it('② run 只读 VESSEL_PROVIDER_ROOT 临时 root：临时 current.json 决定 provider（不读真实 ~/.vessel）', async () => {

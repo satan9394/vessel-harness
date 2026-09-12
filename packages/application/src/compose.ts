@@ -1,5 +1,5 @@
 import * as path from 'node:path';
-import type { ChatProvider, ChatToolDef, ToolCall } from '@vessel/shared';
+import type { ChatProvider, ChatToolDef, ToolCall, ToolResultRecord } from '@vessel/shared';
 import { AgentLoop, EventBus, Session } from '@vessel/core';
 import { ContextBuilder, Compaction } from '@vessel/context';
 import { ToolRegistry, createFsTools, createSearchTools, createShellTool, McpClient, registerMcpTools, type McpTransport } from '@vessel/tools';
@@ -335,6 +335,36 @@ export async function composeHarness(opts: ComposeOptions): Promise<ComposedHarn
   // records; runtime-side process-tree/status injected via the seam).
   const enforcement = new EnforcementProjection();
   const enforcementDetach = enforcement.attach(bus);
+  // task 074 § 死 seam 接线 ③：fs-confinement 来源的**生产折点**。
+  //
+  // 接线前：`foldSession()` 全仓只有 `projections.test.ts` 调用 ⇒ 生产路径**从不**把
+  // `tool/result` 上的 `meta.guard` 折进投影 ⇒ enforcement telemetry 的
+  // `fs-confinement` 计数在生产恒为 0（fs 守卫确实拒绝了，但没有任何生产代码记录它）。
+  // 注意为什么不能用 bus：`after_tool` 的载荷**刻意丢掉 `meta`**（见 EnforcementProjection
+  // 类文档），守卫种类只存在于 session 记录里 ⇒ 只能走**会话回放**。
+  //
+  // 为什么折在 `after_turn`：`AgentLoop.runTurnInner` 在 turn 内的全部 tool/result 落库
+  // **之后**才发这个事件（AgentLoop.ts:354），所以折进去的是本回合真实发生的全部守卫拒绝；
+  // 又因为它在组合根上接线，一次接线对**所有**消费方同时生效（CLI 的遥测打印、
+  // SessionController/TUI、未来的 web 面），而不是只在 CLI 打印那一处补。
+  //
+  // 幂等：`foldSession()` 自身保证同一记录最多折一次（见 EnforcementProjection 的两把去重锁），
+  // 所以"每回合折一次"不会让上一回合的拒绝在下一回合再计一遍。
+  //
+  // 会话对象取自本函数持有的 `session`（`Session.open()` 的产物，compose.ts:178）——
+  // 就是 `ComposedHarness.session` 暴露的同一个实例；`Session.replay()` 返回内存里
+  // 同一批记录对象（packages/core/src/session/Session.ts:187）。
+  const foldableSession = {
+    sessionId: session.sessionId,
+    replay: () => session.replay().filter((r): r is ToolResultRecord => r.type === 'tool/result'),
+  };
+  const enforcementFoldDetach = bus.on(
+    'after_turn',
+    () => {
+      enforcement.foldSession(foldableSession);
+    },
+    'projection:enforcement:fs-confinement-fold',
+  );
 
   // V0.9 usage statistics: persist after_model usage into the store when wired
   if (opts.usageStore) {
@@ -406,6 +436,7 @@ export async function composeHarness(opts: ComposeOptions): Promise<ComposedHarn
     async close() {
       telemetry.detach();
       enforcementDetach();
+      enforcementFoldDetach();
       await session.close();
       for (const c of mcpClients) {
         await c.close();

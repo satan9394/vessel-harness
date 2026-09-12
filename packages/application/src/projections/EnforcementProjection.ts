@@ -19,6 +19,12 @@ type PolicyDecisionPayload = {
 /** Minimal structural slice of a session record the fs-confinement fold needs. */
 interface FoldableToolResultRecord {
   type: 'tool/result';
+  /**
+   * The append-only session log's per-record sequence (`SessionRecordBase.seq`).
+   * Used as the dedup identity below; optional so a structural mock without it
+   * still folds (the composite key then falls back to toolCallId/guard/message).
+   */
+  seq?: number;
   toolCallId: string;
   toolName: string;
   error?: ToolErrorPayload;
@@ -76,6 +82,19 @@ export class EnforcementProjection {
   private readonly treeAuditEvents: ProcessTreeAuditEvent[] = [];
   private statusValue?: SandboxStatus;
   private limitSummary?: string[];
+  /**
+   * Idempotence of {@link foldSession} (两把锁，覆盖两种 replay 形态):
+   *  - `foldedRecords` — **record object identity**. `Session.replay()` hands back
+   *    the same in-memory record objects on every call, so the production fold
+   *    point (compose.ts, once per turn over the same session) is exact with this
+   *    alone.
+   *  - `foldedKeys` — **record key** (`sessionId` + `seq` when present, else a
+   *    toolCallId/guard/message composite). Catches a caller that hands over the
+   *    SAME records as freshly built objects (e.g. a second replayed view of the
+   *    same log), where the identity lock cannot fire.
+   */
+  private readonly foldedRecords = new WeakSet<object>();
+  private readonly foldedKeys = new Set<string>();
 
   /** Subscribe to `policy_decision` deny events (050 reuse). Returns detach. */
   attach(bus: EventBus): () => void {
@@ -103,14 +122,34 @@ export class EnforcementProjection {
    * guard value gets its own count bucket — including the fail-closed
    * `'unverifiable'` (no verdict reached), which is therefore never merged into
    * `'escape'` (proven out of bounds). No counting logic lives here by design.
-   * Safe to call repeatedly; skips records already seen.
+   *
+   * **Idempotent** — every record is folded AT MOST ONCE, so a fold point that
+   * runs more than once over the same session (compose.ts folds on `after_turn`,
+   * i.e. once per turn) cannot double-count a denial. See the two dedup locks on
+   * {@link foldedRecords}/{@link foldedKeys}.
    */
-  foldSession(session: { replay(): readonly FoldableToolResultRecord[] }): void {
+  foldSession(session: {
+    /** `Session.sessionId` — scopes the dedup key so two sessions' `seq` never collide. */
+    sessionId?: string;
+    replay(): readonly FoldableToolResultRecord[];
+  }): void {
+    const scope = session.sessionId ?? '';
     for (const r of session.replay()) {
       if (r.type !== 'tool/result') continue;
       const guard: unknown = r.meta?.guard;
       if (!guard) continue;
       if (r.error?.errorClass !== 'DENIED') continue;
+      if (this.foldedRecords.has(r)) continue;
+      // `seq` identifies the record within its append-only log; the composite
+      // fallback keeps two DIFFERENT denials (same toolCallId, e.g. the mock
+      // provider's positional ids, but another guard/message) apart.
+      const key =
+        r.seq !== undefined
+          ? `${scope}#seq:${r.seq}`
+          : `k:${scope}\u0000${r.toolCallId}\u0000${String(guard)}\u0000${r.error.message ?? ''}`;
+      if (this.foldedKeys.has(key)) continue;
+      this.foldedRecords.add(r);
+      this.foldedKeys.add(key);
       this.recordEvent({
         type: String(guard),
         source: 'fs-confinement',
