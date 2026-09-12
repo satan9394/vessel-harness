@@ -272,6 +272,21 @@ export class AgentLoop {
     let finalText = '';
     let dispatchedAny = false;
     let kind: TurnResult['kind'] = 'success';
+    /**
+     * 终止本回合的那次模型响应的 `finishReason`，**只在"纯文本停"（无工具调用）这条路径上赋值**。
+     *
+     * BRIEF「finishReason 从不参与停止判定」修复（本卡）：改前停止判定只看 `toolCalls.length` 与
+     * `content`，`finishReason` 既没有出现在停止判定里，也没有进入任何持久记录（只活在 bus 事件
+     * `model_stream_end` 上，见 `consumeStream`）⇒ provider 明说"我没说完"
+     * （Anthropic `stop_reason:'max_tokens'` → `finishReason:'length'`，AnthropicProvider.ts:361-369）
+     * 时，回合照样报 `kind='success'`；若这次响应的文本还为空，更会落到下面 `finalText===''`
+     * 的兜底变成 `kind='budget'`（退出码 0）。
+     *
+     * 为什么只在这一条路径上取值：`finishReason` 是**某一次**模型响应的属性，只有"纯文本停"的
+     * 这次响应才是整个回合的终止原因。有工具调用时同一个值不参与回合收尾（工具调用回合的结束语义
+     * 在本卡逐字不变，见验收 ③），故不在那条分支上记录。
+     */
+    let terminalFinishReason: ChatFinishReason | undefined;
     const denialCounts = new Map<string, number>();
 
     try {
@@ -316,6 +331,10 @@ export class AgentLoop {
           });
           void rec;
           finalText = response.content;
+          // BRIEF「finishReason 从不参与停止判定」修复（本卡）：**终止原因**在这里被抓住。
+          // 只有"纯文本停"这次响应才是回合的终止响应；`assistant/message` 与 `after_model`
+          // 的内容/形状逐字不变（本卡只新增"记录终止原因"这一件事）。
+          terminalFinishReason = response.finishReason;
           await session.appendSync({ type: 'step/end', stepId, turnId, surface: false });
           await bus.emit('after_model', { turnId, step, response, usage: response.usage });
           break;
@@ -377,7 +396,40 @@ export class AgentLoop {
       }
     }
 
-    if (finalText === '' && kind === 'success') {
+    /**
+     * BRIEF「finishReason 从不参与停止判定」修复（本卡）——**被截断的回合不得再报成"成功"**。
+     *
+     * 判据只有一条（不放宽、不新增任何既有判据）：终止响应明说 `finishReason === 'length'`
+     * ⇒ 模型没把想说的说完（Anthropic `max_tokens` 截断）⇒ `kind='error'`。
+     *
+     * 为什么取 `'error'` 而不是 `'budget'`（既有词表里另一种"资源上限"）：
+     *  1. `'budget'` 在本仓已被**逐字裁决为"不算失败"**：`cli.turnExitCode('budget') === 0` 且标题
+     *     仍是 `=== 最终回复 ===`（cli.ts:794-798、:2375）、`turnStatusFor('budget') === 200`
+     *     （server.ts:131-135）⇒ 选它等于让"被截断的半截回答"继续以退出码 0 / HTTP 200 /
+     *     「最终回复」标题对外呈现，与本卡裁决直接冲突——那只是把 `'success'` 换了个名字，
+     *     同一族"失败被上报为成功"会原地复发。
+     *  2. `'budget'` 的既有语义是**本回合的步数预算**耗尽（用户自己下的 `--max-steps`/`maxSteps`，
+     *     见本文件 step 循环里的 `snapshot.steps >= this.maxSteps` 分支）外加"纯文本停但内容为空"
+     *     的兜底；`max_tokens` 是 **provider 侧**
+     *     的输出上限，不是本回合的步数预算，混用会让退出码/看板把两种完全不同的收尾混为一谈。
+     *  3. `'error'` 是既有四值之一，五个消费面**全部已穷尽处理**（CLI `turnExitCode`⇒1 且标题不冒充
+     *     「最终回复」、HTTP `turnStatusFor`⇒500、TUI `renderTurnOutcome`⇒`[错误]` 标记且文本不丢、
+     *     runner `turnKind !== 'success'`⇒`turnEndedAbnormally`、evaluator/Subagent
+     *     `mapTurnKindToStopReason('error')='error'`）⇒ 改这一个值，五处同时如实呈现，
+     *     **不需要任何跨包同步改动**（见本卡交付 ④），也就不存在"未知 kind 落到当成功打印的兜底"。
+     *
+     * 与既有 `finalText === ''` 兜底的关系（本卡验收 ④）：**截断判定在前**。两者同时成立时
+     * （`finishReason === 'length'` 且文本为空）取 `'error'`：那条兜底的原意是"纯文本停了但没内容、
+     * 停因不明"，而这里有**明确的停因**（截断），用兜底值会把它盖掉；两个分支互斥（else-if），
+     * `kind` 每个回合只会被这里赋一次值，两者不可能同时生效。
+     *
+     * 不改的：`kind !== 'success'` 的一切（`interrupted`/`error` 由上面的 catch 定死，此处不触碰）；
+     * 有工具调用的回合根本不进这条判据（`terminalFinishReason` 只在纯文本停路径上被赋值）。
+     */
+    const truncated = kind === 'success' && terminalFinishReason === 'length';
+    if (truncated) {
+      kind = 'error';
+    } else if (finalText === '' && kind === 'success') {
       // Hit max steps without a pure-text stop
       kind = 'budget';
     }
@@ -409,6 +461,29 @@ export class AgentLoop {
       type: 'turn/end',
       turnId,
       kind,
+      // BRIEF「finishReason 从不参与停止判定」修复（本卡）——**截断这一事实进记录**。
+      //
+      // 改前 `finishReason` 只出现在 bus 事件 `model_stream_end`（`consumeStream` 里那一处）与
+      // `ChatResponse` 上，**不进入任何持久记录** ⇒ 会话日志（本仓唯一真源）里查不到"这条回答是
+      // 被 max_tokens 截断的"，只有当场订阅了总线的进程看得到——即"记录在没人看的地方"。
+      //
+      // 形状：顶层加法字段 `finishReason: 'length'`，取值域就是 `ChatFinishReason`
+      // （packages/shared/src/provider.ts:96），不新造词、不改既有的 `kind`/`stats` 形状。
+      //   - **正常结束（`'stop'`）不加这个键** ⇒ `turn/end` 载荷逐字不变（验收 ② 的负对照
+      //     把键集钉死；本文件既有的 `[...spread]` 惯用法不新增依赖）；
+      //   - **有工具调用的回合也不加**（`truncated` 只在纯文本停路径上可能为真，验收 ③）。
+      //
+      // 字面量 `'length'` 而非变量：`truncated === true` ⟺ `terminalFinishReason === 'length'`
+      // （同一行判据），写成字面量既逐字等价、又不依赖 TS 对 const 别名的窄化。
+      //
+      // 为什么不改 `packages/shared` 的 `TurnEndRecord`：`Session.appendSync` 的入参是
+      // `Omit<SessionRecord,'seq'|'ts'>`，而 `SessionRecordBase` 带 `[k: string]: unknown` 索引签名
+      // ⇒ `keyof` 收敛为 `string | number`，多写一个顶层键在类型上合法（与本文件既有的
+      // `reasoningContent`、`source` 等加法字段同一机制），落盘 JSON 里可读可查。
+      // **但**它对 TS 消费方不可见（读的人得显式 cast）。想要它成为一等字段的最小改法是
+      // `packages/shared/src/events.ts` 的 `TurnEndRecord` 加一行 `finishReason?: ChatFinishReason;`
+      // ——那属于**记录形状变更**，影响面已在交付 ② 里报告，本卡不自行扩大。
+      ...(truncated ? { finishReason: 'length' } : {}),
       stats: {
         steps: this.state.snapshot().steps,
         toolCalls: this.state.snapshot().toolCalls,
