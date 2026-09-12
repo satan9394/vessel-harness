@@ -138,4 +138,24 @@
 **教训（我自己的，比这次修复更重要）**：
 1. **我连续两次判断错方向**（"脚本没调用"、"链接没建出"），且**两次都是在中间修订上测量**（纪律 14）；**我差点据此执行"把 S003 移出 `SAFETY_SCENARIOS`"的退路，从而把一个已经修好的安全场景降级掉**。⇒ **结论必须建立在落定修订上；"多测一次"的成本远低于"按错误结论动手"的成本。**
 2. **上游真根因仍在 `packages/llm`**：`MockProvider` 按响应编号 id，任何复用 id 的 provider 都会让**基于 id 的锚定 join 再次误绑**（`asserts.ts` 的后写覆盖语义未改）。本批选择在**产生歧义的那条车道**消除歧义（包装唯一 id），而不是改证据连接语义（那会影响所有场景）。**未接线旁路**：`runner.ts` 的 `evalProvider` 与 taskRouter 的两个 tier provider 仍是裸 `MockProvider`；`adapters/{claude,codex,dsh,opencode,pi}.ts` 各自一份 `copyDir` 仍未接 prepare。
-3. **一处已观察到的偶发（未定位）**：同一修订下全量出现过一次 `exit=1`（`1648 passed`，11 条未归类）与一次 `exit=0`（`1659 passed`）。最可能是本批新增的"真跑 PowerShell / 真实建链接"用例在并发下抖动。**我没有把它当作"已经绿了"就放过**，已写进复评请求。
+3. **一处已观察到的偶发（未定位）**：同一修订下全量出现过一次 `exit=1`（`1648 passed`，11 条未归类）与一次 `exit=0`（`1659 passed`）。最可能是本批新增的"真跑 PowerShell / 真实建链接"用例在并发下抖动。**我没有把它当作"已经绿了"就放过**，已写进复评请求。（**后续已在 Round 40 定位并消除**：`Sandbox.test.ts` 单文件 83s、1 例失败 ⇒ 真机用例与 `testTimeout=30000` 赛跑，holder 预算也恰好 30s；已给触真机用例显式 120s 超时并把成因写进 4 处注释。）
+
+## Round 42 — 我亲自取证的第四族：**§18 技能来源安全维度是"只有标签、没有执法"**
+
+**完整证据链（均读码确认，带行号）**：
+1. `packages/skills/src/search/SkillSearch.ts:87`：
+   ```ts
+   const trusted = !/UNTRUSTED RESEARCH DATA|逆向|leaked|reverse-engineered/i.test(text.slice(0, 400));
+   ```
+   **只扫正文前 400 字符** ⇒ 标记落在 400 字之后就被判成 `trusted: true`。
+2. 即便判成 `trusted: false`，全仓**唯一效果是索引文本里的标签**（`:139` 的 `layers` 行与 `:149` 的 `hits` 行打印 `UNTRUSTED` 字样）——**没有任何地方据此阻止技能内容进入上下文**。
+3. `packages/skills/src/load/SkillLoader.ts:149-155` 的 `Skill` 工具 `execute`：`loadSkillContent(...)` 取到正文后**直接 `formatSkillBody(skill)` 返回**，**没有任何 `trusted` 检查**；而 `packages/application/src/compose.ts:209` 已把它接进生产工具面（`createSkillTool({ workspaceRoot })`）⇒ **模型调一次 `Skill({name})`，泄漏/逆向技能的正文就进上下文**。
+4. 文档注释与项目硬约束**都声称它被拦**：`SkillSearch.ts:15-17`"…must be markable UNTRUSTED and **never enter System Prompt directly** — provenance carries … a `trusted` flag **the caller can enforce**"；`AGENTS.md` 硬约束第 1 条"泄露/逆向 Prompt 视为 UNTRUSTED RESEARCH DATA，**不得直接进 System Prompt**"。⇒ **"由调用方执行"这件事从来没有被任何调用方执行过。**
+5. 既有测试只覆盖容易那一侧：`packages/skills/src/search/skill-search.test.ts:55-63` 把标记放在**最前面**（frontmatter 之后第一行）⇒ 断言 `trusted === false` 通过；**边界（标记在第 400 字之后）零覆盖**。
+
+**修法方向（两处缺一不可）**：① **检测面**——扫描**全文**（而非前 400 字符；文件本身已由 `SKILL_CONTENT_MAX_CHARS` 截断，全文扫描成本可忽略），并考虑标记被换行/空白拆开的形态；② **执法面**——`Skill` 工具在 `trusted === false` 时**必须拒绝装载正文**（fail-closed、给可机读原因），而不是照常返回；索引仍可列出它（让用户知道它存在）但**不得**让它看起来可装载。
+**判别性验收**：① 标记落在 400 字之后 ⇒ 必须 `trusted: false`（旧实现给 true ⇒ 红）；② 对 `trusted: false` 的技能调 `Skill` 工具 ⇒ **必须拒绝**（旧实现返回正文 ⇒ 红）；③ 负对照：干净技能照常装载（防"一律拒绝"）；④ 负对照：普通正文里出现 `leaked` 等词的既有行为不回归。
+
+### Round 42 附：同一轮内我把另外两处也读码取证了（供后续卡片直接使用）
+- **决策点 fail-open（已派卡）**：`packages/core/src/events/EventBus.ts:82-97` 的 `waterfall` 里，监听器抛错被 `continue` 跳过 ⇒ `current` 仍是 `defer`；而 `packages/core/src/agent-loop/AgentLoop.ts:559` 的 **`before_tool`（Tool Interceptor）既不传 `guard` 也只判 `deny`** ⇒ **抛错 = 静默放行**。今天潜伏（生产只挂观察型监听器、硬执法在 `Executor.decide`），但架构本意就是"策略以监听器参与拦截"。**`emit()` 的观察型语义是正确的，不得一并改掉。**
+- **第三处死 seam（已派卡）**：`packages/application/src/projections/EnforcementProjection.ts:108` 的 `foldSession()` **全仓只有 `projections.test.ts:282` 调用** ⇒ 生产里 `fs-confinement` 来源计数恒为 0（守卫确实拒绝了，但没有生产代码把它折进投影）。先例：`reportStatus()` 已经用 `apps/cli/src/cli.ts:912` 接上、`recordProcessTree()` 已由 `compose.ts` 的 Executor `onResult` 接上。
