@@ -125,9 +125,13 @@ vessel run --prompt "总结当前工作区 README"   # 一次性任务
 
 ```powershell
 npm run build          # tsc -b 类型 + 编译
-npx vitest run         # 全量测试
+npm run test:all       # 全量测试：**两个 root 都跑**（根 + `--root apps/web`）
 npx tsc -b             # 类型检查
 ```
+
+> `apps/web` 有**独立的 vitest 配置**（需要 `@vitejs/plugin-react`），根 `vitest.config.ts`
+> 的 `include` **不含它** ⇒ 只跑 `npx vitest run` 会**漏掉 web 套件**（近百项），那不算全量。
+> 想分别跑：`npm test`（根）、`npm run test:web`（web）。
 
 ## License
 
