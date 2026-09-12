@@ -82,7 +82,7 @@ writeReleaseReportFiles(report, 'benchmarks/reports');
 > 原因（与 billing 分类并列，不伪造 pass、不误判为 harness 回归）。
 | 5 | safety | 075 pack（**实跑 7 个：S001,S002,S003,S004,S005,S006,S007** —— 清单 = `gates.ts` 的 `SAFETY_SCENARIOS`，本 gate 的 `criterion` 由该清单插值生成；**S008 不在其中且当前无执行路径**，见下方注）离线 enforcement 证据齐全 | offline 确定性 |
 | 6 | resume | 063/064 soak 子集不变量：暂停/续跑、workspace 零残留、从 handoff 续跑留痕 | 确定性 |
-| 7 | ux-smoke | web 构建产物存在；否则 **pending**（环境标注） | 需先 build web |
+| 7 | ux-smoke | **只探测 web 构建产物是否存在**（默认 `apps/web/dist`，一次 `fs.existsSync`，无命令）：产物存在 ⇒ pass（**仅表示产物在位**）；产物缺失或探测（stat）失败 ⇒ 显式 **pending**（环境/产物不可用）。**本 gate 不执行任何 web 测试/smoke** ⇒ pass 不代表「web 测试已跑过且通过」 | 需先 `npm run -w @vessel/web build`；否则 pending |
 | 8 | packaging | **发布物形状判据（publish-artifact）**：① `apps/cli` 的 pack 期脚本（`prepack` / `prepare`）必须构建 dist——否则干净检出（无 dist）下 `npm pack` 会打出缺 `dist/cli.js` 的坏包 → **fail**；② `npm pack --dry-run` 的 tarball 清单必须含 `dist/cli.js` 与 4 个 `dist/configs/*`（policy/behavior/pricing/model-catalog），且零 `*.test.js` / `*.test.d.ts` / `*.map`；③ npm pack 不可用、目标包错位或清单不可解析 → 显式 **pending** | 离线：本地 `npm pack`（不联网、`--dry-run` 不写 tgz） |
 
 > gate 5（safety）的"文案 = 实跑清单"：唯一事实源是
@@ -99,6 +99,19 @@ writeReleaseReportFiles(report, 'benchmarks/reports');
 > 真实 `curl` 只在 `workspace-write`（必被拒）下跑。详见 `docs/SAFETY-BENCHMARK.md` 的 S008 段。
 > **仍未收口**：真实模型 lane 的 `runVesselFixture` 不读场景 `policy`（`contracts/vessel.ts:103-107,141`）⇒ 那里的
 > "S008 passed" 依旧只等于 `finalText` 非空，与 `S008.yaml` 无关（待另开卡）。
+
+> gate 7（ux-smoke）判据改准背景（与 gate 5 写死 "S001-S008"、gate 3 写死 "B001-B005" 是**同一类**漂移）：
+> 旧 `criterion` 写「web 套件或最小 smoke 通过；web 构建工具缺失时显式 pending。」，而实跑
+> （`benchmarks/runners/src/release-gates/gates.ts` 的 ux-smoke executor，改准后 L963-978；改准前 L912-926）**只做一件事**：
+> 一次 `fs.existsSync(<repoRoot>/apps/web/dist)`（`webDistRoot` 可注入）—— 它**既不跑 web 测试、也不跑任何 smoke**；
+> 它判 pending 的成因是**产物缺失 / 探测（stat）失败**，**不是**「web 构建工具缺失」（本 gate 从不探测构建工具）。
+> 现 criterion 改为如实三态（产物在位 ⇒ pass；产物缺失 / 探测失败 ⇒ 显式 pending）并**显式声明本 gate
+> 不执行任何 web 测试/smoke**（`gates.ts` 的 `UX_SMOKE_GATE_CRITERION` 是唯一字面量，`release-gates.test.ts`
+> 用 `toBe(UX_SMOKE_GATE_CRITERION)` + 「旧串不得残留」两条断言锁住；回退必红）。
+> **核实结论**：本次改动前，没有任何 gate 会跑 web 套件 —— 根 `vitest.config.ts` 的 `include` **不含** `apps/web`
+> （web 套件是 `apps/web/vitest.config.ts` 的独立配置，走 `npm run -w @vessel/web test`）；gate 1 只跑
+> `tsc -p apps/web/tsconfig.json`（类型检查，非测试）。把 web 套件真正接进门禁属**独立的行为变更卡**。
+> 报告产物（`benchmarks/reports/release-report.{md,json}`）内嵌 criterion，本次**不手改**，需重跑门禁刷新。
 
 > gate 8（packaging）加严背景（EVALUATION-REPORT-24 P2）：原判据只查「本地 `dist` 是否存在」
 > （`judgePackagingProbe`），不查**包内形状** → 「tarball 270 → 62 文件、含 `dist/cli.js` 与 4 个
@@ -117,7 +130,7 @@ writeReleaseReportFiles(report, 'benchmarks/reports');
 > 不静默通过；根构建本身已非 0 时按 fail 优先于 pending 返回 fail。
 
 pending 的 gate 语义：表示**该 gate 的判据没有全部被判定**，需在能判定它的环境/评测下补齐后再判 ready。成因是**结构性的、不限于某个固定名单**，目前有三类：
-1. **环境/工具/产物不可用**（如 web 构建工具缺失、packaging 产物不可得）；
+1. **环境/工具/产物不可用**（如 web 构建产物缺失 —— `apps/web/dist` 未 build、packaging 产物不可得）；
 2. **无凭据**（真实模型 lane 需要 key）；
 3. **场景在 manifest 里声明了能力缺口**——判据类型 `type: indeterminate`（`asserts.ts` 落成 `result: 'skip'` 且 `evidence.status === 'indeterminate'`，`types.ts` 注明 *never contributes a passing verdict*），例如 S004/S005"注入抵抗需要真实模型评测，离线 mock 判不了"。此时该场景**既不计通过、也不计失败**，而是在 gate 的 `evidence.detail` 里**被逐个点名**（不静默消失）。**判失败优先于 pending**：同一场景内只要有任何一条 assert 为 fail，该场景仍判失败（**声明的能力缺口不得掩盖真失败**）。
 gate 的 `note`/报告脚注**由本次结果动态生成**（`runner.ts` 逐条列出本次 `status === 'pending'` 的 gate），**不写死具体 gate 名单**；**绝不静默 pass**。
