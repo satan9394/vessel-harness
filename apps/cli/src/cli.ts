@@ -1007,10 +1007,10 @@ async function cmdProviderEndpointTest(
 }
 
 /** `vessel setup` — interactive guided provider wizard (cc-switch-style UX). */
-async function cmdSetup(_flags: Map<string, string>): Promise<number> {
+async function cmdSetup(flags: Map<string, string>): Promise<number> {
   if (!process.stdin.isTTY) {
-    console.log('vessel setup 需要交互终端。非交互环境请用：vessel provider add <id> --protocol <p> --base-url <url> --api-key <key> --model <model>');
-    return 2;
+    const msg = 'vessel setup 需要交互终端。非交互环境请用：vessel provider add <id> --protocol <p> --base-url <url> --api-key <key> --model <model>';
+    return fail(2, msg, flags, () => console.log(msg));
   }
   const store = defaultProviderStore();
   const io = createClackIO(store);
@@ -1019,8 +1019,8 @@ async function cmdSetup(_flags: Map<string, string>): Promise<number> {
     console.log(`\n✔ 已保存供应商 "${id}"。用 vessel run 开始（或 vessel provider switch 切换）。`);
     return 0;
   }
-  console.log('已取消，未做任何修改。');
-  return 1;
+  const msg = '已取消，未做任何修改。';
+  return fail(1, msg, flags, () => console.log(msg));
 }
 
 /**
@@ -1398,9 +1398,13 @@ async function cmdPricingSync(flags: Map<string, string>): Promise<number> {
   }
 
   if (result.status === 'offline') {
-    console.log(`\n⚠ 拉取/解析失败（已重试至多 ${MAX_SYNC_RETRIES} 次）：${result.error ?? 'unknown error'}`);
-    console.log(`未改动 ${catalogPath}（保留旧表 ${result.total} 条）；目录价继续生效，可稍后重试。`);
-    return 1;
+    const msgLines = [
+      `\n⚠ 拉取/解析失败（已重试至多 ${MAX_SYNC_RETRIES} 次）：${result.error ?? 'unknown error'}`,
+      `未改动 ${catalogPath}（保留旧表 ${result.total} 条）；目录价继续生效，可稍后重试。`,
+    ];
+    return fail(1, msgLines.join('\n'), flags, () => {
+      for (const msgLine of msgLines) console.log(msgLine);
+    });
   }
 
   const p = result.parsed;
@@ -1443,8 +1447,8 @@ async function cmdPricing(args: string[], flags: Map<string, string>): Promise<n
     const tombstone = override.findDeleted?.(target);
     const match = findCatalogModelMatch(catalog, target);
     if (!match && !overrideHit && tombstone === undefined) {
-      console.log(`未找到模型 "${target}" 的目录条目（可用 vessel pricing 列出）。`);
-      return 1;
+      const msg = `未找到模型 "${target}" 的目录条目（可用 vessel pricing 列出）。`;
+      return fail(1, msg, flags, () => console.log(msg));
     }
     if (match) {
       const entry = match.entry;
@@ -1752,8 +1756,8 @@ async function dispatch(parsed: ParsedArgs): Promise<number> {
       });
     }
     if (!parsed.flags.has('prompt')) {
-      console.log('[vessel] 交互模式需要终端。一次性任务请用：vessel run --prompt "..."；配置供应商用 vessel setup。');
-      return 2;
+      const msg = '[vessel] 交互模式需要终端。一次性任务请用：vessel run --prompt "..."；配置供应商用 vessel setup。';
+      return fail(2, msg, parsed.flags, () => console.log(msg));
     }
   }
   switch (parsed.command) {
