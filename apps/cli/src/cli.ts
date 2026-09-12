@@ -528,6 +528,36 @@ export function cmdPolicyStatus(flags: Map<string, string>): number {
   return 0;
 }
 
+/**
+ * BRIEF-16 1C：mock 的**运行期可见性**（只加标注，不改 mock 行为/内容口径）。
+ *
+ * 实测痛点：无 provider 配置时默认 mock，`run --prompt '总结 README'` 真的读了工作区文件，
+ * 回复里没有任何 mock 痕迹 → 新人确信"模型已接上"。两处标注共用本口径，且都只在
+ * `usingMockProvider === true` 时生效（真实 provider 一个字节都不加）：
+ * - `MOCK_PROVIDER_NOTICE`：回合开始**前**打到 **stderr** 的一行提示（stdout 零污染）；
+ * - `MOCK_REPLY_MARK`：最终回复的**统一出口**前缀（见 `renderFinalReply`）。
+ */
+const MOCK_PROVIDER_NOTICE =
+  '[vessel] 当前使用内置 mock 模型（未连接真实模型）——配置真实模型：vessel setup 或 vessel provider add';
+const MOCK_REPLY_MARK = '（mock 离线冒烟）';
+
+/**
+ * CLI 最终回复的**唯一渲染出口**（BRIEF-16 1C②）。
+ *
+ * 读文件回显（`已通过 Read 工具读取工作区文件…`）、脚本命中回显、`fallbackText` 全部经此处，
+ * 所以标记只加一次、不逐条改文案（也覆盖 chat() / stream() 两条 provider 路径）。
+ * `usingMock === false`（真实 provider）时**逐字返回原串**（负对照）。
+ * 幂等：文案自身已以 `（mock 离线冒烟）` 起头（如既有 `fallbackText`）时不重复叠加。
+ *
+ * 若将来 `run` 增加 `--json` 回复字段，标记必须继续走本函数（把返回值放进 JSON 的回复字段），
+ * 不得另起一行打印——`--json` 的 stdout 只允许出现一段 JSON。
+ */
+function renderFinalReply(finalText: string, usingMock: boolean): string {
+  if (!finalText) return '(无文本回复)';
+  if (!usingMock) return finalText;
+  return finalText.startsWith(MOCK_REPLY_MARK) ? finalText : `${MOCK_REPLY_MARK}${finalText}`;
+}
+
 async function cmdRun(flags: Map<string, string>): Promise<number> {
   const workspace = path.resolve(flags.get('workspace') ?? process.cwd());
   // 默认 policy/behavior 取 CLI 自带的那份（与 cwd 无关）；--policy/--behavior 显式覆盖仍最高优先
@@ -557,6 +587,11 @@ async function cmdRun(flags: Map<string, string>): Promise<number> {
     return fail(2, msg, flags, () => console.error(msg));
   }
   const realProvider = buildRealProvider(plan);
+  // BRIEF-16 1C：本次运行是否落在**离线 mock**。判据与下面 `realProvider ?? new MockProvider(...)`
+  // 的构造分支共用**同一个变量**——`buildRealProvider` 对非真实 provider（plan.real=false）
+  // 一律返回 `null`（providers/providerFactory.ts:107-108），所以"提示/标记"与实际使用的
+  // provider 不可能各说各话（负对照：真实 provider 时该值为 false）。
+  const usingMockProvider = realProvider === null;
   const provider =
     realProvider ??
     // default smoke script: read README.md (if prompt asks) then answer from the
@@ -656,10 +691,15 @@ async function cmdRun(flags: Map<string, string>): Promise<number> {
 
   for (const w of harness.behaviorWarnings) console.warn(`[behavior] ${w}`);
 
+  // BRIEF-16 1C①：**回合开始前**显式声明"这次没有真模型"。走 stderr —— stdout 的最终回复、
+  // 以及 `--json` 的"stdout 只有一段 JSON"契约都不受影响（真实 provider 时整段不执行）。
+  if (usingMockProvider) console.error(MOCK_PROVIDER_NOTICE);
+
   try {
     const result = await harness.loop.runTurn(prompt || '（无输入）');
     console.log('\n=== 最终回复 ===');
-    console.log(result.finalText || '(无文本回复)');
+    // 统一出口：mock 前缀只在这里加一次（读文件回显 / 脚本命中回显 / fallbackText 全覆盖）
+    console.log(renderFinalReply(result.finalText, usingMockProvider));
     console.log(`\n=== turn ${result.turnId} kind=${result.kind} steps=${result.steps} toolCalls=${result.toolCalls} ===`);
     const denials = harness.session.replay().filter((r) => r.type === 'audit/denial');
     if (denials.length > 0) {
