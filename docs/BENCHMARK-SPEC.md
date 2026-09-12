@@ -19,11 +19,11 @@
 
 本规范把任务书 §15–§17 的强制要求正式化为可落地执行的定义。核心内容六件事：
 
-1. **Scenario 规范**：B001–B015 全部逐一定义（id / 目标 / 输入 fixture / 预期行为 / 通过判据 / 被测量 / 运行 harness 集合），每条通过判据都是**机器可执行断言**（磁盘状态、测试退出码、内容比对），不信任 agent 自报完成（任务书禁止事项 6、H12"完成语义必须外部化"）。另补 B016–B019 四个新增场景，总 19 ≥ 15。
+1. **Scenario 规范**：§3.1/§3.2 逐一定义 **19 张场景卡**（id / 目标 / 输入 fixture / 预期行为 / 通过判据 / 被测量 / 运行 harness 集合），每条通过判据都是**机器可执行断言**（磁盘状态、测试退出码、内容比对），不信任 agent 自报完成（任务书禁止事项 6、H12"完成语义必须外部化"）。**门槛口径不按卡片数、按「有 manifest 的场景数」= 25**（B 系列 17：B001–B005 + B016–B027；S 系列 8：S001–S008）。三点如实标注：① 那 19 张卡里只有 **9 张**有 manifest（B001–B005、B016–B019）；② **B006–B015 共 10 张无 manifest**（规格意图/欠账，卡片内逐字带「未实现（无 manifest）」标记）；③ **B020–B027、S001–S008 共 16 个有 manifest 的场景尚无卡片**（§3.1/§3.2 的覆盖面边界，清单由 `spec-manifest-parity.test.ts` 用例 ① 双向钉住）。旧写法"B001–B015 另补 B016–B019，总 19 ≥ 15"里的 `19` 是**卡片数**、不是**判据数**，两个口径此前的混用正是本卡要消除的欠账。
 2. **指标规范**：任务书 §16 全量 13 项 + Autonomy 共 **14 项**（M01–M14）逐个定义采集方式、事件源、记录格式（JSON Lines），对齐 EVENT-SPEC 事件词汇与 POLICY-SPEC 的 audit/denial 口径。
 3. **A/B Test 设计**：A–E 五组（Native Pi → +Claude behavior → +Unified Behavior IR → +Evaluator → +Policy），harness/模型/预算全控，只变行为层组成，逐段归因"提升来自 Prompt 还是 Harness"。
 4. **Conformance Suite**：同一 scenario 在 Claude Code / Claw Code / Pi / OpenCode / Codex / DSH / Our Harness 上跑（统一测试集 C7），runner 用 adapter 采集、归一化、判定，输出可比报告到 `benchmarks/reports/`。
-5. **runners/ 职责**：runner 抽象接口（prepare → run → collect → assert → report）+ 每 harness 一个 adapter + ToolFamily 归一化 + 诚实 skip（能力不具备如实标注，不编造通过）。
+5. **runners/ 职责**：runner 主流程（prepare → run → collect → assert → report，即 `runner.ts:runScenario()` 的那五段；**注意这与 §7.1 的 `HarnessAdapter` 接口不是一回事**——接口只有 `run` + `capabilities`）+ 每 harness 一个 adapter + ToolFamily 归一化 + 诚实 skip（能力不具备如实标注，不编造通过）。
 6. **v0.1 范围与落地计划**：先 offline mock 车道（Claw 式确定性场景）后 live 车道（Pi 式模型回代），里程碑到 M5。
 
 **研究依据（不编造能力）**：H12 结论（comparison.md 行 743–804 / HARNESS-ANATOMY.md 行 439–470）明确——除 Claw mock-parity（12+ 确定性场景）、Pi evals（起步态，行为级模型回代、可 baseline vs candidate A/B）外，各家均无成体系 benchmark 场景/指标（DSH BENCHMARK.md 仅 3 行、OpenCode 空缺）；因此本套件**自建**场景与 runner，判定以 runner 侧断言为准，外部 harness 的自报（含 ModelVerifications 软事件）一律不作为通过依据。
@@ -67,16 +67,29 @@ benchmarks/
 
 ### 2.1 fixtures/ 布局（每 scenario 一个 fixture pack）
 
+> **本节口径（spec ⇄ 实现对账改准，非"新规定"）**：**fixture 的根目录整体就是工作区素材**。
+> `runner.ts:runScenario()` 执行 `copyDir(fixtureDir, workspace)`——把 `benchmarks/fixtures/<sid>/` 的
+> **全部内容**原样复制进本次 run 的临时工作区（`reports/<sid>/<runId>/workspace`），
+> **没有** `workspace/`、`expected/`、`harness-config/` 任何一层中间目录（实测：`benchmarks/fixtures/**`
+> 下这三个目录一个都不存在；B001 = `a/ b/ package.json README.md task.md`，B018 = `task.md`）。
+> 判据也不在 fixture 里——**判据的唯一事实源是 `benchmarks/scenarios/<sid>.yaml` 的 `pass:`**（§2.2/§3.0）。
+
 ```text
-benchmarks/fixtures/<scenario-id>/
+benchmarks/fixtures/<scenario-id>/     # ← 本目录的**内容**即工作区快照，整包复制（无中间层）
 ├── task.md          # 唯一注入给 agent 的任务文本（跨 harness 逐字一致；不得含"如何通过"提示）
-├── workspace/       # 工作区素材快照（git 仓库时含 .git 与初始 commit，保证每次 reset 一致）
-├── expected/        # 黄金断言素材（判定用，不注入 agent）：
-│   ├── asserts.yaml # 机器断言清单（文件存在/内容/退出码/git diff 白名单）
-│   └── golden.*     # 参考产物（diff 用）
-├── harness-config/  # 各 harness 的接线配置样例（permission/policy/MCP/resume 所需，见 §6.4）
-└── README.md        # 人工复核说明、成本/网络标注、创建/更新记录
+├── <任意素材…>      # 工作区文件/子目录，逐字进临时工作区（如 B001 的 a/、b/、package.json）
+└── README.md        # 人工复核说明、成本/网络标注、创建/更新记录（可选，非每个 fixture 都有）
 ```
+
+**今天不存在的那三层（规格意图，不是当前实现）**：
+
+| 旧写法 | 今天的事实 |
+|---|---|
+| `workspace/` 子目录 | 被"**fixture 根即工作区**"取代——没有这一层，`copyDir` 复制的是根 |
+| `expected/asserts.yaml`（黄金断言素材） | **不存在**；判据只在 `benchmarks/scenarios/<sid>.yaml` 的 `pass:`，由 `loadManifest()` 装载 |
+| `harness-config/`（各 harness 接线样例） | **不存在**；今天的接线面是 `<sid>.yaml` 的 `policy:`/`harness:` + runner/adapter 代码（§6.4） |
+
+若将来要引入这三层，属**产品改动**（须同时改 `runner.ts` 并新增测试），不是文档能单方面宣告的；改了再回来改本节。
 
 ### 2.2 scenarios/ manifest
 
@@ -89,13 +102,25 @@ benchmarks/fixtures/<scenario-id>/
 | offline | mock | 确定性模型服务应答脚本化场景（借镜 Claw mock-anthropic-service：`PARITY_SCENARIO:` 前缀识别脚本场景，claw-code.md 行 750） | ~0 | CI 常驻回归、机制 parity、runner 自检 |
 | live | model | 真实 provider/model 回代，断言最终产物与 usage（借镜 Pi evals：真实 AgentSession + 每步 prompt→断言，pi.md 行 128–150） | 有 | 行为/质量测量、A/B、Conformance 主车道 |
 
-判定断言两车道共用同一份 `expected/asserts.yaml`。
+判定断言**两车道共用同一份判据源**——即 `benchmarks/scenarios/<sid>.yaml` 的 `pass:`（§2.2/§3.0）：
+两车道只换 provider（`offline.ts` 的 `MockProvider` 脚本 vs 真实模型），**断言一个字都不改**。
+fixture 里**没有** `expected/asserts.yaml` 这一层（§2.1）——旧文那句"共用同一份 `expected/asserts.yaml`"
+描述的是一个不存在的文件。
 
 ### 2.4 每次 run 的隔离与卫生
 
-1. 复制 fixture workspace 到每 harness 独立临时目录，git 仓库 `git reset --hard <初始 commit>`。
-2. 破坏性/网络动作只允许发生在该临时目录与允许范围内（B006 等危险场景的"被拦目标"是 disposable workspace 内的文件，绝不指向宿主）。
+1. **复制 fixture 根目录**（不是它下面某个 `workspace/` 子目录，§2.1）到本次 run 的独立临时目录
+   `benchmarks/reports/<sid>/run_<毫秒>_<hex>/workspace`——实现即 `runner.ts` 的 `copyDir(fixtureDir, workspace)`。
+   **"git 仓库 `git reset --hard <初始 commit>`"今天没有实现**：`runner.ts` 里没有任何 `git reset` 调用，
+   `benchmarks/fixtures/**` 下也没有一个 `.git` 目录。隔离今天靠"**每次全新复制 + 每次全新 run 目录**"实现，
+   `git reset` 是 fixture 为 git 仓库时才可能的做法，属规格意图（未实现）。
+2. 破坏性/网络动作只允许发生在该临时目录与允许范围内。**真正声明了危险面的场景是 `S001–S008`**
+   （`benchmarks/scenarios/S00*.yaml` 今天存在，覆盖删除铁律/路径逃逸/symlink/prompt injection/MCP 恶意/
+   force push/secrets/SSRF）。旧文点名的 **B006 没有 manifest**（§3.1 的「未实现（无 manifest）」卡，
+   不产生任何判据），把它写成"危险场景"是**文档说了实现没有的事**。
 3. run 前记录环境快照（harness 版本/commit、node/python 版本、provider/model、日期）写入 report meta。
+   **今天 meta 行只有 4 个字段**：`harnessVersion: 'cah@0.1.0'` / `model` / `provider` / `temperature: 0`
+   （`runner.ts` 的 `type: 'meta'` 行）；**node/python 版本、日期、harness commit 三个字段未实现**。
 
 ---
 
@@ -577,7 +602,7 @@ tokens/turn（效率）、cost/success（单位成本）、Time 分布、Autonom
 
 - turn 语义：各家 turn/step 分层不同（Claude 的 turn=用户消息一轮含多 tool 轮、Codex thread、Pi Entry 树），adapter 统一为"assistant 模型生成次数"，并在 `source` 注明原始语义。
 - token 口径：各家 usage 含不含 reasoning/cache 不同；M06/M07/M08 必须带 `approx`/口径拆分字段，聚合比较时先按口径分组。
-- M09 压缩触发阈值各家差异大（HARNESS-ANATOMY 行 201），只测量不判 pass（B010 已声明）。
+- M09 压缩触发阈值各家差异大（HARNESS-ANATOMY 行 201），只测量不判 pass。**但注意：今天没有任何场景声明 M09** ——旧文写的"（B010 已声明）"**不成立**：`benchmarks/scenarios/B010.yaml` 不存在，B010 是 §3.1 里逐字带「未实现（无 manifest）」的规格意图卡，**没有**任何 `measured:` 声明。附录 A 的 M09 行因此如实写 `（无）`。实现侧并不缺取值（`Telemetry.metrics()` 无条件产 `compactions`，`metric_le/ge` 也认 M09），缺的是**声明**。
 - M13 仅 evaluator 使能 harness 有意义；native 组记 N/A。
 - 结论层要求：任何跨 harness 指标对比都需在报告中附口径差异说明，禁止直接对裸数字排名下结论。
 
@@ -605,7 +630,7 @@ tokens/turn（效率）、cost/success（单位成本）、Time 分布、Autonom
 |---|---|
 | harness 运行时 | 恒为 Pi（同一 AgentSession / harness 层版本；复用其 evals 的 createPiCodingAgentHarness，pi.md 行 130）——**排除 harness 内核差异** |
 | 模型/provider | 恒同（单 provider/model，temperature 0，固定 seed），Pi ModelRuntime.create 指定 |
-| scenario/输入 | 同一批 A/B 适用场景（B001–B005、B008–B010、B013、B016–B019），同一 task.md 逐字一致 |
+| scenario/输入 | 同一批 A/B 适用场景——**只取今天真能上 live 车道的**：`B001–B005`（五张卡的 yaml 都是 `mode: both`），同一 task.md 逐字一致。旧文列的其余六个今天都跑不了，原因分两类：`B008`/`B010`/`B013` **没有 manifest**（§3.1 的「未实现（无 manifest）」卡，既无判据也无 fixture）；`B016–B019` 的 yaml 是 **`mode: offline`**（声明为确定性 mock 车道，不参与 live 的真实模型回代 ⇒ 做不了"提升来自 Prompt 还是 Harness"的归因）。`B020–B027`、`S001–S008` 有 manifest 但尚未做 A/B 适用性评估，纳入与否由 §5.1 的变量控制决定 |
 | 预算 | 每组同 maxTurns / max budget |
 | 随机性 | 每臂 ≥3 seeds（≥5 建议），报告分布 |
 | 通过判据/指标 | 与 §3/§4 同一套，判定由 runner 执行 |
@@ -669,56 +694,126 @@ tokens/turn（效率）、cost/success（单位成本）、Time 分布、Autonom
 ### 6.4 harness-config 接线原则（Conformance 公平性）
 
 - 同一 scenario 的目标是测"默认行为面"，因此**尽量少配**：只做让 harness 可无头运行的最低配置（approval 自动应答 deny/allow 策略、--restricted、MCP 接线、resume 所需）。
-- 危险/敏感场景（B006/B019 等）在无审批能力的 harness（Pi 无权限系统）上：把动作域限制在 disposable workspace，并可在 harness-config 注入"项目信任=always + 容器/OS 级隔离"（Pi 的执行环境可经 Operations 重定向到容器，pi.md 行 16/486）——隔离是 runner 基建职责，不是对 harness 行为的修饰。
-- 每家 config 记录在 `fixtures/<sid>/harness-config/<harness>.md` 供复核（防"为通过而特调"）。
+- **危险/敏感面 = `S001–S008`**（`benchmarks/scenarios/S00*.yaml` 是今天的真实安全判据：删除铁律 / 路径逃逸 /
+  symlink 逃逸 / prompt injection / MCP 恶意输入 / force push / secrets / SSRF）。旧文点名的两组**都不成立**：
+  **B006 没有 manifest**（§3.1 的「未实现（无 manifest）」卡，不产生判据、不构成隔离义务）；**B019 今天是 V0.2
+  MCP 机制场景**（`B019.yaml` = `file_content`+`event_seen`+`tool_family_seen`/`mode: offline`，§3.2 卡已按它改准），
+  不是危险场景。在无审批能力的 harness（Pi 无权限系统）上：把动作域限制在 disposable workspace，并可在接线里
+  注入"项目信任=always + 容器/OS 级隔离"（Pi 的执行环境可经 Operations 重定向到容器，pi.md 行 16/486）——隔离是
+  runner 基建职责，不是对 harness 行为的修饰。
+- **"每家 config 记录在 `fixtures/<sid>/harness-config/<harness>.md` 供复核"是规格意图、今天不存在**：
+  实测 `benchmarks/fixtures/**` 下**没有任何 `harness-config/` 目录**（§2.1 同一条实测）。今天的接线事实是：
+  scenario 级策略覆盖写在 `<sid>.yaml` 的 **`policy:`**（如 S001/S006 的 `profile: danger-full-access`），
+  runner 把它落成 run 目录里的 `scenario-policy.yaml`；harness 侧接线（`subagent`/`mcp`/`planner`/`evaluator`/
+  `taskRouter`/…）写在 `<sid>.yaml` 的 **`harness:`**（§3.0 表 A）。"防为通过而特调"的复核面今天是
+  **yaml + runner/adapter 代码**，不是 per-harness 的 md。
 
 ### 6.5 报告目录
 
+> **本节口径（spec ⇄ 实现对账改准）**：`runner.ts:runScenario()` 的落盘形状是
+> **一个 run 一个目录**：`reports/<sid>/<runId>/`，其中 `runId = run_<毫秒时间戳>_<6 位 hex>`
+> （`startedAt.getTime()` + `crypto.randomBytes(3).toString('hex')`）；JSONL **与** `summary.json`
+> **同在 run 目录内**；**没有任何 `artifacts/` 目录**。
+
 ```text
 benchmarks/reports/<sid>/
-├── run_<runId>.jsonl          # §4.2 类型化记录
-├── summary.json               # per-run 判定 + 指标 + skipped
-└── artifacts/                 # session 导出/截图/日志尾巴
-benchmarks/reports/README.md   # 汇总表 + 口径说明 + 版本 pin
+└── run_<毫秒>_<hex>/              # 本 run 的目录（runId 即目录名）
+    ├── run_<毫秒>_<hex>.jsonl     # §4.2 类型化记录（meta / metric / event / assert）
+    ├── summary.json               # per-run 判定 + 指标 + asserts + reportPath/sessionLog
+    ├── workspace/                 # 本次 run 的临时工作区（fixture 根复制而来，§2.1）
+    └── scenario-policy.yaml       # 仅当 <sid>.yaml 声明了 policy: 时存在
 ```
+
+**与旧写法不同的四处（其中三处不是今天的行为）**：
+
+1. 旧文把 JSONL 直接放在 `reports/<sid>/` 下，实际**多了一层 run 目录**（runId 既进目录名也进文件名）。
+2. `summary.json` 与 JSONL 同级是**对的**，但它**没有 `skipped` 键**——实际键是 `scenarioId` / `runId` /
+   `success` / `mode` / `durationMs` / `metrics` / `asserts` / `startedAt` / `finishedAt` / `reportPath` /
+   `sessionLog`（+ 可选 `turn`）；skip 清单不在报告里。
+3. **`artifacts/` 不由 `runScenario` 产出**：`harness.artifacts` 的唯一下游是 `EvaluatorAgent` 的
+   `policyArtifacts` 参数（`runner.ts` evaluator 臂），**既不落独立目录、也不进 `summary.json`**。
+   引擎车道（`harness.engine`）另在**工作区之内**写 `engine-artifacts/`（那是场景产物，不是报告工件）。
+4. `benchmarks/reports/README.md`（汇总表 + 口径说明 + 版本 pin）**今天不存在**，属规格意图。
 
 ---
 
 ## 7. runners/ 职责与 Adapter 清单
 
-### 7.1 runner 抽象接口（TypeScript；v0.1 先实现 mock/pi 两 adapter，其余按 §6.3 排期）
+### 7.1 runner 抽象接口（TypeScript；今天实现的是 `contracts/types.ts` 的那个）
+
+> **本节口径（spec ⇄ 实现对账改准）**：下面这段**逐字取自** `benchmarks/runners/src/contracts/types.ts`
+> （`HarnessAdapter`），不是设想出来的形状。旧文写的 `prepare / run(RunControls)/ collect / capability()`
+> 四方法签名是**规格意图**（v0.1 排期草案），今天**没有任何实现**：真实接口只有 `run` + `capabilities` 两个成员，
+> 且 `id` 是 `string` 而不是七元联合类型。
 
 ```ts
-interface HarnessAdapter {
-  id: 'claude-code' | 'claw-code' | 'pi' | 'opencode' | 'codex' | 'dsh' | 'our-harness';
-  // prepare：在独立 workspace 布置 fixture + harness-config，返回运行句柄
-  prepare(ctx: RunContext): Promise<Prepared>;
-  // run：注入 task.md，以非交互入口跑到结束/预算/超时；可带 kill/resume 操作（B011）
-  run(p: Prepared, task: string, controls: RunControls): AsyncIterable<RunEvent>;
-  // collect：把 harness 原始会话/日志/CLI 输出归一化为标准事件 + 指标（§4.2）
-  collect(p: Prepared): Promise<Collected>;
-  // capability：声明支持场景能力（mcp/subagent/worktree/resume/evaluator…），用于诚实 skip
-  capability(): Record<CapabilityKey, boolean | 'tbd'>;
+// benchmarks/runners/src/contracts/types.ts
+export interface HarnessAdapter {
+  /** 稳定 adapter id；真实取值见下方「实现侧 adapter id 全集」 */
+  id: string;
+  /** adapter 实现版本（契约性改动即 bump） */
+  version: string;
+  /** 跑一个 fixture 并返回**已校验**的 RunResult；硬装配错误必须 throw，运行期失败返回 success=false */
+  run(fixture: HarnessFixture): Promise<RunResult>;
+  /** 声明本 harness 支持哪些场景能力，用于诚实 skip（§6.1 第 3 步） */
+  capabilities: Record<CapabilityKey, boolean | 'tbd'>;
 }
 ```
+
+> **实现侧 adapter id 全集（源码为准）**：`claude-code` `codex` `dsh` `opencode` `pi` `vessel`
+>
+> 其中 `claude-code`/`codex`/`dsh`/`opencode`/`pi` 来自 `benchmarks/runners/src/adapters/*.ts` 各自的
+> `export const *_ADAPTER_ID`；`vessel` 来自 `benchmarks/runners/src/contracts/vessel.ts` 的
+> `VESSEL_ADAPTER_ID = 'vessel'`（**本仓自己的 harness 适配器，id 是 `vessel` 而不是 `ours`**）。
+> 旧文联合类型里的 `claw-code` / `our-harness` **今天不存在**，见 §7.2 的「计划/未实现」行。
+> 这行名单与 `adapters/` 目录 + `contracts/vessel.ts` 的双向一致性由 `spec-manifest-parity.test.ts` 守卫
+> （改目录或改这行任一侧即红）。
 
 职责边界：`scenarios/` 装载与断言执行、`reports/` 落盘、跑批/seed/环境快照归 runner 核心；**adapter 不得改判据**（判据唯一事实源 = scenario manifest）。
 
 ### 7.2 Adapter 清单（每 harness 一个）
 
-| adapter id | harness | 入口（依据 §6.3） | 采集通道 | 成熟度（v0.1 首批） | 备注 |
+> **本节口径（spec ⇄ 实现对账改准）**：第 1 列的 id **就是源码里的 `*_ADAPTER_ID` 字面量**，
+> 不是"给 harness 起的简称"。旧文写的简称 `cc` / `claw` / `oc` / `ours` **在源码里一个都不存在**——
+> `cc` 的真实 id 是 `claude-code`，`oc` 是 `opencode`，`ours` 那张表的真实对象是
+> `contracts/vessel.ts` 的 `vesselAdapter`（id `vessel`），而 **`claw` 今天没有任何 adapter 模块**。
+> 计划但未实现的 harness 用 `（计划/未实现）` 标记（下面的 `claw-code` 行）；标记与目录的双向一致性
+> 由 `spec-manifest-parity.test.ts` 守卫（有模块却没撤标记、或列了不存在的 id，都红）。
+
+| adapter id | harness | 入口（依据 §6.3） | 采集通道 | 成熟度（今天） | 备注 |
 |---|---|---|---|---|---|
-| `cc` | Claude Code | `claude -p` + restricted | CLI stdout/json + transcript | 首批 live（参数待实测固化） | 闭源，只信公开面 |
-| `claw` | Claw Code | mock-parity harness（复用其确定性 mock）+ `claw prompt` 子集 | mock 场景 JSONL / .claw sessions | 首批 offline（场景脚本映射到 B001–B015 机制子集） | 非交互受限如实标注 |
-| `pi` | Pi | evals createPiCodingAgentHarness（live 主车道）+ print/json 模式 | session JSONL + usage ledger | **首批 live（A/B 载体）** | 起步态，行为级回代 |
-| `oc` | OpenCode | CLI headless 入口（TBD 实测） | SQLite 消息导出 | 排期中 | 研究未抓 docs，先实测再定 |
-| `codex` | Codex | `codex exec`（TBD 实测参数） | rollout JSONL/sqlite | 排期中 | 无确定性栅栏，判定全 runner 侧 |
-| `dsh` | DSH | DSH CLI / Python SDK jsonrpc-agent | event-sourced 日志 + usage | 排期中（本机可跑） | BENCHMARK 缺口由本套件补 |
-| `ours` | Our Harness | 规划 headless run --bench（D8 定边界） | EVENT-SPEC 事件 + audit | **spec-only stub**（固契约） | 不编造已实现能力 |
+| `claude-code` | Claude Code | `claude -p` + restricted | CLI stdout/json + transcript | **已实现**（`adapters/claude.ts`） | 闭源，只信公开面 |
+| `pi` | Pi | `pi` print/json 模式（run fixture 实测） | session JSONL + usage ledger | **已实现**（`adapters/pi.ts`） | A/B 载体 |
+| `opencode` | OpenCode | CLI headless 入口（适配器内实测固化） | SQLite 消息导出 | **已实现**（`adapters/opencode.ts`） | 研究未抓 docs，参数以实测为准 |
+| `codex` | Codex | `codex exec` | rollout JSONL/sqlite | **已实现**（`adapters/codex.ts`） | 无确定性栅栏，判定全 runner 侧 |
+| `dsh` | DSH | DSH CLI / Python SDK jsonrpc-agent | event-sourced 日志 + usage | **已实现**（`adapters/dsh.ts`） | BENCHMARK 缺口由本套件补 |
+| `vessel` | 本仓自己的 harness（"Our Harness"） | `contracts/vessel.ts` 的 `vesselAdapter` → `runVesselFixture`（live 车道见 `lane/real-model-lane.ts`） | EVENT-SPEC 事件 + audit | **已实现**（`contracts/vessel.ts`，**不在 `adapters/` 目录**） | id 是 `vessel`，不是 `ours` |
+| `claw-code`（计划/未实现） | Claw Code | 计划复用其 mock-parity harness + `claw prompt` 子集（claw-code.md 行 87） | 计划读 `.claw/sessions/` JSONL | **无模块**（目录里没有 `claw*.ts`） | 非交互受限，需实测后再落地 |
+
+**表外一条容易误读的事**：offline 车道**不是某个 adapter**——它是 `benchmarks/runners/src/offline.ts` 里的
+`MockProvider` 脚本（`OFFLINE_SCRIPTS`），由 `runner.ts:runScenario()` 按 scenario id 直接选用。
+旧文把 offline 车道挂在 `claw` 这个不存在的 adapter 名下，正是"文档说了实现没有的事"。
 
 ### 7.3 ToolFamily 归一化
 
-跨 harness 工具名不同（CC `Read` vs Codex 经 exec cat 等），scenario 断言只用 family 级：`file_read / search / write / exec / delegate / mcp / approve`。adapter 实现 name→family 映射，映射表随 adapter 落盘；无法归一的调用记 `family: unknown` 并在报告中提示（不静默归类）。
+跨 harness 工具名不同（CC `Read` vs Codex 经 exec cat 等），scenario 断言只用 family 级。
+**实现侧的真实映射表在 `benchmarks/runners/src/asserts.ts` 的 `TOOL_FAMILY`**（键 = 工具名，值 = family）：
+
+- 产出集（源码为准）：`file_read` `file_write` `search` `exec`
+- 兜底（源码为准）：`other`
+- 无生产者（规格意图）：`delegate` `mcp` `approve`
+
+**三处与旧写法不同（都不是今天的行为）**：① 旧文写 `write`，源码是 **`file_write`**；② 旧文写兜底 `unknown`，
+源码是 **`other`**（`TOOL_FAMILY[toolName] ?? 'other'`）；③ 旧文列的 `delegate` / `mcp` / `approve`
+**今天没有任何生产者**——`TOOL_FAMILY` 里没有对应映射，`asserts.ts` 也没有别的赋值点把它们写进 family 集合。
+**反证（yaml 自己写着）**：`benchmarks/scenarios/B016.yaml`（Subagent 场景）与 `B019.yaml`（`mcp__demo__add` 调用）
+的 `tool_family_seen` 判据写的都是 **`family: other`**，不是 `delegate`/`mcp`；`S008.yaml` 的注释也如实写着
+「family 只有 file_read/file_write/search/exec/other」。所以今天若在 yaml 里写 `family: delegate`，
+断言会直接落空判 fail（**不许**把它当已实现能力）。
+
+adapter 实现 name→family 映射，映射表随 adapter 落盘；**无法归一的调用记 `family: other`** 并在报告中提示
+（不静默归类）。上面三条名单与 `asserts.ts` 的 `TOOL_FAMILY` 表（含兜底字面量）的双向一致性由
+`spec-manifest-parity.test.ts` 守卫：改源码映射表而不改本节、或把无生产者的 family 挪进产出集，都会红。
 
 ---
 
@@ -726,9 +821,11 @@ interface HarnessAdapter {
 
 ### 8.1 v0.1 In/Out
 
-**In**：scenario manifests + fixtures（B001–B019，判据机器化）；runner 核心（prepare/collect/assert/report/JSONL）；adapter：`pi`（live 主）+ `claw`（offline mock lane）+ `ours`（契约 stub）；A/B 实验配置与跑批脚本（A–E，先 Pi 单 harness 内五组）；conformance 单 scenario 单 harness 首跑打通；`runners/config/pricing.json` 与报告模板。
+**In**：scenario manifests + fixtures（**有 manifest 的 25 个**：B001–B005、B016–B027、S001–S008，判据机器化；§3.1/§3.2 另有 19 张卡，其中 B006–B015 十张仍无 manifest）；runner 核心（装载 manifest / 复制 fixture / 跑车道 / 断言 / 落 JSONL + `summary.json`，§6.5）；adapter：`adapters/` 下的 `claude-code` / `codex` / `dsh` / `opencode` / `pi` 五个 + `contracts/vessel.ts` 的 `vessel`（本仓自己那家，**id 是 `vessel` 不是 `ours`**）；offline 车道是 `runners/src/offline.ts` 的 `MockProvider` 脚本（**不是 adapter**，§7.2）；A/B 实验配置与跑批脚本（A–E，先 Pi 单 harness 内五组）；conformance 单 scenario 单 harness 首跑打通；报告模板。
 
-**Out（标注延期理由）**：全 C7 live 矩阵（多数 adapter 依赖外部 harness 实测与非交互面确认，§6.3 TBD）；OpenCode/Codex/DSH adapter 稳定版（先 pi/claw/ours）；runtime 内每 run 自动 LLM judge（H12 结论：evaluator 是独立小模型设计，benchmark 判定本身走确定性断言，不引入 judge API——pi.md 亦无 per-run judge）；screenshot/浏览器验证（无 harness 统一支持，H12 行 758）；Hermes 进 C7（研究已覆盖但其不在任务书统一测试 7 家名单，任务书行 1018–1024）——如需加入记入 v0.2。
+**三处旧写法今天不成立（本卡改准）**：① `adapter：pi + claw + ours` —— **`claw` 没有任何 adapter 模块**（§7.2 的 `（计划/未实现）` 行），本仓自己那家叫 `vessel`；② **`runners/config/pricing.json` 不存在**（实测），价目表在仓库根的 `configs/pricing.json`（`adapters/pricing.ts` 的 `loadBenchPricing(configRoot)` 读的就是 `configs/pricing.json`）；③ 旧文说 In 的范围是 `B001–B019`，那 19 张卡里只有 9 张有 manifest——**In 的真实范围是 25 个有 manifest 的场景**。
+
+**Out（标注延期理由）**：全 C7 live 矩阵（多数 adapter 依赖外部 harness 实测与非交互面确认，§6.3 TBD）；OpenCode/Codex/DSH adapter **稳定版**（`adapters/` 里已有实现模块，排期的是参数固化与稳定版）；**`claw-code` adapter**（今天连模块都没有，§7.2）；runtime 内每 run 自动 LLM judge（H12 结论：evaluator 是独立小模型设计，benchmark 判定本身走确定性断言，不引入 judge API——pi.md 亦无 per-run judge）；screenshot/浏览器验证（无 harness 统一支持，H12 行 758）；Hermes 进 C7（研究已覆盖但其不在任务书统一测试 7 家名单，任务书行 1018–1024）——如需加入记入 v0.2。
 
 ### 8.2 里程碑
 
