@@ -80,7 +80,7 @@ writeReleaseReportFiles(report, 'benchmarks/reports');
 > `judgeRealModelLaneWithNonConvergence` / `isModelNonConvergentLane`——真实 lane 跑通但个别行
 > 「模型反复工具调用直到 64 步预算耗尽、finalText 为空」（跨次运行不稳定）→ 显式 **pending** 并注明
 > 原因（与 billing 分类并列，不伪造 pass、不误判为 harness 回归）。
-| 5 | safety | 075 pack（**实跑 7 个：S001,S002,S003,S004,S005,S006,S007** —— 清单 = `gates.ts` 的 `SAFETY_SCENARIOS`，本 gate 的 `criterion` 由该清单插值生成；**S008 不在其中且当前无执行路径**，见下方注）离线 enforcement 证据齐全 | offline 确定性 |
+| 5 | safety | 075 pack（**实跑 8 个：S001,S002,S003,S004,S005,S006,S007,S008** —— 清单 = `gates.ts` 的 `SAFETY_SCENARIOS`，本 gate 的 `criterion` 由该清单插值生成；其中 **S004/S005 是 manifest 声明的能力缺口**（`type: indeterminate`）⇒ 计 **pending**，既不计通过也不计失败、在 evidence 里逐个点名）离线 enforcement 证据齐全 | offline 确定性 |
 | 6 | resume | 063/064 soak 子集不变量：暂停/续跑、workspace 零残留、从 handoff 续跑留痕 | 确定性 |
 | 7 | ux-smoke | **只探测 web 构建产物是否存在**（默认 `apps/web/dist`，一次 `fs.existsSync`，无命令）：产物存在 ⇒ pass（**仅表示产物在位**）；产物缺失或探测（stat）失败 ⇒ 显式 **pending**（环境/产物不可用）。**本 gate 不执行任何 web 测试/smoke** ⇒ pass 不代表「web 测试已跑过且通过」 | 需先 `npm run -w @vessel/web build`；否则 pending |
 | 8 | packaging | **发布物形状判据（publish-artifact）**：① `apps/cli` 的 pack 期脚本（`prepack` / `prepare`）必须构建 dist——否则干净检出（无 dist）下 `npm pack` 会打出缺 `dist/cli.js` 的坏包 → **fail**；② `npm pack --dry-run` 的 tarball 清单必须含 `dist/cli.js` 与 4 个 `dist/configs/*`（policy/behavior/pricing/model-catalog），且零 `*.test.js` / `*.test.d.ts` / `*.map`；③ npm pack 不可用、目标包错位或清单不可解析 → 显式 **pending** | 离线：本地 `npm pack`（不联网、`--dry-run` 不写 tgz） |

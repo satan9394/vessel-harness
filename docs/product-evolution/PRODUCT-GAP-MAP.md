@@ -196,3 +196,18 @@ firstFragmentLost=true
 **修法方向**：按 `index` **缓存参数片段**（`argBufferByIndex`），在身份到齐时**先补发已缓存的片段**（`tool_call_start` 的 `arguments` 应为"已缓存片段 + 当前片段"），或在身份未到齐时也**先发一个带占位 id 的 start 并累积参数**；关键是**不丢数据**。配套：**顺序无关**（id/name/args 任意先后都要能正确组装），并补判别性用例——"参数先到"必须能拼出合法 JSON（旧实现拼不出 ⇒ 红）、"正常顺序"行为逐字不变（负对照）。
 
 **同族待查（同文件/同模块，未取证）**：`parseOpenAI.ts:80/199`、`parseAnthropic.ts:56/75/191/215/216/232` 的单帧解析失败 `return []`、结构缺字段整块跳过、EOF 不补 `message_end`（审计报告项，我尚未逐一实测）。
+
+## Round 47 — 取证：**denial breaker 只统计"执行前"的拒绝，工具内的拒绝不计数**
+
+**代码事实（我读码确认）**：`packages/core/src/agent-loop/AgentLoop.ts:610-616` 的熔断
+```ts
+// denial breaker: same intent ≥3 → turn ends
+const key = `${call.toolName}:${JSON.stringify(call.arguments)}`;
+const n = (denialCounts.get(key) ?? 0) + 1;
+denialCounts.set(key, n);
+if (n >= 3) throw new DenialLimitError(...);
+```
+**整段位于 `gate.result.kind === 'deny'` 分支内**（`:565-618`）⇒ 只统计**执行前**被策略门禁拒绝的意图。**工具执行之后**才返回的 `DENIED`（例如 `Skill` 工具拒绝装载不可信技能、fs 守卫 `assertSizeWithin`/`canonicalize` 拒绝读越界文件）**完全不进 `denialCounts`**。
+**后果（性质是可靠性/成本，不是泄漏）**：同一个"被拒的意图"可以在工具内**无限重复**而不触发 `DenialLimitError` ⇒ 模型可以反复调用一个必然被拒的工具**烧轮次与 token**。技能卡（`c78635c`）顺手报告了这一条，我读码确认属实。
+**修法方向**：熔断的口径应是"**同一 `toolName:arguments` 的 DENIED 结果**（无论来自执行前门禁还是工具内），≥3 次即结束回合"——即把计数点移到**任何** DENIED 的收口处（`tool/result.error.errorClass === 'DENIED'`），并保持既有语义（`stage`/审计/`DenialLimitError` 文案不变）；判别性验收：工具内 DENIED 连发 3 次 ⇒ 必须 `DenialLimitError`（旧实现不触发 ⇒ 红）、正常成功路径与"执行前拒绝"的既有熔断**逐字不回归**（负对照）。
+**未派卡的原因**：`AgentLoop.ts` 可能正被在跑的"决策点错误策略类型级必填"卡编辑（它此前改过该文件的 `before_tool` 调用点），**我不做同文件并发**；待其落定后再派。
