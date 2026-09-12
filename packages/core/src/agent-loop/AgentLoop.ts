@@ -192,6 +192,35 @@ export class AgentLoop {
       { listenerErrorPolicy: 'defer' },
     );
     if (beforeTurn.result.kind === 'deny') {
+      // BRIEF「kind 说谎」修复（本卡）—— 被 BeforeTurn 拒绝的回合 ⇒ `kind='error'`（三处一致：
+      // `turn/end` 记录、`after_turn` 事件、返回的 `TurnResult`）。
+      //
+      // 改前这里三处都写 `'success'`：输入被策略拒绝、**0 次模型调用、0 步、没有任何助手回答**，
+      // 却被上报成"回合成功"。四个消费面（TUI `renderTurnOutcome` / CLI `turnHeader`+`turnExitCode`
+      // / HTTP `turnStatusFor` / runner `turnKind`+evaluator `stopReason`）在各自刚修成"如实呈现"
+      // 之后，仍然把这个**错误的值**如实呈现成成功 ⇒ 被拒输入在 TUI 里是正常助手回复、
+      // 在 `vessel run` 里退出码 0、在 HTTP 面是 200。
+      //
+      // 裁决依据（不新增词表）：
+      //  1. 语义：该回合**没有跑完**（`turn/start`/`step/start` 从未写出、无助手回答），失败的性质
+      //     由 `finalText`（`[blocked] …`，含原因）如实承载，不丢信息；
+      //  2. `docs/EVENT-SPEC.md:234/469` 的既定词表是 `'success'|'error'|'interrupted'|'budget'`，
+      //     新增 `'blocked'` 要动词表 + 所有消费方穷尽分支，影响面远大于收益；
+      //  3. 选 `'interrupted'` 会适得其反：既有裁决里 `interrupted` **不算失败**
+      //     （`cli.turnExitCode('interrupted') === 0`），被拒输入在脚本眼里仍是成功；
+      //  4. 选 `'error'` 让已修好的四个消费面自动正确（TUI `[错误]` 标记 / CLI 退 1 且不冒充
+      //     「最终回复」/ HTTP 500 / runner `turnKind='error'`）。
+      //
+      // 刻意**不动**的部分：`user/message` 与 `assistant/message` 的内容逐字不变
+      // （`[blocked] 输入被 BeforeTurn 拦截：<reason>`，用户仍要看得到原因）；`steps: 0` /
+      // `toolCalls: 0` / `durationMs` 语义不变；**模型调用次数仍是 0**（本分支在任何模型调用
+      // 之前返回）。
+      //
+      // `finalText` 由 `'[blocked]'` 扩成与 `assistant/message` **同一段文案**（`[blocked] … <原因>`）：
+      // 改前它是裸的 `'[blocked]'`，不含原因 ⇒ 只打印 `result.finalText` 的消费面（CLI 错误标题下
+      // 那一行、TUI `[错误]` 行、HTTP body）里用户看不到"被谁按什么理由拒的"，与"错误文本含原因"
+      // 的验收不符。前缀 `[blocked]` 与原因都在，只增不减（不吞信息、不丢 `[blocked]` 标记）。
+      const blockedText = `[blocked] 输入被 BeforeTurn 拦截：${beforeTurn.result.reason ?? 'policy'}`;
       const rec = await session.appendSync({
         type: 'user/message',
         msgId: `m_${crypto.randomBytes(4).toString('hex')}`,
@@ -204,22 +233,22 @@ export class AgentLoop {
         type: 'assistant/message',
         msgId: `m_${crypto.randomBytes(4).toString('hex')}`,
         role: 'assistant',
-        content: `[blocked] 输入被 BeforeTurn 拦截：${beforeTurn.result.reason ?? 'policy'}`,
+        content: blockedText,
         surface: true,
       });
       await session.appendSync({
         type: 'turn/end',
         turnId,
-        kind: 'success',
+        kind: 'error',
         stats: { steps: 0, toolCalls: 0, durationMs: Date.now() - startedAt },
       });
-      await bus.emit('after_turn', { turnId, kind: 'success' });
+      await bus.emit('after_turn', { turnId, kind: 'error' });
       return {
         turnId,
-        kind: 'success',
+        kind: 'error',
         steps: 0,
         toolCalls: 0,
-        finalText: '[blocked]',
+        finalText: blockedText,
         durationMs: Date.now() - startedAt,
       };
     }

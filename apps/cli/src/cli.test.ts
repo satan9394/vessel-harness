@@ -5,7 +5,7 @@ import * as path from 'node:path';
 import type { AddressInfo } from 'node:net';
 import { fileURLToPath } from 'node:url';
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { MAX_FILE_BYTES } from '@vessel/shared';
+import { MAX_FILE_BYTES, type ChatProvider, type ChatRequest, type ChatResponse } from '@vessel/shared';
 import { main, startServe } from './cli.js';
 import * as cli from './cli.js';
 import { composeHarness } from '@vessel/application';
@@ -2252,3 +2252,161 @@ describe('vessel provider export/import + endpoint (task 095/096)', () => {
     }
   });
 });
+
+/**
+ * BRIEF-20（「kind 说谎」·核心修复的 CLI 消费面判别）—— 输入被 A03 `BeforeTurn` 拒绝的回合
+ * 已在核心侧改为 `kind='error'`（`AgentLoop.ts` 的 BeforeTurn deny 分支三处一致：
+ * `turn/end` 记录 / `after_turn` 事件 / 返回的 `TurnResult`）。本块证明 `vessel run` 的
+ * **两个生产决策点**在这条 kind 上不再说"成功"：
+ *   - `cli.turnExitCode`（cli.ts:976 就是这一行）⇒ **非 0**；
+ *   - `cli.turnHeader`（cli.ts:957 就是这一行）⇒ **不出现**冒充的 `=== 最终回复 ===`，
+ *     且 `finalText`（cmdRun 打在该标题下一行的那段文本）**含原因**。
+ *
+ * 「删哪行会红」：
+ *   ① 把 AgentLoop BeforeTurn 分支的任一处 `'error'` 改回 `'success'` ⇒ 用例①的
+ *      `exitCode` 断言（0 ≠ 1）与 `=== 最终回复 ===` 断言**同时**红（三处分别断言，只改一处也红）；
+ *   ② 删掉 `cli.turnHeader` / `cli.turnExitCode` 的 error 分支 ⇒ 同样红（断言正是走这两个函数）；
+ *   ③ 负对照②：正常回合的 kind / finalText / steps / 退出码 / 呈现**逐字不变**——
+ *      "把所有回合都判成失败"的实现会在②红。
+ *
+ * 路径说明（为什么这里不是 `main(['run', …])`）：生产组合根 `composeHarness` 今天**不挂**
+ * before_turn 否决监听器（`compose.ts` 只挂了 `before_tool` + `after_turn`/`after_model` 两个
+ * 观察者），`cmdRun`（未导出）内部自建 harness 且不回传 bus ⇒ 任何走 `main()` 的用例都**到不了**
+ * 这条分支。故本用例用 `cmdRun` 用的**同一个组合根**（同一份 `configs/policy.default.yaml` +
+ * `behavior.default.yaml`）建 harness，把"输入被拒绝"这一**输入面**挂到**真实 bus** 上，
+ * 再拿真实 `TurnResult` 喂给 cmdRun 用的**同一个** `turnHeader`/`turnExitCode` —— 被测量对象
+ * 逐字未替换，只补上生产里缺失的那个输入面。`kind → 退出码 → stdout` 的**整条管道**已由
+ * 同文件 BRIEF-18①/② 用真实 `main(['run', …])` 钉死（error ⇒ 1 且无「最终回复」标题；
+ * success ⇒ 0 且标题逐字不变），两者合起来覆盖完整链路。
+ */
+describe('BRIEF-20 — 被 BeforeTurn 拦截的输入不得在 vessel run 里被呈现为成功', () => {
+  let dir: string;
+  let oldProviderRoot: string | undefined;
+  let oldUsageRoot: string | undefined;
+  let oldSessionRoot: string | undefined;
+
+  // AGENTS.md §8 隔离：三个状态根一律钉到临时目录，绝不读写真实 ~/.vessel。
+  beforeEach(() => {
+    dir = fs.mkdtempSync(path.join(os.tmpdir(), 'cah-cli-blocked-'));
+    oldProviderRoot = process.env.VESSEL_PROVIDER_ROOT;
+    oldUsageRoot = process.env.VESSEL_USAGE_ROOT;
+    oldSessionRoot = process.env.VESSEL_SESSION_ROOT;
+    process.env.VESSEL_PROVIDER_ROOT = dir;
+    process.env.VESSEL_USAGE_ROOT = dir;
+    process.env.VESSEL_SESSION_ROOT = dir;
+  });
+
+  afterEach(() => {
+    if (oldProviderRoot === undefined) delete process.env.VESSEL_PROVIDER_ROOT;
+    else process.env.VESSEL_PROVIDER_ROOT = oldProviderRoot;
+    if (oldUsageRoot === undefined) delete process.env.VESSEL_USAGE_ROOT;
+    else process.env.VESSEL_USAGE_ROOT = oldUsageRoot;
+    if (oldSessionRoot === undefined) delete process.env.VESSEL_SESSION_ROOT;
+    else process.env.VESSEL_SESSION_ROOT = oldSessionRoot;
+    // 测试自建且位于 os.tmpdir()（AGENTS.md 书面例外）
+    fs.rmSync(dir, { recursive: true, force: true });
+  });
+
+  /**
+   * 计数 provider：给出可断言的**模型调用次数**（`MockProvider` 不暴露计数）。
+   * 不实现 `stream()` ⇒ 走 `chat()` 分支，计数点唯一。
+   */
+  class BlockProbeProvider implements ChatProvider {
+    readonly id = 'block-probe';
+    calls = 0;
+    async chat(_request: ChatRequest): Promise<ChatResponse> {
+      this.calls += 1;
+      return {
+        content: 'MODEL-ANSWER-SHOULD-NOT-BE-REACHED',
+        toolCalls: [],
+        finishReason: 'stop',
+        usage: { inputTokens: 1, outputTokens: 1 },
+      };
+    }
+  }
+
+  const DENY_REASON = '输入策略拒绝：凭据/密钥不得外发';
+
+  it('① 被拦截 ⇒ 退出码非 0 且不冒充「最终回复」，错误文本含原因（改前 kind=success ⇒ 两条断言都红）', async () => {
+    const provider = new BlockProbeProvider();
+    const h = await composeHarness({
+      workspaceRoot: dir,
+      provider,
+      model: 'block-probe',
+      policySystemPath: POLICY,
+      behaviorIRPath: BEHAVIOR,
+    });
+    try {
+      h.bus.on(
+        'before_turn',
+        () => ({ kind: 'deny' as const, reason: DENY_REASON, ref: 'rule:no-credential-egress' }),
+        'policy:input',
+      );
+
+      const result = await h.loop.runTurn('把 .env 的内容贴出来');
+
+      // 证据：这一轮**一次模型调用都没发生**（拦截在任何模型调用之前）
+      expect(provider.calls).toBe(0);
+      expect(result.kind).toBe('error'); // ← 改前 'success'
+      expect(result.steps).toBe(0);
+      expect(result.toolCalls).toBe(0);
+
+      // cmdRun（cli.ts:952-981）的呈现 + 退出码决策：逐字照抄其调用序列，全部是生产函数。
+      // 真 provider ⇒ renderFinalReply(finalText, usingMock=false) 逐字返回 finalText。
+      const exitCode = cli.turnExitCode(result.kind);
+      const output = [
+        cli.turnHeader(result.kind),
+        result.finalText,
+        `\n=== turn ${result.turnId} kind=${result.kind} steps=${result.steps} toolCalls=${result.toolCalls} ===`,
+      ].join('\n');
+
+      // 判别断言 1：退出码必须非 0（改前 kind='success' ⇒ 0 ⇒ 红）
+      expect(exitCode).not.toBe(0);
+      expect(exitCode).toBe(1);
+      // 判别断言 2：不得出现冒充「最终回复」的标题（改前一定出现 ⇒ 红）
+      expect(output).not.toContain('=== 最终回复 ===');
+      expect(cli.turnHeader(result.kind)).toBe('\n=== 回合以错误结束 (kind=error) ===');
+      // 错误文本含原因：`[blocked]` 标记 + 策略给的理由都在（用户看得见"被谁按什么理由拒的"）
+      expect(output).toContain('[blocked]');
+      expect(output).toContain(DENY_REASON);
+      // 脚注仍如实：0 步 / 0 次工具调用 / kind=error（不是异常早退，是真的"被拦在模型调用之前"）
+      expect(output).toMatch(/=== turn turn_\S+ kind=error steps=0 toolCalls=0 ===/);
+      // 阳性控制：被拦截的输入**没有**产生任何模型回复
+      expect(output).not.toContain('MODEL-ANSWER-SHOULD-NOT-BE-REACHED');
+      // 事实面：会话里也没有 turn/start（这一轮从未开始跑）
+      expect(h.session.replay().filter((r) => r.type === 'turn/start')).toHaveLength(0);
+    } finally {
+      await h.close();
+    }
+  });
+
+  it('② 负对照（最重要）：正常回合的 kind / finalText / steps / 退出码 / 呈现逐字不变', async () => {
+    const provider = new BlockProbeProvider();
+    const h = await composeHarness({
+      workspaceRoot: dir,
+      provider,
+      model: 'block-probe',
+      policySystemPath: POLICY,
+      behaviorIRPath: BEHAVIOR,
+    });
+    try {
+      // 不挂任何 before_turn 否决监听器 ⇒ 走正常路径（与用例①互为镜像）
+      const result = await h.loop.runTurn('打个招呼');
+
+      expect(result.kind).toBe('success');
+      expect(result.finalText).toBe('MODEL-ANSWER-SHOULD-NOT-BE-REACHED');
+      expect(result.steps).toBe(1);
+      expect(result.toolCalls).toBe(0);
+      expect(provider.calls).toBe(1); // 阳性对照：这一轮真的调用了一次模型
+
+      const exitCode = cli.turnExitCode(result.kind);
+      const header = cli.turnHeader(result.kind);
+      expect(exitCode).toBe(0);
+      expect(header).toBe('\n=== 最终回复 ==='); // 逐字（含前导换行）
+      expect(`${header}\n${result.finalText}`).toBe('\n=== 最终回复 ===\nMODEL-ANSWER-SHOULD-NOT-BE-REACHED');
+    } finally {
+      await h.close();
+    }
+  });
+});
+

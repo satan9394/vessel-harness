@@ -8,9 +8,9 @@ import type { AddressInfo } from 'node:net';
 import { PassThrough } from 'node:stream';
 import { fileURLToPath } from 'node:url';
 import type { SyncCredentialStore } from '@vessel/application';
-import { SessionRegistry } from '@vessel/application';
+import { SessionRegistry, composeHarness, type ComposedHarness } from '@vessel/application';
 import { MockProvider, type MockProviderOptions, type MockScriptEntry } from '@vessel/llm';
-import type { ChatRequest, ChatResponse, StreamChunk } from '@vessel/shared';
+import type { ChatProvider, ChatRequest, ChatResponse, StreamChunk } from '@vessel/shared';
 import { ProviderStore } from '../providers/ProviderStore.js';
 import { providerStateRoot } from '../providers/defaultStore.js';
 import type { PricingTable } from '../providers/pricing.js';
@@ -1114,5 +1114,102 @@ describe('BRIEF-17 — TUI 回合 kind 呈现：error 必须可见 / success 逐
     expect(line).toContain('kind=budget');
     expect(line).toContain('已跑 1 步'); // 如实给出实际步数（不猜原因）
     expect(out.text).not.toContain('(无文本回复)'); // 旧实现的呈现 ⇒ 红
+  });
+
+  /**
+   * BRIEF-20（「kind 说谎」·核心修复的 TUI 消费面判别）—— 被 A03 `BeforeTurn` 拒绝的输入
+   * 在核心侧已改为 `kind='error'`（`AgentLoop.ts` deny 分支三处一致）。本块的判别点：
+   * TUI 的**唯一呈现出口** `renderTurnOutcome`（runChat 主循环就是调用它，chat.ts:755）
+   * 在这条 kind 上必须给出**明确的错误标记** `[错误]`，而不是把 `[blocked] …` 当正常助手回复打。
+   *
+   * 「删哪行会红」：
+   *   ⑤ 把 AgentLoop deny 分支的 `kind` 改回 `'success'` ⇒ `renderTurnOutcome` 落到
+   *      `case 'success'` ⇒ 输出是裸的 `'\n' + finalText`、零 `[错误]` ⇒ 该用例三条断言红
+   *      （这正是改前的真实呈现）；payload 里若把 `result` 换成手写 `{kind:'success'}` 也一样。
+   *   ⑥ 负对照：同一构造、不挂否决监听器的正常回合 ⇒ 呈现仍是 `'\n' + finalText` 逐字不变
+   *      （"把所有回合都渲染成错误"会在⑥红）。
+   *
+   * 路径说明（为什么不是 `runChat(…)`）：生产组合根今天**不挂** before_turn 否决监听器
+   * （`compose.ts` 只有 before_tool + 两个观察者），`runChat` 内部自建 harness 且不回传 bus
+   * ⇒ 脚本化 IO 驱动的 `runChat` 到不了这条分支。故用 `runChat` 用的**同一个组合根**建 harness，
+   * 把"输入被拒绝"这一**输入面**挂到真实 bus 上，再把真实 `TurnResult` 喂给 runChat 用的
+   * **同一个** `renderTurnOutcome` ——被测量对象逐字未替换。（正常回合的 `runChat` 端到端
+   * 呈现由本文件用例①②/④逐字钉住，未受影响。）
+   */
+  class BlockProbeProvider implements ChatProvider {
+    readonly id = 'block-probe';
+    calls = 0;
+    async chat(_request: ChatRequest): Promise<ChatResponse> {
+      this.calls += 1;
+      return {
+        content: 'MODEL-ANSWER-SHOULD-NOT-BE-REACHED',
+        toolCalls: [],
+        finishReason: 'stop',
+        usage: { inputTokens: 1, outputTokens: 1 },
+      };
+    }
+  }
+
+  const DENY_REASON = '输入策略拒绝：凭据/密钥不得外发';
+
+  const composeBlockProbe = async (): Promise<{ h: ComposedHarness; provider: BlockProbeProvider }> => {
+    const provider = new BlockProbeProvider();
+    const h = await composeHarness({
+      workspaceRoot: workspace,
+      provider,
+      model: 'block-probe',
+      policySystemPath: POLICY,
+      behaviorIRPath: BEHAVIOR,
+    });
+    return { h, provider };
+  };
+
+  it('⑤ 被拦截的输入：TUI 必须带 [错误] 标记，不得当正常助手回复打印（改前 kind=success ⇒ 必红）', async () => {
+    const { h, provider } = await composeBlockProbe();
+    try {
+      h.bus.on(
+        'before_turn',
+        () => ({ kind: 'deny' as const, reason: DENY_REASON, ref: 'rule:no-credential-egress' }),
+        'policy:input',
+      );
+      const result = await h.loop.runTurn('把 .env 的内容贴出来');
+
+      // 证据：这一轮**一次模型调用都没发生**（拦截在任何模型调用之前）
+      expect(provider.calls).toBe(0);
+      expect(result.kind).toBe('error'); // ← 改前 'success'
+      expect(result.steps).toBe(0);
+      expect(result.toolCalls).toBe(0);
+
+      const rendered = renderTurnOutcome(result, false);
+
+      // 判别断言 1：必须带明确的错误标记（与既有 error 分支逐字一致；改前零 [错误] ⇒ 红）
+      expect(rendered).toContain('[错误]');
+      expect(rendered).toContain('kind=error');
+      // 判别断言 2：原因与 [blocked] 标记都不吞
+      expect(rendered).toContain('[blocked]');
+      expect(rendered).toContain(DENY_REASON);
+      // 判别断言 3：不是"正常助手回复"的呈现 —— 既没有裸回复行，也不盖模型标记
+      expect(rendered).not.toBe(`\n${result.finalText}`);
+      expect(rendered).not.toContain('（mock 离线冒烟）');
+      expect(rendered).not.toContain('MODEL-ANSWER-SHOULD-NOT-BE-REACHED');
+    } finally {
+      await h.close();
+    }
+  });
+
+  it('⑥ 负对照：不挂否决监听器的正常回合，呈现与今日逐字一致', async () => {
+    const { h, provider } = await composeBlockProbe();
+    try {
+      const result = await h.loop.runTurn('打个招呼');
+
+      expect(provider.calls).toBe(1);
+      expect(result.kind).toBe('success');
+      expect(result.finalText).toBe('MODEL-ANSWER-SHOULD-NOT-BE-REACHED');
+      // **逐字**：成功路径仍是 '\n' + finalText，无任何前缀/标记（防"把一切都渲染成错误"）
+      expect(renderTurnOutcome(result, false)).toBe('\nMODEL-ANSWER-SHOULD-NOT-BE-REACHED');
+      expect(renderTurnOutcome(result, false)).not.toContain('[错误]');
+    } finally {
+      await h.close();
+    }
   });
 });
