@@ -93,6 +93,26 @@ export function failureMessage(body: unknown, status: number): string {
   return `HTTP ${status}`;
 }
 
+/** Longest raw (non-JSON) error-body excerpt folded into an `ApiError` message. */
+export const RAW_BODY_REASON_MAX = 200;
+
+/**
+ * Readable reason for a **failure** whose body could not be parsed as JSON.
+ *
+ * `failureMessage` only reads fields off an object, and there is no such object
+ * here — the raw text is the whole body (a proxy's `<html>502 Bad Gateway</html>`
+ * page, a plain-text `upstream timeout`, an empty body with a BOM). The status
+ * is prefixed so it is never lost, and the text is flattened to one line and
+ * clipped (the untruncated text stays on `ApiError.body`) so a full HTML page
+ * cannot be dumped into the banner or a log line.
+ */
+function rawBodyReason(text: string, status: number): string {
+  const flat = text.replace(/\s+/g, ' ').trim();
+  if (flat === '') return `HTTP ${status}`;
+  const excerpt = flat.length > RAW_BODY_REASON_MAX ? `${flat.slice(0, RAW_BODY_REASON_MAX)}…` : flat;
+  return `HTTP ${status}: ${excerpt}`;
+}
+
 export function createApiClient(opts: ApiOptions = {}) {
   const base = (opts.base ?? '/api').replace(/\/+$/, '');
   const doFetch = opts.fetch ?? globalThis.fetch.bind(globalThis);
@@ -117,14 +137,36 @@ export function createApiClient(opts: ApiOptions = {}) {
     }
 
     const text = await res.text();
-    const body = text ? (JSON.parse(text) as unknown) : undefined;
 
     if (!res.ok) {
       // The reason a turn failed lives in the body (see failureMessage); the
       // status alone would show the user nothing but "HTTP 500".
-      throw new ApiError(failureMessage(body, res.status), res.status, body);
+      //
+      // The parse must never throw here: a failing intermediary (the Vite dev
+      // proxy, a gateway, a crashing upstream) answers with HTML or plain text,
+      // and `JSON.parse` raising a SyntaxError on this line would run **before**
+      // the status is read — dropping `res.status` and skipping failureMessage
+      // entirely, so the UI rendered `Unexpected token '<' …` instead of a real
+      // reason or `HTTP <status>`. The raw text *is* the body, so it is kept
+      // verbatim, and `rawBodyReason` turns it into the message.
+      let body: unknown;
+      let bodyIsRawText = false;
+      try {
+        body = text ? (JSON.parse(text) as unknown) : undefined;
+      } catch {
+        body = text;
+        bodyIsRawText = true;
+      }
+      throw new ApiError(
+        bodyIsRawText ? rawBodyReason(text, res.status) : failureMessage(body, res.status),
+        res.status,
+        body,
+      );
     }
-    return body as T;
+
+    // Success path — unchanged: a well-formed body is returned verbatim, and a
+    // 2xx whose body is not JSON still fails loudly, exactly as it always has.
+    return (text ? (JSON.parse(text) as unknown) : undefined) as T;
   }
 
   return {

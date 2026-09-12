@@ -1,5 +1,5 @@
 import { describe, it, expect, afterEach, vi } from 'vitest';
-import { createApiClient, ApiError, failureMessage } from './api';
+import { createApiClient, ApiError, failureMessage, RAW_BODY_REASON_MAX } from './api';
 
 /** Build a minimal Response-like stub for the mocked global fetch. */
 function jsonResponse(status: number, body: unknown): Response {
@@ -8,6 +8,20 @@ function jsonResponse(status: number, body: unknown): Response {
     status,
     async text() {
       return JSON.stringify(body);
+    },
+  } as unknown as Response;
+}
+
+/**
+ * Response-like stub whose body is arbitrary text — the shape a proxy / gateway
+ * sends when it fails before the JSON API is even reached (`<html>502 …</html>`).
+ */
+function textResponse(status: number, text: string): Response {
+  return {
+    ok: status >= 200 && status < 300,
+    status,
+    async text() {
+      return text;
     },
   } as unknown as Response;
 }
@@ -340,5 +354,149 @@ describe('failureMessage precedence (finalText → message → error → HTTP st
     expect(failureMessage(undefined, 503)).toBe('HTTP 503');
     expect(failureMessage('plain text body', 502)).toBe('HTTP 502');
     expect(failureMessage([1, 2], 500)).toBe('HTTP 500');
+  });
+});
+
+/**
+ * BRIEF-23 ① — 非 JSON 错误体曾绕过刚落地的 failureMessage 修复。
+ *
+ * 复现（改前，代码路径必然如此）：`request()` 里 `const body = text ? JSON.parse(text) : undefined`
+ * 排在 `if (!res.ok)` **之前**（旧 :119-120）。上游 / 代理（Vite dev proxy、网关、崩掉的服务）
+ * 用 HTML 或纯文本回答失败时，`JSON.parse('<html>…')` 抛 SyntaxError ⇒ 紧随其后的
+ * `new ApiError(failureMessage(body, res.status), …)` 永不执行 ⇒ ① `res.status` 丢失
+ * （SyntaxError 上没有 status，`ConversationView` 的 `err.status === 0` 分支也不命中）
+ * ② failureMessage 没机会跑 ⇒ `turnErrorText` 走 `err instanceof Error` 分支，把 V8 的
+ * `Unexpected token '<', "<html>…" is not valid JSON` 当原因显示给用户。
+ *
+ * 判别性（纪律 24 —— 删/改哪一行会红）：
+ * - 把 try/catch 换回裸 `JSON.parse` ⇒ 用例 ①/①′/①″ 拿到 SyntaxError 而非 ApiError ⇒ 红；
+ * - 删掉 `bodyIsRawText = true`（或 catch 里的 `body = text`）⇒ 消息退回 failureMessage
+ *   （'HTTP 502'）而不再带原始文本 ⇒ ①/①′ 的 message 断言红；
+ * - 改 `res.status` 的传递 ⇒ status 断言红。
+ * 负对照：JSON 错误体与 2xx 成功体在下面 ② 组用例里逐字不变。
+ */
+describe('createApiClient — non-JSON error bodies (proxy HTML / plain text / BOM)', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it('① an HTML 502 from a proxy throws ApiError with status 502 and a readable reason', async () => {
+    const html = '<html>\n  <body>502 Bad Gateway</body>\n</html>';
+    const mockFetch = vi.fn(async () => textResponse(502, html));
+    vi.stubGlobal('fetch', mockFetch);
+
+    const api = createApiClient({ base: '/api' });
+    const err: unknown = await api.runTurn('s1', 'hi').then(
+      () => null,
+      (e: unknown) => e,
+    );
+
+    // 删掉 JSON.parse 的 try/catch ⇒ 这里是 SyntaxError（无 status）⇒ 红
+    expect(err).toBeInstanceOf(ApiError);
+    expect((err as ApiError).status).toBe(502);
+    // 删掉 rawBodyReason 这条路径 ⇒ 消息只剩 failureMessage 的 'HTTP 502' ⇒ 红
+    expect((err as ApiError).message).toBe('HTTP 502: <html> <body>502 Bad Gateway</body> </html>');
+    // 原始文本逐字保留在 body 上（改前这里根本没有 ApiError，故不存在被破坏的既有消费方）
+    expect((err as ApiError).body).toBe(html);
+  });
+
+  it('①′ a plain-text error body keeps both the status and the text', async () => {
+    const mockFetch = vi.fn(async () => textResponse(504, 'upstream timeout'));
+    vi.stubGlobal('fetch', mockFetch);
+
+    const api = createApiClient({ base: '/api' });
+    const err: unknown = await api.health().then(
+      () => null,
+      (e: unknown) => e,
+    );
+
+    expect(err).toBeInstanceOf(ApiError);
+    expect((err as ApiError).status).toBe(504);
+    expect((err as ApiError).message).toBe('HTTP 504: upstream timeout');
+    expect((err as ApiError).body).toBe('upstream timeout');
+  });
+
+  it('①″ a BOM/blank-only body still keeps the status (no SyntaxError)', async () => {
+    // U+FEFF 是 \s 的成员：折叠后为空 ⇒ 只有状态码可读，但状态码必须还在
+    const raw = '\uFEFF   ';
+    const mockFetch = vi.fn(async () => textResponse(503, raw));
+    vi.stubGlobal('fetch', mockFetch);
+
+    const api = createApiClient({ base: '/api' });
+    const err: unknown = await api.health().then(
+      () => null,
+      (e: unknown) => e,
+    );
+
+    expect(err).toBeInstanceOf(ApiError);
+    expect((err as ApiError).status).toBe(503);
+    expect((err as ApiError).message).toBe('HTTP 503');
+    expect((err as ApiError).body).toBe(raw);
+  });
+
+  it('①‴ a huge HTML page is clipped in the message but its status is intact', async () => {
+    const huge = `<html>${'x'.repeat(5000)}</html>`;
+    const mockFetch = vi.fn(async () => textResponse(502, huge));
+    vi.stubGlobal('fetch', mockFetch);
+
+    const api = createApiClient({ base: '/api' });
+    const err: unknown = await api.health().then(
+      () => null,
+      (e: unknown) => e,
+    );
+
+    const message = (err as ApiError).message;
+    expect((err as ApiError).status).toBe(502);
+    expect(message.startsWith('HTTP 502: <html>xxx')).toBe(true);
+    expect(message.endsWith('…')).toBe(true);
+    expect(message).toBe(`HTTP 502: ${huge.slice(0, RAW_BODY_REASON_MAX)}…`);
+    // the untruncated body is still available to callers
+    expect((err as ApiError).body).toBe(huge);
+  });
+
+  it('② (negative control) a JSON error body is unchanged — finalText/message still win', async () => {
+    const mockFetch = vi.fn(async (url: string) => {
+      if (url.endsWith('/turns')) {
+        return jsonResponse(500, {
+          finalText: 'same intent denied 3 times: Write',
+          kind: 'error',
+          steps: [],
+          turnId: 't-err',
+        });
+      }
+      return jsonResponse(400, { error: 'missing_workspaceRoot', message: 'workspaceRoot required' });
+    });
+    vi.stubGlobal('fetch', mockFetch);
+
+    const api = createApiClient({ base: '/api' });
+
+    const turnErr: unknown = await api.runTurn('s1', 'hi').then(
+      () => null,
+      (e: unknown) => e,
+    );
+    expect((turnErr as ApiError).message).toBe('same intent denied 3 times: Write');
+    expect((turnErr as ApiError).status).toBe(500);
+    // body 形状语义不变：既有消费方仍按对象字段读
+    expect((turnErr as ApiError).body).toMatchObject({ kind: 'error', turnId: 't-err' });
+
+    const jsonErr: unknown = await api.openProject('').then(
+      () => null,
+      (e: unknown) => e,
+    );
+    expect((jsonErr as ApiError).message).toBe('workspaceRoot required');
+    expect((jsonErr as ApiError).status).toBe(400);
+    expect((jsonErr as ApiError).body).toEqual({
+      error: 'missing_workspaceRoot',
+      message: 'workspaceRoot required',
+    });
+  });
+
+  it('② (negative control) a 2xx JSON body is returned verbatim', async () => {
+    const body = { finalText: 'hi', kind: 'done', steps: [{ type: 'step' }], turnId: 't1' };
+    const mockFetch = vi.fn(async () => jsonResponse(200, body));
+    vi.stubGlobal('fetch', mockFetch);
+
+    const api = createApiClient({ base: '/api' });
+    await expect(api.runTurn('s1', 'hello')).resolves.toEqual(body);
   });
 });

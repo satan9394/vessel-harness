@@ -66,6 +66,24 @@ async function main() {
   const turn = await turnRes.json();
   console.log('turn:', JSON.stringify(turn));
 
+  // A turn that ends in kind='error' answers 500 (apps/local-server
+  // `turnStatusFor`), and a turn that threw answers 500 with
+  // `{ error: 'turn_failed', message }` — no `kind` at all. Both used to fall
+  // through to the SMOKE_OK line below, so a failed turn read as a *passing*
+  // smoke; the status alone (or the kind alone) is not enough, because a proxy
+  // can rewrite one of them. A failure leaves through the existing non-zero
+  // exit path: main().catch → SMOKE_FAIL → process.exit(1).
+  if (!turnRes.ok || turn.kind === 'error') {
+    const reason =
+      typeof turn.finalText === 'string' && turn.finalText.trim() !== ''
+        ? turn.finalText.trim()
+        : typeof turn.message === 'string' && turn.message.trim() !== ''
+          ? turn.message.trim()
+          : '(no readable reason)';
+    console.error(`turn failed: status=${turnRes.status} kind=${turn.kind} reason=${reason}`);
+    throw new Error(`turn failed: status=${turnRes.status} kind=${turn.kind} reason=${reason}`);
+  }
+
   // Drain a little more (tool/policy may fire) then stop.
   await pump(() => frames.length >= 20);
 
