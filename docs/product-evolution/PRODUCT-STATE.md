@@ -13,7 +13,7 @@
 
 | 维度 | 评估 |
 |---|---|
-| 内部工程成熟度 | **高** — 依赖零环；**8 道发布门禁 8/8 `ready`**（`build` 含 `apps/web` 类型检查）；**全量 `1917 passed + 6 skipped / 0 failed`**（`tsc -b` 干净；本行为 Round 96 更新，此前记的是 1512 —— 那已是旧数）；打包卫生已修（tarball 270→62 文件、无测试产物与 source map） |
+| 内部工程成熟度 | **高** — 依赖零环；**8 道发布门禁 8/8 `ready`**（`build` 含 `apps/web` 类型检查）；**`npm run test:all` 双 root 实测 exit 0：根 `1955 passed + 6 skipped`、`apps/web` `111 passed`**（`tsc -b` 干净；本行为 Round 118 更新——**此前所有"全量"数字都只含根，漏了 web 的近百项**，见纪律 26）；打包卫生已修（tarball 270→62 文件、无测试产物与 source map） |
 | 对外可启动成熟度 | **高（本会话显著提升）** — 首跑可用；崩溃面给人话+路径+指引；会话可续跑；**机器面完整**（`--json` 覆盖五条只读命令 + **全部失败出口**信封）；**默认配置"装在哪儿就在哪儿"**（包内优先，**装机 E2E 三条命令 exit 0**）；**不需要 clone 仓库即可安装运行** |
 | 安全与执法正确性 | **高（Round 20 再加固）** — 项目层提权/放宽执行已封堵；force-push 以**平台并集 + fail-closed** 收口；`filesystem.confinement` 首次真正可达；错误体全链路脱敏；**symlink 出界**（唯一防线原为静默跳过）已修，并由**变异测试**证明"移除修复即攻击成功"；**损坏文件**不再静默销毁（索引/覆盖文件写前留档，留档失败抑制写入） |
 | 诚实性 | **高，但有一处已知未修** — mock 运行期可见、产品名统一、密钥口径按平台如实、文档命令与 `dispatch` 对齐、`policy status` 报告合成可编译性；**残留**：`pricingOverride` 抑制写入后 CLI 仍打印「✔ 已写入覆盖」⇒ **确认时刻的宣称不为真**（已排 NEXT 首位，修法已定：`write()` 回传落盘状态 + 双向验收） |
@@ -31,6 +31,21 @@
 3. ~~**第三处死 seam**：`EnforcementProjection.foldSession()` **只在测试里被调用**~~ ⇒ **已接线**（`packages/application/src/compose.ts:340-351`，`after_turn` 上 `foldSession`，并有两把去重锁保证幂等；Round 96 核实更正）。另：`shellTool.ts` 取的是 run **之前**的状态（`meta.sandbox` 描述**上一轮**，注释却称 "honest … for THIS spawn"）；短命令仍要等 1–10 s（可并行探活早退）。
 4. ~~其余：S008 未纳入 `SAFETY_SCENARIOS`~~ ⇒ **已纳入**（`benchmarks/runners/src/release-gates/gates.ts:48`「S008 已纳入」，Round 96 核实更正）；~~`cli.ts:517` 的 `costMultipliers()` 抛 → 倍率静默变 1~~ ⇒ **已修**（`6fe93d4`）；~~`EventBus` 监听器抛错退化为 `defer`（潜伏陷阱）~~ ⇒ **已在类型层收口**（`0ca7a94`：两个安全门禁点 `before_tool`/`before_delegate` **必填**错误策略；非安全事件仍可选 `defer`，那是**有意保留**、不再是"忘掉即退化为放行"的陷阱）。**仍待办**：S002/S006 恒真判据待加锁；`SkillSearch` 只扫正文前 400 字符的 UNTRUSTED 标记。
 
+### Round 118 收口：**本段（Round 58–118）的最终队列**（权威清单在 `PRODUCT-GAP-MAP.md`）
+
+**这一段闭合的（留档以免重做）**：流式解析两个 provider 的身份改写/覆盖族（含 OpenAI 同构）；`length` 截断信号（两个 provider）；`kind='error'` 的**全部已识别消费面**（TUI / CLI 退出码 / HTTP turns / HTTP goal run / runner / evaluator / web / 报告看板）；`kind → stopReason` 的三处两套口径；**`wireFinishReason` 唯一表**（Anthropic chat + Anthropic stream + opencode-go）；`before_turn` 否决的审计缺口；`vessel run` / `bench-report` 两个退出码；CLI/TUI 的 mock 标记口径**与唯一判据**（`turnText.ts`）；错误原因链（含嵌套 `result.error`）；`Registry` exclusive 链中毒；`costMultipliers` 静默兜底；**"全量"的范围定义**（`test:all` + CI + 发布门禁判据由实跑 root 清单插值）。
+
+**开放的（每条都带证据与判据；按"是否削弱已建成的东西"排序）**：
+1. **`windowsShimHint` 是两份实现**（`cli.ts` 与 `tui/chat.ts`，TUI 注释自称"必须与 cli.ts 逐字一致"，**全仓无任何测试引用它**）⇒ 只改一面会**无声分叉**（硬 spawn 报含糊 ENOENT，或拒绝可用命令）。**定级：高**；且"反向 import 会成环所以只能内联"的理由**已被证伪**（`turnText.ts` 是零依赖叶子模块）。
+2. **`openAIFinishReason` 仍未收敛**（跨家族 token 上与 `wireFinishReason` 不同解：`end_turn` ⇒ 它给 `error`、共享表给 `stop`）⇒ 委托**只需 2 行**。
+3. **`handoffMarkdown()` 连顶层 body 都不读**（失败直接 `HTTP <status>`，服务端给 `{error:'handoff_missing'}`）⇒ 比已修的那处**还少一层**。
+4. **`AGENTS.md` 把验证写成 `npx vitest run` + "全量验证后再收尾"** ⇒ **规则母版里同一个病**（范围未定义且漏 web）。
+5. **门禁判据 > 实跑的另三处**（gate 3 默认装配声称 L1 全量却只跑 B001–B005；gate 4 声称收集 L3 指标而只判行状态；gate 8 声称"完整"而只查两路径存在）。
+6. **`runner.test.ts` 的期望值仍由生产函数 `turnKindSummary` 生成**（纪律 23 点名的正是该文件）；**另两处镜像未按纪律 22 标注**。
+7. **`AgentLoop` 流末兜底 flush 零可见信号**（`turn/end` 的条件加法字段，属记录形状变更）。
+8. **三处"规格有、实现无"**：`turn/end.stats` 的 `tokensUsed?/costEstimate?`；B13 `llm/retry`（**规格说持久化、实现只在实时总线**）；B12 `request/header` ⇒ 会话日志无法重建"这一轮用了哪个模型、上下文多大"。
+9. **`vessel policy status` 恒退 0**；**`bench-report --json` 把人类摘要写进 stdout**；**`createProvider` 不透传 `streamIdleTimeoutMs`**；**`scripts/dev-test/run.mjs` 的 `ROOTS` 比它自称的窄**；**`refusal` 是词表死值**；**形态 A（重复 start 无 id/name）仍丢 seed**。
+10. **被跟踪的 `benchmarks/reports/release-report.{md,json}` 内嵌旧判据** ⇒ 需**重跑门禁刷新**，而重跑会改工作区（**按纪律 27 处置**）。
 ### Round 106 刷新：**本段（Round 58–105）之后的当前队列**（权威清单在 `PRODUCT-GAP-MAP.md`，此处只列最优先且**均已带证据**）
 
 **已闭合（留档以免重做）**：流式解析的两个 provider 的"身份改写/覆盖"族（含 OpenAI 同构）、`length` 截断信号（两个 provider）、`kind='error'` 的**全部已识别消费面**（TUI / CLI 退出码 / HTTP / goal run / runner / evaluator / web / 报告看板）、`kind → stopReason` 的三处两套口径、`before_turn` 否决的审计缺口、`bench-report` 与 `vessel run` 的退出码、CLI/TUI 的 mock 标记口径、`Registry` exclusive 链中毒、`costMultipliers` 静默兜底。
