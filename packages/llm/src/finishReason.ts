@@ -47,15 +47,12 @@
  * provider produced the token, because that is the only way "同一个 wire 值不能
  * 有两个结论" holds by construction rather than by review.
  *
- * NOT part of this module (deliberately, and REPORTED rather than changed — it is
- * outside this card's file scope): `openAIFinishReason` in `stream/parseOpenAI.ts`
- * keeps its own OpenAI-only switch. It agrees with this table on every token an
- * OpenAI-shaped wire can carry (including "present but unknown ⇒ 'error'"), but
- * the two are NOT the same function on the union domain: `openAIFinishReason('end_turn')`
- * is `'error'` where this table says `'stop'`. Delegating that switch to this table
- * is a two-line change in a file this card was told not to touch; until it is made,
- * "one table" means "one table for the three converged paths", not "one switch in
- * the package".
+ * **已收敛（本段后续卡完成）**：`stream/parseOpenAI.ts` 的 `openAIFinishReason` **现在也委托本表**
+ * （函数体一行 `return wireFinishReason(wire)`）。⇒ 本包内 **wire → finishReason 只有这一处 switch**；
+ * OpenAI wire 能携带的每个 token 的既有映射**逐值未变**（含"有值但未知 ⇒ `'error'`"），
+ * 唯一随收敛移动的是 `max_tokens`（`'error'` ⇒ `'length'`）——它**不在 OpenAI 官方枚举内**，
+ * 而同为 OpenAI 形 wire 的 opencode-go 路径**早已**给 `'length'`，故收敛后两条同形路径不再自相矛盾。
+ * 此前这里写着"the two are NOT the same function…'one table' 不含 OpenAI"——**那句现在已不成立**。
  *
  * Deliberately NOT covered here: the "wire carried NO token" case. Each path's
  * missing-value semantics are frozen and differ by design (OpenAI `chat()` ⇒
