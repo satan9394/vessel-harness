@@ -125,10 +125,13 @@ export async function runVesselFixture(fixture: HarnessFixture): Promise<RunResu
   const peak = { value: 0 };
   // Same re-keying as the runner lane: the scripted provider numbers tool-call ids
   // per RESPONSE, so a multi-step script otherwise reuses one id and every
-  // toolCallId-joined record (evidence, audit) is ambiguous.
-  const baseProvider =
+  // toolCallId-joined record (evidence, audit) is ambiguous. The caller-injected
+  // provider goes through the same wrapper — `opts.provider ?? uniqueToolCallIds(...)`
+  // used to let it bypass, which is the one path that can talk to a real model.
+  const baseProvider = uniqueToolCallIds(
     opts.provider ??
-    uniqueToolCallIds(new MockProvider(OFFLINE_SCRIPTS[fixture.id] ?? [], { model, vars: { cwd: workspace } }));
+      new MockProvider(OFFLINE_SCRIPTS[fixture.id] ?? [], { model, vars: { cwd: workspace } }),
+  );
   const provider = trackingProvider(baseProvider, peak);
 
   const composeOpts: ComposeOptions = {

@@ -328,6 +328,12 @@ describe('Sandbox — WindowsJobObject backend primitives (requires win32 + Powe
     await expect(createJobObject(42)).rejects.toThrow(/requires win32/);
   });
 
+  // BRIEF ③ — explicit timeout on a REAL job object. The holder's own budget is
+  // 30 s (`createJobObject`), which is numerically identical to vitest's default
+  // `testTimeout: 30000` (`vitest.config.ts:47`): inheriting the default turns
+  // the result into a photo-finish between "holder gives up" and "runner kills
+  // the test". 120_000 (4×) removes the race WITHOUT touching the assertions —
+  // this is the same fix `process-tree.test.ts:312-317` already applied.
   it.skipIf(!onWindows)('terminate() kills the WHOLE process tree (grandchildren included)', async () => {
     const base = join(tmpdir(), `vessel-killtree-${Date.now()}-${Math.random().toString(36).slice(2)}`);
     tmpAreas.push(base);
@@ -356,10 +362,13 @@ describe('Sandbox — WindowsJobObject backend primitives (requires win32 + Powe
     await new Promise((r) => setTimeout(r, 500));
     expect(pidAlive(root.pid!)).toBe(false);
     expect(pidAlive(grandchildPid)).toBe(false);
-  });
+  }, 120_000);
 });
 
 describe('Sandbox — run() confined spawn (isolation dir + resource wiring)', () => {
+  // BRIEF ③ — `new Sandbox()` on win32 drives the REAL job holder (30 s budget,
+  // equal to the default testTimeout), so this real-machine test carries an
+  // explicit 4× timeout instead of inheriting the racy default.
   it('runs a command in a fresh isolation directory used as cwd', async () => {
     const s = new Sandbox();
     const r = await s.run(process.execPath, ['-e', 'process.stdout.write(process.cwd())'], {
@@ -367,7 +376,7 @@ describe('Sandbox — run() confined spawn (isolation dir + resource wiring)', (
     });
     expect(r.exitCode).toBe(0);
     expect(r.stdout).toContain('vessel-sandbox');
-  });
+  }, 120_000);
 
   it('passes limits to the job factory and attaches the child PID (unit: injected factory)', async () => {
     const attachPid: number[] = [];
@@ -428,12 +437,14 @@ describe('Sandbox — isolated-directory backend (task 071)', () => {
     await iso.dispose();
   });
 
+  // BRIEF ③ — real job holder (30 s budget == the default testTimeout), so the
+  // timeout is explicit and 4×; assertions unchanged.
   it('run() surfaces a clear error for an unavailable command', async () => {
     const s = new Sandbox();
     const r = await s.run(process.execPath, ['-e', 'process.exit(7)'], { maxOutputBytes: 1024 });
     expect(r.exitCode).toBe(7);
     expect(r.stdout).toBe('');
-  });
+  }, 120_000);
 });
 
 describe('Process — 050 interrupt / runCommand + confinement integration (task 071)', () => {

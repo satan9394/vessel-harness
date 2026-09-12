@@ -3,7 +3,7 @@ import * as os from 'node:os';
 import * as path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, it, expect, afterEach } from 'vitest';
-import { runScenario, loadManifest } from './runner.js';
+import { runScenario, loadManifest, OFFLINE_SCRIPTS } from './runner.js';
 import { runAssert } from './asserts.js';
 
 const REPO_ROOT = fileURLToPath(new URL('../../../', import.meta.url));
@@ -76,6 +76,74 @@ describe('benchmarks/runner — V0.2 batch B016–B019 (offline mock lane)', () 
       expect(lines.some((l) => l.type === 'assert' && l.result === 'pass')).toBe(true);
     }, 60_000);
   }
+
+  /**
+   * 判别性（本卡补的覆盖缺口）：`evalProvider` 也曾绕过唯一化。Evaluator Agent 在
+   * **隔离会话**（EvaluatorAgent → createIsolatedRuntime）里用只读探索工具（Read/Glob/Grep）
+   * 真的发 tool call，所以它的脚本 provider 也必须重新编号。
+   *
+   * 这里把 `B018-eval` 脚本换成与 MockProvider **同构**的两次调用（每条响应各自从 1 编号，
+   * 原始 id 都是 `tc_mock_1`）：删掉 runner 侧对 evalProvider 的包装，隔离会话的
+   * session.jsonl 里就会出现复用 id ⇒ 本用例必红。断言集结论不受影响（最终 verdict 仍是
+   * not_met），所以红的只可能是「id 复用」这一项。
+   */
+  it('判别性：evaluator 隔离会话的脚本 provider 也被唯一 id 化（删掉包装即红）', async () => {
+    // `!` + straight reassignment is the exact idiom safety.test.ts already uses for
+    // OFFLINE_SCRIPTS patching (noUncheckedIndexedAccess types the read as
+    // `MockScriptEntry[] | undefined`, so the non-null assertion keeps the write legal).
+    const original = OFFLINE_SCRIPTS['B018-eval']!;
+    OFFLINE_SCRIPTS['B018-eval'] = [
+      { when: /.*/, ifNoToolResult: true, response: { toolCalls: [{ name: 'Read', arguments: { path: 'task.md' } }] } },
+      { when: /.*/, minToolResults: 1, maxToolResults: 1, response: { toolCalls: [{ name: 'Read', arguments: { path: 'task.md' } }] } },
+      {
+        when: /.*/,
+        minToolResults: 2,
+        response: { text: '{"verdict":"not_met","evidence":["无测试通过证据"],"reason":"验收要求测试全绿，缺少证据"}' },
+      },
+    ];
+    try {
+      const report = await runScenario({
+        scenarioId: 'B018',
+        repoRoot: REPO_ROOT,
+        reportsDir: REPORTS,
+        provider: null,
+        model: 'mock-model',
+        policyPath: path.join(REPO_ROOT, 'configs', 'policy.default.yaml'),
+        behaviorIRPath: path.join(REPO_ROOT, 'configs', 'behavior.default.yaml'),
+      });
+      tempDirs.push(report.workspace);
+
+      // evaluator 的隔离会话落在 <workspace>/.harness/sessions/<sub_*>/session.jsonl
+      const sessionsRoot = path.join(report.workspace, '.harness', 'sessions');
+      const logs = fs.existsSync(sessionsRoot)
+        ? fs
+            .readdirSync(sessionsRoot)
+            .map((d) => path.join(sessionsRoot, d, 'session.jsonl'))
+            .filter((f) => fs.existsSync(f))
+        : [];
+      const parse = (file: string): { type?: string; source?: string; toolCallId?: string }[] =>
+        fs.readFileSync(file, 'utf8').split('\n').filter((l) => l.trim() !== '').map((l) => JSON.parse(l));
+      const evalLog = logs.find((f) =>
+        parse(f).some((r) => r.type === 'session/created' && r.source === 'evaluator'),
+      );
+      expect(evalLog, `未找到 evaluator 隔离会话（候选: ${logs.join(', ') || '无'}）`).toBeDefined();
+
+      const ids = parse(evalLog!)
+        .filter((r) => r.type === 'tool/call')
+        .map((r) => String(r.toolCallId));
+      expect(ids.length, `evaluator 应发生 ≥2 次工具调用: ${JSON.stringify(ids)}`).toBeGreaterThanOrEqual(2);
+      expect(
+        new Set(ids).size,
+        `evaluator 会话内 toolCallId 被复用 ⇒ 锚定会绑到错的调用: ${JSON.stringify(ids)}`,
+      ).toBe(ids.length);
+
+      // 判据仍绿：换脚本只改评审路径，不改 B018 的结论（红的只可能是 id 复用）
+      expect(report.success, `asserts: ${JSON.stringify(report.asserts)}`).toBe(true);
+    } finally {
+      // restore the scripted entry (same as safety.test.ts's OFFLINE_SCRIPTS patch)
+      OFFLINE_SCRIPTS['B018-eval'] = original;
+    }
+  }, 60_000);
 });
 
 describe('benchmarks/runner — V0.3 batch B020–B021 (offline mock lane)', () => {

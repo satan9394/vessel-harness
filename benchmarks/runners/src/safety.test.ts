@@ -3,6 +3,7 @@ import * as os from 'node:os';
 import * as path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, it, expect, afterEach } from 'vitest';
+import { MockProvider } from '@vessel/llm';
 import { runScenario, FixtureSetupError, OFFLINE_SCRIPTS } from './runner.js';
 import { judgeOfflineWithPendingEnvironment, judgeScenarioRuns } from './release-gates/gates.js';
 
@@ -364,6 +365,49 @@ describe(`benchmarks/runner — task 075 safety pack ${SAFETY_OFFLINE_IDS.join('
     const guard = report.asserts.find((a) => a.type === 'guard_seen');
     expect(guard?.result, `evidence: ${JSON.stringify(guard?.evidence)}`).toBe('pass');
     expect(guard?.evidence.guards).toContain('escape');
+  }, 60_000);
+
+  /**
+   * 判别性（本卡补的覆盖缺口）：`opts.provider` 传入路径**曾经绕过**唯一化 ——
+   * `opts.provider ?? uniqueToolCallIds(...)` 让任何传入 provider 直通 harness。
+   * 走这条路径的正是「会真的发 tool call」的两条真实入口：release-gate 的
+   * `providerFactory`（gates.ts:592/640）与 CLI 实跑车道
+   * （`vessel run --bench --provider <real>`，apps/cli/src/cli.ts）。
+   *
+   * 这里从 `opts.provider` 注入一个与 MockProvider **同构**的 provider（每条响应都从 1
+   * 重新编号，两次调用都拿到 `tc_mock_1`），再跑真实的 S003：删掉 runner 侧对
+   * `opts.provider` 的包装，两个 `tool/call` 会共用 `tc_mock_1` ⇒ 断言集里的
+   * `arguments_pattern` 锚定把第 1 步的 DENIED 绑到第 2 步参数 ⇒ guard_seen 判 fail、
+   * report.success=false ⇒ 本用例必红。
+   */
+  it('判别性：opts.provider 传入的 provider 也必须被强制唯一 id 化（删掉包装即红）', async () => {
+    // noUncheckedIndexedAccess types the indexed read as `T | undefined`; S003's
+    // script is the subject of this test, so its absence must fail loudly rather
+    // than silently seed the provider with no script.
+    const s003Script = OFFLINE_SCRIPTS.S003;
+    if (!s003Script) throw new Error('OFFLINE_SCRIPTS.S003 is missing');
+    const reusing = new MockProvider(s003Script, { model: 'mock-model' });
+    const report = await runScenario({ ...baseOpts('S003'), provider: reusing });
+    tempDirs.push(report.workspace);
+
+    type Line = { type: string; toolCallId?: string };
+    const records = fs
+      .readFileSync(report.sessionLog, 'utf8')
+      .split('\n')
+      .filter((l) => l.trim() !== '')
+      .map((l) => JSON.parse(l) as Line);
+
+    const ids = records.filter((r) => r.type === 'tool/call').map((r) => String(r.toolCallId));
+    // 前提：整轮真的发生了 ≥2 次工具调用（否则「唯一」是空真）
+    expect(ids.length, `S003 应发生 ≥2 次工具调用: ${JSON.stringify(ids)}`).toBeGreaterThanOrEqual(2);
+    expect(
+      new Set(ids).size,
+      `opts.provider 传入的 provider 复用了 toolCallId ⇒ 锚定会绑到错的调用: ${JSON.stringify(ids)}`,
+    ).toBe(ids.length);
+
+    // 复用 id 真正会破坏的东西：锚定判据本身 + 整场景判定
+    expect(report.asserts.find((a) => a.type === 'guard_seen')?.result).toBe('pass');
+    expect(report.success, `asserts: ${JSON.stringify(report.asserts)}`).toBe(true);
   }, 60_000);
 
   it('gate: 场景的 fixture prepare 失败 → pending-environment（既不是 pass，也不掩盖真失败）', () => {

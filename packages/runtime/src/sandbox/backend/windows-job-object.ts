@@ -13,8 +13,12 @@
  *      exits. If the target is ALREADY gone when the compile finishes (errno 87
  *      — the normal case for a short-lived command) the holder reports
  *      `target-exited` instead: there is nothing left to confine, so that is
- *      neither an attach failure nor a warning. The holder must stay alive: when
- *      the last job handle closes, the
+ *      neither an attach failure nor a warning. The SAME 87 answer can come from
+ *      the assign step itself — the target may exit in the window between a
+ *      successful `OpenProcess` and the `AssignProcessToJobObject` — and it means
+ *      exactly the same thing there (see `buildHolderScript`), so it gets the
+ *      same `target-exited` marker and no warning. The holder must stay alive:
+ *      when the last job handle closes, the
  *      OS destroys the job and kills everything in it. The holder is spawned
  *      WITHOUT `detached:true` — a detached PowerShell 5.1 console app cannot
  *      initialize and exits immediately (verified on this machine).
@@ -63,12 +67,21 @@ export interface JobObjectLimits {
 /**
  * Why a job handle does NOT confine its target.
  *
- * `'target-exited'` — `OpenProcess` answered `ERROR_INVALID_PARAMETER` (87),
- * which on Windows means **the PID does not exist**: the command finished before
- * the holder's `Add-Type` compile + assignment completed. That is the NORMAL
- * case for a short-lived command (measured: the compile takes 1–10 s, see
+ * `'target-exited'` — errno 87 (`ERROR_INVALID_PARAMETER`) means, from either
+ * attach phase, **the PID does not exist**: the command finished before the
+ * holder's `Add-Type` compile + assignment completed. That is the NORMAL case for
+ * a short-lived command (measured: the compile takes 1–10 s, see
  * `createJobObject`), NOT an attach failure — there is nothing left to confine,
  * so it gets its own outcome, its own status reason and **no stderr warning**.
+ *
+ * Both phases use the same marker, because both report the same fact:
+ *   - `OpenProcess` answered 87 — the PID was already gone before the attach.
+ *   - `AssignProcessToJobObject` answered 87 — the target exited inside the
+ *     attach window (after a SUCCESSFUL `OpenProcess`). Reporting this one as
+ *     `job-object-attach-failed` would emit a false "the sandbox failed" alarm
+ *     for a short command, i.e. exactly the false positive this split exists to
+ *     remove; the safety direction is unchanged because `target-exited` still
+ *     never terminates anything and never claims confinement.
  *
  * Any other errno — notably 5 `ERROR_ACCESS_DENIED` (missing
  * `PROCESS_SET_QUOTA`/`PROCESS_TERMINATE` rights) — IS a real failure: the holder
@@ -146,6 +159,119 @@ function runPs(script: string): Promise<string> {
   });
 }
 
+/**
+ * Build the job-holder PowerShell script. Pure — no spawn, no I/O — and exported
+ * so the errno→marker policy can be asserted deterministically WITHOUT a real
+ * PowerShell. That matters because the failure mode this encodes (the target
+ * exiting between a successful `OpenProcess` and the `AssignProcessToJobObject`)
+ * cannot be constructed reliably on a machine; the generated script is the only
+ * deterministic artifact that pins those branches down.
+ *
+ * The contract, identical for BOTH phases:
+ *   - `OpenProcess` errno 87             ⇒ ready=`target-exited`
+ *   - `AssignProcessToJobObject` errno 87 ⇒ ready=`target-exited` (the process
+ *     exited inside the attach window; there is nothing left to confine, so it is
+ *     the same fact and must not be reported as an attach failure)
+ *   - anything else (5 = ERROR_ACCESS_DENIED, …) ⇒ `<dir>/error` ⇒ the runtime
+ *     degrades LOUDLY. Never folded into `target-exited`.
+ *
+ * Ordering detail that is part of the contract: each phase reads its errno
+ * IMMEDIATELY after the P/Invoke and BEFORE `CloseHandle` — a second P/Invoke is
+ * free to clobber the thread's last-error value, which would silently turn an
+ * errno-5 access-denied into a bogus "target-exited".
+ */
+export function buildHolderScript(opts: {
+  jobName: string;
+  targetPid: number;
+  limits: JobObjectLimits;
+  readyFile: string;
+  errorFile: string;
+}): string {
+  const { jobName, targetPid, limits, readyFile, errorFile } = opts;
+  return (
+    '$ErrorActionPreference="Stop"\n' +
+    `$name=${psSq(jobName)}\n` +
+    `$tpid=${Math.trunc(targetPid)}\n` +
+    `$maxProc=${Math.trunc(limits.maxActiveProcesses ?? 0)}\n` +
+    `$procMs=${Math.trunc(limits.maxProcessTimeMs ?? 0)}\n` +
+    `$wsBytes=${Math.trunc(limits.maxWorkingSetBytes ?? 0)}\n` +
+    `$ready=${psSq(readyFile)}\n` +
+    `$errFile=${psSq(errorFile)}\n` +
+    '$src=@"\n' +
+    'using System; using System.Runtime.InteropServices;\n' +
+    'public class JobHolder {\n' +
+    ' [StructLayout(LayoutKind.Sequential)] public struct BLI { public long Ppt; public long Pjt; public uint Flags; public IntPtr MinW; public IntPtr MaxW; public uint Active; public IntPtr Aff; public uint Prio; public uint Sched; }\n' +
+    ' [DllImport("kernel32.dll", SetLastError=true, CharSet=CharSet.Unicode)] public static extern IntPtr CreateJobObject(IntPtr a,string n);\n' +
+    ' [DllImport("kernel32.dll", SetLastError=true)] public static extern bool SetInformationJobObject(IntPtr j,int cls,IntPtr i,int len);\n' +
+    ' [DllImport("kernel32.dll", SetLastError=true)] public static extern bool AssignProcessToJobObject(IntPtr j,IntPtr p);\n' +
+    ' [DllImport("kernel32.dll", SetLastError=true)] public static extern IntPtr OpenProcess(uint a,bool i,uint pid);\n' +
+    ' [DllImport("kernel32.dll")] public static extern void CloseHandle(IntPtr h);\n' +
+    '}\n' +
+    '"@\n' +
+    'function Write-Err($m){ try { [IO.File]::WriteAllText($errFile, $m) } catch {} }\n' +
+    'try {\n' +
+    ' Add-Type -TypeDefinition $src -ErrorAction Stop\n' +
+    ` $job=[JobHolder]::CreateJobObject([IntPtr]::Zero,$name)\n` +
+    ' if($job -eq [IntPtr]::Zero){ throw "CreateJobObject failed: $([Runtime.InteropServices.Marshal]::GetLastWin32Error())" }\n' +
+    ' $lim=New-Object JobHolder+BLI\n' +
+    // JOB_OBJECT_LIMIT_WORKINGSET=0x1, JOB_OBJECT_LIMIT_PROCESS_TIME=0x2,
+    // JOB_OBJECT_LIMIT_ACTIVE_PROCESS=0x8. (071 hard-coded 0x4 which is
+    // actually JOB_OBJECT_LIMIT_JOB_TIME, not ACTIVE_PROCESS — fixed in 072.)
+    ' $flags=0\n' +
+    ' if($maxProc -gt 0){ $flags=$flags -bor 0x8; $lim.Active=$maxProc }\n' +
+    ' if($procMs -gt 0){ $flags=$flags -bor 0x2; $lim.Ppt=[long]($procMs*10000) }\n' +
+    ' if($wsBytes -gt 0){ $flags=$flags -bor 0x1; $lim.MaxW=[IntPtr]$wsBytes }\n' +
+    ' $lim.Flags=$flags\n' +
+    ' $sz=[Runtime.InteropServices.Marshal]::SizeOf([type][JobHolder+BLI])\n' +
+    ' $ptr=[Runtime.InteropServices.Marshal]::AllocHGlobal($sz)\n' +
+    ' [Runtime.InteropServices.Marshal]::StructureToPtr($lim,$ptr,$false) | Out-Null\n' +
+    ' [JobHolder]::SetInformationJobObject($job,2,$ptr,$sz) | Out-Null\n' + // BasicLimits=2 (best-effort)
+    ' [Runtime.InteropServices.Marshal]::FreeHGlobal($ptr)\n' +
+    ' $proc=[JobHolder]::OpenProcess(0x101,$false,$tpid)\n' + // PROCESS_SET_QUOTA|PROCESS_TERMINATE
+    // NOTE: no `exit` inside this try block — whether `catch` would intercept
+    // `exit` is version-dependent, and a swallowed `exit` would write $errFile
+    // and turn "the command already finished" into "the sandbox failed". A
+    // plain flag keeps the two paths unambiguous.
+    ' $gone=$false\n' +
+    ' if($proc -eq [IntPtr]::Zero){\n' +
+    '  $code=[Runtime.InteropServices.Marshal]::GetLastWin32Error()\n' +
+    // 87 = ERROR_INVALID_PARAMETER => the PID does NOT exist: the process has
+    // already exited (the holder's Add-Type compile takes 1-10s, so a short
+    // command always finishes first). NOT a failure: write the distinct ready
+    // marker and fall through WITHOUT touching $errFile, so the runtime never
+    // reports job-object-attach-failed and never warns on stderr for it.
+    '  if($code -eq 87){ [IO.File]::WriteAllText($ready, "target-exited"); $gone=$true }\n' +
+    // any other errno (5 = ERROR_ACCESS_DENIED when PROCESS_SET_QUOTA /
+    // PROCESS_TERMINATE rights are missing, plus anything unexpected) IS a real
+    // failure: go through the error file => degraded + warn, never swallowed.
+    '  else { throw "OpenProcess failed: $code" }\n' +
+    ' }\n' +
+    ' if(-not $gone){\n' +
+    '  $assigned=[JobHolder]::AssignProcessToJobObject($job,$proc)\n' +
+    // Read the errno IMMEDIATELY (unconditionally) and BEFORE CloseHandle: the
+    // bind call is free to clobber the thread's last error, and reading it after
+    // CloseHandle would turn a real errno 5 into a bogus "target-exited".
+    '  $acode=[Runtime.InteropServices.Marshal]::GetLastWin32Error()\n' +
+    '  [JobHolder]::CloseHandle($proc)\n' +
+    '  if(-not $assigned){\n' +
+    // 87 here = the target exited in the window between the successful
+    // OpenProcess and this assign. Same fact as the OpenProcess branch (nothing
+    // left to confine) ⇒ same marker, no error file, no stderr warning. Any
+    // other errno stays a REAL attach failure and degrades loudly.
+    '   if($acode -eq 87){ [IO.File]::WriteAllText($ready, "target-exited"); $gone=$true }\n' +
+    '   else { throw "AssignProcessToJobObject failed: $acode" }\n' +
+    '  }\n' +
+    ' }\n' +
+    ' if(-not $gone){\n' +
+    '  [IO.File]::WriteAllText($ready, "assigned")\n' +
+    '  while($true){ Start-Sleep -Milliseconds 300; $p=[System.Diagnostics.Process]::GetProcessById($tpid) 2>$null; if(-not $p){ break } }\n' +
+    '  [JobHolder]::CloseHandle($job)\n' +
+    ' }\n' +
+    '} catch { Write-Err "$($_.Exception.Message)" }\n' +
+    'Remove-Item -LiteralPath $PSCommandPath -Force -ErrorAction SilentlyContinue\n'
+  );
+}
+
 export const WindowsJobObject = {
   isSupported(platform: NodeJS.Platform = process.platform): boolean {
     return platform === 'win32';
@@ -153,85 +279,20 @@ export const WindowsJobObject = {
 
   /**
    * Spawn the detached job-holder: creates the named job, best-efforts the
-   * active-process cap, assigns the target PID, then holds the handle until the
-   * target exits. The holder writes `<dir>/ready` with the attach outcome —
-   * `assigned` on success, `target-exited` when the PID was already gone
-   * (errno 87, the short-command case; NOT written to `<dir>/error`) — or
-   * `<dir>/error` on a REAL failure. `createJobObject` waits for one of them so
-   * the runtime never calls `terminate()` before the assignment is durable.
+   * active-process cap, assigns the target PID (via `buildHolderScript`), then
+   * holds the handle until the target exits. The holder writes `<dir>/ready`
+   * with the attach outcome — `assigned` on success, `target-exited` when the
+   * PID was already gone at EITHER phase (errno 87 from `OpenProcess` or from
+   * `AssignProcessToJobObject`; the short-command case, NOT written to
+   * `<dir>/error`) — or `<dir>/error` on a REAL failure. `createJobObject` waits
+   * for one of them so the runtime never calls `terminate()` before the
+   * assignment is durable.
    */
   hold(jobName: string, targetPid: number, limits: JobObjectLimits): { holder: ChildProcess; dir: string } {
     const dir = mkdtempSync(join(tmpdir(), 'vessel-holder-'));
     const readyFile = join(dir, 'ready');
     const errorFile = join(dir, 'error');
-    const script =
-      '$ErrorActionPreference="Stop"\n' +
-      `$name=${psSq(jobName)}\n` +
-      `$tpid=${Math.trunc(targetPid)}\n` +
-      `$maxProc=${Math.trunc(limits.maxActiveProcesses ?? 0)}\n` +
-      `$procMs=${Math.trunc(limits.maxProcessTimeMs ?? 0)}\n` +
-      `$wsBytes=${Math.trunc(limits.maxWorkingSetBytes ?? 0)}\n` +
-      `$ready=${psSq(readyFile)}\n` +
-      `$errFile=${psSq(errorFile)}\n` +
-      '$src=@"\n' +
-      'using System; using System.Runtime.InteropServices;\n' +
-      'public class JobHolder {\n' +
-      ' [StructLayout(LayoutKind.Sequential)] public struct BLI { public long Ppt; public long Pjt; public uint Flags; public IntPtr MinW; public IntPtr MaxW; public uint Active; public IntPtr Aff; public uint Prio; public uint Sched; }\n' +
-      ' [DllImport("kernel32.dll", SetLastError=true, CharSet=CharSet.Unicode)] public static extern IntPtr CreateJobObject(IntPtr a,string n);\n' +
-      ' [DllImport("kernel32.dll", SetLastError=true)] public static extern bool SetInformationJobObject(IntPtr j,int cls,IntPtr i,int len);\n' +
-      ' [DllImport("kernel32.dll", SetLastError=true)] public static extern bool AssignProcessToJobObject(IntPtr j,IntPtr p);\n' +
-      ' [DllImport("kernel32.dll", SetLastError=true)] public static extern IntPtr OpenProcess(uint a,bool i,uint pid);\n' +
-      ' [DllImport("kernel32.dll")] public static extern void CloseHandle(IntPtr h);\n' +
-      '}\n' +
-      '"@\n' +
-      'function Write-Err($m){ try { [IO.File]::WriteAllText($errFile, $m) } catch {} }\n' +
-      'try {\n' +
-      ' Add-Type -TypeDefinition $src -ErrorAction Stop\n' +
-      ` $job=[JobHolder]::CreateJobObject([IntPtr]::Zero,$name)\n` +
-      ' if($job -eq [IntPtr]::Zero){ throw "CreateJobObject failed: $([Runtime.InteropServices.Marshal]::GetLastWin32Error())" }\n' +
-      ' $lim=New-Object JobHolder+BLI\n' +
-      // JOB_OBJECT_LIMIT_WORKINGSET=0x1, JOB_OBJECT_LIMIT_PROCESS_TIME=0x2,
-      // JOB_OBJECT_LIMIT_ACTIVE_PROCESS=0x8. (071 hard-coded 0x4 which is
-      // actually JOB_OBJECT_LIMIT_JOB_TIME, not ACTIVE_PROCESS — fixed in 072.)
-      ' $flags=0\n' +
-      ' if($maxProc -gt 0){ $flags=$flags -bor 0x8; $lim.Active=$maxProc }\n' +
-      ' if($procMs -gt 0){ $flags=$flags -bor 0x2; $lim.Ppt=[long]($procMs*10000) }\n' +
-      ' if($wsBytes -gt 0){ $flags=$flags -bor 0x1; $lim.MaxW=[IntPtr]$wsBytes }\n' +
-      ' $lim.Flags=$flags\n' +
-      ' $sz=[Runtime.InteropServices.Marshal]::SizeOf([type][JobHolder+BLI])\n' +
-      ' $ptr=[Runtime.InteropServices.Marshal]::AllocHGlobal($sz)\n' +
-      ' [Runtime.InteropServices.Marshal]::StructureToPtr($lim,$ptr,$false) | Out-Null\n' +
-      ' [JobHolder]::SetInformationJobObject($job,2,$ptr,$sz) | Out-Null\n' + // BasicLimits=2 (best-effort)
-      ' [Runtime.InteropServices.Marshal]::FreeHGlobal($ptr)\n' +
-      ' $proc=[JobHolder]::OpenProcess(0x101,$false,$tpid)\n' + // PROCESS_SET_QUOTA|PROCESS_TERMINATE
-      // NOTE: no `exit` inside this try block — whether `catch` would intercept
-      // `exit` is version-dependent, and a swallowed `exit` would write $errFile
-      // and turn "the command already finished" into "the sandbox failed". A
-      // plain flag keeps the two paths unambiguous.
-      ' $gone=$false\n' +
-      ' if($proc -eq [IntPtr]::Zero){\n' +
-      '  $code=[Runtime.InteropServices.Marshal]::GetLastWin32Error()\n' +
-      // 87 = ERROR_INVALID_PARAMETER => the PID does NOT exist: the process has
-      // already exited (the holder's Add-Type compile takes 1-10s, so a short
-      // command always finishes first). NOT a failure: write the distinct ready
-      // marker and fall through WITHOUT touching $errFile, so the runtime never
-      // reports job-object-attach-failed and never warns on stderr for it.
-      '  if($code -eq 87){ [IO.File]::WriteAllText($ready, "target-exited"); $gone=$true }\n' +
-      // any other errno (5 = ERROR_ACCESS_DENIED when PROCESS_SET_QUOTA /
-      // PROCESS_TERMINATE rights are missing, plus anything unexpected) IS a real
-      // failure: go through the error file => degraded + warn, never swallowed.
-      '  else { throw "OpenProcess failed: $code" }\n' +
-      ' }\n' +
-      ' if(-not $gone){\n' +
-      '  $assigned=[JobHolder]::AssignProcessToJobObject($job,$proc)\n' +
-      '  [JobHolder]::CloseHandle($proc)\n' +
-      '  if(-not $assigned){ throw "AssignProcessToJobObject failed: $([Runtime.InteropServices.Marshal]::GetLastWin32Error())" }\n' +
-      '  [IO.File]::WriteAllText($ready, "assigned")\n' +
-      '  while($true){ Start-Sleep -Milliseconds 300; $p=[System.Diagnostics.Process]::GetProcessById($tpid) 2>$null; if(-not $p){ break } }\n' +
-      '  [JobHolder]::CloseHandle($job)\n' +
-      ' }\n' +
-      '} catch { Write-Err "$($_.Exception.Message)" }\n' +
-      'Remove-Item -LiteralPath $PSCommandPath -Force -ErrorAction SilentlyContinue\n';
+    const script = buildHolderScript({ jobName, targetPid, limits, readyFile, errorFile });
     const psFile = join(dir, 'holder.ps1');
     writeFileSync(psFile, script, 'utf8');
     const debug = !!process.env.VESSEL_HOLDER_DEBUG;
@@ -405,7 +466,8 @@ export const WindowsJobObject = {
 /**
  * Readiness marker the job-holder writes into `<dir>/ready`:
  *   - `'assigned'`      → the target is inside the job (confinement is in force)
- *   - `'target-exited'` → the PID was already gone (`OpenProcess` errno 87)
+ *   - `'target-exited'` → the PID was already gone (errno 87 from `OpenProcess`
+ *     or from `AssignProcessToJobObject` — see `buildHolderScript`)
  *   - anything else     → NOT an answer yet. `WriteAllText` creates the file
  *     before it writes, so a poll can catch it empty/partial — that must be
  *     treated as "keep waiting", never guessed as success.
@@ -425,10 +487,11 @@ export function parseAttachMarker(marker: string): 'attached' | 'target-exited' 
  *
  * Two honest outcomes (①: never folded together):
  *   - `attached:true`  → the target is in the job; confinement is in force.
- *   - `attached:false, reason:'target-exited'` → the PID was already gone. This
- *     RESOLVES (it does not throw) so callers can report "confinement was not
- *     needed for this command" instead of "the sandbox failed". A real failure
- *     (errno 5 / holder error / timeout) still THROWS.
+ *   - `attached:false, reason:'target-exited'` → the PID was already gone (errno
+ *     87 from either attach phase). This RESOLVES (it does not throw) so callers
+ *     can report "confinement was not needed for this command" instead of "the
+ *     sandbox failed". A real failure (errno 5 / holder error / timeout) still
+ *     THROWS.
  *
  * Timeout budget: 30 s. Rationale (measured on this machine): the holder's
  * PowerShell `Add-Type` compile costs 1–10 s (a real run in `tasks/078:59`
@@ -437,6 +500,17 @@ export function parseAttachMarker(marker: string): 'attached' | 'target-exited' 
  * once, plus AV scanning) could miss it and degrade a command that would have
  * been confined. 30 s is ~3× the worst measured compile while still bounding a
  * hung holder.
+ *
+ * ⚠ 30 s RACES 1:1 WITH `vitest.config.ts` `testTimeout: 30000` (BRIEF ③). The
+ * two budgets are numerically equal, so a real attach that legitimately needs the
+ * whole budget is abandoned by the holder at the same instant the test runner
+ * kills the test — which one "wins" is scheduling luck, and the observed symptom
+ * is a flaky real-machine job test, not a product bug. The fix is on the TEST
+ * side and must stay there: every test that drives a REAL job object passes an
+ * explicit `timeout >= 120_000` (4×) instead of inheriting the default
+ * (`Sandbox.test.ts` job tests, `windows-job-object.test.ts`). Do NOT "fix" this
+ * by lowering this budget, and do NOT raise it to match a test timeout — a new
+ * real-job test with no explicit timeout reintroduces the race.
  */
 export async function createJobObject(
   targetPid: number,

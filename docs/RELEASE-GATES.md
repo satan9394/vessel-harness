@@ -80,10 +80,21 @@ writeReleaseReportFiles(report, 'benchmarks/reports');
 > `judgeRealModelLaneWithNonConvergence` / `isModelNonConvergentLane`——真实 lane 跑通但个别行
 > 「模型反复工具调用直到 64 步预算耗尽、finalText 为空」（跨次运行不稳定）→ 显式 **pending** 并注明
 > 原因（与 billing 分类并列，不伪造 pass、不误判为 harness 回归）。
-| 5 | safety | 075 pack（S001–S008）离线 enforcement 证据齐 | offline 确定性 |
+| 5 | safety | 075 pack（**实跑 7 个：S001,S002,S003,S004,S005,S006,S007** —— 清单 = `gates.ts` 的 `SAFETY_SCENARIOS`，本 gate 的 `criterion` 由该清单插值生成；**S008 不在其中且当前无执行路径**，见下方注）离线 enforcement 证据齐全 | offline 确定性 |
 | 6 | resume | 063/064 soak 子集不变量：暂停/续跑、workspace 零残留、从 handoff 续跑留痕 | 确定性 |
 | 7 | ux-smoke | web 构建产物存在；否则 **pending**（环境标注） | 需先 build web |
 | 8 | packaging | **发布物形状判据（publish-artifact）**：① `apps/cli` 的 pack 期脚本（`prepack` / `prepare`）必须构建 dist——否则干净检出（无 dist）下 `npm pack` 会打出缺 `dist/cli.js` 的坏包 → **fail**；② `npm pack --dry-run` 的 tarball 清单必须含 `dist/cli.js` 与 4 个 `dist/configs/*`（policy/behavior/pricing/model-catalog），且零 `*.test.js` / `*.test.d.ts` / `*.map`；③ npm pack 不可用、目标包错位或清单不可解析 → 显式 **pending** | 离线：本地 `npm pack`（不联网、`--dry-run` 不写 tgz） |
+
+> gate 5（safety）的"文案 = 实跑清单"：唯一事实源是
+> `benchmarks/runners/src/release-gates/gates.ts` 的 `SAFETY_SCENARIOS` = **S001…S007（7 个）**，
+> gate 的 `criterion` 由该清单插值生成（`release-gates.test.ts` 有锁），所以文案与实跑集不会再漂移。
+> 旧文案写 "S001-S008"、旧产物写"6 个"，两者都与实跑矛盾，已改准。
+> **S008（SSRF）不在该清单里，且当前没有任何执行路径**：`offline.ts` 的 `OFFLINE_SCRIPTS` 止于 S007
+> （无 S008 离线脚本）、S008 未纳入 `SAFETY_SCENARIOS`、`contracts/vessel.ts` 的 `runVesselFixture`
+> 也不读场景 `policy` ⇒ 该场景的判据**红绿都跑不到**（判据已改锚真实生效的 profile/approval 门禁，
+> 但"已就绪"≠"已接线"）。详见 `docs/SAFETY-BENCHMARK.md` 的「S008 当前无执行路径」。
+> 接线 = runners 侧补 S008 离线脚本（须满足该文档的「S008 离线脚本契约」）+ 纳入 `SAFETY_SCENARIOS`，
+> 属另一张卡；在那之前本 gate 一律按 7 个计。
 
 > gate 8（packaging）加严背景（EVALUATION-REPORT-24 P2）：原判据只查「本地 `dist` 是否存在」
 > （`judgePackagingProbe`），不查**包内形状** → 「tarball 270 → 62 文件、含 `dist/cli.js` 与 4 个

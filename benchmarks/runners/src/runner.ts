@@ -285,12 +285,19 @@ function createFixtureLink(linkPath: string, targetPath: string, kind: 'dir' | '
 }
 
 /**
- * Remove every TOP-LEVEL link in a workspace WITHOUT following it.
+ * Drop the TOP-LEVEL links of a workspace WITHOUT following them.
+ *
+ * Scope (exact — do not read this as "the workspace is now link-free"): only entries
+ * that `readdirSync({ withFileTypes: true }).isSymbolicLink()` reports as links are
+ * touched — symlinks on POSIX, and on Windows whatever Node reports as a symlink. A
+ * Windows junction's reporting is platform/Node dependent (same caveat as
+ * `safety.test.ts:entryIsRedirect`); an entry Node does not report as a link is left
+ * in place. So this is a best-effort sweep that removes the links it can SEE.
  *
  * Windows junctions are directory reparse points: `fs.unlinkSync` may refuse
  * them (DeleteFile needs backup semantics) while `fs.rmdirSync` removes the link
- * itself. Dropping the links first also guarantees that a following recursive
- * delete cannot walk THROUGH the link into the (outside) target.
+ * itself. Dropping the detected links first is what keeps a following recursive
+ * delete from walking THROUGH one of them into the (outside) target.
  *
  * Best-effort by contract: cleanup must never throw over a link it cannot drop.
  */
@@ -447,7 +454,13 @@ async function driveScenario(
   }
   if (manifest.harness?.evaluator) {
     const gen = await harness.loop.runTurn(prompt);
-    const evalProvider = new MockProvider(OFFLINE_SCRIPTS[`${manifest.id}-eval`] ?? [], { model });
+    // the evaluator's scripted provider is re-keyed too (`eval_tc_`): the Evaluator
+    // Agent drives Read-only exploration tool calls in its own ISOLATED session, so its
+    // ids must be unique inside that session for the same reason as the main lane.
+    const evalProvider = uniqueToolCallIds(
+      new MockProvider(OFFLINE_SCRIPTS[`${manifest.id}-eval`] ?? [], { model }),
+      'eval_tc',
+    );
     const evaluator = new EvaluatorAgent({
       workspaceRoot: workspace,
       provider: evalProvider,
@@ -643,17 +656,44 @@ async function driveScenario(
  * denied it. The provider is outside this lane's scope, so the benchmark lane re-keys
  * at its own provider seam, where the ambiguity is created.
  *
+ * COVERAGE — this list IS the whole claim ("every tool call of one RUN"); every
+ * provider this lane hands to a driver goes through here, and `prefix` keeps the id
+ * spaces disjoint so two providers of the same run cannot mint the same id:
+ *   1. `runScenario`'s default offline provider (`OFFLINE_SCRIPTS[scenarioId]`) — `tc_`;
+ *   2. the caller-injected `opts.provider` — `tc_`. Used by the release-gate
+ *      `providerFactory` and by the CLI live lane (`vessel run --bench --provider
+ *      <real>`, apps/cli/src/cli.ts). This path used to BYPASS the wrapper
+ *      (`opts.provider ?? uniqueToolCallIds(...)`), i.e. exactly the runs that talk to
+ *      a real model were the un-re-keyed ones;
+ *   3. the Evaluator Agent's scripted provider (`OFFLINE_SCRIPTS[`${id}-eval`]`) —
+ *      `eval_tc_` — it drives Read-only exploration tool calls inside its ISOLATED
+ *      session (EvaluatorAgent → createIsolatedRuntime), so it needs unique ids of its
+ *      own inside that session;
+ *   4. both taskRouter tiers (pro/fast) — `pro_tc_` / `fast_tc_`. Their scripts are
+ *      text-only by construction (`ifNoToolResult` + text response, no `toolCalls`), so
+ *      they cannot emit a tool call today; wrapping them anyway keeps the rule "every
+ *      provider handed to a driver is re-keyed" true with no exception to remember.
+ * Subagent/Planner isolated sessions reuse the SAME wrapped instance (SubagentManager
+ * passes `opts.provider` straight through), so they keep drawing from one sequence.
+ *
  * Ids stay stable WITHIN one response, so `tool_call_start` / `tool_call_delta` /
  * `tool_call_end` pairing and the loop's accumulation (`AgentLoop.consumeStream`) are
  * untouched; only the cross-step collision is removed.
+ *
+ * RESIDUAL (NOT fixed here, stated so the claim above is not read as more than it is):
+ * two DIFFERENT calls that the provider itself stamps with the SAME id inside ONE
+ * response still collapse to one id — the wrapper cannot split them without breaking
+ * the streaming delta pairing it relies on. The upstream root cause is the
+ * per-response numbering in `packages/llm/src/provider/MockProvider.ts:130/175`; fixing
+ * it there is outside this lane.
  */
-export function uniqueToolCallIds(base: ChatProvider): ChatProvider {
+export function uniqueToolCallIds(base: ChatProvider, prefix = 'tc'): ChatProvider {
   let n = 0;
   const rekey = (seen: Map<string, string>, id: string): string => {
     const hit = seen.get(id);
     if (hit !== undefined) return hit;
     n += 1;
-    const next = `tc_${n}`;
+    const next = `${prefix}_${n}`;
     seen.set(id, next);
     return next;
   };
@@ -721,18 +761,18 @@ export async function runScenario(opts: RunScenarioOptions): Promise<ScenarioRep
   }
 
   // provider: offline lane (deterministic) or live (real model).
-  // The offline scripted provider is re-keyed so every tool call in the run owns a
-  // unique `toolCallId` (see `uniqueToolCallIds`): without it a one-call-per-step
-  // script reuses `tc_mock_1`, and the `arguments_pattern` evidence join binds a
-  // denial to the wrong call — S003's "denied but reported as never denied".
-  const provider =
+  // EVERY provider driven to execute tool calls is re-keyed here — including the
+  // caller-injected `opts.provider` (release-gate `providerFactory`; CLI live lane
+  // `vessel run --bench --provider <real>`). The wrapper is not optional on this path:
+  // without it a provider that numbers ids per RESPONSE makes every toolCallId-joined
+  // record ambiguous (see `uniqueToolCallIds` for the exact coverage list).
+  const provider = uniqueToolCallIds(
     opts.provider ??
-    uniqueToolCallIds(
       new MockProvider(OFFLINE_SCRIPTS[opts.scenarioId] ?? [], {
         model: opts.model,
         vars: { cwd: workspace },
       }),
-    );
+  );
 
   const prompt = fs.readFileSync(path.join(workspace, manifest.task_file), 'utf8').trim();
 
@@ -760,14 +800,23 @@ export async function runScenario(opts: RunScenarioOptions): Promise<ScenarioRep
   // V0.4 task routing lane: two offline mock providers (pro/fast tiers); the
   // task prompt is classified and the session routed to a tier. Machine proof:
   // only the tier the task routes to emits the golden marker in its reply.
+  // Both tiers are re-keyed as well (distinct prefixes ⇒ no id can be minted twice
+  // within the run, even if a future script gives a tier a tool call; today both
+  // scripts are text-only and emit none).
   if (manifest.harness?.taskRouter) {
-    const proProvider = new MockProvider(
-      [{ when: /.*/, ifNoToolResult: true, response: { text: 'ROUTED-TO-PRO-TIER GOLDEN-ROUTE-2026' } }],
-      { model: 'pro-model' },
+    const proProvider = uniqueToolCallIds(
+      new MockProvider(
+        [{ when: /.*/, ifNoToolResult: true, response: { text: 'ROUTED-TO-PRO-TIER GOLDEN-ROUTE-2026' } }],
+        { model: 'pro-model' },
+      ),
+      'pro_tc',
     );
-    const fastProvider = new MockProvider(
-      [{ when: /.*/, ifNoToolResult: true, response: { text: 'ROUTED-TO-FAST-TIER' } }],
-      { model: 'fast-model' },
+    const fastProvider = uniqueToolCallIds(
+      new MockProvider(
+        [{ when: /.*/, ifNoToolResult: true, response: { text: 'ROUTED-TO-FAST-TIER' } }],
+        { model: 'fast-model' },
+      ),
+      'fast_tc',
     );
     composeOpts.taskRouter = {
       providers: { pro: proProvider, fast: fastProvider },

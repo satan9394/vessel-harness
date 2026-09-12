@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { spawn, type ChildProcess } from 'node:child_process';
 import { once } from 'node:events';
-import { WindowsJobObject, createJobObject, parseAttachMarker } from './windows-job-object.js';
+import { WindowsJobObject, createJobObject, parseAttachMarker, buildHolderScript } from './windows-job-object.js';
 
 /**
  * windows-job-object — the "target already exited" split (BRIEF ①).
@@ -14,10 +14,65 @@ import { WindowsJobObject, createJobObject, parseAttachMarker } from './windows-
  * warning for every command, i.e. "the sandbox is broken" when the truth is
  * "the command was already over".
  *
+ * BRIEF ② closed the mirror-image hole: the SAME 87 can come back from
+ * `AssignProcessToJobObject`, when the target exits in the window between a
+ * successful `OpenProcess` and the assign. That was still routed to the error
+ * file ⇒ a spurious `job-object-attach-failed` + stderr warning. Both phases are
+ * now pinned by the script assertions below.
+ *
  * Nothing here needs PowerShell to run: the marker → outcome decision is a pure
- * function. The one case that must talk to the real OS (a PID that no longer
- * exists) is `it.skipIf(!onWindows)` — skipped, never faked, elsewhere.
+ * function, and the holder script itself is produced by the pure
+ * `buildHolderScript` (no spawn, no I/O). The one case that must talk to the real
+ * OS (a PID that no longer exists) is `it.skipIf(!onWindows)` — skipped, never
+ * faked, elsewhere.
  */
+describe('windows-job-object — holder script errno contract (pure, no PowerShell)', () => {
+  const script = buildHolderScript({
+    jobName: 'VesselJob_test',
+    targetPid: 4242,
+    limits: { maxActiveProcesses: 4 },
+    readyFile: 'C:\\vessel-test\\ready',
+    errorFile: 'C:\\vessel-test\\error',
+  });
+  // Anchors are the CALL sites, not the P/Invoke declarations (both names appear
+  // in the Add-Type source block as well).
+  const openPhase = script.slice(
+    script.indexOf('$proc=[JobHolder]::OpenProcess(0x101'),
+    script.indexOf('$assigned=[JobHolder]::AssignProcessToJobObject'),
+  );
+  const assignPhase = script.slice(script.indexOf('$assigned=[JobHolder]::AssignProcessToJobObject'));
+
+  it('phase 1 — OpenProcess errno 87 ⇒ "target-exited", never the error file', () => {
+    expect(openPhase).toContain('if($code -eq 87){ [IO.File]::WriteAllText($ready, "target-exited"); $gone=$true }');
+    expect(openPhase).toContain('else { throw "OpenProcess failed: $code" }');
+  });
+
+  it('phase 2 — AssignProcessToJobObject errno 87 ⇒ the SAME "target-exited" marker', () => {
+    // Delete this one line and the test goes red: the assign-phase 87 would fall
+    // through to the `throw` below and re-introduce the false "sandbox failed"
+    // alarm for short commands (the exact regression BRIEF ② names).
+    expect(assignPhase).toContain('if($acode -eq 87){ [IO.File]::WriteAllText($ready, "target-exited"); $gone=$true }');
+    // every other errno (5 = ERROR_ACCESS_DENIED, …) stays a REAL attach failure
+    expect(assignPhase).toContain('else { throw "AssignProcessToJobObject failed: $acode" }');
+    // both phases mean the same thing ⇒ exactly one marker value for it
+    expect(script.match(/WriteAllText\(\$ready, "target-exited"\)/g)).toHaveLength(2);
+  });
+
+  it('phase 2 — reads the errno BEFORE CloseHandle can clobber it', () => {
+    // Reading the errno after CloseHandle would turn a real errno 5 into a bogus
+    // "target-exited" — i.e. it would swallow a genuine confinement failure.
+    const read = assignPhase.indexOf('$acode=[Runtime.InteropServices.Marshal]::GetLastWin32Error()');
+    const close = assignPhase.indexOf('[JobHolder]::CloseHandle($proc)');
+    expect(read).toBeGreaterThanOrEqual(0);
+    expect(close).toBeGreaterThan(read);
+    // …and the read happens unconditionally right after the assign, so no other
+    // managed statement can run in between.
+    expect(assignPhase).toContain(
+      '$assigned=[JobHolder]::AssignProcessToJobObject($job,$proc)\n  $acode=[Runtime.InteropServices.Marshal]::GetLastWin32Error()\n',
+    );
+  });
+});
+
 describe('windows-job-object — attach marker → outcome (pure, no PowerShell)', () => {
   it('maps the holder\'s "assigned" marker to a real attach', () => {
     expect(parseAttachMarker('assigned')).toBe('attached');
@@ -49,6 +104,12 @@ describe('windows-job-object — attach marker → outcome (pure, no PowerShell)
 describe('windows-job-object — real-machine attach outcome (win32 + PowerShell)', () => {
   const onWindows = process.platform === 'win32';
 
+  // BRIEF ③: this test drives a REAL job holder, whose own budget is 30 s
+  // (`createJobObject` default) — numerically identical to vitest's default
+  // `testTimeout: 30000` (`vitest.config.ts:47`). Inheriting the default would
+  // make the outcome a race between the holder giving up and the runner killing
+  // the test. The timeout is therefore EXPLICIT and 4× the holder budget; the
+  // assertions are untouched (no skip, no relaxation).
   it.skipIf(!onWindows)(
     'an already-exited PID RESOLVES as target-exited instead of throwing an attach failure',
     async () => {
@@ -73,6 +134,6 @@ describe('windows-job-object — real-machine attach outcome (win32 + PowerShell
       expect(conf.reason).toBe('target-exited');
       await conf.dispose();
     },
-    60_000,
+    120_000,
   );
 });

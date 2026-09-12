@@ -128,10 +128,13 @@ export function createShellTool(opts: {
       if (!command) {
         return { content: '', error: { errorClass: 'INVALID_ARGS', message: 'command required' }, meta: {} };
       }
-      // confine seam: with the Windows Job Object backend this reports real
-      // enforcement ('full') and `run` below actually confines the spawn.
+      // confine seam: with the Windows Job Object backend this reports the
+      // enforcement the backend is prepared to provide ('full') and `run` below
+      // actually confines the spawn. It is a PRE-round prediction (it only reads
+      // the failure recorded by an earlier round), so it is surfaced under its
+      // own name — `preRoundEnforcement` — and is never mixed with the
+      // round-scoped facts of this spawn.
       const confined = await sandbox.confine(command.split(/\s+/));
-      const status = sandbox.statusSnapshot();
       try {
         const r = await sandbox.run(command, [], {
           timeoutMs,
@@ -149,12 +152,21 @@ export function createShellTool(opts: {
         // The full audit is NOT dumped into the model-visible content.
         const escapeEvents = selectEscapeAuditEvents(r.audit);
         for (const e of escapeEvents) opts.audit?.(e);
-        // honest sandbox facts for THIS spawn: the runtime status is only active
-        // when the job object really attached; `degraded` carries the reason it
-        // did not, so a degraded run cannot look confined.
+        // Honest sandbox facts for THIS spawn (BRIEF ①). Which round each field
+        // describes is NOT allowed to be ambiguous:
+        //   - `preRoundEnforcement` — what `confine()` predicted BEFORE this round
+        //     opened (a capability statement about the backend, not an outcome).
+        //   - `supported` / `active` / `backend` / `degraded` / `reason` — the
+        //     outcome of THIS round, taken from `r.sandbox`, i.e. the status
+        //     `Sandbox.run` captured AFTER the spawn + attach settled.
+        // Why it must be `r.sandbox`: `run()` opens a fresh round
+        // (`Sandbox.beginRound()` clears `degraded`), so a snapshot taken BEFORE
+        // `run()` describes the PREVIOUS round — it would report `active:true`
+        // (and no `degraded`) for a round whose attach actually failed, and the
+        // durable `tool/result` record would claim confinement that never was.
         const sandboxMeta: Record<string, unknown> = {
-          enforcement: confined.enforcement,
-          ...statusMeta(status),
+          preRoundEnforcement: confined.enforcement,
+          ...statusMeta(r.sandbox),
           ...(escapeEvents.length > 0 ? { audit: escapeEvents } : {}),
         };
         if (r.exitCode !== 0 || r.killed) {
