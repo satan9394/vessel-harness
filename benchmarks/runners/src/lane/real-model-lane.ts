@@ -117,7 +117,20 @@ export const LANE_SCENARIOS: LaneScenarioEntry[] = [
   { id: 'B027', tier: 'pro', runnable: false, note: 'resume driver (handoff source=handoff continuation, offline deterministic)' },
 ];
 
-/** Lane row status (§15.1 L2 honesty). */
+/**
+ * Lane row status (§15.1 L2 honesty).
+ *
+ * 为什么不给「回合未正常收尾」加一个新状态（如 'error'/'partial'）：
+ * 真实模型 lane 的**下游消费方按精确枚举值计数**——
+ * `release-gates/gates.ts:903` 只把 `status === 'failed'` 的行计入 `failed`，
+ * 其它枚举值既不计 failed、也不计 pending-environment，`judgeRealModelLane`
+ * 会返回 `pass`（"真实模型 lane 全过（passed/rowCount）"）——即**新增状态本身
+ * 会再造一个"来源不明的绿灯"**，而这正是本卡在治的病。
+ * `report/report.ts:62`（`rowsFromLaneReport` → `rowFromRunResult`）同样只认
+ * metrics.success。因此本卡：状态仍取既有枚举 `'failed'`（收紧、不放宽任何判据，
+ * 下游计数照旧生效），并给行加**加法**字段 `turnEndedAbnormally`/`turnKind`
+ * 让「跑了但没跑完」与「判据不通过」在报告里可区分。
+ */
 export type LaneRowStatus = 'passed' | 'failed' | 'pending-environment' | 'skipped';
 
 /** One (model × scenario) lane outcome. */
@@ -130,6 +143,15 @@ export interface LaneRunRow {
   result?: RunResult;
   /** human note for pending/passed/failed/skipped. */
   note?: string;
+  /**
+   * 证据层诚实性（本卡）：该行对应的 run **回合未正常收尾**——`RunResult.notes`
+   * 带 `turn ended kind=<非 success>`（写入侧 contracts/vessel.ts:223-230）。
+   * `true` ⇒ `status` 必为 `'failed'`，**即便 `metrics.success === true`**。
+   * 缺席（undefined）= 正常收尾，与改动前的行逐字一致（键都不出现）。
+   */
+  turnEndedAbnormally?: boolean;
+  /** 未正常收尾时的回合 kind（'error' / 'interrupted' / 'budget'）；仅随上面一起出现。 */
+  turnKind?: string;
 }
 
 /** Per-model aggregate over the §15 L3 surface. */
@@ -252,6 +274,51 @@ export function describeLaneFailureNote(result: RunResult): string {
 }
 
 /**
+ * 未正常收尾的回合 kind —— 从 076 `RunResult.notes` 里读回（本卡只动 lane，不动契约）。
+ *
+ * 写入侧唯一来源：contracts/vessel.ts:223-230 只在 `turnKind !== undefined && turnKind !== 'success'`
+ * 时追加一条以 `turn ended kind=` 起首的 note；`kind === 'success'`（以及正常收尾）时
+ * `notes` 保持 `undefined`。因此本谓词：
+ *  - 对正常行恒为 `undefined`（绝不影响既有 passed 行）；
+ *  - 对「回合被打死但 metrics.success===true」的行返回真实 kind。
+ *
+ * 注意（只报告，未在本卡内改）：这是对 adapter 文案的**字符串耦合**。durable 的修法是给
+ * 076 契约加结构化字段（如 `RunResult.turnKind`），但 contracts/** 不在本卡改动范围内。
+ * 外部 CLI adapter（dsh/opencode/codex/pi/claude）今天不写该标记 —— 它们的同类缺口
+ * （`acc.success` 默认 true、只在 finalText 为空时置 false）见各 adapter 的 success 归一化处。
+ */
+export function abnormalTurnKindOf(result: RunResult): string | undefined {
+  for (const n of result.notes ?? []) {
+    const m = /^turn ended kind=([^\s：:，,（(]+)/.exec(n);
+    if (m && m[1] !== 'success') return m[1];
+  }
+  return undefined;
+}
+
+/**
+ * 回合未正常收尾（但 `metrics.success === true`）行的可见原因。
+ *
+ * 为什么要这条 note：`metrics.success` 的口径是
+ * `runError === null && finalText.trim().length > 0`（contracts/vessel.ts:197 —— 「模型说了话」），
+ * 而熔断器打死的回合（core AgentLoop.ts:334-338：kind='error'，`err.message` 写进 finalText 后
+ * **正常 return**）带着**非空** finalText ⇒ success=true。旧口径据此判 `passed`，
+ * 那条「本 run 未正常收尾」的 notes 只躺在 `row.result.notes` 里，报告表层看不到 ——
+ * 一行「回合被打死」的运行在 lane 报告里成了 passed（来源不明的绿灯比红灯更危险）。
+ *
+ * 纪律：本 note 只在 `metrics.success === true` 且检测到非正常收尾时生成；
+ * `metrics.success === false` 的行仍走 `describeLaneFailureNote`（**逐字不变**，
+ * 保持 gate 的 `isModelNonConvergentLane`「finalText 为空」基线可判）。
+ */
+export function describeAbnormalTurnNote(result: RunResult, kind: string): string {
+  const notes = result.notes ?? [];
+  const raw = notes.length > 0 ? `；运行异常：${notes.join(' | ')}` : '';
+  return (
+    `RunResult metrics.success=true，但回合未正常收尾（kind=${kind}）：` +
+    `finalText 是错误/半截文案而非模型答案 ⇒ 本行不计 passed${raw}`
+  );
+}
+
+/**
  * Run the real-model lane: every configured model × applicable scenario,
  * driving each through the 076 Vessel self-adapter and collecting §15 L3
  * RunResult rows. Degradation: a model whose provider cannot be resolved is
@@ -339,15 +406,27 @@ export async function runRealModelLane(opts: {
       try {
         const result = await vesselAdapter.run(fixture);
         const issues = validateRunResult(result);
-        const status: LaneRowStatus = issues.length === 0 && result.metrics.success ? 'passed' : 'failed';
+        /**
+         * 证据层诚实性（本卡）：行的 passed 不再只看 `metrics.success`。
+         * 裁决：**回合未正常收尾（`turnEndedAbnormally`）的行不得报 passed** ——
+         * `passed` 是对外声称「这一行跑通了」，而它没跑完；这与「失败被上报为成功」同族。
+         * 状态仍取既有 `'failed'`（理由见 `LaneRowStatus` 注释：新枚举值会让
+         * gates.ts:903 / report.ts:62 的精确计数静默漏掉该行 ⇒ 再造绿灯）。
+         */
+        const abnormalKind = abnormalTurnKindOf(result);
+        const status: LaneRowStatus =
+          issues.length === 0 && result.metrics.success && abnormalKind === undefined ? 'passed' : 'failed';
         // task 102：failed 行必须带可见原因（此前 success=false 的行 note 为空，gate 无法归类）。
         // task 108：success=false 且带运行异常（如上游 400 线协议拒绝）时，原因写进 note（追加真实
         // 异常文案，保留「finalText 为空」基线子串，供 gate 判据区分「未收敛」与「线协议不兼容」）。
+        // 本卡：success=true 但回合未正常收尾时同样给出可见原因（此前只在 result.notes 里）。
         const note = issues.length > 0
           ? `invalid RunResult: ${issues.map((i) => i.field).join(', ')}`
-          : result.metrics.success
-            ? undefined
-            : describeLaneFailureNote(result);
+          : !result.metrics.success
+            ? describeLaneFailureNote(result)
+            : abnormalKind !== undefined
+              ? describeAbnormalTurnNote(result, abnormalKind)
+              : undefined;
         rows.push({
           modelId: model.id,
           scenarioId: scenario.id,
@@ -355,6 +434,10 @@ export async function runRealModelLane(opts: {
           status,
           result,
           note,
+          // 加法字段：只在异常收尾的行上出现 —— 正常行的键集/取值与改动前逐字一致。
+          ...(abnormalKind !== undefined
+            ? { turnEndedAbnormally: true as const, turnKind: abnormalKind }
+            : {}),
         });
       } catch (err) {
         rows.push({
