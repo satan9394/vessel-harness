@@ -345,3 +345,14 @@ parseFailed=true  ⇒ AgentLoop 退化成 {_raw:...}，工具拿不到 path
 - 除**正在派卡修的"重复 `content_block_start`"**外，**没有第四处同形点**（`packages/**` 其余命中都是文档注释、测试里的等价累加器，或无关的"累加"用词）。
 
 ⇒ **这一点值得留档**，因为它把"该族是否还有漏网"变成**已查证**：修完重复 start 后，这条线可以判定为**闭合**，下一个人不必再扫一遍。**同时也说明该族的边界**：它只在"**多帧拼一个字符串、且拼装状态由 id 索引**"的地方出现——本仓恰好只有工具参数这一条链。
+
+### Round 64 — **更正 Round 63 的"闭合"结论**：重复 start 只修了主形态，**留了一个真缺口**
+
+**已修并提交**：`feed()` 的 `tool_call_start` 分支加了 `startedIndexes.has(index)` 守卫（重复 start 本身丢弃、其**非空**种子折成 append-only 的 `tool_call_delta`、空种子什么都不发），规范流整数组逐字不变由负对照断言。⇒ **"带 id+name 的重复 start"这一主形态已收口。**
+
+**但我在 Round 63 写下的"这条线可以判定为闭合"说早了。** 执行者诚实列出三个**未覆盖**子形态，其中**第一条是真缺口**：
+1. **重复 start 不带 `id`/`name`、但带非空 `input`**：`parseAnthropicEvent` 的 `block.id && block.name` 守卫使该帧**根本不产生 `tool_call_start`** ⇒ 新守卫**看不到它**；而写进 `toolInputJsonByIndex` 的种子对**已 started** 的 index **永不被读取**（该 map 只被 `flushToolBlock` 读，而它只服务**未 started** 块）⇒ **这一帧的种子仍然静默丢失**。**补它需要在 `content_block_start` 记账处再加一个发射点**（或改 mapper 守卫）——**属独立决策**，本卡按最小改法收口，未做。
+2. **同 index 但换了 `id` 的重复 start**：`toolIdByIndex.set` 在本帧映射前先执行 ⇒ 折出的 delta 与随后的 `tool_call_end` 都打到**新 id**，消费侧没有该 id 的累加器 ⇒ 该帧种子丢（**先前的累计片段不会丢**：`AgentLoop` 结尾对 `order` 有兜底 finalize）。彻底修法是"**首个 start 冻结身份**"，会改变已 started 块的 id 语义。
+3. **重复 start 携带不同 `name`**：`tool_call_delta` 词表里**没有 name 字段**（`packages/shared/src/provider.ts:133`）⇒ 名字无处可传，**属词表限制**。
+**执行者的建议（我采纳）**：为**协议违规**另设**独立**只读计数（如 `duplicateStarts`），**不要并进 `malformedFrames`**——后者口径是"字节层面不可解析（截断）"，混在一起会让"连接被截断"与"上游重发帧"两种事故不可区分。**边界必须写清**：`content_block_stop` 之后复用同一 index 是**合法**的（状态已清），**不得**计入；只有"块还开着又来 start"才算异常。
+**已派卡**：做"协议违规计数"（便宜、让上面第 1 条的丢数据**至少可见**），并把第 1 条的**数据保全**修复列为需单独裁决的设计项（它要新增第二个发射点，不能顺手做）。
