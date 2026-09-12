@@ -1101,6 +1101,18 @@ async function cmdRun(flags: Map<string, string>): Promise<number> {
      *
      * 顺序与 `cmdPolicyStatus` 一致：**先**产出文档（失败不缩水产物），**再**定退出码 —— 下面
      * `exitCode !== 0` 时仍走既有 `fail()` 出口，信封只进 stderr、`code` 与退出码同源。
+     *
+     * 本卡③（**加法补齐**，不改既有字段）：人类分支能看到的量，`--json` 消费方也要能读到——
+     *   - `durationMs`：`TurnResult` 的**既有**标量（`AgentLoop` 每回合都在算），此前只有字节
+     *     消费方读不到；**如实声明**：人类分支今日**并不**打印它（`turnHeader` 只有标题、
+     *     脚注只有 turnId/kind/steps/toolCalls），所以这一条不是"人看得见、脚本看不见"，
+     *     而是"机器可读面缺一个已存在的标量"（见交付说明⑥）；
+     *   - `enforcement`：人类分支的 `printEnforcementTelemetry` 那几行（计数/来源/沙箱状态/
+     *     最近 3 条）的结构化形态。**取数与人类分支共用同一个函数**（`enforcementTelemetryDoc`，
+     *     它就是 `printEnforcementTelemetry` 的唯一取数口径，人类行由它渲染出来）⇒ 两处不可能
+     *     各说各话。形状**照实际渲染的字段**：counts / sources / status(backend/enabled/active/
+     *     degraded/fallbackReason) / recent(source,type,ts,detail,meta) —— **不发明**字段，
+     *     拿不到的（如本是自由文本拼接的东西）就不放。
      */
     if (isJson(flags)) {
       emitJson({
@@ -1108,8 +1120,10 @@ async function cmdRun(flags: Map<string, string>): Promise<number> {
         finalText: renderTurnFinalText(result.kind, result.finalText, usingMockProvider),
         steps: result.steps,
         toolCalls: result.toolCalls,
+        durationMs: result.durationMs,
         turnId: result.turnId,
         sessionLog: harness.session.logPath,
+        enforcement: enforcementTelemetryDoc(harness),
       });
     } else {
       // BRIEF-18：标题由 kind 决定 —— `kind='error'` 时**不得**把 loop 的错误文案挂在
@@ -1153,12 +1167,86 @@ async function cmdRun(flags: Map<string, string>): Promise<number> {
 }
 
 /**
+ * 执法遥测文档（本卡③的 `--json` 新字段 `enforcement`）—— **形状照人类分支实际渲染的字段来**：
+ *  - `counts`   ← 人类行 `  计数: k=v, …`（`snapshot().counts`，键序=首次出现序）；
+ *  - `sources`  ← 人类行 `  来源: policy=… fs-confinement=… process-tree=… sandbox-status=…`
+ *                 （`snapshot().sources` 的四个来源，原样一份，不另算）；
+ *  - `status`   ← 人类行 `  状态: backend=… enabled=… active=… degraded=… (fallbackReason)`
+ *                 （`snapshot().status()`，`null` = 该行**不打印**的那种情况）；
+ *  - `recent`   ← 人类行 `    [source] type @ ts: detail {meta}`（`snapshot().recent(3)`）。
+ * 字段名就是人类行里渲染出来的那几个，**没有发明**新概念。
+ *
+ * `null` 的两处（`backend` / `degraded` / `fallbackReason`）：人类行用 `?? 'none'` 把"没有"
+ * 渲染成字面量 `none`，JSON 保留**原始值**（没有就是 `null`），因为 `backend:'none'` 本身
+ * 也是合法取值，JSON 面能区分这两者、人类行不能——这是 JSON 的加法，不是改口径。
+ */
+interface EnforcementTelemetryDoc {
+  counts: Record<string, number>;
+  sources: Record<string, number>;
+  status: {
+    backend: string | null;
+    enabled: boolean;
+    active: boolean;
+    degraded: string | null;
+    fallbackReason: string | null;
+  } | null;
+  recent: {
+    source: string;
+    type: string;
+    ts: number;
+    detail: string;
+    meta?: Record<string, unknown>;
+  }[];
+}
+
+/**
+ * 执法遥测的**唯一取数口径**：先 `reportStatus()`（把真实沙箱状态推进投影，本卡之前只有
+ * 人类分支会调它——所以 `--json` 的 `status` 曾经**必然**是 `undefined`），再 `snapshot()`。
+ *
+ * 人类分支（`printEnforcementTelemetry`）与 `--json` 的 `enforcement` 字段**共用本函数**：
+ * 前者把返回值渲染成那几行，后者直接序列化 ⇒ 两处值同源、不可能各说各话（"不许复制一份算法"）。
+ * 副作用（有意，同 `printEnforcementTelemetry` 的注释）：每次调用都会记一条 `sandbox-status`
+ * 的 `report` 事件；两条分支各自只调一次，不会重复记账。
+ */
+function enforcementTelemetryDoc(harness: ComposedHarness): EnforcementTelemetryDoc {
+  const enforcement = harness.enforcement;
+  // report the REAL runtime status (the same Sandbox instance the Shell tool
+  // confines with) before snapshotting, so `status()` is production-reachable.
+  enforcement.reportStatus(harness.sandbox.statusSnapshot());
+  const snap = enforcement.snapshot();
+  const st = snap.status();
+  return {
+    counts: snap.counts,
+    sources: { ...snap.sources },
+    status: st
+      ? {
+          backend: st.backend ?? null,
+          enabled: st.enabled,
+          active: st.active,
+          degraded: st.degraded ?? null,
+          fallbackReason: st.fallbackReason ?? null,
+        }
+      : null,
+    recent: snap.recent(3).map((ev) => ({
+      source: ev.source,
+      type: ev.type,
+      ts: ev.ts,
+      detail: ev.detail,
+      ...(ev.meta !== undefined ? { meta: ev.meta } : {}),
+    })),
+  };
+}
+
+/**
  * task 074 enforcement telemetry query seam (minimal CLI data face). Prints the
  * aggregated counts + last few enforcement events + sandbox status from the
  * harness's EnforcementProjection. The full query API (`events / counts /
  * recent(n) / status / treeAudit`) lives on the projection itself.
  *
- * § 死 seam 接线（本卡 ③）：这里先调用 `reportStatus()`，生产路径才真的拿到 sandbox
+ * 本卡③：取数搬进 `enforcementTelemetryDoc`（`--json` 的 `enforcement` 字段与这里**同一个**
+ * 返回值），本函数只剩渲染 —— 逐字输出与搬之前**完全一致**（负对照：③-2 的逐行断言一条未动）。
+ *
+ * § 死 seam 接线（③）：这里先调用 `reportStatus()`，生产路径才真的拿到 sandbox
  * 状态。此前全仓只有测试调用它 ⇒ `snapshot().status()` 恒为 `undefined` ⇒ 下面那行
  * 状态**永不打印**，用户既看不到"生效"也看不到"未生效"，唯一信号是 stderr 的降级刷屏。
  * 读的是 `harness.sandbox`——Shell 工具真正用来 confine 的**同一个实例**
@@ -1169,19 +1257,15 @@ async function cmdRun(flags: Map<string, string>): Promise<number> {
  * 一次，见 `Sandbox.warnedDegradations`）。
  */
 function printEnforcementTelemetry(harness: ComposedHarness): void {
-  const enforcement = harness.enforcement;
-  // report the REAL runtime status (the same Sandbox instance the Shell tool
-  // confines with) before snapshotting, so `status()` is production-reachable.
-  enforcement.reportStatus(harness.sandbox.statusSnapshot());
-  const snap = enforcement.snapshot();
+  const doc = enforcementTelemetryDoc(harness);
   console.log(`\n=== 安全执法遥测 (enforcement telemetry) ===`);
-  const counts = Object.entries(snap.counts);
+  const counts = Object.entries(doc.counts);
   if (counts.length > 0) {
     console.log(`  计数: ${counts.map(([k, v]) => `${k}=${v}`).join(', ')}`);
   }
-  const srcs = snap.sources;
+  const srcs = doc.sources;
   console.log(`  来源: policy=${srcs.policy} fs-confinement=${srcs['fs-confinement']} process-tree=${srcs['process-tree']} sandbox-status=${srcs['sandbox-status']}`);
-  const st = snap.status();
+  const st = doc.status;
   if (st) {
     // `degraded` is the machine-readable "why confinement was not in force"
     // (or 'none' when it was): the point of this line is that a user can tell
@@ -1190,7 +1274,7 @@ function printEnforcementTelemetry(harness: ComposedHarness): void {
       `  状态: backend=${st.backend ?? 'none'} enabled=${st.enabled} active=${st.active} degraded=${st.degraded ?? 'none'}${st.fallbackReason ? ` (${st.fallbackReason})` : ''}`,
     );
   }
-  for (const ev of snap.recent(3)) {
+  for (const ev of doc.recent) {
     const m = ev.meta && Object.keys(ev.meta).length > 0 ? ` ${JSON.stringify(ev.meta)}` : '';
     console.log(`    [${ev.source}] ${ev.type} @ ${ev.ts}: ${ev.detail}${m}`);
   }
@@ -2382,9 +2466,10 @@ async function cmdPricing(args: string[], flags: Map<string, string>): Promise<n
  * 用完还原；默认实现就是 `runVesselMigration`，**生产路径零变化**）。
  *
  * 为什么需要它（本卡证据性质的如实声明）：`runVesselMigration` 的默认 recycler 走 PowerShell
- * 回收站——在本机（win32）要么成功、要么压根构造不出来；而本卡的裁决（**回收失败 ⇒ 退出码非 0**）
- * 必须有一条**走真实 `main(['migrate'])`** 的判别性用例。有了这个缝，用例可以注入
- * `recycled === false`（含 `recycleError`）这一结局，而**不必**去碰真实 `~/.dsh` / `~/.vessel`
+ * 回收站——在本机（win32）要么成功、要么压根构造不出来；而本卡的裁决（**回收尝试失败 ⇒ 非 0**、
+ * **平台不支持 ⇒ 0**、**`~/.vessel` 已存在但旧根仍在 ⇒ 先补做回收**）必须有一条**走真实
+ * `main(['migrate'])`** 的判别性用例。有了这个缝，用例可以注入 `recycled === false`
+ * （含 `recycleError` / `recycleUnsupported`）等结局，而**不必**去碰真实 `~/.dsh` / `~/.vessel`
  * （AGENTS.md §8：默认路径的用例不得读写真实用户态目录）。
  */
 export const migrateRuntime = {
@@ -2394,18 +2479,27 @@ export const migrateRuntime = {
 /**
  * `vessel migrate` — one-time ~/.dsh → ~/.vessel state migration (task 033).
  *
- * **退出码（本卡②裁决）**：`recycled === false`（旧目录未能送进回收站）⇒ **1**。
+ * **退出码（①②裁决，三条分流；别再把它们混成一锅）**：
+ *  1. **平台不支持回收**（`res.recycleUnsupported`：`defaultRecycle` 在非 Windows 上恒抛）
+ *     ⇒ **0** —— 数据确实已迁移成功/早已就绪，**不是**失败；但**必须**在输出里说清
+ *     「旧目录仍在原处、本平台无法自动回收、请手工处理」，**不许**说成"已回收"
+ *     （把这条算成 1，会让 Linux/macOS 上一次成功的迁移也退 1，脚本就此停住）；
+ *  2. **尝试回收后失败**（有实现但抛错 ⇒ `recycleError` 有值且非"不支持"）⇒ **1**。
+ *     数据**确实**已到 `~/.vessel`，所以走非 0 的同时文案必须说清「数据已迁移成功，
+ *     但旧目录未能回收」，并且**不回滚、不删除任何东西**；
+ *  3. `recycled === true` / `legacy-absent` / 「旧根已不在的 vessel-present」
+ *     三条既有文案与退出码**逐字不变**（负对照）。
  *
- * 复现（改前，静态可核）：旧写法在该分支只 `console.warn(...)` 然后**无条件 `return 0`**，
- * 而 `USAGE`（本文件 :102）与函数自己的文案都把本命令承诺成"数据复制 **+ 旧目录进回收站**"
- * ⇒ **承诺了回收、失败却算成功**，脚本只能读退出码，于是 `vessel migrate && 下一步` 会在
- * 旧目录还躺在原地时继续跑。
+ * **② 短路分支**：`~/.vessel` 已存在时**不再无条件退 0**——`runVesselMigration` 先看旧根
+ * 是否仍在（执行到那里必然仍在，见其注释）⇒ 本次**只补做回收**，结局同样走上面 1/2/3 的分流。
+ * 所以本函数对 `reason === 'vessel-present'` 的四种取值：
+ *   - `recycled` ⇒ 退 0，且说清"数据早已在 ~/.vessel，本次完成的是回收"；
+ *   - `recycleUnsupported` ⇒ 退 0 + 手工提示（①，**不许**说"已回收"）；
+ *   - `recycleError` ⇒ 退 1（②）；
+ *   - 三者都没有（旧根已不在、本次未尝试回收）⇒ 既有文案**逐字不变**、退 0。
  *
- * 另一半裁决（**不得**把已完成的主体动作算作失败）：数据**确实**已复制到 `~/.vessel`，
- * 所以走非 0 的同时，文案必须说清「**数据已迁移成功，但旧目录未能回收**」，并且
- * **不回滚、不删除任何东西**（`runVesselMigration` 本来就不回滚；本函数也不做任何清理）。
- *
- * `recycled === true`（负对照）与两个 `skipped` 分支的 stdout 文案**逐字不变**、退出码不变。
+ * `recycleError` 一旦有值，文案里的"再跑一次会怎样"必须与②的新行为一致：**再跑会再试一次
+ * 回收**（成功即退 0、仍失败即再退 1），**不得**再声称"会跳过并退 0"——那是①之前的旧事实。
  */
 async function cmdMigrate(): Promise<number> {
   const res = await migrateRuntime.run();
@@ -2414,6 +2508,29 @@ async function cmdMigrate(): Promise<number> {
     return 0;
   }
   if (res.status === 'skipped' && res.reason === 'vessel-present') {
+    if (res.recycled) {
+      // ②：数据早已在 ~/.vessel（本次没复制），本次真正完成的是"回收"这一步。
+      console.log('[vessel migrate] 已存在 ~/.vessel，数据早已就绪；本次完成的是回收。');
+      console.log('[vessel migrate] 旧目录 ~/.dsh 已送进回收站。');
+      return 0;
+    }
+    if (res.recycleUnsupported) {
+      // ①：平台不支持 ⇒ 退 0（数据早已就绪，不是失败），但必须说清旧目录仍在原处。
+      console.warn(unsupportedRecycleNotice(res));
+      return 0;
+    }
+    if (res.recycleError !== undefined) {
+      // ②：这次**真的尝试过**回收且失败 ⇒ 非 0。数据早已就绪、不回滚不删除。
+      console.warn(
+        '[vessel migrate] 数据早已在 ~/.vessel（本次无需再复制），' +
+          `但旧目录 ~/.dsh 本次未能自动回收（${res.recycleError}）。\n` +
+          '  已就绪的数据不回滚、不删除；请手工把旧目录移入回收站（不要永久删除）。\n' +
+          '  注意：再次运行 vessel migrate 会再尝试一次回收：成功即退 0，仍失败则再次退 1。',
+      );
+      return 1;
+    }
+    // 旧根已不在 ⇒ 真正的"无需再迁"（生产里这条由上面的 `legacy-absent` 承担；本分支是
+    // 调用方注入的"未尝试回收"形状）⇒ 既有文案**逐字不变**、退 0（负对照）。
     console.log('[vessel migrate] 已存在 ~/.vessel（跳过；保留 ~/.dsh 未动）。');
     return 0;
   }
@@ -2422,20 +2539,42 @@ async function cmdMigrate(): Promise<number> {
     console.log('[vessel migrate] 旧目录 ~/.dsh 已送进回收站。');
     return 0;
   }
-  // 回收失败：数据已就位**不算失败**（不回滚、不删除），失败的是"旧目录回收"这一步——
+  if (res.recycleUnsupported) {
+    // ①：数据已迁移成功；"本平台做不到回收"**不是**失败 ⇒ 退 0 + 手工提示。
+    console.warn(unsupportedRecycleNotice(res));
+    return 0;
+  }
+  // ②：回收失败：数据已就位**不算失败**（不回滚、不删除），失败的是"旧目录回收"这一步——
   // 文案两件事都说清，退出码非 0（`USAGE` 承诺过回收；"主体动作已完成"不足以让脚本判定成功）。
-  //
-  // **不许写"重跑会再退 1"**：回收失败后 `~/.dsh` 仍在、`~/.vessel` 也已建好，再跑一次会先命中
-  // `runVesselMigration` 的 `vessel-present` 短路（**退 0** 并打印"保留 ~/.dsh 未动"）。
-  // 文案只承诺本函数真正做得到的事（见交付说明里的只报告项）。
   const msg =
     `[vessel migrate] 数据已迁移成功（${res.copiedCount} 个条目已复制到 ~/.vessel），` +
     `但旧目录 ~/.dsh 未能自动回收（${res.recycleError ?? 'unknown'}）。\n` +
     `  已复制的数据不回滚、不删除；请手工把旧目录移入回收站（不要永久删除）。\n` +
-    `  注意：再次运行 vessel migrate 会因 ~/.vessel 已存在而跳过并退 0（打印"保留 ~/.dsh 未动"），` +
-    `旧目录的清理由你手工完成——本次退 1 表示"承诺的回收这一步没做成"。`;
+    `  注意：再次运行 vessel migrate 会因 ~/.vessel 已存在而跳过复制，但会再尝试一次回收：` +
+    `成功即退 0，仍失败则再次退 1——本次退 1 表示"承诺的回收这一步没做成"。`;
   console.warn(msg);
   return 1;
+}
+
+/**
+ * ① 的**唯一**文案出口：平台**不支持**自动回收（与"尝试后失败"分开）。
+ *
+ * 三件事必须同时说清：① 数据已就绪（迁移成功 or 早已在 ~/.vessel）；② 旧目录**仍在原处**、
+ * 本平台无法自动回收；③ 请**手工**处理。**不许**出现"已送进回收站"这类说法——那是假的。
+ * 成因（含平台与路径）取自 `res.recycleError`（即 `RecycleUnsupportedError` 的原文），
+ * 不另写一份平台判据。退出码由调用方给 **0**（数据已就绪，不是失败）。
+ */
+function unsupportedRecycleNotice(res: MigrationResult): string {
+  const head =
+    res.status === 'migrated'
+      ? `[vessel migrate] 数据已迁移成功（${res.copiedCount} 个条目已复制到 ~/.vessel），`
+      : '[vessel migrate] 数据早已在 ~/.vessel（本次无需再复制），';
+  return (
+    `${head}但本平台无法自动回收旧目录（退 0：数据已就绪，不是失败）。\n` +
+    `  ${res.recycleError ?? 'unknown'}\n` +
+    '  旧目录 ~/.dsh 仍在原处：本次没有把它送进回收站，也没有做任何删除；' +
+    '请手工处理（不要永久删除）。'
+  );
 }
 
 export interface ServeHandle {

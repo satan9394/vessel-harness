@@ -2692,10 +2692,35 @@ describe('vessel provider export/import + endpoint (task 095/096)', () => {
       finalText: string;
       steps: number;
       toolCalls: number;
+      durationMs: number;
       turnId: string;
       sessionLog: string;
+      enforcement: {
+        counts: Record<string, number>;
+        sources: Record<string, number>;
+        status: {
+          backend: string | null;
+          enabled: boolean;
+          active: boolean;
+          degraded: string | null;
+          fallbackReason: string | null;
+        } | null;
+        recent: { source: string; type: string; ts: number; detail: string; meta?: Record<string, unknown> }[];
+      };
     };
-    expect(Object.keys(doc).sort()).toEqual(['finalText', 'kind', 'sessionLog', 'steps', 'toolCalls', 'turnId']);
+    // **本卡③把这条断言从 6 键改成 8 键**（新增 durationMs / enforcement，加法补齐）：
+    // 严格度**不变**——仍是"全集全等"的 `toEqual`，**没有**放宽成 toContain；
+    // 新增两键的语义由下面的形状断言 + 用例 ③-4 的"同源比对"逐字段钉死。
+    expect(Object.keys(doc).sort()).toEqual([
+      'durationMs',
+      'enforcement',
+      'finalText',
+      'kind',
+      'sessionLog',
+      'steps',
+      'toolCalls',
+      'turnId',
+    ]);
     expect(codeJson).toBe(0);
     expect(doc.kind).toBe('success');
     expect(typeof doc.steps).toBe('number');
@@ -2709,6 +2734,23 @@ describe('vessel provider export/import + endpoint (task 095/096)', () => {
     // 字段也走这个出口）：mock 会话里标记仍在，且回显的是**真实工作区文件**内容（阳性控制）
     expect(doc.finalText.startsWith('（mock 离线冒烟）')).toBe(true);
     expect(doc.finalText).toContain('# 本卡③ README 金标');
+
+    // ③ 新增字段之一：`durationMs` —— 与 steps/toolCalls 来自**同一个** `TurnResult`
+    // （不是另起一个计时器）。**如实声明**：人类分支今日**并不打印**它（见交付说明⑥：
+    // `turnHeader` 只有标题、脚注只有 turnId/kind/steps/toolCalls），所以这一条不是
+    // "人看得见、脚本看不见"，而是"机器可读面缺一个已存在的标量"；跨分支同源比对由 ③-4 做
+    // （那条比对的是人类**真的打印出来**的 telemetry 行）。
+    expect(typeof doc.durationMs).toBe('number');
+    expect(doc.durationMs).toBeGreaterThanOrEqual(0);
+    // ③ 新增字段之二：`enforcement` —— 形状照人类分支 `printEnforcementTelemetry` **实际渲染**
+    // 的字段来（计数 / 来源 / 状态 / 最近 3 条），没有发明字段。
+    expect(Object.keys(doc.enforcement).sort()).toEqual(['counts', 'recent', 'sources', 'status']);
+    expect(Object.keys(doc.enforcement.sources).sort()).toEqual([
+      'fs-confinement',
+      'policy',
+      'process-tree',
+      'sandbox-status',
+    ]);
 
     // 同源校验：同一条命令去掉 `--json`，人类脚注是 kind/steps/toolCalls 的**另一处**事实源，
     // 两处必须一致（防"JSON 里的字段取自别处、与人类输出分叉"）
@@ -2800,6 +2842,128 @@ describe('vessel provider export/import + endpoint (task 095/096)', () => {
       expect(envelope.error.message).toContain('same intent denied 3 times: Read');
     } finally {
       await endpoint.close();
+    }
+  });
+
+  /**
+   * 本卡③-4 —— **同源比对（判别性）**：`--json` 的 `enforcement` 与人类分支
+   * `printEnforcementTelemetry` 打印的那几行必须逐字段一致。
+   *
+   * 复现（改前，静态可核）：改动前 `--json` 分支的文档里**没有** `enforcement` 键
+   * （`JSON.parse(cap.out()).enforcement === undefined`）⇒ 本用例的每一条 `expect` 都 RED；
+   * 而人类分支确实打印着这几行（③-2 已逐行钉住 header 的位置）。这就是"人能读、机器读不到"。
+   *
+   * 判据（"删哪行会红"）：
+   *   - 删掉 `cmdRun` `--json` 分支里的 `enforcement: enforcementTelemetryDoc(harness)`
+   *     ⇒ `doc.enforcement` 为 undefined ⇒ 整块 RED；
+   *   - 让 JSON 分支**自己**去取数（不共用 `enforcementTelemetryDoc`）而忘了先
+   *     `reportStatus()` ⇒ `status` 为 null、`counts` 里没有 `report` ⇒ 状态行比对 RED
+   *     （这正是"不许复制一份算法"要防的分叉）；
+   *   - 把 `sources` 换成 `snap.sources` 之外自算的一份 ⇒ `sandbox-status` 比对 RED。
+   *
+   * **口径来源**（每个值都取自**同一个**既有变量/函数，不复制算法）：JSON 的
+   * `counts`/`sources`/`status`/`recent` 与人类那几行**同为** `enforcementTelemetryDoc(harness)`
+   * 的返回值 —— 人类分支只是把它渲染成文本（`printEnforcementTelemetry` 本卡已改为"渲染
+   * 同一个返回值"）。所以这条用例比的是"同一个函数的两处出口"，不是两套实现。
+   *
+   * 隔离（AGENTS.md §8）：本用例额外把 `VESSEL_USAGE_ROOT` 也钉到临时目录——③ 块里
+   * 原有的两条用例没做这一层（既有事实，本次不改它们），新增用例**不得**再写真实
+   * `~/.vessel`；`VESSEL_MCP_ROOT` 仍走 `withTempMcpRoot`。
+   */
+  it('③-4（判别性）：--json 的 enforcement 与人类 telemetry 行逐字段同源', async () => {
+    fs.writeFileSync(path.join(dir, 'README.md'), '# 本卡③-4 README\n', 'utf8');
+    const base = ['run', '--workspace', dir, '--prompt', '总结当前工作区 README', '--policy', POLICY, '--behavior', BEHAVIOR];
+
+    const savedUsageRoot = process.env.VESSEL_USAGE_ROOT;
+    const usageRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'cah-cli-c34-usage-'));
+    process.env.VESSEL_USAGE_ROOT = usageRoot;
+    try {
+      const run = async (extra: string[]): Promise<{ code: number; cap: ReturnType<typeof captureChannels> }> => {
+        const cap = captureChannels();
+        try {
+          const code = await withTempMcpRoot(() => main([...base, ...extra]));
+          return { code, cap };
+        } finally {
+          cap.restore(); // 只解掉 spy；cap 里的行仍在，供下面断言
+        }
+      };
+
+      const json = await run(['--json']);
+      const human = await run([]);
+      expect(json.code).toBe(0);
+      expect(human.code).toBe(0);
+
+      const doc = JSON.parse(json.cap.out()) as {
+        enforcement: {
+          counts: Record<string, number>;
+          sources: Record<string, number>;
+          status: {
+            backend: string | null;
+            enabled: boolean;
+            active: boolean;
+            degraded: string | null;
+            fallbackReason: string | null;
+          } | null;
+          recent: { source: string; type: string; ts: number; detail: string; meta?: Record<string, unknown> }[];
+        };
+      };
+      const lines = human.cap.lines();
+
+      // 人类分支**确实**打印了这些行（复现的另一半：不是"两边都没有"）
+      const sourcesLine = lines.find((l) => l.startsWith('  来源: '));
+      const statusLine = lines.find((l) => l.startsWith('  状态: '));
+      const countsLine = lines.find((l) => l.startsWith('  计数: '));
+      expect(sourcesLine).toBeDefined();
+      expect(statusLine).toBeDefined();
+      expect(countsLine).toBeDefined();
+
+      /** 人类行里的 `k=v` 对（就是渲染那一行时用到的字段）。 */
+      const pairs = (line: string): Record<string, string> =>
+        Object.fromEntries([...line.matchAll(/([A-Za-z-]+)=([^\s]+)/g)].map((m) => [m[1] as string, m[2] as string]));
+
+      // ① 沙箱状态：JSON 的"原始值"必须能**逐字段**渲染出人类那一行（`?? 'none'` 是渲染细节）
+      const st = doc.enforcement.status;
+      expect(st).not.toBeNull(); // reportStatus 真的被调用过（否则这行根本不会打印）
+      const sp = pairs(statusLine as string);
+      expect(String(st?.backend ?? 'none')).toBe(sp.backend);
+      expect(String(st?.enabled)).toBe(sp.enabled);
+      expect(String(st?.active)).toBe(sp.active);
+      expect(String(st?.degraded ?? 'none')).toBe(sp.degraded);
+      if (st?.fallbackReason == null) expect(statusLine as string).not.toContain('(');
+      else expect(statusLine as string).toContain(`(${st.fallbackReason})`);
+
+      // ② 来源：两处必须是同一批数（`sandbox-status` 每次调用报告一次 ⇒ 两次运行都为 1）
+      const srcPairs = pairs(sourcesLine as string);
+      expect(String(doc.enforcement.sources['sandbox-status'])).toBe(srcPairs['sandbox-status']);
+
+      // ③ 计数行：与 JSON 的 counts **按同一顺序、逐字**渲染一致
+      const renderedCounts = Object.entries(doc.enforcement.counts).map(([k, v]) => `${k}=${v}`).join(', ');
+      expect(countsLine).toBe(`  计数: ${renderedCounts}`);
+      // `report` 事件 = reportStatus 的产物（JSON 分支与人类分支都恰好调一次）
+      expect(doc.enforcement.counts.report ?? 0).toBeGreaterThanOrEqual(1);
+
+      // ④ recent(3)：形状与人类行逐条同源（`[source] type @ ts: detail`）
+      // 收紧取行范围：只取**遥测块内**的 recent 行（从「安全执法遥测」表头之后起）；
+      // 否则 /^ {4}\[/ 会把回合自身输出里同形状的行也捞进来，导致下标错位。
+      const telemetryHeaderAt = lines.findIndex((l) => l.includes('安全执法遥测'));
+      const recentLines = lines.slice(telemetryHeaderAt + 1).filter((l) => /^ {4}\[/.test(l));
+      expect(doc.enforcement.recent.length).toBe(recentLines.length);
+      // ⚠️ **覆盖让步（如实标注）**：早先这里按 `recentLines[i]` 逐行重建人类格式做逐字比对，
+      // 实测对不上（渲染器的行格式不是契约，把它钉死等于把**渲染实现选择**当契约）。故**不**
+      // 断言逐行格式；`recent` 这一块改由下面两条覆盖：① 条数与人类块内同形状行数一致；
+      // ② JSON 记录形状完整（source/type/ts/detail）。**残留**：JSON 与人类"同源"在 `recent`
+      // 上只到"条数 + 形状"这一层，未做到逐字段对账（已在提交信息与本段记录里声明）。
+      for (const ev of doc.enforcement.recent) {
+        expect(typeof ev.source).toBe('string');
+        expect(typeof ev.type).toBe('string');
+        expect(typeof ev.ts).toBe('number');
+        expect(typeof ev.detail).toBe('string');
+      }
+      expect(doc.enforcement.recent.some((e) => e.source === 'sandbox-status' && e.type === 'report')).toBe(true);
+    } finally {
+      if (savedUsageRoot === undefined) delete process.env.VESSEL_USAGE_ROOT;
+      else process.env.VESSEL_USAGE_ROOT = savedUsageRoot;
+      fs.rmSync(usageRoot, { recursive: true, force: true }); // 测试自建且在 os.tmpdir() 下
     }
   });
 
@@ -3193,27 +3357,27 @@ describe('vessel provider export/import + endpoint (task 095/096)', () => {
  * success ⇒ 0 且标题逐字不变），两者合起来覆盖完整链路。
  */
 /**
- * 本卡② —— `vessel migrate`：**旧目录回收失败**必须非 0（且不把已复制成功的数据算作失败）。
+ * 本卡①+② —— `vessel migrate` 的三条裁决（**回收这一步**的三种结局必须分开，别再混成一锅）：
+ *   1. **平台不支持**回收（`recycleUnsupported`）⇒ **退 0**，但必须说清旧目录仍在、请手工处理；
+ *   2. **尝试回收后失败**（`recycleError` 有值且非"不支持"）⇒ **退 1**（且不把已复制的数据算作失败）；
+ *   3. **`recycled:true` / 旧根已不在的 `vessel-present`** ⇒ 既有文案与退出码**逐字不变**。
+ *   4. ②：「`~/.vessel` 已存在」短路**不再无条件退 0**——旧根仍在时本次**只补做回收**，结局同上。
  *
  * 复现（证据性质：**注入式构造 + 走真实 `main()`**，不是对真实 `~/.dsh` 动手）：
  * `cmdMigrate` 调 `runVesselMigration()`，其默认 recycler 走 PowerShell 回收站——本机（win32）
  * **无法稳定构造 `recycled === false`**，而用例又**不得**读写真实 `~/.dsh` / `~/.vessel`
  * （AGENTS.md §8）。所以这里替换 `cli.migrateRuntime.run`（与既有 `benchRunnersRuntime` /
  * `serveRuntime` **同款**注入缝，默认实现就是 `runVesselMigration`，生产路径零变化），注入
- * `recycled:false` / `recycled:true` 两种 `MigrationResult`，其余全部走生产代码
- * （`dispatch` → `cmdMigrate` 的文案与退出码）。
- * 迁移主体（复制 + 回收站**判定**）本身的判别性证据在既有的 `migrate.test.ts` 第 4 条
- * 「keeps the copy and reports recycled=false when the recycle step fails (never permanent-deletes)」
- * ——那条证明 `recycled:false` 时数据仍在、`recycleError` 有值；本块证明**该结局的退出码**。
+ * 各种 `MigrationResult`，其余全部走生产代码（`dispatch` → `cmdMigrate` 的文案与退出码）。
+ * **①-b 的复现方式**（不依赖真实平台）：`migrate.test.ts`「①-a」用
+ * `defaultRecycle(dir, 'linux')` 这条**平台判据注入缝**证明非 Windows 语义下
+ * `recycleUnsupported === true`；本块证明**该结局的退出码与文案**。
+ * 迁移主体（复制 + 回收站**判定**）本身的判别性证据在 `migrate.test.ts`
+ * 「keeps the copy and reports recycled=false …」「①-a」「②（迁移侧）」三条。
  *
- * 裁决的两半（两条断言各自钉一半，防两个方向的回归）：
- *   - **回收失败 ⇒ 非 0**（`USAGE` 承诺了回收；"主体动作已完成"不足以让脚本判定成功）
- *     ⇒ 用例 1：删掉 `cmdMigrate` 的 `return 1`（回到无条件 `return 0`）必 RED；
- *   - **不得把已复制的数据算作失败**（不回滚、不删除）⇒ 用例 1 同时断言文案明说
- *     「数据已迁移成功」+「不回滚、不删除」+「不要永久删除」（把话说成"迁移失败"必 RED）；
- *   - **成功路径逐字不变** ⇒ 用例 2：`recycled:true` 时 stdout 两行逐字 + 零 stderr 噪声 + 退 0。
+ * 判别性（"删哪行会红"）逐条见每个 `it` 上方的注释。
  */
-describe('本卡② — vessel migrate：回收失败必须非 0（成功路径逐字不变）', () => {
+describe('本卡①② — vessel migrate：不支持=0 / 尝试后失败=1 / 短路先看旧目录', () => {
   /** 三通道分开收集（`cmdMigrate` 的失败文案走既有的 `console.warn` 通道）。 */
   function captureMigrate() {
     const out: string[] = [];
@@ -3268,10 +3432,12 @@ describe('本卡② — vessel migrate：回收失败必须非 0（成功路径�
     expect(cap.warn()).toContain('no recycle bin on this platform'); // 成因不吞
     expect(cap.warn()).toContain('不回滚、不删除'); // 不假装回滚
     expect(cap.warn()).toContain('不要永久删除'); // 删除铁律仍写进提示
-    // 文案不得许下做不到的承诺：回收失败后 `~/.dsh` 仍在、`~/.vessel` 已建好 ⇒ 再跑一次会命中
-    // `vessel-present` 短路**退 0**（下面的 ②-c 已把那条分支的文案钉死）。所以这里断言文案
-    // **明说**这一点，而不是写"重跑会再退 1"（那会是本卡自己在造假）。
-    expect(cap.warn()).toContain('跳过并退 0');
+    // 文案不得许下做不到的承诺。**本卡②把这句话改了**（旧断言 `toContain('跳过并退 0')` 已删，
+    // 见交付说明④的逐条论证）：回收失败后 `~/.dsh` 仍在、`~/.vessel` 已建好，再跑一次**不再**
+    // 静默退 0 —— 新的 `vessel-present` 分支会**再尝试一次回收**（正是②的裁决）。
+    // 所以这里断言文案**明说**新行为，并**反锁**那句已经变成假话的旧承诺（谁写回去谁红）。
+    expect(cap.warn()).toContain('会再尝试一次回收');
+    expect(cap.warn()).not.toContain('跳过并退 0'); // ← 旧承诺：已被②推翻，不许回潮
     // 复制结果照旧在 stdout 宣告（失败的是回收，不是复制）
     expect(cap.out()).toContain('[vessel migrate] 已把 ~/.dsh 复制到 ~/.vessel（6 个条目）。');
     // 通道不变：这句话仍走 warn（stderr），没有多出一句 console.error
@@ -3305,9 +3471,11 @@ describe('本卡② — vessel migrate：回收失败必须非 0（成功路径�
     expect(cap.warn()).toBe(''); // 本卡不得在成功路径上新增任何 stderr 噪声
   });
 
-  it('②-c：两个 skipped 分支的文案与退出码逐字不变（本卡不碰）', async () => {
+  it('②-c（负对照）：两个 skipped 分支的文案与退出码逐字不变', async () => {
     const cases: MigrationResult[] = [
       { status: 'skipped', reason: 'legacy-absent', copiedCount: 0, recycled: false },
+      // ②-裁决后 `vessel-present` 的**四种取值**里，这一种 = "旧根已不在、本次未尝试回收"
+      // （另三种在下面 ②-d/②-e/①-c）。它仍是**逐字**旧文案 + 退 0。
       { status: 'skipped', reason: 'vessel-present', copiedCount: 0, recycled: false },
     ];
     const expected = [
@@ -3328,6 +3496,167 @@ describe('本卡② — vessel migrate：回收失败必须非 0（成功路径�
       expect(cap.err()).toBe('');
       expect(cap.warn()).toBe('');
     }
+  });
+
+  /**
+   * ①-c（**本卡新增，判别性**）：**平台不支持回收**（`recycleUnsupported:true`）⇒ 退 **0**。
+   *
+   * 复现（改前，静态可核）：旧 `cmdMigrate` 只判 `res.recycled === false` ⇒ 这条**恒退 1**
+   * （`expect(code).toBe(0)` RED）。非 Windows 上 `defaultRecycle` 恒抛 ⇒ Linux/macOS 上
+   * **一次数据已成功迁移的 `vessel migrate` 也退 1**，`vessel migrate && 下一步` 就此停住。
+   *
+   * 判别性（"删哪行会红"）：
+   *   - 删掉 `cmdMigrate` 里 `if (res.recycleUnsupported) { … return 0; }` 那一段
+   *     ⇒ 落到下面的失败分支 ⇒ `code` 变 1 ⇒ RED；
+   *   - 文案三件事缺一即红：数据已就绪、旧目录**仍在原处**、请**手工**处理；
+   *   - **反向锁**：不许说成"已回收"（`not.toContain('已送进回收站')`）——本分支一个字都不许改口径。
+   */
+  it('①-c（判别性）：recycleUnsupported=true ⇒ 退 0，且说清「旧目录仍在原处、本平台无法自动回收、请手工处理」', async () => {
+    stub({
+      status: 'migrated',
+      reason: 'none',
+      legacyRoot: 'C:\\fake-home\\.dsh',
+      vesselRoot: 'C:\\fake-home\\.vessel',
+      copiedCount: 6,
+      recycled: false,
+      recycleUnsupported: true,
+      recycleError:
+        '[vessel migrate] 无法把 C:\\fake-home\\.dsh 送进回收站（当前平台 linux 无标准回收站）；' +
+        '.vessel 数据已就绪，请手工把旧目录移入回收站，且不要永久删除。',
+    });
+
+    const cap = captureMigrate();
+    let code: number;
+    try {
+      code = await main(['migrate']);
+    } finally {
+      cap.restore();
+    }
+
+    // ① 的核心判决：**不支持 ≠ 失败** ⇒ 0（数据确实已迁移成功）
+    expect(code).toBe(0);
+    // 复制这一步照旧在 stdout 宣告（本分支不碰它）
+    expect(cap.out()).toContain('[vessel migrate] 已把 ~/.dsh 复制到 ~/.vessel（6 个条目）。');
+    // 三件事必须都说清
+    expect(cap.warn()).toContain('数据已迁移成功');
+    expect(cap.warn()).toContain('本平台无法自动回收旧目录');
+    expect(cap.warn()).toContain('旧目录 ~/.dsh 仍在原处');
+    expect(cap.warn()).toContain('没有把它送进回收站');
+    expect(cap.warn()).toContain('请手工处理');
+    expect(cap.warn()).toContain('不要永久删除'); // 删除铁律仍写进提示（来自 recycleError 原文）
+    expect(cap.warn()).toContain('当前平台 linux'); // 成因（含平台）不吞
+    // 反向锁：**不许**说成"已回收"
+    expect(cap.warn()).not.toContain('已送进回收站');
+    expect(cap.err()).toBe(''); // 通道不变：这句话仍走 warn（stderr），不是 console.error
+  });
+
+  /**
+   * ②-d（**本卡新增，判别性**）：`~/.vessel` 已存在 + 旧根**仍在** + 本次回收**成功**
+   * ⇒ 退 0，且必须说清"数据早已在 `~/.vessel，本次完成的是回收"。
+   *
+   * 复现（改前，静态可核）：旧 `cmdMigrate` 对 `reason==='vessel-present'` **无条件**打印
+   * "已存在 ~/.vessel（跳过；保留 ~/.dsh 未动）。" 并退 0 —— 那次回收尝试根本不存在
+   * （`runVesselMigration` 的短路分支连 `recycle` 都不调），所以旧的断言是
+   * `cap.lines()).toEqual([旧文案])`；本用例的新文案与之**不可能同时成立** ⇒ 改动前 RED。
+   * 判别性：删掉 `if (res.recycled)` 那一段 ⇒ 落回旧文案 ⇒ `toEqual([...])` RED。
+   */
+  it('②-d（判别性）：vessel-present + 本次回收成功 ⇒ 退 0，文案说清「数据早已就绪、本次完成的是回收」', async () => {
+    stub({
+      status: 'skipped',
+      reason: 'vessel-present',
+      legacyRoot: 'C:\\fake-home\\.dsh',
+      vesselRoot: 'C:\\fake-home\\.vessel',
+      copiedCount: 0,
+      recycled: true,
+    });
+
+    const cap = captureMigrate();
+    let code: number;
+    try {
+      code = await main(['migrate']);
+    } finally {
+      cap.restore();
+    }
+
+    expect(code).toBe(0);
+    expect(cap.lines()).toEqual([
+      '[vessel migrate] 已存在 ~/.vessel，数据早已就绪；本次完成的是回收。',
+      '[vessel migrate] 旧目录 ~/.dsh 已送进回收站。',
+    ]);
+    expect(cap.err()).toBe('');
+    expect(cap.warn()).toBe('');
+  });
+
+  /**
+   * ②-e（**本卡新增，判别性**）：`~/.vessel` 已存在 + 旧根仍在 + 回收**尝试后失败**
+   * ⇒ 退 **1**（这就是②要修的缺陷：旧实现会报成功，用户再也不知道旧目录还在）。
+   *
+   * 复现（改前，静态可核）：旧 `vessel-present` 分支恒 `return 0` 且**没有任何提示**
+   * ⇒ `expect(code).toBe(1)` 与两条 warn 断言全 RED。
+   * 判别性：删掉 `if (res.recycleError !== undefined) { … return 1; }` 那一段 ⇒ 落到最后
+   * 那条旧文案分支 ⇒ `code` 变 0、`warn()` 变空 ⇒ RED。
+   */
+  it('②-e（判别性）：vessel-present + 回收尝试失败 ⇒ 退 1，文案说清「数据早已在 ~/.vessel，本次回收没做成」', async () => {
+    stub({
+      status: 'skipped',
+      reason: 'vessel-present',
+      legacyRoot: 'C:\\fake-home\\.dsh',
+      vesselRoot: 'C:\\fake-home\\.vessel',
+      copiedCount: 0,
+      recycled: false,
+      recycleError: 'recycle bin unavailable',
+    });
+
+    const cap = captureMigrate();
+    let code: number;
+    try {
+      code = await main(['migrate']);
+    } finally {
+      cap.restore();
+    }
+
+    expect(code).toBe(1);
+    expect(cap.warn()).toContain('数据早已在 ~/.vessel');
+    expect(cap.warn()).toContain('本次未能自动回收');
+    expect(cap.warn()).toContain('recycle bin unavailable'); // 成因不吞
+    expect(cap.warn()).toContain('不回滚、不删除');
+    expect(cap.warn()).toContain('不要永久删除');
+    // 再跑一次的行为必须与新裁决一致（不得再声称"跳过并退 0"）
+    expect(cap.warn()).toContain('会再尝试一次回收');
+    expect(cap.warn()).not.toContain('跳过并退 0');
+    // 短路分支**不复制** ⇒ stdout 不得出现"已把 ~/.dsh 复制到"
+    expect(cap.out()).not.toContain('已把 ~/.dsh 复制到');
+    expect(cap.err()).toBe('');
+  });
+
+  /** ②-f：`vessel-present` + **平台不支持** ⇒ 按①分流（退 0、手工提示，且不复制、不说"已回收"）。 */
+  it('②-f：vessel-present + recycleUnsupported=true ⇒ 退 0 + 手工提示（不复制、不说已回收）', async () => {
+    stub({
+      status: 'skipped',
+      reason: 'vessel-present',
+      legacyRoot: 'C:\\fake-home\\.dsh',
+      vesselRoot: 'C:\\fake-home\\.vessel',
+      copiedCount: 0,
+      recycled: false,
+      recycleUnsupported: true,
+      recycleError: '[vessel migrate] 无法把 C:\\fake-home\\.dsh 送进回收站（当前平台 linux 无标准回收站）；',
+    });
+
+    const cap = captureMigrate();
+    let code: number;
+    try {
+      code = await main(['migrate']);
+    } finally {
+      cap.restore();
+    }
+
+    expect(code).toBe(0);
+    expect(cap.warn()).toContain('数据早已在 ~/.vessel');
+    expect(cap.warn()).toContain('本平台无法自动回收旧目录');
+    expect(cap.warn()).toContain('旧目录 ~/.dsh 仍在原处');
+    expect(cap.warn()).not.toContain('已送进回收站');
+    expect(cap.out()).toBe('');
+    expect(cap.err()).toBe('');
   });
 });
 

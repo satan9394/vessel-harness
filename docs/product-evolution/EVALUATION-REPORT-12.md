@@ -1,6 +1,6 @@
 # EVALUATION-REPORT-12 — BRIEF-10 `--json`（G-11 之 JSON 半）独立评估
 
-> ⚠️ **状态提示（Round 132 追加，不改正文）**：本报告是**当时**的独立评估快照——正文一律保留原样，**不追改**（改它等于篡改历史）。其中涉及的以下结论**已在本段被后续卡改变**，请看 PRODUCT-STATE.md 的当前队列：un --json 此前**不产 JSON 文档**（Round 130 起已产，且仍在补 durationMs/拦截审计）；policy status 此前**恒退 0**（Round 123 起编译失败退 1）；ench-report --json 此前**把人类摘要写进 stdout**（Round 123 起改走 stderr）。
+> ⚠️ **状态提示（Round 132 追加，不改正文）**：本报告是**当时**的独立评估快照——正文一律保留原样，**不追改**（改它等于篡改历史）。其中涉及的以下结论**已在本段被后续卡改变**，请看 PRODUCT-STATE.md 的当前队列：`run --json 此前**不产 JSON 文档**（Round 130 起已产，且仍在补 durationMs/拦截审计）；policy status 此前**恒退 0**（Round 123 起编译失败退 1）；`bench-report --json 此前**把人类摘要写进 stdout**（Round 123 起改走 stderr）。
 > Round 10 独立 Evaluator，对抗立场。**方法：静态审查，未复跑任何命令**（不运行 `tsc`/`vitest`/E2E，不 git diff）。
 > 证据取自当前工作区文件内容 + 行号；指挥侧 E2E 结论仅作交叉参考，不采信为验证。
 
