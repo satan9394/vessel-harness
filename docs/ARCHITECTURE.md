@@ -369,7 +369,7 @@ TS Brain 先行 + 语言中立执行 seam（D3 决策点 15）：v0.1 全 TS，�
 
 | 子模块 | 职责 | 对外接口 | 依赖 |
 |---|---|---|---|
-| telemetry/（会话生命周期/用量/审计汇总消费方） | 消费方（emit 旁路）：session/created、request/header（usage ledger）、turn/end（ledger 汇总）、audit/*（安全指标）等事件 → 指标/报告 | `record(event)`；`exportReport()` | core/events（只订阅 emit，不参与裁决） |
+| telemetry/（会话生命周期/用量/审计汇总消费方） | 消费方（emit 旁路 + 回放折叠）：实时事件 before_turn / after_model / after_tool / policy_decision / llm_retry，以及会话记录 `tool/result`、`audit/denial`、`compaction/start`、`llm/retry` → 指标/报告。未消费（记录已落盘、回放侧无消费方，故不得写成消费源）：session/created、request/header（只有 estimateTokens 估计值与条数，无实际用量）、turn/end 及其 stats 加法字段（每轮汇总，与 after_model 的每次调用量相加会双计） | `record(event)`；`exportReport()` | core/events（只订阅 emit，不参与裁决） |
 
 **指标口径**：对齐 D7 §4.1（M01–M14 事件源：B04 tool/call、B13 llm/retry、A13/B19、B20 audit/denial、A16/A17 等）。**✗**：UI 形态（任务书 §10 不做 Web UI）；跨进程事件总线（禁止提前微服务化，D3 决策点 1 拒绝项）。
 
