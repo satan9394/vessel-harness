@@ -754,3 +754,23 @@ G-15 原子写 wrapper 各 Store 重复（P4）；architecture 审计的 T1–T9
 **这条更正本身的教训**（比那 11 条更值得继承）：**我宣布"收口"所依据的是"我的清单"，而那份清单是我自己一路记下来的**——它**只覆盖了我已经看见的东西**。⇒ 判断"能不能停"，要么按**外部标准**（例如对某类不变量做一次全仓清查并列出全部实例），要么**明说这是"我清单的边界"而不是"病的边界"**。**我上一轮正是把后者说成了前者。**
 
 **并记**：本段第三次对抗评审所用的方法（**先冻结 HEAD、明说"工作区正被并发改写所以此刻跑的不是 HEAD"、一律用 `git show HEAD:` 定案**）**是目前唯一有效抵抗"并发写导致的错误结论"的手段**，建议后续评审沿用。
+
+### Round 162 — **收口定住（第二次，这次按"病的边界"并明确不再无限开新面）**
+
+**实测状态**：`tsc -b` 干净；`npm run test:all` **exit 0** ⇒ 根 **2140 passed + 6 skipped**、`apps/web` **120 passed**；工作树干净；HEAD `2273863`。
+
+**这一轮闭合的**：① **`measured` 的"声明但零执法"根因**——新增 `auditMeasuredDeclaration()` + `REPORTED_METRICS`，在收尾路径对账两个方向（**产出了没声明** / **声明了却不产**）。实测清单：**方向②全仓 3 个**（B003/B005 的 M11、B004 的 M08+M11——M08/M11 只在 **Cross-Harness 适配器**里有产者，而那条 lane **不读 `measured`**）；**方向①已确证 B018 的 M13=1**，静态可确证 **M06/M07 在全部 25 个 scenario 上非零而 20 个未声明**、**B025 是唯一漏声明 M10 的**。② **`Telemetry` 的 M13 来源改为中性名** `evaluator-review:verdict`（不再指向某一条传输面），并**连带同改三处绑定字面量**（`telemetry.test.ts` ⑩/⑫ 与 `BENCHMARK-SPEC` §4.1）——**这正是"文档与代码同动"守卫起作用的地方**。③ `audit/safety`(B21) 进同族守卫清单；`AuditDenialRecord.stage` 的 `'sandbox'`/`'guard'` 两个无生产者值**保留并注释**（不静默删值）。
+
+**为什么选 warn 不选 fail-loud（依据，不是偏好）**：**fail-loud 会打红 25 个 scenario 里的 23 个**（方向① 20 个、方向② 3 个）⇒ 那是**一次产品决策**（要么补声明、要么给本 lane 补 M08/M11 的生产者），**不是一次清理**。⇒ 校验先 warn + 在**返回对象**上留痕（`measuredAudit`，干净时**缺席**），**刻意不写进报告文件**以保住既有 JSONL/summary 逐字不变。
+
+**收口定住（这一条是本节的重点）**：从 Round 154 起我每开一张卡都会挖出**同一病灶的更多实例**——这在方法上是好事（说明清查有效），但**严重度在单调下降**，且趋近"声明/文档对齐"这类**不影响行为**的卫生项。⇒ 我在此**明确停止无限开新面**，理由与上次不同：**上次是错的（按"我的清单"判），这次是按"病的边界 + 收益递减"判**，并**把判断依据写在这里供反驳**：剩余项**无一影响运行时行为**，且**每一条都已带位置、证据与最小改法**。
+
+**留给下一位的清单（都已带定级与最小改法，不再由我继续开卡）**：
+1. **fail-loud 的收紧**（决策）：(a) 把 M11/M08 从 B003/B004/B005 的 `measured` 删掉，或给本 lane 补这两个生产者；(b) 给 20+1 个 scenario 补 M06/M07/M10，或把口径改成"只对判据面（`IMPLEMENTED_METRICS`）对账"。收紧后 `runner.test.ts` ② 的清单要同步改（它是有意的**接线绊线**）。
+2. **`docs/BENCHMARK-SPEC.md` §3.2 的 B016–B019 场景卡与 yaml 早已不一致**（B018 卡写 `claim_truthful`/`mode: live`/另一套 `measured`，真实 yaml 是 evaluator 臂/offline）。
+3. **`asserts.ts` 的一处注释不准确**（称 M08/M11 是"runner/用量侧产出"——本 lane 根本没有它们；M06/M07 同样不在 `TelemetryCounters` 里却没被提到）。
+4. **`AuditDenialRecord.stage` 的两个无生产者值需要"有类型无产者"形态的守卫**（现有 `unwiredRecords.test.ts` 是"零类型"形态，不同）。
+5. **`M14` detail 的 `steers`/`interrupts`（有产者无消者）与 `human_answers`/`machine_answers`（无通路）**；**`resumeSuccess` 恒 false**；**`compaction/end` 有产者无消费者**；**`compaction/summary`(B15) 与 `session/end-seed`(B11) 已参数化但未接线**（守卫已在，接线时先红）。
+6. **`request/header`、`turn/end.stats` 加法字段、`turn/end.toolCallsWithoutEnd`** 仍无回放消费方（已如实标注）。
+7. **`--model ''` 挡住 `VESSEL_MODEL` 回落**、**真实 provider 全链无 model 时发字面量 `"mock-model"`**、**`denials`/M12 实跑是真实拒绝数 2 倍**（`Math.max` 绕行）——**三条均为产品决策，我没有擅自动**。
+8. 被跟踪的 `release-report.{md,json}` 仍是旧判据快照（已加指引说明，**未**重跑刷新）。
