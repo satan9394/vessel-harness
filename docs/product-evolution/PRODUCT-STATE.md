@@ -41,6 +41,15 @@
 
 **终评对"最大缺口"的判断（我采纳）**：不是这些单点语义，而是「**打包 → 安装 → 首跑 → 升级**」整条发布链路仍靠**人工实测一次**——tarball 形状、`dist` 随构建、安装态读路径、无 warn 冒烟**都没有自动门禁**，任何重构都能在**没有红灯**的情况下把"能用的包"变成"不能用的包"。→ 本轮的处置正是把 **P1 变为门禁红灯**（`prepack` 构建 + 门禁断言包形状）。**新增纪律 17**：**"能跑一次"不等于"可发布"**——一次性人工实测必须转化为**离线、确定性、可回归的门禁**，否则它只提供假安全感。
 
+## Round 18 — 发布链路门禁化（终评 P1/P2 的收口）
+
+**P1 修复**（`prepack` 接构建）与 **P2 门禁**（`publish-artifact` 判据 + **28 条自守护单测**）均已完成并实测，细节见上文。**其余如实记录的残留（不假装干净）**：
+1. `normalizePackEntry` 是**纯归一化器而非过滤器**（`'total files: 62'` 原样返回）；过滤职责在 `parsePackListing` 的 `npm notice <size> <path>` 正则。安全性质成立（注入用例已证非文件行进不了 entries），但**若将来有人把它的输出直接当 entries 用，会漏进非文件行**——已由单测 B 组锁定"过滤在 parse 层"这一分工。
+2. `parsed` 由 `entries.length > 0` 推出：若 npm 改动尺寸格式（如 `270 B` 带空格）导致段内**所有**行失配，summary 会写成"未找到 Tarball Contents 段"，而真实归因是"段找到了但零可用条目"——**状态仍是 `pending`（安全）**，只是**排查文案会误导**。建议未来区分 `start >= 0`。
+3. `packedName` 取不到时身份断言被**静默跳过**（设计如此、文档已声明），仅靠形状判据兜底；风险低。
+
+**验证方式（已由 Orchestrator 实跑）**：`benchmarks/runners` **18 文件 / 244 passed**；全量 **136 文件 / 1514 passed + 3 skipped / exit 0**；`tsc 0`。
+
 ## 已解决问题（Round 1 切片 · 历史存档）
 
 - **G-01（P0）首跑示例失效**：仓库工作区 `run --prompt` 曾 100% 输出 `(mock: no script entry matched)` 且 exit 0（假成功）。根因：ContextBuilder 将 volatile skills index 作为**最后一条 user 消息**追加，MockProvider 只匹配最后一条 user 消息。修复：`ChatMessage.source` 溯源 + Builder 标记 volatile 为 `environment` + MockProvider 只匹配真实 surface 输入 + 确定性兜底文案。
