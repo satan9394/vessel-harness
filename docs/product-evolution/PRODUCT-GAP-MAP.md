@@ -65,11 +65,10 @@
 
 **NOW（已完成）**：策略执法三处失效 + 其两条后续漏网（续行**平台并集**、alias 跨命令）+ pricing 读路径与静默 + 打包与装机 + **发布链路门禁化**（`publish-artifact` 判据：pack 期脚本必须构建 `dist`、tarball 清单必须含 `dist/cli.js` 与四个 `dist/configs/*` 且零测试产物/零 map、不可解析则显式 `pending`；**该判据自身另有 28 条单测守护**）+ **`policy status` 合成后可编译性**（G-18：直接复用 `run` 的装载路径，`compiled=false` 当且仅当 `run` 会失败）。
 **NEXT（P2，已具证据，可独立开轮）**：
-1. **`@vessel/*` 依赖声明补全**（14/16 包**已修**；剩 `benchmarks/runners` 6 项——private 包，"单独安装"动机不适用）；`@vessel/bench-runners` 运行期动态 import 的**人话报错已修**。
-2. **pricing 产品形态正解**：读=用户目录优先 + 包内兜底，写=`~/.vessel/model-catalog.json`（**Round 20 在做**）。
-3. **【Round 20 实测新增·排队中】配置"损坏"路径与"缺失"不对称（审计 R17）**：实测 `configs/*.json` **非法 JSON 或结构错**时**静默回退兜底/空表、零警告**（`pricingKeys=2`、`warnings=0`）。我们只给**缺失**加了 warn（`warnMissingBuiltinConfig` 仅 `existsSync`，损坏文件能通过存在性检查）。**范围已收窄（Round 20 侦察）**：在跑的 pricing 卡已为 **model-catalog** 引入带状态读取（`readModelCatalogFile → {catalog, status: 'missing'|'invalid'|'empty'|'ok', error?}`，函数本身不打印不抛），故残余为 ① **`pricing.json` 仍是裸 `catch {}` 静默兜底**（`providers/pricing.ts:70-72`，JSDoc 自述 "missing/corrupt → default-only table" 但对调用方**不可观测**；**Round 20 在 HEAD 复核：`loadPricing` 仍是裸 `catch`（`:79`）、无状态通道 ⇒ 本片成立，非假设**）；② **状态是否被真正消费**——必须验证 CLI 在 `status==='invalid'` 时**确实告警**（"产出了信号却没人读"是本项目反复出现的失败形态）。**与在跑的 pricing 卡文件冲突，故排队**（待其落盘后开卡，届时以它落定的状态通道为准写规格，避免编码错误前提）。
-4. **测试盲点清单**：C-4 文案与 `pricingSyncMismatchWarning` **调用点**均已闭合（Round 19）。
-5. **发布链路自动化**：shape 门禁 + **可选安装态冒烟（实测 PASS）** 已有；**升级路径**Round 20 在做；`npm pack --ignore-scripts` 可绕过 prepack（需进程/文档层约束，非门禁可解）。
+1. **【Round 20 新增·最高优先·由实现者上报】抑制写入后仍宣称成功**：`PricingOverrideStore` 在留档失败而**抑制写入**时，CLI 仍打印「✔ 已写入覆盖」（`cli.ts:1791/1808/1856`）⇒ **确认时刻的宣称不为真**（用户以为价目改了，实际没落盘）。最小修法：让 `set/tombstone/restore/repair`（或其底层 `write()`）回传"是否真落盘"，CLI 据此改文案为「未写入（已抑制，原因…）」。属"宣称与实际不符"族，**优先于其它 P2**。
+2. **【Round 20 审计·已修但需注意同类残留】静默降级族的剩余项**：审计给出 14 处 A 类，本轮修了 4 处高危（安全 symlink 出界、索引覆盖、墓碑丢失、`pricing.json` 兜底）。**仍待评估**：`cli.ts:517` 的 `costMultipliers()` 抛→空表（**所有倍率静默变 1**，与 `provider` 命令口径分裂）、`pricingOverride` 的**行级坏价行**静默忽略、`guideCommands.ts:75`/`chat.ts:232` 的 locale 静默回退 zh、`project-task-queue.ts:371` 的坏任务静默消失、`ReviewHandoffStore`/`HandoffStore`/`LearnedStore` 的坏条目静默跳过、`ProjectRegistry` 与 `pricingOverride` 写路径的 `corrupted-*` 留档是否应被 `doctor`/`sessions list` 类命令提示。
+3. **发布链路**：shape 门禁 + 安装态冒烟（实测 PASS）+ **升级路径（Round 20 已加，含双向溯源）**；`npm pack --ignore-scripts` 可绕过 prepack（属进程约束，非门禁可解）。
+4. **测试盲点清单**：C-4 文案与 `pricingSyncMismatchWarning` 调用点均已闭合（Round 19）；本轮又发现并修掉一条**恒真假断言**（cwd 断言在删除目录之后）——建议把"断言是否打在因果链末端"纳入评审固定检查项。
 **LATER**：全量 i18n 架构；`~/.vessel` 状态根 7+ 处重复收敛；`vessel diff --last` 只读回滚提示（G-10 克制替代）；`dist/.tsbuildinfo` 入包与 `npm pack --json` 被 prepack 输出污染（自动化卫生）。
 **NOT_NOW（明确不做）**：全量 npm 发布（17 包 + registry org + 版本治理——成本 ≫ 收益，本阶段无外部消费者）、单包 bundle（除非将来真要"陌生人一条命令安装"）、CI 自动发布、provenance/签名/SBOM、changesets 版本治理、插件市场/云协作/排行榜/IDE 表面。
 

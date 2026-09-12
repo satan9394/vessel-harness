@@ -85,6 +85,18 @@
 **安全类（独立安全复核，逐条带行号）**：`packages/tools/src/filesystem/guards.ts:81-94` 的 `realpathSync` 失败被**静默吞掉**→ 回退词法检查。复核**逐条排除**了三层"我以为的兜底"（`assertConfined:175` 直接 return 且 `:176` 仍按词法判；`fs-confinement` 规则只匹配 `..`/绝对路径；sandbox 只注入 Shell、fsTools 不读它）⇒ **它是 symlink 出界的唯一防线**。**攻击形（推演）**：父目录为出界链接 + 目标文件不存在 → realpath ENOENT 被吞 → 词法全过 → **Write 跟随链接写到工作区外**；**默认策略与 `confinement:true` 皆然**。判定**可利用性中、建议立即修**；且复核指出**不能对整条路径 fail-closed**（新建文件 realpath 必然 ENOENT → 会拦掉所有正常新建，属**确定误伤**），须 **errno 分离**（非 ENOENT → 拦；ENOENT → 对**最深已存在祖先** realpath 并判根）。
 **本轮的自我纠错（两次）**：① 我对上述三处的第一版探针**输入形状全错**（`ProjectRegistry` 构造要 `{vesselHome:目录}`、`open()` 收路径；`PricingOverrideStore` 构造要 `{rootDir}` 选项对象）→ 得到"无问题"的**假阴**；我**没有**据此下结论，而是读真实 API 后重测才确认。② pricing 卡新用例全量报红，我**落盘日志**后定位到是**它自己把依赖 env 的断言放在了 `finally` 还原之后**（非实现缺陷）——上一程同类情形我因先过滤输出而丢失了失败用例名，这次不再重犯。
 
+## Round 20 结算（提交 `5612acf`）— 静默降级族已修，安全缺陷已修且由**变异测试**验证
+
+上表四处（`ProjectRegistry` 覆盖销毁、`pricingOverride` 墓碑丢失、`pricing.json` 兜底、`guards.ts` symlink 出界）**均已修并落盘**。其中 **`pricing.json` 兜底**与 `modelCatalog` 的三态对齐（缺失静默、损坏可见）；**墓碑丢失**改为三态可见 + 写前留档；**索引覆盖**改为留档 + 留档失败抑制写入（我拍板的决策：**这一片的意义就是"别销毁数据"，功能降级远好于数据灭失**）。
+
+**最强证据形式（本轮首次使用）：变异测试。** 安全修复若只跑"修复后通过"，**证明不了探针有判别力**。故我把 `guards.ts` 的 ENOENT 祖先校验**短路回旧的静默吞异常**再跑同一探针：
+| 变体 | `attackBlocked` | **工作区外文件被创建** |
+|---|---|---|
+| 修复版 | `true` | **`false`** ✅ |
+| 变异版（模拟旧行为） | **`false`** | **`true`** ❌ |
+两次里 `normalNewFileAllowed` 均为 `true`（负对照稳定 ⇒ 修复**无过度拦截**），随后用备份**原样还原**（不用被守护规则拦下的 `git checkout`）。⇒ 一次证明四件事：**缺陷真实可利用、修复真的堵住、探针不恒绿、没有误伤**。
+**本轮引入的待修残留（实现者主动上报，指名我决策）**：`pricingOverride` **抑制写入后 CLI 仍打印「✔ 已写入覆盖」**（`cli.ts:1791/1808/1856`）——即**确认时刻的宣称不为真**；修法需让 mutator 回传"是否真落盘"（动 set/delete/restore/repair 返回语义），已排入下一片。
+
 ## 已解决问题（Round 1 切片 · 历史存档）
 
 - **G-01（P0）首跑示例失效**：仓库工作区 `run --prompt` 曾 100% 输出 `(mock: no script entry matched)` 且 exit 0（假成功）。根因：ContextBuilder 将 volatile skills index 作为**最后一条 user 消息**追加，MockProvider 只匹配最后一条 user 消息。修复：`ChatMessage.source` 溯源 + Builder 标记 volatile 为 `environment` + MockProvider 只匹配真实 surface 输入 + 确定性兜底文案。
