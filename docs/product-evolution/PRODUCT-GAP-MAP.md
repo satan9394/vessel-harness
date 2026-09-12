@@ -59,6 +59,19 @@
 
 - ⚠️ **Round 15b/15c（策略执法本体加固）— 由"诚实性核查"顺链追出的安全缺陷族**：三处共同形态是"**功能写了、看着也在，但实际不生效**"（通过所有"存在性"检查）——① **项目策略可提权** `profile → danger-full-access`（`mergeScopes` 后者覆盖，与规格"高层默认"相反）；② **项目策略可放宽 force-push**（`git/network/audit` 浅覆盖）；③ **`shell-force-push` 规则是死的**（matcher 用字面量 `startsWith`，`Shell(git push --force*)` 对真实命令永不匹配，且全仓零测试）。已修：`profile/approval` 高层优先、三键单调趋严、matcher 支持 `*`（逐字转义 + 锚定）。**独立安全复评 `EVALUATION-REPORT-20.md` 判 REJECT（有条件）**，并挖出两条**绿灯不可能发现**的高危：**C-1** `mergeScopes` 重建 `filesystem` 时丢掉 `confinement` → 硬执法在生产路径永不生效（6 个 confinement 测试**直调编译器绕过合并**，故 61/61 全绿掩盖此洞）；**C-2** allow 类列表并集 → **实测确认**：project 追加 `shell.allow: ["bash"]` 使 `bash -c "rm -rf /tmp/x"` 从 **deny 变 allow**（叠加无 trust 门 = 克隆仓库即可放宽执行）。另 C-3 force-push 三种绕过形、C-4 状态命令反向文案（已修）、C-5 `version` 后者覆盖。**新增纪律 15**：**测试若绕过生产入口，等于零证据**。
 
+- ✅ **Round 16（G-18 宣称与实际不符）+ 发布里程碑（用户选定路线 (c)）**：**1C**（mock 运行期可见：CLI stderr 提示 + 单一渲染出口标记、TUI 同款，**真实路径测试**含负对照）；**1B**（`guide.ts` 首次接触单名化，`glossary.ts` 保留昵称**作为权威解释**——并据此**修订了错误的验收标准**：原"grep 为空"会删掉唯一解释）；**2B**（密钥口径三处按平台如实，判据取自**真实生效后端**）；**2C**（`chat` 移除，README 补 5 个真实入口，与 `dispatch` 逐项对照）；**依赖声明**（`@clack/prompts`→cli、`js-yaml`→policy/behavior、`files`+`engines`）；**发布**（`builtinConfigRoot()` 包内优先 + `prepack` 复制 `configs/`；`files` 否定模式剔除测试产物与 source map：**270→62 文件 / 406.3→184.9 kB**；**装机 E2E**：16 tarball → 空项目 `npm i` exit 0 → `--version`/`--help`/`policy status` **三条 exit 0**，system 策略解析到**安装包自身的 `dist/configs`**）。
+
+## 路线图归位（Round 17 收口）
+
+**NOW（已完成）**：策略执法三处失效 + 其两条后续漏网（续行**平台并集**、alias 跨命令）+ pricing 读路径与静默 + 打包与装机。
+**NEXT（P2，已具证据，可独立开轮）**：
+1. **`@vessel/*` 依赖声明补全**（14/16 包缺失）——不阻塞"整包一起装"，但阻塞"从 registry 单独安装 `@vessel/cli`"；同时处理 `@vessel/bench-runners`（`private:true` 却被运行期 `await import` → 安装态 `run --bench` 必 MODULE_NOT_FOUND）。
+2. **pricing 产品形态正解**：读=用户目录优先 + 包内兜底，写=`~/.vessel/model-catalog.json`（现为"读包内 / 写 cwd"不对称，已用 warn 去静默）。
+3. **`policy status` 的编译期有效性**：`inspectPolicyLayers` 只跑 YAML 解析 → 编译期非法策略显示为"存在·1 条"而 `run` 立即 `policy compile error`（"看着配了其实没配"残留一格）。
+4. **测试盲点清单**（如 `policyStatus.test.ts` 未锁 C-4 新文案 → 回潮不变红）。
+**LATER**：全量 i18n 架构；`~/.vessel` 状态根 7+ 处重复收敛；`vessel diff --last` 只读回滚提示（G-10 克制替代）；`dist/.tsbuildinfo` 入包与 `npm pack --json` 被 prepack 输出污染（自动化卫生）。
+**NOT_NOW（明确不做）**：全量 npm 发布（17 包 + registry org + 版本治理——成本 ≫ 收益，本阶段无外部消费者）、单包 bundle（除非将来真要"陌生人一条命令安装"）、CI 自动发布、provenance/签名/SBOM、changesets 版本治理、插件市场/云协作/排行榜/IDE 表面。
+
 ## 状态更新（第 1 轮闭环 + 新增候选）
 
 - ✅ **已闭环（提交 080423d → 76a19e1）**：**G-01**（mock 遮蔽真实输入）、**G-02**（未知命令静默 run）、**G-14**（引导文案 + setup 向导 `cah`→`vessel`）。独立 Evaluator 两轮裁定：Round 1 **REJECT**（S1 未知命令零测试 / S2 `cah` 属实 / S3 注入源漏 plan·handoff·inject / S4 TUI 未同步）→ FIX 轮 → Round 2 **ACCEPT**（逐项行号证据）。验收侧证据：`tsc 0`、`vitest 114 文件 1235 passed + 1 skipped`、CLI E2E 冒烟 6 项全过。
