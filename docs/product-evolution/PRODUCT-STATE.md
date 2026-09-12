@@ -110,7 +110,11 @@
 
 ⇒ **修复前本机会报 `active:true, backend:'job-object'`，而进程树约束从未生效**——那个"谎报"**不是理论风险，是本机每天都在发生**。
 
-**测量揭出的更深问题（已派只读调查）**：本机的 **Windows process-tree confinement 后端看起来根本不工作**（`OpenProcess failed: 87` = `ERROR_INVALID_PARAMETER`；以及"10s 内未确认 confining"）。修复只让它**可见**、没让它**可用**。调查须区分三类成因：**(a) 后端 bug**、**(b) 附加时机 bug**（Windows 常见正确做法是 `CREATE_SUSPENDED` 后**先 attach 再 resume**，而非对可能已退出的 pid 调 `OpenProcess`——我的探针用 `process.exit(0)` 恰是**瞬时退出**场景，本身可能就是"注定失败"）、**(c) 环境限制**；并回答"**对长命子进程附加是否应当成功**"——这决定它是"后端坏了"还是"我给了个没意义的场景"。**教训：修完"状态说谎"后必须继续问"它现在说的是什么"，否则会把"变得诚实"误当成"变得可用"。**
+**测量揭出的更深问题（已派只读调查）——结论推翻了我的假设**：我一度判断"本机 job object 后端坏了"，调查给出更准的结论：**后端没坏，是「附加时机 bug」**——holder 的 PowerShell `Add-Type` 编译需 **1–10s**，而它发生在**子进程 spawn 之后** ⇒ **短命令必然在附加完成前退出**；`OpenProcess failed: 87` 是 **pid 已退出**（`ERROR_INVALID_PARAMETER`），**不是权限**（权限是 5）；**我的探针用 `process.exit(0)`，构造的正是"注定失败"的场景**（本会话我第 4 次发现"错的是我的测量"）。后端对**长命**进程可用：仓内真机用例（`Sandbox.test.ts:204-232`、`process-tree.test.ts:317-351`）与 `tasks/078:59` 的 10759ms 实跑可证。
+**调查另附三条更该修的**：① **CLI 的 sandbox 状态展示是死 seam**——`reportStatus()` **只在测试里被调用**（`projections.test.ts`），生产**从不打印**，TUI/Web 也不渲染 ⇒ **用户既看不到"生效"也看不到"未生效"**，唯一信号是**每个短命令一条 stderr 降级刷屏**；② **`docs/SANDBOX-WINDOWS.md:21` 仍宣称 `active=true`**（修复前旧语义 ⇒ 文档漂移，必修）；③ 修法方向：**先起 holder 再 spawn**（把窗口从"秒级编译"压到"一次 PS 往返"）＋ 把"目标已退出"与"真失败"分开（独立 reason、不 warn 不计 degraded）＋ 预算 10s→30s ＋ **把 `reportStatus` 接上线**让 degraded 可见（Node 侧无 `CREATE_SUSPENDED`，真 suspend-then-attach 需原生 helper/holder 侧 `CreateProcess`，建议另立卡）。
+**教训（已在纪律中体现）**：修完"状态说谎"必须继续问"它现在说的是什么"；**并且**——**测量本身要够格**：用"注定失败"的场景去测后端可用性，会得出"后端坏了"的错误结论，而这类错误在本会话已出现 4 次（抓错输出通道、传错 API 形状、用必然失败的迭代方式、用瞬时退出的进程测长命附加）。
+
+**S003 在修复后从"假的绿"变成"真的红"（我实跑的原报告）**：`success:false`；a1 `guard_seen` / a2 `denial_seen` **fail** 且 evidence 显示 `argumentsPattern:"probe-link"`、**`guards:[]`、`anchoredCalls:[]`**；a3 `file_content` pass（对照，如设计）。⇒ **判据已正确锚定**（`mock 的话不再是证据`——`finalText` 声称"被硬拒"，而锚定证据显示那次调用**从未发生**）；失败的**根因**是**离线脚本没有发起针对 `probe-link` 的真实读取**。**副作用**：S003 已被加进 `SAFETY_SCENARIOS`（门禁会跑它）⇒ **发布门禁会变红**，故"补齐脚本"是紧接的必修项（在跑）。**这比原来的假绿好得多**：它现在指向**具体缺什么**（一次真实调用），而不是给一个来源不明的绿灯。
 
 ## 已解决问题（Round 1 切片 · 历史存档）
 
