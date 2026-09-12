@@ -143,6 +143,17 @@ export interface AssertResult {
   evidence: Record<string, unknown>;
 }
 
+/**
+ * 回合结束的 kind —— 与 core 循环 `TurnResult.kind` **同构**
+ * （packages/core/src/agent-loop/AgentLoop.ts:60-62）。
+ *
+ * 这里刻意**镜像**而不是 `import type { TurnResult } from '@vessel/core'`：本包
+ * package.json 的 dependencies 只有 application/llm/shared（core 是间接类型面），
+ * 镜像可保持依赖面不变（本卡禁引入依赖）。漂移不是静默的：runner.ts / contracts/vessel.ts
+ * 的赋值处是 `TurnOutcomeKind` 位置，core 若**新增**取值会在那里报编译错误。
+ */
+export type TurnOutcomeKind = 'success' | 'error' | 'interrupted' | 'budget';
+
 export interface ScenarioReport {
   scenarioId: string;
   runId: string;
@@ -156,6 +167,21 @@ export interface ScenarioReport {
   reportPath: string;
   workspace: string;
   sessionLog: string;
+  /**
+   * 本 run 报告的这次 loop 回合以什么 kind 收尾（**可选**，向后兼容：旧报告无此键）。
+   *
+   * 缺席 ≠ success：缺席表示该 lane 的 `finalText` **不由单次 loop turn 产出**
+   * （planner / engine 是 runner 自己的模板文本），此时"回合是否正常收尾"无从谈起。
+   * 绝不能把"无从谈起"写成 `'success'` —— 那正是本卡要关掉的沉默。
+   */
+  turnKind?: TurnOutcomeKind;
+  /**
+   * 显式的场景级信号：`true` ⇔ `turnKind` 存在且 !== `'success'`。
+   * 与 `turnKind` 同进退（缺席表示同上的"无从谈起"，**不是** false）。
+   * 判据层不因它为 true 而改判（本卡纪律：不得改变任何既有场景的通过/失败）；
+   * 它的职责是让"这一轮根本没正常收尾"在报告里**可见、可判、可追溯**。
+   */
+  turnEndedAbnormally?: boolean;
 }
 
 /**
@@ -178,4 +204,13 @@ export interface StreamObservation {
 export interface DriverResult {
   finalText: string;
   streamEvents: StreamObservation[];
+  /**
+   * 产出（或被判据/下游当作）本次 run 结果的那次 loop 回合的 kind。
+   *
+   * 缺席 = 本次 run 的结果不是单次 loop turn 的产物（planner 的执行模板文本、
+   * engine 的 LoopRunReport 回述）；有值时必须**忠实**透传 `runTurn()` 的 kind，
+   * 包括 `'error'`（熔断器打死）与 `'budget'`（步数耗尽）—— 这类回合只会把
+   * 错误文案/半截文本放进 `finalText`，丢掉 kind 就等于把"这轮没跑完"当成"这轮的答案"。
+   */
+  turnKind?: TurnOutcomeKind;
 }

@@ -13,7 +13,7 @@ import { buildHandoff, seedSessionFromHandoff } from '@vessel/engine';
 import { loadManifest } from './manifest.js';
 import { runAssert } from './asserts.js';
 import { OFFLINE_SCRIPTS } from './offline.js';
-import type { AssertResult, DriverResult, ScenarioManifest, ScenarioReport, StreamObservation } from './types.js';
+import type { AssertResult, DriverResult, ScenarioManifest, ScenarioReport, StreamObservation, TurnOutcomeKind } from './types.js';
 
 export interface RunScenarioOptions {
   scenarioId: string;
@@ -412,6 +412,30 @@ function captureStreamEvents(
 }
 
 /**
+ * 回合结束 kind 的人话摘要 —— 证据层诚实性。
+ *
+ * WHY（缺口，静态可核）：`harness.loop.runTurn()` 返回的 `TurnResult` 带 `kind`
+ * （AgentLoop.ts:60-62），但本 runner 过去只把 `finalText` 收进 `DriverResult`
+ * （本文件 :590 / :637，契约侧 contracts/vessel.ts:149-155 同样只取 finalText）。
+ * 于是当回合被**熔断器**打死时（AgentLoop.ts:334-338：同一 intent 被拒 ≥3 次 ⇒
+ * `kind='error'`，把 `err.message` 写进 `finalText` 后**正常 return**），
+ * "same intent denied 3 times: <Tool>" 会被当作"本 run 的最终答案"交给后续判据，
+ * 而报告里看不出这一轮根本不是正常收尾 —— 报告的一行 PASS 追溯不到
+ * "这轮是以错误结束的"。本函数让该事实在报告里有一句可读、可断言的话。
+ */
+export const TURN_KIND_SUMMARY: Record<TurnOutcomeKind, string> = {
+  success: '回合正常结束（kind=success）',
+  error: '回合以错误结束（kind=error）——本 run 未正常收尾：finalText 是错误信息而非模型答案',
+  interrupted: '回合被中断（kind=interrupted）——本 run 未正常收尾：finalText 只是中断点前的半截文本',
+  budget: '回合预算耗尽（kind=budget）——本 run 未正常收尾：finalText 只是耗尽前的半截文本',
+};
+
+/** 人话摘要（导出以便报告/测试逐字引用同一份事实源，不另写字面量）。 */
+export function turnKindSummary(kind: TurnOutcomeKind): string {
+  return TURN_KIND_SUMMARY[kind];
+}
+
+/**
  * Scenario drivers (V0.2): default = one loop turn; planner = plan → inject →
  * execute (acceptance-driven evaluator); evaluator = generator run, then an
  * independent EvaluatorAgent reviews the output (never self-certified).
@@ -470,6 +494,11 @@ async function driveScenario(
     });
     const acceptance = manifest.pass.filter((p) => p.type === 'file_content').flatMap((p) => p.golden ?? []);
     const verdict = await evaluator.evaluate({ goal: manifest.goal, generatorOutput: gen.finalText, acceptance });
+    // 生成器回合的 kind **必须**带走：evaluator 收到的是 gen.finalText，若这次生成
+    // 回合被熔断器打死（kind='error'），那么交给独立评审的"生成器输出"其实是错误
+    // 文案（"same intent denied 3 times: …"），丢掉 kind 会让报告只留一个评审结论、
+    // 看不出被评审的那一轮压根没跑完。评审结论本身仍由 Evaluator 独立给出（不因此改判）。
+    const genTurnKind: TurnOutcomeKind = gen.kind;
     // the verdict is injected back into the parent session (回投父上下文, recorded)
     await harness.session.appendSync({
       type: 'user/message',
@@ -479,7 +508,7 @@ async function driveScenario(
       source: 'inject',
       surface: true,
     });
-    return { finalText: `评估结论：${verdict.verdict}（${verdict.reason}）`, streamEvents: [] };
+    return { finalText: `评估结论：${verdict.verdict}（${verdict.reason}）`, streamEvents: [], turnKind: genTurnKind };
   }
   if (manifest.harness?.engine) {
     // V0.5 Loop Engine lane: one full iteration with deterministic
@@ -587,7 +616,7 @@ async function driveScenario(
     });
     await seedSessionFromHandoff(harness.session, handoff);
     const result = await harness.loop.runTurn(prompt);
-    return { finalText: result.finalText, streamEvents: [] };
+    return { finalText: result.finalText, streamEvents: [], turnKind: result.kind };
   }
   // V1.1-D shared: streaming capture + interrupt + steering operate on the same
   // normal turn. They are mutually-exclusive per scenario, but compose cleanly.
@@ -634,7 +663,7 @@ async function driveScenario(
 
   try {
     const result = await harness.loop.runTurn(prompt);
-    return { finalText: result.finalText, streamEvents };
+    return { finalText: result.finalText, streamEvents, turnKind: result.kind };
   } finally {
     detachCapture();
     detachInterrupt?.();
@@ -833,10 +862,12 @@ export async function runScenario(opts: RunScenarioOptions): Promise<ScenarioRep
 
   let finalText = '';
   let streamEvents: StreamObservation[] = [];
+  let turnKind: TurnOutcomeKind | undefined;
   try {
     const driven = await driveScenario(harness, manifest, prompt, provider, opts.model, workspace);
     finalText = driven.finalText;
     streamEvents = driven.streamEvents;
+    turnKind = driven.turnKind;
   } finally {
     await harness.close();
   }
@@ -861,6 +892,17 @@ export async function runScenario(opts: RunScenarioOptions): Promise<ScenarioRep
   const finishedAt = new Date();
   const durationMs = finishedAt.getTime() - startedAt.getTime();
   const success = assertResults.every((a) => a.result === 'pass');
+
+  // 证据层诚实性（本卡）：把回合结束 kind 如实带进报告数据面。
+  // `turnKind === undefined`（planner/engine lane：finalText 是 runner 的模板回述，不是某次
+  // loop turn 的产物）与 `false`（确实是 success 收尾）是两件事 —— 前者**不写**任何字段，
+  // 绝不冒充 success。本信号**不参与**判据与 gate 归约（success 仍是 asserts 的全 pass），
+  // 以免改变任何既有场景的通过/失败结果、让历史对比失真。
+  const turnEndedAbnormally = turnKind === undefined ? undefined : turnKind !== 'success';
+  const turnField =
+    turnKind === undefined
+      ? undefined
+      : { kind: turnKind, endedAbnormally: turnEndedAbnormally === true, summary: turnKindSummary(turnKind) };
 
   // JSONL report (BENCHMARK-SPEC §4.2)
   fs.mkdirSync(runDir, { recursive: true });
@@ -889,6 +931,11 @@ export async function runScenario(opts: RunScenarioOptions): Promise<ScenarioRep
   for (const e of streamEvents) {
     lines.push(JSON.stringify({ type: 'event', runId, ts: finishedAt.toISOString(), kind: 'model_stream_delta', payload: e }));
   }
+  if (turnField) {
+    // 回合结束事实进报告审计线：报告里的一行 PASS 必须能追溯到**这轮是以什么 kind 收尾的**。
+    // 新增行、不改既有行的形状与顺序（meta 仍在首行）。
+    lines.push(JSON.stringify({ type: 'event', runId, ts: finishedAt.toISOString(), kind: 'turn/end', payload: turnField }));
+  }
   for (const a of assertResults) {
     lines.push(JSON.stringify({ type: 'assert', runId, ts: finishedAt.toISOString(), assertId: a.id, assertType: a.type, target: a.target, result: a.result, evidence: a.evidence }));
   }
@@ -906,10 +953,12 @@ export async function runScenario(opts: RunScenarioOptions): Promise<ScenarioRep
     finishedAt: finishedAt.toISOString(),
     reportPath,
     sessionLog: harness.session.logPath,
+    // 新增键（可选/向后兼容）：既有键一个不动、语义一个不改。
+    ...(turnField ? { turn: turnField } : {}),
   };
   fs.writeFileSync(path.join(runDir, 'summary.json'), JSON.stringify(summary, null, 2), 'utf8');
 
-  return {
+  const report: ScenarioReport = {
     scenarioId: opts.scenarioId,
     runId,
     success,
@@ -923,6 +972,11 @@ export async function runScenario(opts: RunScenarioOptions): Promise<ScenarioRep
     workspace,
     sessionLog: harness.session.logPath,
   };
+  if (turnKind !== undefined) {
+    report.turnKind = turnKind;
+    report.turnEndedAbnormally = turnEndedAbnormally;
+  }
+  return report;
 }
 
 export { loadManifest, OFFLINE_SCRIPTS };

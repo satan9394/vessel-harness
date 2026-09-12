@@ -4,7 +4,7 @@ import * as path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { MockProvider } from '@vessel/llm';
-import type { ChatProvider } from '@vessel/shared';
+import type { ChatProvider, ChatResponse } from '@vessel/shared';
 import { runScenario, loadManifest } from '../index.js';
 import {
   vesselAdapter,
@@ -196,6 +196,49 @@ describe('contracts/vessel — Vessel self-adapter run', () => {
     expect(Array.isArray(result.notes)).toBe(true);
     expect(result.notes?.join('')).toContain('provider exploded');
     // the RunResult is still contract-valid so the runner can aggregate it
+    expect(validateRunResult(result)).toEqual([]);
+  }, 60_000);
+
+  /**
+   * 证据层诚实性（契约侧）：本函数过去只取 `res.finalText`（vessel.ts 旧 :150），
+   * 于是熔断器打死的回合（core AgentLoop.ts:334-338：kind='error'，err.message 写进
+   * finalText 后正常 return）带着**非空** finalText 走到
+   * `success = runError === null && finalText.trim().length > 0` ⇒ success=true。
+   * 真实模型 lane（real-model-lane.ts:340 → vesselAdapter.run → 本函数）正走这条路，
+   * 行状态由 metrics.success 决定 ⇒「被打死」在报告里会变成「passed」。
+   * 本卡只让它在 notes 里**可见**；success 口径不动（改口径会失真历史对比）。
+   */
+  it('证据层诚实性：被熔断打死的回合在 notes 里可见（success 口径不变，旧实现必红）', async () => {
+    const dir = makeFixture('XDENY', 'Do something impossible.');
+    // 每一步都发完全相同的调用 ⇒ 同一 intent 第 3 次被拒 ⇒ DenialLimitError ⇒ kind='error'
+    const sameIntent: ChatProvider = {
+      id: 'same-intent-denied',
+      async chat(): Promise<ChatResponse> {
+        return {
+          content: '',
+          toolCalls: [{ id: 'tc_same_intent', name: 'Shell', arguments: { command: 'rm -rf subdir' } }],
+          finishReason: 'tool_calls',
+          usage: { inputTokens: 1, outputTokens: 1 },
+        };
+      },
+    };
+    const result = await vesselAdapter.run({
+      id: 'XDENY',
+      workspaceRoot: dir,
+      options: { provider: sameIntent, model: 'mock-model', configRoot: REPO_ROOT },
+    });
+    // 旧实现：notes === undefined（丢 kind）⇒ 本行必红。
+    expect(result.notes?.join(' | ')).toContain('turn ended kind=error');
+    expect(result.notes?.join(' | ')).toContain('same intent denied');
+    // 口径未变：finalText 非空 ⇒ success=true（是否据此降级由指挥侧裁决，本卡不改判）
+    expect(result.metrics.success).toBe(true);
+    expect(validateRunResult(result)).toEqual([]);
+  }, 60_000);
+
+  it('负对照：kind=success ⇒ notes 仍为 undefined（既有字段逐字不变）', async () => {
+    const result = await vesselAdapter.run(validFixture('XOK'));
+    expect(result.metrics.success).toBe(true);
+    expect(result.notes).toBeUndefined(); // 改动前是 `runError ? [...] : undefined` —— success 路径同一取值
     expect(validateRunResult(result)).toEqual([]);
   }, 60_000);
 

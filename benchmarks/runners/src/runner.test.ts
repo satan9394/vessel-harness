@@ -3,8 +3,11 @@ import * as os from 'node:os';
 import * as path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, it, expect, afterEach } from 'vitest';
-import { runScenario, loadManifest, OFFLINE_SCRIPTS } from './runner.js';
+import type { ChatProvider, ChatResponse } from '@vessel/shared';
+import { runScenario, loadManifest, OFFLINE_SCRIPTS, turnKindSummary } from './runner.js';
 import { runAssert } from './asserts.js';
+import { classifyScenarioRun, type OfflineScenarioOutcome } from './release-gates/gates.js';
+import type { ScenarioReport } from './types.js';
 
 const REPO_ROOT = fileURLToPath(new URL('../../../', import.meta.url));
 const REPORTS = fs.mkdtempSync(path.join(os.tmpdir(), 'cah-bench-reports-'));
@@ -347,5 +350,160 @@ describe('benchmarks/runner — V1.1-D batch B024–B027 (L1 streaming/interrupt
     expect(a.finalText).toBe(b.finalText);
     expect(a.textGolden).toBe(b.textGolden);
     expect(a.toolStreamed).toBe(b.toolStreamed); // identical stream observation shape across replays
+  }, 60_000);
+});
+
+/**
+ * ===========================================================================
+ * 证据层诚实性：回合结束 kind 不得在报告里消失
+ * ===========================================================================
+ *
+ * 缺口（静态可核）：`driveScenario` 过去只把 `result.finalText` 收进 `DriverResult`
+ * （runner.ts resume/默认两条 return；契约侧 contracts/vessel.ts 同样只取 finalText），
+ * 于是 core 熔断器打死的回合（AgentLoop.ts:334-338：同一 intent 第 3 次被拒 ⇒
+ * `kind='error'`，把 `err.message` 写进 `finalText` 后**正常 return**）会被当成
+ * "本 run 的最终答案"交给判据层，而报告里没有一行能说明这轮根本没跑完。
+ *
+ * 本组三条用例分别锁：①判别性（丢掉 kind 即红）②负对照（success 路径既有字段逐字不变）
+ * ③新字段不参与既有判据 / release-gates 归约（语义零变化）。
+ */
+
+const honestyOpts = (scenarioId: string) => ({
+  scenarioId,
+  repoRoot: REPO_ROOT,
+  reportsDir: REPORTS,
+  provider: null,
+  model: 'mock-model',
+  policyPath: path.join(REPO_ROOT, 'configs', 'policy.default.yaml'),
+  behaviorIRPath: path.join(REPO_ROOT, 'configs', 'behavior.default.yaml'),
+});
+
+/**
+ * 「死磕同一 intent」的 provider：每一步都发**完全相同**的一次调用。
+ *
+ * 为什么这样就等于「被熔断打死的回合」：熔断器的计数键是
+ * `toolName:JSON(arguments)`（AgentLoop.ts:790），同一 intent 第 3 次被拒即抛
+ * `DenialLimitError`（AgentLoop.ts:334-338）⇒ 回合以 `kind='error'` 收尾、
+ * `finalText = err.message` 并**正常返回**。`rm -rf subdir` 在默认策略（workspace-write
+ * + approval: never 服务端 fail-closed）与 S001 声明的 danger-full-access（destructive-delete
+ * 硬拒）两种 profile 下都是 DENIED，故这条构造对 profile 不敏感。
+ */
+function sameIntentDeniedProvider(): ChatProvider {
+  return {
+    id: 'same-intent-denied',
+    async chat(): Promise<ChatResponse> {
+      return {
+        content: '',
+        toolCalls: [{ id: 'tc_same_intent', name: 'Shell', arguments: { command: 'rm -rf subdir' } }],
+        finishReason: 'tool_calls',
+        usage: { inputTokens: 1, outputTokens: 1 },
+      };
+    },
+  };
+}
+
+/** 读 summary.json（与 reportPath 同目录）。 */
+function readSummary(report: ScenarioReport): Record<string, unknown> {
+  return JSON.parse(fs.readFileSync(path.join(path.dirname(report.reportPath), 'summary.json'), 'utf8'));
+}
+
+/** 读 JSONL 报告的全部行。 */
+function readJsonl(report: ScenarioReport): Record<string, unknown>[] {
+  return fs
+    .readFileSync(report.reportPath, 'utf8')
+    .trim()
+    .split('\n')
+    .map((l) => JSON.parse(l) as Record<string, unknown>);
+}
+
+describe('benchmarks/runner — 证据层诚实性：回合结束 kind 必须进报告', () => {
+  it('① 判别性：被熔断打死的回合（kind=error）如实进报告 —— 丢掉 kind 这条必红', async () => {
+    const report = await runScenario({ ...honestyOpts('S001'), provider: sameIntentDeniedProvider() });
+    tempDirs.push(report.workspace);
+
+    // 事实本身：这一轮以 kind='error' 收尾，finalText 是熔断器的话、不是模型答案。
+    // （旧实现：'result.kind' 从未被读取 ⇒ report.turnKind === undefined ⇒ 本行必红。）
+    expect(report.turnKind).toBe('error');
+    expect(report.turnEndedAbnormally).toBe(true);
+    expect(report.finalText).toContain('same intent denied');
+
+    // 报告（summary.json）：既有键之外新增 turn 字段 + 人话摘要
+    const summary = readSummary(report);
+    expect(summary.turn).toEqual({ kind: 'error', endedAbnormally: true, summary: turnKindSummary('error') });
+    expect(String((summary.turn as { summary: string }).summary)).toContain('kind=error');
+
+    // 报告（JSONL 审计线）：run 的收尾事实可被外部读者读到（新增行，meta 仍在首行）
+    const lines = readJsonl(report);
+    expect(lines[0]!.type).toBe('meta');
+    const turnLine = lines.find((l) => l.type === 'event' && l.kind === 'turn/end');
+    expect(turnLine?.payload).toEqual({ kind: 'error', endedAbnormally: true, summary: turnKindSummary('error') });
+
+    // ★ 判据口径**未变**：S001 的四条判据仍按原样判（拒绝确实发生、文件确实还在）。
+    //   报告因此同时说清两件事：「机制层拒绝了这次永久删除」（判据 PASS）与
+    //   「这一轮没跑完」（turn.kind=error）。旧实现只能说出第一件。本卡不据此改判
+    //   —— 改判会让历史对比失真，是否据此降级由指挥侧裁决。
+    expect(report.asserts.map((a) => a.result)).toEqual(['pass', 'pass', 'pass', 'pass']);
+    expect(report.success).toBe(true);
+  }, 60_000);
+
+  it('② 负对照：kind=success ⇒ 既有键与既有场景结果逐字不变，新信号如实为 false', async () => {
+    const report = await runScenario(honestyOpts('B024'));
+    tempDirs.push(report.workspace);
+
+    // 既有场景结果：与本文件既有的 B024 用例同口径（success / M01 / golden / 全 pass）
+    expect(report.success, `asserts: ${JSON.stringify(report.asserts)}`).toBe(true);
+    expect(report.metrics.M01).toBe(1);
+    expect(report.finalText).toContain('STREAM-TEXT-GOLDEN-2026');
+    expect(report.asserts.every((a) => a.result === 'pass')).toBe(true);
+
+    // 新增信号：success 路径上**如实为 false**（不是缺席、也不是 true）
+    expect(report.turnKind).toBe('success');
+    expect(report.turnEndedAbnormally).toBe(false);
+
+    // 既有 JSON 键：名与值都与本次 run 的既有数据一致，未被新字段改写
+    const summary = readSummary(report);
+    expect(Object.keys(summary).sort()).toEqual(
+      [
+        'scenarioId', 'runId', 'success', 'mode', 'durationMs', 'metrics', 'asserts',
+        'startedAt', 'finishedAt', 'reportPath', 'sessionLog',
+        'turn', // 唯一新增键（可选/向后兼容）
+      ].sort(),
+    );
+    expect(summary.scenarioId).toBe(report.scenarioId);
+    expect(summary.runId).toBe(report.runId);
+    expect(summary.success).toBe(report.success);
+    expect(summary.mode).toBe('offline');
+    expect(summary.durationMs).toBe(report.durationMs);
+    expect(summary.metrics).toMatchObject({ M01: 1 });
+    expect(summary.startedAt).toBe(report.startedAt);
+    expect(summary.finishedAt).toBe(report.finishedAt);
+    expect(summary.reportPath).toBe(report.reportPath);
+    expect(summary.sessionLog).toBe(report.sessionLog);
+    expect(summary.asserts).toEqual(report.asserts.map((a) => ({ id: a.id, type: a.type, result: a.result })));
+    expect(summary.turn).toEqual({ kind: 'success', endedAbnormally: false, summary: turnKindSummary('success') });
+
+    // JSONL 也如实带一行收尾事实（新增行；既有行照旧）
+    const turnLine = readJsonl(report).find((l) => l.type === 'event' && l.kind === 'turn/end');
+    expect((turnLine?.payload as { kind?: string })?.kind).toBe('success');
+  }, 60_000);
+
+  it('③ 新字段不参与既有判据与 release-gates 归约（语义零变化，含成功/失败两条路径）', async () => {
+    const report = await runScenario(honestyOpts('B024'));
+    tempDirs.push(report.workspace);
+
+    // 编译期：加了可选字段后，ScenarioReport 仍结构化满足 gate 归约读取的形状
+    // （OfflineScenarioOutcome 只有 success + asserts；本卡未改它，release-gates 用例无需改动）
+    const outcome: OfflineScenarioOutcome = report;
+    expect(classifyScenarioRun(outcome)).toBe('pass');
+
+    // 运行期：即便报告标着"回合未正常结束"，归约也只看 success/asserts ⇒ 判定不变。
+    // 这条是**故意的负对照**：本卡只做可见化，不允许悄悄改判（否则历史对比失真）。
+    const abnormal: ScenarioReport = { ...report, turnKind: 'error', turnEndedAbnormally: true };
+    const abnormalOutcome: OfflineScenarioOutcome = abnormal;
+    expect(classifyScenarioRun(abnormalOutcome)).toBe('pass');
+
+    // 真失败仍然 fail（新字段不得掩盖既有 red）
+    const failed: OfflineScenarioOutcome = { success: false, asserts: [{ result: 'fail' }] };
+    expect(classifyScenarioRun(failed)).toBe('fail');
   }, 60_000);
 });

@@ -20,6 +20,7 @@ import { MockProvider } from '@vessel/llm';
 import { OFFLINE_SCRIPTS } from '../offline.js';
 import { dropWorkspaceLinks, prepareFixtureSetup, uniqueToolCallIds } from '../runner.js';
 import { resolveBenchPrice } from '../adapters/pricing.js';
+import type { TurnOutcomeKind } from '../types.js';
 import { assertValidHarnessAdapter, assertValidRunResult } from './validate.js';
 import type { CapabilityKey, HarnessAdapter, HarnessFixture, RunResult } from './types.js';
 
@@ -145,9 +146,21 @@ export async function runVesselFixture(fixture: HarnessFixture): Promise<RunResu
   const harness = await composeHarness(composeOpts);
   let finalText = '';
   let runError: unknown = null;
+  /**
+   * 回合结束 kind（证据层诚实性）。这里过去**只**取 `res.finalText`（本文件旧 :150），
+   * 于是熔断器打死的回合（core AgentLoop.ts:334-338：kind='error'，`err.message`
+   * 写进 finalText 后正常 return）会带着非空 finalText 走到下面
+   * `success = runError === null && finalText.trim().length > 0` ⇒ **success=true**。
+   * 真实模型 lane（lane/real-model-lane.ts:340 → vesselAdapter.run → 本函数）正是
+   * 这条路径：行状态由 `metrics.success` 决定，所以「被熔断打死」在报告里会变成
+   * 「passed」。本卡只让它**可见**（notes），不改 success 口径 —— 改口径会让
+   * 历史对比失真，且要不要据此改判由指挥侧裁决。
+   */
+  let turnKind: TurnOutcomeKind | undefined;
   try {
     const res = await harness.loop.runTurn(task);
     finalText = res.finalText;
+    turnKind = res.kind;
   } catch (err) {
     runError = err;
   } finally {
@@ -199,6 +212,23 @@ export async function runVesselFixture(fixture: HarnessFixture): Promise<RunResu
     resumeSuccess: false,
   };
 
+  /**
+   * RunResult.notes —— **向后兼容的可见面**：076 契约（contracts/types.ts:85-86）
+   * 已有可选 `notes?: string[]`，校验只要求它是字符串数组（validate.ts:86-87），
+   * 所以"这一轮没正常收尾"可以如实写进去而不必改 076 契约形状（本卡不改 types.ts/validate.ts）。
+   *
+   * 纪律：kind='success' 时**一条都不加**（保持 `undefined`，与改动前逐字一致）；
+   * 只有真出现非正常收尾才追加，故它不可能放宽任何既有判据。
+   */
+  const notes: string[] = [];
+  if (runError) notes.push(`run raised: ${String(runError)}`);
+  if (turnKind !== undefined && turnKind !== 'success') {
+    notes.push(
+      `turn ended kind=${turnKind}：本 run 未正常收尾，finalText 是错误/半截文案而非模型答案` +
+        `（finalText=${JSON.stringify(finalText.slice(0, 200))}）`,
+    );
+  }
+
   const result: RunResult = {
     adapterId: VESSEL_ADAPTER_ID,
     adapterVersion: VESSEL_ADAPTER_VERSION,
@@ -209,7 +239,7 @@ export async function runVesselFixture(fixture: HarnessFixture): Promise<RunResu
       { kind: 'session', path: harness.session.logPath },
       { kind: 'workspace', path: workspace },
     ],
-    notes: runError ? [`run raised: ${String(runError)}`] : undefined,
+    notes: notes.length > 0 ? notes : undefined,
   };
 
   assertValidRunResult(result);
