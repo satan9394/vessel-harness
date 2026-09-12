@@ -10,6 +10,7 @@ import { describe, it, expect, afterEach } from 'vitest';
 import { envRoot } from './envRoot.js';
 import { providerStateRoot } from './providers/defaultStore.js';
 import { resolveUsageRoot } from './usage/UsageStore.js';
+import { defaultSessionRoot, resolveSessionRoot } from '@vessel/application';
 
 const KEY = 'VESSEL_PROVIDER_ROOT';
 const saved = process.env[KEY];
@@ -63,6 +64,39 @@ describe('envRoot — 状态根环境变量的唯一读法', () => {
     } finally {
       if (usaved === undefined) delete process.env[UKEY];
       else process.env[UKEY] = usaved;
+    }
+  });
+
+  /**
+   * ⑥ SESSION（本卡补的第三根）：`ResolveSessionRoot()` 此前是
+   * `process.env.VESSEL_SESSION_ROOT ?? defaultSessionRoot()` —— 本文件原先只覆盖了
+   * PROVIDER 与 USAGE，SESSION 是漏网的第三个状态根。
+   *
+   * 空串的后果比"落到 CWD"更硬：`''` 会成为根 ⇒ `SessionRegistry` 构造里
+   * `fs.mkdirSync('')` **抛 ENOENT**（`path.join('', 'sessions.json') === 'sessions.json'`），
+   * 而生产调用点（`apps/cli/src/cli.ts` 的 `new SessionRegistry()`）在 try/catch 里 ⇒ 静默不登记。
+   */
+  it('⑥ session 根同口径：空串/纯空白 ⇒ 默认根 ~/.vessel（旧实现得 "" ⇒ 必抛 ENOENT）', () => {
+    const SKEY = 'VESSEL_SESSION_ROOT';
+    const ssaved = process.env[SKEY];
+    try {
+      delete process.env[SKEY];
+      const fallback = defaultSessionRoot(); // ~/.vessel（纯路径计算，只读不写盘）
+      expect(resolveSessionRoot()).toBe(fallback);
+
+      process.env[SKEY] = '';
+      expect(resolveSessionRoot()).toBe(fallback); // 改前：'' ⇒ 根为 ''（不是默认根）
+      expect(resolveSessionRoot()).not.toBe('');
+
+      process.env[SKEY] = '   ';
+      expect(resolveSessionRoot()).toBe(fallback); // 改前：`??` 只挡 undefined ⇒ 根为 '   '（相对 CWD）
+
+      // 负对照：有值 ⇒ trim 后为该值（既有语义逐字不变）
+      process.env[SKEY] = '  C:\\tmp\\explicit-session  ';
+      expect(resolveSessionRoot()).toBe('C:\\tmp\\explicit-session');
+    } finally {
+      if (ssaved === undefined) delete process.env[SKEY];
+      else process.env[SKEY] = ssaved;
     }
   });
 });

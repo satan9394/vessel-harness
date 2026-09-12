@@ -6,6 +6,7 @@ import { PlaintextCredentialStore } from '@vessel/application';
 import {
   BUILTIN_MOCK_PROVIDER,
   ProviderStore,
+  defaultProviderRoot,
   type ProviderConfig,
 } from './ProviderStore.js';
 
@@ -381,5 +382,57 @@ describe('ProviderStore 成本倍率 (task 094)', () => {
     store.add({ ...SAMPLE, costMultiplier: 0 });
     expect(store.costMultiplierOf('ds')).toBe(0);
     expect(store.costMultipliers()).toEqual({ ds: 0 });
+  });
+
+  /**
+   * 状态根口径（`VESSEL_PROVIDER_ROOT`）—— 断言**打在构造函数本身**（`new ProviderStore({})`），
+   * 不是打在 `providerStateRoot()` 上：同一环境变量此前有两条读法并存
+   * （`createDefaultProviderStore()` 走 `providerStateRoot()` → `envRoot`；而构造函数自己
+   * `opts.rootDir ?? process.env.VESSEL_PROVIDER_ROOT ?? defaultProviderRoot()`）。
+   *
+   * 判别性（「删掉修复就红」）：`VESSEL_PROVIDER_ROOT=`（空串）时旧构造得 `rootDir === ''`
+   * ⇒ `providersFile = 'providers.json'` ⇒ 从**进程 CWD** 读写，而同一次运行的 usage/凭据
+   * 在 `~/.vessel` ⇒ 状态根静默拆成两处。构造函数无 IO，故这里可以安全断言默认根 `~/.vessel`。
+   */
+  describe('状态根口径（VESSEL_PROVIDER_ROOT 空/纯空白 ⇒ 未设置）', () => {
+    let savedRoot: string | undefined;
+
+    beforeEach(() => {
+      savedRoot = process.env.VESSEL_PROVIDER_ROOT;
+    });
+
+    afterEach(() => {
+      if (savedRoot === undefined) delete process.env.VESSEL_PROVIDER_ROOT;
+      else process.env.VESSEL_PROVIDER_ROOT = savedRoot;
+    });
+
+    it('① 判别性：new ProviderStore({}) 在空串下根为默认根（~/.vessel），不是 ""/CWD', () => {
+      delete process.env.VESSEL_PROVIDER_ROOT;
+      const fallback = defaultProviderRoot();
+      process.env.VESSEL_PROVIDER_ROOT = '';
+
+      const s = new ProviderStore({});
+      expect(s.rootDir).toBe(fallback); // 改前：'' ⇒ rootDir=''（= CWD）
+      expect(s.rootDir).not.toBe('');
+      expect(s.rootDir).not.toBe(process.cwd());
+      expect(s.providersFile).toBe(path.join(fallback, 'providers.json'));
+    });
+
+    it('①-b 纯空白 ⇒ 同为默认根；② 有值（含首尾空白）⇒ trim 后即根（负对照：有值行为逐字不变）', () => {
+      process.env.VESSEL_PROVIDER_ROOT = '   ';
+      expect(new ProviderStore({}).rootDir).toBe(defaultProviderRoot()); // 改前：'   ' ⇒ 相对 CWD
+
+      process.env.VESSEL_PROVIDER_ROOT = '  C:\\tmp\\explicit-provider  ';
+      expect(new ProviderStore({}).rootDir).toBe('C:\\tmp\\explicit-provider');
+    });
+
+    it('④ 负对照：显式 opts.rootDir 优先于 env；env 未设置 ⇒ 仍回落默认根', () => {
+      process.env.VESSEL_PROVIDER_ROOT = 'C:\\tmp\\env-root';
+      expect(new ProviderStore({ rootDir: 'C:\\tmp\\opts-root' }).rootDir).toBe('C:\\tmp\\opts-root');
+
+      delete process.env.VESSEL_PROVIDER_ROOT;
+      expect(new ProviderStore({}).rootDir).toBe(defaultProviderRoot());
+      expect(new ProviderStore({ rootDir: dir }).rootDir).toBe(dir);
+    });
   });
 });

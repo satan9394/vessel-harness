@@ -11,14 +11,21 @@
  *   来源缺省 external。
  * - `vessel review list [--root <dir>]` —— 列出 reviews（id/状态/任务/结果数）。
  *
- * root 解析：--root > env VESSEL_REVIEWS_ROOT > ~/.vessel/reviews（defaultReviewsRoot）。
+ * root 解析：--root/opts.root > env VESSEL_REVIEWS_ROOT > ~/.vessel/reviews（defaultReviewsRoot）。
+ * **唯一口径**：env 走 `../envRoot.js`（空/纯空白 ⇒ 未设置，其余 trim）；显式传参与 env **同口径**
+ * （纯空白同样按未设置），其余逐字使用。
  */
 import * as fs from 'node:fs';
+import * as os from 'node:os';
 import * as path from 'node:path';
 import { ReviewHandoffStore, type HandoffCreateInput, type ReviewHandoffRecord } from '@vessel/application';
+import { envRoot } from '../envRoot.js';
 
 export interface ReviewCliOptions {
-  /** 覆盖 reviews 根（测试注入 tmp）；缺省 defaultReviewsRoot() */
+  /**
+   * 覆盖 reviews 根（测试注入 tmp）。显式非空时**优先**于 `VESSEL_REVIEWS_ROOT`；
+   * 空/纯空白按未设置（与 env 同口径），此时回落 env 再回落默认根 `~/.vessel/reviews`。
+   */
   root?: string;
   /** 覆盖工作区（meta.workspaceRoot）；缺省 process.cwd() */
   workspace?: string;
@@ -27,14 +34,34 @@ export interface ReviewCliOptions {
   error?: (line: string) => void;
 }
 
-function resolveRoot(opts: ReviewCliOptions): string | undefined {
-  const override = opts.root ?? process.env.VESSEL_REVIEWS_ROOT;
-  return override ? path.resolve(override) : undefined;
+/**
+ * 默认 reviews 根（`~/.vessel/reviews`）——与 `@vessel/application` 的 `defaultReviewsRoot()` 同址。
+ *
+ * 这里**显式**给出，而不是再调 `defaultReviewsRoot()`：后者仍是
+ * `process.env.VESSEL_REVIEWS_ROOT ?? path.join(home, '.vessel', 'reviews')`，`??` 挡不住空串/纯空白
+ * ⇒ 空白会被 `path.resolve` 解析成**进程 CWD**（同一个病；该函数不在本卡改动范围，见交付报告「只报告项」）。
+ */
+function defaultReviewsRootForCli(): string {
+  return path.join(os.homedir(), '.vessel', 'reviews');
+}
+
+/**
+ * 生效的 reviews 根（恒为绝对路径）——**唯一口径**：
+ * 显式 `--root`/`opts.root` > `envRoot('VESSEL_REVIEWS_ROOT')` > 默认根 `~/.vessel/reviews`。
+ *
+ * 空/纯空白（对显式传参与环境变量**同口径**）一律按未设置处理。兼容前这里是真值判断
+ * `override ? path.resolve(override) : undefined`：纯空白是真值 ⇒ `path.resolve('   ')` = 进程 CWD；
+ * 而「未设置」分支交回 `new ReviewHandoffStore()` 后，该类又用 `??` 复读了同一个环境变量 ⇒
+ * 空串同样漏成 CWD。两条口径都收敛到本函数。
+ */
+function resolveRoot(opts: ReviewCliOptions): string {
+  const explicit = opts.root !== undefined && opts.root.trim() !== '' ? opts.root : undefined;
+  const override = explicit ?? envRoot('VESSEL_REVIEWS_ROOT');
+  return path.resolve(override ?? defaultReviewsRootForCli());
 }
 
 function storeFor(opts: ReviewCliOptions): ReviewHandoffStore {
-  const reviewsRoot = resolveRoot(opts);
-  return reviewsRoot ? new ReviewHandoffStore({ reviewsRoot }) : new ReviewHandoffStore();
+  return new ReviewHandoffStore({ reviewsRoot: resolveRoot(opts) });
 }
 
 function readHandoffRequest(file: string): HandoffCreateInput {

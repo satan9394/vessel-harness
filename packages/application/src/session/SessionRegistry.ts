@@ -2,7 +2,7 @@ import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import * as crypto from 'node:crypto';
-import { renameWithRetry } from '@vessel/shared';
+import { envRoot, renameWithRetry } from '@vessel/shared';
 
 /** Persisted metadata describing one application session. */
 export interface SessionMeta {
@@ -29,6 +29,10 @@ export interface SessionRegistryOptions {
    * vessel home dir. An explicit value wins; otherwise the effective root is
    * `VESSEL_SESSION_ROOT` ?? `~/.vessel` (see `resolveSessionRoot`). Tests inject
    * a tmp dir so the real home is never touched (AGENTS.md §8).
+   *
+   * `VESSEL_SESSION_ROOT` 为空/纯空白时**按未设置**处理（唯一口径见 `envRoot`）——
+   * 兼容前 `''` 会原样成为根，`fs.mkdirSync('')` 直接抛 ENOENT，而生产调用点
+   * （`apps/cli/src/cli.ts` 的 `new SessionRegistry()`）把它 try/catch 吞掉 ⇒ **静默不登记**。
    */
   vesselHome?: string;
 }
@@ -42,11 +46,15 @@ export function defaultSessionRoot(home = os.homedir()): string {
 
 /**
  * 生效的会话注册表根目录：`VESSEL_SESSION_ROOT` > `~/.vessel`
- * （与 `resolveUsageRoot()` / `defaultProviderRoot()` 同口径；env 覆盖是
- * SessionRegistry 测试隔离的前提）。
+ * （与 `resolveUsageRoot()` / `providerStateRoot()` / `resolveMcpRoot()` / `resolveSettingsRoot()`
+ * 同口径，唯一实现 = `@vessel/shared` 的 `envRoot`：空/纯空白 ⇒ 未设置，其余 trim）。
+ *
+ * 为什么不能写 `process.env.VESSEL_SESSION_ROOT ?? defaultSessionRoot()`：
+ * `??` 只挡 `undefined`，`VESSEL_SESSION_ROOT=`（空串）会原样成为根 ⇒ 构造函数里
+ * `fs.mkdirSync('')` 抛 ENOENT（`path.join('', 'sessions.json') === 'sessions.json'`）。
  */
 export function resolveSessionRoot(): string {
-  return process.env.VESSEL_SESSION_ROOT ?? defaultSessionRoot();
+  return envRoot('VESSEL_SESSION_ROOT') ?? defaultSessionRoot();
 }
 
 /**

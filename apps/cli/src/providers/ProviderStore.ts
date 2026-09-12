@@ -8,6 +8,7 @@ import {
   makeSecretRef,
   type SyncCredentialStore,
 } from '@vessel/application';
+import { envRoot } from '../envRoot.js';
 
 /**
  * apps/cli/providers/ProviderStore — 供应商配置 SSOT 存储（task 014）。
@@ -200,7 +201,13 @@ export class ProviderStore {
   constructor(opts: ProviderStoreOptions = {}) {
     // env override lets CLI tests isolate from the real ~/.vessel without touching
     // it; explicit opts.rootDir wins over env.
-    this.rootDir = opts.rootDir ?? process.env.VESSEL_PROVIDER_ROOT ?? defaultProviderRoot();
+    //
+    // 唯一口径（`../envRoot.js` → `@vessel/shared` 的 `envRoot`）：`VESSEL_PROVIDER_ROOT`
+    // 为空/纯空白 ⇒ **未设置**（回落 defaultProviderRoot()），其余 trim。
+    // 兼容前这里是 `?? process.env.VESSEL_PROVIDER_ROOT ?? …`：`VESSEL_PROVIDER_ROOT=`
+    // 会让 rootDir='' ⇒ 从**进程 CWD** 读写 providers.json/current.json，而同一次运行的
+    // usage/凭据在 `~/.vessel`（`providerStateRoot()` 走的是 envRoot）⇒ 状态根被静默拆成两处。
+    this.rootDir = opts.rootDir ?? envRoot('VESSEL_PROVIDER_ROOT') ?? defaultProviderRoot();
     this.credentialStore = opts.credentialStore;
     this.credentialService = opts.credentialService ?? 'vessel';
     const envKeep = process.env.VESSEL_PROVIDER_BACKUP_KEEP;
