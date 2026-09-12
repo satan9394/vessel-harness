@@ -20,10 +20,11 @@ import * as path from 'node:path';
 import { renameWithRetry } from '@vessel/shared';
 import { defaultUsageRoot } from '../usage/UsageStore.js';
 import type { GuideLocale } from './guide.js';
+import { envRoot } from '../envRoot.js';
 
 /** 生效的设置根目录（VESSEL_SETTINGS_ROOT > VESSEL_USAGE_ROOT > ~/.vessel）。 */
 export function resolveSettingsRoot(): string {
-  return process.env.VESSEL_SETTINGS_ROOT ?? process.env.VESSEL_USAGE_ROOT ?? defaultUsageRoot();
+  return envRoot('VESSEL_SETTINGS_ROOT') ?? envRoot('VESSEL_USAGE_ROOT') ?? defaultUsageRoot();
 }
 
 export interface SettingValueDef {

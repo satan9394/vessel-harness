@@ -7,6 +7,7 @@ import {
   type TokenPrice,
 } from '../providers/pricing.js';
 import { defaultUsageRoot } from './UsageStore.js';
+import { envRoot } from '../envRoot.js';
 
 /**
  * apps/cli/usage — 用户价目覆盖（task 092）。
@@ -189,7 +190,7 @@ export class PricingOverrideStore {
   private warnedSignature: string | undefined;
 
   constructor(opts: { rootDir?: string } = {}) {
-    this.rootDir = opts.rootDir ?? process.env.VESSEL_USAGE_ROOT ?? defaultUsageRoot();
+    this.rootDir = opts.rootDir ?? envRoot('VESSEL_USAGE_ROOT') ?? defaultUsageRoot();
     this.file = path.join(this.rootDir, PRICING_OVERRIDE_FILENAME);
   }
 

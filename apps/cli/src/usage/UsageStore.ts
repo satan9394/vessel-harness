@@ -2,6 +2,7 @@ import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { renameWithRetry } from '@vessel/shared';
+import { envRoot } from '../envRoot.js';
 import {
   costBreakdown,
   resolvePrice,
@@ -365,7 +366,7 @@ export function defaultUsageRoot(home = os.homedir()): string {
 
 /** 生效的 usage 根目录（`VESSEL_USAGE_ROOT` 覆盖；覆盖价目文件与 usage.json 同根）。 */
 export function resolveUsageRoot(): string {
-  return process.env.VESSEL_USAGE_ROOT ?? defaultUsageRoot();
+  return envRoot('VESSEL_USAGE_ROOT') ?? defaultUsageRoot();
 }
 
 /** 从 ISO 时间戳取本地日键（非法/缺失 → undefined）。 */

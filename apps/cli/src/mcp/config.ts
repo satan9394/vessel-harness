@@ -2,6 +2,7 @@ import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { renameWithRetry } from '@vessel/shared';
+import { envRoot } from '../envRoot.js';
 
 /**
  * apps/cli/src/mcp/config.ts — MCP server 声明的用户级配置读取器
@@ -86,12 +87,16 @@ export function resolveMcpRoot(): string {
   return envRootOverride() ?? defaultMcpRoot();
 }
 
-/** 读 `VESSEL_MCP_ROOT`；空/纯空白按未设置处理。 */
+/**
+ * 读 `VESSEL_MCP_ROOT`；空/纯空白按未设置处理。
+ *
+ * **Round 123：实现搬到 `../envRoot.js`**（`envRoot('VESSEL_MCP_ROOT')`），
+ * 因为本文件此前是**唯一**处理对的地方、而其它四个状态根各写了一遍 `?? 默认值`
+ * ⇒ `VESSEL_PROVIDER_ROOT=` 之类会让状态落到进程 CWD。现在**全仓一份口径**。
+ * 语义逐字不变，本函数保留为薄封装以免改动调用点。
+ */
 function envRootOverride(): string | undefined {
-  const raw = process.env.VESSEL_MCP_ROOT;
-  if (raw === undefined) return undefined;
-  const trimmed = raw.trim();
-  return trimmed === '' ? undefined : trimmed;
+  return envRoot('VESSEL_MCP_ROOT');
 }
 
 /** 非 null 非数组的对象（JSON 里的 `{...}`）。 */

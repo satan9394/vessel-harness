@@ -1,6 +1,7 @@
 import * as path from 'node:path';
 import { createCredentialStore, type SyncCredentialStore } from '@vessel/application';
 import { ProviderStore, defaultProviderRoot } from './ProviderStore.js';
+import { envRoot } from '../envRoot.js';
 
 /**
  * apps/cli/providers/defaultStore — CLI/TUI 的**默认 ProviderStore** 唯一构造路径（task 034 → 106）。
@@ -16,7 +17,7 @@ import { ProviderStore, defaultProviderRoot } from './ProviderStore.js';
 
 /** 生效的 provider 状态根（`VESSEL_PROVIDER_ROOT` 覆盖；缺省 `~/.vessel`，与 ProviderStore 同口径）。 */
 export function providerStateRoot(): string {
-  return process.env.VESSEL_PROVIDER_ROOT ?? defaultProviderRoot();
+  return envRoot('VESSEL_PROVIDER_ROOT') ?? defaultProviderRoot();
 }
 
 export interface DefaultProviderStoreOptions {
