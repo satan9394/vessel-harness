@@ -40,12 +40,11 @@
 
 ## 当前最高价值下一步
 
-**进行中**：Round 13（G-11 MCP 半）——传输层扩签名 ✅、配置读取器 ✅、application 侧连接桥接（本轮新卡）、CLI/TUI 接线与降级、真跨进程 E2E。完成后按序：
+**进行中**：Round 14（P3 集群收口）。**A（CLI 错误出口 `--json` 化）✅ 57 处全部收敛**、**B（门禁重跑）✅ 7 pass / 1 fail**、**C（文档指针）✅ 只改 living docs**；两张由 B 暴露的修复卡在跑：① `VESSEL_OPENCODE_GO_BASE_URL` **污染测试套件**（判别性复现：无 env 20/20 过、有 env 2 例红）→ 测试侧隔离；② 门禁 `unit` 注记**硬编码错误归因**（把真实回归说成 process-tree flaky）→ 改为证据推导。完成后按序：
 
-1. **Round 11/12 终评**（核 `/permission` 确认即生效 + 重建容错 + deny 面证据；locale 与 theme 收口）。
-2. **Round 13 收口**：`cli.ts`/`chat.ts` 加 `mcp:`；降级 failures 打印；**防重复 spawn**（`buildHarness` 会因切换权限/模型而重建，须由 `harness.close()` 回收或缓存连接）。
-3. **P3 集群**（低成本）：CLI 面其余错误出口 `--json` 化；`release-report.*` 生成物重跑；`docs` 里指向 `OpencodeGoProvider.ts` 旧位置的过期引用改指 `errorBody.ts`。
-4. **LATER**：全量 i18n 架构、`~/.vessel` 状态根重复收敛、`vessel diff --last` 式只读回滚提示（G-10 的克制替代）。
+1. **Round 14 复评**：核 A 的 57 处改造是否真有判别力（含多行文案与 stdout 纯净性）、B 的覆盖入口是否守住默认行为、两张修复卡是否闭合。
+2. **复跑门禁**取 clean report（验证注记不再误归因、unit 不再受 env 污染）。
+3. **LATER**：全量 i18n 架构、`~/.vessel` 状态根重复收敛、`vessel diff --last` 式只读回滚提示（G-10 的克制替代）、`--json` 下 `console.warn` 仍打人类文案（P4）、`cmdProviderEndpointTest` 在 `--json` 下探测阶段先往 stdout 打人类行（P4）。
 
 **已定的"不做"**（均有论证，不因"竞品有"而做）：插件市场、消息平台、云协作/多用户、公开排行榜、IDE/桌面表面；TUI 内不放 `migrate`/`serve`/`bench`/`pricing sync`/`--json`；**不做**通用快照回滚（会让用户误以为 Shell 写入也可回滚）。
 
@@ -240,7 +239,7 @@
 
 ## 纪律
 
-## 纪律
+## Round 13（G-11 之 MCP 半）— 交付细节
 
 **定位**：把"**已有能力的出口**"接上——库级管道早已通（`compose.ts` 的 `mcp` + `registerMcpTools` + `mcp__<server>__<tool>`），但 `apps/cli` 内 `grep Mcp|MCP` **零命中**，用户只能编程接入。
 

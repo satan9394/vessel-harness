@@ -12,8 +12,10 @@
  *   8. 最小连通 probe：注入 mock provider 的鉴权/响应/usage 快照（不打真实 API）。
  *   9. task 111 默认切换：defaultLaneModels（flash 优先 deepseek-flash，MIMO 回退）+ explicitLaneModels
  *      （显式 --model/--models 覆盖保留 mimo 复跑能力）。
+ *  10. lane 端点覆盖入口 `VESSEL_OPENCODE_GO_BASE_URL`：显式注入 → 剥尾斜杠；纯空白 → 视为未设
+ *      （回落内置默认端点）。文件顶层对所有用例做该变量的快照/删除/还原，默认端点断言不受宿主环境污染。
  */
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
@@ -44,6 +46,33 @@ import {
   OPENCODE_GO_REFERENCE_MODELS,
 } from './opencodeGoProvider.js';
 
+/**
+ * 环境洁净（AGENTS.md §8 精神）：本文件多处断言「默认端点」
+ * `https://opencode.ai/zen/go/v1`，而 lane 新增的端点覆盖入口 `VESSEL_OPENCODE_GO_BASE_URL`
+ * （见 `opencodeGoProvider.ts` 的 `opencodeGoBaseUrl()`）会把默认端点顶掉——开发者本机 / CI 只要
+ * 设了它，断言默认端点的用例就会红。
+ *
+ * 顶层 `beforeEach`/`afterEach` 对所有 describe 生效：先快照该变量 → 删除 → 跑完原样还原
+ * （原值存在则恢复，否则 delete）。于是无论宿主环境是否设置该变量，默认端点断言都稳定。
+ *
+ * 注意：`opencodeGoEndpoint(keyResolver)` 与 `resolveOpencodeGoProvider(model, opts)` 的签名
+ * **没有** env 注入口（内部调 `opencodeGoBaseUrl()`，缺省读 `process.env`），故这两条路径只能靠
+ * 本处的环境洁净 + 用例内的显式前置断言（见下方 `process.env...toBeUndefined()`）来钉住默认值。
+ */
+const OPENCODE_GO_BASE_URL_ENV = 'VESSEL_OPENCODE_GO_BASE_URL';
+
+let savedOpencodeGoBaseUrlEnv: string | undefined;
+
+beforeEach(() => {
+  savedOpencodeGoBaseUrlEnv = process.env[OPENCODE_GO_BASE_URL_ENV];
+  delete process.env[OPENCODE_GO_BASE_URL_ENV];
+});
+
+afterEach(() => {
+  if (savedOpencodeGoBaseUrlEnv === undefined) delete process.env[OPENCODE_GO_BASE_URL_ENV];
+  else process.env[OPENCODE_GO_BASE_URL_ENV] = savedOpencodeGoBaseUrlEnv;
+});
+
 function m(modelId: string, tier: 'pro' | 'flash'): LaneModel {
   return { id: `x:${modelId}`, displayName: `X ${modelId}`, tier, defaultModel: modelId };
 }
@@ -54,7 +83,20 @@ describe('V1.1-C — opencode-go preset 复用（SSOT）', () => {
     expect(preset).toBeDefined();
     expect(preset!.protocol).toBe('openai-compatible');
     expect(preset!.baseUrl).toBe('https://opencode.ai/zen/go/v1');
-    expect(opencodeGoBaseUrl()).toBe('https://opencode.ai/zen/go/v1');
+    // 显式传空 env：'默认' 只由内置 preset 决定，完全不读 process.env（env 洁净见文件顶部）。
+    expect(opencodeGoBaseUrl({})).toBe('https://opencode.ai/zen/go/v1');
+  });
+});
+
+describe('lane 端点覆盖入口 VESSEL_OPENCODE_GO_BASE_URL（剥离尾斜杠 / 空白视为未设）', () => {
+  it('显式注入覆盖值（末尾带 /）→ 剥掉尾斜杠返回，避免与 /v1/models 拼出 //models', () => {
+    expect(opencodeGoBaseUrl({ VESSEL_OPENCODE_GO_BASE_URL: 'https://example.test/v1/' })).toBe(
+      'https://example.test/v1',
+    );
+  });
+
+  it('覆盖值为纯空白 → 视为未设，回落到内置默认端点 https://opencode.ai/zen/go/v1', () => {
+    expect(opencodeGoBaseUrl({ VESSEL_OPENCODE_GO_BASE_URL: '   ' })).toBe('https://opencode.ai/zen/go/v1');
   });
 });
 
@@ -78,7 +120,11 @@ describe('V1.1-C — env key 读取与 resolver（密钥不落盘）', () => {
     // task 102：线协议客户端换成 OpencodeGoProvider（能注入 x-opencode-session / 具名 UA）；
     // 通用 openai-compatible 客户端无法加自定义头，会被 Go 端点判 400 MissingSessionID。
     expect(p!.id).toBe('opencode-go');
-    // baseUrl 落在 opencode-go 端点
+    // 前置断言：本用例构造的是真实 provider，走 `resolveOpencodeGoProvider` → `opencodeGoEndpoint`
+    // → `opencodeGoBaseUrl()`（无 env 注入口，缺省读 process.env）。先确认环境洁净（文件顶部
+    // beforeEach 已删除该变量），让「环境未被端点覆盖入口污染」这件事在断言里可见。
+    expect(process.env.VESSEL_OPENCODE_GO_BASE_URL).toBeUndefined();
+    // baseUrl 落在 opencode-go 端点（默认值，未被 VESSEL_OPENCODE_GO_BASE_URL 覆盖）
     expect(opencodeGoEndpoint(() => 'k').baseUrl).toBe('https://opencode.ai/zen/go/v1');
   });
 

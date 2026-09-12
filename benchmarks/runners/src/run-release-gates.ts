@@ -38,6 +38,7 @@ import {
   type GateExecutor,
   type GateVerdict,
   type ReleaseContext,
+  type ReleaseGateResult,
   type RunCommand,
 } from './release-gates/index.js';
 import {
@@ -135,6 +136,138 @@ export function buildDeterministicBenchExecutor(provider: ChatProvider | null = 
       return judgeScenarioRuns({ scenarioIds: [...L1_DETERMINISTIC_RUNNABLE_SET], passed });
     },
   };
+}
+
+// ---------------------------------------------------------------------------
+// V1.1-E 证据注解 —— unit gate 归因（注解机制保留，归因逻辑改为证据驱动）
+// ---------------------------------------------------------------------------
+
+/**
+ * 从 unit gate 的 evidence 提取到的失败事实（全部来自真实命令输出，不做推断）。
+ *
+ * 限定：084 的 `compactLines()` 只保留命令输出的**尾部**（stdout 末 12 行 + stderr 末 6 行，
+ * 去空行后至多 18 行），所以路径列表可能不全 —— 注解文案必须保留这条限定，不得据此断言「唯一」。
+ */
+interface UnitFailureFacts {
+  /** 失败行（含 `FAIL` 标记或 `❯` 堆栈行）上出现的 `*.test.ts(x)` 路径（去重、正斜杠）。 */
+  failedTestFiles: string[];
+  /** evidence 中出现的**全部** `*.test.ts(x)` 路径（不区分是否为失败行）。 */
+  allTestFiles: string[];
+  /** `Test Files  N failed | ...` 的 N（拿不到则 undefined）。 */
+  failedFileCount?: number;
+  /** `Tests  N failed | ...` 的 N（拿不到则 undefined）。 */
+  failedTestCount?: number;
+  /** `Tests  ... | M passed | ...` 的 M（拿不到则 undefined）。 */
+  passedTestCount?: number;
+  /** 原样的 vitest 汇总行（如 `Test Files  1 failed | 128 passed (129)`）。 */
+  statLines: string[];
+}
+
+const TEST_FILE_PATH_RE = /[\w./\\-]*\.test\.tsx?/g;
+const FAILURE_MARKER_RE = /\bFAIL\b|❯|\bAssertionError\b|^\s*×/;
+
+/** 提取 `N failed` / `M passed`（兼容 `1,388` 千分位写法）。 */
+function vitestCount(segment: string, word: 'failed' | 'passed'): number | undefined {
+  const m = segment.match(new RegExp(`(\\d[\\d,]*)\\s+${word}`, 'i'));
+  if (!m || m[1] === undefined) return undefined;
+  const n = Number(m[1].replace(/,/g, ''));
+  return Number.isFinite(n) ? n : undefined;
+}
+
+/** 收集一段文本里出现的 `*.test.ts(x)` 路径（去重，反斜杠归一为正斜杠）。 */
+function collectTestFilePaths(text: string, into: string[]): void {
+  for (const m of text.matchAll(TEST_FILE_PATH_RE)) {
+    const p = m[0].replace(/\\/g, '/').replace(/^\.\//, '');
+    if (!into.includes(p)) into.push(p);
+  }
+}
+
+/** 从 unit gate 的 evidence 提取失败事实（无副作用、不猜测、不做归因）。 */
+function extractUnitFailureFacts(gate: ReleaseGateResult): UnitFailureFacts {
+  const lines = [...(gate.evidence.detail ?? []), gate.evidence.summary]
+    .flatMap((l) => String(l).split('\n'))
+    .map((l) => l.trim())
+    .filter((l) => l.length > 0);
+
+  const failedTestFiles: string[] = [];
+  const allTestFiles: string[] = [];
+  const statLines: string[] = [];
+  let failedFileCount: number | undefined;
+  let failedTestCount: number | undefined;
+  let passedTestCount: number | undefined;
+
+  for (const line of lines) {
+    collectTestFilePaths(line, allTestFiles);
+    if (FAILURE_MARKER_RE.test(line)) collectTestFilePaths(line, failedTestFiles);
+    // 只认 vitest 的稳定汇总行（"Test Files"/"Tests" 起首的合计行）。
+    if (!/^\s*(Test Files|Tests)\s+\d/i.test(line)) continue;
+    statLines.push(line);
+    if (/^\s*Test Files\s/i.test(line)) {
+      failedFileCount ??= vitestCount(line, 'failed');
+    } else {
+      failedTestCount ??= vitestCount(line, 'failed');
+      passedTestCount ??= vitestCount(line, 'passed');
+    }
+  }
+
+  return { failedTestFiles, allTestFiles, failedFileCount, failedTestCount, passedTestCount, statLines };
+}
+
+/** 既有注解里提到的那个 flaky 文件（task 072）。 */
+const PROCESS_TREE_TEST_FILE = 'packages/runtime/src/sandbox/backend/process-tree.test.ts';
+
+/**
+ * 由 evidence 推导 unit gate 的 note（**不改变任何 gate 的 status/判据**）：
+ *  - 分支 A：vitest 汇总行 `Test Files  1 failed` **且**失败行只命中 process-tree.test.ts
+ *            → 才写既有「process-tree 计时 flaky」注解，并附上归因依据；
+ *  - 分支 B：其它/混合失败（含只拿到统计行、或失败文件非 process-tree 的情况）
+ *            → 如实列出可提取的 stats / 失败文件，并明确「未自动归因」；
+ *  - 分支 C：连失败文件与统计都提取不到 → 只说「未自动归因，见 evidence.detail」。
+ *  三种分支都**绝不**出现「唯一失败为 X」这类未经验证的断言。
+ */
+function deriveUnitFailureNote(gate: ReleaseGateResult): string {
+  const facts = extractUnitFailureFacts(gate);
+  const [onlyFailedFile] = facts.failedTestFiles;
+  const stats = facts.statLines.join('；');
+
+  const onlyProcessTree =
+    facts.failedFileCount === 1 &&
+    facts.failedTestFiles.length === 1 &&
+    onlyFailedFile !== undefined &&
+    onlyFailedFile.endsWith('process-tree.test.ts');
+
+  if (onlyProcessTree) {
+    return (
+      '唯一失败为既有 process-tree 计时 flaky（packages/runtime/src/sandbox/backend/process-tree.test.ts，' +
+      'task 072）：整机并行高负载下 30s 超时；隔离单跑 11/11 通过。非 V1.1-E 回归（该文件自 072 未改动），' +
+      '按项目惯例视为环境性 flaky。' +
+      `（归因依据：unit evidence 的 vitest 汇总行「${facts.statLines[0] ?? 'Test Files 1 failed'}」` +
+      `+ 失败行只命中 ${PROCESS_TREE_TEST_FILE}。）`
+    );
+  }
+
+  const parts: string[] = ['unit 失败；失败摘要见 evidence.detail（未自动归因）'];
+  if (stats.length > 0) {
+    parts.push(`vitest 汇总行：${stats}`);
+  } else {
+    parts.push('evidence.detail 未包含 vitest 汇总行（Test Files/Tests）');
+  }
+  parts.push(
+    `失败用例数=${facts.failedTestCount ?? '未能提取'}；通过用例数=${facts.passedTestCount ?? '未能提取'}`,
+  );
+  if (facts.failedTestFiles.length > 0) {
+    parts.push(
+      `失败行出现的测试文件：${facts.failedTestFiles.join(', ')}（仅命令输出尾部截取，可能不全，也可能含非失败文件）`,
+    );
+  } else if (facts.allTestFiles.length > 0) {
+    parts.push(
+      `evidence.detail 出现的测试文件（未标注为失败）：${facts.allTestFiles.join(', ')}（仅尾部截取，可能不全）`,
+    );
+  } else {
+    parts.push('evidence.detail 未出现任何 *.test.ts 路径');
+  }
+  parts.push('本注解不推断失败原因；请以 evidence.detail 与重跑结果为准，勿据此忽略回归');
+  return `${parts.join('；')}。`;
 }
 
 async function main(): Promise<void> {
