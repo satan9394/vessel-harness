@@ -1,6 +1,6 @@
 # PRODUCT-STATE — Vessel 产品演进状态（Orchestrator 维护）
 
-> 每轮结束更新。**当前进度：第 19 轮闭环**（Round 1–19 全部闭环并验证；本段会话到此收束，后续按下方"如何继续"接手）。**最终基线**：`tsc 0`、**138 文件 / 1555 passed + 3 skipped / 0 failed**、**`npm install --dry-run` exit 0（依赖声明零不匹配）**、**发布门禁 8 道常驻 + 第 9 道可选安装态冒烟（实测 `✅ PASS | 38101ms`：16 tarball → 空项目离线安装 exit 0 → system 层路径在包内 + `usage` 无缺配置警告）**、**装机 E2E 三条 exit 0**、**干净检出打包 before/after 对照成立**、**`policy status` 报告合成后可编译性**。
+> 每轮结束更新。**当前进度：第 20 轮闭环**（Round 1–20）。**最终基线（均实测）**：`tsc 0`、全量 **138 文件 / 1596 passed + 5 skipped / 0 failed**（+2 skip 为 POSIX-only 用例在 Windows 显式跳过）、**`npm install --dry-run` exit 0（51 条 `@vessel/*` 声明零不匹配）**、**发布门禁 8 道常驻 + 第 9 道可选安装态冒烟（含升级路径；实测 `✅ PASS | 38101ms`：16 tarball → 空项目离线安装 exit 0 → system 层路径在包内 + `usage` 无缺配置警告）**、**symlink 出界已由变异测试验证封堵**（同一探针在移除修复后 `outsideFileCreated` 由 `false` 翻 `true`）。
 > 产物索引：`docs/PROJECT-BRIEF.md`、`docs/product-audit/*`（4 份独立审计）、`ROUND-15-DIRECTION.md`（现状重审与定向）、`PRODUCT-GAP-MAP.md`（缺口 + **路线图 NOW/NEXT/LATER/NOT_NOW**）、`IMPLEMENTATION-BRIEF-0N.md` / `EVALUATION-REPORT-0N.md`（每轮规格与独立裁定，最新 24）、本文档（状态与**18 条纪律**）。
 >
 > **如何继续（无我也能接手）**：① 先读 `PRODUCT-GAP-MAP.md` 的**路线图**取下一片（NEXT 里都是**已具证据**项，不必重新调研）；② 按六步循环开工——**拆卡 → 派隔离 Workers（写入型微任务，禁跑命令）→ 指挥跑 `tsc -b`/`vitest`/真实 CLI 取证据 → 派全新上下文的对抗 Evaluator → 按其 REJECT 修 → 复评**；③ **每卡必须自带判别性证据**（"删掉该实现哪条断言会红"），并把"修复前必红清单"写进卡片；④ 涉及合并/装载/接线/打包的验收**必须至少一条走完整生产入口**（纪律 15）；⑤ 每轮末尾更新本文档与路线图。**旁证口径**：全量 `vitest`、`npx tsc -b`、`benchmarks/runners`、以及 `docs/product-evolution/EVALUATION-REPORT-*.md` 的裁定。
@@ -11,9 +11,9 @@
 |---|---|
 | 内部工程成熟度 | **高** — 依赖零环；**8 道发布门禁 8/8 `ready`**（`build` 含 `apps/web` 类型检查）；**136 文件 / 1512 passed + 3 skipped / 0 failed**；打包卫生已修（tarball 270→62 文件、无测试产物与 source map） |
 | 对外可启动成熟度 | **高（本会话显著提升）** — 首跑可用；崩溃面给人话+路径+指引；会话可续跑；**机器面完整**（`--json` 覆盖五条只读命令 + **全部失败出口**信封）；**默认配置"装在哪儿就在哪儿"**（包内优先，**装机 E2E 三条命令 exit 0**）；**不需要 clone 仓库即可安装运行** |
-| 安全与执法正确性 | **高（本会话从"看着有"变成"真的生效"）** — 项目层**可提权**与**可放宽执行**两条路径已封堵（`profile/approval` 高层优先；`git/network/audit` 单调趋严；**allow 类列表高层先声明者胜**）；**`shell-force-push` 从死规则变活**（glob 化 matcher）；force-push 绕过形（续行/包装/alias/`+refspec`）以**平台并集 + fail-closed** 收口；`filesystem.confinement` 硬执法**首次真正可达**；错误体全链路脱敏 |
-| 可用性与诚实性 | **高** — mock **运行期可见**（CLI 与 TUI 双侧提示 + 回复标记）；产品名统一；密钥口径按平台如实；文档命令与 `dispatch` 对齐；`policy status` 可查层序/哈希/解析失败 |
-| 主要短板（当前） | 见 `PRODUCT-GAP-MAP.md` 的 NEXT：`@vessel/*` 依赖声明（14/16 包，阻塞"从 registry 单独装"）、pricing **写**路径仍在 cwd（读已包内，已 warn 去静默）、`policy status` 的**合成后可编译性**（在跑）、测试盲点清单；LATER：i18n 架构、`~/.vessel` 状态根收敛、`vessel diff --last` 只读回滚提示 |
+| 安全与执法正确性 | **高（Round 20 再加固）** — 项目层提权/放宽执行已封堵；force-push 以**平台并集 + fail-closed** 收口；`filesystem.confinement` 首次真正可达；错误体全链路脱敏；**symlink 出界**（唯一防线原为静默跳过）已修，并由**变异测试**证明"移除修复即攻击成功"；**损坏文件**不再静默销毁（索引/覆盖文件写前留档，留档失败抑制写入） |
+| 诚实性 | **高，但有一处已知未修** — mock 运行期可见、产品名统一、密钥口径按平台如实、文档命令与 `dispatch` 对齐、`policy status` 报告合成可编译性；**残留**：`pricingOverride` 抑制写入后 CLI 仍打印「✔ 已写入覆盖」⇒ **确认时刻的宣称不为真**（已排 NEXT 首位，修法已定：`write()` 回传落盘状态 + 双向验收） |
+| 主要短板（当前） | 见 `PRODUCT-GAP-MAP.md` 的 NEXT：① 上述假成功；② 静默降级族剩余项（`costMultipliers()` 抛→**倍率静默变 1**、行级坏价行静默忽略、locale 静默回退 zh、坏任务静默消失、B 类"产出状态没人读"若干）；③ `npm pack --ignore-scripts` 可绕过 prepack；LATER：i18n 架构、`~/.vessel` 状态根收敛、`vessel diff --last` 只读回滚提示 |
 
 ## 当前最高价值下一步（Round 17 收口后）
 
