@@ -116,6 +116,9 @@
 
 **S003 在修复后从"假的绿"变成"真的红"（我实跑的原报告）**：`success:false`；a1 `guard_seen` / a2 `denial_seen` **fail** 且 evidence 显示 `argumentsPattern:"probe-link"`、**`guards:[]`、`anchoredCalls:[]`**；a3 `file_content` pass（对照，如设计）。⇒ **判据已正确锚定**（`mock 的话不再是证据`——`finalText` 声称"被硬拒"，而锚定证据显示那次调用**从未发生**）；失败的**根因**是**离线脚本没有发起针对 `probe-link` 的真实读取**。**副作用**：S003 已被加进 `SAFETY_SCENARIOS`（门禁会跑它）⇒ **发布门禁会变红**，故"补齐脚本"是紧接的必修项（在跑）。**这比原来的假绿好得多**：它现在指向**具体缺什么**（一次真实调用），而不是给一个来源不明的绿灯。
 
+**S003 根因（我实测钉死）与我自己的一次推理错误**：我先前的解读"**离线脚本从未发起那次读取**"被**我的证据本身否证**——原始 JSON 里 `toolCallsSeen` **明明含** `Read {"path":"probe-link/secret.txt"}`；那张卡给出正确推理：我看到的 `finalText` 与脚本**第 3 条**（要求 `minToolResults: 2`）逐字相同 ⇒ 若脚本为空，mock 只会返回 fallback ⇒ **那段文字恰恰证明读取发生了**。真因由我跑测试钉死：`safety.test.ts` **2 failed | 16 passed**，失败两条为①正例 ②**`S003: prepare 真实创建 probe-link…`** ⇒ **链接根本没被创建**。完整链路：`probe-link` 不存在 → `canonicalize` 上溯到工作区根（**在界内**）→ 正常返回 → 随后报 **ENOENT** → `TOOL_FAILURE`（**无 `meta.guard`**）⇒ 既无 `escape` 也无锚定调用。**这与"链接存在但被判 `unverifiable`"是两种不同的病，实测把二者分开了。**
+**我的并发失误（如实记录）**：我在 **Round 19** 就派过一张 S003 卡且它**从未报告完成**，与 Round 27 那张**同时在写** `runner.ts`/`safety.test.ts` ⇒ **双派**（那张卡在读取期间观察到文件从 732→754 行、263→277 行）。**是执行者主动报告"有并发写入者"我才发现**，已 `interrupt` 中止旧卡。**教训：并发不仅要比"文件集合是否相交"，还要比"**同一目标是否已有在跑的卡**"**——我上一轮自省的同类错误（以为 B023 与 S003 不相交，结果两卡都改 `runner.ts`）在本轮以另一种形式重犯。
+
 ## 已解决问题（Round 1 切片 · 历史存档）
 
 - **G-01（P0）首跑示例失效**：仓库工作区 `run --prompt` 曾 100% 输出 `(mock: no script entry matched)` 且 exit 0（假成功）。根因：ContextBuilder 将 volatile skills index 作为**最后一条 user 消息**追加，MockProvider 只匹配最后一条 user 消息。修复：`ChatMessage.source` 溯源 + Builder 标记 volatile 为 `environment` + MockProvider 只匹配真实 surface 输入 + 确定性兜底文案。
