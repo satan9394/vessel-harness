@@ -2,7 +2,7 @@ import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { builtinConfigRoot } from './cli.js';
+import { builtinConfigRoot, pricingSyncMismatchWarning, warnMissingBuiltinConfig } from './cli.js';
 
 /**
  * cli.builtinConfigRoot.test.ts — 内置配置根**查找顺序**的判别性用例：
@@ -56,5 +56,78 @@ describe('builtinConfigRoot 查找顺序（包内优先 → 上溯 6 级 → rep
     const fallback = builtinConfigRoot(deep);
     expect(fallback).toBe(repoRootFromCwd());
     expect(fallback.startsWith(tmp)).toBe(false);
+  });
+});
+
+/**
+ * 3) 开发态**零回归**：`createUsageStore`（usage/成本）、`cmdModels`、`cmdPricing` 三条
+ *    读路径本卡起统一取 `builtinConfigRoot()` 再拼 `configs/{pricing,model-catalog}.json`
+ *    （改动前是 `repoRoot()`，从 **cwd** 上溯）。开发态 `builtinConfigRoot()` 的 ③ 步命中
+ *    仓库根，与 `repoRoot()` **同值**；这里用**真实仓库根**断言两条解析结果逐字一致，
+ *    并断言两文件**真实存在**（存在 ⇒ `loadPricing`/`loadModelCatalog` 不会静默降级）。
+ *    注：三条读路径是模块内私有函数，无法直接单测调用点，故断言它们共用的解析根。
+ */
+function canon(p: string): string {
+  try {
+    return fs.realpathSync(p); // Windows 短路径名（USER~1）与长名归一，避免盘符/短名差异误红
+  } catch {
+    return path.resolve(p);
+  }
+}
+
+describe('读路径配置根 = builtinConfigRoot()（开发态与改动前 repoRoot() 同值 + 缺失告警）', () => {
+  it('3) 开发态解析到真实仓库根，pricing.json / model-catalog.json 都在（与改动前逐字相同）', () => {
+    const root = builtinConfigRoot();
+    const before = repoRootFromCwd(); // 改动前 repoRoot() 的口径（独立重算，不共用实现）
+    expect(canon(root)).toBe(canon(before));
+    for (const name of ['pricing.json', 'model-catalog.json']) {
+      const file = path.join(root, 'configs', name);
+      expect(fs.existsSync(file)).toBe(true); // 存在 ⇒ 本轮不会新增告警（既有测试的 warn 断言不受影响）
+      expect(canon(file)).toBe(canon(path.join(before, 'configs', name)));
+    }
+  });
+
+  it('4) 默认路径缺失 → warn 含期望路径与提示；不抛、不失败；文件存在 → 负对照不 warn', () => {
+    const absent = path.join(tmp, 'no-configs');
+    fs.mkdirSync(absent, { recursive: true });
+    const seen: string[] = [];
+    const warn = (message: string): void => void seen.push(message);
+    expect(() => warnMissingBuiltinConfig(absent, 'pricing.json', '价目表降级为兜底价（成本可能算错）。', warn)).not.toThrow();
+    expect(seen).toHaveLength(1);
+    expect(seen[0]).toContain(path.join(absent, 'configs', 'pricing.json')); // 期望路径
+    expect(seen[0]).toContain('configs 未随包安装'); // 「可能是未安装 configs / 非仓库目录运行」提示
+    expect(seen[0]).toContain('命令继续执行');
+
+    const present = seedConfigs(path.join(tmp, 'has-configs'));
+    fs.writeFileSync(path.join(present, 'configs', 'pricing.json'), '{"models":{"default":{"input":0.5,"output":1.5}}}', 'utf8');
+    const quiet: string[] = [];
+    warnMissingBuiltinConfig(present, 'pricing.json', 'x', (message) => void quiet.push(message));
+    expect(quiet).toEqual([]); // 负对照：存在即静默
+  });
+});
+
+/**
+ * 5) 读写不对称（本卡补）：写路径仍按 `repoRoot()`（安装态 = `<cwd>/configs`），读路径取
+ *    `builtinConfigRoot()`（安装态 = `<包>/dist/configs`）。判据已抽成纯函数：真跑 `pricing sync`
+ *    必须联网（models.dev），故此处只对判据做表驱动断言；而 `cmdPricingSync` 里的
+ *    `console.warn` 完全由该判据守卫（null ⇒ 不打印），故其即 warn 条数的等价断言。
+ */
+describe('pricing sync 读写位置不同 → 1 条 warn；相同 → 0 条（开发态零回归）', () => {
+  it('5) 开发态默认目标 == 读目录 → null；--catalog 指向他处 → 含读写路径与后果的文案', () => {
+    const readDir = path.join(builtinConfigRoot(), 'configs');
+    const devTarget = path.resolve(path.join(repoRootFromCwd(), 'configs', 'model-catalog.json'));
+    expect(pricingSyncMismatchWarning(devTarget, readDir)).toBeNull(); // 开发态：0 条
+
+    const otherTarget = path.join(tmp, 'elsewhere', 'model-catalog.json'); // 目标目录尚不存在（realpathSync 会抛）
+    const msg = pricingSyncMismatchWarning(otherTarget, readDir);
+    expect(msg).not.toBeNull();
+    expect(msg).toContain(path.resolve(otherTarget)); // 写入的绝对路径
+    expect(msg).toContain(readDir); // 读取实际生效的目录
+    expect(msg).toContain('此次同步的价格不会被本机读到'); // 后果
+    expect(msg).toContain('--catalog'); // 补救
+
+    if (process.platform === 'win32') {
+      expect(pricingSyncMismatchWarning(devTarget, readDir.toUpperCase())).toBeNull(); // 大小写/短路径归一
+    }
   });
 });
