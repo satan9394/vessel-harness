@@ -272,6 +272,22 @@
 
 **进行中**：`vessel policy status`（AC2–AC4：层次事实/哈希/`--json`/"部分装载不静默"警告）+ AC5（`POLICY-SPEC` 中 user 层与 workspace trust 门的**诚实标注或实现**）。
 
+### Round 15 完成态（AC1–AC5 全部落盘 + 7 条判别性 E2E 实测）
+
+| AC | 实测证据 |
+|---|---|
+| AC1 project 层参与执法 | 放入 `<ws>/.harness/policy.yaml` → `no policy declaration found` **消失**（`DISCRIMINATES=True`）；调用链：`resolveProjectPolicyPath` → `composeHarness(policyProjectPath)` → `loadPolicyArtifacts(projectPath)` |
+| AC1+ **仓库外可用**（真根因） | 临时工作区 `run --prompt` → **exit 0 且真跑一回合**（修复前 `exit 1 + behavior IR not found`）；**产物形态** `node apps/cli/dist/cli.js` 同样 exit 0 |
+| AC2 哈希来自真实内容 | 改内容 → `HASH_DIFFERS=True`（`a3632a037705` → `8067c9f240c0`） |
+| AC3 `--json` 单一可解析 | exit 0、`JSON.parse` 成功、`effectiveOrder=system>project` |
+| AC4 部分装载不静默 | system 缺 + project 有声明 → **告警且 exit 0**；两层齐备 → **无告警**（`DISCRIMINATES=True`）；产物形态下告警含**该层真实路径**（可操作） |
+| AC5 诚实 | `POLICY-SPEC:454-459` + `ARCHITECTURE.md:325` 标注**只实现 system + project**，user 层 / trust 门 / session 层尚未实现 |
+| 错误场景 | 非法 `.harness/policy.yaml` → exit 1 且三条输出（告警 / `policy status` / 报错）**指向同一事实**："存在但无法解析 → 修复该文件（含路径与原因）" |
+
+**基线**：`tsc 0`；**132 文件 / 1431 passed + 3 skipped / 0 failed**；`policyStatus.test.ts` 10/10（含 AC2 写回反向锁与 AC4 负对照）。
+
+**本阶段两次"测量纪律"实证**：① 我抓到"非法策略被误报为缺失、且建议动作是错的（让你放置一个已存在的文件）"——根因是**判据用"声明数为 0"代替"文件不存在"，把两种失败形态混为一谈**，修法是给层次事实加 `error` 字段做三态区分；② 修正后我第一次复测得出**错误结论**，因为**执行器还在半写入**——测量必须对**稳定版本**进行（见纪律 14）。
+
 ## 纪律
 
 **流程纪律**：并发执行器上限 2–3；一卡一执行器；删除走回收站；密钥不落盘；测试隔离（`VESSEL_*_ROOT` 注入）；写入型执行器**不跑命令**，由指挥复跑 `tsc`/vitest 并保命提交。
@@ -289,7 +305,8 @@
 10. **实测优先于静态推断**——推断只是候选，证据才算数。Round 13 中测试卡与编排者都从代码推断"不可达 MCP server 会吊住 CLI"，探针实测却显示 `initialize` **7ms 内 reject**、由既有逐 server `try/catch` 正常降级 → 该推断不成立，避免了一次不该开的修复卡。**开修复卡前先跑一个最小探针。**
 11. **区分"真红"与"并发假红"**——同一用例"单跑必过、全量必败"且失败信息指向启动/超时，通常是资源竞争而非逻辑缺陷；处置方式应是"提高超时 + 有界重试（仅对启动/握手类环境性失败）"，**绝不以删断言/改 in-process 换取稳定**。
 12. **报告/注记不得注入未经证据支持的归因**——错误的 `note` 比"单条测试假绿"更危险：假绿只骗过一条用例，而错误注记会**主动诱导人忽略真实红**。归因必须由实际输出推导，无法归因时如实写"未自动归因"。Round 13/14 实证：门禁把"我引入的 env 泄漏"写成"既有 process-tree flaky"，我若照单全收就会放过一个真实回归。
-13. **验证动作不得破坏它所验证的证据**——我为了验证门禁脚本的入口守卫而直接跑了它（未带密钥），这会用一份 `partial` 报告**覆盖**刚拿到的 clean `ready` 报告。多亏及时终止。**验证前先想清楚会写什么、写到哪**；需要时可换临时输出目录或只做"能否启动"的最小探测，并在用完后**清理自己产生的孤儿进程**（本次清理了 5 个 gate/tsx/vitest 残留，且**只按 PID 精确终止**，绝不误杀 harness）。
+13. **验证动作不得破坏它所验证的证据**——我为了验证门禁脚本的入口守卫而直接跑了它（未带密钥），这会用一份 `partial` 报告**覆盖**刚拿到的 clean `ready` 报告，多亏及时终止。**验证前先想清楚"会写什么、写到哪"**；可换临时输出目录，或只做"能否启动"的最小探测，并用完后**清理自己产生的孤儿进程**（本次清理了 5 个 gate/tsx/vitest 残留，**只按 PID 精确终止**，绝不误杀 harness）。
+14. **只对"稳定版本"测量**——执行器是**边写边落盘**的：Round 15 我在 `PolicyLoader` 已加 `error` 字段、而 `cli.ts` 尚未接入该分支的**半写入窗口**里跑 E2E，得到"合法但未贡献声明"这个**错误结论**，差点据此开错修复卡；两张卡都落盘后重跑才正确（`saysInvalid=True`）。**测量前先确认没有并发写入者**（看 `git status`、卡是否仍在跑），必要时先等卡结束或对同一修订连测两次一致再采信。
 
 ## 技术债
 
