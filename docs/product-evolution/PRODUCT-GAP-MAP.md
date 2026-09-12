@@ -504,3 +504,20 @@ parseFailed=true  ⇒ AgentLoop 退化成 {_raw:...}，工具拿不到 path
 2. **`EVENT-SPEC.md:390-391` 的 A24 词表漏了 `denied`**，而 `shared/events.ts:242` 有它、且**四条拒绝路径都在生产它**（深度上限/并发上限/preset 未解析/BeforeDelegate deny）⇒ **文档与类型不一致**，应修正文档。
 3. **外部 CLI adapter 的截断信号"从未被建模"**（**纠正前一张卡的说法**）：五个 adapter（`claude/codex/pi/dsh/opencode`）**并非**"非零退出但输出非空 ⇒ success"——它们都在 `res.status !== 0` 时置 `runError` ⇒ `success=false`。**真实缺口是另一件事**：`RawRun` 形状里**根本没有**任何截断/停因字段（只有 `success?: boolean` + `finalText`）⇒ adapter 把"本轮是否被 max_turns/上下文截断"**完全托付给 CLI 自报的单个布尔**，`finalText` 非空即不下调。**定级：设计级缺口（信号从未被建模）**，与"信号被塌缩"不同类。最小改法：`RawRun` 加 `finishReason?: string`（或 `truncated?: boolean`），normalizer 里 `if (raw.finishReason === 'length') acc.success = false`。
 **另两处"归一逻辑三份"**：`AgentLoop.ts:86-90`、`OpencodeGoProvider.ts:384-388`（与前者逐字相同）、新 `openAIFinishReason`。`@vessel/llm` **不能依赖 core** ⇒ 无法复用。最小改法：把归一表下沉到 `@vessel/shared`，三处改为 import（涉 core/shared ⇒ 独立卡）。
+
+## Round 95–98 — 形态 B 修好（**opened 出 OpenAI 侧同构缺陷**）；CLI/TUI 标记口径对齐；我接受了一次**申报过的越界**
+
+**已修并提交**：
+- **`2e7fc50` 形态 B（重复 start 带不同 id）**：改前 `toolIdByIndex.set` 是**覆盖写** ⇒ 不止该帧 seed，**该块其后所有片段与 `tool_call_end` 都挂新 id** ⇒ 消费侧 `open` 表按 id 建、归并不进 ⇒ **双坏**（片段丢 + **孤儿 end**，旧 id 只能靠 `AgentLoop` 的流末兜底 flush 收场）。修法 = **"首个 start 冻结身份"**（`startedIndexes.has(index)` 时不改写 id/name，折出的 delta 与 end 都回到**冻结的原 id**）⇒ 形态 B 变成**已修好的形态 C**。**冻结条件刻意不取"任何身份已登记"**——那会**冻死 Round 52 的 identity-late 补全**（既有断言会红），该边界被单独用例上锁。
+- **`dfe55b9` CLI/TUI 标记口径对齐**：`cmdRun` 原先**无条件**把 `usingMockProvider` 传下去，而渲染器只回答"**要不要加前缀**"、不回答"**是不是模型回答**" ⇒ mock 会话里的熔断文案会被盖 `（mock 离线冒烟）`，而 TUI 刻意不盖（并写明理由）。现在**只有 `success` 算模型回答**（抽成**具名纯函数**，与 TUI 同一口径），退出码/标题一字未动。
+
+**我接受了一次"申报过的越界"**：形态 B 卡**必须**改第 4 个文件 `streamProvider.test.ts`——因为修好后用例⑦ 的两条行为断言（断言 delta 挂 `toolu_2` 且不含 `toolu_1`）**必定红**，**留红等于"修好了却让既有测试回归"**。它只做**极性反转 + 加强**（新增 `not.toContainEqual` 与反向锁）、未放宽判据、未删断言，并**在报告里单列该越界 + 给了单独回退方式**。⇒ **裁决：接受。** 这里的分寸是：**既有断言锁着的是缺陷行为时，"保持它绿"反而是错的**——但**必须申报、必须只加强、必须可单独回退**。
+
+**一条如实反转（我把它当成交付的一部分）**：CLI 标记卡**拒绝编造端到端复现**，并给出**"该组合在生产不可达"的证据链**——内置 mock 首条规则带 `ifNoToolResult`，被拒的工具调用会被投影成 `role:'tool'` 的 `[DENIED]…` ⇒ mock 后两条规则**必然给出文本** ⇒ 回合**恒 `success`**。⇒ 缺陷**潜在但真实**（无条件传参 + 渲染器不接 kind），复现落在**渲染决策接缝**（CLI 半边改前红、TUI 半边两边都绿），它要求我把验收记为"**接缝级复现**"。**这一段我一直在治"看起来验证过"；而"我复现不出来，原因是 X" 恰是这类治理最需要的信息——逼它交截图只会得到假证据。**
+
+**新发现（均只报告，已入队）**：
+- **`parseOpenAI.ts:174-178` 与形态 B 完全同构**（`if (tc.id) state.idByIndex.set(index, tc.id)` 在已 started 时照样覆盖 ⇒ delta 与 end 都挂新 id ⇒ **同一双坏**）⇒ **我在 Anthropic 路修好的缺陷，在 OpenAI 路原样存在**（而那是本仓**最常用**路径）⇒ **已派卡**（并要求它先判断 OpenAI 的重复帧形态**是否可达**，不可达就交"不可达的证据链"，**不许为了有 bug 可修而编造线序**）。
+- **形态 A（重复帧无 id/name）仍丢 seed**：执行者给了**最小改法**（在 `feed()` 内新增 1 个发射点，只对"已 started + 该帧缺 id/name + seed 非空"生效）。**影响面已列清**：必须**反转** `parseAnthropic.test.ts` 里那条把"仍丢"钉死的断言、并同步 provider 文案。**另注 `flushToolBlock` 对未启动块取的是最后一次写入的 seed**（同一 index 多次带 seed 的重复帧会**覆盖**早先的）——**又一个静默覆盖点**。
+- **`AgentLoop` 的流末兜底 flush 零可见信号**：它把"从未收到 `tool_call_end` 的调用"静默收尾；`model_stream_end` 的形状被 `EVENT-SPEC` 钉死、**不能加字段**；最小改法参照 `turn/end` 的**加法字段**先例（属记录形状变更 ⇒ 独立卡）。**注意形态 B 修好后该触发路径已消失**，剩余价值只覆盖"真截断 / 从不发 end 的 provider"。
+- **同形 P3**：`scripts/demo-policy-deny.ts:40-41` 无条件打印 `=== 最终回复 ===` + `result.finalText`、**不看 kind**（今天恒 success ⇒ 潜在）。
+- **注释/文档行号漂移**：如 `chat.ts:331` 仍写 `renderFinalReply` 在 `cli.ts:555-559`（实际 780-783）、`mockVisibility.test.ts` 引 `cli.ts:556/613/618`（实际 780/670/928）。⇒ **"文档引用了会漂移的行号"** 在本段已多次遇到（我自己的记录里也常带行号）——**这是一类会随时间必然失效的引用**，处置方向：**优先引用符号名/函数名，行号只作为"当时的坐标"并标注基准提交**。
