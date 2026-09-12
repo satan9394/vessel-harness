@@ -649,7 +649,7 @@ describe('AnthropicProvider.stream — 空闲超时（idle timeout，同族同�
 // 里 —— 运行时没人读，运维看不到。本组用例把这个消费点钉死：**流终止边界**读取两个计数，
 // **> 0 才**经 warn 侧信道输出**分因**的一行。
 //
-// 四条判据（删掉修复即红）：
+// 判据（删掉修复即红）：
 //   ① 截断流（EOF 半帧）⇒ 恰一条 cause=truncated-frame（截断/字节不可解析），数字与
 //      malformedFrames 一致；旧实现（零消费）此处零输出 ⇒ 必红。
 //   ② 块未关闭时重发 content_block_start ⇒ 恰一条 cause=duplicate-start（重发帧/协议
@@ -657,6 +657,11 @@ describe('AnthropicProvider.stream — 空闲超时（idle timeout，同族同�
 //   ③ 负对照：完全规范的流 ⇒ **零输出**（防「每次都警告」，本卡最重要的负对照）。
 //   ④ 既有行为不变：诊断只走 warn，不产生任何 chunk；chunk 序列 / message_end 形状 /
 //      finish() 语义逐字不变（既有用例原样通过）。
+//   ⑤ 文案—行为一致（Round 67 补）：**告警的措辞本身也是判据**。同 id 的重复 start 上
+//      seed 折成 `tool_call_delta` 送达 ⇒ 告警**不得**说它「已丢弃」（⑥）；同时告警必须
+//      把「会丢」的形态一并写出（不同 id ⇒ 折出的 delta 挂新 id、消费侧归并不到 ⇒ 该帧
+//      seed 丢失），只讲其中一种还说得像全部 = 新的谎话（⑦ 从两个方向钉住：既不许
+//      「一律丢弃」，也不许「一律未丢」）。
 //
 // 频率策略：**每流每因至多一行**（≤2 行）。刻意**不做跨流去重**——计数是 parser 的每流
 // 实例状态，跨流抑制要靠模块级共享状态（正是 parser 明确拒绝的设计），且「每个异常流
@@ -710,6 +715,24 @@ const DUPLICATE_START_SSE = [
   'data: {"type":"content_block_start","index":0,"content_block":{"type":"tool_use","id":"toolu_1","name":"Read","input":{}}}',
   'data: {"type":"content_block_delta","index":0,"delta":{"type":"input_json_delta","partial_json":"{\\"p\\":1}"}}',
   'data: {"type":"content_block_start","index":0,"content_block":{"type":"tool_use","id":"toolu_1","name":"Read","input":{"seed":true}}}',
+  'data: {"type":"content_block_stop","index":0}',
+  'data: {"type":"message_stop"}',
+  '',
+].join('\n');
+
+/**
+ * The SECOND shape of the same violation (Round 67): the repeat for the still-open
+ * index 0 carries a DIFFERENT tool_use id (`toolu_2`). The bytes parse fine, the
+ * parser folds the seed with the NEW id, and the consumer keys its accumulator by
+ * the start's id (`AgentLoop.consumeStream`: `open.get(chunk.id)`) — so that frame's
+ * seed never lands. This is the "会丢" half of the duplicate-start diagnostic, and
+ * ⑦ pins it right beside the "未丢" half that ⑥ pins.
+ */
+const DUPLICATE_START_NEW_ID_SSE = [
+  'data: {"type":"message_start","model":"m"}',
+  'data: {"type":"content_block_start","index":0,"content_block":{"type":"tool_use","id":"toolu_1","name":"Read","input":{}}}',
+  'data: {"type":"content_block_delta","index":0,"delta":{"type":"input_json_delta","partial_json":"{\\"p\\":1}"}}',
+  'data: {"type":"content_block_start","index":0,"content_block":{"type":"tool_use","id":"toolu_2","name":"Read","input":{"seed":true}}}',
   'data: {"type":"content_block_stop","index":0}',
   'data: {"type":"message_stop"}',
   '',
@@ -845,6 +868,66 @@ describe('AnthropicProvider.stream — 流诊断（malformedFrames / duplicateSt
       }
     } finally {
       spy.mockRestore();
+    }
+  });
+
+  // -------------------------------------------------------------------------
+  // Round 67 — 文案也是判据：「说的和做的不一致」必须立刻变红。
+  //
+  // 背景（我们自己引入的缺陷）：旧文案写「该重复帧携带的 argument seed 已丢弃」，可
+  // **同一个夹具**（DUPLICATE_START_SSE，同 id 的重复 start）走的正是 Round 64 的
+  // 「折成 delta」分支，② 的 :767 断言 seed 确实送达 —— 同一条流，日志说丢了、测试
+  // 说没丢。修法只动措辞（派生信息，零行为风险）：**不得**断言「已丢弃」，必须按实际
+  // 形态如实描述；而 provider 侧只有一个 `duplicateStarts` 数字（计数在 mapper 之前
+  // 按帧取，子形态判决在 parser 的 feed() 内部），**无法**得知是哪一子形态，所以文案
+  // 写成覆盖全部子形态的中性表述。
+  //
+  // 这两条与既有 ② **同时存在**才有判别力：② 钉「行为（seed 送达）」，⑥⑦ 钉「文案」。
+  // 只留其一，就只是把谎话换个方向。
+  // -------------------------------------------------------------------------
+  it('⑥ 文案—行为一致：同 id 重复 start 的 seed 折成 delta 送达 ⇒ 告警不得自称「已丢弃」（把文案改回「已丢弃」，或删掉「折入/未丢」断言 ⇒ 本行变红）', async () => {
+    const fake = await fakeSSEServer(DUPLICATE_START_SSE);
+    try {
+      const { p, warns } = recordingAnthropic(fake.url);
+      const chunks = await collect(p.stream({ model: 'm', messages: [{ role: 'user', content: 'read' }] }));
+
+      // 【行为】与 ② 的 :767 同一事实：同 id 的重复帧，seed 折入 append-only 的 delta 送达。
+      expect(chunks).toContainEqual({ type: 'tool_call_delta', id: 'toolu_1', argumentsDelta: '{"seed":true}' });
+
+      // 【文案】既然上一行成立，告警就不得说这个 seed「已丢弃」——这就是判别线：
+      // 修前文案含「已丢弃」⇒ 本行 RED。
+      expect(warns).toHaveLength(1);
+      expect(warns[0]!).toContain('cause=duplicate-start');
+      expect(warns[0]!).not.toMatch(/已丢弃/);
+      // ……且必须如实写出「折入 / 未丢」，而不是靠一句含糊话躲过去。
+      expect(warns[0]!).toMatch(/折入/);
+      expect(warns[0]!).toMatch(/未丢/);
+    } finally {
+      fake.close();
+    }
+  });
+
+  it('⑦ 文案必须分形态：既写「未丢」的一种、也写「丢失」的另一种（只讲一种 ⇒ 本行变红；把会丢的形态改成不丢却不改文案 ⇒ 也变红）', async () => {
+    const fake = await fakeSSEServer(DUPLICATE_START_NEW_ID_SSE);
+    try {
+      const { p, warns } = recordingAnthropic(fake.url);
+      const chunks = await collect(p.stream({ model: 'm', messages: [{ role: 'user', content: 'read' }] }));
+
+      // 【行为】不同 id 的重复帧：seed 折出的 delta 挂的是**新 id**（toolu_2），而消费侧
+      // 的累加器是第一次 start 的 id（toolu_1，AgentLoop.consumeStream `open.get(chunk.id)`）
+      // ⇒ 该帧 seed 归并不进去，丢失。这是「会丢」的一半，钉住它，文案才不能说「都没丢」。
+      expect(chunks.filter((c) => c.type === 'tool_call_start')).toHaveLength(1);
+      expect(chunks).toContainEqual({ type: 'tool_call_delta', id: 'toolu_2', argumentsDelta: '{"seed":true}' });
+      expect(chunks).not.toContainEqual({ type: 'tool_call_delta', id: 'toolu_1', argumentsDelta: '{"seed":true}' });
+
+      // 【文案】两种结局都必须在场：只写「未丢」= 新的谎话，只写「丢失」= 旧谎话。
+      expect(warns).toHaveLength(1);
+      expect(warns[0]!).toContain('cause=duplicate-start');
+      expect(warns[0]!).toMatch(/未丢/);
+      expect(warns[0]!).toMatch(/丢失/);
+      expect(warns[0]!).not.toMatch(/已丢弃/);
+    } finally {
+      fake.close();
     }
   });
 });

@@ -151,7 +151,14 @@ function streamIdleTimeoutError(providerId: string, idleMs: number): Error {
  *   - `cause=truncated-frame`  — the frame's BYTES were unparseable (transport
  *     truncated mid-frame); the frame is dropped and unrecoverable;
  *   - `cause=duplicate-start`  — the bytes parsed fine and the UPSTREAM
- *     re-sent a forbidden frame; the repeat's argument seed is dropped.
+ *     re-sent a forbidden frame; whether that repeat's argument seed reaches
+ *     the consumer depends on the repeat's SHAPE, which this counter does not
+ *     distinguish (it counts violating FRAMES, taken before the mapper):
+ *     a repeat carrying the SAME id is folded into a `tool_call_delta` and IS
+ *     delivered, while a repeat carrying a different id (the folded delta
+ *     points at the new id, so the consumer's per-id accumulator never sees
+ *     it), or no id/name at all, loses that frame's seed — see the
+ *     duplicate-start handling in `parseAnthropic`.
  * Each line carries its own machine-readable `key=count`, plus its own cause
  * token, so a log grep / alert rule can tell the two apart.
  *
@@ -181,10 +188,22 @@ function reportStreamDiagnostics(
     );
   }
   if (duplicateStarts > 0) {
+    // Round 67 — the wording is derived information, and the old wording was WRONG
+    // in a way this repo keeps paying for ("说的和做的不一致"): it asserted the
+    // repeat's seed was DISCARDED, while the same-id shape folds that seed into a
+    // `tool_call_delta` and the consumer does receive it (Round 64's fold; pinned
+    // by streamProvider.test.ts ② and ⑥). The counter cannot be split per shape
+    // here: it is ONE number taken at the FRAME, before the mapper, and the three
+    // shapes (same id / different id / no id-name) are decided inside
+    // `AnthropicStreamParser.feed()`. So this line must state what happens to
+    // EVERY shape — "folded and delivered" for the same-id repeat, "lost" for the
+    // other two — and never describe one shape as if it were all of them.
     warn(
       `[llm][anthropic] stream 诊断 cause=duplicate-start（上游重发帧：协议违规）` +
         `duplicateStarts=${duplicateStarts}: 同一 index 的 content_block_start 在其 content_block_stop 之前再次到达，` +
-        `该重复帧携带的 argument seed 已丢弃（块未关闭，重复的 start 不得覆盖已累积的片段）`,
+        `该帧不得覆盖已累积的片段；它携带的 argument seed 是否送达取决于重发帧的形态（见 parseAnthropic 的重复 start 处理）：` +
+        `同 id ⇒ seed 折入 tool_call_delta 送达（未丢），不同 id ⇒ 折出的 delta 指向新 id、消费侧按旧 id 归并不到 ⇒ 该帧 seed 丢失，` +
+        `无 id/name ⇒ 该帧不产生任何 chunk、seed 无读者 ⇒ 丢失`,
     );
   }
 }
