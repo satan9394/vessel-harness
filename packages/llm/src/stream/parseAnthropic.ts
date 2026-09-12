@@ -248,9 +248,12 @@ export function anthropicSSELineData(line: string): string | null {
  *
  * Round 54 — the one thing Round 52 left silent: a frame whose `data:` payload
  * is not parseable JSON (the truncated tail of a dropped connection, which the
- * provider feeds from its leftover buffer at EOF) was still dropped without a
- * trace. It stays dropped — the frame's bytes are gone and cannot be recovered —
- * but it is now COUNTED, per stream, via the read-only `malformedFrames` getter.
+ * provider feeds from its leftover buffer at EOF, is the most common CAUSE —
+ * the criterion is just "that payload failed JSON.parse", so a proxy's error
+ * page or a `data: ping` line counts too) was still dropped without a trace. It
+ * stays dropped, and nothing retains it — the raw line IS in hand at the catch
+ * that drops it, the parser simply keeps no copy — but it is now COUNTED, per
+ * stream, via the read-only `malformedFrames` getter.
  * No new event type, no change to feed()'s return shape, no change to
  * `message_end`, and no change to the shared event vocabulary.
  *
@@ -279,12 +282,33 @@ export function anthropicSSELineData(line: string): string | null {
  * because the count is taken at the frame (before the mapper) rather than at the
  * emitted chunk.
  *
- * Deliberately NOT folded into `malformedFrames`: that one means "the BYTES of
- * this frame could not be parsed (the connection was truncated mid-frame)";
- * this one means "the bytes parsed fine and the PEER re-sent a frame the
- * protocol forbids". Merging them would make "the connection was cut" and "the
- * upstream repeated itself" observationally identical — the exact blindness
- * Round 54 was written to end, one level up.
+ * Deliberately NOT folded into `malformedFrames`: that one means "this frame's
+ * `data:` payload failed JSON.parse — a byte-level failure, whose most common
+ * cause is a connection truncated mid-frame"; this one means "the bytes parsed
+ * fine and the PEER re-sent a frame the protocol forbids". Merging them would
+ * make "the connection was cut" and "the upstream repeated itself"
+ * observationally identical — the exact blindness Round 54 was written to end,
+ * one level up.
+ *
+ * Round 68 — the OTHER half of that violation, and the reason "suppress the
+ * repeat" was only half a fix. Round 64 stopped the repeated start from being
+ * re-emitted, but the frame still reached the two `set()` calls that register a
+ * tool_use block's identity, which OVERWROTE it whenever the repeat carried a
+ * DIFFERENT id (+ name). Identity is not decoration here: every chunk of the
+ * block's remaining life is addressed from `toolIdByIndex` — each
+ * `input_json_delta` and the `content_block_stop`'s `tool_call_end` — so the
+ * rewrite re-addressed all of it to an id the consumer had never opened a call
+ * for (AgentLoop.consumeStream keys its accumulator by the START's id:
+ * `open.get(chunk.id)`). Three consequences, all silent: the repeat's folded
+ * seed landed in no accumulator, the ORIGINAL call received no `tool_call_end`
+ * of its own (the agent loop's stream-boundary fallback closed it instead), and
+ * the stream carried an orphan `tool_call_end` for a call nobody opened. The
+ * identity of a STARTED block is now frozen at its first start: a repeat cannot
+ * rewrite it, and the folded seed is addressed to that frozen id — which makes
+ * this shape behave exactly like the same-id shape Round 64 had already made
+ * safe. A block whose identity is still INCOMPLETE is deliberately NOT frozen:
+ * completing it from a later frame is Round 52's recovery (the identity-late
+ * wire order), and such a block has no consumer-side call to address yet.
  */
 export class AnthropicStreamParser {
   /** block index -> tool_use id (only content_block_start carries it). */
@@ -372,10 +396,18 @@ export class AnthropicStreamParser {
    *
    * Why a SEPARATE counter rather than folding it into malformedFrames: the two
    * describe different incidents that need different responses. malformedFrames
-   * means the frame's BYTES were unparseable — a truncated connection, i.e. the
-   * TRANSPORT is broken. This one means the bytes were perfectly fine and the
+   * means this frame's `data:` payload failed JSON.parse — a byte-level failure
+   * whose most common CAUSE is a truncated connection, i.e. the TRANSPORT is
+   * broken. This one means the bytes were perfectly fine and the
    * PEER re-sent a frame the protocol forbids — the UPSTREAM is confused, and
-   * any argument seed riding on the repeat is dropped. One merged number would
+   * what happens to the argument seed riding on the repeat depends on the
+   * repeat's SHAPE, which this counter does not look at: Round 64 folded a
+   * same-id repeat's non-empty seed into a `tool_call_delta`, and Round 68 made
+   * a different-id repeat behave the same by addressing that fold to the block's
+   * FROZEN identity — so a repeat carrying `id`+`name` DELIVERS its seed either
+   * way. Only a repeat carrying no `id`/`name` still loses it (the mapper emits
+   * no chunk for such a frame at all). "Dropped" is therefore NOT a property of
+   * this counter and must never be asserted from it. One merged number would
    * make "the connection was cut" and "the upstream repeated itself"
    * observationally identical.
    *
@@ -385,7 +417,9 @@ export class AnthropicStreamParser {
    * the violation:
    *   - the shape Round 64's guard in feed() handles: the repeat carries
    *     `id`+`name`, so a `tool_call_start` IS produced, the guard suppresses it
-   *     and folds its non-empty seed into a `tool_call_delta`;
+   *     and folds its non-empty seed into a `tool_call_delta` — addressed, since
+   *     Round 68, to the block's frozen identity, so it lands in the consumer's
+   *     accumulator whether the repeat's id matches the first start's or not;
    *   - the shape NOTHING else sees: the repeat carries no `id`/`name`, so
    *     `parseAnthropicEvent`'s identity guard emits NOTHING for it, feed()'s
    *     chunk loop never runs, and the seed it wrote into `toolInputJsonByIndex`
@@ -451,8 +485,28 @@ export class AnthropicStreamParser {
       const block = ev.content_block;
       if (block?.type === 'tool_use') {
         this.toolIndexes.add(index);
-        if (block.id) this.toolIdByIndex.set(index, block.id);
-        if (block.name) this.toolNameByIndex.set(index, block.name);
+        // Round 68 — FIRST START FREEZES IDENTITY. An index that has already
+        // emitted its `tool_call_start` owns the id that every later chunk of the
+        // block is addressed to (the `tool_call_delta`s below and the
+        // `content_block_stop` end all read `toolIdByIndex`), so a repeat must
+        // not REWRITE it: pre-fix these two `set()` calls replaced the id with
+        // the repeat's, re-addressing the rest of the block's life to an id the
+        // consumer had never opened (AgentLoop.consumeStream `open.get(chunk.id)`)
+        // — the repeat's seed landed nowhere, the original call got no end of its
+        // own, and the stream carried an orphan `tool_call_end`.
+        //
+        // The guard is the STARTED test, deliberately not "any identity was
+        // registered": a block whose identity is still incomplete has no
+        // consumer-side call yet, and COMPLETING that identity from a later frame
+        // is Round 52's recovery for the identity-late wire order. Freezing it
+        // here would turn that recovery back into a placeholder-id flush.
+        const identityFrozen = this.startedIndexes.has(index);
+        if (block.id && !identityFrozen) this.toolIdByIndex.set(index, block.id);
+        if (block.name && !identityFrozen) this.toolNameByIndex.set(index, block.name);
+        // Unaffected by the freeze on purpose: this map is read ONLY by
+        // flushToolBlock (unstarted blocks), so on a started index the write is
+        // inert either way — leaving it alone keeps the Round 52 identity-late
+        // path byte-for-byte as it was.
         if (block.input != null) this.toolInputJsonByIndex.set(index, anthropicToolInputSeed(block.input));
       }
     }
@@ -526,9 +580,19 @@ export class AnthropicStreamParser {
         // `pendingArgsByIndex` is merged first, so even a (currently impossible)
         // buffered fragment on an already-started index would be carried into
         // the folded delta rather than disappear.
+        //
+        // Round 68: the fold is addressed to the block's FROZEN identity —
+        // `toolIdByIndex`, which the Round 68 guard in feed()'s
+        // content_block_start branch no longer lets a repeat overwrite — and NOT
+        // to `c.id`, the id this particular frame happens to carry. That single
+        // difference is what makes a repeat carrying a DIFFERENT id behave like
+        // the same-id one: the seed lands in the accumulator the first start
+        // opened, the block's own `content_block_stop` still closes that same id,
+        // and no orphan `tool_call_end` is produced. On a same-id repeat the two
+        // expressions are the same string ⇒ byte-identical output.
         if (this.startedIndexes.has(index)) {
           if (c.arguments !== '') {
-            out.push({ type: 'tool_call_delta', id: c.id, argumentsDelta: c.arguments });
+            out.push({ type: 'tool_call_delta', id: this.toolIdByIndex.get(index) ?? c.id, argumentsDelta: c.arguments });
           }
           continue;
         }

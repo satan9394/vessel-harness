@@ -132,9 +132,10 @@ function streamIdleTimeoutError(providerId: string, idleMs: number): Error {
  * Round 66 — make the parser's two per-stream counters OPERATOR-VISIBLE.
  *
  * Why this function exists at all: `AnthropicStreamParser` grows two read-only
- * counters (`malformedFrames`, Round 54: a frame the transport could not even
- * parse — the half-written JSON tail of a TRUNCATED connection, which the EOF
- * residual-buffer feed pushes through the parse catch; `duplicateStarts`,
+ * counters (`malformedFrames`, Round 54: a frame whose `data:` payload failed
+ * JSON.parse — the half-written JSON tail of a TRUNCATED connection, which the
+ * EOF residual-buffer feed pushes through the parse catch, is the most common
+ * case of that failure, not its definition; `duplicateStarts`,
  * Round 65: a `content_block_start` arriving while that index's block is still
  * open — the PEER re-sending a frame the protocol forbids). Until this round
  * NOTHING in the repository read either getter (grep: parser + parser tests
@@ -148,16 +149,21 @@ function streamIdleTimeoutError(providerId: string, idleMs: number): Error {
  * and merging them would make "the connection was cut mid-frame" and "the
  * upstream repeated itself" observationally identical — the exact blindness
  * Round 54 ended one level down:
- *   - `cause=truncated-frame`  — the frame's BYTES were unparseable (transport
- *     truncated mid-frame); the frame is dropped and unrecoverable;
+ *   - `cause=truncated-frame`  — this frame's `data:` payload failed JSON.parse
+ *     (a byte-level failure). The most common CAUSE is a transport truncated
+ *     mid-frame, but "truncated" is not the CRITERION: a proxy's HTML error page
+ *     or a `data: ping` line fails that same parse and is counted here too. The
+ *     frame is dropped and NOT retained — the failing line IS in hand at the
+ *     point that drops it, the parser just keeps no copy of it;
  *   - `cause=duplicate-start`  — the bytes parsed fine and the UPSTREAM
  *     re-sent a forbidden frame; whether that repeat's argument seed reaches
  *     the consumer depends on the repeat's SHAPE, which this counter does not
  *     distinguish (it counts violating FRAMES, taken before the mapper):
- *     a repeat carrying the SAME id is folded into a `tool_call_delta` and IS
- *     delivered, while a repeat carrying a different id (the folded delta
- *     points at the new id, so the consumer's per-id accumulator never sees
- *     it), or no id/name at all, loses that frame's seed — see the
+ *     a repeat carrying `id`+`name` is folded into a `tool_call_delta` and IS
+ *     delivered — the fold is addressed to the identity fixed by the block's
+ *     FIRST start, so that holds whether the repeat re-sends the same id or
+ *     carries a different one (Round 68) — while only a repeat carrying no
+ *     id/name at all produces no chunk and loses that frame's seed; see the
  *     duplicate-start handling in `parseAnthropic`.
  * Each line carries its own machine-readable `key=count`, plus its own cause
  * token, so a log grep / alert rule can tell the two apart.
@@ -182,9 +188,15 @@ function reportStreamDiagnostics(
   duplicateStarts: number,
 ): void {
   if (malformedFrames > 0) {
+    // Round 68 — 判据 vs 成因（同族清尾）。旧文案把「连接在帧中间被切断」——
+    // **最常见成因**——写成了**判据**：真实判据只是「该帧 `data:` 载荷 JSON.parse
+    // 失败」（字节层面），代理塞入的 HTML 错误页、`data: ping` 同样命中计数。旧文案的
+    // 「不可恢复」也偏强：失败点（feed() 的 catch / mapper 的 catch）**手上就握着**
+    // 那行原始文本，只是**不留档** ⇒ 应限定为「不留档」，而不是宣称「不可恢复」。
     warn(
-      `[llm][anthropic] stream 诊断 cause=truncated-frame（字节不可解析：连接在帧中间被切断）` +
-        `malformedFrames=${malformedFrames}: 该残帧已丢弃且不可恢复，本轮输出可能不完整`,
+      `[llm][anthropic] stream 诊断 cause=truncated-frame（判据：该帧 data: 载荷 JSON.parse 失败，即字节不可解析；` +
+        `最常见成因是连接在帧中间被切断——代理塞入的错误页、data: ping 这类非 JSON 载荷同样计数）` +
+        `malformedFrames=${malformedFrames}: 该帧已丢弃且不留档（原文就在丢弃点手上，只是不做留存），本轮输出可能不完整`,
     );
   }
   if (duplicateStarts > 0) {
@@ -193,17 +205,25 @@ function reportStreamDiagnostics(
     // repeat's seed was DISCARDED, while the same-id shape folds that seed into a
     // `tool_call_delta` and the consumer does receive it (Round 64's fold; pinned
     // by streamProvider.test.ts ② and ⑥). The counter cannot be split per shape
-    // here: it is ONE number taken at the FRAME, before the mapper, and the three
-    // shapes (same id / different id / no id-name) are decided inside
-    // `AnthropicStreamParser.feed()`. So this line must state what happens to
-    // EVERY shape — "folded and delivered" for the same-id repeat, "lost" for the
-    // other two — and never describe one shape as if it were all of them.
+    // here: it is ONE number taken at the FRAME, before the mapper, and the shapes
+    // are decided inside `AnthropicStreamParser.feed()`. So this line must state
+    // what happens to EVERY shape and never describe one shape as if it were all
+    // of them.
+    //
+    // Round 68 — the same rule now catches this line's OTHER "会丢" claim. It used
+    // to say a repeat carrying a DIFFERENT id loses its seed (the folded delta
+    // pointed at the new id); the parser now freezes a started block's identity, so
+    // the fold is addressed to the ORIGINAL id and that seed lands as well. Keeping
+    // that clause after the fix would be the Round 67 lie with the shapes swapped,
+    // so it is gone: "folded and delivered" covers every repeat that carries
+    // id+name, and "lost" is left to the one shape that still is (no id/name).
     warn(
       `[llm][anthropic] stream 诊断 cause=duplicate-start（上游重发帧：协议违规）` +
-        `duplicateStarts=${duplicateStarts}: 同一 index 的 content_block_start 在其 content_block_stop 之前再次到达，` +
-        `该帧不得覆盖已累积的片段；它携带的 argument seed 是否送达取决于重发帧的形态（见 parseAnthropic 的重复 start 处理）：` +
-        `同 id ⇒ seed 折入 tool_call_delta 送达（未丢），不同 id ⇒ 折出的 delta 指向新 id、消费侧按旧 id 归并不到 ⇒ 该帧 seed 丢失，` +
-        `无 id/name ⇒ 该帧不产生任何 chunk、seed 无读者 ⇒ 丢失`,
+        `duplicateStarts=${duplicateStarts}: 同一 index 的 content_block_start 在其 content_block_stop 之前再次到达；` +
+        `该帧不得覆盖已累积的片段，也不得改写该 index 首次 start 已登记的身份；` +
+        `它携带的 argument seed 是否送达取决于重发帧的形态（见 parseAnthropic 的重复 start 处理）：` +
+        `带 id/name ⇒ start 被抑制，非空 seed 折入一条挂「原 id」的 tool_call_delta 送达（未丢；同 id 与不同 id 皆然，` +
+        `identity 以首次 start 为准）；无 id/name ⇒ 该帧不产生任何 chunk、seed 无读者 ⇒ 丢失`,
     );
   }
 }

@@ -1110,3 +1110,196 @@ describe('AnthropicStreamParser — duplicate content_block_start is counted as 
     expect(JSON.parse(String(assembleByConsumer(chunks).get('toolu_01')?.args))).toEqual({ path: 'a.txt' });
   });
 });
+
+// ---------------------------------------------------------------------------
+// Round 68 — the SHAPE-B half of the duplicate-`content_block_start` violation:
+// the repeat carries a DIFFERENT id (and name).
+//
+// Round 64 stopped the repeated frame from re-emitting `tool_call_start`, but the
+// frame still reached feed()'s two identity `set()` calls, which OVERWROTE the
+// id/name the block had been registered with. That is not a cosmetic relabel:
+// every chunk of the block's remaining life is ADDRESSED from `toolIdByIndex` —
+// the folded seed, every streamed `input_json_delta`, and the `tool_call_end`
+// produced at the block's own `content_block_stop`. So the rewrite re-addressed
+// the entire tail:
+//   - the repeat's folded seed went out as `tool_call_delta{id: toolu_02}`, and
+//     the consumer's accumulator (AgentLoop.consumeStream `open.get(chunk.id)`,
+//     keyed by the START's id = toolu_01) never saw it ⇒ that frame's data LOST;
+//   - every later fragment of the block was addressed to toolu_02 as well;
+//   - the block's `tool_call_end` came out as toolu_02 — an ORPHAN end (no start
+//     ever opened toolu_02) — while toolu_01 received no end of its own and was
+//     closed only by AgentLoop's stream-boundary fallback (AgentLoop.ts:661-665).
+//
+// The fix is "the FIRST start freezes the identity": a repeat may neither
+// re-emit the start (Round 64) nor rewrite the id/name the block was registered
+// with, and the folded seed is addressed to that frozen identity — i.e. shape B
+// becomes shape C, which Round 64 had already made safe.
+//
+// The guard is deliberately `startedIndexes.has(index)` and NOT "any identity
+// was registered": completing the identity of a not-yet-started block from a
+// later frame is Round 52's recovery for the identity-late wire order (pinned by
+// the "fragments buffered before the identity arrives" case above), and freezing
+// that would turn the recovery back into a placeholder-id flush.
+// ---------------------------------------------------------------------------
+
+/** The id a shape-B repeat carries — deliberately NOT the first start's. */
+const DUP_NEW_ID = 'toolu_02';
+
+describe('AnthropicStreamParser — duplicate content_block_start with a DIFFERENT id (Round 68)', () => {
+  it('① 重复帧带不同 id ⇒ identity 冻结在首个 start：seed 挂原 id 送达、tool_call_end 也回原 id（删两处修复任一 ⇒ 红）', () => {
+    const p = new AnthropicStreamParser();
+    const chunks = feedAll(p, [
+      TOOL_START({ id: 'toolu_01', name: 'Read', input: {} }, 0), // ← the identity that owns this block
+      TOOL_DELTA(ARG_A, 0), //                          already accumulated under toolu_01
+      TOOL_START({ id: DUP_NEW_ID, name: 'Glob', input: { limit: 2 } }, 0), // ← the repeat: different id AND name
+      TOOL_DELTA(ARG_B, 0), //                          the block's later fragments
+      TOOL_STOP(0),
+      MSG_STOP,
+    ]);
+
+    // Two independent lines carry this behaviour — deleting EITHER turns this
+    // whole-array assertion red:
+    //   1. feed()'s `identityFrozen` guard (drop it ⇒ toolIdByIndex becomes
+    //      toolu_02 and every id below flips with it);
+    //   2. the folded delta reading `toolIdByIndex` instead of this frame's
+    //      `c.id` (revert it ⇒ that one delta goes back to toolu_02).
+    expect(chunks).toEqual([
+      { type: 'tool_call_start', id: 'toolu_01', name: 'Read', arguments: '' },
+      { type: 'tool_call_delta', id: 'toolu_01', argumentsDelta: ARG_A },
+      { type: 'tool_call_delta', id: 'toolu_01', argumentsDelta: DUP_SEED }, // ← pre-fix id: 'toolu_02'
+      { type: 'tool_call_delta', id: 'toolu_01', argumentsDelta: ARG_B }, //    ← pre-fix id: 'toolu_02'
+      { type: 'tool_call_end', id: 'toolu_01' }, //                             ← pre-fix id: 'toolu_02' (orphan)
+      { type: 'message_end' },
+    ]);
+
+    // The invariants stated directly, so nobody has to diff arrays to see them.
+    expect(chunks.filter((c) => c.type === 'tool_call_start')).toHaveLength(1); // still never re-emitted (Round 64)
+    expect(chunks.filter((c) => c.type === 'tool_call_end')).toEqual([{ type: 'tool_call_end', id: 'toolu_01' }]); // no orphan end
+    expect(chunks.some((c) => JSON.stringify(c).includes(DUP_NEW_ID))).toBe(false); // the repeat's id appears NOWHERE
+    expect(p.duplicateStarts).toBe(1); // the violation is still counted (Round 65, untouched)
+
+    // What the consumer ends up holding: ONE call, carrying the repeat's seed.
+    const open = assembleByConsumer(chunks);
+    expect([...open.keys()]).toEqual(['toolu_01']);
+    expect(open.has(DUP_NEW_ID)).toBe(false); // no start ever opened that id
+    expect(open.get('toolu_01')?.name).toBe('Read'); // the repeat's name did not take over either
+    expect(String(open.get('toolu_01')?.args)).toBe(ARG_A + DUP_SEED + ARG_B);
+    expect(String(open.get('toolu_01')?.args).includes(DUP_SEED)).toBe(true); // ← pre-fix FALSE: lost
+
+    // PRE-FIX TRACE — the chunk sequence the pre-fix parser produced for this
+    // exact wire, transcribed, then replayed through the SAME consumer algorithm:
+    // the loss is demonstrated without depending on the fix being absent (the
+    // same device the Round 64 case uses).
+    const preFix: StreamChunk[] = [
+      { type: 'tool_call_start', id: 'toolu_01', name: 'Read', arguments: '' },
+      { type: 'tool_call_delta', id: 'toolu_01', argumentsDelta: ARG_A },
+      { type: 'tool_call_delta', id: DUP_NEW_ID, argumentsDelta: DUP_SEED }, // ← the fold hung on the NEW id
+      { type: 'tool_call_delta', id: DUP_NEW_ID, argumentsDelta: ARG_B }, //    ← and so did the block's tail
+      { type: 'tool_call_end', id: DUP_NEW_ID }, //                             ← orphan: no start opened this id
+      { type: 'message_end' },
+    ];
+    const preFixOpen = assembleByConsumer(preFix);
+    expect([...preFixOpen.keys()]).toEqual(['toolu_01']); // only the real start opened a call...
+    expect(preFixOpen.has(DUP_NEW_ID)).toBe(false); //        ...so the deltas above landed nowhere
+    expect(String(preFixOpen.get('toolu_01')?.args)).toBe(ARG_A); // ← the repeat's seed AND ARG_B are GONE
+    expect(String(preFixOpen.get('toolu_01')?.args).includes(DUP_SEED)).toBe(false);
+    // ...and toolu_01 has no end of its own in that sequence: the only end belongs
+    // to an id nobody opened, so the loop closes toolu_01 through its
+    // stream-boundary fallback instead of at the block's own boundary.
+    expect(preFix.some((c) => c.type === 'tool_call_end' && c.id === 'toolu_01')).toBe(false);
+    expect(preFix.some((c) => c.type === 'tool_call_start' && c.id === DUP_NEW_ID)).toBe(false);
+  });
+
+  it('② 负对照：每 index 恰好一次 start 的规范流逐字不变（整数组 toEqual；负对照应保持绿）', () => {
+    const p = new AnthropicStreamParser();
+    const chunks = feedAll(p, [
+      sse({ type: 'message_start', model: 'claude-sonnet-4' }),
+      sse({ type: 'content_block_start', index: 0, content_block: { type: 'text', text: '' } }),
+      sse({ type: 'content_block_delta', index: 0, delta: { type: 'text_delta', text: 'Reading ' } }),
+      sse({ type: 'content_block_stop', index: 0 }),
+      TOOL_START({ id: 'toolu_01', name: 'Read', input: {} }, 1),
+      TOOL_DELTA(ARG_A, 1),
+      TOOL_DELTA(ARG_B, 1),
+      TOOL_STOP(1),
+      sse({ type: 'message_delta', delta: { stop_reason: 'tool_use' }, usage: { output_tokens: 8 } }),
+      MSG_STOP,
+    ]);
+
+    // The Round 68 guard is dead code on a well-formed wire: a canonical stream
+    // carries exactly one start per index, so `identityFrozen` is never true there.
+    expect(chunks).toEqual([
+      { type: 'message_start', model: 'claude-sonnet-4' },
+      { type: 'text_delta', text: 'Reading ' },
+      { type: 'tool_call_start', id: 'toolu_01', name: 'Read', arguments: '' },
+      { type: 'tool_call_delta', id: 'toolu_01', argumentsDelta: ARG_A },
+      { type: 'tool_call_delta', id: 'toolu_01', argumentsDelta: ARG_B },
+      { type: 'tool_call_end', id: 'toolu_01' },
+      { type: 'usage', inputTokens: undefined, outputTokens: 8, cacheReadTokens: undefined, cacheCreationTokens: undefined },
+      { type: 'message_end', finishReason: 'tool_calls' },
+      { type: 'message_end' },
+    ]);
+    expect(p.duplicateStarts).toBe(0);
+    expect(p.malformedFrames).toBe(0);
+  });
+
+  it('③ 负对照：形态 C（同 id 的重复 start）逐字不变 —— 仍与既有夹具一致，且与「无重复」只差折入的那条 seed', () => {
+    const wire = (duplicate: boolean): StreamChunk[] => {
+      const p = new AnthropicStreamParser();
+      return feedAll(p, [
+        TOOL_START({ id: 'toolu_01', name: 'Read', input: {} }, 0),
+        TOOL_DELTA(ARG_A, 0),
+        ...(duplicate ? [TOOL_START({ id: 'toolu_01', name: 'Read', input: { limit: 2 } }, 0)] : []),
+        TOOL_DELTA(ARG_B, 0),
+        TOOL_STOP(0),
+        MSG_STOP,
+      ]);
+    };
+
+    // Round 64's output, unchanged: the freeze is a no-op on a same-id repeat
+    // (it would have re-registered the very same strings), and the fold resolves
+    // to the same id it always did.
+    expect(wire(true)).toEqual([
+      { type: 'tool_call_start', id: 'toolu_01', name: 'Read', arguments: '' },
+      { type: 'tool_call_delta', id: 'toolu_01', argumentsDelta: ARG_A },
+      { type: 'tool_call_delta', id: 'toolu_01', argumentsDelta: DUP_SEED },
+      { type: 'tool_call_delta', id: 'toolu_01', argumentsDelta: ARG_B },
+      { type: 'tool_call_end', id: 'toolu_01' },
+      { type: 'message_end' },
+    ]);
+    expect(String(assembleByConsumer(wire(true)).get('toolu_01')?.args)).toBe(ARG_A + DUP_SEED + ARG_B);
+
+    expect(wire(false)).toEqual([
+      { type: 'tool_call_start', id: 'toolu_01', name: 'Read', arguments: '' },
+      { type: 'tool_call_delta', id: 'toolu_01', argumentsDelta: ARG_A },
+      { type: 'tool_call_delta', id: 'toolu_01', argumentsDelta: ARG_B },
+      { type: 'tool_call_end', id: 'toolu_01' },
+      { type: 'message_end' },
+    ]);
+  });
+
+  it('④ 边界：冻结只作用于已 started 的 index —— 未启动块的 identity 补全（Round 52 identity-late）逐字不变', () => {
+    // The counter-example that keeps the guard honest. A block whose identity is
+    // still incomplete has NO consumer-side call yet, so a later frame completing
+    // it must still register the id. A literal "the first start freezes whatever
+    // it carried" would freeze the MISSING id and send this wire back to the
+    // Round-52 placeholder flush (`anthropic-tool`) — what the assertions below
+    // would catch.
+    const p = new AnthropicStreamParser();
+    const chunks = feedAll(p, [
+      TOOL_START({ name: 'Read' }, 0), // identity incomplete: no id ⇒ no call opened
+      TOOL_DELTA(ARG_A, 0),
+      TOOL_DELTA(ARG_B, 0),
+      TOOL_START({ id: 'toolu_01', name: 'Read' }, 0), // completes the identity
+      TOOL_STOP(0),
+      MSG_STOP,
+    ]);
+
+    expect(chunks).toEqual([
+      { type: 'tool_call_start', id: 'toolu_01', name: 'Read', arguments: FULL_ARGS },
+      { type: 'tool_call_end', id: 'toolu_01' },
+      { type: 'message_end' },
+    ]);
+    expect(p.duplicateStarts).toBe(1); // still a protocol violation, still counted at the frame
+    expect(chunks.some((c) => JSON.stringify(c).includes('anthropic-tool'))).toBe(false);
+  });
+});
