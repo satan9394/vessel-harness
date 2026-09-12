@@ -104,11 +104,19 @@ export interface SandboxDeps {
  *
  *  - `job-object-not-attempted`     → nothing has been confined yet on this instance
  *  - `job-object-attach-failed`     → the job factory threw (this command ran unconfined)
+ *  - `job-object-target-exited`     → the target was ALREADY gone when the holder
+ *    finished compiling, so there was nothing left to confine. This is NOT an
+ *    attach failure: it is not warned about (`degradeJobObject` is never called
+ *    for it) but it IS surfaced here, because "confinement was not in force for
+ *    that command" has to stay visible and accurate. It is the normal outcome
+ *    for a short-lived command — the holder's `Add-Type` compile takes 1–10 s
+ *    and happens after the child spawns (`windows-job-object.ts`).
  *  - `job-object-unavailable`       → the platform has no Job Object backend (linux/darwin)
  */
 export type ConfinementDegradeReason =
   | 'job-object-not-attempted'
   | 'job-object-attach-failed'
+  | 'job-object-target-exited'
   | 'job-object-unavailable';
 
 /** A confinement session: a fresh isolation cwd + a lazily-attached kill handle. */
@@ -142,6 +150,18 @@ export class Sandbox {
   private degraded?: ConfinementDegradeReason;
   /** human-readable degradation detail (the caught error message). */
   private degradedDetail?: string;
+  /**
+   * Warn de-duplication (BRIEF §③): one Sandbox instance == one session in
+   * `compose.ts`, so each degradation REASON is announced on stderr at most once
+   * per session instead of once per command. Before this, a session that ran ten
+   * short commands printed ten identical "sandbox degraded" lines and the actual
+   * signal ("confinement is not in force") drowned in its own noise.
+   *
+   * Nothing is lost by de-duplicating: the LATEST detail always stays readable
+   * in `statusSnapshot().fallbackReason` (and the CLI prints it), so the newest
+   * cause is visible even when its warning line was suppressed.
+   */
+  private readonly warnedDegradations = new Set<ConfinementDegradeReason>();
 
   constructor(deps: SandboxDeps = {}) {
     this.platform = deps.platform ?? process.platform;
@@ -193,15 +213,38 @@ export class Sandbox {
 
   /**
    * Record a REAL confinement failure (degradation is kept — commands still run —
-   * but it is no longer silent: the status reflects it and a warn carries the cause).
+   * but it is no longer silent: the status reflects it and a warn carries the
+   * cause). The warn fires once per reason per Sandbox instance (= per session);
+   * see {@link warnedDegradations}.
    */
   private degradeJobObject(detail: string): void {
     this.jobAttached = false;
     this.degraded = 'job-object-attach-failed';
     this.degradedDetail = detail;
+    if (this.warnedDegradations.has('job-object-attach-failed')) return;
+    this.warnedDegradations.add('job-object-attach-failed');
     this.warn(
       `[vessel] sandbox degraded: windows job object attach failed (${detail}) — this command runs with NO process-tree confinement (direct-child kill only)`,
     );
+  }
+
+  /**
+   * Record a NON-alarming outcome: the target PID was already gone before the
+   * job could be attached (errno 87 — the normal case for a short-lived command).
+   * There is nothing left to confine, so this is deliberately NOT routed through
+   * {@link degradeJobObject}: no stderr warning, no `job-object-attach-failed`.
+   * It only makes the status tell the truth (`active:false`,
+   * `degraded:'job-object-target-exited'`), which the CLI surfaces.
+   *
+   * Safety direction: this must NOT swallow a real failure. It is reached only
+   * when the backend explicitly answered `attached:false, reason:'target-exited'`
+   * (errno 87 = the PID does not exist); errno 5 (access denied), a holder error
+   * and a timeout all still throw and degrade loudly.
+   */
+  private noteTargetExited(): void {
+    this.jobAttached = false;
+    this.degraded = 'job-object-target-exited';
+    this.degradedDetail = undefined;
   }
 
   status(): SandboxStatus {
