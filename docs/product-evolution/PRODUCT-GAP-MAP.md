@@ -462,3 +462,30 @@ parseFailed=true  ⇒ AgentLoop 退化成 {_raw:...}，工具拿不到 path
 - **已正确、无需动**：`run --bench`、`provider list`（损坏 fail-loud）、`models`、`sessions list`、`settings list`。
 - **修好后才看得见的一处不一致（只报告）**：`cmdBenchReport` 在 `--json` 下**仍把人类摘要写进 stdout**，而 `output.ts` 的契约是"`--json` 时 stdout 只允许一段可解析 JSON"。**改动前就有**，测试**故意没有把它钉死**（否则就是又一次"锁住缺陷"）⇒ **待排**。
 - **文档滞后**：`docs/REPORT-DASHBOARD.md:56-64` 有 `bench-report` 用法但未写退出码；`tasks/083-report-dashboard.md:63/72` 仍记旧语义"exit 0"。
+
+## Round 90–92 — **独立对抗评审**（Round 83 派出）的结论、我的核实与处置
+
+**评审方式**（值得记，因为它以后要复用）：**全新上下文 + 只读 + 以代码为唯一事实源**；把**提交信息与注释一律当待验证声明**；要求 ① REJECT 级发现（带 `文件:行号` 与**可证伪路径**）② **"查过且未推翻"清单**（**沉默不算审查**）③ **"需实测才能判定"清单**（它不许跑套件）。它交付 10/10/6 条，并**主动自我证伪一条**（原以为 lane 新判 failed 会误伤 release gate，读码后推翻）。
+
+**它真正推翻我的三条，我都自己读码复核后确认**：
+1. **A2（我们自己引入的新缺陷）** —— 已修（`2bc93e2`）：`AnthropicProvider` 的 `duplicate-start` 告警写"该重复帧携带的 argument seed **已丢弃**"，而**同一个夹具**在测试里断言该 seed **以 `tool_call_delta` 送达**（我在 `streamProvider.test.ts:767` 亲眼确认）⇒ **同一个流，日志说丢了、断言说没丢**。修法选"(甲) 改文案"，且它指出**分形态文案不可行**：`duplicateStarts` 是**一个数字、且在 mapper 之前**取的 ⇒ provider 侧**无从得知子形态** ⇒ **中性表述是当前信息量下唯一不撒谎的写法**；它还**连同一条错话的第二处（注释）一并改了**（"只改一半等于没改"），并**两个方向都加锁**（既不许"一律丢弃"，也不许"一律未丢"）。
+2. **A8（口径漂移 + 越词表）** —— 已派卡：`TeamRuntime.ts:259` 写 `stopReason: turn.kind === 'success' ? undefined : turn.kind` ⇒ 会吐 **`'budget'`/`'interrupted'`**，而词表（`events.ts:242`）是 `'completed'|'aborted'|'error'|'max_tokens'|'refusal'|'denied'` ⇒ **输出词表外的值**；且 `EvaluatorAgent`/`SubagentManager` 各有一份**逐字重复**的 switch ⇒ **三处实现、两套口径**。**我那批的提交信息"与 SubagentManager 和 TeamRuntime 一致"对 TeamRuntime 为假** ⇒ **在记录里更正，不改写历史**。
+3. **A4（500 的立论对其中一类 500 为假）** —— 已记队列：`server.ts` 为 500 写的理由是"回合**跑完了**（`turn/start→turn/end` 配对成立）"，而**`before_turn` 拦截路径根本没有 `turn/start`**（其注释自述"turn/start/step/start 从未写出"）⇒ **同一批里，500 的理由对其中一类 500 是假的**，且两类共用 `kind='error'`、消费面无从区分。**另有 A4-i**：`apps/web` 的 `api.ts` 在 `!res.ok` 时取 `body.message`（turns 500 的 body **没有** `message`）⇒ UI 只显示 `HTTP 500`，**我们特意让 `finalText` 带的那段原因，在唯一的在仓人类客户端上一个字符都到不了**。
+
+**被评审判定"已由后续提交修掉"的两条，我不重复修**：A3（goal run 仍 200 ⇒ 已由 `aae420a` 修）、A6（报告对比表仍绿 ⇒ 已由 `bb68b87` 修）。**评测基准是 `f0e5852`，而我在它审查期间又推进了 6 个提交——它有意识地标注了漂移，这点做得比"只看当前 HEAD 下结论"更可靠。**
+
+**评审对我验收标准本身的批评（我认为最重要，已立纪律）**：
+- **`parseAnthropic.test.ts` 里的累加器是 `AgentLoop` 的逐字抄写**（自注 "transcribed verbatim"）⇒ 所有"消费者会不会覆盖"的断言**打在镜子上**：**把真实消费侧改坏，那套用例不会红**。
+- **期望值由生产函数自己生成**（`turnKindSummary`）⇒ **同义反复**。
+- **三条被标为"判别性"的负对照，回退修复仍绿**（`chat.test.ts:1056`、`cli.test.ts:2289`、`turn-status.test.ts:238`）⇒ **我把负对照当成了判别力**。
+- `cli.test.ts:2520-2524` **重抄了 `cmdRun` 的输出序列** ⇒ 那条路径的呈现**没有生产入口覆盖**。
+- `turn-status.test.ts:258-260` **逐字节钉了 JSON 键序** ⇒ **把实现选择当契约**（把两行对调、对外零行为即红）。
+
+**评审"查过未推翻"里有一条是对我的加分确认**：它**自行证伪**了"lane 新判 failed 会误伤 gate"——因为 `budget`/`interrupted` 回合的 `finalText` **恒为空** ⇒ `metrics.success=false` ⇒ 走既有 `describeLaneFailureNote`，`isModelNonConvergentLane` 的分类不受影响；**新 `failed` 只落在 `kind='error'`（finalText 非空）这一族**——正是要修的那族。
+
+**评审与后续卡带出的新队列**：
+- **A1 的精确化（形态 B 伤害面更大）**：不同 id 的重复帧会把 `toolIdByIndex[index]` **改写成新 id** ⇒ **不止该帧 seed，该块其后所有 `input_json_delta` 片段与最终 `tool_call_end` 都挂新 id**，旧 id 累加器只能靠流末兜底收场。修法（乙）须一并处理。
+- **`malformedFrames` 文案同族但更轻**：判据只是"`data:` 载荷 JSON.parse 失败"，而文案把"**最常见成因**（连接在帧中间被切断）"写成了**判据**；"不可恢复"偏强（失败点**手上就握着**那行原始文本）。同句错话在 `parseAnthropic.ts:378` 还有**下游副本**。
+- **`createProvider.ts:92-100` 不透传 `streamIdleTimeoutMs`** ⇒ `AnthropicProvider` 文档承诺的"独立旋钮"**经工厂路径永远拿不到**（OpenAI 兄弟同病）——"文档承诺了不可达的能力"族。
+- **三处"规格有、实现无"**：`EVENT-SPEC` 的 `turn/end.stats` 规格含 `tokensUsed?/costEstimate?` 而实现只有三字段；**B13 `llm/retry` 被定义为持久记录，`SessionRecord` 里没有该类型**；**B12 `request/header` 规格要求落盘可重建请求，实现里不存在** ⇒ **会话日志无法重建"这一轮用了哪个模型、上下文多大"**。
+- `packages/llm` 的 OpenAI 系截断信号丢失（`OpenAICompatibleProvider.ts:179-181` 把含 `'length'` 的非 stop/tool_calls 一律塌缩成 `'error'`；`parseOpenAI.ts` 全程不携带 finish_reason）⇒ **已派卡**（同一条缺陷在**本仓最常用的 provider 家族**上）。
