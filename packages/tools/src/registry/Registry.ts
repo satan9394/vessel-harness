@@ -16,6 +16,7 @@ export interface RegistryOptions {
  * - exposed-surface trimming: policy-compiled denied tools are removed from the
  *   visible set (denied tools "leave the context")
  * - exclusive barrier (write serialization) + rolling pool (maxParallelToolCalls)
+ *   — implemented, but NOT wired in production: see the note on `execute`.
  */
 export class ToolRegistry {
   private readonly tools = new Map<string, ToolSpec>();
@@ -63,7 +64,20 @@ export class ToolRegistry {
     return this.denied;
   }
 
-  /** Execute with exclusive barrier + rolling pool. */
+  /**
+   * Execute with exclusive barrier + rolling pool.
+   *
+   * NOT WIRED IN PRODUCTION (V0.1): this scheduling path has no production
+   * caller. The AgentLoop dispatches tool calls strictly serially
+   * (`AgentLoop.ts`: `for (const call of toolCalls) await this.dispatchToolCall(...)`
+   * → `deps.runTool` → the executor's `spec.execute`), so it never reaches
+   * `ToolRegistry.execute`; the only non-test caller is `ParallelScheduler`
+   * (`registry/parallel.ts`), which itself is currently used only by
+   * `parallel.test.ts`. The barrier/rolling-pool semantics below are therefore
+   * latent capability, not delivered behaviour — wiring them in is a separate
+   * feature decision (concurrency semantics, timeouts, cancellation, error
+   * aggregation, result ordering).
+   */
   async execute(call: ToolCall, ctx: {
     workspaceRoot: string;
     cwd: string;
@@ -109,13 +123,32 @@ export class ToolRegistry {
     };
 
     if (tool.exclusive) {
-      // exclusive barrier: serialize behind the chain
-      let result: ToolExecutionResult = { content: '', error: { errorClass: 'TOOL_FAILURE', message: 'barrier' }, meta: {} };
+      // exclusive barrier: serialize behind the chain.
+      //
+      // CHAIN RECOVERY — the chained callback MUST leave `exclusiveChain`
+      // RESOLVED. `run()` rethrows whatever `tool.execute` threw, and a rejected
+      // chain is permanent: every later `.then(...)` callback is skipped (so the
+      // tool never runs) while that same stale error is handed to unrelated
+      // callers. One throwing write tool would therefore silently stop every
+      // subsequent write tool. So the failure is captured here — the chain
+      // recovers — and rethrown to THIS caller only. The throwing caller still
+      // observes exactly the error its own call produced (never swallowed into a
+      // success, never replaced by a neighbour's error).
+      const settled: { result: ToolExecutionResult; failure?: unknown; failed: boolean } = {
+        result: { content: '', error: { errorClass: 'TOOL_FAILURE', message: 'barrier' }, meta: {} },
+        failed: false,
+      };
       this.exclusiveChain = this.exclusiveChain.then(async () => {
-        result = await run();
+        try {
+          settled.result = await run();
+        } catch (err) {
+          settled.failed = true;
+          settled.failure = err;
+        }
       });
       await this.exclusiveChain;
-      return result;
+      if (settled.failed) throw settled.failure;
+      return settled.result;
     }
     return run();
   }
