@@ -13,6 +13,9 @@ import { MockProvider } from '@vessel/llm';
 import { ProviderStore } from './providers/ProviderStore.js';
 import { providerStateRoot } from './providers/defaultStore.js';
 import { loadModelCatalog } from './providers/modelCatalog.js';
+// 本卡：把 TUI 的回合呈现函数当**参照口径**读进来（只读引用，不修改 tui/**）——
+// "同一个错误回合，TUI 不盖模型标记"这条对照要在**同一个用例里**可执行地钉住。
+import { renderTurnOutcome } from './tui/chat.js';
 
 const REPO_ROOT = fileURLToPath(new URL('../../../', import.meta.url));
 const POLICY = path.join(REPO_ROOT, 'configs', 'policy.default.yaml');
@@ -2413,6 +2416,252 @@ describe('vessel provider export/import + endpoint (task 095/096)', () => {
     } finally {
       await endpoint.close();
     }
+  });
+
+  /**
+   * 本卡 —— **「非模型文本不得盖模型标记」**：CLI 与 TUI 在**同一批裁决**上必须同口径。
+   *
+   * 复现（改前，静态可核，证据在下面每条用例的注释里）：`cmdRun` 的唯一渲染出口
+   * （cli.ts 原 :959）是 `console.log(renderFinalReply(result.finalText, usingMockProvider))`，
+   * 而 `renderFinalReply`（cli.ts:780-783）**只有 `(finalText, usingMock)` 两个入参、没有 kind** ⇒
+   * mock 会话里 `kind='error'` 的 harness 状态文案（熔断 `DenialLimitError.message`，
+   * AgentLoop.ts:389-393 把它写进 `finalText`）会被渲染成
+   * `（mock 离线冒烟）same intent denied 3 times: …`。**TUI 侧不这样**：`renderTurnOutcome`
+   * （chat.ts:385-397）只在 `case 'success'` 里调 `renderTurnReply`，`error`/`budget`/
+   * `interrupted` 各走状态文案分支、不盖标记（理由见 chat.ts:377-380）。⇒ 同一个错误回合，
+   * TUI 是纯错误行、CLI 却自称"mock 离线冒烟"——两句都在断言"这条文本从哪来"，后一句是假的。
+   *
+   * **端到端可达性（如实标注，见交付说明⑤）**：`main(['run', …])` 今天**构造不出**
+   * "内置 mock + kind=error"——内置 mock 脚本（cli.ts:908-930）第一条规则带 `ifNoToolResult`，
+   * 而一次被拒的工具调用会被 ContextBuilder 投影成 `role:'tool'` 的 `[DENIED] …`
+   * （context/Builder.ts:65-71）⇒ mock 的第二/三条规则必然给出文本 ⇒ `kind='success'`。
+   * 因此"复现"落在**渲染决策接缝**上（`renderTurnFinalText` = cmdRun 唯一出口所调用的函数，
+   * 与 TUI 的 `renderTurnOutcome` 位置一一对应），而不是伪造一个跑不出来的会话；
+   * 端到端的两条可达路径（mock+success / 真 provider+error+success）在下面逐字钉死。
+   *
+   * 判别性（"删掉修复就红"）与负对照：
+   *   ① `mock + kind='error'` ⇒ **不含**标记，且错误文本逐字保留（删掉 kind 判据即红）；
+   *   ② **负对照**：`mock + kind='success'` ⇒ **仍带**标记（端到端走真实 `main run`；
+   *      把标记整个删掉即红 —— 防"走到另一个极端"）；
+   *   ③ **负对照**：真实 provider（`usingMock=false`）的 error / success ⇒ 输出**逐字不变**；
+   *   ④ `budget` / `interrupted` 同属非模型文本 ⇒ **各配一条**用例（含"不吞文本"与空文本分支）。
+   *
+   * 本块**只加用例**：不改 BRIEF-18 的任何断言，也不放宽任何既有判据。
+   */
+  const CLI_MOCK_MARK = '（mock 离线冒烟）';
+
+  /**
+   * 取 CLI 的回合渲染出口（`cmdRun` 里唯一那一行 `console.log(...)` 用的就是它）。
+   *
+   * 用"取属性"而不是 `import { renderTurnFinalText }`：改前该出口**不存在**
+   * （只有两个入参的 `renderFinalReply`），直接具名 import 会让整个测试文件在链接期就失败；
+   * 这里让"缺 kind 入口"这条以**具名断言**红，报错信息能直接指向缺陷本身。
+   */
+  function cliRenderTurnFinalText():
+    | ((kind: cli.CliTurnKind, finalText: string, usingMock: boolean) => string)
+    | undefined {
+    return (
+      cli as unknown as {
+        renderTurnFinalText?: (kind: cli.CliTurnKind, finalText: string, usingMock: boolean) => string;
+      }
+    ).renderTurnFinalText;
+  }
+
+  /** 取到渲染出口，取不到就带着原因红（判据型失败，不是静默跳过）。 */
+  function requireCliRenderTurnFinalText(): (kind: cli.CliTurnKind, finalText: string, usingMock: boolean) => string {
+    const fn = cliRenderTurnFinalText();
+    expect(typeof fn).toBe('function');
+    if (!fn) {
+      throw new Error(
+        'cli.renderTurnFinalText 不存在：CLI 的渲染出口又回到了"只有 (finalText, usingMock)、没有 kind"——本卡修复被删除（mock 会话里的 error 文案会重新被盖上模型标记）',
+      );
+    }
+    return fn;
+  }
+
+  it('本卡①（判别性）：mock 会话的 kind=error 文案不得盖模型标记；同回合 TUI 也不盖（口径对齐）', () => {
+    const render = requireCliRenderTurnFinalText();
+    const errText = 'same intent denied 3 times: Read';
+
+    // ① CLI：改前这一行会是 `（mock 离线冒烟）same intent denied 3 times: Read`（原 :959 无条件传 usingMock）
+    const cliErrLine = render('error', errText, true);
+    expect(cliErrLine).not.toContain(CLI_MOCK_MARK);
+    // 不吞内容：错误文本与原因逐字保留（修复只摘标记，不动文本）
+    expect(cliErrLine).toBe(errText);
+    expect(cliErrLine).toContain('same intent denied 3 times: Read');
+
+    // 同回合在 TUI 的呈现：`renderTurnOutcome` 就是 TUI 主循环 chat.ts:755 调用的同一函数
+    // （本卡只读引用它当参照口径，不修改 tui/**）。它按设计也**不含**任何 mock 标记。
+    const tuiErrLine = renderTurnOutcome({ kind: 'error', finalText: errText, steps: 3, toolCalls: 3 }, true);
+    expect(tuiErrLine).not.toContain(CLI_MOCK_MARK);
+    expect(tuiErrLine).toContain(errText); // 两边都不吞内容
+    // ⇒ 两个面同口径：错误行是 harness 状态文案，不是模型回答，任何一面都不许盖模型标记
+  });
+
+  it('本卡②（负对照，最重要）：mock 会话的 kind=success 仍必须带模型标记（端到端真实 main run）', async () => {
+    fs.writeFileSync(path.join(dir, 'README.md'), '本卡-MOCK-SUCCESS-GOLDEN', 'utf8');
+    const cap = captureChannels();
+    let code: number;
+    try {
+      // 不传 --provider ⇒ 临时 provider 根里没有 current.json ⇒ 内置 mock（usingMockProvider=true）
+      code = await withTempMcpRoot(() =>
+        main([
+          'run',
+          '--workspace', dir,
+          '--prompt', '请阅读 README.md 并回答',
+          '--policy', POLICY,
+          '--behavior', BEHAVIOR,
+        ]),
+      );
+    } finally {
+      cap.restore();
+    }
+
+    expect(code).toBe(0);
+    // 阳性控制：这次确实走的是内置 mock（提示行走 stderr，cli.ts:950）
+    expect(cap.err()).toContain('未连接真实模型');
+
+    const lines = cap.lines();
+    const at = lines.indexOf('\n=== 最终回复 ===');
+    expect(at).toBeGreaterThanOrEqual(0);
+    // ← 判别点：把标记整个删掉（"走到另一个极端"）⇒ 这一行红。success 是标记的**正当用途**。
+    expect(lines[at + 1]?.startsWith(CLI_MOCK_MARK)).toBe(true);
+    expect(lines[at + 1]).toContain('本卡-MOCK-SUCCESS-GOLDEN'); // 内容一字不少
+    expect(lines[at + 2]).toMatch(/^\n=== turn turn_\S+ kind=success steps=\d+ toolCalls=\d+ ===$/);
+
+    // 纯决策点同款钉死（success 是唯一"是模型回答"的 kind）
+    expect(requireCliRenderTurnFinalText()('success', 'TXT', true)).toBe(`${CLI_MOCK_MARK}TXT`);
+  });
+
+  it('本卡③（负对照）：真实 provider 的 error 回合输出逐字不变（kind 入参不得改变真 provider 路径）', async () => {
+    // 凭据摆法照 BRIEF-18 ①：`**/.env` 同时命中 policy.filesystem.deny_read 与 tool-read-secrets
+    fs.mkdirSync(path.join(dir, 'creds'), { recursive: true });
+    fs.writeFileSync(path.join(dir, 'creds', '.env'), 'BENKA_LEAK_PROBE=must-not-be-read', 'utf8');
+
+    const endpoint = await startDenialLoopback('Read', { path: 'creds/.env' });
+    try {
+      const cap = captureChannels();
+      let code: number;
+      try {
+        code = await withTempMcpRoot(() =>
+          main([
+            'run',
+            '--workspace', dir,
+            '--prompt', '读一下凭据文件',
+            '--policy', POLICY,
+            '--behavior', BEHAVIOR,
+            '--provider', 'openai-compatible',
+            '--base-url', endpoint.baseUrl,
+            '--model', 'm',
+          ]),
+        );
+      } finally {
+        cap.restore();
+      }
+
+      expect(endpoint.seen.length).toBeGreaterThanOrEqual(3); // 阳性控制：熔断真的触发了
+      expect(code).toBe(1); // BRIEF-18 的裁决不变（本卡不动退出码）
+
+      const lines = cap.lines();
+      const at = lines.indexOf('\n=== 回合以错误结束 (kind=error) ===');
+      expect(at).toBeGreaterThanOrEqual(0); // 标题不变
+      expect(lines[at + 1]).toBe('same intent denied 3 times: Read'); // **逐字**：真 provider 路径一个字节都不加
+      expect(cap.out()).not.toContain(CLI_MOCK_MARK); // 真 provider 本来就不该有标记（负对照）
+      // 阳性控制：走的是内置 mock 时**才**会打的那行提示，这条路径必须没有
+      expect(cap.err()).not.toContain('未连接真实模型');
+    } finally {
+      await endpoint.close();
+    }
+  });
+
+  it('本卡③′（负对照）：真实 provider 的 success 回合输出逐字不变', async () => {
+    const endpoint = await startLoopback('本卡-REAL-SUCCESS-GOLDEN');
+    try {
+      const cap = captureChannels();
+      let code: number;
+      try {
+        code = await withTempMcpRoot(() =>
+          main([
+            'run',
+            '--workspace', dir,
+            '--prompt', 'ping',
+            '--policy', POLICY,
+            '--behavior', BEHAVIOR,
+            '--provider', 'openai-compatible',
+            '--base-url', endpoint.baseUrl,
+            '--model', 'm',
+          ]),
+        );
+      } finally {
+        cap.restore();
+      }
+
+      expect(code).toBe(0);
+      const lines = cap.lines();
+      const at = lines.indexOf('\n=== 最终回复 ===');
+      expect(at).toBeGreaterThanOrEqual(0);
+      expect(lines[at]).toBe('\n=== 最终回复 ==='); // 标题逐字（本卡不动标题）
+      expect(lines[at + 1]).toBe('本卡-REAL-SUCCESS-GOLDEN'); // 逐字：无任何前缀/标记
+      expect(cap.err()).not.toContain('未连接真实模型');
+
+      // 纯决策点：`usingMock=false` 时四种 kind **逐字**返回原串（kind 判据不得改变真 provider 路径）
+      const render = requireCliRenderTurnFinalText();
+      for (const kind of ['success', 'error', 'budget', 'interrupted'] as const) {
+        expect(render(kind, 'VERBATIM', false)).toBe('VERBATIM');
+        expect(render(kind, '', false)).toBe('(无文本回复)'); // 空文本分支也逐字不变
+      }
+    } finally {
+      await endpoint.close();
+    }
+  });
+
+  it('本卡④（裁决：budget 属非模型文本）：不盖标记、不吞文本；空文本仍走 (无文本回复)；退出码仍 0', async () => {
+    const render = requireCliRenderTurnFinalText();
+
+    // `budget`：本回合**没有**产出最终回复（AgentLoop.ts:378-381 / :432-434）。若将来它带上半截文本，
+    // 那也仍是 harness 状态文案的一部分 ⇒ 不盖标记，但**必须原样打出来**（不吞内容）。
+    expect(render('budget', 'PARTIAL-TEXT', true)).toBe('PARTIAL-TEXT');
+    expect(render('budget', '', true)).toBe('(无文本回复)'); // 既有边界逐字不变
+
+    // 端到端（可达路径）：`--max-steps 1` 的内置 mock 回合真的停在 budget
+    fs.writeFileSync(path.join(dir, 'README.md'), '# 本卡-BUDGET\n', 'utf8');
+    const cap = captureChannels();
+    let code: number;
+    try {
+      code = await withTempMcpRoot(() =>
+        main([
+          'run',
+          '--workspace', dir,
+          '--prompt', '总结当前工作区 README',
+          '--policy', POLICY,
+          '--behavior', BEHAVIOR,
+          '--max-steps', '1',
+        ]),
+      );
+    } finally {
+      cap.restore();
+    }
+
+    expect(cap.out()).toContain('kind=budget'); // 阳性控制：确实停在这条路径
+    expect(cap.err()).toContain('未连接真实模型'); // 且确实是内置 mock 会话
+    expect(code).toBe(0); // BRIEF-18 ③ 的裁决不变（budget 不算失败）
+    const lines = cap.lines();
+    const at = lines.indexOf('\n=== 最终回复 ===');
+    expect(lines[at + 1]).toBe('(无文本回复)'); // mockVisibility.test.ts:494 的既有边界逐字不变
+    expect(cap.out()).not.toContain(CLI_MOCK_MARK); // 整段 stdout 一处标记都没有
+  });
+
+  it('本卡④′（裁决：interrupted 属非模型文本）：不盖标记、不吞文本（钉在同一渲染决策点上）', () => {
+    const render = requireCliRenderTurnFinalText();
+    // `vessel run` 今天**到不了** interrupted（cmdRun 没有 SIGINT → loop.interrupt() 的接线，
+    // BRIEF-18 ③′ 已据此把它钉在纯决策点上）——所以这里同样钉渲染决策点，不发明信号。
+    expect(render('interrupted', 'PARTIAL-TEXT', true)).toBe('PARTIAL-TEXT');
+    expect(render('interrupted', '', true)).toBe('(无文本回复)');
+    // 与 TUI 对照：TUI 的 interrupted 是纯状态行（chat.ts:387-388 根本不打 finalText），
+    // 两面对"这不是模型回答"的判断一致（都**不**盖模型标记）。
+    expect(renderTurnOutcome({ kind: 'interrupted', finalText: 'PARTIAL-TEXT', steps: 1, toolCalls: 0 }, true)).not.toContain(
+      CLI_MOCK_MARK,
+    );
   });
 });
 

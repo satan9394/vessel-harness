@@ -754,22 +754,28 @@ export function cmdPolicyStatus(flags: Map<string, string>): number {
  * 回复里没有任何 mock 痕迹 → 新人确信"模型已接上"。两处标注共用本口径，且都只在
  * `usingMockProvider === true` 时生效（真实 provider 一个字节都不加）：
  * - `MOCK_PROVIDER_NOTICE`：回合开始**前**打到 **stderr** 的一行提示（stdout 零污染）；
- * - `MOCK_REPLY_MARK`：最终回复的**统一出口**前缀（见 `renderFinalReply`）。
+ * - `MOCK_REPLY_MARK`：最终回复的**统一出口**前缀（见 `renderTurnFinalText` —— 它只给
+ *   **模型回答**（`kind='success'`）加，非模型文本（error/budget/interrupted）不盖，见 `isModelReplyKind`）。
  */
 const MOCK_PROVIDER_NOTICE =
   '[vessel] 当前使用内置 mock 模型（未连接真实模型）——配置真实模型：vessel setup 或 vessel provider add';
 const MOCK_REPLY_MARK = '（mock 离线冒烟）';
 
 /**
- * CLI 最终回复的**唯一渲染出口**（BRIEF-16 1C②）。
+ * 给**模型回复**加 mock 标记的底层函数（BRIEF-16 1C②）。
  *
  * 读文件回显（`已通过 Read 工具读取工作区文件…`）、脚本命中回显、`fallbackText` 全部经此处，
  * 所以标记只加一次、不逐条改文案（也覆盖 chat() / stream() 两条 provider 路径）。
  * `usingMock === false`（真实 provider）时**逐字返回原串**（负对照）。
  * 幂等：文案自身已以 `（mock 离线冒烟）` 起头（如既有 `fallbackText`）时不重复叠加。
  *
- * 若将来 `run` 增加 `--json` 回复字段，标记必须继续走本函数（把返回值放进 JSON 的回复字段），
- * 不得另起一行打印——`--json` 的 stdout 只允许出现一段 JSON。
+ * **本函数的 `usingMock` 只回答"要不要加前缀"，不回答"这条文本是不是模型回答"**——
+ * 后者由 `isModelReplyKind`（kind → 是否模型回答）判定，两步在 `renderTurnFinalText`
+ * （`cmdRun` 的唯一出口）里合并。**不要在调用点直接用它 + 裸 `usingMockProvider`**：
+ * 那正是本卡修的缺陷（`kind='error'` 的熔断文案被盖成"mock 离线冒烟…"）。
+ *
+ * 若将来 `run` 增加 `--json` 回复字段，标记必须继续走 `renderTurnFinalText`（把返回值放进
+ * JSON 的回复字段），不得另起一行打印——`--json` 的 stdout 只允许出现一段 JSON。
  */
 function renderFinalReply(finalText: string, usingMock: boolean): string {
   if (!finalText) return '(无文本回复)';
@@ -810,6 +816,56 @@ export function turnHeader(kind: CliTurnKind): string {
 /** 回合退出码：只有 `error` 非零；其余三种与今日一致（0）。 */
 export function turnExitCode(kind: CliTurnKind): number {
   return kind === 'error' ? 1 : 0;
+}
+
+/**
+ * 本卡 —— **哪些 kind 的 `finalText` 算「模型回答」**：CLI 侧的**唯一**口径。
+ *
+ * 复现（改前）：`renderFinalReply`（本文件 :780-783）只接 `(finalText, usingMock)` 两个入参，
+ * 而 `cmdRun` 的唯一出口（原 :959）**无条件**把 `usingMockProvider` 传下去 ⇒ mock 会话里
+ * `kind='error'` 的**harness 状态文案**（熔断 `DenialLimitError.message`，AgentLoop.ts:389-393
+ * 把它写进 `finalText`）会被渲染成 `（mock 离线冒烟）same intent denied 3 times: …`。
+ * 那句标记在断言"这条文本来自内置 mock 模型"，而它其实是 loop 的错误文案 ⇒
+ * **说的和做的不一致**（正是 BRIEF-16 1C② 那句标记要防的事，被用在了它防不住的地方）。
+ *
+ * **TUI 侧早已按本口径处理**（所以本卡是"两个面不一致"，不是"两处都错"）：
+ * `tui/chat.ts` 的 `renderTurnOutcome` 只把 `success` 交给 `renderTurnReply`（chat.ts:394-395），
+ * `error` / `budget` / `interrupted` 三条各走自己的状态文案分支、**不盖**模型标记，
+ * 且 chat.ts:377-380 写明了理由：**给非模型文本盖模型标记是另一种"说的和做的不一致"**。
+ * 本卡的裁决就是把这句理由搬到 CLI —— 判据**只有一处**（本函数），`cmdRun` 的唯一出口调它。
+ *
+ * 逐条契约（与 TUI 逐字对齐；每条都有判别性用例，见 cli.test.ts「本卡」块）：
+ *  - `success`     ⇒ 是模型回答 ⇒ mock 会话里**照旧**带标记（那是标记的**正当用途**，
+ *                    也是"别把标记整个删掉"的负对照②）；
+ *  - `error`       ⇒ harness 状态文案 ⇒ **不**盖标记，文本**原样保留**（不吞内容）；
+ *  - `budget`      ⇒ 同上（本回合**没有**产出最终回复；空文本仍走 `(无文本回复)`）；
+ *  - `interrupted` ⇒ 同上。
+ * 真实 provider（`usingMock=false`）下四种 kind **逐字**返回原串（`renderFinalReply` 在
+ * `usingMock=false` 时早退，本函数不改变这一条）。
+ *
+ * 为什么不把 kind 直接塞进 `renderFinalReply`：那个函数的语义是"给**模型回复**加标记"
+ * （BRIEF-16 1C②），把 kind 塞进去会让"这条文本是不是模型回答"与"要不要加前缀"两件事
+ * 重新耦合回一个函数里——恰恰是本次漂移的成因。这里显式分成两步。
+ *
+ * （乙）的最小改法（本卡**未**采用，原因：本卡禁改 `tui/**`，且不许新增文件）：把
+ * `isModelReplyKind` 抽到 `apps/cli/src/turnText.ts` 一类**新模块**，`cli.ts` 与 `tui/chat.ts`
+ * 各自 import 它、`renderTurnOutcome` 的 `case 'success'` 分支用同一个判据 ⇒ 一处口径、两个面共用。
+ */
+export function isModelReplyKind(kind: CliTurnKind): boolean {
+  // 四值里只有 success 是"模型说了话"；其余三种的 finalText 都是 harness 自己的状态文案
+  // （AgentLoop.ts:389-393 熔断、:378-381/:432-434 预算、:387 中断）或空串。
+  return kind === 'success';
+}
+
+/**
+ * CLI 回合文本的**唯一渲染出口**（`cmdRun` 里就这一行 `console.log(...)`）。
+ *
+ * 与 TUI 的 `renderTurnOutcome`（chat.ts:385-397）同源口径：**非模型文本不盖模型标记**。
+ * 真实 provider 与 `kind='success'` 的既有行为**逐字不变**（前者早退、后者仍走
+ * `renderFinalReply` 的加标记分支）。
+ */
+export function renderTurnFinalText(kind: CliTurnKind, finalText: string, usingMock: boolean): string {
+  return renderFinalReply(finalText, usingMock && isModelReplyKind(kind));
 }
 
 async function cmdRun(flags: Map<string, string>): Promise<number> {
@@ -955,8 +1011,11 @@ async function cmdRun(flags: Map<string, string>): Promise<number> {
     // 「最终回复」标题下冒充模型回答（见 turnHeader 的注释）。success/budget/interrupted
     // 的标题逐字不变。
     console.log(turnHeader(result.kind));
-    // 统一出口：mock 前缀只在这里加一次（读文件回显 / 脚本命中回显 / fallbackText 全覆盖）
-    console.log(renderFinalReply(result.finalText, usingMockProvider));
+    // 统一出口：mock 前缀只在这里加一次（读文件回显 / 脚本命中回显 / fallbackText 全覆盖）。
+    // 本卡：**非模型文本不盖模型标记** —— kind 也是入参（`renderTurnFinalText`），
+    // `kind='error'` 的熔断文案 / `budget` / `interrupted` 不再被盖成"（mock 离线冒烟）…"，
+    // 与 TUI 的 `renderTurnOutcome` 同一口径（TUI 侧 :385-397，理由见那里的注释）。
+    console.log(renderTurnFinalText(result.kind, result.finalText, usingMockProvider));
     console.log(`\n=== turn ${result.turnId} kind=${result.kind} steps=${result.steps} toolCalls=${result.toolCalls} ===`);
     const denials = harness.session.replay().filter((r) => r.type === 'audit/denial');
     if (denials.length > 0) {
