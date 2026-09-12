@@ -310,11 +310,50 @@ function stripWrapper(tokens: string[]): string[] {
   return tokens.slice(i);
 }
 
-/** 单段判定：循环剥离包装器，`sh -c` / `env -S` / `eval` 取脚本递归，最后按 git push 语义判定。 */
+/**
+ * 段内是否出现 `git` + `push` 两个**独立 token**（顺序：git 在前）——保守兜底的触发签名。
+ *
+ * 用**独立 token** 而不是子串：`echo "git push --force"` 里整段是一个 token，
+ * 它只是被打印的文本，不构成签名；`git log --grep push` 虽然含签名，但段首就是
+ * `git`，走精确判定，不会落到兜底上。
+ */
+function mentionsGitPush(tokens: string[]): boolean {
+  let seenGit = false;
+  for (const token of tokens) {
+    if (!seenGit && shellBasename(token) === 'git') {
+      seenGit = true;
+      continue;
+    }
+    if (seenGit && token === 'push') return true;
+  }
+  return false;
+}
+
+/** 文本级 `git … push` 签名（token 被引号粘成一个整体时的补充手段）。 */
+const GIT_PUSH_TEXT = /(?:^|\s)(?:\S*\/)?git\s+(?:\S+\s+)*push(?:\s|$)/;
+
+/**
+ * 兜底签名：只在**无法继续展开**的分支（包装层级/递归层数超限）使用。
+ * 先按独立 token 判定，再退一步按文本判定——`sudo×5 sh -c "git push origin main"`
+ * 里的脚本是一个被引号粘起来的 token，只有文本级签名才认得出。
+ */
+function looksLikeGitPush(tokens: string[]): boolean {
+  return mentionsGitPush(tokens) || GIT_PUSH_TEXT.test(tokens.join(' '));
+}
+
+/**
+ * 单段判定：循环剥离包装器，`sh -c` / `env -S` / `eval` 取脚本递归，最后按 git push 语义判定。
+ *
+ * 优先级（R-1，独立安全复评给出的保守立场）：
+ *  1. **精确判定优先**：段首是 `git`、或包装器/解释器可完整展开时，给出确定结论
+ *     （`git push origin main` 无任何 force 迹象且解析完整 ⇒ allow）。
+ *  2. **仅在解析不完整/存在未跟随的间接层时**才 fail-closed ⇒ deny（见末尾分支），
+ *     gated by `mentionsGitPush`，因此与本规则无关的命令不会被误拦。
+ */
 function detectForcePushInTokens(tokens: string[], depth: number): boolean {
   let current = tokens;
-  for (let round = 0; round <= MAX_WRAPPER_DEPTH; round++) {
-    if (current.length === 0) return false;
+  let stripped = 0;
+  while (current.length > 0) {
     const head = shellBasename(current[0]!);
     // `env -S "<script>"`：`-S` 的**值**才是被执行的命令。必须在通用
     // `PRIVILEGE_WRAPPERS` 剥离**之前**取出来递归，否则脚本 token 会被当作
@@ -334,16 +373,32 @@ function detectForcePushInTokens(tokens: string[], depth: number): boolean {
       return script.length === 0 ? false : detectForcePush(script, depth + 1);
     }
     if (PRIVILEGE_WRAPPERS.has(head)) {
-      const stripped = stripWrapper(current);
-      if (stripped.length === current.length) return false; // 防死循环
-      current = stripped;
+      const next = stripWrapper(current);
+      if (next.length >= current.length) return false; // 无可剥离（防死循环）
+      if (stripped >= MAX_WRAPPER_DEPTH) {
+        // 包装层级已达到跟随上限却仍有外层 ⇒ 本段展开不完（未解析）⇒ fail-closed，
+        // 但仍要求 git+push 签名，避免 `sudo×6 ls` 这类无关命令被误拦。
+        return looksLikeGitPush(next);
+      }
+      current = next;
+      stripped++;
       continue;
     }
     if (SHELL_WRAPPERS.has(head)) {
       const script = shellDashCArg(current);
-      return script === null ? false : detectForcePush(script, depth + 1);
+      if (script !== null) return detectForcePush(script, depth + 1);
+      // 解释器执行**脚本文件**（`sh deploy.sh` / `bash -e build.sh`）：文件内容不可知
+      // ⇒ 执行体未解析 ⇒ fail-closed（`sh -c "echo hi"` 已被上一行精确解析，不受影响；
+      // 只有 `-c` 之外的真参数才算「脚本文件」，故 `bash --version` / 裸 `sh` 不命中）。
+      return current.slice(1).some((token) => !token.startsWith('-'));
     }
-    return isGitPushWithForce(current);
+    // 段首是 git：精确判定（`git log --grep push` 在此确定为 allow，不走兜底）。
+    if (head === 'git') return isGitPushWithForce(current);
+    // 段首既不是 git、也不是我们跟随的包装器：段内出现 `git`+`push` 独立 token 时，
+    // 该处的执行体无法确定（`xargs` / `timeout` / `watch` / `find -exec` / 未跟随的
+    // 间接层）⇒ R-1 fail-closed。**不含该签名 ⇒ allow**，这是防过度拦截的硬边界
+    // （`xargs ls`、`echo a+b`、`npm run push` 一律不命中）。
+    return mentionsGitPush(current);
   }
   return false;
 }
@@ -356,22 +411,39 @@ function detectForcePushInTokens(tokens: string[], depth: number): boolean {
  * `ionice` 前缀包装、`sh -c`/`bash -lc` 家族、`env -S`/`--split-string` 脚本模式、
  * `eval` 字符串执行（后三者递归，递归/剥离深度上限 `MAX_WRAPPER_DEPTH` = 4）。
  *
- * **已知 fail-open 边界（静态判定原理上做不到，如实列出，不要当成已覆盖）**：
- * - `xargs`：`… | xargs git push --force` —— 实际 argv 由输入流决定；
+ * **保守兜底（R-1，独立安全复评要求，优先级高于「标注边界」）**：凡**解析不完整 /
+ * 存在未跟随的间接层**、且段内出现 `git`+`push` 独立 token 的，一律判定为**命中
+ * （deny）**：未跟随的包装器（`xargs git push --force`、`timeout … git push --force`）、
+ * 包装层级超出跟随上限、递归层数超限；解释器执行**脚本文件**（`sh script.sh`，
+ * 内容不可读）即使不含 git/push 字样也判命中。理由：force push 的合法用法极少，
+ * 漏放（allow）意味唯一防线失效，误拦代价远小于漏放。
+ * 反向硬边界：**不含 git+push 签名、也不是「解释器执行脚本文件」的段绝不因此被拦**
+ * （`xargs ls`、`echo a+b`、`npm run push`、`git log --grep push` 均不命中）。
+ * 代价（已知的过度拦截，如实记录）：`xargs git push origin main`、`timeout 60 git push
+ * origin main` 这类「未跟随包装器 + 普通 push」也会 deny——它们与 force push 只差
+ * 一层无法静态确认的包装，按保守立场不区分。
+ *
+ * **余下真正无法覆盖的边界（仍然返回 allow，由 profile 门 / 沙箱等其他防线承担）**：
  * - 变量 / 别名 / 函数 / 命令替换间接：`CMD="git push --force"; $CMD`、`alias gp=…`、
- *   `$(cat cmds.txt)`、反引号、`bash -c "$CMD"`；
- * - 外部脚本文件内容不可知：`sh deploy.sh`、`./release.sh`、`python x.py`；
- * - heredoc / 标准输入喂给解释器：`bash <<EOF … EOF`、`… | sh`；
- * - 包装深度 > `MAX_WRAPPER_DEPTH`(4) 的套娃（`sudo sh -c 'env x sh -c …'`）；
- * - `env -S "-i git push --force"` 这类「split-string 值本身以 env 选项开头」的脚本：
- *   拼接后段首是选项而非命令，递归判否；
- * - 运行时构造后再执行（`base64 -d | sh`、字符串拼接后 `eval`）。
- * 上述形下本谓词返回 false（allow），由 profile 门 / 沙箱等其他防线承担。
+ *   `$(cat cmds.txt)`、反引号——段内没有 `git`+`push` 独立 token，签名不成立；
+ * - 外部脚本文件内容不可知：`./release.sh`、`python x.py`（**注**：`sh release.sh`
+ *   已被上面的脚本文件分支拦下，`.sh` 直接执行形式不在本谓词职责内）；
+ * - heredoc / 标准输入喂给解释器：`… | sh`、`sh < cmds.txt`（无脚本文件参数时）；
+ * - 运行时构造后再执行：`base64 -d | sh`、`printf '%s' "$P" | sh`；
+ * - 引号未闭合（tokenizer 按「引号一直开到段尾」容错，不额外降级）：这些形在真实
+ *   shell 里本就不会执行成 git push，且降级会与正常命令的解析口径冲突。
  */
 function detectForcePush(command: string, depth = 0): boolean {
-  if (depth > MAX_WRAPPER_DEPTH) return false;
   for (const segment of splitShellSegments(command)) {
-    if (detectForcePushInTokens(tokenizeShellSegment(segment), depth)) return true;
+    const tokens = tokenizeShellSegment(segment);
+    if (tokens.length === 0) continue;
+    if (depth > MAX_WRAPPER_DEPTH) {
+      // 递归层数超限（`sh -c` / `env -S` / `eval` 套娃）：本层不再展开 ⇒ 未解析
+      // ⇒ 含 git+push 签名即 fail-closed。
+      if (looksLikeGitPush(tokens)) return true;
+      continue;
+    }
+    if (detectForcePushInTokens(tokens, depth)) return true;
   }
   return false;
 }

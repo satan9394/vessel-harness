@@ -258,4 +258,127 @@ policy:
     const normal = await engine.decide(shellCall('git push origin main'));
     expect(normal.action).toBe('allow');
   });
+
+  it('C-3 ⑦：`+<refspec>` 强制推送必须命中（修复前 fail-open；`git push origin +main` 是标准惯用写法）', () => {
+    const rule = gitForcePushRule();
+    expect(rule.match(shellCall('git push origin +main'))).toBe(true);
+    expect(rule.match(shellCall('git push origin +HEAD:main'))).toBe(true);
+    expect(rule.match(shellCall('git push origin +refs/heads/x:refs/heads/y'))).toBe(true);
+    expect(rule.match(shellCall('git push +main'))).toBe(true);
+    expect(rule.match(shellCall('git -C /repo push origin +main'))).toBe(true);
+    expect(rule.match(shellCall('git push --force origin +main'))).toBe(true);
+    // 引号由 tokenizer 剥掉：`"+main"` 与 `+main` 是**同一个参数**（shell 引号不改变
+    // 参数内容），语义上确为强制推送 ⇒ 如实断言命中。
+    expect(rule.match(shellCall('git push origin "+main"'))).toBe(true);
+  });
+
+  it('C-3 ⑧：`+` 只在 refspec 位置才算 force —— 负对照（不得因任意 `+` 误判）', () => {
+    const rule = gitForcePushRule();
+    expect(rule.match(shellCall('git push origin main'))).toBe(false); // 无 `+`
+    expect(rule.match(shellCall('git push origin feature+fix'))).toBe(false); // `+` 不在 token 开头
+    expect(rule.match(shellCall('git push origin a+b'))).toBe(false);
+    expect(rule.match(shellCall('git push origin main && echo a+b'))).toBe(false); // 落在另一段
+    expect(rule.match(shellCall('git push origin main; echo +done'))).toBe(false);
+    expect(rule.match(shellCall('git commit -m "+main"'))).toBe(false);
+    // `-o <opt>` 的值不是 refspec（取独立值的选项连它的值一起跳过）
+    expect(rule.match(shellCall('git push -o +ci.skip origin main'))).toBe(false);
+    expect(rule.match(shellCall('git push --push-option=+ci.skip origin main'))).toBe(false);
+  });
+
+  it('C-3 ⑨：`env -S` / `--split-string` 脚本模式必须命中（修复前 fail-open）', () => {
+    const rule = gitForcePushRule();
+    expect(rule.match(shellCall('env -S "git push --force" origin main'))).toBe(true);
+    expect(rule.match(shellCall('env -S "git push --force"'))).toBe(true);
+    expect(rule.match(shellCall('env --split-string="git push --force" origin main'))).toBe(true);
+    expect(rule.match(shellCall('env -S "git push origin +main"'))).toBe(true);
+    expect(rule.match(shellCall('env FOO=bar -S "git push --force"'))).toBe(true);
+    // 负对照：`-S` 的脚本里没有 force push
+    expect(rule.match(shellCall('env -S "echo hi"'))).toBe(false);
+    expect(rule.match(shellCall('env -S "git push origin main"'))).toBe(false);
+    // `-i` 仍是无值开关，不得被当成 split-string 模式
+    expect(rule.match(shellCall('env -i git status'))).toBe(false);
+  });
+
+  it('C-3 ⑩：`eval "<string>"` 与 `sh -c` 同类，必须命中（修复前 fail-open）', () => {
+    const rule = gitForcePushRule();
+    expect(rule.match(shellCall('eval "git push --force origin main"'))).toBe(true);
+    expect(rule.match(shellCall("eval 'git push --force'"))).toBe(true);
+    // eval 把参数用空格拼接后再执行 ⇒ 不加引号同义
+    expect(rule.match(shellCall('eval git push --force origin main'))).toBe(true);
+    expect(rule.match(shellCall('sh -c \'eval "git push --force"\''))).toBe(true);
+    // 边界：只有**段首**的 `eval` 才按命令处理；出现在参数位一律不触发
+    expect(rule.match(shellCall('echo eval "git push --force"'))).toBe(false);
+    expect(rule.match(shellCall('git commit -m "eval git push --force"'))).toBe(false);
+    expect(rule.match(shellCall('eval "echo hi"'))).toBe(false);
+    expect(rule.match(shellCall('git push origin main && eval "echo hi"'))).toBe(false);
+  });
+
+  it('C-3 ⑪：R-1 保守兜底 —— 未跟随的间接执行层（`xargs`/`find -exec`）含 git+push 签名即命中', () => {
+    const rule = gitForcePushRule();
+    expect(rule.match(shellCall('xargs git push --force'))).toBe(true);
+    expect(rule.match(shellCall('git fetch | xargs git push --force'))).toBe(true);
+    expect(rule.match(shellCall('xargs -n1 git push --force origin main'))).toBe(true);
+    expect(rule.match(shellCall('find /repo -name x -exec git push --force {} \\;'))).toBe(true);
+    // 硬边界：不含 git+push 签名的段不得因兜底被误拦
+    expect(rule.match(shellCall('xargs ls'))).toBe(false);
+    expect(rule.match(shellCall('xargs -n1 echo hi'))).toBe(false);
+    // 已跟随的包装器仍走精确判定：普通 push 不因「包了一层」被拦
+    expect(rule.match(shellCall('sudo git push origin main'))).toBe(false);
+  });
+
+  it('C-3 ⑫：R-1 保守兜底 —— 解释器执行脚本文件（内容不可知）判命中，`-c` 形仍精确判定', () => {
+    const rule = gitForcePushRule();
+    expect(rule.match(shellCall('sh script.sh'))).toBe(true);
+    expect(rule.match(shellCall('bash -e build.sh'))).toBe(true);
+    expect(rule.match(shellCall('sh deploy.sh --force'))).toBe(true);
+    // 负对照：`-c` 形可完整解析 ⇒ 精确判定为不命中
+    expect(rule.match(shellCall('sh -c "echo hi"'))).toBe(false);
+    expect(rule.match(shellCall('bash -lc "git status"'))).toBe(false);
+    // 裸解释器 / 纯选项调用（没有脚本文件参数）不命中
+    expect(rule.match(shellCall('sh'))).toBe(false);
+    expect(rule.match(shellCall('bash --version'))).toBe(false);
+  });
+
+  it('C-3 ⑬：R-1 保守兜底 —— 包装层级超过跟随上限判命中，无签名深包装仍不命中', () => {
+    const rule = gitForcePushRule();
+    // MAX_WRAPPER_DEPTH = 4：≥5 层包装后仍展开不完 ⇒ 未解析 ⇒ fail-closed
+    expect(rule.match(shellCall('sudo sudo sudo sudo sudo sudo git push origin main'))).toBe(true);
+    expect(rule.match(shellCall('sudo sudo sudo sudo sudo sh -c "git push origin main"'))).toBe(true);
+    // 4 层以内仍能精确展开：普通 push 不命中（不得因「层数多」误拦）
+    expect(rule.match(shellCall('sudo sudo sudo sudo git push origin main'))).toBe(false);
+    // 硬边界：没有 git+push 签名的深包装不被兜底波及
+    expect(rule.match(shellCall('sudo sudo sudo sudo sudo sudo ls'))).toBe(false);
+  });
+
+  it('C-3 ⑭：端到端 —— `danger-full-access` 下新增绕过形同样落到 `git:force-push`（deny）', async () => {
+    const yamlText = `
+policy:
+  version: "0.1"
+  profile: danger-full-access
+  approval: ask
+  git:
+    force_push: deny
+`;
+    const engine = new PolicyEngine(compilePolicyYaml(yamlText));
+    for (const cmd of [
+      'git push origin +main',
+      'git push origin +HEAD:main',
+      'env -S "git push --force" origin main',
+      'eval "git push --force origin main"',
+      'xargs git push --force',
+      'sh script.sh',
+    ]) {
+      const verdict = await engine.decide(shellCall(cmd));
+      expect({ cmd, action: verdict.action, ruleRef: verdict.ruleRef }).toEqual({
+        cmd,
+        action: 'deny',
+        ruleRef: 'git:force-push',
+      });
+    }
+    // 同会话里不得因兜底把无关命令拦掉
+    for (const cmd of ['git push origin main', 'git push origin a+b', 'env -S "echo hi"', 'xargs ls']) {
+      const verdict = await engine.decide(shellCall(cmd));
+      expect({ cmd, action: verdict.action }).toEqual({ cmd, action: 'allow' });
+    }
+  });
 });

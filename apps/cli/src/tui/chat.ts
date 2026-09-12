@@ -308,6 +308,40 @@ export interface SlashResult {
 }
 
 /**
+ * BRIEF-16 1C（TUI 侧）：mock provider 的**运行期可见性** —— 只加标注，不改 mock 行为与内容口径。
+ *
+ * 实测痛点：`vessel`（无参数 + TTY）默认进 TUI，无 provider 配置时底层是离线 mock
+ * （`buildHarness` 的 `if (!effProvider)` 分支），却会真的调 Read 工具读工作区文件、
+ * 回复里没有任何 mock 痕迹 → 新人确信"模型已接上"。TUI 是与 `cli.ts` 并列的第二个界面，
+ * 所以两条标注必须在这里也同样存在（`cli.ts` 侧见 `MOCK_PROVIDER_NOTICE`/`renderFinalReply`）。
+ *
+ * 为什么**内联**而不是 `import { ... } from '../cli.js'`：`cli.ts:34` 已经
+ * `import { runChat } from './tui/chat.js'` —— chat.ts 反向 import cli.ts 会**成环**
+ * （ESM 下表现为 TDZ/undefined，与上面 `windowsShimHint` 同一理由）。因此下面两个常量
+ * **必须与 `cli.ts` 的 `MOCK_PROVIDER_NOTICE` / `MOCK_REPLY_MARK`
+ * （apps/cli/src/cli.ts:540-542）逐字保持同步**：用户在 `vessel run` 与 `vessel`（TUI）
+ * 两处看到的必须是同一句话、同一个标记形态。
+ */
+const TUI_MOCK_PROVIDER_NOTICE =
+  '[vessel] 当前使用内置 mock 模型（未连接真实模型）——配置真实模型：vessel setup 或 vessel provider add';
+const TUI_MOCK_REPLY_MARK = '（mock 离线冒烟）';
+
+/**
+ * TUI 最终回复的**唯一渲染出口**（BRIEF-16 1C②），口径与 `cli.ts` 的
+ * `renderFinalReply`（apps/cli/src/cli.ts:555-559）逐字一致。
+ *
+ * 加在**统一出口**而不是逐条改 mock 文案：mock 的读文件回显、脚本命中回显、`fallbackText`
+ * 全部经这里，标记只加一次、`chat()` / `stream()` 两条 provider 路径都覆盖。
+ * `usingMock === false`（真实 provider）时**逐字返回原串**（负对照）。
+ * 幂等：回复自身已以标记起头时（如 `fallbackText` 就是 `（mock 离线冒烟）…`）不重复叠加。
+ */
+function renderTurnReply(finalText: string, usingMock: boolean): string {
+  if (!finalText) return '(无文本回复)';
+  if (!usingMock) return finalText;
+  return finalText.startsWith(TUI_MOCK_REPLY_MARK) ? finalText : `${TUI_MOCK_REPLY_MARK}${finalText}`;
+}
+
+/**
  * Run the interactive chat session. Returns the exit code.
  */
 export async function runChat(opts: ChatOptions): Promise<number> {
@@ -352,6 +386,22 @@ export async function runChat(opts: ChatOptions): Promise<number> {
   // task 103: opencode-go 的会话 id 在**一个 TUI 会话**内稳定（换模型 / 重建 harness 不换），
   // 与 102 lane 的「一次 lane 会话一个 UUID」语义对齐。
   const opencodeGoSessionId = randomUUID();
+  /**
+   * BRIEF-16 1C②（同源判定）：本次 TUI 会话**当前在用的** provider 是否为离线 mock。
+   *
+   * 唯一赋值点 = 下面 `buildHarness()` 里**真正构造 `MockProvider` 的那个分支**
+   * （`if (!effProvider)`），与"回复要不要带标记"共用同一个变量 —— 提示/标记与
+   * 实际交给 harness 的 provider 对象不可能各说各话。
+   * 负对照：`opts.provider` 注入了 provider、或已存配置成功解析出真实 provider 时，
+   * 该 block 根本不进 → 恒为 false，提示与标记一个字节都不加。
+   *
+   * 为什么不在欢迎语处预先判定：harness 是**懒建**的（用户只敲 /help 就不建会话），
+   * 预判需要把 `planProvider`/`buildRealProvider` 的构造顺序在第二个地方再写一遍，
+   * 那就是第二个事实源。改在构建分支里打提示 —— 位置即"首回合跑之前"（见下方调用点）。
+   */
+  let usingMockProvider = false;
+  /** 提示**每会话一次**：`/permission`、`/model` 触发的 harness 重建不得重复刷屏。 */
+  let mockNoticeShown = false;
 
   const buildHarness = async (): Promise<ComposedHarness> => {
     const cfg = providerId === 'mock' ? undefined : store.get(providerId);
@@ -367,6 +417,9 @@ export async function runChat(opts: ChatOptions): Promise<number> {
       effModel = plan.model;
     }
     if (!effProvider) {
+      // BRIEF-16 1C②：走到这个分支 = 本次 harness 真的用离线 mock（真实 provider 只会
+      // 落进上面的 `if (cfg && cfg.protocol !== 'mock')`）。标记与提示都以这一行为唯一事实源。
+      usingMockProvider = true;
       const smoke = [
         { when: /阅读|read|总结|summary/i, ifNoToolResult: true, response: { toolCalls: [{ name: 'Read', arguments: { path: '{cwd}/README.md' } }] } },
         {
@@ -382,6 +435,17 @@ export async function runChat(opts: ChatOptions): Promise<number> {
         vars: { cwd: sessionWorkspace },
         fallbackText: '（mock 离线冒烟）已收到你的输入。当前无匹配脚本应答——配置真实模型后即可获得完整回答：vessel setup（交互向导）或 vessel provider add。',
       });
+      // BRIEF-16 1C①：**首回合跑之前**明确声明"这次没有真模型"。
+      // 通道 = 既有可注入的 `io`（测试能捕获；**不直接 console.error**，否则冒烟用例
+      // 既看不到、又会污染真实终端的 stderr 而不入断言）。
+      // 每会话一行：重建 harness（/model、/permission）不重复打印。
+      if (!mockNoticeShown) {
+        mockNoticeShown = true;
+        io.write(TUI_MOCK_PROVIDER_NOTICE);
+      }
+    } else {
+      // 负对照：真实 provider（注入的 opts.provider / buildRealProvider 成功）→ 逐字不加。
+      usingMockProvider = false;
     }
     // G-11 MCP 半：读 mcp.json → 构造连接（配置坏了只 warn、不拒绝启动，见 loadMcpConnections）。
     const mcpConnections = loadMcpConnections();
@@ -630,7 +694,10 @@ export async function runChat(opts: ChatOptions): Promise<number> {
     try {
       const result = await harness.loop.runTurn(input);
       if (result.kind === 'interrupted') io.write('\n^C turn 已中断（kind=interrupted）');
-      else if (result.finalText) io.write(`\n${result.finalText}`);
+      // BRIEF-16 1C②：TUI 最终回复的**统一出口** —— mock 前缀只在这里加一次
+      // （读文件回显 / 脚本命中回显 / fallbackText 全覆盖），真实 provider 时 `renderTurnReply`
+      // 逐字返回原串；`interrupted` 分支没有最终回复、不加标记。
+      else if (result.finalText) io.write(`\n${renderTurnReply(result.finalText, usingMockProvider)}`);
       else io.write('(无文本回复)');
     } catch (err) {
       io.write(`[错误] ${describeProviderError(err)}`);
