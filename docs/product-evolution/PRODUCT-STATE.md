@@ -257,6 +257,21 @@
 
 **新增纪律（第 7 条，本轮沉淀）**：**"已有能力的出口"类切片必须先侦察爆炸半径**——确认调用点为零才可直接改契约，否则应加兼容层而非改契约。
 
+## Round 15（G-17：策略可装载 / 可见 / 不静默降级）— 实现中
+
+**P0 的定性与实测**（`ROUND-15-DIRECTION.md` 有完整依据）：产品差异化是"Behavior IR + **Policy 编译执法**"，但审计 + 我的三轮判别性实测把问题从"策略层缺失"推进到**更基本的根因**：
+1. 仓库外跑：**不是静默**（`exit 1` + `no policy declaration found`）→ 审计"静默"半条被实测否证；
+2. 放入 `<ws>/.harness/policy.yaml` 后：`no policy declaration found` **消失**（project 层接线生效，`DISCRIMINATES=True`），但失败点**前移**为 `behavior IR not found: <ws>/configs/behavior.default.yaml`；
+3. → **真根因：默认配置全部按 cwd 拼，CLI 不携带内置默认**，所以"用户在自己工作区里跑 `vessel run`"注定失败，与策略层无关。
+
+**已落地**：
+- `resolveProjectPolicyPath()`（`cli.ts:173`）接通 project 层 → `cmdRun` + TUI 两分支 + `chat.ts` 透传（`ChatOptions.policyProjectPath`）。
+- `builtinConfigRoot()`（`cli.ts:181-190`）：默认 policy/behavior 解析到 **CLI 自身携带**的 `configs/`（由 `import.meta.url` 上溯），找不到才回落旧行为；`--policy`/`--behavior` 显式覆盖语义不变。
+- **决定性验收（实测）**：仓库外工作区 `run --prompt '你好'` → **`exit 0` 且真跑了一个回合**（`kind=success steps=1`，会话日志写入 `<ws>/.harness/sessions/`）；修复前同命令为 `exit 1 + behavior IR not found`。
+- 门禁注记加固（Round 14 遗留）：导出 + 归一化全等取代 `endsWith`（`foo-process-tree.test.ts` 不再误命中）+ 分支 A 加"单跑失败即真实回归"条件语；**20/20 表驱动单测**；并加 ESM 入口守卫 `shouldRunAsScript()` 使该模块可被导入（**已验证脚本直跑仍正常打印 banner**）。
+
+**进行中**：`vessel policy status`（AC2–AC4：层次事实/哈希/`--json`/"部分装载不静默"警告）+ AC5（`POLICY-SPEC` 中 user 层与 workspace trust 门的**诚实标注或实现**）。
+
 ## 纪律
 
 **流程纪律**：并发执行器上限 2–3；一卡一执行器；删除走回收站；密钥不落盘；测试隔离（`VESSEL_*_ROOT` 注入）；写入型执行器**不跑命令**，由指挥复跑 `tsc`/vitest 并保命提交。
@@ -273,6 +288,8 @@
 9. **测试不得替被测代码兜底**——若测试自己在收尾时补 `SIGKILL`/补清理/补重试，那么"被测代码能正确清理"这条断言就是**假绿**：Round 13 的 `StdioTransport.close()` 2s 兜底被 50ms 路径 `clearTimeout` 取消（孤儿子进程），而 E2E 全绿只因 `reap()` 自补了 kill。**验收清理/回收类行为时，必须确认测试没有替实现代劳**。
 10. **实测优先于静态推断**——推断只是候选，证据才算数。Round 13 中测试卡与编排者都从代码推断"不可达 MCP server 会吊住 CLI"，探针实测却显示 `initialize` **7ms 内 reject**、由既有逐 server `try/catch` 正常降级 → 该推断不成立，避免了一次不该开的修复卡。**开修复卡前先跑一个最小探针。**
 11. **区分"真红"与"并发假红"**——同一用例"单跑必过、全量必败"且失败信息指向启动/超时，通常是资源竞争而非逻辑缺陷；处置方式应是"提高超时 + 有界重试（仅对启动/握手类环境性失败）"，**绝不以删断言/改 in-process 换取稳定**。
+12. **报告/注记不得注入未经证据支持的归因**——错误的 `note` 比"单条测试假绿"更危险：假绿只骗过一条用例，而错误注记会**主动诱导人忽略真实红**。归因必须由实际输出推导，无法归因时如实写"未自动归因"。Round 13/14 实证：门禁把"我引入的 env 泄漏"写成"既有 process-tree flaky"，我若照单全收就会放过一个真实回归。
+13. **验证动作不得破坏它所验证的证据**——我为了验证门禁脚本的入口守卫而直接跑了它（未带密钥），这会用一份 `partial` 报告**覆盖**刚拿到的 clean `ready` 报告。多亏及时终止。**验证前先想清楚会写什么、写到哪**；需要时可换临时输出目录或只做"能否启动"的最小探测，并在用完后**清理自己产生的孤儿进程**（本次清理了 5 个 gate/tsx/vitest 残留，且**只按 PID 精确终止**，绝不误杀 harness）。
 
 ## 技术债
 
