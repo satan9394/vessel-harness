@@ -162,7 +162,8 @@ function streamIdleTimeoutError(providerId: string, idleMs: number): Error {
  *     carrying `id`+`name` is folded into a `tool_call_delta` — addressed to the
  *     identity fixed by the block's FIRST start, so that holds whether the
  *     repeat re-sends the same id or carries a different one (Round 68) — while
- *     a repeat carrying no id/name at all yields no chunk from the mapper and is
+ *     a repeat whose identity is INCOMPLETE (no id/name at all, or only one of
+ *     the two — Round 70) yields no chunk from the mapper and is
  *     folded where the identity freeze is decided instead (Round 69). A repeat
  *     whose seed is EMPTY emits nothing on either path, because there is nothing
  *     to deliver. See the duplicate-start handling in `parseAnthropic`.
@@ -227,14 +228,24 @@ function reportStreamDiagnostics(
     // the id+name fold), which is what a downstream wording assertion reads
     // (streamProvider.test.ts ⑦): leaving a bare "会丢/丢失" clause here would be
     // the Round 67 lie a third time.
+    //
+    // Round 70 — 措辞同步（**只改文字，零行为风险**）。parser 把重复帧的折入条件从
+    // 「无 id/name」放宽成「身份不完备（`!(block.id && block.name)`）」，于是**只带
+    // id 或只带 name 的半身份重复帧**也走同一条折入路径、seed 同样送达。旧文案的
+    // 「三种形态」自此**不再是全部形态**（半身份那一类当时还在丢，本卡已收口），
+    // 若继续写「三种」，一行"覆盖全部子形态的中性表述"就会退化成一个不完整的清单。
+    // 因此只把两处「三种形态」改成「各形态」，并在中段补一句如实写出半身份形态；
+    // 「未丢」「均不丢失」「折入」这些下游断言的锚点逐字保留，`不同 id`/`无 id/name`
+    // 之后到分句结束前**不得**出现「丢失」的既有方向锁同样保持（本行未触及）。
     warn(
       `[llm][anthropic] stream 诊断 cause=duplicate-start（上游重发帧：协议违规）` +
         `duplicateStarts=${duplicateStarts}: 同一 index 的 content_block_start 在其 content_block_stop 之前再次到达；` +
         `该帧不得覆盖已累积的片段，也不得改写该 index 首次 start 已登记的身份；` +
-        `它携带的 argument seed 三种形态均已送达（见 parseAnthropic 的重复 start 处理）：` +
+        `它携带的 argument seed 各形态均已送达（见 parseAnthropic 的重复 start 处理）：` +
         `带 id/name ⇒ start 被抑制，非空 seed 折入一条挂「原 id」的 tool_call_delta（未丢；同 id 与不同 id 皆然，` +
-        `identity 以首次 start 为准）；无 id/name ⇒ 该帧不产生 start，parser 在冻结判定处直接补一条挂「原 id」的 tool_call_delta（同样未丢）；` +
-        `三种形态的 seed 均不丢失，seed 为空（input:{} 或缺 input）时什么都不发——本就无信息可送`,
+        `identity 以首次 start 为准）；身份不完备 ⇒ 该帧不产生 start，parser 在冻结判定处直接补一条挂「原 id」的 tool_call_delta（同样未丢），` +
+        `既覆盖「无 id/name」，也覆盖「只带 id 或只带 name」的半身份重复帧（Round 70）；` +
+        `各形态的 seed 均不丢失，seed 为空（input:{} 或缺 input）时什么都不发——本就无信息可送`,
     );
   }
 }

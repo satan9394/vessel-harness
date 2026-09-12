@@ -1027,8 +1027,10 @@ describe('AnthropicStreamParser — negative control: canonical streams are unto
 //   Round 69 (the describe block at the end of this file) folds it where the
 //   identity freeze is decided, so the seed is delivered. REPRO ② below now
 //   asserts the DELIVERY. The half-identity repeat (only `id`, or only `name`)
-//   is the one shape still on that unlucky path — asserted, not fixed, by
-//   Round 69's ⑤.
+//   sat on that same unlucky path until Round 70 widened the fold's condition to
+//   `!(block.id && block.name)` — the literal complement of the mapper's guard —
+//   and is now covered by the Round 70 cases (see the last describe block, and
+//   Round 69's ⑤, which Round 70 turned from "still lost" into "also delivered").
 //
 // Both shapes ARE protocol violations ("the block for this index is still open
 // and another content_block_start arrived"), so both are now counted, per
@@ -1485,10 +1487,13 @@ describe('AnthropicStreamParser — duplicate content_block_start with a DIFFERE
 //      输出与该 wire 根本没重发这一帧时**逐字相同**（静默丢失的完整定义）。
 //
 // 判据（"删掉修复就红"）：feed() 里
-//   `if (identityFrozen && !block.id && !block.name && seed !== '') out.push({...})`
-// 这一段的**那一条 push** 就是全部修复。删掉它 ⇒ ①③′ 与 Round 65 的 REPRO ② 变红；
-// ②③④ 三条负对照**必须仍然绿**（它们钉的正是"没误伤"）。⑤ 是反向的钉子：它钉住
-// **本卡刻意不修**的半身份残余，守卫继续写窄就必须保持绿。
+//   `if (identityFrozen && !(block.id && block.name) && seed !== '') out.push({...})`
+// 这一段的**那一条 push** 就是全部修复（条件里的 `!(block.id && block.name)` 是 Round 70
+// 放宽后的写法，Round 69 当时是 `!block.id && !block.name`；两种写法对本组的形态 A 用例
+// 同解，故本组断言逐字不变）。删掉它 ⇒ ①③′ 与 Round 65 的 REPRO ② 变红；
+// ②③④ 三条负对照**必须仍然绿**（它们钉的正是"没误伤"）。⑤ 曾经是"反向的钉子"——它钉住
+// **Round 69 刻意不修**的半身份残余（守卫写窄则必须绿）；Round 70 收口该残余后，⑤ 已按
+// 新语义**翻转并加强**（钉"半身份 seed 同样送达"），不再是反向钉子，见该用例内的说明。
 // ---------------------------------------------------------------------------
 
 describe('AnthropicStreamParser — duplicate content_block_start with NO id/name 「形态 A」(Round 69)', () => {
@@ -1682,12 +1687,17 @@ describe('AnthropicStreamParser — duplicate content_block_start with NO id/nam
     expect(p.duplicateStarts).toBe(2);
   });
 
-  it('⑤ 已知残余（只登记、本卡不修）：重复帧只带 id/name 之一 ⇒ 同样对 mapper 不可见、seed 仍静默丢失', () => {
-    // 本卡的守卫刻意写窄（`!block.id && !block.name`）。半身份重复帧（id 无 name / name
-    // 无 id）落在同一条"mapper 不产出任何 chunk ⇒ 写入的 seed 无读者"的路上，本卡**没有**
-    // 顺手修它（它在卡的三种形态之外）。这里把它**钉住**，免得"已知"悄悄变成"以为修了"；
-    // 若将来把守卫放宽成 `!(block.id && block.name)`，本用例会变红 —— 那正是要的：
-    // 改动必须是有意的，而不是顺手发生的。
+  it('⑤ Round 69 的半身份残余（只带 id/name 之一）在 Round 70 已修：seed 同样挂冻结 id 送达 ⇒ 删掉 ① 的放宽条件本用例红', () => {
+    // **本用例在 Round 69 时钉的是相反的事实**（"守卫刻意写窄 ⇒ 半身份重复帧的 seed
+    // 仍静默丢失"），并且当时就写明："若将来把守卫放宽成 `!(block.id && block.name)`，
+    // 本用例会变红 —— 那正是要的：改动必须是有意的。"Round 70 就是那次有意的改动，所以
+    // 本条**按新语义翻转并加强**（纪律 24：钉真话，不放宽、不删除）：
+    //   改前（Round 69）：半身份重复帧对 mapper 不可见、对窄守卫也不可见 ⇒ 与"没有这条
+    //   重复帧"逐字相同，`{"limit":2}` 在 chunk 与消费侧累加器里同时消失；
+    //   改后（Round 70）：`!(block.id && block.name)` 恰好是 mapper 守卫的补集 ⇒ 该帧
+    //   折成一条挂**冻结原 id** 的 `tool_call_delta`，与形态 A/C 的输出逐字相同。
+    // 判别线：把 feed() 里那段 push 的条件改回 `!block.id && !block.name` ⇒ 下面每一条
+    // `chunks` 整数组断言都少一条 delta ⇒ 红。
     const withoutRepeat = feedAll(new AnthropicStreamParser(), [
       TOOL_START({ id: 'toolu_01', name: 'Read', input: {} }, 0),
       TOOL_DELTA(ARG_A, 0),
@@ -1698,7 +1708,8 @@ describe('AnthropicStreamParser — duplicate content_block_start with NO id/nam
 
     for (const half of [{ id: 'toolu_01' }, { name: 'Read' }] as Array<Record<string, unknown>>) {
       const label = JSON.stringify(half);
-      const chunks = feedAll(new AnthropicStreamParser(), [
+      const p = new AnthropicStreamParser();
+      const chunks = feedAll(p, [
         TOOL_START({ id: 'toolu_01', name: 'Read', input: {} }, 0),
         TOOL_DELTA(ARG_A, 0),
         TOOL_START({ ...half, input: { limit: 2 } }, 0), // ← 半身份重复帧，seed 非空
@@ -1707,10 +1718,381 @@ describe('AnthropicStreamParser — duplicate content_block_start with NO id/nam
         MSG_STOP,
       ]);
 
-      // mapper 的 `block.id && block.name` 为假 ⇒ 该帧不产生任何 chunk；本卡的守卫比它窄，
-      // 所以也不折入 ⇒ 输出与"没有这条重复帧"逐字相同：该帧的 {"limit":2} 静默丢失。
-      expect(chunks, label).toEqual(withoutRepeat);
-      expect(chunks.some((c) => JSON.stringify(c).includes('limit')), label).toBe(false);
+      // 整数组：规范流 + 恰好那一条折入的 delta（挂原 id，不是重复帧自己的半身份）。
+      expect(chunks, label).toEqual([
+        { type: 'tool_call_start', id: 'toolu_01', name: 'Read', arguments: '' },
+        { type: 'tool_call_delta', id: 'toolu_01', argumentsDelta: ARG_A },
+        { type: 'tool_call_delta', id: 'toolu_01', argumentsDelta: DUP_SEED }, // ← 改前整条不存在
+        { type: 'tool_call_delta', id: 'toolu_01', argumentsDelta: ARG_B },
+        { type: 'tool_call_end', id: 'toolu_01' },
+        { type: 'message_end' },
+      ]);
+      // 改前的输出就是"没有这条重复帧"，判别线由此可读：两者不再相等。
+      expect(chunks, label).not.toEqual(withoutRepeat);
+
+      // 既有约束一条不放宽：仍不得二次发出 start（Round 64），仍计一次违规（Round 65）。
+      expect(chunks.filter((c) => c.type === 'tool_call_start'), label).toHaveLength(1);
+      expect(chunks.filter((c) => c.type === 'tool_call_end'), label).toEqual([{ type: 'tool_call_end', id: 'toolu_01' }]);
+      expect(p.duplicateStarts, label).toBe(1);
+      expect(p.malformedFrames, label).toBe(0);
+
+      // 消费侧（AgentLoop.consumeStream 的逐字重放）：seed 进了唯一那个累加器。
+      const open = assembleByConsumer(chunks);
+      expect([...open.keys()], label).toEqual(['toolu_01']);
+      expect(String(open.get('toolu_01')?.args), label).toBe(ARG_A + DUP_SEED + ARG_B);
+      expect(String(open.get('toolu_01')?.args).includes(DUP_SEED), label).toBe(true); // ← 改前 FALSE
+      expect(chunks.some((c) => JSON.stringify(c).includes('limit')), label).toBe(true); // ← 改前 false
     }
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Round 70 — 重复 `content_block_start` 家族的最后三个边角（本卡收口）。
+//
+// 三个目标情形，各自的最小改法（全部在 feed() 内）：
+//   ① 半身份重复帧（只带 `id` 或只带 `name`）——发射点的条件从 `!block.id && !block.name`
+//      放宽为 `!(block.id && block.name)`（**恰好是 mapper 守卫的补集**）。安全性：对已
+//      started 的 index，`toolInputJsonByIndex` 的写入本来就无读者，故折入不可能重复投递。
+//   ② `toolInputJsonByIndex` 由"覆盖"改"追加"（与 `pendingArgsByIndex` 同口径）：
+//      (a) 同一 index 两次身份不完整的 start 各带非空 input ⇒ 两条 seed 都进 flushToolBlock；
+//      (b) identity-late 补全 ⇒ 补全帧的 start 现在把更早帧留下的 seed **前置接住**
+//          （chunk 循环的 tool_call_start 分支新增两行），不再被随后的 forgetToolBlock 抹掉。
+//   ③ `toolInputJsonByIndex` 的死写入：不再写已 started 的 index（`!identityFrozen`），
+//      也不再写"自己的 start 就会带走 seed"的帧（`!(block.id && block.name)`）。
+//
+// 硬约束（由下面的负对照钉住）：规范流（每 index 一次 start、`input:{}`）逐字不变；
+// Rounds 64/68/69 已修好的三种形态逐字不变；空 seed（`input:{}` / 缺 `input`）
+// 不发射、不追加任何东西。
+// ---------------------------------------------------------------------------
+
+/**
+ * White-box probe for Round 70 ③: TypeScript's `private` is erased at runtime, so
+ * the seed buffer can be observed directly. This is the only place the file reads
+ * a private field, and it is here because "the write is dead" is otherwise
+ * UNOBSERVABLE from the outside (its only readers require an unstarted block) —
+ * the probe therefore asserts the stronger, checkable fact: on a STARTED index
+ * such an entry is never even created, so there is nothing left to read.
+ */
+function seedBufferOf(p: AnthropicStreamParser): Map<number, string> {
+  return (p as unknown as { toolInputJsonByIndex: Map<number, string> }).toolInputJsonByIndex;
+}
+
+/** How many times `needle` occurs in `haystack` (a delivery count, not a flag). */
+function occurrences(haystack: string, needle: string): number {
+  return haystack.split(needle).length - 1;
+}
+
+describe('AnthropicStreamParser — 重复 start 的剩余三个边角（Round 70）', () => {
+  /** 规范流：每 index 恰好一次 start，工具块 `input:{}`，片段随后到达。 */
+  const canonicalWire = (p: AnthropicStreamParser): StreamChunk[] =>
+    feedAll(p, [
+      sse({ type: 'message_start', model: 'claude-sonnet-4' }),
+      sse({ type: 'content_block_start', index: 0, content_block: { type: 'text', text: '' } }),
+      sse({ type: 'content_block_delta', index: 0, delta: { type: 'text_delta', text: 'Reading ' } }),
+      sse({ type: 'content_block_stop', index: 0 }),
+      TOOL_START({ id: 'toolu_01', name: 'Read', input: {} }, 1),
+      TOOL_DELTA(ARG_A, 1),
+      TOOL_DELTA(ARG_B, 1),
+      TOOL_STOP(1),
+      sse({ type: 'message_delta', delta: { stop_reason: 'tool_use' }, usage: { output_tokens: 8 } }),
+      MSG_STOP,
+    ]);
+
+  /**
+   * 一个重复 start 的 wire（重复帧由 `repeat` 决定；`null` = 规范流，没有重复帧），
+   * 用于"五种形态输出相同 / 没有重复帧时少那一条折入 delta"的对照。
+   */
+  const repeatedWire = (repeat: string | null): StreamChunk[] =>
+    feedAll(new AnthropicStreamParser(), [
+      TOOL_START({ id: 'toolu_01', name: 'Read', input: {} }, 0),
+      TOOL_DELTA(ARG_A, 0),
+      ...(repeat === null ? [] : [repeat]),
+      TOOL_DELTA(ARG_B, 0),
+      TOOL_STOP(0),
+      MSG_STOP,
+    ]);
+
+  /** 重复帧带非空 seed 时，修复后的唯一形状：规范流 + 那一条挂原 id 的折入 delta。 */
+  const WITH_FOLDED_SEED: StreamChunk[] = [
+    { type: 'tool_call_start', id: 'toolu_01', name: 'Read', arguments: '' },
+    { type: 'tool_call_delta', id: 'toolu_01', argumentsDelta: ARG_A },
+    { type: 'tool_call_delta', id: 'toolu_01', argumentsDelta: DUP_SEED },
+    { type: 'tool_call_delta', id: 'toolu_01', argumentsDelta: ARG_B },
+    { type: 'tool_call_end', id: 'toolu_01' },
+    { type: 'message_end' },
+  ];
+
+  it('① 半身份重复帧（只 id / 只 name 各一条）⇒ seed 挂冻结 id 送达（改回窄条件 ⇒ 红）', () => {
+    // 改前（Round 69 的窄条件 `!block.id && !block.name`）：这两种帧对 mapper 与守卫
+    // **同时**不可见 ⇒ 输出与"根本没有这条重复帧"逐字相同，`{"limit":2}` 静默消失。
+    // 改后：条件放宽成 mapper 守卫的补集 ⇒ 该帧折成一条挂**冻结原 id** 的 delta。
+    for (const half of [{ id: 'toolu_01' }, { name: 'Read' }] as Array<Record<string, unknown>>) {
+      const label = JSON.stringify(half);
+      const p = new AnthropicStreamParser();
+      const chunks = feedAll(p, [
+        TOOL_START({ id: 'toolu_01', name: 'Read', input: {} }, 0),
+        TOOL_DELTA(ARG_A, 0),
+        TOOL_START({ ...half, input: { limit: 2 } }, 0), // ← 半身份重复帧
+        TOOL_DELTA(ARG_B, 0),
+        TOOL_STOP(0),
+        MSG_STOP,
+      ]);
+
+      expect(chunks, label).toEqual(WITH_FOLDED_SEED);
+      // 该帧的 seed 真的送到消费侧唯一那个累加器（AgentLoop.consumeStream 的逐字重放）。
+      const args = String(assembleByConsumer(chunks).get('toolu_01')?.args);
+      expect(args, label).toBe(ARG_A + DUP_SEED + ARG_B);
+      expect(occurrences(args, DUP_SEED), label).toBe(1); // 恰好一次：不多投也不丢
+      expect(occurrences(args, ARG_B), label).toBe(1);
+      // 既有约束一条不放宽：不二次发 start、计一次违规、end 只回原 id。
+      expect(chunks.filter((c) => c.type === 'tool_call_start'), label).toHaveLength(1);
+      expect(chunks.filter((c) => c.type === 'tool_call_end'), label).toEqual([{ type: 'tool_call_end', id: 'toolu_01' }]);
+      expect(p.duplicateStarts, label).toBe(1);
+      expect(p.malformedFrames, label).toBe(0);
+
+      // PRE-FIX TRACE —— 改前该 wire 的输出，逐字转写（同一装置：不依赖"修复不在场"）。
+      const preFix: StreamChunk[] = [
+        { type: 'tool_call_start', id: 'toolu_01', name: 'Read', arguments: '' },
+        { type: 'tool_call_delta', id: 'toolu_01', argumentsDelta: ARG_A },
+        { type: 'tool_call_delta', id: 'toolu_01', argumentsDelta: ARG_B },
+        { type: 'tool_call_end', id: 'toolu_01' },
+        { type: 'message_end' },
+      ];
+      const preFixArgs = String(assembleByConsumer(preFix).get('toolu_01')?.args);
+      expect(preFixArgs, label).toBe(ARG_A + ARG_B);
+      expect(occurrences(preFixArgs, DUP_SEED), label).toBe(0); // ← 改前：该 seed 一次都不出现
+    }
+  });
+
+  it('①′ 五种形态（同 id / 不同 id / 无身份 / 只 id / 只 name）的输出现在逐字相同', () => {
+    const shapes: Array<[string, string]> = [
+      ['形态 C（同 id）', TOOL_START({ id: 'toolu_01', name: 'Read', input: { limit: 2 } }, 0)],
+      ['形态 B（不同 id）', TOOL_START({ id: DUP_NEW_ID, name: 'Glob', input: { limit: 2 } }, 0)],
+      ['形态 A（无 id/name）', TOOL_START({ input: { limit: 2 } }, 0)],
+      ['半身份（只 id）', TOOL_START({ id: 'toolu_01', input: { limit: 2 } }, 0)],
+      ['半身份（只 name）', TOOL_START({ name: 'Read', input: { limit: 2 } }, 0)],
+    ];
+    for (const [label, repeat] of shapes) {
+      expect(repeatedWire(repeat), label).toEqual(WITH_FOLDED_SEED);
+    }
+    // 重复帧自己的 id（形态 B）全程不得出现（Round 68 的冻结方向不变）。
+    expect(repeatedWire(shapes[1]![1]).some((c) => JSON.stringify(c).includes(DUP_NEW_ID))).toBe(false);
+  });
+
+  it('②(a) 同一 index 两次身份不完整的 start 各带非空 input ⇒ 两条 seed 都在（改追加前：只剩最后一条 ⇒ 红）', () => {
+    const p = new AnthropicStreamParser();
+    const chunks = feedAll(p, [
+      TOOL_START({ name: 'Read', input: { a: 1 } }, 0), // 身份不完整（无 id），带 seed
+      TOOL_START({ id: 'toolu_01', input: { b: 2 } }, 0), // 仍不完整（无 name），再带 seed
+      TOOL_STOP(0),
+      MSG_STOP,
+    ]);
+
+    // 该 index 从未 started ⇒ 两条 seed 在 content_block_stop 由 flushToolBlock 一并交出，
+    // id/name 取自这两帧各自补齐的那一半。
+    expect(chunks).toEqual([
+      { type: 'tool_call_start', id: 'toolu_01', name: 'Read', arguments: '{"a":1}{"b":2}' },
+      { type: 'tool_call_end', id: 'toolu_01' },
+      { type: 'message_end' },
+    ]);
+    expect(p.duplicateStarts).toBe(1);
+
+    const args = String(assembleByConsumer(chunks).get('toolu_01')?.args);
+    expect(occurrences(args, '{"a":1}')).toBe(1); // ← 改前（覆盖写）为 0：早先的 seed 丢
+    expect(occurrences(args, '{"b":2}')).toBe(1);
+    expect(occurrences(args, ARG_A)).toBe(0); // 与本卡无关的片段不得凭空出现
+
+    // PRE-FIX TRACE —— 覆盖语义下 flushToolBlock 只会看到**最后**一条：
+    const preFixArgs = '{"b":2}';
+    expect(occurrences(preFixArgs, '{"a":1}')).toBe(0);
+    expect(preFixArgs).not.toBe(args);
+
+    // 同一条 wire 在**流末兜底**（EOF：既无 content_block_stop 也无 message_stop）同样成立：
+    // `closeOpenToolCalls` 走的是同一个 flushToolBlock，故两条 seed 也一并交出。
+    const q = new AnthropicStreamParser();
+    expect(
+      feedAll(q, [TOOL_START({ name: 'Read', input: { a: 1 } }, 0), TOOL_START({ id: 'toolu_01', input: { b: 2 } }, 0)]),
+    ).toEqual([]);
+    expect(q.finish()).toEqual([
+      { type: 'tool_call_start', id: 'toolu_01', name: 'Read', arguments: '{"a":1}{"b":2}' },
+      { type: 'tool_call_end', id: 'toolu_01' },
+      { type: 'message_end' },
+    ]);
+    expect(q.finish()).toEqual([]); // 终止边界幂等（既有语义）
+  });
+
+  it('②(b) identity-late 补全 ⇒ 补全帧与更早帧的 seed 都在（只改追加、不接住 ⇒ 红）', () => {
+    const p = new AnthropicStreamParser();
+    // 逐帧喂，好在**start 那一刻前后**各探一次针（否则 stop 的 forgetToolBlock 会把差异抹平）。
+    expect(p.feed(TOOL_START({ name: 'Read', input: { a: 1 } }, 0))).toEqual([]); // 身份不完整：不产 chunk
+    // 更早帧的 seed 被**缓冲**（追加语义的写入点）：这是它唯一的临时住处。
+    expect(seedBufferOf(p).get(0)).toBe('{"a":1}');
+    const chunks = [
+      ...p.feed(TOOL_START({ id: 'toolu_01', name: 'Read', input: { b: 2 } }, 0)), // identity 补全
+      ...p.feed(TOOL_STOP(0)),
+      ...p.feed(MSG_STOP),
+    ];
+    // 缓冲被 start **接住并清空**（删掉 chunk 循环里的那两行 ⇒ 既接不住，也清不掉）。
+    expect(seedBufferOf(p).has(0)).toBe(false);
+
+    // 只有一次 start（Round 64 不变），它的 arguments 由**两段 seed 按序拼接**组成：
+    // 缓冲的 `{"a":1}`（更早的帧）在前，补全帧自己的 `{"b":2}` 在后。
+    // 改前：只有 `{"b":2}`（覆盖写会剩这一条，而且它也不会被 start 读走 ——
+    // `forgetToolBlock` 随后把 map 删掉），所以下面两行是本用例的判别线。
+    expect(chunks).toEqual([
+      { type: 'tool_call_start', id: 'toolu_01', name: 'Read', arguments: '{"a":1}{"b":2}' },
+      { type: 'tool_call_end', id: 'toolu_01' },
+      { type: 'message_end' },
+    ]);
+    expect(chunks.filter((c) => c.type === 'tool_call_start')).toHaveLength(1); // 不产生第二个 start
+    expect(p.duplicateStarts).toBe(1);
+
+    const args = String(assembleByConsumer(chunks).get('toolu_01')?.args);
+    expect(occurrences(args, '{"a":1}')).toBe(1); // ← 改前为 0：早先的 seed 丢
+    expect(occurrences(args, '{"b":2}')).toBe(1);
+    expect(args).toBe('{"a":1}{"b":2}');
+  });
+
+  it('②(b′) 顺序口径（本轮固定，可单独回退）：所有 start 的 seed 在前，已缓冲的片段在后', () => {
+    const p = new AnthropicStreamParser();
+    const chunks = feedAll(p, [
+      TOOL_START({ name: 'Read', input: { a: 1 } }, 0), // seed 先到
+      TOOL_DELTA(ARG_A, 0), //                             片段后到，但 identity 还没到齐 ⇒ 缓冲
+      TOOL_START({ id: 'toolu_01', name: 'Read', input: { b: 2 } }, 0), // identity 补全
+      TOOL_STOP(0),
+      MSG_STOP,
+    ]);
+
+    // 两个缓冲区各自保序，但它们之间的**交错无从还原**（seed 与片段各存一条串）。本轮取
+    // 的取舍是"start 的 seed 全部在前、片段全部在后"——也就是把既有的
+    // `c.arguments += pending` 保持原样、只把 seed 缓冲前置，diff 最小。
+    // 若将来判定"严格 wire 顺序（seed1 → 片段 → seed2）"更好，**本用例可单独回退**，
+    // 其余 Round 70 用例不受影响（它们不含片段）。
+    expect(chunks).toEqual([
+      { type: 'tool_call_start', id: 'toolu_01', name: 'Read', arguments: '{"a":1}' + '{"b":2}' + ARG_A },
+      { type: 'tool_call_end', id: 'toolu_01' },
+      { type: 'message_end' },
+    ]);
+    const args = String(assembleByConsumer(chunks).get('toolu_01')?.args);
+    expect(args).toBe('{"a":1}{"b":2}' + ARG_A);
+    expect(occurrences(args, '{"a":1}')).toBe(1); // 两条 seed 都在，且各一次
+    expect(occurrences(args, '{"b":2}')).toBe(1);
+    expect(occurrences(args, ARG_A)).toBe(1);
+  });
+
+  it('③ 已 started 的 index 上不再留下 seed 条目（删掉 `!identityFrozen` ⇒ 红），且没有任何路径因此丢数据', () => {
+    const p = new AnthropicStreamParser();
+    // 逐帧喂，**在 stop 之前**探针：stop 会走 forgetToolBlock 把条目清掉，那时两种实现都
+    // 看不到差异 —— 判别点必须取在"写入本该发生、但读者仍不存在"的那一刻。
+    const out: StreamChunk[] = [];
+
+    out.push(...p.feed(TOOL_START({ id: 'toolu_01', name: 'Read', input: { a: 1 } }, 0)));
+    // ①/③ 的第二个合取项：完整身份那一帧的 seed 由它自己的 `tool_call_start` 带走，
+    // 于是**不写**缓冲。（删掉 `!(block.id && block.name)` ⇒ 此刻条目在场 ⇒ 红。）
+    expect(seedBufferOf(p).has(0)).toBe(false);
+
+    out.push(...p.feed(TOOL_DELTA(ARG_B, 0)));
+    expect(seedBufferOf(p).has(0)).toBe(false);
+
+    out.push(...p.feed(TOOL_START({ input: { limit: 2 } }, 0))); // 形态 A 的重复帧
+    // ③ 的判别线：该 index 已 started ⇒ 两个读者都够不到它（flushToolBlock 由
+    // `isUnstartedToolBlock` 先判 `startedIndexes`；chunk 循环的前置接住只发生在"还没
+    // started 的 index 收到 start"时）⇒ 写入纯属垃圾。（删掉 `!identityFrozen` ⇒
+    // 形态 A 那一帧会在这里留下 '{"limit":2}' ⇒ 红。）
+    expect(seedBufferOf(p).has(0)).toBe(false);
+
+    out.push(...p.feed(TOOL_STOP(0)));
+    out.push(...p.feed(MSG_STOP));
+
+    // 而"不写它"没有让任何一条路径失去数据：两条 seed 各到达一次、各只有一次。
+    // （完整身份那一帧的 seed 在 start 的 arguments 里，重复帧的 seed 在折入的 delta 里。）
+    expect(out).toEqual([
+      { type: 'tool_call_start', id: 'toolu_01', name: 'Read', arguments: '{"a":1}' },
+      { type: 'tool_call_delta', id: 'toolu_01', argumentsDelta: ARG_B },
+      { type: 'tool_call_delta', id: 'toolu_01', argumentsDelta: DUP_SEED },
+      { type: 'tool_call_end', id: 'toolu_01' },
+      { type: 'message_end' },
+    ]);
+    const args = String(assembleByConsumer(out).get('toolu_01')?.args);
+    expect(occurrences(args, '{"a":1}')).toBe(1); // ← 自己的 start 带走的 seed，没被 map 再送一遍
+    expect(occurrences(args, DUP_SEED)).toBe(1); // ← 折入的 seed，恰好一次（无重复投递）
+    expect(occurrences(args, ARG_B)).toBe(1);
+    // 流结束后缓冲为空：started 的 index 从头到尾没有条目，也没有任何残留。
+    expect([...seedBufferOf(p).keys()]).toEqual([]);
+  });
+
+  it('④ 负对照（规范流）：整数组逐字不变（删掉本轮三处修复也必须绿）', () => {
+    const p = new AnthropicStreamParser();
+    expect(canonicalWire(p)).toEqual([
+      { type: 'message_start', model: 'claude-sonnet-4' },
+      { type: 'text_delta', text: 'Reading ' },
+      { type: 'tool_call_start', id: 'toolu_01', name: 'Read', arguments: '' },
+      { type: 'tool_call_delta', id: 'toolu_01', argumentsDelta: ARG_A },
+      { type: 'tool_call_delta', id: 'toolu_01', argumentsDelta: ARG_B },
+      { type: 'tool_call_end', id: 'toolu_01' },
+      { type: 'usage', inputTokens: undefined, outputTokens: 8, cacheReadTokens: undefined, cacheCreationTokens: undefined },
+      { type: 'message_end', finishReason: 'tool_calls' },
+      { type: 'message_end' },
+    ]);
+    // 规范流上：既无冻结（①/③ 分支死代码），也无第二条 seed 可追加（② 死代码），
+    // 更没有缓冲可接住（chunk 循环的新增两行取不到值）⇒ seed 缓冲始终为空。
+    expect(seedBufferOf(p).size).toBe(0);
+  });
+
+  it('④′ 负对照（既修好的三种形态）：与 Round 64/68/69 的既有夹具逐字一致', () => {
+    // 形态 C（同 id）、形态 B（不同 id）、形态 A（无 id/name）——输出都必须仍是既有形状。
+    expect(repeatedWire(TOOL_START({ id: 'toolu_01', name: 'Read', input: { limit: 2 } }, 0))).toEqual(WITH_FOLDED_SEED);
+    expect(repeatedWire(TOOL_START({ id: DUP_NEW_ID, name: 'Glob', input: { limit: 2 } }, 0))).toEqual(WITH_FOLDED_SEED);
+    expect(repeatedWire(TOOL_START({ input: { limit: 2 } }, 0))).toEqual(WITH_FOLDED_SEED);
+    // 规范流（没有这条重复帧）仍是既有形状：只少那一条折入的 delta。
+    expect(repeatedWire(null)).toEqual([
+      { type: 'tool_call_start', id: 'toolu_01', name: 'Read', arguments: '' },
+      { type: 'tool_call_delta', id: 'toolu_01', argumentsDelta: ARG_A },
+      { type: 'tool_call_delta', id: 'toolu_01', argumentsDelta: ARG_B },
+      { type: 'tool_call_end', id: 'toolu_01' },
+      { type: 'message_end' },
+    ]);
+  });
+
+  it('④″ 负对照（空 seed）：形态 A 与半身份重复帧带 `input:{}` / 缺 `input` ⇒ 零额外 chunk、零追加', () => {
+    const p = new AnthropicStreamParser();
+    // 逐帧喂并**在 stop 之前**探针：空 seed 连缓冲区条目都不该留下（写入条件含
+    // `seed !== ''`）。删掉那个合取项 ⇒ 这三处会各留一个 `''` 条目 ⇒ 红。
+    const out: StreamChunk[] = [];
+    out.push(...p.feed(TOOL_START({ id: 'toolu_01', name: 'Read', input: {} }, 0)));
+    out.push(...p.feed(TOOL_DELTA(ARG_A, 0)));
+    out.push(...p.feed(TOOL_START({ input: {} }, 0))); //          形态 A，空对象
+    expect(seedBufferOf(p).has(0)).toBe(false);
+    out.push(...p.feed(TOOL_START({ id: 'toolu_01' }, 0))); //     半身份（只 id），无 input
+    expect(seedBufferOf(p).has(0)).toBe(false);
+    out.push(...p.feed(TOOL_START({ name: 'Read', input: {} }, 0))); // 半身份（只 name），空对象
+    expect(seedBufferOf(p).has(0)).toBe(false);
+    out.push(...p.feed(TOOL_START({}, 0))); //                     形态 A，连 input 都没有
+    expect(seedBufferOf(p).has(0)).toBe(false);
+    out.push(...p.feed(TOOL_DELTA(ARG_B, 0)));
+    out.push(...p.feed(TOOL_STOP(0)));
+    out.push(...p.feed(MSG_STOP));
+
+    const withoutRepeat = feedAll(new AnthropicStreamParser(), [
+      TOOL_START({ id: 'toolu_01', name: 'Read', input: {} }, 0),
+      TOOL_DELTA(ARG_A, 0),
+      TOOL_DELTA(ARG_B, 0),
+      TOOL_STOP(0),
+      MSG_STOP,
+    ]);
+
+    // 空 seed 的重复帧在下游逐字不可见：不发射、不追加、不注入 `argumentsDelta:''`。
+    expect(out).toEqual(withoutRepeat);
+    expect(out).toEqual([
+      { type: 'tool_call_start', id: 'toolu_01', name: 'Read', arguments: '' },
+      { type: 'tool_call_delta', id: 'toolu_01', argumentsDelta: ARG_A },
+      { type: 'tool_call_delta', id: 'toolu_01', argumentsDelta: ARG_B },
+      { type: 'tool_call_end', id: 'toolu_01' },
+      { type: 'message_end' },
+    ]);
+    expect(out.filter((c) => c.type === 'tool_call_delta')).toHaveLength(2);
+    // 计数与"发不发 chunk"无关：四条空的重复帧照旧各计一次（判据在帧，不在 chunk）。
+    expect(p.duplicateStarts).toBe(4);
+    expect([...seedBufferOf(p).keys()]).toEqual([]); // 全程无空条目
   });
 });
