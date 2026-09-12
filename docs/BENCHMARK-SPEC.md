@@ -357,6 +357,12 @@ mode: live
 ```
 
 ### 3.2 B016–B019（新增场景，标注 added: true，使总数 ≥15）
+> ⚠️ **Round 165 更正（权威说明，优先于本节以下各卡片）**：本节 **B016–B019 四张卡与 `benchmarks/scenarios/*.yaml` 描述的不是同一批场景**——经逐条对账，**四张全部不符**（不只是措辞陈旧：`goal`/`pass`/`measured`/`mode` 四项都不同）。按 AGENTS.md，**`benchmarks/scenarios/` 是判据唯一事实源** ⇒ **以下卡片凡与 yaml 冲突，一律以 yaml 为准**。四者的**真实定义**（取自 yaml）：
+> - **B016**：goal=**主代理派生 1 个子代理完成独立任务并回传结果（V0.2 Subagent）**；pass=`file_content(final_text)` + `event_seen` + `tool_family_seen`；`measured: [M01, M02, M03, M10, M12]`；`mode: offline`。
+> - **B017**：goal=**复杂任务先规划，Plan 作为一等对象进入上下文，步骤验收驱动 Evaluator（V0.2 Planner）**；pass=`file_content(final_text)` + `record_seen(source: plan)`；`measured: [M01, M02, M03, M10]`；`mode: offline`。
+> - **B018**：goal=**Evaluator Agent 在隔离上下文独立评审 Generator 产出，判定拒绝并给出证据（V0.2）**；pass=`file_content` + `record_seen(source: inject)`；`measured: [M01, M02, M03, M10, M13]`；`mode: offline`（其卡片已在本轮直接改准）。
+> - **B019**：goal=**MCP 工具动态注册进 registry 并经同一 policy 裁决链执行（V0.2 MCP）**；pass=`file_content(final_text)` + `event_seen` + `tool_family_seen`；`measured: [M01, M02, M03, M10, M12]`；`mode: offline`。
+> **本节其余卡片文字未逐段改写**（改动面控制）：阅读时**以上表与本条为准**；若要彻底重写那三段，请单开一卡并**同步 `measured` 对账**（`runner.ts` 的 `auditMeasuredDeclaration`）。
 
 补充动机：任务书首批 15 条偏"机制可达性"，对**行为纪律面**（约束遵循、诚实性、注入抵抗、长指令一致性）覆盖不足；而这些恰是 Behavior IR 与 Policy 要证明的价值点（§5 A/B、conformance 行为对齐）。
 
