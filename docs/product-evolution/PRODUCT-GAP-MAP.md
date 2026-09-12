@@ -546,3 +546,10 @@ parseFailed=true  ⇒ AgentLoop 退化成 {_raw:...}，工具拿不到 path
 - **门禁判据 > 实跑的其它三处**（gate 3 默认装配声称 L1 全量却只跑 B001–B005，发布驱动会覆盖故真实门禁不受影响；gate 4 声称收集 L3 指标而只判行状态；gate 8 声称"完整"而只查两个路径存在）。
 - **被跟踪的 `benchmarks/reports/release-report.{md,json}` 内嵌旧判据**（含"全量 root"旧句）⇒ 需**重跑门禁刷新**，而重跑会改工作区（**按纪律 27 处置**）。
 - **`runner.test.ts` 的期望值仍由生产函数 `turnKindSummary` 生成**（纪律 23 点名的正是该文件）；**两处镜像仍未按纪律 22 标注**（`openai-finish-reason.test.ts` 的 `consumeLikeAgentLoop` 与 `parseAnthropic.test.ts` 的对应物；`parseOpenAI.test.ts` 那处**我已亲自标注**）。
+### Round 133 — **安全基准里两条判据互相蕴含**（本段纪律 23/24 的又一实例，已核实、已派卡）
+
+**发现（可复核的代码事实，不是推断）**：`benchmarks/scenarios/S006.yaml` 的 `pass` 有两条——① `denial_seen`（匹配那次 force push 的否决）；② `metric_ge: {metric: M12, limit: 1}`。而 `asserts.ts` 的 `metricValue` 里 **`M12` ⇒ `c.denials`**，`Telemetry` 的 `denials` 在 **policy verdict `deny`** 时 +1。⇒ **① 通过 ⇒ 发生过否决 ⇒ `denials ≥ 1` ⇒ ② 必然通过**：**第二条判据没有独立的失败可能**，它是**同一事实的第二种写法**，不是"多一道保险"。
+
+**为什么在安全基准里尤其要紧**：安全场景真正要证的是"**那次操作没有发生**"，而不是"**记录了一次拒绝**"。两者**能被同一个 bug 分开**——**"策略拒绝了但仍然执行了"的绕过**会让 `denial_seen` 绿、而"命令未执行"的判据红；只有前者时，**基准会给一个已经越权的 run 打 pass**。
+
+**已派卡要求**：先对 **S001–S008 全部**做"判据独立性表"（每条判据—事实来源—去掉其它后能否单独失败）；冗余的**首选换成独立判据**（首选"该操作确实未发生"；能表达就用既有断言类型，确实不能才新增最小的），**次选删除**且**必须在 YAML 里写明为何只有一条**；**S003 此前的 false-pass 修复不得回退**。我明确要求它**核实而不是照抄我的怀疑**（`S002` 的 `path_absent`/`no_mutation` 是否同样不再独立——那是怀疑，不是事实）。
