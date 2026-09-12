@@ -1,7 +1,7 @@
 import * as path from 'node:path';
 import * as crypto from 'node:crypto';
-import type { ChatProvider, PolicyArtifacts, ToolSpec } from '@vessel/shared';
-import type { EventBus } from '@vessel/core';
+import type { ChatProvider, PolicyArtifacts, SubagentResultContract, ToolSpec } from '@vessel/shared';
+import type { EventBus, TurnResult } from '@vessel/core';
 import { createFsTools, createSearchTools, type FsPolicyConfig } from '@vessel/tools';
 import { createIsolatedRuntime } from '../subagent/IsolatedRuntime.js';
 import type { EvaluatorVerdict, EvaluatorVerdictKind } from './Evaluator.js';
@@ -104,6 +104,91 @@ export function parseVerdict(text: string): EvaluatorVerdict {
 }
 
 /**
+ * 评审回合的 stopReason —— **复用**既有契约词汇表 `SubagentResultContract['stopReason']`
+ * （EVENT-SPEC A24 / H11），不新造词。
+ */
+export type EvaluatorStopReason = SubagentResultContract['stopReason'];
+
+/**
+ * 回合裁决结果：stopReason / isError / verdict 三者一次性定死，是 `evaluate()` 消费
+ * `TurnResult` 的**唯一**落点（也因此可直接被测试驱动，覆盖 success/error/budget/interrupted 四种 kind）。
+ */
+export interface EvaluatorTurnOutcome {
+  /** 由 `turn.kind` 决定（见 mapTurnKindToStopReason），不再是无条件常量。 */
+  stopReason: EvaluatorStopReason;
+  /** 与 stopReason 一致的失败位（口径见 resolveEvaluatorTurnOutcome）。 */
+  isError: boolean;
+  /** 交给调用方的评审结论（未跑完的回合强制为 'error'，绝不产出"有效 verdict"）。 */
+  verdict: EvaluatorVerdict;
+}
+
+/**
+ * `turn.kind` → `stopReason`。口径与既有先例 `SubagentManager.mapTurnKind`
+ * （subagent/SubagentManager.ts:424-435）**逐条一致**，不新造词汇：
+ *
+ * - `success`     → `'completed'`
+ * - `error`       → `'error'`      （DenialLimitError 熔断等：AgentLoop.ts:334-338 **正常返回** kind='error'）
+ * - `budget`      → `'max_tokens'` （步数预算耗尽）
+ * - `interrupted` → `'aborted'`    （用户/父级中断；对齐 SubagentManager 的 interrupted→aborted）
+ *
+ * 为什么 interrupted 映射到 `'aborted'` 而不是 `'error'`：中断是"被外部叫停"，不是评审自身失败；
+ * A24 词表里 `aborted` 就是为它准备的既有值（与 SubagentManager/EVENT-SPEC 一致）。
+ * 两者对**verdict** 的后果相同（都强制 'error'）——"没跑完"不因中止原因而变成有效结论。
+ */
+export function mapTurnKindToStopReason(kind: TurnResult['kind']): EvaluatorStopReason {
+  switch (kind) {
+    case 'success':
+      return 'completed';
+    case 'budget':
+      return 'max_tokens';
+    case 'interrupted':
+      return 'aborted';
+    case 'error':
+      return 'error';
+  }
+}
+
+/**
+ * BRIEF — EvaluatorAgent 对 `kind='error'`（及 budget/interrupted）的回合此前**无条件**上报
+ * `stopReason:'completed'`（旧 EvaluatorAgent.ts:160），于是"这轮评审其实没跑完"对上游不可见；
+ * 同一处还用 `verdict==='error'` 冒充回合成败。此处按 kind 如实裁决：
+ *
+ * 1. `stopReason = mapTurnKindToStopReason(turn.kind)`——由**回合结果**决定，不是常量；
+ * 2. `isError = stopReason !== 'completed' || verdict.verdict === 'error'`。前者是 EVENT-SPEC
+ *    A24 / H11 的硬要求（"stopReason≠completed 一律 isError"，docs/EVENT-SPEC.md:391）与
+ *    SubagentManager 先例（:350）；后者保留 evaluator 既有的"解析不出 verdict 也算失败"信号。
+ *    这是两者的**并集**：相对旧实现只增不减（绝不放宽判据），kind='success' 回合的 isError
+ *    与旧实现逐字相同（仍只由 verdict 决定）；
+ * 3. **未跑完的回合不产出"有效 verdict"**：verdict 强制为既有词表的 `'error'`（不新增 'unknown'
+ *    一类词），evidence/unmet/suggestions 一律留空，kind/stopReason 与原文写在 reason 里可读可核。
+ *    若沿用解析结果，一个 budget/interrupted 的回合可能带着半截 JSON 被当成正常评审结论；
+ *    'met' 是最危险的误报（生成方自证完成），'not_met'/'impossible' 也是无根据的语义断言。
+ *
+ * kind='success' 分支**完全**走 parseVerdict，不做任何改写（旧行为逐字不变）。
+ */
+export function resolveEvaluatorTurnOutcome(turn: Pick<TurnResult, 'kind' | 'finalText'>): EvaluatorTurnOutcome {
+  const stopReason = mapTurnKindToStopReason(turn.kind);
+  const parsed = parseVerdict(turn.finalText);
+  if (stopReason === 'completed') {
+    return { stopReason, isError: parsed.verdict === 'error', verdict: parsed };
+  }
+  const detail = turn.finalText.trim() === '' ? '(no final text)' : turn.finalText.slice(0, 200);
+  return {
+    stopReason,
+    isError: true,
+    verdict: {
+      verdict: 'error',
+      evidence: [],
+      reason:
+        `evaluator turn did not complete (kind=${turn.kind}, stopReason=${stopReason}) — ` +
+        `未跑完的评审回合不产出有效 verdict；raw final text: ${detail}`,
+      unmet: [],
+      suggestions: [],
+    },
+  };
+}
+
+/**
  * Evaluator Agent (ARCHITECTURE §4.10 / D3 decision point 12 / H12) — the
  * independent-review agent FORM of the Evaluator contract.
  *
@@ -151,19 +236,27 @@ export class EvaluatorAgent {
         });
       }
       const turn = await runtime.loop.runTurn(buildReviewBrief(req));
-      const verdict = parseVerdict(turn.finalText);
+      // BRIEF: stopReason/isError 由 turn.kind 决定，verdict 在回合未跑完时被强制为 'error'
+      const outcome = resolveEvaluatorTurnOutcome(turn);
       if (this.opts.bus) {
         await this.opts.bus.emit('subagent_stop', {
           delegateId: `eval_${Date.now()}`,
           childAgentId: `eval_agent_${runtime.session.sessionId}`,
           childSessionId: runtime.session.sessionId,
-          result: { output: turn.finalText, stopReason: 'completed' },
-          isError: verdict.verdict === 'error',
+          result: {
+            output: turn.finalText,
+            stopReason: outcome.stopReason,
+            // 仅在**回合未跑完**时附带诊断：kind='success' 的载荷因此逐字不变（仍是 {output, stopReason}）
+            ...(outcome.stopReason === 'completed'
+              ? {}
+              : { diagnostic: `evaluator turn ended with kind=${turn.kind}` }),
+          },
+          isError: outcome.isError,
           durationMs: turn.durationMs,
           delegationDepth: req.delegationDepth ?? 0,
         });
       }
-      return verdict;
+      return outcome.verdict;
     } finally {
       await runtime.close();
     }
