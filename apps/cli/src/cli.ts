@@ -4,6 +4,7 @@ import * as path from 'node:path';
 import { spawn } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { VERSION, renameWithRetry } from '@vessel/shared';
+import { inspectPolicyLayers, type PolicyLayerFact } from '@vessel/policy';
 import { MockProvider } from '@vessel/llm';
 import {
   composeHarness,
@@ -97,6 +98,7 @@ Vessel CLI v${VERSION} — 可组合 Agent Harness（品牌 Vessel）
                                       输出语言跟随 settings locale，--locale 可覆盖）
   vessel settings list               显示设置项说明与当前值（theme/locale，中英文说明 + 可选值）
   vessel settings set <key> <value>  设置（theme: dark|light；locale: zh|en；非法值给说明）
+  vessel policy status               显示生效策略层次（system/project：路径 / 是否存在 / 声明条数 / 哈希；只读）
   vessel bench-report --input <json>  基准报告看板：聚合 076 RunResult[]（或 082 lane report）→ 打印 CLI 摘要表 + 写 md/json（任务 083）
   vessel serve [--port <n>]          启动本地服务（默认 http://127.0.0.1:5678，不开浏览器）
   vessel web                         启动本地服务并打开浏览器
@@ -194,6 +196,51 @@ function builtinConfigRoot(): string {
 function resolveProjectPolicyPath(workspaceRoot: string): string | undefined {
   const p = path.join(workspaceRoot, '.harness', 'policy.yaml');
   return fs.existsSync(p) ? p : undefined;
+}
+
+/**
+ * G-17（BRIEF-15 AC2/AC4）：策略层次的**候选路径**——只算「该去哪儿找」，不判存在性。
+ *
+ * `vessel policy status` 与 cmdRun / TUI 的「部分装载」警告**共用本函数**，保证两处
+ * 看到的是同一批路径、同一份事实（同源）。`--policy` 仍只覆盖 system 层（既有语义）。
+ */
+function policyLayerCandidates(flags: Map<string, string>): { systemPath: string; projectPath: string } {
+  const workspace = path.resolve(flags.get('workspace') ?? process.cwd());
+  return {
+    systemPath: flags.get('policy') ?? path.join(builtinConfigRoot(), 'configs', 'policy.default.yaml'),
+    projectPath: path.join(workspace, '.harness', 'policy.yaml'),
+  };
+}
+
+/**
+ * AC4 判据（纯函数，与 `vessel policy status` 同源）：**部分装载** = 至少一层有声明、
+ * 且至少一层缺失。都缺 / 都齐 → 空数组（负对照：此时**不得**告警）。
+ */
+function partialPolicyLayers(layers: PolicyLayerFact[]): PolicyLayerFact[] {
+  if (!layers.some((l) => l.declarationCount > 0)) return [];
+  return layers.filter((l) => l.declarationCount === 0);
+}
+
+/** 缺失层的「如何补齐」说明——警告与 status 末尾那句共用（同源展示）。 */
+function policyLayerFixHint(layer: PolicyLayerFact): string {
+  return layer.layer === 'system'
+    ? `补齐 system 层：在 ${layer.path || 'configs/policy.default.yaml'} 放置策略文件，或用 --policy <path> 显式指定`
+    : `补齐 project 层：在 ${layer.path || '<workspace>/.harness/policy.yaml'} 放置策略文件`;
+}
+
+/**
+ * AC4：部分装载警告（**不阻断运行**）——有层有声明而另一层缺失时，明确告知缺了哪层、
+ * 怎么补。事实来自 `inspectPolicyLayers`（与 `policy status` 同一产物、同一判据），
+ * 只写 stderr（console.warn），不污染 stdout 的 JSON 通道。
+ */
+function warnPartialPolicyLoad(flags: Map<string, string>): void {
+  const missing = partialPolicyLayers(inspectPolicyLayers(policyLayerCandidates(flags)));
+  if (missing.length === 0) return;
+  console.warn(
+    `[policy] 部分装载：缺 ${missing.map((l) => l.layer).join('、')} 层（仍按现有层继续运行，未完整生效）—— ${missing
+      .map(policyLayerFixHint)
+      .join('；')}`,
+  );
 }
 
 /**
@@ -315,10 +362,51 @@ function applyMcpConnections(opts: ComposeOptions): string | null {
   }
 }
 
+/**
+ * `vessel policy status` — 只读地展示「生效策略来自哪些层」（G-17 / BRIEF-15 AC2/AC3）。
+ *
+ * 退出码**恒为 0**：各层都缺也是一种**合法状态**（层可选），只读查询不是错误
+ * （BRIEF-15「错误场景」）。唯一非 0 出口是未知子命令（dispatch 里 fail(2)）。
+ * `--json` 时 stdout 只有一段 JSON（`emitJson` 纪律），人话模式逐层打印
+ * 层名 / 路径 / 是否存在 / 声明条数 / 哈希 + 生效层序 + 缺失说明。
+ * 事实与装载路径同源：`inspectPolicyLayers`（packages/policy/src/risk/PolicyLoader.ts）。
+ */
+export function cmdPolicyStatus(flags: Map<string, string>): number {
+  const layers = inspectPolicyLayers(policyLayerCandidates(flags));
+  // 生效层序 = 真正贡献了声明的层，按合成顺序（system 在前、project 在后）
+  const effectiveOrder = layers.filter((l) => l.declarationCount > 0).map((l) => l.layer);
+  const missing = layers.filter((l) => l.declarationCount === 0);
+
+  if (isJson(flags)) {
+    emitJson({ layers, effectiveOrder, missing: missing.map((l) => l.layer) });
+    return 0;
+  }
+
+  console.log('[vessel] 生效策略层次（policy layers，只读）');
+  for (const l of layers) {
+    const state = l.exists ? '存在' : '缺失';
+    const hash = l.hash ? `sha256:${l.hash}` : '-';
+    console.log(`  ${l.layer.padEnd(7)} ${state}  声明 ${l.declarationCount} 条  ${hash}  ${l.path || '(未配置路径)'}`);
+  }
+  console.log(
+    effectiveOrder.length > 0
+      ? `  生效层序: ${effectiveOrder.join(' > ')}（靠后的层覆盖标量 / 拼接数组）`
+      : '  生效层序: （无层生效——没有任何声明被装载）',
+  );
+  console.log(
+    missing.length === 0
+      ? '  缺失说明: 无（各层均已装载）。'
+      : `  缺失说明: 缺 ${missing.map((l) => l.layer).join('、')} 层 —— ${missing.map(policyLayerFixHint).join('；')}`,
+  );
+  return 0;
+}
+
 async function cmdRun(flags: Map<string, string>): Promise<number> {
   const workspace = path.resolve(flags.get('workspace') ?? process.cwd());
   // 默认 policy/behavior 取 CLI 自带的那份（与 cwd 无关）；--policy/--behavior 显式覆盖仍最高优先
   const configRoot = builtinConfigRoot();
+  // G-17（BRIEF-15 AC4）：不静默部分装载 —— 有层有声明而另一层缺失时明确告警，但不阻断运行。
+  warnPartialPolicyLoad(flags);
   const prompt = flags.get('prompt') ?? (process.stdin.isTTY ? '' : fs.readFileSync(0, 'utf8').trim());
 
   // provider resolution: explicit --provider wins; else the current default
@@ -1721,6 +1809,15 @@ async function dispatch(parsed: ParsedArgs): Promise<number> {
   if (first === 'list-terms') return cmdListTerms(parsed.positionals.slice(1), parsed.flags);
   if (first === 'guide') return cmdGuide(parsed.positionals.slice(1), parsed.flags);
   if (first === 'settings') return cmdSettings(parsed.positionals.slice(1), parsed.flags);
+  if (first === 'policy') {
+    // G-17（BRIEF-15 AC2/AC3）：只读查询，默认子命令 status；未知子命令 fail(2)
+    const sub = parsed.positionals[1] ?? 'status';
+    if (sub !== 'status') {
+      const message = `未知 policy 子命令 ${sub}。可用：vessel policy status`;
+      return fail(2, message, parsed.flags, () => console.error(message));
+    }
+    return cmdPolicyStatus(parsed.flags);
+  }
   if (first === 'bench-report') return cmdBenchReport(parsed.flags);
   if (first === 'serve') return cmdServe(parsed.flags);
   if (first === 'web') return cmdWeb(parsed.flags);
@@ -1750,6 +1847,8 @@ async function dispatch(parsed: ParsedArgs): Promise<number> {
     // 有 --prompt 仍走一次性 cmdRun。非 TTY 保持原行为（cmdRun 自行报错）。
     if (!parsed.flags.has('prompt') && process.stdin.isTTY) {
       const configRoot = builtinConfigRoot();
+      // G-17（BRIEF-15 AC4）：TUI 分支同样不静默部分装载（与 cmdRun 同一判据、同一产物）
+      warnPartialPolicyLoad(parsed.flags);
       return runChat({
         store: defaultProviderStore(),
         workspaceRoot: target.meta.workspaceRoot,
@@ -1778,6 +1877,8 @@ async function dispatch(parsed: ParsedArgs): Promise<number> {
   if (first === undefined && parsed.command === 'run' && !parsed.flags.has('bench')) {
     if (!parsed.flags.has('prompt') && process.stdin.isTTY) {
       const configRoot = builtinConfigRoot();
+      // G-17（BRIEF-15 AC4）：TUI 分支同样不静默部分装载（与 cmdRun 同一判据、同一产物）
+      warnPartialPolicyLoad(parsed.flags);
       return runChat({
         store: defaultProviderStore(),
         workspaceRoot: path.resolve(parsed.flags.get('workspace') ?? process.cwd()),

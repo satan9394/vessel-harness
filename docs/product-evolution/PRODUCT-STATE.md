@@ -1,6 +1,6 @@
 # PRODUCT-STATE — Vessel 产品演进状态（Orchestrator 维护）
 
-> 每轮结束更新。**当前进度：第 14 轮**（Round 1–13 已闭环，Round 14 三片实现完成、独立复评在途）。基线：`tsc 0`、**130 文件 / 1401 passed + 3 skipped / 0 failed**、**发布门禁 8/8 `ready`**。
+> 每轮结束更新。**当前进度：第 15 轮**（Round 1–14 已闭环，Round 15 P0 已修 + `policy status` 实现中）。基线：`tsc 0`、**131 文件 / 1421 passed + 3 skipped / 0 failed**、**发布门禁 8/8 `ready`**。
 > 产物索引：`docs/PROJECT-BRIEF.md`、`docs/product-audit/*`（4 份独立审计）、`PRODUCT-GAP-MAP.md`（缺口+路线图）、`IMPLEMENTATION-BRIEF-0N.md` / `EVALUATION-REPORT-0N.md`（每轮规格与独立裁定）、本文档（状态与纪律）。
 
 ## 当前成熟度
