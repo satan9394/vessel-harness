@@ -79,6 +79,97 @@ function captureBoth() {
   return { logs, restore: () => { spyLog.mockRestore(); spyErr.mockRestore(); } };
 }
 
+/**
+ * BRIEF-18：stdout / stderr **分开**捕获。`captureBoth()` 把两个通道混进一个数组，
+ * 而本卡要判的两件事分别落在两个通道上：回合标题/错误文本走 stdout，
+ * `--json` 的失败信封与 `[vessel] run failed: …` 走 stderr。`lines()`/`errLines()`
+ * 给出逐次 `console.*` 的**原始参数**（一次调用 = 一条），因为回复文本可能自带换行。
+ */
+function captureChannels() {
+  const out: string[] = [];
+  const err: string[] = [];
+  const spyLog = vi.spyOn(console, 'log').mockImplementation((...a) => out.push(a.join(' ')));
+  const spyErr = vi.spyOn(console, 'error').mockImplementation((...a) => err.push(a.join(' ')));
+  return {
+    lines: (): string[] => [...out],
+    out: (): string => out.join('\n'),
+    errLines: (): string[] => [...err],
+    err: (): string => err.join('\n'),
+    restore: (): void => { spyLog.mockRestore(); spyErr.mockRestore(); },
+  };
+}
+
+/**
+ * BRIEF-18 —— 本地 loopback 端点替身（127.0.0.1，**不发起真实网络**），
+ * 对**每一次**请求都回**同一个**工具调用：同工具 + 同参数 = `AgentLoop` 熔断器眼里的
+ * "同一意图"（键 = `${toolName}:${JSON.stringify(arguments)}`，AgentLoop.ts:789-795），
+ * 于是第 3 次被拒即 `DenialLimitError` → `kind='error'`。SSE / JSON 两种形态都回
+ * （`AgentLoop` 是 stream-first，请求带 `stream:true` 时必须回 SSE）。
+ */
+async function startDenialLoopback(
+  toolName: string,
+  toolArguments: Record<string, unknown>,
+): Promise<{ baseUrl: string; seen: http.IncomingHttpHeaders[]; close: () => Promise<void> }> {
+  const seen: http.IncomingHttpHeaders[] = [];
+  const argsJson = JSON.stringify(toolArguments);
+  // 每次请求给一个**新的** toolCallId（真实 provider 也如此）：熔断键只看
+  // `toolName:arguments`（AgentLoop.ts:790），所以 id 变化不影响"同一意图"的判定，
+  // 但能避免跨步重复 id 在会话记录里造成与真实 provider 不同的形状。
+  let seq = 0;
+  const nextToolCall = (): { id: string; type: string; function: { name: string; arguments: string } } => ({
+    id: `call_brief18_${++seq}`,
+    type: 'function',
+    function: { name: toolName, arguments: argsJson },
+  });
+  const server = http.createServer((req, res) => {
+    let raw = '';
+    req.on('data', (c) => { raw += c; });
+    req.on('end', () => {
+      seen.push(req.headers);
+      const toolCall = nextToolCall();
+      let stream = false;
+      try {
+        stream = (JSON.parse(raw) as { stream?: boolean }).stream === true;
+      } catch {
+        stream = false;
+      }
+      if (stream) {
+        res.writeHead(200, { 'content-type': 'text/event-stream' });
+        res.write(
+          `data: ${JSON.stringify({
+            choices: [{ delta: { tool_calls: [{ index: 0, ...toolCall }] }, finish_reason: null }],
+          })}\n\n`,
+        );
+        res.write(
+          `data: ${JSON.stringify({
+            choices: [{ delta: {}, finish_reason: 'tool_calls' }],
+            usage: { prompt_tokens: 3, completion_tokens: 2 },
+          })}\n\n`,
+        );
+        res.write('data: [DONE]\n\n');
+        res.end();
+        return;
+      }
+      res.writeHead(200, { 'content-type': 'application/json' });
+      res.end(
+        JSON.stringify({
+          choices: [
+            { index: 0, finish_reason: 'tool_calls', message: { role: 'assistant', content: '', tool_calls: [toolCall] } },
+          ],
+          usage: { prompt_tokens: 3, completion_tokens: 2 },
+        }),
+      );
+    });
+  });
+  await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
+  const port = (server.address() as AddressInfo).port;
+  return {
+    baseUrl: `http://127.0.0.1:${port}/v1`,
+    seen,
+    close: () => new Promise<void>((resolve) => { server.close(() => resolve()); }),
+  };
+}
+
 describe('CLI (apps/cli)', () => {
   let dir: string;
   let cfgDir: string;
@@ -1934,5 +2025,201 @@ describe('vessel provider export/import + endpoint (task 095/096)', () => {
     badAll.restore();
     expect(codeBadAll).toBe(2);
     expect(badAll.logs.join('\n')).toContain('--set-default 需要指定单个');
+  });
+
+  /**
+   * BRIEF-18 —— `vessel run` 的回合 `kind` 必须决定**退出码与呈现**（非交互式路径）。
+   *
+   * 复现（改前，cli.ts 旧 919/933 行）：`runTurn` 是**正常返回**（只有抛异常才走 catch 的
+   * `fail(1, …)`），旧写法无条件 `console.log('\n=== 最终回复 ===')` + `return 0`。于是
+   * `kind='error'`（熔断 `DenialLimitError` 时 loop 把错误文案写进 `finalText` 并置
+   * `kind='error'`，AgentLoop.ts:334-338）时：**退出码 0**，且
+   * `same intent denied 3 times: Read` 被印在「最终回复」标题下**冒充模型回答**——
+   * 脚注里的 `kind=error` 人看得见、脚本看不见，`vessel run && 下一步` 在失败后继续跑。
+   *
+   * 不联网的复现手段：`startDenialLoopback`（127.0.0.1）**永远**回同一个工具调用
+   * `Read(path='creds/.env')`（同工具同参 = 同一意图）→ policy `tool-read-secrets` /
+   * `deny_read` 每次都拒（DENIED）→ 第 3 次同意图被拒触发 `DenialLimitError`。
+   *
+   * 本块的判别性（"删掉修复就红"）：
+   *   ① `kind='error'` ⇒ 退出码非零 + 输出里**没有**冒充「最终回复」的标题
+   *      （旧实现 exit 0 且有该标题 ⇒ 两条断言都红；删掉 turnHeader 的 error 分支、
+   *      或删掉 `if (exitCode !== 0)` 那段，各红一条）；
+   *   ② 负对照（最重要）：`kind='success'` ⇒ 退出码与呈现**逐字不变**——防"把一切都
+   *      当成失败"（那会让所有正常脚本报错）；
+   *   ③ 裁决项：`budget` 不算失败（退出码 0、标题不变、`kind=budget` 可见）；
+   *      `interrupted` 沿用 0（`vessel run` 到不了该分支，钉在纯决策点 `cli.turnExitCode`
+   *      / `cli.turnHeader` 上）；
+   *   ④ `--json` 下失败信封的 `code` 与退出码**同源**（都是 `turnExitCode`）。
+   */
+  it('BRIEF-18 ①（判别性）：kind=error ⇒ 退出码 1，且不得出现冒充「最终回复」的标题', async () => {
+    // 凭据摆法照 075 S007（`creds/.env`）：`**/.env` 同时在 policy.filesystem.deny_read 与
+    // `tool-read-secrets` 规则里 —— 两层都给出 DENIED（哪一层拒都计同一个意图）。
+    fs.mkdirSync(path.join(dir, 'creds'), { recursive: true });
+    fs.writeFileSync(path.join(dir, 'creds', '.env'), 'BRIEF18_LEAK_PROBE=must-not-be-read', 'utf8');
+
+    const endpoint = await startDenialLoopback('Read', { path: 'creds/.env' });
+    try {
+      const cap = captureChannels();
+      let code: number;
+      try {
+        code = await main([
+          'run',
+          '--workspace', dir,
+          '--prompt', '读一下凭据文件',
+          '--policy', POLICY,
+          '--behavior', BEHAVIOR,
+          '--provider', 'openai-compatible',
+          '--base-url', endpoint.baseUrl,
+          '--model', 'm',
+        ]);
+      } finally {
+        cap.restore();
+      }
+
+      // 阳性控制：同一个意图真的被投了 ≥3 次（否则下面的非零退出可能是别的原因）
+      expect(endpoint.seen.length).toBeGreaterThanOrEqual(3);
+
+      // ① 退出码必须非零（改前恒为 0 ⇒ 红）。口径与既有 fail(1, …) 一致。
+      expect(code).toBe(1);
+      const out = cap.out();
+      expect(out).toContain('kind=error'); // 阳性控制：这轮真的以错误结束
+      expect(out).toContain('same intent denied 3 times: Read'); // 错误文本必须保留，不吞
+      // ② 标题不得冒充「最终回复」（改前一定出现 ⇒ 红）
+      expect(out).not.toContain('=== 最终回复 ===');
+      const lines = cap.lines();
+      const at = lines.indexOf('\n=== 回合以错误结束 (kind=error) ===');
+      expect(at).toBeGreaterThanOrEqual(0);
+      expect(lines[at + 1]).toBe('same intent denied 3 times: Read'); // 错误文本就在该标题下一行
+      // ③ 脚注仍如实（3 步 / 3 次工具调用 = 3 次同参拒绝后熔断）
+      expect(out).toMatch(/=== turn turn_\S+ kind=error steps=3 toolCalls=3 ===/);
+      // ④ stderr 也有脚本可读的失败原因（与 catch 分支的既有口径同一句）
+      expect(cap.err()).toContain('[vessel] run failed: same intent denied 3 times: Read');
+    } finally {
+      await endpoint.close();
+    }
+  });
+
+  it('BRIEF-18 ②（负对照，最重要）：kind=success ⇒ 退出码与呈现逐字不变', async () => {
+    // 真实（loopback）provider 回一句纯文本 ⇒ 走「纯文本即停」的 success 分支。
+    const endpoint = await startLoopback('BRIEF18-SUCCESS-GOLDEN');
+    try {
+      const cap = captureChannels();
+      let code: number;
+      try {
+        code = await main([
+          'run',
+          '--workspace', dir,
+          '--prompt', 'ping',
+          '--policy', POLICY,
+          '--behavior', BEHAVIOR,
+          '--provider', 'openai-compatible',
+          '--base-url', endpoint.baseUrl,
+          '--model', 'm',
+        ]);
+      } finally {
+        cap.restore();
+      }
+
+      expect(code).toBe(0); // 防"把一切都当成失败"
+      const lines = cap.lines();
+      const at = lines.indexOf('\n=== 最终回复 ===');
+      expect(at).toBeGreaterThanOrEqual(0);
+      // **逐字**：表头（含前导换行）与回复行都恰好是旧写法的那两个字符串。
+      // 任何前缀/标记/标题改写都会让这两行不等。
+      expect(lines[at]).toBe('\n=== 最终回复 ===');
+      expect(lines[at + 1]).toBe('BRIEF18-SUCCESS-GOLDEN'); // 真 provider ⇒ 不加 mock 标记
+      expect(lines[at + 2]).toMatch(/^\n=== turn turn_\S+ kind=success steps=1 toolCalls=0 ===$/);
+      // 标题唯一（不得既打新标题又打旧标题）
+      expect(lines.filter((l) => l === '\n=== 最终回复 ===').length).toBe(1);
+      // 成功路径不得走失败出口
+      expect(cap.err()).not.toContain('run failed');
+      expect(cap.out()).not.toContain('回合以错误结束');
+    } finally {
+      await endpoint.close();
+    }
+  });
+
+  it('BRIEF-18 ③（裁决：budget 不算失败）：步数预算用尽 ⇒ 退出码仍 0 且 kind=budget 可见', async () => {
+    fs.writeFileSync(path.join(dir, 'README.md'), '# BRIEF18-BUDGET\n', 'utf8');
+    const cap = captureChannels();
+    let code: number;
+    try {
+      // 内置 mock：脚本第一步（/总结/ → ifNoToolResult）发 Read 工具调用；工具跑完
+      // snapshot.steps(1) >= maxSteps(1) → AgentLoop.ts:323-326 置 kind='budget'、finalText 保持 ''。
+      code = await main([
+        'run',
+        '--workspace', dir,
+        '--prompt', '总结当前工作区 README',
+        '--policy', POLICY,
+        '--behavior', BEHAVIOR,
+        '--max-steps', '1',
+      ]);
+    } finally {
+      cap.restore();
+    }
+
+    // 阳性控制：真的停在 budget 这条路（不是 success、也不是异常早退）
+    expect(cap.out()).toContain('kind=budget');
+    // 裁决：预算耗尽**不是**运行失败 ⇒ 退出码不变（若有人把 budget 也当失败，这一行红）
+    expect(code).toBe(0);
+    expect(cap.err()).not.toContain('run failed');
+    // 裁决的另一半：呈现不变。既有的 `=== 最终回复 ===` 标题 + 脚注 `kind=budget` 就是
+    // 可见性来源（mockVisibility.test.ts:485-496 已逐字钉住这两条；改标题是另一张卡的决策，
+    // 届时这条断言会被有意更新，而不是被悄悄放宽）。
+    expect(cap.out()).toContain('=== 最终回复 ===');
+  });
+
+  it('BRIEF-18 ③′（裁决：interrupted 沿用 0）：四种 kind 的退出码 / 标题表钉死', () => {
+    // `vessel run` **到不了** interrupted：cmdRun 没有 SIGINT → loop.interrupt() 的接线
+    // （全仓 SIGINT 只在 startServe，cli.ts:2256），真正的 Ctrl+C 由 Node 默认信号处置
+    // 直接终止进程、不经过这里。所以该分支只能钉在主路径唯一调用的**纯决策点**上。
+    expect(cli.turnExitCode('error')).toBe(1);
+    expect(cli.turnExitCode('success')).toBe(0);
+    expect(cli.turnExitCode('budget')).toBe(0);
+    expect(cli.turnExitCode('interrupted')).toBe(0); // 不发明失败信号
+    // 标题：只有 error 不冒充「最终回复」；其余三种逐字不变（含前导换行）
+    expect(cli.turnHeader('error')).toBe('\n=== 回合以错误结束 (kind=error) ===');
+    expect(cli.turnHeader('error')).not.toContain('最终回复');
+    expect(cli.turnHeader('success')).toBe('\n=== 最终回复 ===');
+    expect(cli.turnHeader('budget')).toBe('\n=== 最终回复 ===');
+    expect(cli.turnHeader('interrupted')).toBe('\n=== 最终回复 ===');
+  });
+
+  it('BRIEF-18 ④：--json 下 kind=error 的失败信封 code 与退出码同源（都为 1）', async () => {
+    fs.mkdirSync(path.join(dir, 'creds'), { recursive: true });
+    fs.writeFileSync(path.join(dir, 'creds', '.env'), 'BRIEF18_LEAK_PROBE=must-not-be-read', 'utf8');
+
+    const endpoint = await startDenialLoopback('Read', { path: 'creds/.env' });
+    try {
+      const cap = captureChannels();
+      let code: number;
+      try {
+        code = await main([
+          'run',
+          '--workspace', dir,
+          '--prompt', '读一下凭据文件',
+          '--json',
+          '--policy', POLICY,
+          '--behavior', BEHAVIOR,
+          '--provider', 'openai-compatible',
+          '--base-url', endpoint.baseUrl,
+          '--model', 'm',
+        ]);
+      } finally {
+        cap.restore();
+      }
+
+      expect(code).toBe(1);
+      // 失败信封走 stderr（output.ts:24-32 的既有出口）；code 与返回值同源 ⇒ 不可能不一致
+      const envelopeLine = cap.errLines().find((l) => l.startsWith('{"error"'));
+      expect(envelopeLine).toBeDefined();
+      const envelope = JSON.parse(envelopeLine ?? '{}') as { error: { message: string; code: number } };
+      expect(envelope.error.code).toBe(code);
+      expect(envelope.error.code).toBe(1);
+      expect(envelope.error.message).toContain('same intent denied 3 times: Read');
+    } finally {
+      await endpoint.close();
+    }
   });
 });

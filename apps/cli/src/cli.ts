@@ -777,6 +777,41 @@ function renderFinalReply(finalText: string, usingMock: boolean): string {
   return finalText.startsWith(MOCK_REPLY_MARK) ? finalText : `${MOCK_REPLY_MARK}${finalText}`;
 }
 
+/**
+ * BRIEF-18 —— 回合结束时的**唯一**呈现/退出码决策点（`TurnResult.kind` → 标题 + 退出码）。
+ *
+ * 复现（改前）：`cmdRun` 里 `runTurn` 是**正常返回**（只有抛异常才走 catch 的 `fail(1, …)`），
+ * 旧写法 919 行无条件 `console.log('\n=== 最终回复 ===')`、933 行无条件 `return 0`。于是
+ * `kind='error'`（熔断 `DenialLimitError` 把错误文案写进 `finalText`，AgentLoop.ts:334-338）
+ * 时：**退出码 0 + 错误文案被印在「最终回复」标题下**——脚注里的 `kind=error` 人看得见、
+ * 脚本看不见，`vessel run && 下一步` 会在失败后继续跑。
+ *
+ * 裁决（两个方向都钉死，防两类回归）：
+ * - `error` ⇒ 标题**不冒充**最终回复（明示"回合以错误结束"，错误文本原样保留）+ 退出码 1
+ *   （与既有 `fail(1, …)` 同一出口；`--json` 时信封的 `code` 由同一个数铸出，两者不可能不一致）。
+ * - `success` ⇒ 标题与退出码**逐字不变**（`'\n=== 最终回复 ==='` / 0）——负对照：把一切都
+ *   当成失败会让所有正常脚本报错。
+ * - `budget` ⇒ **不算失败**：退出码 0、标题不变。理由：① `--max-steps` 是用户自己下的预算，
+ *   且 budget 还覆盖"模型回了纯空文本"这条既有边界（AgentLoop.ts:344-347）；② 既有测试
+ *   mockVisibility.test.ts:485-496 已**逐字钉住** budget 走 `=== 最终回复 ===` + `(无文本回复)`
+ *   且 exit 0，并写明"改它是另一个决策，需独立验收"。可见性由既有的
+ *   `=== turn … kind=budget … ===` 脚注行承担（stdout、可 grep；同处 :488 有断言）。
+ * - `interrupted` ⇒ 退出码 0、标题不变。`vessel run` **当前到达不了**该分支：`cmdRun` 没有
+ *   SIGINT → `loop.interrupt()` 的接线（全仓 SIGINT 只在 `startServe`，cli.ts:2256），真正的
+ *   Ctrl+C 由 Node 默认信号处置直接终止进程，不经过这里；把它改成非零等于凭空发明一个失败信号。
+ */
+export type CliTurnKind = 'success' | 'error' | 'interrupted' | 'budget';
+
+/** 回合标题。刻意保留前导换行：`success` 时与旧写法逐字一致（一次 `console.log` 调用）。 */
+export function turnHeader(kind: CliTurnKind): string {
+  return kind === 'error' ? '\n=== 回合以错误结束 (kind=error) ===' : '\n=== 最终回复 ===';
+}
+
+/** 回合退出码：只有 `error` 非零；其余三种与今日一致（0）。 */
+export function turnExitCode(kind: CliTurnKind): number {
+  return kind === 'error' ? 1 : 0;
+}
+
 async function cmdRun(flags: Map<string, string>): Promise<number> {
   const workspace = path.resolve(flags.get('workspace') ?? process.cwd());
   // 默认 policy/behavior 取 CLI 自带的那份（与 cwd 无关）；--policy/--behavior 显式覆盖仍最高优先
@@ -916,7 +951,10 @@ async function cmdRun(flags: Map<string, string>): Promise<number> {
 
   try {
     const result = await harness.loop.runTurn(prompt || '（无输入）');
-    console.log('\n=== 最终回复 ===');
+    // BRIEF-18：标题由 kind 决定 —— `kind='error'` 时**不得**把 loop 的错误文案挂在
+    // 「最终回复」标题下冒充模型回答（见 turnHeader 的注释）。success/budget/interrupted
+    // 的标题逐字不变。
+    console.log(turnHeader(result.kind));
     // 统一出口：mock 前缀只在这里加一次（读文件回显 / 脚本命中回显 / fallbackText 全覆盖）
     console.log(renderFinalReply(result.finalText, usingMockProvider));
     console.log(`\n=== turn ${result.turnId} kind=${result.kind} steps=${result.steps} toolCalls=${result.toolCalls} ===`);
@@ -930,6 +968,16 @@ async function cmdRun(flags: Map<string, string>): Promise<number> {
     // task 074 enforcement telemetry query seam (data face: list + counts + status)
     printEnforcementTelemetry(harness);
     console.log(`会话日志: ${harness.session.logPath}`);
+    // BRIEF-18：退出码由 kind 决定（唯一决策点 = turnExitCode）。`kind='error'`（熔断
+    // DenialLimitError / 别的把错误文案写进 finalText 的路径）**必须**非零，否则
+    // `vessel run && 下一步` 在失败后继续跑。仍然走既有 `fail()` 出口：`--json` 时 stderr 信封
+    // 的 `code` 与退出码同源（同一个 exitCode），不可能不一致；人话模式下多一行 stderr
+    // `[vessel] run failed: …`，与 catch 分支的既有口径一致。
+    const exitCode = turnExitCode(result.kind);
+    if (exitCode !== 0) {
+      const msg = `[vessel] run failed: ${result.finalText || 'turn ended with kind=error'}`;
+      return fail(exitCode, msg, flags, () => console.error(msg));
+    }
     return 0;
   } catch (err) {
     const msg = `[vessel] run failed: ${describeProviderError(err)}`;
