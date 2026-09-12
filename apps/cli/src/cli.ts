@@ -213,34 +213,83 @@ function policyLayerCandidates(flags: Map<string, string>): { systemPath: string
 }
 
 /**
- * AC4 判据（纯函数，与 `vessel policy status` 同源）：**部分装载** = 至少一层有声明、
- * 且至少一层缺失。都缺 / 都齐 → 空数组（负对照：此时**不得**告警）。
+ * AC4 判据（纯函数，与 `vessel policy status` 同源）：**部分装载** = 至少一层有声明（>0）、
+ * 且至少一层**不是有效声明**（`declarationCount === 0`，含缺失 / 存在但无效 / 合法但 0 条）。
+ * 都缺 / 都齐 → 空数组（负对照：此时**不得**告警）。
+ *
+ * 闸门本身不变；**措辞**由下面三个谓词**三分**——"声明 0 条"不等于"文件不存在"。
  */
 function partialPolicyLayers(layers: PolicyLayerFact[]): PolicyLayerFact[] {
   if (!layers.some((l) => l.declarationCount > 0)) return [];
   return layers.filter((l) => l.declarationCount === 0);
 }
 
-/** 缺失层的「如何补齐」说明——警告与 status 末尾那句共用（同源展示）。 */
-function policyLayerFixHint(layer: PolicyLayerFact): string {
-  return layer.layer === 'system'
-    ? `补齐 system 层：在 ${layer.path || 'configs/policy.default.yaml'} 放置策略文件，或用 --policy <path> 显式指定`
-    : `补齐 project 层：在 ${layer.path || '<workspace>/.harness/policy.yaml'} 放置策略文件`;
+/**
+ * 问题层三态（事实全部来自 `inspectPolicyLayers` 的 `exists` / `error` / `declarationCount`，
+ * 本文件**不另算一套**）：
+ *   ① 缺失（`!exists`）② 存在但无效（`exists && error`）③ 存在且合法却没贡献声明（其余）。
+ */
+function missingPolicyLayers(layers: PolicyLayerFact[]): PolicyLayerFact[] {
+  return layers.filter((l) => !l.exists);
+}
+function invalidPolicyLayers(layers: PolicyLayerFact[]): PolicyLayerFact[] {
+  return layers.filter((l) => l.exists && !!l.error);
+}
+function emptyDeclaredPolicyLayers(layers: PolicyLayerFact[]): PolicyLayerFact[] {
+  return layers.filter((l) => l.exists && !l.error && l.declarationCount === 0);
 }
 
 /**
- * AC4：部分装载警告（**不阻断运行**）——有层有声明而另一层缺失时，明确告知缺了哪层、
- * 怎么补。事实来自 `inspectPolicyLayers`（与 `policy status` 同一产物、同一判据），
- * 只写 stderr（console.warn），不污染 stdout 的 JSON 通道。
+ * 问题层的「下一步怎么办」——**三分**，警告与 `policy status` 末尾那句共用（同源展示）：
+ * - **缺失** → 到**该层路径**放置策略文件（`--policy` 覆盖 system 层）；
+ * - **存在但无效** → **修复该文件**（附 `error` 摘要），**绝不说"放置"**——文件本来就在；
+ * - **存在且合法但 0 条** → 如实说明该文件未贡献任何声明。
+ */
+function policyLayerFixHint(layer: PolicyLayerFact): string {
+  const fallback =
+    layer.layer === 'system' ? 'configs/policy.default.yaml' : '<workspace>/.harness/policy.yaml';
+  const where = layer.path || fallback;
+  if (!layer.exists) {
+    return layer.layer === 'system'
+      ? `补齐 system 层：在 ${where} 放置策略文件，或用 --policy <path> 显式指定`
+      : `补齐 project 层：在 ${where} 放置策略文件`;
+  }
+  if (layer.error) {
+    return layer.layer === 'system'
+      ? `修复 system 层：${where} 已存在但无法解析（${layer.error}）—— 修好该文件，或用 --policy <path> 指向可用策略`
+      : `修复 project 层：${where} 已存在但无法解析（${layer.error}）—— 修好该文件即可，无需新建`;
+  }
+  return `${layer.layer} 层：${where} 合法但未贡献任何声明（0 条）—— 检查文件内容是否为空`;
+}
+
+/**
+ * AC4：部分装载警告（**不阻断运行**）——有层有声明而另一层不成时，按**三态**如实指认
+ * 问题层（缺失 / 存在但无法解析 / 合法但 0 条声明）并给出各自正确的补救动作；
+ * **不再把"存在但解析失败"误报成"缺失 + 请放置文件"**。
+ *
+ * 事实来自 `inspectPolicyLayers`（与 `policy status` 同一产物、同一判据），只写 stderr
+ * （console.warn），不污染 stdout 的 JSON 通道。
  */
 function warnPartialPolicyLoad(flags: Map<string, string>): void {
-  const missing = partialPolicyLayers(inspectPolicyLayers(policyLayerCandidates(flags)));
-  if (missing.length === 0) return;
-  console.warn(
-    `[policy] 部分装载：缺 ${missing.map((l) => l.layer).join('、')} 层（仍按现有层继续运行，未完整生效）—— ${missing
-      .map(policyLayerFixHint)
-      .join('；')}`,
-  );
+  const flagged = partialPolicyLayers(inspectPolicyLayers(policyLayerCandidates(flags)));
+  if (flagged.length === 0) return;
+  const missing = missingPolicyLayers(flagged);
+  const invalid = invalidPolicyLayers(flagged);
+  const empty = emptyDeclaredPolicyLayers(flagged);
+  const summary = [
+    missing.length > 0 ? `缺 ${missing.map((l) => l.layer).join('、')} 层` : '',
+    invalid.length > 0 ? `${invalid.map((l) => l.layer).join('、')} 层存在但无法解析` : '',
+    empty.length > 0 ? `${empty.map((l) => l.layer).join('、')} 层文件合法但未贡献任何声明` : '',
+  ]
+    .filter(Boolean)
+    .join('；');
+  // 有"存在但无效"的层时，装载路径（`loadPolicyArtifacts`）紧接着就会 fail-loud 抛错 ——
+  // 别说"仍按现有层继续运行"（那会和随后那条"策略文件解析失败：…"自相矛盾）。
+  const tail =
+    invalid.length > 0
+      ? '（解析失败的层不会被采用，非法策略会使装载 fail-loud 报错）'
+      : '（仍按现有层继续运行，未完整生效）';
+  console.warn(`[policy] 部分装载：${summary}${tail} —— ${flagged.map(policyLayerFixHint).join('；')}`);
 }
 
 /**
@@ -416,37 +465,66 @@ function applyMcpConnections(opts: ComposeOptions): string | null {
  * 退出码**恒为 0**：各层都缺也是一种**合法状态**（层可选），只读查询不是错误
  * （BRIEF-15「错误场景」）。唯一非 0 出口是未知子命令（dispatch 里 fail(2)）。
  * `--json` 时 stdout 只有一段 JSON（`emitJson` 纪律），人话模式逐层打印
- * 层名 / 路径 / 是否存在 / 声明条数 / 哈希 + 生效层序 + 缺失说明。
- * 事实与装载路径同源：`inspectPolicyLayers`（packages/policy/src/risk/PolicyLoader.ts）。
+ * 层名 / 路径 / 是否存在 / 声明条数 / 哈希 + 生效层序 + 问题说明。
+ *
+ * 层次事实**三分**（缺失 / 存在但无法解析 / 存在且合法但 0 条声明），三态都可从输出读出：
+ * JSON 的每一层都带 `error`（无效时非空），并单列 `invalid`；人类模式在该层行显示
+ * 「解析失败：…」。事实与装载路径同源：`inspectPolicyLayers`
+ * （packages/policy/src/risk/PolicyLoader.ts）。
  */
 export function cmdPolicyStatus(flags: Map<string, string>): number {
   const layers = inspectPolicyLayers(policyLayerCandidates(flags));
   // 生效层序 = 真正贡献了声明的层，按合成顺序（system 在前、project 在后）
   const effectiveOrder = layers.filter((l) => l.declarationCount > 0).map((l) => l.layer);
-  // 缺层 = 声明条数 0（与 AC4 警告**同一判据**）；status 不设「至少一层有声明」的闸门——
-  // 各层都缺也要如实列出（警告那边才需要闸门：都缺/都齐都不告警，见 partialPolicyLayers）。
+  // 问题层**三分**（与 AC4 警告**同一判据**）：`missing` 沿用既有形状（声明 0 条，AC3 已锁），
+  // `invalid` / `emptyDeclared` 把"存在但无效"与"合法但 0 条"从 `missing` 里**显式拆出来**，
+  // 消费方据此区分"文件不在"与"文件在但是坏的"。
   const missing = layers.filter((l) => l.declarationCount === 0);
+  const absent = missingPolicyLayers(layers);
+  const invalid = invalidPolicyLayers(layers);
+  const emptyDeclared = emptyDeclaredPolicyLayers(layers);
 
   if (isJson(flags)) {
-    emitJson({ layers, effectiveOrder, missing: missing.map((l) => l.layer) });
+    emitJson({
+      layers,
+      effectiveOrder,
+      missing: missing.map((l) => l.layer),
+      invalid: invalid.map((l) => ({ layer: l.layer, path: l.path, error: l.error })),
+      emptyDeclared: emptyDeclared.map((l) => l.layer),
+    });
     return 0;
   }
 
   console.log('[vessel] 生效策略层次（policy layers，只读）');
   for (const l of layers) {
-    const state = l.exists ? '存在' : '缺失';
+    // 三态：缺失 / 解析失败（存在但无效）/ 存在（合法）
+    const state = !l.exists ? '缺失' : l.error ? '解析失败' : '存在';
     const hash = l.hash ? `sha256:${l.hash}` : '-';
-    console.log(`  ${l.layer.padEnd(7)} ${state}  声明 ${l.declarationCount} 条  ${hash}  ${l.path || '(未配置路径)'}`);
+    const note = l.error ? `  解析失败：${l.error}` : '';
+    console.log(`  ${l.layer.padEnd(7)} ${state}  声明 ${l.declarationCount} 条  ${hash}  ${l.path || '(未配置路径)'}${note}`);
   }
   console.log(
     effectiveOrder.length > 0
       ? `  生效层序: ${effectiveOrder.join(' > ')}（靠后的层覆盖标量 / 拼接数组）`
       : '  生效层序: （无层生效——没有任何声明被装载）',
   );
+  // 末尾说明同样**三分**措辞：缺 X 层 / X 层存在但无法解析 / X 层合法但 0 条声明。
+  const problems = layers.filter((l) => !l.exists || !!l.error || l.declarationCount === 0);
+  const issues = [
+    missing.filter((l) => !l.exists).length > 0
+      ? `缺 ${missing.filter((l) => !l.exists).map((l) => l.layer).join('、')} 层`
+      : '',
+    invalid.length > 0 ? `${invalid.map((l) => l.layer).join('、')} 层存在但无法解析` : '',
+    emptyDeclared.length > 0
+      ? `${emptyDeclared.map((l) => l.layer).join('、')} 层文件合法但未贡献任何声明`
+      : '',
+  ]
+    .filter(Boolean)
+    .join('；');
   console.log(
-    missing.length === 0
+    problems.length === 0
       ? '  缺失说明: 无（各层均已装载）。'
-      : `  缺失说明: 缺 ${missing.map((l) => l.layer).join('、')} 层 —— ${missing.map(policyLayerFixHint).join('；')}`,
+      : `  缺失说明: ${issues} —— ${problems.map(policyLayerFixHint).join('；')}`,
   );
   return 0;
 }

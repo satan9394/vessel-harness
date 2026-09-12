@@ -58,6 +58,18 @@ export interface PolicyLayerFact {
    * 一个 `PolicyDeclaration`，故取值只能是 0（缺失 / 读不到 / 解析失败）或 1。
    */
   declarationCount: number;
+  /**
+   * 文件**存在**但读不到 / 解析不了时的原因（**存在→invalid 与 missing 必须可区分**）。
+   *
+   * 三态（与 `exists` 组合，互斥且穷尽）：
+   * - `!exists`（**缺失**）→ **无**本字段；
+   * - `exists && error`（**存在但无效**）→ 读取失败（IO：权限 / 路径是目录等）或
+   *   YAML / 结构非法的原因原文；
+   * - `exists && !error`（**存在且合法**）→ **无**本字段。
+   *
+   * **可选**：既有消费者不读 / 不写它也不会破（测试或第三方构造事实对象时无需补字段）。
+   */
+  error?: string;
   /** 文件**真实内容**的 sha256 十六进制前 12 位（AC2：改内容 → 哈希变）；不存在或读不到时无此字段。 */
   hash?: string;
 }
@@ -66,9 +78,14 @@ export interface PolicyLayerFact {
  * 只读地检视策略层次（G-17 / BRIEF-15 AC2/AC3）。
  *
  * 契约：**纯查询**——不做任何执法判定、不改 `loadPolicyArtifacts` 的既有行为、**绝不抛**：
- * - 路径未给或文件不存在 → `exists:false`（探测本身的 IO 异常同样落成 `exists:false`）；
- * - 文件存在但读不到（权限 / 路径是目录等）→ `exists:true` + 0 条（如实报告，不假装）；
- * - 文件存在但 YAML/结构非法 → `exists:true` + 0 条（是否 fail-loud 由装载路径决定）。
+ * - 路径未给或文件不存在 → `exists:false` + 0 条 + **无 `error`**（= **缺失**）；
+ * - 文件存在但读不到（权限 / 路径是目录等 IO 失败）→ `exists:true` + 0 条 + `error:'<读取失败原因>'`；
+ * - 文件存在但 YAML/结构非法 → `exists:true` + 0 条 + `error:'<解析原因>'`
+ *   （**仍然不抛**；是否 fail-loud 由 `loadPolicyArtifacts` 那条装载路径决定）；
+ * - 文件存在且合法 → `exists:true` + `declarationCount >= 1`（当前恒为 1）+ **无 `error`**。
+ *
+ * 「存在但无效」与「缺失」由 `error` 字段**可区分**：调用方据此给出**正确的补救动作**
+ * （修复这个文件 vs 放置一个文件），不再把"文件就在那儿、只是坏的"误报成"没有文件"。
  *
  * 返回顺序即**合成顺序**（system 在前、project 在后；后者覆盖标量 / 拼接数组）。
  */
@@ -81,30 +98,31 @@ export function inspectPolicyLayers(
   ];
   return candidates.map(({ layer, path: target }): PolicyLayerFact => {
     if (target === '' || !fs.existsSync(target)) {
+      // **缺失**：无 error —— 与「存在但无效」必须可区分（调用方据此决定"放置"还是"修复"）
       return { layer, path: target, exists: false, declarationCount: 0 };
     }
+    let raw: Buffer;
     try {
-      const raw = fs.readFileSync(target);
-      let declarationCount = 0;
-      try {
-        parsePolicyYaml(raw.toString('utf8'));
-        declarationCount = 1;
-      } catch {
-        // YAML / 结构非法：仍算「文件在」，但 0 条（是否 fail-loud 由装载路径决定）
-        declarationCount = 0;
-      }
-      return {
-        layer,
-        path: target,
-        exists: true,
-        declarationCount,
-        hash: crypto.createHash('sha256').update(raw).digest('hex').slice(0, 12),
-      };
-    } catch {
-      // IO 异常不抛：文件在但读不到（权限 / 路径是目录等）→ 如实报告 exists:true / 0 条 / 无哈希
-      return { layer, path: target, exists: true, declarationCount: 0 };
+      raw = fs.readFileSync(target);
+    } catch (err) {
+      // IO 异常不抛：文件在但读不到（权限 / 路径是目录等）→ exists:true / 0 条 / error / 无哈希
+      return { layer, path: target, exists: true, declarationCount: 0, error: errorMessage(err) };
     }
+    const hash = crypto.createHash('sha256').update(raw).digest('hex').slice(0, 12);
+    try {
+      parsePolicyYaml(raw.toString('utf8'));
+    } catch (err) {
+      // YAML / 结构非法：仍算「文件在」，但 0 条 + error（**仍然不抛**；
+      // 是否 fail-loud 由装载路径 `loadPolicyArtifacts` 决定）
+      return { layer, path: target, exists: true, declarationCount: 0, error: errorMessage(err), hash };
+    }
+    return { layer, path: target, exists: true, declarationCount: 1, hash };
   });
+}
+
+/** 异常 → 人话原因（`error` 字段的取值口径；非 Error 抛出物也兜住）。 */
+function errorMessage(err: unknown): string {
+  return (err as Error | undefined)?.message ?? String(err);
 }
 
 /** merge scopes: later declarations override scalars; arrays concatenate (dedup). */
