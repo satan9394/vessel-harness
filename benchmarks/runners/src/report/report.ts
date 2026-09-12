@@ -23,8 +23,8 @@
  * 状态取值仍用既有枚举 `'failed'`（不新增枚举值，理由见 `ReportRowStatus`）。
  *
  * 证据层诚实性（本卡第三面，收口「失败被上报为成功」族的最后一块）：上面只改了
- * `ReportRow.status`，**呈现层仍是绿的** —— `buildComparisons:390` 的 `success: m.success`、
- * md:506 的 `r.success ? '✅' : '❌'`、CLI:538 的 `r.success ? 'OK' : 'FAIL'` 依旧只看
+ * `ReportRow.status`，**呈现层仍是绿的**（改动前）—— `buildComparisons` 的 `success: m.success`、
+ * md 的 `r.success ? '✅' : '❌'`、CLI 的 `r.success ? 'OK' : 'FAIL'` 依旧只看
  * 076 指标口径，且 md/CLI **从不渲染** `ReportRow.notes` / `turnKind` ⇒ 看板/对比表上
  * 「被熔断打死」的运行照样 ✅/OK。
  * 收口方式（与上游裁决一致，不自创第二套口径）：

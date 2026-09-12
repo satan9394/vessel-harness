@@ -434,3 +434,17 @@ parseFailed=true  ⇒ AgentLoop 退化成 {_raw:...}，工具拿不到 path
 - **5 个外部 CLI adapter 的 success 归一化**（`adapters/dsh.ts:305`、`opencode.ts:307`、`codex.ts:318`、`pi.ts:310`、`claude.ts:333`：`acc.success && finalText 为空 ⇒ false`）⇒ "**CLI 非零退出但输出非空**"也算 success，**且它们连 notes 标记都没有**。**待排。**
 - **HTTP 把策略拒绝映成 500 语义不精确**（更该 403/422），但**需要新增判别信息**才能改（`TurnResult` 加可选机读字段 + `turn/end` 同步 + 四个消费面）⇒ **建议另开卡**（执行者与我判断一致）。
 - **076 契约缺结构化的回合结束 kind** ⇒ 现在靠**对 `notes` 文案的字符串耦合**（`^turn ended kind=`）识别异常；durable 修法是给 `RunResult` 加字段（动 `contracts/**` 与外部 adapter），届时正则可整段删除。**待排。**
+
+## Round 86–87 — `before_turn` 审计补齐、`before_stop` **如实标注未接线**，以及两条新发现（其一很常见）
+
+**已修并提交**：
+- `6d8b94a` + `a9d4561` **`before_turn` 否决留下审计**（`audit/denial`，`stage` 词表新增 `'before_turn'`，并**新增可选 `listener?: string`**——因为"是谁否决"没有任何既有字段能承载）。两处形状决定都站得住：**`toolCallId`/`toolName` 保持必填、输入级写空串**（改成 optional 会让 `benchmarks/runners/src/asserts.ts:348` 编译报错，而那目录**禁碰** ⇒ 选"显式空锚点"而非"改契约"，**绝不填假工具名冒充工具级拒绝**）；**`stage` 用 `Extract<SessionRecord,{type:'audit/denial'}>['stage']` 绑到共享词表** ⇒ **失去该值即编译期红**（比测试更强的结构锁）。
+- **`before_stop`：裁决被到达、然后被丢弃 —— 如实标注"未接线"**（执行者的裁决，我认可）。理由（四条，都来自读码）：`EVENT-SPEC` A04 给本点定义的终态裁决是 **`forceContinue(reason)`**（"拒绝停"= 必须再走一步），而 `EventBus.serial` 只返回 `{vetoed,reason}`、**词表里没有 forceContinue**；载荷**缺 A04 的 `candidateKind/stats/stopVotes`** ⇒ 监听器**无据可裁**；"回合结束后再判失败"的**顺序、文案、与 `after_turn` 的关系全无既定义**；且无监听器路径必须零变化。⇒ **只改注释（行为逐字不变）+ 把"裁决被丢弃"钉成判别性用例**，并**带阳性控制**（证明决策点确实被到达且载荷是本回合真实值）——**将来谁把它接成"改了 kind"立刻红**。**记一条普适做法：不接线也要有护栏。**
+- `aae420a` **goal run 结构性失败 ⇒ 500**（`outcome='error'` 出自 catch、带 `error: reason`、任务被 requeue）⇒ 不再与 `not_met` 同形；`met/not_met/stopped` 是**领域裁决** ⇒ 保持 200；body 与既有 404/400 逐字不变。它**如实标注 `'stopped'` 在真实链路不可达**（`goalSeam.ts:327` 折叠成 `not_met`）**仍写出该档的负对照**——知道覆盖不到却不假装覆盖，这比含糊更强。
+
+**两条新发现（执行者复核后给出定级，均只报告未改）**：
+- **(d) 中断发生在 step 内 ⇒ `step/start` 无 `step/end`**：`turn/start→turn/end` 有配对，**step 配对被破坏**；而**既有 interrupt 用例只钉了 turn/tool 配对**，注释也只覆盖"步间中断"。**定级：中高。**
+- **(e) `finishReason` 从不参与停止判定**（`:380-383` 只看 `toolCalls.length` 与 `content`）：⇒ **`length`（Anthropic `max_tokens` 截断）且无工具调用时，回合报 `kind='success'`** —— **一条被截断的回答，在 `turn/end` 里完全看不出被截断**；而 `error` 且文本为空会落到 (c) 的兜底变成 **`budget`（退出码 0）**。**定级：中，但发生频率最高** —— 模型输出撞上 `max_tokens` 是最常见的真实情形之一，而它现在被报成"成功"。**待排（优先级高于多数条目）。**
+- 既有三条复核定级不变：(a) 异常路径不落 `turn/end` **中高**（但**不撒谎**，CLI/HTTP/TUI 都走失败面）；(b) deny 分支写 `turn/end` 不写 `turn/start` **中**；(c) `finalText===''&&success ⇒ budget` **中**（步数上限已在 `:352` 显式标 budget，这个兜底**只能**被"纯文本停且内容为空"触发 ⇒ **假停因**）。
+- 一处**渲染瑕疵**（只报告）：`apps/cli/src/cli.ts:961-966` 打印 `audit/denial` 的 `${d.toolName}` ⇒ `before_turn` 记录会打印**空名**（apps 禁碰未修）。
+- 一处**文档滞后**（只报告）：`docs/POLICY-SPEC.md` §7.2/§7.3 与 `:124` 的表仍写"`audit/denial` 必带 `toolCallId`"；`benchmarks/runners/src/asserts.ts:312` 的 stage 注释未同步新值。
