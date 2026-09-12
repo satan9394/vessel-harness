@@ -182,8 +182,14 @@ export class OpenAICompatibleProvider implements ChatProvider {
       // ⇒ 非 stop/tool_calls 的**一切**（含 `'length'`）都被塌缩成 `'error'`。AgentLoop 的
       // 截断判据只看 `finishReason === 'length'`（AgentLoop.ts:429），于是被 max_tokens
       // 截断的回答在这条本仓最常用的路径上仍然报成 kind='success'。
-      // 现在改用与流式**同一张**归一表（openAIFinishReason）：'length' 透传成 'length'，
-      // stop/tool_calls 逐字不变，其它/缺失仍是既有的 'error'（逐条裁决见该函数注释）。
+      // 现在改用与流式**同一张**归一表（`openAIFinishReason`，而它**已委托** `finishReason.ts`
+      // 的唯一表 `wireFinishReason`）：'length' 透传成 'length'，stop/tool_calls 逐字不变。
+      //
+      // **Round 126 更正**：此处原文写"其它/缺失仍是既有的 'error'"——那只对 **OpenAI wire 能携带的
+      // token** 成立（`content_filter`/`function_call`/未知/缺失 ⇒ 'error'，与改前逐值相同）。
+      // 收敛之后，**跨家族 token**（`end_turn`/`stop_sequence` ⇒ 'stop'、`tool_use` ⇒ 'tool_calls'、
+      // `max_tokens` ⇒ 'length'）也随共享表给出**与 Anthropic 一致**的结论——这正是收敛的目的；
+      // 它们不在 OpenAI 官方枚举内，只会出现在兼容层/网关。
       finishReason: openAIFinishReason(choice?.finish_reason),
       usage: {
         inputTokens: body.usage?.prompt_tokens ?? 0,
