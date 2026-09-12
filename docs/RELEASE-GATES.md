@@ -103,7 +103,7 @@ writeReleaseReportFiles(report, 'benchmarks/reports');
 
 > gate 7（ux-smoke）判据改准背景（与 gate 5 写死 "S001-S008"、gate 3 写死 "B001-B005" 是**同一类**漂移）：
 > 旧 `criterion` 写「web 套件或最小 smoke 通过；web 构建工具缺失时显式 pending。」，而实跑
-> （`benchmarks/runners/src/release-gates/gates.ts` 的 ux-smoke executor，改准后 L963-978；改准前 L912-926）**只做一件事**：
+> （`benchmarks/runners/src/release-gates/gates.ts` 的 ux-smoke executor）**只做一件事**：
 > 一次 `fs.existsSync(<repoRoot>/apps/web/dist)`（`webDistRoot` 可注入）—— 它**既不跑 web 测试、也不跑任何 smoke**；
 > 它判 pending 的成因是**产物缺失 / 探测（stat）失败**，**不是**「web 构建工具缺失」（本 gate 从不探测构建工具）。
 > 现 criterion 改为如实三态（产物在位 ⇒ pass；产物缺失 / 探测失败 ⇒ 显式 pending）并**显式声明本 gate
