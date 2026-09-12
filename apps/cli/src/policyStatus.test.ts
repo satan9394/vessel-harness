@@ -15,9 +15,16 @@ import { main } from './cli.js';
  *   ① `packages/policy/src/risk/PolicyLoader.ts` 的 `inspectPolicyLayers(opts)`——纯查询，
  *      固定返回 system / project 两项（合成顺序），**绝不抛**；`hash` = 文件真实字节
  *      sha256 十六进制**前 12 位**（AC2：改内容 → 哈希必须变）。
- *   ② `apps/cli/src/cli.ts` 的 `cmdPolicyStatus(flags)`（退出码**恒 0**，`--json` 走
- *      `emitJson`）与 `warnPartialPolicyLoad(flags)`（判据 `partialPolicyLayers`：**至少一层
+ *   ② `apps/cli/src/cli.ts` 的 `cmdPolicyStatus(flags)`（`--json` 走 `emitJson`）与
+ *      `warnPartialPolicyLoad(flags)`（判据 `partialPolicyLayers`：**至少一层
  *      declarationCount > 0 且至少一层 = 0** 才告警；`console.warn` 到 stderr，**不阻断**运行）。
+ *
+ * **退出码（本卡改判，取代此前的「恒 0」）**：`cmdPolicyStatus` 的判据只有一条 ——
+ * `compiled === false`（`compileError` 出现，`vessel run` 在同一组候选路径下会装载失败）
+ * ⇒ **退出码 1**；`compiled === true` ⇒ **0**。两类失败（「层文件缺失 / 存在但解析失败」与
+ * 「合成后编译失败」）的区别**由 body/文案承载**（逐层诊断行 + `missing` / `invalid` /
+ * `compileError`），**不由退出码区分**。改动前两个出口都写死 `return 0` —— 本文件里所有
+ * 断言 `toBe(0)` 的**失败场景**用例正是"锁住缺陷"的那几条，本轮按新语义翻转（见各用例注释）。
  *
  * 判别性要点（每条用例都要能真的失败，禁止假绿）：
  *   1. 纯函数四态：缺省/不存在 → `exists:false, 0 条`；合法文件 → `exists:true, ≥1 条, 12 位十六进制 hash`
@@ -27,15 +34,18 @@ import { main } from './cli.js';
  *      YAML 非法 / 结构非法 → `exists:true, 0 条, 有 hash` 且 `expect(...).not.toThrow()`。
  *   2. AC3：`main(['policy','status','--json'])` 的 stdout 是一段可解析 JSON，`layers.length === 2`，
  *      且 `effectiveOrder` / `missing` 与**同一份** `layers[].declarationCount` 自洽（自洽断言 +
- *      受控场景的绝对值断言双保险：两层齐备 → `['system','project']` / `[]`；两层全缺 → `[]` /
- *      `['system','project']`，而退出码仍为 0）。
+ *      受控场景的绝对值断言双保险：两层齐备 → `['system','project']` / `[]` 且退出码 0；
+ *      两层全缺 → `[]` / `['system','project']` 且 `compiled:false` ⇒ 退出码 1 + 信封同源）。
  *   3. 人类模式：两层路径都出现，且有「生效层序」。
  *   4. **AC4 判别性（带负对照）**：`run` 在「system 缺失（`--policy` 指向不存在的路径）+
  *      project 有声明」时 stderr（warn 通道）出现「部分装载」且**退出码 0**（不阻断，回合照跑）；
  *      **负对照**：不传 `--policy`（两层齐备）时**不出现**「部分装载」——证明该断言不是恒定值。
  *   5. 信封纯净性：`--json` 的 stdout 恰好一段 JSON（首字符 `{`、末字符 `}`、能 `JSON.parse`、
- *      不含人类文案）；`policy <未知子命令>` 这条唯一失败出口 `--json` 走 stderr 信封、非 JSON
- *      走人类文案（`cmdPolicyStatus` 自身没有非 0 出口）。
+ *      不含人类文案）；`policy <未知子命令>` 走 stderr 信封、非 JSON 走人类文案。
+ *   6. **本卡判别点（退出码）**：`compiled:false` ⇒ 非 0，且**失败时 stdout 不缩水**
+ *      （仍恰好一段 JSON / 仍含全部逐层诊断行）、`--json` 信封 `code` 与退出码**同源**；
+ *      **负对照**：`compiled:true` ⇒ 0，且人类输出**逐字**等于改动前那 6 行、stderr 为空
+ *      （证明新判据只加退出码，成功路径一个字节都没动）。
  *
  * 隔离纪律（AGENTS.md §8，照抄 jsonCommands.test.ts / jsonErrorExits.test.ts）：`beforeEach` 建
  * `mkdtempSync` 临时根并把四个状态根指向它，`afterEach` 还原 + 清理——**绝不碰真实 `~/.vessel`**。
@@ -276,8 +286,10 @@ describe('policy status / 部分装载（BRIEF-15 AC2–AC4）：走真实 main(
     const cap = capture();
     try {
       const code = await main(['policy', 'status', '--json', '--workspace', ws, '--policy', sysPath]);
-      expect(code).toBe(0); // 只读查询恒 0
+      // 成功的只读查询仍是 0；这里两层齐备且可编译 ⇒ compiled:true（下面对它的翻转见情景 B）
+      expect(code).toBe(0);
       expect(cap.err()).toBe('');
+      expect((JSON.parse(cap.out()) as PolicyStatusDoc).compiled).toBe(true);
 
       const doc = JSON.parse(cap.out()) as PolicyStatusDoc;
       expect(doc.layers).toHaveLength(2);
@@ -296,7 +308,13 @@ describe('policy status / 部分装载（BRIEF-15 AC2–AC4）：走真实 main(
       expect(doc.effectiveOrder).toEqual(['system', 'project']);
       expect(doc.missing).toEqual([]);
 
-      // 情景 B：system 指向不存在的路径 + 空工作区 → 两层都缺。仍是合法状态，退出码 0。
+      // 情景 B：system 指向不存在的路径 + 空工作区 → 两层都缺。
+      // 【本卡翻转】旧断言 `expect(code2).toBe(0)`（注释「各层都缺不是错误」）**正是锁住缺陷的那条**：
+      // 两层都缺 ⇒ `loadPolicyArtifacts` 抛 `policy loader: no policy declaration found`
+      // ⇒ `inspectCombinedPolicy` 给 `compiled:false`（PolicyLoader.ts 的 JSDoc 明说这**同样是
+      // `run` 的真实结局**）⇒ 新判据下退出码 1。翻转后**严格更强**：旧断言只查 code + `err === ''`，
+      // 新断言在同样的 doc2 自洽/绝对值断言之外，另加 `compiled:false` / `compileError` /
+      // 「信封 code 与退出码同源」/「stdout 仍是那段 JSON」四条。
       const emptyWs = path.join(tmpRoot, 'ws-empty');
       fs.mkdirSync(emptyWs, { recursive: true });
       const ghost = path.join(tmpRoot, 'no-such-policy.yaml');
@@ -304,8 +322,7 @@ describe('policy status / 部分装载（BRIEF-15 AC2–AC4）：走真实 main(
 
       cap.clear();
       const code2 = await main(['policy', 'status', '--json', '--workspace', emptyWs, '--policy', ghost]);
-      expect(code2).toBe(0); // 「各层都缺」不是错误（BRIEF-15 错误场景）
-      expect(cap.err()).toBe('');
+      expect(code2).toBe(1); // 两层都缺 ⇒ compiled:false ⇒ 非 0（成功的只读查询才保持 0）
 
       const doc2 = JSON.parse(cap.out()) as PolicyStatusDoc;
       expect(doc2.layers).toHaveLength(2);
@@ -316,6 +333,15 @@ describe('policy status / 部分装载（BRIEF-15 AC2–AC4）：走真实 main(
       expect(doc2.missing).toEqual(doc2.layers.filter((l) => l.declarationCount === 0).map((l) => l.layer));
       expect(doc2.effectiveOrder).toEqual([]);
       expect(doc2.missing).toEqual(['system', 'project']);
+      // 新判据：合成后不可编译（"两层都没有声明"是 run 的真实结局）
+      expect(doc2.compiled).toBe(false);
+      expect(doc2.compileError).toContain('no policy declaration found');
+      // 失败**不缩水** stdout：仍是恰好一段 JSON；失败信封只进 stderr，且 code 与退出码同源
+      expect(cap.out().indexOf('{')).toBe(0);
+      const envelope2 = JSON.parse(cap.err()) as { error: { message: string; code: number } };
+      expect(Object.keys(envelope2)).toEqual(['error']);
+      expect(envelope2.error.code).toBe(code2);
+      expect(envelope2.error.message).toContain('两层都缺');
     } finally {
       cap.restore();
     }
@@ -463,7 +489,7 @@ describe('policy status / 部分装载（BRIEF-15 AC2–AC4）：走真实 main(
     const cap = capture();
     try {
       const code = await main(['policy', 'bogus', '--json']);
-      expect(code).not.toBe(0); // 失败不能伪装成成功（cmdPolicyStatus 自身没有非 0 出口）
+      expect(code).not.toBe(0); // 失败不能伪装成成功（该出口来自 dispatch，不是 cmdPolicyStatus 自身）
       expect(code).toBe(2);
       expect(cap.out()).toBe(''); // 信封只进 stderr，stdout 一次都没被写
       const doc = JSON.parse(cap.err()) as { error: { message: string; code: number } };
@@ -482,7 +508,23 @@ describe('policy status / 部分装载（BRIEF-15 AC2–AC4）：走真实 main(
     }
   });
 
-  it('11) 【G-18 判别点】合成后不可编译（shell.deny 未知类别）：逐层全绿 / exit 0 / compiled:false / 人类模式点明 run 必失败', async () => {
+  /**
+   * 【本卡判别点 A】合成后不可编译 ⇒ **非 0**（改动前恒 0）。
+   *
+   * 「删掉修复就红」：把 `cmdPolicyStatus` 的两个出口改回 `return 0`（或删掉
+   * `compileFailure === null ? 0 : fail(1, …)` 里的 `fail` 分支）⇒ 本用例的
+   * `expect(code).toBe(1)` 与 `expect(humanCode).toBe(1)` 立刻变 0 ⇒ RED。
+   *
+   * 翻转后**不弱于旧断言**（逐条对照）：
+   *   - 旧：`toBe(0)` ⇒ 新：`toBe(1)`（非 0 且与 `vessel run` 的码同源；同时锁住"不是 2"——
+   *     2 在本 CLI 留给用法/校验错误）。
+   *   - 旧：`cap.err()).toBe('')` ⇒ 新：stderr **必须是**同源信封（`JSON.parse` 硬断言 + `code`
+   *     逐字等于退出码）——比"空"更强：它要求失败**有可见出口**，而不是静默退非 0。
+   *   - 旧：`cap.out()` 首尾 `{}`、`compiled:false`、`compileError` ⇒ 新：**全部保留**。
+   *   - 新加：人类模式 stdout 仍含全部诊断行（`缺失说明: 无（各层均已装载）。`）+
+   *     失败说明落在 stderr 且**不是**合法 JSON（非 JSON 模式没有被顺手改成信封）。
+   */
+  it('11) 【判别点】合成后不可编译（shell.deny 未知类别）：逐层全绿 / compiled:false / 退出码 1 / 诊断行一条不少', async () => {
     const ws = path.join(tmpRoot, 'ws-compile-bad');
     const sysPath = path.join(tmpRoot, 'compile-system-policy.yaml');
     writeText(sysPath, POLICY_A);
@@ -490,10 +532,11 @@ describe('policy status / 部分装载（BRIEF-15 AC2–AC4）：走真实 main(
 
     const cap = capture();
     try {
-      expect(await main(['policy', 'status', '--json', '--workspace', ws, '--policy', sysPath])).toBe(0); // 只读查询恒 0
-      expect(cap.err()).toBe('');
+      // 【本卡翻转】旧断言此处是 `toBe(0)`（注释「只读查询恒 0」）——那正是锁住缺陷的一条。
+      const code = await main(['policy', 'status', '--json', '--workspace', ws, '--policy', sysPath]);
+      expect(code).toBe(1);
       const text = cap.out();
-      expect(text.indexOf('{')).toBe(0); // 单一 JSON 信封（既有纪律不变）
+      expect(text.indexOf('{')).toBe(0); // 单一 JSON 信封（既有纪律不变，失败也不缩水）
       expect(text.lastIndexOf('}')).toBe(text.length - 1);
       const doc = JSON.parse(text) as PolicyStatusDoc;
       // 分裂点本身：逐层事实说「两层都有效」——修复前这就是终点（"看着配了其实没配"）
@@ -503,31 +546,103 @@ describe('policy status / 部分装载（BRIEF-15 AC2–AC4）：走真实 main(
       expect(doc.compiled).toBe(false);
       expect(doc.compileError).toContain('unknown shell.deny category');
 
-      // 人类模式：退出码按契约仍为 0，故失败必须靠文案显而易见
+      // 退出码与 `--json` 信封**同源**（既有 `fail` 出口）：信封只进 stderr，stdout 仍是那段文档
+      const envelope = JSON.parse(cap.err()) as { error: { message: string; code: number } };
+      expect(Object.keys(envelope)).toEqual(['error']);
+      expect(envelope.error.code).toBe(code);
+      // 文案承载「两类失败」的区别（第一类：层文件缺失/解析失败；第二类：合成后编译失败）
+      expect(envelope.error.message).toContain('unknown shell.deny category');
+      expect(envelope.error.message).toContain('两类不同的失败');
+      expect(envelope.error.message).toContain('vessel run');
+
+      // 人类模式：同样非 0；诊断行**一条不少**（退出码裁决不改渲染），失败说明走 stderr 人话
       cap.clear();
-      expect(await main(['policy', 'status', '--workspace', ws, '--policy', sysPath])).toBe(0);
+      const humanCode = await main(['policy', 'status', '--workspace', ws, '--policy', sysPath]);
+      expect(humanCode).toBe(1);
       const human = cap.out();
       expect(human).toContain('生效层序: system > project'); // 逐层行仍在（新旧信息并列，不是二选一）
       expect(human).toContain('无法编译');
       expect(human).toContain('unknown shell.deny category');
       expect(human).toContain('vessel run'); // 说清后果，而不是只丢一个错误串
+      expect(human).toContain('缺失说明: 无（各层均已装载）。'); // 逐层层面一切正常，如实并列
+      expect(cap.err()).toContain('合成策略无法编译');
+      expect(() => JSON.parse(cap.err())).toThrow(); // 非 JSON 模式仍是人话，不是信封
     } finally {
       cap.restore();
     }
   });
 
-  it('12) 【负对照】同一条管线只换 deny 类别（合法）→ compiled:true、无 compileError，人类模式「可编译」', async () => {
+  /**
+   * 【本卡判别点 A · 第二类失败】层文件**存在但无法解析**：与上一条是**不同的成因**，
+   * 但**退出码相同（1）** —— 这正是裁决说的"两类失败的区别由 body/文案承载，不靠退出码区分"。
+   *
+   * 「删掉修复就红」：删掉 `fail(1, …)` ⇒ 本用例 `toBe(1)` 变 0 ⇒ RED；
+   * 把成因前缀写死成「合成后编译失败（只有编译器才认得出的错误）」⇒ `toContain('project 层存在但无法解析')` RED。
+   */
+  it('11b) 【判别点】层文件存在但无法解析：成因不同、退出码同为 1，成因由文案/字段承载', async () => {
+    const ws = path.join(tmpRoot, 'ws-layer-broken');
+    const sysPath = path.join(tmpRoot, 'layer-broken-system-policy.yaml');
+    writeText(sysPath, POLICY_A);
+    writeText(path.join(ws, '.harness', 'policy.yaml'), INVALID_YAML);
+
+    const cap = capture();
+    try {
+      const code = await main(['policy', 'status', '--json', '--workspace', ws, '--policy', sysPath]);
+      expect(code).toBe(1);
+      const doc = JSON.parse(cap.out()) as PolicyStatusDoc & { invalid: { layer: string; error?: string }[] };
+      // 逐层事实照旧区分「缺失」与「存在但无效」（既有字段形状不变）
+      expect(doc.invalid.map((l) => l.layer)).toEqual(['project']);
+      expect(doc.invalid[0]!.error).toBeTruthy();
+      expect(doc.missing).toEqual(['project']);
+      expect(doc.compiled).toBe(false);
+
+      const envelope = JSON.parse(cap.err()) as { error: { message: string; code: number } };
+      expect(envelope.error.code).toBe(code);
+      // 成因前缀正确指认"存在但无法解析"（不是"两层都缺"，也不是"只有编译器才认得出的错误"）
+      expect(envelope.error.message).toContain('project 层存在但无法解析');
+      expect(envelope.error.message).not.toContain('只有编译器才认得出的错误');
+
+      // 对照：另一类成因（shell.deny 未知类别）用的是**另一句**成因前缀 —— 两类真的被区分了
+      const ws2 = path.join(tmpRoot, 'ws-compiler-only');
+      writeText(path.join(ws2, '.harness', 'policy.yaml'), BAD_SHELL_DENY_POLICY);
+      cap.clear();
+      expect(await main(['policy', 'status', '--json', '--workspace', ws2, '--policy', sysPath])).toBe(1);
+      const envelope2 = JSON.parse(cap.err()) as { error: { message: string } };
+      expect(envelope2.error.message).toContain('只有编译器才认得出的错误');
+      expect(envelope2.error.message).not.toContain('层存在但无法解析');
+    } finally {
+      cap.restore();
+    }
+  });
+
+  /**
+   * 【本卡判别点 A 的负对照，最重要】`compiled === true` ⇒ 退出码 **0**，且人类输出
+   * **逐字**等于改动前那 6 行、stderr **为空**。防"总是非零"/"顺手多打一行"——
+   * 那会让所有正常仓库红灯，与缺陷正好相反。
+   *
+   * 逐字期望值来源（不是手抄猜的）：`cmdPolicyStatus` 的五条 `console.log`（cli.ts 的
+   * 首行/逐层行/生效层序行/合成校验行/缺失说明行）+ 测试侧独立算出的 `sha12`；逐层行按
+   * `  ${layer.padEnd(7)} ${state}  声明 N 条  ${hash}  ${where}${note}` 拼出。
+   * 因此任何对成功路径渲染的改动（措辞、顺序、多打/少打一行、padEnd）都会 RED ——
+   * 这就是"输出逐字不变"的可执行形式。
+   *
+   * 「删掉修复就红」：把 `compiled === true` 也接进 `fail(...)`（无条件退 1）⇒ `toBe(0)` RED；
+   * 在成功路径上多写一行 stderr / 改动任何一行文案 ⇒ 逐字比对 RED。
+   */
+  it('12) 【负对照】同一条管线只换 deny 类别（合法）→ compiled:true、退出码 0、人类输出逐字不变、stderr 为空', async () => {
     const ws = path.join(tmpRoot, 'ws-compile-ok');
     const sysPath = path.join(tmpRoot, 'ok-system-policy.yaml');
+    const projPath = path.join(ws, '.harness', 'policy.yaml');
     writeText(sysPath, POLICY_A);
     writeText(
-      path.join(ws, '.harness', 'policy.yaml'),
+      projPath,
       ['policy:', '  version: "0.1"', '  shell:', '    deny: [destructive-delete]', ''].join('\n'),
     );
 
     const cap = capture();
     try {
       expect(await main(['policy', 'status', '--json', '--workspace', ws, '--policy', sysPath])).toBe(0);
+      expect(cap.err()).toBe(''); // 成功路径不新增任何 stderr 输出
       const doc = JSON.parse(cap.out()) as PolicyStatusDoc;
       expect(doc.compiled).toBe(true); // 与第 11 条唯一变量是 deny 类别 → compiled 必须翻面（证明它不是恒定值）
       expect(doc.compileError).toBeUndefined();
@@ -535,8 +650,19 @@ describe('policy status / 部分装载（BRIEF-15 AC2–AC4）：走真实 main(
 
       cap.clear();
       expect(await main(['policy', 'status', '--workspace', ws, '--policy', sysPath])).toBe(0);
-      expect(cap.out()).toContain('合成校验: 可编译');
+      // 逐字（不是 toContain）：成功路径的渲染一个字节都不许动
+      expect(cap.out()).toBe(
+        [
+          '[vessel] 生效策略层次（policy layers，只读）',
+          `  system  存在  声明 1 条  sha256:${sha12(sysPath)}  ${sysPath}`,
+          `  project 存在  声明 1 条  sha256:${sha12(projPath)}  ${projPath}`,
+          '  生效层序: system > project（左侧为高层：profile/approval 取高层先声明者；deny 类列表取并集；低层只能加限制、不能放宽）',
+          '  合成校验: 可编译（与 vessel run 的装载路径同一套 mergeScopes → compilePolicy）',
+          '  缺失说明: 无（各层均已装载）。',
+        ].join('\n'),
+      );
       expect(cap.out()).not.toContain('无法编译');
+      expect(cap.err()).toBe('');
     } finally {
       cap.restore();
     }

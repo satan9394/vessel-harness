@@ -25,9 +25,14 @@ import { main } from './cli.js';
  *      （回归锁），且不是合法 JSON、stdout 同样为空。
  *   3. **多行出口**：`provider set` / `provider export --with-secrets` 原本逐行打印用法块 →
  *      `--json` 下 `message` 含 `\n`（多行以换行连接），非 JSON 下**逐行**输出（split 成数组比对）。
- *   4. **信封纯净性**：所有 `--json` 失败出口的 `stdout.trim() === ''`（信封只打一次、且只进 stderr）。
+ *   4. **信封纯净性**：1)–9) 的每个 `--json` 失败出口都断言 `stdout.trim() === ''`（信封只打一次、
+ *      且只进 stderr）。**唯一例外见 6**（那条不是放宽，是如实声明一个"先产出成功文档、再失败"的出口）。
  *   5. **参数合法但前置条件缺失**：`models --provider ghost`（登记表里没有该 provider）与
- *      `run` + 损坏的 `mcp.json`（配置本身坏了、fail-loud）——两条都**零网络、零真实状态写入**。
+ *      `run` + 损坏的 `mcp.json`（配置本身坏、fail-loud）——两条都**零网络、零真实状态写入**。
+ *   6. **`policy status` 的新非 0 出口**（本卡 A）：合成后不可编译 ⇒ 退出码 1，信封走既有 `fail`。
+ *      它是**唯一**一个"失败时 stdout 仍有一段 JSON"的出口（`cmdPolicyStatus` 先把只读产物
+ *      `compiled:false` / `compileError` 写进 stdout，再失败）——故那一条改判「stdout 恰好一段
+ *      可解析 JSON 且就是那份文档」，而 1)–9) 的空 stdout 断言原样保留。
  *
  * 非 JSON 原文常量的来源说明（本轮无法跑 git，故按「改造语义」确认）：切片 A 的改造是
  * **机械替换**——`console.error(msg); return N;` ↔ `fail(N, msg, flags, () => console.error(msg))`。
@@ -356,6 +361,62 @@ describe('--json 失败出口（Round 14 切片 A）：走真实 main()', () => 
       cap.restore();
       if (savedBaseUrl === undefined) delete process.env.VESSEL_BASE_URL;
       else process.env.VESSEL_BASE_URL = savedBaseUrl;
+    }
+  });
+
+  /**
+   * 10) `policy status` 的**新非 0 出口**（本卡 A：合成后不可编译 ⇒ 退出码 1）。
+   *
+   * 这是本文件里**唯一**一条不满足「`--json` 失败时 stdout 为空」的出口，且这不是放宽判据，
+   * 而是如实声明该出口的形状：`cmdPolicyStatus` **先把只读产物写进 stdout**
+   * （`layers` / `compiled:false` / `compileError` —— 失败不缩水只读查询的产物），
+   * **再**走既有 `fail` 出口把信封写进 stderr。上面 1)–9) 的 `stdout === ''` 断言一条都没动。
+   *
+   * 判别性：改动前这里退 0（`cmdPolicyStatus` 两个出口都写死 `return 0`）⇒ `toBe(1)` RED；
+   * 若失败走了 stderr **人类文案**而不是 `fail` 信封 ⇒ `JSON.parse(cap.err())` 抛 ⇒ RED。
+   */
+  it('10) policy status（合成后不可编译）：--json 退出码 1 + 信封同源；stdout 是那份 compiled:false 文档', async () => {
+    const ws = path.join(tmpRoot, 'ws-policy-compile-bad');
+    fs.mkdirSync(path.join(ws, '.harness'), { recursive: true });
+    // 逐层解析合法、无 error，只有**编译器**认得出是假的类别（与 policyStatus.test.ts 第 11 条同一构造）
+    fs.writeFileSync(
+      path.join(ws, '.harness', 'policy.yaml'),
+      ['policy:', '  version: "0.1"', '  shell:', '    deny: [not-a-real-category]', ''].join('\n'),
+      'utf8',
+    );
+    const sysPath = path.join(tmpRoot, 'sys-policy.yaml');
+    fs.writeFileSync(
+      sysPath,
+      ['policy:', '  version: "0.1"', '  profile: workspace-write', '  approval: never', ''].join('\n'),
+      'utf8',
+    );
+
+    const cap = capture();
+    try {
+      const code = await main(['policy', 'status', '--json', '--workspace', ws, '--policy', sysPath]);
+      expect(code).toBe(1); // 非 0 —— 与 vessel run 在同一份策略上的退出码一致
+
+      // stdout：仍是**恰好一段**可解析 JSON（首尾 {}），且就是那份 compiled:false 的文档
+      expect(cap.out().indexOf('{')).toBe(0);
+      expect(cap.out().lastIndexOf('}')).toBe(cap.out().length - 1);
+      const doc = JSON.parse(cap.out()) as { compiled: boolean; compileError?: string };
+      expect(doc.compiled).toBe(false);
+      expect(doc.compileError).toContain('unknown shell.deny category');
+
+      // stderr：既有 fail 出口的**单行**信封，code 与退出码**同源**，message 承载成因
+      const envelope = JSON.parse(cap.err()) as { error: { message: string; code: number } };
+      expect(Object.keys(envelope)).toEqual(['error']);
+      expect(envelope.error.code).toBe(code);
+      expect(envelope.error.message).toContain('unknown shell.deny category');
+
+      // 负对照：去掉 --json → 同一句人话落 stderr（不是信封），退出码同为 1，stdout 诊断行照旧
+      cap.clear();
+      expect(await main(['policy', 'status', '--workspace', ws, '--policy', sysPath])).toBe(1);
+      expect(() => JSON.parse(cap.err())).toThrow();
+      expect(cap.err()).toContain('合成策略无法编译');
+      expect(cap.out()).toContain('无法编译');
+    } finally {
+      cap.restore();
     }
   });
 });

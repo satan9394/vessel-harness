@@ -660,9 +660,30 @@ function applyMcpConnections(opts: ComposeOptions): string | null {
 /**
  * `vessel policy status` — 只读地展示「生效策略来自哪些层」（G-17 / BRIEF-15 AC2/AC3）。
  *
- * 退出码**恒为 0**：各层都缺也是一种**合法状态**（层可选），只读查询不是错误
- * （BRIEF-15「错误场景」）。唯一非 0 出口是未知子命令（dispatch 里 fail(2)）。
- * `--json` 时 stdout 只有一段 JSON（`emitJson` 纪律），人话模式逐层打印
+ * **退出码（本卡裁决，取代此前的「恒为 0」）**：判据**只有一条** ——
+ * `combined.compiled === false`（即 `compileError` 出现，`vessel run` 在同一组候选路径下
+ * 会装载失败）⇒ **非 0（取 1）**；`compiled === true` ⇒ **0**（成功的只读查询照旧）。
+ *
+ * 复现（改前）：本函数两个出口都写死 `return 0`，与 `compiled` 无关 ——
+ * `vessel policy status --json` 在 `compiled:false` 时**退 0**，于是 CI 里
+ * `vessel policy status && vessel run …` 会在"策略根本装不起来"的仓库上继续往下跑。
+ * 改动前那段注释（"只读查询不是错误 + 不混淆两类失败"）里**只有后半句成立**：
+ * 「层文件缺失 / 存在但解析失败」与「合成后编译失败」确实是两类失败，但**这两类的区别由
+ * body/文案承载**（逐层诊断行 + `--json` 的 `missing` / `invalid` / `compiled` /
+ * `compileError`），**不需要、也不该用"一律退 0"来承载** —— 那等于让 CI 绿灯。
+ *
+ * 为什么取 `1` 而不是 `2`：
+ *   - `vessel run` 在同一份坏策略上**本来就退 1**（`composeHarness` → `loadPolicyArtifacts`
+ *     抛错 → 非 `--json` 由入口 `.catch` → `process.exit(1)`；`--json` 由 `main()` 的
+ *     `fail(1, …)`）—— 两条命令对**同一个事实**给出同一个退出码，脚本里可互换判定；
+ *   - `2` 在本 CLI 一致地留给「用法/校验错误」（缺参数、非法日期、未知子命令…），
+ *     而这里的命令行用法完全正确。
+ * 非 0 出口复用既有 `fail(code, msg, flags, …)`：`--json` 时 stderr 信封的 `code`
+ * 与退出码**同源**（同一个数铸出），人类模式仍是 stderr 上的同一句人话。
+ * 合成的**只读性质不变**：不写盘、不改执法、不阻断 —— 只多了一个退出码。
+ *
+ * `--json` 时 stdout 只有一段 JSON（`emitJson` 纪律；失败时**照常**产出该文档，
+ * 信封只进 stderr），人话模式逐层打印
  * 层名 / 路径 / 是否存在 / 声明条数 / 哈希 + 生效层序 + 问题说明。
  *
  * 层次事实**三分**（缺失 / 存在但无法解析 / 存在且合法但 0 条声明），三态都可从输出读出：
@@ -677,8 +698,14 @@ function applyMcpConnections(opts: ComposeOptions): string | null {
  * 同一次调用）：JSON 增 `compiled` / 失败时 `compileError`（**additive**，既有字段
  * `layers`/`effectiveOrder`/`missing`/`invalid`/`emptyDeclared` 语义与形状一律不变）；
  * 人类模式加一行「合成校验」，失败时**显而易见**地点明 `vessel run` 会失败。
- * 退出码**仍恒为 0**（只读查询；合成失败不塞进 `layers[].error`——那会把"层文件本身
- * 解析失败"与"合成后编译失败"混为一谈，且后者归属哪一层是歧义的）。
+ * 合成失败**不塞进** `layers[].error`——那会把"层文件本身解析失败"与"合成后编译失败"
+ * 混为一谈，且后者归属哪一层是歧义的。逐层视角与合成视角各司其职。
+ *
+ * **判据边界的如实声明**：`compiled === false` 不仅覆盖上面那类"只有编译器才认得出的错"，
+ * 也覆盖 `PolicyLoader.ts` 的 `policy loader: no policy declaration found`（两层都缺 /
+ * 都解析不出声明）——`inspectCombinedPolicy` 的 JSDoc 明说这**同样是 `run` 的真实结局**。
+ * 因此「一层都没有」现在也退 1；成因由消息正文与 `missing` / `invalid` 字段区分
+ * （这正是"两类失败的区别由 body/文案承载"）。
  */
 export function cmdPolicyStatus(flags: Map<string, string>): number {
   const candidates = policyLayerCandidates(flags);
@@ -696,6 +723,26 @@ export function cmdPolicyStatus(flags: Map<string, string>): number {
   const invalid = invalidPolicyLayers(layers);
   const emptyDeclared = emptyDeclaredPolicyLayers(layers);
 
+  // 本卡裁决：合成后**不可编译** ⇒ 非 0（见函数头注释）。`compiled === true` 时为 `null`
+  // ——成功路径**一个字节都不加**（不写 stderr、不改 stdout、退出码仍是 0）。
+  // 两类失败（层文件缺失/解析失败 vs 合成后编译失败）的区别**由正文承载**，不由退出码：
+  // 这里把成因写进消息，两类一律退 1。
+  const compileFailure: string | null = combined.compiled
+    ? null
+    : `[vessel policy status] 合成策略无法编译：${combined.error}\n` +
+      `  成因：${
+        invalid.length > 0
+          ? `${invalid.map((l) => l.layer).join('、')} 层存在但无法解析（层文件本身坏了）`
+          : absent.length === layers.length
+            ? '两层都缺（没有任何策略声明）'
+            : '各层文件本身合法，但合成后编译失败（只有编译器才认得出的错误）'
+      }。\n` +
+      `  「层文件缺失 / 存在但解析失败」与「合成后编译失败」是**两类不同的失败**，` +
+      `区别见上面的逐层诊断与 --json 的 missing / invalid / compiled / compileError 字段 —— ` +
+      `**退出码不区分它们**（两类都退 1）。\n` +
+      `  当前配置下 vessel run 会直接失败（同一条装载路径 mergeScopes → compilePolicy），` +
+      `故退出码 1（与 vessel run 在同一份策略上的退出码一致；2 在本 CLI 留给用法/校验错误）。`;
+
   if (isJson(flags)) {
     emitJson({
       layers,
@@ -708,7 +755,9 @@ export function cmdPolicyStatus(flags: Map<string, string>): number {
       compiled: combined.compiled,
       ...(combined.compiled ? {} : { compileError: combined.error }),
     });
-    return 0;
+    // 失败时**先**产出上面那份文档（消费方仍读得到 layers / compiled / compileError），
+    // 再走既有 `fail` 出口：stdout 仍恰好一段 JSON（信封只进 stderr），退出码与信封同源。
+    return compileFailure === null ? 0 : fail(1, compileFailure, flags);
   }
 
   console.log('[vessel] 生效策略层次（policy layers，只读）');
@@ -726,7 +775,9 @@ export function cmdPolicyStatus(flags: Map<string, string>): number {
       : '  生效层序: （无层生效——没有任何声明被装载）',
   );
   // G-18：合成后可编译性——逐层全绿也可能一编译就炸（如 shell.deny 未知类别）。
-  // 只读查询不阻断（退出码仍 0），但必须让失败**显而易见**：说清这是 `vessel run` 的同一个装载路径。
+  // 文案**逐字不变**（失败必须显而易见）；退出码不在这里定，由函数末尾统一裁决
+  // （`compiled === false` ⇒ 1，见函数头注释）。stdout 的诊断行一条不少 —— 退出码裁决
+  // 不吞、不改渲染。
   console.log(
     combined.compiled
       ? '  合成校验: 可编译（与 vessel run 的装载路径同一套 mergeScopes → compilePolicy）'
@@ -748,7 +799,9 @@ export function cmdPolicyStatus(flags: Map<string, string>): number {
       ? '  缺失说明: 无（各层均已装载）。'
       : `  缺失说明: ${issues} —— ${problems.map(policyLayerFixHint).join('；')}`,
   );
-  return 0;
+  // 本卡裁决：人类模式同样在渲染完之后裁决退出码；失败说明走 stderr（既有 `fail` 出口的
+  // human 闭包形态，与 `cmdBenchReport` 等一致），stdout 的只读诊断**逐字保留**。
+  return compileFailure === null ? 0 : fail(1, compileFailure, flags, () => console.error(compileFailure));
 }
 
 /**
@@ -2342,11 +2395,26 @@ function isPortTaken(err: unknown): boolean {
  *
  * **顺序不可调换**：渲染 + 落盘**先**做完，退出码**后**定。失败不该让产物消失 ——
  * CI 红灯之后，人仍要能拿到那份 md/json 复盘（`writeReportFiles` 的返回路径同时
- * 进人话文案，照旧落 stdout）。
+ * 进人话文案，照旧落**本命令的人类文案通道**：非 `--json` = stdout，`--json` = stderr，见下）。
  *
  * 口径**只有一条**：判据是报告已有的 `totals.failed`（`aggregateRows` 按精确枚举
  * `status === 'failed'` 计数，已包含「回合未正常收尾」行）——**不**另设一套
  * 「异常收尾行」计数，避免两套口径漂移。
+ *
+ * **`--json` 通道契约（本卡裁决）**：`output.ts` 规定「`--json` 时 stdout **只允许**出现
+ * **一段可解析 JSON**」。改动前本函数在 `--json` 下把**两条人类文案都 `console.log`**
+ * （CLI 摘要表 + 「报告已写入」路径块），而 stdout 上**没有任何 JSON** ⇒
+ * `vessel bench-report --input x.json --json` 的 stdout 是**非 JSON 的人类表格**，
+ * `JSON.parse(stdout)` 必抛（`--json` 等于没生效）。修法**照本仓既有做法**
+ * （`usage` / `models` / `policy status` 的 `--json` 分支都是 `emitJson(...)` 单一出口）：
+ *   - **人类文案**（摘要 + 产物路径）在 `--json` 时改走 **stderr**（下面的 `say()`），
+ *     非 `--json` 时**逐字仍走 stdout**（负对照：既有 stdout 一个字节都不变）；
+ *   - **stdout 的唯一出口**是 `emitJson(rep)`：与 `writeReportFiles` 落盘的 `.json` 产物
+ *     **同一份文档**（同一个 `rep`、同一 `JSON.stringify(rep, null, 2)` 缩进），
+ *     消费方不必猜 stdout 的形状，`cli.test.ts` 也据此断言「stdout 恰好一段 JSON」。
+ *   - **退出码语义一个字节都不动**：仍是 `totals.failed > 0 ⇒ fail(1, …)`（本卡不回退
+ *     上一张卡的裁决），`--json` 下信封照旧只进 stderr、`code` 与退出码同源。
+ * 顺序不变：**渲染 + 落盘先做完**（失败不吞产物），退出码**后**定。
  */
 async function cmdBenchReport(flags: Map<string, string>): Promise<number> {
   const input = flags.get('input');
@@ -2383,9 +2451,21 @@ async function cmdBenchReport(flags: Map<string, string>): Promise<number> {
   }
 
   const outDir = path.resolve(flags.get('out') ?? path.join(repoRoot(), 'benchmarks', 'reports'));
-  console.log(renderCliSummary(rep));
+  /**
+   * 人类文案出口（本卡）：非 `--json` = **stdout**（既有行为逐字不变）；`--json` = **stderr**
+   * ——`output.ts` 的契约是「`--json` 时 stdout 只允许出现一段可解析 JSON」，而下面的
+   * `emitJson(rep)` 才是 stdout 的唯一出口。文案一条不少，只是换了通道。
+   */
+  const say = (line: string): void => {
+    if (isJson(flags)) console.error(line);
+    else console.log(line);
+  };
+  say(renderCliSummary(rep));
   const paths = writeReportFiles(rep, outDir);
-  console.log(`\n报告已写入:\n  ${paths.mdPath}\n  ${paths.jsonPath}`);
+  // `--json`：stdout 的唯一出口。放在落盘**之后**（写盘失败就不该先宣告一份文档）；
+  // 与 writeReportFiles 写出的 `.json` 是同一份文档（同 `rep`、同 stringify 参数）。
+  if (isJson(flags)) emitJson(rep);
+  say(`\n报告已写入:\n  ${paths.mdPath}\n  ${paths.jsonPath}`);
   // 判定发生在渲染 + 落盘**之后**（见函数头注释：失败不吞产物）。走既有 `fail` 出口：
   // `--json` 时 stderr 信封的 `code` 由同一个数铸出，退出码与信封不可能不一致。
   if (rep.totals.failed > 0) {

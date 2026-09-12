@@ -1014,39 +1014,110 @@ describe('vessel bench-report (task 083 dashboard)', () => {
    *
    * 「改坏就红」：判据写成无条件 / `>= 0` ⇒ code≠0；成功路径上多打或少打一行、
    * 或改渲染顺序 ⇒ `logs` 逐字比对红。
+   *
+   * 【本卡加强】改用通道分离的 `captureChannels()`：除既有的 stdout 逐字比对之外，
+   * **另加** `stderr === ''` —— 本卡的 `say()` 只在 `--json` 时改道，非 `--json` 一个字节
+   * 都不许挪到 stderr（旧断言用 `capture()` 只 spy 了 `console.log`，看不见这个泄漏）。
    */
-  it('② 负对照：全 passed 报告 ⇒ 退出码 0，stdout 与产物逐字不变', async () => {
+  it('② 负对照：全 passed 报告 ⇒ 退出码 0，stdout 与产物逐字不变（且 stderr 为空）', async () => {
     const runs = allPassedJson(['vessel', 'dsh', 'opencode']);
     const expected = await expectedRenderings(JSON.parse(fs.readFileSync(runs, 'utf8')) as unknown);
     const out = path.join(dir, 'reports-green');
-    const { logs, restore } = capture();
+    const cap = captureChannels();
     const code = await main(['bench-report', '--input', runs, '--out', out]);
-    restore();
+    const outLines = cap.lines();
+    const errText = cap.err();
+    cap.restore();
     expect(code).toBe(0);
     const { mdPath, jsonPath } = reportFiles(out);
-    expect(logs).toEqual([expected.cliSummary, `\n报告已写入:\n  ${mdPath}\n  ${jsonPath}`]);
+    expect(outLines).toEqual([expected.cliSummary, `\n报告已写入:\n  ${mdPath}\n  ${jsonPath}`]);
+    expect(errText).toBe(''); // 非 --json：人类输出**只在 stdout**，没有挪到 stderr
     expectSameReport(mdPath, expected.md);
     expect(expected.cliSummary).toContain('0 failed');
   });
 
   /**
-   * ④ `--json`：退出码与 stderr 信封的 `code` **同源**（同一个数铸出），产物照旧落盘。
+   * ④ `--json` 通道契约（本卡 B）：stdout **恰好一段 JSON**（= 落盘的 `.json` 产物，同一份文档），
+   * 人类摘要与「报告已写入」改走 **stderr**；退出码与 stderr 信封的 `code` **同源**（1），
    * 沿用既有 `fail(code, msg, flags, …)` 出口，不另造一套 JSON 失败面
    * （既有 jsonErrorExits.test.ts 的 `bench-report --json` code=2 用例同源）。
+   *
+   * 复现（改前，静态可证）：两条人类文案都是 `console.log(...)`，而 `--json` 分支里
+   * **没有任何 `emitJson`** ⇒ stdout 是「摘要表 + 路径块」，`JSON.parse(stdout)` 必抛
+   * —— `--json` 等于没生效（违反 `output.ts` 的「stdout 只允许一段可解析 JSON」）。
+   * 旧用例用 `captureBoth`（两个通道混进同一个数组）只检查「最后一行是个信封」，
+   * **看不见**这个缺陷；上一张卡故意没把它写进测试（避免又一次锁住缺陷）。
+   * 本卡改成通道分离的 `captureChannels()`，`JSON.parse(stdout)` 是硬断言。
+   *
+   * 「删掉修复就红」：把 `say()` 的 `console.error` 改回 `console.log`（人类文案回到 stdout）
+   * ⇒ `stdout.indexOf('{')` 不为 0 / `JSON.parse(stdout)` 抛 ⇒ RED；删掉 `emitJson(rep)`
+   * ⇒ stdout 为空 ⇒ RED。
    */
-  it('④ --json：退出码与 stderr 信封 code 同源（1）；md/json 照旧落盘', async () => {
+  it('④ --json：stdout 恰好一段 JSON（= .json 产物）；人类摘要走 stderr；信封 code 与退出码同源（1）', async () => {
     const lane = laneReportJson();
     const out = path.join(dir, 'reports-lane-json');
-    const { logs, restore } = captureBoth();
+    const cap = captureChannels();
     const code = await main(['bench-report', '--input', lane, '--out', out, '--json']);
-    restore();
+    const stdout = cap.out();
+    const errLines = cap.errLines();
+    cap.restore();
     expect(code).toBe(1);
-    const doc = JSON.parse(logs[logs.length - 1]!) as { error: { message: string; code: number } };
-    expect(doc.error.code).toBe(code); // 同源
-    expect(doc.error.message).toContain('failed');
+
+    // ① stdout 恰好一段 JSON：首字符 {、末字符 }、可 parse、不含任何人类文案
+    expect(stdout.indexOf('{')).toBe(0);
+    expect(stdout.lastIndexOf('}')).toBe(stdout.length - 1);
+    expect(() => JSON.parse(stdout)).not.toThrow();
+    expect(stdout).not.toContain('Benchmark Report —');
+    expect(stdout).not.toContain('报告已写入');
+
+    // ② stdout 与落盘的 .json 产物**逐字同一份文档**（emitJson 与 writeReportFiles 同 obj、同缩进）
     const { mdPath, jsonPath } = reportFiles(out);
+    expect(stdout).toBe(fs.readFileSync(jsonPath, 'utf8'));
+    expect((JSON.parse(stdout) as { totals: { failed: number } }).totals.failed).toBe(1);
+
+    // ③ 人类文案一条不少，只是换了通道（信息不丢）
+    const stderr = errLines.join('\n');
+    expect(stderr).toContain('Benchmark Report —');
+    expect(stderr).toContain('1 failed');
+    expect(stderr).toContain('报告已写入');
+    expect(stderr).toContain(mdPath);
+    expect(stderr).toContain(jsonPath);
+
+    // ④ 失败信封走 stderr，且 code 与退出码同源
+    const envelope = JSON.parse(errLines[errLines.length - 1]!) as { error: { message: string; code: number } };
+    expect(envelope.error.code).toBe(code);
+    expect(envelope.error.message).toContain('failed');
+
+    // ⑤ 产物照旧落盘（失败不吞产物）
     expect(fs.statSync(mdPath).size).toBeGreaterThan(0);
     expect(fs.statSync(jsonPath).size).toBeGreaterThan(0);
+  });
+
+  /**
+   * ⑤ 【本卡负对照】全 passed + `--json` ⇒ 退出码 **0** —— 上一张卡的「有 failed ⇒ 非 0」
+   * 不得回退成「总是非 0」；stdout 仍恰好一段 JSON（`failed:0` 的那份文档 = `.json` 产物），
+   * stderr 上**没有**失败信封（最后一行是「报告已写入」路径块，不是合法 JSON）。
+   *
+   * 「删掉修复就红」：`--json` 下把 `fail(1, …)` 写成无条件/判据写反 ⇒ `toBe(0)` RED。
+   */
+  it('⑤ 负对照：全 passed + --json ⇒ 退出码 0；stdout 仍恰好一段 JSON；stderr 无信封', async () => {
+    const runs = allPassedJson(['vessel', 'dsh', 'opencode']);
+    const out = path.join(dir, 'reports-green-json');
+    const cap = captureChannels();
+    const code = await main(['bench-report', '--input', runs, '--out', out, '--json']);
+    const stdout = cap.out();
+    const errLines = cap.errLines();
+    cap.restore();
+    expect(code).toBe(0);
+    expect(stdout.indexOf('{')).toBe(0);
+    expect(stdout.lastIndexOf('}')).toBe(stdout.length - 1);
+    const { jsonPath } = reportFiles(out);
+    expect(stdout).toBe(fs.readFileSync(jsonPath, 'utf8'));
+    expect((JSON.parse(stdout) as { totals: { failed: number } }).totals.failed).toBe(0);
+    // 人类文案仍在（只是走 stderr），且**没有**失败信封
+    expect(errLines.join('\n')).toContain('0 failed');
+    expect(errLines.join('\n')).toContain('报告已写入');
+    expect(() => JSON.parse(errLines[errLines.length - 1]!)).toThrow();
   });
 
   it('bench-report rejects a JSON object that is neither RunResult[] nor a lane report', async () => {
