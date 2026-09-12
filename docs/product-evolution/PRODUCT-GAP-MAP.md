@@ -67,7 +67,7 @@
 **NEXT（P2，已具证据，可独立开轮）**：
 1. **`@vessel/*` 依赖声明补全**（14/16 包**已修**；剩 `benchmarks/runners` 6 项——private 包，"单独安装"动机不适用）；`@vessel/bench-runners` 运行期动态 import 的**人话报错已修**。
 2. **pricing 产品形态正解**：读=用户目录优先 + 包内兜底，写=`~/.vessel/model-catalog.json`（**Round 20 在做**）。
-3. **【Round 20 实测新增·排队中】配置"损坏"路径与"缺失"不对称（审计 R17）**：`apps/cli/src/providers/pricing.ts` 的 `loadPricing` 与 `modelCatalog.ts` 的 `loadModelCatalog` 在 `configs/*.json` **非法 JSON 或结构错**时**静默回退兜底/空表、零警告**（实测：非法 JSON → `pricingKeys=2`、`warnings=0`；数组形与 `models` 非对象同样静默）。而我们只给**缺失**加了 warn（`warnMissingBuiltinConfig` 仅 `existsSync`）→ **用户会拿兜底价算成本且毫无信号**。**与在跑的 pricing 卡文件冲突，故排队**（待其落盘后开卡）。
+3. **【Round 20 实测新增·排队中】配置"损坏"路径与"缺失"不对称（审计 R17）**：实测 `configs/*.json` **非法 JSON 或结构错**时**静默回退兜底/空表、零警告**（`pricingKeys=2`、`warnings=0`）。我们只给**缺失**加了 warn（`warnMissingBuiltinConfig` 仅 `existsSync`，损坏文件能通过存在性检查）。**范围已收窄（Round 20 侦察）**：在跑的 pricing 卡已为 **model-catalog** 引入带状态读取（`readModelCatalogFile → {catalog, status: 'missing'|'invalid'|'empty'|'ok', error?}`，函数本身不打印不抛），故残余为 ① **`pricing.json` 仍是裸 `catch {}` 静默兜底**（`providers/pricing.ts:70-72`，JSDoc 自述 "missing/corrupt → default-only table" 但对调用方**不可观测**）；② **状态是否被真正消费**——必须验证 CLI 在 `status==='invalid'` 时**确实告警**（"产出了信号却没人读"是本项目反复出现的失败形态）。**与在跑的 pricing 卡文件冲突，故排队**（待其落盘后开卡，届时以它落定的状态通道为准写规格，避免编码错误前提）。
 4. **测试盲点清单**：C-4 文案与 `pricingSyncMismatchWarning` **调用点**均已闭合（Round 19）。
 5. **发布链路自动化**：shape 门禁 + **可选安装态冒烟（实测 PASS）** 已有；**升级路径**Round 20 在做；`npm pack --ignore-scripts` 可绕过 prepack（需进程/文档层约束，非门禁可解）。
 **LATER**：全量 i18n 架构；`~/.vessel` 状态根 7+ 处重复收敛；`vessel diff --last` 只读回滚提示（G-10 克制替代）；`dist/.tsbuildinfo` 入包与 `npm pack --json` 被 prepack 输出污染（自动化卫生）。
