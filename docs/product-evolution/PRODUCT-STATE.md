@@ -376,6 +376,21 @@
 
 **诚实标注的边界（交决策，未做）**：① 标记加在**渲染出口**而非 `MockProvider` 内部 → **落盘 transcript 仍无标记**（要覆盖须改 `packages/llm`，属另一个决定——**我的判断：渲染层已解决"用户看见"，transcript 是事后审计，记入候补而不扩张**）；② TUI 的 `io` 无 stderr 面，提示走 stdout（TUI 无 `--json` 机器契约，可接受）；③ 测试注入 provider 的接缝**不加**标记（避免把任意 fake 误标为"内置 mock"）。
 
+## 发布里程碑（用户已选定：`npm pack` + tarball 验证；未选全量 npm 发布）
+
+**为什么是"对外成熟"的最大阻塞**：当前**无法安装**——`@vessel/cli` 依赖未发布的 workspace 包；用户唯一路径是 clone→build→`npm link`。
+
+**侦察已确认的三类硬伤与处置**：
+| 硬伤 | 状态 |
+|---|---|
+| 第三方依赖漏声明（`@clack/prompts` 只在 root 却被 `setup.ts:1` import；`js-yaml` 只在 root **devDeps** 却被 `policy/Compiler.ts:1`、`behavior/BehaviorIR.ts:2` import） | ✅ 已按包声明（`@clack/prompts`→cli、`js-yaml`→policy/behavior） |
+| `apps/cli` 缺 `files` → npm 回退 `.gitignore`（其中忽略 `dist/`）→ **包会连自己的产物一起丢** | ✅ 已补 `files:["dist"]`+`engines`；**`npm pack --dry-run` 实测**：tarball 262 文件 / 397.6 kB / 解包 1.7 MB，全来自 `dist` |
+| `dist` 内无 `configs/*` → 安装态 `builtinConfigRoot()` 上溯 6 级必落空 → 策略/behavior/pricing 全指向不存在路径 | 🔄 修复卡在跑（包内优先查找 + 构建期复制 `configs/` 进 `dist`） |
+
+**`npm pack --dry-run` 新发现（打包卫生，待处理）**：tarball **包含编译后的测试产物与 source map**（`dist/**/*.test.js`、`*.test.d.ts`、`*.js.map`）→ 发布物带测试代码与内部映射。处置方向：`files` 加否定模式（`!dist/**/*.test.*`、`!dist/**/*.map`）或独立 build 配置排除测试。**待 `apps/cli/package.json` 的在跑卡落盘后一并处理**（避免同文件冲突）。
+
+**仍未闭合的系统性缺口（侦察报告，超出已修范围）**：`apps/cli` 未声明 `@vessel/shared`/`policy`/`llm`（实际直接 import）；多个 packages **根本没有 `dependencies` 字段**（core/shared/policy/behavior 等）；`@vessel/bench-runners` 是**运行期 `await import`** 但 `benchmarks/runners` 为 `private:true`（`run --bench` 在非 hoisting 环境会挂）。→ 这些决定"装 tarball 是否直接失败"，需在装机验证前处理。
+
 ## 技术债
 
 G-15 原子写 wrapper 各 Store 重复（P4）；architecture 审计的 T1–T9 清单（详见 `docs/product-audit/ARCHITECTURE-REPORT.md`）。
