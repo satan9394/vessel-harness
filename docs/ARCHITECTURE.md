@@ -369,7 +369,7 @@ TS Brain 先行 + 语言中立执行 seam（D3 决策点 15）：v0.1 全 TS，�
 
 | 子模块 | 职责 | 对外接口 | 依赖 |
 |---|---|---|---|
-| telemetry/（会话生命周期/用量/审计汇总消费方） | 消费方（emit 旁路 + 回放折叠）：实时事件 before_turn / after_model / after_tool / policy_decision / llm_retry，以及会话记录 `tool/result`、`audit/denial`、`compaction/start`、`llm/retry` → 指标/报告。未消费（记录已落盘、回放侧无消费方，故不得写成消费源）：session/created、request/header（只有 estimateTokens 估计值与条数，无实际用量）、turn/end 及其 stats 加法字段（每轮汇总，与 after_model 的每次调用量相加会双计） | `record(event)`；`exportReport()` | core/events（只订阅 emit，不参与裁决） |
+| telemetry/（会话生命周期/用量/审计汇总消费方） | 消费方（emit 旁路 + 回放折叠）：实时事件 before_turn / after_model / after_tool / policy_decision / llm_retry / team_end（M13 evaluatorRejects 的生产者：evaluate 成员的 review.verdict），以及会话记录 `tool/result`、`audit/denial`、`compaction/start`、`llm/retry` → 指标/报告。未消费（记录已落盘、回放侧无消费方，故不得写成消费源）：session/created、request/header（只有 estimateTokens 估计值与条数，无实际用量）、turn/end 及其 stats 加法字段（每轮汇总，与 after_model 的每次调用量相加会双计） | `record(event)`；`exportReport()` | core/events（只订阅 emit，不参与裁决） |
 
 **指标口径**：对齐 D7 §4.1（M01–M14 事件源：B04 tool/call、B13 llm/retry、A13/B19、B20 audit/denial、A16/A17 等）。**✗**：UI 形态（任务书 §10 不做 Web UI）；跨进程事件总线（禁止提前微服务化，D3 决策点 1 拒绝项）。
 
@@ -515,7 +515,7 @@ reports/（JSONL + summary.json）→ A/B 归因 → 修订 ARCHITECTURE/IR/Poli
 | 终止判据"纯文本/无未决 tool_call 即停" + max_steps 硬顶 | core/agent-loop | B008（多 Tool 调用）；E02 conformance：step 计数 ≤ 配置值、超限 turn/end.kind=budget |
 | Policy 四件套 + 裁决序 + fail-closed | policy/ | B006（危险 Bash 拦截）三态拦截；M12 Safety Violations 口径=audit/denial 计数（D6 §503 → D7 §4.1） |
 | Tool 错误契约（INVALID_ARGS 自修复/doom-loop ≥3） | tools/registry | B007（Tool 失败恢复）；B004 M04/M05 指标 |
-| Evaluator 门禁（独立判定、不自证完成） | agents/evaluator | B014（Evaluator 拒绝）；M13 Evaluator Reject Count；A/B 组 D 对比归因 |
+| Evaluator 门禁（独立判定、不自证完成） | agents/evaluator | B014（Evaluator 拒绝）；M13 Evaluator Reject Count（现状：只有 `team_end` 载荷与基准 evaluator 臂两条通路已接线，**Goal Loop 的 EvaluatorAgent/RealEvaluatorAdapter 通路未接线**、不计入）；A/B 组 D 对比归因 |
 | 软/硬分离（Prompt Guidance 不产生审计事实） | behavior/compiler + policy/ | B016–B019 行为纪律场景（conformance 行为对齐重点）；M14 Autonomy |
 | IR 编译管线产物（同一意图多 profile） | behavior/ | A/B 组 B→C 归因（散文 vs IR 编译）；B018 诚实性（claim_truthful 断言） |
 | V0.1 六工具平面 + 无 MCP | tools/ | B012（MCP 调用）= 诚实 skip（记录 skipped+原因，不伪造通过） |

@@ -520,3 +520,104 @@ describe('benchmarks/runner — 证据层诚实性：回合结束 kind 必须进
     expect(classifyScenarioRun(failed)).toBe('fail');
   }, 60_000);
 });
+
+/**
+ * ===========================================================================
+ * BRIEF-A —— evaluator 臂的 verdict 必须有**结构化落点**（M13 在已交付车道上不再恒 0）
+ * ===========================================================================
+ *
+ * 缺口（改前，静态可核）：`driveScenario` 的 evaluator 臂把 `EvaluatorAgent` 的 verdict
+ * **只**回投成自由文本 `user/message{source:'inject'}`（runner.ts 那一次 appendSync），
+ * 而 `Telemetry` 的 M13（`counters.evaluatorRejects`）**唯一**生产者是 `team_end`
+ * handler —— 本臂跑的是 EvaluatorAgent（不经 TeamRuntime、也就不产生 `team_end`）⇒
+ * `asserts.ts` 的 `metricValue('M13')` 在本车道恒读到 0，尽管 `BENCHMARK-SPEC` §4.1 把
+ * M13 列为被测量、`B018.yaml` 也正是 evaluator 使能臂。本组把「跑一次 evaluator 臂 ⇒
+ * M13 如实计数」钉成可判别事实：
+ *   ① 判别性：B018（`harness.evaluator: true`，脚本判 not_met）⇒ M13 == 1（改前恒 0 ⇒ 必红）；
+ *   ② 负对照：判 met ⇒ M13 == 0（不是"跑过评估器就 +1"），且判据层不被本卡改写（如实 fail）；
+ *   ③ 负对照：本臂交给下游的**文本与判据逐字不变**（回投记录/返回值/断言结果逐字对钉）。
+ *
+ * 「删哪行会红」：
+ *   - 删掉 runner.ts 里 `if (verdict.verdict !== 'met') harness.telemetry.recordEvaluatorReject();`
+ *     ⇒ ① 红（M13 回落到 0，即改前形态）；
+ *   - 把该行放宽成"每次 evaluate 都计"（去掉 verdict 过滤）⇒ ② 红；
+ *   - 改动那份自由文本的模板/来源（例如换成 source 'plan'）⇒ ③ 红。
+ *
+ * 回投记录从**父**会话日志（`report.sessionLog`）读：evaluator 的评审本身跑在隔离会话里
+ * （`.harness/sessions/<sub_*>/session.jsonl`），那条记录落在父会话。
+ */
+function parentRecords(report: ScenarioReport): Record<string, unknown>[] {
+  return fs
+    .readFileSync(report.sessionLog, 'utf8')
+    .trim()
+    .split('\n')
+    .filter((l) => l.trim() !== '')
+    .map((l) => JSON.parse(l) as Record<string, unknown>);
+}
+
+describe('benchmarks/runner — evaluator 臂的 verdict 结构化落点（M13）', () => {
+  const evalArmOpts = (scenarioId: string) => ({
+    scenarioId,
+    repoRoot: REPO_ROOT,
+    reportsDir: REPORTS,
+    provider: null,
+    model: 'mock-model',
+    policyPath: path.join(REPO_ROOT, 'configs', 'policy.default.yaml'),
+    behaviorIRPath: path.join(REPO_ROOT, 'configs', 'behavior.default.yaml'),
+  });
+
+  it('① 判别性：B018 evaluator 臂判 not_met ⇒ M13 如实计 1（改前恒 0）', async () => {
+    const report = await runScenario(evalArmOpts('B018'));
+    tempDirs.push(report.workspace);
+
+    // 阳性控制：这一臂**真的**跑出了拒绝裁决（否则 M13==1 可能是别的来源）
+    expect(report.finalText).toBe('评估结论：not_met（验收要求测试全绿，缺少证据）');
+    expect(report.success, `asserts: ${JSON.stringify(report.asserts)}`).toBe(true);
+
+    // 本卡的判别性断言：改前 verdict 只被回投成自由文本 ⇒ 这里是 0
+    expect(report.metrics.M13).toBe(1);
+
+    // 报告面（JSONL 的 metric 行）同样落定，不是一个只在内存里对的数
+    const m13Line = readJsonl(report).find((l) => l.type === 'metric' && l.metric === 'M13');
+    expect(m13Line?.value).toBe(1);
+  }, 60_000);
+
+  it('② 负对照：判 met 不计（M13=0），且判据层不被本卡改写', async () => {
+    const original = OFFLINE_SCRIPTS['B018-eval']!;
+    OFFLINE_SCRIPTS['B018-eval'] = [
+      { when: /.*/, ifNoToolResult: true, response: { text: '{"verdict":"met","evidence":[],"reason":"符合验收"}' } },
+    ];
+    try {
+      const report = await runScenario(evalArmOpts('B018'));
+      tempDirs.push(report.workspace);
+
+      // 阳性控制：评估器确实跑了、且确实判 met（否则 M13==0 是空断言）
+      expect(report.finalText).toContain('评估结论：met');
+      expect(report.metrics.M13).toBe(0);
+
+      // 判据照旧：B018 的 golden 要 not_met/缺少证据 ⇒ 判 met 时如实 fail（本卡不改判据层）
+      expect(report.success).toBe(false);
+      expect(report.asserts.map((a) => a.result)).toEqual(['fail', 'pass']);
+    } finally {
+      OFFLINE_SCRIPTS['B018-eval'] = original;
+    }
+  }, 60_000);
+
+  it('③ 负对照：回投的自由文本、来源与既有判据逐字不变', async () => {
+    const report = await runScenario(evalArmOpts('B018'));
+    tempDirs.push(report.workspace);
+
+    // 判据侧：条数/结果/场景结论/回合 kind 与改动前逐字相同（本卡只增加结构化计数）
+    expect(report.asserts.map((a) => a.result)).toEqual(['pass', 'pass']);
+    expect(report.success).toBe(true);
+    expect(report.finalText).toBe('评估结论：not_met（验收要求测试全绿，缺少证据）');
+    expect(report.turnKind).toBe('success');
+
+    // 回投记录侧：那条自由文本**逐字保留**（若被别的判据消费，见 B018.yaml 的 record_seen）
+    const injected = parentRecords(report).filter((r) => r.type === 'user/message' && r.source === 'inject');
+    expect(injected).toHaveLength(1);
+    expect(injected[0]!.content).toBe('Evaluator Agent 结论：not_met（验收要求测试全绿，缺少证据）');
+    expect(injected[0]!.role).toBe('user');
+    expect(injected[0]!.surface).toBe(true);
+  }, 60_000);
+});

@@ -678,7 +678,7 @@ interface HarnessAdapter {
 | M10 Time | 全部 |
 | M11 Cost | live 场景 |
 | M12 Safety Violations | B006/B019（口径审计） |
-| M13 Evaluator Reject Count | B009/B014/B018（evaluator 使能臂） |
+| M13 Evaluator Reject Count | B009/B014/B018（evaluator 使能臂）；**现状对账**：B009/B014 尚无 manifest，B018 只跑 evaluator 臂且其 `measured` 未列 M13 ⇒ 当前没有任何 scenario 把 M13 写进判据或 `measured`（指标本身照常产出：`team_end` 载荷的 evaluate 成员 review.verdict，以及基准 evaluator 臂经 `Telemetry.recordEvaluatorReject()` 入账） |
 | M14 Autonomy | 全部（B006/B011 特别关注） |
 
 ## 附录 B：术语

@@ -222,19 +222,24 @@ describe('B13 llm/retry 持久记录（会话日志 = 唯一真源）', () => {
       expect(persisted.some((r) => r.type === type)).toBe(true);
     }
 
-    // 词表之外的类型不得出现（`SessionRecord` 联合扩容后，日志里只允许这两个新成员）
+    // 词表之外的类型不得出现：本集合 = 既有类型 + `SessionRecord` 联合的**全部成员**。
+    //
+    // BRIEF-C 更正（本卡）：这里曾把 `audit/safety`(B21)、`compaction/summary`(B15)、
+    // `session/end-seed`(B11) 也列进来 —— 而这三者**连类型声明都没有**：`SessionRecord`
+    // 联合里没有成员、全仓无生产者、无消费者，只有 `docs/EVENT-SPEC.md`（B15/B11）与
+    // `docs/POLICY-SPEC.md`（B21）的声明。把"不可能出现的类型"写进白名单，等于在这三项上
+    // 把本条守卫的用途（"日志里不得出现词表外类型"）变成恒真：真写出一个不存在的类型反而会绿。
+    // ⇒ 已删去。它们改由 `packages/shared/src/unwiredRecords.test.ts` 的同族清单守卫钉住
+    // "零类型、零产、零消"，那里在有人开始接线（第一步是补类型）时先红。
     const KNOWN = new Set([
       ...Object.keys(LEGACY_KEYS),
       'request/header', // B12（同卡的另一半）
       'llm/retry', // B13（本文件）
       'audit/decision',
       'audit/denial',
-      'audit/safety',
       'compaction/start',
       'compaction/end',
-      'compaction/summary',
       'session/created',
-      'session/end-seed',
       'tool/call',
       'tool/result',
       'assistant/attempt',

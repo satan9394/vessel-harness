@@ -501,6 +501,29 @@ async function driveScenario(
     });
     const acceptance = manifest.pass.filter((p) => p.type === 'file_content').flatMap((p) => p.golden ?? []);
     const verdict = await evaluator.evaluate({ goal: manifest.goal, generatorOutput: gen.finalText, acceptance });
+    // ---- M13 结构化落点（BRIEF-A）-------------------------------------------
+    // 改前：verdict **只**以自由文本回投（下面那条 `user/message`），而 telemetry 里 M13
+    // （EvaluatorRejectCount）的唯一生产者是 `team_end` handler ⇒ 基准/CLI 这两条**已交付**
+    // 车道上 M13 恒 0：`docs/BENCHMARK-SPEC.md` §4.1 把它列为被测量、`asserts.ts` 的
+    // `metricValue('M13')` 读它，而本臂跑的是 EvaluatorAgent（不经 TeamRuntime，
+    // 也就不产生 `team_end`）——记录层说得清"评审拒绝了"，指标却看不见。
+    //
+    // 修法：把裁决送进**既有**的计数入口 `Telemetry.recordEvaluatorReject()`
+    // （`packages/telemetry/src/Telemetry.ts`，M13 的唯一计数器）。这是**类型化调用**：
+    // 没有让 telemetry 去正则解析下面那份自由文本（自由文本可被任意用户消息伪造 ⇒ 判据失真），
+    // 没有新增事件/记录类型，也没有扩 `SessionRecord` 联合。
+    //
+    // 口径逐字对齐 `docs/BENCHMARK-SPEC.md` §4.1 的 M13 行：「拒绝」= 四个 verdict 里
+    // 除去 `met` 的那三个。写成 `!== 'met'` 而不是再抄一份三值白名单：词表将来若多出
+    // 第五个取值，宁可**多计**（fail-loud、当场可见）也绝不静默少计（本仓对计数器的硬要求，
+    // 同 `Telemetry.countRetry` 的注释）。
+    //
+    // 边界（如实）：本臂只覆盖 **benchmark/CLI 的 evaluator 臂**；Goal Loop（LoopEngine 的
+    // `RealEvaluatorAdapter`）与 `InternalReviewer` 的裁决仍不在这条线上，那两条通路未接线。
+    //
+    // 负对照：本臂交给下游的东西**逐字未动** —— 下面那条自由文本仍逐字写进
+    // `user/message{source:'inject'}`，返回值仍是 `评估结论：…`（runner.test.ts 的用例③钉住）。
+    if (verdict.verdict !== 'met') harness.telemetry.recordEvaluatorReject();
     // 生成器回合的 kind **必须**带走：evaluator 收到的是 gen.finalText，若这次生成
     // 回合被熔断器打死（kind='error'），那么交给独立评审的"生成器输出"其实是错误
     // 文案（"same intent denied 3 times: …"），丢掉 kind 会让报告只留一个评审结论、

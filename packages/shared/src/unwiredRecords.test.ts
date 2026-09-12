@@ -109,3 +109,94 @@ describe('audit/decision(B19) —— 已登记但未接线：零生产者、零�
     expect(src).toContain('未接线'); // 接线时必须一并改这里，否则本行红
   });
 });
+
+/**
+ * 同族清单项（BRIEF-B）—— `compaction/summary`(B15) 与 `session/end-seed`(B11)。
+ *
+ * `docs/EVENT-SPEC.md` 把二者写成**持久记录**（§6 自动持久记录清单的 B15/B11 行；
+ * 词表另见 §3/§4），而全仓：
+ *   - **零类型**：`packages/shared/src/events.ts` 的 `SessionRecord` 联合里没有成员，
+ *     连接口都没有 —— 比 `audit/decision`(B19) 更彻底（B19 至少还有类型与联合成员）；
+ *   - **零生产者**：任何非测试源码里都没有这两个字面量（无 `appendSync`、无 emit）；
+ *   - **零消费者**：没有 `=== '<type>'` / `case '<type>':` 读取分支；回放面
+ *     （`Telemetry.finalizeRecord`）与 UI/投影都不认识它们。
+ * 复核证据（本卡当时的工作树）：全仓 `compaction/summary` / `session/end-seed` 的命中只有
+ * `docs/**`（声明与对照研究）与 `packages/core/src/agent-loop/AgentLoop.llm-retry-record.test.ts`
+ * 的 KNOWN 白名单 —— 后者正是 BRIEF-C 要修的那张"把不存在的类型写成允许出现"的表，
+ * 本卡已把它删干净（`.test.ts` 不在本文件的扫描面内）。
+ *
+ * 处置（照 B19 那张卡的判例二选一：**接上**或**如实标注 + 可执行守卫**）：
+ *   - `compaction/summary`：**不接线**。同族的 `compaction/start`(B14) 已有真实生产者
+ *     （`packages/context/src/compaction/Compaction.ts` 的 `appendSync`）与消费者
+ *     （`Telemetry.finalizeRecord` 的 `case 'compaction/start':`），而**摘要全文**在当前实现里
+ *     根本没有落点：压缩把摘要写成 `user/message{source:'compacted-summary'}` 的 surface 替换
+ *     （模型可见面），原始摘要全文不落盘。要接上它得动 `packages/context/**`（不在本卡改动
+ *     范围），故本卡只把"没有它"钉成事实、绝不擅自实现一半。
+ *   - `session/end-seed`：**不接线**。种子边界标记（fork = seed 前缀 + 谱系）；当前 fork/resume
+ *     只用 `session/created` 的 `parentSession`/`isSeeded`/`delegationDepth` 表达谱系，没有任何
+ *     "边界"记录。同族接线落在 `packages/core/**`（不在本卡改动范围）。
+ *   - 两条都**不**属于 `docs/ARCHITECTURE.md` §4.11 那种"记录已落盘、回放侧无消费方"的措辞
+ *     （那是 `request/header`/`turn/end.stats` 的情况）——它们连"已落盘"都还没有，
+ *     所以只能靠**本守卫**证明"至今没有它"，而不是靠文档里的"未消费"。
+ *
+ * 「删哪行会红」：
+ *   - 任何地方写出 `type: 'compaction/summary'` / `type: 'session/end-seed'`（即开始接线）
+ *     ⇒ ② 红；
+ *   - 新增 `=== '…'` / `case '…':` 读取分支 ⇒ ③ 红；
+ *   - 往 `events.ts` 补这两个记录的类型/联合成员（接线的第一步）⇒ ④ 红 —— 这正是本组用例作为
+ *     **接线绊线**的用途：逼接线的人同时更新本清单、`docs/EVENT-SPEC.md` 与
+ *     `AgentLoop.llm-retry-record.test.ts` 的 KNOWN 白名单（BRIEF-C 已把这三项从那里删掉）；
+ *   - 把扫描根写错 / 不再读文件 ⇒ ① 红。
+ */
+const UNDECLARED_UNWIRED: readonly { type: string; spec: string; familyNote: string }[] = [
+  {
+    type: 'compaction/summary',
+    spec: 'B15',
+    familyNote: '同族 compaction/start(B14) 已有产者+消者；summary 全文当前无落点',
+  },
+  {
+    type: 'session/end-seed',
+    spec: 'B11',
+    familyNote: '同族 session/created(B10) 已有产者；边界标记当前无落点',
+  },
+];
+
+describe('compaction/summary(B15) 与 session/end-seed(B11) —— 已登记但未接线：无类型、零生产、零消费（可执行守卫）', () => {
+  const sources = collectSources();
+  /** 这两条连类型声明都没有 ⇒ 词表声明文件本身**不豁免**：`events.ts` 里出现字面量同样算接线。 */
+  const all = sources;
+
+  it('① 负对照：扫描器确实读到了源码（同族**已接线**的 compaction/start 必须被扫到）', () => {
+    expect(sources.length).toBeGreaterThan(50);
+    expect(sources.some((s) => s.text.includes("type: 'compaction/start'"))).toBe(true);
+    expect(sources.some((s) => s.text.includes("case 'compaction/start':"))).toBe(true);
+  });
+
+  it('② 生产侧 0 处：没有任何写入（appendSync / emit）—— 连带引号的字面量都不存在', () => {
+    for (const item of UNDECLARED_UNWIRED) {
+      const producers = all.filter((s) => s.text.includes(`'${item.type}'`) || s.text.includes(`"${item.type}"`));
+      expect(
+        producers.map((s) => rel(s.file)),
+        `${item.spec} \`${item.type}\` 出现在生产源码里 ⇒ 视为接线，请同时更新本清单（${item.familyNote}）`,
+      ).toEqual([]);
+    }
+  });
+
+  it("③ 消费侧 0 处：没有任何 `=== '<type>'` / `case '<type>':` 读取分支", () => {
+    for (const item of UNDECLARED_UNWIRED) {
+      const re = new RegExp(`(===|case)\\s*['"]${item.type.replace('/', '\\/')}['"]`);
+      const consumers = all.filter((s) => re.test(s.text));
+      expect(consumers.map((s) => rel(s.file)), `${item.spec} \`${item.type}\` 已有回放/投影消费方`).toEqual([]);
+    }
+  });
+
+  it('④ 类型未声明（**接线绊线**）：events.ts 里仍无这两个记录的类型/联合成员', () => {
+    const src = fs.readFileSync(EVENTS_TS, 'utf8');
+    for (const item of UNDECLARED_UNWIRED) {
+      // 一旦有人开始接线（第一步就是声明类型 + 加联合成员），本行先红：
+      // 届时请把该条从本清单移出、给事件类型补上「未接线→已接线」的标注，
+      // 并同步 BRIEF-C 修过的那张 KNOWN 白名单。
+      expect(src.includes(`'${item.type}'`), `${item.spec} \`${item.type}\` 已在 events.ts 里声明 ⇒ 请更新本守卫`).toBe(false);
+    }
+  });
+});
