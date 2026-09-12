@@ -393,6 +393,8 @@ async function main(): Promise<void> {
   // 计时 flaky」——env 泄漏（VESSEL_OPENCODE_GO_BASE_URL）导致 2 例 baseUrl 断言失败时仍这么写，
   // 会把真实回归当成环境性 flaky 忽略（宣称与证据不符）。现在只有证据确实只指向 process-tree.test.ts
   // 时才写该注解，否则如实标注「未自动归因」。
+  // Round 14：分支 A 文案改为**条件式**（单跑通过才算 flaky；单跑同样失败即真实回归）；写入逻辑抽成
+  // annotateUnitFailureNote（行为等价）以便 run-release-gates.note.test.ts 单测。
   for (const g of report.gates) {
     annotateUnitFailureNote(g);
   }

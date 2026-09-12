@@ -7,7 +7,7 @@
 
 **独立审计的原始论断**：`repoRoot()` 只在仓库内找到 `configs/policy.default.yaml`；`PolicyLoader` 对缺失的 `systemPath` 静默跳过；`apps/**` 无任何地方给 `policyProjectPath` 赋值。
 
-**Orchestrator 实测（判别性，两次）**：
+**Orchestrator 实测（判别性，三次）**：
 
 | 场景 | 实测结果 |
 |---|---|
@@ -15,14 +15,25 @@
 | 同场景，但放入文档宣称的项目级策略 `<ws>/.harness/policy.yaml`（2.7KB，取自仓库默认） | **仍** `exit=1` + `no policy declaration found` → **项目级策略确实未被读取** |
 | `apps/**` 对 `policyProjectPath` 的赋值点 | **0 处**（`compose.ts:47` 声明、`:175` 透传为 `projectPath`，无人赋值） |
 
-**结论（裁量为 P0）**：`docs/POLICY-SPEC.md:457-458` 宣称的 **project 级作用域不存在**，用户照文档写 `.harness/policy.yaml` 会被**静默忽略**；同时**没有任何命令能查看"当前生效的策略来自哪里"**。产品差异化是"Behavior IR + Policy 编译执法"，而执法边界在用户的工作区里**既可能缺失又不可见**。
+**接线后复测（同一判别式，`DISCRIMINATES=True`）**：
+
+| 场景 | 实测结果 |
+|---|---|
+| 临时工作区**不放** `.harness/policy.yaml` | `exit=1` + `no policy declaration found` |
+| 临时工作区**放入**该项目策略 | **不再**报 `no policy declaration found` → **project 层真被读取**；但失败点前移为 `behavior IR not found: <ws>/configs/behavior.default.yaml` |
+
+**由此暴露的更深根因（1A 的真因，比审计所指更基本）**：默认配置路径全部按 **cwd** 拼（`policySystemPath`/`behaviorIRPath` → `<cwd>/configs/*.yaml`），而 `configs/` **只存在于本仓库**——**CLI 没有随自身携带的内置默认配置**。所以"用户在自己的工作区里跑 `vessel run`"必然失败，与策略层是否接通无关。**"装在哪儿、默认就在哪儿"是本次要修的核心。**
+
+**结论（裁量为 P0）**：`docs/POLICY-SPEC.md:457-458` 宣称的 **project 级作用域不存在**，用户照文档写 `.harness/policy.yaml` 会被**静默忽略**；同时**没有任何命令能查看"当前生效的策略来自哪里"**；且**默认配置依赖 cwd**，使产品在用户自己的项目里无法开箱可用。产品差异化是"Behavior IR + Policy 编译执法"，而执法边界在用户的工作区里**既可能缺失又不可见**。
 
 ## 二、Round 15 切片的取舍
 
-**NOW（Round 15）—— 策略可装载 + 可见 + 不静默降级**（一个主题、三件强耦合的事）：
-1. **打通 project 级策略**：CLI/TUI 把 `<workspace>/.harness/policy.yaml`（存在时）接到 `policyProjectPath`；不存在则视为正常缺省（可选层）。
-2. **生效策略可见**：新增只读命令（如 `vessel policy status`）打印**每一层的来源路径、是否存在、声明条数、内容哈希**，以及**合成后的生效层序**；`--json` 亦可用（沿用 Round 10/14 的信封与出口纪律）。
-3. **不静默降级**：当**系统策略缺失**而其它声明存在（即"部分装载"）时给出**明确警告**（不是静默通过）；警告与 `policy status` 使用同一套事实。
+**NOW（Round 15）—— 策略可装载 + 可见 + 不静默降级**（一个主题、强耦合）：
+1. **内置默认配置**（实测新增的根因）：默认 policy/behavior 必须解析到 **CLI 自身携带**的那份（"装在哪儿、默认就在哪儿"），而不是 `<cwd>/configs/*` ——否则用户在自己工作区里无法开箱运行。
+2. **打通 project 级策略**：CLI/TUI 把 `<workspace>/.harness/policy.yaml`（存在时）接到 `policyProjectPath`；不存在则视为正常缺省（可选层）。**已落地**（`cli.ts:173` helper + `cmdRun` + TUI 两分支 + `chat.ts` 透传；AC1 判别性 E2E `DISCRIMINATES=True`）。
+3. **生效策略可见**：新增只读命令（如 `vessel policy status`）打印**每一层的来源路径、是否存在、声明条数、内容哈希**，以及**合成后的生效层序**；`--json` 亦可用（沿用 Round 10/14 的信封与出口纪律）。
+4. **不静默降级**：当**系统策略缺失**而其它声明存在（即"部分装载"）时给出**明确警告**（不是静默通过）；警告与 `policy status` 使用同一套事实。
+5. **诚实**：未实现的作用域（user 层、workspace trust 门）在 `POLICY-SPEC` 明确标注未实现，或本轮实现之——**不允许含糊**。
 
 **不做（明确拒绝，均来自重审）**：更多 provider（已 56–71 个，PROJECT-BRIEF:40 已定不扩）；Web 功能对齐（`apps/web/src/i18n.ts:79,114` 仍是占位，而 CLI 主路径未修）；新增第 7 个 adapter 或更多设计文档（Conformance 076-084 已完成，缺口在**暴露**而非**能力**：CLI 无命令可跑外部 adapter）；插件市场/云/远程控制（PROJECT-BRIEF:38-39 已排除）；拆微服务。
 

@@ -17,9 +17,12 @@
  *  因此这里导入是安全的（不触发任何真实命令 / 网络 / 凭据读取）；反之，**若有人删掉该 entry 判定，
  *  本文件在 import 阶段就会真跑门禁并失败**（该判定自带判别力）。
  *
- * 判别性：下面每条断言都能在两类「退步」中变红 ——
- *  - 把 `isProcessTreeTestFile()` 改回 `endsWith('process-tree.test.ts')` → 后缀陷阱用例与谓词表变红；
- *  - 去掉分支 A 的条件语（改回「非回归 / 按项目惯例视为环境性 flaky」的既定事实文案）→ 条件语断言变红。
+ * 判别性（每条断言都有对应的「退步」杀手）：
+ *  - 把 `isProcessTreeTestFile()` 改回 `endsWith('process-tree.test.ts')` → 「后缀陷阱」用例（分支 A 误命中）
+ *    与谓词表的「后缀陷阱 / 同 basename 异目录」行变红；
+ *  - 去掉分支 A 的条件语（改回「非回归 / 按项目惯例视为环境性 flaky」的既定事实文案）→ 条件语断言变红；
+ *  - 删掉分支 A 的计数守卫（`failedFileCount === 1` / `failedTestFiles.length === 1`）→「两个文件失败」
+ *    与「计数守卫」两条用例变红。
  */
 import { describe, it, expect } from 'vitest';
 import {
@@ -98,7 +101,7 @@ interface NoteCase {
 }
 
 /**
- * 表驱动：4 支注记判别（分支 A / 两文件失败 / 只有汇总行 / 后缀陷阱）。
+ * 表驱动：5 支注记判别（分支 A / 两文件失败 / 计数守卫 / 只有汇总行 / 后缀陷阱）。
  * `mustNotContain` 是判别性的核心 —— 退步时它们会一起变红。
  */
 const NOTE_CASES: NoteCase[] = [
@@ -131,6 +134,21 @@ const NOTE_CASES: NoteCase[] = [
       '失败行出现的测试文件',
     ],
     mustNotContain: ['flaky', '唯一失败', '环境性', '11/11'],
+  },
+  {
+    name: '计数守卫：汇总行 Test Files 2 failed 但尾部失败行只剩 process-tree 一条 → 不得写 flaky',
+    evidence: {
+      summary: 'unit gate 失败（vitest exit 1）',
+      detail: [
+        // compactLines 只留 stdout 末 12 行 → 2 个失败文件里可能只剩 1 条 FAIL 行：
+        // 尾部截取不足以支撑「唯一失败」结论，必须以汇总行的计数为准。
+        `FAIL  ${PROCESS_TREE_TEST_FILE} > sandbox backend > timeout`,
+        'Test Files  2 failed | 127 passed (129)',
+      ],
+    },
+    mustContain: ['未自动归因', 'vitest 汇总行：Test Files  2 failed | 127 passed (129)'],
+    // 删掉 `failedFileCount === 1` 守卫就会退回分支 A → 这三条一起变红
+    mustNotContain: ['flaky', '11/11', '唯一失败'],
   },
   {
     name: '分支 B/C：只有汇总行、无任何 *.test.ts 路径（detail 被截断）→ 只给 stats + 未自动归因',

@@ -2,6 +2,7 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { spawn } from 'node:child_process';
+import { fileURLToPath } from 'node:url';
 import { VERSION, renameWithRetry } from '@vessel/shared';
 import { MockProvider } from '@vessel/llm';
 import {
@@ -168,6 +169,26 @@ function repoRoot(): string {
   return process.cwd();
 }
 
+/**
+ * 内置默认配置根：CLI 源码/产物所在位置向上找到含 configs/ 的目录。
+ *
+ * G-15：默认配置必须"装在哪儿就在哪儿"——否则用户在自己工作区里跑 `vessel run` 时，
+ * 默认 policy/behavior 会被拼成 `<cwd>/configs/*.yaml`（该目录只存在于本仓库），必然失败。
+ * 源码 apps/cli/src/cli.ts 与产物 apps/cli/dist/cli.js 距仓库根同深（各上溯 3 级），
+ * 且 `npm link` 默认按 realpath 解析包路径，故两种形态解析结果一致。
+ * 都找不到时回落到 repoRoot()——保持旧行为，不抛。
+ */
+function builtinConfigRoot(): string {
+  let dir = path.dirname(fileURLToPath(import.meta.url));
+  for (let i = 0; i < 6; i++) {
+    if (fs.existsSync(path.join(dir, 'configs', 'policy.default.yaml'))) return dir;
+    const parent = path.dirname(dir);
+    if (parent === dir) break;
+    dir = parent;
+  }
+  return repoRoot();
+}
+
 /** G-15：project 级策略（POLICY-SPEC:457-458）——<workspace>/.harness/policy.yaml。
  *  存在才传（缺省是合法状态：project 层可选）；不存在返回 undefined，不报错。 */
 function resolveProjectPolicyPath(workspaceRoot: string): string | undefined {
@@ -296,7 +317,8 @@ function applyMcpConnections(opts: ComposeOptions): string | null {
 
 async function cmdRun(flags: Map<string, string>): Promise<number> {
   const workspace = path.resolve(flags.get('workspace') ?? process.cwd());
-  const root = repoRoot();
+  // 默认 policy/behavior 取 CLI 自带的那份（与 cwd 无关）；--policy/--behavior 显式覆盖仍最高优先
+  const configRoot = builtinConfigRoot();
   const prompt = flags.get('prompt') ?? (process.stdin.isTTY ? '' : fs.readFileSync(0, 'utf8').trim());
 
   // provider resolution: explicit --provider wins; else the current default
@@ -354,10 +376,10 @@ async function cmdRun(flags: Map<string, string>): Promise<number> {
     workspaceRoot: workspace,
     provider,
     model,
-    policySystemPath: flags.get('policy') ?? path.join(root, 'configs', 'policy.default.yaml'),
+    policySystemPath: flags.get('policy') ?? path.join(configRoot, 'configs', 'policy.default.yaml'),
     // G-15：project 级策略（可选层）——工作区自带 <ws>/.harness/policy.yaml 时并入，缺失不报错
     policyProjectPath: resolveProjectPolicyPath(workspace),
-    behaviorIRPath: flags.get('behavior') ?? path.join(root, 'configs', 'behavior.default.yaml'),
+    behaviorIRPath: flags.get('behavior') ?? path.join(configRoot, 'configs', 'behavior.default.yaml'),
     maxSteps: Number(flags.get('max-steps') ?? 64),
     // `vessel resume` 透传：不给 sessionId 时 Session.open 会新建空会话，恢复语义失效。
     sessionId: flags.get('session-id'),
@@ -1727,14 +1749,14 @@ async function dispatch(parsed: ParsedArgs): Promise<number> {
     // 交互终端下无 --prompt 时进入 TUI 恢复（sessionId 显式取该会话登记 id）；
     // 有 --prompt 仍走一次性 cmdRun。非 TTY 保持原行为（cmdRun 自行报错）。
     if (!parsed.flags.has('prompt') && process.stdin.isTTY) {
-      const root = repoRoot();
+      const configRoot = builtinConfigRoot();
       return runChat({
         store: defaultProviderStore(),
         workspaceRoot: target.meta.workspaceRoot,
-        policySystemPath: parsed.flags.get('policy') ?? path.join(root, 'configs', 'policy.default.yaml'),
+        policySystemPath: parsed.flags.get('policy') ?? path.join(configRoot, 'configs', 'policy.default.yaml'),
         // G-15：project 级策略（可选层）——工作区根与本分支传给 runChat 的 workspaceRoot 同源
         policyProjectPath: resolveProjectPolicyPath(target.meta.workspaceRoot),
-        behaviorIRPath: parsed.flags.get('behavior') ?? path.join(root, 'configs', 'behavior.default.yaml'),
+        behaviorIRPath: parsed.flags.get('behavior') ?? path.join(configRoot, 'configs', 'behavior.default.yaml'),
         permission: (parsed.flags.get('permission') ?? target.meta.permission) as
           | 'read-only'
           | 'workspace-write'
@@ -1755,14 +1777,14 @@ async function dispatch(parsed: ParsedArgs): Promise<number> {
   // bare `vessel` (no subcommand): interactive TUI in a TTY; guide otherwise.
   if (first === undefined && parsed.command === 'run' && !parsed.flags.has('bench')) {
     if (!parsed.flags.has('prompt') && process.stdin.isTTY) {
-      const root = repoRoot();
+      const configRoot = builtinConfigRoot();
       return runChat({
         store: defaultProviderStore(),
         workspaceRoot: path.resolve(parsed.flags.get('workspace') ?? process.cwd()),
-        policySystemPath: parsed.flags.get('policy') ?? path.join(root, 'configs', 'policy.default.yaml'),
+        policySystemPath: parsed.flags.get('policy') ?? path.join(configRoot, 'configs', 'policy.default.yaml'),
         // G-15：project 级策略（可选层）——工作区根与本分支传给 runChat 的 workspaceRoot 同源
         policyProjectPath: resolveProjectPolicyPath(path.resolve(parsed.flags.get('workspace') ?? process.cwd())),
-        behaviorIRPath: parsed.flags.get('behavior') ?? path.join(root, 'configs', 'behavior.default.yaml'),
+        behaviorIRPath: parsed.flags.get('behavior') ?? path.join(configRoot, 'configs', 'behavior.default.yaml'),
         permission: (parsed.flags.get('permission') ?? 'workspace-write') as 'read-only' | 'workspace-write' | 'danger-full-access',
         usageStore: createUsageStore({ strict: parsed.flags.has('strict') }),
         sessionId: parsed.flags.get('session-id'),
