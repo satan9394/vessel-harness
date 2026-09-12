@@ -1,7 +1,7 @@
 # PRODUCT-STATE — Vessel 产品演进状态（Orchestrator 维护）
 
 > 每轮结束更新。**当前进度：第 20 轮闭环**（Round 1–20）。**最终基线（均实测）**：`tsc 0`、全量 **138 文件 / 1596 passed + 5 skipped / 0 failed**（+2 skip 为 POSIX-only 用例在 Windows 显式跳过）、**`npm install --dry-run` exit 0（51 条 `@vessel/*` 声明零不匹配）**、**发布门禁 8 道常驻 + 第 9 道可选安装态冒烟（含升级路径；实测 `✅ PASS | 38101ms`：16 tarball → 空项目离线安装 exit 0 → system 层路径在包内 + `usage` 无缺配置警告）**、**symlink 出界已由变异测试验证封堵**（同一探针在移除修复后 `outsideFileCreated` 由 `false` 翻 `true`）。
-> 产物索引：`docs/PROJECT-BRIEF.md`、`docs/product-audit/*`（4 份独立审计）、`ROUND-15-DIRECTION.md`（现状重审与定向）、`PRODUCT-GAP-MAP.md`（缺口 + **路线图 NOW/NEXT/LATER/NOT_NOW**）、`IMPLEMENTATION-BRIEF-0N.md` / `EVALUATION-REPORT-0N.md`（每轮规格与独立裁定，最新 24）、本文档（状态与**18 条纪律**）。
+> 产物索引：`docs/PROJECT-BRIEF.md`、`docs/product-audit/*`（4 份独立审计）、`ROUND-15-DIRECTION.md`（现状重审与定向）、`PRODUCT-GAP-MAP.md`（缺口 + **路线图 NOW/NEXT/LATER/NOT_NOW**）、`IMPLEMENTATION-BRIEF-0N.md` / `EVALUATION-REPORT-0N.md`（每轮规格与独立裁定，最新 24）、本文档（状态与**20 条纪律**）。
 >
 > **如何继续（无我也能接手）**：① 先读 `PRODUCT-GAP-MAP.md` 的**路线图**取下一片（NEXT 里都是**已具证据**项，不必重新调研）；② 按六步循环开工——**拆卡 → 派隔离 Workers（写入型微任务，禁跑命令）→ 指挥跑 `tsc -b`/`vitest`/真实 CLI 取证据 → 派全新上下文的对抗 Evaluator → 按其 REJECT 修 → 复评**；③ **每卡必须自带判别性证据**（"删掉该实现哪条断言会红"），并把"修复前必红清单"写进卡片；④ 涉及合并/装载/接线/打包的验收**必须至少一条走完整生产入口**（纪律 15）；⑤ 每轮末尾更新本文档与路线图。**旁证口径**：全量 `vitest`、`npx tsc -b`、`benchmarks/runners`、以及 `docs/product-evolution/EVALUATION-REPORT-*.md` 的裁定。
 
