@@ -26,13 +26,20 @@ import { main } from './cli.js';
  *   3. **多行出口**：`provider set` / `provider export --with-secrets` 原本逐行打印用法块 →
  *      `--json` 下 `message` 含 `\n`（多行以换行连接），非 JSON 下**逐行**输出（split 成数组比对）。
  *   4. **信封纯净性**：1)–9) 的每个 `--json` 失败出口都断言 `stdout.trim() === ''`（信封只打一次、
- *      且只进 stderr）。**唯一例外见 6**（那条不是放宽，是如实声明一个"先产出成功文档、再失败"的出口）。
+ *      且只进 stderr）。**唯一例外见 10**（那条不是放宽，是如实声明一个"先产出成功文档、再失败"的出口）。
+ *      ——**本卡补注（同一类例外的第二处，不属本文件的用例）**：`vessel run --json` 在**回合正常返回**
+ *      后也有"先产出 stdout 文档、再走 `fail`"的形状（`cmdRun` 用 `emitJson` 产出
+ *      `kind/finalText/steps/toolCalls/turnId/sessionLog`，随后 `kind='error'` 才 `fail(1, …)`）。
+ *      判别性用例在 `cli.test.ts`「③-3」（stdout 恰好一段 JSON + stderr 信封同源）。本文件 8)/9) 那条
+ *      `run --json` 是**回合还没开始**的前置条件失败（MCP 配置坏 / 缺 base-url）⇒ stdout 仍为空，
+ *      两条断言原样保留。
  *   5. **参数合法但前置条件缺失**：`models --provider ghost`（登记表里没有该 provider）与
  *      `run` + 损坏的 `mcp.json`（配置本身坏、fail-loud）——两条都**零网络、零真实状态写入**。
  *   6. **`policy status` 的新非 0 出口**（本卡 A）：合成后不可编译 ⇒ 退出码 1，信封走既有 `fail`。
- *      它是**唯一**一个"失败时 stdout 仍有一段 JSON"的出口（`cmdPolicyStatus` 先把只读产物
+ *      它此前是**唯一**一个"失败时 stdout 仍有一段 JSON"的出口（`cmdPolicyStatus` 先把只读产物
  *      `compiled:false` / `compileError` 写进 stdout，再失败）——故那一条改判「stdout 恰好一段
- *      可解析 JSON 且就是那份文档」，而 1)–9) 的空 stdout 断言原样保留。
+ *      可解析 JSON 且就是那份文档」，而 1)–9) 的空 stdout 断言原样保留。（上面 4 的补注：`run --json`
+ *      的**已收尾回合**同样如此，但那是另一张卡在本文件之外补的用例，本文件的断言一条未动。）
  *
  * 非 JSON 原文常量的来源说明（本轮无法跑 git，故按「改造语义」确认）：切片 A 的改造是
  * **机械替换**——`console.error(msg); return N;` ↔ `fail(N, msg, flags, () => console.error(msg))`。
@@ -371,6 +378,8 @@ describe('--json 失败出口（Round 14 切片 A）：走真实 main()', () => 
    * 而是如实声明该出口的形状：`cmdPolicyStatus` **先把只读产物写进 stdout**
    * （`layers` / `compiled:false` / `compileError` —— 失败不缩水只读查询的产物），
    * **再**走既有 `fail` 出口把信封写进 stderr。上面 1)–9) 的 `stdout === ''` 断言一条都没动。
+   * （本文件之外还有**同类**的第二处：`vessel run --json` 的**已收尾回合**，见文件头 4 的补注
+   * 与 `cli.test.ts`「③-3」；它不在本文件的用例集里，故本文件的断言不受影响。）
    *
    * 判别性：改动前这里退 0（`cmdPolicyStatus` 两个出口都写死 `return 0`）⇒ `toBe(1)` RED；
    * 若失败走了 stderr **人类文案**而不是 `fail` 信封 ⇒ `JSON.parse(cap.err())` 抛 ⇒ RED。

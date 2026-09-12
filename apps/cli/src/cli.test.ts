@@ -12,6 +12,9 @@ import { composeHarness } from '@vessel/application';
 import { MockProvider } from '@vessel/llm';
 import { ProviderStore } from './providers/ProviderStore.js';
 import { providerStateRoot } from './providers/defaultStore.js';
+// 本卡②：`vessel migrate` 的执行缝注入（`cli.migrateRuntime.run`）需要一个**带类型**的结果对象，
+// 否则对象字面量的 `status` 会被推断成 `string` 而赋不进去（tsc 报 TS2322）。
+import type { MigrationResult } from './migrate.js';
 import { loadModelCatalog } from './providers/modelCatalog.js';
 // 本卡：把 TUI 的回合呈现函数当**参照口径**读进来（只读引用，不修改 tui/**）——
 // "同一个错误回合，TUI 不盖模型标记"这条对照要在**同一个用例里**可执行地钉住。
@@ -2271,6 +2274,154 @@ describe('vessel provider export/import + endpoint (task 095/096)', () => {
   });
 
   /**
+   * 本卡① —— `--all` 的判据必须是**逐供应商**的「该供应商至少有一个端点可达」。
+   *
+   * 复现（改前，静态可核；判别性由下面两条用例给出）：`cmdProviderEndpointTest` 改动前的收尾
+   * 是**唯一一行** `return anyReachable ? 0 : 1;`，而 `anyReachable` 的赋值是
+   * `if (results.some((r) => r.reachable)) anyReachable = true;`——它跨**所有**供应商累积，
+   * 于是「供应商 A 所有端点都不可达 + 供应商 B 有一个端点可达」⇒ `anyReachable === true`
+   * ⇒ **退 0**，A 的全灭只体现在 stdout 文案里；脚本读退出码，读不到。
+   *
+   * 裁决：`--all` 下**任一所测供应商的全部端点都不可达 ⇒ 退出码非 0**（逐供应商判定，
+   * 别家的可达**不能抵消**）；单供应商模式 `test <id>` 的既有语义**不动**（见同一 describe
+   * 里既有的「endpoint test 全不可达 → exit 1」与「--set-default」两条用例，本轮**未改一字**）。
+   *
+   * 判别性（"删哪行会红"）：
+   *   - 用例 1：把 `cmdProviderEndpointTest` 末尾本卡的逐供应商分支删掉（回到 `anyReachable ? 0 : 1`
+   *     作为唯一判据）⇒ `expect(code).toBe(1)` RED（那正是改动前的行为）。
+   *   - 用例 2（负对照）：把判据**收紧**成"任一端点不可达即失败"（丢掉"供应商级"含义）⇒
+   *     alpha 的候选池里那个死端点会把退出码顶成 1 ⇒ `expect(code).toBe(0)` RED。
+   *   - 两条用例都只用 **127.0.0.1**（死端点 = 端口 1 连接必拒；活端点 = 本地 http server），
+   *     零真实网络。
+   */
+  it('①-a（判别性，provider endpoint test --all）：A 全部端点不可达 + B 可达 ⇒ 退 1，且点名 A', async () => {
+    const good = http.createServer((_req, res) => {
+      res.setHeader('content-type', 'application/json');
+      res.end(JSON.stringify({ data: [] }));
+    });
+    await new Promise<void>((resolve) => good.listen(0, '127.0.0.1', resolve));
+    const goodUrl = `http://127.0.0.1:${(good.address() as AddressInfo).port}/v1`;
+    try {
+      await main(['provider', 'add', 'alpha', '--protocol', 'openai-compatible', '--base-url', 'http://127.0.0.1:1/v1', '--model', 'm']);
+      await main(['provider', 'add', 'beta', '--protocol', 'openai-compatible', '--base-url', goodUrl, '--model', 'm']);
+
+      const cap = captureChannels();
+      let code: number;
+      try {
+        code = await main(['provider', 'endpoint', 'test', '--all', '--timeout', '500']);
+      } finally {
+        cap.restore();
+      }
+
+      // 阳性控制：两家都真的被探测了，且 beta **确实可达**（旧写法正是靠它把退出码顶成 0）
+      const out = cap.out();
+      expect(out).toContain('探测 provider "alpha" 的 1 个端点');
+      expect(out).toContain('探测 provider "beta" 的 1 个端点');
+      expect(out).toContain(`✔ ${goodUrl}`);
+      expect(out).toContain('建议：无可用端点（全部不可达）');
+
+      // 判别点：改动前这里恒为 0（`anyReachable` 被 beta 顶起来）⇒ RED
+      expect(code).toBe(1);
+
+      // ④ 文案必须**点名**失败的那一家（不得只改码不改文案）
+      const failLine = cap.errLines().find((l) => l.includes('以下供应商的全部端点都不可达'));
+      expect(failLine).toBeDefined();
+      expect(failLine ?? '').toContain('：alpha（');
+      expect(failLine ?? '').not.toContain('beta');
+
+      // 探测只读：候选池与默认端点一个字节都没变（与既有「全不可达」用例同款）
+      const persisted = JSON.parse(fs.readFileSync(path.join(dir, 'providers.json'), 'utf8')) as { id: string; baseUrl?: string }[];
+      expect(persisted.map((p) => p.baseUrl)).toEqual(['http://127.0.0.1:1/v1', goodUrl]);
+    } finally {
+      await new Promise<void>((resolve) => good.close(() => resolve()));
+    }
+  });
+
+  it('①-b（负对照，provider endpoint test --all）：每家都至少一个端点可达 ⇒ 退 0，stdout 逐字不变、stderr 一行不多', async () => {
+    const goodA = http.createServer((_req, res) => {
+      res.setHeader('content-type', 'application/json');
+      res.end(JSON.stringify({ data: [] }));
+    });
+    const goodB = http.createServer((_req, res) => {
+      res.setHeader('content-type', 'application/json');
+      res.end(JSON.stringify({ data: [] }));
+    });
+    await new Promise<void>((resolve) => goodA.listen(0, '127.0.0.1', resolve));
+    await new Promise<void>((resolve) => goodB.listen(0, '127.0.0.1', resolve));
+    const goodAUrl = `http://127.0.0.1:${(goodA.address() as AddressInfo).port}/v1`;
+    const goodBUrl = `http://127.0.0.1:${(goodB.address() as AddressInfo).port}/v1`;
+    try {
+      // alpha 的候选池 = [死端点(baseUrl), 活端点]：**供应商级**判据（至少一个可达）⇒ 不算失败。
+      // 这条同时是"没把判据收紧成任一端点不可达即失败"的反向锁。
+      await main(['provider', 'add', 'alpha', '--protocol', 'openai-compatible', '--base-url', 'http://127.0.0.1:1/v1', '--model', 'm']);
+      await main(['provider', 'endpoint', 'add', 'alpha', goodAUrl]);
+      await main(['provider', 'add', 'beta', '--protocol', 'openai-compatible', '--base-url', goodBUrl, '--model', 'm']);
+
+      const cap = captureChannels();
+      let code: number;
+      try {
+        code = await main(['provider', 'endpoint', 'test', '--all', '--timeout', '500']);
+      } finally {
+        cap.restore();
+      }
+
+      expect(code).toBe(0);
+      // 逐字锁：成功路径上本卡**不加任何一行**——行数、顺序、每一行的文案都与改动前同一批
+      const lines = cap.lines();
+      expect(lines).toHaveLength(7);
+      expect(lines[0]).toBe('探测 provider "alpha" 的 2 个端点（GET {base}/models，不带凭据，超时 500ms）:');
+      expect(lines[1]).toMatch(/^  ✖ http:\/\/127\.0\.0\.1:1\/v1  \S.*\s\d+ms$/);
+      expect(lines[2]).toMatch(/^  ✔ .+  HTTP 200  \d+ms$/);
+      expect(lines[2]).toContain(goodAUrl);
+      expect(lines[3]).toMatch(/^  建议：.+（最快可达，\d+ms）——仅建议，未改动默认端点。$/);
+      expect(lines[3]).toContain(goodAUrl);
+      expect(lines[4]).toBe('探测 provider "beta" 的 1 个端点（GET {base}/models，不带凭据，超时 500ms）:');
+      expect(lines[5]).toMatch(/^  ✔ .+  HTTP 200  \d+ms$/);
+      expect(lines[5]).toContain(goodBUrl);
+      expect(lines[6]).toMatch(/^  建议：.+（已是默认端点，\d+ms）——仅建议，未改动默认端点。$/);
+      expect(lines[6]).toContain(goodBUrl);
+      // 成功路径 stderr 一个字节都没有（新加的失败文案不得误伤"全都可达"）
+      expect(cap.err()).toBe('');
+    } finally {
+      await new Promise<void>((resolve) => goodA.close(() => resolve()));
+      await new Promise<void>((resolve) => goodB.close(() => resolve()));
+    }
+  });
+
+  it('①-c（边界，如实声明，provider endpoint test --all）：未配端点的供应商不算失败——没有端点可测 ≠ 全部端点不可达', async () => {
+    const good = http.createServer((_req, res) => {
+      res.setHeader('content-type', 'application/json');
+      res.end(JSON.stringify({ data: [] }));
+    });
+    await new Promise<void>((resolve) => good.listen(0, '127.0.0.1', resolve));
+    const goodUrl = `http://127.0.0.1:${(good.address() as AddressInfo).port}/v1`;
+    try {
+      // `--protocol mock` 不要求 baseUrl（`cmdProvider` add 分支的既有校验）⇒ 该供应商
+      // `pool.length === 0`：**没有被探测过**，所以不进"全部端点都不可达"的判据。
+      // 理由（裁决的原话是"任一**所测**供应商"）：把它算成失败等于凭空发明一个新失败面
+      // （`--all` 会仅仅因为某个供应商没配端点就红）。此边界**如实标注**，若指挥侧裁定
+      // "没配端点也算失败"，翻转这里 + `cmdProviderEndpointTest` 的对应分支即可（本用例即锁）。
+      await main(['provider', 'add', 'ghost', '--protocol', 'mock', '--model', 'm']);
+      await main(['provider', 'add', 'beta', '--protocol', 'openai-compatible', '--base-url', goodUrl, '--model', 'm']);
+
+      const cap = captureChannels();
+      let code: number;
+      try {
+        code = await main(['provider', 'endpoint', 'test', '--all', '--timeout', '500']);
+      } finally {
+        cap.restore();
+      }
+
+      expect(cap.out()).toContain('provider "ghost": 没有端点可测（未配 baseUrl/endpoints）。');
+      expect(cap.out()).toContain(`✔ ${goodUrl}`); // 阳性控制：beta 真的被探测且可达
+      expect(code).toBe(0);
+      expect(cap.err()).toBe('');
+    } finally {
+      await new Promise<void>((resolve) => good.close(() => resolve()));
+    }
+  });
+
+  /**
    * BRIEF-18：`main(['run', …])` 会读 `mcp.json`（cmdRun → applyMcpConnections）——
    * 把 `VESSEL_MCP_ROOT` 也钉到本用例的临时 root（与 mockVisibility.test.ts:109-119 同款），
    * 绝不读/写真实 `~/.vessel/mcp.json`（那会让本卡用例因环境而红/变慢）；用完原样还原，
@@ -2489,6 +2640,163 @@ describe('vessel provider export/import + endpoint (task 095/096)', () => {
       const envelope = JSON.parse(envelopeLine ?? '{}') as { error: { message: string; code: number } };
       expect(envelope.error.code).toBe(code);
       expect(envelope.error.code).toBe(1);
+      expect(envelope.error.message).toContain('same intent denied 3 times: Read');
+    } finally {
+      await endpoint.close();
+    }
+  });
+
+  /**
+   * 本卡③ —— `vessel run --json` 必须在 stdout 上产出**一段**可解析 JSON。
+   *
+   * 复现（改前，**静态可核**；判别性由下面三条用例给出）：`cmdRun` 改动前**全函数没有**
+   * `emitJson`——`--json` 下它照样依次 `console.log` 回合标题（`turnHeader`）、模型回复、
+   * `=== turn … ===` 脚注、（可选）拦截审计、`printEnforcementTelemetry` 若干行、
+   * `会话日志: …`，于是 `JSON.parse(stdout)` 必抛，违反 `output.ts:1-8` 的
+   * 「`--json` 时 stdout **只允许**出现一段可解析 JSON」（`docs/CAPABILITY-MATRIX.md` 与
+   * `EVALUATION-REPORT-13.md` 都把这条记为已知缺陷；`EVALUATION-REPORT-12.md` 另记了
+   * `resume --json` 走到 `cmdRun` 时同样打人类输出——本卡一并修掉，因为 resume 复用本函数）。
+   *
+   * 形状**照本仓既有命令**（`usage` / `models` / `policy status` 的 `--json` 分支：
+   * `if (isJson(flags)) { emitJson(<平铺对象>); … }`，单一出口、不自创信封），字段取
+   * **同一批事实源**：`kind` / `finalText` / `steps` / `toolCalls` / `turnId` 来自 `TurnResult`，
+   * `sessionLog` 来自 `harness.session.logPath`（人类分支打印的就是同一个值）。
+   *
+   * 判别性（"删哪行会红"）：
+   *   - 用例 ③-1：删掉 `cmdRun` 的 `if (isJson(flags)) { emitJson({…}) }` 分支（回到"人类输出照打"）
+   *     ⇒ `JSON.parse(capJson.out())` 抛 ⇒ RED；把 `steps`/`toolCalls` 换成别的来源 ⇒ 与人类脚注
+   *     的同源比对 RED；漏掉 `renderTurnFinalText` ⇒ mock 标记断言 RED。
+   *   - 用例 ③-2（负对照）：把人类分支也改成 `emitJson` / 少打 telemetry 或「会话日志」行 ⇒
+   *     逐字锁 RED（非 `--json` 的人类输出一个字节都不能动）。
+   *   - 用例 ③-3：把 `fail(exitCode, …)` 提前到 `emitJson` **之前**、或让 stdout 额外多打一行 ⇒
+   *     kind=error 那条的「stdout 恰好一段 JSON」RED。
+   */
+  it('③-1（判别性）：--json 下 stdout 恰好一段 JSON，含 kind/finalText/steps/toolCalls/turnId/sessionLog', async () => {
+    fs.writeFileSync(path.join(dir, 'README.md'), '# 本卡③ README 金标\n', 'utf8');
+    const base = ['run', '--workspace', dir, '--prompt', '总结当前工作区 README', '--policy', POLICY, '--behavior', BEHAVIOR];
+
+    const capJson = captureChannels();
+    let codeJson: number;
+    try {
+      codeJson = await withTempMcpRoot(() => main([...base, '--json']));
+    } finally {
+      capJson.restore();
+    }
+
+    // 判别点：改前 stdout 是「…=== 最终回复 === / 回复 / === turn … === / … / 会话日志: …」，
+    // 一次 JSON.parse 就会抛。这里**不做**宽松 toContain，直接解析整段 stdout。
+    const out = capJson.out();
+    expect(() => JSON.parse(out)).not.toThrow();
+    const doc = JSON.parse(out) as {
+      kind: string;
+      finalText: string;
+      steps: number;
+      toolCalls: number;
+      turnId: string;
+      sessionLog: string;
+    };
+    expect(Object.keys(doc).sort()).toEqual(['finalText', 'kind', 'sessionLog', 'steps', 'toolCalls', 'turnId']);
+    expect(codeJson).toBe(0);
+    expect(doc.kind).toBe('success');
+    expect(typeof doc.steps).toBe('number');
+    expect(typeof doc.toolCalls).toBe('number');
+    expect(doc.turnId).toMatch(/^turn_\S+$/);
+    // `sessionLog` 是**真的路径**（不是占位串）：文件就在那里
+    expect(doc.sessionLog).toContain(path.join('.harness', 'sessions'));
+    expect(doc.sessionLog.endsWith('session.jsonl')).toBe(true);
+    expect(fs.existsSync(doc.sessionLog)).toBe(true);
+    // `finalText` 走 `renderTurnFinalText`（`renderFinalReply` 的 JSDoc 明确要求 `--json` 的回复
+    // 字段也走这个出口）：mock 会话里标记仍在，且回显的是**真实工作区文件**内容（阳性控制）
+    expect(doc.finalText.startsWith('（mock 离线冒烟）')).toBe(true);
+    expect(doc.finalText).toContain('# 本卡③ README 金标');
+
+    // 同源校验：同一条命令去掉 `--json`，人类脚注是 kind/steps/toolCalls 的**另一处**事实源，
+    // 两处必须一致（防"JSON 里的字段取自别处、与人类输出分叉"）
+    const capHuman = captureChannels();
+    let codeHuman: number;
+    try {
+      codeHuman = await withTempMcpRoot(() => main(base));
+    } finally {
+      capHuman.restore();
+    }
+    expect(codeHuman).toBe(0);
+    const footer = capHuman.lines().find((l) => /^\n=== turn /.test(l)) ?? '';
+    const m = /^\n=== turn (turn_\S+) kind=(\w+) steps=(\d+) toolCalls=(\d+) ===$/.exec(footer);
+    expect(m).not.toBeNull();
+    expect(doc.kind).toBe(m?.[2]);
+    expect(doc.steps).toBe(Number(m?.[3]));
+    expect(doc.toolCalls).toBe(Number(m?.[4]));
+  });
+
+  it('③-2（负对照）：非 --json 的人类输出逐字不变（标题/回复/脚注/telemetry/会话日志行）', async () => {
+    fs.writeFileSync(path.join(dir, 'README.md'), '# 本卡③ 负对照 README\n', 'utf8');
+    const cap = captureChannels();
+    let code: number;
+    try {
+      code = await withTempMcpRoot(() =>
+        main(['run', '--workspace', dir, '--prompt', '总结当前工作区 README', '--policy', POLICY, '--behavior', BEHAVIOR]),
+      );
+    } finally {
+      cap.restore();
+    }
+
+    expect(code).toBe(0);
+    const lines = cap.lines();
+    const at = lines.indexOf('\n=== 最终回复 ===');
+    expect(at).toBeGreaterThanOrEqual(0);
+    // 标题（含前导换行）与回复行逐字不变
+    expect(lines[at]).toBe('\n=== 最终回复 ===');
+    expect((lines[at + 1] ?? '').startsWith('（mock 离线冒烟）')).toBe(true);
+    expect(lines[at + 1]).toContain('# 本卡③ 负对照 README'); // 阳性控制：回复真的来自工作区文件
+    expect(lines[at + 2]).toMatch(/^\n=== turn turn_\S+ kind=success steps=\d+ toolCalls=\d+ ===$/);
+    // telemetry 与「会话日志」行的**通道与顺序**也不变（本卡只在 `--json` 分支加东西）
+    expect(lines[at + 3]).toBe('\n=== 安全执法遥测 (enforcement telemetry) ===');
+    expect(lines[lines.length - 1]).toMatch(/^会话日志: .+session\.jsonl$/);
+    // 人类模式下 stdout 仍然**不是** JSON 文档（这条路径本来就是人类输出）
+    expect(() => JSON.parse(cap.out())).toThrow();
+    // stderr：mock 提示行照旧，且成功路径不得出现失败出口
+    expect(cap.err()).toContain('[vessel] 当前使用内置 mock 模型');
+    expect(cap.err()).not.toContain('run failed');
+  });
+
+  it('③-3：--json 且 kind=error ⇒ stdout 仍恰好一段 JSON（kind=error），stderr 信封原样', async () => {
+    fs.mkdirSync(path.join(dir, 'creds'), { recursive: true });
+    fs.writeFileSync(path.join(dir, 'creds', '.env'), 'CARD3_LEAK_PROBE=must-not-be-read', 'utf8');
+
+    const endpoint = await startDenialLoopback('Read', { path: 'creds/.env' });
+    try {
+      const cap = captureChannels();
+      let code: number;
+      try {
+        code = await withTempMcpRoot(() =>
+          main([
+            'run',
+            '--workspace', dir,
+            '--prompt', '读一下凭据文件',
+            '--json',
+            '--policy', POLICY,
+            '--behavior', BEHAVIOR,
+            '--provider', 'openai-compatible',
+            '--base-url', endpoint.baseUrl,
+            '--model', 'm',
+          ]),
+        );
+      } finally {
+        cap.restore();
+      }
+
+      expect(endpoint.seen.length).toBeGreaterThanOrEqual(3); // 阳性控制：熔断真的触发
+      expect(code).toBe(1);
+      // stdout：**先产出文档、再定退出码**（与 `cmdPolicyStatus` 同序）——失败不缩水产物
+      const doc = JSON.parse(cap.out()) as { kind: string; finalText: string; turnId: string; sessionLog: string };
+      expect(doc.kind).toBe('error');
+      expect(doc.finalText).toContain('same intent denied 3 times: Read'); // 错误文本不吞
+      expect(doc.turnId).toMatch(/^turn_\S+$/);
+      // 既有失败出口（BRIEF-18 ④ / jsonErrorExits 同源）**一个字节都不动**
+      const envelopeLine = cap.errLines().find((l) => l.startsWith('{"error"'));
+      expect(envelopeLine).toBeDefined();
+      const envelope = JSON.parse(envelopeLine ?? '{}') as { error: { message: string; code: number } };
+      expect(envelope.error.code).toBe(code);
       expect(envelope.error.message).toContain('same intent denied 3 times: Read');
     } finally {
       await endpoint.close();
@@ -2884,6 +3192,145 @@ describe('vessel provider export/import + endpoint (task 095/096)', () => {
  * 同文件 BRIEF-18①/② 用真实 `main(['run', …])` 钉死（error ⇒ 1 且无「最终回复」标题；
  * success ⇒ 0 且标题逐字不变），两者合起来覆盖完整链路。
  */
+/**
+ * 本卡② —— `vessel migrate`：**旧目录回收失败**必须非 0（且不把已复制成功的数据算作失败）。
+ *
+ * 复现（证据性质：**注入式构造 + 走真实 `main()`**，不是对真实 `~/.dsh` 动手）：
+ * `cmdMigrate` 调 `runVesselMigration()`，其默认 recycler 走 PowerShell 回收站——本机（win32）
+ * **无法稳定构造 `recycled === false`**，而用例又**不得**读写真实 `~/.dsh` / `~/.vessel`
+ * （AGENTS.md §8）。所以这里替换 `cli.migrateRuntime.run`（与既有 `benchRunnersRuntime` /
+ * `serveRuntime` **同款**注入缝，默认实现就是 `runVesselMigration`，生产路径零变化），注入
+ * `recycled:false` / `recycled:true` 两种 `MigrationResult`，其余全部走生产代码
+ * （`dispatch` → `cmdMigrate` 的文案与退出码）。
+ * 迁移主体（复制 + 回收站**判定**）本身的判别性证据在既有的 `migrate.test.ts` 第 4 条
+ * 「keeps the copy and reports recycled=false when the recycle step fails (never permanent-deletes)」
+ * ——那条证明 `recycled:false` 时数据仍在、`recycleError` 有值；本块证明**该结局的退出码**。
+ *
+ * 裁决的两半（两条断言各自钉一半，防两个方向的回归）：
+ *   - **回收失败 ⇒ 非 0**（`USAGE` 承诺了回收；"主体动作已完成"不足以让脚本判定成功）
+ *     ⇒ 用例 1：删掉 `cmdMigrate` 的 `return 1`（回到无条件 `return 0`）必 RED；
+ *   - **不得把已复制的数据算作失败**（不回滚、不删除）⇒ 用例 1 同时断言文案明说
+ *     「数据已迁移成功」+「不回滚、不删除」+「不要永久删除」（把话说成"迁移失败"必 RED）；
+ *   - **成功路径逐字不变** ⇒ 用例 2：`recycled:true` 时 stdout 两行逐字 + 零 stderr 噪声 + 退 0。
+ */
+describe('本卡② — vessel migrate：回收失败必须非 0（成功路径逐字不变）', () => {
+  /** 三通道分开收集（`cmdMigrate` 的失败文案走既有的 `console.warn` 通道）。 */
+  function captureMigrate() {
+    const out: string[] = [];
+    const err: string[] = [];
+    const warn: string[] = [];
+    const sLog = vi.spyOn(console, 'log').mockImplementation((...a: unknown[]) => { out.push(a.join(' ')); });
+    const sErr = vi.spyOn(console, 'error').mockImplementation((...a: unknown[]) => { err.push(a.join(' ')); });
+    const sWarn = vi.spyOn(console, 'warn').mockImplementation((...a: unknown[]) => { warn.push(a.join(' ')); });
+    return {
+      lines: (): string[] => [...out],
+      out: (): string => out.join('\n'),
+      err: (): string => err.join('\n'),
+      warn: (): string => warn.join('\n'),
+      restore: (): void => { sLog.mockRestore(); sErr.mockRestore(); sWarn.mockRestore(); },
+    };
+  }
+
+  let realRun: typeof cli.migrateRuntime.run;
+  beforeEach(() => { realRun = cli.migrateRuntime.run; });
+  afterEach(() => { cli.migrateRuntime.run = realRun; });
+
+  /** 注入一份 `MigrationResult`（其余字段用真实形状，避免"只测一个布尔量"）。 */
+  function stub(res: MigrationResult): void {
+    cli.migrateRuntime.run = () => Promise.resolve(res);
+  }
+
+  it('②-a（判别性）：recycled=false ⇒ 退出码 1，文案说清「数据已迁移成功，但旧目录未能回收」', async () => {
+    stub({
+      status: 'migrated',
+      reason: 'none',
+      legacyRoot: 'C:\\fake-home\\.dsh',
+      vesselRoot: 'C:\\fake-home\\.vessel',
+      copiedCount: 6,
+      recycled: false,
+      recycleError: 'no recycle bin on this platform',
+    });
+
+    const cap = captureMigrate();
+    let code: number;
+    try {
+      code = await main(['migrate']);
+    } finally {
+      cap.restore();
+    }
+
+    // ① 改动前这里恒为 0（只 warn 一句 + 无条件 return 0）⇒ RED
+    expect(code).toBe(1);
+    // ② 主体动作已完成，必须如实说成"迁移成功"（不得把数据算作失败）
+    expect(cap.warn()).toContain('数据已迁移成功');
+    expect(cap.warn()).toContain('已复制到 ~/.vessel');
+    expect(cap.warn()).toContain('但旧目录 ~/.dsh 未能自动回收');
+    expect(cap.warn()).toContain('no recycle bin on this platform'); // 成因不吞
+    expect(cap.warn()).toContain('不回滚、不删除'); // 不假装回滚
+    expect(cap.warn()).toContain('不要永久删除'); // 删除铁律仍写进提示
+    // 文案不得许下做不到的承诺：回收失败后 `~/.dsh` 仍在、`~/.vessel` 已建好 ⇒ 再跑一次会命中
+    // `vessel-present` 短路**退 0**（下面的 ②-c 已把那条分支的文案钉死）。所以这里断言文案
+    // **明说**这一点，而不是写"重跑会再退 1"（那会是本卡自己在造假）。
+    expect(cap.warn()).toContain('跳过并退 0');
+    // 复制结果照旧在 stdout 宣告（失败的是回收，不是复制）
+    expect(cap.out()).toContain('[vessel migrate] 已把 ~/.dsh 复制到 ~/.vessel（6 个条目）。');
+    // 通道不变：这句话仍走 warn（stderr），没有多出一句 console.error
+    expect(cap.err()).toBe('');
+  });
+
+  it('②-b（负对照）：recycled=true ⇒ 退 0，stdout 两行逐字不变、stderr/warn 零输出', async () => {
+    stub({
+      status: 'migrated',
+      reason: 'none',
+      legacyRoot: 'C:\\fake-home\\.dsh',
+      vesselRoot: 'C:\\fake-home\\.vessel',
+      copiedCount: 6,
+      recycled: true,
+    });
+
+    const cap = captureMigrate();
+    let code: number;
+    try {
+      code = await main(['migrate']);
+    } finally {
+      cap.restore();
+    }
+
+    expect(code).toBe(0);
+    expect(cap.lines()).toEqual([
+      '[vessel migrate] 已把 ~/.dsh 复制到 ~/.vessel（6 个条目）。',
+      '[vessel migrate] 旧目录 ~/.dsh 已送进回收站。',
+    ]);
+    expect(cap.err()).toBe('');
+    expect(cap.warn()).toBe(''); // 本卡不得在成功路径上新增任何 stderr 噪声
+  });
+
+  it('②-c：两个 skipped 分支的文案与退出码逐字不变（本卡不碰）', async () => {
+    const cases: MigrationResult[] = [
+      { status: 'skipped', reason: 'legacy-absent', copiedCount: 0, recycled: false },
+      { status: 'skipped', reason: 'vessel-present', copiedCount: 0, recycled: false },
+    ];
+    const expected = [
+      '[vessel migrate] 未发现旧状态目录 ~/.dsh，无需迁移。',
+      '[vessel migrate] 已存在 ~/.vessel（跳过；保留 ~/.dsh 未动）。',
+    ];
+    for (const [i, res] of cases.entries()) {
+      stub(res);
+      const cap = captureMigrate();
+      let code: number;
+      try {
+        code = await main(['migrate']);
+      } finally {
+        cap.restore();
+      }
+      expect(code).toBe(0);
+      expect(cap.lines()).toEqual([expected[i]]);
+      expect(cap.err()).toBe('');
+      expect(cap.warn()).toBe('');
+    }
+  });
+});
+
 describe('BRIEF-20 — 被 BeforeTurn 拦截的输入不得在 vessel run 里被呈现为成功', () => {
   let dir: string;
   let oldProviderRoot: string | undefined;

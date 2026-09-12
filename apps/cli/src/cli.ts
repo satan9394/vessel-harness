@@ -35,7 +35,7 @@ import { McpConfigStore } from './mcp/config.js';
 import { VESSEL_LOGO, VESSEL_TAGLINE } from './brand.js';
 import { UsageStore, isLocalDateKey, localDateKey, resolveUsageRoot } from './usage/UsageStore.js';
 import { PricingOverrideStore, type PricingRepair } from './usage/pricingOverride.js';
-import { runVesselMigration } from './migrate.js';
+import { runVesselMigration, type MigrationOptions, type MigrationResult } from './migrate.js';
 import { cmdReview } from './review/reviewCommands.js';
 import { cmdExplain, cmdListTerms, cmdGuide, cmdSettings } from './guide/guideCommands.js';
 import { cmdSessionsList } from './sessions/commands.js';
@@ -130,7 +130,7 @@ run 选项:
   --policy <path>                 系统级策略文件（默认 configs/policy.default.yaml）
   --behavior <path>               Behavior IR 文件（默认 configs/behavior.default.yaml）
   --strict                        计价严格模式：只用模型专属价目（model/catalog），未收录模型按 0 计价并标「未收录」
-  --json              以 JSON 输出（仅只读命令：usage / provider list / models / sessions list / settings list / policy status）
+  --json              以 JSON 输出（stdout 恰好一段可解析 JSON）：run / usage / provider list / models / sessions list / settings list / policy status / bench-report
 
 provider 协议说明:
   openai-compatible    OpenAI chat/completions 协议：OpenAI / DeepSeek / Qwen / vLLM / Ollama 等
@@ -1078,26 +1078,61 @@ async function cmdRun(flags: Map<string, string>): Promise<number> {
 
   try {
     const result = await harness.loop.runTurn(prompt || '（无输入）');
-    // BRIEF-18：标题由 kind 决定 —— `kind='error'` 时**不得**把 loop 的错误文案挂在
-    // 「最终回复」标题下冒充模型回答（见 turnHeader 的注释）。success/budget/interrupted
-    // 的标题逐字不变。
-    console.log(turnHeader(result.kind));
-    // 统一出口：mock 前缀只在这里加一次（读文件回显 / 脚本命中回显 / fallbackText 全覆盖）。
-    // 本卡：**非模型文本不盖模型标记** —— kind 也是入参（`renderTurnFinalText`），
-    // `kind='error'` 的熔断文案 / `budget` / `interrupted` 不再被盖成"（mock 离线冒烟）…"，
-    // 与 TUI 的 `renderTurnOutcome` 同一口径（TUI 侧 :385-397，理由见那里的注释）。
-    console.log(renderTurnFinalText(result.kind, result.finalText, usingMockProvider));
-    console.log(`\n=== turn ${result.turnId} kind=${result.kind} steps=${result.steps} toolCalls=${result.toolCalls} ===`);
-    const denials = harness.session.replay().filter((r) => r.type === 'audit/denial');
-    if (denials.length > 0) {
-      console.log(`\n=== 策略拦截审计 (audit/denial × ${denials.length}) ===`);
-      for (const d of denials) {
-        console.log(`  - ${(d as { toolName: string }).toolName} ${(d as { reason: string }).reason} [ref=${(d as { ruleRef?: string }).ruleRef}]`);
+    /**
+     * 本卡（③）—— `--json` 下 `run` 的 **stdout 唯一出口**：`emitJson(...)` 一段 JSON。
+     *
+     * 复现（改前，静态可核）：本函数在 `--json` 下**没有任何** `emitJson`，而是依次
+     * `console.log` 回合标题、模型回复、`=== turn … ===` 脚注、（可选）拦截审计、
+     * `printEnforcementTelemetry` 若干行、`会话日志: …` ⇒ stdout 是一段人类文本，
+     * `JSON.parse(stdout)` 必抛，违反 `output.ts:1-8` 的「`--json` 时 stdout **只允许**
+     * 出现一段可解析 JSON」契约（`docs/CAPABILITY-MATRIX.md` 与
+     * `EVALUATION-REPORT-13.md` 均已记为已知缺陷）。
+     *
+     * 形状**照本仓既有命令**（`usage` / `models` / `policy status` 的 `--json` 分支）：
+     * `if (isJson(flags)) { emitJson(<平铺对象>); }`，**不自创信封**；字段名取
+     * **同一批事实源**（`TurnResult` 的 kind/finalText/steps/toolCalls/turnId + 会话日志路径），
+     * 与本函数人类分支打印的**是同一批值**（负对照：把任一字段写成别的来源即与人类输出分叉）。
+     * 与 `usage` / `models` 不同的是**不在此提前 `return`**：本命令的退出码由 `kind` 决定（BRIEF-18），
+     * 所以文档产出后仍要走到下面同一个 `turnExitCode` 出口——与 `cmdPolicyStatus` 同序。
+     *
+     * `finalText` 走 `renderTurnFinalText`（与人类分支**同一个**出口）：`renderFinalReply`
+     * 的 JSDoc（本文件 :834-835）明确要求"若将来 `run` 增加 `--json` 回复字段，标记必须继续走
+     * `renderTurnFinalText`（把返回值放进 JSON 的回复字段），不得另起一行打印"。
+     *
+     * 顺序与 `cmdPolicyStatus` 一致：**先**产出文档（失败不缩水产物），**再**定退出码 —— 下面
+     * `exitCode !== 0` 时仍走既有 `fail()` 出口，信封只进 stderr、`code` 与退出码同源。
+     */
+    if (isJson(flags)) {
+      emitJson({
+        kind: result.kind,
+        finalText: renderTurnFinalText(result.kind, result.finalText, usingMockProvider),
+        steps: result.steps,
+        toolCalls: result.toolCalls,
+        turnId: result.turnId,
+        sessionLog: harness.session.logPath,
+      });
+    } else {
+      // BRIEF-18：标题由 kind 决定 —— `kind='error'` 时**不得**把 loop 的错误文案挂在
+      // 「最终回复」标题下冒充模型回答（见 turnHeader 的注释）。success/budget/interrupted
+      // 的标题逐字不变。
+      console.log(turnHeader(result.kind));
+      // 统一出口：mock 前缀只在这里加一次（读文件回显 / 脚本命中回显 / fallbackText 全覆盖）。
+      // 本卡：**非模型文本不盖模型标记** —— kind 也是入参（`renderTurnFinalText`），
+      // `kind='error'` 的熔断文案 / `budget` / `interrupted` 不再被盖成"（mock 离线冒烟）…"，
+      // 与 TUI 的 `renderTurnOutcome` 同一口径（TUI 侧 :385-397，理由见那里的注释）。
+      console.log(renderTurnFinalText(result.kind, result.finalText, usingMockProvider));
+      console.log(`\n=== turn ${result.turnId} kind=${result.kind} steps=${result.steps} toolCalls=${result.toolCalls} ===`);
+      const denials = harness.session.replay().filter((r) => r.type === 'audit/denial');
+      if (denials.length > 0) {
+        console.log(`\n=== 策略拦截审计 (audit/denial × ${denials.length}) ===`);
+        for (const d of denials) {
+          console.log(`  - ${(d as { toolName: string }).toolName} ${(d as { reason: string }).reason} [ref=${(d as { ruleRef?: string }).ruleRef}]`);
+        }
       }
+      // task 074 enforcement telemetry query seam (data face: list + counts + status)
+      printEnforcementTelemetry(harness);
+      console.log(`会话日志: ${harness.session.logPath}`);
     }
-    // task 074 enforcement telemetry query seam (data face: list + counts + status)
-    printEnforcementTelemetry(harness);
-    console.log(`会话日志: ${harness.session.logPath}`);
     // BRIEF-18：退出码由 kind 决定（唯一决策点 = turnExitCode）。`kind='error'`（熔断
     // DenialLimitError / 别的把错误文案写进 finalText 的路径）**必须**非零，否则
     // `vessel run && 下一步` 在失败后继续跑。仍然走既有 `fail()` 出口：`--json` 时 stderr 信封
@@ -1713,6 +1748,17 @@ async function cmdProviderEndpointTest(
     }
   }
   let anyReachable = false;
+  /**
+   * 本卡（①）—— `--all` 的**逐供应商**判据载体：收集"**真的探测过**、且没有任何端点可达"
+   * 的供应商 id。判据（裁决）：`--all` 下**任一所测供应商的全部端点都不可达 ⇒ 退出码非 0**，
+   * 其余供应商可达**不能**把这个失败抵掉（旧写法 `anyReachable ? 0 : 1` 正是这个"抵消"）。
+   *
+   * 只统计**有端点可探测**的供应商：`pool.length === 0`（未配 baseUrl/endpoints）的供应商
+   * **没有**被探测，不判定为失败——"全部端点不可达"这个判据对它**无端点可谈**，把它算成失败
+   * 等于凭空发明一个新失败面（`--all` 会仅仅因为某个供应商没配端点就红）。该情形照旧逐条
+   * 打印「没有端点可测」的既有提示行。
+   */
+  const providersAllUnreachable: string[] = [];
   const suggestions = new Map<string, { url: string; latencyMs: number }>();
   for (const t of targets) {
     const pool =
@@ -1733,7 +1779,11 @@ async function cmdProviderEndpointTest(
       const label = r.label !== undefined ? ` [${r.label}]` : '';
       console.log(`  ${state} ${r.url}${label}  ${detail}  ${r.latencyMs}ms`);
     }
-    if (results.some((r) => r.reachable)) anyReachable = true;
+    // `results.some(reachable)` 是**唯一的**"这个供应商算不算可达"判据（下面两处共用同一个布尔量，
+    // 不可能各说各话）：它同时喂给单供应商模式的旧判据与 `--all` 的逐供应商判据。
+    const providerReachable = results.some((r) => r.reachable);
+    if (providerReachable) anyReachable = true;
+    else providersAllUnreachable.push(t.id);
     const best = suggestEndpoint(results);
     if (!best) {
       console.log('  建议：无可用端点（全部不可达）——仅建议，未改动默认端点。');
@@ -1763,6 +1813,20 @@ async function cmdProviderEndpointTest(
       const msg = `[vessel] ${(err as Error).message}`;
       return fail(1, msg, flags, () => console.error(msg));
     }
+  }
+  /**
+   * 本卡（①）裁决的落点：`--all`（无 `<id>`）下**只要有一家所测供应商全军覆没就退 1**，
+   * 且**点名**是哪几家（不得只改码不改文案）。走既有 `fail()` 出口 ⇒ `--json` 时信封的
+   * `code` 与退出码同源，非 `--json` 时文案落 stderr。
+   *
+   * 单供应商模式（`test <id>`：`id` 非空）**原样不动**——它本来就以该供应商为准，
+   * 下面那行 `anyReachable ? 0 : 1` 与改动前逐字相同（`--set-default` 分支已在上方各自返回）。
+   */
+  if (all && !id && providersAllUnreachable.length > 0) {
+    const msg =
+      `[vessel provider endpoint test] 以下供应商的全部端点都不可达：${providersAllUnreachable.join('、')}` +
+      `（--all 逐供应商判定：任一所测供应商的全部端点都不可达即退出码 1；其余供应商可达不能抵消它）。`;
+    return fail(1, msg, flags, () => console.error(msg));
   }
   return anyReachable ? 0 : 1;
 }
@@ -2313,9 +2377,38 @@ async function cmdPricing(args: string[], flags: Map<string, string>): Promise<n
   return 0;
 }
 
-/** `vessel migrate` — one-time ~/.dsh → ~/.vessel state migration (task 033). */
+/**
+ * `vessel migrate` 的**执行缝**（与 `serveRuntime` / `benchRunnersRuntime` 同款：测试替换成员、
+ * 用完还原；默认实现就是 `runVesselMigration`，**生产路径零变化**）。
+ *
+ * 为什么需要它（本卡证据性质的如实声明）：`runVesselMigration` 的默认 recycler 走 PowerShell
+ * 回收站——在本机（win32）要么成功、要么压根构造不出来；而本卡的裁决（**回收失败 ⇒ 退出码非 0**）
+ * 必须有一条**走真实 `main(['migrate'])`** 的判别性用例。有了这个缝，用例可以注入
+ * `recycled === false`（含 `recycleError`）这一结局，而**不必**去碰真实 `~/.dsh` / `~/.vessel`
+ * （AGENTS.md §8：默认路径的用例不得读写真实用户态目录）。
+ */
+export const migrateRuntime = {
+  run: (opts?: MigrationOptions): Promise<MigrationResult> => runVesselMigration(opts),
+};
+
+/**
+ * `vessel migrate` — one-time ~/.dsh → ~/.vessel state migration (task 033).
+ *
+ * **退出码（本卡②裁决）**：`recycled === false`（旧目录未能送进回收站）⇒ **1**。
+ *
+ * 复现（改前，静态可核）：旧写法在该分支只 `console.warn(...)` 然后**无条件 `return 0`**，
+ * 而 `USAGE`（本文件 :102）与函数自己的文案都把本命令承诺成"数据复制 **+ 旧目录进回收站**"
+ * ⇒ **承诺了回收、失败却算成功**，脚本只能读退出码，于是 `vessel migrate && 下一步` 会在
+ * 旧目录还躺在原地时继续跑。
+ *
+ * 另一半裁决（**不得**把已完成的主体动作算作失败）：数据**确实**已复制到 `~/.vessel`，
+ * 所以走非 0 的同时，文案必须说清「**数据已迁移成功，但旧目录未能回收**」，并且
+ * **不回滚、不删除任何东西**（`runVesselMigration` 本来就不回滚；本函数也不做任何清理）。
+ *
+ * `recycled === true`（负对照）与两个 `skipped` 分支的 stdout 文案**逐字不变**、退出码不变。
+ */
 async function cmdMigrate(): Promise<number> {
-  const res = await runVesselMigration();
+  const res = await migrateRuntime.run();
   if (res.status === 'skipped' && res.reason === 'legacy-absent') {
     console.log('[vessel migrate] 未发现旧状态目录 ~/.dsh，无需迁移。');
     return 0;
@@ -2327,10 +2420,22 @@ async function cmdMigrate(): Promise<number> {
   console.log(`[vessel migrate] 已把 ~/.dsh 复制到 ~/.vessel（${res.copiedCount} 个条目）。`);
   if (res.recycled) {
     console.log('[vessel migrate] 旧目录 ~/.dsh 已送进回收站。');
-  } else {
-    console.warn(`[vessel migrate] 旧目录 ~/.dsh 未能自动回收（${res.recycleError ?? 'unknown'}\n  数据已在 ~/.vessel，请手工把旧目录移入回收站（不要永久删除）。`);
+    return 0;
   }
-  return 0;
+  // 回收失败：数据已就位**不算失败**（不回滚、不删除），失败的是"旧目录回收"这一步——
+  // 文案两件事都说清，退出码非 0（`USAGE` 承诺过回收；"主体动作已完成"不足以让脚本判定成功）。
+  //
+  // **不许写"重跑会再退 1"**：回收失败后 `~/.dsh` 仍在、`~/.vessel` 也已建好，再跑一次会先命中
+  // `runVesselMigration` 的 `vessel-present` 短路（**退 0** 并打印"保留 ~/.dsh 未动"）。
+  // 文案只承诺本函数真正做得到的事（见交付说明里的只报告项）。
+  const msg =
+    `[vessel migrate] 数据已迁移成功（${res.copiedCount} 个条目已复制到 ~/.vessel），` +
+    `但旧目录 ~/.dsh 未能自动回收（${res.recycleError ?? 'unknown'}）。\n` +
+    `  已复制的数据不回滚、不删除；请手工把旧目录移入回收站（不要永久删除）。\n` +
+    `  注意：再次运行 vessel migrate 会因 ~/.vessel 已存在而跳过并退 0（打印"保留 ~/.dsh 未动"），` +
+    `旧目录的清理由你手工完成——本次退 1 表示"承诺的回收这一步没做成"。`;
+  console.warn(msg);
+  return 1;
 }
 
 export interface ServeHandle {
