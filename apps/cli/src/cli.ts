@@ -845,7 +845,7 @@ function renderFinalReply(finalText: string, usingMock: boolean): string {
  *
  * 复现（改前）：`cmdRun` 里 `runTurn` 是**正常返回**（只有抛异常才走 catch 的 `fail(1, …)`），
  * 旧写法 919 行无条件 `console.log('\n=== 最终回复 ===')`、933 行无条件 `return 0`。于是
- * `kind='error'`（熔断 `DenialLimitError` 把错误文案写进 `finalText`，AgentLoop.ts:334-338）
+ * `kind='error'`（熔断 `DenialLimitError` 把错误文案写进 `finalText`，AgentLoop.ts）
  * 时：**退出码 0 + 错误文案被印在「最终回复」标题下**——脚注里的 `kind=error` 人看得见、
  * 脚本看不见，`vessel run && 下一步` 会在失败后继续跑。
  *
@@ -855,7 +855,7 @@ function renderFinalReply(finalText: string, usingMock: boolean): string {
  * - `success` ⇒ 标题与退出码**逐字不变**（`'\n=== 最终回复 ==='` / 0）——负对照：把一切都
  *   当成失败会让所有正常脚本报错。
  * - `budget` ⇒ **不算失败**：退出码 0、标题不变。理由：① `--max-steps` 是用户自己下的预算，
- *   且 budget 还覆盖"模型回了纯空文本"这条既有边界（AgentLoop.ts:344-347）；② 既有测试
+ *   且 budget 还覆盖"模型回了纯空文本"这条既有边界（AgentLoop.ts）；② 既有测试
  *   mockVisibility.test.ts:485-496 已**逐字钉住** budget 走 `=== 最终回复 ===` + `(无文本回复)`
  *   且 exit 0，并写明"改它是另一个决策，需独立验收"。可见性由既有的
  *   `=== turn … kind=budget … ===` 脚注行承担（stdout、可 grep；同处 :488 有断言）。
@@ -886,7 +886,7 @@ export function turnExitCode(kind: CliTurnKind): number {
  *
  * 复现（改前）：`renderFinalReply`（本文件 :780-783）只接 `(finalText, usingMock)` 两个入参，
  * 而 `cmdRun` 的唯一出口（原 :959）**无条件**把 `usingMockProvider` 传下去 ⇒ mock 会话里
- * `kind='error'` 的**harness 状态文案**（熔断 `DenialLimitError.message`，AgentLoop.ts:389-393
+ * `kind='error'` 的**harness 状态文案**（熔断 `DenialLimitError.message`，AgentLoop.ts
  * 把它写进 `finalText`）会被渲染成 `（mock 离线冒烟）same intent denied 3 times: …`。
  * 那句标记在断言"这条文本来自内置 mock 模型"，而它其实是 loop 的错误文案 ⇒
  * **说的和做的不一致**（正是 BRIEF-16 1C② 那句标记要防的事，被用在了它防不住的地方）。
@@ -1084,7 +1084,7 @@ async function cmdRun(flags: Map<string, string>): Promise<number> {
      * 复现（改前，静态可核）：本函数在 `--json` 下**没有任何** `emitJson`，而是依次
      * `console.log` 回合标题、模型回复、`=== turn … ===` 脚注、（可选）拦截审计、
      * `printEnforcementTelemetry` 若干行、`会话日志: …` ⇒ stdout 是一段人类文本，
-     * `JSON.parse(stdout)` 必抛，违反 `output.ts:1-8` 的「`--json` 时 stdout **只允许**
+     * `JSON.parse(stdout)` 必抛，违反 `output.ts` 的「`--json` 时 stdout **只允许**
      * 出现一段可解析 JSON」契约（`docs/CAPABILITY-MATRIX.md` 与
      * `EVALUATION-REPORT-13.md` 均已记为已知缺陷）。
      *

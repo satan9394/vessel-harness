@@ -59,7 +59,7 @@
 import type { ChatFinishReason } from '@vessel/shared';
 // BRIEF「最后一份未收敛的 finish-reason 归一表」: the verdicts themselves now come from the
 // package's single table — the SAME import path the sibling paths already use
-// (parseAnthropic.ts:40, OpencodeGoProvider.ts:42).
+// (parseAnthropic.ts, OpencodeGoProvider.ts).
 import { wireFinishReason } from '../finishReason.js';
 import type { StreamChunk } from './types.js';
 
@@ -213,7 +213,7 @@ export function parseOpenAIStreamChunk(
       const argFragment = tc.function?.arguments;
 
       // Round 69 — FIRST START FREEZES IDENTITY (the OpenAI counterpart of the
-      // Anthropic Round 68 guard in parseAnthropic.ts:503).
+      // Anthropic Round 68 guard in parseAnthropic.ts).
       //
       // A repeated identity frame is not cosmetic: `idByIndex` is the ADDRESS
       // map for the whole remainder of the call — the continuation
@@ -393,7 +393,7 @@ export function openAISSELineData(line: string): string | null {
  *      映成 tool_calls；不认识的值一律 fail-loud 到 'error'，不猜成 'tool_calls'；
  *   3. 未知值：同上（宁可报错，也不把不认识的终止原因说成"完成"）；
  *   4. **缺失**（`undefined`/`null`/`''`）：改前也是 'error'，**委托前后同值**（共享表的
- *      `default` 正是 'error'，见 finishReason.ts:96-112），所以本函数**从未**、现在也
+ *      `default` 正是 'error'，见 finishReason.ts），所以本函数**从未**、现在也
  *      **没有**承担"缺失⇒stop"的语义 —— 另一张卡正是以"wire 缺失 `finish_reason` 时会被
  *      误判"为由拒绝把 wire `'error'` 当截断，这里必须保持 'error'，不得借机改成
  *      'stop' 或 'length'。
@@ -469,13 +469,13 @@ export class OpenAIStreamParser {
    * **在哪个 chunk 上带**：OpenAI 的 `finish_reason` 出现在该流**最后一个 content delta**
    * 帧上（由 `parseOpenAIStreamChunk` 记进 `state.finishReason`），而流是被**后一帧**
    * `data: [DONE]`（`feed()`）或 EOF（`finish()`）收口的 —— 收口帧自己没有 choice，
-   * 所以信号只能在**边界 message_end 这一处**补挂（与 parseAnthropic.ts:157 的
+   * 所以信号只能在**边界 message_end 这一处**补挂（与 parseAnthropic.ts 的
    * `message_delta{stop_reason} -> message_end{finishReason}` 同形）。
    *
    * 唯一不挂的情况：归一结果是 `'stop'`（或整条流从未出现过 finish_reason）。
    * 依据是可证的**信息等价**——`normalizeFinishReason(undefined, h)` 与
    * `normalizeFinishReason('stop', h)` 在 h=true/false 上都返回同一个值
-   * （AgentLoop.ts:86-90），即"不挂"与"挂 'stop'"对消费者**完全不可区分**；
+   * （AgentLoop.ts），即"不挂"与"挂 'stop'"对消费者**完全不可区分**；
    * 而不挂还保住了两条既有冻结用例钉死的 `{type:'message_end'}` 字面形状
    * （parseOpenAI.test.ts:159 / streamProvider.test.ts:57 的夹具都带
    * `finish_reason:'stop'`）——本卡不得回归既有测试。其余值一律携带。

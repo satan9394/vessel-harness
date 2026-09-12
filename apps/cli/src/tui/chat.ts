@@ -371,7 +371,7 @@ export interface TurnOutcomeLike {
  *
  * 复现（改前）：主循环只单独处理了 `interrupted`，其余一律「有 finalText 就当助手回复打印」。
  * `AgentLoop` 在 `DenialLimitError` 时把错误文案写进 `finalText` 并置 `kind='error'`
- * （AgentLoop.ts:334-338，文案形如 `same intent denied 3 times: Write`），于是这句话被
+ * （AgentLoop.ts，文案形如 `same intent denied 3 times: Write`），于是这句话被
  * TUI 原样当作**助手回复**输出：整段输出里没有任何错误痕迹，用户看到的是"助手说了这句话"
  * 而不是"这一轮失败了"（内置 mock 会话里还会被加上 `（mock 离线冒烟）` 前缀，更像正常回复）。
  * `catch` 分支的 `[错误] …` 只覆盖**抛异常**，覆盖不到 `kind='error'` 的**返回值**。

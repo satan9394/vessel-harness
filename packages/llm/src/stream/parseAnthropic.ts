@@ -221,7 +221,7 @@ export function anthropicUsageChunk(
  *
  * 改前（本卡的复现）：`default: return stopReason;` **原样透传**未知值 ——
  * `message_delta{stop_reason:'refusal'}` 产出的就是 `message_end{finishReason:'refusal'}`，
- * 而消费侧 `AgentLoop.normalizeFinishReason`（AgentLoop.ts:86-90）对非
+ * 而消费侧 `AgentLoop.normalizeFinishReason`（AgentLoop.ts）对非
  * `length`/`error`/`tool_calls` 的值一律归成 `'stop'` ⇒ 真实路径（`callModel` 只要
  * provider 有 `stream()` 就走流式）上 `'refusal'` = `kind='success'`（文本非空）/
  * `'budget'`（文本空）—— **把"未知终止原因"说成"正常结束"**，而同一个值在非流式
