@@ -22,7 +22,7 @@ import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { parseReviewConclusion, REVIEW_OUTPUT_SCHEMA } from '@vessel/agents';
-import { renameWithRetry } from '@vessel/shared';
+import { envRoot, renameWithRetry } from '@vessel/shared';
 import type {
   HandoffCreateInput,
   ReviewHandoffRecord,
@@ -30,9 +30,16 @@ import type {
   ReviewResultSource,
 } from './ExternalReviewHandoff.js';
 
-/** 缺省 reviews 根目录：~/.vessel/reviews（env VESSEL_REVIEWS_ROOT 可覆盖）。 */
+/**
+ * 缺省 reviews 根目录：~/.vessel/reviews（env VESSEL_REVIEWS_ROOT 可覆盖）。
+ *
+ * 口径（唯一实现 `envRoot`，与全仓其它状态根一致）：未设置/空串/纯空白 ⇒ 默认根；其余 trim。
+ * 不能写 `process.env.VESSEL_REVIEWS_ROOT ?? …`：`??` 只挡 undefined，`VESSEL_REVIEWS_ROOT=`
+ * 会让根成为 `''` ⇒ `path.resolve('')` = **进程 CWD**（生产调用点
+ * `apps/local-server/src/server.ts` 的 `new ReviewHandoffStore()` 即落到服务进程工作目录）。
+ */
 export function defaultReviewsRoot(home = os.homedir()): string {
-  return process.env.VESSEL_REVIEWS_ROOT ?? path.join(home, '.vessel', 'reviews');
+  return envRoot('VESSEL_REVIEWS_ROOT') ?? path.join(home, '.vessel', 'reviews');
 }
 
 /** review id —— 沿用既有 `<kind>_<ts>_<hex>` 约定（sess_/team_/sub_/del_ 同款）。 */

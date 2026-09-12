@@ -50,6 +50,99 @@ describe('engine/iteration-store — default root / id 约定（task 063）', ()
   });
 });
 
+/**
+ * 状态根口径（`VESSEL_ITERATIONS_ROOT`）—— 唯一实现 `envRoot()`：未设置/空串/纯空白 ⇒
+ * **未设置**（回落 `~/.vessel/iterations`），其余 trim。
+ *
+ * 判别性（「删掉修复就红」）：旧实现 `process.env.VESSEL_ITERATIONS_ROOT ?? path.join(home, …)`
+ * 只挡 `undefined` ⇒ `''`/`'   '` 直接当根 ⇒ `path.resolve('')` = **进程 CWD**（生产调用点
+ * `apps/local-server/src/goalSeam.ts` 的 `new IterationStore()`：迭代日志会落到服务进程的
+ * 工作目录，与同一次运行的 taskqueue/handoffs 拆成两处）。把 `defaultIterationRoot()` 里的
+ * `envRoot(...)` 换回 `??` ⇒ ①② 立即红。
+ *
+ * 隔离：`HOME`/`USERPROFILE` 指到 `os.tmpdir()` 下临时家目录，`process.cwd()` 钉到临时目录。
+ */
+describe('engine/iteration-store — 状态根口径（VESSEL_ITERATIONS_ROOT 空/纯空白 ⇒ 未设置）', () => {
+  let home: string;
+  let fakeCwd: string;
+  let savedHome: string | undefined;
+  let savedUserProfile: string | undefined;
+  let savedIterRoot: string | undefined;
+  let cwdSpy: { mockRestore: () => void };
+
+  beforeEach(() => {
+    home = tempDir();
+    fakeCwd = tempDir();
+    savedHome = process.env.HOME;
+    savedUserProfile = process.env.USERPROFILE;
+    savedIterRoot = process.env.VESSEL_ITERATIONS_ROOT;
+    process.env.HOME = home; // POSIX：os.homedir() 读 HOME
+    process.env.USERPROFILE = home; // Windows：os.homedir() 读 USERPROFILE
+    cwdSpy = vi.spyOn(process, 'cwd').mockReturnValue(fakeCwd);
+  });
+
+  afterEach(() => {
+    // 只回滚本用例的 cwd spy：本文件有 vi.mock('node:fs') 的委托实现，
+    // 不能用 vitest 的全局 restoreAllMocks（会一并重置那些委托包装）。
+    cwdSpy.mockRestore();
+    if (savedHome === undefined) delete process.env.HOME;
+    else process.env.HOME = savedHome;
+    if (savedUserProfile === undefined) delete process.env.USERPROFILE;
+    else process.env.USERPROFILE = savedUserProfile;
+    if (savedIterRoot === undefined) delete process.env.VESSEL_ITERATIONS_ROOT;
+    else process.env.VESSEL_ITERATIONS_ROOT = savedIterRoot;
+    fs.rmSync(home, { recursive: true, force: true });
+    fs.rmSync(fakeCwd, { recursive: true, force: true });
+  });
+
+  const defaultRoot = (): string => path.resolve(path.join(home, '.vessel', 'iterations'));
+
+  it('① 判别性：env 空串 ⇒ 默认根 ~/.vessel/iterations，不是进程 CWD（旧 `??` ⇒ 必红）', () => {
+    process.env.VESSEL_ITERATIONS_ROOT = '';
+    const store = new IterationStore();
+    expect(store.root).toBe(defaultRoot());
+    expect(store.root).not.toBe(fakeCwd);
+    // 行为面：迭代日志落在默认根下（而不是进程 CWD）
+    store.appendIteration(TASK, { verdict: 'met' });
+    expect(fs.existsSync(path.join(defaultRoot(), TASK.taskId, 'meta.json'))).toBe(true);
+    expect(fs.existsSync(path.join(fakeCwd, TASK.taskId))).toBe(false);
+  });
+
+  it('①-b 判别性：env 纯空白 ⇒ 默认根（旧 `??` 同样漏成 CWD）', () => {
+    process.env.VESSEL_ITERATIONS_ROOT = '   ';
+    const store = new IterationStore();
+    expect(store.root).toBe(defaultRoot());
+    expect(store.root).not.toBe(fakeCwd);
+  });
+
+  it('② 负对照：env 有值（含首尾空白）⇒ trim 后即该根，行为逐字不变', () => {
+    const explicit = tempDir();
+    try {
+      process.env.VESSEL_ITERATIONS_ROOT = `  ${explicit}  `;
+      expect(defaultIterationRoot()).toBe(path.resolve(explicit));
+      const store = new IterationStore();
+      expect(store.root).toBe(path.resolve(explicit));
+      expect(store.root).not.toBe(defaultRoot());
+    } finally {
+      fs.rmSync(explicit, { recursive: true, force: true });
+    }
+  });
+
+  it('③ 负对照：显式 opts.iterationsRoot 优先于 env；env 未设置 ⇒ 仍回落默认根', () => {
+    const explicit = tempDir();
+    try {
+      process.env.VESSEL_ITERATIONS_ROOT = path.join(fakeCwd, 'env-root');
+      expect(new IterationStore({ iterationsRoot: explicit }).root).toBe(path.resolve(explicit));
+
+      delete process.env.VESSEL_ITERATIONS_ROOT;
+      expect(defaultIterationRoot()).toBe(path.join(os.homedir(), '.vessel', 'iterations'));
+      expect(new IterationStore().root).toBe(defaultRoot());
+    } finally {
+      fs.rmSync(explicit, { recursive: true, force: true });
+    }
+  });
+});
+
 describe('engine/iteration-store — IterationStore 迭代日志（task 063）', () => {
   let root: string;
   beforeEach(() => {

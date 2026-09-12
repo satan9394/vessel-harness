@@ -1,7 +1,7 @@
 import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { ReviewHandoffStore, defaultReviewsRoot, newReviewId, defaultReviewChecklist, renderHandoffMarkdown } from './ReviewHandoffStore.js';
 import type { ReviewHandoffRecord } from './ExternalReviewHandoff.js';
 
@@ -55,6 +55,102 @@ describe('application/review — default root / id 约定（task 059）', () => 
     const c = newReviewId();
     expect(b).toMatch(/^review_\d+_[0-9a-f]{8}$/);
     expect(b).not.toBe(c);
+  });
+});
+
+/**
+ * 状态根口径（`VESSEL_REVIEWS_ROOT`）—— 唯一实现 `envRoot()`：未设置/空串/纯空白 ⇒
+ * **未设置**（回落 `~/.vessel/reviews`），其余 trim。
+ *
+ * 判别性（「删掉修复就红」）：旧实现是 `process.env.VESSEL_REVIEWS_ROOT ?? path.join(home, …)`，
+ * `??` 只挡 `undefined` ⇒ `''`/`'   '` 直接当根 ⇒ 构造里的 `path.resolve('')` = **进程 CWD**。
+ * 生产调用点 `apps/local-server/src/server.ts` 的 `new ReviewHandoffStore()`（无参）正是这条路
+ * —— 空值会让 reviews 落到**服务进程的工作目录**，而同一次运行的 usage/凭据仍在 `~/.vessel`
+ * （状态根被静默拆成两处）。把 `defaultReviewsRoot()` 里的 `envRoot(...)` 换回 `??` ⇒
+ * ①② 立即红（`createHandoff` 的落盘断言也一并红）。
+ *
+ * 隔离（AGENTS.md §8 与卡④）：`HOME`/`USERPROFILE` 指到 `os.tmpdir()` 下的临时家目录，
+ * 并把 `process.cwd()` 钉到临时目录——即使跑在**修复前**的代码上（会漏到 CWD），读写也只
+ * 落在临时目录里，绝不碰真实 `~/.vessel` 或仓库工作区。
+ */
+describe('application/review — 状态根口径（VESSEL_REVIEWS_ROOT 空/纯空白 ⇒ 未设置）', () => {
+  let home: string;
+  let fakeCwd: string;
+  let savedHome: string | undefined;
+  let savedUserProfile: string | undefined;
+  let savedReviews: string | undefined;
+  let cwdSpy: { mockRestore: () => void };
+
+  beforeEach(() => {
+    home = tempDir();
+    fakeCwd = tempDir();
+    savedHome = process.env.HOME;
+    savedUserProfile = process.env.USERPROFILE;
+    savedReviews = process.env.VESSEL_REVIEWS_ROOT;
+    process.env.HOME = home; // POSIX：os.homedir() 读 HOME
+    process.env.USERPROFILE = home; // Windows：os.homedir() 读 USERPROFILE
+    cwdSpy = vi.spyOn(process, 'cwd').mockReturnValue(fakeCwd);
+  });
+
+  afterEach(() => {
+    cwdSpy.mockRestore();
+    if (savedHome === undefined) delete process.env.HOME;
+    else process.env.HOME = savedHome;
+    if (savedUserProfile === undefined) delete process.env.USERPROFILE;
+    else process.env.USERPROFILE = savedUserProfile;
+    if (savedReviews === undefined) delete process.env.VESSEL_REVIEWS_ROOT;
+    else process.env.VESSEL_REVIEWS_ROOT = savedReviews;
+    fs.rmSync(home, { recursive: true, force: true });
+    fs.rmSync(fakeCwd, { recursive: true, force: true });
+  });
+
+  /** 修复后期望的默认根（真实 `os.homedir()` 已被指到临时家目录）。 */
+  const defaultRoot = (): string => path.resolve(path.join(home, '.vessel', 'reviews'));
+
+  it('① 判别性：env 空串 ⇒ 默认根 ~/.vessel/reviews，不是进程 CWD（旧 `??` ⇒ 必红）', () => {
+    process.env.VESSEL_REVIEWS_ROOT = '';
+    const store = new ReviewHandoffStore();
+    expect(store.root).toBe(defaultRoot());
+    expect(store.root).not.toBe(fakeCwd);
+    // 行为面：记录真的落在默认根下（而不是进程 CWD）
+    const rec = store.createHandoff({ task: '口径用例：空串 env' });
+    expect(fs.existsSync(path.join(defaultRoot(), rec.id, 'meta.json'))).toBe(true);
+    expect(fs.existsSync(path.join(fakeCwd, rec.id))).toBe(false);
+  });
+
+  it('①-b 判别性：env 纯空白 ⇒ 默认根（旧 `??` 同样漏成 CWD）', () => {
+    process.env.VESSEL_REVIEWS_ROOT = '   ';
+    const store = new ReviewHandoffStore();
+    expect(store.root).toBe(defaultRoot());
+    expect(store.root).not.toBe(fakeCwd);
+  });
+
+  it('② 负对照：env 有值（含首尾空白）⇒ trim 后即该根，行为逐字不变', () => {
+    const explicit = tempDir();
+    try {
+      process.env.VESSEL_REVIEWS_ROOT = `  ${explicit}  `;
+      expect(defaultReviewsRoot()).toBe(path.resolve(explicit));
+      const store = new ReviewHandoffStore();
+      expect(store.root).toBe(path.resolve(explicit));
+      expect(store.root).not.toBe(defaultRoot());
+    } finally {
+      fs.rmSync(explicit, { recursive: true, force: true });
+    }
+  });
+
+  it('③ 负对照：显式 opts.reviewsRoot 优先于 env；env 未设置 ⇒ 仍回落默认根', () => {
+    const explicit = tempDir();
+    try {
+      process.env.VESSEL_REVIEWS_ROOT = path.join(fakeCwd, 'env-root');
+      const viaOpts = new ReviewHandoffStore({ reviewsRoot: explicit });
+      expect(viaOpts.root).toBe(path.resolve(explicit));
+
+      delete process.env.VESSEL_REVIEWS_ROOT;
+      expect(defaultReviewsRoot()).toBe(path.join(os.homedir(), '.vessel', 'reviews'));
+      expect(new ReviewHandoffStore().root).toBe(defaultRoot());
+    } finally {
+      fs.rmSync(explicit, { recursive: true, force: true });
+    }
   });
 });
 

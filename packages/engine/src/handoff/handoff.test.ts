@@ -121,6 +121,99 @@ describe('engine/handoff — Handoff 类型 + 生成（task 067）', () => {
   });
 });
 
+/**
+ * 状态根口径（`VESSEL_HANDOFFS_ROOT`）—— 唯一实现 `envRoot()`：未设置/空串/纯空白 ⇒
+ * **未设置**（回落 `~/.vessel/handoffs`），其余 trim。
+ *
+ * 判别性（「删掉修复就红」）：旧实现 `process.env.VESSEL_HANDOFFS_ROOT ?? path.join(home, …)`
+ * 只挡 `undefined` ⇒ `''`/`'   '` 直接当根 ⇒ `path.resolve('')` = **进程 CWD**（无参构造
+ * `new HandoffStore()` 即把 handoff 记录落到工作目录；当前生产调用点 soak-driver 显式传根，
+ * 故定级低于 reviews/taskqueue/iterations 三处，API 面同病）。把 `defaultHandoffRoot()` 里的
+ * `envRoot(...)` 换回 `??` ⇒ ①② 立即红。
+ *
+ * 隔离：`HOME`/`USERPROFILE` 指到 `os.tmpdir()` 下临时家目录，`process.cwd()` 钉到临时目录。
+ */
+describe('engine/handoff — 状态根口径（VESSEL_HANDOFFS_ROOT 空/纯空白 ⇒ 未设置）', () => {
+  let home: string;
+  let fakeCwd: string;
+  let savedHome: string | undefined;
+  let savedUserProfile: string | undefined;
+  let savedHandoffsRoot: string | undefined;
+  let cwdSpy: { mockRestore: () => void };
+
+  beforeEach(() => {
+    home = tempDir('cah-handoff-home-');
+    fakeCwd = tempDir('cah-handoff-cwd-');
+    savedHome = process.env.HOME;
+    savedUserProfile = process.env.USERPROFILE;
+    savedHandoffsRoot = process.env.VESSEL_HANDOFFS_ROOT;
+    process.env.HOME = home; // POSIX：os.homedir() 读 HOME
+    process.env.USERPROFILE = home; // Windows：os.homedir() 读 USERPROFILE
+    cwdSpy = vi.spyOn(process, 'cwd').mockReturnValue(fakeCwd);
+  });
+
+  afterEach(() => {
+    // 只回滚本用例的 cwd spy：本文件有 vi.mock('node:fs') 的委托实现，
+    // 不能用 vitest 的全局 restoreAllMocks（会一并重置那些委托包装）。
+    cwdSpy.mockRestore();
+    if (savedHome === undefined) delete process.env.HOME;
+    else process.env.HOME = savedHome;
+    if (savedUserProfile === undefined) delete process.env.USERPROFILE;
+    else process.env.USERPROFILE = savedUserProfile;
+    if (savedHandoffsRoot === undefined) delete process.env.VESSEL_HANDOFFS_ROOT;
+    else process.env.VESSEL_HANDOFFS_ROOT = savedHandoffsRoot;
+    fs.rmSync(home, { recursive: true, force: true });
+    fs.rmSync(fakeCwd, { recursive: true, force: true });
+  });
+
+  const defaultRoot = (): string => path.resolve(path.join(home, '.vessel', 'handoffs'));
+
+  it('① 判别性：env 空串 ⇒ 默认根 ~/.vessel/handoffs，不是进程 CWD（旧 `??` ⇒ 必红）', () => {
+    process.env.VESSEL_HANDOFFS_ROOT = '';
+    const store = new HandoffStore();
+    expect(store.root).toBe(defaultRoot());
+    expect(store.root).not.toBe(fakeCwd);
+    // 行为面：记录落在默认根下（而不是进程 CWD）
+    const rec = store.create(fullMaterial());
+    expect(fs.existsSync(path.join(defaultRoot(), rec.id, 'meta.json'))).toBe(true);
+    expect(fs.existsSync(path.join(fakeCwd, rec.id))).toBe(false);
+  });
+
+  it('①-b 判别性：env 纯空白 ⇒ 默认根（旧 `??` 同样漏成 CWD）', () => {
+    process.env.VESSEL_HANDOFFS_ROOT = '   ';
+    const store = new HandoffStore();
+    expect(store.root).toBe(defaultRoot());
+    expect(store.root).not.toBe(fakeCwd);
+  });
+
+  it('② 负对照：env 有值（含首尾空白）⇒ trim 后即该根，行为逐字不变', () => {
+    const explicit = tempDir('cah-handoff-explicit-');
+    try {
+      process.env.VESSEL_HANDOFFS_ROOT = `  ${explicit}  `;
+      expect(defaultHandoffRoot()).toBe(path.resolve(explicit));
+      const store = new HandoffStore();
+      expect(store.root).toBe(path.resolve(explicit));
+      expect(store.root).not.toBe(defaultRoot());
+    } finally {
+      fs.rmSync(explicit, { recursive: true, force: true });
+    }
+  });
+
+  it('③ 负对照：显式 opts.handoffsRoot 优先于 env；env 未设置 ⇒ 仍回落默认根', () => {
+    const explicit = tempDir('cah-handoff-explicit2-');
+    try {
+      process.env.VESSEL_HANDOFFS_ROOT = path.join(fakeCwd, 'env-root');
+      expect(new HandoffStore({ handoffsRoot: explicit }).root).toBe(path.resolve(explicit));
+
+      delete process.env.VESSEL_HANDOFFS_ROOT;
+      expect(defaultHandoffRoot()).toBe(path.join(os.homedir(), '.vessel', 'handoffs'));
+      expect(new HandoffStore().root).toBe(defaultRoot());
+    } finally {
+      fs.rmSync(explicit, { recursive: true, force: true });
+    }
+  });
+});
+
 describe('engine/handoff — HandoffStore 持久化（059 存储模式，task 067）', () => {
   let root: string;
   beforeEach(() => {

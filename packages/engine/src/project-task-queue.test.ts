@@ -88,6 +88,100 @@ describe('engine/project-task-queue — default root / id / 状态机约定（ta
   });
 });
 
+/**
+ * 状态根口径（`VESSEL_TASKQUEUE_ROOT`）—— 唯一实现 `envRoot()`：未设置/空串/纯空白 ⇒
+ * **未设置**（回落 `~/.vessel/taskqueue`），其余 trim。
+ *
+ * 判别性（「删掉修复就红」）：旧实现 `process.env.VESSEL_TASKQUEUE_ROOT ?? path.join(home, …)`
+ * 只挡 `undefined` ⇒ `''`/`'   '` 直接当根 ⇒ `path.resolve('')` = **进程 CWD**（生产调用点
+ * `apps/local-server/src/goalSeam.ts` 的 `new ProjectTaskQueue()`：任务队列会落到服务进程的
+ * 工作目录，与同一次运行的 iterations/handoffs 拆成两处）。把 `defaultTaskQueueRoot()` 里的
+ * `envRoot(...)` 换回 `??` ⇒ ①② 立即红。
+ *
+ * 隔离：`HOME`/`USERPROFILE` 指到 `os.tmpdir()` 下临时家目录，`process.cwd()` 钉到临时目录
+ * —— 即使跑在修复前的代码上（会漏到 CWD），读写也只在临时目录里。
+ */
+describe('engine/project-task-queue — 状态根口径（VESSEL_TASKQUEUE_ROOT 空/纯空白 ⇒ 未设置）', () => {
+  let home: string;
+  let fakeCwd: string;
+  let savedHome: string | undefined;
+  let savedUserProfile: string | undefined;
+  let savedQueueRoot: string | undefined;
+  let cwdSpy: { mockRestore: () => void };
+
+  beforeEach(() => {
+    home = tempDir();
+    fakeCwd = tempDir();
+    savedHome = process.env.HOME;
+    savedUserProfile = process.env.USERPROFILE;
+    savedQueueRoot = process.env.VESSEL_TASKQUEUE_ROOT;
+    process.env.HOME = home; // POSIX：os.homedir() 读 HOME
+    process.env.USERPROFILE = home; // Windows：os.homedir() 读 USERPROFILE
+    cwdSpy = vi.spyOn(process, 'cwd').mockReturnValue(fakeCwd);
+  });
+
+  afterEach(() => {
+    // 只回滚本用例的 cwd spy：本文件有 vi.mock('node:fs') 的委托实现，
+    // 不能用 vitest 的全局 restoreAllMocks（会一并重置那些委托包装）。
+    cwdSpy.mockRestore();
+    if (savedHome === undefined) delete process.env.HOME;
+    else process.env.HOME = savedHome;
+    if (savedUserProfile === undefined) delete process.env.USERPROFILE;
+    else process.env.USERPROFILE = savedUserProfile;
+    if (savedQueueRoot === undefined) delete process.env.VESSEL_TASKQUEUE_ROOT;
+    else process.env.VESSEL_TASKQUEUE_ROOT = savedQueueRoot;
+    fs.rmSync(home, { recursive: true, force: true });
+    fs.rmSync(fakeCwd, { recursive: true, force: true });
+  });
+
+  const defaultRoot = (): string => path.resolve(path.join(home, '.vessel', 'taskqueue'));
+
+  it('① 判别性：env 空串 ⇒ 默认根 ~/.vessel/taskqueue，不是进程 CWD（旧 `??` ⇒ 必红）', () => {
+    process.env.VESSEL_TASKQUEUE_ROOT = '';
+    const queue = new ProjectTaskQueue();
+    expect(queue.root).toBe(defaultRoot());
+    expect(queue.root).not.toBe(fakeCwd);
+    // 行为面：入队的 meta.json 落在默认根下（而不是进程 CWD）
+    const task = queue.enqueue({ projectRoot: ROOT_PROJECT, goal: '口径用例：空串 env' });
+    expect(fs.existsSync(path.join(defaultRoot(), task.id, 'meta.json'))).toBe(true);
+    expect(fs.existsSync(path.join(fakeCwd, task.id))).toBe(false);
+  });
+
+  it('①-b 判别性：env 纯空白 ⇒ 默认根（旧 `??` 同样漏成 CWD）', () => {
+    process.env.VESSEL_TASKQUEUE_ROOT = '   ';
+    const queue = new ProjectTaskQueue();
+    expect(queue.root).toBe(defaultRoot());
+    expect(queue.root).not.toBe(fakeCwd);
+  });
+
+  it('② 负对照：env 有值（含首尾空白）⇒ trim 后即该根，行为逐字不变', () => {
+    const explicit = tempDir();
+    try {
+      process.env.VESSEL_TASKQUEUE_ROOT = `  ${explicit}  `;
+      expect(defaultTaskQueueRoot()).toBe(path.resolve(explicit));
+      const queue = new ProjectTaskQueue();
+      expect(queue.root).toBe(path.resolve(explicit));
+      expect(queue.root).not.toBe(defaultRoot());
+    } finally {
+      fs.rmSync(explicit, { recursive: true, force: true });
+    }
+  });
+
+  it('③ 负对照：显式 opts.tasksRoot 优先于 env；env 未设置 ⇒ 仍回落默认根', () => {
+    const explicit = tempDir();
+    try {
+      process.env.VESSEL_TASKQUEUE_ROOT = path.join(fakeCwd, 'env-root');
+      expect(new ProjectTaskQueue({ tasksRoot: explicit }).root).toBe(path.resolve(explicit));
+
+      delete process.env.VESSEL_TASKQUEUE_ROOT;
+      expect(defaultTaskQueueRoot()).toBe(path.join(os.homedir(), '.vessel', 'taskqueue'));
+      expect(new ProjectTaskQueue().root).toBe(defaultRoot());
+    } finally {
+      fs.rmSync(explicit, { recursive: true, force: true });
+    }
+  });
+});
+
 describe('engine/project-task-queue — ProjectTaskQueue 持久队列（task 063）', () => {
   let root: string;
   beforeEach(() => {

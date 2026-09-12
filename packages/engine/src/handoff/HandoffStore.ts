@@ -1,7 +1,7 @@
 import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
-import { renameWithRetry } from '@vessel/shared';
+import { envRoot, renameWithRetry } from '@vessel/shared';
 import { buildHandoff, newHandoffId, parseHandoff, serializeHandoff, type HandoffMaterial, type HandoffRecord } from './Handoff.js';
 import { renderHandoffText } from './HandoffRender.js';
 
@@ -20,9 +20,15 @@ import { renderHandoffText } from './HandoffRender.js';
  * 自行串行（本卡不引入锁）。读取容忍损坏条目（get 返回 undefined，list 跳过）。
  */
 
-/** 缺省 handoffs 根目录：~/.vessel/handoffs（env VESSEL_HANDOFFS_ROOT 可覆盖）。 */
+/**
+ * 缺省 handoffs 根目录：~/.vessel/handoffs（env VESSEL_HANDOFFS_ROOT 可覆盖）。
+ *
+ * 口径（唯一实现 `envRoot`）：未设置/空串/纯空白 ⇒ 默认根；其余 trim。不能写 `??`——
+ * `??` 只挡 undefined，`VESSEL_HANDOFFS_ROOT=` 会让根成为 `''` ⇒ `path.resolve('')` = 进程 CWD
+ * （API 面同族病；当前生产调用点 soak-driver 显式传根，故定级低于前三处）。
+ */
 export function defaultHandoffRoot(home = os.homedir()): string {
-  return process.env.VESSEL_HANDOFFS_ROOT ?? path.join(home, '.vessel', 'handoffs');
+  return envRoot('VESSEL_HANDOFFS_ROOT') ?? path.join(home, '.vessel', 'handoffs');
 }
 
 export interface HandoffStoreOptions {

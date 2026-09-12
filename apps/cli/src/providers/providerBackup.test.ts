@@ -116,3 +116,80 @@ describe('095 备份轮转', () => {
     expect(() => new ProviderStore({ rootDir: dir, backupKeep: -2 })).toThrow(/非负整数/); // 显式 opts 同样 fail loud
   });
 });
+
+/**
+ * `VESSEL_PROVIDER_BACKUP_KEEP` 的读法 —— 与**同一概念**的
+ * `UsageStore.resolveBackupKeep()`（`VESSEL_USAGE_BACKUP_KEEP`）同口径：
+ * 未设置 / 空串 / 纯空白 ⇒ **默认 5**；其余 trim 后解析（非法值仍 fail loud）。
+ *
+ * 判别性（「删掉修复就红」）：旧实现是 `envKeep === undefined ? 5 : parseBackupKeep(envKeep)`，
+ * 而 `Number('') === 0`、`Number('   ') === 0` ⇒ `VESSEL_PROVIDER_BACKUP_KEEP=`（shell 里
+ * "清空变量"的常见写法）会**静默把备份数设成 0 = 关掉备份**——空值的默认行为本该是"用默认值"，
+ * 而不是"关掉保护"。把构造函数里的 `envRoot('VESSEL_PROVIDER_BACKUP_KEEP')` 换回裸读
+ * `process.env.…` ⇒ ① 与 ①-b 立即红（`backupKeep` 变 0、备一个都不产生）。
+ */
+describe('095 备份保留份数 — env 口径（空/纯空白 ⇒ 默认，不静默关闭备份）', () => {
+  let dir: string;
+  let savedKeep: string | undefined;
+
+  beforeEach(() => {
+    dir = fs.mkdtempSync(path.join(os.tmpdir(), 'cah-bak-env-'));
+    savedKeep = process.env.VESSEL_PROVIDER_BACKUP_KEEP;
+  });
+
+  afterEach(() => {
+    if (savedKeep === undefined) delete process.env.VESSEL_PROVIDER_BACKUP_KEEP;
+    else process.env.VESSEL_PROVIDER_BACKUP_KEEP = savedKeep;
+    fs.rmSync(dir, { recursive: true, force: true });
+  });
+
+  /** 设 env 后构造 store（`backupKeep` 显式给出时测试「显式传参优先」）。 */
+  function makeStore(envValue: string | undefined, backupKeep?: number): ProviderStore {
+    if (envValue === undefined) delete process.env.VESSEL_PROVIDER_BACKUP_KEEP;
+    else process.env.VESSEL_PROVIDER_BACKUP_KEEP = envValue;
+    return new ProviderStore(backupKeep === undefined ? { rootDir: dir } : { rootDir: dir, backupKeep });
+  }
+
+  /** 写两次配置（第二次写前应有旧文件可备份），返回 providers 类备份数。 */
+  function backupsAfterTwoWrites(store: ProviderStore): number {
+    store.add(SAMPLE); // 首次写：无旧文件 ⇒ 不产生备份
+    store.update('ds', { model: 'deepseek-reasoner' });
+    return store.listBackups().filter((b) => b.kind === 'providers').length;
+  }
+
+  it('① 判别性：env 空串 ⇒ 默认备份数（非 0），备份照常发生 —— 不会静默关闭备份', () => {
+    const store = makeStore('');
+    expect(store.backupKeep).toBe(DEFAULT_BACKUP_KEEP);
+    expect(store.backupKeep).toBeGreaterThan(0); // 旧实现这里是 0
+    expect(backupsAfterTwoWrites(store)).toBe(1);
+    expect(fs.existsSync(store.backupsDir)).toBe(true);
+  });
+
+  it("①-b 判别性：env 纯空白 ⇒ 默认备份数，备份照常发生（旧实现 Number('   ')=0）", () => {
+    const store = makeStore('   ');
+    expect(store.backupKeep).toBe(DEFAULT_BACKUP_KEEP);
+    expect(backupsAfterTwoWrites(store)).toBe(1);
+  });
+
+  it('② 负对照：env 有值 ⇒ 该值生效（含首尾空白 trim 后同值）；显式 0 仍表示关闭', () => {
+    expect(makeStore('2').backupKeep).toBe(2);
+    expect(makeStore(' 2 ').backupKeep).toBe(2);
+    // 有值时的行为逐字不变：`0`（显式写出来）依旧是「关闭备份」
+    const off = makeStore('0');
+    expect(off.backupKeep).toBe(0);
+    expect(backupsAfterTwoWrites(off)).toBe(0);
+    expect(fs.existsSync(off.backupsDir)).toBe(false);
+  });
+
+  it('③ 负对照：显式 opts.backupKeep 优先于 env；env 未设置 ⇒ 默认 5', () => {
+    expect(makeStore('', 3).backupKeep).toBe(3);
+    expect(makeStore('2', 3).backupKeep).toBe(3);
+    expect(makeStore(undefined).backupKeep).toBe(DEFAULT_BACKUP_KEEP);
+  });
+
+  it('④ 有值口径未放宽：env 非法值仍 fail loud（空/空白是唯一新增的"未设置"形态）', () => {
+    expect(() => makeStore('abc')).toThrow(/非负整数/);
+    expect(() => makeStore('-1')).toThrow(/非负整数/);
+    expect(() => makeStore('1.5')).toThrow(/非负整数/);
+  });
+});

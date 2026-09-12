@@ -2,7 +2,7 @@ import * as crypto from 'node:crypto';
 import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
-import { renameWithRetry, statWithRetry } from '@vessel/shared';
+import { envRoot, renameWithRetry, statWithRetry } from '@vessel/shared';
 import type { LoopTask } from './LoopEngine.js';
 
 /**
@@ -75,9 +75,15 @@ export function queueSettleStatusFromVerdict(verdict: TerminalVerdict): QueueSet
   return verdict === 'met' ? 'met' : 'not_met';
 }
 
-/** 缺省 taskqueue 根目录：~/.vessel/taskqueue（env VESSEL_TASKQUEUE_ROOT 可覆盖）。 */
+/**
+ * 缺省 taskqueue 根目录：~/.vessel/taskqueue（env VESSEL_TASKQUEUE_ROOT 可覆盖）。
+ *
+ * 口径（唯一实现 `envRoot`）：未设置/空串/纯空白 ⇒ 默认根；其余 trim。不能写 `??`——
+ * `??` 只挡 undefined，`VESSEL_TASKQUEUE_ROOT=` 会让根成为 `''` ⇒ `path.resolve('')` = 进程 CWD
+ * （生产调用点 `apps/local-server/src/goalSeam.ts` 的 `new ProjectTaskQueue()`）。
+ */
 export function defaultTaskQueueRoot(home = os.homedir()): string {
-  return process.env.VESSEL_TASKQUEUE_ROOT ?? path.join(home, '.vessel', 'taskqueue');
+  return envRoot('VESSEL_TASKQUEUE_ROOT') ?? path.join(home, '.vessel', 'taskqueue');
 }
 
 /** task id —— 沿用既有 `<kind>_<ts>_<hex>` 约定（sess_/team_/review_ 同款）。 */

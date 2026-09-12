@@ -102,6 +102,12 @@ export interface ProviderStoreOptions {
    * 备份保留份数（task 095）：每次**写盘前**把旧文件复制到 `<root>/backups/`，
    * 每类文件各保留 N 份（默认 5；0 = 不备份）。缺省可用环境变量
    * `VESSEL_PROVIDER_BACKUP_KEEP` 覆盖，显式 opts 优先级最高。
+   *
+   * 环境变量口径（`envRoot`，与同概念的 `UsageStore.resolveBackupKeep()` 的
+   * `VESSEL_USAGE_BACKUP_KEEP` 一致）：未设置/空串/纯空白 ⇒ **默认 5**；其余 trim 后解析。
+   * 不能写 `envKeep === undefined ? 5 : parseBackupKeep(envKeep)`：`Number('') === 0` ⇒
+   * `VESSEL_PROVIDER_BACKUP_KEEP=`（shell 里"清空变量"的常见写法）会**静默把备份数设成 0
+   * = 关掉备份**——空值的默认行为本该是"用默认值"，而不是"关掉保护"。
    */
   backupKeep?: number;
 }
@@ -195,7 +201,7 @@ export class ProviderStore {
   readonly credentialStore?: SyncCredentialStore;
   /** 凭据 service 名（secretRef = `credential:<service>/<id>`）。 */
   readonly credentialService: string;
-  /** 备份保留份数（0 = 关闭备份）。 */
+  /** 备份保留份数（0 = 关闭备份；env 空/纯空白 ⇒ 默认 `DEFAULT_BACKUP_KEEP`）。 */
   readonly backupKeep: number;
 
   constructor(opts: ProviderStoreOptions = {}) {
@@ -210,7 +216,9 @@ export class ProviderStore {
     this.rootDir = opts.rootDir ?? envRoot('VESSEL_PROVIDER_ROOT') ?? defaultProviderRoot();
     this.credentialStore = opts.credentialStore;
     this.credentialService = opts.credentialService ?? 'vessel';
-    const envKeep = process.env.VESSEL_PROVIDER_BACKUP_KEEP;
+    // 备份保留份数：同一概念只用一种读法（见 ProviderStoreOptions.backupKeep 注释）。
+    // `envRoot` 把 undefined/''/纯空白一律判成「未设置」⇒ 默认 5（**绝不会**静默变成 0）。
+    const envKeep = envRoot('VESSEL_PROVIDER_BACKUP_KEEP');
     this.backupKeep =
       opts.backupKeep !== undefined
         ? parseBackupKeep(opts.backupKeep)
