@@ -35,6 +35,7 @@
 **残余（如实记录）**：① `npm pack --ignore-scripts` 仍可跳过 prepack 产出坏包（显式 opt-out，**必须由门禁兜住**）；② `npm run build` 是嵌套 npm，`-w/--workspaces` 打包时子进程会继承 `npm_config_workspace(s)`，理论上可能 ENOWORKSPACES 失败（**fail-loud，不静默出坏包**）；③ `dist/.tsbuildinfo` 仍入包。
 **P2（已派卡）**：发布门禁只查本地 `dist` 是否存在（`release-gates/gates.ts:648-654`）→「270→62」是**一次性人工实测而非可回归门禁**。
 **P3×4**：pricing sync warn 调用点无用例；warn 文案补救指向 `node_modules`（重装即失效）且 `--dry-run` 也打印；`dist/.tsbuildinfo` 入包；alias 读取短路边界。
+**终评对里程碑证据强度的批评（我接受）**：`--version`/`--help` 与 `policy status`（恒 exit 0）**本身无判别力**；真正有判别力的只有"system 层路径落在 `node_modules/.../dist/configs`"。它另指出 **pricing/model-catalog 的安装态读路径缺等价实证**——**已补反向证据探针**：16 tarball → 空项目 `npm i`（exit 0）→ **`vessel usage` exit 0 且「未找到内置配置」警告未出现**（`部分装载` 警告亦未出现）⇒ `pricing.json` 确从**包内 `dist/configs`** 读到（该 warn 仅在缺失时打印）。
 
 **终评对"最大缺口"的判断（我采纳）**：不是这些单点语义，而是「**打包 → 安装 → 首跑 → 升级**」整条发布链路仍靠**人工实测一次**——tarball 形状、`dist` 随构建、安装态读路径、无 warn 冒烟**都没有自动门禁**，任何重构都能在**没有红灯**的情况下把"能用的包"变成"不能用的包"。→ 本轮的处置正是把 **P1 变为门禁红灯**（`prepack` 构建 + 门禁断言包形状）。**新增纪律 17**：**"能跑一次"不等于"可发布"**——一次性人工实测必须转化为**离线、确定性、可回归的门禁**，否则它只提供假安全感。
 

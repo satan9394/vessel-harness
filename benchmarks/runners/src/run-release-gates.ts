@@ -25,6 +25,7 @@
  * 受限环境：真实命令（tsc/vitest）经 execFile 实跑；unavailable 的 gate 按 084 语义 probe→pending，
  *   由 runner 如实汇总为 partial，不伪造 pass。
  */
+import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { execFile } from 'node:child_process';
@@ -136,6 +137,347 @@ export function buildDeterministicBenchExecutor(provider: ChatProvider | null = 
         }
       }
       return judgeScenarioRuns({ scenarioIds: [...L1_DETERMINISTIC_RUNNABLE_SET], passed });
+    },
+  };
+}
+
+// ---------------------------------------------------------------------------
+// 发布物形状门禁 —— EVALUATION-REPORT-24 P2：把终评的一次性人工实测（tarball 270 → 62 文件、
+// 含 dist/cli.js 与 4 个 dist/configs/*、零 *.test.* / 零 *.map）固化成**确定性、离线、可回归**
+// 的 gate 判据，并入既有 §21 Gate 8 `packaging`（不新增第 9 道门禁、不改 084 的 8 门禁注册表）。
+//
+// 为什么需要：原 packaging gate 只查「本地 dist 是否存在」→ 任何重构都能在**没有红灯**的情况下
+// 把能用的包变成不能用的包（典型：`prepack` 忘了构建 → 干净检出打出的包没有 dist/cli.js）。
+// ---------------------------------------------------------------------------
+
+/** 被发布/安装的包目录（相对 repoRoot）：`apps/cli`（`bin.vessel` → `dist/cli.js`）。 */
+export const PUBLISH_PACKAGE_REL_DIR = 'apps/cli';
+
+/** 发布包名（用于确认实测 tarball 就是判据目标包，而非工作区里的别的包）。 */
+export const PUBLISH_PACKAGE_NAME = '@vessel/cli';
+
+/** 必须入包的**包内**相对路径（npm tarball 清单口径，已去 `package/` 前缀）。 */
+export const PUBLISH_ARTIFACT_REQUIRED: readonly string[] = [
+  'dist/cli.js',
+  'dist/configs/policy.default.yaml',
+  'dist/configs/behavior.default.yaml',
+  'dist/configs/pricing.json',
+  'dist/configs/model-catalog.json',
+];
+
+/** 必须**不入包**的形态：编译产物里的测试与 sourcemap（`*.test.js.map` 由 `.map$` 覆盖）。 */
+export const PUBLISH_ARTIFACT_FORBIDDEN_RE = /\.test\.js$|\.test\.d\.ts$|\.map$/;
+
+/**
+ * npm 在 pack 期**真正执行**的包内生命周期脚本（以本机 npm 11 源码为据）：
+ * `npm pack <dir>` → `libnpmpack` 跑 `prepack`（npm/lib/commands/pack.js:53-61 → libnpmpack/lib/index.js:19-28），
+ * 随后 pacote 的 DirFetcher 再跑 `prepare`（pacote/lib/dir.js:30-58）。两者都不做构建 → 干净检出无 dist。
+ */
+export const PACK_LIFECYCLE_SCRIPTS = ['prepack', 'prepare'] as const;
+
+/** §21 Gate 8 packaging 的 criterion（含发布物形状判据；注册表仍在 gates.ts，仅此处覆盖文案）。 */
+export const PUBLISH_ARTIFACT_CRITERION =
+  'build 产物检查（npm pack / 等价产物）存在且完整；工具缺失时显式 pending。' +
+  '发布物形状（publish-artifact）判据：① `apps/cli` 的 pack 期脚本（prepack / prepare）必须构建 dist——' +
+  '否则干净检出（无 dist）时 `npm pack` 会打出缺 `dist/cli.js` 的坏包 → **fail**；' +
+  '② `npm pack --dry-run` 的 tarball 清单必须含 `dist/cli.js` 与 4 个 `dist/configs/*`' +
+  '（policy.default.yaml / behavior.default.yaml / pricing.json / model-catalog.json），' +
+  '且不得含任何 `*.test.js` / `*.test.d.ts` / `*.map`；' +
+  '③ npm pack 不可用、目标包错位或输出无法解析时显式 **pending**，不静默通过。';
+
+/** npm 自身日志行（notice/warn/error/ERR!）——区分「npm 真跑了并失败」与「spawn 级失败（工具缺失）」。 */
+const NPM_LOG_LINE_RE = /(^|\n)\s*npm\s+(?:notice|warn|error|ERR!)/;
+
+/** 取文本尾部若干非空行（证据用）。 */
+function tailLines(text: string, n = 4): string[] {
+  return String(text)
+    .split(/\r?\n/)
+    .map((l) => l.trim())
+    .filter((l) => l.length > 0)
+    .slice(-n);
+}
+
+/** 归一化 tarball 清单条目：分隔符 → `/`、去 `./` 与 `package/` 前缀（npm 各版本/各输出口径不同）。 */
+export function normalizePackEntry(raw: string): string {
+  return String(raw).trim().replace(/\\/g, '/').replace(/^\.\//, '').replace(/^package\//, '');
+}
+
+/**
+ * 解析 `npm pack --dry-run` 输出里的 tarball 清单 + 被打包的包名。
+ *
+ * 为什么**不**解析 `--json`：`apps/cli` 的 `prepack`（scripts/copy-configs.mjs）用 `console.log`
+ * 往 **stdout** 打自己的横幅与文件清单，与 npm 的 JSON 混在同一路 stdout（终评实测：`--json`
+ * 输出被 `[copy-configs] …` 污染 → `JSON.parse` 失败）。而 npm 的 tarball 清单只以
+ * `npm notice Tarball Contents` … `npm notice Tarball Details` 之间的
+ * `npm notice <size> <path>` 形态出现——本机 npm 11 的 `lib/utils/tar.js#logTar` 把 notice 一律写
+ * **stderr**、且每行加 `npm notice ` 前缀（npm/lib/utils/format.js:44-54 逐行加 prefix）。
+ * 脚本横幅既不落在这两行之间、也不带 `<size>` 前缀 → **天然被排除**，污染无从注入。
+ */
+export function parsePackListing(output: string): { entries: string[]; parsed: boolean; packedName?: string } {
+  const text = String(output);
+  const lines = text.split(/\r?\n/);
+  const entries: string[] = [];
+
+  const start = lines.findIndex((l) => l.includes('Tarball Contents'));
+  if (start >= 0) {
+    for (const line of lines.slice(start + 1)) {
+      if (line.includes('Tarball Details')) break; // 清单段结束（其后是 name/version/shasum…）
+      // `${formatBytes(size, false)} ${path}` → 尺寸 token 一定是 `\d+` 或 `\d+.\d+(B|kB|MB|GB)`。
+      const m = line.match(/^\s*npm\s+notice\s+\d+(?:\.\d+)?(?:[kKmMgG]?B)\s+(.+?)\s*$/);
+      const raw = m?.[1];
+      if (raw === undefined) continue;
+      const p = normalizePackEntry(raw);
+      if (p.length > 0 && !entries.includes(p)) entries.push(p);
+    }
+  }
+
+  // 包名行：`npm notice package: @vessel/cli@0.10.0`（unicode 开启时是 `npm notice 📦  @vessel/cli@0.10.0`）。
+  const nameMatch = text.match(/npm\s+notice\s+(?:📦\s+)?(?:package:\s*)?(@?[^\s@]+)@[^\s]+\s*$/m);
+  const packedName = nameMatch?.[1];
+  return packedName === undefined
+    ? { entries, parsed: entries.length > 0 }
+    : { entries, parsed: entries.length > 0, packedName };
+}
+
+/**
+ * 脚本文本（含 `npm run <script>` 间接引用，深度 ≤3）里是否真的调用 TypeScript 编译器（`tsc`）。
+ *
+ * 这是「干净检出下 `npm pack` 能否产出 dist」唯一可离线、可重复判定的信号：本仓的 `dist/` 只由
+ * `tsc -b` 产出。局限（如实记录）：若将来把构建藏进自定义脚本（如 `node scripts/build.mjs` 内部调
+ * tsc），本静态断言判不出来 → 该 gate 变红并要求把 `tsc` 显式写进 pack 期脚本链。这是**刻意**的
+ * 保守方向：宁可红得显眼，也不放过「干净检出打出坏包」。
+ */
+function scriptRunsTsc(text: string, scripts: Record<string, string>, seen: Set<string>, depth = 0): boolean {
+  if (depth > 3) return false;
+  if (/\btsc\b/.test(text)) return true;
+  for (const m of text.matchAll(/\b(?:npm|pnpm|yarn)\s+run(?:-script)?\s+([\w:.-]+)/g)) {
+    const name = m[1];
+    if (name === undefined || seen.has(name)) continue;
+    seen.add(name);
+    const next = scripts[name];
+    if (next !== undefined && scriptRunsTsc(next, scripts, seen, depth + 1)) return true;
+  }
+  return false;
+}
+
+/**
+ * 从包 manifest 判定 pack 期（prepack / prepare）是否会构建 dist。
+ * 返回 `builds=false` 即表示：干净检出（无 dist）下 pack 出的 tarball 不含 dist/cli.js。
+ */
+export function packScriptsBuildDist(manifest: unknown): { builds: boolean; scripts: string[] } {
+  const rawScripts = ((manifest ?? {}) as { scripts?: Record<string, unknown> }).scripts ?? {};
+  const scripts: Record<string, string> = {};
+  for (const [name, text] of Object.entries(rawScripts)) {
+    if (typeof text === 'string') scripts[name] = text;
+  }
+
+  const lines: string[] = [];
+  let builds = false;
+  for (const name of PACK_LIFECYCLE_SCRIPTS) {
+    const text = scripts[name];
+    if (text === undefined) continue;
+    lines.push(`${name}: ${text}`);
+    if (scriptRunsTsc(text, scripts, new Set([name]))) builds = true;
+  }
+  if (lines.length === 0) lines.push(`(manifest 无 ${PACK_LIFECYCLE_SCRIPTS.join(' / ')} 脚本)`);
+  return { builds, scripts: lines };
+}
+
+/** 判定发布物形状所需的事实（全部来自真实文件/真实命令输出，不做推断）。 */
+export interface PublishArtifactFacts {
+  /** pack 期脚本（prepack / prepare）是否构建 dist —— 干净检出能否打出完整包的静态断言。 */
+  packScriptsBuild: boolean;
+  /** prepack / prepare 脚本原文（证据行）。 */
+  packScriptLines: string[];
+  /** npm pack 是否成功（exit 0）。 */
+  packOk: boolean;
+  /** npm 自身是否输出了日志 —— 区分「npm 真跑了并失败」与「spawn 级失败（工具缺失）」。 */
+  packRan: boolean;
+  /** npm pack 输出尾部（证据，≤4 行）。 */
+  packOutputTail?: string[];
+  /** 实测 tarball 清单（归一化后的包内相对路径）。 */
+  entries: string[];
+  /** 是否从输出里解析出清单段（Tarball Contents）。 */
+  listingParsed: boolean;
+  /** 实测被 pack 的包名（拿到才做目标身份断言）。 */
+  packedName?: string;
+}
+
+/**
+ * 判定发布物形状（纯函数，无 IO；分支顺序即优先级）：
+ *  ① pack 期脚本不构建 dist → **fail**（干净检出会打出缺 dist/cli.js 的坏包，这是本卡的核心价值）；
+ *  ② npm pack 非 0 退出：npm 真跑了 → fail（包产不出来）；无 npm 日志（spawn 级失败/工具缺失）→ pending；
+ *  ③ 解析不出清单段 → pending（不静默通过）；
+ *  ④ 实测被打包的包不是 @vessel/cli → pending（探测错位，不拿别的包的清单冒充判据）；
+ *  ⑤ 缺必需文件 / 含违禁文件 → fail；否则 pass。
+ */
+export function judgePublishArtifact(facts: PublishArtifactFacts): GateVerdict {
+  const present = new Set(facts.entries);
+  const missing = PUBLISH_ARTIFACT_REQUIRED.filter((f) => !present.has(f));
+  const forbidden = facts.entries.filter((f) => PUBLISH_ARTIFACT_FORBIDDEN_RE.test(f));
+
+  const scriptLines = facts.packScriptLines.map((l) => `pack 期脚本: ${l}`);
+  const outputLines = (facts.packOutputTail ?? []).map((l) => `npm pack 输出: ${l}`);
+  /** 证据行：pack 期脚本 + 判据行（可选 npm 原始输出尾部），至多 10 行。 */
+  const evidence = (rows: string[], includeOutput = false): string[] =>
+    [...scriptLines, ...rows, ...(includeOutput ? outputLines : [])].slice(0, 10);
+
+  const shapeRows: string[] = [];
+  if (facts.listingParsed) {
+    shapeRows.push(`实测 tarball 文件数=${facts.entries.length}`);
+    if (missing.length > 0) shapeRows.push(`缺: ${missing.join(', ')}`);
+    if (forbidden.length > 0) {
+      const shown = forbidden.slice(0, 5).join(', ');
+      shapeRows.push(`多(违禁): ${shown}${forbidden.length > 5 ? ` … 共 ${forbidden.length} 个` : ''}`);
+    }
+    if (missing.length === 0 && forbidden.length === 0) {
+      shapeRows.push('实测清单：必需文件齐全、零 *.test.* / 零 *.map');
+    }
+  }
+
+  // ① 干净检出前提（静态、确定性、不依赖"本地恰好已有 dist"）。
+  if (!facts.packScriptsBuild) {
+    return {
+      status: 'fail',
+      evidence: {
+        summary:
+          'pack 期脚本（prepack / prepare）不构建 dist —— 干净检出（无 dist）下 `npm pack` 会打出缺 ' +
+          'dist/cli.js 的坏包，安装后无可用入口',
+        detail: evidence([
+          ...shapeRows,
+          '当前工作区实测仅供对照（本地 dist 恰好存在，不代表干净检出）',
+          '判据：干净检出时包内不会出现 dist/cli.js → 本 gate 必须变红',
+        ]),
+      },
+    };
+  }
+
+  // ② npm pack 未成功。
+  if (!facts.packOk) {
+    return facts.packRan
+      ? {
+          status: 'fail',
+          evidence: {
+            summary: 'npm pack --dry-run 非 0 退出（npm 已执行且失败）—— 发布物无法产出',
+            detail: evidence(['npm pack 退出码非 0'], true),
+          },
+        }
+      : {
+          status: 'pending',
+          pending: true,
+          evidence: {
+            summary: 'npm pack 不可用（spawn 级失败，无 npm 日志）—— 未判定包内形状',
+            detail: evidence(['npm pack 探测失败（未执行）'], true),
+          },
+          note:
+            'packaging gate: 当前环境跑不了 npm pack → 显式 pending，不静默通过；' +
+            'pack 期脚本静态断言已独立执行（见 detail）。',
+        };
+  }
+
+  // ③ 解析不出清单 → 如实 pending（不伪造成 pass/fail）。
+  if (!facts.listingParsed) {
+    return {
+      status: 'pending',
+      pending: true,
+      evidence: {
+        summary: 'npm pack 输出里未找到 Tarball Contents 段（清单不可解析）—— 未判定包内形状',
+        detail: evidence(['npm pack 成功但清单段缺失'], true),
+      },
+      note:
+        'packaging gate: npm 输出形态变化导致清单不可解析 → 显式 pending，不静默通过；' +
+        'pack 期脚本静态断言已独立执行（见 detail）。',
+    };
+  }
+
+  // ④ 探测错位：打出来的不是目标包 → 不拿别的包的清单冒充判据。
+  if (facts.packedName !== undefined && facts.packedName !== PUBLISH_PACKAGE_NAME) {
+    return {
+      status: 'pending',
+      pending: true,
+      evidence: {
+        summary: `npm pack 实测被打包的包为 ${facts.packedName}（期望 ${PUBLISH_PACKAGE_NAME}）—— 探测错位，未判定目标包形状`,
+        detail: evidence(shapeRows),
+      },
+      note: `packaging gate: 请确认 pack 作用域（cwd=${PUBLISH_PACKAGE_REL_DIR}）后再判；显式 pending，不静默通过。`,
+    };
+  }
+
+  // ⑤ 形状：必须含 / 必须不含。
+  if (missing.length > 0 || forbidden.length > 0) {
+    const parts: string[] = [];
+    if (missing.length > 0) parts.push(`缺 ${missing.length} 个必需文件（${missing.join(', ')}）`);
+    if (forbidden.length > 0) parts.push(`含 ${forbidden.length} 个 *.test.*/*.map 文件（应为 0）`);
+    return {
+      status: 'fail',
+      evidence: { summary: `发布物形状不符：${parts.join('；')}`, detail: evidence(shapeRows) },
+    };
+  }
+
+  return {
+    status: 'pass',
+    evidence: {
+      summary:
+        `发布物形状符合预期（${facts.entries.length} 个文件：含 dist/cli.js 与 4 个 dist/configs/*，` +
+        '零 *.test.* / 零 *.map）',
+      detail: evidence(shapeRows),
+    },
+  };
+}
+
+/**
+ * 发布物形状 executor（方案 A：**并入** Gate 8 `packaging` —— 复用 gate id/position/criterion 位，
+ * 不新增门禁 id，故无需改 gates.ts 的 8 门禁注册表与 types.ts 的 GateId 联合）。
+ *
+ * 离线：`npm pack` 对 directory spec 是纯本地操作（不查 registry）；`--dry-run` 不落 .tgz
+ * （libnpmpack/lib/index.js:38 仅在 `dryRun === false` 时写文件），但会执行 pack 期脚本
+ * （prepack 的 copy-configs.mjs 为幂等覆盖式复制，不删除任何文件）。
+ * 确定性：判定 ① 不依赖本地 dist 是否存在；判定 ⑤ 以真实 tarball 清单为准。
+ */
+export function buildPublishArtifactExecutor(): GateExecutor {
+  return {
+    gate: {
+      ...gateDefinition('packaging'),
+      name: 'Packaging (build artifacts + publish shape)',
+      criterion: PUBLISH_ARTIFACT_CRITERION,
+    },
+    run: async (ctx: ReleaseContext & { exec: RunCommand }): Promise<GateVerdict> => {
+      const packageDir = path.join(ctx.repoRoot, PUBLISH_PACKAGE_REL_DIR);
+      const manifestPath = path.join(packageDir, 'package.json');
+
+      let manifest: unknown;
+      try {
+        manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
+      } catch (err) {
+        return {
+          status: 'pending',
+          pending: true,
+          evidence: {
+            summary: `无法读取 ${PUBLISH_PACKAGE_REL_DIR}/package.json —— 未判定 pack 期是否构建 dist`,
+            detail: [`path=${manifestPath}`, `err=${String(err)}`],
+          },
+          note: 'packaging gate: 读不到目标包 manifest → 显式 pending，不静默通过。',
+        };
+      }
+
+      const staticCheck = packScriptsBuildDist(manifest);
+
+      const outcome = await ctx
+        .exec('npm', ['pack', '--dry-run'], { cwd: packageDir, timeoutMs: 120_000 })
+        .catch((err: unknown) => ({ code: 1, stdout: '', stderr: String(err) }));
+      const output = `${outcome.stderr}\n${outcome.stdout}`;
+      const listing = parsePackListing(output);
+
+      return judgePublishArtifact({
+        packScriptsBuild: staticCheck.builds,
+        packScriptLines: staticCheck.scripts,
+        packOk: outcome.code === 0,
+        packRan: NPM_LOG_LINE_RE.test(output),
+        packOutputTail: tailLines(output),
+        entries: listing.entries,
+        listingParsed: listing.parsed,
+        ...(listing.packedName === undefined ? {} : { packedName: listing.packedName }),
+      });
     },
   };
 }
@@ -377,10 +719,13 @@ async function main(): Promise<void> {
   console.log(`[V1.1-F] real-model gate models: ${laneModels.map((m) => `${m.displayName}(${m.tier})`).join(', ') || '(none)'}（source=${source.origin}）`);
 
   const base = buildReleaseGateExecutors({ providerResolver, models: laneModels.length > 0 ? laneModels : undefined });
-  // 覆盖 deterministic-bench → 全 L1 可跑集（含 V1.1-D B024-B027）
-  const executors = base.map((e) =>
-    e.gate.id === 'deterministic-bench' ? buildDeterministicBenchExecutor() : e,
-  );
+  // 覆盖 deterministic-bench → 全 L1 可跑集（含 V1.1-D B024-B027）；
+  // 覆盖 packaging → 判「发布物形状」（EVALUATION-REPORT-24 P2：原实现只查本地 dist 是否存在）。
+  const executors = base.map((e) => {
+    if (e.gate.id === 'deterministic-bench') return buildDeterministicBenchExecutor();
+    if (e.gate.id === 'packaging') return buildPublishArtifactExecutor();
+    return e;
+  });
 
   const report = await runReleaseGates(
     executors,

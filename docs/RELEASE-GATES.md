@@ -83,7 +83,17 @@ writeReleaseReportFiles(report, 'benchmarks/reports');
 | 5 | safety | 075 pack（S001–S008）离线 enforcement 证据齐 | offline 确定性 |
 | 6 | resume | 063/064 soak 子集不变量：暂停/续跑、workspace 零残留、从 handoff 续跑留痕 | 确定性 |
 | 7 | ux-smoke | web 构建产物存在；否则 **pending**（环境标注） | 需先 build web |
-| 8 | packaging | build 产物 + 入口存在（npm pack probe）；否则 **pending** | 需先 build dist |
+| 8 | packaging | **发布物形状判据（publish-artifact）**：① `apps/cli` 的 pack 期脚本（`prepack` / `prepare`）必须构建 dist——否则干净检出（无 dist）下 `npm pack` 会打出缺 `dist/cli.js` 的坏包 → **fail**；② `npm pack --dry-run` 的 tarball 清单必须含 `dist/cli.js` 与 4 个 `dist/configs/*`（policy/behavior/pricing/model-catalog），且零 `*.test.js` / `*.test.d.ts` / `*.map`；③ npm pack 不可用、目标包错位或清单不可解析 → 显式 **pending** | 离线：本地 `npm pack`（不联网、`--dry-run` 不写 tgz） |
+
+> gate 8（packaging）加严背景（EVALUATION-REPORT-24 P2）：原判据只查「本地 `dist` 是否存在」
+> （`judgePackagingProbe`），不查**包内形状** → 「tarball 270 → 62 文件、含 `dist/cli.js` 与 4 个
+> `dist/configs/*`、零 `*.test.*` / 零 `*.map`」只是一次性人工实测，任何重构都能在**没有红灯**的情况下
+> 把能用的包变成不能用的包（典型：`prepack` 忘了构建）。现由 `run-release-gates.ts` 的
+> `buildPublishArtifactExecutor()`（判据纯函数 `judgePublishArtifact` + 清单解析 `parsePackListing`
+> + 静态断言 `packScriptsBuildDist`）**替换** gate 8 的 executor（gate id/position/8 门禁注册表不变），
+> 判据 ① 是静态断言，**不依赖"工作区里恰好已有 dist"**。清单解析只认 `npm notice Tarball Contents` …
+> `npm notice Tarball Details` 之间的 `npm notice <size> <path>` 行（npm 把 notice 写 stderr 且逐行加前缀），
+> 故 `prepack` 脚本打到 stdout 的横幅不会污染解析（这也是不用 `npm pack --json` 的原因）。
 
 > gate 1（build）加严背景（Round 4）：`apps/web` 不在根 `tsconfig.json` 的 project references 图内，
 > 只跑根 `tsc -b tsconfig.json` 时 web 的类型错误不会进入编译 → 门禁静默通过；故 Gate1 同时执行两条
@@ -119,8 +129,10 @@ markdown 版（`renderReleaseMarkdown`）含：标题/生成信息/总判定 →
 1. **判据函数 = 纯函数**：`judgeBuild` 等把预采集数据 → 三态判定，不跑命令、毫秒级、单测直接 mock 输入。
 2. **执行器可注入 + 依赖走 `RunCommand` 边界**：真实 executor 的唯一副作用统一收敛到注入的 exec，
    单测全部 mock；真实命令路径在非受限环境跑，不强依赖沙箱可 spawn。
-3. **环境敏感 gate 用 probe→pending，不静默通过**：real-model/UX/packaging 无凭据/无产物时显式返回
-   pending（带 note），继承 082 lane 的诚实降级语义（§21 "不以自证为证"）。
+3. **环境敏感 gate 用 probe→pending，不静默通过**：real-model/UX 无凭据/无产物时显式返回
+   pending（带 note），继承 082 lane 的诚实降级语义（§21 "不以自证为证"）。packaging 已加严为
+   **发布物形状判据**：pack 期不构建 dist、或 tarball 清单缺必需文件/含 `*.test.*`/`*.map` → **fail**
+   （不再以 pending 掩盖坏包）；只有 npm pack 不可执行、目标包错位或清单不可解析才 pending。
 4. **总判定三态**：ready/blocked/partial 明确区分"全过 / 有硬性失败 / 环境未备齐"，指挥据此拍板。
 5. **runner 顺序执行 + 异常转 fail**：严格按 §21 顺序 1→8；executor 抛异常→该 gate fail（不被吞、不被当
    静默 pass），保证报告的完整性。
