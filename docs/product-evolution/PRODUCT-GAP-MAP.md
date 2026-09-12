@@ -159,3 +159,16 @@
 ### Round 42 附：同一轮内我把另外两处也读码取证了（供后续卡片直接使用）
 - **决策点 fail-open（已派卡）**：`packages/core/src/events/EventBus.ts:82-97` 的 `waterfall` 里，监听器抛错被 `continue` 跳过 ⇒ `current` 仍是 `defer`；而 `packages/core/src/agent-loop/AgentLoop.ts:559` 的 **`before_tool`（Tool Interceptor）既不传 `guard` 也只判 `deny`** ⇒ **抛错 = 静默放行**。今天潜伏（生产只挂观察型监听器、硬执法在 `Executor.decide`），但架构本意就是"策略以监听器参与拦截"。**`emit()` 的观察型语义是正确的，不得一并改掉。**
 - **第三处死 seam（已派卡）**：`packages/application/src/projections/EnforcementProjection.ts:108` 的 `foldSession()` **全仓只有 `projections.test.ts:282` 调用** ⇒ 生产里 `fs-confinement` 来源计数恒为 0（守卫确实拒绝了，但没有生产代码把它折进投影）。先例：`reportStatus()` 已经用 `apps/cli/src/cli.ts:912` 接上、`recordProcessTree()` 已由 `compose.ts` 的 Executor `onResult` 接上。
+
+## Round 43 — 决策点 fail-open 已修（**并纠正我简报里的一个前提**）
+
+**修复（提交 `f699538`）**：`EventBus.waterfall` 的 catch 分支不再无条件 `continue`；新增 `WaterfallErrorPolicy = 'fail-closed'|'ask'|'defer'`，**逐调用点显式声明**（省略=`defer` 保持历史语义）。`before_tool`（`AgentLoop.ts:580`）与 `before_delegate`（`SubagentManager.ts:236`）声明 **`'fail-closed'`**：抛错铸**可机读**的 `deny`（ref/reason 带 `listener-error:<listenerName>`），落 `audit/denial` 的 `stage:'hook'`（与规则命中的 `'rule'` 可机读区分）+ `policy_decision` + `tool/result.meta.listenerError`；`before_turn` 显式 `'defer'` 并写明理由（辅助决策点、该点挂纯观察监听器、EVENT-SPEC §3.2.3 明令监听器错误不崩轮次）；`emit` 的观察型语义一字未动；`narrow` 单调收紧未动。**验收（我实跑）**：`tsc` 干净、10 文件 / **81 tests 通过**，含负对照「监听器返回 void/defer ⇒ 工具照常执行（没有被『一律拒绝』掐死）」与正向「正常 deny 仍拒绝、`reason/ref` 与今日一致、审计仍 `stage:'rule'`」。
+
+**我简报里的前提被纠正（方向是"比我说的更严重"）**：我写的是"生产上 `before_tool` 只挂观察型监听器 ⇒ 目前潜伏"。执行者查证：**`packages/application/src/compose.ts:313-327` 把 `policy:engine` 挂在 `before_tool` 上，而那是可 deny 的权威监听器** ⇒ **这是活的 fail-open，不是潜伏的**：`policyEngine.decide` 一旦抛错就静默 defer，而在 `Executor.decide` 未接线的路径（测试/嵌入式用法）上，**工具会在完全没有策略裁决的情况下执行**。
+
+**该卡留下的三条后继项（未做，均带证据）**：
+1. **`listenerErrorPolicy` 只能做成可选（默认 `defer`）⇒ 未来新调用点漏声明即回到 fail-open**。原因：`packages/application/**` 有 **5 处**不带 opts 的 `waterfall` 调用（`SessionController.test.ts:162/169/181`、`projections.test.ts:16/62`），而测试文件参与 `tsc -b`，必填会让该包编译红。**建议**：先把那 5 处显式化，再把该字段改为必填（或对 `before_tool`/`before_delegate` 做**类型级必填**）。
+2. **`before_stop` 走的是 `bus.serial` 而非 `waterfall`**（`AgentLoop.ts:341`）——形态同构（抛错⇒无否决），但生产上 `void stop` 并不消费该否决 ⇒ 现在收紧无行为收益，留给后续卡。
+3. **新契约未进 `DESIGN-DECISIONS.md`**：`WaterfallErrorPolicy` 是新增的架构契约（哪些点必须 fail-closed），属文档卡范畴。
+
+**同轮我做的文档同步（提交 `fccd325`）**：`docs/RELEASE-GATES.md` 补上 pending 的**第三类结构性成因**（manifest 声明的能力缺口 `type: indeterminate`；既不计通过也不计失败、在 evidence 里逐个点名、**fail 优先于 pending**）并写明"pending 名单由本次结果动态生成"；`PRODUCT-STATE.md` 标注 `run-release-gates.ts:139` 与脚注两处已修、回收站例外已拍板入 `AGENTS.md`，并列出真正仍待办项。
