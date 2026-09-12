@@ -265,6 +265,26 @@ export function anthropicSSELineData(line: string): string | null {
  * nothing. Canonical streams (one start per index) are byte-for-byte unchanged —
  * see the `startedIndexes` guard in feed() and the duplicate-start cases in
  * parseAnthropic.test.ts.
+ *
+ * Round 65 — the observability counterpart of that fix, and the reason it must
+ * be a SEPARATE counter. A repeated `content_block_start` is a PROTOCOL
+ * VIOLATION, and the wire has a second shape of it that the `startedIndexes`
+ * guard cannot even see: a repeat that carries no `id`/`name`, for which
+ * `parseAnthropicEvent` emits no `tool_call_start` at all (its `block.id &&
+ * block.name` guard is false), so feed()'s chunk loop never runs for that frame.
+ * Its `input` seed is written into `toolInputJsonByIndex` and read by nobody —
+ * `flushToolBlock`, the only reader, serves UNSTARTED blocks, and this index is
+ * started — so that shape still loses its data silently. BOTH shapes are now
+ * counted, once per violating frame, by the read-only `duplicateStarts` getter,
+ * because the count is taken at the frame (before the mapper) rather than at the
+ * emitted chunk.
+ *
+ * Deliberately NOT folded into `malformedFrames`: that one means "the BYTES of
+ * this frame could not be parsed (the connection was truncated mid-frame)";
+ * this one means "the bytes parsed fine and the PEER re-sent a frame the
+ * protocol forbids". Merging them would make "the connection was cut" and "the
+ * upstream repeated itself" observationally identical — the exact blindness
+ * Round 54 was written to end, one level up.
  */
 export class AnthropicStreamParser {
   /** block index -> tool_use id (only content_block_start carries it). */
@@ -303,6 +323,24 @@ export class AnthropicStreamParser {
    * nothing here is shared with `parseAnthropicEvent` (which owns no state).
    */
   private malformedFrameCount = 0;
+  /**
+   * Round 65 — block indexes whose `content_block_start` has arrived and whose
+   * `content_block_stop` has NOT: the "this block is still open" test that
+   * defines a duplicate-start protocol violation. It covers every block type
+   * (text and tool_use alike — the protocol has one block per index, so a repeat
+   * for an open index is the violation whatever the block holds), and the entry
+   * is cleared at `content_block_stop` (and by forgetToolBlock, which drops
+   * every trace of a closed block). Reusing an index AFTER its block closed is
+   * therefore legal and counts nothing.
+   */
+  private readonly openBlockIndexes = new Set<number>();
+  /**
+   * Round 65 — how many `content_block_start` frames THIS stream delivered for
+   * an index whose block was still open. Instance state, exactly like
+   * malformedFrameCount: per stream by construction, never module state, so two
+   * parsers can never accumulate into each other.
+   */
+  private duplicateStartCount = 0;
 
   /**
    * Round 54 — READ-ONLY per-stream count of frames dropped as unparseable.
@@ -325,6 +363,50 @@ export class AnthropicStreamParser {
    */
   get malformedFrames(): number {
     return this.malformedFrameCount;
+  }
+
+  /**
+   * Round 65 — READ-ONLY per-stream count of duplicate-`content_block_start`
+   * protocol violations: a `content_block_start` arriving for an index whose
+   * block has not been `content_block_stop`ped yet.
+   *
+   * Why a SEPARATE counter rather than folding it into malformedFrames: the two
+   * describe different incidents that need different responses. malformedFrames
+   * means the frame's BYTES were unparseable — a truncated connection, i.e. the
+   * TRANSPORT is broken. This one means the bytes were perfectly fine and the
+   * PEER re-sent a frame the protocol forbids — the UPSTREAM is confused, and
+   * any argument seed riding on the repeat is dropped. One merged number would
+   * make "the connection was cut" and "the upstream repeated itself"
+   * observationally identical.
+   *
+   * The criterion is deliberately the literal one — the block is OPEN (no
+   * `content_block_stop` seen for this index) and another `content_block_start`
+   * arrives for it — because it is the only criterion that sees BOTH shapes of
+   * the violation:
+   *   - the shape Round 64's guard in feed() handles: the repeat carries
+   *     `id`+`name`, so a `tool_call_start` IS produced, the guard suppresses it
+   *     and folds its non-empty seed into a `tool_call_delta`;
+   *   - the shape NOTHING else sees: the repeat carries no `id`/`name`, so
+   *     `parseAnthropicEvent`'s identity guard emits NOTHING for it, feed()'s
+   *     chunk loop never runs, and the seed it wrote into `toolInputJsonByIndex`
+   *     is read by nobody (that map serves unstarted blocks only). Counted here
+   *     all the same, because this test is taken at the FRAME, before the
+   *     mapper — no second emission point is needed for it.
+   * A narrower "already STARTED" test would silently miss the second shape.
+   *
+   * NOT counted, by construction: the first start of an index; a start after
+   * that index's `content_block_stop` (the entry is deleted there — index reuse
+   * is legal once the block closed); deltas and stops that never opened a block;
+   * and any frame fed after the terminal `message_stop`, where feed() returns
+   * before parsing (the same documented boundary as malformedFrames).
+   *
+   * Idempotency boundary: each violating FRAME is counted exactly once, at the
+   * single `openBlockIndexes.has(index)` test in feed(); the mapper never counts,
+   * so one frame can never be counted on two paths. Reading this getter mutates
+   * nothing, and finish() re-scans no frames, so neither can re-count.
+   */
+  get duplicateStarts(): number {
+    return this.duplicateStartCount;
   }
 
   feed(line: string): StreamChunk[] {
@@ -351,10 +433,21 @@ export class AnthropicStreamParser {
 
     const index = ev.index ?? 0;
 
-    // Round 52: content_block_start is the ONLY frame that carries a tool-use
-    // block's id/name, so remember whatever it announced — even partially. A
-    // block that never completes its identity is still surfaced below.
+    // Round 65 — protocol-violation accounting, taken in the ONE place that sees
+    // every `content_block_start` frame whatever the mapper does with it: before
+    // parseAnthropicEvent runs, so the shape whose identity guard emits no chunk
+    // at all (no `id`/`name`) is counted exactly like the shape that does emit
+    // one. A start for an index whose block is still open is the violation (the
+    // protocol allows one start per block, and only a `content_block_stop` — or
+    // the stream's terminal boundary — closes one); the first start of an index
+    // never counts, and neither does a start after that index was stopped.
     if (ev.type === 'content_block_start') {
+      if (this.openBlockIndexes.has(index)) this.duplicateStartCount += 1;
+      this.openBlockIndexes.add(index);
+
+      // Round 52: content_block_start is the ONLY frame that carries a tool-use
+      // block's id/name, so remember whatever it announced — even partially. A
+      // block that never completes its identity is still surfaced below.
       const block = ev.content_block;
       if (block?.type === 'tool_use') {
         this.toolIndexes.add(index);
@@ -372,6 +465,11 @@ export class AnthropicStreamParser {
       out.push(...this.closeOpenToolCalls());
       this.ended = true;
     }
+
+    // Round 65: the block is CLOSED from here on — reusing this index is legal,
+    // so it must stop counting as an open block. Cleared for every block type
+    // (a text block's stop lands here too, and it closes just as much).
+    if (ev.type === 'content_block_stop') this.openBlockIndexes.delete(index);
 
     // A tool_use block that never started (identity incomplete) is surfaced at
     // its own boundary, ahead of the generic mapping below: the mapped
@@ -550,5 +648,9 @@ export class AnthropicStreamParser {
     this.pendingArgsByIndex.delete(index);
     this.startedIndexes.delete(index);
     this.toolIndexes.delete(index);
+    // Round 65: the block is closed, so it is no longer "open" — keeps this
+    // method's contract ("every trace") literally true, including for the blocks
+    // closed at the stream's terminal boundary rather than by a stop frame.
+    this.openBlockIndexes.delete(index);
   }
 }

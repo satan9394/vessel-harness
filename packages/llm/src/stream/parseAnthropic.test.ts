@@ -859,3 +859,254 @@ describe('AnthropicStreamParser — negative control: canonical streams are unto
     expect(p.finish()).toEqual([]); // message_stop already closed the stream
   });
 });
+
+// ---------------------------------------------------------------------------
+// Round 65 — duplicate-`content_block_start` OBSERVABILITY.
+//
+// Round 64 fixed the data loss of the shape its `startedIndexes` guard can SEE:
+// the repeat carries `id`+`name`, so it produces a `tool_call_start`, the guard
+// suppresses it, and its non-empty seed is folded into a `tool_call_delta`. It
+// left a shape the guard CANNOT see, and this file must not pretend otherwise:
+//
+//   a repeat carrying NO `id`/`name` (but a non-empty `input`) makes
+//   parseAnthropicEvent's `block.id && block.name` guard emit NOTHING, so
+//   feed()'s chunk loop never runs for that frame, the guard never fires, and
+//   the seed the frame wrote into `toolInputJsonByIndex` is read by nobody:
+//   flushToolBlock — the only reader — serves UNSTARTED blocks, and this index
+//   is started. The seed is still silently lost.
+//
+// Both shapes ARE protocol violations ("the block for this index is still open
+// and another content_block_start arrived"), so both are now counted, per
+// stream, by the read-only `duplicateStarts` getter — the count is taken at the
+// FRAME, before the mapper, which is why the second shape needs no second
+// emission point.
+//
+// Deliberately NOT merged into `malformedFrames`, whose meaning is byte-level
+// unparseability (a truncated connection): "the peer re-sent a frame" and "the
+// connection was cut mid-frame" are different incidents, and a single merged
+// number would make them indistinguishable.
+//
+// Scope discipline, as in Round 54: a read-only getter, per-stream instance
+// state, no new export, no change to feed()/finish() return shapes, no change to
+// `message_end`, nothing in packages/shared.
+// ---------------------------------------------------------------------------
+
+describe('AnthropicStreamParser — duplicate content_block_start is counted as a protocol violation (Round 65)', () => {
+  it('REPRO ①: a repeat carrying id+name on an OPEN block is counted (the shape Round 64 already handles)', () => {
+    const p = new AnthropicStreamParser();
+    const chunks = feedAll(p, [
+      TOOL_START({ id: 'toolu_01', name: 'Read', input: {} }, 0),
+      TOOL_DELTA(ARG_A, 0),
+      TOOL_START({ id: 'toolu_01', name: 'Read', input: { limit: 2 } }, 0), // ← the protocol violation
+      TOOL_DELTA(ARG_B, 0),
+      TOOL_STOP(0),
+      MSG_STOP,
+    ]);
+
+    expect(p.duplicateStarts).toBe(1);
+
+    // Round 64's data-preserving behaviour is untouched, and no second
+    // tool_call_start appears (the chunk the consumer would overwrite on).
+    expect(chunks).toEqual([
+      { type: 'tool_call_start', id: 'toolu_01', name: 'Read', arguments: '' },
+      { type: 'tool_call_delta', id: 'toolu_01', argumentsDelta: ARG_A },
+      { type: 'tool_call_delta', id: 'toolu_01', argumentsDelta: DUP_SEED },
+      { type: 'tool_call_delta', id: 'toolu_01', argumentsDelta: ARG_B },
+      { type: 'tool_call_end', id: 'toolu_01' },
+      { type: 'message_end' },
+    ]);
+    expect(chunks.filter((c) => c.type === 'tool_call_start')).toHaveLength(1);
+    expect(String(assembleByConsumer(chunks).get('toolu_01')?.args)).toBe(ARG_A + DUP_SEED + ARG_B);
+  });
+
+  it('REPRO ②: a repeat carrying NO id/name on an OPEN block is counted — the shape NO guard sees, whose seed is still lost', () => {
+    const p = new AnthropicStreamParser();
+    const chunks = feedAll(p, [
+      TOOL_START({ id: 'toolu_01', name: 'Read', input: {} }, 0), // identity complete ⇒ block open + started
+      TOOL_START({ input: { limit: 2 } }, 0), //                    ← repeat: no id, no name, NON-empty input
+      TOOL_STOP(0),
+      MSG_STOP,
+    ]);
+
+    // THE POINT OF THIS CARD. This frame is a protocol violation that the Round
+    // 64 guard in feed()'s chunk loop can never fire on: parseAnthropicEvent
+    // emits no tool_call_start for it (its `block.id && block.name` guard is
+    // false), so the chunk loop is never entered. Pre-fix there was NO signal of
+    // any kind — the chunk output below was byte-identical to a canonical
+    // single-start stream. This line is what goes red if the counter is deleted,
+    // and ALSO what goes red if the increment is moved into the
+    // `startedIndexes.has(index)` branch (where it "looks" like it belongs).
+    expect(p.duplicateStarts).toBe(1);
+
+    // ...and the seed that frame carried is STILL not surfaced. This is the
+    // known residual — preserving it needs a second emission point, which is an
+    // explicitly separate decision — asserted here so "known" cannot quietly
+    // decay into "assumed fixed".
+    expect(chunks).toEqual([
+      { type: 'tool_call_start', id: 'toolu_01', name: 'Read', arguments: '' },
+      { type: 'tool_call_end', id: 'toolu_01' },
+      { type: 'message_end' },
+    ]);
+    expect(chunks.some((c) => JSON.stringify(c).includes('limit'))).toBe(false);
+
+    // What the tool actually receives: the wire delivered {"limit":2} on that
+    // frame, and the call arrives with NO arguments at all. The counter makes
+    // the loss visible; it does not repair it.
+    const args = String(assembleByConsumer(chunks).get('toolu_01')?.args);
+    expect(args).toBe('');
+    expect(parseToolArgumentsLikeAgentLoop(args)).toEqual({});
+  });
+
+  it('③ NEGATIVE CONTROL: a canonical stream counts zero, and its chunks are byte-identical', () => {
+    const p = new AnthropicStreamParser();
+    const chunks = feedAll(p, [
+      sse({ type: 'message_start', model: 'claude-sonnet-4' }),
+      sse({ type: 'content_block_start', index: 0, content_block: { type: 'text', text: '' } }),
+      sse({ type: 'content_block_delta', index: 0, delta: { type: 'text_delta', text: 'Reading ' } }),
+      sse({ type: 'content_block_stop', index: 0 }),
+      TOOL_START({ id: 'toolu_01', name: 'Read', input: {} }, 1),
+      TOOL_DELTA(ARG_A, 1),
+      TOOL_DELTA(ARG_B, 1),
+      TOOL_STOP(1),
+      sse({ type: 'message_delta', delta: { stop_reason: 'tool_use' }, usage: { output_tokens: 8 } }),
+      MSG_STOP,
+    ]);
+
+    expect(p.duplicateStarts).toBe(0); // ← "count every start" goes red here
+    expect(p.malformedFrames).toBe(0);
+
+    // The output is asserted, not argued: one start per block ⇒ nothing to count
+    // AND nothing changed.
+    expect(chunks).toEqual([
+      { type: 'message_start', model: 'claude-sonnet-4' },
+      { type: 'text_delta', text: 'Reading ' },
+      { type: 'tool_call_start', id: 'toolu_01', name: 'Read', arguments: '' },
+      { type: 'tool_call_delta', id: 'toolu_01', argumentsDelta: ARG_A },
+      { type: 'tool_call_delta', id: 'toolu_01', argumentsDelta: ARG_B },
+      { type: 'tool_call_end', id: 'toolu_01' },
+      { type: 'usage', inputTokens: undefined, outputTokens: 8, cacheReadTokens: undefined, cacheCreationTokens: undefined },
+      { type: 'message_end', finishReason: 'tool_calls' },
+      { type: 'message_end' },
+    ]);
+  });
+
+  it('④ NEGATIVE CONTROL: reusing an index AFTER its content_block_stop is legal and counts zero', () => {
+    // The hard boundary: the block is CLOSED and all of its state was dropped, so
+    // the next content_block_start for that index is the FIRST start of a NEW
+    // block — exactly what index reuse on a well-formed wire looks like.
+    const p = new AnthropicStreamParser();
+    const chunks = feedAll(p, [
+      TOOL_START({ id: 'toolu_01', name: 'Read' }, 0),
+      TOOL_DELTA('{"path":"a.txt"}', 0),
+      TOOL_STOP(0), //                                    ← the block closes here...
+      TOOL_START({ id: 'toolu_02', name: 'Glob' }, 0), // ← ...so this is legal, NOT a duplicate
+      TOOL_DELTA('{"pat":"*"}', 0),
+      TOOL_STOP(0),
+      MSG_STOP,
+    ]);
+
+    expect(p.duplicateStarts).toBe(0); // ← "any second start for an index" goes red here
+    expect(p.malformedFrames).toBe(0);
+
+    expect(chunks).toEqual([
+      { type: 'tool_call_start', id: 'toolu_01', name: 'Read', arguments: '' },
+      { type: 'tool_call_delta', id: 'toolu_01', argumentsDelta: '{"path":"a.txt"}' },
+      { type: 'tool_call_end', id: 'toolu_01' },
+      { type: 'tool_call_start', id: 'toolu_02', name: 'Glob', arguments: '' },
+      { type: 'tool_call_delta', id: 'toolu_02', argumentsDelta: '{"pat":"*"}' },
+      { type: 'tool_call_end', id: 'toolu_02' },
+      { type: 'message_end' },
+    ]);
+
+    // Both blocks assemble independently: the reuse did not merge them.
+    const open = assembleByConsumer(chunks);
+    expect(parseToolArgumentsLikeAgentLoop(String(open.get('toolu_01')?.args))).toEqual({ path: 'a.txt' });
+    expect(parseToolArgumentsLikeAgentLoop(String(open.get('toolu_02')?.args))).toEqual({ pat: '*' });
+  });
+
+  it('⑤ the two counters stay independent in BOTH directions (no 口径混用)', () => {
+    // A truncated frame is a BYTE-level failure: malformedFrames moves, the
+    // protocol counter does not.
+    const broken = new AnthropicStreamParser();
+    feedAll(broken, [
+      TOOL_START({ id: 'toolu_01', name: 'Read', input: {} }, 0),
+      TOOL_DELTA(FULL_ARGS, 0),
+      TRUNCATED_TAIL_FRAME, // ← the connection dies mid-frame
+    ]);
+    expect(broken.malformedFrames).toBe(1);
+    expect(broken.duplicateStarts).toBe(0); // ← merging the two counters goes red here
+
+    // A duplicate start is a PROTOCOL failure: the mirrored assertion, so
+    // "one shared counter" cannot pass by counting on the other field's behalf.
+    const repeated = new AnthropicStreamParser();
+    feedAll(repeated, [
+      TOOL_START({ id: 'toolu_01', name: 'Read', input: {} }, 0),
+      TOOL_START({ id: 'toolu_01', name: 'Read', input: {} }, 0), // ← protocol violation
+      TOOL_STOP(0),
+      MSG_STOP,
+    ]);
+    expect(repeated.duplicateStarts).toBe(1);
+    expect(repeated.malformedFrames).toBe(0);
+  });
+
+  it('idempotency: one count per violating FRAME, reading is pure, and the terminal boundary cannot re-count', () => {
+    const p = new AnthropicStreamParser();
+    expect(p.duplicateStarts).toBe(0); // a fresh stream starts clean
+
+    feedAll(p, [
+      TOOL_START({ id: 'toolu_01', name: 'Read', input: {} }, 0),
+      TOOL_START({ id: 'toolu_01', name: 'Read', input: {} }, 0), // violation #1
+      TOOL_START({ id: 'toolu_01', name: 'Read', input: {} }, 0), // violation #2
+    ]);
+    // "One count per violation" is per FRAME: two repeated frames are two
+    // violations. What must NOT happen is one frame counting twice.
+    expect(p.duplicateStarts).toBe(2);
+    expect(p.duplicateStarts).toBe(2); // reading is a pure getter
+    expect(p.duplicateStarts).toBe(2);
+
+    // PER STREAM: a second parser owns its own count...
+    const second = new AnthropicStreamParser();
+    expect(second.duplicateStarts).toBe(0); // ← module-level state goes red here
+    expect(p.duplicateStarts).toBe(2); // ...and the first is untouched by it
+
+    // finish() re-scans no frames, so it cannot re-count.
+    expect(p.finish()).toEqual([{ type: 'tool_call_end', id: 'toolu_01' }, { type: 'message_end' }]);
+    expect(p.duplicateStarts).toBe(2);
+
+    // Documented boundary (as in Round 54): frames fed after the terminal
+    // message_stop are never parsed, so they cannot be counted.
+    const ended = new AnthropicStreamParser();
+    ended.feed(TOOL_START({ id: 'toolu_01', name: 'Read', input: {} }, 0));
+    ended.feed(MSG_STOP); // terminal boundary: the open block is closed here
+    ended.feed(TOOL_START({ id: 'toolu_01', name: 'Read', input: {} }, 0)); // ← out of scope by design
+    expect(ended.duplicateStarts).toBe(0);
+  });
+
+  it('documented scope: the criterion is "the block is OPEN", not "the block has STARTED"', () => {
+    // Round 52's permissive "identity-late" wire order delivers TWO
+    // content_block_start frames for one index, so by the literal criterion it IS
+    // a protocol violation and IS counted — even though the parser recovers from
+    // it. Asserted (with the recovery behaviour unchanged below) so the decision
+    // is recorded rather than accidental drift.
+    const p = new AnthropicStreamParser();
+    const chunks = feedAll(p, [
+      TOOL_START({ name: 'Read' }, 0), // identity incomplete, block open
+      TOOL_DELTA(ARG_A, 0),
+      TOOL_DELTA(ARG_B, 0),
+      TOOL_START({ id: 'toolu_01', name: 'Read' }, 0), // ← second start on the OPEN index
+      TOOL_STOP(0),
+      MSG_STOP,
+    ]);
+
+    expect(p.duplicateStarts).toBe(1);
+
+    // Round 52's recovery is untouched: the buffered fragments still ride into
+    // the eventual start.
+    expect(chunks).toEqual([
+      { type: 'tool_call_start', id: 'toolu_01', name: 'Read', arguments: FULL_ARGS },
+      { type: 'tool_call_end', id: 'toolu_01' },
+      { type: 'message_end' },
+    ]);
+    expect(JSON.parse(String(assembleByConsumer(chunks).get('toolu_01')?.args))).toEqual({ path: 'a.txt' });
+  });
+});
