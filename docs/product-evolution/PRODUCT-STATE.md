@@ -65,6 +65,13 @@
 **⑦ 发布链路门禁的实测（Orchestrator 真跑，最强证据）**：设 `VESSEL_GATE_INSTALL_SMOKE=1` 跑真实门禁管线 → 报告第 9 行 **`Install Smoke (opt-in, gate 9) | ✅ PASS | 38101ms`**，证据行写明全过程：**16 个 tarball → 全新空项目离线安装 exit 0 → system 层路径在包内 + `usage` 无缺配置警告**。整体 `status=partial pass=8 fail=0 pending=1`（pending 为需密钥的直播道）。⇒ 终评那句"**打包→安装→首跑只靠人工实测一次**"**已闭合**：该链路现在是**离线、确定性、可回归**的门禁（38 秒），且**本机 npm 缓存足以离线安装**（`@clack/prompts`、`js-yaml` 命中缓存）。
 **⑧ 报告口径修正**：`release-gates/runner.ts` 的 md 标题原**写死「8 道发布门禁」**（第 9 道启用后与表格自相矛盾）→ 改为**由实际行数推导**「发布门禁（N 道）」，并保留"§21 注册表 8 道常驻 + 第 9 道可选"的准确表述；测试**只收紧不放宽**（`toContain('## 发布门禁（3 道）')`、`not.toContain('8 道发布门禁')`、`toContain('8 道常驻')`）。
 
+## Round 20 — pricing 用户态落点 + 安装态门禁的升级路径（自主选片）
+
+**选片理由**：Round 19 只修了 pricing 的**读**（改包内），**写**仍在 `cwd` → 安装态 `pricing sync` 是**空操作**且会在用户项目里**凭空建 `configs/`**。属"我修一半造成的不对称"，应闭环。
+**设计决定（Orchestrator）**：**只动 catalog 档位内部**——`pricing sync` 默认写**用户状态根** `~/.vessel/model-catalog.json`（`VESSEL_USAGE_ROOT` 可覆盖，与 `pricing.override.json` 同根）；`loadModelCatalog` 改为**用户态优先 → 包内兜底**；**`pricing.json` 不加用户态层**（用户定制通道已是全链最高的 `pricing.override.json`，再加一层是 scope creep）。层序 `override > pricing.json > catalog > protocol > default` **一字不动**。
+**before 基线（指挥侧实测，用于证明"无用户态文件时零漂移"）**：`VESSEL_USAGE_ROOT=<tmp>` 下 `loadPricing(repoRoot)` = 2 keys / hash `c32b0314d4250b10`；`loadModelCatalog(repoRoot)` = 3 keys（`version`/`source`/`models`）/ hash `514cc48db36d6861`；用户态 catalog 不存在。**改动后必须以同一探针得到相同哈希**。
+**另一片**：第 9 道门禁扩**升级路径**（覆盖安装后仍能跑、且无旧版本残留污染）；升级特有的断言**不得**用"文件存在即算过"的弱形式；默认仍**零命令零 IO**、不联网、环境不具备一律 `pending`。
+
 ## 已解决问题（Round 1 切片 · 历史存档）
 
 - **G-01（P0）首跑示例失效**：仓库工作区 `run --prompt` 曾 100% 输出 `(mock: no script entry matched)` 且 exit 0（假成功）。根因：ContextBuilder 将 volatile skills index 作为**最后一条 user 消息**追加，MockProvider 只匹配最后一条 user 消息。修复：`ChatMessage.source` 溯源 + Builder 标记 volatile 为 `environment` + MockProvider 只匹配真实 surface 输入 + 确定性兜底文案。
