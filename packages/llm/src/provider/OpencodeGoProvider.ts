@@ -399,9 +399,13 @@ export interface OpencodeGoCompletion {
  * completion. Per-item rulings (each pinned in opencodeGoProvider.test.ts):
  *
  *   1. a token the table knows ⇒ the table's verdict ('stop'/'tool_calls'/
- *      'length'/'error'). This includes the Anthropic-shaped tokens
- *      (end_turn/stop_sequence/tool_use/max_tokens): recognizing them here too is
- *      the POINT — with per-family tables the same token would carry two verdicts.
+ *      'length'/'error'). This includes the Anthropic-shaped tokens: recognizing
+ *      them here too is the POINT — with per-family tables the same token would
+ *      carry two verdicts. Two of them therefore CHANGE on this path, and that is
+ *      stated rather than glossed over: `'tool_use'` was `'stop'` and is now
+ *      `'tool_calls'`; `'max_tokens'` was `'stop'` and is now `'length'` (the same
+ *      truncation signal the Anthropic path has always sent). `'end_turn'` and
+ *      `'stop_sequence'` already produced `'stop'` here, so they do not move.
  *   2. table verdict `'length'` / `'error'` ⇒ returned as-is, NOT overridden by
  *      `hasToolCalls` — same precedence the pre-change first line had (a truncation
  *      or an error must never be masked by "this response happened to contain tool
