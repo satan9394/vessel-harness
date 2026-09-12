@@ -44,7 +44,7 @@
 
 1. **Round 11/12 终评**（核 `/permission` 确认即生效 + 重建容错 + deny 面证据；locale 与 theme 收口）。
 2. **Round 13 收口**：`cli.ts`/`chat.ts` 加 `mcp:`；降级 failures 打印；**防重复 spawn**（`buildHarness` 会因切换权限/模型而重建，须由 `harness.close()` 回收或缓存连接）。
-3. **P3 集群**（低成本）：CLI 面其余错误出口 `--json` 化；`release-report.*` 生成物重跑；`docs` 里指向 `OpencodeGoProvider.ts:176` 的过期引用改指 `errorBody.ts`。
+3. **P3 集群**（低成本）：CLI 面其余错误出口 `--json` 化；`release-report.*` 生成物重跑；`docs` 里指向 `OpencodeGoProvider.ts` 旧位置的过期引用改指 `errorBody.ts`。
 4. **LATER**：全量 i18n 架构、`~/.vessel` 状态根重复收敛、`vessel diff --last` 式只读回滚提示（G-10 的克制替代）。
 
 **已定的"不做"**（均有论证，不因"竞品有"而做）：插件市场、消息平台、云协作/多用户、公开排行榜、IDE/桌面表面；TUI 内不放 `migrate`/`serve`/`bench`/`pricing sync`/`--json`；**不做**通用快照回滚（会让用户误以为 Shell 写入也可回滚）。
@@ -106,7 +106,7 @@
 - **测试**：新增 `dpapiArgv.test.ts`（4 例：argv 无材料 / 材料只在 `input` / probe 双调用 / **真实 ProtectedData 往返**）与 `defaultStore.recovery.test.ts`（4 例：默认可恢复 / 恢复后仍可用 / 显式 false 仍抛 / ENOENT 不误伤）。
 - **本轮由验证捕获的硬缺陷**（3 项）：① stdin 第一版用 `[Console]::In.ReadToEnd()` 使真实 DPAPI 往返 **5 例红**，探针实测该形态 `spawnSync EPERM`、`$input` 成功 → 改形态；② DPAPI **构造期**漏转发 `recoverCorrupted`（R5 残留，由测试作者独立发现）；③ 新测试用例②因 seed 占用 `id:'ds'` 报 duplicate（测试缺陷，非实现）。
 - **行为证据（真实 CLI）**：损坏 `secrets.json` → 「[credential] secrets 文件损坏（invalid JSON …）已隔离备份到 `<tmp>\secrets.json.corrupted-<epochMs>`，凭据被重置为空；请核对后重建。」+ `provider list` **exit 0**（此前硬抛、CLI 全灭）+ 隔离文件内容 = `{oops`。
-- 下一轮候选：**错误体回显脱敏**（R4：`OpenAICompatibleProvider` 回显 500 字符原文，建议复用 OpencodeGo 的 `sanitizeWireSnippet` 口径）；其后 G-09（TUI 成本可见性）、G-10/G-11/G-13。
+- 下一轮候选：**错误体回显脱敏**（R4：`OpenAICompatibleProvider` 回显 500 字符原文，建议复用已下沉到 `errorBody.ts` 的 `sanitizeWireSnippet` 口径）；其后 G-09（TUI 成本可见性）、G-10/G-11/G-13。
 
 ## Round 7（G-05b：错误体回显脱敏）— 已闭环
 

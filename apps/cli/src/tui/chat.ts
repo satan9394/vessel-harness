@@ -233,6 +233,29 @@ export function resolveChatLocale(settingsRoot?: string): GuideLocale {
 }
 
 /**
+ * 复评未闭合项 2：window shim 判定的 TUI 侧复用。**必须与 `cli.ts` 的 `windowsShimHint()`
+ * （`apps/cli/src/cli.ts:243-250`）逐字一致**：win32 + `.cmd`/`.bat` 后缀 + 不在包管理器白名单
+ * → 该命令注定 spawn 失败（CVE-2024-27980 之后 Node 对 .cmd/.bat 直接 EINVAL），所以**不 spawn**，
+ * 改走「未启动（已跳过）」通道并给出可操作原因，而不是把含糊的 ENOENT/EINVAL 丢给用户。
+ *
+ * 为什么内联而不是 `import { windowsShimHint } from '../cli.js'`：`cli.ts:32` 已经
+ * `import { runChat } from './tui/chat.js'` —— chat.ts 反向 import cli.ts 会**成环**
+ * （ESM 下表现为 TDZ/undefined，属于会踩雷的隐式耦合），故按同一份逻辑内联。
+ * 与 `resolveSpawnCommand`（packages/tools/src/mcp/McpClient.ts:55-64）的白名单同样逐字对齐：
+ * 白名单命令（自身不带后缀）由那边开 shell，命不中这里。
+ *
+ * @returns 直接可读的原因文案；`null` = 该命令可照常直连 spawn。
+ */
+function windowsShimHint(command: string, platform: NodeJS.Platform = process.platform): string | null {
+  if (platform !== 'win32') return null;
+  const cmd = command.trim().toLowerCase();
+  if (!cmd.endsWith('.cmd') && !cmd.endsWith('.bat')) return null;
+  // 与 cli.ts 同一份白名单判定（含「用原始 command 比对」这一细节，保持两处行为一致）。
+  if (new Set(['npx', 'npm', 'pnpm', 'yarn', 'uvx']).has(command)) return null;
+  return `命令 "${command}" 在 Windows 上需要 shell 才能执行（.cmd/.bat shim）；请改用白名单命令（npx/npm/pnpm/yarn/uvx）或把命令指向 .exe / 绝对路径`;
+}
+
+/**
  * G-11 MCP 半（BRIEF-13）：每次构建 harness 前读一次 `~/.vessel/mcp.json` 并构造连接
  * （单个 server 失败降级、逐个 warn）。
  *
@@ -241,7 +264,7 @@ export function resolveChatLocale(settingsRoot?: string): GuideLocale {
  * 可以就地改配置（或直接 /quit 重开）；把"配置写错"升级成"TUI 起不来"是把用户锁在门外。
  *
  * 每次重建都新建连接是**安全**的：`harness.close()` 会 close 掉 `mcpClients`
- * （`packages/application/src/compose.ts:365-367` → `McpClient.close()`
+ * （`packages/application/src/compose.ts:385-392` → `McpClient.close()`
  * → `McpTransport.close()`），而 `applyPendingChanges()` 是**先 `await previous.close()`
  * 再 `buildHarness()`**，旧连接先释放、新连接后建立，不存在累积。
  * 反过来**不能**做模块级缓存：transport 是一次性的，缓存会把已 `close()` 的 transport
@@ -251,8 +274,18 @@ function loadMcpConnections(): ComposeMcpConnection[] | undefined {
   try {
     const servers = new McpConfigStore().load();
     if (servers.length === 0) return undefined;
-    const { connections, failures } = createMcpConnections(servers);
-    for (const f of failures) {
+    // 复评未闭合项 2：与 cli.ts 的 `applyMcpConnections` 同序 —— 先按 win32 shim 判定分流
+    // （命中的**不 spawn**，直接进「未启动（已跳过）」通道并带上可操作原因），再建连接。
+    // 改前 TUI 直接把声明丢给 createMcpConnections，`.cmd` 只得到含糊的 ENOENT/EINVAL。
+    const spawnable: typeof servers = [];
+    const shimFailures: { serverName: string; reason: string }[] = [];
+    for (const s of servers) {
+      const hint = windowsShimHint(s.command);
+      if (hint === null) spawnable.push(s);
+      else shimFailures.push({ serverName: s.name, reason: hint });
+    }
+    const { connections, failures } = createMcpConnections(spawnable);
+    for (const f of [...shimFailures, ...failures]) {
       console.warn(`[vessel] MCP server "${f.serverName}" 未启动（已跳过）：${f.reason}`);
     }
     return connections.length > 0 ? connections : undefined;
@@ -453,6 +486,12 @@ export async function runChat(opts: ChatOptions): Promise<number> {
     const prevPermission = permission;
     const prevModel = model;
     const previous: ComposedHarness | null = harness; // 可能是 null（还没建过）：此时没有旧会话可保，等同首次懒建
+    /**
+     * 复评未闭合项 1：旧 harness 是否已在本次重建前**真正关闭**（`close()` 正常返回）。
+     * 只有它为 true 时，`previous` 的 MCP transport 才必定已死（`compose.ts:385-392`
+     * → `McpClient.close()` → `McpTransport.close()`），回滚时才需要摘掉 `mcp__*`。
+     */
+    let previousClosed = false;
     try {
       // 新值先落到外层变量：buildHarness 读的就是它们（policy profile、provider 的 model 覆盖）
       permission = pendingPermission ?? permission;
@@ -464,6 +503,7 @@ export async function runChat(opts: ChatOptions): Promise<number> {
       if (previous) {
         try {
           await previous.close();
+          previousClosed = true; // 关闭完整跑完 → mcpClients 全部已 close，其工具已死（见上）
         } catch {
           /* 旧会话关闭失败不阻断重建：真取不到租约时 buildHarness 会给出明确错误 */
         }
@@ -479,6 +519,34 @@ export async function runChat(opts: ChatOptions): Promise<number> {
       harness = previous;
       pendingPermission = undefined;
       pendingModel = undefined;
+      /**
+       * 复评未闭合项 1：回滚到 `previous` 时，若上面已经**真的**把它 close 掉了，那么它的
+       * MCP transport 也已关闭，但 `mcp__*` 工具仍留在 `previous.registry` 里对模型可见 ——
+       * 调用必 reject，正是「宣称可用、实际不可用」。这里按 `ToolRegistry.unregister(name)`
+       * （packages/tools/src/registry/Registry.ts:49）把已死的 MCP 工具从 registry 摘掉，
+       * 让可见集与真实可用集重新一致（loop 的 `getVisibleTools` 每步都读 registry，立即生效）。
+       *
+       * 只在 `previousClosed` 时摘：`close()` 抛错可能是 `session.close()` 先抛、MCP 其实
+       * 还活着，误摘会把「可用工具」变成「不可见工具」—— 比不摘更糟。摘不掉时只提示，
+       * 绝不静默假装可用。
+       */
+      const staleMcpTools =
+        previousClosed && previous ? previous.registry.listAll().filter((t) => t.name.startsWith('mcp__')) : [];
+      let droppedMcpTools = 0;
+      for (const t of staleMcpTools) {
+        try {
+          if (previous!.registry.unregister(t.name)) droppedMcpTools += 1;
+        } catch {
+          /* 单个摘除失败不阻断回滚：下面按实际摘除数给出提示 */
+        }
+      }
+      if (staleMcpTools.length > 0) {
+        const note =
+          droppedMcpTools === staleMcpTools.length
+            ? '已从工具表移除'
+            : `已移除 ${droppedMcpTools}/${staleMcpTools.length}，其余无法移除、调用必失败`;
+        io.write(`[提示] 会话重建失败，MCP 工具在本会话内已不可用（${note}；配置修好后可 /quit 重启）`);
+      }
       io.write(`[错误] 重建会话失败（已保留原设置：${providerId}/${prevModel} · ${prevPermission}）：${describeProviderError(err)}`);
     }
   };

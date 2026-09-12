@@ -14,13 +14,21 @@
  *
  * 另外，**本文件不 import 任何同进程传输 / 协议核心函数**——不是自律，是被那条守卫机器检查。
  *
- * ## 三组用例
+ * ## 五组用例
  *
  *   1. E2E（真 spawn fixture）：两条路径，各跑一遍完整链路
- *      - `npx` shim：`resolveSpawnCommand('npx')` → win32 下 `shell: true`（BRIEF-13 主诉求）
  *      - `node` + 本地 tsx CLI：不开 shell、不经 npx 的最短路径（无 npx 环境下的等价证明）
- *   2. Windows `.cmd` shim 解析：纯函数断言，无条件必绿
- *   3. 显式失败：服务器立刻退出 → 首次请求**抛错**而不是静默挂起；
+ *      - `npx` shim：`resolveSpawnCommand('npx')` → win32 下 `shell: true`（BRIEF-13 主诉求）
+ *   2. 零验证守卫（**无条件执行，不接受任何 skipIf**）：`npx` 与本地 `tsx` 双双不可用时，
+ *      上面两条会一起被 skip、文件仍全绿 —— 那等于「验收 1 零验证却显示通过」。
+ *      这条守卫把该状态从「静默绿」变成「显式红」。
+ *   3. close 兜底独立验证（**不替产品兜底**）：spawn 一个忽略 stdin EOF、永不自行退出的
+ *      顽固 server，只调 `transport.close()`、测试体绝不 `child.kill`，等 ~2.6s 后断言
+ *      `process.kill(pid, 0)` 抛错 —— 证明产品侧 `close()` 里的 2s `SIGKILL` 兜底真能杀进程。
+ *      （`closeAndAssertReaped()` 先 `reap()` 再断言，而 `reap()` 自己会补 `SIGKILL`，
+ *      对这条性质没有判别力，故必须另起一条。）
+ *   4. Windows `.cmd` shim 解析：纯函数断言，无条件必绿
+ *   5. 显式失败：服务器立刻退出 → 首次请求**抛错**而不是静默挂起；
  *      外加一条 mocked spawn 的守卫分支（子进程无 stdout → 构造期抛错）
  *
  * ## 纪律
@@ -31,7 +39,11 @@
  * - 不依赖构建产物：直接跑 `src` 下的 `.ts` fixture（tsx 边上转译边跑）。
  * - 每个 transport 都被 track，`afterEach`/`afterAll` 收尸；若 `close()` 的 50ms 宽限不够，
  *   补一次 `SIGKILL` 再等 exit——**不留孤儿子进程**。
- * - 本机条件不满足的用例一律 `it.skipIf` 并写明跳过条件，绝不写会假绿的断言。
+ * - 例外：专测「产品侧 2s 兜底」的那条用例**不进 `live`**，只登记到 `failureOnlyCleanup`，
+ *   其收尸钩子**先看进程还在不在**：进程已被产品兜底杀死 → 一个 kill 都不发（成功路径不替产品兜底）；
+ *   只有断言失败、进程仍活着时才补刀（失败路径不留孤儿）。
+ * - 本机条件不满足的用例一律 `it.skipIf` 并写明跳过条件，绝不写会假绿的断言；
+ *   但「两条真路径是否**都**不可用」本身有一条**无条件**守卫用例，见下。
  *
  * ## 全量并发下不假红（本文件的稳定性闸门）
  *
@@ -151,6 +163,14 @@ function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+/**
+ * 「顽固 MCP server」：`resume()` 后显式吃掉 stdin 的 `end`（**忽略 EOF**），再用 `setInterval`
+ * 常驻事件循环 —— 既不响应 stdin EOF、也永不自行退出。因此它唯一的死法就是被
+ * `SIGKILL`，正是独立验证产品侧 `close()` 2s 兜底所需的靶子。
+ */
+const STUBBORN_SERVER_SCRIPT =
+  "process.stdin.resume(); process.stdin.on('end', () => {}); setInterval(() => {}, 1000);";
+
 /* ────────────────────────── 子进程句柄工具（判别性的关键） ────────────────────────── */
 
 /** `child` 是 StdioTransport 的私有字段；测试要拿它做判别 + 收尸，只能显式穿透。 */
@@ -213,6 +233,38 @@ afterEach(async () => {
 // 兜底：某条用例在断言中途抛错时，afterEach 仍会跑；afterAll 只做最后一次清扫。
 afterAll(async () => {
   for (const transport of live.splice(0)) await reap(transport);
+}, E2E_HOOK_TIMEOUT_MS);
+
+/* ────────────── 只兜底「失败路径」的收尸（区别于 `reap()`：不替产品代码兜底） ────────────── */
+
+/**
+ * 与 `reap()` 的关键差别：**先看进程还在不在**。
+ *
+ * - 断言成功路径：子进程已被产品侧 `close()` 的 2s `SIGKILL` 兜底杀死 → `pidAlive()` 为 false
+ *   → 这里**立即返回，绝不调用 `child.kill`**。所以挂在它下面的用例，「子进程已死」这个结论
+ *   无法由测试自己伪造（不是测试替产品兜底）。
+ * - 断言失败路径：进程仍是活的 → 补一次 `SIGKILL` 并等 exit，失败也不留孤儿。
+ */
+async function killOnlyIfStillAlive(child: ChildProcess): Promise<void> {
+  const pid = child.pid;
+  if (typeof pid === 'number' && !pidAlive(pid)) return; // 已被产品兜底杀死 → 什么都不做
+  if (child.exitCode !== null || child.signalCode !== null) return;
+  try {
+    child.kill('SIGKILL');
+  } catch {
+    /* already gone */
+  }
+  await waitForExit(child, 5_000);
+}
+
+/**
+ * 只走「失败兜底」的子进程（**不进 `live`**，否则会被上面那个无条件 `reap()` 补刀，
+ * 就又变成替产品代码兜底了）。
+ */
+const failureOnlyCleanup: ChildProcess[] = [];
+
+afterEach(async () => {
+  for (const child of failureOnlyCleanup.splice(0)) await killOnlyIfStillAlive(child);
 }, E2E_HOOK_TIMEOUT_MS);
 
 /* ────────────────────────── 与 mcp.test.ts 同形的 registry 上下文 ────────────────────────── */
@@ -338,6 +390,31 @@ async function runE2EWithEnvRetry(spawned: SpawnDescriptor, opts: { shell?: bool
 /* ══════════════════════════════════════════════════════════════════════════════════════════ */
 
 describe('BRIEF-13 — StdioTransport 真跨进程 E2E（MCP over stdio）', () => {
+  /**
+   * **无条件执行**的零验证守卫（不接受任何 skipIf）。
+   *
+   * 本文件对「验收 1」的全部判别力都来自下面两条真跨进程用例；若这台上 `npx` 与本地 `tsx`
+   * 双双不可用，那两条会**一起被 skip**，文件依旧全绿 —— 等于「零验证却显示通过」。
+   * 这条守卫把该状态从「静默绿」变成「显式红」。
+   *
+   * 取舍：这里选**硬红**（`expect(...).toBe(true)`）而不是 `expect.soft` / 告警式降级。
+   * 理由：本文件存在的唯一理由就是防假绿；两条真路径都不可用时，「本文件对验收 1 的覆盖 = 0」
+   * 是客观事实，红才是对事实的准确描述，告警式降级等于重新制造一个「看起来通过」的假绿。
+   * 误伤面也很小：`TSX_CLI` 来自本仓 devDependency（`tsx` 已装就必然解析得到），
+   * 真正两条都不成立时，环境确实无法提供任何跨进程证据，本就该显式失败。
+   */
+  it('守卫：至少一条真 stdio 路径可用（否则本文件的 E2E 覆盖为零，必须显式失败）', () => {
+    const anyRealStdioPath = NPX_E2E_AVAILABLE || TSX_CLI !== null;
+    expect(
+      anyRealStdioPath,
+      '两条真跨进程路径都不可用：`npx`+本地 tsx bin 与 `node`+本地 tsx CLI 同时缺失，' +
+        '本文件对「验收 1」的覆盖为零（静默绿灯 = 假绿），必须显式失败。诊断：' +
+        `commandOnPath('npx')=${commandOnPath('npx')}，` +
+        `LOCAL_TSX_BIN=${LOCAL_TSX_BIN}（exists=${existsSync(LOCAL_TSX_BIN)}），` +
+        `TSX_CLI=${TSX_CLI ?? 'null'}`,
+    ).toBe(true);
+  });
+
   it.skipIf(!NPX_E2E_AVAILABLE)(
     'e2e：经 npx shim（win32 shell:true）spawn fixture，registry 里 mcp__demo__add 返回 42',
     async () => {
@@ -363,6 +440,69 @@ describe('BRIEF-13 — StdioTransport 真跨进程 E2E（MCP over stdio）', () 
       await runE2EWithEnvRetry({ command: process.execPath, args }, {});
     },
     E2E_TEST_TIMEOUT_MS,
+  );
+
+  /**
+   * 独立验证「产品侧 `close()` 里的 2s `SIGKILL` 兜底真的能杀进程」——**不替产品兜底**。
+   *
+   * 为什么必须另起一条：`closeAndAssertReaped()` 是**先 `reap()` 再断言**，而 `reap()` 在宽限
+   * 不够时会自己补一次 `SIGKILL`（见 :192-207）——那是测试替产品兜底，对「2s 兜底是否生效」
+   * 零判别力。本用例改走另一条路：
+   *   1. spawn 一个**忽略 stdin EOF、永不自行退出**的 server（它唯一的死法就是被 SIGKILL）；
+   *   2. 只调 `transport.close()`，断言它快速返回（< 1000ms），并断言**此刻进程仍然活着**
+   *      —— 这一条是反证：close() 返回后进程还活着 ⇒ 它的死不可能由 close() 同步造成；
+   *   3. 测试体里**绝不调用 `child.kill`**；等 ~2.6s（越过 2s 兜底窗口）后断言
+   *      `process.kill(pid, 0)` 抛错（pid 已不存在）。
+   * 于是「进程已死」只可能来自产品代码的兜底定时器，测试无法自己伪造。
+   *
+   * 收尸：本用例**不进 `live`**（否则会被无条件 `reap()` 补刀），只登记到 `failureOnlyCleanup`
+   * —— 其钩子先看 `pidAlive`：成功路径上进程已死 → 一个 kill 都不发；断言失败才补刀。
+   */
+  it(
+    'close 兜底：忽略 stdin EOF、永不退出的 server 也被产品侧 2s SIGKILL 杀死（测试不补 kill）',
+    async () => {
+      const transport = new StdioTransport(process.execPath, ['-e', STUBBORN_SERVER_SCRIPT], {
+        cwd: REPO_ROOT,
+      });
+      const child = childOf(transport);
+      const pid = child.pid;
+      // 失败兜底登记：之后任何断言抛错都仍能不遗留进程；
+      // 但它只在「进程仍活着」时补刀 → 成功路径上不会替产品兜底（见 killOnlyIfStillAlive）。
+      failureOnlyCleanup.push(child);
+      // 子进程已消失时向 stdin 写入会 EPIPE；这是预期路径，挂监听避免变成未处理错误
+      child.stdin?.on('error', () => {
+        /* expected */
+      });
+
+      // 前置判别：真子进程、pid 独立、顽固 server 确实活着
+      expect(transport).toBeInstanceOf(StdioTransport);
+      expect(typeof pid).toBe('number');
+      expect(pid).not.toBe(process.pid);
+      expect(pidAlive(pid as number)).toBe(true);
+
+      // ① 只调产品侧的 close()，观察其快速返回（50ms 宽限，不等待子进程退出）
+      const startedAt = Date.now();
+      await transport.close();
+      const closeMs = Date.now() - startedAt;
+      expect(closeMs, `close() 应快速返回，实测 ${closeMs}ms`).toBeLessThan(1000);
+
+      // ② 反证：close() 已经返回，进程却仍然活着 → 2s 兜底定时器此刻还没到期，
+      //    所以后面观察到的死亡只能由它造成（不是 close() 同步杀的，也不是 EOF）。
+      expect(pidAlive(pid as number)).toBe(true);
+
+      // ③ 测试不补任何 kill：等过 2s 兜底窗口 + 退出事件落地。
+      //    （兜底失效时 waitForExit 只等满 2s 就返回，下面的断言原样变红。）
+      await sleep(2_600);
+      await waitForExit(child, 2_000);
+
+      // 要求 3：pid 已不存在 —— 产品侧的 2s SIGKILL 兜底真的生效
+      expect(() => process.kill(pid as number, 0)).toThrow();
+      expect(pidAlive(pid as number)).toBe(false);
+      // 该进程不会自己退出 ⇒ 它已死 ⇒ 一定有谁 kill 了它。测试体从未 kill，
+      // 清理钩子还没跑 ⇒ 这次 kill 只可能来自产品侧 close() 的 2s SIGKILL 兜底。
+      expect(child.killed).toBe(true);
+    },
+    30_000,
   );
 
   it.skipIf(!existsSync(SELF_PATH))(

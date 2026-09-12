@@ -52,7 +52,7 @@ Vessel 的「存储层纪律」整体优秀：providers/current/usage/settings �
 - **触发**：任一网关在错误体里回显请求（调试型代理/私有网关常见）或含内部标识。
 - **影响**：若网关 echo 了 Authorization 头或请求体，密钥/会话标识进入用户可见输出与终端 scrollback（等同日志泄露）。
 - **概率**：低（多数正规网关只回 error.message），但危害=一次性泄露全部凭据，且无任何防护。
-- **建议**：仿 OpencodeGoProvider 的 `sanitizeWireSnippet`（OpencodeGoProvider.ts:176-182：去 URL、压空白、截断 240）与 `extractWireErrorType/Message` 结构化提取；对 openai-compatible 同样只暴露 `error.type/error.message` 并脱敏。
+- **建议**：仿 `sanitizeWireSnippet`（原在 OpencodeGoProvider，已下沉至 `errorBody.ts:14`：去 URL、压空白、截断 240）与 `extractWireErrorType/Message` 结构化提取；对 openai-compatible 同样只暴露 `error.type/error.message` 并脱敏。
 - **优先级**：**P1**。
 
 #### R5. secrets.json 损坏 → 全部依赖 ProviderStore 的命令砖（构造期即抛）

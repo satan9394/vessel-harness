@@ -11,6 +11,26 @@ export type { McpToolDescriptor };
 export const DEFAULT_MCP_TIMEOUT_MS = 5000;
 
 /**
+ * 单次 `request` 的可选语义（**向后兼容**：作为第 4 个**可选**参数追加，
+ * 既有实现只声明 3 个参数也依然满足 `McpTransport`，可整体忽略它）。
+ */
+export interface McpRequestOptions {
+  /**
+   * 超时是否**致命** —— 决定「一次超时」是废掉整条连接，还是只废掉这一次调用：
+   *
+   * - `true`：该次超时判定连接已死 → 置 `closed` + 记录原因；后续请求立即以
+   *   `MCP transport closed` 快速失败。**建连/握手**用：server 起不来就该放弃。
+   * - `false` / **缺省**：只让**这一次**调用 reject（错误信息里说明 transport 仍可用），
+   *   清理该条 pending、**不置 `closed`**，后续调用照常。
+   *   **业务调用**用：一次慢 RPC（网络/IO 超过 `timeoutMs`）不该永久废掉一个健康的 server。
+   *
+   * 缺省取 `false`（安全侧）：漏传参数的代价只是「这次调用失败」，而不是误杀整条连接；
+   * 需要「超时即判死」的路径（`McpClient.initialize()`）必须**显式**传 `true`。
+   */
+  fatalOnTimeout?: boolean;
+}
+
+/**
  * Minimal JSON-RPC 2.0 transport for an MCP server (MISSION V0.2-M4).
  * `request` sends a request and resolves with the result payload.
  */
@@ -18,8 +38,16 @@ export interface McpTransport {
   /**
    * `timeoutMs` 是**可选**的：实现可以忽略它（例如 in-process transport），
    * 接口语义不变；`McpClient` 侧另有兜底超时，保证任何 transport 都不会永久挂起。
+   *
+   * `opts.fatalOnTimeout` 同样是**可选**的：忽略它的实现语义退化为「超时只作废本次调用」，
+   * 不影响其余契约；能识别的 transport（`StdioTransport`）据此决定是否永久关闭连接。
    */
-  request<T = unknown>(method: string, params?: unknown, timeoutMs?: number): Promise<T>;
+  request<T = unknown>(
+    method: string,
+    params?: unknown,
+    timeoutMs?: number,
+    opts?: McpRequestOptions,
+  ): Promise<T>;
   close(): Promise<void>;
 }
 
@@ -76,11 +104,14 @@ export class StdioTransport implements McpTransport {
     number,
     { resolve: (v: unknown) => void; reject: (e: Error) => void; timer: NodeJS.Timeout }
   >();
-  /** 连接已不可用（被 close() 关闭，或某次请求超时后被判定为死连接）。 */
+  /**
+   * 连接已不可用（被 close() 关闭，或被**标记为 fatal 的**请求超时判定为死连接）。
+   * 业务调用（tools/list、tools/call）的超时**不**置这一位——那只是一次调用失败。
+   */
   private closed = false;
-  /** close() 是否已经跑过——与 `closed` 分开，避免「请求超时置 closed」把收尸的 close() 变成空操作。 */
+  /** close() 是否已经跑过——与 `closed` 分开，避免「致命超时置 closed」把收尸的 close() 变成空操作。 */
   private closing = false;
-  /** 置 `closed` 的原因（超时时带上方法名，便于定位）。 */
+  /** 置 `closed` 的原因（致命超时时带上方法名，便于定位）。 */
   private closedReason: string | null = null;
 
   /**
@@ -164,21 +195,42 @@ export class StdioTransport implements McpTransport {
   /**
    * 发送请求并在 `timeoutMs` 内等待响应。
    *
-   * 超时语义（BRIEF-13 错误场景）：**reject** 一个带方法名的明确错误、清掉该条
-   * pending（不留悬挂 resolver）、并把 transport 置为 closed —— 后续调用立即
-   * 快速失败，不会继续挂在同一个死连接上。
+   * 超时语义**按 `opts.fatalOnTimeout` 分区**（BRIEF-13 缺陷 1 + Round 13 复评）：
+   * 两条路径都 **reject** 一个带方法名的明确错误、都清掉该条 pending（不留悬挂 resolver）；
+   * 区别只在 transport 的生死：
+   *
+   * - `fatalOnTimeout: true`（建连/握手）：置 `closed` + 记录原因，后续调用立即快速失败，
+   *   不会继续挂在同一个死连接上。
+   * - `fatalOnTimeout: false`/缺省（业务调用）：**只作废这一次调用**，transport 保持可用，
+   *   后续请求照常发送——一次慢 RPC 不该把整个 server 在本会话里永久废掉。
    */
-  request<T = unknown>(method: string, params?: unknown, timeoutMs: number = DEFAULT_MCP_TIMEOUT_MS): Promise<T> {
+  request<T = unknown>(
+    method: string,
+    params?: unknown,
+    timeoutMs: number = DEFAULT_MCP_TIMEOUT_MS,
+    opts: McpRequestOptions = {},
+  ): Promise<T> {
     if (this.closed) {
       return Promise.reject(new Error(this.closedReason ?? 'MCP transport closed'));
     }
+    const fatalOnTimeout = opts.fatalOnTimeout ?? false;
     const id = ++this.seq;
     return new Promise<T>((resolve, reject) => {
       const timer = setTimeout(() => {
+        // 无论致命与否都必须清 pending：否则会留下悬挂 resolver / 定时器。
         this.pending.delete(id);
-        this.closed = true;
-        this.closedReason = `mcp request timeout after ${timeoutMs}ms: ${method} (transport closed)`;
-        reject(new Error(`mcp request timeout after ${timeoutMs}ms: ${method}`));
+        if (fatalOnTimeout) {
+          this.closed = true;
+          this.closedReason = `mcp request timeout after ${timeoutMs}ms: ${method} (transport closed)`;
+          reject(new Error(`mcp request timeout after ${timeoutMs}ms: ${method}`));
+          return;
+        }
+        // 非致命：transport 不置 closed，后续调用仍可继续（错误信息里明说这一点）。
+        reject(
+          new Error(
+            `mcp request timeout after ${timeoutMs}ms: ${method} (call-scoped timeout, transport still usable)`,
+          ),
+        );
       }, timeoutMs);
       this.pending.set(id, { resolve: resolve as (v: unknown) => void, reject, timer });
       try {
@@ -245,6 +297,9 @@ export class McpClient {
    * @param timeoutMs 超时（默认 `DEFAULT_MCP_TIMEOUT_MS`）。超时会 reject 一个
    *   `mcp request timeout after <n>ms: initialize` 的明确错误，**不会**静默挂起；
    *   即使 transport 忽略该参数（如 in-process），`withTimeout` 也会兜底。
+   *
+   * 握手是**建连**语义：超时视为 server 不可用 → 显式传 `fatalOnTimeout: true`，
+   * 让 transport 永久关闭（`compose.ts` 逐 server try/catch 依赖这次失败做降级）。
    */
   async initialize(
     timeoutMs: number = DEFAULT_MCP_TIMEOUT_MS,
@@ -258,13 +313,18 @@ export class McpClient {
           clientInfo: { name: 'cah', version: '0.2.0' },
         },
         timeoutMs,
+        { fatalOnTimeout: true },
       ),
       'initialize',
       timeoutMs,
     );
   }
 
-  /** 兜底超时：transport 自身没实现超时也不会永久挂起（超时后同样明确报错）。 */
+  /**
+   * 兜底超时：transport 自身没实现超时也不会永久挂起（超时后同样明确报错）。
+   * 这里**只** reject 本次调用：连接是否被永久关闭由 transport 按
+   * `opts.fatalOnTimeout` 决定（`initialize` 传 true，业务调用传 false）。
+   */
   private withTimeout<T>(request: Promise<T>, method: string, timeoutMs: number): Promise<T> {
     return new Promise<T>((resolve, reject) => {
       const timer = setTimeout(() => {
@@ -283,13 +343,31 @@ export class McpClient {
     });
   }
 
+  /**
+   * `tools/list` —— **业务调用**（Round 13 复评缺陷 2）：单次超时只让这次调用失败
+   * （`fatalOnTimeout: false`），**不**永久关闭 transport；后续调用仍可继续。
+   */
   async listTools(): Promise<McpToolDescriptor[]> {
-    const res = await this.transport.request<{ tools: McpToolDescriptor[] }>('tools/list', {});
+    const res = await this.transport.request<{ tools: McpToolDescriptor[] }>(
+      'tools/list',
+      {},
+      DEFAULT_MCP_TIMEOUT_MS,
+      { fatalOnTimeout: false },
+    );
     return res.tools ?? [];
   }
 
+  /**
+   * `tools/call` —— **业务调用**：慢而健康的 server 只该赔上这一次调用，
+   * 不该在会话剩余时间里被整体作废（同 `listTools`，超时非致命）。
+   */
   async callTool(name: string, args: Record<string, unknown>): Promise<McpCallResult> {
-    return this.transport.request<McpCallResult>('tools/call', { name, arguments: args });
+    return this.transport.request<McpCallResult>(
+      'tools/call',
+      { name, arguments: args },
+      DEFAULT_MCP_TIMEOUT_MS,
+      { fatalOnTimeout: false },
+    );
   }
 
   async close(): Promise<void> {
