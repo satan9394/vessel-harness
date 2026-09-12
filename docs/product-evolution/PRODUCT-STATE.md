@@ -733,3 +733,24 @@ G-15 原子写 wrapper 各 Store 重复（P4）；architecture 审计的 T1–T9
 **需要产品裁决（我没有擅自动）**：① 真实 provider 且全链无 model 时仍会发**字面量 `"mock-model"`**（既有语义）——是否为它补"model 缺失 ⇒ fail-loud"；② `VESSEL_HOLDER_DEBUG` 的"存在即开（含 `'0'`）"是否保持（我判为有意语义，只加测试钉住）；③ `denials`/M12 在实跑里因"事件 + 记录"相加而**是真实拒绝数的 2 倍**（`Math.max` 是消费方绕行）——要不要把去重规则统一到 `llm/retry` 那套身份去重上（会动既有 `denials=2` 用例）。
 
 **这一段的记忆在哪**：27 条纪律 + 分档队列（`PRODUCT-STATE.md`）；三次对抗评审的完整结论（`PRODUCT-GAP-MAP.md`：每条 REJECT 带位置与可证伪路径、**"查过未推翻"清单**、**"需实测"清单**）；本次收口的实测数字（本节）。
+
+### Round 157 — **上一轮那句"自然收口"是错的，这里更正**（并附它暴露的新清单）
+
+**错在哪**：我按"**我手上的清单清空了**"判断可以停，而正确的标准是"**这类病还有没有实例**"。前者是**我的**边界，后者才是**病的**边界。证据就是：宣布收口后派出的下一张卡（本意只是"清掉剩余工程项"）**又挖出同一病灶的一批新实例**，其中**两条是高/中高**。
+
+**新账（同病灶：被声明为被测量 / 被消费，却没有生产者或消费者）**：
+1. **`M13 evaluatorRejects` 恒 0（高）**：`Telemetry.recordEvaluatorReject()` **全仓唯一命中是它的定义**——而 `asserts.ts` 的 `metricValue('M13')` **读它**、`BENCHMARK-SPEC` **把它列为被测量**。与刚修好的 M14 完全同病。（**在修**）
+2. **M12 声称含 `SANDBOX_DENIAL`（中高）**：该 errorClass **无生产者**（全仓只有类型 + 两处 mock 正则 + 一处注释），且 `finalizeRecord` **只认 `audit/denial` 与 `INVALID_ARGS`** ⇒ **就算产生也不进 M12**。规格与实现两处都不成立。（**在修**）
+3. **`metricValue()` 对未知指标走 `default: return 0`（中）**：于是 `metric_le` **恒真**、`metric_ge` **恒假** ⇒ **判据静默失效而非报错**——本段核心病落在**判据层**的实例。（**在修**）
+4. **`configs/policy.default.yaml` 的 `audit.events` 列着 `decision` 与 `approval`（中）**：本仓**只产出 `denial`**（`audit/decision` 零产零消；approval 类记录类型不存在）⇒ **读 policy 的人会以为证据链齐备**。（**在修**）
+5. **M14 的 detail 里 `steers`/`interrupts`/`human_answers`/`machine_answers` 硬编码 0（中）**：前两项**有生产者但无消费者**（`SteeringQueue`→`user/message{source:'steer'}`；`turn/end{kind:'interrupted'}`），后两项**无任何通路**。本段只接上了 `approval_asks`，这三项**未动**。
+6. **`measured` 里声明 M08/M11，而 `Telemetry.metrics()` 不产出、`metricValue()` 走 `default: 0`（中）**：与第 3 条同源。
+7. **`resumeSuccess` 自家 arm 恒 `false`（中）**：`contracts/vessel.ts` 里硬编码，而契约/报告/校验都消费它。
+8. **`audit/safety`(B21) 无类型、无产者、无消者（中）**：`POLICY-SPEC` 与 `EVENT-SPEC` 都声明它是持久记录。
+9. **`AuditDenialRecord.stage:'sandbox'` 无生产者（低）**：`recordDenial` 实际只传 `'rule'|'hook'|'approval'`，`recordTurnDenial` 传 `'before_turn'`。
+10. **`compaction/end`(B16) 有产者、无生产侧消费者（低）**（`§4.11` 如实只列 `compaction/start`）。
+11. 已知并**已如实标注**（不重复修）：`request/header`、`turn/end.stats` 加法字段、`turn/end.toolCallsWithoutEnd`、`llm/retry.decision:'fallback'`。
+
+**这条更正本身的教训**（比那 11 条更值得继承）：**我宣布"收口"所依据的是"我的清单"，而那份清单是我自己一路记下来的**——它**只覆盖了我已经看见的东西**。⇒ 判断"能不能停"，要么按**外部标准**（例如对某类不变量做一次全仓清查并列出全部实例），要么**明说这是"我清单的边界"而不是"病的边界"**。**我上一轮正是把后者说成了前者。**
+
+**并记**：本段第三次对抗评审所用的方法（**先冻结 HEAD、明说"工作区正被并发改写所以此刻跑的不是 HEAD"、一律用 `git show HEAD:` 定案**）**是目前唯一有效抵抗"并发写导致的错误结论"的手段**，建议后续评审沿用。
