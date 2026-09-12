@@ -2,6 +2,8 @@
  * task V1.1-E/F / 097 — Release Gates 实跑驱动（产出 V1.1 release-report）。
  *
  * 用法：`npx tsx benchmarks/runners/src/run-release-gates.ts [--key-source=auto|env|store] [--models=<id,...>]`
+ * （Round 14：`main()` 已加 ESM entry 判定，被 import 时不执行 → 模块可被单测安全导入，
+ *   见 run-release-gates.note.test.ts。）
  *
  * 流程：
  *   1. （V1.1-F / 097）凭据来源：仓库 CredentialStore（034/069 DPAPI 密文，用户经
@@ -148,7 +150,7 @@ export function buildDeterministicBenchExecutor(provider: ChatProvider | null = 
  * 限定：084 的 `compactLines()` 只保留命令输出的**尾部**（stdout 末 12 行 + stderr 末 6 行，
  * 去空行后至多 18 行），所以路径列表可能不全 —— 注解文案必须保留这条限定，不得据此断言「唯一」。
  */
-interface UnitFailureFacts {
+export interface UnitFailureFacts {
   /** 失败行（含 `FAIL` 标记或 `❯` 堆栈行）上出现的 `*.test.ts(x)` 路径（去重、正斜杠）。 */
   failedTestFiles: string[];
   /** evidence 中出现的**全部** `*.test.ts(x)` 路径（不区分是否为失败行）。 */
@@ -174,16 +176,27 @@ function vitestCount(segment: string, word: 'failed' | 'passed'): number | undef
   return Number.isFinite(n) ? n : undefined;
 }
 
-/** 收集一段文本里出现的 `*.test.ts(x)` 路径（去重，反斜杠归一为正斜杠）。 */
+/**
+ * 归一化 evidence 里的测试文件路径：去首尾空白、反斜杠 → 正斜杠、去 `./` 前缀。
+ * 收集（`collectTestFilePaths`）与判定（`isProcessTreeTestFile`）共用同一套规则，避免两处漂移。
+ */
+export function normalizeTestFilePath(raw: string): string {
+  return String(raw).trim().replace(/\\/g, '/').replace(/^\.\//, '');
+}
+
+/** 收集一段文本里出现的 `*.test.ts(x)` 路径（去重，路径按 normalizeTestFilePath 归一）。 */
 function collectTestFilePaths(text: string, into: string[]): void {
   for (const m of text.matchAll(TEST_FILE_PATH_RE)) {
-    const p = m[0].replace(/\\/g, '/').replace(/^\.\//, '');
+    const p = normalizeTestFilePath(m[0]);
     if (!into.includes(p)) into.push(p);
   }
 }
 
-/** 从 unit gate 的 evidence 提取失败事实（无副作用、不猜测、不做归因）。 */
-function extractUnitFailureFacts(gate: ReleaseGateResult): UnitFailureFacts {
+/**
+ * 从 unit gate 的 evidence 提取失败事实（无副作用、不猜测、不做归因）。
+ * 导出以便单测（Round 14 加固点 ③）——调用点行为不变。
+ */
+export function extractUnitFailureFacts(gate: ReleaseGateResult): UnitFailureFacts {
   const lines = [...(gate.evidence.detail ?? []), gate.evidence.summary]
     .flatMap((l) => String(l).split('\n'))
     .map((l) => l.trim())
@@ -213,19 +226,45 @@ function extractUnitFailureFacts(gate: ReleaseGateResult): UnitFailureFacts {
   return { failedTestFiles, allTestFiles, failedFileCount, failedTestCount, passedTestCount, statLines };
 }
 
-/** 既有注解里提到的那个 flaky 文件（task 072）。 */
-const PROCESS_TREE_TEST_FILE = 'packages/runtime/src/sandbox/backend/process-tree.test.ts';
+/**
+ * 既有注解里提到的那个 flaky 文件（task 072）。导出以便单测（不改任何 gate 判定）。
+ */
+export const PROCESS_TREE_TEST_FILE = 'packages/runtime/src/sandbox/backend/process-tree.test.ts';
+
+/**
+ * 判定某个 evidence 路径是否**就是** process-tree.test.ts 本身（Round 14 加固点 ①）。
+ *
+ * 旧实现用 `path.endsWith('process-tree.test.ts')`，于是 `foo-process-tree.test.ts`、
+ * `other/process-tree.test.ts` 这类**同后缀 / 同 basename 的其它文件**也会命中，而分支 A 的
+ * 注记文案里**硬编码**了 process-tree 的路径 → 把「别人的失败」写成「process-tree 计时 flaky」。
+ *
+ * 现规则（选定：**归一化后按仓库相对路径全等**；明确**不采用** basename 全等）：
+ *  - 分隔符归一 + 去 `./` 后与 `PROCESS_TREE_TEST_FILE` 全等；或
+ *  - 绝对路径以 `` `/${PROCESS_TREE_TEST_FILE}` `` 结尾（vitest 打印绝对路径时的等价形式）。
+ * 两条都要求**整条目录链**一致，故 `foo-process-tree.test.ts` 与 `other/process-tree.test.ts`
+ * 一律不得命中（这就是本次加固的核心判别点）。
+ */
+export function isProcessTreeTestFile(file: string): boolean {
+  const normalized = normalizeTestFilePath(file);
+  return (
+    normalized === PROCESS_TREE_TEST_FILE || normalized.endsWith(`/${PROCESS_TREE_TEST_FILE}`)
+  );
+}
 
 /**
  * 由 evidence 推导 unit gate 的 note（**不改变任何 gate 的 status/判据**）：
  *  - 分支 A：vitest 汇总行 `Test Files  1 failed` **且**失败行只命中 process-tree.test.ts
- *            → 才写既有「process-tree 计时 flaky」注解，并附上归因依据；
+ *            → 写既有「process-tree 计时 flaky」注解，但只给**条件式**归因（Round 14 加固点 ②）：
+ *              单跑通过 → 按项目惯例视为环境性 flaky；单跑同样失败 → 即为真实回归，必须修复。
+ *              旧文案把「非 V1.1-E 回归 / 11-11」当**既定事实**断言 —— 那是历史记录，不是本次证据。
  *  - 分支 B：其它/混合失败（含只拿到统计行、或失败文件非 process-tree 的情况）
  *            → 如实列出可提取的 stats / 失败文件，并明确「未自动归因」；
  *  - 分支 C：连失败文件与统计都提取不到 → 只说「未自动归因，见 evidence.detail」。
  *  三种分支都**绝不**出现「唯一失败为 X」这类未经验证的断言。
+ *
+ * 导出以便单测（Round 14 加固点 ③）——调用点行为不变。
  */
-function deriveUnitFailureNote(gate: ReleaseGateResult): string {
+export function deriveUnitFailureNote(gate: ReleaseGateResult): string {
   const facts = extractUnitFailureFacts(gate);
   const [onlyFailedFile] = facts.failedTestFiles;
   const stats = facts.statLines.join('；');
@@ -234,15 +273,16 @@ function deriveUnitFailureNote(gate: ReleaseGateResult): string {
     facts.failedFileCount === 1 &&
     facts.failedTestFiles.length === 1 &&
     onlyFailedFile !== undefined &&
-    onlyFailedFile.endsWith('process-tree.test.ts');
+    isProcessTreeTestFile(onlyFailedFile);
 
   if (onlyProcessTree) {
+    const stat = facts.statLines[0] ?? 'Test Files 1 failed';
     return (
-      '唯一失败为既有 process-tree 计时 flaky（packages/runtime/src/sandbox/backend/process-tree.test.ts，' +
-      'task 072）：整机并行高负载下 30s 超时；隔离单跑 11/11 通过。非 V1.1-E 回归（该文件自 072 未改动），' +
-      '按项目惯例视为环境性 flaky。' +
-      `（归因依据：unit evidence 的 vitest 汇总行「${facts.statLines[0] ?? 'Test Files 1 failed'}」` +
-      `+ 失败行只命中 ${PROCESS_TREE_TEST_FILE}。）`
+      `本门禁证据指向 ${PROCESS_TREE_TEST_FILE}（task 072 记录的计时敏感用例）：` +
+      `vitest 汇总行「${stat}」+ 失败行只命中该文件（受命令输出尾部截取限制，可能不全）。` +
+      '该文件的历史记录（历史事实，非本次证据）：整机并行高负载下 30s 超时，隔离单跑 11/11 通过。' +
+      '据此按条件判定：若该文件除本门禁外单跑通过，则按项目惯例视为环境性 flaky；' +
+      '若单跑同样失败，即为真实回归，必须修复——不得据此忽略回归。'
     );
   }
 
@@ -268,6 +308,19 @@ function deriveUnitFailureNote(gate: ReleaseGateResult): string {
   }
   parts.push('本注解不推断失败原因；请以 evidence.detail 与重跑结果为准，勿据此忽略回归');
   return `${parts.join('；')}。`;
+}
+
+/**
+ * 把证据推导出的注记写到 unit gate 的 `note` 上（**只补注，绝不触碰 status/判据**）。
+ *
+ * 只有 `status === 'fail'` **且** `id === 'unit'` 才写；其余 gate（含 `pass` 的 unit）原样返回、
+ * 不产生任何 note。既有 note 保留并在其后追加（084 惯例，同 main() 里的调用点）。
+ * 导出以便单测（Round 14 加固点 ③）；判据与调用点行为等价抽取，未改动任何语义。
+ */
+export function annotateUnitFailureNote(gate: ReleaseGateResult): void {
+  if (gate.status !== 'fail' || gate.id !== 'unit') return;
+  const derived = deriveUnitFailureNote(gate);
+  gate.note = gate.note ? `${gate.note} ${derived}` : derived;
 }
 
 async function main(): Promise<void> {
@@ -341,9 +394,7 @@ async function main(): Promise<void> {
   // 会把真实回归当成环境性 flaky 忽略（宣称与证据不符）。现在只有证据确实只指向 process-tree.test.ts
   // 时才写该注解，否则如实标注「未自动归因」。
   for (const g of report.gates) {
-    if (g.status !== 'fail' || g.id !== 'unit') continue;
-    const derived = deriveUnitFailureNote(g);
-    g.note = g.note ? `${g.note} ${derived}` : derived;
+    annotateUnitFailureNote(g);
   }
   // deterministic-bench 已从 084 默认 B001-B005 扩到全 L1（含 V1.1-D B024-B027），补注范围。
   const bench = report.gates.find((g) => g.id === 'deterministic-bench');
@@ -364,8 +415,36 @@ async function main(): Promise<void> {
   console.log(`[V1.1-E] md=${mdPath} json=${jsonPath}`);
 }
 
-main().catch((err) => {
-  // eslint-disable-next-line no-console
-  console.error('[V1.1-E] release-gates run failed:', err);
-  process.exitCode = 1;
-});
+/**
+ * ESM entry 判定（Round 14 加固点 ⑤，与 `apps/cli/src/cli.ts` 同惯例）。
+ *
+ * 此前 `main()` **无条件**在模块顶层执行 —— 该模块因此无法被单测导入：一 `import` 就真跑
+ * 8 道门禁（含递归 vitest / 真网络 / 凭据读取），这正是 `deriveUnitFailureNote` 长期零单测
+ * （见 EVALUATION-REPORT-18 覆盖缺口）的直接障碍。
+ *
+ * 判定：进程入口路径 == 本文件路径 才算「被当脚本直接执行」。
+ *  - `npx tsx benchmarks/runners/src/run-release-gates.ts` → argv[1] 即本文件 → **行为完全不变**；
+ *  - 被 vitest / 其它模块 import 时 argv[1] 是测试运行器 → 不执行 main()（无副作用）。
+ * fail-safe：拿不到入口路径、或比较抛错时一律按「直接执行」处理，保持旧行为，绝不静默不跑门禁。
+ */
+function shouldRunAsScript(): boolean {
+  const invoked = process.argv[1];
+  if (typeof invoked !== 'string' || invoked.length === 0) return true;
+  const normalize = (p: string): string => {
+    const abs = path.resolve(p);
+    return process.platform === 'win32' ? abs.toLowerCase() : abs;
+  };
+  try {
+    return normalize(invoked) === normalize(fileURLToPath(import.meta.url));
+  } catch {
+    return true;
+  }
+}
+
+if (shouldRunAsScript()) {
+  main().catch((err) => {
+    // eslint-disable-next-line no-console
+    console.error('[V1.1-E] release-gates run failed:', err);
+    process.exitCode = 1;
+  });
+}

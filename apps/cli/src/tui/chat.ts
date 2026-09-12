@@ -179,6 +179,8 @@ export interface ChatOptions {
   provider?: ChatProvider;
   model?: string;
   policySystemPath: string;
+  /** G-15：project 级策略（可选层）——<workspace>/.harness/policy.yaml，存在才传。 */
+  policyProjectPath?: string;
   behaviorIRPath: string;
   permission?: PermissionMode;
   store?: ProviderStore;
@@ -390,6 +392,8 @@ export async function runChat(opts: ChatOptions): Promise<number> {
         provider: effProvider,
         model: effModel,
         policySystemPath: opts.policySystemPath,
+        // G-15：project 级策略（可选层）透传；缺省 undefined 表示无该层。
+        policyProjectPath: opts.policyProjectPath,
         behaviorIRPath: opts.behaviorIRPath,
         permission,
         // G-09 接线修复：只有把 usageStore 交给 composeHarness，after_model 才会记账；

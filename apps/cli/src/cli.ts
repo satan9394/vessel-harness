@@ -168,6 +168,13 @@ function repoRoot(): string {
   return process.cwd();
 }
 
+/** G-15：project 级策略（POLICY-SPEC:457-458）——<workspace>/.harness/policy.yaml。
+ *  存在才传（缺省是合法状态：project 层可选）；不存在返回 undefined，不报错。 */
+function resolveProjectPolicyPath(workspaceRoot: string): string | undefined {
+  const p = path.join(workspaceRoot, '.harness', 'policy.yaml');
+  return fs.existsSync(p) ? p : undefined;
+}
+
 /**
  * UsageStore 工厂（task 086/087/092）：价目表 + 目录价源 + 用户覆盖 + strict 开关。
  * 查价实现与 UsageProjection 共用 @vessel/shared/pricing。
@@ -348,6 +355,8 @@ async function cmdRun(flags: Map<string, string>): Promise<number> {
     provider,
     model,
     policySystemPath: flags.get('policy') ?? path.join(root, 'configs', 'policy.default.yaml'),
+    // G-15：project 级策略（可选层）——工作区自带 <ws>/.harness/policy.yaml 时并入，缺失不报错
+    policyProjectPath: resolveProjectPolicyPath(workspace),
     behaviorIRPath: flags.get('behavior') ?? path.join(root, 'configs', 'behavior.default.yaml'),
     maxSteps: Number(flags.get('max-steps') ?? 64),
     // `vessel resume` 透传：不给 sessionId 时 Session.open 会新建空会话，恢复语义失效。
@@ -1723,6 +1732,8 @@ async function dispatch(parsed: ParsedArgs): Promise<number> {
         store: defaultProviderStore(),
         workspaceRoot: target.meta.workspaceRoot,
         policySystemPath: parsed.flags.get('policy') ?? path.join(root, 'configs', 'policy.default.yaml'),
+        // G-15：project 级策略（可选层）——工作区根与本分支传给 runChat 的 workspaceRoot 同源
+        policyProjectPath: resolveProjectPolicyPath(target.meta.workspaceRoot),
         behaviorIRPath: parsed.flags.get('behavior') ?? path.join(root, 'configs', 'behavior.default.yaml'),
         permission: (parsed.flags.get('permission') ?? target.meta.permission) as
           | 'read-only'
@@ -1749,6 +1760,8 @@ async function dispatch(parsed: ParsedArgs): Promise<number> {
         store: defaultProviderStore(),
         workspaceRoot: path.resolve(parsed.flags.get('workspace') ?? process.cwd()),
         policySystemPath: parsed.flags.get('policy') ?? path.join(root, 'configs', 'policy.default.yaml'),
+        // G-15：project 级策略（可选层）——工作区根与本分支传给 runChat 的 workspaceRoot 同源
+        policyProjectPath: resolveProjectPolicyPath(path.resolve(parsed.flags.get('workspace') ?? process.cwd())),
         behaviorIRPath: parsed.flags.get('behavior') ?? path.join(root, 'configs', 'behavior.default.yaml'),
         permission: (parsed.flags.get('permission') ?? 'workspace-write') as 'read-only' | 'workspace-write' | 'danger-full-access',
         usageStore: createUsageStore({ strict: parsed.flags.has('strict') }),
