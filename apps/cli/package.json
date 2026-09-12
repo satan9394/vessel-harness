@@ -20,7 +20,7 @@
   },
   "scripts": {
     "build": "tsc -b && node scripts/copy-configs.mjs",
-    "prepack": "node scripts/copy-configs.mjs",
+    "prepack": "npm run build",
     "test": "vitest run"
   },
   "exports": {
