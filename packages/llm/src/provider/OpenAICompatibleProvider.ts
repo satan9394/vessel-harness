@@ -7,7 +7,7 @@ import type {
   ChatToolDef,
   StreamChunk,
 } from '@vessel/shared';
-import { OpenAIStreamParser } from '../stream/parseOpenAI.js';
+import { OpenAIStreamParser, openAIFinishReason } from '../stream/parseOpenAI.js';
 import { sanitizeErrorBody } from './errorBody.js';
 
 interface OpenAIChatMessage {
@@ -176,9 +176,15 @@ export class OpenAICompatibleProvider implements ChatProvider {
     return {
       content: message?.content ?? '',
       toolCalls,
-      finishReason: (choice?.finish_reason === 'stop' || choice?.finish_reason === 'tool_calls'
-        ? choice.finish_reason
-        : 'error') as ChatResponse['finishReason'],
+      // BRIEF「截断信号到不了 loop」（非流式）: 改前这里是
+      //   `choice?.finish_reason === 'stop' || choice?.finish_reason === 'tool_calls'
+      //      ? choice.finish_reason : 'error'`
+      // ⇒ 非 stop/tool_calls 的**一切**（含 `'length'`）都被塌缩成 `'error'`。AgentLoop 的
+      // 截断判据只看 `finishReason === 'length'`（AgentLoop.ts:429），于是被 max_tokens
+      // 截断的回答在这条本仓最常用的路径上仍然报成 kind='success'。
+      // 现在改用与流式**同一张**归一表（openAIFinishReason）：'length' 透传成 'length'，
+      // stop/tool_calls 逐字不变，其它/缺失仍是既有的 'error'（逐条裁决见该函数注释）。
+      finishReason: openAIFinishReason(choice?.finish_reason),
       usage: {
         inputTokens: body.usage?.prompt_tokens ?? 0,
         outputTokens: body.usage?.completion_tokens ?? 0,
