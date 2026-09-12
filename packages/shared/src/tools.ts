@@ -69,6 +69,16 @@ export interface SandboxStatus {
   active: boolean;
   /** backend handle kind currently in use (e.g. 'job-object' | 'acl-partial' | 'none'). */
   backend?: 'job-object' | 'acl-partial' | 'none';
+  /**
+   * Machine-readable reason confinement is NOT in force (absent when it is).
+   * `active`/`enabled` are true only when the backend genuinely attached; this
+   * field makes a silent degradation visible instead of letting status keep
+   * claiming the platform capability as if it were the real constraint.
+   */
+  degraded?:
+    | 'job-object-not-attempted'
+    | 'job-object-attach-failed'
+    | 'job-object-unavailable';
   fallbackReason?: string;
 }
 

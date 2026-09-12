@@ -112,3 +112,63 @@ describe('6 builtin tools', () => {
     expect(s.error?.errorClass).toBe('DENIED');
   });
 });
+
+describe('Shell — escape audit events are surfaced, not dropped in runtime memory (task 072)', () => {
+  let dir: string;
+  beforeEach(() => { dir = fs.mkdtempSync(path.join(os.tmpdir(), 'cah-shell-audit-')); });
+  afterEach(() => { fs.rmSync(dir, { recursive: true, force: true }); });
+
+  const tmpIsolatedDir = async () => {
+    const p = fs.mkdtempSync(path.join(os.tmpdir(), 'vessel-sb-'));
+    return { path: p, dispose: async () => fs.rmSync(p, { recursive: true, force: true }) };
+  };
+
+  it('carries escape-detected into the tool result meta and the injected audit sink', async () => {
+    const sink: Array<{ kind: string; pid?: number }> = [];
+    const warnings: string[] = [];
+    const sandbox = new Sandbox({
+      platform: 'win32',
+      warn: (m) => warnings.push(m),
+      makeIsolatedDir: tmpIsolatedDir,
+      // the confined root has a live descendant that never made it into the job
+      enumerateDescendants: async () => [4242],
+      attachPidsToJob: async () => 0,
+      createJob: async (pid) => ({ jobName: `j_${pid}`, terminate: async () => {}, dispose: async () => {} }),
+    });
+    const tool = createShellTool({ workspaceRoot: dir, sandbox, audit: (e) => sink.push({ kind: e.kind, pid: e.pid }) });
+    const res = await tool.execute({ command: 'node -e "process.exit(0)"' }, { workspaceRoot: dir, cwd: dir });
+
+    // the escape conclusion is visible on the result (persisted by the AgentLoop)
+    const sandboxMeta = res.meta.sandbox as { audit?: Array<{ kind: string; pid?: number }>; active?: boolean };
+    expect(Array.isArray(sandboxMeta.audit)).toBe(true);
+    expect(sandboxMeta.audit?.some((e) => e.kind === 'escape-detected' && e.pid === 4242)).toBe(true);
+    // …and forwarded to the audit channel
+    expect(sink.some((e) => e.kind === 'escape-detected' && e.pid === 4242)).toBe(true);
+    // routine bookkeeping is NOT sprayed into the result (no noise)
+    expect(sandboxMeta.audit?.some((e) => e.kind === 'spawn' || e.kind === 'exit' || e.kind === 'window-closed')).toBe(false);
+    // the model-visible content carries no audit payload
+    expect(res.content).not.toContain('escape-detected');
+  });
+
+  it('surfaces escape-terminate-failed (never a fake escape-terminated) for a kill that did not succeed', async () => {
+    const sink: Array<{ kind: string; pid?: number }> = [];
+    const sandbox = new Sandbox({
+      platform: 'win32',
+      warn: () => {},
+      makeIsolatedDir: tmpIsolatedDir,
+      enumerateDescendants: async () => [4243],
+      attachPidsToJob: async () => 0,
+      terminatePids: async () => [], // nothing verified dead
+      createJob: async (pid) => ({ jobName: `j_${pid}`, terminate: async () => {}, dispose: async () => {} }),
+    });
+    const tool = createShellTool({ workspaceRoot: dir, sandbox, audit: (e) => sink.push({ kind: e.kind, pid: e.pid }) });
+    const res = await tool.execute(
+      { command: 'node -e "process.exit(0)"', limits: { terminateEscaped: true } },
+      { workspaceRoot: dir, cwd: dir },
+    );
+    const audit = (res.meta.sandbox as { audit?: Array<{ kind: string }> }).audit ?? [];
+    expect(audit.some((e) => e.kind === 'escape-terminate-failed')).toBe(true);
+    expect(audit.some((e) => e.kind === 'escape-terminated')).toBe(false);
+    expect(sink.some((e) => e.kind === 'escape-terminate-failed')).toBe(true);
+  });
+});

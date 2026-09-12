@@ -82,6 +82,22 @@ function psSq(value: string): string {
   return `'${value.replace(/'/g, "''")}'`;
 }
 
+/**
+ * Parse the JSON pid array emitted by the kill helpers. Anything unparseable
+ * yields an EMPTY list — a failed read must never be mistaken for "all killed".
+ */
+function parseVerifiedPids(out: string): number[] {
+  try {
+    const parsed: unknown = JSON.parse(out.trim() || '[]');
+    const list = Array.isArray(parsed) ? parsed : [parsed];
+    return list
+      .map((v) => Number(v))
+      .filter((n) => Number.isInteger(n) && n > 0);
+  } catch {
+    return [];
+  }
+}
+
 /** Run PowerShell; resolve stdout trimmed, reject on non-zero. */
 function runPs(script: string): Promise<string> {
   return new Promise<string>((resolve, reject) => {
@@ -298,11 +314,16 @@ export const WindowsJobObject = {
   /**
    * Terminate a list of pids directly (task 072 tree-escape hard response).
    * Unlike `terminate()` this does not touch the job tree — it targets only the
-   * escaped processes. Best-effort; a pid that already exited is skipped.
+   * escaped processes.
+   *
+   * Returns the pids **verified terminated** (TerminateProcess returned true).
+   * A pid that no longer exists, could not be opened, or whose termination was
+   * refused is NOT in the result — callers must audit those separately instead
+   * of assuming the whole input died.
    */
-  async terminatePids(pids: number[]): Promise<number> {
+  async terminatePids(pids: number[]): Promise<number[]> {
     const clean = pids.map((p) => Math.trunc(p)).filter((p) => p > 0);
-    if (clean.length === 0) return 0;
+    if (clean.length === 0) return [];
     const script =
       '$ErrorActionPreference="SilentlyContinue"\n' +
       `$pidList=@(${clean.join(',')})\n` +
@@ -315,18 +336,18 @@ export const WindowsJobObject = {
       '}\n' +
       '"@\n' +
       'Add-Type -TypeDefinition $src -ErrorAction SilentlyContinue\n' +
-      '$done=0\n' +
+      '$done=New-Object System.Collections.Generic.List[int]\n' +
       'foreach($p in $pidList){\n' +
       '  $h=[ProcKill]::OpenProcess(0x0001,$false,$p) 2>$null\n' + // PROCESS_TERMINATE
-      '  if($h -ne [IntPtr]::Zero){ if([ProcKill]::TerminateProcess($h,0x42)){ $done++ }; [ProcKill]::CloseHandle($h) }\n' +
+      '  if($h -ne [IntPtr]::Zero){ if([ProcKill]::TerminateProcess($h,0x42)){ $done.Add([int]$p) }; [ProcKill]::CloseHandle($h) }\n' +
       '}\n' +
-      '"$done"\n';
+      '[Console]::Out.Write((ConvertTo-Json -InputObject @($done) -Compress))\n';
     try {
       const out = await runPs(script);
-      const n = Number(out.split(/\s+/)[0]);
-      return Number.isInteger(n) ? n : 0;
+      return parseVerifiedPids(out);
     } catch {
-      return 0;
+      // enumeration/termination failed outright: NOTHING may be claimed dead.
+      return [];
     }
   },
 };

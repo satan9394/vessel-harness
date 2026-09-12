@@ -13,6 +13,7 @@ import { SubagentManager, createSubagentTool } from '@vessel/agents';
 import { ProjectStore, createMemoryTool } from '@vessel/memory';
 import { AutoTaskRouter, type AutoRoute, type RouteMode, type TierBindings, type TierModelMap } from '@vessel/llm';
 import { EnforcementProjection } from './projections/EnforcementProjection.js';
+import type { ProcessTreeAuditEvent } from './projections/types.js';
 
 /**
  * Minimal structural contract for a persistent usage store. apps/cli wires its
@@ -203,8 +204,19 @@ export async function composeHarness(opts: ComposeOptions): Promise<ComposedHarn
   ];
 
   // Executor: pre-execute policy recheck (tool layer never trusts the caller)
+  // Task 072 escape-audit wiring: the Shell tool carries the escape/termination
+  // events it observed on `meta.sandbox.audit`; this post-execute hook is the
+  // PRODUCTION consumer that pushes them into the enforcement projection, so an
+  // escape is never left only in runtime memory. Only escape/terminate/failure
+  // events are forwarded (the tool already filtered out routine bookkeeping).
   const executor = new Executor({
     decide: async (call, spec) => policyEngine.decide({ toolName: call.toolName, arguments: call.arguments }, spec),
+    onResult: (_call, result) => {
+      const sandbox = result.meta?.sandbox as { audit?: readonly ProcessTreeAuditEvent[] } | undefined;
+      const events = sandbox?.audit;
+      if (!events) return;
+      for (const e of events) enforcement.recordProcessTree(e);
+    },
   });
   const runTool = async (call: ToolCall, exec?: { signal?: AbortSignal | null }) => {
     const spec = registry.spec(call.toolName);

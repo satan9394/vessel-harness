@@ -47,7 +47,8 @@ export type ProcessTreeAuditKind =
   | 'exit' // a process was observed exiting
   | 'attached' // a pid was pulled into the Job Object
   | 'escape-detected' // a live descendant was found outside the confined set
-  | 'escape-terminated' // an escaped pid was terminated
+  | 'escape-terminated' // an escaped pid was VERIFIED terminated
+  | 'escape-terminate-failed' // an escaped pid could NOT be verified terminated (may still be alive)
   | 'window-closed' // the attach-timing window was closed for a root pid
   ;
 
@@ -190,18 +191,34 @@ export class ProcessTreeTracker {
 export interface EscapeDetectionReport {
   /** pids found running outside the confined set. */
   escapedPids: number[];
-  /** pids we chose to terminate (subset of escapedPids). */
+  /**
+   * pids the terminator reported as **verified terminated** (a subset of
+   * escapedPids). Never filled optimistically: a pid whose termination was not
+   * confirmed is absent, so it can be audited as a failure instead.
+   */
   terminatedPids: number[];
+  /**
+   * escaped pids for which termination was attempted but NOT verified (they may
+   * still be alive). Empty when termination was not requested.
+   */
+  failedTerminatePids: number[];
   /** pids confined and accounted for (no action). */
   confinedPids: number[];
 }
 
-/** Options controlling escape detection + hard-response. */
+/**
+ * Options controlling escape detection + hard-response.
+ *
+ * `terminate` returns the pids it **verified** as terminated. A terminator that
+ * cannot confirm success must leave those pids out of the result (or throw, in
+ * which case NOTHING is treated as terminated) — "attempted" is never recorded
+ * as "dead".
+ */
 export interface EscapeDetectionOptions {
   /** whether to actually terminate escaped pids (mechanical hard enforcement). */
   terminateEscaped: boolean;
   /** a terminate(pids) callback; required when terminateEscaped is true. */
-  terminate?: (pids: number[]) => Promise<void> | void;
+  terminate?: (pids: number[]) => Promise<number[] | void> | number[] | void;
   /** record audit entries on the tracker (default true). */
   audit?: boolean;
 }
@@ -221,14 +238,33 @@ export async function detectEscapes(
 ): Promise<EscapeDetectionReport> {
   confinedPids.add(rootPid);
   const escapedPids = liveDescendants.filter((pid) => !confinedPids.has(pid));
-  const terminatedPids: number[] = [];
+  let terminatedPids: number[] = [];
   if (opts.terminateEscaped && escapedPids.length > 0 && opts.terminate) {
-    await opts.terminate(escapedPids);
-    terminatedPids.push(...escapedPids);
+    let reported: number[] = [];
+    try {
+      reported = normalizeTerminatedPids(await opts.terminate(escapedPids), escapedPids);
+    } catch {
+      // the terminator failed outright: nothing may be claimed as terminated.
+      reported = [];
+    }
+    terminatedPids = reported;
   }
+  const terminated = new Set(terminatedPids);
   return {
     escapedPids,
     terminatedPids,
+    failedTerminatePids: escapedPids.filter((pid) => !terminated.has(pid)),
     confinedPids: [...confinedPids],
   };
+}
+
+/**
+ * Only pids from the requested escape set can ever be counted as terminated, and
+ * only when the terminator positively named them. An undefined/void/partial
+ * answer yields an empty success set — a count or a bare "ok" is NOT accepted.
+ */
+function normalizeTerminatedPids(reported: number[] | void, requested: number[]): number[] {
+  if (!Array.isArray(reported)) return [];
+  const requestedSet = new Set(requested);
+  return reported.filter((pid) => Number.isInteger(pid) && requestedSet.has(pid));
 }

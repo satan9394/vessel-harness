@@ -3,7 +3,8 @@ import * as os from 'node:os';
 import * as path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, it, expect, afterEach } from 'vitest';
-import { runScenario } from './runner.js';
+import { runScenario, loadManifest } from './runner.js';
+import { runAssert } from './asserts.js';
 
 const REPO_ROOT = fileURLToPath(new URL('../../../', import.meta.url));
 const REPORTS = fs.mkdtempSync(path.join(os.tmpdir(), 'cah-bench-reports-'));

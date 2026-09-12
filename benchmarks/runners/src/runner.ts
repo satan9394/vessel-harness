@@ -8,7 +8,7 @@ import { composeHarness, type ComposeOptions } from '@vessel/application';
 import { EvaluatorAgent, createReadOnlyExplorationTools, executePlan, generatePlan, injectPlan } from '@vessel/agents';
 import type { EvaluatorVerdict } from '@vessel/agents';
 import { McpClient, createInProcessTransport, handleMcpRequest } from '@vessel/tools';
-import { LoopEngine, createTaskQueue, queueSelectTask, TempDirWorkspaceFactory } from '@vessel/engine';
+import { LoopEngine, createTaskQueue, queueSelectTask, TempDirWorkspaceFactory, type IterationResult } from '@vessel/engine';
 import { buildHandoff, seedSessionFromHandoff } from '@vessel/engine';
 import { loadManifest } from './manifest.js';
 import { runAssert } from './asserts.js';
@@ -24,6 +24,24 @@ export interface RunScenarioOptions {
   policyPath: string;
   behaviorIRPath: string;
 }
+
+/**
+ * Loop Engine lane (B023) artifact contract — task 111 审计整改.
+ *
+ * 判据必须锚定**引擎在一次真实运行中产出的东西**，不能锚定 runner 自己写下的报告
+ * 模板字符串（旧实现把 golden 串同时写在报告模板与 Generator 里、Evaluator 只回显
+ * Generator 的输出 ⇒ 自产自评、任何实现下都绿）。这里的形状是：
+ *  - Generator 把 manifest 声明的 acceptance 写进**本次 attempt 的隔离工作区**里的
+ *    ENGINE_ARTIFACT_FILE；
+ *  - Evaluator **从磁盘重读**该产物来判定 met/not_met（Generator 的 output 只是数据，
+ *    不是证据）；
+ *  - persist 把产物（dispose 前）与结构化 IterationResult 收割到场景工作区的
+ *    ENGINE_ARTIFACT_DIR 下，manifest 断言读的是这些**引擎真实字节**。
+ */
+const ENGINE_ARTIFACT_DIR = 'engine-artifacts';
+const ENGINE_ARTIFACT_FILE = 'engine-result.txt';
+/** scenario-workspace-relative path the manifest asserts against (file:<rel>). */
+const ENGINE_ARTIFACT_REL = `${ENGINE_ARTIFACT_DIR}/${ENGINE_ARTIFACT_FILE}`;
 
 function snapshotFiles(dir: string): Map<string, string> {
   const out = new Map<string, string>();
@@ -139,25 +157,76 @@ async function driveScenario(
   }
   if (manifest.harness?.engine) {
     // V0.5 Loop Engine lane: one full iteration with deterministic
-    // generator/evaluator in an isolated temp workspace. The reported text
-    // carries the machine-checkable verdict + generator golden.
-    const queue = createTaskQueue([{ id: 'b023', goal: prompt, acceptance: ['ENGINE-GOLDEN-88'] }]);
-    const wsFactory = new TempDirWorkspaceFactory('cah-b023-');
-    const persisted: { verdict: string; taskId: string; evidence: string[] }[] = [];
+    // generator/evaluator in an isolated temp workspace.
+    //
+    // 判据来源（task 111）：manifest 里 target = file:<ENGINE_ARTIFACT_REL> 的断言既是
+    // 断言、也是交给引擎 Generator 的 acceptance —— 场景 yaml 是唯一事实源，runner 里
+    // 不再出现任何 golden 常量串。Generator 写盘、Evaluator 读盘判定、persist 收割留痕，
+    // 报告文本只回述引擎自己的结果（verdict/taskId/iteration/persist 条数）。
+    const acceptance = manifest.pass
+      .filter((p) => p.type === 'file_content' && p.target === `file:${ENGINE_ARTIFACT_REL}`)
+      .flatMap((p) => p.golden ?? []);
+    if (acceptance.length === 0) {
+      // fail loud：engine lane 没有声明产物判据 = 断言不检查任何产物 —— 绝不静默全绿。
+      throw new Error(
+        `scenario ${manifest.id}: engine lane requires a file_content assert on "file:${ENGINE_ARTIFACT_REL}" to declare the generator acceptance`,
+      );
+    }
+    const queue = createTaskQueue([{ id: manifest.id.toLowerCase(), goal: manifest.goal, acceptance }]);
+    const wsFactory = new TempDirWorkspaceFactory(`cah-${manifest.id.toLowerCase()}-`);
+    const persisted: IterationResult[] = [];
     const engine = new LoopEngine(
       {
         selectTask: queueSelectTask(queue),
         generate: async (ctx) => {
-          const p = path.join(ctx.workspace.root, 'engine-result.txt');
-          fs.writeFileSync(p, 'ENGINE-GOLDEN-88 produced by loop-engine iteration', 'utf8');
-          return { output: '迭代产物已写入隔离工作区 ENGINE-GOLDEN-88', artifactPaths: [p] };
+          // 确定性 Generator（offline lane）：在本次 attempt 的隔离工作区里产出
+          // manifest 声明的验收产物。产物内容来自 task.acceptance（场景 yaml），
+          // 不是 runner 里的模板常量。
+          const artifactPath = path.join(ctx.workspace.root, ENGINE_ARTIFACT_FILE);
+          fs.writeFileSync(
+            artifactPath,
+            [`task=${ctx.task.id}`, `iteration=${ctx.iteration}`, `attempt=${ctx.attempt}`, ...(ctx.task.acceptance ?? [])].join('\n') + '\n',
+            'utf8',
+          );
+          return { output: `artifact written: ${artifactPath}`, artifactPaths: [artifactPath] };
         },
-        evaluate: async ({ generatorOutput }) =>
-          generatorOutput.output.includes('ENGINE-GOLDEN-88')
-            ? ({ verdict: 'met', evidence: ['ENGINE-GOLDEN-88 in output'], reason: 'generator artifact present' } as EvaluatorVerdict)
-            : ({ verdict: 'not_met', evidence: ['missing golden'], reason: 'artifact missing' } as EvaluatorVerdict),
+        evaluate: async (ctx): Promise<EvaluatorVerdict> => {
+          // 独立评审：判定只依据**磁盘上的产物字节**——既不回显 Generator 的 output
+          // （generatorOutput 只是数据，永不是证据），也不引用任何 runner 侧常量。
+          const artifactPath = path.join(ctx.workspace.root, ENGINE_ARTIFACT_FILE);
+          const artifact = fs.existsSync(artifactPath) ? fs.readFileSync(artifactPath, 'utf8') : '';
+          const criteria = ctx.task.acceptance ?? [];
+          const missing = criteria.filter((g) => !artifact.includes(g));
+          return missing.length === 0
+            ? {
+                verdict: 'met',
+                evidence: [`${ENGINE_ARTIFACT_FILE} on disk satisfies acceptance: ${criteria.join(', ')}`],
+                reason: 'artifact verified on disk',
+              }
+            : {
+                verdict: 'not_met',
+                evidence: [`${ENGINE_ARTIFACT_FILE} on disk missing acceptance: ${missing.join(', ')}`],
+                reason: 'artifact verification failed',
+              };
+        },
         persist: async (r) => {
-          persisted.push({ verdict: r.verdict, taskId: r.taskId, evidence: r.evidence });
+          // persist 留痕 + 收割：隔离工作区在本回调返回后即被 dispose，故在此把它
+          // 真实产出的文件复制到场景工作区，并把引擎的结构化 IterationResult 落盘，
+          // 供 manifest 断言从磁盘读取（判据不经过 runner 的文本模板）。
+          // persist 契约要求不抛异常：收割失败表现为断言 fail（见文件缺失），而非崩溃。
+          try {
+            const destDir = path.join(workspace, ENGINE_ARTIFACT_DIR);
+            fs.mkdirSync(destDir, { recursive: true });
+            if (r.outputPath && fs.existsSync(r.outputPath)) {
+              for (const e of fs.readdirSync(r.outputPath, { withFileTypes: true })) {
+                if (e.isFile()) fs.copyFileSync(path.join(r.outputPath, e.name), path.join(destDir, e.name));
+              }
+            }
+            fs.writeFileSync(path.join(destDir, 'iteration.json'), JSON.stringify(r, null, 2) + '\n', 'utf8');
+          } catch {
+            // 收割失败不掩盖：产物/记录缺失会让 manifest 断言如实判 fail。
+          }
+          persisted.push(r);
         },
         workspaceFactory: (t) => wsFactory.create(t),
         disposeWorkspace: (ws) => wsFactory.dispose(ws),
@@ -168,7 +237,9 @@ async function driveScenario(
     const verdict = report?.result.verdict ?? 'error';
     const taskId = report?.result.taskId ?? 'none';
     return {
-      finalText: `Loop Engine 迭代完成：verdict=${verdict}（任务 ${taskId}，iteration ${report?.result.iteration ?? 0}）；产物含 ENGINE-GOLDEN-88；persist 记录 ${persisted.length} 条`,
+      // 只回述引擎自己的结果（无 golden 常量串）：verdict 来自 Evaluator，
+      // iteration/attempts 来自 LoopRunReport，persist 条数来自 persist 回调。
+      finalText: `Loop Engine 迭代完成：verdict=${verdict}（任务 ${taskId}，iteration ${report?.result.iteration ?? 0}，attempts ${report?.result.retryCount ?? 0}）；persist 记录 ${persisted.length} 条`,
       streamEvents: [],
     };
   }

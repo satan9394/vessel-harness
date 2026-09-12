@@ -318,4 +318,24 @@ describe('EnforcementProjection (task 074 runtime enforcement telemetry)', () =>
     expect(ep.status()).toMatchObject({ backend: 'job-object' });
     expect(st1).not.toEqual(ep.status());
   });
+
+  it('records escape events carried by a Shell result meta and keeps a FAILED kill distinct', () => {
+    // This is the payload shape the Shell tool now emits on `meta.sandbox.audit`
+    // (only escape/termination events, never routine bookkeeping). The production
+    // consumer forwards each one here, so the escape conclusion is visible to the
+    // enforcement telemetry instead of dying in Sandbox runtime memory.
+    const ep = new EnforcementProjection();
+    for (const e of [
+      { kind: 'escape-detected' as const, pid: 4242, detail: 'pid 4242 running outside confined set (escaped)', at: 10 },
+      { kind: 'escape-terminate-failed' as const, pid: 4242, detail: 'pid 4242 NOT verified terminated', at: 11 },
+    ]) {
+      ep.recordProcessTree(e);
+    }
+    expect(ep.counts()).toMatchObject({ 'escape-detected': 1, 'escape-terminate-failed': 1 });
+    // a failed kill must NEVER be recorded as a successful termination
+    expect(ep.counts()['escape-terminated']).toBeUndefined();
+    expect(ep.treeAudit()).toHaveLength(2);
+    expect(ep.treeAudit().some((e) => e.kind === 'escape-terminate-failed' && e.pid === 4242)).toBe(true);
+    expect(ep.events().every((e) => e.source === 'process-tree')).toBe(true);
+  });
 });

@@ -77,10 +77,38 @@ describe('process-tree — tree enumeration & audit (task 072)', () => {
       terminateEscaped: true,
       terminate: async (pids) => {
         terminated.push(...pids);
+        return pids; // verified-success set
       },
     });
     expect(report.terminatedPids).toEqual([501]);
+    expect(report.failedTerminatePids).toEqual([]);
     expect(terminated).toEqual([501]);
+  });
+
+  it('records NOTHING as terminated when the terminator cannot confirm success', async () => {
+    const t = new ProcessTreeTracker();
+    t.registerNode(500);
+    const confined = new Set<number>([500]);
+    const report = await detectEscapes(500, [501, 502], confined, {
+      terminateEscaped: true,
+      // no verifiable answer (undefined) ⇒ nothing may be counted as dead
+      terminate: async () => undefined,
+    });
+    expect(report.escapedPids).toEqual([501, 502]);
+    expect(report.terminatedPids).toEqual([]);
+    expect(report.failedTerminatePids).toEqual([501, 502]);
+  });
+
+  it('partially successful termination reports exactly the verified pids', async () => {
+    const t = new ProcessTreeTracker();
+    t.registerNode(500);
+    const confined = new Set<number>([500]);
+    const report = await detectEscapes(500, [501, 502, 503], confined, {
+      terminateEscaped: true,
+      terminate: async () => [502], // only 502 verified
+    });
+    expect(report.terminatedPids).toEqual([502]);
+    expect(report.failedTerminatePids).toEqual([501, 503]);
   });
 });
 
@@ -189,9 +217,10 @@ describe('Sandbox — resource caps & exception (task 072)', () => {
 });
 
 describe('Sandbox — escape detection at dispose kills escaped descendants (task 072)', () => {
-  it('records escape-detected and terminates when terminateEscaped is on', async () => {
+  it('records escape-detected and escape-terminated when termination is VERIFIED', async () => {
     // A descendant never attached (escaped) is detected at dispose and, when
-    // terminateEscaped is on, handed to the injected terminator.
+    // terminateEscaped is on, handed to the injected terminator — which reports
+    // the pid back as verified terminated.
     const fakeLive = [901]; // live descendant outside the confined set
     const terminated: number[] = [];
     const s = new Sandbox({
@@ -200,7 +229,7 @@ describe('Sandbox — escape detection at dispose kills escaped descendants (tas
       attachPidsToJob: async () => 0,
       terminatePids: async (pids) => {
         terminated.push(...pids);
-        return pids.length;
+        return pids; // verified-success set
       },
       makeIsolatedDir,
       createJob: async (pid) => ({
@@ -217,8 +246,63 @@ describe('Sandbox — escape detection at dispose kills escaped descendants (tas
     const audit = session.audit();
     // The root is confined; the live descendant 901 is not -> escape-detected.
     expect(audit.some((e) => e.kind === 'escape-detected')).toBe(true);
-    expect(audit.some((e) => e.kind === 'escape-terminated')).toBe(true);
+    expect(audit.some((e) => e.kind === 'escape-terminated' && e.pid === 901)).toBe(true);
+    expect(audit.some((e) => e.kind === 'escape-terminate-failed')).toBe(false);
     expect(terminated).toContain(901);
+  });
+
+  it('records escape-terminate-failed (NOT escape-terminated) when the kill did not succeed', async () => {
+    // The terminator reports an empty verified set: the escaped pid may still be
+    // alive, so the audit must say so instead of claiming "escape-terminated".
+    const s = new Sandbox({
+      platform: 'win32',
+      enumerateDescendants: async () => [901, 902],
+      attachPidsToJob: async () => 0,
+      terminatePids: async () => [902], // only 902 verified; 901 survived
+      makeIsolatedDir,
+      createJob: async (pid) => ({
+        jobName: `j_${pid}`,
+        rootPid: pid,
+        attachDescendants: async () => 0,
+        terminate: async () => {},
+        dispose: async () => {},
+      }),
+    });
+    const session = await s.openConfinement({ terminateEscaped: true });
+    await session.attach(900);
+    await session.dispose();
+    const audit = session.audit();
+    const terminatedPids = audit.filter((e) => e.kind === 'escape-terminated').map((e) => e.pid);
+    const failedPids = audit.filter((e) => e.kind === 'escape-terminate-failed').map((e) => e.pid);
+    // only the VERIFIED pid is recorded as terminated — never the whole escape set
+    expect(terminatedPids).toEqual([902]);
+    expect(terminatedPids).not.toContain(901);
+    expect(failedPids).toEqual([901]);
+  });
+
+  it('records escape-terminate-failed for every escaped pid when the terminator returns nothing', async () => {
+    const s = new Sandbox({
+      platform: 'win32',
+      enumerateDescendants: async () => [901],
+      attachPidsToJob: async () => 0,
+      terminatePids: async () => [], // PowerShell path failed / could not verify
+      makeIsolatedDir,
+      createJob: async (pid) => ({
+        jobName: `j_${pid}`,
+        rootPid: pid,
+        attachDescendants: async () => 0,
+        terminate: async () => {},
+        dispose: async () => {},
+      }),
+    });
+    const session = await s.openConfinement({ terminateEscaped: true });
+    await session.attach(900);
+    await session.dispose();
+    const audit = session.audit();
+    expect(audit.some((e) => e.kind === 'escape-terminated')).toBe(false);
+    const failed = audit.find((e) => e.kind === 'escape-terminate-failed');
+    expect(failed?.pid).toBe(901);
+    expect(failed?.detail).toContain('NOT verified terminated');
   });
 });
 

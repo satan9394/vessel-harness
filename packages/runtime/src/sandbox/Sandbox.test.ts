@@ -67,13 +67,38 @@ function pidAlive(pid: number): boolean {
 }
 
 describe('Sandbox — backend selection & honest status (task 071)', () => {
-  it('reports an ACTIVE windows-job-object backend on win32 with no passthrough claim', () => {
+  it('does NOT claim an active backend on win32 until the job object really attached', () => {
     const s = new Sandbox({ platform: 'win32', makeIsolatedDir: async () => ({ path: 'x', dispose: async () => {} }) });
     const st = s.statusSnapshot();
     expect(st.supported).toBe('windows-job-object');
-    expect(st.enabled).toBe(true);
+    // honesty (task 071/072 fix): the platform gate is NOT evidence of confinement.
+    expect(st.active).toBe(false);
+    expect(st.enabled).toBe(false);
+    expect(st.backend).toBe('none');
+    expect(st.degraded).toBe('job-object-not-attempted');
+    expect(st.fallbackReason).toBeTruthy();
+  });
+
+  it('reports active ONLY after a real attach succeeded (honest round-scoped upgrade)', async () => {
+    const warnings: string[] = [];
+    const makeIsolatedDir = async () => {
+      const p = mkdtempSync(join(tmpdir(), 'vessel-sb-'));
+      tmpAreas.push(p);
+      return { path: p, dispose: async () => {} };
+    };
+    const s = new Sandbox({
+      platform: 'win32',
+      makeIsolatedDir,
+      warn: (m) => warnings.push(m),
+      createJob: async (pid) => ({ jobName: `j_${pid}`, terminate: async () => {}, dispose: async () => {} }),
+    });
+    expect(s.statusSnapshot().active).toBe(false);
+    await s.run(process.execPath, ['-e', 'console.log("ok")'], { maxOutputBytes: 4096 });
+    const st = s.statusSnapshot();
     expect(st.active).toBe(true);
     expect(st.backend).toBe('job-object');
+    expect(st.degraded).toBeUndefined();
+    expect(warnings).toEqual([]);
   });
 
   it('falls back to a transparent passthrough backend on non-Windows platforms', () => {
@@ -82,7 +107,75 @@ describe('Sandbox — backend selection & honest status (task 071)', () => {
     expect(st.active).toBe(false);
     expect(st.enabled).toBe(false);
     expect(st.backend).toBe('none');
+    expect(st.degraded).toBe('job-object-unavailable');
     expect(st.fallbackReason).toBeTruthy();
+  });
+});
+
+describe('Sandbox — degradation is visible, never silent (confine audit truthfulness)', () => {
+  const makeIsolatedDir = async () => {
+    const p = mkdtempSync(join(tmpdir(), 'vessel-sb-'));
+    tmpAreas.push(p);
+    return { path: p, dispose: async () => {} };
+  };
+
+  it('job creation failure ⇒ status is NOT active, carries the reason, and warns (run path)', async () => {
+    const warnings: string[] = [];
+    const s = new Sandbox({
+      platform: 'win32',
+      makeIsolatedDir,
+      warn: (m) => warnings.push(m),
+      createJob: async () => {
+        throw new Error('holder exploded');
+      },
+    });
+    // the command still RUNS (degradation stays available — no new hard failure)
+    const r = await s.run(process.execPath, ['-e', 'console.log("ran")'], { maxOutputBytes: 4096 });
+    expect(r.exitCode).toBe(0);
+    expect(r.stdout).toContain('ran');
+    // …but the status no longer pretends the sandbox is in force.
+    const st = s.statusSnapshot();
+    expect(st.active).toBe(false);
+    expect(st.enabled).toBe(false);
+    expect(st.backend).toBe('none');
+    expect(st.degraded).toBe('job-object-attach-failed');
+    expect(st.fallbackReason).toContain('holder exploded');
+    expect(warnings.some((w) => w.includes('sandbox degraded') && w.includes('holder exploded'))).toBe(true);
+  });
+
+  it('job creation failure in openConfinement().attach ⇒ status degraded + warn', async () => {
+    const warnings: string[] = [];
+    const s = new Sandbox({
+      platform: 'win32',
+      makeIsolatedDir,
+      warn: (m) => warnings.push(m),
+      createJob: async () => {
+        throw new Error('no job for you');
+      },
+    });
+    const session = await s.openConfinement({ maxActiveProcesses: 2 });
+    await session.attach(4242); // degrades instead of throwing outward
+    const st = s.statusSnapshot();
+    expect(st.active).toBe(false);
+    expect(st.degraded).toBe('job-object-attach-failed');
+    expect(warnings.some((w) => w.includes('no job for you'))).toBe(true);
+    await session.dispose();
+  });
+
+  it('confine() stops claiming "full" once a real attach failed', async () => {
+    const s = new Sandbox({
+      platform: 'win32',
+      makeIsolatedDir,
+      warn: () => {},
+      createJob: async () => {
+        throw new Error('boom');
+      },
+    });
+    expect((await s.confine(['node', 'x.js'])).enforcement).toBe('full');
+    await s.run(process.execPath, ['-e', 'process.exit(0)'], { maxOutputBytes: 1024 });
+    const after = await s.confine(['node', 'x.js']);
+    expect(after.enforcement).toBe('partial');
+    expect(after.reason).toContain('attach FAILED');
   });
 });
 

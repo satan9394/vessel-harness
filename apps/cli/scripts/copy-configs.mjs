@@ -13,7 +13,11 @@
  *     （scripts/ → apps/cli → apps → 仓库根）；
  *   - **幂等**：`cpSync(..., { recursive: true, force: true })` 覆盖式复制，重复跑不报错、
  *     结果一致（**不删除** dist/configs 下的多余文件，不做任何永久删除）；
- *   - 成功打印一行摘要 + 逐个文件清单；仓库根缺 `configs/policy.default.yaml` 时 fail loud（exit 1）。
+ *   - **stdout 零输出**：成功时的一行摘要 + 逐个文件清单全部写 **stderr**（`console.error`）。
+ *     本脚本由 `prepack` 调用，若往 stdout 写字，`npm pack --dry-run --json` 的 JSON 会被横幅
+ *     混进同一路 stdout → 机器可读输出不可用（实测 `ConvertFrom-Json` 直接失败）。
+ *     （注意：npm 自身的 `> @vessel/cli@0.10.0 prepack` 横幅仍会占 stdout，那不是本脚本能控制的。）
+ *     仓库根缺 `configs/policy.default.yaml` 时 fail loud（exit 1）。
  *
  * 调用点：`apps/cli/package.json` 的 `build`（tsc -b 之后）与 `prepack`（打 tarball 之前）。
  * 注意：仓库根的总构建 `npx tsc -b tsconfig.json` **不经过**本包的 `build` 脚本，若要保证
@@ -50,5 +54,5 @@ mkdirSync(targetDir, { recursive: true });
 cpSync(sourceDir, targetDir, { recursive: true, force: true });
 
 const show = (p) => relative(repoRootDir, p).split(sep).join('/');
-console.log(`[copy-configs] 已复制 ${files.length} 个文件：${show(sourceDir)}/ → ${show(targetDir)}/（幂等，可重复执行）`);
-for (const file of files) console.log(`  · ${file}`);
+console.error(`[copy-configs] 已复制 ${files.length} 个文件：${show(sourceDir)}/ → ${show(targetDir)}/（幂等，可重复执行）`);
+for (const file of files) console.error(`  · ${file}`);

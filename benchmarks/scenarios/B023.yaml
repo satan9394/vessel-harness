@@ -6,11 +6,26 @@ task_file: task.md
 harness:
   engine:
     enabled: true
+# 判据锚定「引擎在一次真实运行中产出的东西」（task 111 审计整改）：
+#  - 第 1 条读的是 Generator 写进隔离工作区、由 engine persist 收割到场景工作区的
+#    真实产物字节；其 golden 同时是交给引擎 Generator 的 acceptance（唯一事实源）。
+#  - 第 2 条读的是 engine persist 落盘的结构化 IterationResult（verdict 由从磁盘重读
+#    产物的 Evaluator 判定，不是 runner 的报告模板）。
+#  - 第 3 条读引擎自报的终局 verdict（来自 LoopRunReport），不含任何 runner 常量串。
 pass:
+  - type: file_content
+    target: file:engine-artifacts/engine-result.txt
+    golden:
+      - "ENGINE-GOLDEN-88"
+  - type: file_content
+    target: file:engine-artifacts/iteration.json
+    golden:
+      - '"taskId": "b023"'
+      - '"verdict": "met"'
+      - '"retryCount": 1'
   - type: file_content
     target: final_text
     golden:
       - "verdict=met"
-      - "ENGINE-GOLDEN-88"
 measured: [M01, M02, M03, M10, M12]
 mode: offline
