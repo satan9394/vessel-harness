@@ -5,6 +5,8 @@ import { describe, it, expect } from 'vitest';
 import {
   GATE_DEFINITIONS,
   GATE_ORDER,
+  DETERMINISTIC_BENCH_GATE_CRITERION,
+  L1_DETERMINISTIC_BENCH_SCENARIOS,
   SAFETY_SCENARIOS,
   SAFETY_GATE_CRITERION,
   classifyScenarioRun,
@@ -216,6 +218,40 @@ describe('gate definitions (tasks 084) — §21 registry', () => {
     // ③ 不得暗示「清单内场景全部通过」：既验它没有那个说法，也验它把「不声称」写明白了。
     // （先前这两条自相矛盾：免责声明本身含「全部通过」，被前一条 toContain 绊倒。）
     expect(criterion).not.toContain('全部通过');
+    expect(criterion).toContain('不声称清单内每个场景都判定通过');
+  });
+
+  it('deterministic-bench gate 文案与实跑事实一致：criterion 由 L1 清单插值，含三态且不声称都判定通过', () => {
+    // 审计发现（与 gate 5 当初写死 "S001-S008" 是**同一类**）：criterion 曾写死
+    // 「L1 可跑集（B001-B005 离线确定性 mock lane）全部 manifest 断言通过。」——
+    // 而真实驱动（`run-release-gates.ts` 的 `buildDeterministicBenchExecutor`，
+    // `runReleaseGates()` 用的就是它）跑的是 `L1_DETERMINISTIC_RUNNABLE_SET`（B001–B027），
+    // 且文案里没有「整场景 indeterminate ⇒ pending」这条三态口径。
+    const criterion = gateDefinition('deterministic-bench').criterion;
+
+    // ①-a 清单同源：gates.ts 的镜像清单必须与**驱动侧**清单逐一相等
+    //      （只改一边 ⇒ 本断言红，这正是「文案不得与实跑漂移」的机械保证）。
+    expect([...L1_DETERMINISTIC_BENCH_SCENARIOS]).toEqual([...L1_DETERMINISTIC_RUNNABLE_SET]);
+    // ①-b 数量与逐个点名都由清单插值（不写死）；criterion 改回旧串 ⇒ 下面两条红。
+    expect(criterion).toContain(
+      `当前 ${L1_DETERMINISTIC_RUNNABLE_SET.length} 个：${L1_DETERMINISTIC_RUNNABLE_SET.join(',')}`,
+    );
+    for (const id of L1_DETERMINISTIC_RUNNABLE_SET) expect(criterion).toContain(id);
+    // ①-c 旧文案的写死范围表述不得残留（"B001-B005" 被 join(',') 的逐个点名取代）
+    expect(criterion).not.toContain('B001-B005');
+    // ①-d 注册表里挂的就是这条 criterion（改名/断线 ⇒ 红；与 gate 5 的 toBe 同款）
+    expect(criterion).toBe(DETERMINISTIC_BENCH_GATE_CRITERION);
+
+    // ② 三态写进文案：整场景 indeterminate ⇒ pending（不计通过、也不计失败、evidence 点名）；
+    //    任一 assert fail ⇒ 判失败（能力缺口不得掩盖真失败）
+    expect(criterion).toContain('indeterminate');
+    expect(criterion).toContain('pending');
+    expect(criterion).toContain('判失败');
+    expect(criterion).toContain('掩盖真失败');
+
+    // ③ 不得含「全部通过」四字连写：否则 ④ 的免责声明会把自己绊倒（gate 5 踩过的自相矛盾坑）
+    expect(criterion).not.toContain('全部通过');
+    // ④ 显式声明「不是清单内场景都判定通过」（pending 的场景保持未判定）
     expect(criterion).toContain('不声称清单内每个场景都判定通过');
   });
 });
