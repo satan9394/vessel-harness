@@ -804,3 +804,22 @@ G-15 原子写 wrapper 各 Store 重复（P4）；architecture 审计的 T1–T9
 - **【新发现，只报告，未改】**：§2 目录树仍写 fixtures 含"黄金断言"、reports 含 `artifacts`；§4.1 M11 行的 **`runners/config/pricing.json` 路径不存在**（真实在仓库根 `configs/pricing.json`）；§4.2 的记录格式示例缺 run 目录层且 meta 的 `env` 字段集与真实不符；§6.1「每 harness 一份报告」与 §6.2「summary 含 skipped/artifacts」均与实现不符；§6.1/§6.3/附录 B 仍把 Claw Code / Our Harness 当**已存在的一等成员**（与改准后的 §7 冲突）；**§3.1 三张卡的注释**仍指向无生产者的 family（B012 的 `mcp`、B013 的 `delegate`、B008 的 `write`——应为 `file_write`）；§8.2 里程碑表仍用旧 adapter 名单；§8.4 的"runner 自带 sanity fixtures"不存在（防线实为合成输入用例）。
 
 **本轮新增守卫（4 describe / 6 it，⑬–⑱）**：adapter id 全集 ⇄ `adapters/*.ts` + `contracts/vessel.ts`（双向，**计划项必须真的不存在**）；ToolFamily 名单 ⇄ `TOOL_FAMILY` 表 + 兜底字面量 + **25 份 yaml 的实际取值**；门槛计数 ⇄ `scenarios/*.yaml` **真实文件数**（今天 25）；§4.4 的 M09 ⇄ `measured`。**散文类**（§2.1/§2.3/§2.4/§6.4/§6.5）**明确未加守卫**，理由是"markdown 结构不足以稳定解析"，**并各给一条人工可复核的最小判据**——**这是我要的诚实**：守卫加不了就说加不了，而不是造一个脆的。
+
+### Round 175 — **本段最终交接**（结论 / 证据 / 剩余 / 需你拍板）
+
+**实测状态（终局核对）**：`tsc -b tsconfig.json` 干净；`npm run test:all` **exit 0** ⇒ 根 **2166 passed + 6 skipped**、`apps/web` **120 passed**（**两个 root 都跑**）；工作树干净。**对照本段起点**：根 **138 passed / 1555 收集**、**`apps/web` 从未被跑过**。
+
+**这一段（Round 58 → 175）关掉的主线**：① **静默丢数据**（两个 provider 的流式身份改写/覆盖、`{}` 种子、截断半帧、重复 start 的**全部形态**含半身份与缓冲覆盖）；② **失败被上报为成功**（`kind='error'` 的**全部已识别消费面**：TUI/CLI 退出码/HTTP turns/HTTP goal run/runner/evaluator/web/报告看板；`length` 截断信号两个 provider；`BeforeTurn` 拦截；mock 标记口径）；③ **口径收敛**（`kind→stopReason`、`finishReason`、CLI/TUI 的"模型回答"判据、windows shim、locale 回退、**10 个状态根 + 1 个数值参数**的环境变量读法）；④ **可观测性**（`before_turn` 审计、流诊断计数、`before_unwired` 如实标注、M14/M13 的生产者、`llm/retry` 与 `request/header` 持久记录）；⑤ **描述与事实一致**（本段的最后二十轮几乎全在这一层：文档、注释、判据表、守卫、提交信息——**其中"声称的比做到的多且没有任何东西会在分叉时变红"是最常见的病**）。
+
+**给它加线的办法（这一段真正该被继承的东西）**：唯一表 / 身份去重（而非加法）/ **从文本正则解析而不是共享常量**（纪律 23）/ 双向对账守卫 / **"删哪行会红"**（纪律 24）/ 行号换成符号名（纪律 25）/ **"全量"必须说清 root**（纪律 26）/ **验证命令会改写被跟踪产物**（纪律 27）/ **卡只交证、指挥侧跑**——以及最后一条：**凡是引用"上一卡给出的 N 条清单"，那张清单必须已在磁盘上**（Round 172 立的规矩，此前已因此丢过三次）。
+
+**剩余：需你拍板的四条（我一条都没擅自动）**
+1. **`--model ''`（显式空串）会挡住 `VESSEL_MODEL` 回落**——改它要动 `flags > env > config` 的优先级结构，属产品语义。
+2. **真实 provider 且全链无 model 时，仍会发字面量 `"mock-model"`**（既有语义）——是否为它补"model 缺失 ⇒ fail-loud"。
+3. **`denials`/M12 在实跑里是真实拒绝数的 2 倍**（同一事实既发事件又落记录、**加法**计数；消费方用 `Math.max` 绕行）——要不要把去重规则统一到 `llm/retry` 那套**身份去重**（会动既有 `denials=2` 用例）。
+4. **`measured` 的双向对账是否从 warn 收紧成 fail-loud**——收紧会打红 25 个 scenario 里的 23 个（**必须先补声明或给本 lane 补 M08/M11 的生产者**）。
+
+**剩余：已如实标注的"声明未接线"欠账（带位置与最小改法，不需裁决，但都需要投入）**
+`request/header` 与 `turn/end.stats` 加法字段**仍无回放消费方**（`Telemetry.finalizeRecord` 未接线；`turn/end.stats` 若接会与 `after_model` 双计）；`compaction/summary`(B15)、`session/end-seed`(B11)、`audit/safety`(B21) **零类型/零产/零消**（守卫已加，接线时先红）；`AuditDenialRecord.stage` 的 `'sandbox'`/`'guard'` **有类型无生产者**（`'guard'` 的证据：guard 阶段只铸 DENIED 的 `tool/result`）；`resumeSuccess` 自家 arm 恒 `false`；M14 detail 的 `steers`/`interrupts`（有产者无消者）与 `human_answers`/`machine_answers`（无通路）；`§3.1` 的 B006/B014 卡仍用**未实现**的 `claim_truthful`（§3.0 表 C 已标"未实现"）；`B003` 的 hidden 测试在 `scenarios/` 而非 `fixtures/`；被跟踪的 `release-report.{md,json}` 仍是旧判据快照（已加指引说明，**未**重跑刷新）。
+
+**最后一条自我评价（写下来比不写更诚实）**：这一段我**两次把"收口"说早了**——第一次按"我的清单空了"判（错），第二次按"病的边界 + 收益递减"判（更对，但仍被后续卡挖出新实例）。⇒ **可靠的停法只有一种：对某类不变量做一次全仓清查并列出全部实例**（本段做到的：状态根 11 处、`measured` 双向、场景卡 ⇄ yaml、schema 表 ⇄ 源码、adapter ⇄ 目录、family ⇄ 源码）。**没做到那一步的类别，就不该宣布收口。**
