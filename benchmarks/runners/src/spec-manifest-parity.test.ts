@@ -74,7 +74,24 @@ import type { ScenarioManifest } from './types.js';
  *   - **§0/§1.1/§8.3 的门槛口径写错数字**（例：§0 改回"另补 B016–B019 四个新增场景，总 19 ≥ 15"、
  *     任一处把 `25` 写成 `19`）⇒ ⑰ 红（期望值 = `benchmarks/scenarios/*.yaml` 的真实文件数，不是常量）；
  *   - **§4.4 的 M09 条目改回旧写法**（"（B010 已声明）"——B010 没有 manifest 又没带豁免标记）⇒ ⑱ 红；
- *   - 负对照：以上都不做 ⇒ 全绿（⑦⑧⑨⑪⑬⑭⑮⑰⑱ 只读文件文本 + 实现行为 + yaml，无共享常量）。
+ *
+ * **本批再扩展（Round 172「新发现，只报告，未改」那一段，⑲–㉖）**：这一段九条全是"文档说了实现没有的事"，
+ * 这里把能稳定解析的逐条变成可执行断言（期望来自**文件系统**、**实现源码文本**、以及已由 ⑬⑭⑮ 守卫过的 §7.2/§7.3）：
+ *   - ⑲ §2 目录树的目录名 ⇄ `benchmarks/` 的真实子目录；`fixtures/` 行不得再写"黄金断言"、`reports/` 行不得再写 `artifacts`
+ *     （两个"不存在"都由 `benchmarks/**` 的真实扫描给出，不是常量）；
+ *   - ⑳ §4.1 M11 的价目表路径 ⇄ `adapters/pricing.ts` 的 `path.join(configRoot, 'configs', 'pricing.json')` + 文件存在性
+ *     （旧写法 `runners/config/pricing.json` 今天不存在）；
+ *   - ㉑ §4.2 的示例路径 ⇄ `runner.ts` 的 `runDir`/`reportPath`/`crypto.randomBytes(3)`（必须有 run 目录层），
+ *     示例 meta 的 `env` 键集 ⇄ `runner.ts` 的 meta 行（只有 4 个字段，旧例的 `seed`/`date` 不存在）；
+ *   - ㉒ §3.1/§3.2 各卡挂在 `tool_family_seen`/`no_tool_family` 上的注释 ⇄ `asserts.ts` 的 `TOOL_FAMILY` 产出集
+ *     （B012 的 `mcp`、B013 的 `delegate`、B008 的 `write` 都是无生产者的写法）；
+ *   - ㉓ §6.3 运行面表每一行的 adapter id ⇄ 源码 `*_ADAPTER_ID`（`claw-code` 必须带「计划/未实现」）；
+ *   - ㉔ §8.2 里程碑：点名的场景没有 manifest 时该行必须逐字有「未实现」，且不得再用 `cc`/`claw`/`oc`/`ours` 旧简称；
+ *   - ㉕ §8.4 第 4 条点名的 `*.test.ts` 必须真存在；`benchmarks/` 下没有 sanity 目录时不得声称"自带 sanity fixtures"；
+ *   - ㉖ §6.5 的 `summary.json` 键集 ⇄ `runner.ts` 的 `const summary = {...}`（含可选 `turn`）、§6.1 第 6 步不得再写"每 harness 一份"、
+ *     §6.2 不得把 `skipped` 说成 per-run 报告的内容。
+ *
+ *   - 负对照：以上都不做 ⇒ 全绿（⑦⑧⑨⑪⑬⑭⑮⑰⑱⑲⑳㉑㉒㉓㉔㉕㉖ 只读文件文本 + 文件系统 + 实现源码文本 + yaml，无共享常量）。
  */
 
 const REPO_ROOT = fileURLToPath(new URL('../../../', import.meta.url));
@@ -1277,5 +1294,665 @@ describe('BENCHMARK-SPEC §4.4 的 M09 口径 ⇄ scenarios/*.yaml 的 measured 
     expect(m09BulletViolations(legacy).join()).toMatch(/B010/);
     // 判别性：点名一个**有** manifest 但没声明 M09 的场景（如 B001）⇒ 也红
     expect(m09BulletViolations('- M09 只测量不判 pass（B001 已声明）。').join()).toMatch(/B001/);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// 本批（Round 172「新发现，只报告，未改」九条）的守卫：⑲–㉖
+//
+// 为什么要有这一组：这九条全是"spec 声称与实现不符"——`fixtures/` 含黄金断言、`reports/` 含 `artifacts`、
+// 价目表在 `runners/config/pricing.json`（不存在）、§4.2 示例缺 run 目录层且 meta 多两个字段、
+// "每 harness 一份报告"、`summary.json` 含 `skipped`/artifacts、把 `Claw Code`/`Our Harness` 当已存在的一等成员、
+// 卡的 family 注释点名无生产者的 family、里程碑用旧 adapter 名单且把无 manifest 场景当已达成、
+// "runner 自带 sanity fixtures"（`benchmarks/` 下没有这个目录）。
+// 期望值一律来自**文件系统**、**实现源码文本**与**已被 ⑬⑭⑮ 守卫过的 §7.2/§7.3**；文档只是被断言的对象。
+// ---------------------------------------------------------------------------
+
+const BENCHMARKS_DIR = path.join(REPO_ROOT, 'benchmarks');
+const RUNNER_SRC = fs.readFileSync(path.join(RUNNERS_SRC_DIR, 'runner.ts'), 'utf8');
+const PRICING_SRC = fs.readFileSync(path.join(RUNNERS_SRC_DIR, 'adapters', 'pricing.ts'), 'utf8');
+
+/** 递归找是否存在某个名字的目录/文件——"文件系统是权威"的唯一读法。 */
+function anyEntryNamed(root: string, pred: (name: string, isDir: boolean) => boolean): boolean {
+  if (!fs.existsSync(root)) return false;
+  for (const e of fs.readdirSync(root, { withFileTypes: true })) {
+    if (pred(e.name, e.isDirectory())) return true;
+    if (e.isDirectory() && anyEntryNamed(path.join(root, e.name), pred)) return true;
+  }
+  return false;
+}
+
+/** 相对仓库根的路径是否真的存在（守卫点名的路径必须在盘上）。 */
+const repoFileExists = (rel: string): boolean => fs.existsSync(path.join(REPO_ROOT, rel));
+
+// --- ⑲ §2 目录树 -----------------------------------------------------------
+
+interface TreeEntry {
+  dir: string;
+  comment: string;
+}
+
+/** §2 的 ```text 目录树（`├── name/   # 注释`）；锚点消失即抛（守卫的引用不许被删）。 */
+function treeEntries(markdown: string, heading: string): TreeEntry[] {
+  const at = markdown.indexOf(heading);
+  if (at < 0) throw new Error(`spec 里找不到小节：${heading}`);
+  const m = /```text\r?\n([\s\S]*?)^```/m.exec(markdown.slice(at));
+  if (!m) throw new Error('§2 的 text 目录树块解析失败');
+  const out: TreeEntry[] = [];
+  for (const raw of (m[1] ?? '').split(/\r?\n/)) {
+    const e = /[├└]──\s*([A-Za-z0-9_.-]+)\/\s*(?:#\s*(.*))?$/.exec(raw.trim());
+    if (e) out.push({ dir: e[1] ?? '', comment: (e[2] ?? '').trim() });
+  }
+  return out;
+}
+
+/**
+ * §2 目录树四类分叉：
+ *   ① 文档目录名集 ⇄ 文件系统里 `benchmarks/` 的真实子目录（双向）；
+ *   ② `fixtures/` 行不得写"黄金断言"——除非 `benchmarks/fixtures/**` 下真有 `expected/` 或 `asserts.yaml`；
+ *   ③ `reports/` 行不得写 `artifacts`——除非 `benchmarks/reports/**` 下真有 `artifacts/` 目录。
+ */
+function treeViolations(
+  entries: TreeEntry[],
+  realDirs: string[],
+  flags: { artifactsDir: boolean; goldenAssertions: boolean },
+): string[] {
+  const out: string[] = [];
+  const docDirs = entries.map((e) => e.dir);
+  for (const d of realDirs) if (!docDirs.includes(d)) out.push(`§2 目录树漏了 benchmarks/ 下真实存在的目录：${d}/`);
+  for (const d of docDirs) if (!realDirs.includes(d)) out.push(`§2 目录树列了 benchmarks/ 下不存在的目录：${d}/`);
+  const fixtures = entries.find((e) => e.dir === 'fixtures');
+  if (fixtures && !flags.goldenAssertions && /黄金断言/.test(fixtures.comment)) {
+    out.push('§2 的 fixtures/ 行仍写「黄金断言」，但 benchmarks/fixtures/** 下没有任何 expected/ 或 asserts.yaml（判据只在 scenarios/*.yaml 的 pass:）');
+  }
+  const reports = entries.find((e) => e.dir === 'reports');
+  if (reports && !flags.artifactsDir && /(?<![A-Za-z-])artifacts(?![A-Za-z])/.test(reports.comment)) {
+    out.push('§2 的 reports/ 行仍写 artifacts，但 benchmarks/reports/** 下没有任何 artifacts/ 目录（§6.5）');
+  }
+  return out;
+}
+
+// --- ⑳ §4.1 的 M11 价目表路径 ----------------------------------------------
+
+/** `adapters/pricing.ts` 的 `path.join(configRoot, 'configs', 'pricing.json')` → 相对仓库根的路径。 */
+function sourcePricingRelPath(source: string): string {
+  const m = /path\.join\(configRoot,\s*((?:'[^']+'\s*,\s*)*'[^']+')\)/.exec(source);
+  if (!m) throw new Error('adapters/pricing.ts 里找不到 loadBenchPricing 的 path.join(configRoot, ...)');
+  return [...(m[1] ?? '').matchAll(/'([^']+)'/g)].map((x) => x[1] ?? '').join('/');
+}
+
+/** §4.1 指标定义表某一行的**定义列**（第 3 格）。 */
+function metricDefinitionCell(section: string, metricId: string): string {
+  for (const raw of section.split(/\r?\n/)) {
+    const line = raw.trim();
+    if (!line.startsWith('|')) continue;
+    const cells = line.split('|').slice(1, -1).map((c) => c.trim());
+    if (cells[0] === metricId) return cells[2] ?? '';
+  }
+  throw new Error(`§4.1 指标定义表里找不到 ${metricId} 行`);
+}
+
+const LEGACY_PRICING_REL = 'runners/config/pricing.json';
+/** 旧写法两种可能的落点（仓库根 / `benchmarks/` 下）——两个都查，才敢说"不存在"。 */
+const LEGACY_PRICING_CANDIDATES = [LEGACY_PRICING_REL, path.join('benchmarks', LEGACY_PRICING_REL)];
+const legacyPricingExists = (): boolean => LEGACY_PRICING_CANDIDATES.some(repoFileExists);
+
+/** M11 三类分叉：写出的路径必须是源码读的那个、必须存在；旧路径要么删掉、要么逐字写"不存在"。 */
+function pricingPathViolations(
+  cell: string,
+  expected: string,
+  flags: { expectedExists: boolean; legacyExists: boolean },
+): string[] {
+  const out: string[] = [];
+  if (!cell.includes(`\`${expected}\``)) out.push(`§4.1 的 M11 没有写出真实的价目表路径：${expected}`);
+  if (!flags.expectedExists) out.push(`价目表 ${expected} 在文件系统里不存在`);
+  if (cell.includes(LEGACY_PRICING_REL) && !/不存在/.test(cell)) {
+    out.push(`§4.1 的 M11 把不存在的 ${LEGACY_PRICING_REL} 当成价目表来源（要么删掉，要么逐字写明「不存在」）`);
+  }
+  if (flags.legacyExists) out.push(`${LEGACY_PRICING_REL} 竟然存在了 ⇒ §4.1 的「不存在」声明过期`);
+  return out;
+}
+
+// --- ㉑ §4.2 记录格式示例 --------------------------------------------------
+
+/** `runner.ts` 的 meta 行 `env: { ... }` 的键集（期望来自源码，不从文档抄）。 */
+function metaEnvKeys(source: string): string[] {
+  const m = /env:\s*\{([^}]*)\}/.exec(source);
+  if (!m) throw new Error('runner.ts 里找不到 meta 的 env 对象');
+  return [
+    ...new Set([...(m[1] ?? '').matchAll(/([A-Za-z_][A-Za-z0-9_]*)\s*:/g)].map((x) => x[1] ?? '')),
+  ].sort();
+}
+
+/** §4.2 的示例落盘路径 + 首行 meta（示例本身就是被断言的对象）。 */
+function exampleRecord(markdown: string, heading: string): { pathToken: string; meta: Record<string, unknown> } {
+  const section = subsection(markdown, heading);
+  const pathToken = /`([^`]*\.jsonl)`/.exec(section)?.[1];
+  if (!pathToken) throw new Error('§4.2 里找不到示例 JSONL 路径');
+  const block = /```jsonl\r?\n([\s\S]*?)^```/m.exec(section);
+  if (!block) throw new Error('§4.2 里找不到 jsonl 块');
+  const first = (block[1] ?? '').split(/\r?\n/).find((l) => l.trim().startsWith('{'));
+  if (!first) throw new Error('§4.2 的 jsonl 块里找不到 meta 行');
+  return { pathToken, meta: JSON.parse(first) as Record<string, unknown> };
+}
+
+/** §4.2 示例路径的期望形状：从 `runner.ts` 的 runId/runDir/reportPath 构造读出（不是文档抄的）。 */
+function exampleRunPathShape(source: string): RegExp {
+  const rb = /crypto\.randomBytes\((\d+)\)/.exec(source);
+  if (!rb) throw new Error('runner.ts 里找不到 crypto.randomBytes(N)（runId 的 hex 位宽来源）');
+  const hex = Number(rb[1]) * 2;
+  if (!/path\.join\(opts\.reportsDir,\s*opts\.scenarioId,\s*runId\)/.test(source)) {
+    throw new Error('runner.ts 的 runDir 不再是 path.join(opts.reportsDir, opts.scenarioId, runId)');
+  }
+  if (!/path\.join\(runDir,\s*`\$\{runId\}\.jsonl`\)/.test(source)) {
+    throw new Error('runner.ts 的 reportPath 不再是 path.join(runDir, `${runId}.jsonl`)');
+  }
+  return new RegExp(`^benchmarks/reports/[BS]\\d{3}/run_\\d+_[0-9a-f]{${hex}}/run_\\d+_[0-9a-f]{${hex}}\\.jsonl$`);
+}
+
+/** 示例两类分叉：路径必须带 run 目录层；meta 的 env 键集必须逐字等于 runner.ts 的。 */
+function exampleRecordViolations(
+  pathToken: string,
+  meta: Record<string, unknown>,
+  expected: { pathShape: RegExp; envKeys: string[] },
+): string[] {
+  const out: string[] = [];
+  if (!expected.pathShape.test(pathToken)) {
+    out.push(`§4.2 的示例路径与 runner.ts 的落盘形状不符（少了 run 目录层？）：${pathToken}`);
+  }
+  const env = (meta.env ?? {}) as Record<string, unknown>;
+  const got = Object.keys(env).sort();
+  if (JSON.stringify(got) !== JSON.stringify(expected.envKeys)) {
+    out.push(`§4.2 示例 meta 的 env 键集与 runner.ts 不一致：示例=${JSON.stringify(got)} / runner.ts=${JSON.stringify(expected.envKeys)}`);
+  }
+  return out;
+}
+
+// --- ㉒ §3.1/§3.2 卡的 family 注释 ------------------------------------------
+
+/** 卡里挂在 `tool_family_seen` / `no_tool_family` 上的注释（行尾注释 + 紧随其后的整行注释）。 */
+function familyCommentLines(markdown: string): { card: string; line: string }[] {
+  const out: { card: string; line: string }[] = [];
+  for (const block of yamlBlocks(markdown)) {
+    const card = parseCard(block);
+    if (!card) continue;
+    let current: string | null = null;
+    for (const raw of block.split(/\r?\n/)) {
+      const item = /^\s*-\s*type:\s*([a-z_]+)\s*(#.*)?$/.exec(raw);
+      if (item) {
+        current = item[1] ?? null;
+        if ((current === 'tool_family_seen' || current === 'no_tool_family') && item[2]) {
+          out.push({ card: card.id, line: (item[2] ?? '').replace(/^#\s?/, '') });
+        }
+        continue;
+      }
+      if (/^\s*#/.test(raw) && (current === 'tool_family_seen' || current === 'no_tool_family')) {
+        out.push({ card: card.id, line: raw.replace(/^\s*#\s?/, '') });
+      }
+    }
+  }
+  return out;
+}
+
+/**
+ * 合法 family（= §7.3 的产出集 ∪ 兜底）与"可能被误当 family 的词汇"（+ §7.3 逐字写出的旧名 `write`/`unknown`）。
+ * 两个集合都从 §7.3 的守卫接口与文档原文读出，不写死名单。
+ */
+function familyVocabulary(section73: string): { legal: string[]; vocabulary: string[] } {
+  const doc = docFamilyLists(section73);
+  const legacy = [...section73.matchAll(/旧文写\s*(?:兜底\s*)?`([a-z][a-z0-9_]*)`/g)].map((m) => m[1] ?? '');
+  const legal = [...new Set([...doc.produced, doc.fallback].filter((s) => s !== ''))].sort();
+  return { legal, vocabulary: [...new Set([...legal, ...doc.unproduced, ...legacy])].sort() };
+}
+
+/** 注释行里**被当作 family 断言**的词：`family: X`；或后面紧跟 `≥1` / `零出现` 的那个词。 */
+function assertedFamilies(line: string, vocabulary: string[]): string[] {
+  const out: string[] = [];
+  const afterColon = /family:\s*([a-z][a-z0-9_]*)/.exec(line);
+  if (afterColon) out.push(afterColon[1] ?? '');
+  for (const w of vocabulary) {
+    if (new RegExp(`(?<![A-Za-z0-9_])${w}(?![A-Za-z0-9_])(\\s*[)）]?\\s*(?:≥\\s*1|零出现))`).test(line)) out.push(w);
+  }
+  return [...new Set(out)];
+}
+
+/** 卡的 family 注释里断言了**无生产者**的 family ⇒ 红（点名"旧文写过它"不算断言，见 assertedFamilies）。 */
+function familyCommentViolations(
+  comments: { card: string; line: string }[],
+  legal: string[],
+  vocabulary: string[],
+): string[] {
+  const out: string[] = [];
+  for (const c of comments) {
+    for (const f of assertedFamilies(c.line, vocabulary)) {
+      if (!legal.includes(f)) {
+        out.push(`§3.1/§3.2 卡 ${c.card} 的 family 注释断言了无生产者的 family「${f}」（今天可产出的只有 ${legal.join(' / ')}）：${c.line}`);
+      }
+    }
+  }
+  return out;
+}
+
+// --- ㉓ §6.3 运行面表 -------------------------------------------------------
+
+interface Doc6Row {
+  name: string;
+  ids: string[];
+  planned: boolean;
+}
+
+/** §6.3 的表格数据行：第 1 格形如 `Claude Code（`claude-code`）`（表头第 1 格是 `harness`，被跳过）。 */
+function doc63Rows(section: string): Doc6Row[] {
+  const out: Doc6Row[] = [];
+  for (const raw of section.split(/\r?\n/)) {
+    const line = raw.trim();
+    if (!line.startsWith('|')) continue;
+    const cells = line.split('|').slice(1, -1).map((c) => c.trim());
+    if (cells.length < 4) continue;
+    if (cells.every((c) => /^:?-{3,}:?$/.test(c))) continue;
+    if ((cells[0] ?? '').includes('harness')) continue;
+    const ids = [...(cells[0] ?? '').matchAll(/`([a-z][a-z0-9-]*)`/g)].map((m) => m[1] ?? '');
+    out.push({ name: cells[0] ?? '', ids, planned: (cells[0] ?? '').includes(PLANNED_MARKER) });
+  }
+  return out;
+}
+
+/** §6.3 三类分叉：每行必须有 id；id ⇄ 源码集；「计划/未实现」标记 ⇄ 源码里确实没有它（过期即红）。 */
+function section63Violations(rows: Doc6Row[], sourceIds: string[]): string[] {
+  const out: string[] = [];
+  if (rows.length === 0) out.push('§6.3 的运行面表解析不出任何 harness 行');
+  for (const r of rows) {
+    if (r.ids.length === 0) {
+      out.push(`§6.3 的「${r.name}」行没有写出 adapter id（§7.2 是清单唯一事实源）`);
+      continue;
+    }
+    for (const id of r.ids) {
+      const present = sourceIds.includes(id);
+      if (r.planned && present) out.push(`§6.3 的 ${id} 标了「${PLANNED_MARKER}」，但源码里已经有它（豁免已过期，须撤标记）`);
+      if (!r.planned && !present) out.push(`§6.3 把 ${id} 当已存在的一等成员，但源码里没有对应 adapter 模块（须标「${PLANNED_MARKER}」）`);
+    }
+  }
+  return out;
+}
+
+// --- ㉔ §8.2 里程碑 ---------------------------------------------------------
+
+interface MilestoneRow {
+  name: string;
+  content: string;
+  acceptance: string;
+}
+
+/** §8.2 里程碑表的数据行（第 1 格形如 `M1`）。 */
+function milestoneRows(section: string): MilestoneRow[] {
+  const out: MilestoneRow[] = [];
+  for (const raw of section.split(/\r?\n/)) {
+    const line = raw.trim();
+    if (!line.startsWith('|')) continue;
+    const cells = line.split('|').slice(1, -1).map((c) => c.trim());
+    if (cells.length < 3) continue;
+    if (!/^M\d$/.test(cells[0] ?? '')) continue;
+    out.push({ name: cells[0] ?? '', content: cells[1] ?? '', acceptance: cells[2] ?? '' });
+  }
+  return out;
+}
+
+/** `B001–B008` / `B016–B019` 这类区间 + 散点 id → 展开成 id 集合（区间两端都进集合）。 */
+function expandScenarioIds(text: string): string[] {
+  const ids = new Set<string>();
+  const rangeRe = /([BS])(\d{3})\s*[–—\-]\s*([BS])?(\d{3})/g;
+  for (const m of text.matchAll(rangeRe)) {
+    const p1 = m[1] ?? '';
+    const p2 = m[3] ?? p1;
+    if (p1 !== p2) {
+      ids.add(`${p1}${m[2]}`);
+      ids.add(`${p2}${m[4]}`);
+      continue;
+    }
+    for (let i = Number(m[2]); i <= Number(m[4]); i++) ids.add(`${p1}${String(i).padStart(3, '0')}`);
+  }
+  for (const m of text.replace(rangeRe, ' ').matchAll(/[BS]\d{3}/g)) ids.add(m[0]);
+  return [...ids].sort();
+}
+
+/** §7.2 早已判死的旧 adapter 简称（真实 id 见 §7.2 的表）。 */
+const LEGACY_ADAPTER_NAMES = ['cc', 'claw', 'oc', 'ours'];
+
+/**
+ * §8.2 两类分叉：
+ *   ① 行里点名的场景（含区间展开）**没有 manifest** 时，该行必须逐字有「未实现」
+ *      ——历史里程碑要标"计划/未实现"，不许当成已达成；
+ *   ② 不得再用 `cc`/`claw`/`oc`/`ours` 这些源码里不存在的旧简称（`claw-code` 不算 `claw`）。
+ */
+function milestoneViolations(rows: MilestoneRow[], hasManifestById: (id: string) => boolean): string[] {
+  const out: string[] = [];
+  if (rows.length === 0) out.push('§8.2 的里程碑表解析不出任何行');
+  for (const r of rows) {
+    const text = `${r.content} ${r.acceptance}`;
+    const missing = expandScenarioIds(text).filter((id) => !hasManifestById(id));
+    if (missing.length > 0 && !/未实现/.test(text)) {
+      out.push(`§8.2 的 ${r.name} 行点名了没有 manifest 的场景 ${missing.join(' ')}，却没有逐字写出「未实现」（历史里程碑要标"计划/未实现"，不许当成已达成）`);
+    }
+    for (const legacy of LEGACY_ADAPTER_NAMES) {
+      if (new RegExp(`(?<![A-Za-z0-9_-])${legacy}(?![A-Za-z0-9_-])`).test(text)) {
+        out.push(`§8.2 的 ${r.name} 行仍用旧 adapter 简称「${legacy}」（真实 id 见 §7.2）`);
+      }
+    }
+  }
+  return out;
+}
+
+// --- ㉕ §8.4 第 4 条（判定误报防线） ----------------------------------------
+
+/** §8.4 的第 n 条（单行项目）。 */
+function doc84RiskItem(markdown: string, n: number): string {
+  const section = subsection(markdown, '### 8.4 风险与依赖');
+  const line = section.split(/\r?\n/).find((l) => new RegExp(`^\\s*${n}\\.`).test(l));
+  if (!line) throw new Error(`§8.4 里找不到第 ${n} 条`);
+  return line.trim();
+}
+
+/**
+ * §8.4 第 4 条三类分叉：
+ *   ① 点名的 `*.test.ts` 必须真存在；
+ *   ② 没有 sanity 目录时，提到 sanity 就必须同时说明"不存在/未实现"；
+ *   ③ 真出现了 sanity 目录，则必须点名它（豁免过期即红）。
+ */
+function sanityViolations(bullet: string, flags: { sanityDirs: string[]; exists: (rel: string) => boolean }): string[] {
+  const out: string[] = [];
+  const named = [...bullet.matchAll(/`([^`]+\.test\.ts)`/g)].map((m) => m[1] ?? '');
+  for (const rel of named) if (!flags.exists(rel)) out.push(`§8.4 第 4 条点名的测试文件不存在：${rel}`);
+  if (named.length === 0) {
+    out.push('§8.4 第 4 条没有点名任何真实的防线测试文件（旧文只写「runner 自带 sanity fixtures」，而 benchmarks/ 下没有 sanity 目录）');
+  }
+  if (/sanity/i.test(bullet) && flags.sanityDirs.length === 0 && !/不存在|未实现/.test(bullet)) {
+    out.push('§8.4 第 4 条声称 runner 自带 sanity 夹具，但 benchmarks/ 下没有任何 sanity 目录');
+  }
+  for (const d of flags.sanityDirs) if (!bullet.includes(d)) out.push(`benchmarks/ 下已有 sanity 目录 ${d}，§8.4 第 4 条却没点名它`);
+  return out;
+}
+
+// --- ㉖ 报告面（§6.1 步 6 / §6.2 / §6.5） ----------------------------------
+
+/** `runner.ts` 的 `const summary = {...}` 顶层键 + spread 里的可选键（期望来自源码文本）。 */
+function summaryKeysFromRunner(source: string): { keys: string[]; optional: string[] } {
+  const m = /const summary: Record<string, unknown> = \{([\s\S]*?)\n  \};/.exec(source);
+  if (!m) throw new Error('runner.ts 里找不到 const summary: Record<string, unknown> = {...}');
+  const body = m[1] ?? '';
+  // 键写在 4 空格缩进处；简写键（`runId,`）与赋值键（`runId: …`）都要收
+  const keys = [...body.matchAll(/^ {4}([A-Za-z_][A-Za-z0-9_]*)\s*[,:]/gm)].map((x) => x[1] ?? '');
+  if (keys.length === 0) throw new Error('解析不出 summary 的顶层键');
+  const spread = /\.\.\.\((\w+) \? \{ (\w+):/.exec(body);
+  return { keys: [...new Set(keys)].sort(), optional: spread ? [spread[2] ?? ''] : [] };
+}
+
+/** §6.5 那条"实际键是 …"的 bullet → 逐字列出的键集（括号里的是可选键）。 */
+function docSummaryKeys(markdown: string): { keys: string[]; optional: string[] } {
+  const section = subsection(markdown, '### 6.5 报告目录');
+  const at = section.indexOf('实际键是');
+  if (at < 0) throw new Error('§6.5 里找不到逐个列出 summary.json 实际键的那句话（「实际键是 …」）');
+  const ident = (s: string): string[] => [...s.matchAll(/`([A-Za-z_][A-Za-z0-9_]*)`/g)].map((m) => m[1] ?? '');
+  // 这句话在文档里跨 3 行（长键表换行），所以按**整段文本**切，不按单行切
+  const after = section.slice(at);
+  const open = after.indexOf('（');
+  const close = open >= 0 ? after.indexOf('）', open) : -1;
+  const head = open >= 0 ? after.slice(0, open) : after;
+  const tail = open >= 0 && close > open ? after.slice(open, close) : '';
+  return { keys: [...new Set(ident(head))].sort(), optional: [...new Set(ident(tail))].sort() };
+}
+
+/**
+ * 报告面五类分叉：
+ *   ① §6.5 的 `summary.json` 键集 ⇄ `runner.ts` 的 `const summary`（双向；`skipped` 不在其中）；
+ *   ② 可选键同样要一致；
+ *   ③ §6.1 第 6 步必须写出 per-run 的落盘物 `summary.json`；
+ *   ④ §6.1 第 6 步不得再写"每 harness 一份"（没有 per-harness 目录）；
+ *   ⑤ §6.2 提到 `skipped` 时必须同时写明它不在 per-run 报告里（否定语境）。
+ */
+function reportSurfaceViolations(
+  doc: { keys: string[]; optional: string[] },
+  src: { keys: string[]; optional: string[] },
+  lines: { step6: string; section62: string },
+): string[] {
+  const out: string[] = [];
+  if (JSON.stringify(doc.keys) !== JSON.stringify(src.keys)) {
+    out.push(`§6.5 的 summary.json 键集与 runner.ts 不一致：文档=${JSON.stringify(doc.keys)} / runner.ts=${JSON.stringify(src.keys)}`);
+  }
+  if (JSON.stringify(doc.optional) !== JSON.stringify(src.optional)) {
+    out.push(`§6.5 的 summary.json 可选键与 runner.ts 不一致：文档=${JSON.stringify(doc.optional)} / runner.ts=${JSON.stringify(src.optional)}`);
+  }
+  if (!lines.step6.includes('summary.json')) {
+    out.push('§6.1 第 6 步没有写出 per-run 的落盘物 summary.json（旧文写的是"每 harness 一份 + 汇总对比表"）');
+  }
+  if (/每 harness/.test(lines.step6)) {
+    out.push('§6.1 第 6 步仍写"每 harness 一份"——runScenario 是一次 run 一个目录，没有 per-harness 目录');
+  }
+  if (/skipped/.test(lines.section62) && !/没有|不存在|不在/.test(lines.section62)) {
+    out.push('§6.2 仍把 skipped 清单写成 per-run 报告的内容——summary.json 没有 skipped 键（skip 计数在 report/ 聚合层）');
+  }
+  return out;
+}
+
+describe('BENCHMARK-SPEC §2/§4/§6/§8 的"文档说了实现没有的事" ⇄ 文件系统 + 实现源码（Round 172 九条）', () => {
+  it('⑲ §2 目录树的目录名 ⇄ benchmarks/ 的真实子目录；两条被撤回的注释声明不得复活', () => {
+    const realDirs = fs
+      .readdirSync(BENCHMARKS_DIR, { withFileTypes: true })
+      .filter((e) => e.isDirectory())
+      .map((e) => e.name);
+    expect(realDirs.length).toBeGreaterThan(0);
+
+    const entries = treeEntries(SPEC, '## 2. benchmarks/ 目录契约');
+    expect(entries.length).toBeGreaterThan(0); // 解析器不是空转
+
+    const flags = {
+      artifactsDir: anyEntryNamed(path.join(BENCHMARKS_DIR, 'reports'), (n, isDir) => isDir && n === 'artifacts'),
+      goldenAssertions: anyEntryNamed(
+        path.join(BENCHMARKS_DIR, 'fixtures'),
+        (n, isDir) => (isDir && n === 'expected') || (!isDir && n === 'asserts.yaml'),
+      ),
+    };
+    // 事实侧：今天这两个东西都不存在（这正是本节改准所依据的实测）
+    expect(flags.artifactsDir, 'benchmarks/reports/** 下出现了 artifacts/ ⇒ §2 的「没有 artifacts」声明过期').toBe(false);
+    expect(flags.goldenAssertions, 'benchmarks/fixtures/** 下出现了 expected/ 或 asserts.yaml ⇒ §2 的「没有黄金断言」声明过期').toBe(false);
+
+    expect(treeViolations(entries, realDirs, flags)).toEqual([]);
+
+    // 判别性（合成输入）：四类分叉各有红点；合规输入零 violations（负对照）
+    const real = ['fixtures', 'scenarios', 'runners', 'reports'];
+    const good: TreeEntry[] = [
+      { dir: 'fixtures', comment: '每 scenario 一个目录：工作区素材本身（含 task.md）——判据不在这里' },
+      { dir: 'scenarios', comment: 'scenario manifest' },
+      { dir: 'runners', comment: 'runner 抽象 + adapter' },
+      { dir: 'reports', comment: '每次 run 一个目录：<runId>.jsonl + summary.json' },
+    ];
+    const noFlags = { artifactsDir: false, goldenAssertions: false };
+    expect(treeViolations(good, real, noFlags)).toEqual([]);
+    const v = (e: TreeEntry[]): string => treeViolations(e, real, noFlags).join(' | ');
+    expect(v(good.map((x) => (x.dir === 'fixtures' ? { ...x, comment: '任务/工作区素材/黄金断言' } : x)))).toMatch(/黄金断言/);
+    expect(v(good.map((x) => (x.dir === 'reports' ? { ...x, comment: '每次 run 的 JSONL + artifacts' } : x)))).toMatch(/artifacts/);
+    expect(v(good.filter((x) => x.dir !== 'runners'))).toMatch(/漏了/);
+    expect(v([...good, { dir: 'ghost', comment: '' }])).toMatch(/不存在/);
+    // 豁免翻转：真出现了 artifacts/ ⇒ 同一条注释不再算分叉
+    expect(
+      treeViolations(
+        good.map((x) => (x.dir === 'reports' ? { ...x, comment: '含 artifacts/ 目录' } : x)),
+        real,
+        { artifactsDir: true, goldenAssertions: false },
+      ),
+    ).toEqual([]);
+  });
+
+  it('⑳ §4.1 的 M11 价目表路径 ⇄ adapters/pricing.ts 的 loadBenchPricing + 文件系统', () => {
+    const expected = sourcePricingRelPath(PRICING_SRC);
+    expect(expected).toMatch(/pricing\.json$/); // 抽取器不是空转
+    const cell = metricDefinitionCell(subsection(SPEC, '### 4.1 指标定义表'), 'M11');
+    const flags = { expectedExists: repoFileExists(expected), legacyExists: legacyPricingExists() };
+    expect(pricingPathViolations(cell, expected, flags)).toEqual([]);
+
+    // 判别性（合成输入）：旧写法的形状必红；合规输入零 violations（负对照）
+    expect(pricingPathViolations(`按 \`${expected}\` 计`, expected, { expectedExists: true, legacyExists: false })).toEqual([]);
+    const legacy = pricingPathViolations(`按 \`${LEGACY_PRICING_REL}\` 计`, expected, { expectedExists: true, legacyExists: false });
+    expect(legacy.join()).toMatch(/runners\/config\/pricing\.json/);
+    expect(legacy.join()).toMatch(/没有写出真实的价目表路径/);
+    expect(pricingPathViolations(`按 \`${expected}\` 计`, expected, { expectedExists: false, legacyExists: false }).join()).toMatch(/不存在/);
+    // 撤回式写法（把旧路径点名成"不存在"）不算分叉
+    expect(
+      pricingPathViolations(`按 \`${expected}\` 计（旧文写的 \`${LEGACY_PRICING_REL}\` 不存在）`, expected, {
+        expectedExists: true,
+        legacyExists: false,
+      }),
+    ).toEqual([]);
+  });
+
+  it('㉑ §4.2 的示例路径与 meta env ⇄ runner.ts 的落盘形状（run 目录层 + 4 个 env 字段）', () => {
+    const expected = { pathShape: exampleRunPathShape(RUNNER_SRC), envKeys: metaEnvKeys(RUNNER_SRC) };
+    expect(expected.envKeys.length).toBeGreaterThan(0); // 抽取器不是空转
+    const example = exampleRecord(SPEC, '### 4.2 记录格式示例（JSON Lines）');
+    expect(exampleRecordViolations(example.pathToken, example.meta, expected)).toEqual([]);
+
+    // 判别性（合成输入）：旧写法的两条形状各有一个红点；合规输入零 violations（负对照）
+    const goodPath = 'benchmarks/reports/B003/run_20260905_abc123/run_20260905_abc123.jsonl';
+    const goodMeta = { env: Object.fromEntries(expected.envKeys.map((k) => [k, 'x'])) as Record<string, unknown> };
+    expect(exampleRecordViolations(goodPath, goodMeta, expected)).toEqual([]);
+    expect(exampleRecordViolations('benchmarks/reports/B003/run_20260905_abc123.jsonl', goodMeta, expected).join()).toMatch(/run 目录层/);
+    expect(exampleRecordViolations(goodPath, { env: { ...goodMeta.env, seed: 42 } }, expected).join()).toMatch(/env 键集/);
+    expect(exampleRecordViolations(goodPath, { env: { harnessVersion: 'x' } }, expected).join()).toMatch(/env 键集/);
+    // runId 的形状（hex 位宽）也是从 runner.ts 的 randomBytes(3) 推出来的：多一位即红
+    expect(exampleRecordViolations('benchmarks/reports/B003/run_1_abcdef0/run_1_abcdef0.jsonl', goodMeta, expected).join()).toMatch(/run 目录层/);
+  });
+
+  it('㉒ §3.1/§3.2 卡的 family 注释 ⇄ asserts.ts 的 TOOL_FAMILY 产出集（不得点名无生产者的 family）', () => {
+    const { legal, vocabulary } = familyVocabulary(subsection(SPEC, '### 7.3 ToolFamily 归一化'));
+    const src = sourceToolFamilies(ASSERTS_SRC);
+    const expectedLegal = [...src.families, src.fallback].sort();
+    expect(legal).toEqual(expectedLegal); // 合法集来自源码（§7.3 那三行另由 ⑮ 守卫）
+    expect(vocabulary).toContain('write'); // 旧名来自 §7.3 逐字写出的"旧文写 write"
+
+    const comments = familyCommentLines(SPEC);
+    expect(comments.length).toBeGreaterThan(0); // 解析器不是空转
+    expect(familyCommentViolations(comments, legal, vocabulary)).toEqual([]);
+    // 反证（可执行）：B016/B019 卡自己写的是兜底 other
+    for (const id of ['B016', 'B019']) {
+      const lines = comments.filter((c) => c.card === id);
+      expect(lines.length, `${id} 卡的 family 注释必须存在`).toBeGreaterThan(0);
+      expect(lines.some((c) => c.line.includes('other')), `${id} 卡的 family 注释写的是兜底 other`).toBe(true);
+    }
+
+    // 判别性（合成输入）：旧写法的四处各有一个红点；合规注释零 violations（负对照）
+    const ok = [
+      { card: 'B008', line: 'file_read ≥1 且 file_write ≥1 且 (exec|search) ≥1' },
+      { card: 'B016', line: 'family: other' },
+    ];
+    expect(familyCommentViolations(ok, legal, vocabulary)).toEqual([]);
+    const v = (line: string): string => familyCommentViolations([{ card: 'B099', line }], legal, vocabulary).join(' | ');
+    expect(v('file_read ≥1 且 write ≥1')).toMatch(/「write」/);
+    expect(v('mcp ≥1（adapter 归一化，§7.3）')).toMatch(/「mcp」/);
+    expect(v('delegate ≥1')).toMatch(/「delegate」/);
+    expect(v('family: approve')).toMatch(/「approve」/);
+    expect(v('file_write 零出现')).toBe(''); // v() 返回拼接串 ⇒ 零违规即空串（原写 toEqual([]) 是断言写错）
+    // 撤回式提法（把旧名当"没有生产者"来点名，而不是当 family 断言）不算分叉
+    expect(v('旧文把 mcp 当 family 点名，而它今天没有生产者')).toBe('');
+  });
+
+  it('㉓ §6.3 运行面表的 adapter id ⇄ 源码 *_ADAPTER_ID（计划项必须真的没有模块）', () => {
+    const src = sourceAdapterIds();
+    expect(src.length).toBeGreaterThan(0);
+    const rows = doc63Rows(subsection(SPEC, '### 6.3 各家可编程'));
+    expect(rows).toHaveLength(7); // C7 的七家（任务书行 1018–1024）都要有 id
+    expect(section63Violations(rows, src)).toEqual([]);
+
+    // 判别性（合成输入）：旧写法（把 claw-code 当已存在的一等成员）必红；合规行零 violations（负对照）
+    const source = ['claude-code', 'pi', 'vessel'];
+    const good: Doc6Row[] = [
+      { name: 'Claude Code（`claude-code`）', ids: ['claude-code'], planned: false },
+      { name: 'Claw Code（`claw-code`）（计划/未实现）', ids: ['claw-code'], planned: true },
+      { name: 'Our Harness（`vessel`）', ids: ['vessel'], planned: false },
+    ];
+    expect(section63Violations(good, source)).toEqual([]);
+    expect(section63Violations([{ name: 'Claw Code（`claw-code`）', ids: ['claw-code'], planned: false }], source).join()).toMatch(/没有对应 adapter 模块/);
+    expect(section63Violations([{ name: 'Pi（`pi`）（计划/未实现）', ids: ['pi'], planned: true }], source).join()).toMatch(/豁免已过期/);
+    expect(section63Violations([{ name: 'Ghost', ids: [], planned: false }], source).join()).toMatch(/没有写出 adapter id/);
+    expect(section63Violations([], source).join()).toMatch(/解析不出/);
+  });
+
+  it('㉔ §8.2 里程碑：无 manifest 的场景必须标「未实现」；旧 adapter 简称（cc/claw/oc/ours）不得出现', () => {
+    const rows = milestoneRows(subsection(SPEC, '### 8.2 里程碑'));
+    expect(rows.length).toBeGreaterThanOrEqual(6); // M0–M5
+    expect(milestoneViolations(rows, hasManifest)).toEqual([]);
+
+    // 判别性（合成输入）：旧写法的形状各有红点；合规/标了计划的输入零 violations（负对照）
+    const existing = (id: string): boolean =>
+      ['B001', 'B002', 'B003', 'B004', 'B005', 'B016', 'B017', 'B018', 'B019'].includes(id);
+    const ok: MilestoneRow[] = [{ name: 'M1', content: 'runner 核心', acceptance: 'B001–B005 offline 全绿' }];
+    expect(milestoneViolations(ok, existing)).toEqual([]);
+    expect(milestoneViolations([{ name: 'M1', content: 'runner 核心', acceptance: 'B001–B008/B010 机制类 offline 全绿' }], existing).join()).toMatch(/B006/);
+    expect(milestoneViolations([{ name: 'M2', content: 'pi live', acceptance: 'B009 live 首跑' }], existing).join()).toMatch(/B009/);
+    // 标了「计划/未实现」的历史里程碑不算分叉（本批修法：标计划、不删历史）
+    expect(milestoneViolations([{ name: 'M1', content: '计划/未实现：offline mock lane', acceptance: 'B006–B010（未实现）' }], existing)).toEqual([]);
+    expect(milestoneViolations([{ name: 'M1', content: 'claw 场景脚本映射', acceptance: '' }], existing).join()).toMatch(/claw/);
+    expect(milestoneViolations([{ name: 'M4', content: 'pi live + ours stub', acceptance: '' }], existing).join()).toMatch(/ours/);
+    expect(milestoneViolations([{ name: 'M5', content: 'cc/codex/dsh/oc adapter', acceptance: '' }], existing).join()).toMatch(/cc/);
+    // 新 id（`claw-code`）不算旧简称 `claw`
+    expect(milestoneViolations([{ name: 'M4', content: '`claw-code` offline', acceptance: '' }], existing)).toEqual([]);
+    // 区间展开器本身不是空转的：两端都进集合
+    expect(expandScenarioIds('B001–B003 与 S001–S002')).toEqual(['B001', 'B002', 'B003', 'S001', 'S002']);
+  });
+
+  it('㉕ §8.4 第 4 条：点名的测试文件必须真存在；没有 sanity 目录时不得声称有', () => {
+    const sanityDirs = fs
+      .readdirSync(BENCHMARKS_DIR, { withFileTypes: true })
+      .filter((e) => e.isDirectory() && /sanity/i.test(e.name))
+      .map((e) => e.name);
+    expect(sanityDirs).toEqual([]); // 实测：benchmarks/ 下只有 fixtures/scenarios/runners/reports
+
+    const bullet = doc84RiskItem(SPEC, 4);
+    expect(sanityViolations(bullet, { sanityDirs, exists: repoFileExists })).toEqual([]);
+
+    // 判别性（合成输入）：旧写法必红；合规写法零 violations（负对照）
+    const exists = (rel: string): boolean => rel === 'benchmarks/runners/src/runner.test.ts';
+    expect(
+      sanityViolations('防线是 `benchmarks/runners/src/runner.test.ts` 里的合成输入用例；sanity 夹具是规格意图（未实现）。', {
+        sanityDirs: [],
+        exists,
+      }),
+    ).toEqual([]);
+    const legacy = sanityViolations('所有 pass 断言先对已知通过/已知失败的夹具自检（runner 自带 sanity fixtures）。', {
+      sanityDirs: [],
+      exists,
+    });
+    expect(legacy.join()).toMatch(/没有点名任何真实的防线测试文件/);
+    expect(legacy.join()).toMatch(/声称 runner 自带 sanity 夹具/);
+    expect(sanityViolations('防线是 `benchmarks/runners/src/ghost.test.ts`', { sanityDirs: [], exists }).join()).toMatch(/不存在/);
+    // 真有 sanity 目录时反过来要求点名（豁免过期检测）
+    expect(
+      sanityViolations('防线是 `benchmarks/runners/src/runner.test.ts`', { sanityDirs: ['sanity'], exists }).join(),
+    ).toMatch(/却没点名它/);
+  });
+
+  it('㉖ §6.1 步 6 / §6.2 / §6.5 的报告面 ⇄ runner.ts 的 summary 键集与落盘物', () => {
+    const src = summaryKeysFromRunner(RUNNER_SRC);
+    expect(src.keys.length).toBeGreaterThan(8); // 抽取器不是空转（summary 有 11 个键）
+    const doc = docSummaryKeys(SPEC);
+    expect(doc.keys.length).toBeGreaterThan(8); // 解析器不是空转（文档逐字列了 11 个键）
+    const step6 = subsection(SPEC, '### 6.1 运行方式')
+      .split(/\r?\n/)
+      .find((l) => /^\s*6\.\s+report/.test(l));
+    expect(step6, '§6.1 必须保留第 6 步（删掉即红）').toBeTruthy();
+    const section62 = subsection(SPEC, '### 6.2 可比报告');
+    expect(reportSurfaceViolations(doc, src, { step6: step6 ?? '', section62 })).toEqual([]);
+
+    // 判别性（合成输入）：五类分叉各有红点；合规输入零 violations（负对照）
+    const good = { keys: ['runId', 'success'], optional: ['turn'] };
+    const same = { keys: ['runId', 'success'], optional: ['turn'] };
+    const okLines = {
+      step6: '6. report：一次 run 一个目录，内含 <runId>.jsonl + summary.json',
+      section62: '报告里没有 skipped 清单（summary.json 无该键，skip 计数在聚合层）',
+    };
+    expect(reportSurfaceViolations(good, same, okLines)).toEqual([]);
+    expect(reportSurfaceViolations({ keys: ['runId', 'success', 'skipped'], optional: ['turn'] }, same, okLines).join()).toMatch(/键集与 runner.ts 不一致/);
+    expect(reportSurfaceViolations({ keys: ['runId', 'success'], optional: [] }, same, okLines).join()).toMatch(/可选键/);
+    expect(reportSurfaceViolations(good, same, { ...okLines, step6: '6. report：每 harness 一份 + 汇总对比表' }).join()).toMatch(/每 harness/);
+    expect(reportSurfaceViolations(good, same, { ...okLines, step6: '6. report：往 reports/<sid>/ 写' }).join()).toMatch(/summary\.json/);
+    expect(reportSurfaceViolations(good, same, { ...okLines, section62: '报告含 skipped 清单' }).join()).toMatch(/skipped/);
   });
 });

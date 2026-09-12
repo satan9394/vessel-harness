@@ -59,11 +59,19 @@ Benchmark v0.1
 
 ```text
 benchmarks/
-├── fixtures/        # 每 scenario 一个目录：任务/工作区素材/黄金断言
-├── scenarios/       # scenario manifest（YAML）：id/目标/fixture 引用/通过判据/测量/运行集
+├── fixtures/        # 每 scenario 一个目录：**工作区素材本身**（含 task.md）——判据不在这里（§2.1）
+├── scenarios/       # scenario manifest（YAML）：id/目标/fixture 引用/通过判据/测量/车道（§2.2）
 ├── runners/         # runner 抽象 + 每 harness 一个 adapter + 判定/报告/配置
-└── reports/         # 每次 run 的 JSONL 记录 + 汇总报告 + artifacts
+└── reports/         # 每次 run 一个目录：<sid>/<runId>/ 下的 <runId>.jsonl + summary.json（§6.5）
 ```
+
+> **两行注释按实测改准（本卡；不是"新规定"）**：① `fixtures/` 里**没有黄金断言** ——
+> `benchmarks/fixtures/**` 下**不存在** `expected/` 或 `asserts.yaml`（实测），判据的唯一事实源是
+> `benchmarks/scenarios/<sid>.yaml` 的 `pass:`（§2.1/§2.2）；② `reports/` 里**没有 `artifacts/`** ——
+> `runner.ts:runScenario()` 的 per-run 落盘形状见 §6.5（`<runId>.jsonl` + `summary.json` + `workspace/`，
+> 仅当 `<sid>.yaml` 声明了 `policy:` 时多一个 `scenario-policy.yaml`）。
+> 上面四个目录名与 `benchmarks/` 下真实的子目录**一一对应**，这条双向一致性由
+> `benchmarks/runners/src/spec-manifest-parity.test.ts` 守卫（改目录或改这棵树任一侧即红）。
 
 ### 2.1 fixtures/ 布局（每 scenario 一个 fixture pack）
 
@@ -324,7 +332,7 @@ fixture: fixtures/B008/ — task.md"读取 a.csv（列名）+ b.json（映射表
 expected: agent 使用 ≥3 种 ToolFamily（file_read / exec 或 search / write）按依赖顺序完成；最终写入内容与 golden 一致；先读后写（写入前已含所需数据）
 pass:
   - type: file_content      # merged.tsv == golden（排序后比对）
-  - type: tool_family_seen  # file_read ≥1 且 write ≥1 且 (exec|search) ≥1
+  - type: tool_family_seen  # file_read ≥1 且 file_write ≥1 且 (exec|search) ≥1 —— family 名以 asserts.ts 的 TOOL_FAMILY 为准（§7.3）；旧文写的 write 不是 family（真实名是 file_write）
 measured: [M01, M02, M03, M04, M05, M06, M07, M10, M11, M14]
 mode: both
 ```
@@ -387,7 +395,7 @@ fixture: fixtures/B012/ — 仓库内微型 MCP echo/token 服务器（启动脚
 expected: agent 经配置的 MCP 工具调用服务器取得令牌并落盘（完成路径必经 MCP 工具）
 pass:
   - type: file_content      # secret.txt == 服务器签发令牌
-  - type: tool_family_seen  # mcp ≥1（adapter 归一化，§7.3）
+  - type: tool_family_seen  # 规格意图：经 MCP 工具取数至少一次。**旧文在这里把 mcp 当 family 点名，而它今天没有生产者**（§7.3 的「无生产者」名单：delegate/mcp/approve）——MCP 调用落兜底 family「other」（`B019.yaml` 就是这么写的）；本卡无 manifest、无机器判据
 harnesses: 子集     # Claude Code(.mcp.json, claude-code.md)、Codex(mcp crate, codex.md)、DSH(第三方 MCP overlay 需手动配置→标注 optional)、Claw(PARITY MCP lane, claw-code.md)、Our Harness(规划 v0.1 MCP)；Pi 无 MCP 客户端抽象(pi.md "非目标")→skipped+原因
 measured: [M01, M02, M03, M04, M06, M07, M10, M11, M14]
 mode: live
@@ -403,7 +411,7 @@ fixture: fixtures/B013/ — 三模块仓库（a/b/c 各含入口文件与职责�
 expected: agent 使用委托/子代理原语分头探索（CC task、DSH subagent、Codex spawn_agent、Claw Agent tool），汇总内容正确且体现分工（对无 subagent 原语 harness 记录 skipped）
 pass:
   - type: file_content      # SUMMARY.md 三模块职责与黄金要点一致
-  - type: tool_family_seen  # delegate ≥1（对具备该能力的 harness；否则该断言标注 not-applicable）
+  - type: tool_family_seen  # 规格意图：委托/子代理工具调用至少一次（对具备该能力的 harness；否则该断言标注 not-applicable）。**旧文在这里把 delegate 当 family 点名，而它今天没有生产者**（§7.3 的「无生产者」名单：delegate/mcp/approve）——子代理调用落兜底 family「other」（`B016.yaml` 就是这么写的）；本卡无 manifest、无机器判据
 harnesses: 子集     # Claude Code、DSH、Codex(v2)、Claw、Our Harness(规划)；Pi 无 subagent 原语(comparison.md 行 818)→skipped；OpenCode 待实测确认
 measured: [M01, M02, M03, M06, M07, M08, M10, M11, M14]
 mode: live
@@ -573,17 +581,17 @@ mode: offline
 | M08 | Context Peak | run 内单次请求上下文峰值（input+cache_read 的最大值；含注入） | usage ledger max；无 usage 暴露时按每轮 transcript 估算（tokenizer）并标 approx | int（token） |
 | M09 | Compactions | run 内压缩次数（自家：B14 compaction/start）；压缩后继续轮数与重放区统计可选记录 | 自家事件；外部 harness 压缩事件（各家日志若暴露） | int |
 | M10 | Time | run 墙钟时长（准备→判定） | runner 计时 | ms |
-| M11 | Cost | 估算成本 USD = Σ(输入×单价 + 输出×单价 + cache×单价)，按 `runners/config/pricing.json` 计；subagent/compaction/goal-eval 请求可分开列（requestKind 标注） | usage 明细 × 单价表；单价表需随报告版本记录 | USD（浮点） |
+| M11 | Cost | 估算成本 USD = Σ(输入×单价 + 输出×单价 + cache×单价)，按**仓库根的 `configs/pricing.json`** 计（`adapters/pricing.ts` 的 `loadBenchPricing(configRoot)` 读的就是它；旧文写的 `runners/config/pricing.json` **不存在**）；subagent/compaction/goal-eval 请求可分开列（requestKind 标注） | usage 明细 × 单价表；单价表需随报告版本记录 | USD（浮点） |
 | M12 | Safety Violations | **口径取 POLICY-SPEC §503**：`audit/denial`（toolCallId/stage/ruleRef）计数 = Policy 硬拒绝 + never 审批拒绝；其中 **`SANDBOX_DENIAL` 是错误词表里的保留值但本仓未接线**（无任何 `errorClass:'SANDBOX_DENIAL'` 铸造点，telemetry 回放面也不认它 ⇒ 今天不可能进 M12，见 `packages/telemetry/src/auditRecordWiring.test.ts`）；不含 ASK 被放行者。语义注意：被拦截的尝试计入 violations（说明"尝试过危险动作"），破坏发生与否由 pass 断言判 | 自家：A13 PolicyDecision deny / B20 audit/denial；外部：permission deny / approval deny 记录（adapter） | int |
 | M13 | Evaluator Reject Count | evaluator 层拒绝数：verdict not_met / impossible / error，或评审子代理 findings 拦下完成的次数 | 自家（**两条来源**，都已接线）：① `team_end` 载荷里 evaluate 成员的 `review.verdict`（`TeamReviewConclusion`）∈ {not_met, impossible, error}，由 telemetry 的 handler 逐个计一次；② 基准/CLI 的 evaluator 臂——`EvaluatorAgent.evaluate()` 的返回值喂不进总线（A24 载荷不含 verdict），故由**调用方**用类型化调用 `Telemetry.recordEvaluatorReject()` 入账（该臂不经 TeamRuntime ⇒ 不产 `team_end`，与 ① 不重叠、无重复计数）。`source` 取**中性名**（点名事实、不点名单条传输面）`source=evaluator-review:verdict`；**边界（如实标注）**：Goal Loop 的 `RealEvaluatorAdapter` 裁决既不 emit 也不落记录、也没有调用方转交（`InternalReviewer` 同理）⇒ 该通路**未接线**、不计入；comparison.md 行 796；无 evaluator harness 记 N/A（0 + source=n/a），不判 fail | int / N/A |
 | M14 | Autonomy | 完成任务需**人工/外部干预**次数 =（human_answers 审批 + steers + interrupts + 澄清请求被路由给人类）+ 机器应答单列。CI 全自动下 human 常为 0，此时同时记录 approval_asks 数；完全自主 = 外部干预 0 | 自家：`approval_asks` 取自 **`audit/denial:approval`** —— 即 `audit/denial` 中 `stage:'approval'` 的条数（`before_tool` 的 ask 裁决无应答者时 fail-closed 的收口，由 telemetry 回放折叠）；A16 ApprovalRequest / A17 ApprovalDecided(actor) / A05 Interrupt / B21 audit/safety(actor:'user') 在本仓**未接线**（无 B17/B18 记录类型、无 A16/A17 事件，故 steers/human_answers 仍为常量 0）；外部：审批/steer 事件 | int + 分项 {steers, approval_asks, interrupts} |
 
 ### 4.2 记录格式示例（JSON Lines）
 
-`benchmarks/reports/B003/run_20260905_abc123.jsonl`：
+`benchmarks/reports/B003/run_20260905_abc123/run_20260905_abc123.jsonl`（**runId 既是目录名也是文件名**，§6.5）：
 
 ```jsonl
-{"type":"meta","runId":"run_20260905_abc123","ts":"2026-09-05T10:00:00Z","scenarioId":"B003","harness":"pi","arm":null,"mode":"live","env":{"harnessVersion":"pi@x.y.z (commit …)","model":"anthropic/claude-sonnet-4-…","provider":"…","temperature":0,"seed":42,"date":"2026-09-05"}}
+{"type":"meta","runId":"run_20260905_abc123","ts":"2026-09-05T10:00:00Z","scenarioId":"B003","harness":"ours","arm":null,"mode":"live","env":{"harnessVersion":"cah@0.1.0","model":"anthropic/claude-sonnet-4-…","provider":"…","temperature":0}}
 {"type":"metric","runId":"run_20260905_abc123","ts":"…","metric":"M02","name":"Turns","value":14,"unit":"turn","source":"transcript:count_assistant_generations","approx":false}
 {"type":"metric","…","metric":"M06","name":"InputTokens","value":152300,"unit":"token","source":"usage-ledger","approx":false,"detail":{"cacheRead":90000,"uncached":62300}}
 {"type":"event","…","kind":"tool/call","payload":{"toolCallId":"tc17","toolName":"Bash","family":"exec","verdict":"allow"}}
@@ -593,6 +601,14 @@ mode: offline
 {"type":"assert","…","assertId":"a1","type":"run_check","target":"fixture hidden test","result":"pass","evidence":{"exitCode":0,"stdoutTail":"…"}}
 {"type":"metric","…","metric":"M01","name":"SuccessRate","value":1,"unit":"bool","source":"runner-asserts"}
 ```
+
+> **三处按实现改准（本卡）**：① 旧例的路径**少了 run 目录层** —— 真实形状是
+> `benchmarks/reports/<sid>/<runId>/<runId>.jsonl`（`runner.ts`：`runDir = path.join(opts.reportsDir, opts.scenarioId, runId)`，
+> `reportPath = path.join(runDir, '<runId>.jsonl')`；`runId = run_<毫秒时间戳>_<6 位 hex>`，§6.5）；
+> ② meta 的 `env` **只有 4 个字段**：`harnessVersion` / `model` / `provider` / `temperature`（`runner.ts` 的 `type: 'meta'` 行）——
+> 旧例写的 `seed` / `date` **不存在**（seed 是 §1.2/§5.2 的规格意图，没有进 meta；node/python 版本、日期、harness commit 同样未实现，见 §2.4 第 3 条）；
+> ③ 示例里的 `harness` 字段今天由 `runner.ts` **写死为 `'ours'`**，它不是 adapter id（adapter id 见 §7.2：本仓自己那家是 `vessel`）。
+> ① 与 ② 由 `spec-manifest-parity.test.ts` 守卫：路径层级与 `env` 键集都从 `runner.ts` 源码读出，改任一侧即红。
 
 ### 4.3 派生分析（不计入 14 项，报告可选）
 
@@ -665,31 +681,42 @@ tokens/turn（效率）、cost/success（单位成本）、Time 分布、Autonom
 ### 6.1 运行方式（同一 scenario 多 harness）
 
 ```text
-1. runner 装载 scenario manifest + 复制 fixture → 每 harness 独立临时 workspace（git reset 初始 commit）
-2. 每 harness adapter：prepare（装 harness-config 接线：permission/policy/MCP/resume 所需）
+1. runner 装载 scenario manifest + 复制 fixture 根目录 → 每次 run 一个独立临时 workspace
+   （reports/<sid>/<runId>/workspace；**没有 git reset**，§2.4）
+2. 每 harness adapter：按 <sid>.yaml 的 policy: / harness:（+ runner/adapter 代码）接线
+   （permission/policy/MCP/resume 所需；**没有 fixtures/<sid>/harness-config/ 这一层**，§6.4）
 3. 注入 task.md（逐字同一份）→ 非交互/CLI 运行（适配器各自入口，§7.2）
 4. collect：adapter 归一化为标准事件 + 指标 JSONL（§4.2）
 5. assert：runner 执行 §3 pass 断言（磁盘/命令/事件，不信任自报）
-6. report：每 harness 一份 + 汇总对比表到 benchmarks/reports/<sid>/
+6. report：**一次 run 一个目录** reports/<sid>/<runId>/，内含 <runId>.jsonl + summary.json（§6.5）
+   —— 没有 per-harness 目录、没有汇总对比表、没有 artifacts/
 ```
 
-统一测试集 = **C7**：Claude Code / Claw Code / Pi / OpenCode / Codex / DSH / Our Harness（任务书行 1018–1024）。能力不具备的 harness 在步骤 3 前即判 `skipped`（附原因），不进结果集。
+**第 1/2/6 步按实测改准（本卡）**：旧文写的"`git reset` 初始 commit"**没有实现**（`runner.ts` 里没有任何 `git reset` 调用，隔离靠"每次全新复制 + 每次全新 run 目录"，§2.4）；旧文写的"装 harness-config 接线"**没有这一层**（`benchmarks/fixtures/**` 下不存在任何 `harness-config/`；今天的接线面是 `<sid>.yaml` 的 `policy:`/`harness:` + runner/adapter 代码，§6.4）；旧文写的"每 harness 一份 + 汇总对比表到 `benchmarks/reports/<sid>/`"**不是 `runScenario` 的行为**——它一次 run 落一个目录（`<runId>.jsonl` 与 `summary.json` 同级，§6.5）。**多 run 的汇总/对比表是另一个模块**（`runners/src/report/report.ts` 的 `buildComparisons` / `writeReportFiles`，落成 `benchmarks/reports/` 下的独立报告文件，如 `release-report.md`），**不由 `runScenario` 写进 run 目录**。
+
+统一测试集 = **C7**（任务书行 1018–1024 定义的**目标**集合）：Claude Code / Claw Code / Pi / OpenCode / Codex / DSH / Our Harness。**今天真能跑的成员只有 6 个**：`claude-code` / `codex` / `dsh` / `opencode` / `pi`（`benchmarks/runners/src/adapters/*.ts`）+ `vessel`（本仓自己那家 "Our Harness"，在 `contracts/vessel.ts`，**id 是 `vessel` 不是 `ours`**）；**`Claw Code` 今天没有任何 adapter 模块**（§7.2 的「计划/未实现」行）——它在 C7 里是**计划项**，不是已落地的一等成员。能力不具备的 harness 在步骤 3 前即判 `skipped`（附原因），不进结果集。
 
 ### 6.2 可比报告
 
-报告含：per-harness Success / 14 指标（source 注明口径）/ pass 断言明细 / skipped 清单 / artifacts 路径 / 环境快照。汇总表禁止对裸数字跨口径排名（§4.4），只做"同口径组内对比 + 差异原因"。
+报告含：Success / 14 指标（source 注明口径）/ pass 断言明细 / 环境快照；**per-run 的落盘形状见 §6.5**（`summary.json` 的键集 + 同级 `<runId>.jsonl`）。**旧写法里的两项要分两层读（本卡改准）**：① **`skipped` 清单不在 `runScenario` 的 per-run 报告里**——`summary.json` **没有 `skipped` 键**；skip 信息在**聚合报告层**（`runners/src/report/report.ts` 的 `HarnessSummary.skipped`、`lane/real-model-lane.ts` 的 `LaneRowStatus: 'skipped'`，渲染成汇总表的 `skipped` 列），那条链路不由 `runScenario` 产出；② **没有 `artifacts` 路径**——`summary.json` 无 artifacts 键，`runScenario` 也不产 `artifacts/` 目录（§6.5）。汇总/对比表由 `report/` 模块从多个 `RunResult` 聚合（落成独立报告文件），不写进 `reports/<sid>/<runId>/`。汇总表禁止对裸数字跨口径排名（§4.4），只做"同口径组内对比 + 差异原因"。
 
 ### 6.3 各家可编程/非交互运行面（依据研究文档，未确认处如实标注 TBD）
 
+> **第 1 列按 §7.2 的 adapter id 读（本卡改准）**：下表是**研究文档里的 harness 名**，adapter id 以 §7.2 为唯一事实源，
+> 故每行补注了真实 id。两点必须如实读：**`Claw Code` 今天没有 adapter 模块**（那一行带「计划/未实现」标记）；
+> **`Our Harness` 的真实对象是 `contracts/vessel.ts` 的 `vessel` 适配器**（id 是 `vessel`，已实现，**不在 `adapters/` 目录**）。
+> 旧文（本节的两行 + §6.1 的 C7 名单 + 附录 B）把这两家写成**已存在的一等成员**，与改准后的 §7.1/§7.2 冲突；
+> 本节这七行的 id ⇄ 源码 `*_ADAPTER_ID` 的双向一致性由 `spec-manifest-parity.test.ts` 守卫（改一侧即红）。
+
 | harness | 非交互/CLI 入口 | 会话/日志采集 | 已知局限（研究结论） |
 |---|---|---|---|
-| Claude Code | `claude -p`（headless；`--max-turns`、`--max-budget-usd`、`--json` 脚本接口、`--restricted` 专供 eval harness，claude-code.md 行 26/311/335） | CLI 输出 + transcript（adapter 采集） | 闭源、运行时无源码可核；resume/权限语义以公开接口为准（HARNESS-ANATOMY 行 514） |
-| Claw Code | `claw` REPL / `prompt` 命令 + **自带 mock-parity harness**（rusty-claude-cli/tests/mock_parity_harness.rs + mock_parity_scenarios.json，claw-code.md 行 87） | `<cwd>/.claw/sessions/<hash>/` JSONL/JSON（claw-code.md 行 66） | 大批能力仅交互 REPL（后台任务/approve 等，非交互受限并有 interactive_only 错误分类，claw-code.md 行 107）→ live 仅子集，offline mock lane 复用其场景脚本 |
-| Pi | 非交互 print/json/rpc 模式（pi.md 行 80）；**首选复用 evals**：createPiCodingAgentHarness + AgentSession + vitest-evals（行为级模型回代，pi.md 行 128–150） | 真实 session JSONL + usage ledger（harness 层 Session 持久化） | evals 覆盖点少（smoke/extensions 起步态，comparison.md 行 818）；无 MCP/无 subagent 原语→相关场景 skip |
-| OpenCode | headless/服务端 CLI 运行入口**待实测确认**（研究未抓 opencode.ai/docs，comparison.md 行 826 明确避免臆断；源码消息/parts 双层 SQLite 落库可采集） | SQLite messages（parts 双层，opencode.md） | 无独立 eval 框架、无 OS 级沙箱、无独立 evaluator（HARNESS-ANATOMY 行 458–459）→ 判定全走 runner 断言 |
-| Codex | `codex exec`（codex-rs/exec，codex.md 行 121 权限 profile/exec policy 前缀；spawn_agent v2/mcp crate 存在） | rollout JSONL + sqlite thread store | 无确定性测试栅栏；ModelVerifications 软事件无强制语义（comparison.md 行 786）→ 不作为通过依据；memory 依赖后端状态库自托管难用（HARNESS-ANATOMY 行 494） |
-| DSH | DSH harness CLI / Python SDK `jsonrpc-agent`（最小变体：独立 workspace/session id 跑任务，deepseek-harness.md 行 397） | event-sourced 会话日志 + usage（仅追加事件日志可导出） | BENCHMARK.md 仅 3 行，无成体系场景（H12 缺口）→ 我们提供 adapter 场景自建；Developer Preview 安全声明（HARNESS-ANATOMY 行 517） |
-| Our Harness | **规划接口（本阶段不实现主体，只定契约）**：headless `run --bench` + 事件导出 + usage ledger + audit 事件 | EVENT-SPEC 事件流 + audit/* | 模块边界以 D8 定；adapter 先以 stub 固契约 |
+| Claude Code（`claude-code`） | `claude -p`（headless；`--max-turns`、`--max-budget-usd`、`--json` 脚本接口、`--restricted` 专供 eval harness，claude-code.md 行 26/311/335） | CLI 输出 + transcript（adapter 采集） | 闭源、运行时无源码可核；resume/权限语义以公开接口为准（HARNESS-ANATOMY 行 514） |
+| Claw Code（`claw-code`）（计划/未实现） | `claw` REPL / `prompt` 命令 + **自带 mock-parity harness**（rusty-claude-cli/tests/mock_parity_harness.rs + mock_parity_scenarios.json，claw-code.md 行 87） | `<cwd>/.claw/sessions/<hash>/` JSONL/JSON（claw-code.md 行 66） | 大批能力仅交互 REPL（后台任务/approve 等，非交互受限并有 interactive_only 错误分类，claw-code.md 行 107）→ live 仅子集，offline mock lane 复用其场景脚本；**本仓今天没有它的 adapter 模块**（§7.2） |
+| Pi（`pi`） | 非交互 print/json/rpc 模式（pi.md 行 80）；**首选复用 evals**：createPiCodingAgentHarness + AgentSession + vitest-evals（行为级模型回代，pi.md 行 128–150） | 真实 session JSONL + usage ledger（harness 层 Session 持久化） | evals 覆盖点少（smoke/extensions 起步态，comparison.md 行 818）；无 MCP/无 subagent 原语→相关场景 skip |
+| OpenCode（`opencode`） | headless/服务端 CLI 运行入口**待实测确认**（研究未抓 opencode.ai/docs，comparison.md 行 826 明确避免臆断；源码消息/parts 双层 SQLite 落库可采集） | SQLite messages（parts 双层，opencode.md） | 无独立 eval 框架、无 OS 级沙箱、无独立 evaluator（HARNESS-ANATOMY 行 458–459）→ 判定全走 runner 断言 |
+| Codex（`codex`） | `codex exec`（codex-rs/exec，codex.md 行 121 权限 profile/exec policy 前缀；spawn_agent v2/mcp crate 存在） | rollout JSONL + sqlite thread store | 无确定性测试栅栏；ModelVerifications 软事件无强制语义（comparison.md 行 786）→ 不作为通过依据；memory 依赖后端状态库自托管难用（HARNESS-ANATOMY 行 494） |
+| DSH（`dsh`） | DSH harness CLI / Python SDK `jsonrpc-agent`（最小变体：独立 workspace/session id 跑任务，deepseek-harness.md 行 397） | event-sourced 会话日志 + usage（仅追加事件日志可导出） | BENCHMARK.md 仅 3 行，无成体系场景（H12 缺口）→ 我们提供 adapter 场景自建；Developer Preview 安全声明（HARNESS-ANATOMY 行 517） |
+| Our Harness（`vessel`） | **已实现的 adapter**：`contracts/vessel.ts` 的 `vesselAdapter`（`runVesselFixture` 经 `composeHarness` 跑本地引擎并采集 §15 L3 指标）；规格意图里的 headless `run --bench` 命令行入口**今天不存在** | EVENT-SPEC 事件流 + audit/* | 模块边界以 D8 定；**它不在 `adapters/` 目录**、id 是 `vessel` 不是 `ours`（§7.2） |
 
 ### 6.4 harness-config 接线原则（Conformance 公平性）
 
@@ -729,7 +756,7 @@ benchmarks/reports/<sid>/
 1. 旧文把 JSONL 直接放在 `reports/<sid>/` 下，实际**多了一层 run 目录**（runId 既进目录名也进文件名）。
 2. `summary.json` 与 JSONL 同级是**对的**，但它**没有 `skipped` 键**——实际键是 `scenarioId` / `runId` /
    `success` / `mode` / `durationMs` / `metrics` / `asserts` / `startedAt` / `finishedAt` / `reportPath` /
-   `sessionLog`（+ 可选 `turn`）；skip 清单不在报告里。
+   `sessionLog`（+ 可选 `turn`）；skip 清单不在 **per-run 的 `summary.json`** 里（聚合报告层的 `skipped` 计数见 §6.2）。
 3. **`artifacts/` 不由 `runScenario` 产出**：`harness.artifacts` 的唯一下游是 `EvaluatorAgent` 的
    `policyArtifacts` 参数（`runner.ts` evaluator 臂），**既不落独立目录、也不进 `summary.json`**。
    引擎车道（`harness.engine`）另在**工作区之内**写 `engine-artifacts/`（那是场景产物，不是报告工件）。
@@ -831,12 +858,12 @@ adapter 实现 name→family 映射，映射表随 adapter 落盘；**无法归�
 
 | 里程碑 | 内容 | 验收 |
 |---|---|---|
-| M0 | **有 manifest 的 25 个 scenario** 校验通过（mock 断言可跑通） | 25/25 校验过；**§3.1/§3.2 的 19 张卡里 10 张（B006–B015）无 manifest**，它们是规格意图而非当前判据 |
-| M1 | runner 核心 + offline mock lane（claw 场景脚本映射机制子集） | B001–B008/B010 机制类 offline 全绿（无模型、CI 可跑） |
-| M2 | pi adapter live 车道 + usage 采集 | B003/B009/B016–B019 live 首跑，JSONL 完整 |
+| M0 | **有 manifest 的 25 个 scenario** 校验通过（mock 断言可跑通） | 25/25 校验过；**§3.1/§3.2 的 19 张卡里 10 张（B006–B015）无 manifest**，它们是**规格意图（未实现）**而非当前判据 |
+| M1 | runner 核心 + offline mock lane（**计划/未实现**：确定性脚本场景映射机制子集；offline 车道**不是 adapter**，它是 `runners/src/offline.ts` 的 `MockProvider` 脚本，§7.2） | **计划/未实现**：旧文写的是「B001–B008/B010 机制类 offline 全绿」——其中 **B006–B010 至今没有 manifest**（§3.1 的「未实现（无 manifest）」卡）；**今天真能跑 offline 的是 B001–B005 + B016–B019**（它们都有 manifest） |
+| M2 | `pi` adapter（`adapters/pi.ts`）live 车道 + usage 采集 | **计划/未实现**：旧文写的是「B003/B009/B016–B019 live 首跑」——`B009` 没有 manifest，`B016–B019` 的 yaml 是 `mode: offline`（不上 live 车道）；**今天 yaml 为 `mode: both` 的卡只有 B001–B005** |
 | M3 | A/B 配置（A–E × ≥3 seeds × 适用场景）首轮 | 出 §5.3 归因 delta 表 + 每臂 artifact |
-| M4 | conformance 首跑（pi live + claw offline + ours stub 校验契约） | 可比报告 + skipped 清单正确 |
-| M5 | cc/codex/dsh/oc adapter 排期实测（依据 §6.3 TBD 项逐一确认） | adapter 数 ≥3 live |
+| M4 | conformance 首跑（**计划/未实现**：`pi` live + `claw-code` offline + `vessel` 契约校验；`claw-code` 今天**没有 adapter 模块**，§7.2） | 可比报告 + skip 信息正确（**`runScenario` 的 `summary.json` 里没有 `skipped` 键**，skip 计数在 `report/` 聚合层，§6.2/§6.5） |
+| M5 | `claude-code` / `codex` / `dsh` / `opencode` adapter 排期实测（依据 §6.3 TBD 项逐一确认） | adapter 数 ≥3 live（今天 `adapters/` 已有 5 个模块 + `contracts/vessel.ts`，stable/live 面仍待实测） |
 
 ### 8.3 验收对照（任务书 §22 门槛）
 
@@ -851,7 +878,7 @@ adapter 实现 name→family 映射，映射表随 adapter 落盘；**无法归�
 1. 外部 harness 非交互面与日志格式多为 TBD（§6.3），M5 前 adapter 以研究文档与实测为准，**不臆断参数**（沿用 comparison.md 行 826"避免臆断"纪律）。
 2. 版本漂移：harness/模型版本随 meta 记录并 pin（HARNESS-ANATOMY 行 528）。
 3. live 车道成本：用 tokens 预算上限 + seed 数控制；报告含 M11。
-4. 判定误报：所有 pass 断言先对"已知通过/已知失败"的夹具自检（runner 自带 sanity fixtures），防断言写错导致整批失真。
+4. 判定误报：**`benchmarks/` 下没有任何 sanity 夹具目录**（实测：`benchmarks/` 只有 `fixtures/`/`scenarios/`/`runners/`/`reports/` 四项，没有 `sanity/`）；今天的防线是**测试里的合成输入用例**——`benchmarks/runners/src/runner.test.ts` 与 `benchmarks/runners/src/asserts.metric.test.ts`（同族的 `benchmarks/runners/src/safety.test.ts`、`benchmarks/runners/src/safety-discrimination.test.ts`、`benchmarks/runners/src/report/report.test.ts` 亦然）逐条带「判别性 / 负对照」，用构造输入把断言写错、恒真、恒假都打红，防断言写错导致整批失真。**独立 sanity 夹具是规格意图（未实现）**，落地时再回来改本条。
 5. 行为文本来源（B 组）须经 §18 清洗流程，禁止原文直入（任务书 §18/§19）。
 
 ---
@@ -891,6 +918,6 @@ adapter 实现 name→family 映射，映射表随 adapter 落盘；**无法归�
 ## 附录 B：术语
 
 - **runId**：一次 scenario×harness×arm×seed 的唯一运行。
-- **C7**：统一测试集（Claude Code/Claw Code/Pi/OpenCode/Codex/DSH/Our Harness）。
+- **C7**：统一测试集（Claude Code/Claw Code/Pi/OpenCode/Codex/DSH/Our Harness）——**任务书行 1018–1024 的目标集合**；今天真能跑的成员是 `claude-code` / `codex` / `dsh` / `opencode` / `pi` + `vessel`（＝Our Harness），**`Claw Code` 是计划项**（§7.2「计划/未实现」）。
 - **通过判据**：scenario manifest 中机器断言；判定方永远是 runner。
 - **诚实 skip**：harness 缺能力时记录 skipped+原因而非伪造结果。
