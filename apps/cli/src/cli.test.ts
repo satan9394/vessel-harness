@@ -2028,6 +2028,27 @@ describe('vessel provider export/import + endpoint (task 095/096)', () => {
   });
 
   /**
+   * BRIEF-18：`main(['run', …])` 会读 `mcp.json`（cmdRun → applyMcpConnections）——
+   * 把 `VESSEL_MCP_ROOT` 也钉到本用例的临时 root（与 mockVisibility.test.ts:109-119 同款），
+   * 绝不读/写真实 `~/.vessel/mcp.json`（那会让本卡用例因环境而红/变慢）；用完原样还原，
+   * 含"原本未设置"这一情形。
+   */
+  async function withTempMcpRoot<T>(fn: () => Promise<T>): Promise<T> {
+    const saved = process.env.VESSEL_MCP_ROOT;
+    // 自建临时 root：本 helper 处于**文件作用域**，不能引用只在各 describe 内声明的 cfgDir
+    // （先前那版引用了 cfgDir ⇒ TS2304；vitest 不做类型检查所以没拦住，靠 tsc 兜住）。
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'cah-cli-mcp-'));
+    process.env.VESSEL_MCP_ROOT = dir;
+    try {
+      return await fn();
+    } finally {
+      if (saved === undefined) delete process.env.VESSEL_MCP_ROOT;
+      else process.env.VESSEL_MCP_ROOT = saved;
+      fs.rmSync(dir, { recursive: true, force: true }); // 测试自建且位于 os.tmpdir()（AGENTS.md 书面例外）
+    }
+  }
+
+  /**
    * BRIEF-18 —— `vessel run` 的回合 `kind` 必须决定**退出码与呈现**（非交互式路径）。
    *
    * 复现（改前，cli.ts 旧 919/933 行）：`runTurn` 是**正常返回**（只有抛异常才走 catch 的
@@ -2063,16 +2084,18 @@ describe('vessel provider export/import + endpoint (task 095/096)', () => {
       const cap = captureChannels();
       let code: number;
       try {
-        code = await main([
-          'run',
-          '--workspace', dir,
-          '--prompt', '读一下凭据文件',
-          '--policy', POLICY,
-          '--behavior', BEHAVIOR,
-          '--provider', 'openai-compatible',
-          '--base-url', endpoint.baseUrl,
-          '--model', 'm',
-        ]);
+        code = await withTempMcpRoot(() =>
+          main([
+            'run',
+            '--workspace', dir,
+            '--prompt', '读一下凭据文件',
+            '--policy', POLICY,
+            '--behavior', BEHAVIOR,
+            '--provider', 'openai-compatible',
+            '--base-url', endpoint.baseUrl,
+            '--model', 'm',
+          ]),
+        );
       } finally {
         cap.restore();
       }
@@ -2107,16 +2130,18 @@ describe('vessel provider export/import + endpoint (task 095/096)', () => {
       const cap = captureChannels();
       let code: number;
       try {
-        code = await main([
-          'run',
-          '--workspace', dir,
-          '--prompt', 'ping',
-          '--policy', POLICY,
-          '--behavior', BEHAVIOR,
-          '--provider', 'openai-compatible',
-          '--base-url', endpoint.baseUrl,
-          '--model', 'm',
-        ]);
+        code = await withTempMcpRoot(() =>
+          main([
+            'run',
+            '--workspace', dir,
+            '--prompt', 'ping',
+            '--policy', POLICY,
+            '--behavior', BEHAVIOR,
+            '--provider', 'openai-compatible',
+            '--base-url', endpoint.baseUrl,
+            '--model', 'm',
+          ]),
+        );
       } finally {
         cap.restore();
       }
@@ -2147,14 +2172,16 @@ describe('vessel provider export/import + endpoint (task 095/096)', () => {
     try {
       // 内置 mock：脚本第一步（/总结/ → ifNoToolResult）发 Read 工具调用；工具跑完
       // snapshot.steps(1) >= maxSteps(1) → AgentLoop.ts:323-326 置 kind='budget'、finalText 保持 ''。
-      code = await main([
-        'run',
-        '--workspace', dir,
-        '--prompt', '总结当前工作区 README',
-        '--policy', POLICY,
-        '--behavior', BEHAVIOR,
-        '--max-steps', '1',
-      ]);
+      code = await withTempMcpRoot(() =>
+        main([
+          'run',
+          '--workspace', dir,
+          '--prompt', '总结当前工作区 README',
+          '--policy', POLICY,
+          '--behavior', BEHAVIOR,
+          '--max-steps', '1',
+        ]),
+      );
     } finally {
       cap.restore();
     }
@@ -2195,17 +2222,19 @@ describe('vessel provider export/import + endpoint (task 095/096)', () => {
       const cap = captureChannels();
       let code: number;
       try {
-        code = await main([
-          'run',
-          '--workspace', dir,
-          '--prompt', '读一下凭据文件',
-          '--json',
-          '--policy', POLICY,
-          '--behavior', BEHAVIOR,
-          '--provider', 'openai-compatible',
-          '--base-url', endpoint.baseUrl,
-          '--model', 'm',
-        ]);
+        code = await withTempMcpRoot(() =>
+          main([
+            'run',
+            '--workspace', dir,
+            '--prompt', '读一下凭据文件',
+            '--json',
+            '--policy', POLICY,
+            '--behavior', BEHAVIOR,
+            '--provider', 'openai-compatible',
+            '--base-url', endpoint.baseUrl,
+            '--model', 'm',
+          ]),
+        );
       } finally {
         cap.restore();
       }
