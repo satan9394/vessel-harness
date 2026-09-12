@@ -1,6 +1,6 @@
 # PRODUCT-STATE — Vessel 产品演进状态（Orchestrator 维护）
 
-> 每轮结束更新。**当前进度：第 17 轮**（Round 1–16 已闭环；Round 17 = 策略执法本体加固的收尾 + 发布里程碑）。基线：`tsc 0`、**136 文件 / 1512 passed + 3 skipped / 0 failed**、**发布门禁 8/8 `ready`**、**装机 E2E 三条 exit 0**。
+> 每轮结束更新。**当前进度：第 18 轮**（Round 1–17 已闭环；Round 18 = 发布链路的**门禁化**：把终评的 P1/P2 变成红灯与单测）。基线：`tsc 0`、**136 文件 / 1514 passed + 3 skipped / 0 failed**、**发布门禁 8 道（Gate 8 已含发布物形状判据）**、**装机 E2E 三条 exit 0**、**干净检出打包 before/after 对照成立**。
 > 产物索引：`docs/PROJECT-BRIEF.md`、`docs/product-audit/*`（4 份独立审计）、`ROUND-15-DIRECTION.md`（现状重审与定向）、`PRODUCT-GAP-MAP.md`（缺口 + **路线图 NOW/NEXT/LATER/NOT_NOW**）、`IMPLEMENTATION-BRIEF-0N.md` / `EVALUATION-REPORT-0N.md`（每轮规格与独立裁定，最新 24）、本文档（状态与**16 条纪律**）。
 
 ## 当前成熟度
