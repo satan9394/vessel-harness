@@ -18,9 +18,9 @@
 1. **四件套合一**：声明式 Policy（YAML）是唯一事实源，编译期展开为四条执行通道——Prompt Guidance（模型引导，无强制力）、Tool Interceptor（工具暴露面裁剪 + 执行期复核）、Runtime Deny（Policy Engine 裁决 + 沙箱等 OS 级边界兜底）、Audit Event（每次裁决的持久证据）。任何域条目缺硬通道即编译失败/告警，杜绝"只写 Prompt"。
 2. **三态裁决与确定性决策序**：ALLOW / DENY / ASK（人工/机器审批）三态；决策序 `denied_tools → deny 规则 → hook override → ask 规则 → allow 规则 → profile 比较`，deny 先匹配生效、不可被更细 allow 豁免；guard 单调（只能收窄，防"先放行后否决"翻转）；fail-closed（无应答者 = unavailable = 拒绝）。
 3. **分层与失效面**：Behavior Safety（模型"试图做什么"，prompt/引导 + 编译期 policy_ref 强制配套）与 Runtime Safety（命令/工具"能碰到什么"，规则 + 审批 + 沙箱）显式分离，各自文档化失效面（deny 规则拦不住任意子进程，最终防线是 OS 级沙箱边界）。
-4. **作用域与审计接线**：system / user / project / session 四级作用域与合并/覆盖规则；与 D5 的 `PolicyDecision`(A13) / `ApprovalRequest`(A16) / `ApprovalDecided`(A17) 事件及 `audit/*` 持久记录对齐，Policy Engine 是 `BeforeTool` 链上的权威裁决监听器。
+4. **作用域与审计接线**：system / user / project / session 四级作用域与合并/覆盖规则（**实现状态：当前仅落地 `system` + `project` 两层，`user` / `session` 层与 workspace trust 门均未实现，详见 §6.1**）；与 D5 的 `PolicyDecision`(A13) / `ApprovalRequest`(A16) / `ApprovalDecided`(A17) 事件及 `audit/*` 持久记录对齐，Policy Engine 是 `BeforeTool` 链上的权威裁决监听器。
 
-**v0.1 纳入**：filesystem（protected / deny_read / 显式 allow）、shell（deny 危险集合 + 前缀 allowlist + scoped 规则）、network（default + 域名 allowlist 的声明与裁决，执行面受限）、git（force_push）、tools（三态 + 工具级 required_permission + denied_tools）、profile 三档 × approval ask|never、guard 单调、never_auto 危险集合、审批缓存、审计接线、workspace trust 门、作用域合并。**留 v0.2+**：网络代理 MITM / 凭据 mask + 出站注入、容器/微 VM 沙箱后端、guardian/classifier 模型审查入主链、异步钩子、MCP 动态工具细粒度策略等（§8.2）。
+**v0.1 纳入**：filesystem（protected / deny_read / 显式 allow）、shell（deny 危险集合 + 前缀 allowlist + scoped 规则）、network（default + 域名 allowlist 的声明与裁决，执行面受限）、git（force_push）、tools（三态 + 工具级 required_permission + denied_tools）、profile 三档 × approval ask|never、guard 单调、never_auto 危险集合、审批缓存、审计接线、workspace trust 门（**未实现**：见 §6.1 实现状态；无 trust 门时项目层仍只能加限制、不能放宽 `system` 的限制）、作用域合并。**留 v0.2+**：网络代理 MITM / 凭据 mask + 出站注入、容器/微 VM 沙箱后端、guardian/classifier 模型审查入主链、异步钩子、MCP 动态工具细粒度策略等（§8.2）。
 
 名词口径沿用研究文档与 D5：**决策** = Policy Engine 对一次工具调用给出的 allow/deny/ask 终态；**guard** = 单调收窄守卫（只能否决，不能放行）；**ask 应答者** = 审批请求的响应方（CLI 人类 / ACP 机器），无应答者即拒绝。
 
@@ -177,7 +177,7 @@ scoped 规则沿用研究文档可辨识形态（claude-code.md 行 197、compar
 ### 3.4 完整示例 ruleset（任务书 §8 基础扩写）
 
 ```yaml
-# .harness/policy.yaml —— 项目级示例（装载前提：workspace trust 通过）
+# .harness/policy.yaml —— 项目级示例（当前实现无 trust 门：文件存在即自动装载；项目层只能加限制、不能放宽 system 的限制；见 §6.1 实现状态）
 policy:
   version: "0.1"
   profile: workspace-write        # read-only | workspace-write | danger-full-access

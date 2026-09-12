@@ -117,7 +117,7 @@ run 选项:
   --policy <path>                 系统级策略文件（默认 configs/policy.default.yaml）
   --behavior <path>               Behavior IR 文件（默认 configs/behavior.default.yaml）
   --strict                        计价严格模式：只用模型专属价目（model/catalog），未收录模型按 0 计价并标「未收录」
-  --json              以 JSON 输出（仅只读命令：usage / provider list / models / sessions list / settings list）
+  --json              以 JSON 输出（仅只读命令：usage / provider list / models / sessions list / settings list / policy status）
 
 provider 协议说明:
   openai-compatible    OpenAI chat/completions 协议：OpenAI / DeepSeek / Qwen / vLLM / Ollama 等

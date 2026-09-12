@@ -87,7 +87,8 @@ export interface PolicyLayerFact {
  * 「存在但无效」与「缺失」由 `error` 字段**可区分**：调用方据此给出**正确的补救动作**
  * （修复这个文件 vs 放置一个文件），不再把"文件就在那儿、只是坏的"误报成"没有文件"。
  *
- * 返回顺序即**合成顺序**（system 在前、project 在后；后者覆盖标量 / 拼接数组）。
+ * 返回顺序即**合成顺序**（system 在前、project 在后；`profile`/`approval` 取**靠前的层**即高层优先，
+ * 列表类拼接为并集）。
  */
 export function inspectPolicyLayers(
   opts: { systemPath?: string; projectPath?: string } = {},
@@ -132,17 +133,35 @@ function errorMessage(err: unknown): string {
   return (err as Error | undefined)?.message ?? String(err);
 }
 
-/** merge scopes: later declarations override scalars; arrays concatenate (dedup). */
+/**
+ * merge scopes — 多层合成（层序 `system > project`：**左侧为高层**，`decls` 即按此序传入）。
+ *
+ * 语义分两类（对齐 POLICY-SPEC §6.2）：
+ *
+ * - **`profile` / `approval` 采用高层优先（first-declared wins）**：只有更高层都没声明时才采用本层的值，
+ *   故 `project`（`.harness/policy.yaml`）**不能**把 `system` 的 `workspace-write` 抬升为
+ *   `danger-full-access`，也不能把 `approval` 从 `ask` 放宽为 `never`（收窄/放宽只能由会话 flag 显式完成，
+ *   见 `loadPolicyArtifacts` 的 `sessionOverrides`）。若**所有**层都未声明，遍历结束后补兜底默认
+ *   （`profile: 'workspace-write'`、`approval: 'never'`），即「无任何层声明」时行为与改前一致。
+ * - **列表类为并集**（拼接、不去重）：`guidance`、`filesystem.protected` / `deny_read`、
+ *   `shell.deny` / `scoped_rules`、`tools.deny` / `rules`、`filesystem.allow`、`shell.allow` 等。
+ *   单调趋严：低层**只能加限制、不能放宽**（deny 全局优先，不可被任何层、任何更细 allow 豁免）。
+ *
+ * 已知放宽面（本轮**有意未改**）：`git` / `network` / `audit` 仍是浅覆盖（`{...out.x, ...d.x}`，后者覆盖
+ * 前者同名字段），低层可覆盖高层 —— 待后续卡片按 §6.2 收口。
+ */
 export function mergeScopes(decls: PolicyDeclaration[]): PolicyDeclaration {
-  const out: PolicyDeclaration = {
+  // `profile`/`approval` 不预置默认值：用局部变量记录「首个声明者」，遍历后再补兜底默认。
+  const out: Omit<PolicyDeclaration, 'profile' | 'approval'> = {
     version: decls[0]?.version ?? '0.1',
-    profile: 'workspace-write',
-    approval: 'never',
   };
+  let profile: PolicyDeclaration['profile'] | undefined;
+  let approval: PolicyDeclaration['approval'] | undefined;
   for (const d of decls) {
     if (d.version) out.version = d.version;
-    if (d.profile) out.profile = d.profile;
-    if (d.approval) out.approval = d.approval;
+    // first-declared wins：高层先声明者胜出，低层（project）无法覆盖高层（system）
+    if (profile === undefined && d.profile) profile = d.profile;
+    if (approval === undefined && d.approval) approval = d.approval;
     out.guidance = [...(out.guidance ?? []), ...(d.guidance ?? [])];
     if (d.filesystem) {
       out.filesystem = {
@@ -168,7 +187,12 @@ export function mergeScopes(decls: PolicyDeclaration[]): PolicyDeclaration {
     if (d.network) out.network = { ...(out.network ?? {}), ...d.network };
     if (d.audit) out.audit = { ...(out.audit ?? {}), ...d.audit };
   }
-  return out;
+  // 兜底默认：仅当**所有**层都未声明该键时生效（保证与「无层声明」的既有行为一致）
+  return {
+    ...out,
+    profile: profile ?? 'workspace-write',
+    approval: approval ?? 'never',
+  };
 }
 
 export { compilePolicy, compilePolicyYaml, parsePolicyYaml };
