@@ -551,7 +551,9 @@ export class AgentLoop {
    * Dispatch one tool call through the full pipeline:
    * tool/call (B04) → BeforeTool (A12) waterfall → PolicyDecision (A13) + audit
    * → executor (runTool with pre-execute recheck) → AfterTool (A14) → tool/result (B05).
-   * Denial breaker: same intent denied ≥3 terminates the turn path.
+   * Denial breaker: same intent denied ≥3 terminates the turn path — counted at
+   * every DENIED 收口处 (pre-execute gate deny, approval fallback, and the
+   * tool-layer `errorClass:'DENIED'` result), once per refusing result.
    */
   private async dispatchToolCall(call: ToolCall, denialCounts: Map<string, number>): Promise<void> {
     const { session, bus } = this.deps;
@@ -608,12 +610,7 @@ export class AgentLoop {
       });
       await bus.emit('after_tool', { toolCallId: call.toolCallId, toolName: call.toolName, result: { error } });
       // denial breaker: same intent ≥3 → turn ends
-      const key = `${call.toolName}:${JSON.stringify(call.arguments)}`;
-      const n = (denialCounts.get(key) ?? 0) + 1;
-      denialCounts.set(key, n);
-      if (n >= 3) {
-        throw new DenialLimitError(`same intent denied ${n} times: ${call.toolName}`);
-      }
+      this.noteDenial(call, denialCounts);
       return;
     }
 
@@ -630,6 +627,9 @@ export class AgentLoop {
         surface: true,
       });
       await bus.emit('after_tool', { toolCallId: call.toolCallId, toolName: call.toolName, result: { error: { errorClass: 'DENIED' } } });
+      // denial breaker: an approval-unavailable refusal is a DENIED result too —
+      // it counts under the same intent key (stage 'approval' audit is unchanged).
+      this.noteDenial(call, denialCounts);
       return;
     }
 
@@ -675,6 +675,16 @@ export class AgentLoop {
       toolName: call.toolName,
       result: { content: outcome.content, error: outcome.error },
     });
+    // denial breaker: a DENIED that came back from the *tool layer* (fs guard
+    // `size`/`escape`/`unverifiable`, Skill untrusted, executor pre-execute
+    // recheck, registry denied-tool) is the same refused intent as a policy
+    // denial and must be bounded the same way — otherwise the model can retry a
+    // necessarily-refused call forever, burning steps and tokens. Same key, same
+    // counter, same ≥3 threshold. Only `DENIED` counts: every other error class
+    // (INVALID_ARGS / TOOL_FAILURE / TIMEOUT / …) stays retryable, unchanged.
+    if (outcome.error?.errorClass === 'DENIED') {
+      this.noteDenial(call, denialCounts);
+    }
   }
 
   /**
@@ -753,6 +763,36 @@ export class AgentLoop {
       ruleRef: ref,
       reason,
     });
+  }
+
+  /**
+   * Denial breaker — one **DENIED** result for the same intent
+   * (`toolName:arguments`, JSON-stable) increments one turn-scoped counter; the
+   * 3rd such denial throws DenialLimitError (message and timing verbatim
+   * unchanged: thrown *after* the 3rd tool/result is appended and after_tool is
+   * emitted, so the refusing result is never lost).
+   *
+   * Scope: the counter tracks **which refusals happened**, not where they came
+   * from — a pre-execute policy/hook denial and a tool-layer denial of the same
+   * intent are the same refused intent by definition, so they share the key
+   * (one intent = one count; a mixed sequence therefore trips on its 3rd denial
+   * overall, whichever side refuses).
+   *
+   * Exactly-once is structural, not bookkeeping: every call site is a terminal
+   * exit of one `dispatchToolCall` invocation and they are mutually exclusive —
+   * a gate denial/ask returns before `raceToolRun` is ever reached, and the
+   * post-execute site is only reachable when the gate allowed. No DENIED path
+   * can pass through two of them, so no intent is ever counted twice. The
+   * executor's pre-execute `decide` recheck (DENIED with meta.denied) is a
+   * *tool-layer* result and therefore lands on the post-execute site only.
+   */
+  private noteDenial(call: ToolCall, denialCounts: Map<string, number>): void {
+    const key = `${call.toolName}:${JSON.stringify(call.arguments)}`;
+    const n = (denialCounts.get(key) ?? 0) + 1;
+    denialCounts.set(key, n);
+    if (n >= 3) {
+      throw new DenialLimitError(`same intent denied ${n} times: ${call.toolName}`);
+    }
   }
 }
 
