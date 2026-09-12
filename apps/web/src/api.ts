@@ -63,6 +63,36 @@ export class ApiError extends Error {
   }
 }
 
+/**
+ * Body fields that carry a human-readable failure reason, in precedence order.
+ *
+ * `finalText` comes first because a *turn* that ends in `kind='error'` reports
+ * its reason there and the server deliberately sends **no** `message` for it:
+ * `apps/local-server` `turnStatusFor()` answers 500 while the body stays
+ * `{ finalText, kind, steps, turnId }` (e.g. `[blocked] …` from a BeforeTurn
+ * deny, or the denial-limit text `same intent denied 3 times: Write`). Reading
+ * only `message` here left the UI with nothing but `HTTP 500`.
+ */
+const FAILURE_TEXT_FIELDS = ['finalText', 'message', 'error'] as const;
+
+/**
+ * Human-readable reason for a non-2xx response body: the first non-blank string
+ * among `finalText` → `message` → `error`, otherwise `HTTP ${status}`.
+ * Non-string / blank values are skipped, so the result is never `undefined`,
+ * `[object Object]` or an empty string, and the body itself is never dumped as
+ * user-facing copy.
+ */
+export function failureMessage(body: unknown, status: number): string {
+  if (typeof body === 'object' && body !== null && !Array.isArray(body)) {
+    const record = body as Record<string, unknown>;
+    for (const field of FAILURE_TEXT_FIELDS) {
+      const value = record[field];
+      if (typeof value === 'string' && value.trim() !== '') return value;
+    }
+  }
+  return `HTTP ${status}`;
+}
+
 export function createApiClient(opts: ApiOptions = {}) {
   const base = (opts.base ?? '/api').replace(/\/+$/, '');
   const doFetch = opts.fetch ?? globalThis.fetch.bind(globalThis);
@@ -90,11 +120,9 @@ export function createApiClient(opts: ApiOptions = {}) {
     const body = text ? (JSON.parse(text) as unknown) : undefined;
 
     if (!res.ok) {
-      const message =
-        typeof body === 'object' && body !== null && 'message' in body && typeof (body as { message?: unknown }).message === 'string'
-          ? (body as { message: string }).message
-          : `HTTP ${res.status}`;
-      throw new ApiError(message, res.status, body);
+      // The reason a turn failed lives in the body (see failureMessage); the
+      // status alone would show the user nothing but "HTTP 500".
+      throw new ApiError(failureMessage(body, res.status), res.status, body);
     }
     return body as T;
   }

@@ -1,5 +1,5 @@
 import { describe, it, expect, afterEach, vi } from 'vitest';
-import { createApiClient, ApiError } from './api';
+import { createApiClient, ApiError, failureMessage } from './api';
 
 /** Build a minimal Response-like stub for the mocked global fetch. */
 function jsonResponse(status: number, body: unknown): Response {
@@ -250,5 +250,95 @@ describe('createApiClient — team/route/review methods (task 060)', () => {
     expect(calls[0].url).toBe('/api/reviews/review_1/handoff.md');
     expect(calls[1].url).toBe('/api/reviews/review_1/open');
     expect(calls[1].init?.method).toBe('POST');
+  });
+});
+
+/**
+ * BRIEF-22 — the reason a turn failed is carried in the body's `finalText`, not
+ * in a `message` field: `apps/local-server` answers `kind='error'` with 500 and
+ * a body of exactly `{ finalText, kind, steps, turnId }`. Reading only `message`
+ * collapsed every such failure into the bare `HTTP 500`.
+ */
+describe('createApiClient — non-2xx bodies keep the real failure reason', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it('① a 500 turn error whose body only carries finalText surfaces that reason', async () => {
+    const mockFetch = vi.fn(async () =>
+      jsonResponse(500, {
+        finalText: 'same intent denied 3 times: Write',
+        kind: 'error',
+        steps: [],
+        turnId: 't-err',
+      }),
+    );
+    vi.stubGlobal('fetch', mockFetch);
+
+    const api = createApiClient({ base: '/api' });
+    const err: unknown = await api.runTurn('s1', '写一个文件').then(
+      () => null,
+      (e: unknown) => e,
+    );
+    expect(err).toBeInstanceOf(ApiError);
+    expect((err as ApiError).message).toBe('same intent denied 3 times: Write');
+    expect((err as ApiError).status).toBe(500);
+    // the machine-readable body is still handed to callers unchanged
+    expect((err as ApiError).body).toMatchObject({ kind: 'error', turnId: 't-err' });
+  });
+
+  it('①′ a BeforeTurn policy denial reaches the caller as its reason text too', async () => {
+    const mockFetch = vi.fn(async () =>
+      jsonResponse(500, {
+        finalText: '[blocked] 输入被 BeforeTurn 拦截：policy',
+        kind: 'error',
+        steps: [],
+        turnId: 't-block',
+      }),
+    );
+    vi.stubGlobal('fetch', mockFetch);
+
+    const api = createApiClient({ base: '/api' });
+    await expect(api.runTurn('s1', 'hi')).rejects.toThrow('[blocked] 输入被 BeforeTurn 拦截：policy');
+  });
+
+  it('③ a non-2xx body with neither message nor finalText still yields "HTTP <status>"', async () => {
+    const mockFetch = vi.fn(async () => jsonResponse(418, { unexpected: true }));
+    vi.stubGlobal('fetch', mockFetch);
+
+    const api = createApiClient({ base: '/api' });
+    await expect(api.health()).rejects.toThrow(/^HTTP 418$/);
+  });
+
+  it('② a 2xx turn result keeps finalText as data — the success path is untouched', async () => {
+    const body = { finalText: 'hi', kind: 'done', steps: [{ type: 'step' }], turnId: 't1' };
+    const mockFetch = vi.fn(async () => jsonResponse(200, body));
+    vi.stubGlobal('fetch', mockFetch);
+
+    const api = createApiClient({ base: '/api' });
+    // no throw, and the body (which also has a finalText field) is returned verbatim
+    await expect(api.runTurn('s1', 'hello')).resolves.toEqual(body);
+  });
+});
+
+describe('failureMessage precedence (finalText → message → error → HTTP status)', () => {
+  it('takes the first non-blank string field in precedence order', () => {
+    expect(failureMessage({ finalText: 'blocked by policy', message: 'm', error: 'e' }, 500)).toBe(
+      'blocked by policy',
+    );
+    expect(failureMessage({ message: 'workspaceRoot required', error: 'missing_workspaceRoot' }, 400)).toBe(
+      'workspaceRoot required',
+    );
+    expect(failureMessage({ error: 'missing_workspaceRoot' }, 400)).toBe('missing_workspaceRoot');
+  });
+
+  it('never returns undefined/blank when the body has no readable reason', () => {
+    expect(failureMessage({}, 500)).toBe('HTTP 500');
+    expect(failureMessage({ finalText: '   ' }, 500)).toBe('HTTP 500');
+    expect(failureMessage({ finalText: null, message: 42 }, 500)).toBe('HTTP 500');
+    expect(failureMessage({ error: { code: 'nope' } }, 422)).toBe('HTTP 422');
+    expect(failureMessage(undefined, 503)).toBe('HTTP 503');
+    expect(failureMessage('plain text body', 502)).toBe('HTTP 502');
+    expect(failureMessage([1, 2], 500)).toBe('HTTP 500');
   });
 });

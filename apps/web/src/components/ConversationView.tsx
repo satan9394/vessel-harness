@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { ApiClient } from '../api';
-import { ApiError } from '../api';
+import { ApiError, failureMessage } from '../api';
 import { createEventStream, type ConversationDelta, type ToolDelta, type UsageDelta } from '../sse';
 import MessageList, { type ChatItem } from './MessageList';
 import UsageBar, { applyUsageDelta, emptyUsage, type UsageTotals } from './UsageBar';
@@ -112,7 +112,7 @@ export default function ConversationView({ sessionId, api }: Props) {
           setServerDown(true);
           setError(t('serverDown'));
         } else {
-          setError(err instanceof Error ? err.message : String(err));
+          setError(turnErrorText(err));
         }
       } finally {
         setBusy(false);
@@ -144,7 +144,7 @@ export default function ConversationView({ sessionId, api }: Props) {
         ) : (
           <MessageList items={items} thinking={busy} />
         )}
-        {error && !serverDown && <div className="error-text conversation-error">{error}</div>}
+        {error && !serverDown && <ConversationError text={error} />}
       </div>
       <form className="composer" onSubmit={send}>
         <input
@@ -175,4 +175,36 @@ export default function ConversationView({ sessionId, api }: Props) {
 function durationFrom(start: ToolDelta | undefined, end: ToolDelta): number | undefined {
   if (!start || typeof start.ts !== 'number' || typeof end.ts !== 'number') return undefined;
   return Math.max(0, end.ts - start.ts);
+}
+
+/** Longest reason rendered in the banner (see turnErrorText). */
+export const MAX_ERROR_TEXT = 400;
+
+/**
+ * Inline failure banner in the message scroll area. Extracted so the rendering
+ * can be pinned by a test without a DOM; it is the same element and the same
+ * `.error-text .conversation-error` styling the component used inline.
+ */
+export function ConversationError({ text }: { text: string }) {
+  return <div className="error-text conversation-error">{text}</div>;
+}
+
+/**
+ * Text shown when a turn fails. The server writes the actual reason into the
+ * body (`failureMessage`: `finalText` first) — a `kind='error'` turn answers 500
+ * with no `message` field at all, so `err.message` alone used to render the bare
+ * `HTTP 500` and the reason never reached the user. Kept readable for the
+ * banner, which uses the default `white-space: normal` (so newlines collapse
+ * anyway) and has no truncation rule of its own: whitespace is flattened and
+ * very long reasons are cut at MAX_ERROR_TEXT with a trailing ellipsis.
+ */
+export function turnErrorText(err: unknown): string {
+  const raw =
+    err instanceof ApiError
+      ? failureMessage(err.body, err.status)
+      : err instanceof Error
+        ? err.message
+        : String(err);
+  const flat = raw.replace(/\s+/g, ' ').trim();
+  return flat.length <= MAX_ERROR_TEXT ? flat : `${flat.slice(0, MAX_ERROR_TEXT)}…`;
 }
