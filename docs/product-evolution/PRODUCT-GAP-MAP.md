@@ -269,3 +269,26 @@ finish(): StreamChunk[] {
 **修法方向**：`finish()` 改为发出「未关闭块的 `tool_call_end`（+ 若有未识别缓存则显式补发占位调用）] + `{ type: 'message_end' }`」，并补一条"EOF 无 message_stop"的判别性用例。
 
 **未派卡的原因**：`parseOpenAI.ts` 正被一张在跑的卡编辑（**同目录**，我不做同目录并发）；待其落定后派。**另一处经核实"不同族、别改"**：`parseAnthropic.ts:215-216` 的 `tool_call_end` 过滤（`!isToolStop || real===undefined` 时 `continue`）是**刻意的**"文本块 stop 不产生 end"，语义正确。
+
+## Round 54 — 取证：**`stream()` 没有超时，上游挂死 ⇒ 回合静默卡死**（与同类的 `chat()` 不一致）
+
+**代码事实（读码确认）**：
+- `packages/llm/src/provider/OpenAICompatibleProvider.ts:85-86`（**chat 路径**）**有**超时：
+  ```ts
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), this.opts.timeoutMs ?? 60_000);
+  ```
+- 同文件 `:168-191`（**stream 路径**）**只有**"转发外部 signal"，**没有任何定时器**：
+  ```ts
+  const controller = new AbortController();
+  const external = request.signal;
+  if (external) { if (external.aborted) controller.abort(); else external.addEventListener('abort', forwardAbort, { once: true }); }
+  const resp = await fetch(url, { …, signal: controller.signal });
+  ```
+**后果**：调用方不传 `signal`（或永不 abort）时，若上游**挂死**（TCP 连接在、但不发数据也不报错），`reader.read()` **永不返回** ⇒ **回合静默卡死**：没有错误、没有审计事件、界面像冻住，用户无从判断是"模型慢"还是"链路坏了"。审计原文即此（"`stream()` 不用 `timeoutMs`(chat() 有)，仅转发外部 signal…无状态位"）；`AnthropicProvider.ts` 同类位置（审计指 `:315`）**待逐一核实**。
+**修法方向（需要设计取舍，不只是"加个 setTimeout"）**：
+- **不能**照抄 chat 的"整体 60s 上限"——流式响应**合法的长输出**会被误杀。正确语义应是**空闲超时（idle timeout）**：每收到一个 chunk 就重置定时器，超过 N 秒**没有任何数据**才 abort；
+- abort 后必须**可诊断**：抛出/上报**明确**的超时错误（而不是让消费侧看到"无原因的流中断"），并让上层能以 `finishReason:'error'` 收尾；
+- 与既有 `timeoutMs` 选项的关系要定清（是复用该值作 idle 阈值，还是新增独立配置）；**两条路径（chat/stream）的语义差异要在文档或注释里写明**，避免下一个人再踩。
+**判别性验收**：① 上游**不发数据**（假 fetch/reader 永不 resolve）⇒ 必须在 idle 阈值后**以明确超时错误结束**（旧实现永不返回 ⇒ 必红）；② **负对照：慢但持续有数据**（间隔小于阈值）⇒ **不得**被误杀（防"把长回答掐死"）；③ chat 路径既有超时行为**逐字不回归**。
+**未派卡的原因**：`packages/llm` 已有卡在跑（Anthropic 解析），**我不在同一包内并发**；待其落定后派。
