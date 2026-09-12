@@ -3,7 +3,8 @@ import * as os from 'node:os';
 import * as path from 'node:path';
 import type { ToolExecutionResult, ToolSpec, ToolErrorPayload } from '@vessel/shared';
 
-import type { SkillScope } from '../load/SkillLoader.js';
+import { classifySkillTrust } from '../load/SkillLoader.js';
+import type { SkillScope, SkillTrustMarkerId } from '../load/SkillLoader.js';
 
 /**
  * skills/search — Skill Search + Provenance + scope-conflict resolution
@@ -14,12 +15,18 @@ import type { SkillScope } from '../load/SkillLoader.js';
  *   that shadows a same-named skill (audit trail), not just the winner.
  * Skill Provenance is a safety dimension (任务书 §18): a leaked/reverse-
  *   engineered skill must be markable UNTRUSTED and never enter System Prompt
- *   directly — provenance carries the source layer + path + a `trusted` flag
- *   the caller can enforce.
+ *   directly — provenance carries the source layer + path + a `trusted` flag.
+ *   Since this card that flag is ENFORCED, not just labelled: the verdict comes
+ *   from SkillLoader.classifySkillTrust() (whole-file scan — see the import
+ *   below, no second copy of the judgement here), and SkillLoader's `Skill` tool
+ *   refuses to return the body of an untrusted skill. This module only reports
+ *   the flag and labels the entry 不可装载 so it never looks loadable.
  *
  * Discovery layout mirrors packages/skills/src/load/SkillLoader.ts and
  * packages/skills/src/index.ts (deliberately duplicated to avoid import cycles;
- * the directory convention is shared by comment).
+ * the directory convention is shared by comment). The trust predicate is NOT
+ * duplicated: it is a value import from load/SkillLoader.js, which imports
+ * nothing from this module, so no cycle is introduced.
  */
 
 export interface SkillRecord {
@@ -30,6 +37,8 @@ export interface SkillRecord {
   rank: number;
   /** provenance safety flag — reverse-engineered/leaked skills are untrusted */
   trusted: boolean;
+  /** which §18 marker flipped the flag (absent when trusted) — surfaced in the index label */
+  untrustedMarker?: SkillTrustMarkerId;
 }
 
 /** discovery roots per scope (project/session → workspace dirs; user/system → home dirs). */
@@ -83,9 +92,21 @@ function listRaw(workspaceRoot: string, scope: SkillScope): SkillRecord[] {
       }
       const fm = parseFrontmatter(text);
       const name = fm.name ?? n;
-      // leaked/reverse-engineered markers (任务书 §18 UNTRUSTED RESEARCH DATA)
-      const trusted = !/UNTRUSTED RESEARCH DATA|逆向|leaked|reverse-engineered/i.test(text.slice(0, 400));
-      out.push({ name, description: fm.description ?? '', sourcePath: skillMd, scope: s, rank, trusted });
+      // leaked/reverse-engineered markers (任务书 §18 UNTRUSTED RESEARCH DATA).
+      // Full-text verdict through the SHARED predicate: the old
+      // `text.slice(0, 400)` window reported trusted:true whenever the marker sat
+      // past char 400. Same judgement SkillLoader's `Skill` tool enforces at load
+      // time (single source — this is not a second implementation).
+      const trust = classifySkillTrust(text);
+      out.push({
+        name,
+        description: fm.description ?? '',
+        sourcePath: skillMd,
+        scope: s,
+        rank,
+        trusted: trust.trusted,
+        ...(trust.marker ? { untrustedMarker: trust.marker } : {}),
+      });
     }
   }
   return out;
@@ -118,7 +139,7 @@ export function createSkillSearchTool(opts: SkillSearchToolOptions): ToolSpec {
   return {
     name: 'SkillSearch',
     description:
-      '按关键字检索技能（名称/描述），返回命中 + 来源（scope/sourcePath/可信度）。也可用 resolve 查看同名技能在多层作用域的冲突裁决。',
+      '按关键字检索技能（名称/描述），返回命中 + 来源（scope/sourcePath/可信度）。也可用 resolve 查看同名技能在多层作用域的冲突裁决。被判为 UNTRUSTED 的技能仍会列出（保留可见性），但会标注「不可装载」——`Skill` 工具会拒绝返回其正文。',
     family: 'search',
     requiredPermission: 'read',
     exclusive: false,
@@ -136,7 +157,12 @@ export function createSkillSearchTool(opts: SkillSearchToolOptions): ToolSpec {
         if (args.resolve != null) {
           const res = resolveSkill(String(args.resolve), opts.workspaceRoot, scope);
           if (!res.winner) return err('INVALID_ARGS', `Skill "${args.resolve}" not found`, {});
-          const lines = res.layers.map((l) => `- ${l.name} @ ${l.scope} rank=${l.rank} ${l.trusted ? 'trusted' : 'UNTRUSTED'} (${l.sourcePath})`);
+          const lines = res.layers.map(
+            (l) =>
+              `- ${l.name} @ ${l.scope} rank=${l.rank} ${
+                l.trusted ? 'trusted' : `UNTRUSTED — 不可装载（命中标记：${l.untrustedMarker ?? 'unknown'}）`
+              } (${l.sourcePath})`,
+          );
           return {
             content: `resolve "${args.resolve}": winner=${res.winner.scope} (rank ${res.winner.rank})\n${lines.join('\n')}`,
             meta: { skills: { resolve: args.resolve, winner: res.winner.scope, layers: res.layers.length } },
@@ -146,7 +172,12 @@ export function createSkillSearchTool(opts: SkillSearchToolOptions): ToolSpec {
         if (!kw) return err('INVALID_ARGS', 'SkillSearch: keyword required', {});
         const hits = searchSkills(kw, opts.workspaceRoot, scope);
         if (hits.length === 0) return ok(`(no skill matches "${kw}")`, { count: 0 });
-        const lines = hits.map((h) => `- ${h.name}: ${h.description}  [${h.scope}${h.trusted ? '' : ' UNTRUSTED'}]`);
+        const lines = hits.map(
+          (h) =>
+            `- ${h.name}: ${h.description}  [${
+              h.scope
+            }${h.trusted ? '' : ` UNTRUSTED — 不可装载（命中标记：${h.untrustedMarker ?? 'unknown'}）`}]`,
+        );
         return ok(lines.join('\n'), { count: hits.length });
       } catch (e) {
         return err('TOOL_FAILURE', `SkillSearch failed: ${(e as Error).message}`, {});

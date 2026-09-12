@@ -2,11 +2,23 @@ import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
 
+import { classifySkillTrust } from './load/SkillLoader.js';
+import type { SkillTrustMarkerId } from './load/SkillLoader.js';
+
 export interface SkillIndexEntry {
   name: string;
   description: string;
   sourcePath: string;
   rank: number;
+  /**
+   * §18 provenance verdict for this SKILL.md (whole-file scan, shared with
+   * load/SkillLoader.ts — same judgement the `Skill` tool enforces). The index
+   * still LISTS an untrusted skill (hiding it would hide its existence from the
+   * user) but marks it 不可装载, so the index never advertises it as loadable.
+   */
+  trusted: boolean;
+  /** which §18 marker flipped the flag (absent when trusted) */
+  untrustedMarker?: SkillTrustMarkerId;
 }
 
 /**
@@ -55,7 +67,9 @@ export function listIndex(workspaceRoot: string, scope: 'system' | 'user' | 'pro
       const skillMd = path.join(dir, e.name, 'SKILL.md');
       if (!fs.existsSync(skillMd)) continue;
       try {
-        const fm = parseSkillFrontmatter(fs.readFileSync(skillMd, 'utf8'));
+        const text = fs.readFileSync(skillMd, 'utf8');
+        const fm = parseSkillFrontmatter(text);
+        const trust = classifySkillTrust(text);
         const name = fm.name ?? e.name;
         if (seen.has(name)) continue; // nearest layer wins on name conflict
         seen.add(name);
@@ -64,6 +78,8 @@ export function listIndex(workspaceRoot: string, scope: 'system' | 'user' | 'pro
           description: (fm.description ?? '').slice(0, 1536),
           sourcePath: skillMd,
           rank,
+          trusted: trust.trusted,
+          ...(trust.marker ? { untrustedMarker: trust.marker } : {}),
         });
       } catch {
         continue;
@@ -75,7 +91,11 @@ export function listIndex(workspaceRoot: string, scope: 'system' | 'user' | 'pro
 
 export function formatIndexText(entries: SkillIndexEntry[]): string {
   if (entries.length === 0) return '';
-  return entries.map((s) => `- ${s.name}: ${s.description}`).join('\n');
+  // untrusted entries stay listed (the user must know they exist) but are
+  // explicitly labelled not loadable — the `Skill` tool refuses their body.
+  return entries
+    .map((s) => `- ${s.name}: ${s.description}${s.trusted ? '' : `（UNTRUSTED，不可装载：命中 ${s.untrustedMarker ?? 'unknown'} 标记）`}`)
+    .join('\n');
 }
 
 export * from './load/SkillLoader.js';
