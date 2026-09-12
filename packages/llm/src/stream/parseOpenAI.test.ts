@@ -514,3 +514,256 @@ describe('OpenAIStreamParser — out-of-order identity (Round 46, driver)', () =
     expect(JSON.parse(assembleArgs(chunks))).toEqual({ path: 'a.txt' });
   });
 });
+
+// ---------------------------------------------------------------------------
+// Round 69 — the OpenAI counterpart of the Anthropic Round 68 fix: a repeated
+// tool-call frame carrying a DIFFERENT id for an index that has ALREADY started.
+//
+// The pre-fix parser registered the repeat's id (`if (tc.id) state.idByIndex.set(…)`
+// ran unconditionally, even for a started index). `idByIndex` is the ADDRESS map
+// for the whole remainder of the call — the continuation `tool_call_delta`s and
+// the `tool_call_end`s the driver derives from that very map — so the rewrite
+// re-addressed the entire tail to an id no consumer ever opened:
+//   - the repeat's fragment went out as `tool_call_delta{id: call_2}` while the
+//     consumer's accumulator is keyed by the START's id (`AgentLoop.consumeStream`
+//     `open.get(chunk.id)`, `open` filled by `open.set(chunk.id, …)` at the start)
+//     ⇒ that frame's arguments (and every fragment after it) landed NOWHERE;
+//   - the call's `tool_call_end` came out as `call_2` — an ORPHAN end (no start
+//     ever opened `call_2`) — while `call_1` never received an end of its own and
+//     was closed only by AgentLoop's stream-boundary fallback
+//     (AgentLoop.ts:661-665), i.e. with a truncated argument string.
+// The fix is "the first start freezes the identity": a frame arriving for a
+// started index may neither re-emit `tool_call_start` (Round 46) nor rewrite the
+// id/name it was registered with; the folded fragment is addressed to that
+// frozen id.
+//
+// The guard is deliberately `startedIndexes.has(index)` — the same state the
+// Anthropic side uses — and NOT "any identity was registered". OpenAI splits
+// `id` and `name` across DIFFERENT frames (the identity-late wire order Round 46
+// handles) and only emits the start once BOTH are known, so a started index is
+// exactly "a consumer-side accumulator is open under `idByIndex.get(index)`".
+// Freezing on "any identity registered" would freeze the MISSING half of an
+// identity-late call and send it back to the placeholder-id (`tc_<index>`) flush
+// — case ③ below is the lock that makes that mistake red.
+//
+// REACHABILITY of the shape under test (delivered as part of this card, not
+// assumed): the canonical `api.openai.com` wire announces a call's identity ONCE
+// (first delta only), so an upstream that is byte-faithful to it will not produce
+// this frame. It is reachable on the population this parser already commits to —
+// the Round 46 header names "gateways/proxies that reorder frames, and some
+// 'OpenAI-compatible' implementations" — for any peer that re-sends the identity
+// on later deltas: the frame is schema-valid (the schema only says the id is set
+// on the first chunk; it never says it is repeated verbatim afterwards), nothing
+// in this parser validates index↔id stability, and an existing case pins the
+// SAME-ID variant of the repeat as a shape that must be handled
+// (`a frame repeating id+name after the start…` above). The different-id variant
+// is the same frame with a different string; it is also reachable within a SINGLE
+// frame, by one `delta.tool_calls[]` array carrying two entries with the same
+// `index` — a purely structural shape that needs no particular third-party wire
+// order; case ① exercises it as its second variant.
+// ---------------------------------------------------------------------------
+
+describe('parseOpenAIStreamChunk / OpenAIStreamParser — 重复 tool-call 帧带不同 id（Round 69）', () => {
+  const ORIG_ID = 'call_1';
+  /** The id the repeated frame carries — deliberately NOT the first start's. */
+  const DUP_ID = 'call_2';
+  const ARG_A = '{"path":"';
+  const ARG_B = 'a.txt"}';
+  const FULL_ARGS = '{"path":"a.txt"}';
+
+  /** One `data: {json}` SSE transport line for a frame carrying `choices[0].delta`. */
+  const frame = (delta: unknown, finish?: string): string =>
+    'data: ' + JSON.stringify({ choices: [{ delta, ...(finish !== undefined ? { finish_reason: finish } : {}) }] });
+  const usageFrame = (usage: unknown): string => 'data: ' + JSON.stringify({ choices: [], usage });
+
+  const feedAll = (p: OpenAIStreamParser, lines: readonly string[]): StreamChunk[] => {
+    const out: StreamChunk[] = [];
+    for (const l of lines) out.push(...p.feed(l));
+    return out;
+  };
+
+  it('①-a 重复帧（不同 id）的 arguments 挂在**原 id** 的 delta 上（删掉 identityFrozen ⇒ 挂新 id、消费侧收不到 ⇒ 红）', () => {
+    const state = createOpenAIToolState();
+    const a = parseOpenAIStreamChunk(
+      tcPayload({ index: 0, id: ORIG_ID, function: { name: 'Read', arguments: ARG_A } }),
+      state,
+    );
+    const b = parseOpenAIStreamChunk(
+      tcPayload({ index: 0, id: DUP_ID, function: { name: 'Glob', arguments: ARG_B } }),
+      state,
+    );
+
+    expect(a).toEqual([{ type: 'tool_call_start', id: ORIG_ID, name: 'Read', arguments: ARG_A }]);
+    // 判别线：删掉 `identityFrozen`（恢复无条件 `set`）⇒ 这里变成 id: 'call_2'。
+    expect(b).toEqual([{ type: 'tool_call_delta', id: ORIG_ID, argumentsDelta: ARG_B }]);
+
+    // 消费侧实际拿到的东西：只有一个调用，且它**收到了**重复帧的片段。
+    const open = assembleByConsumer([...a, ...b]);
+    expect([...open.keys()]).toEqual([ORIG_ID]);
+    expect(open.has(DUP_ID)).toBe(false); // 从没有 start 打开过这个 id
+    expect(open.get(ORIG_ID)?.args).toBe(FULL_ARGS);
+    expect(JSON.parse(String(open.get(ORIG_ID)?.args))).toEqual({ path: 'a.txt' });
+
+    // 旧实现的轨迹（逐字转录，再用**同一个**消费侧算法重放）：不依赖"修复不存在"也能
+    // 证明损失 —— 重复帧的片段挂在没人打开过的新 id 上，于是谁也没收到。
+    const preFix: StreamChunk[] = [
+      { type: 'tool_call_start', id: ORIG_ID, name: 'Read', arguments: ARG_A },
+      { type: 'tool_call_delta', id: DUP_ID, argumentsDelta: ARG_B }, // ← 挂在新 id 上
+    ];
+    const preFixOpen = assembleByConsumer(preFix);
+    expect([...preFixOpen.keys()]).toEqual([ORIG_ID]);
+    expect(preFixOpen.has(DUP_ID)).toBe(false);
+    expect(String(preFixOpen.get(ORIG_ID)?.args)).toBe(ARG_A); // ← ARG_B 丢了
+    expect(() => JSON.parse(String(preFixOpen.get(ORIG_ID)?.args))).toThrow();
+
+    // 同一帧内的变体：一个 `delta.tool_calls[]` 数组里两个同 `index` 的条目 —— 这是**结构性
+    // 可达**的（解析器按数组顺序逐条处理，schema 不禁止同 index 出现两次），无需依赖任何
+    // 第三方网关的线序。两条条目走的是同一条修复线：第二条被冻结在首个 start 的身份上。
+    const s3 = createOpenAIToolState();
+    const c = parseOpenAIStreamChunk(
+      payload({
+        tool_calls: [
+          { index: 0, id: ORIG_ID, function: { name: 'Read', arguments: ARG_A } },
+          { index: 0, id: DUP_ID, function: { name: 'Glob', arguments: ARG_B } },
+        ],
+      }),
+      s3,
+    );
+    expect(c).toEqual([
+      { type: 'tool_call_start', id: ORIG_ID, name: 'Read', arguments: ARG_A },
+      { type: 'tool_call_delta', id: ORIG_ID, argumentsDelta: ARG_B }, // ← pre-fix: id 'call_2'
+    ]);
+  });
+
+  it('①-b 驱动路径：tool_call_end 也回到**原 id**（删掉冻结 ⇒ 孤儿 end、原 id 永无 end ⇒ 红）', () => {
+    const p = new OpenAIStreamParser();
+    const chunks = feedAll(p, [
+      tcLine({ index: 0, id: ORIG_ID, function: { name: 'Read', arguments: ARG_A } }),
+      tcLine({ index: 0, id: DUP_ID, function: { name: 'Glob', arguments: ARG_B } }),
+      'data: [DONE]',
+    ]);
+
+    expect(chunks).toEqual([
+      { type: 'message_start' },
+      { type: 'tool_call_start', id: ORIG_ID, name: 'Read', arguments: ARG_A },
+      { type: 'tool_call_delta', id: ORIG_ID, argumentsDelta: ARG_B },
+      // ← 旧实现挂 DUP_ID（孤儿 end）：删掉 `identityFrozen` 或把 closeToolCalls 的
+      //    id 源改回"帧自己的 id"，这一行立刻红。
+      { type: 'tool_call_end', id: ORIG_ID },
+      { type: 'message_end' },
+    ]);
+
+    // 不变式直说，免得读者去 diff 数组：
+    expect(chunks.filter((c) => c.type === 'tool_call_start')).toHaveLength(1); // 仍然不重发 start（Round 46）
+    expect(chunks.filter((c) => c.type === 'tool_call_end')).toEqual([{ type: 'tool_call_end', id: ORIG_ID }]);
+    expect(chunks.some((c) => JSON.stringify(c).includes(DUP_ID))).toBe(false); // 重复帧的 id 全流不出现
+    expect(JSON.parse(assembleArgs(chunks))).toEqual({ path: 'a.txt' });
+    expect(assembleByConsumer(chunks).size).toBe(1);
+
+    // 旧实现的驱动级轨迹：end 是孤儿，原 id 只能靠 AgentLoop 的流末兜底收场。
+    const preFix: StreamChunk[] = [
+      { type: 'message_start' },
+      { type: 'tool_call_start', id: ORIG_ID, name: 'Read', arguments: ARG_A },
+      { type: 'tool_call_delta', id: DUP_ID, argumentsDelta: ARG_B },
+      { type: 'tool_call_end', id: DUP_ID }, // ← 孤儿：没有 start 打开过它
+      { type: 'message_end' },
+    ];
+    expect(preFix.some((c) => c.type === 'tool_call_end' && c.id === ORIG_ID)).toBe(false); // 原 id 无 end
+    expect(preFix.some((c) => c.type === 'tool_call_start' && c.id === DUP_ID)).toBe(false);
+    // 片段丢失必须用**按 id 作用域**的组装器证明：`assembleArgs` 是不分 id 的扁平拼接，
+    // 它会把 DUP_ID 上的 ARG_B 也拼进来 ⇒ 结构上表达不了"丢失"（原先这里用它断言 `toBe(ARG_A)`，
+    // 必然得到 ARG_A+ARG_B ⇒ 红；这是用例自己的错，与实现无关）。
+    // 消费侧（AgentLoop.consumeStream）是按 id 建表并在 `open.get(c.id)` 命中才累加的，
+    // 所以正确的证据是：原 id 只拿到 ARG_A，而 DUP_ID 上根本没有被打开过的累加器。
+    expect(assembleByConsumer(preFix).get(ORIG_ID)?.args).toBe(ARG_A); // 兜底 flush 只能拿半截参数收尾
+    expect(assembleByConsumer(preFix).has(DUP_ID)).toBe(false); // 重复帧的片段落在了没人打开的 id 上
+  });
+
+  it('② 负对照：规范流（每 index 恰好一次 start）逐字不变 —— 删掉修复也必须绿', () => {
+    // 负对照的意义：它钉的是"修复的适用面"，不是修复本身 ⇒ 有修复/无修复都必须绿
+    // （`identityFrozen` 在良构线序上永不涉及已 started 的 index，是死代码分支）。
+    const p = new OpenAIStreamParser();
+    const chunks = feedAll(p, [
+      frame({ role: 'assistant', content: 'Reading ' }),
+      frame({ content: 'two files' }),
+      tcLine({ index: 0, id: 'call_a', type: 'function', function: { name: 'Read', arguments: '{"path":"a' } }),
+      tcLine({ index: 0, function: { arguments: '.txt"}' } }),
+      tcLine({ index: 1, id: 'call_b', type: 'function', function: { name: 'Glob', arguments: '{"pattern":"' } }),
+      tcLine({ index: 1, function: { arguments: '*.ts"}' } }),
+      frame({}, 'tool_calls'),
+      usageFrame({ prompt_tokens: 11, completion_tokens: 9 }),
+      'data: [DONE]',
+    ]);
+
+    expect(chunks).toEqual([
+      { type: 'message_start' },
+      { type: 'text_delta', text: 'Reading ' },
+      { type: 'text_delta', text: 'two files' },
+      { type: 'tool_call_start', id: 'call_a', name: 'Read', arguments: '{"path":"a' },
+      { type: 'tool_call_delta', id: 'call_a', argumentsDelta: '.txt"}' },
+      { type: 'tool_call_start', id: 'call_b', name: 'Glob', arguments: '{"pattern":"' },
+      { type: 'tool_call_delta', id: 'call_b', argumentsDelta: '*.ts"}' },
+      { type: 'tool_call_end', id: 'call_a' },
+      { type: 'tool_call_end', id: 'call_b' },
+      { type: 'usage', inputTokens: 11, outputTokens: 9, cacheReadTokens: undefined },
+      { type: 'message_end', finishReason: 'tool_calls' },
+    ]);
+  });
+
+  it('③ 负对照：identity-late（先 id 后 name / 先 name 后 id 的补全）逐字不变 —— 冻结条件取成"任何身份已登记"即红', () => {
+    // (a) id-first / name-later：补全帧到来时该 index **尚未 started** ⇒ 不得被冻结。
+    const s1 = createOpenAIToolState();
+    const a1 = parseOpenAIStreamChunk(tcPayload({ index: 0, id: ORIG_ID, function: { arguments: ARG_A } }), s1);
+    const b1 = parseOpenAIStreamChunk(tcPayload({ index: 0, function: { name: 'Read', arguments: ARG_B } }), s1);
+    expect(a1).toEqual([]);
+    // 判别线：把 `identityFrozen` 改成"idByIndex/nameByIndex 任一已登记" ⇒ 这里 name 写不进去、
+    // 永不出 start（下面 flush 会吐 `tc_0`），本行与下一行同时红。
+    expect(b1).toEqual([{ type: 'tool_call_start', id: ORIG_ID, name: 'Read', arguments: FULL_ARGS }]);
+    expect(flushPendingToolCalls(s1)).toEqual([]); // 身份到齐 ⇒ 没有占位 id 的第二次调用
+    expect(assembleArgs([...a1, ...b1])).toBe(FULL_ARGS);
+
+    // (b) name-first / id-later：同一把锁的另一半。
+    const s2 = createOpenAIToolState();
+    const a2 = parseOpenAIStreamChunk(tcPayload({ index: 0, function: { name: 'Read', arguments: ARG_A } }), s2);
+    const b2 = parseOpenAIStreamChunk(tcPayload({ index: 0, id: ORIG_ID, function: { arguments: ARG_B } }), s2);
+    expect(a2).toEqual([]);
+    expect(b2).toEqual([{ type: 'tool_call_start', id: ORIG_ID, name: 'Read', arguments: FULL_ARGS }]);
+    expect(flushPendingToolCalls(s2)).toEqual([]);
+    const open2 = assembleByConsumer([...a2, ...b2]);
+    expect([...open2.keys()]).toEqual([ORIG_ID]); // 恰好一个调用，真 id
+    expect(open2.get(ORIG_ID)?.args).toBe(FULL_ARGS);
+  });
+
+  it('④ 负对照：同 id 的重复帧（Round 64 形态 C）逐字不变；且冻结**只**作用于已 started 的 index', () => {
+    // (a) 同 id 重复：冻结对它是 no-op（写回去的是同一批字符串），行为与 Round 46/64 一致。
+    const p = new OpenAIStreamParser();
+    const chunks = feedAll(p, [
+      tcLine({ index: 0, id: ORIG_ID, function: { name: 'Read', arguments: ARG_A } }),
+      tcLine({ index: 0, id: ORIG_ID, function: { name: 'Read', arguments: ARG_B } }),
+      'data: [DONE]',
+    ]);
+    expect(chunks).toEqual([
+      { type: 'message_start' },
+      { type: 'tool_call_start', id: ORIG_ID, name: 'Read', arguments: ARG_A },
+      { type: 'tool_call_delta', id: ORIG_ID, argumentsDelta: ARG_B },
+      { type: 'tool_call_end', id: ORIG_ID },
+      { type: 'message_end' },
+    ]);
+
+    // (b) 反向锁：冻结不得"跨 index"生效。index 0 已 started 之后，index 1 的**首个**身份帧
+    //     仍必须登记自己的 id（把守卫写成"已有任何调用 started 就冻结"⇒ 下面第二行红，
+    //     index 1 会退化成占位 id 的流末 flush）。
+    const s = createOpenAIToolState();
+    const first = parseOpenAIStreamChunk(tcPayload({ index: 0, id: 'c0', function: { name: 'Read', arguments: '{"x":' } }), s);
+    const second = parseOpenAIStreamChunk(tcPayload({ index: 1, id: 'c1', function: { name: 'Glob', arguments: '{"y":' } }), s);
+    const third = parseOpenAIStreamChunk(tcPayload({ index: 0, function: { arguments: '1}' } }), s);
+    const fourth = parseOpenAIStreamChunk(tcPayload({ index: 1, function: { arguments: '2}' } }), s);
+    expect(first).toEqual([{ type: 'tool_call_start', id: 'c0', name: 'Read', arguments: '{"x":' }]);
+    expect(second).toEqual([{ type: 'tool_call_start', id: 'c1', name: 'Glob', arguments: '{"y":' }]);
+    expect(third).toEqual([{ type: 'tool_call_delta', id: 'c0', argumentsDelta: '1}' }]);
+    expect(fourth).toEqual([{ type: 'tool_call_delta', id: 'c1', argumentsDelta: '2}' }]);
+    const open = assembleByConsumer([...first, ...second, ...third, ...fourth]);
+    expect(JSON.parse(String(open.get('c0')?.args))).toEqual({ x: 1 });
+    expect(JSON.parse(String(open.get('c1')?.args))).toEqual({ y: 2 });
+  });
+});

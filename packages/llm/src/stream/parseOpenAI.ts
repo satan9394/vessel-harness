@@ -37,6 +37,21 @@
  * floor: if the identity never completes, `flushPendingToolCalls()` surfaces
  * the buffered fragments as an explicit (placeholder-id) tool call at the
  * stream boundary instead of dropping them.
+ *
+ * Round 69 — the OpenAI counterpart of the Anthropic Round 68 fix, under the
+ * same policy. A frame that REPEATS a call's `id` (+ `name`) for an index that
+ * has ALREADY started is a protocol violation (the canonical wire announces the
+ * identity once, on the first delta of the call), and the identity it repeats is
+ * not authoritative: the call the consumer holds open is keyed by the START's id
+ * (AgentLoop.consumeStream: `open.set(chunk.id, …)` / `open.get(chunk.id)`).
+ * Registering the repeat's id used to OVERWRITE `state.idByIndex`, and both
+ * remaining halves of that call's life are addressed FROM that map — the
+ * continuation `tool_call_delta`s here, and the `tool_call_end`s the driver
+ * emits in `closeToolCalls` — so the whole tail was re-addressed to an id nobody
+ * had opened a call for: the repeat's fragment (and every fragment after it)
+ * landed in no accumulator, and the ORIGINAL id never received its own
+ * `tool_call_end` (only AgentLoop's stream-boundary fallback closed it). The
+ * first start now FREEZES the identity; see `identityFrozen` below.
  */
 
 // BRIEF「截断信号到不了 loop」: the normalization target type is owned by @vessel/shared
@@ -65,7 +80,17 @@ export interface OpenAIStreamChunk {
 }
 
 export interface OpenAIToolState {
-  /** tool index -> id (set on the first delta of a call, reused by continuations). */
+  /**
+   * tool index -> id (set on the first delta of a call, reused by continuations).
+   *
+   * Round 69: once the call has STARTED (i.e. `startedIndexes.has(index)`, which
+   * is exactly "the `tool_call_start` carrying this id has been emitted") this
+   * entry is FROZEN — a later frame repeating the call's `id` may not rewrite it.
+   * Every chunk of the call's remaining life is addressed from this map (the
+   * continuation `tool_call_delta`s in `parseOpenAIStreamChunk` and the
+   * `tool_call_end`s in `OpenAIStreamParser.closeToolCalls`), so rewriting it
+   * re-addresses the tail to an id no consumer ever opened.
+   */
   idByIndex: Map<number, string>;
   /** tool index -> name (only present on the first delta of a call). */
   nameByIndex: Map<number, string>;
@@ -82,6 +107,15 @@ export interface OpenAIToolState {
    * Once started, every later fragment is a continuation delta — a frame that
    * redundantly repeats id/name must NOT re-emit `tool_call_start`, because the
    * consumer would overwrite the accumulator holding the earlier arguments.
+   *
+   * Round 69: this is also the FREEZE test for identity. A frame arriving for a
+   * started index may neither re-emit the start (Round 46) nor rewrite the
+   * id/name that start registered (Round 69) — the registered values are the
+   * only ones any consumer-side accumulator is keyed by. Deliberately NOT "any
+   * identity was registered": an index whose identity is still incomplete has no
+   * consumer-side call yet, and COMPLETING it from a later frame is the Round 46
+   * identity-late recovery (see the id-first / name-later cases in
+   * parseOpenAI.test.ts).
    */
   startedIndexes: Set<number>;
   /**
@@ -171,8 +205,31 @@ export function parseOpenAIStreamChunk(
       const index = tc.index ?? 0;
       const argFragment = tc.function?.arguments;
 
-      if (tc.id) state.idByIndex.set(index, tc.id);
-      if (tc.function?.name) state.nameByIndex.set(index, tc.function.name);
+      // Round 69 — FIRST START FREEZES IDENTITY (the OpenAI counterpart of the
+      // Anthropic Round 68 guard in parseAnthropic.ts:503).
+      //
+      // A repeated identity frame is not cosmetic: `idByIndex` is the ADDRESS
+      // map for the whole remainder of the call — the continuation
+      // `tool_call_delta`s below and the `tool_call_end`s `closeToolCalls`
+      // derives from this very map. Overwriting it therefore re-addressed the
+      // tail to an id the consumer had never opened a call for
+      // (AgentLoop.consumeStream keys its accumulator by the START's id:
+      // `open.get(chunk.id)`), so the repeat's fragment landed nowhere AND the
+      // original id received no end of its own (the stream carried an orphan
+      // `tool_call_end` instead). Freezing makes the different-id repeat behave
+      // exactly like the same-id repeat Round 46 had already made safe.
+      //
+      // The guard is `startedIndexes`, deliberately NOT "any identity was
+      // registered": OpenAI delivers `id` and `name` on DIFFERENT frames
+      // (identity-late), and the start is emitted only once BOTH are known — so
+      // a started index is exactly "a consumer-side accumulator is open under
+      // `idByIndex.get(index)`". An index that has not started has no call to
+      // address yet, and completing its identity from a later frame is the
+      // Round 46 recovery; freezing it here would turn that recovery back into a
+      // placeholder-id (`tc_<index>`) flush.
+      const identityFrozen = state.startedIndexes.has(index);
+      if (tc.id && !identityFrozen) state.idByIndex.set(index, tc.id);
+      if (tc.function?.name && !identityFrozen) state.nameByIndex.set(index, tc.function.name);
 
       const callName = state.nameByIndex.get(index);
       const callId = state.idByIndex.get(index) ?? `tc_${index}`;
@@ -182,6 +239,8 @@ export function parseOpenAIStreamChunk(
         // frame redundantly repeats id/name. Re-emitting tool_call_start here
         // (the pre-Round-46 behavior) made consumers that key by id overwrite
         // the accumulator they already held — silently losing the earlier args.
+        // `callId` above is the REGISTERED (frozen) id, never this frame's `tc.id`
+        // — that is what makes the repeat's fragment land in the open accumulator.
         if (argFragment) {
           chunks.push({ type: 'tool_call_delta', id: callId, argumentsDelta: argFragment });
         }
@@ -425,6 +484,11 @@ export class OpenAIStreamParser {
 
     // Emit ends for the started calls, in the historical order (idByIndex
     // insertion order, de-duplicated by id) so normal streams stay byte-identical.
+    //
+    // Round 69: the id here is the REGISTERED one (`idByIndex`, frozen at the
+    // call's first start by `identityFrozen` in parseOpenAIStreamChunk) — never
+    // the id some later frame happened to repeat. That is the other half of the
+    // freeze: without it a different-id repeat still produced an orphan end.
     const closedIds = new Set<string>();
     for (const [index, id] of this.state.idByIndex) {
       if (this.state.startedIndexes.has(index)) closedIds.add(id);
