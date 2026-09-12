@@ -476,7 +476,7 @@ seq        : number        # 会话内事件序号（不变式校验用）
 - **B16 `compaction/end`** —— 恰好一次的结束标记（配对：start→summary+replace→end）。
 - **B17 `approval/asked`** / **B18 `approval/decided`** —— 审批审计对（先持久后等待：等待前先落 asked；decided 闭合证据链，fail-closed 无应答=unavailable=拒绝）。
 - **B19 `audit/decision`** —— PolicyDecision 的持久镜像（verdict + decisionPath 决策轨迹），可审计「为什么放行/拒绝」。
-- **B20 `audit/denial`** —— 硬拒绝记录（Policy deny、沙箱 SANDBOX_DENIAL、never 审批、写保护 deny）：`{toolCallId, stage, ruleRef?, reason, sandboxMode?}`；D7 口径（Safety Violations）与 Evaluator 证据。
+- **B20 `audit/denial`** —— 硬拒绝记录（Policy deny、沙箱 SANDBOX_DENIAL、never 审批、写保护 deny、**输入级 BeforeTurn 否决**）：`{toolCallId, toolName, stage, ruleRef?, reason, sandboxMode?, listener?}`，其中 `stage` 词表 = `'rule' | 'hook' | 'approval' | 'sandbox' | 'guard' | 'before_turn'`（取自终态**所在阶段**，POLICY-SPEC §7.2）。`'before_turn'` = A03 输入级否决：该决策点**没有工具调用**，故 `toolCallId`/`toolName` 写空串（显式表达"无工具锚点"，不伪造工具身份），"是谁否决"由 `listener`（投出 deny 的监听器名）承载、规则/钩子 ref 由 `ruleRef` 承载；该值只属于 B20 词表，**不要**与 §5.A A13 `decisionPath[].stage`（`rule|hook|guard|approval|profile`）混用。D7 口径（Safety Violations）与 Evaluator 证据。
 - **B21 `audit/safety`** —— 人为介入/紧急事件留痕（Interrupt、Esc、审批人工决定、steer）：`{kind, actor:'user'|'machine'|'system', detail}`；Audit Log 事实基础（任务书 §2.3、H07 证据链）。
 
 ---

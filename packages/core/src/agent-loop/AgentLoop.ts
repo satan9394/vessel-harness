@@ -13,7 +13,7 @@ import {
   type ToolCall,
   type ToolErrorPayload,
 } from '@vessel/shared';
-import { EventBus, isListenerErrorRef } from '../events/EventBus.js';
+import { EventBus, isListenerErrorRef, type WaterfallOutcome } from '../events/EventBus.js';
 import { LoopState } from '../state/State.js';
 import { Session } from '../session/Session.js';
 import { InterruptController, TurnInterruptedError } from './InterruptController.js';
@@ -221,6 +221,13 @@ export class AgentLoop {
       // 那一行、TUI `[错误]` 行、HTTP body）里用户看不到"被谁按什么理由拒的"，与"错误文本含原因"
       // 的验收不符。前缀 `[blocked]` 与原因都在，只增不减（不吞信息、不丢 `[blocked]` 标记）。
       const blockedText = `[blocked] 输入被 BeforeTurn 拦截：${beforeTurn.result.reason ?? 'policy'}`;
+      // BRIEF「before_turn 否决无审计」修复（本卡）—— 与 `before_tool` 的拒绝**同待遇**：
+      // 先铸一条**可机读的审计记录**（`audit/denial`，stage `'before_turn'` + ruleRef/reason + listener），
+      // 再落 `[blocked]` 文案与 `turn/end`。改前本分支只写 user/message + assistant/message + turn/end
+      // ⇒ 一次**输入级策略否决在审计面完全不可见**（四件套的第四件 Audit Event 缺失），
+      // 而 `before_tool` 的同族拒绝是有的 ⇒ 同类执法点待遇不一致。本卡只补上缺的那一件，不新增机制。
+      // （为什么不走 `policy_decision`/A13：其载荷是**工具锚定**的，见 recordTurnDenial 的注释。）
+      await this.recordTurnDenial(beforeTurn);
       const rec = await session.appendSync({
         type: 'user/message',
         msgId: `m_${crypto.randomBytes(4).toString('hex')}`,
@@ -375,9 +382,28 @@ export class AgentLoop {
       kind = 'budget';
     }
 
-    // A04 BeforeStop (serial) — semantic/mechanical joint stop decision point
+    // A04 BeforeStop (serial) — 语义层停（纯文本即停）与机械层停（max_steps/预算）的**共同裁决点**。
+    //
+    // **本卡裁决：未接线（如实标注，不发明语义）** —— `serial` 的裁决被显式丢弃：
+    // `{vetoed, reason}` 对回合结果**零影响**，回合照原 kind 落 `turn/end`。这不是"监听器没有意见"，
+    // 而是"意见没有落点"。今天的生产组合根**没有** before_stop 监听器（compose.ts 未注册）
+    // ⇒ 这是一条**潜伏死缝**（与本段已处理的 reportStatus/foldSession/Registry.execute 同族）。
+    //
+    // 为什么本卡**不**接线（接线会引入未定义语义，而不是"让它看起来有用"）：
+    //  1. EVENT-SPEC §5.B A04 给本点定义的终态裁决是 `forceContinue(reason)`——**"拒绝停"= 必须再走
+    //     一步**（回到 step 循环）。而 `EventBus.serial` 只返回 `{vetoed, reason}`（EventBus.ts:266），
+    //     它的词表里**没有** forceContinue，也不区分"拒绝停"与"拒绝整个回合"；把 `deny` 擅自
+    //     解释成任何一种，都是在 core 里发明词表。
+    //  2. 解释成 `kind='error'` 与 A04 **反向**：A04 里停点的否决意味着**继续**，不是失败；且此时
+    //     `step/end`、assistant/message 都已落盘、回合事实上已经跑完——"事后判失败"该不该改 kind、
+    //     `finalText` 要不要清空、与紧随其后的 `after_turn` 是什么顺序，全都没有既定义。
+    //  3. 连载荷也对不上：A04 规定 `{turnId, candidateKind, pendingToolCalls, stats, stopVotes}`，
+    //     本点只发 `{turnId, finalText, dispatchedAny}` ⇒ 监听器即使想裁决也拿不到"候选停因"。
+    //  ⇒ 按本仓对死缝的既有做法：**行为逐字不变**（无监听器路径零变化），把"裁决未使用"显式声明，
+    //     并由用例 `AgentLoop.before-stop-verdict.test.ts` 把"裁决被丢弃"钉成可判别事实（接线时它会红，
+    //     强制接线者连同 kind/finalText 语义一起改）。**接线的最小改法**见该文件顶部注释。
     const stop = await bus.serial('before_stop', { turnId, finalText, dispatchedAny });
-    void stop;
+    void stop; // ← 未接线（见上）：本行是唯一消费点，删掉它行为不变——这正是"未接线"的定义。
 
     await session.appendSync({
       type: 'turn/end',
@@ -759,6 +785,49 @@ export class AgentLoop {
         surface: true,
       });
     }
+  }
+
+  /**
+   * 铸出一次**输入级**（A03 BeforeTurn）否决的审计记录。
+   *
+   * 为什么必须写：`AGENTS.md` 硬性约束 3 与 `docs/POLICY-SPEC.md` 的**四件套**（Prompt Guidance +
+   * Tool Interceptor + Runtime Deny + **Audit Event**）要求"执法必须有审计"。`before_tool` 的拒绝
+   * 落 `audit/denial`（stage `'rule'|'hook'|'approval'`）+ `policy_decision`；`before_turn` 这条
+   * 在改前**只落 user/message + assistant/message + turn/end** ⇒ 输入级否决在审计面完全不可见。
+   * 本方法把缺的第四件补上——不是新功能，是同一个执法点的**同等待遇**。
+   *
+   * 记录形状（每个字段都"有什么写什么"，不伪造工具身份）：
+   *  - `stage: 'before_turn'` —— 终态所在阶段（POLICY-SPEC §7.2 的口径），词表新增值。
+   *  - `toolCallId`/`toolName` 为**空串**：本决策点没有工具调用，空串显式表达"无工具锚点"，
+   *    绝不填一个假的工具名冒充工具级拒绝（消费者由 `stage` 判别，而不是靠猜工具名）。
+   *  - `ruleRef`/`reason` 逐字取自 waterfall 终态裁决；`reason` 缺省回落与 `[blocked]` 文案**同一个**
+   *    `?? 'policy'`（两处不可能不一致）。
+   *  - `listener` —— `outcome.vetoes` 里**投出 deny 的那个监听器名**（"是谁否决"，改前被整个丢弃）。
+   *    注意 `vetoes` 也会收 `allow`/`ask` 的终结项（EventBus.ts:222），故必须按 `result.kind === 'deny'` 定位。
+   *  - `sandboxMode` 刻意**不填**：本决策点没有任何沙箱裁决，填个模式值等于伪造事实。
+   *
+   * 刻意不做的：不改 `[blocked] …` 文案、不改 `turn/end{kind:'error'}`、不改 `steps/toolCalls` 与
+   * "0 次模型调用"（上一张卡刚定的语义逐字不变）；不额外 emit `policy_decision`——该事件载荷
+   * 工具锚定（`toolCallId`/`toolName` 必填，EVENT-SPEC §5.A A13 定义的是"对一次工具调用的裁决"），
+   * 用空 toolCallId 发出去会让 PolicyProjection/EnforcementProjection 与 M12 里凭空多出一次
+   * "工具拒绝"——那是新的不诚实，不是修复。
+   */
+  private async recordTurnDenial(outcome: WaterfallOutcome): Promise<void> {
+    const denied = outcome.result;
+    if (denied.kind !== 'deny') return; // 调用点的前置条件（只在 deny 分支调用）；防御性早退
+    const vetoer = outcome.vetoes.find((v) => v.result.kind === 'deny');
+    // 显式绑定到共享词表：'before_turn' 若从 AuditDenialRecord.stage 联合里消失，这一行编译期红。
+    const stage: Extract<SessionRecord, { type: 'audit/denial' }>['stage'] = 'before_turn';
+    await this.deps.session.appendSync({
+      type: 'audit/denial',
+      toolCallId: '', // 无工具锚点（不是"某个工具被拒"）
+      toolName: '',
+      stage,
+      ruleRef: denied.ref,
+      reason: denied.reason ?? 'policy',
+      listener: vetoer?.listener,
+      surface: false,
+    });
   }
 
   /**

@@ -133,12 +133,32 @@ export interface AuditDecisionRecord extends SessionRecordBase {
 
 export interface AuditDenialRecord extends SessionRecordBase {
   type: 'audit/denial';
+  /**
+   * 工具锚点。**非工具级**决策点没有工具调用：`stage:'before_turn'`（A03 输入级否决）写**空串**，
+   * 显式表达"无工具锚点"，绝不填一个假的工具名去冒充工具级拒绝。
+   */
   toolCallId: string;
   toolName: string;
-  stage: 'rule' | 'hook' | 'approval' | 'sandbox' | 'guard';
+  /**
+   * 拒绝终态**所在阶段**（POLICY-SPEC §7.2：「`audit/denial`(B20) 的 `stage` 取自终态所在阶段」）。
+   *
+   * `'before_turn'` = A03 BeforeTurn 的**输入级**否决：该回合 0 步、0 次工具调用、0 次模型调用，
+   * 被拒对象是"输入"而不是某次工具调用 ⇒ 否决者由 `listener` 承载、规则/钩子 ref 由 `ruleRef` 承载。
+   *
+   * 注意：这条词表与 `PolicyDecision.decisionPath[].stage`
+   * （`'rule'|'hook'|'guard'|'approval'|'profile'`，EVENT-SPEC §5.A A13）是**两个不同的词表**，
+   * 不要互相代入。
+   */
+  stage: 'rule' | 'hook' | 'approval' | 'sandbox' | 'guard' | 'before_turn';
   ruleRef?: string;
   reason: string;
   sandboxMode?: string;
+  /**
+   * 投出该 deny 的**监听器名**（EventBus `waterfall` 的 `outcome.vetoes[].listener`）——
+   * "是谁否决"的可机读归属。工具级拒绝若由规则命中产生（`stage:'rule'`），通常省略此字段，
+   * 由 `ruleRef` 承载身份；输入级拒绝（`stage:'before_turn'`）必须同时给出监听器与 ref。
+   */
+  listener?: string;
   surface: false;
 }
 
