@@ -90,6 +90,19 @@ export interface AnthropicProviderOptions {
   streamIdleTimeoutMs?: number;
   /** default max_tokens when the request carries none (Anthropic REQUIRES it) */
   defaultMaxTokens?: number;
+  /**
+   * Round 66 — stream() diagnostic sink, default `console.warn`.
+   *
+   * Same shape as the repo's other narrow warning outlets (Sandbox `deps.warn`,
+   * SubagentManager `opts.onWarn`, CredentialStore `opts.onWarn`): production
+   * wiring passes NOTHING and gets a visible `console.warn`, while tests inject a
+   * recorder to keep the suite output clean and to assert the negative control
+   * ("a canonical stream prints nothing at all").
+   *
+   * Only ever called for a NON-ZERO anomaly count — see
+   * `reportStreamDiagnostics`.
+   */
+  onWarn?: (message: string) => void;
 }
 
 /**
@@ -113,6 +126,67 @@ function streamIdleTimeoutError(providerId: string, idleMs: number): Error {
   );
   err.name = 'StreamIdleTimeoutError';
   return err;
+}
+
+/**
+ * Round 66 — make the parser's two per-stream counters OPERATOR-VISIBLE.
+ *
+ * Why this function exists at all: `AnthropicStreamParser` grows two read-only
+ * counters (`malformedFrames`, Round 54: a frame the transport could not even
+ * parse — the half-written JSON tail of a TRUNCATED connection, which the EOF
+ * residual-buffer feed pushes through the parse catch; `duplicateStarts`,
+ * Round 65: a `content_block_start` arriving while that index's block is still
+ * open — the PEER re-sending a frame the protocol forbids). Until this round
+ * NOTHING in the repository read either getter (grep: parser + parser tests
+ * only), so the visibility the two counters were built to provide lived
+ * exclusively inside the getters — at runtime nobody read them, and an operator
+ * could not see the incident. The provider owns the parser instance
+ * (`new AnthropicStreamParser()` in stream()), so the terminal boundary of that
+ * same stream is the natural consumption point.
+ *
+ * The two causes stay SEPARATE LINES, because they call for different responses
+ * and merging them would make "the connection was cut mid-frame" and "the
+ * upstream repeated itself" observationally identical — the exact blindness
+ * Round 54 ended one level down:
+ *   - `cause=truncated-frame`  — the frame's BYTES were unparseable (transport
+ *     truncated mid-frame); the frame is dropped and unrecoverable;
+ *   - `cause=duplicate-start`  — the bytes parsed fine and the UPSTREAM
+ *     re-sent a forbidden frame; the repeat's argument seed is dropped.
+ * Each line carries its own machine-readable `key=count`, plus its own cause
+ * token, so a log grep / alert rule can tell the two apart.
+ *
+ * NEGATIVE CONTROL (the point of the `> 0` guards): a canonical stream must
+ * print NOTHING. A diagnostic that fires on every healthy stream is noise, and
+ * noise is what hides the one stream that mattered — so zero counts emit zero
+ * output, and there is no "summary line" for the healthy case.
+ *
+ * Frequency: at most one line per cause per stream (the caller invokes this
+ * exactly once per stream, at its terminal boundary), i.e. ≤2 lines ever.
+ * Deliberately NOT de-duplicated across streams: the counters are per-stream
+ * instance state, so cross-stream suppression would require shared module state
+ * — precisely the design the parser rejects (two parsers must never accumulate
+ * into each other) — and "every anomalous stream is reported" is the point of
+ * an operational signal. Repetition across streams is a property of the
+ * upstream, and suppressing it would hide an ongoing incident.
+ */
+function reportStreamDiagnostics(
+  warn: (message: string) => void,
+  malformedFrames: number,
+  duplicateStarts: number,
+): void {
+  if (malformedFrames > 0) {
+    warn(
+      `[llm][anthropic] stream 诊断 cause=truncated-frame（字节不可解析：连接在帧中间被切断）` +
+        `malformedFrames=${malformedFrames}: 该残帧已丢弃且不可恢复，本轮输出可能不完整`,
+    );
+  }
+  if (duplicateStarts > 0) {
+    warn(
+      `[llm][anthropic] stream 诊断 cause=duplicate-start（上游重发帧：协议违规）` +
+        `duplicateStarts=${duplicateStarts}: 同一 index 的 content_block_start 在其 content_block_stop 之前再次到达，` +
+        `该重复帧携带的 argument seed 已丢弃（块未关闭，重复的 start 不得覆盖已累积的片段）`,
+    );
+  }
 }
 
 /** Extract leading role:'system' messages → Anthropic top-level system text. */
@@ -404,6 +478,10 @@ export class AnthropicProvider implements ChatProvider {
       const decoder = new TextDecoder();
       let buffer = '';
       const parser = new AnthropicStreamParser();
+      // Round 66 — the diagnostic outlet for THIS stream's parser counters.
+      // Default `console.warn` (production visibility without any wiring);
+      // tests inject `opts.onWarn` to record instead of printing.
+      const warn = this.opts.onWarn ?? ((message: string) => console.warn(message));
 
       try {
         for (;;) {
@@ -436,6 +514,17 @@ export class AnthropicProvider implements ChatProvider {
         for (const c of finalChunks) yield c;
       } finally {
         reader.releaseLock();
+        // Round 66 — the consumption point, and the ONLY one: the terminal
+        // boundary of this stream. On the clean path `finish()` has just run
+        // (the counters are then final); on an abnormal exit — caller abort,
+        // idle timeout, read error — the counters still hold every frame that
+        // WAS fed, and losing that visibility exactly when a turn died is the
+        // failure this card exists to end. Exactly once per stream, no matter
+        // which way the generator terminates: the `finally` body runs once, and
+        // a consumer that abandons the generator early (`.return()`) lands here
+        // too. Emits nothing when both counters are 0 (see
+        // reportStreamDiagnostics) and adds no chunk to the stream.
+        reportStreamDiagnostics(warn, parser.malformedFrames, parser.duplicateStarts);
       }
     } finally {
       clearIdle();

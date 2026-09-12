@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import * as http from 'node:http';
 import type { AddressInfo } from 'node:net';
 import { OpenAICompatibleProvider, AnthropicProvider, MockProvider } from '../index.js';
@@ -635,6 +635,216 @@ describe('AnthropicProvider.stream — 空闲超时（idle timeout，同族同�
     } finally {
       external.abort();
       fake.close();
+    }
+  });
+});
+
+// ---------------------------------------------------------------------------
+// AnthropicProvider.stream — 流诊断（Round 66）：两个「只读计数」的消费者
+//
+// 背景（为何这张卡存在）：`AnthropicStreamParser` 自 Round 54/65 起持有两个**每流只读**
+// 计数 —— `malformedFrames`（EOF 时被当最后一帧喂进来的残帧：字节不可解析 ⇒ 连接被截断）
+// 与 `duplicateStarts`（块还开着又来一次 content_block_start：上游重发帧 ⇒ 协议违规）。
+// 两者此前**全仓零消费者**：grep 只命中 parser 自身与 parser 测试，可见性只活在 getter
+// 里 —— 运行时没人读，运维看不到。本组用例把这个消费点钉死：**流终止边界**读取两个计数，
+// **> 0 才**经 warn 侧信道输出**分因**的一行。
+//
+// 四条判据（删掉修复即红）：
+//   ① 截断流（EOF 半帧）⇒ 恰一条 cause=truncated-frame（截断/字节不可解析），数字与
+//      malformedFrames 一致；旧实现（零消费）此处零输出 ⇒ 必红。
+//   ② 块未关闭时重发 content_block_start ⇒ 恰一条 cause=duplicate-start（重发帧/协议
+//      违规），**不得**与①同类；两个计数分离的意义正在于此。
+//   ③ 负对照：完全规范的流 ⇒ **零输出**（防「每次都警告」，本卡最重要的负对照）。
+//   ④ 既有行为不变：诊断只走 warn，不产生任何 chunk；chunk 序列 / message_end 形状 /
+//      finish() 语义逐字不变（既有用例原样通过）。
+//
+// 频率策略：**每流每因至多一行**（≤2 行）。刻意**不做跨流去重**——计数是 parser 的每流
+// 实例状态，跨流抑制要靠模块级共享状态（正是 parser 明确拒绝的设计），且「每个异常流
+// 都上报」本就是运维信号的意义：重复出现是上游的属性，抑制它等于藏起正在进行的事故。
+// ---------------------------------------------------------------------------
+
+/** Anthropic provider whose diagnostic outlet RECORDS instead of printing. */
+function recordingAnthropic(url: string): { p: AnthropicProvider; warns: string[] } {
+  const warns: string[] = [];
+  const p = new AnthropicProvider({ baseUrl: url, apiKey: 'k', model: 'm', onWarn: (m) => warns.push(m) });
+  return { p, warns };
+}
+
+/** A canonical (protocol-clean) Anthropic SSE body: one text block, proper stop. */
+const CANONICAL_SSE = [
+  'event: message_start',
+  'data: {"type":"message_start","model":"claude-sonnet-4"}',
+  'event: content_block_start',
+  'data: {"type":"content_block_start","index":0,"content_block":{"type":"text","text":""}}',
+  'event: content_block_delta',
+  'data: {"type":"content_block_delta","index":0,"delta":{"type":"text_delta","text":"Bonjour"}}',
+  'event: content_block_stop',
+  'data: {"type":"content_block_stop","index":0}',
+  'event: message_delta',
+  'data: {"type":"message_delta","delta":{"stop_reason":"end_turn"},"usage":{"output_tokens":5}}',
+  'event: message_stop',
+  'data: {"type":"message_stop"}',
+  '',
+].join('\n');
+
+/**
+ * The TRUNCATED stream: the last `data:` payload is cut mid-JSON and has NO
+ * trailing newline, so it stays in the provider's residual buffer and is fed to
+ * the parser as one last frame at EOF — exactly the byte loss Round 54 counts.
+ * `malformedFrames === 1`, `duplicateStarts === 0`.
+ */
+const TRUNCATED_SSE = [
+  'data: {"type":"message_start","model":"m"}',
+  'data: {"type":"content_block_delta","index":0,"delta":{"type":"text_delta","text":"Bonj"}}',
+  'data: {"type":"content_block_delta","index":0,"delta":{"type":"text_delta","text":"our',
+].join('\n');
+
+/**
+ * The PROTOCOL-VIOLATING stream: `content_block_start` for index 0 arrives a
+ * SECOND time while that block is still open (no `content_block_stop` yet). The
+ * bytes parse perfectly — this is the upstream repeating a forbidden frame, not
+ * a broken transport. `duplicateStarts === 1`, `malformedFrames === 0`.
+ */
+const DUPLICATE_START_SSE = [
+  'data: {"type":"message_start","model":"m"}',
+  'data: {"type":"content_block_start","index":0,"content_block":{"type":"tool_use","id":"toolu_1","name":"Read","input":{}}}',
+  'data: {"type":"content_block_delta","index":0,"delta":{"type":"input_json_delta","partial_json":"{\\"p\\":1}"}}',
+  'data: {"type":"content_block_start","index":0,"content_block":{"type":"tool_use","id":"toolu_1","name":"Read","input":{"seed":true}}}',
+  'data: {"type":"content_block_stop","index":0}',
+  'data: {"type":"message_stop"}',
+  '',
+].join('\n');
+
+describe('AnthropicProvider.stream — 流诊断（malformedFrames / duplicateStarts 的消费者，Round 66）', () => {
+  it('① 截断流（EOF 半帧）⇒ 恰一条 cause=truncated-frame，数字与 malformedFrames 一致（删掉消费点 ⇒ 本行零输出变红）', async () => {
+    const fake = await fakeSSEServer(TRUNCATED_SSE);
+    try {
+      const { p, warns } = recordingAnthropic(fake.url);
+      const chunks = await collect(p.stream({ model: 'm', messages: [{ role: 'user', content: 'hi' }] }));
+
+      // 旧实现（两个计数零消费者）在这里是 []，所以这一行就是本卡的判别线。
+      expect(warns).toHaveLength(1);
+      // 成因必须落在「字节不可解析/截断」这一类……
+      expect(warns[0]!).toContain('cause=truncated-frame');
+      // 文案用的是「连接在帧中间被切断」——断言锚在语义token上，而不是与措辞逐字绑死
+      // （先前这里写 /截断/ 与文案用词不一致，是测试自己的错）。
+      expect(warns[0]!).toMatch(/切断|截断/);
+      expect(warns[0]!).toMatch(/字节不可解析/);
+      // ……并给出可机读的数字（与 parser 计数一致）。
+      expect(warns[0]!).toContain('malformedFrames=1');
+      // ……且不得与「上游重发帧」混为一类（两个计数分离的意义）。
+      expect(warns[0]!).not.toContain('cause=duplicate-start');
+      expect(warns[0]!).not.toContain('duplicateStarts=');
+
+      // 半帧照旧被丢弃，终局语义不变（finish() 补齐 message_end）。
+      expect(chunks[chunks.length - 1]).toEqual({ type: 'message_end' });
+    } finally {
+      fake.close();
+    }
+  });
+
+  it('② 块未关闭时重发 content_block_start ⇒ 恰一条 cause=duplicate-start，且不与①混为一类', async () => {
+    const fake = await fakeSSEServer(DUPLICATE_START_SSE);
+    try {
+      const { p, warns } = recordingAnthropic(fake.url);
+      const chunks = await collect(p.stream({ model: 'm', messages: [{ role: 'user', content: 'read' }] }));
+
+      expect(warns).toHaveLength(1);
+      // 成因必须落在「上游重发帧/协议违规」这一类……
+      expect(warns[0]!).toContain('cause=duplicate-start');
+      expect(warns[0]!).toMatch(/重发帧/);
+      expect(warns[0]!).toMatch(/协议违规/);
+      // ……数字是 duplicateStarts（不是 malformedFrames：字节是好的）。
+      expect(warns[0]!).toContain('duplicateStarts=1');
+      expect(warns[0]!).not.toContain('cause=truncated-frame');
+      expect(warns[0]!).not.toContain('malformedFrames=');
+
+      // 行为不变：重复的 start 不得二次入流（否则消费侧会覆盖已累积的片段），
+      // 它携带的非空 seed 折进一条 append-only 的 tool_call_delta。
+      const types = chunks.map((c) => c.type);
+      expect(types.filter((t) => t === 'tool_call_start')).toHaveLength(1);
+      expect(chunks).toContainEqual({ type: 'tool_call_delta', id: 'toolu_1', argumentsDelta: '{"p":1}' });
+      expect(chunks).toContainEqual({ type: 'tool_call_delta', id: 'toolu_1', argumentsDelta: '{"seed":true}' });
+      expect(types[types.length - 1]!).toBe('message_end');
+    } finally {
+      fake.close();
+    }
+  });
+
+  it('③ 负对照：完全规范的流 ⇒ 零输出（删掉 `> 0` 守卫、改成无条件 warn ⇒ 本行变红）', async () => {
+    const fake = await fakeSSEServer(CANONICAL_SSE);
+    try {
+      const { p, warns } = recordingAnthropic(fake.url);
+      const chunks = await collect(p.stream({ model: 'm', messages: [{ role: 'user', content: 'hi' }] }));
+
+      // 本卡最重要的负对照：健康流必须一声不吭，否则「每次都警告」会把真正
+      // 有问题的那条流淹掉。
+      expect(warns).toEqual([]);
+
+      expect(chunks[0]).toEqual({ type: 'message_start', model: 'claude-sonnet-4' });
+      expect(chunks[chunks.length - 1]).toEqual({ type: 'message_end' });
+    } finally {
+      fake.close();
+    }
+  });
+
+  it('③-2 负对照：没有 message_stop 的干净 EOF（无半帧）⇒ 仍然零输出（信号锚在计数，不锚在「没收到 message_stop」）', async () => {
+    const sse = [
+      'data: {"type":"message_start","model":"m"}',
+      'data: {"type":"content_block_delta","index":0,"delta":{"type":"text_delta","text":"hi"}}',
+      '',
+    ].join('\n');
+    const fake = await fakeSSEServer(sse);
+    try {
+      const { p, warns } = recordingAnthropic(fake.url);
+      const chunks = await collect(p.stream({ model: 'm', messages: [{ role: 'user', content: 'hi' }] }));
+
+      expect(warns).toEqual([]); // 「截断连接」= 有残帧，不是「没有 message_stop」
+      expect(chunks[chunks.length - 1]).toEqual({ type: 'message_end' }); // finish() 语义不变
+    } finally {
+      fake.close();
+    }
+  });
+
+  it('④ 既有行为不变：诊断只走 warn 侧信道，不产生任何 chunk；chunk 序列与 message_end 形状逐字不变', async () => {
+    const fake = await fakeSSEServer(TRUNCATED_SSE);
+    try {
+      const { p, warns } = recordingAnthropic(fake.url);
+      const chunks = await collect(p.stream({ model: 'm', messages: [{ role: 'user', content: 'hi' }] }));
+
+      // 异常流上也一样：侧信道有内容，chunk 流一个不多一个不少。
+      expect(warns).toHaveLength(1);
+      // 注意第三个夹具帧是 `..."our`（从字符串中间被切断）⇒ 该帧**不可解析、不产出任何 chunk**
+      // ⇒ 那句 `our` **就是丢了**——这正是 malformedFrames 存在的理由。所以这里是 3 个 chunk
+      // 而不是 4 个：先前期望里多算的那个 `text_delta 'our'`，等于假设"截断的片段仍会送达"，
+      // 与"截断即丢失"自相矛盾。
+      expect(chunks).toEqual([
+        { type: 'message_start', model: 'm' },
+        { type: 'text_delta', text: 'Bonj' },
+        { type: 'message_end' },
+      ]);
+      // message_end 形状不变：就是 `{type:'message_end'}`，没有多出诊断字段。
+      expect(chunks[chunks.length - 1]).toEqual({ type: 'message_end' });
+    } finally {
+      fake.close();
+    }
+  });
+
+  it('⑤ 未注入 onWarn ⇒ 默认 console.warn（生产运行时无需任何接线即可见）', async () => {
+    const spy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    try {
+      const fake = await fakeSSEServer(TRUNCATED_SSE);
+      try {
+        const p = new AnthropicProvider({ baseUrl: fake.url, apiKey: 'k', model: 'm' });
+        await collect(p.stream({ model: 'm', messages: [{ role: 'user', content: 'hi' }] }));
+
+        expect(spy).toHaveBeenCalledTimes(1);
+        expect(String(spy.mock.calls[0]![0])).toContain('cause=truncated-frame');
+      } finally {
+        fake.close();
+      }
+    } finally {
+      spy.mockRestore();
     }
   });
 });
