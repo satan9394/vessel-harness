@@ -335,6 +335,21 @@
 
 **由此新增纪律 15**：**测试若绕过生产入口，等于零证据**——C-1 正是"组件级测试全绿、生产路径特性失效"的典型（详见纪律段）。
 
+**C-1/C-2/C-3/C-5 修复已完成并由我实测封堵**（提交 `d39570e`）：
+
+| 验证项 | 修复前 | 修复后 |
+|---|---|---|
+| C-2 `bash -c "rm -rf /tmp/x"`（+项目层 `shell.allow:["bash"]`） | `allow` | **`deny`**（与仅 system 相同） ✅ |
+| C-1 `filesystem.confinement: true` | **到不了编译器**（恒 false） | **`fs-confinement` 规则已生成** ✅ |
+| C-3 绕过形（尾置 `--force` / `git -C` / `sh -c` / `sudo`） | 均不命中 | **全部 `deny`** ✅ |
+| C-5 `version` | 后者覆盖 | 高层优先 ✅ |
+
+**修法**：`filesystem.confinement` **any-true**（都未声明保持 `undefined`，不写 `false`）；**allow 类字段高层先声明者胜出**、`scoped_rules`/`tools.rules` **按 action 分流**（低层 allow 规则**无条件丢弃**，deny/ask 可并集）；`git:force-push` 改用专用谓词 `detectForcePush`（引号感知分段/分词 + 包装器剥离（`sudo`/`env`/`nohup`…，深度上限 4）+ 位置无关判定）；`version` first-wins。
+
+**已知残留（实现者诚实标注，交复评判级）**：① allow 类字段在**高层完全未声明**时低层仍可补空档（生产配置已显式声明 `filesystem.allow: []` 与 `shell.allow: [...]`，故 system+project 路径无此空档）；② C-3 盲区：`git push origin +main`、`env -S`、`xargs`、`sh script.sh`/`eval`、以及 **深度 > 4** 的包装 fail-open（默认策略下 profile 门兜住；`danger-full-access` 放宽会话下风险较高）。
+
+**验收证据**：`tsc 0`；**134 文件 / 1479 passed + 3 skipped / exit 0**；`packages/policy` **79/79**；`benchmarks/runners` **216/216`。**第二轮独立安全复评在途**（`EVALUATION-REPORT-21.md`）。
+
 **方法论**：验证一律看"**它对真实输入的反应**"，而非"代码里有没有"——真实策略文件 → 编译出的 `decision`；真实命令 → 谓词返回值；真实工作区 → `run` 的退出码。
 
 ## 技术债
