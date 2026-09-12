@@ -15,13 +15,35 @@
  * §15 L3 metrics verbatim. When the caller knows the model a row was run under
  * (e.g. the 082 lane carries per-row modelId), we accept it as an optional
  * `modelId` label via rowFromRunResult / rowsFromLaneReport.
+ *
+ * 证据层诚实性（本卡，与 082 lane 同一裁决的第二个面）：`status` **不**只看
+ * `metrics.success` —— 「回合未正常收尾」（熔断/中断/预算打死，finalText 非空 ⇒
+ * success 仍为 true）的行不得报 `passed`。识别一律走 lane 的同一纯函数
+ * `abnormalTurnKindOf`（或 lane 行已有的结构化字段），report 侧**不另写正则**；
+ * 状态取值仍用既有枚举 `'failed'`（不新增枚举值，理由见 `ReportRowStatus`）。
  */
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import type { RunResult, RunResultMetrics } from '../contracts/types.js';
-import type { RealModelLaneReport } from '../lane/real-model-lane.js';
+import {
+  abnormalTurnKindOf,
+  describeAbnormalTurnNote,
+  type RealModelLaneReport,
+} from '../lane/real-model-lane.js';
 
-/** Row status — derived from metrics.success unless the caller overrides. */
+/**
+ * Row status — derived from metrics.success **and** turn-level honesty (see
+ * rowFromRunResult) unless the caller overrides.
+ *
+ * 为什么不给「回合未正常收尾」加新状态：与 082 lane 的裁决同源
+ * （lane/real-model-lane.ts:121-134 `LaneRowStatus`）——本聚合报告的
+ * per-harness / per-scenario / totals 计数同样按**精确枚举值**相加
+ * （report.ts deriveSummary / aggregateRows），release-gates
+ * （gates.ts:903/911）也按 `'failed'` / `'passed'` / `'pending-environment'`
+ * 精确计数。新增枚举值会造成「既不计 failed、也不计 passed」的空洞 ⇒ 又一条
+ * 来源不明的绿灯。故状态仍取既有 `'failed'`，区分性由**加法**字段
+ * `turnEndedAbnormally` / `turnKind` 承载。
+ */
 export type ReportRowStatus = 'passed' | 'failed' | 'skipped' | 'pending';
 
 /**
@@ -48,10 +70,53 @@ export interface ReportRow {
   status: ReportRowStatus;
   /** provenance / degrade notes. */
   notes?: string[];
+  /**
+   * 证据层诚实性（与 082 lane 行同口径）：该行对应的 run **回合未正常收尾**——
+   * 熔断器/中断/预算把回合打死时 `metrics.success` 仍可能是 `true`
+   * （contracts/vessel.ts:197 的口径是 `runError === null && finalText.trim().length > 0`，
+   * 而被打死的回合是把 `err.message` 写进 finalText 后**正常 return**）。
+   * `true` ⇒ `status` 必为 `'failed'`，**即便 `metrics.success === true`**。
+   * 缺席（undefined）= 正常收尾，与改动前的行逐字一致（键都不出现）。
+   */
+  turnEndedAbnormally?: boolean;
+  /** 未正常收尾时的回合 kind（'error' / 'interrupted' / 'budget'）；仅随上面一起出现。 */
+  turnKind?: string;
 }
 
-/** Convert one 076 RunResult into a ReportRow. */
-export function rowFromRunResult(result: RunResult, opts: { modelId?: string } = {}): ReportRow {
+/**
+ * Convert one 076 RunResult into a ReportRow.
+ *
+ * 证据层诚实性（本卡，082 lane 裁决的第二个面）：`status` 不再只看
+ * `metrics.success` —— 回合未正常收尾的行不得报 `passed`。
+ *
+ * 识别方式（**与 082 lane 同口径，report 侧不另写一份正则**）：
+ *  ① 优先用调用方给的 082 lane 行**结构化字段**（`turnEndedAbnormally` / `turnKind`，
+ *    real-model-lane.ts:146-154）——`rowsFromLaneReport` 会把它们透传进来；
+ *  ② 否则复用 lane 导出的纯函数 `abnormalTurnKindOf(result)` 从 `RunResult.notes`
+ *    读回（`RunResult` 契约目前没有结构化回合字段，见 contracts/types.ts:73-87，
+ *    故裸 RunResult[] 路径只能走这一条）。
+ *  正常行两条都命中不了 ⇒ 与改动前逐字一致。
+ *
+ * 状态取值仍为既有枚举 `'failed'`（理由见 `ReportRowStatus` 注释）。
+ */
+export function rowFromRunResult(
+  result: RunResult,
+  opts: { modelId?: string; turnEndedAbnormally?: boolean; turnKind?: string } = {},
+): ReportRow {
+  // ① 结构化字段：只在 lane 明确标了「未正常收尾」时才采信（lane 只在异常行上加该字段）。
+  const structuredKind = opts.turnEndedAbnormally === true ? opts.turnKind : undefined;
+  // ② 兜底：复用 lane 的同一个纯函数（口径只有一处，绝不复制正则）。
+  const turnKind = structuredKind ?? abnormalTurnKindOf(result);
+  const turnEndedAbnormally = turnKind !== undefined || opts.turnEndedAbnormally === true;
+  /**
+   * 可见原因：只在「`metrics.success === true` 却未正常收尾」这一族上追加
+   * （这正是旧实现报 passed 的族）；`metrics.success === false` 的行 notes **逐字不变**，
+   * 既有行为不受本卡影响。文案复用 lane 的 `describeAbnormalTurnNote`，两处口径同一份。
+   */
+  const noteForAbnormalTurn =
+    turnEndedAbnormally && result.metrics.success && turnKind !== undefined
+      ? describeAbnormalTurnNote(result, turnKind)
+      : undefined;
   return {
     harnessId: result.adapterId,
     harnessVersion: result.adapterVersion,
@@ -59,8 +124,14 @@ export function rowFromRunResult(result: RunResult, opts: { modelId?: string } =
     scenarioId: result.fixtureId,
     metrics: result.metrics,
     startedAt: result.startedAt,
-    status: result.metrics.success ? 'passed' : 'failed',
-    notes: result.notes,
+    status: result.metrics.success && !turnEndedAbnormally ? 'passed' : 'failed',
+    notes: noteForAbnormalTurn !== undefined ? [...(result.notes ?? []), noteForAbnormalTurn] : result.notes,
+    // 加法字段：只在异常收尾的行上出现 —— 正常行的键集/取值与改动前逐字一致。
+    ...(turnEndedAbnormally
+      ? turnKind !== undefined
+        ? { turnEndedAbnormally: true as const, turnKind }
+        : { turnEndedAbnormally: true as const }
+      : {}),
   };
 }
 
@@ -69,12 +140,25 @@ export function rowFromRunResult(result: RunResult, opts: { modelId?: string } =
  * actually produced a 076 RunResult (`result` present) are carried; pending /
  * skipped rows are dropped from the metric aggregation (they carry no metrics).
  * harnessId is fixed to the Vessel self-adapter used by the lane.
+ *
+ * 证据层诚实性（本卡）：lane 行的自身状态与结构化字段从前**被丢弃**
+ * （旧实现只取 `r.result` + `r.modelId`，再由 `metrics.success` 重新推 status），
+ * 于是「修复后的 lane 已标 `status='failed'` + `turnEndedAbnormally`」的行，
+ * 一经 `vessel bench-report --input <lane.json>` 聚合又变回 `passed`。
+ * 现在把 lane 的结构化字段透传给 `rowFromRunResult`（优先于文案正则）；对
+ * **修复前**产出的 lane JSON（没有该字段）则由同一个 `abnormalTurnKindOf` 兜底。
  */
 export function rowsFromLaneReport(rep: RealModelLaneReport, harnessId = 'vessel'): ReportRow[] {
   const out: ReportRow[] = [];
   for (const r of rep.rows) {
     if (!r.result) continue;
-    out.push(rowFromRunResult(r.result, { modelId: r.modelId }));
+    out.push(
+      rowFromRunResult(r.result, {
+        modelId: r.modelId,
+        turnEndedAbnormally: r.turnEndedAbnormally,
+        turnKind: r.turnKind,
+      }),
+    );
     out[out.length - 1]!.harnessId = harnessId;
   }
   return out;
