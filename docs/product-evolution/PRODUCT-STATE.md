@@ -308,6 +308,22 @@
 13. **验证动作不得破坏它所验证的证据**——我为了验证门禁脚本的入口守卫而直接跑了它（未带密钥），这会用一份 `partial` 报告**覆盖**刚拿到的 clean `ready` 报告，多亏及时终止。**验证前先想清楚"会写什么、写到哪"**；可换临时输出目录，或只做"能否启动"的最小探测，并用完后**清理自己产生的孤儿进程**（本次清理了 5 个 gate/tsx/vitest 残留，**只按 PID 精确终止**，绝不误杀 harness）。
 14. **只对"稳定版本"测量**——执行器是**边写边落盘**的：Round 15 我在 `PolicyLoader` 已加 `error` 字段、而 `cli.ts` 尚未接入该分支的**半写入窗口**里跑 E2E，得到"合法但未贡献声明"这个**错误结论**，差点据此开错修复卡；两张卡都落盘后重跑才正确（`saysInvalid=True`）。**测量前先确认没有并发写入者**（看 `git status`、卡是否仍在跑），必要时先等卡结束或对同一修订连测两次一致再采信。
 
+## Round 15b（安全加固：策略执法本体的三处真实缺陷）— 已修并实测
+
+由 AC5 诚实性核查顺链追出（**均非审计/复评提出**），三处共同形态是"**功能写了、看着也在，但实际不生效**"——比"缺失"更难发现，因为它通过所有"存在性"检查：
+
+| # | 缺陷 | 修复前实测 | 修复后实测 |
+|---|---|---|---|
+| 1 | **项目策略可提权**：`mergeScopes` 对 `profile`/`approval` 是"后者覆盖"，层序 `[system, project]` → project 赢（与 `POLICY-SPEC:470`「profile/approval 取高层默认」**相反**） | 加项目层 `profile: danger-full-access` → **`danger-full-access`** | 三情形均 **`workspace-write`** ✅ |
+| 2 | **项目策略可放宽 force-push**：`git`/`network`/`audit` 为对象浅覆盖 | system `force_push: deny` + project `allow` → 编译规则 **`deny` → `allow`**（`deny_domains: []` 可抹掉元数据 IP） | 仍 **`deny`**；`deny_domains` 并集 ✅ |
+| 3 | **`shell-force-push` 规则是死的**：`Compiler.ts` 用**字面量 `startsWith(prefix)`**，故 `Shell(git push --force*)` 对真实命令**永不匹配**，且**全仓零测试** | 真实 force-push 命令 → 谓词 **false** | **true**，且普通 push / commit **false**（不误拦）✅ |
+
+**修法**：① `profile`/`approval` 改 **first-wins（高层优先）**；② `git`/`network`/`audit` 改**单调趋严**（`force_push` 三态取最严 / `network.default` 取最严 / `deny_domains` 并集 / `audit.events` 并集、`details` 取最详尽 / 三域未登记键高层先声明者胜）；③ `Compiler` 的 `Shell()`/`Bash()` matcher **支持 `*`**（逐字转义 + 锚定正则，复用既有 `globmatch.ts`），不含 `*` 保留原 `startsWith` 语义。
+
+**验收证据**：`tsc 0`；**134 文件 / 1460 passed + 3 skipped / exit 0**；`packages/policy` **61/61**（mergeScopes 19 + compilerMatcher 10）；`benchmarks/runners` **216/216**（matcher 变更无回归）；三条判别性探针见上表。**独立安全复评在途**（`EVALUATION-REPORT-20.md`）。
+
+**方法论**：验证一律看"**它对真实输入的反应**"，而非"代码里有没有"——真实策略文件 → 编译出的 `decision`；真实命令 → 谓词返回值；真实工作区 → `run` 的退出码。
+
 ## 技术债
 
 G-15 原子写 wrapper 各 Store 重复（P4）；architecture 审计的 T1–T9 清单（详见 `docs/product-audit/ARCHITECTURE-REPORT.md`）。
