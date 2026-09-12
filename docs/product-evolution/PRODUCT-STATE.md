@@ -97,6 +97,21 @@
 两次里 `normalNewFileAllowed` 均为 `true`（负对照稳定 ⇒ 修复**无过度拦截**），随后用备份**原样还原**（不用被守护规则拦下的 `git checkout`）。⇒ 一次证明四件事：**缺陷真实可利用、修复真的堵住、探针不恒绿、没有误伤**。
 **本轮引入的待修残留（实现者主动上报，指名我决策）**：`pricingOverride` **抑制写入后 CLI 仍打印「✔ 已写入覆盖」**（`cli.ts:1791/1808/1856`）——即**确认时刻的宣称不为真**；修法需让 mutator 回传"是否真落盘"（动 set/delete/restore/repair 返回语义），已排入下一片。
 
+## Round 24 — 沙箱"说真话"修复，以及测量揭出的更深问题
+
+**修复内容**（提交 `734258d`，13 文件）：`statusSnapshot().active` **只**来源于"本轮 job 是否真的附加成功"（新增 `jobAttached` 状态机 + `degraded` 三值原因 + 可注入 warn）；`Shell` 把 `r.audit` 的**逃逸/终止/失败**事件筛进工具结果 `meta.sandbox.audit`，并补上此前缺失的唯一生产消费方 `EnforcementProjection.recordProcessTree`；`terminatePids` 改为返回**已验证成功**的 pid 集合，其余逐条记新事件 `escape-terminate-failed`（**"试过了"永不记为"已死"**）。测试 **64 passed + 1 skipped**。
+
+**我的独立探针（关键）**：
+
+| 阶段 | `active` | `degraded` |
+|---|---|---|
+| 附加前 | `false` | `job-object-not-attempted` |
+| **真实 run 之后** | **`false`** | **`job-object-attach-failed`** |
+
+⇒ **修复前本机会报 `active:true, backend:'job-object'`，而进程树约束从未生效**——那个"谎报"**不是理论风险，是本机每天都在发生**。
+
+**测量揭出的更深问题（已派只读调查）**：本机的 **Windows process-tree confinement 后端看起来根本不工作**（`OpenProcess failed: 87` = `ERROR_INVALID_PARAMETER`；以及"10s 内未确认 confining"）。修复只让它**可见**、没让它**可用**。调查须区分三类成因：**(a) 后端 bug**、**(b) 附加时机 bug**（Windows 常见正确做法是 `CREATE_SUSPENDED` 后**先 attach 再 resume**，而非对可能已退出的 pid 调 `OpenProcess`——我的探针用 `process.exit(0)` 恰是**瞬时退出**场景，本身可能就是"注定失败"）、**(c) 环境限制**；并回答"**对长命子进程附加是否应当成功**"——这决定它是"后端坏了"还是"我给了个没意义的场景"。**教训：修完"状态说谎"后必须继续问"它现在说的是什么"，否则会把"变得诚实"误当成"变得可用"。**
+
 ## 已解决问题（Round 1 切片 · 历史存档）
 
 - **G-01（P0）首跑示例失效**：仓库工作区 `run --prompt` 曾 100% 输出 `(mock: no script entry matched)` 且 exit 0（假成功）。根因：ContextBuilder 将 volatile skills index 作为**最后一条 user 消息**追加，MockProvider 只匹配最后一条 user 消息。修复：`ChatMessage.source` 溯源 + Builder 标记 volatile 为 `environment` + MockProvider 只匹配真实 surface 输入 + 确定性兜底文案。
