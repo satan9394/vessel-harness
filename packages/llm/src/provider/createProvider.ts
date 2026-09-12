@@ -32,6 +32,14 @@ export interface ProviderCreateOptions {
   apiKey?: string;
   model: string;
   timeoutMs?: number;
+  /**
+   * **仅流式**：空闲（片间）超时阈值。缺省回落到 `timeoutMs`。
+   *
+   * 为什么必须在这里转发：`OpenAICompatibleProvider` / `AnthropicProvider` 的选项文档把
+   * `streamIdleTimeoutMs` 写成"独立旋钮"，但工厂此前**没有**转发它 ⇒ 经 `createProvider`
+   * 构造的实例永远拿不到该值，只能走 `timeoutMs`（"文档承诺了经此路径不可达的能力"）。
+   */
+  streamIdleTimeoutMs?: number;
   anthropicVersion?: string;
   defaultMaxTokens?: number;
   /** opencode-go: stable per-session id for `x-opencode-session` (default: fresh UUID) */
@@ -77,6 +85,7 @@ export function createProvider(name: string, opts: ProviderCreateOptions): ChatP
         apiKey: opts.apiKey,
         model: opts.model,
         timeoutMs: opts.timeoutMs,
+        streamIdleTimeoutMs: opts.streamIdleTimeoutMs,
       });
     case OPENCODE_GO_PROVIDER_ID:
       return new OpencodeGoProvider({
@@ -96,6 +105,7 @@ export function createProvider(name: string, opts: ProviderCreateOptions): ChatP
         model: opts.model,
         anthropicVersion: opts.anthropicVersion,
         timeoutMs: opts.timeoutMs,
+        streamIdleTimeoutMs: opts.streamIdleTimeoutMs,
         defaultMaxTokens: opts.defaultMaxTokens,
       });
     default:
