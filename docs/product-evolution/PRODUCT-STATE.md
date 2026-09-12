@@ -29,6 +29,8 @@
 **D（诚实化）PASS**（抽查）：命令表与 `dispatch` 逐项对得上；密钥按**实际生效后端**三态措辞。
 
 **P1（严重，已派卡）**：`prepack` **只复制 configs、不含构建**（`apps/cli/package.json:23` vs `:22` 的 `build`），而 `.gitignore` 排除 `dist/` ⇒ **干净检出**跑 `npm pack`/`publish` 会产出「**有 `dist/configs/*`、没有 `dist/cli.js`**」的坏包，`bin`/`main`/`exports` 全悬空、**安装仍 exit 0**。→ **我此前那三条 exit 0 之所以成立，只因工作区里已有一份手工 `tsc -b` 产物**；终评同时指出 `--version`/`--help` 与 `policy status`（恒 exit 0）**本身无判别力**，真正有判别力的是"system 层路径落在 `node_modules/.../dist/configs`"。
+
+**P1 已由 Orchestrator 独立复现（before 证据，判别性）**：把 `apps/cli/dist` **重命名**为 `dist.bak`（模拟干净检出，事后**原样恢复**）后执行 `npm pack --dry-run` → `prepack` 只造出 `dist/configs/`，结果 **`hasCliJs=False`、`hasConfigs=True`，tarball 仅 5 文件 / 6.5 kB**（对比正常态 **62 文件 / 184.9 kB**）。即**干净检出发布的"包"里一行代码都没有**，而 `npm i` 仍 exit 0——`bin` 指向不存在的文件。修复后须用**同一探针**复测作为 after 对照。
 **P2（已派卡）**：发布门禁只查本地 `dist` 是否存在（`release-gates/gates.ts:648-654`）→「270→62」是**一次性人工实测而非可回归门禁**。
 **P3×4**：pricing sync warn 调用点无用例；warn 文案补救指向 `node_modules`（重装即失效）且 `--dry-run` 也打印；`dist/.tsbuildinfo` 入包；alias 读取短路边界。
 
