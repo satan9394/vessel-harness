@@ -113,3 +113,226 @@ describe('AnthropicStreamParser — full SSE event stream', () => {
     expect(chunks).toEqual([]);
   });
 });
+
+// ---------------------------------------------------------------------------
+// Round 52 — Anthropic counterparts of the Round 46 OpenAI fix in
+// parseOpenAI.ts: an identity-incomplete `tool_use` block, and a truncated
+// stream. Both were the same family of silent data loss ("identity incomplete ⇒
+// drop it", "stream ends ⇒ emit nothing"), so both follow the same policy: hold
+// the fragments per block index, and surface them EXPLICITLY at the boundary.
+// ---------------------------------------------------------------------------
+
+const ARG_A = '{"path":"';
+const ARG_B = 'a.txt"}';
+const FULL_ARGS = '{"path":"a.txt"}';
+
+/** One Anthropic SSE `data:` transport line from a payload object. */
+const sse = (payload: Record<string, unknown>): string => `data: ${JSON.stringify(payload)}`;
+const TOOL_START = (block: Record<string, unknown>, index = 0): string =>
+  sse({ type: 'content_block_start', index, content_block: { type: 'tool_use', ...block } });
+const TOOL_DELTA = (partialJson: string, index = 0): string =>
+  sse({ type: 'content_block_delta', index, delta: { type: 'input_json_delta', partial_json: partialJson } });
+const TOOL_STOP = (index = 0): string => sse({ type: 'content_block_stop', index });
+const MSG_STOP = sse({ type: 'message_stop' });
+
+const feedAll = (p: AnthropicStreamParser, lines: string[]): StreamChunk[] => {
+  const out: StreamChunk[] = [];
+  for (const l of lines) out.push(...p.feed(l));
+  return out;
+};
+
+/**
+ * The consumer accumulation AgentLoop.consumeStream() performs — `open.set` on
+ * tool_call_start (keyed by id) and append on tool_call_delta ONLY when an entry
+ * for that id exists. Using the real algorithm is what makes the assertions
+ * below evidence about what a consumer ends up holding, instead of about our
+ * chunk shape alone.
+ */
+function assembleByConsumer(chunks: StreamChunk[]): Map<string, { name: string; args: string }> {
+  const open = new Map<string, { name: string; args: string }>();
+  for (const c of chunks) {
+    if (c.type === 'tool_call_start') open.set(c.id, { name: c.name, args: c.arguments });
+    else if (c.type === 'tool_call_delta') {
+      const acc = open.get(c.id);
+      if (acc) acc.args += c.argumentsDelta;
+    }
+  }
+  return open;
+}
+
+describe('AnthropicStreamParser — identity-incomplete tool_use block (Round 52)', () => {
+  it('REPRO ①: a tool_use block missing `id` still surfaces its arguments (pre-fix: they vanished)', () => {
+    // PRE-FIX trace (pre-Round-52 parser): the `block.id && block.name` guard in
+    // parseAnthropicEvent emitted NO tool_call_start, and the driver's
+    // toolIdByIndex never learned the block, so
+    //   - each input_json_delta frame was emitted as
+    //     tool_call_delta(id='anthropic-tool') with no `open` entry to absorb it
+    //     (consumeStream appends only `if (acc)`) ⇒ fragments dropped;
+    //   - the content_block_stop end was dropped by the `real === undefined`
+    //     filter;
+    //   - output was [message_end] only and assembleByConsumer(...) was EMPTY:
+    //     argsLost = true, no warning of any kind.
+    const p = new AnthropicStreamParser();
+    const chunks = feedAll(p, [
+      TOOL_START({ name: 'Read', input: {} }), // ← no `id`
+      TOOL_DELTA(ARG_A),
+      TOOL_DELTA(ARG_B),
+      TOOL_STOP(),
+      MSG_STOP,
+    ]);
+
+    // The leading '{}' is the block's own `input` seed — exactly the value the
+    // canonical path already puts into tool_call_start.arguments (see the
+    // full-stream test above); the parser appends the fragments to it and drops
+    // neither part.
+    expect(chunks).toEqual([
+      { type: 'tool_call_start', id: 'anthropic-tool', name: 'Read', arguments: '{}' + FULL_ARGS },
+      { type: 'tool_call_end', id: 'anthropic-tool' },
+      { type: 'message_end' },
+    ]);
+
+    const open = assembleByConsumer(chunks);
+    expect([...open.keys()]).toEqual(['anthropic-tool']); // pre-fix: []
+    expect(open.get('anthropic-tool')?.name).toBe('Read');
+    expect(open.get('anthropic-tool')?.args).toBe('{}' + FULL_ARGS);
+  });
+
+  it('the same block without an `input` seed surfaces machine-readable, parseable arguments', () => {
+    const p = new AnthropicStreamParser();
+    const chunks = feedAll(p, [TOOL_START({ name: 'Read' }), TOOL_DELTA(ARG_A), TOOL_DELTA(ARG_B), TOOL_STOP(), MSG_STOP]);
+    const args = assembleByConsumer(chunks).get('anthropic-tool')?.args;
+    expect(args).toBe(FULL_ARGS);
+    expect(JSON.parse(String(args))).toEqual({ path: 'a.txt' }); // pre-fix: nothing assembled at all
+  });
+
+  it('a block missing `name` is surfaced with the real id and an empty name (explicit, not silence)', () => {
+    const p = new AnthropicStreamParser();
+    const chunks = feedAll(p, [TOOL_START({ id: 'toolu_01', input: {} }), TOOL_DELTA(FULL_ARGS), TOOL_STOP(), MSG_STOP]);
+    expect(chunks).toEqual([
+      { type: 'tool_call_start', id: 'toolu_01', name: '', arguments: '{}' + FULL_ARGS },
+      { type: 'tool_call_end', id: 'toolu_01' },
+      { type: 'message_end' },
+    ]);
+    // '' is not a resolvable tool name ⇒ the registry answers with an explicit
+    // machine-readable `INVALID_ARGS: unknown tool: ` instead of nothing.
+    expect(assembleByConsumer(chunks).get('toolu_01')?.name).toBe('');
+  });
+
+  it('input_json_delta with no content_block_start at all is surfaced at its content_block_stop', () => {
+    const p = new AnthropicStreamParser();
+    const chunks = feedAll(p, [TOOL_DELTA(ARG_A), TOOL_DELTA(ARG_B), TOOL_STOP(), MSG_STOP]);
+    expect(chunks).toEqual([
+      { type: 'tool_call_start', id: 'anthropic-tool', name: '', arguments: FULL_ARGS },
+      { type: 'tool_call_end', id: 'anthropic-tool' },
+      { type: 'message_end' },
+    ]);
+  });
+
+  it('fragments buffered before the identity arrives are merged into the eventual tool_call_start.arguments', () => {
+    const p = new AnthropicStreamParser();
+    const chunks = feedAll(p, [
+      TOOL_START({ name: 'Read' }), // identity incomplete (no id)
+      TOOL_DELTA(ARG_A),
+      TOOL_DELTA(ARG_B),
+      TOOL_START({ id: 'toolu_01', name: 'Read' }), // identity completes later
+      TOOL_STOP(),
+      MSG_STOP,
+    ]);
+    // Pre-fix: the fragments were emitted as start-less deltas (dropped), so the
+    // eventual start carried arguments '' ⇒ an empty, unparseable call.
+    expect(chunks).toEqual([
+      { type: 'tool_call_start', id: 'toolu_01', name: 'Read', arguments: FULL_ARGS },
+      { type: 'tool_call_end', id: 'toolu_01' },
+      { type: 'message_end' },
+    ]);
+    const open = assembleByConsumer(chunks);
+    expect([...open.keys()]).toEqual(['toolu_01']); // exactly one call, real id
+    expect(JSON.parse(String(open.get('toolu_01')?.args))).toEqual({ path: 'a.txt' });
+  });
+});
+
+describe('AnthropicStreamParser — truncated stream / EOF boundary (Round 52)', () => {
+  it("REPRO ②: EOF without message_stop emits the open call's tool_call_end and message_end (pre-fix: [])", () => {
+    const p = new AnthropicStreamParser();
+    const chunks = feedAll(p, [TOOL_START({ id: 'toolu_01', name: 'Read', input: {} }), TOOL_DELTA(FULL_ARGS)]);
+    // The connection is truncated here: no content_block_stop, no message_stop.
+    expect(chunks.map((c) => c.type)).toEqual(['tool_call_start', 'tool_call_delta']);
+
+    // PRE-FIX: finish() returned [] ⇒ the stream ended with neither a
+    // tool_call_end for the open block nor a message_end.
+    expect(p.finish()).toEqual([{ type: 'tool_call_end', id: 'toolu_01' }, { type: 'message_end' }]);
+    // The terminal boundary is idempotent.
+    expect(p.finish()).toEqual([]);
+  });
+
+  it('EOF with only an identity-less block flushes the buffered fragments explicitly, then message_end', () => {
+    const p = new AnthropicStreamParser();
+    const before = feedAll(p, [TOOL_START({ name: 'Read' }), TOOL_DELTA(ARG_A), TOOL_DELTA(ARG_B)]);
+    // Held in state — not emitted as a start-less delta (which the consumer
+    // would drop) and not discarded. Pre-fix this was two bare deltas.
+    expect(before).toEqual([]);
+
+    expect(p.finish()).toEqual([
+      { type: 'tool_call_start', id: 'anthropic-tool', name: 'Read', arguments: FULL_ARGS },
+      { type: 'tool_call_end', id: 'anthropic-tool' },
+      { type: 'message_end' },
+    ]);
+    expect(p.finish()).toEqual([]);
+  });
+
+  it('EOF with no tool block at all still closes the stream with message_end', () => {
+    const p = new AnthropicStreamParser();
+    p.feed(sse({ type: 'message_start', model: 'claude-sonnet-4' }));
+    p.feed(sse({ type: 'content_block_delta', index: 0, delta: { type: 'text_delta', text: 'hi' } }));
+    expect(p.finish()).toEqual([{ type: 'message_end' }]); // pre-fix: []
+  });
+
+  it('message_stop is the terminal boundary: a block left open is closed before message_end', () => {
+    // The Anthropic counterpart of the OpenAI driver's `[DONE]` handler. On the
+    // canonical wire every block is already stopped here, so the sweep is empty.
+    const p = new AnthropicStreamParser();
+    const chunks = feedAll(p, [TOOL_START({ id: 'toolu_01', name: 'Read' }), TOOL_DELTA(FULL_ARGS), MSG_STOP]);
+    expect(chunks).toEqual([
+      { type: 'tool_call_start', id: 'toolu_01', name: 'Read', arguments: '' },
+      { type: 'tool_call_delta', id: 'toolu_01', argumentsDelta: FULL_ARGS },
+      { type: 'tool_call_end', id: 'toolu_01' },
+      { type: 'message_end' },
+    ]);
+    expect(p.finish()).toEqual([]); // already ended by message_stop
+  });
+});
+
+describe('AnthropicStreamParser — negative control: the canonical stream is unchanged (Round 52)', () => {
+  it('text + complete tool_use sequence is chunk-for-chunk identical, and only the tool block gets an end', () => {
+    const p = new AnthropicStreamParser();
+    const chunks = feedAll(p, [
+      sse({ type: 'message_start', model: 'claude-sonnet-4' }),
+      sse({ type: 'content_block_start', index: 0, content_block: { type: 'text', text: '' } }),
+      sse({ type: 'content_block_delta', index: 0, delta: { type: 'text_delta', text: 'Reading ' } }),
+      sse({ type: 'content_block_stop', index: 0 }),
+      TOOL_START({ id: 'toolu_01', name: 'Read', input: {} }, 1),
+      TOOL_DELTA(ARG_A, 1),
+      TOOL_DELTA(ARG_B, 1),
+      TOOL_STOP(1),
+      sse({ type: 'message_delta', delta: { stop_reason: 'tool_use' }, usage: { output_tokens: 8 } }),
+      MSG_STOP,
+    ]);
+
+    expect(chunks).toEqual([
+      { type: 'message_start', model: 'claude-sonnet-4' },
+      { type: 'text_delta', text: 'Reading ' },
+      { type: 'tool_call_start', id: 'toolu_01', name: 'Read', arguments: '{}' },
+      { type: 'tool_call_delta', id: 'toolu_01', argumentsDelta: ARG_A },
+      { type: 'tool_call_delta', id: 'toolu_01', argumentsDelta: ARG_B },
+      { type: 'tool_call_end', id: 'toolu_01' },
+      { type: 'usage', inputTokens: undefined, outputTokens: 8, cacheReadTokens: undefined, cacheCreationTokens: undefined },
+      { type: 'message_end', finishReason: 'tool_calls' },
+      { type: 'message_end' },
+    ]);
+
+    // The TEXT block's content_block_stop yields NO end (the deliberate rule):
+    // exactly one tool_call_end, for the tool block only — i.e. the fix does not
+    // "pad" every block with an end.
+    expect(chunks.filter((c) => c.type === 'tool_call_end')).toHaveLength(1);
+  });
+});
