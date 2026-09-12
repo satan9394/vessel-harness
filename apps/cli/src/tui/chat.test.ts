@@ -15,7 +15,7 @@ import { ProviderStore } from '../providers/ProviderStore.js';
 import { providerStateRoot } from '../providers/defaultStore.js';
 import type { PricingTable } from '../providers/pricing.js';
 import { UsageStore } from '../usage/UsageStore.js';
-import { dispatchSlash, runChat, makeLineReader, resolveChatStore, TwoStageCtrlC, type ChatOptions, type ChatSessionIO } from './chat.js';
+import { dispatchSlash, renderTurnOutcome, runChat, makeLineReader, resolveChatStore, TwoStageCtrlC, type ChatOptions, type ChatSessionIO, type TurnOutcomeLike } from './chat.js';
 
 const REPO_ROOT = fileURLToPath(new URL('../../../../', import.meta.url)); // apps/cli/src/tui → repo root
 const POLICY = path.join(REPO_ROOT, 'configs', 'policy.default.yaml');
@@ -955,5 +955,164 @@ describe('G-13-P1/P2 — /permission 与 /model 在 runChat 主循环真正生�
     expect(missing.code).toBe(0);
     expect(missing.text).toContain('=== 术语解释:');
     expect(missing.text).not.toContain('=== Glossary:');
+  });
+});
+
+/**
+ * BRIEF-17 —— 回合 `kind` 必须如实可见（TUI 侧）。
+ *
+ * 复现（改前）：`runChat` 主循环只对 `kind === 'interrupted'` 单独处理，其余一律
+ * 「有 `finalText` 就当助手回复打印」。`AgentLoop` 在 `DenialLimitError` 时把错误文案
+ * 写进 `finalText` 并置 `kind='error'`（不是抛异常——抛异常那条才走 `catch` 的 `[错误] …`），
+ * 于是 `same intent denied 3 times: Write` 被 TUI 原样当作**助手回复**打印：
+ * 整段输出里既没有 `[错误]` 也没有 `kind=` 痕迹（用例 ① 的两条判别断言在旧实现下必红）。
+ *
+ * 本块的判别性（"删掉修复就红"）：
+ *   ① `kind='error'` ⇒ 必须出现 `[错误]` 且错误文本原样保留（旧实现零 `[错误]` ⇒ 红）；
+ *   ② 负对照（最重要）：`kind='success'` 且带 `finalText` ⇒ 输出与今日**逐字一致**
+ *      （回复行 == `'\n' + finalText`，无任何前缀/标记）—— 防"把一切都渲染成错误"；
+ *   ③ 四种 `kind` 的呈现逐字钉死，含 `interrupted` 既有文案不变（脚本化 IO 驱动不到
+ *      Ctrl+C，故用 `renderTurnOutcome` 纯函数钉；它正是主循环唯一出口所调用的函数）；
+ *   ④ `kind='budget'` ⇒ 不得再与"正常回答 / 模型没说话"混同（真实 runChat 一条）。
+ *
+ * 隔离（AGENTS.md §8）：五个状态根（provider/usage/session/settings/mcp）全部
+ * `mkdtempSync` 注入 env，afterEach 还原并清理——不读也不写真实 `~/.vessel`。
+ */
+describe('BRIEF-17 — TUI 回合 kind 呈现：error 必须可见 / success 逐字不变', () => {
+  const ENV_KEYS = [
+    'VESSEL_PROVIDER_ROOT',
+    'VESSEL_USAGE_ROOT',
+    'VESSEL_SESSION_ROOT',
+    'VESSEL_SETTINGS_ROOT',
+    'VESSEL_MCP_ROOT',
+  ] as const;
+
+  let roots: string[];
+  let workspace: string;
+  let savedEnv: Array<[string, string | undefined]>;
+
+  beforeEach(() => {
+    roots = ENV_KEYS.map(() => fs.mkdtempSync(path.join(os.tmpdir(), 'cah-b17-')));
+    workspace = fs.mkdtempSync(path.join(os.tmpdir(), 'cah-b17-ws-'));
+    savedEnv = ENV_KEYS.map((k): [string, string | undefined] => [k, process.env[k]]);
+    ENV_KEYS.forEach((k, i) => {
+      process.env[k] = roots[i]!;
+    });
+  });
+
+  afterEach(() => {
+    for (const [k, v] of savedEnv) {
+      if (v === undefined) delete process.env[k];
+      else process.env[k] = v;
+    }
+    for (const d of [...roots, workspace]) fs.rmSync(d, { recursive: true, force: true });
+  });
+
+  /** 走真实 `runChat`：脚本化输入 → 退出码 + 逐行输出（与上面 G-13 块同法，根各自隔离）。 */
+  const runScripted = async (
+    inputs: string[],
+    extra: { provider?: ChatOptions['provider'] } = {},
+  ): Promise<{ code: number; output: string[]; text: string }> => {
+    const { io, output } = scriptedIO(inputs);
+    const code = await runChat({
+      workspaceRoot: workspace,
+      policySystemPath: POLICY,
+      behaviorIRPath: BEHAVIOR,
+      io,
+      provider: extra.provider,
+    });
+    return { code, output, text: output.join('\n') };
+  };
+
+  it('① kind=error 的回合：必须出现 [错误] 且保留错误文本（旧实现当助手回复打印 ⇒ 必红）', async () => {
+    // read-only 下同一个 Write 连发 3 次 → AgentLoop 的 denial breaker 抛 DenialLimitError
+    // → runTurn 把它折叠成 kind='error' 且 finalText=错误文案**正常返回**（不走 catch）。
+    // maxToolResults: 2 → 第 1/2/3 次 model 调用都发同一意图（第 3 次即熔断）。
+    const denialScript: MockScriptEntry[] = [
+      {
+        when: /.*/,
+        maxToolResults: 2,
+        response: { toolCalls: [{ name: 'Write', arguments: { path: 'deny-probe.txt', content: 'probe-content' } }] },
+      },
+    ];
+    const provider = new MockProvider(denialScript, { model: 'mock-model' });
+    const out = await runScripted(['/permission read-only', '写一个探针文件', '/quit'], { provider });
+
+    expect(out.code).toBe(0);
+    // 阳性控制：这轮真的以错误结束（文案来自 DenialLimitError），且真的被拒（不是假错误）
+    expect(out.text).toContain('same intent denied 3 times: Write');
+    expect(fs.existsSync(path.join(workspace, 'deny-probe.txt'))).toBe(false);
+    // 判别断言 1：错误必须**可见**（旧实现整段输出里一个 [错误] 都没有 ⇒ 红）
+    expect(out.text).toMatch(/\[错误\]/);
+    expect(out.text).toContain('kind=error');
+    // 判别断言 2：错误文本必须落在**错误行**上，而不是被当成助手回复（旧实现 ⇒ 红）
+    const errLine = out.output.find((l) => l.startsWith('\n[错误]'));
+    expect(errLine).toBeDefined();
+    expect(errLine).toContain('same intent denied 3 times: Write');
+    expect(errLine).not.toContain('（mock 离线冒烟）'); // 非模型文本不盖模型标记
+    expect(out.output.some((l) => l.trim() === 'same intent denied 3 times: Write')).toBe(false);
+  });
+
+  it('② 负对照：kind=success 带 finalText ⇒ 输出与今日逐字一致（不加任何前缀/标记）', async () => {
+    const provider = new MockProvider([{ when: /.*/, response: { text: 'BRIEF17-PLAIN-OK' } }], { model: 'mock-model' });
+    const out = await runScripted(['打个招呼', '/quit'], { provider });
+
+    expect(out.code).toBe(0);
+    // **逐字**：回复行的完整内容（含前导换行）就等于 '\n' + finalText —— 数组元素全等比较，
+    // 任何一个前缀/标记/换行差异都会红。
+    expect(out.output).toContain('\nBRIEF17-PLAIN-OK');
+    expect(out.output.some((l) => l.trim() === 'BRIEF17-PLAIN-OK')).toBe(true);
+    expect(out.text).not.toContain('[错误]');
+    expect(out.text).not.toContain('[提示]');
+    expect(out.text).not.toContain('kind='); // 正常回合不带任何 kind 标注
+    expect(out.text).not.toContain('（mock 离线冒烟）'); // 注入 provider ⇒ 不加 mock 标记（BRIEF-16 1C② 负对照）
+  });
+
+  it('③ 四种 kind 的呈现逐字钉死：success / interrupted 不变，error / budget 必须带标记', () => {
+    const at = (over: Partial<TurnOutcomeLike> & { kind: TurnOutcomeLike['kind'] }): TurnOutcomeLike => ({
+      finalText: 'TXT',
+      steps: 3,
+      toolCalls: 2,
+      ...over,
+    });
+
+    // —— 不变的两条：success 逐字 + interrupted 既有文案 ——
+    expect(renderTurnOutcome(at({ kind: 'success' }), false)).toBe('\nTXT');
+    expect(renderTurnOutcome(at({ kind: 'success', finalText: '' }), false)).toBe('(无文本回复)');
+    expect(renderTurnOutcome(at({ kind: 'interrupted' }), false)).toBe('\n^C turn 已中断（kind=interrupted）');
+
+    // —— error：可见 + 保留错误文本；空文本也不退化成"像正常回复" ——
+    const err = renderTurnOutcome(at({ kind: 'error', finalText: 'BOOM' }), false);
+    expect(err).toContain('[错误]');
+    expect(err).toContain('BOOM');
+    expect(renderTurnOutcome(at({ kind: 'error', finalText: '' }), false)).toContain('[错误]');
+
+    // —— budget：不再等于 (无文本回复)；带文本也不吞 ——
+    const budget = renderTurnOutcome(at({ kind: 'budget', finalText: '' }), false);
+    expect(budget).toContain('[提示]');
+    expect(budget).toContain('kind=budget');
+    expect(budget).toContain('3 步');
+    expect(budget).not.toBe('(无文本回复)');
+    expect(renderTurnOutcome(at({ kind: 'budget', finalText: 'PARTIAL' }), false)).toContain('PARTIAL');
+
+    // —— mock 标记只属于"模型回复"：错误/预算行不盖模型标记；真 mock 回复仍带 ——
+    expect(renderTurnOutcome(at({ kind: 'error', finalText: 'BOOM' }), true)).not.toContain('（mock 离线冒烟）');
+    expect(renderTurnOutcome(at({ kind: 'budget', finalText: '' }), true)).not.toContain('（mock 离线冒烟）');
+    expect(renderTurnOutcome(at({ kind: 'success' }), true)).toBe('\n（mock 离线冒烟）TXT');
+  });
+
+  it('④ kind=budget 的回合：不得再与「正常回答 / 模型没说话」混同（真实 runChat）', async () => {
+    // 单步就置 budget：provider 返回**纯文本空串** ⇒ AgentLoop 走「纯文本即停」但 finalText=''
+    // （AgentLoop.ts 末尾把 finalText==='' 的 success 折叠成 kind='budget'）——与「步数上限」
+    // 同为 budget，TUI 侧改前只打 (无文本回复)，看不出"这轮没有产出最终回复"。
+    const provider = new MockProvider([{ when: /.*/, response: { text: '' } }], { model: 'mock-model' });
+    const out = await runScripted(['空回复', '/quit'], { provider });
+
+    expect(out.code).toBe(0);
+    const line = out.output.find((l) => l.startsWith('\n[提示]'));
+    expect(line).toBeDefined();
+    expect(line).toContain('kind=budget');
+    expect(line).toContain('已跑 1 步'); // 如实给出实际步数（不猜原因）
+    expect(out.text).not.toContain('(无文本回复)'); // 旧实现的呈现 ⇒ 红
   });
 });

@@ -342,6 +342,61 @@ function renderTurnReply(finalText: string, usingMock: boolean): string {
 }
 
 /**
+ * BRIEF-17：回合结果里 TUI 呈现需要的字段（结构对齐 `AgentLoop` 的 `TurnResult`）。
+ * 就地声明而不 import `@vessel/core`：apps/cli 不新增依赖边（与 `UsageTotalsLike` 同法）；
+ * `TurnResult` 多出的字段（turnId/durationMs）结构可赋值，不参与呈现。
+ */
+export interface TurnOutcomeLike {
+  kind: 'success' | 'error' | 'interrupted' | 'budget';
+  finalText: string;
+  steps: number;
+  toolCalls: number;
+}
+
+/**
+ * BRIEF-17：回合结果的**唯一呈现出口**——`kind` 必须如实可见。
+ *
+ * 复现（改前）：主循环只单独处理了 `interrupted`，其余一律「有 finalText 就当助手回复打印」。
+ * `AgentLoop` 在 `DenialLimitError` 时把错误文案写进 `finalText` 并置 `kind='error'`
+ * （AgentLoop.ts:334-338，文案形如 `same intent denied 3 times: Write`），于是这句话被
+ * TUI 原样当作**助手回复**输出：整段输出里没有任何错误痕迹，用户看到的是"助手说了这句话"
+ * 而不是"这一轮失败了"（内置 mock 会话里还会被加上 `（mock 离线冒烟）` 前缀，更像正常回复）。
+ * `catch` 分支的 `[错误] …` 只覆盖**抛异常**，覆盖不到 `kind='error'` 的**返回值**。
+ *
+ * 四条契约（每条都有对应判别性用例，见 chat.test.ts「BRIEF-17」块）：
+ *  - `error`       ⇒ 必须带 `[错误]` 标记（与 chat.ts 里「重建会话失败 / 创建会话失败 /
+ *                    抛异常兜底」三处既有 `[错误] …` 同风格）且
+ *                    **保留错误文本**；无文本时也不能退化成一句像正常回复的文案；
+ *  - `budget`      ⇒ 必须与"正常回答"可区分：这轮**没有**产出最终回复，只说
+ *                    `(无文本回复)` 看起来像"模型没说话"，与"这轮压根没跑完"分不开；
+ *                    故带 `[提示]` 标记并如实给出实际步数 / 工具调用数（不猜原因）；
+ *  - `success`     ⇒ **逐字不变**（`'\n' + renderTurnReply(finalText, usingMock)`；
+ *                    无文本仍是 `(无文本回复)`）——负对照，防"把一切都渲染成错误"；
+ *  - `interrupted` ⇒ **逐字不变**（`'\n^C turn 已中断（kind=interrupted）'`）。
+ *
+ * 为什么 `error` / `budget` **不加** mock 标记：`renderTurnReply` 的标记语义是
+ * 「这条回复来自内置 mock 模型」（BRIEF-16 1C②），而错误/预算行是 **harness 的状态文案**
+ * （`DenialLimitError.message` 由 loop 生成，不是 provider 的输出）。给非模型文本盖模型标记
+ * 是另一种"说的和做的不一致"；既有 `(无文本回复)` 分支同样绕过标记，口径一致。
+ *
+ * 为什么抽成纯函数：`interrupted` 只能由 Ctrl+C / `loop.interrupt()` 触发，脚本化 IO
+ * 驱动不到——抽出来才能在不碰 `runChat` 交互路径的前提下，把四种呈现逐字钉死。
+ */
+export function renderTurnOutcome(result: TurnOutcomeLike, usingMock: boolean): string {
+  switch (result.kind) {
+    case 'interrupted':
+      return '\n^C turn 已中断（kind=interrupted）';
+    case 'error':
+      // 错误文本来自 loop（如 DenialLimitError.message），**不得吞**；缺失时仍然是错误行。
+      return `\n[错误] 本回合失败（kind=error）：${result.finalText || '（回合以错误结束，无详情）'}`;
+    case 'budget':
+      return `\n[提示] 本回合未产出最终回复（kind=budget，已跑 ${result.steps} 步 / ${result.toolCalls} 次工具调用）${result.finalText ? `：${result.finalText}` : ''}`;
+    case 'success':
+      return result.finalText ? `\n${renderTurnReply(result.finalText, usingMock)}` : '(无文本回复)';
+  }
+}
+
+/**
  * Run the interactive chat session. Returns the exit code.
  */
 export async function runChat(opts: ChatOptions): Promise<number> {
@@ -693,12 +748,11 @@ export async function runChat(opts: ChatOptions): Promise<number> {
     };
     try {
       const result = await harness.loop.runTurn(input);
-      if (result.kind === 'interrupted') io.write('\n^C turn 已中断（kind=interrupted）');
-      // BRIEF-16 1C②：TUI 最终回复的**统一出口** —— mock 前缀只在这里加一次
-      // （读文件回显 / 脚本命中回显 / fallbackText 全覆盖），真实 provider 时 `renderTurnReply`
-      // 逐字返回原串；`interrupted` 分支没有最终回复、不加标记。
-      else if (result.finalText) io.write(`\n${renderTurnReply(result.finalText, usingMockProvider)}`);
-      else io.write('(无文本回复)');
+      // BRIEF-17：回合结果的**唯一出口**（BRIEF-16 1C② 的 mock 前缀只在这里加一次，
+      // 位置与语义都没变，只是把 `kind` 的分支收进纯函数 renderTurnOutcome）：
+      // success/interrupted 逐字不变；error 必须看得出失败并保留错误文本；
+      // budget 不再与"模型没说话"混同。见 renderTurnOutcome 的契约注释。
+      io.write(renderTurnOutcome(result, usingMockProvider));
     } catch (err) {
       io.write(`[错误] ${describeProviderError(err)}`);
     } finally {
