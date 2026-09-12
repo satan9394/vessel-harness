@@ -228,6 +228,22 @@ if (n >= 3) throw new DenialLimitError(...);
 - **但可达性经过我核实是"潜伏"**：`registry.execute` 的**唯一非测试调用方**是 `ParallelScheduler`（`registry/parallel.ts:58`），而 `ParallelScheduler` **本身只在 `parallel.test.ts` 里被使用**；生产 `compose.ts:268` 构造 `ToolRegistry` 后只用 `spec()`/`listVisible()`/`registerMcpTools`。⇒ **整条 `execute` 路径（含 exclusive 屏障与 rolling pool）在生产里是死代码**。
 - **意义（比"潜伏 bug"更值得记）**：这是一个**"看起来在保证写串行化、实际从未执行"的机制**——与本段反复出现的"死 seam/死规则"同族，只是这次死的是**并发安全机制本身**。**修法**（小）：给链补 `.catch()` 让**链本身恢复**、而失败仍如实抛给**当次**调用；并把"execute 路径生产未接线"如实记入文档/注释（要么接线、要么明确标注未接线）。
 
+### Round 61 — 对上面那条的**更正**（我先前的表述不够准确，必须改）
+
+我进一步查了"生产到底怎么执行多个工具调用"，结论要求我修正措辞。`packages/core/src/agent-loop/AgentLoop.ts:307-309`：
+```ts
+for (const call of toolCalls) {
+  this.state.recordToolCall();
+  await this.dispatchToolCall(call, denialCounts);   // ← 逐个 await：生产里没有任何并行
+  dispatchedAny = true;
+}
+```
+⇒ **生产里所有工具调用严格串行**。因此准确的说法是三段，而不是一段：
+1. **不是安全漏洞**：写不可能交错（因为什么都不并发）⇒ "写串行"这一**性质**由"全程串行"**顺带满足**，此前"安全机制死掉"的说法**过强**，此处更正。
+2. **但文档承诺的机制没落地**：`docs/ARCHITECTURE.md:312`（tools/registry 行："**exclusive 屏障 + 滚动池（maxParallelToolCalls:10）**"）、`:313`（tools/filesystem 行："**写串行**"）、`docs/EVENT-SPEC.md:303/348`（"**独占=排序屏障，读并发/写串行纪律**；独占屏障**由该事件所在 step 的调度保证**"）、`docs/DESIGN-DECISIONS.md:179`（决策落地项）都把它描述成**已交付**；而实测：**`读并发` 在生产里不存在**，`ToolRegistry.execute`（屏障与滚动池的唯一所在）**是死代码**。⇒ 属"**文档描述了一个未接线的机制**"（本段同族），但缺的是**性能特性**与**文档准确性**，不是安全边界。
+3. **死代码里藏着真坑**：那份 `execute` 路径的 exclusive 链**一次异常即永久中毒**（下一条写工具静默不执行 + 抛陈旧错误）。今天不触发（没人调用），**谁把它接上就会踩**。
+**修法方向（两条，属不同性质）**：(a) **文档/注释如实**——写明"v0.1 工具调用为串行执行；exclusive 屏障与滚动池**已实现但未接线**"，并把死代码路径**标注未接线**（这是诚实性修复，便宜）；(b) **真正接线**（把 `ParallelScheduler`/屏障接进 AgentLoop 以获得读并发）——**那是功能决策**（会引入并发语义、超时、取消、错误聚合等一整批问题），**不应顺手做**。另建议顺带修掉 (a) 路径上的**中毒坑**（给链补 `.catch()` 使其恢复、失败仍如实抛给当次调用）。
+
 **② `costMultipliers()` 抛错 ⇒ 倍率静默变默认（成本展示静默失真）——待实测定级**
 - 代码（`apps/cli/src/cli.ts:513-518`）：
   ```ts
