@@ -145,7 +145,7 @@ vessel provider endpoint test ds --timeout 5000                   # 单端点超
 - 校验 fail loud：`endpoints` 必须是 `{url, label?}` 数组，url 非空且不重复，label 非空字符串。
 - **测速 = 最小探测**：对 `{base}/models` 发一个 **不带任何凭据** 的 `GET`（避免把 key 送到用户临时填的候选地址），只取「是否可达 + 延迟」；HTTP 401/403 也算可达（网络/TLS 通了，只是未鉴权）。
 - 结果形状：`{url, label?, probeUrl, reachable, ok, status?, latencyMs, error?}`；排序为「2xx/3xx 优先 → 可达但需鉴权 → 不可达」，同档按延迟升序。
-- **只给建议**：默认只打印建议（`建议：<url>（最快可达，123ms）——仅建议，未改动默认端点。`），**绝不自动改 baseUrl**；只有显式 `--set-default` 才把 baseUrl 改成建议端点（且要求单个 id，`--all --set-default` 直接拒绝）。全部不可达 → exit 1，配置不变。
+- **只给建议**：默认只打印建议（`建议：<url>（最快可达，123ms）——仅建议，未改动默认端点。`），**绝不自动改 baseUrl**；只有显式 `--set-default` 才把 baseUrl 改成建议端点（且要求单个 id，`--all --set-default` 直接拒绝）。**全部不可达 → exit 1，配置不变**（单供应商模式）。**`--all` 模式（Round 130 改准）**：**逐供应商**判定——**任一所测供应商的全部端点都不可达即 exit 1 并点名该供应商**；只有**所有**所测供应商都至少有一个端点可达才退 0（改前是"任一供应商有一个端点可达即退 0"，会让坏掉的那家静默过关）。
 
 ## 3.3 key 入库（task 105：opencode-go 示例）
 

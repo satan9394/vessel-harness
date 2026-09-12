@@ -1,5 +1,6 @@
 # EVALUATION-REPORT-19 — Round 15 独立验收（对抗立场，静态审查）
 
+> ⚠️ **状态提示（Round 132 追加，不改正文）**：本报告是**当时**的独立评估快照——正文一律保留原样，**不追改**（改它等于篡改历史）。其中涉及的以下结论**已在本段被后续卡改变**，请看 PRODUCT-STATE.md 的当前队列：un --json 此前**不产 JSON 文档**（Round 130 起已产，且仍在补 durationMs/拦截审计）；policy status 此前**恒退 0**（Round 123 起编译失败退 1）；ench-report --json 此前**把人类摘要写进 stdout**（Round 123 起改走 stderr）。
 > Evaluator：全新上下文、只读、未被告知既往结论之外的信息。
 > **方法声明：静态审查（源码/文档/测试逐行阅读）；未复跑任何命令**（不运行 tsc / vitest / CLI E2E）。
 > 指挥侧运行证据（132 文件 1431 passed + 3 skipped、`policyStatus.test.ts` 10/10、七项判别性 E2E）**未被本报告独立复现**，仅作为"待复现的声称"处理。

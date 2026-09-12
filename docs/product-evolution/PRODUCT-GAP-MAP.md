@@ -457,7 +457,7 @@ parseFailed=true  ⇒ AgentLoop 退化成 {_raw:...}，工具拿不到 path
 
 **CLI 命令面审计（执行者逐条读码，均只报告未改）**：
 - **高**：`vessel policy status`（`cli.ts:707/747`）—— 见上。
-- **中**：`provider endpoint test --all`（`:1637` 是"**任一**可达即 0" ⇒ 部分供应商全部端点不可达仍绿灯）；`vessel migrate`（`:2187-2204`，`res.recycled === false` 只 `console.warn` + 0）。
+- ~~**中**：`provider endpoint test --all`（"**任一**可达即 0" ⇒ 部分供应商全部端点不可达仍绿灯）；`vessel migrate`（`res.recycled === false` 只 `console.warn` + 0）。~~ **【Round 130 已修】** `--all` 改为**逐供应商**判定（任一所测供应商全部端点不可达 ⇒ 退 1 并**点名**该供应商；单供应商模式与 `--set-default` 未动）；`migrate` 在**回收尝试失败**时退 1（文案说清"数据已迁移成功、旧目录未回收、不回滚不删除"）。**随后又收窄一处**：`defaultRecycle` 在**非 Windows 上恒抛** ⇒ "**平台不支持**回收"与"**尝试后失败**"必须分流（前者退 0 但必须说清旧目录仍在），否则 Linux/macOS 上成功的迁移也会退 1（见 PRODUCT-STATE 队列）。
 - **低/保留 0（有理由）**：`usage` / `usage recompute`（展示型只读，"估算条目"是**覆盖度信息**而非运行失败，改成非零会让正常查询变红 ⇒ 若判定应另加显式开关）；`review list`（只读枚举）；`provider import`（剥离明文 `apiKey` 是**安全加固**、不变式被执行，不是失败）；`pricing sync` 的 mismatch/dry-run/unchanged（注释已写"不失败、不改退出码"）；`pricing` 列表缺目录。
 - **已正确、无需动**：`run --bench`、`provider list`（损坏 fail-loud）、`models`、`sessions list`、`settings list`。
 - **修好后才看得见的一处不一致（只报告）**：`cmdBenchReport` 在 `--json` 下**仍把人类摘要写进 stdout**，而 `output.ts` 的契约是"`--json` 时 stdout 只允许一段可解析 JSON"。**改动前就有**，测试**故意没有把它钉死**（否则就是又一次"锁住缺陷"）⇒ **待排**。
