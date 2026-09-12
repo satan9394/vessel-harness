@@ -121,6 +121,33 @@ export const DETERMINISTIC_BENCH_GATE_CRITERION =
   '故本 gate 的判据是「判定通过的场景 manifest 断言齐全」；' +
   '它**不声称清单内每个场景都判定通过**——挂在 pending 上的场景保持未判定状态，待能真判它的环境/评测补齐后再判。';
 
+/**
+ * Gate 7（ux-smoke）的 criterion —— 与 gate 5（`SAFETY_GATE_CRITERION`）、gate 3
+ * （`DETERMINISTIC_BENCH_GATE_CRITERION`）同一口径、同一处置（本仓反复出问题的一类：文案比实跑说得多）。
+ *
+ * 审计发现：旧 criterion 写的是「web 套件或最小 smoke 通过；web 构建工具缺失时显式 pending。」——
+ * 描述的是**另一件事**。实跑（本文件 ux-smoke executor）**只做一次 `fs.existsSync(apps/web/dist)`**：
+ *   - 它**不跑 web 测试、也不跑任何 smoke**（根 `vitest.config.ts` 的 `include` 不含 `apps/web`，
+ *     web 套件是 `apps/web/vitest.config.ts` 的独立配置，本 gate 从不调用）；
+ *   - 它判定 pending 的成因是**产物缺失 / 探测（stat）失败**，**不是**「web 构建工具缺失」
+ *     —— 本 gate 从不探测构建工具是否存在。
+ * 故文案必须如实：① 只声称「探测构建产物是否存在」；② pending 成因写准；③ 显式声明本 gate
+ * **不执行任何 web 测试/smoke**（「跑了其实没跑」是本仓最忌讳的一类误导）。
+ *
+ * 纪律：criterion 的字面量由本常量唯一持有（`GATE_DEFINITIONS` 只引用它），`release-gates.test.ts`
+ * 用 `toBe(UX_SMOKE_GATE_CRITERION)` 锁住注册表接线 —— 改回旧串即红。
+ */
+export const UX_SMOKE_GATE_CRITERION =
+  'UX 冒烟（web）的**判据 = 探测 web 构建产物是否存在**：默认路径 `apps/web/dist`' +
+  '（可经 `BuildGateExecutorsOptions.webDistRoot` 注入），检出方式是一次 `fs.existsSync`，本 gate 不执行任何命令。' +
+  '三态：① 产物存在 ⇒ **pass**；' +
+  '② 产物缺失（web 未 build）⇒ **pending**（环境/产物不可用：须先在能构建 web 的环境执行 ' +
+  '`npm run -w @vessel/web build` 后重跑）；' +
+  '③ 探测本身失败（受限环境无法 stat 该路径）⇒ 同样 **pending**，note 标注为探测失败；' +
+  '两类 pending 既不计通过、也不计失败，**绝不静默 pass**。' +
+  '**免责声明**：本 gate 只探测该产物是否在位 —— 它**不执行任何 web 测试**、也不执行任何 smoke 用例；' +
+  '故它判 pass 也不代表「web 测试已跑过且通过」，同样不代表 web 运行时行为正确';
+
 /** §21 ordered gate definitions (1..8). */
 export const GATE_DEFINITIONS: GateDefinition[] = [
   { id: 'build', name: 'Build (tsc -b)', criterion: '类型构建 `tsc -b tsconfig.json` 与 `apps/web` 类型检查（`tsc -p apps/web/tsconfig.json`）均完成且退出码 0（无类型错误）。', position: 1 },
@@ -129,7 +156,7 @@ export const GATE_DEFINITIONS: GateDefinition[] = [
   { id: 'real-model-bench', name: 'Real Model Bench (082 lane)', criterion: '082 真实模型 lane 收集到 §15 L3 指标；无凭据/无 provider 时显式 pending，不静默通过。', position: 4 },
   { id: 'safety', name: 'Safety (075 pack)', criterion: SAFETY_GATE_CRITERION, position: 5 },
   { id: 'resume', name: 'Resume (063/064)', criterion: '063/064 可跑集（068 soak 小规模）resume 不变量成立：暂停/续跑、workspace 零残留、从 handoff 续跑留痕。', position: 6 },
-  { id: 'ux-smoke', name: 'UX Smoke (web)', criterion: 'web 套件或最小 smoke 通过；web 构建工具缺失时显式 pending。', position: 7 },
+  { id: 'ux-smoke', name: 'UX Smoke (web)', criterion: UX_SMOKE_GATE_CRITERION, position: 7 },
   { id: 'packaging', name: 'Packaging (build artifacts)', criterion: 'build 产物检查（npm pack / 等价产物）存在且完整；工具缺失时显式 pending。', position: 8 },
 ];
 
@@ -548,17 +575,41 @@ export function judgePackagingProbe(args: {
   };
 }
 
-/** Judge the UX smoke gate: web build output present; else pending (env). */
+/**
+ * Judge the UX smoke gate —— **如实**版：只判「web 构建产物是否在位」。
+ *
+ * 判据（与 `UX_SMOKE_GATE_CRITERION` 同源同口径）：产物存在 ⇒ pass；产物缺失或探测失败 ⇒ 显式 pending。
+ * 文案纪律：summary/note **不得**暗示本 gate 跑过（或将跑）web 测试/smoke —— 它只做一次 `fs.existsSync`，
+ * 一个 web 用例都没执行；pass 只等于「产物在位」，不等于「web 测试通过」。
+ */
 export function judgeUxSmoke(args: { webDistPresent: boolean; probeFailed: boolean }): GateVerdict {
   if (args.probeFailed || !args.webDistPresent) {
     return {
       status: 'pending',
       pending: true,
-      evidence: { summary: args.probeFailed ? 'web smoke 探测失败（受限环境）' : 'web 构建产物缺失（未 build）' },
-      note: 'ux-smoke gate: web 套件/产物需在非受限环境跑；当前显式 pending。',
+      evidence: {
+        summary: args.probeFailed
+          ? 'web 构建产物探测失败（受限环境无法 stat apps/web/dist）'
+          : 'web 构建产物缺失（apps/web/dist 未 build）',
+        detail: [
+          `webDistPresent=${String(args.webDistPresent)}`,
+          `probeFailed=${String(args.probeFailed)}`,
+          '未执行任何 web 测试/smoke（本 gate 不做这件事）',
+        ],
+      },
+      note:
+        'ux-smoke gate: 本 gate 只探测 web 构建产物是否存在（不执行任何 web 测试/smoke）；' +
+        '产物缺失或探测失败 ⇒ 显式 pending（环境/产物不可用），须在能构建 web 的环境执行 ' +
+        '`npm run -w @vessel/web build` 后重跑。',
     };
   }
-  return { status: 'pass', evidence: { summary: 'web smoke 构建产物存在', detail: ['webDistPresent=true'] } };
+  return {
+    status: 'pass',
+    evidence: {
+      summary: 'web 构建产物存在（apps/web/dist）——仅表示产物在位，未执行任何 web 测试',
+      detail: ['webDistPresent=true', 'probeFailed=false', '未执行任何 web 测试/smoke（本 gate 不做这件事）'],
+    },
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -909,7 +960,8 @@ export function buildReleaseGateExecutors(opts: BuildGateExecutorsOptions = {}):
         }
       },
     },
-    // Gate 7 UX Smoke — web build probe (env-annotated)
+    // Gate 7 UX Smoke — **只探测** web 构建产物是否存在（无命令、无测试；criterion 与判据同口径，
+    // 见 UX_SMOKE_GATE_CRITERION：本 gate 不跑 web 测试/smoke，pass 仅表示产物在位）
     {
       gate: gateDefinition('ux-smoke'),
       run: async (ctx) => {

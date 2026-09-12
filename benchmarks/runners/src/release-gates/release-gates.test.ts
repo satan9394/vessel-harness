@@ -9,6 +9,7 @@ import {
   L1_DETERMINISTIC_BENCH_SCENARIOS,
   SAFETY_SCENARIOS,
   SAFETY_GATE_CRITERION,
+  UX_SMOKE_GATE_CRITERION,
   classifyScenarioRun,
   gateDefinition,
   judgeBuild,
@@ -179,7 +180,9 @@ describe('gate criteria judges (tasks 084) — pure, no commands', () => {
     expect(judgeSoakResume({ ...ok, resumeProducedIteration: false }).status).toBe('fail');
   });
 
-  it('judgeUxSmoke / judgePackagingProbe : missing tooling → explicit pending (never silent pass)', () => {
+  // 标题曾经写 "missing tooling" —— 对 ux-smoke 而言不成立：它探测的是**构建产物**是否在位，
+  // 从不探测构建工具是否存在（工具缺失的表述属旧 criterion 的漂移，已改准）。
+  it('judgeUxSmoke / judgePackagingProbe : 产物/工具不可用 → explicit pending (never silent pass)', () => {
     // probe failed → pending
     expect(judgeUxSmoke({ webDistPresent: false, probeFailed: true }).status).toBe('pending');
     expect(judgeUxSmoke({ webDistPresent: true, probeFailed: false }).status).toBe('pass');
@@ -188,6 +191,17 @@ describe('gate criteria judges (tasks 084) — pure, no commands', () => {
     expect(judgePackagingProbe({ rootHasDist: true, entryExists: false, probeFailed: false }).status).toBe('fail');
     const pending = judgeUxSmoke({ webDistPresent: false, probeFailed: true });
     expect(pending.note).toBeTruthy(); // environment annotation required
+    // 文案诚实性（与 ux-smoke 的 criterion 同口径，判别性）：note/summary 只能声称「探测产物」，
+    // 不得暗示本 gate 跑过或将跑 web 测试/smoke —— 删掉这处措辞修复（回退成
+    // 「web 套件/产物需在非受限环境跑」）⇒ 下面两条红。
+    expect(pending.note).not.toContain('web 套件');
+    expect(pending.note).toContain('不执行任何 web 测试');
+    // pending 成因如实：产物缺失 / 探测失败（不是「构建工具缺失」——本 gate 从不探测构建工具）
+    expect(pending.evidence.summary).not.toContain('构建工具');
+    // pass 的 evidence 也只声称「产物在位」，不冒充「web 测试通过」
+    const pass = judgeUxSmoke({ webDistPresent: true, probeFailed: false });
+    expect(pass.evidence.summary).toContain('构建产物');
+    expect(pass.evidence.summary).toContain('未执行任何 web 测试');
   });
 });
 
@@ -253,6 +267,42 @@ describe('gate definitions (tasks 084) — §21 registry', () => {
     expect(criterion).not.toContain('全部通过');
     // ④ 显式声明「不是清单内场景都判定通过」（pending 的场景保持未判定）
     expect(criterion).toContain('不声称清单内每个场景都判定通过');
+  });
+
+  it('ux-smoke gate 文案与实跑事实一致：criterion 只声称「探测 web 构建产物是否存在」，且声明本 gate 不跑 web 测试', () => {
+    // 审计发现（与 gate 5 写死 "S001-S008"、gate 3 写死 "B001-B005" 是**同一类**漂移）：
+    // 旧 criterion 是「web 套件或最小 smoke 通过；web 构建工具缺失时显式 pending。」——
+    // 而实跑（gates.ts 的 ux-smoke executor）**只做一次 `fs.existsSync(apps/web/dist)`**：
+    // 既不跑 web 测试、也不跑任何 smoke；pending 的成因是**产物缺失 / 探测失败**，
+    // 不是「web 构建工具缺失」（本 gate 从不探测构建工具）。文案改了实跑没改 ⇒ 本用例红。
+    const criterion = gateDefinition('ux-smoke').criterion;
+
+    // ① 注册表里挂的就是这条 criterion（与 gate 5/3 的 `toBe` 同款；改回旧串 ⇒ 本条红）
+    expect(criterion).toBe(UX_SMOKE_GATE_CRITERION);
+    // ② 如实描述实跑动作：只探测**构建产物**是否存在，并点名默认路径与检出方式
+    expect(criterion).toContain('apps/web/dist');
+    expect(criterion).toContain('构建产物');
+    expect(criterion).toContain('fs.existsSync');
+    expect(criterion).toContain('不执行任何命令');
+    // ③ 显式 pending：产物缺失 / 探测失败两条成因都写准（不再是「构建工具缺失」）
+    expect(criterion).toContain('pending');
+    expect(criterion).toContain('产物缺失');
+    expect(criterion).toContain('探测本身失败');
+    // ④ 显式免责：不执行任何 web 测试/smoke，pass ≠ 测试跑过
+    expect(criterion).toContain('不执行任何 web 测试');
+    expect(criterion).toContain('不代表');
+    // ⑤ 旧文案的两个不成立说法不得残留（回退即红）：
+    //    - `not.toContain('web 构建工具缺失')`：旧 pending 成因；
+    //    - `not.toContain(<旧 criterion 全文>)`：回退标记。
+    //    自相矛盾检查（gate 5 踩过的坑：免责声明里又写出被禁的串）：本 criterion 的正文与免责声明
+    //    **都没有**出现这两串 —— 免责声明写的是「不执行任何 web 测试、也不执行任何 smoke 用例」，
+    //    与「web 套件或最小 smoke 通过」逐字不同；而「构建工具」四字在本 criterion 里完全不出现
+    //    （成因只写「产物缺失 / 探测本身失败」）。故 ⑤ 的两条与 ④ 的两条可在同一字符串上同时成立，
+    //    由 ① 的 `toBe` 把整段文本钉死后，这四条的联立在编译期/运行期都可复核。
+    //    注：这里**刻意不**禁裸片段「web 套件或最小 smoke 通过」—— 未来若有人把免责声明写成
+    //    「不代表 web 套件或最小 smoke 通过」是**更清楚**的写法，不该被这条绊倒；禁全文足以抓住回退。
+    expect(criterion).not.toContain('web 构建工具缺失');
+    expect(criterion).not.toContain('web 套件或最小 smoke 通过；web 构建工具缺失时显式 pending。');
   });
 });
 
