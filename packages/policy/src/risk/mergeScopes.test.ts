@@ -227,3 +227,231 @@ policy:
     expect(artifacts.approval).toBe('ask');
   });
 });
+
+/**
+ * C-1 / C-2 / C-5 修复的判别用例（追加，不改既有断言）。
+ *
+ * **修复前必红（11 条）**：⑳㉑㉒（`filesystem.confinement` 在合并里被静默丢弃 ⇒ 硬执法特性到不了编译器）、
+ * ㉓㉔㉖㉗㉜（allow 语义被当并集 ⇒ 低层追加一条即可放宽执行）、㉘（`version` 后者覆盖 ⇒ 潜伏降级通道）、
+ * ㉚㉛（端到端：策略文件里的 `confinement: true` 抵达不了 `fs-confinement`）。
+ * ㉕㉙ 是回归锁（低层仍可加 deny / 单调趋严字段不变），改前改后都应为绿。
+ */
+describe('mergeScopes — C-1 filesystem.confinement any-true（硬执法开关不得被合并吞掉）', () => {
+  it('⑳ 高层 confinement:true + 低层 filesystem.allow → confinement 仍为 true，且低层 allow 被采纳', () => {
+    const merged = mergeScopes([
+      decl({ filesystem: { confinement: true } }),
+      decl({ filesystem: { allow: [{ path: '/x', mode: 'read' }] } }),
+    ]);
+    expect(merged.filesystem?.confinement).toBe(true);
+    expect(merged.filesystem?.allow?.map((a) => a.path)).toContain('/x');
+  });
+
+  it('㉑ 任一层为 true 即 true；两层都未声明 → undefined（**不得写成 false**）', () => {
+    // 低层开启也算数（低层可收紧）
+    expect(merge(decl(), decl({ filesystem: { confinement: true } })).filesystem?.confinement).toBe(true);
+    // 所有层都未声明 → 保持「未声明」形状
+    expect(merge(decl(), decl()).filesystem?.confinement).toBeUndefined();
+    const fsOnly = mergeScopes([
+      { version: '0.1', profile: 'workspace-write', approval: 'never', filesystem: { protected: ['.git'] } },
+    ]);
+    expect(fsOnly.filesystem?.confinement).toBeUndefined();
+    expect('confinement' in (fsOnly.filesystem ?? {})).toBe(false);
+  });
+
+  it('㉒ 低层不得关闭高层打开的开关：高层 true + 低层 false → true', () => {
+    const merged = merge(
+      decl({ filesystem: { confinement: true } }),
+      decl({ filesystem: { confinement: false } }),
+    );
+    expect(merged.filesystem?.confinement).toBe(true);
+  });
+});
+
+describe('mergeScopes — C-2 allow 语义列表高层优先（低层不得放宽执行）', () => {
+  it('㉓ shell.allow：高层 [git status] + 低层 [bash] → 不含 bash（否则 bash -c 由 deny 变 allow）', () => {
+    const merged = merge(
+      decl({ shell: { allow: ['git status'] } }),
+      decl({ shell: { allow: ['bash'] } }),
+    );
+    expect(merged.shell?.allow).toContain('git status');
+    expect(merged.shell?.allow).not.toContain('bash');
+  });
+
+  it('㉔ filesystem.allow：低层不得扩张（高层 [/a] + 低层 [/b] → 不含 /b）', () => {
+    const merged = merge(
+      decl({ filesystem: { allow: [{ path: '/a', mode: 'read' }] } }),
+      decl({ filesystem: { allow: [{ path: '/b', mode: 'write' }] } }),
+    );
+    expect(merged.filesystem?.allow?.map((a) => a.path)).toEqual(['/a']);
+  });
+
+  it('㉕ 反向：shell.deny 仍是并集（低层保留「加限制」的能力）', () => {
+    const merged = merge(
+      decl({ shell: { deny: ['destructive-delete'] } }),
+      decl({ shell: { deny: ['disk-format'] } }),
+    );
+    expect(merged.shell?.deny).toEqual(['destructive-delete', 'disk-format']);
+  });
+
+  it('㉖ shell.scoped_rules 按 action 分流：低层追加 allow 无效、追加 deny 生效', () => {
+    const merged = merge(
+      decl({ shell: { scoped_rules: [{ id: 'top-allow', match: 'Bash(git status)', action: 'allow' }] } }),
+      decl({
+        shell: {
+          scoped_rules: [
+            { id: 'low-allow', match: 'Bash(bash)', action: 'allow' },
+            { id: 'low-deny', match: 'Bash(curl*)', action: 'deny' },
+          ],
+        },
+      }),
+    );
+    const ids = (merged.shell?.scoped_rules ?? []).map((r) => r.id);
+    expect(ids).toContain('top-allow');
+    expect(ids).toContain('low-deny');
+    expect(ids).not.toContain('low-allow');
+  });
+
+  it('㉗ tools.rules 同款分流：低层 allow 规则被丢弃、deny/ask 规则保留', () => {
+    const merged = merge(
+      decl({ tools: { rules: [{ id: 'top-rule', match: 'Read(path=glob "**/.env")', action: 'deny' }] } }),
+      decl({
+        tools: {
+          rules: [
+            { id: 'low-allow', match: 'Bash(bash)', action: 'allow' },
+            { id: 'low-ask', match: 'Bash(git push*)', action: 'ask' },
+          ],
+        },
+      }),
+    );
+    const ids = (merged.tools?.rules ?? []).map((r) => r.id);
+    expect(ids).toEqual(['top-rule', 'low-ask']);
+    expect(ids).not.toContain('low-allow');
+  });
+});
+
+describe('mergeScopes — C-5 version 高层优先（非安全字段，只为消除潜伏降级通道）', () => {
+  it('㉘ 两层都声明 version → 取高层（修复前：低层覆盖）', () => {
+    expect(merge(decl({ version: '1.0' }), decl({ version: '0.1' })).version).toBe('1.0');
+  });
+});
+
+describe('mergeScopes — 追加回归锁（改前改后都应为绿）', () => {
+  it('㉙ profile/approval first-wins + git.force_push 取最严 + deny_domains 并集，一次合成', () => {
+    const merged = merge(
+      decl({
+        profile: 'workspace-write',
+        approval: 'ask',
+        git: { force_push: 'deny' },
+        network: { deny_domains: ['169.254.169.254'] },
+      }),
+      decl({
+        profile: 'danger-full-access',
+        approval: 'never',
+        git: { force_push: 'allow' },
+        network: { deny_domains: ['b.example'] },
+      }),
+    );
+    expect(merged.profile).toBe('workspace-write');
+    expect(merged.approval).toBe('ask');
+    expect(merged.git?.force_push).toBe('deny');
+    expect(merged.network?.deny_domains).toEqual(['169.254.169.254', 'b.example']);
+  });
+});
+
+describe('loadPolicyArtifacts — C-1 端到端：合并后的 confinement 抵达编译器 / 引擎', () => {
+  let dir: string;
+  let systemPath: string;
+  let projectPath: string;
+
+  const SYSTEM_YAML = `
+policy:
+  version: "0.1"
+  profile: workspace-write
+  approval: never
+`;
+
+  // 克隆仓库即可携带的 project 层：声明硬执法 confinement
+  const PROJECT_YAML = `
+policy:
+  version: "0.1"
+  filesystem:
+    confinement: true
+`;
+
+  beforeEach(() => {
+    dir = fs.mkdtempSync(path.join(os.tmpdir(), 'cah-policy-confine-'));
+    systemPath = path.join(dir, 'system.yaml');
+    projectPath = path.join(dir, 'project.yaml');
+    fs.writeFileSync(systemPath, SYSTEM_YAML, 'utf8');
+    fs.writeFileSync(projectPath, PROJECT_YAML, 'utf8');
+  });
+  afterEach(() => {
+    fs.rmSync(dir, { recursive: true, force: true });
+  });
+
+  it('㉚ 策略文件的 filesystem.confinement: true 经 loadPolicyArtifacts 合并后仍为 true，并生成 fs-confinement', () => {
+    const artifacts = loadPolicyArtifacts({ systemPath, projectPath });
+    // 核心判别点：修复前 mergeScopes 重建 filesystem 时丢掉 confinement ⇒ 这里恒为 false
+    expect(artifacts.fsConfig?.confinement).toBe(true);
+    expect(artifacts.rules.some((r) => r.id === 'fs-confinement' && r.domain === 'filesystem')).toBe(true);
+  });
+
+  it('㉛ 端到端执法：confinement 生效后越界绝对路径 Read 被判 deny（修复前：无规则 → allow）', async () => {
+    const artifacts = loadPolicyArtifacts({ systemPath, projectPath });
+    const verdict = await new PolicyEngine(artifacts).decide({
+      toolName: 'Read',
+      arguments: { path: '/etc/passwd' },
+    });
+    expect(verdict.action).toBe('deny');
+    expect(verdict.ruleRef).toBe('fs-confinement');
+  });
+});
+
+describe('loadPolicyArtifacts — C-2 端到端：project 追加 shell.allow 不再放宽执行', () => {
+  let dir: string;
+  let systemPath: string;
+  let projectPath: string;
+
+  const SYSTEM_YAML = `
+policy:
+  version: "0.1"
+  profile: workspace-write
+  approval: never
+  shell:
+    allow:
+      - "git status"
+`;
+
+  // 克隆仓库即可携带的 project 层：试图把 bash 追加进 readonly allowlist
+  const PROJECT_YAML = `
+policy:
+  version: "0.1"
+  shell:
+    allow:
+      - "bash"
+`;
+
+  beforeEach(() => {
+    dir = fs.mkdtempSync(path.join(os.tmpdir(), 'cah-policy-shellallow-'));
+    systemPath = path.join(dir, 'system.yaml');
+    projectPath = path.join(dir, 'project.yaml');
+    fs.writeFileSync(systemPath, SYSTEM_YAML, 'utf8');
+    fs.writeFileSync(projectPath, PROJECT_YAML, 'utf8');
+  });
+  afterEach(() => {
+    fs.rmSync(dir, { recursive: true, force: true });
+  });
+
+  it('㉜ 合并后 shellAllow 不含 bash：bash -c 不被降级为 read（修复前：由 deny 变 allow）', async () => {
+    const artifacts = loadPolicyArtifacts({ systemPath, projectPath });
+    expect(artifacts.shellAllow).toEqual(['git status']);
+
+    const engine = new PolicyEngine(artifacts);
+    // 修复前：project 的 bash 进了 allowlist ⇒ 所需权限被降级为 read ⇒ allow（clone-repo 放宽漏洞）
+    const widened = await engine.decide({ toolName: 'Shell', arguments: { command: 'bash -c "rm -rf /tmp/x"' } });
+    expect(widened.action).toBe('deny');
+    // 回归锁：system 自己声明的 allowlist 仍然生效（allowlist 机制未被误伤）
+    const allowed = await engine.decide({ toolName: 'Shell', arguments: { command: 'git status' } });
+    expect(allowed.action).toBe('allow');
+  });
+});

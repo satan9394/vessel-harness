@@ -46,6 +46,239 @@ function shellCommandPredicate(
   return (call) => call.toolName === 'Shell' && matches(String(call.arguments.command ?? '').trim());
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// C-3 修复 — 内置 `git:force-push` 的**专用**谓词（位置无关 + 包装剥离）
+//
+// 旧谓词 `/^git\s+push\s+(-f|--force)\b/` 要求 `-f`/`--force` **紧跟** `push`，
+// 于是真实绕过形全部漏网（独立安全复评 C-3）：`git push origin main --force`
+// （refspec 尾置）、`git -C repo push --force`、`sh -c "git push --force"`、
+// `sudo git push --force`、`env VAR=x git push --force`。默认策略下
+// `workspace-write + approval: never` 的 profile 门兜得住，但在 S006 /
+// `--permission danger-full-access` 这类放宽会话里，deny 规则是**唯一防线**。
+//
+// 作用域纪律：本块只替换 `git:force-push` 这条**内置语义规则**的实现。
+// `shellCommandPredicate`（策略作者写的 `Shell(...)`/`Bash(...)`）的 `*` 语义
+// 按本卡要求**保持不变**（锚定 glob + 逐字转义，不做包装剥离），两者互不影响。
+// ─────────────────────────────────────────────────────────────────────────────
+
+/** 包装器递归剥离的最大深度（`sudo sh -c 'env x sh -c …'` 之类）。 */
+const MAX_WRAPPER_DEPTH = 4;
+
+const EMPTY_OPTS: ReadonlySet<string> = new Set<string>();
+
+/** 前缀式包装器：剥掉后对**剩余部分**重判（`sudo` / `env` / `nohup` …）。 */
+const PRIVILEGE_WRAPPERS = new Set([
+  'sudo', 'doas', 'env', 'command', 'nohup', 'nice', 'time', 'setsid', 'stdbuf', 'ionice',
+]);
+
+/** `sh -c "…"` 家族：取引号内脚本**递归**判定（引号已由 tokenizer 剥掉）。 */
+const SHELL_WRAPPERS = new Set(['sh', 'bash', 'zsh', 'dash', 'ksh', 'ash']);
+
+/**
+ * 每个包装器里**带独立值**的选项（`sudo -u root`、`nice -n 10`）；`--opt=value`
+ * 写法自成一体、无需额外跳词。刻意按包装器分表：`env -i` 是「不取值」的
+ * （`-i` 若被当成取值选项，`env -i git push --force` 反而会漏判）。
+ */
+const WRAPPER_VALUE_OPTS: Record<string, ReadonlySet<string>> = {
+  sudo: new Set([
+    '-u', '-g', '-p', '-C', '-h', '-U', '-r', '-t', '-T', '-D', '-R',
+    '--user', '--group', '--prompt', '--chdir', '--host', '--role', '--type',
+    '--other-user', '--close-from', '--command-timeout',
+  ]),
+  doas: new Set(['-u', '-C']),
+  env: new Set(['-u', '-C', '-S', '--unset', '--chdir', '--split-string']),
+  nice: new Set(['-n', '--adjustment']),
+  stdbuf: new Set(['-i', '-o', '-e', '--input', '--output', '--error']),
+  ionice: new Set(['-c', '-n', '-p', '-u', '--class', '--classdata', '--pid', '--uid']),
+  time: new Set(['-f', '-o', '--format', '--output']),
+};
+
+/** `git` 全局选项中带独立值的（`git -C <path> push …`）——不影响子命令判定。 */
+const GIT_GLOBAL_VALUE_OPTS = new Set([
+  '-C', '-c', '--git-dir', '--work-tree', '--namespace', '--exec-path',
+  '--config-env', '--super-prefix', '--attr-source',
+]);
+
+function shellBasename(token: string): string {
+  return (token.replace(/\\/g, '/').split('/').pop() ?? token).replace(/\.exe$/i, '');
+}
+
+/** 按**未被引号包裹**的 `|` `||` `&&` `;` 与换行切段，避免跨管道/分号误判。 */
+function splitShellSegments(command: string): string[] {
+  const segments: string[] = [];
+  let buf = '';
+  let quote: '"' | "'" | null = null;
+  for (let i = 0; i < command.length; i++) {
+    const ch = command[i]!;
+    if (quote !== null) {
+      buf += ch;
+      if (ch === '\\' && quote === '"' && i + 1 < command.length) {
+        buf += command[i + 1]!;
+        i++;
+        continue;
+      }
+      if (ch === quote) quote = null;
+      continue;
+    }
+    if (ch === '\\' && i + 1 < command.length) {
+      buf += ch + command[i + 1]!;
+      i++;
+      continue;
+    }
+    if (ch === '"' || ch === "'") {
+      quote = ch;
+      buf += ch;
+      continue;
+    }
+    if (ch === '|' || ch === '&' || ch === ';' || ch === '\n' || ch === '\r') {
+      segments.push(buf);
+      buf = '';
+      if ((ch === '|' || ch === '&') && command[i + 1] === ch) i++;
+      continue;
+    }
+    buf += ch;
+  }
+  segments.push(buf);
+  return segments.map((s) => s.trim()).filter((s) => s.length > 0);
+}
+
+/**
+ * 引号感知 token 化：引号内空白不切分，且**去掉引号本身**——`sh -c "git push
+ * --force"` 因此得到一个完整脚本 token，可直接递归判定。
+ */
+function tokenizeShellSegment(segment: string): string[] {
+  const tokens: string[] = [];
+  let buf = '';
+  let quote: '"' | "'" | null = null;
+  const flush = (): void => {
+    if (buf.length > 0) {
+      tokens.push(buf);
+      buf = '';
+    }
+  };
+  for (let i = 0; i < segment.length; i++) {
+    const ch = segment[i]!;
+    if (quote !== null) {
+      if (ch === quote) {
+        quote = null;
+        continue;
+      }
+      if (ch === '\\' && quote === '"' && i + 1 < segment.length) {
+        buf += segment[i + 1]!;
+        i++;
+        continue;
+      }
+      buf += ch;
+      continue;
+    }
+    if (ch === '\\' && i + 1 < segment.length) {
+      buf += segment[i + 1]!;
+      i++;
+      continue;
+    }
+    if (ch === '"' || ch === "'") {
+      quote = ch;
+      continue;
+    }
+    if (ch === ' ' || ch === '\t') {
+      flush();
+      continue;
+    }
+    buf += ch;
+  }
+  flush();
+  return tokens;
+}
+
+/**
+ * force 选项判定按 **token 精确匹配**（而非 `\b` 边界）：`--force\b` 会在
+ * `e` 与 `-` 之间形成词边界，从而把 `--force-like-branch`（分支名，不是选项）
+ * 误判为 force push。
+ */
+function isForcePushOption(token: string): boolean {
+  if (token === '--force' || token === '-f' || token === '--force-with-lease') return true;
+  if (token.startsWith('--force=') || token.startsWith('--force-with-lease=')) return true;
+  // 短选项簇（`-f` / `-uf` / `-fu`）；长选项（`--follow-tags` / `--force-like-*`）显式排除
+  return /^-[A-Za-z]+$/.test(token) && token.includes('f');
+}
+
+/** 命令形如 `git <全局选项…> push <args…>`，且 push 之后出现 force 选项。 */
+function isGitPushWithForce(tokens: string[]): boolean {
+  if (tokens.length === 0) return false;
+  if (shellBasename(tokens[0]!) !== 'git') return false;
+  let i = 1;
+  for (; i < tokens.length; i++) {
+    const token = tokens[i]!;
+    if (token === '--') {
+      i++;
+      break;
+    }
+    if (!token.startsWith('-')) break; // 第一个非选项 token 即子命令
+    if (GIT_GLOBAL_VALUE_OPTS.has(token)) i++; // 跳过 `-C <path>` 的独立值
+  }
+  if (tokens[i] !== 'push') return false;
+  for (let j = i + 1; j < tokens.length; j++) {
+    if (isForcePushOption(tokens[j]!)) return true;
+  }
+  return false;
+}
+
+/** `bash -lc "…"` / `sh -c '…'` → 脚本参数；不是 `-c` 形式则返回 null。 */
+function shellDashCArg(tokens: string[]): string | null {
+  for (let i = 1; i < tokens.length; i++) {
+    if (/^-[A-Za-z]*c[A-Za-z]*$/.test(tokens[i]!)) return tokens[i + 1] ?? null;
+  }
+  return null;
+}
+
+/** 剥掉前缀式包装器及其选项（含 `env VAR=x` 赋值），返回剩余 token。 */
+function stripWrapper(tokens: string[]): string[] {
+  const head = shellBasename(tokens[0]!);
+  const takesValue = WRAPPER_VALUE_OPTS[head] ?? EMPTY_OPTS;
+  let i = 1;
+  for (; i < tokens.length; i++) {
+    const token = tokens[i]!;
+    if (head === 'env' && /^[A-Za-z_][A-Za-z0-9_]*=/.test(token)) continue;
+    if (token === '--') {
+      i++;
+      break;
+    }
+    if (!token.startsWith('-')) break;
+    if (takesValue.has(token) && i + 1 < tokens.length) i++;
+  }
+  return tokens.slice(i);
+}
+
+/** 单段判定：循环剥离包装器，`sh -c` 取脚本递归，最后按 git push 语义判定。 */
+function detectForcePushInTokens(tokens: string[], depth: number): boolean {
+  let current = tokens;
+  for (let round = 0; round <= MAX_WRAPPER_DEPTH; round++) {
+    if (current.length === 0) return false;
+    const head = shellBasename(current[0]!);
+    if (PRIVILEGE_WRAPPERS.has(head)) {
+      const stripped = stripWrapper(current);
+      if (stripped.length === current.length) return false; // 防死循环
+      current = stripped;
+      continue;
+    }
+    if (SHELL_WRAPPERS.has(head)) {
+      const script = shellDashCArg(current);
+      return script === null ? false : detectForcePush(script, depth + 1);
+    }
+    return isGitPushWithForce(current);
+  }
+  return false;
+}
+
+/** 入口：分段后逐段判定（`|` / `;` / `&&` / `||` / 换行 不互相污染）。 */
+function detectForcePush(command: string, depth = 0): boolean {
+  if (depth > MAX_WRAPPER_DEPTH) return false;
+  for (const segment of splitShellSegments(command)) {
+    if (detectForcePushInTokens(tokenizeShellSegment(segment), depth)) return true;
+  }
+  return false;
+}
+
 /**
  * Parse a `Bash(...)` / `Shell(...)` / `Write(path=...)` style matcher into
  * (domain, predicate) per POLICY-SPEC §3.3.
@@ -244,10 +477,12 @@ export function compilePolicy(declaration: PolicyDeclaration): PolicyArtifacts {
       domain: 'git',
       action,
       reason: 'force push 重写共享分支历史',
+      // C-3：位置无关 + 包装剥离（见文件上方 `detectForcePush` 的说明）。
+      // 之前是 `/^git\s+push\s+(-f|--force)\b/`，只认「`-f`/`--force` 紧跟 push」。
       match: (call) => {
         if (call.toolName !== 'Shell') return false;
         const cmd = String(call.arguments.command ?? '');
-        return /^git\s+push\s+(-f|--force)\b/.test(cmd);
+        return detectForcePush(cmd);
       },
     });
   }

@@ -54,6 +54,23 @@ function compiledRule(id: string, yamlText: string = MATCHER_POLICY): PolicyRule
 
 const shellCall = (command: string) => ({ toolName: 'Shell', arguments: { command } });
 
+/**
+ * C-3 修复的判别策略：**只**启用内置 `git.force_push`（不含任何 `Shell(...)`
+ * scoped 规则），使下面的命中/不命中只能来自内置 `git:force-push` **专用谓词**，
+ * 与通用 `Shell(...)` matcher 的锚定语义彻底解耦（后者按本卡要求保持不变）。
+ */
+const GIT_FORCE_PUSH_POLICY = `
+policy:
+  version: "0.1"
+  profile: workspace-write
+  approval: never
+  git:
+    force_push: deny
+`;
+
+const gitForcePushRule = (yamlText: string = GIT_FORCE_PUSH_POLICY): PolicyRule =>
+  compiledRule('git:force-push', yamlText);
+
 /** 仓库自带系统策略（只读，不在本卡改动范围内） */
 const DEFAULT_POLICY_PATH = fileURLToPath(new URL('../../../../configs/policy.default.yaml', import.meta.url));
 
@@ -77,7 +94,10 @@ describe('policy/risk — Compiler `Shell(...)`/`Bash(...)` matcher: `*` glob su
 
   it('带 `*` 的 matcher 整体锚定：前缀多出其他文本不命中（也不是正则）', () => {
     const rule = compiledRule('shell-force-push');
-    expect(rule.match(shellCall('sudo git push --force origin main'))).toBe(false);
+    // C-3：修复前这里断言「`sudo git push --force origin main` **不**命中 = 正确行为」，
+    // 锁的正是缺陷本身。通用 matcher 的锚定语义（策略作者可预期）按本卡要求不变，
+    // 因此 `sudo …` 的拦截**不再由它兜底**，而是移到内置 `git:force-push` 专用谓词
+    // —— 翻转后的判别断言见下方「内置 git:force-push 专用谓词」用例组 C-3 ①。
     expect(rule.match(shellCall('echo git push --force origin main'))).toBe(false);
     // 工具面不变：谓词仍只认 Shell 工具
     expect(rule.match({ toolName: 'Read', arguments: { command: 'git push --force origin main' } })).toBe(false);
@@ -145,5 +165,97 @@ describe('policy/risk — force-push 拦截端到端（系统默认策略真正�
 
     const normal = await engine.decide(shellCall('git push origin main'));
     expect(normal.ruleRef).not.toBe('shell-force-push');
+  });
+});
+
+describe('policy/risk — 内置 `git:force-push` 专用谓词：位置无关 + 包装剥离（C-3 修复）', () => {
+  it('C-3 ①：`sudo … git push --force` 必须命中（修复前被断言为「不命中」，那条锁的是缺陷）', () => {
+    const rule = gitForcePushRule();
+    expect(rule.match(shellCall('sudo git push --force origin main'))).toBe(true);
+    expect(rule.match(shellCall('sudo -E git push --force origin main'))).toBe(true);
+    expect(rule.match(shellCall('sudo -u root git push -f origin main'))).toBe(true);
+    expect(rule.match(shellCall('sudo sh -c "git push --force"'))).toBe(true);
+  });
+
+  it('C-3 ②：refspec 尾置 / `-f` / `--force=…` / `git -C` 都必须命中', () => {
+    const rule = gitForcePushRule();
+    expect(rule.match(shellCall('git push origin main --force'))).toBe(true);
+    expect(rule.match(shellCall('git push origin main -f'))).toBe(true);
+    expect(rule.match(shellCall('git push --force=true origin main'))).toBe(true); // 卡片要求含 `--force=…`
+    expect(rule.match(shellCall('git push --force-with-lease origin main'))).toBe(true);
+    expect(rule.match(shellCall('git push --force-with-lease=main:main origin main'))).toBe(true);
+    expect(rule.match(shellCall('git -C /repo push --force'))).toBe(true);
+    expect(rule.match(shellCall('git -C /repo --no-pager push --force'))).toBe(true);
+    // 既有前缀形（回归护栏：修复前也命中，不能改坏）
+    expect(rule.match(shellCall('git push --force'))).toBe(true);
+    expect(rule.match(shellCall('git push --force origin main'))).toBe(true);
+  });
+
+  it('C-3 ③：`sh -c "…"` / `env VAR=x` / 多层包装剥离后仍命中', () => {
+    const rule = gitForcePushRule();
+    expect(rule.match(shellCall('sh -c "git push --force"'))).toBe(true);
+    expect(rule.match(shellCall('sh -c \'git push --force\''))).toBe(true);
+    expect(rule.match(shellCall("bash -lc 'git -C /repo push --force'"))).toBe(true);
+    expect(rule.match(shellCall('env GIT_SSH_COMMAND=ssh git push --force'))).toBe(true);
+    expect(rule.match(shellCall('env -i git push origin main --force'))).toBe(true);
+    expect(rule.match(shellCall('nohup git push --force origin main'))).toBe(true);
+  });
+
+  it('C-3 ④：分段判定 —— 管道/`;`/`&&` 中的 force push 段命中，正常段不误判', () => {
+    const rule = gitForcePushRule();
+    expect(rule.match(shellCall('git fetch && git push --force origin main'))).toBe(true);
+    expect(rule.match(shellCall('echo start; git push origin main --force'))).toBe(true);
+    expect(rule.match(shellCall('git push --force | cat'))).toBe(true);
+    expect(rule.match(shellCall('git push origin main | tee /tmp/log'))).toBe(false);
+    expect(rule.match(shellCall('git fetch && git status'))).toBe(false);
+  });
+
+  it('C-3 ⑤：负对照 —— 不过度拦截', () => {
+    const rule = gitForcePushRule();
+    expect(rule.match(shellCall('git push origin main'))).toBe(false);
+    expect(rule.match(shellCall('git commit -m "x"'))).toBe(false);
+    // 引号里的 "push --force" 只是提交信息（子命令是 commit）
+    expect(rule.match(shellCall('git commit -m "push --force"'))).toBe(false);
+    // `--force-like-branch` / `--force-with-lease-feature` **不是** force 选项。
+    // 本谓词按 token 精确匹配（不是 `\b`）：旧谓词 `…(--force)\b` 会在 `e` 与 `-`
+    // 之间看到词边界而误命中，故这两条修复前是红的（修复前为过度拦截）。
+    expect(rule.match(shellCall('git push --force-like-branch'))).toBe(false);
+    expect(rule.match(shellCall('git push origin --force-with-lease-feature'))).toBe(false);
+    // `--follow-tags` 是长选项，不得被短选项簇规则误判
+    expect(rule.match(shellCall('git push --follow-tags origin main'))).toBe(false);
+    // 分支名里含 force
+    expect(rule.match(shellCall('git push origin feature/force'))).toBe(false);
+    // 被打印的文本不是被执行的命令
+    expect(rule.match(shellCall('echo "git push --force"'))).toBe(false);
+    expect(rule.match(shellCall('git log --grep push --oneline'))).toBe(false);
+  });
+
+  it('C-3 ⑥：端到端 —— `danger-full-access` 放宽会话下 deny 规则是唯一防线', async () => {
+    const yamlText = `
+policy:
+  version: "0.1"
+  profile: danger-full-access
+  approval: ask
+  git:
+    force_push: deny
+`;
+    const engine = new PolicyEngine(compilePolicyYaml(yamlText));
+    for (const cmd of [
+      'git push origin main --force',
+      'sudo git push --force origin main',
+      'sh -c "git push --force"',
+      'git -C /repo push --force',
+    ]) {
+      const verdict = await engine.decide(shellCall(cmd));
+      // 带上 cmd 一起断言，失败时的 diff 直接指出是哪条绕过形
+      expect({ cmd, action: verdict.action, ruleRef: verdict.ruleRef }).toEqual({
+        cmd,
+        action: 'deny',
+        ruleRef: 'git:force-push',
+      });
+    }
+    // 同会话里普通 push 仍放行（不过度拦截）
+    const normal = await engine.decide(shellCall('git push origin main'));
+    expect(normal.action).toBe('allow');
   });
 });

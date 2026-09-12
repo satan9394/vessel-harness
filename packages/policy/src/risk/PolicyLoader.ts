@@ -87,8 +87,8 @@ export interface PolicyLayerFact {
  * 「存在但无效」与「缺失」由 `error` 字段**可区分**：调用方据此给出**正确的补救动作**
  * （修复这个文件 vs 放置一个文件），不再把"文件就在那儿、只是坏的"误报成"没有文件"。
  *
- * 返回顺序即**合成顺序**（system 在前、project 在后；`profile`/`approval` 取**靠前的层**即高层优先，
- * 列表类拼接为并集）。
+ * 返回顺序即**合成顺序**（system 在前、project 在后；`profile`/`approval`/`version` 与 **allow 类**列表取
+ * **靠前的层**即高层优先；**deny 类**列表拼接为并集——逐字段口径见 `mergeScopes` 的 JSDoc）。
  */
 export function inspectPolicyLayers(
   opts: { systemPath?: string; projectPath?: string } = {},
@@ -169,12 +169,66 @@ function strictestAuditDetails(higher: string | undefined, lower: string | undef
 }
 
 /**
- * 列表并集（拼接、**不去重**，与 `shell.deny` / `tools.deny` 口径一致）。
+ * **deny 语义**列表的并集（拼接、**不去重**，与 `shell.deny` / `tools.deny` / `network.deny_domains`
+ * 口径一致）：低层追加只会**加限制**，故并集即单调趋严。
+ * **allow 语义**列表**不得**走本函数（低层追加即放宽执行）——见 `firstDeclared`。
  * 返回 `undefined` 表示**所有层都未声明**该键 —— 保持「未声明」形状，不伪造空数组。
  */
 function unionLists(higher: readonly string[] | undefined, lower: readonly string[] | undefined): string[] | undefined {
   if (higher === undefined && lower === undefined) return undefined;
   return [...(higher ?? []), ...(lower ?? [])];
+}
+
+/**
+ * **allow 语义**列表的高层优先合成（first-declared wins，与 `profile` / `approval` 同款口径）。
+ *
+ * `shell.allow` / `filesystem.allow` 是**允许**语义：低层追加一条即可把原本被拒的调用放行——
+ * `shell.allow` 会被 `Engine` 的 readonly allowlist 用来把所需权限从 `danger-full-access`
+ * **降级为 `read`**（⇒ 由 deny 变 allow），`filesystem.allow` 会放宽 `Compiler` 的 `fs-confinement`
+ * 允许集合与 `tools/guards.ts` 的 `assertConfined`。因此**只有首个声明该键的层**的取值被采纳，
+ * 低层不得追加任何条目。
+ *
+ * `higher === undefined`（更高层**完全未声明**该键）时低层才可补空档；返回 `undefined` 表示
+ * 所有层都未声明该键（保持「未声明」形状，不伪造空数组）。
+ */
+function firstDeclared<T>(higher: readonly T[] | undefined, lower: readonly T[] | undefined): T[] | undefined {
+  if (higher !== undefined) return [...higher];
+  return lower === undefined ? undefined : [...lower];
+}
+
+/**
+ * 三态布尔取 **any-true**：`filesystem.confinement` 是硬执法开关（task 073），任一层打开即打开，
+ * 低层**不得关闭**高层已打开的开关。两层都未声明时返回 `undefined` —— 保持「未声明」语义
+ * （`Compiler` 只在 `=== true` 时生成 `fs-confinement` 规则，故**不得**把未声明写成 `false`）。
+ */
+function anyTrue(higher: boolean | undefined, lower: boolean | undefined): boolean | undefined {
+  if (higher === true || lower === true) return true;
+  if (higher === undefined && lower === undefined) return undefined;
+  return higher ?? lower; // 至少一层显式声明且无 true → 保留已声明取值（含显式 false）
+}
+
+/**
+ * `shell.scoped_rules` / `tools.rules` 的**按 action 分流**判据：低层可继续追加的只有收紧方向的
+ * `deny` / `ask`（`ask` 在 `Engine` 的决策序里先于 allow 命中，只会把 allow 收紧为 ask/deny）；
+ * `allow` 规则会让原本被拒的调用放行（`Engine` ⑤），低层一律不得追加。未登记的动作取值按**最宽松**
+ * 计（与 `strictestAction` 同口径），因此同样不采信。
+ */
+function isTighteningRule(action: string): boolean {
+  return (ACTION_STRICTNESS[action] ?? 0) >= (ACTION_STRICTNESS['ask'] ?? 1);
+}
+
+/**
+ * 规则列表合成：最高层（`decls[0]`）贡献全部规则；低层只贡献收紧方向的 `deny` / `ask` 规则，
+ * 其 `allow` 规则一律丢弃（低层不得凭空造出豁免）。始终返回数组（与既有形状一致）。
+ */
+function mergeRuleLists<T extends { action: string }>(
+  higher: readonly T[] | undefined,
+  lower: readonly T[] | undefined,
+  isTopLayer: boolean,
+): T[] {
+  const fromLower = lower ?? [];
+  const picked = isTopLayer ? fromLower : fromLower.filter((r) => isTighteningRule(r.action));
+  return [...(higher ?? []), ...picked];
 }
 
 /** `git` 域已登记字段（语义已定序；其余键走 `inheritUnknownKeys`）。 */
@@ -202,13 +256,15 @@ function inheritUnknownKeys(higher: object | undefined, lower: object, known: Re
 /**
  * merge scopes — 多层合成（层序 `system > project`：**左侧为高层**，`decls` 即按此序传入）。
  *
- * 语义分三类（对齐 POLICY-SPEC §6.2「deny 全局优先 / 低层只能加限制，不能放宽」）：
+ * 语义分四类（对齐 POLICY-SPEC §6.2「deny 全局优先 / 低层只能加限制，不能放宽」）：
  *
- * - **`profile` / `approval` 采用高层优先（first-declared wins）**：只有更高层都没声明时才采用本层的值，
+ * - **`profile` / `approval` / `version` 采用高层优先（first-declared wins）**：只有更高层都没声明时才采用本层的值，
  *   故 `project`（`.harness/policy.yaml`）**不能**把 `system` 的 `workspace-write` 抬升为
  *   `danger-full-access`，也不能把 `approval` 从 `ask` 放宽为 `never`（收窄/放宽只能由会话 flag 显式完成，
  *   见 `loadPolicyArtifacts` 的 `sessionOverrides`）。若**所有**层都未声明，遍历结束后补兜底默认
  *   （`profile: 'workspace-write'`、`approval: 'never'`），即「无任何层声明」时行为与改前一致。
+ *   `version` 一并改为 first-wins：它是**非安全字段**（`Compiler` 只校验其存在、不比较取值），
+ *   改动只为消除「低层改写版本号、日后按版本切语义即成降级通道」的潜伏风险。
  * - **`git` / `network` / `audit` 单调趋严（monotonic tightening）**：低层**只能收紧，不能放宽**——
  *   - `git.force_push`：三态取**最严**（`deny` > `ask` > `allow`）。project 写 `allow` **覆盖不掉** system 的
  *     `deny`（与 POLICY-SPEC §3.5「同主张多处声明取最严 action」同源；`Compiler.ts:216` 据此产出
@@ -220,44 +276,64 @@ function inheritUnknownKeys(higher: object | undefined, lower: object, known: Re
  *     （`full` > summary/redacted/minimal > none，未登记的取值按最详尽处理）。
  *   - 三个域内**未登记**的字段（类型未声明者，如 `network.allow_domains`）一律**高层先声明者胜出**：
  *     低层只能补高层没有的键，不得改写高层已给出的未知字段（「不确定的字段一律选更严」）。
- * - **列表类为并集**（拼接、不去重）：`guidance`、`filesystem.protected` / `deny_read`、
- *   `shell.deny` / `scoped_rules`、`tools.deny` / `rules`、`filesystem.allow`、`shell.allow` 等。
- *   单调趋严：低层**只能加限制、不能放宽**（deny 全局优先，不可被任何层、任何更细 allow 豁免）。
+ * - **逐字段口径（拒绝语义 vs 允许语义）** —— 判据：**任何「低层追加后能让原本被拒的操作变为放行」的
+ *   字段，低层都不得扩张**：
+ *   - **deny 语义 ⇒ 并集**（拼接、不去重）：`filesystem.protected` / `filesystem.deny_read`、`shell.deny`、
+ *     `tools.deny`（以及上面的 `network.deny_domains` / `audit.events`）。低层追加 = 只能加限制。
+ *   - **allow 语义 ⇒ 高层优先（first-declared wins）**：`filesystem.allow`、`shell.allow`。低层追加
+ *     `shell.allow: ['bash']` 会把 `bash -c "…"` 的所需权限从 `danger-full-access` **降级为 `read`**
+ *     （`Engine.isShellAllowed`）⇒ 由 deny 变 allow；`filesystem.allow` 则放宽 `fs-confinement` 的允许集合
+ *     与 `tools/guards.ts` 的 `assertConfined`。故这两个键取**首个声明它的层**，低层只在更高层**完全未声明**
+ *     该键时才能补空档（与 `profile` 同款；`filesystem.confinement` 另有 any-true 规则）。
+ *   - `shell.scoped_rules` / `tools.rules` ⇒ **按 `action` 分流**：`deny` / `ask` 规则低层可并集追加
+ *     （收紧方向：`ask` 先于 allow 命中，只会把 allow 变成 ask/deny）；**`allow` 规则只能由最高层贡献**，
+ *     低层追加一律丢弃（否则等于凭空造出豁免）。未登记 action 按最宽松计、同样丢弃。
+ *   - `guidance` ⇒ 并集（纯文本软引导，不参与执法判定）。
  *
- * 即：**无 workspace trust 门时（§6.1 实现状态），project 层仍只能加限制、不能放宽 `system` 的限制**；
- * 放宽只能由会话 flag（`sessionOverrides`）显式完成。
+ *   即：**无 workspace trust 门时（§6.1 实现状态），project 层仍只能加限制、不能放宽 `system` 的限制**；
+ *   放宽只能由会话 flag（`sessionOverrides`）显式完成。
  */
 export function mergeScopes(decls: PolicyDeclaration[]): PolicyDeclaration {
   // `profile`/`approval` 不预置默认值：用局部变量记录「首个声明者」，遍历后再补兜底默认。
   const out: Omit<PolicyDeclaration, 'profile' | 'approval'> = {
-    version: decls[0]?.version ?? '0.1',
+    // C-5：`version` 亦为 first-declared wins —— 低层不得改写高层已声明的版本号（非安全字段，见 JSDoc）
+    version: decls.find((d) => d.version)?.version ?? '0.1',
   };
   let profile: PolicyDeclaration['profile'] | undefined;
   let approval: PolicyDeclaration['approval'] | undefined;
-  for (const d of decls) {
-    if (d.version) out.version = d.version;
+  for (let index = 0; index < decls.length; index += 1) {
+    const d = decls[index]!;
+    const isTopLayer = index === 0;
     // first-declared wins：高层先声明者胜出，低层（project）无法覆盖高层（system）
     if (profile === undefined && d.profile) profile = d.profile;
     if (approval === undefined && d.approval) approval = d.approval;
     out.guidance = [...(out.guidance ?? []), ...(d.guidance ?? [])];
     if (d.filesystem) {
+      // C-1：硬执法开关 any-true（任一层打开即打开）；都未声明时保持「未声明」（**不写 false**）
+      const confinement = anyTrue(out.filesystem?.confinement, d.filesystem.confinement);
       out.filesystem = {
+        // deny 语义 ⇒ 并集（低层只能加限制）
         protected: [...(out.filesystem?.protected ?? []), ...(d.filesystem.protected ?? [])],
         deny_read: [...(out.filesystem?.deny_read ?? []), ...(d.filesystem.deny_read ?? [])],
-        allow: [...(out.filesystem?.allow ?? []), ...(d.filesystem.allow ?? [])],
+        // allow 语义 ⇒ 高层优先（低层不得扩张允许集合）
+        allow: firstDeclared(out.filesystem?.allow, d.filesystem.allow),
+        // 未声明时不落 `false`，保持「未声明」形状
+        ...(confinement === undefined ? {} : { confinement }),
       };
     }
     if (d.shell) {
       out.shell = {
+        // deny 语义 ⇒ 并集；allow 语义 ⇒ 高层优先；scoped_rules ⇒ 按 action 分流
         deny: [...(out.shell?.deny ?? []), ...(d.shell.deny ?? [])],
-        allow: [...(out.shell?.allow ?? []), ...(d.shell.allow ?? [])],
-        scoped_rules: [...(out.shell?.scoped_rules ?? []), ...(d.shell.scoped_rules ?? [])],
+        allow: firstDeclared(out.shell?.allow, d.shell.allow),
+        scoped_rules: mergeRuleLists(out.shell?.scoped_rules, d.shell.scoped_rules, isTopLayer),
       };
     }
     if (d.tools) {
       out.tools = {
+        // deny 语义 ⇒ 并集；rules ⇒ 按 action 分流（低层不得追加 allow 规则）
         deny: [...(out.tools?.deny ?? []), ...(d.tools.deny ?? [])],
-        rules: [...(out.tools?.rules ?? []), ...(d.tools.rules ?? [])],
+        rules: mergeRuleLists(out.tools?.rules, d.tools.rules, isTopLayer),
       };
     }
     // git / network / audit：单调趋严（低层只能收紧，不能放宽）——见上方 JSDoc 与 POLICY-SPEC §6.2。
