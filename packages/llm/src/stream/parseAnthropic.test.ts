@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { parseAnthropicEvent, AnthropicStreamParser, anthropicFinishReason } from './parseAnthropic.js';
+import { parseAnthropicEvent, AnthropicStreamParser, anthropicFinishReason, anthropicToolInputSeed } from './parseAnthropic.js';
 import type { StreamChunk } from '@vessel/shared';
 
 describe('parseAnthropicEvent — content_block_delta → text_delta', () => {
@@ -12,7 +12,25 @@ describe('parseAnthropicEvent — content_block_delta → text_delta', () => {
     const chunks = parseAnthropicEvent(
       JSON.stringify({ type: 'content_block_start', index: 1, content_block: { type: 'tool_use', id: 'toolu_01', name: 'Read', input: {} } }),
     );
-    expect(chunks).toEqual([{ type: 'tool_call_start', id: 'toolu_01', name: 'Read', arguments: '{}' }]);
+    // Round 53: the canonical wire's empty-object `input` is a placeholder, not
+    // an argument seed — it must NOT pre-load the consumer's accumulator (see
+    // anthropicToolInputSeed). Pre-fix this literal was '{}'.
+    expect(chunks).toEqual([{ type: 'tool_call_start', id: 'toolu_01', name: 'Read', arguments: '' }]);
+  });
+
+  // Round 53 strengthening of the test above: the empty-object case is not
+  // merely "relaxed to ''" — a NON-empty `input` (an implementation that hands
+  // the whole argument object over in content_block_start) must still be
+  // serialized verbatim, so no wire shape loses its data.
+  it('still serializes a non-empty content_block_start input as the seed (compat, Round 53)', () => {
+    const chunks = parseAnthropicEvent(
+      JSON.stringify({
+        type: 'content_block_start',
+        index: 1,
+        content_block: { type: 'tool_use', id: 'toolu_01', name: 'Read', input: { path: 'a.txt', limit: 3 } },
+      }),
+    );
+    expect(chunks).toEqual([{ type: 'tool_call_start', id: 'toolu_01', name: 'Read', arguments: '{"path":"a.txt","limit":3}' }]);
   });
 
   it('maps message_delta usage + stop_reason to usage and message_end', () => {
@@ -96,7 +114,8 @@ describe('AnthropicStreamParser — full SSE event stream', () => {
     expect(chunks[0]).toEqual({ type: 'message_start', model: 'claude-sonnet-4' });
     expect(chunks.map((c) => c.type)).toContain('text_delta');
     const startIdx = chunks.findIndex((c) => c.type === 'tool_call_start');
-    expect(chunks[startIdx]).toEqual({ type: 'tool_call_start', id: 'toolu_01', name: 'Read', arguments: '{}' });
+    // Round 53: the block announced `input:{}` — a placeholder ⇒ empty seed.
+    expect(chunks[startIdx]).toEqual({ type: 'tool_call_start', id: 'toolu_01', name: 'Read', arguments: '' });
     const deltas = chunks.filter((c) => c.type === 'tool_call_delta') as { id: string; argumentsDelta: string }[];
     expect(deltas).toHaveLength(2);
     expect(deltas.every((d) => d.id === 'toolu_01')).toBe(true);
@@ -160,6 +179,120 @@ function assembleByConsumer(chunks: StreamChunk[]): Map<string, { name: string; 
   return open;
 }
 
+/**
+ * AgentLoop.parseToolArguments (AgentLoop.ts:98-108), transcribed verbatim: the
+ * turn-final conversion of the accumulated argument string. Its `catch` is the
+ * `{ _raw: … }` fallback that made a broken seed visible as a tool with no
+ * `path` instead of as an exception.
+ */
+function parseToolArgumentsLikeAgentLoop(raw: string): Record<string, unknown> {
+  const trimmed = raw.trim();
+  if (trimmed === '') return {};
+  try {
+    const parsed: unknown = JSON.parse(trimmed);
+    if (parsed !== null && typeof parsed === 'object') return parsed as Record<string, unknown>;
+    return { value: parsed };
+  } catch {
+    return { _raw: raw };
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Round 53 — THE production bug: the canonical Anthropic wire always sends
+// `content_block_start.content_block.input = {}` (the real JSON arrives as
+// `input_json_delta` fragments), and the parser turned that empty placeholder
+// into the SEED of `tool_call_start.arguments`. AgentLoop.consumeStream APPENDS
+// the fragments to the seed, so the accumulator held '{}{"path":"a.txt"}' — not
+// JSON — and every streaming Anthropic tool call degraded to `{ _raw: … }`.
+// `callModel` prefers `stream()` whenever a provider has it, so this was the
+// production hot path, not an edge case.
+// ---------------------------------------------------------------------------
+
+describe('AnthropicStreamParser — canonical tool_use stream: the argument seed must not be "{}" (Round 53)', () => {
+  it('REPRO ③: canonical Anthropic stream ⇒ parseable arguments with path=a.txt (pre-fix: {}{...} ⇒ { _raw })', () => {
+    // The reported probe, verbatim:
+    //   content_block_start{tool_use,id,name,input:{}} → two input_json_delta
+    //   {'{"path":'} + {'"a.txt"}'} → content_block_stop → message_stop
+    const p = new AnthropicStreamParser();
+    const chunks = feedAll(p, [
+      sse({ type: 'message_start', model: 'claude-sonnet-4' }),
+      TOOL_START({ id: 'toolu_01', name: 'Read', input: {} }, 1),
+      TOOL_DELTA('{"path":', 1),
+      TOOL_DELTA('"a.txt"}', 1),
+      TOOL_STOP(1),
+      MSG_STOP,
+    ]);
+
+    // Layer 1 — the parser. `input:{}` is a placeholder, so there is NO seed:
+    // pre-fix this chunk was { … arguments: '{}' }.
+    expect(chunks.filter((c) => c.type === 'tool_call_start')).toEqual([
+      { type: 'tool_call_start', id: 'toolu_01', name: 'Read', arguments: '' },
+    ]);
+
+    // Layer 2 — the consumer accumulation AgentLoop.consumeStream performs
+    // (open.set on start keyed by id; append only `if (acc)`), via
+    // assembleByConsumer above.
+    const open = assembleByConsumer(chunks);
+    expect([...open.keys()]).toEqual(['toolu_01']);
+
+    // The accumulator's seed is chunks[start].arguments — pre-fix '{}', now ''.
+    const appended = '{"path":' + '"a.txt"}';
+    const accumulated = String(open.get('toolu_01')?.args);
+
+    expect(accumulated).toBe(appended); // pre-fix: '{}' + appended = '{}{"path":"a.txt"}'
+    expect(accumulated.startsWith('{}')).toBe(false); // the exact defect signature
+    expect(JSON.parse(accumulated)).toEqual({ path: 'a.txt' }); // pre-fix: throws ⇒ parseFailed
+
+    // Layer 3 — what the tool actually receives: pre-fix this was
+    // { _raw: '{}{"path":"a.txt"}' } and `path` was unreachable.
+    const toolArguments = parseToolArgumentsLikeAgentLoop(accumulated);
+    expect(toolArguments).toEqual({ path: 'a.txt' });
+    expect(toolArguments).not.toHaveProperty('_raw');
+    expect(toolArguments.path).toBe('a.txt');
+  });
+
+  it('the empty-object placeholder is information-free: `input:{}` ≡ absent `input`, both assemble cleanly', () => {
+    const assemble = (startBlock: Record<string, unknown>): Map<string, { name: string; args: string }> => {
+      const p = new AnthropicStreamParser();
+      return assembleByConsumer(
+        feedAll(p, [TOOL_START(startBlock, 0), TOOL_DELTA(ARG_A), TOOL_DELTA(ARG_B), TOOL_STOP(0), MSG_STOP]),
+      );
+    };
+    const withPlaceholder = assemble({ id: 'toolu_01', name: 'Read', input: {} });
+    const withNothing = assemble({ id: 'toolu_01', name: 'Read' });
+    expect(withPlaceholder.get('toolu_01')).toEqual(withNothing.get('toolu_01'));
+    expect(parseToolArgumentsLikeAgentLoop(String(withPlaceholder.get('toolu_01')?.args))).toEqual({ path: 'a.txt' });
+  });
+
+  it('a NON-empty `input` is still serialized as the seed, so no wire shape loses its data (compat)', () => {
+    // The "whole argument object in content_block_start" shape: the seed IS the
+    // complete arguments and no delta follows. This must keep working — the fix
+    // removes only the information-free `{}`, it does not drop seeds in general.
+    const p = new AnthropicStreamParser();
+    const chunks = feedAll(p, [
+      TOOL_START({ id: 'toolu_01', name: 'Read', input: { path: 'a.txt' } }, 0),
+      TOOL_STOP(0),
+      MSG_STOP,
+    ]);
+    expect(chunks.filter((c) => c.type === 'tool_call_start')).toEqual([
+      { type: 'tool_call_start', id: 'toolu_01', name: 'Read', arguments: '{"path":"a.txt"}' },
+    ]);
+    const open = assembleByConsumer(chunks);
+    expect(parseToolArgumentsLikeAgentLoop(String(open.get('toolu_01')?.args))).toEqual({ path: 'a.txt' });
+  });
+
+  it('anthropicToolInputSeed: only own-key-less plain objects are dropped; null/undefined/arrays/primitives unchanged', () => {
+    expect(anthropicToolInputSeed(null)).toBe('');
+    expect(anthropicToolInputSeed(undefined)).toBe('');
+    expect(anthropicToolInputSeed({})).toBe('');
+    expect(anthropicToolInputSeed({ path: 'a.txt' })).toBe('{"path":"a.txt"}');
+    expect(anthropicToolInputSeed({ limit: 0 })).toBe('{"limit":0}'); // a falsy but real value is kept
+    expect(anthropicToolInputSeed([])).toBe('[]'); // arrays keep JSON.stringify semantics
+    expect(anthropicToolInputSeed('x')).toBe('"x"');
+    expect(anthropicToolInputSeed(0)).toBe('0');
+  });
+});
+
 describe('AnthropicStreamParser — identity-incomplete tool_use block (Round 52)', () => {
   it('REPRO ①: a tool_use block missing `id` still surfaces its arguments (pre-fix: they vanished)', () => {
     // PRE-FIX trace (pre-Round-52 parser): the `block.id && block.name` guard in
@@ -181,12 +314,12 @@ describe('AnthropicStreamParser — identity-incomplete tool_use block (Round 52
       MSG_STOP,
     ]);
 
-    // The leading '{}' is the block's own `input` seed — exactly the value the
-    // canonical path already puts into tool_call_start.arguments (see the
-    // full-stream test above); the parser appends the fragments to it and drops
-    // neither part.
+    // Round 53: the block's own `input:{}` is the canonical empty placeholder,
+    // so it contributes NO seed (anthropicToolInputSeed); the fragments alone are
+    // the arguments. Pre-fix this literal was `'{}' + FULL_ARGS` — the exact
+    // '{}{...}' shape that made the consumer's JSON.parse fail.
     expect(chunks).toEqual([
-      { type: 'tool_call_start', id: 'anthropic-tool', name: 'Read', arguments: '{}' + FULL_ARGS },
+      { type: 'tool_call_start', id: 'anthropic-tool', name: 'Read', arguments: FULL_ARGS },
       { type: 'tool_call_end', id: 'anthropic-tool' },
       { type: 'message_end' },
     ]);
@@ -194,7 +327,9 @@ describe('AnthropicStreamParser — identity-incomplete tool_use block (Round 52
     const open = assembleByConsumer(chunks);
     expect([...open.keys()]).toEqual(['anthropic-tool']); // pre-fix: []
     expect(open.get('anthropic-tool')?.name).toBe('Read');
-    expect(open.get('anthropic-tool')?.args).toBe('{}' + FULL_ARGS);
+    expect(open.get('anthropic-tool')?.args).toBe(FULL_ARGS);
+    // The value the consumer ends up holding must be usable, not just present.
+    expect(JSON.parse(String(open.get('anthropic-tool')?.args))).toEqual({ path: 'a.txt' });
   });
 
   it('the same block without an `input` seed surfaces machine-readable, parseable arguments', () => {
@@ -209,13 +344,15 @@ describe('AnthropicStreamParser — identity-incomplete tool_use block (Round 52
     const p = new AnthropicStreamParser();
     const chunks = feedAll(p, [TOOL_START({ id: 'toolu_01', input: {} }), TOOL_DELTA(FULL_ARGS), TOOL_STOP(), MSG_STOP]);
     expect(chunks).toEqual([
-      { type: 'tool_call_start', id: 'toolu_01', name: '', arguments: '{}' + FULL_ARGS },
+      { type: 'tool_call_start', id: 'toolu_01', name: '', arguments: FULL_ARGS },
       { type: 'tool_call_end', id: 'toolu_01' },
       { type: 'message_end' },
     ]);
     // '' is not a resolvable tool name ⇒ the registry answers with an explicit
     // machine-readable `INVALID_ARGS: unknown tool: ` instead of nothing.
     expect(assembleByConsumer(chunks).get('toolu_01')?.name).toBe('');
+    // Round 53: and the arguments it does carry are still well-formed.
+    expect(JSON.parse(String(assembleByConsumer(chunks).get('toolu_01')?.args))).toEqual({ path: 'a.txt' });
   });
 
   it('input_json_delta with no content_block_start at all is surfaced at its content_block_stop', () => {
@@ -302,8 +439,8 @@ describe('AnthropicStreamParser — truncated stream / EOF boundary (Round 52)',
   });
 });
 
-describe('AnthropicStreamParser — negative control: the canonical stream is unchanged (Round 52)', () => {
-  it('text + complete tool_use sequence is chunk-for-chunk identical, and only the tool block gets an end', () => {
+describe('AnthropicStreamParser — negative control: the canonical stream is chunk-for-chunk stable (Round 52, exacted Round 53)', () => {
+  it('text + complete tool_use sequence is byte-identical except the Round 53 seed, and only the tool block gets an end', () => {
     const p = new AnthropicStreamParser();
     const chunks = feedAll(p, [
       sse({ type: 'message_start', model: 'claude-sonnet-4' }),
@@ -321,7 +458,10 @@ describe('AnthropicStreamParser — negative control: the canonical stream is un
     expect(chunks).toEqual([
       { type: 'message_start', model: 'claude-sonnet-4' },
       { type: 'text_delta', text: 'Reading ' },
-      { type: 'tool_call_start', id: 'toolu_01', name: 'Read', arguments: '{}' },
+      // Round 53 — THE one literal this fix changes on the canonical path:
+      // '{}' -> ''. Every other chunk below is byte-identical to the pre-fix
+      // expectation (see the diff-proof test after this one).
+      { type: 'tool_call_start', id: 'toolu_01', name: 'Read', arguments: '' },
       { type: 'tool_call_delta', id: 'toolu_01', argumentsDelta: ARG_A },
       { type: 'tool_call_delta', id: 'toolu_01', argumentsDelta: ARG_B },
       { type: 'tool_call_end', id: 'toolu_01' },
@@ -334,5 +474,51 @@ describe('AnthropicStreamParser — negative control: the canonical stream is un
     // exactly one tool_call_end, for the tool block only — i.e. the fix does not
     // "pad" every block with an end.
     expect(chunks.filter((c) => c.type === 'tool_call_end')).toHaveLength(1);
+
+    // Round 53 strengthening: the same canonical sequence, accumulated exactly
+    // as AgentLoop.consumeStream does, is now a PARSEABLE call. Pre-fix this
+    // value was '{}{"path":"a.txt"}' and JSON.parse threw.
+    const open = assembleByConsumer(chunks);
+    expect(JSON.parse(String(open.get('toolu_01')?.args))).toEqual({ path: 'a.txt' });
+  });
+
+  // Round 53 — the "nothing else moved" evidence demanded by the brief: the
+  // canonical wire with `input:{}` and the same wire with `input` absent are now
+  // chunk-for-chunk identical, which can only be true if the empty object
+  // stopped contributing a seed and nothing else changed with it.
+  it('Round 53 diff-proof: `input:{}` ≡ absent `input`, and the canonical sequence differs from pre-fix by that one literal', () => {
+    const wire = (startBlock: Record<string, unknown>): StreamChunk[] => {
+      const p = new AnthropicStreamParser();
+      return feedAll(p, [
+        sse({ type: 'message_start', model: 'claude-sonnet-4' }),
+        sse({ type: 'content_block_start', index: 0, content_block: { type: 'text', text: '' } }),
+        sse({ type: 'content_block_delta', index: 0, delta: { type: 'text_delta', text: 'Reading ' } }),
+        sse({ type: 'content_block_stop', index: 0 }),
+        TOOL_START(startBlock, 1),
+        TOOL_DELTA(ARG_A, 1),
+        TOOL_DELTA(ARG_B, 1),
+        TOOL_STOP(1),
+        sse({ type: 'message_delta', delta: { stop_reason: 'tool_use' }, usage: { output_tokens: 8 } }),
+        MSG_STOP,
+      ]);
+    };
+
+    const withEmptyObject = wire({ id: 'toolu_01', name: 'Read', input: {} });
+    const withNoInput = wire({ id: 'toolu_01', name: 'Read' });
+    expect(withEmptyObject).toEqual(withNoInput);
+
+    // The pre-Round-53 expectation for this exact stream, reproduced verbatim
+    // with the single changed literal marked.
+    expect(withEmptyObject).toEqual([
+      { type: 'message_start', model: 'claude-sonnet-4' },
+      { type: 'text_delta', text: 'Reading ' },
+      { type: 'tool_call_start', id: 'toolu_01', name: 'Read', arguments: '' }, // was '{}'
+      { type: 'tool_call_delta', id: 'toolu_01', argumentsDelta: ARG_A },
+      { type: 'tool_call_delta', id: 'toolu_01', argumentsDelta: ARG_B },
+      { type: 'tool_call_end', id: 'toolu_01' },
+      { type: 'usage', inputTokens: undefined, outputTokens: 8, cacheReadTokens: undefined, cacheCreationTokens: undefined },
+      { type: 'message_end', finishReason: 'tool_calls' },
+      { type: 'message_end' },
+    ]);
   });
 });

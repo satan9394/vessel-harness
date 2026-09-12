@@ -2,7 +2,7 @@ import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { MockProvider } from '@vessel/llm';
+import { MockProvider, AnthropicStreamParser } from '@vessel/llm';
 import type { MockScriptEntry } from '@vessel/llm';
 import { EventBus, Session, AgentLoop } from '@vessel/core';
 import type { ToolResultOutcome } from '@vessel/core';
@@ -394,6 +394,119 @@ describe('AgentLoop model call — stream first (task 049)', () => {
     expect(starts).toHaveLength(2);
     expect(ends).toHaveLength(2);
     expect(ends.every((e) => e.finishReason === 'error')).toBe(true);
+    await session.close();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Round 53 — consumer-side acceptance over the REAL production chain.
+//
+// AnthropicProvider.stream() (packages/llm/src/provider/AnthropicProvider.ts:326-346)
+// feeds the raw SSE lines of the response into AnthropicStreamParser.feed() and
+// yields the resulting StreamChunk[] straight to AgentLoop.consumeStream(), which
+// seeds its per-id accumulator from tool_call_start.arguments, APPENDS every
+// tool_call_delta, and parses the result with parseToolArguments. The provider
+// below runs that exact chain over literal Anthropic wire frames, so these
+// assertions are about what runTool finally receives — not about chunk shape.
+//
+// PRE-FIX: `content_block_start` carries `input:{}` on every canonical frame; the
+// parser seeded tool_call_start.arguments with '{}' (parseAnthropic.ts:86) and the
+// consumer (AgentLoop.ts:486/493) appended the fragment, holding
+// '{}{"path":"a.txt"}'. parseToolArguments failed and the tool was dispatched with
+// { _raw: '{}{"path":"a.txt"}' } — `path` unreachable. Because callModel prefers
+// stream() whenever a provider exposes it, this was every Anthropic tool call.
+// ---------------------------------------------------------------------------
+
+/** A provider that replays literal Anthropic SSE lines through the real parser. */
+class AnthropicWireProvider implements ChatProvider {
+  readonly id = 'anthropic-wire';
+  /** One array of raw SSE lines per model call, selected by tool results seen. */
+  constructor(private readonly phases: string[][]) {}
+
+  async chat(): Promise<ChatResponse> {
+    throw new Error('chat() must not be called when provider.stream is present');
+  }
+
+  async *stream(request: ChatRequest): AsyncGenerator<StreamChunk> {
+    const toolResults = request.messages.filter((m) => m.role === 'tool').length;
+    const lines = this.phases[Math.min(toolResults, this.phases.length - 1)]!;
+    const parser = new AnthropicStreamParser();
+    for (const line of lines) {
+      for (const c of parser.feed(line)) yield c;
+    }
+    for (const c of parser.finish()) yield c;
+  }
+}
+
+describe('AgentLoop — Anthropic streaming tool arguments, end to end (Round 53)', () => {
+  let dir: string;
+  beforeEach(() => {
+    dir = fs.mkdtempSync(path.join(os.tmpdir(), 'cah-anthropic-e2e-'));
+  });
+  afterEach(() => {
+    fs.rmSync(dir, { recursive: true, force: true });
+  });
+
+  it('canonical Anthropic SSE stream ⇒ runTool receives { path: "a.txt" } (pre-fix: { _raw })', async () => {
+    const provider = new AnthropicWireProvider([
+      [
+        'event: message_start',
+        'data: {"type":"message_start","message":{"model":"m","usage":{"input_tokens":11,"output_tokens":0}}}',
+        'event: content_block_start',
+        'data: {"type":"content_block_start","index":0,"content_block":{"type":"tool_use","id":"toolu_01","name":"Stub","input":{}}}',
+        'event: content_block_delta',
+        'data: {"type":"content_block_delta","index":0,"delta":{"type":"input_json_delta","partial_json":"{\\"path\\":"}}',
+        'event: content_block_delta',
+        'data: {"type":"content_block_delta","index":0,"delta":{"type":"input_json_delta","partial_json":"\\"a.txt\\"}"}}',
+        'event: content_block_stop',
+        'data: {"type":"content_block_stop","index":0}',
+        'event: message_delta',
+        'data: {"type":"message_delta","delta":{"stop_reason":"tool_use"},"usage":{"output_tokens":8}}',
+        'event: message_stop',
+        'data: {"type":"message_stop"}',
+      ],
+      [
+        'event: message_start',
+        'data: {"type":"message_start","model":"m"}',
+        'event: content_block_start',
+        'data: {"type":"content_block_start","index":0,"content_block":{"type":"text","text":""}}',
+        'event: content_block_delta',
+        'data: {"type":"content_block_delta","index":0,"delta":{"type":"text_delta","text":"read done"}}',
+        'event: content_block_stop',
+        'data: {"type":"content_block_stop","index":0}',
+        'event: message_delta',
+        'data: {"type":"message_delta","delta":{"stop_reason":"end_turn"}}',
+        'event: message_stop',
+        'data: {"type":"message_stop"}',
+      ],
+    ]);
+
+    const dispatched: ToolCall[] = [];
+    const { session, bus, loop } = await makeLoop(dir, provider, {
+      runTool: async (call) => {
+        dispatched.push(call);
+        return { content: 'GOLD', meta: {} };
+      },
+    });
+    const { ends } = watch(bus);
+    const result = await loop.runTurn('read a.txt');
+
+    // The acceptance criterion: the streamed tool call reached the tool with its
+    // real arguments. Pre-fix `arguments` was { _raw: '{}{"path":"a.txt"}' }.
+    expect(dispatched).toHaveLength(1);
+    expect(dispatched[0]!.toolCallId).toBe('toolu_01');
+    expect(dispatched[0]!.toolName).toBe('Stub');
+    expect(dispatched[0]!.arguments).not.toHaveProperty('_raw');
+    expect(dispatched[0]!.arguments.path).toBe('a.txt');
+    expect(dispatched[0]!.arguments).toEqual({ path: 'a.txt' });
+
+    // The same call is on the model_stream_end terminal payload (what the GUI and
+    // the assistant/attempt record see).
+    expect(ends[0]!.toolCalls).toEqual([{ id: 'toolu_01', name: 'Stub', arguments: { path: 'a.txt' } }]);
+
+    expect(result.kind).toBe('success');
+    expect(result.toolCalls).toBe(1);
+    expect(result.finalText).toBe('read done');
     await session.close();
   });
 });

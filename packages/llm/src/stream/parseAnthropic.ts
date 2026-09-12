@@ -26,6 +26,11 @@
  *   - EOF without message_stop (finish()) -> open calls' tool_call_end, plus the
  *                                            placeholder flush above, plus
  *                                            message_end
+ *
+ * Round 53: `content_block.input` is the empty object `{}` on every canonical
+ * tool_use frame (the arguments arrive afterwards as `input_json_delta`
+ * fragments), so it is NOT used as an argument seed — see
+ * anthropicToolInputSeed(). A non-empty `input` still is, unchanged.
  */
 
 import type { StreamChunk } from './types.js';
@@ -48,6 +53,32 @@ export interface AnthropicEventData {
   };
   /** The `event:` name from the transport line (may be absent when parsing pure data payloads). */
   event?: string;
+}
+
+/**
+ * Round 53 — the tool-argument SEED contributed by `content_block_start`.
+ *
+ * On the canonical Anthropic wire `content_block.input` is ALWAYS the empty
+ * object `{}`: the real arguments arrive afterwards as
+ * `content_block_delta.delta.partial_json` fragments, and the consumer APPENDS
+ * them to whatever seed `tool_call_start.arguments` carried
+ * (AgentLoop.consumeStream: `open.set(id, {name, args: chunk.arguments})`, then
+ * `acc.args += chunk.argumentsDelta`). Serializing that empty placeholder as
+ * `'{}'` made the accumulator hold `'{}{"path":"a.txt"}'` — not valid JSON — so
+ * parseToolArguments degraded EVERY streaming Anthropic tool call to
+ * `{ _raw: … }` and the tool never saw its arguments.
+ *
+ * An own-key-less object input therefore yields the empty seed: it carries no
+ * information, and an empty seed is exactly what "the block announced nothing
+ * yet" produces. A non-empty `input` — an implementation handing over the whole
+ * argument object in `content_block_start` — serializes exactly as before, so
+ * neither wire shape loses data. Arrays and primitives keep JSON.stringify
+ * semantics unchanged.
+ */
+export function anthropicToolInputSeed(input: unknown): string {
+  if (input == null) return '';
+  if (typeof input === 'object' && !Array.isArray(input) && Object.keys(input).length === 0) return '';
+  return JSON.stringify(input);
 }
 
 /** Map one Anthropic `data:` payload (JSON stripped of `data:`) to StreamChunk[]. */
@@ -83,7 +114,7 @@ export function parseAnthropicEvent(payload: unknown): StreamChunk[] {
           type: 'tool_call_start',
           id: block.id,
           name: block.name,
-          arguments: block.input == null ? '' : JSON.stringify(block.input),
+          arguments: anthropicToolInputSeed(block.input),
         });
       }
       break;
@@ -202,9 +233,11 @@ export class AnthropicStreamParser {
   /** block index -> tool_use name (only content_block_start carries it). */
   private readonly toolNameByIndex = new Map<number, string>();
   /**
-   * block index -> `JSON.stringify(content_block_start.input)`: the seed the
-   * consumer's accumulator starts from (Anthropic appends the input_json_delta
-   * fragments to it).
+   * block index -> argument seed derived from `content_block_start.input` via
+   * anthropicToolInputSeed(): the seed the consumer's accumulator starts from,
+   * because Anthropic APPENDS the input_json_delta fragments to it. Round 53:
+   * the canonical empty-object `input` yields `''` (no seed at all), so the
+   * accumulated value under a canonical stream is the fragments alone.
    */
   private readonly toolInputJsonByIndex = new Map<number, string>();
   /**
@@ -254,7 +287,7 @@ export class AnthropicStreamParser {
         this.toolIndexes.add(index);
         if (block.id) this.toolIdByIndex.set(index, block.id);
         if (block.name) this.toolNameByIndex.set(index, block.name);
-        if (block.input != null) this.toolInputJsonByIndex.set(index, JSON.stringify(block.input));
+        if (block.input != null) this.toolInputJsonByIndex.set(index, anthropicToolInputSeed(block.input));
       }
     }
 
