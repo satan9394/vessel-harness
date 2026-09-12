@@ -1212,4 +1212,62 @@ describe('BRIEF-17 — TUI 回合 kind 呈现：error 必须可见 / success 逐
       await h.close();
     }
   });
+
+  /**
+   * 本卡（**回合文本判据共用**）—— TUI 侧的判别性验收。
+   *
+   * 缺陷形态（commit `dfe55b9` 的提交信息称 "the two faces share one criterion"，实际两份实现）：
+   * `cli.ts` 有一份 `isModelReplyKind`，而**本文件**的 `renderTurnOutcome` 在 `case 'success'` 里
+   * **自己**决定要不要走 `renderTurnReply` —— 那是第二份判据（不是"调用同一份"）。
+   * 危害不是"重复"，而是**下一个人会按"改一处即两处生效"去改，而只改到一处**：本文件的 switch
+   * 是穷尽的（新增 kind ⇒ 编译报错），CLI 那份却对第五种 kind **静默返回 false** ⇒ 必然分叉。
+   *
+   * 判别性（"删掉修复就红"）：
+   *  - A（静态）：本文件不再 import 判据 / 又抄回一份判据 / 模型回复出口不再由判据把门 ⇒ 红；
+   *  - B（负对照）：未识别 kind 落到"当成功打印"（或不再保持改前的 `undefined`）⇒ 红。
+   *
+   * 如实标注（见交付⑥）：动态那条（把 `turnText.js` 换成替身 ⇒ 两个面同时变）**需要
+   * `vi.mock` 专用文件**（本仓既有做法：`packages/agents/src/turnStopReason.wiring.test.ts`；
+   * 模块级 mock 会污染同文件全部用例，故不能塞进本文件），超出本卡声明的改动范围
+   * （只允许在 `cli.test.ts` / 本文件里加用例）。替代证据见 `cli.test.ts`「本卡⑤/⑥/⑦」：
+   * 静态唯一实现 + 运行期**函数对象身份**（`cli.isModelReplyKind === turnText.isModelReplyKind`）
+   * + 两面对表（两个面在"盖不盖标记"上同进同退）。
+   */
+  it('本卡A（唯一实现·静态守卫）：模型回复出口由共用判据把门，且本文件不再自带判据', () => {
+    const src = fs.readFileSync(path.join(fileURLToPath(new URL('.', import.meta.url)), 'chat.ts'), 'utf8');
+
+    // (a) 从唯一实现（零依赖叶子模块）导入 ← 旧实现没有这个 import ⇒ 红
+    expect(src).toMatch(/import\s*\{[^}]*\bisModelReplyKind\b[^}]*\}\s*from\s*'\.\.\/turnText\.js'/);
+    // (b) 不得定义第二份判据、也不得出现旧判据的写法 ← 旧实现正是本文件自带一份判据
+    expect(src).not.toMatch(/\b(?:function|const|let|var)\s+isModelReplyKind\b/);
+    expect(src).not.toContain("kind === 'success'");
+
+    // (c) 模型回复出口 `renderTurnReply` 在 `renderTurnOutcome` 里**只有一个调用点**，
+    //     且它排在判据**之后** ⇒ 出口确实由共用判据把门（不是"import 了但没用"）
+    const decisionSite = src.slice(src.indexOf('export function renderTurnOutcome'));
+    expect((decisionSite.match(/renderTurnReply\(/g) ?? []).length).toBe(1);
+    const gateAt = decisionSite.indexOf('isModelReplyKind(result.kind)');
+    expect(gateAt).toBeGreaterThan(-1);
+    expect(decisionSite.indexOf('renderTurnReply(')).toBeGreaterThan(gateAt);
+  });
+
+  it('本卡B（负对照）：未识别的 kind 不得"当成功打印"——保持改前的 undefined', () => {
+    // 类型封闭（四个 kind），故用断言构造"运行期 union 之外的 kind"；生产路径不可达。
+    const unknown = {
+      kind: 'mystery',
+      finalText: 'SHOULD-NOT-APPEAR',
+      steps: 1,
+      toolCalls: 0,
+    } as unknown as TurnOutcomeLike;
+
+    for (const usingMock of [true, false]) {
+      const line = renderTurnOutcome(unknown, usingMock) as unknown;
+      // ① 绝不"当成功打印"：既不盖模型标记，也不把 finalText 当模型回复打出来
+      expect(String(line)).not.toContain('（mock 离线冒烟）');
+      expect(String(line)).not.toContain('SHOULD-NOT-APPEAR');
+      // ② 原行为逐字保持：改前的穷尽 switch 对未识别 kind 落空 ⇒ `undefined`。
+      //    本卡只搬判据，**不改**这条边界（不新增"未知 kind 就当失败/当提示"的裁决）。
+      expect(line).toBeUndefined();
+    }
+  });
 });

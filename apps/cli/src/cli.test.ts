@@ -16,6 +16,9 @@ import { loadModelCatalog } from './providers/modelCatalog.js';
 // 本卡：把 TUI 的回合呈现函数当**参照口径**读进来（只读引用，不修改 tui/**）——
 // "同一个错误回合，TUI 不盖模型标记"这条对照要在**同一个用例里**可执行地钉住。
 import { renderTurnOutcome } from './tui/chat.js';
+// 本卡（回合文本判据共用）：把唯一实现读进来做**运行期身份守卫**——"两个面用同一个函数对象"
+// 是运行期事实，两份实现不可能满足它（静态守卫见下面「本卡⑤」）。
+import { isModelReplyKind as sharedIsModelReplyKind } from './turnText.js';
 
 const REPO_ROOT = fileURLToPath(new URL('../../../', import.meta.url));
 const POLICY = path.join(REPO_ROOT, 'configs', 'policy.default.yaml');
@@ -2662,6 +2665,122 @@ describe('vessel provider export/import + endpoint (task 095/096)', () => {
     expect(renderTurnOutcome({ kind: 'interrupted', finalText: 'PARTIAL-TEXT', steps: 1, toolCalls: 0 }, true)).not.toContain(
       CLI_MOCK_MARK,
     );
+  });
+
+  /**
+   * 本卡（**回合文本判据共用**）——「声称共享、实际两份」的修复验收。
+   *
+   * 缺陷形态（与纪律 22/23/24「判别力不能是假的」同族，但在另一层）：commit `dfe55b9` 的
+   * 提交信息称 "the two faces share one criterion"，实际是**两份实现**：
+   *  - `cli.ts` 自带 `isModelReplyKind`（`renderTurnFinalText` 用它决定 mock 标记盖不盖）；
+   *  - `tui/chat.ts` 的 `renderTurnOutcome` **自己**在 `case 'success'` 里调 `renderTurnReply`；
+   *  - 且 `cli.ts` 那段注释**自己承认**「（乙）本卡**未采用** …… 一处口径、两个面共用」（= 尚未）。
+   * 危害不是"重复代码"，而是**下一个人会按"改一处即两处生效"去改动，而只改到一处**：
+   * 扩展时两份必然分叉 —— TUI 的 `switch` 穷尽（新增 kind ⇒ 编译报错），CLI 那份对第五种
+   * kind **静默返回 false**（不报错、悄悄走另一边）。
+   *
+   * 判别性（"删掉修复就红"）：
+   *  - ⑤（静态，唯一实现）：把判据抄回 `cli.ts` / `tui/chat.ts`、或删掉任一面的 import ⇒ 红；
+   *  - ⑥（运行期身份）：`cli.isModelReplyKind !== turnText.isModelReplyKind` ⇒ 红——
+   *    **同一个函数对象**是"只有一份实现"在运行期无法伪造的事实；
+   *  - ⑦（两面对表）：两个面在"盖不盖模型标记"上必须**同时**等于共用判据的答案 ⇒
+   *    任何一面自带判据、且与共用判据不同时，那一面在这条上红。
+   *
+   * 如实标注（见交付⑥）：**"让共用判据返回不同结果 ⇒ 两个面同时变"这条动态证据需要
+   * `vi.mock` 替换 `turnText.js`**，而模块级 mock 会污染同文件全部用例（本仓既有做法是
+   * `packages/agents/src/turnStopReason.wiring.test.ts` 用**专用文件**装它）。本卡声明的
+   * 改动范围只允许在 `cli.test.ts` / `tui/chat.test.ts` 里加用例，故②用⑤⑥⑦替代：
+   * ⑤证明"没有第二份实现"，⑥证明"CLI 面就是那个函数对象"，⑦证明两面决策同步。
+   */
+  const SRC_ROOT = fileURLToPath(new URL('.', import.meta.url));
+
+  /** 递归列出 apps/cli/src 下**非测试**的 .ts（`*.test.ts` 是消费方，不在扫描范围）。 */
+  function walkCliSources(dir: string): string[] {
+    const out: string[] = [];
+    for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+      const full = path.join(dir, entry.name);
+      if (entry.isDirectory()) out.push(...walkCliSources(full));
+      else if (entry.isFile() && full.endsWith('.ts') && !full.endsWith('.test.ts')) out.push(full);
+    }
+    return out;
+  }
+
+  const TURN_TEXT = path.join(SRC_ROOT, 'turnText.ts');
+  /**
+   * 旧判据的**写法**（两份实现时两处都有它）。用宽容空白的正则而不是裸字符串：
+   * 重新排版（`kind==='success'`）不该让守卫失效。注意这条守卫是**全写法级**的 ——
+   * 连注释里抄这句写法都算"又写了一遍判据"，这正是本卡要的纪律（判据只在唯一实现里出现一次）。
+   */
+  const OLD_CRITERION = /kind\s*===\s*'success'/;
+
+  it('本卡⑤（唯一实现·静态守卫）：两面都 import turnText.js，且都不再自带判据；全包只有一份', () => {
+    const cliSrc = fs.readFileSync(path.join(SRC_ROOT, 'cli.ts'), 'utf8');
+    const chatSrc = fs.readFileSync(path.join(SRC_ROOT, 'tui', 'chat.ts'), 'utf8');
+
+    // (a) 两个消费点都从**同一个零依赖模块**导入**同一个符号**（相对路径各自正确）
+    //     ← 旧实现（两份）在这一条就红：chat.ts 当时根本没有这个 import。
+    expect(cliSrc).toMatch(/import\s*\{[^}]*\bisModelReplyKind\b[^}]*\}\s*from\s*'\.\/turnText\.js'/);
+    expect(chatSrc).toMatch(/import\s*\{[^}]*\bisModelReplyKind\b[^}]*\}\s*from\s*'\.\.\/turnText\.js'/);
+    // 并且真的**调用**它（import 了不用 = 换了种"没接线"）
+    expect(cliSrc).toContain('isModelReplyKind(');
+    expect(chatSrc).toContain('isModelReplyKind(');
+
+    for (const [name, src] of [['cli.ts', cliSrc], ['tui/chat.ts', chatSrc]] as const) {
+      // (b) 任一面都不得**定义**第二份判据 ← 旧实现的 cli.ts 在这一条红
+      expect(src, `${name} 不得自带第二份判据`).not.toMatch(/\b(?:function|const|let|var)\s+isModelReplyKind\b/);
+      // (c) 旧判据的写法只允许出现在唯一实现里 ← 旧实现的 cli.ts 在这一条红
+      expect(src, `${name} 不得自带旧判据写法`).not.toMatch(OLD_CRITERION);
+    }
+
+    // (d) 全包扫描：旧判据写法在所有**非测试**源码里恰好出现一次（= turnText.ts 那一份）
+    const carriers = walkCliSources(SRC_ROOT)
+      .filter((f) => OLD_CRITERION.test(fs.readFileSync(f, 'utf8')))
+      .map((f) => path.relative(SRC_ROOT, f));
+    expect(carriers).toEqual(['turnText.ts']);
+    const impl = fs.readFileSync(TURN_TEXT, 'utf8');
+    expect((impl.match(/kind\s*===\s*'success'/g) ?? []).length).toBe(1); // 恰好一条，不是零条也不是多条
+
+    // (e) 唯一实现必须是**零依赖叶子模块**（否则"共用"会重新引入 cli.ts ↔ tui/chat.ts 成环）
+    expect(impl, 'turnText.ts 必须零 import').not.toMatch(/^(?!\s*\*)\s*import\b/m);
+  });
+
+  it('本卡⑥（唯一实现·运行期身份）：cli.isModelReplyKind 就是 turnText 的那个函数对象', () => {
+    // ← 旧实现（cli.ts 自带一份）在这一条红：函数对象不同。
+    expect(cli.isModelReplyKind).toBe(sharedIsModelReplyKind);
+    // 语义（唯一实现）：四值里只有 success 算模型回答
+    expect(sharedIsModelReplyKind('success')).toBe(true);
+    for (const kind of ['error', 'budget', 'interrupted'] as const) {
+      expect(sharedIsModelReplyKind(kind)).toBe(false);
+    }
+    // CLI 面确实**经过**它：`renderTurnFinalText` 的标记决策 == usingMock && 判据(kind)
+    const render = requireCliRenderTurnFinalText();
+    for (const kind of ['success', 'error', 'budget', 'interrupted'] as const) {
+      for (const usingMock of [true, false]) {
+        expect(render(kind, 'TXT', usingMock)).toBe(usingMock && sharedIsModelReplyKind(kind) ? `${CLI_MOCK_MARK}TXT` : 'TXT');
+      }
+    }
+  });
+
+  it('本卡⑦（两面对表）：两面"盖不盖模型标记"同时等于共用判据的答案（含空文本边界）', () => {
+    const render = requireCliRenderTurnFinalText();
+    for (const kind of ['success', 'error', 'budget', 'interrupted'] as const) {
+      for (const usingMock of [true, false]) {
+        for (const text of ['TXT', ''] as const) {
+          // 期望值由**共用判据本身**算出（不是照抄某一面的实现）
+          const expectedMarked = usingMock && sharedIsModelReplyKind(kind) && text !== '';
+          // CLI 面（`cmdRun` 的唯一渲染出口）
+          const cliMarked = render(kind, text, usingMock).startsWith(CLI_MOCK_MARK);
+          // TUI 面（`runChat` 主循环调用的同一个函数）
+          const tuiLine = renderTurnOutcome({ kind, finalText: text, steps: 1, toolCalls: 0 }, usingMock);
+          const tuiMarked = tuiLine.includes(CLI_MOCK_MARK);
+
+          expect(cliMarked, `CLI ${kind}/usingMock=${usingMock}/text=${text || '(空)'}`).toBe(expectedMarked);
+          expect(tuiMarked, `TUI ${kind}/usingMock=${usingMock}/text=${text || '(空)'}`).toBe(expectedMarked);
+          // 最强的一句：两面在"标记"这件事上**永远同进同退**（一边盖、一边不盖 ⇒ 红）
+          expect(cliMarked, `两面不同步：${kind}/usingMock=${usingMock}`).toBe(tuiMarked);
+        }
+      }
+    }
   });
 });
 
