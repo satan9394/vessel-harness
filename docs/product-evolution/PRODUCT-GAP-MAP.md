@@ -210,7 +210,7 @@ if (n >= 3) throw new DenialLimitError(...);
 **整段位于 `gate.result.kind === 'deny'` 分支内**（`:565-618`）⇒ 只统计**执行前**被策略门禁拒绝的意图。**工具执行之后**才返回的 `DENIED`（例如 `Skill` 工具拒绝装载不可信技能、fs 守卫 `assertSizeWithin`/`canonicalize` 拒绝读越界文件）**完全不进 `denialCounts`**。
 **后果（性质是可靠性/成本，不是泄漏）**：同一个"被拒的意图"可以在工具内**无限重复**而不触发 `DenialLimitError` ⇒ 模型可以反复调用一个必然被拒的工具**烧轮次与 token**。技能卡（`c78635c`）顺手报告了这一条，我读码确认属实。
 **修法方向**：熔断的口径应是"**同一 `toolName:arguments` 的 DENIED 结果**（无论来自执行前门禁还是工具内），≥3 次即结束回合"——即把计数点移到**任何** DENIED 的收口处（`tool/result.error.errorClass === 'DENIED'`），并保持既有语义（`stage`/审计/`DenialLimitError` 文案不变）；判别性验收：工具内 DENIED 连发 3 次 ⇒ 必须 `DenialLimitError`（旧实现不触发 ⇒ 红）、正常成功路径与"执行前拒绝"的既有熔断**逐字不回归**（负对照）。
-**未派卡的原因**：`AgentLoop.ts` 可能正被在跑的"决策点错误策略类型级必填"卡编辑（它此前改过该文件的 `before_tool` 调用点），**我不做同文件并发**；待其落定后再派。
+**已修并提交（`059bb4c`）**；原先押后是因为 `AgentLoop.ts` 可能正被在跑的"决策点错误策略类型级必填"卡编辑（它此前改过该文件的 `before_tool` 调用点），**我不做同文件并发**；待其落定后再派。
 
 ## Round 48 — 取证两处（一处定性为**潜伏**、一处**待实测定级**）
 
@@ -268,7 +268,7 @@ finish(): StreamChunk[] {
 ⇒ **EOF 没有 `message_stop`**（连接被截断/中断）时：**既不补 `message_end`，也不为未关闭的 `tool_use` 块补 `tool_call_end`**。对比 **OpenAI driver 的 `finish()` 会走终止边界**（`closeToolCalls(true)` → flush 未识别调用 + 关已开调用 + `message_end`）⇒ 两条 provider 路径的**终止语义不一致**，Anthropic 这条**静默**丢掉流的收尾信号。
 **修法方向**：`finish()` 改为发出「未关闭块的 `tool_call_end`（+ 若有未识别缓存则显式补发占位调用）] + `{ type: 'message_end' }`」，并补一条"EOF 无 message_stop"的判别性用例。
 
-**未派卡的原因**：`parseOpenAI.ts` 正被一张在跑的卡编辑（**同目录**，我不做同目录并发）；待其落定后派。**另一处经核实"不同族、别改"**：`parseAnthropic.ts:215-216` 的 `tool_call_end` 过滤（`!isToolStop || real===undefined` 时 `continue`）是**刻意的**"文本块 stop 不产生 end"，语义正确。
+**已修并提交（`7648733`）**；原先押后是因为 `parseOpenAI.ts` 正被一张在跑的卡编辑（**同目录**，我不做同目录并发）；**另一处经核实"不同族、别改"**：`parseAnthropic.ts:215-216` 的 `tool_call_end` 过滤（`!isToolStop || real===undefined` 时 `continue`）是**刻意的**"文本块 stop 不产生 end"，语义正确。
 
 ## Round 54 — 取证：**`stream()` 没有超时，上游挂死 ⇒ 回合静默卡死**（与同类的 `chat()` 不一致）
 
@@ -291,7 +291,7 @@ finish(): StreamChunk[] {
 - abort 后必须**可诊断**：抛出/上报**明确**的超时错误（而不是让消费侧看到"无原因的流中断"），并让上层能以 `finishReason:'error'` 收尾；
 - 与既有 `timeoutMs` 选项的关系要定清（是复用该值作 idle 阈值，还是新增独立配置）；**两条路径（chat/stream）的语义差异要在文档或注释里写明**，避免下一个人再踩。
 **判别性验收**：① 上游**不发数据**（假 fetch/reader 永不 resolve）⇒ 必须在 idle 阈值后**以明确超时错误结束**（旧实现永不返回 ⇒ 必红）；② **负对照：慢但持续有数据**（间隔小于阈值）⇒ **不得**被误杀（防"把长回答掐死"）；③ chat 路径既有超时行为**逐字不回归**。
-**未派卡的原因**：`packages/llm` 已有卡在跑（Anthropic 解析），**我不在同一包内并发**；待其落定后派。
+**已派卡（第 59 轮）**；原先押后是因为 `packages/llm` 已有卡在跑（Anthropic 解析），**我不在同一包内并发**。
 
 ## Round 55 — 本段**最严重**的一条（我已实测）：**Anthropic 流式工具调用的参数一直是坏的**
 
@@ -317,4 +317,4 @@ parseFailed=true  ⇒ AgentLoop 退化成 {_raw:...}，工具拿不到 path
 **还有一层**：既有测试把它**锁成了期望**——`parseAnthropic.test.ts` 的负对照断言 `tool_call_start{arguments:'{}'}`，即"测试锁住缺陷"的又一例（本段第 3 次）。
 
 **修法决定（我做的取舍）**：倾向**生产侧最小修法 A**——`input` 为**空对象（无自有键）时不写种子**，非空 `input` 仍照旧序列化（兼容"把整份 input 放在 `content_block_start`"的实现）。**不选 B（消费侧首个 delta 覆盖）**：那会让"start 带真实种子"的 provider 丢参数，且改动核心消费逻辑、影响面更大。
-**验收硬要求**：**必须走消费侧**——断言"规范 Anthropic 流 ⇒ 工具最终参数是合法 JSON 且 `path === 'a.txt'`"（旧实现给 `{_raw:…}` ⇒ 必红）；**只测 chunk 形状不算**。允许按新语义更新那条 `'{}'` 旧断言，但须逐条说明改动、论证**不弱于**旧断言，并保留"除该处种子语义外其余 chunk 序列逐字一致"的负对照。**已派卡。**
+**已修并提交（`55c7d1a`）**。**我的独立端到端复测**（修复后）：规范流 ⇒ `accumulated="{\"path\":\"a.txt\"}"` 且 `streamedParsed={path:"a.txt"}`；**内联风格**（整份 input 放在 `content_block_start`）⇒ 种子仍保留且可用 ⇒ **兼容面没被"一律丢种子"的粗暴修法弄坏**（这正是我要求"不得把一种坏换成另一种坏"的那条）。**原验收硬要求（仍作为该卡的判据留档）**：**必须走消费侧**——断言"规范 Anthropic 流 ⇒ 工具最终参数是合法 JSON 且 `path === 'a.txt'`"（旧实现给 `{_raw:…}` ⇒ 必红）；**只测 chunk 形状不算**。允许按新语义更新那条 `'{}'` 旧断言，但须逐条说明改动、论证**不弱于**旧断言，并保留"除该处种子语义外其余 chunk 序列逐字一致"的负对照。**已派卡。**
