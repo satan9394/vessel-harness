@@ -6,8 +6,10 @@
  *
  * 期望值来源（实机实测，不靠推断）：EVALUATION-REPORT-24 P2 用真实
  * `npm pack --dry-run --offline --no-color --loglevel=notice`（cwd=`apps/cli`）测得：
- * stderr 上 `parsed=true`、**62 条**、含 `dist/cli.js` 与 4 个 `dist/configs/*`、零 `*.test.*` / 零 `*.map`；
- * 清单只出现在 **stderr**（`npm notice` 前缀），stdout 被 `[copy-configs]` 横幅占用。
+ * stderr 上 `parsed=true`、**62 条**、含 `dist/cli.js` 与 4 个 `dist/configs/*`、零 `*.test.*` / 零 `*.map`
+ * / 零 `*.tsbuildinfo`；
+ * 清单只出现在 **stderr**（`npm notice` 前缀）；`[copy-configs]` 现为**stdout 零输出**（横幅与逐文件清单
+ * 全走 `console.error` → stderr），stdout 上只剩 npm 自己的 prepack 生命周期横幅。
  * 实测的逐字文件名单未落盘，故下方 62 条是"形状等价重建"：**条数 / 必需文件 / 违禁文件**三类事实与实测一致。
  *
  * 隔离纪律：**纯函数 + 注入的假 exec**，不执行任何真实命令、不联网、不写盘、不需要 mkdtemp；
@@ -101,8 +103,12 @@ function buildPackStderr(
 }
 
 /**
- * 只有 **stdout** 形状（无任何 `npm notice` 行）—— 实测的 packing gate 曾经只读 stdout 的反例：
- * prepack 横幅 + tsc 横幅 + copy-configs 的 4 条输出，全部不带 `<size>` 前缀。
+ * 只有 **stdout** 形状（无任何 `npm notice` 行）—— 「packing gate 只读 stdout」的反例。
+ *
+ * 形状来源（如实）：终评实测时 `[copy-configs]` 的横幅与逐文件清单确实打在这条路上；该脚本现已改为
+ * **stdout 零输出**（全走 stderr），故下方 `[copy-configs]` 行属**保留的历史形状**（合成夹具，已不再
+ * 等于当前真实的 stdout 内容）。保留它反而更严：`npm notice` 行只在 stderr 出现，任何"只读一路输出"
+ * 的实现在此必然栽跟头。prepack 横幅 + tsc 横幅 + 4 条 copy-configs 输出，全部不带 `<size>` 前缀。
  */
 const STDOUT_ONLY_SHAPE: string = [
   '> @vessel/cli@0.10.0 prepack',
@@ -317,9 +323,9 @@ describe('judgePublishArtifact — 三态方向 + 分支优先级 + 证据', () 
     expect(v.pending).toBeUndefined();
     expect(v.evidence.summary).toContain('62 个文件');
     expect(v.evidence.summary).toContain('dist/cli.js');
-    expect(v.evidence.summary).toContain('零 *.map');
+    expect(v.evidence.summary).toContain('零 *.map / 零 *.tsbuildinfo');
     expect(detailOf(v)).toContain('实测 tarball 文件数=62');
-    expect(detailOf(v)).toContain('实测清单：必需文件齐全、零 *.test.* / 零 *.map');
+    expect(detailOf(v)).toContain('实测清单：必需文件齐全、零 *.test.* / 零 *.map / 零 *.tsbuildinfo');
     expect(detailOf(v)).toContain('pack 期脚本: prepack: npm run build');
   });
 
@@ -354,7 +360,7 @@ describe('judgePublishArtifact — 三态方向 + 分支优先级 + 证据', () 
   it('fail ⑤：含违禁文件（*.test.js / *.test.d.ts / *.map，各自独立）→ fail 且列出违禁项', () => {
     const testJs = judgePublishArtifact(facts({ entries: [...REAL_SHAPE_ENTRIES, 'dist/cli.test.js'] }));
     expect(testJs.status).toBe('fail');
-    expect(testJs.evidence.summary).toContain('含 1 个 *.test.*/*.map 文件（应为 0）');
+    expect(testJs.evidence.summary).toContain('含 1 个 *.test.*/*.map/*.tsbuildinfo 文件（应为 0）');
     expect(detailOf(testJs)).toContain('多(违禁): dist/cli.test.js');
 
     const testDts = judgePublishArtifact(facts({ entries: [...REAL_SHAPE_ENTRIES, 'dist/cli.test.d.ts'] }));
@@ -364,6 +370,55 @@ describe('judgePublishArtifact — 三态方向 + 分支优先级 + 证据', () 
     const map = judgePublishArtifact(facts({ entries: [...REAL_SHAPE_ENTRIES, 'dist/index.js.map'] }));
     expect(map.status).toBe('fail');
     expect(detailOf(map)).toContain('多(违禁): dist/index.js.map');
+  });
+
+  it('fail ⑤（新增）：含 `dist/.tsbuildinfo` → fail，并把它列在「多(违禁)」那行（tsc 实际产出的名字）', () => {
+    // `apps/cli/tsconfig.json:6` = `tsBuildInfoFile: "dist/.tsbuildinfo"` → 这就是 tsc -b 真实落盘的名字；
+    // `apps/cli/package.json:17-18` 用两条否定 glob（`!dist/**/.tsbuildinfo` 管点开头名 +
+    // `!dist/**/*.tsbuildinfo` 管非点开头名）排除，本条把该排除固化成**红灯契约**。
+    const v = judgePublishArtifact(facts({ entries: [...REAL_SHAPE_ENTRIES, 'dist/.tsbuildinfo'] }));
+
+    expect(v.status).toBe('fail');
+    expect(v.evidence.summary).toContain('发布物形状不符');
+    expect(v.evidence.summary).toContain('含 1 个');
+    // 违禁项出现在 detail 的专属行上（不是"缺文件"、也不是静默 pass）
+    expect(detailOf(v)).toContain('实测 tarball 文件数=63');
+    expect(detailOf(v)).toContain('多(违禁): dist/.tsbuildinfo');
+    expect(v.evidence.summary).not.toContain('符合预期');
+    // 判别性：把 PUBLISH_ARTIFACT_FORBIDDEN_RE 回退成不含 tsbuildinfo 的版本 → 本条整块变红
+    // （回退后 forbidden=[]、missing=[] → 判 pass，`status` 与 `多(违禁)` 两处同时失败）。
+  });
+
+  it('fail ⑤（新增）：非隐藏名 `dist/foo.tsbuildinfo` → 也 fail（判据是**后缀锚定**，不是字面名匹配）', () => {
+    const v = judgePublishArtifact(facts({ entries: [...REAL_SHAPE_ENTRIES, 'dist/foo.tsbuildinfo'] }));
+
+    expect(v.status).toBe('fail');
+    expect(detailOf(v)).toContain('多(违禁): dist/foo.tsbuildinfo');
+
+    // 正则语义**如实**断言：`\.tsbuildinfo$` 只锚定结尾，故凡 basename 以 `.tsbuildinfo` 结尾者皆违禁 ——
+    //   `dist/.tsbuildinfo`（本仓真实名字）✓、`dist/foo.tsbuildinfo`（非隐藏名）✓、`dist/tsconfig.tsbuildinfo`
+    //   （tsc 默认名）✓；而 `dist/tsbuildinfo`（不带点）✗、`dist/.tsbuildinfo.bak`（不以它结尾）✗。
+    //   这是刻意的取舍而非疏漏：tsc 产出的名字恒带点（默认 `tsconfig.tsbuildinfo`，本仓显式指定
+    //   `apps/cli/tsconfig.json:6` = `dist/.tsbuildinfo`），故后缀锚定足以覆盖真实产物；
+    //   若将来 `tsBuildInfoFile` 被改成无点名，本用例末尾 `dist/foo.tsbuildinfo === true` 与常量块里
+    //   `dist/tsbuildinfo === false` 两条断言会一起变红 —— 那就是"必须显式讨论后扩展判据"的信号。
+    expect(PUBLISH_ARTIFACT_FORBIDDEN_RE.test('dist/foo.tsbuildinfo')).toBe(true);
+    expect(PUBLISH_ARTIFACT_FORBIDDEN_RE.test('dist/tsconfig.tsbuildinfo')).toBe(true);
+    // 判别性：回退正则 → 本条两条 fail 断言 + 两条 test() 断言共四处同时变红。
+  });
+
+  it('负对照（新增）：合法最小清单（dist/cli.js + 4 个 dist/configs/*，零违禁）→ 仍 pass（判据扩展不得"一律 fail"）', () => {
+    const minimal = ['dist/cli.js', ...CONFIG_ENTRIES];
+    const v = judgePublishArtifact(facts({ entries: minimal }));
+
+    expect(v.status).toBe('pass');
+    expect(v.pending).toBeUndefined();
+    expect(v.evidence.summary).toContain('5 个文件');
+    expect(detailOf(v)).toContain('实测 tarball 文件数=5');
+    expect(detailOf(v)).toContain('实测清单：必需文件齐全、零 *.test.* / 零 *.map / 零 *.tsbuildinfo');
+    expect(minimal.some((e) => PUBLISH_ARTIFACT_FORBIDDEN_RE.test(e))).toBe(false);
+    // 判别性：本条**不**是回退杀手（回退正则后它照样绿）—— 它的职责相反：防止"加了 tsbuildinfo 之后
+    // 把任何清单都判 fail"这类过度扩展（例如误写成 `/tsbuildinfo|\.js$/` 或漏掉必需的 5 项匹配）。
   });
 
   it('pending ③：清单不可解析（stdout 形状）→ 显式 pending，不静默通过', () => {
@@ -416,7 +471,7 @@ describe('judgePublishArtifact — 三态方向 + 分支优先级 + 证据', () 
     const truncated = judgePublishArtifact(facts({ entries: [...REAL_SHAPE_ENTRIES, ...manyForbidden] }));
 
     expect(truncated.status).toBe('fail');
-    expect(truncated.evidence.summary).toContain('含 12 个 *.test.*/*.map 文件（应为 0）');
+    expect(truncated.evidence.summary).toContain('含 12 个 *.test.*/*.map/*.tsbuildinfo 文件（应为 0）');
     expect(detailOf(truncated)).toContain('多(违禁): dist/forbidden-0.test.js, dist/forbidden-1.test.js, dist/forbidden-2.test.js, dist/forbidden-3.test.js, dist/forbidden-4.test.js … 共 12 个');
 
     const longScripts = judgePublishArtifact(
@@ -469,7 +524,7 @@ describe('buildPublishArtifactExecutor — 并入 Gate 8 packaging（不新增�
 });
 
 describe('判据常量 — 锁定口径，防止静默改写', () => {
-  it('PACK_LIFECYCLE_SCRIPTS / 必需 5 项 / 违禁 3 类 / criterion 文案', () => {
+  it('PACK_LIFECYCLE_SCRIPTS / 必需 5 项 / 违禁 4 类（含 tsbuildinfo）/ criterion 文案', () => {
     expect([...PACK_LIFECYCLE_SCRIPTS]).toEqual(['prepack', 'prepare']);
     expect([...PUBLISH_ARTIFACT_REQUIRED]).toEqual([
       'dist/cli.js',
@@ -485,8 +540,24 @@ describe('判据常量 — 锁定口径，防止静默改写', () => {
     expect(PUBLISH_ARTIFACT_FORBIDDEN_RE.test('dist/cli.js')).toBe(false);
     expect(PUBLISH_ARTIFACT_FORBIDDEN_RE.test('dist/attest.js')).toBe(false);
 
+    // 违禁第 4 类：tsc 增量构建元数据（`apps/cli/tsconfig.json:6` 产出 `dist/.tsbuildinfo`，
+    // `apps/cli/package.json:17-18` 的两条否定 glob（点开头名 / 非点开头名各一条）负责不收录，
+    // 本条负责"收录了就红灯"）。
+    expect(PUBLISH_ARTIFACT_FORBIDDEN_RE.test('dist/.tsbuildinfo')).toBe(true);
+    expect(PUBLISH_ARTIFACT_FORBIDDEN_RE.test('dist/foo.tsbuildinfo')).toBe(true); // 非隐藏名：后缀锚定，非字面名
+    expect(PUBLISH_ARTIFACT_FORBIDDEN_RE.test('dist/tsconfig.tsbuildinfo')).toBe(true); // tsc 默认名
+    // 边界如实记录：本正则**不**匹配无点的 `dist/tsbuildinfo`（tsc 不会产出这种名字；若哪天产出，
+    // 这条断言变红即为"必须显式扩展判据"的信号，而不是静默放行）。
+    expect(PUBLISH_ARTIFACT_FORBIDDEN_RE.test('dist/tsbuildinfo')).toBe(false);
+
+    // 扩展后四类必须**齐**（判别性：谁把正则改成"只认 tsbuildinfo"，上面三条旧类断言与下面这条一起变红）
+    const forbiddenSamples = ['dist/cli.test.js', 'dist/cli.test.d.ts', 'dist/cli.js.map', 'dist/.tsbuildinfo'];
+    expect(forbiddenSamples.filter((e) => PUBLISH_ARTIFACT_FORBIDDEN_RE.test(e))).toEqual(forbiddenSamples);
+
     expect(PUBLISH_ARTIFACT_CRITERION).toContain('dist/cli.js');
     expect(PUBLISH_ARTIFACT_CRITERION).toContain('dist/configs/');
     expect(PUBLISH_ARTIFACT_CRITERION).toContain('不静默通过');
+    // 文案与判据必须同步（"说的与做的一致"）：criterion 必须点名第 4 类，否则又是一次"说的漏了做的"。
+    expect(PUBLISH_ARTIFACT_CRITERION).toContain('*.tsbuildinfo');
   });
 });

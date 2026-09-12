@@ -151,7 +151,7 @@ export function buildDeterministicBenchExecutor(provider: ChatProvider | null = 
 
 // ---------------------------------------------------------------------------
 // 发布物形状门禁 —— EVALUATION-REPORT-24 P2：把终评的一次性人工实测（tarball 270 → 62 文件、
-// 含 dist/cli.js 与 4 个 dist/configs/*、零 *.test.* / 零 *.map）固化成**确定性、离线、可回归**
+// 含 dist/cli.js 与 4 个 dist/configs/*、零 *.test.* / 零 *.map / 零 *.tsbuildinfo）固化成**确定性、离线、可回归**
 // 的 gate 判据，并入既有 §21 Gate 8 `packaging`（不新增第 9 道门禁、不改 084 的 8 门禁注册表）。
 //
 // 为什么需要：原 packaging gate 只查「本地 dist 是否存在」→ 任何重构都能在**没有红灯**的情况下
@@ -173,8 +173,25 @@ export const PUBLISH_ARTIFACT_REQUIRED: readonly string[] = [
   'dist/configs/model-catalog.json',
 ];
 
-/** 必须**不入包**的形态：编译产物里的测试与 sourcemap（`*.test.js.map` 由 `.map$` 覆盖）。 */
-export const PUBLISH_ARTIFACT_FORBIDDEN_RE = /\.test\.js$|\.test\.d\.ts$|\.map$/;
+// 为什么必须把 `*.tsbuildinfo` 也判违禁（写成行注释：下面那句 glob 原文含星号+斜杠，放进块注释会提前闭合它）：
+// `apps/cli/tsconfig.json:6` 设 `tsBuildInfoFile: "dist/.tsbuildinfo"` → `tsc -b` 会把它写进 `dist/`，
+// 而 `files: ["dist"]` 收录整个 dist；`apps/cli/package.json:17-18` 已用**两条**否定 glob 排除：
+// `!dist/**/.tsbuildinfo`（点开头名，如本仓的 `dist/.tsbuildinfo`）与 `!dist/**/*.tsbuildinfo`
+// （非点开头名，如 tsc 默认的 `dist/tsconfig.tsbuildinfo`）—— minimatch 默认 dot:false 时 `*` 不匹配
+// 前导点，故单靠任一条都可能漏放，必须成对；两条都必须是 glob 形式（"指向真实文件的否定条目"会被
+// npm 的 requiredFiles **反强制入包**）。
+// 本常量把那两条排除变成**可回归的红灯**：谁把 `files` 改回去，packaging gate 立即 fail。
+/**
+ * 必须**不入包**的形态（四类）：编译产物里的测试（`*.test.js`）、测试类型声明（`*.test.d.ts`）、
+ * sourcemap（`*.map`，`*.test.js.map` 亦由它覆盖）与 **tsc 增量构建元数据**（`*.tsbuildinfo`）。
+ *
+ * 语义（后缀锚定，如实）：`\.tsbuildinfo$` 匹配任何**以 `.tsbuildinfo` 结尾**的路径名
+ * （`dist/.tsbuildinfo` / `dist/foo.tsbuildinfo` / `dist/tsconfig.tsbuildinfo` 都中）；
+ * 无点的 `dist/tsbuildinfo`、或以它开头的 `dist/.tsbuildinfo.bak` **不**匹配 —— tsc 产出的名字恒带点
+ * （默认 `tsconfig.tsbuildinfo`，本仓显式指定 `dist/.tsbuildinfo`），故后缀锚定已足；若将来把
+ * `tsBuildInfoFile` 改成无点名，本判据需同步扩展。
+ */
+export const PUBLISH_ARTIFACT_FORBIDDEN_RE = /\.test\.js$|\.test\.d\.ts$|\.map$|\.tsbuildinfo$/;
 
 /**
  * npm 在 pack 期**真正执行**的包内生命周期脚本（以本机 npm 11 源码为据）：
@@ -190,7 +207,7 @@ export const PUBLISH_ARTIFACT_CRITERION =
   '否则干净检出（无 dist）时 `npm pack` 会打出缺 `dist/cli.js` 的坏包 → **fail**；' +
   '② `npm pack --dry-run` 的 tarball 清单必须含 `dist/cli.js` 与 4 个 `dist/configs/*`' +
   '（policy.default.yaml / behavior.default.yaml / pricing.json / model-catalog.json），' +
-  '且不得含任何 `*.test.js` / `*.test.d.ts` / `*.map`；' +
+  '且不得含任何 `*.test.js` / `*.test.d.ts` / `*.map` / `*.tsbuildinfo`；' +
   '③ npm pack 不可用、目标包错位或输出无法解析时显式 **pending**，不静默通过。';
 
 /** npm 自身日志行（notice/warn/error/ERR!）——区分「npm 真跑了并失败」与「spawn 级失败（工具缺失）」。 */
@@ -213,9 +230,11 @@ export function normalizePackEntry(raw: string): string {
 /**
  * 解析 `npm pack --dry-run` 输出里的 tarball 清单 + 被打包的包名。
  *
- * 为什么**不**解析 `--json`：`apps/cli` 的 `prepack`（scripts/copy-configs.mjs）用 `console.log`
- * 往 **stdout** 打自己的横幅与文件清单，与 npm 的 JSON 混在同一路 stdout（终评实测：`--json`
- * 输出被 `[copy-configs] …` 污染 → `JSON.parse` 失败）。而 npm 的 tarball 清单只以
+ * 为什么**不**解析 `--json`：`apps/cli` 的 `prepack`（scripts/copy-configs.mjs）现已**全部输出走 stderr、
+ * stdout 零输出**（摘要与逐文件清单均为 `console.error`）—— 即终评实测时"`--json` 输出被 `[copy-configs] …`
+ * 污染 → `JSON.parse` 失败"的**污染源已修**；但 `--json` 仍不被本判据依赖：npm 自己的
+ * `> @vessel/cli@0.10.0 prepack` 生命周期横幅照样落在 stdout，与 JSON 同一路（口径不变，不靠 `--json`）。
+ * 本判据只认 npm 自己的 tarball 清单：
  * `npm notice Tarball Contents` … `npm notice Tarball Details` 之间的
  * `npm notice <size> <path>` 形态出现——本机 npm 11 的 `lib/utils/tar.js#logTar` 把 notice 一律写
  * **stderr**、且每行加 `npm notice ` 前缀（npm/lib/utils/format.js:44-54 逐行加 prefix）。
@@ -339,7 +358,7 @@ export function judgePublishArtifact(facts: PublishArtifactFacts): GateVerdict {
       shapeRows.push(`多(违禁): ${shown}${forbidden.length > 5 ? ` … 共 ${forbidden.length} 个` : ''}`);
     }
     if (missing.length === 0 && forbidden.length === 0) {
-      shapeRows.push('实测清单：必需文件齐全、零 *.test.* / 零 *.map');
+      shapeRows.push('实测清单：必需文件齐全、零 *.test.* / 零 *.map / 零 *.tsbuildinfo');
     }
   }
 
@@ -418,7 +437,7 @@ export function judgePublishArtifact(facts: PublishArtifactFacts): GateVerdict {
   if (missing.length > 0 || forbidden.length > 0) {
     const parts: string[] = [];
     if (missing.length > 0) parts.push(`缺 ${missing.length} 个必需文件（${missing.join(', ')}）`);
-    if (forbidden.length > 0) parts.push(`含 ${forbidden.length} 个 *.test.*/*.map 文件（应为 0）`);
+    if (forbidden.length > 0) parts.push(`含 ${forbidden.length} 个 *.test.*/*.map/*.tsbuildinfo 文件（应为 0）`);
     return {
       status: 'fail',
       evidence: { summary: `发布物形状不符：${parts.join('；')}`, detail: evidence(shapeRows) },
@@ -430,7 +449,7 @@ export function judgePublishArtifact(facts: PublishArtifactFacts): GateVerdict {
     evidence: {
       summary:
         `发布物形状符合预期（${facts.entries.length} 个文件：含 dist/cli.js 与 4 个 dist/configs/*，` +
-        '零 *.test.* / 零 *.map）',
+        '零 *.test.* / 零 *.map / 零 *.tsbuildinfo）',
       detail: evidence(shapeRows),
     },
   };

@@ -1736,6 +1736,29 @@ async function cmdUsage(args: string[], flags: Map<string, string>): Promise<num
 }
 
 /**
+ * 「内容已变，但没落盘」的统一文案（B2/C 修复）——`pricing override` 四个 mutator 共用。
+ *
+ * 为什么不复用 `fail(2, ...)`：2 在本族里是**用法 / 校验错误**（缺 `--input`、非法价、缺 key），
+ * 而「命令合法但没生效」已有独立词表——`restore` 找不到墓碑就是 `1`。所以这里统一用 `1`：
+ *   - 脚本能区分「先修参数再重试（2）」与「环境问题：磁盘 / 权限 / 文件被占用（1，可重试）」；
+ *   - 更要紧的是**绝不会是 0**——`vessel pricing override set … && vessel usage recompute`
+ *     这类串接不会在「其实没落盘」时继续按新价目跑。
+ */
+function overrideNotPersistedMessage(
+  action: string,
+  what: string,
+  file: string,
+  reason: string | undefined,
+): string {
+  return (
+    `[vessel pricing override ${action}] ✘ 未写入：${what}\n` +
+    `  原因：${reason ?? '未知'}\n` +
+    `  覆盖文件未被改写（原路径内容保持不变或已留档，详见上面的 [vessel] 告警）：${file}\n` +
+    '  本次覆盖 / 墓碑**未生效**：后续记录与 vessel usage recompute 仍按原价目计费。'
+  );
+}
+
+/**
  * `vessel pricing override [list|set|delete|restore|repair]`（task 092）。
  *
  * 用户覆盖文件 `~/.vessel/pricing.override.json` 只存「覆盖 + 删除墓碑」，
@@ -1787,7 +1810,12 @@ async function cmdPricingOverride(args: string[], flags: Map<string, string>): P
       const cacheWrite = numberFlag('cache-write');
       if (cacheRead !== undefined) price.cacheRead = cacheRead;
       if (cacheWrite !== undefined) price.cacheWrite = cacheWrite;
-      store.set(key, price);
+      // C 修复：只有**真的落盘**才报成功；被抑制 / 写失败时文案与退出码都按「未生效」走。
+      const result = store.set(key, price);
+      if (!result.persisted) {
+        const msg = overrideNotPersistedMessage('set', `覆盖 "${key}"`, store.file, result.reason);
+        return fail(1, msg, flags, () => console.error(msg));
+      }
       console.log(`✔ 已写入覆盖: ${key} → in $${price.input} / out $${price.output}${price.cacheRead !== undefined ? ` / cache 读 $${price.cacheRead}` : ''}${price.cacheWrite !== undefined ? ` / cache 写 $${price.cacheWrite}` : ''}`);
       console.log('  生效于后续记录与 vessel usage recompute（覆盖优先级最高）。');
       return 0;
@@ -1804,7 +1832,11 @@ async function cmdPricingOverride(args: string[], flags: Map<string, string>): P
       return fail(2, msg, flags, () => console.error(msg));
     }
     try {
-      store.tombstone(key);
+      const result = store.tombstone(key);
+      if (!result.persisted) {
+        const msg = overrideNotPersistedMessage('delete', `墓碑 "${key}"`, store.file, result.reason);
+        return fail(1, msg, flags, () => console.error(msg));
+      }
       console.log(`✔ 已删除内置条目 "${key}"（墓碑写入覆盖文件；该模型按 0 计价且不回退目录/协议/兜底）。`);
       console.log('  撤销: vessel pricing override restore ' + key);
       return 0;
@@ -1820,9 +1852,19 @@ async function cmdPricingOverride(args: string[], flags: Map<string, string>): P
       const msg = '用法: vessel pricing override restore <model|provider::model>';
       return fail(2, msg, flags, () => console.error(msg));
     }
-    const restored = store.restore(key);
-    console.log(restored ? `✔ 已撤销墓碑 "${key}"（回到内置/目录价）。` : `未找到墓碑 "${key}"，无改动。`);
-    return restored ? 0 : 1;
+    // C 修复：`found`（内存里有墓碑）与 `persisted`（真落盘了）**分开判**。
+    // 旧实现只有前者，抑制写入时它仍为 true ⇒ 退出码 0，脚本误判已落盘。
+    const result = store.restore(key);
+    if (!result.found) {
+      console.log(`未找到墓碑 "${key}"，无改动。`);
+      return 1;
+    }
+    if (!result.persisted) {
+      const msg = overrideNotPersistedMessage('restore', `撤销墓碑 "${key}"`, store.file, result.reason);
+      return fail(1, msg, flags, () => console.error(msg));
+    }
+    console.log(`✔ 已撤销墓碑 "${key}"（回到内置/目录价）。`);
+    return 0;
   }
 
   if (sub === 'repair') {
@@ -1846,12 +1888,27 @@ async function cmdPricingOverride(args: string[], flags: Map<string, string>): P
         if (typeof row.key !== 'string' || row.key.trim() === '') throw new RangeError('repair 项缺少 key');
         return { key: row.key, from: row.from as TokenPrice, to: row.to as TokenPrice };
       });
-      const outcomes = store.repair(repairs);
+      const result = store.repair(repairs);
+      const outcomes = result.outcomes;
       const applied = outcomes.filter((o) => o.status === 'applied').length;
+      // C 修复：`applied > 0 && !persisted` = 内存里改了、磁盘上没改 → 不得报「已生效」。
+      const notPersisted = result.changed && !result.persisted;
       console.log(`=== 值守卫式修复（${store.file}）===`);
       for (const o of outcomes) {
-        const note = o.status === 'applied' ? '已改' : o.status === 'skipped-absent' ? '跳过（无该覆盖键）' : '跳过（现值已被用户改过）';
+        const note =
+          o.status === 'applied'
+            ? notPersisted
+              ? '已改（未落盘）'
+              : '已改'
+            : o.status === 'skipped-absent'
+              ? '跳过（无该覆盖键）'
+              : '跳过（现值已被用户改过）';
         console.log(`  ${o.key}: ${note}`);
+      }
+      if (notPersisted) {
+        console.log(`共 ${applied}/${outcomes.length} 条需要修改，但本次未落盘（无变更时不写文件）。`);
+        const msg = overrideNotPersistedMessage('repair', `${applied} 条修复`, store.file, result.reason);
+        return fail(1, msg, flags, () => console.error(msg));
       }
       console.log(`共 ${applied}/${outcomes.length} 条生效（无变更时不写文件）。`);
       return 0;

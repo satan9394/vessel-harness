@@ -180,18 +180,16 @@ describe('tools/filesystem — tool execution seam (hard enforcement point)', ()
     expect(rd.error?.message).toMatch(/escapes workspace/);
   });
 
-  it('symlink: a workspace directory junction pointing outside is rejected as symlink escape', async () => {
+  it.skipIf(!CAN_CREATE_DIR_LINK)('symlink: a workspace directory junction pointing outside is rejected as symlink escape', async () => {
     const link = path.join(dir, 'evil-link');
     const target = path.join(outsideDir, 'target-dir');
     fs.mkdirSync(target);
     fs.writeFileSync(path.join(target, 'leak.txt'), 'sensitive');
-    try {
-      // directory junction works without admin on Windows; on non-win it's a symlink
-      fs.symlinkSync(target, link, process.platform === 'win32' ? 'junction' : 'dir');
-    } catch {
-      // symlink unsupported on this host — skip (honest limitation)
-      return;
-    }
+    // Directory junction works without admin on Windows; on non-win it is a dir
+    // symlink. Capability is probed once at module scope, so a host that cannot
+    // build links reports this case as SKIPPED instead of silently passing with
+    // zero assertions executed (the `return`-inside-catch this replaced).
+    fs.symlinkSync(target, link, LINK_KIND);
     const r = registry({ protected: [], denyRead: [], allow: [], confinement: true });
     const rd = await r.execute({ toolCallId: '1', toolName: 'Read', arguments: { path: 'evil-link/leak.txt' } }, ctx());
     expect(rd.error).toBeDefined();
@@ -356,11 +354,15 @@ describe('tools/filesystem — symlink escape with a non-existent target (fail-c
       thrown = e;
     }
     expect(thrown).toBeInstanceOf(FsGuardError);
-    expect((thrown as FsGuardError).guard).toBe('escape');
+    // A1: no verdict was reachable here (node rejects the NUL argument outright),
+    // so this is a fail-closed 'unverifiable' denial — NOT a security escape.
+    // 'escape' is reserved for paths PROVEN to resolve out of bounds; recording a
+    // malformed argument as an escape would corrupt meta.guard telemetry.
+    expect((thrown as FsGuardError).guard).toBe('unverifiable');
     expect((thrown as Error).message).toMatch(/cannot verify path is inside workspace/);
   });
 
-  it.skipIf(process.platform === 'win32')('fail-closed: a symlink loop (ELOOP) is denied — POSIX only', () => {
+  it.skipIf(process.platform === 'win32')('fail-closed: a symlink loop (ELOOP) is denied as "unverifiable" — POSIX only', () => {
     // self-referential symlink: realpath cannot terminate → ELOOP (POSIX).
     // Windows needs elevation for file symlinks, so this case is skipped there.
     fs.symlinkSync('loop', path.join(root, 'loop'));
@@ -368,6 +370,146 @@ describe('tools/filesystem — symlink escape with a non-existent target (fail-c
     let thrown: unknown;
     try {
       canonicalize(root, 'loop', cfg);
+    } catch (e) {
+      thrown = e;
+    }
+    expect(thrown).toBeInstanceOf(FsGuardError);
+    // fail-closed, but an unresolvable loop means "no verdict" (A1) — not proof of
+    // an escape, so it must not be counted as one.
+    expect((thrown as FsGuardError).guard).toBe('unverifiable');
+  });
+
+  // ---------------------------------------------------------------------------
+  // A4-1 — the killer case for a "block anything that looks like a link"
+  // implementation. Every other case in this file stays GREEN under that
+  // over-block, because they all describe links that SHOULD be denied. This one
+  // describes a link that MUST be allowed: a workspace link whose target is also
+  // inside the workspace is an ordinary workspace path, and denying it breaks a
+  // normal write-through-link workflow.
+  // ---------------------------------------------------------------------------
+  it.skipIf(!CAN_CREATE_DIR_LINK)('allow: a workspace link pointing INSIDE the workspace is not an escape — Write and Read through it both succeed', async () => {
+    fs.mkdirSync(path.join(root, 'realdir'));
+    fs.symlinkSync(path.join(root, 'realdir'), path.join(root, 'link-in'), LINK_KIND);
+    // Premise, checked without relying on platform-specific link introspection: the
+    // target directory starts empty, so the only way `realdir/new.txt` can exist
+    // afterwards is that the write really was redirected through `link-in`.
+    expect(fs.readdirSync(path.join(root, 'realdir'))).toEqual([]);
+    const w = await registry(CONFINED).execute(
+      { toolCallId: '1', toolName: 'Write', arguments: { path: 'link-in/new.txt', content: 'inside' } },
+      ctx(),
+    );
+    expect(w.error).toBeUndefined();
+    expect(w.meta?.guard).toBeUndefined();
+    // decisive: the file landed at the link TARGET, and that target is inside root
+    expect(fs.readFileSync(path.join(root, 'realdir', 'new.txt'), 'utf8')).toBe('inside');
+    // The Read below takes the other arm: `realpath` now SUCCEEDS and must still be
+    // accepted (the Write above exercised the ENOENT / deepest-ancestor arm).
+    const rd = await registry(CONFINED).execute(
+      { toolCallId: '2', toolName: 'Read', arguments: { path: 'link-in/new.txt' } },
+      ctx(),
+    );
+    expect(rd.error).toBeUndefined();
+    expect(rd.content).toBe('inside');
+  });
+
+  // ---------------------------------------------------------------------------
+  // A4-2 — the dangling-link branch (`guards.ts`: `ancestor === resolved`) in its
+  // WINDOWS-reachable shape. The POSIX dangling case above uses a file symlink and
+  // is skipped on Windows, so that branch had ZERO coverage there.
+  //
+  // The dangling state is reached by deleting the target of a link that was VALID
+  // when created, rather than by linking to a never-existing path: libuv builds a
+  // Windows junction by opening the target, so a junction to a missing directory is
+  // not portable, whereas "link to a real dir, then remove that dir" works on every
+  // host able to create a directory link at all (no elevation needed either way).
+  // Result is the same shape: `lstat` sees an entry, `realpath` cannot resolve it.
+  // ---------------------------------------------------------------------------
+  it.skipIf(!CAN_CREATE_DIR_LINK)('deny: a link whose target DIRECTORY has gone missing is rejected (Windows-reachable dangling form)', async () => {
+    const vanished = path.join(outsideDir, 'vanished-target');
+    fs.mkdirSync(vanished);
+    fs.symlinkSync(vanished, path.join(root, 'dangling-dir-link'), LINK_KIND);
+    fs.rmSync(vanished, { recursive: true, force: true });
+    // Premise, asserted rather than assumed and without platform-specific link
+    // introspection (junction vs symlink differ across hosts): `lstat` must still
+    // see an entry while `realpath` must fail to resolve it. A plain directory
+    // could not satisfy both, so this pins the dangling-link shape exactly.
+    expect(fs.lstatSync(path.join(root, 'dangling-dir-link'))).toBeDefined();
+    let code: string | undefined;
+    try {
+      fs.realpathSync.native(path.join(root, 'dangling-dir-link'));
+    } catch (e) {
+      code = (e as NodeJS.ErrnoException).code;
+    }
+    expect(code).toBeDefined();
+    const w = await registry(CONFINED).execute(
+      { toolCallId: '1', toolName: 'Write', arguments: { path: 'dangling-dir-link', content: 'pwn' } },
+      ctx(),
+    );
+    expect(w.error?.errorClass).toBe('DENIED');
+    // A1 boundary, asserted exactly rather than loosely: an ENOENT-dangling link is
+    // a PROVEN out-of-bounds escape; any other errno means the host refused to
+    // resolve it and the honest label is 'unverifiable'. Either way it is a denial —
+    // never an allow — so this stays total across platforms without going green on
+    // a silent-success implementation (which would report no DENIED at all).
+    expect(w.meta?.guard).toBe(code === 'ENOENT' ? 'escape' : 'unverifiable');
+    // decisive: nothing was created at the (out-of-workspace, now absent) target
+    expect(fs.existsSync(vanished)).toBe(false);
+  });
+
+  // ---------------------------------------------------------------------------
+  // A1 — classification boundary at the tool seam. `Write existing-file/sub.txt`
+  // is ENOTDIR; the hardened guard denies it, and the requirement is that the
+  // denial must NOT be recorded as a security escape, because `meta.guard` is
+  // exactly what the audit fold (EnforcementProjection) and `guard_seen` count.
+  //
+  // Deliberately platform-tolerant: on POSIX `realpath` reports ENOTDIR (→ DENIED
+  // with 'unverifiable'), while Windows may report this shape as ENOENT and let the
+  // downstream `mkdir` surface TOOL_FAILURE. Both verdicts reject; being labelled
+  // 'escape' is what fails.
+  // ---------------------------------------------------------------------------
+  it('classification: a path through an existing FILE is never recorded as a security escape', async () => {
+    fs.writeFileSync(path.join(root, 'plain-file.txt'), 'not a directory');
+    const w = await registry(CONFINED).execute(
+      { toolCallId: '1', toolName: 'Write', arguments: { path: 'plain-file.txt/sub.txt', content: 'x' } },
+      ctx(),
+    );
+    expect(w.error).toBeDefined(); // rejected either way (fail-closed)
+    expect(w.meta?.guard).not.toBe('escape'); // ← the A1 regression guard
+    expect(fs.existsSync(path.join(root, 'plain-file.txt', 'sub.txt'))).toBe(false);
+    expect(fs.readFileSync(path.join(root, 'plain-file.txt'), 'utf8')).toBe('not a directory');
+  });
+
+  it.skipIf(process.platform === 'win32')('classification: ENOTDIR is denied as "unverifiable" (POSIX: realpath is deterministic here)', async () => {
+    fs.writeFileSync(path.join(root, 'plain-file.txt'), 'not a directory');
+    const w = await registry(CONFINED).execute(
+      { toolCallId: '1', toolName: 'Write', arguments: { path: 'plain-file.txt/sub.txt', content: 'x' } },
+      ctx(),
+    );
+    expect(w.error?.errorClass).toBe('DENIED');
+    expect(w.meta?.guard).toBe('unverifiable');
+    expect(w.error?.message).toMatch(/cannot verify path is inside workspace \(ENOTDIR\)/);
+  });
+
+  // ---------------------------------------------------------------------------
+  // D1 — the root-missing shortcut (`guards.ts`: `if (rootKind === 'missing')
+  // return resolved`), which previously had ZERO coverage. Constructed without any
+  // link: a root path that simply does not exist is deterministic on every
+  // platform, so this branch is stably testable (no skipIf needed).
+  // ---------------------------------------------------------------------------
+  it('root-missing: an in-root path is accepted when the workspace root itself does not exist, and lexical escapes are still rejected', () => {
+    const ghostRoot = path.join(os.tmpdir(), `cah-ghost-root-${process.pid}-${Date.now()}`);
+    expect(fs.existsSync(ghostRoot)).toBe(false); // premise: the root is absent
+    const cfg: FsPolicyConfig = { protected: [], denyRead: [], allow: [] };
+    // PREMISE the implementation leans on (documented in guards.ts): the root is
+    // host-injected and its own ancestor chain is outside this function's remit,
+    // while a root that does not exist cannot harbour a planted link — so there is
+    // nothing left inside it for the symlink check to verify.
+    expect(canonicalize(ghostRoot, 'sub/new.txt', cfg)).toBe(path.join(ghostRoot, 'sub', 'new.txt'));
+    expect(fs.existsSync(ghostRoot)).toBe(false); // canonicalize is pure: no side effects
+    // the shortcut is not a bypass — the lexical gate still runs first
+    let thrown: unknown;
+    try {
+      canonicalize(ghostRoot, '../../etc/passwd', cfg);
     } catch (e) {
       thrown = e;
     }

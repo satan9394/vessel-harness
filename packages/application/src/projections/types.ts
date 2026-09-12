@@ -184,8 +184,17 @@ export type EnforcementSource = 'policy' | 'fs-confinement' | 'process-tree' | '
  * Classified enforcement event type (the `type` dimension used for counting).
  * Assigned per source from the underlying record:
  *  - policy            → `deny`      (policy deny verdict)
- *  - fs-confinement    → the guard kind carried in `meta.guard`
- *                        (`escape` | `protected` | `deny-read` | `confinement` | `size` | `nul`)
+ *  - fs-confinement    → the guard kind carried in `meta.guard` (`escape` |
+ *                        `unverifiable` | `protected` | `deny-read` | `confinement` |
+ *                        `size` | `nul` | `missing`) — the full `FsGuardError.guard`
+ *                        union declared in `packages/tools/src/filesystem/guards.ts`.
+ *                        `unverifiable` means NO VERDICT was reached
+ *                        (EACCES/EPERM/ELOOP/ENOTDIR/ENAMETOOLONG/UNKNOWN…); it is
+ *                        still a DENIAL (fail-closed), but it is NOT a proven
+ *                        escape and must never be counted or alerted on as one.
+ *                        Each value is its own bucket (the type is that literal string).
+ *                        (`missing` is declared by that union but has no throw site
+ *                        today, so it is not currently an emitted bucket.)
  *  - process-tree      → the `ProcessTreeAuditKind` (`spawn` | `exit` | `attached` |
  *                        `escape-detected` | `escape-terminated` | `window-closed`)
  *  - sandbox-status    → `report`    (a status snapshot was pushed)
@@ -242,4 +251,6 @@ export type ProcessTreeAuditKind =
   | 'attached'
   | 'escape-detected'
   | 'escape-terminated'
+  /** an escaped pid could NOT be verified terminated — it may still be alive */
+  | 'escape-terminate-failed'
   | 'window-closed';

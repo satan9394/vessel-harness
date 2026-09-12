@@ -5,6 +5,10 @@ import * as path from 'node:path';
 import { UsageStore } from './UsageStore.js';
 import { PricingOverrideStore, sameTokenPrice } from './pricingOverride.js';
 import { createOverridePriceSource, type PricingTable, type TokenPrice } from '../providers/pricing.js';
+// CLI 层验收（C 的文案 / 退出码）。为什么放在本文件：`vessel pricing override` 的四个落盘点只经
+// `cmdPricingOverride`，而它不导出——只能经 `main()` 驱动（与 cli.test.ts 同款）。`main()` 在该子命令
+// 上不碰 provider/session/网络，`VESSEL_USAGE_ROOT` 在本 describe 里显式钉到临时目录（AGENTS.md §8）。
+import { main } from '../cli.js';
 
 // 注入「留档改名失败」用 `vi.mock('node:fs')` 而非 `vi.spyOn(fs, 'renameSync')`：node:fs 的
 // ESM 命名空间导出 non-configurable，vitest 2.x 下 spyOn 会报 "Cannot redefine property"
@@ -13,12 +17,20 @@ import { createOverridePriceSource, type PricingTable, type TokenPrice } from '.
 // 只有 `denyRename` 谓词命中（留档目标名含 `.corrupted-`）时才抛 EPERM —— 原子写的
 // `renameWithRetry(tmp, pricing.override.json)` 目标名不含 `.corrupted-`，不受影响。
 //
+// 另加一个 `denyWrite` 谓词（B2/C 补测）：只拦**目标名命中**的 `writeFileSync`（本文件用它模拟
+// 写盘失败 ENOSPC / EPERM），其余路径 / 其余 API 一律透明委托——既有用例与同名文件里的 CLI 用例
+// 照常走真实 fs。
+//
 // 刻意用**普通函数**而非 `vi.fn()`：`vi.restoreAllMocks()` 会遍历全局 mock 集合并重置其实现，
 // 用 `vi.fn` 会被连带打掉；普通函数不在该集合内。
-const fsHooks = vi.hoisted(() => ({ denyRename: null as null | ((dest: unknown) => boolean) }));
+const fsHooks = vi.hoisted(() => ({
+  denyRename: null as null | ((dest: unknown) => boolean),
+  denyWrite: null as null | ((file: unknown) => boolean),
+}));
 
 vi.mock('node:fs', async () => {
   const actual = await vi.importActual<typeof import('node:fs')>('node:fs');
+  const realWriteFileSync = actual.writeFileSync;
   return {
     ...actual,
     renameSync: (oldPath: fs.PathLike, newPath: fs.PathLike): void => {
@@ -27,6 +39,12 @@ vi.mock('node:fs', async () => {
       }
       actual.renameSync(oldPath, newPath);
     },
+    writeFileSync: ((...args: unknown[]) => {
+      if (fsHooks.denyWrite?.(args[0])) {
+        throw Object.assign(new Error('ENOSPC: no space left on device, write'), { code: 'ENOSPC' });
+      }
+      return (realWriteFileSync as (...a: unknown[]) => unknown)(...args);
+    }) as unknown as typeof realWriteFileSync,
   };
 });
 
@@ -100,9 +118,15 @@ describe('092 — 用户价目覆盖文件', () => {
     expect(file.models['deepseek-chat']).toBeUndefined(); // 覆盖与墓碑互斥
     const source = store.source();
     expect(source.findDeleted?.('deepseek-chat')).toBe('deepseek-chat');
-    expect(store.restore('deepseek-chat')).toBe(true);
+    const restored = store.restore('deepseek-chat');
+    // 取值路径调整（C 修复的唯一必要改动）：旧的单个 `boolean` 返回值 = 现在的 `found`；
+    // 断言强度不放宽，并新增 `persisted`（健康路径必须真落盘）。
+    expect(restored.found).toBe(true);
+    expect(restored.persisted).toBe(true);
     expect(store.source().findDeleted?.('deepseek-chat')).toBeUndefined();
-    expect(store.restore('deepseek-chat')).toBe(false); // 已无墓碑 → 无改动
+    const again = store.restore('deepseek-chat');
+    expect(again.found).toBe(false); // 已无墓碑 → 无改动
+    expect(again.persisted).toBe(false); // 无改动 ⇒ 压根不写盘
   });
 
   it('值守卫式修复：仅当现值 = 旧值才改（用户手改过的行不动、缺失键不新建）', () => {
@@ -112,7 +136,7 @@ describe('092 — 用户价目覆盖文件', () => {
       { key: 'claude-sonnet-4-5', from: SONNET, to: { input: 4, output: 20, cacheRead: 0.4, cacheWrite: 5 } },
       { key: 'deepseek-chat', from: { input: 0.27, output: 1.1, cacheRead: 0.07 }, to: { input: 0.99, output: 9.9 } },
       { key: 'gpt-4o', from: { input: 2.5, output: 10 }, to: { input: 3, output: 12 } },
-    ]);
+    ]).outcomes; // 取值路径调整（C 修复）：repair 现返回 { outcomes, persisted, changed }
     expect(outcomes.map((o) => [o.key, o.status])).toEqual([
       ['claude-sonnet-4-5', 'applied'],
       ['deepseek-chat', 'skipped-user-modified'],
@@ -126,7 +150,7 @@ describe('092 — 用户价目覆盖文件', () => {
   it('值守卫修复无一条生效时不写文件（内容逐字节不变）', () => {
     store.set('claude-sonnet-4-5', { input: 1, output: 2 });
     const before = fs.readFileSync(store.file, 'utf8');
-    const outcomes = store.repair([{ key: 'claude-sonnet-4-5', from: SONNET, to: { input: 9, output: 9 } }]);
+    const outcomes = store.repair([{ key: 'claude-sonnet-4-5', from: SONNET, to: { input: 9, output: 9 } }]).outcomes;
     expect(outcomes[0]?.status).toBe('skipped-user-modified');
     expect(fs.readFileSync(store.file, 'utf8')).toBe(before);
   });
@@ -371,11 +395,15 @@ describe('092 补丁 — 覆盖文件损坏/不可读必须可见（不得静默
 
     store.set('deepseek-chat', { input: 0.1, output: 0.2 }); // 写盘路径不变：仍能写（覆盖掉损坏内容）
     store.read(); // 健康读 → 复位告警签名
-    expect(warns).toHaveLength(1);
+    // B2 补测带来的计数变化：留档成功现在会**立刻**补一条「已留档为 …」warn（总数 +1，读告警去重不变）。
+    // 原断言 `expect(warns).toHaveLength(1)` 在此**收紧**为「读告警仍只 1 条 + 总数 2 条」。
+    expect(warns.filter((w) => w.includes('本次忽略整份覆盖'))).toHaveLength(1);
+    expect(warns).toHaveLength(2);
 
     fs.writeFileSync(store.file, '{ broken', 'utf8');
     store.read();
-    expect(warns).toHaveLength(2);
+    expect(warns.filter((w) => w.includes('本次忽略整份覆盖'))).toHaveLength(2); // 再次损坏 → 重新告警
+    expect(warns).toHaveLength(3); // 2 条读告警 + 1 条留档告警
   });
 
   it('损坏后的真实代价（warn 必须可见的那笔钱）：墓碑丢失 → 被删模型按内置价重新计费', () => {
@@ -426,6 +454,7 @@ describe('092 补丁 2 — 覆盖写之前先留档（损坏内容不得被确�
   });
   afterEach(() => {
     fsHooks.denyRename = null;
+    fsHooks.denyWrite = null;
     vi.restoreAllMocks();
     fs.rmSync(dir, { recursive: true, force: true });
   });
@@ -456,7 +485,7 @@ describe('092 补丁 2 — 覆盖写之前先留档（损坏内容不得被确�
 
     expect(() => store.set('deepseek-chat', { input: 0.1, output: 0.2 })).not.toThrow(); // 命令仍可运行
 
-    // ↓↓↓ 删掉「留档失败 → 抑制写入」（catch 里的 return false）→ 下面三条直接红（坏内容被冲掉）↓↓↓
+    // ↓↓↓ 删掉「留档失败 → 抑制写入」（catch 里的 `return { proceed: false }`）→ 下面三条直接红（坏内容被冲掉）↓↓↓
     expect(fs.readFileSync(store.file, 'utf8')).toBe(CORRUPT); // 原文件逐字未变
     expect(archives()).toEqual([]); // 确实没留下留档（改名失败）
     expect(fs.existsSync(`${store.file}.tmp`)).toBe(false); // 连半个 tmp 都没落（抑制发生在任何写之前）
@@ -480,7 +509,9 @@ describe('092 补丁 2 — 覆盖写之前先留档（损坏内容不得被确�
     store.set('deepseek-chat', { input: 0.1, output: 0.2 });
     store.set('claude-sonnet-4-5', { input: 3, output: 15 }); // 第二次写：文件已是 ok
     store.tombstone('deepseek-chat'); // 第三次写
-    expect(store.restore('deepseek-chat')).toBe(true); // 第四次写（有墓碑 → 会落盘）
+    const restored = store.restore('deepseek-chat'); // 第四次写（有墓碑 → 会落盘）
+    expect(restored.found).toBe(true); // 取值路径调整：旧返回值 = 现在的 found
+    expect(restored.persisted).toBe(true);
 
     const file = JSON.parse(fs.readFileSync(store.file, 'utf8')) as { models: Record<string, TokenPrice>; deleted: string[] };
     expect(Object.keys(file.models)).toEqual(['claude-sonnet-4-5']);
@@ -530,5 +561,331 @@ describe('092 补丁 2 — 覆盖写之前先留档（损坏内容不得被确�
     expect(inner).toHaveLength(1); // 原「读不到的东西」先留档，没有被当场覆盖
     expect(dirStore.readWithStatus().status).toBe('ok'); // 写后回到健康态
     expect(dirStore.get('deepseek-chat')).toEqual({ input: 0.1, output: 0.2 });
+  });
+});
+
+/**
+ * 092 补丁 3（B2）——**「留档成功 → 写失败」不得是静默窗口**。
+ *
+ * 缺陷：留档（`renameSync` 到 `.corrupted-<ts>`）成功之后，原路径上就没有文件了。此刻
+ * mkdir / 写 tmp / rename 任一步失败，用户面对的是「原路径不存在 + 一声不吭」——下一次
+ * `readWithStatus()` 只会给出**设计上静默**的 `missing` 分支，于是留档路径与「文件损坏」两件事
+ * 都不可见（与本文件头「损坏必须可见」的自述直接矛盾）。
+ *
+ * 修法（两条都做）：①留档成功**立刻** warn（含留档路径 + 原路径 + 「即将写入新内容」）；
+ * ②写失败时**先回滚**（把留档改回原名，磁盘状态与写入前逐字一致），回滚不了就兜底告警给出
+ * 留档路径。判据：**任何路径下都不允许出现「原路径不存在 + 无告警」**。
+ *
+ * 注入方式照抄本仓既有 `*.recovery.test.ts` 约定：`vi.mock('node:fs')` 只拦**目标名命中**的
+ * 调用（`denyWrite` 命中 `.tmp` / `denyRename` 命中指定目标），其余一律透明委托。
+ */
+describe('092 补丁 3（B2）— 留档成功 + 随后写失败：原路径不存在时必须有告警（不得静默）', () => {
+  let dir: string;
+  let store: PricingOverrideStore;
+  let warns: string[];
+
+  /** 与「补丁 2」同款坏内容：JSON 截断。 */
+  const CORRUPT = '{ broken';
+  /** 只拦覆盖文件的 tmp 写入（模拟 ENOSPC / 磁盘满）；其余 fs 调用透明委托。 */
+  const denyTmp = (p: unknown): boolean => String(p).endsWith('pricing.override.json.tmp');
+
+  beforeEach(() => {
+    dir = fs.mkdtempSync(path.join(os.tmpdir(), 'vessel-override-b2-'));
+    store = new PricingOverrideStore({ rootDir: dir });
+    warns = [];
+    vi.spyOn(console, 'warn').mockImplementation((...a: unknown[]) => {
+      warns.push(a.map((x) => String(x)).join(' '));
+    });
+  });
+  afterEach(() => {
+    fsHooks.denyRename = null;
+    fsHooks.denyWrite = null;
+    vi.restoreAllMocks();
+    fs.rmSync(dir, { recursive: true, force: true });
+  });
+
+  /** 留档文件列举（`pricing.override.json.corrupted-<ts>[-N]`）。 */
+  const archives = (): string[] => fs.readdirSync(dir).filter((n) => n.includes('.corrupted-')).sort();
+
+  it('① 判别性主例：损坏 → 留档成功但写盘失败 → 回滚后原文件逐字未变，且两条告警都在', () => {
+    fs.writeFileSync(store.file, CORRUPT, 'utf8');
+    fsHooks.denyWrite = denyTmp;
+
+    const result = store.set('deepseek-chat', { input: 0.1, output: 0.2 });
+
+    // ↓↓↓ 删掉 write() 的 catch + warnWriteFailed（退回「写失败就抛/就静默」）→ 本组断言直接红 ↓↓↓
+    expect(result.persisted).toBe(false); // 落盘结果如实回传（C 的接口）
+    expect(result.changed).toBe(true);
+    expect(result.reason ?? '').toContain('ENOSPC');
+
+    // ①-a 写失败被回滚：原路径仍在，内容与写入前逐字一致（损坏依旧可见，不是静默 missing）
+    expect(fs.existsSync(store.file)).toBe(true);
+    expect(fs.readFileSync(store.file, 'utf8')).toBe(CORRUPT);
+    expect(store.readWithStatus().status).toBe('corrupt');
+    expect(archives()).toEqual([]); // 留档已改回原名，不留半拉子文件
+    expect(fs.existsSync(`${store.file}.tmp`)).toBe(false); // 也没有 tmp 残留
+
+    // ①-b 两条告警都在：先「已留档为 <备份路径>」（B2 首选），再「写入失败 + 去向」
+    const text = warns.join('\n');
+    expect(text).toContain('已留档为');
+    expect(text).toMatch(/pricing\.override\.json\.corrupted-\d+/); // 留档路径（可手工恢复）
+    expect(text).toContain('写入失败');
+    expect(text).toContain('ENOSPC');
+    expect(text).toContain('已回滚');
+    expect(text).toContain(store.file);
+  });
+
+  it('② 回滚也失败（注入 renameSync EPERM）→ 原路径确实不存在，但告警给出留档路径且留档内容完好', () => {
+    fs.writeFileSync(store.file, CORRUPT, 'utf8');
+    fsHooks.denyWrite = denyTmp;
+    // 只拦「改回原名」这一步（目标 = 覆盖文件本身）；留档改名（目标含 `.corrupted-`）不受影响
+    fsHooks.denyRename = (dest) => String(dest).endsWith('pricing.override.json');
+
+    const result = store.set('deepseek-chat', { input: 0.1, output: 0.2 });
+
+    expect(result.persisted).toBe(false);
+    // 这就是缺陷的原始形态：原路径已经不存在……
+    expect(fs.existsSync(store.file)).toBe(false);
+    // ……但**绝不静默**：留档路径写在告警里，且留档文件本身完好（内容可手工取回）
+    const baks = archives();
+    expect(baks).toHaveLength(1);
+    expect(fs.readFileSync(path.join(dir, baks[0]!), 'utf8')).toBe(CORRUPT);
+    const text = warns.join('\n');
+    expect(text).toContain('已留档为');
+    expect(text).toContain(path.join(dir, baks[0]!)); // 告警里的路径 = 磁盘上真实存在的留档
+    expect(text).toContain('写入失败');
+    expect(text).toContain('回滚失败');
+    expect(text).toContain(store.file);
+  });
+
+  it('③ 负对照：合法文件 + 写失败 → 不误报留档；原文件逐字未变且明说「写入失败」', () => {
+    store.set('deepseek-chat', { input: 0.1, output: 0.2 }); // 先落一份健康文件（真实 fs）
+    const before = fs.readFileSync(store.file, 'utf8');
+    fsHooks.denyWrite = denyTmp;
+
+    const result = store.set('claude-sonnet-4-5', { input: 3, output: 15 });
+
+    expect(result.persisted).toBe(false);
+    expect(fs.readFileSync(store.file, 'utf8')).toBe(before); // 原文件逐字未变
+    expect(archives()).toEqual([]); // ok 起步不留档
+    const text = warns.join('\n');
+    expect(text).toContain('写入失败');
+    expect(text).toContain('原文件未被改写');
+    expect(text).not.toContain('已留档为'); // 没留档就不许说有（防「一律报留档」的反向谎报）
+  });
+});
+
+/**
+ * 092 补丁 3（C）——**落盘结果必须回传**（store 层双向验收）。
+ *
+ * 旧签名：`write()` 返回 `void`，四个 mutator 的返回值都不携带「是否真落盘」。于是「内容变了但
+ * 没落盘」在类型上不可见；`restore()` 更危险——它的 `true` 只表示「内存里有墓碑」，抑制写入时
+ * 仍为 `true` ⇒ CLI 退出码 0，脚本据此误判已落盘。
+ */
+describe('092 补丁 3（C）— 落盘结果回传：未落盘不得报成功 / 落盘必须报成功', () => {
+  let dir: string;
+  let store: PricingOverrideStore;
+  let warns: string[];
+
+  const denyTmp = (p: unknown): boolean => String(p).endsWith('pricing.override.json.tmp');
+
+  beforeEach(() => {
+    dir = fs.mkdtempSync(path.join(os.tmpdir(), 'vessel-override-c-'));
+    store = new PricingOverrideStore({ rootDir: dir });
+    warns = [];
+    vi.spyOn(console, 'warn').mockImplementation((...a: unknown[]) => {
+      warns.push(a.map((x) => String(x)).join(' '));
+    });
+  });
+  afterEach(() => {
+    fsHooks.denyRename = null;
+    fsHooks.denyWrite = null;
+    vi.restoreAllMocks();
+    fs.rmSync(dir, { recursive: true, force: true });
+  });
+
+  it('判别性主例：restore 拆开 found / persisted —— 有墓碑但写盘失败 → persisted=false（旧签名给 true ⇒ CLI exit 0）', () => {
+    store.set('deepseek-chat', { input: 0.1, output: 0.2 });
+    store.tombstone('deepseek-chat');
+    expect(store.tombstones()).toEqual(['deepseek-chat']);
+    fsHooks.denyWrite = denyTmp;
+
+    const result = store.restore('deepseek-chat');
+
+    // ↓↓↓ 删掉 restore 的 persisted 拆分（退回单个 boolean）→ 首条断言失去判别力、CLI 会 exit 0 ↓↓↓
+    expect(result.found).toBe(true); // 旧返回值的全部含义（内存里有墓碑）
+    expect(result.persisted).toBe(false); // 新增：**没落盘**
+    expect(result.reason ?? '').toContain('ENOSPC');
+    // 磁盘上墓碑仍在（= CLI 文案里那句「原文件保持不变」的判据）
+    expect((JSON.parse(fs.readFileSync(store.file, 'utf8')) as { deleted: string[] }).deleted).toEqual(['deepseek-chat']);
+    expect(warns.join('\n')).toContain('写入失败');
+  });
+
+  it('set / tombstone / repair 同样透传：写失败 → changed=true 且 persisted=false，磁盘值不变', () => {
+    fsHooks.denyWrite = denyTmp;
+    expect(store.set('deepseek-chat', { input: 0.1, output: 0.2 })).toMatchObject({ changed: true, persisted: false });
+    expect(store.tombstone('deepseek-chat')).toMatchObject({ changed: true, persisted: false });
+    fsHooks.denyWrite = null;
+
+    store.set('claude-sonnet-4-5', SONNET);
+    fsHooks.denyWrite = denyTmp;
+    const rep = store.repair([{ key: 'claude-sonnet-4-5', from: SONNET, to: { input: 4, output: 20 } }]);
+    expect(rep.changed).toBe(true);
+    expect(rep.persisted).toBe(false);
+    expect(rep.outcomes[0]?.status).toBe('applied'); // 内存里判定为「已改」……
+    expect(store.get('claude-sonnet-4-5')).toEqual(SONNET); // ……磁盘上仍是旧值（没落盘）
+  });
+
+  it('repair 无一条 applied → changed=false（压根不写盘、不算失败、零告警）', () => {
+    store.set('claude-sonnet-4-5', { input: 1, output: 2 });
+    warns.length = 0;
+
+    const rep = store.repair([{ key: 'claude-sonnet-4-5', from: SONNET, to: { input: 9, output: 9 } }]);
+
+    expect(rep).toMatchObject({ changed: false, persisted: false });
+    expect(rep.reason).toBeUndefined();
+    expect(warns).toEqual([]); // 幂等无变更不是失败：不许因此告警
+  });
+
+  it('落盘必须报成功（反向防「一律报失败」）：四个 mutator 在健康路径上一律 persisted=true 且零告警', () => {
+    const setRes = store.set('claude-sonnet-4-5', SONNET);
+    expect(setRes).toMatchObject({ changed: true, persisted: true });
+    expect(setRes.reason).toBeUndefined();
+
+    const tomb = store.tombstone('claude-sonnet-4-5');
+    expect(tomb).toMatchObject({ changed: true, persisted: true });
+
+    const restored = store.restore('claude-sonnet-4-5');
+    expect(restored).toMatchObject({ found: true, persisted: true });
+    expect(restored.reason).toBeUndefined();
+
+    store.set('claude-sonnet-4-5', SONNET);
+    const rep = store.repair([{ key: 'claude-sonnet-4-5', from: SONNET, to: { input: 4, output: 20 } }]);
+    expect(rep).toMatchObject({ changed: true, persisted: true });
+    expect(store.get('claude-sonnet-4-5')).toEqual({ input: 4, output: 20 });
+
+    expect(warns).toEqual([]); // 健康路径零噪音（新增的留档告警不得误伤正常写入）
+  });
+});
+
+/**
+ * 092 补丁 3（C）——CLI 四处（set / delete / restore / repair）的文案与退出码验收，**双向**：
+ *   ① 被抑制 / 未落盘 → **不得**打印成功，且退出码必须非 0（此处统一取 1）；
+ *   ② 正常落盘 → 照常打印成功、退出码 0（防「一律报失败」这种反向的新谎报）。
+ *
+ * 退出码为什么取 1：本族命令里 `2` 已被「用法 / 校验错误」（缺 flag、非法价、缺 key）占用，而
+ * 「命令合法但没生效」已有独立词表——`restore` 找不到墓碑本来就是 1。取 1 既让脚本能区分
+ * 「改参数再重试（2）」与「环境问题：磁盘 / 权限 / 占用（1）」，又保证**绝不会是 0**。
+ */
+describe('092 补丁 3（C）— CLI：未落盘不得宣称成功，落盘必须照常宣称成功', () => {
+  let dir: string;
+  let savedRoot: string | undefined;
+  let logs: string[];
+  let restoreConsole: () => void;
+
+  const denyTmp = (p: unknown): boolean => String(p).endsWith('pricing.override.json.tmp');
+  const overrideFile = (): string => path.join(dir, 'pricing.override.json');
+
+  beforeEach(() => {
+    dir = fs.mkdtempSync(path.join(os.tmpdir(), 'vessel-override-cli-'));
+    savedRoot = process.env.VESSEL_USAGE_ROOT;
+    process.env.VESSEL_USAGE_ROOT = dir; // AGENTS.md §8：绝不读写真实 ~/.vessel
+    logs = [];
+    const spyLog = vi.spyOn(console, 'log').mockImplementation((...a: unknown[]) => logs.push(a.map((x) => String(x)).join(' ')));
+    const spyErr = vi.spyOn(console, 'error').mockImplementation((...a: unknown[]) => logs.push(a.map((x) => String(x)).join(' ')));
+    const spyWarn = vi.spyOn(console, 'warn').mockImplementation((...a: unknown[]) => logs.push(a.map((x) => String(x)).join(' ')));
+    restoreConsole = () => {
+      spyLog.mockRestore();
+      spyErr.mockRestore();
+      spyWarn.mockRestore();
+    };
+  });
+  afterEach(() => {
+    fsHooks.denyRename = null;
+    fsHooks.denyWrite = null;
+    restoreConsole();
+    if (savedRoot === undefined) delete process.env.VESSEL_USAGE_ROOT;
+    else process.env.VESSEL_USAGE_ROOT = savedRoot;
+    fs.rmSync(dir, { recursive: true, force: true });
+  });
+
+  it('① set 未落盘 → exit 1 且**不打印**「✔ 已写入覆盖」（不得宣称成功）', async () => {
+    fsHooks.denyWrite = denyTmp;
+
+    const code = await main(['pricing', 'override', 'set', 'deepseek-chat', '--input', '0.1', '--output', '0.2']);
+
+    const out = logs.join('\n');
+    expect(code).toBe(1); // 与「未生效」相称的非 0 退出码
+    expect(out).not.toContain('✔ 已写入覆盖'); // 本卡 C 的核心判别点
+    expect(out).not.toContain('生效于后续记录');
+    expect(out).toContain('未写入');
+    expect(out).toContain('未生效');
+    expect(out).toContain(overrideFile()); // 点名文件，便于定位
+    expect(fs.existsSync(overrideFile())).toBe(false); // 真的一个字节都没落
+  });
+
+  it('② set 正常落盘 → exit 0 且照常打印「✔ 已写入覆盖」（反向：不得一律报失败）', async () => {
+    const code = await main(['pricing', 'override', 'set', 'deepseek-chat', '--input', '0.1', '--output', '0.2']);
+
+    const out = logs.join('\n');
+    expect(code).toBe(0);
+    expect(out).toContain('✔ 已写入覆盖');
+    expect(out).not.toContain('未写入');
+    expect((JSON.parse(fs.readFileSync(overrideFile(), 'utf8')) as { models: Record<string, unknown> }).models['deepseek-chat']).toEqual({
+      input: 0.1,
+      output: 0.2,
+    });
+  });
+
+  it('③ restore 未落盘 → exit 1（旧实现：restore() 返回 true ⇒ exit 0，脚本误判已落盘）', async () => {
+    new PricingOverrideStore({ rootDir: dir }).tombstone('deepseek-chat');
+    fsHooks.denyWrite = denyTmp;
+
+    const code = await main(['pricing', 'override', 'restore', 'deepseek-chat']);
+
+    expect(code).toBe(1); // ★ 本卡 C 的核心：不再因为「内存里有墓碑」就报 0
+    const out = logs.join('\n');
+    expect(out).not.toContain('✔ 已撤销墓碑');
+    expect(out).toContain('未写入');
+    expect((JSON.parse(fs.readFileSync(overrideFile(), 'utf8')) as { deleted: string[] }).deleted).toEqual(['deepseek-chat']);
+
+    // 放开注入 → 同一命令照常成功（双向：修复的是「谎报成功」，不是「一律失败」）
+    logs = [];
+    fsHooks.denyWrite = null;
+    const ok = await main(['pricing', 'override', 'restore', 'deepseek-chat']);
+    expect(ok).toBe(0);
+    expect(logs.join('\n')).toContain('✔ 已撤销墓碑');
+  });
+
+  it('④ delete 未落盘 → exit 1 且不打印「✔ 已删除内置条目」', async () => {
+    fsHooks.denyWrite = denyTmp;
+
+    const code = await main(['pricing', 'override', 'delete', 'deepseek-chat']);
+
+    const out = logs.join('\n');
+    expect(code).toBe(1);
+    expect(out).not.toContain('✔ 已删除内置条目');
+    expect(out).toContain('未写入');
+    expect(fs.existsSync(overrideFile())).toBe(false);
+  });
+
+  it('⑤ repair 未落盘 → exit 1、逐条文案改为「已改（未落盘）」且不打印「条生效」', async () => {
+    new PricingOverrideStore({ rootDir: dir }).set('claude-sonnet-4-5', SONNET);
+    const repairs = path.join(dir, 'repairs.json');
+    fs.writeFileSync(
+      repairs,
+      JSON.stringify([{ key: 'claude-sonnet-4-5', from: SONNET, to: { input: 4, output: 20 } }]),
+      'utf8',
+    );
+    fsHooks.denyWrite = denyTmp;
+
+    const code = await main(['pricing', 'override', 'repair', '--file', repairs]);
+
+    const out = logs.join('\n');
+    expect(code).toBe(1);
+    expect(out).not.toContain('条生效'); // 「共 1/1 条生效」这类成功口径不得出现
+    expect(out).toContain('已改（未落盘）');
+    expect(out).toContain('未写入');
+    expect((JSON.parse(fs.readFileSync(overrideFile(), 'utf8')) as { models: Record<string, TokenPrice> }).models['claude-sonnet-4-5']).toEqual(SONNET);
   });
 });

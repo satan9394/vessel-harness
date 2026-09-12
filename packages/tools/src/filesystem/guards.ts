@@ -29,10 +29,42 @@ export const DEFAULT_FS_POLICY: FsPolicyConfig = {
   allow: [],
 };
 
+/**
+ * Guard classification contract. `guard` is not a log label — it is propagated to
+ * `meta.guard` on the `tool/result` record and folded by `EnforcementProjection`
+ * (task 074) and matched by the `guard_seen` benchmark assert. So the value is
+ * AUDIT SEMANTICS: it decides whether a denial gets counted as a security event.
+ *
+ *   - `'escape'`       — PROVEN out of bounds. Exactly three ways to earn it: a
+ *                        lexical `..`/absolute escape; a `realpath` that succeeded
+ *                        and landed outside the root; a dangling link out of
+ *                        bounds (an entry `realpath` cannot resolve, so writing
+ *                        through it would create the file at an unverifiable
+ *                        place). Evidence, not suspicion.
+ *   - `'unverifiable'` — NO VERDICT was reached: EACCES/EPERM/ELOOP/UNKNOWN (the
+ *                        probe is blind) or ENOTDIR/ENAMETOOLONG/
+ *                        ERR_INVALID_ARG_VALUE (the path is structurally unusable).
+ *                        Still DENIED — fail-closed is unchanged — but this is NOT
+ *                        evidence of an attack and must never be counted as one.
+ *                        A stray `Write existing-file/sub.txt` (ENOTDIR) is a
+ *                        user slip, not a symlink escape, and reporting it as one
+ *                        would corrupt escape telemetry and falsely accuse.
+ *
+ * Both kinds reject. Neither ever allows, and `'unverifiable'` is strictly a
+ * relabelling of a denial that already happened — it cannot widen any boundary.
+ */
 export class FsGuardError extends Error {
   constructor(
     message: string,
-    public readonly guard: 'escape' | 'protected' | 'deny-read' | 'confinement' | 'size' | 'nul' | 'missing',
+    public readonly guard:
+      | 'escape'
+      | 'unverifiable'
+      | 'protected'
+      | 'deny-read'
+      | 'confinement'
+      | 'size'
+      | 'nul'
+      | 'missing',
   ) {
     super(message);
   }
@@ -61,9 +93,23 @@ function errnoCode(err: unknown): string | undefined {
 }
 
 /**
- * `lstat` (never follows links) classified by errno: `missing` means "this exact
- * path does not exist", `error` means "existence could not be determined"
- * (EACCES/EPERM/…), which must never be read as "does not exist".
+ * `lstat` (never follows links) classified by errno. The failure bucket `'error'`
+ * deliberately collapses TWO different situations, and both are named here so the
+ * comment does not claim more resolution than the code has:
+ *
+ *   - **structurally impossible** — ENOTDIR (a component of the parent chain is a
+ *     regular file, e.g. `existing-file/sub.txt`), ENAMETOOLONG, and
+ *     ERR_INVALID_ARG_VALUE (node rejects the argument, e.g. an embedded NUL).
+ *     "No directory entry can exist at this position" is CERTAIN here — but that
+ *     is a conclusion about the path's SHAPE, not an ENOENT observation about a
+ *     well-formed name.
+ *   - **genuinely undetermined** — EACCES / EPERM / ELOOP / UNKNOWN / …: the probe
+ *     is blind and existence is unknown in either direction.
+ *
+ * Neither may be read as "does not exist, so skip the link check". `canonicalize`
+ * fails closed on both and records them as guard `'unverifiable'` (not
+ * `'escape'`), because a malformed or unreadable path proves nothing about
+ * whether a link redirects the reachable part of the chain.
  */
 function probePath(abs: string): 'exists' | 'missing' | 'error' {
   try {
@@ -77,7 +123,10 @@ function probePath(abs: string): 'exists' | 'missing' | 'error' {
 /**
  * Deepest existing ancestor of `abs` (inclusive), or null when nothing in the
  * chain exists (e.g. a workspace root that has not been created yet).
- * Fails closed (throws `escape`) when existence cannot be determined.
+ *
+ * Fails closed — but as `'unverifiable'`, NOT `'escape'`: an undecidable or
+ * structurally invalid probe is a failure to reach a verdict, not proof that the
+ * path leaves the workspace. Only a genuine ENOENT step continues the walk.
  */
 function deepestExistingAncestor(abs: string, p: string): string | null {
   let cur = path.resolve(abs);
@@ -85,7 +134,7 @@ function deepestExistingAncestor(abs: string, p: string): string | null {
     const kind = probePath(cur);
     if (kind === 'exists') return cur;
     if (kind === 'error') {
-      throw new FsGuardError(`cannot verify path is inside workspace: ${p}`, 'escape');
+      throw new FsGuardError(`cannot verify path is inside workspace: ${p}`, 'unverifiable');
     }
     const parent = path.dirname(cur);
     if (parent === cur) return null;
@@ -134,12 +183,21 @@ export function canonicalize(root: string, p: string, config?: FsPolicyConfig): 
     if (err instanceof FsGuardError) throw err;
     const code = errnoCode(err);
     if (code !== 'ENOENT') {
-      // EACCES / EPERM / ELOOP / EINVAL / ERR_INVALID_ARG_VALUE … — the real
-      // path could NOT be verified, so the check must NOT be skipped: fail
-      // closed. (Previously every non-FsGuardError was swallowed here.)
+      // EACCES / EPERM / ELOOP (no verdict possible) and ENOTDIR / ENAMETOOLONG /
+      // ERR_INVALID_ARG_VALUE (structurally impossible path) — the real path could
+      // NOT be verified, so the check must NOT be skipped: fail closed.
+      // (Previously every non-FsGuardError was swallowed here.)
+      //
+      // Guard kind is `'unverifiable'`, deliberately NOT `'escape'`. This branch
+      // also absorbs ordinary slips — `Write existing-file/sub.txt` (ENOTDIR) and
+      // paths node refuses outright (NUL → ERR_INVALID_ARG_VALUE). Labelling those
+      // as security escapes would feed false positives into the audit/telemetry
+      // that counts escapes (`meta.guard` → EnforcementProjection, `guard_seen`)
+      // and would accuse the caller of an attack that never happened. The verdict
+      // is untouched: still a denial.
       throw new FsGuardError(
         `cannot verify path is inside workspace${code ? ` (${code})` : ''}: ${p}`,
-        'escape',
+        'unverifiable',
       );
     }
     // ENOENT: the target itself does not exist yet (a fresh Write/Edit). The
@@ -153,18 +211,41 @@ export function canonicalize(root: string, p: string, config?: FsPolicyConfig): 
       // The workspace root itself does not exist yet ⇒ nothing inside it can
       // exist, so no link planted in the workspace can be involved. Keep the
       // pre-existing behaviour for this (host-configured) case.
+      //
+      // PREMISE, stated rather than implied: the root is INJECTED BY THE HOST
+      // (`createFsTools({ workspaceRoot })`), and this function does NOT verify the
+      // root's own ancestor chain. `canonicalize` bounds paths *within* a root it
+      // trusts the host to have chosen; if a link had been planted on the way to
+      // that root, the party naming the root is already the compromised one, so
+      // checking it here would buy nothing. What THIS branch does guarantee is the
+      // part the symlink check is responsible for: a root that does not exist has
+      // no entries, hence no link, hence nothing to redirect — so there is nothing
+      // left to verify and returning `resolved` is safe.
+      //
+      // Note the deliberate narrowness: only a definite ENOENT on the root takes
+      // this shortcut. A root that exists but cannot be probed (`rootKind ===
+      // 'error'`) falls through to the ancestor verification below and fails closed
+      // as `'unverifiable'`, rather than being mistaken for "absent".
       return resolved;
     }
     const ancestor = deepestExistingAncestor(resolved, p);
     if (ancestor === null) {
       // Unreachable while `root` exists (the root is always an ancestor of a
-      // lexically-inside path) — deny rather than guess.
-      throw new FsGuardError(`cannot verify path is inside workspace: ${p}`, 'escape');
+      // lexically-inside path) — deny rather than guess. No verdict was reached
+      // about where the path lives, so this is `'unverifiable'`, not an escape.
+      throw new FsGuardError(`cannot verify path is inside workspace: ${p}`, 'unverifiable');
     }
     if (ancestor === resolved) {
       // `lstat` sees an entry but `realpath` says ENOENT ⇒ a dangling link
-      // (symlink/junction/reparse point whose target is missing). Writing
-      // through it would create the file at an unverifiable location → deny.
+      // (symlink/junction/reparse point whose target is missing). Writing through
+      // it would create the file at a location this function cannot verify, so it
+      // is denied as an escape.
+      //
+      // Scope note, so the label is not over-read: the rule is "unresolvable link
+      // at the final component", and the link's TARGET is deliberately not
+      // inspected. A dangling link whose target happens to be inside the workspace
+      // is therefore denied the same way. That is an over-block, not a hole — it
+      // only ever denies, so fail-closed is preserved and nothing is widened.
       throw new FsGuardError(`symlink escapes workspace: ${p}`, 'escape');
     }
     let realAncestor: string;
@@ -173,7 +254,9 @@ export function canonicalize(root: string, p: string, config?: FsPolicyConfig): 
       realAncestor = fs.realpathSync.native(ancestor);
       realRoot = fs.realpathSync.native(root);
     } catch {
-      throw new FsGuardError(`cannot verify path is inside workspace: ${p}`, 'escape');
+      // Same reasoning as the `ancestor === null` branch: re-verifying an existing
+      // ancestor failed, so the location is undecided → deny as `'unverifiable'`.
+      throw new FsGuardError(`cannot verify path is inside workspace: ${p}`, 'unverifiable');
     }
     const ancestorRel = path.relative(realRoot, realAncestor);
     if (ancestorRel.startsWith('..') || path.isAbsolute(ancestorRel)) {

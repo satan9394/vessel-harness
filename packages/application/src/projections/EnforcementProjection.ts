@@ -39,13 +39,17 @@ interface FoldableToolResultRecord {
  *    into an `EnforcementEvent` of type `deny`, source `policy`.
  *
  *  - **fs-confinement guard DENIED** (073): the tool guard throws an
- *    `FsGuardError` whose `guard` kind ('escape'|'protected'|'deny-read'|
- *    'confinement'|'size'|'nul') is recorded on the session `tool/result` as
- *    `error.errorClass === 'DENIED'` + `meta.guard`. The bus `after_tool`
- *    payload DROPS `meta`, so this is folded from the Session replay (the same
- *    reuse path Telemetry.finalizeRecord uses) via `foldSession()`. Each match
- *    becomes an `EnforcementEvent` of type = guard kind, source
- *    `fs-confinement`.
+ *    `FsGuardError` whose `guard` kind ('escape'|'unverifiable'|'protected'|
+ *    'deny-read'|'confinement'|'size'|'nul'|'missing' — the full union declared
+ *    in `packages/tools/src/filesystem/guards.ts`) is recorded on the session
+ *    `tool/result` as `error.errorClass === 'DENIED'` + `meta.guard`. The bus
+ *    `after_tool` payload DROPS `meta`, so this is folded from the Session
+ *    replay (the same reuse path Telemetry.finalizeRecord uses) via
+ *    `foldSession()`. Each match becomes an `EnforcementEvent` of type = guard
+ *    kind, source `fs-confinement`. Note the boundary: `'escape'` = proven out
+ *    of bounds, `'unverifiable'` = fail-closed denial with NO verdict reached
+ *    (EACCES/EPERM/ELOOP/ENOTDIR/…). Both reject, but the latter must never be
+ *    counted or alerted on as an escape.
  *
  *  - **sandbox process-tree audit** (071/072): an append-only audit trail kept
  *    on the `Sandbox` runtime object — NOT on the bus/session. Consumers push
@@ -95,6 +99,10 @@ export class EnforcementProjection {
    * Fold the Session replay for fs-confinement guard DENIED (073 reuse). The
    * bus `after_tool` drops `meta`, so the authoritative guard kind lives on the
    * `tool/result` session record (`errorClass:'DENIED'` + `meta.guard`).
+   * The kind is used VERBATIM as the event `type` (`String(guard)`), so every
+   * guard value gets its own count bucket — including the fail-closed
+   * `'unverifiable'` (no verdict reached), which is therefore never merged into
+   * `'escape'` (proven out of bounds). No counting logic lives here by design.
    * Safe to call repeatedly; skips records already seen.
    */
   foldSession(session: { replay(): readonly FoldableToolResultRecord[] }): void {

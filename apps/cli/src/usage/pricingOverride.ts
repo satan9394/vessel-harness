@@ -58,6 +58,48 @@ export interface PricingRepairOutcome {
   current?: TokenPrice;
 }
 
+/**
+ * 落盘结果（本卡修复 C）——`write()` 的返回，四个 mutator **原样透传**。
+ *
+ * 为什么需要它：旧 `write()` 返回 `void`，于是「内容变了」与「内容真的落盘了」在类型上不可
+ * 区分。留档失败被**抑制写入**、或写盘 I/O 失败（ENOSPC / EPERM / 文件被占用…）时，CLI 仍然
+ * 无条件打印「✔ 已写入覆盖」并 exit 0 —— 脚本据此误判已落盘。
+ */
+export interface PricingOverrideWriteResult {
+  /** 新内容是否确已原子落盘（tmp + rename 成功）。 */
+  persisted: boolean;
+  /** 内容是否真的变了：`false` = 这次压根不需要写盘（如 repair 无一条 applied），**不算失败**。 */
+  changed: boolean;
+  /** `changed && !persisted` 时的原因（含 errno）；其余情况缺省。 */
+  reason?: string;
+}
+
+/** `set()` / `tombstone()` 的返回：内存视角的变更后内容 + 落盘结果。 */
+export interface PricingOverrideMutationResult extends PricingOverrideWriteResult {
+  /** `persisted === false` 时，这份内容**没有**落盘（磁盘上是原内容或其留档）。 */
+  file: PricingOverrideFile;
+}
+
+/**
+ * `restore()` 的返回：**拆开**「内存里有没有墓碑」与「有没有真落盘」（本卡修复 C 的核心）。
+ *
+ * 旧签名返回单个 `boolean`，它只是 `found`；抑制写入时它仍为 `true` ⇒ CLI 退出码 0，
+ * 脚本误以为墓碑已撤销并已落盘。
+ */
+export interface PricingRestoreResult {
+  /** 内存里确实有该墓碑（= 撤销动作成立）；`false` 时压根不写盘。 */
+  found: boolean;
+  /** 新内容是否真的落盘；`found === false` 时恒为 `false`。 */
+  persisted: boolean;
+  /** `found && !persisted` 时的原因。 */
+  reason?: string;
+}
+
+/** `repair()` 的返回：逐条判定结果 + 落盘结果（`changed` = 有 `applied`，否则压根不写盘）。 */
+export interface PricingRepairResult extends PricingOverrideWriteResult {
+  outcomes: PricingRepairOutcome[];
+}
+
 /** 价格字段级相等（`undefined` 与缺失等价；`cacheRead`/`cacheWrite` 缺省不算差异）。 */
 export function sameTokenPrice(a: TokenPrice | undefined, b: TokenPrice | undefined): boolean {
   if (a === undefined || b === undefined) return a === b;
@@ -128,6 +170,16 @@ export interface PricingOverrideRead extends PricingOverrideFile {
  * **且写盘前必留档**（本卡修复）：损坏 / 读不到的覆盖文件在**任何覆盖写之前**先改名留档为
  * `<file>.corrupted-<epochMs>[-N]`（与 UsageStore / ProjectRegistry / CredentialStore 同款命名，
  * 只改名不删除）；留档失败则**抑制本次写入**（原文保持不变）并 warn，绝不抛错。
+ *
+ * 留档与写失败的可见性（B2）：「留档成功 → 写失败」曾是一个**静默窗口**——留档把原路径搬走后，
+ * mkdir / 写 tmp / rename 任一步失败，原路径就不存在了，而 `readWithStatus()` 的 `missing`
+ * 分支是设计上静默的，于是用户既看不到留档路径也看不到「文件损坏」。现在：①留档成功**立刻**
+ * warn（含留档路径 + 原路径 + 「即将写入新内容」）；②写失败时**先尝试回滚**（把留档改回原名，
+ * 磁盘状态与写入前逐字一致），回滚不了才兜底告警给出留档路径。
+ *
+ * 落盘结果（C）：`write()` 返回 `PricingOverrideWriteResult` 而不是 `void`，**且不再因 I/O
+ * 失败抛错**（失败一律经 `persisted: false` + `reason` 上抛，同时打 warn）——四个 mutator 把它
+ * 透传给 CLI，CLI 才能在「内容变了但没落盘」时收回报错而不是宣称成功。
  */
 export class PricingOverrideStore {
   readonly rootDir: string;
@@ -269,47 +321,107 @@ export class PricingOverrideStore {
    * 留档失败（EPERM/EBUSY/占用…）：与 `ProjectRegistry` 的最终决策一致——**抑制本次写入**
    * （不落盘，原文保持不变）并 warn 提示尽快手工备份；**绝不抛错**（命令仍能跑完）。
    *
+   * 留档成功（B2 修复）：**立刻**打一条含「留档路径 + 原路径 + 即将写入新内容」的 warn。
+   * 理由：留档一旦成功，原路径上就没有文件了；若随后的写盘失败（而这里一声不吭），用户面对的是
+   * 「原路径不存在 + 没有任何告警」——下一次 `readWithStatus()` 只会给出设计上静默的 `missing`。
+   * 与 `ProjectRegistry.quarantineCorrupted()`（`ProjectRegistry.ts:122`）同款：留档成功就报出路径。
+   *
    * 为什么在写盘时重新探一次状态而不是缓存 `read()` 的结论：读与写之间文件可能被外部改动；
    * 「覆盖前一刻」的真实状态才是留档判据（代价是健康路径多一次读盘 + 解析，换取不误覆盖）。
    *
-   * @returns `true` = 可以继续落盘；`false` = 已抑制本次写入。
+   * @returns `proceed: true` = 可以继续落盘（`archivePath` 为本次留档路径，没留档时缺省）；
+   *          `proceed: false` = 已抑制本次写入（`reason` 为抑制原因）。
    */
-  private archiveBrokenBeforeWrite(): boolean {
+  private archiveBrokenBeforeWrite(): { proceed: boolean; archivePath?: string; reason?: string } {
     const current = this.readWithStatus();
-    if (current.status !== 'corrupt' && current.status !== 'unreadable') return true;
+    if (current.status !== 'corrupt' && current.status !== 'unreadable') return { proceed: true };
     // 极端竞态：虽判为「读不到」，但此刻文件已不在（如刚被外部删除）→ 无内容可留档，正常写。
-    if (!fs.existsSync(this.file)) return true;
+    if (!fs.existsSync(this.file)) return { proceed: true };
 
     // 同毫秒二次留档：循环取唯一名，形态仍为 `<file>.corrupted-<ts>[-N]`（与 UsageStore 同款约定）。
     let bak = `${this.file}.corrupted-${Date.now()}`;
     let n = 0;
     while (fs.existsSync(bak)) bak = `${this.file}.corrupted-${Date.now()}-${++n}`;
+    const how = current.status === 'unreadable' ? '读不到' : '损坏';
     try {
       fs.renameSync(this.file, bak);
-      return true;
     } catch (error) {
-      const how = current.status === 'unreadable' ? '读不到' : '损坏';
       console.warn(
         `[vessel] pricing.override.json ${how}（${current.error ?? '未知原因'}）留档改名失败（${(error as Error).message}）：${this.file}\n` +
           '  已抑制本次写入，原文件保持不变（未被覆盖）；请尽快手工备份该文件，再修正 JSON 或删除它以重建覆盖。',
       );
-      return false;
+      return { proceed: false, reason: `留档改名失败（${(error as Error).message}）` };
     }
+    // ↓↓↓ B2 判别点：删掉这条 warn，「留档成功 + 随后写失败」就重新变成静默的 missing ↓↓↓
+    console.warn(
+      `[vessel] pricing.override.json ${how}（${current.error ?? '未知原因'}）：已留档为 ${bak}\n` +
+        `  原内容完整保留在该留档文件（只改名不删除）；即将向 ${this.file} 写入新内容（覆盖/墓碑）。\n` +
+        `  若本次写入失败，可把 ${bak} 复制回 ${this.file} 恢复原状（B2：这条告警专门用于写失败时的定位）。`,
+    );
+    return { proceed: true, archivePath: bak };
+  }
+
+  /**
+   * 写盘失败（B2 的另一半）：**必须留下可见痕迹**，绝不让「原路径不存在 + 无告警」出现。
+   *
+   * 处置顺序：
+   *   1. 本次确实留档过、原路径仍不存在（= 新内容没落上去）→ 把留档**改回原名**（回滚）；
+   *      回滚成功则磁盘状态与写入前逐字一致（损坏文件还在原处，下次读仍会照常告警）；
+   *   2. 回滚本身失败 → 告警里给出留档路径，明确「原内容在哪、怎么取回」；
+   *   3. 本次没留档过（`ok` / `missing` 起步）→ 原文件压根没被动过，如实说明。
+   *
+   * 绝不抛错：结果经 `PricingOverrideWriteResult.persisted === false` + `reason` 上抛给调用方。
+   */
+  private warnWriteFailed(reason: string, archivePath: string | undefined): void {
+    let whereabouts: string;
+    if (archivePath !== undefined && !fs.existsSync(this.file) && fs.existsSync(archivePath)) {
+      try {
+        fs.renameSync(archivePath, this.file);
+        whereabouts = `已回滚：把留档改回原路径，原内容与写入前逐字一致：${this.file}`;
+      } catch (rollbackError) {
+        whereabouts =
+          `回滚失败（${(rollbackError as Error).message}）：原内容仍完整保留在留档文件 ${archivePath}，` +
+          `原路径 ${this.file} 当前不存在——请从留档处复制回来`;
+      }
+    } else if (archivePath !== undefined) {
+      whereabouts = `原内容已留档到 ${archivePath}（原路径 ${this.file}）`;
+    } else {
+      whereabouts = `原文件未被改写（内容保持不变）：${this.file}`;
+    }
+    console.warn(
+      `[vessel] pricing.override.json 写入失败（${reason}）：${this.file}\n` +
+        `  ${whereabouts}\n` +
+        '  新内容**未落盘**：本次覆盖/墓碑未生效（后续记录与 recompute 仍按原价目）。',
+    );
   }
 
   /**
    * 原子写盘（tmp + rename；目标目录按需创建；task 113 起走共享有界重试）。
    *
-   * **写前留档**（本卡）：任何覆盖写之前先做 `archiveBrokenBeforeWrite()`；它返回 false
-   * （留档失败）时**直接返回、不落盘**——原损坏文件保持不变，用户仍可手工抢救。
+   * **写前留档**（本卡）：任何覆盖写之前先做 `archiveBrokenBeforeWrite()`；它返回
+   * `proceed: false`（留档失败）时**直接返回、不落盘**——原损坏文件保持不变，用户仍可手工抢救。
    * `set/tombstone/restore/repair` 全部经由本方法落盘，没有第二个落盘点。
+   *
+   * **落盘结果（C）**：返回 `{ persisted, changed, reason? }`；恒 `changed: true`（本方法只在
+   * 「内容已变、需要落盘」时被调用）。I/O 失败**不再向上抛错**，而是回滚/告警后返回
+   * `persisted: false` + `reason`，让调用方（CLI）能按「未生效」处理，而不是照打「✔ 已写入」。
    */
-  write(file: PricingOverrideFile): void {
-    if (!this.archiveBrokenBeforeWrite()) return;
-    fs.mkdirSync(this.rootDir, { recursive: true });
-    const tmp = `${this.file}.tmp`;
-    fs.writeFileSync(tmp, `${JSON.stringify(file, null, 2)}\n`, 'utf8');
-    renameWithRetry(tmp, this.file);
+  write(file: PricingOverrideFile): PricingOverrideWriteResult {
+    const archive = this.archiveBrokenBeforeWrite();
+    if (!archive.proceed) {
+      return { persisted: false, changed: true, reason: archive.reason ?? '留档失败，已抑制本次写入' };
+    }
+    try {
+      fs.mkdirSync(this.rootDir, { recursive: true });
+      const tmp = `${this.file}.tmp`;
+      fs.writeFileSync(tmp, `${JSON.stringify(file, null, 2)}\n`, 'utf8');
+      renameWithRetry(tmp, this.file);
+      return { persisted: true, changed: true };
+    } catch (error) {
+      const reason = `${(error as NodeJS.ErrnoException).code ?? '未知错误'}：${(error as Error).message}`;
+      this.warnWriteFailed(reason, archive.archivePath);
+      return { persisted: false, changed: true, reason };
+    }
   }
 
   /** 当前覆盖条目（键 → 价）。 */
@@ -327,8 +439,12 @@ export class PricingOverrideStore {
     return this.read().models[key];
   }
 
-  /** 写入/更新一条覆盖（非法价抛 RangeError，不落盘半成品）。 */
-  set(key: string, price: Partial<TokenPrice>): PricingOverrideFile {
+  /**
+   * 写入/更新一条覆盖（非法价抛 RangeError，不落盘半成品）。
+   *
+   * 返回 `PricingOverrideMutationResult`：`file` 是内存视角的新内容，`persisted` 才是「真落盘了吗」。
+   */
+  set(key: string, price: Partial<TokenPrice>): PricingOverrideMutationResult {
     const trimmed = key.trim();
     if (trimmed === '') throw new RangeError('override key 不能为空');
     if (!isValidTokenPrice(price)) {
@@ -341,30 +457,32 @@ export class PricingOverrideStore {
     file.models[trimmed] = next;
     // 同一键的墓碑与覆盖互斥：设了价就不再是「删除」状态。
     file.deleted = file.deleted.filter((k) => k !== trimmed);
-    this.write(file);
-    return file;
+    return { file, ...this.write(file) };
   }
 
-  /** 删除墓碑：显式删除内置条目（命中即按 0 计价、不回退）。 */
-  tombstone(key: string): PricingOverrideFile {
+  /** 删除墓碑：显式删除内置条目（命中即按 0 计价、不回退）。落盘结果同 `set()`。 */
+  tombstone(key: string): PricingOverrideMutationResult {
     const trimmed = key.trim();
     if (trimmed === '') throw new RangeError('墓碑 key 不能为空');
     const file = this.read();
     delete file.models[trimmed];
     if (!file.deleted.includes(trimmed)) file.deleted.push(trimmed);
-    this.write(file);
-    return file;
+    return { file, ...this.write(file) };
   }
 
-  /** 撤销墓碑（回到内置/目录价）。返回是否确有该墓碑。 */
-  restore(key: string): boolean {
+  /**
+   * 撤销墓碑（回到内置/目录价）。返回 `{ found, persisted }`（**拆开**，本卡修复 C）：
+   *   - `found`     内存里是否确有该墓碑（旧签名的 `boolean`，即旧语义）；
+   *   - `persisted` 新内容是否**真的落盘**（`found && !persisted` = 内容变了但没落盘，不得报成功）。
+   */
+  restore(key: string): PricingRestoreResult {
     const trimmed = key.trim();
     const file = this.read();
     const before = file.deleted.length;
     file.deleted = file.deleted.filter((k) => k !== trimmed);
-    if (file.deleted.length === before) return false;
-    this.write(file);
-    return true;
+    if (file.deleted.length === before) return { found: false, persisted: false };
+    const result = this.write(file);
+    return { found: true, persisted: result.persisted, reason: result.reason };
   }
 
   /**
@@ -374,9 +492,11 @@ export class PricingOverrideStore {
    * - 现值已被用户改成别的 → `skipped-user-modified`（绝不冲掉手改）
    * - 现值 === from → `applied`
    *
-   * 只有至少一条 applied 才落盘（无变更不写文件 → 幂等）。
+   * 只有至少一条 applied 才落盘（无变更不写文件 → 幂等）；此时 `changed` 恒为 true。
+   * 返回里 `outcomes` 是逐条判定，`persisted` 是「这批修改真的落盘了吗」——两者**必须分开看**：
+   * 有 `applied` 但 `persisted === false` = 内存里改了、磁盘上没改。
    */
-  repair(repairs: readonly PricingRepair[]): PricingRepairOutcome[] {
+  repair(repairs: readonly PricingRepair[]): PricingRepairResult {
     const file = this.read();
     const outcomes: PricingRepairOutcome[] = [];
     let applied = 0;
@@ -394,8 +514,9 @@ export class PricingOverrideStore {
       applied += 1;
       outcomes.push({ key: repair.key, status: 'applied', current });
     }
-    if (applied > 0) this.write(file);
-    return outcomes;
+    // 无一条 applied：压根不写盘（幂等），`changed: false` 表示「没落盘是正常的」，不是失败。
+    if (applied === 0) return { persisted: false, changed: false, outcomes };
+    return { ...this.write(file), outcomes };
   }
 
   /** 适配成 `resolvePrice` 用的覆盖价源（纯数据，无 I/O 副作用）。 */

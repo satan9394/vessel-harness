@@ -513,9 +513,17 @@ Agent → Tool Call        →    AfterModel(A10) 产出 toolCalls → 每调用
 | 来源模块 | 复用的事件/记录 | 归类 type |
 |---|---|---|
 | `policy` | `policy_decision`（verdict=`deny`）bus 事件，即 PolicyProjection 同一来源 | `deny` |
-| `fs-confinement` | Session 回放 `tool/result`（`error.errorClass='DENIED'` + `meta.guard`）；bus `after_tool` 丢弃 `meta`，故以 Session 为权威 | guard 种类 `escape`\|`protected`\|`deny-read`\|`confinement`\|`size`\|`nul` |
+| `fs-confinement` | Session 回放 `tool/result`（`error.errorClass='DENIED'` + `meta.guard`）；bus `after_tool` 丢弃 `meta`，故以 Session 为权威 | guard 种类 `escape`\|`unverifiable`\|`protected`\|`deny-read`\|`confinement`\|`size`\|`nul`（`missing` 在 `FsGuardError.guard` 联合类型中声明但当前无抛出点，不成实际桶） |
 | `process-tree` | `Sandbox` 运行期 `ProcessTreeAuditEvent`（071/072 audit 落点，不在 bus/session）→ 经注入 seam | `spawn`\|`exit`\|`attached`\|`escape-detected`\|`escape-terminated`\|`window-closed` |
 | `sandbox-status` | `SandboxStatus`（071 backend 状态）→ 经注入 seam | `report` |
+
+**guard 种类语义边界（权威，与 `packages/tools/src/filesystem/guards.ts` 的 `FsGuardError.guard` 联合类型逐一对应）：** `fs-confinement` 的 type 就是 `meta.guard` 的原值（`foldSession` 以 `String(guard)` 直接作 type，按字符串分桶），故每个取值各自成桶、互不合并：
+
+- `escape` = **已证实越界**：词法 `..`/绝对路径逃逸；`realpath` 成功且落在根外；悬空链接出界；最深已存在祖先 `realpath` 出根。**证据，非怀疑**——可作安全事件统计/告警。
+- `unverifiable` = **未得出结论**：EACCES/EPERM/ELOOP/UNKNOWN（探针失明）与 ENOTDIR/ENAMETOOLONG/`ERR_INVALID_ARG_VALUE`（路径结构不可用）。**仍然拒绝**（fail-closed 不变——新取值只是给"已经发生的拒绝"换一个诚实的标签，**不放宽任何边界**），但它**不是攻击证据**。
+- `protected` / `deny-read` / `confinement` / `size` / `nul` = 确定性拒绝理由（写保护、凭据读取、允许集合外、体积超限、NUL 字节）。
+
+**统计/告警纪律（硬性）：`unverifiable` 不得计入逃逸。** 统计与告警的安全口径只认 `escape` 这一独立桶，**不得**把"任何 `fs-confinement` 拒绝"等同于逃逸。反例：`Write existing-file/sub.txt`（ENOTDIR）是用户把路径写错，判为 symlink 逃逸会污染逃逸遥测并冤枉调用方；同理 `guard_seen` 断言若用宽泛 pattern（如 `escape|symlink`）也会把这类拒绝算进来。本规范不新增"只统计 escape 的攻击计数器"——分桶按 type 字符串原值即是正确行为。
 
 **EnforcementEvent 形状**：`{ type, source, ts, detail, meta? }`。
 
