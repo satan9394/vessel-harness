@@ -693,3 +693,19 @@ G-15 原子写 wrapper 各 Store 重复（P4）；architecture 审计的 T1–T9
 - 独立 Evaluator：命令型 4 次连败 → 全部改为**静态对抗审查**（新上下文 + 对抗立场 + 附指挥原始证据，报告如实标注"命令未复跑"）。
   **有效性已被证明**：Round 1 抓出 4 项实质缺陷（含指挥自身一处错误结论），Round 2 判 ACCEPT。
 - 交付链脆弱：多次出现"执行器写完即中断、交证丢失"——对策：指挥每步 `git` 保命提交 + 亲自复跑验证。
+
+### Round 140 — **第三次独立对抗评审**（`cf0dd15..e7b9323`，实测 30 提交 / 52 文件）的结论与待办
+
+**评审最重要的方法性贡献**：它开工时工作区只有 4 个改动、收工时 12 个（**我正并发派卡**），于是它**明说"此刻跑出来的不是 HEAD"**，并**一律用 `git show HEAD:<path>` 定案**。⇒ 它据此**推翻了我两次**：一次它一度以为 S006 已被修（因工作区被改写），最终回到冻结修订后确认**诊断成立**；一次它在 A7 里用 `git show cf0dd15:` 证明**我简报的"本区间做了什么"有三条不实**。
+
+**它抓到的、针对我自己的问题**（按严重度）：
+1. **A1（REJECT）我"VESSEL_*_ROOT 收敛为唯一实现"是假的**：`packages/application/src/session/SessionRegistry.ts` 的 `resolveSessionRoot()` **一行没动**（仍是 `?? 默认根`）⇒ `VESSEL_SESSION_ROOT=`（空串）会让 `mkdirSync('')` **抛 ENOENT**，而 `cmdRun` 的调用被 try/catch 吞掉 ⇒ **静默不登记**。而"四个状态根"正是本仓自己的词汇（PROVIDER/USAGE/SESSION/SETTINGS）——**我只收敛了三个，却在三处文案里写了"全仓一份口径"**。**待办：把 SESSION（以及 D6 指出的 `reviewCommands.ts` 的第三种口径：真值判断，"纯空白"不算空 ⇒ `path.resolve('   ')` = CWD）一并收敛，并补 SESSION 覆盖。**
+2. **A2（REJECT）同族第二处漏网**：`ProviderStore` 构造函数仍 `?? process.env.VESSEL_PROVIDER_ROOT ?? defaultProviderRoot()`，且**有生产调用点**（`providerCostMultiplierResolver` → `new ProviderStore({})`）⇒ 空串时倍率从 **CWD** 读，与同一次运行的 usage/凭据**拆成两处**。**更值得记的是评审的措辞**：我的测试断言的是 `providerStateRoot()`，而默认根是 `ProviderStore` 自己算的 ⇒ **"修复被测在了另一个函数上"**。**待办：改构造函数走 `envRoot`，并把断言落到它身上。**
+3. **A4（REJECT，已修）我写的 banner 把两个被跟踪文档写坏了**：我用**双引号 PowerShell 字符串**拼 banner，里面带 markdown 反引号代码段（`` `run ``、`` `bench-report ``）⇒ **PowerShell 把 `` `r `` 当 CR、`` `b `` 当退格**，各写进一个字节，读者看到不存在的命令名 `un --json` / `ench-report`。**已按字节核验（CR/BS 各 1）并修复**（CR/BS 清零、字母补回）。**纪律：不要用 PowerShell 字符串拼文件内容——用 `write`/`edit` 工具**（本回合我另有一次同类事故：`cli.test.ts` 的补丁把三行挤进同一行注释，把 `const` 声明注释掉了）。
+4. **A5（中）方法自我打脸**：同一区间我以纪律 25 删掉一处行号引用，却**新加 8 处**"用行号论证别处行为"的引用。评审逐条核过**今天全准**，所以是**方法违规不是事实错误**。**待办：把新增的 8 处换成符号名。**
+5. **A6（低）新加的"别名锁定"守卫恒真**：`DETERMINISTIC_BENCH_SCENARIOS = L1_DETERMINISTIC_BENCH_SCENARIOS`（**同一引用**），守卫断言两者相等 ⇒ **当前实现下不可能失败**，而注释宣称"退回子集必红"。**待办：改成与字面量比对，或把注释降级为"未来变更的绊线"。**
+6. **A7（事实核对）我简报的三条不实**：CI/门禁接两个 root、web 显示嵌套原因、CLI/TUI 的"模型回答判据唯一实现"**都早于本区间**（`git show cf0dd15:` 可见）；本区间只改了措辞 / 做的是 BRIEF-25 与 OpenAI 最后一张表。⇒ **我对"本区间做了什么"的叙述本身也是需要证据的断言**。
+7. **D1（重点，交叉检查）新增的三类记录"只落盘、无人读"**：`Telemetry.finalizeRecord` 只认 `tool/result`/`audit/denial`/`compaction/start`，**没有** `request/header`/`llm/retry`/`turn/end` 分支；而 `ARCHITECTURE.md` 与 `BENCHMARK-SPEC.md` 说 telemetry 消费它们、M05 来自 B13 ⇒ **对回放而言 M05 今天仍是 0**。**待办：或让 telemetry 读它们（并让 M05 名副其实），或把两份文档改成"记录已落盘、消费方未接线"**——**不许两边都不动**。
+8. **D5**：`streamIdleTimeoutMs` 已能经工厂到达，但**全仓没有一个调用方传它**（也无 CLI flag）⇒ "库可达、用户不可达"。**D7**：被跟踪的 `release-report.{md,json}` 仍内嵌旧判据（已声明在办）。**D2**：`run --json` 扩到 8 键后，我刚改准的 `CAPABILITY-MATRIX` 那句又过期了。
+
+**它"查过未推翻"的 16 条**（对本段工作的独立确认）：finish-reason 确只剩一张表；`windowsShimHint` 确为唯一实现且行为逐字冻结（含"白名单分支结构性不可达"的如实声明）；`envRoot` 语义与已改调用点；`parseAnthropic` 的折入条件正是 mapper 守卫的**字面补集**、两读点都在未启动块上；`AgentLoop` 三处新记录的键集/时点/可选性/重试不残留**逐条成立**；`policy status` 与 `run` 同源且旧断言是**被翻转而非放宽**；`bench-report --json` 与落盘同文档；`endpoint test --all` 逐供应商且用例含真实本地 HTTP 阳性控制；web `handoffMarkdown` 两路共用同一链且成功路径逐字未变（**连测试注释里的"改前行号"都对着 `cf0dd15:` 核过**）；两个 root 的接线与四份文档一致且守卫是正则解析而非常量对常量；`apps/web` 的 `process.env` 零命中；`dev-test` 的补漏真实；纪律 23 的 `runner.test.ts` 已改独立字面量；新增行号今天全准；`createProvider` 的转发无遗漏（opencode-go 无 `stream()`）；旧 switch 副本按纪律 22 标注。
