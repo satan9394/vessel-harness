@@ -218,14 +218,23 @@ export class SubagentManager {
 
     const delegateId = `del_${Date.now()}_${crypto.randomBytes(3).toString('hex')}`;
 
-    // A22 BeforeDelegate (waterfall) — listeners may deny (depth/concurrency/policy)
-    const gate = await this.opts.bus.waterfall('before_delegate', {
-      delegateId,
-      toolName: 'Subagent',
-      request: { prompt: req.prompt, preset: req.preset, options: { toolFilter: req.toolFilter, outputSchema: req.outputSchema } },
-      delegationDepth: req.delegationDepth,
-      concurrencyState: { activeChildren: this.active, maxConcurrent: this.maxConcurrent },
-    });
+    // A22 BeforeDelegate (waterfall) — listeners may deny (depth/concurrency/policy).
+    // BRIEF-决策点 fail-open：委派是**安全门禁点**（子代理能力面在本点是唯一闸口，放行即意味着
+    // 一个隔离运行时被创建），因此显式声明 'fail-closed'：监听器抛错会被铸成 ref/reason 带
+    // `listener-error:<listenerName>` 的 deny ⇒ 下面统一走 denied(...)（stopReason 'denied'、
+    // diagnostic 含可机读标记），绝不静默放行 —— 旧语义（catch → continue）会让 current 停在
+    // 'defer'，等于"没有意见"，委派照常发生。
+    const gate = await this.opts.bus.waterfall(
+      'before_delegate',
+      {
+        delegateId,
+        toolName: 'Subagent',
+        request: { prompt: req.prompt, preset: req.preset, options: { toolFilter: req.toolFilter, outputSchema: req.outputSchema } },
+        delegationDepth: req.delegationDepth,
+        concurrencyState: { activeChildren: this.active, maxConcurrent: this.maxConcurrent },
+      },
+      { listenerErrorPolicy: 'fail-closed' },
+    );
     if (gate.result.kind === 'deny') {
       return this.denied(req, gate.result.reason ?? 'delegation denied by BeforeDelegate listener', 'policy');
     }

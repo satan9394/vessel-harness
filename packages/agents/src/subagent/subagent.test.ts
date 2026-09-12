@@ -207,6 +207,33 @@ describe('V0.2-M1 subagent — delegation (H11)', () => {
     expect(result.diagnostic).toContain('no delegation allowed');
   });
 
+  // BRIEF-决策点 fail-open：委派是安全门禁点，监听器抛错必须 fail-closed（旧语义 = 静默放行）。
+  it('抛错的 BeforeDelegate 监听器 ⇒ 委派被拒（fail-closed，diagnostic 带 listener-error 标记）', async () => {
+    const bus = new EventBus();
+    bus.on('before_delegate', () => { throw new Error('delegate interceptor crashed'); }, 'interceptor');
+    const provider = new MockProvider([{ when: /.*/, ifNoToolResult: true, response: { text: 'NEVER' } }], { model: 'child-model' });
+    const manager = new SubagentManager({ workspaceRoot: workspace, provider, model: 'child-model', policyArtifacts: artifacts(), tools: [], bus });
+    const result = await manager.delegate({ prompt: 'x', delegationDepth: 0 });
+    expect(result.stopReason).toBe('denied');
+    expect(result.isError).toBe(true);
+    expect(result.diagnostic).toContain('listener-error:interceptor');
+    expect(result.diagnostic).toContain('delegate interceptor crashed');
+    expect(manager.activeChildren).toBe(0); // 没有任何子运行时/槽位被创建
+  });
+
+  // 负对照：同一条链上的"没有意见"（void / defer）不得被 fail-closed 掐死。
+  it('负对照：BeforeDelegate 监听器返回 void / defer ⇒ 委派照常发生', async () => {
+    const bus = new EventBus();
+    bus.on('before_delegate', () => undefined, 'observer');
+    bus.on('before_delegate', () => ({ kind: 'defer' as const }), 'deferrer');
+    const provider = new MockProvider([{ when: /.*/, ifNoToolResult: true, response: { text: 'CHILD-RAN' } }], { model: 'child-model' });
+    const manager = new SubagentManager({ workspaceRoot: workspace, provider, model: 'child-model', policyArtifacts: artifacts(), tools: [], bus });
+    const result = await manager.delegate({ prompt: 'x', delegationDepth: 0 });
+    expect(result.stopReason).toBe('completed');
+    expect(result.output).toBe('CHILD-RAN');
+    expect(manager.activeChildren).toBe(0);
+  });
+
   it('Subagent tool executes through the registry and flows through policy', async () => {
     const bus = new EventBus();
     const provider = new MockProvider([{ when: /.*/, ifNoToolResult: true, response: { text: 'TOOL-CHILD-DONE' } }], { model: 'child-model' });

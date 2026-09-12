@@ -13,7 +13,7 @@ import {
   type ToolCall,
   type ToolErrorPayload,
 } from '@vessel/shared';
-import { EventBus } from '../events/EventBus.js';
+import { EventBus, isListenerErrorRef } from '../events/EventBus.js';
 import { LoopState } from '../state/State.js';
 import { Session } from '../session/Session.js';
 import { InterruptController, TurnInterruptedError } from './InterruptController.js';
@@ -180,8 +180,17 @@ export class AgentLoop {
     const turnId = `turn_${Date.now()}_${crypto.randomBytes(3).toString('hex')}`;
     this.state.beginTurn(turnId);
 
-    // A03 BeforeTurn (waterfall) — admission/steering veto point
-    const beforeTurn = await bus.waterfall('before_turn', { turnId, input });
+    // A03 BeforeTurn (waterfall) — admission/steering veto point.
+    // BRIEF-决策点 fail-open：本点是**辅助决策点**，显式声明 'defer'（监听器抛错 = 不否决该轮）：
+    //   1) 真正的能力门禁在 before_tool + Executor.decide（本点没有能力面可放行，deny 不是最后一条防线）；
+    //   2) 同一条链上挂着纯观察型监听器（Telemetry/TeamProjection 在 before_turn 上计数/记录），
+    //      把它们的一次诊断故障升级为"整轮停摆"会把合法的"不否决"流程弄坏；
+    //   3) 错误仍然可审计：waterfall 会铸出 handler_error（EVENT-SPEC §3.4）+ outcome.listenerErrors。
+    const beforeTurn = await bus.waterfall(
+      'before_turn',
+      { turnId, input },
+      { listenerErrorPolicy: 'defer' },
+    );
     if (beforeTurn.result.kind === 'deny') {
       const rec = await session.appendSync({
         type: 'user/message',
@@ -555,15 +564,32 @@ export class AgentLoop {
       surface: false,
     });
 
-    // A12 BeforeTool (waterfall): policy engine + sandbox parse are listeners
-    const gate = await bus.waterfall('before_tool', {
-      toolCallId: call.toolCallId,
-      toolName: call.toolName,
-      arguments: call.arguments,
-    });
+    // A12 BeforeTool (waterfall): policy engine + sandbox parse are listeners.
+    // BRIEF-决策点 fail-open：本点是**安全门禁点**（Tool Interceptor 四件套的挂载点，策略以监听器
+    // 参与拦截），因此显式声明 'fail-closed'：监听器抛错会被铸成 ref/reason 带
+    // `listener-error:<listenerName>` 的 deny（并短路余下监听器），由下面的 deny 分支落
+    // audit/denial（stage 'hook'）+ policy_decision + handler_error —— 绝不静默放行。
+    // 旧语义（catch → continue）会让 current 停在 'defer'，等于"没有意见"，工具照常执行。
+    const gate = await bus.waterfall(
+      'before_tool',
+      {
+        toolCallId: call.toolCallId,
+        toolName: call.toolName,
+        arguments: call.arguments,
+      },
+      { listenerErrorPolicy: 'fail-closed' },
+    );
 
     if (gate.result.kind === 'deny') {
-      await this.recordDenial(call, gate.result.reason ?? 'denied', gate.result.ref, 'rule');
+      // 监听器抛错铸出的 fail-closed 拒绝与"规则命中"在审计上必须可区分：
+      // stage 'hook'（监听器/钩子路径，词表既有值）+ ruleRef 带 `listener-error:<listenerName>`。
+      const fromListenerError = isListenerErrorRef(gate.result.ref);
+      await this.recordDenial(
+        call,
+        gate.result.reason ?? 'denied',
+        gate.result.ref,
+        fromListenerError ? 'hook' : 'rule',
+      );
       const error: ToolErrorPayload = {
         errorClass: 'DENIED',
         message: gate.result.reason ?? 'Tool call denied by policy',
@@ -573,7 +599,11 @@ export class AgentLoop {
         toolCallId: call.toolCallId,
         toolName: call.toolName,
         error,
-        meta: { denied: true, ref: gate.result.ref },
+        meta: {
+          denied: true,
+          ref: gate.result.ref,
+          ...(fromListenerError ? { listenerError: true } : {}),
+        },
         surface: true,
       });
       await bus.emit('after_tool', { toolCallId: call.toolCallId, toolName: call.toolName, result: { error } });
@@ -692,13 +722,24 @@ export class AgentLoop {
     }
   }
 
-  private async recordDenial(call: ToolCall, reason: string, ref: string | undefined, stage: string): Promise<void> {
+  /**
+   * 铸出一次拒绝的完整审计链：`audit/denial`（session 记录）+ `policy_decision`（总线事件）。
+   * `stage` 用 AuditDenialRecord 的既有词表：'rule' = 规则/策略命中；'hook' = 监听器（hook）
+   * 路径（含 BRIEF-决策点 fail-open 的"监听器抛错 ⇒ fail-closed"，ruleRef 为
+   * `listener-error:<listenerName>`，与规则命中可机读区分）。
+   */
+  private async recordDenial(
+    call: ToolCall,
+    reason: string,
+    ref: string | undefined,
+    stage: Extract<SessionRecord, { type: 'audit/denial' }>['stage'],
+  ): Promise<void> {
     const { session, bus } = this.deps;
     await session.appendSync({
       type: 'audit/denial',
       toolCallId: call.toolCallId,
       toolName: call.toolName,
-      stage: stage as 'rule',
+      stage,
       ruleRef: ref,
       reason,
       sandboxMode: 'workspace-write',
