@@ -35,7 +35,7 @@
 **残余（如实记录）**：① `npm pack --ignore-scripts` 仍可跳过 prepack 产出坏包（显式 opt-out，**必须由门禁兜住**）；② `npm run build` 是嵌套 npm，`-w/--workspaces` 打包时子进程会继承 `npm_config_workspace(s)`，理论上可能 ENOWORKSPACES 失败（**fail-loud，不静默出坏包**）；③ `dist/.tsbuildinfo` 仍入包。
 **P2（已修复并验证）**：发布门禁原本只查本地 `dist` 是否存在 → 现已把「**发布物形状**」并入 Gate 8（`packaging`，不新增第 9 道门禁）：① pack 期脚本（`prepack`/`prepare`）**必须构建 `dist`**（**该分支不读本地 `dist`，所以"工作区恰好有 dist"救不了它**）；② `npm pack --dry-run` 清单必须含 `dist/cli.js` 与 4 个 `dist/configs/*`，且不含 `*.test.*`/`*.map`；③ 不可解析/包名错位/工具缺失 → **显式 pending**（不静默通过）。
 **Orchestrator 用真实输出验证了门禁的判别力（双向）**：真实 `npm pack --dry-run` 的 **stderr**（3062 字节）→ `parsedFlag=true`、**62 条**、含 `dist/cli.js`、4 个 configs 齐、无违禁 → **`pass`**；**`prepack` 不构建 → `fail`**（正是产生坏包的那个条件）；只含 configs 的清单 → **`fail`**。
-**过程中的自我纠正**：我第一次探针**抓的是 stdout**（npm 把清单写 **stderr**）→ 得到"解析为空、`pending`"，差点误判成门禁缺陷；换通道后结论反转。**教训：探针本身也会抓错通道——工具输出必须按其真实信道捕获。**
+**过程中的自我纠正**：我第一次探针**抓的是 stdout**（npm 把清单写 **stderr**）→ 得到"解析为空、`pending`"，差点误判成门禁缺陷；换通道后结论反转。**教训：探针本身也会抓错通道——工具输出必须按其真实信道捕获。**（随后核对执行器接线 `run-release-gates.ts:478`：`output = stderr + '\n' + stdout`，**stderr 在前**，管线本身正确；`--loglevel=notice` + `--no-color` 消除环境干扰。）
 **P3×4**：pricing sync warn 调用点无用例；warn 文案补救指向 `node_modules`（重装即失效）且 `--dry-run` 也打印；`dist/.tsbuildinfo` 入包；alias 读取短路边界。
 **终评对里程碑证据强度的批评（我接受）**：`--version`/`--help` 与 `policy status`（恒 exit 0）**本身无判别力**；真正有判别力的只有"system 层路径落在 `node_modules/.../dist/configs`"。它另指出 **pricing/model-catalog 的安装态读路径缺等价实证**——**已补反向证据探针**：16 tarball → 空项目 `npm i`（exit 0）→ **`vessel usage` exit 0 且「未找到内置配置」警告未出现**（`部分装载` 警告亦未出现）⇒ `pricing.json` 确从**包内 `dist/configs`** 读到（该 warn 仅在缺失时打印）。
 
