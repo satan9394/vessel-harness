@@ -65,7 +65,8 @@
 
 **NOW（已完成）**：策略执法三处失效 + 其两条后续漏网（续行**平台并集**、alias 跨命令）+ pricing 读路径与静默 + 打包与装机 + **发布链路门禁化**（`publish-artifact` 判据：pack 期脚本必须构建 `dist`、tarball 清单必须含 `dist/cli.js` 与四个 `dist/configs/*` 且零测试产物/零 map、不可解析则显式 `pending`；**该判据自身另有 28 条单测守护**）+ **`policy status` 合成后可编译性**（G-18：直接复用 `run` 的装载路径，`compiled=false` 当且仅当 `run` 会失败）。
 **NEXT（P2，已具证据，可独立开轮）**：
-1. **【Round 20 新增·最高优先·由实现者上报】抑制写入后仍宣称成功**：`PricingOverrideStore` 在留档失败而**抑制写入**时，CLI 仍打印「✔ 已写入覆盖」（`cli.ts:1791/1808/1856`）⇒ **确认时刻的宣称不为真**（用户以为价目改了，实际没落盘）。最小修法：让 `set/tombstone/restore/repair`（或其底层 `write()`）回传"是否真落盘"，CLI 据此改文案为「未写入（已抑制，原因…）」。属"宣称与实际不符"族，**优先于其它 P2**。
+1. **【Round 20 新增·最高优先·由实现者上报 + 指挥实测确认】抑制写入后仍宣称成功**：`PricingOverrideStore.write(file): void`（`pricingOverride.ts:307`）**不返回落盘结果**，`set/tombstone/restore/repair` 的返回值也不携带"是否真写"；因此 CLI **无条件**打印成功——`cli.ts:1791`「✔ 已写入覆盖」、`:1808`「✔ 已删除内置条目…墓碑写入覆盖文件」。⇒ **留档失败而抑制写入时，用户拿到的是确定的假成功**（以为价目改了，实际没落盘）。属"确认时刻的宣称不为真"族。
+   **修法决定（Orchestrator，选最小面）**：**不改 4 个 mutator 的返回签名**，改为 `write()` 返回落盘状态（或新增一个只读的 `lastWriteSuppressed()` 状态），CLI 据此改文案为「**未写入**（已抑制：留档失败，原因…）」。**验收须双向**：①抑制时**不得**打印成功且必须给出原因；②正常写入时照常打印成功（防"一律报失败"）。**注意与安全修复的教训一致：既要挡住谎报，也要防止反向的新谎报。**
 2. **【Round 20 审计·已修但需注意同类残留】静默降级族的剩余项**：审计给出 14 处 A 类，本轮修了 4 处高危（安全 symlink 出界、索引覆盖、墓碑丢失、`pricing.json` 兜底）。**仍待评估**：`cli.ts:517` 的 `costMultipliers()` 抛→空表（**所有倍率静默变 1**，与 `provider` 命令口径分裂）、`pricingOverride` 的**行级坏价行**静默忽略、`guideCommands.ts:75`/`chat.ts:232` 的 locale 静默回退 zh、`project-task-queue.ts:371` 的坏任务静默消失、`ReviewHandoffStore`/`HandoffStore`/`LearnedStore` 的坏条目静默跳过、`ProjectRegistry` 与 `pricingOverride` 写路径的 `corrupted-*` 留档是否应被 `doctor`/`sessions list` 类命令提示。
 3. **发布链路**：shape 门禁 + 安装态冒烟（实测 PASS）+ **升级路径（Round 20 已加，含双向溯源）**；`npm pack --ignore-scripts` 可绕过 prepack（属进程约束，非门禁可解）。
 4. **测试盲点清单**：C-4 文案与 `pricingSyncMismatchWarning` 调用点均已闭合（Round 19）；本轮又发现并修掉一条**恒真假断言**（cwd 断言在删除目录之后）——建议把"断言是否打在因果链末端"纳入评审固定检查项。
