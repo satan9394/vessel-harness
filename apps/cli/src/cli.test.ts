@@ -1494,6 +1494,228 @@ describe('vessel pricing sync / provider costMultiplier (task 093/094)', () => {
   });
 });
 
+/**
+ * provider 成本倍率：读盘失败必须**可见**（「静默降级」族回归锁）。
+ *
+ * 缺陷（修复前实测）：`providerCostMultiplierResolver()` 里的
+ * `try { multipliers = new ProviderStore({}).costMultipliers(); } catch { multipliers = {}; }`
+ * 把 `ProviderStore.rawLoad()` 的抛错（非法 JSON / 非数组 / 坏条目 / 非法配置）**静默**吞成
+ * 「没有倍率」⇒ `providers.json` 一坏，**所有** provider 的倍率悄然变成默认 1×、
+ * 成本展示静默失真、且**零告警**（`catch` 分支可达：探针确认损坏文件下
+ * `costMultipliers()` 抛 `providers file corrupted (invalid JSON)`）。
+ *
+ * 本组用例锁四件事：
+ *   ① 损坏 ⇒ 告警（含原因 + 受影响文件 + 「本次按默认倍率 1× 计算」）且**不崩**、倍率仍按默认；
+ *   ② 负对照：健康文件 ⇒ 正常用显式倍率且**零告警**（防「一律告警」这种恒真实现）；
+ *   ③ 去重：同一份坏文件「构造两次解析器 + 多次解析」⇒ **恰好一条**告警；
+ *   ④ 调用点：真跑 `vessel usage recompute`（损坏 → 告警 + exit 0 + 金额按 1×；健康 → ×2.5 且零告警）。
+ *
+ * 隔离（AGENTS.md §8）：`VESSEL_PROVIDER_ROOT` / `VESSEL_USAGE_ROOT` / `VESSEL_SESSION_ROOT`
+ * 一律钉到 `mkdtemp` 临时根，绝不读写真实 `~/.vessel`；清理只删本用例自建、位于 `os.tmpdir()`
+ * 之下的临时目录（AGENTS.md 的书面例外）。
+ */
+describe('provider 成本倍率：读盘失败必须可见（静默降级族）', () => {
+  let dir: string;
+  let oldProviderRoot: string | undefined;
+  let oldUsageRoot: string | undefined;
+  let oldSessionRoot: string | undefined;
+
+  beforeEach(() => {
+    dir = fs.mkdtempSync(path.join(os.tmpdir(), 'vessel-mult-visible-'));
+    oldProviderRoot = process.env.VESSEL_PROVIDER_ROOT;
+    oldUsageRoot = process.env.VESSEL_USAGE_ROOT;
+    oldSessionRoot = process.env.VESSEL_SESSION_ROOT;
+    process.env.VESSEL_PROVIDER_ROOT = dir;
+    process.env.VESSEL_USAGE_ROOT = dir;
+    process.env.VESSEL_SESSION_ROOT = dir;
+  });
+  afterEach(() => {
+    if (oldProviderRoot === undefined) delete process.env.VESSEL_PROVIDER_ROOT;
+    else process.env.VESSEL_PROVIDER_ROOT = oldProviderRoot;
+    if (oldUsageRoot === undefined) delete process.env.VESSEL_USAGE_ROOT;
+    else process.env.VESSEL_USAGE_ROOT = oldUsageRoot;
+    if (oldSessionRoot === undefined) delete process.env.VESSEL_SESSION_ROOT;
+    else process.env.VESSEL_SESSION_ROOT = oldSessionRoot;
+    fs.rmSync(dir, { recursive: true, force: true });
+  });
+
+  const providersFile = (): string => path.join(dir, 'providers.json');
+  const usageFile = (): string => path.join(dir, 'usage.json');
+
+  /** 健康配置：显式 costMultiplier 2.5（负对照用）。 */
+  const HEALTHY_PROVIDERS = [{ id: 'ds', name: 'ds', protocol: 'mock', model: 'mock', costMultiplier: 2.5 }];
+
+  /** 只捕获 `console.warn`（stdout 一并吞掉，避免重算摘要刷测试输出）。 */
+  function captureWarns() {
+    const warns: string[] = [];
+    const spyLog = vi.spyOn(console, 'log').mockImplementation(() => {});
+    const spyWarn = vi.spyOn(console, 'warn').mockImplementation((...a: unknown[]) => {
+      warns.push(a.map((x) => String(x)).join(' '));
+    });
+    return {
+      warns,
+      restore: (): void => {
+        spyLog.mockRestore();
+        spyWarn.mockRestore();
+      },
+    };
+  }
+
+  /** 一条被旧价钉死的历史条目（provider = `ds` → 可被 providers.json 的倍率影响）。 */
+  function writeStaleUsage(provider = 'ds'): void {
+    fs.writeFileSync(
+      usageFile(),
+      JSON.stringify({
+        version: 2,
+        entries: {
+          [`${provider}::deepseek-chat`]: {
+            model: 'deepseek-chat',
+            provider,
+            inputTokens: 1_000_000,
+            outputTokens: 1_000_000,
+            cacheReadTokens: 0,
+            cacheCreationTokens: 0,
+            calls: 1,
+            costUsd: 9.99,
+            costBreakdown: { inputUsd: 9.99, outputUsd: 0, cacheReadUsd: 0, cacheWriteUsd: 0 },
+            cacheWriteDerivedCostUsd: 0,
+            cacheWriteDerived: false,
+            estimated: false,
+            estimatedCostUsd: 0,
+            pricingSource: 'model',
+            lastTs: new Date().toISOString(),
+            events: 1,
+          },
+        },
+        recent: [],
+        daily: {},
+      }, null, 2),
+      'utf8',
+    );
+  }
+
+  /** 重算后落盘的金额与倍率留痕（`ds::deepseek-chat`）。 */
+  function recomputedEntry(provider = 'ds'): { costUsd: number; costMultiplier?: number } {
+    const doc = JSON.parse(fs.readFileSync(usageFile(), 'utf8')) as {
+      entries: Record<string, { costUsd: number; costMultiplier?: number }>;
+    };
+    return doc.entries[`${provider}::deepseek-chat`]!;
+  }
+
+  it('① 损坏的 providers.json → 告警含原因 + 文件路径 + 「本次按默认倍率 1× 计算」，倍率仍按默认（不崩）', () => {
+    fs.writeFileSync(providersFile(), '{oops', 'utf8');
+
+    // 前提（缺陷可达性，独立于实现）：损坏确实让 costMultipliers() 抛错。
+    // 这段同时是「修复前无告警」的**直接证据**：抛错方 `ProviderStore.rawLoad()` **只抛不告警**
+    // （该文件里没有任何 console.warn），所以修复前 `catch { multipliers = {}; }` 是唯一出口，
+    // 整条路径零输出 —— 把 resolver 换回修复前的实现，这里仍是 0 条，而 ④ 的
+    // `toHaveLength(1)` 会红，即「删掉告警 ⇒ 必红」。
+    const pre = captureWarns();
+    try {
+      expect(() => new ProviderStore({}).costMultipliers()).toThrow(/providers file corrupted/);
+    } finally {
+      pre.restore();
+    }
+    expect(pre.warns).toHaveLength(0); // 静默观测：损坏只抛错，不产生任何提示
+
+    const cap = captureWarns();
+    let resolve!: (provider: string) => number;
+    try {
+      resolve = cli.providerCostMultiplierResolver();
+    } finally {
+      cap.restore();
+    }
+
+    expect(resolve('ds')).toBe(1); // 数值口径不变：仍是 ?? DEFAULT_COST_MULTIPLIER
+    expect(resolve('anything-else')).toBe(1);
+    expect(cap.warns).toHaveLength(1); // 删掉 warn 调用 → 0 条，RED
+    const text = cap.warns[0]!;
+    expect(text).toContain('providers file corrupted'); // 原因（不是空话）
+    expect(text).toContain(providersFile()); // 哪个文件
+    expect(text).toContain('本次按默认倍率 1× 计算'); // 口径说明（本卡要求逐字出现）
+  });
+
+  it('② 负对照：健康 providers.json → 用显式倍率且一条告警都不打（防「一律告警」）', () => {
+    fs.writeFileSync(providersFile(), JSON.stringify(HEALTHY_PROVIDERS), 'utf8');
+
+    const cap = captureWarns();
+    let resolve!: (provider: string) => number;
+    try {
+      resolve = cli.providerCostMultiplierResolver();
+    } finally {
+      cap.restore();
+    }
+
+    expect(resolve('ds')).toBe(2.5); // 显式倍率照常生效
+    expect(resolve('unknown')).toBe(1); // 未配置的 provider 仍是默认
+    expect(cap.warns).toHaveLength(0); // 恒告警的实现 → 这里 RED
+  });
+
+  it('③ 去重：同一份坏文件「构造两次解析器 + 多次解析」→ 恰好 1 条告警', () => {
+    fs.writeFileSync(providersFile(), '{oops', 'utf8');
+
+    const cap = captureWarns();
+    let first!: (provider: string) => number;
+    let second!: (provider: string) => number;
+    try {
+      first = cli.providerCostMultiplierResolver();
+      // TUI/serve 分支会就地再造一个 UsageStore → 同一份坏文件被第二次读盘
+      second = cli.providerCostMultiplierResolver();
+      // 计费是按 provider 逐行解析的：告警若写在返回的闭包里，这里会打出 10 条
+      for (const provider of ['ds', 'ds', 'other', 'x', 'y']) {
+        first(provider);
+        second(provider);
+      }
+    } finally {
+      cap.restore();
+    }
+
+    expect(first('ds')).toBe(1);
+    expect(second('ds')).toBe(1);
+    expect(cap.warns).toHaveLength(1); // 去掉进程内去重（或把 warn 挪进闭包）→ 多条，RED
+  });
+
+  it('④ 调用点（真跑 usage recompute）：providers.json 损坏 → 告警可见 + exit 0 + 金额按 1× 计', async () => {
+    writeStaleUsage('ds');
+    fs.writeFileSync(providersFile(), '{oops', 'utf8');
+
+    const cap = captureWarns();
+    let code = -1;
+    try {
+      code = await main(['usage', 'recompute']);
+    } finally {
+      cap.restore();
+    }
+
+    expect(code).toBe(0); // 一个坏配置文件不该让统计整体不可用
+    expect(cap.warns).toHaveLength(1); // 删掉 warn 调用 → 0 条，RED（修复前的「静默」正是 0 条）
+    expect(cap.warns[0]).toContain('providers file corrupted');
+    expect(cap.warns[0]).toContain('本次按默认倍率 1× 计算');
+    // 金额口径不变：内置价 (0.27 + 1.1) × 默认 1× = 1.37（而不是 9.99 或 ×2.5）
+    expect(recomputedEntry('ds').costUsd).toBeCloseTo(1.37, 9);
+    expect(recomputedEntry('ds').costMultiplier).toBeUndefined();
+  });
+
+  it('⑤ 调用点负对照：健康 providers.json（costMultiplier 2.5）→ recompute 按 ×2.5 落账且零告警', async () => {
+    writeStaleUsage('ds');
+    fs.writeFileSync(providersFile(), JSON.stringify(HEALTHY_PROVIDERS), 'utf8');
+
+    const cap = captureWarns();
+    let code = -1;
+    try {
+      code = await main(['usage', 'recompute']);
+    } finally {
+      cap.restore();
+    }
+
+    expect(code).toBe(0);
+    expect(cap.warns).toHaveLength(0); // 恒告警的实现 → 这里 RED
+    // 1.37 × 2.5 = 3.425：证明告警不是「一律打」而是真的只在读盘失败时出现
+    expect(recomputedEntry('ds').costUsd).toBeCloseTo(3.425, 9);
+    expect(recomputedEntry('ds').costMultiplier).toBe(2.5);
+  });
+});
+
 describe('vessel provider export/import + endpoint (task 095/096)', () => {
   let dir: string;
   let outDir: string;

@@ -503,17 +503,67 @@ function createUsageStore(opts: { strict?: boolean } = {}): UsageStore {
 }
 
 /**
+ * 成本倍率读盘失败告警的**进程内去重表**（key = `<providers.json 路径>\0<失败原因>`）。
+ *
+ * 去重策略与理由见 `warnCostMultiplierFallback`。只在读盘**失败**时增长，
+ * 条目数 = 本进程出现过的坏文件数，量级可忽略。
+ */
+const warnedCostMultiplierFallbacks = new Set<string>();
+
+/**
+ * `providerCostMultiplierResolver()` 读盘失败时的**可见降级**告警（同一原因只打一次）。
+ *
+ * 去重策略：模块级 `Set<string>`，key = `<providers.json 路径>\0<失败原因>`。
+ *   - **为什么是模块级**：一次用户操作可能构造多个 `UsageStore`（`createUsageStore()`
+ *     在 `cmdRun` / TUI / usage 各命令各自调用一次），同一份坏文件会被读多遍；
+ *     逐次告警 = 同一句话刷两遍。进程内每份坏文件只说一次：足够可见，也不刷屏。
+ *   - **为什么 key 要带路径 + 原因，而不是一个布尔量**：布尔量会把「修好 A 之后 B 又坏了」
+ *     一并吞掉（进程还没退出）；带路径后不同根目录互不影响——测试各自注入临时 root，
+ *     用例之间不会因为前一个用例打过告警而漏报。
+ *   - 告警点放在**读盘处**（构造解析器时一次），而不是返回的 `(provider) => number`
+ *     闭包里：计费是按 provider 逐行解析的，放在闭包里就是「每条计费行刷一条」。
+ *
+ * 只做提示：不改退出码、不改金额口径（调用方仍按 `DEFAULT_COST_MULTIPLIER` 计算）。
+ */
+function warnCostMultiplierFallback(err: unknown, providersFile: string | undefined): void {
+  const reason = err instanceof Error ? err.message : String(err);
+  const file = providersFile ?? '（ProviderStore 构造失败，未取得路径）';
+  const key = `${file}\u0000${reason}`;
+  if (warnedCostMultiplierFallbacks.has(key)) return;
+  warnedCostMultiplierFallbacks.add(key);
+  console.warn(
+    `[vessel] provider 成本倍率读取失败：${reason}\n` +
+      `  受影响文件：${file}\n` +
+      `  本次按默认倍率 1× 计算：所有 provider 的倍率一律当 1×（成本仍照常统计，但展示可能失真）。\n` +
+      `  修复：vessel provider list（会 fail loud 报出同一原因）或手工修好该文件；本命令不改动、不删除原文。\n` +
+      `  本告警同一原因在本次进程内只出现一次。`,
+  );
+}
+
+/**
  * provider 成本倍率解析（task 094）：读 `~/.vessel/providers.json`（`VESSEL_PROVIDER_ROOT` 可覆盖）。
  *
  * 只用**读**路径（不建 CredentialStore，不碰密钥/迁移）；读盘失败（文件损坏等）
- * 按「没有倍率」处理——统计不该因为 provider 配置坏了就跑不出来，倍率问题由
- * `vessel provider` 命令 fail loud 暴露。缺省倍率 1，金额不变。
+ * 仍按「没有倍率」处理——统计不该因为 provider 配置坏了就跑不出来。缺省倍率 1，金额口径不变。
+ *
+ * 但**降级必须可见**：`ProviderStore.rawLoad()` 对非法 JSON / 非数组 / 坏条目 / 非法配置
+ * 一律 throw，所以下面的 `catch` 是**可达**的；原来只写一个 `{}` 就返回，会让
+ * `providers.json` 一坏、**所有** provider 的倍率静默变成 1×、成本展示静默失真且零提示。
+ * 现在补一条含**原因**与「本次按默认倍率 1× 计算」的告警（见 `warnCostMultiplierFallback`，
+ * 同因同文件每进程一条）。倍率本身的修理由 `vessel provider` 命令 fail loud 暴露。
+ *
+ * 导出仅为测试（与 `warnMissingBuiltinConfig` / `pricingSyncMismatchWarning` 同例）。
  */
-function providerCostMultiplierResolver(): (provider: string) => number {
+export function providerCostMultiplierResolver(): (provider: string) => number {
   let multipliers: Record<string, number> = {};
+  let providersFile: string | undefined;
   try {
-    multipliers = new ProviderStore({}).costMultipliers();
-  } catch {
+    const store = new ProviderStore({});
+    providersFile = store.providersFile;
+    multipliers = store.costMultipliers();
+  } catch (err) {
+    // 兜底保留（数值口径仍是 `?? DEFAULT_COST_MULTIPLIER`）：一个坏配置文件不该让统计/界面整体不可用。
+    warnCostMultiplierFallback(err, providersFile);
     multipliers = {};
   }
   return (provider: string) => multipliers[provider] ?? DEFAULT_COST_MULTIPLIER;
