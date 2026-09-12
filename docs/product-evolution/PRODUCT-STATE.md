@@ -187,6 +187,25 @@ return loose(type, payload, opts);      // ← 方法被摘下后无绑调用，
 **③ parseOpenAI：裸解析器 17 条全绿，但 driver 层 3 条红——真因仍在实现。** 卡片的实现（按 index 缓存参数片段、身份到齐时并入 `tool_call_start.arguments`）**是对的**，我用正确 wire 形状独立验证过：三帧能得到 `tool_call_start{id:'call_1',name:'Read',arguments:'{"path":"'}`。但 driver 的 `closeToolCalls(terminal)`（`parseOpenAI.ts:315`）在**非终端边界也执行 `pendingArgsByIndex.clear()`**，而 `feed()` 在"该行没产出 tool chunk"时就会调它——**参数先到的第 1 帧恰恰不产出任何 tool chunk** ⇒ **刚缓存进去的片段被就地清空** ⇒ 第 2 帧只能发空 arguments（实测 `expected '' to be '{"path":"'`）。**这仍然是"静默丢数据"，只是从裸函数挪到了真实路径**。
 **教训（本段第二次由它救回）**：**只测裸函数会漏掉真实路径那一层**——"验收必须走生产入口"不是形式要求，driver 这一层正是把修好的逻辑又丢回去的地方。
 
+## Round 52–57 — 三卡落地 + 一条"两个组件各自都对、拼起来才坏"的重缺陷
+
+**已提交并逐卡验收（`tsc` 干净、定向 165 tests 通过）**：
+- `7648733` **Anthropic 解析两处同族丢数据**：缺 `id`/`name` 的 `tool_use` 块**整块跳过**而 `input_json_delta` 照发 ⇒ 参数成了"无 start 的 delta"被消费侧丢弃；`finish()` 在 **EOF 无 `message_stop`** 时返回 `[]` ⇒ 既不补 `message_end` 也不关未关闭的块。修法与 `parseOpenAI` 那套同构（按 index 缓存 + 身份到齐并入 + 边界显式补发占位调用 + 终止 sweep），正常流由**负对照逐字断言**不变。
+- `059bb4c` **denial breaker 计入工具内拒绝**：计数原先**整段位于 `gate.result.kind === 'deny'` 分支内** ⇒ 工具执行后返回的 `DENIED`（fs 守卫 `size`/`protected`、`Skill` 拒绝不可信技能）**可以无限重试**而不触发 `DenialLimitError`——这正是"模型在能力缺口场景里一直撞墙却没人熔断"的机制解释。修法：把计数提取为 `noteDenial`，在**三个互斥的 DENIED 出口**调用（门禁 deny / ask / 工具层 DENIED），**靠结构性互斥保证同一拒绝不被计两次**（不是靠记账）。既有语义（文案、阈值、`stage` 取值、`tool/result` 形状、以及"工具层拒绝不产生 `audit/denial`"）逐字未变。
+- `6fe93d4` **倍率读盘失败可见**：我**双向实测**确认 `ProviderStore.rawLoad()` 对损坏**一律 throw** ⇒ CLI 那个 `catch { multipliers = {} }` **可达** ⇒ `providers.json` 损坏时**所有倍率静默变 1×、成本展示静默失真、零告警**。修法：保留兜底（不因配置文件坏掉而中断统计），但**按"路径+原因"去重地告警一次**，文案含原因/文件/「本次按默认倍率 1× 计算」；健康文件**零告警**（负对照）。
+
+**本段第 2 条"最严重"发现（我已实测，修法卡在跑）**：**Anthropic 流式工具调用的参数一直是坏的**——
+```
+seed="{}"                               ← content_block_start.input 恒为空对象，却被序列化成种子
+appended="{\"path\":\"a.txt\"}"          ← 真正的 JSON 由 input_json_delta 分片到达
+accumulated="{}{\"path\":\"a.txt\"}"     ← 不是合法 JSON
+parseFailed=true  ⇒ AgentLoop 退化成 {_raw:…}，工具拿不到 path
+```
+⇒ **每一次 Anthropic 流式工具调用都拿不到参数**（`callModel` 有流式就优先走流式 ⇒ **生产热路径**）。**并且我们自己的测试把它锁成了期望**（`tool_call_start{arguments:'{}'}`）——本段第 3 次"测试锁住缺陷"。
+**这条的认知价值在于它的成因形态**：**解析器**发 `'{}'` 看起来像"种下了 input"，**消费侧** `acc.args += delta` 看起来像"追加片段"，**两个组件各自看起来都对**，坏只坏在**它们的组合语义**上。⇒ **结论：凡是"两个组件通过一个共享字符串/状态拼装"的地方，必须有一条端到端的验收（本卡已硬性要求走消费侧断言"最终参数是合法 JSON 且 `path` 正确"，只测 chunk 形状不算）。**
+
+**这一轮我拒做的一件事**：没有让执行者"顺手一起修"种子问题——因为它**必然触碰正常路径**，且存在"某些实现把整份 `input` 直接放在 `content_block_start`"的兼容面；一律按空串处理会把那些实现的参数**丢光**（**把一种坏换成另一种**）。我把它做成规格里的取舍题（倾向"仅当 input 为空对象时不写种子"），并**禁止**改消费侧的追加语义（那会伤到"start 带真实种子"的 provider）。
+
 ## 已解决问题（Round 1 切片 · 历史存档）
 
 - **G-01（P0）首跑示例失效**：仓库工作区 `run --prompt` 曾 100% 输出 `(mock: no script entry matched)` 且 exit 0（假成功）。根因：ContextBuilder 将 volatile skills index 作为**最后一条 user 消息**追加，MockProvider 只匹配最后一条 user 消息。修复：`ChatMessage.source` 溯源 + Builder 标记 volatile 为 `environment` + MockProvider 只匹配真实 surface 输入 + 确定性兜底文案。
