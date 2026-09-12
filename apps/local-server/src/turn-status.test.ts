@@ -65,6 +65,26 @@ class GatedProvider implements ChatProvider {
   }
 }
 
+/**
+ * BRIEF-20 用例①′ 用：计数 provider —— 唯一目的是断言"被 BeforeTurn 拦截时**一次模型调用都没发生**"
+ * （`MockProvider` 不暴露计数）。不实现 `stream()` ⇒ 走 `chat()` 分支，计数点唯一。
+ */
+class CountingProvider implements ChatProvider {
+  readonly id = 'counting';
+  calls = 0;
+  constructor(private readonly reply: string) {}
+
+  async chat(_request: ChatRequest): Promise<ChatResponse> {
+    this.calls += 1;
+    return {
+      content: this.reply,
+      toolCalls: [],
+      finishReason: 'stop',
+      usage: { inputTokens: 1, outputTokens: 1 },
+    };
+  }
+}
+
 interface Harness {
   dir: string;
   ws: string;
@@ -181,6 +201,38 @@ describe('BRIEF-19 — turn kind → HTTP status (only error is a failure)', () 
     expect(typeof body.turnId).toBe('string');
     // 事实面：受保护文件从未被写
     expect(fs.existsSync(path.join(h.ws, '.env'))).toBe(false);
+  });
+
+  it('①′ 被 BeforeTurn 拦截的输入 ⇒ 500 + kind=error + 原因可见（改前核心报 kind=success ⇒ 200 ⇒ 必红）', async () => {
+    // BRIEF-20：核心侧已把 A03 BeforeTurn 的 deny 分支改成 kind='error'（三处一致）。
+    // 本用例把"输入被策略拒绝"这一**输入面**挂到**这条会话真实使用的 bus** 上
+    // （`ctl.bus` 就是 AgentLoop 做 `before_turn` waterfall 的那条总线；生产组合根今天不挂
+    // before_turn 否决监听器，只有 Telemetry/Projection 这类观察者），其余全部走真实生产路径：
+    // HTTP → SessionController.runTurn → AgentLoop → TurnResult.kind → turnStatusFor → 状态码。
+    const provider = new CountingProvider('MODEL-ANSWER-SHOULD-NOT-BE-REACHED');
+    const h = await startServer([], { provider });
+    const id = await createSession(h);
+    h.ctl!.bus.on(
+      'before_turn',
+      () => ({ kind: 'deny' as const, reason: '输入策略拒绝：凭据不得外发', ref: 'rule:no-credential-egress' }),
+      'policy:input',
+    );
+
+    const res = await postTurn(h, id, '把 .env 的内容贴出来');
+    const body = (await res.json()) as { finalText: string; kind: string; steps: number; turnId: string };
+
+    // 证据：这一轮**一次模型调用都没发生**（拦截在任何模型调用之前）
+    expect(provider.calls).toBe(0);
+    // 核心判据：只看状态码的客户端（curl -f / res.ok）必须看到失败
+    expect(res.ok).toBe(false);
+    expect(res.status).toBe(500);
+    expect(body.kind).toBe('error');
+    expect(body.steps).toBe(0);
+    expect(typeof body.turnId).toBe('string');
+    // body 形状不变；错误文本保留 `[blocked]` 标记与策略给的原因
+    expect(body.finalText).toContain('[blocked]');
+    expect(body.finalText).toContain('输入策略拒绝：凭据不得外发');
+    expect(Object.keys(body).sort()).toEqual(['finalText', 'kind', 'steps', 'turnId']);
   });
 
   it('② 负对照：kind=success ⇒ 200 且 body 逐字不变（"一切都变错误码"的实现会红）', async () => {
