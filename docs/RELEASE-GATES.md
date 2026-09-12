@@ -62,7 +62,7 @@ writeReleaseReportFiles(report, 'benchmarks/reports');
 | # | gate id | 判据（subset of criterion check in code） | 环境说明 |
 | --- | --- | --- | --- |
 | 1 | build | 根 `npx tsc -b tsconfig.json` **与** `apps/web` 类型检查 `npx tsc -p apps/web/tsconfig.json` **两条命令均 exit 0 才 PASS**（判据纯函数 `judgeBuildPair`，`detail` 同时给出两条退出码）；任一侧非 0 → fail；web 侧无法执行 → 显式 **pending**，不静默通过 | 需 tsc/非受限环境 |
-| 2 | unit | `npx vitest run`（root）退出码 0 且无 failed 标记 | 需 vitest/非受限环境 |
+| 2 | unit | **两个 vitest root 都实跑**：`npx vitest run`（仓库根 `vitest.config.ts`）**与** `npx vitest run --root apps/web`（`apps/web/vitest.config.ts` 是独立 root，根 `include` 不含它）**各自**退出码 0 且汇总行（`Test Files`/`Tests`）无 failed 标记才 PASS（判据纯函数 `judgeUnitRoots`，`detail` 同时给出两侧退出码）；任一侧非 0 或汇总行报 failed → fail；某侧命令探测失败 → 显式 **pending**，不静默通过。criterion（`UNIT_GATE_CRITERION`）由唯一事实源 `UNIT_TEST_ROOTS` 插值生成 | 需 vitest（两个 root）/非受限环境 |
 | 3 | deterministic-bench | 离线 L1 可跑集 B001–B005 全通过（076 runner） | offline 确定性 |
 | 4 | real-model-bench | 082 lane 收集 §15 L3；无凭据/无 provider → **pending** | 需凭据；否则 pending |
 
@@ -111,6 +111,11 @@ writeReleaseReportFiles(report, 'benchmarks/reports');
 > **核实结论**：本次改动前，没有任何 gate 会跑 web 套件 —— 根 `vitest.config.ts` 的 `include` **不含** `apps/web`
 > （web 套件是 `apps/web/vitest.config.ts` 的独立配置，走 `npm run -w @vessel/web test`）；gate 1 只跑
 > `tsc -p apps/web/tsconfig.json`（类型检查，非测试）。把 web 套件真正接进门禁属**独立的行为变更卡**。
+> **该独立卡已落地（Gate 2 unit）**：unit 的 executor 现在**逐条实跑** `gates.ts` 的 `UNIT_TEST_ROOTS`
+> （根 `npx vitest run` + `npx vitest run --root apps/web`），criterion（`UNIT_GATE_CRITERION`）由**同一清单插值**
+> ⇒ 判据声称的 root 集合 == 实跑的 root 集合（`release-gates.test.ts` 有"从 criterion 文本解析出的命令 vs
+> executor 实际发出的命令"逐条比对的判别性守卫）；`.github/workflows/ci.yml` 的 Test 步骤同时改跑 `npm run test:all`。
+> 故上面"本次改动前没有任何 gate 会跑 web 套件"只描述**接线之前**的事实；gate 7（ux-smoke）**仍然只探测产物**。
 > 报告产物（`benchmarks/reports/release-report.{md,json}`）内嵌 criterion，本次**不手改**，需重跑门禁刷新。
 
 > gate 8（packaging）加严背景（EVALUATION-REPORT-24 P2）：原判据只查「本地 `dist` 是否存在」

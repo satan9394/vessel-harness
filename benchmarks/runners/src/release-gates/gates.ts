@@ -196,7 +196,7 @@ export const UNIT_TEST_ROOTS: readonly UnitTestRoot[] = [
 export const UNIT_GATE_CRITERION =
   `本 gate **实跑 ${UNIT_TEST_ROOTS.length} 个 vitest root**（清单 = UNIT_TEST_ROOTS，与 executor 共用同一常量、逐条执行）：` +
   UNIT_TEST_ROOTS.map((r) => `\`npx ${r.args.join(' ')}\`（${r.label}：${r.scope}）`).join('；') +
-  '。两个 root **各自**「退出码 0 且汇总行（`Test Files`/`Tests`）无 failed 计数」⇒ **pass**（无测试失败）；' +
+  '。每个 root **各自**「退出码 0 且汇总行（`Test Files`/`Tests`）无 failed 计数」⇒ **pass**（无测试失败）；' +
   '任一 root 非 0、或任一 root 的汇总行报 failed ⇒ **fail**；' +
   '某个 root 的命令探测失败（受限环境无法执行）⇒ 显式 **pending** 并带 note，不静默通过。' +
   '这些命令由**同一份清单**派生，故本判据声称的 root 集合恒等于实跑的 root 集合。';
