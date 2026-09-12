@@ -16,7 +16,17 @@
 | 诚实性 | **高，但有一处已知未修** — mock 运行期可见、产品名统一、密钥口径按平台如实、文档命令与 `dispatch` 对齐、`policy status` 报告合成可编译性；**残留**：`pricingOverride` 抑制写入后 CLI 仍打印「✔ 已写入覆盖」⇒ **确认时刻的宣称不为真**（已排 NEXT 首位，修法已定：`write()` 回传落盘状态 + 双向验收） |
 | 主要短板（当前） | 见 `PRODUCT-GAP-MAP.md` 的 NEXT：① 上述假成功；② 静默降级族剩余项（`costMultipliers()` 抛→**倍率静默变 1**、行级坏价行静默忽略、locale 静默回退 zh、坏任务静默消失、B 类"产出状态没人读"若干）；③ `npm pack --ignore-scripts` 可绕过 prepack；LATER：i18n 架构、`~/.vessel` 状态根收敛、`vessel diff --last` 只读回滚提示 |
 
-## 当前最高价值下一步（Round 17 收口后）
+## 当前最高价值下一步（Round 35 收口后）
+
+**本段（Round 20–34）已完成**：① **静默降级族**（`ProjectRegistry` 损坏覆盖 → 留档 + 留档失败抑制写入；`pricingOverride` 三态可见 + 写前留档 + 抑制；`pricing.json` 兜底仍待补状态通道）；② **宣称与实际不符族**（沙箱状态/审计说真话、`target-exited` 与 `attach-failed` 分开、warn 每会话每因一次、`reportStatus` 从**死 seam** 接成生产可达；pricing 未落盘 exit 1 且不打成功行；guard 拆 `escape`/`unverifiable` 并写入 `EVENT-SPEC` 硬纪律）；③ **权限 fail-open 族**（preset 未命中不再静默给全量面：已接线未命中 → 拒绝、未接线 → 最严格只读面 + 可见状态）；④ **证据基础空心族**（S003 三层修复并实测通过、S008 判据改锚**真正生效的机制**、B023 改为读引擎真实产物并加"golden 不得出现在 runner 源码"的回归锁）。
+
+**下一段（NEXT，均已具证据，可直接开工）**——**权威清单在 `PRODUCT-GAP-MAP.md` 的路线图**，此处只列最优先：
+1. **`deny_domains` 是死规则**（`packages/policy/src/risk/Compiler.ts:976-984`：`net-deny:<domain>` 的 `match` 恒 `false`）⇒ 声明的域名级控制在运行时**从不拦任何东西**。**要么让它真的匹配，要么停止宣称**（与已修的 `shell-force-push` 死 matcher 同族）。
+2. **`packages/llm` 的 toolCallId 上游根因**（`MockProvider` 按响应编号 ⇒ 任何复用 id 的 provider 都会让**基于 id 的锚定 join 再次误绑**，而 `asserts.ts` 的后写覆盖语义未改）。**未接线旁路**：`evalProvider`、taskRouter 两个 tier provider、五个 adapter 各自的 `copyDir`（未接 prepare）。
+3. **第三处死 seam**：`EnforcementProjection.foldSession()` **只在测试里被调用** ⇒ `fs-confinement` 来源在生产**恒为 0**（与 `reportStatus` 同型缺陷，已修一处、此处仍在）。另：`shellTool.ts` 取的是 run **之前**的状态（`meta.sandbox` 描述**上一轮**，注释却称 "honest … for THIS spawn"）；短命令仍要等 1–10 s（可并行探活早退）。
+4. 其余：S008 未纳入 `SAFETY_SCENARIOS`；S002/S006 恒真判据待加锁；`cli.ts:517` 的 `costMultipliers()` 抛 → **倍率静默变 1**；`SkillSearch` 只扫正文前 400 字符的 UNTRUSTED 标记；`EventBus` 监听器抛错退化为 `defer`（当前无 deny 型监听器 ⇒ 潜伏陷阱）。
+
+### 历史（Round 17 时的清单，**已过期**，保留仅作演变记录）
 
 **Round 16 + 发布里程碑已完成**（详见下方 Round 16 / 16b 段与 `PRODUCT-GAP-MAP.md` 的路线图归位）：1C/1B/2B/2C 诚实化、依赖声明、打包卫生（`files` 否定模式）、**包内 configs 可达**、**装机 E2E 三条 exit 0**；策略执法侧则以**平台并集 + fail-closed**收口了续行/alias/包装/`+refspec` 全部已知绕过形。
 
