@@ -1,8 +1,8 @@
 {
   "schemaVersion": 1,
   "version": "v1.1.0",
-  "generatedAt": "2026-09-12T03:00:27.865Z",
-  "status": "ready",
+  "generatedAt": "2026-09-12T05:51:27.078Z",
+  "status": "partial",
   "gates": [
     {
       "id": "build",
@@ -17,7 +17,7 @@
           "web tsc exit=0"
         ]
       },
-      "durationMs": 5524
+      "durationMs": 7151
     },
     {
       "id": "unit",
@@ -28,25 +28,26 @@
       "evidence": {
         "summary": "全量 vitest（root）通过",
         "detail": [
-          "✓ vessel provider export/import + endpoint (task 095/096) > export 无 --out → JSON 打到 stdout；import 合并（默认跳过同名） 9408ms",
-          "✓ vessel provider export/import + endpoint (task 095/096) > import --dry-run 不写盘；--on-conflict overwrite 覆盖字段 5399ms",
-          "✓ vessel provider export/import + endpoint (task 095/096) > import 非法 --on-conflict / 读不到文件 → 明确退出码 4478ms",
-          "✓ vessel provider export/import + endpoint (task 095/096) > endpoint add/list/remove：候选池落盘，baseUrl 不变 15637ms",
-          "✓ vessel provider export/import + endpoint (task 095/096) > endpoint test 探测本地端点 → 输出建议但不改默认端点；--set-default 才改 5712ms",
-          "✓ vessel provider export/import + endpoint (task 095/096) > endpoint test 全不可达 → exit 1 且不写盘 1630ms",
-          "✓ vessel provider export/import + endpoint (task 095/096) > endpoint test 用法错误：无 id 无 --all / --all 配 --set-default → exit 2 2163ms",
-          "Test Files  130 passed (130)",
-          "Tests  1401 passed | 3 skipped (1404)",
-          "Start at  19:53:33",
-          "Duration  135.20s (transform 42.58s, setup 8.37s, collect 114.38s, tests 537.70s, environment 50ms, prepare 42.38s)",
-          "stderr | apps/cli/src/cli.test.ts > CLI provider/models commands (task 016/015) > provider remove refuses to remove built-in mock",
-          "[vessel] provider \"mock\" is built-in and cannot be removed",
+          "✓ vessel provider export/import + endpoint (task 095/096) > export 无 --out → JSON 打到 stdout；import 合并（默认跳过同名） 5788ms",
+          "✓ vessel provider export/import + endpoint (task 095/096) > import --dry-run 不写盘；--on-conflict overwrite 覆盖字段 4005ms",
+          "✓ vessel provider export/import + endpoint (task 095/096) > import 非法 --on-conflict / 读不到文件 → 明确退出码 2569ms",
+          "✓ vessel provider export/import + endpoint (task 095/096) > endpoint add/list/remove：候选池落盘，baseUrl 不变 11672ms",
+          "✓ vessel provider export/import + endpoint (task 095/096) > endpoint test 探测本地端点 → 输出建议但不改默认端点；--set-default 才改 2524ms",
+          "✓ vessel provider export/import + endpoint (task 095/096) > endpoint test 全不可达 → exit 1 且不写盘 1288ms",
+          "✓ vessel provider export/import + endpoint (task 095/096) > endpoint test 用法错误：无 id 无 --all / --all 配 --set-default → exit 2 1467ms",
+          "Test Files  138 passed (138)",
+          "Tests  1555 passed | 3 skipped (1558)",
+          "Start at  22:46:58",
+          "Duration  71.03s (transform 14.78s, setup 3.61s, collect 61.45s, tests 281.40s, environment 46ms, prepare 30.01s)",
+          "(node:30216) Warning: Closing file descriptor 4 on garbage collection",
+          "(Use `node --trace-warnings ...` to show where the warning was created)",
+          "(node:30216) [DEP0137] DeprecationWarning: Closing a FileHandle object on garbage collection is deprecated. Please close FileHandle objects explicitly using FileHandle.prototype.close(). In the future, an error will be thrown if a file descriptor is closed during garbage collection.",
           "stderr | apps/cli/src/cli.test.ts > vessel provider export/import + endpoint (task 095/096) > export 无 --out → JSON 打到 stdout；import 合并（默认跳过同名）",
           "[vessel provider export] 已导出 1 个供应商到 stdout（脱敏：剥离密钥 1 条）。",
           "vitest exit=0"
         ]
       },
-      "durationMs": 139321
+      "durationMs": 72732
     },
     {
       "id": "deterministic-bench",
@@ -61,7 +62,7 @@
           "passed=17"
         ]
       },
-      "durationMs": 4671,
+      "durationMs": 2819,
       "note": "扩至 L1 全离线可跑集（B001-B005 + B016-B027，含 V1.1-D streaming/interrupt/steering/resume）。"
     },
     {
@@ -69,16 +70,18 @@
       "name": "Real Model Bench (082 lane)",
       "position": 4,
       "criterion": "082 真实模型 lane 收集到 §15 L3 指标；无凭据/无 provider 时显式 pending，不静默通过。",
-      "status": "pass",
+      "status": "pending",
       "evidence": {
-        "summary": "真实模型 lane 全过（10/14）",
+        "summary": "真实模型 lane 已跑通（0/25 行 passed，13 行模型未在步数预算内收敛）——非协议/凭据/实现回归",
         "detail": [
-          "rows=14",
-          "passed=10"
+          "rows=25",
+          "passed=0",
+          "failed=13",
+          "cause=model non-convergence (MAX_STEPS_PER_TURN budget exhausted, empty finalText)"
         ]
       },
-      "durationMs": 271851,
-      "note": "凭据来源=env OPENCODE_API_KEY；模型档=deepseek-flash（task 102：Go 端点 x-opencode-session + 具名 UA + 路径分流）。"
+      "durationMs": 149747,
+      "note": "real model gate: 真实 lane 真实执行（x-opencode-session 协议头 + 具名 UA + 凭据来源选对），失败行为模型对同一场景反复工具调用直到 64 步预算耗尽（跨次运行不稳定：同一场景两次实跑一 passed 一 failed）→ 如实 pending（复跑/换模型档后再判），不伪造 pass、不误判为 harness 回归。 凭据来源=CredentialStore vessel/opencode-go；模型档=mimo-v2.5-pro,deepseek-flash（task 102：Go 端点 x-opencode-session + 具名 UA + 路径分流）。"
     },
     {
       "id": "safety",
@@ -93,7 +96,7 @@
           "passed=6"
         ]
       },
-      "durationMs": 194
+      "durationMs": 162
     },
     {
       "id": "resume",
@@ -110,7 +113,7 @@
           "countConsistent=true"
         ]
       },
-      "durationMs": 413
+      "durationMs": 388
     },
     {
       "id": "ux-smoke",
@@ -124,28 +127,49 @@
           "webDistPresent=true"
         ]
       },
-      "durationMs": 1
+      "durationMs": 0
     },
     {
       "id": "packaging",
-      "name": "Packaging (build artifacts)",
+      "name": "Packaging (build artifacts + publish shape)",
       "position": 8,
-      "criterion": "build 产物检查（npm pack / 等价产物）存在且完整；工具缺失时显式 pending。",
+      "criterion": "build 产物检查（npm pack / 等价产物）存在且完整；工具缺失时显式 pending。发布物形状（publish-artifact）判据：① `apps/cli` 的 pack 期脚本（prepack / prepare）必须构建 dist——否则干净检出（无 dist）时 `npm pack` 会打出缺 `dist/cli.js` 的坏包 → **fail**；② `npm pack --dry-run` 的 tarball 清单必须含 `dist/cli.js` 与 4 个 `dist/configs/*`（policy.default.yaml / behavior.default.yaml / pricing.json / model-catalog.json），且不得含任何 `*.test.js` / `*.test.d.ts` / `*.map`；③ npm pack 不可用、目标包错位或输出无法解析时显式 **pending**，不静默通过。",
       "status": "pass",
       "evidence": {
-        "summary": "build 产物完整（dist + 入口存在）",
+        "summary": "发布物形状符合预期（62 个文件：含 dist/cli.js 与 4 个 dist/configs/*，零 *.test.* / 零 *.map）",
         "detail": [
-          "dist=true",
-          "entry=true"
+          "pack 期脚本: prepack: npm run build",
+          "实测 tarball 文件数=62",
+          "实测清单：必需文件齐全、零 *.test.* / 零 *.map"
         ]
       },
-      "durationMs": 1681
+      "durationMs": 5917
+    },
+    {
+      "id": "install-smoke",
+      "name": "Install Smoke (opt-in, gate 9)",
+      "position": 9,
+      "criterion": "安装态冒烟（install-smoke，**可选**：VESSEL_GATE_INSTALL_SMOKE=1 时执行）：把入口包的 workspace 运行时依赖闭包逐个 `npm pack --offline` 成 tarball → 在**全新空项目**里 `npm install <全部 tarball> --offline --no-audit --no-fund`→ 以**安装态**跑 CLI，断言 ① `policy status --json` 的 system 层路径逐字等于 `<项目>/node_modules/@vessel/cli/dist/configs/policy.default.yaml` 且该文件真实存在；② `usage` 不打印「未找到内置配置」。两条同时成立才 pass（`--version`/`--help` 恒 exit 0，**不作判据**）。环境不具备（未启用 / npm 不可用 / 离线装不上（缓存缺第三方依赖或解析不可达）/ 资源耗尽 / 超时 / 输出不可解析）→ 显式 **pending**；包真的坏了（自家 workspace 依赖未被同批 tarball 满足 / tarball 缺文件 / 装完无入口 / CLI 跑不起来 / 读路径落到包外 / 出现缺配置警告）→ **fail**；两者都不静默通过。",
+      "status": "pass",
+      "evidence": {
+        "summary": "安装态冒烟通过（16 个 tarball → 全新空项目离线安装 exit 0 → system 层路径在包内 + `usage` 无缺配置警告）",
+        "detail": [
+          "判据：读路径落在包内，而不是「命令 exit 0」",
+          "闭包 16 个包：@vessel/cli, @vessel/application, @vessel/llm, @vessel/local-server, @vessel/policy, @vessel/shared, @vessel/core, @vessel/context, @vessel/tools, @vessel/runtime, @vessel/behavior, @vessel/skills, @vessel/telemetry, @vessel/agents, @vessel/memory, @vessel/engine",
+          "tarball 16/16 个",
+          "npm install exit=0",
+          "--version exit=0（仅证据，不作判据）",
+          "policy status exit=0；system 层路径=C:\\Users\\USER~1\\AppData\\Local\\Temp\\vessel-install-smoke-3AKny0\\project\\node_modules\\@vessel\\cli\\dist\\configs\\policy.default.yaml",
+          "usage exit=0；缺配置警告=false"
+        ]
+      },
+      "durationMs": 38101
     }
   ],
   "totals": {
     "pass": 8,
     "fail": 0,
-    "pending": 0,
-    "durationMs": 423656
+    "pending": 1,
+    "durationMs": 277017
   }
 }

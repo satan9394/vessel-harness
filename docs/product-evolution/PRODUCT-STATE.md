@@ -62,6 +62,9 @@
 **⑤ 一次已观察但未复现的偶发（如实记录）**：一次全量运行报 `1 failed | Received: "fail"`；随后 **3 次运行全绿**（`benchmarks/runners` ×2、全量 ×2，末次 `1555 passed`）。**未复现**，故不据此改动实现。**取证失误**：我当时用 `Select-String` 过滤 vitest 输出，**把失败用例名连同堆栈滤掉了**——这违反本仓纪律（"不捕获即等于没有证据"）。**教训（并入纪律 14 的延伸）**：**定位失败时必须先把原始输出落盘再过滤**，否则会把"待定位的红"变成"记不清的偶发"。
 **⑥ 已知残余（执行者如实标注）**：`benchmarks/runners/src/report/runner.ts` 的 md 标题写死"8 道发布门禁"，启用第 9 道时表格会多一行与标题不符（一行可修）；第 9 道**只覆盖"打包→安装→首跑"，未覆盖"升级路径"**；Windows 下临时路径含空白时按 `pending` 降级（已显式处理，不会误判 `fail`）。
 
+**⑦ 发布链路门禁的实测（Orchestrator 真跑，最强证据）**：设 `VESSEL_GATE_INSTALL_SMOKE=1` 跑真实门禁管线 → 报告第 9 行 **`Install Smoke (opt-in, gate 9) | ✅ PASS | 38101ms`**，证据行写明全过程：**16 个 tarball → 全新空项目离线安装 exit 0 → system 层路径在包内 + `usage` 无缺配置警告**。整体 `status=partial pass=8 fail=0 pending=1`（pending 为需密钥的直播道）。⇒ 终评那句"**打包→安装→首跑只靠人工实测一次**"**已闭合**：该链路现在是**离线、确定性、可回归**的门禁（38 秒），且**本机 npm 缓存足以离线安装**（`@clack/prompts`、`js-yaml` 命中缓存）。
+**⑧ 报告口径修正**：`release-gates/runner.ts` 的 md 标题原**写死「8 道发布门禁」**（第 9 道启用后与表格自相矛盾）→ 改为**由实际行数推导**「发布门禁（N 道）」，并保留"§21 注册表 8 道常驻 + 第 9 道可选"的准确表述；测试**只收紧不放宽**（`toContain('## 发布门禁（3 道）')`、`not.toContain('8 道发布门禁')`、`toContain('8 道常驻')`）。
+
 ## 已解决问题（Round 1 切片 · 历史存档）
 
 - **G-01（P0）首跑示例失效**：仓库工作区 `run --prompt` 曾 100% 输出 `(mock: no script entry matched)` 且 exit 0（假成功）。根因：ContextBuilder 将 volatile skills index 作为**最后一条 user 消息**追加，MockProvider 只匹配最后一条 user 消息。修复：`ChatMessage.source` 溯源 + Builder 标记 volatile 为 `environment` + MockProvider 只匹配真实 surface 输入 + 确定性兜底文案。

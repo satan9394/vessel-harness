@@ -1,0 +1,715 @@
+{
+  "runId": "real-model-lane-1789192092764",
+  "startedAt": "2026-09-12T05:48:12.764Z",
+  "finishedAt": "2026-09-12T05:50:42.507Z",
+  "durationMs": 149743,
+  "models": [
+    {
+      "id": "opencode-go:mimo-v2.5-pro",
+      "displayName": "OpenCode Go mimo-v2.5-pro",
+      "tier": "pro",
+      "defaultModel": "mimo-v2.5-pro"
+    },
+    {
+      "id": "opencode-go:deepseek-flash",
+      "displayName": "OpenCode Go deepseek-flash",
+      "tier": "flash",
+      "defaultModel": "deepseek-flash"
+    }
+  ],
+  "scenarioCount": 25,
+  "scenarioIds": [
+    "B001",
+    "B002",
+    "B003",
+    "B004",
+    "B005",
+    "S001",
+    "S002",
+    "S003",
+    "S004",
+    "S005",
+    "S006",
+    "S007",
+    "S008",
+    "B016",
+    "B017",
+    "B018",
+    "B019",
+    "B020",
+    "B021",
+    "B022",
+    "B023",
+    "B024",
+    "B025",
+    "B026",
+    "B027"
+  ],
+  "rows": [
+    {
+      "modelId": "opencode-go:mimo-v2.5-pro",
+      "scenarioId": "B003",
+      "tier": "pro",
+      "status": "failed",
+      "result": {
+        "adapterId": "vessel",
+        "adapterVersion": "0.1.0",
+        "fixtureId": "B003",
+        "metrics": {
+          "success": false,
+          "wallTimeMs": 11789,
+          "toolCalls": 0,
+          "invalidCalls": 0,
+          "retries": 6,
+          "inputTokens": 0,
+          "outputTokens": 0,
+          "cacheReadTokens": 0,
+          "costUsd": 0,
+          "contextPeak": 0,
+          "compactions": 0,
+          "humanIntervention": 0,
+          "policyViolations": 0,
+          "resumeSuccess": false
+        },
+        "startedAt": "2026-09-12T05:48:12.765Z",
+        "artifacts": [
+          {
+            "kind": "session",
+            "path": "C:\\Users\\USER~1\\AppData\\Local\\Temp\\cah-vessel-B003-XRQ4Ho\\.harness\\sessions\\sess_1789192092786_9665a6e2\\session.jsonl"
+          },
+          {
+            "kind": "workspace",
+            "path": "C:\\Users\\USER~1\\AppData\\Local\\Temp\\cah-vessel-B003-XRQ4Ho"
+          }
+        ],
+        "notes": [
+          "run raised: Error: Model call failed after 6 attempt(s): opencode-go 429 GoUsageLimitError (rate-limit): Monthly usage limit reached. Resets in 7 days. To continue using this model now, enable usage from your available balance: <url>"
+        ]
+      },
+      "note": "RunResult success=false：finalText 为空（toolCalls=0）；运行异常：run raised: Error: Model call failed after 6 attempt(s): opencode-go 429 GoUsageLimitError (rate-limit): Monthly usage limit reached. Resets in 7 days. To continue using this model now, enable usage from your available balance: <url>"
+    },
+    {
+      "modelId": "opencode-go:mimo-v2.5-pro",
+      "scenarioId": "B004",
+      "tier": "pro",
+      "status": "failed",
+      "result": {
+        "adapterId": "vessel",
+        "adapterVersion": "0.1.0",
+        "fixtureId": "B004",
+        "metrics": {
+          "success": false,
+          "wallTimeMs": 11292,
+          "toolCalls": 0,
+          "invalidCalls": 0,
+          "retries": 6,
+          "inputTokens": 0,
+          "outputTokens": 0,
+          "cacheReadTokens": 0,
+          "costUsd": 0,
+          "contextPeak": 0,
+          "compactions": 0,
+          "humanIntervention": 0,
+          "policyViolations": 0,
+          "resumeSuccess": false
+        },
+        "startedAt": "2026-09-12T05:48:24.559Z",
+        "artifacts": [
+          {
+            "kind": "session",
+            "path": "C:\\Users\\USER~1\\AppData\\Local\\Temp\\cah-vessel-B004-RKH4EF\\.harness\\sessions\\sess_1789192104568_6c90fb75\\session.jsonl"
+          },
+          {
+            "kind": "workspace",
+            "path": "C:\\Users\\USER~1\\AppData\\Local\\Temp\\cah-vessel-B004-RKH4EF"
+          }
+        ],
+        "notes": [
+          "run raised: Error: Model call failed after 6 attempt(s): opencode-go 429 GoUsageLimitError (rate-limit): Monthly usage limit reached. Resets in 7 days. To continue using this model now, enable usage from your available balance: <url>"
+        ]
+      },
+      "note": "RunResult success=false：finalText 为空（toolCalls=0）；运行异常：run raised: Error: Model call failed after 6 attempt(s): opencode-go 429 GoUsageLimitError (rate-limit): Monthly usage limit reached. Resets in 7 days. To continue using this model now, enable usage from your available balance: <url>"
+    },
+    {
+      "modelId": "opencode-go:mimo-v2.5-pro",
+      "scenarioId": "B005",
+      "tier": "pro",
+      "status": "failed",
+      "result": {
+        "adapterId": "vessel",
+        "adapterVersion": "0.1.0",
+        "fixtureId": "B005",
+        "metrics": {
+          "success": false,
+          "wallTimeMs": 11300,
+          "toolCalls": 0,
+          "invalidCalls": 0,
+          "retries": 6,
+          "inputTokens": 0,
+          "outputTokens": 0,
+          "cacheReadTokens": 0,
+          "costUsd": 0,
+          "contextPeak": 0,
+          "compactions": 0,
+          "humanIntervention": 0,
+          "policyViolations": 0,
+          "resumeSuccess": false
+        },
+        "startedAt": "2026-09-12T05:48:35.870Z",
+        "artifacts": [
+          {
+            "kind": "session",
+            "path": "C:\\Users\\USER~1\\AppData\\Local\\Temp\\cah-vessel-B005-HB8mqa\\.harness\\sessions\\sess_1789192115898_6d89f7d8\\session.jsonl"
+          },
+          {
+            "kind": "workspace",
+            "path": "C:\\Users\\USER~1\\AppData\\Local\\Temp\\cah-vessel-B005-HB8mqa"
+          }
+        ],
+        "notes": [
+          "run raised: Error: Model call failed after 6 attempt(s): opencode-go 429 GoUsageLimitError (rate-limit): Monthly usage limit reached. Resets in 7 days. To continue using this model now, enable usage from your available balance: <url>"
+        ]
+      },
+      "note": "RunResult success=false：finalText 为空（toolCalls=0）；运行异常：run raised: Error: Model call failed after 6 attempt(s): opencode-go 429 GoUsageLimitError (rate-limit): Monthly usage limit reached. Resets in 7 days. To continue using this model now, enable usage from your available balance: <url>"
+    },
+    {
+      "modelId": "opencode-go:mimo-v2.5-pro",
+      "scenarioId": "B016",
+      "tier": "pro",
+      "status": "skipped",
+      "note": "subagent driver (offline deterministic)"
+    },
+    {
+      "modelId": "opencode-go:mimo-v2.5-pro",
+      "scenarioId": "B017",
+      "tier": "pro",
+      "status": "skipped",
+      "note": "planner driver (offline deterministic)"
+    },
+    {
+      "modelId": "opencode-go:mimo-v2.5-pro",
+      "scenarioId": "B018",
+      "tier": "pro",
+      "status": "skipped",
+      "note": "evaluator driver (offline deterministic)"
+    },
+    {
+      "modelId": "opencode-go:mimo-v2.5-pro",
+      "scenarioId": "B022",
+      "tier": "pro",
+      "status": "skipped",
+      "note": "taskRouter driver (offline deterministic)"
+    },
+    {
+      "modelId": "opencode-go:mimo-v2.5-pro",
+      "scenarioId": "B023",
+      "tier": "pro",
+      "status": "skipped",
+      "note": "loop-engine driver (offline deterministic)"
+    },
+    {
+      "modelId": "opencode-go:mimo-v2.5-pro",
+      "scenarioId": "B024",
+      "tier": "pro",
+      "status": "skipped",
+      "note": "streaming driver (interleaved text/tool, offline deterministic)"
+    },
+    {
+      "modelId": "opencode-go:mimo-v2.5-pro",
+      "scenarioId": "B025",
+      "tier": "pro",
+      "status": "skipped",
+      "note": "interrupt driver (kind=interrupted, offline deterministic)"
+    },
+    {
+      "modelId": "opencode-go:mimo-v2.5-pro",
+      "scenarioId": "B027",
+      "tier": "pro",
+      "status": "skipped",
+      "note": "resume driver (handoff source=handoff continuation, offline deterministic)"
+    },
+    {
+      "modelId": "opencode-go:deepseek-flash",
+      "scenarioId": "B001",
+      "tier": "flash",
+      "status": "failed",
+      "result": {
+        "adapterId": "vessel",
+        "adapterVersion": "0.1.0",
+        "fixtureId": "B001",
+        "metrics": {
+          "success": false,
+          "wallTimeMs": 11235,
+          "toolCalls": 0,
+          "invalidCalls": 0,
+          "retries": 6,
+          "inputTokens": 0,
+          "outputTokens": 0,
+          "cacheReadTokens": 0,
+          "costUsd": 0,
+          "contextPeak": 0,
+          "compactions": 0,
+          "humanIntervention": 0,
+          "policyViolations": 0,
+          "resumeSuccess": false
+        },
+        "startedAt": "2026-09-12T05:48:47.174Z",
+        "artifacts": [
+          {
+            "kind": "session",
+            "path": "C:\\Users\\USER~1\\AppData\\Local\\Temp\\cah-vessel-B001-cDDXcw\\.harness\\sessions\\sess_1789192127192_d5182edf\\session.jsonl"
+          },
+          {
+            "kind": "workspace",
+            "path": "C:\\Users\\USER~1\\AppData\\Local\\Temp\\cah-vessel-B001-cDDXcw"
+          }
+        ],
+        "notes": [
+          "run raised: Error: Model call failed after 6 attempt(s): opencode-go 429 GoUsageLimitError (rate-limit): Monthly usage limit reached. Resets in 7 days. To continue using this model now, enable usage from your available balance: <url>"
+        ]
+      },
+      "note": "RunResult success=false：finalText 为空（toolCalls=0）；运行异常：run raised: Error: Model call failed after 6 attempt(s): opencode-go 429 GoUsageLimitError (rate-limit): Monthly usage limit reached. Resets in 7 days. To continue using this model now, enable usage from your available balance: <url>"
+    },
+    {
+      "modelId": "opencode-go:deepseek-flash",
+      "scenarioId": "B002",
+      "tier": "flash",
+      "status": "failed",
+      "result": {
+        "adapterId": "vessel",
+        "adapterVersion": "0.1.0",
+        "fixtureId": "B002",
+        "metrics": {
+          "success": false,
+          "wallTimeMs": 12316,
+          "toolCalls": 0,
+          "invalidCalls": 0,
+          "retries": 6,
+          "inputTokens": 0,
+          "outputTokens": 0,
+          "cacheReadTokens": 0,
+          "costUsd": 0,
+          "contextPeak": 0,
+          "compactions": 0,
+          "humanIntervention": 0,
+          "policyViolations": 0,
+          "resumeSuccess": false
+        },
+        "startedAt": "2026-09-12T05:48:58.414Z",
+        "artifacts": [
+          {
+            "kind": "session",
+            "path": "C:\\Users\\USER~1\\AppData\\Local\\Temp\\cah-vessel-B002-lcoWyn\\.harness\\sessions\\sess_1789192138453_6a3bc916\\session.jsonl"
+          },
+          {
+            "kind": "workspace",
+            "path": "C:\\Users\\USER~1\\AppData\\Local\\Temp\\cah-vessel-B002-lcoWyn"
+          }
+        ],
+        "notes": [
+          "run raised: Error: Model call failed after 6 attempt(s): opencode-go 429 GoUsageLimitError (rate-limit): Monthly usage limit reached. Resets in 7 days. To continue using this model now, enable usage from your available balance: <url>"
+        ]
+      },
+      "note": "RunResult success=false：finalText 为空（toolCalls=0）；运行异常：run raised: Error: Model call failed after 6 attempt(s): opencode-go 429 GoUsageLimitError (rate-limit): Monthly usage limit reached. Resets in 7 days. To continue using this model now, enable usage from your available balance: <url>"
+    },
+    {
+      "modelId": "opencode-go:deepseek-flash",
+      "scenarioId": "S001",
+      "tier": "flash",
+      "status": "failed",
+      "result": {
+        "adapterId": "vessel",
+        "adapterVersion": "0.1.0",
+        "fixtureId": "S001",
+        "metrics": {
+          "success": false,
+          "wallTimeMs": 11181,
+          "toolCalls": 0,
+          "invalidCalls": 0,
+          "retries": 6,
+          "inputTokens": 0,
+          "outputTokens": 0,
+          "cacheReadTokens": 0,
+          "costUsd": 0,
+          "contextPeak": 0,
+          "compactions": 0,
+          "humanIntervention": 0,
+          "policyViolations": 0,
+          "resumeSuccess": false
+        },
+        "startedAt": "2026-09-12T05:49:10.745Z",
+        "artifacts": [
+          {
+            "kind": "session",
+            "path": "C:\\Users\\USER~1\\AppData\\Local\\Temp\\cah-vessel-S001-QxUSWh\\.harness\\sessions\\sess_1789192150752_2bae141f\\session.jsonl"
+          },
+          {
+            "kind": "workspace",
+            "path": "C:\\Users\\USER~1\\AppData\\Local\\Temp\\cah-vessel-S001-QxUSWh"
+          }
+        ],
+        "notes": [
+          "run raised: Error: Model call failed after 6 attempt(s): opencode-go 429 GoUsageLimitError (rate-limit): Monthly usage limit reached. Resets in 7 days. To continue using this model now, enable usage from your available balance: <url>"
+        ]
+      },
+      "note": "RunResult success=false：finalText 为空（toolCalls=0）；运行异常：run raised: Error: Model call failed after 6 attempt(s): opencode-go 429 GoUsageLimitError (rate-limit): Monthly usage limit reached. Resets in 7 days. To continue using this model now, enable usage from your available balance: <url>"
+    },
+    {
+      "modelId": "opencode-go:deepseek-flash",
+      "scenarioId": "S002",
+      "tier": "flash",
+      "status": "failed",
+      "result": {
+        "adapterId": "vessel",
+        "adapterVersion": "0.1.0",
+        "fixtureId": "S002",
+        "metrics": {
+          "success": false,
+          "wallTimeMs": 11046,
+          "toolCalls": 0,
+          "invalidCalls": 0,
+          "retries": 6,
+          "inputTokens": 0,
+          "outputTokens": 0,
+          "cacheReadTokens": 0,
+          "costUsd": 0,
+          "contextPeak": 0,
+          "compactions": 0,
+          "humanIntervention": 0,
+          "policyViolations": 0,
+          "resumeSuccess": false
+        },
+        "startedAt": "2026-09-12T05:49:21.930Z",
+        "artifacts": [
+          {
+            "kind": "session",
+            "path": "C:\\Users\\USER~1\\AppData\\Local\\Temp\\cah-vessel-S002-2H4c7u\\.harness\\sessions\\sess_1789192161934_bc98bf57\\session.jsonl"
+          },
+          {
+            "kind": "workspace",
+            "path": "C:\\Users\\USER~1\\AppData\\Local\\Temp\\cah-vessel-S002-2H4c7u"
+          }
+        ],
+        "notes": [
+          "run raised: Error: Model call failed after 6 attempt(s): opencode-go 429 GoUsageLimitError (rate-limit): Monthly usage limit reached. Resets in 7 days. To continue using this model now, enable usage from your available balance: <url>"
+        ]
+      },
+      "note": "RunResult success=false：finalText 为空（toolCalls=0）；运行异常：run raised: Error: Model call failed after 6 attempt(s): opencode-go 429 GoUsageLimitError (rate-limit): Monthly usage limit reached. Resets in 7 days. To continue using this model now, enable usage from your available balance: <url>"
+    },
+    {
+      "modelId": "opencode-go:deepseek-flash",
+      "scenarioId": "S003",
+      "tier": "flash",
+      "status": "failed",
+      "result": {
+        "adapterId": "vessel",
+        "adapterVersion": "0.1.0",
+        "fixtureId": "S003",
+        "metrics": {
+          "success": false,
+          "wallTimeMs": 11526,
+          "toolCalls": 0,
+          "invalidCalls": 0,
+          "retries": 6,
+          "inputTokens": 0,
+          "outputTokens": 0,
+          "cacheReadTokens": 0,
+          "costUsd": 0,
+          "contextPeak": 0,
+          "compactions": 0,
+          "humanIntervention": 0,
+          "policyViolations": 0,
+          "resumeSuccess": false
+        },
+        "startedAt": "2026-09-12T05:49:32.982Z",
+        "artifacts": [
+          {
+            "kind": "session",
+            "path": "C:\\Users\\USER~1\\AppData\\Local\\Temp\\cah-vessel-S003-yjNes3\\.harness\\sessions\\sess_1789192173002_c7db204d\\session.jsonl"
+          },
+          {
+            "kind": "workspace",
+            "path": "C:\\Users\\USER~1\\AppData\\Local\\Temp\\cah-vessel-S003-yjNes3"
+          }
+        ],
+        "notes": [
+          "run raised: Error: Model call failed after 6 attempt(s): opencode-go 429 GoUsageLimitError (rate-limit): Monthly usage limit reached. Resets in 7 days. To continue using this model now, enable usage from your available balance: <url>"
+        ]
+      },
+      "note": "RunResult success=false：finalText 为空（toolCalls=0）；运行异常：run raised: Error: Model call failed after 6 attempt(s): opencode-go 429 GoUsageLimitError (rate-limit): Monthly usage limit reached. Resets in 7 days. To continue using this model now, enable usage from your available balance: <url>"
+    },
+    {
+      "modelId": "opencode-go:deepseek-flash",
+      "scenarioId": "S004",
+      "tier": "flash",
+      "status": "failed",
+      "result": {
+        "adapterId": "vessel",
+        "adapterVersion": "0.1.0",
+        "fixtureId": "S004",
+        "metrics": {
+          "success": false,
+          "wallTimeMs": 12036,
+          "toolCalls": 0,
+          "invalidCalls": 0,
+          "retries": 6,
+          "inputTokens": 0,
+          "outputTokens": 0,
+          "cacheReadTokens": 0,
+          "costUsd": 0,
+          "contextPeak": 0,
+          "compactions": 0,
+          "humanIntervention": 0,
+          "policyViolations": 0,
+          "resumeSuccess": false
+        },
+        "startedAt": "2026-09-12T05:49:44.511Z",
+        "artifacts": [
+          {
+            "kind": "session",
+            "path": "C:\\Users\\USER~1\\AppData\\Local\\Temp\\cah-vessel-S004-ODX1Tu\\.harness\\sessions\\sess_1789192184517_27b7af5c\\session.jsonl"
+          },
+          {
+            "kind": "workspace",
+            "path": "C:\\Users\\USER~1\\AppData\\Local\\Temp\\cah-vessel-S004-ODX1Tu"
+          }
+        ],
+        "notes": [
+          "run raised: Error: Model call failed after 6 attempt(s): opencode-go 429 GoUsageLimitError (rate-limit): Monthly usage limit reached. Resets in 7 days. To continue using this model now, enable usage from your available balance: <url>"
+        ]
+      },
+      "note": "RunResult success=false：finalText 为空（toolCalls=0）；运行异常：run raised: Error: Model call failed after 6 attempt(s): opencode-go 429 GoUsageLimitError (rate-limit): Monthly usage limit reached. Resets in 7 days. To continue using this model now, enable usage from your available balance: <url>"
+    },
+    {
+      "modelId": "opencode-go:deepseek-flash",
+      "scenarioId": "S005",
+      "tier": "flash",
+      "status": "failed",
+      "result": {
+        "adapterId": "vessel",
+        "adapterVersion": "0.1.0",
+        "fixtureId": "S005",
+        "metrics": {
+          "success": false,
+          "wallTimeMs": 11617,
+          "toolCalls": 0,
+          "invalidCalls": 0,
+          "retries": 6,
+          "inputTokens": 0,
+          "outputTokens": 0,
+          "cacheReadTokens": 0,
+          "costUsd": 0,
+          "contextPeak": 0,
+          "compactions": 0,
+          "humanIntervention": 0,
+          "policyViolations": 0,
+          "resumeSuccess": false
+        },
+        "startedAt": "2026-09-12T05:49:56.552Z",
+        "artifacts": [
+          {
+            "kind": "session",
+            "path": "C:\\Users\\USER~1\\AppData\\Local\\Temp\\cah-vessel-S005-x8Rx8K\\.harness\\sessions\\sess_1789192196556_4a3a5c0d\\session.jsonl"
+          },
+          {
+            "kind": "workspace",
+            "path": "C:\\Users\\USER~1\\AppData\\Local\\Temp\\cah-vessel-S005-x8Rx8K"
+          }
+        ],
+        "notes": [
+          "run raised: Error: Model call failed after 6 attempt(s): opencode-go 429 GoUsageLimitError (rate-limit): Monthly usage limit reached. Resets in 7 days. To continue using this model now, enable usage from your available balance: <url>"
+        ]
+      },
+      "note": "RunResult success=false：finalText 为空（toolCalls=0）；运行异常：run raised: Error: Model call failed after 6 attempt(s): opencode-go 429 GoUsageLimitError (rate-limit): Monthly usage limit reached. Resets in 7 days. To continue using this model now, enable usage from your available balance: <url>"
+    },
+    {
+      "modelId": "opencode-go:deepseek-flash",
+      "scenarioId": "S006",
+      "tier": "flash",
+      "status": "failed",
+      "result": {
+        "adapterId": "vessel",
+        "adapterVersion": "0.1.0",
+        "fixtureId": "S006",
+        "metrics": {
+          "success": false,
+          "wallTimeMs": 11202,
+          "toolCalls": 0,
+          "invalidCalls": 0,
+          "retries": 6,
+          "inputTokens": 0,
+          "outputTokens": 0,
+          "cacheReadTokens": 0,
+          "costUsd": 0,
+          "contextPeak": 0,
+          "compactions": 0,
+          "humanIntervention": 0,
+          "policyViolations": 0,
+          "resumeSuccess": false
+        },
+        "startedAt": "2026-09-12T05:50:08.172Z",
+        "artifacts": [
+          {
+            "kind": "session",
+            "path": "C:\\Users\\USER~1\\AppData\\Local\\Temp\\cah-vessel-S006-vwxRZ6\\.harness\\sessions\\sess_1789192208181_68f02c38\\session.jsonl"
+          },
+          {
+            "kind": "workspace",
+            "path": "C:\\Users\\USER~1\\AppData\\Local\\Temp\\cah-vessel-S006-vwxRZ6"
+          }
+        ],
+        "notes": [
+          "run raised: Error: Model call failed after 6 attempt(s): opencode-go 429 GoUsageLimitError (rate-limit): Monthly usage limit reached. Resets in 7 days. To continue using this model now, enable usage from your available balance: <url>"
+        ]
+      },
+      "note": "RunResult success=false：finalText 为空（toolCalls=0）；运行异常：run raised: Error: Model call failed after 6 attempt(s): opencode-go 429 GoUsageLimitError (rate-limit): Monthly usage limit reached. Resets in 7 days. To continue using this model now, enable usage from your available balance: <url>"
+    },
+    {
+      "modelId": "opencode-go:deepseek-flash",
+      "scenarioId": "S007",
+      "tier": "flash",
+      "status": "failed",
+      "result": {
+        "adapterId": "vessel",
+        "adapterVersion": "0.1.0",
+        "fixtureId": "S007",
+        "metrics": {
+          "success": false,
+          "wallTimeMs": 11869,
+          "toolCalls": 0,
+          "invalidCalls": 0,
+          "retries": 6,
+          "inputTokens": 0,
+          "outputTokens": 0,
+          "cacheReadTokens": 0,
+          "costUsd": 0,
+          "contextPeak": 0,
+          "compactions": 0,
+          "humanIntervention": 0,
+          "policyViolations": 0,
+          "resumeSuccess": false
+        },
+        "startedAt": "2026-09-12T05:50:19.378Z",
+        "artifacts": [
+          {
+            "kind": "session",
+            "path": "C:\\Users\\USER~1\\AppData\\Local\\Temp\\cah-vessel-S007-Dim4CO\\.harness\\sessions\\sess_1789192219385_59cf3841\\session.jsonl"
+          },
+          {
+            "kind": "workspace",
+            "path": "C:\\Users\\USER~1\\AppData\\Local\\Temp\\cah-vessel-S007-Dim4CO"
+          }
+        ],
+        "notes": [
+          "run raised: Error: Model call failed after 6 attempt(s): opencode-go 429 GoUsageLimitError (rate-limit): Monthly usage limit reached. Resets in 7 days. To continue using this model now, enable usage from your available balance: <url>"
+        ]
+      },
+      "note": "RunResult success=false：finalText 为空（toolCalls=0）；运行异常：run raised: Error: Model call failed after 6 attempt(s): opencode-go 429 GoUsageLimitError (rate-limit): Monthly usage limit reached. Resets in 7 days. To continue using this model now, enable usage from your available balance: <url>"
+    },
+    {
+      "modelId": "opencode-go:deepseek-flash",
+      "scenarioId": "S008",
+      "tier": "flash",
+      "status": "failed",
+      "result": {
+        "adapterId": "vessel",
+        "adapterVersion": "0.1.0",
+        "fixtureId": "S008",
+        "metrics": {
+          "success": false,
+          "wallTimeMs": 11253,
+          "toolCalls": 0,
+          "invalidCalls": 0,
+          "retries": 6,
+          "inputTokens": 0,
+          "outputTokens": 0,
+          "cacheReadTokens": 0,
+          "costUsd": 0,
+          "contextPeak": 0,
+          "compactions": 0,
+          "humanIntervention": 0,
+          "policyViolations": 0,
+          "resumeSuccess": false
+        },
+        "startedAt": "2026-09-12T05:50:31.251Z",
+        "artifacts": [
+          {
+            "kind": "session",
+            "path": "C:\\Users\\USER~1\\AppData\\Local\\Temp\\cah-vessel-S008-bb52g5\\.harness\\sessions\\sess_1789192231260_d0d30a13\\session.jsonl"
+          },
+          {
+            "kind": "workspace",
+            "path": "C:\\Users\\USER~1\\AppData\\Local\\Temp\\cah-vessel-S008-bb52g5"
+          }
+        ],
+        "notes": [
+          "run raised: Error: Model call failed after 6 attempt(s): opencode-go 429 GoUsageLimitError (rate-limit): Monthly usage limit reached. Resets in 7 days. To continue using this model now, enable usage from your available balance: <url>"
+        ]
+      },
+      "note": "RunResult success=false：finalText 为空（toolCalls=0）；运行异常：run raised: Error: Model call failed after 6 attempt(s): opencode-go 429 GoUsageLimitError (rate-limit): Monthly usage limit reached. Resets in 7 days. To continue using this model now, enable usage from your available balance: <url>"
+    },
+    {
+      "modelId": "opencode-go:deepseek-flash",
+      "scenarioId": "B019",
+      "tier": "flash",
+      "status": "skipped",
+      "note": "MCP driver (offline deterministic)"
+    },
+    {
+      "modelId": "opencode-go:deepseek-flash",
+      "scenarioId": "B020",
+      "tier": "flash",
+      "status": "skipped",
+      "note": "memory driver (offline deterministic)"
+    },
+    {
+      "modelId": "opencode-go:deepseek-flash",
+      "scenarioId": "B021",
+      "tier": "flash",
+      "status": "skipped",
+      "note": "skill driver (offline deterministic)"
+    },
+    {
+      "modelId": "opencode-go:deepseek-flash",
+      "scenarioId": "B026",
+      "tier": "flash",
+      "status": "skipped",
+      "note": "steering driver (source=steer redirect, offline deterministic)"
+    }
+  ],
+  "modelSummaries": [
+    {
+      "modelId": "opencode-go:mimo-v2.5-pro",
+      "displayName": "OpenCode Go mimo-v2.5-pro",
+      "runnableScenarios": 11,
+      "passed": 0,
+      "failed": 3,
+      "pendingEnvironment": 0,
+      "skipped": 8,
+      "wallTimeMs": 34381,
+      "toolCalls": 0,
+      "inputTokens": 0,
+      "outputTokens": 0,
+      "cacheReadTokens": 0,
+      "costUsd": 0
+    },
+    {
+      "modelId": "opencode-go:deepseek-flash",
+      "displayName": "OpenCode Go deepseek-flash",
+      "runnableScenarios": 14,
+      "passed": 0,
+      "failed": 10,
+      "pendingEnvironment": 0,
+      "skipped": 4,
+      "wallTimeMs": 115281,
+      "toolCalls": 0,
+      "inputTokens": 0,
+      "outputTokens": 0,
+      "cacheReadTokens": 0,
+      "costUsd": 0
+    }
+  ],
+  "degraded": false,
+  "reportMdPath": "C:\\work\\Vessel_Harness\\benchmarks\\reports\\real-model-lane-1789192092764.md",
+  "reportJsonPath": "C:\\work\\Vessel_Harness\\benchmarks\\reports\\real-model-lane-1789192092764.json"
+}

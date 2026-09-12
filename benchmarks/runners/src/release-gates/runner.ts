@@ -1,5 +1,6 @@
 /**
- * task 084 — Release Gates runner: sequential 8-gate execution → aggregate
+ * task 084 — Release Gates runner: sequential gate execution（§21 注册表 8 道 +
+ * 可选第 9 道 install-smoke）→ aggregate
  * release-report.json (schemaVersion + per-gate result/evidence/duration +
  * overall verdict) + release-report.md (human-readable).
  *
@@ -41,7 +42,7 @@ export interface ReleaseReport {
   version?: string;
   generatedAt: string;
   status: ReleaseStatus;
-  /** per-gate results, in §21 order (1..8). */
+  /** per-gate results, ordered by gate.position（§21 注册表 1..8；装了可选第 9 道时如实多一行）。 */
   gates: ReleaseGateResult[];
   /** machine summary counts. */
   totals: { pass: number; fail: number; pending: number; durationMs: number };
@@ -65,12 +66,14 @@ export function renderReleaseMarkdown(report: ReleaseReport): string {
   const line = (s = ''): string => (s.length > 0 ? `${s}\n` : '\n');
   const o: string[] = [];
   o.push(line(`# Release Report — ${report.version ?? 'v-unset'}`));
-  o.push(line(`> 任务卡：tasks/084-release-gates.md；权威需求：docs/Vessel路线 §21（L1946-1974，8 release gate）。`));
+  o.push(line(`> 任务卡：tasks/084-release-gates.md；权威需求：docs/Vessel路线 §21（L1946-1974，注册表 8 道常驻 release gate）+ 第 9 道「安装态冒烟」（install-smoke）为**可选**：VESSEL_GATE_INSTALL_SMOKE=1 才真跑，未启用时如实记 pending（不静默通过）。`));
   o.push(line(`> 生成于 ${report.generatedAt}；schema ${report.schemaVersion}；总判定：**${reportStatusLabel(report.status)}**`));
   o.push(line(`> 判定规则：全 pass=ready / 有 fail=blocked / 有 pending 无 fail=partial（不以自证为证）。`));
   o.push(line());
 
-  o.push(line('## 8 道发布门禁'));
+  // 标题的「N 道」由**实际收到的 gate 行数**推导（§21 注册表 8 道 + 可选第 9 道 install-smoke），
+  // 不得写死 —— 否则启用第 9 道时表格 9 行会与标题「8 道」自相矛盾。
+  o.push(line(`## 发布门禁（${report.gates.length} 道）`));
   o.push(line('| # | gate | status | duration(ms) | criterion | evidence |'));
   o.push(line('| --- | --- | --- | ---: | --- | --- |'));
   for (const g of report.gates) {

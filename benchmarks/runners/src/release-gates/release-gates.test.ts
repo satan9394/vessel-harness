@@ -315,6 +315,13 @@ describe('runner: sequential order + aggregation + overall verdict (tasks 084)',
     expect(md).toContain('环境注解');
     expect(md).toContain('env not available');
     expect(md).toContain('pass');
+    // 收紧（不得放宽）：标题的「N 道」必须由**实际收到的 gate 行数**推导 —— 本报告只有 3 行，
+    // 故标题为「3 道」而非 §21 注册表的「8 道」；同时 §21 注册表事实（8 道常驻 + 可选第 9 道）仍须如实标注。
+    expect(report.gates).toHaveLength(3);
+    expect(md).toContain('## 发布门禁（3 道）');
+    expect(md).not.toContain('8 道发布门禁');
+    expect(md).toContain('8 道常驻');
+    expect(md).toContain('install-smoke');
   });
 
   it('writeReleaseReportFiles persists release-report.md + .json (084 output), JSON round-trips', async () => {
@@ -329,7 +336,10 @@ describe('runner: sequential order + aggregation + overall verdict (tasks 084)',
       expect(parsed.schemaVersion).toBe(1);
       expect(parsed.status).toBe('ready');
       expect(parsed.gates).toHaveLength(8);
-      expect(fs.readFileSync(mdPath, 'utf8')).toContain('# Release Report');
+      const mdText = fs.readFileSync(mdPath, 'utf8');
+      expect(mdText).toContain('# Release Report');
+      // 收紧：全 8 道（allPass）时标题为「8 道」—— 同样由行数推导，而非写死。
+      expect(mdText).toContain('## 发布门禁（8 道）');
     } finally {
       fs.rmSync(dir, { recursive: true, force: true });
     }
