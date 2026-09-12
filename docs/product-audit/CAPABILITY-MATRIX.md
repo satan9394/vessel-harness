@@ -131,7 +131,7 @@ IDE 扩展型（Roo Code 已停服、Cursor CLI 闭源）不入主矩阵，仅�
 - 结论：Vessel 的 worktree 隔离其实比竞品的"当场改当场 commit"更干净（真隔离），但缺少**会话级快照/回滚的面向用户出口**（见 §6-4）。
 
 ### 13 Headless 脚本输出
-- Vessel：◐。有确定性输出通道：`run --bench <id>` 产 JSONL 报告、`bench-report` 聚合输出 md/json、`serve`/`web` 有 usage SSE；**但通用 `vessel run` 没有 `--json|--output-format` 结构化契约**，无法直接进 CI/管道消费。
+- Vessel：◐→**部分已补**。有确定性输出通道：`run --bench <id>` 产 JSONL 报告、`bench-report` 聚合输出 md/json、`serve`/`web` 有 usage SSE；**通用 `vessel run` 现已支持 `--json`**（Round 130 起：`--json` 时 stdout 只出一段文档，含 kind/finalText/steps/toolCalls/turnId/sessionLog），可直接进 CI/管道消费。**仍缺**：`--output-format stream-json`（流式结构化）、以及 `run --json` 目前**不含** `durationMs` 与拦截审计（正在补，见 PRODUCT-STATE 队列）。
 - 竞品：Claude Code `-p` + `--output-format json/stream-json`；Codex `exec --json`；Gemini `-p --output-format json|stream-json`（README 明确）；Aider `-m`；Cline CLI `--json`（README 明确）；OpenHands Agent Server REST。
 - 见 §6-3。
 
