@@ -244,7 +244,11 @@ describe('AgentLoop — finishReason 参与停止判定：被截断的回合不�
 
   it('② 负对照：正常结束（stop / 无 finishReason）⇒ kind=success，turn/end 与 after_turn 载荷逐字不变', async () => {
     // ②-a `chat()` 明确 'stop'
-    const provider = new ScriptedFinishProvider([resp('stop', 'NORMAL-REPLY-GOLDEN')]);
+    // Missing-usage negative control: keep every legacy key/value assertion below.
+    // Usage-bearing stop responses are covered by AgentLoop.log-evidence.test.ts.
+    const provider = new ScriptedFinishProvider([{
+      content: 'NORMAL-REPLY-GOLDEN', toolCalls: [], finishReason: 'stop',
+    } as unknown as ChatResponse]);
     const chatRun = await makeLoop(dir, provider);
     const chatAfterTurn: { turnId: string; kind: string }[] = [];
     chatRun.bus.on(

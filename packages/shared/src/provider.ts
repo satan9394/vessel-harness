@@ -98,6 +98,8 @@ export type ChatFinishReason = 'stop' | 'tool_calls' | 'length' | 'error';
 export interface ChatUsage {
   inputTokens: number;
   outputTokens: number;
+  /** Provider-supplied cost estimate in USD; absent means not reported. */
+  costEstimate?: number;
   cacheReadTokens?: number;
   /**
    * Cache **write** tokens (Anthropic `cache_creation_input_tokens`; task 099).
@@ -145,6 +147,8 @@ export type StreamChunk =
       type: 'usage';
       inputTokens?: number;
       outputTokens?: number;
+      /** Provider-supplied cost estimate in USD, cumulative within this response. */
+      costEstimate?: number;
       cacheReadTokens?: number;
       /** cache 写入 token（Anthropic message_start 携带；task 099，缺省即未上报） */
       cacheCreationTokens?: number;

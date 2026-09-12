@@ -68,6 +68,12 @@ export interface TurnResult {
 
 const MODEL_RETRYABLE = new Set(['RATE_LIMITED', 'TIMEOUT', 'SERVER_ERROR', 'NETWORK']);
 
+interface ModelResult {
+  response: ChatResponse;
+  reportedUsage?: Partial<ChatUsage>;
+  toolCallsWithoutEnd?: string[];
+}
+
 function classifyModelError(err: unknown): string {
   const m = (err as Error)?.message ?? String(err);
   if (/rate\s*limit|429/i.test(m)) return 'RATE_LIMITED';
@@ -270,6 +276,9 @@ export class AgentLoop {
     });
 
     let finalText = '';
+    let tokensUsed: number | undefined;
+    let costEstimate: number | undefined;
+    const toolCallsWithoutEnd: string[] = [];
     let dispatchedAny = false;
     let kind: TurnResult['kind'] = 'success';
     /**
@@ -316,7 +325,15 @@ export class AgentLoop {
         await bus.emit('before_model', { turnId, step, envelope });
 
         // Model call with retry (backoff ≤5, EVENT-SPEC A11)
-        const response = await this.callModel(envelope, turnId, step);
+        const result = await this.callModel(envelope, turnId, step);
+        const { response, reportedUsage } = result;
+        if (reportedUsage?.inputTokens !== undefined || reportedUsage?.outputTokens !== undefined) {
+          tokensUsed = (tokensUsed ?? 0) + (reportedUsage.inputTokens ?? 0) + (reportedUsage.outputTokens ?? 0);
+        }
+        if (reportedUsage?.costEstimate !== undefined) {
+          costEstimate = (costEstimate ?? 0) + reportedUsage.costEstimate;
+        }
+        if (result.toolCallsWithoutEnd) toolCallsWithoutEnd.push(...result.toolCallsWithoutEnd);
 
         if (response.toolCalls.length === 0) {
           // Pure text => stop (semantic stop criterion)
@@ -484,10 +501,13 @@ export class AgentLoop {
       // `packages/shared/src/events.ts` 的 `TurnEndRecord` 加一行 `finishReason?: ChatFinishReason;`
       // ——那属于**记录形状变更**，影响面已在交付 ② 里报告，本卡不自行扩大。
       ...(truncated ? { finishReason: 'length' } : {}),
+      ...(toolCallsWithoutEnd.length > 0 ? { toolCallsWithoutEnd } : {}),
       stats: {
         steps: this.state.snapshot().steps,
         toolCalls: this.state.snapshot().toolCalls,
         durationMs: Date.now() - startedAt,
+        ...(tokensUsed !== undefined ? { tokensUsed } : {}),
+        ...(costEstimate !== undefined ? { costEstimate } : {}),
       },
     });
     await bus.emit('after_turn', { turnId, kind });
@@ -513,7 +533,7 @@ export class AgentLoop {
    * model_stream_end {finishReason:'error'} so every attempt keeps a
    * start → end pairing.
    */
-  private async callModel(envelope: RequestEnvelope, turnId: string, step: number): Promise<ChatResponse> {
+  private async callModel(envelope: RequestEnvelope, turnId: string, step: number): Promise<ModelResult> {
     const maxRetries = this.deps.llmRetry?.maxRetries ?? 5;
     const request: ChatRequest = {
       model: envelope.model,
@@ -535,7 +555,8 @@ export class AgentLoop {
         if (typeof provider.stream === 'function') {
           return await this.consumeStream(provider.stream(request), request, turnId, step, requestId);
         }
-        return await provider.chat(request);
+        const response = await provider.chat(request);
+        return { response, ...(response.usage ? { reportedUsage: response.usage } : {}) };
       } catch (err) {
         // task 050: an abort wins over retry — interruption is never retried
         if (this.interruptCtl.aborted) throw new TurnInterruptedError();
@@ -575,7 +596,7 @@ export class AgentLoop {
     turnId: string,
     step: number,
     requestId: string,
-  ): Promise<ChatResponse> {
+  ): Promise<ModelResult> {
     const { bus } = this.deps;
     await bus.emit('model_stream_start', { turnId, step, requestId, model: request.model });
 
@@ -586,6 +607,9 @@ export class AgentLoop {
     const closed = new Set<string>();
     const toolCalls: ChatToolCall[] = [];
     const usage: ChatUsage = { inputTokens: 0, outputTokens: 0 };
+    // Attempt-local: synthetic usage zeros do not mean the provider reported usage.
+    const reportedUsage: Partial<ChatUsage> = {};
+    const toolCallsWithoutEnd: string[] = [];
     let wireFinish: string | undefined;
 
     const finalize = (id: string, acc: { name: string; args: string }): void => {
@@ -631,6 +655,12 @@ export class AgentLoop {
             break;
           }
           case 'usage':
+            if (chunk.inputTokens !== undefined) reportedUsage.inputTokens = chunk.inputTokens;
+            if (chunk.outputTokens !== undefined) reportedUsage.outputTokens = chunk.outputTokens;
+            if (chunk.costEstimate !== undefined) {
+              reportedUsage.costEstimate = chunk.costEstimate;
+              usage.costEstimate = chunk.costEstimate;
+            }
             if (chunk.inputTokens !== undefined) usage.inputTokens = chunk.inputTokens;
             if (chunk.outputTokens !== undefined) usage.outputTokens = chunk.outputTokens;
             if (chunk.cacheReadTokens !== undefined) usage.cacheReadTokens = chunk.cacheReadTokens;
@@ -661,7 +691,10 @@ export class AgentLoop {
     // Truncated stream: finalize any tool call that never saw tool_call_end.
     for (const id of order) {
       const acc = open.get(id);
-      if (acc && !closed.has(id)) finalize(id, acc);
+      if (acc && !closed.has(id)) {
+        toolCallsWithoutEnd.push(id);
+        finalize(id, acc);
+      }
     }
 
     const finishReason: ChatFinishReason = normalizeFinishReason(wireFinish, toolCalls.length > 0);
@@ -674,7 +707,11 @@ export class AgentLoop {
       toolCalls,
       usage,
     });
-    return { content: text, toolCalls, finishReason, usage, reasoningContent: reasoning.length > 0 ? reasoning : undefined };
+    return {
+      response: { content: text, toolCalls, finishReason, usage, reasoningContent: reasoning.length > 0 ? reasoning : undefined },
+      ...(Object.keys(reportedUsage).length > 0 ? { reportedUsage } : {}),
+      ...(toolCallsWithoutEnd.length > 0 ? { toolCallsWithoutEnd } : {}),
+    };
   }
 
   /**

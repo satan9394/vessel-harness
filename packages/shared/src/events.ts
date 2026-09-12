@@ -102,7 +102,10 @@ export interface TurnEndRecord extends SessionRecordBase {
     steps: number;
     toolCalls: number;
     durationMs: number;
+    tokensUsed?: number;
+    costEstimate?: number;
   };
+  toolCallsWithoutEnd?: string[];
   surface: false;
 }
 

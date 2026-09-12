@@ -469,6 +469,9 @@ seq        : number        # 会话内事件序号（不变式校验用）
 - **B05 `tool/result`** —— 冻结权威结果，`surface:true`（下一步据此重新派生历史）；只存 `content/error/meta`（canonical value 不入日志）；`error` 变体覆盖 ToolError 失败；子代理结果契约（output/structured/stopReason）也落此。
 - **B06 `step/start`** / **B07 `step/end`** —— 步骤边界（不产生消息）；配对不变式（回放校验：编号连续、tool 配对、retry 记录）。
 - **B08 `turn/start`** / **B09 `turn/end`** —— 轮次边界（`turn/end {kind: success|error|interrupted|budget}`，崩溃恢复在 resume 时合成 `interrupted` 关闭器）。
+  - 持久记录的 `stats` 保留 `steps/toolCalls/durationMs`，并按下列规则条件添加字段（不改变 `after_turn` 事件载荷）：
+  - `tokensUsed` 累加本轮成功返回的模型调用实际报告的 `inputTokens + outputTokens`（不另加 cache 字段）；`costEstimate` 累加这些调用提供的 USD 估值，core 不查价。二者是已报告值的合计，部分调用缺值时不代表完整账单；完全未报告对应值则省略键，报告零则保留零。
+  - 条件字段 `toolCallsWithoutEnd?: string[]` 记录本轮成功返回的 stream attempt 在流末兜底 finalize 的调用 id；仅非空时出现。每次 `consumeStream` 入口使用独立累积器，失败/重试 attempt 不计入本轮合计；跨成功步骤累积，下一轮重置。`model_stream_end` 顶层形状保持不变。
 - **B10 `session/created`** —— 会话创建（含 `parentSession`/`isSeeded`/`delegationDepth`/`origin:'subagent'` 等 header 元数据存日志旁）；回滚保护：setup 失败不发布任何 id。
 - **B11 `session/end-seed`** —— 种子边界标记（fork = seed 前缀 + 谱系；压缩不丢此边界）。
 - **B12 `request/header`** —— 每个冻结请求的全量 envelope（system/messages/tools/配置/适配器默认值），可 `foldRequestHeader` 重建请求；「模型可见 ⟺ 已记录」不变式落点（DSH 原则 1，行 43/320）。
