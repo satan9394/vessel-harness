@@ -1,16 +1,17 @@
 # PRODUCT-STATE — Vessel 产品演进状态（Orchestrator 维护）
 
-> 每轮结束更新。**当前进度：第 13 轮**（Round 1–12 已闭环/待终评，Round 13 MCP 半实现中）。基线：`tsc 0`、**126 文件 / 1335 passed + 1 skipped / exit 0**。
+> 每轮结束更新。**当前进度：第 14 轮**（Round 1–13 已闭环，Round 14 三片实现完成、独立复评在途）。基线：`tsc 0`、**130 文件 / 1401 passed + 3 skipped / 0 failed**、**发布门禁 8/8 `ready`**。
 > 产物索引：`docs/PROJECT-BRIEF.md`、`docs/product-audit/*`（4 份独立审计）、`PRODUCT-GAP-MAP.md`（缺口+路线图）、`IMPLEMENTATION-BRIEF-0N.md` / `EVALUATION-REPORT-0N.md`（每轮规格与独立裁定）、本文档（状态与纪律）。
 
 ## 当前成熟度
 
 | 维度 | 评估 |
 |---|---|
-| 内部工程成熟度 | **高** — 依赖零环（Round 7b 又一次主动维护：把 `sanitizeWireSnippet` 下沉去环）、8 道发布门禁且 web 已纳入类型门禁、1300+ 测试 |
-| 对外可启动成熟度 | **中高** — 首跑可用（G-01/G-02/G-14）、崩溃面给人话+路径+恢复指引（G-03）、会话可续跑（G-10）、`--json` 机器面（G-11 半） |
-| 数据与密钥安全 | **显著改善** — usage 损坏隔离留档+备份轮转（G-04）、密钥不再进命令行、secrets 损坏默认可恢复（G-05a）、错误体全链路脱敏（G-05b + Round 7b） |
-| 主要短板（当前） | 快照回滚全仓零实现（**已论证推迟**：Session 日志不记旧内容无法重放、Shell 写入绕过备份）；MCP 配置入口接线未完成（读取器/传输层已就绪）；CLI 面错误出口仍有约 30 处未 `--json` 化（P3）；locale/theme 已完成收口 |
+| 内部工程成熟度 | **高** — 依赖零环（Round 7b 主动维护：`sanitizeWireSnippet` 下沉去环）、**8 道发布门禁 8/8 `ready`**（`build` 判据已含 `apps/web` 类型检查）、**130 文件 / 1401 passed + 3 skipped / 0 failed** |
+| 对外可启动成熟度 | **中高** — 首跑可用（G-01/G-02/G-14）、崩溃面给人话+路径+恢复指引（G-03）、会话可续跑（G-10）、**机器面完整**（`--json`：五条只读命令 + **全部 57 处命令失败出口**统一错误信封，Round 14 A） |
+| 数据与密钥安全 | **显著改善** — usage 损坏隔离留档+备份轮转（G-04）、密钥不进命令行、secrets 损坏默认可恢复（G-05a）、错误体全链路脱敏（G-05b + Round 7b）、MCP 子进程不再泄漏为孤儿（Round 13 FIX） |
+| 可扩展性 | **中** — MCP 配置入口已通（Round 13：`~/.vessel/mcp.json` + 任意命令 + 逐 server 降级），真跨进程 E2E 有判别性证据 |
+| 主要短板（当前） | 快照回滚全仓零实现（**已论证推迟**：Session 日志不记旧内容无法重放、Shell 写入绕过备份 → 给用户错误安全感）；全量 i18n 架构未做（仅 guide/explain 双语文案）；`~/.vessel` 状态根解析在 7+ 处重复（P4）；`--json` 下 `console.warn` 仍打人类文案（P4） |
 
 ## 已解决问题（本轮 NOW 切片）
 
