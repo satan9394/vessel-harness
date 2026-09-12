@@ -84,9 +84,32 @@ export interface SandboxDeps {
   /** job-owned OS helpers (descendant enumeration + attach) — injectable for tests. */
   enumerateDescendants?: (rootPid: number) => Promise<number[]>;
   attachPidsToJob?: (jobName: string, pids: number[]) => Promise<number>;
-  /** hard escape-response terminator (defaults to TerminateProcess via PowerShell). */
-  terminatePids?: (pids: number[]) => Promise<number>;
+  /**
+   * hard escape-response terminator (defaults to TerminateProcess via PowerShell).
+   * Returns the pids that were **verified terminated** — a pid that could not be
+   * opened/terminated is NOT part of the result, so the audit can tell the truth.
+   */
+  terminatePids?: (pids: number[]) => Promise<number[]>;
+  /**
+   * degradation reporter (plain-function injection, no `vi.fn`/mock restore).
+   * Defaults to `console.warn`; tests inject a recorder to keep output clean.
+   */
+  warn?: (message: string) => void;
 }
+
+/**
+ * Why confinement is NOT actually in force, when it isn't. This is the field
+ * that makes a silent degradation visible: `active` is never true unless the
+ * backend genuinely attached.
+ *
+ *  - `job-object-not-attempted`     → nothing has been confined yet on this instance
+ *  - `job-object-attach-failed`     → the job factory threw (this command ran unconfined)
+ *  - `job-object-unavailable`       → the platform has no Job Object backend (linux/darwin)
+ */
+export type ConfinementDegradeReason =
+  | 'job-object-not-attempted'
+  | 'job-object-attach-failed'
+  | 'job-object-unavailable';
 
 /** A confinement session: a fresh isolation cwd + a lazily-attached kill handle. */
 export interface ConfinementSession {
@@ -108,6 +131,17 @@ export class Sandbox {
   private readonly enumerateDescendants: NonNullable<SandboxDeps['enumerateDescendants']>;
   private readonly attachPidsToJob: NonNullable<SandboxDeps['attachPidsToJob']>;
   private readonly terminatePids: NonNullable<SandboxDeps['terminatePids']>;
+  private readonly warn: NonNullable<SandboxDeps['warn']>;
+  /**
+   * Did the Job Object backend ACTUALLY attach? `statusSnapshot()` reads this —
+   * never the platform alone. `false` until an attach for the current round has
+   * really succeeded.
+   */
+  private jobAttached = false;
+  /** why confinement is not in force (undefined when it is). */
+  private degraded?: ConfinementDegradeReason;
+  /** human-readable degradation detail (the caught error message). */
+  private degradedDetail?: string;
 
   constructor(deps: SandboxDeps = {}) {
     this.platform = deps.platform ?? process.platform;
@@ -118,6 +152,7 @@ export class Sandbox {
     this.attachPidsToJob =
       deps.attachPidsToJob ?? ((job, pids) => WindowsJobObject.attachPidsToJob(job, pids));
     this.terminatePids = deps.terminatePids ?? ((pids) => WindowsJobObject.terminatePids(pids));
+    this.warn = deps.warn ?? ((message: string) => console.warn(message));
   }
 
   /** Backend kind configured on this platform. */
@@ -126,25 +161,77 @@ export class Sandbox {
     return this.platform === 'darwin' ? 'macos-seatbelt' : 'linux-bwrap';
   }
 
-  private isActive(): boolean {
+  /**
+   * Whether confinement CAN be attempted on this platform (precondition gate for
+   * `attach`). This is deliberately NOT the same question as "is confinement
+   * actually in force" — that one is answered by {@link statusSnapshot} from the
+   * recorded attach outcome, never from the platform alone.
+   */
+  private canAttempt(): boolean {
     return WindowsJobObject.isSupported(this.platform);
+  }
+
+  /** Reset the round-scoped confinement fact (called when a round opens). */
+  private beginRound(): void {
+    this.jobAttached = false;
+    this.degraded = undefined;
+    this.degradedDetail = undefined;
+  }
+
+  /** Record a REAL attach success — the only thing that may turn `active` true. */
+  private markJobAttached(): void {
+    this.jobAttached = true;
+    this.degraded = undefined;
+    this.degradedDetail = undefined;
+  }
+
+  private jobUnavailableReason(): ConfinementDegradeReason {
+    return WindowsJobObject.isSupported(this.platform)
+      ? 'job-object-not-attempted'
+      : 'job-object-unavailable';
+  }
+
+  /**
+   * Record a REAL confinement failure (degradation is kept — commands still run —
+   * but it is no longer silent: the status reflects it and a warn carries the cause).
+   */
+  private degradeJobObject(detail: string): void {
+    this.jobAttached = false;
+    this.degraded = 'job-object-attach-failed';
+    this.degradedDetail = detail;
+    this.warn(
+      `[vessel] sandbox degraded: windows job object attach failed (${detail}) — this command runs with NO process-tree confinement (direct-child kill only)`,
+    );
   }
 
   status(): SandboxStatus {
     return this.statusSnapshot();
   }
 
+  /**
+   * HONEST status: `active`/`enabled` are true only when the Job Object backend
+   * genuinely attached — the platform gate alone is never enough. When it did
+   * not, `degraded` carries the machine-readable reason and `fallbackReason`
+   * the human one, so a silent downgrade ("looks enabled, actually passthrough")
+   * is impossible.
+   */
   statusSnapshot(): SandboxStatus {
     const supported = this.backendFor();
-    const active = this.isActive();
+    const active = this.jobAttached;
+    const degraded = active ? undefined : (this.degraded ?? this.jobUnavailableReason());
+    const fallbackReason =
+      degraded === 'job-object-unavailable'
+        ? `${supported} backend not active on this platform; confine is passthrough`
+        : degraded === 'job-object-attach-failed'
+          ? `windows job object attach FAILED${this.degradedDetail ? ` (${this.degradedDetail})` : ''}; this run had no process-tree confinement`
+          : `windows job object backend not attached yet; confinement engages per command (restricted-token not implemented, see task 071)`;
     return {
       enabled: active,
       supported,
       active,
       backend: active ? 'job-object' : 'none',
-      fallbackReason: active
-        ? 'windows job object backend: tree-kill + active-process cap + isolation dir (restricted-token not implemented, see task 071)'
-        : `${supported} backend not active on this platform; confine is passthrough`,
+      degraded,
+      fallbackReason,
     };
   }
 
@@ -154,14 +241,22 @@ export class Sandbox {
    * confinement should use `run()` / `openConfinement()`.
    */
   async confine(argv: string[], _policyHint?: Record<string, unknown>): Promise<ConfinedArgv> {
-    if (WindowsJobObject.isSupported(this.platform)) {
-      return { argv, enforcement: 'full', reason: 'windows-job-object backend' };
+    if (!this.canAttempt()) {
+      return {
+        argv,
+        enforcement: 'partial',
+        reason: this.statusSnapshot().fallbackReason,
+      };
     }
-    return {
-      argv,
-      enforcement: 'partial',
-      reason: this.statusSnapshot().fallbackReason,
-    };
+    if (this.degraded === 'job-object-attach-failed') {
+      // a real attach already failed: do not keep claiming 'full'.
+      return {
+        argv,
+        enforcement: 'partial',
+        reason: this.statusSnapshot().fallbackReason,
+      };
+    }
+    return { argv, enforcement: 'full', reason: 'windows-job-object backend' };
   }
 
   /**
@@ -173,12 +268,15 @@ export class Sandbox {
    * the job.
    */
   async openConfinement(limits?: SandboxLimits): Promise<ConfinementSession> {
-    const active = this.isActive();
+    const attemptable = this.canAttempt();
+    this.beginRound();
     const isolation = await this.makeIsolatedDir();
     const jobFactory = this.createJob;
     const enumerateDescendants = this.enumerateDescendants;
     const attachPidsToJob = this.attachPidsToJob;
     const runEscapeDetection = this.runEscapeDetection.bind(this);
+    const degradeJobObject = this.degradeJobObject.bind(this);
+    const markJobAttached = this.markJobAttached.bind(this);
     const tree = new ProcessTreeTracker();
     let job: JobObjectConfinement | null = null;
     let disposed = false;
@@ -189,14 +287,17 @@ export class Sandbox {
     return {
       cwd: isolation.path,
       async attach(pid: number): Promise<void> {
-        if (!active || disposed || job) return;
+        if (!attemptable || disposed || job) return;
+        tree.registerNode(pid);
         try {
-          tree.registerNode(pid);
           job = await jobFactory(pid, {
             maxActiveProcesses: limits?.maxActiveProcesses,
             maxProcessTimeMs: limits?.maxProcessTimeMs,
             maxWorkingSetBytes: limits?.maxWorkingSetBytes,
           });
+          // the job handle exists only once the factory resolved ⇒ confinement is
+          // genuinely in force for this round (status must say so).
+          markJobAttached();
           confined.add(pid);
           // close the 071 timing window: pre-attach grandchildren are not in the
           // job yet, so enumerate current descendants and pull them in.
@@ -212,15 +313,18 @@ export class Sandbox {
             }
             tree.record('window-closed', `closed timing window for root pid ${pid} (${descendants.length} descendants)`, pid);
           }
-        } catch {
-          job = null; // degrade: direct-child kill still works via runCommand
+        } catch (err) {
+          // degrade: direct-child kill still works via runCommand — but the
+          // degradation is recorded + warned, never silent.
+          job = null;
+          degradeJobObject(err instanceof Error ? err.message : String(err));
         }
       },
       async dispose(): Promise<void> {
         if (disposed) return;
         disposed = true;
         // tree-escape detection (hard enforcement when limits.terminateEscaped).
-        if (active && job && tree.root !== undefined) {
+        if (attemptable && job && tree.root !== undefined) {
           await runEscapeDetection(tree, confined, limits);
         }
         if (job) await job.dispose();
@@ -256,7 +360,10 @@ export class Sandbox {
       audit: ProcessTreeAuditEvent[];
     }
   > {
-    const active = this.isActive();
+    // round-scoped honest state: the status returned below reflects THIS spawn.
+    const attemptable = this.canAttempt();
+    this.beginRound();
+    const isolateEnv = attemptable;
     const isolation = await this.makeIsolatedDir();
     const jobFactory = this.createJob;
     const tree = new ProcessTreeTracker();
@@ -279,11 +386,15 @@ export class Sandbox {
           maxProcessTimeMs: opts.limits?.maxProcessTimeMs,
           maxWorkingSetBytes: opts.limits?.maxWorkingSetBytes,
         });
-      } catch {
+      } catch (err) {
+        // degrade — but say so: status goes non-active and a warn carries the cause.
         holder.current = null;
+        this.degradeJobObject(err instanceof Error ? err.message : String(err));
         return;
       }
       holder.current = j;
+      // the job handle resolved ⇒ confinement is genuinely in force for this run
+      this.markJobAttached();
       confined.add(pid);
       // close the 071 timing window: pull pre-attach descendants into the job.
       if (opts.limits?.closeTimingWindow !== false) {
@@ -306,7 +417,7 @@ export class Sandbox {
       cwd: opts.cwd ?? isolation.path,
       env: {
         ...opts.env,
-        ...(active ? { TMP: isolation.path, TEMP: isolation.path, TMPDIR: isolation.path } : {}),
+        ...(isolateEnv ? { TMP: isolation.path, TEMP: isolation.path, TMPDIR: isolation.path } : {}),
       },
       timeoutMs: opts.timeoutMs,
       maxOutputBytes: opts.maxOutputBytes,
@@ -314,7 +425,7 @@ export class Sandbox {
       signal: opts.signal,
       confinement: guard,
       onSpawn: ({ pid }) => {
-        if (active && pid != null) attachHolder.promise = attachRootAndWindow(pid);
+        if (attemptable && pid != null) attachHolder.promise = attachRootAndWindow(pid);
       },
     });
     // wait for the async attach (job create + timing-window closure) to settle so
@@ -341,6 +452,11 @@ export class Sandbox {
    * of the confined root and flag any that are not in the positively-confined
    * set. Records audit entries; when `limits.terminateEscaped` is set, hard
    * terminates them via a fresh job-terminate (mechanism-level enforcement).
+   *
+   * Honest accounting (task 072 audit truthfulness): only the pids the
+   * terminator reports as **actually terminated** are recorded as
+   * `escape-terminated`; every remaining escaped pid gets an explicit
+   * `escape-terminate-failed` entry. "We tried" is never recorded as "it is dead".
    */
   private async runEscapeDetection(
     tree: ProcessTreeTracker,
@@ -356,14 +472,25 @@ export class Sandbox {
         // Hard response: TerminateProcess each escaped pid directly. Terminating
         // the whole job would also kill the confined root, so we target only the
         // escaped processes — mechanism-level, pid-scoped enforcement.
-        await this.terminatePids(pids);
+        // The terminator answers with the VERIFIED-success set, never a count.
+        return await this.terminatePids(pids);
       },
     });
     for (const pid of report.escapedPids) {
       tree.record('escape-detected', `pid ${pid} running outside confined set (escaped)`, pid);
     }
+    const verified = new Set(report.terminatedPids);
     for (const pid of report.terminatedPids) {
       tree.record('escape-terminated', `pid ${pid} terminated (tree escape)`, pid);
+    }
+    for (const pid of report.escapedPids) {
+      if (verified.has(pid)) continue;
+      // still alive (or never verified dead) — the audit must NOT claim otherwise.
+      tree.record(
+        'escape-terminate-failed',
+        `pid ${pid} NOT verified terminated (still alive / termination failed) — escape response incomplete`,
+        pid,
+      );
     }
   }
 }
