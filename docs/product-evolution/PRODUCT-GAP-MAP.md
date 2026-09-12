@@ -334,3 +334,14 @@ parseFailed=true  ⇒ AgentLoop 退化成 {_raw:...}，工具拿不到 path
 
 **修法决定（我做的取舍）**：倾向**生产侧最小修法 A**——`input` 为**空对象（无自有键）时不写种子**，非空 `input` 仍照旧序列化（兼容"把整份 input 放在 `content_block_start`"的实现）。**不选 B（消费侧首个 delta 覆盖）**：那会让"start 带真实种子"的 provider 丢参数，且改动核心消费逻辑、影响面更大。
 **已修并提交（`55c7d1a`）**。**我的独立端到端复测**（修复后）：规范流 ⇒ `accumulated="{\"path\":\"a.txt\"}"` 且 `streamedParsed={path:"a.txt"}`；**内联风格**（整份 input 放在 `content_block_start`）⇒ 种子仍保留且可用 ⇒ **兼容面没被"一律丢种子"的粗暴修法弄坏**（这正是我要求"不得把一种坏换成另一种坏"的那条）。**原验收硬要求（仍作为该卡的判据留档）**：**必须走消费侧**——断言"规范 Anthropic 流 ⇒ 工具最终参数是合法 JSON 且 `path === 'a.txt'`"（旧实现给 `{_raw:…}` ⇒ 必红）；**只测 chunk 形状不算**。允许按新语义更新那条 `'{}'` 旧断言，但须逐条说明改动、论证**不弱于**旧断言，并保留"除该处种子语义外其余 chunk 序列逐字一致"的负对照。**已派卡。**
+
+### Round 63 — 家族清查（阴性结论，但值得留档）
+
+本段出现了**三次同形缺陷**（种子 `'{}'`、OpenAI "start 之后重复 id+name 重发 start"、Anthropic "重复 `content_block_start`"），形态都是"**协议帧 × 消费侧按 id 的共享累加器被覆盖**"。我按纪律做了**家族性清查**（grep `open.set(` / `acc.args +=` / 累加器关键词，覆盖 `packages/**`）：
+
+**结论：这套模式在全仓只有一处消费者与两个生产者**——
+- 唯一消费者：`packages/core/src/agent-loop/AgentLoop.ts:486/493`（`open` Map，按 `chunk.id` 键；`tool_call_end` 时 `finalize`）；
+- 两个生产者：`packages/llm/src/stream/parseOpenAI.ts` 与 `parseAnthropic.ts`；
+- 除**正在派卡修的"重复 `content_block_start`"**外，**没有第四处同形点**（`packages/**` 其余命中都是文档注释、测试里的等价累加器，或无关的"累加"用词）。
+
+⇒ **这一点值得留档**，因为它把"该族是否还有漏网"变成**已查证**：修完重复 start 后，这条线可以判定为**闭合**，下一个人不必再扫一遍。**同时也说明该族的边界**：它只在"**多帧拼一个字符串、且拼装状态由 id 索引**"的地方出现——本仓恰好只有工具参数这一条链。
