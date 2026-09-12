@@ -128,7 +128,7 @@ describe('policy/risk — Compiler `Shell(...)`/`Bash(...)` matcher: `*` glob su
 
 describe('policy/risk — force-push 拦截端到端（系统默认策略真正生效）', () => {
   it('configs/policy.default.yaml 的 shell-force-push 现在真的命中 force push', () => {
-    const yamlText = fs.readFileSync(new URL('../../../../configs/policy.default.yaml', import.meta.url), 'utf8');
+    const yamlText = fs.readFileSync(DEFAULT_POLICY_PATH, 'utf8');
     const rule = compiledRule('shell-force-push', yamlText);
     expect(rule.match(shellCall('git push --force origin main'))).toBe(true);
     expect(rule.match(shellCall('git push --force-with-lease origin main'))).toBe(true);

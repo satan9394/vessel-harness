@@ -133,22 +133,97 @@ function errorMessage(err: unknown): string {
   return (err as Error | undefined)?.message ?? String(err);
 }
 
+/** 动作严格度序（POLICY-SPEC §4.2 决策序 + §6.2「同 specificity 冲突取最严」）。 */
+const ACTION_STRICTNESS: Readonly<Record<string, number>> = { allow: 0, ask: 1, deny: 2 };
+
+/**
+ * 取**更严**的一侧：`deny` > `ask` > `allow`（`network.default` 的 `deny` > `allow` 同表）。
+ *
+ * 未声明的一侧让位；两侧同严时保留**高层**（`higher`）取值。未登记的动作取值按**最宽松**计，
+ * 因此一个不认识的取值**永远不会**压过已认识的更严取值（fail-closed：宁可保留旧的严）。
+ */
+function strictestAction<T extends string>(higher: T | undefined, lower: T | undefined): T | undefined {
+  if (higher === undefined) return lower;
+  if (lower === undefined) return higher;
+  return (ACTION_STRICTNESS[lower] ?? 0) > (ACTION_STRICTNESS[higher] ?? 0) ? lower : higher;
+}
+
+/** `audit.details` 的详尽度序；**未登记的取值按最详尽处理**（不认识的层级不得被低层降级）。 */
+const AUDIT_DETAIL_RANK: Readonly<Record<string, number>> = {
+  none: 0,
+  off: 0,
+  minimal: 1,
+  summary: 1,
+  redacted: 1,
+  full: 2,
+};
+
+/** 取**更详尽**的 `audit.details`（`full` > summary/redacted/minimal > none；未知 ⇒ 最详尽）。 */
+function strictestAuditDetails(higher: string | undefined, lower: string | undefined): string | undefined {
+  if (higher === undefined) return lower;
+  if (lower === undefined) return higher;
+  const rank = (v: string): number => AUDIT_DETAIL_RANK[v.trim().toLowerCase()] ?? Number.MAX_SAFE_INTEGER;
+  return rank(lower) > rank(higher) ? lower : higher;
+}
+
+/**
+ * 列表并集（拼接、**不去重**，与 `shell.deny` / `tools.deny` 口径一致）。
+ * 返回 `undefined` 表示**所有层都未声明**该键 —— 保持「未声明」形状，不伪造空数组。
+ */
+function unionLists(higher: readonly string[] | undefined, lower: readonly string[] | undefined): string[] | undefined {
+  if (higher === undefined && lower === undefined) return undefined;
+  return [...(higher ?? []), ...(lower ?? [])];
+}
+
+/** `git` 域已登记字段（语义已定序；其余键走 `inheritUnknownKeys`）。 */
+const GIT_KNOWN_KEYS: ReadonlySet<string> = new Set(['force_push']);
+/** `network` 域已登记字段。 */
+const NETWORK_KNOWN_KEYS: ReadonlySet<string> = new Set(['default', 'deny_domains']);
+/** `audit` 域已登记字段。 */
+const AUDIT_KNOWN_KEYS: ReadonlySet<string> = new Set(['events', 'details']);
+
+/**
+ * `git` / `network` / `audit` 里**未登记**字段的合成：**高层先声明者胜出**——低层只能补高层没有的键，
+ * 不得改写高层已给出的未知字段（「不确定的字段一律选更严」）。`undefined` 取值一律忽略。
+ */
+function inheritUnknownKeys(higher: object | undefined, lower: object, known: ReadonlySet<string>): Record<string, unknown> {
+  const picked: Record<string, unknown> = {};
+  for (const [k, v] of Object.entries(lower)) {
+    if (!known.has(k) && v !== undefined) picked[k] = v;
+  }
+  for (const [k, v] of Object.entries(higher ?? {})) {
+    if (!known.has(k) && v !== undefined) picked[k] = v; // 高层覆盖低层
+  }
+  return picked;
+}
+
 /**
  * merge scopes — 多层合成（层序 `system > project`：**左侧为高层**，`decls` 即按此序传入）。
  *
- * 语义分两类（对齐 POLICY-SPEC §6.2）：
+ * 语义分三类（对齐 POLICY-SPEC §6.2「deny 全局优先 / 低层只能加限制，不能放宽」）：
  *
  * - **`profile` / `approval` 采用高层优先（first-declared wins）**：只有更高层都没声明时才采用本层的值，
  *   故 `project`（`.harness/policy.yaml`）**不能**把 `system` 的 `workspace-write` 抬升为
  *   `danger-full-access`，也不能把 `approval` 从 `ask` 放宽为 `never`（收窄/放宽只能由会话 flag 显式完成，
  *   见 `loadPolicyArtifacts` 的 `sessionOverrides`）。若**所有**层都未声明，遍历结束后补兜底默认
  *   （`profile: 'workspace-write'`、`approval: 'never'`），即「无任何层声明」时行为与改前一致。
+ * - **`git` / `network` / `audit` 单调趋严（monotonic tightening）**：低层**只能收紧，不能放宽**——
+ *   - `git.force_push`：三态取**最严**（`deny` > `ask` > `allow`）。project 写 `allow` **覆盖不掉** system 的
+ *     `deny`（与 POLICY-SPEC §3.5「同主张多处声明取最严 action」同源；`Compiler.ts:216` 据此产出
+ *     `git:force-push` 规则，故克隆一个仓库放进 `.harness/policy.yaml` 无法放宽 force-push 保护）。
+ *   - `network.deny_domains`：**并集**（拼接、不去重）——project 写 `[]` 抹不掉 system 的
+ *     `169.254.169.254` 元数据 IP（§6.2「deny 集合并集」）。`network.default` 取**最严**
+ *     （`deny` > `allow`）：default-deny 不可被低层降级为 default-allow。
+ *   - `audit.events`：**并集**（审计面只能扩大、不能缩减，project 写 `[]` 无效）；`audit.details` 取**最详尽**者
+ *     （`full` > summary/redacted/minimal > none，未登记的取值按最详尽处理）。
+ *   - 三个域内**未登记**的字段（类型未声明者，如 `network.allow_domains`）一律**高层先声明者胜出**：
+ *     低层只能补高层没有的键，不得改写高层已给出的未知字段（「不确定的字段一律选更严」）。
  * - **列表类为并集**（拼接、不去重）：`guidance`、`filesystem.protected` / `deny_read`、
  *   `shell.deny` / `scoped_rules`、`tools.deny` / `rules`、`filesystem.allow`、`shell.allow` 等。
  *   单调趋严：低层**只能加限制、不能放宽**（deny 全局优先，不可被任何层、任何更细 allow 豁免）。
  *
- * 已知放宽面（本轮**有意未改**）：`git` / `network` / `audit` 仍是浅覆盖（`{...out.x, ...d.x}`，后者覆盖
- * 前者同名字段），低层可覆盖高层 —— 待后续卡片按 §6.2 收口。
+ * 即：**无 workspace trust 门时（§6.1 实现状态），project 层仍只能加限制、不能放宽 `system` 的限制**；
+ * 放宽只能由会话 flag（`sessionOverrides`）显式完成。
  */
 export function mergeScopes(decls: PolicyDeclaration[]): PolicyDeclaration {
   // `profile`/`approval` 不预置默认值：用局部变量记录「首个声明者」，遍历后再补兜底默认。
@@ -183,9 +258,32 @@ export function mergeScopes(decls: PolicyDeclaration[]): PolicyDeclaration {
         rules: [...(out.tools?.rules ?? []), ...(d.tools.rules ?? [])],
       };
     }
-    if (d.git) out.git = { ...(out.git ?? {}), ...d.git };
-    if (d.network) out.network = { ...(out.network ?? {}), ...d.network };
-    if (d.audit) out.audit = { ...(out.audit ?? {}), ...d.audit };
+    // git / network / audit：单调趋严（低层只能收紧，不能放宽）——见上方 JSDoc 与 POLICY-SPEC §6.2。
+    if (d.git) {
+      const next: NonNullable<PolicyDeclaration['git']> = {};
+      Object.assign(next, inheritUnknownKeys(out.git, d.git, GIT_KNOWN_KEYS));
+      const forcePush = strictestAction(out.git?.force_push, d.git.force_push);
+      if (forcePush !== undefined) next.force_push = forcePush;
+      out.git = next;
+    }
+    if (d.network) {
+      const next: NonNullable<PolicyDeclaration['network']> = {};
+      Object.assign(next, inheritUnknownKeys(out.network, d.network, NETWORK_KNOWN_KEYS));
+      const defaultAction = strictestAction(out.network?.default, d.network.default);
+      if (defaultAction !== undefined) next.default = defaultAction;
+      const denyDomains = unionLists(out.network?.deny_domains, d.network.deny_domains);
+      if (denyDomains !== undefined) next.deny_domains = denyDomains;
+      out.network = next;
+    }
+    if (d.audit) {
+      const next: NonNullable<PolicyDeclaration['audit']> = {};
+      Object.assign(next, inheritUnknownKeys(out.audit, d.audit, AUDIT_KNOWN_KEYS));
+      const events = unionLists(out.audit?.events, d.audit.events);
+      if (events !== undefined) next.events = events;
+      const details = strictestAuditDetails(out.audit?.details, d.audit.details);
+      if (details !== undefined) next.details = details;
+      out.audit = next;
+    }
   }
   // 兜底默认：仅当**所有**层都未声明该键时生效（保证与「无层声明」的既有行为一致）
   return {
