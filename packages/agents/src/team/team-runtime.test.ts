@@ -576,4 +576,111 @@ describe('agents/team — TeamRuntime（057）', () => {
     // team_end 成员摘要带结构化 review（投影消费面）
     expect(rev.review?.verdict).toBe('not_met');
   });
+
+  /**
+   * BRIEF「同一件事三处实现、两套口径」—— **复现①（TeamRuntime 越词表）**。
+   *
+   * 代码路径（改前）：`TeamRuntime.runMemberPhase` 的
+   * `stopReason: turn.kind === 'success' ? undefined : turn.kind`
+   * —— 直接把**回合 kind** 当 `stopReason` 输出。
+   *
+   * 本用例走**真实链路**（真 AgentLoop + MockProvider）造出一个 `kind='budget'` 的回合：
+   * MockProvider 返回空文本、无工具调用 ⇒ AgentLoop 的纯文本停路径 `finalText === ''`、
+   * 初始 `kind='success'` ⇒ 收尾兜底（AgentLoop.ts:432-435）把 kind 判成 `'budget'`。
+   * 而 `SubagentResultContract.stopReason`（shared/events.ts:242）词表是
+   * `completed|aborted|error|max_tokens|refusal|denied` —— **不含 `'budget'`**。
+   * ⇒ 改前此处输出 `'budget'`（越词表），本用例必红；修复后必须是词表内的 `'max_tokens'`。
+   */
+  it('BRIEF-stopReason①：kind=budget 的成员回合 ⇒ stopReason 是词表内的 max_tokens（旧实现吐越词表的 budget ⇒ 必红）', async () => {
+    const bus = new EventBus();
+    const runtime = new TeamRuntime({
+      workspaceRoot: workspace,
+      providers: { mock: prov([{ when: /.*/, text: '' }], 'mock-model') },
+      policyArtifacts: artifacts(),
+      tools: [],
+      bus,
+    });
+    const t = tape(bus);
+
+    const summary = await runtime.runTeam({
+      task: '预算耗尽的任务',
+      roster: [{ presetId: 'developer', model: 'mock-model', providerId: 'mock' }],
+    });
+    const member = summary.members[0]!;
+
+    // 未跑完仍然是失败（判据不放宽）
+    expect(member.status).toBe('failed');
+    // 删掉 TeamRuntime 里那一行映射（回到 `turn.kind`）⇒ 这里是 'budget' ⇒ 红
+    expect(member.stopReason).toBe('max_tokens');
+    expect(member.stopReason).not.toBe('budget');
+    // 越词表检测：值必须落在契约词表内
+    const vocabulary: readonly string[] = ['completed', 'aborted', 'error', 'max_tokens', 'refusal', 'denied'];
+    expect(vocabulary.includes(member.stopReason ?? '')).toBe(true);
+
+    // 投影消费面（team_end 载荷里的同一行）与失败原因文案同值
+    const end = t.events.find((e) => e.name === 'team_end')!.payload as {
+      outcome: string;
+      error?: string;
+      members: { status: string; stopReason?: string }[];
+    };
+    expect(end.outcome).toBe('failed');
+    expect(end.members[0]!.stopReason).toBe('max_tokens');
+    expect(summary.error).toContain('max_tokens');
+
+    // 原始 kind 没有丢：团队总线上的 after_turn 仍是真实 kind（TeamProjection 的回合行据此记录）
+    const kinds = t.events.filter((e) => e.name === 'after_turn').map((e) => (e.payload as { kind: string }).kind);
+    expect(kinds).toEqual(['budget']);
+  });
+
+  /**
+   * BRIEF「同一件事三处实现、两套口径」—— **负对照③**：`success` 回合的既有行为**逐字不变**。
+   *
+   * 映射是 1:1 的（只有 `success` 映到 `'completed'`），故新的
+   * `completed = stopReason === 'completed'` 与旧的 `turn.kind === 'success'` 完全等价：
+   * `status` 仍 'completed'、`stopReason` 仍是 **undefined（键仍在，不是删键）**、
+   * 成员摘要的键集与顺序逐字不变、`team_end.outcome` 仍 'completed'。
+   */
+  it('BRIEF-stopReason③ 负对照：kind=success 的成员回合，stopReason/status/键集逐字不变', async () => {
+    const bus = new EventBus();
+    const runtime = new TeamRuntime({
+      workspaceRoot: workspace,
+      providers: { mock: prov([{ when: /.*/, text: 'SMALL-DONE: ok' }], 'mock-model') },
+      policyArtifacts: artifacts(),
+      tools: [],
+      bus,
+    });
+    const t = tape(bus);
+
+    const summary = await runtime.runTeam({
+      task: '正常任务',
+      roster: [{ presetId: 'developer', model: 'mock-model', providerId: 'mock' }],
+    });
+    const member = summary.members[0]!;
+
+    expect(summary.outcome).toBe('completed');
+    expect(summary.error).toBeUndefined();
+    expect(member.status).toBe('completed');
+    expect(member.stopReason).toBeUndefined();
+    expect('stopReason' in member).toBe(true);
+    expect(Object.keys(member)).toEqual([
+      'memberId',
+      'presetId',
+      'role',
+      'phase',
+      'status',
+      'sessionId',
+      'delegationDepth',
+      'durationMs',
+      'stopReason',
+      'output',
+    ]);
+    expect(member.output).toContain('SMALL-DONE');
+
+    const end = t.events.find((e) => e.name === 'team_end')!.payload as {
+      outcome: string;
+      members: { stopReason?: string }[];
+    };
+    expect(end.outcome).toBe('completed');
+    expect(end.members[0]!.stopReason).toBeUndefined();
+  });
 });

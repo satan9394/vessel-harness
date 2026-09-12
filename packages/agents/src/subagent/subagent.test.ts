@@ -315,4 +315,30 @@ describe('V0.2-M1 subagent — delegation (H11)', () => {
     expect(structured.content).toBe('{"verdict":"met"}');
     expect((structured.meta.subagent as { presetNarrowing?: string }).presetNarrowing).toBe('strictest-fallback');
   });
+
+  /**
+   * BRIEF「同一件事三处实现、两套口径」—— 委派结果契约的 stopReason 也走**唯一实现**
+   * （`../turnStopReason.js`），且与 shared 词表逐条对齐：**绝不原样吐回合 kind**。
+   *
+   * 真实链路：子回合 `kind='budget'`（MockProvider 返回空文本、无工具调用 ⇒ AgentLoop 纯文本停
+   * 路径的收尾兜底 AgentLoop.ts:432-435 判成 `'budget'`）⇒ `stopReason` 必须是词表内的
+   * `'max_tokens'`，**不是** `'budget'`（词表外的值）。
+   */
+  it('BRIEF-stopReason：kind=budget 的子回合 ⇒ stopReason=max_tokens（词表内，不是 kind 原样）', async () => {
+    const manager = new SubagentManager({
+      workspaceRoot: workspace,
+      provider: new MockProvider([{ when: /.*/, response: { text: '' } }], { model: 'child-model' }),
+      model: 'child-model',
+      policyArtifacts: artifacts(),
+      tools: [],
+      bus: new EventBus(),
+    });
+
+    const result = await manager.delegate({ prompt: '预算耗尽的任务', delegationDepth: 0 });
+
+    expect(result.stopReason).toBe('max_tokens');
+    expect(result.stopReason).not.toBe('budget');
+    // stopReason≠completed ⇒ isError（EVENT-SPEC A24 / H11 的硬要求）
+    expect(result.isError).toBe(true);
+  });
 });
