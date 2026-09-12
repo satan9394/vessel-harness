@@ -501,4 +501,127 @@ policy:
       expect({ cmd, action: verdict.action }).toEqual({ cmd, action: 'allow' });
     }
   });
+
+  // ───────────────────────────────────────────────────────────────────────────
+  // 第三轮复评（EVALUATION-REPORT-23，判 REJECT）：上一轮把 `\` + 换行**无条件**当续行
+  // 拼接，但本产品在 Windows 上走 **cmd.exe**（`packages/tools/src/shell/shellTool.ts:44/70`
+  // → `Process.ts` 的 `shell: true`），**cmd 里 `\` 不是续行符** ⇒ `git status \` + 换行 +
+  // `git push --force origin main` 合并成一条、段首子命令成了 `status` ⇒ **allow**，而真实
+  // cmd 执行的是**两条**命令、第二条就是 force push ⇒ P1 fail-open（修复前反而是 deny）。
+  //
+  // 修复：**平台并集判定** —— 同一字符串按 posix / cmd 两种续行语义各解析一次，任一命中即
+  // deny；另加 alias **跨命令形**（`git config alias.… && git p`）的 fail-closed 封堵。
+  // 「修复前必红」= 第三轮复评实测判 allow 的漏网形（本轮修复后必须为 true）。
+  // ───────────────────────────────────────────────────────────────────────────
+
+  it('R-1 ③a：`\\` + 换行在 cmd 语义下是**两条命令** —— 并集判定必须命中（修复前必红）', () => {
+    const rule = gitForcePushRule();
+    // cmd.exe 里 `\` 不参与续行：两行是两条命令，第二段就是 force push。
+    // 上一轮无条件合并 ⇒ 段首 `git`、子命令 `status` ≠ `push` ⇒ 精确判定 allow。
+    expect(rule.match(shellCall('git status \\\ngit push --force origin main'))).toBe(true); // 修复前必红
+    expect(rule.match(shellCall('git status \\\r\ngit push --force origin main'))).toBe(true); // 修复前必红
+    // `cd D:\` + 换行 + force push：合并后 `git` 被并进 `D:git`、段首变成 `cd` ⇒ 修复前 allow
+    expect(rule.match(shellCall('cd D:\\\ngit push --force origin main'))).toBe(true); // 修复前必红
+    // 段首 git 但子命令不是 push（`fetch` / `-C` + `status`）⇒ 合并后精确判定 allow
+    expect(rule.match(shellCall('git fetch \\\ngit push origin +main'))).toBe(true); // 修复前必红
+    expect(rule.match(shellCall('git -C /repo status \\\ngit push --force origin main'))).toBe(true); // 修复前必红
+  });
+
+  it('R-1 ③b：并集判定不得让 `^` 续行 / POSIX `\\` 续行的既有命中面回归', () => {
+    const rule = gitForcePushRule();
+    // cmd 语义（第二轮已覆盖，不得改坏）
+    expect(rule.match(shellCall('git push ^\r\n--force origin main'))).toBe(true);
+    expect(rule.match(shellCall('git push ^\n-f origin main'))).toBe(true);
+    expect(rule.match(shellCall('git push origin ^\r\n+main'))).toBe(true);
+    // POSIX 语义（第二轮已覆盖，不得改坏）
+    expect(rule.match(shellCall('git push \\\n--force origin main'))).toBe(true);
+    expect(rule.match(shellCall('git push origin main \\\n--force'))).toBe(true);
+    expect(rule.match(shellCall('sudo git \\\npush --force'))).toBe(true);
+    // 引号内脚本的续行（递归判定时用**同一个** mode，不得因并集而丢失）
+    expect(rule.match(shellCall('sh -c "git push \\\n--force"'))).toBe(true);
+  });
+
+  it('R-1 ③c：`git config alias.…` **跨命令形** fail-closed —— 修复前 allow（必红）', () => {
+    const rule = gitForcePushRule();
+    // 定义段（`git config …`）与调用段（`git p`）是两个 segment：逐段精确判定两边都看不到
+    // force ⇒ 修复前 allow。别名在同一 shell 会话内生效，故按「整条命令出现别名定义」拦。
+    expect(rule.match(shellCall("git config alias.p 'push --force' && git p"))).toBe(true); // 修复前必红
+    expect(rule.match(shellCall("git config --global alias.p 'push --force' && git p"))).toBe(true); // 修复前必红
+    expect(rule.match(shellCall("git config alias.p 'push origin +main' && git p"))).toBe(true); // 修复前必红
+    expect(rule.match(shellCall('git config alias.p push --force && git p'))).toBe(true); // 修复前必红
+    expect(rule.match(shellCall("git config alias.p '!git push --force' && git p"))).toBe(true); // 修复前必红
+    // **不要求**同段内还要调用该别名：定义本身即 fail-closed（跨段调用同样拦）
+    expect(rule.match(shellCall("git config --system alias.r 'push -f'"))).toBe(true); // 修复前必红
+    expect(rule.match(shellCall("sudo git config --global alias.p 'push --force'"))).toBe(true); // 修复前必红
+    expect(rule.match(shellCall("git config --file /tmp/cfg alias.p 'push --force'"))).toBe(true); // 修复前必红
+  });
+
+  it('R-1 ③d：alias 负对照 —— 非别名配置 / `--get` `--list` 等**读取**形一律 allow', () => {
+    const rule = gitForcePushRule();
+    expect(rule.match(shellCall('git config user.email a@b'))).toBe(false);
+    expect(rule.match(shellCall('git config core.pager cat'))).toBe(false);
+    expect(rule.match(shellCall('git config --global user.name "A B"'))).toBe(false);
+    // 读取**不是**定义：本实现能区分（`--get` / `--list` 等读取动作选项直接短路为「非定义」），
+    // 因此如实放行，而不是「键里出现 alias. 就拦」的粗判。
+    expect(rule.match(shellCall('git config --get alias.p'))).toBe(false);
+    expect(rule.match(shellCall('git config --global --get alias.p'))).toBe(false);
+    expect(rule.match(shellCall('git config --list'))).toBe(false);
+    // 单参数写法在 git 语义里同样是**读**（无值 ⇒ 不是定义）
+    expect(rule.match(shellCall('git config alias.p'))).toBe(false);
+    // 既有负对照不回退
+    expect(rule.match(shellCall('git -c core.pager=cat status'))).toBe(false);
+    expect(rule.match(shellCall('git config core.pager cat && git status'))).toBe(false);
+    expect(rule.match(shellCall('git commit -c alias.p commit'))).toBe(false);
+  });
+
+  it('R-1 ③e：并集判定的负对照 —— 两种语义下都不得误拦', () => {
+    const rule = gitForcePushRule();
+    expect(rule.match(shellCall('git push origin main'))).toBe(false);
+    // `^` 后非换行 ⇒ 两种语义下都不是续行；`\` 后非换行同理
+    expect(rule.match(shellCall('echo a^b'))).toBe(false);
+    expect(rule.match(shellCall('echo a\\b'))).toBe(false);
+    expect(rule.match(shellCall('git -C C:\\repo push origin main'))).toBe(false);
+    // 没有续行符的真换行仍是两条独立命令
+    expect(rule.match(shellCall('echo a\ngit status'))).toBe(false);
+    // 偶数个反斜杠 = 字面反斜杠 + **真换行**（不是续行）：两段都不含 force
+    expect(rule.match(shellCall('git status \\\\\ngit log --oneline'))).toBe(false);
+    // 已知边界（POSIX 拼接后是**一个带空格的单词**，不是 git 调用）：并集判定下仍如实 allow
+    expect(rule.match(shellCall('"git push \\\n--force"'))).toBe(false);
+  });
+
+  it('R-1 ③：端到端 —— 并集续行判定 / alias 跨命令形在放宽会话下同样落到 `git:force-push`', async () => {
+    const yamlText = `
+policy:
+  version: "0.1"
+  profile: danger-full-access
+  approval: ask
+  git:
+    force_push: deny
+`;
+    const engine = new PolicyEngine(compilePolicyYaml(yamlText));
+    for (const cmd of [
+      'git status \\\ngit push --force origin main',
+      'cd D:\\\ngit push --force origin main',
+      "git config alias.p 'push --force' && git p",
+      "git config --global alias.p 'push --force' && git p",
+    ]) {
+      const verdict = await engine.decide(shellCall(cmd));
+      expect({ cmd, action: verdict.action, ruleRef: verdict.ruleRef }).toEqual({
+        cmd,
+        action: 'deny',
+        ruleRef: 'git:force-push',
+      });
+    }
+    // 同会话里不得因并集判定 / 别名封堵把无关命令与配置读取拦掉
+    for (const cmd of [
+      'git push origin main',
+      'git config user.email a@b',
+      'git config --get alias.p',
+      'echo a^b',
+      'echo a\\b',
+    ]) {
+      const verdict = await engine.decide(shellCall(cmd));
+      expect({ cmd, action: verdict.action }).toEqual({ cmd, action: 'allow' });
+    }
+  });
 });

@@ -120,9 +120,17 @@ const GIT_CONFIG_VALUE_OPTS = new Set(['-c', '--config', '--config-env']);
  * 对展开文本做子串猜测——`alias.p='!git "pu"sh --force'` 之类引号/拼接形会绕开子串匹配，
  * 却绕不开「这就是一个别名定义」。
  *
- * 已知代价（如实记录，属 R-1 已接受的过度拦截）：`-c` 里定义**任何**别名都判 deny，与是否
- * force 无关（`git -c alias.st=status st`）。非别名的 `-c` 完全不受影响——负对照：
- * `git -c core.pager=cat status`、`git -c user.email=a@b push origin main` 仍按原语义判定。
+ * **R-1 ③ 扩到跨命令形（第三轮复评 EVALUATION-REPORT-23）**：`-c` 只覆盖「同一段内定义 +
+ * 同一段内调用」。真实的跨段走私形 `git config alias.p 'push --force' && git p` 里，
+ * 定义段（`git config …`）与调用段（`git p`）是**两个 segment**，逐段精确判定两边都看不到
+ * force ⇒ 修复前 allow。而两段在同一个 shell 里顺序执行、别名**在同一 shell 会话内生效**，
+ * 因此判定必须**整条命令级**：任一 segment 定义别名 ⇒ 整条 deny，**不要求**同段内还要调用
+ * 该别名（见 `gitArgsDefineAlias`）。
+ *
+ * 已知代价（如实记录，属 R-1 已接受的过度拦截）：定义**任何**别名都判 deny，与是否 force
+ * 无关（`git -c alias.st=status st`、`git config alias.st status`）。非别名的配置完全不受
+ * 影响——负对照：`git -c core.pager=cat status`、`git -c user.email=a@b push origin main`、
+ * `git config user.email a@b`、`git config core.pager cat` 仍按原语义判定。
  */
 function definesGitAlias(token: string, next: string | undefined): boolean {
   let value: string | undefined;
@@ -136,42 +144,118 @@ function definesGitAlias(token: string, next: string | undefined): boolean {
   return value !== undefined && /^alias\./i.test(value);
 }
 
+/**
+ * `git config` 的**读取**动作选项（`--get` / `--get-all` / `--get-regexp` / `--list` / `-l`）：
+ * 只是在**读**配置，不构成别名定义。R-1 ③ 的负对照要求 `git config --get alias.p` 保持
+ * allow —— 本实现**能**区分读取与定义（读取动作选项在扫描时直接短路为「不是定义」），
+ * 因此如实放行，不做「键出现即拦」的粗判。
+ *
+ * 边界（如实记录）：`git config alias.p`（单个参数、无值）在 git 语义里同样是**读取**，
+ * 本实现按「无值 ⇒ 不是定义」放行；`git config --unset alias.p` 是**删除**别名，同样无值
+ * ⇒ 放行（删除不产生新的未解析执行体）。二者都不会让别名指向 force push。
+ */
+const GIT_CONFIG_READ_OPTS = new Set([
+  '--get', '--get-all', '--get-regexp', '--get-urlmatch', '--list', '-l',
+]);
+
+/** `git config` 里**取独立值**的选项（`--file <path>` / `--type <type>`）：其值不是配置键。 */
+const GIT_CONFIG_OPT_VALUE_OPTS = new Set(['-f', '--file', '--blob', '--type', '--default']);
+
+/**
+ * 整条命令级别名判据（R-1 ③）：段首是 `git` 且该段**定义**了 `alias.` 键 ⇒ true。
+ *
+ * 覆盖两种定义语境：
+ *  - `git -c alias.p='push --force' p`（全局选项位，委托 `definesGitAlias`）；
+ *  - `git config [--global|--system|--local|--file …] alias.<name> <value>`（子命令位，本函数）。
+ *    只认「键 + 值」都出现的**定义**写法；`--get` / `--list` / 单参数读取一律 false
+ *    （见 `GIT_CONFIG_READ_OPTS` 的说明）。
+ *
+ * 只用于**定义**判定：调用与否、调用在哪一段都不影响结论（跨段调用同样拦）。
+ */
+function gitArgsDefineAlias(tokens: string[]): boolean {
+  let i = 1;
+  for (; i < tokens.length; i++) {
+    const token = tokens[i]!;
+    if (token === '--') {
+      i++;
+      break;
+    }
+    if (!token.startsWith('-')) break; // 第一个非选项 token 即子命令
+    if (definesGitAlias(token, tokens[i + 1])) return true; // `git -c alias.p=…`
+    if (GIT_GLOBAL_VALUE_OPTS.has(token)) i++; // 跳过 `-C <path>` 的独立值
+  }
+  if (tokens[i] !== 'config') return false;
+  let key: string | undefined;
+  let value: string | undefined;
+  for (i = i + 1; i < tokens.length; i++) {
+    const token = tokens[i]!;
+    if (token.startsWith('-')) {
+      if (GIT_CONFIG_READ_OPTS.has(token)) return false; // `--get`/`--list` = 读取，不是定义
+      if (GIT_CONFIG_OPT_VALUE_OPTS.has(token)) i++; // 跳过 `--file <path>` 之类选项的值
+      continue; // 作用域/类型等无值选项（`--global` / `--bool`），不影响键值位置
+    }
+    if (key === undefined) {
+      key = token;
+      continue;
+    }
+    if (value === undefined) value = token;
+  }
+  return key !== undefined && value !== undefined && /^alias\./i.test(key);
+}
+
 function shellBasename(token: string): string {
   return (token.replace(/\\/g, '/').split('/').pop() ?? token).replace(/\.exe$/i, '');
 }
 
 /**
- * 续行规范化（R-1 ①，**在分段之前**执行）。
+ * 续行语义的两种**互斥解释**（R-1 ①，第三轮复评 EVALUATION-REPORT-23 改为并集判定）。
  *
- * 真实 shell 会把「行尾续行符 + 换行」拼成**一条**命令，而 `splitShellSegments` 只按
- * `\n` / `\r` 切段：续行形因此被切成两段、各自精确判定为 allow
- * （`git push ^` + CRLF + `--force origin main` ⇒ 两段都不含 force ⇒ 漏网，独立复评
- * EVALUATION-REPORT-22 实测）。这里先把续行拼掉再分段，语义向真实 shell 对齐。
+ * - `posix`：POSIX `sh` 语义 —— 只有 `\` + LF / CRLF 是续行，`^` 是普通字符。
+ * - `cmd`：Windows `cmd.exe` 语义 —— 只有 `^` + LF / CRLF 是续行，`\` 是普通字符
+ *   （`packages/tools/src/shell/shellTool.ts:44/70`：Windows 走 cmd，`Process.ts` 用
+ *   `shell: true`）。
  *
- * 规则：
- *  - POSIX `sh`：`\` + LF / CRLF 是续行，shell **删掉这一对**（等价于上下两行直接拼接）。
- *    按**反斜杠奇偶**判定：连续 N 个反斜杠后紧跟换行时，只有 N 为**奇数**（最后一个
- *    反斜杠转义换行）才算续行；N 为偶数时反斜杠两两成对 = 字面反斜杠，换行仍是**真
- *    分隔符**（`echo a\\` + 换行 + `git status` 依旧是两条命令）。
- *  - Windows `cmd.exe`（`packages/tools/src/shell/shellTool.ts:44/70`：Windows 走 cmd）：
- *    `^` + LF / CRLF 是续行（cmd 同样把两者删掉后拼接）。**行尾判定**：`^` 只在其后
- *    **紧跟**换行时才算续行；`echo a^b` 里的 `^` 后面是普通字符 ⇒ 原样保留（它是 cmd
- *    的转义符，不是续行），不会被吞掉。
- *  - 引号**不参与**判定：真实 shell 里双引号内的 `\` + 换行同样拼接，故这里一律拼接
+ * 不再按 `process.platform` 二选一：策略**编译期**与命令**真实执行期**可能不在同一平台
+ * （策略可在 Linux/CI 上编译、命令在 Windows cmd 里执行，或套一层 `cmd /c` / ssh 到别处），
+ * 平台分支必然在某一侧漏判。改为**两种语义各判一次取并集**（见 `detectForcePush`）。
+ */
+type ContinuationMode = 'posix' | 'cmd';
+
+/**
+ * 续行规范化（R-1 ①，**在分段之前**执行），按 `mode` 只认该 shell 的一种续行符。
+ *
+ * 动机：真实 shell 会把「行尾续行符 + 换行」拼成**一条**命令，而 `splitShellSegments` 只按
+ * `\n` / `\r` 切段：续行形因此被切成两段、各自精确判定为 allow（`git push ^` + CRLF +
+ * `--force origin main` ⇒ 两段都不含 force ⇒ 漏网，独立复评 EVALUATION-REPORT-22 实测；
+ * 上一轮修复只按 `\` 拼接，于是 `git status \` + 换行 + `git push --force origin main` 在
+ * **cmd 里其实是两条命令**却被合并 ⇒ 反而 fail-open，EVALUATION-REPORT-23 判 REJECT）。
+ *
+ * 规则（`mode` 决定认哪一个续行符，另一个**原样保留**）：
+ *  - `posix`：`\` + LF / CRLF 是续行，shell **删掉这一对**（等价于上下两行直接拼接）。按
+ *    **反斜杠奇偶**判定：连续 N 个反斜杠后紧跟换行时，只有 N 为**奇数**（最后一个反斜杠
+ *    转义换行）才算续行；N 为偶数时反斜杠两两成对 = 字面反斜杠，换行仍是**真分隔符**
+ *    （`echo a\\` + 换行 + `git status` 依旧是两条命令）。`^` 在此模式下不是续行符。
+ *  - `cmd`：`^` + LF / CRLF 是续行（cmd 同样把两者删掉后拼接）。**行尾判定**：`^` 只在其后
+ *    **紧跟**换行时才算续行；`echo a^b` 里的 `^` 后面是普通字符 ⇒ 原样保留（它是 cmd 的
+ *    转义符，不是续行），不会被吞掉。`\` 在此模式下**不参与续行**、原样保留 —— 于是
+ *    `\` + 换行仍是**真分隔符**，下游分段器据此切成两条命令（配合 `splitShellSegments` /
+ *    `tokenizeShellSegment` 的 `mode` 参数：cmd 模式下 `\` 也不再充当转义符，否则换行会被
+ *    当成「被转义的字符」吞进同一段）。
+ *  - 引号**不参与**判定：POSIX 下双引号内的 `\` + 换行同样拼接，故 `posix` 一律拼接
  *    （`sh -c "git push \` + 换行 + `--force"` ⇒ `sh -c "git push --force"`，递归判定命中）。
  *    单引号内也一并拼接，是本实现的保守取舍（POSIX 里单引号内反斜杠是字面量），方向是
  *    「更倾向合并」。
  *  - **多行脚本（没有续行符的真换行）不受影响**：仍按 `\n` / `\r` 切成独立段，因此
  *    `echo a` + 换行 + `git status` 依旧是两条命令（负对照用例锁定）。
- *  - 幂等：拼接后不再含「续行符 + 换行」，重复调用是恒等变换；非续行字符（`C:\repo`、
- *    `find … {} \;`、行中的 `a^b`）逐字保留。
+ *  - 幂等：拼接后不再含「该模式的续行符 + 换行」，重复调用是恒等变换；非续行字符
+ *    （`C:\repo`、`find … {} \;`、行中的 `a^b`）逐字保留。
  */
-function normalizeLineContinuations(command: string): string {
+function normalizeLineContinuations(command: string, mode: ContinuationMode): string {
   let out = '';
   let i = 0;
   while (i < command.length) {
     const ch = command[i]!;
-    if (ch === '\\') {
+    if (ch === '\\' && mode === 'posix') {
       let run = 0;
       while (i + run < command.length && command[i + run] === '\\') run++;
       const nl = /^\r?\n/.exec(command.slice(i + run));
@@ -185,7 +269,7 @@ function normalizeLineContinuations(command: string): string {
       i += run;
       continue;
     }
-    if (ch === '^') {
+    if (ch === '^' && mode === 'cmd') {
       const nl = /^\r?\n/.exec(command.slice(i + 1));
       if (nl !== null) {
         // cmd 续行：`^` 只在**行尾**（后随换行）才吞；行中的 `^`（`echo a^b`）走下面原样输出
@@ -193,14 +277,22 @@ function normalizeLineContinuations(command: string): string {
         continue;
       }
     }
+    // 另一种模式的续行符（posix 下的 `^`、cmd 下的 `\`）原样输出。
     out += ch;
     i++;
   }
   return out;
 }
 
-/** 按**未被引号包裹**的 `|` `||` `&&` `;` 与换行切段，避免跨管道/分号误判。 */
-function splitShellSegments(command: string): string[] {
+/**
+ * 按**未被引号包裹**的 `|` `||` `&&` `;` 与换行切段，避免跨管道/分号误判。
+ *
+ * `mode` 只影响「`\` 是否转义下一个字符」：POSIX 里 `\` 是转义符（`\;` 不当分隔符、
+ * `\` + 换行已被 `normalizeLineContinuations` 拼掉），cmd 里 `\` 是**普通字符**
+ * （cmd 的转义符是 `^`）。若 cmd 模式仍让 `\` 吞掉其后字符，`\` + 换行就会被当成
+ * 「被转义的字符」拼进同一段，段边界错位 ⇒ 上一轮的 fail-open 复现。
+ */
+function splitShellSegments(command: string, mode: ContinuationMode): string[] {
   const segments: string[] = [];
   let buf = '';
   let quote: '"' | "'" | null = null;
@@ -208,7 +300,7 @@ function splitShellSegments(command: string): string[] {
     const ch = command[i]!;
     if (quote !== null) {
       buf += ch;
-      if (ch === '\\' && quote === '"' && i + 1 < command.length) {
+      if (ch === '\\' && mode === 'posix' && quote === '"' && i + 1 < command.length) {
         buf += command[i + 1]!;
         i++;
         continue;
@@ -216,7 +308,7 @@ function splitShellSegments(command: string): string[] {
       if (ch === quote) quote = null;
       continue;
     }
-    if (ch === '\\' && i + 1 < command.length) {
+    if (ch === '\\' && mode === 'posix' && i + 1 < command.length) {
       buf += ch + command[i + 1]!;
       i++;
       continue;
@@ -241,8 +333,12 @@ function splitShellSegments(command: string): string[] {
 /**
  * 引号感知 token 化：引号内空白不切分，且**去掉引号本身**——`sh -c "git push
  * --force"` 因此得到一个完整脚本 token，可直接递归判定。
+ *
+ * `mode` 与 `splitShellSegments` 同义：POSIX 下 `\` 转义下一个字符（`\;` ⇒ `;`），
+ * cmd 下 `\` 是普通字符（Windows 路径 `C:\repo` 不会被拆词，`\` + 换行留下的字面
+ * 反斜杠也照常留在 token 里）。
  */
-function tokenizeShellSegment(segment: string): string[] {
+function tokenizeShellSegment(segment: string, mode: ContinuationMode): string[] {
   const tokens: string[] = [];
   let buf = '';
   let quote: '"' | "'" | null = null;
@@ -259,7 +355,7 @@ function tokenizeShellSegment(segment: string): string[] {
         quote = null;
         continue;
       }
-      if (ch === '\\' && quote === '"' && i + 1 < segment.length) {
+      if (ch === '\\' && mode === 'posix' && quote === '"' && i + 1 < segment.length) {
         buf += segment[i + 1]!;
         i++;
         continue;
@@ -267,7 +363,7 @@ function tokenizeShellSegment(segment: string): string[] {
       buf += ch;
       continue;
     }
-    if (ch === '\\' && i + 1 < segment.length) {
+    if (ch === '\\' && mode === 'posix' && i + 1 < segment.length) {
       buf += segment[i + 1]!;
       i++;
       continue;
@@ -435,6 +531,69 @@ function looksLikeGitPush(tokens: string[]): boolean {
 }
 
 /**
+ * 整条命令级别名走私判定（R-1 ③）递归体：包装剥离 + `sh -c` / `eval` 取脚本后，
+ * 段首落在 `git` 上就按 `gitArgsDefineAlias` 判「是否定义了别名」。
+ *
+ * 与 force-push 判定并列、**独立**于「调用了哪个别名」：只要命令里出现别名定义即命中
+ * （跨命令形 `git config alias.p 'push --force' && git p` 的定义段与调用段是两段）。
+ * 深度超限 / 无法展开时返回 false —— 「未解析层」的 fail-closed 责任在
+ * `detectForcePushInTokens`，本函数不重复承担，避免把无关命令拦下。
+ */
+function definesGitAliasInTokens(
+  tokens: string[],
+  mode: ContinuationMode,
+  depth: number,
+): boolean {
+  let current = tokens;
+  let stripped = 0;
+  while (current.length > 0) {
+    const head = shellBasename(current[0]!);
+    if (head === 'git') return gitArgsDefineAlias(current);
+    if (head === 'env') {
+      // `env -S "<script>"`：`-S` 的**值**才是被执行的命令（与 force-push 判定同口径）。
+      const script = envSplitScript(current);
+      if (script !== null && depth <= MAX_WRAPPER_DEPTH) {
+        return definesGitAliasInCommand(script, mode, depth + 1);
+      }
+    }
+    if (PRIVILEGE_WRAPPERS.has(head)) {
+      if (stripped >= MAX_WRAPPER_DEPTH) return false;
+      const next = stripWrapper(current);
+      if (next.length >= current.length) return false; // 无可剥离（防死循环）
+      current = next;
+      stripped++;
+      continue;
+    }
+    if (SHELL_WRAPPERS.has(head)) {
+      const script = shellDashCArg(current);
+      if (script === null || depth > MAX_WRAPPER_DEPTH) return false;
+      return definesGitAliasInCommand(script, mode, depth + 1);
+    }
+    if (head === 'eval') {
+      const script = current.slice(1).join(' ').trim();
+      if (script.length === 0 || depth > MAX_WRAPPER_DEPTH) return false;
+      return definesGitAliasInCommand(script, mode, depth + 1);
+    }
+    return false; // 段首既非 git 也非可跟随层：本段没有别名定义
+  }
+  return false;
+}
+
+/** 命令级别名定义判定（分段 → 逐段 `definesGitAliasInTokens`）。 */
+function definesGitAliasInCommand(
+  command: string,
+  mode: ContinuationMode,
+  depth: number,
+): boolean {
+  if (depth > MAX_WRAPPER_DEPTH) return false;
+  for (const segment of splitShellSegments(normalizeLineContinuations(command, mode), mode)) {
+    const tokens = tokenizeShellSegment(segment, mode);
+    if (tokens.length > 0 && definesGitAliasInTokens(tokens, mode, depth)) return true;
+  }
+  return false;
+}
+
+/**
  * 单段判定：循环剥离包装器，`sh -c` / `env -S` / `eval` 取脚本递归，最后按 git push 语义判定。
  *
  * 优先级（R-1，独立安全复评给出的保守立场）：
@@ -442,8 +601,16 @@ function looksLikeGitPush(tokens: string[]): boolean {
  *     （`git push origin main` 无任何 force 迹象且解析完整 ⇒ allow）。
  *  2. **仅在解析不完整/存在未跟随的间接层时**才 fail-closed ⇒ deny（见末尾分支），
  *     gated by `mentionsGitPush`，因此与本规则无关的命令不会被误拦。
+ *
+ * `mode` 只影响递归时的续行语义 —— 递归进来的脚本文本尚未规范化，必须用**同一个** mode
+ * 继续（并集判定由最外层 `detectForcePush` 完成；递归里再取并集会破坏 `depth` 语义与
+ * 「一次解释」的可读性）。
  */
-function detectForcePushInTokens(tokens: string[], depth: number): boolean {
+function detectForcePushInTokens(
+  tokens: string[],
+  mode: ContinuationMode,
+  depth: number,
+): boolean {
   let current = tokens;
   let stripped = 0;
   while (current.length > 0) {
@@ -454,7 +621,7 @@ function detectForcePushInTokens(tokens: string[], depth: number): boolean {
     // `echo` ⇒ false，不会过度拦截。
     if (head === 'env') {
       const script = envSplitScript(current);
-      if (script !== null) return detectForcePush(script, depth + 1);
+      if (script !== null) return detectsForcePushUnder(script, mode, depth + 1);
     }
     // `eval "<string>"`：与 `sh -c` 同类的「字符串套一层」。`eval` 会把**全部**参数
     // 用空格拼接后再执行，故这里同样拼接后递归（`eval git push --force` 与
@@ -463,7 +630,7 @@ function detectForcePushInTokens(tokens: string[], depth: number): boolean {
     // `echo eval …`）一律不触发。
     if (head === 'eval') {
       const script = current.slice(1).join(' ').trim();
-      return script.length === 0 ? false : detectForcePush(script, depth + 1);
+      return script.length === 0 ? false : detectsForcePushUnder(script, mode, depth + 1);
     }
     if (PRIVILEGE_WRAPPERS.has(head)) {
       const next = stripWrapper(current);
@@ -479,7 +646,7 @@ function detectForcePushInTokens(tokens: string[], depth: number): boolean {
     }
     if (SHELL_WRAPPERS.has(head)) {
       const script = shellDashCArg(current);
-      if (script !== null) return detectForcePush(script, depth + 1);
+      if (script !== null) return detectsForcePushUnder(script, mode, depth + 1);
       // 解释器执行**脚本文件**（`sh deploy.sh` / `bash -e build.sh`）：文件内容不可知
       // ⇒ 执行体未解析 ⇒ fail-closed（`sh -c "echo hi"` 已被上一行精确解析，不受影响；
       // 只有 `-c` 之外的真参数才算「脚本文件」，故 `bash --version` / 裸 `sh` 不命中）。
@@ -497,7 +664,9 @@ function detectForcePushInTokens(tokens: string[], depth: number): boolean {
 }
 
 /**
- * 入口：分段后逐段判定（`|` / `;` / `&&` / `||` / 换行 不互相污染）。
+ * 单一语义下的判定入口：按 `mode` 规范化续行后分段、逐段判定
+ * （`|` / `;` / `&&` / `||` / 换行 不互相污染）。公共入口是下方的 `detectForcePush`
+ * （两种语义取并集），本函数只负责「一次解释」。
  *
  * 覆盖的绕过形：位置无关的 `-f`/`--force`/`--force-with-lease[=…]`、`+<refspec>`
  * 强制推送、`sudo`/`doas`/`env`/`command`/`nohup`/`nice`/`time`/`setsid`/`stdbuf`/
@@ -516,14 +685,10 @@ function detectForcePushInTokens(tokens: string[], depth: number): boolean {
  * origin main` 这类「未跟随包装器 + 普通 push」也会 deny——它们与 force push 只差
  * 一层无法静态确认的包装，按保守立场不区分。
  *
- * **R-1 复评新增（两条已覆盖，EVALUATION-REPORT-22）**：
- * - ① **续行拼接**：本函数入口先做 `normalizeLineContinuations`，把 cmd 的 `^` + 换行、
- *   POSIX 的 `\` + 换行**拼回一条命令**再做分段 / token 化。于是一惯用写法
- *   `git push ^\r\n--force origin main`（Windows cmd）、`git push \\\n--force origin main`
- *   （POSIX sh）按拼接后的 `git push --force origin main` 判定 ⇒ 命中；引号内的续行同样
- *   拼接（`sh -c "git push \\\n--force"` ⇒ 递归命中）。行中 `^`（`echo a^b`）与非续行的
- *   `\`（`C:\repo`、`{} \;`）逐字保留；**没有续行符的真换行仍是段分隔符**
- *   （`echo a` + 换行 + `git status` 不命中）。
+ * **R-1 复评新增（EVALUATION-REPORT-22）**：
+ * - ① **续行拼接**：入口先按 `mode` 做 `normalizeLineContinuations`，把该 shell 的续行符 +
+ *   换行**拼回一条命令**再做分段 / token 化（见 `detectForcePush` —— 两种 shell 语义不同，
+ *   已改为并集判定，不再声称「对齐真实 shell」）。
  * - ② **git alias 走私**：`git -c alias.p='push --force' p` —— 展开文本藏在 `-c` 的
  *   **值**里、子命令 token 只是别名名 `p`，段内精确判定看不到 `push`。凡 `-c` /
  *   `--config[=…]` / `--config-env=…` 的值定义别名（键以 `alias.` 开头，含 `-c` 紧贴写法
@@ -531,36 +696,73 @@ function detectForcePushInTokens(tokens: string[], depth: number): boolean {
  *   负对照（刻意不误判）：`git -c core.pager=cat status`、`git -c user.email=a@b push
  *   origin main` 仍 allow。代价：`git -c alias.st=status st` 这类普通别名定义也会 deny
  *   （见 `definesGitAlias`）。
+ * - ③ **alias 跨命令形（EVALUATION-REPORT-23 追加）**：`git config alias.p 'push --force'
+ *   && git p`（定义段与调用段分离，**不要求**同段内调用）。整条命令任一段定义了
+ *   `alias.` 键 ⇒ deny（见 `definesGitAliasInTokens` / `gitArgsDefineAlias`）。
  *
  * **余下真正无法覆盖的边界（仍然返回 allow，由 profile 门 / 沙箱等其他防线承担）**：
  * - 变量 / 别名 / 函数 / 命令替换间接：`CMD="git push --force"; $CMD`、`alias gp=…`、
  *   `$(cat cmds.txt)`、反引号——段内没有 `git`+`push` 独立 token，签名不成立；
  * - 变量展开后再喂解释器：`CMD='git push --force'; sh -c "$CMD"`（`-c` 的脚本参数是
- *   `$CMD` 字面量，静态不可知）；
+ *   `$CMD` 字面量，静态不可知）；别名定义值经变量间接同样不可见：
+ *   `CFG='alias.p=push --force'; git -c "$CFG" p`（`-c` 的实参是 `$CFG` 字面量）；
  * - 标准输入 / 运行时构造后喂解释器：`printf '%s' "$P" | sh`、`echo … | sh`、
  *   `sh < cmds.txt`、`base64 -d | sh`、heredoc；
  * - **ANSI-C 引号**（`$'\x2d\x2dforce'`、`$'--for\x63e'`）：转义序列未解码，token 不构成
  *   force 选项形状；
- * - **整条命令被引号粘成一个词**：`"git push \\\n--force"` 拼接后是**一个带空格的单词**
- *   （shell 找同名可执行文件，不是 git 调用）⇒ 如实判 allow（见用例「已知边界」）；
+ * - **整条命令被引号粘成一个词**：`"git push \\\n--force"` 的 POSIX 续行拼接后是**一个带
+ *   空格的单词**（shell 找同名可执行文件，不是 git 调用）⇒ 如实判 allow（见用例「已知边界」）；
  * - 外部脚本文件内容不可知：`./release.sh`、`python x.py`（**注**：`sh release.sh`
  *   已被上面的脚本文件分支拦下，`.sh` 直接执行形式不在本谓词职责内）；
  * - 引号未闭合（tokenizer 按「引号一直开到段尾」容错，不额外降级）：这些形在真实
  *   shell 里本就不会执行成 git push，且降级会与正常命令的解析口径冲突。
  */
-function detectForcePush(command: string, depth = 0): boolean {
-  for (const segment of splitShellSegments(normalizeLineContinuations(command))) {
-    const tokens = tokenizeShellSegment(segment);
+function detectsForcePushUnder(
+  command: string,
+  mode: ContinuationMode,
+  depth = 0,
+): boolean {
+  for (const segment of splitShellSegments(normalizeLineContinuations(command, mode), mode)) {
+    const tokens = tokenizeShellSegment(segment, mode);
     if (tokens.length === 0) continue;
+    // R-1 ③：别名**定义**是整条命令级的未解析间接层，优先于逐段的 force 判定
+    // （定义段本身通常不含 push，调用段只有一个别名名 `p`）。
+    if (definesGitAliasInTokens(tokens, mode, depth)) return true;
     if (depth > MAX_WRAPPER_DEPTH) {
       // 递归层数超限（`sh -c` / `env -S` / `eval` 套娃）：本层不再展开 ⇒ 未解析
       // ⇒ 含 git+push 签名即 fail-closed。
       if (looksLikeGitPush(tokens)) return true;
       continue;
     }
-    if (detectForcePushInTokens(tokens, depth)) return true;
+    if (detectForcePushInTokens(tokens, mode, depth)) return true;
   }
   return false;
+}
+
+/**
+ * R-1 ① 入口（**平台并集判定**，EVALUATION-REPORT-23 修复）：同一段命令按 **POSIX sh**
+ * 与 **Windows cmd.exe** 两种续行语义**各解析一次**，任一语义下判定为 force push
+ * ⇒ 返回 true（命中 = deny）。
+ *
+ * 为什么不做 `process.platform` 分支：策略**编译期**与命令**真实执行期**可能不在同一平台
+ * （策略在 Linux/CI 编译、命令在 Windows cmd 执行；或套 `cmd /c` / ssh 到另一台机器），
+ * 平台分支必然在其中一侧漏判。两种语义的续行符不同（POSIX 认 `\`、cmd 认 `^`），
+ * 一个字符串在两种解释下可以**是两条命令**也可以**是一条命令**——上一轮「无条件按 `\`
+ * 拼接」正是把 cmd 里 `git status \` + 换行 + `git push --force origin main` 合并成一条，
+ * 使段首子命令变成 `status` ⇒ allow（真实 cmd 执行的是两条命令，第二条就是 force push）
+ * ⇒ 引入 P1 fail-open。
+ *
+ * **代价（如实记录）**：某些命令在一种语义下是 force push、另一种下不是，会被**更保守地
+ * deny**（例如 `git push \` + 换行 + `--force origin main`：POSIX 下是续行 ⇒ force push，
+ * cmd 下是两条命令、第二条只是名为 `--force` 的命令）。这正是本仓「漏放代价远大于误拦」的
+ * 既定取舍（见上方保守兜底段落）。反向的过度拦截还包括：cmd 下 `^` 对其他元字符的转义
+ * （`echo a^&b`）未建模，`^&` 仍被当作段分隔符 ⇒ 可能多拦，方向同样是「更保守」。
+ */
+function detectForcePush(command: string): boolean {
+  return (
+    detectsForcePushUnder(command, 'posix') ||
+    detectsForcePushUnder(command, 'cmd')
+  );
 }
 
 /**
