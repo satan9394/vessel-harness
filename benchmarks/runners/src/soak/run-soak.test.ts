@@ -20,8 +20,12 @@
 import { describe, it, expect, afterEach, vi } from 'vitest';
 import * as os from 'node:os';
 import * as path from 'node:path';
-import { mkdtempSync, rmSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
+import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import type { Mock } from 'vitest';
+
+/** C-4 源码守卫读的就是实现文件本身。 */
+const RUN_SOAK_SRC = fileURLToPath(new URL('./run-soak.ts', import.meta.url));
 
 /**
  * 注入面 1：driver 替身（记录入参并返回一份**完整**观测——`main()` 会对它跑 `summarize()`，
@@ -75,12 +79,24 @@ vi.mock('node:fs', async (importOriginal) => {
 
 describe('run-soak — SOAK_BASE 空/纯空白 ⇒ os.tmpdir()（绝不落到进程 CWD）', () => {
   /** 进程原始值（本文件被求值时捕一次），`afterEach` 逐字还原。 */
-  const originalBase = process.env.SOAK_BASE;
+  const TRACKED = [
+    'SOAK_BASE',
+    'SOAK_TASKS',
+    'SOAK_ROUNDS',
+    'SOAK_HANDOFF_EVERY',
+    'SOAK_PAUSE_EVERY',
+    'SOAK_MAX_ACCEPTED',
+  ] as const;
+  const originals: Record<string, string | undefined> = {};
+  for (const k of TRACKED) originals[k] = process.env[k];
 
   afterEach(() => {
     vi.resetModules();
-    if (originalBase === undefined) delete process.env.SOAK_BASE;
-    else process.env.SOAK_BASE = originalBase;
+    for (const k of TRACKED) {
+      const v = originals[k];
+      if (v === undefined) delete process.env[k];
+      else process.env[k] = v;
+    }
   });
 
   /**
@@ -96,6 +112,24 @@ describe('run-soak — SOAK_BASE 空/纯空白 ⇒ os.tmpdir()（绝不落到进
     const calls = (driver.runSoak as unknown as Mock).mock.calls;
     expect(calls.length).toBeGreaterThan(0);
     return (calls[calls.length - 1]![0] as { baseDir: string }).baseDir;
+  }
+
+  /**
+   * C-4：同样的重导入手法，但回传 `runSoak` 的**完整入参** —— 于是五个数值参数
+   * （`SOAK_TASKS`/`ROUNDS`/`HANDOFF_EVERY`/`PAUSE_EVERY`/`MAX_ACCEPTED`）经 `readInt` 解析成了
+   * 什么，是可**行为**断言的事实，不是源码文本匹配。
+   */
+  async function soakArgs(vars: Record<string, string | undefined>): Promise<Record<string, unknown>> {
+    vi.resetModules();
+    for (const [k, v] of Object.entries(vars)) {
+      if (v === undefined) delete process.env[k];
+      else process.env[k] = v;
+    }
+    await import('./run-soak.js');
+    const driver = await import('./soak-driver.js');
+    const calls = (driver.runSoak as unknown as Mock).mock.calls;
+    expect(calls.length).toBeGreaterThan(0);
+    return calls[calls.length - 1]![0] as Record<string, unknown>;
   }
 
   it('① 判别性：SOAK_BASE= 空串 ⇒ os.tmpdir()（旧 `??` ⇒ path.resolve(\'\') = 进程 CWD）', async () => {
@@ -127,5 +161,48 @@ describe('run-soak — SOAK_BASE 空/纯空白 ⇒ os.tmpdir()（绝不落到进
     } finally {
       rmSync(dir, { recursive: true, force: true }); // 本用例自建、位于 os.tmpdir() 之下
     }
+  });
+
+  /**
+   * C-4：五个数值参数的空白判据与 `SOAK_BASE` 同源（`readInt` 的 `v.trim() === ''`）。
+   *
+   * **本用例非判别**（改动前后同值）：旧写法只显式挡 `''`，纯空白靠 `Number('   ') === 0`
+   * 被 `n > 0` 挡回默认值 ⇒ 结论本来就与 `envRoot` 一致。这条钉的是**结论不得漂移**
+   * （空/纯空白 ⇒ 与"未设置该来源"同判），判别性由下一条源码守卫承担。
+   *
+   * 注意 `SOAK_TASKS`/`SOAK_ROUNDS` 的默认值参数取自 `process.argv[2]/[3]`（见 run-soak.ts），
+   * 在 vitest 进程里那不是数字 ⇒ 这两项断言的是「纯空白 == 空串」，不是「== 120/30」。
+   */
+  it('④ 五个数值参数：空串与纯空白同一判据；有值仍逐字使用（负对照）', async () => {
+    const keys = ['taskCount', 'totalRounds', 'handoffEveryRounds', 'pauseEveryRounds', 'maxAcceptedRounds'];
+    const empty = await soakArgs({
+      SOAK_TASKS: '', SOAK_ROUNDS: '', SOAK_HANDOFF_EVERY: '', SOAK_PAUSE_EVERY: '', SOAK_MAX_ACCEPTED: '',
+    });
+    const blank = await soakArgs({
+      SOAK_TASKS: '   ', SOAK_ROUNDS: '\t', SOAK_HANDOFF_EVERY: '   ', SOAK_PAUSE_EVERY: ' ', SOAK_MAX_ACCEPTED: '\n',
+    });
+    for (const k of keys) expect(blank[k]).toBe(empty[k]);
+
+    // 负对照：有值时行为逐字不变
+    const valued = await soakArgs({
+      SOAK_TASKS: '7', SOAK_ROUNDS: '9', SOAK_HANDOFF_EVERY: '2', SOAK_PAUSE_EVERY: '3', SOAK_MAX_ACCEPTED: '1',
+    });
+    expect(valued).toMatchObject({
+      taskCount: 7, totalRounds: 9, handoffEveryRounds: 2, pauseEveryRounds: 3, maxAcceptedRounds: 1,
+    });
+  });
+
+  /**
+   * C-4 守卫（判别性）：`readInt` 的空白判据必须是 `v.trim() === ''`（与 `envRoot` 同款），
+   * 而不是只挡空串的 `v === ''` —— 改回去 ⇒ 本用例红。
+   * （行为两版同值，故这条是**静态守卫**，如实标注：它证明的是"判据同源"，不是行为差异。）
+   */
+  it('⑤ 判据守卫：readInt 的空白判据与 envRoot/SOAK_BASE 同款（退回 `v === \'\'` ⇒ 红）', () => {
+    const src = readFileSync(RUN_SOAK_SRC, 'utf8');
+    const at = src.indexOf('function readInt');
+    expect(at).toBeGreaterThan(-1);
+    const body = src.slice(at, at + 400);
+    expect(body).toMatch(/v\.trim\(\) === ''/);
+    expect(body).not.toMatch(/v === ''/);
   });
 });

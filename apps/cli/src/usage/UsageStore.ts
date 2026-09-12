@@ -572,12 +572,26 @@ export class UsageStore {
     return { file: { version: 2, entries: {}, recent: [], daily: {} }, legacy: false };
   }
 
-  /** 生效的备份保留份数：显式 opts > VESSEL_USAGE_BACKUP_KEEP > 默认 5（0 = 关闭）。 */
+  /**
+   * 生效的备份保留份数：显式 opts > VESSEL_USAGE_BACKUP_KEEP > 默认 5（0 = 关闭）。
+   *
+   * 环境变量的**空白判据**收敛到全仓唯一实现 `envRoot`（`../envRoot.js` → `@vessel/shared`）：
+   * 未设置 / 空串 / 纯空白 ⇒ 未设置 ⇒ 默认 5。此前这里是**第二份手写实现**
+   * （`process.env.X ?? …` 外加自己的 `raw.trim() === ''`），与 ProviderStore 同概念
+   * （`VESSEL_PROVIDER_BACKUP_KEEP`，早已走 `envRoot`）的读法分家 —— 同一个"清空变量"的
+   * 写法在两处各判一次，正是 `envRoot` 注释里治的那种"同一次运行两处口径"。
+   *
+   * 判据等价性（**不是**放宽/收紧）：`envRoot` 相对手写版只多做一件事 —— 返回 trim 后的值，
+   * 而下面的 `Number.parseInt` 本就忽略首尾空白 ⇒ 所有取值路径的结果**逐字不变**
+   * （`undefined`/`''`/`'   '`/`'0'`/`'2'`/`'2.5'`/`'-1'`/`'abc'` 逐一同值）。
+   * **没有**顺手把解析并到 ProviderStore 的 `parseBackupKeep`：那是 fail-loud（非法值抛错），
+   * 而本处的既有语义是**静默回落 5**，合并会**改变**已发布行为 ⇒ 不动。
+   */
   private resolveBackupKeep(): number {
     const explicit = this.backupKeepOpt;
     if (explicit !== undefined) return Number.isFinite(explicit) && explicit >= 0 ? explicit : 5;
-    const raw = process.env.VESSEL_USAGE_BACKUP_KEEP;
-    if (raw === undefined || raw.trim() === '') return 5;
+    const raw = envRoot('VESSEL_USAGE_BACKUP_KEEP');
+    if (raw === undefined) return 5;
     const n = Number.parseInt(raw, 10);
     return Number.isFinite(n) && n >= 0 ? n : 5;
   }

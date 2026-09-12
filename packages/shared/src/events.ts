@@ -207,6 +207,27 @@ export interface RequestHeaderRecord extends SessionRecordBase {
   surface: false;
 }
 
+/**
+ * B19 `audit/decision` —— `PolicyDecision`(A13) 的**持久镜像**（verdict + decisionPath 决策轨迹）。
+ *
+ * **当前状态：已登记、未接线（保留）** —— 全仓**零生产者、零消费者**：
+ *  - 生产者 0：没有任何 `session.appendSync({ type: 'audit/decision', … })`。A13 `policy_decision`
+ *    事件只有一处 emit（`packages/core/src/agent-loop/AgentLoop.ts` 的 `recordDenial`），而且它
+ *    **只在拒绝时**发、`verdict` 恒为 `'deny'` ⇒ "allow 也落一份决策镜像"这条规格语义没有实现；
+ *  - 消费者 0：`Telemetry.finalizeRecord` 没有这个 `case`，没有任何回放/UI/conformance 读它；
+ *    仓里仅有的两处提及是**反向断言**（`AgentLoop.before-stop-verdict.test.ts` 与
+ *    `AgentLoop.llm-retry-record.test.ts` 各断言"本会话里 `audit/decision` 有 0 条"），
+ *    即用它的缺席当负对照，不是消费。
+ *
+ * 为什么**保留而不是删除**：它是 `docs/EVENT-SPEC.md` §5.A A13/§6 B19 与
+ * `docs/POLICY-SPEC.md` §7.2 写明的契约（"每次走策略链的调用恰好一次 PolicyDecision(A13)
+ * + audit/decision(B19)"，供审计/UI 透明展示/conformance 校验）。删类型会让未来接线的人
+ * 丢掉契约；把它标成"已接线"则会让读文档的人以为有这条证据链——两者都是撒谎。
+ *
+ * 为什么本卡**不接线**：生产者必须落在 `AgentLoop`（`packages/core/**`）——那正是本卡的禁改面
+ * （放宽 deny-only 的 A13 语义属产品决策，见 `docs/product-evolution/PRODUCT-STATE.md`）。
+ * 可执行守卫：`packages/shared/src/unwiredRecords.test.ts`（一旦有人接线，该用例先红）。
+ */
 export interface AuditDecisionRecord extends SessionRecordBase {
   type: 'audit/decision';
   toolCallId: string;

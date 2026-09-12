@@ -2,8 +2,12 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { UsageStore } from './UsageStore.js';
 import type { PricingTable } from '../providers/pricing.js';
+
+/** C-2 源码守卫读的就是实现文件本身（不是本测试文件）。 */
+const USAGE_STORE_SRC = fileURLToPath(new URL('./UsageStore.ts', import.meta.url));
 
 /**
  * UsageStore.recovery.test.ts — 用量文件的两项可靠性行为验收（G-04 / BRIEF-05）。
@@ -177,6 +181,40 @@ describe('usage — 损坏隔离 + 写盘前备份轮转（G-04 / BRIEF-05）', 
     // 再次写盘不增长（上限恒定）
     recordOnce(store, 99);
     expect(listBackups(dir).length).toBe(5);
+  });
+
+  /**
+   * C-2：`VESSEL_USAGE_BACKUP_KEEP` 的空白判据收敛到全仓唯一实现 `envRoot`
+   * （`UsageStore.resolveBackupKeep()` 此前是**第二份手写实现**，与 ProviderStore 同概念
+   * `VESSEL_PROVIDER_BACKUP_KEEP` 的读法分家）。
+   *
+   * **本用例非判别**（改动前后同值）：旧手写版同样把 `''`/纯空白判成 5 —— 收敛的是"判据写在
+   * 哪儿"，不是结论。判别性由下一条源码守卫承担（删掉 `envRoot` 调用 ⇒ 那条红）。
+   * 这条钉的是**结论不得因收敛而漂移**：空/纯空白 ⇒ 与未设置同值（默认 5，绝不静默变 0 =
+   * 关掉备份）。
+   */
+  it('C-2 空白判据同源：VESSEL_USAGE_BACKUP_KEEP 为空串/纯空白 ⇒ 与未设置同值（默认 5）', () => {
+    for (const blank of ['', '   ', '\t']) {
+      process.env.VESSEL_USAGE_BACKUP_KEEP = blank;
+      const root = newRoot();
+      const store = new UsageStore({ rootDir: root, pricing: PRICING });
+      for (let i = 0; i < 8; i += 1) recordOnce(store, i);
+      expect(listBackups(root).length).toBe(5);
+    }
+  });
+
+  /**
+   * C-2 守卫（判别性）：读 env 必须走 `envRoot`，不得再出现 `process.env.VESSEL_USAGE_BACKUP_KEEP`
+   * —— 改回手写读法 ⇒ 本用例红。（`UsageStore.ts` 早已 import `envRoot`：`VESSEL_USAGE_ROOT` 用同一条。）
+   *
+   * 同时钉住"**没有**顺手改解析语义"：本处的既有语义是非法值**静默回落 5**，而 ProviderStore 的
+   * `parseBackupKeep` 是 fail-loud（非法值抛错）—— 把解析也并过去会**改变**已发布行为，故不并。
+   */
+  it('C-2 判据守卫：读 env 走唯一实现 envRoot，且解析语义未被顺手收紧/放宽', () => {
+    const src = fs.readFileSync(USAGE_STORE_SRC, 'utf8');
+    expect(src).toContain("envRoot('VESSEL_USAGE_BACKUP_KEEP')");
+    expect(src).not.toContain('process.env.VESSEL_USAGE_BACKUP_KEEP');
+    expect(src).toContain('const n = Number.parseInt(raw, 10);'); // 静默回落 5 的既有语义逐字保留
   });
 
   it('读失败（非 ENOENT，EACCES）不得静默覆盖：suppressWrite 生效，本进程不再写 usage.json', () => {

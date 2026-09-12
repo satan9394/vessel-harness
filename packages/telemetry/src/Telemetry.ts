@@ -16,6 +16,7 @@ export interface TelemetryCounters {
   denials: number;
   compactions: number;
   evaluatorRejects: number;
+  /** M14 的 `approval_asks`：审批询问次数 = `audit/denial` 中 `stage:'approval'` 的条数（见类注释）。 */
   approvalAsks: number;
   inputTokens: number;
   outputTokens: number;
@@ -28,9 +29,43 @@ export interface TelemetryCounters {
  * session replay; exports JSONL report lines (§4.2 format).
  *
  * 回放面（`finalize` → `finalizeRecord`）**已消费**的记录类型 = `tool/result`（M04）、
- * `audit/denial`（M12）、`compaction/start`（M09）、`llm/retry`（M05，B13）。
+ * `audit/denial`（M12 + M14 的 approval 子集）、`compaction/start`（M09）、`llm/retry`（M05，B13）。
  * 这一集合与 `docs/ARCHITECTURE.md` §4.11 表格那一行**双向绑定**，由 `telemetry.test.ts`
  * 的文档⇄代码守用例钉住（文档多写一个 ⇒ 红；代码多一个分支没写进文档 ⇒ 也红）。
+ *
+ * M14 `approvalAsks` 的生产者（本卡接线；此前**无任何 `+1` 的地方**，指标恒 0 却仍被
+ * `benchmarks/scenarios/*.yaml` 列为 `measured`）：
+ *
+ * 真实通路 = **`before_tool` 的 `ask` 裁决**，三处逐条可查：
+ *  ① `packages/policy/src/engine/Engine.ts` 决策序第 ④/⑥ 步：`ask` 规则命中、或 profile
+ *     要求而 `approval !== 'never'` ⇒ 返回 `{action:'ask'}`（`approval: 'ask'` 由 policy yaml /
+ *     sessionOverrides 配置得出，默认 `never` 时该分支走 deny，不产 ask）；
+ *  ② `packages/core/src/events/EventBus.ts` 的 waterfall 也可铸出 `{kind:'ask'}`
+ *     （`listenerErrorPolicy:'ask'`、guard 收窄）；
+ *  ③ `packages/core/src/agent-loop/AgentLoop.ts` 的 `gate.result.kind === 'ask'` 分支：
+ *     v0.1 无应答者链 ⇒ 服务内 fail-closed，**落 `audit/denial`（`stage:'approval'`）** 并 emit
+ *     `policy_decision`(verdict `'deny'`)，一个 ask 恰好一条记录。
+ *     可达性有既有用例钉住：`AgentLoop.denial-breaker.test.ts` 用例⑧。
+ *
+ * 为什么**只从回放记录计**、且**不照抄 `denials` 的加法**（这是本卡读清后作出的取舍）：
+ *  - 仓里**没有** `approval/asked`(B17)/`approval/decided`(B18) 记录类型，也没有 A16/A17 事件，
+ *    更没有 `ctx.approval`/应答者链（`docs/EVENT-SPEC.md`、`POLICY-SPEC.md` 只描述了它们）——
+ *    所以「ask」**没有独立的第二份证据**。那条 `policy_decision` 事件的 `verdict` 逐字是
+ *    `'deny'`（`AgentLoop.recordDenial`），**它就是那次拒绝本身**：按 `denials` 的加法把它也
+ *    记进 M14，等于让同一个事实既充当 M12 又充当 M14，且一次 ask 报成 2。
+ *  - 记账法在仓里是**已知的、消费方要绕开的**语义（`denials` 测试注释逐字写着 "1 from event +
+ *    1 from replay record"，`benchmarks/runners/src/contracts/vessel.ts` 用 `Math.max` 绕开）。
+ *    新指标不继承它：`llm/retry` 那张卡已经为「新增计数」定下方向（同一事实只计一次）。
+ *  - 但**不去重也不行**：M05 能按 `requestId#attemptNo` 去重，是因为两侧共享一个**全局唯一** id；
+ *    ask 的两侧只有 `toolCallId`，而它**不唯一**（`toolCallId` 逐字来自 provider，`MockProvider`
+ *    每次响应都从 `tc_mock_1` 重新编号）⇒ 用它当身份会把不同步/不同轮的两个 ask 静默并成一个
+ *    **少计**（`countRetry` 注释明令"绝不静默少计"）。
+ *  - 结论：M14 取**唯一不留歧义的那一面**——append-only 日志里 `stage:'approval'` 的
+ *    `audit/denial` 条数（一个 ask 恰好一条，无需 dedupe）。这与 M04(`invalidArgs`)、M09
+ *    (`compactions`) 同为"只由回放记录计数"的既有形态；生产消费方一律先 `finalize(session)`
+ *    再读 `metrics()`（`benchmarks/runners/src/runner.ts`、`contracts/vessel.ts`），故无缺口。
+ *  - **不得**在无此记录时伪造数值：`approval: 'never'` 的运行里 Engine 直接走 deny
+ *    （`decisionPath` 带 `approval:never`、stage 仍 `'rule'`），M14 如实为 0。
  *
  * **刻意不消费**的三类新造记录（已落盘，但没有回放消费方——理由不是"以后再说"，是各自的取值面
  * 决定了照抄会造假）：
@@ -138,6 +173,11 @@ export class Telemetry {
         break;
       case 'audit/denial':
         this.counters.denials += 1;
+        // M14 生产者的**唯一**落点：`stage:'approval'` = AgentLoop 的 ask 分支
+        // （Ask 裁决无应答者 ⇒ fail-closed 收口）。见类注释「M14 approvalAsks 的生产者」。
+        // 只认这一个 stage：`'rule'`/`'hook'`（拒绝来自规则/监听器）与 `'before_turn'`
+        // （输入级否决，无工具锚点）都不是审批询问。
+        if (r.stage === 'approval') this.counters.approvalAsks += 1;
         break;
       case 'compaction/start':
         this.counters.compactions += 1;
@@ -165,7 +205,7 @@ export class Telemetry {
       { metric: 'M09', name: 'Compactions', value: c.compactions, unit: 'count', source: 'compaction/start' },
       { metric: 'M12', name: 'SafetyViolations', value: c.denials, unit: 'count', source: 'audit/denial' },
       { metric: 'M13', name: 'EvaluatorRejects', value: c.evaluatorRejects, unit: 'count', source: 'evaluator' },
-      { metric: 'M14', name: 'Autonomy', value: c.approvalAsks, unit: 'count', source: 'approval/asked', detail: { steers: 0, approval_asks: c.approvalAsks, interrupts: 0, human_answers: 0, machine_answers: 0 } },
+      { metric: 'M14', name: 'Autonomy', value: c.approvalAsks, unit: 'count', source: 'audit/denial:approval', detail: { steers: 0, approval_asks: c.approvalAsks, interrupts: 0, human_answers: 0, machine_answers: 0 } },
     ];
     if (extra?.durationMs !== undefined) {
       out.push({ metric: 'M10', name: 'Time', value: extra.durationMs, unit: 'ms', source: 'runner-timer' });

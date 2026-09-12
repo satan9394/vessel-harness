@@ -185,6 +185,34 @@ function repoRoot(): string {
 }
 
 /**
+ * `VESSEL_BASE_URL` / `VESSEL_API_KEY` 的**空白判据**：`undefined` / `''` / 纯空白 ⇒ 未设置。
+ *
+ * 为什么必须有这一条：这两个环境变量此前写作 `flags.get(x) ?? process.env.X` —— `??` 只挡
+ * `undefined`，于是 `VESSEL_BASE_URL='   '`（shell/CI 里"清空变量"或经模板注入成空白的常见
+ * 形态）会被当成**真端点**：`missingBaseUrl()` 判它非空 ⇒ 不退出，直接拿一个空白 URL 去构造
+ * provider 并真发请求；`VESSEL_API_KEY='   '` 同理会拿一个纯空白密钥去真连（401）。
+ * 纯空串本身**不静默**（baseUrl 缺失会明确退出、apiKey 缺失会 401）——**纯空白才是那条缝**。
+ *
+ * 判据与全仓同族口径**逐字同源**：「已解析入参」那份是 `providers/providerFactory.ts` 的
+ * `unsetIfBlank`（作用于 `planProvider` 的 model），「注入的密钥」那份是
+ * `benchmarks/runners/src/lane/opencodeGoCredential.ts` 的 `hasKeyValue`，状态根那份是
+ * `@vessel/shared` 的 `envRoot`。三者的共同点，也是本函数的语义：统一的只是**「有没有值」**，
+ * **非空白值逐字返回、不 trim** —— 密钥/URL 是逐字值，trim 属于"值变换"而非"判据统一"，
+ * 会改变已发布行为（负对照口径：「有值时行为逐字不变」）。`envRoot` 因此**不适用**于此
+ * （它返回 trim 后的值）；`unsetIfBlank` 虽是同一判据，但它在 providerFactory 内部且未导出，
+ * 本卡不改那个文件。
+ *
+ * 优先级结构**未动**：仍是 `flags > env`（`flags.get(x) ?? envNonBlank('X')`）；显式 flag 为
+ * 空串/纯空白时**照旧挡住** env 回落（与 `--model ''` 的既有语义同款 —— 那条属产品语义，
+ * 本卡只报告不改）。本函数只管把"env 侧到底有没有值"判对。
+ */
+export function envNonBlank(name: string): string | undefined {
+  const raw = process.env[name];
+  if (raw === undefined) return undefined;
+  return raw.trim() === '' ? undefined : raw;
+}
+
+/**
  * 内置默认配置根：CLI **自带的** `configs/` 所在目录（G-15「装在哪儿就在哪儿」）。
  *
  * 查找顺序（自上而下，命中即返回；**包内优先**，结果不随 cwd 漂移）：
@@ -958,8 +986,8 @@ async function cmdRun(flags: Map<string, string>): Promise<number> {
   const plan = planProvider({
     config: currentCfg,
     explicitProvider,
-    baseUrl: flags.get('base-url') ?? process.env.VESSEL_BASE_URL,
-    apiKey: flags.get('api-key') ?? process.env.VESSEL_API_KEY,
+    baseUrl: flags.get('base-url') ?? envNonBlank('VESSEL_BASE_URL'),
+    apiKey: flags.get('api-key') ?? envNonBlank('VESSEL_API_KEY'),
     model: flags.get('model') ?? process.env.VESSEL_MODEL,
   });
   const model = plan.model;
@@ -1354,8 +1382,8 @@ async function cmdBench(flags: Map<string, string>): Promise<number> {
   // 非空值与此前逐字相同（plan.model === 传入的 model）。
   const plan = planProvider({
     explicitProvider: providerName,
-    baseUrl: flags.get('base-url') ?? process.env.VESSEL_BASE_URL,
-    apiKey: flags.get('api-key') ?? process.env.VESSEL_API_KEY,
+    baseUrl: flags.get('base-url') ?? envNonBlank('VESSEL_BASE_URL'),
+    apiKey: flags.get('api-key') ?? envNonBlank('VESSEL_API_KEY'),
     model: flags.get('model') ?? process.env.VESSEL_MODEL,
   });
   const model = plan.model;

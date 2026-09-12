@@ -99,7 +99,16 @@ export interface OpencodeGoEndpoint {
   protocol: 'openai-compatible';
   /** 延迟解析的 apiKey（无 key 时为 undefined）。 */
   apiKey?: string;
-  /** 有 key → true（provider 可构造）；无 key → false（lane 降级 pending）。 */
+  /**
+   * 有 key → true（provider 可构造）；无 key → false（lane 降级 pending）。
+   *
+   * 判据 = **空/纯空白一律按"没有 key"**，与 `opencodeGoCredential.ts` 的 `hasKeyValue`
+   * 同口径（也是全仓「有没有值」的统一判据）。内置的两条来源（env / CredentialStore）已按它
+   * 收敛，但本函数的 `keyResolver` 是**可注入的自定义 resolver**：旧写法 `apiKey.length > 0`
+   * 会把 `'   '` 判成有 key ⇒ lane 拿一个纯空白密钥去真连端点（401/挂死），而不是按契约
+   * 降级 `pending-environment`。
+   * 非空白值**逐字返回、不 trim**（密钥是逐字值，trim 属于值变换；本处只统一"有没有值"）。
+   */
   hasKey: boolean;
 }
 
@@ -110,7 +119,9 @@ export function opencodeGoEndpoint(keyResolver: OpencodeGoKeyResolver = envOpenc
     baseUrl: opencodeGoBaseUrl(),
     protocol: 'openai-compatible',
     apiKey,
-    hasKey: typeof apiKey === 'string' && apiKey.length > 0,
+    // 「有没有 key」的唯一判据：`undefined`/`''`/纯空白 ⇒ 无 key（同 `hasKeyValue`）。
+    // 旧写法 `apiKey.length > 0` 只挡空串 ⇒ 自定义 resolver 返回 `'   '` 时仍会真连。
+    hasKey: typeof apiKey === 'string' && apiKey.trim() !== '',
   };
 }
 

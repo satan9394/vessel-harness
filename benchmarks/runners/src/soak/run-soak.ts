@@ -37,8 +37,19 @@ function iso(): string {
   return new Date().toISOString().replace(/[:.]/g, '-');
 }
 
+/**
+ * 五个数值参数（`SOAK_TASKS` / `SOAK_ROUNDS` / `SOAK_HANDOFF_EVERY` / `SOAK_PAUSE_EVERY` /
+ * `SOAK_MAX_ACCEPTED`）的判据：**未设置 / 空串 / 纯空白 ⇒ 默认值** —— 与同文件 `SOAK_BASE`
+ * （唯一实现 `envRoot`）同一口径，不再一处判 `''`、另一处靠数值下界顺带兜住空白。
+ *
+ * **结论本来就一致，故本改动不改变任何既有语义**：旧写法只显式挡 `''`，纯空白
+ * `'   '` 落到 `Number('   ') === 0` 被 `n > 0` 挡回默认值 —— 与 `envRoot` 判"未设置"
+ * 殊途同归（逐值等价见 `run-soak.test.ts` ④⑤）。改的是**判据写在哪**：把"空白"显式判掉，
+ * 让它与 SOAK_BASE 是同一句话，而不是巧合相同的结论。
+ * 非空白值仍逐字交给 `Number()`（`' 5 '` / `'1e3'` / `'0x10'` 的解析结果逐字不变）。
+ */
 function readInt(v: string | undefined, dflt: number): number {
-  if (v === undefined || v === '') return dflt;
+  if (v === undefined || v.trim() === '') return dflt;
   const n = Number(v);
   return Number.isInteger(n) && n > 0 ? n : dflt;
 }

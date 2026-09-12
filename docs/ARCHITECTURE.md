@@ -193,7 +193,7 @@ step 循环（core/agent-loop，每 step = 一次模型请求 + 其工具调用�
 - **挂载点**：Policy Engine **不在事件面内，而是 BeforeTool 链上的权威监听器**（D5 §7.2 第 1 条；任务书 §8 执行链 `Agent → Tool Call → BeforeTool → Policy Engine → ALLOW/DENY → Runtime → Audit` 的落地映射见 D5 §7.1）。
 - **裁决序**（D6 §4.2）：① denied_tools（裸工具名 deny，先于一切，工具同时移出上下文）→ ② deny 规则（不可被任何更细 allow 豁免）→ ③ hook override（只收窄不放宽）→ ④ ask 规则 → ⑤ allow 规则 → ⑥ profile 比较（required_permission × read-only/workspace-write/danger-full-access）。
 - **guard 单调**：waterfall 全链后 ToolGuard 统一收窄（只严不松）；`never` 审批策略在分发前**服务内强制**（应答者也绕不过）；ask 无应答者 = unavailable = 拒绝（fail-closed 三落点，D6 §4.3）。
-- **审计**：每次走策略链的调用恰好一次 `PolicyDecision`(A13, emit) + `audit/decision`(B19)；deny 分支另落 `audit/denial`(B20)（D7 的 Safety Violations M12 口径来源）；approval 对 B17/B18。
+- **审计**：`PolicyDecision`(A13, emit) 目前**只在拒绝时**发出（`verdict` 恒 `'deny'`，allow 路径不发），拒绝落 `audit/denial`(B20)（D7 的 Safety Violations M12 口径来源；其中 `stage:'approval'` 的那些即 M14 的 `approval_asks`），而 `audit/decision`(B19) 与 approval 对 B17/B18 在本仓**未接线**（类型登记在 `packages/shared/src/events.ts`，零产零消由 `packages/shared/src/unwiredRecords.test.ts` 守卫）。
 - **软/硬分离**：Policy 编译出的 Prompt Guidance 在 A07 BeforeModel 注入（软，不产生审计事实）；硬执法走 A12/A18/A20 + runtime/sandbox。Behavior IR `channel=runtime_policy` 条目经编译在 Harness Profile 产出 `policy_ref`，D6 侧缺执法规则即编译告警（D4 §7.2 双通道强制）。
 
 ### 2.4 Context 构建与 Compaction 位置

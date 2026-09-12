@@ -133,6 +133,31 @@ describe('V1.1-C — env key 读取与 resolver（密钥不落盘）', () => {
     // 断言默认 resolver 只读 env，路径上没有任何写盘调用（getter 不写）
     expect(envOpencodeGoKey).toBeTypeOf('function');
   });
+
+  /**
+   * C-3：**注入的自定义 keyResolver** 返回纯空白 ⇒ 按"没有 key"处理。
+   *
+   * 内置的两条来源（env `OPENCODE_API_KEY` / CredentialStore）早已用 `hasKeyValue`
+   * （空/纯空白 ⇒ 无 key）收敛，但 `opencodeGoEndpoint` 的 `hasKey` 当时仍是
+   * `apiKey.length > 0` —— 只挡空串。于是自定义 resolver 返回 `'   '` 时 `hasKey` 为 true
+   * ⇒ lane **拿一个纯空白密钥去真连端点**（401/挂死），而不是按契约降级 `pending-environment`。
+   *
+   * 「删哪行会红」：把 `hasKey` 改回 `apiKey.length > 0` ⇒ 本用例前两条断言红
+   * （`hasKey` 变 true、`resolveOpencodeGoProvider` 返回真实 provider 而不是 null）。
+   */
+  it('C-3 注入 resolver 返回纯空白 ⇒ 按无 key（hasKey:false / 不构造 provider）', () => {
+    const blank = opencodeGoEndpoint(() => '   ');
+    expect(blank.hasKey).toBe(false);
+    expect(blank.apiKey).toBe('   '); // 值本身不被改写（判据只管"有没有"），只是不算"有 key"
+    expect(resolveOpencodeGoProvider(LANE_MODELS[0]!, { keyResolver: () => '   ' })).toBeNull();
+    expect(resolveOpencodeGoProvider(LANE_MODELS[0]!, { keyResolver: () => '\t\n' })).toBeNull();
+
+    // 负对照：非空白 key 仍判"有 key"，且**逐字返回、不 trim**（有值时行为不变）
+    const padded = opencodeGoEndpoint(() => '  sk-test-not-a-real-key  ');
+    expect(padded.hasKey).toBe(true);
+    expect(padded.apiKey).toBe('  sk-test-not-a-real-key  ');
+    expect(resolveOpencodeGoProvider(LANE_MODELS[0]!, { keyResolver: () => 'sk-test-not-a-real-key' })).not.toBeNull();
+  });
 });
 
 describe('V1.1-C — 模型确认与选择（selectMimoModel / defaultMimoLaneModels）', () => {

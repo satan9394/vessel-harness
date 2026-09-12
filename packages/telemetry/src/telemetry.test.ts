@@ -30,6 +30,20 @@ import { Telemetry } from './Telemetry.js';
  *   - 事件侧 key 换成别的模板（如 `${turnId}:${attempt}`）⇒ ②④ 红；
  *   - 动既有三条记录的计数分支 ⇒ ③ 与既有用例红（`denials=2`）；
  *   - 只改文档不动代码（或反之）⇒ ⑤ 红。
+ *
+ * M14（本卡）：`TelemetryCounters.approvalAsks` 此前**没有任何生产者**（全仓无 `+1`、无
+ * `approval/asked`(B17)/`approval/decided`(B18) 记录类型、无 A16/A17 事件），却被
+ * `benchmarks/scenarios/*.yaml` 列为 `measured`、被 `asserts.ts` 的 `metricValue('M14')`
+ * 读走 ⇒ 报告里是一个恒 0 的"被测量"。真实通路是 `before_tool` 的 **ask 裁决**
+ * （`policy/engine/Engine.ts` 的 ask 分支 / `EventBus` waterfall 的 `kind:'ask'`），
+ * AgentLoop 无应答者 ⇒ fail-closed，落 `audit/denial`(`stage:'approval'`)。本卡把它接成
+ * 唯一生产者：回放面 `stage === 'approval'` 计一次（一个 ask 恰好一条记录）。
+ *
+ * 「删哪行会红」（M14）：
+ *   - 删掉 `finalizeRecord` 的 `if (r.stage === 'approval') this.counters.approvalAsks += 1;`
+ *     ⇒ ⑥⑧ 红（改前正是这一行不存在，故 ⑥ 原本恒 0）；
+ *   - 把 `stage === 'approval'` 放宽成"任何审计拒绝都算"（删掉 stage 判据）⇒ ⑦ 红；
+ *   - 把 M14 的 `source` 改回不存在的 `'approval/asked'`（或只改文档）⇒ ⑨ 红。
  */
 
 const TELEMETRY_SRC = fileURLToPath(new URL('./Telemetry.ts', import.meta.url));
@@ -250,5 +264,118 @@ describe('telemetry — event subscriber + JSONL report', () => {
     expect(m05Row).toContain('llm/retry');
     // 文档点名的来源必须在代码里真有分支（删掉 case ⇒ 本用例与用例①同时红）
     expect(handled).toContain('llm/retry');
+  });
+
+  it('⑥ M14 纯回放：`audit/denial`(stage approval) ⇒ approvalAsks 如实计数（改前恒 0）', async () => {
+    const session = await openSession('t-m14-replay');
+    // 审批询问的两条真实记录形状（AgentLoop.dispatchToolCall 的 ask 分支落盘值）：
+    // 规则命中转 ask、profile 要求转 ask，二者都因"无应答者"fail-closed。
+    await session.appendSync({
+      type: 'audit/denial', toolCallId: 'tc_a', toolName: 'Shell', stage: 'approval',
+      ruleRef: 'ask:rm', reason: 'requires approval: ask:rm', surface: false,
+    });
+    await session.appendSync({
+      type: 'audit/denial', toolCallId: 'tc_b', toolName: 'Shell', stage: 'approval',
+      ruleRef: undefined, reason: 'requires approval (profile)', surface: false,
+    });
+
+    // 刻意**不** attach(bus)：这条通路就是"回放"。改前 `finalizeRecord` 只把 stage:'approval'
+    // 的拒绝并进 M12，M14 恒 0 ⇒ 这里必红。
+    const tel = new Telemetry();
+    const counters = tel.finalize(session);
+    expect(counters.approvalAsks).toBe(2);
+    // M12 逐字不变：审批拒绝**同样**是拒绝（既有口径，不得因为新增 M14 而少计）。
+    expect(counters.denials).toBe(2);
+
+    const m14 = tel.metrics().find((m) => m.metric === 'M14')!;
+    expect(m14.value).toBe(2);
+    expect(m14.source).toBe('audit/denial:approval'); // 来源点名真实生产者，不再是无人落盘的 `approval/asked`
+    expect(m14.detail).toMatchObject({ approval_asks: 2 });
+    await session.close();
+  });
+
+  it('⑦ 负对照：非 approval 阶段的拒绝绝不进 M14（rule / hook / before_turn 三种 stage）', async () => {
+    const session = await openSession('t-m14-negative');
+    await session.appendSync({
+      type: 'audit/denial', toolCallId: 'tc1', toolName: 'Shell', stage: 'rule',
+      ruleRef: 'no-rm', reason: 'denied by rule no-rm', surface: false,
+    });
+    await session.appendSync({
+      type: 'audit/denial', toolCallId: 'tc2', toolName: 'Shell', stage: 'hook',
+      ruleRef: 'listener-error:policy:engine', reason: 'listener error', surface: false,
+    });
+    // 输入级否决：无工具锚点（toolCallId 空串），stage 是 before_turn
+    await session.appendSync({
+      type: 'audit/denial', toolCallId: '', toolName: '', stage: 'before_turn',
+      ruleRef: 'block-input', reason: 'blocked by test listener', surface: false,
+    });
+
+    const counters = new Telemetry().finalize(session);
+    expect(counters.approvalAsks).toBe(0); // 三种拒绝都不是"审批询问"（删掉 stage 判据 ⇒ 这里变 3 ⇒ 红）
+    expect(counters.denials).toBe(3); // M12 逐字不变
+    expect(counters.turns).toBe(0);
+    await session.close();
+  });
+
+  it('⑧ 真实链路：AgentLoop 的 ask 分支（无应答者 ⇒ fail-closed）⇒ 实时与纯回放都恰好计一次', async () => {
+    const session = await openSession('t-m14-e2e');
+    const bus = new EventBus();
+    const tel = new Telemetry();
+    tel.attach(bus);
+    // 审批询问的真实通路之一：before_tool waterfall 返回 kind:'ask'
+    // （Engine 的 `{action:'ask'}` 走同一条链；见 Telemetry.ts 类注释三条逐条位置）。
+    bus.on('before_tool', () => ({ kind: 'ask' as const, reason: 'needs approval', ref: 'test:ask' }), 'test:ask');
+
+    // 第 1 步：模型要调一个工具（会被 ask 分支 fail-closed 拒掉）；第 2 步：纯文本收尾。
+    const provider = new ScriptedProvider((call) =>
+      call === 1
+        ? {
+            content: '',
+            toolCalls: [{ id: 'tc_ask_1', name: 'Stub', arguments: { n: 1 } }],
+            finishReason: 'tool_calls' as const,
+            usage: { inputTokens: 1, outputTokens: 1 },
+          }
+        : reply('done'),
+    );
+    const loop = new AgentLoop({
+      session,
+      bus,
+      provider,
+      model: 'deps-model-unused',
+      buildContext: async () => ({
+        model: 'envelope-model',
+        messages: [{ role: 'system' as const, content: 'test' }],
+        tools: [],
+        estimateTokens: 10,
+      }),
+      runTool: async () => ({ content: 'MUST NOT RUN (ask ⇒ fail-closed)', meta: {} }),
+      getVisibleTools: () => [],
+    });
+
+    const result = await loop.runTurn('needs approval');
+    expect(result.kind).toBe('success');
+    expect(provider.calls).toBe(2);
+    // 审计面：恰好一条 stage:'approval' 的拒绝（ask 分支的落盘形状）
+    const approvals = session.replay().filter((r) => r.type === 'audit/denial' && r.stage === 'approval');
+    expect(approvals).toHaveLength(1);
+
+    expect(tel.finalize(session).approvalAsks).toBe(1);
+    tel.detach();
+    expect(new Telemetry().finalize(session).approvalAsks).toBe(1); // 同一份日志，纯回放 ⇒ 同一个数
+    await session.close();
+  });
+
+  it('⑨ 文档⇄代码：BENCHMARK-SPEC M14 行点名的来源 == 代码实际计数的来源（只改一侧 ⇒ 红）', () => {
+    const m14Row = fs.readFileSync(BENCHMARK_SPEC_MD, 'utf8').split('\n').find((l) => l.startsWith('| M14 |'))!;
+    expect(m14Row).toBeTruthy();
+    // M14 的实际生产者：`audit/denial` 里 stage:'approval' 的那些（一个 ask 恰好一条）。
+    const source = new Telemetry().metrics().find((m) => m.metric === 'M14')!.source;
+    expect(source).toBe('audit/denial:approval');
+    expect(m14Row).toContain(source); // 文档必须点名**这个**来源，否则文档在撒谎
+    // 反向：M14 行不得把本仓不存在的记录/事件写成"自家来源"（无 B17/B18 记录、无 A16/A17 事件）
+    expect(m14Row).toContain('未接线');
+    // 代码侧确实按 stage 取数（把判据放宽成"任何 audit/denial" ⇒ ⑦ 红；删掉 ⇒ ⑥⑧ 红）
+    const src = fs.readFileSync(TELEMETRY_SRC, 'utf8');
+    expect(src).toContain("if (r.stage === 'approval') this.counters.approvalAsks += 1;");
   });
 });
