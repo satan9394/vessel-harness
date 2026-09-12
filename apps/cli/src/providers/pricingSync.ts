@@ -17,7 +17,11 @@ import {
  *   1. **seed**：`configs/pricing.json` 由版本维护（手工/发版更新），本文件不碰它；
  *   2. **值守卫修复**：`~/.vessel/pricing.override.json` 的 `repair`（task 092），只改「现值 = 旧值」的行；
  *   3. **models.dev 同步**：本文件——拉 `https://models.dev/api.json`，**增量 upsert**
- *      `configs/model-catalog.json`（或 `--catalog` 指定的文件）。
+ *      catalog（`catalogPath` 由调用方给：`vessel pricing sync` 的**默认**落点是
+ *      用户态 `<usageRoot>/model-catalog.json`，即 `~/.vessel/model-catalog.json`，
+ *      `VESSEL_USAGE_ROOT` 可覆盖；`--catalog` 显式指定时按用户意图写该处）。
+ *      与读取同源：`loadModelCatalog` 用户态优先 → 包内兜底（Round 20），
+ *      于是默认路径下「写进去 = 下一次读得到」，不再有"看起来成功但写的位置读不到"。
  *
  * 与 cc-switch 的关键差异（刻意避开它的坑）：
  *   - cc-switch 的批量同步会**静默覆盖同名手动价**；这里同步只写 **catalog**，
@@ -78,7 +82,11 @@ export interface ParsedCatalog {
 }
 
 export interface SyncModelCatalogOptions extends ParseCatalogOptions {
-  /** 目标 catalog 文件路径（`configs/model-catalog.json` 或用户态目录）。 */
+  /**
+   * 目标 catalog 文件路径。**调用方决定**：`vessel pricing sync` 缺省传
+   * 用户态 `<usageRoot>/model-catalog.json`（`~/.vessel/…`，`VESSEL_USAGE_ROOT` 可覆盖），
+   * `--catalog <path>` 时传用户指定的路径（语义不变）。
+   */
   catalogPath: string;
   /** true = 只算差异、不写盘。 */
   dryRun?: boolean;

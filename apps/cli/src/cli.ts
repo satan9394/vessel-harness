@@ -41,7 +41,15 @@ import { cmdReview } from './review/reviewCommands.js';
 import { cmdExplain, cmdListTerms, cmdGuide, cmdSettings } from './guide/guideCommands.js';
 import { cmdSessionsList } from './sessions/commands.js';
 import { resolveResumeTarget } from './sessions/resume.js';
-import { loadModelCatalog, findCatalogModelByBase, findCatalogModelMatch, catalogPriceSource, listCatalogModels } from './providers/modelCatalog.js';
+import {
+  loadModelCatalogDetailed,
+  userModelCatalogPath,
+  findCatalogModelByBase,
+  findCatalogModelMatch,
+  catalogPriceSource,
+  listCatalogModels,
+  type ModelCatalog,
+} from './providers/modelCatalog.js';
 import { syncModelCatalog, MODELS_DEV_URL, DEFAULT_SYNC_TIMEOUT_MS, MAX_SYNC_RETRIES } from './providers/pricingSync.js';
 import { loadPricing, assertCostMultiplier, DEFAULT_COST_MULTIPLIER, type TokenPrice } from './providers/pricing.js';
 import { emitJson, fail, isJson } from './output.js';
@@ -218,14 +226,16 @@ export function builtinConfigRoot(startDir: string = path.dirname(fileURLToPath(
  * 读路径守卫（本卡修复）：内置配置的**默认路径不存在**时给一条明确警告，但**绝不失败**
  * （不改退出码、不抛——可用性优先）。
  *
- * 动机：`loadPricing`（providers/pricing.ts:58-73）与 `loadModelCatalog`
- * （providers/modelCatalog.ts:77-80）对缺失路径 **静默降级**（兜底 default 价 / 空目录）。
+ * 动机：`loadPricing`（providers/pricing.ts）与 `loadModelCatalog`
+ * （providers/modelCatalog.ts）对缺失路径 **静默降级**（兜底 default 价 / 空目录）。
  * 安装态包内若没带 configs，用户拿到的是**静默错误**的价目（usage 成本算错、
  * `vessel models` 无价格注解）——比崩溃更难发现。这里把「静默」补成「明说」。
  *
- * `root` 必须与调用处传给 `loadPricing` / `loadModelCatalog` 的 root **同源同值**
+ * `root` 必须与调用处传给 `loadPricing` / `loadModelCatalogDetailed` 的 root **同源同值**
  * （都来自 `builtinConfigRoot()`），因此这里检查的路径与真正读取的路径逐字一致
- * （`loadPricing(root)` 读的正是 `<root>/configs/pricing.json`）。
+ * （`loadPricing(root)` 读的正是 `<root>/configs/pricing.json`；目录的**用户态层**
+ * `~/.vessel/model-catalog.json` 优先级更高，但本函数检查的是「包内那份在不在」这个事实本身，
+ * 与用户态无关——它也是「configs 没随包安装」的唯一可观测信号，故不因用户态命中而跳过）。
  * 只检查**默认**路径；`--catalog` / `--policy` 等显式覆盖不经此处。
  * `warn` 仅为测试注入（缺省 `console.warn`），不影响退出码与人类输出之外的任何行为。
  */
@@ -275,28 +285,31 @@ function normalizePathForCompare(input: string): string {
 }
 
 /**
- * `vessel pricing sync` 的**读写不对称**判据（纯函数，便于不起网络直接断言两侧）。
+ * `vessel pricing sync` 的**写目标 vs 用户态读取位置**判据（纯函数，便于不起网络直接断言两侧）。
  *
- * 背景：本卡把**读**路径统一到 `builtinConfigRoot()`（安装态 = `<包>/dist/configs`），
- * 而**写**路径仍由 `repoRoot()`（从 **cwd** 上溯）决定 → 安装态写 `<用户 cwd>/configs/
- * model-catalog.json`（`pricingSync.ts` 还会 `mkdirSync` 递归新建）。后果是「看起来成功、
- * 但写的位置永远不被读」，且在用户项目里凭空多出一个 `configs/`。
+ * Round 20 起读路径是「**用户态 catalog 优先** → 回落包内 `<configRoot>/configs/
+ * model-catalog.json`」：用户态目录 = `resolveUsageRoot()`（缺省 `~/.vessel`，
+ * `VESSEL_USAGE_ROOT` 可覆盖，与 `pricing.override.json` 同根）。
+ * 因此判据是「写目录 == 用户态目录吗」：
+ *   - **相同** → 写进去的就是最高优先的那一层，`null`（默认路径即如此 → 零噪音、不再 warn）；
+ *   - **不同** → 写进去最多只是**回落层**：用户态一旦有 catalog，这次同步的价格永远读不到
+ *     （且在用户项目里凭空多一个 `configs/` 也不会被读）。
  *
- * 本函数只**判断并给出文案**，不写字、不改路径、不影响退出码：
- *   - 读目录 = 调用方传入的 `readDir`（= `path.join(builtinConfigRoot(), 'configs')`）；
+ * 本函数只**判断并给出文案**：不写字、不改路径、不影响退出码（`--catalog` 语义不变）。
  *   - 写目录 = `path.dirname(path.resolve(catalogPath))`；
- *   - 归一后**相同** → `null`（开发态即如此：零回归，不打印）；
- *   - 归一后**不同** → 返回 warn 文案（含写入绝对路径、读取生效目录、后果与补救）。
+ *   - 读目录 = 调用方传入的 `readDir`（调用点传 `resolveUsageRoot()`）；
+ *   - 归一后**相同** → `null`；**不同** → 返回 warn 文案（含写入绝对路径、用户态目录、后果与补救）。
  */
 export function pricingSyncMismatchWarning(catalogPath: string, readDir: string): string | null {
   const target = path.resolve(catalogPath);
   if (normalizePathForCompare(path.dirname(target)) === normalizePathForCompare(readDir)) return null;
   return (
-    `[vessel pricing sync] ⚠ 写入位置与读取位置不是同一目录：\n` +
+    `[vessel pricing sync] ⚠ 写入位置不是用户态目录：\n` +
     `  写入: ${target}\n` +
-    `  读取: ${readDir}（本机实际读取 model-catalog.json 的目录）\n` +
-    `  此次同步的价格不会被本机读到（读写位置不同）。\n` +
-    `  如需让它生效，请用 --catalog "${path.join(readDir, 'model-catalog.json')}"，或把 model-catalog.json 放到读取目录。`
+    `  用户态目录: ${readDir}（model-catalog.json 的最高优先级读取位置）\n` +
+    `  后果：用户态已有 catalog 时，此次同步的价格不会被读到（用户数据优先于其它位置）。\n` +
+    `  让它生效：--catalog "${path.join(readDir, 'model-catalog.json')}"，` +
+    `或用 vessel pricing override set <model> 直接指定该模型价（覆盖优先级最高）。`
   );
 }
 
@@ -450,6 +463,22 @@ function wrapPolicyLoadFailure(err: unknown, flags: Map<string, string>): unknow
 }
 
 /**
+ * 目录读取 + 告警的统一入口（task 093 / Round 20）：**用户态 catalog 优先 → 包内兜底**。
+ *
+ *   - 用户态文件损坏 → 回落包内并打 `load.warning`（不静默当空表、不抛、不改退出码）；
+ *   - 用户态文件是空表（`{}`）→ 空目录**生效**，同样打一条说明（不会"清了文件还在算旧价"）；
+ *   - **包内检查保持逐字不变**（无条件 `warnMissingBuiltinConfig`）：包内快照缺失是
+ *     「configs 没随包安装」的**唯一可观测信号**（release-gate 9 的 install-smoke 就靠它），
+ *     用户态目录只是兜底优先级更高，不该把这条缺陷信号吞掉。
+ */
+function loadCatalogWithWarnings(root: string, builtinImpact: string): ModelCatalog {
+  const load = loadModelCatalogDetailed(root);
+  if (load.warning !== undefined) console.warn(load.warning);
+  warnMissingBuiltinConfig(root, 'model-catalog.json', builtinImpact);
+  return load.catalog;
+}
+
+/**
  * UsageStore 工厂（task 086/087/092）：价目表 + 目录价源 + 用户覆盖 + strict 开关。
  * 查价实现与 UsageProjection 共用 @vessel/shared/pricing。
  * 用户覆盖文件 `~/.vessel/pricing.override.json` 与内置 configs/pricing.json 分离，
@@ -461,11 +490,13 @@ function createUsageStore(opts: { strict?: boolean } = {}): UsageStore {
   const root = builtinConfigRoot();
   // 缺文件时 loadPricing / loadModelCatalog 静默返回兜底值：这里补一条明确警告，但不失败。
   warnMissingBuiltinConfig(root, 'pricing.json', '价目表降级为 default 兜底价（usage 成本可能算错）。');
-  warnMissingBuiltinConfig(root, 'model-catalog.json', '模型目录为空（目录价与 vessel models 的价格注解缺失）。');
+  // 目录另有用户态层（`~/.vessel/model-catalog.json`，`pricing sync` 的默认落点）：
+  // 读的是「用户态优先 → 包内兜底」，但包内缺失的告警照旧（那是 configs 没随包安装的信号）。
+  const catalog = loadCatalogWithWarnings(root, '模型目录为空（目录价与 vessel models 的价格注解缺失）。');
   const override = new PricingOverrideStore({ rootDir: resolveUsageRoot() }).source();
   return new UsageStore({
     pricing: loadPricing(root),
-    catalog: catalogPriceSource(loadModelCatalog(root)),
+    catalog: catalogPriceSource(catalog),
     override,
     strict: opts.strict,
     multiplierOf: providerCostMultiplierResolver(),
@@ -997,10 +1028,10 @@ async function cmdModels(flags: Map<string, string>): Promise<number> {
     return 0;
   }
   // V0.9: annotate each model with context window + USD/1M price from the model catalog
-  // G-15 后续：目录同样取 CLI 自带的 configs（与 createUsageStore / cmdPricing 同源）
+  // G-15 后续：目录同样取 CLI 自带的 configs（与 createUsageStore / cmdPricing 同源）；
+  // Round 20：里面再走「用户态 catalog 优先 → 包内兜底」。
   const catalogRoot = builtinConfigRoot();
-  warnMissingBuiltinConfig(catalogRoot, 'model-catalog.json', '模型上下文/价格注解缺失（模型列表将不带 ctx/价格）。');
-  const catalog = loadModelCatalog(catalogRoot);
+  const catalog = loadCatalogWithWarnings(catalogRoot, '模型上下文/价格注解缺失（模型列表将不带 ctx/价格）。');
   const line = (m: string): string => {
     const e = findCatalogModelByBase(catalog, m);
     if (!e) return `  ${m}`;
@@ -1837,7 +1868,9 @@ async function cmdPricingOverride(args: string[], flags: Map<string, string>): P
 /**
  * `vessel pricing sync [--dry-run] [--provider <p>] [--exclude <glob>]`（task 093）。
  *
- * 从 models.dev 拉价目，**增量 upsert** `configs/model-catalog.json`（`--catalog` 可换路径）。
+ * 从 models.dev 拉价目，**增量 upsert** 目录文件：默认写用户态
+ * `~/.vessel/model-catalog.json`（`VESSEL_USAGE_ROOT` 可覆盖，与读取的最高优先级层同源），
+ * `--catalog <path>` 可换路径（语义不变）。
  * 语义（与 cc-switch 的差异见 `pricingSync.ts` 头注释）：
  *   - 拉取失败/超时（重试 1 次后）→ **保留旧表**，打印原因并 exit 1，绝不静默清空；
  *   - 不覆盖 `~/.vessel/pricing.override.json`（优先级链 override > 内置 > catalog 不变）；
@@ -1845,8 +1878,12 @@ async function cmdPricingOverride(args: string[], flags: Map<string, string>): P
  *   - 远端未覆盖的既有条目**保留**（同步不删条目）。
  */
 async function cmdPricingSync(flags: Map<string, string>): Promise<number> {
-  const root = repoRoot();
-  const catalogPath = path.resolve(flags.get('catalog') ?? path.join(root, 'configs', 'model-catalog.json'));
+  // Round 20：默认落点 = **用户态目录**（`~/.vessel/model-catalog.json`，`VESSEL_USAGE_ROOT`
+  // 可覆盖）——与 `loadModelCatalog` 的最高优先级读取位置同源，于是默认路径下
+  // 「写进去 = 下一次读得到」，且不再往用户项目目录里凭空造 `configs/`。
+  // `--catalog <path>` 显式指定时仍按用户意图写该处（语义不变）。
+  const readRoot = resolveUsageRoot();
+  const catalogPath = path.resolve(flags.get('catalog') ?? userModelCatalogPath());
   const listFlag = (name: string): string[] =>
     (flags.get(name) ?? '')
       .split(',')
@@ -1866,11 +1903,12 @@ async function cmdPricingSync(flags: Map<string, string>): Promise<number> {
     timeoutMs = n;
   }
 
-  // 读写不对称守卫（本卡）：写目标仍按 repoRoot()，读路径取 builtinConfigRoot()。两者不同时
-  // 「✔ 已写入」是空话（写的位置永远读不到），还会在用户项目里凭空多出 configs/。这里在
-  // **真正写盘之前**（syncModelCatalog 是唯一写盘点）把它说明白：只走 stderr warn，
+  // 写目标守卫（Round 20 改判据）：读路径是「用户态 catalog 优先 → 包内兜底」，所以判据是
+  // 「写目录 == 用户态目录（resolveUsageRoot()）吗」。默认路径下两者相同 → 不 warn（零噪音）；
+  // `--catalog` 指到别处 → 写进去最多只是回落层（用户态已有 catalog 时永远读不到），
+  // 在**真正写盘之前**（syncModelCatalog 是唯一写盘点）说明白：只走 stderr warn，
   // 不失败、不改退出码，也不改 catalogPath / --catalog 语义。
-  const mismatch = pricingSyncMismatchWarning(catalogPath, path.join(builtinConfigRoot(), 'configs'));
+  const mismatch = pricingSyncMismatchWarning(catalogPath, readRoot);
   if (mismatch !== null) console.warn(mismatch);
 
   const result = await syncModelCatalog({
@@ -1928,13 +1966,13 @@ async function cmdPricingSync(flags: Map<string, string>): Promise<number> {
 /** `vessel pricing [model]` — model price lookup (V0.9 + 085 归一提示 + 092 覆盖 + 093 同步). */
 async function cmdPricing(args: string[], flags: Map<string, string>): Promise<number> {
   // G-15 后续：读路径取 CLI 自带的 configs（与 createUsageStore / cmdModels 同源）。
-  // 注意：`pricing sync` 的**写盘目标**是另一回事，仍由 cmdPricingSync 的 repoRoot() 决定（本次不改）。
+  // Round 20：`pricing sync` 的**默认写目标**同样是用户态目录（`~/.vessel/model-catalog.json`），
+  // 与这里读到的最高优先级层同源（用户态 catalog 优先 → 包内兜底）。
   const root = builtinConfigRoot();
   if (args[0] === 'override') return cmdPricingOverride(args.slice(1), flags);
   if (args[0] === 'sync') return cmdPricingSync(flags);
   // 读路径（列表/单模型查询）才碰目录：缺文件时明确告警但不失败（override/sync 不经此，避免噪音）
-  warnMissingBuiltinConfig(root, 'model-catalog.json', '模型目录为空（价格查询与列表将无条目）。');
-  const catalog = loadModelCatalog(root);
+  const catalog = loadCatalogWithWarnings(root, '模型目录为空（价格查询与列表将无条目）。');
   const target = flags.get('model') ?? args[0];
   if (target) {
     // 092：先看用户覆盖 / 删除墓碑（它们优先于目录价）

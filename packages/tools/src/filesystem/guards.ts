@@ -54,6 +54,45 @@ function withinAbsoluteAllow(config: FsPolicyConfig, resolved: string): boolean 
   });
 }
 
+/** errno code of an unknown thrown value (undefined when there is none). */
+function errnoCode(err: unknown): string | undefined {
+  const code = (err as NodeJS.ErrnoException | null | undefined)?.code;
+  return typeof code === 'string' ? code : undefined;
+}
+
+/**
+ * `lstat` (never follows links) classified by errno: `missing` means "this exact
+ * path does not exist", `error` means "existence could not be determined"
+ * (EACCES/EPERM/…), which must never be read as "does not exist".
+ */
+function probePath(abs: string): 'exists' | 'missing' | 'error' {
+  try {
+    fs.lstatSync(abs);
+    return 'exists';
+  } catch (err) {
+    return errnoCode(err) === 'ENOENT' ? 'missing' : 'error';
+  }
+}
+
+/**
+ * Deepest existing ancestor of `abs` (inclusive), or null when nothing in the
+ * chain exists (e.g. a workspace root that has not been created yet).
+ * Fails closed (throws `escape`) when existence cannot be determined.
+ */
+function deepestExistingAncestor(abs: string, p: string): string | null {
+  let cur = path.resolve(abs);
+  for (;;) {
+    const kind = probePath(cur);
+    if (kind === 'exists') return cur;
+    if (kind === 'error') {
+      throw new FsGuardError(`cannot verify path is inside workspace: ${p}`, 'escape');
+    }
+    const parent = path.dirname(cur);
+    if (parent === cur) return null;
+    cur = parent;
+  }
+}
+
 /**
  * Canonicalize a workspace-relative or absolute path against workspaceRoot.
  * Rejects `..` escapes and symlink escapes (canonical before lexical, per
@@ -77,7 +116,10 @@ export function canonicalize(root: string, p: string, config?: FsPolicyConfig): 
     }
     throw new FsGuardError(`path escapes workspace: ${p}`, 'escape');
   }
-  // symlink escape check (best-effort on Windows)
+  // symlink escape check (task 073 / hardened: the ONLY defence against a link
+  // that redirects a workspace-relative path outside the workspace, since every
+  // downstream check — assertReadable/assertWritable/assertConfined — works on
+  // this lexical `resolved` and therefore cannot see the redirection).
   try {
     const real = fs.realpathSync.native(resolved);
     const realRel = path.relative(fs.realpathSync.native(root), real);
@@ -90,7 +132,53 @@ export function canonicalize(root: string, p: string, config?: FsPolicyConfig): 
     }
   } catch (err) {
     if (err instanceof FsGuardError) throw err;
-    // file may not exist yet (write) — lexical check already applied
+    const code = errnoCode(err);
+    if (code !== 'ENOENT') {
+      // EACCES / EPERM / ELOOP / EINVAL / ERR_INVALID_ARG_VALUE … — the real
+      // path could NOT be verified, so the check must NOT be skipped: fail
+      // closed. (Previously every non-FsGuardError was swallowed here.)
+      throw new FsGuardError(
+        `cannot verify path is inside workspace${code ? ` (${code})` : ''}: ${p}`,
+        'escape',
+      );
+    }
+    // ENOENT: the target itself does not exist yet (a fresh Write/Edit). The
+    // lexical check above is NOT sufficient here: an ancestor DIRECTORY can be a
+    // symlink/junction pointing outside the workspace, so writing through it
+    // would create the file out of bounds while the lexical path stays "inside".
+    // Everything below the deepest EXISTING ancestor is nonexistent and can
+    // therefore not be a link, so verifying that ancestor is sufficient.
+    const rootKind = probePath(path.resolve(root));
+    if (rootKind === 'missing') {
+      // The workspace root itself does not exist yet ⇒ nothing inside it can
+      // exist, so no link planted in the workspace can be involved. Keep the
+      // pre-existing behaviour for this (host-configured) case.
+      return resolved;
+    }
+    const ancestor = deepestExistingAncestor(resolved, p);
+    if (ancestor === null) {
+      // Unreachable while `root` exists (the root is always an ancestor of a
+      // lexically-inside path) — deny rather than guess.
+      throw new FsGuardError(`cannot verify path is inside workspace: ${p}`, 'escape');
+    }
+    if (ancestor === resolved) {
+      // `lstat` sees an entry but `realpath` says ENOENT ⇒ a dangling link
+      // (symlink/junction/reparse point whose target is missing). Writing
+      // through it would create the file at an unverifiable location → deny.
+      throw new FsGuardError(`symlink escapes workspace: ${p}`, 'escape');
+    }
+    let realAncestor: string;
+    let realRoot: string;
+    try {
+      realAncestor = fs.realpathSync.native(ancestor);
+      realRoot = fs.realpathSync.native(root);
+    } catch {
+      throw new FsGuardError(`cannot verify path is inside workspace: ${p}`, 'escape');
+    }
+    const ancestorRel = path.relative(realRoot, realAncestor);
+    if (ancestorRel.startsWith('..') || path.isAbsolute(ancestorRel)) {
+      throw new FsGuardError(`symlink escapes workspace: ${p}`, 'escape');
+    }
   }
   return resolved;
 }

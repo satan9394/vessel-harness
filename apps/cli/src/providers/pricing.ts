@@ -54,7 +54,16 @@ export type {
   UsageTokens,
 } from '@vessel/shared';
 
-/** Load pricing.json from a repo/config root; missing/corrupt → default-only table. */
+/**
+ * Load pricing.json from a repo/config root; missing/corrupt → default-only table.
+ *
+ * Round 20：**本函数不加用户态层**（刻意的不对称，别顺手补上）——
+ * 用户的定制通道已经是优先级链最高的 `~/.vessel/pricing.override.json`
+ * （`pricingOverride.ts`，含删除墓碑），再开一层 `~/.vessel/pricing.json`
+ * 会与它语义重叠（两个"用户价"谁赢？）且没有墓碑/值守卫配套。
+ * 用户态层只出现在 `model-catalog.json`（`modelCatalog.ts`，本是**可被同步覆盖的缓存**，
+ * 放用户目录既符合"用户数据优先、包内兜底"，又让 `pricing sync` 写得到、读得到）。
+ */
 export function loadPricing(configRoot = process.cwd()): PricingTable {
   const file = path.join(configRoot, 'configs', 'pricing.json');
   const fallbackModels: Record<string, TokenPrice> = { default: { ...DEFAULT_TOKEN_PRICE } };

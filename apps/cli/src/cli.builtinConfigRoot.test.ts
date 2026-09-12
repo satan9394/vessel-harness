@@ -107,33 +107,43 @@ describe('读路径配置根 = builtinConfigRoot()（开发态与改动前 repoR
 });
 
 /**
- * 5) 读写不对称（本卡补）：写路径仍按 `repoRoot()`（安装态 = `<cwd>/configs`），读路径取
- *    `builtinConfigRoot()`（安装态 = `<包>/dist/configs`）。本文件只做**纯函数**表驱动断言
- *    （两侧判等 + 文案），不动 `main()`、不起服务。
+ * 5) 写目标判据（Round 20 改语义）：读路径是「**用户态 catalog 优先** →
+ *    回落 `builtinConfigRoot()/configs`」，而 `pricing sync` 的**默认写目标**就是用户态目录
+ *    （`resolveUsageRoot()`，缺省 `~/.vessel`）。所以判据是「写目录 == 用户态目录吗」：
+ *    相同 → 0 条（默认路径零噪音）；不同 → 1 条（写进去最多只是回落层）。
+ *    本文件只做**纯函数**表驱动断言（两侧判等 + 文案），不动 `main()`、不起服务。
  *
  *    注意（EVALUATION-REPORT-24 B-⑤ 修正的旧说法）：这里**不是**「真跑 `pricing sync` 必须联网」——
  *    `cli.test.ts` 的 pricing sync 用例用**本地 loopback 替身**当 models.dev，零真实网络。
  *    因此 `cmdPricingSync` 里的**调用点**（写盘前 `if (mismatch !== null) console.warn(mismatch)`）
- *    已由 `cli.test.ts`「pricing sync 调用点：--catalog 与读取目录不同 → 写盘前恰 1 条 warn；
+ *    已由 `cli.test.ts`「pricing sync 调用点：--catalog 与用户态目录不同 → 写盘前恰 1 条 warn；
  *    默认目标 → 0 条」在真跑路径上锁定；本文件的纯函数断言只是判据侧的另一半，**不可**再被
  *    当作「调用点无法覆盖」的理由（否则删掉那两行仍会全绿）。
  */
-describe('pricing sync 读写位置不同 → 1 条 warn；相同 → 0 条（开发态零回归）', () => {
-  it('5) 开发态默认目标 == 读目录 → null；--catalog 指向他处 → 含读写路径与后果的文案', () => {
-    const readDir = path.join(builtinConfigRoot(), 'configs');
-    const devTarget = path.resolve(path.join(repoRootFromCwd(), 'configs', 'model-catalog.json'));
-    expect(pricingSyncMismatchWarning(devTarget, readDir)).toBeNull(); // 开发态：0 条
+describe('pricing sync 写目标 vs 用户态目录：相同 → 0 条 warn；不同 → 1 条（Round 20）', () => {
+  it('5) 默认目标（用户态目录）→ null；--catalog 指向他处（含包内 configs）→ 文案含两侧路径与补救', () => {
+    const userRoot = path.join(tmp, 'user-root'); // 模拟 VESSEL_USAGE_ROOT / ~/.vessel
+    fs.mkdirSync(userRoot, { recursive: true });
+    const defaultTarget = path.join(userRoot, 'model-catalog.json');
+    // 删掉「与用户态目录比较」把它改回「与 builtinConfigRoot()/configs 比较」→ 这条变非 null → RED
+    expect(pricingSyncMismatchWarning(defaultTarget, userRoot)).toBeNull(); // 默认路径：写得到就读得到
 
     const otherTarget = path.join(tmp, 'elsewhere', 'model-catalog.json'); // 目标目录尚不存在（realpathSync 会抛）
-    const msg = pricingSyncMismatchWarning(otherTarget, readDir);
+    const msg = pricingSyncMismatchWarning(otherTarget, userRoot);
     expect(msg).not.toBeNull();
     expect(msg).toContain(path.resolve(otherTarget)); // 写入的绝对路径
-    expect(msg).toContain(readDir); // 读取实际生效的目录
-    expect(msg).toContain('此次同步的价格不会被本机读到'); // 后果
-    expect(msg).toContain('--catalog'); // 补救
+    expect(msg).toContain(userRoot); // 用户态（最高优先级）目录
+    expect(msg).toContain('不会被读到'); // 后果
+    expect(msg).toContain('--catalog'); // 补救一
+    expect(msg).toContain('pricing override'); // 补救二（文案里的旧指引"写入 node_modules 才生效"已删除）
+
+    // 旧判据的"同目录即静默"盲点：写到包内 configs/ 时旧实现判 null，新判据必须 warn
+    // （用户态已有 catalog 时，那份包内写入读不到 → 删掉本条即丢失该判别力）
+    const builtinTarget = path.join(builtinConfigRoot(), 'configs', 'model-catalog.json');
+    expect(pricingSyncMismatchWarning(builtinTarget, userRoot)).not.toBeNull();
 
     if (process.platform === 'win32') {
-      expect(pricingSyncMismatchWarning(devTarget, readDir.toUpperCase())).toBeNull(); // 大小写/短路径归一
+      expect(pricingSyncMismatchWarning(defaultTarget, userRoot.toUpperCase())).toBeNull(); // 大小写/短路径归一
     }
   });
 });

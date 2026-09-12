@@ -19,7 +19,7 @@ input / output / cacheRead / **cacheWrite** 四项分算（090）；
 |---|---|---|
 | 规则 | `packages/shared/src/pricing.ts` | 模型名归一 + 回退链 + `estimated` 语义 + 成本倍率（唯一实现） |
 | CLI | `apps/cli/src/providers/pricing.ts` | 只负责读 `configs/pricing.json`，re-export 规则 |
-| CLI 目录 | `apps/cli/src/providers/modelCatalog.ts` | 读 `configs/model-catalog.json`（models.dev 快照） |
+| CLI 目录 | `apps/cli/src/providers/modelCatalog.ts` | 读 catalog：**用户态 `~/.vessel/model-catalog.json` 优先 → 包内 `configs/model-catalog.json` 兜底**（Round 20） |
 | CLI 同步 | `apps/cli/src/providers/pricingSync.ts` | models.dev 拉取/解析/增量合并/原子写（093） |
 | CLI 覆盖 | `apps/cli/src/usage/pricingOverride.ts` | 读/写 `~/.vessel/pricing.override.json` + 值守卫修复（092） |
 | CLI 落盘 | `apps/cli/src/usage/UsageStore.ts` | 每条记录落 `estimated` / `pricingSource`；`recompute()` 按当前价目回填（091）；provider 倍率只乘总额（094） |
@@ -68,12 +68,25 @@ pricing.override.json（用户覆盖，092）  →  pricing.json models[<归一�
 |---|---|---|
 | `override` | 命中 `~/.vessel/pricing.override.json` 的覆盖价（092） | false |
 | `model` | 命中 `configs/pricing.json` 模型级价 | false |
-| `catalog` | 命中 `configs/model-catalog.json`（models.dev 快照） | false |
+| `catalog` | 命中 catalog（**用户态 `~/.vessel/model-catalog.json` 优先**，无则包内 `configs/model-catalog.json`；Round 20） | false |
 | `protocol` | 只命中协议级通用价（同协议所有未收录模型同价） | **true** |
 | `default` | 落到 `models.default` 通用兜底价 | **true** |
 | `unpriced` | `--strict` 下未收录、或命中删除墓碑（按 0 计价） | false |
 `estimated = true` 的含义：**这个价不是该模型的专属价目**。展示层必须把它标出来
 （`vessel usage` 会打印「含估算条目 N 条 / 价格来源分布」）。
+
+**catalog 这一档的内部顺序**（Round 20，`modelCatalog.ts`）：
+
+1. **用户态 catalog** `<usageRoot>/model-catalog.json` = `~/.vessel/model-catalog.json`
+   （`VESSEL_USAGE_ROOT` 可覆盖，与 `pricing.override.json` 同根）——有文件就**用它**，
+   不再看包内（**用户数据优先**）；文件损坏 → 回落包内 + 一条 warn（不静默当空表）；
+   文件是 `{}`（无 `models` 数组）→ 按**用户主动清空**处理，空表生效**不回落**；
+2. **包内内置 catalog** `<包>/configs/model-catalog.json`（models.dev 快照，随版本发布）——兜底。
+
+**没有用户态文件时，读取结果与「只有包内」的旧实现逐字相同**（usage 成本不漂移）。
+写侧同源：`vessel pricing sync` 的默认落点就是①那个用户态文件（§13）。
+`pricing.json` **刻意不加**用户态层：用户定制通道已是最高优先级的 `pricing.override.json`
+（有墓碑 + 值守卫），再开一层只会与之语义重叠。
 
 ## 5. 持久化字段（UsageStore）
 
@@ -272,6 +285,13 @@ effort 后缀/点号），所以 `ANTHROPIC/claude-3.5-sonnet-20241022` 也能�
 覆盖命中即终结（不再看后面任何一层）；`--strict` 下覆盖仍然生效（覆盖是用户对该模型的
 专属价，strict 只禁 protocol 通用价与 default 兜底价）。
 
+层序**不变**，变的是 `model-catalog.json` 这一档**从哪儿取**（Round 20）：
+**用户态 `~/.vessel/model-catalog.json`（`VESSEL_USAGE_ROOT` 可覆盖）优先于包内内置
+`configs/model-catalog.json`**；两者都没有（或用户态损坏）才落到空目录 → `protocols` / `default`。
+`vessel pricing sync` 的**默认落点**就是这个用户态文件（`--catalog <path>` 仍按用户指定写该处），
+于是「写进去 = 下一次读得到」；写目标不是用户态目录时 CLI 会 warn（写进去只会是回落层）。
+`pricing.json` 不加用户态层——用户的定制通道就是上面这条链最高优先的 `pricing.override.json`。
+
 **删除墓碑**：命中即 `source='unpriced'` + `deletedByOverride`，按 0 计价且**不回退**
 目录/协议/兜底（否则「删了还在算钱」）。墓碑只做**归一后精确匹配**——删 `gpt-4o`
 不会连坐 `gpt-4o-mini`。`vessel pricing override restore <key>` 可撤销。
@@ -332,13 +352,20 @@ vessel pricing claude-sonnet-4-5                   # 查询时同时显示覆盖
 ## 13. models.dev 价目同步：`vessel pricing sync`（093）
 
 ```powershell
-vessel pricing sync                                  # 拉 models.dev → 更新 configs/model-catalog.json
+vessel pricing sync                                  # 拉 models.dev → 更新 ~/.vessel/model-catalog.json（默认落点）
 vessel pricing sync --dry-run                        # 只打印差异，不写盘
 vessel pricing sync --provider anthropic             # 只同步某供应商（逗号分隔可多个）
 vessel pricing sync --exclude 'openai/*,*embedding*' # 排除 glob（逗号分隔可多个）
-vessel pricing sync --catalog D:\tmp\catalog.json    # 换目标文件（用户态目录）
+vessel pricing sync --catalog D:\tmp\catalog.json    # 换目标文件（按用户意图写该处）
 vessel pricing sync --url http://127.0.0.1:8080/api.json --timeout 5000   # 自建镜像/测试
 ```
+
+**默认落点 = 用户状态根**（Round 20）：`<VESSEL_USAGE_ROOT>/model-catalog.json`，缺省
+`~/.vessel/model-catalog.json`——与读取的最高优先级层同源（§4「catalog 这一档的内部顺序」），
+也就在用户项目目录里**不再**凭空创建 `configs/`。`--catalog <path>` 语义不变（写用户指定处），
+但写目标不是用户态目录时会在写盘前 warn：那份同步结果最多只是**回落层**
+（用户态已有 catalog 时读不到），补救是 `--catalog "~/.vessel/model-catalog.json"` 或
+`vessel pricing override set <model> --input … --output …`（覆盖优先级最高）。默认路径下两者相同 → 零噪音。
 
 **三通道（学 cc-switch 的设计思路，实现自写）**：
 
@@ -346,7 +373,7 @@ vessel pricing sync --url http://127.0.0.1:8080/api.json --timeout 5000   # 自�
 |---|---|---|
 | 1. seed | `configs/pricing.json` | 版本（发版/手工） |
 | 2. 值守卫修复 | `~/.vessel/pricing.override.json` 的 `repair`（§12） | 用户 / 版本给补丁（只改「现值 = 旧值」的行） |
-| 3. models.dev 同步 | `configs/model-catalog.json` | 本命令（增量 upsert） |
+| 3. models.dev 同步 | `~/.vessel/model-catalog.json`（默认；`--catalog` 可换） | 本命令（增量 upsert） |
 
 **同步做什么**：拉 `https://models.dev/api.json`（默认 15s 超时、失败**重试 1 次**），
 按 `provider → model` 增量 upsert 目录条目：

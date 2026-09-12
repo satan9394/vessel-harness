@@ -11,6 +11,7 @@ import { composeHarness } from '@vessel/application';
 import { MockProvider } from '@vessel/llm';
 import { ProviderStore } from './providers/ProviderStore.js';
 import { providerStateRoot } from './providers/defaultStore.js';
+import { loadModelCatalog } from './providers/modelCatalog.js';
 
 const REPO_ROOT = fileURLToPath(new URL('../../../', import.meta.url));
 const POLICY = path.join(REPO_ROOT, 'configs', 'policy.default.yaml');
@@ -254,20 +255,27 @@ describe('CLI provider/models commands (task 016/015)', () => {
   let cfgDir: string;
   let oldRoot: string | undefined;
   let oldSessionRoot: string | undefined;
+  let oldUsageRoot: string | undefined;
 
   beforeEach(() => {
     cfgDir = fs.mkdtempSync(path.join(os.tmpdir(), 'cah-pcfg-'));
     oldRoot = process.env.VESSEL_PROVIDER_ROOT;
     oldSessionRoot = process.env.VESSEL_SESSION_ROOT;
+    oldUsageRoot = process.env.VESSEL_USAGE_ROOT;
     process.env.VESSEL_PROVIDER_ROOT = cfgDir;
     // G-10：`main()` 的默认 SessionRegistry 根同样钉到临时目录（不写真实 ~/.vessel/sessions.json）。
     process.env.VESSEL_SESSION_ROOT = cfgDir;
+    // Round 20：`vessel models` 的价格注解现在会先看**用户态** catalog
+    // （`<VESSEL_USAGE_ROOT>/model-catalog.json`）——同样钉住，否则会读真实 ~/.vessel。
+    process.env.VESSEL_USAGE_ROOT = cfgDir;
   });
   afterEach(() => {
     if (oldRoot === undefined) delete process.env.VESSEL_PROVIDER_ROOT;
     else process.env.VESSEL_PROVIDER_ROOT = oldRoot;
     if (oldSessionRoot === undefined) delete process.env.VESSEL_SESSION_ROOT;
     else process.env.VESSEL_SESSION_ROOT = oldSessionRoot;
+    if (oldUsageRoot === undefined) delete process.env.VESSEL_USAGE_ROOT;
+    else process.env.VESSEL_USAGE_ROOT = oldUsageRoot;
     // isolated temp cfg dir — same cleanup convention as the rest of the suite
     fs.rmSync(cfgDir, { recursive: true, force: true });
   });
@@ -1113,20 +1121,11 @@ describe('vessel pricing sync / provider costMultiplier (task 093/094)', () => {
   }
 
   /**
-   * 独立重算**默认写目标**（= 实现里 `repoRoot()` 的口径：从 cwd 上溯至多 6 级找
-   * `configs/policy.default.yaml`，找不到就退回 cwd）——仅供前提校验，不共用实现代码。
+   * 独立重算**默认写目标**（Round 20 起 = 实现里 `resolveUsageRoot()` 的口径；本 describe 已把
+   * `VESSEL_USAGE_ROOT` 钉到 `dir`）——仅供前提校验，不共用实现代码。
    */
-  function defaultSyncTargetFromCwd(): string {
-    let at = process.cwd();
-    for (let i = 0; i < 6; i++) {
-      if (fs.existsSync(path.join(at, 'configs', 'policy.default.yaml'))) {
-        return path.join(at, 'configs', 'model-catalog.json');
-      }
-      const parent = path.dirname(at);
-      if (parent === at) break;
-      at = parent;
-    }
-    return path.join(process.cwd(), 'configs', 'model-catalog.json');
+  function defaultSyncTarget(): string {
+    return path.join(dir, 'model-catalog.json');
   }
 
   /**
@@ -1200,21 +1199,21 @@ describe('vessel pricing sync / provider costMultiplier (task 093/094)', () => {
   });
 
   /**
-   * 终评 B-⑤（EVALUATION-REPORT-24 第 ⑤ 条）**调用点盲点闭合**：
+   * 终评 B-⑤（EVALUATION-REPORT-24 第 ⑤ 条）**调用点盲点闭合**（Round 20 改判据）：
    * `pricingSyncMismatchWarning` 此前只被纯函数表驱动断言（cli.builtinConfigRoot.test.ts 第 5 条），
    * 而 `cmdPricingSync` 里真正的调用点（写盘前的 `if (mismatch !== null) console.warn(mismatch)`）
    * **零覆盖**——把那两行删掉，"warn 永不触发"没有任何测试会变红。本例在**调用点**上锁定它：
    * 真跑 `pricing sync`（models.dev 用本地 loopback 替身，**零真实网络**）并捕获 `console.warn`。
-   *   ① 正例：`--catalog <临时目录>/…`（写目录 ≠ 读取目录）→ warn **恰好 1 条**，含写入路径 /
-   *      读取目录 / 后果 / `--catalog` 补救，且**发生在「已写入」之前**；
-   *   ② 负对照：不传 `--catalog`（开发态默认目标与读取目录**同处**）→ warn **0 条**
+   *   ① 正例：`--catalog <临时目录>/…`（写目录 ≠ **用户态目录** `VESSEL_USAGE_ROOT=dir`）→ warn
+   *      **恰好 1 条**，含写入路径 / 用户态目录 / 后果 / `--catalog` 补救，且**在「已写入」之前**；
+   *   ② 负对照：不传 `--catalog`（默认目标 = 用户态目录，与判据右侧**同处**）→ warn **0 条**
    *      （证明 ① 不是恒定值——判据恒真 / 恒假的实现都会在这里或 ① 变红）。
-   * 注：② 必须带 `--dry-run`——默认写目标是仓库真实 `configs/model-catalog.json`，
-   * 非 dry-run 会把仓库文件写成这个 1 条模型的 fixture（测试绝不污染仓库文件）；
-   * 守卫在 `syncModelCatalog` 之前执行，与是否 dry-run 无关，故覆盖力不受影响。
+   * 注：② 带 `--dry-run` 是为了让"负对照"不写盘；默认目标已是临时 `VESSEL_USAGE_ROOT`（不再碰
+   * 仓库 `configs/`），dry-run 只是额外的安全冗余。守卫在 `syncModelCatalog` 之前执行，与是否
+   * dry-run 无关，故覆盖力不受影响。
    */
-  it('pricing sync 调用点：--catalog 与读取目录不同 → 写盘前恰 1 条 warn；默认目标 → 0 条', async () => {
-    const readDir = path.join(cli.builtinConfigRoot(), 'configs'); // 本机实际读取 model-catalog.json 的目录
+  it('pricing sync 调用点：--catalog 与用户态目录不同 → 写盘前恰 1 条 warn；默认目标 → 0 条', async () => {
+    const readDir = dir; // 本机实际最高优先级读取位置 = VESSEL_USAGE_ROOT（本 describe 已钉住）
     const catalogPath = path.join(dir, 'nested', 'model-catalog.json'); // 写目标在别处，且父目录尚不存在
     // 前提校验（判别力前提）：两个目录确实不同、判据此刻确实非 null，否则本例无从谈起
     expect(path.resolve(path.dirname(catalogPath))).not.toBe(path.resolve(readDir));
@@ -1239,11 +1238,12 @@ describe('vessel pricing sync / provider costMultiplier (task 093/094)', () => {
         expect(fs.existsSync(catalogPath)).toBe(true); // 写盘真的发生了（排除「提前退出才恰好 1 条」）
 
         const warns = cap.warns();
-        expect(warns).toHaveLength(1); // 写目录 ≠ 读目录 → 恰好 1 条（删掉守卫 → 0 条，RED）
+        expect(warns).toHaveLength(1); // 写目录 ≠ 用户态目录 → 恰好 1 条（删掉守卫 → 0 条，RED）
         expect(warns[0]).toContain(path.resolve(catalogPath)); // 写入的绝对路径
-        expect(warns[0]).toContain(readDir); // 本机实际读取的目录
-        expect(warns[0]).toContain('此次同步的价格不会被本机读到'); // 后果
-        expect(warns[0]).toContain('--catalog'); // 补救
+        expect(warns[0]).toContain(readDir); // 用户态（最高优先级）读取目录
+        expect(warns[0]).toContain('不会被读到'); // 后果
+        expect(warns[0]).toContain('--catalog'); // 补救一
+        expect(warns[0]).toContain('pricing override'); // 补救二（不再是"写入 node_modules 才生效"那类失效指引）
 
         // 顺序锁：warn 必须在「已写入」之前（守卫语义 = **真正写盘之前**把话说清）
         const warnAt = cap.events.findIndex((e) => e.kind === 'warn');
@@ -1251,13 +1251,13 @@ describe('vessel pricing sync / provider costMultiplier (task 093/094)', () => {
         expect(wroteAt).toBeGreaterThan(-1); // 前提：这条路径确实打印了「已写入」
         expect(warnAt).toBeLessThan(wroteAt);
 
-        // ② 负对照：不传 --catalog（开发态默认写目标 == 读取目录）→ 0 条
-        const devTarget = defaultSyncTargetFromCwd();
+        // ② 负对照：不传 --catalog（默认写目标 = 用户态目录 == 判据右侧）→ 0 条
+        const devTarget = defaultSyncTarget();
         expect(cli.pricingSyncMismatchWarning(devTarget, readDir)).toBeNull(); // 前提：此刻两者同值
         const quiet = captureOrdered();
         let codeDev = 0;
         try {
-          codeDev = await main(['pricing', 'sync', '--url', url, '--dry-run']); // dry-run：不写仓库真实 catalog
+          codeDev = await main(['pricing', 'sync', '--url', url, '--dry-run']); // dry-run：连临时用户态目录也不写
         } finally {
           quiet.restore();
         }
@@ -1266,6 +1266,68 @@ describe('vessel pricing sync / provider costMultiplier (task 093/094)', () => {
         expect(quiet.warns()).toHaveLength(0); // 负对照：判据为 null → 一条都不许打（恒 warn 的实现 → RED）
       });
     } finally {
+      if (savedSettings === undefined) delete process.env.VESSEL_SETTINGS_ROOT;
+      else process.env.VESSEL_SETTINGS_ROOT = savedSettings;
+      if (savedMcp === undefined) delete process.env.VESSEL_MCP_ROOT;
+      else process.env.VESSEL_MCP_ROOT = savedMcp;
+    }
+  });
+
+  /**
+   * Round 20 AC3 + AC4（默认写目标 / 零噪音 / 读写同源）：不传 `--catalog` 时写的是**用户态目录**
+   * （`resolveUsageRoot()` = 本 describe 的 `dir`），不再在 cwd（旧实现 = `repoRoot()`）里造 `configs/`，
+   * 而且**写进去的那份就是 `loadModelCatalog` 下次读到的最高优先级层**（读写同源 = 本卡正题）。
+   *
+   * 判别性（删掉实现哪条会红）：
+   *   - 把 `cmdPricingSync` 的默认目标改回 `path.join(repoRoot(), 'configs', 'model-catalog.json')`
+   *     → ① `<dir>/model-catalog.json` 不存在（RED）② `<cwdTmp>/configs/model-catalog.json` 被写出（RED）
+   *     ③ 读回的是包内快照（100+ 条）而不是刚同步的 1 条（RED）；
+   *   - 把 `loadModelCatalogDetailed` 的用户态层删掉 → ③ 同样变红（读不到刚同步的那份）。
+   * 为了让「删掉实现」时的失败**不污染仓库真实 catalog**，本用例把 cwd 临时切到空目录：
+   * 旧实现会把 `configs/` 造在那里（可检出），而不是写进仓库。
+   */
+  it('Round20 AC3/AC4：pricing sync 默认写用户态目录（不在 cwd 建 configs/），写完即读得到且零 warn', async () => {
+    // 用户态根用**尚不存在**的嵌套目录：顺带验证「目录不存在 → mkdirSync(recursive) 创建」
+    const freshRoot = path.join(dir, 'fresh-usage-root');
+    const userCatalog = path.join(freshRoot, 'model-catalog.json');
+    expect(fs.existsSync(freshRoot)).toBe(false); // 前提：目录确实还不存在
+    const savedUsageRoot = process.env.VESSEL_USAGE_ROOT;
+    const savedSettings = process.env.VESSEL_SETTINGS_ROOT;
+    const savedMcp = process.env.VESSEL_MCP_ROOT;
+    process.env.VESSEL_USAGE_ROOT = freshRoot;
+    process.env.VESSEL_SETTINGS_ROOT = dir;
+    process.env.VESSEL_MCP_ROOT = dir;
+    const cwdTmp = fs.mkdtempSync(path.join(os.tmpdir(), 'vessel-093-cwd-'));
+    const savedCwd = process.cwd();
+    const cap = captureOrdered();
+    try {
+      await withLocalModelsDev(async (url) => {
+        process.chdir(cwdTmp); // cwd 隔离（旧实现的 repoRoot() 会往这里落盘：可检出且不污染仓库）
+        const code = await main(['pricing', 'sync', '--url', url]); // 无 --catalog、非 dry-run
+        expect(code).toBe(0);
+      });
+
+      // ⚠ 位置不变量：以下断言**全部依赖 `VESSEL_USAGE_ROOT=freshRoot` 仍然生效**（读回的 catalog、
+      // cwd 空目录对照都以此为据），因此必须留在 `try` 内、在 `finally` 还原 env / 删 `cwdTmp` **之前**：
+      //   - 把 ③ 的 `loadModelCatalog(...)` 挪到 `finally` 之后 → env 已回落默认 usage 根（`~/.vessel`）
+      //     → 无用户态 catalog → 按设计回落**包内内置目录** → 读到 27 条而非刚同步的 1 条（RED）。
+      //   - 把 ② 的 cwd 对照挪到 `finally` 之后 → `cwdTmp` 已被 `rmSync` 删除 → 断言恒真（判别力归零）；
+      //     留在 `try` 内才真的能检出「旧实现往 cwd 造 configs/」。
+      expect(cap.warns()).toHaveLength(0); // AC4：默认路径零噪音（判据/调用点没跟着改 → 这里 1 条，RED）
+      // AC3：写在用户态目录（且根目录由写入方按需创建），**不在 cwd 里凭空造 configs/**（旧实现写的正是后者）
+      expect(fs.existsSync(userCatalog)).toBe(true);
+      expect(fs.readFileSync(userCatalog, 'utf8')).toContain('models.dev');
+      expect(fs.existsSync(path.join(cwdTmp, 'configs', 'model-catalog.json'))).toBe(false);
+      // 读写同源（AC1 的端到端版）：sync 写下的那份就是 loadModelCatalog 读到的最高优先层
+      const loaded = loadModelCatalog(cli.builtinConfigRoot());
+      expect(loaded.models.map((m) => m.model)).toEqual(['claude-sonnet-4-5']);
+      expect(loaded.source).toContain('models.dev');
+    } finally {
+      cap.restore();
+      process.chdir(savedCwd);
+      fs.rmSync(cwdTmp, { recursive: true, force: true });
+      if (savedUsageRoot === undefined) delete process.env.VESSEL_USAGE_ROOT;
+      else process.env.VESSEL_USAGE_ROOT = savedUsageRoot;
       if (savedSettings === undefined) delete process.env.VESSEL_SETTINGS_ROOT;
       else process.env.VESSEL_SETTINGS_ROOT = savedSettings;
       if (savedMcp === undefined) delete process.env.VESSEL_MCP_ROOT;

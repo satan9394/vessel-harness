@@ -5,10 +5,41 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { createFsTools, createSearchTools } from '../index.js';
 import { ToolRegistry } from '../registry/Registry.js';
 import {
+  FsGuardError,
   assertConfined,
+  canonicalize,
   isWithinAllow,
   type FsPolicyConfig,
 } from './guards.js';
+
+/**
+ * Directory-link capability of this host (Windows junction needs no elevation;
+ * POSIX dir symlink needs none either), probed ONCE so the link-dependent cases
+ * can be `skipIf`-skipped visibly instead of silently returning.
+ * The probe's own link target lives inside the probe dir, so even a recursive
+ * cleanup that followed the link could not touch anything else.
+ */
+const LINK_KIND: 'junction' | 'dir' = process.platform === 'win32' ? 'junction' : 'dir';
+const CAN_CREATE_DIR_LINK: boolean = (() => {
+  let probe: string | undefined;
+  let ok = false;
+  try {
+    probe = fs.mkdtempSync(path.join(os.tmpdir(), 'cah-link-probe-'));
+    fs.mkdirSync(path.join(probe, 'target'));
+    fs.symlinkSync(path.join(probe, 'target'), path.join(probe, 'link'), LINK_KIND);
+    ok = fs.existsSync(path.join(probe, 'link'));
+  } catch {
+    ok = false;
+  }
+  if (probe) {
+    try {
+      fs.rmSync(probe, { recursive: true, force: true });
+    } catch {
+      /* probe cleanup is best-effort */
+    }
+  }
+  return ok;
+})();
 
 /**
  * task 073 filesystem confinement — tool-layer hard enforcement + guard unit tests.
@@ -179,5 +210,168 @@ describe('tools/filesystem — tool execution seam (hard enforcement point)', ()
     expect(g.content).toContain('src/a.js');
     // denyRead coexists: the secret file is excluded from results
     expect(g.content).not.toContain('secret/b.js');
+  });
+});
+
+/**
+ * Symlink escape with a NON-EXISTENT target — the fail-open hole this block
+ * pins down. `canonicalize` used to swallow every non-FsGuardError thrown by its
+ * `realpathSync` pair, so a workspace-relative path whose final component did
+ * not exist yet (i.e. every fresh Write) skipped the symlink check entirely:
+ * an in-workspace junction/symlink pointing outside the workspace was enough to
+ * write a brand-new file out of bounds. Fix = errno split (non-ENOENT → deny,
+ * ENOENT → verify the deepest EXISTING ancestor), see guards.ts.
+ */
+describe('tools/filesystem — symlink escape with a non-existent target (fail-closed)', () => {
+  let root: string;
+  let outsideDir: string;
+  beforeEach(() => {
+    root = fs.mkdtempSync(path.join(os.tmpdir(), 'cah-link-root-'));
+    outsideDir = fs.mkdtempSync(path.join(os.tmpdir(), 'cah-link-out-'));
+  });
+  afterEach(() => {
+    for (const d of [root, outsideDir]) if (d) fs.rmSync(d, { recursive: true, force: true });
+  });
+
+  function registry(cfg: FsPolicyConfig): ToolRegistry {
+    return new ToolRegistry([...createFsTools({ workspaceRoot: root, fsPolicy: cfg })]);
+  }
+  function ctx() {
+    return { workspaceRoot: root, cwd: root, sandbox: { confine: async () => ({ argv: [] as string[], enforcement: 'none' as const }), status: () => ({ enabled: false, supported: 'none' as const, active: false }) } };
+  }
+  const CONFINED: FsPolicyConfig = { protected: [], denyRead: [], allow: [], confinement: true };
+  const UNCONFINED: FsPolicyConfig = { protected: [], denyRead: [], allow: [], confinement: false };
+
+  it.skipIf(!CAN_CREATE_DIR_LINK)('deny: Write through an in-workspace link to an out-of-workspace dir whose target file is ABSENT (attack form A) — nothing is created outside', async () => {
+    fs.symlinkSync(outsideDir, path.join(root, 'evil-link'), LINK_KIND);
+    const outsideFile = path.join(outsideDir, 'authorized_keys');
+    expect(fs.existsSync(outsideFile)).toBe(false); // premise: the target file does not exist
+    const w = await registry(CONFINED).execute(
+      { toolCallId: '1', toolName: 'Write', arguments: { path: 'evil-link/authorized_keys', content: 'ssh-rsa AAAA' } },
+      ctx(),
+    );
+    expect(w.error?.errorClass).toBe('DENIED');
+    expect(w.error?.message.toLowerCase()).toMatch(/symlink escapes workspace/);
+    // decisive: the out-of-workspace dir is untouched (no file, no directory)
+    expect(fs.existsSync(outsideFile)).toBe(false);
+    expect(fs.readdirSync(outsideDir)).toEqual([]);
+  });
+
+  it.skipIf(!CAN_CREATE_DIR_LINK)('deny: attack form A is caught with confinement OFF too (guard is independent of the allow set)', async () => {
+    fs.symlinkSync(outsideDir, path.join(root, 'evil-link'), LINK_KIND);
+    const outsideFile = path.join(outsideDir, 'authorized_keys');
+    const w = await registry(UNCONFINED).execute(
+      { toolCallId: '1', toolName: 'Write', arguments: { path: 'evil-link/authorized_keys', content: 'ssh-rsa AAAA' } },
+      ctx(),
+    );
+    expect(w.error?.errorClass).toBe('DENIED');
+    expect(fs.existsSync(outsideFile)).toBe(false);
+  });
+
+  it.skipIf(!CAN_CREATE_DIR_LINK)('deny: nested path under an out-of-workspace link (no target dir, no target file) — deepest existing ancestor is the link', async () => {
+    fs.symlinkSync(outsideDir, path.join(root, 'evil-link'), LINK_KIND);
+    const w = await registry(CONFINED).execute(
+      { toolCallId: '1', toolName: 'Write', arguments: { path: 'evil-link/nested/deep/authorized_keys', content: 'x' } },
+      ctx(),
+    );
+    expect(w.error?.errorClass).toBe('DENIED');
+    expect(w.error?.message.toLowerCase()).toMatch(/symlink escapes workspace/);
+    expect(fs.existsSync(path.join(outsideDir, 'nested'))).toBe(false);
+    expect(fs.readdirSync(outsideDir)).toEqual([]);
+  });
+
+  it.skipIf(process.platform === 'win32' || !CAN_CREATE_DIR_LINK)('deny: a DANGLING symlink as the final component is rejected — writing through it would create the file outside the workspace', async () => {
+    // POSIX: realpath(link) → ENOENT while lstat(link) → exists. The link itself
+    // is the deepest existing ancestor, so it must be denied (Windows needs
+    // elevation for file symlinks, hence the skip there).
+    const outsideFile = path.join(outsideDir, 'dangling-target.txt');
+    fs.symlinkSync(outsideFile, path.join(root, 'dangling-link'), 'file');
+    expect(fs.lstatSync(path.join(root, 'dangling-link')).isSymbolicLink()).toBe(true);
+    const w = await registry(CONFINED).execute(
+      { toolCallId: '1', toolName: 'Write', arguments: { path: 'dangling-link', content: 'pwn' } },
+      ctx(),
+    );
+    expect(w.error?.errorClass).toBe('DENIED');
+    expect(w.error?.message.toLowerCase()).toMatch(/symlink escapes workspace/);
+    // decisive: the symlink target was NOT created outside the workspace
+    expect(fs.existsSync(outsideFile)).toBe(false);
+  });
+
+  it('allow: creating a brand-new in-workspace file still succeeds (negative control — ENOENT is NOT denied)', async () => {
+    const r = registry(CONFINED);
+    const w = await r.execute({ toolCallId: '1', toolName: 'Write', arguments: { path: 'src/new.ts', content: 'export const x = 1;' } }, ctx());
+    expect(w.error).toBeUndefined();
+    expect(fs.readFileSync(path.join(root, 'src', 'new.ts'), 'utf8')).toBe('export const x = 1;');
+    // every intermediate directory is missing too — deepest existing ancestor is the root
+    const w2 = await r.execute({ toolCallId: '2', toolName: 'Write', arguments: { path: 'a/b/c/d.txt', content: 'deep' } }, ctx());
+    expect(w2.error).toBeUndefined();
+    expect(fs.readFileSync(path.join(root, 'a', 'b', 'c', 'd.txt'), 'utf8')).toBe('deep');
+    // Edit of an existing file is unaffected by the hardened ENOENT path
+    const e = await r.execute({ toolCallId: '3', toolName: 'Edit', arguments: { path: 'src/new.ts', old_string: '1', new_string: '2' } }, ctx());
+    expect(e.error).toBeUndefined();
+    expect(fs.readFileSync(path.join(root, 'src', 'new.ts'), 'utf8')).toBe('export const x = 2;');
+  });
+
+  it('regression: existing-file read/overwrite and lexical escape denials keep their previous verdicts', async () => {
+    fs.mkdirSync(path.join(root, 'src'), { recursive: true });
+    fs.writeFileSync(path.join(root, 'src', 'a.txt'), 'v1');
+    const r = registry(CONFINED);
+    const rd = await r.execute({ toolCallId: '1', toolName: 'Read', arguments: { path: 'src/a.txt' } }, ctx());
+    expect(rd.error).toBeUndefined();
+    expect(rd.content).toBe('v1');
+    // absolute path inside the workspace still resolves
+    const absIn = await r.execute({ toolCallId: '2', toolName: 'Read', arguments: { path: path.join(root, 'src', 'a.txt') } }, ctx());
+    expect(absIn.content).toBe('v1');
+    const ov = await r.execute({ toolCallId: '3', toolName: 'Write', arguments: { path: 'src/a.txt', content: 'v2' } }, ctx());
+    expect(ov.error).toBeUndefined();
+    expect(fs.readFileSync(path.join(root, 'src', 'a.txt'), 'utf8')).toBe('v2');
+    // '..' escape unchanged
+    const up = await r.execute({ toolCallId: '4', toolName: 'Read', arguments: { path: '../../escape.txt' } }, ctx());
+    expect(up.error?.errorClass).toBe('DENIED');
+    expect(up.error?.message).toMatch(/escapes workspace/);
+    // absolute out-of-workspace path unchanged
+    const absOut = await r.execute({ toolCallId: '5', toolName: 'Write', arguments: { path: path.join(outsideDir, 'nope.txt'), content: 'x' } }, ctx());
+    expect(absOut.error?.errorClass).toBe('DENIED');
+    expect(absOut.error?.message).toMatch(/escapes workspace/);
+    expect(fs.existsSync(path.join(outsideDir, 'nope.txt'))).toBe(false);
+  });
+
+  it('fail-closed: a NON-ENOENT realpath failure is denied instead of silently skipped', () => {
+    // premise (asserted, not assumed): a NUL-bearing path is rejected by node
+    // itself with a non-ENOENT errno, so this exercises the errno split without
+    // mocking node:fs.
+    let premise: string | undefined;
+    try {
+      fs.realpathSync.native(path.join(root, 'nul\u0000probe'));
+    } catch (e) {
+      premise = (e as NodeJS.ErrnoException).code;
+    }
+    expect(premise).toBeDefined();
+    expect(premise).not.toBe('ENOENT');
+    const cfg: FsPolicyConfig = { protected: [], denyRead: [], allow: [] };
+    let thrown: unknown;
+    try {
+      canonicalize(root, 'nul\u0000name.txt', cfg);
+    } catch (e) {
+      thrown = e;
+    }
+    expect(thrown).toBeInstanceOf(FsGuardError);
+    expect((thrown as FsGuardError).guard).toBe('escape');
+    expect((thrown as Error).message).toMatch(/cannot verify path is inside workspace/);
+  });
+
+  it.skipIf(process.platform === 'win32')('fail-closed: a symlink loop (ELOOP) is denied — POSIX only', () => {
+    // self-referential symlink: realpath cannot terminate → ELOOP (POSIX).
+    // Windows needs elevation for file symlinks, so this case is skipped there.
+    fs.symlinkSync('loop', path.join(root, 'loop'));
+    const cfg: FsPolicyConfig = { protected: [], denyRead: [], allow: [] };
+    let thrown: unknown;
+    try {
+      canonicalize(root, 'loop', cfg);
+    } catch (e) {
+      thrown = e;
+    }
+    expect(thrown).toBeInstanceOf(FsGuardError);
+    expect((thrown as FsGuardError).guard).toBe('escape');
   });
 });

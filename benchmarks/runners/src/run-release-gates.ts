@@ -20,7 +20,9 @@
  *      同时把 packaging gate 的 executor 换成 buildPublishArtifactExecutor()（EVALUATION-REPORT-24 P2：
  *      判「发布物形状」而非只查本地 dist 是否存在——离线 `npm pack --dry-run` 清单 + pack 期脚本静态断言）。
  *   4. runReleaseGates() 顺序实跑 8 道 §21 门禁 + 第 9 道「安装态冒烟」（V1.1-G，**默认 pending**，
- *      仅 `VESSEL_GATE_INSTALL_SMOKE=1` 时真跑 pack→install→首跑；未启用时零命令零 IO），
+ *      仅 `VESSEL_GATE_INSTALL_SMOKE=1` 时真跑 pack→install→首跑→**覆盖升级**（Round 20 追加：
+ *      同项目再装一版新产物，重判两条硬判据 + 溯源「安装树来自本次 pack」）；
+ *      未启用时零命令零 IO），
  *      聚合 release-report.json + .md 写到 benchmarks/reports/（084 惯例）。
  *
  * 密钥安全：key 只经 CredentialStore（DPAPI 密文）/ env 转接，进程内使用，绝不落盘；
@@ -33,6 +35,7 @@ import * as os from 'node:os';
 import * as path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { execFile } from 'node:child_process';
+import { createHash } from 'node:crypto';
 import { promisify } from 'node:util';
 import { createCredentialStore } from '@vessel/application';
 import type { ChatProvider } from '@vessel/shared';
@@ -515,6 +518,26 @@ export function buildPublishArtifactExecutor(): GateExecutor {
 //   包坏了时的红灯：prepack 没构建 / files 少带 configs / 自家依赖图不自洽 / 装完无入口
 //     —— 上述任一条会红（system 路径落到 ④ 回落分支 = fail；出现缺配置警告 = fail）。
 //
+// Round 20 —— **升级 / 覆盖安装路径**（同一门禁内追加阶段，不新增第 10 道）：
+//   缺口：原实现只覆盖「全新空项目 pack → install → 首跑」，**没覆盖「装过一版再装一版」**——
+//   即"升级后还能不能用"与"升级会不会把旧产物留在安装树里"。
+//   阶段序列（首装+首跑已 pass 才会进入）：对**同一个项目目录**再 pack 一轮 → `npm install`
+//   覆盖安装 → 重跑同样的两条硬判据 + 一条**升级特有**的溯源判据。
+//   升级特有判据（形式：**双向溯源**，见 `InstallSmokeUpgradeFacts` 的 version / sha256 字段）：
+//     ① 安装树 `node_modules/@vessel/cli/package.json` 的 `version` 必须逐字等于**本轮** pack
+//        产出的新版本号（由 `bumpInstallSmokeVersion` 从首装版本确定性 +patch 得到，必然 ≠ 首装版本）；
+//     ② 安装树 `dist/cli.js` 的 sha256 必须等于**本轮 pack 源**（stage 目录）里同一文件的 sha256
+//        （stage 副本由 `installSmokeUpgradeEntryMarker` 追加一行注释 → 字节确定性地不同于首轮产物，
+//         故判据 ② 对「没真正覆盖安装」的旧树同样会红，自带判别力）。
+//   为什么可稳定判定：① 读的是 npm 自己解包出来的 manifest（旧产物残留 ⇒ version 仍是旧版 ⇒ 必红）；
+//   ② 比的是**字节**（刻意**不用 mtime**：mtime 被解包时间/归档归一化污染，同一份源码两次 pack 的
+//   mtime 不可比），两侧输入都由本进程直接读取（不做 tar 解析、不依赖外部工具）。两条合起来把
+//   brief 举的两个例子（"不得同时存在两个版本的入口" / "入口内容来自本次安装"）都机械化了。
+//   口径与首装**同一套**（不新造）：环境性（离线装不上 / npm 不可用 / 超时 / 输出不可解析 /
+//   版本号不可区分）→ pending；包坏了（pack 或 install 非环境性失败 / tarball 数不足 /
+//   自家依赖未满足 / 升级后无入口 / CLI 非 0 / 读路径落包外 / 缺配置警告 / 升级后仍是旧版本或
+//   入口字节与本次 pack 不符）→ fail。
+//
 // 永不假失败（pending 的四条通道，全部**不**判 fail）：
 //   ① 未启用（默认；零命令零 IO）② npm 不可用（spawn 级失败：**没有** npm 自己的日志行）
 //   ③ 超时（按**实测耗时 ≥ 传入 timeoutMs** 判定 —— execFile 的超时被 catch 成 exit 1，
@@ -547,19 +570,68 @@ export const INSTALL_SMOKE_ENTRY_REL = 'node_modules/@vessel/cli/dist/cli.js';
 /** 安装态 system 层策略文件（项目内相对路径）——「读路径落在包内」的**唯一**期望值。 */
 export const INSTALL_SMOKE_SYSTEM_CONFIG_REL = 'node_modules/@vessel/cli/dist/configs/policy.default.yaml';
 
+/**
+ * 入口文件在**包内**的相对路径（tarball 清单口径）。
+ * 升级溯源要拿「本轮 pack 源」的入口字节去比安装树的入口字节，故需要这条**包内**路径；
+ * 它与 `INSTALL_SMOKE_ENTRY_REL` 指向同一个文件（单测断言二者的拼接恒等，防两处漂移）。
+ */
+export const INSTALL_SMOKE_PACKED_ENTRY_REL = 'dist/cli.js';
+
+/** 安装态入口包的 manifest（版本溯源用）——与入口同一目录链，避免硬编码漂移。 */
+export const INSTALL_SMOKE_PACKAGE_REL = 'node_modules/@vessel/cli/package.json';
+
+/** 升级轮版本号后缀（仅用于**退化分支**：上游版本号不是 `x.y.z` 形态时）。 */
+export const INSTALL_SMOKE_UPGRADE_VERSION_FALLBACK = '0.0.1-install-smoke';
+
+/**
+ * 由**首装**版本号构造「升级轮」版本号（纯函数、确定性：同一输入必得同一输出）。
+ *
+ * `0.10.0` → `0.10.1`。为什么是 +patch 的**正式版本**（不带 prerelease 后缀）：
+ *  ① 语义上就是一次升级（semver 严格大于原版本）；
+ *  ② 依赖范围兼容：闭包内其它包若写 `^0.10.0` / `~0.10.0`，`0.10.1` 仍被满足
+ *     （`0.10.1-install-smoke` 这种 prerelease **不会**被 `^0.10.0` 满足 → 反而会触发离线去 registry
+ *      找包 → 误判；本仓当前无包依赖 `@vessel/cli`，但判据不该依赖这条脆弱前提）。
+ * 退化分支（版本号不是 `x.y.z`）：返回固定的合法 semver `0.0.1-install-smoke`，保证与首装版本不同。
+ */
+export function bumpInstallSmokeVersion(version: string): string {
+  const m = /^(\d+)\.(\d+)\.(\d+)(?:[-+].*)?$/.exec(String(version).trim());
+  if (m === null) return INSTALL_SMOKE_UPGRADE_VERSION_FALLBACK;
+  const patch = Number(m[3] ?? '0') + 1;
+  return `${m[1] ?? '0'}.${m[2] ?? '0'}.${patch}`;
+}
+
+/**
+ * 升级轮**入口文件的字节差异标记**（纯函数：只由版本号决定，稳定可测）。
+ *
+ * 为什么要它：升级特有的判据② 是「安装树 `dist/cli.js` 的 sha256 == 本轮 pack 源的 sha256」。
+ * 若两轮产物**字节完全相同**，这条判据对「没真正覆盖安装」的旧树同样成立 → 判别力归零。
+ * 因此升级轮在 stage 副本的入口末尾追加这一行 JS 行注释（**永不影响 CLI 行为**，
+ * 且只写 stage 副本、绝不碰仓库里的 `apps/cli/dist/cli.js`），使「本轮产物」在字节层面
+ * 确定性地不同于首轮产物 —— 判据②由此获得独立判别力（删除它 ⇒ 见单测注释里标红的用例）。
+ */
+export function installSmokeUpgradeEntryMarker(version: string): string {
+  return `\n// install-smoke upgrade marker: ${version}\n`;
+}
+
 /** 「内置配置缺失」警告标记（apps/cli/src/cli.ts:241 逐字文案；只有包内 configs 读不到才打印）。 */
 export const MISSING_BUILTIN_CONFIG_MARKER = '未找到内置配置';
 
 /** 第 9 道门禁的 criterion（进 release-report 的 criterion 列）。 */
 export const INSTALL_SMOKE_CRITERION =
-  '安装态冒烟（install-smoke，**可选**：VESSEL_GATE_INSTALL_SMOKE=1 时执行）：把入口包的 workspace 运行时依赖闭包' +
-  '逐个 `npm pack --offline` 成 tarball → 在**全新空项目**里 `npm install <全部 tarball> --offline --no-audit --no-fund`' +
-  '→ 以**安装态**跑 CLI，断言 ① `policy status --json` 的 system 层路径逐字等于' +
+  '安装态冒烟（install-smoke，**可选**：VESSEL_GATE_INSTALL_SMOKE=1 时执行；**含升级 / 覆盖安装路径**）：' +
+  '把入口包的 workspace 运行时依赖闭包逐个 `npm pack --offline` 成 tarball → 在**全新空项目**里' +
+  ' `npm install <全部 tarball> --offline --no-audit --no-fund` → 以**安装态**跑 CLI，断言 ' +
+  '① `policy status --json` 的 system 层路径逐字等于' +
   ' `<项目>/node_modules/@vessel/cli/dist/configs/policy.default.yaml` 且该文件真实存在；' +
-  '② `usage` 不打印「未找到内置配置」。两条同时成立才 pass（`--version`/`--help` 恒 exit 0，**不作判据**）。' +
-  '环境不具备（未启用 / npm 不可用 / 离线装不上（缓存缺第三方依赖或解析不可达）/ 资源耗尽 / 超时 / 输出不可解析）→ 显式 **pending**；' +
+  '② `usage` 不打印「未找到内置配置」（两条同时成立才算首装 pass；`--version`/`--help` 恒 exit 0，**不作判据**）。' +
+  '随后对**同一个项目目录**再 pack 一轮（入口包版本号确定性 +patch 成新版本）→ `npm install <新 tarball 集> --offline` ' +
+  '**覆盖升级** → 重跑上述两条硬判据，并追加**升级特有溯源判据**：③ 安装树 `@vessel/cli` 的 `package.json` version 逐字等于' +
+  '本轮新版本号（仍是旧版本 ⇒ 旧产物残留）；④ 安装树 `dist/cli.js` 的 sha256 逐字等于本轮 pack 源同一文件。' +
+  '环境不具备（未启用 / npm 不可用 / 离线装不上（缓存缺第三方依赖或解析不可达）/ 资源耗尽 / 超时 / 输出不可解析 / ' +
+  '升级轮新旧版本号不可区分）→ 显式 **pending**；' +
   '包真的坏了（自家 workspace 依赖未被同批 tarball 满足 / tarball 缺文件 / 装完无入口 / CLI 跑不起来 / ' +
-  '读路径落到包外 / 出现缺配置警告）→ **fail**；两者都不静默通过。';
+  '读路径落到包外 / 出现缺配置警告 / **升级后安装树仍是旧版本或入口字节不是本轮 pack 产物**）→ **fail**；' +
+  '两者都不静默通过。';
 
 /** 是否显式启用（默认关闭 → 门禁 pending，不拖慢既有 8 道）。 */
 export function installSmokeRequested(env: Record<string, string | undefined>): boolean {
@@ -738,6 +810,55 @@ export function resolveInstallClosure(
   return { packages: ordered, unresolved };
 }
 
+/**
+ * **升级（覆盖安装）阶段**采集到的事实（Round 20）。
+ *
+ * 与首装阶段同构：字段语义逐条对应 `InstallSmokeFacts` 的同名字段（同一套 pending/fail 口径），
+ * 只多出「升级特有」的溯源字段（version / sha256）。executor 只**采集**，判定全在 `judgeInstallSmoke`。
+ */
+export interface InstallSmokeUpgradeFacts {
+  /** 是否真的执行了升级阶段（首装 + 首跑已 pass 才会为 true）。 */
+  attempted: boolean;
+  /** 升级阶段准备是否成功（读入口包 manifest + 复制 dist 到 stage + 构造新版本号 + stage 副本 pack 成功）。 */
+  prepOk: boolean;
+  /** 升级轮 npm 是否真的跑起来（false = 工具缺失 / spawn 级失败 → pending）。 */
+  npmAvailable: boolean;
+  /** 升级轮任一命令按 timeoutMs **实测**超时。 */
+  timedOut: boolean;
+  /** 升级轮全部 tarball 是否 pack 成功 / 失败是否环境性。 */
+  packOk: boolean;
+  packBlockedByEnv: boolean;
+  /** 升级轮产出的 tarball 数（应等于闭包包数 `facts.expectedPackages`）。 */
+  tarballCount: number;
+  /** 升级轮 `npm install <新 tarball 集>` 进入**同一项目目录**是否 exit 0。 */
+  installOk: boolean;
+  installBlockedByEnv: boolean;
+  /** 升级轮离线解析失败里命中的**本仓 workspace 包名**（非空 → fail）。 */
+  workspaceDepMissing: string[];
+  /** 升级后 `<项目>/node_modules/@vessel/cli/dist/cli.js` 是否仍存在。 */
+  cliEntryExists: boolean;
+  /** 升级后 `policy status --json` 是否 exit 0（硬判据 ① 的退出码部分）。 */
+  policyStatusOk: boolean;
+  /** 升级后解析出的 system 层路径（原始值）。 */
+  systemPath?: string;
+  /** 升级后 system 层路径是否仍逐字落在包内。 */
+  systemPathInPackage: boolean;
+  /** 升级后该包内配置文件是否仍存在。 */
+  systemConfigFileExists: boolean;
+  /** 升级后 `usage` 是否打印「未找到内置配置」。 */
+  usageWarnsMissingConfig: boolean;
+  /** 首装版本号（round 1 tarball 内的 version）。 */
+  previousVersion: string;
+  /** **本轮** pack 出的新版本号（= `bumpInstallSmokeVersion(previousVersion)`）。 */
+  upgradedVersion: string;
+  /** 升级后安装树 `node_modules/@vessel/cli/package.json` 的 version（读不到 → undefined）。 */
+  installedVersion?: string;
+  /** 升级后安装树入口 `dist/cli.js` 的 sha256（读不到 → undefined）。 */
+  installedEntrySha256?: string;
+  /** **本轮 pack 源**（stage 目录）入口 `dist/cli.js` 的 sha256（读不到 → undefined）。 */
+  packedEntrySha256?: string;
+}
+
 /** 判定安装态冒烟所需的事实（全部来自真实命令输出 / 真实文件，不做推断）。 */
 export interface InstallSmokeFacts {
   /** 是否显式启用（`VESSEL_GATE_INSTALL_SMOKE=1`）。 */
@@ -777,16 +898,23 @@ export interface InstallSmokeFacts {
   usageWarnsMissingConfig: boolean;
   /** 证据行（命令退出码 / 路径 / 输出尾部）。 */
   detail: string[];
+  /** 升级（覆盖安装）阶段的事实；未尝试时为 undefined（= 只判首装，行为同 Round 20 之前）。 */
+  upgrade?: InstallSmokeUpgradeFacts;
 }
 
 /**
  * 判定安装态冒烟（纯函数，无 IO；分支顺序即优先级）。
  *
  * pending 通道（**环境不具备**，绝不判 fail）：未启用 → 路径不可用 → 闭包解析不出 → npm 不可用 →
- *   超时 → pack 因环境原因失败 → install 因环境原因失败 → system 路径不可解析。
+ *   超时 → pack 因环境原因失败 → install 因环境原因失败 → system 路径不可解析；
+ *   **升级阶段同构**：准备失败 → npm 不可用 → 超时 → 升级轮 pack 环境性失败 → 升级轮 install 环境性失败
+ *   → 升级后 system 路径不可解析 → 新旧版本号不可区分（判据输入不成立）。
  * fail 通道（**包真的坏了**）：pack 非环境性失败 → tarball 数不足 → install 非环境性失败 →
  *   自家 workspace 依赖未被满足 → 装完无入口 → `policy status` 非 0 → 读路径落包外 →
- *   包内配置文件不存在 → 出现缺配置警告。
+ *   包内配置文件不存在 → 出现缺配置警告；
+ *   **升级阶段同构** + 两条升级特有：安装树 version 仍是旧版本 → 入口 `dist/cli.js` 字节 != 本轮 pack 源。
+ *
+ * `facts.upgrade` 为 undefined 时（首装阶段自身就失败/未启用）行为与 Round 20 之前**逐字一致**。
  */
 export function judgeInstallSmoke(facts: InstallSmokeFacts): GateVerdict {
   const detail = (...rows: string[]): string[] => [...rows, ...facts.detail].slice(0, 12);
@@ -895,6 +1023,147 @@ export function judgeInstallSmoke(facts: InstallSmokeFacts): GateVerdict {
       [],
     );
   }
+
+  // -------------------------------------------------------------------------
+  // 升级 / 覆盖安装阶段（Round 20）——到这里说明首装 + 首跑**全部通过**（否则上面已 return）。
+  // 分支顺序刻意与首装阶段**逐条对齐**（pending/fail 划分同一套，不新造）：环境性 → pending，
+  // 包坏了 → fail；两条升级特有判据（版本残留 / 入口字节溯源）放在同一序列的末尾。
+  // 这里与首装阶段是**镜像**而非抽取：首装分支顺序被既有单测逐条锁死，抽取会改动其判定顺序。
+  // -------------------------------------------------------------------------
+  const up = facts.upgrade;
+  if (up !== undefined && up.attempted) {
+    if (!up.prepOk) {
+      return pending(
+        '升级阶段的「新版本产物」构造不出来（读不到入口包 manifest / 复制 dist 或 pack stage 副本失败）—— 未判定升级态',
+        'install-smoke gate: 升级轮的判据输入构造不出来（本门禁自身构造的 stage 副本，非仓库发布物缺陷）→ 显式 pending，不静默通过。',
+        [],
+      );
+    }
+    if (!up.npmAvailable) {
+      return pending(
+        '升级轮 npm 不可用（spawn 级失败，无 npm 日志）—— 未判定升级态',
+        'install-smoke gate: 当前环境跑不了升级轮的 npm pack / npm install → 显式 pending，不静默通过。',
+        [],
+      );
+    }
+    if (up.timedOut) {
+      return pending(
+        '升级覆盖安装超时（按实测耗时 ≥ 传入 timeoutMs 判定）—— 未判定升级态',
+        'install-smoke gate: 超时属环境性未完成 → 显式 pending（可加大超时或换机器重跑），不静默通过。',
+        [],
+      );
+    }
+    if (!up.packOk) {
+      return up.packBlockedByEnv
+        ? pending(
+            '升级轮 npm pack 因环境原因失败（离线 / 网络 / 缓存 / 资源耗尽）—— 环境不具备，未判定升级态',
+            'install-smoke gate: 环境不具备（离线缓存或机器资源）→ 显式 pending，不静默通过。',
+            [],
+          )
+        : fail('升级轮 npm pack 失败（npm 已执行且非环境原因）—— 新版本发布物产不出来', []);
+    }
+    if (up.tarballCount < facts.expectedPackages) {
+      return fail(
+        `升级轮 pack 声称成功但 tarball 只有 ${up.tarballCount}/${facts.expectedPackages} 个 —— 至少一个包没产出新发布物`,
+        [],
+      );
+    }
+    if (!up.installOk) {
+      if (up.workspaceDepMissing.length > 0) {
+        return fail(
+          `覆盖升级失败：自家 workspace 依赖未被同批 tarball 满足（${up.workspaceDepMissing.join(', ')}）` +
+            ' —— 依赖图不自洽，升级装不进任何项目',
+          [],
+        );
+      }
+      return up.installBlockedByEnv
+        ? pending(
+            '升级轮 npm install 因环境原因失败（离线 / 网络 / 解析 / 资源耗尽）—— 环境不具备（缓存缺第三方依赖），未判定升级态',
+            'install-smoke gate: 离线无法证伪「依赖只是没缓存」→ 显式 pending，不静默通过。',
+            [],
+          )
+        : fail('覆盖升级安装失败（npm 非 0 退出且非环境原因）—— 新版本装不起来', []);
+    }
+    // 升级特有判据的**前置条件**：新旧版本号必须不同，否则「安装树版本 == 新版本号」这条
+    // 判据对旧产物同样成立、判别力归零 → 判据输入不成立，显式 pending（绝不借此静默通过）。
+    if (up.previousVersion === up.upgradedVersion) {
+      return pending(
+        `升级轮版本号与首装版本号相同（${up.upgradedVersion}）—— 无法区分「已升级」与「旧产物残留」，未判定升级态`,
+        'install-smoke gate: 升级判据输入不成立（版本号不可区分）→ 显式 pending，不静默通过。',
+        [],
+      );
+    }
+    if (!up.cliEntryExists) {
+      return fail('升级完成但 node_modules/@vessel/cli/dist/cli.js 不存在 —— 升级后包内无可用入口', []);
+    }
+    if (!up.policyStatusOk) {
+      return fail('升级后 `policy status` 非 0 退出 —— CLI 升级后跑不起来', []);
+    }
+    if (up.systemPath === undefined) {
+      return pending(
+        '升级后 `policy status` 输出里解析不出 system 层路径（输出形态变化）—— 未判定升级后的读路径',
+        'install-smoke gate: 判据输入不可解析 → 显式 pending，不静默通过。',
+        [],
+      );
+    }
+    if (!up.systemPathInPackage) {
+      return fail(
+        `升级后 system 层路径落在**包外**（${up.systemPath}）—— 升级后包内 configs 没被读到`,
+        [],
+      );
+    }
+    if (!up.systemConfigFileExists) {
+      return fail(
+        `升级后 system 层路径指向包内但文件不存在（${INSTALL_SMOKE_SYSTEM_CONFIG_REL}）—— 新 tarball 缺 configs`,
+        [],
+      );
+    }
+    if (up.usageWarnsMissingConfig) {
+      return fail(
+        '升级后 `usage` 打印「未找到内置配置」—— 升级后 pricing.json / model-catalog.json 不再从包内读到',
+        [],
+      );
+    }
+    // 升级特有判据 ①（版本溯源）：安装树必须已经是**本轮**新版本。
+    // 旧版本产物残留（npm 判定“已是最新”而跳过重装、或装错树）⇒ 这里读到的是旧版本号 ⇒ fail。
+    if (up.installedVersion !== up.upgradedVersion) {
+      return fail(
+        `升级后安装树仍是旧版本（安装树 version=${up.installedVersion ?? '(读不到)'}，期望 ${up.upgradedVersion}）` +
+          ' —— 覆盖安装没生效，旧产物残留在安装树里',
+        [`升级溯源：previous=${up.previousVersion} → upgraded=${up.upgradedVersion}`],
+      );
+    }
+    // 升级特有判据 ②（字节溯源）：安装态入口必须与**本轮 pack 源**逐字节相同。
+    // 用 sha256 而非 mtime：mtime 会被解包时间 / 归档归一化污染（两次 pack 同一份源码的 mtime 不可比），
+    // 而 sha256 两侧输入都由本进程直接读取（同一份 stage/dist/cli.js），是无中间解析的确定性比对。
+    // 判别力来源：stage 入口被 installSmokeUpgradeEntryMarker 追加过标记 ⇒ 本轮字节 ≠ 首轮字节 ⇒
+    // 若安装树没被真正覆盖（仍是首轮字节），这里必然不等 → fail。
+    if (
+      up.installedEntrySha256 === undefined ||
+      up.packedEntrySha256 === undefined ||
+      up.installedEntrySha256 !== up.packedEntrySha256
+    ) {
+      return fail(
+        `升级后 ${INSTALL_SMOKE_PACKED_ENTRY_REL} 与**本轮 pack 产物**不一致` +
+          `（安装树 sha256=${up.installedEntrySha256 ?? '(读不到)'}，pack 源 sha256=${up.packedEntrySha256 ?? '(读不到)'}）` +
+          ' —— 入口不是本次安装写下的，旧产物/污染仍在',
+        [`升级溯源：判据 = 安装树入口字节 == 本轮 pack 源入口字节`],
+      );
+    }
+    return {
+      status: 'pass',
+      evidence: {
+        summary:
+          `安装态冒烟通过（${facts.expectedPackages} 个 tarball → 全新空项目离线安装 exit 0 → ` +
+          `覆盖升级到 ${up.upgradedVersion} 后仍 exit 0 → system 层路径在包内 + \`usage\` 无缺配置警告 + ` +
+          '安装树版本与入口字节均来自本次 pack）',
+        detail: detail(
+          '判据：读路径落在包内，而不是「命令 exit 0」',
+          `升级判据：安装树 version=${up.upgradedVersion}（≠ 首装 ${up.previousVersion}）+ 入口 sha256 与 pack 源一致`,
+        ),
+      },
+    };
+  }
   return {
     status: 'pass',
     evidence: {
@@ -949,15 +1218,49 @@ export interface InstallSmokeOptions {
 }
 
 /**
+ * 读安装态入口包 manifest 的 version（读不到 → undefined，由纯判据判 fail，不做「存在即算过」的弱断言）。
+ * executor 侧只**采集事实**，判定一律回 `judgeInstallSmoke`。
+ */
+function readInstalledPackageVersion(projectDir: string): string | undefined {
+  try {
+    const doc = JSON.parse(
+      fs.readFileSync(path.join(projectDir, ...INSTALL_SMOKE_PACKAGE_REL.split('/')), 'utf8'),
+    ) as { version?: unknown };
+    return typeof doc.version === 'string' && doc.version.length > 0 ? doc.version : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+/** 文件 sha256（读不到 → undefined；判定侧对 undefined 一律 fail，不静默通过）。 */
+function sha256File(file: string): string | undefined {
+  try {
+    return createHash('sha256').update(fs.readFileSync(file)).digest('hex');
+  } catch {
+    return undefined;
+  }
+}
+
+/**
  * 安装态冒烟 executor（第 9 道门禁，**可选**）。
  *
- * 真实动作（仅在 `VESSEL_GATE_INSTALL_SMOKE=1` 时）：闭包内每个包 `npm pack --offline`
- * （跑真实 prepack 构建，与「干净检出 npm pack」同语义 → 不落 .tgz 到仓库，全部进临时目录）
- * → 全新空项目 `npm install <相对路径 tarball…> --offline --no-audit --no-fund`
- * → 安装态跑 `--version`（仅证据）/ `policy status --json` / `usage`。
+ * 真实动作（仅在 `VESSEL_GATE_INSTALL_SMOKE=1` 时）：
+ *   阶段 1（首装）：闭包内每个包 `npm pack --offline`（跑真实 prepack 构建，与「干净检出 npm pack」
+ *     同语义 → 不落 .tgz 到仓库，全部进临时目录）→ 全新空项目
+ *     `npm install <相对路径 tarball…> --offline --no-audit --no-fund`
+ *     → 安装态跑 `--version`（仅证据）/ `policy status --json` / `usage`。
+ *   阶段 2（升级，Round 20；**仅当阶段 1 判定 pass**）：把入口包的 `dist` 复制到 stage 目录，把
+ *     `package.json` 的 version 确定性 +patch（`bumpInstallSmokeVersion`）并给入口追加
+ *     `installSmokeUpgradeEntryMarker` 注释（本轮产物在版本与**字节**上都确定性地不同于首轮）
+ *     → 对闭包再 pack 一轮
+ *     （入口包用 stage 副本 + `--ignore-scripts`：dist 已由阶段 1 的 prepack 构建好，不再重复构建；
+ *      其余包与阶段 1 同样跑真实 prepack）→ 对**同一个项目目录** `npm install <新 tarball 集> --offline`
+ *     **覆盖升级** → 重跑 `policy status --json` / `usage` 两条硬判据 + 升级特有两项溯源
+ *     （安装树 version == 本轮新版本号；安装树 `dist/cli.js` sha256 == 本轮 pack 源同文件）。
  *
  * 隔离：整条链在 `fs.mkdtempSync(os.tmpdir())` 里进行（`finally` 清理）；CLI 探测注入
  * `VESSEL_USAGE_ROOT` / `VESSEL_PROVIDER_ROOT` 指向临时目录，**绝不读写真实 `~/.vessel`**。
+ * 不联网：每一处 npm 调用都带 `--offline`。
  */
 export function buildInstallSmokeExecutor(opts: InstallSmokeOptions = {}): GateExecutor {
   return {
@@ -1127,6 +1430,187 @@ export function buildInstallSmokeExecutor(opts: InstallSmokeOptions = {}): GateE
           `${usage.outcome.stdout}\n${usage.outcome.stderr}`,
         );
         facts.detail.push(`usage exit=${usage.outcome.code}；缺配置警告=${String(facts.usageWarnsMissingConfig)}`);
+
+        // ------------------------------------------------------------------
+        // 阶段 2（Round 20）：升级 / 覆盖安装 —— 对**同一个项目目录**装一版新产物。
+        // 只有首装 + 首跑**全部通过**才做升级（否则升级只会把同一个坏包问题再报一遍）。
+        // ------------------------------------------------------------------
+        const firstInstall = judgeInstallSmoke(facts);
+        if (firstInstall.status !== 'pass') return firstInstall;
+
+        const up: InstallSmokeUpgradeFacts = {
+          attempted: true,
+          prepOk: false,
+          npmAvailable: true,
+          timedOut: false,
+          packOk: false,
+          packBlockedByEnv: false,
+          tarballCount: 0,
+          installOk: false,
+          installBlockedByEnv: false,
+          workspaceDepMissing: [],
+          cliEntryExists: false,
+          policyStatusOk: false,
+          systemPathInPackage: false,
+          systemConfigFileExists: false,
+          usageWarnsMissingConfig: false,
+          previousVersion: '',
+          upgradedVersion: '',
+        };
+        facts.upgrade = up;
+        facts.detail.push('升级阶段：同项目覆盖安装新版本产物（再 pack → 再 install → 重跑判据 + 溯源）');
+
+        // 升级轮入口包：把**阶段 1 的 prepack 已构建好**的 dist 复制进 stage，只把 package.json 的
+        // version 确定性 +patch（`bumpInstallSmokeVersion`）→ 这就是「新版本产物」；pack 时用
+        // `--ignore-scripts` 跳过 prepack（stage 里没有 tsconfig/源码树，且 dist 已就绪，不重复构建）。
+        const rootPkg = closure.packages.find((p) => p.name === INSTALL_SMOKE_ROOT_PACKAGE);
+        const upgradeTarballsDir = path.join(projectDir, 'tarballs-upgrade');
+        const stageDir = path.join(tmpRoot, 'stage', 'cli');
+        try {
+          if (rootPkg === undefined) throw new Error(`闭包内缺少入口包 ${INSTALL_SMOKE_ROOT_PACKAGE}`);
+          const rootManifest = JSON.parse(
+            fs.readFileSync(path.join(rootPkg.dir, 'package.json'), 'utf8'),
+          ) as Record<string, unknown>;
+          up.previousVersion = typeof rootManifest.version === 'string' ? rootManifest.version : '';
+          up.upgradedVersion = bumpInstallSmokeVersion(up.previousVersion);
+          fs.mkdirSync(stageDir, { recursive: true });
+          fs.mkdirSync(upgradeTarballsDir, { recursive: true });
+          fs.cpSync(path.join(rootPkg.dir, 'dist'), path.join(stageDir, 'dist'), { recursive: true });
+          fs.writeFileSync(
+            path.join(stageDir, 'package.json'),
+            JSON.stringify({ ...rootManifest, version: up.upgradedVersion }, null, 2),
+            'utf8',
+          );
+          // 让本轮产物在**字节层面**也确定性地不同于首轮（见 installSmokeUpgradeEntryMarker）：
+          // 追加的是一行 JS 注释，只落在 stage 副本上，仓库里的 dist 一个字节都不动。
+          fs.appendFileSync(
+            path.join(stageDir, ...INSTALL_SMOKE_PACKED_ENTRY_REL.split('/')),
+            installSmokeUpgradeEntryMarker(up.upgradedVersion),
+            'utf8',
+          );
+          facts.detail.push(`升级溯源：${INSTALL_SMOKE_ROOT_PACKAGE} ${up.previousVersion} → ${up.upgradedVersion}`);
+          up.prepOk = true;
+        } catch (err) {
+          facts.detail.push(`升级阶段准备失败：${String(err)}`);
+          return judgeInstallSmoke(facts);
+        }
+
+        // ① 再 pack 一轮（入口包用 stage 副本；其余包与阶段 1 同样跑真实 prepack 构建）
+        for (const pkg of closure.packages) {
+          const isRoot = pkg.name === INSTALL_SMOKE_ROOT_PACKAGE;
+          const args = ['pack', '--offline', '--no-color', '--pack-destination', upgradeTarballsDir];
+          if (isRoot) args.push('--ignore-scripts');
+          const step = await runStep(ctx, 'npm', args, {
+            cwd: isRoot ? stageDir : pkg.dir,
+            timeoutMs: packTimeoutMs,
+          });
+          const text = `${step.outcome.stdout}\n${step.outcome.stderr}`;
+          if (step.timedOut) {
+            up.timedOut = true;
+            facts.detail.push(`升级轮 npm pack ${pkg.name} 超时（>${packTimeoutMs}ms）`);
+            return judgeInstallSmoke(facts);
+          }
+          if (step.outcome.code !== 0) {
+            facts.detail.push(`升级轮 npm pack ${pkg.name} exit=${step.outcome.code}`, ...tailLines(text));
+            if (isNpmToolMissing(text)) {
+              up.npmAvailable = false;
+              return judgeInstallSmoke(facts);
+            }
+            if (isRoot) {
+              // 入口包的 stage 副本是**本门禁自己构造**的（不是仓库里的可发布物）：它 pack 不出来属于
+              // 「判据输入构造不出来」，而不是「发布物坏了」（阶段 1 已经成功 pack 过同一个包）
+              // → 走 prepOk=false 的 pending 通道，绝不把本门禁自身的构造失败算成包坏了。
+              up.prepOk = false;
+              return judgeInstallSmoke(facts);
+            }
+            up.packBlockedByEnv = isEnvironmentBlockedText(text);
+            return judgeInstallSmoke(facts);
+          }
+        }
+        up.packOk = true;
+
+        const upgradeTarballs = fs.readdirSync(upgradeTarballsDir).filter((f) => f.endsWith('.tgz'));
+        up.tarballCount = upgradeTarballs.length;
+        facts.detail.push(`升级轮 tarball ${upgradeTarballs.length}/${closure.packages.length} 个`);
+        if (upgradeTarballs.length < closure.packages.length) return judgeInstallSmoke(facts);
+
+        // ② 覆盖升级：同一个项目目录、同一份 package.json（npm 会把 file: 依赖换成新 tarball）
+        const upgradeSpecs = upgradeTarballs.map((f) => `./tarballs-upgrade/${f}`);
+        const upgradeInstall = await runStep(
+          ctx,
+          'npm',
+          ['install', ...upgradeSpecs, '--offline', '--no-audit', '--no-fund', '--no-color'],
+          { cwd: projectDir, timeoutMs: installTimeoutMs },
+        );
+        const upgradeText = `${upgradeInstall.outcome.stdout}\n${upgradeInstall.outcome.stderr}`;
+        facts.detail.push(`升级 npm install exit=${upgradeInstall.outcome.code}`);
+        if (upgradeInstall.timedOut) {
+          up.timedOut = true;
+          return judgeInstallSmoke(facts);
+        }
+        if (upgradeInstall.outcome.code !== 0) {
+          if (isNpmToolMissing(upgradeText)) {
+            up.npmAvailable = false;
+            return judgeInstallSmoke(facts);
+          }
+          up.installBlockedByEnv = isEnvironmentBlockedText(upgradeText);
+          up.workspaceDepMissing = unresolvedWorkspaceDeps(
+            upgradeText,
+            closure.packages.map((p) => p.name),
+          );
+          facts.detail.push(...tailLines(upgradeText));
+          return judgeInstallSmoke(facts);
+        }
+        up.installOk = true;
+
+        // ③ 升级后**重跑同样两条硬判据**（读路径在包内 / 无缺配置警告）
+        up.cliEntryExists = fs.existsSync(path.join(projectDir, ...INSTALL_SMOKE_ENTRY_REL.split('/')));
+        if (!up.cliEntryExists) return judgeInstallSmoke(facts);
+
+        const upgradeStatus = await runStep(
+          ctx,
+          'node',
+          [INSTALL_SMOKE_ENTRY_REL, 'policy', 'status', '--json'],
+          { cwd: projectDir, env: cliEnv, timeoutMs: cliTimeoutMs },
+        );
+        up.timedOut = up.timedOut || upgradeStatus.timedOut;
+        up.policyStatusOk = upgradeStatus.outcome.code === 0;
+        if (!up.timedOut) {
+          const upgradedSysPath = parseSystemLayerPath(upgradeStatus.outcome.stdout);
+          if (upgradedSysPath !== undefined) up.systemPath = upgradedSysPath;
+          up.systemPathInPackage = systemPathInInstalledPackage(upgradedSysPath, projectDir);
+          up.systemConfigFileExists = fs.existsSync(
+            path.join(projectDir, ...INSTALL_SMOKE_SYSTEM_CONFIG_REL.split('/')),
+          );
+          facts.detail.push(
+            `升级后 policy status exit=${upgradeStatus.outcome.code}；system 层路径=${upgradedSysPath ?? '(未解析出)'}`,
+          );
+        }
+        if (up.timedOut || !up.policyStatusOk) return judgeInstallSmoke(facts);
+
+        const upgradeUsage = await runStep(ctx, 'node', [INSTALL_SMOKE_ENTRY_REL, 'usage'], {
+          cwd: projectDir,
+          env: cliEnv,
+          timeoutMs: cliTimeoutMs,
+        });
+        up.timedOut = up.timedOut || upgradeUsage.timedOut;
+        up.usageWarnsMissingConfig = hasMissingBuiltinConfigWarn(
+          `${upgradeUsage.outcome.stdout}\n${upgradeUsage.outcome.stderr}`,
+        );
+
+        // ④ 升级特有溯源：安装树版本 + 入口字节 vs **本轮 pack 源**（executor 只采集，判定在纯函数里）
+        up.installedVersion = readInstalledPackageVersion(projectDir);
+        up.installedEntrySha256 = sha256File(
+          path.join(projectDir, ...INSTALL_SMOKE_ENTRY_REL.split('/')),
+        );
+        up.packedEntrySha256 = sha256File(
+          path.join(stageDir, ...INSTALL_SMOKE_PACKED_ENTRY_REL.split('/')),
+        );
+        facts.detail.push(`升级后 usage exit=${upgradeUsage.outcome.code}；缺配置警告=${String(up.usageWarnsMissingConfig)}`);
+        facts.detail.push(
+          `升级溯源：安装树 version=${up.installedVersion ?? '(读不到)'}（期望 ${up.upgradedVersion}）；` +
+            `入口 sha256 安装树=${up.installedEntrySha256 ?? '(读不到)'} pack 源=${up.packedEntrySha256 ?? '(读不到)'}`,
+        );
         return judgeInstallSmoke(facts);
       } finally {
         try {

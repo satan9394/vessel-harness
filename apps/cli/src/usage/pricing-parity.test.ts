@@ -62,11 +62,19 @@ async function projectionCostWith(
 describe('087 统一计价 — projection 与 usage-store 同模型同价', () => {
   let dir: string;
   let store: UsageStore;
+  let savedUsageRoot: string | undefined;
   beforeEach(() => {
     dir = fs.mkdtempSync(path.join(os.tmpdir(), 'vessel-parity-'));
+    // 隔离（AGENTS.md §8）：Round 20 起 `loadModelCatalog(root)` 会**先**读用户态
+    // `<VESSEL_USAGE_ROOT>/model-catalog.json`。这里钉到临时目录，保证「读到的是仓库
+    // configs/ 那份快照」这一前提在本机成立（否则会读真实 ~/.vessel，随机器状态飘）。
+    savedUsageRoot = process.env.VESSEL_USAGE_ROOT;
+    process.env.VESSEL_USAGE_ROOT = dir;
     store = new UsageStore({ rootDir: dir, pricing: TABLE, catalog: CATALOG });
   });
   afterEach(() => {
+    if (savedUsageRoot === undefined) delete process.env.VESSEL_USAGE_ROOT;
+    else process.env.VESSEL_USAGE_ROOT = savedUsageRoot;
     fs.rmSync(dir, { recursive: true, force: true });
   });
 
