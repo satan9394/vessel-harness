@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import * as http from 'node:http';
 import type { AddressInfo } from 'node:net';
 import { OpenAICompatibleProvider, AnthropicProvider, MockProvider } from '../index.js';
-import type { StreamChunk } from '@vessel/shared';
+import type { ChatRequest, StreamChunk } from '@vessel/shared';
 
 /** Boot a local HTTP server that responds with a raw SSE body and records the request. */
 function fakeSSEServer(sseBody: string) {
@@ -305,5 +305,336 @@ describe('MockProvider.stream', () => {
     expect(JSON.parse(start.arguments)).toEqual({ path: '/ws/f.txt' });
     expect(chunks.map((c) => c.type)).toContain('tool_call_end');
     expect((chunks[chunks.length - 1] as { finishReason: string }).finishReason).toBe('tool_calls');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// stream() idle timeout — the "upstream goes silent" hang.
+//
+// PRE-FIX: chat() capped the whole request (`setTimeout ⇒ controller.abort()`,
+// OpenAICompatibleProvider.ts:86 / AnthropicProvider.ts:187) but stream() only
+// forwarded the caller's signal, so a caller that passed no signal (the normal
+// AgentLoop case is a signal that is never aborted) left `reader.read()` pending
+// FOREVER when the upstream accepted the TCP connection and then sent nothing:
+// no error, no audit event, no UI change — the turn froze silently.
+//
+// The fix is an IDLE (inter-chunk) timeout, deliberately NOT chat()'s total
+// timeout: a long streamed answer is legitimate, so every arriving chunk (and the
+// response headers) restarts the window, and only a gap with NO data aborts.
+//
+// These four criteria are the ones that must stay red-able:
+//   ① no data at all   ⇒ explicit idle-timeout error after the threshold
+//   ② slow but ALIVE   ⇒ must NEVER be killed (interval < threshold, total > threshold)
+//   ③ chat()           ⇒ its existing TOTAL timeout is byte-for-byte unchanged
+//   ④ external signal  ⇒ still aborts promptly and is NOT reported as a timeout
+// ---------------------------------------------------------------------------
+
+interface FakeUpstream {
+  url: string;
+  close: () => void;
+}
+
+/** Loopback-only listener; `close()` also drops sockets the upstream left hung. */
+function listen(server: http.Server): Promise<FakeUpstream> {
+  return new Promise((resolve) => {
+    server.listen(0, '127.0.0.1', () => {
+      const { port } = server.address() as AddressInfo;
+      resolve({
+        url: `http://127.0.0.1:${port}`,
+        close: () => {
+          server.closeAllConnections(); // the "hung" upstreams keep sockets open on purpose
+          server.close();
+        },
+      });
+    });
+  });
+}
+
+/**
+ * An upstream that accepts the request and then goes SILENT.
+ * No `prefix` ⇒ not even the response headers are written; with one ⇒ it writes
+ * `prefix` and stops. It never calls `res.end()`, so the connection stays open
+ * with no further data — the "链路坏了但看起来只是慢" case, on loopback only.
+ */
+function stalledUpstream(prefix?: string): Promise<FakeUpstream> {
+  const server = http.createServer((req, res) => {
+    // The client aborts this connection on purpose; late socket errors are noise.
+    res.on('error', () => {});
+    req.on('data', () => {});
+    req.on('end', () => {
+      if (prefix === undefined) return; // never respond at all
+      res.writeHead(200, { 'Content-Type': 'text/event-stream' });
+      res.write(prefix);
+    });
+  });
+  return listen(server);
+}
+
+/** An upstream that is SLOW BUT ALIVE: one frame every `gapMs`, then closes. */
+function pacedUpstream(frames: string[], gapMs: number): Promise<FakeUpstream> {
+  const server = http.createServer((req, res) => {
+    res.on('error', () => {});
+    req.on('data', () => {});
+    req.on('end', () => {
+      res.writeHead(200, { 'Content-Type': 'text/event-stream' });
+      let i = 0;
+      const tick = setInterval(() => {
+        if (res.destroyed || res.writableEnded) {
+          clearInterval(tick); // the test tore the upstream down early
+          return;
+        }
+        if (i < frames.length) {
+          res.write(frames[i]! + '\n');
+          i += 1;
+          return;
+        }
+        clearInterval(tick);
+        res.end();
+      }, gapMs);
+    });
+  });
+  return listen(server);
+}
+
+type StreamOutcome =
+  | { status: 'ok'; chunks: StreamChunk[]; elapsedMs: number }
+  | { status: 'error'; error: Error; chunks: StreamChunk[]; elapsedMs: number }
+  | { status: 'hung'; chunks: StreamChunk[]; elapsedMs: number };
+
+/**
+ * Drain `iter` under a hard deadline. On the PRE-FIX code a silent upstream
+ * leaves `reader.read()` pending forever, so this deadline is what turns
+ * "silently hung" into a readable red test instead of a hung suite: the outcome
+ * comes back as `{status:'hung'}` and the assertion below fails loudly.
+ */
+async function collectBounded(iter: AsyncIterable<StreamChunk>, deadlineMs: number): Promise<StreamOutcome> {
+  const started = Date.now();
+  const chunks: StreamChunk[] = [];
+  const drained = (async (): Promise<StreamOutcome> => {
+    try {
+      for await (const c of iter) chunks.push(c);
+      return { status: 'ok', chunks, elapsedMs: Date.now() - started };
+    } catch (error) {
+      return { status: 'error', error: error as Error, chunks, elapsedMs: Date.now() - started };
+    }
+  })();
+  let deadline: ReturnType<typeof setTimeout> | undefined;
+  const hung = new Promise<StreamOutcome>((resolve) => {
+    deadline = setTimeout(() => resolve({ status: 'hung', chunks, elapsedMs: Date.now() - started }), deadlineMs);
+  });
+  const outcome = await Promise.race([drained, hung]);
+  clearTimeout(deadline);
+  return outcome;
+}
+
+function userReq(extra: Partial<ChatRequest> = {}): ChatRequest {
+  return { model: 'm', messages: [{ role: 'user', content: 'hi' }], ...extra };
+}
+
+/** Assert the explicit, machine-readable idle-timeout error (not a bare AbortError). */
+function expectIdleTimeoutError(err: Error, providerId: string, idleMs: number): void {
+  expect(err.name).toBe('StreamIdleTimeoutError');
+  expect(err.message).toContain(`${providerId} stream idle timeout`);
+  expect(err.message).toMatch(/no data received for \d+ms/);
+  expect(err.message).toContain(`${idleMs}ms`);
+  // What AgentLoop.classifyModelError keys on (`/timeout/i` ⇒ errorClass TIMEOUT,
+  // so the attempt is retried and the turn closes with finishReason 'error').
+  expect(err.message).toMatch(/timeout/i);
+}
+
+const OPENAI_IDLE_MS = 150;
+const OPENAI_PACED_IDLE_MS = 300;
+const HARD_DEADLINE_MS = 3_000;
+
+describe('OpenAICompatibleProvider.stream — 空闲超时（idle timeout）', () => {
+  it('① 上游完全不发数据 ⇒ 在 idle 阈值后以明确的超时错误结束（修复前：reader.read() 永不返回，静默卡死）', async () => {
+    const fake = await stalledUpstream();
+    const external = new AbortController();
+    try {
+      const p = new OpenAICompatibleProvider({ baseUrl: fake.url, model: 'm', apiKey: 'k', streamIdleTimeoutMs: OPENAI_IDLE_MS });
+      const outcome = await collectBounded(p.stream(userReq({ signal: external.signal })), HARD_DEADLINE_MS);
+      if (outcome.status !== 'error') {
+        throw new Error(
+          `stream() 在 ${HARD_DEADLINE_MS}ms 内没有结束（status=${outcome.status}）—— 上游挂死时回合静默卡死，这正是修复前的行为`,
+        );
+      }
+      expectIdleTimeoutError(outcome.error, 'openai-compatible', OPENAI_IDLE_MS);
+      // 由 idle 定时器触发（而非别的原因立刻失败）：至少要等满阈值。
+      expect(outcome.elapsedMs).toBeGreaterThanOrEqual(OPENAI_IDLE_MS - 20);
+    } finally {
+      external.abort(); // 若修复被删，这里负责拆掉仍然挂起的 fetch
+      fake.close();
+    }
+  });
+
+  it('①-2 已到 headers + 一个 chunk 后静默 ⇒ 已产出的 chunk 送达，随后仍以 idle 超时结束', async () => {
+    const fake = await stalledUpstream('data: {"choices":[{"delta":{"content":"first"}}]}\n');
+    const external = new AbortController();
+    try {
+      const p = new OpenAICompatibleProvider({ baseUrl: fake.url, model: 'm', apiKey: 'k', streamIdleTimeoutMs: OPENAI_IDLE_MS });
+      const outcome = await collectBounded(p.stream(userReq({ signal: external.signal })), HARD_DEADLINE_MS);
+      if (outcome.status !== 'error') {
+        throw new Error(`流中途静默没有被超时收口（status=${outcome.status}）`);
+      }
+      expect(outcome.chunks).toContainEqual({ type: 'text_delta', text: 'first' });
+      expectIdleTimeoutError(outcome.error, 'openai-compatible', OPENAI_IDLE_MS);
+    } finally {
+      external.abort();
+      fake.close();
+    }
+  });
+
+  it('② 负对照：慢但持续有数据（间隔 < 阈值、总时长 > 阈值）不得被误杀', async () => {
+    const gapMs = 50;
+    const textFrames = Array.from({ length: 12 }, (_, i) => `data: {"choices":[{"delta":{"content":"t${i}"}}]}`);
+    const fake = await pacedUpstream([...textFrames, 'data: [DONE]'], gapMs);
+    try {
+      const p = new OpenAICompatibleProvider({ baseUrl: fake.url, model: 'm', apiKey: 'k', streamIdleTimeoutMs: OPENAI_PACED_IDLE_MS });
+      const outcome = await collectBounded(p.stream(userReq()), HARD_DEADLINE_MS);
+      if (outcome.status !== 'ok') {
+        throw new Error(`慢但持续的流被误杀（status=${outcome.status}）：${outcome.status === 'error' ? outcome.error.message : ''}`);
+      }
+      // 判据本身要成立：总时长确实超过 idle 阈值，靠的是「每片重置」而不是「整体很短」。
+      expect(outcome.elapsedMs).toBeGreaterThan(OPENAI_PACED_IDLE_MS);
+      const text = outcome.chunks.filter((c) => c.type === 'text_delta');
+      expect(text).toHaveLength(textFrames.length);
+      expect(outcome.chunks[outcome.chunks.length - 1]).toEqual({ type: 'message_end' });
+    } finally {
+      fake.close();
+    }
+  });
+
+  it('③ chat() 的总超时逐字不回归：同一挂死上游仍按 timeoutMs 结束，与 idle 选项无关', async () => {
+    const fake = await stalledUpstream();
+    try {
+      const p = new OpenAICompatibleProvider({
+        baseUrl: fake.url,
+        model: 'm',
+        timeoutMs: 120, // 总超时
+        streamIdleTimeoutMs: 10_000, // stream 专用：不得影响 chat
+      });
+      const started = Date.now();
+      let error: unknown;
+      try {
+        await p.chat(userReq());
+      } catch (err) {
+        error = err;
+      }
+      expect(error).toBeInstanceOf(Error);
+      const err = error as Error;
+      expect(err.message).toMatch(/abort/i); // 仍然是 chat 的 AbortError 语义
+      expect(err.message).not.toMatch(/idle timeout/i); // 不是 stream 的新错误
+      expect(Date.now() - started).toBeLessThan(2_000);
+    } finally {
+      fake.close();
+    }
+  });
+
+  it('④ 外部 signal 既有语义不变：中断尽快 abort，且不被报告成 idle 超时', async () => {
+    const fake = await stalledUpstream();
+    const external = new AbortController();
+    try {
+      const p = new OpenAICompatibleProvider({ baseUrl: fake.url, model: 'm', streamIdleTimeoutMs: 5_000 });
+      const timer = setTimeout(() => external.abort(), 50);
+      const outcome = await collectBounded(p.stream(userReq({ signal: external.signal })), HARD_DEADLINE_MS);
+      clearTimeout(timer);
+      if (outcome.status !== 'error') {
+        throw new Error(`外部中断未在 ${HARD_DEADLINE_MS}ms 内结束（status=${outcome.status}）`);
+      }
+      expect(outcome.error.message).not.toMatch(/idle timeout/i);
+      expect(outcome.error.name === 'AbortError' || /abort/i.test(outcome.error.message)).toBe(true);
+      // 「尽快」= 远早于 5000ms 的 idle 阈值（中断在 50ms 发出）。
+      expect(outcome.elapsedMs).toBeLessThan(2_000);
+    } finally {
+      external.abort();
+      fake.close();
+    }
+  });
+});
+
+const ANTHROPIC_IDLE_MS = 150;
+const ANTHROPIC_PACED_IDLE_MS = 300;
+
+describe('AnthropicProvider.stream — 空闲超时（idle timeout，同族同修）', () => {
+  it('① 上游完全不发数据 ⇒ 在 idle 阈值后以明确的超时错误结束（修复前：静默卡死）', async () => {
+    const fake = await stalledUpstream();
+    const external = new AbortController();
+    try {
+      const p = new AnthropicProvider({ baseUrl: fake.url, apiKey: 'k', model: 'm', streamIdleTimeoutMs: ANTHROPIC_IDLE_MS });
+      const outcome = await collectBounded(p.stream(userReq({ signal: external.signal })), HARD_DEADLINE_MS);
+      if (outcome.status !== 'error') {
+        throw new Error(
+          `AnthropicProvider.stream() 在 ${HARD_DEADLINE_MS}ms 内没有结束（status=${outcome.status}）—— 修复前上游挂死即静默卡死`,
+        );
+      }
+      expectIdleTimeoutError(outcome.error, 'anthropic', ANTHROPIC_IDLE_MS);
+      expect(outcome.elapsedMs).toBeGreaterThanOrEqual(ANTHROPIC_IDLE_MS - 20);
+    } finally {
+      external.abort();
+      fake.close();
+    }
+  });
+
+  it('② 负对照：慢但持续有数据（间隔 < 阈值、总时长 > 阈值）不得被误杀', async () => {
+    const gapMs = 50;
+    const textFrames = Array.from(
+      { length: 12 },
+      (_, i) => `data: {"type":"content_block_delta","index":0,"delta":{"type":"text_delta","text":"t${i}"}}`,
+    );
+    const frames = ['data: {"type":"message_start","model":"m"}', ...textFrames, 'data: {"type":"message_stop"}'];
+    const fake = await pacedUpstream(frames, gapMs);
+    try {
+      const p = new AnthropicProvider({ baseUrl: fake.url, apiKey: 'k', model: 'm', streamIdleTimeoutMs: ANTHROPIC_PACED_IDLE_MS });
+      const outcome = await collectBounded(p.stream(userReq()), HARD_DEADLINE_MS);
+      if (outcome.status !== 'ok') {
+        throw new Error(`慢但持续的流被误杀（status=${outcome.status}）：${outcome.status === 'error' ? outcome.error.message : ''}`);
+      }
+      expect(outcome.elapsedMs).toBeGreaterThan(ANTHROPIC_PACED_IDLE_MS);
+      const text = outcome.chunks.filter((c) => c.type === 'text_delta');
+      expect(text).toHaveLength(textFrames.length);
+      expect(outcome.chunks[outcome.chunks.length - 1]).toEqual({ type: 'message_end' });
+    } finally {
+      fake.close();
+    }
+  });
+
+  it('③ chat() 的总超时逐字不回归：仍按 timeoutMs 结束，与 idle 选项无关', async () => {
+    const fake = await stalledUpstream();
+    try {
+      const p = new AnthropicProvider({ baseUrl: fake.url, apiKey: 'k', model: 'm', timeoutMs: 120, streamIdleTimeoutMs: 10_000 });
+      const started = Date.now();
+      let error: unknown;
+      try {
+        await p.chat(userReq());
+      } catch (err) {
+        error = err;
+      }
+      expect(error).toBeInstanceOf(Error);
+      expect((error as Error).message).toMatch(/abort/i);
+      expect((error as Error).message).not.toMatch(/idle timeout/i);
+      expect(Date.now() - started).toBeLessThan(2_000);
+    } finally {
+      fake.close();
+    }
+  });
+
+  it('④ 外部 signal 既有语义不变：中断尽快 abort，且不被报告成 idle 超时', async () => {
+    const fake = await stalledUpstream();
+    const external = new AbortController();
+    try {
+      const p = new AnthropicProvider({ baseUrl: fake.url, apiKey: 'k', model: 'm', streamIdleTimeoutMs: 5_000 });
+      const timer = setTimeout(() => external.abort(), 50);
+      const outcome = await collectBounded(p.stream(userReq({ signal: external.signal })), HARD_DEADLINE_MS);
+      clearTimeout(timer);
+      if (outcome.status !== 'error') {
+        throw new Error(`外部中断未在 ${HARD_DEADLINE_MS}ms 内结束（status=${outcome.status}）`);
+      }
+      expect(outcome.error.message).not.toMatch(/idle timeout/i);
+      expect(outcome.error.name === 'AbortError' || /abort/i.test(outcome.error.message)).toBe(true);
+      expect(outcome.elapsedMs).toBeLessThan(2_000);
+    } finally {
+      external.abort();
+      fake.close();
+    }
   });
 });

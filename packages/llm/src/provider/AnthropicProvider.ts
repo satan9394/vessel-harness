@@ -72,9 +72,47 @@ export interface AnthropicProviderOptions {
   model: string;
   /** Messages API version header; default 2023-06-01 */
   anthropicVersion?: string;
+  /**
+   * chat(): TOTAL wall-clock cap for the whole request (default 60_000ms).
+   * stream(): only the FALLBACK for `streamIdleTimeoutMs` — never a total cap.
+   */
   timeoutMs?: number;
+  /**
+   * stream() only: IDLE (inter-chunk) timeout, default `timeoutMs ?? 60_000`.
+   *
+   * Same contract as OpenAICompatibleOptions.streamIdleTimeoutMs (the two wire
+   * protocols are siblings here and must not drift): the window opens when the
+   * request goes out, restarts on the response headers and after every chunk,
+   * and only a gap of `streamIdleTimeoutMs` with NO data at all aborts. A long
+   * answer that keeps emitting chunks is never cut off — which is exactly why
+   * stream() must not reuse chat()'s TOTAL `timeoutMs`.
+   */
+  streamIdleTimeoutMs?: number;
   /** default max_tokens when the request carries none (Anthropic REQUIRES it) */
   defaultMaxTokens?: number;
+}
+
+/**
+ * Error body of a stream() idle timeout (machine-readable) — sibling of
+ * `streamIdleTimeoutError` in OpenAICompatibleProvider.ts; kept local so the two
+ * providers stay independent modules (no provider↔provider import).
+ *
+ * Contract (asserted by tests; consumed upstream by `AgentLoop.classifyModelError`,
+ * whose `/timeout/i` rule maps it to errorClass 'TIMEOUT' — the retry wrapper may
+ * retry the attempt, and the turn closes with `model_stream_end {finishReason:'error'}`
+ * instead of hanging silently):
+ *   `<providerId> stream idle timeout: no data received for <N>ms`
+ *
+ * Deliberately NOT an AbortError: "the upstream went silent" and "the caller
+ * interrupted the turn" must stay distinguishable downstream.
+ */
+function streamIdleTimeoutError(providerId: string, idleMs: number): Error {
+  const err = new Error(
+    `${providerId} stream idle timeout: no data received for ${idleMs}ms ` +
+      `(idle threshold streamIdleTimeoutMs=${idleMs}; stream() has no total cap — long answers are legal)`,
+  );
+  err.name = 'StreamIdleTimeoutError';
+  return err;
 }
 
 /** Extract leading role:'system' messages → Anthropic top-level system text. */
@@ -311,8 +349,50 @@ export class AnthropicProvider implements ChatProvider {
       else external.addEventListener('abort', forwardAbort, { once: true });
     }
 
+    // ---- IDLE timeout — deliberately NOT chat()'s total timeout -------------
+    // chat() caps the WHOLE request at `timeoutMs` (one `setTimeout` around the
+    // fetch). That is right for a one-shot response but fatal for a stream: a
+    // long answer is legitimate, so a total cap would strangle it. This path
+    // therefore watches the GAP BETWEEN DATA instead. The window opens before the
+    // request is sent (the upstream may accept the TCP connection and then never
+    // answer at all), and is restarted when the response headers arrive and after
+    // every chunk. Only "no data at all for `idleMs`" aborts the fetch — exactly
+    // the case that used to hang the turn silently forever (no error, no audit
+    // event, a frozen UI). Identical semantics to the OpenAI-compatible sibling.
+    // Threshold: `streamIdleTimeoutMs` (independent knob for models that think
+    // silently before the first token) → `timeoutMs` → the same 60_000 default
+    // chat() uses, so one knob still tunes both unless a caller splits them.
+    const idleMs = this.opts.streamIdleTimeoutMs ?? this.opts.timeoutMs ?? 60_000;
+    let idleTimer: ReturnType<typeof setTimeout> | undefined;
+    let idleFired = false;
+    const clearIdle = (): void => {
+      if (idleTimer !== undefined) {
+        clearTimeout(idleTimer);
+        idleTimer = undefined;
+      }
+    };
+    const armIdle = (): void => {
+      clearIdle();
+      idleTimer = setTimeout(() => {
+        idleFired = true;
+        controller.abort();
+      }, idleMs);
+    };
+
     try {
-      const resp = await fetch(url, { method: 'POST', headers, body: JSON.stringify(body), signal: controller.signal });
+      armIdle(); // covers the "connected but nothing came back" window too
+      let resp: Response;
+      try {
+        resp = await fetch(url, { method: 'POST', headers, body: JSON.stringify(body), signal: controller.signal });
+      } catch (err) {
+        // The abort WE caused must not surface as a bare AbortError (the consumer
+        // would see an unexplained stream failure). A caller abort keeps its
+        // original semantics untouched.
+        if (idleFired && !external?.aborted) throw streamIdleTimeoutError(this.id, idleMs);
+        throw err;
+      }
+      armIdle(); // headers are data ⇒ the upstream is alive; restart the window
+
       if (!resp.ok) {
         const text = await resp.text().catch(() => '');
         throw new Error(`Anthropic ${resp.status} ${resp.statusText}: ${sanitizeErrorBody(text)}`);
@@ -327,9 +407,19 @@ export class AnthropicProvider implements ChatProvider {
 
       try {
         for (;;) {
-          const { done, value } = await reader.read();
-          if (done) break;
-          buffer += decoder.decode(value, { stream: true });
+          let doneFlag = false;
+          let value: Uint8Array | undefined;
+          try {
+            const read = await reader.read();
+            doneFlag = read.done;
+            value = read.value;
+          } catch (err) {
+            if (idleFired && !external?.aborted) throw streamIdleTimeoutError(this.id, idleMs);
+            throw err;
+          }
+          if (doneFlag) break;
+          armIdle(); // a chunk arrived — reset the idle window (long answers stay legal)
+          if (value) buffer += decoder.decode(value, { stream: true });
           let newlineIdx: number;
           while ((newlineIdx = buffer.indexOf('\n')) !== -1) {
             const line = buffer.slice(0, newlineIdx);
@@ -348,6 +438,7 @@ export class AnthropicProvider implements ChatProvider {
         reader.releaseLock();
       }
     } finally {
+      clearIdle();
       external?.removeEventListener('abort', forwardAbort);
     }
   }
