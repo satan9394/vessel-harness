@@ -31,6 +31,24 @@
 3. ~~**第三处死 seam**：`EnforcementProjection.foldSession()` **只在测试里被调用**~~ ⇒ **已接线**（`packages/application/src/compose.ts:340-351`，`after_turn` 上 `foldSession`，并有两把去重锁保证幂等；Round 96 核实更正）。另：`shellTool.ts` 取的是 run **之前**的状态（`meta.sandbox` 描述**上一轮**，注释却称 "honest … for THIS spawn"）；短命令仍要等 1–10 s（可并行探活早退）。
 4. ~~其余：S008 未纳入 `SAFETY_SCENARIOS`~~ ⇒ **已纳入**（`benchmarks/runners/src/release-gates/gates.ts:48`「S008 已纳入」，Round 96 核实更正）；~~`cli.ts:517` 的 `costMultipliers()` 抛 → 倍率静默变 1~~ ⇒ **已修**（`6fe93d4`）；~~`EventBus` 监听器抛错退化为 `defer`（潜伏陷阱）~~ ⇒ **已在类型层收口**（`0ca7a94`：两个安全门禁点 `before_tool`/`before_delegate` **必填**错误策略；非安全事件仍可选 `defer`，那是**有意保留**、不再是"忘掉即退化为放行"的陷阱）。**仍待办**：S002/S006 恒真判据待加锁；`SkillSearch` 只扫正文前 400 字符的 UNTRUSTED 标记。
 
+### Round 106 刷新：**本段（Round 58–105）之后的当前队列**（权威清单在 `PRODUCT-GAP-MAP.md`，此处只列最优先且**均已带证据**）
+
+**已闭合（留档以免重做）**：流式解析的两个 provider 的"身份改写/覆盖"族（含 OpenAI 同构）、`length` 截断信号（两个 provider）、`kind='error'` 的**全部已识别消费面**（TUI / CLI 退出码 / HTTP / goal run / runner / evaluator / web / 报告看板）、`kind → stopReason` 的三处两套口径、`before_turn` 否决的审计缺口、`bench-report` 与 `vessel run` 的退出码、CLI/TUI 的 mock 标记口径、`Registry` exclusive 链中毒、`costMultipliers` 静默兜底。
+
+1. **`apps/web` 失败路径的鲁棒性**（**在跑**）：`api.ts` 的 `JSON.parse` 无 try/catch ⇒ 非 JSON 错误体（代理 HTML/纯文本）抛 `SyntaxError`、**绕过 `ApiError`，从而绕过刚落地的"显示真实原因"修复**；`smoke.ts` 对失败回合照旧打印 `SMOKE_OK`（**验证脚本谎报成功**）。
+2. **`AgentLoop` 的流末兜底 flush 零可见信号**：把"从未收到 `tool_call_end` 的调用"静默收尾；`model_stream_end` 形状被 `EVENT-SPEC` 钉死 ⇒ 最小改法是 `turn/end` 的**条件加法字段**（属记录形状变更，独立卡）。
+3. **三处"规格有、实现无"**：`EVENT-SPEC` 的 `turn/end.stats` 规格含 `tokensUsed?/costEstimate?` 而实现只有三字段；**B13 `llm/retry` 被定义为持久记录，`SessionRecord` 里没有该类型**；**B12 `request/header` 规格要求落盘可重建请求，实现里不存在** ⇒ **会话日志无法重建"这一轮用了哪个模型、上下文多大"**。
+4. **`vessel policy status` 恒退 0**（即便 `compileError` 的注释自述"当前配置下 `vessel run` 会直接失败"）：代码里的注释是**既有裁决**（"不要混淆两种失败"），**不等于"CI 该绿灯"** ⇒ 我倾向 `compileError ⇒ 非零`、两种失败的区别由 body/文案承载（需连带改 `policyStatus.test.ts`）。
+5. **`bench-report --json` 把人类摘要写进 stdout**（违反 `output.ts` 的"`--json` 时 stdout 只允许一段可解析 JSON"）：**改动前就有**，测试**故意没锁它**（避免又一次"锁住缺陷"）。
+6. **形态 A（重复 `content_block_start` **无 id/name**）仍丢 seed**：最小改法已给（`feed()` 内新增 1 个发射点），代价是**必须反转**那条把"仍丢"钉死的既有断言；另 `flushToolBlock` 对未启动块取**最后一次**写入的 seed（**又一个静默覆盖点**）。
+7. **外部 CLI adapter 的截断信号从未被建模**：`RawRun` 无任何 `finishReason`/`truncated` 字段 ⇒ 五个 adapter 把"本轮是否被 max_turns/上下文截断"完全托付给 CLI 自报的**单个布尔**（**注意**：它们**不是**"非零退出但输出非空 ⇒ success"，那条早前的说法已被更正）。
+8. **`refusal` 是词表里的死值**（全仓无生产者；Anthropic 的 `stop_reason:'refusal'` 在 provider 层被归成 `finishReason:'error'`，到不了它）——已按"保留为契约值并标注"记录。
+9. **归一逻辑三份**：`AgentLoop`、`OpencodeGoProvider`（与前者逐字相同）、`openAIFinishReason`。`@vessel/llm` **不能依赖 core** ⇒ 最小改法是把归一表下沉到 `@vessel/shared`（涉 core/shared，独立卡）。
+10. **`createProvider` 不透传 `streamIdleTimeoutMs`** ⇒ provider 文档承诺的"独立旋钮"**经工厂路径永远拿不到**（"文档承诺了不可达的能力"族）。
+11. **`scripts/demo-policy-deny.ts`** 无条件打印 `=== 最终回复 ===` + `result.finalText`、**不看 kind**（今天恒 success ⇒ 潜在，P3）。
+12. **行号漂移**（纪律 25）：`chat.ts` 与 `mockVisibility.test.ts` 的注释仍引**已失效的 `cli.ts` 行号**。
+13. **`getFileCount`/线缆之外的既有待办**（自 Round 35 起未动）：`SkillSearch` 只扫正文前 400 字符的 UNTRUSTED 标记；S002/S006 恒真判据待加锁；`shellTool` 的 `meta.sandbox` 描述上一轮。
+
 ### 历史（Round 17 时的清单，**已过期**，保留仅作演变记录）
 
 **Round 16 + 发布里程碑已完成**（详见下方 Round 16 / 16b 段与 `PRODUCT-GAP-MAP.md` 的路线图归位）：1C/1B/2B/2C 诚实化、依赖声明、打包卫生（`files` 否定模式）、**包内 configs 可达**、**装机 E2E 三条 exit 0**；策略执法侧则以**平台并集 + fail-closed**收口了续行/alias/包装/`+refspec` 全部已知绕过形。
