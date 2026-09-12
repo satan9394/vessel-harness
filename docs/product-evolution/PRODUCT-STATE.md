@@ -406,6 +406,18 @@
 **本轮的"规格错误"（我犯的，已记录）**：我在卡里断言"policy/behavior/**pricing/model-catalog** 全用 `builtinConfigRoot()`"——**未核实即写**。执行者更正并被核实：`builtinConfigRoot()` **只覆盖 policy/behavior（4 处）**，pricing/model-catalog **仍走 `repoRoot()`（cwd）**，而 `loadPricing`/`loadModelCatalog` 对缺失路径**静默返回空表** → 安装态会**静默算错价目**（比崩溃更难发现）。已派卡改 3 个读路径 + **对"默认路径不存在"加明确 warn**（放大器必须一起修）；`cmdPricingSync` 的**写盘目标**属产品决策，要求只报告不改。
 **教训（并入纪律 4 的延伸）**：**给执行器的事实也必须先核实**——错误前提会把实现带偏，且往往让"看似修完"漏掉最难发现的那条（静默错数据）。
 
+**✅ 里程碑达成（用户选定路线 (c)）：端到端装机验证通过**——把 16 个 workspace 包 `npm pack` 到临时目录，在**全新空项目**里一次安装（`install exit=0`），三条命令全部 **exit 0**：
+| 命令 | 结果 |
+|---|---|
+| `node node_modules/@vessel/cli/dist/cli.js --version` | exit 0 → `Vessel CLI v0.10.0` |
+| `--help` | exit 0，含用法 |
+| `policy status` | exit 0，且 system 层解析到 **`node_modules\@vessel\cli\dist\configs\policy.default.yaml`**（`pointsIntoInstalledPkg=True`） |
+
+→ 即**不需要 clone 仓库**，装完即可运行，且**装到别处时 CLI 仍找得到自己的配置**。审计指出的"对外无可安装路径"这一阻塞，在 **(c) 级别已消除**（未做全量 npm 发布，也未做单包 bundle）。
+**同时验证的周边事实**：`files:["dist"]`+否定模式让 tarball **270 → 62 文件 / 406.3 → 184.9 kB**，且 `dist/cli.js` 与四个 `dist/configs/*` 仍在包内、测试产物与 source map 零残留；`prepack` 钩子保证**不依赖根构建链**也会带上 configs。
+
+**仍未闭合（如实记录，P2）**：① 14 个包缺 `@vessel/*` 声明——**不阻塞上述"整包一起装"路径**（Node 解析上溯到项目顶层即可命中），但会阻塞"从 registry 单独安装 `@vessel/cli`"；② `@vessel/bench-runners` 为 `private:true` 却是运行期 `await import` → 安装态 `run --bench`/`bench-report` 必 MODULE_NOT_FOUND；③ `dist/.tsbuildinfo` 仍入包（要排除需写 glob `!dist/**/.tsbuildinfo`，**不能**写指向真实文件的 `!dist/.tsbuildinfo`——后者会被 `requiredFiles` 反强制入包）；④ pricing **写**路径仍在 cwd（读已改包内）→ 已加 warn 消除静默，**产品形态正解（写 `~/.vessel` + 读时用户目录优先）留作候选**；⑤ `npm pack --json` 的 stdout 会被 `prepack` 脚本输出污染（自动化场景需注意）。
+
 ## 技术债
 
 G-15 原子写 wrapper 各 Store 重复（P4）；architecture 审计的 T1–T9 清单（详见 `docs/product-audit/ARCHITECTURE-REPORT.md`）。
