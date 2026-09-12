@@ -791,3 +791,16 @@ G-15 原子写 wrapper 各 Store 重复（P4）；architecture 审计的 T1–T9
 9. **【中】** `harnesses` **只存在于文档**，yaml 无此键（与 1 同源）。
 10. **【低】** §3.0 对 `exec_content` 的举例"如 B017『用 pnpm 不用 npm』"在 B017 卡改准后**失去载体**。
 11. **【低】** `B003.yaml` 的 `hidden.source: scenarios/B003/hidden` 与实际文件位置一致 ✓，但**隐藏测试放在 `scenarios/` 而非 fixtures**，与 §2.1"每 scenario 一个 fixture pack"相悖。
+
+### Round 172 — **第三次"清单只活在会话里"**：定规矩 + 落盘本批新账
+
+**事实**：本轮的卡开工/交付时**又一次**报告"上一卡的 16 条清单全仓找不到落盘原件"——这是**第三次**（Round 151 的环境变量 14 条、Round 169 的 spec 11 条、本轮的 16 条）。三次的代价都一样：**下一张卡无法逐条对号，只能重做对账**。
+
+**规矩（写下来，替代我"下次记得"）**：**凡是我在卡片指令里引用"上一卡给出的 N 条清单"，那张清单必须已经落盘**（`PRODUCT-STATE` 或对应文档），**否则不许引用**——要么先落盘，要么让新卡自行对账并**明说没有原件**（本轮这张卡正是这么做的，**它做对了**）。⇒ **根因不是卡片的记忆，是我的**：卡只把它交给我，而**我是唯一有持久文件的人**。
+
+**本批新账（同一族：spec 声称与实现不符；已由本轮改准的记为 ✔）**：
+- ✔ §2.1/§2.3 fixture 布局（声称 `workspace/`/`expected/asserts.yaml`/`harness-config/`，实测**三层一层都没有**；`runner.ts` 把 **fixture 根整体**当工作区）；✔ §7.1/§7.2/§8.1 adapter 清单（声称 `claw`/`ours`，实际 `claude-code/codex/dsh/opencode/pi`＋`vessel` 在 `contracts/`）；✔ §7.3 ToolFamily（声称 `write`/`unknown`，实际 **`file_write`/`other`**，且 `delegate`/`mcp`/`approve` **零生产者**——**反证：`B016.yaml` 与 `B019.yaml` 自己写着 `family: other`**）；✔ §6.5 报告目录（缺 run 目录层、无 `artifacts/`）；✔ §4.4 的 M09「B010 已声明」（**B010 无 manifest**）；✔ §5.2 的 A/B 清单（含 offline 与无 manifest 场景）；✔ §6.4 危险面归属（B006 无 manifest、B019 已是 MCP；**真实危险面 = S001–S008**）；✔ §0 摘要的计数口径。
+- **【仍存，低】** `B003.yaml` 的隐藏测试在 `benchmarks/scenarios/B003/hidden/` 而非 `fixtures/`——与"每 scenario 一个 fixture pack"的目录契约相悖；改它要动 yaml + 文件布局 ⇒ 属别的卡。
+- **【新发现，只报告，未改】**：§2 目录树仍写 fixtures 含"黄金断言"、reports 含 `artifacts`；§4.1 M11 行的 **`runners/config/pricing.json` 路径不存在**（真实在仓库根 `configs/pricing.json`）；§4.2 的记录格式示例缺 run 目录层且 meta 的 `env` 字段集与真实不符；§6.1「每 harness 一份报告」与 §6.2「summary 含 skipped/artifacts」均与实现不符；§6.1/§6.3/附录 B 仍把 Claw Code / Our Harness 当**已存在的一等成员**（与改准后的 §7 冲突）；**§3.1 三张卡的注释**仍指向无生产者的 family（B012 的 `mcp`、B013 的 `delegate`、B008 的 `write`——应为 `file_write`）；§8.2 里程碑表仍用旧 adapter 名单；§8.4 的"runner 自带 sanity fixtures"不存在（防线实为合成输入用例）。
+
+**本轮新增守卫（4 describe / 6 it，⑬–⑱）**：adapter id 全集 ⇄ `adapters/*.ts` + `contracts/vessel.ts`（双向，**计划项必须真的不存在**）；ToolFamily 名单 ⇄ `TOOL_FAMILY` 表 + 兜底字面量 + **25 份 yaml 的实际取值**；门槛计数 ⇄ `scenarios/*.yaml` **真实文件数**（今天 25）；§4.4 的 M09 ⇄ `measured`。**散文类**（§2.1/§2.3/§2.4/§6.4/§6.5）**明确未加守卫**，理由是"markdown 结构不足以稳定解析"，**并各给一条人工可复核的最小判据**——**这是我要的诚实**：守卫加不了就说加不了，而不是造一个脆的。
