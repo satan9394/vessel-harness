@@ -321,7 +321,19 @@
 
 **修法**：① `profile`/`approval` 改 **first-wins（高层优先）**；② `git`/`network`/`audit` 改**单调趋严**（`force_push` 三态取最严 / `network.default` 取最严 / `deny_domains` 并集 / `audit.events` 并集、`details` 取最详尽 / 三域未登记键高层先声明者胜）；③ `Compiler` 的 `Shell()`/`Bash()` matcher **支持 `*`**（逐字转义 + 锚定正则，复用既有 `globmatch.ts`），不含 `*` 保留原 `startsWith` 语义。
 
-**验收证据**：`tsc 0`；**134 文件 / 1460 passed + 3 skipped / exit 0**；`packages/policy` **61/61**（mergeScopes 19 + compilerMatcher 10）；`benchmarks/runners` **216/216**（matcher 变更无回归）；三条判别性探针见上表。**独立安全复评在途**（`EVALUATION-REPORT-20.md`）。
+**验收证据**：`tsc 0`；**134 文件 / 1460 passed + 3 skipped / exit 0**；`packages/policy` **61/61**（mergeScopes 19 + compilerMatcher 10）；`benchmarks/runners` **216/216**（matcher 变更无回归）；三条判别性探针见上表。**独立安全复评**：`EVALUATION-REPORT-20.md` 判 **REJECT（有条件）**——四处修复核心成立，但挖出**两条高危未闭合**（见下），并指出 `cli.ts:509` 反向文案。
+
+### Round 15c（安全复评的两条高危 + 一条中危）— 修复中
+
+| # | 缺陷（复评发现） | Orchestrator 实测复核 |
+|---|---|---|
+| **C-1** | `mergeScopes` 重建 `filesystem` 时**丢掉 `confinement`** → 该硬执法特性在**生产路径永不生效**（`Compiler.ts:137/169/278` 读它，而唯一设置途径是策略文件、必经合并） | 读码确认（`:244-248` 只带三个键）。**6 个 confinement 测试直调 `compilePolicyYaml` 绕过合并** → 61/61 全绿掩盖此洞 |
+| **C-2** | **allow 类列表并集 = 低层可放宽执行**：project 追加 `shell.allow: ["bash"]` → `bash -c "rm -rf /tmp/x"` 从 **deny 变 allow** | ✅ **实测确认**：仅 system → `deny`；加项目层后 → **`allow`**（`rm -rf /tmp/x` 本身仍 deny，即"包一层即绕过"）。叠加无 trust 门 → **克隆仓库即可放宽执行** |
+| C-3 | force-push 仍可绕：`git push origin main --force`（尾置）、`sh -c`、`sudo`；且一个测试把 `sudo` 不命中**锁成"正确行为"** | 静态（规则要求 `--force` 紧跟 `push`） |
+| C-4 | `cli.ts:509` 仍打印"靠后的层覆盖标量"（唯一层事实展示通道，说反了） | ✅ 已修（改为"左侧为高层：profile/approval 取高层先声明者；deny 类列表取并集；低层只能加限制"） |
+| C-5 | `version` 仍后者覆盖（当前不可利用） | 静态 |
+
+**由此新增纪律 15**：**测试若绕过生产入口，等于零证据**——C-1 正是"组件级测试全绿、生产路径特性失效"的典型（详见纪律段）。
 
 **方法论**：验证一律看"**它对真实输入的反应**"，而非"代码里有没有"——真实策略文件 → 编译出的 `decision`；真实命令 → 谓词返回值；真实工作区 → `run` 的退出码。
 
