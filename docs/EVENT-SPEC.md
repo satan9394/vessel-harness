@@ -387,8 +387,9 @@ seq        : number        # 会话内事件序号（不变式校验用）
 - **关联机制/镜像**：`subagent/start`（DSH）；`SubagentStart`（Codex/Claude）；记录：`session/created`（子会话）。
 
 #### A24 SubagentStop（新增，结果回传）
-- **触发时机**：子会话结束（completed/error/aborted/max_tokens/refusal）且结果契约已冻结时；父侧看到的结果是摘要/结构化结果而非中间过程（info_hiding，H11）。
-- **载荷字段**：`delegateId`；`childAgentId`；`childSessionId`；`result:{output（最后非空 assistant 消息|累计流）, structured?（outputSchema 捕获即校验）, diagnostic?, stopReason:'completed'|'aborted'|'error'|'max_tokens'|'refusal'}`；`isError:boolean`（stopReason≠completed 一律 isError，H11 行 729）；`durationMs`；`delegationDepth`。
+- **触发时机**：子会话结束（completed/error/aborted/max_tokens/refusal/denied）且结果契约已冻结时；父侧看到的结果是摘要/结构化结果而非中间过程（info_hiding，H11）。
+- **载荷字段**：`delegateId`；`childAgentId`；`childSessionId`；`result:{output（最后非空 assistant 消息|累计流）, structured?（outputSchema 捕获即校验）, diagnostic?, stopReason:'completed'|'aborted'|'error'|'max_tokens'|'refusal'|'denied'}`；`isError:boolean`（stopReason≠completed 一律 isError，H11 行 729）；`durationMs`；`delegationDepth`。
+  > **Round 97 更正**：本词表此前**漏写 `denied`**，而 `packages/shared/src/events.ts:242` 的类型含它、`SubagentManager` 也在生产它（四条拒绝路径：委派深度上限、并发上限、preset 解析不到、`before_delegate` 的 deny/ask）。文档与类型/实现不一致已按后者为准修正。另记一条**已定义但全仓无生产者**的值 `refusal`（今天 Anthropic 的 `stop_reason:'refusal'` 在 provider 层被归成 `finishReason:'error'`，不产生该值；保留为契约值，若将来接线再更新此处）。
 - **flow**：`emit`——fire-and-forget 观察；结果回灌路径由 loop 接管（作为子代理工具结果注入父上下文/通知父等待方），本事件不改变回传内容。
 - **消费方示例**：父侧完成通知、结果 schema 校验留痕、子代理审计（SubagentStop hook 拦截，Codex 行 192）、后台完成注入器。
 - **关联机制/镜像**：`subagent/end`（DSH）；`SubagentStop`（Codex/Claude）；记录：`tool/result`（subagent 工具结果契约）。
