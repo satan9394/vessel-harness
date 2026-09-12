@@ -1,7 +1,9 @@
 import * as fs from 'node:fs';
+import * as os from 'node:os';
 import * as path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { describe, it, expect } from 'vitest';
+import * as yaml from 'js-yaml';
+import { describe, it, expect, afterAll } from 'vitest';
 import { loadManifest } from './manifest.js';
 import type { ScenarioManifest } from './types.js';
 
@@ -35,11 +37,32 @@ import type { ScenarioManifest } from './types.js';
  *   - §3.3：删掉任一 `（未实现）`、把 `B099` 写进场景列、把 `M12` 加进 B005 那一行的括号外、
  *     或把 B016–B019 那行的 `M14` 移出括号 ⇒ ⑤ 红；
  *   - 负对照：以上都不做 ⇒ 全绿（本文件只读文件文本 + `loadManifest`，无共享常量参与期望）。
+ *
+ * **本轮扩展（§3.0 的两张表 + 附录 A）**：本文件同时守卫
+ *   - §3.0 **表 A**（manifest 接受的键）⇄ `manifest.ts` 的 `KNOWN_KEYS`（双向）；表 A 的「必填」列不靠常量，
+ *     而是**真的调 `loadManifest()`** 探针（去掉该键 ⇒ 是否抛错）；§3.0 **表 B**（规格意图字段）的每个键
+ *     写进 yaml 都必须被以 `unknown key` 拒绝；
+ *   - §3.0 **表 C**（判据原语）⇄ `types.ts` 的 `AssertType` 类型联合 **且** ⇄ `asserts.ts` 的 `case` 集合（双向，
+ *     无豁免：实现里有的必须进表，表里没实现的必须带「未实现」标记）；
+ *   - §3.0 表 C 的「读取键」列并集 ⇄ `manifest.ts` 的 `PASS_KEYS`（双向）；
+ *   - **附录 A**（第二张覆盖矩阵）的行集 ⇄ §4.1 指标定义表，每行的场景 ⇄ `benchmarks/scenarios/*.yaml` 的
+ *     `measured`（双向）。
+ * 期望值全部来自**实现源码文本**、**类型联合**、`loadManifest()` 的真实行为与文档文本，没有任何常量
+ * 同时生成"文档"与"期望"（纪律 23）。
+ *
+ * 新增用例的「删哪行会红」：
+ *   - 把附录 A 任一行改回旧内容（例：M04 行点名 B016、M09 行写 B010 B016、M01 行写「全部」）⇒ ⑪ 红；
+ *   - 往 §3.0 表 C 加一个不存在的原语（状态列写「已实现」）⇒ ⑧ 红；把已实现的标成「未实现」⇒ ⑧ 红；
+ *   - 从 `AssertType` 删一个已实现原语而表 C 不动 ⇒ ⑧ 红；只删 `asserts.ts` 的 case ⇒ ⑧ 红；
+ *   - 把 `expected`/`harnesses` 挪进表 A，或把 `mode` 挪进表 B ⇒ ⑦ 红；
+ *   - 给 `manifest.ts` 的 `KNOWN_KEYS`（或 `PASS_KEYS`）加/删一个键而表 A（或表 C 读取键列）不动 ⇒ ⑦/⑨ 红；
+ *   - 负对照：以上都不做 ⇒ 全绿（⑦⑧⑨⑪ 只读文件文本 + 实现行为，无共享常量）。
  */
 
 const REPO_ROOT = fileURLToPath(new URL('../../../', import.meta.url));
 const SPEC_PATH = path.join(REPO_ROOT, 'docs', 'BENCHMARK-SPEC.md');
 const SCENARIOS_DIR = path.join(REPO_ROOT, 'benchmarks', 'scenarios');
+const RUNNERS_SRC_DIR = path.join(REPO_ROOT, 'benchmarks', 'runners', 'src');
 
 /** 卡片豁免标记：`benchmarks/scenarios/<id>.yaml` 不存在的卡必须逐字写出它。 */
 const CARD_EXEMPT_MARKER = '未实现（无 manifest）';
@@ -235,9 +258,14 @@ function matrixRows(section: string): MatrixRow[] {
   return rows;
 }
 
-/** 场景列 → 每个 id 以及它的"（未实现）"标记（标记只认**紧跟**在 id 后的那一段）。 */
+/**
+ * 场景列 → 每个 id 以及它的"（未实现）"标记（标记只认**紧跟**在 id 后的那一段）。
+ *
+ * 认 `B###` 与 `S###` 两种 id：§3.3 的场景列只出现 B（安全场景 S001–S008 不在那张表里），
+ * 附录 A 的场景列两者都出现（S 系列同样有 manifest、同样声明 `measured`）。
+ */
 function parseScenarioCell(cell: string): { id: string; exempt: boolean }[] {
-  const matches = [...cell.matchAll(/B\d{3}/g)];
+  const matches = [...cell.matchAll(/[BS]\d{3}/g)];
   return matches.map((m, i) => {
     const start = (m.index ?? 0) + m[0].length;
     const next = matches[i + 1];
@@ -416,5 +444,426 @@ describe('BENCHMARK-SPEC §3.1/§3.2 场景卡 ⇄ benchmarks/scenarios/*.yaml�
 
     // 括号内的注记不算"已覆盖"（这正是 M14 那条欠账的写法）
     expect(matrixViolations([{ scenarios: 'B001', metrics: '（未实现：M14）' }], ['B001'], exists, measured)).toEqual([]);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// §3.0 Schema 三张表 ⇄ 实现（manifest.ts 的 KNOWN_KEYS / PASS_KEYS、types.ts 的 AssertType、asserts.ts 的 case）
+//
+// 为什么要有这一组：§3.0 曾把 `expected`/`harnesses` 写成"必填"、把 `claim_truthful`/`metric_eq`/`exec_content`
+// 写成既有原语、把 `git_diff_scope` 写成"与白名单一致"——三条都与实现相反，而当时没有任何东西会因此变红。
+// 这里把"文档 ⇄ 实现"变成可执行断言：**期望全部来自实现源码文本/类型联合/真实调用行为**，文档只是被断言的对象。
+// ---------------------------------------------------------------------------
+
+/** 从实现源码里读一张 `const X = new Set([...])` 白名单（唯一的"实现是什么"读法）。 */
+function sourceSetMembers(source: string, constName: string): string[] {
+  const m = new RegExp(`const ${constName} = new Set\\(\\[([\\s\\S]*?)\\]\\)`).exec(source);
+  if (!m) throw new Error(`源码里找不到 const ${constName} = new Set([...])`);
+  return [...(m[1] ?? '').matchAll(/'([A-Za-z_][A-Za-z0-9_]*)'/g)].map((x) => x[1] ?? '');
+}
+
+/** `export type AssertType = 'a' | 'b' …;` → 成员清单（**先剥行注释**：注释里同时出现过引号与分号）。 */
+function assertTypeMembers(source: string): string[] {
+  const clean = source.replace(/\/\/.*$/gm, '');
+  const m = /export type AssertType =([\s\S]*?);/.exec(clean);
+  if (!m) throw new Error('源码里找不到 AssertType 类型联合');
+  return [...(m[1] ?? '').matchAll(/'([A-Za-z_][A-Za-z0-9_]*)'/g)].map((x) => x[1] ?? '');
+}
+
+/** `asserts.ts` 的 `switch (spec.type)` case 集合（只收小写开头的 case ⇒ `metricValue` 的 'M02' 等不会混进来）。 */
+function assertSwitchCases(source: string): string[] {
+  return [...source.matchAll(/^\s*case '([a-z][a-z0-9_]*)':/gm)].map((m) => m[1] ?? '');
+}
+
+/** `### X` / `## X` 标题 → 下一个同级或更高级标题之间的正文（§3.0/§4.1/附录 A 都靠它切段）。 */
+function subsection(markdown: string, heading: string): string {
+  const start = markdown.indexOf(heading);
+  if (start < 0) throw new Error(`section heading not found: ${heading}`);
+  const rest = markdown.slice(start + heading.length);
+  const end = rest.search(/^#{2,3} /m);
+  return end >= 0 ? rest.slice(0, end) : rest;
+}
+
+/** 某个粗体标记（如 `**表 A：`）之后的**第一张** Markdown 表 → 行 × 单元格（表头行留在 rows[0]）。 */
+function tableAfter(section: string, marker: string): string[][] {
+  const start = section.indexOf(marker);
+  if (start < 0) throw new Error(`table marker not found: ${marker}`);
+  const rows: string[][] = [];
+  let started = false;
+  for (const raw of section.slice(start + marker.length).split(/\r?\n/)) {
+    const line = raw.trim();
+    if (!line.startsWith('|')) {
+      if (started) break;
+      continue;
+    }
+    started = true;
+    const cells = line.split('|').slice(1, -1).map((c) => c.trim());
+    if (cells.every((c) => /^:?-{3,}:?$/.test(c))) continue; // 分隔行
+    rows.push(cells);
+  }
+  return rows;
+}
+
+/** 表格单元格里的键名（去掉 markdown 反引号与空白）。 */
+const bareKey = (cell: string): string => cell.replace(/`/g, '').trim();
+
+interface SpecFieldRow { key: string; required: boolean }
+interface SpecPrimitiveRow { type: string; status: string; paramKeys: string[] }
+
+/** §3.0 表 A：字段名 + 「必填」标记（校验列取**最后一格**：type 行里有转义的 `\|`，按位置取会被拆错）。 */
+function docFieldRows(section: string, marker: string): SpecFieldRow[] {
+  return tableAfter(section, marker).slice(1).map((cells) => ({
+    key: bareKey(cells[0] ?? ''),
+    required: (cells[cells.length - 1] ?? '').includes('必填'),
+  }));
+}
+
+/** §3.0 表 C：原语 + 状态 + 「读取键」列里的键（只认反引号里的标识符，`（未实现）` 之类不计入）。 */
+function docPrimitiveRows(section: string): SpecPrimitiveRow[] {
+  return tableAfter(section, '**表 C：').slice(1).map((cells) => ({
+    type: bareKey(cells[0] ?? ''),
+    paramKeys: [...(cells[2] ?? '').matchAll(/`([A-Za-z_][A-Za-z0-9_]*)`/g)].map((m) => m[1] ?? ''),
+    status: (cells[3] ?? '').trim(),
+  }));
+}
+
+/** 表 A/表 B ⇄ `KNOWN_KEYS`（双向：多列、漏列、放错表各有红点）。 */
+function schemaFieldViolations(rows: SpecFieldRow[], intentKeys: string[], knownKeys: string[]): string[] {
+  const out: string[] = [];
+  const tableA = rows.map((r) => r.key);
+  const all = [...tableA, ...intentKeys];
+  if (new Set(all).size !== all.length) out.push('§3.0 表 A/表 B 之间有重复或重叠的字段名');
+  for (const k of knownKeys) if (!tableA.includes(k)) out.push(`§3.0 表 A 漏列了 manifest 接受的键：${k}`);
+  for (const k of tableA) if (!knownKeys.includes(k)) out.push(`§3.0 表 A 列了 manifest 不接受的键（应进表 B）：${k}`);
+  for (const k of intentKeys) if (knownKeys.includes(k)) out.push(`§3.0 表 B 的 ${k} 其实是 manifest 接受的键（应进表 A）`);
+  return out;
+}
+
+/** 表 C ⇄ `AssertType` ⇄ `asserts.ts` 的 case（双向，无豁免：实现里有的必须进表）。 */
+function primitiveViolations(rows: SpecPrimitiveRow[], assertTypes: string[], switchCases: string[]): string[] {
+  const out: string[] = [];
+  for (const t of assertTypes) if (!switchCases.includes(t)) out.push(`AssertType 有 ${t}，但 asserts.ts 没有对应 case（写进 yaml 只会静默 skip）`);
+  for (const t of switchCases) if (!assertTypes.includes(t)) out.push(`asserts.ts 有 case ${t}，但 AssertType 里没有它`);
+  const documented = rows.map((r) => r.type);
+  if (new Set(documented).size !== documented.length) out.push('§3.0 表 C 有重复的原语行');
+  for (const r of rows) {
+    if (r.status !== '已实现' && r.status !== '未实现') {
+      out.push(`§3.0 表 C 的 ${r.type} 状态列既不是「已实现」也不是「未实现」：${JSON.stringify(r.status)}`);
+      continue;
+    }
+    const implemented = assertTypes.includes(r.type);
+    if (r.status === '已实现' && !implemented) out.push(`§3.0 表 C 把 ${r.type} 标为已实现，但 AssertType 里没有它`);
+    if (r.status === '未实现' && implemented) out.push(`§3.0 表 C 把 ${r.type} 标为未实现，但 AssertType 里有它（豁免已过期）`);
+  }
+  for (const t of assertTypes) if (!documented.includes(t)) out.push(`实现里的原语 ${t} 没有进 §3.0 表 C（本表无豁免：新增原语必须同步文档）`);
+  return out;
+}
+
+/** 表 C 的「读取键」列并集 ⇄ `PASS_KEYS`（双向：漏写一个合法键、或写一个不存在的键，都是红）。 */
+function passKeyViolations(rows: SpecPrimitiveRow[], passKeys: string[]): string[] {
+  const out: string[] = [];
+  const documented = new Set(rows.flatMap((r) => r.paramKeys));
+  documented.add('type'); // 表 C 的第一列就是 pass 项的 `type` 键：唯一豁免，写在代码里而不是文档里
+  for (const k of passKeys) if (!documented.has(k)) out.push(`PASS_KEYS 的 ${k} 在 §3.0 表 C 的读取键列里没有任何原语认领`);
+  for (const k of documented) if (!passKeys.includes(k)) out.push(`§3.0 表 C 读取键列的 ${k} 不是 PASS_KEYS 的合法键`);
+  return out;
+}
+
+const MANIFEST_SRC = fs.readFileSync(path.join(RUNNERS_SRC_DIR, 'manifest.ts'), 'utf8');
+const TYPES_SRC = fs.readFileSync(path.join(RUNNERS_SRC_DIR, 'types.ts'), 'utf8');
+const ASSERTS_SRC = fs.readFileSync(path.join(RUNNERS_SRC_DIR, 'asserts.ts'), 'utf8');
+const SECTION_30 = subsection(SPEC, '### 3.0 Scenario Schema');
+
+/** 探针用的临时 repo 根：**本进程自己创建、位于 `os.tmpdir()` 之下**（AGENTS.md 允许的唯一删除例外）。 */
+const PROBE_ROOT = fs.mkdtempSync(path.join(os.tmpdir(), 'spec-parity-'));
+afterAll(() => {
+  fs.rmSync(PROBE_ROOT, { recursive: true, force: true });
+});
+
+/**
+ * 把一份最小合法 manifest 写到临时 repo 根下，按 `mutate` 增删一个顶层键，再**真的调** `loadManifest()`。
+ * 表 A 的「必填」列与表 B 的「不接受」两列的实现侧读法就是它：期望不是常量，而是实现的真实行为。
+ */
+function probeLoadManifest(mutate: (doc: Record<string, unknown | undefined>) => void): { threw: boolean; message: string } {
+  const doc: Record<string, unknown | undefined> = {
+    id: 'X001',
+    type: 'behavior',
+    goal: 'probe',
+    fixture: 'fixtures/X001',
+    pass: [{ type: 'no_mutation' }],
+    measured: ['M01'],
+    mode: 'offline',
+  };
+  mutate(doc);
+  const dir = path.join(PROBE_ROOT, 'benchmarks', 'scenarios');
+  fs.mkdirSync(dir, { recursive: true });
+  fs.writeFileSync(path.join(dir, 'X001.yaml'), yaml.dump(doc), 'utf8');
+  try {
+    loadManifest(PROBE_ROOT, 'X001');
+    return { threw: false, message: '' };
+  } catch (err) {
+    return { threw: true, message: (err as Error).message };
+  }
+}
+
+describe('BENCHMARK-SPEC §3.0 Schema 表 ⇄ 实现（manifest.ts / types.ts / asserts.ts）', () => {
+  it('⑦ 表 A 字段 ⇄ KNOWN_KEYS（双向）；必填列 ⇄ loadManifest 真实抛错；表 B 字段必被实现拒绝', () => {
+    const knownKeys = sourceSetMembers(MANIFEST_SRC, 'KNOWN_KEYS');
+    const rows = docFieldRows(SECTION_30, '**表 A：');
+    const intentKeys = tableAfter(SECTION_30, '**表 B：').slice(1).map((cells) => bareKey(cells[0] ?? ''));
+
+    expect(knownKeys.length).toBeGreaterThan(0); // 抽取器不是空转
+    expect(rows.length).toBeGreaterThan(0); // 解析器真读到了表 A
+    expect(intentKeys.length).toBeGreaterThan(0); // …也真读到了表 B
+    expect(schemaFieldViolations(rows, intentKeys, knownKeys)).toEqual([]);
+
+    // 「必填」列不靠常量：去掉该键后 loadManifest 是否真的抛错
+    const mismatch: string[] = [];
+    for (const row of rows) {
+      const probe = probeLoadManifest((doc) => { delete doc[row.key]; });
+      if (probe.threw !== row.required) {
+        mismatch.push(`${row.key}: 表 A 标${row.required ? '必填' : '可选'}，但去掉该键后 loadManifest ${probe.threw ? '抛错' : '不抛错'}`);
+      }
+    }
+    expect(mismatch).toEqual([]);
+
+    // 表 B 的每个键写进 scenario yaml 都必须被以 unknown key 拒绝
+    for (const key of intentKeys) {
+      const probe = probeLoadManifest((doc) => { doc[key] = 'probe'; });
+      expect(probe.threw, `表 B 的 ${key} 写进 benchmarks/scenarios/*.yaml 竟然没被拒绝`).toBe(true);
+      expect(probe.message).toMatch(/unknown key/);
+    }
+  });
+
+  it('⑧ 表 C 原语 ⇄ AssertType 类型联合 ⇄ asserts.ts 的 case（双向；未实现项必须带标记）', () => {
+    const assertTypes = assertTypeMembers(TYPES_SRC);
+    const switchCases = assertSwitchCases(ASSERTS_SRC);
+    expect(assertTypes.length).toBeGreaterThan(0);
+    expect(switchCases.length).toBeGreaterThan(0);
+    const rows = docPrimitiveRows(SECTION_30);
+    expect(rows.length).toBeGreaterThan(0);
+    expect(primitiveViolations(rows, assertTypes, switchCases)).toEqual([]);
+  });
+
+  it('⑨ 表 C 的读取键列 ⇄ PASS_KEYS（双向；type 是表自身的列）', () => {
+    const passKeys = sourceSetMembers(MANIFEST_SRC, 'PASS_KEYS');
+    expect(passKeys.length).toBeGreaterThan(0);
+    expect(passKeyViolations(docPrimitiveRows(SECTION_30), passKeys)).toEqual([]);
+  });
+
+  it('⑩ 判别性（合成输入）：表 A / 表 C / 读取键列的三类分叉各有红点；合规输入零 violations（负对照）', () => {
+    // 表 A/表 B ⇄ KNOWN_KEYS
+    const known = ['id', 'pass', 'mode'];
+    const rows: SpecFieldRow[] = [
+      { key: 'id', required: true },
+      { key: 'pass', required: true },
+      { key: 'mode', required: false },
+    ];
+    expect(schemaFieldViolations(rows, ['expected'], known)).toEqual([]);
+    expect(schemaFieldViolations([...rows, { key: 'ghost', required: false }], ['expected'], known).join()).toMatch(/ghost/);
+    expect(schemaFieldViolations(rows.filter((r) => r.key !== 'pass'), ['expected'], known).join()).toMatch(/pass/);
+    expect(schemaFieldViolations(rows, ['expected', 'mode'], known).join()).toMatch(/mode/);
+    expect(schemaFieldViolations(rows, ['expected'], [...known, 'fixture']).join()).toMatch(/fixture/);
+    expect(schemaFieldViolations(rows, ['expected', 'id'], known).join()).toMatch(/重复或重叠/);
+
+    // 表 C ⇄ AssertType ⇄ case
+    const impl = ['no_mutation', 'event_seen'];
+    const cases = ['no_mutation', 'event_seen'];
+    const t = (type: string, status: string, paramKeys: string[] = []): SpecPrimitiveRow => ({ type, status, paramKeys });
+    expect(primitiveViolations([t('no_mutation', '已实现'), t('event_seen', '已实现')], impl, cases)).toEqual([]);
+    expect(primitiveViolations([t('metric_eq', '未实现'), t('no_mutation', '已实现'), t('event_seen', '已实现')], impl, cases)).toEqual([]);
+    expect(primitiveViolations([t('ghost', '已实现'), t('no_mutation', '已实现'), t('event_seen', '已实现')], impl, cases).join()).toMatch(/ghost/);
+    expect(primitiveViolations([t('no_mutation', '未实现'), t('event_seen', '已实现')], impl, cases).join()).toMatch(/豁免已过期/);
+    expect(primitiveViolations([t('no_mutation', '已实现'), t('event_seen', '已实现'), t('no_mutation', '已实现')], impl, cases).join()).toMatch(/重复/);
+    expect(primitiveViolations([t('claim_truthful', '未实现')], impl, cases).join()).toMatch(/没有进/);
+    expect(primitiveViolations([t('no_mutation', '已实现'), t('event_seen', '已实现')], impl, ['no_mutation']).join()).toMatch(/event_seen/);
+    expect(primitiveViolations([t('no_mutation', '已实现'), t('event_seen', '已实现')], [...impl, 'steer_seen'], cases).join()).toMatch(/steer_seen/);
+    expect(primitiveViolations([t('no_mutation', '未知')], impl, cases).join()).toMatch(/状态列/);
+
+    // 读取键列 ⇄ PASS_KEYS
+    expect(passKeyViolations([{ type: 'x', status: '已实现', paramKeys: ['family', 'target'] }], ['type', 'family', 'target'])).toEqual([]);
+    expect(passKeyViolations([{ type: 'x', status: '已实现', paramKeys: ['family'] }], ['type', 'family', 'target']).join()).toMatch(/target/);
+    expect(passKeyViolations([{ type: 'x', status: '已实现', paramKeys: ['ghost'] }], ['type', 'family']).join()).toMatch(/ghost/);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// 附录 A：指标 → 场景覆盖速查 ⇄ scenarios/*.yaml（第二张覆盖矩阵）
+//
+// 为什么要有这一组：§3.3 有守卫，**附录 A 没有**——于是它长期停留在"B016 有 M04""全部（live）""B006/B019 覆盖 M12"
+// 这类与 yaml 对不上的写法上（M09 至今没有任何场景声明，而旧表写着 B010/B016）。这一组把它变成可执行断言：
+// 指标全集与名称取自 §4.1，场景集合取自 benchmarks/scenarios/，`measured` 取自 loadManifest()——没有常量参与期望。
+// ---------------------------------------------------------------------------
+
+interface SpecAppendixRow { metric: string; name: string; scenarios: string; notes: string }
+
+/** 附录 A 的数据行（第一格形如 `M01 Success Rate`）。 */
+function docAppendixRows(section: string): SpecAppendixRow[] {
+  const rows: SpecAppendixRow[] = [];
+  let started = false;
+  for (const raw of section.split(/\r?\n/)) {
+    const line = raw.trim();
+    if (!line.startsWith('|')) {
+      if (started) break;
+      continue;
+    }
+    started = true;
+    const cells = line.split('|').slice(1, -1).map((c) => c.trim());
+    if (cells.every((c) => /^:?-{3,}:?$/.test(c))) continue;
+    const m = /^(M\d{2})\b/.exec(cells[0] ?? '');
+    if (!m) continue; // 表头或其它行
+    rows.push({
+      metric: m[1] ?? '',
+      name: (cells[0] ?? '').replace(/^M\d{2}\s*/, '').trim(),
+      scenarios: cells[1] ?? '',
+      notes: cells[2] ?? '',
+    });
+  }
+  return rows;
+}
+
+/** §4.1 指标定义表 → 指标 id ⇄ 名称（附录 A 的指标全集**不写常量**，从这张表来）。 */
+function docMetricRows(section: string): { id: string; name: string }[] {
+  const out: { id: string; name: string }[] = [];
+  for (const raw of section.split(/\r?\n/)) {
+    const line = raw.trim();
+    if (!line.startsWith('|')) continue;
+    const cells = line.split('|').slice(1, -1).map((c) => c.trim());
+    if (!/^M\d{2}$/.test(cells[0] ?? '')) continue;
+    out.push({ id: cells[0] ?? '', name: cells[1] ?? '' });
+  }
+  return out;
+}
+
+/** 附录 A 的"没有场景声明该指标"的写法（空列与解析失败不可区分，故必须逐字写出）。 */
+const APPENDIX_NONE = '（无）';
+
+/**
+ * 附录 A 五类分叉：
+ *   ① 指标必须出现在 §4.1 且名称一致、整表无重无漏；
+ *   ② 第 2 列点名的场景必须有 yaml、且其 `measured` 真含该指标（正向）；
+ *   ③ 有 yaml 的场景只要 `measured` 含该指标就必须被点名（反向）；
+ *   ④ 第 2 列不得出现带「（未实现）」标记的 id（没 manifest 不可能声明该指标）；
+ *   ⑤ 第 3 列注记里带「（未实现）」标记的 id 必须确实没有 yaml（豁免过期即红）。
+ */
+function appendixViolations(
+  rows: SpecAppendixRow[],
+  metricNames: Map<string, string>,
+  scenarioIds: string[],
+  measuredOf: (id: string) => string[],
+): string[] {
+  const out: string[] = [];
+  const seen = new Set<string>();
+  rows.forEach((row, i) => {
+    const ref = `附录 A 第 ${i + 1} 行（${row.metric}）`;
+    if (!metricNames.has(row.metric)) {
+      out.push(`${ref}: 指标 ${JSON.stringify(row.metric)} 不在 §4.1 的指标定义表里`);
+      return;
+    }
+    if (seen.has(row.metric)) out.push(`${ref}: 指标 ${row.metric} 有重复行`);
+    seen.add(row.metric);
+    const title = `${row.metric} ${row.name}`;
+    const expectedTitle = `${row.metric} ${metricNames.get(row.metric)}`;
+    if (title !== expectedTitle) out.push(`${ref}: 名称与 §4.1 不一致（本行 ${JSON.stringify(title)} / §4.1 ${JSON.stringify(expectedTitle)}）`);
+
+    const declared = parseScenarioCell(row.scenarios);
+    if (declared.length === 0 && !row.scenarios.includes(APPENDIX_NONE)) {
+      out.push(`${ref}: 场景列既没有场景 id 也没写「${APPENDIX_NONE}」——空列与解析失败不可区分`);
+    }
+    for (const { id, exempt } of declared) {
+      if (exempt) {
+        out.push(`${ref}: ${id} 带着「${MATRIX_EXEMPT_MARKER}」却出现在「声明该指标」列（没有 manifest 的场景不可能声明它）`);
+        continue;
+      }
+      if (!scenarioIds.includes(id)) {
+        out.push(`${ref}: ${id} 没有 benchmarks/scenarios/${id}.yaml，不可能声明 ${row.metric}`);
+        continue;
+      }
+      if (!measuredOf(id).includes(row.metric)) out.push(`${ref}: ${id} 的 measured 里没有 ${row.metric}`);
+    }
+    const listed = new Set(declared.filter((d) => !d.exempt).map((d) => d.id));
+    for (const id of scenarioIds) {
+      if (!listed.has(id) && measuredOf(id).includes(row.metric)) {
+        out.push(`${ref}: ${id} 的 measured 声明了 ${row.metric}，本行却没点名它（双向失配）`);
+      }
+    }
+    for (const { id, exempt } of parseScenarioCell(row.notes)) {
+      if (exempt && scenarioIds.includes(id)) {
+        out.push(`${ref}: 注记把 ${id} 标成「${MATRIX_EXEMPT_MARKER}」，但 benchmarks/scenarios/${id}.yaml 存在（豁免已过期）`);
+      }
+    }
+  });
+  for (const m of metricNames.keys()) if (!seen.has(m)) out.push(`附录 A 漏了 §4.1 定义的指标 ${m}`);
+  return out;
+}
+
+describe('BENCHMARK-SPEC 附录 A 指标 → 场景覆盖速查 ⇄ scenarios/*.yaml（第二张覆盖矩阵）', () => {
+  it('⑪ 附录 A 行集 ⇄ §4.1 指标定义表；每行场景 ⇄ 有 manifest 场景的 measured（双向）', () => {
+    const rows = docAppendixRows(subsection(SPEC, '## 附录 A：指标 → 场景覆盖速查'));
+    const metrics = docMetricRows(subsection(SPEC, '### 4.1 指标定义表'));
+    expect(rows).toHaveLength(14); // 解析器确实读到了整张表（行数为零时下面的断言会假绿）
+    expect(metrics).toHaveLength(14);
+
+    const scenarioIds = fs
+      .readdirSync(SCENARIOS_DIR)
+      .filter((f) => f.endsWith('.yaml'))
+      .map((f) => f.replace(/\.yaml$/, ''))
+      .sort();
+    expect(scenarioIds.length).toBeGreaterThan(0);
+
+    const cache = new Map<string, string[]>();
+    const measuredOf = (id: string): string[] => {
+      const hit = cache.get(id);
+      if (hit) return hit;
+      const value = loadManifest(REPO_ROOT, id).measured.map(String);
+      cache.set(id, value);
+      return value;
+    };
+
+    expect(appendixViolations(rows, new Map<string, string>(metrics.map((m): [string, string] => [m.id, m.name])), scenarioIds, measuredOf)).toEqual([]);
+  });
+
+  it('⑫ 判别性（合成输入）：附录 A 五类分叉各有红点；合规行零 violations（负对照）', () => {
+    const metricNames = new Map([
+      ['M01', 'Success Rate'],
+      ['M09', 'Compactions'],
+    ]);
+    // 合成世界里"有 manifest"的只有 B001/B002；B002 的 measured 声明了 M01，B001 什么都没声明。
+    // B010 故意**不在** scenarioIds 里（旧表的形状：M09 行点名 B010，而 B010 没有 manifest）。
+    const scenarioIds = ['B001', 'B002'];
+    const measuredOf = (id: string): string[] => (id === 'B002' ? ['M01'] : []);
+    const row = (metric: string, name: string, scenarios: string, notes = ''): SpecAppendixRow => ({ metric, name, scenarios, notes });
+
+    // 负对照：M01 点名的 B002 真的声明了它；M09 没有任何场景声明，逐字写出「（无）」
+    expect(
+      appendixViolations(
+        [row('M01', 'Success Rate', 'B002', 'B010（未实现）目标场景'), row('M09', 'Compactions', APPENDIX_NONE)],
+        metricNames,
+        scenarioIds,
+        measuredOf,
+      ),
+    ).toEqual([]);
+
+    const violations = (rows: SpecAppendixRow[]): string =>
+      appendixViolations(rows, metricNames, scenarioIds, measuredOf).join(' | ');
+
+    // ① 指标不在 §4.1
+    expect(violations([row('M99', 'Ghost', 'B002'), row('M09', 'Compactions', APPENDIX_NONE)])).toMatch(/M99/);
+    // ① 名称与 §4.1 不一致
+    expect(violations([row('M01', '成功率', 'B002'), row('M09', 'Compactions', APPENDIX_NONE)])).toMatch(/名称与 §4.1 不一致/);
+    // ② 点名的场景没有声明该指标（旧表的形状：M04 行点名 B016）
+    expect(violations([row('M01', 'Success Rate', 'B001'), row('M09', 'Compactions', APPENDIX_NONE)])).toMatch(/B001 的 measured 里没有 M01/);
+    // ② 点名的场景没有 yaml（旧表的形状：M09 行写 B010）
+    expect(violations([row('M01', 'Success Rate', 'B010'), row('M09', 'Compactions', APPENDIX_NONE)])).toMatch(/B010 没有 benchmarks/);
+    // ③ 反向：声明了却没被点名
+    expect(violations([row('M01', 'Success Rate', APPENDIX_NONE), row('M09', 'Compactions', APPENDIX_NONE)])).toMatch(/本行却没点名它/);
+    // ④ 第 2 列不许出现「（未实现）」标记
+    expect(violations([row('M01', 'Success Rate', 'B002（未实现）'), row('M09', 'Compactions', APPENDIX_NONE)])).toMatch(/声明该指标/);
+    // ⑤ 注记里的「（未实现）」落在有 yaml 的场景上 ⇒ 豁免过期
+    expect(violations([row('M01', 'Success Rate', 'B002', 'B001（未实现）'), row('M09', 'Compactions', APPENDIX_NONE)])).toMatch(/豁免已过期/);
+    // ④ 空场景列没有写「（无）」
+    expect(violations([row('M01', 'Success Rate', ''), row('M09', 'Compactions', APPENDIX_NONE)])).toMatch(/解析失败不可区分/);
+    // 指标漏行
+    expect(violations([row('M01', 'Success Rate', 'B002')])).toMatch(/漏了 §4.1 定义的指标 M09/);
   });
 });
