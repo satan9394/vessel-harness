@@ -570,8 +570,12 @@ function changedFiles(ctx: AssertContext): Set<string> {
  *
  * 已实现集合 = `IMPLEMENTED_METRICS`（与下方 switch 的 `case` 一一对应，由
  * `asserts.metric.test.ts` ④ 钉住；新增/删除分支必须同时改那张表与 `docs/BENCHMARK-SPEC.md`）。
- * 注意 `Telemetry.metrics()` 还会产出 M10（runner 计时）与 M01/M08/M11（runner/用量侧，
- * 不在 `TelemetryCounters` 里）——它们**不**在本函数取值面上，写进判据会如实红（见交付报告的只报告项）。
+ * **更正（Round 163）**：此处原文写「`Telemetry.metrics()` 还会产出 M10（runner 计时）与 M01/M08/M11
+ * （runner/用量侧，不在 `TelemetryCounters` 里）」——其中**只有 M10 与 M01 有来源**（M10 = runner 计时，
+ * 且**确实**由 `Telemetry.metrics({durationMs})` 产出；M01 = `success`）。**M08/M11 不是本 lane 的产出**：
+ * 它们唯一的生产者在 Cross-Harness 适配器（`contracts/vessel.ts` 的 `RunMetrics.contextPeak` / `costUsd`），
+ * 而那条 lane **不读** scenario 的 `measured`。另有 **M06/M07**（`Telemetry.metrics()` 在模型上报 usage 时产出）
+ * 原文未提。⇒ 结论不变且更强：**M08/M11 写进判据会如实红**（清单见 `runner.ts` 的 `auditMeasuredDeclaration`）。
  */
 export const IMPLEMENTED_METRICS: readonly string[] = ['M02', 'M03', 'M04', 'M05', 'M09', 'M12', 'M13', 'M14'];
 
