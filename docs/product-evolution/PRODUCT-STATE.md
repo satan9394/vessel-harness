@@ -385,7 +385,7 @@
 |---|---|
 | 第三方依赖漏声明（`@clack/prompts` 只在 root 却被 `setup.ts:1` import；`js-yaml` 只在 root **devDeps** 却被 `policy/Compiler.ts:1`、`behavior/BehaviorIR.ts:2` import） | ✅ 已按包声明（`@clack/prompts`→cli、`js-yaml`→policy/behavior） |
 | `apps/cli` 缺 `files` → npm 回退 `.gitignore`（其中忽略 `dist/`）→ **包会连自己的产物一起丢** | ✅ 已补 `files:["dist"]`+`engines`；**`npm pack --dry-run` 实测**：tarball 262 文件 / 397.6 kB / 解包 1.7 MB，全来自 `dist` |
-| `dist` 内无 `configs/*` → 安装态 `builtinConfigRoot()` 上溯 6 级必落空 → 策略/behavior/pricing 全指向不存在路径 | 🔄 修复卡在跑（包内优先查找 + 构建期复制 `configs/` 进 `dist`） |
+| `dist` 内无 `configs/*` → 安装态 `builtinConfigRoot()` 上溯 6 级必落空 → 策略/behavior/pricing 全指向不存在路径 | ✅ **已修并用产物形态验证**：`builtinConfigRoot()` 改为**包内优先**（模块目录 → 上一级 → 上溯 6 级 → 回落 `repoRoot()`）；新增 `apps/cli/scripts/copy-configs.mjs` 并由 **`prepack`** 钩子在打包前把仓库根 `configs/` 复制进 `dist/configs/`（**不依赖根构建链**）。**实测**：`npm pack --dry-run` → tarball 含 `dist/configs/{policy.default.yaml,behavior.default.yaml,pricing.json,model-catalog.json}`（270 文件 / 406.3 kB）；从**临时目录**运行 `node apps/cli/dist/cli.js policy status` → system 层指向 **`<pkg>/apps/cli/dist/configs/policy.default.yaml`**（`pointsIntoPackageDist=True`、`pointsAtTempCwd=False`） |
 
 **`npm pack --dry-run` 新发现（打包卫生，待处理）**：tarball **包含编译后的测试产物与 source map**（`dist/**/*.test.js`、`*.test.d.ts`、`*.js.map`）→ 发布物带测试代码与内部映射。处置方向：`files` 加否定模式（`!dist/**/*.test.*`、`!dist/**/*.map`）或独立 build 配置排除测试。**待 `apps/cli/package.json` 的在跑卡落盘后一并处理**（避免同文件冲突）。
 
