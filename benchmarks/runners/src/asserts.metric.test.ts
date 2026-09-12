@@ -34,7 +34,7 @@ const SCENARIOS_DIR = path.join(REPO_ROOT, 'benchmarks', 'scenarios');
  */
 const COUNTERS: TelemetryCounters = {
   turns: 3, steps: 5, toolCalls: 7, retries: 2, invalidArgs: 1, denials: 4,
-  compactions: 6, evaluatorRejects: 8, approvalAsks: 9,
+  compactions: 6, evaluatorRejects: 8, approvalAsks: 9, steers: 11, interrupts: 12,
   inputTokens: 100, outputTokens: 50, cacheReadTokens: 25,
 };
 

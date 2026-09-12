@@ -51,7 +51,7 @@ export function vesselCapabilities(): Record<CapabilityKey, boolean | 'tbd'> {
     evaluator: true,
     memory: true,
     skill: true,
-    resume: false, // self-adapter does one isolated run per fixture (no resume yet)
+    resume: false, // self-adapter does one isolated run per fixture (no resume yet) ⇒ metrics.resumeSuccess 只能是 N/A（见下方 resumeSuccess 注释）
     compaction: true,
     policy: true,
     matrix: true,
@@ -195,6 +195,32 @@ export async function runVesselFixture(fixture: HarnessFixture): Promise<RunResu
     (cacheReadTokens / 1_000_000) * (prices.cacheRead ?? 0);
 
   const success = runError === null && finalText.trim().length > 0;
+  /**
+   * `resumeSuccess` —— **本车道不可判定**（本卡修正；改前这一格恒为字面量 `false`）。
+   *
+   * 为什么不是"测出来的 false"：本适配器**没有任何续跑通路**，所以这一格过去既不是
+   * "续跑失败了"也不是"续跑成功了"，而是一个**永远不会变的常量** —— 一个"看起来有数据、
+   * 实际只有同一个值"的字段（与 M14 恒 0 同族，只是这次是布尔）。它被契约
+   * （`RunResultMetrics.resumeSuccess: boolean | null`，`contracts/types.ts`）、校验
+   * （`contracts/validate.ts` 只要求 `boolean | null`）与报告（`report/report.ts` 原样写进
+   * 行）三处**当成真实数据消费**，却永远不会随 run 变化。
+   *
+   * 逐条复核（为什么"当前车道不可判定"，而不是"接上真实值"）：
+   *  ① 本仓**确实有**"从 Context Reset Handoff 续跑"这条真实事实与判据
+   *     （`benchmarks/runners/src/runner.ts` 的 `manifest.harness?.resume` 分支 →
+   *     `seedSessionFromHandoff` → `resume_seen` 断言，场景 B027）；但那条驱动住在
+   *     **runner 的 manifest 车道**，不在本文件这条"一个 fixture 一次隔离 run"的车道上；
+   *  ② 本适配器自己声明 `capabilities.resume === false`（见 `vesselCapabilities()`），
+   *     且 `runVesselFixture()` 从不 seed handoff、不重放既有会话 ⇒ 这条车道上
+   *     "是否续跑过"**没有可观测事实**；
+   *  ③ 外部适配器（dsh/opencode/codex/pi/claude）在拿不到该量时一律写 `null`
+   *     （`raw.resumeSuccess ?? null`）—— `null` 就是本契约里"N/A / 不可判定"的既有编码
+   *     （`contracts/types.ts` 的 `boolean | null`；`validate.ts` 允许 `null`）。
+   *  ⇒ 如实取 `null`：既不谎称"续跑失败"，也不再让一个布尔常量冒充测量值。
+   *     将来若把续跑驱动接进这条车道，请先改这里，并同步 `contracts.test.ts` 的守卫用例
+   *     （它钉住"声明没有 resume 能力 ⇒ 这一格必须是 N/A"）。
+   */
+  const resumeSuccess: boolean | null = null;
   const metrics = {
     success,
     wallTimeMs,
@@ -209,7 +235,7 @@ export async function runVesselFixture(fixture: HarnessFixture): Promise<RunResu
     compactions: counters.compactions,
     humanIntervention,
     policyViolations,
-    resumeSuccess: false,
+    resumeSuccess,
   };
 
   /**

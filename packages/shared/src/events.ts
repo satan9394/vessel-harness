@@ -271,6 +271,10 @@ export interface AuditDenialRecord extends SessionRecordBase {
    *  `docs/POLICY-SPEC.md` §7.2 的契约（沙箱拒绝/工具层守卫同样是"拒绝终态所在阶段"）；
    *  删值会让未来接线的人丢掉契约（且会让 `stage` 联合与两份规格静默分叉），
    *  而把"无生产者"写进注释既不删值也不冒充证据链。接线时请一并改本段。
+   *  **可执行守卫**：`packages/shared/src/unwiredRecords.test.ts` 的
+   *  「AuditDenialRecord.stage —— 有类型、无生产者：sandbox / guard」那组从头抽本联合、
+   *  扫描全仓铸造语句，断言"生产者只产出其中 4 个"（rule/hook/approval/before_turn）并把
+   *  上面这段话的两句标注逐字钉住 —— 谁给这两个值加了生产者，那组用例先红。
    *
    * 注意：这条词表与 `PolicyDecision.decisionPath[].stage`
    * （`'rule'|'hook'|'guard'|'approval'|'profile'`，EVENT-SPEC §5.A A13）是**两个不同的词表**，

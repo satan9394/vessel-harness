@@ -25,6 +25,17 @@ export interface TelemetryCounters {
   evaluatorRejects: number;
   /** M14 的 `approval_asks`：审批询问次数 = `audit/denial` 中 `stage:'approval'` 的条数（见类注释）。 */
   approvalAsks: number;
+  /**
+   * M14 的 `steers`：`user/message` 记录里 `source === 'steer'` 的条数
+   * （`AgentLoop.drainSteers()` 每个 steer 恰好落一条；回放折叠，见类注释）。
+   */
+  steers: number;
+  /**
+   * M14 的 `interrupts`：**事件** `after_turn{kind:'interrupted'}` 的条数。
+   * 刻意**不**取同形的 `turn/end{kind:'interrupted'}` 记录（理由见类注释「M14 steers / interrupts 的接线」）
+   * ⇒ 它只在挂了总线的进程里可观测（`composeHarness` 一律 attach），纯回放如实为 0。
+   */
+  interrupts: number;
   inputTokens: number;
   outputTokens: number;
   cacheReadTokens: number;
@@ -36,7 +47,8 @@ export interface TelemetryCounters {
  * session replay; exports JSONL report lines (§4.2 format).
  *
  * 回放面（`finalize` → `finalizeRecord`）**已消费**的记录类型 = `tool/result`（M04）、
- * `audit/denial`（M12 + M14 的 approval 子集）、`compaction/start`（M09）、`llm/retry`（M05，B13）。
+ * `audit/denial`（M12 + M14 的 approval 子集）、`compaction/start`（M09）、`llm/retry`（M05，B13）、
+ * `user/message`（**仅** `source:'steer'`，M14 的 `steers` 分项——见下面的「M14 steers / interrupts 的接线」）。
  * 这一集合与 `docs/ARCHITECTURE.md` §4.11 表格那一行**双向绑定**，由 `telemetry.test.ts`
  * 的文档⇄代码守用例钉住（文档多写一个 ⇒ 红；代码多一个分支没写进文档 ⇒ 也红）。
  *
@@ -73,6 +85,50 @@ export interface TelemetryCounters {
  *    再读 `metrics()`（`benchmarks/runners/src/runner.ts`、`contracts/vessel.ts`），故无缺口。
  *  - **不得**在无此记录时伪造数值：`approval: 'never'` 的运行里 Engine 直接走 deny
  *    （`decisionPath` 带 `approval:never`、stage 仍 `'rule'`），M14 如实为 0。
+ *
+ * M14 `steers` / `interrupts` 的接线（本卡；此前二者在 `metrics().detail` 里**硬编码 0**，
+ * 而它们在本仓**都有真实生产者**——"有产者、无消者"落在指标 detail 层）：
+ *
+ * `steers` = `user/message` 记录里 `source === 'steer'` 的条数。生产者唯一且已交付：
+ * `packages/core/src/agent-loop/AgentLoop.ts` 的 `drainSteers()`（步边界消费 `SteeringQueue`，
+ * 每个 steer 恰好 `appendSync` 一条 `user/message{source:'steer', surface:true}`）。
+ * 这条事实**只有记录面**（`drainSteers` 不发任何事件）⇒ 取记录，与 `approval_asks` 同为
+ * "只由 append-only 日志计数"，一个 steer 一条记录、无需 dedupe。判据层另有 `steer_seen`
+ * 断言读同一个面（`benchmarks/runners/src/asserts.ts`）。
+ *
+ * `interrupts` = **事件** `after_turn{kind:'interrupted'}` 的条数。为什么取事件而不是记录
+ * （这是本卡读清职责后作出的取舍，不是随手挑一侧）：
+ *  ① 同一事实在仓里**两侧都有**（`turn/end{kind:'interrupted'}` 记录 + `after_turn` 事件，
+ *     `AgentLoop.runTurnInner` 每次真实收尾各铸一份）⇒ 照 M05 `llm/retry` 那套"同一事实只计
+ *     一次"的规矩，**必须选一侧**，绝不能相加（相加即双计——`denials` 的既有加法语义正是
+ *     消费方要 `Math.max` 绕开的那种）。
+ *  ② 记录侧**不是**这个事实：`packages/core/src/session/Session.ts` 的 `loadExisting()` 会为
+ *     "上一次没闭合的回合"**合成**一条同形的 `turn/end{kind:'interrupted'}`（崩溃/中断恢复的
+ *     收尾）⇒ 按记录计会把"进程崩过"报成"有人按了停机键"，是**假阳性**的 `interrupts`。
+ *     事件侧只在真实回合收尾时由 `AgentLoop` 发出，合成记录不发事件。
+ *  ③ `turn/end` 已被 `docs/ARCHITECTURE.md` §4.11 与守卫 `telemetry.test.ts` ⑤ 双向钉为
+ *     "**未消费**"（该记录每轮汇总，其 stats 与 `after_model` 的每次调用量相加会双计）；
+ *     本卡**不放宽**那条既有判据，故不给 `finalizeRecord` 加 `turn/end` 分支。
+ *  ⇒ 代价如实写出：`interrupts` **只在挂了总线的进程里可观测**（`composeHarness` 一律
+ *  `telemetry.attach(bus)`，`benchmarks/runners/src/runner.ts` 与 `contracts/vessel.ts` 的消费方
+ *  都先 attach 再 `finalize`），纯回放（未 attach）时如实为 0；`telemetry.test.ts` ⑭ 把这个
+ *  边界钉成可判别事实 —— 绝不为"回放也好看"去伪造 `turn/end` 分支。
+ *
+ * M14 detail 里**无通路**的两项（本卡如实标注，不再用 0 冒充计数）：
+ *  - `human_answers`：语义 = 审批/询问**由人**应答。本仓没有应答者链（`before_tool` 的 `ask`
+ *    一律 fail-closed 收口成上面的 `approval_asks`），没有 A16/A17 事件、没有 B17/B18 记录类型
+ *    ⇒ 这条通路**不存在**（不是"测到 0 次"）；
+ *  - `machine_answers`：语义 = 由机器应答；同样没有应答面。
+ *  ⇒ 二者在 detail 里取 `null`（"本车道不可判定"，与 `RunResultMetrics.resumeSuccess = null`
+ *    同一惯例；`MetricValue.detail` 是 `Record<string, unknown>`，见 `packages/shared/src/metrics.ts`），
+ *    并把字段名列进 `detail.unwired`。写 0 会让读报告的人以为"跑过、测到 0 次"。
+ *  将来真做出应答者链/A16/A17 时，请一并改本节、`docs/BENCHMARK-SPEC.md` §4.1 的 M14 行
+ *  与 `telemetry.test.ts` ⑮（那三条断言会先红，正是本卡留的绊线）。
+ *
+ * 本卡**不动** M14 的 `value` 与 `source`：`value` 仍 = `approval_asks`（`docs/BENCHMARK-SPEC.md`
+ * §4.1 的 M14 行对本 lane 的口径就是它），`source` 仍 = `audit/denial:approval`（它点名 **value**
+ * 的生产者；`steers`/`interrupts` 是 detail 分项，各自的来源写在上面与本文件 ⑬⑭）。
+ * 把分项并进 `value` 是**口径变更**（会改历史可比性），不在本卡范围。
  *
  * M13 `evaluatorRejects` 的生产者（本卡接线；此前 `recordEvaluatorReject()` **全仓唯一命中是它的定义**，
  * 指标恒 0，却被 `benchmarks/runners/src/asserts.ts` 的 `metricValue('M13')` 读走、被
@@ -127,7 +183,8 @@ export interface TelemetryCounters {
 export class Telemetry {
   private counters: TelemetryCounters = {
     turns: 0, steps: 0, toolCalls: 0, retries: 0, invalidArgs: 0, denials: 0,
-    compactions: 0, evaluatorRejects: 0, approvalAsks: 0, inputTokens: 0, outputTokens: 0, cacheReadTokens: 0,
+    compactions: 0, evaluatorRejects: 0, approvalAsks: 0, steers: 0, interrupts: 0,
+    inputTokens: 0, outputTokens: 0, cacheReadTokens: 0,
   };
 
   private unsubs: (() => void)[] = [];
@@ -179,6 +236,14 @@ export class Telemetry {
         const payload = p as { verdict?: string };
         if (payload.verdict === 'deny') this.counters.denials += 1;
       }, 'telemetry:denials'),
+      // M14 的 `interrupts`：**事件侧**是这一事实唯一不留歧义的一面（见类注释三条理由）。
+      // `turn/end{kind:'interrupted'}` 记录刻意不取：它被 §4.11 / telemetry.test.ts ⑤ 钉为"未消费"，
+      // 且 `Session.loadExisting` 会合成一条同形记录 ⇒ 按记录计会把崩溃恢复误报成人工打断。
+      // 形状不认识（无 kind 的载荷）时不计数，也绝不猜。
+      bus.on('after_turn', (p) => {
+        const payload = (p ?? {}) as { kind?: unknown };
+        if (payload.kind === 'interrupted') this.counters.interrupts += 1;
+      }, 'telemetry:interrupts'),
       // M13 的**两条**生产来源之一（见类注释「M13 evaluatorRejects 的生产者」）：
       // `team_end` 的逐成员摘要里，evaluate 成员携带 `review`（`TeamReviewConclusion`，
       // `TeamRuntime` 用 `parseReviewConclusion` 从该成员的产出解析）。只认被明确判为拒绝的三个
@@ -256,6 +321,13 @@ export class Telemetry {
         // （输入级否决，无工具锚点）都不是审批询问。
         if (r.stage === 'approval') this.counters.approvalAsks += 1;
         break;
+      case 'user/message':
+        // M14 的 `steers`：`AgentLoop.drainSteers()` 每个 steer 恰好落一条 `source:'steer'` 记录
+        // （该事实**只有记录面**，不存在对应事件），与 `approval_asks` 同为"只由 append-only 日志计数"。
+        // 只认这一个 source：`user/message` 还承载输入 / inject / instruction / compacted-summary /
+        // plan / memory / handoff（`MESSAGE_SOURCES`），它们都不是"人工干预"。
+        if (r.source === 'steer') this.counters.steers += 1;
+        break;
       case 'compaction/start':
         this.counters.compactions += 1;
         break;
@@ -286,7 +358,14 @@ export class Telemetry {
       // evaluator 臂接上第二条来源后，那一串会让**那个 run** 的 metric 行指向一个不是它
       // 生产者的来源（该臂不产 `team_end`）。两条来源见类注释。
       { metric: 'M13', name: 'EvaluatorRejects', value: c.evaluatorRejects, unit: 'count', source: 'evaluator-review:verdict' },
-      { metric: 'M14', name: 'Autonomy', value: c.approvalAsks, unit: 'count', source: 'audit/denial:approval', detail: { steers: 0, approval_asks: c.approvalAsks, interrupts: 0, human_answers: 0, machine_answers: 0 } },
+      // M14 detail（本卡接线，见类注释「M14 steers / interrupts 的接线」）：
+      //  - `steers`/`interrupts` 从**真实生产者**取值（改前二者与 `human_answers`/`machine_answers`
+      //    一样是硬编码 0 —— 一个"看起来有数据、实际永远是同一个值"的字段）；
+      //  - `human_answers`/`machine_answers` 本仓**无通路** ⇒ 取 `null`（不可判定）并把名字列进
+      //    `detail.unwired`，**不留 0 冒充计数**；
+      //  - `value`/`source` 逐字不变（本卡不动口径）：`value` 仍是 `approval_asks`，
+      //    `source` 仍点名它的生产者（`telemetry.test.ts` ⑥⑨ 钉住）。
+      { metric: 'M14', name: 'Autonomy', value: c.approvalAsks, unit: 'count', source: 'audit/denial:approval', detail: { steers: c.steers, approval_asks: c.approvalAsks, interrupts: c.interrupts, human_answers: null, machine_answers: null, unwired: ['human_answers', 'machine_answers'] } },
     ];
     if (extra?.durationMs !== undefined) {
       out.push({ metric: 'M10', name: 'Time', value: extra.durationMs, unit: 'ms', source: 'runner-timer' });

@@ -251,6 +251,71 @@ describe('contracts/vessel — Vessel self-adapter run', () => {
   });
 });
 
+/**
+ * 「有类型、无数据」形态的守卫（本卡 A）—— `RunResultMetrics.resumeSuccess` 在**自家 arm** 上
+ * **不可判定**。
+ *
+ * 病灶（复核证据在 `vessel.ts` 的 `resumeSuccess` 注释里逐条列出）：这一格过去是**字面量 `false`**，
+ * 而 `runVesselFixture()` 根本没有续跑通路（`vesselCapabilities().resume === false`，从不 seed
+ * handoff、不重放既有会话）⇒ 它永远不会变，却同时被契约（`types.ts`）、校验（`validate.ts`）
+ * 与报告（`report/report.ts`）**当成真实数据**消费。本仓确实有"从 handoff 续跑"这条事实与判据
+ * （`runner.ts` 的 `manifest.harness?.resume` 分支 + `resume_seen` 断言 / B027），但它住在 runner
+ * 的 manifest 车道，不在本适配器这条"一个 fixture 一次隔离 run"的车道上。
+ *
+ * 处置：`null`（本契约里 `boolean | null` 的既有 N/A 编码，外部适配器在拿不到该量时也用 `null`）
+ * + 本节两个用例把"不可判定"钉成可执行事实。
+ *
+ * 「删哪行会红」：
+ *   - 把 `const resumeSuccess: boolean | null = null;` 写回布尔常量（`false`/`true`）⇒ ①② 红；
+ *   - 让它变成任何"算出来的值"（正则匹配不到 `null`）⇒ ② 红（逼接线的人先改本守卫与注释）；
+ *   - 删掉 `vesselCapabilities()` 的 `resume: false`（声明侧与取值侧不再互相印证）⇒ ① 红。
+ * 负对照：其余 §15 L3 字段与既有用例（`success`/`notes`/`validateRunResult`）**逐字不变**——
+ * 上一节 `contracts/vessel — Vessel self-adapter run` 的五个用例改动前后同为绿。
+ */
+describe('contracts/vessel — resumeSuccess 在自家 arm 不可判定（有类型、无数据守卫）', () => {
+  it('① 两次真实 run（正常收尾 / provider 抛错）都取 N/A：resumeSuccess === null，绝不是布尔', async () => {
+    // 用 `vesselAdapter.run`（而非 runVesselFixture）：它按契约清理临时工作区，不留垃圾。
+    const ok = await vesselAdapter.run(validFixture('XRES_OK'));
+    expect(ok.metrics.success).toBe(true); // 负对照：这一格仍由真实链路决定
+    expect(ok.metrics.resumeSuccess).toBeNull(); // 改前：字面量 false ⇒ 本行红
+
+    // 失败路径同样不该"测出 false"：本车道连"续跑过没有"都没有观测面。
+    const throwing: ChatProvider = {
+      id: 'throwing-resume-guard',
+      async chat(): Promise<ChatResponse> {
+        throw new Error('provider exploded (resume guard)');
+      },
+    };
+    const bad = await vesselAdapter.run({
+      id: 'XRES_BAD',
+      workspaceRoot: makeFixture('XRES_BAD', 'Do something impossible.'),
+      options: { provider: throwing, model: 'mock-model', configRoot: REPO_ROOT },
+    });
+    expect(bad.metrics.success).toBe(false); // 负对照：错的就是错的
+    expect(bad.metrics.resumeSuccess).toBeNull();
+
+    // N/A 仍是契约合法值（validate 只要求 boolean | null）——本改动不放宽任何校验。
+    expect(validateRunResult(ok)).toEqual([]);
+    expect(validateRunResult(bad)).toEqual([]);
+
+    // 声明⇄取值互相印证：本适配器声明没有 resume 能力 ⇒ 这一格只能是 N/A。
+    // （将来真接了续跑驱动，必须同时改这里与 vessel.ts 的注释。）
+    expect(vesselCapabilities().resume).toBe(false);
+  }, 60_000);
+
+  it('② 结构性绊线：vessel.ts 里 resumeSuccess 的取值只允许是 N/A 常量', () => {
+    const src = fs.readFileSync(fileURLToPath(new URL('./vessel.ts', import.meta.url)), 'utf8');
+    // 只看那一处**赋值**（`const resumeSuccess… = <值>;`），不是"文件里出现过 false/true"——
+    // 后者会被注释或别的字段误伤，正是"断言写错却看起来正确"的典型。
+    const assigned = /const resumeSuccess\b[^=\n]*=\s*([^;\n]+);/.exec(src);
+    expect(
+      assigned,
+      'vessel.ts 里找不到 `const resumeSuccess = <值>;` 的赋值 —— 字段被删/改名/换成对象字面量写法？请同步本守卫与注释',
+    ).not.toBeNull();
+    expect(assigned![1]!.trim()).toBe('null');
+  });
+});
+
 describe('contracts — coexistence with the existing runner', () => {
   it('loads an existing L1 manifest alongside the contracts exports', async () => {
     const manifest = loadManifest(REPO_ROOT, 'B001');

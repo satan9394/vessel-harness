@@ -515,4 +515,135 @@ describe('telemetry — event subscriber + JSONL report', () => {
     expect(m13Row).toContain('未接线');
     expect(m13Row).toContain('not_met'); // 判为拒绝的 verdict 词表写在定义列里
   });
+
+  /**
+   * M14 detail 的两个分项（本卡接线）—— `steers` / `interrupts` 此前在 `metrics().detail` 里
+   * **硬编码 0**，而二者在本仓**都有真实生产者**（"有产者、无消者"落在指标 detail 层）：
+   *   - `steers` 的生产者 = `AgentLoop.drainSteers()` → `user/message{source:'steer'}`（**只有记录面**）
+   *   - `interrupts` 的生产者 = `AgentLoop` 收尾的 `after_turn{kind:'interrupted'}`（**事件面**；
+   *     同事实的 `turn/end{kind:'interrupted'}` 记录刻意不取，理由见 `Telemetry.ts` 类注释与 ⑭）
+   * 另有 `human_answers` / `machine_answers` 两项在本仓**无通路**（无应答者链、无 A16/A17、
+   * 无 B17/B18）⇒ detail 里取 `null` 并列进 `detail.unwired`，**不用 0 冒充计数**。
+   *
+   * 「删哪行会红」（本卡）：
+   *   - 删掉 `finalizeRecord` 的 `case 'user/message':`（或里面的 `source === 'steer'` 判据）
+   *     ⇒ ⑬ 红（改前正是这一支不存在 ⇒ steers 恒 0）；放宽成"任何 user/message 都算" ⇒ ⑬ 红；
+   *   - 删掉 `attach()` 的 `bus.on('after_turn', …)`（或去掉 `kind === 'interrupted'` 判据）
+   *     ⇒ ⑭ 红；
+   *   - 把 `human_answers`/`machine_answers` 写回 0（或删掉 `detail.unwired`）⇒ ⑮ 红；
+   *   - 负对照（本卡硬要求）：`approval_asks` 与 M14 的 `value`/`source` 逐字不变 ⇒ ⑥⑨⑮ 同时钉住
+   *     （把分项并进 `value` 会先红在 ⑮）。
+   */
+  it('⑬ M14 steers 纯回放：`user/message{source:steer}` 逐条计数，其它 source 一条都不算（改前恒 0）', async () => {
+    const session = await openSession('t-m14-steers');
+    const steer = (content: string, i: number) => ({
+      type: 'user/message' as const, msgId: `m_steer_${i}`, role: 'user' as const,
+      content, source: 'steer' as const, surface: true as const,
+    });
+    await session.appendSync(steer('把范围缩小到 backend', 1));
+    await session.appendSync(steer('先跑测试再继续', 2));
+    // 负对照：同一个记录族里的其它 source 都不是"人工干预"（`MESSAGE_SOURCES` 的其余取值）
+    await session.appendSync({ type: 'user/message', msgId: 'm_plain', role: 'user', content: '原始输入', surface: true });
+    await session.appendSync({ type: 'user/message', msgId: 'm_inject', role: 'user', content: '评估结论：met', source: 'inject', surface: true });
+    await session.appendSync({ type: 'user/message', msgId: 'm_handoff', role: 'user', content: 'handoff 续跑上下文', source: 'handoff', surface: true });
+
+    // 刻意**不** attach(bus)：steer 这条事实只有记录面（`drainSteers` 不发事件），
+    // 与 `approval_asks` 同为"只由 append-only 日志计数"。改前没有 user/message 分支 ⇒ 恒 0。
+    const tel = new Telemetry();
+    const counters = tel.finalize(session);
+    expect(counters.steers).toBe(2);
+    // 负对照：同一份日志里的其它计数不受这一支影响
+    expect(counters.turns).toBe(0); // turns 来自实时事件，纯回放本来就该是 0
+    expect(counters.approvalAsks).toBe(0);
+    expect(counters.denials).toBe(0);
+
+    const m14 = tel.metrics().find((m) => m.metric === 'M14')!;
+    expect(m14.value).toBe(0); // value 仍 = approval_asks（本卡不动口径），不因 steer 变成 2
+    expect(m14.detail).toMatchObject({ steers: 2, approval_asks: 0, interrupts: 0 });
+    await session.close();
+  });
+
+  it('⑭ M14 interrupts 真实链路：被打断的回合 ⇒ after_turn 事件计一次；纯回放如实为 0（本卡写明的边界）', async () => {
+    const session = await openSession('t-m14-interrupts');
+    const bus = new EventBus();
+    const tel = new Telemetry();
+    tel.attach(bus);
+
+    // 模型每步都要求调工具（脚本化 provider 无 stream ⇒ 走 chat 分支，after_model 在每次模型调用后 emit）。
+    const provider = new ScriptedProvider(() => ({
+      content: '',
+      toolCalls: [{ id: 'tc_int_1', name: 'Stub', arguments: { n: 1 } }],
+      finishReason: 'tool_calls' as const,
+      usage: { inputTokens: 1, outputTokens: 1 },
+    }));
+    const loop = new AgentLoop({
+      session,
+      bus,
+      provider,
+      model: 'deps-model-unused',
+      buildContext: async () => ({
+        model: 'envelope-model',
+        messages: [{ role: 'system' as const, content: 'test' }],
+        tools: [],
+        estimateTokens: 10,
+      }),
+      runTool: async () => ({ content: 'tool ran', meta: {} }),
+      getVisibleTools: () => [],
+    });
+
+    // 外部干预的真实入口：CLI Ctrl+C / POST /interrupt / web Stop 都调 `loop.interrupt()`。
+    // 这里在 `after_model` 之后落地 ⇒ 回合在下一个步边界收尾 kind='interrupted'
+    // （与 `packages/core/src/agent-loop/AgentLoop.interrupt.test.ts` 的既有形态同源）。
+    let interrupted = false;
+    bus.on('after_model', () => {
+      interrupted = loop.interrupt();
+    }, 'test:interrupt-driver');
+
+    const result = await loop.runTurn('打断我');
+    expect(result.kind).toBe('interrupted'); // 三处同源：TurnResult / turn/end / after_turn
+    expect(interrupted).toBe(true); // 打断确实打中了在跑的回合（不是在空转）
+
+    expect(tel.finalize(session).interrupts).toBe(1);
+    tel.detach();
+
+    // 本卡如实写出的边界：同一份日志**纯回放**（未 attach 总线）⇒ 0。
+    // 不为此去给 `finalizeRecord` 加 turn/end 分支：那会放宽 ARCHITECTURE §4.11 的既有判据，
+    // 且 `Session.loadExisting` 会为未闭合回合**合成**一条同形记录（崩溃恢复 ≠ 人工打断）。
+    expect(new Telemetry().finalize(session).interrupts).toBe(0);
+    // 记录侧面**确实存在**（不是"没这回事"）：这条 turn/end 就在日志里，只是本卡刻意不消费它。
+    expect(session.replay().filter((r) => r.type === 'turn/end' && r.kind === 'interrupted')).toHaveLength(1);
+    await session.close();
+  });
+
+  it('⑮ M14 负对照 + 无通路两项：approval_asks 逐字不变；human_answers / machine_answers 不再用 0 冒充', async () => {
+    const session = await openSession('t-m14-detail-negative');
+    // 一份"三种事实都有"的日志：1 条审批拒绝（approval_asks）+ 2 条 steer + 1 条 inject
+    await session.appendSync({
+      type: 'audit/denial', toolCallId: 'tc_a', toolName: 'Shell', stage: 'approval',
+      ruleRef: 'ask:rm', reason: 'requires approval: ask:rm', surface: false,
+    });
+    await session.appendSync({ type: 'user/message', msgId: 'm_s1', role: 'user', content: 's1', source: 'steer', surface: true });
+    await session.appendSync({ type: 'user/message', msgId: 'm_s2', role: 'user', content: 's2', source: 'steer', surface: true });
+    await session.appendSync({ type: 'user/message', msgId: 'm_i1', role: 'user', content: 'i1', source: 'inject', surface: true });
+
+    const tel = new Telemetry();
+    const counters = tel.finalize(session);
+    // 负对照（本卡硬要求）：上一卡刚接的 approval_asks 计数值**逐字不变**（新增分支不串味）
+    expect(counters.approvalAsks).toBe(1);
+    expect(counters.denials).toBe(1); // M12 同样不变
+    expect(counters.steers).toBe(2);
+
+    const m14 = tel.metrics().find((m) => m.metric === 'M14')!;
+    expect(m14.value).toBe(1); // value 仍 = approval_asks（含 2 条 steer 也不并进 value）
+    expect(m14.source).toBe('audit/denial:approval'); // source 仍点名 value 的生产者
+    const detail = m14.detail as Record<string, unknown>;
+    expect(detail.steers).toBe(2);
+    expect(detail.approval_asks).toBe(1);
+    expect(detail.interrupts).toBe(0); // 本用例没挂总线、也没有被打断的回合
+    // 无通路的两项：必须是"不可判定"（null），不是"测得 0 次"
+    expect(detail.human_answers).toBeNull();
+    expect(detail.machine_answers).toBeNull();
+    expect(detail.unwired).toEqual(['human_answers', 'machine_answers']);
+    await session.close();
+  });
 });
