@@ -74,13 +74,16 @@ export const SAFETY_GATE_CRITERION =
   '它**不声称清单内每个场景都判定通过**——挂在 pending 上的场景保持未判定状态，待能真判它的环境/评测补齐后再判。';
 
 /**
- * Gate 3 的 criterion 所依据的 L1 实跑清单 —— `run-release-gates.ts` 的**镜像常量**。
+ * Gate 3 的实跑清单（判据 + 默认 executor 的**唯一事实源**）—— `run-release-gates.ts`
+ * 的 `L1_DETERMINISTIC_RUNNABLE_SET` 的**镜像常量**。
  *
  * 实跑事实（审计发现，与 gate 5 当初写死 "S001-S008" 是**同一类**「文案与实跑漂移」）：
- * 发布门禁的真实驱动是 `run-release-gates.ts` 的 `buildDeterministicBenchExecutor`
- * （`runReleaseGates()` 用的就是它），它调
- * `runOfflineScenarios(ctx, [...L1_DETERMINISTIC_RUNNABLE_SET], …)` —— 即 B001–B027 共 17 个
- * 离线确定性场景；而本文件的 gate 3 criterion 曾写死「B001-B005」。
+ * 084 的 gate 3 默认 executor（当时的 `DETERMINISTIC_BENCH_SCENARIOS`）曾只跑 B001–B005 五个，
+ * 而判据按 L1 全量（B001–B027 共 17 个）写 —— **判据的范围大于实跑的范围**。
+ * 本卡（Round 130）按「让执行为真」处置：默认 executor 改为逐条实跑本清单，
+ * 与发布驱动 `run-release-gates.ts` 的 `buildDeterministicBenchExecutor`
+ * （`runReleaseGates()` 用的就是它，调 `runOfflineScenarios(ctx, [...L1_DETERMINISTIC_RUNNABLE_SET], …)`）
+ * **跑同一份清单** ⇒ 判据声称的范围 == 两种装配下实跑的范围。
  *
  * 为什么不直接 import `L1_DETERMINISTIC_RUNNABLE_SET`：`gates.ts` 被
  * `release-gates/index.ts` 导出，而 `run-release-gates.ts` 又 import 该 index ⇒ 反向 import
@@ -100,18 +103,27 @@ export const L1_DETERMINISTIC_BENCH_SCENARIOS: readonly string[] = [
  * Gate 3（deterministic-bench）的 criterion —— 与 gate 5（`SAFETY_GATE_CRITERION`）
  * 同一口径、同一写法（本仓反复出问题的一类：文案比实跑说得多）。
  *
- * 两条纪律：
+ * 三条纪律：
  *  1. **不写死数字/范围**：清单只做**结构性**表述并用 `.length` + `join(',')` 插值
  *     ⇒ 增删场景时文案自动跟随（旧文案写死 "B001-B005"，实跑却是 B001–B027）。
- *  2. **不暗示「清单里的场景都判定通过」**：每个场景实跑后按 asserts 三态归约
+ *  2. **两种装配必须同范围**：默认装配（`buildReleaseGateExecutors()` / `releaseGateExecutors`）
+ *     与发布驱动覆盖（`run-release-gates.ts` 的 `buildDeterministicBenchExecutor`）
+ *     都逐条实跑 `L1_DETERMINISTIC_BENCH_SCENARIOS`（本清单）—— 判据里点名的那条事实
+ *     必须对**两种装配**都成立；`release-gates.test.ts` 有一条**从判据文本正则解析场景 id**、
+ *     再与两种装配下注入 runner 实际收到的 scenarioId 逐条比对的守卫（改判据不改 executor、
+ *     或反过来，都必红）。
+ *  3. **不暗示「清单里的场景都判定通过」**：每个场景实跑后按 asserts 三态归约
  *     （`classifyScenarioRun`）—— 全部 pass = 判定通过；**整场景全为 indeterminate**
  *     （`type: indeterminate` 声明的能力缺口）= **pending**（既不计通过也不计失败，
  *     在 evidence 里逐个点名）；**任一 assert 为 fail = 判失败**（能力缺口不得掩盖真失败）。
  *     故本 criterion 只覆盖「判定通过的那些场景」，pending 的那些由结果动态列在 evidence 里。
  */
 export const DETERMINISTIC_BENCH_GATE_CRITERION =
-  `L1 确定性 bench：实跑清单 = L1_DETERMINISTIC_RUNNABLE_SET（当前 ${L1_DETERMINISTIC_BENCH_SCENARIOS.length} 个：` +
+  `L1 确定性 bench：实跑清单 = L1_DETERMINISTIC_BENCH_SCENARIOS（驱动侧 L1_DETERMINISTIC_RUNNABLE_SET 的镜像；当前 ${L1_DETERMINISTIC_BENCH_SCENARIOS.length} 个：` +
   `${L1_DETERMINISTIC_BENCH_SCENARIOS.join(',')}；全部 mode=offline 的确定性 mock lane，经 076 runner 离线实跑）。` +
+  '**默认装配与发布驱动覆盖跑的是同一份清单**：① 默认装配（`buildReleaseGateExecutors()` / `releaseGateExecutors`）与 ' +
+  '② 发布驱动（`run-release-gates.ts` 的 `buildDeterministicBenchExecutor`，在 `runReleaseGates()` 里覆盖本 gate）' +
+  '都逐条实跑上面的清单，两者之间没有范围差（此前默认装配只跑一个子集、判据却按全量写 —— 本卡按「让执行为真」对齐）。' +
   '清单内每个场景按 asserts 三态归约：' +
   '① asserts 全部 pass → 该场景**判定通过**（manifest 断言齐全，离线确定性证据完整）；' +
   '② asserts 全部为 indeterminate（`type: indeterminate` ⇒ `result=skip` 且 `evidence.status=\'indeterminate\'`，' +
@@ -201,16 +213,88 @@ export const UNIT_GATE_CRITERION =
   '某个 root 的命令探测失败（受限环境无法执行）⇒ 显式 **pending** 并带 note，不静默通过。' +
   '这些命令由**同一份清单**派生，故本判据声称的 root 集合恒等于实跑的 root 集合。';
 
+/**
+ * Gate 4（real-model-bench）的 criterion —— **如实**版：判据只覆盖 executor/judge 真正读的那些字段。
+ *
+ * 审计发现（本卡，与 gate 3/5/7 是**同一类**「判据声称的范围 > executor 实跑的范围」）：
+ * 旧 criterion 写「082 真实模型 lane **收集到 §15 L3 指标**」，而实际判定
+ * （`judgeRealModelLaneWithNonConvergence` → `judgeRealModelLane`）**只看逐行状态计数**
+ * （`rows` / `passed` / `failed` / `pendingEnv` / `degraded`）—— L3 指标字段
+ * （wallTimeMs / toolCalls / tokens / cost）**一个都不参与判定，也不进 evidence**。
+ * L3 指标由 082 lane 自己采集并落盘（`<reportsDir>/real-model-lane-<runId>.{md,json}`），
+ * 那是 lane 的事实，不是本 gate 的判据。
+ *
+ * 处置（本卡选择的 (ii)「让判据为真」而非 (i)「让执行为真」的理由）：
+ *  - 让本 gate 去**判定** L3 指标，先要定义「指标合格」的阈值语义（token 预算？成本上限？
+ *    跨模型可比性？）——本仓无此口径，凭空造一条阈值等于**新增一条未经验证的门禁判据**；
+ *  - L3 指标的**采集**已由 lane 自身保证（写进报告、单测覆盖汇总），本 gate 只需如实声明
+ *    「我判的是状态、不是指标」，并保留「无凭据/无 provider ⇒ pending，不静默通过」。
+ *
+ * 纪律：criterion 的字面量由本常量唯一持有（`GATE_DEFINITIONS` 只引用它），
+ * `release-gates.test.ts` 用 `toBe(REAL_MODEL_BENCH_GATE_CRITERION)` 锁住注册表接线，
+ * 并有一条**从本文本正则解析「判定输入」状态集合**、再与 executor 实跑后 evidence 里
+ * 实际出现的计数器逐条比对的守卫（改文案不改判定、或反过来，都必红）。
+ */
+export const REAL_MODEL_BENCH_GATE_CRITERION =
+  '082 真实模型 lane（`runRealModelLane`；模型集 = LANE_MODELS、场景集 = LANE_SCENARIOS，均可注入）：' +
+  '本 gate 的**判定输入 = lane 的逐行状态**（`passed` / `failed` / `pending-environment`）与行数 —— ' +
+  '`skipped` 行（feature-lane 枚举项）只计入行数，**不参与判定**（既不计通过也不计失败）。' +
+  '三态：① 有 `failed` 行 ⇒ **fail**；② 有 `pending-environment` 行、lane degraded 或 0 行 ⇒ **pending**' +
+  '（无凭据 / 无 provider 时显式 pending，不静默通过）；' +
+  '③ 其余（≥1 行、lane 未 degraded、0 行 `failed` 且 0 行 `pending-environment`）⇒ **pass**。' +
+  '（注：`skipped` 行不参与判定，故「全部行都是 `skipped`」这一退化输入也会落在 pass —— 当前 `LANE_SCENARIOS` ' +
+  '每个模型档都有 runnable 场景 ⇒ 构造不出该输入；该缺口如实登记在此，不假装判据覆盖了它。）' +
+  '其中 `failed` 行的失败原因若**全部**是环境/兼容性阻塞 —— 账户余额不足（`isBalanceBlockedLane`）、' +
+  '模型未在步数预算内收敛（`isModelNonConvergentLane`）、上游线协议不兼容（`isWireFormatBlockedLane`）' +
+  '—— 则按 **pending** 计（不判 fail，也不伪造 pass）。' +
+  '**§15 L3 指标（wallTimeMs / toolCalls / inputTokens / outputTokens / cacheReadTokens / costUsd 及 per-model summary）' +
+  '由 082 lane 自身采集并写入 `<reportsDir>/real-model-lane-<runId>.{md,json}`；本 gate 不解析、不判定这些指标字段，' +
+  'evidence 里也不出现它们** —— 故本 gate 判 pass 只等于「逐行状态无 failed 且无 pending-environment」，' +
+  '**不等于**「§15 L3 指标已被核对」。';
+
+/**
+ * Gate 8（packaging）的 criterion —— **如实**版：判据只覆盖 executor 真正探测的东西。
+ *
+ * 审计发现（本卡，同族）：旧 criterion 写「build 产物检查（npm pack / 等价产物）**存在且完整**；
+ * 工具缺失时显式 pending」，而默认 executor 实际**只做两次 `fs.existsSync`**
+ * （`<repoRoot>/dist` 与 `<repoRoot>/dist/index.js`）—— 它不校验产物内容、完整性、可安装性，
+ * 也不解析 tarball 清单；那条 `npm pack --dry-run --json` 的**输出被丢弃**
+ * （只在 `ctx.exec` 抛出时置 `probeFailed`，用于把「命令没跑起来」判成 pending）。
+ *
+ * 处置（(ii)「让判据为真」而非 (i)「让执行为真」的理由）：真正的发布物形状校验已经在
+ * `run-release-gates.ts` 的 `buildPublishArtifactExecutor()` + `PUBLISH_ARTIFACT_CRITERION` 上
+ * 落地（pack 期脚本静态断言 + tarball 清单必需/违禁文件），发布驱动会**覆盖**本 gate 的 executor；
+ * 默认装配不该再复制一套（复制就会漂移出第二套语义）。故默认装配的判据如实缩到
+ * 「探测这两个路径」，并显式声明它**不是**完整性校验。
+ *
+ * 纪律：criterion 的字面量由本常量唯一持有（`GATE_DEFINITIONS` 只引用它），
+ * `release-gates.test.ts` 用 `toBe(PACKAGING_GATE_CRITERION)` 锁住注册表接线，
+ * 并有一条守卫**从本文本正则解析它点名的 npm 命令与两个探测路径**，再与注入 exec 记录的
+ * 实际调用、以及按解析出的路径真实搭出来的四种布局（两路径都在 / 只有 dist / 都不在 / 命令抛出）
+ * 下的判定结果逐条比对（改文案不改 executor、或反过来，都必红）。
+ */
+export const PACKAGING_GATE_CRITERION =
+  'build 产物检查（默认装配的 packaging executor）：**判据 = 探测两个路径是否存在** —— ' +
+  '`<repoRoot>/dist` 与 `<repoRoot>/dist/index.js`（后者可经 `BuildGateExecutorsOptions.packageEntry` 注入），' +
+  '各一次 `fs.existsSync`。' +
+  '三态：① `dist` 缺失、或 npm 探测本身失败（`ctx.exec` 抛出，命令未执行）⇒ **pending**；' +
+  '② 两者都存在 ⇒ **pass**；③ `dist` 存在但入口缺失 ⇒ **fail**。' +
+  '执行器另会跑一次 `npm pack --dry-run --json`（只为探测 npm 是否可用：该命令抛出才算探测失败），' +
+  '**其输出不参与判定**。' +
+  '故本 gate **不校验**产物完整性/内容/可安装性，也**不看** tarball 清单 —— 它判 pass 只等于「那两个路径存在」。' +
+  '（真正的发布物形状校验由发布驱动把它换成 `buildPublishArtifactExecutor()` + `PUBLISH_ARTIFACT_CRITERION` 承担，' +
+  '见 `run-release-gates.ts`；届时报告里的 criterion 是那一条，不是本条。）';
+
 /** §21 ordered gate definitions (1..8). */
 export const GATE_DEFINITIONS: GateDefinition[] = [
   { id: 'build', name: 'Build (tsc -b)', criterion: '类型构建 `tsc -b tsconfig.json` 与 `apps/web` 类型检查（`tsc -p apps/web/tsconfig.json`）均完成且退出码 0（无类型错误）。', position: 1 },
   { id: 'unit', name: 'Unit (vitest: root + apps/web)', criterion: UNIT_GATE_CRITERION, position: 2 },
   { id: 'deterministic-bench', name: 'Deterministic Bench (L1)', criterion: DETERMINISTIC_BENCH_GATE_CRITERION, position: 3 },
-  { id: 'real-model-bench', name: 'Real Model Bench (082 lane)', criterion: '082 真实模型 lane 收集到 §15 L3 指标；无凭据/无 provider 时显式 pending，不静默通过。', position: 4 },
+  { id: 'real-model-bench', name: 'Real Model Bench (082 lane)', criterion: REAL_MODEL_BENCH_GATE_CRITERION, position: 4 },
   { id: 'safety', name: 'Safety (075 pack)', criterion: SAFETY_GATE_CRITERION, position: 5 },
   { id: 'resume', name: 'Resume (063/064)', criterion: '063/064 可跑集（068 soak 小规模）resume 不变量成立：暂停/续跑、workspace 零残留、从 handoff 续跑留痕。', position: 6 },
   { id: 'ux-smoke', name: 'UX Smoke (web)', criterion: UX_SMOKE_GATE_CRITERION, position: 7 },
-  { id: 'packaging', name: 'Packaging (build artifacts)', criterion: 'build 产物检查（npm pack / 等价产物）存在且完整；工具缺失时显式 pending。', position: 8 },
+  { id: 'packaging', name: 'Packaging (build artifacts)', criterion: PACKAGING_GATE_CRITERION, position: 8 },
 ];
 
 const BY_ID = new Map<GateId, GateDefinition>(GATE_DEFINITIONS.map((g) => [g.id, g]));
@@ -685,7 +769,12 @@ export function judgePackagingProbe(args: {
   return {
     status: args.entryExists ? 'pass' : 'fail',
     evidence: {
-      summary: args.entryExists ? 'build 产物完整（dist + 入口存在）' : 'dist 存在但入口缺失',
+      // 文案纪律（与 PACKAGING_GATE_CRITERION 同口径）：判据只是**两次路径存在性探测**，
+      // 故这里不得写「产物完整」——那正是本卡治的「声称 > 实做」。旧串是
+      // 'build 产物完整（dist + 入口存在）'，它把「两个路径存在」说成了「产物完整」。
+      summary: args.entryExists
+        ? 'build 产物在位（dist 与入口均存在）——本 gate 只探测这两个路径存在，未校验产物完整性/内容'
+        : 'dist 存在但入口缺失',
       detail: [`dist=${String(args.rootHasDist)}`, `entry=${String(args.entryExists)}`],
     },
   };
@@ -757,17 +846,20 @@ export const gateDefaultRunCommand: RunCommand = (command, args, opts) => execAs
 // ---------------------------------------------------------------------------
 
 /**
- * 084 默认 gate 3 executor（`releaseGateExecutors`）跑的**子集** B001-B005。
+ * 084 遗留的 gate 3 子集常量 —— **已废弃**，保留名字只为不打断外部 import。
  *
- * 与上面的 `L1_DETERMINISTIC_BENCH_SCENARIOS`（= 驱动侧 `L1_DETERMINISTIC_RUNNABLE_SET`
- * 的镜像，B001–B027）**不是同一个集合**，别混用：
- *  - 发布实跑（`run-release-gates.ts` 的 `buildDeterministicBenchExecutor`）会用 L1 全量清单
- *    **覆盖** gate 3 的 executor，而 gate 3 的 criterion 描述的是那次实跑
- *    （驱动 `...gateDefinition('deterministic-bench')` 复用注册表里的 criterion）；
- *  - 本子集只服务 084 的默认装配 —— 本卡不把它扩到全量（改 executor 的场景集是行为变更，
- *    超出「只改 criterion 文案」的范围，故如实留在此处并在此点明）。
+ * 历史：默认装配（`releaseGateExecutors`）曾只跑本子集 B001–B005，而 gate 3 的 criterion
+ * 按 L1 全量（B001–B027）写 ⇒「判据声称的范围 > executor 实跑的范围」。本卡（Round 130）
+ * 按「让执行为真」处置：默认 executor 改为逐条实跑 `L1_DETERMINISTIC_BENCH_SCENARIOS`
+ * （= 驱动侧 `L1_DETERMINISTIC_RUNNABLE_SET` 的镜像，17 个），与发布驱动覆盖后的范围一致。
+ *
+ * 因此本常量**不再是子集**，而是那份全量清单的**别名（同一引用，不是拷贝）**：
+ *  - 旧 import 方拿到的仍然是「gate 3 实跑的清单」，只是从 5 个变成 17 个 —— 与判据一致；
+ *  - 因为它是同一个数组引用，两处不可能各改一半而静默漂移；
+ *  - `release-gates.test.ts` 有一条锁定：本别名必须逐条等于 `L1_DETERMINISTIC_BENCH_SCENARIOS`
+ *    （有人把它退回 B001–B005 子集 ⇒ 必红）。
  */
-export const DETERMINISTIC_BENCH_SCENARIOS = ['B001', 'B002', 'B003', 'B004', 'B005'] as const;
+export const DETERMINISTIC_BENCH_SCENARIOS: readonly string[] = L1_DETERMINISTIC_BENCH_SCENARIOS;
 
 // SAFETY_SCENARIOS 与 L1_DETERMINISTIC_BENCH_SCENARIOS 都已上移到 GATE_DEFINITIONS 之前：
 // gate 5 的 criterion（SAFETY_GATE_CRITERION）与 gate 3 的 criterion
@@ -854,8 +946,9 @@ export function judgeOfflineWithPendingEnvironment(args: {
  * verdict（**离线场景三态归约的唯一驱动**）。
  *
  * `provider` null → deterministic mock lane。**导出**是为了让两条离线 gate 共用**同一份**归约：
- *   - gate 3 deterministic-bench：本文件的 084 默认 executor（B001-B005）与
- *     `run-release-gates.ts` 的 `buildDeterministicBenchExecutor`（L1 全量 B001-B027）都是调用点；
+ *   - gate 3 deterministic-bench：本文件的 084 默认 executor（`L1_DETERMINISTIC_BENCH_SCENARIOS`
+ *     = L1 全量清单，与判据同源）与 `run-release-gates.ts` 的 `buildDeterministicBenchExecutor`
+ *     （`L1_DETERMINISTIC_RUNNABLE_SET`，两者互为镜像且被单测等式锁死）都是调用点；
  *   - gate 5 safety：本文件的 executor（`SAFETY_SCENARIOS`）。
  *
  * 为什么导出而不是让 L1 全量 executor 自己再写一份循环：本函数体就是这套语义的**唯一**载体 ——
@@ -994,19 +1087,16 @@ export function buildReleaseGateExecutors(opts: BuildGateExecutorsOptions = {}):
         return judgeUnitRoots(results);
       },
     },
-    // Gate 3 Deterministic Bench — 084 默认装配跑子集 B001-B005（发布实跑由
-    // run-release-gates.ts 的 buildDeterministicBenchExecutor 用 L1 全量清单覆盖；
-    // criterion 描述的是后者那次实跑，见 DETERMINISTIC_BENCH_GATE_CRITERION）。
+    // Gate 3 Deterministic Bench — 默认装配与发布驱动覆盖**跑同一份清单**
+    // （L1_DETERMINISTIC_BENCH_SCENARIOS，17 个离线确定性场景）；判据由同一清单插值生成
+    // （见 DETERMINISTIC_BENCH_GATE_CRITERION）。本卡（Round 130）按「让执行为真」把默认装配
+    // 从旧的 B001–B005 子集扩到全量 —— 判据声称的范围 == 两种装配下实跑的范围。
     {
       gate: gateDefinition('deterministic-bench'),
       run: async (ctx) => {
-        const provider = opts.providerFactory?.(DETERMINISTIC_BENCH_SCENARIOS as unknown as string[]) ?? null;
-        return runOfflineScenarios(
-          ctx,
-          DETERMINISTIC_BENCH_SCENARIOS as unknown as string[],
-          provider,
-          opts.offlineScenarioRunner,
-        );
+        const scenarioIds = [...L1_DETERMINISTIC_BENCH_SCENARIOS];
+        const provider = opts.providerFactory?.(scenarioIds) ?? null;
+        return runOfflineScenarios(ctx, scenarioIds, provider, opts.offlineScenarioRunner);
       },
     },
     // Gate 4 Real Model Bench — 082 lane (probe → pending when no provider)

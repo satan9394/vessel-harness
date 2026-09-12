@@ -6,7 +6,10 @@ import {
   GATE_DEFINITIONS,
   GATE_ORDER,
   DETERMINISTIC_BENCH_GATE_CRITERION,
+  DETERMINISTIC_BENCH_SCENARIOS,
   L1_DETERMINISTIC_BENCH_SCENARIOS,
+  PACKAGING_GATE_CRITERION,
+  REAL_MODEL_BENCH_GATE_CRITERION,
   SAFETY_SCENARIOS,
   SAFETY_GATE_CRITERION,
   UX_SMOKE_GATE_CRITERION,
@@ -245,6 +248,9 @@ describe('gate definitions (tasks 084) — §21 registry', () => {
     // 而真实驱动（`run-release-gates.ts` 的 `buildDeterministicBenchExecutor`，
     // `runReleaseGates()` 用的就是它）跑的是 `L1_DETERMINISTIC_RUNNABLE_SET`（B001–B027），
     // 且文案里没有「整场景 indeterminate ⇒ pending」这条三态口径。
+    // Round 130：默认装配（`buildReleaseGateExecutors()` 的 gate 3 分支）也从旧子集扩到同一份
+    // 全量清单 ⇒ criterion 说的范围在**两种装配**下都成立；「判据点名的场景 == 实际请求的场景」
+    // 的判别性守卫见本文件后面的 `gate 3 deterministic-bench：判据点名的场景 == ...`。
     const criterion = gateDefinition('deterministic-bench').criterion;
 
     // ①-a 清单同源：gates.ts 的镜像清单必须与**驱动侧**清单逐一相等
@@ -871,5 +877,279 @@ describe('judgeBuildPair（G-07：web 纳入 Build 门禁）', () => {
   it('cli 非 0 → fail', () => {
     const v = judgeBuildPair({ code: 2 }, { code: 0 });
     expect(v.status).toBe('fail');
+  });
+});
+
+// ===========================================================================
+// Round 130（本卡）：三处「**判据文本声称的范围 > executor 实跑的范围**」的判别性守卫。
+//
+// 三处的处置各不相同（理由见 `gates.ts` 各自的常量注释）：
+//   - gate 3 deterministic-bench → **(i) 让执行为真**：默认 executor 从 B001–B005 子集扩到
+//     L1 全量清单（与发布驱动覆盖后的范围一致）；
+//   - gate 4 real-model-bench → **(ii) 让判据为真**：判据如实缩到「逐行三态」
+//     （L3 指标的判定语义在本仓没有口径，凭空造阈值等于新增未验证的判据）；
+//   - gate 8 packaging → **(ii) 让判据为真**：判据如实缩到「探测两个路径存在」
+//     （真正的发布物形状校验由发布驱动换成 `buildPublishArtifactExecutor()` 承担）。
+//
+// 纪律（照 gate 2 的先例 + 纪律 23）：**期望值一律从判据文本里正则解析**得到，
+// 绝不与被测模块共用同一个常量同时「生成判据」与「生成期望」——那是同义反复，
+// 证明不了「判据 == 实跑」。每条守卫的注释都写明「删掉修复里的哪一行会红」。
+// ===========================================================================
+
+/** 从 gate 3 criterion 文本里解析它点名的场景 id（`B\d{3}`）——不引用任何常量。 */
+function declaredBenchScenarioIds(criterion: string): string[] {
+  const out: string[] = [];
+  for (const m of criterion.matchAll(/\bB\d{3}\b/g)) {
+    const id = m[0];
+    if (id !== undefined && !out.includes(id)) out.push(id);
+  }
+  return out;
+}
+
+/** 从 gate 4 criterion 文本里解析它声明的「判定输入」状态集合——不引用任何常量。 */
+function declaredLaneJudgedStatuses(criterion: string): string[] {
+  const m = /判定输入[^（(]*[（(]([^）)]*)[）)]/.exec(criterion);
+  const seg = m?.[1] ?? '';
+  const out: string[] = [];
+  for (const t of seg.matchAll(/`([^`]+)`/g)) {
+    const s = t[1];
+    if (s !== undefined && !out.includes(s)) out.push(s);
+  }
+  return out;
+}
+
+/** 从 gate 8 criterion 文本里解析它点名的 npm 命令——不引用任何常量。 */
+function declaredPackagingCommands(criterion: string): string[] {
+  const out: string[] = [];
+  for (const m of criterion.matchAll(/`(npm pack[^`]*)`/g)) {
+    const c = m[1];
+    if (c !== undefined) out.push(c);
+  }
+  return out;
+}
+
+/** 从 gate 8 criterion 文本里解析它点名的两个探测路径（相对 `<repoRoot>`）——不引用任何常量。 */
+function declaredPackagingProbePaths(criterion: string): string[] {
+  const out: string[] = [];
+  for (const m of criterion.matchAll(/`<repoRoot>\/([^`]+)`/g)) {
+    const p = m[1];
+    if (p !== undefined) out.push(p);
+  }
+  return out;
+}
+
+describe('gate 3 deterministic-bench：判据点名的场景 == 两种装配实际请求的场景（判别性守卫）', () => {
+  it('判别性①：criterion 文本解析出的场景集合 == 默认装配与发布驱动覆盖下 runner 实际收到的 scenarioId', async () => {
+    const criterion = gateDefinition('deterministic-bench').criterion;
+    // 注册表里挂的就是这条 criterion（改名/断线 ⇒ 红；与 gate 2/5/7 的 toBe 同款）
+    expect(criterion).toBe(DETERMINISTIC_BENCH_GATE_CRITERION);
+    // 判据必须**自己写明**它对两种装配都成立（否则 (i) 的修复就没落到文案上）
+    expect(criterion).toContain('默认装配');
+    expect(criterion).toContain('发布驱动');
+
+    // 期望：从 criterion **文本**里解析（不引用任何清单常量 ⇒ 不是同义反复）
+    const declared = declaredBenchScenarioIds(criterion);
+    expect(declared.length).toBeGreaterThan(0); // 解析本身必须有效，否则下面会退化成空集互等
+
+    // ① 默认装配：buildReleaseGateExecutors() 的 deterministic-bench 分支
+    const defaultRequested: string[] = [];
+    const defaultExec = buildReleaseGateExecutors({
+      offlineScenarioRunner: async ({ scenarioId }) => {
+        defaultRequested.push(scenarioId);
+        return fakePass();
+      },
+    }).find((e) => e.gate.id === 'deterministic-bench')!;
+    expect((await defaultExec.run(offlineGateCtx())).status).toBe('pass');
+
+    // ② 发布驱动覆盖后：run-release-gates.ts 的 buildDeterministicBenchExecutor（同一条 gate）
+    const driverRequested: string[] = [];
+    const driverExec = await buildDeterministicBenchExecutor(null, async ({ scenarioId }) => {
+      driverRequested.push(scenarioId);
+      return fakePass();
+    });
+    expect((await driverExec.run(offlineGateCtx())).status).toBe('pass');
+
+    // 判据点名的集合 == 两种装配实际请求的集合（多一条、少一条、或两边不一致 ⇒ 必红）。
+    // 「删掉修复就红」：把 gates.ts 的 gate 3 分支改回子集常量（B001–B005）⇒ 第一条必红；
+    // 把 criterion 改回写死范围（少点名 B016–B027）⇒ 两条都红。
+    expect([...defaultRequested].sort()).toEqual([...declared].sort());
+    expect([...driverRequested].sort()).toEqual([...declared].sort());
+    // 更强的判别点：默认装配必须覆盖 L1 两端的代表性场景（旧子集只有 B001–B005 ⇒ 必红）
+    for (const id of ['B001', 'B005', 'B016', 'B027']) expect(defaultRequested).toContain(id);
+    // 旧子集常量不得再是子集（有人把它退回 5 个 ⇒ 必红）
+    expect([...DETERMINISTIC_BENCH_SCENARIOS]).toEqual([...L1_DETERMINISTIC_BENCH_SCENARIOS]);
+  });
+});
+
+describe('gate 4 real-model-bench：判据声明的判定输入 == executor 实际判定输入（L3 指标不参与）', () => {
+  it('判别性①：文本声明的判定输入恰好是逐行三态，且明说 `skipped` 与 §15 L3 指标不参与判定', () => {
+    const criterion = gateDefinition('real-model-bench').criterion;
+    expect(criterion).toBe(REAL_MODEL_BENCH_GATE_CRITERION);
+
+    // 期望：从 criterion 文本里解析出「判定输入」的状态集合（不引用任何常量）
+    const declared = declaredLaneJudgedStatuses(criterion);
+    expect(declared).toEqual(['passed', 'failed', 'pending-environment']);
+    // `skipped` 必须被**显式排除**（点名 + 写明不参与判定），不得沉默不提、更不得冒充判据
+    expect(criterion).toContain('`skipped`');
+    expect(criterion).toMatch(/`skipped`[^。]*不参与判定/);
+    // 旧文案的病灶（「收集到 §15 L3 指标」当作判据）不得残留，必须如实声明「不解析、不判定」
+    expect(criterion).not.toContain('收集到 §15 L3 指标');
+    expect(criterion).toContain('不解析、不判定');
+    expect(criterion).toContain('不等于');
+  });
+
+  it('判别性②：executor 实跑的 evidence 只由文本声明的三态计数构成，且不含任何 L3 指标字段', async () => {
+    const criterion = gateDefinition('real-model-bench').criterion;
+    const declared = declaredLaneJudgedStatuses(criterion);
+    // 文本点名的状态 → 判定输入里的计数器名（**映射写在测试里**，不来自被测模块）
+    const counterOf: Record<string, string> = {
+      passed: 'passed=',
+      failed: 'failed=',
+      'pending-environment': 'pendingEnv=',
+    };
+    const reportsDir = fs.mkdtempSync(path.join(os.tmpdir(), 'cah-rg-real-'));
+    try {
+      const { MockProvider } = await import('@vessel/llm');
+      const models = [{ id: 'm', displayName: 'M', tier: 'flash' as const, defaultModel: 'm' }];
+      const ctx = {
+        repoRoot: os.tmpdir(),
+        reportsDir,
+        exec: async () => ({ code: 0, stdout: '', stderr: '' }),
+      };
+
+      // a) 无 provider / 无凭据 ⇒ 显式 pending（不静默通过）：evidence 里出现三态计数
+      const noKey = buildReleaseGateExecutors({ providerResolver: async () => null, models })
+        .find((e) => e.gate.id === 'real-model-bench')!;
+      const vNoKey = await noKey.run(ctx);
+      expect(vNoKey.status).toBe('pending');
+      expect(vNoKey.pending).toBe(true);
+
+      // b) 有 provider ⇒ 真跑 082 lane（repoRoot=os.tmpdir() 下 fixture 缺失 ⇒ runnable 行全 failed）
+      const withKey = buildReleaseGateExecutors({
+        providerResolver: async () =>
+          new MockProvider([{ when: /.*/, ifNoToolResult: true, response: { text: 'G' } }], { model: 'm' }),
+        models,
+      }).find((e) => e.gate.id === 'real-model-bench')!;
+      const vWithKey = await withKey.run(ctx);
+      expect(vWithKey.status).toBe('fail');
+
+      const detail = [
+        vNoKey.evidence.summary,
+        ...(vNoKey.evidence.detail ?? []),
+        vWithKey.evidence.summary,
+        ...(vWithKey.evidence.detail ?? []),
+      ].join('\n');
+
+      // 文本声明的每个判定输入，都必须在 executor 真实产出的 evidence 里有对应计数器
+      for (const status of declared) {
+        const counter = counterOf[status];
+        expect(counter, `criterion 声明了判定输入 ${status}，但测试没有它的计数器映射`).toBeDefined();
+        expect(detail).toContain(counter!);
+      }
+      // 反向①：§15 L3 指标字段一个都不许出现在本 gate 的判定证据里（文本声明「不解析、不判定」）
+      for (const key of ['wallTimeMs', 'toolCalls', 'inputTokens', 'outputTokens', 'cacheReadTokens', 'costUsd', 'modelSummaries']) {
+        expect(detail).not.toContain(key);
+      }
+      // 反向②：`skipped` 不参与判定 —— 它既没有自己的计数器，也进不了 passed/failed 之外的三态
+      expect(detail).not.toContain('skipped=');
+    } finally {
+      fs.rmSync(reportsDir, { recursive: true, force: true });
+    }
+  });
+});
+
+describe('gate 8 packaging：判据点名的命令/探测路径 == executor 实发命令/实际判定路径（判别性守卫）', () => {
+  it('判别性①：文本点名的 npm 命令逐条等于实发命令；按文本点名的路径搭布局，判定与文本三态一致', async () => {
+    const criterion = gateDefinition('packaging').criterion;
+    expect(criterion).toBe(PACKAGING_GATE_CRITERION);
+
+    // 期望：全部从 criterion **文本**里解析（不引用任何常量 ⇒ 不是同义反复）
+    const declaredCmds = declaredPackagingCommands(criterion);
+    const declaredPaths = declaredPackagingProbePaths(criterion);
+    expect(declaredCmds).toEqual(['npm pack --dry-run --json']);
+    expect(declaredPaths).toEqual(['dist', 'dist/index.js']);
+    // 旧文案的病灶词（「存在且完整」+「工具缺失」）不得残留；新文案必须自认不校验完整性
+    expect(criterion).not.toContain('存在且完整');
+    expect(criterion).not.toContain('等价产物）存在');
+    expect(criterion).toContain('不校验');
+
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'cah-rg-pkg-'));
+    try {
+      const invoked: string[] = [];
+      const pkg = buildReleaseGateExecutors().find((e) => e.gate.id === 'packaging')!;
+      const ctx = {
+        repoRoot: root,
+        reportsDir: path.join(root, 'reports'),
+        exec: async (command: string, args: string[]) => {
+          invoked.push([command, ...args].join(' '));
+          return { code: 0, stdout: '', stderr: '' };
+        },
+      };
+
+      // 布局 A：两个路径都不存在 ⇒ pending（文本①）。实发命令必须逐条等于文本点名的命令。
+      // 「删掉修复就红」：把 criterion 改回旧串（不再点名 `npm pack --dry-run --json`）⇒
+      // declaredCmds 为空/不等 ⇒ 本守卫红；把 executor 的命令改掉而文案不动 ⇒ 同样红。
+      expect((await pkg.run(ctx)).status).toBe('pending');
+      expect([...invoked]).toEqual(declaredCmds);
+
+      // 布局 B：只有文本点名的第一个路径存在 ⇒ fail（文本③）
+      fs.mkdirSync(path.join(root, ...declaredPaths[0]!.split('/')), { recursive: true });
+      expect((await pkg.run(ctx)).status).toBe('fail');
+      expect(invoked).toHaveLength(declaredCmds.length * 2);
+
+      // 布局 C：文本点名的两个路径都在 ⇒ pass（文本②）
+      const entry = path.join(root, ...declaredPaths[1]!.split('/'));
+      fs.mkdirSync(path.dirname(entry), { recursive: true });
+      fs.writeFileSync(entry, '// entry\n', 'utf8');
+      expect((await pkg.run(ctx)).status).toBe('pass');
+      expect(invoked).toHaveLength(declaredCmds.length * 3);
+
+      // 布局 D：命令探测失败（exec 抛出）⇒ pending（文本①后半句）
+      expect(
+        (
+          await pkg.run({
+            ...ctx,
+            exec: async () => {
+              throw new Error('spawn EPERM');
+            },
+          })
+        ).status,
+      ).toBe('pending');
+    } finally {
+      fs.rmSync(root, { recursive: true, force: true });
+    }
+  });
+});
+
+/**
+ * 负对照：本卡只动了三道 gate —— gate 3（默认 executor 对齐判据）、gate 4 / gate 8（判据文本如实化）；
+ * 其余 5 道 §21 gate 的 criterion 字面量、judge、executor **逐字未动**。
+ *
+ * 核对方式（两层）：
+ *  ① 机械层：下面把两道**纯内联字面量**判据（gate 1 build / gate 6 resume）按改动前的原文钉死
+ *     —— 谁在本卡范围外改它们，这里立刻红；
+ *  ② 结构层：gate 2/5/7 的判据由导出常量插值持有（gate 2 插 `UNIT_TEST_ROOTS`、gate 5 插
+ *     `SAFETY_SCENARIOS`），本卡未编辑那三个常量，另有 `toBe(CONSTANT)` 与专门用例锁着接线，
+ *     故这里只复核「注册表仍挂同一常量」这一条接线事实。
+ */
+describe('负对照：其它 5 道 gate 的判据逐字未动（本卡只动 gate 3/4/8）', () => {
+  it('gate 1 build / gate 6 resume 的 criterion 与改动前逐字一致', () => {
+    expect(gateDefinition('build').criterion).toBe(
+      '类型构建 `tsc -b tsconfig.json` 与 `apps/web` 类型检查（`tsc -p apps/web/tsconfig.json`）均完成且退出码 0（无类型错误）。',
+    );
+    expect(gateDefinition('resume').criterion).toBe(
+      '063/064 可跑集（068 soak 小规模）resume 不变量成立：暂停/续跑、workspace 零残留、从 handoff 续跑留痕。',
+    );
+  });
+
+  it('gate 2/5/7 的注册表接线仍指向各自（未被本卡编辑的）导出常量', () => {
+    expect(gateDefinition('unit').criterion).toBe(UNIT_GATE_CRITERION);
+    expect(gateDefinition('safety').criterion).toBe(SAFETY_GATE_CRITERION);
+    expect(gateDefinition('ux-smoke').criterion).toBe(UX_SMOKE_GATE_CRITERION);
+    // 结构性锚点：证明这几条判据仍是改动前的口径（gate 2 覆盖两个 vitest root、gate 5 覆盖 8 个
+    // 安全场景、gate 7 只探产物且不跑 web 测试）—— 与「未改这些 gate」互为佐证。
+    expect(gateDefinition('unit').criterion).toContain('--root apps/web');
+    expect(gateDefinition('safety').criterion).toContain(SAFETY_SCENARIOS.join(','));
+    expect(gateDefinition('ux-smoke').criterion).toContain('不执行任何 web 测试');
   });
 });
