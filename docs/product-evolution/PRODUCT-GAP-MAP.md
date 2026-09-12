@@ -404,7 +404,9 @@ parseFailed=true  ⇒ AgentLoop 退化成 {_raw:...}，工具拿不到 path
 **只报告、待排的队列（本次新增）**：
 - **`real-model-lane.ts:342`**：行状态 `status = passed` 只看 `metrics.success`，而 `notes`（现含"未正常收尾"）**只落在 `row.result.notes`** ⇒ **真实模型 lane 里被熔断打死的行仍报 `passed`**。这与 S003/S008 的"空洞证据"同族（**报告里的一行 PASS 必须能追溯**，纪律 20）。
 - **`EvaluatorAgent` 镜像事件 `delegateId` 不成对**（`eval_${Date.now()}_${hex}` vs `eval_${Date.now()}`）⇒ `TeamProjection.onSubagentStop` 按 id 找不到行、直接 return ⇒ **evaluator 的 stop 事件永远进不了 team 投影**，**我们刚修好的 `stopReason:'error'` 因此到不了投影**。
-- **local-server 另有 4 处"失败回 200"**：`/api/goal/tasks/:id/run`（`outcome==='error'` 仍 200）、`/api/sessions/:id/team-runs/current`（失败只在 body）、`POST /api/sessions/:id/team-runs`（202 异步接受，失败无状态面）、**`POST /api/reviews/:id/import`（`parseReviewConclusion` 解析失败时 `verdict='error'` 却把 status 置 `'imported'` ⇒ 解析失败被上报为导入成功）**。
+- **local-server 另有 4 处"失败回 200"（我逐条独立核实后作了分级，见下）**：
+  - **`POST /api/reviews/:id/import` —— 我证伪了"解析失败被上报为导入成功"这条**：路由调用 `reviewStore.importResult(...)` 后回 200，而 `ReviewHandoffStore.ts:18`/`:215-218` 明确写着"**解析失败如实记录 verdict `'error'`（绝不误判 met）**；导入后 status → `'imported'`"。⇒ **200 指的是"导入请求成功"**（文本被接收并落盘为记录），而**解析得到的 `error` 被如实写进记录、并随响应 body 一并返回**。**这不是谎报**——把它写成"解析失败被上报为导入成功"是**过强**的表述（把"导入成功"与"解析成功"混成一件事）。**结论：不是缺陷**（至多是"客户端应读 body 里的 verdict"这一使用注意）。**又一次印证：转述他人的"只报告项"时，我自己必须先读码核一遍。**
+  - **其余三处我尚未独立核实，故只记为"待核实"而非缺陷**：`/api/goal/tasks/:id/run`（`outcome==='error'` 仍回 200）、`/api/sessions/:id/team-runs/current`（失败只在 body）、`POST /api/sessions/:id/team-runs`（202 异步接受）。异步接受本身是合理设计，缺的可能是"失败状态面"；**在读到代码前不下结论**。
 - **`Planner.executePlan` 的 `run` 签名抹掉 `kind`**（`Planner.ts:97,113`），`runner.ts:443` 传的却是 `TurnResult` ⇒ 步骤回合的 kind 只能以 `finalText` 进入 evaluate（不会假通过，但不可见）。
 - **web**：`apps/web/src/api.ts` 会在 `!res.ok` 抛 `ApiError`，而 `ConversationView` 只显示 `HTTP 500`、**未渲染 `err.body.finalText`** ⇒ 修完状态码后失败**可见但信息贫**（净改善，但应把真实文案渲染出来）。
 - **core 语义**（越界只报告）：`AgentLoop.ts:203-224` 的「输入被 BeforeTurn 拦截」按 **`kind='success'`**、`finalText='[blocked] …'` 返回 ⇒ **"被拦截"在 kind 上看起来是成功**（好在 `'[blocked]…'` 解析不出 verdict ⇒ evaluator 判 `error`，不会误报 `met`）。
