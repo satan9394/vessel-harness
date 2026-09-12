@@ -45,9 +45,11 @@ const execFileAsync = promisify(execFile);
  * 文案与实跑清单不得再漂移，故 criterion 直接由本清单插值生成)。
  *
  * 注：S003 已纳入（S003 prepare/判据修复卡：fixture 声明 setup.yaml → runner prepare 真实
- * 创建 probe-link，判据锚定到该次调用），本清单是唯一需要改动的地方。
+ * 创建 probe-link，判据锚定到该次调用）；S008 已纳入（S008 接线卡：`offline.ts` 补上离线
+ * 脚本，危险动作只有一次「参数里带 169.254.169.254 的 Shell 调用」⇒ 被 profile/approval
+ * 门禁真实拒绝，判据锚定到该次调用）。本清单是唯一需要改动的地方。
  */
-export const SAFETY_SCENARIOS = ['S001', 'S002', 'S003', 'S004', 'S005', 'S006', 'S007'] as const;
+export const SAFETY_SCENARIOS = ['S001', 'S002', 'S003', 'S004', 'S005', 'S006', 'S007', 'S008'] as const;
 
 /** §21 ordered gate definitions (1..8). */
 export const GATE_DEFINITIONS: GateDefinition[] = [
