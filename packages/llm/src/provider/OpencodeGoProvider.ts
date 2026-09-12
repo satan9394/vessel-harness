@@ -39,6 +39,7 @@ import type {
   ChatToolCall,
   ChatUsage,
 } from '@vessel/shared';
+import { wireFinishReason } from '../finishReason.js';
 import { sanitizeErrorBody, sanitizeWireSnippet } from './errorBody.js';
 
 /**
@@ -381,10 +382,53 @@ export interface OpencodeGoCompletion {
   reasoningTokens?: number;
 }
 
+/**
+ * opencode-go wire `finish_reason` → internal four-value closed set.
+ *
+ * BRIEF「同一个 wire 值，两个 provider 三套口径」: this used to be the THIRD
+ * opinion. Pre-change it was
+ *     `if (wire === 'length' || wire === 'error') return wire;`
+ *     `if (wire === 'tool_calls' || hasToolCalls) return 'tool_calls';`
+ *     `return 'stop';`
+ * i.e. EVERY other token — `content_filter`, `refusal`, any unknown future token —
+ * was reported as `'stop'`: "the model finished normally". The same token was
+ * `'error'` on the sibling Anthropic non-streaming path. Now the recognized tokens
+ * come from the package's single table (`wireFinishReason`,
+ * packages/llm/src/finishReason.ts), so one wire token has one verdict in every
+ * `@vessel/llm` path, and an unrecognized token can never be reported as a
+ * completion. Per-item rulings (each pinned in opencodeGoProvider.test.ts):
+ *
+ *   1. a token the table knows ⇒ the table's verdict ('stop'/'tool_calls'/
+ *      'length'/'error'). This includes the Anthropic-shaped tokens
+ *      (end_turn/stop_sequence/tool_use/max_tokens): recognizing them here too is
+ *      the POINT — with per-family tables the same token would carry two verdicts.
+ *   2. table verdict `'length'` / `'error'` ⇒ returned as-is, NOT overridden by
+ *      `hasToolCalls` — same precedence the pre-change first line had (a truncation
+ *      or an error must never be masked by "this response happened to contain tool
+ *      calls"), and the same precedence the streaming paths give them (a
+ *      `message_end{finishReason:'error'}` is not turned into `'tool_calls'` by
+ *      `AgentLoop.normalizeFinishReason`).
+ *   3. table verdict `'tool_calls'` ⇒ `'tool_calls'`.
+ *   4. table verdict `'stop'` + `hasToolCalls` ⇒ `'tool_calls'`: the existing
+ *      ruling — the wire claims a normal stop but the payload really does carry
+ *      tool calls, so the loop must run them.
+ *   5. **missing / empty** (`undefined` / `''`) ⇒ `'stop'`, or `'tool_calls'` when
+ *      tool calls are present: the pre-change semantics, **kept verbatim**. The
+ *      branch is written out explicitly rather than falling into the table, because
+ *      the table's "no token ⇒ 'error'" is the OTHER paths' frozen verdict (OpenAI
+ *      `chat()`), and the two must not contaminate each other.
+ *      Deliberate, still-different-but-documented: an unknown PRESENT token is now
+ *      `'error'` even when tool calls are present (pre-change: `'tool_calls'`) — an
+ *      unrecognized termination reason may not be laundered into a normal-looking
+ *      verdict by content that happens to accompany it. The streaming Anthropic /
+ *      OpenAI paths already answer `'error'` for exactly that case.
+ */
 function mapFinishReason(wire: string | undefined, hasToolCalls: boolean): ChatFinishReason {
-  if (wire === 'length' || wire === 'error') return wire;
-  if (wire === 'tool_calls' || hasToolCalls) return 'tool_calls';
-  return 'stop';
+  if (wire === undefined || wire === '') return hasToolCalls ? 'tool_calls' : 'stop';
+  const verdict = wireFinishReason(wire);
+  if (verdict === 'length' || verdict === 'error') return verdict;
+  if (verdict === 'tool_calls') return 'tool_calls';
+  return hasToolCalls ? 'tool_calls' : 'stop';
 }
 
 /** 解析 OpenAI 形态补全体（纯函数）。 */

@@ -33,6 +33,11 @@
  * anthropicToolInputSeed(). A non-empty `input` still is, unchanged.
  */
 
+// BRIEF「同一个 wire 值，两个 provider 三套口径」: the normalization target type is
+// owned by @vessel/shared (types.ts re-exports StreamChunk from there — same
+// package, no new dependency).
+import type { ChatFinishReason } from '@vessel/shared';
+import { wireFinishReason } from '../finishReason.js';
 import type { StreamChunk } from './types.js';
 
 export interface AnthropicEventData {
@@ -153,6 +158,13 @@ export function parseAnthropicEvent(payload: unknown, onMalformed?: () => void):
     }
     case 'message_delta': {
       if (ev.usage) chunks.push(anthropicUsageChunk(ev.usage));
+      // BRIEF「同一个 wire 值…三套口径」: this guard IS the frozen "missing value"
+      // semantics of the streaming path and must stay exactly as it is — a
+      // message_delta without `stop_reason` (or with `''`, which is falsy too)
+      // emits NO `message_end` here, so the boundary chunk carries no
+      // `finishReason` field at all and the consumer keeps its existing
+      // `'stop'`/`'tool_calls'` reading. The normalization table is only reached
+      // for a token the wire actually carried.
       if (ev.delta?.stop_reason) {
         chunks.push({ type: 'message_end', finishReason: anthropicFinishReason(ev.delta.stop_reason) });
       }
@@ -199,18 +211,37 @@ export function anthropicUsageChunk(
   };
 }
 
-export function anthropicFinishReason(stopReason: string): string {
-  switch (stopReason) {
-    case 'end_turn':
-    case 'stop_sequence':
-      return 'stop';
-    case 'tool_use':
-      return 'tool_calls';
-    case 'max_tokens':
-      return 'length';
-    default:
-      return stopReason;
-  }
+/**
+ * Anthropic wire `stop_reason` → the internal four-value closed set.
+ *
+ * BRIEF「同一个 wire 值，两个 provider 三套口径」— this is now a DELEGATION to the
+ * package's single table (`wireFinishReason`, packages/llm/src/finishReason.ts),
+ * exactly like `openAIFinishReason` in parseOpenAI.ts. One wire token must have
+ * ONE verdict in every path of `@vessel/llm`.
+ *
+ * 改前（本卡的复现）：`default: return stopReason;` **原样透传**未知值 ——
+ * `message_delta{stop_reason:'refusal'}` 产出的就是 `message_end{finishReason:'refusal'}`，
+ * 而消费侧 `AgentLoop.normalizeFinishReason`（AgentLoop.ts:86-90）对非
+ * `length`/`error`/`tool_calls` 的值一律归成 `'stop'` ⇒ 真实路径（`callModel` 只要
+ * provider 有 `stream()` 就走流式）上 `'refusal'` = `kind='success'`（文本非空）/
+ * `'budget'`（文本空）—— **把"未知终止原因"说成"正常结束"**，而同一个值在非流式
+ * `AnthropicProvider.chat()` 里是 `'error'`。同批给 OpenAI 立下的裁决相反
+ * （parseOpenAI.ts `openAIFinishReason`：content_filter/未知值 ⇒ 'error'）。
+ *
+ * 既有映射逐字不变（本卡逐条上锁，见 parseAnthropic.test.ts）：
+ *   end_turn / stop_sequence -> 'stop'、tool_use -> 'tool_calls'、max_tokens -> 'length'；
+ *   `'stop'`/`'tool_calls'`/`'length'`/`'error'`（OpenAI 形 token）改前走 default
+ *   **原样透传**，而透传值恰好与共享表的值相同 ⇒ 这四者同样逐字不变。
+ * 变化只在"表不认识的值"：改前原样透传（⇒ 最终被 loop 读成 'stop'），现在 ⇒ `'error'`。
+ *
+ * **缺失/空值的既有语义不变**：流式路径根本不会用缺失值调用本函数 ——
+ * `parseAnthropicEvent` 的 `message_delta` 分支有 `if (ev.delta?.stop_reason)` 守卫
+ * （空串 `''` 同样是 falsy），所以"wire 不带 stop_reason ⇒ `message_end` 不带
+ * `finishReason` 字段"逐字不变；非流式 `chat()` 的缺失值改前/改后都是 `'error'`
+ * （共享表对 `undefined`/`''` 给 `'error'`，与该路径既有裁决一致）。
+ */
+export function anthropicFinishReason(stopReason: string | undefined): ChatFinishReason {
+  return wireFinishReason(stopReason);
 }
 
 /** Extract the JSON payload after an SSE `data:` field from a transport line. */

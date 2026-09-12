@@ -8,5 +8,6 @@ export * from './router/taskCategory.js';
 export * from './router/TaskRouter.js';
 export * from './router/autoRouter.js';
 export * from './stream/types.js';
+export * from './finishReason.js';
 export * from './stream/parseOpenAI.js';
 export * from './stream/parseAnthropic.js';

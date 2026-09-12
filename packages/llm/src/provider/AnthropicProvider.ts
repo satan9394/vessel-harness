@@ -7,7 +7,7 @@ import type {
   ChatToolDef,
   StreamChunk,
 } from '@vessel/shared';
-import { AnthropicStreamParser } from '../stream/parseAnthropic.js';
+import { AnthropicStreamParser, anthropicFinishReason } from '../stream/parseAnthropic.js';
 import { sanitizeErrorBody } from './errorBody.js';
 
 /**
@@ -398,14 +398,16 @@ export class AnthropicProvider implements ChatProvider {
     }
 
     const stopReason = data.stop_reason;
-    const finishReason: ChatResponse['finishReason'] =
-      stopReason === 'end_turn' || stopReason === 'stop_sequence'
-        ? 'stop'
-        : stopReason === 'tool_use'
-          ? 'tool_calls'
-          : stopReason === 'max_tokens'
-            ? 'length'
-            : 'error';
+    // BRIEF「同一个 wire 值，两个 provider 三套口径」: chat() and stream() call the
+    // SAME function, so one wire `stop_reason` cannot get two conclusions depending
+    // on which method the caller used. Pre-change this was a second, hand-written
+    // ternary chain that mapped unknown reasons to `'error'` while
+    // `anthropicFinishReason` passed them through verbatim (→ `AgentLoop` read
+    // `'refusal'` as `'stop'` ⇒ `kind='success'` on the streaming path).
+    // Every canonical mapping is byte-for-byte what the ternary produced:
+    // end_turn/stop_sequence ⇒ 'stop', tool_use ⇒ 'tool_calls', max_tokens ⇒ 'length',
+    // everything else (including a missing/empty `stop_reason`) ⇒ 'error'.
+    const finishReason: ChatResponse['finishReason'] = anthropicFinishReason(stopReason);
 
     return {
       content,
