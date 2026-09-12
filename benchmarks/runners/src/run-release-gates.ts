@@ -204,7 +204,6 @@ export const PACK_LIFECYCLE_SCRIPTS = ['prepack', 'prepare'] as const;
 
 /** §21 Gate 8 packaging 的 criterion（含发布物形状判据；注册表仍在 gates.ts，仅此处覆盖文案）。 */
 export const PUBLISH_ARTIFACT_CRITERION =
-  'build 产物检查（npm pack / 等价产物）存在且完整；工具缺失时显式 pending。' +
   '发布物形状（publish-artifact）判据：① `apps/cli` 的 pack 期脚本（prepack / prepare）必须构建 dist——' +
   '否则干净检出（无 dist）时 `npm pack` 会打出缺 `dist/cli.js` 的坏包 → **fail**；' +
   '② `npm pack --dry-run` 的 tarball 清单必须含 `dist/cli.js` 与 4 个 `dist/configs/*`' +
