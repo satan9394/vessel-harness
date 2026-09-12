@@ -309,8 +309,8 @@ Provider 差异全部下沉此层，不进事件面（D3 决策点 13 影响）�
 
 | 子模块 | 职责 | 对外接口 | 依赖 |
 |---|---|---|---|
-| tools/registry | 最小内建集（Read/Write/Edit/Glob/Grep/Shell）；schema DSL（纯 TS，推导类型+JSON Schema+校验）；作用域化（global→agent）；exclusive 屏障 + 滚动池（maxParallelToolCalls:10）；暴露面裁剪：装载 Policy 编译的 Tool Interceptor 清单（deny 工具移出可见集，D6 §2.3） | `execute(call) → Result`；`listVisible(scope)`；`spec(toolName)`（含 required_permission，供 policy 读取） | core/events、runtime/sandbox（经 executor 消费） |
-| tools/filesystem | Read/Write/Edit 实现 + file_guards（canonical 化、受保护路径、10MiB 上限、NUL 检测）；写串行 | 经 registry | core/events（A18/A19） |
+| tools/registry | 最小内建集（Read/Write/Edit/Glob/Grep/Shell）；schema DSL（纯 TS，推导类型+JSON Schema+校验）；作用域化（global→agent）；exclusive 屏障 + 滚动池（maxParallelToolCalls:10）——**已实现但未接线**：V0.1 工具调用由 AgentLoop 逐个 `await` 串行派发，`registry.execute` 的这条调度路径当前没有生产调用方（`ParallelScheduler` 仅测试使用），接线属后续功能决策；暴露面裁剪：装载 Policy 编译的 Tool Interceptor 清单（deny 工具移出可见集，D6 §2.3） | `execute(call) → Result`；`listVisible(scope)`；`spec(toolName)`（含 required_permission，供 policy 读取） | core/events、runtime/sandbox（经 executor 消费） |
+| tools/filesystem | Read/Write/Edit 实现 + file_guards（canonical 化、受保护路径、10MiB 上限、NUL 检测）；写串行（V0.1 由 AgentLoop 逐个 `await` 派发天然成立；独占屏障未接线） | 经 registry | core/events（A18/A19） |
 | tools/shell | Bash 执行 + 只读命令识别（字符串解析仅作只读识别不作主防线）；Operations 注入点（供 H08 沙箱后端复用） | 经 registry | core/events（A20/A21）、runtime/sandbox |
 | tools/mcp | **✗ V0.2 装载**（目录先立）：MCP 客户端（stdio + streamable-http）；动态注册命名 `mcp__<server>__<tool>`；schema 首次调用加载 | —（V0.2） | — |
 

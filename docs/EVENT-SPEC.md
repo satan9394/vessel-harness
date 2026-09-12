@@ -300,7 +300,7 @@ seq        : number        # 会话内事件序号（不变式校验用）
 
 #### A12 BeforeTool（草案）
 - **触发时机**：assistant 的每个 tool call 进入分发管线时——tool 级闸口；对照统一流水线 `tool/call → tools/pre-execute(waterfall: allow|deny|ask)`（DSH 行 303 / comparison.md H05 Proposed Spec）。
-- **载荷字段**：`toolCallId`；`toolName`；`arguments`（原始 JSON）；`mode:'parallel'|'exclusive'`（独占=排序屏障，读并发/写串行纪律）；`restrictions:ToolRestriction[]`（allow/deny 过滤）；`policyHints:{sandboxMode?, approvalNeeded?}`；`parallelIndex?`。
+- **载荷字段**：`toolCallId`；`toolName`；`arguments`（原始 JSON）；`mode:'parallel'|'exclusive'`（词表字段：独占=排序屏障，读并发/写串行纪律的**设计语义**；**V0.1 未接线**——工具调用由 AgentLoop 逐个 `await` 串行派发，本字段当前不驱动调度）；`restrictions:ToolRestriction[]`（allow/deny 过滤）；`policyHints:{sandboxMode?, approvalNeeded?}`；`parallelIndex?`。
 - **flow**：`waterfall`——**决策闸口**：可 `deny(reason)`（拒绝文本回灌模型）；可 `ask()`（转 ApprovalRequest，见 A16）；可 `allow()` 并**改 arguments**（updatedInput 语义，Codex/Claude）；guard 单调收窄在全链后强制执行。Policy Engine、审批、沙箱解析均作为此事件链上的监听器（第 7 节）。
 - **消费方示例**：Policy 规则引擎（allow/ask/deny 规则，deny 不可被更细 allow 豁免）、ToolGuard（单调否决）、审批请求器、沙箱模式解析（confine policy 逐调用派生，H08）、成本预算 deny、doom-loop 计数、外部 hooks（Claude `PreToolUse`、Codex `PreToolUse` 带 updated_input 重建 invocation）。
 - **关联机制/镜像**：记录：`tool/call`；机制 `tools/pre-execute` + `ToolGuard`；D6 Policy Engine。
@@ -345,7 +345,7 @@ seq        : number        # 会话内事件序号（不变式校验用）
 #### A18 BeforeWrite（草案，文件写 seam）
 - **触发时机**：写类文件工具（write/edit/apply_patch）真正触碰文件系统**前**；文件边界守卫主闸口。
 - **载荷字段**：`writeId`；`toolName`；`targetPath`（**canonical 化后**：拒绝 `../` 与 symlink 逃逸，先 fs 语义规范化再词法，H08 逐调用策略）；`op:'create'|'overwrite'|'patch'`；`content`/`diff`（将写入内容或补丁）；`sizeBytes`；`guardFlags:{exists, protectedPath:boolean, readOnlyMode:boolean}`；`scope:{workspaceRoot}`。
-- **flow**：`waterfall`——可 `deny(reason)`（受保护路径如 `.git/.ssh/凭据/配置` 写保护不可豁免，H07 共同抽象）；可**改载荷**：改写将写入内容（格式化器/注入头/模板展开/脱敏）。执行纪律：**写类工具串行**（读并发/写串行），独占屏障由此事件所在 step 的调度保证。
+- **flow**：`waterfall`——可 `deny(reason)`（受保护路径如 `.git/.ssh/凭据/配置` 写保护不可豁免，H07 共同抽象）；可**改载荷**：改写将写入内容（格式化器/注入头/模板展开/脱敏）。执行纪律：**写类工具串行**（读并发/写串行）——V0.1 由 AgentLoop 逐个 `await` 派发而**天然成立**；独占屏障**已实现但未接线**（`registry.execute` 的调度路径当前无生产调用方，接线属后续功能决策）。
 - **消费方示例**：文件边界守卫（canonical 化 + 受保护路径 deny + 读写上限 10MiB + NUL 二进制检测，H05 file_guards）、格式化器、内容注入器、doom-loop/checkpoint（只跟踪文件编辑工具做 checkpoint 快照）、外部 hooks（Claude `PreToolUse` 的文件写分支）。
 - **关联机制/镜像**：机制：H05 file_guards、H08 fs 边界；记录：无独立记录（成败由 `tool/result` 捕获）；checkpoint 由 AfterWrite 触发。
 
