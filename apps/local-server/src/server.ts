@@ -124,10 +124,18 @@ function json(res: http.ServerResponse, status: number, body: unknown): void {
  * 与 TUI（error 显式标记）上定案，本函数是同一裁决在 HTTP 面的落地。
  *
  * 裁决（四个 kind 全部钉死，与 CLI `turnExitCode` 逐条对齐）：
- * - `error` ⇒ **500**：回合**跑完了**（`turn/start` → `turn/end` 配对成立、最终文案在
- *   `finalText` 里），只是以错误收场（熔断 `DenialLimitError` 等，AgentLoop.ts:334-338）。
- *   这是 harness 侧"回合以错误结束"，没有代理/上游可归因 ⇒ 用 500，不用 502/503
- *   （那两个是网关语义：上游无响应/不可用，本仓无此对象）。
+ * - `error` ⇒ **500**：这是 harness 侧"回合**没有正常完成**"（没有代理/上游可归因 ⇒ 用 500，
+ *   不用 502/503——那两个是网关语义：上游无响应/不可用，本仓无此对象）。
+ *   **Round 99 更正（此前这里的理由不准确）**：原文写"回合**跑完了**（`turn/start` → `turn/end`
+ *   配对成立）"，但 `kind='error'` 至少有**两类**来源，其中一类**根本没有 `turn/start`**：
+ *   ① 熔断 `DenialLimitError` 等（`AgentLoop` 的 catch 把消息写进 `finalText`）——这类**跑过**回合；
+ *   ② **`BeforeTurn` 拦截**（输入级否决）——该分支**从不写 `turn/start`/`step/start`**、
+ *      0 次模型调用，只写 `assistant/message`(=`[blocked] …`,带原因)、`turn/end{kind:'error'}`
+ *      与一条 `audit/denial{stage:'before_turn'}`。
+ *   两类共用同一个 `kind='error'` ⇒ **HTTP 面无法区分**，故此处**只能**按"回合以错误结束"统一给 500；
+ *   而"**策略拒绝用户输入**是否更该是 403/422"是一个**未裁决的语义问题**——`finalText` 与审计能告诉
+ *   人"被拒的原因"，但**机读面分辨不出**。若要分开，需要给 `TurnResult` 加一个**可机读的判别字段**
+ *   （并同步 `turn/end` 与四个消费面），属独立卡；**在那之前，本函数不做假设**。
  * - `success` ⇒ 200（逐字不变）、`budget` ⇒ 200、`interrupted` ⇒ 200：
  *   budget 是用户自己下的预算（`--max-steps` / `maxSteps`）耗尽，且还覆盖"模型回了纯空文本"
  *   这条既有边界（AgentLoop.ts:344-347）；interrupted 是用户自己按的停止（POST /interrupt，
