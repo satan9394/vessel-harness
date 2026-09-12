@@ -520,4 +520,29 @@ parseFailed=true  ⇒ AgentLoop 退化成 {_raw:...}，工具拿不到 path
 - **形态 A（重复帧无 id/name）仍丢 seed**：执行者给了**最小改法**（在 `feed()` 内新增 1 个发射点，只对"已 started + 该帧缺 id/name + seed 非空"生效）。**影响面已列清**：必须**反转** `parseAnthropic.test.ts` 里那条把"仍丢"钉死的断言、并同步 provider 文案。**另注 `flushToolBlock` 对未启动块取的是最后一次写入的 seed**（同一 index 多次带 seed 的重复帧会**覆盖**早先的）——**又一个静默覆盖点**。
 - **`AgentLoop` 的流末兜底 flush 零可见信号**：它把"从未收到 `tool_call_end` 的调用"静默收尾；`model_stream_end` 的形状被 `EVENT-SPEC` 钉死、**不能加字段**；最小改法参照 `turn/end` 的**加法字段**先例（属记录形状变更 ⇒ 独立卡）。**注意形态 B 修好后该触发路径已消失**，剩余价值只覆盖"真截断 / 从不发 end 的 provider"。
 - **同形 P3**：`scripts/demo-policy-deny.ts:40-41` 无条件打印 `=== 最终回复 ===` + `result.finalText`、**不看 kind**（今天恒 success ⇒ 潜在）。
-- **注释/文档行号漂移**：如 `chat.ts:331` 仍写 `renderFinalReply` 在 `cli.ts:555-559`（实际 780-783）、`mockVisibility.test.ts` 引 `cli.ts:556/613/618`（实际 780/670/928）。⇒ **"文档引用了会漂移的行号"** 在本段已多次遇到（我自己的记录里也常带行号）——**这是一类会随时间必然失效的引用**，处置方向：**优先引用符号名/函数名，行号只作为"当时的坐标"并标注基准提交**。
+- **注释/文档行号漂移**：如 `chat.ts:331` 仍写 `renderFinalReply` 在 `cli.ts:555-559`（实际 780-783）、`mockVisibility.test.ts` 引 `cli.ts:556/613/618`（实际 780/670/928）。⇒ **"文档引用了会漂移的行号"** 在本段已多次遇到（我自己的记录里也常带行号）——**这是一类会随时间必然失效的引用**，处置方向：**优先引用符号名/函数名，行号只作为"当时的坐标"并标注基准提交**。（**Round 108 已就地执行**：`chat.ts` 与 `mockVisibility.test.ts` 的跨文件行号已全部换成符号名，后者现为 0 处跨文件行号。）
+
+## Round 110–116 — **第二次对抗评审**（`f0e5852..a3f4b30`，实测 30 个提交）的结论与收口
+
+**评审方式**（与第一次同构，值得复用）：全新上下文、只读、**以代码为唯一事实源**；**把提交信息与注释一律当待验证声明**；要求 ① REJECT 级发现（带位置与**可证伪路径**）② **"查过未推翻"清单**（**沉默不算审查**）③ **"需实测"清单**。**它还自己发现"简报里的提交数（34）与实际（26→30）不符"并声明了移动靶与冻结修订**——这种对自身测量前提的诚实，正是我要的。
+
+**四条 REJECT 与收口**（全部已修并提交）：
+1. **R2（最重，而且是我自己造的）**：`anthropicFinishReason` 的 `default: return stopReason`（**原样透传未知 wire 值**）+ `normalizeFinishReason` 把非 length/error/tool_calls 归成 `'stop'` ⇒ **`refusal`/未知终止原因在流式路径（`callModel` 优先走的）上是 `success`**；而 `chat()` 给 `'error'`、`opencode-go` 又给 `'stop'` ⇒ **同族 wire 值三套口径**。**并且我同批写的三处文档把这个事实写反了**，一处测试注释还称两张表"同形 ⇒ chat/stream 必然同解"（**恰恰相反**）。⇒ **收口**：新建**唯一表** `packages/llm/src/finishReason.ts` 的 `wireFinishReason`，**三处 import**（Anthropic chat / Anthropic stream / opencode-go）；未知与 `content_filter` ⇒ `'error'`（对齐同批为 OpenAI 立的裁决）；`stop`/`tool_use`/`max_tokens`/缺失的既有映射逐字不变；**四处不实文案全部改正**。
+2. **R1（也打在我身上）**：我上一轮加的 `test:all` **没有任何调用方**——CI 仍跑 `npm test`，**发布门禁 unit 的判据原文仍是"全量 `npx vitest run`（root）"**，同文件还自述"本 gate 从不调用 web 套件" ⇒ **命令存在、没接到决定红绿的链上**。⇒ **收口**：CI 改跑 `npm run test:all`；gate 侧引入**实跑 root 清单**作唯一事实源、**判据文本由它插值**（文本不可能与执行器漂移），**另加一条不引用任何常量的正则守卫**——从判据文本里解析出点名的命令，与 executor 实际发出的命令逐条比对（**主动躲开纪律 23 的同义反复坑**）。
+3. **R3（同批两条改动互不衔接）**：新造的 goal-run 500 把原因放在**嵌套 `result.error`**，而 web 的 `failureMessage` **只读顶层** ⇒ **用户仍只看到 `HTTP 500`**（与要治的症状逐字相同，只换了条路由）。⇒ **收口**：web 侧**下钻已知嵌套位置**（`result.error`，**不盲目递归**），顶层优先级与"任何位置都无原因 ⇒ 回落 `HTTP <status>`"逐字不变。
+4. **R4（提交信息不实）**：`dfe55b9` 称"两个面共用一个判据"，实际 `cli.ts` 与 `tui/chat.ts` **各一份实现**（CLI 注释自己承认"（乙）未采用"）。⇒ **收口方向是"把话变成真的"**：新建**零依赖** `apps/cli/src/turnText.ts` 导出唯一判据，两个面 import（**在跑**）。
+- **R5**（opencode-go 未知/`content_filter` ⇒ `'stop'`，与同批 OpenAI 裁决相反）**已随 R2 的唯一表一并收口**。**R6**（两处镜像未按纪律 22 标注、`runner.test.ts` 的纪律 23 违规未清）与 **R7**（覆盖面本身无问题：**没有第三个 root**；但 web root **缺 `setupFiles`**，与根配置的隔离口径不同）**已记录待排**。
+
+**评审"查过且未推翻"的 10 条**（值得留档——它们是对本段工作的**独立确认**）：`kind→stopReason` 唯一表（`as const satisfies` + 三处 import + 静态护栏）；`length ⇒ kind='error'` 判据单点且未截断键集被钉死；`turn/end` 加法字段无生产消费方读它；`before_turn` 审计的编译期绑定与三条零审计负对照；`before_stop` 未接线只有一处调用点且无生产监听器；`bench-report` 退出码用 `totals.failed` 且不另设第二套口径；报告呈现层 `mustNotDisplayAsSuccess` 界准确且 `success===false` 一族逐字不变；**两个 provider 的身份冻结与 identity-late 不冲突**；`denied` 词表补写真有五个生产者；goal-run 状态映射本身四值正确（问题只在消费面）。
+
+**评审"需实测"的 8 条**（写清跑什么、预期什么）：`test:all` 两段 exit code 与计数；只跑 `npm test` 确认输出**不含** `apps/web`；假 Anthropic SSE（`refusal` + 非空 text）走流式 ⇒ 预期现在与 chat 同解（**已由 R2 收口，可用它对账**）；goal-run 的 `ApiError.message` 是否含原因（**已由 R3 收口**）；在一次性 worktree 把 `AgentLoop.consumeStream` 的 `if (acc)` 改无条件累加 ⇒ 预期三个 llm 测试文件**全绿**（**坐实镜像无判别力**，随后回退）；web root 是否真不需要 `vitest.setup.ts` 的隔离；`turn/end{finishReason:'length'}` 是否真落进会话 JSONL；`before_turn` 审计在 `vessel run` 打印里的实际呈现（`${d.toolName}` ⇒ **空锚点行**）。
+
+**评审新开、尚未修的队列**：
+- **`openAIFinishReason`（`stream/parseOpenAI.ts`）仍未收敛**：它与新唯一表在**跨家族 token** 上不同解（`end_turn` ⇒ 它给 `'error'`、共享表给 `'stop'`）⇒ **委托只需 2 行**（已在两份状态文件里如实标注）。
+- **`handoffMarkdown()` 连顶层 body 都不读**（失败时直接 `HTTP <status>`，服务端给的是 `{error:'handoff_missing'}`）⇒ 症状比本卡那处**还少一层**（中）。
+- **SSE 的 `policy` 帧 `reason` 无消费者**（`ConversationView` 不订阅 `onPolicy`，`ToolDelta` 里也没有 reason 字段）⇒ **拒绝理由在数据里、到不了人眼**（低-中，属产品取舍）。
+- **`scripts/dev-test/run.mjs` 的 `ROOTS` 缺** `apps/local-server/src` 与根 `index.test.ts`（自称"every test under the vitest include roots"）⇒ **受限环境的替代通道比它自称的窄**。
+- **`AGENTS.md` 把验证写成 `npx vitest run` + "全量验证后再收尾"** ⇒ 按纪律 26 这句**范围未定义且漏 web**；任何人照此执行都会漏（**高**，但它是规则母版，改它要慎重）。
+- **门禁判据 > 实跑的其它三处**（gate 3 默认装配声称 L1 全量却只跑 B001–B005，发布驱动会覆盖故真实门禁不受影响；gate 4 声称收集 L3 指标而只判行状态；gate 8 声称"完整"而只查两个路径存在）。
+- **被跟踪的 `benchmarks/reports/release-report.{md,json}` 内嵌旧判据**（含"全量 root"旧句）⇒ 需**重跑门禁刷新**，而重跑会改工作区（**按纪律 27 处置**）。
+- **`runner.test.ts` 的期望值仍由生产函数 `turnKindSummary` 生成**（纪律 23 点名的正是该文件）；**两处镜像仍未按纪律 22 标注**（`openai-finish-reason.test.ts` 的 `consumeLikeAgentLoop` 与 `parseAnthropic.test.ts` 的对应物；`parseOpenAI.test.ts` 那处**我已亲自标注**）。
