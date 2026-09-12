@@ -108,25 +108,8 @@ export function parseVerdict(text: string): EvaluatorVerdict {
 /**
  * 评审回合的 stopReason —— **复用**既有契约词汇表 `SubagentResultContract['stopReason']`
  * （EVENT-SPEC A24 / H11），不新造词。
- */
-export type EvaluatorStopReason = SubagentResultContract['stopReason'];
-
-/**
- * 回合裁决结果：stopReason / isError / verdict 三者一次性定死，是 `evaluate()` 消费
- * `TurnResult` 的**唯一**落点（也因此可直接被测试驱动，覆盖 success/error/budget/interrupted 四种 kind）。
- */
-export interface EvaluatorTurnOutcome {
-  /** 由 `turn.kind` 决定（见 mapTurnKindToStopReason），不再是无条件常量。 */
-  stopReason: EvaluatorStopReason;
-  /** 与 stopReason 一致的失败位（口径见 resolveEvaluatorTurnOutcome）。 */
-  isError: boolean;
-  /** 交给调用方的评审结论（未跑完的回合强制为 'error'，绝不产出"有效 verdict"）。 */
-  verdict: EvaluatorVerdict;
-}
-
-/**
- * `turn.kind` → `stopReason` 的映射**不再是本文件的实现**（BRIEF「同一件事三处实现、两套口径」）。
  *
+ * `turn.kind` → `stopReason` 的映射**不再是本文件的实现**（BRIEF「同一件事三处实现、两套口径」）：
  * 本文件原先自带一份 switch（旧 `mapTurnKindToStopReason`），与
  * `subagent/SubagentManager.ts` 的私有 `mapTurnKind` **逐字重复**（两份实现、同一口径），
  * 而 `team/TeamRuntime.ts` 又是第三套口径（原样吐 kind ⇒ 越词表）。现三处一律调用
@@ -141,9 +124,22 @@ export interface EvaluatorTurnOutcome {
  * A24 词表里 `aborted` 就是为它准备的既有值。两者对**verdict** 的后果相同（都强制 'error'）
  * ——"没跑完"不因中止原因而变成有效结论。
  *
- * `EvaluatorStopReason` 保留为与契约**同源**的类型别名（`SubagentResultContract['stopReason']`，
- * 不新造词、不会漂移）。
+ * 本别名保留为与契约**同源**的类型（不新造词、不会漂移）。
  */
+export type EvaluatorStopReason = SubagentResultContract['stopReason'];
+
+/**
+ * 回合裁决结果：stopReason / isError / verdict 三者一次性定死，是 `evaluate()` 消费
+ * `TurnResult` 的**唯一**落点（也因此可直接被测试驱动，覆盖 success/error/budget/interrupted 四种 kind）。
+ */
+export interface EvaluatorTurnOutcome {
+  /** 由 `turn.kind` 决定（见 ../turnStopReason.js 的 mapTurnKindToStopReason），不再是无条件常量。 */
+  stopReason: EvaluatorStopReason;
+  /** 与 stopReason 一致的失败位（口径见 resolveEvaluatorTurnOutcome）。 */
+  isError: boolean;
+  /** 交给调用方的评审结论（未跑完的回合强制为 'error'，绝不产出"有效 verdict"）。 */
+  verdict: EvaluatorVerdict;
+}
 
 /**
  * BRIEF — EvaluatorAgent 对 `kind='error'`（及 budget/interrupted）的回合此前**无条件**上报

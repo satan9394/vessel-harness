@@ -425,7 +425,7 @@ export class SubagentManager {
   }
 }
 
-/**
+/*
  * BRIEF「同一件事三处实现、两套口径」——本文件原有的私有 `mapTurnKind`（success→completed、
  * budget→max_tokens、interrupted→aborted、error→error）**已删除**：它与
  * `evaluator/EvaluatorAgent.ts` 的那份 switch 逐字重复（两份实现、同一口径），而
