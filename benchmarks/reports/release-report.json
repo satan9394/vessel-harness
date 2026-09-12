@@ -1,8 +1,8 @@
 {
   "schemaVersion": 1,
   "version": "v1.1.0",
-  "generatedAt": "2026-09-12T02:49:17.568Z",
-  "status": "blocked",
+  "generatedAt": "2026-09-12T03:00:27.865Z",
+  "status": "ready",
   "gates": [
     {
       "id": "build",
@@ -17,38 +17,36 @@
           "web tsc exit=0"
         ]
       },
-      "durationMs": 6079
+      "durationMs": 5524
     },
     {
       "id": "unit",
       "name": "Unit (vitest root)",
       "position": 2,
       "criterion": "全量 `npx vitest run`（root）通过且退出码 0（无测试失败）。",
-      "status": "fail",
+      "status": "pass",
       "evidence": {
-        "summary": "vitest 存在问题（exit=1）",
+        "summary": "全量 vitest（root）通过",
         "detail": [
-          "✓ vessel provider export/import + endpoint (task 095/096) > export 无 --out → JSON 打到 stdout；import 合并（默认跳过同名） 12505ms",
-          "✓ vessel provider export/import + endpoint (task 095/096) > import --dry-run 不写盘；--on-conflict overwrite 覆盖字段 4828ms",
-          "✓ vessel provider export/import + endpoint (task 095/096) > import 非法 --on-conflict / 读不到文件 → 明确退出码 4859ms",
-          "✓ vessel provider export/import + endpoint (task 095/096) > endpoint add/list/remove：候选池落盘，baseUrl 不变 13687ms",
-          "✓ vessel provider export/import + endpoint (task 095/096) > endpoint test 探测本地端点 → 输出建议但不改默认端点；--set-default 才改 3845ms",
-          "✓ vessel provider export/import + endpoint (task 095/096) > endpoint test 全不可达 → exit 1 且不写盘 1593ms",
-          "✓ vessel provider export/import + endpoint (task 095/096) > endpoint test 用法错误：无 id 无 --all / --all 配 --set-default → exit 2 2390ms",
-          "Test Files  1 failed | 128 passed (129)",
-          "Tests  2 failed | 1388 passed | 3 skipped (1393)",
-          "Start at  19:40:55",
-          "Duration  103.67s (transform 23.99s, setup 3.61s, collect 74.80s, tests 399.30s, environment 46ms, prepare 36.26s)",
-          "82|     expect(opencodeGoEndpoint(() => 'k').baseUrl).toBe('https://openco…",
-          "|                                                   ^",
-          "83|   });",
-          "84|",
-          "⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/2]⎯",
-          "vitest exit=1"
+          "✓ vessel provider export/import + endpoint (task 095/096) > export 无 --out → JSON 打到 stdout；import 合并（默认跳过同名） 9408ms",
+          "✓ vessel provider export/import + endpoint (task 095/096) > import --dry-run 不写盘；--on-conflict overwrite 覆盖字段 5399ms",
+          "✓ vessel provider export/import + endpoint (task 095/096) > import 非法 --on-conflict / 读不到文件 → 明确退出码 4478ms",
+          "✓ vessel provider export/import + endpoint (task 095/096) > endpoint add/list/remove：候选池落盘，baseUrl 不变 15637ms",
+          "✓ vessel provider export/import + endpoint (task 095/096) > endpoint test 探测本地端点 → 输出建议但不改默认端点；--set-default 才改 5712ms",
+          "✓ vessel provider export/import + endpoint (task 095/096) > endpoint test 全不可达 → exit 1 且不写盘 1630ms",
+          "✓ vessel provider export/import + endpoint (task 095/096) > endpoint test 用法错误：无 id 无 --all / --all 配 --set-default → exit 2 2163ms",
+          "Test Files  130 passed (130)",
+          "Tests  1401 passed | 3 skipped (1404)",
+          "Start at  19:53:33",
+          "Duration  135.20s (transform 42.58s, setup 8.37s, collect 114.38s, tests 537.70s, environment 50ms, prepare 42.38s)",
+          "stderr | apps/cli/src/cli.test.ts > CLI provider/models commands (task 016/015) > provider remove refuses to remove built-in mock",
+          "[vessel] provider \"mock\" is built-in and cannot be removed",
+          "stderr | apps/cli/src/cli.test.ts > vessel provider export/import + endpoint (task 095/096) > export 无 --out → JSON 打到 stdout；import 合并（默认跳过同名）",
+          "[vessel provider export] 已导出 1 个供应商到 stdout（脱敏：剥离密钥 1 条）。",
+          "vitest exit=0"
         ]
       },
-      "durationMs": 106532,
-      "note": "唯一失败为既有 process-tree 计时 flaky（packages/runtime/src/sandbox/backend/process-tree.test.ts，task 072）：整机并行高负载下 30s 超时；隔离单跑 11/11 通过。非 V1.1-E 回归（该文件自 072 未改动），按项目惯例视为环境性 flaky。"
+      "durationMs": 139321
     },
     {
       "id": "deterministic-bench",
@@ -63,7 +61,7 @@
           "passed=17"
         ]
       },
-      "durationMs": 4407,
+      "durationMs": 4671,
       "note": "扩至 L1 全离线可跑集（B001-B005 + B016-B027，含 V1.1-D streaming/interrupt/steering/resume）。"
     },
     {
@@ -79,7 +77,7 @@
           "passed=10"
         ]
       },
-      "durationMs": 389960,
+      "durationMs": 271851,
       "note": "凭据来源=env OPENCODE_API_KEY；模型档=deepseek-flash（task 102：Go 端点 x-opencode-session + 具名 UA + 路径分流）。"
     },
     {
@@ -95,7 +93,7 @@
           "passed=6"
         ]
       },
-      "durationMs": 238
+      "durationMs": 194
     },
     {
       "id": "resume",
@@ -112,7 +110,7 @@
           "countConsistent=true"
         ]
       },
-      "durationMs": 516
+      "durationMs": 413
     },
     {
       "id": "ux-smoke",
@@ -126,7 +124,7 @@
           "webDistPresent=true"
         ]
       },
-      "durationMs": 0
+      "durationMs": 1
     },
     {
       "id": "packaging",
@@ -141,13 +139,13 @@
           "entry=true"
         ]
       },
-      "durationMs": 2762
+      "durationMs": 1681
     }
   ],
   "totals": {
-    "pass": 7,
-    "fail": 1,
+    "pass": 8,
+    "fail": 0,
     "pending": 0,
-    "durationMs": 510494
+    "durationMs": 423656
   }
 }

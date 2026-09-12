@@ -336,12 +336,14 @@ async function main(): Promise<void> {
   );
 
   // V1.1-E 证据注解（不改变判据 verdict，仅补充环境/范围说明，保证 .md/.json 一致）：
-  const annotate = report.gates.filter((g) => g.status === 'fail' && g.id === 'unit');
-  for (const g of annotate) {
-    g.note =
-      '唯一失败为既有 process-tree 计时 flaky（packages/runtime/src/sandbox/backend/process-tree.test.ts，' +
-      'task 072）：整机并行高负载下 30s 超时；隔离单跑 11/11 通过。非 V1.1-E 回归（该文件自 072 未改动），' +
-      '按项目惯例视为环境性 flaky。';
+  // task 113：note 一律**由 unit gate 的 evidence 推导**。旧实现无条件写「唯一失败为 process-tree
+  // 计时 flaky」——env 泄漏（VESSEL_OPENCODE_GO_BASE_URL）导致 2 例 baseUrl 断言失败时仍这么写，
+  // 会把真实回归当成环境性 flaky 忽略（宣称与证据不符）。现在只有证据确实只指向 process-tree.test.ts
+  // 时才写该注解，否则如实标注「未自动归因」。
+  for (const g of report.gates) {
+    if (g.status !== 'fail' || g.id !== 'unit') continue;
+    const derived = deriveUnitFailureNote(g);
+    g.note = g.note ? `${g.note} ${derived}` : derived;
   }
   // deterministic-bench 已从 084 默认 B001-B005 扩到全 L1（含 V1.1-D B024-B027），补注范围。
   const bench = report.gates.find((g) => g.id === 'deterministic-bench');
