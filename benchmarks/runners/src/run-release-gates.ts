@@ -617,11 +617,13 @@ export function isNpmToolMissing(text: string): boolean {
 }
 
 /**
- * 「环境不具备」的离线证据：npm 因**网络 / 缓存 / 解析**原因失败（而不是包坏了）。
- * 命中即 pending（离线环境下无法证伪「第三方依赖只是缓存里没有」）。
+ * 「环境不具备」的证据（而不是包坏了）——两类，命中即 pending：
+ *  ① **网络 / 缓存 / 解析**（离线）：ENOTCACHED / EAI_AGAIN / ENOTFOUND / registry 404 …
+ *     —— 离线环境下**无法证伪**「第三方依赖只是本机缓存里没有」；
+ *  ② **资源耗尽**（ENOMEM / heap out of memory / SIGKILL）—— 机器原因，不是发布物缺陷。
  */
-export function isOfflineBlockedText(text: string): boolean {
-  return /ENOTCACHED|EAI_AGAIN|ENOTFOUND|ECONNREFUSED|ECONNRESET|ETIMEDOUT|ERR_SOCKET_TIMEOUT|ENETUNREACH|fetch failed|only-if-cached|network is unreachable|registry\.npmjs\.org|E404|404 Not Found/i.test(
+export function isEnvironmentBlockedText(text: string): boolean {
+  return /ENOTCACHED|EAI_AGAIN|ENOTFOUND|ECONNREFUSED|ECONNRESET|ETIMEDOUT|ERR_SOCKET_TIMEOUT|ENETUNREACH|fetch failed|only-if-cached|network is unreachable|registry\.npmjs\.org|E404|404 Not Found|ENOMEM|heap out of memory|SIGKILL/i.test(
     String(text),
   );
 }
@@ -749,15 +751,15 @@ export interface InstallSmokeFacts {
   closureResolved: boolean;
   /** 全部 tarball 是否 pack 成功。 */
   packOk: boolean;
-  /** pack 失败原因是离线 / 网络（→ pending 而非 fail）。 */
-  packBlockedOffline: boolean;
+  /** pack 失败原因是**环境不具备**（离线 / 网络 / 缓存 / 资源耗尽 → pending 而非 fail）。 */
+  packBlockedByEnv: boolean;
   /** 产出的 tarball 数 / 闭包内包数。 */
   tarballCount: number;
   expectedPackages: number;
   /** 空项目 `npm install <tarballs>` 是否 exit 0。 */
   installOk: boolean;
-  /** install 失败原因是离线 / 网络 / 解析（→ pending）。 */
-  installBlockedOffline: boolean;
+  /** install 失败原因是**环境不具备**（离线 / 网络 / 缓存 / 资源耗尽 → pending）。 */
+  installBlockedByEnv: boolean;
   /** 离线解析失败里命中的**本仓 workspace 包名**（非空 = 自家依赖图不自洽 → fail）。 */
   workspaceDepMissing: string[];
   /** 装完 `<项目>/node_modules/@vessel/cli/dist/cli.js` 是否存在。 */
@@ -973,11 +975,11 @@ export function buildInstallSmokeExecutor(opts: InstallSmokeOptions = {}): GateE
         timedOut: false,
         closureResolved: false,
         packOk: false,
-        packBlockedOffline: false,
+        packBlockedByEnv: false,
         tarballCount: 0,
         expectedPackages: 0,
         installOk: false,
-        installBlockedOffline: false,
+        installBlockedByEnv: false,
         workspaceDepMissing: [],
         cliEntryExists: false,
         policyStatusOk: false,
@@ -1001,8 +1003,10 @@ export function buildInstallSmokeExecutor(opts: InstallSmokeOptions = {}): GateE
 
       const tmpRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'vessel-install-smoke-'));
       try {
-        const tarballsDir = path.join(tmpRoot, 'tarballs');
+        // tarballs 必须放在**项目目录内**：install 用 `./tarballs/<f>.tgz` 相对规格（见下），
+        // 相对路径的基准是 npm 的 cwd = projectDir。
         const projectDir = path.join(tmpRoot, 'project');
+        const tarballsDir = path.join(projectDir, 'tarballs');
         fs.mkdirSync(tarballsDir, { recursive: true });
         fs.mkdirSync(projectDir, { recursive: true });
         fs.writeFileSync(
@@ -1036,7 +1040,7 @@ export function buildInstallSmokeExecutor(opts: InstallSmokeOptions = {}): GateE
               facts.npmAvailable = false;
               return judgeInstallSmoke(facts);
             }
-            facts.packBlockedOffline = isOfflineBlockedText(text);
+            facts.packBlockedByEnv = isEnvironmentBlockedText(text);
             return judgeInstallSmoke(facts);
           }
         }

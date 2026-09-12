@@ -52,6 +52,14 @@
 
 **验证方式（已由 Orchestrator 实跑）**：`benchmarks/runners` **18 文件 / 244 passed**；全量 **136 文件 / 1514 passed + 3 skipped / exit 0**；`tsc 0`。
 
+## Round 19 — 依赖声明补全 + 测试盲点闭合 + 发布链路门禁化（终评"最大缺口"）
+
+**① 依赖声明（14 个 `package.json`）**：补齐后**全仓 51 条 `@vessel/*` 声明零不匹配**（16 处 `@vessel/shared` 全为 `^0.10.0`）；**`npm install --dry-run` exit 0 / "up to date"**、无 registry 拉取 ⇒ **未破坏 workspace 链接**。执行者更正了我的根因：仓库内缺声明不暴露的真因是 **`vitest.config.ts` 的 alias 直指源码 + TS project references（根本不经过 `package.json` 解析）**，hoisting 只是兜底。
+**② 两处测试盲点闭合**：`pricingSyncMismatchWarning` 的**调用点**改用**真跑**（既有 pricing sync 用例本就用**本地 loopback 替身**充当 models.dev，零外网）；C-4 文案用**正向关键词 + 反向 `not.toContain` 双锁**。执行者逐条给出"删哪行会红"，并**主动限定了一处断言边界**：顺序断言锁的是"warn 早于人类可读写入回执"，**不严格等价于"早于 `fs` 写盘"**，故另配 `fs.existsSync`。
+**③ 发布链路门禁化（终评点名的最大缺口）**：新增第 9 道门禁 **`install-smoke`**——**默认不跑**（`VESSEL_GATE_INSTALL_SMOKE=1` 才启用，未启用时**零命令零 IO** 直接 `pending`，故**不拖慢既有 8 道**）；判据是"**读路径逐字落在安装态包内**（仓库/cwd 下的 configs 一律不算）"，**而非"命令 exit 0"**；**7 种 pending**（环境不具备）与 **5 种 fail**（包真的坏了）严格分离。
+**④ 事实更正**：文档引用的行号已漂移，实测为 **`cli.ts:641`**（C-4 文案）、**`:291`**（判据定义）、**`:1818-1819`**（调用点），非 `:509`/`:1793-1794`。已修。
+**验证**：`tsc 0`；全量 **137 文件 / 1544 passed + 3 skipped**；`benchmarks/runners` **19 文件 / 251 passed**；`npm install --dry-run` exit 0。
+
 ## 已解决问题（Round 1 切片 · 历史存档）
 
 - **G-01（P0）首跑示例失效**：仓库工作区 `run --prompt` 曾 100% 输出 `(mock: no script entry matched)` 且 exit 0（假成功）。根因：ContextBuilder 将 volatile skills index 作为**最后一条 user 消息**追加，MockProvider 只匹配最后一条 user 消息。修复：`ChatMessage.source` 溯源 + Builder 标记 volatile 为 `environment` + MockProvider 只匹配真实 surface 输入 + 确定性兜底文案。
