@@ -23,6 +23,30 @@ const SHELL_DENY_SETS: Record<string, RegExp[]> = {
 };
 
 /**
+ * Compile a `Shell(...)` / `Bash(...)` command matcher into a predicate
+ * (POLICY-SPEC §3.3 — the `*` shape is defined as "命令前缀").
+ *
+ * - No `*` → legacy semantics kept verbatim: literal *prefix* match
+ *   (`startsWith`), so `Bash(rm -rf ./node_modules)` behaves exactly as before.
+ * - With `*` → anchored glob: `*` becomes `.*` (spaces included, so a trailing
+ *   `*` means "any suffix"), every other character is escaped literally, and
+ *   the whole pattern is anchored. `Shell(git push --force*)` therefore matches
+ *   `git push --force origin main` — the pre-fix literal `startsWith` never did.
+ */
+function shellCommandPredicate(
+  prefix: string,
+): (call: { toolName: string; arguments: Record<string, unknown> }) => boolean {
+  const matches = prefix.includes('*')
+    ? (() => {
+        const escaped = prefix.replace(/[.*+?^${}()|[\]\\]/g, '\\$&').replace(/\\\*/g, '.*');
+        const re = new RegExp(`^${escaped}$`);
+        return (cmd: string) => re.test(cmd);
+      })()
+    : (cmd: string) => cmd.startsWith(prefix);
+  return (call) => call.toolName === 'Shell' && matches(String(call.arguments.command ?? '').trim());
+}
+
+/**
  * Parse a `Bash(...)` / `Shell(...)` / `Write(path=...)` style matcher into
  * (domain, predicate) per POLICY-SPEC §3.3.
  */
@@ -33,7 +57,7 @@ function parseMatcher(match: string): { domain: 'shell' | 'filesystem' | 'tools'
     return {
       domain: 'shell',
       label: `Shell(${prefix})`,
-      predicate: (call) => call.toolName === 'Shell' && String(call.arguments.command ?? '').trim().startsWith(prefix),
+      predicate: shellCommandPredicate(prefix),
     };
   }
   const pathMatch = /^(Read|Write|Edit)\(path=(glob\s+)?"?([^")]+)"?\)$/.exec(match);
