@@ -41,7 +41,7 @@
 
 ## 当前最高价值下一步
 
-**进行中**：Round 14（P3 集群收口）。**A（CLI 错误出口 `--json` 化）✅ 57 处全部收敛**、**B（门禁重跑）✅ 7 pass / 1 fail**、**C（文档指针）✅ 只改 living docs**；两张由 B 暴露的修复卡在跑：① `VESSEL_OPENCODE_GO_BASE_URL` **污染测试套件**（判别性复现：无 env 20/20 过、有 env 2 例红）→ 测试侧隔离；② 门禁 `unit` 注记**硬编码错误归因**（把真实回归说成 process-tree flaky）→ 改为证据推导。完成后按序：
+**进行中**：Round 14（P3 集群收口）。**A（CLI 错误出口 `--json` 化）✅ 57 处全部收敛**（**反向验证已做**：把 `provider set` 缺 id 那一处临时还原成 `console.error(...); return 2;` → 测试**立即 2 例红**（`Unexpected token '用', "用法: vessel"... is not valid JSON`），随后原样还原、`git diff` 为空、9/9 复绿 → **判别力实证**）、**B（门禁重跑）✅ 最终 `status=ready` 8/8 pass**（423s，`deepseek-flash` live lane，`build` 判据已含 `apps/web` 类型检查）、**C（文档指针）✅ 只改 living docs**；两张由 B 暴露的缺陷已修：① `VESSEL_OPENCODE_GO_BASE_URL` **污染测试套件**（判别性复现：无 env 20/20 过、有 env 2 例红）→ 测试侧隔离，修后**设/不设 env 均 22/22**；② 门禁 `unit` 注记**硬编码错误归因**（把真实回归说成 process-tree flaky）→ 改为证据推导（仅在证据确证"唯一失败=process-tree"时才写因果，否则如实"未自动归因"）。完成后按序：
 
 1. **Round 14 复评**：核 A 的 57 处改造是否真有判别力（含多行文案与 stdout 纯净性）、B 的覆盖入口是否守住默认行为、两张修复卡是否闭合。
 2. **复跑门禁**取 clean report（验证注记不再误归因、unit 不再受 env 污染）。
