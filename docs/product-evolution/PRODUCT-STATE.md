@@ -709,3 +709,15 @@ G-15 原子写 wrapper 各 Store 重复（P4）；architecture 审计的 T1–T9
 8. **D5**：`streamIdleTimeoutMs` 已能经工厂到达，但**全仓没有一个调用方传它**（也无 CLI flag）⇒ "库可达、用户不可达"。**D7**：被跟踪的 `release-report.{md,json}` 仍内嵌旧判据（已声明在办）。**D2**：`run --json` 扩到 8 键后，我刚改准的 `CAPABILITY-MATRIX` 那句又过期了。
 
 **它"查过未推翻"的 16 条**（对本段工作的独立确认）：finish-reason 确只剩一张表；`windowsShimHint` 确为唯一实现且行为逐字冻结（含"白名单分支结构性不可达"的如实声明）；`envRoot` 语义与已改调用点；`parseAnthropic` 的折入条件正是 mapper 守卫的**字面补集**、两读点都在未启动块上；`AgentLoop` 三处新记录的键集/时点/可选性/重试不残留**逐条成立**；`policy status` 与 `run` 同源且旧断言是**被翻转而非放宽**；`bench-report --json` 与落盘同文档；`endpoint test --all` 逐供应商且用例含真实本地 HTTP 阳性控制；web `handoffMarkdown` 两路共用同一链且成功路径逐字未变（**连测试注释里的"改前行号"都对着 `cf0dd15:` 核过**）；两个 root 的接线与四份文档一致且守卫是正则解析而非常量对常量；`apps/web` 的 `process.env` 零命中；`dev-test` 的补漏真实；纪律 23 的 `runner.test.ts` 已改独立字面量；新增行号今天全准；`createProvider` 的转发无遗漏（opencode-go 无 `stream()`）；旧 switch 副本按纪律 22 标注。
+
+### Round 151 — **环境变量口径清查正式落盘**（此前那份"14 条"只在会话里，**从未进文件**）
+
+**这条元教训**：Round 141–149 我三次在卡片指令里写"上一张卡已给出 14 条清查，请复核"——而那张卡自己最终发现：**`docs/**` 与 `tasks/**` 里根本找不到它**（它是子代理回给指挥侧的**会话消息**）。⇒ **我记下了摘要，却把清单本身留在了会话里**。这正是本仓"记忆全在文件里"那条规则的**反面实例**，也解释了为什么后两张卡各自"独立清查"而非逐条对账。**故本轮把它写进来。**
+
+**已确认收敛（11 处，全部走 `packages/shared/src/envRoot.ts` 的 `envRoot`；空/纯空白 ⇒ 未设置）**：`providers/defaultStore.ts` 的 `providerStateRoot()`；`providers/ProviderStore.ts` 的 `rootDir` 与 `VESSEL_PROVIDER_BACKUP_KEEP`；`usage/UsageStore.ts`；`usage/pricingOverride.ts`；`guide/settings.ts`；`mcp/config.ts`；`application/session/SessionRegistry.ts` 的 `resolveSessionRoot()`；`application/review/ReviewHandoffStore.ts` 的 `defaultReviewsRoot()`；`engine/iteration-store.ts`；`engine/project-task-queue.ts`；`engine/handoff/HandoffStore.ts`。**10 个状态根 + 1 个数值参数，无遗漏。**
+
+**本轮新修（5 处）**：`VESSEL_MODEL=` 空串曾被当成**字面空模型名**（同族的 baseUrl 缺失会明确退出、apiKey 缺失会 401，**只有它静默**）⇒ 按未设置处理，且**非空白不 trim**、`flags > config` 优先级不变；lane 的 `OPENCODE_API_KEY='   '`（纯空白）曾被当密钥去**真连**，而非降级 `pending-environment` ⇒ 四处判据统一；`reviewCommands` 的**第三份默认根字面量**在上轮修好 `defaultReviewsRoot()` 后**理由已消失** ⇒ 删除并复用；`SOAK_BASE=''` 曾回落 **CWD**，而同文件 `readInt` 早已把空/空白当默认 ⇒ 统一；`VESSEL_HOLDER_DEBUG` **经判断不改行为**——它是**调试开关**而非状态根，"存在即开"是有意语义（改成 `=== '1'` 会**静默关掉** `=true`/`=yes` 这些拼写），故只提成具名函数 + 用用例钉住（含 `'0'` 也算开这一意外点）。
+
+**仍存（只报告，已定级）**：`VESSEL_BASE_URL`/`VESSEL_API_KEY` 的**纯空白**会被当端点/密钥（空串不静默）；`--model ''` 会**挡住** `VESSEL_MODEL` 回落（改它要动 flags/env 优先级结构）；`UsageStore.resolveBackupKeep()` 语义正确但**是第二份手写实现**（`ProviderStore` 同概念已走 `envRoot`）；`opencodeGoProvider.ts` 的 `hasKey` 判的是 **resolver 输出** ⇒ 自定义注入 resolver 返回 `'   '` 仍会真连；`run-soak.ts` 的五个数值参数走 `readInt`（结论已一致，但仍是第二份判据）；`installSmokeRequested()` 的 `=== '1'` 与 stdio 的 `{...process.env}` 透传**不是判据**（正确）。
+
+**另需产品裁决（未擅动）**：真实 provider 且全链无 model 时，仍会发字面量 `"mock-model"`（**既有语义**，本卡只保证 `''` 与"未设置"同路）；是否为真实 provider 补"model 缺失 ⇒ fail-loud"属产品决策。
