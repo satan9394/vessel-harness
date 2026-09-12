@@ -500,3 +500,167 @@ describe('createApiClient — non-JSON error bodies (proxy HTML / plain text / B
     await expect(api.runTurn('s1', 'hello')).resolves.toEqual(body);
   });
 });
+
+/**
+ * BRIEF-24 — 两条同批改动没有衔接：goal-run 的结构性失败，**原因到不了人眼**。
+ *
+ * 复现（改前，代码路径必然如此；行号指 BRIEF-24 之前的 `api.ts`）：
+ * - 服务端：`POST /api/goal/tasks/:id/run` 在结构性失败时回 **500**，body 仍是
+ *   `{ result: { outcome:'error', error:'developer run failed: …', queueTask } }`
+ *   （`apps/local-server/src/server.ts` 的 `goalRunStatusFor` + 回写 `{ result }`；
+ *   形状被 `goal-run-status.test.ts` 的 `Object.keys(body)).toEqual(['result'])` 四处钉死）。
+ * - 客户端：`request()`（旧 :160-164）走 `failureMessage(body, res.status)`；旧 `failureMessage`
+ *   （:85-94）只读**顶层** `FAILURE_TEXT_FIELDS = ['finalText','message','error']`，
+ *   而该 body 顶层一个都没有（`result` 不是这三个字段之一，`outcome`/`queueTask` 也不是）
+ *   ⇒ for 循环一个不命中 ⇒ 落到 `return \`HTTP ${status}\`` ⇒ **message 恰为 `'HTTP 500'`**，
+ *   `result.error` 里的 `developer run failed: …` 一个字符都拿不到。
+ * - 消费方：`GoalModule.tsx:41` 的 `showError` 用 `err.message`（`App.tsx:194` 真的渲染它），
+ *   于是 goal run 崩溃在 web 上只显示 `HTTP 500` —— 与 BRIEF-22 要治的症状逐字相同，只是换了条路由。
+ *
+ * 修法（web 侧读取既有的嵌套原因，**不动服务端 body 形状**——数据本来就在 body 里）：
+ * `failureMessage` 在顶层三字段**都不可读**时，按 `NESTED_FAILURE_TEXT_PATHS` 下钻到
+ * `body.result.error`（该列表只列**已知、已定义**的位置，不做递归搜索）。
+ *
+ * 判别性（纪律 24 —— 删/改哪一行会红）：
+ * - 删掉 `failureMessage` 里的 `NESTED_FAILURE_TEXT_PATHS` 循环（或把 `['result','error']`
+ *   从列表里去掉）⇒ ①/①′ 拿到 `'HTTP 500'` 而不是 `developer run failed: …` ⇒ 红；
+ * - 把下钻放在顶层三字段**之前**、或改成"先看嵌套"⇒ ② 的 `finalText → message → error`
+ *   逐字断言红（turns 路由与既有 4xx 的文案会变）；
+ * - 把 `readableString` 放宽成 `return String(value)` / 递归取任意字符串 ⇒ ③ 红
+ *   （`outcome:'error'`、`queueTask.id`、`{code}` 对象会被渲染成文案）；
+ * - 把 `isRecord` 放开（数组也按对象读）⇒ ③ 的 `{result:[]}` / 顶层数组断言红。
+ * 负对照：②组（顶层优先、逐字不变）与 ③组（无原因 ⇒ `HTTP <status>`）在下面逐条钉住；
+ * ④组钉住非 JSON 体那条路径（本卡完全不碰它，它由上面的 BRIEF-23 组原样覆盖）。
+ */
+describe('createApiClient — 嵌套失败原因：goal run 结构性失败（BRIEF-24）', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  /** The exact 500 body `POST /api/goal/tasks/:id/run` sends on a structural failure. */
+  const GOAL_RUN_ERROR_BODY = {
+    result: {
+      outcome: 'error',
+      error: 'developer run failed: mock provider exploded',
+      queueTask: { id: 'g1', status: 'pending' },
+    },
+  };
+
+  it('① a 500 goal-run body surfaces result.error (pre-fix this was exactly "HTTP 500")', async () => {
+    const calls: { url: string; init?: RequestInit }[] = [];
+    const mockFetch = vi.fn(async (url: string, init?: RequestInit) => {
+      calls.push({ url, init });
+      return jsonResponse(500, GOAL_RUN_ERROR_BODY);
+    });
+    vi.stubGlobal('fetch', mockFetch);
+
+    const api = createApiClient({ base: '/api' });
+    const err: unknown = await api.runGoalTask('g1').then(
+      () => null,
+      (e: unknown) => e,
+    );
+
+    // 删掉 NESTED_FAILURE_TEXT_PATHS 下钻 ⇒ message 恰好是 'HTTP 500' ⇒ 本用例红
+    expect(err).toBeInstanceOf(ApiError);
+    expect((err as ApiError).message).toBe('developer run failed: mock provider exploded');
+    expect((err as ApiError).message).toContain('developer run failed');
+    expect((err as ApiError).message).not.toBe('HTTP 500');
+    expect((err as ApiError).status).toBe(500);
+    // 机器可读的 body 原样交给调用方（形状语义不变，服务端那条断言不受影响）
+    expect((err as ApiError).body).toEqual(GOAL_RUN_ERROR_BODY);
+    expect(calls[0]?.url).toBe('/api/goal/tasks/g1/run');
+    expect(calls[0]?.init?.method).toBe('POST');
+  });
+
+  it('①′ the drill-down is in failureMessage itself, so every ApiError consumer gets it', () => {
+    expect(failureMessage(GOAL_RUN_ERROR_BODY, 500)).toBe(
+      'developer run failed: mock provider exploded',
+    );
+    // 报头横幅（turnErrorText 也走 failureMessage）同样受益，且不截断 JSON 原因
+    expect(
+      failureMessage({ result: { outcome: 'error', error: 'x'.repeat(1000) } }, 500),
+    ).toHaveLength(1000);
+  });
+
+  it('② (negative control) top-level finalText/message/error still win, verbatim', async () => {
+    const mockFetch = vi.fn(async (url: string) => {
+      if (url.endsWith('/turns')) {
+        return jsonResponse(500, {
+          finalText: 'same intent denied 3 times: Write',
+          kind: 'error',
+          steps: [],
+          turnId: 't-err',
+        });
+      }
+      return jsonResponse(400, { error: 'missing_workspaceRoot', message: 'workspaceRoot required' });
+    });
+    vi.stubGlobal('fetch', mockFetch);
+
+    const api = createApiClient({ base: '/api' });
+    const turnErr: unknown = await api.runTurn('s1', 'hi').then(
+      () => null,
+      (e: unknown) => e,
+    );
+    expect((turnErr as ApiError).message).toBe('same intent denied 3 times: Write');
+
+    const jsonErr: unknown = await api.openProject('').then(
+      () => null,
+      (e: unknown) => e,
+    );
+    expect((jsonErr as ApiError).message).toBe('workspaceRoot required');
+    expect((jsonErr as ApiError).status).toBe(400);
+
+    // 纯函数层：顶层压过嵌套，逐字不变（下钻若被提到顶层之前，这几条红）
+    expect(failureMessage({ finalText: 'top', result: { error: 'nested' } }, 500)).toBe('top');
+    expect(failureMessage({ message: 'm', result: { error: 'nested' } }, 400)).toBe('m');
+    expect(failureMessage({ error: 'e', result: { error: 'nested' } }, 400)).toBe('e');
+    // 顶层"空白"= 没有可读原因（既有语义：空白被跳过），此时才轮到嵌套
+    expect(failureMessage({ finalText: '   ', message: null, result: { error: 'nested' } }, 500)).toBe(
+      'nested',
+    );
+  });
+
+  it('③ (negative control) no readable reason anywhere ⇒ still "HTTP <status>"', async () => {
+    // 本用例即 BRIEF-24 的**复现基线**：同一形状去掉 result.error 后，旧实现的回落
+    // 值就是这个 `HTTP 500` —— 说明改前的 goal-run 失败文案恰为它。
+    expect(failureMessage({ result: { outcome: 'error' } }, 500)).toBe('HTTP 500');
+    // 不得把机器字段当文案（outcome / id / status / 对象都不算原因）
+    expect(
+      failureMessage({ result: { outcome: 'error', queueTask: { id: 'g1', status: 'pending' } } }, 500),
+    ).toBe('HTTP 500');
+    expect(failureMessage({ result: { error: '   ' } }, 500)).toBe('HTTP 500');
+    expect(failureMessage({ result: { error: { code: 'nope' } } }, 500)).toBe('HTTP 500');
+    expect(failureMessage({ result: null }, 500)).toBe('HTTP 500');
+    expect(failureMessage({ result: 'oops' }, 500)).toBe('HTTP 500');
+    expect(failureMessage({ result: [] }, 500)).toBe('HTTP 500');
+
+    // 走客户端也一样：永不 undefined / 空白
+    const mockFetch = vi.fn(async () => jsonResponse(500, { result: { outcome: 'error' } }));
+    vi.stubGlobal('fetch', mockFetch);
+    const api = createApiClient({ base: '/api' });
+    const err: unknown = await api.runGoalTask('g1').then(
+      () => null,
+      (e: unknown) => e,
+    );
+    expect((err as ApiError).message).toBe('HTTP 500');
+    expect((err as ApiError).message.trim()).not.toBe('');
+    expect((err as ApiError).body).toEqual({ result: { outcome: 'error' } });
+  });
+
+  it('④ (negative control) the non-JSON raw-body path never pseudo-parses a nested reason', async () => {
+    // 下钻只发生在已 JSON.parse 成功的对象上；代理 HTML 里恰好出现的同名字段
+    // 仍走 rawBodyReason（状态前缀 + 原文），不会变成"读懂了 result.error"。
+    const html = '<html>{"result":{"error":"nested"}}</html>';
+    const mockFetch = vi.fn(async () => textResponse(502, html));
+    vi.stubGlobal('fetch', mockFetch);
+
+    const api = createApiClient({ base: '/api' });
+    const err: unknown = await api.runGoalTask('g1').then(
+      () => null,
+      (e: unknown) => e,
+    );
+    expect((err as ApiError).status).toBe(502);
+    expect((err as ApiError).message).toBe(`HTTP 502: ${html}`);
+    expect((err as ApiError).body).toBe(html);
+  });
+});

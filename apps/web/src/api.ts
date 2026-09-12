@@ -76,18 +76,79 @@ export class ApiError extends Error {
 const FAILURE_TEXT_FIELDS = ['finalText', 'message', 'error'] as const;
 
 /**
+ * Nested locations that carry the same kind of readable reason when the body has
+ * none at the top level, in precedence order (absolute paths from the root).
+ *
+ * `result.error` is the **structural goal-run failure**: `POST
+ * /api/goal/tasks/:id/run` answers 500 with its body shape unchanged — still
+ * `{ result }`, pinned field-for-field by `apps/local-server/src/
+ * goal-run-status.test.ts` (`Object.keys(body)` is exactly `['result']`) — and
+ * the reason the run crashed (`'developer run failed: …'`, from `GoalSeam`'s
+ * catch) lives on `result.error` only. There is no top-level `finalText` /
+ * `message` / `error` on that body, so without this hop the UI showed the bare
+ * `HTTP 500`: literally the symptom the top-level `finalText` hop was added to
+ * cure, on a sibling route.
+ *
+ * This is deliberately a list of *known, defined* shapes and not a recursive
+ * walk of the body: a generic "any string anywhere" search would render machine
+ * fields (`outcome: 'error'`, task ids, queue statuses) as user-facing copy, and
+ * would silently change what unrelated payloads display. Surveyed against every
+ * non-2xx body this server emits (`apps/local-server/src/server.ts`): all of them
+ * are flat `{ error, message }` / `{ error }` except this one `{ result }` body,
+ * and no wrapper anywhere else in the API carries a readable reason.
+ */
+const NESTED_FAILURE_TEXT_PATHS: readonly (readonly string[])[] = [
+  ['result', 'error'], // POST /api/goal/tasks/:id/run — outcome='error' ⇒ 500
+];
+
+/** Plain JSON object (not null, not an array) — the only shape we read fields off. */
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+/** The value only when it is a non-blank string; never `undefined`/`''`/objects. */
+function readableString(value: unknown): string | undefined {
+  return typeof value === 'string' && value.trim() !== '' ? value : undefined;
+}
+
+/** Follow `path` from `root` and return the readable string there, if any. */
+function readableStringAt(root: Record<string, unknown>, path: readonly string[]): string | undefined {
+  let current: unknown = root;
+  for (const key of path) {
+    if (!isRecord(current)) return undefined;
+    current = current[key];
+  }
+  return readableString(current);
+}
+
+/**
  * Human-readable reason for a non-2xx response body: the first non-blank string
- * among `finalText` → `message` → `error`, otherwise `HTTP ${status}`.
- * Non-string / blank values are skipped, so the result is never `undefined`,
- * `[object Object]` or an empty string, and the body itself is never dumped as
- * user-facing copy.
+ * among the top-level `finalText` → `message` → `error`, then the known nested
+ * locations in {@link NESTED_FAILURE_TEXT_PATHS} (`result.error`), otherwise
+ * `HTTP ${status}`.
+ *
+ * The top level always wins, verbatim: those three fields are the reason source
+ * for the `turns` route (`{ finalText, kind, steps, turnId }`) and for every
+ * existing 4xx (`{ error, message }`), so their behaviour — including a blank
+ * value being *skipped* — is unchanged; nesting is consulted only when the top
+ * level offers nothing readable.
+ *
+ * Non-string / blank values are skipped at every level, so the result is never
+ * `undefined`, `[object Object]` or an empty string, and the body itself is never
+ * dumped as user-facing copy. Long reasons are passed through untruncated, which
+ * is the existing convention for JSON reason fields (the banner applies its own
+ * `MAX_ERROR_TEXT` cut in `turnErrorText`); only non-JSON raw bodies are clipped,
+ * by `rawBodyReason`.
  */
 export function failureMessage(body: unknown, status: number): string {
-  if (typeof body === 'object' && body !== null && !Array.isArray(body)) {
-    const record = body as Record<string, unknown>;
+  if (isRecord(body)) {
     for (const field of FAILURE_TEXT_FIELDS) {
-      const value = record[field];
-      if (typeof value === 'string' && value.trim() !== '') return value;
+      const reason = readableString(body[field]);
+      if (reason !== undefined) return reason;
+    }
+    for (const path of NESTED_FAILURE_TEXT_PATHS) {
+      const reason = readableStringAt(body, path);
+      if (reason !== undefined) return reason;
     }
   }
   return `HTTP ${status}`;
