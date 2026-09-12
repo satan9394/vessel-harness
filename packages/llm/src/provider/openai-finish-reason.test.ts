@@ -102,6 +102,12 @@ import { anthropicFinishReason } from '../stream/parseAnthropic.js';
  *   `message_end{finishReason:'length'}` 验证），本卡补的正是"真实 OpenAI 流确实产出这个块"。
  *   本包不能 import @vessel/core（llm 的 package.json 只依赖 @vessel/shared），
  *   故下面用 `consumeLikeAgentLoop` 做**逐字重放**（用例 ⑥ 自带保真自检）。
+ *
+ *   ⚠️ **纪律 22：`consumeLikeAgentLoop` 是镜像（transcription），不是端到端判别。**
+ *   它把 `AgentLoop` 的归一语义抄了一份 ⇒ **把真实消费侧改坏，这里的断言不会红**。
+ *   判别力来自本文件对 **chunk 序列本身**的断言（那才是被测对象）；凡引用该镜像的用例
+ *   只能作**辅助说明**，**不得**当作"端到端已验证"。端到端在 packages/core 的消费侧用例里
+ *   （本包 → core 方向禁止 import，故此处给不出端到端，这是结构限制而非遗漏）。
  */
 
 // ---------------------------------------------------------------------------

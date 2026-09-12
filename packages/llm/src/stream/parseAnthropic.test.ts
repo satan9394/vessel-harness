@@ -329,6 +329,11 @@ function assembleByConsumer(chunks: StreamChunk[]): Map<string, { name: string; 
  * turn-final conversion of the accumulated argument string. Its `catch` is the
  * `{ _raw: … }` fallback that made a broken seed visible as a tool with no
  * `path` instead of as an exception.
+ *
+ * ⚠️ **纪律 22：这是镜像（transcription verbatim），不是端到端判别。**
+ * 它与 assembleByConsumer 一样，是把 AgentLoop 的行为抄了一份 —— **把真实消费侧改坏，用它的断言不会红**。
+ * 判别力来自本文件对**解析器输出 chunk 序列**的整数组断言；引用该镜像的断言只能作辅助说明。
+ * 端到端在 packages/core 的消费侧用例里（packages/llm 不能 import @vessel/core，结构上给不出端到端）。
  */
 function parseToolArgumentsLikeAgentLoop(raw: string): Record<string, unknown> {
   const trimmed = raw.trim();
