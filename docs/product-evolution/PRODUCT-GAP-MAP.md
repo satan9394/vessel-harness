@@ -448,3 +448,17 @@ parseFailed=true  ⇒ AgentLoop 退化成 {_raw:...}，工具拿不到 path
 - 既有三条复核定级不变：(a) 异常路径不落 `turn/end` **中高**（但**不撒谎**，CLI/HTTP/TUI 都走失败面）；(b) deny 分支写 `turn/end` 不写 `turn/start` **中**；(c) `finalText===''&&success ⇒ budget` **中**（步数上限已在 `:352` 显式标 budget，这个兜底**只能**被"纯文本停且内容为空"触发 ⇒ **假停因**）。
 - 一处**渲染瑕疵**（只报告）：`apps/cli/src/cli.ts:961-966` 打印 `audit/denial` 的 `${d.toolName}` ⇒ `before_turn` 记录会打印**空名**（apps 禁碰未修）。
 - 一处**文档滞后**（只报告）：`docs/POLICY-SPEC.md` §7.2/§7.3 与 `:124` 的表仍写"`audit/denial` 必带 `toolCallId`"；`benchmarks/runners/src/asserts.ts:312` 的 stage 注释未同步新值。
+
+## Round 88–89 — `bench-report` 退出码修好；**CLI 命令面的"有失败却退 0"审计（10 条带定级）**
+
+**已修并提交（`aad43fb`）**：`vessel bench-report` **报告含失败行时不再退 0**。这张卡的**证据链不需要"现在跑一遍"**——`cmdBenchReport` 的最后一个语句就是 `return 0;`（中间无任何 `totals.failed` 判断），而**更硬的证据是仓库里一条长期为绿的测试**：其数据集按 `success = i % 2 === 0` 生成 ⇒ **含一行 failed**，却断言 `expect(code).toBe(0)` ⇒ **那条绿测本身就是"缺陷被锁住"的已执行证据**。修法：渲染 → 落盘 → **之后**才判定（**失败不吞产物**），复用报告既有的 `totals.failed`（**不另设第二套异常行口径**），走既有 `fail(1,…)` 出口（`--json` 信封 `code` 与退出码**同源**）。旧断言升级为"退出码如实 + **整份 stdout 逐字** + md 逐字 + json 全量深比较" ⇒ **不弱于旧断言**。
+
+**我做出的一条区分（针对审计里的"高"级项）**：`vessel policy status` **恒退 0**，即便 `compileError`（注释原文写着"当前配置下 `vessel run` 会直接失败"）。代码里那段注释是**既有裁决**，**我不推翻它**——但它的理由是"只读查询 + **合成失败与层解析失败不可混为一谈**"，针对的是**另一个问题**（不要混淆两种失败），**不等于"CI 里该绿灯"**。⇒ **待排（我倾向：`compileError` ⇒ 非零，两种失败的区别由 body/文案承载）**，需连带改 `policyStatus.test.ts`。
+
+**CLI 命令面审计（执行者逐条读码，均只报告未改）**：
+- **高**：`vessel policy status`（`cli.ts:707/747`）—— 见上。
+- **中**：`provider endpoint test --all`（`:1637` 是"**任一**可达即 0" ⇒ 部分供应商全部端点不可达仍绿灯）；`vessel migrate`（`:2187-2204`，`res.recycled === false` 只 `console.warn` + 0）。
+- **低/保留 0（有理由）**：`usage` / `usage recompute`（展示型只读，"估算条目"是**覆盖度信息**而非运行失败，改成非零会让正常查询变红 ⇒ 若判定应另加显式开关）；`review list`（只读枚举）；`provider import`（剥离明文 `apiKey` 是**安全加固**、不变式被执行，不是失败）；`pricing sync` 的 mismatch/dry-run/unchanged（注释已写"不失败、不改退出码"）；`pricing` 列表缺目录。
+- **已正确、无需动**：`run --bench`、`provider list`（损坏 fail-loud）、`models`、`sessions list`、`settings list`。
+- **修好后才看得见的一处不一致（只报告）**：`cmdBenchReport` 在 `--json` 下**仍把人类摘要写进 stdout**，而 `output.ts` 的契约是"`--json` 时 stdout 只允许一段可解析 JSON"。**改动前就有**，测试**故意没有把它钉死**（否则就是又一次"锁住缺陷"）⇒ **待排**。
+- **文档滞后**：`docs/REPORT-DASHBOARD.md:56-64` 有 `bench-report` 用法但未写退出码；`tasks/083-report-dashboard.md:63/72` 仍记旧语义"exit 0"。
