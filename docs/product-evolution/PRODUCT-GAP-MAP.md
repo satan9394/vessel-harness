@@ -237,3 +237,31 @@ if (n >= 3) throw new DenialLimitError(...);
   ```
   ⇒ 只要 `costMultipliers()` 抛错，**所有 provider 的倍率静默变默认值**，**成本展示随之静默失真、且无任何告警**（属"静默降级"族）。
 - **我尚未定级**：本仓此前已加固过供应商/用量状态损坏的留档与兜底（task 097 一系），所以 `costMultipliers()` 很可能**自己就兜底而不抛**——那样这个 `catch` 是防御性的、**不可达**。**需实测"store 损坏时它抛不抛"才能定级**；在拿到证据前**不派卡、不写成缺陷**。（这正是本段的纪律：**先测量，再定级**。）
+
+## Round 51 — 取证：**Anthropic 流式解析里两处同族"静默丢数据"**（与刚修好的 OpenAI 那处同族）
+
+**① `packages/llm/src/stream/parseAnthropic.ts:73-84`（`content_block_start`）**：
+```ts
+case 'content_block_start': {
+  const block = ev.content_block;
+  if (block?.type === 'tool_use' && block.id && block.name) {   // ← 缺 id 或 name ⇒ 整块跳过
+    chunks.push({ type: 'tool_call_start', id: block.id, name: block.name, arguments: ... });
+  }
+  break;
+}
+```
+⇒ 一个 `tool_use` 块若**缺 `id` 或 `name`**，**不发 `tool_call_start`**；而紧随其后的 `content_block_delta`/`input_json_delta`（`:85-…`）**照常产出 `tool_call_delta`** ⇒ 消费侧（`AgentLoop.consumeStream` 按 start 的 id 建 `open` 表）**找不到已开始的调用 ⇒ 参数被静默丢弃**。**与 Round 46/49 修掉的 OpenAI 那处是同一族**（身份信息不全就把数据丢掉，而正确做法是**缓存 + 显式补发**）。
+**修法方向（与 OpenAI 那处同构）**：按 index 缓存该块的 `id`/`name`/`partial_json`，在 `content_block_stop`（或终端）若身份仍缺则**显式补发** `tool_call_start` + `tool_call_end`（复用既有 `toolIdPlaceholder` 约定），**绝不静默丢弃**。
+
+**② `parseAnthropic.ts:229-233`（`finish()`）**：
+```ts
+finish(): StreamChunk[] {
+  if (this.ended) return [];
+  this.ended = true;
+  return [];                      // ← EOF 无 message_stop 时什么都不发
+}
+```
+⇒ **EOF 没有 `message_stop`**（连接被截断/中断）时：**既不补 `message_end`，也不为未关闭的 `tool_use` 块补 `tool_call_end`**。对比 **OpenAI driver 的 `finish()` 会走终止边界**（`closeToolCalls(true)` → flush 未识别调用 + 关已开调用 + `message_end`）⇒ 两条 provider 路径的**终止语义不一致**，Anthropic 这条**静默**丢掉流的收尾信号。
+**修法方向**：`finish()` 改为发出「未关闭块的 `tool_call_end`（+ 若有未识别缓存则显式补发占位调用）] + `{ type: 'message_end' }`」，并补一条"EOF 无 message_stop"的判别性用例。
+
+**未派卡的原因**：`parseOpenAI.ts` 正被一张在跑的卡编辑（**同目录**，我不做同目录并发）；待其落定后派。**另一处经核实"不同族、别改"**：`parseAnthropic.ts:215-216` 的 `tool_call_end` 过滤（`!isToolStop || real===undefined` 时 `continue`）是**刻意的**"文本块 stop 不产生 end"，语义正确。
