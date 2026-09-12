@@ -6,7 +6,10 @@ import type { PolicyArtifacts } from '@vessel/shared';
 import { EventBus } from '@vessel/core';
 import { MockProvider } from '@vessel/llm';
 import { compilePolicyYaml } from '@vessel/policy';
-import { EvaluatorAgent, createReadOnlyExplorationTools, mapTurnKindToStopReason, resolveEvaluatorTurnOutcome } from './EvaluatorAgent.js';
+import { EvaluatorAgent, createReadOnlyExplorationTools, resolveEvaluatorTurnOutcome } from './EvaluatorAgent.js';
+// BRIEF「同一件事三处实现、两套口径」：映射函数已收敛到**唯一实现**（本文件断言逐条不变，
+// 只把 import 指向单一实现所在模块）。
+import { mapTurnKindToStopReason } from '../turnStopReason.js';
 import { SubagentManager } from '../subagent/SubagentManager.js';
 
 const POLICY_YAML = `

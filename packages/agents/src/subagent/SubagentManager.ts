@@ -4,6 +4,9 @@ import { EventBus, type TurnResult } from '@vessel/core';
 import { createIsolatedRuntime } from './IsolatedRuntime.js';
 import type { AgentPreset } from '../presets/types.js';
 import { applyPresetToolFace, applyStrictestPresetFace } from '../presets/capabilities.js';
+// BRIEF「同一件事三处实现、两套口径」：kind → stopReason 的唯一实现（本文件原有的私有
+// `mapTurnKind` 已删除 —— 它与 EvaluatorAgent 的那份逐字重复，而 TeamRuntime 又是第三套口径）。
+import { mapTurnKindToStopReason } from '../turnStopReason.js';
 
 export type SubagentStopReason = SubagentResultContract['stopReason'];
 
@@ -332,7 +335,8 @@ export class SubagentManager {
         detachAbort?.();
       }
 
-      const stopReason: SubagentStopReason = mapTurnKind(turn.kind);
+      // BRIEF：唯一实现（../turnStopReason.js），与 EvaluatorAgent / TeamRuntime 同一份词表
+      const stopReason: SubagentStopReason = mapTurnKindToStopReason(turn.kind);
       const result: SubagentResult = {
         output: turn.finalText,
         stopReason,
@@ -421,18 +425,15 @@ export class SubagentManager {
   }
 }
 
-function mapTurnKind(kind: 'success' | 'error' | 'interrupted' | 'budget'): SubagentStopReason {
-  switch (kind) {
-    case 'success':
-      return 'completed';
-    case 'budget':
-      return 'max_tokens';
-    case 'interrupted':
-      return 'aborted';
-    case 'error':
-      return 'error';
-  }
-}
+/**
+ * BRIEF「同一件事三处实现、两套口径」——本文件原有的私有 `mapTurnKind`（success→completed、
+ * budget→max_tokens、interrupted→aborted、error→error）**已删除**：它与
+ * `evaluator/EvaluatorAgent.ts` 的那份 switch 逐字重复（两份实现、同一口径），而
+ * `team/TeamRuntime.ts` 又是第三套口径（原样吐 kind）。
+ *
+ * 现统一为 `../turnStopReason.js` 的 `mapTurnKindToStopReason`（单一实现、单一词表），
+ * 本文件只保留 `SubagentStopReason` 这个与契约**同源**的类型别名。
+ */
 
 function contractOf(r: SubagentResult): SubagentResultContract {
   return { output: r.output, structured: r.structured, diagnostic: r.diagnostic, stopReason: r.stopReason };

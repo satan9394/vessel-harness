@@ -4,6 +4,8 @@ import type { ChatProvider, PolicyArtifacts, SubagentResultContract, ToolSpec } 
 import type { EventBus, TurnResult } from '@vessel/core';
 import { createFsTools, createSearchTools, type FsPolicyConfig } from '@vessel/tools';
 import { createIsolatedRuntime } from '../subagent/IsolatedRuntime.js';
+// BRIEF「同一件事三处实现、两套口径」：kind → stopReason 的唯一实现（本文件原有那份 switch 已删除）。
+import { mapTurnKindToStopReason } from '../turnStopReason.js';
 import type { EvaluatorVerdict, EvaluatorVerdictKind } from './Evaluator.js';
 
 export interface EvaluatorAgentOptions {
@@ -123,30 +125,25 @@ export interface EvaluatorTurnOutcome {
 }
 
 /**
- * `turn.kind` → `stopReason`。口径与既有先例 `SubagentManager.mapTurnKind`
- * （subagent/SubagentManager.ts:424-435）**逐条一致**，不新造词汇：
+ * `turn.kind` → `stopReason` 的映射**不再是本文件的实现**（BRIEF「同一件事三处实现、两套口径」）。
+ *
+ * 本文件原先自带一份 switch（旧 `mapTurnKindToStopReason`），与
+ * `subagent/SubagentManager.ts` 的私有 `mapTurnKind` **逐字重复**（两份实现、同一口径），
+ * 而 `team/TeamRuntime.ts` 又是第三套口径（原样吐 kind ⇒ 越词表）。现三处一律调用
+ * `../turnStopReason.js` 的 `mapTurnKindToStopReason`（单一实现、单一词表，见该模块的映射表）：
  *
  * - `success`     → `'completed'`
  * - `error`       → `'error'`      （DenialLimitError 熔断等：AgentLoop.ts:334-338 **正常返回** kind='error'）
  * - `budget`      → `'max_tokens'` （步数预算耗尽）
- * - `interrupted` → `'aborted'`    （用户/父级中断；对齐 SubagentManager 的 interrupted→aborted）
+ * - `interrupted` → `'aborted'`    （用户/父级中断）
  *
  * 为什么 interrupted 映射到 `'aborted'` 而不是 `'error'`：中断是"被外部叫停"，不是评审自身失败；
- * A24 词表里 `aborted` 就是为它准备的既有值（与 SubagentManager/EVENT-SPEC 一致）。
- * 两者对**verdict** 的后果相同（都强制 'error'）——"没跑完"不因中止原因而变成有效结论。
+ * A24 词表里 `aborted` 就是为它准备的既有值。两者对**verdict** 的后果相同（都强制 'error'）
+ * ——"没跑完"不因中止原因而变成有效结论。
+ *
+ * `EvaluatorStopReason` 保留为与契约**同源**的类型别名（`SubagentResultContract['stopReason']`，
+ * 不新造词、不会漂移）。
  */
-export function mapTurnKindToStopReason(kind: TurnResult['kind']): EvaluatorStopReason {
-  switch (kind) {
-    case 'success':
-      return 'completed';
-    case 'budget':
-      return 'max_tokens';
-    case 'interrupted':
-      return 'aborted';
-    case 'error':
-      return 'error';
-  }
-}
 
 /**
  * BRIEF — EvaluatorAgent 对 `kind='error'`（及 budget/interrupted）的回合此前**无条件**上报

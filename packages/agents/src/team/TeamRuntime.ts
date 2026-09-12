@@ -36,6 +36,11 @@ import type {
 import { EventBus } from '@vessel/core';
 import { createIsolatedRuntime, type IsolatedRuntime } from '../subagent/IsolatedRuntime.js';
 import { SubagentManager } from '../subagent/SubagentManager.js';
+// BRIEF「同一件事三处实现、两套口径」：kind → stopReason 的**唯一实现**。
+// 本文件原先（:259）是第三套口径 `stopReason: turn.kind === 'success' ? undefined : turn.kind`
+// —— 原样把**回合 kind** 当 stopReason 输出，于是产出 `'budget'`/`'interrupted'` 这两个
+// **不在 `SubagentResultContract.stopReason` 词表内**的值。
+import { mapTurnKindToStopReason } from '../turnStopReason.js';
 import { applyPresetToolFace } from '../presets/capabilities.js';
 import { PresetRegistry } from '../presets/registry.js';
 import { createDefaultPresetRegistry } from '../presets/defaults.js';
@@ -247,16 +252,31 @@ export class TeamRuntime {
     });
     openRuntimes.set(plan.memberId, runtime);
     const turn = await runtime.loop.runTurn(prompt);
+    // BRIEF「同一件事三处实现、两套口径」—— 顶层成员的 stopReason 与 `SubagentManager` /
+    // `EvaluatorAgent` 走**同一个函数**（../turnStopReason.js）。改前这里是原样吐 kind
+    // （`turn.kind === 'success' ? undefined : turn.kind`）⇒ 产出 `'budget'`/`'interrupted'`，
+    // 二者不在 `SubagentResultContract.stopReason`（shared/events.ts:242）词表内。
+    //
+    // 分界与失败位：`stopReason === 'completed'` ⟺ `turn.kind === 'success'`（映射是 1:1 的），
+    // 故 `success` 回合的**既有行为逐字不变**（`status:'completed'` + `stopReason` 仍为 undefined，
+    // 键仍在、值不变）；非 completed 一律 `status:'failed'`，即 A24/H11 的
+    // "`isError === (stopReason !== 'completed')`" 在本结构里的同一判断（TeamMemberSummary 无
+    // isError 字段，用 status 承载；delegate 阶段用 SubagentManager 的 result.isError）。
+    //
+    // 原始 kind 并未丢失：团队总线上的 after_turn 仍带真实 kind（TeamProjection.onAfterTurn 记为
+    // 该回合行的 kind），此处只统一**对外契约**的 stopReason 口径。
+    const stopReason = mapTurnKindToStopReason(turn.kind);
+    const completed = stopReason === 'completed';
     return {
       memberId: plan.memberId,
       presetId: plan.presetId,
       role: plan.role,
       phase: plan.phase,
-      status: turn.kind === 'success' ? 'completed' : 'failed',
+      status: completed ? 'completed' : 'failed',
       sessionId: runtime.session.sessionId,
       delegationDepth: 0,
       durationMs: turn.durationMs,
-      stopReason: turn.kind === 'success' ? undefined : turn.kind,
+      stopReason: completed ? undefined : stopReason,
       output: turn.finalText,
     };
   }
