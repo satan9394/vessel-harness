@@ -123,6 +123,90 @@ export interface StepEndRecord extends SessionRecordBase {
   surface: false;
 }
 
+/**
+ * B13 `llm/retry` 的错误类别词表。
+ *
+ * 取值**逐字来自 `AgentLoop.classifyModelError` 的既有分类**（不新增分类、不改分类结果），
+ * 与实时总线事件 `llm_retry` 载荷的 `errorClass` 同值。
+ *
+ * ⚠ 这不是 A11 `ModelError` 的 `kind` 词表（EVENT-SPEC §5.C A11：
+ * `'EMPTY_RESPONSE'|'RATE_LIMIT'|'SERVER'|'TIMEOUT'|'TRANSPORT'|...`）——本仓的模型错误
+ * 分类器用的是下面这一组。B13 规格把该字段命名为 `kind`，故记录字段名沿用 `kind`，
+ * 两套词表**不得互相代入**。
+ */
+export type ModelRetryKind = 'RATE_LIMITED' | 'TIMEOUT' | 'SERVER_ERROR' | 'NETWORK' | 'UNKNOWN';
+
+/**
+ * B13 `llm/retry` —— 每次重试决策在等待前落盘（**先持久后等待**）。
+ *
+ * 规格原文（`docs/EVENT-SPEC.md` §6「自动持久记录清单」B13 行）：
+ *   > **B13 `llm/retry`** —— 每次重试决策在等待前落盘（先持久后等待）：
+ *   > `{requestId, kind, attemptNo, backoffMs, decision:'retry'|'fallback'|'abort'}`。
+ * 同文件 §3 原则 5 亦为：「重试（`llm/retry`）、压缩（`compaction/start` 锁）、审批（`approval/asked`）
+ * 都在等待/执行前先落日志，崩溃不留隐形待办」。
+ * A11 重试纪律（§5.C）：rate_limit/overloaded/server/timeout/transport/empty 可重试；
+ * 「**先持久后等待**：等待前先落 `llm/retry` 记录」。
+ *
+ * 形状说明（每个字段都取实现里**已有**的信息，不发明语义）：
+ *  - `requestId` —— 冻结请求的确定性 id（`req_<turnId>_step<step>`），同一次逻辑请求的各 attempt
+ *    共享（与 `model_stream_*` 事件族同一个 id）。
+ *  - `kind` —— `classifyModelError` 的既有分类（= 总线 `llm_retry` 载荷的 `errorClass`）。
+ *  - `attemptNo` —— 该次失败的 attempt 序号（1-based，与总线事件 `attempt` 同值）。
+ *  - `backoffMs` —— **仅 `decision:'retry'` 时出现**：等待前算出的退避毫秒数。终止决策没有等待，
+ *    键**省略**（写 0 会冒充「等过 0ms」）。
+ *  - `decision` —— 该次重试决策：`'retry'` = 确实会重试；`'abort'` = 终止（不可重试的错误类别，
+ *    或重试预算耗尽）。`'fallback'` 是规格词表里的取值，本仓 AgentLoop 无 fallback chain ⇒
+ *    当前**不产出**该值（词表不窄化，以免将来接线 fallback 时要改记录形状）。
+ */
+export interface LlmRetryRecord extends SessionRecordBase {
+  type: 'llm/retry';
+  requestId: string;
+  kind: ModelRetryKind;
+  attemptNo: number;
+  backoffMs?: number;
+  decision: 'retry' | 'fallback' | 'abort';
+  surface: false;
+}
+
+/**
+ * B12 `request/header` —— 每个冻结请求的持久镜像（模型身份 + 上下文体量）。
+ *
+ * 规格原文（`docs/EVENT-SPEC.md` §6「自动持久记录清单」B12 行）：
+ *   > **B12 `request/header`** —— 每个冻结请求的全量 envelope（system/messages/tools/配置/
+ *   > 适配器默认值），可 `foldRequestHeader` 重建请求；「模型可见 ⟺ 已记录」不变式落点。
+ * 触发时机（§5.C A08 ModelRequest）：请求**已冻结**、即将调用 `ctx.llm.stream` 时
+ * （BeforeModel 全部修改完成后）。
+ *
+ * ⚠ 规格字面要求落「**全量** envelope（system/messages/tools/…）」，与本记录**只落最小集**
+ * 存在已知冲突，按裁决**只上报不擅自实现**（体积：每个 step 一行全量 messages，日志随上下文
+ * 体积近似平方级膨胀；隐私：messages 含用户输入与工具结果原文，等于把会话正文再抄一份；
+ * 兼容：既有 session 文件的行形状/消费方假设会被撑大）。故本记录只承载**规格已点名的
+ * 模型 id 与规模信息**，不落任何 messages/system/tools 正文。
+ *
+ * 逐字段取值（都是实现里**已有**的值，不做估算、不推断、不编造）：
+ *  - `requestId`/`turnId`/`step` —— 相关信封（与 `model_stream_*` 事件族同形；`requestId` 是
+ *    冻结请求的确定性 id）。
+ *  - `provider`/`model` —— `ChatProvider.id` 与冻结 envelope 的 `model`（后者 = `before_model`
+ *    事件载荷里的**同一个值**，也就是真正发给 provider 的 `ChatRequest.model`）。
+ *  - `estimateTokens` —— `RequestEnvelope.estimateTokens`（ContextBuilder 组装时算出的既有估计）。
+ *  - `messageCount`/`toolCount` —— 被省略的 `messages`/`tools` 的**条数**（整数，无内容）。
+ *  - `contextWindow`（A07 载荷里的窗口大小）、`system` 分层、`tools` schema、`temperature`/
+ *    `maxTokens` 等配置 —— **不落**：AgentLoop 在冻结点拿不到它们（属 ContextBuilder/组合根内部），
+ *    如实缺失，绝不拿估算值冒充。
+ */
+export interface RequestHeaderRecord extends SessionRecordBase {
+  type: 'request/header';
+  requestId: string;
+  turnId: string;
+  step: number;
+  provider: string;
+  model: string;
+  estimateTokens: number;
+  messageCount: number;
+  toolCount: number;
+  surface: false;
+}
+
 export interface AuditDecisionRecord extends SessionRecordBase {
   type: 'audit/decision';
   toolCallId: string;
@@ -201,6 +285,8 @@ export type SessionRecord =
   | TurnEndRecord
   | StepStartRecord
   | StepEndRecord
+  | RequestHeaderRecord
+  | LlmRetryRecord
   | AuditDecisionRecord
   | AuditDenialRecord
   | CompactionStartRecord

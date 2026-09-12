@@ -8,6 +8,7 @@ import {
   type ChatToolCall,
   type ChatToolDef,
   type ChatUsage,
+  type ModelRetryKind,
   type SessionRecord,
   type StreamChunk,
   type ToolCall,
@@ -74,13 +75,25 @@ interface ModelResult {
   toolCallsWithoutEnd?: string[];
 }
 
-function classifyModelError(err: unknown): string {
+function classifyModelError(err: unknown): ModelRetryKind {
   const m = (err as Error)?.message ?? String(err);
   if (/rate\s*limit|429/i.test(m)) return 'RATE_LIMITED';
   if (/timeout/i.test(m)) return 'TIMEOUT';
   if (/5\d\d|server/i.test(m)) return 'SERVER_ERROR';
   if (/network|fetch|econn/i.test(m)) return 'NETWORK';
   return 'UNKNOWN';
+}
+
+/**
+ * 冻结请求的确定性逻辑 id（task 049 的既有约定，见 events.ts 的 A09 注记）：
+ * `req_<turnId>_step<step>`。同一次逻辑请求的重试 attempt **共享**该 id ⇒ 它既是
+ * `model_stream_*` 事件族的相关键，也是 B12 `request/header` 与 B13 `llm/retry` 的相关键。
+ *
+ * 抽成一处而不是两处各写一遍模板：`request/header`（冻结时落）与 `llm/retry`（每次失败落）
+ * 必须指同一次请求，否则"这一轮重试了几次"在日志里会挂到不同的 requestId 上。
+ */
+function modelRequestId(turnId: string, step: number): string {
+  return `req_${turnId}_step${step}`;
 }
 
 /**
@@ -324,6 +337,44 @@ export class AgentLoop {
         this.state.setContextEstimate(envelope.estimateTokens);
         await bus.emit('before_model', { turnId, step, envelope });
 
+        // B12 request/header —— **冻结请求落进会话日志**（EVENT-SPEC §6 B12 / ARCHITECTURE §2.1）。
+        //
+        // 改前：模型请求只活在两条**没人看得到**的地方——总线事件 `before_model` 的载荷
+        // （fire-and-forget，进程结束后就没了）与内存 `LoopState`（`setContextEstimate`）⇒
+        // 会话日志（本仓自称的"唯一真源"）里**查不到**"这一轮用了哪个模型 / 上下文多大"。
+        // 规格把它定义为持久记录：B12「每个冻结请求的全量 envelope … 可 `foldRequestHeader`
+        // 重建请求」，A08/ARCHITECTURE §2.1 的落点就是「请求已冻结、即将调用 `ctx.llm.stream` 时」。
+        //
+        // 落点顺序：`before_model` 之后（A07 的全部修改已完成 ⇒ 这就是冻结面）、真正发起请求之前。
+        //
+        // **最小集**（BRIEF 硬要求：不落完整 messages）——只落规格已点名的"模型 id + 规模信息"：
+        // `provider`/`model` 是身份，`estimateTokens`/`messageCount`/`toolCount` 是体量。
+        // 不落 `messages`/`system`/`tools` 正文：一是日志爆炸（每个 step 一行全量 messages），
+        // 二是隐私（正文含用户输入与工具结果原文），三是既有 session 文件兼容性。
+        // 规格字面要的是"全量 envelope"⇒ 该冲突**只上报不擅自实现**（见 events.ts
+        // `RequestHeaderRecord` 的注释与交付 ⑥）。
+        //
+        // 拿不到的字段**如实不落**：`contextWindow` 在 ContextBuilder 内部（本点取不到）、
+        // `temperature`/`maxTokens` 是 `callModel` 里构造 `ChatRequest` 时才定的常量、
+        // `system` 分层已被 ContextBuilder 折进 messages —— 一律不编造估算值。
+        // 既有语义（消息内容、`before_model` 载荷、`surface` 投影）**逐字不变**：本记录不进
+        // `Session.surface()`（模型可见 ⟺ 已记录，但反向不必成立），模型上下文一字不差。
+        await session.appendSync({
+          type: 'request/header',
+          requestId: modelRequestId(turnId, step),
+          turnId,
+          step,
+          // `ChatProvider.id` 是**真正被调用**的那个 provider 实例的 id（不是 deps.model）
+          provider: this.deps.provider.id,
+          // envelope.model 而不是 this.deps.model：前者才是 `before_model` 载荷里、也是真正
+          // 发给 provider 的 `ChatRequest.model`（ContextBuilder 可以在组装时改写模型）。
+          model: envelope.model,
+          estimateTokens: envelope.estimateTokens,
+          messageCount: envelope.messages.length,
+          toolCount: envelope.tools.length,
+          surface: false,
+        });
+
         // Model call with retry (backoff ≤5, EVENT-SPEC A11)
         const result = await this.callModel(envelope, turnId, step);
         const { response, reportedUsage } = result;
@@ -544,7 +595,8 @@ export class AgentLoop {
       signal: this.interruptCtl.signal ?? undefined,
     };
     // deterministic per (turnId, step); retry attempts of one logical request share it
-    const requestId = `req_${turnId}_step${step}`;
+    // — 同一个 id 也是 B12 `request/header` 与 B13 `llm/retry` 的相关键。
+    const requestId = modelRequestId(turnId, step);
     let attempt = 0;
     // eslint-disable-next-line no-constant-condition
     while (true) {
@@ -562,14 +614,45 @@ export class AgentLoop {
         if (this.interruptCtl.aborted) throw new TurnInterruptedError();
         const cls = classifyModelError(err);
         attempt += 1;
+        // B13 `llm/retry` —— **先持久后等待**（EVENT-SPEC §3 原则 5 / §5.C A11 重试纪律 /
+        // §6 B13「每次重试决策在等待前落盘」）。
+        //
+        // 改前：这次重试决策只以 `bus.emit('llm_retry', …)` 的形式活了一瞬间（fire-and-forget），
+        // 会话日志里**什么都没有** ⇒ 日志（唯一真源）回答不了"这一轮重试过几次、为什么重试"，
+        // 崩溃发生在退避等待里时更是完全不留痕（"崩溃不留隐形待办"正是规格这句话要防的）。
+        //
+        // 落点：与总线事件**同一个决策点、同一个 attemptNo**（1:1），故"日志说的次数"与
+        // "事件说的次数"结构性一致（不可能日志说 2 次、事件说 3 次）；记录写在 emit 与退避
+        // 等待**之前**（先持久后等待）。
+        //
+        // 字段全部取自既有信息（requestId/attemptNo/错误类别/是否可重试），不新造语义：
+        //   - `decision:'retry'` 且带 `backoffMs` = 不重试类别之外且预算未耗尽 ⇒ 确实会重试；
+        //   - `decision:'abort'`（省略 `backoffMs`）= 规格 B13 词表里的终止决策，两种情况之一：
+        //     错误类别不可重试（`MODEL_RETRYABLE` 之外）或重试预算耗尽（`attempt > maxRetries`）。
+        //     它不是"重试了一次"——它记录的正是"这次失败之后**不再**重试"这个决策，故负对照
+        //     （没发生失败的回合）依然是零条。
+        //   - 用户中断（`interruptCtl.aborted`）不在此列：上面那一行已先抛 `TurnInterruptedError`
+        //     ⇒ 中断不是"模型错误的重试决策"，不落此记录（与既有"中断胜过重试"语义一致）。
+        const retryable = attempt <= maxRetries && MODEL_RETRYABLE.has(cls);
+        const backoffMs = Math.min(2000, 100 * 2 ** attempt);
+        await this.deps.session.appendSync({
+          type: 'llm/retry',
+          requestId,
+          kind: cls,
+          attemptNo: attempt,
+          // 无等待则省略该键（不写 0 冒充"等过 0ms"）
+          ...(retryable ? { backoffMs } : {}),
+          decision: retryable ? 'retry' : 'abort',
+          surface: false,
+        });
         await this.deps.bus.emit('llm_retry', { turnId, step, attempt, errorClass: cls });
-        if (attempt > maxRetries || !MODEL_RETRYABLE.has(cls)) {
+        if (!retryable) {
+          // 判据逐字不变（原式 `attempt > maxRetries || !MODEL_RETRYABLE.has(cls)`）
           throw new Error(`Model call failed after ${attempt} attempt(s): ${(err as Error).message}`);
         }
         if (this.deps.llmRetry?.onRetry) {
           await this.deps.llmRetry.onRetry(attempt, err);
         }
-        const backoffMs = Math.min(2000, 100 * 2 ** attempt);
         await new Promise((r) => setTimeout(r, backoffMs));
       }
     }
