@@ -164,6 +164,29 @@
 
 **我自己的两处小修（如实记录）**：① 上一批那条自相矛盾文案锁，我按"两条意图都保留"改（文案不出现 `全部通过` + 显式免责），未削弱锁；② 本批 `foldSession` 卡留下的 `tsc` 类型错（`projections.test.ts` 里构造"非 DENIED"记录的夹具类型过窄），我改用**生产的共享类型 `ToolErrorPayload`** 修复——既保留那条有价值的负例（非 DENIED 不得被折入），又恢复对生产接口的可赋值性（先用 `string` 过宽、不可赋值，被 `tsc` 当场拦下）。
 
+## Round 49–51 — 两课：**注释里的"假指令"**与**未绑定的测试助手**（都是"围着实现写的东西"出错）
+
+**背景**：两张卡（决策点错误策略**类型级必填**、流式解析**参数先到不丢**）都实现了正确逻辑，但 `tsc`/`vitest` 全红。**若只看现象就退卡，会把两张已经修对的卡退回去返工。** 逐层剥完的真因如下：
+
+**① `tsc` 报的 `TS2578 Unused '@ts-expect-error'` 来自一条注释。** 那张卡写了一句解释文字：
+```
+// 若有人删掉类型约束 ⇒ 它们编译通过 ⇒ 指令变成"未使用的
+// @ts-expect-error"（TS2578）⇒ `tsc -b` 立刻变红。
+```
+**TypeScript 会把 `//` 之后以 `@ts-expect-error` 开头的注释当成真指令** ⇒ 它要求下一行有错（下一行也是注释）⇒ 报"未使用"。**写机制的名字，触发了机制**——与之前 `**/` 写进 JSDoc 把块注释提前闭合是**同一族**。改写那两行后 `tsc` 立刻干净 ⇒ **反过来证明三条重载真的生效**（297/299 的真指令确实压住了真错误）。
+**教训**：**注释里出现指令字面量时，不要让它出现在行首**（`// @ts-...`）；给"如何在注释里谈论指令"这件事留一句说明，比事后调试便宜。
+
+**② 3 条用例失败是 `Cannot read properties of undefined (reading 'listeners')`。** 那张卡的"绕过类型层"助手写成：
+```ts
+const loose = bus.waterfall as unknown as (...) => ...;
+return loose(type, payload, opts);      // ← 方法被摘下后无绑调用，this === undefined
+```
+在 ESM 严格模式下 `this` 丢失 ⇒ 访问 `this.listeners` 崩。**修法**：`loose.call(bus, type, payload, opts)`——**只绕过类型，运行期仍走真方法**。
+**教训**：**"绕过类型层"的测试助手极易顺手把 `this` 也绕掉**；这类助手自己就要有判别性（本次是它自己崩，才被看见）。
+
+**③ parseOpenAI：裸解析器 17 条全绿，但 driver 层 3 条红——真因仍在实现。** 卡片的实现（按 index 缓存参数片段、身份到齐时并入 `tool_call_start.arguments`）**是对的**，我用正确 wire 形状独立验证过：三帧能得到 `tool_call_start{id:'call_1',name:'Read',arguments:'{"path":"'}`。但 driver 的 `closeToolCalls(terminal)`（`parseOpenAI.ts:315`）在**非终端边界也执行 `pendingArgsByIndex.clear()`**，而 `feed()` 在"该行没产出 tool chunk"时就会调它——**参数先到的第 1 帧恰恰不产出任何 tool chunk** ⇒ **刚缓存进去的片段被就地清空** ⇒ 第 2 帧只能发空 arguments（实测 `expected '' to be '{"path":"'`）。**这仍然是"静默丢数据"，只是从裸函数挪到了真实路径**。
+**教训（本段第二次由它救回）**：**只测裸函数会漏掉真实路径那一层**——"验收必须走生产入口"不是形式要求，driver 这一层正是把修好的逻辑又丢回去的地方。
+
 ## 已解决问题（Round 1 切片 · 历史存档）
 
 - **G-01（P0）首跑示例失效**：仓库工作区 `run --prompt` 曾 100% 输出 `(mock: no script entry matched)` 且 exit 0（假成功）。根因：ContextBuilder 将 volatile skills index 作为**最后一条 user 消息**追加，MockProvider 只匹配最后一条 user 消息。修复：`ChatMessage.source` 溯源 + Builder 标记 volatile 为 `environment` + MockProvider 只匹配真实 surface 输入 + 确定性兜底文案。
