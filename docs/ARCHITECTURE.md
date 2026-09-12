@@ -322,7 +322,7 @@ Provider 差异全部下沉此层，不进事件面（D3 决策点 13 影响）�
 |---|---|---|---|
 | policy/engine | 权威裁决监听器（挂 A12）：裁决序 ①denied_tools→②deny→③hook override→④ask→⑤allow→⑥profile（profile 比较读取工具 spec 的 required_permission，未注册默认 danger 级）；guard 单调收窄；fail-closed；decisionPath 审计轨迹 | `onBeforeTool(call, toolSpec) → Verdict`（D6 §4.5 伪代码） | core/events、tools/registry（读 spec/required_permission）、policy/risk、policy/hooks |
 | policy/hooks | 外部 hooks.json 兼容桥（Claude Code/Codex 方言 matcher；退出码 0/2/其余；hook 失败绝不崩轮次）+ 工具拦截器（pre-execute 复核） | `install(compatConfig)` | core/events |
-| policy/risk | Policy 声明 YAML 解析 → Policy Compiler 编译四件套（Prompt Guidance/Tool Interceptor/Runtime Deny/Audit Event）；危险集合（destructive-delete/disk-format/partition-write，never_auto 服务内强制）；作用域合并 system>user>project>session + workspace trust 门 | `compile(policyYaml) → FourArtifacts` | 无（编译期纯函数） |
+| policy/risk | Policy 声明 YAML 解析 → Policy Compiler 编译四件套（Prompt Guidance/Tool Interceptor/Runtime Deny/Audit Event）；危险集合（destructive-delete/disk-format/partition-write，never_auto 服务内强制）；作用域合并 system>user>project>session + workspace trust 门（**实现状态（截至 Round 15）：实际只实现 system + project 两层，user/session 层与 trust 门尚未实现，此处为目标设计**） | `compile(policyYaml) → FourArtifacts` | 无（编译期纯函数） |
 
 **依赖方向关键约束**：policy/ 不反向依赖工具实现——拦截在事件链上完成（D3 决策点 8 影响末条：core 层"policy 不得反向依赖工具实现"）。**✗**：guardian/classifier 模型审查（黑盒不可本地审计，归 evaluator 层）；网络代理 MITM/凭据 mask+出站注入（v0.2）；容器/微 VM 沙箱后端（v0.2+）；MCP 动态工具细粒度策略（v0.2）。
 

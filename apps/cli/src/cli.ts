@@ -244,6 +244,54 @@ function warnPartialPolicyLoad(flags: Map<string, string>): void {
 }
 
 /**
+ * BRIEF-15「错误场景」：策略装载失败必须 **fail-loud 且含文件路径**。
+ *
+ * 背景：`<ws>/.harness/policy.yaml`（或 `--policy` 指定的 system 层）YAML 非法时，
+ * `composeHarness` → `loadPolicyArtifacts` 抛出的是 **js-yaml 原文**（如
+ * `unexpected end of the stream within a flow collection`），**不含文件路径** ——
+ * 候选层不止一个（system / project），用户无从知道是哪个文件坏了，
+ * 是"看着配了其实没配"的变体。
+ *
+ * 归因方式（零新依赖；**不改 `PolicyLoader` 的任何执法判定**）：复用**只读**的
+ * `inspectPolicyLayers` 既有事实 —— 「文件存在、但解析出 0 条声明」即**该层解析失败**
+ * （PolicyLoader.ts:86-95，与装载路径同一个 `parsePolicyYaml`，故归因同源）。
+ *
+ * 判定顺序：
+ *   ① 有「存在但 0 条」的层 → **精确归因**，把这些路径逐条拼进消息；
+ *   ② 否则看装载器自身的策略文案（`policy loader:` / `policy compile error:`，
+ *      如两层文件都缺、或 YAML 合法但编译期拒绝未知 key）→ 列出**两层候选路径**
+ *      （精确到层成本高，退化为让用户能逐个打开核对）；
+ *   ③ 都不是（异常来自策略之外，如 behavior IR / 工具构造）→ **原样返回原异常**，
+ *      绝不改写无关错误的文案。
+ *
+ * @returns 包装后的 `Error`（策略装载相关失败）；非策略失败时返回**原异常本身**。
+ */
+function wrapPolicyLoadFailure(err: unknown, flags: Map<string, string>): unknown {
+  const candidates = policyLayerCandidates(flags);
+  const reason = (err as Error | undefined)?.message ?? String(err);
+  const layers = inspectPolicyLayers(candidates);
+
+  // ① 精确归因：存在的层解析出 0 条 ⇒ 就是它坏（YAML 非法 / 结构不是 policy 映射 / 读不到）
+  const broken = layers.filter((l) => l.exists && l.declarationCount === 0);
+  if (broken.length > 0) {
+    return new Error(`策略文件解析失败：${broken.map((l) => l.path).join(' 或 ')}（${reason}）`);
+  }
+
+  // ② 退化归因：装载器自己的策略文案，但层文件无法逐一定位 → 两层候选路径都列出
+  if (/policy loader|policy compile error/i.test(reason)) {
+    const declared = layers.filter((l) => l.declarationCount > 0);
+    const suspects =
+      declared.length === 1
+        ? declared[0]!.path
+        : `可能来自 ${candidates.systemPath} 或 ${candidates.projectPath}`;
+    return new Error(`策略装载失败：${suspects}（${reason}）`);
+  }
+
+  // ③ 非策略失败：原样返回，保持既有错误文案与处理路径逐字不变
+  return err;
+}
+
+/**
  * UsageStore 工厂（task 086/087/092）：价目表 + 目录价源 + 用户覆盖 + strict 开关。
  * 查价实现与 UsageProjection 共用 @vessel/shared/pricing。
  * 用户覆盖文件 `~/.vessel/pricing.override.json` 与内置 configs/pricing.json 分离，
@@ -375,6 +423,8 @@ export function cmdPolicyStatus(flags: Map<string, string>): number {
   const layers = inspectPolicyLayers(policyLayerCandidates(flags));
   // 生效层序 = 真正贡献了声明的层，按合成顺序（system 在前、project 在后）
   const effectiveOrder = layers.filter((l) => l.declarationCount > 0).map((l) => l.layer);
+  // 缺层 = 声明条数 0（与 AC4 警告**同一判据**）；status 不设「至少一层有声明」的闸门——
+  // 各层都缺也要如实列出（警告那边才需要闸门：都缺/都齐都不告警，见 partialPolicyLayers）。
   const missing = layers.filter((l) => l.declarationCount === 0);
 
   if (isJson(flags)) {
@@ -500,8 +550,10 @@ async function cmdRun(flags: Map<string, string>): Promise<number> {
         /* 回收失败不掩盖原始错误 */
       }
     }
-    // 原样 rethrow：错误信息与既有路径逐字一致（不包装、不改写），交由既有错误处理。
-    throw err;
+    // 原样 rethrow（唯一例外见下行）：非策略错误的信息与既有路径逐字一致（不包装、不改写）。
+    // BRIEF-15「错误场景」：策略装载失败（典型：策略文件 YAML 非法）**必须让用户看到是哪个
+    // 文件**——`wrapPolicyLoadFailure` 只包装策略相关的失败，其余异常原样返回（见其注释③）。
+    throw wrapPolicyLoadFailure(err, flags);
   }
 
   // G-10：让 CLI 建的会话进入会话登记表，否则 `vessel sessions list` 看不到它、无法 resume。

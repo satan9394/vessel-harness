@@ -451,6 +451,13 @@ safety:
 
 ### 6.1 作用域定义
 
+> **实现状态（截至 Round 15）**：**已实现的只有 `system` + `project` 两层**（`inspectPolicyLayers`
+> 的层集合即 `'system' | 'project'`；`--policy` 只覆盖 system 层，project 层固定取
+> `<workspace>/.harness/policy.yaml`）。**`user` 层**（`~/.harness/policy.*.yaml`）**无 loader**；
+> **workspace trust 门**（§6.3）**只存在于注释**（`PolicyLoader.ts:16,25`）；**`session` 层无实现**
+> （仅 `permission` → profile 一处 compose 层覆盖槽）。本节下述作用域定义与 §6.2 / §6.3 的其余
+> 描述均属**目标设计**，不代表当前可用行为。
+
 | 作用域 | 载体 | 装载时机 | 内容定位 |
 |---|---|---|---|
 | `system` | harness 内置基线 + 受管设置（managed settings） | 进程启动 | 不可降级的默认 deny 集（destructive-delete/disk-format/partition-write、deny_read 基线）、内置 profile 模板 |
