@@ -522,3 +522,144 @@ describe('AnthropicStreamParser — negative control: the canonical stream is ch
     ]);
   });
 });
+
+// ---------------------------------------------------------------------------
+// Round 54 — malformed-frame observability.
+//
+// The family Round 52 did NOT cover: a frame the wire delivered in a
+// byte-level-unparseable state. Its bytes are gone for good, so the fix is not
+// data preservation but VISIBILITY — the frame is still dropped, but the parser
+// now says so. Reachability is not hypothetical: AnthropicProvider's EOF path
+// feeds the leftover (newline-less) buffer to parser.feed() as one last frame,
+// so a truncated connection's half-written JSON tail necessarily lands in
+// feed()'s `catch { return out }` that used to be indistinguishable from
+// "nothing to emit".
+//
+// Scope discipline: the counter is the ONLY behavioural change. No new event
+// type, no change to feed()/finish() return shapes, no field added to
+// `message_end` (that would move the consumer contract), and nothing in
+// packages/shared.
+// ---------------------------------------------------------------------------
+
+/** A real `input_json_delta` frame — and the same frame as a dropped connection leaves it. */
+const INTACT_TAIL_FRAME = TOOL_DELTA('{"limit":2}', 1);
+const TRUNCATED_TAIL_FRAME = INTACT_TAIL_FRAME.slice(0, INTACT_TAIL_FRAME.length - 4);
+
+describe('AnthropicStreamParser — malformed frames are counted, not silent (Round 54)', () => {
+  it('REPRO ①: the truncated tail frame still yields no chunks — and now leaves exactly one counted trace', () => {
+    // Self-verifying fixture: this really is the EOF residual-buffer shape (one
+    // newline-less line whose JSON was cut mid-write), not a made-up string.
+    expect(TRUNCATED_TAIL_FRAME.includes('\n')).toBe(false);
+    expect(() => JSON.parse(TRUNCATED_TAIL_FRAME.slice('data: '.length))).toThrow();
+
+    const p = new AnthropicStreamParser();
+    const chunks = feedAll(p, [
+      sse({ type: 'message_start', model: 'claude-sonnet-4' }),
+      TOOL_START({ id: 'toolu_01', name: 'Read', input: {} }, 0),
+      TOOL_DELTA(FULL_ARGS, 0),
+      TRUNCATED_TAIL_FRAME, // ← the connection dies here, mid-frame
+    ]);
+
+    // The frame itself is still lost — that is unchanged and intentional (its
+    // bytes are unrecoverable). "No trace" was the defect:
+    expect(chunks.map((c) => c.type)).toEqual(['message_start', 'tool_call_start', 'tool_call_delta']);
+    expect(chunks.some((c) => JSON.stringify(c).includes('limit'))).toBe(false);
+
+    // Pre-fix there was NOTHING to assert here: the parser exposed no counter
+    // and no chunk, so `malformedFrames` was 0/undefined. This line is what
+    // goes red if the fix is deleted.
+    expect(p.malformedFrames).toBe(1);
+
+    // ...and the turn still LOOKS successful, which is exactly why silence was
+    // dangerous: the consumer assembles a perfectly parseable call while a whole
+    // frame of the model's bytes went missing.
+    expect(JSON.parse(String(assembleByConsumer(chunks).get('toolu_01')?.args))).toEqual({ path: 'a.txt' });
+
+    // Round 52's terminal boundary is untouched by the counter.
+    expect(p.finish()).toEqual([{ type: 'tool_call_end', id: 'toolu_01' }, { type: 'message_end' }]);
+    expect(p.malformedFrames).toBe(1); // finish() does not re-scan, so it cannot re-count
+  });
+
+  it('NEGATIVE CONTROL ②: a canonical stream counts zero — no blanket counting', () => {
+    const p = new AnthropicStreamParser();
+    const chunks = feedAll(p, [
+      'event: message_start',
+      sse({ type: 'message_start', model: 'claude-sonnet-4' }),
+      ': ping', // keepalive: no `data:` field at all
+      'event: content_block_start',
+      sse({ type: 'content_block_start', index: 0, content_block: { type: 'text', text: '' } }),
+      'event: content_block_delta',
+      sse({ type: 'content_block_delta', index: 0, delta: { type: 'text_delta', text: 'Reading ' } }),
+      'event: content_block_stop',
+      sse({ type: 'content_block_stop', index: 0 }),
+      TOOL_START({ id: 'toolu_01', name: 'Read', input: {} }, 1),
+      TOOL_DELTA(ARG_A, 1),
+      TOOL_DELTA(ARG_B, 1),
+      TOOL_STOP(1),
+      sse({ type: 'message_delta', delta: { stop_reason: 'tool_use' }, usage: { output_tokens: 8 } }),
+      MSG_STOP,
+    ]);
+
+    // The canonical wire is not "tolerated", it is clean: zero frames dropped.
+    expect(p.malformedFrames).toBe(0);
+    expect(chunks[chunks.length - 1]).toEqual({ type: 'message_end' });
+
+    // Documented scope boundary, asserted so it cannot drift silently: a frame
+    // that IS valid JSON but not an object (here a bare number) is an unknown
+    // shape the mapper already ignores — it is not byte-level malformed, so it
+    // is deliberately not counted.
+    const q = new AnthropicStreamParser();
+    expect(feedAll(q, ['data: 123'])).toEqual([]);
+    expect(q.malformedFrames).toBe(0);
+  });
+
+  it('③ the count is PER STREAM: a second parser starts at 0 and the first is not moved by it', () => {
+    const first = new AnthropicStreamParser();
+    expect(first.malformedFrames).toBe(0); // fresh stream starts clean
+    first.feed(TRUNCATED_TAIL_FRAME);
+    expect(first.malformedFrames).toBe(1);
+
+    const second = new AnthropicStreamParser();
+    expect(second.malformedFrames).toBe(0); // ← pre-counter designs that shared module state go red here
+    second.feed(sse({ type: 'message_stop' }));
+    expect(second.malformedFrames).toBe(0);
+
+    expect(first.malformedFrames).toBe(1); // the first stream is untouched by the second
+  });
+
+  it('counts one frame exactly once: repeated reads do not increment, a second bad frame does', () => {
+    const p = new AnthropicStreamParser();
+    p.feed(TRUNCATED_TAIL_FRAME);
+    expect(p.malformedFrames).toBe(1);
+    expect(p.malformedFrames).toBe(1); // reading is a pure getter
+    expect(p.malformedFrames).toBe(1);
+    p.feed(TRUNCATED_TAIL_FRAME); // a distinct frame on the wire ⇒ a distinct count
+    expect(p.malformedFrames).toBe(2);
+  });
+
+  it('the stateless mapper reports its own malformed payload through the optional sink — and stays pure without it', () => {
+    // Without the sink: unchanged behaviour, byte-for-byte the pre-fix contract.
+    expect(parseAnthropicEvent('{"type":')).toEqual([]);
+
+    let reported = 0;
+    expect(parseAnthropicEvent('{"type":', () => {
+      reported += 1;
+    })).toEqual([]);
+    expect(reported).toBe(1);
+
+    // A payload that parses never fires the sink — the negative control for the
+    // sink itself, so "always report" cannot pass either.
+    let untouched = 0;
+    expect(parseAnthropicEvent(JSON.stringify({ type: 'message_stop' }), () => {
+      untouched += 1;
+    })).toEqual([{ type: 'message_end' }]);
+    expect(untouched).toBe(0);
+  });
+
+  it('documented boundary: bytes after the terminal message_stop are not counted (feed() returns before parsing)', () => {
+    const p = new AnthropicStreamParser();
+    p.feed(sse({ type: 'message_stop' })); // terminal boundary reached
+    expect(p.feed(TRUNCATED_TAIL_FRAME)).toEqual([]); // already ended: no parsing, no counting
+    expect(p.malformedFrames).toBe(0);
+  });
+});

@@ -81,8 +81,25 @@ export function anthropicToolInputSeed(input: unknown): string {
   return JSON.stringify(input);
 }
 
-/** Map one Anthropic `data:` payload (JSON stripped of `data:`) to StreamChunk[]. */
-export function parseAnthropicEvent(payload: unknown): StreamChunk[] {
+/**
+ * Map one Anthropic `data:` payload (JSON stripped of `data:`) to StreamChunk[].
+ *
+ * Round 54 — malformed-frame observability. This mapper is STATELESS by design,
+ * so it cannot keep a count of its own; the one signal it produced and threw
+ * away was "this string payload is not parseable JSON at the byte level" (the
+ * half-written tail of a truncated connection, most commonly). `onMalformed` is
+ * the opt-in sink for exactly that signal: it fires once, immediately before the
+ * payload is dropped, and is never invoked for a payload that parsed.
+ *
+ * The parameter is OPTIONAL, which is the whole point of the choice: the return
+ * type stays `StreamChunk[]` (no call site, no consumer contract changes), the
+ * function stays pure for every caller that omits it, and no new symbol is
+ * exported (`packages/llm/src/index.ts` re-exports this module wholesale).
+ * AnthropicStreamParser.feed() supplies a sink that bumps its per-stream
+ * malformedFrames counter; see the class docs for why the two paths can never
+ * double count the same frame.
+ */
+export function parseAnthropicEvent(payload: unknown, onMalformed?: () => void): StreamChunk[] {
   if (payload == null) return [];
   let ev: AnthropicEventData;
   if (typeof payload === 'string') {
@@ -91,6 +108,8 @@ export function parseAnthropicEvent(payload: unknown): StreamChunk[] {
     try {
       ev = JSON.parse(trimmed) as AnthropicEventData;
     } catch {
+      // Round 54: previously a bare `return []` — the frame left no trace at all.
+      onMalformed?.();
       return [];
     }
   } else {
@@ -226,6 +245,14 @@ export function anthropicSSELineData(line: string): string | null {
  *      that was still open. It now runs the same terminal boundary as the
  *      OpenAI driver: flush the never-identified calls, close the calls that
  *      did start, then emit `message_end`.
+ *
+ * Round 54 — the one thing Round 52 left silent: a frame whose `data:` payload
+ * is not parseable JSON (the truncated tail of a dropped connection, which the
+ * provider feeds from its leftover buffer at EOF) was still dropped without a
+ * trace. It stays dropped — the frame's bytes are gone and cannot be recovered —
+ * but it is now COUNTED, per stream, via the read-only `malformedFrames` getter.
+ * No new event type, no change to feed()'s return shape, no change to
+ * `message_end`, and no change to the shared event vocabulary.
  */
 export class AnthropicStreamParser {
   /** block index -> tool_use id (only content_block_start carries it). */
@@ -257,6 +284,36 @@ export class AnthropicStreamParser {
   private readonly toolIndexes = new Set<number>();
   private started = false;
   private ended = false;
+  /**
+   * Round 54 — how many frames THIS stream dropped because their `data:` payload
+   * was not parseable JSON. Instance state, not module state: it is per stream by
+   * construction, so two parsers can never accumulate into each other, and
+   * nothing here is shared with `parseAnthropicEvent` (which owns no state).
+   */
+  private malformedFrameCount = 0;
+
+  /**
+   * Round 54 — READ-ONLY per-stream count of frames dropped as unparseable.
+   *
+   * Why this exists at all: at EOF the transport hands the leftover buffer to
+   * feed() as one last frame (AnthropicProvider.ts "if (buffer.trim().length > 0)
+   * parser.feed(buffer)"), so the half-written JSON tail of a TRUNCATED
+   * connection necessarily lands in feed()'s parse catch. Pre-Round-54 that
+   * catch returned [] exactly like every "there was nothing to emit" path, which
+   * made "the connection was cut mid-frame" and "the model simply sent no more
+   * frames" observationally identical — a successful-looking turn with silent
+   * byte loss.
+   *
+   * Idempotency boundary: a frame is counted at most once, at the single
+   * `catch (JSON.parse)` that drops it, and only for a line that reached that
+   * parse. Reading this getter never mutates anything; finish() does not re-scan
+   * frames, so it cannot re-count. A line fed after the stream already ended
+   * (post message_stop) returns before the parse and is NOT counted — trailing
+   * bytes beyond the terminal boundary are out of scope by design.
+   */
+  get malformedFrames(): number {
+    return this.malformedFrameCount;
+  }
 
   feed(line: string): StreamChunk[] {
     if (this.ended) return [];
@@ -270,6 +327,10 @@ export class AnthropicStreamParser {
     try {
       ev = JSON.parse(data) as AnthropicEventData;
     } catch {
+      // Round 54: this is the reachable one — the truncated tail frame arrives
+      // here via the provider's EOF residual-buffer feed. Count it, then drop it
+      // as before (the counter is the ONLY behaviour change).
+      this.malformedFrameCount += 1;
       return out;
     }
     if (typeof ev !== 'object' || ev === null) return out;
@@ -308,7 +369,15 @@ export class AnthropicStreamParser {
       out.push(...this.flushToolBlock(index));
     }
 
-    const chunks = parseAnthropicEvent(ev);
+    // Round 54: the sink is wired even though `ev` is already a parsed object
+    // here (so this particular call can never fire it) — it makes the counter
+    // correct BY CONSTRUCTION for any future wiring that hands the raw `data:`
+    // string to the mapper instead. It cannot double count: the catch directly
+    // above and this sink are mutually exclusive per frame, because a payload
+    // that reaches the mapper as an object never re-enters JSON.parse.
+    const chunks = parseAnthropicEvent(ev, () => {
+      this.malformedFrameCount += 1;
+    });
 
     // content_block_stop also fires for TEXT blocks; only a stop of a block we
     // actually started yields tool_call_end (deliberate rule, unchanged).
