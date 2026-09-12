@@ -340,6 +340,57 @@ describe('103 — providerFactory 解析与降级（无网络）', () => {
     expect(missingBaseUrl(planProvider({ explicitProvider: OPENCODE_GO_PROVIDER_ID }))).toBe(false); // preset 兜底
   });
 
+  /**
+   * 第 1 条：`VESSEL_MODEL=`（空串/纯空白）被当成真模型名 ⇒ 请求体 `model: ""`，既不回落
+   * `mock-model` 也不报错（同族的 `VESSEL_BASE_URL=` / `VESSEL_API_KEY=` 都会明确失败）。
+   *
+   * 生产调用点（静态证据链）：
+   *   - `apps/cli/src/cli.ts:963` `cmdRun`：`model: flags.get('model') ?? process.env.VESSEL_MODEL`
+   *     → 原样进 `planProvider`；`plan.model` 又直接进 `buildRealProvider` 的请求体与
+   *     `MockProvider`（`:970`/`:1009`）。
+   *   - `apps/cli/src/cli.ts:1348`（本卡改为取 `plan.model`）`cmdBench`；
+   *   - `apps/cli/src/tui/chat.ts:511`（会话内 `/model` 覆盖，同一条解析）。
+   * 旧实现 `model: input.model ?? input.config?.model ?? 'mock-model'`：`''` **不是 nullish**
+   * ⇒ `plan.model === ''`。把 `unsetIfBlank(...)` 换回裸 `??` ⇒ ①/①-b/①-c 立即红。
+   *
+   * ③ 关于「会不会静默跑 mock」——先读码判断（不是猜）：
+   *   `plan.real` 只由 **provider 名**决定（`REAL_PROVIDER_NAMES.has(providerName)`），与 model
+   *   无关；`cmdRun` 的 `usingMockProvider = realProvider === null` 也只由 `plan.real` + baseUrl
+   *   决定。所以空白 model 修复后，真实 provider **仍是真实 provider**（下面断言
+   *   `buildRealProvider(real) !== null`），不会因为「回落成 `mock-model`」就静默切到离线 mock。
+   *   落到的那个 `'mock-model'` 常量是**既有**语义（「model 未设置」的兜底），本次只是让
+   *   `''` 与「根本没设 VESSEL_MODEL」**逐字走同一条路**（下面 `real.model === unset.model`）。
+   */
+  it('#1 空串/纯空白的 model ⇒ 按未设置（回落 config.model → 既有常量）；非空白逐字不变', () => {
+    // ① 判别性：旧实现给出 `model: ''`（真发空模型名）
+    expect(planProvider({ model: '' }).model).toBe('mock-model');
+    expect(planProvider({ model: '   ' }).model).toBe('mock-model');
+
+    // ①-b 同一判据适用于 config 里的 model（另一个来源，同样的 `??` 病）
+    expect(planProvider({ config: { model: '  ' } }).model).toBe('mock-model');
+
+    // ①-c 空显式值 ⇒ 落下一级：config.model（不是直接落到常量）
+    expect(planProvider({ model: '', config: { model: 'cfg-model' } }).model).toBe('cfg-model');
+
+    // ③ 真实 provider + 空 model：仍走真实 provider（不静默跑 mock），且与「未设置」逐字同路
+    const real = planProvider({ explicitProvider: 'openai-compatible', baseUrl: 'http://real/v1', model: '' });
+    const unset = planProvider({ explicitProvider: 'openai-compatible', baseUrl: 'http://real/v1' });
+    expect(real.real).toBe(true);
+    expect(real.model).toBe(unset.model); // 空串 == 未设置（本条即「按未设置」的定义）
+    expect(buildRealProvider(real)).not.toBeNull();
+
+    // ② 负对照：有值时行为逐字不变
+    expect(planProvider({ model: 'gpt-4o' }).model).toBe('gpt-4o');
+    expect(planProvider({ model: '  gpt-4o  ' }).model).toBe('  gpt-4o  '); // 非空白逐字（只统一「有没有值」，不 trim 值）
+    expect(planProvider({ config: { model: 'cfg-model' } }).model).toBe('cfg-model');
+    // flags（显式入参）优先于 config 的优先级不变
+    expect(planProvider({ model: 'flag-model', config: { id: 'deepseek', protocol: 'openai-compatible', baseUrl: 'http://d/v1', model: 'cfg-model' } }).model).toBe(
+      'flag-model',
+    );
+    // provider 名 / baseUrl / real 解析不受本修复影响（逐字不变）
+    expect(planProvider({ explicitProvider: 'mock' })).toMatchObject({ providerName: 'mock', real: false, model: 'mock-model' });
+  });
+
   it('describeProviderError：400 缺头 / 401 欠费 附中文可操作提示；未分类错误原样返回', () => {
     const missing = describeProviderError(classifyOpencodeGoError(400, '{"error":{"type":"MissingSessionID","message":"missing x-opencode-session"}}'));
     expect(missing).toContain('missing-session');

@@ -39,8 +39,28 @@ export const OPENCODE_GO_CREDENTIAL_SOURCES: readonly string[] = [
 /** 密钥读取注入点（默认环境变量；测试注入固定值，不碰真实凭据）。 */
 export type OpencodeGoKeyResolver = () => string | undefined;
 
-/** 默认 keyResolver：只读 env，绝不落盘。 */
-export const envOpencodeGoKey: OpencodeGoKeyResolver = () => process.env[OPENCODE_API_KEY_ENV];
+/**
+ * 「有没有 key」的唯一判据：`undefined` / `''` / 纯空白 一律按**没有** key。
+ *
+ * 为什么：此前 env 分支与 store 分支都用 `length > 0`，于是 `OPENCODE_API_KEY='   '`
+ * （shell 里清空变量的常见写法 / CI 里被空白覆盖的 secret）**算有 key** ⇒ lane 拿一个
+ * 纯空白的密钥去真连端点（401/挂死），而不是按契约降级 `pending-environment`。
+ * 同族口径：状态根用 `envRoot`（空/纯空白 ⇒ 未设置），这里对密钥用同一条判据。
+ *
+ * **与非空白值的取舍（有意）**：判据只统一「有没有值」，**非空白的 key 逐字返回、不 trim**。
+ * 密钥是逐字值（DPAPI 库里存的是什么就发什么），trim 属于「值变换」而非「判据统一」，
+ * 会改变已发布行为（负对照口径：「有值时行为逐字不变」）。
+ * `envRoot()` 不适用于这里：它读 `process.env[name]`，而本模块必须支持注入的 `env` 对象。
+ */
+function hasKeyValue(v: unknown): v is string {
+  return typeof v === 'string' && v.trim() !== '';
+}
+
+/** 默认 keyResolver：只读 env，绝不落盘（空/纯空白 ⇒ 无 key）。 */
+export const envOpencodeGoKey: OpencodeGoKeyResolver = () => {
+  const v = process.env[OPENCODE_API_KEY_ENV];
+  return hasKeyValue(v) ? v : undefined;
+};
 
 /**
  * CredentialStore 读取 key：读 `credential:<service>/<account>` 存的那一项（DPAPI 密文，
@@ -57,7 +77,8 @@ export function credentialStoreOpencodeGoKey(
   return () => {
     try {
       const v = store.getSync(service, account);
-      return typeof v === 'string' && v.length > 0 ? v : undefined;
+      // 空/纯空白 ⇒ 无 key（同一判据 `hasKeyValue`；旧写法 `v.length > 0` 会放空白过去）
+      return hasKeyValue(v) ? v : undefined;
     } catch {
       // 后端不可用（如 DPAPI 解密失败 / 密文库损坏）→ 交给下一级来源，不抛。
       return undefined;
@@ -85,11 +106,11 @@ export function credentialAwareOpencodeGoKey(opts: {
     // 1) CredentialStore（DPAPI 加密落库）优先
     if (credResolver) {
       const fromStore = credResolver();
-      if (typeof fromStore === 'string' && fromStore.length > 0) return fromStore;
+      if (hasKeyValue(fromStore)) return fromStore;
     }
-    // 2) 环境变量回退
+    // 2) 环境变量回退（空白按「没有」处理，继续落到兜底/降级）
     const fromEnv = env[OPENCODE_API_KEY_ENV];
-    if (typeof fromEnv === 'string' && fromEnv.length > 0) return fromEnv;
+    if (hasKeyValue(fromEnv)) return fromEnv;
     // 3) 注入兜底（正常为 undefined → lane 降级 pending）
     return fallback();
   };

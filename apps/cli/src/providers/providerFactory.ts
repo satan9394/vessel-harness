@@ -70,11 +70,33 @@ export function opencodeGoPresetBaseUrl(): string | undefined {
 }
 
 /**
+ * 「空/纯空白 ⇒ 未设置」——**已解析入参**上的唯一口径（状态根那份是 `envRoot`，
+ * 它读的是 `process.env[name]`，这里读的是 flags/env 解析后的值，故不能复用它）。
+ *
+ * 为什么必须有这一条：`model: input.model ?? input.config?.model ?? 'mock-model'` 里
+ * `''` **不是 nullish** ⇒ `VESSEL_MODEL=`（shell 里「清空变量」的常见写法）会让
+ * `plan.model = ''`，于是请求体 `model: ""` 被真发出去 —— 既不回落 `mock-model`、
+ * 也不报错。同族的 `VESSEL_BASE_URL=`（`missingBaseUrl()` 提示退出）与
+ * `VESSEL_API_KEY=`（401）都**不静默**，只有 model 这一处静默。
+ *
+ * 语义与 `envRoot` 一致但**少做一件事**：非空白值**逐字返回、不 trim**。
+ * 模型名/密钥是逐字值，trim 会改变已发布行为（负对照口径：「有值时行为逐字不变」）；
+ * 这里统一的只是「有没有值」这一判据。
+ */
+function unsetIfBlank(value: string | undefined): string | undefined {
+  if (value === undefined) return undefined;
+  return value.trim() === '' ? undefined : value;
+}
+
+/**
  * 解析 provider 方案。
  *
  * provider 名优先级：已存配置的 id/protocol（`providerNameForConfig`，preset id
  * `opencode-go` → 专用 provider）> 显式 `--provider` > `mock`。
  * 端点/baseUrl/apiKey/model 优先级：显式参数 > 已存配置 > opencode-go preset 兜底 baseUrl。
+ *
+ * **空/纯空白一律按未设置**（`unsetIfBlank`）：`''`/`'   '` 的显式 model 落回 config.model
+ * （再落 `'mock-model'`）；非空值**逐字不变**，优先级顺序也**逐字不变**（flags > config > 常量）。
  */
 export function planProvider(input: ProviderPlanInput): ProviderPlan {
   const providerName = input.config
@@ -88,7 +110,8 @@ export function planProvider(input: ProviderPlanInput): ProviderPlan {
     providerName,
     baseUrl,
     apiKey: input.apiKey ?? input.config?.apiKey,
-    model: input.model ?? input.config?.model ?? 'mock-model',
+    // 空串/纯空白的 model ⇒ 与「未设置该来源」完全相同：继续落下一级，最后落既有常量。
+    model: unsetIfBlank(input.model) ?? unsetIfBlank(input.config?.model) ?? 'mock-model',
     real: REAL_PROVIDER_NAMES.has(providerName),
   };
 }

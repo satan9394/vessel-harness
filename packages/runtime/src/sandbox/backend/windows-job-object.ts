@@ -272,6 +272,29 @@ export function buildHolderScript(opts: {
   );
 }
 
+/**
+ * Whether to keep + capture the job-holder's diagnostics (`VESSEL_HOLDER_DEBUG`).
+ *
+ * 语义是**存在即开**（这是有意的，不是「空串口径漏了」）：
+ *   - 未设置 / `VESSEL_HOLDER_DEBUG=`（空串）⇒ `false`；
+ *   - **任何非空取值 ⇒ `true`，包括 `'0'`、`'false'`、`'   '`**。
+ *
+ * 为什么保留「存在即开」而**不**改成 `=== '1'`（对照 `run-release-gates.ts` 的
+ * `VESSEL_GATE_INSTALL_SMOKE === '1'`，那是**执行门禁**的显式启用开关，语义不同）：
+ *   1. 它是**调试开关**，不是状态根，不参与 `envRoot` 那套「空 ⇒ 未设置」的判据
+ *      （这里没有「默认根」可回落，值本身也不被使用，只被当布尔）；
+ *   2. 「存在即开」是调试开关的通行约定（`DEBUG=*` 同款）：用户敲 `=1`、`=true`、
+ *      `=yes` 都能开——改成 `=== '1'` 会**静默关掉**这些拼写的调试输出，
+ *      属于改变已发布行为且没有任何补偿收益；
+ *   3. 唯一会让人意外的点（`'0'` 也是开）由本注释与下方判别性用例显式钉住，
+ *      而不是靠改语义去「猜」用户意图。
+ * 调用点：`hold()` 的 stdio 与 `cleanup()` 的「保留临时目录」。**行为未改**，
+ * 只是把这一行表达式提成具名函数以便被测试钉住。
+ */
+export function holderDebugEnabled(env: NodeJS.ProcessEnv = process.env): boolean {
+  return !!env.VESSEL_HOLDER_DEBUG;
+}
+
 export const WindowsJobObject = {
   isSupported(platform: NodeJS.Platform = process.platform): boolean {
     return platform === 'win32';
@@ -295,7 +318,8 @@ export const WindowsJobObject = {
     const script = buildHolderScript({ jobName, targetPid, limits, readyFile, errorFile });
     const psFile = join(dir, 'holder.ps1');
     writeFileSync(psFile, script, 'utf8');
-    const debug = !!process.env.VESSEL_HOLDER_DEBUG;
+    // 存在即开（含 `'0'`/纯空白；空串/未设置 ⇒ 关）——理由见 `holderDebugEnabled` 的注释。
+    const debug = holderDebugEnabled();
     const holder = spawn(PS, [...PS_ARGS, '-File', psFile], {
       windowsHide: true,
       // NOTE: do NOT use `detached: true` here — on Windows a detached

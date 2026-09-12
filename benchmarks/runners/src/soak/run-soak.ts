@@ -10,11 +10,18 @@
  * iteration->wall-clock equivalence is noted in the report. Env overrides:
  *   SOAK_TASKS / SOAK_ROUNDS / SOAK_HANDOFF_EVERY / SOAK_PAUSE_EVERY /
  *   SOAK_MAX_ACCEPTED / SOAK_BASE (temp base for stores/workspaces).
+ *
+ * 空值口径：SOAK_* 一律「未设置/空/纯空白 ⇒ 默认值」（与 `readInt` 同口径）。
+ * `SOAK_BASE` 走唯一实现 `@vessel/shared` 的 `envRoot`（`benchmarks/runners` 已依赖它）；
+ * 此前是 `process.env.SOAK_BASE ?? os.tmpdir()`，`??` 只挡 `undefined` ⇒ `SOAK_BASE=`
+ * 会让 `path.resolve('')` = **进程 CWD**，长跑把临时库/工作区建到当前工作目录里，
+ * 而同一次运行里 `readInt` 却把 `''` 当默认 —— 同一个文件的两种口径。
  */
 import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { envRoot } from '@vessel/shared';
 import { runSoak, residueCount, SOAK_WORKSPACE_PREFIX, type SoakObservations } from './soak-driver.js';
 
 // Full-scale preset: this is the "1h-equivalent" pressure. Each gen→eval attempt
@@ -62,7 +69,9 @@ const rounds = readInt(process.env.SOAK_ROUNDS, Number(process.argv[3] ?? DEFAUL
 const handoffEvery = readInt(process.env.SOAK_HANDOFF_EVERY, 8);
 const pauseEvery = readInt(process.env.SOAK_PAUSE_EVERY, 7);
 const maxAccepted = readInt(process.env.SOAK_MAX_ACCEPTED, 3);
-const base = path.resolve(process.env.SOAK_BASE ?? os.tmpdir());
+// SOAK_BASE：空/纯空白 ⇒ 未设置 ⇒ os.tmpdir()（唯一口径 `envRoot`；见文件头注释）。
+// 判据与同文件的 readInt 一致（`''`/纯空白都当默认），不再出现「同一次运行两种口径」。
+const base = path.resolve(envRoot('SOAK_BASE') ?? os.tmpdir());
 const runId = `soak_${iso()}`;
 const outDir = path.join(
   fileURLToPath(new URL('../../../reports', import.meta.url)),

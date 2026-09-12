@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { spawn, type ChildProcess } from 'node:child_process';
 import { once } from 'node:events';
-import { WindowsJobObject, createJobObject, parseAttachMarker, buildHolderScript } from './windows-job-object.js';
+import { WindowsJobObject, createJobObject, parseAttachMarker, buildHolderScript, holderDebugEnabled } from './windows-job-object.js';
 
 /**
  * windows-job-object — the "target already exited" split (BRIEF ①).
@@ -98,6 +98,36 @@ describe('windows-job-object — attach marker → outcome (pure, no PowerShell)
     expect(WindowsJobObject.isSupported('win32')).toBe(true);
     expect(WindowsJobObject.isSupported('linux')).toBe(false);
     expect(WindowsJobObject.isSupported('darwin')).toBe(false);
+  });
+});
+
+/**
+ * `VESSEL_HOLDER_DEBUG` —— **调试开关**（不是状态根）：判据是「存在即开」。
+ *
+ * 本卡有意**不改行为**（依据见 `holderDebugEnabled` 的注释）：没有「默认值」可回落、
+ * 取值本身不被使用（只当布尔），而 `=1` / `=true` / `=yes` 都是调试开关的通行写法；
+ * 改成 `=== '1'`（对照 `VESSEL_GATE_INSTALL_SMOKE === '1'` 那种「执行门禁的显式启用」）
+ * 会**静默关掉**这些拼写的诊断输出，属于改变已发布行为且没有补偿收益。
+ *
+ * 判别性（「删掉修复就红」）：把 `holderDebugEnabled` 改成 `env.VESSEL_HOLDER_DEBUG === '1'`
+ * ⇒ 下面 `=true`/`=yes`/`=0`/`=false`/纯空白 五条立即红——这正是本用例存在的意义：
+ * 把「存在即开（含 '0'）」这一**有意**语义钉死，防止将来被"顺手"改成严格比较。
+ * 另一侧：未设置与空串 ⇒ 关（与其它「空 ⇒ 未设置」的判据结论一致，无需特判）。
+ */
+describe('windows-job-object — VESSEL_HOLDER_DEBUG（存在即开；行为未改，由本用例钉住）', () => {
+  it('存在即开：任何非空取值（含 "0"/"false"/纯空白）都是开', () => {
+    expect(holderDebugEnabled({ VESSEL_HOLDER_DEBUG: '1' })).toBe(true);
+    expect(holderDebugEnabled({ VESSEL_HOLDER_DEBUG: 'true' })).toBe(true);
+    expect(holderDebugEnabled({ VESSEL_HOLDER_DEBUG: 'yes' })).toBe(true);
+    expect(holderDebugEnabled({ VESSEL_HOLDER_DEBUG: '0' })).toBe(true); // ← 容易意外的一点，注释已写明
+    expect(holderDebugEnabled({ VESSEL_HOLDER_DEBUG: 'false' })).toBe(true);
+    expect(holderDebugEnabled({ VESSEL_HOLDER_DEBUG: '   ' })).toBe(true);
+  });
+
+  it('未设置 / 空串 ⇒ 关（默认路径不产生任何诊断开销）', () => {
+    expect(holderDebugEnabled({})).toBe(false);
+    expect(holderDebugEnabled({ VESSEL_HOLDER_DEBUG: '' })).toBe(false);
+    expect(holderDebugEnabled({ VESSEL_HOLDER_DEBUG: undefined })).toBe(false);
   });
 });
 

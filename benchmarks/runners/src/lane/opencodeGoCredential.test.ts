@@ -33,6 +33,7 @@ import {
 import {
   resolveOpencodeGoProvider,
   opencodeGoProviderResolver,
+  opencodeGoEndpoint,
 } from './opencodeGoProvider.js';
 import { runRealModelLane, type LaneModel } from './real-model-lane.js';
 
@@ -94,6 +95,63 @@ describe('097 — 凭据来源收敛（仅 env / CredentialStore 两条）', () 
     const r = credentialStoreOpencodeGoKey(store);
     expect(r()).toBe('sk-from-store');
     expect(getSync).toHaveBeenCalledWith(OPCODE_GO_CRED_SERVICE, OPCODE_GO_CRED_ACCOUNT);
+  });
+
+  /**
+   * 第 2 条：`OPENCODE_API_KEY='   '`（纯空白）此前被当密钥用。
+   *
+   * 生产调用点：
+   *   - `opencodeGoProvider.ts:107` `opencodeGoEndpoint(keyResolver = envOpencodeGoKey)` 与
+   *     `:160` `opencodeGoProviderResolver`（缺省 resolver = `envOpencodeGoKey`）→
+   *     `hasKey = apiKey.length > 0` ⇒ `'   '` 算有 key ⇒ 构造真实 provider 去真连端点；
+   *   - `run-release-gates.ts:1838/1848/1851`、`run-opencode-lane.ts:94/106/109` 也各自读
+   *     `envOpencodeGoKey()` / store key 后比 `length > 0`；
+   *   - `run-v11f-verify.ts:43` 同型。
+   * 旧实现四处都用 `length > 0` 判「有没有 key」（env 分支裸读、store 分支、aware 组合的两行）
+   * 都把纯空白放过去；把 `hasKeyValue(...)` 换回 `length > 0`（或把 `envOpencodeGoKey` 还原成
+   * 裸读 `process.env[...]`）⇒ ①②③ 立即红。
+   */
+  it('#2 空/纯空白 key ⇒ 与「无 key」同解（降级 pending），非空白 key 逐字不变', () => {
+    // ① 判别性：空白 env / 空白 store 值都不算 key
+    expect(credentialAwareOpencodeGoKey({ env: { [OPENCODE_API_KEY_ENV]: '   ' } })()).toBeUndefined();
+    expect(credentialAwareOpencodeGoKey({ store: { getSync: () => '   ' }, env: {} })()).toBeUndefined();
+    expect(credentialStoreOpencodeGoKey({ getSync: () => '\t \n' })()).toBeUndefined();
+    expect(credentialStoreOpencodeGoKey({ getSync: () => '' })()).toBeUndefined();
+
+    // ①-b 空白来源按「没有」处理 ⇒ 继续落下一级（而不是「有 key 但内容是空白」）
+    expect(
+      credentialAwareOpencodeGoKey({ store: { getSync: () => '   ' }, env: { [OPENCODE_API_KEY_ENV]: 'sk-env' } })(),
+    ).toBe('sk-env');
+    expect(
+      credentialAwareOpencodeGoKey({ env: { [OPENCODE_API_KEY_ENV]: '  ' }, fallback: () => 'sk-fallback' })(),
+    ).toBe('sk-fallback');
+
+    // ③ 端到端（lane 面）：空白 key ⇒ hasKey=false ⇒ provider 不构造 ⇒ pending-environment，
+    //    绝不拿纯空白去真连端点。
+    const blankResolver = credentialAwareOpencodeGoKey({ env: { [OPENCODE_API_KEY_ENV]: '   ' } });
+    expect(opencodeGoEndpoint(blankResolver).hasKey).toBe(false);
+    expect(resolveOpencodeGoProvider(laneModel('mimo-v2.5', 'flash'), { keyResolver: blankResolver })).toBeNull();
+
+    // ② 负对照：非空白 key 逐字不变（判据只统一「有没有值」，不改写密钥本身）
+    expect(credentialAwareOpencodeGoKey({ env: { [OPENCODE_API_KEY_ENV]: ' sk-env ' } })()).toBe(' sk-env ');
+    expect(credentialStoreOpencodeGoKey({ getSync: () => ' sk-store ' })()).toBe(' sk-store ');
+  });
+
+  it('#2 默认 envOpencodeGoKey（真实 process.env 路径）：空/纯空白 ⇒ undefined，非空逐字', () => {
+    const saved = process.env[OPENCODE_API_KEY_ENV];
+    try {
+      process.env[OPENCODE_API_KEY_ENV] = '   ';
+      expect(envOpencodeGoKey()).toBeUndefined(); // 旧实现返回 '   ' ⇒ 直接去真连
+      process.env[OPENCODE_API_KEY_ENV] = '';
+      expect(envOpencodeGoKey()).toBeUndefined();
+      delete process.env[OPENCODE_API_KEY_ENV];
+      expect(envOpencodeGoKey()).toBeUndefined();
+      process.env[OPENCODE_API_KEY_ENV] = '  sk-raw  '; // 负对照：非空白逐字（不 trim）
+      expect(envOpencodeGoKey()).toBe('  sk-raw  ');
+    } finally {
+      if (saved === undefined) delete process.env[OPENCODE_API_KEY_ENV];
+      else process.env[OPENCODE_API_KEY_ENV] = saved;
+    }
   });
 
   it('store 后端抛错（DPAPI 不可用）→ 不抛，落到 env / undefined', () => {

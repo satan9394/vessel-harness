@@ -16,9 +16,8 @@
  * （纯空白同样按未设置），其余逐字使用。
  */
 import * as fs from 'node:fs';
-import * as os from 'node:os';
 import * as path from 'node:path';
-import { ReviewHandoffStore, type HandoffCreateInput, type ReviewHandoffRecord } from '@vessel/application';
+import { ReviewHandoffStore, defaultReviewsRoot, type HandoffCreateInput, type ReviewHandoffRecord } from '@vessel/application';
 import { envRoot } from '../envRoot.js';
 
 export interface ReviewCliOptions {
@@ -35,17 +34,6 @@ export interface ReviewCliOptions {
 }
 
 /**
- * 默认 reviews 根（`~/.vessel/reviews`）——与 `@vessel/application` 的 `defaultReviewsRoot()` 同址。
- *
- * 这里**显式**给出，而不是再调 `defaultReviewsRoot()`：后者仍是
- * `process.env.VESSEL_REVIEWS_ROOT ?? path.join(home, '.vessel', 'reviews')`，`??` 挡不住空串/纯空白
- * ⇒ 空白会被 `path.resolve` 解析成**进程 CWD**（同一个病；该函数不在本卡改动范围，见交付报告「只报告项」）。
- */
-function defaultReviewsRootForCli(): string {
-  return path.join(os.homedir(), '.vessel', 'reviews');
-}
-
-/**
  * 生效的 reviews 根（恒为绝对路径）——**唯一口径**：
  * 显式 `--root`/`opts.root` > `envRoot('VESSEL_REVIEWS_ROOT')` > 默认根 `~/.vessel/reviews`。
  *
@@ -53,11 +41,20 @@ function defaultReviewsRootForCli(): string {
  * `override ? path.resolve(override) : undefined`：纯空白是真值 ⇒ `path.resolve('   ')` = 进程 CWD；
  * 而「未设置」分支交回 `new ReviewHandoffStore()` 后，该类又用 `??` 复读了同一个环境变量 ⇒
  * 空串同样漏成 CWD。两条口径都收敛到本函数。
+ *
+ * 默认根**不再**在本文件里手写第三份字面量（N1）：直接复用 `@vessel/application` 的
+ * `defaultReviewsRoot()`（`envRoot('VESSEL_REVIEWS_ROOT') ?? <home>/.vessel/reviews`）。
+ * 此前这里另存一份 `path.join(os.homedir(), '.vessel', 'reviews')`，**两份口径没有任何测试
+ * 钉在一起**，改一处会静默漂移。上一版留下它的理由是「兜底分支不再经 `??` 复读同一环境变量」，
+ * 而该理由已随 `defaultReviewsRoot()` 本身改用 `envRoot` 而消失：本函数**恒显式**把
+ * `reviewsRoot` 传给 `ReviewHandoffStore`（`storeFor`），构造函数的 `?? defaultReviewsRoot()`
+ * 分支根本不会执行，故这里再读一次同一个环境变量也不会改变语义（同一个 `process.env`，
+ * 同一个 `envRoot` 判据：未设置 ⇒ `undefined` 两处一致）。
  */
 function resolveRoot(opts: ReviewCliOptions): string {
   const explicit = opts.root !== undefined && opts.root.trim() !== '' ? opts.root : undefined;
   const override = explicit ?? envRoot('VESSEL_REVIEWS_ROOT');
-  return path.resolve(override ?? defaultReviewsRootForCli());
+  return path.resolve(override ?? defaultReviewsRoot());
 }
 
 function storeFor(opts: ReviewCliOptions): ReviewHandoffStore {

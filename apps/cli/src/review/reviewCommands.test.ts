@@ -1,9 +1,10 @@
 import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { cmdReview } from './reviewCommands.js';
-import { ReviewHandoffStore } from '@vessel/application';
+import { ReviewHandoffStore, defaultReviewsRoot } from '@vessel/application';
 import { main } from '../cli.js';
 
 function tempDir(): string {
@@ -245,6 +246,15 @@ describe('apps/cli review — `vessel review` 命令族（task 059）', () => {
       }
     });
 
+    it('②-b 钉死两份口径：env 未设置 ⇒ CLI 默认根 === packages/application 的 defaultReviewsRoot()', async () => {
+      delete process.env.VESSEL_REVIEWS_ROOT;
+      const { code, dir } = await handoffDir();
+      expect(code).toBe(0);
+      // 同一个 (mock 过的) HOME 下，包侧唯一实现给出的默认根必须与 CLI 的实际落点一致。
+      expect(path.resolve(defaultReviewsRoot())).toBe(defaultRoot());
+      expect(dir.startsWith(path.resolve(defaultReviewsRoot()))).toBe(true);
+    });
+
     it('④ 负对照：opts.root 显式传入优先于 env；env 未设置 ⇒ 仍回落默认根', async () => {
       const explicit = tempDir();
       try {
@@ -261,5 +271,30 @@ describe('apps/cli review — `vessel review` 命令族（task 059）', () => {
         fs.rmSync(explicit, { recursive: true, force: true });
       }
     });
+  });
+
+  /**
+   * 第 3 条（N1）：**第三份默认根字面量**已删除，CLI 侧复用 `@vessel/application` 的
+   * `defaultReviewsRoot()`。
+   *
+   * 判别性（「删掉修复就红」）：把 `reviewCommands.ts` 里重新写回上一版那份
+   * `function defaultReviewsRootForCli() { return path.join(os.homedir(), '.vessel', 'reviews'); }`
+   * 并把 `resolveRoot` 的兜底改回调它 ⇒ 本用例立即红（命中 `defaultReviewsRootForCli` /
+   * 代码里的 `os.homedir()` / `'.vessel'` 字面量）。
+   *
+   * 为什么必须是**源码**断言：两份字面量取值**相同**时，「复用」与「各存一份」在行为上
+   * 无法区分（②-b 与④ 只钉住「当前值一致」）；要等某一侧单独改动才会漂移，而那时的症状
+   * 正是「默认根被静默拆成两处」。断言前先剥掉注释，避免文档里引用的历史写法造成假红。
+   */
+  it('N1：默认 reviews 根只有一份实现（复用 defaultReviewsRoot()，本文件不再存字面量）', () => {
+    const src = fs.readFileSync(path.join(fileURLToPath(new URL('.', import.meta.url)), 'reviewCommands.ts'), 'utf8');
+    // 剥注释（块注释 + 行注释）后再断言「代码里」没有第二份默认根字面量
+    const code = src.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/[^\n]*/g, '');
+    expect(src).toContain('import { ReviewHandoffStore, defaultReviewsRoot,');
+    expect(code).toContain('defaultReviewsRoot()');
+    expect(code).not.toContain('defaultReviewsRootForCli');
+    expect(code).not.toMatch(/os\.homedir\(\)/);
+    expect(code).not.toContain("'.vessel'");
+    expect(code).not.toMatch(/import \* as os from 'node:os'/);
   });
 });

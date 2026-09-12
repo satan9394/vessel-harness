@@ -1345,16 +1345,21 @@ async function cmdBench(flags: Map<string, string>): Promise<number> {
   const workspace = path.resolve(flags.get('workspace') ?? process.cwd());
   const outDir = path.resolve(flags.get('out') ?? path.join(workspace, 'benchmarks', 'reports'));
   const providerName = flags.get('provider') ?? 'mock';
-  const model = flags.get('model') ?? process.env.VESSEL_MODEL ?? 'mock-model';
   // task 103: 与 cmdRun 同一条构造路径（--provider opencode-go 自动带 session 头 + 具名 UA）
-  const provider = buildRealProvider(
-    planProvider({
-      explicitProvider: providerName,
-      baseUrl: flags.get('base-url') ?? process.env.VESSEL_BASE_URL,
-      apiKey: flags.get('api-key') ?? process.env.VESSEL_API_KEY,
-      model,
-    }),
-  );
+  //
+  // `VESSEL_MODEL=`（空串/纯空白）**按未设置**处理，唯一口径在 `planProvider`
+  // （providers/providerFactory.ts 的 `unsetIfBlank`）——本处**不再**自带一份
+  // `?? 'mock-model'` 回落：那样 provider 用 `plan.model`、而 harness/报告用本地 `model`，
+  // 空串时同一次 bench 运行里就会出现两个不同的模型名（又一次「同一次运行两处口径」）。
+  // 非空值与此前逐字相同（plan.model === 传入的 model）。
+  const plan = planProvider({
+    explicitProvider: providerName,
+    baseUrl: flags.get('base-url') ?? process.env.VESSEL_BASE_URL,
+    apiKey: flags.get('api-key') ?? process.env.VESSEL_API_KEY,
+    model: flags.get('model') ?? process.env.VESSEL_MODEL,
+  });
+  const model = plan.model;
+  const provider = buildRealProvider(plan);
   const root = repoRoot();
   const report = await runScenario({
     scenarioId,
