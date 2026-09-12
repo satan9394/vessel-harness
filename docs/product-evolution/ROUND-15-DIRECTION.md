@@ -37,13 +37,15 @@
 
 **不做（明确拒绝，均来自重审）**：更多 provider（已 56–71 个，PROJECT-BRIEF:40 已定不扩）；Web 功能对齐（`apps/web/src/i18n.ts:79,114` 仍是占位，而 CLI 主路径未修）；新增第 7 个 adapter 或更多设计文档（Conformance 076-084 已完成，缺口在**暴露**而非**能力**：CLI 无命令可跑外部 adapter）；插件市场/云/远程控制（PROJECT-BRIEF:38-39 已排除）；拆微服务。
 
-## 三、Round 16 候选（"宣称与实际不符"同族，低成本）
+## 三、Round 16 候选（"宣称与实际不符"同族，低成本）— **两条已由实测确认为真**
 
-重审同时报出四处**同类**缺口，都属我们反复收口的那一族（**文案/文档宣称与实现不一致**）：
-- **1B**：`guide.ts:20,22,31,33` 自称「小小蜜 / Xiaoxiaomi」，与产品名 **Vessel** 不一致（`README.md:1,7`）。
-- **1C**：无配置时默认 **mock** 会给出"像真模型一样"的回答，**运行期无任何提示**（`cli.ts:299,334,339`；README 仅在文档里提 mock）→ 新人误判已接上模型。
-- **2B**：`PROJECT-BRIEF.md:43`「密钥不落盘 / DPAPI」与 `CredentialStore.ts:17-18,208,262-266,624`（非 Windows 降级明文落 `secrets.json`）矛盾；`setup.ts:74` 向导又反向写成"明文存 ~/.vessel"（Windows 上实为 DPAPI）。
-- **2C**：`PROJECT-BRIEF.md:51`、`README.md:61` 仍把 `vessel chat` 当入口，实际是「未知命令」exit 2。
+重审报出四处同类缺口，其中两条我已实测复核：
+
+- **1B（已实测确认）**：`guide.ts:20,22` 中文自称「Vessel / **小小蜜**」、`:31,33` 英文自称「Vessel / **Xiaoxiaomi**」——**README 与其它入口均无此名**。新人跑 `vessel guide` 会怀疑装错东西。**成本小 / P1**。
+- **1C（已实测确认，且比审计描述更严重）**：无配置时默认 mock，实测 `run --prompt '总结 README'` 的**最终回复**是
+  `已通过 Read 工具读取工作区文件。内容开头： # Probe …`——**看起来像真实模型读了文件并作答**，**该回复本身没有任何 mock 标记**（输出里出现的 "mock" 字样来自 provider 行/setup 提示，不在回复中）。用户会确信"模型已接上"。**成本小 / P1**，修法：运行期显式标注（回复前缀或一行提示 + `vessel setup` 指引）。
+- **2B（待实测）**：`PROJECT-BRIEF.md:43`「密钥不落盘 / DPAPI」与 `CredentialStore.ts:17-18,208,262-266,624`（非 Windows 降级明文落 `secrets.json`）矛盾；`setup.ts:74` 向导又反向写成"明文存 ~/.vessel"（Windows 上实为 DPAPI）。
+- **2C（待实测）**：`PROJECT-BRIEF.md:51`、`README.md:61` 仍把 `vessel chat` 当入口，实际是「未知命令」exit 2（本轮之前已有一处同类订正）。
 
 ## 四、暂缓（记录但不做）
 
