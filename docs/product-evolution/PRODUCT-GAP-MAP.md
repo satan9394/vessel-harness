@@ -488,4 +488,19 @@ parseFailed=true  ⇒ AgentLoop 退化成 {_raw:...}，工具拿不到 path
 - **`malformedFrames` 文案同族但更轻**：判据只是"`data:` 载荷 JSON.parse 失败"，而文案把"**最常见成因**（连接在帧中间被切断）"写成了**判据**；"不可恢复"偏强（失败点**手上就握着**那行原始文本）。同句错话在 `parseAnthropic.ts:378` 还有**下游副本**。
 - **`createProvider.ts:92-100` 不透传 `streamIdleTimeoutMs`** ⇒ `AnthropicProvider` 文档承诺的"独立旋钮"**经工厂路径永远拿不到**（OpenAI 兄弟同病）——"文档承诺了不可达的能力"族。
 - **三处"规格有、实现无"**：`EVENT-SPEC` 的 `turn/end.stats` 规格含 `tokensUsed?/costEstimate?` 而实现只有三字段；**B13 `llm/retry` 被定义为持久记录，`SessionRecord` 里没有该类型**；**B12 `request/header` 规格要求落盘可重建请求，实现里不存在** ⇒ **会话日志无法重建"这一轮用了哪个模型、上下文多大"**。
-- `packages/llm` 的 OpenAI 系截断信号丢失（`OpenAICompatibleProvider.ts:179-181` 把含 `'length'` 的非 stop/tool_calls 一律塌缩成 `'error'`；`parseOpenAI.ts` 全程不携带 finish_reason）⇒ **已派卡**（同一条缺陷在**本仓最常用的 provider 家族**上）。
+- `packages/llm` 的 OpenAI 系截断信号丢失（`OpenAICompatibleProvider.ts:179-181` 把含 `'length'` 的非 stop/tool_calls 一律塌缩成 `'error'`；`parseOpenAI.ts` 全程不携带 finish_reason）⇒ **已修并提交（`57cbbcc`）**，见下。
+
+## Round 93–94 — 两条 REJECT 修复落地；**一次"差点误判"**；三处新的"规格/类型与实现不一致"
+
+**已修并提交**（全量 **1917 passed + 6 skipped / exit 0**，本段起点 138/1555 ⇒ **+362**）：
+- **A2（`2bc93e2`）**：`duplicate-start` 告警不再自称"已丢弃"。执行者指出**分形态文案不可行**（`duplicateStarts` 是**一个数字、且在 mapper 之前**取 ⇒ provider 无从得知子形态）⇒ **中性表述是当下唯一不撒谎的写法**；并**连同一条错话的第二处（注释）一并改**、**两个方向都加锁**。
+- **A8（`89183ea` + `399e352`）**：`turnStopReason.ts` 成为**唯一映射实现**，用 **`as const satisfies Record<TurnKind, TurnStopReason>`** ⇒ **kind 不穷尽或值越词表都编译期红**；三处调用点收敛；**静态护栏测试**（"全包只有一份映射表"）+ **wiring 测试**（"改映射 ⇒ 三处同时变"）。`TeamRuntime` 不再原样吐 kind（此前会产出**词表外的** `'budget'`/`'interrupted'`，并被 `TeamPanel` **直接当标签渲染**）。
+- **OpenAI 截断信号（`57cbbcc`）**：`length` 透传（chat 侧原先把含 `length` 的非 stop/tool_calls **一律塌缩成 `error`**；流式**全程不携带** `finish_reason`）⇒ 我们刚在 core 加的截断判据，**在本仓最常用的 provider 家族上终于能触发**。`content_filter`/未知值/缺失**保持既有裁决**（**绝不把 wire `'error'` 或缺失当截断**）。
+
+**一次"差点误判"（值得记）**：中途一次全量报 **`fullExit=1`（约 23 失败）**，我**没有立刻按"A8 打破了别处"去改代码**——先跑可能受影响的四个包（`packages/application` / `apps/local-server` / `packages/engine` / `benchmarks/runners`，**626 项全通过**），确认 A8 无关；再在**落定修订**上重跑全量 ⇒ **全绿**。**根因是另一张卡当时正在写文件，全量读到了半成品。**⇒ **纪律 14（只测量已落定的修订）这一次拦下的不是"误退一张卡"，而是"我差点去修一个不存在的问题"。**
+
+**三处新的"规格/类型与实现不一致"（均只报告，待排）**：
+1. **`refusal` 是词表里的死值**：`SubagentResultContract.stopReason` 含它，但**全仓无生产者**。而**最近的真实场景**（Anthropic `stop_reason:'refusal'`，200 + 空 content）在 `AnthropicProvider.ts:380-388` 被归成 `finishReason:'error'`，**既不产生 `refusal`、也未被 `AgentLoop` 识别**（loop 只对 `'length'` 特判）⇒ 空文本时最终落 `budget→max_tokens`。执行者建议 **保留为"已定义、暂无生产者"的契约值并在文档标注**（零风险），我同意。
+2. **`EVENT-SPEC.md:390-391` 的 A24 词表漏了 `denied`**，而 `shared/events.ts:242` 有它、且**四条拒绝路径都在生产它**（深度上限/并发上限/preset 未解析/BeforeDelegate deny）⇒ **文档与类型不一致**，应修正文档。
+3. **外部 CLI adapter 的截断信号"从未被建模"**（**纠正前一张卡的说法**）：五个 adapter（`claude/codex/pi/dsh/opencode`）**并非**"非零退出但输出非空 ⇒ success"——它们都在 `res.status !== 0` 时置 `runError` ⇒ `success=false`。**真实缺口是另一件事**：`RawRun` 形状里**根本没有**任何截断/停因字段（只有 `success?: boolean` + `finalText`）⇒ adapter 把"本轮是否被 max_turns/上下文截断"**完全托付给 CLI 自报的单个布尔**，`finalText` 非空即不下调。**定级：设计级缺口（信号从未被建模）**，与"信号被塌缩"不同类。最小改法：`RawRun` 加 `finishReason?: string`（或 `truncated?: boolean`），normalizer 里 `if (raw.finishReason === 'length') acc.success = false`。
+**另两处"归一逻辑三份"**：`AgentLoop.ts:86-90`、`OpencodeGoProvider.ts:384-388`（与前者逐字相同）、新 `openAIFinishReason`。`@vessel/llm` **不能依赖 core** ⇒ 无法复用。最小改法：把归一表下沉到 `@vessel/shared`，三处改为 import（涉 core/shared ⇒ 独立卡）。
