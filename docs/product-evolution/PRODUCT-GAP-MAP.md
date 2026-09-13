@@ -427,7 +427,7 @@ parseFailed=true  ⇒ AgentLoop 退化成 {_raw:...}，工具拿不到 path
 
 **新队列（执行者复核后给定级；均只报告未改）**：
 - **`before_stop` 的裁决被完全无视**（`AgentLoop.ts:379-380`：`const stop = await bus.serial('before_stop', …); void stop;`）⇒ 监听器 `deny` 对回合结果**零影响**。**定级：同族缺陷、中高**；但**当前无生产监听器**（全仓只有 EventBus 单测直接调 `serial`）⇒ **潜伏死缝**（与本段已处理的三条同族：`reportStatus`、`foldSession`、`Registry.execute`）。**已派卡**：接线代价小且语义清楚就接线（**无监听器时行为须逐字不变**），否则**如实标注"未接线"并给最小改法**——**不许为了"看起来有用"而发明语义**。
-- **异常路径不落 `turn/end`**（`AgentLoop.ts:369 throw err`，此前 `turn/start` 已写）：`turn/start → turn/end` **配对破坏**（`EVENT-SPEC.md:600` 不变式）。**定级：中**，但**它不撒谎**（CLI `catch ⇒ fail(1)`、HTTP 500、TUI `[错误]`），是"崩溃"而非"误报成功"；`openTurns()` 在 resume 时会补 `interrupted` 关闭器。
+- **异常路径不落 `turn/end`**（`AgentLoop.ts:369 throw err`，此前 `turn/start` 已写）：`turn/start → turn/end` **配对破坏**（`EVENT-SPEC.md` 的「不变式（贯穿全图）」那一段，当前 `:605`；B06/B07 的配对不变式另见 `:470`。**行号会漂移，以符号名为准**）。**定级：中**，但**它不撒谎**（CLI `catch ⇒ fail(1)`、HTTP 500、TUI `[错误]`），是"崩溃"而非"误报成功"；`openTurns()` 在 resume 时会补 `interrupted` 关闭器。
 - **deny 分支写 `turn/end` 而不写 `turn/start`**（单向配对）：`openTurns()` 只看 start ⇒ 不会误合成关闭器，但 `EVENT-SPEC` 的"全部配对"字面不成立。**定级：低**（改它要动记录形状，另属决策）。
 - **报告对比表/看板仍未绿转**：`report.ts:390` 的 `buildComparisons` 用 `success: m.success`、`:506` md `✅/❌`、`:538` CLI `OK/FAIL`，且 **md/CLI 从不渲染 `notes`/`turnKind`** ⇒ **异常原因只在 JSON 行上可见**。**已派卡。**
 - **`report.ts:154` 的 `if (!r.result) continue`** 整行丢弃 lane 的 pending/skipped 行与 `r.note` ⇒ `--input lane.json` 的 `totals.runs` **小于 lane 行数**；`ReportRowStatus` 里的 `'pending'` 在 lane 路径**恒为 0**。**待排。**

@@ -338,8 +338,8 @@ describe('telemetry — event subscriber + JSONL report', () => {
     expect(unwired).toContain('turn/end.stats');
     for (const t of unwiredTypes) expect(handled).not.toContain(t);
     // R4（本卡）词法负例在**真实文档**上的挂钩：未消费项必须**带反引号**出现。
-    // 去掉反引号 ⇒ `recordTokens()` 抽不到它（上面两条 `toContain` 先红 = 清单漏检），
-    // 同时裸 token 报警器在这里点名 ⇒ 不留"静默漏掉一个未消费项"的口子。
+    // 去掉反引号 ⇒ `recordTokens()` 抽不到它；**既有**项被去掉反引号时，上面两条 `toContain` 会先红
+    // （清单漏检本身；fail-fast ⇒ 本行轮不到执行）。裸 token 报警器**留作新增裸词项的绊线** ⇒ 不留"静默漏掉一个未消费项"的口子。
     expect(bareRecordTokens(unwired)).toEqual([]);
 
     // —— docs/BENCHMARK-SPEC.md M05 行 ——

@@ -25,7 +25,7 @@
 59	4	packages/telemetry/src/telemetry.test.ts
 ```
 
-- **改**：`packages/telemetry/src/telemetry.test.ts`（962 行）—— ① 既有 ⑤ 的段切分与词法抽取改走同文件纯函数 `recordTokens()`（**正则逐字不变**，只是从行内搬进函数，好让负例直接调它）；② 新增 `bareRecordTokens()`（裸 token 报警器）；③ 文件中新增 `⑤-neg` 一条 R4 词法负例；④ ⑤ 内新增一条对**真实文档**的挂钩断言 `expect(bareRecordTokens(unwired)).toEqual([])`。既有断言（`unwiredTypes` 含 `request/header`/`session/created`、不含 `turn/end`、`handled` 与 §4.11 集合相等）**逐字未放宽、未删除**（`it()` 由 19 → 20，只多 `⑤-neg`）。
+- **改**：`packages/telemetry/src/telemetry.test.ts`（**当时坐标 962 行**；重做轮修复后为 **973 行**，最终字节见 §8.2）—— ① 既有 ⑤ 的段切分与词法抽取改走同文件纯函数 `recordTokens()`（**正则逐字不变**，只是从行内搬进函数，好让负例直接调它）；② 新增 `bareRecordTokens()`（裸 token 报警器）；③ 文件中新增 `⑤-neg` 一条 R4 词法负例；④ ⑤ 内新增一条对**真实文档**的挂钩断言 `expect(bareRecordTokens(unwired)).toEqual([])`。既有断言（`unwiredTypes` 含 `request/header`/`session/created`、不含 `turn/end`、`handled` 与 §4.11 集合相等）**逐字未放宽、未删除**（`it()` 由 19 → 20，只多 `⑤-neg`）。
 - **增**：`packages/telemetry/src/turnEndConditionGuard.test.ts`（156 行 / 10 个 `it()`）—— R1 八锚点守卫（R1-1…R1-8）+ R2 文档⇄代码**双向**守卫（2 条）。
 - **增**：`packages/telemetry/src/turnEndWitness.test.ts`（408 行 / 4 个 `it()`）—— R3 四个无见证面各一条见证用例。
 - **只读被守**（本卡与 W1/W2 均未改）：`packages/telemetry/src/Telemetry.ts`、`docs/ARCHITECTURE.md`、`docs/BENCHMARK-SPEC.md`、`docs/EVENT-SPEC.md`、`docs/product-evolution/PRODUCT-STATE.md`。
@@ -47,9 +47,9 @@
 - **C8 评审（残余的来源）**：`.dsh-mission/evidence/C8-review-verdict.md` §6.2（R1 判为最重要残余：收窄后的条件今天没有任何测试守着）、§6.3（建议卡 C9/C10）
 - **W1 卡**（R1/R2/R4，含 8 锚点逐条对照表、突变实测、负面对照、指挥侧独立复核记录）：`.dsh-mission/tasks/W1-doc-condition-guards.md` §执行记录/§验收结论
 - **W2 卡**（R3，含四边界 → 用例 → 定性逐条表、"删哪行会红"逐条指认、关键机制三方对照）：`.dsh-mission/tasks/W2-turnend-witnesses.md` §执行记录/§验收结论
-- **本卡冻结产物**：Mission `backup/mission2-slice-final.patch`、`backup/turnEndConditionGuard.test.ts`、`backup/turnEndWitness.test.ts`
+- **本卡冻结产物**（**首轮坐标**；最终冻结与门禁见 §8.2）：Mission `backup/mission2-slice-final.patch`（**已被 `backup/mission2-slice-final3.patch` 取代**）、`backup/turnEndConditionGuard.test.ts`、`backup/turnEndWitness.test.ts`
 - **本卡门禁原始输出**：Mission `evidence/M2-test-all.log`（完整、未过滤、未截断）
-- 前序同族证据（Mission 1，未提交面）：`backup/turn-end-slice-final2.patch`、`evidence/C8-review-verdict.md`、`evidence/C8b-testall-rerun.log`
+- 前序同族证据（Mission 1，未提交面）：`backup/turn-end-slice-final2.patch`（**注意同名不同物**：这是 Mission 1 的 `turn-end-slice-*` 补丁，不是 Mission 2 的 `mission2-slice-final2.patch`；后者**已由 `mission2-slice-final3.patch` 取代**，见 §8.2）、`evidence/C8-review-verdict.md`、`evidence/C8b-testall-rerun.log`
 
 ## 5. 完整链路
 
@@ -76,7 +76,7 @@ const retryable = attempt <= maxRetries && MODEL_RETRYABLE.has(cls);
 | R1-7 | `docs/EVENT-SPEC.md:605` 不变式行（已登记例外清单） | `anchorLine`，前缀 `不变式（贯穿全图）：` |
 | R1-8 | `docs/product-evolution/PRODUCT-STATE.md:823` 欠账行 | `anchorLine`，前缀 `` `request/header` 与 `turn/end.stats` `` |
 
-为什么**不钉行号**：行号会因上文增删而漂移（纪律 25 的同一条道理），故按**唯一前缀**定位（0 行 = 锚点被删/改写，>1 行 = 锚点不唯一，两者都算红）。E7 那处是补集形式（「非成功收尾」）——同一条件、同一锚点。
+为什么**不钉行号**：行号会因上文增删而漂移（纪律 25 的同一条道理），故按**唯一前缀**定位（0 行 = 锚点被删/改写，>1 行 = 锚点不唯一，两者都算红）。R1-7 那处是补集形式（「非成功收尾」）——同一条件、同一锚点。
 
 **② W1 —— R2 M02/M03 行的文档⇄代码双向守卫（2 条用例，仿既有 ⑤/⑨/⑫ 形态）**
 
@@ -142,8 +142,8 @@ const retryable = attempt <= maxRetries && MODEL_RETRYABLE.has(cls);
 | `.dsh-mission/backup/turnEndWitness.test.ts` | 21671 | `72EF474B8B600552B50D51E3909DA8BDC30C3F32E0EB55E28BA183A1587A8335` |
 
 - 两个**未跟踪**新文件**不在 patch 里**（`git diff` 不含未跟踪文件）⇒ 必须单独拷进 `backup/` 冻结；两个副本的 SHA256 与工作树**逐字节一致**。
-- 工作树冻结时 SHA256（与 W1/W2 验收记录**逐字一致** ⇒ W1/W2 已验收产物未被本卡触碰）：`telemetry.test.ts` = `8501D7B0D3AD32CD744C686D6025AC0FC482A252FA3F837B25B981380BF918F4`（962 行）、`turnEndConditionGuard.test.ts` = `90ED12BF…817906`（156 行）、`turnEndWitness.test.ts` = `72EF474B…7A8335`（408 行）。
-- patch 7632 B 只含 tracked 面那一个文件的改动：`59  4  packages/telemetry/src/telemetry.test.ts`。
+- 工作树冻结时 SHA256（与 W1/W2 验收记录**逐字一致** ⇒ W1/W2 已验收产物未被本卡触碰；**本行是首轮坐标，最终字节与行数一律以 §8.2 为准**——`telemetry.test.ts` 最终 = `B3F23885…410E`（58604 B / 973 行））：`telemetry.test.ts` = `8501D7B0D3AD32CD744C686D6025AC0FC482A252FA3F837B25B981380BF918F4`（962 行）、`turnEndConditionGuard.test.ts` = `90ED12BF…817906`（156 行）、`turnEndWitness.test.ts` = `72EF474B…7A8335`（408 行）。
+- patch 7632 B 只含 tracked 面那一个文件的改动：`59  4  packages/telemetry/src/telemetry.test.ts`（**首轮坐标**；重做轮起为 **`72  6`**，最终见 §8.2）。
 
 **B. 保真性校验 `git apply --check --reverse`**（原样，未过滤）
 
@@ -211,13 +211,13 @@ TEST_ALL_LOG_BYTES=101420
 
 | 产物 | 字节数 | SHA256 |
 |---|---|---|
-| `.dsh-mission/backup/mission2-slice-final2.patch` | 9826 | `686DA6C5B2590CEC769C62855F92CA5D4D259DFF2EA46AFA43C10CFA4E91CBC3` |
+| `.dsh-mission/backup/mission2-slice-final2.patch`（**已被 `mission2-slice-final3.patch` 取代**，见 §8.2） | 9826 | `686DA6C5B2590CEC769C62855F92CA5D4D259DFF2EA46AFA43C10CFA4E91CBC3` |
 | `.dsh-mission/backup/turnEndConditionGuard.test.ts` | 11047 | `BCE130B64BFAC7BC776C9F179A9B7A0943F1BAC22F4044B469CD7788CD1E7676` |
 | `.dsh-mission/backup/turnEndWitness.test.ts` | 21671 | `72EF474B8B600552B50D51E3909DA8BDC30C3F32E0EB55E28BA183A1587A8335`（**未变**） |
 
 - 工作树源文件（重做轮）：`telemetry.test.ts` = `519E114CBE1361308AFBB373991A5EC7E56B630827BED58BB4B1DB3BBC35E7E7`（**973 行**，原 962）、`turnEndConditionGuard.test.ts` = `BCE130B6…7676`（**168 行**，原 156）、`turnEndWitness.test.ts` = `72EF474B…7A8335`（408 行，**W2 验收后未被触碰**）。
 - `numstat` 由 `59 4` 变为 **`72 6`**（`telemetry.test.ts`）；`Telemetry.ts` = `4C480CF5…F5F0B0`、`docs/**` 各哈希与 W1 记录**逐字一致** ⇒ **运行时源码与文档零改动**（评审对象没被"改到绿"）。
-- `git apply --check --reverse .dsh-mission/backup/mission2-slice-final2.patch` ⇒ **exit 0**（原样零输出）。
+- `git apply --check --reverse .dsh-mission/backup/mission2-slice-final2.patch` ⇒ **exit 0**（原样零输出）。**注意**：`final2` **已被 `mission2-slice-final3.patch` 取代**（见 §8.2）——`final2` 仍含那句假话，任何后续取证/回退**必须**用 `final3`。
 
 **B′. 门禁（重做轮，各 1 次，均在 W3b 的全部编辑之后）**
 
@@ -285,7 +285,7 @@ TESTALL_EXIT=0                 # 日志 97549 B（原样、未过滤）
 - 增：`packages/telemetry/src/turnEndConditionGuard.test.ts`（R1 八锚点 + R2 双向；W3b：R1-6 计数断言 + 顶部自述改准）
 - 增：`packages/telemetry/src/turnEndWitness.test.ts`（R3 四边界见证）
 - 本卡：`tasks/121-doc-condition-guards.md`
-- Mission 侧产物（**不提交**）：`.dsh-mission/backup/mission2-slice-final2.patch`（重做轮）、`.dsh-mission/backup/turnEndConditionGuard.test.ts`、`.dsh-mission/backup/turnEndWitness.test.ts`、`.dsh-mission/evidence/M2-test-all-rerun.log`、`.dsh-mission/evidence/M2-review-verdict.md`、`.dsh-mission/evidence/M2-W1-mutation-record.md`
+- Mission 侧产物（**不提交**）：`.dsh-mission/backup/mission2-slice-final2.patch`（重做轮；**已被 `mission2-slice-final3.patch` 取代**，见 §8.2）、`.dsh-mission/backup/turnEndConditionGuard.test.ts`、`.dsh-mission/backup/turnEndWitness.test.ts`、`.dsh-mission/evidence/M2-test-all-rerun.log`、`.dsh-mission/evidence/M2-review-verdict.md`、`.dsh-mission/evidence/M2-W1-mutation-record.md`
 - 只读被守（未改）：`packages/telemetry/src/Telemetry.ts`、`docs/ARCHITECTURE.md`、`docs/BENCHMARK-SPEC.md`、`docs/EVENT-SPEC.md`、`docs/product-evolution/PRODUCT-STATE.md`
 - 只读参照：`package.json`（`test:all` 两 root 定义）、`tsconfig.json`
 
@@ -300,5 +300,5 @@ TESTALL_EXIT=0                 # 日志 97549 B（原样、未过滤）
   4. **W4 修复**（第二次 Repair，人类裁决"再修一次"）：把该句改为"**未被执行、不声称**"，并附两种突变形状的复算事实。
   5. **第 3 轮 PASS（0.85）**：确认 W4 改准（独立内存复算逐项属实）、没碰不该碰的东西（`numstat 72 6`、973 行、`it()` 20/10/4、受保护文件哈希全部未变、`git status` 4 项）、前两轮通过项未被破坏；提交面无实质性过度声称（仅 4 条"弱于事实或陈旧指针"级小瑕疵，见判决 §5/§7）。
 - **门禁**（三轮各 1 次，均在各自那一轮的最后一次编辑之后，且都带显式退出码）：`tsc -b` **exit 0**；`test:all` **exit 0**（根 171 files / 2195 passed + 6 skipped、`apps/web` 11 files / 120 passed；日志 `.dsh-mission/evidence/M2-test-all.log`、`M2-test-all-rerun.log`、`M2-test-all-rerun2.log`）。
-- **本卡已知的残余（不阻断，判决里逐条给出）**：① `telemetry.test.ts:340-342`「报警器在这里点名」按 fail-fast 不会执行（同文件 `:372-373` 已给出正确口径）；② `:115-118` 未限定"整段/单条"读法；③ guard 顶部写"三份 docs"而实读 4 份（**少报**，非过度声称）；④ 本卡 §2/§4/§9 仍是首轮/重做轮的陈旧数字与指针（`final`/`final2`），**以 §8.1/§8.2 为准**，冻结坐标**只用 `final3`**；⑤ Node `DEP0137` 告警未归因（是告警不是失败，三份全量日志各 1 次）；⑥ 第 9 处条件式表述**仍未纳入守卫**（登记于 §6.7）；⑦ M03「回合重叠口径」**属人类裁决**，本卡只标"不可信"、不发明口径。
+- **本卡已知的残余（不阻断，判决里逐条给出）**：① `telemetry.test.ts:340-342`「报警器在这里点名」按 fail-fast 不会执行（同文件 `:372-373` 已给出正确口径）；② `:115-118` 未限定"整段/单条"读法；③ guard 顶部写"三份 docs"而实读 4 份（**少报**，非过度声称）；④ 本卡 §2/§4/§9 仍是首轮/重做轮的陈旧数字与指针（`final`/`final2`），**以 §8.1/§8.2 为准**，冻结坐标**只用 `final3`**（**M1 残留清理卡已就地改准**：§2/§4/§9 现均写明"当时坐标 / 最终坐标"并指到 §8.1/§8.2 —— 历史层原样保留，本条判决记录的"当时状态"亦未删改）；⑤ Node `DEP0137` 告警未归因（是告警不是失败，三份全量日志各 1 次）；⑥ 第 9 处条件式表述**仍未纳入守卫**（登记于 §6.7）；⑦ M03「回合重叠口径」**属人类裁决**，本卡只标"不可信"、不发明口径。
 - 提交：**路径限定**（4 个文件：本卡 + 三个测试文件），**禁 `git add -A`**；由指挥侧在第三轮 PASS 后执行。
