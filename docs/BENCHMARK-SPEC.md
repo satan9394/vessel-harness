@@ -572,8 +572,8 @@ mode: offline
 | ID | 指标 | 定义（每 run） | 采集方式/事件源 | 单位/取值 |
 |---|---|---|---|---|
 | M01 | Success Rate | run 通过 §3 pass 全部断言 = 1，否则 0；聚合 = 通过 runs/seeds 总数 | runner 判定（§3.0） | {0,1} / 聚合 0–1 |
-| M02 | Turns | 模型生成轮数（一次 model request/response 对 = 1 turn） | 自家：A03 BeforeTurn/turn·start 计数（EVENT-SPEC）；外部：transcript 中 assistant 生成次数 | int ≥0 |
-| M03 | Tool Calls | 进入分发的工具调用总数（含被拒与失败？见 M04/M05 分开计——此处=发起数） | 自家：B04 tool/call 计数；外部：日志 tool call 事件 | int |
+| M02 | Turns | 模型生成轮数（一次 model request/response 对 = 1 turn） | 自家：A03 BeforeTurn/turn·start 计数（EVENT-SPEC）**+ B09 `turn/end` 记录**（`packages/telemetry/src/Telemetry.ts` 的 `case 'turn/end':`，纯回放侧的唯一真源；两侧是同一个回合的两面，按 `turnId` 去重 ⇒ **在成功收尾的回合上**恰好计一次，口径与 M05 同。该等式**不是无条件的**，**两条并列反例**都走 `AgentLoop.ts:462-463` 的异常路径（`AgentLoop.ts:636` 的 `retryable = attempt <= maxRetries && MODEL_RETRYABLE.has(cls)` 为假有两个来源）：① provider 抛不可重试错误、② **错误类别可重试但重试预算耗尽**（`attempt > maxRetries`，既有测试 `AgentLoop.llm-retry-record.test.ts:280-295` 已真实触发）—— 该回合根本不发 `turn/end`，于是实时侧计到这一轮、纯回放侧计不到 ⇒ 两侧的数不同；条件、反例与机制见 `Telemetry.ts` 类注释）；外部：transcript 中 assistant 生成次数 | int ≥0 |
+| M03 | Tool Calls | 进入分发的工具调用总数（含被拒与失败？见 M04/M05 分开计——此处=发起数） | 自家：B04 tool/call 计数 + B09 `turn/end.stats.toolCalls`（同一轮的两面，按 `turnId` 去重；**在"成功收尾且未被另一个 `runTurn` 重叠"的回合上**（即该轮有 `turn/end` 记录且落盘时读的是本回合计数器；`AgentLoop.ts:636` 的 `retryable` 为假的**两条来源** —— ① 错误类别不可重试、② 类别可重试但重试预算耗尽 —— 都不落 `turn/end`），该轮有 `turn/end` 记录 ⇒ 该轮 `after_tool` 条数 == `stats.toolCalls`；该等式**不是无条件的**，已有**三条并列反例**：①② 记录缺失（同走 `AgentLoop.ts:462-463`）、③ 回合重叠时旧回合落盘读到的是新回合计数器（该轮 `after_tool` 条数与记录里的 `stats.toolCalls` 会不等）；条件、反例与机制见 `Telemetry.ts` 类注释）；外部：日志 tool call 事件 | int |
 | M04 | Invalid Tool Calls | 参数校验失败/畸形调用数（INVALID_ARGS 类） | 自家：B12 tool/error errorClass=INVALID_ARGS；外部：失败分类（adapter 归一化，H05 错误契约） | int |
 | M05 | Retries | 重试次数（同 toolCallId/同意图的二次以上尝试；含 harness 自动重试与模型改写后重试） | 自家：B13 llm/retry + retry 记录；外部：错误→再调用配对（source 注明） | int |
 | M06 | Input Tokens | run 内模型请求 input tokens 累计（含 cache read 计入 cache 字段，不加总可切换口径） | usage ledger；Pi usage-ledger / DSH usage 事件 / CC usage 输出 | int（token） |

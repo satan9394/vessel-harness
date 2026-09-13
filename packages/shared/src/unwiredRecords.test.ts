@@ -35,8 +35,12 @@ import type { SessionRecord } from './events.js';
  * 而不是让文档继续撒谎。
  *
  * 不在本守卫内、但同一病灶（"被测量/被消费却没有生产者"）的项已**只报告**，未接线：
- * `packages/shared/src/events.ts` 的 `request/header` 与 `turn/end.stats` 加法字段
+ * `packages/shared/src/events.ts` 的 `request/header` 与 `turn/end.stats` 的其余加法字段
  * （`docs/ARCHITECTURE.md` §4.11 已如实写成"未消费"）。
+ * **更正（后续卡）**：本段原先把 `turn/end` **整条**列在这里 —— 它现已在 telemetry 侧接线
+ * （`Telemetry.finalizeRecord` 的 `case 'turn/end':` 取回合身份 → M02 与 `stats.toolCalls` → M03，
+ * 按 `turnId` 与事件面去重；见 `telemetry.test.ts` ⑤⑯⑰）。仍未接线的只剩它**其余**的 stats
+ * 加法字段（`stats.steps`/`tokensUsed`/`costEstimate`、`toolCallsWithoutEnd`）与 `request/header`。
  *
  * **后续卡更正（这条注释此前是错的）**：本段原先把 M14 detail 的 `steers`/`interrupts` 也列在这里，
  * 称其"未接线"。复核后二者其实**都有真实生产者**（`AgentLoop.drainSteers()` 的
@@ -165,7 +169,11 @@ describe('audit/decision(B19) —— 已登记但未接线：零生产者、零�
  *     本组 ② 钉住），故仍**不接线**：要不要把"人为介入"另铸一条 B21 记录属产品决策，不在本卡范围；
  *     本卡只把它与同族的"已登记、未接线"并进同一张**接线绊线**。
  *   - 三条都**不**属于 `docs/ARCHITECTURE.md` §4.11 那种"记录已落盘、回放侧无消费方"的措辞
- *     （那是 `request/header`/`turn/end.stats` 的情况）——它们连"已落盘"都还没有，
+ *     （那是 `request/header` 与 `turn/end` **其余**的 stats 加法字段
+ *     `stats.steps`/`tokensUsed`/`costEstimate`、`toolCallsWithoutEnd` 的情况 —— `turn/end` **整条**
+ *     已由 telemetry 消费（`Telemetry.finalizeRecord` 的 `case 'turn/end':`，见本文件顶部
+ *     「不在本守卫内」段的**更正**）；把整条 `turn/end` 列成"无消费方"是改前的旧口径，与 `:38-43` 直接冲突，
+ *     本卡就地更正；本组 ②③④ 的判据（这三条零类型/零产者/零消者）不受影响）——它们连"已落盘"都还没有，
  *     所以只能靠**本守卫**证明"至今没有它"，而不是靠文档里的"未消费"。
  *
  * 「删哪行会红」：

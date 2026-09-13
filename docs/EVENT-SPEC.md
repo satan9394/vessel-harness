@@ -602,7 +602,7 @@ v0.1 主流程（V0.1 平面：单 agent、无委派；`[V0.2]` 标注子代理/
  SessionEnd (A02, reason=disposed|user-exit|...) → 归档/遥测/retention
 ```
 
-不变式（贯穿全图）：`turn/start→turn/end`、`step/start→step/end`、`tool/call→tool/result`、`approval/asked→decided`、`compaction/start→…→end` 全部配对且编号连续；任一缺失 = 日志腐败（H12 invariant_selfcheck 捕获）。
+不变式（贯穿全图）：`turn/start→turn/end`、`step/start→step/end`、`tool/call→tool/result`、`approval/asked→decided`、`compaction/start→…→end` 全部配对且编号连续；**除已登记例外**，任一缺失 = 日志腐败（H12 invariant_selfcheck 捕获）。**已登记例外（不判腐败）**与收窄口径同 `docs/ARCHITECTURE.md:176`，共三条、定级见 `docs/product-evolution/PRODUCT-GAP-MAP.md`：① **非成功收尾的回合整体缺 `turn/end`**（该回合有始无终 —— `AgentLoop.ts:636` 的 `retryable` 为假的**两条来源**：错误类别不可重试，**或**类别可重试但重试预算耗尽 `attempt > maxRetries`；两条都经 `:462-463` 的 `throw err` 使 `:528` 不落盘，`PRODUCT-GAP-MAP.md:430`）；② 配对方向不对称（`before_turn` 否决分支先写 `turn/end` 再早返回，`turn/start` 不落盘，`:431`）；③ 步内中断 ⇒ `step/start` 无 `step/end`（`:446`）。例外清单与机制由 `docs/ARCHITECTURE.md:176` 与 `packages/telemetry/src/Telemetry.ts` 类注释维护；**新增例外必须同时登记到那两处**，否则自检会把已登记路径误判成腐败。
 
 ---
 

@@ -48,6 +48,7 @@ export interface TelemetryCounters {
  *
  * 回放面（`finalize` → `finalizeRecord`）**已消费**的记录类型 = `tool/result`（M04）、
  * `audit/denial`（M12 + M14 的 approval 子集）、`compaction/start`（M09）、`llm/retry`（M05，B13）、
+ * `turn/end`（**仅**回合身份与 `stats.toolCalls`，M02/M03——见下面的「B09 `turn/end` 记录的接线」）、
  * `user/message`（**仅** `source:'steer'`，M14 的 `steers` 分项——见下面的「M14 steers / interrupts 的接线」）。
  * 这一集合与 `docs/ARCHITECTURE.md` §4.11 表格那一行**双向绑定**，由 `telemetry.test.ts`
  * 的文档⇄代码守用例钉住（文档多写一个 ⇒ 红；代码多一个分支没写进文档 ⇒ 也红）。
@@ -106,13 +107,15 @@ export interface TelemetryCounters {
  *     "上一次没闭合的回合"**合成**一条同形的 `turn/end{kind:'interrupted'}`（崩溃/中断恢复的
  *     收尾）⇒ 按记录计会把"进程崩过"报成"有人按了停机键"，是**假阳性**的 `interrupts`。
  *     事件侧只在真实回合收尾时由 `AgentLoop` 发出，合成记录不发事件。
- *  ③ `turn/end` 已被 `docs/ARCHITECTURE.md` §4.11 与守卫 `telemetry.test.ts` ⑤ 双向钉为
- *     "**未消费**"（该记录每轮汇总，其 stats 与 `after_model` 的每次调用量相加会双计）；
- *     本卡**不放宽**那条既有判据，故不给 `finalizeRecord` 加 `turn/end` 分支。
+ *  ③ `turn/end` 记录**本身**现在已被消费（`finalizeRecord` 的 `case 'turn/end':`，见下面
+ *     「B09 `turn/end` 记录的接线」），但取的是**回合身份与 `stats.toolCalls`**，与 `kind` 无关：
+ *     `interrupts` 仍然只取事件面 —— 记录侧会把崩溃恢复（`Session.loadExisting` 为未闭合回合
+ *     **合成**的那条同形记录）误报成"有人按了停机键"，是**假阳性**。给记录侧加一条
+ *     `kind === 'interrupted'` 的判据也救不了：合成记录与真实收尾在文件里同形，不可判别。
  *  ⇒ 代价如实写出：`interrupts` **只在挂了总线的进程里可观测**（`composeHarness` 一律
  *  `telemetry.attach(bus)`，`benchmarks/runners/src/runner.ts` 与 `contracts/vessel.ts` 的消费方
  *  都先 attach 再 `finalize`），纯回放（未 attach）时如实为 0；`telemetry.test.ts` ⑭ 把这个
- *  边界钉成可判别事实 —— 绝不为"回放也好看"去伪造 `turn/end` 分支。
+ *  边界钉成可判别事实 —— 绝不为"回放也好看"去让记录面冒充人工打断。
  *
  * M14 detail 里**无通路**的两项（本卡如实标注，不再用 0 冒充计数）：
  *  - `human_answers`：语义 = 审批/询问**由人**应答。本仓没有应答者链（`before_tool` 的 `ask`
@@ -171,14 +174,95 @@ export interface TelemetryCounters {
  *    "两条来源"的读码结论不符 —— 该文件的这一格随本卡一起改成"两条来源"，由
  *    `telemetry.test.ts` ⑤（消费记录族双向绑定）与 ⑫（M13 文档⇄代码）继续守着。
  *
- * **刻意不消费**的三类新造记录（已落盘，但没有回放消费方——理由不是"以后再说"，是各自的取值面
- * 决定了照抄会造假）：
+ * B09 `turn/end` 记录的接线（本卡；改前 §4.11 把这条记录整条列为"未消费"，
+ * `finalizeRecord` 没有它的分支 ⇒ **纯回放**的 M02/M03 恒 0，而日志里明明写着跑了几个回合、
+ * 发了几个工具调用）：
+ *
+ * 取的是**回合身份 + `stats.toolCalls`**，不是整条记录 —— 逐字段读清后的取舍。
+ *
+ * **本节的三条依据都只在「成功收尾的回合」上成立**（即收尾路径非异常抛出地走到落盘：回合数 =
+ * 记录条数 = `before_turn` 事件数；两侧的工具调用数相等；实时与纯回放同数）。上一版把它们写成了
+ * 无条件形式 —— 依据比实现能做到的强，独立对抗验收正是据此判 FAIL。C7 独立重评又指出：其后
+ * 收窄用的条件「单一、无重叠、无不可重试错误」**装不下实现里真实的第三条反例路径** ——
+ * `AgentLoop.ts:636` 的判据是 `const retryable = attempt <= maxRetries && MODEL_RETRYABLE.has(cls);`，
+ * 它为假**有两条来源**：① 错误类别不可重试（`MODEL_RETRYABLE` 之外）；② **错误类别可重试但重试
+ * 预算耗尽**（`attempt > maxRetries`）。**两者都**走 `AgentLoop.ts:649-651` 的 `throw` ⇒
+ * `:451-464` 的 `else { throw err; }`（`:462-463`）⇒ `:528` 的 `turn/end` **永不落盘**，而
+ * `:208-212` 的 `before_turn` 已发、`:282` 的 `turn/start` 已写 ⇒ 该回合有始无终。
+ * **两条都有本仓既有测试在真实触发**（只落 `llm/retry{decision:'abort'}` 记录 + rejects，从未断言
+ * 记录面后果）：`AgentLoop.llm-retry-record.test.ts:280/281/288/295`（`rate limit 429` =
+ * `RATE_LIMITED` 可重试 + `maxRetries:1`）与 `AgentLoop.stream.test.ts:385/388/390/392`（同形）。
+ * 故以「成功收尾」为条件并**并列登记这两类反例**；每条下面都**显式登记**它自己的反例与机制；
+ * 改这里的人**不得**把条件改回窄口径或去掉（窄口径 = 把②当成立，正是 C7 判决 FAIL 的阻断项 A）。
+ *
+ *  - `turnId` → M02 `turns`：`turn/start→turn/end` 在 `docs/ARCHITECTURE.md` §4.11 的不变式里
+ *    1:1 配对（`Session.loadExisting` 连崩溃回合都会补一条合成收尾）⇒ **在成功收尾的回合上**
+ *    "记录条数 = 回合数"与 `before_turn` 事件数相等（`before_turn` 是所有分支——含 BeforeTurn
+ *    否决——的共同起点）。
+ *    **反例（同一闸门，两条来源并列登记；无并发；独立验收实测 `live.turns = 1` 而
+ *    `replay.turns = 0`）**：单回合里 `AgentLoop.ts:636` 的 `retryable` 为假时，无论①错误类别
+ *    不可重试（`MODEL_RETRYABLE` 之外）**还是②类别可重试而重试预算耗尽**（`attempt > maxRetries`，
+ *    取小 `maxRetries` 即可触发），都经 `AgentLoop.ts:649-651` 抛出 ⇒ `:451-464` 的
+ *    `else { throw err; }`（`:462-463`）把异常直接抛出 `runTurnInner` ⇒ `AgentLoop.ts:528` 的
+ *    `turn/end` 在该回合**永不写入**，而 `AgentLoop.ts:208-212` 的 `before_turn` 已经发过、
+ *    `:282` 的 `turn/start` 已写 ⇒ 纯回放读不到这一轮的记录（记录面缺一条，不是"测得 0 个回合"）。
+ *    **判别性用例**：① 见 `turnEndBoundary.test.ts` 第 1 条（UNKNOWN 类别，默认 `maxRetries`）；
+ *    ② 见 `telemetry.test.ts` ⑱（`RATE_LIMITED` 可重试类别 + `maxRetries:1`，走的就是
+ *    `AgentLoop.llm-retry-record.test.ts:280-295` 那条既有路径）。
+ *    本仓自己早就记过这条：`docs/product-evolution/PRODUCT-GAP-MAP.md:430`（"异常路径不落
+ *    `turn/end`"，定级：中；该行引的 `AgentLoop.ts:369` 是漂移前的行号）。
+ *  - `stats.toolCalls` → M03 `toolCalls`：该字段是 `LoopState` **每轮归零**（`beginTurn`）后
+ *    `recordToolCall()` 的计数，而 `recordToolCall()` 在 `AgentLoop` 的派发循环里**恰好每个调用一次**，
+ *    且 `dispatchToolCall` 的**每条 return 路径都恰好发一次 `after_tool`**（deny / ask / 被中断 /
+ *    正常收尾四个 emit 点）。由此得到的等式"**该轮有 `turn/end` 记录 ⇒ 该轮 `after_tool` 条数
+ *    == `stats.toolCalls`**"只在"该轮没有被另一个 `runTurn` 重叠打断"时成立 —— 原论证链
+ *    "不发 `after_tool` 就 rethrow ⇒ 不留 `turn/end`"只覆盖了单回合，不覆盖重叠。
+ *    **反例（回合重叠 + 工具 signal-blind；独立验收实测：该轮有 `turn/end`、`after_tool` = 1，
+ *    而记录里的 `stats.toolCalls` = 0）**：`AgentLoop.ts:136` 的 `state` 是**每 loop 单实例**，
+ *    而 `beginTurn`（`packages/core/src/state/State.ts:20-26`）把它归零 ⇒ 旧回合落盘时读到的是
+ *    **新回合**的计数器；重叠本身是**受支持路径** ——
+ *    `packages/application/src/session/SessionController.ts:159-167` 的注释明文写着"在旧回合还在
+ *    跑时调 `runTurn` 会 abort 掉那个旧回合"。⇒ M03 在这类路径上的记录侧取值**不可信**
+ *    （本卡只标"不可信"，不发明新口径）。
+ *  - **去重（防双计）**：`turn/end` 与 `before_turn`/`after_tool` 是**同一个回合的两面**
+ *    （身份 = `turnId`，见 `liveTurnIds`）⇒ 实时已观测过这一轮时记录侧一律不加，纯回放（未 attach）
+ *    时才按记录补 ⇒ **在回合都成功收尾时**"实时跑一遍 + `finalize`"与"同一份日志纯回放"
+ *    给出相同的数（M05 `llm/retry` 那套规矩）。`telemetry.test.ts` ⑯⑰ 只在**成功单回合**上
+ *    钉这一段（条件写进了用例名）。
+ *    **该等式同样不是无条件的**：上面第一条反例的**两条来源**（不可重试类别 / 可重试但预算耗尽）
+ *    里，`before_turn` 发过而 `turn/end` 根本不存在 ⇒ 实时侧计了这一轮、纯回放侧没有可折算的
+ *    记录 ⇒ 两侧的数不同。这不是去重失效，是记录面缺一条。
+ *    边界（如实写出，不假装守得住）：去重判据是"这一轮发过 `before_turn` 且被本实例听到"，
+ *    它假定 `attach` 在**回合开始之前**完成 —— 本仓唯一的组合根 `composeHarness` 正是构造时
+ *    `attach`、`close()` 时才 `detach`（两者都在任何 `runTurn` 之外）。若将来有人在**回合中途**
+ *    `attach`，该轮 `before_turn` 没被听到、部分 `after_tool` 却会被实时计入 ⇒ 记录侧再补一次
+ *    整轮 `stats.toolCalls` ⇒ `toolCalls` **多计**（`turns` 不受影响：它是身份计数，两侧都不会重复）。
+ *  - 边界（如实写出）：`Session.loadExisting` 合成的崩溃收尾记录 `stats` 全零 ⇒ 那一轮计 1 个回合、
+ *    **0** 次工具调用（记录里写的就是 0；崩溃时无人汇总，这是下界，不是"测得 0 次"）。
+ *
+ * **刻意不消费**的其余字段（都已落盘，但照抄会造假——理由不是"以后再说"，是各自的取值面
+ * 决定了接上就是假数）：
  *  - `request/header`（B12）：只承载 `estimateTokens`（组装时的**估计值**）与 messages/tools 的
  *    **条数**，没有任何实际 usage ⇒ 喂用量账本（M06/M07/M08）等于拿估计冒充实测；
- *  - `turn/end`（B09）`stats.tokensUsed`/`costEstimate` 加法字段：那是**每轮汇总**，而用量已按
- *    `after_model` 的**每次调用**累加（`recordUsage`）⇒ 相加即双计，且本仓没有对应指标定义；
+ *  - `turn/end.stats.steps`：**不能**与 `after_model` 相加、也不能拿来替代它 —— 模型调用被中断时
+ *    `beginStep()` 已计这一步、`after_model` 却没发（`consumeStream` 的 catch 只发
+ *    `model_stream_end`），于是该轮的 `stats.steps` 会比 `after_model` 条数**多**；
+ *    "实时 == 纯回放"在这条边界上不成立，接了就是拿一个对不上的数冒充 M02/M03 那样的实测。
+ *    （`toolCalls` 在**这条**边界上没有缺口 —— 模型调用被中断的回合仍正常收尾，`after_tool`
+ *    与 `stats.toolCalls` 按同一口径推进；但它在**回合重叠**上有自己的缺口，见上面
+ *    `stats.toolCalls` 那条的反例 —— 两者不能互相担保。）
+ *  - `turn/end.stats.tokensUsed`/`costEstimate`：`tokensUsed` 是**每轮汇总**（= Σ 每次调用的
+ *    input+output），而用量已按 `after_model` 的**每次调用**累加（`recordUsage`）⇒ 相加即双计，
+ *    且它无法拆成 M06(input)/M07(output) 两格；`costEstimate` **没有任何 shipped provider 上报**
+ *    （M11 的产者在 Cross-Harness 适配器契约里：`docs/BENCHMARK-SPEC.md` §4.1 M11 行与它的欠账
+ *    表都逐字写着"本 lane 没有 M11 生产者"）⇒ 接了就是一条恒 0 的假指标。
+ *    **措辞边界（不可再退回绝对化）**：**不能**说"全仓没有铸造点" ——
+ *    `packages/core/src/agent-loop/AgentLoop.log-evidence.test.ts` 的 `:48/:51` 里，测试 provider
+ *    就上报 `costEstimate` 并断言它落进 `turn/end.stats`（测试 provider 同样是铸造点）；
+ *    也**不能**说"本仓没有对应指标定义" —— `packages/shared/src/metrics.ts:7` 的 `MetricId`
+ *    明确含 `M11`。成立的只是"没有任何 **shipped** provider 上报它"。
  *  - `turn/end.toolCallsWithoutEnd`：流末兜底收尾的完整性信号，同样没有指标定义。
- *    将来要接线，必须同时改本节、§4.11 表格与那条守用例。
+ *    将来要接这几个字段，必须同时改本节、§4.11 表格与 `telemetry.test.ts` ⑤。
  */
 export class Telemetry {
   private counters: TelemetryCounters = {
@@ -211,9 +295,35 @@ export class Telemetry {
    */
   private retryKeys = new Set<string>();
 
+  /**
+   * 回合族（`before_turn` 事件 ∪ B09 `turn/end` 记录）的**事实身份集** —— 与 `retryKeys` 同一套规矩。
+   *
+   * 为什么必须有它：同一个回合在运行时**两侧都有**（`AgentLoop.runTurnInner` 先发
+   * `before_turn`、收尾再落 `turn/end`），而 `finalize` 把回放记录折进**已经**累计过实时事件的
+   * 计数器 ⇒ 不做身份去重，一轮会被计两次（M02/M03 翻倍）。
+   *
+   * 身份 = `turnId`（`turn_<epoch>_<rand>`，全局唯一；`before_turn` 载荷与 `turn/end` 记录同值）。
+   * 对比 `denials` 的既有加法语义（事件 + 记录 = 2，用例钉死、消费方 `Math.max` 绕开）：
+   * 本族**不继承**它 —— `llm/retry` 那张卡已为"新增计数"定下方向：同一事实只计一次。
+   *
+   * 事件侧形状不认识（无 `turnId` 的载荷，本仓 `AgentLoop` 一律带）⇒ 照旧"每个事件计一次"、
+   * 不进本表，与 `countRetry(null)` 同样**绝不静默少计**。
+   *
+   * 边界：去重成立的前提是 `attach` 在**回合开始之前**完成（本仓唯一组合根 `composeHarness`
+   * 构造时 attach、`close()` 时 detach）—— 回合中途 attach 会让该轮"`before_turn` 没听到、
+   * `after_tool` 计到了"，记录侧再补一次整轮汇总 ⇒ `toolCalls` 多计（`turns` 不受影响）。
+   */
+  private liveTurnIds = new Set<string>();
+
   attach(bus: Bus): void {
     this.unsubs.push(
-      bus.on('before_turn', () => { this.counters.turns += 1; }),
+      bus.on('before_turn', (p) => {
+        // M02 的事件面：每个 `before_turn` 计一次（形状不认识也计，绝不静默少计）；
+        // 顺带记下这一轮的**身份**，供回放侧的 `case 'turn/end':` 去重（同一个回合的两面）。
+        const { turnId } = (p ?? {}) as { turnId?: unknown };
+        if (typeof turnId === 'string' && turnId !== '') this.liveTurnIds.add(turnId);
+        this.counters.turns += 1;
+      }),
       bus.on('after_model', (_p, _c) => { this.counters.steps += 1; }, 'telemetry:steps'),
       bus.on('after_model', (p) => {
         const payload = p as { usage?: { inputTokens?: number; outputTokens?: number; cacheReadTokens?: number } };
@@ -237,8 +347,9 @@ export class Telemetry {
         if (payload.verdict === 'deny') this.counters.denials += 1;
       }, 'telemetry:denials'),
       // M14 的 `interrupts`：**事件侧**是这一事实唯一不留歧义的一面（见类注释三条理由）。
-      // `turn/end{kind:'interrupted'}` 记录刻意不取：它被 §4.11 / telemetry.test.ts ⑤ 钉为"未消费"，
-      // 且 `Session.loadExisting` 会合成一条同形记录 ⇒ 按记录计会把崩溃恢复误报成人工打断。
+      // `turn/end{kind:'interrupted'}` 记录刻意不取：`Session.loadExisting` 会为未闭合回合合成一条
+      // 同形记录 ⇒ 按记录计会把崩溃恢复误报成人工打断（`finalizeRecord` 的 `case 'turn/end':` 只取
+      // 回合身份与 `stats.toolCalls`，**不读 `kind`**，故 M02/M03 的接线不会让这一项多计）。
       // 形状不认识（无 kind 的载荷）时不计数，也绝不猜。
       bus.on('after_turn', (p) => {
         const payload = (p ?? {}) as { kind?: unknown };
@@ -337,6 +448,17 @@ export class Telemetry {
         // 指标却看不见——本仓"新造了 X、没人调用 X"落在记录层的实例。
         this.countRetry(`${r.requestId}#${r.attemptNo}`);
         break;
+      case 'turn/end':
+        // B09 记录的回放面（见类注释「B09 `turn/end` 记录的接线」）。
+        // 身份 = `turnId`（与 `before_turn` 载荷同值）：实时已观测过这一轮 ⇒ 该轮的
+        // turn/toolCalls 已由 `before_turn`/`after_tool` 事件计过，记录侧**一律不加**（防双计）；
+        // 纯回放（未 attach 总线）⇒ 记录是唯一真源，按这一轮的 summary 如实补上。
+        // 刻意**不**读 `kind`（`interrupts` 仍只取 `after_turn` 事件面：合成收尾记录会让
+        // 崩溃恢复冒充人工打断），也不读 `stats.steps`/`tokensUsed`/`costEstimate`（理由见类注释）。
+        if (this.liveTurnIds.has(r.turnId)) break;
+        this.counters.turns += 1;
+        this.counters.toolCalls += r.stats.toolCalls;
+        break;
       default:
         break;
     }
@@ -344,6 +466,10 @@ export class Telemetry {
 
   metrics(extra?: { durationMs?: number; time?: number }): MetricValue[] {
     const c = this.counters;
+    // M02/M03 的 `source` 仍是**实时面**的生产者名（照 M05 的既有形态：M05 = `llm_retry` 事件 ∪
+    // `llm/retry` 记录，而它的 source 逐字就是事件名 `llm_retry`）。记录面是同一个事实的另一面
+    // （不是 M13 那种"两条不同性质的来源"），故不为此改口径；两面逐条写在类注释与
+    // `docs/BENCHMARK-SPEC.md` §4.1 的 M02/M03 行里，由 `telemetry.test.ts` ⑤ 守着 §4.11 那一格。
     const out: MetricValue[] = [
       { metric: 'M02', name: 'Turns', value: c.turns, unit: 'turn', source: 'before_turn' },
       { metric: 'M03', name: 'ToolCalls', value: c.toolCalls, unit: 'count', source: 'after_tool' },

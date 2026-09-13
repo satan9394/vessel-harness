@@ -6,6 +6,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { AgentLoop, EventBus, Session } from '@vessel/core';
 import type {
   ChatProvider, ChatRequest, ChatResponse, SessionRecord, TeamEndPayload, TeamMemberSummary,
+  TurnEndRecord,
 } from '@vessel/shared';
 import { Telemetry } from './Telemetry.js';
 
@@ -57,6 +58,37 @@ import { Telemetry } from './Telemetry.js';
  * ⑩⑪ 钉行为、⑫ 钉文档⇄代码。M13 的 `source` 是**中性名**（本卡更正）：它点名"被计数的
  * 事实"（评估器评审的 verdict），不点名某一条传输面 —— 两条来源不同，点名 `team_end` 会让
  * evaluator 臂那个 run 的 metric 行指向一个不是它生产者的来源。
+ *
+ * B09 `turn/end`（本卡，与上面同病灶的**记录层**实例）：它是"已落盘、回放侧无消费方"清单里的
+ * 一条（`docs/ARCHITECTURE.md` §4.11 的"未消费"段 + `packages/shared/src/unwiredRecords.test.ts`
+ * 的同族注释），于是**纯回放**的 M02/M03 恒 0 —— 而这两个指标在 25 个有 manifest 的场景里
+ * **全部**被声明为 `measured`。本卡给 `finalizeRecord` 加了 `case 'turn/end':`，取**回合身份**
+ * （`turnId` → M02）与 **`stats.toolCalls`**（→ M03），并按 `turnId` 与事件面去重（M05 `llm/retry`
+ * 那套规矩：同一事实只计一次）。**刻意不取** `stats.steps`
+ * （模型调用被中断时 `beginStep` 已计、`after_model` 未发 ⇒ 两侧对不上）、`stats.tokensUsed`
+ * （每轮汇总，与 `after_model` 的逐调用量相加即双计且拆不成 M06/M07）、`stats.costEstimate`
+ * （**没有任何 shipped provider 上报** ⇒ 接了就是恒 0 的假指标）、`toolCallsWithoutEnd`（无指标定义）——
+ * 理由逐条写在 `Telemetry.ts` 的类注释里，⑯ 用"纯回放里 steps 必须仍是 0"把它钉成可判别事实。
+ *
+ * **依据收窄（本卡）**：改前这里与 `Telemetry.ts` 类注释把三条依据写成了**无条件**形式 ——
+ * "有记录即两侧工具调用数相等"、"记录条数/回合数/`before_turn` 事件数三者相等"、
+ * "实时与纯回放同数"都被断言成任何回合都成立；独立对抗验收据此判 FAIL。
+ * **正确表述**：这三条**只在"成功收尾的回合"上成立**，⑯⑰ 覆盖的
+ * 也只是这一段，用例名把条件写在明面上；别处引用它们时**不得**去掉条件。
+ * 为什么不能写成"单一、无重叠、无不可重试错误"：`AgentLoop.ts:636` 的
+ * `const retryable = attempt <= maxRetries && MODEL_RETRYABLE.has(cls);` 为假**有两条来源** ——
+ * ① 错误类别不可重试（`MODEL_RETRYABLE` 之外）**或**②**类别可重试但重试预算耗尽**
+ * （`attempt > maxRetries`）；两者**都**经 `AgentLoop.ts:649-651` 抛出 ⇒ `:462-463` 的
+ * `else { throw err; }` ⇒ `:528` 的 `turn/end` **永不落盘**（而 `:208-212` 的 `before_turn`
+ * 已发、`:282` 的 `turn/start` 已写）。窄口径把②当成立 —— 正是 C7 判 FAIL 的阻断项 A。
+ * **既有测试已在真实触发这两条**（只断言 rejects + `llm/retry` 记录，从未断言记录面后果）：
+ * `packages/core/src/agent-loop/AgentLoop.llm-retry-record.test.ts:280/281/288/295` 与
+ * `AgentLoop.stream.test.ts:385/388/390/392`（`rate limit 429` = `RATE_LIMITED` 可重试 +
+ * `maxRetries:1` ⇒ 预算耗尽）。
+ * 两条反例与机制（`AgentLoop.ts:462-463` 的 `throw err` ⇒ 该回合不发 `turn/end`；
+ * `AgentLoop.ts:136` 的单实例 `LoopState` + `packages/core/src/state/State.ts:20-26` 的
+ * `beginTurn` 归零 ⇒ 重叠回合落盘读到新回合计数器）已在 `Telemetry.ts` 类注释里**显式登记**；
+ * 判别性用例：不可重试类别见 `turnEndBoundary.test.ts` 第 1 条（既有），**预算耗尽见本文件 ⑱**。
  */
 
 const TELEMETRY_SRC = fileURLToPath(new URL('./Telemetry.ts', import.meta.url));
@@ -255,20 +287,35 @@ describe('telemetry — event subscriber + JSONL report', () => {
   it('⑤ 文档⇄代码：§4.11 点名的回放消费集合 == finalizeRecord 的 case 集合；M05 来源名副其实', () => {
     const handled = finalizedRecordTypes();
     expect(handled).toContain('llm/retry');
+    // 本卡接线的 `turn/end`：§4.11 曾把它整条写成"未消费"，现在代码有分支 ⇒ 文档也必须点名它，
+    // 而"仍未消费"的是它的 stats 字段（下面那串带后缀的解释，词法与 consumed 同一套）。
+    expect(handled).toContain('turn/end');
 
     // —— docs/ARCHITECTURE.md §4.11 telemetry 行 ——
     const archRow = fs.readFileSync(ARCHITECTURE_MD, 'utf8').split('\n').find((l) => l.includes('telemetry/（会话生命周期'))!;
     expect(archRow).toBeTruthy();
     const duty = archRow.split('|')[2] ?? '';
-    const consumed = [...duty.matchAll(/`([a-z]+\/[a-z]+)`/g)].map((m) => m[1]!);
+    // 词法：两段**各自**只看反引号包裹、且恰好是 `x/y` 形状的 token。
+    // 必须先按"未消费"切段再扫"已消费"段 —— 改前那条正则扫的是**整个单元格**，只是因为当时的
+    // "未消费"段恰好没给类型加反引号才碰巧成立；那样一来"如实把未消费项也写成反引号"反而会红。
+    const [consumedPart = '', unwiredRaw = ''] = duty.split('未消费');
+    expect(consumedPart).not.toBe('');
+    const consumed = [...consumedPart.matchAll(/`([a-z]+\/[a-z]+)`/g)].map((m) => m[1]!);
     // 双向绑定：文档点名"已消费"的必须有分支；代码有分支的必须被文档点名。
     expect(new Set(consumed)).toEqual(new Set(handled));
     // 反向：文档说"未消费"的记录类型，代码里不许有分支（否则文档立刻撒谎）
-    const unwired = duty.split('未消费')[1] ?? '';
+    const unwired = unwiredRaw;
     expect(unwired).not.toBe('');
-    const unwiredTypes = [...unwired.matchAll(/([a-z]+\/[a-z]+)/g)].map((m) => m[1]!);
+    // 词法与上面 consumed 同一套：**反引号包裹、且恰好是 `x/y` 形状**的才算清单项。
+    // 加后缀的解释（`turn/end.stats`、`turn/end{kind:'interrupted'}`）不匹配本正则 ⇒ 不算清单项
+    // —— 否则"消费了记录本身、但它的某个 stats 字段仍未消费"这件事**无法如实写出来**。
+    const unwiredTypes = [...unwired.matchAll(/`([a-z]+\/[a-z]+)`/g)].map((m) => m[1]!);
     expect(unwiredTypes).toContain('request/header');
-    expect(unwiredTypes).toContain('turn/end');
+    expect(unwiredTypes).toContain('session/created');
+    // `turn/end` 自本卡起**已消费**（身份 + `stats.toolCalls`）⇒ 它不得再出现在"未消费"清单里，
+    // 而未消费的是它的 stats 字段（上面那串带后缀的解释）。
+    expect(unwiredTypes).not.toContain('turn/end');
+    expect(unwired).toContain('turn/end.stats');
     for (const t of unwiredTypes) expect(handled).not.toContain(t);
 
     // —— docs/BENCHMARK-SPEC.md M05 行 ——
@@ -607,8 +654,10 @@ describe('telemetry — event subscriber + JSONL report', () => {
     tel.detach();
 
     // 本卡如实写出的边界：同一份日志**纯回放**（未 attach 总线）⇒ 0。
-    // 不为此去给 `finalizeRecord` 加 turn/end 分支：那会放宽 ARCHITECTURE §4.11 的既有判据，
-    // 且 `Session.loadExisting` 会为未闭合回合**合成**一条同形记录（崩溃恢复 ≠ 人工打断）。
+    // 不为此去让记录面冒充人工打断：`Session.loadExisting` 会为未闭合回合**合成**一条同形记录
+    // （崩溃恢复 ≠ 人工打断），而合成记录与真实收尾在文件里同形、不可判别。
+    // 注：`finalizeRecord` 现在**确有** `case 'turn/end':`（本卡接的 M02/M03 身份与汇总面），
+    // 但它不读 `kind` ⇒ `interrupts` 仍只由上面那条事件 handler 决定（⑯ 的负对照钉住这一点）。
     expect(new Telemetry().finalize(session).interrupts).toBe(0);
     // 记录侧面**确实存在**（不是"没这回事"）：这条 turn/end 就在日志里，只是本卡刻意不消费它。
     expect(session.replay().filter((r) => r.type === 'turn/end' && r.kind === 'interrupted')).toHaveLength(1);
@@ -644,6 +693,215 @@ describe('telemetry — event subscriber + JSONL report', () => {
     expect(detail.human_answers).toBeNull();
     expect(detail.machine_answers).toBeNull();
     expect(detail.unwired).toEqual(['human_answers', 'machine_answers']);
+    await session.close();
+  });
+
+  /**
+   * B09 `turn/end` 的接线（本卡）—— `finalizeRecord` 新增 `case 'turn/end':`。
+   *
+   * 缺陷（改前）：`docs/ARCHITECTURE.md` §4.11 与 `unwiredRecords.test.ts` 的同族清单都把
+   * `turn/end` 记成"已落盘、回放侧无消费方" ⇒ **纯回放**的 M02/M03 恒 0，而日志里明明写着
+   * 跑了几个回合、发起了几个工具调用（M02/M03 在 25 个场景里全部被声明为 `measured`）。
+   *
+   * 取什么、不取什么（论证见 `Telemetry.ts` 类注释「B09 `turn/end` 记录的接线」）：
+   *   - 取 `turnId`（回合身份 → M02，与 `before_turn` 事件按 `turnId` 去重）与
+   *     `stats.toolCalls`（→ M03；**该轮未被另一个 `runTurn` 重叠打断时**，该轮有记录
+   *     ⇒ `after_tool` 条数 == `stats.toolCalls` —— 条件与反例见 `Telemetry.ts` 类注释）；
+   *   - **不**取 `stats.steps`（模型调用被中断时 `beginStep` 已计、`after_model` 未发 ⇒ 两侧对不上）、
+   *     `stats.tokensUsed`/`costEstimate`（双计 / **没有任何 shipped provider 上报**）、
+   *     `toolCallsWithoutEnd`（无指标定义）。
+   *
+   * 「删哪行会红」（本卡）：
+   *   - 删掉 `finalizeRecord` 的 `case 'turn/end':` ⇒ ⑯⑰ 红（改前正是这一支不存在）；
+   *   - 去掉 `liveTurnIds` 的去重（退回"事件一次 + 记录再一次"的加法）⇒ ⑰ 红（1 轮会变 2 轮）；
+   *   - 把 `stats.toolCalls` 换成 `stats.steps`（或把 summary 整段相加）⇒ ⑯ 的负对照红
+   *     （纯回放里 `steps` 必须仍是 0）；
+   *   - 只改文档不动代码（或反之）⇒ ⑤ 红。
+   */
+  it('⑯ M02/M03 纯回放（成功单回合）：真实回合的 `turn/end` ⇒ turns/toolCalls 如实重建（改前恒 0）', async () => {
+    const session = await openSession('t-turnend-replay');
+    // 总线挂着跑（AgentLoop 需要它 emit），但**没有任何 telemetry 在听** ⇒ 之后 finalize 就是纯回放。
+    const bus = new EventBus();
+    const provider = new ScriptedProvider((call) =>
+      call === 1
+        ? {
+            content: '',
+            toolCalls: [{ id: 'tc_turnend_1', name: 'Stub', arguments: { n: 1 } }],
+            finishReason: 'tool_calls' as const,
+            usage: { inputTokens: 1, outputTokens: 1 },
+          }
+        : reply('done'),
+    );
+    const loop = new AgentLoop({
+      session, bus, provider, model: 'deps-model-unused',
+      buildContext: async () => ({
+        model: 'envelope-model',
+        messages: [{ role: 'system' as const, content: 'test' }],
+        tools: [],
+        estimateTokens: 10,
+      }),
+      runTool: async () => ({ content: 'tool ran', meta: {} }),
+      getVisibleTools: () => [],
+    });
+
+    const result = await loop.runTurn('跑一轮');
+    expect(result.kind).toBe('success');
+
+    const ends = session.replay().filter((r): r is TurnEndRecord => r.type === 'turn/end');
+    expect(ends).toHaveLength(1);
+    expect(ends[0]!.stats.steps).toBe(2); // 两次模型调用
+    expect(ends[0]!.stats.toolCalls).toBe(1); // 一次工具调用（记录里的事实）
+
+    const counters = new Telemetry().finalize(session);
+    expect(counters.turns).toBe(1); // 改前：纯回放没有 turn/end 分支 ⇒ 恒 0
+    expect(counters.toolCalls).toBe(1); // 同上（M03 在 25 个场景里全被声明为 measured）
+    // 负对照（刻意不消费 `stats.steps` 的可判别事实）：记录里写着 steps=2，回放侧**不得**把它
+    // 折进 steps —— 该字段在"模型调用被中断"时会比 after_model 条数多，实时与回放会对不上。
+    expect(counters.steps).toBe(0);
+    // `interrupts` 仍只取事件面：这条记录的 kind 是 'success'，不因新增分支而受影响。
+    expect(counters.interrupts).toBe(0);
+    await session.close();
+  });
+
+  it('⑰ 防重复计数 + 成功单回合两侧同数：实时已观测的回合，记录侧不再计一次', async () => {
+    const session = await openSession('t-turnend-dedupe');
+    const bus = new EventBus();
+    const tel = new Telemetry();
+    tel.attach(bus);
+
+    const provider = new ScriptedProvider((call) =>
+      call === 1
+        ? {
+            content: '',
+            toolCalls: [{ id: 'tc_turnend_2', name: 'Stub', arguments: { n: 1 } }],
+            finishReason: 'tool_calls' as const,
+            usage: { inputTokens: 1, outputTokens: 1 },
+          }
+        : reply('done'),
+    );
+    const loop = new AgentLoop({
+      session, bus, provider, model: 'deps-model-unused',
+      buildContext: async () => ({
+        model: 'envelope-model',
+        messages: [{ role: 'system' as const, content: 'test' }],
+        tools: [],
+        estimateTokens: 10,
+      }),
+      runTool: async () => ({ content: 'tool ran', meta: {} }),
+      getVisibleTools: () => [],
+    });
+
+    const result = await loop.runTurn('跑一轮');
+    expect(result.kind).toBe('success');
+
+    // 同一个回合在两侧都有（`before_turn`/`after_tool` 事件 + 一条 `turn/end` 记录）。
+    // 若照抄 `denials` 那套「事件 + 记录相加」，这里会得 turns=2、toolCalls=2。
+    const live = tel.finalize(session);
+    expect(live.turns).toBe(1);
+    expect(live.toolCalls).toBe(1);
+    tel.detach();
+
+    // 同一份日志纯回放 ⇒ 相同的数。**条件**：这是一个成功收尾的单回合 —— §4.11 的
+    // turn/start→turn/end 1:1 只在成功收尾的回合上成立；provider 抛不可重试错误的那条路径
+    // 根本不发 `turn/end`（该轮实时计到、纯回放计不到），机制见 `Telemetry.ts` 类注释。
+    const replay = new Telemetry().finalize(session);
+    expect(replay.turns).toBe(live.turns);
+    expect(replay.toolCalls).toBe(live.toolCalls);
+
+    // 记录侧确实在计数（不是"两边都恰好没数"）：**在这个成功单回合里**记录侧的 `stats.toolCalls`
+    // 与事件侧的 after_tool 条数相等。**它只是这段条件下的依据，不是无条件等式** —— 回合重叠时
+    // 旧回合落盘读到的是新回合的计数器（条件、反例与机制见 `Telemetry.ts` 类注释）。
+    const ends = session.replay().filter((r): r is TurnEndRecord => r.type === 'turn/end');
+    expect(ends).toHaveLength(1);
+    expect(ends[0]!.stats.toolCalls).toBe(live.toolCalls);
+    await session.close();
+  });
+
+  /**
+   * ⑱ **「重试预算耗尽」路径**的判别性用例（任务卡 C7b，补 C7 阻断项 A 的第 3 条未覆盖发现）。
+   *
+   * 与 `turnEndBoundary.test.ts` 第 1 条**同闸门、不同机制**：那里的 `retryable === false` 来自
+   * **错误类别**（UNKNOWN 不在 `MODEL_RETRYABLE`，`AgentLoop.ts:70`）；这里的 `RATE_LIMITED`
+   * **在**可重试词表内，`retryable === false` 只可能来自**预算耗尽** ——
+   * `AgentLoop.ts:636` 的 `attempt <= maxRetries` 为假（`maxRetries:1` ⇒ 第 2 次尝试时
+   * `2 <= 1` 为假）；同一判据、同一 `:649-651` 抛出、同一 `:462-463` rethrow。
+   * 该路径是**既有测试已在生产代码里跑通**的（`AgentLoop.llm-retry-record.test.ts:280/281/288/295`
+   * 与 `AgentLoop.stream.test.ts:385/388/390/392`），但两边都只断言 `rejects` 与 `llm/retry` 记录，
+   * **从未断言记录面/telemetry 后果** —— 本用例补的正是这一段。
+   *
+   * 「哪条断言会先红」（判别性，逐条）：
+   *  - 若实现改成"总能收尾"（`AgentLoop.ts:462-463` 的 `throw err;` 换成赋 `kind` 后继续落盘）
+   *    ⇒ `runTurn` 由 rejects 变 resolve ⇒ **`:176` 形态的第一条断言
+   *    `await expect(...).rejects.toThrow(...)` 先红**（`throw err` 的契约被破坏）；
+   *  - 若只在 `throw err;` 前补一条 `turn/end`（保留 rejects）⇒ `:189` 形态的
+   *    `expect(ends).toHaveLength(0)` 先红，随后 `:210` 的 `expect(replay.turns).toBe(0)` 与
+   *    `:211` 的 `expect(replay.turns).not.toBe(live.turns)` 也会红；
+   *  - 若把条件**改回窄口径**（文档层面）而不是改代码 ⇒ 本用例与 `turnEndBoundary.test.ts` 第 1 条
+   *    仍然全绿 —— 窄口径的 falsify 靠的是**这两条用例同时存在**（一条类别、一条预算），
+   *    以及 `Telemetry.ts` 类注释里并列登记的两类反例：删掉任何一条用例，文档的窄口径就又不被钉住；
+   *  - 若有人把 `RATE_LIMITED` 从 `MODEL_RETRYABLE` 移出 ⇒ `kind` 断言（`RATE_LIMITED`）先红 ——
+   *    这条负对照保证本用例**确实**走的是"类别可重试"那条路，而不是退化成第 1 条用例的复制。
+   */
+  it('⑱ 预算耗尽路径（类别可重试 RATE_LIMITED + maxRetries:1）：before_turn 已发而 turn/end 记录数 0 ⇒ live.turns ≠ replay.turns', async () => {
+    const session = await openSession('t-turnend-budget');
+    const bus = new EventBus();
+    const tel = new Telemetry();
+    tel.attach(bus);
+
+    const beforeTurnEvents: { turnId: string }[] = [];
+    bus.on('before_turn', (p) => {
+      beforeTurnEvents.push(p as { turnId: string });
+    });
+
+    // `classifyModelError`（`AgentLoop.ts:78-85`）把 'rate limit 429' 判为 'RATE_LIMITED'，
+    // 它在 `MODEL_RETRYABLE`（`AgentLoop.ts:70`）里 ⇒ 类别**可重试**；
+    // `maxRetries:1` ⇒ 第 2 次失败时 `attempt(2) <= 1` 为假 ⇒ 预算耗尽 ⇒ `:649-651` 抛出。
+    const provider = new ScriptedProvider(() => new Error('rate limit 429'));
+    const loop = new AgentLoop({
+      session, bus, provider, model: 'deps-model-unused',
+      buildContext: async () => ({
+        model: 'envelope-model',
+        messages: [{ role: 'system' as const, content: 'test' }],
+        tools: [],
+        estimateTokens: 10,
+      }),
+      runTool: async () => ({ content: 'tool ran', meta: {} }),
+      getVisibleTools: () => [],
+      llmRetry: { maxRetries: 1 },
+    });
+
+    // `:649-651` 抛出包装错误 → `:451-464` 的 catch 里既非 `TurnInterruptedError`
+    // 也非 `DenialLimitError` ⇒ `:462-463` 直接 rethrow（与第 1 条用例同一闸门）。
+    await expect(loop.runTurn('boom')).rejects.toThrow(/Model call failed after 2 attempt/);
+
+    const records = session.replay();
+    // —— 记录侧：两次失败都落了 abort 决策，但 :528 的 turn/end 一条都没有 ——
+    const retryRecords = records.filter((r): r is LlmRetryRecord => r.type === 'llm/retry');
+    expect(retryRecords).toHaveLength(2);
+    expect(retryRecords.map((r) => r.decision)).toEqual(['retry', 'abort']);
+    // 负对照（把"预算耗尽"与"类别不可重试"区分开）：两次失败的类别都是**可重试**类别 ——
+    // 若有人把 RATE_LIMITED 移出 MODEL_RETRYABLE，这里与第 1 条用例就分不开了。
+    expect(retryRecords.map((r) => r.kind)).toEqual(['RATE_LIMITED', 'RATE_LIMITED']);
+    expect(retryRecords[1]!.attemptNo).toBe(2); // 预算耗尽发生在第 2 次尝试（maxRetries:1）
+    expect(retryRecords[0]!.backoffMs).toBeDefined(); // 第 1 次确实重试了（不是一开始就 abort）
+    expect(retryRecords[1]!.backoffMs).toBeUndefined(); // abort 决策不写 "等过 0ms"
+
+    const ends = records.filter((r): r is TurnEndRecord => r.type === 'turn/end');
+    expect(ends).toHaveLength(0); // :528 在该回合永不落盘（无合成收尾：本用例不重开会话）
+
+    // —— 事件侧：:208-212 的 before_turn 已发、:282 的 turn/start 已写 ——
+    expect(beforeTurnEvents).toHaveLength(1);
+    expect(
+      records.filter((r) => r.type === 'turn/start' && r.turnId === beforeTurnEvents[0]!.turnId),
+    ).toHaveLength(1);
+
+    // —— 两侧的数：实时侧计到这一轮、纯回放侧计不到 ——
+    const live = tel.finalize(session);
+    expect(live.turns).toBe(1); // 事件面 before_turn 计一次
+    tel.detach();
+    const replay = new Telemetry().finalize(session);
+    expect(replay.turns).toBe(0); // 记录面缺一条 turn/end ⇒ 没有可折算的东西
+    expect(replay.turns).not.toBe(live.turns);
     await session.close();
   });
 });
