@@ -101,6 +101,26 @@ function finalizedRecordTypes(): string[] {
   return [...src.matchAll(/case '([^']+)':/g)].map((m) => m[1]!);
 }
 
+/**
+ * ⑤ 的清单词法（W1/R4 把 ⑤ 的行内正则抽成同文件纯函数，好让负例直接调它；**不是**新口径）：
+ * 「已消费 / 未消费」两段里，只有**反引号包裹、且恰好 `x/y` 形状**的 token 才算清单项。
+ * 带后缀的解释（`` `turn/end.stats` ``、`` `turn/end{kind:'interrupted'}` ``）与非 `x/y` 形状
+ * （`M02/M03`）都**不算** —— 否则"消费了记录本身、但它的某个 stats 字段仍未消费"这件事
+ * 无法如实写出来（这是既有取舍，本卡只把它钉住，不改它）。
+ */
+function recordTokens(segment: string): string[] {
+  return [...segment.matchAll(/`([a-z]+\/[a-z]+)`/g)].map((m) => m[1]!);
+}
+
+/**
+ * 同一形状、但**没有**反引号包裹的裸 token —— `recordTokens()` 看不见它们（漏检）。
+ * ⑤ 对真实文档的那一段断言这里为空：谁把未消费项的反引号去掉，谁就会**指名**红，
+ * 而不是让清单静默少一项（`recordTokens` 抽不到 ⇒ 既有那两条 `toContain` 也同时红）。
+ */
+function bareRecordTokens(segment: string): string[] {
+  return [...segment.matchAll(/(?<![`\w/])([a-z]+\/[a-z]+)(?![`\w/])/g)].map((m) => m[1]!);
+}
+
 type LlmRetryRecord = Extract<SessionRecord, { type: 'llm/retry' }>;
 type RetryEvent = { turnId: string; step: number; attempt: number; errorClass: string };
 
@@ -295,21 +315,21 @@ describe('telemetry — event subscriber + JSONL report', () => {
     const archRow = fs.readFileSync(ARCHITECTURE_MD, 'utf8').split('\n').find((l) => l.includes('telemetry/（会话生命周期'))!;
     expect(archRow).toBeTruthy();
     const duty = archRow.split('|')[2] ?? '';
-    // 词法：两段**各自**只看反引号包裹、且恰好是 `x/y` 形状的 token。
+    // 词法：两段**各自**只看反引号包裹、且恰好是 `x/y` 形状的 token（`recordTokens()`，见文件头）。
     // 必须先按"未消费"切段再扫"已消费"段 —— 改前那条正则扫的是**整个单元格**，只是因为当时的
     // "未消费"段恰好没给类型加反引号才碰巧成立；那样一来"如实把未消费项也写成反引号"反而会红。
     const [consumedPart = '', unwiredRaw = ''] = duty.split('未消费');
     expect(consumedPart).not.toBe('');
-    const consumed = [...consumedPart.matchAll(/`([a-z]+\/[a-z]+)`/g)].map((m) => m[1]!);
+    const consumed = recordTokens(consumedPart);
     // 双向绑定：文档点名"已消费"的必须有分支；代码有分支的必须被文档点名。
     expect(new Set(consumed)).toEqual(new Set(handled));
     // 反向：文档说"未消费"的记录类型，代码里不许有分支（否则文档立刻撒谎）
     const unwired = unwiredRaw;
     expect(unwired).not.toBe('');
-    // 词法与上面 consumed 同一套：**反引号包裹、且恰好是 `x/y` 形状**的才算清单项。
+    // 词法与上面 consumed 同一套（`recordTokens()`）：**反引号包裹、且恰好是 `x/y` 形状**的才算清单项。
     // 加后缀的解释（`turn/end.stats`、`turn/end{kind:'interrupted'}`）不匹配本正则 ⇒ 不算清单项
     // —— 否则"消费了记录本身、但它的某个 stats 字段仍未消费"这件事**无法如实写出来**。
-    const unwiredTypes = [...unwired.matchAll(/`([a-z]+\/[a-z]+)`/g)].map((m) => m[1]!);
+    const unwiredTypes = recordTokens(unwired);
     expect(unwiredTypes).toContain('request/header');
     expect(unwiredTypes).toContain('session/created');
     // `turn/end` 自本卡起**已消费**（身份 + `stats.toolCalls`）⇒ 它不得再出现在"未消费"清单里，
@@ -317,6 +337,10 @@ describe('telemetry — event subscriber + JSONL report', () => {
     expect(unwiredTypes).not.toContain('turn/end');
     expect(unwired).toContain('turn/end.stats');
     for (const t of unwiredTypes) expect(handled).not.toContain(t);
+    // R4（本卡）词法负例在**真实文档**上的挂钩：未消费项必须**带反引号**出现。
+    // 去掉反引号 ⇒ `recordTokens()` 抽不到它（上面两条 `toContain` 先红 = 清单漏检），
+    // 同时裸 token 报警器在这里点名 ⇒ 不留"静默漏掉一个未消费项"的口子。
+    expect(bareRecordTokens(unwired)).toEqual([]);
 
     // —— docs/BENCHMARK-SPEC.md M05 行 ——
     const m05Row = fs.readFileSync(BENCHMARK_SPEC_MD, 'utf8').split('\n').find((l) => l.startsWith('| M05 |'))!;
@@ -324,6 +348,47 @@ describe('telemetry — event subscriber + JSONL report', () => {
     expect(m05Row).toContain('llm/retry');
     // 文档点名的来源必须在代码里真有分支（删掉 case ⇒ 本用例与用例①同时红）
     expect(handled).toContain('llm/retry');
+  });
+
+  /**
+   * R4（本卡）—— ⑤ 的**词法本身**的负例。⑤ 抽「已消费 / 未消费」两段清单靠的是
+   * `recordTokens()`：**反引号包裹、且恰好 `x/y` 形状**的 token 才算清单项。
+   * 这条词法有个已知的代价：**未消费项若不加反引号，抽取就看不见它**（漏检）。
+   * 本用例把两件事分开钉住，不留含糊：
+   *   ① 负例（漏检的**机制**）：同一个词不加反引号 ⇒ `recordTokens()` 返回空 —— 这就是漏检本身；
+   *   ② 漏检**不得静默**：`bareRecordTokens()` 必须把裸 token 点出来，而 ⑤ 已对**真实文档**的
+   *      "未消费"段断言它为空（那一条断言就是"谁去掉反引号谁红"的绊线）。
+   * 「改哪处会红」（W3b 按实测改准；评审 E4 的"只有边界①会红 / ⑤ 侧不会红"经复算**不成立**，
+   * 前提与反驳见 `tasks/121` §6.9）：删掉 `recordTokens()` 的反引号要求（改成裸 `x/y` 也收）
+   * ⇒**本用例与 ⑤ 都会红**，只是 fail-fast 让每个文件只显示**第一条**失败：⑤ 先在
+   * `expect(new Set(consumed)).toEqual(new Set(handled))` 那条上失配（宽松词法还会多收
+   * `inject/instruction`/`plan/memory` 这类**不是**记录类型的 `x/y`），本用例先在本用例的
+   * "反例（裸词 ⇒ 抽取返回空）"那条上失败（那正是"漏检机制存在"本身的断言）；
+   * 末尾两条**边界**断言被 fail-fast 挡在后面、**未被执行**（本用例不声称它们是否会被违反：按本段自述的突变形状复算，若真执行 ⇒ 边界① 被违反、边界② 照常通过；换 lookaround 形状则三条全过）。
+   * 真实 duty 单元格两段的裸 token 都是 `[]`（清单全带反引号）—— 这条**属实**的事实只说明
+   * ⑤ 里那条 `bareRecordTokens(unwired)` 绊线**当前尚无触发对象**（谁去掉反引号才响），
+   * **推不出**"⑤ 侧不会红"：放宽后 ⑤ 的 `unwiredTypes` 一样被破坏（裸形状下变空集 ⇒
+   * `toContain('request/header')` 先红；只去反引号形状下多出 `turn/end` ⇒ `not.toContain('turn/end')` 被违反）。
+   * 删掉 ⑤ 里的 `expect(bareRecordTokens(unwired)).toEqual([])` ⇒**新增**一个裸词未消费项时用例⑤
+   * 仍绿（正是本条要防的漏检）；若是**既有**项被去掉反引号，⑤ 的 `toContain` 会先抓住，不靠这条。
+   */
+  it('⑤-neg R4 词法负例：未消费项不加反引号 ⇒ 抽取看不见（漏检），裸 token 报警器必须点名', () => {
+    // 正例：反引号包裹的 `x/y` 就是清单项
+    expect(recordTokens('未消费：`session/created`、`request/header`'))
+      .toEqual(['session/created', 'request/header']);
+
+    // 反例（本用例的存在理由）：**同两个词、不加反引号** ⇒ 抽取返回空 —— 即"漏检"本身
+    expect(recordTokens('未消费：session/created、request/header')).toEqual([]);
+
+    // 漏检不得静默：裸 token 报警器必须点名（⑤ 用同一个函数扫真实文档那一段）
+    expect(bareRecordTokens('未消费：session/created、request/header'))
+      .toEqual(['session/created', 'request/header']);
+
+    // 边界①：反引号里带后缀的解释**不是**清单项（`turn/end.stats` 不得把 `turn/end` 也算成一项）
+    expect(recordTokens("`turn/end.stats`、`turn/end{kind:'interrupted'}`")).toEqual([]);
+    // 边界②：非 `x/y` 小写形状（大写/数字）既不是清单项，也不该被当作"裸 token 漏检"
+    expect(recordTokens('M02/M03、`:462-463`')).toEqual([]);
+    expect(bareRecordTokens('M02/M03、A16/A17')).toEqual([]);
   });
 
   it('⑥ M14 纯回放：`audit/denial`(stage approval) ⇒ approvalAsks 如实计数（改前恒 0）', async () => {
@@ -802,8 +867,9 @@ describe('telemetry — event subscriber + JSONL report', () => {
     tel.detach();
 
     // 同一份日志纯回放 ⇒ 相同的数。**条件**：这是一个成功收尾的单回合 —— §4.11 的
-    // turn/start→turn/end 1:1 只在成功收尾的回合上成立；provider 抛不可重试错误的那条路径
-    // 根本不发 `turn/end`（该轮实时计到、纯回放计不到），机制见 `Telemetry.ts` 类注释。
+    // turn/start→turn/end 1:1 只在成功收尾的回合上成立；不发 `turn/end` 的异常路径有**两条并列来源**
+    // （① provider 抛不可重试错误、② 错误类别可重试但重试预算耗尽 `attempt > maxRetries`），
+    // 两条路径都是"该轮实时计到、纯回放计不到"，机制见 `Telemetry.ts` 类注释。
     const replay = new Telemetry().finalize(session);
     expect(replay.turns).toBe(live.turns);
     expect(replay.toolCalls).toBe(live.toolCalls);
