@@ -9,3 +9,7 @@ benchmarks/reports/B*/run_*/
 .DS_Store
 .dsh-vision-router/
 benchmarks/reports/release-gate/
+
+# Mission 控制面（personal-dev-workflow：RUN_STATE 与 Mission 证据/卡，绝不提交）
+RUN_STATE.md
+.dsh-mission/
