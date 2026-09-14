@@ -1,6 +1,7 @@
 # Vessel — A Composable Agent Harness
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![npm](https://img.shields.io/npm/v/composable-agent-harness.svg)](https://www.npmjs.com/package/composable-agent-harness)
 ![Node](https://img.shields.io/badge/node-%3E%3D20-brightgreen)
 ![Tests](https://img.shields.io/badge/tests-2195%20%2B%20120%20passed-brightgreen)
 
@@ -53,21 +54,35 @@ Model + Behavior + Context + Tools + Policy + Memory + Evaluator + Orchestration
 
 前置：Node ≥ 20（本机在 Node v24 下开发）。
 
+### 方式一：从 npm 安装（推荐，运行时零依赖）
+
+```bash
+npm install -g composable-agent-harness   # 得到全局 vessel 命令
+# 或免安装：npx composable-agent-harness --version
+
+vessel --version
+vessel run --prompt "总结当前工作区 README"   # 零配置：走内置离线 mock，不发网络请求
+vessel setup                                  # 接真实模型的交互向导
+```
+
+### 方式二：从源码（开发用）
+
 ```powershell
-# ① 安装与构建
 npm install
 npm run build                # 编译全部 TS（tsc -b）
+npm link ./apps/cli          # 可选：让 vessel 命令全局可用
+npm run vessel -- --help     # 不装全局时，用项目内入口
+```
 
-# ② 让 vessel 命令全局可用（可选，换环境后重跑一次）
-npm link ./apps/cli
+### 配置供应商（首次使用真实模型）
 
-# ③ 配置供应商（首次使用）
+```powershell
 vessel setup                 # 交互向导：搜索选供应商 → 输 key → 拉模型 → 勾选 → 设为默认
 # 或命令行添加（以 DeepSeek 为例）
 vessel provider add deepseek --protocol openai-compatible --base-url https://api.deepseek.com/v1 --api-key <key> --model deepseek-chat
 vessel provider switch deepseek
 
-# ④ 跑起来
+# 跑起来
 vessel                       # 进交互对话（无参即进 TUI；chat 不是子命令）
 vessel run --prompt "总结当前工作区 README"   # 一次性任务
 ```
@@ -147,6 +162,7 @@ vessel run --prompt "总结当前工作区 README"   # 一次性任务
 | | |
 |---|---|
 | **当前版本** | **v0.10.0** —— 根 `package.json`、`apps/cli/package.json` 与 `vessel --version` 三处同号 |
+| **npm 包** | [`composable-agent-harness`](https://www.npmjs.com/package/composable-agent-harness)（CLI 自包含单文件，**运行时零依赖**）—— `npm i -g composable-agent-harness` 或 `npx composable-agent-harness` |
 | **版本历史（中英双语）** | [`CHANGELOG.md`](CHANGELOG.md) —— V0.1 → V0.10，**每个里程碑都有「中文」+「English」两段**说明 |
 | **里程碑与路线** | [`docs/V1.0-ROADMAP-PROGRESS.md`](docs/V1.0-ROADMAP-PROGRESS.md)、[`docs/VESSEL.md`](docs/VESSEL.md) |
 | **GitHub Releases** | 每个 `vX.Y.Z` tag 对应一个 release；release 说明取自 `CHANGELOG.md` 的同名章节（中英双语） |
