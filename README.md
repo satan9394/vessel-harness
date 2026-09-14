@@ -1,10 +1,31 @@
 # Vessel — A Composable Agent Harness
 
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+![Node](https://img.shields.io/badge/node-%3E%3D20-brightgreen)
+![Tests](https://img.shields.io/badge/tests-2195%20%2B%20120%20passed-brightgreen)
+
 > 本地优先 · 模型无关 · 可组合 · 可观察 · 带硬策略边界的 Agent Harness
 
 > **Carry intelligence. Shape behavior. Guard execution.**
 
 Vessel（器）取名自「大器免成 / 无器之器」：**系统本身不是任何一个组件**。Model、Prompt、Agent、工具都只是可替换的"器"；Vessel 是承载这些器、并让它们各自可靠运转的框架——器可以一件件换掉，系统不因此失效。
+
+*English:* Vessel is a local-first, model-agnostic, composable agent harness: a thin core loop, behaviour compiled from a versioned IR, hard policy enforcement instead of prompt-only rules, and a CLI/web surface — every component replaceable without the system failing.
+
+---
+
+## 状态：**可用**（2026-09-13 在当前 HEAD 实测）
+
+三项门禁都在本仓库当前提交上跑通，命令与结果如下（可自行复跑）：
+
+| 门禁 | 命令 | 实测结果 |
+|---|---|---|
+| 类型检查 / 构建 | `npm run build`（`tsc -b`） | **exit 0** |
+| 全量测试（两个 root） | `npm run test:all` | 根 **171 文件 / 2195 passed + 6 skipped**；`apps/web` **11 文件 / 120 passed** |
+| CLI 冒烟（离线，不发网络） | `npm run vessel -- run --prompt "说一句你好"` | `kind=success`，`steps=1`，走内置 `mock` |
+
+> **零配置即可跑**：没有任何供应商配置时默认使用内置 `mock` 供应商（离线确定性冒烟）。要接真实模型：`vessel setup`（交互向导）或 `vessel provider add …`。
+> **已知边界**（如实标注）：`vessel serve`/`vessel web` 的 Web 界面仍在推进；`benchmarks/reports/release-report.{md,json}` 是历史快照，未随最近改动刷新；进程树沙箱在 Windows 上未接入 job object 时会在遥测里如实报 `degraded`。
 
 ---
 
@@ -121,12 +142,25 @@ vessel run --prompt "总结当前工作区 README"   # 一次性任务
 - [`docs/POLICY-SPEC.md`](docs/POLICY-SPEC.md) · [`docs/BEHAVIOR-IR-SPEC.md`](docs/BEHAVIOR-IR-SPEC.md) · [`docs/EVENT-SPEC.md`](docs/EVENT-SPEC.md) · [`docs/BENCHMARK-SPEC.md`](docs/BENCHMARK-SPEC.md)
 - [`SECURITY.md`](SECURITY.md) · [`CHANGELOG.md`](CHANGELOG.md) · [`LICENSE`](LICENSE)
 
+## 版本与发布
+
+| | |
+|---|---|
+| **当前版本** | **v0.10.0** —— 根 `package.json`、`apps/cli/package.json` 与 `vessel --version` 三处同号 |
+| **版本历史（中英双语）** | [`CHANGELOG.md`](CHANGELOG.md) —— V0.1 → V0.10，**每个里程碑都有「中文」+「English」两段**说明 |
+| **里程碑与路线** | [`docs/V1.0-ROADMAP-PROGRESS.md`](docs/V1.0-ROADMAP-PROGRESS.md)、[`docs/VESSEL.md`](docs/VESSEL.md) |
+| **GitHub Releases** | 每个 `vX.Y.Z` tag 对应一个 release；release 说明取自 `CHANGELOG.md` 的同名章节（中英双语） |
+
+版本主线一句话：**V0.1** 薄核 + Behavior IR + Policy 四件套 → **V0.2** Subagent / Planner / Evaluator / MCP / Worktree → **V0.3** Memory / Skills → **V0.4** TaskRouter → **V0.5** Loop Engine → **V0.6** 多供应商配置 → **V0.7** 交互 TUI + 权限三档 → **V0.8** 品牌与哲学 IR 化 → **V0.9** 更名 Vessel + 用量统计与价目 → **V0.10** 组合根抽离 + `migrate`/`serve`/`web` + 公开文档。
+
 ## 开发
 
 ```powershell
 npm run build          # tsc -b 类型 + 编译
 npm run test:all       # 全量测试：**两个 root 都跑**（根 + `--root apps/web`）
 npx tsc -b             # 类型检查
+npm run vessel -- --help          # 不装全局时，用项目内入口跑 CLI
+node apps/cli/dist/cli.js --version   # 直接用已编译产物（构建后）
 ```
 
 > `apps/web` 有**独立的 vitest 配置**（需要 `@vitejs/plugin-react`），根 `vitest.config.ts`
