@@ -27,9 +27,9 @@ Interceptor + Runtime Deny + Audit）是核心抽象。口号：Carry intelligen
 
 ## 当前成熟阶段
 
-- **高内部成熟度**：1200+ 测试（root 1220 passed + 1 skipped / web 82）、8 release gates READY、RL 协议修复后
+- **高内部成熟度**：全量测试（`npm run test:all`）根 **171 文件 / 2198 passed + 6 skipped**、`apps/web` **11 文件 / 120 passed**；CI（Windows + Linux）绿、CodeQL/Dependabot/Secret scanning 告警均 0；8 release gates READY、RL 协议修复后
   deepseek-flash 真实模型跑通、Windows 锁 flaky 全套治理、克制的分层架构（依赖零环）。
-- **低对外成熟度**：CLI 为主、Web 为次要表面（local-server + web 基础 UsageBar）；文档丰富但偏开发者导向；
+- **低对外成熟度**：CLI 为主、Web 为次要表面（local-server + `apps/web` 的 Sidebar/StatusBar/Conversation/Goal/Team/Usage 等模块）；文档丰富但偏开发者导向；
   面向"开发者构建自用 Harness"为主，非大众产品。用户刚提出**引导/解释体系需求**（即已实现的 117：
   术语中英双语词库 + explain/guide/settings）——对新手是重要改善，但仍可审计覆盖面与体验。
 
@@ -43,8 +43,7 @@ Interceptor + Runtime Deny + Audit）是核心抽象。口号：Carry intelligen
 - **纪律**：删除走回收站；凭据存储**按平台如实分级**——Windows 且 PowerShell/DPAPI 可用 → **DPAPI 密文**
   （`~/.vessel/secrets.json`，绑定当前 Windows 用户）；**其它平台 / DPAPI 不可用 → 显式降级明文**
   （写入时 console.warn；风险等同明文存储，建议改用 `VESSEL_API_KEY` 环境变量或收紧 `~/.vessel` 权限）；
-  `providers.json` 自 034 起只存 `secretRef`、不落明文；不读用户本机应用数据；每卡全量 vitest+tsc
-  验证后验收；测试隔离（VESSEL_PROVIDER_ROOT/VESSEL_USAGE_ROOT 临时目录）。
+  `providers.json` 自 034 起只存 `secretRef`、不落明文；不读用户本机应用数据；每卡**全量 = `npm run test:all`**（两个 root）+ `tsc -b` 验证后验收；测试隔离（VESSEL_PROVIDER_ROOT/VESSEL_USAGE_ROOT 临时目录）。
 - **生产纪律**：CLI/TUI 均为 `apps/cli`；ProviderStore SSOT；行为 IR 双通道（prompt_guidance + runtime_policy）。
 - 已知观察：deepseek-flash 成本波动（单轮最高 $0.94）与上下文膨胀（长工具链 run in 1.31M token）；secret
   写入侧弱项（116 记录需 policy 卡）。
@@ -55,6 +54,6 @@ Interceptor + Runtime Deny + Audit）是核心抽象。口号：Carry intelligen
   migrate / review / explain（别名 term）/ list-terms / guide / settings / policy / bench-report / serve / web；
   **没有 `chat` 子命令**——`vessel chat` 返回「未知命令」exit 2）
 - TUI：无参 `vessel`（apps/cli/src/tui/chat.ts，支持 /explain、/help、? <term>）
-- Web：apps/web（UsageBar）+ apps/local-server（usage SSE）
+- Web：apps/web（Sidebar / StatusBar / NewSessionForm / ConversationView / GoalModule / TeamModule / ModelSelector / CustomizePanel / LanguageSwitcher / ReviewRequiredPanel / UsageBar）+ apps/local-server（API + SSE）
 - 基准：benchmarks/runners（run-release-gates.ts / run-opencode-lane.ts）
 - 配置：configs/{behavior.default,policy.default}.yaml、model-catalog.json、pricing.json

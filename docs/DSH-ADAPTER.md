@@ -2,7 +2,7 @@
 
 > 实现 076 的 HarnessAdapter 契约（`contracts/types.ts`）的 **DSH（DeepSeek Harness）适配器**，
 > 让同一 benchmark fixture 可在 DSH 上运行并统一采集 §15 L3 指标。
-> 状态：待验收（task 077）。
+> 状态：已合入（V1.0 Milestone G，076–081 已验收；见 docs/V1.0-CHECKPOINT.md）（task 077）。
 
 ## 1. 定位
 

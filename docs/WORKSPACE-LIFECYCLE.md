@@ -81,4 +81,4 @@ LoopEngine iteration ── runTask(task)
 attempt 都清理；多迭代（maxIterations>1）逐任务清理；幂等（每个 created root dispose 恰一次 +
 TempDir 工厂二次 dispose 安全）；主工作区隔离（重试路径下主目录零文件）；guardDeps 配对守卫
 fail loud；Git Worktree 模式闭环（add/remove 平衡 + 异常路径 remove 照常）。
-全量 vitest/tsc 绿（root 590+ 无回归，本卡新增 13 例无回归）。
+全量 vitest/tsc 绿（当时 root 590+ 无回归，本卡新增 13 例无回归）。**现状（2026-09-18）**：全量 = `npm run test:all`，根 171 文件 / 2198 passed + 6 skipped、`apps/web` 11 文件 / 120 passed。

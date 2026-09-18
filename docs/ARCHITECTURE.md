@@ -66,9 +66,9 @@ V0.1 功能平面（任务书 §10）与模块纳入对应：CLI / Model Provide
   ir  compiler  resolver      registry  filesystem  shell  mcp   executor  sandbox  process
   IR(唯一行为事实源)          最小内建集(6)              执行容器：
   编译管线 L0→L4             schema DSL + 校验          语言中立 confine seam
-  Resolver deep-merge        exclusive 屏障+滚动池       平台后端链(bwrap/seatbelt/
-  conformance 字段产出        流水线(pre-execute/          Windows ACL partial)
-                             post-execute)               fail-closed
+  Resolver deep-merge        exclusive 屏障+滚动池       平台后端链(win: Job Object
+  conformance 字段产出        流水线(pre-execute/          071/072；非 win: passthrough)
+                              post-execute)               fail-closed
         │                          ▲                          │
         └──────────┬───────────────┴───────────┬──────────────┘
                    ▼（指令基线/技能目录索引注入）  ▼（审计对/裁决证据）
@@ -105,7 +105,7 @@ V0.1 分四层，职责一句话 + 边界铁律（引用任务书原则编号）
 | context/{builder, compaction, instructions} | ✓ 保留 | builder 三层组装；compaction 事务化区域替换；instructions 指令发现/装载 |
 | tools/{registry, filesystem, shell, mcp} | ✓ 保留 | registry 作用域化；filesystem=Read/Write/Edit 实现 + file_guards；shell=Bash 执行 + 只读识别；mcp=v0.2 装载（目录先立，仅预置命名规则 `mcp__<server>__<tool>`） |
 | policy/{engine, hooks, risk} | ✓ 保留 | engine=BeforeTool 权威监听器 + 裁决序；hooks=外部 hooks.json 兼容桥 + 工具拦截器；risk=危险集合/guard 单调/never_auto 服务内强制 |
-| runtime/{executor, sandbox, process} | ✓ 保留 | executor=工具执行容器；sandbox=语言中立 confine seam（v0.1 平台后端 bwrap/Seatbelt/Windows ACL partial，fail-closed）；process=受控派生点 |
+| runtime/{executor, sandbox, process} | ✓ 保留 | executor=工具执行容器；sandbox=语言中立 confine seam（**Windows 已交付 Job Object + process-tree（071/072，`docs/SANDBOX-WINDOWS.md`）**；受限令牌/低完整性未做；非 Windows passthrough。fail-closed）；process=受控派生点 |
 | memory/{session, project, persistent} | △ v0.1 只做最小骨架 | memory/session 目录绑定（memory/ 骨架属 v0.1 以承载会话目录；project/persistent 记忆 V0.3）——调整理由：任务书 §10 V0.1 范围未列记忆，仅 session 目录为 session 管理所必需 |
 | skills/ | △ v0.1 只做最小骨架 | SKILL.md frontmatter 解析 + 目录索引（不注入正文）；完整技能/作用域/搜索 V0.3 |
 | agents/{subagent, evaluator} | △ v0.1 定义契约 | agents/evaluator = preset + 独立模型（v0.1 用独立 LLM 调用形态，见 §2.4）；agents/subagent V0.2 |
@@ -333,10 +333,10 @@ Provider 差异全部下沉此层，不进事件面（D3 决策点 13 影响）�
 | 子模块 | 职责 | 对外接口 | 依赖 |
 |---|---|---|---|
 | runtime/executor | 工具执行容器：每个工具（含未来 MCP 动态注册、非模型通道调用）的 `execute()` 被包裹，先过 `tools/pre-execute`(waterfall)：Policy Engine 裁决 → guard 单调收窄（即便调用绕过模型通道也在执行期复核，工具层不信任"调用来自谁"，D6 §2.3）→ 执行 → post-execute → 冻结结果 | `runTool(call, ctx)` | tools/registry、policy/engine（pre-execute 裁决复核）、core/events |
-| runtime/sandbox | 语言中立 confine seam：`confine(argv, policy)` 逐调用解析；平台 runner 链（Linux bwrap 只读根+可写覆盖+受保护子路径强制只读 / macOS Seatbelt / Windows ACL 受限令牌 partial）；fail-closed（SANDBOX_UNAVAILABLE）；enforcement full/partial 透明上报；能力探测 + fallback 状态回填 | `confine(argv, policy) → ConfinedArgv`；`status(): SandboxStatus` | 无（OS 原语；经 tools/shell 的 Operations 注入点被消费） |
+| runtime/sandbox | 语言中立 confine seam：`confine(argv, policy)` 逐调用解析；**Windows 已交付 Job Object + process-tree（071/072）：命名 Job Object 包裹子进程、`TerminateJobObject` 连孙终止、活动进程数上限、`os.tmpdir()` 独立工作目录；`status()` 只在真附加成功时报 active**。**受限令牌/低完整性降权未做；Linux/macOS 为 passthrough**；fail-closed（SANDBOX_UNAVAILABLE）；enforcement full/partial 透明上报；能力探测 + fallback 状态回填 | `confine(argv, policy) → ConfinedArgv`；`status(): SandboxStatus` | 无（OS 原语；经 tools/shell 的 Operations 注入点被消费） |
 | runtime/process | 受控派生点（进程 spawn 走此，不直接 OS spawn）；超时/取消令牌 | `spawn(cmd, opts)` | 无 |
 
-TS Brain 先行 + 语言中立执行 seam（D3 决策点 15）：v0.1 全 TS，执行隔离以"外部 OS 原语 + 子进程 + 显式能力探测"实现；benchmark/安全审计证明 TS 执行层是瓶颈/风险面时，将 runtime/ 独立为 Rust crate（Brain 不改）。**✗**：Windows Codex 全栈（WFP/私有桌面）不做，v0.1 Windows=ACL 受限令牌 + 只读工具降级。
+TS Brain 先行 + 语言中立执行 seam（D3 决策点 15）：全 TS，执行隔离以"外部 OS 原语 + 子进程 + 显式能力探测"实现；benchmark/安全审计证明 TS 执行层是瓶颈/风险面时，将 runtime/ 独立为 Rust crate（Brain 不改）。**✗**：Windows Codex 全栈（WFP/私有桌面）不做。**已交付**：Windows = Job Object + process-tree（071/072）。**未做**：Windows 受限令牌 / 低完整性降权、非 Windows（bwrap/Seatbelt）沙箱。
 
 ### 4.8 memory/ —— 会话目录（△ 最小骨架；project/persistent ✗ V0.3）
 

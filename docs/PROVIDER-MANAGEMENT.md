@@ -8,7 +8,7 @@
 
 ## 1. 一句话
 
-把"供应商 + 模型"存成可管理的配置（`~/.dsh/providers.json`），`vessel provider switch` 一键切换默认供应商，`vessel models` 拉取可用模型——`vessel run` 不传参时自动用当前默认供应商跑。**直接敲 `vessel` 进入交互对话界面**（opencode 式），供应商配置/模型/权限全是界面内斜杠命令，不用先记参数。
+把"供应商 + 模型"存成可管理的配置（`~/.vessel/providers.json`；旧 `~/.dsh` 由 `vessel migrate` 迁移），`vessel provider switch` 一键切换默认供应商，`vessel models` 拉取可用模型——`vessel run` 不传参时自动用当前默认供应商跑。**直接敲 `vessel` 进入交互对话界面**（opencode 式），供应商配置/模型/权限全是界面内斜杠命令，不用先记参数。
 
 ## 1.5 交互体验（一条命令开始）
 
@@ -250,8 +250,8 @@ vessel run --provider opencode-go --api-key sk-... --model mimo-v2.5 --prompt "p
 ## 8. 验证
 
 ```powershell
-npx tsc -b && npx vitest run   # 全量绿
-# 命令冒烟（隔离目录，不碰 ~/.dsh）：
+npx tsc -b && npm run test:all   # 全量绿（两个 root；只跑 npx vitest run 会漏掉 apps/web）
+# 命令冒烟（隔离目录，不碰 ~/.vessel）：
 $env:VESSEL_PROVIDER_ROOT = "$env:TEMP\vessel-smoke"
 node apps/cli/dist/cli.js provider add demo --protocol mock --model mock
 node apps/cli/dist/cli.js provider list

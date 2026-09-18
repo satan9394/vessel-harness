@@ -2,7 +2,7 @@
 
 > 实现 076 的 HarnessAdapter 契约（`contracts/types.ts`）的 **Codex（OpenAI Codex CLI，外部 harness）适配器**，
 > 让同一 benchmark fixture 可在 Codex 上运行并统一采集 §15 L3 指标。
-> 与 077（DSH）/ 078（OpenCode）同批模式。状态：待验收（task 079）。
+> 与 077（DSH）/ 078（OpenCode）同批模式。状态：已合入（V1.0 Milestone G，076–081 已验收；见 docs/V1.0-CHECKPOINT.md）（task 079）。
 > 关联：080/081（Pi / Claude Code）各自成卡。
 
 ## 1. 定位

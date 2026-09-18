@@ -1,7 +1,7 @@
 # Harness Adapter Contract（跨 Harness 统一执行/采集契约）
 
 > 来源：docs/Vessel_后续开发方向与产品化路线_v1.0.md §15.1 L3 + BENCHMARK-SPEC §4/§7。
-> 实现：task 076。状态：待验收。
+> 实现：task 076。状态：已合入（V1.0 Milestone G，076–081 已验收；见 docs/V1.0-CHECKPOINT.md）。
 
 ## 1. 定位
 

@@ -91,6 +91,13 @@
 | B07 | `step/end` | B14 | `compaction/start` | B21 | `audit/safety` |
 
 > 计数口径：本规范 v0.1 共定义 **48** 个具名事件 = 表 A 27（16 草案 + 11 新增）+ 表 B 21（自动持久记录）。草案 16 个全部收录（对照见附录 A）。
+>
+> **实现状态（2026-09-18 核实）**：表 B 的 21 条是**契约**，不等于全部已落盘。当前**已接线**的有
+> `B12 request/header`、`B13 llm/retry`（生产者见 `packages/core/src/agent-loop/AgentLoop.ts`）、
+> `B20 audit/denial` 等；**未接线/无类型**的有：`B11 session/end-seed`、`B15 compaction/summary`、
+> `B17 approval/asked`、`B18 approval/decided`、`B19 audit/decision`（已登记类型、零生产者/零消费者）、
+> `B21 audit/safety`（连类型都没有）。可执行守卫：`packages/shared/src/unwiredRecords.test.ts`。
+> 详见 `docs/POLICY-SPEC.md` §2.5 的同类标注。
 
 ---
 
@@ -473,16 +480,16 @@ seq        : number        # 会话内事件序号（不变式校验用）
   - `tokensUsed` 累加本轮成功返回的模型调用实际报告的 `inputTokens + outputTokens`（不另加 cache 字段）；`costEstimate` 累加这些调用提供的 USD 估值，core 不查价。二者是已报告值的合计，部分调用缺值时不代表完整账单；完全未报告对应值则省略键，报告零则保留零。
   - 条件字段 `toolCallsWithoutEnd?: string[]` 记录本轮成功返回的 stream attempt 在流末兜底 finalize 的调用 id；仅非空时出现。每次 `consumeStream` 入口使用独立累积器，失败/重试 attempt 不计入本轮合计；跨成功步骤累积，下一轮重置。`model_stream_end` 顶层形状保持不变。
 - **B10 `session/created`** —— 会话创建（含 `parentSession`/`isSeeded`/`delegationDepth`/`origin:'subagent'` 等 header 元数据存日志旁）；回滚保护：setup 失败不发布任何 id。
-- **B11 `session/end-seed`** —— 种子边界标记（fork = seed 前缀 + 谱系；压缩不丢此边界）。
+- **B11 `session/end-seed`** —— 种子边界标记（fork = seed 前缀 + 谱系；压缩不丢此边界）。**（未接线：无类型/无生产者）**
 - **B12 `request/header`** —— 每个冻结请求的全量 envelope（system/messages/tools/配置/适配器默认值），可 `foldRequestHeader` 重建请求；「模型可见 ⟺ 已记录」不变式落点（DSH 原则 1，行 43/320）。
 - **B13 `llm/retry`** —— 每次重试决策在等待前落盘（先持久后等待）：`{requestId, kind, attemptNo, backoffMs, decision:'retry'|'fallback'|'abort'}`。
 - **B14 `compaction/start`** —— 压缩锁（先记账后执行；崩溃=可检测锁 `busy`，早于 `session/end-seed` 的陈旧锁忽略）。
-- **B15 `compaction/summary`** —— 摘要全文（仅日志，模型可见面是 replace 后的 summary user/message）；`sourceEventSeqs` 覆盖被遮蔽节点。
+- **B15 `compaction/summary`** —— 摘要全文（仅日志，模型可见面是 replace 后的 summary user/message）；`sourceEventSeqs` 覆盖被遮蔽节点。**（未接线：无类型）**
 - **B16 `compaction/end`** —— 恰好一次的结束标记（配对：start→summary+replace→end）。
-- **B17 `approval/asked`** / **B18 `approval/decided`** —— 审批审计对（先持久后等待：等待前先落 asked；decided 闭合证据链，fail-closed 无应答=unavailable=拒绝）。
-- **B19 `audit/decision`** —— PolicyDecision 的持久镜像（verdict + decisionPath 决策轨迹），可审计「为什么放行/拒绝」。
+- **B17 `approval/asked`** / **B18 `approval/decided`** —— 审批审计对（先持久后等待：等待前先落 asked；decided 闭合证据链，fail-closed 无应答=unavailable=拒绝）。**（未接线：无类型；默认 `approval: never`）**
+- **B19 `audit/decision`** —— PolicyDecision 的持久镜像（verdict + decisionPath 决策轨迹），可审计「为什么放行/拒绝」。**（未接线：类型已登记，全仓零生产者/零消费者；见 `packages/shared/src/events.ts:210-240`）**
 - **B20 `audit/denial`** —— 硬拒绝记录（Policy deny、沙箱 SANDBOX_DENIAL、never 审批、写保护 deny、**输入级 BeforeTurn 否决**）：`{toolCallId, toolName, stage, ruleRef?, reason, sandboxMode?, listener?}`，其中 `stage` 词表 = `'rule' | 'hook' | 'approval' | 'sandbox' | 'guard' | 'before_turn'`（取自终态**所在阶段**，POLICY-SPEC §7.2）。`'before_turn'` = A03 输入级否决：该决策点**没有工具调用**，故 `toolCallId`/`toolName` 写空串（显式表达"无工具锚点"，不伪造工具身份），"是谁否决"由 `listener`（投出 deny 的监听器名）承载、规则/钩子 ref 由 `ruleRef` 承载；该值只属于 B20 词表，**不要**与 §5.A A13 `decisionPath[].stage`（`rule|hook|guard|approval|profile`）混用。D7 口径（Safety Violations）与 Evaluator 证据。
-- **B21 `audit/safety`** —— 人为介入/紧急事件留痕（Interrupt、Esc、审批人工决定、steer）：`{kind, actor:'user'|'machine'|'system', detail}`；Audit Log 事实基础（任务书 §2.3、H07 证据链）。
+- **B21 `audit/safety`** —— 人为介入/紧急事件留痕（Interrupt、Esc、审批人工决定、steer）：`{kind, actor:'user'|'machine'|'system', detail}`；Audit Log 事实基础（任务书 §2.3、H07 证据链）。**（未接线：无类型）**
 
 ---
 

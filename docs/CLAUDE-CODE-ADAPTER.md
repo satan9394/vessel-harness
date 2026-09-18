@@ -2,7 +2,7 @@
 
 > 实现 076 的 HarnessAdapter 契约（`contracts/types.ts`）的 **Claude Code（外部 harness）适配器**，
 > 让同一 benchmark fixture 可在 Claude Code 可自动化的 headless 面上运行并统一采集 §15 L3 指标。
-> 与 077（DSH）/ 078（OpenCode）/ 079（Codex）/ 080（Pi）同批模式。状态：待验收（task 081）。
+> 与 077（DSH）/ 078（OpenCode）/ 079（Codex）/ 080（Pi）同批模式。状态：已合入（V1.0 Milestone G，076–081 已验收；见 docs/V1.0-CHECKPOINT.md）（task 081）。
 > 关联：adapters 收官；082（real-model lane）/ 083（report）/ 084（release gates）各自成卡。
 
 ## 1. 定位

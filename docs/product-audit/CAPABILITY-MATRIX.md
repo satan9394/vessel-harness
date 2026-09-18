@@ -117,13 +117,13 @@ IDE 扩展型（Roo Code 已停服、Cursor CLI 闭源）不入主矩阵，仅�
 ### 10 策略安全
 - **Vessel：● 且机制独有**。`configs/policy.default.yaml` 单源编译出四伪物：Prompt Guidance（软引导）+ Tool Interceptor（工具层拦截）+ Runtime Deny（运行时拒绝）+ Audit Event（审计事件）；filesystem 保护/deny_read、shell deny + scoped_rules、git force_push deny、tools deny/rules；network deny_domains 在 v0.1 仅声明（独立 declarationOnly、enforced: false，无域名级执法；proxy 待 v0.2）；三档权限 profile（read-only/workspace-write/danger-full-access）；audit 事件落地。**竞品没有"编译型策略 IR"概念**。
 - 竞品侧重点不同：Codex 用 OS 沙箱（macOS Seatbelt / Linux Landlock）+ approve 模式（auto-edit / full-auto / on-failure-tool-call）+ execpolicy（公开知识）；Claude Code 用权限模式（plan/acceptEdits/bypassPermissions）+ bash 沙箱（Seatbelt/Landlock）+ 企业托管 hook（requirements.toml）；OpenCode 用 permissions（工具级 allow/deny）+ experimental policies（`provider.use` 资源级）；Gemini 用 trusted folders + bubblewrap；Aider 无（靠 git 回滚）。
-- 结论：方向不同——Vessel 是"声明式策略硬执法"，竞品是"审批 + OS 沙箱"。**OS 沙箱是 Vessel 缺的（见 §6-5），审批 UI 是路线明示未来项**（policy.default.yaml 注释 `approval: never`）。
+- 结论：方向不同——Vessel 是"声明式策略硬执法"，竞品是"审批 + OS 沙箱"。**Vessel 的 OS 进程边界已在 Windows 交付**（Job Object + process-tree，见 §6-5 与 `docs/SANDBOX-WINDOWS.md`；受限令牌/低完整性未做，非 Windows 仍为策略边界），**审批 UI 是路线明示未来项**（policy.default.yaml 注释 `approval: never`）。
 - 来源：`configs/policy.default.yaml`；POLICY-SPEC（仓库文档）；OpenCode policies 页；Codex docs/sandbox.md 与 docs/config.md；Claude Code docs（settings 导航）+ 公开知识。
 
 ### 11 会话续跑
-- Vessel：○。`--session-dir` 只落单次 run 的会话日志（`<workspace>/.harness/sessions/<id>`），无"列举历史会话、恢复续跑"的交互路径。
-- 竞品：全有。OpenCode `--continue/--resume`（公开知识 + session 管理）；Claude Code `--resume/--continue` + sessions 管理；Codex `codex resume`；Gemini checkpointing（README 明确）；Aider `--restore-chat-history`；Cline team state 跨会话持久；OpenHands conversations 持久。
-- 这是 §6-1 分析的最大缺口。
+- Vessel：● **已交付**（原判 ○ 已过时）。会话全量落盘 `<workspace>/.harness/sessions/<id>`，`vessel sessions list` 列举历史、`vessel resume <id>|--last` 恢复续跑（存在性 + 日志双重校验，绝不静默变新建）；TUI 无参 `vessel` 也可恢复。证据：`apps/cli/src/cli.ts` 的 `sessions`/`resume` 分派、`apps/cli/src/sessions/resume.ts`、`packages/application/src/session/SessionRegistry.ts`。
+- 竞品：全有。OpenCode `--continue/--resume`；Claude Code `--resume/--continue` + sessions 管理；Codex `codex resume`；Gemini checkpointing；Aider `--restore-chat-history`；Cline team state 跨会话持久；OpenHands conversations 持久。
+- 原 §6-1 的"最大缺口"已闭合；**剩余克制项**是会话级快照/回滚（见 §6-4）。
 
 ### 12 Git 工作流
 - Vessel：◐。引擎层有 `git worktree add/remove` 隔离（`packages/engine/src/workspace.ts`、`packages/tools/src/git/Worktree.ts`，用于子代理/重试的隔离执行面，dispose 平衡、防泄漏）——但这是**隔离机制**，不是用户可感知的"AI 改完自动 commit / /undo 回滚"。
@@ -136,7 +136,7 @@ IDE 扩展型（Roo Code 已停服、Cursor CLI 闭源）不入主矩阵，仅�
 - 见 §6-3。
 
 ### 14 MCP 扩展
-- Vessel：◐。**库级完整**：`packages/tools/src/mcp/`（McpClient stdio 传输、tools/list + tools/call、动态注册 `mcp__<server>__<tool>`、policy deny 可按工具名精确拦截）、compose 组合根可注入 MCP 连接；**但 CLI 面没有 `vessel mcp` 配置命令**（grep apps/cli 无 mcp 引用），用户只能编程接入。
+- Vessel：◐。**库级完整**：`packages/tools/src/mcp/`（McpClient stdio 传输、tools/list + tools/call、动态注册 `mcp__<server>__<tool>`、policy deny 可按工具名精确拦截）、compose 组合根可注入 MCP 连接；**CLI/TUI 已可读 `~/.vessel/mcp.json` 并逐 server 降级**（`apps/cli/src/mcp/config.ts`；`vessel run` 经它接入）；**但仍缺 `vessel mcp` 配置子命令**，用户需手写/编程接入。
 - 竞品：OpenCode/Claude Code/Codex/Gemini/Cline 均有一等 MCP 配置入口（`cline mcp`、config 声明等）。
 - 结论：管道已通、缺 CLI 出口。见 §6-2 的"值得做（低成本）"判断。
 
@@ -156,7 +156,7 @@ IDE 扩展型（Roo Code 已停服、Cursor CLI 闭源）不入主矩阵，仅�
 - 结论：Vessel 的差异化核心之一，且与其"可验证"定位强绑定（见 §4-3、§6-8）。
 
 ### 18 可观察性
-- Vessel：◐。Telemetry 包（metrics 报告：M 系列计数器、evaluatorRejects、compactions、cache tokens 等）+ policy audit 事件（decision/denial/approval）+ usage 库 + web UsageBar（SSE）+ bench-report 摘要表。**缺：会话级 trace/时间线视图、无面板**（web 只是 UsageBar）。
+- Vessel：◐。Telemetry 包（metrics 报告：M 系列计数器、evaluatorRejects、compactions、cache tokens 等）+ policy audit 事件（decision/denial/approval）+ usage 库 + `apps/web` 面板（Sidebar/StatusBar/ConversationView/GoalModule/TeamModule/UsageBar，SSE 实时）+ bench-report 摘要表。**仍缺：会话级 trace/时间线视图**（面板已有，时间线仍待补）。
 - 竞品：OpenHands 有 run history/控制中心 UI；Claude Code transcripts + /status；Codex transcripts + debug；OpenCode session 日志 + /doctor（公开知识）；Aider 无。
 - 见 §6-9。
 
@@ -170,7 +170,7 @@ IDE 扩展型（Roo Code 已停服、Cursor CLI 闭源）不入主矩阵，仅�
 - 结论：见 §6-10（不做，理由充分）。
 
 ### 21 IDE/Web 辅表面
-- Vessel：◐。`serve`/`web` 本地服务 + UsageBar（用量可视化），无 IDE 插件、无桌面。竞品：Claude Code/Codex/Cline/OpenCode 都有 IDE 集成；OpenHands 是 Web 控制台。
+- Vessel：◐。`serve`/`web` 本地服务 + `apps/web` 面板（会话/目标/团队/用量等多模块），无 IDE 插件、无桌面。竞品：Claude Code/Codex/Cline/OpenCode 都有 IDE 集成；OpenHands 是 Web 控制台。
 - 结论：对"CLI 为主、Web 为次要表面"的定位，当前覆盖合理；IDE 插件不值得（§6-11）。
 
 ### 22 数据隐私
@@ -186,7 +186,7 @@ IDE 扩展型（Roo Code 已停服、Cursor CLI 闭源）不入主矩阵，仅�
 **Vessel 覆盖情况**：除"对外发行渠道"外全绿；"安装"一项是自用形态的合法取舍（见 §6-1）。
 
 ### 4.2 行业常见能力（多数竞品有，Vessel 部分有或全有）
-主题、多语言（zh/en）、headless 结构化输出（部分）、MCP（库级有/CLI 无）、子代理/团队、Git 相关能力（隔离有/用户工作流缺）、会话续跑（缺）、沙箱（策略硬执法有/OS 沙箱缺）、IDE/Web 辅表面（部分）、可观察性（部分）、成本与用量（**Vessel 全有且更强**）。
+主题、多语言（zh/en）、headless 结构化输出（部分）、MCP（库级有 / CLI 缺 `vessel mcp` 子命令）、子代理/团队、Git 相关能力（隔离有 / 用户工作流缺）、**会话续跑（已交付）**、沙箱（**Windows OS 进程边界已交付**；受限令牌降权与非 Windows 未做）、IDE/Web 辅表面（部分）、可观察性（部分）、成本与用量（**Vessel 全有且更强**）。
 → 这一类是本次审计的主要差距来源，逐条在 §6 论证取舍。
 
 ### 4.3 差异化能力（Vessel 独有或领先）
@@ -202,19 +202,19 @@ IDE 扩展型（Roo Code 已停服、Cursor CLI 闭源）不入主矩阵，仅�
 | **跨 harness conformance 思路**（仓库文档：OPENCODE-ADAPTER / CODEX-ADAPTER / CLAUDE-CODE-ADAPTER / DSH-ADAPTER / PI-ADAPTER） | docs/*-ADAPTER.md | 竞品没有"证明行为层可替换"的测试思路（OpenHands 的 ACP 是互操作协议，不是 conformance 套件） |
 
 ### 4.4 当前项目缺失能力（缺口清单，逐条论证见 §6）
-1. 会话续跑（resume/continue）
-2. CLI 面 MCP 配置入口（库优于 CLI）
-3. 通用 Headless JSON 输出契约
+1. ~~会话续跑（resume/continue）~~ ⇒ **已交付**（`vessel sessions list` / `vessel resume <id>|--last`）
+2. CLI 面 MCP 配置入口（库优于 CLI；`~/.vessel/mcp.json` 已可读，仍缺 `vessel mcp` 子命令）
+3. 通用 Headless JSON 输出契约（`run --json` 已补，仍缺 stream-json）
 4. 会话级 Git 快照/回滚出口（undo/checkpoint）
-5. OS 级沙箱（Seatbelt/Landlock/bubblewrap 类）
-6. 价格/成本在 TUI 会话内的实时可见性（数据已有，缺展示）
+5. OS 级沙箱：**Windows 已交付 Job Object + process-tree（071/072）**；**仍缺**受限令牌/低完整性降权，及非 Windows（Seatbelt/Landlock/bubblewrap）
+6. 价格/成本在 TUI 会话内的实时可见性（**已交付**：`/cost` + 每回合增量）
 7. 对外 SDK/插件 API 文档化
 8. 外部基准生态（SWE-bench 类大众评测）
-9. 可观测面板（trace/时间线）
+9. 可观测面板（**面板已有**；trace/时间线仍待补）
 10. 协作多人/分享/云（设计排除）
 
 ### 4.5 不适合当前项目的能力（路线排除清单，§6 有交叉）
-云托管 agent 运行时、Remote Control、插件市场、后台调度器（cron agents）、消息平台接入（Slack/Telegram…）、多用户权限/坐席、OS 沙箱（Windows 主环境）、多语言扩展（>zh/en）、大众基准榜单、IDE 深度集成、桌面 App。
+云托管 agent 运行时、Remote Control、插件市场、后台调度器（cron agents）、消息平台接入（Slack/Telegram…）、多用户权限/坐席、非 Windows OS 沙箱（Seatbelt/Landlock；Windows 主环境已用 Job Object 覆盖）、多语言扩展（>zh/en）、大众基准榜单、IDE 深度集成、桌面 App。
 
 ---
 
@@ -223,7 +223,7 @@ IDE 扩展型（Roo Code 已停服、Cursor CLI 闭源）不入主矩阵，仅�
 以下各点**明确不做**，理由不是"竞品有"，而是"与定位冲突或收益为负"：
 - **插件市场 / 生态：** Vessel 的对外产品化被路线排除；插件市场要求版本兼容契约、打包分发、三方审计，成本极高，收益只在"吸引第三方开发者"时存在——这不是单用户自用场景。被否决。
 - **消息平台接入：** 把 agent 暴露给即时通讯意味着外部攻击面 + 常驻进程 + 权限模型复杂化；自用场景收益≈0。被否决。
-- **OS 沙箱：** Windows 是主环境，Seatbelt/Landlock 不可用；bubblewrap/容器化在 Windows 上成本畸高；现有 policy 硬执法 + worktree 隔离已覆盖主要风险面（秘密读取、破坏性命令、仓库污染）。被否决（见 §6-5）。
+- **非 Windows OS 沙箱（Seatbelt/Landlock/bubblewrap 类）：** Windows 是主环境，Seatbelt/Landlock 不可用；bubblewrap/容器化在 Windows 上成本畸高。**Windows 侧的 OS 进程边界已另行交付**（Job Object + process-tree，071/072；受限令牌/低完整性降权未做），加上 policy 硬执法 + worktree 隔离覆盖主要风险面（秘密读取、破坏性命令、仓库污染）。非 Windows 侧被否决（见 §6-5）。
 - **/undo 式 git 自动 commit：** Aider 形态的"每次修改自动 commit"与"行为受控的 Harness"哲学不完全契合——自动 commit 会把 agent 行为直接写进用户历史；Vessel 已有更干净的隔离机制（worktree）。被否决（见 §6-4 的替代方案）。
 - **AGENTS.md 项目规则自动生成（OpenCode /init 式）：** Vessel 已有 behavior 引导（rules_in_files 条目）+ 规则进策略双通道；再做一个"AI 生成 AGENTS.md"会稀释"策略是硬边界"的定位。可在后续评估中作为小功能评估，不作为差距。保留观望。
 - **多语言扩展：** 竞品也几乎全英文 UI；zh/en 已覆盖目标用户。被否决。
@@ -260,11 +260,11 @@ IDE 扩展型（Roo Code 已停服、Cursor CLI 闭源）不入主矩阵，仅�
 - 成本：若做自动 commit 形态，成本高且污染历史（见 §5）；若做"run 结束时生成 `.harness/sessions/<id>/changes.diff` + `vessel revert <session-id>`（按 diff 逆操作）"，成本中，且完全沿用现有 session-dir/事件结构。
 - 建议：**值得做（中等收益中成本）但克制形态**：生成 diff 报告 + 单命令回滚，不做免确认自动 commit，不碰用户 git 历史。
 
-### 6-5 OS 级沙箱——○ 现状（保持不做）
-- 现状：策略硬执法 + 只读/工作区写/全权限三档 + worktree 隔离。
-- 收益：OS 沙箱（Codex/Claude 的 Seatbelt/Landlock）能拦住"策略漏网 + 恶意模型"两件事；但 Windows 主环境无等价物，且 Vessel 是自用（模型为 deepseek-flash 等已知端点，非对抗环境），策略兜底已覆盖 secrets/破坏性命令/仓库污染。
-- 成本：Windows 上引入容器（WSL2/Docker）破坏"本地优先零依赖"；bubblewrap 不可用；成本高危。
-- 建议：**不值得做（收益低成本高）**，维持 policy 硬执法 + 记录"OS 沙箱为未来可选加固"。
+### 6-5 OS 级沙箱——**Windows 部分已交付；非 Windows 保持不做**
+- 现状（2026-09-18 更新）：策略硬执法 + 只读/工作区写/全权限三档 + worktree 隔离；**Windows 已交付 OS 级进程边界**——命名 Job Object 包裹子进程、`TerminateJobObject` 连孙进程终止、活动进程数上限（anti fork-bomb）、每条受限命令在 `os.tmpdir()` 独立目录执行（071/072，见 `docs/SANDBOX-WINDOWS.md`；`status()` 只在真附加成功时报 `active`）。**未交付**：受限令牌/低完整性降权（需原生 helper），非 Windows 无 OS 沙箱。
+- 收益：OS 边界能拦住"策略漏网 + 恶意模型"两件事；Windows 侧现已覆盖进程树泄漏与 fork-bomb，且 Vessel 是自用（模型为已知端点，非对抗环境），策略兜底覆盖 secrets/破坏性命令/仓库污染。
+- 成本：受限令牌需原生 helper（未装 Rust 工具链）；Windows 引入容器（WSL2/Docker）破坏"本地优先零依赖"；bubblewrap 在 Windows 不可用；成本高危。
+- 建议：**Windows 已交付部分保持**；**受限令牌降权与非 Windows 沙箱不值得做**（收益低成本高），记录为未来可选加固。
 
 ### 6-5b TUI 会话内成本提示（/cost）——实为"数据已有、缺展示"
 - 现状：UsageStore + pricing 全链路都在，TUI 无成本显示；brief 明记痛点（deepseek-flash 单轮最高 $0.94、长链 run 1.31M token）。
@@ -310,9 +310,9 @@ IDE 扩展型（Roo Code 已停服、Cursor CLI 闭源）不入主矩阵，仅�
 
 ## 8. 结论摘要
 
-- 最重要差距（值得做，按优先级）：① TUI 会话内成本可见（6-5b，白捡资产）；② 会话续跑 + 快照回滚（6-1/6-4 组合：装得起来、续得上、回得去）；③ CLI 面 MCP 配置 + 通用 JSON 输出（6-2/6-3，管道已通只差出口）。
+- 最重要差距（值得做，按优先级）：① ~~TUI 会话内成本可见~~ **已交付**（`/cost` + 每回合增量）；② 会话续跑 ~~+ 快照回滚~~（**续跑已交付**；会话级快照/回滚仍待做，6-1/6-4）；③ CLI 面 MCP 配置 + 通用 JSON 输出（`run --json` 已补；仍缺 `vessel mcp` 子命令与 stream-json，6-2/6-3）。
 - 最重要差异化（守住的）：Behavior IR/Policy 编译硬执法、Generator/Evaluator 分离评估、供应商/成本管理纵深、中英双语引导。
-- 明确不做的：插件市场、消息平台、OS 沙箱、多语言扩展、多人协作/云、大众基准榜单、IDE/桌面表面。
+- 明确不做的：插件市场、消息平台、**非 Windows OS 沙箱**（Windows 进程边界已交付）、多语言扩展、多人协作/云、大众基准榜单、IDE/桌面表面。
 
 ## 9. 来源与可信度标注
 
