@@ -15,10 +15,10 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Setup Node.js ${{ matrix.node-version }}
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v5
         with:
           node-version: ${{ matrix.node-version }}
           cache: npm
@@ -32,6 +32,15 @@ jobs:
 
       - name: Build (tsc -b)
         run: npm run build
+
+      # Test files are excluded from the composite build (tsconfig.base.json),
+      # because the cross-package imports they carry cannot all be expressed as
+      # project references without creating a cycle. Vitest runs them through
+      # esbuild, which never type-checks, so this non-composite pass is what
+      # keeps *.test.ts under tsc's eye. It resolves @vessel/* to sources via
+      # the same paths as vitest.config.ts, so it needs no build output.
+      - name: Typecheck tests
+        run: npm run typecheck:tests
 
       # NOTE — known Windows flake (repo-wide, see tasks/036 + task 034):
       # some atomic-rename tests (e.g. apps/cli/src/usage/UsageStore) intermittently

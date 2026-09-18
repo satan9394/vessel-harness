@@ -29,6 +29,7 @@
     "build": "tsc -b tsconfig.json",
     "build:release": "tsc -p tsconfig.release.json",
     "typecheck": "tsc -b tsconfig.json --pretty false",
+    "typecheck:tests": "tsc -p tsconfig.test.json --pretty false",
     "test": "vitest run",
     "test:web": "vitest run --root apps/web",
     "test:all": "vitest run && vitest run --root apps/web",

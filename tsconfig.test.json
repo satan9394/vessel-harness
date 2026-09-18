@@ -1,0 +1,38 @@
+{
+  "extends": "./tsconfig.base.json",
+  "compilerOptions": {
+    "composite": false,
+    "incremental": false,
+    "declaration": false,
+    "declarationMap": false,
+    "noEmit": true,
+    "rootDir": ".",
+    "baseUrl": ".",
+    "paths": {
+      "@vessel/shared": ["packages/shared/src/index.ts"],
+      "@vessel/core": ["packages/core/src/index.ts"],
+      "@vessel/llm": ["packages/llm/src/index.ts"],
+      "@vessel/behavior": ["packages/behavior/src/index.ts"],
+      "@vessel/context": ["packages/context/src/index.ts"],
+      "@vessel/tools": ["packages/tools/src/index.ts"],
+      "@vessel/policy": ["packages/policy/src/index.ts"],
+      "@vessel/runtime": ["packages/runtime/src/index.ts"],
+      "@vessel/memory": ["packages/memory/src/index.ts"],
+      "@vessel/skills": ["packages/skills/src/index.ts"],
+      "@vessel/agents": ["packages/agents/src/index.ts"],
+      "@vessel/telemetry": ["packages/telemetry/src/index.ts"],
+      "@vessel/engine": ["packages/engine/src/index.ts"],
+      "@vessel/application": ["packages/application/src/index.ts"],
+      "@vessel/bench-runners": ["benchmarks/runners/src/index.ts"],
+      "@vessel/local-server": ["apps/local-server/src/index.ts"]
+    }
+  },
+  "include": [
+    "index.test.ts",
+    "packages/*/src/**/*.test.ts",
+    "apps/cli/src/**/*.test.ts",
+    "apps/local-server/src/**/*.test.ts",
+    "benchmarks/runners/src/**/*.test.ts"
+  ],
+  "exclude": []
+}
