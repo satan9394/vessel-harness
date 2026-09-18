@@ -488,7 +488,11 @@ describe('engine/project-task-queue — ProjectTaskQueue 持久队列（task 063
     expect(claimMs).toBeGreaterThanOrEqual(0);
     expect(warmMs).toBeGreaterThanOrEqual(0);
     expect(listMs).toBeGreaterThanOrEqual(0);
-  });
+    // Explicit budget: 1500 tasks write 1500 meta files, and the default
+    // testTimeout (30 s) was exceeded on a loaded windows-latest runner in run
+    // 35352958882 — a photo-finish, not a regression (the sibling leg took 2m29s
+    // for the whole suite). Generous enough for a slow disk, assertions untouched.
+  }, 120_000);
 
   it('索引正确性（V1.1-B）：同实例写透传 + 跨实例各自装载后状态一致；foreign 新入队经 sync 立即可见', () => {
     // 注入单调时钟：A/B 若落在同一真实毫秒，compareOldestFirst 会退到「按 id 字典序」这条
