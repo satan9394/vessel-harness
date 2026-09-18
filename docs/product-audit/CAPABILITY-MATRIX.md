@@ -128,7 +128,7 @@ IDE 扩展型（Roo Code 已停服、Cursor CLI 闭源）不入主矩阵，仅�
 ### 12 Git 工作流
 - Vessel：◐。引擎层有 `git worktree add/remove` 隔离（`packages/engine/src/workspace.ts`、`packages/tools/src/git/Worktree.ts`，用于子代理/重试的隔离执行面，dispose 平衡、防泄漏）——但这是**隔离机制**，不是用户可感知的"AI 改完自动 commit / /undo 回滚"。
 - 竞品：Aider 自动 commit（每次修改即提交、可 diff/undo，cwd 上它就是产品核心）；OpenCode `/undo` `/redo` + git 工具；Claude Code 内建 git 操作与 checkout；Codex apply_patch + undo/rewind；Cline checkpoints。
-- 结论：Vessel 的 worktree 隔离其实比竞品的"当场改当场 commit"更干净（真隔离），但缺少**会话级快照/回滚的面向用户出口**（见 §6-4）。**部分已补（task 128）**：`vessel diff [<id>|--last]` 提供只读改动提示（本会话 Write/Edit 的文件 + shell + 工作区 `git status --short`），把判断权留给人；**自动 revert 仍未做**（克制形态，见 §6-4）。
+- 结论：Vessel 的 worktree 隔离其实比竞品的"当场改当场 commit"更干净（真隔离），但缺少**会话级快照/回滚的面向用户出口**（见 §6-4）。**部分已补（task 128/129）**：`vessel diff [<id>|--last]`（CLI）与 `/diff`（TUI）提供只读改动提示（本会话 Write/Edit 的文件 + shell + 工作区 `git status --short`），把判断权留给人；**自动 revert 仍未做**（克制形态，见 §6-4）。
 
 ### 13 Headless 脚本输出
 - Vessel：◐→**部分已补**。有确定性输出通道：`run --bench <id>` 产 JSONL 报告、`bench-report` 聚合输出 md/json、`serve`/`web` 有 usage SSE；**通用 `vessel run` 现已支持 `--json`**（Round 130 起：`--json` 时 stdout 只出一段文档，含 kind/finalText/steps/toolCalls/turnId/sessionLog），可直接进 CI/管道消费。**仍缺**：`--output-format stream-json`（流式结构化）。`run --json` 现已含 `durationMs` 与 `enforcement`（counts/sources/status/recent，与人类 telemetry 同一取数函数）。
@@ -136,7 +136,7 @@ IDE 扩展型（Roo Code 已停服、Cursor CLI 闭源）不入主矩阵，仅�
 - 见 §6-3。
 
 ### 14 MCP 扩展
-- Vessel：● **已交付**（原判 ◐ 已过时）。**库级完整**：`packages/tools/src/mcp/`（McpClient stdio 传输、tools/list + tools/call、动态注册 `mcp__<server>__<tool>`、policy deny 可按工具名精确拦截）、compose 组合根可注入 MCP 连接；**CLI/TUI 可读 `~/.vessel/mcp.json` 并逐 server 降级**；**并已有 `vessel mcp list / add / remove / path` 配置子命令**（`apps/cli/src/cli.ts` 的 `cmdMcp`，含 `--json`；task 127）。
+- Vessel：● **已交付**（原判 ◐ 已过时）。**库级完整**：`packages/tools/src/mcp/`（McpClient stdio 传输、tools/list + tools/call、动态注册 `mcp__<server>__<tool>`、policy deny 可按工具名精确拦截）、compose 组合根可注入 MCP 连接；**CLI/TUI 可读 `~/.vessel/mcp.json` 并逐 server 降级**；**CLI 有 `vessel mcp list / add / remove / path`（task 127），TUI 有 `/mcp`（task 129）**，均含 `--json`/只读镜像。
 - 竞品：OpenCode/Claude Code/Codex/Gemini/Cline 均有一等 MCP 配置入口（`cline mcp`、config 声明等）。
 - 结论：管道已通、缺 CLI 出口。见 §6-2 的"值得做（低成本）"判断。
 

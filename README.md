@@ -120,7 +120,7 @@ vessel run --prompt "总结当前工作区 README"   # 一次性任务
 | `vessel serve` | 启动本地服务（默认 `http://127.0.0.1:5678`，不开浏览器；`--port <n>` 换端口） |
 | `vessel web` | 启动本地服务并打开默认浏览器 |
 
-> 交互界面的斜杠命令：`/provider` 配置供应商 · `/models` 拉模型 · `/model <id>` 切模型 · `/permission` 切权限档 · `/setup` 完整引导 · `/explain <术语>` 或 `? <术语>` 查术语解释 · `/cost`（同 `/usage`）看会话与累计成本 · `/help` · `/quit`。
+> 交互界面的斜杠命令：`/provider` 配置供应商 · `/models` 拉模型 · `/model <id>` 切模型 · `/permission` 切权限档 · `/setup` 完整引导 · `/explain <术语>` 或 `? <术语>` 查术语解释 · `/cost`（同 `/usage`）看会话与累计成本 · `/mcp` 列出 MCP server · `/diff` 本会话改动过的文件（只读） · `/help` · `/quit`。
 
 ## 哲学与架构要点
 

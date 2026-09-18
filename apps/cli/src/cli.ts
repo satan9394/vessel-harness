@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import * as fs from 'node:fs';
 import * as path from 'node:path';
-import { spawn, spawnSync } from 'node:child_process';
+import { spawn } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { VERSION, renameWithRetry } from '@vessel/shared';
 import { inspectCombinedPolicy, inspectPolicyLayers, type PolicyLayerFact } from '@vessel/policy';
@@ -40,6 +40,7 @@ import { cmdReview } from './review/reviewCommands.js';
 import { cmdExplain, cmdListTerms, cmdGuide, cmdSettings } from './guide/guideCommands.js';
 import { cmdSessionsList } from './sessions/commands.js';
 import { resolveResumeTarget } from './sessions/resume.js';
+import { collectSessionChanges, renderSessionChanges } from './sessions/diffReport.js';
 import {
   loadModelCatalogDetailed,
   userModelCatalogPath,
@@ -1605,81 +1606,26 @@ async function cmdMcp(args: string[], flags: Map<string, string>): Promise<numbe
  * Write/Edit 触碰过的文件与执行过的 shell，再附一次 `git status --short`（工作区是 git 仓库时）。
  * 目的是"这次 run 改了什么、往哪看"，把判断权留给人。
  */
-function parseSessionRecords(file: string): Array<{ type?: string; toolName?: string; arguments?: Record<string, unknown> }> {
-  const out: Array<{ type?: string; toolName?: string; arguments?: Record<string, unknown> }> = [];
-  for (const line of fs.readFileSync(file, 'utf8').split('\n')) {
-    if (line.trim() === '') continue;
-    try {
-      out.push(JSON.parse(line) as { type?: string; toolName?: string; arguments?: Record<string, unknown> });
-    } catch {
-      /* torn tail line: drop it (与 core Session 同口径) */
-    }
-  }
-  return out;
-}
-
 async function cmdDiff(args: string[], flags: Map<string, string>): Promise<number> {
   const target = resolveResumeTarget(args, { last: flags.has('last') });
   if (!target.ok) {
     const msg = `[vessel] ${target.message}`;
     return fail(target.exitCode, msg, flags, () => console.error(msg));
   }
-  const records = parseSessionRecords(target.sessionFile);
-  const touched = new Map<string, { path: string; tool: string; count: number }>();
-  const shellCommands: string[] = [];
-  for (const r of records) {
-    if (r.type !== 'tool/call') continue;
-    const tool = String(r.toolName ?? '');
-    const a = (r.arguments ?? {}) as Record<string, unknown>;
-    if (tool === 'Write' || tool === 'Edit') {
-      const p = typeof a.path === 'string' ? a.path : typeof a.file_path === 'string' ? a.file_path : undefined;
-      if (p !== undefined && p !== '') {
-        const e = touched.get(p) ?? { path: p, tool, count: 0 };
-        e.count += 1;
-        touched.set(p, e);
-      }
-    } else if (tool === 'Shell') {
-      const cmd = typeof a.command === 'string' ? a.command : undefined;
-      if (cmd !== undefined && cmd !== '') shellCommands.push(cmd);
-    }
-  }
-  const touchedList = [...touched.values()];
-
-  // Read-only git view; absent repo / missing git is a note, never an error.
-  let gitStatus: string[] | undefined;
-  const g = spawnSync('git', ['-C', target.meta.workspaceRoot, 'status', '--short'], { encoding: 'utf8' });
-  if (g.status === 0 && typeof g.stdout === 'string') {
-    gitStatus = g.stdout.split('\n').map((l) => l.trimEnd()).filter((l) => l.length > 0);
-  }
+  const changes = collectSessionChanges(target.sessionFile, target.meta.workspaceRoot);
 
   if (isJson(flags)) {
     emitJson({
       sessionId: target.meta.id,
       workspaceRoot: target.meta.workspaceRoot,
-      touched: touchedList,
-      shellCommands,
-      ...(gitStatus !== undefined ? { gitStatus } : {}),
+      touched: changes.touched,
+      shellCommands: changes.shellCommands,
+      ...(changes.gitStatus !== undefined ? { gitStatus: changes.gitStatus } : {}),
     });
     return 0;
   }
 
-  console.log(`[vessel diff] 会话 ${target.meta.id}（${target.meta.workspaceRoot}）`);
-  if (touchedList.length === 0) console.log('  本会话没有 Write/Edit 记录。');
-  else {
-    console.log('  本会话改动过的文件：');
-    for (const t of touchedList) console.log(`    ${t.path}  (${t.tool} ×${t.count})`);
-  }
-  if (shellCommands.length > 0) {
-    console.log(`  本会话执行过的 shell（${shellCommands.length} 条，未判定是否改文件）：`);
-    for (const c of shellCommands) console.log(`    ${c}`);
-  }
-  if (gitStatus !== undefined) {
-    console.log('  工作区 git status --short：');
-    for (const l of gitStatus) console.log(`    ${l}`);
-  } else {
-    console.log('  （工作区不是 git 仓库或 git 不可用；跳过 git status）');
-  }
-  console.log('  只读提示，不执行任何回滚。');
+  console.log(renderSessionChanges(changes, target.meta.id, target.meta.workspaceRoot));
   return 0;
 }
 

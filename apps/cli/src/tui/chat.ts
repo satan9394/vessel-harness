@@ -1,10 +1,12 @@
 import * as readline from 'node:readline';
+import * as fs from 'node:fs';
 import { randomUUID } from 'node:crypto';
 import type { ChatProvider } from '@vessel/shared';
 import { MockProvider } from '@vessel/llm';
 import { composeHarness, createMcpConnections, SessionRegistry, type ComposedHarness, type ComposeMcpConnection, type SessionMeta, type SyncCredentialStore } from '@vessel/application';
 import { ProviderStore, type ProviderConfig } from '../providers/ProviderStore.js';
 import { McpConfigStore } from '../mcp/config.js';
+import { collectSessionChanges, renderSessionChanges } from '../sessions/diffReport.js';
 import { createDefaultProviderStore } from '../providers/defaultStore.js';
 import { runSetupWizard, createClackIO, fetchModelOutcome } from '../providers/setup.js';
 import { buildRealProvider, describeProviderError, planProvider } from '../providers/providerFactory.js';
@@ -741,7 +743,17 @@ export async function runChat(opts: ChatOptions): Promise<number> {
 
     // slash command dispatch（`? <term>` 与 `/explain <term>` 同义，task 117 引导体系）
     if (input.startsWith('/') || input.startsWith('?')) {
-      const res = await dispatchSlash(input, { store, io, sessionWorkspace: opts.workspaceRoot, usageStore: usage, usageBaseline: sessionBaseline, locale });
+      const res = await dispatchSlash(input, {
+        store,
+        io,
+        sessionWorkspace: opts.workspaceRoot,
+        usageStore: usage,
+        usageBaseline: sessionBaseline,
+        locale,
+        // G-13：/diff 需要当前会话的日志与 id；会话尚未懒建时为 undefined（/diff 会如实提示）。
+        sessionLogPath: harness?.session.logPath,
+        sessionId: harness?.session.sessionId,
+      });
       if (res?.output) io.write(res.output);
       if (res?.quit) break;
       // G-13-P1：会话级变更必须真正生效，而不是只打印。
@@ -833,6 +845,10 @@ export async function dispatchSlash(input: string, ctx: {
    * 解析后传入。**缺省 'zh'**：直接调 `dispatchSlash` 的既有调用方（测试）行为不变。
    */
   locale?: GuideLocale;
+  /** 当前会话日志路径（TUI `/diff` 用；会话未懒建时为 undefined）。 */
+  sessionLogPath?: string;
+  /** 当前会话 id（TUI `/diff` 展示用）。 */
+  sessionId?: string;
 }): Promise<SlashResult> {
   // `? <term>` 前缀 = `/explain <term>`（task 117：TUI 内解释，复用同一词库，不重复实现）
   if (input.startsWith('?')) {
@@ -869,6 +885,33 @@ export async function dispatchSlash(input: string, ctx: {
         return { output: `成本读取失败: ${(err as Error).message}` };
       }
     }
+    case 'mcp': {
+      // G-13：TUI/CLI 命令面一致 —— CLI 的 `vessel mcp` 只读镜像（不建 transport、不改配置）。
+      const mcpStore = new McpConfigStore();
+      try {
+        const servers = mcpStore.load();
+        if (servers.length === 0) return { output: `（未配置 MCP server；配置文件：${mcpStore.configFile}）` };
+        const lines = servers.map(
+          (s) => `  ${s.name}  ${s.command}${s.args !== undefined && s.args.length > 0 ? ` ${s.args.join(' ')}` : ''}`,
+        );
+        return { output: [`MCP server（${mcpStore.configFile}）：`, ...lines].join('\n') };
+      } catch (err) {
+        return { output: `[mcp] ${(err as Error).message}` };
+      }
+    }
+    case 'diff': {
+      // G-13：CLI `vessel diff` 的 TUI 镜像（只读；本会话尚无日志时如实提示）。
+      const file = ctx.sessionLogPath;
+      if (file === undefined || !fs.existsSync(file)) {
+        return { output: '本会话尚无日志（先跑一回合再 /diff）。' };
+      }
+      try {
+        const changes = collectSessionChanges(file, ctx.sessionWorkspace);
+        return { output: renderSessionChanges(changes, ctx.sessionId ?? '(current)', ctx.sessionWorkspace) };
+      } catch (err) {
+        return { output: `[diff] ${(err as Error).message}` };
+      }
+    }
     case 'help':
       return {
         output: [
@@ -880,6 +923,8 @@ export async function dispatchSlash(input: string, ctx: {
           '  /setup           完整引导配置',
           '  /explain <术语>  查术语中英文解释（同 ? <术语>，如 /explain Call）',
           '  /cost            查看本会话成本与累计（同 /usage）',
+          '  /mcp             列出已配置的 MCP server（同 vessel mcp list）',
+          '  /diff            本会话改动过的文件（只读；同 vessel diff）',
           '  /help            本帮助',
           '  /quit            退出',
           '直接输入文字 = 对话跑任务',
