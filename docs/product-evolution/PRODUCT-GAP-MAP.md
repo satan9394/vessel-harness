@@ -5,6 +5,12 @@
 
 优先级定义：P0 阻碍核心使用/严重安全/数据风险；P1 明显破坏核心体验；P2 显著提升成熟度；P3 高级能力；P4 可选优化。
 
+> **2026-09-18 现状入口**：本文件是**缺口历史与路线图**（各 Round 段落保留原样，数字为当时值）。
+> 当前门禁与仍开放项的**最新快照**见 `PRODUCT-STATE.md` 顶部「2026-09-18 现状快照」。
+> 已在后续闭合、不要再当缺口做的典型：会话续跑（`vessel sessions list`/`resume` 已交付）、
+> TUI 会话内成本可见（`/cost` 已交付）、`run --json`、`deny_domains` 已改 `declarationOnly`、
+> Windows OS 进程边界（Job Object 071/072 已交付）、CI/CodeQL/Dependabot 告警已清零。
+
 ---
 
 ## 缺口清单（去重后 15 项）
