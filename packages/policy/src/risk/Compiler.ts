@@ -779,24 +779,33 @@ function parseMatcher(match: string): { domain: 'shell' | 'filesystem' | 'tools'
       predicate: shellCommandPredicate(prefix),
     };
   }
-  // Two unambiguous regexes instead of `path=(glob\s+)?"?([^")]+)"?`: in the
-  // original the optional `glob\s+` and the capture class overlap on whitespace,
-  // which CodeQL reports as js/polynomial-redos. `glob` only counts as the prefix
-  // when followed by whitespace, so `path=global/*.ts` still parses as a plain path.
-  const globPathMatch = /^(Read|Write|Edit)\(path=glob[ \t]+"?([^")]+)"?\)$/.exec(match);
-  const pathMatch = globPathMatch ?? /^(Read|Write|Edit)\(path="?([^")]+)"?\)$/.exec(match);
+  // Parse `Read|Write|Edit(path=...)` by hand instead of a regex with an optional
+  // `glob\s+` group: that group and the capture class overlap on whitespace, which
+  // CodeQL reports as js/polynomial-redos. `glob` only counts as the prefix when
+  // whitespace follows, so `path=global/*.ts` still parses as a plain path.
+  const pathMatch = /^(Read|Write|Edit)\(path=(.*)\)$/.exec(match);
   if (pathMatch) {
     const toolName = pathMatch[1]!;
-    const glob = pathMatch[2]!;
-    return {
-      domain: 'filesystem',
-      label: `${toolName}(${glob})`,
-      predicate: (call) => {
-        if (call.toolName !== toolName) return false;
-        const p = String(call.arguments.path ?? call.arguments.file_path ?? '');
-        return globMatch(glob, p.replace(/\\/g, '/'));
-      },
-    };
+    let glob = pathMatch[2]!;
+    if (glob.startsWith('glob')) {
+      let i = 4;
+      while (i < glob.length && (glob[i] === ' ' || glob[i] === '\t')) i += 1;
+      if (i > 4 && i < glob.length) glob = glob.slice(i);
+    }
+    glob = glob.replace(/^"/, '').replace(/"$/, '');
+    // The old `[^")]+` rejected an empty capture and any inner quote or ')'; keep
+    // that so `Read(path=a)b)` still falls through instead of matching.
+    if (glob.length > 0 && !glob.includes('"') && !glob.includes(')')) {
+      return {
+        domain: 'filesystem',
+        label: `${toolName}(${glob})`,
+        predicate: (call) => {
+          if (call.toolName !== toolName) return false;
+          const p = String(call.arguments.path ?? call.arguments.file_path ?? '');
+          return globMatch(glob, p.replace(/\\/g, '/'));
+        },
+      };
+    }
   }
   // bare tool name or tool(prefix)
   const bare = /^([A-Za-z_][A-Za-z0-9_]*)$/.exec(match);

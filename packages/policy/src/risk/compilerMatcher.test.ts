@@ -46,6 +46,29 @@ policy:
         reason: "credentials"
 `;
 
+// `glob` prefix / quote shapes for the path matcher (parseMatcher is private, so
+// these go through the public compile entry like the shell matchers above).
+const PATH_MATCHER_POLICY = `
+policy:
+  version: "0.1"
+  profile: workspace-write
+  approval: never
+  tools:
+    rules:
+      - id: glob-quoted
+        match: 'Read(path=glob "**/.env")'
+        action: deny
+        reason: "quoted glob"
+      - id: glob-unquoted
+        match: 'Read(path=glob **/.env)'
+        action: deny
+        reason: "unquoted glob"
+      - id: plain-glob-word
+        match: 'Read(path=global/*.ts)'
+        action: deny
+        reason: "glob is a path segment here, not the prefix keyword"
+`;
+
 function compiledRule(id: string, yamlText: string = MATCHER_POLICY): PolicyRule {
   const found = compilePolicyYaml(yamlText).rules.find((r) => r.id === id);
   if (!found) throw new Error(`rule not compiled: ${id}`);
@@ -143,6 +166,23 @@ describe('policy/risk — Compiler `Shell(...)`/`Bash(...)` matcher: `*` glob su
     expect(rule.match({ toolName: 'Read', arguments: { path: 'a/.env' } })).toBe(true);
     expect(rule.match({ toolName: 'Read', arguments: { path: '.env' } })).toBe(true);
     expect(rule.match({ toolName: 'Read', arguments: { path: 'x.env' } })).toBe(false);
+  });
+
+  it('path matcher：`glob` 前缀仅在跟空白时剥离，引号可省；`global/*.ts` 不被误当前缀', () => {
+    const quoted = compiledRule('glob-quoted', PATH_MATCHER_POLICY);
+    expect(quoted.match({ toolName: 'Read', arguments: { path: 'a/.env' } })).toBe(true);
+    expect(quoted.match({ toolName: 'Read', arguments: { path: '.env' } })).toBe(true);
+    expect(quoted.match({ toolName: 'Read', arguments: { path: 'x.env' } })).toBe(false);
+
+    const unquoted = compiledRule('glob-unquoted', PATH_MATCHER_POLICY);
+    expect(unquoted.match({ toolName: 'Read', arguments: { path: 'a/.env' } })).toBe(true);
+    expect(unquoted.match({ toolName: 'Read', arguments: { path: 'x.env' } })).toBe(false);
+
+    // `glob` 后是 `a` 而非空白 ⇒ 不剥离：整串是路径 glob。若误剥离成 `/*.ts`，
+    // 下面第一条会红。
+    const plain = compiledRule('plain-glob-word', PATH_MATCHER_POLICY);
+    expect(plain.match({ toolName: 'Read', arguments: { path: 'global/x.ts' } })).toBe(true);
+    expect(plain.match({ toolName: 'Read', arguments: { path: 'x.ts' } })).toBe(false);
   });
 });
 
