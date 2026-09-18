@@ -14,7 +14,7 @@
   "files": ["dist"],
   "dependencies": {
     "@vessel/shared": "^0.10.0",
-    "js-yaml": "^4.1.0"
+    "js-yaml": "^5.4.2"
   },
   "scripts": {
     "build": "tsc -b",
