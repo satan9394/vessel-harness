@@ -155,6 +155,7 @@ vessel run --prompt "总结当前工作区 README"   # 一次性任务
 
 - [`docs/VESSEL.md`](docs/VESSEL.md) — 品牌宣言 · Vessel Constitution · 三角色（Lead / Developer / Reviewer）
 - [`docs/V1.0-ROADMAP-PROGRESS.md`](docs/V1.0-ROADMAP-PROGRESS.md) — V1.0 产品化路线与里程碑进度
+- [`docs/V1.6-STABLE-CHECKLIST.md`](docs/V1.6-STABLE-CHECKLIST.md) — **1.0 Stable 门槛逐项核对**（状态/证据/缺什么/阻塞）
 - [`docs/PROVIDER-MANAGEMENT.md`](docs/PROVIDER-MANAGEMENT.md) — 供应商配置管理命令参考
 - [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) — 模块边界
 - [`docs/DESIGN-DECISIONS.md`](docs/DESIGN-DECISIONS.md) — 设计决策点（实现必须遵守）
