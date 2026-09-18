@@ -49,6 +49,18 @@ jobs:
       - name: Typecheck tests
         run: npm run typecheck:tests
 
+      # apps/web is not part of `tsc -b` (its tsconfig is standalone, noEmit) and
+      # `test:all` only runs its vitest suite, so its production build was the one
+      # path nothing checked. That is how an unmet peer dependency slipped through
+      # when vite went to 8 while @vitejs/plugin-react stayed on 7's range: the
+      # build emits the mismatch, the tests never load the vite config's plugins
+      # the same way. `vite build` + a tsc pass gates both.
+      - name: Typecheck web
+        run: npm run -w @vessel/web typecheck
+
+      - name: Build web (vite)
+        run: npm run -w @vessel/web build
+
       # NOTE — known Windows flake (repo-wide, see tasks/036 + task 034):
       # some atomic-rename tests (e.g. apps/cli/src/usage/UsageStore) intermittently
       # hit `EPERM: operation not permitted, rename '...tmp' -> '...json'` when
