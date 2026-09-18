@@ -84,7 +84,13 @@ function buildReviewBrief(req: EvaluationRequest): string {
  * review 模式要求 unmet/suggestions，缺省给空数组（verdict 模式不受影响）。
  */
 export function parseVerdict(text: string): EvaluatorVerdict {
-  const candidates = [text.trim(), /(\{[\s\S]*\})/.exec(text)?.[1] ?? ''];
+  // First `{` to last `}` instead of `/(\{[\s\S]*\})/`: the greedy group is
+  // quadratic when the text has an opening brace and no closing one (CodeQL
+  // js/polynomial-redos), and the slice is byte-identical to what it captured.
+  const open = text.indexOf('{');
+  const close = text.lastIndexOf('}');
+  const braced = open !== -1 && close > open ? text.slice(open, close + 1) : '';
+  const candidates = [text.trim(), braced];
   for (const c of candidates) {
     if (!c) continue;
     try {

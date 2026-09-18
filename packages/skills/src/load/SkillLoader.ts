@@ -125,8 +125,13 @@ export function parseSkillFrontmatterLocal(text: string): { name?: string; descr
   if (!m) return {};
   const out: Record<string, string> = {};
   for (const line of m[1]!.split(/\r?\n/)) {
-    const kv = /^([A-Za-z0-9_-]+):\s*(.*)$/.exec(line.trim());
-    if (kv) out[kv[1]!] = kv[2]!.trim().replace(/^["']|["']$/g, '');
+    // 手写解析代替 `/^([A-Za-z0-9_-]+):\s*(.*)$/`：正则的 `\s*` 与 `.*` 重叠，CodeQL
+    // 报 js/polynomial-redos；语义（键字符集、冒号后去空白、值去引号）逐字不变。
+    const trimmed = line.trim();
+    const sep = trimmed.indexOf(':');
+    if (sep > 0 && /^[A-Za-z0-9_-]+$/.test(trimmed.slice(0, sep))) {
+      out[trimmed.slice(0, sep)] = trimmed.slice(sep + 1).trim().replace(/^["']|["']$/g, '');
+    }
   }
   return { name: out.name, description: out.description };
 }

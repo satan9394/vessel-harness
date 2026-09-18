@@ -779,10 +779,15 @@ function parseMatcher(match: string): { domain: 'shell' | 'filesystem' | 'tools'
       predicate: shellCommandPredicate(prefix),
     };
   }
-  const pathMatch = /^(Read|Write|Edit)\(path=(glob\s+)?"?([^")]+)"?\)$/.exec(match);
+  // Two unambiguous regexes instead of `path=(glob\s+)?"?([^")]+)"?`: in the
+  // original the optional `glob\s+` and the capture class overlap on whitespace,
+  // which CodeQL reports as js/polynomial-redos. `glob` only counts as the prefix
+  // when followed by whitespace, so `path=global/*.ts` still parses as a plain path.
+  const globPathMatch = /^(Read|Write|Edit)\(path=glob[ \t]+"?([^")]+)"?\)$/.exec(match);
+  const pathMatch = globPathMatch ?? /^(Read|Write|Edit)\(path="?([^")]+)"?\)$/.exec(match);
   if (pathMatch) {
     const toolName = pathMatch[1]!;
-    const glob = pathMatch[3]!;
+    const glob = pathMatch[2]!;
     return {
       domain: 'filesystem',
       label: `${toolName}(${glob})`,

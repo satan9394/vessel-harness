@@ -42,8 +42,16 @@ const WINDOWS_PATH_RE = /[A-Za-z]:\\[^\s"']+/g;
 const POSIX_PATH_RE = /\/(?!\/)[^\s"']+/g;
 
 /** 去掉路径尾部的标点残留（`...,` / `...)` / `...）。` 等）。 */
+const TRAILING_PUNCTUATION = new Set([
+  '.', ',', ';', ':', ')', ']', '}', '>', '"', "'", '`', '）', '】', '、', '。', '：', '；',
+]);
+
 function trimTrailingPunctuation(candidate: string): string {
-  return candidate.replace(/[.,;:)\]}>"'`）】\]、。:：;；]+$/g, '');
+  // Backward scan instead of `[...]+$`: the anchored class is polynomial on long
+  // punctuation tails (CodeQL js/polynomial-redos), and the set is identical.
+  let end = candidate.length;
+  while (end > 0 && TRAILING_PUNCTUATION.has(candidate[end - 1]!)) end -= 1;
+  return candidate.slice(0, end);
 }
 
 /** 从一段文本里收集疑似绝对路径（保持出现顺序，去重）。 */

@@ -31,8 +31,13 @@ export function parseSkillFrontmatter(text: string): { name?: string; descriptio
   if (!m) return {};
   const out: Record<string, string> = {};
   for (const line of m[1]!.split(/\r?\n/)) {
-    const kv = /^([A-Za-z0-9_-]+):\s*(.*)$/.exec(line.trim());
-    if (kv) out[kv[1]!] = kv[2]!.trim().replace(/^["']|["']$/g, '');
+    // 手写解析代替 `/^([A-Za-z0-9_-]+):\s*(.*)$/`（`\s*` 与 `.*` 重叠，CodeQL
+    // js/polynomial-redos）；键字符集、冒号后去空白、值去引号的语义逐字不变。
+    const trimmed = line.trim();
+    const sep = trimmed.indexOf(':');
+    if (sep > 0 && /^[A-Za-z0-9_-]+$/.test(trimmed.slice(0, sep))) {
+      out[trimmed.slice(0, sep)] = trimmed.slice(sep + 1).trim().replace(/^["']|["']$/g, '');
+    }
   }
   return { name: out.name, description: out.description };
 }

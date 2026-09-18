@@ -44,7 +44,10 @@ interface OpenAIModelsResponse {
  * /models). Uses the configured apiKey when present.
  */
 export async function fetchOpenAIModels(baseUrl: string, apiKey?: string): Promise<ModelSource> {
-  const clean = baseUrl.replace(/\/+$/, '');
+  // Trailing-slash trim by scan, not `/\/+$/` (quadratic with the `$` anchor —
+  // CodeQL js/polynomial-redos).
+  let clean = baseUrl;
+  while (clean.endsWith('/')) clean = clean.slice(0, -1);
   const candidates = [`${clean}/v1/models`, `${clean}/models`];
   let lastErr: Error | null = null;
   for (const url of candidates) {

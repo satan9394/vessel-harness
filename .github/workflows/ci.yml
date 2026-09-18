@@ -1,5 +1,12 @@
 name: CI
 
+# Least privilege: this workflow only checks out and reads the repo (npm cache is
+# not a token scope). Without an explicit block the GITHUB_TOKEN inherits the
+# repo default, which is broader than any step here needs
+# (CodeQL actions/missing-workflow-permissions).
+permissions:
+  contents: read
+
 on:
   push:
   pull_request:

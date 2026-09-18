@@ -78,7 +78,12 @@ export function opencodeGoBaseUrl(env: NodeJS.ProcessEnv = process.env): string 
   // 显式覆盖：用于把门禁的 real-model lane 指向自有 OpenAI 兼容端点（例如 CI/自建网关）。
   // 默认（未设置/空白）行为与改动前逐字一致。
   const override = env.VESSEL_OPENCODE_GO_BASE_URL?.trim();
-  if (override) return override.replace(/\/+$/, ''); // 剥尾斜杠，避免与路径拼出 `//models`
+  if (override) {
+    // 按扫描剥尾斜杠，不用 `/\/+$/`（`$` 锚点使其为多项式 — CodeQL js/polynomial-redos）。
+    let base = override;
+    while (base.endsWith('/')) base = base.slice(0, -1);
+    return base; // 剥尾斜杠，避免与路径拼出 `//models`
+  }
   const preset = findPreset(OPENCODE_GO_PRESET_ID);
   if (!preset || preset.protocol !== 'openai-compatible') {
     throw new Error(`opencode-go preset 未注册或协议非 openai-compatible（preset id=${OPENCODE_GO_PRESET_ID}）`);
