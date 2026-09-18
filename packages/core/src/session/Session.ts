@@ -135,10 +135,15 @@ export class Session {
         continue;
       }
     }
-    // resume semantics: if the last turn lacks turn/end, synthesize interrupted closer
+    // resume semantics: if the last turn lacks turn/end, synthesize interrupted closer.
+    // AWAITED on purpose: an un-awaited append here is a floating write — `open()`
+    // resolves before the synthesized record reaches disk, so a session reopened and
+    // immediately closed (or whose directory is removed) leaves `append`'s pending
+    // `fs.promises.open` to land on a closed handle / a deleted path, surfacing as an
+    // unhandled rejection. Awaiting makes `open()` resolve only once the closer is on disk.
     const openTurns = this.openTurns();
     for (const turnId of openTurns) {
-      this.append({
+      await this.append({
         type: 'turn/end',
         turnId,
         kind: 'interrupted',

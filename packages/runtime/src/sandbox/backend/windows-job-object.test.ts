@@ -134,12 +134,13 @@ describe('windows-job-object — VESSEL_HOLDER_DEBUG（存在即开；行为未�
 describe('windows-job-object — real-machine attach outcome (win32 + PowerShell)', () => {
   const onWindows = process.platform === 'win32';
 
-  // BRIEF ③: this test drives a REAL job holder, whose own budget is 30 s
-  // (`createJobObject` default) — numerically identical to vitest's default
-  // `testTimeout: 30000` (`vitest.config.ts:47`). Inheriting the default would
-  // make the outcome a race between the holder giving up and the runner killing
-  // the test. The timeout is therefore EXPLICIT and 4× the holder budget; the
-  // assertions are untouched (no skip, no relaxation).
+  // BRIEF ③ + CI run 35329332608: this test drives a REAL job holder. Its
+  // production budget defaults to 30 s, and on a cold/loaded GitHub runner the
+  // holder's PowerShell `Add-Type` compile exceeded that (measured 1.4 s warm on
+  // this machine), so the test gives the holder an explicit 120 s budget. The
+  // vitest timeout is strictly larger (240 s) so the holder's give-up and the
+  // runner's kill can never photo-finish. The assertions are untouched — no skip,
+  // no relaxation.
   it.skipIf(!onWindows)(
     'an already-exited PID RESOLVES as target-exited instead of throwing an attach failure',
     async () => {
@@ -159,11 +160,11 @@ describe('windows-job-object — real-machine attach outcome (win32 + PowerShell
 
       // The old behaviour threw here ("job-holder failed to confine pid …:
       // OpenProcess failed: 87"); the fixed behaviour resolves with its own reason.
-      const conf = await createJobObject(pid!);
+      const conf = await createJobObject(pid!, {}, 120_000);
       expect(conf.attached).toBe(false);
       expect(conf.reason).toBe('target-exited');
       await conf.dispose();
     },
-    120_000,
+    240_000,
   );
 });

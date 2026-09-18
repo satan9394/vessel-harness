@@ -491,7 +491,10 @@ describe('engine/project-task-queue — ProjectTaskQueue 持久队列（task 063
   });
 
   it('索引正确性（V1.1-B）：同实例写透传 + 跨实例各自装载后状态一致；foreign 新入队经 sync 立即可见', () => {
-    const a = new ProjectTaskQueue({ tasksRoot: root });
+    // 注入单调时钟：A/B 若落在同一真实毫秒，compareOldestFirst 会退到「按 id 字典序」这条
+    // 明确的破平规则（id 含随机后缀），于是 claimNext 可能先给 B —— 本用例断言的是跨实例
+    // 一致性而非同毫秒破平，故固定时间轴，与同 describe 其余用例一致。
+    const a = makeStore();
     a.enqueue({ projectRoot: ROOT_PROJECT, goal: 'A' });
     a.enqueue({ projectRoot: ROOT_PROJECT, goal: 'B' });
     expect(a.claimNext()?.goal).toBe('A'); // a 领取 A → 同实例索引透传 in-progress

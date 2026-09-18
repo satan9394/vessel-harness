@@ -442,6 +442,7 @@ describe('task 106 — TUI 凭据接线 + 测试隔离', () => {
     // current.json + 指向 127.0.0.1:1 的 provider —— 真去读它就会打印哨兵 id 并连接失败。
     const fakeHome = fs.mkdtempSync(path.join(os.tmpdir(), 'cah-106-home-'));
     const savedHome = process.env.USERPROFILE;
+    const savedPosixHome = process.env.HOME;
     const savedRoot = process.env.VESSEL_PROVIDER_ROOT;
     try {
       fs.mkdirSync(path.join(fakeHome, '.vessel'), { recursive: true });
@@ -460,6 +461,9 @@ describe('task 106 — TUI 凭据接线 + 测试隔离', () => {
         'utf8',
       );
       process.env.USERPROFILE = fakeHome;
+      // os.homedir() 在 win32 读 USERPROFILE，在 POSIX 读 HOME；只设前者会让本用例
+      // 在 Linux CI 上仍旧指向真实 home（哨兵根本没被读到），断言便与平台无关地红。
+      process.env.HOME = fakeHome;
 
       // 控制组：不注入 VESSEL_PROVIDER_ROOT → 默认 root 就是 home/.vessel，哨兵确实会被读到
       delete process.env.VESSEL_PROVIDER_ROOT;
@@ -495,6 +499,8 @@ describe('task 106 — TUI 凭据接线 + 测试隔离', () => {
       else process.env.VESSEL_PROVIDER_ROOT = savedRoot;
       if (savedHome === undefined) delete process.env.USERPROFILE;
       else process.env.USERPROFILE = savedHome;
+      if (savedPosixHome === undefined) delete process.env.HOME;
+      else process.env.HOME = savedPosixHome;
       fs.rmSync(fakeHome, { recursive: true, force: true });
     }
   });

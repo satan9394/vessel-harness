@@ -311,7 +311,11 @@ export const WindowsJobObject = {
    * for one of them so the runtime never calls `terminate()` before the
    * assignment is durable.
    */
-  hold(jobName: string, targetPid: number, limits: JobObjectLimits): { holder: ChildProcess; dir: string } {
+  hold(
+    jobName: string,
+    targetPid: number,
+    limits: JobObjectLimits,
+  ): { holder: ChildProcess; dir: string; disposeDir: () => void } {
     const dir = mkdtempSync(join(tmpdir(), 'vessel-holder-'));
     const readyFile = join(dir, 'ready');
     const errorFile = join(dir, 'error');
@@ -334,8 +338,7 @@ export const WindowsJobObject = {
       holder.stdout?.pipe(outLog);
       holder.stderr?.pipe(errLog);
     }
-    // Reap the holder's temp dir once it exits (or on holder spawn error).
-    const cleanup = (): void => {
+    const disposeDir = (): void => {
       if (debug) return; // keep dir for debugging
       try {
         rmSync(dir, { recursive: true, force: true });
@@ -343,9 +346,15 @@ export const WindowsJobObject = {
         /* best-effort */
       }
     };
-    holder.on('exit', cleanup);
-    holder.on('error', cleanup);
-    return { holder, dir };
+    // NOTE: deliberately NOT wired to 'exit'. The holder on the target-exited path
+    // writes `ready` and exits immediately; deleting the dir on exit raced the
+    // poller below, so a stalled event loop (loaded CI runner, many workers) could
+    // miss the marker entirely and time out on a holder that had already succeeded.
+    // The directory now lives until `createJobObject` has read the outcome, and
+    // `createJobObject`'s finally is the single owner of its lifetime. The 'error'
+    // listener stays so a failed spawn surfaces instead of crashing the process.
+    holder.on('error', disposeDir);
+    return { holder, dir, disposeDir };
   },
 
   /** Terminate the ENTIRE job tree from a separate process (idempotent). */
@@ -525,16 +534,19 @@ export function parseAttachMarker(marker: string): 'attached' | 'target-exited' 
  * been confined. 30 s is ~3× the worst measured compile while still bounding a
  * hung holder.
  *
- * ⚠ 30 s RACES 1:1 WITH `vitest.config.ts` `testTimeout: 30000` (BRIEF ③). The
- * two budgets are numerically equal, so a real attach that legitimately needs the
- * whole budget is abandoned by the holder at the same instant the test runner
- * kills the test — which one "wins" is scheduling luck, and the observed symptom
- * is a flaky real-machine job test, not a product bug. The fix is on the TEST
- * side and must stay there: every test that drives a REAL job object passes an
- * explicit `timeout >= 120_000` (4×) instead of inheriting the default
- * (`Sandbox.test.ts` job tests, `windows-job-object.test.ts`). Do NOT "fix" this
- * by lowering this budget, and do NOT raise it to match a test timeout — a new
- * real-job test with no explicit timeout reintroduces the race.
+ * ⚠ The 30 s holder budget can still race `vitest.config.ts` `testTimeout: 30000`
+ * (BRIEF ③): a real attach that legitimately needs the whole budget is abandoned
+ * by the holder at the same instant the runner kills the test, so every test that
+ * drives a REAL job object passes an explicit larger timeout instead of inheriting
+ * the default (`Sandbox.test.ts` job tests, `windows-job-object.test.ts`). Do NOT
+ * "fix" this by lowering this budget.
+ *
+ * A second, unrelated race was fixed here (CI run 35329332608): the holder used to
+ * delete its own temp dir from its 'exit' handler. On the `target-exited` path it
+ * writes `ready` and exits immediately, so a stalled event loop could let that
+ * cleanup remove the marker before the poll above ever observed it — turning a
+ * holder that had already succeeded into a 30 s timeout. The dir is now disposed
+ * in the `finally` below, after the outcome is read, so it cannot race the poll.
  */
 export async function createJobObject(
   targetPid: number,
@@ -545,48 +557,54 @@ export async function createJobObject(
     throw new Error('windows-job-object backend requires win32');
   }
   const jobName = `VesselJob_${process.pid}_${Date.now()}_${Math.floor(Math.random() * 0xffff)}`;
-  const { holder, dir } = WindowsJobObject.hold(jobName, targetPid, limits);
-  const readyFile = join(dir, 'ready');
-  const errorFile = join(dir, 'error');
-  // Poll for readiness (Add-Type compile + assignment). Fail loudly if the
-  // holder reports an error, so callers know confinement did NOT engage.
-  const deadline = Date.now() + timeoutMs;
-  let outcome: 'attached' | 'target-exited' | 'pending' = 'pending';
-  while (Date.now() < deadline) {
-    if (existsSync(readyFile)) {
-      outcome = parseAttachMarker(readFileSync(readyFile, 'utf8'));
-      if (outcome !== 'pending') break;
+  const { holder, dir, disposeDir } = WindowsJobObject.hold(jobName, targetPid, limits);
+  try {
+    const readyFile = join(dir, 'ready');
+    const errorFile = join(dir, 'error');
+    // Poll for readiness (Add-Type compile + assignment). Fail loudly if the
+    // holder reports an error, so callers know confinement did NOT engage.
+    const deadline = Date.now() + timeoutMs;
+    let outcome: 'attached' | 'target-exited' | 'pending' = 'pending';
+    while (Date.now() < deadline) {
+      if (existsSync(readyFile)) {
+        outcome = parseAttachMarker(readFileSync(readyFile, 'utf8'));
+        if (outcome !== 'pending') break;
+      }
+      if (existsSync(errorFile)) {
+        const why = readFileSync(errorFile, 'utf8').trim();
+        void holder.kill();
+        throw new Error(`job-holder failed to confine pid ${targetPid}: ${why}`);
+      }
+      await new Promise((r) => setTimeout(r, 100));
     }
-    if (existsSync(errorFile)) {
-      const why = readFileSync(errorFile, 'utf8').trim();
+    if (outcome === 'pending') {
       void holder.kill();
-      throw new Error(`job-holder failed to confine pid ${targetPid}: ${why}`);
+      throw new Error(`job-holder did not confirm confinement of pid ${targetPid} within ${timeoutMs}ms`);
     }
-    await new Promise((r) => setTimeout(r, 100));
+    if (outcome === 'target-exited') {
+      // nothing to confine: the process is already gone. The holder exits on its
+      // own right after writing the marker; kill() is a belt-and-braces no-op that
+      // guarantees no PowerShell lingers.
+      void holder.kill();
+    }
+    return {
+      jobName,
+      rootPid: targetPid,
+      attached: outcome === 'attached',
+      ...(outcome === 'attached' ? {} : { reason: 'target-exited' as const }),
+      async attachDescendants(pids: number[]): Promise<number> {
+        return WindowsJobObject.attachPidsToJob(jobName, pids);
+      },
+      async terminate(): Promise<void> {
+        await WindowsJobObject.terminate(jobName);
+      },
+      async dispose(): Promise<void> {
+        await WindowsJobObject.terminate(jobName);
+      },
+    };
+  } finally {
+    // Single owner of the holder temp dir: the outcome has been read (or the call
+    // failed), so removing it can no longer race the poll above.
+    disposeDir();
   }
-  if (outcome === 'pending') {
-    void holder.kill();
-    throw new Error(`job-holder did not confirm confinement of pid ${targetPid} within ${timeoutMs}ms`);
-  }
-  if (outcome === 'target-exited') {
-    // nothing to confine: the process is already gone. The holder exits on its
-    // own right after writing the marker; kill() is a belt-and-braces no-op that
-    // guarantees no PowerShell lingers.
-    void holder.kill();
-  }
-  return {
-    jobName,
-    rootPid: targetPid,
-    attached: outcome === 'attached',
-    ...(outcome === 'attached' ? {} : { reason: 'target-exited' as const }),
-    async attachDescendants(pids: number[]): Promise<number> {
-      return WindowsJobObject.attachPidsToJob(jobName, pids);
-    },
-    async terminate(): Promise<void> {
-      await WindowsJobObject.terminate(jobName);
-    },
-    async dispose(): Promise<void> {
-      await WindowsJobObject.terminate(jobName);
-    },
-  };
 }

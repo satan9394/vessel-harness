@@ -42,6 +42,21 @@ describe('Session (append-only JSONL event log)', () => {
     await r.close();
   });
 
+  it('resume writes the synthesized closer before open() resolves (no floating append)', async () => {
+    const s = await Session.open({ workspaceRoot: dir, sessionId: 's7' });
+    await s.appendSync({ type: 'turn/start', turnId: 't_open', surface: false });
+    await s.close();
+
+    const r = await Session.open({ workspaceRoot: dir, sessionId: 's7' });
+    // Positive control for the awaited append in loadExisting: read the log
+    // synchronously the instant open() resolves. An un-awaited write would still
+    // be pending here (so the closer would be missing), and closing right after
+    // would race that write's open() against close() on the fd.
+    const raw = fs.readFileSync(path.join(dir, '.harness', 'sessions', 's7', 'session.jsonl'), 'utf8');
+    expect(raw).toContain('"kind":"interrupted"');
+    await r.close();
+  });
+
   it('surface projects only user/message, assistant/message, tool/result', async () => {
     const s = await Session.open({ workspaceRoot: dir, sessionId: 's3' });
     await s.appendSync({ type: 'turn/start', turnId: 't1', surface: false });
