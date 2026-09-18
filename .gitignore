@@ -9,6 +9,10 @@ benchmarks/reports/B*/run_*/
 .DS_Store
 .dsh-vision-router/
 benchmarks/reports/release-gate/
+# Cross-Harness Conformance reports are generated (timestamped); run
+# `npm run bench:conformance` to reproduce. The committed evidence is the
+# command + its documented result in README, not a frozen timestamped file.
+benchmarks/reports/conformance/
 
 # Mission 控制面（personal-dev-workflow：RUN_STATE 与 Mission 证据/卡，绝不提交）
 RUN_STATE.md

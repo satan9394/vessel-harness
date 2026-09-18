@@ -173,6 +173,29 @@ vessel run --prompt "总结当前工作区 README"   # 一次性任务
 
 版本主线一句话：**V0.1** 薄核 + Behavior IR + Policy 四件套 → **V0.2** Subagent / Planner / Evaluator / MCP / Worktree → **V0.3** Memory / Skills → **V0.4** TaskRouter → **V0.5** Loop Engine → **V0.6** 多供应商配置 → **V0.7** 交互 TUI + 权限三档 → **V0.8** 品牌与哲学 IR 化 → **V0.9** 更名 Vessel + 用量统计与价目 → **V0.10** 组合根抽离 + `migrate`/`serve`/`web` + 公开文档。
 
+## Benchmark 与 Cross-Harness Conformance
+
+Vessel 的差异化主张之一是**行为层可替换、且可被同一套判据验证**。`benchmarks/` 为此提供一条统一链路：
+
+- **共享场景**：`benchmarks/scenarios/*.yaml`（25 个：B001–B027 行为场景 + S001–S008 安全场景），判据写在 yaml 里，是唯一事实源；fixture 在 `benchmarks/fixtures/`。
+- **统一契约**：`HarnessAdapter.run(fixture) → RunResult`（15 项 L3 指标：成功 / 墙钟 / 工具调用 / 非法调用 / 重试 / tokens / 成本 / 上下文峰值 / 压缩 / 人工介入 / 策略违规 / resume），见 `benchmarks/runners/src/contracts/`。
+- **适配器**：Vessel 自适配器 + 外部 harness（`dsh` / `opencode` / `codex` / `claude-code` / `pi`），见 `benchmarks/runners/src/adapters/`。每个适配器自带 CLI 探针：**探针不通过就不跑、如实标 skip**，绝不伪造失败或成功。
+- **驱动 + 报告**：`benchmarks/runners/src/conformance/` 把同一批 fixture 跑过多个适配器，交给 083 报告模块聚合成跨 harness 对比（JSON + markdown）。
+
+```powershell
+# 离线（默认）：只跑 Vessel 自适配器，确定性 mock，不消耗任何第三方配额
+npm run bench:conformance -- --all
+
+# 指定场景
+npm run bench:conformance -- --scenarios B001,S002
+
+# 真实跨 harness（会驱动本机已安装的 dsh/opencode/codex/claude-code/pi，可能消耗其配额）
+npm run bench:conformance -- --all --live
+```
+
+> 默认离线跑全部 25 个场景的结果（2026-09-18）：**25 run / 0 skipped / 0 error，25 passed，exit 0**。
+> 报告写入 `benchmarks/reports/conformance/`（生成物，已 gitignore）。`--live` 需你确认后再跑——它会真的驱动外部 harness。
+
 ## 开发
 
 ```powershell

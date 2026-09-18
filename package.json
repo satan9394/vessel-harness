@@ -39,7 +39,8 @@
     "cli": "tsx apps/cli/src/cli.ts",
     "setup": "tsx apps/cli/src/cli.ts setup",
     "smoke": "node apps/cli/dist/cli.js run --prompt \"offline smoke\"",
-    "bench": "tsx apps/cli/src/cli.ts run --bench"
+    "bench": "tsx apps/cli/src/cli.ts run --bench",
+    "bench:conformance": "tsx benchmarks/runners/src/conformance/run-conformance.ts"
   },
   "devDependencies": {
     "@types/js-yaml": "^4.0.9",

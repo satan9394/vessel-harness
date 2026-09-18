@@ -6,3 +6,4 @@ export * from './lane/index.js';
 export * from './report/index.js';
 export * from './release-gates/index.js';
 export * from './contracts/index.js';
+export * from './conformance/index.js';
