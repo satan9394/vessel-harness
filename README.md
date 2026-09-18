@@ -109,6 +109,7 @@ vessel run --prompt "总结当前工作区 README"   # 一次性任务
 | `vessel migrate` | 一次性迁移旧状态目录 `~/.dsh` → `~/.vessel` |
 | `vessel sessions list` | 列出历史会话（最近活动在前） |
 | `vessel resume <id> [--last]` | 恢复历史会话（`--last` = 最近一条；TTY 下不带 `--prompt` 时进入 TUI 恢复） |
+| `vessel diff [<id>\|--last]` | 会话改动的**只读**提示（Write/Edit 文件 + shell + git status；不回滚） |
 | `vessel review handoff / import / list` | 外部评审：生成 handoff、导入评审结果、列出 reviews |
 | `vessel explain <term>` | 术语中英双语解释（别名 `vessel term <term>`；未收录词给提示 + `list-terms`） |
 | `vessel list-terms` | 列出全部术语（中英双语词库） |

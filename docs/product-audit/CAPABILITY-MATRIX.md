@@ -128,7 +128,7 @@ IDE 扩展型（Roo Code 已停服、Cursor CLI 闭源）不入主矩阵，仅�
 ### 12 Git 工作流
 - Vessel：◐。引擎层有 `git worktree add/remove` 隔离（`packages/engine/src/workspace.ts`、`packages/tools/src/git/Worktree.ts`，用于子代理/重试的隔离执行面，dispose 平衡、防泄漏）——但这是**隔离机制**，不是用户可感知的"AI 改完自动 commit / /undo 回滚"。
 - 竞品：Aider 自动 commit（每次修改即提交、可 diff/undo，cwd 上它就是产品核心）；OpenCode `/undo` `/redo` + git 工具；Claude Code 内建 git 操作与 checkout；Codex apply_patch + undo/rewind；Cline checkpoints。
-- 结论：Vessel 的 worktree 隔离其实比竞品的"当场改当场 commit"更干净（真隔离），但缺少**会话级快照/回滚的面向用户出口**（见 §6-4）。
+- 结论：Vessel 的 worktree 隔离其实比竞品的"当场改当场 commit"更干净（真隔离），但缺少**会话级快照/回滚的面向用户出口**（见 §6-4）。**部分已补（task 128）**：`vessel diff [<id>|--last]` 提供只读改动提示（本会话 Write/Edit 的文件 + shell + 工作区 `git status --short`），把判断权留给人；**自动 revert 仍未做**（克制形态，见 §6-4）。
 
 ### 13 Headless 脚本输出
 - Vessel：◐→**部分已补**。有确定性输出通道：`run --bench <id>` 产 JSONL 报告、`bench-report` 聚合输出 md/json、`serve`/`web` 有 usage SSE；**通用 `vessel run` 现已支持 `--json`**（Round 130 起：`--json` 时 stdout 只出一段文档，含 kind/finalText/steps/toolCalls/turnId/sessionLog），可直接进 CI/管道消费。**仍缺**：`--output-format stream-json`（流式结构化）。`run --json` 现已含 `durationMs` 与 `enforcement`（counts/sources/status/recent，与人类 telemetry 同一取数函数）。
@@ -205,7 +205,7 @@ IDE 扩展型（Roo Code 已停服、Cursor CLI 闭源）不入主矩阵，仅�
 1. ~~会话续跑（resume/continue）~~ ⇒ **已交付**（`vessel sessions list` / `vessel resume <id>|--last`）
 2. ~~CLI 面 MCP 配置入口（库优于 CLI；`~/.vessel/mcp.json` 已可读，仍缺 `vessel mcp` 子命令）~~ ⇒ **已交付**（`vessel mcp list/add/remove/path`，task 127）
 3. 通用 Headless JSON 输出契约（`run --json` 已补，仍缺 stream-json）
-4. 会话级 Git 快照/回滚出口（undo/checkpoint）
+4. 会话级 Git 快照/回滚出口（undo/checkpoint）—— **只读提示已交付**（`vessel diff`，task 128）；自动 revert 未做（克制形态）
 5. OS 级沙箱：**Windows 已交付 Job Object + process-tree（071/072）**；**仍缺**受限令牌/低完整性降权，及非 Windows（Seatbelt/Landlock/bubblewrap）
 6. 价格/成本在 TUI 会话内的实时可见性（**已交付**：`/cost` + 每回合增量）
 7. 对外 SDK/插件 API 文档化
