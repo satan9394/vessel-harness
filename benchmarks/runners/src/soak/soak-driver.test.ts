@@ -2,7 +2,7 @@ import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { describe, it, expect } from 'vitest';
-import { runSoak, residueCount, SOAK_WORKSPACE_PREFIX } from './soak-driver.js';
+import { runSoak, residueCount, SOAK_WORKSPACE_PREFIX, SOAK_DEFAULTS, checkSoakCoherence } from './soak-driver.js';
 /**
  * benchmarks/soak — deterministic fast regression for the 1h soak driver (task 068).
  *
@@ -94,5 +94,37 @@ describe('benchmarks/soak — soak driver invariants (task 068)', () => {
     } finally {
       fs.rmSync(base, { recursive: true, force: true });
     }
+  });
+});
+
+/**
+ * Regression lock for the default parameters. The old default was
+ * `maxAcceptedRounds=3` with `handoffEveryRounds=8`: no task ever reached the
+ * handoff round, the queue drained at round 3, and the soak silently produced
+ * `handoffCount=0` / `resumeProducedIteration=false` — i.e. it did not exercise
+ * the 067 handoff/resume it claims to. This makes that unrepresentable.
+ */
+describe('benchmarks/soak — default parameter coherence', () => {
+  it('SOAK_DEFAULTS actually exercise handoff + pause/resume', () => {
+    expect(checkSoakCoherence(SOAK_DEFAULTS)).toEqual({ ok: true, problems: [] });
+  });
+
+  it('flags the historical incoherent default (maxAcceptedRounds <= handoffEveryRounds)', () => {
+    const bad = checkSoakCoherence({ totalRounds: 30, maxAcceptedRounds: 3, handoffEveryRounds: 8, pauseEveryRounds: 7 });
+    expect(bad.ok).toBe(false);
+    expect(bad.problems.join(' ')).toContain('handoffEveryRounds');
+  });
+
+  it('flags totalRounds < pauseEveryRounds', () => {
+    const bad = checkSoakCoherence({ totalRounds: 5, maxAcceptedRounds: 12, handoffEveryRounds: 8, pauseEveryRounds: 7 });
+    expect(bad.ok).toBe(false);
+    expect(bad.problems.join(' ')).toContain('pauseEveryRounds');
+  });
+
+  it('allows handoff/pause to be disabled with 0', () => {
+    expect(checkSoakCoherence({ totalRounds: 4, maxAcceptedRounds: 3, handoffEveryRounds: 0, pauseEveryRounds: 0 })).toEqual({
+      ok: true,
+      problems: [],
+    });
   });
 });

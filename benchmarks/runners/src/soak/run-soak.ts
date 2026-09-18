@@ -22,7 +22,7 @@ import * as os from 'node:os';
 import * as path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { envRoot } from '@vessel/shared';
-import { runSoak, residueCount, SOAK_WORKSPACE_PREFIX, type SoakObservations } from './soak-driver.js';
+import { runSoak, residueCount, checkSoakCoherence, SOAK_DEFAULTS, SOAK_WORKSPACE_PREFIX, type SoakObservations } from './soak-driver.js';
 
 // Full-scale preset: this is the "1h-equivalent" pressure. Each gen→eval attempt
 // is ~1-3 ms with the deterministic mock provider, so 1h of continuous running
@@ -30,8 +30,8 @@ import { runSoak, residueCount, SOAK_WORKSPACE_PREFIX, type SoakObservations } f
 // budget (thousands of iterations, hundreds of handoffs) — see report for the
 // exact conversion and the reason a wall-clock-forced 1h would add little signal
 // beyond what this iteration/size magnitude exposes.
-const DEFAULT_TASKS = 120;
-const DEFAULT_ROUNDS = 30;
+const DEFAULT_TASKS = SOAK_DEFAULTS.taskCount;
+const DEFAULT_ROUNDS = SOAK_DEFAULTS.totalRounds;
 
 function iso(): string {
   return new Date().toISOString().replace(/[:.]/g, '-');
@@ -77,9 +77,23 @@ function summarize(obs: SoakObservations): string {
 
 const tasks = readInt(process.env.SOAK_TASKS, Number(process.argv[2] ?? DEFAULT_TASKS));
 const rounds = readInt(process.env.SOAK_ROUNDS, Number(process.argv[3] ?? DEFAULT_ROUNDS));
-const handoffEvery = readInt(process.env.SOAK_HANDOFF_EVERY, 8);
-const pauseEvery = readInt(process.env.SOAK_PAUSE_EVERY, 7);
-const maxAccepted = readInt(process.env.SOAK_MAX_ACCEPTED, 3);
+const handoffEvery = readInt(process.env.SOAK_HANDOFF_EVERY, SOAK_DEFAULTS.handoffEveryRounds);
+const pauseEvery = readInt(process.env.SOAK_PAUSE_EVERY, SOAK_DEFAULTS.pauseEveryRounds);
+const maxAccepted = readInt(process.env.SOAK_MAX_ACCEPTED, SOAK_DEFAULTS.maxAcceptedRounds);
+
+// Fail loud on a parameter set that cannot exercise handoff/pause — the whole
+// point of the soak is that coverage, and silently under-covering is worse than
+// not running. See checkSoakCoherence in soak-driver.ts.
+const coherence = checkSoakCoherence({
+  totalRounds: rounds,
+  maxAcceptedRounds: maxAccepted,
+  handoffEveryRounds: handoffEvery,
+  pauseEveryRounds: pauseEvery,
+});
+if (!coherence.ok) {
+  for (const problem of coherence.problems) console.error(`[soak-068] incoherent params: ${problem}`);
+  process.exit(2);
+}
 // SOAK_BASE：空/纯空白 ⇒ 未设置 ⇒ os.tmpdir()（唯一口径 `envRoot`；见文件头注释）。
 // 判据与同文件的 readInt 一致（`''`/纯空白都当默认），不再出现「同一次运行两种口径」。
 const base = path.resolve(envRoot('SOAK_BASE') ?? os.tmpdir());

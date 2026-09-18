@@ -32,7 +32,8 @@ const RUN_SOAK_SRC = fileURLToPath(new URL('./run-soak.ts', import.meta.url));
  * 缺字段会让 `main()` 抛错并 `process.exitCode = 1`，污染整个测试进程的退出码）。
  * 工厂被提升，故对象字面量内联在这里（不引用外部绑定）。
  */
-vi.mock('./soak-driver.js', () => {
+vi.mock('./soak-driver.js', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('./soak-driver.js')>();
   const obs = {
     label: 'soak-test',
     wsPrefix: 'cah-068-soak-ws-',
@@ -63,6 +64,10 @@ vi.mock('./soak-driver.js', () => {
     perTaskAcceptedRounds: {},
   };
   return {
+    // Spread the real module so SOAK_DEFAULTS / checkSoakCoherence stay genuine
+    // (run-soak.ts uses them for the parameter-coherence guard); only the
+    // side-effecting run is stubbed.
+    ...actual,
     SOAK_WORKSPACE_PREFIX: 'cah-068-soak-ws-',
     SOAK_STORE_PREFIX: 'cah-068-soak-store-',
     residueCount: () => 0,
@@ -183,12 +188,13 @@ describe('run-soak — SOAK_BASE 空/纯空白 ⇒ os.tmpdir()（绝不落到进
     });
     for (const k of keys) expect(blank[k]).toBe(empty[k]);
 
-    // 负对照：有值时行为逐字不变
+    // 负对照：有值时行为逐字不变（取值须自洽：maxAccepted > handoffEvery、rounds >= pauseEvery，
+    // 否则 run-soak 的自洽守卫会 fail loud —— 见 soak-driver 的 checkSoakCoherence）
     const valued = await soakArgs({
-      SOAK_TASKS: '7', SOAK_ROUNDS: '9', SOAK_HANDOFF_EVERY: '2', SOAK_PAUSE_EVERY: '3', SOAK_MAX_ACCEPTED: '1',
+      SOAK_TASKS: '7', SOAK_ROUNDS: '9', SOAK_HANDOFF_EVERY: '2', SOAK_PAUSE_EVERY: '3', SOAK_MAX_ACCEPTED: '6',
     });
     expect(valued).toMatchObject({
-      taskCount: 7, totalRounds: 9, handoffEveryRounds: 2, pauseEveryRounds: 3, maxAcceptedRounds: 1,
+      taskCount: 7, totalRounds: 9, handoffEveryRounds: 2, pauseEveryRounds: 3, maxAcceptedRounds: 6,
     });
   });
 

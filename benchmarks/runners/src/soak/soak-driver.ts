@@ -98,6 +98,61 @@ export interface SoakConfig {
   label?: string;
 }
 
+/**
+ * Default soak parameters. These MUST stay coherent, or the soak silently
+ * stops exercising the chain it exists to cover:
+ *  - `maxAcceptedRounds` is the largest per-task rounds-to-met. The round loop
+ *    exits as soon as the pending queue drains, so if `maxAcceptedRounds` is
+ *    not strictly greater than `handoffEveryRounds`, every task settles before
+ *    the first handoff round and 067 handoff + resume never fire (observed:
+ *    the old default 3 vs handoffEvery 8 produced `handoffCount=0`,
+ *    `resumeProducedIteration=false`).
+ *  - `totalRounds` must be at least `pauseEveryRounds`, or 066 pause/resume
+ *    never fires for the same reason.
+ * `checkSoakCoherence` enforces both; `run-soak.ts` fails loud when violated.
+ */
+export const SOAK_DEFAULTS = {
+  taskCount: 120,
+  totalRounds: 30,
+  maxRetries: 1,
+  maxAcceptedRounds: 12,
+  handoffEveryRounds: 8,
+  pauseEveryRounds: 7,
+} as const;
+
+export interface SoakCoherenceInput {
+  totalRounds: number;
+  maxAcceptedRounds: number;
+  handoffEveryRounds: number;
+  pauseEveryRounds: number;
+}
+
+export interface SoakCoherence {
+  ok: boolean;
+  problems: string[];
+}
+
+/**
+ * Whether a soak parameter set will actually exercise handoff + pause/resume.
+ * A `handoffEveryRounds`/`pauseEveryRounds` of 0 means "disabled" and is allowed.
+ */
+export function checkSoakCoherence(p: SoakCoherenceInput): SoakCoherence {
+  const problems: string[] = [];
+  if (p.handoffEveryRounds > 0 && p.maxAcceptedRounds <= p.handoffEveryRounds) {
+    problems.push(
+      `maxAcceptedRounds (${p.maxAcceptedRounds}) must exceed handoffEveryRounds (${p.handoffEveryRounds}): ` +
+        `every task settles before the first handoff round, so 067 handoff/resume never fire`,
+    );
+  }
+  if (p.pauseEveryRounds > 0 && p.totalRounds < p.pauseEveryRounds) {
+    problems.push(
+      `totalRounds (${p.totalRounds}) must be at least pauseEveryRounds (${p.pauseEveryRounds}): ` +
+        `066 pause/resume never fires`,
+    );
+  }
+  return { ok: problems.length === 0, problems };
+}
+
 /** One sample of a memory / residue observation. */
 export interface SoakSample {
   step: string;
