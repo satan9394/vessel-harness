@@ -1,6 +1,7 @@
 # 016 — `cah provider` 命令组：list/add/remove/switch/current
 
-- 状态：待执行
+- 状态：已合入（2026-09-18 对账）
+- 对账记录：原状态行「待执行」；实际已合入，证据：CHANGELOG.md V0.6（provider 命令组）。
 - 优先级：P0
 - 创建日期：2026-09-05
 - 关联卡片：依赖 014；目标 goal-575e1e4b

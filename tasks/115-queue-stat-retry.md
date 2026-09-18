@@ -1,7 +1,8 @@
 # 115 — 队列 statSync 加有界重试（消除 runSync 索引竞态 flaky）
 
 - 编号：115
-- 状态：待验收
+- 状态：已合入（2026-09-18 对账）
+- 对账记录：原状态行「待验收」；实际已合入，证据：main 代码（task 115 statWithRetry）。
 - 优先级：P2（与 113/114 同型的 Windows 锁 flaky 治理——stat 读路径；114 记录"若复现可另卡"）
 - 创建日期：2026-09-10
 - 关联：114（b83de45：记录的 runSync 裸 statSync 竞态；expected ['C','B'] to equal ['C'] 一次时序失败；

@@ -1,6 +1,7 @@
 # 040 — Event Projections + SSE 增强（Conversation/Tool/Usage/Policy）
 
-- 状态：待执行
+- 状态：已合入（2026-09-18 对账）
+- 对账记录：原状态行「待执行」；实际已合入，证据：docs/V1.0-CHECKPOINT.md Milestone B（4d1be02）。
 - 优先级：P1（Milestone B；路线 §5.3、§5.2 SSE）
 - 创建日期：2026-09
 - 关联：路线卡 040；goal（V1.0 产品化）；依赖 038/039（已合入）

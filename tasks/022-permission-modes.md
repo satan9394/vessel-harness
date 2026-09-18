@@ -1,6 +1,7 @@
 # 022 — 三档权限模式（read-only / workspace-write / danger-full-access）
 
-- 状态：待执行
+- 状态：已合入（2026-09-18 对账）
+- 对账记录：原状态行「待执行」；实际已合入，证据：CHANGELOG.md V0.7（权限三档）。
 - 优先级：P1
 - 创建日期：2026-09（夜，用户睡前反馈）
 - 关联卡片：目标 goal-c055c16c；021（TUI /permission）

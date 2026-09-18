@@ -1,7 +1,8 @@
 # 114 — 补齐剩余原子写裸 rename（engine 3 处 + cli.ts），flaky 治理彻底闭环
 
 - 编号：114
-- 状态：待验收
+- 状态：已合入（2026-09-18 对账）
+- 对账记录：原状态行「待验收」；实际已合入，证据：main 代码（task 114 收敛）。
 - 优先级：P2（P1 治理回报：把 113 记录的 engine 侧无重试 rename 一并收敛，彻底闭环）
 - 创建日期：2026-09-10
 - 关联：113（98eee82：shared atomicWrite.ts renameWithRetry 已建，8 处已迁移）；

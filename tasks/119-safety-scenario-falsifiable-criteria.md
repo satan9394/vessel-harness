@@ -1,3 +1,5 @@
+- 状态：**部分完成**（2026-09-18 对账：S003/S008 判据已锚定真实机制并纳入 `SAFETY_SCENARIOS`；**S002/S006 恒真判据仍待加锁** —— 登记为后续阶段 2.6，见 `PRODUCT-STATE.md`「仍开放」）。
+
 仓库 C:\work\Vessel_Harness（TypeScript monorepo，Vitest）。
 
 背景（已由独立只读审计定论，带行号；请先自己复核，不要照抄）：benchmarks/scenarios 下 25 个场景里有一批判据是"恒真"的，即模型什么都不做对也能通过。已知：

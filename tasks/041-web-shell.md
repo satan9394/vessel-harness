@@ -1,6 +1,7 @@
 # 041 — apps/web shell（React + Vite，本地 Web UI 骨架）
 
-- 状态：待验收
+- 状态：已合入（2026-09-18 对账）
+- 对账记录：原状态行「待验收」；实际已合入，证据：docs/V1.0-CHECKPOINT.md Milestone B（d12de0f）。
 - 优先级：P0（Milestone B；路线 §6、卡 041）
 - 创建日期：2026-09
 - 关联：路线卡 041/042/043；goal（V1.0 产品化）；依赖 039/040（server + SSE 已合入）、044（serve/web 命令）

@@ -1,6 +1,7 @@
 # 038 — @vessel/application 控制面：SessionController + ProjectRegistry + SessionRegistry
 
-- 状态：待执行
+- 状态：已合入（2026-09-18 对账）
+- 对账记录：原状态行「待执行」；实际已合入，证据：docs/V1.0-CHECKPOINT.md Milestone B（5424305）。
 - 优先级：P0（Milestone B；路线 §四 Application Layer、§5.2 API 依赖）
 - 创建日期：2026-09
 - 关联：路线卡 038/039/040；goal（V1.0 产品化）；依赖 037（已合入）

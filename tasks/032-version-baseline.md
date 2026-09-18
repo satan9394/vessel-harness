@@ -1,6 +1,7 @@
 # 032 — V0.10 Stabilization：clean-install baseline + product/spec version taxonomy
 
-- 状态：待执行
+- 状态：已合入（2026-09-18 对账）
+- 对账记录：原状态行「待执行」；实际已合入，证据：docs/V1.0-CHECKPOINT.md Milestone A（ad0a654）。
 - 优先级：P0（Milestone A 首发）
 - 创建日期：2026-09
 - 关联：路线文档 §十六 V0.10 任务1、2、§八 版本问题；goal（V1.0 产品化）

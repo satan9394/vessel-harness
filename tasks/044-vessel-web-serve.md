@@ -1,6 +1,7 @@
 # 044 — vessel web / vessel serve：Local Server 接入 CLI
 
-- 状态：待执行
+- 状态：已合入（2026-09-18 对账）
+- 对账记录：原状态行「待执行」；实际已合入，证据：docs/V1.0-CHECKPOINT.md Milestone B（ce0994d）。
 - 优先级：P0（Milestone B 闭环；路线 §3.3、§5.1）
 - 创建日期：2026-09
 - 关联：路线卡 044；goal（V1.0 产品化）；依赖 039（local-server 已合入 5d76be7）

@@ -1,6 +1,7 @@
 # 042 — Conversation UI（会话对话界面 + SSE 实时流）
 
-- 状态：待执行
+- 状态：已合入（2026-09-18 对账）
+- 对账记录：原状态行「待执行」；实际已合入，证据：docs/V1.0-CHECKPOINT.md Milestone B（292cfd2）。
 - 优先级：P0（Milestone B 核心；路线 §6.2-6.3、卡 042）
 - 创建日期：2026-09
 - 关联：路线卡 042；goal（V1.0 产品化）；依赖 041（web shell 已合入 d12de0f）、040（SSE 投影已合入 4d1be02）、044（serve/web）

@@ -1,6 +1,7 @@
 # 036 — CI（Windows + Linux GitHub Actions + package smoke）
 
-- 状态：待执行
+- 状态：已合入（2026-09-18 对账）
+- 对账记录：原状态行「待执行」；实际已合入，证据：docs/V1.0-CHECKPOINT.md Milestone A（294c905）。
 - 优先级：P1（Milestone A 收尾；路线 §十六 V0.10 任务 9）
 - 创建日期：2026-09
 - 关联：路线卡 036；goal（V1.0 产品化）

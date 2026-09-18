@@ -1,3 +1,5 @@
+- 状态：已合入（2026-09-18 对账：`deny_domains` 已改为 `PolicyArtifacts.declarationOnly`（`enforced: false`，无 `match`/`action`），见 `PRODUCT-STATE.md`「当前最高价值下一步」§0 与 `POLICY-SPEC`）。
+
 仓库 C:\work\Vessel_Harness（TypeScript monorepo，Vitest）。
 
 任务：修掉一个"看起来在执法、实际从不拦"的死规则。

@@ -1,6 +1,7 @@
 # 037 — 抽出 @vessel/application（Composition Root 从 CLI 移到共享应用层）
 
-- 状态：待执行
+- 状态：已合入（2026-09-18 对账）
+- 对账记录：原状态行「待执行」；实际已合入，证据：docs/V1.0-CHECKPOINT.md Milestone B（2b929e5）。
 - 优先级：P0（Milestone B 首发；路线"问题 1"）
 - 创建日期：2026-09
 - 关联：路线 §四 Application Layer、§五/六 Surface、卡 038 等；goal（V1.0 产品化）
