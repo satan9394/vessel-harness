@@ -3,7 +3,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![npm](https://img.shields.io/npm/v/composable-agent-harness.svg)](https://www.npmjs.com/package/composable-agent-harness)
 ![Node](https://img.shields.io/badge/node-%3E%3D20-brightgreen)
-![Tests](https://img.shields.io/badge/tests-2195%20%2B%20120%20passed-brightgreen)
+![Tests](https://img.shields.io/badge/tests-2197%20%2B%20120%20passed-brightgreen)
 
 > 本地优先 · 模型无关 · 可组合 · 可观察 · 带硬策略边界的 Agent Harness
 
@@ -15,15 +15,19 @@ Vessel（器）取名自「大器免成 / 无器之器」：**系统本身不是
 
 ---
 
-## 状态：**可用**（2026-09-13 在当前 HEAD 实测）
+## 状态：**可用**（2026-09-18 在当前 HEAD 实测；CI 已绿）
 
 三项门禁都在本仓库当前提交上跑通，命令与结果如下（可自行复跑）：
 
 | 门禁 | 命令 | 实测结果 |
 |---|---|---|
 | 类型检查 / 构建 | `npm run build`（`tsc -b`） | **exit 0** |
-| 全量测试（两个 root） | `npm run test:all` | 根 **171 文件 / 2195 passed + 6 skipped**；`apps/web` **11 文件 / 120 passed** |
+| 测试类型检查（非 composite） | `npm run typecheck:tests` | **exit 0** |
+| 全量测试（两个 root） | `npm run test:all` | 根 **171 文件 / 2197 passed + 6 skipped**；`apps/web` **11 文件 / 120 passed** |
+| Web 生产构建 | `npm run -w @vessel/web build`（vite） | **exit 0** |
 | CLI 冒烟（离线，不发网络） | `npm run vessel -- run --prompt "说一句你好"` | `kind=success`，`steps=1`，走内置 `mock` |
+
+> **GitHub Actions 已绿**：`.github/workflows/ci.yml` 在 Windows + Linux 两个腿跑 build / 测试类型检查 / web 类型检查与构建 / 全量测试 / CLI 冒烟；CodeQL 与 Dependabot 告警当前均为 0。
 
 > **零配置即可跑**：没有任何供应商配置时默认使用内置 `mock` 供应商（离线确定性冒烟）。要接真实模型：`vessel setup`（交互向导）或 `vessel provider add …`。
 > **已知边界**（如实标注）：`vessel serve`/`vessel web` 的 Web 界面仍在推进；`benchmarks/reports/release-report.{md,json}` 是历史快照，未随最近改动刷新；进程树沙箱在 Windows 上未接入 job object 时会在遥测里如实报 `degraded`。
@@ -172,12 +176,19 @@ vessel run --prompt "总结当前工作区 README"   # 一次性任务
 ## 开发
 
 ```powershell
+npm ci                 # 可复现安装（lockfile 必须与 package.json 一致；CI 用硬 npm ci 把关）
 npm run build          # tsc -b 类型 + 编译
+npm run typecheck:tests # 测试文件的类型检查（tsconfig.test.json，非 composite）
 npm run test:all       # 全量测试：**两个 root 都跑**（根 + `--root apps/web`）
+npm run -w @vessel/web build   # web 生产构建（vite）
 npx tsc -b             # 类型检查
 npm run vessel -- --help          # 不装全局时，用项目内入口跑 CLI
 node apps/cli/dist/cli.js --version   # 直接用已编译产物（构建后）
 ```
+
+> 测试文件被 `tsconfig.base.json` 的 `exclude` 排除在 composite 构建之外（跨包测试 import
+> 无法全部表达为 project reference，否则成环）。因此测试的类型检查由 `npm run typecheck:tests`
+> （`tsconfig.test.json`，非 composite、`noEmit`）单独负责；vitest 只转译不做类型检查。
 
 > `apps/web` 有**独立的 vitest 配置**（需要 `@vitejs/plugin-react`），根 `vitest.config.ts`
 > 的 `include` **不含它** ⇒ 只跑 `npx vitest run` 会**漏掉 web 套件**（近百项），那不算全量。

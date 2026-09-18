@@ -5,31 +5,36 @@
 
 ## 卡命名
 
-`NNN-短横线描述.md`，如 `001-project-memory.md`。状态取值：待执行 / 执行中 / 待验收 / 已合入 / 打回。
+`NNN-短横线描述.md`，如 `001-project-memory.md`；V1.1 路线卡用 `V1.1-<字母>-<短横线描述>.md`。
+状态取值：待执行 / 执行中 / 待验收 / 已合入 / 打回。
 
-## 当前迭代
+## 怎么读这个目录
 
-- **V0.1–V0.5 全部完成并独立验收 PASS**（docs/REVIEW-REPORT-V0{1,2,3,4,5}.md）。
-- V0.5 = 任务书最后一个版本里程碑（Loop Engine），至此任务书 V0.1–V0.5 版本路线全部落地。
-- 后续候选（超任务书路线 / V0.5 之后的增强）：可继续子代理（send_message/interrupt）、真实 generator 接线、记忆发现 Discovery、learned 完整化、Cross-Harness Conformance Suite 实跑。拆卡前先出新 MISSION。
+本目录是**进度事实源**，不在此维护一份会腐烂的汇总表。查进度请：
 
-| 卡 | 标题 | 状态 |
-|---|---|---|
-| 001 | Project Memory 核心（V0.3-M1） | 已合入 fc8ae84 |
-| 002 | Persistent Memory（V0.3-M2） | 已合入 3bcf37f |
-| 003 | Skills 正文注入（V0.3-M3） | 已合入 64832d0 |
-| 004 | Skill Scope/Search/Provenance（V0.3-M4） | 已合入 410f1f0 |
-| 005 | 自动学习 suggest 通道（V0.3-M5） | 已合入 8ef5e0b |
-| 006 | V0.4-M1 Task Category 分类器 | 已合入 1d49838 |
-| 007 | V0.4-M2 Preset 库 + TaskRouter | 已合入 be345bf |
-| 008 | V0.4-M3 接线（compose/subagent preset） | 已合入 ef7ac13 |
-| 009 | V0.4-M4 收尾（B022 + notes + 核验） | 已合入 9e0b556 + dbbec94 |
-| 010 | V0.5-M1 Loop Engine 核心 | 已合入 b21f86e |
-| 011 | V0.5-M2 Task Selection + Trigger | 已合入 5f266fe |
-| 012 | V0.5-M3 隔离工作区 | 已合入 0af4139 |
-| 013 | V0.5-M4 收尾（B023 + notes + 核验） | 已合入 a82889d + （收尾提交） |
-| 014 | 供应商 SSOT 存储 | 已合入 3544f0f |
-| 015 | models 命令（拉取模型列表） | 已合入 3544f0f + 1314e41 |
-| 016 | provider 命令组 | 已合入 1314e41 |
-| 017 | run 默认 + pricing 扩展 | 已合入 1314e41 + d759f3a |
-| 018 | 收尾（PROVIDER-MANAGEMENT 文档） | 已合入 |
+1. 看下表「路线层」——每个里程碑/版本收官时更新一次（现状：V0.1–V0.10 + V1.0 + V1.1 全部收官）。
+2. 具体某卡的状态 → 直接读卡首行；卡面由执行者与指挥侧回填，含门禁实测数字与验收结论。
+
+> 历史说明：本文件此前维护过一张止于 018 的硬编码表，早已与目录实况（现到 124）脱节，
+> 且与 `docs/V1.1-ROADMAP.md`、`docs/V1.0-CHECKPOINT.md` 重复。现改为"路线索引 + 指向卡面"，
+> 停止复制易腐的逐卡状态。
+
+## 路线层（里程碑级）
+
+| 版本 / 路线 | 卡区间 | 状态 | 权威记录 |
+|---|---|---|---|
+| V0.1–V0.5（任务书主线） | 001-013 | 已合入（独立验收 PASS） | `docs/REVIEW-REPORT-V0{1..5}.md`、`docs/V0x-IMPLEMENTATION-NOTES.md` |
+| V0.6–V0.10（产品化） | 014-031 | 已合入 | `CHANGELOG.md`（V0.1→V0.10 中英双语） |
+| V1.0（Milestone A–G） | 032-084 | 已合入（收官） | `docs/V1.0-CHECKPOINT.md`、`docs/V1.0-ROADMAP-PROGRESS.md` |
+| V1.1（A–F 六卡） | `V1.1-*.md` | 已合入（收官；余环境补齐项非阻塞） | `docs/V1.1-ROADMAP.md` |
+| 产品演进 / 独立评审 | 085-122 | 已合入 | `docs/product-evolution/EVALUATION-REPORT-*.md`、`tasks/1xx` |
+| CI 修复与安全加固 | 123 | 已合入 | `tasks/123-ci-tsc-build-repair.md` |
+| `Session.loadExisting` 补 `await`（fd 泄漏） | 124 | 待验收 | `tasks/124-session-load-existing-await.md` |
+
+## 未闭合 / 下一目标
+
+- **环境补齐项（非阻塞）**：opencode-go 余额 → 重跑 real-model lane；Packaging gate 需 dist。
+  见 `docs/V1.1-ROADMAP.md` §5。
+- **下一 Mission 候选**：**Cross-Harness Conformance Suite 实跑**（项目自我定义的核心差异点，尚未实跑）；
+  另有 `request/header` 接线、`costEstimate`/M11 产物侧缺口等 Deferred 项。
+  开工前按 `RUN_STATE.md` 机制先存档旧信封再写新 Mission。

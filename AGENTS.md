@@ -21,8 +21,8 @@
 ## 目录结构
 
 - `docs/`：权威文档。MISSION-V0.x.md（执行任务书）、ARCHITECTURE.md（模块边界）、DESIGN-DECISIONS.md（16 决策点，实现必须遵守）、EVENT-SPEC.md（D5 事件词汇）、POLICY-SPEC.md、BEHAVIOR-IR-SPEC.md、BENCHMARK-SPEC.md、V0x-IMPLEMENTATION-NOTES.md（交付说明）、REVIEW-REPORT-V0x.md（独立核验报告）、V0x-PROGRESS.md（进度接力）。
-- `packages/`：shared/core/llm/behavior/context/tools/policy/runtime/memory/skills/agents/telemetry。
-- `apps/cli/`：进程入口（compose.ts = 组合根）。
+- `packages/`：shared/core/llm/behavior/context/tools/policy/runtime/memory/skills/agents/telemetry/engine/application（14 个）。
+- `apps/`：cli（进程入口，compose.ts = 组合根）、local-server（本地 HTTP+SSE）、web（React+Vite UI）。
 - `benchmarks/`：fixtures/（场景工作区）、scenarios/（判据唯一事实源 yaml）、runners/、reports/。
 - `configs/`：policy.default.yaml / behavior.default.yaml / pricing.json。
 - `tasks/`：任务卡看板（一张卡一个文件，见 personal-dev-workflow）。
@@ -51,10 +51,24 @@
 - 大改动另派对抗性评审子代理（全新上下文，只见 diff 和验收标准，反向挑错）。
 - 记忆全在文件里：本文件（规则）+ docs/（决策）+ tasks/（进度）。对话会忘，文件不会。
 
-## 既有版本状态（截至 2026-09-05）
+## 既有版本状态（截至 2026-09-18）
 
 - V0.1：PASS（63 测试 + REVIEW-REPORT-V01）。
-- V0.2：PASS（104 测试 + REVIEW-REPORT-V02，含 Subagent/Planner/Evaluator Agent/MCP/Parallel/Git Worktree）。git 已建仓（初始提交 a65ce7c）。
+- V0.2：PASS（104 测试 + REVIEW-REPORT-V02，含 Subagent/Planner/Evaluator Agent/MCP/Parallel/Git Worktree）。
+- V0.3–V0.10：已合入（Memory/Skills → TaskRouter → Loop Engine → 多供应商 → TUI → 品牌哲学 IR → 更名 Vessel + 用量/价目 → 组合根抽离 + serve/web）。见 `CHANGELOG.md`。
+- V1.0 全路线（Milestone A–G / 卡 032-084）：已验收合入，见 `docs/V1.0-CHECKPOINT.md`。
+- V1.1 全路线（卡 V1.1-A..F）：已验收合入，见 `docs/V1.1-ROADMAP.md`。剩余为环境补齐项（opencode-go 余额、Packaging gate 需 dist），非阻塞。
+- 2026-09-18：**CI 首次变绿并保持**（此前建仓起三次全红），根因是 `tsconfig.base.json` 缺 `exclude` 导致 `tsc -b` 把测试纳入 composite 构建。同时清零 CodeQL 10 条 + Dependabot 12 条告警。见 `tasks/123-ci-tsc-build-repair.md`。
+- 当前 HEAD 门禁：`tsc -b` exit 0、`typecheck:tests` exit 0、`test:all` 根 171 文件 / 2197 passed + 6 skipped、web 11 文件 / 120 passed、web `vite build` exit 0、CLI 冒烟 exit 0；CI 在 Windows + Linux 两腿绿。
+
+## 构建与依赖纪律（2026-09-18 确立，来自 CI 修复）
+
+- **`tsconfig.base.json` 的 `exclude` 不可删**：测试文件必须排除在 composite 构建之外（跨包测试 import 无法全部表达为 project reference，补 references 会撞真正的包级循环 `TS6202`）。测试的类型检查由 `npm run typecheck:tests`（`tsconfig.test.json`，非 composite、`noEmit`、`paths` 指向各包 `src`）单独负责——**改动测试类型相关配置后必须跑它**。
+- **project reference 与 src import 必须一致**：某包的 `src` 直接 `import '@vessel/x'`，其 `tsconfig.json` 就必须 `references` 到 `x`；否则 `tsc -b` 会经 `dist` 解析、依赖构建顺序而 flaky（`benchmarks/runners` 曾缺 engine/policy/runtime/telemetry 四条）。
+- **`npm ci` 是硬门禁**（CI install 步故意不写 `|| npm install`）：`package.json` 与 `package-lock.json` 不一致必须回仓库修，不许靠回退安装静默掩盖。改依赖后跑 `npm ci` 验证。
+- **CI 覆盖 `apps/web`**：`apps/web` 不在 `tsc -b` 图内（独立 `noEmit` 配置），CI 另有 `typecheck` + `vite build` 两步；升级 vite/React/plugin 后必须本地跑 `npm run -w @vessel/web build`（peer 不一致只有构建会暴露）。
+- **测试超时不是断言**：真实 IO / 大队列用例要显式给足超时（如 1500 任务的队列用例 120s、真实 job holder 用例 120s），慢 runner 上默认 30s 会产生与回归无关的红。
+- **版本**：dev 依赖已到 TypeScript 7 / vite 8 / vitest 5 / React 19 / js-yaml 5；升大版本前先看该包的移除项（如 TS7 移除 `baseUrl`，`paths` 必须 `./`）。
 
 ## 禁做清单（「别这样做」，来自踩坑与决策）
 

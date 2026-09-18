@@ -27,11 +27,12 @@ Vessel 的安全策略遵循「软引导硬边界」哲学：重要规则不能�
 
 ### 沙箱边界（如实标注）
 
-> **现状：策略层强，但 OS 级沙箱仍为部分实现（partial / seam）。** 请勿将 Vessel 当前的安全保证夸大为"进程已硬隔离"。
+> **现状：策略层强；Windows 上已有 OS 级进程边界；非 Windows 仍为策略边界。**
 
-- Vessel 的隔离来自 **Policy Engine（进程内策略拦截）+ 权限档**，是行为级 / 工具级边界。
-- **尚未提供独立的 OS 级进程沙箱**（如专用容器 / VM / OS 级权限分离）。`danger-full-access` 模式下工具在用户态执行，与宿主权限一致。
-- 操作系统级隔离属于 V1.0 路线 **Milestone F（Security）**，尚在规划，未交付。
+- Vessel 的隔离主体是 **Policy Engine（进程内策略拦截）+ 权限档**，是行为级 / 工具级边界。
+- **Windows 已交付 OS 级进程边界**（卡 071/072，见 `docs/SANDBOX-WINDOWS.md`）：命名 **Job Object** 包裹子进程，`TerminateJobObject` 连孙进程一并终止（补上 `child.kill` 只杀直接子进程的缺口）；**活动进程数上限**（anti fork-bomb，best-effort，OS 强制）；每条受限命令在 `os.tmpdir()` 下的独立目录执行。
+- **仍未交付**：**受限令牌 / 低完整性级别（restricted token / low-integrity）降权**——从 TS/PowerShell 路径无法安全创建，需原生 helper（未装 Rust 工具链），后端如实上报已交付子集而不假装完整。**Linux/macOS 无 OS 级沙箱**，仍仅策略边界。
+- `danger-full-access` 模式下工具在用户态执行，与宿主权限一致。
 - 在线程与宿主系统验收时，请把 Vessel 视为"本地单机工具"对待，勿在承载敏感数据的受信环境之外授予过高权限。
 
 ## 凭据存储

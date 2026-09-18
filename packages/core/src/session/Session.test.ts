@@ -57,6 +57,31 @@ describe('Session (append-only JSONL event log)', () => {
     await r.close();
   });
 
+  it('open() releases the lease when the resume write fails (no same-process lockout)', async () => {
+    const s = await Session.open({ workspaceRoot: dir, sessionId: 's8' });
+    await s.appendSync({ type: 'turn/start', turnId: 't_open', surface: false });
+    await s.close();
+
+    // Force the synthesized closer's append to fail. Because the append is now
+    // awaited, that failure propagates out of open() and the caller never gets a
+    // Session to close() — so open() itself must release the lease it took, or a
+    // same-process retry would be refused as "already open by process <pid>".
+    const spy = vi.spyOn(fs.promises, 'open').mockRejectedValueOnce(
+      Object.assign(new Error('simulated write failure'), { code: 'ENOSPC' }),
+    );
+    try {
+      await expect(Session.open({ workspaceRoot: dir, sessionId: 's8' })).rejects.toThrow(/simulated write failure/);
+    } finally {
+      spy.mockRestore();
+    }
+
+    const leasePath = path.join(dir, '.harness', 'sessions', 's8', '.lease');
+    expect(fs.existsSync(leasePath)).toBe(false);
+    // And the retry is not locked out by our own stale lease.
+    const retried = await Session.open({ workspaceRoot: dir, sessionId: 's8' });
+    await retried.close();
+  });
+
   it('surface projects only user/message, assistant/message, tool/result', async () => {
     const s = await Session.open({ workspaceRoot: dir, sessionId: 's3' });
     await s.appendSync({ type: 'turn/start', turnId: 't1', surface: false });

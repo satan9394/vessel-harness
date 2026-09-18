@@ -6,6 +6,38 @@
 
 ---
 
+## [Unreleased] - 2026-09-18
+
+> 本轮只改**构建 / CI / 安全配置 / 依赖 / 测试**与文档，未改动已发布 CLI 的对外行为；故不提升版本号、不打 tag。
+
+### Fixed
+
+- **CI 建仓以来首次变绿**：`tsconfig.base.json` 此前缺 `exclude`，`tsc -b` 把 `*.test.ts` 纳入 composite 构建；测试的跨包 import 未进 `references`，`-b` 按引用图排产时 `packages/core` 排在 `packages/llm` 之前 → `TS2307`（干净检出改前 159 error）。补 `exclude` 让 composite 只编译生产源码，测试交给 vitest。见 `tasks/123`。（`8664b39`）
+- **补回测试类型检查入口**：新增 `tsconfig.test.json`（非 composite、`noEmit`、`paths` 指向各包 `src`）+ `npm run typecheck:tests` + CI 步骤（171 文件 0 error）；并清掉 runtime/policy/tools 三处 0 命中的陈旧 `../core` 引用。（`d99bfdb`）
+- **修复首次绿后暴露的四个平台/时序缺陷**：`chat.test` 只设 `USERPROFILE`（Linux 读 `HOME`）；`Session.loadExisting` 的浮动写（fd 泄漏，见下）；`project-task-queue` / `SessionRegistry` 同毫秒排序靠随机 id 破平；Windows job holder 退出即删目录致轮询漏读。（`aa5ea99`、`9be48ef`）
+- **`Session.loadExisting()` 合成 `turn/end` 改为 `await`**：消除 FileHandle 泄漏与"合成收尾记录不保证落盘"；并由独立对抗评审驱动补上 `open()` 失败时的租约/fd 清理（否则一次瞬时写失败会让同进程重试被自己的租约锁死）。见 `tasks/124`。（`aa5ea99` + 本轮）
+- **`@vessel/bench-runners` 补齐 4 条 project reference**（engine/policy/runtime/telemetry 的 src 实际 import 却未声明，靠 dist 偶然顺序，TS7 下 flake 成 TS2305）。（`e06ac12`）
+- **锁文件与 `package.json` 重新对齐**：TS7 合并时误留旧锁，`npm ci` 失败被 `|| npm install` 静默掩盖。（`9c31c0a`）
+
+### Changed
+
+- **CI 最小权限**：`ci.yml` 增 `permissions: contents: read`。
+- **CI 安装门禁收紧为硬 `npm ci`**：去掉 `|| npm install` 回退，锁文件不一致直接红。
+- **CI 覆盖 `apps/web`**：新增 `apps/web` 的 `typecheck` + `vite build` 步骤（此前不构建 web，vite 8 与 `@vitejs/plugin-react@4` 的 peer 冲突因此溜过）。（`3ccb082`）
+- **Dependabot 配置修正**：原两条 `package-ecosystem`/`directory` 为空（无效），改为 npm 根 + github-actions。（`9f8119b`）
+
+### Security
+
+- **CodeQL 10 → 0**：1 条 workflow 缺 permissions + 7 条 `polynomial-redos`（改为等价的扫描/手写解析）；2 条按设计行为驳回（MCP launcher、回环绑定本地服务的 `err.message`）。（`a4257e8`、`04c6a9f`）
+- **Dependabot 12 → 0**：合并 `vite` 8、`vitest` 5、`js-yaml` 5、`react`/`react-dom` 19、`actions/checkout`+`setup-node` v7、`typescript` 7。
+
+### 说明
+
+- 依赖大版本：TypeScript 5→7（移除 `baseUrl`，`paths` 需 `./`）、vite 5→8、vitest 2→5、React 18→19、js-yaml 4→5、esbuild 0.21→0.28；均为 dev/构建链依赖，发布产物（CLI 单文件、运行时零依赖）不受影响。迁移细节见 `tasks/124`、`tasks/123` 与对应 PR（#7/#9/#10/#14/#15）。
+- 未发布项：`secret_scanning_non_provider_patterns` / `validity_checks` 需在仓库 Settings 手动开启（API 改不动）。
+
+---
+
 ## [0.10.0] - 2026-09
 
 **产品化第一里程碑（Milestone A / Stabilization）**

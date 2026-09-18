@@ -58,7 +58,24 @@ export class Session {
     this.acquireLease(dir);
 
     const session = new Session(opts, { sessionId, dir, logPath });
-    await session.loadExisting();
+    try {
+      await session.loadExisting();
+    } catch (err) {
+      // The lease was taken above; if resuming throws (the synthesized closer is
+      // now awaited, so a write failure — ENOSPC / EACCES / a concurrently removed
+      // dir — propagates out of open()), the caller never receives the Session and
+      // so cannot close() it. Releasing here keeps the failure from leaving a
+      // `.lease` owned by this pid, which would make a same-process retry throw
+      // "already open by process <pid>" until stale reclaim. close() also closes
+      // any fd the failed append already opened. Cleanup is best-effort: the
+      // original failure is what must reach the caller.
+      try {
+        await session.close();
+      } catch {
+        /* best-effort cleanup */
+      }
+      throw err;
+    }
     return session;
   }
 
