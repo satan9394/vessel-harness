@@ -26,8 +26,10 @@
  * 把共用物放进一个**谁都不依赖**的叶子模块，成环理由就不成立了：两个面都只依赖它。
  * 以后再有同类"两处必须逐字一致"的逻辑（标记文案、`windowsShimHint`……），可以照此办理。
  *
- * 本模块**只放判据**（kind → 是不是模型回答）。`MOCK_REPLY_MARK` / `TUI_MOCK_REPLY_MARK`
- * 与两面的渲染函数等仍是两份实现，见交付说明⑤（只报告，本卡不动）。
+ * 本模块除判据（kind → 是不是模型回答）外，还承载 mock 运行期可见性的**共用文案与标记**
+ * （`MOCK_REPLY_MARK` / `MOCK_PROVIDER_NOTICE` / `MOCK_FALLBACK_TEXT`）与唯一渲染助手
+ * `applyMockReplyMark` —— 它们此前在 `cli.ts` 与 `tui/chat.ts` **各写一份**（只差变量名），
+ * 已按本模块的同一范式收敛（task 131）。
  */
 
 /**
@@ -62,4 +64,33 @@ export type TurnKind = 'success' | 'error' | 'interrupted' | 'budget';
  */
 export function isModelReplyKind(kind: TurnKind): boolean {
   return kind === 'success';
+}
+
+/**
+ * mock 运行期可见性的**共用文案与标记**（BRIEF-16 1C）—— CLI 与 TUI 唯一一份。
+ *
+ * 此前 `cli.ts`（`MOCK_REPLY_MARK`/`MOCK_PROVIDER_NOTICE`/`fallbackText`）与 `tui/chat.ts`
+ * （`TUI_*` 同款）各写一份，只差变量名；注释自称"必须逐字保持同步"，但全仓无测试绑定 ⇒
+ * 只改一面会无声分叉（两个面看到的提示/标记不再是同一句）。收敛到本零依赖叶子模块。
+ */
+export const MOCK_REPLY_MARK = '（mock 离线冒烟）';
+export const MOCK_PROVIDER_NOTICE =
+  '[vessel] 当前使用内置 mock 模型（未连接真实模型）——配置真实模型：vessel setup 或 vessel provider add';
+export const MOCK_FALLBACK_TEXT =
+  '（mock 离线冒烟）已收到你的输入。当前无匹配脚本应答——配置真实模型后即可获得完整回答：vessel setup（交互向导）或 vessel provider add。';
+
+/**
+ * 给**模型回复**加 mock 标记的唯一实现（`cli.ts` 的 `renderFinalReply` 与 TUI 的
+ * `renderTurnReply` 此前各写一份同款）。
+ *
+ * 幂等：文案自身已以 `MOCK_REPLY_MARK` 起头（如 `MOCK_FALLBACK_TEXT`）时不重复叠加。
+ * `usingMock === false`（真实 provider）时**逐字返回原串**（负对照）；空串返回 `(无文本回复)`。
+ *
+ * 注意：本函数只回答"要不要加前缀"，不回答"这条文本是不是模型回答" —— 后者由
+ * `isModelReplyKind(kind)` 判定，两步在各自的唯一出口里合并。
+ */
+export function applyMockReplyMark(finalText: string, usingMock: boolean): string {
+  if (!finalText) return '(无文本回复)';
+  if (!usingMock) return finalText;
+  return finalText.startsWith(MOCK_REPLY_MARK) ? finalText : `${MOCK_REPLY_MARK}${finalText}`;
 }

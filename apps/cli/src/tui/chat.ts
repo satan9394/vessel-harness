@@ -22,7 +22,7 @@ import { renderCostLines, renderTurnDelta, renderTodayLine, type UsageTotalsLike
 // 本卡：回合文本的**共用判据**（唯一实现，零依赖叶子模块）—— TUI 与 `cli.ts` 各自 import
 // **同一份**；本文件不再自带第二份判据（`chat.ts` 不能反向 import `cli.ts`，但可以 import
 // 这个谁都不依赖的叶子模块 —— 成环理由见 turnText.ts 的文件头注释）。
-import { isModelReplyKind, type TurnKind } from '../turnText.js';
+import { applyMockReplyMark, isModelReplyKind, MOCK_FALLBACK_TEXT, MOCK_PROVIDER_NOTICE, type TurnKind } from '../turnText.js';
 
 /**
  * apps/cli/src/tui/chat.ts — `vessel` interactive chat TUI (V0.7, task 021; brand Vessel).
@@ -299,22 +299,10 @@ export interface SlashResult {
  * 回复里没有任何 mock 痕迹 → 新人确信"模型已接上"。TUI 是与 `cli.ts` 并列的第二个界面，
  * 所以两条标注必须在这里也同样存在（`cli.ts` 侧见 `MOCK_PROVIDER_NOTICE`/`renderFinalReply`）。
  *
- * 为什么**内联**而不是 `import { ... } from '../cli.js'`：`cli.ts` 已经
- * `import { runChat } from './tui/chat.js'` —— chat.ts 反向 import cli.ts 会**成环**
- * （ESM 下表现为 TDZ/undefined）。因此下面两个常量
- * **必须与 `cli.ts` 的 `MOCK_PROVIDER_NOTICE` / `MOCK_REPLY_MARK` 逐字保持同步**：
- * 用户在 `vessel run` 与 `vessel`（TUI）两处看到的必须是同一句话、同一个标记形态。
- *
- * 这里**不再是"只能内联"的处境**：零依赖叶子模块 `../turnText.js` 就是范式
- * （`isModelReplyKind` 已经这么共用，两个面各自 import 同一份），
- * `windowsShimHint` 也已照此收敛到 `../windowsShim.js`（本卡）。
- * 下面这两条文案与 `renderTurnReply` 目前**仍是两份实现**（本卡只收敛 windowsShim 判定），
- * 不动文案/渲染（见交付说明⑤「只报告」项）；要收敛它们，照 `turnText.ts` 建叶子模块即可，
- * 无需推翻"反向 import 会成环"这个理由（叶子模块谁都不依赖）。
+ * mock 运行期可见性的文案与标记（`MOCK_PROVIDER_NOTICE` / `MOCK_REPLY_MARK` / `MOCK_FALLBACK_TEXT`）
+ * 与渲染助手 `applyMockReplyMark` 现由**零依赖叶子模块** `../turnText.js` 提供**唯一一份**，
+ * 本文件 import 同一份（`cli.ts` 亦然）—— 不再有"必须与 cli.ts 逐字保持同步"的第二份实现。
  */
-const TUI_MOCK_PROVIDER_NOTICE =
-  '[vessel] 当前使用内置 mock 模型（未连接真实模型）——配置真实模型：vessel setup 或 vessel provider add';
-const TUI_MOCK_REPLY_MARK = '（mock 离线冒烟）';
 
 /**
  * TUI 最终回复的**唯一渲染出口**（BRIEF-16 1C②），口径与 `cli.ts` 的
@@ -326,9 +314,7 @@ const TUI_MOCK_REPLY_MARK = '（mock 离线冒烟）';
  * 幂等：回复自身已以标记起头时（如 `fallbackText` 就是 `（mock 离线冒烟）…`）不重复叠加。
  */
 function renderTurnReply(finalText: string, usingMock: boolean): string {
-  if (!finalText) return '(无文本回复)';
-  if (!usingMock) return finalText;
-  return finalText.startsWith(TUI_MOCK_REPLY_MARK) ? finalText : `${TUI_MOCK_REPLY_MARK}${finalText}`;
+  return applyMockReplyMark(finalText, usingMock);
 }
 
 /**
@@ -510,7 +496,7 @@ export async function runChat(opts: ChatOptions): Promise<number> {
       effProvider = new MockProvider(smoke, {
         model: effModel,
         vars: { cwd: sessionWorkspace },
-        fallbackText: '（mock 离线冒烟）已收到你的输入。当前无匹配脚本应答——配置真实模型后即可获得完整回答：vessel setup（交互向导）或 vessel provider add。',
+        fallbackText: MOCK_FALLBACK_TEXT,
       });
       // BRIEF-16 1C①：**首回合跑之前**明确声明"这次没有真模型"。
       // 通道 = 既有可注入的 `io`（测试能捕获；**不直接 console.error**，否则冒烟用例
@@ -518,7 +504,7 @@ export async function runChat(opts: ChatOptions): Promise<number> {
       // 每会话一行：重建 harness（/model、/permission）不重复打印。
       if (!mockNoticeShown) {
         mockNoticeShown = true;
-        io.write(TUI_MOCK_PROVIDER_NOTICE);
+        io.write(MOCK_PROVIDER_NOTICE);
       }
     } else {
       // 负对照：真实 provider（注入的 opts.provider / buildRealProvider 成功）→ 逐字不加。

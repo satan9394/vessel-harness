@@ -11,6 +11,10 @@
  * `cli.test.ts:171` / `opencodeGoCli.test.ts:187` 用的是子串阳性断言
  * （`toContain('CLI-106-MARKER')`），给真 provider 回复加个 mock 前缀也打断不了它。
  *
+ * 2026-09-18 更新（task 131）：`MOCK_PROVIDER_NOTICE` / `MOCK_REPLY_MARK` / `fallbackText` 与
+ * 渲染助手已收敛到零依赖叶子模块 `turnText.ts` **唯一一份**，CLI 与 TUI 各自 import 同一份；
+ * 上面的 `TUI_MOCK_PROVIDER_NOTICE` 名称已不存在（历史描述保留）。
+ *
  * 本文件每条断言都打在**真实路径**上（真实 `main()` / 真实 `runChat()`，不替换被测量对象），
  * 并逐条具备「修复前会红」或「负对照」的判别性：
  *
@@ -63,11 +67,12 @@ const POLICY = path.join(REPO_ROOT, 'configs', 'policy.default.yaml');
 const BEHAVIOR = path.join(REPO_ROOT, 'configs', 'behavior.default.yaml');
 
 /**
- * 两个标注的**字面量**（逐字取自 `cli.ts` 的 `MOCK_PROVIDER_NOTICE` / `tui/chat.ts` 的 `TUI_MOCK_PROVIDER_NOTICE`）。
+ * 两个标注的**字面量**（逐字取自 `turnText.ts` 的 `MOCK_PROVIDER_NOTICE` / `MOCK_REPLY_MARK`；
+ * 本文件不 import 生产常量来算期望值 —— 那样"把文案改掉"永远不会红，是自证式断言）。
  *
- * 两处实现故意内联（chat.ts 反向 import cli.ts 会成环），所以「CLI 与 TUI 说同一句话」这条
- * 契约在源码层面**没有任何编译期约束**；本文件用同一个常量同时断言两条路径的输出，
- * 任一侧文案漂移都会有一半用例变红。
+ * 两处文案现已由零依赖叶子模块 `turnText.ts` 提供**唯一一份**（CLI 与 TUI 各自 import 同一份，
+ * task 131），源码层面有编译期约束；本文件仍用同一份字面量同时断言两条路径的输出，
+ * 任一侧漂移都会有一半用例变红。
  */
 const MOCK_NOTICE =
   '[vessel] 当前使用内置 mock 模型（未连接真实模型）——配置真实模型：vessel setup 或 vessel provider add';
@@ -493,9 +498,42 @@ describe('BRIEF-16 1C mock 运行期可见性：真实 main()/runChat() 上的�
       // 不为了让断言变绿而放宽，也不改实现把它改成带标记（那是另一个决策，需独立验收）。
       expect(reply).toBe('(无文本回复)');
       expect(reply).not.toContain(MOCK_REPLY_MARK);
-      expect(markCount(cap.out())).toBe(0); // 整段 stdout 一处标记都没有
+      expect(markCount(cap.out())).toBe(0); // 整个 stdout 一个标记都没有
     } finally {
       cap.restore();
     }
+  });
+});
+
+/**
+ * 静态守卫（task 131）：mock 文案与标记只有**一份实现**。
+ *
+ * 改前 `cli.ts`（`MOCK_PROVIDER_NOTICE` / `MOCK_REPLY_MARK` / `fallbackText`）与 `tui/chat.ts`
+ * （`TUI_*` 同款）各写一份、只差变量名，注释自称"必须逐字同步"但全仓无测试绑定。此用例断言：
+ * 两侧都**不再本地定义**这些常量，且都从叶子模块 `turnText.ts` import 同一份。
+ * （改回内联 ⇒ 本用例红。）
+ */
+describe('mock 文案唯一实现（静态守卫）', () => {
+  const srcRoot = fileURLToPath(new URL('.', import.meta.url)); // apps/cli/src
+  const read = (rel: string): string => fs.readFileSync(path.join(srcRoot, rel), 'utf8');
+  const cliSrc = read('cli.ts');
+  const chatSrc = read('tui/chat.ts');
+  const turnSrc = read('turnText.ts');
+
+  it('两面都不再本地定义 mock 文案/标记，改从 turnText.ts import', () => {
+    const localDef = /const\s+(?:TUI_)?MOCK_(?:REPLY_MARK|PROVIDER_NOTICE)\s*=/;
+    expect(cliSrc).not.toMatch(localDef);
+    expect(chatSrc).not.toMatch(localDef);
+    expect(cliSrc).toMatch(/import\s*\{[^}]*\bapplyMockReplyMark\b[^}]*\}\s*from\s*'\.\/turnText\.js'/);
+    expect(chatSrc).toMatch(/import\s*\{[^}]*\bapplyMockReplyMark\b[^}]*\}\s*from\s*'\.\.\/turnText\.js'/);
+  });
+
+  it('唯一实现（含渲染助手）在 turnText.ts', () => {
+    expect(turnSrc).toMatch(/export\s+const\s+MOCK_REPLY_MARK\s*=/);
+    expect(turnSrc).toMatch(/export\s+const\s+MOCK_PROVIDER_NOTICE\s*=/);
+    expect(turnSrc).toMatch(/export\s+const\s+MOCK_FALLBACK_TEXT\s*=/);
+    expect(turnSrc).toMatch(/export\s+function\s+applyMockReplyMark\b/);
+    // 叶子模块仍零 import（否则"共用"会重新引入 cli.ts ↔ tui/chat.ts 成环）
+    expect(turnSrc).not.toMatch(/^(?!\s*\*)\s*import\b/m);
   });
 });

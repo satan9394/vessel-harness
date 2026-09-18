@@ -54,7 +54,13 @@ import { loadPricing, assertCostMultiplier, DEFAULT_COST_MULTIPLIER, type TokenP
 import { emitJson, fail, isJson } from './output.js';
 // 本卡：回合文本的**共用判据**（唯一实现，零依赖叶子模块）——CLI 与 TUI 各自 import 同一份，
 // 不再各写一份（成环问题由"叶子模块"解决，见 turnText.ts 的文件头注释）。
-import { isModelReplyKind, type TurnKind } from './turnText.js';
+import {
+  applyMockReplyMark,
+  isModelReplyKind,
+  MOCK_FALLBACK_TEXT,
+  MOCK_PROVIDER_NOTICE,
+  type TurnKind,
+} from './turnText.js';
 // 本卡：windowsShim 判定的**唯一实现**（零依赖叶子模块）——CLI 与 TUI 各自 import 同一份，
 // 不再各写一份（改前两份 + 全仓零测试 ⇒ 只改一面必无声分叉，见 windowsShim.ts 的文件头）。
 import { windowsShimHint } from './windowsShim.js';
@@ -831,10 +837,10 @@ export function cmdPolicyStatus(flags: Map<string, string>): number {
  * - `MOCK_PROVIDER_NOTICE`：回合开始**前**打到 **stderr** 的一行提示（stdout 零污染）；
  * - `MOCK_REPLY_MARK`：最终回复的**统一出口**前缀（见 `renderTurnFinalText` —— 它只给
  *   **模型回答**（`kind='success'`）加，非模型文本（error/budget/interrupted）不盖，见 `isModelReplyKind`）。
+ *
+ * 两条文案与标记现由**零依赖叶子模块** `./turnText.js` 提供（唯一一份，TUI 侧 import 同一份）；
+ * 本文件不再自带第二份。
  */
-const MOCK_PROVIDER_NOTICE =
-  '[vessel] 当前使用内置 mock 模型（未连接真实模型）——配置真实模型：vessel setup 或 vessel provider add';
-const MOCK_REPLY_MARK = '（mock 离线冒烟）';
 
 /**
  * 给**模型回复**加 mock 标记的底层函数（BRIEF-16 1C②）。
@@ -853,9 +859,7 @@ const MOCK_REPLY_MARK = '（mock 离线冒烟）';
  * JSON 的回复字段），不得另起一行打印——`--json` 的 stdout 只允许出现一段 JSON。
  */
 function renderFinalReply(finalText: string, usingMock: boolean): string {
-  if (!finalText) return '(无文本回复)';
-  if (!usingMock) return finalText;
-  return finalText.startsWith(MOCK_REPLY_MARK) ? finalText : `${MOCK_REPLY_MARK}${finalText}`;
+  return applyMockReplyMark(finalText, usingMock);
 }
 
 /**
@@ -1014,7 +1018,7 @@ async function cmdRun(flags: Map<string, string>): Promise<number> {
       {
         model,
         vars: { cwd: workspace },
-        fallbackText: '（mock 离线冒烟）已收到你的输入。当前无匹配脚本应答——配置真实模型后即可获得完整回答：vessel setup（交互向导）或 vessel provider add。',
+        fallbackText: MOCK_FALLBACK_TEXT,
       },
     );
 
