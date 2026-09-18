@@ -136,7 +136,7 @@ IDE 扩展型（Roo Code 已停服、Cursor CLI 闭源）不入主矩阵，仅�
 - 见 §6-3。
 
 ### 14 MCP 扩展
-- Vessel：◐。**库级完整**：`packages/tools/src/mcp/`（McpClient stdio 传输、tools/list + tools/call、动态注册 `mcp__<server>__<tool>`、policy deny 可按工具名精确拦截）、compose 组合根可注入 MCP 连接；**CLI/TUI 已可读 `~/.vessel/mcp.json` 并逐 server 降级**（`apps/cli/src/mcp/config.ts`；`vessel run` 经它接入）；**但仍缺 `vessel mcp` 配置子命令**，用户需手写/编程接入。
+- Vessel：● **已交付**（原判 ◐ 已过时）。**库级完整**：`packages/tools/src/mcp/`（McpClient stdio 传输、tools/list + tools/call、动态注册 `mcp__<server>__<tool>`、policy deny 可按工具名精确拦截）、compose 组合根可注入 MCP 连接；**CLI/TUI 可读 `~/.vessel/mcp.json` 并逐 server 降级**；**并已有 `vessel mcp list / add / remove / path` 配置子命令**（`apps/cli/src/cli.ts` 的 `cmdMcp`，含 `--json`；task 127）。
 - 竞品：OpenCode/Claude Code/Codex/Gemini/Cline 均有一等 MCP 配置入口（`cline mcp`、config 声明等）。
 - 结论：管道已通、缺 CLI 出口。见 §6-2 的"值得做（低成本）"判断。
 
@@ -203,7 +203,7 @@ IDE 扩展型（Roo Code 已停服、Cursor CLI 闭源）不入主矩阵，仅�
 
 ### 4.4 当前项目缺失能力（缺口清单，逐条论证见 §6）
 1. ~~会话续跑（resume/continue）~~ ⇒ **已交付**（`vessel sessions list` / `vessel resume <id>|--last`）
-2. CLI 面 MCP 配置入口（库优于 CLI；`~/.vessel/mcp.json` 已可读，仍缺 `vessel mcp` 子命令）
+2. ~~CLI 面 MCP 配置入口（库优于 CLI；`~/.vessel/mcp.json` 已可读，仍缺 `vessel mcp` 子命令）~~ ⇒ **已交付**（`vessel mcp list/add/remove/path`，task 127）
 3. 通用 Headless JSON 输出契约（`run --json` 已补，仍缺 stream-json）
 4. 会话级 Git 快照/回滚出口（undo/checkpoint）
 5. OS 级沙箱：**Windows 已交付 Job Object + process-tree（071/072）**；**仍缺**受限令牌/低完整性降权，及非 Windows（Seatbelt/Landlock/bubblewrap）

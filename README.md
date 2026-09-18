@@ -102,6 +102,7 @@ vessel run --prompt "总结当前工作区 README"   # 一次性任务
 | `vessel run --prompt "…"` | 一次性任务（单发模式）；`--bench <scenarioId>` 跑基准场景 |
 | `vessel setup` | 交互向导：配置供应商 |
 | `vessel provider list / current / add / remove / switch` | 供应商配置管理、一键切换默认 |
+| `vessel mcp list / add / remove / path` | MCP server 配置管理（`~/.vessel/mcp.json`；`vessel run` 读同一文件） |
 | `vessel models [--provider p]` | 拉取某供应商可用模型（OpenAI 兼容实时 / Anthropic 内置清单 / mock 离线） |
 | `vessel usage [--recent <n>] [--strict]` | 使用统计（tokens / 调用 / 估算成本 + 价格来源分布，落盘 `~/.vessel/usage.json`；`--strict` 不用兜底价重算） |
 | `vessel pricing [model]` | 模型价目查询（`configs/model-catalog.json`，USD/1M tokens；模型名自动归一） |

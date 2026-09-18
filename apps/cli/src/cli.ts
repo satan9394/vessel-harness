@@ -31,7 +31,7 @@ import { describeStartupFailure } from './startupError.js';
 import { fetchOpenAIModels, modelsForProtocol } from '@vessel/application';
 import { createClackIO, runSetupWizard } from './providers/setup.js';
 import { runChat } from './tui/chat.js';
-import { McpConfigStore } from './mcp/config.js';
+import { McpConfigStore, type McpServerConfig } from './mcp/config.js';
 import { VESSEL_LOGO, VESSEL_TAGLINE } from './brand.js';
 import { UsageStore, isLocalDateKey, localDateKey, resolveUsageRoot } from './usage/UsageStore.js';
 import { PricingOverrideStore, type PricingRepair } from './usage/pricingOverride.js';
@@ -99,6 +99,10 @@ Vessel CLI v${VERSION} — 可组合 Agent Harness（品牌 Vessel）
   vessel provider endpoint remove <id> <url>                移除候选端点
   vessel provider endpoint test <id> [--set-default]        端点最小探测 + 建议（默认不改默认端点）
   vessel provider endpoint test --all                       探测所有供应商的端点
+  vessel mcp list                    列出已配置的 MCP server（~/.vessel/mcp.json）
+  vessel mcp add <name> --command <cmd> [--args a,b] [--cwd <dir>] [--env K=V,K2=V2]   添加 MCP server
+  vessel mcp remove <name>           移除 MCP server
+  vessel mcp path                    打印 MCP 配置文件路径
   vessel migrate                     一次性迁移旧状态目录 ~/.dsh → ~/.vessel（数据复制 + 旧目录进回收站）
   vessel sessions list               列出历史会话（最近活动在前）
   vessel resume <id>|--last           恢复历史会话（--last = 最近一条）
@@ -1467,6 +1471,132 @@ async function cmdModels(flags: Map<string, string>): Promise<number> {
 }
 
 /** `vessel provider <list|add|remove|switch|use|current> [...]` — manage providers. */
+/**
+ * `vessel mcp` —— MCP server 配置的 CLI 出口（G-11 的 MCP 半，task 106 后补齐）。
+ *
+ * 此前库级管道（`McpClient`/`StdioTransport`/`mcp__<server>__<tool>`）与 `~/.vessel/mcp.json`
+ * 读取都已就绪，但**没有配置子命令**，用户只能手写 JSON。本命令只做**文件读写**，不建 transport、
+ * 不拉起 server（越界：`apps/cli` 不依赖 `@vessel/tools`，见 AGENTS 约束 5）；`vessel run` 读同一文件。
+ *
+ * 子命令：`list`（默认）/ `add` / `remove` / `path`。`--json` 时 stdout 只出一段可解析 JSON。
+ * 损坏的 mcp.json 由 `McpConfigStore.load()` fail-loud，本命令**不吞**（exit 1 并给路径）。
+ */
+async function cmdMcp(args: string[], flags: Map<string, string>): Promise<number> {
+  const store = new McpConfigStore();
+  const sub = args[0] ?? 'list';
+  const usage = '用法: vessel mcp list | vessel mcp add <name> --command <cmd> [--args a,b] [--cwd <dir>] [--env K=V,K2=V2] | vessel mcp remove <name> | vessel mcp path';
+
+  const loadOrFail = (): { ok: true; servers: McpServerConfig[] } | { ok: false; code: number } => {
+    try {
+      return { ok: true, servers: store.load() };
+    } catch (err) {
+      const msg = `[vessel mcp] ${(err as Error).message}`;
+      return { ok: false, code: fail(1, msg, flags, () => console.error(msg)) };
+    }
+  };
+
+  switch (sub) {
+    case 'list': {
+      const loaded = loadOrFail();
+      if (!loaded.ok) return loaded.code;
+      if (isJson(flags)) {
+        emitJson({ configFile: store.configFile, servers: loaded.servers });
+        return 0;
+      }
+      if (loaded.servers.length === 0) {
+        console.log(`（未配置 MCP server；配置文件：${store.configFile}）`);
+        return 0;
+      }
+      for (const s of loaded.servers) {
+        const argv = s.args !== undefined && s.args.length > 0 ? ` ${s.args.join(' ')}` : '';
+        console.log(`  ${s.name}  ${s.command}${argv}`);
+      }
+      return 0;
+    }
+    case 'path': {
+      if (isJson(flags)) {
+        emitJson({ configFile: store.configFile });
+        return 0;
+      }
+      console.log(store.configFile);
+      return 0;
+    }
+    case 'add': {
+      const name = args[1];
+      const command = flags.get('command');
+      if (name === undefined || command === undefined) {
+        return fail(2, usage, flags, () => console.error(usage));
+      }
+      const loaded = loadOrFail();
+      if (!loaded.ok) return loaded.code;
+      if (loaded.servers.some((s) => s.name === name)) {
+        const msg = `[vessel mcp] server "${name}" 已存在（先 vessel mcp remove ${name}）`;
+        return fail(2, msg, flags, () => console.error(msg));
+      }
+      const entry: McpServerConfig = { name, command };
+      const argsRaw = flags.get('args');
+      if (argsRaw !== undefined) entry.args = argsRaw.split(',').map((s) => s.trim()).filter((s) => s.length > 0);
+      const cwd = flags.get('cwd');
+      if (cwd !== undefined) entry.cwd = cwd;
+      const envRaw = flags.get('env');
+      if (envRaw !== undefined) {
+        const env: Record<string, string> = {};
+        for (const pair of envRaw.split(',')) {
+          const at = pair.indexOf('=');
+          if (at <= 0) {
+            const msg = `[vessel mcp] --env 需 K=V 形式：${pair}`;
+            return fail(2, msg, flags, () => console.error(msg));
+          }
+          env[pair.slice(0, at).trim()] = pair.slice(at + 1);
+        }
+        entry.env = env;
+      }
+      const next = [...loaded.servers, entry];
+      try {
+        store.save(next);
+      } catch (err) {
+        const msg = `[vessel mcp] ${(err as Error).message}`;
+        return fail(1, msg, flags, () => console.error(msg));
+      }
+      if (isJson(flags)) {
+        emitJson({ added: entry, configFile: store.configFile });
+        return 0;
+      }
+      console.log(`[vessel mcp] 已添加 "${name}" → ${store.configFile}`);
+      return 0;
+    }
+    case 'remove': {
+      const name = args[1];
+      if (name === undefined) {
+        return fail(2, '用法: vessel mcp remove <name>', flags, () => console.error('用法: vessel mcp remove <name>'));
+      }
+      const loaded = loadOrFail();
+      if (!loaded.ok) return loaded.code;
+      const next = loaded.servers.filter((s) => s.name !== name);
+      if (next.length === loaded.servers.length) {
+        const msg = `[vessel mcp] server "${name}" 不存在（vessel mcp list 查看）`;
+        return fail(2, msg, flags, () => console.error(msg));
+      }
+      try {
+        store.save(next);
+      } catch (err) {
+        const msg = `[vessel mcp] ${(err as Error).message}`;
+        return fail(1, msg, flags, () => console.error(msg));
+      }
+      if (isJson(flags)) {
+        emitJson({ removed: name, configFile: store.configFile });
+        return 0;
+      }
+      console.log(`[vessel mcp] 已移除 "${name}"`);
+      return 0;
+    }
+    default: {
+      const msg = `未知 mcp 子命令：${sub}（可用：list / add / remove / path）`;
+      return fail(2, msg, flags, () => console.error(msg));
+    }
+  }
+}
+
 async function cmdProvider(args: string[], flags: Map<string, string>): Promise<number> {
   const store = defaultProviderStore();
   const sub = args[0] ?? 'list';
@@ -2852,6 +2982,7 @@ async function dispatch(parsed: ParsedArgs): Promise<number> {
   // subcommand forms: `vessel provider <sub>`, `vessel models`
   const first = parsed.positionals[0];
   if (first === 'provider') return cmdProvider(parsed.positionals.slice(1), parsed.flags);
+  if (first === 'mcp') return cmdMcp(parsed.positionals.slice(1), parsed.flags);
   if (first === 'models') return cmdModels(parsed.flags);
   if (first === 'setup') return cmdSetup(parsed.flags);
   if (first === 'usage') return cmdUsage(parsed.positionals.slice(1), parsed.flags);
