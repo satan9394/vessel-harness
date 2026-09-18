@@ -31,11 +31,14 @@ jobs:
           cache: npm
 
       # npm ci uses the committed package-lock.json for a reproducible install.
-      # On a stale/divergent lockfile npm ci can fail; running npm install then
-      # re-syncs the lockfile and deps so the build/test steps below still run.
-      # A lockfile mismatch should be fixed in the repo, not masked silently.
+      # This used to be `npm ci || npm install`, which silently repaired a
+      # divergent lockfile instead of failing: commit 377ba64 landed a
+      # package.json asking for typescript ^7.0.2 while the lock still pinned
+      # ^5.5.4, `npm ci` rejected it, and CI stayed green anyway because the
+      # fallback rewrote the lock. A lockfile mismatch is a repo defect (fixed in
+      # the next commit); fail here so it cannot ship unnoticed.
       - name: Install dependencies
-        run: npm ci || npm install
+        run: npm ci
 
       - name: Build (tsc -b)
         run: npm run build
