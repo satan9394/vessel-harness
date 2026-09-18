@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { GLOSSARY, findTerm, listTerms, renderExplain, renderTermsList } from './glossary.js';
 import { renderGuide } from './guide.js';
 import { SettingsStore, SETTINGS_DEFS, renderSettingsList } from './settings.js';
@@ -234,6 +235,33 @@ describe('CLI 命令 — explain / list-terms / guide / settings（task 117）',
     expect(all).toContain('不能取');
     expect(all).toContain('zh');
     expect(all).toContain('en');
+  });
+
+  it('settings.json 损坏 → guide/explain 都回退 zh（不抛）；口径唯一', async () => {
+    fs.mkdirSync(root, { recursive: true });
+    fs.writeFileSync(path.join(root, 'settings.json'), '{not json', 'utf8');
+    // 改前：cmdGuide 直接 `.load().locale` ⇒ 设置损坏时**抛错**；cmdExplain 走 loadLocaleOrDefault ⇒ 回退 zh。
+    // 改后：两者同走 resolveGuideLocale → loadLocaleOrDefault，行为一致。
+    const { logs: g, restore: r1 } = capture();
+    const codeG = await cmdGuide([], new Map(), optsFor(root));
+    r1();
+    expect(codeG).toBe(0);
+    expect(g.join('\n')).toContain('新手引导 · Vessel'); // zh 回退，而不是崩溃
+
+    const { logs: e, restore: r2 } = capture();
+    const codeE = await cmdExplain(['Call'], new Map(), optsFor(root));
+    r2();
+    expect(codeE).toBe(0);
+    expect(e.join('\n').length).toBeGreaterThan(0);
+  });
+
+  it('locale 解析唯一实现（静态守卫）：cmdGuide/cmdExplain 不再各自 `.load().locale`', () => {
+    const src = fs.readFileSync(fileURLToPath(new URL('./guideCommands.ts', import.meta.url)), 'utf8');
+    expect(src).toMatch(/function\s+resolveGuideLocale\b/);
+    // 两个命令都调 resolveGuideLocale（各一次）
+    expect((src.match(/resolveGuideLocale\(/g) ?? []).length).toBeGreaterThanOrEqual(3); // 定义 + 两处调用
+    // 不得再有直读 settings 的 locale（那正是分叉点）
+    expect(src).not.toMatch(/\.load\(\)\.locale/);
   });
 
   it('settings.json 损坏 → fail loud（不静默回退到默认值）', () => {

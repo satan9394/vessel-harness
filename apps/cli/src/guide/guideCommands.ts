@@ -40,6 +40,31 @@ function settingsStoreFor(opts: GuideCliOptions): SettingsStore {
   return new SettingsStore({ rootDir: opts.settingsRoot ?? undefined });
 }
 
+/**
+ * guide 命令族的生效 locale：`--locale` 显式 > settings.locale > `'zh'`（**唯一实现**）。
+ *
+ * 此前 `cmdExplain` 与 `cmdGuide` 各写一份：前者走 `loadLocaleOrDefault`（设置损坏 ⇒ 回退 'zh'），
+ * 后者直读 settings 的 locale（设置损坏 ⇒ **抛错**）—— 同一句声明（"locale 缺省跟随 settings"）
+ * 两种行为，且 `settings.ts` 的注释声称"两处都调 `loadLocaleOrDefault`"，与实现不符。
+ * 现两处都走本函数，`--locale` 校验与回退口径只有一份。
+ */
+function resolveGuideLocale(
+  flags: Map<string, string>,
+  opts: GuideCliOptions,
+): { ok: true; locale: GuideLocale } | { ok: false } {
+  const raw = flags.get('locale');
+  if (raw !== undefined) {
+    if (raw !== 'zh' && raw !== 'en') {
+      errorOf(opts)(`--locale 需要 zh|en（收到 "${raw}"）。`);
+      return { ok: false };
+    }
+    return { ok: true, locale: raw };
+  }
+  // 缺省跟随 settings；口径的唯一实现见 settings.ts 的 loadLocaleOrDefault
+  // （缺失/损坏/字段残缺一律回退 zh，绝不让输出失败；TUI 的 resolveChatLocale 共用同一段）。
+  return { ok: true, locale: loadLocaleOrDefault(settingsStoreFor(opts)) };
+}
+
 /** `vessel explain <term>`（别名 `vessel term <term>`）——查词库给中英文解释。 */
 export async function cmdExplain(
   args: string[],
@@ -59,21 +84,10 @@ export async function cmdExplain(
     log(`未收录术语 "${term}"。试试: vessel list-terms（查看全部 ${listTerms().length} 条），或换个叫法（如 小蜜/Call/Collect）。`);
     return 2;
   }
-  // 生效 locale（优先级同 cmdGuide）：--locale 显式 > settings.locale > 'zh'。
-  let locale: GuideLocale;
-  const raw = flags.get('locale');
-  if (raw !== undefined) {
-    if (raw !== 'zh' && raw !== 'en') {
-      errorOf(opts)(`--locale 需要 zh|en（收到 "${raw}"）。`);
-      return 2;
-    }
-    locale = raw;
-  } else {
-    // 缺省跟随 settings；口径的唯一实现见 guide/settings.ts 的 loadLocaleOrDefault
-    // （TUI 的 resolveChatLocale 共用同一段：缺失/损坏/字段残缺一律回退 zh，绝不让输出失败）。
-    locale = loadLocaleOrDefault(settingsStoreFor(opts));
-  }
-  log(renderExplain(entry, locale));
+  // 生效 locale（`--locale` 显式 > settings.locale > 'zh'）—— 唯一实现在 resolveGuideLocale。
+  const resolved = resolveGuideLocale(flags, opts);
+  if (!resolved.ok) return 2;
+  log(renderExplain(entry, resolved.locale));
   return 0;
 }
 
@@ -89,18 +103,10 @@ export async function cmdGuide(
   flags: Map<string, string> = new Map(),
   opts: GuideCliOptions = {},
 ): Promise<number> {
-  let locale: GuideLocale;
-  const raw = flags.get('locale');
-  if (raw !== undefined) {
-    if (raw !== 'zh' && raw !== 'en') {
-      errorOf(opts)(`--locale 需要 zh|en（收到 "${raw}"）。`);
-      return 2;
-    }
-    locale = raw;
-  } else {
-    locale = settingsStoreFor(opts).load().locale;
-  }
-  logOf(opts)(renderGuide(locale));
+  // 生效 locale（`--locale` 显式 > settings.locale > 'zh'）—— 唯一实现在 resolveGuideLocale。
+  const resolved = resolveGuideLocale(flags, opts);
+  if (!resolved.ok) return 2;
+  logOf(opts)(renderGuide(resolved.locale));
   return 0;
 }
 
