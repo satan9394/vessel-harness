@@ -35,7 +35,19 @@
 
 **验证（均在最后一次编辑之后）**：`npm run build` exit 0；`npm run typecheck:tests` exit 0；`npm run test:all` 根 171 files / 2197 passed | 6 skipped + web 11 / 120；`npm run -w @vessel/web build` exit 0；两个 CLI 冒烟 exit 0。CI 与 CodeQL 在 main 上均 `success`。
 
-**未闭合（留给独立卡）**：Dependabot PR #8（TypeScript 5→7）、#10（js-yaml 4→5）、#11（React 18→19）属非安全的大版本迁移，CI 红或未验证到位，未盲并；仓库设置里 `secret_scanning_non_provider_patterns` / `validity_checks` 需人工在 Settings 页开启（API 改不动）。
+**未闭合（留给独立卡）**：仓库设置里 `secret_scanning_non_provider_patterns` / `validity_checks` 需人工在 Settings 页开启（API 改不动）。
+
+**执行阶段追加收口（Dependabot 全部闭环）**：
+
+| 项 | 处置 |
+|---|---|
+| #10 js-yaml 4→5 | 合并（代码只用 `yaml.load`/`dump`，未碰 5.0 的 AST 破坏面）；本地全量复核 |
+| #11 React 18→19 | 原 PR 是**半截升级**（只升 react-dom/@types/react-dom，react/@types/react 留在 18）→ 28 个 web 测试红。补全四个到 `^19.3.0`，新开 PR #14 并由其取代 #11 |
+| #8 TypeScript 5→7 | 原 PR 让 `tsconfig.test.json` 撞 TS5102（`baseUrl` 已移除）+ 16×TS5090（`paths` 需 `./`）→ `typecheck:tests` 在选项校验即失败。删 `baseUrl`、16 条路径加 `./`，新开 PR #15 并由其取代 #8 |
+| 顺带发现 | `@vessel/bench-runners` 的 src 实际 import engine/policy/runtime/telemetry 却未声明 project reference（靠 dist 偶然顺序，TS7 下 flake 成 TS2305）；全仓审计后补 4 条引用 |
+| 顺带发现 | TS7 合并时锁文件与 `package.json` 不一致（`npm ci` 失败被 `npm ci || npm install` 静默掩盖）→ 重生成锁文件，并把 install 步骤收紧为硬 `npm ci`，让锁不一致在 CI 直接暴露 |
+
+最终 main `df77a4b`；CI / CodeQL 全 `success`；无遗留 PR；三类安全告警均 **0**。
 
 ---
 
