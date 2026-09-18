@@ -3854,17 +3854,18 @@ describe('本卡（windowsShim 判定共用）— 唯一实现 + 行为逐字冻
   const hint = (command: string): string =>
     `命令 "${command}" 在 Windows 上需要 shell 才能执行（.cmd/.bat shim）；请改用白名单命令（npx/npm/pnpm/yarn/uvx）或把命令指向 .exe / 绝对路径`;
 
-  it('本卡①（唯一实现·静态守卫）：两面都 import windowsShim.js，且都不再自带判定；全包只有一份', () => {
+  it('本卡①（唯一实现·静态守卫）：判定只在叶子模块、调用只在共享装配 mcp/assemble.ts；全包只有一份', () => {
     const cliSrc = fs.readFileSync(path.join(SRC_ROOT, 'cli.ts'), 'utf8');
     const chatSrc = fs.readFileSync(path.join(SRC_ROOT, 'tui', 'chat.ts'), 'utf8');
 
-    // (a) 两个消费点都从**同一个零依赖模块**导入**同一个符号**（相对路径各自正确）
-    //     ← 旧实现（两份）在这一条就红：chat.ts 当时根本没有这个 import。
+    // (a) cli.ts 仍从**同一个零依赖模块**导入并 re-export 同一符号（`cli.windowsShimHint` 身份由本卡② 钉住）。
     expect(cliSrc).toMatch(/import\s*\{[^}]*\bwindowsShimHint\b[^}]*\}\s*from\s*'\.\/windowsShim\.js'/);
-    expect(chatSrc).toMatch(/import\s*\{[^}]*\bwindowsShimHint\b[^}]*\}\s*from\s*'\.\.\/windowsShim\.js'/);
-    // 并且真的**调用**它（import 了不用 = 换了种"没接线"）
-    expect(cliSrc).toContain('windowsShimHint(s.command)');
-    expect(chatSrc).toContain('windowsShimHint(s.command)');
+    expect(cliSrc).toMatch(/export\s*\{\s*windowsShimHint\s*\}/);
+    // 调用点已收敛进**共享装配模块** `mcp/assemble.ts`（唯一一处）；重新内联到 cli.ts 或 chat.ts 都红。
+    const callSites = walkCliSources(SRC_ROOT)
+      .filter((f) => fs.readFileSync(f, 'utf8').includes('windowsShimHint(s.command)'))
+      .map((f) => path.relative(SRC_ROOT, f).replace(/\\/g, '/'));
+    expect(callSites).toEqual(['mcp/assemble.ts']);
 
     for (const [name, src] of [['cli.ts', cliSrc], ['tui/chat.ts', chatSrc]] as const) {
       // (b) 任一面都不得**定义**第二份判定 ← 旧实现两面都在这一条红

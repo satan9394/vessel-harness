@@ -3,9 +3,10 @@ import * as fs from 'node:fs';
 import { randomUUID } from 'node:crypto';
 import type { ChatProvider } from '@vessel/shared';
 import { MockProvider } from '@vessel/llm';
-import { composeHarness, createMcpConnections, SessionRegistry, type ComposedHarness, type ComposeMcpConnection, type SessionMeta, type SyncCredentialStore } from '@vessel/application';
+import { composeHarness, SessionRegistry, type ComposedHarness, type ComposeMcpConnection, type SessionMeta, type SyncCredentialStore } from '@vessel/application';
 import { ProviderStore, type ProviderConfig } from '../providers/ProviderStore.js';
 import { McpConfigStore } from '../mcp/config.js';
+import { assembleMcpConnections } from '../mcp/assemble.js';
 import { collectSessionChanges, renderSessionChanges } from '../sessions/diffReport.js';
 import { createDefaultProviderStore } from '../providers/defaultStore.js';
 import { runSetupWizard, createClackIO, fetchModelOutcome } from '../providers/setup.js';
@@ -22,10 +23,6 @@ import { renderCostLines, renderTurnDelta, renderTodayLine, type UsageTotalsLike
 // **同一份**；本文件不再自带第二份判据（`chat.ts` 不能反向 import `cli.ts`，但可以 import
 // 这个谁都不依赖的叶子模块 —— 成环理由见 turnText.ts 的文件头注释）。
 import { isModelReplyKind, type TurnKind } from '../turnText.js';
-// 本卡：windowsShim 判定的**唯一实现**（零依赖叶子模块 `../windowsShim.js`）—— TUI 与
-// `cli.ts` 各自 import **同一份**，本文件不再自带第二份判定（成环理由见 windowsShim.ts 的
-// 文件头注释：放进"谁都不依赖"的叶子模块后，"反向 import 会成环所以只能内联"就不成立了）。
-import { windowsShimHint } from '../windowsShim.js';
 
 /**
  * apps/cli/src/tui/chat.ts — `vessel` interactive chat TUI (V0.7, task 021; brand Vessel).
@@ -243,23 +240,16 @@ export function resolveChatLocale(settingsRoot?: string): GuideLocale {
 }
 
 /**
- * 复评未闭合项 2：window shim 判定的 **TUI 侧消费点**（判定本体在别处，本文件只是调用方）。
+ * 复评未闭合项 2 + 「两份实现」收敛：win32 shim 判定与 MCP 装配现在都只有**一份实现**。
  *
- * 本卡（**windowsShim 判定共用**）改前的事实：这里**另有一份**内联实现，注释自称
- * 「**必须与 `cli.ts` 的 `windowsShimHint()` 逐字一致**」，理由是「反向 import `../cli.js`
- * 会**成环**（`cli.ts` 已 `import { runChat } from './tui/chat.js'`），所以只能内联」。
- * 两句都是真的，但**全仓零测试引用**该函数 ⇒ 只改一面会**无声分叉**：另一面对 `.cmd`/`.bat`
- * 脚本要么**硬 spawn**（用户只看到含糊的 ENOENT/EINVAL），要么**拒绝一条本来可用的命令**。
+ * 历史：本文件曾**另有一份**内联的 `windowsShimHint`（注释自称「必须与 `cli.ts` 逐字一致」），
+ * 又曾与 `cli.ts` 的 `applyMcpConnections` **各写一份**「load → shim 分区 → createMcpConnections
+ * → 汇总 failures」。两份实现全仓零测试绑定时，只改一面会**无声分叉**（`.cmd`/`.bat` 要么硬
+ * spawn 报含糊 ENOENT/EINVAL，要么拒绝一条本来可用的命令）。
  *
- * 现在（本卡修复）：判定收敛到**零依赖叶子模块** `../windowsShim.js` 的 `windowsShimHint`
- * （**唯一实现**），本文件与 `cli.ts` **各自 import 同一份** —— 不再是"两份必须人工保持
- * 同步"，也不需要"反向 import 会成环"这个理由（叶子模块谁都不依赖，见 windowsShim.ts
- * 文件头；同一范式先例：`../turnText.js` 的 `isModelReplyKind`）。
- *
- * 消费语义（与 `cli.ts` 的 `applyMcpConnections` 逐字共用同一份判据）：win32 + `.cmd`/`.bat`
- * 后缀 + 不在包管理器白名单 → 该命令注定 spawn 失败（CVE-2024-27980 之后 Node 对 .cmd/.bat
- * 直接 EINVAL），所以**不 spawn**，改走「未启动（已跳过）」通道并给出可操作原因，而不是把
- * 含糊的 ENOENT/EINVAL 丢给用户。白名单命令由 `resolveSpawnCommand` 开 shell，命不中该判定。
+ * 现在：判定在零依赖叶子模块 `../windowsShim.js`（唯一实现），装配在 `../mcp/assemble.js`
+ * 的 `assembleMcpConnections`（唯一实现）。本文件与 `cli.ts` 只各自决定**错误策略**：
+ * 这里配置坏了只 `console.warn` 并返回 `undefined`，**绝不拒绝启动**。
  *
  * ---
  *
@@ -278,28 +268,17 @@ export function resolveChatLocale(settingsRoot?: string): GuideLocale {
  * 交给新 harness（`StdioTransport.request` 此后恒 reject `MCP transport closed`）。
  */
 function loadMcpConnections(): ComposeMcpConnection[] | undefined {
-  try {
-    const servers = new McpConfigStore().load();
-    if (servers.length === 0) return undefined;
-    // 复评未闭合项 2：与 cli.ts 的 `applyMcpConnections` 同序 —— 先按 win32 shim 判定分流
-    // （命中的**不 spawn**，直接进「未启动（已跳过）」通道并带上可操作原因），再建连接。
-    // 改前 TUI 直接把声明丢给 createMcpConnections，`.cmd` 只得到含糊的 ENOENT/EINVAL。
-    const spawnable: typeof servers = [];
-    const shimFailures: { serverName: string; reason: string }[] = [];
-    for (const s of servers) {
-      const hint = windowsShimHint(s.command);
-      if (hint === null) spawnable.push(s);
-      else shimFailures.push({ serverName: s.name, reason: hint });
-    }
-    const { connections, failures } = createMcpConnections(spawnable);
-    for (const f of [...shimFailures, ...failures]) {
-      console.warn(`[vessel] MCP server "${f.serverName}" 未启动（已跳过）：${f.reason}`);
-    }
-    return connections.length > 0 ? connections : undefined;
-  } catch (err) {
-    console.warn(`[vessel] MCP 配置错误（已忽略）：${(err as Error).message}`);
-    return undefined; // TUI 里不因 MCP 配置坏掉而拒绝启动
+  // 与 cli.ts 共用唯一装配实现（`assembleMcpConnections`）；TUI 的错误策略是
+  // **只告警、按"没配"继续**，不因 MCP 配置坏掉而拒绝启动。
+  const assembled = assembleMcpConnections();
+  if (!assembled.ok) {
+    console.warn(`[vessel] MCP 配置错误（已忽略）：${assembled.message}`);
+    return undefined;
   }
+  for (const f of assembled.failures) {
+    console.warn(`[vessel] MCP server "${f.serverName}" 未启动（已跳过）：${f.reason}`);
+  }
+  return assembled.connections.length > 0 ? assembled.connections : undefined;
 }
 
 export interface SlashResult {

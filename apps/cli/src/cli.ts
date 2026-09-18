@@ -8,11 +8,9 @@ import { inspectCombinedPolicy, inspectPolicyLayers, type PolicyLayerFact } from
 import { MockProvider } from '@vessel/llm';
 import {
   composeHarness,
-  createMcpConnections,
   SessionRegistry,
   type ComposedHarness,
   type ComposeOptions,
-  type McpConnectionFailure,
   type SessionMeta,
 } from '@vessel/application';
 import { createVesselServer } from '@vessel/local-server';
@@ -32,6 +30,7 @@ import { fetchOpenAIModels, modelsForProtocol } from '@vessel/application';
 import { createClackIO, runSetupWizard } from './providers/setup.js';
 import { runChat } from './tui/chat.js';
 import { McpConfigStore, type McpServerConfig } from './mcp/config.js';
+import { assembleMcpConnections } from './mcp/assemble.js';
 import { VESSEL_LOGO, VESSEL_TAGLINE } from './brand.js';
 import { UsageStore, isLocalDateKey, localDateKey, resolveUsageRoot } from './usage/UsageStore.js';
 import { PricingOverrideStore, type PricingRepair } from './usage/pricingOverride.js';
@@ -667,28 +666,13 @@ export { windowsShimHint };
  * TUI 侧对应物是 `chat.ts` 的 `loadMcpConnections()`：那里配置坏了只警告、不拒绝启动。
  */
 function applyMcpConnections(opts: ComposeOptions): string | null {
-  try {
-    const servers = new McpConfigStore().load();
-    if (servers.length > 0) {
-      // 缺口 2：win32 下非白名单的 .cmd/.bat **不 spawn**（注定失败），直接记入 failures，
-      // 走既有「未启动（已跳过）」输出通道并带上可操作原因 —— 不降级成含糊的 ENOENT/EINVAL。
-      const spawnable: typeof servers = [];
-      const shimFailures: McpConnectionFailure[] = [];
-      for (const s of servers) {
-        const hint = windowsShimHint(s.command);
-        if (hint === null) spawnable.push(s);
-        else shimFailures.push({ serverName: s.name, reason: hint });
-      }
-      const { connections, failures } = createMcpConnections(spawnable);
-      if (connections.length > 0) opts.mcp = connections;
-      for (const f of [...shimFailures, ...failures]) {
-        console.warn(`[vessel] MCP server "${f.serverName}" 未启动（已跳过）：${f.reason}`);
-      }
-    }
-    return null;
-  } catch (err) {
-    return (err as Error).message;
+  const assembled = assembleMcpConnections();
+  if (!assembled.ok) return assembled.message; // 配置损坏 ⇒ fail-loud（调用方 exit 1）
+  if (assembled.connections.length > 0) opts.mcp = assembled.connections;
+  for (const f of assembled.failures) {
+    console.warn(`[vessel] MCP server "${f.serverName}" 未启动（已跳过）：${f.reason}`);
   }
+  return null;
 }
 
 /**

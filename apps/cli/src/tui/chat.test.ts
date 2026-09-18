@@ -1312,37 +1312,31 @@ describe('本卡（windowsShim 判定共用）— TUI 侧：取用同一模块 +
   const hint = (command: string): string =>
     `命令 "${command}" 在 Windows 上需要 shell 才能执行（.cmd/.bat shim）；请改用白名单命令（npx/npm/pnpm/yarn/uvx）或把命令指向 .exe / 绝对路径`;
 
-  it('本卡C（唯一实现·静态守卫）：本文件 import ../windowsShim.js、不再自带判定，且与 cli.ts 解析到同一个文件', () => {
+  it('本卡C（唯一实现·静态守卫）：本文件改用共享装配 assembleMcpConnections、不再自带判定；调用点唯一', () => {
     const chatSrc = fs.readFileSync(path.join(TUI_SRC_ROOT, 'chat.ts'), 'utf8');
-    const cliSrc = fs.readFileSync(path.join(TUI_SRC_ROOT, '..', 'cli.ts'), 'utf8');
+    const assemblePath = path.join(TUI_SRC_ROOT, '..', 'mcp', 'assemble.ts');
+    const assembleSrc = fs.readFileSync(assemblePath, 'utf8');
 
-    // (a) 从唯一实现（零依赖叶子模块）导入 ← 旧实现没有这个 import ⇒ 红
-    expect(chatSrc).toMatch(/import\s*\{[^}]*\bwindowsShimHint\b[^}]*\}\s*from\s*'\.\.\/windowsShim\.js'/);
+    // (a) TUI 侧不再直接 import 叶子模块，而是走**共享装配**（唯一实现）
+    //     ← 旧实现（本文件自带第二份判定）在这一条红。
+    expect(chatSrc).toContain('assembleMcpConnections(');
+    expect(chatSrc).not.toMatch(/import\s*\{[^}]*\bwindowsShimHint\b[^}]*\}/);
     // (b) 不得定义第二份判定，也不得出现旧实现的文案模板 / 白名单字面量 ← 旧实现本文件全中
     expect(chatSrc).not.toMatch(/\b(?:function|const|let|var)\s+windowsShimHint\b/);
     expect(chatSrc).not.toMatch(/在\s*Windows\s*上需要\s*shell\s*才能执行/);
     expect(chatSrc).not.toMatch(/\[\s*'npx'\s*,\s*'npm'\s*,\s*'pnpm'\s*,\s*'yarn'\s*,\s*'uvx'\s*\]/);
 
-    // (c) 两面 import 的 specifier **解析到同一个文件**（"各自抄一份、各自 import 各自的复制品"
-    //     在运行期看起来一样，但不是同一份实现；这条会红）
-    const chatSpec = /from\s*'(\.\.\/windowsShim\.js)'/.exec(chatSrc)?.[1];
-    const cliSpec = /from\s*'(\.\/windowsShim\.js)'/.exec(cliSrc)?.[1];
-    expect(chatSpec).toBe('../windowsShim.js');
-    expect(cliSpec).toBe('./windowsShim.js');
-    const fromChat = path.resolve(TUI_SRC_ROOT, chatSpec!);
-    const fromCli = path.resolve(TUI_SRC_ROOT, '..', cliSpec!);
-    expect(fromChat).toBe(fromCli);
-    // 该目标确实存在（唯一实现就是这个文件），且它自己**零 import**（叶子模块：谁都不依赖）
-    const shimTs = `${fromChat.replace(/\.js$/, '')}.ts`;
+    // (c) **调用点唯一**：判定与分流只在 `mcp/assemble.ts`（它 import 叶子模块并调用）。
+    //     重新内联到 TUI 侧 ⇒ (a)/(c) 红。
+    expect(assembleSrc).toMatch(/import\s*\{[^}]*\bwindowsShimHint\b[^}]*\}\s*from\s*'\.\.\/windowsShim\.js'/);
+    expect(assembleSrc).toContain('const hint = windowsShimHint(s.command);');
+    expect(assembleSrc).toContain('if (hint === null) spawnable.push(s);');
+    expect(assembleSrc).toContain('else shimFailures.push({ serverName: s.name, reason: hint });');
+    // 叶子模块仍存在且**零 import**（谁都不依赖 ⇒ 不会重新引入 cli.ts ↔ tui/chat.ts 成环）
+    const shimTs = path.join(TUI_SRC_ROOT, '..', 'windowsShim.ts');
     expect(path.basename(shimTs)).toBe('windowsShim.ts');
     expect(fs.existsSync(shimTs)).toBe(true);
     expect(fs.readFileSync(shimTs, 'utf8')).not.toMatch(/^(?!\s*\*)\s*import\b/m);
-
-    // (d) **接线**：import 了必须用 —— TUI 的唯一消费点按判定分流（import 了不用 = 没接线）
-    const site = chatSrc.slice(chatSrc.indexOf('function loadMcpConnections'));
-    expect(site).toContain('const hint = windowsShimHint(s.command);');
-    expect(site).toContain('if (hint === null) spawnable.push(s);');
-    expect(site).toContain('else shimFailures.push({ serverName: s.name, reason: hint });');
   });
 
   it('本卡D（负对照·TUI 消费契约逐字不变）：白名单 / .cmd·.bat / 普通可执行文件 / 平台 / 形状', () => {
