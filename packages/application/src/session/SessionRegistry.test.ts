@@ -59,7 +59,11 @@ describe('SessionRegistry', () => {
   });
 
   it('list returns newest first', () => {
-    const reg = new SessionRegistry({ vesselHome: home });
+    // Two creates can land in the same real millisecond; `list()` then falls back
+    // to id order (random hex), which is deterministic but not insertion order. A
+    // monotonic clock keeps this ordering assertion about ordering, not luck.
+    let clock = 1_000_000;
+    const reg = new SessionRegistry({ vesselHome: home, now: () => (clock += 7) });
     const a = reg.create({ workspaceRoot: ws });
     const b = reg.create({ workspaceRoot: ws });
     const [first, second] = reg.list();

@@ -35,6 +35,13 @@ export interface SessionRegistryOptions {
    * （`apps/cli/src/cli.ts` 的 `new SessionRegistry()`）把它 try/catch 吞掉 ⇒ **静默不登记**。
    */
   vesselHome?: string;
+  /**
+   * Clock injection (tests only; default `Date.now`). `list()` orders by
+   * `updatedAt` and falls back to id order on a tie, so two creates in the same
+   * millisecond have no insertion-order guarantee; a monotonic test clock keeps
+   * ordering tests deterministic instead of racing the real clock.
+   */
+  now?: () => number;
 }
 
 const SESSIONS_FILE = 'sessions.json';
@@ -75,6 +82,7 @@ function lastActivityAt(meta: SessionMeta): string | undefined {
  */
 export class SessionRegistry {
   private readonly file: string;
+  private readonly now: () => number;
   private readonly sessions = new Map<string, SessionMeta>();
 
   constructor(opts: SessionRegistryOptions = {}) {
@@ -82,6 +90,7 @@ export class SessionRegistry {
     const home = opts.vesselHome ?? resolveSessionRoot();
     fs.mkdirSync(home, { recursive: true });
     this.file = path.join(home, SESSIONS_FILE);
+    this.now = opts.now ?? Date.now;
     this.load();
   }
 
@@ -111,9 +120,10 @@ export class SessionRegistry {
 
   /** Create a session metadata entry and return it. */
   create(input: SessionInput = {}): SessionMeta {
-    const ts = new Date().toISOString();
+    const nowMs = this.now();
+    const ts = new Date(nowMs).toISOString();
     const meta: SessionMeta = {
-      id: `sess_${Date.now()}_${crypto.randomBytes(4).toString('hex')}`,
+      id: `sess_${nowMs}_${crypto.randomBytes(4).toString('hex')}`,
       workspaceRoot: input.workspaceRoot ?? process.cwd(),
       provider: input.provider ?? 'unknown',
       model: input.model ?? 'unknown',
@@ -152,7 +162,7 @@ export class SessionRegistry {
 
   /** Register a pre-existing session meta (e.g. created by a SessionController). */
   put(meta: SessionMeta): SessionMeta {
-    const updated = { ...meta, updatedAt: new Date().toISOString() };
+    const updated = { ...meta, updatedAt: new Date(this.now()).toISOString() };
     this.sessions.set(updated.id, updated);
     this.persist();
     return updated;
@@ -162,7 +172,7 @@ export class SessionRegistry {
   touch(id: string): void {
     const meta = this.sessions.get(id);
     if (!meta) return;
-    meta.updatedAt = new Date().toISOString();
+    meta.updatedAt = new Date(this.now()).toISOString();
     this.persist();
   }
 
