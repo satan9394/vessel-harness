@@ -26,6 +26,18 @@
     },
     {
       "path": "../../packages/application"
+    },
+    {
+      "path": "../../packages/engine"
+    },
+    {
+      "path": "../../packages/policy"
+    },
+    {
+      "path": "../../packages/runtime"
+    },
+    {
+      "path": "../../packages/telemetry"
     }
   ]
 }
