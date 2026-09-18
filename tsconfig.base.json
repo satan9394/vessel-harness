@@ -17,5 +17,6 @@
     "noImplicitOverride": true,
     "noFallthroughCasesInSwitch": true,
     "types": ["node"]
-  }
+  },
+  "exclude": ["**/*.test.ts", "**/*.test.tsx", "**/__tests__/**"]
 }
