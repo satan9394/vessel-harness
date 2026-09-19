@@ -59,8 +59,8 @@
 - V1.0 全路线（Milestone A–G / 卡 032-084）：已验收合入，见 `docs/V1.0-CHECKPOINT.md`。
 - V1.1 全路线（卡 V1.1-A..F）：已验收合入，见 `docs/V1.1-ROADMAP.md`。剩余为环境补齐项（opencode-go 余额、Packaging gate 需 dist），非阻塞。
 - 2026-09-18：**CI 首次变绿并保持**（此前建仓起三次全红），根因是 `tsconfig.base.json` 缺 `exclude` 导致 `tsc -b` 把测试纳入 composite 构建。同时清零 CodeQL 10 条 + Dependabot 12 条告警。见 `tasks/123-ci-tsc-build-repair.md`。
-- 2026-09-18（后续）：**Cross-Harness Conformance 驱动**（`npm run bench:conformance`，离线 25/25）、**soak 默认参数自洽修复**、**`vessel mcp` / `vessel diff`** 与 **TUI `/mcp` `/diff`**、**三处「两份实现」收敛**（MCP 装配 / mock 文案 / guide locale）。见 `tasks/125`–`tasks/132`。
-- 当前 HEAD 门禁：`tsc -b` exit 0、`typecheck:tests` exit 0、`test:all` 根 **176 文件 / 2232 passed + 6 skipped**、web **11 文件 / 120 passed**、web `vite build` exit 0、CLI 冒烟 exit 0；CI 在 Windows + Linux 两腿绿；CodeQL/Dependabot/Secret scanning 告警 0。
+- 2026-09-18（后续）：**Cross-Harness Conformance 驱动**（`npm run bench:conformance`，离线 25/25）、**soak 默认参数自洽修复**、**`vessel mcp` / `vessel diff`** 与 **TUI `/mcp` `/diff`**、**四处「两份实现」收敛**（MCP 装配 / mock 文案 / guide locale / mock 冒烟脚本）、**G-08 `vesselHome` 轻量收敛**、**B19 口径（v1 只记 deny）**。见 `tasks/125`–`tasks/138`。
+- 当前 HEAD 门禁：`tsc -b` exit 0、`typecheck:tests` exit 0、`test:all` 根 **178 文件 / 2236 passed + 6 skipped**、web **11 文件 / 120 passed**、web `vite build` exit 0、CLI 冒烟 exit 0；CI 在 Windows + Linux 两腿绿；CodeQL/Dependabot/Secret scanning 告警 0。
 
 ## 构建与依赖纪律（2026-09-18 确立，来自 CI 修复）
 

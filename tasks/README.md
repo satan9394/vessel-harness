@@ -37,6 +37,8 @@
 | Cross-Harness Conformance 驱动 + soak 默认参数修复 + 1.0 门槛核对 | 125-126 | 已合入 | `tasks/125-*.md`、`tasks/126-*.md`、`docs/V1.6-STABLE-CHECKLIST.md` |
 | CLI/TUI 能力补齐（`vessel mcp` / `vessel diff` / TUI `/mcp` `/diff`） | 127-129 | 已合入 | `tasks/127-*.md`、`tasks/128-*.md`、`tasks/129-*.md` |
 | 「两份实现」收敛（MCP 装配 / mock 文案 / guide locale） | 130-132 | 已合入 | `tasks/130-*.md`、`tasks/131-*.md`、`tasks/132-*.md` |
+| 记忆同步 #1 + mock 冒烟脚本收敛 + B19 口径 + G-08 `vesselHome` + 文档补齐 | 133-138 | 已合入 | `tasks/133-*.md`…`tasks/138-*.md` |
+| 记忆同步 #2 | 139 | 已合入 | `tasks/139-memory-sync-2.md` |
 
 ## 未闭合 / 下一目标
 
@@ -44,6 +46,6 @@
   见 `docs/V1.1-ROADMAP.md` §5。
 - **Cross-Harness Conformance**：驱动与可运行入口**已交付**（`npm run bench:conformance -- --all` 离线 25 场景 25 passed）；
   **待**一次 `--live` 真实跨 harness 基线（消耗 dsh/opencode/codex/claude 配额）→ 定回归阈值 → README/报告固化。
-- **下一 Mission 候选**：`--live` 基线；`audit/decision`(B19) 接线（**已定 v1 口径：只记 deny，不实现**）；
-  会话级自动 revert（克制形态：只读提示已交付，自动回滚不做）。
+- **可自主收尾队列**：140 外部文档残余扫描；141 已声明未实现项统一标注；142 `toolIdByIndex` by-design 标注；143 `stream-json` 缺口登记。
+- **外部阻塞（登记不空等）**：144 `--live` 基线；145 `release-report` 刷新；146 3h 墙钟 soak；147 1.0 门槛最终核验（停在 tag 前）。
 - 开工前按 `RUN_STATE.md` 机制先存档旧信封再写新 Mission。

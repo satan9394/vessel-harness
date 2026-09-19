@@ -34,7 +34,15 @@
 - **CI 安装门禁收紧为硬 `npm ci`**：去掉 `|| npm install` 回退，锁文件不一致直接红。
 - **CI 覆盖 `apps/web`**：新增 `apps/web` 的 `typecheck` + `vite build` 步骤（此前不构建 web，vite 8 与 `@vitejs/plugin-react@4` 的 peer 冲突因此溜过）。（`3ccb082`）
 - **Dependabot 配置修正**：原两条 `package-ecosystem`/`directory` 为空（无效），改为 npm 根 + github-actions。（`9f8119b`）
-- **三处「两份实现」收敛为唯一实现**（本仓反复出现的"无声分叉"类）：**MCP 装配**（`cli.ts` 与 TUI 各一份 → `mcp/assemble.ts`，错误策略交调用方，`tasks/130`，`1250c3d`）；**mock 文案/标记/渲染助手**（→ 零依赖叶子 `turnText.ts`，`tasks/131`，`4e7f235`）；**guide locale 解析**（→ `resolveGuideLocale`，`tasks/132`，`56a10a0`）。均附单实现静态守卫。
+- **四处「两份实现」收敛为唯一实现**（本仓反复出现的"无声分叉"类）：**MCP 装配**（`cli.ts` 与 TUI 各一份 → `mcp/assemble.ts`，错误策略交调用方，`tasks/130`，`1250c3d`）；**mock 文案/标记/渲染助手**（→ 零依赖叶子 `turnText.ts`，`tasks/131`，`4e7f235`）；**guide locale 解析**（→ `resolveGuideLocale`，`tasks/132`，`56a10a0`）；**mock 冒烟脚本**（两面第三条文案已分叉 → 叶子 `mockSmoke.ts`，取 CLI 措辞为准，`tasks/134`，`8fb2d56`）。均附单实现静态守卫。
+- **G-08 轻量收敛**：`path.join(home, '.vessel')` 字面在 11 处重复 → 收敛到 `@vessel/shared` 的 `vesselHome()`（**不改解析语义**，`envRoot` 唯一实现保持；附等价性 + 单字面量守卫）。见 `tasks/136`。（`24544f1`）
+
+### Docs
+
+- **B19 契约口径收口**：`POLICY-SPEC`/`EVENT-SPEC` 改为「**v1 决策镜像只记 deny**」，allow 镜像登记为未来可选增强（须先有消费方）；代码与 `unwiredRecords` 守卫不动。见 `tasks/135`。（`2a81ea6`）
+- **`run --json` 文档补齐**（字段早已实现，仅 README 命令表未写）。见 `tasks/137`。（`6e2783f`）
+- **migrate「回收失败重跑」已核实闭合**（②-e 判别性用例已覆盖，含反锁）。见 `tasks/138`。（`6e2783f`）
+- **记忆同步 #1/#2**：`tasks/README`、`AGENTS`、本 CHANGELOG、`V1.6-STABLE-CHECKLIST`、`PRODUCT-STATE`/`GAP-MAP`、`RUN_STATE` 待办面与事实对齐。（`ca67169`、`139` 卡）
 
 ### Security
 
