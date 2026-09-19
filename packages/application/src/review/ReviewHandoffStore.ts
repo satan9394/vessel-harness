@@ -22,7 +22,7 @@ import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { parseReviewConclusion, REVIEW_OUTPUT_SCHEMA } from '@vessel/agents';
-import { envRoot, renameWithRetry } from '@vessel/shared';
+import { envRoot, renameWithRetry, vesselHome } from '@vessel/shared';
 import type {
   HandoffCreateInput,
   ReviewHandoffRecord,
@@ -39,7 +39,7 @@ import type {
  * `apps/local-server/src/server.ts` 的 `new ReviewHandoffStore()` 即落到服务进程工作目录）。
  */
 export function defaultReviewsRoot(home = os.homedir()): string {
-  return envRoot('VESSEL_REVIEWS_ROOT') ?? path.join(home, '.vessel', 'reviews');
+  return envRoot('VESSEL_REVIEWS_ROOT') ?? path.join(vesselHome(home), 'reviews');
 }
 
 /** review id —— 沿用既有 `<kind>_<ts>_<hex>` 约定（sess_/team_/sub_/del_ 同款）。 */

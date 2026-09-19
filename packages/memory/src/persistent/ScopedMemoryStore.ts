@@ -1,6 +1,7 @@
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { ProjectStore, type MemoryIndexEntry } from '../project/ProjectStore.js';
+import { vesselHome } from '@vessel/shared';
 
 /**
  * memory/persistent — scoped memory over user/project/local levels
@@ -26,7 +27,7 @@ export const MEMORY_SCOPES: MemoryScope[] = ['user', 'project', 'local'];
 
 /** user-level memory lives under the user home (跨项目 persistent). */
 export function userMemoryRoot(home = os.homedir()): string {
-  return path.join(home, '.vessel', 'memory');
+  return path.join(vesselHome(home), 'memory');
 }
 
 /** project-level root (matches task-001 ProjectStore default). */

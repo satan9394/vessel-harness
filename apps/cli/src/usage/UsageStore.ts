@@ -2,7 +2,7 @@ import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { renameWithRetry } from '@vessel/shared';
-import { envRoot } from '../envRoot.js';
+import { envRoot, vesselHome } from '../envRoot.js';
 import {
   costBreakdown,
   resolvePrice,
@@ -361,7 +361,7 @@ function num(value: unknown, fallback = 0): number {
 }
 
 export function defaultUsageRoot(home = os.homedir()): string {
-  return path.join(home, '.vessel');
+  return vesselHome(home);
 }
 
 /** 生效的 usage 根目录（`VESSEL_USAGE_ROOT` 覆盖；覆盖价目文件与 usage.json 同根）。 */

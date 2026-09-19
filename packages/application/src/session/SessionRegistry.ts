@@ -2,7 +2,7 @@ import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import * as crypto from 'node:crypto';
-import { envRoot, renameWithRetry } from '@vessel/shared';
+import { envRoot, renameWithRetry, vesselHome } from '@vessel/shared';
 
 /** Persisted metadata describing one application session. */
 export interface SessionMeta {
@@ -48,7 +48,7 @@ const SESSIONS_FILE = 'sessions.json';
 
 /** 缺省会话注册表根目录：`~/.vessel`（与 ProviderStore/UsageStore 同款用户级约定）。 */
 export function defaultSessionRoot(home = os.homedir()): string {
-  return path.join(home, '.vessel');
+  return vesselHome(home);
 }
 
 /**

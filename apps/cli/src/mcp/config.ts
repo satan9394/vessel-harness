@@ -2,7 +2,7 @@ import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { renameWithRetry } from '@vessel/shared';
-import { envRoot } from '../envRoot.js';
+import { envRoot, vesselHome } from '../envRoot.js';
 
 /**
  * apps/cli/src/mcp/config.ts — MCP server 声明的用户级配置读取器
@@ -75,7 +75,7 @@ export interface McpConfigStoreOptions {
 
 /** 默认根：`~/.vessel`（纯路径计算，**不读 env**）。 */
 export function defaultMcpRoot(home: string = os.homedir()): string {
-  return path.join(home, '.vessel');
+  return vesselHome(home);
 }
 
 /**

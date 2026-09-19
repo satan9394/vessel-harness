@@ -1,7 +1,7 @@
 import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
-import { envRoot, renameWithRetry } from '@vessel/shared';
+import { envRoot, renameWithRetry, vesselHome } from '@vessel/shared';
 import { buildHandoff, newHandoffId, parseHandoff, serializeHandoff, type HandoffMaterial, type HandoffRecord } from './Handoff.js';
 import { renderHandoffText } from './HandoffRender.js';
 
@@ -28,7 +28,7 @@ import { renderHandoffText } from './HandoffRender.js';
  * （API 面同族病；当前生产调用点 soak-driver 显式传根，故定级低于前三处）。
  */
 export function defaultHandoffRoot(home = os.homedir()): string {
-  return envRoot('VESSEL_HANDOFFS_ROOT') ?? path.join(home, '.vessel', 'handoffs');
+  return envRoot('VESSEL_HANDOFFS_ROOT') ?? path.join(vesselHome(home), 'handoffs');
 }
 
 export interface HandoffStoreOptions {

@@ -2,6 +2,7 @@ import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { execFileSync } from 'node:child_process';
+import { vesselHome } from './envRoot.js';
 
 /**
  * apps/cli/migrate — one-time migration of the user/state home dir from
@@ -99,7 +100,7 @@ export function defaultLegacyRoot(home = os.homedir()): string {
 
 /** 默认新根：~/.vessel。 */
 export function defaultVesselRoot(home = os.homedir()): string {
-  return path.join(home, '.vessel');
+  return vesselHome(home);
 }
 
 /** 把 src 下已知状态条目复制到 dst（嵌套目录逐文件复制）。返回复制条目数。 */

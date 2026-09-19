@@ -3,7 +3,7 @@ import * as os from 'node:os';
 import * as path from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { randomBytes } from 'node:crypto';
-import { renameWithRetry } from '@vessel/shared';
+import { renameWithRetry, vesselHome } from '@vessel/shared';
 
 /**
  * packages/application/credential/CredentialStore — OS 凭据存储抽象（task 034）。
@@ -55,7 +55,7 @@ export type CredentialBackend = CredentialStore &
   Partial<{ probe(): BackendProbe }>;
 
 export function defaultSecretsFile(home = os.homedir()): string {
-  return path.join(home, '.vessel', 'secrets.json');
+  return path.join(vesselHome(home), 'secrets.json');
 }
 
 export interface CredentialStoreOptions {

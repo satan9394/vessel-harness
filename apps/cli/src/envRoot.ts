@@ -18,4 +18,4 @@
  * 与 `packages/application`（SessionRegistry）；依赖方向只允许 `apps → packages`，
  * 实现留在任一侧都会逼出第二份口径。既有 `./envRoot.js` 导入点因此逐字不变。
  */
-export { envRoot } from '@vessel/shared';
+export { envRoot, vesselHome } from '@vessel/shared';

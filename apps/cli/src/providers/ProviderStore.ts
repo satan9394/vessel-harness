@@ -8,7 +8,7 @@ import {
   makeSecretRef,
   type SyncCredentialStore,
 } from '@vessel/application';
-import { envRoot } from '../envRoot.js';
+import { envRoot, vesselHome } from '../envRoot.js';
 
 /**
  * apps/cli/providers/ProviderStore — 供应商配置 SSOT 存储（task 014）。
@@ -174,7 +174,7 @@ export const BUILTIN_MOCK_PROVIDER: ProviderConfig = {
 
 /** 默认用户级根目录：~/.vessel（与 ScopedMemoryStore 的 userMemoryRoot 同风格）。 */
 export function defaultProviderRoot(home = os.homedir()): string {
-  return path.join(home, '.vessel');
+  return vesselHome(home);
 }
 
 function isProviderConfig(v: unknown): v is ProviderConfig {

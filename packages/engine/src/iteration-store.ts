@@ -2,7 +2,7 @@ import * as crypto from 'node:crypto';
 import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
-import { envRoot, renameWithRetry } from '@vessel/shared';
+import { envRoot, renameWithRetry, vesselHome } from '@vessel/shared';
 import type { IterationResult } from './LoopEngine.js';
 import type { GeneratorRunRecord } from './real-generator-adapter.js';
 import type { EvaluatorRunRecord } from './real-evaluator-adapter.js';
@@ -41,7 +41,7 @@ export type IterationVerdict = 'met' | 'not_met' | 'impossible' | 'error';
  * （生产调用点 `apps/local-server/src/goalSeam.ts` 的 `new IterationStore()`）。
  */
 export function defaultIterationRoot(home = os.homedir()): string {
-  return envRoot('VESSEL_ITERATIONS_ROOT') ?? path.join(home, '.vessel', 'iterations');
+  return envRoot('VESSEL_ITERATIONS_ROOT') ?? path.join(vesselHome(home), 'iterations');
 }
 
 /** 迭代条目 id —— 沿用既有 `<kind>_<ts>_<hex>` 约定。 */

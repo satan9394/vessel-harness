@@ -7,4 +7,5 @@ export * from './pricing.js';
 export * from './constants.js';
 export * from './atomicWrite.js';
 export * from './envRoot.js';
+export * from './vesselHome.js';
 export { VERSION } from './constants.js';
