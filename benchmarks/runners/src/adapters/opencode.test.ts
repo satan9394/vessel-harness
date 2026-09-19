@@ -11,6 +11,7 @@ import {
   OPENCODE_ADAPTER_ID,
   OPENCODE_ADAPTER_VERSION,
   opencodeCapabilities,
+  parseOpencodeEvents,
   type OpencodeRawRun,
   type ResultStub,
 } from './opencode.js';
@@ -214,5 +215,40 @@ describe('adapters/opencode — error & environment handling', () => {
   it('probeOpencodeEnv reports the injected resolver result', () => {
     expect(probeOpencodeEnv('opencode', envPresent)).toBe(true);
     expect(probeOpencodeEnv('opencode', envAbsent)).toBe(false);
+  });
+});
+
+/**
+ * 真实 OpenCode 面（task 150）—— `opencode run … --format json` 出的是 **JSONL 事件流**
+ * （一行一个对象：`step_start` / `text` / `tool` / `step_finish`），不是单个汇总对象。
+ * 旧 adapter 假设"stdout 是一个 JSON 汇总"，故 live 跑必然解析失败。本组钉住折合逻辑。
+ */
+describe('opencode adapter — real `--format json` JSONL folding (task 150)', () => {
+  it('folds text parts into finalText and sums step_finish tokens', () => {
+    const stdout = [
+      JSON.stringify({ type: 'step_start', part: { type: 'step-start' } }),
+      JSON.stringify({ type: 'text', part: { type: 'text', text: 'PO' } }),
+      JSON.stringify({ type: 'text', part: { type: 'text', text: 'NG' } }),
+      JSON.stringify({
+        type: 'step_finish',
+        part: { type: 'step-finish', tokens: { input: 35, output: 3, cache: { read: 49280 } }, cost: 0 },
+      }),
+    ].join('\n');
+    const { raw, parsedLines, skippedLines } = parseOpencodeEvents(stdout);
+    expect(parsedLines).toBe(4);
+    expect(skippedLines).toBe(0);
+    expect(raw?.finalText).toBe('PONG');
+    expect(raw?.success).toBe(true);
+    expect(raw?.inputTokens).toBe(35);
+    expect(raw?.outputTokens).toBe(3);
+    expect(raw?.cacheReadTokens).toBe(49280);
+  });
+
+  it('negative control: malformed JSONL lines (starting with `{`) are counted, not silently dropped', () => {
+    // non-`{` lines are intentionally ignored (CLI banners); a `{`-prefixed line
+    // that fails JSON.parse is a real skipped line.
+    const { parsedLines, skippedLines } = parseOpencodeEvents('{"type":"text","part":{"text":"x"}}\n{"broken":\n');
+    expect(parsedLines).toBe(1);
+    expect(skippedLines).toBe(1);
   });
 });

@@ -46,6 +46,7 @@
 | 记忆同步 #4 | 147 | 已合入 | `tasks/147-memory-sync-4.md` |
 | 全量偶发红：`cli.test.ts` real-IO 用例补显式超时 | 148 | 已合入 | `tasks/148-cli-test-real-io-timeouts.md` |
 | `--live` 基线尝试 → 发现外部 adapter 与真实 CLI 不匹配（blocked） | 149 | blocked（已记录根因） | `tasks/149-live-baseline-blocked.md` |
+| 修复外部 harness adapter 对齐真实 CLI（opencode 已 live 验证） | 150 | 部分合入 | `tasks/150-external-adapters-real-cli.md` |
 
 ## 未闭合 / 下一目标
 
@@ -55,7 +56,7 @@
   **`--live` 基线 blocked** —— 实测发现四个外部 adapter 驱动的是"请求式 JSON 契约"而真实 CLI 不实现
   （dsh 无 `run` 子命令；opencode 无 `--workspace/--task`；codex/claude 的 flag 正确但被 Windows `shell:true`
   分词拆坏）；离线车道只跑自适配器，故此前未暴露。见 `tasks/149`。
-- **可自主队列（新）**：150 修复外部 harness adapter 对齐真实 CLI（invocation + Windows 分词 + 输出解析 + 探针加严）；151 修复后重跑 `--live` 基线并定 `THRESHOLDS`。
+- **可自主队列**：150 修复外部 harness adapter —— **opencode 已修并 live 验证**（`opencode × B001 = ok`，`tasks/150`）；codex/claude/dsh 受环境阻塞（codex 配额、claude 配置模型停用、dsh headless 过重），如实登记。151 探针加严 + 重跑 `--live` 部分基线并定 `THRESHOLDS`。
 - **发布准备**：152 release notes（中英双语）+ 1.0 门槛逐项核对。
 - **外部阻塞（登记不空等）**：153 `release-report` 刷新；154 3h 墙钟 soak；155 1.0 门槛最终核验（停在 tag 前）。
 - 开工前按 `RUN_STATE.md` 机制先存档旧信封再写新 Mission。

@@ -21,8 +21,8 @@
 |---|---|
 | adapter id | `opencode` |
 | adapter version | `0.1.0` |
-| CLI 子命令面 | `opencode run --workspace <dir> --task <taskFile> --json [args...]` |
-| 期望输出 | stdout 上 JSON 对象（`OpencodeRawRun`，见 `opencode.ts` 类型注释） |
+| CLI 子命令面 | `opencode run --format json [args...] <task>`（task 为位置参数；cwd = 隔离工作区） |
+| 期望输出 | stdout 的 **JSONL 事件流**（一行一个对象：`step_start`/`text`/`tool`/`step_finish`），由 `parseOpencodeEvents` 折合为 `OpencodeRawRun`（也兼容单个汇总对象） |
 | 隔离 | fixture workspace 复制到临时目录，绝不动 `benchmarks/fixtures` 原件 |
 | cost | 按 `configs/pricing.json` 单价表（model > default 回退）估算 |
 
@@ -85,13 +85,14 @@ OpenCode 具备 `tool_calls / file_edit / exec / memory / policy` 原生能力�
   - 默认把 run 标为 `pending-environment`（`success=false`、`notes` 含 `pending-environment`），仍返回**合法**
     RunResult，不 throw——供外部巡检确认环境后再跑真实执行。
   - 若 `options.failOnMissing=true`，则把不可用当作真实运行失败处理。
-- **本机实测**：本机未预装 OpenCode（`opencode` 命令不可用）——真实执行建议安装在非受限环境；adapter 驱动层
-  可用 `runCommand` 注入 mock，测试不依赖真实 OpenCode。
+- **本机实测（task 150）**：本机已装 OpenCode，`opencode run … --format json` 可驱动；conformance `--live`
+  实测 `opencode × B001 = ok`（wall≈21s、in≈49588、out≈92）。旧驱动面（`--workspace/--task/--json`）与
+  真实 CLI 不符，已改准。spawn 层在 Windows 改用 `shell:false`（`shell:true` 会按空格拆坏多词 task）。
 
 ## 7. 限制
 
-- OpenCode 源只是外部接口层，`OpencodeRawRun` 字段以适配器文档为准；OpenCode 内部输出语义变化需与 `--json`
-  面同步。
+- OpenCode 源只是外部接口层，`OpencodeRawRun` 字段以适配器文档为准；OpenCode 内部输出语义变化需与 `--format json`
+  面同步（`parseOpencodeEvents` 只折 L3 相关子集，其余事件忽略）。
 - 真实 OpenCode 运行需要进程 spawn；Windows 沙箱（read-only / 受限 spawn）下建议注入 `runCommand` 或用后台 job。
 - 与 Vessel 自适配一致：adapter **只采集、不判据**——success 判据仍在 scenario manifest / runner 侧。
 - 078 只做 OpenCode 驱动 + 采集归一；Codex / Pi / Claude Code（079-081）各自成卡（同批模式）。
