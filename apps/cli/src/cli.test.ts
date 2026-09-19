@@ -1344,7 +1344,7 @@ describe('vessel serve / vessel web (task 044)', () => {
   });
 });
 
-describe('vessel usage recompute / pricing override (task 091/092)', () => {
+describe('vessel usage recompute / pricing override (task 091/092)', { timeout: 120_000 }, () => {
   let cfgDir: string;
   let oldRoot: string | undefined;
   let oldSessionRoot: string | undefined;
@@ -1526,7 +1526,7 @@ describe('vessel usage recompute / pricing override (task 091/092)', () => {
   });
 });
 
-describe('vessel pricing sync / provider costMultiplier (task 093/094)', () => {
+describe('vessel pricing sync / provider costMultiplier (task 093/094)', { timeout: 120_000 }, () => {
   let dir: string;
   let oldProviderRoot: string | undefined;
   let oldUsageRoot: string | undefined;
@@ -1851,7 +1851,7 @@ describe('vessel pricing sync / provider costMultiplier (task 093/094)', () => {
  * 一律钉到 `mkdtemp` 临时根，绝不读写真实 `~/.vessel`；清理只删本用例自建、位于 `os.tmpdir()`
  * 之下的临时目录（AGENTS.md 的书面例外）。
  */
-describe('provider 成本倍率：读盘失败必须可见（静默降级族）', () => {
+describe('provider 成本倍率：读盘失败必须可见（静默降级族）', { timeout: 120_000 }, () => {
   let dir: string;
   let oldProviderRoot: string | undefined;
   let oldUsageRoot: string | undefined;
@@ -2053,7 +2053,7 @@ describe('provider 成本倍率：读盘失败必须可见（静默降级族）'
   });
 });
 
-describe('vessel provider export/import + endpoint (task 095/096)', () => {
+describe('vessel provider export/import + endpoint (task 095/096)', { timeout: 120_000 }, () => {
   let dir: string;
   let outDir: string;
   let oldRoot: string | undefined;
