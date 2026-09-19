@@ -61,6 +61,7 @@ import {
   MOCK_PROVIDER_NOTICE,
   type TurnKind,
 } from './turnText.js';
+import { mockSmokeScript } from './mockSmoke.js';
 // 本卡：windowsShim 判定的**唯一实现**（零依赖叶子模块）——CLI 与 TUI 各自 import 同一份，
 // 不再各写一份（改前两份 + 全仓零测试 ⇒ 只改一面必无声分叉，见 windowsShim.ts 的文件头）。
 import { windowsShimHint } from './windowsShim.js';
@@ -997,30 +998,12 @@ async function cmdRun(flags: Map<string, string>): Promise<number> {
   const usingMockProvider = realProvider === null;
   const provider =
     realProvider ??
-    // default smoke script: read README.md (if prompt asks) then answer from the
-    // result; a failed read gets a friendly hint instead of the raw TOOL_FAILURE
-    // text; any other real input gets a deterministic readable fallback (G-01).
-    new MockProvider(
-      [
-        {
-          when: /阅读|read|总结|summary/i,
-          ifNoToolResult: true,
-          response: { toolCalls: [{ name: 'Read', arguments: { path: '{cwd}/README.md' } }] },
-        },
-        {
-          when: /.*/,
-          minToolResults: 1,
-          whenToolResult: /^\[(TOOL_FAILURE|DENIED|INVALID_ARGS|TIMEOUT|SANDBOX_DENIAL)\]/,
-          response: { text: '（mock）未能读取工作区 README.md——文件可能不存在或被拒。请确认工作区包含 README.md；要获得真实回答请配置模型：vessel setup。' },
-        },
-        { when: /.*/, minToolResults: 1, response: { text: '已通过 Read 工具读取工作区文件。内容开头：\n{last_tool_result}' } },
-      ],
-      {
-        model,
-        vars: { cwd: workspace },
-        fallbackText: MOCK_FALLBACK_TEXT,
-      },
-    );
+    // default smoke script: 唯一实现见 ./mockSmoke.ts（CLI 与 TUI 共用；此前两面各一份且文案已分叉）。
+    new MockProvider(mockSmokeScript(), {
+      model,
+      vars: { cwd: workspace },
+      fallbackText: MOCK_FALLBACK_TEXT,
+    });
 
   // permission 提成局部变量：既传给 composeHarness，也用于 G-10 会话登记
   // （ComposeOptions.permission 是可选的，登记表的 permission 字段必填）。

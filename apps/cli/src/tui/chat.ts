@@ -23,6 +23,7 @@ import { renderCostLines, renderTurnDelta, renderTodayLine, type UsageTotalsLike
 // **同一份**；本文件不再自带第二份判据（`chat.ts` 不能反向 import `cli.ts`，但可以 import
 // 这个谁都不依赖的叶子模块 —— 成环理由见 turnText.ts 的文件头注释）。
 import { applyMockReplyMark, isModelReplyKind, MOCK_FALLBACK_TEXT, MOCK_PROVIDER_NOTICE, type TurnKind } from '../turnText.js';
+import { mockSmokeScript } from '../mockSmoke.js';
 
 /**
  * apps/cli/src/tui/chat.ts — `vessel` interactive chat TUI (V0.7, task 021; brand Vessel).
@@ -483,17 +484,8 @@ export async function runChat(opts: ChatOptions): Promise<number> {
       // BRIEF-16 1C②：走到这个分支 = 本次 harness 真的用离线 mock（真实 provider 只会
       // 落进上面的 `if (cfg && cfg.protocol !== 'mock')`）。标记与提示都以这一行为唯一事实源。
       usingMockProvider = true;
-      const smoke = [
-        { when: /阅读|read|总结|summary/i, ifNoToolResult: true, response: { toolCalls: [{ name: 'Read', arguments: { path: '{cwd}/README.md' } }] } },
-        {
-          when: /.*/,
-          minToolResults: 1,
-          whenToolResult: /^\[(TOOL_FAILURE|DENIED|INVALID_ARGS|TIMEOUT|SANDBOX_DENIAL)\]/,
-          response: { text: '（mock）未能读取工作区 README.md——文件可能不存在或被拒。请确认工作区包含 README.md；要获得真实回答请配置模型：vessel setup。' },
-        },
-        { when: /.*/, minToolResults: 1, response: { text: '（mock）读取结果：\n{last_tool_result}' } },
-      ];
-      effProvider = new MockProvider(smoke, {
+      // 唯一实现见 ../mockSmoke.ts（与 cli.ts 的 `run` 共用；此前两面各一份且第三条文案已分叉）。
+      effProvider = new MockProvider(mockSmokeScript(), {
         model: effModel,
         vars: { cwd: sessionWorkspace },
         fallbackText: MOCK_FALLBACK_TEXT,

@@ -428,7 +428,7 @@ describe('BRIEF-16 1C mock 运行期可见性：真实 main()/runChat() 上的�
     // 每会话一行：本用例只建一次 harness，不得重复刷屏
     expect(output.filter((l) => l.includes(MOCK_NOTICE)).length).toBe(1);
 
-    const reply = tuiReplyLine(output, '（mock）读取结果');
+    const reply = tuiReplyLine(output, '已通过 Read 工具读取工作区文件');
     expect(reply).toContain('# TUI-VIS-README'); // 阳性控制：回显真的来自工作区文件
     // 判别点：TUI 的回显文案自身不带标记，只有 renderTurnReply 生效才会以标记开头
     expect(reply.trimStart().startsWith(MOCK_REPLY_MARK)).toBe(true);
