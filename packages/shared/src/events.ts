@@ -226,6 +226,9 @@ export interface RequestHeaderRecord extends SessionRecordBase {
  *
  * 为什么本卡**不接线**：生产者必须落在 `AgentLoop`（`packages/core/**`）——那正是本卡的禁改面
  * （放宽 deny-only 的 A13 语义属产品决策，见 `docs/product-evolution/PRODUCT-STATE.md`）。
+ * **v1 口径已拍定（2026-09-18，task 135）：决策镜像只记 deny** —— 本记录**不接线**；
+ * 把"allow 也落一份"登记为**未来可选增强（须先有消费方：审计 UI / conformance / 回放）**，
+ * 属 core 运行时语义变更，须独立卡 + 独立评审。见 `docs/POLICY-SPEC.md` §2.5、`docs/EVENT-SPEC.md` B19。
  * 可执行守卫：`packages/shared/src/unwiredRecords.test.ts`（一旦有人接线，该用例先红）。
  */
 export interface AuditDecisionRecord extends SessionRecordBase {

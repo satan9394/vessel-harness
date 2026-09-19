@@ -116,7 +116,7 @@
 
 ### 2.5 Audit Event（审计，四件套的"证据"）
 
-每一次走策略链的调用恰好产出一次裁决事实（D5 A13 PolicyDecision，emit），deny/ask 分支另有专属记录：
+**v1 口径（2026-09-18 拍定）：决策镜像只记 deny** —— 走策略链的 deny 分支产出 `audit/denial`(B20)；**不实现 allow 镜像**（零消费者 + 每条工具调用都落一条会显著膨胀会话日志 + 生产者须在 core，属运行时语义变更）。下表是**完整契约**（含尚未接线的记录）：
 
 | 分支 | 扩展事件 | 持久记录 | 内容 |
 |---|---|---|---|
@@ -126,9 +126,10 @@
 | 审批结果 | ApprovalDecided(A17) | `approval/decided`(B18) | decision、responder、cacheUpdated |
 | 安全度量 | — | `audit/safety`(B21) | 供 evaluator/D7 的安全指标 |
 
-> **实现状态（2026-09-18 核实，勿把上表读成"证据链已全部落地"）**：上表是**契约**。
-> 当前实现里只有 `audit/denial`(B20) 有生产者。**`audit/decision`(B19) 已登记未接线**（全仓零生产者/零消费者，
-> 见 `packages/shared/src/events.ts:210-240`）；**`approval/asked`(B17)、`approval/decided`(B18)、`audit/safety`(B21)
+> **实现状态（2026-09-18 核实 + 口径拍定）**：上表是**契约**。当前实现里只有 `audit/denial`(B20) 有生产者。
+> **`audit/decision`(B19) 已登记未接线**（全仓零生产者/零消费者，见 `packages/shared/src/events.ts:210-240`）；
+> **v1 不接线**：把"allow 也落一份决策镜像"登记为**未来可选增强（须先有消费方：审计 UI / conformance / 回放）**，
+> 属 core 运行时语义变更，须独立卡 + 独立评审。**`approval/asked`(B17)、`approval/decided`(B18)、`audit/safety`(B21)
 > 连类型都还没有**（`packages/shared/src/unwiredRecords.test.ts` 以反向断言守卫）。默认 `approval: never`，审批链未接线。
 
 纪律：**先持久、后等待**（ask 在等待应答前先落 `approval/asked`）；配对事件恰好一次；Prompt 段落不产生 Audit 事实。审计事件对保证"为什么放行/拒绝"全程可回放（H07 approval/asked→decided 证据链）。
@@ -306,14 +307,14 @@ policy:
 Agent → Tool Call              AfterModel(A10) 产出 toolCalls → 每调用落 tool/call(B04)
 → BeforeTool                   BeforeTool(A12) waterfall（决策闸口）
 → Policy Engine                Policy 规则引擎作为 A12 上的权威监听器（§4.2 裁决序）
-→ ALLOW / DENY                 guard 单调收窄 + PolicyDecision(A13) emit + audit/decision(B19)
+→ ALLOW / DENY                 guard 单调收窄 + PolicyDecision(A13) emit（**v1：deny 分支**）+ audit/denial(B20)
    （ask 分支）                 ApprovalRequest(A16) → approval/asked(B17) → 应答
                                → ApprovalDecided(A17) → approval/decided(B18)
 → Runtime                      沙箱 confine（A20 BeforeShell / 工具执行）→ AfterTool(A14)
-→ Audit                        audit/denial(B20) / audit/decision(B19) / audit/safety(B21)
+→ Audit                        audit/denial(B20)（**v1 唯一落盘的审计记录**）/ audit/decision(B19) / audit/safety(B21)
 ```
 
-> **实现状态（2026-09-18 核实）**：上面是**事件面契约**。当前只有 `tool/call`(B04)、`audit/denial`(B20) 与 `PolicyDecision(A13)` 的 deny 分支真正落盘；**`audit/decision`(B19) 未接线**（零生产者/零消费者），**`approval/asked`(B17)/`approval/decided`(B18)/`audit/safety`(B21) 无类型**（`packages/shared/src/unwiredRecords.test.ts` 守卫）。
+> **实现状态（2026-09-18 核实 + 口径拍定）**：上面是**事件面契约**。**v1 只落 `tool/call`(B04)、`audit/denial`(B20) 与 `PolicyDecision(A13)` 的 deny 分支**；`audit/decision`(B19) 已登记未接线（**v1 不接线**，allow 镜像登记为未来可选增强），`approval/asked`(B17)/`approval/decided`(B18)/`audit/safety`(B21) 无类型（`packages/shared/src/unwiredRecords.test.ts` 守卫）。
 
 ### 4.2 权威裁决序
 

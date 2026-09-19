@@ -92,11 +92,12 @@
 
 > 计数口径：本规范 v0.1 共定义 **48** 个具名事件 = 表 A 27（16 草案 + 11 新增）+ 表 B 21（自动持久记录）。草案 16 个全部收录（对照见附录 A）。
 >
-> **实现状态（2026-09-18 核实）**：表 B 的 21 条是**契约**，不等于全部已落盘。当前**已接线**的有
+> **实现状态（2026-09-18 核实 + 口径拍定）**：表 B 的 21 条是**契约**，不等于全部已落盘。当前**已接线**的有
 > `B12 request/header`、`B13 llm/retry`（生产者见 `packages/core/src/agent-loop/AgentLoop.ts`）、
 > `B20 audit/denial` 等；**未接线/无类型**的有：`B11 session/end-seed`、`B15 compaction/summary`、
 > `B17 approval/asked`、`B18 approval/decided`、`B19 audit/decision`（已登记类型、零生产者/零消费者）、
-> `B21 audit/safety`（连类型都没有）。可执行守卫：`packages/shared/src/unwiredRecords.test.ts`。
+> `B21 audit/safety`（连类型都没有）。**v1 口径：决策镜像只记 deny** —— `B19 audit/decision` **不接线**，
+> "allow 也落一份"登记为**未来可选增强（须先有消费方）**。可执行守卫：`packages/shared/src/unwiredRecords.test.ts`。
 > 详见 `docs/POLICY-SPEC.md` §2.5 的同类标注。
 
 ---
@@ -313,11 +314,11 @@ seq        : number        # 会话内事件序号（不变式校验用）
 - **关联机制/镜像**：记录：`tool/call`；机制 `tools/pre-execute` + `ToolGuard`；D6 Policy Engine。
 
 #### A13 PolicyDecision（新增，Policy 裁决事件）
-- **触发时机**：BeforeTool 全链 + guard 收窄后、执行**前**，对每个走策略链的调用恰好一次；任务书 §8 执行链的 `Policy Engine → ALLOW/DENY` 落点。
+- **触发时机**：BeforeTool 全链 + guard 收窄后、执行**前**。**契约**：对每个走策略链的调用恰好一次；**v1 实现只对 deny 分支 emit**（allow/ask 的决策镜像未接线，见 B19 的 v1 口径）。
 - **载荷字段**：`toolCallId`；`toolName`；`verdict:'allow'|'deny'|'ask'`；`decisionPath:[{stage:'rule'|'hook'|'guard'|'approval'|'profile', ref:string, outcome:string}]`（可审计轨迹：命中规则 id/钩子名/guard 收窄/审批 id/profile）；`effectiveSandboxMode?`；`reason?`。
 - **flow**：`emit`——裁决已定，监听器只观察（不改变结果；如需在裁决前介入应挂 BeforeTool）。
-- **消费方示例**：审计（`audit/decision` 记录）、UI 透明展示（为何放行/拒绝）、evaluator 安全指标（Safety Violations）、审批缓存（ApprovedForSession 按 key 序列化，Codex）。
-- **关联机制/镜像**：记录：`audit/decision`；机制：D6 Policy Engine 裁决序（denied_tools → deny → hook override → ask → allow → profile 比较，H07 共同抽象收敛）。
+- **消费方示例**：审计（`audit/decision` 记录，**v1 未接线**）、UI 透明展示（为何放行/拒绝）、evaluator 安全指标（Safety Violations）、审批缓存（ApprovedForSession 按 key 序列化，Codex）。
+- **关联机制/镜像**：记录：`audit/decision`（**v1 只登记未接线**；deny 分支的落盘记录是 `audit/denial`）；机制：D6 Policy Engine 裁决序（denied_tools → deny → hook override → ask → allow → profile 比较，H07 共同抽象收敛）。
 
 #### A14 AfterTool（草案）
 - **触发时机**：工具体执行完成（成功或带错误值）、输出渲染为模型可见 ContentBlock 后；对照 `tools/post-execute(accept|block+feedback)` → `tools/result`（冻结权威结果）。
@@ -487,7 +488,7 @@ seq        : number        # 会话内事件序号（不变式校验用）
 - **B15 `compaction/summary`** —— 摘要全文（仅日志，模型可见面是 replace 后的 summary user/message）；`sourceEventSeqs` 覆盖被遮蔽节点。**（未接线：无类型）**
 - **B16 `compaction/end`** —— 恰好一次的结束标记（配对：start→summary+replace→end）。
 - **B17 `approval/asked`** / **B18 `approval/decided`** —— 审批审计对（先持久后等待：等待前先落 asked；decided 闭合证据链，fail-closed 无应答=unavailable=拒绝）。**（未接线：无类型；默认 `approval: never`）**
-- **B19 `audit/decision`** —— PolicyDecision 的持久镜像（verdict + decisionPath 决策轨迹），可审计「为什么放行/拒绝」。**（未接线：类型已登记，全仓零生产者/零消费者；见 `packages/shared/src/events.ts:210-240`）**
+- **B19 `audit/decision`** —— PolicyDecision 的持久镜像（verdict + decisionPath 决策轨迹），可审计「为什么放行/拒绝」。**（v1 不接线：类型已登记、全仓零生产者/零消费者，见 `packages/shared/src/events.ts:210-240`；**v1 口径 = 决策镜像只记 deny**，allow 镜像登记为未来可选增强（须先有消费方），见 `docs/POLICY-SPEC.md` §2.5）**
 - **B20 `audit/denial`** —— 硬拒绝记录（Policy deny、沙箱 SANDBOX_DENIAL、never 审批、写保护 deny、**输入级 BeforeTurn 否决**）：`{toolCallId, toolName, stage, ruleRef?, reason, sandboxMode?, listener?}`，其中 `stage` 词表 = `'rule' | 'hook' | 'approval' | 'sandbox' | 'guard' | 'before_turn'`（取自终态**所在阶段**，POLICY-SPEC §7.2）。`'before_turn'` = A03 输入级否决：该决策点**没有工具调用**，故 `toolCallId`/`toolName` 写空串（显式表达"无工具锚点"，不伪造工具身份），"是谁否决"由 `listener`（投出 deny 的监听器名）承载、规则/钩子 ref 由 `ruleRef` 承载；该值只属于 B20 词表，**不要**与 §5.A A13 `decisionPath[].stage`（`rule|hook|guard|approval|profile`）混用。D7 口径（Safety Violations）与 Evaluator 证据。
 - **B21 `audit/safety`** —— 人为介入/紧急事件留痕（Interrupt、Esc、审批人工决定、steer）：`{kind, actor:'user'|'machine'|'system', detail}`；Audit Log 事实基础（任务书 §2.3、H07 证据链）。**（未接线：无类型）**
 
