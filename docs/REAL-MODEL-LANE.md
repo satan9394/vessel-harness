@@ -33,7 +33,7 @@ const providerResolver: ProviderResolver = async (model) => {
 // 2) 跑 lane（模型 / 场景集均可注入）
 const report = await runRealModelLane({
   models: LANE_MODELS,          // 默认 DeepSeek V4 Pro / Flash，可注入
-  scenarios: LANE_SCENARIOS,    // 固定场景集（21 个既有资产），可注入
+  scenarios: LANE_SCENARIOS,    // 固定场景集（25 个既有资产），可注入
   providerResolver,
   repoRoot: process.cwd(),       // 仓库根（定位 benchmarks/ + configs/）
   reportsDir: 'benchmarks/reports',
@@ -45,7 +45,7 @@ console.log(report.modelSummaries);   // 每模型汇总（passed/failed/pending
 
 ## 场景集与模型档（§15.1 L2 标注）
 
-默认 `LANE_SCENARIOS` = 全部既有 L1 资产（**21 个**，落在 §15.1 的 20-50 区间）。每个场景标注适用模型档：
+默认 `LANE_SCENARIOS` = 全部既有 L1 资产（**25 个** = B001-B005 + B016-B027 + S001-S008，落在 §15.1 的 20-50 区间；B024-B027 为 V1.1-D 新增）。每个场景标注适用模型档：
 
 | 档 | 场景 | 说明 |
 | --- | --- | --- |
@@ -57,12 +57,14 @@ console.log(report.modelSummaries);   // 每模型汇总（passed/failed/pending
 
 - `runnable=true`（13 个：B001-B005 + S001-S008）：task 型 / 安全型场景，可通过 076 Vessel self-adapter
   在真实模型单轮上驱动，采集 §15 L3 指标（含 policy 硬执行为行为本身的 S001-S008）。
-- `runnable=false`（8 个：B016-B023 feature-lane）：子代理 / 规划 / 评估 / MCP / Memory / Skill /
-  TaskRouter / Loop-Engine 驱动是**确定性 mock** 车道（判定依赖机器 golden 标记），真实模型无法忠实复现
+- `runnable=false`（12 个：B016-B027 feature-lane）：子代理 / 规划 / 评估 / MCP / Memory / Skill /
+  TaskRouter / Loop-Engine，以及 V1.1-D 的 streaming / interrupt / steering / resume（B024-B027）——
+  其判定依赖确定性 mock 车道（机器 golden 标记），真实模型无法忠实复现
   → 在 registry 中枚举以凑齐 20-50 集，但真实 lane 标记 `skipped`，**不烧配额**。
 
-> 说明：streaming / interrupt / steering / resume 等 §15.1 L1「继续增加」项尚无既有资产（assets 中无对应
-> yaml/fixture），故不出现在本默认集；本卡范围「从既有 assets 选」，待 083/084 或后续卡补资产后再纳入。
+> 说明：streaming / interrupt / steering / resume 四类 §15.1 L1「继续增加」项**已由 V1.1-D 补资产**
+> （B024-B027，离线确定性），并纳入默认 `LANE_SCENARIOS`；它们仍是 `runnable=false`（真实模型不驱动，
+> 避免烧配额），但其 L1 判据在确定性车道里有执行路径。
 
 ## 采集与报告
 
@@ -359,5 +361,5 @@ $plain = [System.Text.Encoding]::UTF8.GetString(
    compose/telemetry 逻辑，也保证报告行都是契约合法 RunResult。
 3. **可注入 = 契约友好**：`models` / `scenarios` / `providerResolver` 均可注入；无凭据时 mock provider 验证
    全框架，退化到 pending-environment，天然满足「不烧真实配额」。
-4. **场景集从既有资产选**：只用现存 21 个 yaml/assets，不新造场景资产（不膨胀范围）；feature-lane 枚举为
+4. **场景集从既有资产选**：只用现存 25 个 yaml/assets，不新造场景资产（不膨胀范围）；feature-lane 枚举为
    `skipped` 而非虚跑。

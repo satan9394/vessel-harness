@@ -15,7 +15,8 @@
 067 handoff 消费：
 
 - **ProjectTaskQueue**：项目级任务队列（每任务一个目录记录，状态机
-  `pending → in-progress → met/not_met`，另 `requeue` 开新轮 / `cancel` 软移除），是真实链
+  `pending → in-progress → met/not_met`，另有 `paused`（066 pause/resume）与 `cancelled`；
+  `requeue` 开新轮 / `cancel` 软移除），是真实链
   「Task Selection」的**持久任务选择来源**；
 - **IterationStore**：per-task 迭代日志（每次运行 append 一条：verdict/evidence/reason +
   061 generator 产出快照 + 062 evaluator 评审快照 + 状态转移），**可回放**。
@@ -54,7 +55,7 @@ settle(met|not_met) ◀── 结果回写队列                      generator 
 | `id` | `task_<ts>_<hex>`（enqueue 自动；测试可注入确定性 id/now） |
 | `goal` / `acceptance` | 任务目标 + 验收标准（对齐 061/062 run 请求输入与 LoopTask；acceptance 只透传，不进 developer 自评） |
 | `projectRoot` | 所属项目工作区根（绝对路径；"项目级"归属与过滤键） |
-| `status` | `pending / in-progress / met / not_met / cancelled` |
+| `status` | `pending / in-progress / paused / met / not_met / cancelled` |
 | `createdAt/updatedAt/startedAt/settledAt` | 生命周期时间戳（ISO） |
 | `outcome` | settle 结论快照：`status/verdict(原始 evaluator 瞬时结论)/reason/iteration/settledAt` |
 

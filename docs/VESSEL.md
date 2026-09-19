@@ -41,14 +41,14 @@ vessel provider switch deepseek
 
 # ④ 交互界面内的斜杠命令
 #   /provider 配置供应商 · /models 拉模型 · /model <id> 切模型 · /permission 切权限档
-#   /setup 引导配置 · /help · /quit
+#   /setup 引导配置 · /cost 会话成本（同 /usage） · /mcp 列出 MCP server · /diff 本会话改动（只读） · /help · /quit
 
 # ⑤ 测试与构建
-npx vitest run           # 全量测试（当前 285 绿）
+npm run test:all         # 全量测试（两个 root：根 + apps/web；当前根 178 文件 / 2236 passed + 6 skipped，web 11 / 120）
 npx tsc -b               # 类型检查
 ```
 
-> 版本输出：`vessel --version` → `Vessel CLI v0.1.0`。`cah` 别名与 `@cah/*` 包名已在 V0.9 彻底移除（历史 commit 与调研快照除外）。
+> 版本输出：`vessel --version` → `Vessel CLI v0.10.0`。`cah` 别名与 `@cah/*` 包名已在 V0.9 彻底移除（历史 commit 与调研快照除外）。
 
 ---
 
@@ -111,7 +111,7 @@ npx tsc -b               # 类型检查
 
 ## 四、三角色（Lead / Developer / Reviewer）
 
-> 机制说明：按设计决策点 12（角色=配置），三角色是 **preset 配置（角色卡），不是新代码机制**——先文档化，不实现成代码 preset。三者的共同底座是继承 Vessel Constitution：六条哲学以 IR 编译进各自会话的 stable system，任何角色都不凌驾于宪法之上。
+> 机制说明：按设计决策点 12（角色=配置），三角色的**语义**是 preset 配置（角色卡）而非新的运行时机制；**现已落为代码 preset**——`packages/agents/src/presets/`（`DEFAULT_AGENT_PRESETS` + `createDefaultPresetRegistry`，Lead/Developer/Reviewer，工具面 shrink-only、preset 未命中 fail-closed），见 `docs/AGENT-PRESETS.md`。三者的共同底座是继承 Vessel Constitution：六条哲学以 IR 编译进各自会话的 stable system，任何角色都不凌驾于宪法之上。
 
 ### Lead —— 指挥 / 规划 / 验收
 - 核心理念：**目标与判据定清楚，活派出去，证据收回来**；不亲自动手写实现。

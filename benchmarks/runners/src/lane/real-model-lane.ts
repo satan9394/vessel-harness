@@ -2,8 +2,8 @@
  * task 082 — Real-Model Benchmark Lane (L2 real model regression runway).
  *
  * Fixed real models (DeepSeek V4 Pro / Flash by default, injectable) run a
- * fixed scenario set picked from the existing L1 assets (B001-B023 + safety
- * S001-S008, 21 entries inside the §15.1 target of 20-50) and uniformly
+ * fixed scenario set picked from the existing L1 assets (B001-B005 + B016-B027 +
+ * safety S001-S008, 25 entries inside the §15.1 target of 20-50) and uniformly
  * collect §15.1 L2/L3 metrics, reusing the task-076 RunResult contract.
  *
  * Honesty / degradation:

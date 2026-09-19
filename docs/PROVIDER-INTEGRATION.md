@@ -11,6 +11,7 @@
 |---|---|---|---|
 | OpenAI chat/completions | `OpenAICompatibleProvider` | `openai-compatible` | OpenAI、DeepSeek、Qwen(DashScope)、Kimi(Moonshot)、GLM(Z.ai)、MiniMax、混元、xAI、vLLM、Ollama、OpenRouter、Gemini(OpenAI 兼容端) 等 |
 | Anthropic Messages API | `AnthropicProvider` | `anthropic` | Anthropic Claude（原生 + Bedrock/Vertex/Azure 转售）、DeepSeek/Qwen 等的 Anthropic 兼容端 |
+| opencode-go（OpenAI 兼容 + `x-opencode-session` 头） | `OpencodeGoProvider` | `opencode-go` | opencode Zen/Go 网关（真实模型 lane 的默认 provider，task 102；凭据走 CredentialStore，见 `tasks/V1.1-C`） |
 | 确定性脚本 | `MockProvider` | `mock` | 测试 / benchmark / 冒烟（离线） |
 
 核心结论：**OpenAI + Anthropic 两套方言覆盖最广**（调研 §5）。业界主流（Vercel AI SDK / LiteLLM）也是"内部统一接口 + 每方言一个翻译器"，与本项目 ChatProvider seam 同思路。
@@ -109,7 +110,7 @@ TaskRouter（V0.4）接多供应商：TierModelMap 的 providerId 直接绑 `ant
 
 ```powershell
 npx vitest run packages/llm              # provider 协议层测试（本地 fake server，不发真网络）
-npx vitest run                           # 全量 211
+npm run test:all                         # 全量（两个 root：根 + apps/web）
 # 端到端：本地 fake /v1/messages 或 /chat/completions，CLI --provider xxx 跑一轮 tool 往返
 node apps/cli/dist/cli.js run --workspace <dir> --provider <p> --base-url <fake> --api-key k --model m --prompt "..."
 ```
