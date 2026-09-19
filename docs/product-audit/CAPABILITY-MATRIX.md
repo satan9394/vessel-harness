@@ -131,14 +131,14 @@ IDE 扩展型（Roo Code 已停服、Cursor CLI 闭源）不入主矩阵，仅�
 - 结论：Vessel 的 worktree 隔离其实比竞品的"当场改当场 commit"更干净（真隔离），但缺少**会话级快照/回滚的面向用户出口**（见 §6-4）。**部分已补（task 128/129）**：`vessel diff [<id>|--last]`（CLI）与 `/diff`（TUI）提供只读改动提示（本会话 Write/Edit 的文件 + shell + 工作区 `git status --short`），把判断权留给人；**自动 revert 仍未做**（克制形态，见 §6-4）。
 
 ### 13 Headless 脚本输出
-- Vessel：◐→**部分已补**。有确定性输出通道：`run --bench <id>` 产 JSONL 报告、`bench-report` 聚合输出 md/json、`serve`/`web` 有 usage SSE；**通用 `vessel run` 现已支持 `--json`**（Round 130 起：`--json` 时 stdout 只出一段文档，含 kind/finalText/steps/toolCalls/turnId/sessionLog），可直接进 CI/管道消费。**仍缺**：`--output-format stream-json`（流式结构化）。`run --json` 现已含 `durationMs` 与 `enforcement`（counts/sources/status/recent，与人类 telemetry 同一取数函数）。
+- Vessel：◐→**部分已补**。有确定性输出通道：`run --bench <id>` 产 JSONL 报告、`bench-report` 聚合输出 md/json、`serve`/`web` 有 usage SSE；**通用 `vessel run` 现已支持 `--json`**（Round 130 起：`--json` 时 stdout 只出一段文档，含 kind/finalText/steps/toolCalls/turnId/sessionLog），可直接进 CI/管道消费。**仍缺**：`--output-format stream-json`（流式结构化）——**已登记为可选增强（无消费方不做）**，见 §6-3 与 `docs/V1.6-STABLE-CHECKLIST.md` §未闭合清单第 9 条。`run --json` 现已含 `durationMs` 与 `enforcement`（counts/sources/status/recent，与人类 telemetry 同一取数函数）。
 - 竞品：Claude Code `-p` + `--output-format json/stream-json`；Codex `exec --json`；Gemini `-p --output-format json|stream-json`（README 明确）；Aider `-m`；Cline CLI `--json`（README 明确）；OpenHands Agent Server REST。
 - 见 §6-3。
 
 ### 14 MCP 扩展
 - Vessel：● **已交付**（原判 ◐ 已过时）。**库级完整**：`packages/tools/src/mcp/`（McpClient stdio 传输、tools/list + tools/call、动态注册 `mcp__<server>__<tool>`、policy deny 可按工具名精确拦截）、compose 组合根可注入 MCP 连接；**CLI/TUI 可读 `~/.vessel/mcp.json` 并逐 server 降级**；**CLI 有 `vessel mcp list / add / remove / path`（task 127），TUI 有 `/mcp`（task 129）**，均含 `--json`/只读镜像。
 - 竞品：OpenCode/Claude Code/Codex/Gemini/Cline 均有一等 MCP 配置入口（`cline mcp`、config 声明等）。
-- 结论：管道已通、缺 CLI 出口。见 §6-2 的"值得做（低成本）"判断。
+- 结论：管道已通，**CLI/TUI 出口已交付**（`vessel mcp` / `/mcp`，task 127/129）。见 §6-2。
 
 ### 15 插件/扩展 API
 - Vessel：◐。组合面强：monorepo packages（core/llm/behavior/context/tools/policy/runtime/memory/skills/agents/telemetry/engine/application）+ `compose.ts` 组合根（MCP/子代理/workspace 等全可注入），等于"框架即库"；但**无对外 SDK 文档、无插件 API、无市场**。
@@ -186,7 +186,7 @@ IDE 扩展型（Roo Code 已停服、Cursor CLI 闭源）不入主矩阵，仅�
 **Vessel 覆盖情况**：除"对外发行渠道"外全绿；"安装"一项是自用形态的合法取舍（见 §6-1）。
 
 ### 4.2 行业常见能力（多数竞品有，Vessel 部分有或全有）
-主题、多语言（zh/en）、headless 结构化输出（部分）、MCP（库级有 / CLI 缺 `vessel mcp` 子命令）、子代理/团队、Git 相关能力（隔离有 / 用户工作流缺）、**会话续跑（已交付）**、沙箱（**Windows OS 进程边界已交付**；受限令牌降权与非 Windows 未做）、IDE/Web 辅表面（部分）、可观察性（部分）、成本与用量（**Vessel 全有且更强**）。
+主题、多语言（zh/en）、headless 结构化输出（部分）、MCP（**库级 + CLI/TUI 出口均已交付**，task 127/129）、子代理/团队、Git 相关能力（隔离有 / 用户工作流缺）、**会话续跑（已交付）**、沙箱（**Windows OS 进程边界已交付**；受限令牌降权与非 Windows 未做）、IDE/Web 辅表面（部分）、可观察性（部分）、成本与用量（**Vessel 全有且更强**）。
 → 这一类是本次审计的主要差距来源，逐条在 §6 论证取舍。
 
 ### 4.3 差异化能力（Vessel 独有或领先）
@@ -204,7 +204,7 @@ IDE 扩展型（Roo Code 已停服、Cursor CLI 闭源）不入主矩阵，仅�
 ### 4.4 当前项目缺失能力（缺口清单，逐条论证见 §6）
 1. ~~会话续跑（resume/continue）~~ ⇒ **已交付**（`vessel sessions list` / `vessel resume <id>|--last`）
 2. ~~CLI 面 MCP 配置入口（库优于 CLI；`~/.vessel/mcp.json` 已可读，仍缺 `vessel mcp` 子命令）~~ ⇒ **已交付**（`vessel mcp list/add/remove/path`，task 127）
-3. 通用 Headless JSON 输出契约（`run --json` 已补，仍缺 stream-json）
+3. 通用 Headless JSON 输出契约（`run --json` **已交付**；`stream-json` **登记为可选增强、无消费方不做**）
 4. 会话级 Git 快照/回滚出口（undo/checkpoint）—— **只读提示已交付**（`vessel diff`，task 128）；自动 revert 未做（克制形态）
 5. OS 级沙箱：**Windows 已交付 Job Object + process-tree（071/072）**；**仍缺**受限令牌/低完整性降权，及非 Windows（Seatbelt/Landlock/bubblewrap）
 6. 价格/成本在 TUI 会话内的实时可见性（**已交付**：`/cost` + 每回合增量）
@@ -242,17 +242,17 @@ IDE 扩展型（Roo Code 已停服、Cursor CLI 闭源）不入主矩阵，仅�
 - 成本：npm 打包配置（workspaces→单包、dist 产物、bin 入口）、CI 发布流水线、版本策略；一次性的，维护面小。
 - 建议：**值得做（中收益中低成本）**，但只做 npm 包 + `npx @vessel/cli`，不做多平台二进制/安装脚本（那是大众产品的事）。这是全盘差距里"投入产出比最佳"的一项。
 
-### 6-2 CLI 面 MCP 配置入口（`vessel mcp`）——◐ 现状
-- 现状：库级 MCP（McpClient + 动态注册 + 按工具 policy deny）已完整且经测试；CLI 无配置命令。
-- 收益：MCP 已是行业事实标准（7 个竞品全部有一等入口）；Vessel 的差异化"策略约束 MCP 工具"已经写好，只差暴露；用户在自用时想接一个 MCP server（如本地检索/数据库工具）现在只能写代码调 compose——对"自用"也是摩擦。
+### 6-2 CLI 面 MCP 配置入口（`vessel mcp`）——**已交付**
+- 现状（2026-09-18 更新）：库级 MCP（McpClient + 动态注册 + 按工具 policy deny）完整且经测试；**CLI/TUI 出口已交付**——`vessel mcp list/add/remove/path`（`--json`，只读写 `~/.vessel/mcp.json`，不建 transport，task 127）与 TUI `/mcp` 只读镜像（task 129）。
+- 收益：MCP 已是行业事实标准（7 个竞品全部有一等入口）；Vessel 的差异化"策略约束 MCP 工具"现已可经 CLI 暴露。
 - 成本：一个子命令 + 配置存储（~/.vessel 内）+ 复用现有 policy deny 语法；管道已通，成本低。
-- 建议：**值得做（中收益低成本）**，排在 6-1 之后；可顺带补一个 `mcp test` 探活（复用 endpointProbe 思路）。
+- 建议：**已交付**；`mcp test` 探活仍未做（无消费方，登记为可选增强）。
 
-### 6-3 通用 Headless JSON 输出（`vessel run --format json|stream-json`）——◐ 现状
-- 现状：只有 bench 通道输出 JSONL；通用 run 无结构化契约。
+### 6-3 通用 Headless JSON 输出（`vessel run --format json|stream-json`）——◐ → **`--json` 已交付；`stream-json` 登记为可选增强**
+- 现状（2026-09-18 更新）：bench 通道输出 JSONL 之外，**通用 `vessel run --json` 已交付**（Round 130 起：stdout 只出一段文档，含 kind/finalText/steps/toolCalls/turnId/sessionLog，另含 `durationMs` 与 `enforcement`），可直接进 CI/管道消费。**`--output-format stream-json`（流式结构化）仍未做**：**登记为可选增强（无消费方不做）**，见 `docs/V1.6-STABLE-CHECKLIST.md` §未闭合清单第 9 条。
 - 收益：把 Vessel 接进脚本/CI（自用常见：非交互跑一轮、管道消费）；Gemini/Claude/Codex 全都有，证明这是 CLI agent 的"基础礼仪"而非锦上添花。
-- 成本：一个输出序列化层（事件流 → JSON 行），复用已有 EventBus/telemetry 事件；低成本。
-- 建议：**值得做（中低收益低成本）**；若 event 规范（EVENT-SPEC，D5）本就是事件词汇，则直接映射即可，属于"已有资产的白捡出口"。
+- 成本：`--json` 已按此思路落地（复用 EventBus/telemetry 事件）；stream-json 需增量事件序列化层，当前无消费方。
+- 建议：**`--json` 已交付**；**`stream-json` 不做**（无消费方，登记为未来可选增强；若将来出现 CI 流式消费方再评估）。
 
 ### 6-4 会话级快照/回滚出口（undo/checkpoint）——◐ 现状
 - 现状：worktree 隔离用于引擎执行面；用户没有"这次 run 改了什么、怎么回滚"的入口（session 日志有，但无 diff/恢复动作）。
@@ -310,7 +310,7 @@ IDE 扩展型（Roo Code 已停服、Cursor CLI 闭源）不入主矩阵，仅�
 
 ## 8. 结论摘要
 
-- 最重要差距（值得做，按优先级）：① ~~TUI 会话内成本可见~~ **已交付**（`/cost` + 每回合增量）；② 会话续跑 ~~+ 快照回滚~~（**续跑已交付**；会话级快照/回滚仍待做，6-1/6-4）；③ CLI 面 MCP 配置 + 通用 JSON 输出（`run --json` 已补；仍缺 `vessel mcp` 子命令与 stream-json，6-2/6-3）。
+- 最重要差距（值得做，按优先级）：① ~~TUI 会话内成本可见~~ **已交付**（`/cost` + 每回合增量）；② 会话续跑 ~~+ 快照回滚~~（**续跑已交付**；会话级快照/回滚仍待做，6-1/6-4）；③ CLI 面 MCP 配置 + 通用 JSON 输出（**均已交付**：`vessel mcp` task 127、`run --json` Round 130；`stream-json` **登记为可选增强、无消费方不做**，6-2/6-3）。
 - 最重要差异化（守住的）：Behavior IR/Policy 编译硬执法、Generator/Evaluator 分离评估、供应商/成本管理纵深、中英双语引导。
 - 明确不做的：插件市场、消息平台、**非 Windows OS 沙箱**（Windows 进程边界已交付）、多语言扩展、多人协作/云、大众基准榜单、IDE/桌面表面。
 
