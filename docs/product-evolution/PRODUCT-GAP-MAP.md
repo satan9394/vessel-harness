@@ -9,7 +9,10 @@
 > 当前门禁与仍开放项的**最新快照**见 `PRODUCT-STATE.md` 顶部「2026-09-18 现状快照」。
 > 已在后续闭合、不要再当缺口做的典型：会话续跑（`vessel sessions list`/`resume` 已交付）、
 > TUI 会话内成本可见（`/cost` 已交付）、`run --json`、`deny_domains` 已改 `declarationOnly`、
-> Windows OS 进程边界（Job Object 071/072 已交付）、CI/CodeQL/Dependabot 告警已清零。
+> Windows OS 进程边界（Job Object 071/072 已交付）、CI/CodeQL/Dependabot 告警已清零、
+> **MCP 的 CLI/TUI 出口**（`vessel mcp` + TUI `/mcp`，tasks/127/129）、
+> **会话改动只读提示**（`vessel diff` + TUI `/diff`，tasks/128/129）、
+> **三处「两份实现」已收敛**（MCP 装配 / mock 文案 / guide locale，tasks/130–132）。
 
 ---
 

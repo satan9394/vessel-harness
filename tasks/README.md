@@ -33,12 +33,17 @@
 | V1.1（A–F 六卡） | `V1.1-*.md` | 已合入（收官；余环境补齐项非阻塞） | `docs/V1.1-ROADMAP.md` |
 | 产品演进 / 独立评审 | 085-122 | 已合入 | `docs/product-evolution/EVALUATION-REPORT-*.md`、`tasks/1xx` |
 | CI 修复与安全加固 | 123 | 已合入 | `tasks/123-ci-tsc-build-repair.md` |
-| `Session.loadExisting` 补 `await`（fd 泄漏） | 124 | 待验收 | `tasks/124-session-load-existing-await.md` |
+| `Session.loadExisting` 补 `await`（fd 泄漏） | 124 | 已合入（评审 PASS + 其发现的租约清理） | `tasks/124-session-load-existing-await.md` |
+| Cross-Harness Conformance 驱动 + soak 默认参数修复 + 1.0 门槛核对 | 125-126 | 已合入 | `tasks/125-*.md`、`tasks/126-*.md`、`docs/V1.6-STABLE-CHECKLIST.md` |
+| CLI/TUI 能力补齐（`vessel mcp` / `vessel diff` / TUI `/mcp` `/diff`） | 127-129 | 已合入 | `tasks/127-*.md`、`tasks/128-*.md`、`tasks/129-*.md` |
+| 「两份实现」收敛（MCP 装配 / mock 文案 / guide locale） | 130-132 | 已合入 | `tasks/130-*.md`、`tasks/131-*.md`、`tasks/132-*.md` |
 
 ## 未闭合 / 下一目标
 
 - **环境补齐项（非阻塞）**：opencode-go 余额 → 重跑 real-model lane；Packaging gate 需 dist。
   见 `docs/V1.1-ROADMAP.md` §5。
-- **下一 Mission 候选**：**Cross-Harness Conformance Suite 实跑**（项目自我定义的核心差异点，尚未实跑）；
-  另有 `request/header` 接线、`costEstimate`/M11 产物侧缺口等 Deferred 项。
-  开工前按 `RUN_STATE.md` 机制先存档旧信封再写新 Mission。
+- **Cross-Harness Conformance**：驱动与可运行入口**已交付**（`npm run bench:conformance -- --all` 离线 25 场景 25 passed）；
+  **待**一次 `--live` 真实跨 harness 基线（消耗 dsh/opencode/codex/claude 配额）→ 定回归阈值 → README/报告固化。
+- **下一 Mission 候选**：`--live` 基线；`audit/decision`(B19) 接线（**已定 v1 口径：只记 deny，不实现**）；
+  会话级自动 revert（克制形态：只读提示已交付，自动回滚不做）。
+- 开工前按 `RUN_STATE.md` 机制先存档旧信封再写新 Mission。

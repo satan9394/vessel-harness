@@ -8,7 +8,14 @@
 
 ## [Unreleased] - 2026-09-18
 
-> 本轮只改**构建 / CI / 安全配置 / 依赖 / 测试**与文档，未改动已发布 CLI 的对外行为；故不提升版本号、不打 tag。
+> 本轮以**构建 / CI / 安全配置 / 依赖 / 测试**为主，并新增 **CLI/TUI 能力**（`vessel mcp` / `vessel diff` / TUI `/mcp` `/diff`）与 **Cross-Harness Conformance 驱动**；仍**不提升版本号、不打 tag**（发布留待 1.0 Stable 门槛核验后）。
+
+### Added
+
+- **Cross-Harness Conformance 驱动与可运行入口**：`benchmarks/runners/src/conformance/`（`runConformance` 能力感知跳过、单格错误隔离、`checkThresholds` 回归阈值；`npm run bench:conformance`）。默认离线只跑 Vessel 自适配器（确定性 mock，不耗配额）；`--live` 才纳入外部 harness 且逐个 CLI 探针。离线 `--all` 25 场景 25 passed。（`tasks/125`，`29f6ab2`）
+- **`vessel mcp` 配置子命令**：`list` / `add` / `remove` / `path`（`--json`；只读写 `~/.vessel/mcp.json`，不建 transport）。（`tasks/127`，`ad23592`）
+- **`vessel diff [<id>|--last]`**：会话改动的**只读**提示（本会话 Write/Edit 文件 + shell + 工作区 `git status --short`；不回滚）。（`tasks/128`，`45701b2`）
+- **TUI `/mcp` 与 `/diff`**：与 CLI 同名命令只读镜像，闭合 TUI/CLI 命令面分叉。（`tasks/129`，`41b4cbd`）
 
 ### Fixed
 
@@ -18,6 +25,8 @@
 - **`Session.loadExisting()` 合成 `turn/end` 改为 `await`**：消除 FileHandle 泄漏与"合成收尾记录不保证落盘"；并由独立对抗评审驱动补上 `open()` 失败时的租约/fd 清理（否则一次瞬时写失败会让同进程重试被自己的租约锁死）。见 `tasks/124`。（`aa5ea99` + 本轮）
 - **`@vessel/bench-runners` 补齐 4 条 project reference**（engine/policy/runtime/telemetry 的 src 实际 import 却未声明，靠 dist 偶然顺序，TS7 下 flake 成 TS2305）。（`e06ac12`）
 - **锁文件与 `package.json` 重新对齐**：TS7 合并时误留旧锁，`npm ci` 失败被 `|| npm install` 静默掩盖。（`9c31c0a`）
+- **soak 默认参数自洽修复**：默认长跑此前 `maxAccepted=3 < handoffEvery=8` 且任务 3 轮全 met ⇒ 循环提前退出，**handoff/resume 从未被覆盖**（实测 `handoffCount=0`、`resume=false`）。修后默认即 `handoffs=40 / resume=true / pauseResume=1 / 零残留`，并加参数自洽守卫与回归锁。见 `tasks/126`。（`99e801a`）
+- **`vessel guide` 在 settings 损坏时崩溃**：`cmdGuide` 直读 `settings.locale`（`load()` fail loud 会抛），而 `cmdExplain` 走 `loadLocaleOrDefault` 回退 zh —— 注释还谎称"两处都调本函数"。收敛到 `resolveGuideLocale`。见 `tasks/132`。（`56a10a0`）
 
 ### Changed
 
@@ -25,6 +34,7 @@
 - **CI 安装门禁收紧为硬 `npm ci`**：去掉 `|| npm install` 回退，锁文件不一致直接红。
 - **CI 覆盖 `apps/web`**：新增 `apps/web` 的 `typecheck` + `vite build` 步骤（此前不构建 web，vite 8 与 `@vitejs/plugin-react@4` 的 peer 冲突因此溜过）。（`3ccb082`）
 - **Dependabot 配置修正**：原两条 `package-ecosystem`/`directory` 为空（无效），改为 npm 根 + github-actions。（`9f8119b`）
+- **三处「两份实现」收敛为唯一实现**（本仓反复出现的"无声分叉"类）：**MCP 装配**（`cli.ts` 与 TUI 各一份 → `mcp/assemble.ts`，错误策略交调用方，`tasks/130`，`1250c3d`）；**mock 文案/标记/渲染助手**（→ 零依赖叶子 `turnText.ts`，`tasks/131`，`4e7f235`）；**guide locale 解析**（→ `resolveGuideLocale`，`tasks/132`，`56a10a0`）。均附单实现静态守卫。
 
 ### Security
 
