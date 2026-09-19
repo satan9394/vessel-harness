@@ -24,6 +24,7 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { vesselAdapter } from '../contracts/vessel.js';
 import { validateRunResult } from '../contracts/validate.js';
+import { loadManifest } from '../manifest.js';
 import type { ChatProvider } from '@vessel/shared';
 import type { HarnessFixture, RunResult } from '../contracts/types.js';
 
@@ -338,14 +339,40 @@ export async function runRealModelLane(opts: {
   const startedIso = startedAt.toISOString();
 
   const fixtureCache = new Map<string, HarnessFixture>();
+  // Scenario manifest `policy:` (profile/approval), loaded once per scenario. A
+  // missing/invalid manifest degrades to `undefined` ⇒ base policy, so the lane
+  // never throws here and the offline/conformance path (which passes nothing) is
+  // byte-for-byte unchanged.
+  const policyCache = new Map<string, { profile?: string; approval?: string } | undefined>();
+  const scenarioPolicyFor = (id: string): { profile?: string; approval?: string } | undefined => {
+    if (policyCache.has(id)) return policyCache.get(id);
+    let policy: { profile?: string; approval?: string } | undefined;
+    try {
+      policy = loadManifest(opts.repoRoot, id).policy;
+    } catch {
+      policy = undefined;
+    }
+    policyCache.set(id, policy);
+    return policy;
+  };
   const makeFixture = (entry: LaneScenarioEntry, model: LaneModel, provider: ChatProvider): HarnessFixture => {
     const key = `${model.id}::${entry.id}`;
     let f = fixtureCache.get(key);
     if (!f) {
+      const scenarioPolicy = scenarioPolicyFor(entry.id);
       f = {
         id: entry.id,
         workspaceRoot: scenarioFixtureDir(opts.repoRoot, entry.id),
-        options: { provider, model: model.defaultModel, configRoot: opts.repoRoot, keepWorkspace: opts.keepWorkspace },
+        options: {
+          provider,
+          model: model.defaultModel,
+          configRoot: opts.repoRoot,
+          keepWorkspace: opts.keepWorkspace,
+          // the scenario's declared policy — without it this lane ran every
+          // scenario under configs/policy.default.yaml (B005/S006 need
+          // danger-full-access; Shell is fail-closed under workspace-write).
+          ...(scenarioPolicy ? { scenarioPolicy } : {}),
+        },
       };
       fixtureCache.set(key, f);
     }

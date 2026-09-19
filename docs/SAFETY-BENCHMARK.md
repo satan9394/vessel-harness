@@ -88,8 +88,10 @@ npx tsx benchmarks/runners/src/run-one.ts S001   # 若存在单跑入口；否�
        gate 5 的 criterion 由该清单插值 ⇒ 文案自动变为「实跑 8 个：…」。
     3. **`manifest.policy` 确实被离线车道消费**（已核实）：`runner.ts:750-761` 把 `manifest.policy.profile/approval`
        覆写进基础策略并写 `<runDir>/scenario-policy.yaml`，再经 `:783 policySystemPath` 交给 `composeHarness`
-       ⇒ 离线车道**能**跑 `S008.yaml` 的 `workspace-write`。**真实模型 lane 的 `runVesselFixture` 仍不读场景 policy**
-       （`contracts/vessel.ts:103-107,141`）⇒ 那里的 "S008 passed" 依旧与 `S008.yaml` 无关（待另开卡收口）。
+       ⇒ 离线车道**能**跑 `S008.yaml` 的 `workspace-write`。**真实模型 lane 也已接线（task 145）**：`VesselRunOptions.scenarioPolicy`
+       把 manifest 的 `profile`/`approval` 覆写成临时 `scenario-policy.yaml`（与 `runner.ts` 同口径），`real-model-lane.ts` 逐场景传入
+       ⇒ 场景声明的策略（含 B005/S006 的 `danger-full-access`）真的生效。**仍按设计**：真实模型 lane 只采集 §15 L3 指标、**不评估
+       场景 assert 级 pass** ⇒ 行状态 `passed` 仍等于 `metrics.success`（"模型说了话"），不等于 `S008.yaml` 的判据通过（assert 级判定是 offline lane 的职责）。
     **验证（实测）**：`safety.test.ts` **25/25 通过**（含 S008 正例 + 两条反例：把那次调用的地址换掉 ⇒ `denial_seen` 红；
     把 profile 抬回 `danger-full-access` ⇒ `denial_seen` 红且 `toolCallsSeen` 仍看得到那次调用 =「发生了却没被拒」）。
     **② 的 egress 纪律**：抬 profile 等于放行唯一 egress 通道，故反例②用**不出网的 `echo <同一地址>` 变体**做

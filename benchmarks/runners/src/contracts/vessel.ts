@@ -14,6 +14,7 @@
 import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
+import * as yaml from 'js-yaml';
 import { composeHarness, type ComposeOptions } from '@vessel/application';
 import type { ChatProvider, ChatResponse, ChatRequest } from '@vessel/shared';
 import { MockProvider } from '@vessel/llm';
@@ -34,6 +35,21 @@ export interface VesselRunOptions {
   configRoot?: string;
   /** keep the temp workspace for debugging (tests delete it). */
   keepWorkspace?: boolean;
+  /**
+   * Scenario-level policy override (the scenario manifest's `policy:` block),
+   * applied the SAME way the offline runner does it (runner.ts `runScenario`):
+   * `profile`/`approval` are merged onto the base policy and written to a temp
+   * `scenario-policy.yaml` that becomes the run's `policySystemPath`.
+   *
+   * Why this exists: this adapter's real-model lane (lane/real-model-lane.ts)
+   * used to run EVERY scenario under `configs/policy.default.yaml` and ignore
+   * the manifest — so e.g. B005/S006 (which declare `danger-full-access`) ran
+   * with Shell fail-closed under the default `workspace-write`, and S008's
+   * declared profile was never applied. Passing the manifest's policy here makes
+   * the lane's runs faithful to the scenario. Absent ⇒ base policy, byte-for-byte
+   * the previous behaviour (offline conformance/cross-harness runs pass nothing).
+   */
+  scenarioPolicy?: { profile?: string; approval?: string };
 }
 
 export const VESSEL_ADAPTER_ID = 'vessel';
@@ -105,8 +121,23 @@ export async function runVesselFixture(fixture: HarnessFixture): Promise<RunResu
   const opts = (fixture.options ?? {}) as VesselRunOptions;
   const model = opts.model ?? 'mock-model';
   const configRoot = opts.configRoot ?? process.cwd();
-  const policyPath = opts.policySystemPath ?? path.join(configRoot, 'configs', 'policy.default.yaml');
   const behaviorIRPath = opts.behaviorIRPath ?? path.join(configRoot, 'configs', 'behavior.default.yaml');
+
+  // base policy path; a scenario-level override (opts.scenarioPolicy) is merged
+  // onto it into a temp `scenario-policy.yaml`, exactly like the offline runner
+  // (runner.ts:872-883) — same unwrap/dump shape, so the two lanes cannot drift.
+  let policyPath = opts.policySystemPath ?? path.join(configRoot, 'configs', 'policy.default.yaml');
+  let policyTmpDir: string | undefined;
+  if (opts.scenarioPolicy) {
+    policyTmpDir = fs.mkdtempSync(path.join(os.tmpdir(), `cah-vessel-policy-${fixture.id}-`));
+    const doc = yaml.load(fs.readFileSync(policyPath, 'utf8')) as { policy?: Record<string, unknown> } | null;
+    const root: Record<string, unknown> = doc?.policy ?? (doc as Record<string, unknown> | null) ?? {};
+    if (opts.scenarioPolicy.profile) root.profile = opts.scenarioPolicy.profile;
+    if (opts.scenarioPolicy.approval) root.approval = opts.scenarioPolicy.approval;
+    const out = path.join(policyTmpDir, 'scenario-policy.yaml');
+    fs.writeFileSync(out, yaml.dump({ policy: root }), 'utf8');
+    policyPath = out;
+  }
 
   const startedAt = new Date().toISOString();
   const startedMs = Date.now();
@@ -165,6 +196,16 @@ export async function runVesselFixture(fixture: HarnessFixture): Promise<RunResu
     runError = err;
   } finally {
     await harness.close();
+    // the scenario-policy temp dir is only needed until the harness has composed
+    // and the turn has run; drop it so the run leaves no more than the workspace
+    // (which vesselAdapter.run cleans unless keepWorkspace).
+    if (policyTmpDir) {
+      try {
+        fs.rmSync(policyTmpDir, { recursive: true, force: true });
+      } catch {
+        /* best-effort; temp dir is OS-managed */
+      }
+    }
   }
 
   const wallTimeMs = Date.now() - startedMs;

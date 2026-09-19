@@ -98,8 +98,11 @@ writeReleaseReportFiles(report, 'benchmarks/reports');
 > `denial_seen` 红；profile 抬回 `danger-full-access` ⇒ `denial_seen` 红且调用仍被看见 =「发生了却没被拒」）。
 > **反例②的 egress 纪律**：抬 profile 即放行唯一 egress 通道，故用**不出网的 `echo <同一地址>` 变体**做单变量实验，
 > 真实 `curl` 只在 `workspace-write`（必被拒）下跑。详见 `docs/SAFETY-BENCHMARK.md` 的 S008 段。
-> **仍未收口**：真实模型 lane 的 `runVesselFixture` 不读场景 `policy`（`contracts/vessel.ts:103-107,141`）⇒ 那里的
-> "S008 passed" 依旧只等于 `finalText` 非空，与 `S008.yaml` 无关（待另开卡）。
+> **已接线（task 145）**：真实模型 lane 现在读场景 `policy` —— `VesselRunOptions.scenarioPolicy` 把 manifest 的
+> `profile`/`approval` 覆写到临时 `scenario-policy.yaml`（与 `runner.ts` 同口径），`real-model-lane.ts` 逐场景传入
+> ⇒ B005/S006 的 `danger-full-access` 等声明真的生效。**仍按设计**：本 lane 只采集 §15 L3 指标，**不评估场景
+> assert 级 pass**（那是 offline lane 的职责）⇒ 行状态 `passed` 仍等于 `metrics.success`（"模型说了话"），
+> **不等于** `S008.yaml` 的判据通过。
 
 > gate 7（ux-smoke）判据改准背景（与 gate 5 写死 "S001-S008"、gate 3 写死 "B001-B005" 是**同一类**漂移）：
 > 旧 `criterion` 写「web 套件或最小 smoke 通过；web 构建工具缺失时显式 pending。」，而实跑

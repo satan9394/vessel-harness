@@ -252,6 +252,47 @@ describe('contracts/vessel — Vessel self-adapter run', () => {
 });
 
 /**
+ * 场景级 policy 覆写（task 145）—— `runVesselFixture` 过去**只**用
+ * `opts.policySystemPath ?? configs/policy.default.yaml`，**从不**读场景 manifest 的 `policy:`。
+ * 真实模型 lane（lane/real-model-lane.ts → vesselAdapter.run → 本函数）因此把**每个**场景都按
+ * 默认 `workspace-write` 跑：B005/S006 声明的 `danger-full-access` 被忽略，Shell 在
+ * `approval: never` 下 fail-closed 被拒 —— 场景实际没按它自己声明的策略跑。
+ *
+ * 「删哪行会红」：删掉 `vessel.ts` 的 `if (opts.scenarioPolicy) { … }` 覆写块 ⇒ 第二个 run 的
+ * `policyViolations` 由 0 变 ≥1（Shell 又被拒）⇒ 本用例红。
+ * 负对照：不传 `scenarioPolicy` 时行为逐字不变（第一个 run 仍 ≥1 拒绝）。
+ */
+describe('contracts/vessel — scenario policy override is applied (task 145)', () => {
+  const shellScript = [
+    { when: /.*/, ifNoToolResult: true, response: { toolCalls: [{ name: 'Shell', arguments: { command: 'node -e "console.log(1)"' } }] } },
+    { when: /.*/, minToolResults: 1, response: { text: 'SHELL-DONE' } },
+  ];
+
+  it('options.scenarioPolicy={profile:danger-full-access} lets Shell run (no override ⇒ fail-closed denial)', async () => {
+    const denied = await vesselAdapter.run({
+      id: 'XPOL_DEFAULT',
+      workspaceRoot: makeFixture('XPOL_DEFAULT', 'Run the shell command.'),
+      options: { provider: new MockProvider(shellScript, { model: 'mock-model' }), model: 'mock-model', configRoot: REPO_ROOT },
+    });
+    // base policy = workspace-write + approval:never ⇒ Shell denied (fail-closed)
+    expect(denied.metrics.policyViolations).toBeGreaterThanOrEqual(1);
+
+    const allowed = await vesselAdapter.run({
+      id: 'XPOL_RAISED',
+      workspaceRoot: makeFixture('XPOL_RAISED', 'Run the shell command.'),
+      options: {
+        provider: new MockProvider(shellScript, { model: 'mock-model' }),
+        model: 'mock-model',
+        configRoot: REPO_ROOT,
+        scenarioPolicy: { profile: 'danger-full-access' },
+      },
+    });
+    // the scenario override is applied ⇒ Shell allowed, zero denials
+    expect(allowed.metrics.policyViolations).toBe(0);
+  }, 60_000);
+});
+
+/**
  * 「有类型、无数据」形态的守卫（本卡 A）—— `RunResultMetrics.resumeSuccess` 在**自家 arm** 上
  * **不可判定**。
  *
