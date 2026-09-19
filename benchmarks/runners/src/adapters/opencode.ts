@@ -105,11 +105,7 @@ export function defaultRunCommand(argv: string[], opts: { cwd: string }): Result
   const res = spawnSync(cmd, rest, {
     cwd: opts.cwd,
     encoding: 'utf8',
-    // shell:false on every platform: with shell:true on Windows, cmd.exe
-    // re-splits the argv on spaces, so a multi-word task is delivered as many
-    // positional args (the live run proved this). `opencode` resolves to
-    // opencode.exe via CreateProcess's implicit .exe search.
-    shell: false,
+    shell: process.platform === 'win32',
     timeout: 0,
   });
   return {
@@ -248,85 +244,6 @@ function num(v: unknown, label: string, approx: string[]): number {
 }
 
 /**
- * One line of OpenCode's `--format json` event stream (the L3-relevant subset we
- * fold; OpenCode is free to add event/part types we ignore).
- */
-interface OpencodeEvent {
-  type?: string;
-  part?: {
-    type?: string;
-    text?: string;
-    tokens?: { input?: number; output?: number; cache?: { read?: number } };
-    cost?: number;
-  };
-}
-
-/**
- * Parse OpenCode's real `--format json` output into the adapter's `OpencodeRawRun`
- * summary. Unlike the old assumed contract (a single JSON object on stdout),
- * current OpenCode emits **one JSON object per line** (JSONL): `text` parts carry
- * the answer, `step_finish` parts carry per-step token/cost counters. We fold the
- * text parts into `finalText` and sum the counters; unparseable lines are skipped
- * (and counted) so a partially-verbose CLI still yields an honest summary.
- */
-export function parseOpencodeEvents(stdout: string): {
-  raw: OpencodeRawRun | undefined;
-  parsedLines: number;
-  skippedLines: number;
-} {
-  let finalText = '';
-  let inputTokens = 0;
-  let outputTokens = 0;
-  let cacheReadTokens = 0;
-  let toolCalls = 0;
-  let parsed = 0;
-  let skipped = 0;
-  let typed = 0;
-  let firstObject: OpencodeRawRun | undefined;
-  for (const line of stdout.split(/\r?\n/)) {
-    const t = line.trim();
-    if (!t.startsWith('{')) continue;
-    let ev: OpencodeEvent;
-    try {
-      ev = JSON.parse(t) as OpencodeEvent;
-    } catch {
-      skipped += 1;
-      continue;
-    }
-    parsed += 1;
-    if (ev.type !== undefined) typed += 1;
-    else if (firstObject === undefined) firstObject = ev as OpencodeRawRun;
-    const part = ev.part;
-    if (ev.type === 'text' && typeof part?.text === 'string') finalText += part.text;
-    if (ev.type === 'tool' && part?.type === 'tool') toolCalls += 1;
-    if (ev.type === 'step_finish' && part?.tokens) {
-      const tk = part.tokens;
-      if (typeof tk.input === 'number') inputTokens += tk.input;
-      if (typeof tk.output === 'number') outputTokens += tk.output;
-      if (typeof tk.cache?.read === 'number') cacheReadTokens += tk.cache?.read;
-    }
-  }
-  if (parsed === 0) return { raw: undefined, parsedLines: 0, skippedLines: skipped };
-  // Alternate surface: a single summary object (no event `type`) — use it as-is.
-  // Keeps the adapter tolerant of a CLI that emits one JSON object rather than JSONL.
-  if (typed === 0) return { raw: firstObject, parsedLines: parsed, skippedLines: skipped };
-  return {
-    raw: {
-      // OpenCode reports success per step; the adapter still downgrades on empty
-      // finalText / non-zero exit, so this is the "did it answer" signal.
-      success: finalText.trim().length > 0,
-      finalText,
-      inputTokens,
-      outputTokens,
-      cacheReadTokens,
-      toolCalls,
-    },
-    parsedLines: parsed,
-    skippedLines: skipped,
-  };
-}
-
-/**
  * Run one fixture through the OpenCode CLI and return a validated RunResult.
  * `run()` is the driver + normalizer; it throws on hard setup errors (missing
  * fixture) and returns a valid RunResult with success=false on run-time failure.
@@ -370,21 +287,18 @@ export async function runOpencodeFixture(fixture: HarnessFixture): Promise<RunRe
     const taskPath = path.join(workspace, taskFile);
     const task = fs.existsSync(taskPath) ? fs.readFileSync(taskPath, 'utf8').trim() : '';
 
-    // Real OpenCode surface: `opencode run [message..] --format json` — the task
-    // is the positional message, cwd is the isolated workspace. The old
-    // `--workspace/--task/--json` flags do not exist in current OpenCode.
-    const argv = [command, OPENCODE_RUN_SUBCOMMAND, '--format', 'json', ...(opts.args ?? []), task];
+    const argv = [command, OPENCODE_RUN_SUBCOMMAND, '--workspace', workspace, '--task', taskFile, '--json', ...(opts.args ?? [])];
     try {
       const runCmd = opts.runCommand ?? ((a, c) => defaultRunCommand(a, c));
       const res = runCmd(argv, { cwd: workspace });
       if (res.status !== 0) {
         runError = new Error(`opencode exited ${res.status}: ${res.stderr.trim() || 'no stderr'}`);
       } else {
-        const { raw, parsedLines, skippedLines } = parseOpencodeEvents(res.stdout);
-        if (parsedLines === 0) {
-          acc.notes.push('OpenCode stdout carried no JSON events; treating run as failed and defaulting metrics (approx).');
-        } else if (skippedLines > 0) {
-          acc.notes.push(`OpenCode JSONL: ${skippedLines} unparseable line(s) skipped.`);
+        let raw: OpencodeRawRun | undefined;
+        try {
+          raw = JSON.parse(res.stdout) as OpencodeRawRun;
+        } catch {
+          acc.notes.push('OpenCode stdout is not JSON; treating run as failed and defaulting metrics (approx).');
         }
         const norm = normalizeOpencodeRun(raw);
         mergeAccumulator(acc, norm.acc);
