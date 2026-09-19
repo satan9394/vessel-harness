@@ -46,16 +46,15 @@
 | 记忆同步 #4 | 147 | 已合入 | `tasks/147-memory-sync-4.md` |
 | 全量偶发红：`cli.test.ts` real-IO 用例补显式超时 | 148 | 已合入 | `tasks/148-cli-test-real-io-timeouts.md` |
 | `--live` 基线尝试 → 发现外部 adapter 与真实 CLI 不匹配（blocked） | 149 | blocked（已记录根因） | `tasks/149-live-baseline-blocked.md` |
+| 回退 `--live` adapter 工作 + 立"不自动驱动本机其他 agent"口径 | 153 | 已合入 | `tasks/153-live-revert-and-external-agent-policy.md` |
 
 ## 未闭合 / 下一目标
 
 - **环境补齐项（非阻塞）**：opencode-go 余额 → 重跑 real-model lane；Packaging gate 需 dist。
   见 `docs/V1.1-ROADMAP.md` §5。
-- **Cross-Harness Conformance**：驱动与入口**已交付**，离线 `--all` **25/25 exit 0**；
-  **`--live` 基线 blocked** —— 实测发现四个外部 adapter 驱动的是"请求式 JSON 契约"而真实 CLI 不实现
-  （dsh 无 `run` 子命令；opencode 无 `--workspace/--task`；codex/claude 的 flag 正确但被 Windows `shell:true`
-  分词拆坏）；离线车道只跑自适配器，故此前未暴露。见 `tasks/149`。
-- **可自主队列（新）**：150 修复外部 harness adapter 对齐真实 CLI（invocation + Windows 分词 + 输出解析 + 探针加严）；151 修复后重跑 `--live` 基线并定 `THRESHOLDS`。
+- **Cross-Harness Conformance**：驱动与入口已交付，离线 `--all` **25/25 exit 0**。
+  **`--live` 真实基线未做且不再自动尝试**：`tasks/150`/`151` 的"修复 adapter + 实跑"已**回退**（`tasks/153`）；
+  事实（外部 adapter 与已装 CLI 版本脱节）仍登记在 `tasks/149`。**未经用户逐次显式同意，不得运行 `--live`**（见 `AGENTS.md` 禁做清单）。
 - **发布准备**：152 release notes（中英双语）+ 1.0 门槛逐项核对。
-- **外部阻塞（登记不空等）**：153 `release-report` 刷新；154 3h 墙钟 soak；155 1.0 门槛最终核验（停在 tag 前）。
+- **外部阻塞（登记不空等）**：154 `release-report` 刷新；155 3h 墙钟 soak；156 1.0 门槛最终核验（停在 tag 前）。
 - 开工前按 `RUN_STATE.md` 机制先存档旧信封再写新 Mission。

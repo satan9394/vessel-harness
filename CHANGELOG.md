@@ -48,6 +48,7 @@
 - **记忆同步 #3**：`tasks/README`、`AGENTS`、本 CHANGELOG、`V1.6-STABLE-CHECKLIST`、`PRODUCT-STATE`、`RUN_STATE` 与 140–143 对齐。（`tasks/144`）
 - **残留清算 B2–B5 已核实闭合**（`tasks/146`）：`compaction/summary`(B15)/`session/end-seed`(B11)/`audit/safety`(B21) 的"零类型/零产/零消"、`AuditDenialRecord.stage` 的 `sandbox`/`guard` 无生产者、`BENCHMARK-SPEC` ⇄ yaml 漂移、M14 detail 的 `steers`/`interrupts`/`human_answers`/`machine_answers` —— 均早有可执行守卫（`packages/shared/src/unwiredRecords.test.ts`、`spec-manifest-parity.test.ts`、`telemetry.test.ts` ⑮），核实即闭合，未写代码。
 - **记忆同步 #4**：`tasks/README`、`AGENTS`、本 CHANGELOG、`PRODUCT-STATE`、`RUN_STATE` 与 145–146 对齐；外部项重编为 148–151。（`tasks/147`）
+- **回退 `--live` adapter 工作并立口径**（`tasks/153`）：为推进门槛 #10 曾"修复外部 harness adapter 并实跑 `--live`"（原 `tasks/150`/`151`），因**自动驱动了用户本机其他 agent**（dsh/opencode/codex/claude，消耗其配额并留下会话记录）而**整体回退**——revert `a57a1eb`/`2f83e23`/`4281e26`，代码回到原状，live 报告移入回收站。新增 `AGENTS.md` 禁做清单一条：**不得为基准/调试/验证自动驱动本机其他 agent；`--live` 永不自动跑，须逐次显式同意**。
 
 ### Security
 

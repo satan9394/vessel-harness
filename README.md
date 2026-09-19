@@ -30,7 +30,7 @@ Vessel（器）取名自「大器免成 / 无器之器」：**系统本身不是
 > **GitHub Actions 已绿**：`.github/workflows/ci.yml` 在 Windows + Linux 两个腿跑 build / 测试类型检查 / web 类型检查与构建 / 全量测试 / CLI 冒烟；CodeQL 与 Dependabot 告警当前均为 0。
 
 > **零配置即可跑**：没有任何供应商配置时默认使用内置 `mock` 供应商（离线确定性冒烟）。要接真实模型：`vessel setup`（交互向导）或 `vessel provider add …`。
-> **已知边界**（如实标注）：`vessel serve`/`vessel web` 的 Web 界面仍在推进；`benchmarks/reports/release-report.{md,json}` 是历史快照，未随最近改动刷新；进程树沙箱在 Windows 上未接入 job object 时会在遥测里如实报 `degraded`；跨 harness conformance 的**离线**车道 25/25，但 **`--live` 外部 harness 基线当前 blocked**（四个外部 adapter 与已安装 CLI 版本脱节，见 `tasks/149`）。
+> **已知边界**（如实标注）：`vessel serve`/`vessel web` 的 Web 界面仍在推进；`benchmarks/reports/release-report.{md,json}` 是历史快照，未随最近改动刷新；进程树沙箱在 Windows 上未接入 job object 时会在遥测里如实报 `degraded`；跨 harness conformance **离线** 25/25，**`--live` 外部 harness 基线未做**（外部 adapter 与已装 CLI 版本脱节，见 `tasks/149`）；**运行 `--live` 会驱动你机器上的其他 agent —— 须逐次显式同意，本仓不自动跑**（`tasks/153`）。
 
 ---
 
@@ -197,7 +197,7 @@ npm run bench:conformance -- --all --live
 ```
 
 > 默认离线跑全部 25 个场景的结果（2026-09-18）：**25 run / 0 skipped / 0 error，25 passed，exit 0**。
-> 报告写入 `benchmarks/reports/conformance/`（生成物，已 gitignore）。`--live` 需你确认后再跑——它会真的驱动外部 harness。
+> 报告写入 `benchmarks/reports/conformance/`（生成物，已 gitignore）。**`--live` 会驱动你机器上的其他 agent（dsh/opencode/codex/claude）——须逐次显式同意，本仓不自动跑**（见 `AGENTS.md` 禁做清单 + `tasks/153`）。
 
 ## 开发
 
