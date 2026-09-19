@@ -43,6 +43,8 @@
 - **`run --json` 文档补齐**（字段早已实现，仅 README 命令表未写）。见 `tasks/137`。（`6e2783f`）
 - **migrate「回收失败重跑」已核实闭合**（②-e 判别性用例已覆盖，含反锁）。见 `tasks/138`。（`6e2783f`）
 - **记忆同步 #1/#2**：`tasks/README`、`AGENTS`、本 CHANGELOG、`V1.6-STABLE-CHECKLIST`、`PRODUCT-STATE`/`GAP-MAP`、`RUN_STATE` 待办面与事实对齐。（`ca67169`、`139` 卡）
+- **文档诚实化收尾（140–143）**：外部文档残余扫描 #2 —— `PROVIDER-INTEGRATION`/`VESSEL`/`SAFETY-BENCHMARK`/`TASK-QUEUE-ITERATION-STORE`/`REAL-MODEL-LANE` 九处矛盾改准（`7195d25`，`tasks/140`）；**已声明未实现项统一标注** —— web `UNIMPLEMENTED` + `i18n.unimplemented`、`report.ts` dashboard seam、`mock-sidecar` Rust PoC，均补「已声明未实现 + 触发条件」（`825499f`，`tasks/141`）；**`toolIdByIndex`/`toolNameByIndex` by-design 标注** —— 未 started 的单值覆盖非丢数据，与 Round 70 改为 APPEND 的 `toolInputJsonByIndex` 区分（`68ba3ae`，`tasks/142`）；**能力矩阵 `stream-json` 登记为可选增强** + 陈旧 `vessel mcp` 口径收口（`02073ad`，`tasks/143`）。
+- **记忆同步 #3**：`tasks/README`、`AGENTS`、本 CHANGELOG、`V1.6-STABLE-CHECKLIST`、`PRODUCT-STATE`、`RUN_STATE` 与 140–143 对齐。（`tasks/144`）
 
 ### Security
 
