@@ -26,6 +26,7 @@
 - **`@vessel/bench-runners` 补齐 4 条 project reference**（engine/policy/runtime/telemetry 的 src 实际 import 却未声明，靠 dist 偶然顺序，TS7 下 flake 成 TS2305）。（`e06ac12`）
 - **锁文件与 `package.json` 重新对齐**：TS7 合并时误留旧锁，`npm ci` 失败被 `|| npm install` 静默掩盖。（`9c31c0a`）
 - **soak 默认参数自洽修复**：默认长跑此前 `maxAccepted=3 < handoffEvery=8` 且任务 3 轮全 met ⇒ 循环提前退出，**handoff/resume 从未被覆盖**（实测 `handoffCount=0`、`resume=false`）。修后默认即 `handoffs=40 / resume=true / pauseResume=1 / 零残留`，并加参数自洽守卫与回归锁。见 `tasks/126`。（`99e801a`）
+- **真实模型 lane 现在应用场景声明的 policy**：`runVesselFixture` 此前只读 `opts.policySystemPath ?? configs/policy.default.yaml`，**忽略 `manifest.policy`** ⇒ 真实模型 lane 把每个场景都按默认 `workspace-write` 跑（B005/S006 的 `danger-full-access` 失效、Shell 在 `approval: never` 下 fail-closed）。新增 `VesselRunOptions.scenarioPolicy`（按 `runner.ts` 同口径覆写 `profile`/`approval`，跑完删临时文件），`real-model-lane.ts` 逐场景传入；判别用例证明默认拒绝、覆写后放行（突变撤接线即红）。见 `tasks/145`。（`72df6a2`）
 - **`vessel guide` 在 settings 损坏时崩溃**：`cmdGuide` 直读 `settings.locale`（`load()` fail loud 会抛），而 `cmdExplain` 走 `loadLocaleOrDefault` 回退 zh —— 注释还谎称"两处都调本函数"。收敛到 `resolveGuideLocale`。见 `tasks/132`。（`56a10a0`）
 
 ### Changed
@@ -45,6 +46,8 @@
 - **记忆同步 #1/#2**：`tasks/README`、`AGENTS`、本 CHANGELOG、`V1.6-STABLE-CHECKLIST`、`PRODUCT-STATE`/`GAP-MAP`、`RUN_STATE` 待办面与事实对齐。（`ca67169`、`139` 卡）
 - **文档诚实化收尾（140–143）**：外部文档残余扫描 #2 —— `PROVIDER-INTEGRATION`/`VESSEL`/`SAFETY-BENCHMARK`/`TASK-QUEUE-ITERATION-STORE`/`REAL-MODEL-LANE` 九处矛盾改准（`7195d25`，`tasks/140`）；**已声明未实现项统一标注** —— web `UNIMPLEMENTED` + `i18n.unimplemented`、`report.ts` dashboard seam、`mock-sidecar` Rust PoC，均补「已声明未实现 + 触发条件」（`825499f`，`tasks/141`）；**`toolIdByIndex`/`toolNameByIndex` by-design 标注** —— 未 started 的单值覆盖非丢数据，与 Round 70 改为 APPEND 的 `toolInputJsonByIndex` 区分（`68ba3ae`，`tasks/142`）；**能力矩阵 `stream-json` 登记为可选增强** + 陈旧 `vessel mcp` 口径收口（`02073ad`，`tasks/143`）。
 - **记忆同步 #3**：`tasks/README`、`AGENTS`、本 CHANGELOG、`V1.6-STABLE-CHECKLIST`、`PRODUCT-STATE`、`RUN_STATE` 与 140–143 对齐。（`tasks/144`）
+- **残留清算 B2–B5 已核实闭合**（`tasks/146`）：`compaction/summary`(B15)/`session/end-seed`(B11)/`audit/safety`(B21) 的"零类型/零产/零消"、`AuditDenialRecord.stage` 的 `sandbox`/`guard` 无生产者、`BENCHMARK-SPEC` ⇄ yaml 漂移、M14 detail 的 `steers`/`interrupts`/`human_answers`/`machine_answers` —— 均早有可执行守卫（`packages/shared/src/unwiredRecords.test.ts`、`spec-manifest-parity.test.ts`、`telemetry.test.ts` ⑮），核实即闭合，未写代码。
+- **记忆同步 #4**：`tasks/README`、`AGENTS`、本 CHANGELOG、`PRODUCT-STATE`、`RUN_STATE` 与 145–146 对齐；外部项重编为 148–151。（`tasks/147`）
 
 ### Security
 

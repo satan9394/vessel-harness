@@ -41,6 +41,9 @@
 | 记忆同步 #2 | 139 | 已合入 | `tasks/139-memory-sync-2.md` |
 | 文档诚实化收尾（残余扫描 #2 / 已声明未实现标注 / by-design / `stream-json` 登记） | 140-143 | 已合入 | `tasks/140-*.md`…`tasks/143-*.md` |
 | 记忆同步 #3 | 144 | 已合入 | `tasks/144-memory-sync-3.md` |
+| 残留清算 B1：真实模型 lane 接场景 policy | 145 | 已合入 | `tasks/145-real-model-lane-scenario-policy.md` |
+| 残留清算 B2–B5：已核实闭合 | 146 | 已合入 | `tasks/146-residual-b2-b5-verified-closed.md` |
+| 记忆同步 #4 | 147 | 已合入 | `tasks/147-memory-sync-4.md` |
 
 ## 未闭合 / 下一目标
 
@@ -48,6 +51,7 @@
   见 `docs/V1.1-ROADMAP.md` §5。
 - **Cross-Harness Conformance**：驱动与可运行入口**已交付**（`npm run bench:conformance -- --all` 离线 25 场景 25 passed）；
   **待**一次 `--live` 真实跨 harness 基线（消耗 dsh/opencode/codex/claude 配额）→ 定回归阈值 → README/报告固化。
-- **可自主收尾队列：已清空**（140–143 全部合入，见上表；144 记忆同步 #3 收口本轮）。
-- **外部阻塞（登记不空等）**：145 `--live` 基线；146 `release-report` 刷新；147 3h 墙钟 soak；148 1.0 门槛最终核验（停在 tag 前）。
+- **方向 B（残留清算）结果**：B1（真实模型 lane 不读场景 policy）**已修**（`tasks/145`）；B2–B5（B15/B11/B21 零产零消、
+  `stage` 的 sandbox/guard、`BENCHMARK-SPEC` 漂移、M14 detail）**已核实闭合**、各有可执行守卫（`tasks/146`）。
+- **外部阻塞（登记不空等）**：148 `--live` 基线；149 `release-report` 刷新；150 3h 墙钟 soak；151 1.0 门槛最终核验（停在 tag 前）。
 - 开工前按 `RUN_STATE.md` 机制先存档旧信封再写新 Mission。
