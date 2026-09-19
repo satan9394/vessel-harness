@@ -99,7 +99,7 @@ vessel run --prompt "总结当前工作区 README"   # 一次性任务
 | 命令 | 说明 |
 |---|---|
 | `vessel` | 无参进交互对话（TUI，斜杠命令管配置；没有 `chat` 子命令，`vessel chat` 报未知命令） |
-| `vessel run --prompt "…"` | 一次性任务（单发模式）；`--bench <scenarioId>` 跑基准场景 |
+| `vessel run --prompt "…"` | 一次性任务（单发模式）；`--bench <scenarioId>` 跑基准场景；`--json` 时 stdout 只出一段 JSON（`kind`/`finalText`/`steps`/`toolCalls`/`durationMs`/`turnId`/`sessionLog`/`enforcement`） |
 | `vessel setup` | 交互向导：配置供应商 |
 | `vessel provider list / current / add / remove / switch` | 供应商配置管理、一键切换默认 |
 | `vessel mcp list / add / remove / path` | MCP server 配置管理（`~/.vessel/mcp.json`；`vessel run` 读同一文件） |
