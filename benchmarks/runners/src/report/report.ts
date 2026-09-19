@@ -652,10 +652,9 @@ export function renderCliSummary(rep: BenchmarkReport): string {
 }
 
 /**
- * Web dashboard seam (documented, NOT implemented this task): a future 083-web
- * extension renders BenchmarkReport as an HTML page. Returning the report as
- * the data payload here keeps the seam typed so the web work can take over
- * without touching the aggregation core.
+ * Web dashboard seam —— **已声明未实现**：a future 083-web extension renders
+ * BenchmarkReport as an HTML page. 触发条件 = 有 web 端消费者要渲染基准报告时。
+ * 现在返回报告作为数据载荷，只为把 seam 定成有类型，让 web 工作接手时不必动聚合核心。
  */
 export function renderDashboardSeam(rep: BenchmarkReport): { ok: true; data: BenchmarkReport } {
   return { ok: true, data: rep };

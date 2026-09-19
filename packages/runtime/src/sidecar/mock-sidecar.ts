@@ -13,6 +13,10 @@
  * protocol methods (initialize / ping / shutdown / placeholders), and writes
  * JSON-RPC responses. Real sidecars (Rust) must behave identically per the
  * docs/SIDECAR-PROTOCOL.md spec.
+ *
+ * **已声明未实现**：真实 Rust sidecar 未做（V1.4 的 "Rust execution sidecar PoC"）——
+ * 本文件只是**协议回环的 mock**。触发条件 = 需要真进程 / 语言隔离执行时；届时按
+ * `docs/SIDECAR-PROTOCOL.md` 实现 Rust 端，行为须与本 mock 一致。
  */
 import {
   JSON_RPC_VERSION,

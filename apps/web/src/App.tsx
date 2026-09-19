@@ -31,6 +31,12 @@ const SECTION_ORDER: UiModuleId[] = [
   'MCP',
   'Policy',
 ];
+/**
+ * **已声明未实现**（非丢数据）：这四个模块在模块选择器里可勾选，但面板本体尚未实现，
+ * 渲染时显示 `t('unimplemented')` 占位（见下方 `UNIMPLEMENTED.includes(id)` 分支）。
+ * 触发条件 = 对应后端投影/接口就绪（Context / Logs / MCP / Policy 各有其数据源），
+ * 届时逐个从本清单移除并把面板接上。
+ */
 const UNIMPLEMENTED: UiModuleId[] = ['Context', 'Logs', 'MCP', 'Policy'];
 
 export default function App() {

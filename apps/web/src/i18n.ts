@@ -44,6 +44,7 @@ export interface Messages {
   noProjects: MessageTemplate;
   noSessions: MessageTemplate;
   placeholderDev: MessageTemplate;
+  /** **已声明未实现**的占位串：由 `App.tsx` 的 `UNIMPLEMENTED` 清单消费（触发条件见该处注释）。 */
   unimplemented: MessageTemplate;
   tasksPlaceholder: MessageTemplate;
   changedFilesPlaceholder: MessageTemplate;
