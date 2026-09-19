@@ -386,9 +386,22 @@ export function anthropicSSELineData(line: string): string | null {
  *      seed when that frame's own `tool_call_start` already carries it.
  */
 export class AnthropicStreamParser {
-  /** block index -> tool_use id (only content_block_start carries it). */
+  /**
+   * block index -> tool_use id / name (only `content_block_start` carries them).
+   *
+   * **Single-value maps, BY DESIGN — an overwrite here is not data loss.** While
+   * an index is UNSTARTED no `tool_call_start` has been emitted, so no
+   * consumer-side call exists to address; a later frame completing (or replacing)
+   * the identity is Round 52's recovery for the identity-late wire order, and only
+   * the completed value is ever read (`flushToolBlock` / the chunk loop's start
+   * branch). Once the index has STARTED the identity is FROZEN (`identityFrozen`
+   * in `feed()`), so the two `set()` calls at the first-start site cannot rewrite
+   * it. Contrast `toolInputJsonByIndex` below: its value IS read while the block is
+   * unstarted, which is why Round 70 changed it to APPEND; this map has no such
+   * reader, so `set()` is sufficient and appending would be dead state.
+   */
   private readonly toolIdByIndex = new Map<number, string>();
-  /** block index -> tool_use name (only content_block_start carries it). */
+  /** block index -> tool_use name (see the id map directly above). */
   private readonly toolNameByIndex = new Map<number, string>();
   /**
    * block index -> the argument seeds contributed by `content_block_start`
