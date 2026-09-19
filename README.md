@@ -30,7 +30,7 @@ Vessel（器）取名自「大器免成 / 无器之器」：**系统本身不是
 > **GitHub Actions 已绿**：`.github/workflows/ci.yml` 在 Windows + Linux 两个腿跑 build / 测试类型检查 / web 类型检查与构建 / 全量测试 / CLI 冒烟；CodeQL 与 Dependabot 告警当前均为 0。
 
 > **零配置即可跑**：没有任何供应商配置时默认使用内置 `mock` 供应商（离线确定性冒烟）。要接真实模型：`vessel setup`（交互向导）或 `vessel provider add …`。
-> **已知边界**（如实标注）：`vessel serve`/`vessel web` 的 Web 界面仍在推进；`benchmarks/reports/release-report.{md,json}` 是历史快照，未随最近改动刷新；进程树沙箱在 Windows 上未接入 job object 时会在遥测里如实报 `degraded`；跨 harness conformance **离线** 25/25；**`--live` 首次部分基线**（2026-09-19）为 **vessel 25/25 + opencode 25/25（0 非法调用）**，codex/claude/dsh 由真实调用探针按环境**诚实跳过**（配额耗尽 / 配置模型停用 / headless 启动过重，见 `tasks/149`–`151`）。
+> **已知边界**（如实标注）：`vessel serve`/`vessel web` 的 Web 界面仍在推进；`benchmarks/reports/release-report.{md,json}` 是历史快照，未随最近改动刷新；进程树沙箱在 Windows 上未接入 job object 时会在遥测里如实报 `degraded`；跨 harness conformance 的**离线**车道 25/25，但 **`--live` 外部 harness 基线当前 blocked**（四个外部 adapter 与已安装 CLI 版本脱节，见 `tasks/149`）。
 
 ---
 
@@ -182,7 +182,7 @@ Vessel 的差异化主张之一是**行为层可替换、且可被同一套判�
 
 - **共享场景**：`benchmarks/scenarios/*.yaml`（25 个：B001–B027 行为场景 + S001–S008 安全场景），判据写在 yaml 里，是唯一事实源；fixture 在 `benchmarks/fixtures/`。
 - **统一契约**：`HarnessAdapter.run(fixture) → RunResult`（15 项 L3 指标：成功 / 墙钟 / 工具调用 / 非法调用 / 重试 / tokens / 成本 / 上下文峰值 / 压缩 / 人工介入 / 策略违规 / resume），见 `benchmarks/runners/src/contracts/`。
-- **适配器**：Vessel 自适配器 + 外部 harness（`dsh` / `opencode` / `codex` / `claude-code` / `pi`），见 `benchmarks/runners/src/adapters/`。每个适配器自带 CLI 探针：**探针不通过就不跑、如实标 skip**，绝不伪造失败或成功。自 task 151 起，`--live` 的探针是一次**最小真实调用**（`--version` 只能证明二进制存在，证明不了能回答——codex 可能没配额、claude 可能被指向已停用的模型）。
+- **适配器**：Vessel 自适配器 + 外部 harness（`dsh` / `opencode` / `codex` / `claude-code` / `pi`），见 `benchmarks/runners/src/adapters/`。每个适配器自带 CLI 探针：**探针不通过就不跑、如实标 skip**，绝不伪造失败或成功。
 - **驱动 + 报告**：`benchmarks/runners/src/conformance/` 把同一批 fixture 跑过多个适配器，交给 083 报告模块聚合成跨 harness 对比（JSON + markdown）。
 
 ```powershell
@@ -197,8 +197,6 @@ npm run bench:conformance -- --all --live
 ```
 
 > 默认离线跑全部 25 个场景的结果（2026-09-18）：**25 run / 0 skipped / 0 error，25 passed，exit 0**。
-> **首次 `--live` 部分基线（2026-09-19）**：**vessel 25/25 + opencode 25/25，0 非法调用，exit 0**；
-> codex/claude/dsh/pi 由真实调用探针跳过（原因见上）。回归阈值据此定为 `maxInvalidCalls=0` + `minSuccessRate≥0.9`。
 > 报告写入 `benchmarks/reports/conformance/`（生成物，已 gitignore）。`--live` 需你确认后再跑——它会真的驱动外部 harness。
 
 ## 开发

@@ -109,15 +109,14 @@ export interface ResultStub {
  * return its output. Used as the default `runCommand` injection. This is the
  * ONLY place the adapter touches an external process — tests override it.
  */
-export function defaultRunCommand(argv: string[], opts: { cwd: string; timeoutMs?: number }): ResultStub {
+export function defaultRunCommand(argv: string[], opts: { cwd: string }): ResultStub {
   const [cmd, ...rest] = argv;
   if (!cmd) throw new Error('defaultRunCommand: no command provided');
   const res = spawnSync(cmd, rest, {
     cwd: opts.cwd,
     encoding: 'utf8',
-    // shell:false: shell:true re-splits argv on Windows, corrupting multi-word prompts.
-    shell: false,
-    timeout: opts.timeoutMs ?? 0,
+    shell: process.platform === 'win32',
+    timeout: 0,
   });
   return {
     status: res.status,
@@ -148,25 +147,6 @@ export function probeClaudeEnv(command = 'claude', resolve?: () => boolean): boo
   try {
     const r = defaultRunCommand([command, '--version'], { cwd: process.cwd() });
     return r.status === 0;
-  } catch {
-    return false;
-  }
-}
-
-/**
- * Live probe (task 151) — a minimal real headless call, bounded. `--version` only
- * proves the binary exists; Claude Code can be pointed at a disabled/expired model
- * (observed here: `400 模型已关闭`), in which case the runner should `skip` it with
- * a reason rather than report a misleading `fail` row.
- */
-export function probeClaudeEnvLive(command = 'claude', resolve?: () => boolean): boolean {
-  if (resolve) return resolve();
-  try {
-    const r = defaultRunCommand([command, '-p', 'reply with exactly: PONG'], {
-      cwd: process.cwd(),
-      timeoutMs: 45_000,
-    });
-    return r.status === 0 && r.stdout.trim().length > 0;
   } catch {
     return false;
   }
