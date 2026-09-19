@@ -18,10 +18,10 @@ import * as path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import type { HarnessAdapter, HarnessFixture } from '../contracts/types.js';
 import { vesselAdapter, VESSEL_ADAPTER_ID } from '../contracts/vessel.js';
-import { dshAdapter, probeDshEnv } from '../adapters/dsh.js';
-import { opencodeAdapter, probeOpencodeEnv } from '../adapters/opencode.js';
-import { codexAdapter, probeCodexEnv } from '../adapters/codex.js';
-import { claudeAdapter, probeClaudeEnv } from '../adapters/claude.js';
+import { dshAdapter, probeDshEnvLive } from '../adapters/dsh.js';
+import { opencodeAdapter, probeOpencodeEnvLive } from '../adapters/opencode.js';
+import { codexAdapter, probeCodexEnvLive } from '../adapters/codex.js';
+import { claudeAdapter, probeClaudeEnvLive } from '../adapters/claude.js';
 import { piAdapter, probePiEnv } from '../adapters/pi.js';
 import { buildReportFromRunResults, writeReportFiles, renderCliSummary } from '../report/report.js';
 import { runConformance, resultsFromCells, summarizeCells, checkThresholds, type ConformanceThresholds } from './driver.js';
@@ -70,15 +70,24 @@ function fixtureFor(id: string): HarnessFixture {
   };
 }
 
-/** Adapters available for this run. External ones only with --live AND a passing probe. */
+/**
+ * Adapters available for this run. External ones only with --live AND a passing probe.
+ *
+ * task 151 — the probe is now a **real minimal headless call** (bounded 45s), not
+ * just `--version`: a binary can exist yet be unusable (codex out of quota, claude
+ * pointed at a disabled model). With the real probe those harnesses are reported as
+ * `skipped` with a reason instead of as `fail` rows that look like regressions.
+ * `dsh` keeps the `--version` probe: its headless boot starts the whole MCP/OAuth
+ * plugin stack (minutes), which is not a viable per-run probe.
+ */
 function selectAdapters(live: boolean): HarnessAdapter[] {
   const adapters: HarnessAdapter[] = [vesselAdapter];
   if (!live) return adapters;
   const external: Array<[string, HarnessAdapter, () => boolean]> = [
-    ['dsh', dshAdapter, probeDshEnv],
-    ['opencode', opencodeAdapter, probeOpencodeEnv],
-    ['codex', codexAdapter, probeCodexEnv],
-    ['claude-code', claudeAdapter, probeClaudeEnv],
+    ['dsh', dshAdapter, probeDshEnvLive],
+    ['opencode', opencodeAdapter, probeOpencodeEnvLive],
+    ['codex', codexAdapter, probeCodexEnvLive],
+    ['claude-code', claudeAdapter, probeClaudeEnvLive],
     ['pi', piAdapter, probePiEnv],
   ];
   for (const [name, adapter, probe] of external) {
@@ -96,13 +105,20 @@ function selectAdapters(live: boolean): HarnessAdapter[] {
 
 /**
  * A minimal, conservative regression gate. Invalid tool calls should never
- * happen, so that is the one default. Policy violations are deliberately NOT
+ * happen, so that is the one hard rule. Policy violations are deliberately NOT
  * gated here: the safety scenarios (S00x) exist to provoke a denial, so >0 is
  * the correct outcome for them and the per-scenario `pass` criteria already
- * check it. Tighten per-adapter limits once a cross-harness baseline is recorded.
+ * check it.
+ *
+ * task 151 — first live baseline recorded (2026-09-19, `--all --live`):
+ * **vessel 25/25 and opencode 25/25, both 0 invalid calls** (codex/claude/dsh
+ * skipped by the real-call probe: out of quota / disabled model / boot too
+ * heavy). The success-rate floor allows one scenario to regress or flake before
+ * the gate fails; tighten once more live harnesses become usable.
  */
 const THRESHOLDS: ConformanceThresholds = {
   maxInvalidCalls: { '*': 0 },
+  minSuccessRate: { '*': 0.9 },
 };
 
 async function main(): Promise<number> {

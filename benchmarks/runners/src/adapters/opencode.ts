@@ -99,7 +99,7 @@ export interface ResultStub {
  * return its output. Used as the default `runCommand` injection. This is the
  * ONLY place the adapter touches an external process — tests override it.
  */
-export function defaultRunCommand(argv: string[], opts: { cwd: string }): ResultStub {
+export function defaultRunCommand(argv: string[], opts: { cwd: string; timeoutMs?: number }): ResultStub {
   const [cmd, ...rest] = argv;
   if (!cmd) throw new Error('defaultRunCommand: no command provided');
   const res = spawnSync(cmd, rest, {
@@ -110,7 +110,7 @@ export function defaultRunCommand(argv: string[], opts: { cwd: string }): Result
     // positional args (the live run proved this). `opencode` resolves to
     // opencode.exe via CreateProcess's implicit .exe search.
     shell: false,
-    timeout: 0,
+    timeout: opts.timeoutMs ?? 0,
   });
   return {
     status: res.status,
@@ -141,6 +141,26 @@ export function probeOpencodeEnv(command = 'opencode', resolve?: () => boolean):
   try {
     const r = defaultRunCommand([command, '--version'], { cwd: process.cwd() });
     return r.status === 0;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Live probe (task 151) — a minimal **real** headless call, bounded. `--version`
+ * only proves the binary exists, not that the harness can answer (claude's model
+ * can be disabled; codex can be out of quota). The conformance runner uses this
+ * in `--live` so an unusable harness is reported as `skipped` with a reason
+ * rather than as a `fail` row that looks like a regression.
+ */
+export function probeOpencodeEnvLive(command = 'opencode', resolve?: () => boolean): boolean {
+  if (resolve) return resolve();
+  try {
+    const r = defaultRunCommand([command, 'run', '--format', 'json', 'reply with exactly: PONG'], {
+      cwd: process.cwd(),
+      timeoutMs: 45_000,
+    });
+    return r.status === 0 && r.stdout.trim().length > 0;
   } catch {
     return false;
   }

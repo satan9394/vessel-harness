@@ -100,14 +100,15 @@ export interface ResultStub {
  * return its output. Used as the default `runCommand` injection. This is the
  * ONLY place the adapter touches an external process — tests override it.
  */
-export function defaultRunCommand(argv: string[], opts: { cwd: string }): ResultStub {
+export function defaultRunCommand(argv: string[], opts: { cwd: string; timeoutMs?: number }): ResultStub {
   const [cmd, ...rest] = argv;
   if (!cmd) throw new Error('defaultRunCommand: no command provided');
   const res = spawnSync(cmd, rest, {
     cwd: opts.cwd,
     encoding: 'utf8',
-    shell: process.platform === 'win32',
-    timeout: 0,
+    // shell:false: shell:true re-splits argv on Windows, corrupting multi-word prompts.
+    shell: false,
+    timeout: opts.timeoutMs ?? 0,
   });
   return {
     status: res.status,
@@ -138,6 +139,25 @@ export function probeCodexEnv(command = 'codex', resolve?: () => boolean): boole
   try {
     const r = defaultRunCommand([command, '--version'], { cwd: process.cwd() });
     return r.status === 0;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Live probe (task 151) — a minimal real headless call, bounded. `--version` only
+ * proves the binary exists; Codex can be out of quota, in which case a real call
+ * fails fast and the runner should `skip` it (with a reason) rather than report a
+ * misleading `fail` row.
+ */
+export function probeCodexEnvLive(command = 'codex', resolve?: () => boolean): boolean {
+  if (resolve) return resolve();
+  try {
+    const r = defaultRunCommand([command, 'exec', '--skip-git-repo-check', 'reply with exactly: PONG'], {
+      cwd: process.cwd(),
+      timeoutMs: 45_000,
+    });
+    return r.status === 0 && r.stdout.trim().length > 0;
   } catch {
     return false;
   }

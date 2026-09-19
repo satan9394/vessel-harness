@@ -97,14 +97,14 @@ export interface ResultStub {
  * return its output. Used as the default `runCommand` injection. This is the
  * ONLY place the adapter touches an external process — tests override it.
  */
-export function defaultRunCommand(argv: string[], opts: { cwd: string }): ResultStub {
+export function defaultRunCommand(argv: string[], opts: { cwd: string; timeoutMs?: number }): ResultStub {
   const [cmd, ...rest] = argv;
   if (!cmd) throw new Error('defaultRunCommand: no command provided');
   const res = spawnSync(cmd, rest, {
     cwd: opts.cwd,
     encoding: 'utf8',
     shell: process.platform === 'win32',
-    timeout: 0,
+    timeout: opts.timeoutMs ?? 0,
   });
   return {
     status: res.status,
@@ -135,6 +135,27 @@ export function probeDshEnv(command = 'dsh', resolve?: () => boolean): boolean {
   try {
     const r = defaultRunCommand([command, '--version'], { cwd: process.cwd() });
     return r.status === 0;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Live probe (task 151) — bounded real headless call. DSH headless boots the
+ * profile's whole plugin stack (MCP/OAuth servers), which on this machine takes
+ * minutes and produces noisy stderr; a 45s bound therefore reports it as
+ * unusable for a per-run live lane (`skip`, not a misleading `fail`). Also note
+ * the DSH adapter still drives the old `dsh run …` surface (task 150, unrepaired)
+ * — this probe keeps that from masquerading as a regression in the baseline.
+ */
+export function probeDshEnvLive(command = 'dsh', resolve?: () => boolean): boolean {
+  if (resolve) return resolve();
+  try {
+    const r = defaultRunCommand([command, '--profile', 'headless', 'reply with exactly: PONG'], {
+      cwd: process.cwd(),
+      timeoutMs: 45_000,
+    });
+    return r.status === 0 && r.stdout.trim().length > 0;
   } catch {
     return false;
   }
