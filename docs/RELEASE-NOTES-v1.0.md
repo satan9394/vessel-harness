@@ -38,7 +38,7 @@ npm run vessel -- run --prompt "你好"     # 零配置即用内置 mock（离�
 | 结果 | 项 |
 |---|---|
 | **达成（10）** | 双 Surface（CLI + Web）、Streaming、Interrupt/Steering、Resume、Model Routing、3-Agent Profile、External Review Handoff、Secret Store、安全基准全绿（S001–S008）、clean install 可复现 |
-| **部分（3）** | **#8 OS 级沙箱**：Windows 已交付 Job Object + process-tree；受限令牌降权与非 Windows 未做。**#10 Cross-Harness Benchmark**：离线 `--all` **25/25**；**首次 `--live` 部分基线（`tasks/151`）：vessel 25/25 + opencode 25/25（0 非法调用）**；codex/claude/dsh 由真实调用探针按环境**诚实跳过**（配额耗尽 / 配置模型停用 / headless 启动过重）。**#11 Long-run soak**：确定性 1h-equivalent 已跑通（`handoffs=40/resume=true/零残留`）；字面 3h 墙钟未跑。 |
+| **部分（3）** | **#8 OS 级沙箱**：Windows 已交付 Job Object + process-tree；受限令牌降权与非 Windows 未做。**#10 Cross-Harness Benchmark**：驱动与入口已交付、离线 `--all` **25/25 exit 0**；**`--live` 基线 blocked** —— 实测发现四个外部 adapter 驱动的是"请求式 JSON 契约"而真实 CLI 不实现，且 Windows `shell:true` 会拆坏多词 prompt（`tasks/149`；修复 `tasks/150`，重跑 `tasks/151`）。**#11 Long-run soak**：确定性 1h-equivalent 已跑通（`handoffs=40/resume=true/零残留`）；字面 3h 墙钟未跑。 |
 | **阻塞（0）** | — |
 
 **待刷新的被跟踪产物**：`benchmarks/reports/release-report.{md,json}` 仍是 2026-09-12 旧判据快照
