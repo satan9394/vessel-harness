@@ -18,6 +18,16 @@ benchmarks/reports/conformance/
 RUN_STATE.md
 .dsh-mission/
 
+# personal-dev-workflow v1.0.0：机器真相源（运行时状态，每次计数都变）
+.agent-state/
+
+# 历史验证证据要入版本库（审计可翻），故对 evidence/ 放宽上面的 *.log 规则。
+# 仅此目录例外，不影响仓库其余位置的日志忽略。
+!evidence/**/*.log
+# Mission 冻结状态档案同样要入版本库（即 evidence/missions/mission-0X/RUN_STATE.md）；
+# 上面那条 RUN_STATE.md 规则本意是忽略"运行时状态"，不应连带忽略已冻结的历史档案。
+!evidence/missions/mission-*/RUN_STATE.md
+
 # --- security hardening (added 2026-09-18) ---
 # env / secrets
 .env

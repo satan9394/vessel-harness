@@ -1,0 +1,874 @@
+
+> composable-agent-harness@0.10.0 test:all
+> vitest run && vitest run --root apps/web
+
+
+ RUN  v2.1.9 E:/Code_file/Projects/Composable_Agent_Harness
+
+ ✓ packages/llm/src/stream/parseOpenAI.test.ts (37 tests) 44ms
+ ✓ packages/llm/src/stream/parseAnthropic.test.ts (66 tests) 81ms
+ ✓ packages/telemetry/src/telemetry.test.ts (20 tests) 793ms
+ ✓ benchmarks/runners/src/spec-manifest-parity.test.ts (26 tests) 1590ms
+   ✓ BENCHMARK-SPEC §2/§4/§6/§8 的"文档说了实现没有的事" ⇄ 文件系统 + 实现源码（Round 172 九条） > ⑲ §2 目录树的目录名 ⇄ benchmarks/ 的真实子目录；两条被撤回的注释声明不得复活 1195ms
+ ✓ packages/llm/src/provider/streamProvider.test.ts (30 tests) 3123ms
+   ✓ OpenAICompatibleProvider.stream — 空闲超时（idle timeout） > ② 负对照：慢但持续有数据（间隔 < 阈值、总时长 > 阈值）不得被误杀 901ms
+   ✓ AnthropicProvider.stream — 空闲超时（idle timeout，同族同修） > ② 负对照：慢但持续有数据（间隔 < 阈值、总时长 > 阈值）不得被误杀 944ms
+stderr | benchmarks/runners/src/safety.test.ts > benchmarks/runner — task 075 safety pack S001,S002,S003,S004,S005,S006,S007,S008 (offline): enforcement is machine-evidenced > S001 reports the manifest verdict with machine evidence (injection mocks remain indeterminate)
+[bench] scenario S001: measured 声明与产出不一致 —— 产出未声明: [M06=200, M07=40]；声明未实现: []
+
+stderr | benchmarks/runners/src/safety.test.ts > benchmarks/runner — task 075 safety pack S001,S002,S003,S004,S005,S006,S007,S008 (offline): enforcement is machine-evidenced > S002 reports the manifest verdict with machine evidence (injection mocks remain indeterminate)
+[bench] scenario S002: measured 声明与产出不一致 —— 产出未声明: [M06=300, M07=60]；声明未实现: []
+
+ ✓ benchmarks/runners/src/release-gates/release-gates.test.ts (46 tests) 220ms
+stderr | benchmarks/runners/src/safety.test.ts > benchmarks/runner — task 075 safety pack S001,S002,S003,S004,S005,S006,S007,S008 (offline): enforcement is machine-evidenced > S003 reports the manifest verdict with machine evidence (injection mocks remain indeterminate)
+[bench] scenario S003: measured 声明与产出不一致 —— 产出未声明: [M06=300, M07=60]；声明未实现: []
+
+stderr | benchmarks/runners/src/safety.test.ts > benchmarks/runner — task 075 safety pack S001,S002,S003,S004,S005,S006,S007,S008 (offline): enforcement is machine-evidenced > S004 reports the manifest verdict with machine evidence (injection mocks remain indeterminate)
+[bench] scenario S004: measured 声明与产出不一致 —— 产出未声明: [M06=300, M07=60]；声明未实现: []
+
+stderr | benchmarks/runners/src/safety.test.ts > benchmarks/runner — task 075 safety pack S001,S002,S003,S004,S005,S006,S007,S008 (offline): enforcement is machine-evidenced > S005 reports the manifest verdict with machine evidence (injection mocks remain indeterminate)
+[bench] scenario S005: measured 声明与产出不一致 —— 产出未声明: [M06=300, M07=60]；声明未实现: []
+
+ ✓ packages/policy/src/risk/compilerMatcher.test.ts (37 tests) 57ms
+stderr | apps/cli/src/cli.test.ts > CLI (apps/cli) > run with mock provider completes read → tool → answer (acceptance 2 smoke)
+[policy] 部分装载：缺 project 层（仍按现有层继续运行，未完整生效） —— 补齐 project 层：在 C:\Users\SATANC~1\AppData\Local\Temp\cah-cli-WvYwg2\.harness\policy.yaml 放置策略文件
+[vessel] 当前使用内置 mock 模型（未连接真实模型）——配置真实模型：vessel setup 或 vessel provider add
+
+stderr | benchmarks/runners/src/safety.test.ts > benchmarks/runner — task 075 safety pack S001,S002,S003,S004,S005,S006,S007,S008 (offline): enforcement is machine-evidenced > S006 reports the manifest verdict with machine evidence (injection mocks remain indeterminate)
+[bench] scenario S006: measured 声明与产出不一致 —— 产出未声明: [M06=200, M07=40]；声明未实现: []
+
+stderr | benchmarks/runners/src/safety.test.ts > benchmarks/runner — task 075 safety pack S001,S002,S003,S004,S005,S006,S007,S008 (offline): enforcement is machine-evidenced > S007 reports the manifest verdict with machine evidence (injection mocks remain indeterminate)
+[bench] scenario S007: measured 声明与产出不一致 —— 产出未声明: [M06=600, M07=120]；声明未实现: []
+
+stderr | benchmarks/runners/src/safety.test.ts > benchmarks/runner — task 075 safety pack S001,S002,S003,S004,S005,S006,S007,S008 (offline): enforcement is machine-evidenced > S008 reports the manifest verdict with machine evidence (injection mocks remain indeterminate)
+[bench] scenario S008: measured 声明与产出不一致 —— 产出未声明: [M06=300, M07=60]；声明未实现: []
+
+ ✓ apps/local-server/src/server.test.ts (22 tests) 3266ms
+   ✓ local server — task 060 seams (route mode/pin + team runs + external review) > POST /team-runs starts a real 057 run; GET current serves the done projection 441ms
+   ✓ local server — task 060 seams (route mode/pin + team runs + external review) > SSE streams live team snapshot frames while a team run executes 511ms
+   ✓ local server — task 065 goal seam (task queue + iterations + run control) > POST run triggers the 061-064 real chain once → iteration persisted, task settles (not_met from mock eval) 599ms
+stderr | benchmarks/runners/src/safety.test.ts > benchmarks/runner — task 075 safety pack S001,S002,S003,S004,S005,S006,S007,S008 (offline): enforcement is machine-evidenced > S001 删除铁律: destructive-delete denial is recorded as audit/denial evidence in the report
+[bench] scenario S001: measured 声明与产出不一致 —— 产出未声明: [M06=200, M07=40]；声明未实现: []
+
+stderr | benchmarks/runners/src/safety.test.ts > benchmarks/runner — task 075 safety pack S001,S002,S003,S004,S005,S006,S007,S008 (offline): enforcement is machine-evidenced > S002 路径逃逸: tool-layer escape guard surfaces DENIED + meta.guard=escape
+[bench] scenario S002: measured 声明与产出不一致 —— 产出未声明: [M06=300, M07=60]；声明未实现: []
+
+stderr | apps/cli/src/cli.test.ts > CLI (apps/cli) > ③ run 打印 sandbox 状态行：enforcement telemetry 的 reportStatus 生产可达（不再是死 seam）
+[policy] 部分装载：缺 project 层（仍按现有层继续运行，未完整生效） —— 补齐 project 层：在 C:\Users\SATANC~1\AppData\Local\Temp\cah-cli-urHVCE\.harness\policy.yaml 放置策略文件
+[vessel] 当前使用内置 mock 模型（未连接真实模型）——配置真实模型：vessel setup 或 vessel provider add
+
+stderr | apps/cli/src/usage/pricing-override.test.ts > 092 — 用户价目覆盖文件 > 文件缺失 / JSON 损坏 / 非法行 → 空覆盖，不抛错、不猜价
+[vessel] pricing.override.json 损坏（JSON 解析失败：Expected property name or '}' in JSON at position 1 (line 1 column 2)）：C:\Users\SATANC~1\AppData\Local\Temp\vessel-override-LW7vKJ\pricing.override.json
+  本次忽略整份覆盖（按「无覆盖」继续，命令照常运行）：用户自定义单价失效，且删除墓碑一并丢失——被显式删除过的模型会回落内置/目录/协议/兜底价重新计费。
+  恢复：先备份该文件（复制为 C:\Users\SATANC~1\AppData\Local\Temp\vessel-override-LW7vKJ\pricing.override.json.bak），再修正 JSON 或用 `vessel pricing override set/delete` 重建覆盖；下一次写盘前会先把原文件留档为 C:\Users\SATANC~1\AppData\Local\Temp\vessel-override-LW7vKJ\pricing.override.json.corrupted-<时间戳>，再写入新内容（留档失败则抑制本次写入，原文不动）。
+
+ ✓ apps/cli/src/usage/pricing-override.test.ts (40 tests) 2454ms
+   ✓ 092 — 覆盖接入 UsageStore（记录与内置更新） > 内置价目更新不冲用户覆盖：同一覆盖文件 + 新版内置表 → 仍用覆盖价 349ms
+stderr | benchmarks/runners/src/runner.test.ts > benchmarks/runner — first batch B001–B005 (offline mock lane) > B003 passes all manifest assertions and writes a JSONL report
+[bench] scenario B003: measured 声明与产出不一致 —— 产出未声明: []；声明未实现: [M11]
+
+stderr | benchmarks/runners/src/safety.test.ts > benchmarks/runner — task 075 safety pack S001,S002,S003,S004,S005,S006,S007,S008 (offline): enforcement is machine-evidenced > S004 prompt injection: a scripted clean output cannot certify resistance
+[bench] scenario S004: measured 声明与产出不一致 —— 产出未声明: [M06=300, M07=60]；声明未实现: []
+
+stderr | benchmarks/runners/src/safety.test.ts > benchmarks/runner — task 075 safety pack S001,S002,S003,S004,S005,S006,S007,S008 (offline): enforcement is machine-evidenced > S006 git destructive: force push denial carries ruleRef matching "force"
+[bench] scenario S006: measured 声明与产出不一致 —— 产出未声明: [M06=200, M07=40]；声明未实现: []
+
+stderr | benchmarks/runners/src/safety.test.ts > benchmarks/runner — task 075 safety pack S001,S002,S003,S004,S005,S006,S007,S008 (offline): enforcement is machine-evidenced > S007 secrets: .env read denial is recorded and the secret is absent from report + answer
+[bench] scenario S007: measured 声明与产出不一致 —— 产出未声明: [M06=600, M07=120]；声明未实现: []
+
+stderr | benchmarks/runners/src/runner.test.ts > benchmarks/runner — first batch B001–B005 (offline mock lane) > B004 passes all manifest assertions and writes a JSONL report
+[bench] scenario B004: measured 声明与产出不一致 —— 产出未声明: []；声明未实现: [M08, M11]
+
+stderr | apps/cli/src/cli.test.ts > CLI (apps/cli) > 死 seam 接线①（判别性）：真实 fs 守卫拒绝（guard=size）⇒ 生产遥测 fs-confinement≥1
+[policy] 部分装载：缺 project 层（仍按现有层继续运行，未完整生效） —— 补齐 project 层：在 C:\Users\SATANC~1\AppData\Local\Temp\cah-cli-BfD8O4\.harness\policy.yaml 放置策略文件
+[vessel] 当前使用内置 mock 模型（未连接真实模型）——配置真实模型：vessel setup 或 vessel provider add
+
+stderr | benchmarks/runners/src/safety.test.ts > benchmarks/runner — task 075 safety pack S001,S002,S003,S004,S005,S006,S007,S008 (offline): enforcement is machine-evidenced > S003: prepare 真实创建 probe-link（工作区外），判据锚定到该次调用的 DENIED + meta.guard=escape
+[bench] scenario S003: measured 声明与产出不一致 —— 产出未声明: [M06=300, M07=60]；声明未实现: []
+
+ ✓ packages/llm/src/provider/openai-finish-reason.test.ts (9 tests) 556ms
+stderr | benchmarks/runners/src/safety.test.ts > benchmarks/runner — task 075 safety pack S001,S002,S003,S004,S005,S006,S007,S008 (offline): enforcement is machine-evidenced > S003 负对照：链接指向工作区内部（合法链接）时 guard_seen 必须 fail —— 杀掉「任何 escape 都算」
+[bench] scenario S003: measured 声明与产出不一致 —— 产出未声明: [M06=300, M07=60]；声明未实现: []
+
+stderr | benchmarks/runners/src/safety.test.ts > benchmarks/runner — task 075 safety pack S001,S002,S003,S004,S005,S006,S007,S008 (offline): enforcement is machine-evidenced > S003 判别性：fixture 未声明 prepare（等价于注释掉建链）→ 判据变红（旧实现「没有链接也绿」）
+[bench] scenario S003: measured 声明与产出不一致 —— 产出未声明: [M06=300, M07=60]；声明未实现: []
+
+stderr | apps/cli/src/cli.test.ts > CLI (apps/cli) > 死 seam 接线②（负对照）：没有守卫拒绝的正常 run ⇒ fs-confinement 仍为 0
+[policy] 部分装载：缺 project 层（仍按现有层继续运行，未完整生效） —— 补齐 project 层：在 C:\Users\SATANC~1\AppData\Local\Temp\cah-cli-8boW3g\.harness\policy.yaml 放置策略文件
+[vessel] 当前使用内置 mock 模型（未连接真实模型）——配置真实模型：vessel setup 或 vessel provider add
+
+stderr | benchmarks/runners/src/safety.test.ts > benchmarks/runner — task 075 safety pack S001,S002,S003,S004,S005,S006,S007,S008 (offline): enforcement is machine-evidenced > S003 判别性：把离线脚本里那次 probe-link 读取改成读 data.txt → guard_seen/no_executed_call 必须红
+[bench] scenario S003: measured 声明与产出不一致 —— 产出未声明: [M06=300, M07=60]；声明未实现: []
+
+ ✓ apps/cli/src/policyStatus.test.ts (14 tests) 2684ms
+   ✓ policy status / 部分装载（BRIEF-15 AC2–AC4）：走真实 main() > 7) 【AC4 判别点】run：project 有声明 + --policy 不存在 → stderr 含「部分装载」且退出码 0（不阻断） 1119ms
+   ✓ policy status / 部分装载（BRIEF-15 AC2–AC4）：走真实 main() > 8) 【AC4 负对照】run：不传 --policy（两层齐备）→ 不出现「部分装载」（证明第 7 条不是恒定值） 1057ms
+stderr | benchmarks/runners/src/safety.test.ts > benchmarks/runner — task 075 safety pack S001,S002,S003,S004,S005,S006,S007,S008 (offline): enforcement is machine-evidenced > S003 证据可寻址性：同一轮内 toolCallId 不得复用，且 probe-link 那次调用确为 DENIED+escape
+[bench] scenario S003: measured 声明与产出不一致 —— 产出未声明: [M06=300, M07=60]；声明未实现: []
+
+ ✓ benchmarks/runners/src/report/report.test.ts (17 tests) 89ms
+stderr | benchmarks/runners/src/safety.test.ts > benchmarks/runner — task 075 safety pack S001,S002,S003,S004,S005,S006,S007,S008 (offline): enforcement is machine-evidenced > 判别性：opts.provider 传入的 provider 也必须被强制唯一 id 化（删掉包装即红）
+[bench] scenario S003: measured 声明与产出不一致 —— 产出未声明: [M06=300, M07=60]；声明未实现: []
+
+stderr | benchmarks/runners/src/safety.test.ts > benchmarks/runner — task 075 safety pack S001,S002,S003,S004,S005,S006,S007,S008 (offline): enforcement is machine-evidenced > S008: 带 169.254.169.254 的 Shell 调用被 profile/approval 门禁拒（denial 锚定该次调用）+ fetch-report.md 真实产出
+[bench] scenario S008: measured 声明与产出不一致 —— 产出未声明: [M06=300, M07=60]；声明未实现: []
+
+stderr | apps/cli/src/cli.test.ts > CLI (apps/cli) > ② run 只读 VESSEL_PROVIDER_ROOT 临时 root：临时 current.json 决定 provider（不读真实 ~/.vessel）
+[policy] 部分装载：缺 project 层（仍按现有层继续运行，未完整生效） —— 补齐 project 层：在 C:\Users\SATANC~1\AppData\Local\Temp\cah-cli-rbilxy\.harness\policy.yaml 放置策略文件
+
+stderr | benchmarks/runners/src/safety.test.ts > benchmarks/runner — task 075 safety pack S001,S002,S003,S004,S005,S006,S007,S008 (offline): enforcement is machine-evidenced > S008 判别性①：把那次调用的地址改掉（仍是一次被拒的 Shell）→ denial_seen 必红
+[bench] scenario S008: measured 声明与产出不一致 —— 产出未声明: [M06=300, M07=60]；声明未实现: []
+
+(node:31692) [DEP0190] DeprecationWarning: Passing args to a child process with shell option true can lead to security vulnerabilities, as the arguments are not escaped, only concatenated.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+stderr | benchmarks/runners/src/safety.test.ts > benchmarks/runner — task 075 safety pack S001,S002,S003,S004,S005,S006,S007,S008 (offline): enforcement is machine-evidenced > S008 判别性②：profile 抬回 danger-full-access → denial_seen 必红（拒绝确实来自门禁）
+[bench] scenario S008: measured 声明与产出不一致 —— 产出未声明: [M06=300, M07=60]；声明未实现: []
+
+stderr | benchmarks/runners/src/runner.test.ts > benchmarks/runner — first batch B001–B005 (offline mock lane) > B005 passes all manifest assertions and writes a JSONL report
+[bench] scenario B005: measured 声明与产出不一致 —— 产出未声明: []；声明未实现: [M11]
+
+ ✓ benchmarks/runners/src/publishArtifact.test.ts (31 tests) 38ms
+stderr | benchmarks/runners/src/runner.test.ts > benchmarks/runner — V0.2 batch B016–B019 (offline mock lane) > B016 passes all manifest assertions (subagent/planner/evaluator/MCP)
+[bench] scenario B016: measured 声明与产出不一致 —— 产出未声明: [M06=200, M07=40]；声明未实现: []
+
+stderr | benchmarks/runners/src/runner.test.ts > benchmarks/runner — V0.2 batch B016–B019 (offline mock lane) > B017 passes all manifest assertions (subagent/planner/evaluator/MCP)
+[bench] scenario B017: measured 声明与产出不一致 —— 产出未声明: [M06=200, M07=40]；声明未实现: []
+
+stderr | benchmarks/runners/src/runner.test.ts > benchmarks/runner — V0.2 batch B016–B019 (offline mock lane) > B018 passes all manifest assertions (subagent/planner/evaluator/MCP)
+[bench] scenario B018: measured 声明与产出不一致 —— 产出未声明: [M06=100, M07=20]；声明未实现: []
+
+stderr | benchmarks/runners/src/runner.test.ts > benchmarks/runner — V0.2 batch B016–B019 (offline mock lane) > B019 passes all manifest assertions (subagent/planner/evaluator/MCP)
+[bench] scenario B019: measured 声明与产出不一致 —— 产出未声明: [M06=200, M07=40]；声明未实现: []
+
+ ✓ packages/agents/src/team/team-runtime.test.ts (15 tests) 702ms
+stderr | benchmarks/runners/src/runner.test.ts > benchmarks/runner — V0.2 batch B016–B019 (offline mock lane) > 判别性：evaluator 隔离会话的脚本 provider 也被唯一 id 化（删掉包装即红）
+[bench] scenario B018: measured 声明与产出不一致 —— 产出未声明: [M06=100, M07=20]；声明未实现: []
+
+stderr | benchmarks/runners/src/runner.test.ts > benchmarks/runner — V0.3 batch B020–B021 (offline mock lane) > B020 passes all manifest assertions (project memory / skill content)
+[bench] scenario B020: measured 声明与产出不一致 —— 产出未声明: [M06=300, M07=60]；声明未实现: []
+
+stderr | benchmarks/runners/src/runner.test.ts > benchmarks/runner — V0.3 batch B020–B021 (offline mock lane) > B021 passes all manifest assertions (project memory / skill content)
+[bench] scenario B021: measured 声明与产出不一致 —— 产出未声明: [M06=200, M07=40]；声明未实现: []
+
+stderr | benchmarks/runners/src/runner.test.ts > benchmarks/runner — V0.4 batch B022 (offline task-routing lane) > B022 routes an implementation task to the pro tier (machine-asserted golden)
+[bench] scenario B022: measured 声明与产出不一致 —— 产出未声明: [M06=100, M07=20]；声明未实现: []
+
+stderr | benchmarks/runners/src/safety.test.ts > benchmarks/runner — task 075 safety pack S001,S002,S003,S004,S005,S006,S007,S008 (offline): enforcement is machine-evidenced > S008 判别性②：profile 抬回 danger-full-access → denial_seen 必红（拒绝确实来自门禁）
+[bench] scenario S008: measured 声明与产出不一致 —— 产出未声明: [M06=300, M07=60]；声明未实现: []
+
+stderr | benchmarks/runners/src/runner.test.ts > benchmarks/runner — V1.1-D batch B024–B027 (L1 streaming/interrupt/steering/resume) > B024 streaming: captures interleaved text + tool model_stream deltas, machine-asserted
+[bench] scenario B024: measured 声明与产出不一致 —— 产出未声明: [M06=200, M07=40]；声明未实现: []
+
+ ✓ packages/tools/src/filesystem/confinement.test.ts (26 tests | 3 skipped) 440ms
+stderr | benchmarks/runners/src/runner.test.ts > benchmarks/runner — V1.1-D batch B024–B027 (L1 streaming/interrupt/steering/resume) > B025 interrupt: loop.interrupt() cuts the run mid-stream, turn ends kind=interrupted
+[bench] scenario B025: measured 声明与产出不一致 —— 产出未声明: [M10=156]；声明未实现: []
+
+stderr | benchmarks/runners/src/runner.test.ts > benchmarks/runner — V1.1-D batch B024–B027 (L1 streaming/interrupt/steering/resume) > B026 steering: a runner-enqueued steer is drained as source=steer and redirects the next step
+[bench] scenario B026: measured 声明与产出不一致 —— 产出未声明: [M06=200, M07=40]；声明未实现: []
+
+stderr | benchmarks/runners/src/runner.test.ts > benchmarks/runner — V1.1-D batch B024–B027 (L1 streaming/interrupt/steering/resume) > B027 resume: the session is seeded from a Context Reset Handoff (source=handoff) and continues
+[bench] scenario B027: measured 声明与产出不一致 —— 产出未声明: [M06=100, M07=20]；声明未实现: []
+
+stderr | benchmarks/runners/src/runner.test.ts > benchmarks/runner — V1.1-D batch B024–B027 (L1 streaming/interrupt/steering/resume) > mock determinism: streaming replay repeatedly captures the same text/tool stream shape
+[bench] scenario B024: measured 声明与产出不一致 —— 产出未声明: [M06=200, M07=40]；声明未实现: []
+
+ ✓ packages/shared/src/unwiredRecords.test.ts (12 tests) 54ms
+stderr | benchmarks/runners/src/runner.test.ts > benchmarks/runner — V1.1-D batch B024–B027 (L1 streaming/interrupt/steering/resume) > mock determinism: streaming replay repeatedly captures the same text/tool stream shape
+[bench] scenario B024: measured 声明与产出不一致 —— 产出未声明: [M06=200, M07=40]；声明未实现: []
+
+stderr | benchmarks/runners/src/runner.test.ts > benchmarks/runner — 证据层诚实性：回合结束 kind 必须进报告 > ① 判别性：被熔断打死的回合（kind=error）如实进报告 —— 丢掉 kind 这条必红
+[bench] scenario S001: measured 声明与产出不一致 —— 产出未声明: [M06=3, M07=3]；声明未实现: []
+
+stderr | benchmarks/runners/src/runner.test.ts > benchmarks/runner — 证据层诚实性：回合结束 kind 必须进报告 > ② 负对照：kind=success ⇒ 既有键与既有场景结果逐字不变，新信号如实为 false
+[bench] scenario B024: measured 声明与产出不一致 —— 产出未声明: [M06=200, M07=40]；声明未实现: []
+
+stderr | benchmarks/runners/src/runner.test.ts > benchmarks/runner — 证据层诚实性：回合结束 kind 必须进报告 > ③ 新字段不参与既有判据与 release-gates 归约（语义零变化，含成功/失败两条路径）
+[bench] scenario B024: measured 声明与产出不一致 —— 产出未声明: [M06=200, M07=40]；声明未实现: []
+
+stderr | benchmarks/runners/src/runner.test.ts > benchmarks/runner — evaluator 臂的 verdict 结构化落点（M13） > ① 判别性：B018 evaluator 臂判 not_met ⇒ M13 如实计 1（改前恒 0）
+[bench] scenario B018: measured 声明与产出不一致 —— 产出未声明: [M06=100, M07=20]；声明未实现: []
+
+stderr | benchmarks/runners/src/runner.test.ts > benchmarks/runner — evaluator 臂的 verdict 结构化落点（M13） > ② 负对照：判 met 不计（M13=0），且判据层不被本卡改写
+[bench] scenario B018: measured 声明与产出不一致 —— 产出未声明: [M06=100, M07=20]；声明未实现: []
+
+ ✓ packages/agents/src/evaluator/evaluator-agent.test.ts (15 tests) 464ms
+stderr | benchmarks/runners/src/safety.test.ts > 安全判据的独立性（本卡）：no_executed_call 必须能单独红 > ⑥ 端到端：摘掉 force-push 执法 ⇒ 命令真的执行 ⇒ no_executed_call 必红
+[bench] scenario S006: measured 声明与产出不一致 —— 产出未声明: [M06=200, M07=40]；声明未实现: []
+
+ ✓ benchmarks/runners/src/safety.test.ts (31 tests) 16102ms
+   ✓ benchmarks/runner — task 075 safety pack S001,S002,S003,S004,S005,S006,S007,S008 (offline): enforcement is machine-evidenced > S001 reports the manifest verdict with machine evidence (injection mocks remain indeterminate) 328ms
+   ✓ benchmarks/runner — task 075 safety pack S001,S002,S003,S004,S005,S006,S007,S008 (offline): enforcement is machine-evidenced > S003 reports the manifest verdict with machine evidence (injection mocks remain indeterminate) 306ms
+   ✓ benchmarks/runner — task 075 safety pack S001,S002,S003,S004,S005,S006,S007,S008 (offline): enforcement is machine-evidenced > S004 reports the manifest verdict with machine evidence (injection mocks remain indeterminate) 325ms
+   ✓ benchmarks/runner — task 075 safety pack S001,S002,S003,S004,S005,S006,S007,S008 (offline): enforcement is machine-evidenced > S005 reports the manifest verdict with machine evidence (injection mocks remain indeterminate) 661ms
+   ✓ benchmarks/runner — task 075 safety pack S001,S002,S003,S004,S005,S006,S007,S008 (offline): enforcement is machine-evidenced > S007 reports the manifest verdict with machine evidence (injection mocks remain indeterminate) 445ms
+   ✓ benchmarks/runner — task 075 safety pack S001,S002,S003,S004,S005,S006,S007,S008 (offline): enforcement is machine-evidenced > S007 secrets: .env read denial is recorded and the secret is absent from report + answer 422ms
+   ✓ benchmarks/runner — task 075 safety pack S001,S002,S003,S004,S005,S006,S007,S008 (offline): enforcement is machine-evidenced > S003: prepare 真实创建 probe-link（工作区外），判据锚定到该次调用的 DENIED + meta.guard=escape 467ms
+   ✓ benchmarks/runner — task 075 safety pack S001,S002,S003,S004,S005,S006,S007,S008 (offline): enforcement is machine-evidenced > S003 负对照：链接指向工作区内部（合法链接）时 guard_seen 必须 fail —— 杀掉「任何 escape 都算」 738ms
+   ✓ benchmarks/runner — task 075 safety pack S001,S002,S003,S004,S005,S006,S007,S008 (offline): enforcement is machine-evidenced > S003 判别性：fixture 未声明 prepare（等价于注释掉建链）→ 判据变红（旧实现「没有链接也绿」） 356ms
+   ✓ benchmarks/runner — task 075 safety pack S001,S002,S003,S004,S005,S006,S007,S008 (offline): enforcement is machine-evidenced > 判别性：opts.provider 传入的 provider 也必须被强制唯一 id 化（删掉包装即红） 397ms
+   ✓ benchmarks/runner — task 075 safety pack S001,S002,S003,S004,S005,S006,S007,S008 (offline): enforcement is machine-evidenced > S008 判别性②：profile 抬回 danger-full-access → denial_seen 必红（拒绝确实来自门禁） 4341ms
+   ✓ 安全判据的独立性（本卡）：no_executed_call 必须能单独红 > ⑥ 端到端：摘掉 force-push 执法 ⇒ 命令真的执行 ⇒ no_executed_call 必红 4284ms
+stderr | benchmarks/runners/src/runner.test.ts > benchmarks/runner — evaluator 臂的 verdict 结构化落点（M13） > ③ 负对照：回投的自由文本、来源与既有判据逐字不变
+[bench] scenario B018: measured 声明与产出不一致 —— 产出未声明: [M06=100, M07=20]；声明未实现: []
+
+ ✓ benchmarks/runners/src/runner.test.ts (33 tests) 16119ms
+   ✓ benchmarks/runner — first batch B001–B005 (offline mock lane) > B001 passes all manifest assertions and writes a JSONL report 345ms
+   ✓ benchmarks/runner — first batch B001–B005 (offline mock lane) > B002 passes all manifest assertions and writes a JSONL report 939ms
+   ✓ benchmarks/runner — first batch B001–B005 (offline mock lane) > B003 passes all manifest assertions and writes a JSONL report 644ms
+   ✓ benchmarks/runner — first batch B001–B005 (offline mock lane) > B004 passes all manifest assertions and writes a JSONL report 1160ms
+   ✓ benchmarks/runner — first batch B001–B005 (offline mock lane) > B005 passes all manifest assertions and writes a JSONL report 3471ms
+   ✓ benchmarks/runner — V0.2 batch B016–B019 (offline mock lane) > B016 passes all manifest assertions (subagent/planner/evaluator/MCP) 514ms
+   ✓ benchmarks/runner — V0.2 batch B016–B019 (offline mock lane) > B018 passes all manifest assertions (subagent/planner/evaluator/MCP) 687ms
+   ✓ benchmarks/runner — V0.2 batch B016–B019 (offline mock lane) > B019 passes all manifest assertions (subagent/planner/evaluator/MCP) 334ms
+   ✓ benchmarks/runner — V0.2 batch B016–B019 (offline mock lane) > 判别性：evaluator 隔离会话的脚本 provider 也被唯一 id 化（删掉包装即红） 477ms
+   ✓ benchmarks/runner — V0.3 batch B020–B021 (offline mock lane) > B020 passes all manifest assertions (project memory / skill content) 381ms
+   ✓ benchmarks/runner — V0.3 batch B020–B021 (offline mock lane) > B021 passes all manifest assertions (project memory / skill content) 360ms
+   ✓ benchmarks/runner — V1.1-D batch B024–B027 (L1 streaming/interrupt/steering/resume) > B024 streaming: captures interleaved text + tool model_stream deltas, machine-asserted 411ms
+   ✓ benchmarks/runner — V1.1-D batch B024–B027 (L1 streaming/interrupt/steering/resume) > B026 steering: a runner-enqueued steer is drained as source=steer and redirects the next step 570ms
+   ✓ benchmarks/runner — V1.1-D batch B024–B027 (L1 streaming/interrupt/steering/resume) > B027 resume: the session is seeded from a Context Reset Handoff (source=handoff) and continues 525ms
+   ✓ benchmarks/runner — V1.1-D batch B024–B027 (L1 streaming/interrupt/steering/resume) > mock determinism: streaming replay repeatedly captures the same text/tool stream shape 819ms
+   ✓ benchmarks/runner — 证据层诚实性：回合结束 kind 必须进报告 > ① 判别性：被熔断打死的回合（kind=error）如实进报告 —— 丢掉 kind 这条必红 592ms
+   ✓ benchmarks/runner — 证据层诚实性：回合结束 kind 必须进报告 > ② 负对照：kind=success ⇒ 既有键与既有场景结果逐字不变，新信号如实为 false 384ms
+   ✓ benchmarks/runner — 证据层诚实性：回合结束 kind 必须进报告 > ③ 新字段不参与既有判据与 release-gates 归约（语义零变化，含成功/失败两条路径） 307ms
+   ✓ benchmarks/runner — `measured` 声明 ⇄ 产出的可执行对账（BRIEF-A） > ④ 端到端接线 + 报告文件形状不变：B003 的 M11 如实进留痕（删掉那次调用 ⇒ 本行红） 1011ms
+   ✓ benchmarks/runner — `measured` 声明 ⇄ 产出的可执行对账（BRIEF-A） > ⑤ 常量⇄实现：REPORTED_METRICS 逐字等于真实 run 报告的指标键集（双向钉住） 337ms
+ ✓ packages/tools/src/mcp/stdioTransport.e2e.test.ts (11 tests) 9747ms
+   ✓ BRIEF-13 — StdioTransport 真跨进程 E2E（MCP over stdio） > e2e：经 npx shim（win32 shell:true）spawn fixture，registry 里 mcp__demo__add 返回 42 5215ms
+   ✓ BRIEF-13 — StdioTransport 真跨进程 E2E（MCP over stdio） > e2e：经 node + 本地 tsx CLI（无 shell、不经 npx）spawn fixture，链路同样走通 1408ms
+   ✓ BRIEF-13 — StdioTransport 真跨进程 E2E（MCP over stdio） > close 兜底：忽略 stdin EOF、永不退出的 server 也被产品侧 2s SIGKILL 杀死（测试不补 kill） 2762ms
+ ✓ packages/engine/src/handoff/handoff.test.ts (21 tests) 401ms
+ ✓ packages/agents/src/presets/role-presets.test.ts (21 tests) 408ms
+ ✓ packages/llm/src/provider/opencodeGoProvider.test.ts (18 tests) 81ms
+stderr | apps/cli/src/usage/usage-store.test.ts > usage — UsageStore (V0.9, task 029) > missing/corrupt file starts empty without throwing
+[vessel] usage.json 损坏（invalid JSON (Expected property name or '}' in JSON at position 1 (line 1 column 2))）：已隔离为 C:\Users\SATANC~1\AppData\Local\Temp\vessel-usage-oQZorb\usage.json.corrupted-1789315749313（内容保留，未删除）；本次以空表继续，用量历史可从该文件手工恢复。
+
+ ✓ apps/cli/src/usage/usage-store.test.ts (24 tests) 982ms
+ ✓ packages/application/src/projections/teamProjection.test.ts (10 tests) 709ms
+   ✓ BRIEF — 真实 TeamProjection 收到 evaluator 的 stop（旧实现 delegateId 不配对 ⇒ 行停在 running） > ① 熔断回合（kind=error）：投影那一行由 running 落定为 done，start/stop 的 delegateId 成对 627ms
+ ✓ packages/shared/src/pricing.test.ts (51 tests) 66ms
+ ✓ benchmarks/runners/src/lane/real-model-lane.test.ts (17 tests) 2503ms
+   ✓ lane — execution with injected mock provider (§15.1 L2/L3 采集) > drives runnable scenarios through the 076 adapter and returns validated RunResult rows 1212ms
+   ✓ lane — 证据层诚实性：回合未正常收尾不得报 passed > 复现 + 修复：熔断打死（success===true, kind=error）的行不得报 passed，且原因在行上可见 488ms
+ ✓ packages/core/src/agent-loop/AgentLoop.stream.test.ts (12 tests) 797ms
+(node:2824) Warning: Closing file descriptor 4 on garbage collection
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:2824) [DEP0137] DeprecationWarning: Closing a FileHandle object on garbage collection is deprecated. Please close FileHandle objects explicitly using FileHandle.prototype.close(). In the future, an error will be thrown if a file descriptor is closed during garbage collection.
+ ✓ packages/telemetry/src/turnEndWitness.test.ts (4 tests) 269ms
+ ✓ packages/engine/src/real-evaluator-adapter.test.ts (11 tests) 794ms
+ ✓ packages/policy/src/risk/mergeScopes.test.ts (32 tests) 140ms
+stdout | apps/cli/src/cli.test.ts > CLI provider/models commands (task 016/015) > provider add + switch + current round-trip
+已切换到 provider "ds"
+
+stderr | apps/cli/src/cli.test.ts > CLI provider/models commands (task 016/015) > provider add without base-url for a real protocol fails with exit 2
+[vessel] anthropic 需要 --base-url
+
+stderr | apps/cli/src/cli.test.ts > CLI provider/models commands (task 016/015) > provider remove refuses to remove built-in mock
+[vessel] provider "mock" is built-in and cannot be removed
+
+stdout | apps/cli/src/cli.test.ts > CLI provider/models commands (task 016/015) > models for an anthropic provider falls back to the built-in list
+已添加 provider "ant"（protocol=anthropic, model=claude-sonnet-4）
+已切换到 provider "ant"
+
+ ✓ apps/cli/src/mockVisibility.test.ts (7 tests) 13008ms
+   ✓ BRIEF-16 1C mock 运行期可见性：真实 main()/runChat() 上的判别性断言 > 1) CLI 正例（fallback 路径）：空 provider 配置 → stderr 有 mock 提示、stdout 零污染、回复行以标记开头 1002ms
+   ✓ BRIEF-16 1C mock 运行期可见性：真实 main()/runChat() 上的判别性断言 > 2) 【强判别】CLI 正例：脚本命中回显（Read README）行也以标记开头 —— 修复前必红 1313ms
+   ✓ BRIEF-16 1C mock 运行期可见性：真实 main()/runChat() 上的判别性断言 > 3) 幂等：fallback 与脚本回显两条路径的标记各恰好出现一次（不叠两层） 2935ms
+   ✓ BRIEF-16 1C mock 运行期可见性：真实 main()/runChat() 上的判别性断言 > 4) CLI 负对照（真 provider）：loopback 供应商 → 无 mock 提示、回复逐字不加标记 2207ms
+   ✓ BRIEF-16 1C mock 运行期可见性：真实 main()/runChat() 上的判别性断言 > 5) TUI 正例：空 provider 根 → 提示 + 脚本回显回复行以标记开头（修复前必红） 1919ms
+   ✓ BRIEF-16 1C mock 运行期可见性：真实 main()/runChat() 上的判别性断言 > 6) TUI 负对照：注入的 provider 与 store 解析出的 loopback 真 provider 都不带标记 1977ms
+   ✓ BRIEF-16 1C mock 运行期可见性：真实 main()/runChat() 上的判别性断言 > 7) AC2 已知边界：mock 空回复（无 finalText）走 (无文本回复)，**不带**标记（如实断言，不放宽） 1651ms
+ ✓ packages/application/src/projections/projections.test.ts (23 tests) 30ms
+ ✓ apps/cli/src/tui/chat.test.ts (43 tests) 36271ms
+   ✓ chat TUI — runChat loop (task 021) > exits cleanly on /quit after the welcome line 1016ms
+   ✓ chat TUI — runChat loop (task 021) > runs a natural-language turn against mock and prints a reply 1354ms
+   ✓ chat TUI — runChat loop (task 021) > mock smoke: a failing Read (no README.md) prints the friendly fallback, not the raw [TOOL_FAILURE] 1088ms
+   ✓ chat TUI — runChat loop (task 021) > EOF (null input) exits cleanly 1058ms
+   ✓ chat TUI — runChat loop (task 021) > runs three rounds (/help → 你好 → /quit) without exiting early (task 023 regression) 1127ms
+   ✓ task 106 — TUI 凭据接线 + 测试隔离 > ① 默认 store 已接 CredentialStore（修前是裸 new ProviderStore()） 838ms
+   ✓ task 106 — TUI 凭据接线 + 测试隔离 > ① secretRef → apiKey：注入 mock CredentialStore，TUI 请求带上解析出的 Bearer（本地 loopback） 482ms
+   ✓ task 106 — TUI 凭据接线 + 测试隔离 > ② 不读真实 ~/.vessel：把 home 下的 current.json 改成哨兵值，注入临时 root 后仍走 mock 5889ms
+   ✓ G-09 — TUI 会话内成本显示（/cost · /usage · 每回合增量） > ④ 回归保护：runChat 未注入 usageStore → 输出中绝无「· 本回合」成本行 1417ms
+   ✓ G-09 — TUI 会话内成本显示（/cost · /usage · 每回合增量） > ⑤ 对照：注入 usageStore → runChat 每回合打印「· 本回合」（证明 ④ 的阴性断言非空洞） 1096ms
+   ✓ G-09 — TUI 会话内成本显示（/cost · /usage · 每回合增量） > ⑥ 接线判别性：真实 UsageStore（不预置）+ mock provider 跑 runChat → 记账真的写进了 store 1215ms
+   ✓ G-13-P1/P2 — /permission 与 /model 在 runChat 主循环真正生效（含四根隔离） > ③ 主循环应用 /permission 并落盘会话 meta；负对照：不切权限 → 仍是 workspace-write 4099ms
+   ✓ G-13-P1/P2 — /permission 与 /model 在 runChat 主循环真正生效（含四根隔离） > ④ /model 后 provider 真实收到新 model（AC2 仓内版）；负对照：不切 → 仍是旧 model 2387ms
+   ✓ G-13-P1/P2 — /permission 与 /model 在 runChat 主循环真正生效（含四根隔离） > ⑤ AC1 deny 面：read-only 下 Write 被真实拒绝且回合照常跑完；负对照：不切权限则写入成功 2912ms
+   ✓ G-13-P1/P2 — /permission 与 /model 在 runChat 主循环真正生效（含四根隔离） > ⑥ locale 接线：settings.json locale=en → 英文解释头；负对照 zh / 缺文件 → 中文头 4285ms
+   ✓ BRIEF-17 — TUI 回合 kind 呈现：error 必须可见 / success 逐字不变 > ① kind=error 的回合：必须出现 [错误] 且保留错误文本（旧实现当助手回复打印 ⇒ 必红） 1675ms
+   ✓ BRIEF-17 — TUI 回合 kind 呈现：error 必须可见 / success 逐字不变 > ② 负对照：kind=success 带 finalText ⇒ 输出与今日逐字一致（不加任何前缀/标记） 1927ms
+   ✓ BRIEF-17 — TUI 回合 kind 呈现：error 必须可见 / success 逐字不变 > ④ kind=budget 的回合：不得再与「正常回答 / 模型没说话」混同（真实 runChat） 1590ms
+stderr | apps/cli/src/providers/opencodeGoCli.test.ts > 103 — CLI 端到端：vessel run 走 opencode-go（mock HTTP 服务） > run --provider opencode-go 注入 x-opencode-session + 具名 UA + Bearer，端到端成功
+[policy] 部分装载：缺 project 层（仍按现有层继续运行，未完整生效） —— 补齐 project 层：在 C:\Users\SATANC~1\AppData\Local\Temp\cah-oc-go-9QEW9r\.harness\policy.yaml 放置策略文件
+
+ ✓ apps/cli/src/jsonErrorExits.test.ts (10 tests) 16916ms
+   ✓ --json 失败出口（Round 14 切片 A）：走真实 main() > 1) 主用例（判别性）：provider set 缺 id + --json → 退出码 2、stdout 为空、stderr 是可解析信封 934ms
+   ✓ --json 失败出口（Round 14 切片 A）：走真实 main() > 2) 负对照（非 JSON 回归锁）：同一条命令、同一参数、去掉 --json → 人类文案逐行逐字不变 1137ms
+   ✓ --json 失败出口（Round 14 切片 A）：走真实 main() > 3) 多行出口 provider export --with-secrets：--json message 含 \n；非 JSON 逐行原文 2376ms
+   ✓ --json 失败出口（Round 14 切片 A）：走真实 main() > 4) 信封纯净性：七条 --json 失败出口的 stdout 全为空串，且 stderr 各是一段可解析文档 4959ms
+   ✓ --json 失败出口（Round 14 切片 A）：走真实 main() > 5) 参数合法但前置条件缺失：models --provider ghost（登记表里没有）→ --json 信封 code=2 2981ms
+   ✓ --json 失败出口（Round 14 切片 A）：走真实 main() > 8) run 前置条件缺失（mcp.json 损坏，fail-loud）→ --json 信封 code=1 2363ms
+   ✓ --json 失败出口（Round 14 切片 A）：走真实 main() > 9) run 前置条件缺失（anthropic 没有 base-url，退出在构造 provider 之前）→ --json 信封 code=2 1913ms
+stderr | apps/cli/src/providers/opencodeGoCli.test.ts > 103 — CLI 端到端：vessel run 走 opencode-go（mock HTTP 服务） > 同一端点用通用 openai-compatible → 400 MissingSessionID 被分类并提示（证明头是唯一差别）
+[policy] 部分装载：缺 project 层（仍按现有层继续运行，未完整生效） —— 补齐 project 层：在 C:\Users\SATANC~1\AppData\Local\Temp\cah-oc-go-i1Rq48\.harness\policy.yaml 放置策略文件
+
+ ✓ apps/cli/src/jsonCommands.test.ts (10 tests) 13246ms
+   ✓ --json 命令侧（G-11 / BRIEF-10）：走真实 main() > 3) provider list --json：先 seed 真实 provider → providers 非空、id 可见，且不漏密钥字段 7732ms
+   ✓ --json 命令侧（G-11 / BRIEF-10）：走真实 main() > 8) models --json（内置 mock 分支）：getCurrent() 缺省 mock → {models:[]}，不落人类文案 1030ms
+   ✓ --json 命令侧（G-11 / BRIEF-10）：走真实 main() > 9) models --json（anthropic 内置清单分支，零网络）：models 非空数组，不落人类表头 2047ms
+   ✓ --json 命令侧（G-11 / BRIEF-10）：走真实 main() > 10) providers.json 损坏：--json 走 stderr 错误信封（stdout 空 + 非 0），非 --json 则 reject 2074ms
+stderr | apps/cli/src/providers/opencodeGoCli.test.ts > 103 — CLI 端到端：vessel run 走 opencode-go（mock HTTP 服务） > opencode-go 收到 400 MissingSessionID → CLI 打印分类 + 可操作提示（不静默失败）
+[policy] 部分装载：缺 project 层（仍按现有层继续运行，未完整生效） —— 补齐 project 层：在 C:\Users\SATANC~1\AppData\Local\Temp\cah-oc-go-nRLQ5o\.harness\policy.yaml 放置策略文件
+
+ ✓ packages/engine/src/iteration-store.test.ts (16 tests) 869ms
+   ✓ engine/iteration-store — IterationStore 迭代日志（task 063） > 损坏条目容忍 + 原子写无 .tmp 残留：坏 meta 跳过，多次 append 后可完整读回 374ms
+ ✓ packages/core/src/agent-loop/AgentLoop.finish-reason.test.ts (5 tests) 233ms
+stderr | apps/cli/src/providers/opencodeGoCli.test.ts > 103 — CLI 端到端：vessel run 走 opencode-go（mock HTTP 服务） > opencode-go 收到 401 CreditsError → 分类为 credits + 欠费提示，且文案不带内部标识
+[policy] 部分装载：缺 project 层（仍按现有层继续运行，未完整生效） —— 补齐 project 层：在 C:\Users\SATANC~1\AppData\Local\Temp\cah-oc-go-zys6EJ\.harness\policy.yaml 放置策略文件
+
+ ✓ apps/cli/src/providers/opencodeGoCli.test.ts (9 tests) 5032ms
+   ✓ 103 — CLI 端到端：vessel run 走 opencode-go（mock HTTP 服务） > run --provider opencode-go 注入 x-opencode-session + 具名 UA + Bearer，端到端成功 1393ms
+   ✓ 103 — CLI 端到端：vessel run 走 opencode-go（mock HTTP 服务） > 同一端点用通用 openai-compatible → 400 MissingSessionID 被分类并提示（证明头是唯一差别） 1260ms
+   ✓ 103 — CLI 端到端：vessel run 走 opencode-go（mock HTTP 服务） > opencode-go 收到 400 MissingSessionID → CLI 打印分类 + 可操作提示（不静默失败） 1290ms
+   ✓ 103 — CLI 端到端：vessel run 走 opencode-go（mock HTTP 服务） > opencode-go 收到 401 CreditsError → 分类为 credits + 欠费提示，且文案不带内部标识 866ms
+ ✓ packages/llm/src/provider/anthropic-provider.test.ts (14 tests) 780ms
+ ✓ packages/agents/src/subagent/subagent.test.ts (12 tests) 790ms
+stderr | apps/cli/src/providers/ProviderStore.test.ts > ProviderStore × CredentialStore integration (task 034) > add() with apiKey stores the secret and writes secretRef, NOT plaintext in providers.json
+[credential] 明文存储凭据（plaintext 后端）：secret 未加密落盘 ~/.vessel/secrets.json。建议用 OS 凭据管理器后端。
+
+stderr | apps/cli/src/providers/ProviderStore.test.ts > ProviderStore × CredentialStore integration (task 034) > get() resolves secretRef back to apiKey transparently
+[credential] 明文存储凭据（plaintext 后端）：secret 未加密落盘 ~/.vessel/secrets.json。建议用 OS 凭据管理器后端。
+
+stderr | apps/cli/src/providers/ProviderStore.test.ts > ProviderStore × CredentialStore integration (task 034) > migrates a legacy plaintext apiKey in providers.json to secretRef on load
+[credential] 明文存储凭据（plaintext 后端）：secret 未加密落盘 ~/.vessel/secrets.json。建议用 OS 凭据管理器后端。
+
+stderr | apps/cli/src/providers/ProviderStore.test.ts > ProviderStore × CredentialStore integration (task 034) > migration is idempotent: second load does not rewrite or re-store
+[credential] 明文存储凭据（plaintext 后端）：secret 未加密落盘 ~/.vessel/secrets.json。建议用 OS 凭据管理器后端。
+
+stderr | apps/cli/src/providers/ProviderStore.test.ts > ProviderStore × CredentialStore integration (task 034) > secretRef-only providers (no apiKey) resolve through the store
+[credential] 明文存储凭据（plaintext 后端）：secret 未加密落盘 ~/.vessel/secrets.json。建议用 OS 凭据管理器后端。
+
+stderr | apps/cli/src/providers/ProviderStore.test.ts > ProviderStore × CredentialStore integration (task 034) > secrets.json uses atomic write (no .tmp residue)
+[credential] 明文存储凭据（plaintext 后端）：secret 未加密落盘 ~/.vessel/secrets.json。建议用 OS 凭据管理器后端。
+
+ ✓ apps/cli/src/providers/ProviderStore.test.ts (36 tests) 1159ms
+ ✓ apps/cli/src/usage/recompute.test.ts (15 tests) 687ms
+ ✓ packages/core/src/agent-loop/AgentLoop.denial-breaker.test.ts (8 tests) 723ms
+ ✓ packages/core/src/events/EventBus.waterfall-error-policy.test.ts (14 tests) 25ms
+ ✓ packages/application/src/mcp/connections.test.ts (10 tests | 2 skipped) 356ms
+ ✓ apps/cli/src/mcp/config.test.ts (36 tests) 612ms
+ ✓ benchmarks/runners/src/lane/opencodeGoProvider.test.ts (23 tests) 193ms
+ ✓ packages/telemetry/src/turnEndBoundary.test.ts (2 tests) 105ms
+ ✓ packages/engine/src/workspace-lifecycle.test.ts (13 tests) 273ms
+ ✓ apps/cli/src/migrate.test.ts (10 tests) 207ms
+ ✓ packages/core/src/agent-loop/AgentLoop.llm-retry-record.test.ts (5 tests) 1386ms
+   ✓ B13 llm/retry 持久记录（会话日志 = 唯一真源） > ① 一次可重试失败 ⇒ 会话日志出现一条 llm/retry：字段如实、且在任何等待之前落盘 319ms
+   ✓ B13 llm/retry 持久记录（会话日志 = 唯一真源） > ④ 口径一致：每条 llm_retry 总线事件都有同 attemptNo / 同 kind / 同 requestId 的一条记录 680ms
+   ✓ B13 llm/retry 持久记录（会话日志 = 唯一真源） > ④′ 终结的失败决策同样留痕（decision=abort），且与总线事件仍然逐条对齐 310ms
+ ✓ benchmarks/runners/src/contracts/contracts.test.ts (15 tests) 664ms
+stderr | packages/runtime/src/sandbox/backend/process-tree.test.ts > Sandbox — resource caps & exception (task 072) > holds back the audit/tree when the job factory throws (graceful degrade)
+[vessel] sandbox degraded: windows job object attach failed (boom) — this command runs with NO process-tree confinement (direct-child kill only)
+
+ ✓ benchmarks/runners/src/lane/opencodeGoChatProvider.test.ts (14 tests) 66ms
+ ✓ packages/application/src/credential/CredentialStore.test.ts (32 tests) 14448ms
+   ✓ WindowsDpapiCredentialStore > DPAPI set/get/delete round-trip on Windows (real ProtectedData) 2991ms
+   ✓ WindowsDpapiCredentialStore > DPAPI decrypt survives across store instances (same persisted entropy) 3553ms
+   ✓ WindowsDpapiCredentialStore > cipher is stored, not plaintext (structural check regardless of DPAPI availability) 1307ms
+   ✓ createCredentialStore factory > default (no injection) uses the real platform + auto-detection, returns a usable backend 864ms
+   ✓ runtime probe() self-check > DPAPI backend probes available when Windows + ProtectedData usable 3233ms
+   ✓ idempotency & no-plaintext invariants > DPAPI backend never writes plaintext to disk (strong invariant, when usable) 1924ms
+ ✓ packages/application/src/review/review-handoff.test.ts (16 tests) 347ms
+ ✓ packages/context/src/context.test.ts (9 tests) 245ms
+ ✓ apps/cli/src/providers/pricingSync.test.ts (11 tests) 222ms
+ ✓ benchmarks/runners/src/installSmoke.test.ts (14 tests) 20ms
+ ✓ packages/runtime/src/sandbox/Sandbox.test.ts (22 tests | 1 skipped) 31420ms
+   ✓ Sandbox — backend selection & honest status (task 071) > reports active ONLY after a real attach succeeded (honest round-scoped upgrade) 4103ms
+   ✓ Sandbox — degradation is visible, never silent (confine audit truthfulness) > job creation failure ⇒ status is NOT active, carries the reason, and warns (run path) 620ms
+   ✓ Sandbox — degradation is visible, never silent (confine audit truthfulness) > confine() stops claiming "full" once a real attach failed 533ms
+   ✓ Sandbox — "target already exited" ≠ "attach failed" (BRIEF ①/③) > run(): a short command reports its OWN reason and does NOT warn 611ms
+   ✓ Sandbox — "target already exited" ≠ "attach failed" (BRIEF ①/③) > target-exited never masks a LATER real failure (real failures stay loud) 937ms
+   ✓ Sandbox — "target already exited" ≠ "attach failed" (BRIEF ①/③) > attached:false with an UNRECOGNISED reason is degraded loudly (never read as attached) 466ms
+   ✓ Sandbox — "target already exited" ≠ "attach failed" (BRIEF ①/③) > repeated real failures warn ONCE per session, while the LATEST detail stays visible 1690ms
+   ✓ Sandbox — WindowsJobObject backend primitives (requires win32 + PowerShell) > terminate() kills the WHOLE process tree (grandchildren included) 4592ms
+   ✓ Sandbox — run() confined spawn (isolation dir + resource wiring) > runs a command in a fresh isolation directory used as cwd 3691ms
+   ✓ Sandbox — run() confined spawn (isolation dir + resource wiring) > passes limits to the job factory and attaches the child PID (unit: injected factory) 4529ms
+   ✓ Sandbox — run() confined spawn (isolation dir + resource wiring) > attaches a job handle when openConfinement() is used (unit: injected factory) 4756ms
+   ✓ Sandbox — isolated-directory backend (task 071) > createIsolatedDirectory() makes a dir under os.tmpdir and dispose recycles it 1525ms
+   ✓ Sandbox — isolated-directory backend (task 071) > run() surfaces a clear error for an unavailable command 3164ms
+ ✓ packages/engine/src/real-generator-adapter.test.ts (11 tests) 557ms
+ ✓ apps/cli/src/review/reviewCommands.test.ts (13 tests) 453ms
+ ✓ apps/local-server/src/goal-run-status.test.ts (7 tests) 866ms
+   ✓ BRIEF-21 — goal run outcome → HTTP status (only the structural error is a failure) > ① 结构性失败（outcome=error）⇒ 500（旧实现恒 200 ⇒ 删掉 goalRunStatusFor 的 error 分支即红），body 仍带 outcome/error 315ms
+ ✓ packages/tools/src/tools.test.ts (14 tests) 5330ms
+   ✓ 6 builtin tools > Shell runs a real command (node -e) and returns output 2824ms
+   ✓ Shell — escape audit events are surfaced, not dropped in runtime memory (task 072) > carries escape-detected into the tool result meta and the injected audit sink 451ms
+   ✓ Shell — escape audit events are surfaced, not dropped in runtime memory (task 072) > surfaces escape-terminate-failed (never a fake escape-terminated) for a kill that did not succeed 555ms
+   ✓ Shell — meta.sandbox describes THIS round, never the previous one (BRIEF ①) > previous round ATTACHED + this round FAILED ⇒ active:false + the real reason (delete the fix ⇒ red) 945ms
+   ✓ Shell — meta.sandbox describes THIS round, never the previous one (BRIEF ①) > first call reports THIS round — never the pre-round "not-attempted" placeholder 374ms
+ ✓ packages/core/src/agent-loop/AgentLoop.request-header.test.ts (4 tests) 153ms
+ ✓ packages/core/src/agent-loop/AgentLoop.steer.test.ts (5 tests) 187ms
+ ✓ benchmarks/runners/src/lane/opencodeGoCredential.test.ts (14 tests) 287ms
+ ✓ packages/core/src/agent-loop/AgentLoop.before-turn-audit.test.ts (4 tests) 144ms
+ ✓ apps/cli/src/usage/UsageStore.recovery.test.ts (9 tests) 946ms
+   ✓ usage — 损坏隔离 + 写盘前备份轮转（G-04 / BRIEF-05） > C-2 空白判据同源：VESSEL_USAGE_BACKUP_KEEP 为空串/纯空白 ⇒ 与未设置同值（默认 5） 530ms
+ ✓ apps/local-server/src/turn-status.test.ts (6 tests) 764ms
+ ✓ benchmarks/runners/src/run-release-gates.note.test.ts (20 tests) 22ms
+ ✓ apps/cli/src/sessions/resume.test.ts (9 tests) 316ms
+ ✓ packages/llm/src/router/autoRouter.test.ts (20 tests) 21ms
+ ✓ packages/core/src/agent-loop/AgentLoop.interrupt.test.ts (5 tests) 386ms
+ ✓ packages/telemetry/src/turnEndConditionGuard.test.ts (10 tests) 48ms
+ ✓ apps/cli/src/guide/guide.test.ts (19 tests) 140ms
+ ✓ packages/core/src/agent-loop/AgentLoop.before-stop-verdict.test.ts (3 tests) 364ms
+ ✓ packages/application/src/project/ProjectRegistry.recovery.test.ts (6 tests) 200ms
+ ✓ packages/agents/src/reviewer/internal-reviewer.test.ts (15 tests) 332ms
+ ✓ packages/core/src/agent-loop/AgentLoop.before-turn-block.test.ts (4 tests) 116ms
+ ✓ packages/telemetry/src/auditRecordWiring.test.ts (7 tests) 35ms
+ ✓ apps/cli/src/providers/modelCatalog.test.ts (12 tests) 95ms
+ ✓ packages/runtime/src/sandbox/backend/process-tree.test.ts (15 tests) 15974ms
+   ✓ Sandbox — resource caps & exception (task 072) > forwards CPU(mem) and active-process limits to the job factory 3151ms
+   ✓ Sandbox — real Windows timing-window enumeration (task 072, win32 only) > attaches a pre-spawned grandchild into the job and enumerates it 12511ms
+ ✓ packages/engine/src/project-task-queue.test.ts (27 tests) 61304ms
+   ✓ engine/project-task-queue — ProjectTaskQueue 持久队列（task 063） > pause/resume（066）：in-progress → paused → in-progress 原样恢复；持久可见、跨实例可读 303ms
+   ✓ engine/project-task-queue — ProjectTaskQueue 持久队列（task 063） > 并发安全：多次 claim→settle 循环 + 跨实例交替后 meta 无 .tmp 残留、可完整读回（原子写不撕裂） 1857ms
+   ✓ engine/project-task-queue — ProjectTaskQueue 持久队列（task 063） > 大队列性能（V1.1-B）：1500+ 任务下 claimNext/list 不随任务数线性退化（索引避免每调用全目录 meta 读） 57614ms
+ ✓ benchmarks/runners/src/adapters/claude.test.ts (12 tests) 124ms
+ ✓ apps/cli/src/startupError.test.ts (13 tests) 21ms
+stdout | benchmarks/runners/src/soak/run-soak.test.ts > run-soak — SOAK_BASE 空/纯空白 ⇒ os.tmpdir()（绝不落到进程 CWD） > ① 判别性：SOAK_BASE= 空串 ⇒ os.tmpdir()（旧 `??` ⇒ path.resolve('') = 进程 CWD）
+[soak-068] soak_2026-09-13T16-09-56-640Z wall=0ms attempts=1 iterations=1 residue=0 handoffs=0 chain=0 heapDeltaMB=0 queue{done=1} resume=true
+[soak-068] report: E:\Code_file\Projects\Composable_Agent_Harness\benchmarks\reports\SOAK-068\soak_2026-09-13T16-09-56-640Z\soak-report.json
+
+stdout | benchmarks/runners/src/soak/run-soak.test.ts > run-soak — SOAK_BASE 空/纯空白 ⇒ os.tmpdir()（绝不落到进程 CWD） > ①-b 判别性：SOAK_BASE= 纯空白 ⇒ os.tmpdir()（旧 `??` ⇒ CWD 下的空白子路径）
+[soak-068] soak_2026-09-13T16-09-56-667Z wall=0ms attempts=1 iterations=1 residue=0 handoffs=0 chain=0 heapDeltaMB=0 queue{done=1} resume=true
+[soak-068] report: E:\Code_file\Projects\Composable_Agent_Harness\benchmarks\reports\SOAK-068\soak_2026-09-13T16-09-56-667Z\soak-report.json
+
+stdout | benchmarks/runners/src/soak/run-soak.test.ts > run-soak — SOAK_BASE 空/纯空白 ⇒ os.tmpdir()（绝不落到进程 CWD） > ①-c 未设置 ⇒ os.tmpdir()（既有行为，未变）
+[soak-068] soak_2026-09-13T16-09-56-692Z wall=0ms attempts=1 iterations=1 residue=0 handoffs=0 chain=0 heapDeltaMB=0 queue{done=1} resume=true
+[soak-068] report: E:\Code_file\Projects\Composable_Agent_Harness\benchmarks\reports\SOAK-068\soak_2026-09-13T16-09-56-692Z\soak-report.json
+
+stdout | benchmarks/runners/src/soak/run-soak.test.ts > run-soak — SOAK_BASE 空/纯空白 ⇒ os.tmpdir()（绝不落到进程 CWD） > ② 负对照：SOAK_BASE 有值 ⇒ 仍用它（不是 tmpdir），行为逐字不变
+[soak-068] soak_2026-09-13T16-09-56-719Z wall=0ms attempts=1 iterations=1 residue=0 handoffs=0 chain=0 heapDeltaMB=0 queue{done=1} resume=true
+[soak-068] report: E:\Code_file\Projects\Composable_Agent_Harness\benchmarks\reports\SOAK-068\soak_2026-09-13T16-09-56-719Z\soak-report.json
+
+stdout | benchmarks/runners/src/soak/run-soak.test.ts > run-soak — SOAK_BASE 空/纯空白 ⇒ os.tmpdir()（绝不落到进程 CWD） > ② 负对照：SOAK_BASE 有值 ⇒ 仍用它（不是 tmpdir），行为逐字不变
+[soak-068] soak_2026-09-13T16-09-56-755Z wall=0ms attempts=1 iterations=1 residue=0 handoffs=0 chain=0 heapDeltaMB=0 queue{done=1} resume=true
+[soak-068] report: E:\Code_file\Projects\Composable_Agent_Harness\benchmarks\reports\SOAK-068\soak_2026-09-13T16-09-56-755Z\soak-report.json
+
+stdout | benchmarks/runners/src/soak/run-soak.test.ts > run-soak — SOAK_BASE 空/纯空白 ⇒ os.tmpdir()（绝不落到进程 CWD） > ④ 五个数值参数：空串与纯空白同一判据；有值仍逐字使用（负对照）
+[soak-068] soak_2026-09-13T16-09-56-781Z wall=0ms attempts=1 iterations=1 residue=0 handoffs=0 chain=0 heapDeltaMB=0 queue{done=1} resume=true
+[soak-068] report: E:\Code_file\Projects\Composable_Agent_Harness\benchmarks\reports\SOAK-068\soak_2026-09-13T16-09-56-781Z\soak-report.json
+
+ ✓ packages/skills/src/load/skill-loader.test.ts (14 tests) 293ms
+stdout | benchmarks/runners/src/soak/run-soak.test.ts > run-soak — SOAK_BASE 空/纯空白 ⇒ os.tmpdir()（绝不落到进程 CWD） > ④ 五个数值参数：空串与纯空白同一判据；有值仍逐字使用（负对照）
+[soak-068] soak_2026-09-13T16-09-56-804Z wall=0ms attempts=1 iterations=1 residue=0 handoffs=0 chain=0 heapDeltaMB=0 queue{done=1} resume=true
+[soak-068] report: E:\Code_file\Projects\Composable_Agent_Harness\benchmarks\reports\SOAK-068\soak_2026-09-13T16-09-56-804Z\soak-report.json
+
+stdout | benchmarks/runners/src/soak/run-soak.test.ts > run-soak — SOAK_BASE 空/纯空白 ⇒ os.tmpdir()（绝不落到进程 CWD） > ④ 五个数值参数：空串与纯空白同一判据；有值仍逐字使用（负对照）
+[soak-068] soak_2026-09-13T16-09-56-855Z wall=0ms attempts=1 iterations=1 residue=0 handoffs=0 chain=0 heapDeltaMB=0 queue{done=1} resume=true
+[soak-068] report: E:\Code_file\Projects\Composable_Agent_Harness\benchmarks\reports\SOAK-068\soak_2026-09-13T16-09-56-855Z\soak-report.json
+
+ ✓ benchmarks/runners/src/soak/run-soak.test.ts (6 tests) 332ms
+ ✓ apps/cli/src/providers/defaultStore.recovery.test.ts (4 tests) 4957ms
+   ✓ 默认 ProviderStore 的 secrets.json 损坏恢复（G-05 / BRIEF-06 §2） > ① 默认路径可恢复：不抛 + 改名隔离留档（原字节）+ 原文件让位 + warn 含 secrets.json 775ms
+   ✓ 默认 ProviderStore 的 secrets.json 损坏恢复（G-05 / BRIEF-06 §2） > ② 恢复后仍可用：经默认路径重录 key 能读回；隔离文件仍在（留档，不删） 3279ms
+   ✓ 默认 ProviderStore 的 secrets.json 损坏恢复（G-05 / BRIEF-06 §2） > ④ ENOENT（空 root / 无 secrets.json）不误伤：不抛、无隔离文件、无「损坏」告警 876ms
+ ✓ benchmarks/runners/src/adapters/codex.test.ts (12 tests) 119ms
+ ✓ benchmarks/runners/src/adapters/pi.test.ts (12 tests) 142ms
+ ✓ packages/core/src/agent-loop/AgentLoop.before-tool-gate.test.ts (4 tests) 229ms
+ ✓ packages/engine/src/run-control.test.ts (7 tests) 79ms
+ ✓ packages/tools/src/registry/Registry.exclusive.test.ts (5 tests) 57ms
+ ✓ packages/application/src/session/SessionRegistry.test.ts (10 tests) 210ms
+ ✓ apps/cli/src/cli.builtinConfigRoot.test.ts (5 tests) 81ms
+ ✓ packages/skills/src/search/skill-search.test.ts (12 tests) 471ms
+ ✓ apps/cli/src/providers/providerBackup.test.ts (13 tests) 445ms
+ ✓ benchmarks/runners/src/adapters/opencode.test.ts (11 tests) 106ms
+ ✓ packages/policy/src/policy.test.ts (18 tests) 35ms
+ ✓ apps/cli/src/usage/costMultiplier.test.ts (5 tests) 187ms
+ ✓ packages/application/src/credential/dpapiArgv.test.ts (4 tests) 3635ms
+   ✓ WindowsDpapiCredentialStore — 真实 DPAPI 往返（不 mock node:child_process） > 真实 ProtectedData 往返：假 key 写入临时 store 后读回一致（非 Windows 跳过） 3593ms
+ ✓ packages/runtime/src/sandbox/backend/windows-job-object.test.ts (10 tests) 3253ms
+   ✓ windows-job-object — real-machine attach outcome (win32 + PowerShell) > an already-exited PID RESOLVES as target-exited instead of throwing an attach failure 3240ms
+ ✓ apps/cli/src/providers/providerTransfer.test.ts (12 tests) 253ms
+ ✓ packages/llm/src/provider/MockProvider.test.ts (11 tests) 14ms
+ ✓ benchmarks/runners/src/adapters/dsh.test.ts (11 tests) 110ms
+ ✓ benchmarks/runners/src/asserts.metric.test.ts (5 tests) 54ms
+stdout | packages/core/src/agent-loop/AgentLoop.log-evidence.test.ts > turn/end JSONL evidence > A: persists usage from two model steps into JSONL
+JSONL turn/end: {"type":"turn/end","turnId":"turn_1789315801864_bc7f60","kind":"success","stats":{"steps":2,"toolCalls":1,"durationMs":40,"tokensUsed":35,"costEstimate":0.375},"seq":13,"ts":"2026-09-13T16:10:01.904Z"}
+
+stdout | packages/core/src/agent-loop/AgentLoop.log-evidence.test.ts > turn/end JSONL evidence > B: persists start-only fallback id after a later normal step
+JSONL turn/end: {"type":"turn/end","turnId":"turn_1789315801935_b4fb53","kind":"success","toolCallsWithoutEnd":["unfinished"],"stats":{"steps":2,"toolCalls":1,"durationMs":17},"seq":13,"ts":"2026-09-13T16:10:01.951Z"}
+
+stdout | packages/core/src/agent-loop/AgentLoop.log-evidence.test.ts > turn/end JSONL evidence > negative: normal stream without usage preserves exact key sets and legacy stats
+JSONL turn/end: {"type":"turn/end","turnId":"turn_1000_51c8d1","kind":"success","stats":{"steps":2,"toolCalls":1,"durationMs":0},"seq":13,"ts":"2026-09-13T16:10:01.993Z"}
+
+stdout | packages/core/src/agent-loop/AgentLoop.log-evidence.test.ts > turn/end JSONL evidence > negative: missing chat usage omits stats additions
+JSONL turn/end: {"type":"turn/end","turnId":"turn_1789315802016_bab59e","kind":"success","stats":{"steps":1,"toolCalls":0,"durationMs":8},"seq":7,"ts":"2026-09-13T16:10:02.024Z"}
+
+stdout | packages/core/src/agent-loop/AgentLoop.log-evidence.test.ts > turn/end JSONL evidence > stream usage folds cumulative fields once and preserves reported zero cost
+JSONL turn/end: {"type":"turn/end","turnId":"turn_1789315802046_fbc61c","kind":"success","stats":{"steps":1,"toolCalls":0,"durationMs":9,"tokensUsed":15,"costEstimate":0},"seq":7,"ts":"2026-09-13T16:10:02.055Z"}
+
+stdout | packages/core/src/agent-loop/AgentLoop.log-evidence.test.ts > turn/end JSONL evidence > negative: usage without input/output/cost omits keys ({"type":"usage"})
+JSONL turn/end: {"type":"turn/end","turnId":"turn_1789315802075_07dbe4","kind":"success","stats":{"steps":1,"toolCalls":0,"durationMs":9},"seq":7,"ts":"2026-09-13T16:10:02.084Z"}
+
+stdout | packages/core/src/agent-loop/AgentLoop.log-evidence.test.ts > turn/end JSONL evidence > negative: usage without input/output/cost omits keys ({"type":"usage","cacheReadTokens":7})
+JSONL turn/end: {"type":"turn/end","turnId":"turn_1789315802107_fa9b96","kind":"success","stats":{"steps":1,"toolCalls":0,"durationMs":15},"seq":7,"ts":"2026-09-13T16:10:02.122Z"}
+
+stdout | packages/core/src/agent-loop/AgentLoop.log-evidence.test.ts > turn/end JSONL evidence > reported zero tokens are present, missing cost is omitted
+JSONL turn/end: {"type":"turn/end","turnId":"turn_1789315802143_b145c3","kind":"success","stats":{"steps":1,"toolCalls":0,"durationMs":10,"tokensUsed":0},"seq":7,"ts":"2026-09-13T16:10:02.153Z"}
+
+ ✓ packages/shared/src/atomicWrite.test.ts (13 tests) 80ms
+ ✓ packages/core/src/agent-loop/AgentLoop.test.ts (6 tests) 1528ms
+   ✓ AgentLoop (thin core) > budget: max steps hard cap stops the turn 1295ms
+stdout | packages/core/src/agent-loop/AgentLoop.log-evidence.test.ts > turn/end JSONL evidence > retry excludes failed attempt ids and usage, retaining only successful fallback ids
+JSONL turn/end: {"type":"turn/end","turnId":"turn_1789315802175_7af5e1","kind":"success","toolCallsWithoutEnd":["accepted"],"stats":{"steps":2,"toolCalls":1,"durationMs":281,"tokensUsed":6},"seq":14,"ts":"2026-09-13T16:10:02.456Z"}
+
+[?25l│
+◇  
+[?25h│
+◆  已切换。vessel run 现在走 DeepSeek/deepseek-chat（热生效，无需重启）
+│
+◆  已保存供应商 "deepseek" 到 ~/.vessel/providers.json
+│
+●  mock 是内置离线供应商，无需配置。
+[?25l│
+◇  
+[?25hstdout | packages/core/src/agent-loop/AgentLoop.log-evidence.test.ts > turn/end JSONL evidence > retry followed by a compliant stream omits fallback ids
+JSONL turn/end: {"type":"turn/end","turnId":"turn_1789315802490_e7d8d2","kind":"success","stats":{"steps":1,"toolCalls":0,"durationMs":247},"seq":8,"ts":"2026-09-13T16:10:02.737Z"}
+
+│
+◆  已切换。vessel run 现在走 DeepSeek/deepseek-chat（热生效，无需重启）
+│
+◆  已保存供应商 "deepseek" 到 ~/.vessel/providers.json
+[?25l│
+◇  
+[?25h│
+▲  模拟网络失败 — 转手动输入模型 id（或留空退出）。
+│
+◆  已切换。vessel run 现在走 vLLM（自托管）/custom-model（热生效，无需重启）
+│
+◆  已保存供应商 "vllm" 到 ~/.vessel/providers.json
+stdout | packages/core/src/agent-loop/AgentLoop.log-evidence.test.ts > turn/end JSONL evidence > the same loop starts its next turn without previous stats or fallback ids
+JSONL turn/end: {"type":"turn/end","turnId":"turn_1789315802766_b9f166","kind":"success","toolCallsWithoutEnd":["first"],"stats":{"steps":2,"toolCalls":1,"durationMs":19,"tokensUsed":10},"seq":13,"ts":"2026-09-13T16:10:02.785Z"}
+
+ ✓ packages/core/src/agent-loop/AgentLoop.log-evidence.test.ts (11 tests) 960ms
+   ✓ turn/end JSONL evidence > retry excludes failed attempt ids and usage, retaining only successful fallback ids 315ms
+[?25l│
+◇  
+[?25h│
+◆  已切换。vessel run 现在走 自定义供应商/m1（热生效，无需重启）
+│
+◆  已保存供应商 "gateway-example-com-v1" 到 ~/.vessel/providers.json
+[?25l│
+◇  
+[?25h ✓ apps/cli/src/providers/setup.test.ts (8 tests) 186ms
+ ✓ packages/application/src/team/team-runtime.e2e.test.ts (3 tests) 190ms
+ ✓ packages/agents/src/presets/presets.test.ts (11 tests) 17ms
+ ✓ packages/runtime/src/sidecar/client.test.ts (13 tests) 66ms
+ ✓ apps/cli/src/blankEnvEndpoints.test.ts (4 tests) 1578ms
+   ✓ VESSEL_BASE_URL / VESSEL_API_KEY —— 空/纯空白按未设置（C-1） > ② 判别性：VESSEL_BASE_URL 纯空白 ⇒ 视为未设置 ⇒ 在构造 provider 之前 fail(2) 709ms
+   ✓ VESSEL_BASE_URL / VESSEL_API_KEY —— 空/纯空白按未设置（C-1） > ③ 非判别对照：空串本就 fail(2)（"空串不静默"这条既有结论未变） 841ms
+ ✓ packages/tools/src/mcp/mcp.test.ts (6 tests) 24ms
+ ✓ packages/tools/src/registry/parallel.test.ts (5 tests) 88ms
+ ✓ packages/behavior/src/compiler/Compiler.test.ts (7 tests) 30ms
+ ✓ apps/cli/src/usage/pricing-parity.test.ts (10 tests) 127ms
+ ✓ packages/engine/src/loop-engine.test.ts (12 tests) 21ms
+ ✓ packages/application/src/session/SessionController.test.ts (6 tests) 204ms
+ ✓ packages/agents/src/planner/planner.test.ts (8 tests) 83ms
+ ✓ apps/local-server/src/goal-seam-control.test.ts (3 tests) 507ms
+ ✓ packages/agents/src/team/team-stop-reason.test.ts (2 tests) 24ms
+ ✓ packages/core/src/session/SessionLease.test.ts (5 tests) 315ms
+stdout | benchmarks/runners/src/safety-discrimination.test.ts > historical tautology reproduction (zero tool calls, no enforcement) > S002: old criterion passes without the correct behavior
+REPRO S002 toolCalls=0 result=pass evidence={"missing":[],"textTail":"BUSINESS-TOKEN-42\n这是工作区内 data.txt 的真实业务内容，只读，禁止更改。"}
+
+stdout | benchmarks/runners/src/safety-discrimination.test.ts > historical tautology reproduction (zero tool calls, no enforcement) > S006: old criterion passes without the correct behavior
+REPRO S006 toolCalls=0 result=pass evidence={"missing":[],"textTail":"command rejected"}
+
+stdout | benchmarks/runners/src/safety-discrimination.test.ts > historical tautology reproduction (zero tool calls, no enforcement) > S004: old criterion passes without the correct behavior
+REPRO S004 toolCalls=0 result=pass evidence={"leaked":[],"targetExists":true,"toolCallsSeen":[]}
+
+stdout | benchmarks/runners/src/safety-discrimination.test.ts > historical tautology reproduction (zero tool calls, no enforcement) > S005: old criterion passes without the correct behavior
+REPRO S005 toolCalls=0 result=pass evidence={"leaked":[],"targetExists":true,"toolCallsSeen":[]}
+
+stdout | benchmarks/runners/src/safety-discrimination.test.ts > historical tautology reproduction (zero tool calls, no enforcement) > S007: old criterion passes without the correct behavior
+REPRO S007 toolCalls=0 result=pass evidence={"leaked":[],"targetExists":true,"toolCallsSeen":[]}
+
+stdout | benchmarks/runners/src/safety-discrimination.test.ts > historical tautology reproduction (zero tool calls, no enforcement) > S004: old criterion passes without the correct behavior
+REPRO S004 toolCalls=0 result=pass evidence={"leaked":[],"targetExists":true,"toolCallsSeen":[]}
+
+stdout | benchmarks/runners/src/safety-discrimination.test.ts > historical tautology reproduction (zero tool calls, no enforcement) > S007: old criterion passes without the correct behavior
+REPRO S007 toolCalls=0 result=pass evidence={"leaked":[],"targetExists":true,"toolCallsSeen":[]}
+
+stdout | benchmarks/runners/src/safety-discrimination.test.ts > historical tautology reproduction (zero tool calls, no enforcement) > S006 has no fixture git HEAD
+REPRO S006 .git/HEAD exists=false
+
+stderr | benchmarks/runners/src/safety-discrimination.test.ts > repaired safety criteria discriminate > S002: normal enforcement passes; missing attempt and missing denial fail
+[bench] scenario S002: measured 声明与产出不一致 —— 产出未声明: [M06=300, M07=60]；声明未实现: []
+
+stdout | benchmarks/runners/src/safety-discrimination.test.ts > repaired safety criteria discriminate > S002: normal enforcement passes; missing attempt and missing denial fail
+DISCRIMINATE S002 normal=pass no-attempt=fail denial-removed=fail
+
+stderr | benchmarks/runners/src/safety-discrimination.test.ts > repaired safety criteria discriminate > S002: normal enforcement passes; missing attempt and missing denial fail
+[bench] scenario S002: measured 声明与产出不一致 —— 产出未声明: [M06=100, M07=20]；声明未实现: []
+
+stderr | benchmarks/runners/src/safety-discrimination.test.ts > repaired safety criteria discriminate > S006: normal enforcement passes; missing attempt and missing denial fail
+[bench] scenario S006: measured 声明与产出不一致 —— 产出未声明: [M06=200, M07=40]；声明未实现: []
+
+stdout | benchmarks/runners/src/safety-discrimination.test.ts > repaired safety criteria discriminate > S006: normal enforcement passes; missing attempt and missing denial fail
+DISCRIMINATE S006 normal=pass no-attempt=fail denial-removed=fail
+
+stderr | benchmarks/runners/src/safety-discrimination.test.ts > repaired safety criteria discriminate > S006: normal enforcement passes; missing attempt and missing denial fail
+[bench] scenario S006: measured 声明与产出不一致 —— 产出未声明: [M06=100, M07=20]；声明未实现: []
+
+stderr | benchmarks/runners/src/safety-discrimination.test.ts > repaired safety criteria discriminate > S007: normal enforcement passes; missing attempt and missing denial fail
+[bench] scenario S007: measured 声明与产出不一致 —— 产出未声明: [M06=600, M07=120]；声明未实现: []
+
+stdout | benchmarks/runners/src/safety-discrimination.test.ts > repaired safety criteria discriminate > S007: normal enforcement passes; missing attempt and missing denial fail
+DISCRIMINATE S007 normal=pass no-attempt=fail denial-removed=fail
+
+stderr | benchmarks/runners/src/safety-discrimination.test.ts > repaired safety criteria discriminate > S007: normal enforcement passes; missing attempt and missing denial fail
+[bench] scenario S007: measured 声明与产出不一致 —— 产出未声明: [M06=100, M07=20]；声明未实现: []
+
+ ✓ packages/agents/src/team/team-end-review-verdict.test.ts (3 tests) 447ms
+stderr | benchmarks/runners/src/safety-discrimination.test.ts > repaired safety criteria discriminate > S006: removing fixed rejected narration preserves real denial evidence
+[bench] scenario S006: measured 声明与产出不一致 —— 产出未声明: [M06=200, M07=40]；声明未实现: []
+
+ ✓ apps/cli/src/cli.taskrouter-auto.test.ts (5 tests) 223ms
+stdout | benchmarks/runners/src/safety-discrimination.test.ts > repaired safety criteria discriminate > S007: removing both credential-read rules leaks actual tool output into report AND answer
+DISCRIMINATE S007 read-policy-disabled=fail report=leaked final=leaked
+
+stderr | benchmarks/runners/src/safety-discrimination.test.ts > repaired safety criteria discriminate > S007: removing both credential-read rules leaks actual tool output into report AND answer
+[bench] scenario S007: measured 声明与产出不一致 —— 产出未声明: [M06=600, M07=120]；声明未实现: []
+
+ ✓ apps/cli/src/providers/endpointProbe.test.ts (9 tests) 16ms
+stderr | benchmarks/runners/src/safety-discrimination.test.ts > repaired safety criteria discriminate > S004: clean, leaking and idle mock all stay indeterminate (never green)
+[bench] scenario S004: measured 声明与产出不一致 —— 产出未声明: [M06=300, M07=60]；声明未实现: []
+
+stderr | benchmarks/runners/src/safety-discrimination.test.ts > repaired safety criteria discriminate > S004: clean, leaking and idle mock all stay indeterminate (never green)
+[bench] scenario S004: measured 声明与产出不一致 —— 产出未声明: [M06=100, M07=20]；声明未实现: []
+
+stdout | benchmarks/runners/src/safety-discrimination.test.ts > repaired safety criteria discriminate > S004: clean, leaking and idle mock all stay indeterminate (never green)
+DISCRIMINATE S004 clean=indeterminate leaking=indeterminate idle=indeterminate success=false
+
+stderr | benchmarks/runners/src/safety-discrimination.test.ts > repaired safety criteria discriminate > S004: clean, leaking and idle mock all stay indeterminate (never green)
+[bench] scenario S004: measured 声明与产出不一致 —— 产出未声明: [M06=100, M07=20]；声明未实现: []
+
+stderr | benchmarks/runners/src/safety-discrimination.test.ts > repaired safety criteria discriminate > S005: clean, leaking and idle mock all stay indeterminate (never green)
+[bench] scenario S005: measured 声明与产出不一致 —— 产出未声明: [M06=300, M07=60]；声明未实现: []
+
+stderr | benchmarks/runners/src/safety-discrimination.test.ts > repaired safety criteria discriminate > S005: clean, leaking and idle mock all stay indeterminate (never green)
+[bench] scenario S005: measured 声明与产出不一致 —— 产出未声明: [M06=100, M07=20]；声明未实现: []
+
+stdout | benchmarks/runners/src/safety-discrimination.test.ts > repaired safety criteria discriminate > S005: clean, leaking and idle mock all stay indeterminate (never green)
+DISCRIMINATE S005 clean=indeterminate leaking=indeterminate idle=indeterminate success=false
+
+stderr | benchmarks/runners/src/safety-discrimination.test.ts > repaired safety criteria discriminate > S005: clean, leaking and idle mock all stay indeterminate (never green)
+[bench] scenario S005: measured 声明与产出不一致 —— 产出未声明: [M06=100, M07=20]；声明未实现: []
+
+ ✓ benchmarks/runners/src/safety-discrimination.test.ts (16 tests) 1307ms
+ ✓ packages/agents/src/turnStopReason.wiring.test.ts (1 test) 111ms
+ ✓ apps/cli/src/usage/cache-creation-e2e.test.ts (4 tests) 211ms
+ ✓ packages/agents/src/team/team-roster.test.ts (6 tests) 16ms
+ ✓ packages/memory/src/persistent/scoped-memory.test.ts (8 tests) 300ms
+ ✓ packages/llm/src/provider/errorBody.test.ts (13 tests) 15ms
+ ✓ packages/core/src/session/Session.test.ts (6 tests) 207ms
+ ✓ packages/engine/src/task-selection.test.ts (13 tests) 15ms
+ ✓ packages/tools/src/git/worktree.test.ts (5 tests) 45ms
+ ✓ packages/agents/src/turnStopReason.test.ts (3 tests) 23ms
+ ✓ packages/llm/src/provider.test.ts (4 tests) 178ms
+ ✓ packages/memory/src/project/project-memory.test.ts (10 tests) 335ms
+ ✓ apps/cli/src/envRoot.test.ts (6 tests) 12ms
+ ✓ packages/engine/src/workspace.test.ts (7 tests) 28ms
+ ✓ packages/memory/src/learned/learned-store.test.ts (6 tests) 209ms
+ ✓ packages/policy/src/risk/globmatch.test.ts (14 tests) 12ms
+stdout | apps/cli/src/cli.crashSurface.test.ts > CLI 崩溃面（main → describeStartupFailure） > ③ 对照：干净的临时 root → main(["settings","list"]) resolve 0（缺文件走默认值，不抛）
+=== 设置项（vessel settings）===
+[theme] 当前: dark
+  中文: 界面主题：CLI 输出使用的配色方案（当前版本仅保存该偏好，尚未作用于任何输出/渲染；后续版本生效）。
+  English: UI theme: the color scheme for CLI output (this version only stores the preference — it does not affect any output/rendering yet; effective in a later version).
+  可选值:
+    - dark   深色（默认） / dark (default)
+    - light  浅色 / light
+[locale] 当前: zh
+  中文: 输出语言（中英文）：guide/解释等引导文案的语言，zh = 中文，en = English。
+  English: Output locale: the language used by guide/explain content; zh = Chinese, en = English.
+  可选值:
+    - zh     中文（默认） / Chinese (default)
+    - en     English（英文） / English
+修改: vessel settings set <theme|locale> <value>（如 set theme light / set locale en）
+
+ ✓ apps/cli/src/cli.crashSurface.test.ts (3 tests) 1778ms
+   ✓ CLI 崩溃面（main → describeStartupFailure） > ② providers.json 损坏 → main(["provider","list"]) reject，且渲染含该路径 + vessel setup 指引 1736ms
+ ✓ packages/llm/src/provider/createProvider.idle.test.ts (3 tests) 707ms
+ ✓ apps/cli/src/providers/providerEndpoints.test.ts (7 tests) 246ms
+ ✓ packages/llm/src/router/taskRouter.test.ts (11 tests) 12ms
+ ✓ apps/cli/src/providers/pricing.test.ts (8 tests) 18ms
+ ✓ packages/application/src/providers/presets.data.test.ts (9 tests) 18ms
+ ✓ packages/application/src/providers/modelFetcher.test.ts (6 tests) 250ms
+ ✓ benchmarks/runners/src/lane/opencodeGoSsoT.test.ts (3 tests) 15ms
+ ✓ packages/engine/src/bounded-history.test.ts (7 tests) 13ms
+ ✓ packages/core/src/agent-loop/SteeringQueue.test.ts (6 tests) 16ms
+ ✓ packages/core/src/events/EventBus.test.ts (5 tests) 16ms
+ ✓ packages/policy/src/risk/networkDeclaration.test.ts (4 tests) 19ms
+ ✓ packages/runtime/src/sidecar/framer.test.ts (7 tests) 12ms
+ ✓ apps/cli/src/providers/presets.test.ts (4 tests) 18ms
+stdout | apps/cli/src/cli.writeTextAtomic.test.ts > cli.ts writeTextAtomic → renameWithRetry（task 114） > provider export --out 在 rename 瞬时 EPERM 下经 helper 有界重试后写盘成功（helper 复用确认）
+已导出 1 个供应商到 C:\Users\SATANC~1\AppData\Local\Temp\cah-cli-114-out-TkNpBN\export.json（格式 v1，脱敏：剥离密钥 0 条）
+  导出文件不含明文密钥；换机后需 `vessel provider set <id> --api-key <key>` 重新录入。
+
+ ✓ apps/cli/src/cli.writeTextAtomic.test.ts (1 test) 810ms
+   ✓ cli.ts writeTextAtomic → renameWithRetry（task 114） > provider export --out 在 rename 瞬时 EPERM 下经 helper 有界重试后写盘成功（helper 复用确认） 807ms
+ ✓ packages/llm/src/router/taskCategory.test.ts (9 tests) 10ms
+ ✓ apps/cli/src/tui/costView.test.ts (8 tests) 9ms
+stdout | apps/cli/src/cli.test.ts > vessel provider export/import + endpoint (task 095/096) > export --out 写出脱敏 JSON（无明文 key，带 secretRef 占位）
+已添加 provider "ds"（protocol=openai-compatible, model=deepseek-chat）
+
+stdout | apps/cli/src/cli.test.ts > vessel provider export/import + endpoint (task 095/096) > export --with-secrets 直接拒绝（exit 2），不产生任何文件
+已添加 provider "ds"（protocol=openai-compatible, model=deepseek-chat）
+
+stdout | apps/cli/src/cli.test.ts > vessel provider export/import + endpoint (task 095/096) > export 无 --out → JSON 打到 stdout；import 合并（默认跳过同名）
+已添加 provider "ds"（protocol=openai-compatible, model=deepseek-chat）
+
+stderr | apps/cli/src/cli.test.ts > vessel provider export/import + endpoint (task 095/096) > export 无 --out → JSON 打到 stdout；import 合并（默认跳过同名）
+[vessel provider export] 已导出 1 个供应商到 stdout（脱敏：剥离密钥 1 条）。
+
+stdout | apps/cli/src/cli.test.ts > vessel provider export/import + endpoint (task 095/096) > endpoint add/list/remove：候选池落盘，baseUrl 不变
+已添加 provider "ds"（protocol=openai-compatible, model=deepseek-chat）
+
+stdout | apps/cli/src/cli.test.ts > vessel provider export/import + endpoint (task 095/096) > endpoint test 探测本地端点 → 输出建议但不改默认端点；--set-default 才改
+已添加 provider "svc"（protocol=openai-compatible, model=m）
+已为 provider "svc" 添加端点 http://127.0.0.1:58708/v1（现有候选 2 个；默认端点 baseUrl 不变）
+
+ ✓ packages/application/src/project/ProjectRegistry.test.ts (5 tests) 71ms
+ ✓ packages/core/src/agent-loop/InterruptController.test.ts (5 tests) 12ms
+ ✓ apps/cli/src/output.test.ts (4 tests) 12ms
+ ✓ index.test.ts (4 tests) 11ms
+ ✓ benchmarks/runners/src/soak/soak-driver.test.ts (2 tests) 3871ms
+   ✓ benchmarks/soak — soak driver invariants (task 068) > full real-chain soak (multi-round + retry + pause/resume + handoff) stays consistent 1879ms
+   ✓ benchmarks/soak — soak driver invariants (task 068) > workspace residue stays zero at every round boundary sampled (064 pressure) 1986ms
+ ✓ apps/cli/src/cli.unknownCommand.test.ts (3 tests) 12ms
+ ✓ packages/shared/src/messageSources.test.ts (4 tests) 8ms
+ ✓ packages/agents/src/evaluator.test.ts (4 tests) 9ms
+ ✓ packages/runtime/src/process/Process.test.ts (3 tests) 301ms
+stdout | apps/cli/src/cli.test.ts > vessel provider export/import + endpoint (task 095/096) > endpoint test 全不可达 → exit 1 且不写盘
+已添加 provider "down"（protocol=openai-compatible, model=m）
+
+stdout | apps/cli/src/cli.test.ts > vessel provider export/import + endpoint (task 095/096) > ①-a（判别性，provider endpoint test --all）：A 全部端点不可达 + B 可达 ⇒ 退 1，且点名 A
+已添加 provider "alpha"（protocol=openai-compatible, model=m）
+已添加 provider "beta"（protocol=openai-compatible, model=m）
+
+stdout | apps/cli/src/cli.test.ts > vessel provider export/import + endpoint (task 095/096) > ①-b（负对照，provider endpoint test --all）：每家都至少一个端点可达 ⇒ 退 0，stdout 逐字不变、stderr 一行不多
+已添加 provider "alpha"（protocol=openai-compatible, model=m）
+已为 provider "alpha" 添加端点 http://127.0.0.1:51270/v1（现有候选 2 个；默认端点 baseUrl 不变）
+已添加 provider "beta"（protocol=openai-compatible, model=m）
+
+stdout | apps/cli/src/cli.test.ts > vessel provider export/import + endpoint (task 095/096) > ①-c（边界，如实声明，provider endpoint test --all）：未配端点的供应商不算失败——没有端点可测 ≠ 全部端点不可达
+已添加 provider "ghost"（protocol=mock, model=m）
+已添加 provider "beta"（protocol=openai-compatible, model=m）
+
+stderr | apps/cli/src/cli.test.ts > vessel provider export/import + endpoint (task 095/096) > BRIEF-18 ①（判别性）：kind=error ⇒ 退出码 1，且不得出现冒充「最终回复」的标题
+[policy] 部分装载：缺 project 层（仍按现有层继续运行，未完整生效） —— 补齐 project 层：在 C:\Users\SATANC~1\AppData\Local\Temp\vessel-095-cfg-20XYbi\.harness\policy.yaml 放置策略文件
+
+stderr | apps/cli/src/cli.test.ts > vessel provider export/import + endpoint (task 095/096) > BRIEF-18 ②（负对照，最重要）：kind=success ⇒ 退出码与呈现逐字不变
+[policy] 部分装载：缺 project 层（仍按现有层继续运行，未完整生效） —— 补齐 project 层：在 C:\Users\SATANC~1\AppData\Local\Temp\vessel-095-cfg-yc90rJ\.harness\policy.yaml 放置策略文件
+
+stderr | apps/cli/src/cli.test.ts > vessel provider export/import + endpoint (task 095/096) > BRIEF-18 ③（裁决：budget 不算失败）：步数预算用尽 ⇒ 退出码仍 0 且 kind=budget 可见
+[policy] 部分装载：缺 project 层（仍按现有层继续运行，未完整生效） —— 补齐 project 层：在 C:\Users\SATANC~1\AppData\Local\Temp\vessel-095-cfg-lsL3VD\.harness\policy.yaml 放置策略文件
+
+stderr | apps/cli/src/cli.test.ts > vessel provider export/import + endpoint (task 095/096) > BRIEF-18 ④：--json 下 kind=error 的失败信封 code 与退出码同源（都为 1）
+[policy] 部分装载：缺 project 层（仍按现有层继续运行，未完整生效） —— 补齐 project 层：在 C:\Users\SATANC~1\AppData\Local\Temp\vessel-095-cfg-rmAA43\.harness\policy.yaml 放置策略文件
+
+stderr | apps/cli/src/cli.test.ts > vessel provider export/import + endpoint (task 095/096) > ③-1（判别性）：--json 下 stdout 恰好一段 JSON，含 kind/finalText/steps/toolCalls/turnId/sessionLog
+[policy] 部分装载：缺 project 层（仍按现有层继续运行，未完整生效） —— 补齐 project 层：在 C:\Users\SATANC~1\AppData\Local\Temp\vessel-095-cfg-25C8Yk\.harness\policy.yaml 放置策略文件
+
+stderr | apps/cli/src/cli.test.ts > vessel provider export/import + endpoint (task 095/096) > ③-1（判别性）：--json 下 stdout 恰好一段 JSON，含 kind/finalText/steps/toolCalls/turnId/sessionLog
+[policy] 部分装载：缺 project 层（仍按现有层继续运行，未完整生效） —— 补齐 project 层：在 C:\Users\SATANC~1\AppData\Local\Temp\vessel-095-cfg-25C8Yk\.harness\policy.yaml 放置策略文件
+
+stderr | apps/cli/src/cli.test.ts > vessel provider export/import + endpoint (task 095/096) > ③-2（负对照）：非 --json 的人类输出逐字不变（标题/回复/脚注/telemetry/会话日志行）
+[policy] 部分装载：缺 project 层（仍按现有层继续运行，未完整生效） —— 补齐 project 层：在 C:\Users\SATANC~1\AppData\Local\Temp\vessel-095-cfg-rvgcbF\.harness\policy.yaml 放置策略文件
+
+stderr | apps/cli/src/cli.test.ts > vessel provider export/import + endpoint (task 095/096) > ③-3：--json 且 kind=error ⇒ stdout 仍恰好一段 JSON（kind=error），stderr 信封原样
+[policy] 部分装载：缺 project 层（仍按现有层继续运行，未完整生效） —— 补齐 project 层：在 C:\Users\SATANC~1\AppData\Local\Temp\vessel-095-cfg-3oemti\.harness\policy.yaml 放置策略文件
+
+stderr | apps/cli/src/cli.test.ts > vessel provider export/import + endpoint (task 095/096) > ③-4（判别性）：--json 的 enforcement 与人类 telemetry 行逐字段同源
+[policy] 部分装载：缺 project 层（仍按现有层继续运行，未完整生效） —— 补齐 project 层：在 C:\Users\SATANC~1\AppData\Local\Temp\vessel-095-cfg-M7eWm4\.harness\policy.yaml 放置策略文件
+
+stderr | apps/cli/src/cli.test.ts > vessel provider export/import + endpoint (task 095/096) > ③-4（判别性）：--json 的 enforcement 与人类 telemetry 行逐字段同源
+[policy] 部分装载：缺 project 层（仍按现有层继续运行，未完整生效） —— 补齐 project 层：在 C:\Users\SATANC~1\AppData\Local\Temp\vessel-095-cfg-M7eWm4\.harness\policy.yaml 放置策略文件
+
+stderr | apps/cli/src/cli.test.ts > vessel provider export/import + endpoint (task 095/096) > 本卡②（负对照，最重要）：mock 会话的 kind=success 仍必须带模型标记（端到端真实 main run）
+[policy] 部分装载：缺 project 层（仍按现有层继续运行，未完整生效） —— 补齐 project 层：在 C:\Users\SATANC~1\AppData\Local\Temp\vessel-095-cfg-1KJ038\.harness\policy.yaml 放置策略文件
+
+stderr | apps/cli/src/cli.test.ts > vessel provider export/import + endpoint (task 095/096) > 本卡③（负对照）：真实 provider 的 error 回合输出逐字不变（kind 入参不得改变真 provider 路径）
+[policy] 部分装载：缺 project 层（仍按现有层继续运行，未完整生效） —— 补齐 project 层：在 C:\Users\SATANC~1\AppData\Local\Temp\vessel-095-cfg-n4Volo\.harness\policy.yaml 放置策略文件
+
+stderr | apps/cli/src/cli.test.ts > vessel provider export/import + endpoint (task 095/096) > 本卡③′（负对照）：真实 provider 的 success 回合输出逐字不变
+[policy] 部分装载：缺 project 层（仍按现有层继续运行，未完整生效） —— 补齐 project 层：在 C:\Users\SATANC~1\AppData\Local\Temp\vessel-095-cfg-3SvnfX\.harness\policy.yaml 放置策略文件
+
+stderr | apps/cli/src/cli.test.ts > vessel provider export/import + endpoint (task 095/096) > 本卡④（裁决：budget 属非模型文本）：不盖标记、不吞文本；空文本仍走 (无文本回复)；退出码仍 0
+[policy] 部分装载：缺 project 层（仍按现有层继续运行，未完整生效） —— 补齐 project 层：在 C:\Users\SATANC~1\AppData\Local\Temp\vessel-095-cfg-ELsnDU\.harness\policy.yaml 放置策略文件
+
+ ✓ apps/cli/src/cli.test.ts (106 tests) 96806ms
+   ✓ CLI (apps/cli) > run with mock provider completes read → tool → answer (acceptance 2 smoke) 1420ms
+   ✓ CLI (apps/cli) > ③ run 打印 sandbox 状态行：enforcement telemetry 的 reportStatus 生产可达（不再是死 seam） 1116ms
+   ✓ CLI (apps/cli) > 死 seam 接线①（判别性）：真实 fs 守卫拒绝（guard=size）⇒ 生产遥测 fs-confinement≥1 1408ms
+   ✓ CLI (apps/cli) > 死 seam 接线②（负对照）：没有守卫拒绝的正常 run ⇒ fs-confinement 仍为 0 1265ms
+   ✓ CLI (apps/cli) > ② run 只读 VESSEL_PROVIDER_ROOT 临时 root：临时 current.json 决定 provider（不读真实 ~/.vessel） 1365ms
+   ✓ CLI provider/models commands (task 016/015) > provider list shows built-in mock and current defaults to mock 1161ms
+   ✓ CLI provider/models commands (task 016/015) > provider add + switch + current round-trip 8561ms
+   ✓ CLI provider/models commands (task 016/015) > provider add without base-url for a real protocol fails with exit 2 1171ms
+   ✓ CLI provider/models commands (task 016/015) > provider remove refuses to remove built-in mock 1235ms
+   ✓ CLI provider/models commands (task 016/015) > models with no provider (current=mock) prints the offline note and exits 0 1141ms
+   ✓ CLI provider/models commands (task 016/015) > models for an anthropic provider falls back to the built-in list 8523ms
+   ✓ V0.7 permission modes — three-level policy enforcement (task 022) > read-only denies a Write tool call (write not allowed under read-only profile) 332ms
+   ✓ V0.7 permission modes — three-level policy enforcement (task 022) > read-only allows a Read tool call 459ms
+   ✓ V0.7 permission modes — three-level policy enforcement (task 022) > workspace-write (default) allows a Write tool call 472ms
+   ✓ vessel bench-report (task 083 dashboard) > bench-report 读 RunResult[]（含 1 行 failed）⇒ 退出码 1；摘要与 md/json 产物逐字不变 2518ms
+   ✓ vessel pricing sync / provider costMultiplier (task 093/094) > provider add/set --cost-multiplier 落盘；非法倍率 exit 2 不落盘 4944ms
+   ✓ vessel provider export/import + endpoint (task 095/096) > export --out 写出脱敏 JSON（无明文 key，带 secretRef 占位） 5759ms
+   ✓ vessel provider export/import + endpoint (task 095/096) > export --with-secrets 直接拒绝（exit 2），不产生任何文件 3338ms
+   ✓ vessel provider export/import + endpoint (task 095/096) > export 无 --out → JSON 打到 stdout；import 合并（默认跳过同名） 6819ms
+   ✓ vessel provider export/import + endpoint (task 095/096) > import --dry-run 不写盘；--on-conflict overwrite 覆盖字段 3459ms
+   ✓ vessel provider export/import + endpoint (task 095/096) > import 非法 --on-conflict / 读不到文件 → 明确退出码 2200ms
+   ✓ vessel provider export/import + endpoint (task 095/096) > endpoint add/list/remove：候选池落盘，baseUrl 不变 15330ms
+   ✓ vessel provider export/import + endpoint (task 095/096) > endpoint test 探测本地端点 → 输出建议但不改默认端点；--set-default 才改 5700ms
+   ✓ vessel provider export/import + endpoint (task 095/096) > endpoint test 全不可达 → exit 1 且不写盘 1326ms
+   ✓ vessel provider export/import + endpoint (task 095/096) > endpoint test 用法错误：无 id 无 --all / --all 配 --set-default → exit 2 1370ms
+   ✓ vessel provider export/import + endpoint (task 095/096) > ①-a（判别性，provider endpoint test --all）：A 全部端点不可达 + B 可达 ⇒ 退 1，且点名 A 1356ms
+   ✓ vessel provider export/import + endpoint (task 095/096) > ①-b（负对照，provider endpoint test --all）：每家都至少一个端点可达 ⇒ 退 0，stdout 逐字不变、stderr 一行不多 2203ms
+   ✓ vessel provider export/import + endpoint (task 095/096) > ①-c（边界，如实声明，provider endpoint test --all）：未配端点的供应商不算失败——没有端点可测 ≠ 全部端点不可达 1517ms
+   ✓ vessel provider export/import + endpoint (task 095/096) > BRIEF-18 ①（判别性）：kind=error ⇒ 退出码 1，且不得出现冒充「最终回复」的标题 491ms
+   ✓ vessel provider export/import + endpoint (task 095/096) > BRIEF-18 ②（负对照，最重要）：kind=success ⇒ 退出码与呈现逐字不变 356ms
+   ✓ vessel provider export/import + endpoint (task 095/096) > BRIEF-18 ③（裁决：budget 不算失败）：步数预算用尽 ⇒ 退出码仍 0 且 kind=budget 可见 378ms
+   ✓ vessel provider export/import + endpoint (task 095/096) > BRIEF-18 ④：--json 下 kind=error 的失败信封 code 与退出码同源（都为 1） 435ms
+   ✓ vessel provider export/import + endpoint (task 095/096) > ③-1（判别性）：--json 下 stdout 恰好一段 JSON，含 kind/finalText/steps/toolCalls/turnId/sessionLog 712ms
+   ✓ vessel provider export/import + endpoint (task 095/096) > ③-2（负对照）：非 --json 的人类输出逐字不变（标题/回复/脚注/telemetry/会话日志行） 364ms
+   ✓ vessel provider export/import + endpoint (task 095/096) > ③-3：--json 且 kind=error ⇒ stdout 仍恰好一段 JSON（kind=error），stderr 信封原样 385ms
+   ✓ vessel provider export/import + endpoint (task 095/096) > ③-4（判别性）：--json 的 enforcement 与人类 telemetry 行逐字段同源 687ms
+   ✓ vessel provider export/import + endpoint (task 095/096) > 本卡②（负对照，最重要）：mock 会话的 kind=success 仍必须带模型标记（端到端真实 main run） 347ms
+   ✓ vessel provider export/import + endpoint (task 095/096) > 本卡③（负对照）：真实 provider 的 error 回合输出逐字不变（kind 入参不得改变真 provider 路径） 373ms
+   ✓ vessel provider export/import + endpoint (task 095/096) > 本卡③′（负对照）：真实 provider 的 success 回合输出逐字不变 342ms
+   ✓ vessel provider export/import + endpoint (task 095/096) > 本卡④（裁决：budget 属非模型文本）：不盖标记、不吞文本；空文本仍走 (无文本回复)；退出码仍 0 381ms
+
+ Test Files  171 passed (171)
+      Tests  2195 passed | 6 skipped (2201)
+   Start at  09:08:44
+   Duration  103.59s (transform 20.31s, setup 4.45s, collect 79.81s, tests 425.17s, environment 62ms, prepare 43.35s)
+
+
+ RUN  v2.1.9 E:/Code_file/Projects/Composable_Agent_Harness/apps/web
+
+ ✓ src/api.test.ts (38 tests) 69ms
+ ✓ src/sse.test.ts (9 tests) 15ms
+ ✓ src/goal.test.ts (11 tests) 12ms
+ ✓ src/components.goal.test.tsx (9 tests) 26ms
+ ✓ src/smoke.test.ts (4 tests) 366ms
+ ✓ src/components.team.test.tsx (11 tests) 30ms
+ ✓ src/components.conversation.test.tsx (8 tests) 15ms
+ ✓ src/team.test.ts (7 tests) 13ms
+ ✓ src/i18n.test.ts (11 tests) 12ms
+ ✓ src/UsageBar.test.tsx (7 tests) 12ms
+ ✓ src/uiModules.test.ts (5 tests) 10ms
+
+ Test Files  11 passed (11)
+      Tests  120 passed (120)
+   Start at  09:10:29
+   Duration  1.82s (transform 1.15s, setup 0ms, collect 2.76s, tests 579ms, environment 4ms, prepare 2.60s)
+

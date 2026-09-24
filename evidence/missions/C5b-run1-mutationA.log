@@ -1,0 +1,68 @@
+
+ RUN  v2.1.9 C:/Users/Satanchen/AppData/Local/Temp/composable-mut-c5b
+
+ ✓ packages/telemetry/src/telemetry.test.ts > telemetry — event subscriber + JSONL report > counts turns/steps/denials from bus events and session replay
+ ✓ packages/telemetry/src/telemetry.test.ts > telemetry — event subscriber + JSONL report > ① 纯回放：只含 llm/retry 记录的会话 ⇒ retries 如实计数（改前恒 0）
+ ✓ packages/telemetry/src/telemetry.test.ts > telemetry — event subscriber + JSONL report > ② 防重复计数：同一重试决策的事件 + 记录同时存在 ⇒ 恰好计一次（两种落盘顺序都验）
+ × packages/telemetry/src/turnEndBoundary.test.ts > B09 turn/end 边界 —— 两条反例的判别性用例（C4） > 异常路径（无并发；provider 抛不可重试错误）：有 before_turn 而无 turn/end ⇒ 实时侧计到该轮、纯回放侧计不到
+   → promise resolved "{ …(6) }" instead of rejecting
+ ✓ packages/telemetry/src/telemetry.test.ts > telemetry — event subscriber + JSONL report > ③ 负对照：既有三类记录的计数逐字不变，新增分支不串味
+(node:33212) Warning: Closing file descriptor 4 on garbage collection
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:33212) [DEP0137] DeprecationWarning: Closing a FileHandle object on garbage collection is deprecated. Please close FileHandle objects explicitly using FileHandle.prototype.close(). In the future, an error will be thrown if a file descriptor is closed during garbage collection.
+ ✓ packages/telemetry/src/turnEndBoundary.test.ts > B09 turn/end 边界 —— 两条反例的判别性用例（C4） > 回合重叠 + 旧回合被 abort（受支持路径）：该轮 after_tool 条数 ≠ 该轮记录里的 stats.toolCalls ⇒ M03 记录侧取值不可信
+ ✓ packages/telemetry/src/telemetry.test.ts > telemetry — event subscriber + JSONL report > ④ 真实链路：AgentLoop 的一次重试（事件与记录同源）⇒ 实时与纯回放都恰好计一次
+ ✓ packages/telemetry/src/telemetry.test.ts > telemetry — event subscriber + JSONL report > ⑤ 文档⇄代码：§4.11 点名的回放消费集合 == finalizeRecord 的 case 集合；M05 来源名副其实
+ ✓ packages/telemetry/src/telemetry.test.ts > telemetry — event subscriber + JSONL report > ⑥ M14 纯回放：`audit/denial`(stage approval) ⇒ approvalAsks 如实计数（改前恒 0）
+ ✓ packages/telemetry/src/telemetry.test.ts > telemetry — event subscriber + JSONL report > ⑦ 负对照：非 approval 阶段的拒绝绝不进 M14（rule / hook / before_turn 三种 stage）
+ ✓ packages/telemetry/src/telemetry.test.ts > telemetry — event subscriber + JSONL report > ⑧ 真实链路：AgentLoop 的 ask 分支（无应答者 ⇒ fail-closed）⇒ 实时与纯回放都恰好计一次
+ ✓ packages/telemetry/src/telemetry.test.ts > telemetry — event subscriber + JSONL report > ⑨ 文档⇄代码：BENCHMARK-SPEC M14 行点名的来源 == 代码实际计数的来源（只改一侧 ⇒ 红）
+ ✓ packages/telemetry/src/telemetry.test.ts > telemetry — event subscriber + JSONL report > ⑩ M13 真实链路：`team_end` 的 evaluate 成员 review.verdict=not_met ⇒ evaluatorRejects 计数（改前恒 0）
+ ✓ packages/telemetry/src/telemetry.test.ts > telemetry — event subscriber + JSONL report > ⑪ 负对照：`met` 与无 `review` 的成员都不进 M13；一次载荷里的多个拒绝逐个计数
+ ✓ packages/telemetry/src/telemetry.test.ts > telemetry — event subscriber + JSONL report > ⑫ 文档⇄代码：BENCHMARK-SPEC M13 行点名的来源 == 代码实际计数的来源；且只有一处生产者调用
+ ✓ packages/telemetry/src/telemetry.test.ts > telemetry — event subscriber + JSONL report > ⑬ M14 steers 纯回放：`user/message{source:steer}` 逐条计数，其它 source 一条都不算（改前恒 0）
+ ✓ packages/telemetry/src/telemetry.test.ts > telemetry — event subscriber + JSONL report > ⑭ M14 interrupts 真实链路：被打断的回合 ⇒ after_turn 事件计一次；纯回放如实为 0（本卡写明的边界）
+ ✓ packages/telemetry/src/telemetry.test.ts > telemetry — event subscriber + JSONL report > ⑮ M14 负对照 + 无通路两项：approval_asks 逐字不变；human_answers / machine_answers 不再用 0 冒充
+ ✓ packages/telemetry/src/telemetry.test.ts > telemetry — event subscriber + JSONL report > ⑯ M02/M03 纯回放（成功单回合）：真实回合的 `turn/end` ⇒ turns/toolCalls 如实重建（改前恒 0）
+ ✓ packages/telemetry/src/telemetry.test.ts > telemetry — event subscriber + JSONL report > ⑰ 防重复计数 + 成功单回合两侧同数：实时已观测的回合，记录侧不再计一次
+ ✓ packages/telemetry/src/auditRecordWiring.test.ts > 审计记录族的对外声明 ⇄ 实现一致性（BRIEF B + D，可执行守卫） > ① 负对照：扫描器确实读到了源码，且看得到**已接线**的同族记录（否则"0 处"是空断言）
+ ✓ packages/telemetry/src/auditRecordWiring.test.ts > 审计记录族的对外声明 ⇄ 实现一致性（BRIEF B + D，可执行守卫） > ② `SANDBOX_DENIAL` 生产侧 0 处：全仓没有任何 `errorClass: 'SANDBOX_DENIAL'` 的铸造点
+ ✓ packages/telemetry/src/auditRecordWiring.test.ts > 审计记录族的对外声明 ⇄ 实现一致性（BRIEF B + D，可执行守卫） > ③ `SANDBOX_DENIAL` 消费侧 0 处：telemetry 回放面不认它（就算铸出来也进不了 M12）
+ ✓ packages/telemetry/src/auditRecordWiring.test.ts > 审计记录族的对外声明 ⇄ 实现一致性（BRIEF B + D，可执行守卫） > ④ 规格按真话改：M12 行**保留**该词并标「未接线」，但不再把它列进"来源"列
+ ✓ packages/telemetry/src/auditRecordWiring.test.ts > 审计记录族的对外声明 ⇄ 实现一致性（BRIEF B + D，可执行守卫） > D — `audit.events` 的声明与实现一致（本仓只产 denial） > ⑤a 负对照 + 声明侧：解析得到真实列表，且 `denial` 仍在其中（不得削弱对 denial 的要求）
+ ✓ packages/telemetry/src/auditRecordWiring.test.ts > 审计记录族的对外声明 ⇄ 实现一致性（BRIEF B + D，可执行守卫） > D — `audit.events` 的声明与实现一致（本仓只产 denial） > ⑤b 实现侧：`audit/denial` 有真有生产者与消费者；`audit/decision` 生产侧 0 处
+ ✓ packages/telemetry/src/auditRecordWiring.test.ts > 审计记录族的对外声明 ⇄ 实现一致性（BRIEF B + D，可执行守卫） > D — `audit.events` 的声明与实现一致（本仓只产 denial） > ⑤c 声明⇄实现双向绑定：未实现的项必须在配置**注释**里被逐项标注为「未接线」
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  packages/telemetry/src/turnEndBoundary.test.ts > B09 turn/end 边界 —— 两条反例的判别性用例（C4） > 异常路径（无并发；provider 抛不可重试错误）：有 before_turn 而无 turn/end ⇒ 实时侧计到该轮、纯回放侧计不到
+AssertionError: promise resolved "{ …(6) }" instead of rejecting
+
+- Expected
++ Received
+
+- [Error: rejected promise]
++ Object {
++   "durationMs": 26,
++   "finalText": "Model call failed after 1 attempt(s): invalid request: malformed prompt",
++   "kind": "error",
++   "steps": 1,
++   "toolCalls": 0,
++   "turnId": "turn_1789291048265_364dbe",
++ }
+
+ ❯ packages/telemetry/src/turnEndBoundary.test.ts:176:38
+    174|     // `:649-651` 抛出包装错误 → `:451-465` 的 catch 里既非 `TurnInter…
+    175|     // 也非 `DenialLimitError` ⇒ `:462-463` 直接 rethrow（本路径的核心…
+    176|     await expect(loop.runTurn('boom')).rejects.toThrow(/Model call fai…
+       |                                      ^
+    177| 
+    178|     // —— 事件侧：`AgentLoop.ts:208-212` 的 before_turn 已发 ——
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+ Test Files  1 failed | 2 passed (3)
+      Tests  1 failed | 26 passed (27)
+   Start at  02:17:27
+   Duration  2.53s (transform 460ms, setup 364ms, collect 2.81s, tests 605ms, environment 1ms, prepare 578ms)
+

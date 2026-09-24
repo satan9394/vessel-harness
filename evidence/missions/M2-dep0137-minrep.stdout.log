@@ -1,0 +1,9 @@
+[meta] node v24.14.0 pid=18104
+[A 复刻用例①（重开后立即 close，无 await）] first.fd after close = null
+[A 复刻用例①（重开后立即 close，无 await）] fd right after open=null beforeClose=null afterClose=null settled=<open FileHandle> => LEAKED (fd 未关)
+[A 复刻用例①（重开后立即 close，无 await）] 日志记录（证明合成收尾确实发生了）= turn/start,turn/end
+[A 复刻用例①（重开后立即 close，无 await）] 已显式关闭泄漏句柄（仅为保持探针输出干净）
+[B 对照（重开后等一个时间片再 close）] first.fd after close = null
+[B 对照（重开后等一个时间片再 close）] fd right after open=null beforeClose=[object Object] afterClose=null settled=null => no leak
+[B 对照（重开后等一个时间片再 close）] 日志记录（证明合成收尾确实发生了）= turn/start,turn/end
+[done]

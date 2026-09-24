@@ -1,0 +1,10 @@
+
+ RUN  v2.1.9 E:/Code_file/Projects/Composable_Agent_Harness
+
+ ✓ packages/telemetry/src/turnEndWitness.test.ts (4 tests) 102ms
+
+ Test Files  1 passed (1)
+      Tests  4 passed (4)
+   Start at  09:45:20
+   Duration  919ms (transform 163ms, setup 32ms, collect 314ms, tests 102ms, environment 0ms, prepare 160ms)
+
