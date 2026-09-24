@@ -1,0 +1,10 @@
+
+ RUN  v2.1.9 C:/work/Vessel_Harness
+
+ ✓ packages/core/src/session/Session.test.ts (6 tests) 101ms
+
+ Test Files  1 passed (1)
+      Tests  6 passed (6)
+   Start at  09:48:00
+   Duration  815ms (transform 103ms, setup 36ms, collect 177ms, tests 101ms, environment 0ms, prepare 160ms)
+

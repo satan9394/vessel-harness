@@ -1,0 +1,98 @@
+{
+  "schemaVersion": 1,
+  "revision": 1,
+  "mode": "standard",
+  "mission": {
+    "goal": "清掉 Mission 2 提交物上由两轮评审亲自登记的残留（措辞与陈旧引用 + 一处漂移的行号指针），并把未归因的 Node `DEP0137` 告警**定位到具体文件/用例**（若归因到 Mission 2 新增/修改的测试文件则一并修，否则只登记），经独立对抗评审 PASS 后路径限定提交。",
+    "definitionOfDone": [
+      "E1 **残留清理（只改注释与卡面文字，零断言改动）**：",
+      "E2 **陈旧行号指针（R8）**：`docs/product-evolution/PRODUCT-GAP-MAP.md:430` 的 `EVENT-SPEC.md:600` 指向真实位置（不变式现在 `:605`，另有 `:470`），并按纪律 25 **优先给符号名**而非裸行号",
+      "E3 **`DEP0137` 归因**：二分到**具体测试文件/用例**（定向 vitest 逐文件跑，观察 stderr）；**若归因到 Mission 2 新增/修改的测试文件 ⇒ 修**（只改测试代码）；若归因到既有文件 ⇒ **只登记，不改**。附原始输出与退出码",
+      "E4 **门禁 + 评审 + 提交**：`npx tsc -b` exit 0 与 `npm run test:all` 两个 root exit 0（各 ≤1 次、都在最后一次编辑之后、都要显式退出码）；1 个全新上下文独立 Reviewer 判 **PASS**；**路径限定提交**（禁 `git add -A`）；落仓库内 `tasks/122-*.md`",
+      "E5 **零断言改动**：本 Mission 不得放宽/删除/新增任何断言（E3 若修测试代码，只允许修\"关闭句柄/泄漏\"一类资源管理，**不得动断言**）；`git diff` 必须能逐行证明这一点"
+    ],
+    "outOfScope": [
+      "- **不裁决「回合重叠时 M03 该怎么算」**（仍属人类；本 Mission 只保留现状）",
+      "- 不接 `request/header`；不接 `turn/end.stats` 其余字段",
+      "- 不动 `costEstimate`/M11、`before_stop`、`denials`、`measured` 收紧、`release-report`（会改写被跟踪产物 + 消耗真实 API 配额）",
+      "- 不做 `tasks/` 113 份卡的大对账（`tasks/README.md` 脱节、17 张\"待执行\"卡状态不可信）—— 那是**另一档规模**的 Mission，不在本信封内",
+      "- 不重跑 Mission 2 已 ACCEPT 的任何工作（三轮评审、W1/W2/W3b/W4 的产物一律不动）",
+      "- **R6/R7（C8 评审判为\"措辞张力/可能误读\"的两条）**：只有在**零风险**（不改被守卫的短语「成功收尾/预算耗尽/重叠」、不新增断言）时才顺手做；否则**登记为 Deferred**",
+      "- 不做无关重构；不 install / 不改 lockfile；禁 `git stash`/`restore`/`checkout`/`clean`；不删文件（回收站；唯一例外 = 测试自建且位于 `os.tmpdir()` 下的 tmp 目录）",
+      "- 真实 provider 调用 **0** 次"
+    ],
+    "status": "done"
+  },
+  "workset": [
+    {
+      "id": "M1",
+      "title": "来源: planned — 残留清理（E1 + E2；只改注释/文档/卡面，零断言改动）**（已合入 2026-09-13，指挥侧独立验收 PASS；零断言改动经机械证实）**",
+      "status": "done"
+    },
+    {
+      "id": "M2",
+      "title": "来源: planned — `DEP0137` 归因（E3；归因到新测试文件才修）**（已完成 2026-09-13：归因到 **core 运行时**，按硬边界只登记不改；附 GC 无关判定器）**",
+      "status": "done"
+    },
+    {
+      "id": "M3",
+      "title": "来源: planned — 最终门禁 + 独立对抗评审 PASS + 路径限定提交 + 落仓库内 `tasks/122` **（已合入 2026-09-13：`tsc` exit 0、`test:all` exit 0；独立评审 PASS；提交 **`36869f9`**（5 文件 +88/−14）；提交后 `git ",
+      "status": "done"
+    }
+  ],
+  "blocked": [],
+  "deferredBacklog": [],
+  "budget": {
+    "run": {
+      "epoch": {
+        "used": 0,
+        "limit": 2
+      },
+      "cards": {
+        "used": 0,
+        "limit": 6
+      },
+      "repairs": {
+        "used": 0,
+        "limit": 1
+      },
+      "workersSpawned": {
+        "used": 0,
+        "limit": 8
+      },
+      "research": {
+        "used": 0,
+        "limit": 1
+      }
+    },
+    "mission": {
+      "runs": {
+        "used": 1,
+        "limit": 3
+      },
+      "cards": {
+        "used": 0,
+        "limit": 12
+      },
+      "repairs": {
+        "used": 0,
+        "limit": 3
+      }
+    },
+    "worksetLimit": 8,
+    "activeWorkerLimit": 3,
+    "maxSubagentDepth": 1
+  },
+  "workers": {
+    "active": 0
+  },
+  "lastVerifiedCommit": null,
+  "resumeFrom": null,
+  "notesForNextRun": [
+    "Mission 3 (from root RUN_STATE.md, 14415 B, archived 2026-09-24 to evidence/missions/mission-03/RUN_STATE.md) is COMPLETE: DoD E1-E5 all met, committed 36869f9.",
+    "Mode kept at 'standard' per spec: bounded requires explicit user opt-in.",
+    "Budget left at script defaults - not inferred from the old markdown."
+  ],
+  "updatedAt": "2026-09-24T18:17:12.339Z",
+  "sourceFile": "evidence/missions/mission-03/RUN_STATE.md"
+}

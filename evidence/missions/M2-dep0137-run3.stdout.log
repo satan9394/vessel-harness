@@ -1,0 +1,10 @@
+
+ RUN  v2.1.9 C:/work/Vessel_Harness
+
+ ✓ packages/telemetry/src/turnEndWitness.test.ts (4 tests | 1 skipped) 76ms
+
+ Test Files  1 passed (1)
+      Tests  3 passed | 1 skipped (4)
+   Start at  09:47:05
+   Duration  862ms (transform 156ms, setup 32ms, collect 297ms, tests 76ms, environment 0ms, prepare 131ms)
+
