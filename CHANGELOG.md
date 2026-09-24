@@ -6,9 +6,35 @@
 
 ---
 
-## [Unreleased] - 2026-09-18
+## [Unreleased] - 2026-09-24
 
-> 本轮以**构建 / CI / 安全配置 / 依赖 / 测试**为主，并新增 **CLI/TUI 能力**（`vessel mcp` / `vessel diff` / TUI `/mcp` `/diff`）与 **Cross-Harness Conformance 驱动**；仍**不提升版本号、不打 tag**（发布留待 1.0 Stable 门槛核验后）。
+> 本轮立项推进 **V1.3：双向子 Agent 网关体系与保全度评测套件 (Universal Subagent Mesh & Conformance)**（Epic 卡 167，任务 163–166，见 `docs/V1.3-ROADMAP.md`）。
+
+### Planned (V1.3 Milestone)
+
+- **Vessel 转换为 MCP 子代理服务器**（Inbound，任务 163）：CLI 增加 `vessel serve --mode mcp-agent`，暴露 `run_vessel_task` 紧凑结果契约工具，遵循信息隐藏与 stdio 纯净性。
+- **外部 CLI 虚拟人类代理与交互拦截**（任务 164）：双轨制拦截审批提示符攻克无头死锁，Windows Job Object 内核沙箱秒杀衍生孙进程，零 C++ 原生编译依赖。
+- **外部异构子代理运行时与 Worktree 隔离**（Outbound，任务 165）：在 `os.tmpdir()` 独立轻量 Git Worktree，实现 `.git/index.lock` 残留探测与安全破锁自愈。
+- **跨 Agent 保全度自动化双盲评测套件**（任务 166）：以离线 Mock/Loopback 机械度量保全度指标（代码重构、交互拦截、孙进程清理），验证综合评分 $\ge 90\%$，工作区残留恒为 0。
+
+---
+
+## [1.2.0] - 2026-09-24
+
+> 开放生态深度兼容与极度透明可观察性体系（Epic 卡 162 联合交付，Commit `4886acc`）。全量门禁实测通过：根 182 文件 / 2276 passed、Web 12 文件 / 129 passed、`tsc -b` 0、Web `vite build` 0。
+
+### Added
+
+- **第三方模型供应商动态自省与探测引擎**：`packages/llm/src/discovery/probeOpenAIModels.ts`（`probeOpenAIModels` 探针），应用层自动探测 `/v1/models` 与 `/models` 端点回退，支持裸数组/标准结构兼容，自动推断推理模型与能力，严格遵循 API Key 错误脱敏。（`tasks/157`）
+- **OpenAI 协议 Reasoning 思考流解析标准化**：在 `packages/llm/src/stream/` 新增 `StreamThinkingChunk`，在 `parseOpenAI.ts` 中流式解包 `reasoning_content` 与 `thinking`，实现深度思考推演过程与正文内容解耦分离。（`tasks/158`）
+- **Claude Code 社区插件与 Hook 生态全兼容层**：在 `packages/skills/src/plugin/` 实现 `discoverClaudePlugins`，自动发现 `plugin.json`、多 Skill 组合与生命周期 Hook，并将外部 Hook 声明式编译为 Vessel `PolicyRule` 进行沙箱拦截，坚守安全防线。（`tasks/159`）
+- **Session 架构升级 Topic 实体支持与持久化索引**：`packages/engine/src/session/topic.ts` 实现 `deriveTopicTitle` 启发式标题提炼，扩展 `SessionHeader` 引入 `SessionTopic` 实体，`SessionRegistry` 增加按 Topic 检索与重命名接口，保持对既有历史 Session 的向前兼容。（`tasks/160`）
+- **Web 侧边栏 Topic 列表重构与 Thinking/Talking 详情抽屉**：`apps/web` 重构 `Sidebar.tsx` 为树状/分组 Topic 列表，新增 `ThinkingBlock.tsx` 思考折叠手风琴卡片，新增 `TalkingMetricsBar.tsx` 展示输入/输出/思考/缓存四维 Token 细分与时延 APM 详情。（`tasks/161`）
+
+---
+
+## [1.1.0] - 2026-09-18
+
 
 ### Added
 

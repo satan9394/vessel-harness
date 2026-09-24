@@ -51,7 +51,7 @@
 - 大改动另派对抗性评审子代理（全新上下文，只见 diff 和验收标准，反向挑错）。
 - 记忆全在文件里：本文件（规则）+ docs/（决策）+ tasks/（进度）。对话会忘，文件不会。
 
-## 既有版本状态（截至 2026-09-18）
+## 既有版本状态（截至 2026-09-24）
 
 - V0.1：PASS（63 测试 + REVIEW-REPORT-V01）。
 - V0.2：PASS（104 测试 + REVIEW-REPORT-V02，含 Subagent/Planner/Evaluator Agent/MCP/Parallel/Git Worktree）。
@@ -61,7 +61,10 @@
 - 2026-09-18：**CI 首次变绿并保持**（此前建仓起三次全红），根因是 `tsconfig.base.json` 缺 `exclude` 导致 `tsc -b` 把测试纳入 composite 构建。同时清零 CodeQL 10 条 + Dependabot 12 条告警。见 `tasks/123-ci-tsc-build-repair.md`。
 - 2026-09-18（后续）：**Cross-Harness Conformance 驱动**（`npm run bench:conformance`，离线 25/25）、**soak 默认参数自洽修复**、**`vessel mcp` / `vessel diff`** 与 **TUI `/mcp` `/diff`**、**四处「两份实现」收敛**（MCP 装配 / mock 文案 / guide locale / mock 冒烟脚本）、**G-08 `vesselHome` 轻量收敛**、**B19 口径（v1 只记 deny）**、**文档诚实化收尾**（外部文档残余扫描 #2 / 已声明未实现项标注 / `toolIdByIndex` by-design / 能力矩阵 `stream-json` 登记）。见 `tasks/125`–`tasks/143`。可自主收尾队列**已清空**，剩余为外部阻塞项。
 - 2026-09-19（方向 B 残留清算）：**真实模型 lane 接场景 policy**（`tasks/145`：`runVesselFixture` 此前忽略 `manifest.policy`，B005/S006 的 `danger-full-access` 失效；现按 `runner.ts` 同口径覆写）；**B2–B5 已核实闭合**（`tasks/146`：B15/B11/B21 零产零消、`stage` 的 sandbox/guard、`BENCHMARK-SPEC` 漂移、M14 detail 均早有可执行守卫）。
-- 当前 HEAD 门禁：`tsc -b` exit 0、`typecheck:tests` exit 0、`test:all` 根 **178 文件 / 2236 passed + 6 skipped**、web **11 文件 / 120 passed**、web `vite build` exit 0、CLI 冒烟 exit 0；CI 在 Windows + Linux 两腿绿；CodeQL/Dependabot/Secret scanning 告警 0。
+- 2026-09-24（V1.2 开放生态与极致透明可观察性）：**全量交付验收并合入**（Commit `4886acc`，卡 157–162）：第三方模型自省探测（`/v1/models` 探针与端点回退）、OpenAI 协议 Reasoning 深度思考流解包、Claude 插件生态全兼容（`plugin.json` 与 Hook Policy 映射）、Session Topic 实体与持久化检索、Web 树状侧边栏与 Talking 详情抽屉。
+- 2026-09-24（V1.3 双向子 Agent 网关体系）：**完成对抗审查与架构拆解**（卡 163–167，见 `docs/V1.3-ROADMAP.md`）：Inbound MCP 子代理服务器、虚拟人类代理与交互拦截（攻克无头死锁）、Outbound 异构子代理运行时（Worktree 租约与锁自愈）、跨 Agent 保全度自动化双盲评测套件（机械验证保全度 $\ge 90\%$）。Codex 首席架构师开工包已落盘在 `tasks/167-epic-universal-subagent-mesh.md`。
+- 当前 HEAD 门禁：`tsc -b` exit 0、`typecheck:tests` exit 0、`test:all` 根 **182 文件 / 2276 passed + 6 skipped**、web **12 文件 / 129 passed**、web `vite build` exit 0、CLI 冒烟 exit 0；CI 在 Windows + Linux 两腿绿；CodeQL/Dependabot/Secret scanning 告警 0。
+
 
 ## 构建与依赖纪律（2026-09-18 确立，来自 CI 修复）
 

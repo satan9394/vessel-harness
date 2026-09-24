@@ -30,7 +30,7 @@ comparison.md（D2）已在每个机制（H01–H12）给出 Decision/Why/Reject
 - 证据引用缩写：`cmp:H0X` = comparison.md 的 H0X 章节；`anat:0.3-n` = HARNESS-ANATOMY.md §0.3 第 n 条总体结论；`§n` = 任务书.md 第 n 节；`IR:附录A` = BEHAVIOR-IR-SPEC 附录 A 条目。引用仅指向已有文档内容，不引入研究文档之外的新事实。
 - 每条决策的影响栏标注**下游规范约束**：D4（Behavior IR）/ D5（Event）/ D6（Policy）/ D8（Architecture），供 D4–D8 与实现期回溯"这条规范是从哪个决策来的"。
 
-### 0.3 决策点总表（16 条）
+### 0.3 决策点总表（18 条）
 
 | # | 决策点 | 一句话决策 | 主要依据 |
 | --- | --- | --- | --- |
@@ -50,6 +50,9 @@ comparison.md（D2）已在每个机制（H01–H12）给出 Decision/Why/Reject
 | 14 | Prompt 编译管线（Behavior IR） | Behavior IR → Model Profile → Harness Profile → Prompt Compiler | §6/§7/§18 / cmp:H02 |
 | 15 | TypeScript vs Rust 边界 | TS Brain 先行 + 语言中立执行 seam（沙箱/进程走 OS 原语）；Rust Runtime 可选升级 | §20 |
 | 16 | Benchmark 先行 | 第一天建 benchmarks/（≥15 场景、14 指标、A/B、Conformance Suite） | §15–§17 / cmp:H12 |
+| 17 | 双向子 Agent 协议（Inbound） | 标准 MCP stdio 传输 + 紧凑结果契约（信息隐藏），非协议日志走 stderr | V1.3 战略 / 任务 163 |
+| 18 | 外部交互代理与沙箱（Outbound） | 双轨制虚拟人类代理（参数优先+静默提示词匹配）+ Windows Job Object 进程树清理 | V1.3 战略 / 任务 164–165 |
+
 
 ---
 
@@ -359,6 +362,38 @@ comparison.md（D2）已在每个机制（H01–H12）给出 Decision/Why/Reject
 
 ---
 
+## 决策点 17：双向子 Agent 协议与契约（Inbound MCP vs 私有 RPC）
+
+- **问题**：如何使 Vessel 能够被外部主流 Agent（如 Claude Code、Cursor、Codex、DSH）作为子 Agent 无感调度？
+- **候选方案**：
+  - 候选 A（自定义 HTTP/WebSocket 协议）：灵活度高，但外部 Agent 必须专门开发针对 Vessel 的客户端适配插件，无法即插即用。
+  - 候选 B（基于 Model Context Protocol 标准的 stdio 协议 + 结果契约）：遵循业界通用标准，外部 Agent 在其 `mcp.json` 中配置即可把 Vessel 当作工具调用；对返回体遵循“信息隐藏”原则，仅返回冷冻聚合的 `VesselTaskResultContract`（状态、产物文件、Diff 摘要、Token 统计）。
+- **决策**：**B（标准 MCP stdio + 结果契约）**：
+  - CLI 增加 `vessel serve --mode mcp-agent`；
+  - 暴露 `run_vessel_task`、`query_vessel_task_status`、`cancel_vessel_task` 工具；
+  - 严守 stdio 纯净性：非 JSON-RPC 协议日志（如日志与 Policy 审计输出）严格重定向到 `stderr`，确保 `stdout` 仅流动合规 JSON-RPC。
+- **理由**：MCP 已成为业界 Agent 工具调用的公认事实标准（Claude Code、Cursor、VS Code、Zed、DSH 全面原生支持）。通过结果契约进行信息隐藏，避免将原始数十万字日志倒灌宿主，杜绝宿主上下文爆炸。
+- **拒绝**：不采用候选 A（生态割裂，推广成本极高）；不采用全量倾倒原始 Session 日志方案（违反信息隐藏，引发宿主死机）。
+- **影响**：直接约束 `tasks/163`、`apps/cli`、`packages/application`；D8 增加 mcp-agent 运行模式架构面。
+
+---
+
+## 决策点 18：外部子 Agent 交互死锁与进程收敛治理（Outbound 调度）
+
+- **问题**：调度外部成熟 Agent（Claude Code、Codex 等）作为全功能子 Agent 时，如何攻克无头死锁（Hang 住等 stdin 输入）与僵尸孙进程残留问题？
+- **候选方案**：
+  - 候选 A（引入第三方原生虚拟终端 `node-pty`）：模拟真实 TTY。缺点：Windows 下严重依赖 MSBuild / Visual C++ 编译环境，直接破坏 `npm ci` 跨平台清洁安装纪律（本仓最高纪律之一）。
+  - 候选 B（双轨制虚拟人类代理 + 原生 Windows Job Object）：
+    1. 交互治理：优先映射 CLI 的 `--print`、`-p`、`--danger-mode` 非交互参数；对无法规避的交互，以纯 Node 流匹配 `[y/N]` / `Press Enter`，结合“连续 200ms 无新输出”双重判据判定挂起，依据 Policy 白名单毫秒级回写决策；
+    2. 进程树治理：Windows 下子进程强制挂入内核 Job Object（`JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE`），中断/超时瞬间清理整棵子孙进程树；
+    3. 工作区隔离：子 Agent 必须且只能在 `os.tmpdir()` 分配的独立轻量 Git Worktree 执行，配备 `.git/index.lock` 残留探测与安全破锁重用自愈机制。
+- **决策**：**B（双轨制虚拟人类代理 + 内核 Job Object + Worktree 租约自愈）**。
+- **理由**：既彻底根除无头死锁与进程泄漏，又坚守了纯 TypeScript / Node 零原生编译依赖的跨平台清洁安装红线。
+- **拒绝**：坚决拒绝引入 `node-pty` 及任何 C++ 原生构建插件。
+- **影响**：直接约束 `tasks/164`、`tasks/165`、`packages/runtime`、`packages/agents`；D6 Policy 引擎增加审批回写规则通道。
+
+---
+
 ## 附录：决策点 → 下游规范消费映射
 
 | 决策点 | D4 Behavior IR | D5 Event | D6 Policy | D7 Benchmark | D8 Architecture |
@@ -379,5 +414,8 @@ comparison.md（D2）已在每个机制（H01–H12）给出 Decision/Why/Reject
 | 14 Prompt 管线 | D4 本体 | — | policy_ref | conformance 消费 | behavior/ |
 | 15 TS/Rust | — | JSONL 契约 | command hooks | TS runner | runtime/ seam |
 | 16 Benchmark | conformance 字段 | — | Safety 口径 | D7 本体 | evals/ |
+| 17 Inbound MCP | — | subagent/mcp | PolicyProfile 映射 | Conformance 契约 | application/mcp-agent |
+| 18 Outbound Proxy | — | proxy/intercept | AutoApprove 白名单 | SA01–SA03 场景 | runtime/proxy |
 
 （完）
+
