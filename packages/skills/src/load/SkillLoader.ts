@@ -33,6 +33,7 @@ import type { ToolExecutionResult, ToolSpec, ToolErrorPayload } from '@vessel/sh
 
 /** hard cap on a single skill body injected into context (≈ chars). */
 export const SKILL_CONTENT_MAX_CHARS = 8000;
+const EXTERNAL_SKILL_MAX_BYTES = 1024 * 1024;
 
 /**
  * §18 UNTRUSTED markers — leak / reverse-engineering signals in a SKILL.md.
@@ -211,6 +212,19 @@ export interface SkillToolOptions {
   workspaceRoot: string;
   /** discovery scope */
   scope?: SkillScope;
+  /** Plugin skills found by the bounded plugin scanner; files are revalidated when loaded. */
+  pluginSkills?: PluginSkillSource[];
+}
+
+/** A namespaced skill path kept inside its discovered plugin directory. */
+export interface PluginSkillSource {
+  name: string;
+  description: string;
+  sourcePath: string;
+  pluginRoot: string;
+  rank: number;
+  trusted: boolean;
+  untrustedMarker?: SkillTrustMarkerId;
 }
 
 /**
@@ -244,7 +258,10 @@ export function createSkillTool(opts: SkillToolOptions): ToolSpec {
     },
     async execute(args): Promise<ToolExecutionResult> {
       const name = String(args.name ?? '');
-      const skill = loadSkillContent(name, opts.workspaceRoot, opts.scope ?? 'project');
+      const pluginSource = opts.pluginSkills?.find((candidate) => candidate.name === name);
+      const skill = pluginSource
+        ? loadPluginSkillContent(pluginSource)
+        : loadSkillContent(name, opts.workspaceRoot, opts.scope ?? 'project');
       if (!skill) {
         return err('INVALID_ARGS', `Skill "${name}" not found (list available skills first)`, {});
       }
@@ -276,6 +293,61 @@ export function createSkillTool(opts: SkillToolOptions): ToolSpec {
       };
     },
   };
+}
+
+/**
+ * Load a discovered plugin skill only while its source remains a regular file
+ * beneath the same plugin root. Discovery metadata is not a trust decision:
+ * the file is re-read and re-classified at call time, matching normal skills.
+ */
+export function loadPluginSkillContent(source: PluginSkillSource): LoadedSkill | undefined {
+  try {
+    const pluginRoot = path.resolve(source.pluginRoot);
+    const filePath = path.resolve(source.sourcePath);
+    const relative = path.relative(pluginRoot, filePath);
+    if (relative === '' || relative === '..' || relative.startsWith(`..${path.sep}`) || path.isAbsolute(relative)) {
+      return undefined;
+    }
+    if (path.basename(filePath).toLowerCase() !== 'skill.md') return undefined;
+
+    // Reject symlinks in every path component, even if an in-root symlink
+    // currently resolves back inside the plugin. The filesystem can change
+    // between discovery and the model requesting the skill.
+    const components = relative.split(path.sep);
+    let current = pluginRoot;
+    for (const component of ['', ...components]) {
+      if (component) current = path.join(current, component);
+      if (fs.lstatSync(current).isSymbolicLink()) return undefined;
+    }
+
+    const realRoot = fs.realpathSync.native(pluginRoot);
+    const realFile = fs.realpathSync.native(filePath);
+    const realRelative = path.relative(realRoot, realFile);
+    if (realRelative === '..' || realRelative.startsWith(`..${path.sep}`) || path.isAbsolute(realRelative)) return undefined;
+    const stats = fs.statSync(realFile);
+    if (!stats.isFile() || stats.size > EXTERNAL_SKILL_MAX_BYTES) return undefined;
+
+    const raw = fs.readFileSync(realFile, 'utf8');
+    const frontmatter = parseSkillFrontmatterLocal(raw);
+    const trust = classifySkillTrust(raw);
+    const truncated = raw.length > SKILL_CONTENT_MAX_CHARS;
+    const body = truncated ? `${raw.slice(0, SKILL_CONTENT_MAX_CHARS)}\n…(skill 正文超长截断)` : raw;
+    return {
+      // Keep the plugin namespace from discovery; a frontmatter name cannot
+      // alias a skill outside that namespace.
+      name: source.name,
+      sourcePath: realFile,
+      scope: 'project',
+      rank: source.rank,
+      description: frontmatter.description ?? source.description,
+      body,
+      truncated,
+      trusted: trust.trusted,
+      ...(trust.marker ? { untrustedMarker: trust.marker } : {}),
+    };
+  } catch {
+    return undefined;
+  }
 }
 
 function err(

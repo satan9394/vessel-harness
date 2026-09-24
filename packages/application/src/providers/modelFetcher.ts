@@ -1,4 +1,4 @@
-import type { ProviderName } from '@vessel/llm';
+import { probeOpenAIModels, type ProviderName } from '@vessel/llm';
 
 /**
  * packages/application/providers/modelFetcher — fetch a provider's model list (task 015).
@@ -33,11 +33,6 @@ export const ANTHROPIC_BUILTIN_MODELS: string[] = [
   'claude-3-5-haiku-latest',
 ];
 
-interface OpenAIModelsResponse {
-  data?: { id?: string; object?: string }[];
-  error?: { message?: string };
-}
-
 /**
  * Enumerate models from an OpenAI-compatible endpoint: GET {base}/v1/models
  * (some gateways also accept {base}/models — we try /v1/models first, then
@@ -49,29 +44,23 @@ export async function fetchOpenAIModels(baseUrl: string, apiKey?: string): Promi
   let clean = baseUrl;
   while (clean.endsWith('/')) clean = clean.slice(0, -1);
   const candidates = [`${clean}/v1/models`, `${clean}/models`];
-  let lastErr: Error | null = null;
+  let lastError = 'unknown';
   for (const url of candidates) {
-    try {
-      const headers: Record<string, string> = { accept: 'application/json' };
-      if (apiKey) headers.authorization = `Bearer ${apiKey}`;
-      const resp = await fetch(url, { headers, signal: AbortSignal.timeout(15_000) });
-      if (!resp.ok) {
-        lastErr = new Error(`GET ${url} → HTTP ${resp.status}`);
-        continue;
-      }
-      const body = (await resp.json()) as OpenAIModelsResponse;
-      if (body.error) throw new Error(`provider error: ${body.error.message}`);
-      const ids = (body.data ?? []).map((m) => m.id ?? '').filter((x) => x.length > 0);
-      if (ids.length === 0) {
-        lastErr = new Error(`GET ${url} returned no models`);
-        continue;
-      }
-      return { origin: 'live', models: ids, note: `live from ${url}` };
-    } catch (err) {
-      lastErr = err as Error;
+    const result = await probeOpenAIModels({ baseUrl: url, apiKey, timeoutMs: 15_000 });
+    if (!result.ok) {
+      // The probe deliberately returns fixed, credential-safe error messages.
+      lastError = result.error?.message ?? 'Model discovery failed.';
+      continue;
     }
+    const ids = result.models.map((model) => model.id);
+    if (ids.length === 0) {
+      lastError = `GET ${new URL(url).pathname} returned no models`;
+      continue;
+    }
+    // Keep the note useful without reflecting a caller-supplied URL/query.
+    return { origin: 'live', models: ids, note: `live from ${new URL(url).pathname}` };
   }
-  throw new Error(`无法拉取模型列表：${lastErr?.message ?? 'unknown'}`);
+  throw new Error(`无法拉取模型列表：${lastError}`);
 }
 
 /** Model list for a provider protocol (mock → none; anthropic → builtin fallback). */

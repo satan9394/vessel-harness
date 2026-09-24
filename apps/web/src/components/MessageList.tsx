@@ -1,12 +1,14 @@
 import type { ConversationDelta, ToolDelta } from '../sse';
 import ToolActivityRow from './ToolActivityRow';
+import ThinkingBlock from './ThinkingBlock';
 
 /** A renderable conversation item: either a message bubble or a tool activity row. */
 export interface ChatItem {
   id: string;
-  kind: 'message' | 'tool';
+  kind: 'message' | 'tool' | 'thinking';
   msg?: ConversationDelta;
   tool?: ToolDelta;
+  thinking?: { text: string; durationMs?: number; streaming: boolean };
 }
 
 interface Props {
@@ -25,6 +27,11 @@ export default function MessageList({ items, thinking }: Props) {
       {items.map((item) =>
         item.kind === 'tool' && item.tool ? (
           <ToolActivityRow key={item.id} delta={item.tool} />
+        ) : item.kind === 'thinking' && item.thinking ? (
+          <div key={item.id} className="msg msg-assistant">
+            <div className="msg-role">Vessel</div>
+            <ThinkingBlock text={item.thinking.text} durationMs={item.thinking.durationMs} streaming={item.thinking.streaming} />
+          </div>
         ) : (
           <div key={item.id} className={`msg msg-${item.msg?.role ?? 'assistant'}`}>
             <div className="msg-role">{item.msg?.role === 'user' ? 'You' : 'Vessel'}</div>

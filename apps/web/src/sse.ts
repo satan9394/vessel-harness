@@ -42,10 +42,20 @@ export interface ToolDelta {
 export interface UsageDelta {
   inputTokens?: number;
   outputTokens?: number;
+  reasoningTokens?: number;
   cacheReadTokens?: number;
   /** cache 写入（cache_creation）tokens，task 107；缺省未上报时为 undefined */
   cacheCreationTokens?: number;
   calls?: number;
+  latencyMs?: number;
+  ts: number;
+}
+
+/** Live reasoning text and lifecycle, projected from existing model-stream events. */
+export interface ThinkingDelta {
+  phase: 'start' | 'delta' | 'end';
+  text?: string;
+  durationMs?: number;
   ts: number;
 }
 
@@ -74,6 +84,7 @@ export interface StreamHandlers {
   onConversation?: (delta: ConversationDelta) => void;
   onTool?: (delta: ToolDelta) => void;
   onUsage?: (delta: UsageDelta) => void;
+  onThinking?: (delta: ThinkingDelta) => void;
   onPolicy?: (delta: PolicyDelta) => void;
   /** team run snapshot frames (task 060) */
   onTeam?: (delta: TeamDelta) => void;
@@ -85,6 +96,10 @@ export interface StreamHandlers {
 
 export interface EventStream {
   close: () => void;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
 /**
@@ -126,6 +141,29 @@ export function createEventStream(url: string, handlers: StreamHandlers = {}): E
         break;
       case 'usage':
         handlers.onUsage?.({ ...delta, ts } as unknown as UsageDelta);
+        break;
+      case 'thinking':
+        if (!isRecord(frame.delta) || !['start', 'delta', 'end'].includes(String(frame.delta.phase))) {
+          handlers.onError?.(new Error('malformed thinking frame'));
+          break;
+        }
+        if (frame.delta.phase === 'delta' && typeof frame.delta.text !== 'string') {
+          handlers.onError?.(new Error('malformed thinking delta'));
+          break;
+        }
+        if (
+          frame.delta.durationMs !== undefined &&
+          (typeof frame.delta.durationMs !== 'number' || !Number.isFinite(frame.delta.durationMs) || frame.delta.durationMs < 0)
+        ) {
+          handlers.onError?.(new Error('malformed thinking duration'));
+          break;
+        }
+        handlers.onThinking?.({
+          phase: frame.delta.phase as ThinkingDelta['phase'],
+          ...(typeof frame.delta.text === 'string' ? { text: frame.delta.text } : {}),
+          ...(typeof frame.delta.durationMs === 'number' ? { durationMs: frame.delta.durationMs } : {}),
+          ts,
+        });
         break;
       case 'policy':
         handlers.onPolicy?.({ ...delta, ts } as unknown as PolicyDelta);

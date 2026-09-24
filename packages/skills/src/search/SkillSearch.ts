@@ -4,7 +4,8 @@ import * as path from 'node:path';
 import type { ToolExecutionResult, ToolSpec, ToolErrorPayload } from '@vessel/shared';
 
 import { classifySkillTrust } from '../load/SkillLoader.js';
-import type { SkillScope, SkillTrustMarkerId } from '../load/SkillLoader.js';
+import { loadPluginSkillContent } from '../load/SkillLoader.js';
+import type { PluginSkillSource, SkillScope, SkillTrustMarkerId } from '../load/SkillLoader.js';
 
 /**
  * skills/search — Skill Search + Provenance + scope-conflict resolution
@@ -71,7 +72,7 @@ function parseFrontmatter(text: string): { name?: string; description?: string }
 }
 
 /** list every skill dir under a discovery root (no dedupe — provenance view). */
-function listRaw(workspaceRoot: string, scope: SkillScope): SkillRecord[] {
+function listRaw(workspaceRoot: string, scope: SkillScope, pluginSkills: PluginSkillSource[] = []): SkillRecord[] {
   const out: SkillRecord[] = [];
   for (const { dir, rank, scope: s } of skillDiscoveryDirs(workspaceRoot, scope)) {
     if (!fs.existsSync(dir)) continue;
@@ -109,20 +110,47 @@ function listRaw(workspaceRoot: string, scope: SkillScope): SkillRecord[] {
       });
     }
   }
+  if (scope === 'project' || scope === 'session') {
+    for (const source of pluginSkills) {
+      // Re-read and reclassify through the same guarded loader used by the
+      // Skill tool. Invalidated paths disappear from search results.
+      const skill = loadPluginSkillContent(source);
+      if (!skill) continue;
+      out.push({
+        name: source.name,
+        description: skill.description,
+        sourcePath: skill.sourcePath,
+        scope: 'project',
+        rank: source.rank,
+        trusted: skill.trusted,
+        ...(skill.untrustedMarker ? { untrustedMarker: skill.untrustedMarker } : {}),
+      });
+    }
+  }
   return out;
 }
 
 /** resolve one skill name with full provenance (all layers + winner). */
-export function resolveSkill(name: string, workspaceRoot: string, scope: SkillScope = 'project'): { winner?: SkillRecord; layers: SkillRecord[] } {
+export function resolveSkill(
+  name: string,
+  workspaceRoot: string,
+  scope: SkillScope = 'project',
+  pluginSkills: PluginSkillSource[] = [],
+): { winner?: SkillRecord; layers: SkillRecord[] } {
   const wanted = name.trim();
-  const layers = listRaw(workspaceRoot, scope).filter((r) => r.name === wanted).sort((a, b) => a.rank - b.rank);
+  const layers = listRaw(workspaceRoot, scope, pluginSkills).filter((r) => r.name === wanted).sort((a, b) => a.rank - b.rank);
   return { winner: layers[0], layers };
 }
 
 /** keyword search across layers; dedupe by name keeping nearest (progressive list). */
-export function searchSkills(keyword: string, workspaceRoot: string, scope: SkillScope = 'project'): SkillRecord[] {
+export function searchSkills(
+  keyword: string,
+  workspaceRoot: string,
+  scope: SkillScope = 'project',
+  pluginSkills: PluginSkillSource[] = [],
+): SkillRecord[] {
   const kw = keyword.toLowerCase();
-  const all = listRaw(workspaceRoot, scope)
+  const all = listRaw(workspaceRoot, scope, pluginSkills)
     .filter((r) => r.name.toLowerCase().includes(kw) || r.description.toLowerCase().includes(kw))
     .sort((a, b) => a.rank - b.rank);
   const seen = new Set<string>();
@@ -132,6 +160,7 @@ export function searchSkills(keyword: string, workspaceRoot: string, scope: Skil
 export interface SkillSearchToolOptions {
   workspaceRoot: string;
   scope?: SkillScope;
+  pluginSkills?: PluginSkillSource[];
 }
 
 /** `SkillSearch` tool — keyword search + provenance (+ conflict resolution view). */
@@ -155,7 +184,7 @@ export function createSkillSearchTool(opts: SkillSearchToolOptions): ToolSpec {
       const scope = (opts.scope ?? 'project') as SkillScope;
       try {
         if (args.resolve != null) {
-          const res = resolveSkill(String(args.resolve), opts.workspaceRoot, scope);
+          const res = resolveSkill(String(args.resolve), opts.workspaceRoot, scope, opts.pluginSkills);
           if (!res.winner) return err('INVALID_ARGS', `Skill "${args.resolve}" not found`, {});
           const lines = res.layers.map(
             (l) =>
@@ -170,7 +199,7 @@ export function createSkillSearchTool(opts: SkillSearchToolOptions): ToolSpec {
         }
         const kw = String(args.keyword ?? '');
         if (!kw) return err('INVALID_ARGS', 'SkillSearch: keyword required', {});
-        const hits = searchSkills(kw, opts.workspaceRoot, scope);
+        const hits = searchSkills(kw, opts.workspaceRoot, scope, opts.pluginSkills);
         if (hits.length === 0) return ok(`(no skill matches "${kw}")`, { count: 0 });
         const lines = hits.map(
           (h) =>

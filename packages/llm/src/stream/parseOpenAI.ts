@@ -68,6 +68,8 @@ export interface OpenAIDelta {
   content?: string | null;
   /** DeepSeek 系 thinking 模式思维链增量（task 109）。 */
   reasoning_content?: string | null;
+  /** Community OpenAI-compatible alias for reasoning content. */
+  thinking?: string | null;
   tool_calls?: {
     index?: number;
     id?: string;
@@ -197,13 +199,18 @@ export function parseOpenAIStreamChunk(
   // message_start is emitted by OpenAIStreamParser.feed() (the per-stream
   // driver); here we only map content fragments so the two never double-emit.
 
-  // task 109: DeepSeek 系 thinking 模式思维链走 `delta.reasoning_content` 增量
-  // （wire 顺序：思维链先于正文，故 reasoning_delta 先于 text_delta 产出）
-  if (delta?.reasoning_content != null && delta.reasoning_content !== '') {
-    chunks.push({ type: 'reasoning_delta', text: delta.reasoning_content });
+  // DeepSeek uses `delta.reasoning_content`; community proxies commonly use
+  // `delta.thinking`.  Both stay on the established reasoning_delta contract
+  // so the existing AgentLoop consumer remains source-compatible.
+  // Keep both fields in wire order when a proxy sends both, and ignore empty
+  // placeholders or malformed non-string values at this untrusted boundary.
+  for (const reasoning of [delta?.reasoning_content, delta?.thinking]) {
+    if (typeof reasoning === 'string' && reasoning !== '') {
+      chunks.push({ type: 'reasoning_delta', text: reasoning });
+    }
   }
 
-  if (delta?.content != null && delta.content !== '') {
+  if (typeof delta?.content === 'string' && delta.content !== '') {
     chunks.push({ type: 'text_delta', text: delta.content });
   }
 

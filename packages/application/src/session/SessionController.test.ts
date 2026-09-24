@@ -77,6 +77,26 @@ describe('SessionController', () => {
     await ctl.close();
   });
 
+  it('derives and persists the Topic title from the first successful turn prompt', async () => {
+    const registry = new SessionRegistry({ vesselHome: home });
+    const provider = new MockProvider([{ when: /.*/, response: { text: 'analysis complete' } }], { model: 'm' });
+    const ctl = await SessionController.create({
+      workspaceRoot: ws,
+      provider,
+      model: 'm',
+      policySystemPath: POLICY,
+      behaviorIRPath: BEHAVIOR,
+      registry,
+    });
+
+    await ctl.runTurn('分析季度收入趋势。后续详细说明不应进入主题标题');
+
+    expect(registry.get(ctl.sessionId)?.topic?.title).toBe('分析季度收入趋势');
+    const restored = new SessionRegistry({ vesselHome: home }).get(ctl.sessionId);
+    expect(restored?.topic?.title).toBe('分析季度收入趋势');
+    await ctl.close();
+  });
+
   it('interrupt() on an idle session is a safe no-op; steer() buffers (task 050/051)', async () => {
     const provider = new MockProvider([{ when: /.*/, response: { text: 'OK' } }], { model: 'm' });
     const ctl = await SessionController.create({

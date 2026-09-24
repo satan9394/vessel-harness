@@ -11,3 +11,4 @@ export * from './stream/types.js';
 export * from './finishReason.js';
 export * from './stream/parseOpenAI.js';
 export * from './stream/parseAnthropic.js';
+export * from './discovery/probeOpenAIModels.js';

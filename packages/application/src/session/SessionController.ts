@@ -70,6 +70,7 @@ export interface SessionProjections {
  */
 export class SessionController {
   private readonly harness: ComposedHarness;
+  private readonly registry?: SessionRegistry;
   readonly sessionId: string;
   private readonly providerId: string;
   private readonly model: string;
@@ -81,6 +82,7 @@ export class SessionController {
 
   private constructor(harness: ComposedHarness, opts: SessionControllerOptions) {
     this.harness = harness;
+    this.registry = opts.registry;
     this.sessionId = opts.id ?? harness.session.sessionId;
     this.providerId = opts.providerId ?? opts.provider.id;
     this.model = opts.model;
@@ -163,6 +165,7 @@ export class SessionController {
    * controller's previous per-call AbortController).
    */
   async runTurn(prompt: string) {
+    this.registry?.nameTopicFromPrompt(this.sessionId, prompt);
     return this.harness.loop.runTurn(prompt);
   }
 

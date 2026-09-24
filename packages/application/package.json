@@ -27,6 +27,7 @@
     "@vessel/skills": "^0.1.0",
     "@vessel/telemetry": "^0.1.0",
     "@vessel/agents": "^0.1.0",
+    "@vessel/engine": "^0.1.0",
     "@vessel/memory": "^0.1.0",
     "@vessel/llm": "^0.1.0"
   }

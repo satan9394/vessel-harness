@@ -63,6 +63,23 @@ describe('apps/cli modelFetcher — fetchOpenAIModels (task 015)', () => {
     }
   });
 
+  it('keeps provider errors credential-safe while trying the fallback endpoint', async () => {
+    const apiKey = 'sk-never-echo-this';
+    const fake = await fakeModelsServer(() => ({
+      status: 401,
+      body: { error: { message: `invalid key ${apiKey}` } },
+    }));
+    try {
+      const outcome = await fetchOpenAIModels(fake.url, apiKey).catch((error: unknown) => error);
+      expect(outcome).toBeInstanceOf(Error);
+      expect((outcome as Error).message).toMatch(/无法拉取/);
+      expect((outcome as Error).message).not.toContain(apiKey);
+      expect(fake.received.map((request) => request.url)).toEqual(['/v1/models', '/models']);
+    } finally {
+      fake.close();
+    }
+  });
+
   it('rejects an empty model list as an error', async () => {
     const fake = await fakeModelsServer(() => ({ status: 200, body: { data: [] } }));
     try {

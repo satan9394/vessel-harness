@@ -29,12 +29,30 @@ export interface Messages {
   newSession: MessageTemplate;
   projects: MessageTemplate;
   recentSessions: MessageTemplate;
+  topicSearch: MessageTemplate;
+  topicToday: MessageTemplate;
+  topicLastSevenDays: MessageTemplate;
+  topicEarlier: MessageTemplate;
+  topicUntitled: MessageTemplate;
+  topicShowArchived: MessageTemplate;
+  topicRename: MessageTemplate;
+  topicArchive: MessageTemplate;
+  topicRestore: MessageTemplate;
+  topicSave: MessageTemplate;
+  topicCancel: MessageTemplate;
   settings: MessageTemplate;
   language: MessageTemplate;
   send: MessageTemplate;
   stop: MessageTemplate;
   running: MessageTemplate;
   thinking: MessageTemplate;
+  thinkingFor: MessageTemplate;
+  metricPrompt: MessageTemplate;
+  metricCompletion: MessageTemplate;
+  metricThinking: MessageTemplate;
+  metricCacheRead: MessageTemplate;
+  metricLatency: MessageTemplate;
+  metricCost: MessageTemplate;
   inputPlaceholder: MessageTemplate;
   serverDown: MessageTemplate;
   statusOk: MessageTemplate;
@@ -61,12 +79,30 @@ export const zh: Messages = {
   newSession: '+ 新建会话',
   projects: '项目',
   recentSessions: '最近会话',
+  topicSearch: '搜索主题或会话…',
+  topicToday: '今天',
+  topicLastSevenDays: '最近 7 天',
+  topicEarlier: '更早',
+  topicUntitled: '未命名主题',
+  topicShowArchived: '显示已归档',
+  topicRename: '重命名主题',
+  topicArchive: '归档主题',
+  topicRestore: '恢复主题',
+  topicSave: '保存',
+  topicCancel: '取消',
   settings: '设置',
   language: '语言',
   send: '发送',
   stop: '停止',
   running: '运行中…',
   thinking: '思考中…',
+  thinkingFor: '思考用时 {duration}',
+  metricPrompt: '提示',
+  metricCompletion: '输出',
+  metricThinking: '推理',
+  metricCacheRead: '缓存读取',
+  metricLatency: '时延',
+  metricCost: '估算成本',
   inputPlaceholder: '输入消息… (Enter 发送)',
   serverDown: '无法连接 local server——请先运行 vessel serve（127.0.0.1:5678）。',
   statusOk: 'Vessel local server 正常（v{version}）',
@@ -91,12 +127,30 @@ export const en: Messages = {
   newSession: '+ New Session',
   projects: 'Projects',
   recentSessions: 'Recent Sessions',
+  topicSearch: 'Search topics or sessions…',
+  topicToday: 'Today',
+  topicLastSevenDays: 'Previous 7 days',
+  topicEarlier: 'Earlier',
+  topicUntitled: 'Untitled topic',
+  topicShowArchived: 'Show archived',
+  topicRename: 'Rename topic',
+  topicArchive: 'Archive topic',
+  topicRestore: 'Restore topic',
+  topicSave: 'Save',
+  topicCancel: 'Cancel',
   settings: 'Settings',
   language: 'Language',
   send: 'Send',
   stop: 'Stop',
   running: 'Running…',
   thinking: 'Thinking…',
+  thinkingFor: 'Thought for {duration}',
+  metricPrompt: 'Prompt',
+  metricCompletion: 'Completion',
+  metricThinking: 'Reasoning',
+  metricCacheRead: 'Cache read',
+  metricLatency: 'Latency',
+  metricCost: 'Est. cost',
   inputPlaceholder: 'Type a message… (Enter to send)',
   serverDown: 'Cannot reach local server — please run `vessel serve` (127.0.0.1:5678).',
   statusOk: 'Vessel local server ok (v{version})',

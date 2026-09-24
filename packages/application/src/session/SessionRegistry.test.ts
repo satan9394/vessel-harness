@@ -104,6 +104,46 @@ describe('SessionRegistry', () => {
     expect(reg2.get(b.id)).toBeDefined();
   });
 
+  it('auto-names, indexes, renames, archives and persists Topic metadata', () => {
+    const reg = new SessionRegistry({ vesselHome: home, now: () => 1_800_000_000_000 });
+    const meta = reg.create({ workspaceRoot: ws });
+    const named = reg.nameTopicFromPrompt(meta.id, '请分析这段投资组合风险。后续说明不进入标题');
+    expect(named?.topic?.title).toBe('请分析这段投资组合风险');
+    expect(reg.listByTopic(named!.topic!.topicId).map((session) => session.id)).toEqual([meta.id]);
+
+    const renamed = reg.renameTopic(meta.id, '  风险复盘   与仓位管理  ');
+    expect(renamed?.topic?.title).toBe('风险复盘 与仓位管理');
+    expect(reg.setTopicArchived(meta.id, true)?.topic?.isArchived).toBe(true);
+
+    const restored = new SessionRegistry({ vesselHome: home }).get(meta.id);
+    expect(restored?.topic).toEqual({
+      topicId: `topic_${meta.id}`,
+      title: '风险复盘 与仓位管理',
+      createdAt: 1_800_000_000_000,
+      updatedAt: 1_800_000_000_000,
+      isArchived: true,
+    });
+  });
+
+  it('reads legacy session JSON without Topic and ignores only malformed Topic metadata', () => {
+    new SessionRegistry({ vesselHome: home });
+    fs.writeFileSync(
+      path.join(home, 'sessions.json'),
+      JSON.stringify({ sessions: [
+        { id: 'legacy', workspaceRoot: ws, provider: 'mock', model: 'm', permission: 'read-only', createdAt: '2026-01-01T00:00:00.000Z' },
+        { id: 'bad-topic', workspaceRoot: ws, provider: 'mock', model: 'm', permission: 'read-only', createdAt: '2026-01-01T00:00:00.000Z', topic: { topicId: 42 } },
+        { id: 'bad-topic-options', workspaceRoot: ws, provider: 'mock', model: 'm', permission: 'read-only', createdAt: '2026-01-01T00:00:00.000Z', topic: { topicId: 't2', title: 'Unsafe metadata', createdAt: 1, updatedAt: 1, tags: 'not-an-array' } },
+      ] }),
+      'utf8',
+    );
+
+    const reg = new SessionRegistry({ vesselHome: home });
+    expect(reg.get('legacy')?.topic).toBeUndefined();
+    expect(reg.get('bad-topic')).toBeDefined();
+    expect(reg.get('bad-topic')?.topic).toBeUndefined();
+    expect(reg.get('bad-topic-options')?.topic).toBeUndefined();
+  });
+
   it('persist survives transient EPERM on rename (task 113 bounded retry)', () => {
     const renameSync = vi.mocked(fs.renameSync);
     renameSync.mockClear();

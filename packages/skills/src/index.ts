@@ -105,3 +105,4 @@ export function formatIndexText(entries: SkillIndexEntry[]): string {
 
 export * from './load/SkillLoader.js';
 export * from './search/SkillSearch.js';
+export * from './plugin/pluginLoader.js';
