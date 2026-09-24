@@ -112,6 +112,23 @@ describe('createApiClient', () => {
     expect(JSON.parse(String(calls[1].init?.body))).toEqual({ prompt: 'hello' });
   });
 
+  it('PATCH /sessions/:id/topic sends only the requested Topic update', async () => {
+    const calls: { url: string; init?: RequestInit }[] = [];
+    const session = { id: 's/topic', topic: { topicId: 't1', title: 'Updated title' } };
+    const mockFetch = vi.fn(async (url: string, init?: RequestInit) => {
+      calls.push({ url, init });
+      return jsonResponse(200, { session });
+    });
+    vi.stubGlobal('fetch', mockFetch);
+
+    const api = createApiClient({ base: '/api' });
+    await expect(api.updateSessionTopic('s/topic', { title: 'Updated title' })).resolves.toEqual({ session });
+    expect(calls).toHaveLength(1);
+    expect(calls[0]!.url).toBe('/api/sessions/s%2Ftopic/topic');
+    expect(calls[0]!.init?.method).toBe('PATCH');
+    expect(JSON.parse(String(calls[0]!.init?.body))).toEqual({ title: 'Updated title' });
+  });
+
   it('POST /sessions/:id/interrupt hits the interrupt route (task 050)', async () => {
     const calls: { url: string; init?: RequestInit }[] = [];
     const mockFetch = vi.fn(async (url: string, init?: RequestInit) => {

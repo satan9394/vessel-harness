@@ -28,11 +28,22 @@ export interface Project {
   root: string;
 }
 
+export interface SessionTopic {
+  topicId: string;
+  title: string;
+  summary?: string;
+  createdAt: number;
+  updatedAt: number;
+  tags?: string[];
+  isArchived?: boolean;
+}
+
 export interface SessionMeta {
   id: string;
   workspaceRoot: string;
   createdAt: string;
   updatedAt?: string;
+  topic?: SessionTopic;
   [key: string]: unknown;
 }
 
@@ -273,6 +284,13 @@ export function createApiClient(opts: ApiOptions = {}) {
     /** GET /api/sessions */
     async sessions(): Promise<{ sessions: SessionMeta[] }> {
       return request<{ sessions: SessionMeta[] }>('/sessions');
+    },
+    /** PATCH /api/sessions/:id/topic — rename or archive a session Topic. */
+    async updateSessionTopic(id: string, input: { title?: string; isArchived?: boolean }): Promise<{ session: SessionMeta }> {
+      return request<{ session: SessionMeta }>(`/sessions/${encodeURIComponent(id)}/topic`, {
+        method: 'PATCH',
+        body: JSON.stringify(input),
+      });
     },
     /** POST /api/projects/open */
     async openProject(workspaceRoot: string): Promise<{ project: Project }> {

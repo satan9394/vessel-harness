@@ -10,6 +10,7 @@ import {
 // comparison — the unit under test is `openAIFinishReason`, and "同解" means "equal to this".
 import { wireFinishReason } from '../finishReason.js';
 import type { ChatFinishReason, StreamChunk } from '@vessel/shared';
+import { toStreamThinkingChunk } from './types.js';
 
 const data = (line: string): string => line.replace(/^data: /, '');
 
@@ -105,6 +106,51 @@ describe('parseOpenAIStreamChunk — plain text SSE → text_delta', () => {
       createOpenAIToolState(),
     );
     expect(both).toEqual([{ type: 'reasoning_delta', text: '想' }, { type: 'text_delta', text: '答' }]);
+  });
+
+  it('maps the community delta.thinking alias and preserves mixed-frame order', () => {
+    const state = createOpenAIToolState();
+    expect(
+      parseOpenAIStreamChunk(data('data: {"choices":[{"delta":{"thinking":"先规划"}}]}'), state),
+    ).toEqual([{ type: 'reasoning_delta', text: '先规划' }]);
+    expect(
+      parseOpenAIStreamChunk(data('data: {"choices":[{"delta":{"thinking":"","content":"答案"}}]}'), state),
+    ).toEqual([{ type: 'text_delta', text: '答案' }]);
+    expect(
+      parseOpenAIStreamChunk(data('data: {"choices":[{"delta":{"reasoning_content":"","thinking":"代理思考"}}]}'), state),
+    ).toEqual([{ type: 'reasoning_delta', text: '代理思考' }]);
+    expect(parseOpenAIStreamChunk(payload({ reasoning_content: 'primary', thinking: 'alias' }), state)).toEqual([
+      { type: 'reasoning_delta', text: 'primary' },
+      { type: 'reasoning_delta', text: 'alias' },
+    ]);
+
+    const parser = new OpenAIStreamParser();
+    const streamed = [
+      'data: {"choices":[{"delta":{"reasoning_content":"想"}}]}',
+      'data: {"choices":[{"delta":{"thinking":"法"}}]}',
+      'data: {"choices":[{"delta":{"content":"答"}}]}',
+    ].flatMap((line) => parser.feed(line));
+    expect(streamed.filter((chunk) => chunk.type === 'reasoning_delta' || chunk.type === 'text_delta')).toEqual([
+      { type: 'reasoning_delta', text: '想' },
+      { type: 'reasoning_delta', text: '法' },
+      { type: 'text_delta', text: '答' },
+    ]);
+  });
+
+  it('ignores malformed reasoning and text values from a non-standard provider frame', () => {
+    const state = createOpenAIToolState();
+    expect(parseOpenAIStreamChunk(payload({ reasoning_content: { text: 'not a delta' }, content: ['bad'] }), state)).toEqual([]);
+    expect(parseOpenAIStreamChunk(payload({ reasoning_content: '', thinking: 'fallback' }), state)).toEqual([
+      { type: 'reasoning_delta', text: 'fallback' },
+    ]);
+  });
+
+  it('adapts the canonical runtime reasoning chunk to the UI-facing StreamThinkingChunk shape', () => {
+    expect(toStreamThinkingChunk({ type: 'reasoning_delta', text: 'private reasoning' })).toEqual({
+      kind: 'thinking_delta',
+      delta: 'private reasoning',
+    });
+    expect(toStreamThinkingChunk({ type: 'text_delta', text: 'answer' })).toBeUndefined();
   });
 });
 

@@ -63,6 +63,15 @@ function AppShell() {
     saveModules(next);
   }, []);
 
+  const updateSessionTopic = useCallback(async (id: string, input: { title?: string; isArchived?: boolean }) => {
+    try {
+      const { session } = await api.updateSessionTopic(id, input);
+      setSessions((current) => current.map((item) => item.id === session.id ? session : item));
+    } catch {
+      setServerError(true);
+    }
+  }, [api]);
+
   const connect = useCallback(async () => {
     setServerError(false);
     try {
@@ -99,6 +108,8 @@ function AppShell() {
         onNewSession={() => setShowNew(true)}
         selectedSessionId={selectedSessionId}
         onSelectSession={setSelectedSessionId}
+        onRenameTopic={(id, title) => void updateSessionTopic(id, { title })}
+        onArchiveTopic={(id, isArchived) => void updateSessionTopic(id, { isArchived })}
       />
       <main className="main">
         <div className="topbar">
@@ -121,7 +132,7 @@ function AppShell() {
           </section>
         ) : (
           <div className="conversation-wrap">
-            <ConversationView sessionId={selectedSessionId as string} api={api} />
+            <ConversationView sessionId={selectedSessionId as string} api={api} onSessionUpdated={() => void connect()} />
             <ModuleSections modules={modules} api={api} sessionId={selectedSessionId as string} />
           </div>
         )}

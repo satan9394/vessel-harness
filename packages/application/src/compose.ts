@@ -7,7 +7,15 @@ import { PolicyEngine, loadPolicyArtifacts } from '@vessel/policy';
 import { Executor, Sandbox } from '@vessel/runtime';
 import { loadBehaviorIR, compileBehavior } from '@vessel/behavior';
 import { discoverInstructions } from '@vessel/context';
-import { listIndex, formatIndexText, createSkillTool, createSkillSearchTool } from '@vessel/skills';
+import {
+  listIndex,
+  formatIndexText,
+  createSkillTool,
+  createSkillSearchTool,
+  discoverClaudePlugins,
+  type DiscoveredPlugin,
+  type PluginSkillSource,
+} from '@vessel/skills';
 import { Telemetry } from '@vessel/telemetry';
 import { SubagentManager, createSubagentTool } from '@vessel/agents';
 import { ProjectStore, createMemoryTool } from '@vessel/memory';
@@ -100,6 +108,8 @@ export interface ComposedHarness {
   telemetry: Telemetry;
   artifacts: ReturnType<typeof loadPolicyArtifacts>;
   behaviorWarnings: string[];
+  /** Workspace plugins discovered during composition; hook commands remain opaque data. */
+  discoveredPlugins: DiscoveredPlugin[];
   subagentManager?: SubagentManager;
   mcpClients: McpClient[];
   /**
@@ -136,6 +146,22 @@ export interface ComposedHarness {
 export async function composeHarness(opts: ComposeOptions): Promise<ComposedHarness> {
   const workspaceRoot = path.resolve(opts.workspaceRoot);
   const cwd = path.resolve(opts.cwd ?? workspaceRoot);
+  let discoveredPlugins: DiscoveredPlugin[] = [];
+  try {
+    discoveredPlugins = discoverClaudePlugins(workspaceRoot);
+  } catch {
+    // Plugin discovery is optional ecosystem data. A malformed workspace must
+    // not prevent a session from starting, and hook commands are never run.
+    discoveredPlugins = [];
+  }
+  const pluginSkillSources: PluginSkillSource[] = discoveredPlugins
+    .flatMap((plugin) => plugin.skills.map((skill) => ({
+      ...skill,
+      pluginRoot: plugin.rootDir,
+      // Project skills (100/200) win over namespaced plugin skills (300).
+      rank: 300,
+    })))
+    .slice(0, 2048);
 
   // V0.4/056 task routing: when the caller wires providers + tier bindings AND a
   // trigger is present (taskPrompt, or explicit mode fast/pro without a prompt),
@@ -187,6 +213,12 @@ export async function composeHarness(opts: ComposeOptions): Promise<ComposedHarn
     // (never) unless an interactive ask surface (TUI) is present.
     sessionOverrides: opts.permission ? { profile: opts.permission } : undefined,
   });
+  for (const plugin of discoveredPlugins) {
+    // Only declarative pre-tool deny rules are executable by PolicyEngine.
+    // Commands and lifecycle events remain visible in `discoveredPlugins` but
+    // are never handed to a process runner.
+    artifacts.rules.push(...(plugin.policyRules ?? []));
+  }
   const policyEngine = new PolicyEngine(artifacts);
 
   // Tools: 6 builtin, bound to workspace + fs guards from the policy artifacts.
@@ -206,8 +238,8 @@ export async function composeHarness(opts: ComposeOptions): Promise<ComposedHarn
     ...createFsTools({ workspaceRoot, fsPolicy }),
     ...createSearchTools({ workspaceRoot, fsPolicy }),
     createShellTool({ workspaceRoot, sandbox }),
-    createSkillTool({ workspaceRoot }),
-    createSkillSearchTool({ workspaceRoot }),
+    createSkillTool({ workspaceRoot, pluginSkills: pluginSkillSources }),
+    createSkillSearchTool({ workspaceRoot, pluginSkills: pluginSkillSources }),
     ...(projectStore ? [createMemoryTool({ workspaceRoot })] : []),
   ];
 
@@ -295,7 +327,16 @@ export async function composeHarness(opts: ComposeOptions): Promise<ComposedHarn
 
   // Context: builder (stable cached per session) + compaction (pressure-triggered)
   const instructions = () => discoverInstructions(cwd, workspaceRoot);
-  const skillsIndex = () => formatIndexText(listIndex(workspaceRoot));
+  const skillsIndex = () => {
+    const entries = listIndex(workspaceRoot);
+    const seen = new Set(entries.map((entry) => entry.name));
+    for (const { pluginRoot: _pluginRoot, ...entry } of pluginSkillSources) {
+      if (seen.has(entry.name)) continue;
+      seen.add(entry.name);
+      entries.push(entry);
+    }
+    return formatIndexText(entries.sort((a, b) => a.rank - b.rank || a.name.localeCompare(b.name)));
+  };
   const builder = new ContextBuilder({
     session,
     model: effectiveModel,
@@ -424,6 +465,7 @@ export async function composeHarness(opts: ComposeOptions): Promise<ComposedHarn
     telemetry,
     artifacts,
     behaviorWarnings,
+    discoveredPlugins,
     subagentManager,
     mcpClients,
     mcpFailures,

@@ -1,14 +1,16 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { ApiClient } from '../api';
 import { ApiError, failureMessage } from '../api';
-import { createEventStream, type ConversationDelta, type ToolDelta, type UsageDelta } from '../sse';
+import { createEventStream, type ConversationDelta, type ThinkingDelta, type ToolDelta, type UsageDelta } from '../sse';
 import MessageList, { type ChatItem } from './MessageList';
 import UsageBar, { applyUsageDelta, emptyUsage, type UsageTotals } from './UsageBar';
+import TalkingMetricsBar, { type TalkingMetrics } from './TalkingMetricsBar';
 import { useI18n } from './LanguageProvider';
 
 interface Props {
   sessionId: string;
   api: ApiClient;
+  onSessionUpdated?: () => void;
 }
 
 let counter = 0;
@@ -26,10 +28,11 @@ function conversationItem(delta: ConversationDelta): ChatItem {
  * live SSE stream over /api/sessions/:id/events that appends assistant text,
  * tool activity, usage and policy deltas as they happen.
  */
-export default function ConversationView({ sessionId, api }: Props) {
+export default function ConversationView({ sessionId, api, onSessionUpdated }: Props) {
   const { t } = useI18n();
   const [items, setItems] = useState<ChatItem[]>([]);
   const [usage, setUsage] = useState<UsageTotals>(emptyUsage);
+  const [turnMetrics, setTurnMetrics] = useState<TalkingMetrics>({});
   const [input, setInput] = useState('');
   const [busy, setBusy] = useState(false); // a turn is in flight
   const [error, setError] = useState<string | null>(null);
@@ -69,12 +72,60 @@ export default function ConversationView({ sessionId, api }: Props) {
 
   const onUsage = useCallback((delta: UsageDelta) => {
     setUsage((prev) => applyUsageDelta(prev, delta));
+    const deltaCost = applyUsageDelta(emptyUsage(), delta).costUsd;
+    setTurnMetrics((prev) => ({
+      inputTokens: (prev.inputTokens ?? 0) + (delta.inputTokens ?? 0),
+      outputTokens: (prev.outputTokens ?? 0) + (delta.outputTokens ?? 0),
+      ...(prev.reasoningTokens !== undefined || delta.reasoningTokens !== undefined
+        ? { reasoningTokens: (prev.reasoningTokens ?? 0) + (delta.reasoningTokens ?? 0) }
+        : {}),
+      cacheReadTokens: (prev.cacheReadTokens ?? 0) + (delta.cacheReadTokens ?? 0),
+      ...(prev.latencyMs !== undefined || delta.latencyMs !== undefined
+        ? { latencyMs: (prev.latencyMs ?? 0) + (delta.latencyMs ?? 0) }
+        : {}),
+      costUsd: (prev.costUsd ?? 0) + deltaCost,
+      estimated: true,
+    }));
+  }, []);
+
+  const onThinking = useCallback((delta: ThinkingDelta) => {
+    setItems((prev) => {
+      let activeIndex = -1;
+      for (let i = prev.length - 1; i >= 0; i -= 1) {
+        if (prev[i]?.kind === 'thinking' && prev[i]?.thinking?.streaming) {
+          activeIndex = i;
+          break;
+        }
+      }
+      if (delta.phase === 'start') {
+        return [...prev, { id: nextId(), kind: 'thinking', thinking: { text: '', streaming: true } }];
+      }
+      if (activeIndex < 0) {
+        if (delta.phase !== 'delta') return prev;
+        return [...prev, { id: nextId(), kind: 'thinking', thinking: { text: delta.text ?? '', streaming: true } }];
+      }
+      const active = prev[activeIndex]!;
+      const next = [...prev];
+      if (delta.phase === 'delta' && active.thinking) {
+        next[activeIndex] = {
+          ...active,
+          thinking: { ...active.thinking, text: active.thinking.text + (delta.text ?? '') },
+        };
+      } else if (delta.phase === 'end' && active.thinking) {
+        next[activeIndex] = {
+          ...active,
+          thinking: { ...active.thinking, durationMs: delta.durationMs, streaming: false },
+        };
+      }
+      return next;
+    });
   }, []);
 
   // Open the SSE stream for this session; reset local state per session switch.
   useEffect(() => {
     setItems([]);
     setUsage(emptyUsage);
+    setTurnMetrics({});
     setBusy(false);
     setError(null);
     setServerDown(false);
@@ -84,6 +135,7 @@ export default function ConversationView({ sessionId, api }: Props) {
       onConversation: appendMessage,
       onTool,
       onUsage,
+      onThinking,
       // policy denies surface as tool rows with status 'denied' via onTool.
     });
     return () => stream.close();
@@ -97,6 +149,7 @@ export default function ConversationView({ sessionId, api }: Props) {
       const prompt = input.trim();
       if (!prompt || busy) return;
       setInput('');
+      setTurnMetrics({});
       appendMessage({ role: 'user', text: prompt, ts: Date.now() });
       setBusy(true);
       setError(null);
@@ -116,9 +169,10 @@ export default function ConversationView({ sessionId, api }: Props) {
         }
       } finally {
         setBusy(false);
+        void onSessionUpdated?.();
       }
     },
-    [api, busy, input, sessionId, appendMessage, t],
+    [api, busy, input, sessionId, appendMessage, onSessionUpdated, t],
   );
 
   const stop = useCallback(() => {
@@ -146,6 +200,7 @@ export default function ConversationView({ sessionId, api }: Props) {
         )}
         {error && !serverDown && <ConversationError text={error} />}
       </div>
+      <TalkingMetricsBar metrics={turnMetrics} />
       <form className="composer" onSubmit={send}>
         <input
           className="input composer-input"

@@ -87,6 +87,37 @@ describe('createEventStream', () => {
     });
   });
 
+  it('dispatches thinking lifecycle deltas without mixing them into conversation text', () => {
+    vi.stubGlobal('EventSource', FakeEventSource);
+    const onThinking = vi.fn();
+    const onConversation = vi.fn();
+    createEventStream('/url', { onThinking, onConversation });
+    const inst = FakeEventSource.instances[0];
+
+    emit(inst, { type: 'thinking', delta: { phase: 'start' }, ts: 10 });
+    emit(inst, { type: 'thinking', delta: { phase: 'delta', text: 'considering' }, ts: 11 });
+    emit(inst, { type: 'thinking', delta: { phase: 'end', durationMs: 25 }, ts: 12 });
+
+    expect(onThinking.mock.calls.map(([delta]) => delta)).toEqual([
+      { phase: 'start', ts: 10 },
+      { phase: 'delta', text: 'considering', ts: 11 },
+      { phase: 'end', durationMs: 25, ts: 12 },
+    ]);
+    expect(onConversation).not.toHaveBeenCalled();
+  });
+
+  it('drops malformed thinking deltas and reports them without throwing', () => {
+    vi.stubGlobal('EventSource', FakeEventSource);
+    const onThinking = vi.fn();
+    const onError = vi.fn();
+    createEventStream('/url', { onThinking, onError });
+    const inst = FakeEventSource.instances[0];
+
+    expect(() => emit(inst, { type: 'thinking', delta: { phase: 'delta', text: { leak: true } }, ts: 1 })).not.toThrow();
+    expect(onThinking).not.toHaveBeenCalled();
+    expect(onError).toHaveBeenCalledWith(expect.objectContaining({ message: 'malformed thinking delta' }));
+  });
+
   it('ignores unknown frame types (e.g. ping) without failing', () => {
     vi.stubGlobal('EventSource', FakeEventSource);
     const onEvent = vi.fn();

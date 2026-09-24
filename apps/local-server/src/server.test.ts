@@ -55,6 +55,22 @@ class GatedServerProvider implements ChatProvider {
   }
 }
 
+class ReasoningServerProvider implements ChatProvider {
+  readonly id = 'reasoning-test';
+
+  async chat(): Promise<ChatResponse> {
+    throw new Error('chat() must not be called when provider.stream is present');
+  }
+
+  async *stream(_request: ChatRequest): AsyncGenerator<StreamChunk> {
+    yield { type: 'message_start', model: 'reasoning-test' };
+    yield { type: 'reasoning_delta', text: 'check the constraints' };
+    yield { type: 'text_delta', text: 'answer' };
+    yield { type: 'usage', inputTokens: 4, outputTokens: 2 };
+    yield { type: 'message_end', finishReason: 'stop' };
+  }
+}
+
 describe('local server HTTP API + SSE', () => {
   let dir: string;
   let ws: string;
@@ -149,6 +165,41 @@ describe('local server HTTP API + SSE', () => {
     expect(state.session.id).toBe(created.session.id);
   });
 
+  it('PATCH /api/sessions/:id/topic renames and archives without discarding the session', async () => {
+    const create = await fetch(`${base}/api/sessions`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ workspaceRoot: ws }),
+    });
+    const created = (await create.json()) as { session: { id: string } };
+
+    const rename = await fetch(`${base}/api/sessions/${created.session.id}/topic`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ title: '  Planning   notes  ' }),
+    });
+    expect(rename.status).toBe(200);
+    const renamed = (await rename.json()) as { session: { topic: { title: string } } };
+    expect(renamed.session.topic.title).toBe('Planning notes');
+
+    const archive = await fetch(`${base}/api/sessions/${created.session.id}/topic`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ isArchived: true }),
+    });
+    expect(archive.status).toBe(200);
+    const archived = (await archive.json()) as { session: { topic: { isArchived: boolean } } };
+    expect(archived.session.topic.isArchived).toBe(true);
+
+    const blankTitle = await fetch(`${base}/api/sessions/${created.session.id}/topic`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ title: '   ' }),
+    });
+    expect(blankTitle.status).toBe(400);
+    expect((await fetch(`${base}/api/sessions/${created.session.id}`)).status).toBe(200);
+  });
+
   it('POST /api/sessions/:id/turns runs a mock turn and returns finalText', async () => {
     const create = await fetch(`${base}/api/sessions`, {
       method: 'POST',
@@ -167,6 +218,10 @@ describe('local server HTTP API + SSE', () => {
     expect(result.finalText).toBe('SERVER-ECHO:default');
     expect(result.kind).toBe('success');
     expect(typeof result.steps).toBe('number');
+
+    const listed = await fetch(`${base}/api/sessions`);
+    const sessions = (await listed.json()) as { sessions: Array<{ id: string; topic?: { title: string } }> };
+    expect(sessions.sessions.find((session) => session.id === created.session.id)?.topic?.title).toBe('say hello');
   });
 
   it('POST /api/sessions/:id/interrupt and /steer are safe no-crash seams', async () => {
@@ -271,6 +326,77 @@ describe('local server HTTP API + SSE', () => {
     await turnPromise;
     await reader.cancel();
     expect(gotConversation).toBe(true);
+  });
+
+  it('projects reasoning stream chunks into thinking SSE start, delta, and end frames', async () => {
+    const dir2 = fs.mkdtempSync(path.join(os.tmpdir(), 'cah-thinking-sse-'));
+    const ws2 = path.join(dir2, 'workspace');
+    const home2 = path.join(dir2, 'vessel-home');
+    fs.mkdirSync(ws2, { recursive: true });
+    const srv = createVesselServer({
+      port: 0,
+      projectRegistry: new ProjectRegistry({ vesselHome: home2 }),
+      sessionRegistry: new SessionRegistry({ vesselHome: home2 }),
+      sessionFactory: async (input) => {
+        const { SessionController: SC } = await import('@vessel/application');
+        return SC.create({
+          workspaceRoot: input.workspaceRoot,
+          provider: new ReasoningServerProvider(),
+          model: 'reasoning-test',
+          policySystemPath: POLICY,
+          behaviorIRPath: BEHAVIOR,
+          permission: 'read-only',
+          registry: input.registry,
+        });
+      },
+      staticDir: ws2,
+    });
+    await srv.listen();
+    try {
+      const base2 = `http://127.0.0.1:${srv.port}`;
+      const create = await fetch(`${base2}/api/sessions`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ workspaceRoot: ws2 }),
+      });
+      const created = (await create.json()) as { session: { id: string } };
+      const res = await fetch(`${base2}/api/sessions/${created.session.id}/events`);
+      const reader = res.body!.getReader();
+      const decoder = new TextDecoder();
+      let buf = '';
+      const thinking: Array<{ phase: string; text?: string; durationMs?: number }> = [];
+      let gotConversation = false;
+      const turnPromise = fetch(`${base2}/api/sessions/${created.session.id}/turns`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ prompt: 'SSE reasoning check' }),
+      });
+
+      for (let i = 0; i < 200 && !gotConversation; i += 1) {
+        const { value, done } = await reader.read();
+        if (done) break;
+        buf += decoder.decode(value, { stream: true });
+        const frames = buf.split('\n\n');
+        buf = frames.pop() ?? '';
+        for (const frame of frames) {
+          const match = /^data: (.*)$/m.exec(frame);
+          if (!match) continue;
+          const event = JSON.parse(match[1]!) as { type: string; delta?: { phase?: string; text?: string; durationMs?: number } };
+          if (event.type === 'thinking' && event.delta?.phase) thinking.push(event.delta as { phase: string; text?: string; durationMs?: number });
+          if (event.type === 'conversation') gotConversation = true;
+        }
+      }
+
+      await turnPromise;
+      await reader.cancel();
+      expect(thinking.map(({ phase }) => phase)).toEqual(['start', 'delta', 'end']);
+      expect(thinking[1]?.text).toBe('check the constraints');
+      expect(thinking[2]?.durationMs).toEqual(expect.any(Number));
+      expect(gotConversation).toBe(true);
+    } finally {
+      await srv.close();
+      fs.rmSync(dir2, { recursive: true, force: true });
+    }
   });
 
   it('SSE usage delta carries cacheWrite (cacheCreation) tokens beside cacheRead (task 107)', async () => {

@@ -11,6 +11,7 @@ export type { Project, ProjectRegistryOptions } from './project/ProjectRegistry.
 
 export { SessionRegistry } from './session/SessionRegistry.js';
 export type { SessionMeta, SessionInput, SessionRegistryOptions } from './session/SessionRegistry.js';
+export type { SessionTopic } from '@vessel/engine';
 export { defaultSessionRoot, resolveSessionRoot } from './session/SessionRegistry.js';
 
 export { SessionController } from './session/SessionController.js';

@@ -321,6 +321,26 @@ export function createVesselServer(opts: VesselServerOptions = {}): VesselServer
       return json(res, 200, { sessions: sessionRegistry.list() });
     }
 
+    // PATCH /api/sessions/:id/topic — rename and/or archive session Topic metadata.
+    if (segs.length === 4 && segs[1] === 'sessions' && segs[3] === 'topic' && method === 'PATCH') {
+      const body = (await readJsonBody(req)) as { title?: unknown; isArchived?: unknown } | null;
+      if (!body) return json(res, 400, { error: 'bad_json' });
+      if (body.title !== undefined && (typeof body.title !== 'string' || body.title.trim() === '')) {
+        return json(res, 400, { error: 'invalid_topic_title' });
+      }
+      if (body.isArchived !== undefined && typeof body.isArchived !== 'boolean') {
+        return json(res, 400, { error: 'invalid_topic_archive_state' });
+      }
+      if (body.title === undefined && body.isArchived === undefined) {
+        return json(res, 400, { error: 'missing_topic_update' });
+      }
+      if (!sessionRegistry.get(segs[2]!)) return json(res, 404, suggestNotFound(segs[2]!));
+      let session = sessionRegistry.get(segs[2]!);
+      if (typeof body.title === 'string') session = sessionRegistry.renameTopic(segs[2]!, body.title);
+      if (typeof body.isArchived === 'boolean') session = sessionRegistry.setTopicArchived(segs[2]!, body.isArchived);
+      return json(res, 200, { session });
+    }
+
     // POST /api/sessions
     if (segs.length === 2 && segs[1] === 'sessions' && method === 'POST') {
       const body = (await readJsonBody(req)) as {
@@ -760,10 +780,41 @@ export function createVesselServer(opts: VesselServerOptions = {}): VesselServer
     if (current) teamSend('start', current);
 
     const forwards = new Map<string, () => void>();
+    const modelStartedAt = new Map<string, number>();
+    const reasoningCalls = new Set<string>();
+    const modelCallKey = (payload: unknown): string | undefined => {
+      if (!payload || typeof payload !== 'object') return undefined;
+      const p = payload as { turnId?: unknown; step?: unknown };
+      return typeof p.turnId === 'string' && typeof p.step === 'number' ? `${p.turnId}:${p.step}` : undefined;
+    };
     const forward = (key: string, type: string, fn: Listener): void => {
       const off = ctl.bus.on(type, (payload, ctx) => fn(payload, ctx), `local-server:sse:${key}`);
       forwards.set(key, off);
     };
+
+    // Model-call boundaries feed per-call latency and the opt-in thinking view.
+    forward('model-start', 'before_model', (payload) => {
+      const key = modelCallKey(payload);
+      if (key) modelStartedAt.set(key, Date.now());
+    });
+    forward('thinking-delta', 'model_stream_delta', (payload) => {
+      const key = modelCallKey(payload);
+      const chunk = (payload as { chunk?: { type?: string; text?: string } } | undefined)?.chunk;
+      if (!key || chunk?.type !== 'reasoning_delta' || typeof chunk.text !== 'string' || chunk.text === '') return;
+      if (!reasoningCalls.has(key)) {
+        reasoningCalls.add(key);
+        sse('thinking', { phase: 'start' });
+      }
+      sse('thinking', { phase: 'delta', text: chunk.text });
+    });
+    forward('thinking-end', 'model_stream_end', (payload) => {
+      const key = modelCallKey(payload);
+      if (!key || !reasoningCalls.delete(key)) return;
+      const started = modelStartedAt.get(key);
+      const failed = (payload as { finishReason?: unknown } | undefined)?.finishReason === 'error';
+      sse('thinking', { phase: 'end', durationMs: started === undefined ? undefined : Math.max(0, Date.now() - started) });
+      if (failed) modelStartedAt.delete(key);
+    });
 
     // after_model → conversation delta (assistant text / tool-call summary)
     forward('conversation', 'after_model', (payload) => {
@@ -785,15 +836,28 @@ export function createVesselServer(opts: VesselServerOptions = {}): VesselServer
     // cacheCreationTokens through after_model usage already).
     forward('usage', 'after_model', (payload) => {
       const p = payload as {
-        usage?: { inputTokens?: number; outputTokens?: number; cacheReadTokens?: number; cacheCreationTokens?: number };
+        turnId?: string;
+        step?: number;
+        usage?: {
+          inputTokens?: number;
+          outputTokens?: number;
+          reasoningTokens?: number;
+          cacheReadTokens?: number;
+          cacheCreationTokens?: number;
+        };
       };
       const usage = p.usage;
       if (!usage) return;
+      const key = modelCallKey(p);
+      const started = key ? modelStartedAt.get(key) : undefined;
+      if (key) modelStartedAt.delete(key);
       sse('usage', {
         inputTokens: usage.inputTokens ?? 0,
         outputTokens: usage.outputTokens ?? 0,
+        reasoningTokens: usage.reasoningTokens,
         cacheReadTokens: usage.cacheReadTokens ?? 0,
         cacheCreationTokens: usage.cacheCreationTokens ?? 0,
+        latencyMs: started === undefined ? undefined : Math.max(0, Date.now() - started),
         calls: ctl.projections.usage.usage().calls,
       });
     });

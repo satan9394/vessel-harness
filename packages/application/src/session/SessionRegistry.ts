@@ -2,7 +2,8 @@ import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import * as crypto from 'node:crypto';
-import { envRoot, renameWithRetry, vesselHome } from '@vessel/shared';
+import { deriveTopicTitle, type SessionTopic } from '@vessel/engine';
+import { envRoot, writeFileAtomic, vesselHome } from '@vessel/shared';
 
 /** Persisted metadata describing one application session. */
 export interface SessionMeta {
@@ -20,9 +21,13 @@ export interface SessionMeta {
   createdAt: string;
   /** ISO timestamp of the last update */
   updatedAt: string;
+  /** Optional for backward compatibility with session files written before topic support. */
+  topic?: SessionTopic;
 }
 
-export type SessionInput = Partial<Pick<SessionMeta, 'workspaceRoot' | 'provider' | 'model' | 'permission'>>;
+export type SessionInput = Partial<Pick<SessionMeta, 'workspaceRoot' | 'provider' | 'model' | 'permission'>> & {
+  topic?: SessionTopic;
+};
 
 export interface SessionRegistryOptions {
   /**
@@ -84,6 +89,8 @@ export class SessionRegistry {
   private readonly file: string;
   private readonly now: () => number;
   private readonly sessions = new Map<string, SessionMeta>();
+  private readonly sessionIdsByTopic = new Map<string, Set<string>>();
+  private readonly topicBySession = new Map<string, string>();
 
   constructor(opts: SessionRegistryOptions = {}) {
     // 显式注入最优先（测试传 tmp），其次 env 覆盖，最后 ~/.vessel 缺省。
@@ -103,13 +110,20 @@ export class SessionRegistry {
       return;
     }
     try {
-      const data = JSON.parse(raw) as { sessions: SessionMeta[] };
+      const data = JSON.parse(raw) as { sessions?: unknown };
+      if (!Array.isArray(data.sessions)) return;
       for (const s of data.sessions ?? []) {
-        if (s?.id) {
-          this.sessions.set(s.id, {
-            ...s,
-            workspaceRoot: path.resolve(s.workspaceRoot),
-          });
+        if (!s || typeof s !== 'object') continue;
+        const item = s as Partial<SessionMeta>;
+        if (typeof item.id === 'string' && item.id.length > 0 && typeof item.workspaceRoot === 'string') {
+          const topic = isSessionTopic(item.topic) ? item.topic : undefined;
+          const meta: SessionMeta = {
+            ...item,
+            workspaceRoot: path.resolve(item.workspaceRoot),
+            ...(topic ? { topic } : { topic: undefined }),
+          } as SessionMeta;
+          this.sessions.set(meta.id, meta);
+          this.indexTopic(meta);
         }
       }
     } catch {
@@ -130,8 +144,10 @@ export class SessionRegistry {
       permission: input.permission ?? 'workspace-write',
       createdAt: ts,
       updatedAt: ts,
+      ...(input.topic ? { topic: input.topic } : {}),
     };
     this.sessions.set(meta.id, meta);
+    this.indexTopic(meta);
     this.persist();
     return meta;
   }
@@ -162,10 +178,82 @@ export class SessionRegistry {
 
   /** Register a pre-existing session meta (e.g. created by a SessionController). */
   put(meta: SessionMeta): SessionMeta {
-    const updated = { ...meta, updatedAt: new Date(this.now()).toISOString() };
+    const previous = this.sessions.get(meta.id);
+    const updated = {
+      ...meta,
+      ...(meta.topic === undefined && previous?.topic ? { topic: previous.topic } : {}),
+      updatedAt: new Date(this.now()).toISOString(),
+    };
     this.sessions.set(updated.id, updated);
+    this.indexTopic(updated);
     this.persist();
     return updated;
+  }
+
+  /** Assign an automatically derived Topic once, from the first user prompt. */
+  nameTopicFromPrompt(id: string, firstPrompt: string): SessionMeta | undefined {
+    const meta = this.sessions.get(id);
+    if (!meta || meta.topic || typeof firstPrompt !== 'string' || firstPrompt.trim() === '') return meta;
+    const now = this.now();
+    meta.topic = {
+      topicId: `topic_${id}`,
+      title: deriveTopicTitle(firstPrompt),
+      createdAt: now,
+      updatedAt: now,
+      isArchived: false,
+    };
+    meta.updatedAt = new Date(now).toISOString();
+    this.indexTopic(meta);
+    this.persist();
+    return meta;
+  }
+
+  /** Rename the Topic attached to a session. Invalid/blank titles fail closed. */
+  renameTopic(id: string, title: string): SessionMeta | undefined {
+    const meta = this.sessions.get(id) ?? this.listByTopic(id)[0];
+    const cleanTitle = typeof title === 'string' ? title.replace(/\s+/g, ' ').trim().slice(0, 80) : '';
+    if (!meta || cleanTitle === '') return undefined;
+    const now = this.now();
+    const topicId = meta.topic?.topicId ?? `topic_${meta.id}`;
+    for (const member of this.sessionsForTopic(meta, topicId)) {
+      member.topic = {
+        ...(member.topic ?? { topicId, createdAt: now, isArchived: false }),
+        topicId,
+        title: cleanTitle,
+        updatedAt: now,
+      };
+      member.updatedAt = new Date(now).toISOString();
+      this.indexTopic(member);
+    }
+    this.persist();
+    return meta;
+  }
+
+  /** Archive or restore a Topic without deleting session history. */
+  setTopicArchived(id: string, isArchived: boolean): SessionMeta | undefined {
+    const meta = this.sessions.get(id) ?? this.listByTopic(id)[0];
+    if (!meta) return undefined;
+    const now = this.now();
+    const topicId = meta.topic?.topicId ?? `topic_${meta.id}`;
+    for (const member of this.sessionsForTopic(meta, topicId)) {
+      member.topic = {
+        ...(member.topic ?? { topicId, title: 'New conversation', createdAt: now }),
+        topicId,
+        updatedAt: now,
+        isArchived,
+      };
+      member.updatedAt = new Date(now).toISOString();
+      this.indexTopic(member);
+    }
+    this.persist();
+    return meta;
+  }
+
+  /** Sessions belonging to one Topic, in the registry's normal recent-first order. */
+  listByTopic(topicId: string): SessionMeta[] {
+    const ids = this.sessionIdsByTopic.get(topicId);
+    if (!ids) return [];
+    return this.list().filter((session) => ids.has(session.id));
   }
 
   /** Bump updatedAt to reflect controller activity. */
@@ -182,9 +270,30 @@ export class SessionRegistry {
    * intact (no permanent deletion — removal from the registry only).
    */
   remove(id: string): boolean {
-    const existed = this.sessions.delete(id);
-    if (existed) this.persist();
-    return existed;
+    if (!this.sessions.has(id)) return false;
+    this.indexTopic({ id } as SessionMeta);
+    this.sessions.delete(id);
+    this.persist();
+    return true;
+  }
+
+  private indexTopic(meta: SessionMeta): void {
+    const previousTopicId = this.topicBySession.get(meta.id);
+    if (previousTopicId) {
+      const previousIds = this.sessionIdsByTopic.get(previousTopicId);
+      previousIds?.delete(meta.id);
+      if (previousIds?.size === 0) this.sessionIdsByTopic.delete(previousTopicId);
+      this.topicBySession.delete(meta.id);
+    }
+    if (!meta.topic) return;
+    const ids = this.sessionIdsByTopic.get(meta.topic.topicId) ?? new Set<string>();
+    ids.add(meta.id);
+    this.sessionIdsByTopic.set(meta.topic.topicId, ids);
+    this.topicBySession.set(meta.id, meta.topic.topicId);
+  }
+
+  private sessionsForTopic(seed: SessionMeta, topicId: string): SessionMeta[] {
+    return [...this.sessions.values()].filter((session) => session.id === seed.id || session.topic?.topicId === topicId);
   }
 
   private persist(): void {
@@ -192,8 +301,20 @@ export class SessionRegistry {
     const dir = path.dirname(this.file);
     fs.mkdirSync(dir, { recursive: true });
     const tmp = path.join(dir, `${SESSIONS_FILE}.${process.pid}.${Date.now()}.tmp`);
-    fs.writeFileSync(tmp, payload, 'utf8');
-    // task 113: 共享有界重试（EPERM/EBUSY/EACCES，3 次 5/15ms），原子语义不变。
-    renameWithRetry(tmp, this.file);
+    writeFileAtomic(tmp, this.file, payload);
   }
+}
+
+function isSessionTopic(value: unknown): value is SessionTopic {
+  if (!value || typeof value !== 'object') return false;
+  const topic = value as Partial<SessionTopic>;
+  return (
+    typeof topic.topicId === 'string' && topic.topicId.length > 0 &&
+    typeof topic.title === 'string' &&
+    typeof topic.createdAt === 'number' &&
+    typeof topic.updatedAt === 'number' &&
+    (topic.summary === undefined || typeof topic.summary === 'string') &&
+    (topic.tags === undefined || (Array.isArray(topic.tags) && topic.tags.every((tag) => typeof tag === 'string'))) &&
+    (topic.isArchived === undefined || typeof topic.isArchived === 'boolean')
+  );
 }

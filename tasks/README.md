@@ -47,14 +47,21 @@
 | 全量偶发红：`cli.test.ts` real-IO 用例补显式超时 | 148 | 已合入 | `tasks/148-cli-test-real-io-timeouts.md` |
 | `--live` 基线尝试 → 发现外部 adapter 与真实 CLI 不匹配（blocked） | 149 | blocked（已记录根因） | `tasks/149-live-baseline-blocked.md` |
 | 回退 `--live` adapter 工作 + 立"不自动驱动本机其他 agent"口径 | 153 | 已合入 | `tasks/153-live-revert-and-external-agent-policy.md` |
+| 第三方模型供应商动态自省与探测引擎 (Dynamic Model Discovery) | 157 | 已合入 | `tasks/157-dynamic-model-discovery.md` |
+| OpenAI 协议 Reasoning 思考流解析标准化 (Stream Reasoning Ingestion) | 158 | 已合入 | `tasks/158-openai-reasoning-stream.md` |
+| Claude Code 社区插件与 Hook 生态全兼容层 (Claude Plugin Compatibility) | 159 | 已合入 | `tasks/159-claude-plugin-compatibility.md` |
+| Session 架构升级 Topic 实体支持与持久化索引 (Topic Entities & Registry) | 160 | 已合入 | `tasks/160-session-topic-entities.md` |
+| Web 侧边栏 Topic 列表重构与 Thinking/Talking 详情抽屉 (Web Topic & Observability) | 161 | 已合入 | `tasks/161-web-topic-and-observability.md` |
+| [Epic] 开放生态深度兼容与极度透明可观察性体系 (融合 157–161) | 162 | 已合入 | `tasks/162-epic-open-ecosystem-and-observability.md` |
 
 ## 未闭合 / 下一目标
 
+- **已完成里程碑（V1.2 / 开放生态与极致透视，Epic 卡 162 已全量合入）**：
+  - 动态模型探测、Reasoning 思考流、Claude 插件生态兼容、Topic 实体架构、Web 树状侧边栏与 Talking 详情抽屉全部通过验收并合入。
 - **环境补齐项（非阻塞）**：opencode-go 余额 → 重跑 real-model lane；Packaging gate 需 dist。
   见 `docs/V1.1-ROADMAP.md` §5。
+
 - **Cross-Harness Conformance**：驱动与入口已交付，离线 `--all` **25/25 exit 0**。
-  **`--live` 真实基线未做且不再自动尝试**：`tasks/150`/`151` 的"修复 adapter + 实跑"已**回退**（`tasks/153`）；
-  事实（外部 adapter 与已装 CLI 版本脱节）仍登记在 `tasks/149`。**未经用户逐次显式同意，不得运行 `--live`**（见 `AGENTS.md` 禁做清单）。
+  **`--live` 真实基线未做且不再自动尝试**：事实登记在 `tasks/149`。未经用户逐次显式同意，不得运行 `--live`。
 - **发布准备**：152 release notes（中英双语）+ 1.0 门槛逐项核对。
 - **外部阻塞（登记不空等）**：154 `release-report` 刷新；155 3h 墙钟 soak；156 1.0 门槛最终核验（停在 tag 前）。
-- 开工前按 `RUN_STATE.md` 机制先存档旧信封再写新 Mission。

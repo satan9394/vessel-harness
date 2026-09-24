@@ -17,6 +17,7 @@
     { "path": "../skills" },
     { "path": "../telemetry" },
     { "path": "../agents" },
+    { "path": "../engine" },
     { "path": "../memory" },
     { "path": "../llm" }
   ]

@@ -8,6 +8,7 @@ export * from './real-evaluator-adapter.js';
 export * from './project-task-queue.js';
 export * from './iteration-store.js';
 export * from './run-control.js';
+export * from './session/topic.js';
 export * from './handoff/Handoff.js';
 export * from './handoff/HandoffMaterial.js';
 export * from './handoff/HandoffRender.js';

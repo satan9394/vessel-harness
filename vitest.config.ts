@@ -37,6 +37,11 @@ export default defineConfig({
     // 全局隔离兜底（AGENTS.md §8）：把新增的状态根指向一次性临时目录，
     // 详见 vitest.setup.ts 的说明。
     setupFiles: ['./vitest.setup.ts'],
+    // Vitest sized its pool from the host's very high reported CPU count
+    // (182 isolated workers were observed on Windows), starving process/IO
+    // tests. One worker preserves per-file isolation without competing with
+    // the suite's real subprocess and filesystem checks.
+    maxWorkers: 1,
     include: [
       'index.test.ts',
       'packages/*/src/**/*.test.ts',
