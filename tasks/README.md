@@ -53,9 +53,16 @@
 | Session 架构升级 Topic 实体支持与持久化索引 (Topic Entities & Registry) | 160 | 已合入 | `tasks/160-session-topic-entities.md` |
 | Web 侧边栏 Topic 列表重构与 Thinking/Talking 详情抽屉 (Web Topic & Observability) | 161 | 已合入 | `tasks/161-web-topic-and-observability.md` |
 | [Epic] 开放生态深度兼容与极度透明可观察性体系 (融合 157–161) | 162 | 已合入 | `tasks/162-epic-open-ecosystem-and-observability.md` |
+| Vessel 转换为子 Agent：MCP 子代理服务器模式 (Inbound Subagent as MCP Server) | 163 | 待执行 | `tasks/163-inbound-mcp-subagent.md` |
+| 外部 CLI 交互桥接与虚拟人类代理 (Virtual Human Proxy & Interactive Gating) | 164 | 待执行 | `tasks/164-virtual-human-proxy.md` |
+| 外部异构子代理运行时与 Worktree 隔离 (Outbound Heterogeneous Subagent Runtime) | 165 | 待执行 | `tasks/165-outbound-subagent-runtime.md` |
+| 跨 Agent 全量功能保全与双盲评测套件 (Subagent Capability Conformance Suite) | 166 | 待执行 | `tasks/166-subagent-capability-conformance.md` |
+| [Epic] 双向子 Agent 网关体系与保全度评测套件 (融合 163–166) | 167 | 待执行 | `tasks/167-epic-universal-subagent-mesh.md` |
 
 ## 未闭合 / 下一目标
 
+- **当前活跃里程碑（V1.3 / 双向子 Agent 网关体系与保全度评测套件，Epic 卡 167 推进中）**：
+  - 入站 MCP 子代理服务器（163）、虚拟人类代理与交互拦截（164）、出站异构子代理运行时与 Worktree 隔离（165）、跨 Agent 全量保全度双盲评测套件（166）。
 - **已完成里程碑（V1.2 / 开放生态与极致透视，Epic 卡 162 已全量合入）**：
   - 动态模型探测、Reasoning 思考流、Claude 插件生态兼容、Topic 实体架构、Web 树状侧边栏与 Talking 详情抽屉全部通过验收并合入。
 - **环境补齐项（非阻塞）**：opencode-go 余额 → 重跑 real-model lane；Packaging gate 需 dist。
@@ -65,3 +72,4 @@
   **`--live` 真实基线未做且不再自动尝试**：事实登记在 `tasks/149`。未经用户逐次显式同意，不得运行 `--live`。
 - **发布准备**：152 release notes（中英双语）+ 1.0 门槛逐项核对。
 - **外部阻塞（登记不空等）**：154 `release-report` 刷新；155 3h 墙钟 soak；156 1.0 门槛最终核验（停在 tag 前）。
+
