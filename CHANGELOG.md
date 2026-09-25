@@ -8,14 +8,16 @@
 
 ## [Unreleased] - 2026-09-24
 
-> 本轮立项推进 **V1.3：双向子 Agent 网关体系与保全度评测套件 (Universal Subagent Mesh & Conformance)**（Epic 卡 167，任务 163–166，见 `docs/V1.3-ROADMAP.md`）。
+> 本轮完成 **V1.3：双向子 Agent 网关体系与保全度评测套件 (Universal Subagent Mesh & Conformance)**（Epic 卡 167，任务 163–166，见 `docs/V1.3-ROADMAP.md`）。
 
-### Planned (V1.3 Milestone)
+### Added (V1.3 Milestone)
 
 - **Vessel 转换为 MCP 子代理服务器**（Inbound，任务 163）：CLI 增加 `vessel serve --mode mcp-agent`，暴露 `run_vessel_task` 紧凑结果契约工具，遵循信息隐藏与 stdio 纯净性。
 - **外部 CLI 虚拟人类代理与交互拦截**（任务 164）：双轨制拦截审批提示符攻克无头死锁，Windows Job Object 内核沙箱秒杀衍生孙进程，零 C++ 原生编译依赖。
 - **外部异构子代理运行时与 Worktree 隔离**（Outbound，任务 165）：在 `os.tmpdir()` 独立轻量 Git Worktree，实现 `.git/index.lock` 残留探测与安全破锁自愈。
 - **跨 Agent 保全度自动化双盲评测套件**（任务 166）：以离线 Mock/Loopback 机械度量保全度指标（代码重构、交互拦截、孙进程清理），验证综合评分 $\ge 90\%$，工作区残留恒为 0。
+
+验证：`npm ci`、`npx tsc -b tsconfig.json`、`npm run typecheck:tests` 均通过；`npm run test:all` 双 root 通过（根 2302 passed / 6 skipped，Web 129 passed）。测试未启动真实外部 Agent。
 
 ---
 

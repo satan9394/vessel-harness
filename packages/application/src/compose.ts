@@ -17,7 +17,7 @@ import {
   type PluginSkillSource,
 } from '@vessel/skills';
 import { Telemetry } from '@vessel/telemetry';
-import { SubagentManager, createSubagentTool } from '@vessel/agents';
+import { ExternalAgentRuntime, SubagentManager, createSubagentTool, type ExternalAgentConfig } from '@vessel/agents';
 import { ProjectStore, createMemoryTool } from '@vessel/memory';
 import { AutoTaskRouter, type AutoRoute, type RouteMode, type TierBindings, type TierModelMap } from '@vessel/llm';
 import { EnforcementProjection } from './projections/EnforcementProjection.js';
@@ -61,7 +61,13 @@ export interface ComposeOptions {
   /** injected compaction summarizer (LLM); defaults to heuristic */
   summarize?: (regionText: string, context: { userRequest: string }) => Promise<string>;
   /** V0.2: register the `Subagent` tool (isolated child sessions, concurrency 1–3) */
-  subagent?: { enabled?: boolean; maxConcurrent?: number; maxDepth?: number; delegationDepth?: number };
+  subagent?: {
+    enabled?: boolean;
+    maxConcurrent?: number;
+    maxDepth?: number;
+    delegationDepth?: number;
+    externalAgents?: ExternalAgentConfig[];
+  };
   /** V0.2: register MCP server tools dynamically (mcp__<server>__<tool>) */
   mcp?: ComposeMcpConnection[];
   /** V0.3: Project Memory (file-based, .harness/memory) — Memory tool + frozen snapshot injection */
@@ -280,7 +286,8 @@ export async function composeHarness(opts: ComposeOptions): Promise<ComposedHarn
 
   // V0.2 subagent: manager + `Subagent` tool (isolated child sessions, caps 1–3)
   let subagentManager: SubagentManager | undefined;
-  if (opts.subagent?.enabled) {
+  const subagentOptions = opts.subagent;
+  if (subagentOptions && (subagentOptions.enabled || (subagentOptions.externalAgents?.length ?? 0) > 0)) {
     subagentManager = new SubagentManager({
       workspaceRoot,
       cwd,
@@ -289,14 +296,20 @@ export async function composeHarness(opts: ComposeOptions): Promise<ComposedHarn
       policyArtifacts: artifacts,
       tools,
       bus,
-      maxConcurrent: opts.subagent.maxConcurrent,
-      maxDepth: opts.subagent.maxDepth,
+      maxConcurrent: subagentOptions.maxConcurrent,
+      maxDepth: subagentOptions.maxDepth,
       parentSessionId: session.sessionId,
       stableSections: compiled.promptSections,
       policyGuidance: artifacts.promptGuidance,
     });
   }
-  const finalTools = subagentManager ? [...tools, createSubagentTool(subagentManager)] : tools;
+  const externalAgents = subagentOptions?.externalAgents;
+  const externalAgentRuntime = externalAgents && externalAgents.length > 0
+    ? new ExternalAgentRuntime({ agents: externalAgents, bus })
+    : undefined;
+  const finalTools = subagentManager
+    ? [...tools, createSubagentTool(subagentManager, { externalRuntime: externalAgentRuntime })]
+    : tools;
   const registry = new ToolRegistry(finalTools, { deniedTools: artifacts.deniedTools });
 
   // V0.2 MCP: dynamically register remote tools (same pipeline as builtins).

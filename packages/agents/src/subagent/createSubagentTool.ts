@@ -1,5 +1,6 @@
 import type { ToolSpec } from '@vessel/shared';
 import type { SubagentManager } from './SubagentManager.js';
+import type { ExternalAgentRuntime } from '../external/ExternalAgentRuntime.js';
 
 export interface SubagentToolOptions {
   /** base delegation depth for calls made through this tool (0 for a top-level parent) */
@@ -8,6 +9,8 @@ export interface SubagentToolOptions {
   depthLimit?: number;
   /** optional default agent preset label attached to delegations (决策点 12: roles are presets) */
   preset?: string;
+  /** Optional outbound adapter; external_agent_id selects one configured CLI. */
+  externalRuntime?: ExternalAgentRuntime;
 }
 
 /**
@@ -29,6 +32,7 @@ export function createSubagentTool(manager: SubagentManager, opts: SubagentToolO
       type: 'object',
       properties: {
         prompt: { type: 'string', description: '子代理任务说明（必须自包含，不依赖父上下文）' },
+        external_agent_id: { type: 'string', description: '使用已配置的外部 CLI 子代理；省略时运行内置 Vessel 子代理' },
         preset: { type: 'string', description: '执行者角色预设标签（可选：developer/explorer/reviewer/planner 等）' },
         tool_filter: { type: 'array', items: { type: 'string' }, description: '只允许子代理使用的工具名（只能收窄）' },
         output_schema: { type: 'object', description: '期望的结构化输出 JSON schema（可选；输出为 JSON 时自动捕获）' },
@@ -43,6 +47,45 @@ export function createSubagentTool(manager: SubagentManager, opts: SubagentToolO
           content: '',
           error: { errorClass: 'INVALID_ARGS', message: 'Subagent: prompt is required' },
           meta: {},
+        };
+      }
+      const externalAgentId = args.external_agent_id == null ? '' : String(args.external_agent_id).trim();
+      if (externalAgentId) {
+        if (!opts.externalRuntime) {
+          return {
+            content: '',
+            error: { errorClass: 'DENIED', message: 'Subagent: no external agents are configured' },
+            meta: { subagent: { externalAgentId } },
+          };
+        }
+        const external = await opts.externalRuntime.execute({
+          agentId: externalAgentId,
+          prompt,
+          parentWorkspaceRoot: ctx.workspaceRoot,
+          signal: ctx.signal ?? undefined,
+        });
+        const diff = typeof external.structured?.diff === 'string' ? external.structured.diff : '';
+        const content = [external.output, diff ? 'Unified diff:\n' + diff : ''].filter(Boolean).join('\n\n');
+        if (external.stopReason !== 'completed') {
+          return {
+            content,
+            error: {
+              errorClass: external.stopReason === 'denied' ? 'DENIED' : 'TOOL_FAILURE',
+              message: 'External Subagent ' + external.stopReason + ': ' + (external.diagnostic ?? ''),
+            },
+            meta: { subagent: { externalAgentId, stopReason: external.stopReason } },
+          };
+        }
+        return {
+          content,
+          meta: {
+            subagent: {
+              externalAgentId,
+              stopReason: external.stopReason,
+              changedFiles: external.structured?.changedFiles ?? 0,
+              diffTruncated: external.structured?.diffTruncated ?? false,
+            },
+          },
         };
       }
       const preset = args.preset != null ? String(args.preset) : opts.preset;

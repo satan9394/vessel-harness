@@ -1,7 +1,7 @@
 # 163 — Vessel 自身转换为子 Agent：MCP 子代理服务器模式 (Inbound Subagent as MCP Server)
 
 - 编号：163
-- 状态：待执行
+- 状态：已完成（2026-09-24）
 - 优先级：P1
 - 创建日期：2026-09-24
 - 关联模块：`apps/cli`, `packages/application`
@@ -57,16 +57,16 @@ export interface VesselTaskResultContract {
 
 ## 4. 确定性完成门禁 (DoD)
 
-- [ ] **单元与端到端测试**：
+- [x] **单元与端到端测试**：
   - 新建 `packages/application/src/mcp-agent/vesselMcpServer.test.ts`：
     - 测试通过标准 MCP stdio 协议发送 `tools/list`，正确返回包含 `run_vessel_task` 的工具描述。
     - 测试发送 `tools/call` 触发 `run_vessel_task`（使用内置 mock provider），成功完成多步执行并返回 `VesselTaskResultContract`。
     - 测试只读 profile 拒绝非只读工具（Policy 硬拦截生效）。
     - 测试信息隐藏原则：验证返回的工具结果不携带未紧凑化的几十万字中间历史，防宿主上下文爆炸。
-- [ ] **构建检查**：
+- [x] **构建检查**：
   - `npx tsc -b tsconfig.json` exit 0。
   - `npm run typecheck:tests` exit 0。
-- [ ] **全量回归**：
+- [x] **全量回归**：
   - `npm run test:all` 双 root 全部绿灯通过。
 
 ## 5. 架构红线与禁做项 (Out of Scope & Invariants)

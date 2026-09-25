@@ -22,6 +22,10 @@ export const defaultGitRunner: GitRunner = async (args, opts) => {
 export interface CreateWorktreeOptions {
   /** branch to create (sanitized: [A-Za-z0-9._/-], leading '-' stripped) */
   branch?: string;
+  /** create a detached worktree at revision (defaults to HEAD) */
+  detached?: boolean;
+  /** commit-ish for detached worktrees; defaults to HEAD */
+  revision?: string;
   /** target worktree path; default <baseDir>/wt_<ts>_<rand> */
   path?: string;
   /** parent dir for default worktree paths; default <repoRoot>/.harness/worktrees */
@@ -51,6 +55,7 @@ function assertGitRepo(root: string): void {
 export async function createWorktree(repoRoot: string, opts: CreateWorktreeOptions = {}): Promise<WorktreeHandle> {
   const root = path.resolve(repoRoot);
   assertGitRepo(root);
+  if (opts.branch && opts.detached) throw new Error('worktree error: branch and detached modes are mutually exclusive');
   const branch = opts.branch ? sanitizeBranch(opts.branch) : undefined;
   const base = path.resolve(opts.baseDir ?? path.join(root, '.harness', 'worktrees'));
   fs.mkdirSync(base, { recursive: true });
@@ -58,7 +63,9 @@ export async function createWorktree(repoRoot: string, opts: CreateWorktreeOptio
   const run = opts.run ?? defaultGitRunner;
   const args = ['worktree', 'add'];
   if (branch) args.push('-b', branch);
+  else if (opts.detached) args.push('--detach');
   args.push(target);
+  if (opts.detached) args.push(opts.revision ?? 'HEAD');
   const r = await run(args, { cwd: root });
   if (r.exitCode !== 0) {
     throw new Error(`worktree add failed (exit ${r.exitCode}): ${(r.stderr || r.stdout).slice(0, 500)}`);

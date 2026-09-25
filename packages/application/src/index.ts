@@ -6,6 +6,19 @@ export type { ComposeOptions, ComposedHarness, ComposeMcpConnection, UsageStoreL
 export { createMcpConnections } from './mcp/connections.js';
 export type { McpServerDescriptor, McpConnectionFailure, McpConnectionsResult } from './mcp/connections.js';
 
+export { createVesselMcpServer, VESSEL_MCP_TOOLS } from './mcp-agent/vesselMcpServer.js';
+export type {
+  RunVesselTaskArgs,
+  VesselTaskResultContract,
+  VesselTaskProgress,
+  VesselTaskExecutor,
+  VesselTaskPolicyProfile,
+  VesselMcpTaskStatus,
+  VesselMcpServer,
+} from './mcp-agent/vesselMcpServer.js';
+export { createVesselTaskExecutor } from './mcp-agent/taskRunner.js';
+export type { McpTaskComposeOptions } from './mcp-agent/taskRunner.js';
+
 export { ProjectRegistry } from './project/ProjectRegistry.js';
 export type { Project, ProjectRegistryOptions } from './project/ProjectRegistry.js';
 

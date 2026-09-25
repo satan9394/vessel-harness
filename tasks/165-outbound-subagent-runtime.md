@@ -1,7 +1,7 @@
 # 165 — 外部异构子代理运行时与 Worktree 隔离 (Outbound Heterogeneous Subagent Runtime)
 
 - 编号：165
-- 状态：待执行
+- 状态：已完成（2026-09-24）
 - 优先级：P1
 - 创建日期：2026-09-24
 - 关联模块：`packages/agents`, `packages/tools`
@@ -51,15 +51,15 @@ export function executeExternalSubagent(opts: ExternalSubagentDelegateOptions): 
 
 ## 4. 确定性完成门禁 (DoD)
 
-- [ ] **单元测试**：新建 `packages/agents/src/external/externalSubagent.test.ts`：
+- [x] **单元测试**：新建 `packages/agents/src/external/externalSubagent.test.ts`：
   - 测试通过 Mock CLI 模拟外部子 Agent（返回结构化变更），验证自动创建 Worktree、在隔离区执行、并正确提取 Unified Diff 返回给父级。
   - 测试 Worktree 异常破锁：模拟前序任务被强杀遗留 `.git/index.lock`，后续任务在确认无活跃进程后成功安全破锁并重用工作区。
   - 测试将子 Agent 产生的输出行无缝转换为父级 EventBus 的标准事件。
   - 测试在发生严重异常时，Worktree 被安全回收，不产生磁盘永久垃圾。
-- [ ] **构建检查**：
+- [x] **构建检查**：
   - `npx tsc -b tsconfig.json` exit 0。
   - `npm run typecheck:tests` exit 0。
-- [ ] **全量回归**：
+- [x] **全量回归**：
   - `npm run test:all` 双 root 全部通过。
 
 ## 5. 架构红线与禁做项 (Out of Scope & Invariants)

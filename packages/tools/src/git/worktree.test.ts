@@ -68,6 +68,19 @@ describe('V0.2-M6 git worktree (optional)', () => {
     expect(fs.existsSync(handle.path)).toBe(true); // fake runner created it
   });
 
+  it('createWorktree supports detached revisions without creating a branch', async () => {
+    const record: { calls: string[][] } = { calls: [] };
+    const handle = await createWorktree(repo, {
+      detached: true,
+      revision: 'HEAD',
+      path: path.join(repo, '.harness', 'worktrees', 'detached'),
+      run: fakeGit(record),
+    });
+    expect(record.calls[0]).toEqual(['worktree', 'add', '--detach', handle.path, 'HEAD']);
+    expect(handle.branch).toBeUndefined();
+    await expect(createWorktree(repo, { branch: 'feature', detached: true, run: fakeGit(record) })).rejects.toThrow(/mutually exclusive/);
+  });
+
   it('createWorktree rejects non-repository roots and fails loud on runner errors', async () => {
     const plain = fs.mkdtempSync(path.join(os.tmpdir(), 'cah-worktree-plain-'));
     await expect(createWorktree(plain)).rejects.toThrow(/not a git repository/);

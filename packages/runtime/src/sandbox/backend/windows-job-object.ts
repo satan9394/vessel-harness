@@ -217,7 +217,10 @@ export function buildHolderScript(opts: {
     // JOB_OBJECT_LIMIT_WORKINGSET=0x1, JOB_OBJECT_LIMIT_PROCESS_TIME=0x2,
     // JOB_OBJECT_LIMIT_ACTIVE_PROCESS=0x8. (071 hard-coded 0x4 which is
     // actually JOB_OBJECT_LIMIT_JOB_TIME, not ACTIVE_PROCESS — fixed in 072.)
-    ' $flags=0\n' +
+    // JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE is mandatory for delegated CLI runs:
+    // when the holder closes its final handle, the kernel terminates every
+    // remaining process in the job even if the root exited first.
+    ' $flags=0x2000\n' +
     ' if($maxProc -gt 0){ $flags=$flags -bor 0x8; $lim.Active=$maxProc }\n' +
     ' if($procMs -gt 0){ $flags=$flags -bor 0x2; $lim.Ppt=[long]($procMs*10000) }\n' +
     ' if($wsBytes -gt 0){ $flags=$flags -bor 0x1; $lim.MaxW=[IntPtr]$wsBytes }\n' +
@@ -381,6 +384,35 @@ export const WindowsJobObject = {
     }
   },
 
+  /** Query a named job after a previous coordinator may have exited. `null`
+   * means the kernel object no longer exists; failures to inspect it throw. */
+  async activeProcessCount(jobName: string): Promise<number | null> {
+    if (!WindowsJobObject.isSupported()) return null;
+    const script =
+      '$ErrorActionPreference="Stop"\n' +
+      `$name=${psSq(jobName)}\n` +
+      '$src=@"\n' +
+      'using System; using System.Runtime.InteropServices;\n' +
+      'public class JobProbe {\n' +
+      ' [StructLayout(LayoutKind.Sequential)] public struct Accounting { public long TotalUserTime; public long TotalKernelTime; public long ThisPeriodTotalUserTime; public long ThisPeriodTotalKernelTime; public uint TotalPageFaultCount; public uint TotalProcesses; public uint ActiveProcesses; public uint TotalTerminatedProcesses; }\n' +
+      ' [DllImport("kernel32.dll", SetLastError=true, CharSet=CharSet.Unicode)] public static extern IntPtr OpenJobObject(uint access,bool inherit,string name);\n' +
+      ' [DllImport("kernel32.dll", SetLastError=true)] public static extern bool QueryInformationJobObject(IntPtr job,int infoClass,IntPtr info,uint length,IntPtr returned);\n' +
+      ' [DllImport("kernel32.dll")] public static extern void CloseHandle(IntPtr handle);\n' +
+      '}\n' +
+      '"@\n' +
+      'Add-Type -TypeDefinition $src -ErrorAction Stop\n' +
+      '$job=[JobProbe]::OpenJobObject(0x4,$false,$name)\n' +
+      'if($job -eq [IntPtr]::Zero){ $code=[Runtime.InteropServices.Marshal]::GetLastWin32Error(); if($code -eq 2){ "missing"; exit 0 }; throw "OpenJobObject failed: $code" }\n' +
+      '$size=[Runtime.InteropServices.Marshal]::SizeOf([type][JobProbe+Accounting])\n' +
+      '$buffer=[Runtime.InteropServices.Marshal]::AllocHGlobal($size)\n' +
+      'try { if(-not [JobProbe]::QueryInformationJobObject($job,1,$buffer,$size,[IntPtr]::Zero)){ throw "QueryInformationJobObject failed: $([Runtime.InteropServices.Marshal]::GetLastWin32Error())" }; $info=[Runtime.InteropServices.Marshal]::PtrToStructure($buffer,[type][JobProbe+Accounting]); $info.ActiveProcesses } finally { [Runtime.InteropServices.Marshal]::FreeHGlobal($buffer); [JobProbe]::CloseHandle($job) }\n';
+    const result = await runPs(script);
+    if (result === 'missing') return null;
+    const count = Number(result);
+    if (!Number.isInteger(count) || count < 0) throw new Error(`invalid Job Object process count: ${result}`);
+    return count;
+  },
+
   /**
    * Enumerate the CURRENT live descendants of `rootPid` (by ParentProcessId
    * walk in CIM). Task 072: this is the OS truth used to (a) close the attach
@@ -437,7 +469,7 @@ export const WindowsJobObject = {
       '}\n' +
       '"@\n' +
       'Add-Type -TypeDefinition $src -ErrorAction SilentlyContinue\n' +
-      '$h=[JobAttach]::OpenJobObject(0x8,$false,$name)\n' + // JOB_OBJECT_TERMINATE enough
+      '$h=[JobAttach]::OpenJobObject(0x1,$false,$name)\n' + // JOB_OBJECT_ASSIGN_PROCESS
       'if($h -eq [IntPtr]::Zero){ "0"; exit 0 }\n' +
       '$done=0\n' +
       'foreach($p in $pidList){\n' +

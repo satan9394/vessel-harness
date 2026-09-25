@@ -548,7 +548,7 @@ reports/（JSONL + summary.json）→ A/B 归因 → 修订 ARCHITECTURE/IR/Poli
 - **Topic 实体一等公民 (`packages/engine/src/session/topic.ts`)**：Session 升级 Topic，纯函数提取标题，持久化索引支持按 Topic 搜索与重命名。
 - **Web 可观察性重构 (`apps/web`)**：树状 Topic 侧边栏、Thinking 手风琴卡片、TalkingMetricsBar 四维 Token 与时延 APM。
 
-### 9.2 V1.3 双向子 Agent 网关架构（规划中，卡 163–167）
+### 9.2 V1.3 双向子 Agent 网关架构（已交付，卡 163–167）
 - **入站网关 (Inbound Server)**：`apps/cli` 新增 `vessel serve --mode mcp-agent`，将 Vessel 封装为标准 Model Context Protocol 服务器。对外暴露 `run_vessel_task`、`query_vessel_task_status`、`cancel_vessel_task` 工具；严格践行信息隐藏原则，仅返回紧凑冷冻结果契约（`VesselTaskResultContract`），防止宿主上下文爆炸；非协议日志重定向至 stderr，保证 stdio 干净流动。
 - **虚拟人类代理与交互拦截 (Virtual Human Proxy)**：位于 `packages/runtime/src/proxy/`，双轨制治理无头死锁（非交互参数优先 + 原生流匹配挂起静默），根据 Policy 自动审批回写决策；底层挂入 Windows 内核 Job Object（`JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE`），秒杀外部子 Agent 衍生的整棵后台孙进程树，坚守纯 TS/Node 零原生 C++ 编译依赖。
 - **出站运行时与 Worktree 隔离 (Outbound Runtime)**：位于 `packages/agents/src/external/` 与 `packages/tools/`，为外部子 Agent 在 `os.tmpdir()` 分配物理隔离的独立 Git Worktree，配备 `.git/index.lock` 残留探测与安全破锁自愈机制。

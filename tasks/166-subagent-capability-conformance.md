@@ -1,7 +1,7 @@
 # 166 — 跨 Agent 全量功能保全与双盲评测套件 (Subagent Capability Conformance Suite)
 
 - 编号：166
-- 状态：待执行
+- 状态：已完成（2026-09-24）
 - 优先级：P1
 - 创建日期：2026-09-24
 - 关联模块：`benchmarks/runners`, `benchmarks/scenarios`
@@ -47,14 +47,14 @@ export interface SubagentConformanceMetrics {
 
 ## 4. 确定性完成门禁 (DoD)
 
-- [ ] **自动化评测测试**：新建 `benchmarks/runners/src/conformance/subagentConformance.test.ts`：
+- [x] **自动化评测测试**：新建 `benchmarks/runners/src/conformance/subagentConformance.test.ts`：
   - 跑通全部 3 类标准场景，总体保全评分 `overallPreservationScore >= 90`。
   - 工作区残留检查：`residueCount === 0`。
   - 离线确定性：完全走 Mock 仿真与内部环回，绝不依赖真实外网与外部进程。
-- [ ] **构建检查**：
+- [x] **构建检查**：
   - `npx tsc -b tsconfig.json` exit 0。
   - `npm run typecheck:tests` exit 0。
-- [ ] **全量回归**：
+- [x] **全量回归**：
   - `npm run test:all` 双 root 全部通过。
 
 ## 5. 架构红线与禁做项 (Out of Scope & Invariants)
