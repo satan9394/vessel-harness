@@ -1,5 +1,9 @@
 node_modules/
 dist/
+# 例外：上面 dist/ 排除的是"各地构建产物"，但 .dsh-mission/publish/dist/ 是npm 发布快照，
+# 不可再生（见下方 publish 说明），必须入版本库。两条 negation 缺一不可：
+# 先解开 dist/ 对本路径的影响，再由 publish 规则收拢。
+!**/.dsh-mission/publish/dist/
 *.tsbuildinfo
 .harness/
 .harness-sessions/
@@ -15,8 +19,15 @@ benchmarks/reports/release-gate/
 benchmarks/reports/conformance/
 
 # Mission 控制面（personal-dev-workflow：RUN_STATE 与 Mission 证据/卡，绝不提交）
+# 注意：这里必须写 `.dsh-mission/*`（排除目录内容）而不是 `.dsh-mission/`（排除目录本身）。
+# Git 一旦排除了目录本身，就不会再进入其中遍历，后面的 negation 规则永远不会生效。
 RUN_STATE.md
-.dsh-mission/
+.dsh-mission/*
+
+# 例外：publish/ 是 v0.10.0 的 npm 发布快照（含 1.2 MB 自包含 dist/cli.js）。
+# 项目无 bundler、根 dist/ 已不存在、tsconfig.release 只产出多文件 tsc 结果，
+# 无法再生成这个单文件 —— 它是不可再生的唯一副本，必须入版本库。
+!.dsh-mission/publish/
 
 # personal-dev-workflow v1.0.0：机器真相源（运行时状态，每次计数都变）
 .agent-state/
