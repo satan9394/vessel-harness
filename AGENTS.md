@@ -44,8 +44,10 @@
 
 ## 开发工作流（六步循环）
 
-拆卡 → 派活 → 交证 → 验证 → 验收 → 复盘。详见 skills/personal-dev-workflow。
+拆卡 → 派活 → 交证 → 验证 → 验收 → 复盘。详见 `.agents/skills/personal-dev-workflow/`（Codex/OpenCode/DSH/Antigravity 发现）与其镜像 `.claude/skills/personal-dev-workflow/`（Claude Code 只认这个路径）。做多步开发前先读其 `SKILL.md`。
 
+- 默认 `standard`：一卡一闭环，交证即停，不自动续下一卡。
+- `bounded` 连续自治需显式授权并先定 Mission 信封；其机器真相源 `.agent-state/run-state.json`（已忽略），`RUN_STATE.md` 只是生成视图。
 - 主会话 = 指挥：只留「目标 + 文件指针 + 结果摘要」；长期目标挂 goal。
 - 每张任务卡一个隔离执行器（DSH 子代理默认），干完只回传工作证明（diff + 测试结果）。
 - 大改动另派对抗性评审子代理（全新上下文，只见 diff 和验收标准，反向挑错）。
