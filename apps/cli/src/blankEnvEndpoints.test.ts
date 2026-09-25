@@ -8,17 +8,17 @@ import { main, envNonBlank } from './cli.js';
 /**
  * `VESSEL_BASE_URL` / `VESSEL_API_KEY` 的**空白判据**（C-1 卡）。
  *
- * 病灶：两处 `planProvider({ baseUrl: flags.get('base-url') ?? process.env.VESSEL_BASE_URL, … })`
+ * 病灶：三个 `planProvider({ baseUrl: flags.get('base-url') ?? process.env.VESSEL_BASE_URL, … })`
  * 里 `??` 只挡 `undefined` ⇒ `VESSEL_BASE_URL='   '`（shell/CI 里"清空变量"或模板注入成空白的
  * 常见形态）被当成**真端点**：`missingBaseUrl()` 判它非空、不退出，直接拿一个空白 URL 去构造
  * provider 并真发请求；`VESSEL_API_KEY='   '` 同理会拿一个纯空白密钥去真连（401）。纯空串本身
  * 不静默（缺 baseUrl 明确退出、缺 apiKey 401）—— 纯空白才是那条缝。
  *
  * 修法：判据收敛为模块内唯一函数 `envNonBlank`（`undefined`/`''`/纯空白 ⇒ 未设置；**非空白值
- * 逐字返回、不 trim**），两处调用点改走它；`flags > env` 的**优先级结构逐字未动**。
+ * 逐字返回、不 trim**），三个调用点改走它；`flags > env` 的**优先级结构逐字未动**。
  *
  * 「删哪行会红」：
- *   - 把 ② 的两处调用点改回 `process.env.VESSEL_BASE_URL` ⇒ ② 红（会走到真构造 provider 的
+ *   - 把 ② 的三个调用点改回 `process.env.VESSEL_BASE_URL` ⇒ ② 红（会走到真构造 provider 的
  *     分支，退出码不再是 2）/ ④ 红；
  *   - 把 `envNonBlank` 的 `raw.trim() === ''` 去掉（退回"只挡空串"）⇒ ① 红（纯空白那条）+
  *     ② 红；
@@ -156,12 +156,12 @@ describe('VESSEL_BASE_URL / VESSEL_API_KEY —— 空/纯空白按未设置（C-
     }
   });
 
-  it('④ 调用点守卫（apiKey 侧无零网络端到端观测点）：两处都走 envNonBlank，优先级结构未动', () => {
+  it('④ 调用点守卫（apiKey 侧无零网络端到端观测点）：三处都走 envNonBlank，优先级结构未动', () => {
     const src = fs.readFileSync(CLI_SRC, 'utf8');
     expect(src).not.toContain('process.env.VESSEL_BASE_URL');
     expect(src).not.toContain('process.env.VESSEL_API_KEY');
-    expect(src.match(/envNonBlank\('VESSEL_BASE_URL'\)/g)).toHaveLength(2);
-    expect(src.match(/envNonBlank\('VESSEL_API_KEY'\)/g)).toHaveLength(2);
+    expect(src.match(/envNonBlank\('VESSEL_BASE_URL'\)/g)).toHaveLength(3);
+    expect(src.match(/envNonBlank\('VESSEL_API_KEY'\)/g)).toHaveLength(3);
     // 优先级逐字未动：flags 仍在前，env 只当回落（flag 为空串/纯空白时照旧挡住 env）
     expect(src).toContain("flags.get('base-url') ?? envNonBlank('VESSEL_BASE_URL')");
     expect(src).toContain("flags.get('api-key') ?? envNonBlank('VESSEL_API_KEY')");

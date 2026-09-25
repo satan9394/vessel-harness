@@ -1,7 +1,7 @@
 # 164 — 外部 CLI 交互桥接与虚拟人类代理 (Virtual Human Proxy & Interactive Gating)
 
 - 编号：164
-- 状态：待执行
+- 状态：已完成（2026-09-24）
 - 优先级：P1
 - 创建日期：2026-09-24
 - 关联模块：`packages/runtime`, `packages/agents`
@@ -60,15 +60,15 @@ export function spawnWithVirtualProxy(opts: ExternalCliSpawnOptions): Promise<Vi
 
 ## 4. 确定性完成门禁 (DoD)
 
-- [ ] **单元测试**：新建 `packages/runtime/src/proxy/virtualProxy.test.ts`：
+- [x] **单元测试**：新建 `packages/runtime/src/proxy/virtualProxy.test.ts`：
   - 测试启动一个会输出 `Are you sure? [y/N]` 并等待 stdin 的 Mock 脚本，虚拟代理在 50ms 内成功识别提示符并自动回写 `y\n`，脚本顺利执行完毕（无死锁）。
   - 测试对于越权操作提示（如尝试修改白名单外的路径），虚拟代理自动回写 `n\n`，阻断危险操作。
   - 测试进程树沙箱：启动一个衍生多个后台 sleep 孙进程的测试脚本，触发超时或中断时，断言操作系统内该孙进程被物理清理，零进程泄漏。
   - **零 C++ 原生编译依赖**：严禁引入 `node-pty` 等破坏干净 `npm ci` 的依赖。
-- [ ] **构建检查**：
+- [x] **构建检查**：
   - `npx tsc -b tsconfig.json` exit 0。
   - `npm run typecheck:tests` exit 0。
-- [ ] **全量回归**：
+- [x] **全量回归**：
   - `npm run test:all` 双 root 全部通过。
 
 ## 5. 架构红线与禁做项 (Out of Scope & Invariants)

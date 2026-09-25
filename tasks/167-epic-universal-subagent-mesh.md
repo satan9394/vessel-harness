@@ -1,7 +1,7 @@
 # 167 — [Epic] 双向子 Agent 网关体系与保全度评测套件 (Universal Subagent Mesh & Conformance)
 
 - 编号：167 (Epic: 融合 163–166 联合交付)
-- 状态：待执行
+- 状态：已完成（2026-09-24）
 - 优先级：P1
 - 创建日期：2026-09-24
 - 关联模块：`apps/cli`, `packages/application`, `packages/runtime`, `packages/agents`, `packages/tools`, `benchmarks/runners`, `benchmarks/scenarios`
@@ -66,15 +66,15 @@ Codex 在执行超长开发时可按需查阅以下权威基准：
 
 ## 4. 确定性完成门禁 (DoD Checklist)
 
-- [ ] **单元与端到端测试矩阵**：
+- [x] **单元与端到端测试矩阵**：
   - `packages/application/src/mcp-agent/vesselMcpServer.test.ts` 全部 PASS。
   - `packages/runtime/src/proxy/virtualProxy.test.ts` 全部 PASS。
   - `packages/agents/src/external/externalSubagent.test.ts` 全部 PASS。
   - `benchmarks/runners/src/conformance/subagentConformance.test.ts` 全部 PASS（指标综合评分 $\ge 90\%$，残留为 0）。
-- [ ] **类型检查与构建全绿**：
+- [x] **类型检查与构建全绿**：
   - `npx tsc -b tsconfig.json` exit 0。
   - `npm run typecheck:tests` exit 0。
-- [ ] **全量回归无破坏**：
+- [x] **全量回归无破坏**：
   - `npm run test:all` 双 root 全部通过（根 + Web 无任何回归红灯）。
 
 ## 5. 架构红线与禁做项 (Out of Scope & Invariants)
@@ -153,3 +153,10 @@ Codex 在执行超长开发时可按需查阅以下权威基准：
 请以首席系统架构师的专业水准，自主推进各阶段编码与测试，直至全量门禁全绿交付！
 ```
 
+## 7. 交付验证记录（2026-09-24）
+
+- 清洁安装：`npm ci` exit 0；安装 122 个 packages，审计 0 vulnerabilities。
+- 定向测试：MCP 6 passed；虚拟代理 8 passed；外部运行时 8 passed；保全度评测 2 passed（SA01–SA03 的评分及 residueCount 门禁通过）。
+- 类型门禁：`npx tsc -b tsconfig.json` exit 0；`npm run typecheck:tests` exit 0。
+- 双 root 全量回归：`npm run test:all` exit 0；根 186 files / 2302 passed / 6 skipped，Web 12 files / 129 passed。
+- 安全边界：自动化测试未启动本机真实外部 Agent；`packages/core` 未修改；未引入原生 C++ 编译依赖。

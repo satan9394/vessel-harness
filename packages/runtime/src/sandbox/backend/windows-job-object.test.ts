@@ -58,6 +58,18 @@ describe('windows-job-object — holder script errno contract (pure, no PowerShe
     expect(script.match(/WriteAllText\(\$ready, "target-exited"\)/g)).toHaveLength(2);
   });
 
+  it('always enables JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE for tree cleanup', () => {
+    const script = buildHolderScript({
+      jobName: 'test-job',
+      targetPid: 10,
+      limits: {},
+      readyFile: 'ready',
+      errorFile: 'error',
+    });
+    expect(script).toContain('$flags=0x2000');
+    expect(script).toContain('$lim.Flags=$flags');
+  });
+
   it('phase 2 — reads the errno BEFORE CloseHandle can clobber it', () => {
     // Reading the errno after CloseHandle would turn a real errno 5 into a bogus
     // "target-exited" — i.e. it would swallow a genuine confinement failure.

@@ -3,6 +3,7 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { spawn } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
+import { format as formatUtil } from 'node:util';
 import { VERSION, renameWithRetry } from '@vessel/shared';
 import { inspectCombinedPolicy, inspectPolicyLayers, type PolicyLayerFact } from '@vessel/policy';
 import { MockProvider } from '@vessel/llm';
@@ -12,6 +13,8 @@ import {
   type ComposedHarness,
   type ComposeOptions,
   type SessionMeta,
+  createVesselMcpServer,
+  createVesselTaskExecutor,
 } from '@vessel/application';
 import { createVesselServer } from '@vessel/local-server';
 import { ProviderStore, parseBackupKeep, type ProviderConfig } from './providers/ProviderStore.js';
@@ -126,6 +129,7 @@ Vessel CLI v${VERSION} — 可组合 Agent Harness（品牌 Vessel）
   vessel policy status               显示生效策略层次（system/project：路径 / 是否存在 / 声明条数 / 哈希；只读）
   vessel bench-report --input <json>  基准报告看板：聚合 076 RunResult[]（或 082 lane report）→ 打印 CLI 摘要表 + 写 md/json（任务 083）
   vessel serve [--port <n>]          启动本地服务（默认 http://127.0.0.1:5678，不开浏览器）
+  vessel serve --mode mcp-agent      通过 stdio 启动 MCP 子代理服务（协议仅占用 stdout）
   vessel web                         启动本地服务并打开浏览器
 
 run 选项:
@@ -2903,6 +2907,12 @@ export async function parkServe(): Promise<number> {
 
 /** `vessel serve [--port <n>]` — launch the local server, stay resident. */
 export async function cmdServe(flags: Map<string, string>): Promise<number> {
+  const mode = flags.get('mode');
+  if (mode === 'mcp-agent') return serveRuntime.mcpAgent(flags);
+  if (mode !== undefined) {
+    const message = `未知 serve 模式 ${mode}。可用：vessel serve --mode mcp-agent`;
+    return fail(2, message, flags, () => console.error(message));
+  }
   const port = Number(flags.get('port') ?? 5678);
   let handle: ServeHandle;
   try {
@@ -2948,10 +2958,91 @@ export function openBrowser(url: string): void {
  */
 export const serveRuntime = {
   park: parkServe,
+  mcpAgent: cmdServeMcpAgent,
   open(url: string): void {
     openBrowser(url);
   },
 };
+
+/** `vessel serve --mode mcp-agent` — stdio-only MCP transport. */
+export async function cmdServeMcpAgent(flags: Map<string, string>): Promise<number> {
+  const redirected = redirectConsoleToStderr();
+  try {
+    const workspace = path.resolve(flags.get('workspace') ?? process.cwd());
+    const explicitProvider = flags.get('provider');
+    const store = defaultProviderStore();
+    const currentId = explicitProvider ?? (store.getCurrent() !== 'mock' ? store.getCurrent() : 'mock');
+    const currentCfg: ProviderConfig | undefined = currentId === 'mock' ? undefined : store.get(currentId);
+    const plan = planProvider({
+      config: currentCfg,
+      explicitProvider,
+      baseUrl: flags.get('base-url') ?? envNonBlank('VESSEL_BASE_URL'),
+      apiKey: flags.get('api-key') ?? envNonBlank('VESSEL_API_KEY'),
+      model: flags.get('model') ?? process.env.VESSEL_MODEL,
+    });
+    if (missingBaseUrl(plan)) {
+      const message = `[vessel] ${plan.providerName} 需要 --base-url 或 VESSEL_BASE_URL（或先 vessel provider add 配置）`;
+      console.error(message);
+      return 2;
+    }
+    const realProvider = buildRealProvider(plan);
+    const provider = realProvider ?? new MockProvider(mockSmokeScript(), {
+      model: plan.model,
+      vars: { cwd: workspace },
+      fallbackText: MOCK_FALLBACK_TEXT,
+    });
+    if (realProvider === null) console.error(MOCK_PROVIDER_NOTICE);
+
+    const server = createVesselMcpServer(createVesselTaskExecutor({
+      defaultWorkspaceRoot: workspace,
+      provider,
+      model: plan.model,
+      policySystemPath: flags.get('policy') ?? path.join(builtinConfigRoot(), 'configs', 'policy.default.yaml'),
+      behaviorIRPath: flags.get('behavior') ?? path.join(builtinConfigRoot(), 'configs', 'behavior.default.yaml'),
+      policyProjectPath: resolveProjectPolicyPath(workspace),
+      usageStore: createUsageStore({ strict: flags.has('strict') }),
+      usageProvider: currentId,
+    }));
+    const disconnect = server.connect(process.stdin, process.stdout);
+    let finish: () => void = () => {};
+    const stop = (): void => finish();
+    try {
+      await new Promise<void>((resolve) => {
+        finish = resolve;
+        process.stdin.once('end', stop);
+        process.once('SIGINT', stop);
+        process.once('SIGTERM', stop);
+      });
+    } finally {
+      disconnect();
+      server.close();
+      process.stdin.removeListener('end', stop);
+      process.removeListener('SIGINT', stop);
+      process.removeListener('SIGTERM', stop);
+    }
+    return 0;
+  } catch (error) {
+    console.error(`[vessel mcp-agent] ${error instanceof Error ? error.message : String(error)}`);
+    return 1;
+  } finally {
+    redirected.restore();
+  }
+}
+
+function redirectConsoleToStderr(): { restore: () => void } {
+  const methods = ['log', 'info', 'debug', 'trace', 'warn', 'dir', 'table', 'count', 'countReset', 'group', 'groupCollapsed', 'groupEnd', 'time', 'timeEnd', 'timeLog', 'clear'] as const;
+  const output = console as unknown as Record<string, (...args: unknown[]) => void>;
+  const originals = methods.map((method) => output[method]!);
+  const stderr = (...args: unknown[]): void => {
+    process.stderr.write(`${formatUtil(...args)}\n`);
+  };
+  for (const method of methods) output[method] = stderr;
+  return {
+    restore() {
+      methods.forEach((method, index) => { output[method] = originals[index]!; });
+    },
+  };
+}
 
 /** `vessel web` — launch the server and open the default browser. */
 export async function cmdWeb(flags: Map<string, string>): Promise<number> {
