@@ -1,0 +1,78 @@
+# Composable Agent Harness — system-scope default policy (POLICY-SPEC v0.1)
+# Single source of truth: compiles to Prompt Guidance + Tool Interceptor +
+# Runtime Deny + Audit Event (four artifacts).
+policy:
+  version: "0.1"
+  profile: workspace-write        # read-only | workspace-write | danger-full-access
+  approval: never                 # v0.1 ApprovalPolicy (ask UI lands later); never = service-enforced fail-closed
+
+  filesystem:
+    protected:                    # write-protected: any allowWrite/allow cannot exempt these
+      - ".git"
+      - ".git/**"
+      - ".claude"
+      - ".ssh"
+      - ".harness/credentials"
+      - ".env"
+    deny_read:                    # credentials/secrets unreadable by default (more conservative than full-disk read)
+      - "**/.aws/credentials"
+      - "**/.ssh/**"
+      - "**/.env"
+    allow: []                     # default read = workspace + explicit allows
+
+  shell:
+    deny:                         # dangerous set (never_auto: no profile auto-allows)
+      - destructive-delete        # rm -rf /, rm -rf ~, recursive deletes of critical paths
+      - disk-format               # mkfs.* / disk formatting
+      - partition-write           # fdisk/parted partition writes
+    allow:                        # readonly command prefix allowlist (hint only; hard line = deny rules + sandbox)
+      - "ls"
+      - "cat"
+      - "dir"
+      - "git status"
+      - "git log"
+      - "grep"
+    scoped_rules:
+      - id: shell-force-push
+        match: "Shell(git push --force*)"
+        action: deny
+        reason: "force push rewrites shared history — denied by default"
+      - id: shell-cleanup-recursive
+        match: "Bash(rm -rf ./node_modules)"
+        action: deny
+        reason: "recursive delete inside workspace — denied by default"
+    guidance:
+      - "破坏性命令（删除/格式化/分区）先说明原因与范围，优先使用受管工具。"
+      - "不要 force push 重写共享分支历史。"
+
+  git:
+    force_push: deny
+
+  tools:
+    deny: []                      # v0.1 six-tool plane; interactive tools arrive later
+    rules:
+      - id: tool-read-secrets
+        match: 'Read(path=glob "**/.env")'
+        action: deny
+        reason: "凭据文件禁止读取；如需变量请走环境注入。"
+        enforcement: runtime
+
+  network:
+    default: allow                # v0.1 declaration-only; proxy-level enforcement lands v0.2
+    deny_domains:
+      - "169.254.169.254"         # cloud metadata (SSRF surface)
+
+  audit:
+    # 词表沿用 POLICY-SPEC §6.1 的三值（decision/denial/approval），但**本仓当前只产出 `denial`**：
+    #   - `denial` = `audit/denial`(B20) 硬拒绝记录，有生产者（`packages/core/src/agent-loop/AgentLoop.ts`
+    #     的 recordDenial/recordTurnDenial）与消费者（telemetry 回放 → M12/M14）⇒ **已接线**；
+    #   - `decision` = `audit/decision`(B19) **零产零消**（无 appendSync、无读取分支）⇒ **未接线**；
+    #   - `approval` = `approval/asked`(B17) / `approval/decided`(B18)：本仓**连记录类型都还不存在**
+    #     （审批询问目前以 `audit/denial` 的 stage:'approval' 收口）⇒ **未接线**。
+    # 接线这两项时，必须一并更新本注释、`packages/telemetry/src/auditRecordWiring.test.ts` 的守卫
+    # 与 `docs/BENCHMARK-SPEC.md`（守卫会在接线后先红，逼文档/配置跟上，而不是让声明继续撒谎）。
+    events: [decision, denial, approval]
+    details: full
+
+  guidance:
+    - "这是硬执法策略：受保护路径写入与危险命令会被引擎拒绝并记录审计事件。"

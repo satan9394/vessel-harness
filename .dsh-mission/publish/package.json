@@ -1,0 +1,39 @@
+{
+  "name": "composable-agent-harness",
+  "version": "0.10.0",
+  "description": "Vessel — a composable agent harness: a thin core loop, behaviour IR compiled into every agent, hard policy enforcement instead of prompt-only rules; local-first and model-agnostic. Ships a single self-contained CLI (no runtime dependencies).",
+  "type": "module",
+  "license": "MIT",
+  "bin": {
+    "vessel": "dist/cli.js"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "keywords": [
+    "agent",
+    "agent-harness",
+    "ai-agents",
+    "llm",
+    "cli",
+    "policy-engine",
+    "local-first",
+    "typescript"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/satan9394/composable-agent-harness.git"
+  },
+  "homepage": "https://github.com/satan9394/composable-agent-harness#readme",
+  "bugs": {
+    "url": "https://github.com/satan9394/composable-agent-harness/issues"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}
