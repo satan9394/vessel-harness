@@ -32,7 +32,7 @@
     }
   },
   "dependencies": {
-    "@clack/prompts": "^1.7.0",
+    "@clack/prompts": "^1.8.1",
     "@vessel/application": "^0.10.0",
     "@vessel/llm": "^0.1.0",
     "@vessel/local-server": "^0.10.0",
