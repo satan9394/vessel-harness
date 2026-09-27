@@ -91,3 +91,17 @@ When there is nothing worth recording, not writing is the correct behavior.
 - **状态**: 远端治理已生效（API 实测：4 条规则齐全、release 0 条）；文档改动待随下次推送生效。远端 `main` 仍是改写前的 `27f3844`——force push 仍需维护者本人执行（见 `tasks/168` §6 或 `FINISH-PUSH.ps1`）。
 - **教训**: 校验规则集时我用 jq 摘要表达式把结果渲染成了 `"rules": []`，一度误判"规则被清空"。回读原始响应才确认真实状态——**改完安全配置必须回读原始 API 响应，不能相信自己写的摘要表达式**（且别在同一个表达式里堆 `//empty` 回退）。
 
+---
+
+## 2026-09-27（续 4）· 脱敏泄漏事故：改写后新增的提交把真实身份带回并已推送
+
+- **Agent**: @opencode (deepseek-v4.1-flash)
+- **事件**:
+  - 维护者执行 `FINISH-PUSH.ps1`：main 与 tag 均强制更新成功（`27f3844...5c2762b`、`8133cdc...4db3b6f`），`refs/codex/*` 已删。脚本第 4 步却打出 `satan9394 <yichenzhang439@gmail.com>`。
+  - 我先怀疑是本地跟踪引用过期，于是用服务端 API 直接查（`/commits?sha=main` 分页取全量）：**711 条提交里确实存在 `yichenzhang439@gmail.com`**，且顶端 `5c2762b` 的作者就是它。不是引用问题，是真泄漏。
+  - **根因**：改写历史 ≠ 改写身份配置。`git config --show-origin user.email` 指向全局 `.gitconfig` 的真实地址，所以改写**之后**做的两个提交（`723b8e8`、`5c2762b`）从配置里取回了真实身份。而我的身份核验跑在改写后、那两个提交之前，推之前没重跑——**验证过去的状态不构成对下一个提交的防护**。
+  - **修复**：① `git config user.email/name` 改为中性（仅本仓）；② 带 mailmap 重跑 `git-filter-repo`（715 提交，新 `main` = `95ad2c1`）；③ 复验本地全 refs 身份只剩中性身份与 `dependabot[bot]`，`main`/`tag` 内容扫描 0 命中，tag 值未变（无需重推）；④ 需要第二次 force push。
+  - **防复发**：新增 `scripts/identity-guard.sh`——把被移除的身份以 **SHA-256** 形式写死（守卫不重新发布这些地址，报错只回显哈希前缀，并限制最多列 20 条 offender）；接入 CI 新 job `identity-guard`（`fetch-depth: 0`）并加入规则集的必需检查。**双向实测**：当前仓库 exit 0；对改写前的镜像 exit 1 并提示 `(680 further offending commits not listed)`。
+- **状态**: 待维护者执行第二次 force push（lease = `5c2762b…`，脚本已更新）；远端 `main` 目前仍是含真实身份的那一版。
+- **待办**: ① 第二次 force push 后，用服务端 API 复验作者身份；② 如在意，关闭 4 个过期 dependabot PR 并删分支；③ 彻底回收旧对象需 GitHub Support。
+

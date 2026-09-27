@@ -1,7 +1,7 @@
 # 168 — 公开仓库脱敏与规范化对标（Desensitize & Public Hygiene）
 
 - 编号：168
-- 状态：本地已闭环；**待维护者执行 force push**（机器级安全门禁禁止 agent 覆盖远端历史，见第 6 节）
+- 状态：本地已闭环；**待维护者执行第二次 force push**（第一次推完后发现改写后新增的提交把真实身份带回，已重新改写；机器级安全门禁禁止 agent 覆盖远端历史，见第 6 节）
 - 优先级：P0
 - 创建日期：2026-09-27
 - 关联模块：仓库级（无源码逻辑改动）
@@ -62,23 +62,27 @@
 4. **`refs/pull/*`（19+ 条）**：GitHub 服务端引用，PR 合并/关闭后仍保留，客户端无法删除；彻底回收旧对象需联系 GitHub Support 触发服务端 GC。
 5. `secret_scanning_non_provider_patterns` / `validity_checks` 经 API 未能开启（secret scanning + push protection + dependabot 安全更新均已开启）。
 
-## 6. 交接命令（维护者在自己的终端执行）
+## 6. 交接命令（维护者本人在自己的终端执行）
+
+force push 被机器级安全门禁拦下（策略：不允许 agent 覆盖远端历史），这一步只能由维护者执行。脚本放在**仓库外**的备份目录里（`_vessel-backup-20260927/FINISH-PUSH.ps1`）——本文不写死本机路径，因为本机路径本身就是本次脱敏要移除的东西。
 
 ```powershell
-cd C:\work\Vessel_Harness
-
-# 1) 用改写后的历史覆盖远端 main（旧值 27f3844 作为 lease，防止误覆盖）
-git push --force-with-lease=main:27f3844b35eef199e042b846b790ad7900f20601 origin main
-
-# 2) 同步被改写的 tag（filter-repo 已重写本地 tag）
-git push --force origin refs/tags/v0.10.0
-
-# 3) 清掉本地 Codex 检查点 ref（含旧文件快照；本地独有）
-git for-each-ref --format='%(refname)' refs/codex/ | ForEach-Object { git update-ref -d $_ }
-
-# 4) 复验：远端 main 的作者身份不应再出现真实邮箱
-git fetch origin
-git log --format='%an <%ae>' origin/main | Sort-Object -Unique
+& '<仓库外备份目录>\FINISH-PUSH.ps1'
 ```
 
-第 3 步可选；第 4 步应只看到 `Vessel Contributors <vessel@users.noreply.github.com>` 与 `dependabot[bot]`。
+脚本做四件事：① 带 `--force-with-lease` 用改写后的历史覆盖远端 `main`；② 强制同步被改写的 tag `v0.10.0`；③ 删除本地两个 `refs/codex/*` 检查点 ref；④ `git fetch` 后打印远端 `main` 的作者身份（应只剩中性身份与 `dependabot[bot]`）。
+
+> **本次需要执行两次推送。** 第一次（lease = `27f3844…`）推完后，服务端复核发现"改写之后新增的提交"把真实身份带了回来，于是重新改写了一次（新 `main` = `95ad2c1`，lease = `5c2762b…`）。脚本里的 lease 已按第二次更新；若远端 `main` 又不等于脚本内的 lease，脚本会安全失败而不是覆盖。
+
+## 7. 追加：身份守卫与一次真实泄漏（2026-09-27）
+
+**发生了什么**：历史改写完成后，我又在改写**之后**做了两个提交（`723b8e8`、`5c2762b`），它们从本机 git 配置取身份，于是真实邮箱被带回历史并随 force push 推上公开仓库。服务端 API 实测：`5c2762b` 的 author email 就是真实 Gmail。
+
+**根因**：改写历史 ≠ 改写身份配置。本仓 `user.email` 当时仍是真实地址（`--show-origin` 指向全局 `.gitconfig`），所以改写后的任何新提交都会把身份带回来；而我的身份核验跑在改写之后、那两个提交**之前**，推之前没有重跑——**验证过去的状态不构成对下一个提交的防护**。
+
+**修复**：① 把本仓身份改为中性（仅本仓 `git config user.email vessel@users.noreply.github.com`，不动全局）；② 带 mailmap 重跑 `git-filter-repo`，新 `main` 顶端 `95ad2c1`；③ 复验本地全 refs 身份只剩中性身份与 `dependabot[bot]`，`main` 与 `tag` 内容扫描 0 命中；④ 需要第二次 force push。
+
+**防复发（机械门禁）**：新增 `scripts/identity-guard.sh`，把被移除的身份以 **SHA-256 形式**写死（守卫本身不重新发布这些地址，报错也只回显哈希前缀），接入 `.github/workflows/ci.yml` 的新 job `identity-guard`（`fetch-depth: 0` 取全历史），并把它加进规则集 `protect-default-branch` 的必需检查。
+
+**它被验证过有效**：对当前仓库跑 → `identity guard: no denylisted commit identities in this history`，exit 0；对**改写前**的镜像跑 → exit 1，报 20 条 offender 并提示 `(680 further offending commits not listed)`。即它不是永远绿的装饰性检查。
+

@@ -84,3 +84,22 @@ jobs:
 
       - name: Smoke — CLI run (mock)
         run: node apps/cli/dist/cli.js run --prompt "你好"
+
+  # Commit-metadata hygiene (2026-09-27). The history desensitization rewrote
+  # every existing commit, but commits created *after* it silently picked the
+  # personal identity back up from the local git config and were pushed - the
+  # rewrite was checked, the later commits were not. This job makes that class of
+  # mistake fail in review instead of relying on someone remembering.
+  #
+  # The addresses are stored as SHA-256 so the guard does not re-publish them in
+  # the repository (or in a CI error message) that this whole exercise removed.
+  identity-guard:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout (full history)
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          fetch-depth: 0
+
+      - name: Reject denylisted commit identities
+        run: bash scripts/identity-guard.sh
