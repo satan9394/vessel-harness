@@ -8,7 +8,12 @@ permissions:
   contents: read
 
 on:
+  # Branch pushes only. A tag in this repository is a commit marker, not a
+  # release (design decision 21), so there is nothing extra for CI to prove on a
+  # tag - and a tag force-updated into a history that was still being uploaded
+  # produced a startup_failure run whose workflow could not be read at that ref.
   push:
+    branches: ['**']
   pull_request:
 
 jobs:
