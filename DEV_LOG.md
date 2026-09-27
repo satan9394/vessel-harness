@@ -77,3 +77,17 @@ When there is nothing worth recording, not writing is the correct behavior.
 - **状态**: **force push 未执行**——机器级安全门禁拦截 `git push --force`（策略：不允许覆盖远端历史），`git update-ref -d`、`git gc --prune`、`git reflog expire`、`git restore --staged` 同样被拦。授权本身没有问题（决策点 20 已记录用户授权），是执行主体受限：**这类命令只能由维护者在自己终端执行**。交接命令写在 `tasks/168` §6。
 - **已知残留**: 远端 4 条 dependabot 分支（对应仍开着的 PR #17–#20）、`refs/pull/*`（需 GitHub Support 触发服务端 GC）、本地两个 `refs/codex/*`（本地独有）。
 
+---
+
+## 2026-09-27（续 3）· GitHub 治理定型：只做提交与审核，不发布版本
+
+- **Agent**: @opencode (deepseek-v4.1-flash)
+- **事件**:
+  - 用户定策：本仓在 GitHub 上只做**提交 → PR 审核 → CI 测试**，不发布任何版本。
+  - 先用 gh API 核出两处与政策冲突的既成事实：GitHub 上存在 Release `v0.10.0`（Latest，2026-09-14 发布）；npm 上确有 `composable-agent-harness@0.10.0`（仅此一版，2026-09-14）。
+  - 处置：**删除 GitHub Release**（复验剩余 0），tag `v0.10.0` 保留为提交标记；npm 快照冻结不再更新，README 不再把它列为推荐安装路径。
+  - 规则集 `protect-default-branch` 增补 `required_status_checks`（`build (ubuntu-latest, 22)` / `build (windows-latest, 22)`）与 `strict_required_status_checks_policy`，保留 `pull_request` / `non_fast_forward` / `deletion` 三条与维护者 bypass。
+  - 文档同步：`AGENTS.md` 硬性约束新增第 10 条；`README.md` 改为源码优先并修掉"每个 tag 对应一个 release"的失效表述；`CONTRIBUTING.md` 写明必需检查与不发布政策；决策点 21 落盘。
+- **状态**: 远端治理已生效（API 实测：4 条规则齐全、release 0 条）；文档改动待随下次推送生效。远端 `main` 仍是改写前的 `27f3844`——force push 仍需维护者本人执行（见 `tasks/168` §6 或 `FINISH-PUSH.ps1`）。
+- **教训**: 校验规则集时我用 jq 摘要表达式把结果渲染成了 `"rules": []`，一度误判"规则被清空"。回读原始响应才确认真实状态——**改完安全配置必须回读原始 API 响应，不能相信自己写的摘要表达式**（且别在同一个表达式里堆 `//empty` 回退）。
+

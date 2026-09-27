@@ -58,25 +58,29 @@ Model + Behavior + Context + Tools + Policy + Memory + Evaluator + Orchestration
 
 前置：Node ≥ 20（本机在 Node v24 下开发）。
 
-### 方式一：从 npm 安装（推荐，运行时零依赖）
+### 方式一：从源码（推荐；本仓不再发布新版本）
 
-```bash
-npm install -g composable-agent-harness   # 得到全局 vessel 命令
-# 或免安装：npx composable-agent-harness --version
+```powershell
+git clone https://github.com/satan9394/vessel-harness.git
+cd vessel-harness
+npm ci                       # 可复现安装（lockfile 必须与 package.json 一致）
+npm run build                # 编译全部 TS（tsc -b）
+npm link ./apps/cli          # 可选：让 vessel 命令全局可用
 
 vessel --version
 vessel run --prompt "总结当前工作区 README"   # 零配置：走内置离线 mock，不发网络请求
 vessel setup                                  # 接真实模型的交互向导
+npm run vessel -- --help                      # 不装全局时，用项目内入口
 ```
 
-### 方式二：从源码（开发用）
+### 方式二：已有的 npm 快照（冻结在 0.10.0，不再更新）
 
-```powershell
-npm install
-npm run build                # 编译全部 TS（tsc -b）
-npm link ./apps/cli          # 可选：让 vessel 命令全局可用
-npm run vessel -- --help     # 不装全局时，用项目内入口
+```bash
+npm install -g composable-agent-harness   # 得到全局 vessel 命令
+npx composable-agent-harness --version
 ```
+
+> 该包历史上只发布过 `0.10.0` 一个版本，之后本仓**不再向 npm 发布新版本**，也不在 GitHub 上创建 release（见 [`docs/DESIGN-DECISIONS.md`](docs/DESIGN-DECISIONS.md) 决策点 21）。要拿最新代码请走方式一。
 
 ### 配置供应商（首次使用真实模型）
 
@@ -169,10 +173,10 @@ vessel run --prompt "总结当前工作区 README"   # 一次性任务
 | | |
 |---|---|
 | **当前版本** | **v0.10.0** —— 根 `package.json`、`apps/cli/package.json` 与 `vessel --version` 三处同号 |
-| **npm 包** | [`composable-agent-harness`](https://www.npmjs.com/package/composable-agent-harness)（CLI 自包含单文件，**运行时零依赖**）—— `npm i -g composable-agent-harness` 或 `npx composable-agent-harness` |
+| **发布策略** | **本仓不发布版本**：在 GitHub 上只做提交 → PR 审核 → CI 测试，不创建 release；npm 快照 [`composable-agent-harness`](https://www.npmjs.com/package/composable-agent-harness) 仅发布过 `0.10.0`，**冻结不再更新**（见 [`docs/DESIGN-DECISIONS.md`](docs/DESIGN-DECISIONS.md) 决策点 21） |
 | **版本历史（中英双语）** | [`CHANGELOG.md`](CHANGELOG.md) —— V0.1 → V0.10，**每个里程碑都有「中文」+「English」两段**说明 |
 | **里程碑与路线** | [`docs/V1.0-ROADMAP-PROGRESS.md`](docs/V1.0-ROADMAP-PROGRESS.md)、[`docs/VESSEL.md`](docs/VESSEL.md) |
-| **GitHub Releases** | 每个 `vX.Y.Z` tag 对应一个 release；release 说明取自 `CHANGELOG.md` 的同名章节（中英双语） |
+| **tag** | `v0.10.0` 保留为**提交标记**（对应 `CHANGELOG.md` 的同名章节），不代表发布 |
 
 版本主线一句话：**V0.1** 薄核 + Behavior IR + Policy 四件套 → **V0.2** Subagent / Planner / Evaluator / MCP / Worktree → **V0.3** Memory / Skills → **V0.4** TaskRouter → **V0.5** Loop Engine → **V0.6** 多供应商配置 → **V0.7** 交互 TUI + 权限三档 → **V0.8** 品牌与哲学 IR 化 → **V0.9** 更名 Vessel + 用量统计与价目 → **V0.10** 组合根抽离 + `migrate`/`serve`/`web` + 公开文档。
 

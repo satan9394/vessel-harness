@@ -68,9 +68,13 @@ npm run -w @vessel/web build    # web 生产构建（vite；peer 不一致只有
 
 ## 提 PR
 
+本仓在 GitHub 上**只做提交 → PR 审核 → CI 测试**。`main` 由规则集 `protect-default-branch` 保护：必须走 PR，且 CI 双腿必须绿才能合并。
+
 - 目标分支 `main`；一个 PR 对应一张卡。
 - 描述里贴门禁命令与结果，不要只写"测试通过"。
-- 初始化仓库时的维护者单人直接推 `main` 也允许，但同样要求门禁证据。
+- CI 的两个必需检查是 `build (ubuntu-latest, 22)` 与 `build (windows-latest, 22)`；规则集另要求分支与 `main` 保持同步（strict）。
+- **不发布版本**：不创建 GitHub Release，不向 npm 发布新版本。版本号仍随 `CHANGELOG.md` 演进，`vX.Y.Z` tag 只作为提交标记。
+- 维护者的管理员绕过（bypass）权限只用于例外（例如一次性历史改写），不是常规路径。
 
 ## 漏洞上报
 

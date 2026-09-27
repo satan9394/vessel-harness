@@ -437,6 +437,26 @@ comparison.md（D2）已在每个机制（H01–H12）给出 Decision/Why/Reject
 
 ---
 
+## 决策点 21：GitHub 治理——只做提交与审核，不发布版本
+
+- **问题**：这个仓库在 GitHub 上承担什么角色？是否维护 Release 与 npm 发布链路？
+- **候选方案**：
+  - 候选 A（维持发布链路）：每个 `vX.Y.Z` tag 建 release，并把 CLI 发布到 npm。代价：发布是**对外承诺**——一旦发布就要维护升级路径、兼容性与安全补丁；单维护者项目里，版本号会变成比代码本身更重的负担。
+  - 候选 B（只做提交与审核）：GitHub 只承担代码托管、PR 审核与 CI 测试；不创建 release、不向 npm 发布新版本。版本号与历史继续由 `CHANGELOG.md` 承载。
+- **决策**：**B（只做提交与审核）**：
+  - `main` 必须走 PR，且 CI 双腿（Windows + Linux）必须绿：规则集 `protect-default-branch` 增补 `required_status_checks`（`build (ubuntu-latest, 22)` / `build (windows-latest, 22)`）与 strict（分支需与 `main` 同步）；
+  - **不创建 GitHub Release**；既有的 `v0.10.0` release 已删除，tag 保留为提交标记；
+  - **不向 npm 发布新版本**；历史遗留的 npm 快照 `composable-agent-harness@0.10.0` 冻结，README 不再把它列为推荐安装路径；
+  - 维护者的 admin bypass 仅用于例外（如一次性历史改写），不是常规路径。
+- **理由**：
+  1. 该项目的价值主张是"可验证的行为层"，不是"可安装的软件产品"；发布链路带来的兼容性与补丁承诺与单维护者产能不匹配。
+  2. CI 双腿已覆盖"能不能用"的全部机械判据（构建、测试类型检查、双 root 全量测试、web 构建、CLI 冒烟），审核 + 测试作为质量门禁已经足够，release 只是第二份手工产物。
+  3. 删掉发布面同时删掉一类漂移源：文档里"已发布"的表述必须与真实发布状态一致，否则就是自欺。
+- **拒绝**：不采用候选 A。若将来确有分发需求，应新开一张卡连同维护承诺一起评估，而不是默认保留链路。
+- **影响**：约束 `.github/workflows/ci.yml`（必需检查的来源）、`README.md`（发布策略与安装路径）、`CONTRIBUTING.md`（提 PR 流程）、`AGENTS.md` 硬性约束第 10 条；`.dsh-mission/publish/`（历史发布产物）随之成为死件，保留作记录但不再更新。本决策不产出 D4/D5/D6/D7/D8 任何规范面，故附录表不收录。
+
+---
+
 ## 附录：决策点 → 下游规范消费映射
 
 | 决策点 | D4 Behavior IR | D5 Event | D6 Policy | D7 Benchmark | D8 Architecture |
