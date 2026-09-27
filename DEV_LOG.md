@@ -63,3 +63,17 @@ When there is nothing worth recording, not writing is the correct behavior.
 - **状态**: 分两笔提交（脱敏 / 规范化），随后执行历史改写与 force push。
 - **已知残留**: `refs/pull/*` 服务端引用在 PR 合并后仍可能保留旧对象，客户端无法删除，彻底回收需联系 GitHub Support；`secret_scanning_non_provider_patterns` 与 `validity_checks` 经 API 未能开启（secret scanning + push protection + dependabot 安全更新均已开启）。
 
+---
+
+## 2026-09-27（续 2）· 历史改写已在本执行完毕，force push 交回维护者
+
+- **Agent**: @opencode (deepseek-v4.1-flash)
+- **事件**:
+  - 历史改写已在活仓库执行完毕：`git-filter-repo --mailmap --replace-text`，728 提交 / 15.14 秒，新 `main` 顶端 `aaca055`（709 提交）。全历史身份只剩中性身份与 `dependabot[bot]`。
+  - 交付侧核验用"推送载荷"口径：`refs/heads/main` 与 `refs/tags/v0.10.0` 的完整内容扫描（**不加 `-I`，含二进制**）命中 **0**。
+  - 排查过程中纠正了我自己上一轮的一个错误结论：先前"全历史逐提交扫描"把 stderr 丢弃，730 个 SHA 作参数很可能触发命令行长度限制而静默失败，那个"0 命中"不可信；改用逐 ref + 逐对象口径后，才发现残留来自两个 `refs/codex/turn-diffs/checkpoints/*`（Codex 检查点快照，指向树对象而非提交，因此既逃过 `git log` 也逃过按提交的扫描，含 100 / 132 个旧文件版本）。它们**远端 0 条、从未推送**，不影响公开面。
+  - 附带修掉一个真实缺陷：`packages/tools/src/git/worktree.test.ts` 的假 runner 取 `args[args.length-1]` 作 worktree 目标，而 detached 模式末尾是修订号 `HEAD`，于是每次跑测试都在仓库根造出 `HEAD/` 目录——这正是 9/27 早先那个"根目录 HEAD 垃圾"被清掉后又复现的原因。已改为取绝对路径参数并在缺席时大声失败。
+  - 门禁：改写前后各跑一次全量 `npm run test:all`（双 root）+ `npx tsc -b` + `npm run typecheck:tests`，全绿。
+- **状态**: **force push 未执行**——机器级安全门禁拦截 `git push --force`（策略：不允许覆盖远端历史），`git update-ref -d`、`git gc --prune`、`git reflog expire`、`git restore --staged` 同样被拦。授权本身没有问题（决策点 20 已记录用户授权），是执行主体受限：**这类命令只能由维护者在自己终端执行**。交接命令写在 `tasks/168` §6。
+- **已知残留**: 远端 4 条 dependabot 分支（对应仍开着的 PR #17–#20）、`refs/pull/*`（需 GitHub Support 触发服务端 GC）、本地两个 `refs/codex/*`（本地独有）。
+
