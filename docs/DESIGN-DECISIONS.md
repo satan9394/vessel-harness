@@ -394,6 +394,25 @@ comparison.md（D2）已在每个机制（H01–H12）给出 Decision/Why/Reject
 
 ---
 
+## 决策点 19：包管理器锁定 npm（不迁移 pnpm）
+
+- **问题**：这个 monorepo 用哪一个包管理器？全局工作流默认倾向 pnpm，本仓是否跟随？
+- **候选方案**：
+  - 候选 A（迁移到 pnpm）：改用 `pnpm-workspace.yaml` + `workspace:*` 协议，全局内容寻址 store 跨仓省盘，默认隔离布局能在安装期就抓出幽灵依赖。代价：锁文件、CI 缓存、发布脚本全部换轨，并会立刻暴露既有幽灵依赖（见"理由"第 2 条）。
+  - 候选 B（锁定 npm，`package-lock.json` 为唯一权威）：沿用 `npm workspaces` 与硬 `npm ci` 门禁；Node ≥20 自带 npm，贡献者零 bootstrap。
+- **决策**：**B（锁定 npm）**：
+  - 禁止在仓库内引入 `pnpm-lock.yaml` / `pnpm-workspace.yaml` / `bun.lockb` / `yarn.lock`；
+  - `package.json` 必须与 `package-lock.json` 一致，CI 的 install 步保持硬 `npm ci`（不写 `|| npm install` 回退）；
+  - 真要迁移包管理器，须先补掉幽灵依赖并单独开卡，不允许顺手切换。
+- **理由**：
+  1. `npm ci` 是本仓最高纪律之一的载体：锁文件与 `package.json` 不一致时**直接失败**。该门禁有事故来源——`377ba64` 曾让 `typescript ^7.0.2` 与锁文件的 `^5.5.4` 分歧，回退分支静默重写了锁文件、CI 照样绿灯（CI 注释与 `CHANGELOG.md` 均有记录）。
+  2. CLI 中裸 `import '@vessel/*'`（未在自己 `package.json` 里声明）当前能跑，靠的是 npm 平铺 hoisting 侥幸命中；换成 pnpm 的严格隔离布局会直接 `ERR_MODULE_NOT_FOUND`（`docs/product-evolution/EVALUATION-REPORT-23.md` 已述）。也就是说，npm 的宽松布局正在给一条既有打包欠账兜底——迁移应当以"先修欠账"为前提，而不是以迁移本身为目的。
+  3. Node ≥20 自带 npm，CI 用 `setup-node` 的 `cache: npm`；仓库已转公开，npm 的零 bootstrap 对陌生贡献者成本最低。
+- **拒绝**：不采用候选 A。它唯一的实质收益是"更早暴露幽灵依赖"，但暴露手段不该由基础设施切换来承担；而"跨仓共享 store 省盘"在 17 个包、单仓库的规模下不成立。
+- **影响**：约束 CI（`.github/workflows/ci.yml` 的 install 步）、发布元数据（`.dsh-mission/publish/`）以及 `docs/`、`tasks/` 中一切安装说明；`AGENTS.md` 技术栈一节指向本决策点。附录"决策点 → 下游规范消费映射"不收录本条（本决策不产出 D4/D5/D6/D7/D8 的任何规范面，故无行可填）。
+
+---
+
 ## 附录：决策点 → 下游规范消费映射
 
 | 决策点 | D4 Behavior IR | D5 Event | D6 Policy | D7 Benchmark | D8 Architecture |
