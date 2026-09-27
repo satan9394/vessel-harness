@@ -15,7 +15,12 @@ function fakeGit(record: { calls: string[][] }): GitRunner {
   return async (args, opts) => {
     record.calls.push(args);
     if (args[0] === 'worktree' && args[1] === 'add') {
-      const target = args[args.length - 1]!;
+      // The target is the first absolute-path argument, not the last one: in
+      // detached mode the trailing argument is the revision (`HEAD`). Taking
+      // the last argument made this fake create a stray `HEAD/` directory in
+      // the process cwd (the repo root under vitest) on every run.
+      const target = args.find((a) => path.isAbsolute(a));
+      if (!target) throw new Error(`fake git: no absolute worktree target in: ${args.join(' ')}`);
       fs.mkdirSync(target, { recursive: true });
       fs.writeFileSync(path.join(target, '.git'), 'gitdir: fake\n', 'utf8');
       return { stdout: `worktree ${target}\n`, stderr: '', exitCode: 0 };
@@ -78,6 +83,9 @@ describe('V0.2-M6 git worktree (optional)', () => {
     });
     expect(record.calls[0]).toEqual(['worktree', 'add', '--detach', handle.path, 'HEAD']);
     expect(handle.branch).toBeUndefined();
+    // the handle must be absolute: a relative target resolves against the
+    // process cwd, which is how the fake used to litter the repo root
+    expect(path.isAbsolute(handle.path)).toBe(true);
     await expect(createWorktree(repo, { branch: 'feature', detached: true, run: fakeGit(record) })).rejects.toThrow(/mutually exclusive/);
   });
 
