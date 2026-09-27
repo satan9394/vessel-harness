@@ -1,0 +1,69 @@
+name: Bug 报告
+description: 报告可复现的错误行为（不含安全漏洞，安全类请走私密渠道）
+title: "[bug] "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        请先确认：这是**可复现的行为错误**，不是安全漏洞（安全类走 Security 页面的私密上报）。
+        请不要在本表单粘贴任何 API 密钥、令牌或 `.env` 内容。
+  - type: input
+    id: commit
+    attributes:
+      label: 版本 / 提交
+      description: 输出 `node apps/cli/dist/cli.js --version` 的结果，或出问题的 commit SHA
+      placeholder: "0.10.0 / 5ff67f7"
+    validations:
+      required: true
+  - type: textarea
+    id: env
+    attributes:
+      label: 环境
+      description: 操作系统、Node 版本、npm 版本；涉及多供应商时说明用的是哪种协议（不要写密钥）
+      placeholder: |
+        Windows 11 / Node v24.14.0 / npm 11
+        供应商协议：OpenAI 兼容
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: 复现步骤
+      description: 给最小可复现的命令序列；如果涉及策略拦截，请附上使用的权限档
+      placeholder: |
+        1. npm ci
+        2. npx tsx apps/cli/src/cli.ts run --permission workspace-write --prompt "..."
+        3. ...
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: 期望结果
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: 实际结果（含完整报错）
+      description: 请原样粘贴输出，不要先过滤——过滤掉的往往正是定位所需的行
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: 证据
+      description: 相关测试与命令输出（如 `npm run test:all`、`npx tsc -b`、审计事件片段）
+      render: text
+    validations:
+      required: false
+  - type: checkboxes
+    id: hygiene
+    attributes:
+      label: 提交前确认
+      options:
+        - label: 本报告不含任何密钥、令牌、凭据或 `.env` 内容
+          required: true
+        - label: 已搜索过现有 issue，没有重复
+          required: true

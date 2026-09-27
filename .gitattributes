@@ -1,0 +1,26 @@
+# 行尾统一：仓库内一律存 LF、检出也是 LF。
+# 少了这一条，core.autocrlf=true 的机器会在每次 add 时产生整文件级 diff。
+* text=auto eol=lf
+
+# Windows 原生脚本例外：CRLF 才能在 PowerShell 5.1 / cmd 下原样执行。
+*.ps1 text eol=crlf
+*.psm1 text eol=crlf
+*.bat text eol=crlf
+*.cmd text eol=crlf
+
+# 二进制：不要做行尾或编码转换。
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.woff binary
+*.woff2 binary
+*.pdf binary
+
+# 生成物 / 归档证据：保留在仓库里，但不计入 GitHub 语言统计、默认折叠 diff。
+benchmarks/reports/** linguist-generated=true
+.dsh-mission/publish/dist/** linguist-generated=true
+
+# 文档与测试在语言统计里降权，避免文档仓化的误读。
+docs/** linguist-documentation=true

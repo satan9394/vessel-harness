@@ -220,6 +220,13 @@ node apps/cli/dist/cli.js --version   # 直接用已编译产物（构建后）
 > 的 `include` **不含它** ⇒ 只跑 `npx vitest run` 会**漏掉 web 套件**（近百项），那不算全量。
 > 想分别跑：`npm test`（根）、`npm run test:web`（web）。
 
+## 贡献
+
+- [CONTRIBUTING.md](CONTRIBUTING.md)：环境前提、提交前门禁（`npm ci` / `npx tsc -b` / `typecheck:tests` / `test:all` 双 root / web 构建）、硬约束（薄核、安全规则必须硬执法、无永久删除、不改写已推送历史）与文档落点。
+- [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md)：参与本项目的行为准则。
+- [SECURITY.md](SECURITY.md)：安全模型、如实标注的边界（Windows 已有 OS 级进程边界，其它平台仍为策略边界）与私密漏洞上报渠道。
+- [AGENTS.md](AGENTS.md)：本仓的规则与工作流，与本文冲突时以它为准。
+
 ## License
 
 [MIT](LICENSE)

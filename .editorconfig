@@ -1,0 +1,22 @@
+root = true
+
+## 全仓默认：UTF-8 / LF / 两空格 / 文件末尾留空行
+[*]
+charset = utf-8
+end_of_line = lf
+insert_final_newline = true
+trim_trailing_whitespace = true
+indent_style = space
+indent_size = 2
+
+## Markdown 的行尾空格是两个空格换行，不要自动裁剪
+[*.md]
+trim_trailing_whitespace = false
+
+## Windows 原生脚本保持 CRLF，PowerShell 5.1 / cmd 才能原样执行
+[*.{ps1,psm1,bat,cmd}]
+end_of_line = crlf
+
+## Makefile 需要真正的制表符
+[Makefile]
+indent_style = tab

@@ -1,0 +1,54 @@
+name: 功能建议
+description: 提出新能力或改进建议
+title: "[feat] "
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        本项目的规则是「先有可验证的判据，再谈实现」。请尽量把"怎么算做完了"写清楚。
+  - type: textarea
+    id: problem
+    attributes:
+      label: 要解决的问题
+      description: 描述现状的摩擦点，而不是直接给方案
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: 建议的方案
+      description: 若有多个候选，请列出取舍
+    validations:
+      required: true
+  - type: textarea
+    id: criteria
+    attributes:
+      label: 可验证的完成判据
+      description: 写清用什么命令 / 什么断言能证明它做完了（例如某测试文件全过、某个审计事件出现）
+      placeholder: |
+        - `packages/<x>/src/<y>.test.ts` 全过
+        - `npm run test:all` 双 root 无回归
+    validations:
+      required: true
+  - type: dropdown
+    id: scope
+    attributes:
+      label: 预期影响面
+      options:
+        - 文档 / 配置
+        - CLI 或 TUI 交互
+        - 单个 packages/* 包
+        - 跨包（需改契约）
+        - benchmarks / 评测套件
+    validations:
+      required: true
+  - type: checkboxes
+    id: constraints
+    attributes:
+      label: 约束自查
+      options:
+        - label: 不违反薄核纪律（不给 core 加机制）
+          required: false
+        - label: 安全相关规则会落 Policy 硬执法，而不是只写进 Prompt
+          required: false

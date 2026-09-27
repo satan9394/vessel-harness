@@ -1,0 +1,11 @@
+blank_issues_enabled: true
+contact_links:
+  - name: 安全漏洞（私密上报）
+    url: https://github.com/satan9394/vessel-harness/security/advisories/new
+    about: 策略绕过、权限越权、凭据泄漏、注入等，请勿开公开 issue。
+  - name: 贡献指南
+    url: https://github.com/satan9394/vessel-harness/blob/main/CONTRIBUTING.md
+    about: 环境前提、提交前门禁、硬约束与文档落点。
+  - name: 设计决策与规范
+    url: https://github.com/satan9394/vessel-harness/tree/main/docs
+    about: 会约束实现的决策（DESIGN-DECISIONS）与各 SPEC。

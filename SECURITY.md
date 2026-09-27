@@ -47,9 +47,9 @@ Vessel 的安全策略遵循「软引导硬边界」哲学：重要规则不能�
 
 ## 上报渠道
 
-发现安全漏洞（策略绕过、权限越权、凭据泄漏、注入等）请优先非公开上报：
+发现安全漏洞（策略绕过、权限越权、凭据泄漏、注入等）请走**私密渠道**，不要开公开 issue：
 
-- **GitHub Issues**：仓库 Issues（如公开可见，敏感细节先邮件联系，勿在公开 issue 粘贴密钥/细节）。
-- **Email**：安全上报用占位邮箱 `<security@example.invalid>`（项目维护方接盘后替换为真实地址）。
+- **首选**：GitHub 的[私密漏洞上报](https://github.com/satan9394/vessel-harness/security/advisories/new)（仓库 Security 页面 → Report a vulnerability）。该通道已为本仓启用，报告仅维护者可见。
+- 非敏感的其它安全议题（例如本文档的表述有误）可以开公开 issue，但**不要**在其中粘贴密钥、令牌或 `.env` 内容。
 
 请勿将 API 密钥、`.env` 内容或完整凭据随上报提交。感谢你帮助 Vessel 更安全。
