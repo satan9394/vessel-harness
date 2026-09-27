@@ -1,6 +1,6 @@
 # Dev Log
 
-Append-only development log for **Composable_Agent_Harness**.
+Append-only development log for **Vessel_Harness**.
 
 Created 2026-09-24 as part of the personal-dev-workflow v1.0.0 layout unification.
 
