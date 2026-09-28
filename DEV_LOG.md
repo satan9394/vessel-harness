@@ -128,3 +128,14 @@ When there is nothing worth recording, not writing is the correct behavior.
   - **明确不升**：`@types/node` 26（类型跨到 Node 26 而 `engines >=20` / CI 跑 22，等于给"类型通过、运行挂掉"开门；要升得连 `engines` 与 CI 一并谈）。
   - **规则集 bypass 重新判断后决定保留**：维护者账号提交身份是 `xuanchen`，若收权则只能走网页/API 合并 ⇒ 每条合并提交都以账号身份署名、作者名与 `Vessel Contributors` 混排，且失去应急直推通道；边际安全收益小于该代价。要收权的两条命令写在审计文档 §F。
 - **状态**: 分支 `chore/residual-exposure-audit` 走 PR（4 个提交）。未决清单更新为 6 项，见审计文档 §G。
+---
+
+## 2026-09-28（续 7）· 项目交接文档落盘 + 文档陈旧记账清算
+
+- **Agent**: @opencode (deepseek-v4.1-flash)
+- **事件**:
+  - 维护者要求"交接项目"：把日志与未完成项整理成**独立交接文档**，规则文件里只放**引用**。已落盘 `HANDOFF.md`（现状一分钟 / 治理与门禁 / 最近日志索引 / 未完成清单分三段：需维护者做 5 项、Agent 可推进 4 项、清不掉的 3 类已知边界 / 验证命令 / 严格纪律 / 阅读顺序），并在 `AGENTS.md`「目录结构」与 `README.md`「贡献」各加指针，`evidence/README.md` 顶部指向它。
+  - 交接文档刻意写清两件容易被下一位忽略的事：**本机安全门禁会拦哪些命令**（force push / 删 ref / 清对象，且整条命令预扫描），以及**换机器后须先确认 git 身份已设为中性**——历史上正是改写后新提交从本机配置取回真实身份，才把它带回公开历史（决策点 20 事故）。
+  - 文档清算（PR #24 / #25，均已合并）：`docs/V1.3-PROGRESS.md` 4 处 `file:///C:/work/...` 死链改为仓库相对链接、"改动尚未提交"改为"已交付合入（`5ccfd7f`）"；`tasks/README.md` 中 163–167 的「已交付（待合入）」改为「已合入（2026-09-25）」、V1.3 改记为已收官；两处**清单性质**的发布待办（`tasks/README.md`「发布准备」、`docs/V1.6-STABLE-CHECKLIST.md`「发布准备已就绪」）按决策点 21 加日期追注标为**作废**。历史快照（`V1.0-CHECKPOINT` / `V1.1-ROADMAP` / `tasks/152`）**刻意不改**——它们记的是当时的门禁状态。
+  - 一次核实纠正了我自己先前的怀疑：`evidence/README.md` 关于 `.dsh-mission/backup/` 不进版本库的说法**是准确的**（`.gitignore` 第 25 行 `.dsh-mission/*` + 第 30 行 `!.dsh-mission/publish/` ⇒ backup 跟踪 0、publish 跟踪 8）。结论与过程记入审计文档 §H/§I。
+- **状态**: main = `cd9d7bf`（728 提交）；三条必需检查全绿；工作区干净。**文档清理线到此为止**（边际收益已低，重复劳动），后续方向交给维护者：产品能力（README 三条已知边界）或需其署名的对外动作（Support 工单 / npm 工单 / 规则集收权）。
