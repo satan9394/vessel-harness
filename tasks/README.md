@@ -58,6 +58,7 @@
 | 外部异构子代理运行时与 Worktree 隔离 (Outbound Heterogeneous Subagent Runtime) | 165 | 已交付（待合入） | `tasks/165-outbound-subagent-runtime.md` |
 | 跨 Agent 全量功能保全与双盲评测套件 (Subagent Capability Conformance Suite) | 166 | 已交付（待合入） | `tasks/166-subagent-capability-conformance.md` |
 | [Epic] 双向子 Agent 网关体系与保全度评测套件 (融合 163–166) | 167 | 已交付（待合入） | `tasks/167-epic-universal-subagent-mesh.md` |
+| 公开化脱敏与 GitHub 治理（转 Public / 身份与本机路径脱敏 / 不发布版本 / 必须走 PR + CI） | 168 | 已合入（2026-09-27） | `tasks/168-desensitize-and-public-hygiene.md`、`evidence/sessions/2026-09-27-desensitization-and-governance.md`、决策点 20/21 |
 
 ## 未闭合 / 下一目标
 
