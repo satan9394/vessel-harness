@@ -61,6 +61,14 @@ Mission 3（**已完成**）目标：清理 Mission 2 提交物上的残留措�
 - `M2-*` — mission-02 的评审判决、dep0137 归因、测试重跑日志、mission-1 对账
 - `M3-*` — mission-03 的测试与 `tsc` 日志
 
+## sessions/ — 按会话的工作记录（2026-09-27 起）
+
+与 `missions/` 的区别：`missions/` 是 DSH bounded mission 的冻结证据；`sessions/` 是**一次普通会话**的完整记录（变更 + 行为 + 证据 + 未决项），面向"清空上下文后的接手者"，自带可复跑命令与教训清单。
+
+| 文件 | 会话主题 |
+|---|---|
+| `2026-09-27-desensitization-and-governance.md` | 公开化脱敏（工作树 + 两次全历史改写）、GitHub 治理定型（不发布版本 / 必须走 PR / 三条必需检查）、身份守卫上线；含两次事故复盘、8 条自省与 5 项未决 |
+
 ## 相关的任务卡归档
 
 各 Mission 的任务卡已迁入 **`tasks/_missions/`**：

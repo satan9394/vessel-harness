@@ -105,3 +105,14 @@ When there is nothing worth recording, not writing is the correct behavior.
 - **状态**: 待维护者执行第二次 force push（lease = `5c2762b…`，脚本已更新）；远端 `main` 目前仍是含真实身份的那一版。
 - **待办**: ① 第二次 force push 后，用服务端 API 复验作者身份；② 如在意，关闭 4 个过期 dependabot PR 并删分支；③ 彻底回收旧对象需 GitHub Support。
 
+
+---
+
+## 2026-09-27（续 5）· 会话收尾：记录落盘 + 治理首次走通
+
+- **Agent**: @opencode (deepseek-v4.1-flash)
+- **事件**: 维护者完成第二次 force push（`5c2762b → 8b51083`），main 经 PR #21 合并到 **`26d931a`**（716 提交）；服务端复核身份只剩中性身份与 `dependabot[bot]`（gmail 0 命中）；main CI 三条全绿。**首次完整走通**"分支 → PR → 三条必需检查 → 合并"，合并按 A 方案在本地用中性身份完成，GitHub 正确标记 MERGED、远端分支自动删除。4 个基于改写前历史的 dependabot PR（#17–#20）由 GitHub 在第一次 push 那刻自动关闭——四个 head 与当前 main 的 merge-base 全为空，合了会把含真实身份的旧提交拉回 main。
+- **记录落盘**: 本会话完整记录 `evidence/sessions/2026-09-27-desensitization-and-governance.md`（§6 可复跑命令 / §7 八个自省错 / §8 五项未决 / §10 接手入口）；`evidence/README.md` 增 `sessions/` 说明；`tasks/README.md` 路线表增 168 一行；`tasks/168` 状态改「已合入」。
+- **状态**: 主线闭环；未决 5 项见会话记录 §8（`@clack/prompts` 升级 PR、GitHub Support 工单、仓库外备份目录清理、规则集收权、两处本地垃圾）。
+- **给接手者**: 先读会话记录 §9/§10，再读 `tasks/168`；`bash scripts/identity-guard.sh` 可本地复跑。
+- **教训补充**: 合并提交的作者身份取决于**谁在哪执行合并**——本地用中性身份合并保住了 main 作者名一致性；GitHub 网页端合并会以账号提交身份署名（但用 noreply 地址，不会带回真实邮箱）。
