@@ -1,5 +1,7 @@
-# Composable Agent Harness — 项目级开发约定（AGENTS.md）
+# Vessel — 项目级开发约定（AGENTS.md）
 
+> 历史名：**Composable Agent Harness**（CLI 名 `cah`，**V0.9 起全面更名 Vessel**）。早期文档、`CHANGELOG.md` 的历史段落与旧提交信息里仍可见旧名与旧仓名，属历史，不必改。
+>
 > 本文件是个人开发工作流（personal-dev-workflow）在本仓库落地的记忆基座。
 > 规则、决策、进度、教训全部落盘；对话只留文件指针。人只做两件事：提需求、拍板验收。
 

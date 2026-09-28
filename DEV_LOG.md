@@ -139,3 +139,13 @@ When there is nothing worth recording, not writing is the correct behavior.
   - 文档清算（PR #24 / #25，均已合并）：`docs/V1.3-PROGRESS.md` 4 处 `file:///C:/work/...` 死链改为仓库相对链接、"改动尚未提交"改为"已交付合入（`5ccfd7f`）"；`tasks/README.md` 中 163–167 的「已交付（待合入）」改为「已合入（2026-09-25）」、V1.3 改记为已收官；两处**清单性质**的发布待办（`tasks/README.md`「发布准备」、`docs/V1.6-STABLE-CHECKLIST.md`「发布准备已就绪」）按决策点 21 加日期追注标为**作废**。历史快照（`V1.0-CHECKPOINT` / `V1.1-ROADMAP` / `tasks/152`）**刻意不改**——它们记的是当时的门禁状态。
   - 一次核实纠正了我自己先前的怀疑：`evidence/README.md` 关于 `.dsh-mission/backup/` 不进版本库的说法**是准确的**（`.gitignore` 第 25 行 `.dsh-mission/*` + 第 30 行 `!.dsh-mission/publish/` ⇒ backup 跟踪 0、publish 跟踪 8）。结论与过程记入审计文档 §H/§I。
 - **状态**: main = `cd9d7bf`（728 提交）；三条必需检查全绿；工作区干净。**文档清理线到此为止**（边际收益已低，重复劳动），后续方向交给维护者：产品能力（README 三条已知边界）或需其署名的对外动作（Support 工单 / npm 工单 / 规则集收权）。
+---
+
+## 2026-09-28（续 8）· 交接收尾：冷启动路径 + 两处会误导读者的记录
+
+- **Agent**: @opencode (deepseek-v4.1-flash)
+- **事件**:
+  - 交接文档已合入：PR #26 → `e0c5758`（main **730** 提交）。`HANDOFF.md` 在仓库根，`AGENTS.md` / `README.md` / `evidence/README.md` 各留指针（内容只存在于一个文件，避免两处各写一份后各自腐烂）。
+  - **为新会话加"冷启动三步"**（`HANDOFF.md` §6）：`git log --oneline -3` 认准最新提交 → `git status -sb` 应为干净（有未提交改动先问维护者）→ `npm ci` 自证依赖一致；并提示本仓不发布版本、不要顺手引入其它包管理器锁文件。
+  - **修两处会误导新会话的记录**：① `AGENTS.md` 标题仍写"Composable Agent Harness"（旧名）——改为 "Vessel"，并加一行说明"旧名属历史、可见于早期文档与 commit，不必改"；② 根目录 `RUN_STATE.md` 的 `## Status` 停在 2026-09-25 的 `Mission: completed / Revision 7`、DoD 勾选框全空，与当前状态脱节——**按约定未改正文**（该文件首行写明"机器真相源是 `.agent-state/run-state.json`，不要在此改计数器"，且它被 `.gitignore` 排除、不在版本库里），改由 `HANDOFF.md` §3.1 提示"接手时若看到它，先看 HANDOFF"。
+- **状态**: main = `e0c5758`；三条必需检查在 PR 上全绿；工作区干净。**交接线完成**，下一步由维护者白天从 `HANDOFF.md` 决定方向（§3.1 需其署名 / §3.2 Agent 可推进）。
