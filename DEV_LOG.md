@@ -116,3 +116,15 @@ When there is nothing worth recording, not writing is the correct behavior.
 - **状态**: 主线闭环；未决 5 项见会话记录 §8（`@clack/prompts` 升级 PR、GitHub Support 工单、仓库外备份目录清理、规则集收权、两处本地垃圾）。
 - **给接手者**: 先读会话记录 §9/§10，再读 `tasks/168`；`bash scripts/identity-guard.sh` 可本地复跑。
 - **教训补充**: 合并提交的作者身份取决于**谁在哪执行合并**——本地用中性身份合并保住了 main 作者名一致性；GitHub 网页端合并会以账号提交身份署名（但用 noreply 地址，不会带回真实邮箱）。
+---
+
+## 2026-09-27（续 6）· 残留暴露审计 + 三项依赖升级
+
+- **Agent**: @opencode (deepseek-v4.1-flash)
+- **事件**:
+  - 逐项实测残留暴露面（详见 `evidence/sessions/2026-09-27-residual-exposure-audit.md`）：**GitHub 上 9 个 PR 页仍展示被移除的真实邮箱**（#12–#16 自己的 PR；#17–#20 dependabot PR 把改写前历史整段列为"本 PR 的提交"），另有 **22 条 `refs/pull/*`** 让旧对象仍可达——三样都**不由仓库控制**，改文件改不到，只能关 PR（已关）+ 给 GitHub Support 发工单（草稿见该文档 §A-1）。**npm 侧同样残留**：`composable-agent-harness@0.10.0` 的 registry 元数据里 `_npmUser`/`maintainers` 仍是真实邮箱、`repository`/`homepage` 仍指旧仓名，且早已过 unpublish 的 72 小时窗口。
+  - **main CI 一次失败已定性**：run `36385562028` 的 Windows 腿报 `Worker exited unexpectedly with exit code 3221225794`（= 0xC0000142 `STATUS_DLL_INIT_FAILED`），**EPERM 命中 0** ⇒ 2 核 runner 上 worker 起不来的基建抖动，非代码回归（同提交 ubuntu 腿与 identity-guard 全绿；PR 上同一内容三条检查亦全绿）。已 `gh run rerun --failed`。**约定**：若再出现第二次就立卡收掉，可选缓解为给 CI 设 `maxWorkers`（本次不改：一次抖动不足以改测试执行语义，且既有口径就是"抖动→重跑"）。
+  - **依赖升级三项**：`@clack/prompts` 1.7.0 → **1.8.1**（唯一运行时依赖，minor，`engines >=20.12` 兼容）、`tsx` 4.23.13 → **4.23.15**（patch），两项同时**抬起 `package.json` 的版本下限**（只改锁文件的话，别人 `npm install` 仍会解析回被替掉的旧版）；`@vitejs/plugin-react` 5.2.0 → **6.1.1** 独立成一个提交便于回退——实测其三个可疑 peer 全为 **optional**，升级**移除 45 个包、锁文件 −618 行**，`vite build` 1.18s exit 0、web 类型检查 exit 0、web 套件 **12 文件/129 项全绿**（JSX 换了变换实现，故以套件为准）。
+  - **明确不升**：`@types/node` 26（类型跨到 Node 26 而 `engines >=20` / CI 跑 22，等于给"类型通过、运行挂掉"开门；要升得连 `engines` 与 CI 一并谈）。
+  - **规则集 bypass 重新判断后决定保留**：维护者账号提交身份是 `xuanchen`，若收权则只能走网页/API 合并 ⇒ 每条合并提交都以账号身份署名、作者名与 `Vessel Contributors` 混排，且失去应急直推通道；边际安全收益小于该代价。要收权的两条命令写在审计文档 §F。
+- **状态**: 分支 `chore/residual-exposure-audit` 走 PR（4 个提交）。未决清单更新为 6 项，见审计文档 §G。
