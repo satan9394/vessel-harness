@@ -68,6 +68,7 @@ Mission 3（**已完成**）目标：清理 Mission 2 提交物上的残留措�
 | 文件 | 会话主题 |
 |---|---|
 | `2026-09-27-desensitization-and-governance.md` | 公开化脱敏（工作树 + 两次全历史改写）、GitHub 治理定型（不发布版本 / 必须走 PR / 三条必需检查）、身份守卫上线；含两次事故复盘、8 条自省与 5 项未决 |
+| `2026-09-27-residual-exposure-audit.md` | 残留暴露面逐项实测（GitHub PR 页 9 个仍显示旧身份、npm registry 元数据仍含真实邮箱、`refs/pull/*` 22 条）、main CI 一次 Windows worker 启动失败定性、四项依赖升级判断、规则集 bypass 重新判断（决定保留）；含 Support 工单草稿 |
 
 ## 相关的任务卡归档
 
