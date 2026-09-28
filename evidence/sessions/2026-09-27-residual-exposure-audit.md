@@ -119,3 +119,10 @@ gh api -X PUT repos/satan9394/vessel-harness/rulesets/23645929 --input ruleset.j
 
 - **死链**：`docs/V1.3-PROGRESS.md` 内 4 处 `file:///C:/work/...`（由脱敏替换产生、在 GitHub 与编辑器里都点不开）改为仓库相对链接；同处"改动尚未提交，等待用户审阅"改为"**已交付合入**（`5ccfd7f`）"，并注明该文件是交付时的进度快照、现状以 `CHANGELOG.md` / `tasks/README.md` / `DEV_LOG.md` 为准。
 - **陈旧状态**：`tasks/README.md` 中 163–167 五行「已交付（待合入）」改为「已合入（2026-09-25）」，「未闭合 / 下一目标」里把 V1.3 从"当前活跃里程碑（交付待核验合入）"改记为已收官。依据：`5ccfd7f feat(epic-167)` 在 main 祖先链上，且 163–166 的交付目录（`packages/application/src/mcp-agent`、`packages/runtime/src/proxy`、`packages/agents/src/external`、`benchmarks/runners/src/conformance`）均在仓库中。
+
+## I. 2026-09-28 追加 2：发布就绪类待办的作废
+
+- **普查**：全仓 grep 发布相关表述，区分「历史快照」与「面向行动的清单」。
+  - **不动（历史记录，记的是当时状态）**：`docs/V1.0-CHECKPOINT.md`、`docs/V1.1-ROADMAP.md`、`tasks/152-release-prep.md`（该卡首行本就写明"只写文档、不执行"）。
+  - **加作废追注**：`tasks/README.md` 的「发布准备」与 `docs/V1.6-STABLE-CHECKLIST.md` 的「发布准备已就绪」——这两处是清单性质，读者可能照它去发布；按决策点 21 标注为已作废，原文保留作历史。
+- **一次核实（结论：原表述准确，不改）**：曾怀疑 `evidence/README.md` 关于 `.dsh-mission/backup/` "不进版本库、仅为本地资产"的说法不准。实测 `.gitignore` 第 25 行 `.dsh-mission/*` ＋ 第 30 行 `!.dsh-mission/publish/` ⇒ `backup/` 跟踪数 **0**、`publish/` 跟踪数 **8**（显式放行）。故那句话成立。附带确认：根目录 `RUN_STATE.md` 也被忽略（第 24 行），是本地生成视图而非版本化文件。
