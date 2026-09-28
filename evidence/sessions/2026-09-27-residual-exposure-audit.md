@@ -108,7 +108,14 @@ gh api -X PUT repos/satan9394/vessel-harness/rulesets/23645929 --input ruleset.j
 
 1. **GitHub Support 工单**（§A-1 草稿可直发）——决定权在维护者，agent 无法代发。
 2. **npm 元数据**：接受单点残留，或另发 npm Support 工单（§B）。
-3. **仓库外备份目录**：本次审计后其回退价值已归零，可清（内含被移除的原始值，长期留着反而是本地泄漏面）。
+3. ~~仓库外备份目录~~ **已清（2026-09-28，进回收站）**：推送与 CI 均验证通过后其回退价值归零；其中含被移除的原始值，留着反而是本地泄漏面。
 4. **规则集 bypass**：本次决定保留（§F）；要收权用 §F 的两条命令。
-5. **两处本地垃圾**：游离提交 `5092ed4`、引用 `refs/remotes/oc/pr21-merge`（agent 无权删 ref）。
-6. **新）：Windows runner worker 启动抖动**——已定义"再出现第二次就立卡"的触发条件（§C）。
+5. **本地垃圾**：引用 `refs/remotes/oc/pr21-merge` **已消失**（2026-09-28 核实为 fetch prune 所致）；游离提交 `5092ed4` **仍在对象库**（未触发 gc；`git gc --prune` 被安全门禁拦截，agent 无权执行）——其内容仅为一次提交信息文本，无个人标识。
+6. **Windows runner worker 启动抖动**——已定义"再出现第二次就立卡"的触发条件（§C）。
+
+## H. 2026-09-28 追加：文档陈旧记账清理
+
+清掉两类"文件在说谎"的记录（与本次审计同一问题域）：
+
+- **死链**：`docs/V1.3-PROGRESS.md` 内 4 处 `file:///C:/work/...`（由脱敏替换产生、在 GitHub 与编辑器里都点不开）改为仓库相对链接；同处"改动尚未提交，等待用户审阅"改为"**已交付合入**（`5ccfd7f`）"，并注明该文件是交付时的进度快照、现状以 `CHANGELOG.md` / `tasks/README.md` / `DEV_LOG.md` 为准。
+- **陈旧状态**：`tasks/README.md` 中 163–167 五行「已交付（待合入）」改为「已合入（2026-09-25）」，「未闭合 / 下一目标」里把 V1.3 从"当前活跃里程碑（交付待核验合入）"改记为已收官。依据：`5ccfd7f feat(epic-167)` 在 main 祖先链上，且 163–166 的交付目录（`packages/application/src/mcp-agent`、`packages/runtime/src/proxy`、`packages/agents/src/external`、`benchmarks/runners/src/conformance`）均在仓库中。
