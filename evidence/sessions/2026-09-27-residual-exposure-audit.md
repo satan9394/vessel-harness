@@ -69,6 +69,8 @@ Caused by: Error: Worker exited unexpectedly with exit code 3221225794 during st
 
 **已处置**：`gh run rerun <id> --failed` 重跑失败腿。
 
+**重跑结果（决定性证据）**：同一提交 `667e8c6` 的重跑（`run_attempt=2`）**三条 job 全绿**（windows / ubuntu / identity-guard）。同一代码、同一提交、重跑即绿 ⇒ **抖动定性成立**，与代码和本次改动无关。
+
 **留作提案（本次不做）**：根因是根套件在 `isolate` 下会 spawn 上百个 worker（日志自述 186 个）。可选缓解是给 CI 设 `maxWorkers`（如 2~4）。**不做的理由**：① 全量测试耗时与超时余量的账要重算（本仓有显式 120s 超时的大队列用例）；② 一次抖动不足以支撑改测试执行语义；③ 仓库既有处置口径就是"抖动 → 重跑"（`ci.yml` 注释里写明）。**若再出现第二次，就值得立卡收掉。**
 
 ## D. 依赖升级逐项判断（含实测证据）
