@@ -8,7 +8,12 @@ permissions:
   contents: read
 
 on:
+  # Push CI runs for the default branch only. A tag here is a commit marker, not
+  # a release (design decision 21), so a tag push has nothing extra to prove; and
+  # a feature branch is already tested by its pull request, so triggering both
+  # events double-reports every required check.
   push:
+    branches: [main]
   pull_request:
 
 jobs:
