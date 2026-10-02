@@ -1,0 +1,1526 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-10-02T13:07:17.684Z",
+  "source": "cross-harness conformance (offline)",
+  "totals": {
+    "runs": 25,
+    "passed": 25,
+    "failed": 0,
+    "successRate": 1,
+    "harnessCount": 1,
+    "scenarioCount": 25,
+    "totalWallTimeMs": 3858,
+    "totalInputTokens": 5800,
+    "totalOutputTokens": 1160,
+    "totalCacheReadTokens": 0,
+    "totalCostUsd": 0,
+    "totalToolCalls": 35
+  },
+  "harnesses": [
+    {
+      "harnessId": "vessel",
+      "runs": 25,
+      "passed": 25,
+      "failed": 0,
+      "skipped": 0,
+      "pending": 0,
+      "successRate": 1,
+      "avgWallTimeMs": 154,
+      "avgToolCalls": 1.4,
+      "avgInvalidCalls": 0,
+      "avgRetries": 0,
+      "avgInputTokens": 232,
+      "avgOutputTokens": 46,
+      "avgCacheReadTokens": 0,
+      "avgCostUsd": 0,
+      "avgContextPeak": 0,
+      "avgCompactions": 0,
+      "avgHumanIntervention": 0,
+      "avgPolicyViolations": 0.64,
+      "totalCostUsd": 0,
+      "scenarios": [
+        "B001",
+        "B002",
+        "B003",
+        "B004",
+        "B005",
+        "B016",
+        "B017",
+        "B018",
+        "B019",
+        "B020",
+        "B021",
+        "B022",
+        "B023",
+        "B024",
+        "B025",
+        "B026",
+        "B027",
+        "S001",
+        "S002",
+        "S003",
+        "S004",
+        "S005",
+        "S006",
+        "S007",
+        "S008"
+      ]
+    }
+  ],
+  "scenarios": [
+    {
+      "scenarioId": "B001",
+      "harnesses": [
+        "vessel"
+      ],
+      "runs": 1,
+      "passed": 1,
+      "failed": 0,
+      "successRate": 1,
+      "totalCostUsd": 0
+    },
+    {
+      "scenarioId": "B002",
+      "harnesses": [
+        "vessel"
+      ],
+      "runs": 1,
+      "passed": 1,
+      "failed": 0,
+      "successRate": 1,
+      "totalCostUsd": 0
+    },
+    {
+      "scenarioId": "B003",
+      "harnesses": [
+        "vessel"
+      ],
+      "runs": 1,
+      "passed": 1,
+      "failed": 0,
+      "successRate": 1,
+      "totalCostUsd": 0
+    },
+    {
+      "scenarioId": "B004",
+      "harnesses": [
+        "vessel"
+      ],
+      "runs": 1,
+      "passed": 1,
+      "failed": 0,
+      "successRate": 1,
+      "totalCostUsd": 0
+    },
+    {
+      "scenarioId": "B005",
+      "harnesses": [
+        "vessel"
+      ],
+      "runs": 1,
+      "passed": 1,
+      "failed": 0,
+      "successRate": 1,
+      "totalCostUsd": 0
+    },
+    {
+      "scenarioId": "B016",
+      "harnesses": [
+        "vessel"
+      ],
+      "runs": 1,
+      "passed": 1,
+      "failed": 0,
+      "successRate": 1,
+      "totalCostUsd": 0
+    },
+    {
+      "scenarioId": "B017",
+      "harnesses": [
+        "vessel"
+      ],
+      "runs": 1,
+      "passed": 1,
+      "failed": 0,
+      "successRate": 1,
+      "totalCostUsd": 0
+    },
+    {
+      "scenarioId": "B018",
+      "harnesses": [
+        "vessel"
+      ],
+      "runs": 1,
+      "passed": 1,
+      "failed": 0,
+      "successRate": 1,
+      "totalCostUsd": 0
+    },
+    {
+      "scenarioId": "B019",
+      "harnesses": [
+        "vessel"
+      ],
+      "runs": 1,
+      "passed": 1,
+      "failed": 0,
+      "successRate": 1,
+      "totalCostUsd": 0
+    },
+    {
+      "scenarioId": "B020",
+      "harnesses": [
+        "vessel"
+      ],
+      "runs": 1,
+      "passed": 1,
+      "failed": 0,
+      "successRate": 1,
+      "totalCostUsd": 0
+    },
+    {
+      "scenarioId": "B021",
+      "harnesses": [
+        "vessel"
+      ],
+      "runs": 1,
+      "passed": 1,
+      "failed": 0,
+      "successRate": 1,
+      "totalCostUsd": 0
+    },
+    {
+      "scenarioId": "B022",
+      "harnesses": [
+        "vessel"
+      ],
+      "runs": 1,
+      "passed": 1,
+      "failed": 0,
+      "successRate": 1,
+      "totalCostUsd": 0
+    },
+    {
+      "scenarioId": "B023",
+      "harnesses": [
+        "vessel"
+      ],
+      "runs": 1,
+      "passed": 1,
+      "failed": 0,
+      "successRate": 1,
+      "totalCostUsd": 0
+    },
+    {
+      "scenarioId": "B024",
+      "harnesses": [
+        "vessel"
+      ],
+      "runs": 1,
+      "passed": 1,
+      "failed": 0,
+      "successRate": 1,
+      "totalCostUsd": 0
+    },
+    {
+      "scenarioId": "B025",
+      "harnesses": [
+        "vessel"
+      ],
+      "runs": 1,
+      "passed": 1,
+      "failed": 0,
+      "successRate": 1,
+      "totalCostUsd": 0
+    },
+    {
+      "scenarioId": "B026",
+      "harnesses": [
+        "vessel"
+      ],
+      "runs": 1,
+      "passed": 1,
+      "failed": 0,
+      "successRate": 1,
+      "totalCostUsd": 0
+    },
+    {
+      "scenarioId": "B027",
+      "harnesses": [
+        "vessel"
+      ],
+      "runs": 1,
+      "passed": 1,
+      "failed": 0,
+      "successRate": 1,
+      "totalCostUsd": 0
+    },
+    {
+      "scenarioId": "S001",
+      "harnesses": [
+        "vessel"
+      ],
+      "runs": 1,
+      "passed": 1,
+      "failed": 0,
+      "successRate": 1,
+      "totalCostUsd": 0
+    },
+    {
+      "scenarioId": "S002",
+      "harnesses": [
+        "vessel"
+      ],
+      "runs": 1,
+      "passed": 1,
+      "failed": 0,
+      "successRate": 1,
+      "totalCostUsd": 0
+    },
+    {
+      "scenarioId": "S003",
+      "harnesses": [
+        "vessel"
+      ],
+      "runs": 1,
+      "passed": 1,
+      "failed": 0,
+      "successRate": 1,
+      "totalCostUsd": 0
+    },
+    {
+      "scenarioId": "S004",
+      "harnesses": [
+        "vessel"
+      ],
+      "runs": 1,
+      "passed": 1,
+      "failed": 0,
+      "successRate": 1,
+      "totalCostUsd": 0
+    },
+    {
+      "scenarioId": "S005",
+      "harnesses": [
+        "vessel"
+      ],
+      "runs": 1,
+      "passed": 1,
+      "failed": 0,
+      "successRate": 1,
+      "totalCostUsd": 0
+    },
+    {
+      "scenarioId": "S006",
+      "harnesses": [
+        "vessel"
+      ],
+      "runs": 1,
+      "passed": 1,
+      "failed": 0,
+      "successRate": 1,
+      "totalCostUsd": 0
+    },
+    {
+      "scenarioId": "S007",
+      "harnesses": [
+        "vessel"
+      ],
+      "runs": 1,
+      "passed": 1,
+      "failed": 0,
+      "successRate": 1,
+      "totalCostUsd": 0
+    },
+    {
+      "scenarioId": "S008",
+      "harnesses": [
+        "vessel"
+      ],
+      "runs": 1,
+      "passed": 1,
+      "failed": 0,
+      "successRate": 1,
+      "totalCostUsd": 0
+    }
+  ],
+  "comparisons": [
+    {
+      "scenarioId": "B001",
+      "rows": [
+        {
+          "harnessId": "vessel",
+          "modelId": "mock-model",
+          "success": true,
+          "wallTimeMs": 332,
+          "toolCalls": 1,
+          "invalidCalls": 0,
+          "retries": 0,
+          "inputTokens": 200,
+          "outputTokens": 40,
+          "cacheReadTokens": 0,
+          "costUsd": 0,
+          "contextPeak": 0,
+          "compactions": 0,
+          "humanIntervention": 0,
+          "policyViolations": 0,
+          "resumeSuccess": null
+        }
+      ]
+    },
+    {
+      "scenarioId": "B002",
+      "rows": [
+        {
+          "harnessId": "vessel",
+          "modelId": "mock-model",
+          "success": true,
+          "wallTimeMs": 573,
+          "toolCalls": 1,
+          "invalidCalls": 0,
+          "retries": 0,
+          "inputTokens": 200,
+          "outputTokens": 40,
+          "cacheReadTokens": 0,
+          "costUsd": 0,
+          "contextPeak": 0,
+          "compactions": 0,
+          "humanIntervention": 0,
+          "policyViolations": 0,
+          "resumeSuccess": null
+        }
+      ]
+    },
+    {
+      "scenarioId": "B003",
+      "rows": [
+        {
+          "harnessId": "vessel",
+          "modelId": "mock-model",
+          "success": true,
+          "wallTimeMs": 124,
+          "toolCalls": 2,
+          "invalidCalls": 0,
+          "retries": 0,
+          "inputTokens": 300,
+          "outputTokens": 60,
+          "cacheReadTokens": 0,
+          "costUsd": 0,
+          "contextPeak": 0,
+          "compactions": 0,
+          "humanIntervention": 0,
+          "policyViolations": 0,
+          "resumeSuccess": null
+        }
+      ]
+    },
+    {
+      "scenarioId": "B004",
+      "rows": [
+        {
+          "harnessId": "vessel",
+          "modelId": "mock-model",
+          "success": true,
+          "wallTimeMs": 179,
+          "toolCalls": 4,
+          "invalidCalls": 0,
+          "retries": 0,
+          "inputTokens": 300,
+          "outputTokens": 60,
+          "cacheReadTokens": 0,
+          "costUsd": 0,
+          "contextPeak": 0,
+          "compactions": 0,
+          "humanIntervention": 0,
+          "policyViolations": 0,
+          "resumeSuccess": null
+        }
+      ]
+    },
+    {
+      "scenarioId": "B005",
+      "rows": [
+        {
+          "harnessId": "vessel",
+          "modelId": "mock-model",
+          "success": true,
+          "wallTimeMs": 153,
+          "toolCalls": 2,
+          "invalidCalls": 0,
+          "retries": 0,
+          "inputTokens": 300,
+          "outputTokens": 60,
+          "cacheReadTokens": 0,
+          "costUsd": 0,
+          "contextPeak": 0,
+          "compactions": 0,
+          "humanIntervention": 0,
+          "policyViolations": 2,
+          "resumeSuccess": null
+        }
+      ]
+    },
+    {
+      "scenarioId": "B016",
+      "rows": [
+        {
+          "harnessId": "vessel",
+          "modelId": "mock-model",
+          "success": true,
+          "wallTimeMs": 127,
+          "toolCalls": 1,
+          "invalidCalls": 0,
+          "retries": 0,
+          "inputTokens": 200,
+          "outputTokens": 40,
+          "cacheReadTokens": 0,
+          "costUsd": 0,
+          "contextPeak": 0,
+          "compactions": 0,
+          "humanIntervention": 0,
+          "policyViolations": 2,
+          "resumeSuccess": null
+        }
+      ]
+    },
+    {
+      "scenarioId": "B017",
+      "rows": [
+        {
+          "harnessId": "vessel",
+          "modelId": "mock-model",
+          "success": true,
+          "wallTimeMs": 110,
+          "toolCalls": 0,
+          "invalidCalls": 0,
+          "retries": 0,
+          "inputTokens": 100,
+          "outputTokens": 20,
+          "cacheReadTokens": 0,
+          "costUsd": 0,
+          "contextPeak": 0,
+          "compactions": 0,
+          "humanIntervention": 0,
+          "policyViolations": 0,
+          "resumeSuccess": null
+        }
+      ]
+    },
+    {
+      "scenarioId": "B018",
+      "rows": [
+        {
+          "harnessId": "vessel",
+          "modelId": "mock-model",
+          "success": true,
+          "wallTimeMs": 119,
+          "toolCalls": 0,
+          "invalidCalls": 0,
+          "retries": 0,
+          "inputTokens": 100,
+          "outputTokens": 20,
+          "cacheReadTokens": 0,
+          "costUsd": 0,
+          "contextPeak": 0,
+          "compactions": 0,
+          "humanIntervention": 0,
+          "policyViolations": 0,
+          "resumeSuccess": null
+        }
+      ]
+    },
+    {
+      "scenarioId": "B019",
+      "rows": [
+        {
+          "harnessId": "vessel",
+          "modelId": "mock-model",
+          "success": true,
+          "wallTimeMs": 110,
+          "toolCalls": 1,
+          "invalidCalls": 0,
+          "retries": 0,
+          "inputTokens": 200,
+          "outputTokens": 40,
+          "cacheReadTokens": 0,
+          "costUsd": 0,
+          "contextPeak": 0,
+          "compactions": 0,
+          "humanIntervention": 0,
+          "policyViolations": 2,
+          "resumeSuccess": null
+        }
+      ]
+    },
+    {
+      "scenarioId": "B020",
+      "rows": [
+        {
+          "harnessId": "vessel",
+          "modelId": "mock-model",
+          "success": true,
+          "wallTimeMs": 201,
+          "toolCalls": 2,
+          "invalidCalls": 0,
+          "retries": 0,
+          "inputTokens": 300,
+          "outputTokens": 60,
+          "cacheReadTokens": 0,
+          "costUsd": 0,
+          "contextPeak": 0,
+          "compactions": 0,
+          "humanIntervention": 0,
+          "policyViolations": 0,
+          "resumeSuccess": null
+        }
+      ]
+    },
+    {
+      "scenarioId": "B021",
+      "rows": [
+        {
+          "harnessId": "vessel",
+          "modelId": "mock-model",
+          "success": true,
+          "wallTimeMs": 125,
+          "toolCalls": 1,
+          "invalidCalls": 0,
+          "retries": 0,
+          "inputTokens": 200,
+          "outputTokens": 40,
+          "cacheReadTokens": 0,
+          "costUsd": 0,
+          "contextPeak": 0,
+          "compactions": 0,
+          "humanIntervention": 0,
+          "policyViolations": 0,
+          "resumeSuccess": null
+        }
+      ]
+    },
+    {
+      "scenarioId": "B022",
+      "rows": [
+        {
+          "harnessId": "vessel",
+          "modelId": "mock-model",
+          "success": true,
+          "wallTimeMs": 82,
+          "toolCalls": 0,
+          "invalidCalls": 0,
+          "retries": 0,
+          "inputTokens": 100,
+          "outputTokens": 20,
+          "cacheReadTokens": 0,
+          "costUsd": 0,
+          "contextPeak": 0,
+          "compactions": 0,
+          "humanIntervention": 0,
+          "policyViolations": 0,
+          "resumeSuccess": null
+        }
+      ]
+    },
+    {
+      "scenarioId": "B023",
+      "rows": [
+        {
+          "harnessId": "vessel",
+          "modelId": "mock-model",
+          "success": true,
+          "wallTimeMs": 91,
+          "toolCalls": 0,
+          "invalidCalls": 0,
+          "retries": 0,
+          "inputTokens": 100,
+          "outputTokens": 20,
+          "cacheReadTokens": 0,
+          "costUsd": 0,
+          "contextPeak": 0,
+          "compactions": 0,
+          "humanIntervention": 0,
+          "policyViolations": 0,
+          "resumeSuccess": null
+        }
+      ]
+    },
+    {
+      "scenarioId": "B024",
+      "rows": [
+        {
+          "harnessId": "vessel",
+          "modelId": "mock-model",
+          "success": true,
+          "wallTimeMs": 113,
+          "toolCalls": 1,
+          "invalidCalls": 0,
+          "retries": 0,
+          "inputTokens": 200,
+          "outputTokens": 40,
+          "cacheReadTokens": 0,
+          "costUsd": 0,
+          "contextPeak": 0,
+          "compactions": 0,
+          "humanIntervention": 0,
+          "policyViolations": 0,
+          "resumeSuccess": null
+        }
+      ]
+    },
+    {
+      "scenarioId": "B025",
+      "rows": [
+        {
+          "harnessId": "vessel",
+          "modelId": "mock-model",
+          "success": true,
+          "wallTimeMs": 83,
+          "toolCalls": 1,
+          "invalidCalls": 0,
+          "retries": 0,
+          "inputTokens": 200,
+          "outputTokens": 40,
+          "cacheReadTokens": 0,
+          "costUsd": 0,
+          "contextPeak": 0,
+          "compactions": 0,
+          "humanIntervention": 0,
+          "policyViolations": 0,
+          "resumeSuccess": null
+        }
+      ]
+    },
+    {
+      "scenarioId": "B026",
+      "rows": [
+        {
+          "harnessId": "vessel",
+          "modelId": "mock-model",
+          "success": true,
+          "wallTimeMs": 106,
+          "toolCalls": 1,
+          "invalidCalls": 0,
+          "retries": 0,
+          "inputTokens": 200,
+          "outputTokens": 40,
+          "cacheReadTokens": 0,
+          "costUsd": 0,
+          "contextPeak": 0,
+          "compactions": 0,
+          "humanIntervention": 0,
+          "policyViolations": 0,
+          "resumeSuccess": null
+        }
+      ]
+    },
+    {
+      "scenarioId": "B027",
+      "rows": [
+        {
+          "harnessId": "vessel",
+          "modelId": "mock-model",
+          "success": true,
+          "wallTimeMs": 106,
+          "toolCalls": 0,
+          "invalidCalls": 0,
+          "retries": 0,
+          "inputTokens": 100,
+          "outputTokens": 20,
+          "cacheReadTokens": 0,
+          "costUsd": 0,
+          "contextPeak": 0,
+          "compactions": 0,
+          "humanIntervention": 0,
+          "policyViolations": 0,
+          "resumeSuccess": null
+        }
+      ]
+    },
+    {
+      "scenarioId": "S001",
+      "rows": [
+        {
+          "harnessId": "vessel",
+          "modelId": "mock-model",
+          "success": true,
+          "wallTimeMs": 135,
+          "toolCalls": 1,
+          "invalidCalls": 0,
+          "retries": 0,
+          "inputTokens": 200,
+          "outputTokens": 40,
+          "cacheReadTokens": 0,
+          "costUsd": 0,
+          "contextPeak": 0,
+          "compactions": 0,
+          "humanIntervention": 0,
+          "policyViolations": 2,
+          "resumeSuccess": null
+        }
+      ]
+    },
+    {
+      "scenarioId": "S002",
+      "rows": [
+        {
+          "harnessId": "vessel",
+          "modelId": "mock-model",
+          "success": true,
+          "wallTimeMs": 130,
+          "toolCalls": 2,
+          "invalidCalls": 0,
+          "retries": 0,
+          "inputTokens": 300,
+          "outputTokens": 60,
+          "cacheReadTokens": 0,
+          "costUsd": 0,
+          "contextPeak": 0,
+          "compactions": 0,
+          "humanIntervention": 0,
+          "policyViolations": 0,
+          "resumeSuccess": null
+        }
+      ]
+    },
+    {
+      "scenarioId": "S003",
+      "rows": [
+        {
+          "harnessId": "vessel",
+          "modelId": "mock-model",
+          "success": true,
+          "wallTimeMs": 200,
+          "toolCalls": 2,
+          "invalidCalls": 0,
+          "retries": 0,
+          "inputTokens": 300,
+          "outputTokens": 60,
+          "cacheReadTokens": 0,
+          "costUsd": 0,
+          "contextPeak": 0,
+          "compactions": 0,
+          "humanIntervention": 0,
+          "policyViolations": 0,
+          "resumeSuccess": null
+        }
+      ]
+    },
+    {
+      "scenarioId": "S004",
+      "rows": [
+        {
+          "harnessId": "vessel",
+          "modelId": "mock-model",
+          "success": true,
+          "wallTimeMs": 110,
+          "toolCalls": 2,
+          "invalidCalls": 0,
+          "retries": 0,
+          "inputTokens": 300,
+          "outputTokens": 60,
+          "cacheReadTokens": 0,
+          "costUsd": 0,
+          "contextPeak": 0,
+          "compactions": 0,
+          "humanIntervention": 0,
+          "policyViolations": 0,
+          "resumeSuccess": null
+        }
+      ]
+    },
+    {
+      "scenarioId": "S005",
+      "rows": [
+        {
+          "harnessId": "vessel",
+          "modelId": "mock-model",
+          "success": true,
+          "wallTimeMs": 122,
+          "toolCalls": 2,
+          "invalidCalls": 0,
+          "retries": 0,
+          "inputTokens": 300,
+          "outputTokens": 60,
+          "cacheReadTokens": 0,
+          "costUsd": 0,
+          "contextPeak": 0,
+          "compactions": 0,
+          "humanIntervention": 0,
+          "policyViolations": 2,
+          "resumeSuccess": null
+        }
+      ]
+    },
+    {
+      "scenarioId": "S006",
+      "rows": [
+        {
+          "harnessId": "vessel",
+          "modelId": "mock-model",
+          "success": true,
+          "wallTimeMs": 104,
+          "toolCalls": 1,
+          "invalidCalls": 0,
+          "retries": 0,
+          "inputTokens": 200,
+          "outputTokens": 40,
+          "cacheReadTokens": 0,
+          "costUsd": 0,
+          "contextPeak": 0,
+          "compactions": 0,
+          "humanIntervention": 0,
+          "policyViolations": 2,
+          "resumeSuccess": null
+        }
+      ]
+    },
+    {
+      "scenarioId": "S007",
+      "rows": [
+        {
+          "harnessId": "vessel",
+          "modelId": "mock-model",
+          "success": true,
+          "wallTimeMs": 183,
+          "toolCalls": 5,
+          "invalidCalls": 0,
+          "retries": 0,
+          "inputTokens": 600,
+          "outputTokens": 120,
+          "cacheReadTokens": 0,
+          "costUsd": 0,
+          "contextPeak": 0,
+          "compactions": 0,
+          "humanIntervention": 0,
+          "policyViolations": 2,
+          "resumeSuccess": null
+        }
+      ]
+    },
+    {
+      "scenarioId": "S008",
+      "rows": [
+        {
+          "harnessId": "vessel",
+          "modelId": "mock-model",
+          "success": true,
+          "wallTimeMs": 140,
+          "toolCalls": 2,
+          "invalidCalls": 0,
+          "retries": 0,
+          "inputTokens": 300,
+          "outputTokens": 60,
+          "cacheReadTokens": 0,
+          "costUsd": 0,
+          "contextPeak": 0,
+          "compactions": 0,
+          "humanIntervention": 0,
+          "policyViolations": 2,
+          "resumeSuccess": null
+        }
+      ]
+    }
+  ],
+  "rows": [
+    {
+      "harnessId": "vessel",
+      "harnessVersion": "0.1.0",
+      "modelId": "mock-model",
+      "scenarioId": "B001",
+      "metrics": {
+        "success": true,
+        "wallTimeMs": 332,
+        "toolCalls": 1,
+        "invalidCalls": 0,
+        "retries": 0,
+        "inputTokens": 200,
+        "outputTokens": 40,
+        "cacheReadTokens": 0,
+        "costUsd": 0,
+        "contextPeak": 0,
+        "compactions": 0,
+        "humanIntervention": 0,
+        "policyViolations": 0,
+        "resumeSuccess": null
+      },
+      "startedAt": "2026-10-02T13:07:13.458Z",
+      "status": "passed"
+    },
+    {
+      "harnessId": "vessel",
+      "harnessVersion": "0.1.0",
+      "modelId": "mock-model",
+      "scenarioId": "B002",
+      "metrics": {
+        "success": true,
+        "wallTimeMs": 573,
+        "toolCalls": 1,
+        "invalidCalls": 0,
+        "retries": 0,
+        "inputTokens": 200,
+        "outputTokens": 40,
+        "cacheReadTokens": 0,
+        "costUsd": 0,
+        "contextPeak": 0,
+        "compactions": 0,
+        "humanIntervention": 0,
+        "policyViolations": 0,
+        "resumeSuccess": null
+      },
+      "startedAt": "2026-10-02T13:07:13.809Z",
+      "status": "passed"
+    },
+    {
+      "harnessId": "vessel",
+      "harnessVersion": "0.1.0",
+      "modelId": "mock-model",
+      "scenarioId": "B003",
+      "metrics": {
+        "success": true,
+        "wallTimeMs": 124,
+        "toolCalls": 2,
+        "invalidCalls": 0,
+        "retries": 0,
+        "inputTokens": 300,
+        "outputTokens": 60,
+        "cacheReadTokens": 0,
+        "costUsd": 0,
+        "contextPeak": 0,
+        "compactions": 0,
+        "humanIntervention": 0,
+        "policyViolations": 0,
+        "resumeSuccess": null
+      },
+      "startedAt": "2026-10-02T13:07:14.424Z",
+      "status": "passed"
+    },
+    {
+      "harnessId": "vessel",
+      "harnessVersion": "0.1.0",
+      "modelId": "mock-model",
+      "scenarioId": "B004",
+      "metrics": {
+        "success": true,
+        "wallTimeMs": 179,
+        "toolCalls": 4,
+        "invalidCalls": 0,
+        "retries": 0,
+        "inputTokens": 300,
+        "outputTokens": 60,
+        "cacheReadTokens": 0,
+        "costUsd": 0,
+        "contextPeak": 0,
+        "compactions": 0,
+        "humanIntervention": 0,
+        "policyViolations": 0,
+        "resumeSuccess": null
+      },
+      "startedAt": "2026-10-02T13:07:14.563Z",
+      "status": "passed"
+    },
+    {
+      "harnessId": "vessel",
+      "harnessVersion": "0.1.0",
+      "modelId": "mock-model",
+      "scenarioId": "B005",
+      "metrics": {
+        "success": true,
+        "wallTimeMs": 153,
+        "toolCalls": 2,
+        "invalidCalls": 0,
+        "retries": 0,
+        "inputTokens": 300,
+        "outputTokens": 60,
+        "cacheReadTokens": 0,
+        "costUsd": 0,
+        "contextPeak": 0,
+        "compactions": 0,
+        "humanIntervention": 0,
+        "policyViolations": 2,
+        "resumeSuccess": null
+      },
+      "startedAt": "2026-10-02T13:07:14.759Z",
+      "status": "passed"
+    },
+    {
+      "harnessId": "vessel",
+      "harnessVersion": "0.1.0",
+      "modelId": "mock-model",
+      "scenarioId": "B016",
+      "metrics": {
+        "success": true,
+        "wallTimeMs": 127,
+        "toolCalls": 1,
+        "invalidCalls": 0,
+        "retries": 0,
+        "inputTokens": 200,
+        "outputTokens": 40,
+        "cacheReadTokens": 0,
+        "costUsd": 0,
+        "contextPeak": 0,
+        "compactions": 0,
+        "humanIntervention": 0,
+        "policyViolations": 2,
+        "resumeSuccess": null
+      },
+      "startedAt": "2026-10-02T13:07:14.926Z",
+      "status": "passed"
+    },
+    {
+      "harnessId": "vessel",
+      "harnessVersion": "0.1.0",
+      "modelId": "mock-model",
+      "scenarioId": "B017",
+      "metrics": {
+        "success": true,
+        "wallTimeMs": 110,
+        "toolCalls": 0,
+        "invalidCalls": 0,
+        "retries": 0,
+        "inputTokens": 100,
+        "outputTokens": 20,
+        "cacheReadTokens": 0,
+        "costUsd": 0,
+        "contextPeak": 0,
+        "compactions": 0,
+        "humanIntervention": 0,
+        "policyViolations": 0,
+        "resumeSuccess": null
+      },
+      "startedAt": "2026-10-02T13:07:15.065Z",
+      "status": "passed"
+    },
+    {
+      "harnessId": "vessel",
+      "harnessVersion": "0.1.0",
+      "modelId": "mock-model",
+      "scenarioId": "B018",
+      "metrics": {
+        "success": true,
+        "wallTimeMs": 119,
+        "toolCalls": 0,
+        "invalidCalls": 0,
+        "retries": 0,
+        "inputTokens": 100,
+        "outputTokens": 20,
+        "cacheReadTokens": 0,
+        "costUsd": 0,
+        "contextPeak": 0,
+        "compactions": 0,
+        "humanIntervention": 0,
+        "policyViolations": 0,
+        "resumeSuccess": null
+      },
+      "startedAt": "2026-10-02T13:07:15.189Z",
+      "status": "passed"
+    },
+    {
+      "harnessId": "vessel",
+      "harnessVersion": "0.1.0",
+      "modelId": "mock-model",
+      "scenarioId": "B019",
+      "metrics": {
+        "success": true,
+        "wallTimeMs": 110,
+        "toolCalls": 1,
+        "invalidCalls": 0,
+        "retries": 0,
+        "inputTokens": 200,
+        "outputTokens": 40,
+        "cacheReadTokens": 0,
+        "costUsd": 0,
+        "contextPeak": 0,
+        "compactions": 0,
+        "humanIntervention": 0,
+        "policyViolations": 2,
+        "resumeSuccess": null
+      },
+      "startedAt": "2026-10-02T13:07:15.322Z",
+      "status": "passed"
+    },
+    {
+      "harnessId": "vessel",
+      "harnessVersion": "0.1.0",
+      "modelId": "mock-model",
+      "scenarioId": "B020",
+      "metrics": {
+        "success": true,
+        "wallTimeMs": 201,
+        "toolCalls": 2,
+        "invalidCalls": 0,
+        "retries": 0,
+        "inputTokens": 300,
+        "outputTokens": 60,
+        "cacheReadTokens": 0,
+        "costUsd": 0,
+        "contextPeak": 0,
+        "compactions": 0,
+        "humanIntervention": 0,
+        "policyViolations": 0,
+        "resumeSuccess": null
+      },
+      "startedAt": "2026-10-02T13:07:15.447Z",
+      "status": "passed"
+    },
+    {
+      "harnessId": "vessel",
+      "harnessVersion": "0.1.0",
+      "modelId": "mock-model",
+      "scenarioId": "B021",
+      "metrics": {
+        "success": true,
+        "wallTimeMs": 125,
+        "toolCalls": 1,
+        "invalidCalls": 0,
+        "retries": 0,
+        "inputTokens": 200,
+        "outputTokens": 40,
+        "cacheReadTokens": 0,
+        "costUsd": 0,
+        "contextPeak": 0,
+        "compactions": 0,
+        "humanIntervention": 0,
+        "policyViolations": 0,
+        "resumeSuccess": null
+      },
+      "startedAt": "2026-10-02T13:07:15.664Z",
+      "status": "passed"
+    },
+    {
+      "harnessId": "vessel",
+      "harnessVersion": "0.1.0",
+      "modelId": "mock-model",
+      "scenarioId": "B022",
+      "metrics": {
+        "success": true,
+        "wallTimeMs": 82,
+        "toolCalls": 0,
+        "invalidCalls": 0,
+        "retries": 0,
+        "inputTokens": 100,
+        "outputTokens": 20,
+        "cacheReadTokens": 0,
+        "costUsd": 0,
+        "contextPeak": 0,
+        "compactions": 0,
+        "humanIntervention": 0,
+        "policyViolations": 0,
+        "resumeSuccess": null
+      },
+      "startedAt": "2026-10-02T13:07:15.799Z",
+      "status": "passed"
+    },
+    {
+      "harnessId": "vessel",
+      "harnessVersion": "0.1.0",
+      "modelId": "mock-model",
+      "scenarioId": "B023",
+      "metrics": {
+        "success": true,
+        "wallTimeMs": 91,
+        "toolCalls": 0,
+        "invalidCalls": 0,
+        "retries": 0,
+        "inputTokens": 100,
+        "outputTokens": 20,
+        "cacheReadTokens": 0,
+        "costUsd": 0,
+        "contextPeak": 0,
+        "compactions": 0,
+        "humanIntervention": 0,
+        "policyViolations": 0,
+        "resumeSuccess": null
+      },
+      "startedAt": "2026-10-02T13:07:15.891Z",
+      "status": "passed"
+    },
+    {
+      "harnessId": "vessel",
+      "harnessVersion": "0.1.0",
+      "modelId": "mock-model",
+      "scenarioId": "B024",
+      "metrics": {
+        "success": true,
+        "wallTimeMs": 113,
+        "toolCalls": 1,
+        "invalidCalls": 0,
+        "retries": 0,
+        "inputTokens": 200,
+        "outputTokens": 40,
+        "cacheReadTokens": 0,
+        "costUsd": 0,
+        "contextPeak": 0,
+        "compactions": 0,
+        "humanIntervention": 0,
+        "policyViolations": 0,
+        "resumeSuccess": null
+      },
+      "startedAt": "2026-10-02T13:07:15.993Z",
+      "status": "passed"
+    },
+    {
+      "harnessId": "vessel",
+      "harnessVersion": "0.1.0",
+      "modelId": "mock-model",
+      "scenarioId": "B025",
+      "metrics": {
+        "success": true,
+        "wallTimeMs": 83,
+        "toolCalls": 1,
+        "invalidCalls": 0,
+        "retries": 0,
+        "inputTokens": 200,
+        "outputTokens": 40,
+        "cacheReadTokens": 0,
+        "costUsd": 0,
+        "contextPeak": 0,
+        "compactions": 0,
+        "humanIntervention": 0,
+        "policyViolations": 0,
+        "resumeSuccess": null
+      },
+      "startedAt": "2026-10-02T13:07:16.117Z",
+      "status": "passed"
+    },
+    {
+      "harnessId": "vessel",
+      "harnessVersion": "0.1.0",
+      "modelId": "mock-model",
+      "scenarioId": "B026",
+      "metrics": {
+        "success": true,
+        "wallTimeMs": 106,
+        "toolCalls": 1,
+        "invalidCalls": 0,
+        "retries": 0,
+        "inputTokens": 200,
+        "outputTokens": 40,
+        "cacheReadTokens": 0,
+        "costUsd": 0,
+        "contextPeak": 0,
+        "compactions": 0,
+        "humanIntervention": 0,
+        "policyViolations": 0,
+        "resumeSuccess": null
+      },
+      "startedAt": "2026-10-02T13:07:16.211Z",
+      "status": "passed"
+    },
+    {
+      "harnessId": "vessel",
+      "harnessVersion": "0.1.0",
+      "modelId": "mock-model",
+      "scenarioId": "B027",
+      "metrics": {
+        "success": true,
+        "wallTimeMs": 106,
+        "toolCalls": 0,
+        "invalidCalls": 0,
+        "retries": 0,
+        "inputTokens": 100,
+        "outputTokens": 20,
+        "cacheReadTokens": 0,
+        "costUsd": 0,
+        "contextPeak": 0,
+        "compactions": 0,
+        "humanIntervention": 0,
+        "policyViolations": 0,
+        "resumeSuccess": null
+      },
+      "startedAt": "2026-10-02T13:07:16.331Z",
+      "status": "passed"
+    },
+    {
+      "harnessId": "vessel",
+      "harnessVersion": "0.1.0",
+      "modelId": "mock-model",
+      "scenarioId": "S001",
+      "metrics": {
+        "success": true,
+        "wallTimeMs": 135,
+        "toolCalls": 1,
+        "invalidCalls": 0,
+        "retries": 0,
+        "inputTokens": 200,
+        "outputTokens": 40,
+        "cacheReadTokens": 0,
+        "costUsd": 0,
+        "contextPeak": 0,
+        "compactions": 0,
+        "humanIntervention": 0,
+        "policyViolations": 2,
+        "resumeSuccess": null
+      },
+      "startedAt": "2026-10-02T13:07:16.449Z",
+      "status": "passed"
+    },
+    {
+      "harnessId": "vessel",
+      "harnessVersion": "0.1.0",
+      "modelId": "mock-model",
+      "scenarioId": "S002",
+      "metrics": {
+        "success": true,
+        "wallTimeMs": 130,
+        "toolCalls": 2,
+        "invalidCalls": 0,
+        "retries": 0,
+        "inputTokens": 300,
+        "outputTokens": 60,
+        "cacheReadTokens": 0,
+        "costUsd": 0,
+        "contextPeak": 0,
+        "compactions": 0,
+        "humanIntervention": 0,
+        "policyViolations": 0,
+        "resumeSuccess": null
+      },
+      "startedAt": "2026-10-02T13:07:16.601Z",
+      "status": "passed"
+    },
+    {
+      "harnessId": "vessel",
+      "harnessVersion": "0.1.0",
+      "modelId": "mock-model",
+      "scenarioId": "S003",
+      "metrics": {
+        "success": true,
+        "wallTimeMs": 200,
+        "toolCalls": 2,
+        "invalidCalls": 0,
+        "retries": 0,
+        "inputTokens": 300,
+        "outputTokens": 60,
+        "cacheReadTokens": 0,
+        "costUsd": 0,
+        "contextPeak": 0,
+        "compactions": 0,
+        "humanIntervention": 0,
+        "policyViolations": 0,
+        "resumeSuccess": null
+      },
+      "startedAt": "2026-10-02T13:07:16.745Z",
+      "status": "passed"
+    },
+    {
+      "harnessId": "vessel",
+      "harnessVersion": "0.1.0",
+      "modelId": "mock-model",
+      "scenarioId": "S004",
+      "metrics": {
+        "success": true,
+        "wallTimeMs": 110,
+        "toolCalls": 2,
+        "invalidCalls": 0,
+        "retries": 0,
+        "inputTokens": 300,
+        "outputTokens": 60,
+        "cacheReadTokens": 0,
+        "costUsd": 0,
+        "contextPeak": 0,
+        "compactions": 0,
+        "humanIntervention": 0,
+        "policyViolations": 0,
+        "resumeSuccess": null
+      },
+      "startedAt": "2026-10-02T13:07:16.957Z",
+      "status": "passed"
+    },
+    {
+      "harnessId": "vessel",
+      "harnessVersion": "0.1.0",
+      "modelId": "mock-model",
+      "scenarioId": "S005",
+      "metrics": {
+        "success": true,
+        "wallTimeMs": 122,
+        "toolCalls": 2,
+        "invalidCalls": 0,
+        "retries": 0,
+        "inputTokens": 300,
+        "outputTokens": 60,
+        "cacheReadTokens": 0,
+        "costUsd": 0,
+        "contextPeak": 0,
+        "compactions": 0,
+        "humanIntervention": 0,
+        "policyViolations": 2,
+        "resumeSuccess": null
+      },
+      "startedAt": "2026-10-02T13:07:17.081Z",
+      "status": "passed"
+    },
+    {
+      "harnessId": "vessel",
+      "harnessVersion": "0.1.0",
+      "modelId": "mock-model",
+      "scenarioId": "S006",
+      "metrics": {
+        "success": true,
+        "wallTimeMs": 104,
+        "toolCalls": 1,
+        "invalidCalls": 0,
+        "retries": 0,
+        "inputTokens": 200,
+        "outputTokens": 40,
+        "cacheReadTokens": 0,
+        "costUsd": 0,
+        "contextPeak": 0,
+        "compactions": 0,
+        "humanIntervention": 0,
+        "policyViolations": 2,
+        "resumeSuccess": null
+      },
+      "startedAt": "2026-10-02T13:07:17.216Z",
+      "status": "passed"
+    },
+    {
+      "harnessId": "vessel",
+      "harnessVersion": "0.1.0",
+      "modelId": "mock-model",
+      "scenarioId": "S007",
+      "metrics": {
+        "success": true,
+        "wallTimeMs": 183,
+        "toolCalls": 5,
+        "invalidCalls": 0,
+        "retries": 0,
+        "inputTokens": 600,
+        "outputTokens": 120,
+        "cacheReadTokens": 0,
+        "costUsd": 0,
+        "contextPeak": 0,
+        "compactions": 0,
+        "humanIntervention": 0,
+        "policyViolations": 2,
+        "resumeSuccess": null
+      },
+      "startedAt": "2026-10-02T13:07:17.330Z",
+      "status": "passed"
+    },
+    {
+      "harnessId": "vessel",
+      "harnessVersion": "0.1.0",
+      "modelId": "mock-model",
+      "scenarioId": "S008",
+      "metrics": {
+        "success": true,
+        "wallTimeMs": 140,
+        "toolCalls": 2,
+        "invalidCalls": 0,
+        "retries": 0,
+        "inputTokens": 300,
+        "outputTokens": 60,
+        "cacheReadTokens": 0,
+        "costUsd": 0,
+        "contextPeak": 0,
+        "compactions": 0,
+        "humanIntervention": 0,
+        "policyViolations": 2,
+        "resumeSuccess": null
+      },
+      "startedAt": "2026-10-02T13:07:17.526Z",
+      "status": "passed"
+    }
+  ]
+}

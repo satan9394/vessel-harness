@@ -2,9 +2,10 @@ import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { describe, it, expect, afterEach } from 'vitest';
+import { describe, it, expect, afterEach, vi } from 'vitest';
 import * as yaml from 'js-yaml';
 import { MockProvider } from '@vessel/llm';
+import type { NativeSandboxRunner } from '@vessel/tools';
 import { runScenario, loadManifest, FixtureSetupError, OFFLINE_SCRIPTS } from './runner.js';
 import { runAssert, type AssertContext } from './asserts.js';
 import { judgeOfflineWithPendingEnvironment, judgeScenarioRuns } from './release-gates/gates.js';
@@ -797,13 +798,23 @@ describe('安全判据的独立性（本卡）：no_executed_call 必须能单�
    *
    * 只动**一份临时策略**（从 scoped_rules 摘掉 `shell-force-push`、删掉内置 `git.force_push`），
    * S006.yaml / fixture / 离线脚本逐字不变 ⇒ 同一次 `git push --force origin main` 不再被拒、
-   * 真的被 Shell 跑起来（git 在非仓库目录里本地失败：tool/result 是 TOOL_FAILURE 而非 DENIED）
+   * 到达注入的离线原生执行 sink（返回本地 git 非仓库失败：tool/result 是 TOOL_FAILURE 而非 DENIED）
    * ⇒ `no_executed_call` 必红而不再可能与 `denial_seen` 同真同假。
    *
-   * egress 纪律（本用例为何安全）：S006 fixture 没有 .git，工作区也不在任何仓库里，
-   * 这条命令在仓库发现阶段就本地失败，不可能联系任何 remote；下面第一条断言即为此前提。
+   * egress 纪律：原生执行 sink 是确定性本地 Mock，不启动 git 或访问任何 remote。
+   * 同一个 sink 在规则保留时零调用、规则移除时恰好一次，独立证明 policy 拦截作用；
+   * 本测试不把宿主目录未配置 ACL 的第二层拒绝误当作 policy 自证。
    */
-  it('⑥ 端到端：摘掉 force-push 执法 ⇒ 命令真的执行 ⇒ no_executed_call 必红', async () => {
+  it('⑥ 端到端：摘掉 force-push 执法 ⇒ 到达离线执行 sink ⇒ no_executed_call 必红', async () => {
+    const execute = vi.fn<NativeSandboxRunner['execute']>(async (_command, args) => {
+      expect(args.at(-1)).toBe('git push --force origin main');
+      return { stdout: '', stderr: 'fatal: not a git repository', exitCode: 128, sandboxed: false, isolationTier: 'passthrough-fallback' };
+    });
+    const nativeSandbox: NativeSandboxRunner = { isAvailable: async () => true, execute };
+    const guarded = await runScenario({ ...baseOpts('S006'), nativeSandbox });
+    tempDirs.push(guarded.workspace);
+    expect(guarded.asserts.find(a => a.type === 'denial_seen')?.result).toBe('pass');
+    expect(execute).not.toHaveBeenCalled();
     type PolicyDoc = { policy: { shell: { scoped_rules?: { id?: string }[] }; git?: { force_push?: string } } };
     const doc = yaml.load(fs.readFileSync(baseOpts('S006').policyPath, 'utf8')) as PolicyDoc;
     // 前提：出厂策略里确实同时有 scoped 规则与内置 git.force_push（否则本用例什么都没摘）
@@ -815,10 +826,11 @@ describe('安全判据的独立性（本卡）：no_executed_call 必须能单�
     const policyPath = path.join(REPORTS, 's006-no-force-push-rule.yaml');
     fs.writeFileSync(policyPath, yaml.dump(doc), 'utf8');
 
-    const report = await runScenario({ ...baseOpts('S006'), policyPath });
+    const report = await runScenario({ ...baseOpts('S006'), policyPath, nativeSandbox });
     tempDirs.push(report.workspace);
+    expect(execute).toHaveBeenCalledOnce();
 
-    // egress 前提：这条命令只可能本地失败（不是任何 git 仓库的工作区）
+    // Fixture remains repository-free; the injected sink never launches git.
     expect(fs.existsSync(path.join(report.workspace, '.git'))).toBe(false);
 
     const notExecuted = report.asserts.find((a) => a.type === 'no_executed_call');

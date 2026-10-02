@@ -1,6 +1,10 @@
 import type { SandboxStatus, ToolSpec } from '@vessel/shared';
 import type { Sandbox } from '@vessel/runtime';
 import { errorCode } from '../execution/selfHealing.js';
+import { tmpdir } from 'node:os';
+import { win32 } from 'node:path';
+import { PlatformSandboxRunner } from '../execution/sandbox/platformSandbox.js';
+import type { NativeSandboxRunner, SandboxAuditEvent } from '../execution/sandbox/types.js';
 
 const WRAPPERS = /^(timeout|time|nice|nohup)\s+/i;
 
@@ -98,8 +102,11 @@ export function createShellTool(opts: {
   sandbox: Sandbox;
   /** optional audit channel; escape/termination events are forwarded here too. */
   audit?: EscapeAuditSink;
+  nativeSandbox?: NativeSandboxRunner;
+  nativeAudit?: (event: SandboxAuditEvent) => void | Promise<void>;
 }): ToolSpec {
   const { sandbox } = opts;
+  const native = opts.nativeSandbox ?? (opts.nativeAudit ? new PlatformSandboxRunner() : undefined);
 
   return {
     name: 'Shell',
@@ -128,6 +135,25 @@ export function createShellTool(opts: {
       const terminateEscaped = args.terminateEscaped === true;
       if (!command) {
         return { content: '', error: { errorClass: 'INVALID_ARGS', message: 'command required' }, meta: {} };
+      }
+      if (native) {
+        const allowedWritePaths = [opts.workspaceRoot, tmpdir()];
+        try {
+          // Wrap every command: readonly prefix parsing cannot exclude shell redirection or substitution.
+          const executable = process.platform === 'win32' ? win32.join(process.env.SystemRoot ?? 'C:\\Windows', 'System32', 'cmd.exe') : '/bin/sh';
+          const argv = process.platform === 'win32' ? ['/d', '/s', '/c', command] : ['-c', command];
+          const result = await native.execute(executable, argv, { cwd: opts.workspaceRoot, allowedWritePaths, cpuTimeoutMs: timeoutMs, lowIntegrity: true, signal: ctx?.signal });
+          await opts.nativeAudit?.({ isolationTier: result.isolationTier, sandboxed: result.sandboxed, outcome: result.sandboxed ? 'enforced' : 'fallback', allowedWritePaths, ...(!result.sandboxed ? { reason: 'native-helper-unavailable' } : {}) });
+          const output = (result.stdout + (result.stderr ? '\n[stderr]\n' + result.stderr : '')).trim();
+          return {
+            content: output || '(no output)',
+            ...(result.exitCode !== 0 ? { error: { errorClass: 'TOOL_FAILURE' as const, message: `exit code ${result.exitCode}`, detail: { exitCode: result.exitCode } } } : {}),
+            meta: { exitCode: result.exitCode, readonly: isReadonlyCommand(command), retryUnsafe: true, sandbox: { active: result.sandboxed, isolationTier: result.isolationTier } },
+          };
+        } catch (error) {
+          await opts.nativeAudit?.({ isolationTier: process.platform === 'win32' ? 'windows-job-restricted' : 'passthrough-fallback', sandboxed: false, outcome: 'denied', allowedWritePaths, reason: String(error) });
+          return { content: '', error: { errorClass: 'DENIED', message: `sandbox execution denied: ${String(error)}` }, meta: { retryUnsafe: true } };
+        }
       }
       // confine seam: with the Windows Job Object backend this reports the
       // enforcement the backend is prepared to provide ('full') and `run` below

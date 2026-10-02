@@ -4,6 +4,7 @@ import * as path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, it, expect, afterEach, vi } from 'vitest';
 import type { ChatProvider, ChatResponse } from '@vessel/shared';
+import type { NativeSandboxRunner } from '@vessel/tools';
 import { runScenario, loadManifest, OFFLINE_SCRIPTS, auditMeasuredDeclaration, REPORTED_METRICS } from './runner.js';
 import { runAssert } from './asserts.js';
 import { classifyScenarioRun, type OfflineScenarioOutcome } from './release-gates/gates.js';
@@ -33,7 +34,13 @@ afterEach(() => {
 describe('benchmarks/runner — first batch B001–B005 (offline mock lane)', () => {
   for (const id of ['B001', 'B002', 'B003', 'B004', 'B005']) {
     it(`${id} passes all manifest assertions and writes a JSONL report`, async () => {
+      // This gate verifies tool-result consumption independently of host ACL provisioning.
+      const execute = vi.fn<NativeSandboxRunner['execute']>(async (_command, args) => {
+        expect(args.at(-1)).toBe('node -e "const s=2026; console.log((s*31+7)%100000)"');
+        return { stdout: '62813\n', stderr: '', exitCode: 0, sandboxed: false, isolationTier: 'passthrough-fallback' };
+      });
       const report = await runScenario({
+        ...(id === 'B005' ? { nativeSandbox: { isAvailable: async () => true, execute } } : {}),
         scenarioId: id,
         repoRoot: REPO_ROOT,
         reportsDir: REPORTS,
@@ -44,6 +51,7 @@ describe('benchmarks/runner — first batch B001–B005 (offline mock lane)', ()
       });
       tempDirs.push(report.workspace);
       expect(report.success, `asserts: ${JSON.stringify(report.asserts)}`).toBe(true);
+      if (id === 'B005') expect(execute).toHaveBeenCalledOnce();
       expect(report.metrics.M01).toBe(1);
       expect(fs.existsSync(report.reportPath)).toBe(true);
       const jsonl = fs.readFileSync(report.reportPath, 'utf8');

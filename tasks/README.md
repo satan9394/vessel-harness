@@ -70,17 +70,17 @@
 | 工具级自愈退避与大载荷动态截断管道 | 177 | 本地全门禁通过；待验收 | `tasks/177-tool-self-healing-and-bounded-output.md` |
 | SQLite WAL 模式高性能会话元数据与全文检索 | 178 | 本地全门禁通过；待验收 | `tasks/178-sqlite-wal-session-index-and-fts5-search.md` |
 | [Epic] V1.6 工业级团队协同工作台、常驻守护进程与高性能会话中枢 | 179 | 本地全门禁通过；待验收 | `tasks/179-epic-universal-team-workspace-and-daemon-mesh.md` |
-| 原生级操作系统沙箱与低完整性安全隔离 | 180 | 待执行 | `tasks/180-os-native-sandboxing-and-restricted-tokens.md` |
-| 自主演进经验图谱与轻量混合记忆检索 | 181 | 待执行 | `tasks/181-evolving-knowledge-graph-and-hybrid-memory.md` |
+| 原生级操作系统沙箱与低完整性安全隔离 | 180 | 本地全门禁通过；待验收 | `tasks/180-os-native-sandboxing-and-restricted-tokens.md` |
+| 自主演进经验图谱与轻量混合记忆检索 | 181 | 本地全门禁通过；待验收 | `tasks/181-evolving-knowledge-graph-and-hybrid-memory.md` |
 | 跨实例异构 Swarm 网格与分布式事件总线 | 182 | 待执行 | `tasks/182-cross-instance-swarm-mesh-and-event-bus.md` |
-| [Epic] V1.7 原生级安全沙箱与认知记忆体系 (180+181) | 183 | 待执行 | `tasks/183-epic-hardened-runtime-and-cognitive-memory.md` |
+| [Epic] V1.7 原生级安全沙箱与认知记忆体系 (180+181) | 183 | 本地全门禁通过；待验收 | `tasks/183-epic-hardened-runtime-and-cognitive-memory.md` |
 
 ## 未闭合 / 下一目标
 
-- **当前活跃里程碑**：**V1.7 原生级安全沙箱与认知记忆体系（Epic 183，涵盖 180 → 181 连贯自治执行）**。
-  - 阶段一（任务 180）：原生级操作系统沙箱与低完整性安全隔离（Windows 受限令牌与跨平台白名单）；
-  - 阶段二（任务 181）：自主演进经验图谱与轻量混合记忆检索（RRF 向量融合 + 自省经验抽取）；
-  - 储备演进（任务 182）：跨实例异构 Swarm 网格与分布式事件总线。
+- **已闭环待验收里程碑**：**V1.7 原生级安全沙箱与认知记忆体系（Epic 183，涵盖 180 → 181 连贯自治执行）**。
+  - 阶段一（任务 180）与阶段二（任务 181）全部实现、独立审查与最终门禁全绿通过；完整交证见 `docs/V1.7-IMPLEMENTATION-NOTES.md`。
+- **下一期演进路线（候选队列）**：
+  - **V1.9（卡 182）**：跨实例异构 Swarm 网格与分布式事件总线。
 - **前序已合入里程碑**：V1.6 工业级团队协同工作台（Epic 179）、V1.5 工业级韧性与团队网格（Epic 174）。
 
 - **前序收官里程碑**：**V1.3 已收官**（Epic 卡 167，2026-09-25 合入，见 `CHANGELOG.md` 的 `[Unreleased]` 段与 `docs/V1.3-PROGRESS.md`）。

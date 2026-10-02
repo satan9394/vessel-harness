@@ -6,6 +6,7 @@ import { deriveTopicTitle, type SessionTopic } from '@vessel/engine';
 import { envRoot, writeFileAtomic, vesselHome } from '@vessel/shared';
 import { SessionIndexStore, jsonlLinesSync, streamJsonlRecords, resolveSessionDir, type SessionIndexSource, type SessionSearchParams, type SessionSearchResult, type IndexedSessionSummary } from '@vessel/memory';
 import type { SessionRecord } from '@vessel/shared';
+import { HybridMemoryStore, type HybridSearchParams, type HybridSearchResult, type ReflectiveRule } from '@vessel/memory';
 
 /** Persisted metadata describing one application session. */
 export interface SessionMeta {
@@ -166,7 +167,7 @@ export class SessionRegistry {
         try {
           if (this.journalFailure) throw this.journalFailure;
           if (!fs.existsSync(this.journal) && this.sessions.size) this.persist();
-          this.index = (this.options.indexFactory ?? (file => new SessionIndexStore(file)))(path.join(this.home, 'cache', 'session_index.db'));
+          this.index = (this.options.indexFactory ?? (file => new HybridMemoryStore(file)))(path.join(this.home, 'cache', 'session_index.db'));
           await this.index.rebuild(() => this.sources());
         } catch (error) { this.disableIndex(error); }
       })();
@@ -191,6 +192,19 @@ export class SessionRegistry {
     await this.initializeIndex();
     if (!this.index) return [];
     try { return await this.index.search(params); } catch (error) { if (error instanceof RangeError) throw error; this.disableIndex(error); return []; }
+  }
+  async searchHybrid(params: HybridSearchParams): Promise<HybridSearchResult[]> {
+    await this.initializeIndex();
+    return this.index instanceof HybridMemoryStore ? this.index.searchHybrid(params) : [];
+  }
+  async matchRelevantRules(goal: string, limit = 5): Promise<ReflectiveRule[]> {
+    await this.initializeIndex();
+    return this.index instanceof HybridMemoryStore ? this.index.matchRelevantRules(goal, limit) : [];
+  }
+  /** Offline producer seam: no embedding model or network call is performed here. */
+  async indexEmbedding(sessionId: string, seq: number, embedding: number[]): Promise<void> {
+    await this.initializeIndex();
+    if (this.index instanceof HybridMemoryStore) await this.index.indexEmbedding(sessionId, seq, embedding);
   }
   /** At a completed turn boundary, replace from streamed authoritative history (including compaction). */
   async projectSession(id: string): Promise<void> {

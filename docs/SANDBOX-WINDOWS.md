@@ -1,5 +1,25 @@
 # Windows Sandbox Backend（071/072）能力与限制
 
+## V1.7 / 180 — 原生执行门面（2026-10-02）
+
+`packages/tools/src/execution/sandbox/` 新增 `NativeSandboxRunner` 与 `PlatformSandboxRunner`，应用组合根的 Shell 工具通过该门面执行所有命令（不能以只读前缀绕过重定向/命令替换）。旧 `Sandbox` API 保留，以下 071–073 章节是原后端的历史说明。
+
+- Windows：系统目录 PowerShell 在内存中编译 clean-room C# P/Invoke helper；脚本从 stdin 传入，不创建脚本文件，也不依赖 C++ 插件。`CreateRestrictedToken(DISABLE_MAX_PRIVILEGE | WRITE_RESTRICTED)` 禁用管理员 SID、剥离特权，`SetTokenInformation(TokenIntegrityLevel)` 设置 Low；目标以 suspended 状态创建，在严格配置的 kill-on-close Job Object 中附加成功后才 resume。Job 使用每进程 CPU、提交内存与活动进程上限；任何失败均拒绝执行，绝不回退或重放。输出管道持续排空，分别最多保留 65536 字符；helper 的 Job 句柄关闭会终止后代。
+- **Windows 写目录必须事先由维护者显式配置 ACL**：对 `restrictedWriteSid(realpath(worktree))` 对应的工作区专用 SID，允许目录必须有继承型写权限及 `S:(ML;OICI;NW;;;LW)` Low mandatory label。helper 先对每个白名单目录验证标签、SID 与受限 token 的 `AccessCheck`，失败返回结构化 `denied` 审计。默认白名单为工作区和系统临时目录；可直接调用 runner 指定其下的已配置目录。**不自动修改任何宿主 ACL**。专用 SID 的写授权必须仅配置在白名单内：宿主 ACL 预配置本身属于受信任的管理员边界。Low Integrity 单独不能提供目录白名单。
+- Linux：探测固定系统路径 `/usr/bin/bwrap` 的真实 namespace 执行能力（不是仅检查版本）；`--ro-bind / /` 默认只读，只有已 canonicalize 的工作区/临时目录允许 `--bind` 写入。启用 `--unshare-all`、新 session、parent-death 终止。
+- macOS：探测 `/usr/bin/sandbox-exec`；Seatbelt 默认 deny `file-write*`，只放行白名单 subpath。POSIX helper 使用独立进程组，超时/取消终止仍留在该组内的进程，并关闭捕获管道；主动 `setsid` / `setpgid` 逃出进程组的后代可能继续存活（macOS/降级路径不宣称 hostile tree kill），其已继承的 Seatbelt 文件限制仍有效。
+- POSIX 的 `cpuTimeoutMs` 是墙钟超时；Windows 同时将该值映射为 Job 每进程 CPU 时间和墙钟超时。POSIX 不支持 `maxMemoryBytes`，显式传入会拒绝，避免虚假宣称资源执法。
+- Linux/macOS helper 缺失或 namespace 不可用才允许 `passthrough-fallback`，审计说明 `native-helper-unavailable`。helper 执行失败不会回退到直跑。Windows helper/ACL 失败永远拒绝。`isAvailable()` 仅探测系统 helper 能力；写目录授权逐次在执行前验证。
+- `audit/sandbox_enforced` 经应用层 EventBus 与 session JSONL 持久化，记录 tier、`sandboxed`、`enforced/fallback/denied` 和允许写目录；Shell 原生执行路径标记 `retryUnsafe`，防止未知副作用被自动重放。
+
+离线可执行门禁：
+
+```powershell
+npx vitest run packages/tools/src/execution/sandbox/windowsRestricted.test.ts packages/tools/src/execution/sandbox/platformSandbox.test.ts packages/runtime/src/process/Process.sandbox.test.ts packages/application/src/nativeSandboxIntegration.test.ts
+```
+
+测试使用本地 Mock 验证参数、ACL 缺失拒绝、挂载、取消、探测/执行差异和持久审计；不修改本机权限，也不调用外部 Agent。实机 helper 编译可单独验证，而真实写权限隔离须在维护者预配置的目录验收。
+
 > 状态：任务 071（Job Object 后端）+ 072（process-tree confinement）交付
 > 关联：`packages/runtime/src/sandbox/`、`packages/runtime/src/process/Process.ts`、路线文档 §13.1–13.3
 > 本文档描述 071/072 落地后的**真实能力**与**诚实限制**——不宣称"看起来启用、实际 passthrough"（§13.3）。

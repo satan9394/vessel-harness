@@ -40,8 +40,8 @@ const html = (text: string) => text.replace(/[&<>"']/g, character => ({ '&': '&a
 
 /** Disposable SQLite projection. Every reconciliation replaces cache facts from JSONL. */
 export class SessionIndexStore {
-  private db!: DatabaseSync;
-  private queue: Promise<void> = Promise.resolve();
+  protected db!: DatabaseSync;
+  protected queue: Promise<void> = Promise.resolve();
   private closed = false;
   private readonly statements = new Map<string, StatementSync>();
   constructor(readonly dbPath: string, options: SessionIndexOptions = {}) {
@@ -101,7 +101,7 @@ export class SessionIndexStore {
     try { await work(); this.db.exec('COMMIT'); } catch (error) { this.db.exec('ROLLBACK'); throw error; }
   }
   private ensure(sessionId: string): void { this.statement('INSERT OR IGNORE INTO sessions_meta(session_id) VALUES (?)').run(sessionId); }
-  private insert(sessionId: string, record: SessionRecord): void {
+  protected insert(sessionId: string, record: SessionRecord): void {
     if (!sessionId || !Number.isSafeInteger(record.seq) || record.seq < 1 || typeof record.type !== 'string') throw new RangeError('Invalid session record');
     const encoded = JSON.stringify(record);
     const previous = this.statement('SELECT rowid,json FROM records WHERE session_id=? AND seq=?').get(sessionId, record.seq);
@@ -150,7 +150,7 @@ export class SessionIndexStore {
       else { this.metadata(sessionId, metadata); this.summarize(sessionId); }
     }));
   }
-  private remove(sessionId: string): void {
+  protected remove(sessionId: string): void {
     this.statement('DELETE FROM messages_fts WHERE session_id=?').run(sessionId);
     this.statement('DELETE FROM records WHERE session_id=?').run(sessionId);
     this.statement('DELETE FROM sessions_meta WHERE session_id=?').run(sessionId);
@@ -164,8 +164,10 @@ export class SessionIndexStore {
   reconcileSession(source: SessionIndexSource): Promise<void> {
     return this.enqueue(() => this.transaction(async () => { this.remove(source.sessionId); await this.consume(source); }));
   }
+  protected resetProjection(): void {}
   rebuild(sources: () => AsyncIterable<SessionIndexSource>): Promise<void> {
     return this.enqueue(() => this.transaction(async () => {
+      this.resetProjection();
       this.db.exec('DELETE FROM messages_fts; DELETE FROM records; DELETE FROM sessions_meta;');
       for await (const source of sources()) await this.consume(source);
     }));

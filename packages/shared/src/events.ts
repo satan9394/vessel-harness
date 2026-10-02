@@ -338,6 +338,17 @@ export interface ModelUsageRecord extends SessionRecordBase {
   surface: false;
 }
 
+/** Native sandbox outcome; recorded by the composition boundary, never by core. */
+export interface SandboxEnforcedRecord extends SessionRecordBase {
+  type: 'audit/sandbox_enforced';
+  isolationTier: 'windows-job-restricted' | 'bwrap-ns' | 'macos-seatbelt' | 'passthrough-fallback';
+  sandboxed: boolean;
+  outcome: 'enforced' | 'fallback' | 'denied';
+  reason?: string;
+  allowedWritePaths: string[];
+  surface: false;
+}
+
 export type SessionRecord =
   | UserMessageRecord
   | AssistantMessageRecord
@@ -352,6 +363,7 @@ export type SessionRecord =
   | LlmRetryRecord
   | AuditDecisionRecord
   | AuditDenialRecord
+  | SandboxEnforcedRecord
   | CompactionStartRecord
   | CompactionOverflowInterceptedRecord
   | CompactionEndRecord
@@ -372,6 +384,7 @@ export type EventType =
   | 'after_model'
   | 'before_tool'
   | 'policy_decision'
+  | 'audit/sandbox_enforced'
   | 'after_tool'
   | 'tool_error'
   | 'before_stop'

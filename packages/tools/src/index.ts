@@ -13,3 +13,6 @@ export * from './mcp/fixtures/echoServerCore.js';
 export * from './git/Worktree.js';
 export * from './execution/boundedOutput.js';
 export * from './execution/selfHealing.js';
+export * from './execution/sandbox/types.js';
+export * from './execution/sandbox/platformSandbox.js';
+export * from './execution/sandbox/windowsRestricted.js';

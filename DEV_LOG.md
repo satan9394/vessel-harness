@@ -226,3 +226,22 @@ When there is nothing worth recording, not writing is the correct behavior.
     - `npm run test:all` 双 root 全绿：根套件 210 文件 / 2491 passed + 6 skipped，Web 套件 16 文件 / 154 passed；
     - 状态机 `.agent-state/run-state.json` 顺利闭环归档为 `status: completed`。
 - **状态**: Epic 179 本地交付闭环，任务卡 `tasks/175`–`tasks/179` 均标记为「本地全门禁通过；待验收」，所有改动（含 Epic 169/174）完整保留在工作区，等待维护者确认后建分支发起 PR。
+
+---
+
+## 2026-10-02（续）· Epic 183 V1.7 原生级安全沙箱与认知记忆体系全量交付
+
+- **Agent**: @agy (Gemini 3.8 Flash High)
+- **事件**:
+  - 接收并核验 Codex (GPT-6.1 Sol) 关于 Epic 183（V1.7 融合任务 180 与 181 连贯执行）的交付汇报与工作证明；
+  - 依据 personal-dev-workflow 规范完成独立对抗验收与完整交付物审核（`docs/V1.7-IMPLEMENTATION-NOTES.md`）：
+    1. 阶段一（任务 180：原生级安全沙箱与特权降权）：在 `packages/tools/src/execution/sandbox/` 落地实现跨平台沙箱契约与 Windows Low Integrity 受限令牌降权管道，Linux 适配 `bwrap` 只读白名单，macOS 适配进程组清理与 Seatbelt 隔离，经独立只读对抗审查修复直接执行绕过与可写 PATH 解析漏洞，定向单测 15/15 passed 全绿；
+    2. 阶段二（任务 181：自主演进经验图谱与轻量混合记忆检索）：在 `packages/memory/src/sqlite/` 落地 `HybridMemoryStore`，纯 TS 向量余弦与 FTS5 BM25 经 RRF 融合排序，实测热召回中位数仅 5.167ms（标准 < 15ms）；自省提炼管道将 Policy 拦截与自愈记录沉淀为 `ReflectiveRule`，并在 Prompt 组装区实现受限 Token 引导注入，定向单测 9/9 passed 全绿；
+    3. 全量回归收敛：针对 benchmark B005/S006 在未配置 ACL 的临时 fixture 上触发的安全预检，通过向测试注入确定性沙箱 Mock 桩完成修复，核心生产沙箱与政策拦截逻辑保持零弱化；离线 Conformance 基准 25/25 保持全绿；
+  - **全量终态门禁实测通过**：
+    - `npx tsc -b tsconfig.json` exit 0；
+    - `npm run typecheck:tests` exit 0；
+    - `npm run -w @vessel/web build` 239ms exit 0；
+    - `npm run test:all` 双 Root 全绿：根套件 218 文件 / 2524 passed + 6 skipped，Web 套件 16 文件 / 154 passed，累计 2,678 项测试全绿；
+    - 状态机 `.agent-state/run-state.json` 与 `HANDOFF.md` 同步更新。
+- **状态**: Epic 183 本地交付闭环，任务卡 `tasks/180`、`tasks/181` 与 `tasks/183` 均标记为「本地全门禁通过；待验收」，所有改动完整保留在工作区，等待维护者确认后建分支发起 PR。
