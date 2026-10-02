@@ -1,0 +1,41 @@
+
+ RUN  v5.0.1 E:/Code_file/Projects/Vessel_Harness
+
+(node:15068) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+ ❯ packages/application/src/session/SessionController.test.ts (7 tests | 1 failed) 1233ms
+   ❯ SessionController (7)
+     × derives and persists the Topic title from the first successful turn prompt 342ms
+(node:16012) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:12996) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:20788) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:5384) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  packages/application/src/session/SessionController.test.ts > SessionController > derives and persists the Topic title from the first successful turn prompt
+Error: EPERM, Permission denied: \\?\C:\Users\SATANC~1\AppData\Local\Temp\cah-ctl-YPKFkL '\\?\C:\Users\SATANC~1\AppData\Local\Temp\cah-ctl-YPKFkL'
+ ❯ packages/application/src/session/SessionController.test.ts:27:8
+     25|
+     26|   afterEach(() => {
+     27|     fs.rmSync(dir, { recursive: true, force: true });
+       |        ^
+     28|   });
+     29|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed | 5 passed (6)
+      Tests  1 failed | 37 passed (38)
+   Start at  00:27:56
+   Duration  20.06s (transform 50%, import 26%, tests 23%, setup 1%, worker 1%)
+
+     Import  174 modules were evaluated 299 times · 4.57s total, 26% of tracked time
+             ~1.91s faster with isolate: false — shared modules are evaluated once per worker instead of once per file
+             learn more: https://vitest.dev/guide/improving-performance#test-isolation
+

@@ -59,10 +59,31 @@
 | 跨 Agent 全量功能保全与双盲评测套件 (Subagent Capability Conformance Suite) | 166 | 已合入（2026-09-25） | `tasks/166-subagent-capability-conformance.md` |
 | [Epic] 双向子 Agent 网关体系与保全度评测套件 (融合 163–166) | 167 | 已合入（2026-09-25） | `tasks/167-epic-universal-subagent-mesh.md` |
 | 公开化脱敏与 GitHub 治理（转 Public / 身份与本机路径脱敏 / 不发布版本 / 必须走 PR + CI） | 168 | 已合入（2026-09-27） | `tasks/168-desensitize-and-public-hygiene.md`、`evidence/sessions/2026-09-27-desensitization-and-governance.md`、决策点 20/21 |
+| [Epic] 工业级多 Agent 协作工作台与分布式可观察性控制面 | 169 | 已合入（本地验收；Git 未提交） | `tasks/169-epic-universal-subagent-workspace.md` |
+| 动态自适应上下文压实与 400 溢出自愈防线 | 170 | 本地全门禁通过；待验收 | `tasks/170-adaptive-compaction-and-overflow-recovery.md` |
+| MCP 进程树 Job Object 绑定、disabled 规范化与延迟代理 | 171 | 本地全门禁通过；待验收 | `tasks/171-mcp-process-tree-job-object-and-lazy-proxy.md` |
+| Agent-Teams 反应式 DAG 编排与队员模型快照隔离 | 172 | 本地全门禁通过；待验收 | `tasks/172-agent-teams-dag-orchestration-and-route-snapshots.md` |
+| 多帧增量会话持久化与极限长会话韧性评测套件 | 173 | 本地全门禁通过；待验收 | `tasks/173-session-streaming-and-multiframe-zstd-eval.md` |
+| [Epic] V1.5 工业级韧性、高密持久化与多 Agent 协同网格体系 | 174 | 本地全门禁通过；待验收 | `tasks/174-epic-industrial-resilience-and-teams-mesh.md` |
+| Web 交互式 DAG 拓扑画布与方案预审控制台 | 175 | 本地全门禁通过；待验收 | `tasks/175-visual-team-dag-canvas-and-staged-approval.md` |
+| 后台常驻 Daemon 守护进程与系统通知驻留 | 176 | 本地全门禁通过；待验收 | `tasks/176-headless-daemon-and-tray-resilience.md` |
+| 工具级自愈退避与大载荷动态截断管道 | 177 | 本地全门禁通过；待验收 | `tasks/177-tool-self-healing-and-bounded-output.md` |
+| SQLite WAL 模式高性能会话元数据与全文检索 | 178 | 本地全门禁通过；待验收 | `tasks/178-sqlite-wal-session-index-and-fts5-search.md` |
+| [Epic] V1.6 工业级团队协同工作台、常驻守护进程与高性能会话中枢 | 179 | 本地全门禁通过；待验收 | `tasks/179-epic-universal-team-workspace-and-daemon-mesh.md` |
+| 原生级操作系统沙箱与低完整性安全隔离 | 180 | 待执行 | `tasks/180-os-native-sandboxing-and-restricted-tokens.md` |
+| 自主演进经验图谱与轻量混合记忆检索 | 181 | 待执行 | `tasks/181-evolving-knowledge-graph-and-hybrid-memory.md` |
+| 跨实例异构 Swarm 网格与分布式事件总线 | 182 | 待执行 | `tasks/182-cross-instance-swarm-mesh-and-event-bus.md` |
 
 ## 未闭合 / 下一目标
 
-- **当前活跃里程碑**：**V1.3 已收官**（Epic 卡 167，2026-09-25 合入，见 `CHANGELOG.md` 的 `[Unreleased]` 段与 `docs/V1.3-PROGRESS.md`）。
+- **已闭环待合入里程碑**：**V1.6 工业级团队协同工作台与常驻守护网格体系（Epic 179，涵盖 175–178 四大阶段）**。
+  - 175–178 全部实现、独立审查与最终门禁全绿通过；完整交证见 `docs/V1.6-IMPLEMENTATION-NOTES.md`。
+- **下一期演进路线（候选队列）**：
+  - **V1.7（卡 180）**：原生级操作系统沙箱与低完整性安全隔离（攻克 Windows 受限令牌与跨平台沙箱缺口）；
+  - **V1.8（卡 181）**：自主演进经验图谱与轻量混合记忆检索（RRF 向量融合 + 自省经验抽取）；
+  - **V1.9（卡 182）**：跨实例异构 Swarm 网格与分布式事件总线（多节点 DAG 子图派发与断网对账）。
+
+- **前序收官里程碑**：**V1.3 已收官**（Epic 卡 167，2026-09-25 合入，见 `CHANGELOG.md` 的 `[Unreleased]` 段与 `docs/V1.3-PROGRESS.md`）。
   - 入站 MCP 子代理服务器（163）、虚拟人类代理与交互拦截（164）、出站异构子代理运行时与 Worktree 隔离（165）、跨 Agent 全量保全度双盲评测套件（166）均已通过全量门禁并合入。
 - **已完成里程碑（V1.2 / 开放生态与极致透视，Epic 卡 162 已全量合入）**：
   - 动态模型探测、Reasoning 思考流、Claude 插件生态兼容、Topic 实体架构、Web 树状侧边栏与 Talking 详情抽屉全部通过验收并合入。

@@ -10,8 +10,12 @@
     "@vessel/core": "^0.1.0",
     "@vessel/llm": "^0.1.0",
     "@vessel/runtime": "^0.1.0",
-    "@vessel/shared": "^0.10.0"
+    "@vessel/shared": "^0.10.0",
+    "@vessel/context": "^0.1.0"
   },
   "main": "dist/index.js",
-  "scripts": { "build": "tsc -b", "test": "vitest run" }
+  "scripts": {
+    "build": "tsc -b",
+    "test": "vitest run"
+  }
 }

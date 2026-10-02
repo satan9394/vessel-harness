@@ -15,6 +15,13 @@ import { DEFAULT_TIER_BINDINGS, RouteSeam, startTeamRun } from './teamSeam.js';
 import type { ActiveTeamRun, TeamEventKind } from './teamSeam.js';
 import { GoalSeam } from './goalSeam.js';
 import type { GoalRunResult, GoalTaskStatus } from './goalSeam.js';
+import type { ExternalAgentConfig } from '@vessel/agents';
+import { SubagentSeam } from './subagentSeam.js';
+import { TeamRuntime, type TeamDagTask } from '@vessel/agents';
+import { TeamStageRoutes } from './teamRoutes.js';
+import { authMiddleware, DAEMON_LOGIN_HTML } from './daemon/authMiddleware.js';
+import type { DaemonServerControl } from './daemon/types.js';
+import type { Notify } from './daemon/notifications.js';
 
 /**
  * SessionController factory. The server never composes a session itself — that
@@ -60,6 +67,13 @@ export interface VesselServerOptions {
   openFolder?: (dir: string) => void;
   /** task 065 goal seam — persistent task queue + iteration log + real run chain */
   goalSeam?: GoalSeam;
+  subagentSeam?: SubagentSeam;
+  externalAgents?: ExternalAgentConfig[];
+  teamStages?: TeamStageRoutes;
+  /** Daemon launch token. When supplied, every HTTP/SSE request except exact health requires Bearer. */
+  authToken?: string;
+  daemon?: DaemonServerControl;
+  notify?: Notify;
 }
 
 export interface VesselServer {
@@ -200,10 +214,12 @@ function defaultOpenFolder(dir: string): void {
 }
 
 export function createVesselServer(opts: VesselServerOptions = {}): VesselServer {
+  if (opts.authToken !== undefined && !/^[0-9a-f]{48}$/.test(opts.authToken)) throw new Error('invalid daemon launch token');
+  if (opts.daemon && !opts.authToken) throw new Error('daemon control requires a launch token');
   const port = opts.port ?? DEFAULT_PORT;
   const staticDir = path.resolve(opts.staticDir ?? DEFAULT_STATIC);
   const projectRegistry = opts.projectRegistry ?? new ProjectRegistry();
-  const sessionRegistry = opts.sessionRegistry ?? new SessionRegistry();
+  const sessionRegistry = opts.sessionRegistry ?? new SessionRegistry({ index: true });
   const defaultFactory: SessionFactory = async (input) => {
     const provider = new MockProvider([{ when: /.*/, response: { text: `(mock) ${input.model ?? 'default'}` } }], {
       model: input.model ?? 'default',
@@ -216,6 +232,7 @@ export function createVesselServer(opts: VesselServerOptions = {}): VesselServer
       behaviorIRPath: DEFAULT_BEHAVIOR,
       permission: input.permission ?? 'workspace-write',
       registry: input.registry,
+      subagent: opts.externalAgents?.length ? { externalAgents: opts.externalAgents } : undefined,
     });
   };
   const sessionFactory = opts.sessionFactory ?? defaultFactory;
@@ -237,6 +254,21 @@ export function createVesselServer(opts: VesselServerOptions = {}): VesselServer
   const reviewStore = opts.reviewStore ?? new ReviewHandoffStore();
   const openFolder = opts.openFolder ?? defaultOpenFolder;
   const goalSeam = opts.goalSeam ?? new GoalSeam();
+  const subagentSeam = opts.subagentSeam ?? new SubagentSeam();
+  const notify: Notify = (title, message) => { try { opts.notify?.(title, message); } catch { /* optional desktop service */ } };
+  const teamStages = opts.teamStages ?? new TeamStageRoutes((id, status) => {
+    if (status === 'staged') notify('Vessel approval required', `Team plan ${id} is awaiting approval.`);
+    if (status === 'finished') {
+      const stage = teamStages.get(id);
+      const failed = stage?.error || stage?.tasks.some(task => task.status === 'failed');
+      notify(failed ? 'Vessel team failed' : 'Vessel team completed', `Team plan ${id}: ${failed ? 'failed' : 'completed'}`);
+    }
+  });
+  const subagentDetaches: (() => void)[] = [];
+  if (opts.notify) subagentDetaches.push(subagentSeam.subscribe((kind, delta) => {
+    if (kind === 'subagent:end') notify(delta.summary?.status === 'failed' ? 'Vessel subagent failed' : 'Vessel subagent finished', `Subagent ${delta.id}: ${delta.summary?.status ?? 'finished'}`);
+  }));
+  const subagentStreams = new Set<http.ServerResponse>();
 
   interface SessionTeamState {
     route: RouteSeam;
@@ -262,6 +294,7 @@ export function createVesselServer(opts: VesselServerOptions = {}): VesselServer
   const teamSenders = new Map<string, Set<(kind: TeamEventKind, state: unknown) => void>>();
 
   function broadcastTeam(sessionId: string, kind: TeamEventKind, state: unknown): void {
+    if (kind === 'end') notify('Vessel team finished', `Team run for session ${sessionId} finished.`);
     const set = teamSenders.get(sessionId);
     if (!set) return;
     for (const send of set) send(kind, state);
@@ -282,17 +315,103 @@ export function createVesselServer(opts: VesselServerOptions = {}): VesselServer
   async function handleRequest(req: http.IncomingMessage, res: http.ServerResponse): Promise<void> {
     const method = (req.method ?? 'GET').toUpperCase();
     const url = new URL(req.url ?? '/', `http://${req.headers.host ?? '127.0.0.1'}`);
+    if (opts.authToken && !authMiddleware(req, res, opts.authToken, url.pathname)) return;
+    if (opts.authToken && req.method === 'GET' && url.pathname === '/api/health' && req.headers.accept?.includes('text/html')) {
+      res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store', 'Referrer-Policy': 'no-referrer' });
+      res.end(DAEMON_LOGIN_HTML); return;
+    }
     const segs = segment(url.pathname);
 
     // API namespace
     if (segs[0] === 'api') {
-      return handleApi(method, segs, req, res);
+      return handleApi(method, segs, req, res, url);
     }
     // everything else → static assets
     return serveStatic(url.pathname, res);
   }
 
-  async function handleApi(method: string, segs: string[], req: http.IncomingMessage, res: http.ServerResponse): Promise<void> {
+  async function handleApi(method: string, segs: string[], req: http.IncomingMessage, res: http.ServerResponse, url: URL): Promise<void> {
+    if (segs.length === 2 && segs[1] === 'sessions' && method === 'GET') {
+      const limit = Number(url.searchParams.get('limit') ?? 1000); const offset = Number(url.searchParams.get('offset') ?? 0);
+      try { return json(res, 200, { sessions: await sessionRegistry.listIndexed(limit, offset, url.searchParams.get('topicId') ?? undefined) }); }
+      catch (error) { if (error instanceof RangeError) return json(res, 400, { error: 'invalid_pagination' }); throw error; }
+    }
+    if (segs.length === 3 && segs[1] === 'sessions' && segs[2] === 'search' && method === 'GET') {
+      try { const results = await sessionRegistry.search({ query: url.searchParams.get('q') ?? '', limit: Number(url.searchParams.get('limit') ?? 20), offset: Number(url.searchParams.get('offset') ?? 0) }); return json(res, 200, { results, indexed: sessionRegistry.indexAvailable }); }
+      catch (error) { if (error instanceof RangeError) return json(res, 400, { error: 'invalid_search' }); throw error; }
+    }
+
+    if (opts.daemon && segs.length === 3 && segs[1] === 'daemon') {
+      if (method === 'GET' && segs[2] === 'status') return json(res, 200, opts.daemon.status());
+      if (method === 'POST' && segs[2] === 'stop') {
+        json(res, 202, { stopping: true });
+        setImmediate(() => opts.daemon!.stop()); return;
+      }
+    }
+    if (segs[1] === 'team' && segs[2] === 'stages') {
+      if (segs.length === 3 && method === 'GET') return json(res, 200, { stages: teamStages.list() });
+      const id = segs[3]!;
+      const stage = teamStages.get(id);
+      if (!stage) return json(res, 404, { error: 'stage_not_found' });
+      if (segs.length === 4 && method === 'GET') return json(res, 200, { stage });
+      if (segs.length === 5 && segs[4] === 'revise' && method === 'POST') {
+        if (stage.status !== 'staged') return json(res, 409, { error: 'stage_conflict' });
+        try { return json(res, 201, { stage: teamStages.revise(id, await readJsonBody(req)) }); }
+        catch (err) { return json(res, 400, { error: 'invalid_plan_changes', message: err instanceof Error ? err.message : String(err) }); }
+      }
+      if ((segs.length === 8 || segs.length === 9 && segs[8] === 'content') && method === 'GET' && segs[4] === 'tasks' && segs[6] === 'artifacts') {
+        try {
+          const index = Number(segs[7]);
+          if (!Number.isSafeInteger(index) || index < 0) return json(res, 400, { error: 'invalid_artifact_index' });
+          const artifact = teamStages.artifact(id, decodeURIComponent(segs[5]!), index);
+          if (segs[8] === 'content') {
+            res.writeHead(200, { 'Content-Type': 'text/plain; charset=utf-8', 'X-Content-Type-Options': 'nosniff' });
+            return void res.end(artifact.content);
+          }
+          return json(res, 200, artifact);
+        } catch (err) { return json(res, 400, { error: 'artifact_unavailable', message: err instanceof Error ? err.message : String(err) }); }
+      }
+      if (segs.length === 5 && method === 'POST' && (segs[4] === 'approve' || segs[4] === 'reject')) {
+        try {
+          if (segs[4] === 'approve') teamStages.approve(id);
+          else teamStages.reject(id);
+          return json(res, 200, { ok: true, status: segs[4] === 'approve' ? 'running' : 'rejected' });
+        } catch (err) {
+          return json(res, 409, { error: 'stage_conflict', message: err instanceof Error ? err.message : String(err) });
+        }
+      }
+      return json(res, 404, { error: 'not_found' });
+    }
+    if ((segs.length === 2 && segs[1] === 'events' || segs.length === 3 && segs[1] === 'subagents' && segs[2] === 'events') && method === 'GET') {
+      res.writeHead(200, SSE_HEADERS);
+      res.write(`data: ${JSON.stringify({ type: 'ping', ts: Date.now() })}\n\n`);
+      subagentStreams.add(res);
+      const off = subagentSeam.subscribe((type, delta) => res.write(`data: ${JSON.stringify({ type, delta, ts: Date.now() })}\n\n`));
+      let closed = false;
+      let heartbeat: ReturnType<typeof setInterval> | undefined;
+      const cleanup = () => { closed = true; off(); clearInterval(heartbeat); subagentStreams.delete(res); };
+      res.on('close', cleanup);
+      res.on('error', cleanup);
+      for (const summary of await subagentSeam.listSubagents()) {
+        if (closed) return;
+        res.write(`data: ${JSON.stringify({ type: 'subagent:step', delta: { id: summary.id, summary, usage: subagentSeam.detail(summary.id)?.usage }, ts: Date.now() })}\n\n`);
+      }
+      if (closed) return;
+      heartbeat = setInterval(() => res.write(`data: ${JSON.stringify({ type: 'ping', ts: Date.now() })}\n\n`), 15000);
+      return;
+    }
+    if (segs[1] === 'subagents') {
+      if (segs.length === 2 && method === 'GET') return json(res, 200, { ok: true, subagents: await subagentSeam.listSubagents() });
+      if (segs.length === 3 && method === 'GET') {
+        const detail = subagentSeam.detail(segs[2]!);
+        return json(res, detail ? 200 : 404, detail ?? { error: 'subagent_not_found' });
+      }
+      if (segs.length === 4 && segs[3] === 'cancel' && method === 'POST') {
+        const ok = await subagentSeam.cancelSubagent(segs[2]!);
+        return json(res, ok ? 200 : 404, ok ? { ok, cancelled: true } : { error: 'subagent_not_running' });
+      }
+      return json(res, 404, { error: 'not_found' });
+    }
     // GET /api/health
     if (segs.length === 2 && segs[1] === 'health' && method === 'GET') {
       return json(res, 200, { ok: true, version: VERSION });
@@ -314,11 +433,6 @@ export function createVesselServer(opts: VesselServerOptions = {}): VesselServer
       } catch (err) {
         return json(res, 400, { error: 'open_failed', message: err instanceof Error ? err.message : String(err) });
       }
-    }
-
-    // GET /api/sessions
-    if (segs.length === 2 && segs[1] === 'sessions' && method === 'GET') {
-      return json(res, 200, { sessions: sessionRegistry.list() });
     }
 
     // PATCH /api/sessions/:id/topic — rename and/or archive session Topic metadata.
@@ -360,6 +474,11 @@ export function createVesselServer(opts: VesselServerOptions = {}): VesselServer
           registry: sessionRegistry,
         });
         controllers.set(ctl.sessionId, ctl);
+        if (opts.notify) subagentDetaches.push(ctl.bus.on('policy_decision', payload => {
+          const decision = payload as { verdict?: string; toolName?: string };
+          if (decision.verdict === 'ask') notify('Vessel approval required', `Session ${ctl.sessionId}: ${decision.toolName ?? 'tool'} needs approval.`);
+        }, 'local-server:notification:approval'));
+        subagentDetaches.push(subagentSeam.attach(ctl.bus, id => ctl.cancelSubagent(id)));
         const meta = sessionRegistry.get(ctl.sessionId);
         return json(res, 201, { session: (meta ?? ctl.state) });
       } catch (err) {
@@ -398,6 +517,7 @@ export function createVesselServer(opts: VesselServerOptions = {}): VesselServer
         }
         try {
           const result = await ctl.runTurn(body.prompt);
+          notify(result.kind === 'error' ? 'Vessel task failed' : 'Vessel task finished', `Session ${id}: ${result.kind}`);
           // BRIEF-19: a turn that ended in error must not be reported as HTTP 200 —
           // status-code-only clients would read the failure as success. Body shape
           // (and every field's meaning) is unchanged; only the status differs.
@@ -408,6 +528,7 @@ export function createVesselServer(opts: VesselServerOptions = {}): VesselServer
             turnId: result.turnId,
           });
         } catch (err) {
+          notify('Vessel task failed', `Session ${id} encountered an error.`);
           return json(res, 500, { error: 'turn_failed', message: err instanceof Error ? err.message : String(err) });
         }
       }
@@ -486,6 +607,25 @@ export function createVesselServer(opts: VesselServerOptions = {}): VesselServer
         return json(res, 200, teamStateFor(id).route.state());
       }
 
+      if (segs.length === 4 && sub === 'team-stages') {
+        if (!ctl) return json(res, 404, suggestNotFound(id));
+        if (method === 'GET') return json(res, 200, { stages: teamStages.list(id) });
+        if (method === 'POST') {
+          const body = await readJsonBody(req) as { task?: string; mode?: 'auto' | 'fast' | 'pro'; acceptance?: string[]; tasks?: TeamDagTask[] } | null;
+          if (!body || typeof body.task !== 'string' || !body.task.trim() || (body.mode !== undefined && !['auto', 'fast', 'pro'].includes(body.mode)) || (body.acceptance !== undefined && (!Array.isArray(body.acceptance) || !body.acceptance.every(x => typeof x === 'string')))) return json(res, 400, { error: 'invalid_stage_request' });
+          try {
+            const route = teamStateFor(id).route.resolve({ task: body.task, mode: body.mode });
+            const roles = route.roles.filter(role => role !== 'lead');
+            const tasks: TeamDagTask[] = body.tasks !== undefined ? body.tasks : roles.map((role, index) => ({ id: `task_${index + 1}`, title: role === 'reviewer' ? 'Review' : 'Generate', description: body.task!, assignedRole: role === 'reviewer' ? 'evaluator' : 'generator', dependencies: index ? [`task_${index}`] : [], status: 'pending' }));
+            if (!Array.isArray(tasks) || !tasks.every(t => t && typeof t.id === 'string' && typeof t.title === 'string' && typeof t.description === 'string' && Array.isArray(t.dependencies) && t.dependencies.every(d => typeof d === 'string'))) return json(res, 400, { error: 'invalid_tasks' });
+            const runtime = new TeamRuntime({ workspaceRoot: ctl.state.workspaceRoot, providers: teamProviders, policyArtifacts: ctl.policyArtifacts, tools: ctl.tools });
+            const stage = teamStages.stage(id, runtime, { task: body.task, route, acceptance: body.acceptance, tasks }, ctl.state.workspaceRoot, Object.keys(teamProviders));
+            return json(res, 201, { stage });
+          } catch (err) {
+            return json(res, 400, { error: 'invalid_stage', message: err instanceof Error ? err.message : String(err) });
+          }
+        }
+      }
       // ---------------- task 060: team runs (057 TeamRuntime projection) ----------------
       // GET /api/sessions/:id/team-runs/current — latest TeamProjection snapshot
       if (segs.length === 5 && sub === 'team-runs' && segs[4] === 'current' && method === 'GET') {
@@ -644,7 +784,7 @@ export function createVesselServer(opts: VesselServerOptions = {}): VesselServer
         return json(res, 200, { tasks });
       }
       if (method === 'POST') {
-        const body = (await readJsonBody(req)) as { projectRoot?: string; goal?: string; acceptance?: string[] } | null;
+        const body = (await readJsonBody(req)) as { projectRoot?: string; goal?: string; acceptance?: string[]; tasks?: TeamDagTask[] } | null;
         if (!body || typeof body.goal !== 'string' || body.goal.trim() === '') {
           return json(res, 400, { error: 'missing_goal' });
         }
@@ -688,6 +828,7 @@ export function createVesselServer(opts: VesselServerOptions = {}): VesselServer
           reviewerProviderId: 'mock',
           reviewerModel: 'mock-review',
         });
+        notify(result.outcome === 'error' ? 'Vessel goal failed' : 'Vessel goal finished', `Goal ${id}: ${result.outcome}`);
         // BRIEF-21: outcome='error' is a structural failure (runTask's own catch —
         // the run crashed and the task was requeued), not a domain verdict like
         // not_met. Reporting both as 200 makes them indistinguishable to
@@ -759,6 +900,8 @@ export function createVesselServer(opts: VesselServerOptions = {}): VesselServer
   }
 
   function streamEvents(ctl: SessionController, req: http.IncomingMessage, res: http.ServerResponse): void {
+    subagentStreams.add(res);
+    res.once('close', () => subagentStreams.delete(res));
     res.writeHead(200, SSE_HEADERS);
     res.write(`data: ${JSON.stringify({ type: 'ping', ts: Date.now() })}\n\n`);
 
@@ -776,6 +919,7 @@ export function createVesselServer(opts: VesselServerOptions = {}): VesselServer
       teamSenders.set(ctl.sessionId, senders);
     }
     senders.add(teamSend);
+    const detachSubagents = subagentSeam.subscribe((type, delta) => sse(type, delta));
     const current = teamStates.get(ctl.sessionId)?.run?.snapshot?.();
     if (current) teamSend('start', current);
 
@@ -890,6 +1034,7 @@ export function createVesselServer(opts: VesselServerOptions = {}): VesselServer
 
     const cleanup = () => {
       clearInterval(heartbeat);
+      detachSubagents();
       for (const off of forwards.values()) off();
       senders.delete(teamSend);
       if (senders.size === 0) teamSenders.delete(ctl.sessionId);
@@ -937,6 +1082,9 @@ export function createVesselServer(opts: VesselServerOptions = {}): VesselServer
       return vesselServer;
     },
     async close() {
+      for (const ctl of controllers.values()) ctl.interrupt();
+      for (const res of subagentStreams) res.end();
+      for (const off of subagentDetaches) off();
       for (const ctl of controllers.values()) {
         try {
           await ctl.close();
@@ -948,6 +1096,8 @@ export function createVesselServer(opts: VesselServerOptions = {}): VesselServer
       for (const st of teamStates.values()) {
         st.run?.close();
       }
+      await teamStages.close();
+      await sessionRegistry.closeIndex();
       teamStates.clear();
       teamSenders.clear();
       if (server.listening) {

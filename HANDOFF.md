@@ -2,19 +2,32 @@
 
 > **用途**：新会话 / 新 Agent / 换人接手时，**先读本文件**：现状、未完成清单、验证命令、已知约束都在这里。
 > 规则本身仍在 [`AGENTS.md`](AGENTS.md)；会约束未来的决策在 [`docs/DESIGN-DECISIONS.md`](docs/DESIGN-DECISIONS.md)。
-> **最后更新**：2026-09-28。维护者：单人。
+> **最后更新**：2026-10-02。维护者：单人。
 
-## 0. 一分钟现状
+## 0. 快速接管协议（当用户直接说「继续未完成的」或「继续」时）
 
-| 项 | 值 |
+**任何 Agent 在接收到「继续」/「继续未完成的」指令时，直接根据本段与 `.agent-state/run-state.json` 向用户汇报并执行：**
+
+1. **当前交付**：**Epic 179（V1.6 工业级团队工作台与常驻守护网格）**，四阶段实现、独立审查与最终门禁完成；本地交证，待用户验收。
+2. **已完成与已验证阶段**：
+   - 阶段一（175）：HTTP 11 项、独立 Web root 8 项通过；已完成离线浏览器审批与节点完成冒烟；
+   - 阶段二（176）：生命周期、鉴权与 CLI 定向 27 项通过；Windows 托盘/原生通知使用 Mock 验证；
+   - 阶段三（177）：截断、自愈与生产管线定向 31 项通过；不安全 MCP 超时不得重放远端副作用；
+   - 阶段四（178）：SQLite 定向 10 项通过；JSONL 权威、WAL/NORMAL、FTS5、重建与并发投影集成回归已实现；
+   - 最终源代码上的 `npx tsc -b`、`npm run typecheck:tests`、Web build/typecheck 均为 `exit 0`；全量根 **210 文件 / 2491 passed + 6 skipped**，Web **16 文件 / 154 passed**。完整交证见 `docs/V1.6-IMPLEMENTATION-NOTES.md`。
+3. **当前断点与未完成项**：
+   - 首轮全量仅 task 097 历史 SQLite 全局禁令失败；已收窄为仅许可 SessionIndexStore，凭据路径禁止规则完整保留，14 项回归与独立审查通过；
+   - 最终 `npm run test:all`（双 root）及 Web 构建/类型检查全部通过，无 Epic 179 实施待办；
+   - 不重复实施已完成阶段，不驱动真机 Agent，不提交或发布。
+4. **一键恢复执行指令**：
+   - 先读 `docs/V1.6-IMPLEMENTATION-NOTES.md` 与机器状态，汇报已交证、待用户验收；不重做四阶段，不自动另起功能卡。
+
+| 项 | 当前实况 |
 |---|---|
-| 仓库 | `satan9394/vessel-harness`（**Public**，MIT） |
-| 默认分支 | `main` = `cd9d7bf`，共 **728** 提交 |
-| tag | `v0.10.0` → `4db3b6f`，**仅作提交标记**（不是发布） |
-| GitHub Releases | **0 条**（按决策点 21 不发布版本） |
-| npm 快照 | `composable-agent-harness@0.10.0`，**冻结不再更新** |
-| 工作区 | 干净，本地与远端一致 |
-| CI | `main` 推送与 PR 均全绿；必需检查 3 条 |
+| 仓库 / 分支 | `satan9394/vessel-harness`（Public） / `main` = `e62028d` |
+| 工作区状态 | 保留 Epic 169/174 与 Epic 179 全部本地改动，未提交 |
+| 机器状态真源 | `.agent-state/run-state.json`（mode: bounded；revision 以文件为准） |
+| 当前任务卡 | `tasks/179-epic-universal-team-workspace-and-daemon-mesh.md`（本地交证完成，待验收） |
 
 ## 1. 治理与门禁（改动前必读）
 
@@ -105,6 +118,7 @@ git status -sb         # 应为干净（出现未提交改动 → 先问维护�
 npm ci                 # 依赖与锁文件一致；随后可跑 §4 的完整门禁
 ```
 
+> **执行模型约定**：当前开发主力模型锁定为 Codex（**GPT-6.1 Sol**，思考深度为二级 `reasoning.effort: medium`，共 5 级：`none`/`low`/`medium`/`high`/`xhigh`）。后续若切换模型维护者会显式说明，未说明前恒以本配置执行，无需重复询问确认。微小任务可切 `low`，攻坚任务可尝试更高等级；依据见 `AGENTS.md` 模型选型规约与 [OpenAI 官方选型指南](https://developers.openai.com/api/docs/guides/model-selection)。
 > 若你要替换维护者的角色继续用 CLI 之外的 provider，注意**本仓不发布版本**，也不要顺手引入 pnpm/bun/yarn 锁文件（决策点 19）。
 
 1. 本文件（现状 + 未完成清单）。
@@ -114,3 +128,10 @@ npm ci                 # 依赖与锁文件一致；随后可跑 §4 的完整�
 5. `evidence/sessions/2026-09-27-desensitization-and-governance.md`（会话记录：§7 八个自省错、§8 未决、§10 接手入口）。
 6. `evidence/sessions/2026-09-27-residual-exposure-audit.md`（残留暴露实测、依赖判断、Support 工单草稿）。
 7. `DEV_LOG.md`（过程日志）、`CHANGELOG.md`（版本故事）。
+
+- 2026-10-01：Epic 174（V1.5 / 170–173）本地实现及全部门禁通过，未提交。交付入口：docs/V1.5-IMPLEMENTATION-NOTES.md、tasks/174-epic-industrial-resilience-and-teams-mesh.md；根 2398 passed + 6 skipped / Web 141 passed，既有 task 169 改动保留。
+- 2026-10-01（续）：Epic 179（V1.6 工业级团队工作台与常驻守护网格）立项启动：
+  - 规划文档：`docs/V1.6-ROADMAP.md`，拆解任务卡 175–179；
+  - 阶段一（任务 175：Web 交互式 DAG 画布与方案预审）已由 Codex 交付并测试全绿（`TeamDagCanvas.test.tsx` 5/5, `teamStageApi.test.ts` 5/5，`tsc -b` / `typecheck:tests` / `vite build` 均 exit 0）；
+  - 因上游模型额度与算力限制，推进在阶段二（任务 176：后台常驻 Daemon 与系统通知）前挂起暂停；
+  - 机器状态保存在 `.agent-state/run-state.json`，新会话开启后可通过 `/resume` 或直接执行阶段二无缝接管。

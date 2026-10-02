@@ -4,6 +4,8 @@ import * as path from 'node:path';
 import * as crypto from 'node:crypto';
 import { deriveTopicTitle, type SessionTopic } from '@vessel/engine';
 import { envRoot, writeFileAtomic, vesselHome } from '@vessel/shared';
+import { SessionIndexStore, jsonlLinesSync, streamJsonlRecords, resolveSessionDir, type SessionIndexSource, type SessionSearchParams, type SessionSearchResult, type IndexedSessionSummary } from '@vessel/memory';
+import type { SessionRecord } from '@vessel/shared';
 
 /** Persisted metadata describing one application session. */
 export interface SessionMeta {
@@ -47,9 +49,16 @@ export interface SessionRegistryOptions {
    * ordering tests deterministic instead of racing the real clock.
    */
   now?: () => number;
+  /** true enables live turn projection; undefined opens on list/search; false disables SQLite. Caller owns closeIndex(). */
+  index?: boolean;
+  indexFactory?: (file: string) => SessionIndexStore;
+  /** Archive adapter (e.g. ChunkedSession.streamRecords); default streams session.jsonl. */
+  recordSource?: (meta: SessionMeta) => AsyncIterable<SessionRecord>;
 }
 
 const SESSIONS_FILE = 'sessions.json';
+const METADATA_JOURNAL = 'sessions.metadata.jsonl';
+interface MetadataJournalRecord { seq: number; ts: string; type: 'registry/session'; sessionId: string; metadata: SessionMeta | null }
 
 /** 缺省会话注册表根目录：`~/.vessel`（与 ProviderStore/UsageStore 同款用户级约定）。 */
 export function defaultSessionRoot(home = os.homedir()): string {
@@ -91,15 +100,115 @@ export class SessionRegistry {
   private readonly sessions = new Map<string, SessionMeta>();
   private readonly sessionIdsByTopic = new Map<string, Set<string>>();
   private readonly topicBySession = new Map<string, string>();
+  private readonly journal: string;
+  private readonly home: string;
+  private readonly options: SessionRegistryOptions;
+  private journalSeq = 0;
+  private journalFailure?: Error;
+  private readonly persistedMetadata = new Map<string, string>();
+  private index?: SessionIndexStore;
+  private indexReady?: Promise<void>;
+  private indexDisabled = false;
 
   constructor(opts: SessionRegistryOptions = {}) {
     // 显式注入最优先（测试传 tmp），其次 env 覆盖，最后 ~/.vessel 缺省。
     const home = opts.vesselHome ?? resolveSessionRoot();
     fs.mkdirSync(home, { recursive: true });
     this.file = path.join(home, SESSIONS_FILE);
+    this.home = home;
+    this.journal = path.join(home, METADATA_JOURNAL);
+    this.options = opts;
     this.now = opts.now ?? Date.now;
     this.load();
+    this.loadJournal();
   }
+
+  /** The metadata journal overrides the compatibility JSON view, including tombstones. */
+  private loadJournal(): void {
+    if (!fs.existsSync(this.journal)) return;
+    const restored = new Map<string, SessionMeta>(); let valid = 0; let malformed = 0;
+    for (const line of jsonlLinesSync(this.journal)) {
+      if (!line.trim()) continue;
+      try {
+        const record = JSON.parse(line) as MetadataJournalRecord;
+        if (record.type !== 'registry/session' || !Number.isSafeInteger(record.seq) || record.seq < 1 || typeof record.sessionId !== 'string' ||
+          record.metadata !== null && (!record.metadata || record.metadata.id !== record.sessionId || typeof record.metadata.workspaceRoot !== 'string')) throw new Error('invalid metadata record');
+        this.journalSeq = Math.max(this.journalSeq, record.seq); valid++;
+        if (record.metadata) restored.set(record.sessionId, { ...record.metadata, workspaceRoot: path.resolve(record.metadata.workspaceRoot) });
+        else restored.delete(record.sessionId);
+      } catch { malformed++; }
+    }
+    if (!valid && (malformed || this.sessions.size)) {
+      this.journalFailure = new Error('Session metadata journal has no recoverable records; compatibility JSON preserved');
+      console.warn('[vessel] ' + this.journalFailure.message); return;
+    }
+    this.sessions.clear(); this.sessionIdsByTopic.clear(); this.topicBySession.clear();
+    for (const metadata of restored.values()) { this.sessions.set(metadata.id, metadata); this.indexTopic(metadata); this.persistedMetadata.set(metadata.id, JSON.stringify(metadata)); }
+    if (malformed) console.warn(`[vessel] skipped ${malformed} malformed metadata journal line(s); valid JSONL facts retained`);
+  }
+
+  private source(meta: SessionMeta): SessionIndexSource {
+    return { sessionId: meta.id, metadata: meta as unknown as Record<string, unknown>,
+      records: () => this.options.recordSource?.(meta) ?? streamJsonlRecords(path.join(resolveSessionDir(meta.workspaceRoot, meta.id), 'session.jsonl')) };
+  }
+  private async *sources(): AsyncIterable<SessionIndexSource> {
+    for (const meta of this.sessions.values()) yield this.source(meta);
+  }
+  private disableIndex(error: unknown): void {
+    const index = this.index; this.index = undefined; this.indexDisabled = true;
+    console.warn('[vessel] session index unavailable; JSONL/registry fallback: ' + String(error));
+    void index?.close().catch(() => {});
+  }
+  private async initializeIndex(): Promise<void> {
+    if (this.indexDisabled || this.options.index === false) return;
+    if (!this.indexReady) {
+      this.indexReady = (async () => {
+        try {
+          if (this.journalFailure) throw this.journalFailure;
+          if (!fs.existsSync(this.journal) && this.sessions.size) this.persist();
+          this.index = (this.options.indexFactory ?? (file => new SessionIndexStore(file)))(path.join(this.home, 'cache', 'session_index.db'));
+          await this.index.rebuild(() => this.sources());
+        } catch (error) { this.disableIndex(error); }
+      })();
+    }
+    await this.indexReady;
+  }
+  /** SQL-only hot path after one startup reconciliation; old synchronous readers remain compatible. */
+  async listIndexed(limit = 1000, offset = 0, topicId?: string): Promise<(SessionMeta & Partial<Pick<IndexedSessionSummary, 'recordCount' | 'totalTokens' | 'inputTokens' | 'outputTokens' | 'cacheReadTokens' | 'cacheCreationTokens'>>)[]> {
+    if (!Number.isInteger(limit) || limit < 1 || limit > 1000 || !Number.isInteger(offset) || offset < 0) throw new RangeError('Invalid session pagination');
+    await this.initializeIndex();
+    if (this.index) {
+      try {
+        const rows = await this.index.listSessions(limit, offset, topicId);
+        return rows.map(row => ({ ...(row.metadata as unknown as SessionMeta), recordCount: row.recordCount, totalTokens: row.totalTokens,
+          inputTokens: row.inputTokens, outputTokens: row.outputTokens, cacheReadTokens: row.cacheReadTokens, cacheCreationTokens: row.cacheCreationTokens }));
+      } catch (error) { this.disableIndex(error); }
+    }
+    return (topicId === undefined ? this.list() : this.listByTopic(topicId)).slice(offset, offset + limit);
+  }
+  async search(params: SessionSearchParams): Promise<SessionSearchResult[]> {
+    if (typeof params.query !== 'string' || params.query.length > 256 || !Number.isInteger(params.limit ?? 20) || (params.limit ?? 20) < 1 || (params.limit ?? 20) > 1000 || !Number.isInteger(params.offset ?? 0) || (params.offset ?? 0) < 0) throw new RangeError('Invalid search query/pagination');
+    await this.initializeIndex();
+    if (!this.index) return [];
+    try { return await this.index.search(params); } catch (error) { if (error instanceof RangeError) throw error; this.disableIndex(error); return []; }
+  }
+  /** At a completed turn boundary, replace from streamed authoritative history (including compaction). */
+  async projectSession(id: string): Promise<void> {
+    if (!this.indexReady && this.options.index !== true) return;
+    await this.initializeIndex(); const meta = this.sessions.get(id);
+    if (this.index && meta) {
+      try { await this.index.reconcileSession(this.source(meta)); } catch (error) { this.disableIndex(error); }
+    }
+  }
+  async projectRecords(id: string, records: readonly SessionRecord[]): Promise<void> {
+    if (!this.indexReady && this.options.index !== true) return;
+    await this.initializeIndex();
+    if (this.index && this.sessions.has(id)) {
+      try { await this.index.indexRecords(id, records); } catch (error) { this.disableIndex(error); }
+    }
+  }
+  get indexAvailable(): boolean { return this.index !== undefined; }
+  async closeIndex(): Promise<void> { await this.indexReady; const index = this.index; this.index = undefined; if (index) await index.close().catch(() => {}); }
 
   private load(): void {
     if (!fs.existsSync(this.file)) return;
@@ -297,6 +406,21 @@ export class SessionRegistry {
   }
 
   private persist(): void {
+    if (this.journalFailure) throw this.journalFailure;
+    const changes: MetadataJournalRecord[] = [];
+    for (const meta of this.sessions.values()) {
+      if (this.persistedMetadata.get(meta.id) !== JSON.stringify(meta)) changes.push({ seq: ++this.journalSeq, ts: meta.updatedAt, type: 'registry/session', sessionId: meta.id, metadata: meta });
+    }
+    for (const id of this.persistedMetadata.keys()) if (!this.sessions.has(id)) changes.push({ seq: ++this.journalSeq, ts: new Date().toISOString(), type: 'registry/session', sessionId: id, metadata: null });
+    if (changes.length) {
+      // Leading newline separates a torn tail from a subsequent valid record without rewriting it.
+      const fd = fs.openSync(this.journal, 'a', 0o600);
+      try { fs.writeSync(fd, '\n' + changes.map(record => JSON.stringify(record)).join('\n') + '\n'); fs.fsyncSync(fd); } finally { fs.closeSync(fd); }
+      for (const record of changes) {
+        if (record.metadata) this.persistedMetadata.set(record.sessionId, JSON.stringify(record.metadata)); else this.persistedMetadata.delete(record.sessionId);
+        if (this.index) void this.index.indexMetadata(record.sessionId, record.metadata as unknown as Record<string, unknown> | null).catch(error => this.disableIndex(error));
+      }
+    }
     const payload = JSON.stringify({ sessions: [...this.sessions.values()] }, null, 2);
     const dir = path.dirname(this.file);
     fs.mkdirSync(dir, { recursive: true });

@@ -291,7 +291,7 @@ function positiveInt(value: number | undefined, fallback: number): number {
   return Number.isInteger(value) && value! > 0 ? value! : fallback;
 }
 
-function defaultKillWindowsTree(pid: number): Promise<void> {
+export function defaultKillWindowsTree(pid: number): Promise<void> {
   return new Promise<void>((resolve, reject) => {
     let fallbackStarted = false;
     const killer = spawn('taskkill', ['/PID', String(pid), '/T', '/F'], {

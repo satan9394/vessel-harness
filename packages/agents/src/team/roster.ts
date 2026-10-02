@@ -54,7 +54,7 @@ export function composeRosterFromRoute(route: TeamRouteLike, registry: PresetReg
           'configure the route binding or pass an explicit roster',
       );
     }
-    return { memberId: presetId, presetId, model: rm.model, providerId: rm.providerId, tier: rm.tier };
+    return { memberId: presetId, presetId, model: rm.model, providerId: rm.providerId, tier: rm.tier, reasoningEffort: rm.reasoningEffort, temperature: rm.temperature };
   });
 }
 
@@ -72,6 +72,12 @@ export function normalizeRoster(roster: TeamRoster): TeamRoster {
     if (!spec.model.trim() || !spec.providerId.trim()) {
       throw new Error(`team error: roster[${i}] ("${memberId}") needs model + providerId (route resolution or explicit)`);
     }
+    if (spec.reasoningEffort !== undefined && !['low', 'medium', 'high'].includes(spec.reasoningEffort)) {
+      throw new Error(`team error: invalid reasoning effort for ${memberId}`);
+    }
+    if (spec.temperature !== undefined && (!Number.isFinite(spec.temperature) || spec.temperature < 0 || spec.temperature > 2)) {
+      throw new Error(`team error: invalid temperature for ${memberId}`);
+    }
     const prev = seen.get(memberId);
     if (prev !== undefined) {
       throw new Error(`team error: duplicate memberId "${memberId}" at roster[${prev}] and roster[${i}]`);
@@ -83,6 +89,8 @@ export function normalizeRoster(roster: TeamRoster): TeamRoster {
       model: spec.model.trim(),
       providerId: spec.providerId.trim(),
       tier: spec.tier,
+      reasoningEffort: spec.reasoningEffort,
+      temperature: spec.temperature,
     };
   });
 }
@@ -94,10 +102,13 @@ export function resolveRoster(roster: TeamRoster, registry: PresetRegistry): Res
     return {
       memberId: spec.memberId!,
       presetId: spec.presetId,
-      preset,
+      preset: structuredClone(preset),
+      routeSnapshot: Object.freeze({ providerId: spec.providerId, model: spec.model, reasoningEffort: spec.reasoningEffort, temperature: spec.temperature, snapshottedAt: Date.now() }),
       role: preset.role,
       phase: phaseForRole(preset.role),
       tier: spec.tier,
+      reasoningEffort: spec.reasoningEffort,
+      temperature: spec.temperature,
       model: spec.model,
       providerId: spec.providerId,
     };

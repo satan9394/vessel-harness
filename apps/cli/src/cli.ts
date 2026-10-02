@@ -17,6 +17,7 @@ import {
   createVesselTaskExecutor,
 } from '@vessel/application';
 import { createVesselServer } from '@vessel/local-server';
+import { daemonCommands } from './daemon/daemonCommands.js';
 import { ProviderStore, parseBackupKeep, type ProviderConfig } from './providers/ProviderStore.js';
 import { createDefaultProviderStore } from './providers/defaultStore.js';
 import {
@@ -112,6 +113,8 @@ Vessel CLI v${VERSION} — 可组合 Agent Harness（品牌 Vessel）
   vessel mcp list                    列出已配置的 MCP server（~/.vessel/mcp.json）
   vessel mcp add <name> --command <cmd> [--args a,b] [--cwd <dir>] [--env K=V,K2=V2]   添加 MCP server
   vessel mcp remove <name>           移除 MCP server
+  vessel mcp disable <name>          停用 MCP server（零进程占用）
+  vessel mcp enable <name>           启用 MCP server
   vessel mcp path                    打印 MCP 配置文件路径
   vessel migrate                     一次性迁移旧状态目录 ~/.dsh → ~/.vessel（数据复制 + 旧目录进回收站）
   vessel sessions list               列出历史会话（最近活动在前）
@@ -129,6 +132,7 @@ Vessel CLI v${VERSION} — 可组合 Agent Harness（品牌 Vessel）
   vessel policy status               显示生效策略层次（system/project：路径 / 是否存在 / 声明条数 / 哈希；只读）
   vessel bench-report --input <json>  基准报告看板：聚合 076 RunResult[]（或 082 lane report）→ 打印 CLI 摘要表 + 写 md/json（任务 083）
   vessel serve [--port <n>]          启动本地服务（默认 http://127.0.0.1:5678，不开浏览器）
+  vessel daemon start|stop|status    后台服务（--port <n>、--json）
   vessel serve --mode mcp-agent      通过 stdio 启动 MCP 子代理服务（协议仅占用 stdout）
   vessel web                         启动本地服务并打开浏览器
 
@@ -1461,7 +1465,7 @@ async function cmdModels(flags: Map<string, string>): Promise<number> {
 async function cmdMcp(args: string[], flags: Map<string, string>): Promise<number> {
   const store = new McpConfigStore();
   const sub = args[0] ?? 'list';
-  const usage = '用法: vessel mcp list | vessel mcp add <name> --command <cmd> [--args a,b] [--cwd <dir>] [--env K=V,K2=V2] | vessel mcp remove <name> | vessel mcp path';
+  const usage = '用法: vessel mcp list | vessel mcp add <name> --command <cmd> [--args a,b] [--cwd <dir>] [--env K=V,K2=V2] | vessel mcp remove <name> | vessel mcp disable <name> | vessel mcp enable <name> | vessel mcp path';
 
   const loadOrFail = (): { ok: true; servers: McpServerConfig[] } | { ok: false; code: number } => {
     try {
@@ -1486,7 +1490,7 @@ async function cmdMcp(args: string[], flags: Map<string, string>): Promise<numbe
       }
       for (const s of loaded.servers) {
         const argv = s.args !== undefined && s.args.length > 0 ? ` ${s.args.join(' ')}` : '';
-        console.log(`  ${s.name}  ${s.command}${argv}`);
+        console.log(`  ${s.name}${s.disabled ? " [disabled]" : ""}  ${s.command}${argv}`);
       }
       return 0;
     }
@@ -1542,6 +1546,26 @@ async function cmdMcp(args: string[], flags: Map<string, string>): Promise<numbe
       console.log(`[vessel mcp] 已添加 "${name}" → ${store.configFile}`);
       return 0;
     }
+    case 'disable':
+    case 'enable': {
+      const name = args[1];
+      if (!name) return fail(2, usage, flags, () => console.error(usage));
+      const loaded = loadOrFail();
+      if (!loaded.ok) return loaded.code;
+      const server = loaded.servers.find((s) => s.name === name);
+      if (!server) {
+        const msg = `[vessel mcp] server "${name}" 不存在（vessel mcp list 查看）`;
+        return fail(2, msg, flags, () => console.error(msg));
+      }
+      server.disabled = sub === 'disable';
+      try { store.save(loaded.servers); } catch (err) {
+        const msg = `[vessel mcp] ${(err as Error).message}`;
+        return fail(1, msg, flags, () => console.error(msg));
+      }
+      if (isJson(flags)) emitJson({ server: name, disabled: server.disabled, configFile: store.configFile });
+      else console.log(`[vessel mcp] ${sub} "${name}"`);
+      return 0;
+    }
     case 'remove': {
       const name = args[1];
       if (name === undefined) {
@@ -1568,7 +1592,7 @@ async function cmdMcp(args: string[], flags: Map<string, string>): Promise<numbe
       return 0;
     }
     default: {
-      const msg = `未知 mcp 子命令：${sub}（可用：list / add / remove / path）`;
+      const msg = `未知 mcp 子命令：${sub}（可用：list / add / remove / disable / enable / path）`;
       return fail(2, msg, flags, () => console.error(msg));
     }
   }
@@ -3099,6 +3123,7 @@ async function dispatch(parsed: ParsedArgs): Promise<number> {
   }
   if (first === 'bench-report') return cmdBenchReport(parsed.flags);
   if (first === 'serve') return cmdServe(parsed.flags);
+  if (first === 'daemon') return daemonCommands(parsed.positionals, parsed.flags, fileURLToPath(import.meta.url));
   if (first === 'web') return cmdWeb(parsed.flags);
   if (first === 'sessions') {
     const sub = parsed.positionals[1] ?? 'list';

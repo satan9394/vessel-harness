@@ -75,6 +75,7 @@ export interface ChatRequest {
   messages: ChatMessage[];
   tools?: ChatToolDef[];
   temperature?: number;
+  reasoningEffort?: 'low' | 'medium' | 'high';
   maxTokens?: number;
   requestKind?: 'main' | 'compaction-summary' | 'goal-eval';
   /**
@@ -160,6 +161,7 @@ export type StreamChunk =
  * Implementations: OpenAICompatibleProvider (HTTP), MockProvider (deterministic scripts).
  */
 export interface ChatProvider {
+  readonly defaultMaxOutputTokens?: number;
   readonly id: string;
   chat(request: ChatRequest): Promise<ChatResponse>;
   /** Optional streaming; v0.1 loop uses chat() and only consumes chunks when provided. */

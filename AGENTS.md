@@ -23,7 +23,7 @@
 
 ## 目录结构
 
-- **`HANDOFF.md`：项目交接文档。** 新会话 / 新 Agent / 换人接手时**先读它**——现状、未完成清单、验证命令、已知约束与阅读顺序都在那里。
+- **`HANDOFF.md`：项目交接文档。** 新会话 / 新 Agent / 换人接手时**先读它**——现状、未完成清单、验证命令、已知约束与阅读顺序都在那里。**当用户输入「继续」或「继续未完成的」时**，严格遵照其 §0「快速接管协议」向用户汇报当前断点与未完成项，并直接执行下一步，杜绝漫谈与重头梳理。
 
 - `docs/`：权威文档。MISSION-V0.x.md（执行任务书）、ARCHITECTURE.md（模块边界）、DESIGN-DECISIONS.md（21 决策点，实现必须遵守）、EVENT-SPEC.md（D5 事件词汇）、POLICY-SPEC.md、BEHAVIOR-IR-SPEC.md、BENCHMARK-SPEC.md、V0x-IMPLEMENTATION-NOTES.md（交付说明）、REVIEW-REPORT-V0x.md（独立核验报告）、V0x-PROGRESS.md（进度接力）。
 - `packages/`：shared/core/llm/behavior/context/tools/policy/runtime/memory/skills/agents/telemetry/engine/application（14 个）。
@@ -48,6 +48,23 @@
 9. 克制：不追求 Agent 数量（并行 1–3）；不加几十个 Provider；不做无关重构。
 
 10. GitHub 治理（2026-09-27）：本仓在 GitHub 上**只做提交 → PR 审核 → CI 测试**；**不创建 GitHub Release、不向 npm 发布新版本**（历史遗留的 npm 快照冻结在 `0.10.0`，不再更新）。`main` 由规则集 `protect-default-branch` 保护：必须走 PR，且 CI 双腿（Windows + Linux）必须绿。
+
+## 模型选型与执行规约（OpenAI 规范）
+
+> 权威依据：[OpenAI Model Selection Guide](https://developers.openai.com/api/docs/guides/model-selection) 与 [GPT-6.1 Sol 规范](https://developers.openai.com/api/docs/models/gpt-6.1-sol)。后续演进可将该选型指南作为不同任务复杂度的尝试依据。
+
+- **当前锁定开发模型：GPT-6.1 Sol (`gpt-6.1-sol`)**
+  - **当前主力思考深度：二级思考（`reasoning.effort: medium`，总共 5 个思考等级：`none` / `low` / `medium` / `high` / `xhigh`）**：官方推荐用于「复杂的工程技术任务与预期需要反复修改验证的协同交付物（Complex technical work and coordinated deliverables you expect to revise）」。在代码重构、测试修复与系统级开发中平衡推理深度与执行延迟。
+  - **切换规则（免重复确认）**：当前默认开发模型即为 GPT-6.1 Sol（二级思考）；后续若切换模型用户会主动显式说明，**未说明前恒以当前模型执行，杜绝多余询问**。
+  - **分档与后续尝试（依据 OpenAI 选型指南）**：
+    - **轻量微调：一级思考（`reasoning.effort: low`）**：适用于单文件局部编辑、明确的单点修补或文档同步。
+    - **深度攻坚：三/四级思考（`reasoning.effort: high` / `xhigh`）**：当遇到复杂的多模块循环依赖排查或高阶架构设计时可作为后续尝试。
+    - **排除项**：Luna（仅适合简单抽取/分诊，复杂 Monorepo 易出现深层类型漂移）；Astra（全功能旗舰，仅在不计成本与延迟时使用）。
+- **Prompt 与任务书编写原则（面向 Medium/Low 思考深度）**：
+  - **杜绝伪思维链与冗余角色扮演**：推理模型原生内置思维链（CoT），禁止注入 "think step by step" 或大段虚构头衔背景，直接陈述职责、范围与单点目标。
+  - **显式使用分界符（Delimiters）**：用 Markdown 标题、XML 标签或代码块清晰隔离上下文、契约、禁止项与验收门禁。
+  - **接口契约先行（Interface-First）**：中轻度思考下不依赖模型盲目发散推演，Prompt 必须直接给出关键 TypeScript 接口签名与核心断言用例。
+  - **前缀缓存优化**：利用 Prompt Caching（缓存输入享 95% 折扣，低至 $0.1/1M），将通用架构规则、红线与稳定契约置于 Prompt 前半部。
 
 ## 开发工作流（六步循环）
 

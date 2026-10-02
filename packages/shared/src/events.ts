@@ -302,6 +302,13 @@ export interface CompactionStartRecord extends SessionRecordBase {
   surface: false;
 }
 
+export interface CompactionOverflowInterceptedRecord extends SessionRecordBase {
+  type: 'compaction:overflow_intercepted';
+  requestId: string;
+  retryCount: number;
+  surface: false;
+}
+
 export interface CompactionEndRecord extends SessionRecordBase {
   type: 'compaction/end';
   trigger: 'pressure' | 'overflow' | 'manual';
@@ -322,6 +329,15 @@ export interface SessionCreatedRecord extends SessionRecordBase {
   surface: false;
 }
 
+/** Application-side durable per-call usage; turn/end aggregate tokens are not additional usage. */
+export interface ModelUsageRecord extends SessionRecordBase {
+  type: 'model/usage';
+  turnId: string;
+  step: number;
+  usage: ChatUsage;
+  surface: false;
+}
+
 export type SessionRecord =
   | UserMessageRecord
   | AssistantMessageRecord
@@ -337,8 +353,10 @@ export type SessionRecord =
   | AuditDecisionRecord
   | AuditDenialRecord
   | CompactionStartRecord
+  | CompactionOverflowInterceptedRecord
   | CompactionEndRecord
-  | SessionCreatedRecord;
+  | SessionCreatedRecord
+  | ModelUsageRecord;
 
 // ---------------------------------------------------------------------------
 // Live extension events (A## subset used by V0.1)
@@ -360,6 +378,7 @@ export type EventType =
   | 'after_turn'
   | 'llm_retry'
   | 'before_compact'
+  | 'compaction:overflow_intercepted'
   | 'after_compact'
   | 'before_delegate'
   | 'subagent_start'

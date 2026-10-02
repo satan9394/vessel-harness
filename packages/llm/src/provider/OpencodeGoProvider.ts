@@ -485,6 +485,7 @@ function sleep(ms: number): Promise<void> {
  * 可重试错误（429 / 5xx / 超时 / 网络）按 maxAttempts 退避重试，**复用同一 session id**。
  */
 export class OpencodeGoProvider implements ChatProvider {
+  get defaultMaxOutputTokens(): number { return this.defaultMaxTokens; }
   readonly id = OPENCODE_GO_PROVIDER_ID;
   /** 本会话稳定 id（构造时确定；重试不换）。 */
   readonly sessionId: string;
@@ -543,6 +544,7 @@ export class OpencodeGoProvider implements ChatProvider {
       stream: false,
     };
     if (request.tools && request.tools.length > 0) body.tools = request.tools;
+    if (request.reasoningEffort !== undefined) body.reasoning_effort = request.reasoningEffort;
     return body;
   }
 

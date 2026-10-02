@@ -10,6 +10,9 @@ const CHAT_SRC = fileURLToPath(new URL('../tui/chat.ts', import.meta.url));
 const ASSEMBLE_SRC = fileURLToPath(new URL('./assemble.ts', import.meta.url));
 
 describe('mcp/assemble — 唯一装配实现', () => {
+  it('disabled servers are excluded before shim validation and transport construction', () => {
+    expect(assembleMcpConnections(() => [{ name: 'off', command: 'fake.cmd', disabled: true }])).toEqual({ ok: true, connections: [], failures: [] });
+  });
   it('无 server ⇒ ok 且空连接/空失败', () => {
     const res = assembleMcpConnections(() => []);
     expect(res).toEqual({ ok: true, connections: [], failures: [] });

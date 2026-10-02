@@ -47,6 +47,8 @@ import { createDefaultPresetRegistry } from '../presets/defaults.js';
 import { composeRosterFromRoute, resolveRoster } from './roster.js';
 import { parseReviewConclusion, REVIEW_OUTPUT_SCHEMA } from '../reviewer/conclusion.js';
 import type { ResolvedTeamMember, TeamRunRequest, TeamRunSummary } from './types.js';
+import { TeamDagScheduler } from './dag/DagScheduler.js';
+import type { TeamDagTask, TeamPlanStage } from './dag/types.js';
 
 export interface TeamRuntimeOptions {
   workspaceRoot: string;
@@ -85,6 +87,97 @@ export class TeamRuntime {
   readonly bus: EventBus;
   private readonly registry: PresetRegistry;
   private readonly opts: TeamRuntimeOptions;
+  private readonly bindings = new WeakMap<ResolvedTeamMember, ChatProvider>();
+  private readonly stages = new Map<string, { stage: TeamPlanStage; task: string; acceptance?: readonly string[]; scheduler: TeamDagScheduler }>();
+
+  private bind(plans: ResolvedTeamMember[]): void {
+    for (const plan of plans) {
+      const provider = this.opts.providers[plan.routeSnapshot.providerId];
+      if (!provider) throw new Error(`team error: provider "${plan.providerId}" is not bound`);
+      this.bindings.set(plan, provider);
+    }
+  }
+
+  /** Preview only: routes, provider objects and topology are captured before approval. */
+  stageTeam(req: TeamRunRequest & { tasks: readonly TeamDagTask[] }): TeamPlanStage {
+    if (!req.task.trim() || (req.roster === undefined) === (req.route === undefined)) throw new Error('team requires task and exactly one roster | route');
+    const roster = resolveRoster(req.roster ?? composeRosterFromRoute(req.route!, this.registry), this.registry);
+    this.bind(roster);
+    const stage: TeamPlanStage = { id: `stage_${crypto.randomUUID()}`, roster, tasks: structuredClone([...req.tasks]), status: 'staged', createdAt: Date.now() };
+    const scheduler = new TeamDagScheduler(stage, this.bus);
+    stage.tasks = scheduler.snapshot();
+    this.stages.set(stage.id, { stage, scheduler, task: req.task, acceptance: req.acceptance ? [...req.acceptance] : undefined });
+    return structuredClone(stage);
+  }
+
+  getStage(id: string): TeamPlanStage {
+    const entry = this.stages.get(id);
+    if (!entry) throw new Error(`unknown stage: ${id}`);
+    const tasks = entry.scheduler.snapshot().map(task => ({ ...task,
+      result: task.result ? { ...task.result, output: trim(task.result.output, PROMPT_PREVIEW_LIMIT) } : undefined,
+      error: task.error ? trim(task.error, PROMPT_PREVIEW_LIMIT) : undefined,
+    }));
+    return structuredClone({ ...entry.stage, tasks });
+  }
+
+  reject(id: string): void {
+    const entry = this.stages.get(id);
+    if (!entry || entry.stage.status !== 'staged') throw new Error('stage is not awaiting approval');
+    entry.stage.status = 'rejected';
+  }
+
+  async approve(id: string): Promise<TeamPlanStage> {
+    const entry = this.stages.get(id);
+    if (!entry || entry.stage.status !== 'staged') throw new Error('stage is not awaiting approval');
+    const { stage, scheduler } = entry;
+    stage.status = 'approved'; stage.approvedAt = Date.now();
+    stage.status = 'running';
+    const busy = new Set<string>();
+    const active = new Set<Promise<void>>();
+    try {
+      while (!scheduler.isSettled()) {
+        for (const task of scheduler.evaluateReadiness()) {
+          const member = stage.roster.find(m => m.role === task.assignedRole && !busy.has(m.memberId));
+          if (!member) continue;
+          scheduler.claimTask(task.id, member.memberId); scheduler.startTask(task.id); busy.add(member.memberId);
+          let work!: Promise<void>;
+          work = (async () => {
+            const localRuntimes = new Map<string, IsolatedRuntime>();
+            try {
+              const dependencies = scheduler.snapshot().filter(t => task.dependencies.includes(t.id));
+              const inputs = dependencies.map(t => t.result?.output ?? '').join('\n');
+              const generatorOutputs = dependencies.filter(t => t.assignedRole === 'generator').map(t => t.result?.output ?? '').join('\n');
+              const handoff: TeamMemberSummary[] = generatorOutputs ? [{
+                memberId: 'dependencies', presetId: 'developer', role: 'generator', phase: 'generate', status: 'completed',
+                sessionId: '', delegationDepth: 0, durationMs: 0, output: generatorOutputs,
+              }] : [];
+              const prompt = this.buildPhasePrompt(member, `${entry.task}\n${task.title}\n${task.description}\nDependency results:\n${inputs}`, handoff, entry.acceptance);
+              const summary = await this.runMemberPhase(member, prompt, localRuntimes);
+              const artifacts = [...new Set([...localRuntimes.values()].flatMap(runtime => runtime.session.replay()
+                .filter(record => record.type === 'tool/result' && !record.error && ['Write', 'Edit'].includes(record.toolName))
+                .flatMap(record => record.type === 'tool/result' && typeof record.meta.path === 'string' ? [record.meta.path] : [])))];
+              if (summary.status === 'failed') await scheduler.failTask(task.id, summary.stopReason ?? 'error');
+              else await scheduler.settleTask(task.id, { output: summary.output ?? '', artifacts,
+                review: member.role === 'evaluator' ? parseReviewConclusion(summary.output ?? '') : undefined,
+              });
+            } catch (err) {
+              await scheduler.failTask(task.id, (err as Error).message);
+            } finally {
+              for (const runtime of localRuntimes.values()) await runtime.close();
+              busy.delete(member.memberId); active.delete(work);
+            }
+          })();
+          active.add(work);
+        }
+        if (active.size > 0) await Promise.race(active);
+        else if (!scheduler.isSettled()) throw new Error('team DAG cannot progress');
+      }
+    } finally {
+      await Promise.allSettled([...active]);
+      stage.status = 'finished';
+    }
+    return this.getStage(id);
+  }
 
   constructor(opts: TeamRuntimeOptions) {
     this.opts = opts;
@@ -120,6 +213,7 @@ export class TeamRuntime {
       }
     }
 
+    this.bind(plans);
     const teamRunId = `team_${Date.now()}_${crypto.randomBytes(4).toString('hex')}`;
     const briefs: TeamMemberBrief[] = plans.map((p) => ({
       memberId: p.memberId,
@@ -239,8 +333,10 @@ export class TeamRuntime {
     const runtime = await createIsolatedRuntime({
       workspaceRoot: this.opts.workspaceRoot,
       cwd: this.opts.cwd,
-      provider: this.opts.providers[plan.providerId]!,
-      model: plan.model,
+      provider: this.bindings.get(plan)!,
+      model: plan.routeSnapshot.model,
+      temperature: plan.routeSnapshot.temperature,
+      reasoningEffort: plan.routeSnapshot.reasoningEffort,
       policyArtifacts: this.opts.policyArtifacts,
       tools: applyPresetToolFace(plan.preset, this.opts.tools),
       source: 'team',
@@ -295,8 +391,10 @@ export class TeamRuntime {
     const manager = new SubagentManager({
       workspaceRoot: this.opts.workspaceRoot,
       cwd: this.opts.cwd,
-      provider: this.opts.providers[plan.providerId]!,
-      model: plan.model,
+      provider: this.bindings.get(plan)!,
+      model: plan.routeSnapshot.model,
+      temperature: plan.routeSnapshot.temperature,
+      reasoningEffort: plan.routeSnapshot.reasoningEffort,
       policyArtifacts: this.opts.policyArtifacts,
       tools: this.opts.tools,
       bus: this.bus,

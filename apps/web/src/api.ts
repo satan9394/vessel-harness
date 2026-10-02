@@ -11,12 +11,16 @@
 import type { ReviewRecord, RouteMode, RouteState, TeamRunState } from './team';
 // Goal/Loop wire shapes (task 065) — see ./goal for the full mirrors.
 import type { GoalBudget, GoalIteration, GoalRunResult, GoalTask } from './goal';
+import type { SubagentDetail, SubagentItem } from './subagents';
+import type { TeamPlanStage, TeamPlanRevision } from './teamStages';
+import { bearerHeaders, daemonToken } from './auth';
 
 export interface ApiOptions {
   /** base URL, default '/api'. May be 'http://127.0.0.1:5678/api'. */
   base?: string;
   /** underlying fetch; defaults to globalThis.fetch (injectable for tests). */
   fetch?: typeof globalThis.fetch;
+  token?: () => string | undefined;
 }
 
 export interface Health {
@@ -225,7 +229,10 @@ function failureFromRawText(text: string, status: number): { message: string; bo
 
 export function createApiClient(opts: ApiOptions = {}) {
   const base = (opts.base ?? '/api').replace(/\/+$/, '');
-  const doFetch = opts.fetch ?? globalThis.fetch.bind(globalThis);
+  const underlyingFetch = opts.fetch ?? globalThis.fetch.bind(globalThis);
+  const doFetch: typeof globalThis.fetch = (input, init) => underlyingFetch(input, {
+    ...init, headers: { ...Object.fromEntries(new Headers(init?.headers)), ...bearerHeaders((opts.token ?? daemonToken)()) },
+  });
 
   async function request<T>(path: string, init?: RequestInit): Promise<T> {
     let res: Response;
@@ -273,10 +280,25 @@ export function createApiClient(opts: ApiOptions = {}) {
   }
 
   return {
+    async downloadTeamArtifact(stageId: string, taskId: string, index: number): Promise<Blob> {
+      const res = await doFetch(`${base}/team/stages/${encodeURIComponent(stageId)}/tasks/${encodeURIComponent(taskId)}/artifacts/${index}/content`);
+      if (!res.ok) { const failure = failureFromRawText(await res.text(), res.status); throw new ApiError(failure.message, res.status, failure.body); }
+      return res.blob();
+    },
     /** GET /api/health */
     async health(): Promise<Health> {
       return request<Health>('/health');
     },
+    async listSubagents(): Promise<{ subagents: SubagentItem[] }> {
+      return request('/subagents');
+    },
+    async getSubagent(id: string): Promise<SubagentDetail> {
+      return request(`/subagents/${encodeURIComponent(id)}`);
+    },
+    async cancelSubagent(id: string): Promise<{ ok: boolean }> {
+      return request(`/subagents/${encodeURIComponent(id)}/cancel`, { method: 'POST' });
+    },
+    subagentEventsUrl: `${base}/subagents/events`,
     /** GET /api/projects */
     async projects(): Promise<{ projects: Project[] }> {
       return request<{ projects: Project[] }>('/projects');
@@ -351,6 +373,27 @@ export function createApiClient(opts: ApiOptions = {}) {
       return request<RouteState>(`/sessions/${encodeURIComponent(id)}/route/unpin`, { method: 'POST' });
     },
 
+    teamArtifactUrl(stageId: string, taskId: string, index: number): string {
+      return `${base}/team/stages/${encodeURIComponent(stageId)}/tasks/${encodeURIComponent(taskId)}/artifacts/${index}/content`;
+    },
+    async getTeamArtifact(stageId: string, taskId: string, index: number): Promise<{ path: string; content: string; diff: string; comparison: string }> {
+      return request(`/team/stages/${encodeURIComponent(stageId)}/tasks/${encodeURIComponent(taskId)}/artifacts/${index}`);
+    },
+    async listTeamStages(sessionId: string): Promise<{ stages: TeamPlanStage[] }> {
+      return request(`/sessions/${encodeURIComponent(sessionId)}/team-stages`);
+    },
+    async stageTeam(sessionId: string, input: { task: string; mode?: RouteMode }): Promise<{ stage: TeamPlanStage }> {
+      return request(`/sessions/${encodeURIComponent(sessionId)}/team-stages`, { method: 'POST', body: JSON.stringify(input) });
+    },
+    async approveTeamStage(id: string): Promise<{ ok: boolean; status: string }> {
+      return request(`/team/stages/${encodeURIComponent(id)}/approve`, { method: 'POST' });
+    },
+    async reviseTeamStage(id: string, plan: TeamPlanRevision): Promise<{ stage: TeamPlanStage }> {
+      return request(`/team/stages/${encodeURIComponent(id)}/revise`, { method: 'POST', body: JSON.stringify(plan) });
+    },
+    async rejectTeamStage(id: string): Promise<{ ok: boolean; status: string }> {
+      return request(`/team/stages/${encodeURIComponent(id)}/reject`, { method: 'POST' });
+    },
     /** GET /api/sessions/:id/team-runs/current — latest TeamProjection snapshot */
     async getTeamRun(id: string): Promise<{ team: TeamRunState | null }> {
       return request<{ team: TeamRunState | null }>(`/sessions/${encodeURIComponent(id)}/team-runs/current`);

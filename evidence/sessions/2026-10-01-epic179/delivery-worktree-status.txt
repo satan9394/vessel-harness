@@ -1,0 +1,109 @@
+ M .github/workflows/ci.yml
+ M AGENTS.md
+ M DEV_LOG.md
+ M HANDOFF.md
+ M apps/cli/src/cli.ts
+ M apps/cli/src/mcp/assemble.test.ts
+ M apps/cli/src/mcp/assemble.ts
+ M apps/cli/src/mcp/config.test.ts
+ M apps/cli/src/mcp/config.ts
+ M apps/cli/src/mcp/mcpCommands.test.ts
+ M apps/local-server/src/index.ts
+ M apps/local-server/src/server.ts
+ M apps/web/src/api.ts
+ M apps/web/src/components/Sidebar.tsx
+ M apps/web/src/components/TeamModule.tsx
+ M apps/web/src/sse.ts
+ M apps/web/src/styles.css
+ M benchmarks/runners/package.json
+ M benchmarks/runners/src/lane/opencodeGoCredential.test.ts
+ M benchmarks/runners/tsconfig.json
+ M package-lock.json
+ M packages/agents/src/external/ExternalAgentRuntime.ts
+ M packages/agents/src/index.ts
+ M packages/agents/src/subagent/IsolatedRuntime.ts
+ M packages/agents/src/subagent/SubagentManager.ts
+ M packages/agents/src/subagent/subagent.test.ts
+ M packages/agents/src/team/TeamRuntime.ts
+ M packages/agents/src/team/roster.ts
+ M packages/agents/src/team/types.ts
+ M packages/application/src/compose.ts
+ M packages/application/src/mcp/connections.test.ts
+ M packages/application/src/mcp/connections.ts
+ M packages/application/src/session/SessionController.ts
+ M packages/application/src/session/SessionRegistry.ts
+ M packages/context/src/compaction/Compaction.ts
+ M packages/context/src/index.ts
+ M packages/core/src/agent-loop/AgentLoop.ts
+ M packages/core/src/index.ts
+ M packages/llm/src/provider/AnthropicProvider.ts
+ M packages/llm/src/provider/OpenAICompatibleProvider.ts
+ M packages/llm/src/provider/OpencodeGoProvider.ts
+ M packages/memory/src/index.ts
+ M packages/runtime/src/index.ts
+ M packages/runtime/src/proxy/virtualProxy.ts
+ M packages/shared/src/events.ts
+ M packages/shared/src/provider.ts
+ M packages/tools/src/filesystem/fsTools.ts
+ M packages/tools/src/index.ts
+ M packages/tools/src/mcp/McpClient.ts
+ M packages/tools/src/mcp/fixtures/echoServerCore.ts
+ M packages/tools/src/mcp/mcpTools.ts
+ M packages/tools/src/registry/Registry.ts
+ M packages/tools/src/shell/shellTool.ts
+ M tasks/README.md
+ M vitest.config.ts
+?? apps/cli/src/daemon/
+?? apps/local-server/src/daemon/
+?? apps/local-server/src/sessionIndexApi.test.ts
+?? apps/local-server/src/subagent-seam.test.ts
+?? apps/local-server/src/subagentSeam.ts
+?? apps/local-server/src/teamRoutes.ts
+?? apps/local-server/src/teamStageApi.test.ts
+?? apps/web/src/auth.test.ts
+?? apps/web/src/auth.ts
+?? apps/web/src/components.subagent.test.tsx
+?? apps/web/src/components/SubagentPanel.test.tsx
+?? apps/web/src/components/SubagentPanel.tsx
+?? apps/web/src/components/team/
+?? apps/web/src/subagents.ts
+?? apps/web/src/teamStages.ts
+?? benchmarks/runners/src/conformance/resilience/
+?? benchmarks/runners/src/conformance/runnerWorkerGuard.test.ts
+?? benchmarks/runners/src/conformance/subagent/surfaceFixture.ts
+?? benchmarks/runners/src/conformance/subagentEndToEnd.test.ts
+?? docs/V1.5-IMPLEMENTATION-NOTES.md
+?? docs/V1.5-ROADMAP.md
+?? docs/V1.6-IMPLEMENTATION-NOTES.md
+?? docs/V1.6-ROADMAP.md
+?? docs/research/DSH-DESKTOP-AND-TEAMS.md
+?? docs/research/OPENCODE-V2-ARCHITECTURE.md
+?? evidence/sessions/2026-10-01-epic179/
+?? packages/agents/src/team/dag/
+?? packages/agents/src/team/teamApproveAndRun.test.ts
+?? packages/agents/src/team/teamRouteSnapshot.test.ts
+?? packages/application/src/session/SessionIndexIntegration.test.ts
+?? packages/context/src/compaction/adaptiveCompaction.test.ts
+?? packages/context/src/compaction/adaptiveThreshold.ts
+?? packages/context/src/compaction/overflowClassifier.ts
+?? packages/context/src/compaction/overflowRecovery.ts
+?? packages/core/src/session/streaming/
+?? packages/llm/src/provider/team-request-route.test.ts
+?? packages/memory/src/sqlite/
+?? packages/tools/src/execution/
+?? packages/tools/src/mcp/BoundedStdioTransport.ts
+?? packages/tools/src/mcp/LazyMcpClientProxy.ts
+?? packages/tools/src/mcp/boundedStdio.test.ts
+?? packages/tools/src/mcp/lazyProxy.test.ts
+?? tasks/169-epic-universal-subagent-workspace.md
+?? tasks/169-subagent-mesh-local-server-wiring.md
+?? tasks/170-adaptive-compaction-and-overflow-recovery.md
+?? tasks/171-mcp-process-tree-job-object-and-lazy-proxy.md
+?? tasks/172-agent-teams-dag-orchestration-and-route-snapshots.md
+?? tasks/173-session-streaming-and-multiframe-zstd-eval.md
+?? tasks/174-epic-industrial-resilience-and-teams-mesh.md
+?? tasks/175-visual-team-dag-canvas-and-staged-approval.md
+?? tasks/176-headless-daemon-and-tray-resilience.md
+?? tasks/177-tool-self-healing-and-bounded-output.md
+?? tasks/178-sqlite-wal-session-index-and-fts5-search.md
+?? tasks/179-epic-universal-team-workspace-and-daemon-mesh.md

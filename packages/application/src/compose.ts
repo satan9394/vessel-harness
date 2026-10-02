@@ -1,7 +1,7 @@
 import * as path from 'node:path';
 import type { ChatProvider, ChatToolDef, ToolCall, ToolResultRecord } from '@vessel/shared';
 import { AgentLoop, EventBus, Session } from '@vessel/core';
-import { ContextBuilder, Compaction } from '@vessel/context';
+import { ContextBuilder, Compaction, createOverflowRecovery, type AdaptiveCompactionOptions } from '@vessel/context';
 import { ToolRegistry, createFsTools, createSearchTools, createShellTool, McpClient, registerMcpTools, type McpTransport } from '@vessel/tools';
 import { PolicyEngine, loadPolicyArtifacts } from '@vessel/policy';
 import { Executor, Sandbox } from '@vessel/runtime';
@@ -58,6 +58,7 @@ export interface ComposeOptions {
   sessionId?: string;
   maxSteps?: number;
   contextWindow?: number;
+  compactionBudget?: Omit<AdaptiveCompactionOptions, 'contextWindow'>;
   /** injected compaction summarizer (LLM); defaults to heuristic */
   summarize?: (regionText: string, context: { userRequest: string }) => Promise<string>;
   /** V0.2: register the `Subagent` tool (isolated child sessions, concurrency 1–3) */
@@ -67,6 +68,8 @@ export interface ComposeOptions {
     maxDepth?: number;
     delegationDepth?: number;
     externalAgents?: ExternalAgentConfig[];
+    /** Test/embedding seam for the outbound process and workspace adapter. */
+    externalRuntimeOptions?: Omit<ConstructorParameters<typeof ExternalAgentRuntime>[0], 'agents' | 'bus'>;
   };
   /** V0.2: register MCP server tools dynamically (mcp__<server>__<tool>) */
   mcp?: ComposeMcpConnection[];
@@ -117,6 +120,7 @@ export interface ComposedHarness {
   /** Workspace plugins discovered during composition; hook commands remain opaque data. */
   discoveredPlugins: DiscoveredPlugin[];
   subagentManager?: SubagentManager;
+  externalAgentRuntime?: ExternalAgentRuntime;
   mcpClients: McpClient[];
   /**
    * MCP 装载失败清单（BRIEF-13 §6 分区语义）：单个 server 起不来 / initialize 失败
@@ -305,7 +309,7 @@ export async function composeHarness(opts: ComposeOptions): Promise<ComposedHarn
   }
   const externalAgents = subagentOptions?.externalAgents;
   const externalAgentRuntime = externalAgents && externalAgents.length > 0
-    ? new ExternalAgentRuntime({ agents: externalAgents, bus })
+    ? new ExternalAgentRuntime({ ...subagentOptions?.externalRuntimeOptions, agents: externalAgents, bus })
     : undefined;
   const finalTools = subagentManager
     ? [...tools, createSubagentTool(subagentManager, { externalRuntime: externalAgentRuntime })]
@@ -361,7 +365,8 @@ export async function composeHarness(opts: ComposeOptions): Promise<ComposedHarn
     projectMemory: projectStore ? () => projectStore.snapshot() : undefined,
     contextWindow: opts.contextWindow,
   });
-  const compaction = new Compaction({ session, summarize: opts.summarize });
+  const maxOutputTokens = opts.compactionBudget?.maxOutputTokens ?? effectiveProvider.defaultMaxOutputTokens ?? 4096;
+  const compaction = new Compaction({ session, summarize: opts.summarize, adaptive: { ...opts.compactionBudget, maxOutputTokens } });
 
   // BeforeTool authoritative listener: the policy engine
   bus.on(
@@ -459,9 +464,11 @@ export async function composeHarness(opts: ComposeOptions): Promise<ComposedHarn
       const envelope = await builder.assemble(step);
       if (compaction.shouldCompact(envelope.estimateTokens, builder.window)) {
         await compaction.compact('pressure');
+        return { ...await builder.assemble(step), maxOutputTokens };
       }
-      return envelope;
+      return { ...envelope, maxOutputTokens };
     },
+    modelErrorRecovery: createOverflowRecovery({ session, bus, builder, compaction, maxOutputTokens }),
     runTool,
     getVisibleTools: toChatTools,
     maxSteps: opts.maxSteps,
@@ -480,6 +487,7 @@ export async function composeHarness(opts: ComposeOptions): Promise<ComposedHarn
     behaviorWarnings,
     discoveredPlugins,
     subagentManager,
+    externalAgentRuntime,
     mcpClients,
     mcpFailures,
     taskRouter,

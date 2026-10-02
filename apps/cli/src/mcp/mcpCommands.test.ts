@@ -48,6 +48,19 @@ describe('vessel mcp — CLI 配置出口', () => {
     fs.rmSync(root, { recursive: true, force: true });
   });
 
+  it('disable / enable round-trip preserves declaration; absent name exits 2', async () => {
+    const c = capture();
+    try {
+      expect(await main(['mcp', 'add', 'demo', '--command', 'fake'])).toBe(0);
+      expect(await main(['mcp', 'disable', 'demo', '--json'])).toBe(0);
+      expect(JSON.parse(fs.readFileSync(path.join(root, 'mcp.json'), 'utf8')).servers[0]).toEqual({ name: 'demo', command: 'fake', disabled: true });
+      expect(await main(['mcp', 'enable', 'demo', '--json'])).toBe(0);
+      expect(JSON.parse(fs.readFileSync(path.join(root, 'mcp.json'), 'utf8')).servers[0].disabled).toBe(false);
+      expect(await main(['mcp', 'disable', 'missing'])).toBe(2);
+      expect(await main(['mcp', 'enable', 'missing'])).toBe(2);
+    } finally { c.restore(); }
+  });
+
   it('list 空配置 ⇒ exit 0 且提示未配置；--json ⇒ { configFile, servers: [] }', async () => {
     const c1 = capture();
     const code1 = await main(['mcp', 'list']);

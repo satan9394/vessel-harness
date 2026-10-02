@@ -11,7 +11,7 @@
  *   4. 健壮性：store 后端抛错（DPAPI 不可用）→ 不抛，落到下一级来源。
  *   5. 注入面：store / createStore / env / fallback 全可注入（单测不碰真实凭据）。
  *   6. **不读用户本机应用数据**：临时目录自建 `.cc-switch` fixture（非真实 db）不被读取；
- *      且仓库源码树守卫——无 `.cc-switch` / `cc-switch.db` / `node:sqlite` 运行时引用。
+ *      且仓库源码树守卫——无 `.cc-switch` / `cc-switch.db`；SQLite 仅限 Vessel 会话投影。
  *   7. 与 082 lane 集成：无 key → pending-environment/degraded；注入 mock provider → passed。
  */
 import { describe, it, expect, vi } from 'vitest';
@@ -193,7 +193,7 @@ describe('097 — 不读取任何用户本机应用数据', () => {
     fs.rmSync(home, { recursive: true, force: true });
   });
 
-  it('仓库源码树守卫：无 .cc-switch / cc-switch.db / node:sqlite / DatabaseSync 引用', () => {
+  it('仓库源码树守卫：无本机应用数据引用，SQLite 仅允许会话投影模块', () => {
     const roots = [
       path.join(REPO_ROOT, 'apps', 'cli', 'src'),
       path.join(REPO_ROOT, 'apps', 'local-server', 'src'),
@@ -214,6 +214,10 @@ describe('097 — 不读取任何用户本机应用数据', () => {
         } else if (/\.(ts|tsx|mts|cts|js|mjs|cjs)$/.test(e.name) && !/\.test\.[cm]?tsx?$/.test(e.name)) {
           const text = fs.readFileSync(p, 'utf8');
           for (const n of needles) {
+            // Epic 179 authorizes only Vessel's disposable JSONL session index.
+            // Credential application paths remain forbidden even in this file.
+            if ((n === 'node:sqlite' || n === 'DatabaseSync') &&
+              p === path.join(REPO_ROOT, 'packages', 'memory', 'src', 'sqlite', 'SessionIndexStore.ts')) continue;
             if (text.includes(n)) offenders.push(`${path.relative(REPO_ROOT, p)} :: ${n}`);
           }
         }

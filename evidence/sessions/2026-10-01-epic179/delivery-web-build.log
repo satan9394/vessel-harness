@@ -1,0 +1,14 @@
+
+> @vessel/web@0.10.0 build
+> vite build
+
+vite v8.3.0 building client environment for production...
+transforming...
+✓ 50 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/index.html                   0.43 kB │ gzip:  0.30 kB
+dist/assets/index-rROJLZUp.css   21.81 kB │ gzip:  4.75 kB
+dist/assets/index-CWIykVZy.js   290.36 kB │ gzip: 88.35 kB
+
+✓ built in 159ms

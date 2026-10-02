@@ -351,6 +351,7 @@ interface AnthropicResponseBody {
  * so a TaskRouter tier map can bind providerId 'anthropic' directly.
  */
 export class AnthropicProvider implements ChatProvider {
+  get defaultMaxOutputTokens(): number { return this.opts.defaultMaxTokens ?? 4096; }
   readonly id = 'anthropic';
 
   constructor(private readonly opts: AnthropicProviderOptions) {}
@@ -374,13 +375,14 @@ export class AnthropicProvider implements ChatProvider {
     };
 
     const body: Record<string, unknown> = {
-      model: this.opts.model,
+      model: request.model || this.opts.model,
       max_tokens: request.maxTokens ?? this.opts.defaultMaxTokens ?? 4096, // Anthropic REQUIRES max_tokens
       messages: toAnthropicMessages(rest),
     };
     // temperature: only when the caller explicitly sets it — Anthropic defaults
     // are stable and some models reject non-default temperature (research §6).
     if (request.temperature != null) body.temperature = request.temperature;
+    if (request.reasoningEffort !== undefined) body.output_config = { effort: request.reasoningEffort };
     if (system) body.system = system;
     if (request.tools && request.tools.length > 0) {
       body.tools = toAnthropicTools(request.tools);
@@ -464,12 +466,13 @@ export class AnthropicProvider implements ChatProvider {
     };
 
     const body: Record<string, unknown> = {
-      model: this.opts.model,
+      model: request.model || this.opts.model,
       max_tokens: request.maxTokens ?? this.opts.defaultMaxTokens ?? 4096,
       messages: toAnthropicMessages(rest),
       stream: true,
     };
     if (request.temperature != null) body.temperature = request.temperature;
+    if (request.reasoningEffort !== undefined) body.output_config = { effort: request.reasoningEffort };
     if (system) body.system = system;
     if (request.tools && request.tools.length > 0) {
       body.tools = toAnthropicTools(request.tools);

@@ -1,41 +1,6 @@
-/**
- * connections.test.ts — MCP「降级但不静默」的**仓内单测**（BRIEF-13 §6 / 验收 3 的 (a)(b)(c)(d)）。
- *
- * ## 这个文件补的是哪块证据缺口
- *
- * BRIEF-13 验收 3 的四条断言 ——
- *   (a) `composeHarness` 不抛
- *   (b) 降级清单含该 server 且 reason 非空
- *   (c) registry 内**无** `mcp__*`
- *   (d) 内置工具（如 `Read`）**仍可见**
- * 此前只有指挥侧 CLI E2E **间接**覆盖 (a)(b)；(c)(d) 在仓内零证据。本文件把它们钉成可重跑的断言。
- *
- * ## 故障 transport 的选择：为什么用同进程 transport，而不是 `new StdioTransport('不存在')`
- *
- * 静态结论（本文件据此设计，见下方「不可达 command」两条用例与 opt-in 探针）：
- *
- *   1. `createMcpConnections()` 的 try/catch 只包住 **构造期**（`connections.ts:77-89`）。
- *   2. 但 `spawn()` 对「可执行文件不存在」**不抛同步异常**：Node 把 `ENOENT`（以及
- *      `EACCES/EAGAIN/EMFILE/ENFILE`）交给 `process.nextTick`，以子进程 `'error'` 事件的形式异步送达
- *      （这正是 `StdioTransport` 在构造器里挂 `this.child.on('error')` 的原因，`McpClient.ts:118-121`）。
- *   3. 于是「不可达 command」的 server **不会**进 `createMcpConnections().failures`，反而会产出一个
- *      transport，把失败推迟到 `composeHarness` 的 `await client.initialize()`（`compose.ts:262`）——
- *      而那一刻子进程句柄早已 dead，向它的 stdin 写入走的是 EPIPE/已销毁 socket 这条**预期**异常路径
- *      （同仓库 `packages/tools/src/mcp/stdioTransport.e2e.test.ts:318-323` 就为此显式挂了 stdin error 监听，
- *      「挂个监听避免变成未处理错误」）。也就是说真实结果大概率是**未处理 error 或挂起**，而不是干净降级。
- *
- * 因此：**能稳定证明 compose 降级分区的，是一个 `initialize` 必定失败的 McpTransport**
- * （`createInProcessTransport`，`@vessel/tools` 公开导出）。它不冒充 stdio 机制证据 ——
- * 「StdioTransport 能否真 spawn 任意 command」由 `packages/tools/src/mcp/stdioTransport.e2e.test.ts`
- * 用真子进程证明；本文件的断言对象是**接口层契约**（`McpClient` 只依赖 `McpTransport`，
- * 两条路径在 `compose.ts:257-274` 走的是同一段代码）。
- *
- * ## 纪律
- *
- * - 不联网；不碰真实 `~/.vessel`；workspace 用 `mkdtempSync`，`afterEach` 收尸。
- * - 每个 harness 都被 track，`afterEach` 无条件 `close()`；每个真 stdio transport 都被 reap
- *   （close → 50ms 宽限不够就补 SIGKILL），不留孤儿子进程。
- * - 静态上无法稳定成立的断言一律 `it.skipIf` + 写明条件，不写假绿断言。
+/** MCP assembly and composition failures; task171 adds cold manifest registration.
+ * No installed agent or network is used. Temporary harness roots are isolated.
+ * Legacy runtime probes remain opt-in; default declarations now create lazy proxies.
  */
 import * as fs from 'node:fs';
 import * as os from 'node:os';
@@ -46,6 +11,8 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { MockProvider } from '@vessel/llm';
 import {
   StdioTransport,
+  LazyMcpClientProxy,
+  MCP_DEMO_TOOLS,
   createInProcessTransport,
   handleMcpRequest,
   type McpTransport,
@@ -79,7 +46,8 @@ function childOf(transport: StdioTransport): ChildProcess {
  * 对「从未启动成功」的子进程，stdin/stdout 的 EPIPE 是预期路径 —— 先挂监听，
  * 否则会变成未处理的 stream 'error'（会让整个 worker 炸掉，而不是让断言失败）。
  */
-async function reap(transport: StdioTransport): Promise<void> {
+async function reap(transport: McpTransport): Promise<void> {
+  if (!(transport instanceof StdioTransport)) { await transport.close(); return; }
   const child = childOf(transport);
   child.stdin?.on('error', () => {});
   child.stdout?.on('error', () => {});
@@ -119,6 +87,19 @@ function namesOf(harness: ComposedHarness): string[] {
 /* ══════════════════════════════════════════════════════════════════════════════════════════ */
 
 describe('MCP 连接降级 — createMcpConnections（纯函数）', () => {
+  it('disabled has zero connections and configured manifest stays cold', async () => {
+    const result = createMcpConnections([
+      { name: 'off', command: GHOST_BINARY, disabled: true },
+      { name: 'cold', command: GHOST_BINARY, staticTools: MCP_DEMO_TOOLS },
+    ]);
+    expect(result.failures).toEqual([]);
+    expect(result.connections.map((c) => c.serverName)).toEqual(['cold']);
+    const proxy = result.connections[0]!.transport as LazyMcpClientProxy;
+    await proxy.request('initialize');
+    expect(await proxy.request('tools/list')).toEqual({ tools: MCP_DEMO_TOOLS });
+    expect(proxy.isSpawned()).toBe(false);
+    await proxy.close();
+  });
   it('构造期抛错的声明被降级为 failures：connections 空、每项 serverName 对应且 reason 非空', () => {
     const result = createMcpConnections([malformed('alpha'), malformed('beta')]);
 
@@ -211,6 +192,17 @@ describe('BRIEF-13 验收 3 — composeHarness 的 MCP 失败分区', () => {
     opened.push(harness);
     return harness;
   }
+
+  it('registers configured schemas without spawning, and first tool call performs physical handshake', async () => {
+    const physical = createInProcessTransport(handleMcpRequest);
+    const factory = vi.fn(async () => physical);
+    const proxy = new LazyMcpClientProxy('lazy', factory, MCP_DEMO_TOOLS);
+    const harness = await compose([{ serverName: 'lazy', transport: proxy }]);
+    expect(namesOf(harness)).toContain('mcp__lazy__echo');
+    expect(factory).not.toHaveBeenCalled();
+    await harness.mcpClients[0]!.callTool('echo', { text: 'awake' });
+    expect(factory).toHaveBeenCalledTimes(1);
+  });
 
   it('验收 3a（全失败分支）：createMcpConnections 全失败 → 把成功项（空）交给 composeHarness → 正常返回', async () => {
     const declared = createMcpConnections([malformed('bad-1'), malformed('bad-2')]);

@@ -1,5 +1,6 @@
 import type { SandboxStatus, ToolSpec } from '@vessel/shared';
 import type { Sandbox } from '@vessel/runtime';
+import { errorCode } from '../execution/selfHealing.js';
 
 const WRAPPERS = /^(timeout|time|nice|nohup)\s+/i;
 
@@ -135,6 +136,7 @@ export function createShellTool(opts: {
       // own name — `preRoundEnforcement` — and is never mixed with the
       // round-scoped facts of this spawn.
       const confined = await sandbox.confine(command.split(/\s+/));
+      let completed = false;
       try {
         const r = await sandbox.run(command, [], {
           timeoutMs,
@@ -144,6 +146,7 @@ export function createShellTool(opts: {
           // task 050: turn interrupt kills the child (result resolves killed:true)
           signal: ctx?.signal,
         });
+        completed = true;
         const output = (r.stdout + (r.stderr ? '\n[stderr]\n' + r.stderr : '')).trim();
         // task 072 truthfulness: the escape conclusion must not stay in runtime
         // memory. `r.audit` is filtered down to escape/termination events and
@@ -171,7 +174,7 @@ export function createShellTool(opts: {
         };
         if (r.exitCode !== 0 || r.killed) {
           return {
-            content: output.slice(0, 200_000),
+            content: output,
             error: {
               errorClass: 'TOOL_FAILURE',
               message: `exit code ${r.exitCode ?? 'null'}${r.timedOut ? ' (timed out)' : ''}${r.killed && !r.timedOut ? ' (interrupted)' : ''}`,
@@ -197,7 +200,7 @@ export function createShellTool(opts: {
       } catch (err) {
         return {
           content: '',
-          error: { errorClass: 'TOOL_FAILURE', message: `spawn failed: ${(err as Error).message}` },
+          error: { errorClass: 'TOOL_FAILURE', message: `spawn failed: ${(err as Error).message}`, ...(!completed && errorCode(err) ? { detail: { code: errorCode(err) } } : {}) },
           meta: { readonly: isReadonlyCommand(command) },
         };
       }

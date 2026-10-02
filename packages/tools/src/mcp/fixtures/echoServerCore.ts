@@ -7,6 +7,8 @@ export interface McpToolDescriptor {
   name: string;
   description: string;
   inputSchema: Record<string, unknown>;
+  /** Retry hints never widen policy permissions. Absent means effects may be non-idempotent. */
+  annotations?: { readOnlyHint?: boolean; idempotentHint?: boolean };
 }
 
 export const MCP_DEMO_TOOLS: McpToolDescriptor[] = [

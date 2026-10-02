@@ -112,6 +112,8 @@ export interface SubagentManagerOptions {
   cwd?: string;
   provider: ChatProvider;
   model: string;
+  temperature?: number;
+  reasoningEffort?: 'low' | 'medium' | 'high';
   policyArtifacts: PolicyArtifacts;
   /** parent-visible tool set; the child receives a narrowed subset */
   tools: ToolSpec[];
@@ -281,6 +283,8 @@ export class SubagentManager {
         workspaceRoot: this.opts.workspaceRoot,
         cwd: this.opts.cwd,
         provider: this.opts.provider,
+        temperature: this.opts.temperature,
+        reasoningEffort: this.opts.reasoningEffort,
         model: req.model ?? this.opts.model,
         policyArtifacts: this.opts.policyArtifacts,
         tools: childTools,

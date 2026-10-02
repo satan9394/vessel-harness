@@ -1,16 +1,17 @@
 /**
  * Vessel Local Web — Server-Sent Events consumer (task 042).
  *
- * A thin, dependency-free wrapper around the browser's native EventSource.
+ * Native EventSource for foreground servers; header-bearing fetch streams for daemons.
  * The local server (`apps/local-server`) streams deltas from its projections
  * over `GET /api/sessions/:id/events` as:
  *
  *   data: {"type":"conversation"|"tool"|"usage"|"policy","delta":{...},"ts":...}
  *   data: {"type":"ping","ts":...}
  *
- * EventSource reconnects automatically on network drop (heartbeats every 15s
- * keep the connection alive); no manual retry logic is needed here.
+ * Both transports reconnect on network drop; daemon streams stop retrying on auth rejection.
  */
+
+import { daemonToken } from './auth.js';
 
 /** One incoming SSE frame after JSON parsing. */
 export interface SseFrame {
@@ -67,7 +68,7 @@ export interface PolicyDelta {
   ts: number;
 }
 
-import type { TeamRunState } from './team';
+import type { TeamRunState } from './team.js';
 
 /**
  * team delta — one snapshot frame of the session's team run (task 060). The
@@ -81,6 +82,8 @@ export interface TeamDelta {
 }
 
 export interface StreamHandlers {
+  /** Native EventSource open/reconnect boundary, for snapshot reconciliation. */
+  onOpen?: () => void;
   onConversation?: (delta: ConversationDelta) => void;
   onTool?: (delta: ToolDelta) => void;
   onUsage?: (delta: UsageDelta) => void;
@@ -106,10 +109,11 @@ function isRecord(value: unknown): value is Record<string, unknown> {
  * Open an EventSource against `url` and dispatch each data frame by its `type`.
  * Returns { close } so callers can tear the stream down (unmount / session switch).
  */
-export function createEventStream(url: string, handlers: StreamHandlers = {}): EventStream {
-  let source: EventSource;
+export function createEventStream(url: string, handlers: StreamHandlers = {}, options: { token?: string; fetch?: typeof globalThis.fetch; reconnectMs?: number } = {}): EventStream {
+  let source: { onmessage: ((event: MessageEvent) => void) | null; onopen: ((event: Event) => void) | null; close(): void };
   try {
-    source = new EventSource(url);
+    const token = options.token ?? daemonToken();
+    source = token ? new BearerEventSource(url, token, handlers, options) : new EventSource(url);
   } catch (err) {
     // EventSource constructor can throw in odd environments; surface it.
     handlers.onError?.(err);
@@ -177,9 +181,51 @@ export function createEventStream(url: string, handlers: StreamHandlers = {}): E
     }
   };
 
+  source.onopen = () => handlers.onOpen?.();
+
   return {
     close() {
       source.close();
     },
   };
+}
+
+/** Header-bearing SSE transport with bounded parsing, reconnect and cancellation. */
+class BearerEventSource {
+  onmessage: ((event: MessageEvent) => void) | null = null;
+  onopen: ((event: Event) => void) | null = null;
+  private closed = false;
+  private readonly abort = new AbortController();
+  private timer?: ReturnType<typeof setTimeout>;
+  private reader?: ReadableStreamDefaultReader<Uint8Array>;
+  constructor(private readonly url: string, private readonly token: string, private readonly handlers: StreamHandlers,
+    private readonly options: { fetch?: typeof globalThis.fetch; reconnectMs?: number }) { void this.connect(); }
+  close(): void { this.closed = true; this.abort.abort(); clearTimeout(this.timer); void this.reader?.cancel().catch(() => {}); }
+  private async connect(): Promise<void> {
+    let retry = true;
+    try {
+      const response = await (this.options.fetch ?? globalThis.fetch)(this.url, {
+        headers: { Authorization: `Bearer ${this.token}` }, signal: this.abort.signal,
+      });
+      if (response.status === 401 || response.status === 403) retry = false;
+      if (!response.ok || !response.body) throw new Error(`SSE connection failed: HTTP ${response.status}`);
+      if (this.closed) { await response.body.cancel(); return; }
+      this.onopen?.(new Event('open'));
+      const reader = response.body.getReader(); this.reader = reader; const decoder = new TextDecoder(); let pending = '';
+      try {
+        while (!this.closed) {
+          const chunk = await reader.read(); if (chunk.done) break;
+          pending += decoder.decode(chunk.value, { stream: true });
+          if (pending.length > 1024 * 1024) throw new Error('SSE frame exceeds parsing limit');
+          let boundary: RegExpExecArray | null;
+          while ((boundary = /\r?\n\r?\n/.exec(pending))) {
+            const raw = pending.slice(0, boundary.index); pending = pending.slice(boundary.index + boundary[0].length);
+            const data = raw.split(/\r?\n/).filter(line => line.startsWith('data:')).map(line => line.slice(5).replace(/^ /, '')).join('\n');
+            if (data && !this.closed) this.onmessage?.(new MessageEvent('message', { data }));
+          }
+        }
+      } finally { await reader.cancel().catch(() => {}); reader.releaseLock(); this.reader = undefined; }
+    } catch (error) { if (!this.closed) this.handlers.onError?.(error); }
+    if (!this.closed && retry) this.timer = setTimeout(() => void this.connect(), this.options.reconnectMs ?? 1000);
+  }
 }

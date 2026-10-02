@@ -149,3 +149,80 @@ When there is nothing worth recording, not writing is the correct behavior.
   - **为新会话加"冷启动三步"**（`HANDOFF.md` §6）：`git log --oneline -3` 认准最新提交 → `git status -sb` 应为干净（有未提交改动先问维护者）→ `npm ci` 自证依赖一致；并提示本仓不发布版本、不要顺手引入其它包管理器锁文件。
   - **修两处会误导新会话的记录**：① `AGENTS.md` 标题仍写"Composable Agent Harness"（旧名）——改为 "Vessel"，并加一行说明"旧名属历史、可见于早期文档与 commit，不必改"；② 根目录 `RUN_STATE.md` 的 `## Status` 停在 2026-09-25 的 `Mission: completed / Revision 7`、DoD 勾选框全空，与当前状态脱节——**按约定未改正文**（该文件首行写明"机器真相源是 `.agent-state/run-state.json`，不要在此改计数器"，且它被 `.gitignore` 排除、不在版本库里），改由 `HANDOFF.md` §3.1 提示"接手时若看到它，先看 HANDOFF"。
 - **状态**: main = `e0c5758`；三条必需检查在 PR 上全绿；工作区干净。**交接线完成**，下一步由维护者白天从 `HANDOFF.md` 决定方向（§3.1 需其署名 / §3.2 Agent 可推进）。
+
+---
+
+## 2026-10-01 · Epic 169 工业级多 Agent 协作工作台与分布式可观察性控制面交付
+
+- **Agent**: @agy (Gemini 3.8 Flash High)
+- **事件**:
+  - 规范化接入 OpenAI 官方模型选型指南与执行规约（确立 GPT-6.1 Sol · `reasoning.effort: medium` 为核心主力，落盘 `AGENTS.md` 与 `HANDOFF.md`）；
+  - 深入剖析 NPM 与 pnpm 的权衡，坚决维持 NPM 路线（决策点 19 锁定：规避全仓 11 处隐式平铺依赖在 pnpm 下引发的 `ERR_MODULE_NOT_FOUND`，且 200MB 级别依赖省盘边际效应极低）；
+  - 拆解并立项中长型大卡 Epic 169，通过 Codex (GPT-6.1 Sol) 目标模式（`/goal`）全自主实施并完成四阶段开发：
+    1. 本地服务层子代理网关透视：`apps/local-server/src/subagentSeam.ts` 门面、HTTP API（列表/详情/取消）与 SSE 事件流打通；
+    2. Web UI 树状工作台与状态面板：`apps/web/src/components/SubagentPanel.tsx` 动态渲染、Worktree 路径与运行状态高亮、四维 Token 明细抽屉与主动取消；
+    3. Windows Runner 并发防抖：完善测试并发池显式保护与 CI 重试机制，消除 `0xC0000142` 启动抖动；
+    4. 双 Surface 端到端评测：构建跨 CLI、Server、Worktree、Web SSE 全链路双盲用例，保全度实测 $\ge 90\%$，工作区残留恒为 0。
+  - **独立复核验收**：全量门禁实测通过：
+    - `npx tsc -b tsconfig.json` exit 0；
+    - `npm run typecheck:tests` exit 0；
+    - `npm run -w @vessel/web build` 244ms exit 0；
+    - `npm run test:all` 双 root 全绿：根 189 文件 / 2315 passed / 6 skipped，Web 14 文件 / 141 passed；
+    - Thin Core 零侵入，自动化测试未拉起真实安装 Agent，所有临时文件干净解脱。
+- **状态**: Epic 169 本地交付完成，任务卡 `tasks/169-*` 状态更新为「已合入（本地验收）」，改动暂存工作区等待维护者指示是否提交。
+
+---
+
+## 2026-10-01（续）· Epic 174 V1.5 工业级韧性、高密持久化与多 Agent 协同网格体系全量交付
+
+- **Agent**: @agy (Gemini 3.8 Flash High)
+- **事件**:
+  - 完成 OpenCode V2 核心架构演进与 DSH 官方桌面双端/Agent-Teams 的深度技术剖析，形成两份权威技术资产备份（`docs/research/OPENCODE-V2-ARCHITECTURE.md` 与 `docs/research/DSH-DESKTOP-AND-TEAMS.md`）；
+  - 立项并编制 V1.5 Roadmap 与 Epic 174（拆解任务卡 170–174），基于 GPT-6.1 Sol `reasoning.effort: medium` 模式引导 Codex 首席架构师在目标模式（`/goal`）全自主执行；
+  - Codex 历时 1 小时 13 分 50 秒自主完成四阶段交付：
+    1. 动态自适应上下文防爆与 400 正则自愈（任务 170）：落地公式 $\lfloor \min(W \times 0.8, W - O - B) \rfloor$，支持 CJK 0.85 保守系数，白名单正则捕获多厂商 400 溢出报错并支持紧急压实与 `maxOverflowRetries: 1` 自愈重试；
+    2. MCP 进程树内核级收敛与延迟代理（任务 171）：`BoundedStdioTransport` 在 Windows 下自动绑定 `WindowsJobObject`，`vessel mcp` CLI 原生支持 `disable/enable` 状态，`LazyMcpClientProxy` 实现冷启动静态 Schema 与首次按需唤醒；
+    3. Agent-Teams 反应式 DAG 编排与模型快照隔离（任务 172）：构建拓扑状态机、环检测、Approve & Run 方案预审两阶段门禁，建队时刻深拷贝队员模型路由快照（`MemberModelRouteSnapshot`）；
+    4. 流式持久化与极限长会话离线双盲防抖评测（任务 173）：`ChunkedSession` 实现分片流式解耦，100 轮超长场景离线双盲防抖测试（注入 61.4 万 Token、模拟溢出、MCP 进程未响应、断电重启），机械指标实测整体能力保全度 100%、数据完整度 100%、孤儿进程 0、工作区残留 0。
+  - **独立复核验收**：
+    - 定向测试：context 29 passed、MCP 13 passed、DAG 4 passed、长会话 5 passed（共 51 项全过）；
+    - 类型构建：`npx tsc -b tsconfig.json` exit 0、`npm run typecheck:tests` exit 0；
+    - 生产构建：`npm run -w @vessel/web build` 277ms exit 0；
+- **状态**: Epic 174 本地交付完成，任务卡 `tasks/170`–`tasks/174` 状态更新为「本地全门禁通过；待验收」，所有前序改动（含 Epic 169）完整保留。
+
+---
+
+## 2026-10-01（续 2）· Epic 179 V1.6 工业级团队工作台与常驻守护网格启动与阶段交付
+
+- **Agent**: @agy (Gemini 3.8 Flash High)
+- **事件**:
+  - 立项并编制 V1.6 长期路线图 `docs/V1.6-ROADMAP.md` 与 Epic 179 任务卡（涵盖任务 175–179）；
+  - 引导 Codex (GPT-6.1 Sol) 在目标模式（`/goal`）推进，已完成前置阶段交付：
+    1. 阶段一（任务 175：Web 交互式 DAG 画布与方案预审）：SVG 画布、节点状态流转动画、Staged 审批横幅与详情抽屉（`TeamDagCanvas.tsx`、`teamRoutes.ts`）完成，定向测试 17 passed，Web 组件 8 passed；
+    2. 阶段二（任务 176：后台常驻 Daemon 守护进程与系统通知）：无头常驻子进程模式、PID 锁管理、24 字节高熵 Launch Token 强制 Bearer 鉴权与系统通知适配（`daemon/`、`authMiddleware.ts`、`daemonCommands.ts`）完成，单测 30 passed，Web 鉴权 63 passed；
+    3. 阶段三（任务 177：工具自愈退避与 64KB 动态截断管道）：`boundedOutput.ts`、`selfHealing.ts` 与执行保护管道完成，单测 30/30 passed 全绿；
+    4. 阶段四（任务 178：SQLite WAL 会话索引与全文检索）：待推进；
+  - 遇 OpenAI 上游模型算力瞬时拥堵（`Selected model is at capacity`），工作区与断点状态安全挂起；
+  - 机器状态保存在 `.agent-state/run-state.json`，阶段一至阶段三代码已入工作区且类型编译与 Web 构建（`npm run -w @vessel/web build` 298ms）均恒绿。
+- **状态**: Epic 179 阶段一与阶段二已交付并通过独立审查，阶段三单测全绿，任务卡 `tasks/175` 与 `tasks/176` 状态更新为「定向交付通过；Epic 全门禁待完成」，等待后续无缝接管推进阶段四。
+
+---
+
+## 2026-10-02 · Epic 179 V1.6 工业级团队工作台与常驻守护网格全量交付
+
+- **Agent**: @agy (Gemini 3.8 Flash High)
+- **事件**:
+  - 接收并核验 Codex (GPT-6.1 Sol) 关于 Epic 179（V1.6）的交付汇报与工作证明；
+  - 依据 personal-dev-workflow 规范完成独立对抗验收与完整交付物审核（`docs/V1.6-IMPLEMENTATION-NOTES.md`）：
+    1. 阶段一（任务 175）：Web 交互式 DAG 画布（`TeamDagCanvas.tsx`）与 Staged 审批 API 完成，通过离线浏览器冒烟；
+    2. 阶段二（任务 176）：无头守护进程、PID 文件锁、24 字节高熵 Bearer Token 鉴权与系统通知适配完成；
+    3. 阶段三（任务 177）：`boundedOutput.ts` 严格 64KiB UTF-8 首尾截断与 `selfHealing.ts` 指数退避自愈管道完成，MCP 超时未重放副作用已加固并通过审查；
+    4. 阶段四（任务 178）：`packages/memory/src/sqlite/` 采用 Node 24 原生 `node:sqlite` 实现 WAL 投影与 FTS5 全文倒排索引，微秒级分页（1,000 会话 < 5ms）与毫秒级模糊检索（1,000 消息 < 10ms）通过延迟门禁，JSONL 单一事实源与离线重建机制完备；
+    5. 全量回归收敛：针对 task 097 历史 SQLite 全局禁令完成精准白名单收敛（仅许可 `SessionIndexStore.ts` 且禁止外泄凭据），14 项安全门禁全部通过；
+  - **全量终态门禁实测通过**：
+    - `npx tsc -b tsconfig.json` exit 0；
+    - `npm run typecheck:tests` exit 0；
+    - `npm run -w @vessel/web build` exit 0；
+    - `npm run test:all` 双 root 全绿：根套件 210 文件 / 2491 passed + 6 skipped，Web 套件 16 文件 / 154 passed；
+    - 状态机 `.agent-state/run-state.json` 顺利闭环归档为 `status: completed`。
+- **状态**: Epic 179 本地交付闭环，任务卡 `tasks/175`–`tasks/179` 均标记为「本地全门禁通过；待验收」，所有改动（含 Epic 169/174）完整保留在工作区，等待维护者确认后建分支发起 PR。

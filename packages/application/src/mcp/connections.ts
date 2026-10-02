@@ -1,4 +1,4 @@
-import { StdioTransport, resolveSpawnCommand } from '@vessel/tools';
+import { BoundedStdioTransport, LazyMcpClientProxy, resolveSpawnCommand, type McpToolDescriptor, type McpTransport } from '@vessel/tools';
 
 /**
  * packages/application/src/mcp/connections.ts — MCP 声明 → compose 可消费连接的桥接
@@ -44,6 +44,8 @@ export interface McpServerDescriptor {
   args?: string[];
   env?: Record<string, string>;
   cwd?: string;
+  disabled?: boolean;
+  staticTools?: McpToolDescriptor[];
 }
 
 /** 建立失败但已降级的 server：`reason` 是原始错误的 message，供调用方原样展示。 */
@@ -54,7 +56,7 @@ export interface McpConnectionFailure {
 
 /** 成功建立的连接 / 建立失败但已降级的 server。 */
 export interface McpConnectionsResult {
-  connections: { serverName: string; transport: StdioTransport }[];
+  connections: { serverName: string; transport: McpTransport }[];
   failures: McpConnectionFailure[];
 }
 
@@ -72,16 +74,19 @@ export function createMcpConnections(servers: McpServerDescriptor[]): McpConnect
   const failures: McpConnectionFailure[] = [];
 
   for (const s of servers) {
+    if (s.disabled) continue;
     // 每个 server 独立作用域：任一环节抛错都被本层的 catch 收住，
     // 循环继续跑下一个 server（单点失败不传播）。
     try {
       // win32 下 npx/npm/pnpm/yarn/uvx 是 .cmd shim，需 shell: true；其余直连 spawn。
       const { command, shell } = resolveSpawnCommand(s.command);
-      const transport = new StdioTransport(command, s.args ?? [], {
+      if (typeof command !== 'string' || !command.trim()) throw new Error('MCP command must be a non-empty string');
+      const factory = async (): Promise<McpTransport> => new BoundedStdioTransport(command, s.args ?? [], {
         shell,
         env: s.env,
         cwd: s.cwd,
       });
+      const transport = new LazyMcpClientProxy(s.name, factory, s.staticTools);
       connections.push({ serverName: s.name, transport });
     } catch (err) {
       // 不 rethrow、不打印：记下原因，交给调用方决定输出通道。

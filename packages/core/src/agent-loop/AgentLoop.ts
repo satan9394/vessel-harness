@@ -25,9 +25,12 @@ export interface RequestEnvelope {
   messages: Parameters<ChatProvider['chat']>[0]['messages'];
   tools: ChatToolDef[];
   estimateTokens: number;
+  maxOutputTokens?: number;
 }
 
 export interface LoopDeps {
+  temperature?: number;
+  reasoningEffort?: ChatRequest['reasoningEffort'];
   session: Session;
   bus: EventBus;
   provider: ChatProvider;
@@ -47,6 +50,12 @@ export interface LoopDeps {
   llmRetry?: {
     maxRetries?: number;
     onRetry?: (attempt: number, error: unknown) => Promise<void>;
+  };
+  /** Injected context-layer decision. Core neither classifies nor compacts history. */
+  modelErrorRecovery?: {
+    maxOverflowRetries?: number;
+    isOverflowError: (error: unknown) => boolean;
+    recover: (error: unknown, context: { step: number; requestId: string; retryCount: number }) => Promise<RequestEnvelope | null>;
   };
 }
 
@@ -590,7 +599,9 @@ export class AgentLoop {
       model: envelope.model,
       messages: envelope.messages,
       tools: envelope.tools.length > 0 ? envelope.tools : undefined,
-      temperature: 0,
+      temperature: this.deps.temperature ?? 0,
+      reasoningEffort: this.deps.reasoningEffort,
+      maxTokens: envelope.maxOutputTokens,
       // task 050: forward the turn's AbortSignal so provider fetches abort promptly
       signal: this.interruptCtl.signal ?? undefined,
     };
@@ -598,21 +609,44 @@ export class AgentLoop {
     // — 同一个 id 也是 B12 `request/header` 与 B13 `llm/retry` 的相关键。
     const requestId = modelRequestId(turnId, step);
     let attempt = 0;
+    let overflowRetries = 0;
     // eslint-disable-next-line no-constant-condition
     while (true) {
       // task 050: interruption that landed between attempts stops retrying at once
       if (this.interruptCtl.aborted) throw new TurnInterruptedError();
+      let streamOutputEmitted = false;
       try {
         const provider = this.deps.provider;
         if (typeof provider.stream === 'function') {
-          return await this.consumeStream(provider.stream(request), request, turnId, step, requestId);
+          return await this.consumeStream(provider.stream(request), request, turnId, step, requestId, () => { streamOutputEmitted = true; });
         }
         const response = await provider.chat(request);
         return { response, ...(response.usage ? { reportedUsage: response.usage } : {}) };
       } catch (err) {
         // task 050: an abort wins over retry — interruption is never retried
         if (this.interruptCtl.aborted) throw new TurnInterruptedError();
-        const cls = classifyModelError(err);
+        const recovery = this.deps.modelErrorRecovery;
+        const overflow = recovery?.isOverflowError(err) ?? false;
+        if (recovery && overflow && !streamOutputEmitted && overflowRetries < Math.min(1, recovery.maxOverflowRetries ?? 1)) {
+          const rebuilt = await recovery.recover(err, { step, requestId, retryCount: overflowRetries });
+          if (rebuilt) {
+            overflowRetries += 1;
+            request.model = rebuilt.model;
+            request.messages = rebuilt.messages;
+            request.tools = rebuilt.tools.length > 0 ? rebuilt.tools : undefined;
+            request.maxTokens = rebuilt.maxOutputTokens;
+            this.state.setContextEstimate(rebuilt.estimateTokens);
+            await this.deps.session.appendSync({
+              type: 'request/header', requestId, turnId, step, provider: this.deps.provider.id,
+              model: rebuilt.model, estimateTokens: rebuilt.estimateTokens,
+              messageCount: rebuilt.messages.length, toolCount: rebuilt.tools.length,
+              overflowRetryNo: overflowRetries, surface: false,
+            });
+            continue;
+          }
+        }
+        // Context recovery owns its budget; generic network retries cannot extend it.
+        const cls = overflow ? 'UNKNOWN' : classifyModelError(err);
         attempt += 1;
         // B13 `llm/retry` —— **先持久后等待**（EVENT-SPEC §3 原则 5 / §5.C A11 重试纪律 /
         // §6 B13「每次重试决策在等待前落盘」）。
@@ -679,6 +713,7 @@ export class AgentLoop {
     turnId: string,
     step: number,
     requestId: string,
+    onOutput: () => void,
   ): Promise<ModelResult> {
     const { bus } = this.deps;
     await bus.emit('model_stream_start', { turnId, step, requestId, model: request.model });
@@ -707,6 +742,8 @@ export class AgentLoop {
         // the latest; signal-aware ones abort the fetch and throw out of the
         // iterator, which the catch below also turns into a stop).
         if (this.interruptCtl.aborted) throw new TurnInterruptedError();
+        // Never replay an overflow attempt after text/reasoning/tool deltas reached observers.
+        if (chunk.type === 'text_delta' || chunk.type === 'reasoning_delta' || chunk.type.startsWith('tool_call_')) onOutput();
         switch (chunk.type) {
           case 'message_start':
             break; // model identity already carried on model_stream_start
