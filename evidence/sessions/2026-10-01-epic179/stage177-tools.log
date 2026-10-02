@@ -1,0 +1,14 @@
+
+ RUN  v5.0.1 E:/Code_file/Projects/Vessel_Harness
+
+(node:20136) [DEP0190] DeprecationWarning: Passing args to a child process with shell option true can lead to security vulnerabilities, as the arguments are not escaped, only concatenated.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+
+ Test Files  12 passed (12)
+      Tests  113 passed | 3 skipped (116)
+   Start at  16:50:33
+   Duration  22.17s (tests 71%, transform 14%, import 13%, setup 1%, worker 1%)
+
+    Isolate  12 workers spawned · ~350ms startup each (spawn + environment, per file)
+             at least ~3.85s faster with isolate: false — reuses workers across files instead of one per file
+

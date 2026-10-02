@@ -1,6 +1,7 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import type { ToolSpec } from '@vessel/shared';
+import { errorCode } from '../execution/selfHealing.js';
 import {
   assertConfined,
   assertNoNul,
@@ -46,7 +47,7 @@ export function createFsTools(opts: { workspaceRoot: string; fsPolicy: FsPolicyC
         if (e.guard) {
           return { content: '', error: { errorClass: 'DENIED', message: e.message }, meta: { guard: e.guard } };
         }
-        return { content: '', error: { errorClass: 'TOOL_FAILURE', message: `read failed: ${(err as Error).message}` }, meta: {} };
+        return { content: '', error: { errorClass: 'TOOL_FAILURE', message: `read failed: ${(err as Error).message}`, ...(errorCode(err) ? { detail: { code: errorCode(err) } } : {}) }, meta: {} };
       }
     },
   };
@@ -82,7 +83,7 @@ export function createFsTools(opts: { workspaceRoot: string; fsPolicy: FsPolicyC
         if (e.guard) {
           return { content: '', error: { errorClass: 'DENIED', message: e.message }, meta: { guard: e.guard } };
         }
-        return { content: '', error: { errorClass: 'TOOL_FAILURE', message: `write failed: ${(err as Error).message}` }, meta: {} };
+        return { content: '', error: { errorClass: 'TOOL_FAILURE', message: `write failed: ${(err as Error).message}`, ...(errorCode(err) ? { detail: { code: errorCode(err) } } : {}) }, meta: {} };
       }
     },
   };
@@ -129,7 +130,7 @@ export function createFsTools(opts: { workspaceRoot: string; fsPolicy: FsPolicyC
         if (e.guard) {
           return { content: '', error: { errorClass: 'DENIED', message: e.message }, meta: { guard: e.guard } };
         }
-        return { content: '', error: { errorClass: 'TOOL_FAILURE', message: `edit failed: ${(err as Error).message}` }, meta: {} };
+        return { content: '', error: { errorClass: 'TOOL_FAILURE', message: `edit failed: ${(err as Error).message}`, ...(errorCode(err) ? { detail: { code: errorCode(err) } } : {}) }, meta: {} };
       }
     },
   };

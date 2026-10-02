@@ -12,6 +12,7 @@ import {
 } from '../team';
 import ModelSelector from './ModelSelector';
 import TeamPanel from './TeamPanel';
+import TeamStagesPanel from './team/TeamStagesPanel';
 import ReviewRequiredPanel from './ReviewRequiredPanel';
 
 interface Props {
@@ -191,6 +192,7 @@ export default function TeamModule({ sessionId, api }: Props) {
 
   return (
     <div className="team-module">
+      <TeamStagesPanel key={sessionId} api={api} sessionId={sessionId} />
       <ModelSelector
         mode={route?.mode ?? 'auto'}
         label={label}

@@ -1,4 +1,5 @@
 import type { ChatProvider } from '@vessel/shared';
+import type { ChatUsage, SessionRecord } from '@vessel/shared';
 import type { SteerSource } from '@vessel/core';
 import type { ComposedHarness, ComposeOptions } from '../compose.js';
 import { composeHarness } from '../compose.js';
@@ -79,6 +80,9 @@ export class SessionController {
   /** bus-attached event projections (read-only UI facts). */
   readonly projections: SessionProjections;
   private readonly detachProjections: () => void;
+  private usageWriteFailure?: unknown;
+  private projectedCount = 0;
+  private projectedTail?: SessionRecord;
 
   private constructor(harness: ComposedHarness, opts: SessionControllerOptions) {
     this.harness = harness;
@@ -105,6 +109,13 @@ export class SessionController {
       this.projections.toolActivity.attach(harness.bus),
       this.projections.usage.attach(harness.bus),
       this.projections.policy.attach(harness.bus),
+      harness.bus.on('after_model', async payload => {
+        const call = payload as { turnId: string; step: number; usage?: ChatUsage };
+        if (!call.usage) return;
+        try {
+          await harness.session.appendSync({ type: 'model/usage', turnId: call.turnId, step: call.step, usage: call.usage, surface: false });
+        } catch (error) { this.usageWriteFailure = error; }
+      }, 'application:durable-model-usage'),
     ];
     this.detachProjections = () => {
       for (const off of detaches) off();
@@ -128,7 +139,8 @@ export class SessionController {
       createdAt: now,
       updatedAt: now,
     };
-    opts.registry?.put(meta);
+    try { opts.registry?.put(meta); }
+    catch (error) { await ctl.close().catch(() => {}); throw error; }
     return ctl;
   }
 
@@ -158,6 +170,20 @@ export class SessionController {
     return this.harness.loop;
   }
 
+  /** Visible tool face for child runtimes; the child must also inherit session policy. */
+  get tools() {
+    return this.harness.registry.listVisible();
+  }
+
+  /** Copy effective policy data while retaining compiled matcher functions. */
+  get policyArtifacts() {
+    const artifacts = this.harness.artifacts;
+    return { ...artifacts, promptGuidance: [...artifacts.promptGuidance], deniedTools: [...artifacts.deniedTools],
+      rules: artifacts.rules.map(rule => ({ ...rule })), fsConfig: artifacts.fsConfig ? structuredClone(artifacts.fsConfig) : undefined,
+      shellAllow: artifacts.shellAllow ? [...artifacts.shellAllow] : undefined,
+      declarationOnly: artifacts.declarationOnly ? structuredClone(artifacts.declarationOnly) : undefined };
+  }
+
   /**
    * Run one user turn through the session loop. The loop owns a per-turn
    * interrupt scope (AgentLoop.begin/end), so calling runTurn while an older
@@ -165,8 +191,19 @@ export class SessionController {
    * controller's previous per-call AbortController).
    */
   async runTurn(prompt: string) {
+    if (this.usageWriteFailure) throw this.usageWriteFailure;
     this.registry?.nameTopicFromPrompt(this.sessionId, prompt);
-    return this.harness.loop.runTurn(prompt);
+    const result = await this.harness.loop.runTurn(prompt);
+    if (this.usageWriteFailure) throw this.usageWriteFailure;
+    this.registry?.touch(this.sessionId);
+    if (this.registry) {
+      const records = [...this.session.replay()];
+      // Compaction replaces/renumbers objects; ordinary append preserves the projected prefix.
+      if (this.projectedCount > records.length || this.projectedCount && records[this.projectedCount - 1] !== this.projectedTail) await this.registry.projectSession(this.sessionId);
+      else await this.registry.projectRecords(this.sessionId, records.slice(this.projectedCount));
+      this.projectedCount = records.length; this.projectedTail = records.at(-1);
+    }
+    return result;
   }
 
   /**
@@ -176,6 +213,10 @@ export class SessionController {
    */
   interrupt(): void {
     this.harness.loop.interrupt();
+  }
+
+  cancelSubagent(id: string): boolean {
+    return this.harness.externalAgentRuntime?.cancel(id) ?? false;
   }
 
   /**
@@ -197,5 +238,6 @@ export class SessionController {
   async close(): Promise<void> {
     this.detachProjections();
     await this.harness.close();
+    if (this.usageWriteFailure) throw this.usageWriteFailure;
   }
 }

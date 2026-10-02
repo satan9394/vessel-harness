@@ -84,6 +84,14 @@ interface WorkspaceLease {
  * all gone; ambiguous or live leases fail closed.
  */
 export class ExternalAgentRuntime {
+  private readonly activeRuns = new Map<string, AbortController>();
+
+  cancel(delegateId: string): boolean {
+    const controller = this.activeRuns.get(delegateId);
+    if (!controller || controller.signal.aborted) return false;
+    controller.abort();
+    return true;
+  }
   private readonly agents: Map<string, ExternalAgentConfig>;
   private readonly tempRoot: string;
   private readonly isPidAlive: (pid: number) => boolean;
@@ -105,14 +113,26 @@ export class ExternalAgentRuntime {
   }
 
   async execute(opts: ExternalSubagentDelegateOptions): Promise<SubagentResultContract> {
+    const delegateId = 'external_' + crypto.randomBytes(8).toString('hex');
+    const controller = new AbortController();
+    this.activeRuns.set(delegateId, controller);
+    const signal = opts.signal ? AbortSignal.any([opts.signal, controller.signal]) : controller.signal;
+    try {
+      return await this.executeRun(opts, delegateId, signal);
+    } finally {
+      this.activeRuns.delete(delegateId);
+    }
+  }
+
+  private async executeRun(opts: ExternalSubagentDelegateOptions, delegateId: string, signal: AbortSignal): Promise<SubagentResultContract> {
     const startedAt = Date.now();
     const config = this.agents.get(opts.agentId);
-    const delegateId = 'external_' + crypto.randomBytes(8).toString('hex');
     const childAgentId = 'external_agent_' + (config?.id ?? opts.agentId);
     const childSessionId = 'session_' + delegateId;
     const bus = this.options.bus;
     const stream = { turnId: delegateId, step: 0, requestId: delegateId };
     let result: SubagentResultContract = { output: '', stopReason: 'error' };
+    let exitCode: number | null | undefined;
     let lease: WorkspaceLease | undefined;
     let workspace = path.resolve(opts.parentWorkspaceRoot);
     let streamText = '';
@@ -173,6 +193,8 @@ export class ExternalAgentRuntime {
         childAgentId,
         childSessionId,
         preset: config?.id,
+        provider: config?.id ?? opts.agentId,
+        startedAt: new Date(startedAt).toISOString(),
         isContinuable: false,
       });
       await bus.emit('model_stream_start', { ...stream, model: 'external:' + (config?.id ?? opts.agentId) });
@@ -197,6 +219,7 @@ export class ExternalAgentRuntime {
     };
 
     try {
+      signal.throwIfAborted();
       if (!config) throw new Error('unknown external agent: ' + opts.agentId);
       if (!config.command.trim()) throw new Error('external agent command is empty');
       if (!opts.prompt.trim()) throw new Error('external agent prompt is empty');
@@ -210,16 +233,18 @@ export class ExternalAgentRuntime {
         lease = await this.acquireWorkspace(path.resolve(opts.parentWorkspaceRoot), config.id);
         workspace = lease.worktreePath;
         lease.handle = await this.ensureWorktree(lease, path.resolve(opts.parentWorkspaceRoot));
+        await bus?.emit('subagent_step', { delegateId, phase: 'workspace', worktreePath: workspace });
       }
 
       const args = renderArgs(config, opts.prompt, workspace);
+      signal.throwIfAborted();
       const proxyResult = await spawnWithVirtualProxy({
         command: config.command,
         args,
         cwd: workspace,
         env: config.env,
         timeoutMs: opts.timeoutMs ?? DEFAULT_TIMEOUT_MS,
-        signal: opts.signal,
+        signal,
         nonInteractiveArgs: config.nonInteractiveArgs,
         autoApproveRules: profile === 'workspace-write'
           ? { allowPaths: [workspace], deniedCommands: config.deniedCommands ?? [] }
@@ -238,6 +263,7 @@ export class ExternalAgentRuntime {
         },
         onEvent,
       }, this.options.proxyDependencies);
+      exitCode = proxyResult.exitCode;
 
       if (streamCarry) processStreamLine(streamCarry);
       streamCarry = '';
@@ -252,7 +278,7 @@ export class ExternalAgentRuntime {
       toolCallParts.clear();
       await eventTail;
 
-      if (opts.signal?.aborted) {
+      if (signal.aborted) {
         result = { output: proxyResult.stdout.slice(-MAX_RESULT_BYTES), stopReason: 'aborted', diagnostic: 'external subagent was cancelled' };
       } else if (proxyResult.killedByTimeout) {
         result = { output: proxyResult.stdout.slice(-MAX_RESULT_BYTES), stopReason: 'error', diagnostic: 'external subagent timed out' };
@@ -283,7 +309,7 @@ export class ExternalAgentRuntime {
     } catch (error) {
       result = {
         output: streamText.slice(-MAX_RESULT_BYTES),
-        stopReason: opts.signal?.aborted ? 'aborted' : 'error',
+        stopReason: signal.aborted ? 'aborted' : 'error',
         diagnostic: (error instanceof Error ? error.message : String(error)).slice(0, MAX_RESULT_BYTES),
       };
     }
@@ -324,6 +350,7 @@ export class ExternalAgentRuntime {
         isError: result.stopReason !== 'completed',
         durationMs,
         delegationDepth: 1,
+        exitCode: exitCode ?? undefined,
       });
       await bus.serial('after_delegate', {
         delegateId,

@@ -24,6 +24,8 @@ export interface TeamMemberSpec {
   providerId: string;
   /** 档位意图（展示/审计；显式阵容可省） */
   tier?: string;
+  reasoningEffort?: 'low' | 'medium' | 'high';
+  temperature?: number;
 }
 
 /** 有序阵容（执行顺序即数组序：orchestrator → generator → evaluator）。 */
@@ -39,7 +41,7 @@ export interface TeamRouteLike {
   /** 有序角色 preset id 计划（小=['developer'] 中=['developer','reviewer'] 复杂=['lead','developer','reviewer']） */
   roles: readonly string[];
   /** 与 roles 一一对应的每角色模型解析 */
-  roleModels: readonly { role?: string; tier?: string; providerId?: string; model?: string }[];
+  roleModels: readonly { role?: string; tier?: string; providerId?: string; model?: string; reasoningEffort?: 'low' | 'medium' | 'high'; temperature?: number }[];
 }
 
 /** runTeam 输入：任务 + 路由决定（route）或显式阵容（roster），二选一。 */
@@ -64,8 +66,19 @@ export interface ResolvedTeamMember {
   role: AgentRole;
   phase: TeamPhaseName;
   tier?: string;
+  reasoningEffort?: 'low' | 'medium' | 'high';
+  temperature?: number;
   model: string;
   providerId: string;
+  routeSnapshot: Readonly<MemberModelRouteSnapshot>;
+}
+
+export interface MemberModelRouteSnapshot {
+  providerId: string;
+  model: string;
+  reasoningEffort?: 'low' | 'medium' | 'high';
+  temperature?: number;
+  snapshottedAt: number;
 }
 
 /** 一次团队运行的收尾摘要（members 与 team_end 载荷同形）。 */

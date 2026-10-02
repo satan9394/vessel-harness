@@ -74,6 +74,21 @@ describe('mcp — McpConfigStore 读取校验 / 根解析 / 原子写（config.t
     return d;
   };
 
+  it('validates disabled and optional static descriptors, preserving them on disk', () => {
+    const store = new McpConfigStore({ rootDir: dir });
+    const server: McpServerConfig = { name: 'cold', command: 'fake', disabled: true, staticTools: [{ name: 'echo', description: 'echo', inputSchema: { type: 'object' } }] };
+    store.save([server]);
+    expect(store.load()).toEqual([server]);
+    for (const disabled of ['true', 1, null]) {
+      writeJson(store, { servers: [{ name: 'bad', command: 'fake', disabled }] });
+      expect(() => store.load()).toThrow('disabled must be a boolean');
+    }
+    for (const staticTools of [null, {}, [{ name: 'bad', description: 'bad', inputSchema: [] }], [server.staticTools![0], server.staticTools![0]]]) {
+      writeJson(store, { servers: [{ name: 'bad', command: 'fake', staticTools }] });
+      expect(() => store.load()).toThrow(/staticTools|duplicate tool/);
+    }
+  });
+
   // ---- ① ENOENT 静默 -------------------------------------------------------
 
   it('① mcp.json 不存在（ENOENT）→ load() 返回 [] 且不抛（首次运行是正常状态）', () => {

@@ -16,6 +16,9 @@
       "path": "../../packages/core"
     },
     {
+      "path": "../../packages/context"
+    },
+    {
       "path": "../../packages/llm"
     },
     {

@@ -1,6 +1,7 @@
 import type { ToolExecutionResult, ToolInputSchema, ToolSpec } from '@vessel/shared';
 import type { ToolRegistry } from '../registry/Registry.js';
 import type { McpClient, McpToolDescriptor } from './McpClient.js';
+import { errorCode } from '../execution/selfHealing.js';
 
 export interface RegisteredMcpTool {
   /** canonical name: mcp__<server>__<tool> (ARCHITECTURE §6.3 / D3 decision point 7) */
@@ -25,7 +26,7 @@ export async function registerMcpTools(
   for (const desc of descriptors) {
     const tool = mcpToolToSpec(serverName, desc, client);
     registry.register(tool);
-    registered.push({ name: tool.name, tool });
+    registered.push({ name: tool.name, tool: registry.spec(tool.name)! });
   }
   return registered;
 }
@@ -46,12 +47,14 @@ export function mcpToolToSpec(serverName: string, desc: McpToolDescriptor, clien
     exclusive: false,
     inputSchema,
     async execute(args, ctx) {
+      let completed = false;
       try {
         // task 050 boundary: don't start a new RPC once the turn is interrupted
         if (ctx?.signal?.aborted) {
           return interruptedResult(serverName, desc.name);
         }
         const res = await withSignal(client.callTool(desc.name, args), ctx?.signal);
+        completed = true;
         const text = (res.content ?? [])
           .filter((c) => c.type === 'text' && typeof c.text === 'string')
           .map((c) => c.text)
@@ -65,8 +68,11 @@ export function mcpToolToSpec(serverName: string, desc: McpToolDescriptor, clien
         if (ctx?.signal?.aborted) return interruptedResult(serverName, desc.name);
         return {
           content: '',
-          error: { errorClass: 'TOOL_FAILURE', message: `MCP call failed (${serverName}/${desc.name}): ${(err as Error).message}` },
-          meta: { mcpServer: serverName, mcpTool: desc.name },
+          error: { errorClass: 'TOOL_FAILURE', message: `MCP call failed (${serverName}/${desc.name}): ${(err as Error).message}`, ...(!completed && errorCode(err) ? { detail: { code: errorCode(err) } } : {}) },
+          // A missing response does not prove the remote operation had no effect.
+          // ponytail: unknown remote tools fail once; only explicit safe retry hints opt in.
+          meta: { mcpServer: serverName, mcpTool: desc.name,
+            retryUnsafe: desc.annotations?.readOnlyHint !== true && desc.annotations?.idempotentHint !== true },
         };
       }
     },

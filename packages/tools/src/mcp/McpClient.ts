@@ -97,7 +97,7 @@ export function resolveSpawnCommand(
  * expressed by the caller passing `process.execPath` as `command`.
  */
 export class StdioTransport implements McpTransport {
-  private readonly child: ChildProcess;
+  protected readonly child: ChildProcess;
   private readonly rl: readline.Interface;
   private seq = 0;
   private readonly pending = new Map<
@@ -113,6 +113,8 @@ export class StdioTransport implements McpTransport {
   private closing = false;
   /** 置 `closed` 的原因（致命超时时带上方法名，便于定位）。 */
   private closedReason: string | null = null;
+  private killTimer?: NodeJS.Timeout;
+  private exited = false;
 
   /**
    * @param command executable to spawn. Pass `process.execPath` (with the script
@@ -125,7 +127,7 @@ export class StdioTransport implements McpTransport {
   constructor(
     command: string,
     args: string[] = [],
-    opts: { env?: Record<string, string>; cwd?: string; shell?: boolean } = {},
+    private readonly opts: { env?: Record<string, string>; cwd?: string; shell?: boolean; killTimeoutMs?: number } = {},
   ) {
     this.child = spawn(command, args, {
       stdio: ['pipe', 'pipe', 'pipe'],
@@ -164,11 +166,21 @@ export class StdioTransport implements McpTransport {
       /* server diagnostics — ignore for the seam */
     });
     this.child.on('error', (err) => {
+      this.closed = true;
+      this.closedReason = err.message;
+      this.exited = this.child.pid === undefined;
+      if (this.exited) clearTimeout(this.killTimer);
+      this.rl.close();
       this.failAllPending(err);
     });
     this.child.on('exit', () => {
+      this.closed = true;
+      this.exited = true;
+      clearTimeout(this.killTimer);
+      this.rl.close();
       this.failAllPending(new Error('MCP server exited'));
     });
+    this.child.stdin?.on('error', (err) => this.failAllPending(err));
   }
 
   /** 取出并清除某条 pending（连同它的超时定时器）——避免悬挂 resolver / 定时器泄漏。 */
@@ -227,9 +239,9 @@ export class StdioTransport implements McpTransport {
         }
         // 非致命：transport 不置 closed，后续调用仍可继续（错误信息里明说这一点）。
         reject(
-          new Error(
+          Object.assign(new Error(
             `mcp request timeout after ${timeoutMs}ms: ${method} (call-scoped timeout, transport still usable)`,
-          ),
+          ), { code: 'ETIMEDOUT' }),
         );
       }, timeoutMs);
       this.pending.set(id, { resolve: resolve as (v: unknown) => void, reject, timer });
@@ -254,27 +266,29 @@ export class StdioTransport implements McpTransport {
     if (this.closing) return;
     this.closing = true;
     this.closed = true;
+    this.failAllPending(new Error('MCP transport closed'));
     this.rl.close();
     this.child.stdin?.end();
+    if (this.exited) return;
 
-    const killTimer = setTimeout(() => {
+    this.killTimer = setTimeout(() => {
       this.child.kill('SIGKILL');
-    }, 2000);
-    const disarmKill = (): void => clearTimeout(killTimer);
-    this.child.once('exit', disarmKill);
-    this.child.once('error', disarmKill);
+    }, this.opts.killTimeoutMs ?? 2000);
 
     await new Promise<void>((resolve) => {
       let settled = false;
       const finish = (): void => {
         if (settled) return;
         settled = true;
+        clearTimeout(graceTimer);
+        this.child.off('exit', finish);
+        this.child.off('error', finish);
         resolve();
       };
+      const graceTimer = setTimeout(finish, 50);
       this.child.once('exit', finish);
       this.child.once('error', finish);
       // 50ms 宽限只为「尽快返回」；`killTimer` 不受影响，2s 后照常补刀。
-      setTimeout(finish, 50);
     });
   }
 }

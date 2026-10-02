@@ -1,6 +1,7 @@
 import * as crypto from 'node:crypto';
-import { COMPACTION_RETAIN_RATIO, COMPACTION_THRESHOLD_RATIO, type SessionRecord } from '@vessel/shared';
+import { COMPACTION_RETAIN_RATIO, type SessionRecord } from '@vessel/shared';
 import { Session } from '@vessel/core';
+import { computeAdaptiveThreshold, type AdaptiveCompactionOptions } from './adaptiveThreshold.js';
 
 export type CompactionTrigger = 'pressure' | 'overflow' | 'manual';
 
@@ -15,6 +16,7 @@ export interface CompactionDeps {
   session: Session;
   /** summarizer — default heuristic fallback when no LLM configured */
   summarize?: (regionText: string, context: { userRequest: string }) => Promise<string>;
+  adaptive?: Omit<AdaptiveCompactionOptions, 'contextWindow'>;
 }
 
 /**
@@ -51,7 +53,7 @@ export class Compaction {
   }
 
   shouldCompact(estimateTokens: number, contextWindow: number): boolean {
-    return estimateTokens >= COMPACTION_THRESHOLD_RATIO * contextWindow;
+    return estimateTokens >= computeAdaptiveThreshold({ contextWindow, maxOutputTokens: 4096, ...this.deps.adaptive });
   }
 
   async compact(trigger: CompactionTrigger): Promise<CompactionResult> {
@@ -67,7 +69,8 @@ export class Compaction {
       await session.appendSync({ type: 'compaction/start', trigger, surface: false });
 
       // select oldest balanced region ending at ~(1 - retainRatio) of records
-      const targetCut = Math.max(1, Math.floor(records.length * (1 - COMPACTION_RETAIN_RATIO)));
+      const retainRatio = trigger === 'overflow' ? 0.3 : COMPACTION_RETAIN_RATIO;
+      const targetCut = Math.max(1, Math.floor(records.length * (1 - retainRatio)));
       const cut = this.balancedCut(records, targetCut);
       if (cut <= 0) {
         await session.appendSync({ type: 'compaction/end', trigger, removedRecords: 0, surface: false });

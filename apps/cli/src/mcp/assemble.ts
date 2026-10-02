@@ -47,6 +47,7 @@ export function assembleMcpConnections(load: () => McpServerConfig[] = () => new
   const spawnable: McpServerConfig[] = [];
   const shimFailures: McpConnectionFailure[] = [];
   for (const s of servers) {
+    if (s.disabled) continue;
     const hint = windowsShimHint(s.command);
     if (hint === null) spawnable.push(s);
     else shimFailures.push({ serverName: s.name, reason: hint });

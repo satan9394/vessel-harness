@@ -4,6 +4,7 @@ import {
   type ToolExecutionResult,
   type ToolSpec,
 } from '@vessel/shared';
+import { protectTool } from '../execution/protectTool.js';
 
 export interface RegistryOptions {
   deniedTools?: string[];
@@ -26,7 +27,7 @@ export class ToolRegistry {
   private inFlight = 0;
 
   constructor(tools: ToolSpec[], opts: RegistryOptions = {}) {
-    for (const t of tools) this.tools.set(t.name, t);
+    for (const t of tools) this.tools.set(t.name, protectTool(t));
     this.denied = new Set(opts.deniedTools ?? []);
     this.maxParallel = opts.maxParallel ?? MAX_PARALLEL_TOOL_CALLS;
   }
@@ -44,7 +45,7 @@ export class ToolRegistry {
     if (this.tools.has(tool.name)) {
       throw new Error(`tool already registered: ${tool.name}`);
     }
-    this.tools.set(tool.name, tool);
+    this.tools.set(tool.name, protectTool(tool));
   }
 
   unregister(name: string): boolean {

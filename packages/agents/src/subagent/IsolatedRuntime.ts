@@ -2,7 +2,7 @@ import * as path from 'node:path';
 import * as crypto from 'node:crypto';
 import type { ChatProvider, PolicyArtifacts, ToolCall, ToolSpec } from '@vessel/shared';
 import { AgentLoop, EventBus, Session, type ToolResultOutcome } from '@vessel/core';
-import { Compaction, ContextBuilder, discoverInstructions } from '@vessel/context';
+import { Compaction, ContextBuilder, discoverInstructions, createOverflowRecovery, type AdaptiveCompactionOptions } from '@vessel/context';
 import { PolicyEngine } from '@vessel/policy';
 import { Executor, Sandbox } from '@vessel/runtime';
 import { ToolRegistry } from '@vessel/tools';
@@ -23,6 +23,8 @@ export interface IsolatedRuntimeOptions {
   cwd?: string;
   provider: ChatProvider;
   model: string;
+  temperature?: number;
+  reasoningEffort?: 'low' | 'medium' | 'high';
   policyArtifacts: PolicyArtifacts;
   /** tool specs visible to this isolated session (already narrowed by the caller) */
   tools: ToolSpec[];
@@ -44,6 +46,7 @@ export interface IsolatedRuntimeOptions {
   stableSections?: string[];
   policyGuidance?: string[];
   contextWindow?: number;
+  compactionBudget?: Omit<AdaptiveCompactionOptions, 'contextWindow'>;
   maxSteps?: number;
   /** compaction summarizer (LLM); defaults to heuristic */
   summarize?: (regionText: string, context: { userRequest: string }) => Promise<string>;
@@ -121,20 +124,25 @@ export async function createIsolatedRuntime(opts: IsolatedRuntimeOptions): Promi
     getVisibleTools: () => registry.listVisible(),
     contextWindow: opts.contextWindow,
   });
-  const compaction = new Compaction({ session, summarize: opts.summarize });
+  const maxOutputTokens = opts.compactionBudget?.maxOutputTokens ?? opts.provider.defaultMaxOutputTokens ?? 4096;
+  const compaction = new Compaction({ session, summarize: opts.summarize, adaptive: { ...opts.compactionBudget, maxOutputTokens } });
 
   const loop = new AgentLoop({
     session,
     bus,
     provider: opts.provider,
+    temperature: opts.temperature,
+    reasoningEffort: opts.reasoningEffort,
     model: opts.model,
     buildContext: async (step) => {
       const envelope = await builder.assemble(step);
       if (compaction.shouldCompact(envelope.estimateTokens, builder.window)) {
         await compaction.compact('pressure');
+        return { ...await builder.assemble(step), maxOutputTokens };
       }
-      return envelope;
+      return { ...envelope, maxOutputTokens };
     },
+    modelErrorRecovery: createOverflowRecovery({ session, bus, builder, compaction, maxOutputTokens }),
     runTool,
     getVisibleTools: () => [],
     maxSteps: opts.maxSteps,

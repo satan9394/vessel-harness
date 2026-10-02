@@ -4,6 +4,10 @@ import path from 'node:path';
 
 const root = fileURLToPath(new URL('.', import.meta.url));
 
+export function runnerWorkerGuard(platform: NodeJS.Platform, ci: string | undefined) {
+  return { ...(ci && platform === 'win32' ? { maxWorkers: 1 } : {}), retry: ci ? 1 : 0 };
+}
+
 // Map workspace package names to their TS sources so Vitest tests run
 // against source directly (no build step required).
 const packages = [
@@ -42,6 +46,7 @@ export default defineConfig({
     // tests. One worker preserves per-file isolation without competing with
     // the suite's real subprocess and filesystem checks.
     maxWorkers: 1,
+    ...runnerWorkerGuard(process.platform, process.env.CI),
     include: [
       'index.test.ts',
       'packages/*/src/**/*.test.ts',

@@ -65,6 +65,9 @@ export interface McpServerConfig {
   env?: Record<string, string>;
   /** 子进程工作目录（缺省继承父进程）。 */
   cwd?: string;
+  disabled?: boolean;
+  /** Optional static schemas let startup register tools without waking the server. */
+  staticTools?: Array<{ name: string; description: string; inputSchema: Record<string, unknown> }>;
 }
 
 /** `McpConfigStore` 构造选项。 */
@@ -181,6 +184,24 @@ function parseServerEntry(raw: unknown, where: string): McpServerConfig {
   if (raw.cwd !== undefined) {
     // 空串 cwd 等同"没配"，但会被下游静默忽略 → 按配置错误 fail loud。
     entry.cwd = requireNonEmptyString(raw.cwd, `${where}.cwd`);
+  }
+  if (raw.disabled !== undefined) {
+    if (typeof raw.disabled !== 'boolean') throw new Error(`${where}.disabled must be a boolean`);
+    entry.disabled = raw.disabled;
+  }
+  if (raw.staticTools !== undefined) {
+    if (!Array.isArray(raw.staticTools)) throw new Error(`${where}.staticTools must be an array`);
+    const names = new Set<string>();
+    entry.staticTools = raw.staticTools.map((tool, i) => {
+      const at = `${where}.staticTools[${i}]`;
+      if (!isPlainObject(tool) || !isPlainObject(tool.inputSchema) || typeof tool.description !== 'string') {
+        throw new Error(`${at} must contain name, description and inputSchema`);
+      }
+      const name = requireNonEmptyString(tool.name, `${at}.name`);
+      if (names.has(name)) throw new Error(`${at} duplicate tool name: ${name}`);
+      names.add(name);
+      return { name, description: tool.description, inputSchema: structuredClone(tool.inputSchema) };
+    });
   }
   return entry;
 }

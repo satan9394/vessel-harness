@@ -1,0 +1,88 @@
+# 181 — 自主演进经验图谱与轻量混合记忆检索 (Evolving Knowledge Graph & Hybrid Memory Retrieval)
+
+- 编号：181
+- 优先级：P1
+- 关联模块：`packages/memory`, `packages/application`, `packages/context`
+- 推荐执行配置：Codex (GPT-6.1 Sol · `reasoning.effort: medium`)
+- 状态：待执行
+- 创建日期：2026-10-02
+
+---
+
+## 1. 目标与意图
+
+在任务 178 中，Vessel 成功构建了 SQLite WAL 模式的会话索引与 FTS5 倒排索引，实现了跨数千长会话的 sub-10ms 模糊文本检索。然而，目前的记忆能力仍以“字面召回”为主，缺乏：
+1. **语义模糊检索**：当用户提问表述与历史记录字面不一致时（例如“内存治理” vs “heap leak compaction”），纯 FTS5 关键词命中率下降；
+2. **踩坑经验沉淀（Reflective Distillation）**：在遇到 Policy 拦截（安全拒绝）、工具自愈退避（EBUSY 重试）或任务重试时，系统没有把“为何失败、如何规避”提炼为显式的结构化经验卡；
+3. **经验反哺上下文**：后续任务启动时无法自动检索与当前任务强相关的历史经验，导致模型易重复陷入同类报错。
+
+本任务旨在构建轻量混合记忆与自主演进经验图谱：
+- **混合检索中枢（Hybrid Search Engine）**：基于纯 TypeScript 实现轻量向量余弦相似度匹配，与 FTS5 的 BM25 分数通过互惠排序融合算法（RRF，Reciprocal Rank Fusion）进行混合排序召回；
+- **自省经验提炼器（Reflection Extractor）**：在 Session 归档或错误恢复后，由专用分析管线提炼经验三元组（触发条件、失败根因、防御指令），存入 SQLite WAL 的 `reflective_rules` 表；
+- **动态上下文经验注入（Context Injection）**：在 `packages/context` 组装 Prompt 阶段，根据当前用户目标微秒级召回 Top-K 匹配经验，以可控 Token 预算注入 System Prompt 引导区。
+
+---
+
+## 2. 接口与契约规范
+
+### 2.1 经验图谱与混合检索接口 (`packages/memory/src/sqlite/HybridMemoryStore.ts`)
+
+```typescript
+export interface ReflectiveRule {
+  id: string;
+  category: 'policy_denial' | 'tool_failure' | 'architecture_constraint';
+  triggerCondition: string;
+  lesson: string;
+  recommendedAction: string;
+  frequency: number;
+  updatedAt: number;
+}
+
+export interface HybridSearchParams {
+  query: string;
+  embedding?: number[];
+  limit?: number;
+  minScore?: number;
+}
+
+export interface HybridSearchResult {
+  sessionId: string;
+  matchedContent: string;
+  rrfScore: number;
+  ftsRank: number;
+  vectorRank: number;
+}
+
+export class HybridMemoryStore {
+  constructor(dbPath: string);
+  
+  /** 混合检索（FTS5 + 向量 RRF 融合） */
+  searchHybrid(params: HybridSearchParams): Promise<HybridSearchResult[]>;
+
+  /** 记录或强化自省经验规则 */
+  upsertReflectiveRule(rule: Omit<ReflectiveRule, 'id' | 'frequency' | 'updatedAt'>): Promise<ReflectiveRule>;
+
+  /** 根据当前意图匹配最相关的经验规则 */
+  matchRelevantRules(goal: string, limit?: number): Promise<ReflectiveRule[]>;
+}
+```
+
+---
+
+## 3. 架构红线与禁做准则
+
+1. **薄核与外部投影**：Core 不感知经验图谱与向量算法；所有检索完全位于 `packages/memory`，组装位于 `packages/context`。
+2. **零 C++ 编译依赖**：向量计算采用纯 JavaScript 数组运算，严禁引入重量级外部向量数据库引擎或需要本地 node-gyp 编译的扩展。
+3. **单源事实日志原则**：经验卡由会话 JSONL 事件自愈投影产生，若数据库损坏或被清空，系统能从历史日志重新离线提炼。
+
+---
+
+## 4. 确定性完成门禁 (DoD)
+
+1. **定向单测覆盖与全绿**：
+   - 编写并通过 `packages/memory/src/sqlite/hybridSearch.test.ts`：验证 RRF 算法融合精度、低延迟表现（< 15ms）与降级逻辑；
+   - 编写并通过 `packages/memory/src/sqlite/reflectiveRules.test.ts`：验证经验提取、持久化去重与上下文规则召回；
+2. **全量构建与回归**：
+   - `npx tsc -b tsconfig.json` exit 0；
+   - `npm run typecheck:tests` exit 0；
+   - `npm run test:all` 双 Root 保持全绿。

@@ -1,0 +1,40 @@
+
+ RUN  v5.0.1 E:/Code_file/Projects/Vessel_Harness
+
+(node:15072) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+stdout | packages/memory/src/sqlite/sessionIndex.test.ts > SQLite session projection > reads 50-row and 1000-row hot pages in under5ms using only SQL
+session index: 1000-session/50-row page median 0.446ms
+
+stdout | packages/memory/src/sqlite/sessionIndex.test.ts > SQLite session projection > reads 50-row and 1000-row hot pages in under5ms using only SQL
+session index: 1000-session/1000-row page median 6.591ms
+
+ ❯ packages/memory/src/sqlite/sessionIndex.test.ts (7 tests | 1 failed) 790ms
+   ❯ SQLite session projection (7)
+     × reads 50-row and 1000-row hot pages in under5ms using only SQL 416ms
+(node:3852) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  packages/memory/src/sqlite/sessionIndex.test.ts > SQLite session projection > reads 50-row and 1000-row hot pages in under5ms using only SQL
+AssertionError: expected 6.590700000000197 to be less than 5
+ ❯ packages/memory/src/sqlite/sessionIndex.test.ts:70:114
+     68|       for (let run = 0; run < 7; run++) { const start = performance.no…
+     69|       const median = samples.sort((a, b) => a - b)[3]!;
+     70|       console.log(`session index: 1000-session/${limit}-row page media…
+       |                                                                                                                  ^
+     71|     }
+     72|   });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed | 1 passed (2)
+      Tests  1 failed | 9 passed (10)
+   Start at  00:35:46
+   Duration  2.02s (tests 73%, transform 13%, import 8%, setup 4%, worker 2%)
+
+    Isolate  2 workers spawned · ~330ms startup each (spawn + environment, per file)
+             at least ~330ms faster with isolate: false — reuses workers across files instead of one per file
+

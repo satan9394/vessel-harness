@@ -274,6 +274,19 @@ describe('V0.2-M1 subagent — delegation (H11)', () => {
     await runtime.close();
   });
 
+  it.each([undefined, 4096])('honors provider output defaults and explicit compaction budget=%s', async (budget) => {
+    const chat = vi.fn(async (_request: ChatRequest): Promise<ChatResponse> => ({ content: 'done', toolCalls: [], finishReason: 'stop', usage: { inputTokens: 0, outputTokens: 1 } }));
+    const provider: ChatProvider = { id: 'mock-default-budget', defaultMaxOutputTokens: 8192, chat };
+    const runtime = await createIsolatedRuntime({ workspaceRoot: workspace, provider, model: 'mock', policyArtifacts: artifacts(), tools: [], contextWindow: 90_000,
+      ...(budget ? { compactionBudget: { maxOutputTokens: budget } } : {}) });
+    try {
+      await runtime.session.appendSync({ type: 'user/message', msgId: 'old', role: 'user', content: 'x'.repeat(14_000), surface: true });
+      await runtime.loop.runTurn('continue');
+      expect(chat.mock.calls[0]![0].maxTokens).toBe(budget ?? 8192);
+      expect(runtime.session.replay().some((record) => record.type === 'compaction/start')).toBe(budget === undefined);
+    } finally { await runtime.close(); }
+  });
+
   it('Subagent tool passes an agent preset label through to the delegation (V0.4 roles-as-presets)', async () => {
     const bus = new EventBus();
     const provider = new MockProvider([{ when: /.*/, ifNoToolResult: true, response: { text: 'PRESET-CHILD-DONE' } }], { model: 'child-model' });

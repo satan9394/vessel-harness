@@ -19,6 +19,10 @@ on:
 jobs:
   build:
     runs-on: ${{ matrix.os }}
+    env:
+      # Bound each Windows Node heap while the serialized test pool avoids
+      # competing worker startup/handle allocation (0xC0000142).
+      NODE_OPTIONS: ${{ matrix.os == 'windows-latest' && '--max-old-space-size=4096' || '' }}
     strategy:
       fail-fast: false
       matrix:

@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import type { Project, SessionMeta } from '../api';
 import { VesselLogo } from './VesselLogo';
 import { useI18n } from './LanguageProvider';
+import SubagentWorkspace from './SubagentPanel';
 
 export interface SidebarProps {
   projects: Project[];
@@ -234,6 +235,7 @@ export default function Sidebar({
             </div>
           )}
         </section>
+        <SubagentWorkspace />
       </nav>
 
       <div className="side-footer">
