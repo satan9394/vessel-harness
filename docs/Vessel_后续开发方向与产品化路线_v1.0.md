@@ -8,6 +8,33 @@
 
 ---
 
+## 0.1 V1.0–V1.6 实际交付对账与现状评估 (2026-10-02 审计)
+
+> **历史对账说明**：本文档撰写于 2026-09-07（V0.9 产品化初期）。历经 V1.0 至 V1.6 的高强度迭代，本文档所提出的绝大部分核心架构设想与产品缺口已**高质量交付合入**。  
+> 为保持历史决策的真实性与可追溯性，本文正文完整保留原文；本节作为**权威交付状态索引**，供后续开发者快速对照：
+
+| 原规划章节 | 核心设想 / 模块目标 | 当前实际实现状态 (截至 V1.6) | 对应代码与实现凭据 |
+|---|---|---|---|
+| **§3 / §4 Application Layer** | 将 CLI / Web 业务逻辑从核心抽离为统一应用层 | **已全量交付** | `packages/application`（SessionController / Registry / compose.ts） |
+| **§5 Local Server** | 本地 HTTP + SSE 事件服务，供 Web 与外部调用 | **已全量交付** | `apps/local-server`（含 Bearer 鉴权与常驻 Daemon） |
+| **§6 Web UI 最终设计** | React 原生工作台，与 CLI 同构，统一状态投影 | **已全量交付** | `apps/web`（含 DAG SVG 拓扑画布、Topic 树与详情抽屉） |
+| **§7 流式 / 中断 / Steering** | 双段 Ctrl-C 中断、运行时 Steering 队列注入 | **已全量交付** | `InterruptController`、`SteeringQueue` 与 LLM Provider 流式管道 |
+| **§8 三 Agent 预设代码化** | Lead / Developer / Reviewer 预设与工具面裁剪 | **已全量交付** | `packages/agents/src/presets`（Fail-closed 缩容策略） |
+| **§9 外部评审与网关** | Review Handoff 与子 Agent 网关体系 | **已全量交付** | `vessel review handoff` + V1.3 双向 MCP 子代理网关（卡 167） |
+| **§10 TaskRouter 生产化** | 模型任务分类分流进入默认路径 | **已全量交付** | `AutoTaskRouter`（fast / standard / heavy 三档路由） |
+| **§11 / §12 Loop Engine & Handoff** | Generator/Evaluator 循环与长任务 Context Reset | **已全量交付** | `packages/engine` 与 `packages/engine/src/handoff/`（task 067） |
+| **§13 OS 级沙箱 (Windows)** | Windows Job Object 进程树绑定与内存上限 | **核心已交付** | `packages/tools`（Job Object 绑定）；受限令牌降权列入任务 180 |
+| **§14 凭据安全** | Windows DPAPI 密文持久化与 secretRef 隔离 | **已全量交付** | `CredentialStore`（`~/.vessel/secrets.json` 密文保护） |
+| **§15 Cross-Harness 基准** | 跨框架行为一致性套件与确定性判据 | **已全量交付** | `benchmarks/runners`（离线 `--all` 25/25 全绿） |
+| **§16 V1.0–V1.6 里程碑** | 从稳定性、可观察性、团队编排到会话中枢 | **全量闭环** | V1.0 至 V1.6 全部门禁通过；本地合入 `812c451` |
+
+**未实现项与后续演进映射**：
+1. **§13.1 受限令牌与跨平台沙箱**：Windows Low Integrity 降权与 Linux bwrap 隔离，已立项为 **任务卡 180**（`tasks/180-os-native-sandboxing-and-restricted-tokens.md`）；
+2. **§17 V2.x 记忆图谱与经验沉淀**：已立项为 **任务卡 181**（`tasks/181-evolving-knowledge-graph-and-hybrid-memory.md`）；
+3. **§17 V2.x 分布式多机协作 Mesh**：已立项为 **任务卡 182**（`tasks/182-cross-instance-swarm-mesh-and-event-bus.md`）。
+
+---
+
 ## 0. 最终结论
 
 当前项目已经不再是一个“刚起步的 Agent Demo”。从仓库结构看，它已经具备一个中型 Agent Harness 的大部分关键机制：薄 Agent Loop、事件系统、会话、Context/Compaction、工具、Policy、MCP、Subagent、Evaluator、Memory、Skills、TaskRouter、Loop Engine、Provider 管理、用量与定价等。
