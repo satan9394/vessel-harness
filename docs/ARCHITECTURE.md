@@ -336,7 +336,7 @@ Provider 差异全部下沉此层，不进事件面（D3 决策点 13 影响）�
 | runtime/sandbox | 语言中立 confine seam：`confine(argv, policy)` 逐调用解析；**Windows 已交付 Job Object + process-tree（071/072）：命名 Job Object 包裹子进程、`TerminateJobObject` 连孙终止、活动进程数上限、`os.tmpdir()` 独立工作目录；`status()` 只在真附加成功时报 active**。**受限令牌/低完整性降权未做；Linux/macOS 为 passthrough**；fail-closed（SANDBOX_UNAVAILABLE）；enforcement full/partial 透明上报；能力探测 + fallback 状态回填 | `confine(argv, policy) → ConfinedArgv`；`status(): SandboxStatus` | 无（OS 原语；经 tools/shell 的 Operations 注入点被消费） |
 | runtime/process | 受控派生点（进程 spawn 走此，不直接 OS spawn）；超时/取消令牌 | `spawn(cmd, opts)` | 无 |
 
-TS Brain 先行 + 语言中立执行 seam（D3 决策点 15）：全 TS，执行隔离以"外部 OS 原语 + 子进程 + 显式能力探测"实现；benchmark/安全审计证明 TS 执行层是瓶颈/风险面时，将 runtime/ 独立为 Rust crate（Brain 不改）。**✗**：Windows Codex 全栈（WFP/私有桌面）不做。**已交付**：Windows = Job Object + process-tree（071/072）。**未做**：Windows 受限令牌 / 低完整性降权、非 Windows（bwrap/Seatbelt）沙箱。
+TS Brain 先行 + 语言中立执行 seam（D3 决策点 15）：全 TS，执行隔离以"外部 OS 原语 + 子进程 + 显式能力探测"实现；benchmark/安全审计证明 TS 执行层是瓶颈/风险面时，将 runtime/ 独立为 Rust crate（Brain 不改）。**✗**：Windows Codex 全栈（WFP/私有桌面）不做。**已交付**：Windows = Job Object + process-tree（071/072）。**V1.7 本地实现**：Shell 外层原生 runner 提供受限令牌/Low Integrity/挂接后恢复执行，以及 bwrap/Seatbelt 探测与写目录白名单；原始 runtime seam 仍保留。Windows 需要预置受限 SID/Low ACL，缺失时拒绝；POSIX helper 不可用时明确审计降级。原生调用契约经 Mock 验证，限制与最终证据见 `V1.7-IMPLEMENTATION-NOTES.md`。
 
 ### 4.8 memory/ —— 会话目录（△ 最小骨架；project/persistent ✗ V0.3）
 

@@ -1,0 +1,24 @@
+warning: in the working copy of 'HANDOFF.md', CRLF will be replaced by LF the next time Git touches it
+warning: in the working copy of 'benchmarks/runners/src/runner.test.ts', CRLF will be replaced by LF the next time Git touches it
+warning: in the working copy of 'docs/ARCHITECTURE.md', CRLF will be replaced by LF the next time Git touches it
+warning: in the working copy of 'packages/memory/src/index.ts', CRLF will be replaced by LF the next time Git touches it
+warning: in the working copy of 'packages/memory/src/sqlite/SessionIndexStore.ts', CRLF will be replaced by LF the next time Git touches it
+ HANDOFF.md                                              | 26 ++++++++++++--------------
+ benchmarks/runners/src/runner.test.ts                   |  8 ++++++++
+ benchmarks/runners/src/runner.ts                        |  3 +++
+ benchmarks/runners/src/safety.test.ts                   | 26 +++++++++++++++++++-------
+ docs/ARCHITECTURE.md                                    |  2 +-
+ docs/SANDBOX-WINDOWS.md                                 | 20 ++++++++++++++++++++
+ packages/application/src/compose.ts                     | 47 ++++++++++++++++++++++++++++++++++++++++++++---
+ packages/application/src/session/SessionRegistry.ts     | 16 +++++++++++++++-
+ packages/context/src/builder/Builder.ts                 | 15 +++++++++++++++
+ packages/memory/src/index.ts                            |  1 +
+ packages/memory/src/sqlite/SessionIndexStore.ts         | 10 ++++++----
+ packages/runtime/src/process/Process.ts                 | 34 +++++++++++++++++++++++++++++++---
+ packages/shared/src/events.ts                           | 13 +++++++++++++
+ packages/tools/src/index.ts                             |  3 +++
+ packages/tools/src/shell/shellTool.ts                   | 26 ++++++++++++++++++++++++++
+ tasks/180-os-native-sandboxing-and-restricted-tokens.md | 12 +++++++++++-
+ tasks/181-evolving-knowledge-graph-and-hybrid-memory.md | 12 +++++++++++-
+ tasks/183-epic-hardened-runtime-and-cognitive-memory.md | 12 +++++++++++-
+ 18 files changed, 250 insertions(+), 36 deletions(-)

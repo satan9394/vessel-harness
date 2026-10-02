@@ -15,6 +15,10 @@ export interface SpawnOptions {
    * (shell tool) or an interrupt stop (AgentLoop boundary).
    */
   signal?: AbortSignal;
+  /** Trusted helper script input; avoids platform command-line length limits. */
+  stdin?: string;
+  /** POSIX helper owns a group; cancellation kills processes remaining in that group. */
+  processGroup?: boolean;
   /**
    * process-tree confinement (task 071, Windows Job Object): when present, on
    * timeout or abort we terminate the WHOLE job tree (grandchildren included)
@@ -60,6 +64,7 @@ export function runCommand(
         env: { ...process.env, ...opts.env },
         windowsHide: true,
         shell: opts.shell ?? false,
+        detached: opts.processGroup === true && process.platform !== 'win32',
       });
     } catch (err) {
       reject(err);
@@ -67,6 +72,23 @@ export function runCommand(
     }
 
     opts.onSpawn?.({ pid: child.pid, command });
+    if (opts.stdin !== undefined) {
+      // A helper that exits before consuming input can close its pipe; the process exit remains authoritative.
+      child.stdin?.on('error', () => {});
+      child.stdin?.end(opts.stdin, 'utf8');
+    }
+
+    const kill = () => {
+      if (opts.processGroup && process.platform !== 'win32' && child.pid) {
+        try { process.kill(-child.pid, 'SIGKILL'); } catch { child.kill('SIGKILL'); }
+      } else child.kill('SIGKILL');
+      if (opts.processGroup) {
+        // Escaped descendants may retain inherited pipe handles. Stop capture on cancellation so they cannot hold close indefinitely.
+        child.stdout?.destroy?.();
+        child.stderr?.destroy?.();
+        child.stdin?.destroy?.();
+      }
+    };
 
     let stdout = '';
     let stderr = '';
@@ -76,7 +98,7 @@ export function runCommand(
     const timer = setTimeout(() => {
       timedOut = true;
       killed = true;
-      child.kill('SIGKILL');
+      kill();
       // task 071: kill the whole job tree on Windows (grandchildren too)
       void opts.confinement?.terminate();
     }, timeoutMs);
@@ -86,13 +108,13 @@ export function runCommand(
     if (opts.signal) {
       if (opts.signal.aborted) {
         killed = true;
-        child.kill('SIGKILL');
+        kill();
         void opts.confinement?.terminate();
       } else {
         onAbort = () => {
           killed = true;
           try {
-            child.kill('SIGKILL');
+            kill();
           } catch {
             // child already exited — the close handler below settles the promise
           }
@@ -113,6 +135,12 @@ export function runCommand(
       if (onAbort) opts.signal?.removeEventListener('abort', onAbort);
       reject(err);
     });
+    if (opts.processGroup && process.platform !== 'win32') {
+      child.on('exit', () => {
+        // A normal root exit also ends the invocation's owned group before inherited pipes can keep close pending.
+        if (child.pid) { try { process.kill(-child.pid, 'SIGKILL'); } catch { /* group already gone */ } }
+      });
+    }
     child.on('close', (code) => {
       clearTimeout(timer);
       if (onAbort) opts.signal?.removeEventListener('abort', onAbort);

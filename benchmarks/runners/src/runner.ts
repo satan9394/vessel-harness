@@ -16,6 +16,8 @@ import { OFFLINE_SCRIPTS } from './offline.js';
 import type { AssertResult, DriverResult, MeasuredAudit, ScenarioManifest, ScenarioReport, StreamObservation, TurnOutcomeKind } from './types.js';
 
 export interface RunScenarioOptions {
+  /** Explicit native execution substrate injection for offline tests; defaults retain production confinement. */
+  nativeSandbox?: ComposeOptions['nativeSandbox'];
   scenarioId: string;
   repoRoot: string;
   reportsDir: string;
@@ -899,6 +901,7 @@ export async function runScenario(opts: RunScenarioOptions): Promise<ScenarioRep
   const prompt = fs.readFileSync(path.join(workspace, manifest.task_file), 'utf8').trim();
 
   const composeOpts: ComposeOptions = {
+    nativeSandbox: opts.nativeSandbox,
     workspaceRoot: workspace,
     provider,
     model: opts.model,

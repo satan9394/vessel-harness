@@ -4,7 +4,7 @@
 - 优先级：P1
 - 关联模块：`packages/tools`, `packages/runtime`, `packages/policy`, `packages/memory`, `packages/context`
 - 推荐执行配置：Codex (GPT-6.1 Sol · `reasoning.effort: medium`)
-- 状态：待执行
+- 状态：本地全门禁通过；待验收
 - 创建日期：2026-10-02
 
 ---
@@ -60,3 +60,13 @@
 3. 全量回归测试双 Root 保持全绿：
    - `npm run test:all` (根套件 210+ 文件与 `apps/web` 独立套件全部通过)
 4. 输出工作证明（git diff 摘要与测试日志），不自动 commit、不 push。
+
+
+## 2026-10-02 本地交付工作证明
+
+- 严格按 180 → 181 推进；阶段一两个定向文件通过后才启动阶段二。
+- 最终定向：沙箱 15 项、记忆 9 项；独立集成核验分别 23 项、13 项通过。
+- 最后源代码上的类型构建与测试类型检查均 exit 0；双 Root 全量：根 218 文件 / 2524 passed + 6 skipped，Web 16 文件 / 154 passed，exit 0。
+- 离线 conformance 25/25；未调用真实外部 Agent，无提交、push、发布或宿主 ACL 修改。
+- 完整修改清单、原生边界与可复跑日志：[V1.7 交付记录](../docs/V1.7-IMPLEMENTATION-NOTES.md)，证据目录：evidence/sessions/2026-10-02-epic183/（accepted-* 为最终门禁）。
+- Windows 需预配置 Low Integrity / 专用受限 SID ACL；缺失时拒绝，原生运行契约使用 Mock 验证。

@@ -8,26 +8,24 @@
 
 **任何 Agent 在接收到「继续」/「继续未完成的」指令时，直接根据本段与 `.agent-state/run-state.json` 向用户汇报并执行：**
 
-1. **当前交付**：**Epic 179（V1.6 工业级团队工作台与常驻守护网格）**，四阶段实现、独立审查与最终门禁完成；本地交证，待用户验收。
+1. **当前交付**：**Epic 183（V1.7 原生级安全沙箱与认知记忆体系）**，180 → 181 顺序实施、独立审查与最终门禁完成；本地全门禁通过，待用户验收。
 2. **已完成与已验证阶段**：
-   - 阶段一（175）：HTTP 11 项、独立 Web root 8 项通过；已完成离线浏览器审批与节点完成冒烟；
-   - 阶段二（176）：生命周期、鉴权与 CLI 定向 27 项通过；Windows 托盘/原生通知使用 Mock 验证；
-   - 阶段三（177）：截断、自愈与生产管线定向 31 项通过；不安全 MCP 超时不得重放远端副作用；
-   - 阶段四（178）：SQLite 定向 10 项通过；JSONL 权威、WAL/NORMAL、FTS5、重建与并发投影集成回归已实现；
-   - 最终源代码上的 `npx tsc -b`、`npm run typecheck:tests`、Web build/typecheck 均为 `exit 0`；全量根 **210 文件 / 2491 passed + 6 skipped**，Web **16 文件 / 154 passed**。完整交证见 `docs/V1.6-IMPLEMENTATION-NOTES.md`。
+   - 180：受限令牌/Low Integrity/Job 暂停派生，bwrap/Seatbelt 探测、写目录白名单、Shell 管线与持久审计；定向 15 项、原生/运行时/组合根核验 23 项通过；
+   - 181：共享 SQLite 的 BM25/纯 TS cosine/RRF、持久向量事实、JSONL 经验提炼、受限预算动态指导；定向 9 项、上下文/生产集成核验 13 项通过；
+   - 最终 `tsc -b`、`typecheck:tests` 均 exit 0；`test:all` 根 **218 文件 / 2524 passed + 6 skipped**，Web **16 文件 / 154 passed**；离线 conformance **25/25**。
 3. **当前断点与未完成项**：
-   - 首轮全量仅 task 097 历史 SQLite 全局禁令失败；已收窄为仅许可 SessionIndexStore，凭据路径禁止规则完整保留，14 项回归与独立审查通过；
-   - 最终 `npm run test:all`（双 root）及 Web 构建/类型检查全部通过，无 Epic 179 实施待办；
-   - 不重复实施已完成阶段，不驱动真机 Agent，不提交或发布。
+   - 无 Epic 183 实施待办；初轮两项 benchmark 对宿主原生权限的依赖已通过显式测试 Mock 隔离，最终双 Root 全绿；
+   - Windows 写目录需维护者显式预配置 Low / 受限 SID ACL，未配置时 fail-closed；不自动改宿主权限。原生运行使用 Mock 验证，C# 仅编译核验；
+   - macOS 进程组生命周期清理不覆盖主动 setsid/setpgid 逃组的子进程；helper 降级与限制均在交付记录中。
 4. **一键恢复执行指令**：
-   - 先读 `docs/V1.6-IMPLEMENTATION-NOTES.md` 与机器状态，汇报已交证、待用户验收；不重做四阶段，不自动另起功能卡。
+   - 先读 `docs/V1.7-IMPLEMENTATION-NOTES.md` 与机器状态，汇报已交证、待验收；不重做 180/181，不自动续卡，不驱动真实 Agent，不提交或发布。
 
 | 项 | 当前实况 |
 |---|---|
-| 仓库 / 分支 | `satan9394/vessel-harness`（Public） / `main` = `e62028d` |
-| 工作区状态 | 保留 Epic 169/174 与 Epic 179 全部本地改动，未提交 |
+| 仓库 / 分支 | `satan9394/vessel-harness` / `main` = `048dfa2`（本轮未提交） |
+| 工作区状态 | 本轮开始干净；仅保留 Epic 183 本地交付改动 |
 | 机器状态真源 | `.agent-state/run-state.json`（mode: bounded；revision 以文件为准） |
-| 当前任务卡 | `tasks/179-epic-universal-team-workspace-and-daemon-mesh.md`（本地交证完成，待验收） |
+| 当前任务卡 | `tasks/183-epic-hardened-runtime-and-cognitive-memory.md`（本地全门禁通过；待验收） |
 
 ## 1. 治理与门禁（改动前必读）
 
@@ -73,7 +71,7 @@
 
 | # | 事项 | 入口 |
 |---|---|---|
-| A1 | **产品能力**：README 三条已知边界——① 非 Windows 缺 OS 级沙箱（需原生 helper）② 未交付受限令牌/低完整性降权 ③ `--live` 基线未做 | `README.md` 状态段、`docs/SANDBOX-WINDOWS.md` |
+| A1 | **产品边界**：Epic 183 已本地实现原生沙箱；Windows ACL 预配置/真机验收、macOS 逃组生命周期、helper 缺失降级仍需按交付记录判断；`--live` 外部基线未做 | `README.md` 状态段、`docs/SANDBOX-WINDOWS.md` |
 | A2 | 环境补齐项：`release-report` 刷新（需配额确认）、Packaging gate 重跑（需 dist）、字面 3h 墙钟 soak | `tasks/README.md` 未闭合段、`docs/V1.6-STABLE-CHECKLIST.md` |
 | A3 | Windows runner worker 启动抖动：**若再出现第二次**就立卡（可选缓解：给 CI 设 `maxWorkers`） | 审计文档 **§C**（已定义触发条件） |
 | A4 | 文档诚实化（同类清扫已完成一轮，若有新发现同法处理） | 审计文档 §H/§I 的做法：区分「历史快照」与「面向行动的清单」 |

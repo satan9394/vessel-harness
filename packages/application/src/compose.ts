@@ -1,8 +1,9 @@
 import * as path from 'node:path';
+import * as fs from 'node:fs';
 import type { ChatProvider, ChatToolDef, ToolCall, ToolResultRecord } from '@vessel/shared';
 import { AgentLoop, EventBus, Session } from '@vessel/core';
 import { ContextBuilder, Compaction, createOverflowRecovery, type AdaptiveCompactionOptions } from '@vessel/context';
-import { ToolRegistry, createFsTools, createSearchTools, createShellTool, McpClient, registerMcpTools, type McpTransport } from '@vessel/tools';
+import { ToolRegistry, createFsTools, createSearchTools, createShellTool, McpClient, registerMcpTools, type McpTransport, type NativeSandboxRunner } from '@vessel/tools';
 import { PolicyEngine, loadPolicyArtifacts } from '@vessel/policy';
 import { Executor, Sandbox } from '@vessel/runtime';
 import { loadBehaviorIR, compileBehavior } from '@vessel/behavior';
@@ -18,7 +19,7 @@ import {
 } from '@vessel/skills';
 import { Telemetry } from '@vessel/telemetry';
 import { ExternalAgentRuntime, SubagentManager, createSubagentTool, type ExternalAgentConfig } from '@vessel/agents';
-import { ProjectStore, createMemoryTool } from '@vessel/memory';
+import { ProjectStore, createMemoryTool, HybridMemoryStore, streamJsonlRecords, resolveSessionDir, type SessionIndexSource } from '@vessel/memory';
 import { AutoTaskRouter, type AutoRoute, type RouteMode, type TierBindings, type TierModelMap } from '@vessel/llm';
 import { EnforcementProjection } from './projections/EnforcementProjection.js';
 import type { ProcessTreeAuditEvent } from './projections/types.js';
@@ -47,6 +48,8 @@ export interface ComposeMcpConnection {
 }
 
 export interface ComposeOptions {
+  /** Offline/embedding replacement for native OS shell confinement. */
+  nativeSandbox?: NativeSandboxRunner;
   workspaceRoot: string;
   cwd?: string;
   provider: ChatProvider;
@@ -244,10 +247,41 @@ export async function composeHarness(opts: ComposeOptions): Promise<ComposedHarn
   // V0.3 project memory: file-based store + Memory tool + frozen snapshot for context injection
   const memoryEnabled = opts.memory?.enabled ?? true;
   const projectStore = memoryEnabled ? new ProjectStore(workspaceRoot) : null;
+  // Optional SQLite projection stays workspace-scoped and lazy (Node 20 can still compose).
+  let cognitiveStore: HybridMemoryStore | undefined;
+  let cognitiveReady: Promise<void> | undefined;
+  const historicalRules = async (goal: string) => {
+    if (!cognitiveReady) cognitiveReady = (async () => {
+      try {
+        cognitiveStore = new HybridMemoryStore(path.join(workspaceRoot, '.harness', 'cache', 'session_index.db'));
+        await cognitiveStore.rebuild(async function* (): AsyncIterable<SessionIndexSource> {
+          const root = path.join(workspaceRoot, '.harness', 'sessions');
+          if (fs.existsSync(root)) for (const entry of fs.readdirSync(root, { withFileTypes: true })) {
+            if (entry.isDirectory()) yield { sessionId: entry.name, records: () => streamJsonlRecords(path.join(root, entry.name, 'session.jsonl')) };
+          }
+        });
+      } catch (error) {
+        await cognitiveStore?.close().catch(() => {}); cognitiveStore = undefined;
+        console.warn('[vessel] cognitive memory unavailable; JSONL remains authoritative: ' + String(error));
+      }
+    })();
+    await cognitiveReady;
+    if (!cognitiveStore) return [];
+    try {
+      await cognitiveStore.indexRecords(session.sessionId, session.replay());
+      return await cognitiveStore.matchRelevantRules(goal.slice(0, 10000), 5);
+    } catch (error) {
+      console.warn('[vessel] cognitive recall unavailable; continuing without historical guidance: ' + String(error));
+      return [];
+    }
+  };
   const tools = [
     ...createFsTools({ workspaceRoot, fsPolicy }),
     ...createSearchTools({ workspaceRoot, fsPolicy }),
-    createShellTool({ workspaceRoot, sandbox }),
+    createShellTool({ workspaceRoot, sandbox, nativeSandbox: opts.nativeSandbox, nativeAudit: async event => {
+      const record = await session.appendSync({ ...event, type: 'audit/sandbox_enforced', surface: false });
+      await bus.emit('audit/sandbox_enforced', record);
+    } }),
     createSkillTool({ workspaceRoot, pluginSkills: pluginSkillSources }),
     createSkillSearchTool({ workspaceRoot, pluginSkills: pluginSkillSources }),
     ...(projectStore ? [createMemoryTool({ workspaceRoot })] : []),
@@ -363,6 +397,7 @@ export async function composeHarness(opts: ComposeOptions): Promise<ComposedHarn
     getVisibleTools: () => registry.listVisible(),
     volatileText: skillsIndex,
     projectMemory: projectStore ? () => projectStore.snapshot() : undefined,
+    reflectiveRules: memoryEnabled ? historicalRules : undefined,
     contextWindow: opts.contextWindow,
   });
   const maxOutputTokens = opts.compactionBudget?.maxOutputTokens ?? effectiveProvider.defaultMaxOutputTokens ?? 4096;
@@ -500,6 +535,12 @@ export async function composeHarness(opts: ComposeOptions): Promise<ComposedHarn
       telemetry.detach();
       enforcementDetach();
       enforcementFoldDetach();
+      await cognitiveReady;
+      if (cognitiveStore) {
+        try { await cognitiveStore.reconcileSession({ sessionId: session.sessionId, records: () => streamJsonlRecords(path.join(resolveSessionDir(workspaceRoot, session.sessionId), 'session.jsonl')) }); }
+        catch (error) { console.warn('[vessel] cognitive memory projection failed; JSONL preserved: ' + String(error)); }
+        finally { await cognitiveStore.close().catch(error => console.warn('[vessel] cognitive memory close failed: ' + String(error))); }
+      }
       await session.close();
       for (const c of mcpClients) {
         await c.close();

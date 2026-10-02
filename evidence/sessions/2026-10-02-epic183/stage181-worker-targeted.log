@@ -1,0 +1,34 @@
+
+ RUN  v5.0.1 E:/Code_file/Projects/Vessel_Harness
+
+ ✓ packages/memory/src/sqlite/hybridSearch.test.ts > hybrid memory recall > fuses keyword and semantic ranks and recalls a semantic-only match 48ms
+ ✓ packages/memory/src/sqlite/hybridSearch.test.ts > hybrid memory recall > validates inputs, skips incompatible stored dimensions, and handles finite huge and zero vectors 28ms
+ ✓ packages/memory/src/sqlite/hybridSearch.test.ts > hybrid memory recall > reconciles authoritative content and produces deterministic ordering 36ms
+ ✓ packages/memory/src/sqlite/hybridSearch.test.ts > hybrid memory recall > rebuilds fingerprint-bound vectors after restart, corruption and reconciliation; drops stale embeddings 81ms
+stdout | packages/memory/src/sqlite/hybridSearch.test.ts > hybrid memory recall > keeps warm median hybrid retrieval below 15 ms for a local 1000-message corpus
+hybrid warm median: 9.952 ms; 1000 messages, 4 dimensions
+
+(node:18180) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+ ✓ packages/memory/src/sqlite/hybridSearch.test.ts > hybrid memory recall > keeps warm median hybrid retrieval below 15 ms for a local 1000-message corpus 2789ms
+(node:976) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+ ✓ packages/application/src/session/CognitiveMemoryIntegration.test.ts > registry hybrid projection reads authoritative session JSONL and supports offline embeddings 99ms
+ ✓ packages/application/src/session/CognitiveMemoryIntegration.test.ts > production composition learns a prior denial and injects it for a new goal through the real builder 91ms
+ ✓ packages/memory/src/sqlite/reflectiveRules.test.ts > reflective rules from durable facts > upserts stable identities, increments frequency, persists manual rules through restart and rebuild 62ms
+ ✓ packages/memory/src/sqlite/reflectiveRules.test.ts > reflective rules from durable facts > derives safe templates with idempotent provenance and removes replaced events 30ms
+(node:11628) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+ ✓ packages/memory/src/sqlite/reflectiveRules.test.ts > reflective rules from durable facts > extracts successful self-healing retries without copying untrusted content 23ms
+ ✓ packages/memory/src/sqlite/reflectiveRules.test.ts > reflective rules from durable facts > quarantines corruption and rebuilds derived rules from untouched JSONL 64ms
+ ✓ packages/context/src/builder/reflectiveContext.test.ts > matches the current goal dynamically and bounds untrusted guidance without changing system authority 30ms
+ ✓ packages/context/src/builder/reflectiveContext.test.ts > zero budget omits all rules 18ms
+
+ Test Files  4 passed (4)
+      Tests  13 passed (13)
+   Start at  05:55:53
+   Duration  7.91s (tests 48%, transform 26%, import 25%, setup 1%)
+
+    Isolate  4 workers spawned · ~183ms startup each (spawn + environment, per file)
+             at least ~550ms faster with isolate: false — reuses workers across files instead of one per file
+
