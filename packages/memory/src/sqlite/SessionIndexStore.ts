@@ -30,6 +30,21 @@ export interface SessionIndexSource {
 export interface SessionIndexOptions { sources?: () => AsyncIterable<SessionIndexSource> }
 
 const sqliteRequire = createRequire(import.meta.url);
+/** Read-only health check; never invokes disposable projection repair. */
+export async function diagnoseMemoryDatabase(file: string): Promise<{ status: 'pass' | 'warn' | 'fail'; message: string }> {
+  if (!fs.existsSync(file)) return { status: 'warn', message: 'Workspace memory database has not been created.' };
+  fs.accessSync(file, fs.constants.R_OK | fs.constants.W_OK);
+  fs.accessSync(path.dirname(file), fs.constants.W_OK);
+  const { DatabaseSync: Database } = sqliteRequire('node:sqlite') as typeof import('node:sqlite');
+  const db = new Database(file, { readOnly: true });
+  try {
+    const integrity = db.prepare('PRAGMA integrity_check').all();
+    const wal = Object.values(db.prepare('PRAGMA journal_mode').get()!)[0];
+    return integrity.every(row => Object.values(row)[0] === 'ok') && wal === 'wal'
+      ? { status: 'pass', message: 'SQLite integrity OK; WAL enabled; file and directory writable.' }
+      : { status: 'fail', message: 'SQLite integrity or WAL configuration failed.' };
+  } finally { db.close(); }
+}
 const timestamp = (value: unknown) => typeof value === 'string' && Number.isFinite(Date.parse(value)) ? Date.parse(value) : 0;
 const tokens = (value: unknown) => typeof value === 'number' && Number.isFinite(value) && value >= 0 ? Math.floor(value) : 0;
 function page(limit = 50, offset = 0): [number, number] {

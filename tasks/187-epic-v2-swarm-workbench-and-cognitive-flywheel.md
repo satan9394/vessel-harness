@@ -4,7 +4,7 @@
 - 优先级：P1
 - 关联模块：`apps/cli`, `packages/memory`, `packages/tools`, `packages/context`, `packages/agents`
 - 推荐执行配置：Codex (GPT-6.1 Sol · `reasoning.effort: medium`)
-- 状态：待执行
+- 状态：已合入（2026-10-03 本地验收）
 - 创建日期：2026-10-03
 
 ---
@@ -61,3 +61,10 @@
 3. 全量回归测试双 Root 保持全绿：
    - `npm run test:all` (根套件 221+ 文件与 apps/web 独立套件全部通过)
 4. 更新任务卡状态为「本地全门禁通过；待验收」，输出交付工作证明。
+
+## 本地交付证据（2026-10-03）
+
+按 184 → 186 顺序完成，独立审查无剩余阻塞项。
+最终定向 4 文件 / 18 passed；类型构建与测试类型检查均 exit 0。
+双 Root：根 225 文件 / 2554 passed + 6 skipped；Web 16 文件 / 154 passed。
+修改清单、日志与运行边界见 [V2.0 交付记录](../docs/V2.0-IMPLEMENTATION-NOTES.md)。未修改 packages/core，未调用真实外部 Agent，未 commit / push；待维护者验收。

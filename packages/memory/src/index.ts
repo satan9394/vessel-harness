@@ -6,3 +6,4 @@ export * from './learned/LearnedStore.js';
 export * from './sqlite/SessionIndexStore.js';
 export * from './sqlite/jsonlSource.js';
 export * from './sqlite/HybridMemoryStore.js';
+export * from './reflection/autonomousReflection.js';

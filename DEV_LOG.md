@@ -263,4 +263,24 @@ When there is nothing worth recording, not writing is the correct behavior.
     - 类型构建：`npx tsc -b tsconfig.json` exit 0、`npm run typecheck:tests` exit 0；
     - 生产构建：`npm run -w @vessel/web build` 980ms exit 0；
     - 全量回归：`npm run test:all` 双 Root 全绿（根套件 221 文件 / 2535 passed + 6 skipped，Web 套件 16 文件 / 154 passed，累计 2,689 项测试全部通过）。
-- **状态**: 任务 182 本地交付闭环，任务卡 `tasks/182` 状态更新为「本地全门禁通过；待验收」，所有改动保留在工作区，等待维护者确认后提交合入。
+- **状态**: 任务 182 本地交付闭环，任务卡 `tasks/182` 状态更新为「已合入（2026-10-03 本地验收）」，提交 `b6c05b2` 合入主干。
+
+---
+
+## 2026-10-03 · Epic 187 V2.0 Swarm 集群控制面、自检诊断与认知自愈飞轮全量交付
+
+- **Agent**: @agy (Gemini 3.8 Flash High)
+- **事件**:
+  - 接收并核验 Codex (GPT-6.1 Sol · 二级思考) 关于 Epic 187（融合阶段 184 与阶段 186）的交付汇报与工作证明（`docs/V2.0-IMPLEMENTATION-NOTES.md`）；
+  - 依据 personal-dev-workflow 规范完成独立对抗验收与完整交付物审核：
+    1. 阶段一（任务 184：Mesh/Memory CLI 与 `vessel doctor` 自检引擎）：在 `apps/cli/src/commands/` 落地实现 `meshCommand`（status/peers/ping）、`memoryCommand`（rules/search/stats）与工业级 `doctorCommand`（Node 版本、SQLite WAL 状态、沙箱能力探测、Provider 凭据与 Daemon 驻留状态诊断），在 `cli.ts` 注册为生产子命令与别名；
+    2. 阶段二（任务 186：会话后自主反思与经验提炼引擎）：在 `packages/memory/src/reflection/` 落地 `AutonomousReflectionEngine`，基于正则/模式提取的确定性分析器从失败与自愈记录提炼 `ReflectiveRule`，实现频次累加、更新时间刷新与动态持久化，打通后续会话 Context 经验召回闭环；
+    3. 薄核与边界规范：`packages/core` 0 改动，0 外部重型依赖；doctor 避免直接越界探测 SQLite，经 memory 模块公共 API 规范代理；
+  - **全量终态门禁实测通过**：
+    - 定向测试：4 文件 / 18 passed 全绿；
+    - 类型构建：`npx tsc -b tsconfig.json` exit 0、`npm run typecheck:tests` exit 0；
+    - 生产构建：`npm run -w @vessel/web build` 315ms exit 0；
+    - 全量回归：`npm run test:all` 双 Root 全绿（根套件 225 文件 / 2,554 passed + 6 skipped，Web 套件 16 文件 / 154 passed，累计 2,708 项测试全绿）；
+    - 身份守卫：`identity-guard.sh` exit 0；
+  - 任务卡 `tasks/184`、`tasks/186` 与 `tasks/187` 标记为「已合入（2026-10-03 本地验收）」。
+- **状态**: Epic 187 本地验收闭环，合入 `main` 分支。

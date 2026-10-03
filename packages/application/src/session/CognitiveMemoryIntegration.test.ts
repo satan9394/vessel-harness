@@ -6,6 +6,8 @@ import { MockProvider } from '@vessel/llm';
 import { Session } from '@vessel/core';
 import { composeHarness, type ComposedHarness } from '../compose.js';
 import { SessionRegistry } from './SessionRegistry.js';
+import { SessionController } from './SessionController.js';
+import { HybridMemoryStore } from '@vessel/memory';
 
 let dir: string; const closers: (() => Promise<void>)[] = [];
 beforeEach(() => { dir = fs.mkdtempSync(path.join(os.tmpdir(), 'vessel-cognitive-integration-')); });
@@ -32,4 +34,24 @@ it('production composition learns a prior denial and injects it for a new goal t
   const longGoal = 'Shell ' + 'x'.repeat(12000);
   await harness.session.appendSync({ type: 'user/message', role: 'user', msgId: 'long', content: longGoal, surface: true });
   expect((await harness.builder.assemble(1)).messages.some(message => message.content === longGoal)).toBe(true);
+});
+it('offline production failure automatically reflects on close and a fresh harness recalls the lesson', async () => {
+  const options = { workspaceRoot: dir, model: 'mock', policySystemPath: path.resolve('configs/policy.default.yaml'), behaviorIRPath: path.resolve('configs/behavior.default.yaml') };
+  const controller = await SessionController.create({ ...options, permission: 'read-only', provider: new MockProvider([
+    { when: /.*/, ifNoToolResult: true, response: { toolCalls: [{ name: 'Write', arguments: { path: 'denied.txt', content: 'test' } }] } },
+    { when: /.*/, minToolResults: 1, response: { text: 'denial observed' } },
+  ]) });
+  await controller.runTurn('Write the file');
+  await controller.bus.emit('team_end', { teamRunId: 'offline-review', outcome: 'failed', durationMs: 0, members: [{ memberId: 'reviewer', presetId: 'test', role: 'evaluator', phase: 'evaluate', status: 'completed', sessionId: controller.session.sessionId, delegationDepth: 0, durationMs: 0, review: { verdict: 'not_met', reason: 'test', unmet: ['Thin Core'], suggestions: [], evidence: [] } }] });
+  await controller.close();
+  const store = new HybridMemoryStore(path.join(dir, '.harness', 'cache', 'session_index.db'));
+  const rules = await store.matchRelevantRules('Write');
+  expect(rules.some(rule => rule.confidence === 0.55)).toBe(true);
+  expect(rules.every(rule => rule.frequency === 1)).toBe(true);
+  expect(await store.matchRelevantRules('evaluator architecture')).toMatchObject([{ category: 'architecture_constraint', confidence: 0.55, frequency: 1 }]);
+  await store.close();
+  const harness = await composeHarness({ ...options, provider: new MockProvider([]) }); closers.push(() => harness.close());
+  await harness.session.appendSync({ type: 'user/message', role: 'user', msgId: 'fresh', content: 'Write a file', surface: true });
+  expect((await harness.builder.assemble(0)).messages.find(message => message.source === 'memory')?.content).toContain('denied by the active policy');
+  expect(fs.existsSync(path.join(dir, 'denied.txt'))).toBe(false);
 });

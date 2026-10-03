@@ -2,6 +2,7 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { spawn } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
+import { NativeMeshEventBus, type MeshNodeDescriptor } from '@vessel/agents';
 import { createVesselServer, VERSION, DaemonLifecycle, createNativeNotifier, startResidentTray, daemonRoot, readDaemonLock, writeDaemonFile, releaseDaemonLock, gracefulDaemonStop, protectDaemonPath, recycleDaemonPath, type DaemonControlContract, type DaemonInfo, type DaemonLaunch } from '@vessel/local-server';
 
 export function launchDetached(input: DaemonLaunch, entry: string, launch = spawn): Promise<number> {
@@ -15,6 +16,7 @@ export function launchDetached(input: DaemonLaunch, entry: string, launch = spaw
 }
 
 export const daemonRuntime = {
+  mesh: (local: MeshNodeDescriptor) => new NativeMeshEventBus(local),
   control(entry: string): DaemonControlContract { return new DaemonLifecycle({ launch: input => launchDetached(input, entry) }); },
   exit(code: number): void { process.exit(code); },
   tray: startResidentTray,
@@ -70,8 +72,15 @@ async function runDaemonChild(flags: Map<string, string>): Promise<number> {
   const parked = new Promise<number>(resolve => { resolveExit = resolve; });
   let info: DaemonInfo;
   let startupExpired = false;
+  const mesh = daemonRuntime.mesh({ nodeId: instanceId, endpoint: `http://127.0.0.1:${Number(flags.get('port'))}`, token, roleCapabilities: [], status: 'online', latencyMs: 0 });
+  const peersFile = path.join(root, 'mesh-peers.json');
+  if (fs.existsSync(peersFile)) {
+    const peers: unknown = JSON.parse(fs.readFileSync(peersFile, 'utf8'));
+    if (!Array.isArray(peers)) throw new Error('mesh-peers.json must contain an array of locally provisioned descriptors');
+    for (const peer of peers) mesh.trustPeer(peer as MeshNodeDescriptor);
+  }
   const server = daemonRuntime.server({
-    port: Number(flags.get('port')), authToken: token, notify: createNativeNotifier(), staticDir: daemonStaticDir(),
+    port: Number(flags.get('port')), authToken: token, mesh, notify: createNativeNotifier(), staticDir: daemonStaticDir(),
     daemon: { status: () => ({ ...info, uptimeSeconds: Math.floor(process.uptime()), memoryBytes: process.memoryUsage().rss }), stop: () => stop() },
   });
   const stop = gracefulDaemonStop(async () => {

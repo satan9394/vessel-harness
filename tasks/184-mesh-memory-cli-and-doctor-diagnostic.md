@@ -4,7 +4,7 @@
 - 优先级：P2
 - 关联模块：`apps/cli`, `packages/tools`, `packages/memory`, `packages/agents`
 - 推荐执行配置：Codex (GPT-6.1 Sol · `reasoning.effort: medium`)
-- 状态：待执行
+- 状态：已合入（2026-10-03 本地验收）
 - 创建日期：2026-10-03
 
 ---
@@ -78,3 +78,9 @@ export class VesselDoctorEngine {
    - `npm run typecheck:tests` (exit 0)
 3. 全量回归测试双 Root 保持全绿：
    - `npm run test:all`
+
+## 本地交付证据（2026-10-03）
+
+最终定向 4 文件 / 18 passed；类型构建与测试类型检查均 exit 0。
+双 Root：根 225 文件 / 2554 passed + 6 skipped；Web 16 文件 / 154 passed。
+修改清单、日志与运行边界见 [V2.0 交付记录](../docs/V2.0-IMPLEMENTATION-NOTES.md)。未 commit / push，待维护者验收。
