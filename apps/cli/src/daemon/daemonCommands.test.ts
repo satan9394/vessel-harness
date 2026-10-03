@@ -37,8 +37,8 @@ describe('daemon commands (no child process or real store)', () => {
   });
   it('publishes ready state before launching exactly one resident tray and shuts down its own state', async () => {
     const root = fs.mkdtempSync(path.join(os.tmpdir(), 'vessel-child-mock-'));
-    fs.mkdirSync(path.join(root, 'daemon.lock')); fs.writeFileSync(path.join(root, 'daemon.lock', 'owner.json'), JSON.stringify({ pid: process.pid, instanceId: 'child-fixture' }));
-    fs.writeFileSync(path.join(root, 'daemon.lock', 'child-fixture.claim'), 'child-fixture');
+    fs.mkdirSync(path.join(root, 'daemon.lock')); fs.writeFileSync(path.join(root, 'daemon.lock', 'owner.json'), JSON.stringify({ pid: process.pid, instanceId: '00000000-0000-4000-8000-000000000001' }));
+    fs.writeFileSync(path.join(root, 'daemon.lock', '00000000-0000-4000-8000-000000000001.claim'), '00000000-0000-4000-8000-000000000001');
     fs.writeFileSync(path.join(root, 'daemon.token'), 'ab'.repeat(24));
     let options!: Parameters<typeof daemonRuntime.server>[0]; const close = vi.fn(async () => {});
     const server = { port: 30001, listen: vi.fn(async () => server), close };
@@ -47,26 +47,28 @@ describe('daemon commands (no child process or real store)', () => {
     vi.spyOn(daemonRuntime, 'recycle').mockImplementation(async target => { fs.rmSync(target, { recursive: true, force: true }); });
     const tray = vi.spyOn(daemonRuntime, 'tray').mockImplementation(() => {}); const exit = vi.spyOn(daemonRuntime, 'exit').mockImplementation(() => {});
     try {
-      const run = daemonCommands(['daemon'], new Map([['child', 'true'], ['root', root], ['instance', 'child-fixture'], ['parent', String(process.pid)], ['port', '30001'], ['deadline', String(Date.now() + 3000)]]), '/fake/cli.js');
+      const run = daemonCommands(['daemon'], new Map([['child', 'true'], ['root', root], ['instance', '00000000-0000-4000-8000-000000000001'], ['parent', String(process.pid)], ['port', '30001'], ['deadline', String(Date.now() + 3000)]]), '/fake/cli.js');
       await vi.waitFor(() => expect(tray).toHaveBeenCalledTimes(1));
       const saved = JSON.parse(fs.readFileSync(path.join(root, 'daemon.json'), 'utf8'));
-      expect(saved.pid).toBe(process.pid); expect(saved.port).toBe(30001); expect(saved.instanceId).toBe('child-fixture');
+      expect(saved.pid).toBe(process.pid); expect(saved.port).toBe(30001); expect(saved.instanceId).toBe('00000000-0000-4000-8000-000000000001');
       expect(options!.staticDir).toBe(daemonStaticDir()); expect(options!.authToken).toHaveLength(48);
+      expect(options!.mesh!.local.nodeId).toBe(saved.instanceId);
+      expect(options!.mesh!.local.token).toBe(options!.authToken);
       options!.daemon!.stop(); expect(await run).toBe(0); expect(close).toHaveBeenCalledOnce(); expect(exit).toHaveBeenCalledWith(0);
       expect(fs.readFileSync(path.join(root, 'daemon.token'), 'utf8')).toBe(''); expect(fs.existsSync(path.join(root, 'daemon.lock'))).toBe(false);
     } finally { fs.rmSync(root, { recursive: true, force: true }); }
   });
   it('self-terminates a stalled child listen/close after its startup deadline and force timeout', async () => {
     vi.useFakeTimers(); const root = fs.mkdtempSync(path.join(os.tmpdir(), 'vessel-stalled-child-'));
-    fs.mkdirSync(path.join(root, 'daemon.lock')); fs.writeFileSync(path.join(root, 'daemon.lock', 'owner.json'), JSON.stringify({ pid: process.pid, instanceId: 'stalled' }));
-    fs.writeFileSync(path.join(root, 'daemon.lock', 'stalled.claim'), 'stalled'); fs.writeFileSync(path.join(root, 'daemon.token'), 'ab'.repeat(24));
+    fs.mkdirSync(path.join(root, 'daemon.lock')); fs.writeFileSync(path.join(root, 'daemon.lock', 'owner.json'), JSON.stringify({ pid: process.pid, instanceId: '00000000-0000-4000-8000-000000000002' }));
+    fs.writeFileSync(path.join(root, 'daemon.lock', '00000000-0000-4000-8000-000000000002.claim'), '00000000-0000-4000-8000-000000000002'); fs.writeFileSync(path.join(root, 'daemon.token'), 'ab'.repeat(24));
     let rejectListen!: (error: Error) => void;
     vi.spyOn(daemonRuntime, 'server').mockReturnValue({ port: 30001, listen: () => new Promise((_resolve, reject) => { rejectListen = reject; }), close: () => new Promise(() => {}) });
     vi.spyOn(daemonRuntime, 'protect').mockImplementation(() => {});
     const tray = vi.spyOn(daemonRuntime, 'tray').mockImplementation(() => {}); const exit = vi.spyOn(daemonRuntime, 'exit').mockImplementation(() => {});
     vi.spyOn(console, 'error').mockImplementation(() => {});
     try {
-      const run = daemonCommands(['daemon'], new Map([['child', 'true'], ['root', root], ['instance', 'stalled'], ['parent', String(process.pid)], ['port', '30001'], ['deadline', String(Date.now() + 50)]]), '/fake/cli.js');
+      const run = daemonCommands(['daemon'], new Map([['child', 'true'], ['root', root], ['instance', '00000000-0000-4000-8000-000000000002'], ['parent', String(process.pid)], ['port', '30001'], ['deadline', String(Date.now() + 50)]]), '/fake/cli.js');
       await vi.advanceTimersByTimeAsync(10051); expect(exit).toHaveBeenCalledWith(1); expect(tray).not.toHaveBeenCalled();
       // The mocked self-exit returns; release the fake listen so the test can settle.
       rejectListen(new Error('stalled listen')); await expect(run).rejects.toThrow('stalled listen');

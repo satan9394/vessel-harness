@@ -18,6 +18,9 @@ import {
 } from '@vessel/application';
 import { createVesselServer } from '@vessel/local-server';
 import { daemonCommands } from './daemon/daemonCommands.js';
+import { meshCommand } from './commands/meshCommand.js';
+import { memoryCommand } from './commands/memoryCommand.js';
+import { doctorCommand } from './commands/doctorCommand.js';
 import { ProviderStore, parseBackupKeep, type ProviderConfig } from './providers/ProviderStore.js';
 import { createDefaultProviderStore } from './providers/defaultStore.js';
 import {
@@ -133,6 +136,9 @@ Vessel CLI v${VERSION} — 可组合 Agent Harness（品牌 Vessel）
   vessel bench-report --input <json>  基准报告看板：聚合 076 RunResult[]（或 082 lane report）→ 打印 CLI 摘要表 + 写 md/json（任务 083）
   vessel serve [--port <n>]          启动本地服务（默认 http://127.0.0.1:5678，不开浏览器）
   vessel daemon start|stop|status    后台服务（--port <n>、--json）
+  vessel mesh|swarm status|peers|ping <peer-id>   Mesh control plane
+  vessel memory|mem rules|search <query>|stats   Workspace cognitive memory
+  vessel doctor|diagnose [--probe-network]       System health diagnostics (offline by default)
   vessel serve --mode mcp-agent      通过 stdio 启动 MCP 子代理服务（协议仅占用 stdout）
   vessel web                         启动本地服务并打开浏览器
 
@@ -3099,6 +3105,9 @@ export async function cmdWeb(flags: Map<string, string>): Promise<number> {
 async function dispatch(parsed: ParsedArgs): Promise<number> {
   // subcommand forms: `vessel provider <sub>`, `vessel models`
   const first = parsed.positionals[0];
+  if (first === 'mesh' || first === 'swarm') return meshCommand(parsed.positionals.slice(1), parsed.flags);
+  if (first === 'memory' || first === 'mem') return memoryCommand(parsed.positionals.slice(1), parsed.flags);
+  if (first === 'doctor' || first === 'diagnose') return doctorCommand(parsed.positionals.slice(1), parsed.flags);
   if (first === 'provider') return cmdProvider(parsed.positionals.slice(1), parsed.flags);
   if (first === 'mcp') return cmdMcp(parsed.positionals.slice(1), parsed.flags);
   if (first === 'diff') return cmdDiff(parsed.positionals.slice(1), parsed.flags);

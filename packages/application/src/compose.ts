@@ -19,7 +19,7 @@ import {
 } from '@vessel/skills';
 import { Telemetry } from '@vessel/telemetry';
 import { ExternalAgentRuntime, SubagentManager, createSubagentTool, type ExternalAgentConfig } from '@vessel/agents';
-import { ProjectStore, createMemoryTool, HybridMemoryStore, streamJsonlRecords, resolveSessionDir, type SessionIndexSource } from '@vessel/memory';
+import { ProjectStore, createMemoryTool, HybridMemoryStore, AutonomousReflectionEngine, collectSessionTrajectory, collectEvaluatorTrajectory, type SessionTrajectoryEvent, streamJsonlRecords, resolveSessionDir, type SessionIndexSource } from '@vessel/memory';
 import { AutoTaskRouter, type AutoRoute, type RouteMode, type TierBindings, type TierModelMap } from '@vessel/llm';
 import { EnforcementProjection } from './projections/EnforcementProjection.js';
 import type { ProcessTreeAuditEvent } from './projections/types.js';
@@ -250,7 +250,7 @@ export async function composeHarness(opts: ComposeOptions): Promise<ComposedHarn
   // Optional SQLite projection stays workspace-scoped and lazy (Node 20 can still compose).
   let cognitiveStore: HybridMemoryStore | undefined;
   let cognitiveReady: Promise<void> | undefined;
-  const historicalRules = async (goal: string) => {
+  const initializeCognitive = async () => {
     if (!cognitiveReady) cognitiveReady = (async () => {
       try {
         cognitiveStore = new HybridMemoryStore(path.join(workspaceRoot, '.harness', 'cache', 'session_index.db'));
@@ -266,6 +266,9 @@ export async function composeHarness(opts: ComposeOptions): Promise<ComposedHarn
       }
     })();
     await cognitiveReady;
+  };
+  const historicalRules = async (goal: string) => {
+    await initializeCognitive();
     if (!cognitiveStore) return [];
     try {
       await cognitiveStore.indexRecords(session.sessionId, session.replay());
@@ -460,6 +463,24 @@ export async function composeHarness(opts: ComposeOptions): Promise<ComposedHarn
     'projection:enforcement:fs-confinement-fold',
   );
 
+  // Queue reflection outside the EventBus critical path; close awaits the final flush.
+  let reflectionQueue: Promise<void> = Promise.resolve();
+  const evaluatorEvents: SessionTrajectoryEvent[] = [];
+  const reflect = () => {
+    if (!memoryEnabled) return;
+    reflectionQueue = reflectionQueue.then(async () => {
+      await initializeCognitive();
+      if (!cognitiveStore) return;
+      await cognitiveStore.indexRecords(session.sessionId, session.replay());
+      await new AutonomousReflectionEngine(cognitiveStore).processSessionEnd(session.sessionId, [...collectSessionTrajectory(session.replay()), ...evaluatorEvents]);
+    }).catch(error => console.warn('[vessel] session reflection unavailable: ' + String(error)));
+  };
+  const reflectionDetach = bus.on('after_turn', () => { reflect(); }, 'memory:reflection');
+  const evaluatorReflectionDetach = bus.on('team_end', payload => {
+    evaluatorEvents.push(...collectEvaluatorTrajectory(payload as import('@vessel/shared').TeamEndPayload));
+    reflect();
+  }, 'memory:evaluator-reflection');
+
   // V0.9 usage statistics: persist after_model usage into the store when wired
   if (opts.usageStore) {
     const usageProvider = opts.usageProvider ?? 'default';
@@ -535,6 +556,10 @@ export async function composeHarness(opts: ComposeOptions): Promise<ComposedHarn
       telemetry.detach();
       enforcementDetach();
       enforcementFoldDetach();
+      reflectionDetach();
+      evaluatorReflectionDetach();
+      reflect();
+      await reflectionQueue;
       await cognitiveReady;
       if (cognitiveStore) {
         try { await cognitiveStore.reconcileSession({ sessionId: session.sessionId, records: () => streamJsonlRecords(path.join(resolveSessionDir(workspaceRoot, session.sessionId), 'session.jsonl')) }); }

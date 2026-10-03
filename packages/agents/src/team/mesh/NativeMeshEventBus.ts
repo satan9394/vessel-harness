@@ -46,6 +46,9 @@ export class NativeMeshEventBus implements MeshEventBus {
     if (!previous) this.peers.set(node.nodeId, structuredClone(node));
   }
   peer(nodeId: string): MeshNodeDescriptor | undefined { const node = this.peers.get(nodeId); return node && structuredClone(node); }
+  listPeers(): Omit<MeshNodeDescriptor, 'token'>[] {
+    return [...this.peers.values()].map(({ token: _token, ...peer }) => structuredClone(peer));
+  }
   async registerPeer(node: MeshNodeDescriptor): Promise<void> {
     this.trustPeer(node);
     const nonce = randomUUID();

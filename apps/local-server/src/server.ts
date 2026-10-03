@@ -322,6 +322,21 @@ export function createVesselServer(opts: VesselServerOptions = {}): VesselServer
     const method = (req.method ?? 'GET').toUpperCase();
     const url = new URL(req.url ?? '/', `http://${req.headers.host ?? '127.0.0.1'}`);
     if (opts.authToken && !authMiddleware(req, res, opts.authToken, url.pathname)) return;
+    if (url.pathname.startsWith('/api/control/mesh/')) {
+      if (!opts.authToken) return json(res, 403, { error: 'daemon_auth_required' });
+      if (!opts.mesh) return json(res, 404, { error: 'mesh_unconfigured' });
+      if (method === 'GET' && url.pathname === '/api/control/mesh/status') return json(res, 200, { nodeId: opts.mesh.local.nodeId, peers: opts.mesh.listPeers() });
+      if (method === 'POST' && url.pathname.startsWith('/api/control/mesh/ping/')) {
+        let id: string;
+        try { id = decodeURIComponent(url.pathname.slice('/api/control/mesh/ping/'.length)); }
+        catch { return json(res, 400, { error: 'invalid_peer_id' }); }
+        if (!opts.mesh.peer(id)) return json(res, 404, { error: 'unknown_mesh_peer' });
+        try { await opts.mesh.probePeer(id); }
+        catch { return json(res, 502, { error: 'mesh_peer_unreachable' }); }
+        return json(res, 200, { nodeId: id, latencyMs: opts.mesh.peer(id)!.latencyMs });
+      }
+      return json(res, 404, { error: 'not_found' });
+    }
     if (url.pathname.startsWith('/api/mesh/')) {
       if (!opts.mesh) return json(res, 404, { error: 'mesh_unconfigured' });
       return opts.mesh.handleRequest(req, res);
