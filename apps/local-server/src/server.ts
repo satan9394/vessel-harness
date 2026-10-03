@@ -18,6 +18,7 @@ import type { GoalRunResult, GoalTaskStatus } from './goalSeam.js';
 import type { ExternalAgentConfig } from '@vessel/agents';
 import { SubagentSeam } from './subagentSeam.js';
 import { TeamRuntime, type TeamDagTask } from '@vessel/agents';
+import type { NativeMeshEventBus } from '@vessel/agents';
 import { TeamStageRoutes } from './teamRoutes.js';
 import { authMiddleware, DAEMON_LOGIN_HTML } from './daemon/authMiddleware.js';
 import type { DaemonServerControl } from './daemon/types.js';
@@ -41,6 +42,9 @@ export type SessionFactory = (input: {
 export interface VesselServerOptions {
   /** port to bind; defaults to 5678. Pass 0 for a random free port (tests). */
   port?: number;
+  /** Non-loopback binding is explicit and requires daemon authentication. */
+  host?: string;
+  mesh?: NativeMeshEventBus;
   projectRegistry?: ProjectRegistry;
   sessionRegistry?: SessionRegistry;
   /** directory to serve static assets from; defaults to <package>/public */
@@ -216,6 +220,8 @@ function defaultOpenFolder(dir: string): void {
 export function createVesselServer(opts: VesselServerOptions = {}): VesselServer {
   if (opts.authToken !== undefined && !/^[0-9a-f]{48}$/.test(opts.authToken)) throw new Error('invalid daemon launch token');
   if (opts.daemon && !opts.authToken) throw new Error('daemon control requires a launch token');
+  if (opts.host && !['127.0.0.1', 'localhost', '::1'].includes(opts.host) && !opts.authToken) throw new Error('remote bind requires a launch token');
+  if (opts.mesh && (!opts.authToken || opts.mesh.local.token !== opts.authToken || opts.daemon && opts.mesh.local.nodeId !== opts.daemon.status().instanceId)) throw new Error('mesh identity must match daemon');
   const port = opts.port ?? DEFAULT_PORT;
   const staticDir = path.resolve(opts.staticDir ?? DEFAULT_STATIC);
   const projectRegistry = opts.projectRegistry ?? new ProjectRegistry();
@@ -316,6 +322,10 @@ export function createVesselServer(opts: VesselServerOptions = {}): VesselServer
     const method = (req.method ?? 'GET').toUpperCase();
     const url = new URL(req.url ?? '/', `http://${req.headers.host ?? '127.0.0.1'}`);
     if (opts.authToken && !authMiddleware(req, res, opts.authToken, url.pathname)) return;
+    if (url.pathname.startsWith('/api/mesh/')) {
+      if (!opts.mesh) return json(res, 404, { error: 'mesh_unconfigured' });
+      return opts.mesh.handleRequest(req, res);
+    }
     if (opts.authToken && req.method === 'GET' && url.pathname === '/api/health' && req.headers.accept?.includes('text/html')) {
       res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store', 'Referrer-Policy': 'no-referrer' });
       res.end(DAEMON_LOGIN_HTML); return;
@@ -1075,13 +1085,19 @@ export function createVesselServer(opts: VesselServerOptions = {}): VesselServer
   const vesselServer: VesselServer = {
     port,
     async listen() {
-      server.listen(port, '127.0.0.1');
+      server.listen(port, opts.host ?? '127.0.0.1');
       await once(server, 'listening');
       const addr = server.address();
       (vesselServer as { port: number }).port = typeof addr === 'object' && addr ? addr.port : port;
+      if (opts.mesh) {
+        const advertised = new URL(opts.mesh.local.endpoint);
+        if (advertised.port === '0') { advertised.port = String(vesselServer.port); opts.mesh.local.endpoint = advertised.origin; }
+        opts.mesh.startHeartbeat();
+      }
       return vesselServer;
     },
     async close() {
+      await opts.mesh?.close();
       for (const ctl of controllers.values()) ctl.interrupt();
       for (const res of subagentStreams) res.end();
       for (const off of subagentDetaches) off();

@@ -245,3 +245,22 @@ When there is nothing worth recording, not writing is the correct behavior.
     - `npm run test:all` 双 Root 全绿：根套件 218 文件 / 2524 passed + 6 skipped，Web 套件 16 文件 / 154 passed，累计 2,678 项测试全绿；
     - 状态机 `.agent-state/run-state.json` 与 `HANDOFF.md` 同步更新。
 - **状态**: Epic 183 本地交付闭环，任务卡 `tasks/180`、`tasks/181` 与 `tasks/183` 均标记为「本地全门禁通过；待验收」，所有改动完整保留在工作区，等待维护者确认后建分支发起 PR。
+
+---
+
+## 2026-10-03 · 任务 182 V1.9 跨实例异构 Swarm 网格与分布式事件总线全量交付
+
+- **Agent**: @agy (Gemini 3.8 Flash High)
+- **事件**:
+  - 接收并核验 Codex (GPT-6.1 Sol) 关于任务 182（V1.9）的交付汇报与工作证明；
+  - 依据 personal-dev-workflow 规范完成独立对抗验收与完整交付物审核（`evidence/sessions/2026-10-03-task182/DELIVERY.md`）：
+    1. 对等节点双向鉴权与防重放：在 `packages/agents/src/team/mesh/` 实现 `NativeMeshEventBus`，支持 Launch Token 与 HMAC（方法、路由、Nonce、Body 签名）的短时间窗口防重放校验，经独立只读审查修复了拒绝派发后的所有权状态残留；
+    2. 分布式 DAG 子图派发与结算：主控节点将独立分支闭包序列化派发至对等 Daemon（挂载在 `apps/local-server` 的 `/api/mesh/` 端点），产物 Diff 流式回传，任务所有权防止跨节点重复派发，支持父任务状态最终一致性结算；
+    3. 增量 Seq 对账与自愈重连：SSE 流异常断连时支持携带最后已接收 Seq 断点续传，`reconcilePeer` 支持批量拉取补齐缺失事件；
+    4. 薄核零侵入：`packages/core` 完全保持 0 改动，未引入任何原生 RPC 外部重型依赖，所有测试使用本地临时端口与 EventEmitter 离线仿真；
+  - **全量终态门禁实测通过**：
+    - 定向测试：Mesh 握手、子图派发与 Daemon 挂载集成测试 11/11 passed 全绿；
+    - 类型构建：`npx tsc -b tsconfig.json` exit 0、`npm run typecheck:tests` exit 0；
+    - 生产构建：`npm run -w @vessel/web build` 980ms exit 0；
+    - 全量回归：`npm run test:all` 双 Root 全绿（根套件 221 文件 / 2535 passed + 6 skipped，Web 套件 16 文件 / 154 passed，累计 2,689 项测试全部通过）。
+- **状态**: 任务 182 本地交付闭环，任务卡 `tasks/182` 状态更新为「本地全门禁通过；待验收」，所有改动保留在工作区，等待维护者确认后提交合入。

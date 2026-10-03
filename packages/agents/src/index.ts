@@ -18,5 +18,7 @@ export * from './team/roster.js';
 export * from './team/TeamRuntime.js';
 export * from './team/dag/types.js';
 export * from './team/dag/DagScheduler.js';
+export * from './team/mesh/types.js';
+export * from './team/mesh/NativeMeshEventBus.js';
 export * from './reviewer/conclusion.js';
 export * from './reviewer/InternalReviewer.js';

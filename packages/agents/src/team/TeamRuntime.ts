@@ -65,6 +65,8 @@ export interface TeamRuntimeOptions {
   stableSections?: string[];
   policyGuidance?: string[];
   maxSteps?: number;
+  /** Optional owner cancellation, forwarded to the existing member loop interrupt. */
+  signal?: AbortSignal;
 }
 
 const PROMPT_PREVIEW_LIMIT = 300;
@@ -118,6 +120,14 @@ export class TeamRuntime {
       error: task.error ? trim(task.error, PROMPT_PREVIEW_LIMIT) : undefined,
     }));
     return structuredClone({ ...entry.stage, tasks });
+  }
+
+  /** Authoritative task data for delegation; UI getStage intentionally truncates prompt previews. */
+  getTaskResult(stageId: string, taskId: string): TeamDagTask {
+    const entry = this.stages.get(stageId);
+    const task = entry?.scheduler.snapshot().find(task => task.id === taskId);
+    if (!task) throw new Error('unknown stage task');
+    return task;
   }
 
   reject(id: string): void {
@@ -347,7 +357,10 @@ export class TeamRuntime {
       maxSteps: this.opts.maxSteps,
     });
     openRuntimes.set(plan.memberId, runtime);
-    const turn = await runtime.loop.runTurn(prompt);
+    if (this.opts.signal?.aborted) throw new Error('team execution interrupted');
+    const interrupt = () => runtime.loop.interrupt();
+    this.opts.signal?.addEventListener('abort', interrupt, { once: true });
+    const turn = await runtime.loop.runTurn(prompt).finally(() => this.opts.signal?.removeEventListener('abort', interrupt));
     // BRIEF「同一件事三处实现、两套口径」—— 顶层成员的 stopReason 与 `SubagentManager` /
     // `EvaluatorAgent` 走**同一个函数**（../turnStopReason.js）。改前这里是原样吐 kind
     // （`turn.kind === 'success' ? undefined : turn.kind`）⇒ 产出 `'budget'`/`'interrupted'`，
