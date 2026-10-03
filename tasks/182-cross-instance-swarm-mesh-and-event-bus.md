@@ -4,7 +4,7 @@
 - 优先级：P2
 - 关联模块：`apps/local-server`, `packages/agents`, `packages/shared`
 - 推荐执行配置：Codex (GPT-6.1 Sol · `reasoning.effort: medium`)
-- 状态：待执行
+- 状态：已合入（2026-10-03 本地验收）
 - 创建日期：2026-10-02
 
 ---
@@ -70,3 +70,21 @@ export interface MeshEventBus {
    - `npx tsc -b tsconfig.json` exit 0；
    - `npm run typecheck:tests` exit 0；
    - `npm run test:all` 双 Root 保持全绿。
+
+## 5. 本轮执行与验证计划（2026-10-03）
+
+1. 本地预配置信任节点，UUID + 24 字节 Launch Token 双向握手，心跳与连接生命周期；验证错误凭据、冒充、离线恢复。
+2. 序列化独立子图和上下文，通过 Daemon 内部 HTTP/SSE 端点执行并回传状态与产物 Diff；验证真实本地 TeamRuntime 接线及失败传播。
+3. Seq 增量重放、重连、重复派发与全局状态聚合；验证缺失事件补齐且不重复执行。
+4. 独立审查后依次执行定向测试、类型双门禁、双 Root 全量回归；保存完整日志，更新待验收状态，交回维护者。
+
+## 6. 交付工作证明（2026-10-03）
+
+- 已实现：本地预配置信任与双向握手、心跳、原生 HTTP/SSE 子图派发、接收端 TeamRuntime 执行与产物 Diff、Seq 重连及分页对账、跨 Peer 所有权与全局任务聚合、显式父 DAG 结算、活动回合取消。
+- 独立审查：修复权威结果被 UI 预览截断及明确拒绝后的所有权锁定；复审无剩余已证实阻塞项。
+- 定向测试：2 文件 / **10 passed**；生产 HTTP 接线测试亦随全量通过。
+- `npx tsc -b tsconfig.json` / `npm run typecheck:tests`：**exit 0 / exit 0**。
+- `npm run test:all`：根 **221 文件 / 2535 passed + 6 skipped**；Web **16 文件 / 154 passed**；**exit 0**。门禁均在最终实现/测试编辑后执行。
+- 变更清单、接口接线及完整日志：[DELIVERY.md](../evidence/sessions/2026-10-03-task182/DELIVERY.md)。
+- 明确边界：对账日志为进程生命周期内存；不提供重启持久化。控制器显式订阅/对账，并在父任务已 claim/start 后调用 `settleParent`；不宣称自动父调度接线。
+- 无 Core 改动、无新增依赖、无真实外部 Agent/公网测试；未 commit、未 push。

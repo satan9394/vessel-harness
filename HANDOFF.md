@@ -22,10 +22,10 @@
 
 | 项 | 当前实况 |
 |---|---|
-| 仓库 / 分支 | `satan9394/vessel-harness` / `main` = `048dfa2`（本轮未提交） |
-| 工作区状态 | 本轮开始干净；仅保留 Epic 183 本地交付改动 |
+| 仓库 / 分支 | `satan9394/vessel-harness` / `main` |
+| 工作区状态 | V1.7（Epic 183）与 V1.9（任务 182）全量门禁闭环，已本地合入 |
 | 机器状态真源 | `.agent-state/run-state.json`（mode: bounded；revision 以文件为准） |
-| 当前任务卡 | `tasks/183-epic-hardened-runtime-and-cognitive-memory.md`（本地全门禁通过；待验收） |
+| 当前任务卡 | 全部已合入；准备规划下一阶段路线卡 |
 
 ## 1. 治理与门禁（改动前必读）
 
