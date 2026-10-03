@@ -74,12 +74,20 @@
 | 自主演进经验图谱与轻量混合记忆检索 | 181 | 本地全门禁通过；待验收 | `tasks/181-evolving-knowledge-graph-and-hybrid-memory.md` |
 | 跨实例异构 Swarm 网格与分布式事件总线 | 182 | 已合入（2026-10-03 本地验收） | `tasks/182-cross-instance-swarm-mesh-and-event-bus.md` |
 | [Epic] V1.7 原生级安全沙箱与认知记忆体系 (180+181) | 183 | 已合入（2026-10-03 本地验收） | `tasks/183-epic-hardened-runtime-and-cognitive-memory.md` |
+| Mesh/Memory CLI 控制面与 `vessel doctor` 系统健康自检引擎 | 184 | 待执行 | `tasks/184-mesh-memory-cli-and-doctor-diagnostic.md` |
+| Web 控制台 Swarm 节点拓扑面板、沙箱安全审计与经验规则看板 | 185 | 待执行 | `tasks/185-web-swarm-topology-and-cognitive-dashboard.md` |
+| 会话后自主反思与经验提炼引擎 (Autonomous Reflection Engine) | 186 | 待执行 | `tasks/186-post-session-autonomous-reflection-engine.md` |
+| [Epic] V2.0 Swarm 集群控制面、自检诊断与认知自愈飞轮 (184+186) | 187 | 待执行 | `tasks/187-epic-v2-swarm-workbench-and-cognitive-flywheel.md` |
 
 ## 未闭合 / 下一目标
 
-- **已合入里程碑**：
-  - **V1.9 跨实例异构 Swarm 网格与分布式事件总线（任务 182）**：对等双向鉴权、HMAC 防重放、子图远程派发、Diff 流式聚合、增量 Seq 对账与父任务结算全量门禁通过（测试 2,689 项全绿），已合入 `main`。
-  - **V1.7 原生级安全沙箱与认知记忆体系（Epic 183，commit `7ecd828`）**：Windows Low Integrity 特权降权、bwrap/Seatbelt 跨平台沙箱、SQLite 纯 TS 混合记忆检索与经验反思注入。
+- **当前推进中目标**：**Epic 187（V2.0 Swarm 集群控制面、自检诊断与认知自愈飞轮）**。
+  - 阶段一（任务 184）：CLI `vessel mesh`、`vessel memory` 与工业级 `vessel doctor` 自检引擎；
+  - 阶段二（任务 186）：会话后自主反思提炼引擎与经验规则动态持久化；
+  - 阶段三（任务 185）：Web 拓扑网络画布与沙箱/记忆可视化看板。
+- **前序已合入里程碑**：
+  - **V1.9 跨实例异构 Swarm 网格与分布式事件总线（任务 182）**：commit `b6c05b2`；
+  - **V1.7 原生级安全沙箱与认知记忆体系（Epic 183）**：commit `7ecd828`；
   - **V1.6 工业级团队协同工作台（Epic 179）**、**V1.5 工业级韧性与团队网格（Epic 174）**。
 
 - **前序收官里程碑**：**V1.3 已收官**（Epic 卡 167，2026-09-25 合入，见 `CHANGELOG.md` 的 `[Unreleased]` 段与 `docs/V1.3-PROGRESS.md`）。
