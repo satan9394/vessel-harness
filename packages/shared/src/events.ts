@@ -339,6 +339,13 @@ export interface ModelUsageRecord extends SessionRecordBase {
 }
 
 /** Native sandbox outcome; recorded by the composition boundary, never by core. */
+export interface SandboxConstraints {
+  readOnlyPaths: string[];
+  /** null means this execution had no native memory cap; absent constraints mean unknown. */
+  memoryLimitBytes: number | null;
+  privilegeReduction: string;
+}
+
 export interface SandboxEnforcedRecord extends SessionRecordBase {
   type: 'audit/sandbox_enforced';
   isolationTier: 'windows-job-restricted' | 'bwrap-ns' | 'macos-seatbelt' | 'passthrough-fallback';
@@ -346,6 +353,7 @@ export interface SandboxEnforcedRecord extends SessionRecordBase {
   outcome: 'enforced' | 'fallback' | 'denied';
   reason?: string;
   allowedWritePaths: string[];
+  constraints?: SandboxConstraints;
   surface: false;
 }
 

@@ -4,6 +4,7 @@ import * as path from 'node:path';
 import { afterEach, beforeEach, expect, it } from 'vitest';
 import { MockProvider } from '@vessel/llm';
 import { composeHarness, type ComposedHarness } from './compose.js';
+import { SessionController } from './session/SessionController.js';
 
 const repo = path.resolve(import.meta.dirname, '../../..');
 let root: string;
@@ -28,4 +29,22 @@ it('persists native shell outcomes before emitting their observation event', asy
   await harness.session.flush();
   const file = path.join(root, '.harness', 'sessions', harness.session.sessionId, 'session.jsonl');
   expect(fs.readFileSync(file, 'utf8')).toContain('audit/sandbox_enforced');
+});
+
+it('projects real offline tool-loop native audits despite after_tool omitting metadata', async () => {
+  const controller = await SessionController.create({ workspaceRoot: root, model: 'mock', permission: 'danger-full-access',
+    provider: new MockProvider([
+      { when: /.*/, ifNoToolResult: true, response: { toolCalls: [{ name: 'Shell', arguments: { command: 'echo offline' } }] } },
+      { when: /.*/, minToolResults: 1, response: { text: 'done' } },
+    ]),
+    policySystemPath: path.join(repo, 'configs/policy.default.yaml'), behaviorIRPath: path.join(repo, 'configs/behavior.default.yaml'),
+    nativeSandbox: { isAvailable: async () => false, execute: async () => ({ stdout: 'offline', stderr: '', exitCode: 0, sandboxed: false, isolationTier: 'passthrough-fallback',
+      constraints: { readOnlyPaths: [], memoryLimitBytes: null, privilegeReduction: 'No native privilege reduction.' } }) } });
+  try {
+    await controller.runTurn('Run the offline tool');
+    expect(controller.projections.toolActivity.activities()).toMatchObject([{ toolName: 'Shell', status: 'done', sandbox: {
+      isolationTier: 'passthrough-fallback', sandboxed: false, outcome: 'fallback', allowedWritePaths: [root, os.tmpdir()], reason: 'native-helper-unavailable',
+      constraints: { memoryLimitBytes: null, readOnlyPaths: [] },
+    } }]);
+  } finally { await controller.close(); }
 });

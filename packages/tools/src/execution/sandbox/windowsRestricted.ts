@@ -38,6 +38,8 @@ export class WindowsRestrictedRunner implements NativeSandboxRunner {
     if (!value || typeof value !== 'object' || !('Enforced' in value) || value.Enforced !== true || !('Stdout' in value) || typeof value.Stdout !== 'string' || !('Stderr' in value) || typeof value.Stderr !== 'string' || !('ExitCode' in value) || typeof value.ExitCode !== 'number') {
       throw new Error('restricted sandbox missing enforcement acknowledgement');
     }
-    return { stdout: value.Stdout, stderr: value.Stderr, exitCode: value.ExitCode, sandboxed: true, isolationTier: 'windows-job-restricted' };
+    return { stdout: value.Stdout, stderr: value.Stderr, exitCode: value.ExitCode, sandboxed: true, isolationTier: 'windows-job-restricted',
+      constraints: { readOnlyPaths: [], memoryLimitBytes: options.maxMemoryBytes ?? 512 * 1024 * 1024,
+        privilegeReduction: 'Restricted token, Low Integrity, and Job Object confinement. Reads follow host ACLs; write roots require provisioned restricted SID ACLs.' } };
   }
 }

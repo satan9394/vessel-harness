@@ -1,3 +1,5 @@
+import type { SandboxConstraints } from '@vessel/shared';
+
 export interface SandboxExecutionOptions {
   cwd: string;
   allowedWritePaths?: string[];
@@ -13,6 +15,7 @@ export interface SandboxExecutionResult {
   exitCode: number;
   sandboxed: boolean;
   isolationTier: 'windows-job-restricted' | 'bwrap-ns' | 'macos-seatbelt' | 'passthrough-fallback';
+  constraints?: SandboxConstraints;
 }
 
 export interface NativeSandboxRunner {
@@ -25,5 +28,6 @@ export interface SandboxAuditEvent {
   sandboxed: boolean;
   outcome: 'enforced' | 'fallback' | 'denied';
   allowedWritePaths: string[];
+  constraints?: SandboxConstraints;
   reason?: string;
 }

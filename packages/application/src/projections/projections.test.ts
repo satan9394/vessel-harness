@@ -55,6 +55,20 @@ describe('ConversationProjection', () => {
 });
 
 describe('ToolActivityProjection', () => {
+  it('pairs the actual native execution audit with Shell only and never labels other tools', async () => {
+    const bus = new EventBus(); const projection = new ToolActivityProjection(); const detach = projection.attach(bus);
+    await bus.waterfall('before_tool', { toolCallId: 'shell', toolName: 'Shell', arguments: {} }, { listenerErrorPolicy: 'defer' });
+    await bus.emit('audit/sandbox_enforced', { isolationTier: 'bwrap-ns', sandboxed: true, outcome: 'enforced', allowedWritePaths: ['/workspace'] });
+    await bus.emit('after_tool', { toolCallId: 'shell', toolName: 'Shell', result: { content: 'ok' } });
+    await bus.emit('after_tool', { toolCallId: 'read', toolName: 'Read', result: { content: 'ok' } });
+    expect(projection.activity('shell')).toMatchObject({ toolCallId: 'shell', sandbox: { isolationTier: 'bwrap-ns', outcome: 'enforced', allowedWritePaths: ['/workspace'] } });
+    expect(projection.activity('read')?.sandbox).toBeUndefined();
+    await bus.waterfall('before_tool', { toolCallId: 'denied', toolName: 'Shell', arguments: {} }, { listenerErrorPolicy: 'defer' });
+    await bus.emit('audit/sandbox_enforced', { isolationTier: 'windows-job-restricted', sandboxed: false, outcome: 'denied', allowedWritePaths: [], reason: 'ACL missing' });
+    await bus.emit('after_tool', { toolCallId: 'denied', toolName: 'Shell', result: { error: { errorClass: 'DENIED' } } });
+    expect(projection.activity('denied')).toMatchObject({ status: 'denied', sandbox: { sandboxed: false, outcome: 'denied', reason: 'ACL missing' } });
+    detach();
+  });
   it('pairs before_tool (started) with after_tool (done) into one row', async () => {
     const bus = new EventBus();
     const projection = new ToolActivityProjection();

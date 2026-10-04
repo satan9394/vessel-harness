@@ -12,6 +12,7 @@
  */
 
 import { daemonToken } from './auth.js';
+import type { SandboxAudit } from './sandboxAudit.js';
 
 /** One incoming SSE frame after JSON parsing. */
 export interface SseFrame {
@@ -32,6 +33,8 @@ export interface ConversationDelta {
 
 /** tool delta — lifecycle of a single tool dispatch. */
 export interface ToolDelta {
+  toolCallId?: string;
+  sandbox?: SandboxAudit;
   toolName?: string;
   status: 'started' | 'done' | 'denied' | 'error';
   argsSummary?: string;

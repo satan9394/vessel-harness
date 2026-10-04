@@ -11,6 +11,8 @@ import UsageBar, { emptyUsage } from './components/UsageBar';
 import ToolActivityRow from './components/ToolActivityRow';
 import TeamModule from './components/TeamModule';
 import GoalModule from './components/GoalModule';
+import SwarmTopologyView from './components/SwarmTopologyView';
+import CognitiveRulesDashboard from './components/CognitiveRulesDashboard';
 import type { ToolDelta } from './sse';
 import {
   loadModules,
@@ -21,6 +23,8 @@ import {
 
 /** Enabled module sections rendered below the conversation / empty state. */
 const SECTION_ORDER: UiModuleId[] = [
+  'Swarm',
+  'CognitiveRules',
   'Team',
   'Tasks',
   'ChangedFiles',
@@ -174,6 +178,10 @@ function ModuleSection({
 }) {
   const { t } = useI18n();
   switch (id) {
+    case 'Swarm':
+      return <SwarmTopologyView api={api} />;
+    case 'CognitiveRules':
+      return <CognitiveRulesDashboard api={api} />;
     case 'Team':
       // task 060: real Team module (model select + team panel + external review)
       // needs a session; without one show the friendly prompt.

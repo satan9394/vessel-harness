@@ -201,6 +201,25 @@ export class SessionRegistry {
     await this.initializeIndex();
     return this.index instanceof HybridMemoryStore ? this.index.matchRelevantRules(goal, limit) : [];
   }
+  async listReflectiveRules(limit = 1000, category?: ReflectiveRule['category']): Promise<ReflectiveRule[]> {
+    if (!Number.isInteger(limit) || limit < 1 || limit > 1000 || category !== undefined && !['policy_denial', 'tool_failure', 'architecture_constraint'].includes(category)) throw new RangeError('Invalid rule filter');
+    await this.initializeIndex();
+    return this.index instanceof HybridMemoryStore ? this.index.listReflectiveRules(limit, category) : [];
+  }
+
+  /** Durable execution audits remain visible after a daemon restart. */
+  async sandboxAudits(sessionId?: string): Promise<{ sessionId: string; toolName: string; ts: number; sandbox: import('../projections/types.js').SandboxAudit }[]> {
+    const audits: { sessionId: string; toolName: string; ts: number; sandbox: import('../projections/types.js').SandboxAudit }[] = [];
+    for (const meta of this.sessions.values()) {
+      if (sessionId !== undefined && meta.id !== sessionId) continue;
+      for await (const record of this.source(meta).records()) {
+        if (record.type !== 'audit/sandbox_enforced') continue;
+        const { isolationTier, sandboxed, outcome, allowedWritePaths, reason, constraints } = record;
+        audits.push({ sessionId: meta.id, toolName: 'Shell', ts: Date.parse(record.ts), sandbox: { isolationTier, sandboxed, outcome, allowedWritePaths, ...(reason ? { reason } : {}), ...(constraints ? { constraints } : {}) } });
+      }
+    }
+    return audits.sort((a, b) => b.ts - a.ts);
+  }
   /** Offline producer seam: no embedding model or network call is performed here. */
   async indexEmbedding(sessionId: string, seq: number, embedding: number[]): Promise<void> {
     await this.initializeIndex();

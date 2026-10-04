@@ -24,8 +24,9 @@ describe('uiModules', () => {
   it('returns defaults when nothing is persisted', () => {
     const store = memoryStorage();
     expect(loadModules(store)).toEqual(DEFAULT_MODULES);
-    // exactly the 9 panel modules are defined
-    expect(UI_MODULES).toHaveLength(9);
+    expect(UI_MODULES).toHaveLength(11);
+    expect(UI_MODULES).toContain('Swarm');
+    expect(UI_MODULES).toContain('CognitiveRules');
   });
 
   it('defaults to Tasks + Changed Files on and the rest off', () => {

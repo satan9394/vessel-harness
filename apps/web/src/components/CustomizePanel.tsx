@@ -14,7 +14,7 @@ interface Props {
 
 /**
  * Top-right "Customize" button + popover panel (task 043). Renders a checkbox
- * list of the nine UI modules; a change is lifted up via `onChange`, which the
+ * list of UI modules; a change is lifted up via `onChange`, which the
  * caller persists to localStorage. The panel closes on outside click or Escape.
  */
 export default function CustomizePanel({ modules, onChange }: Props) {

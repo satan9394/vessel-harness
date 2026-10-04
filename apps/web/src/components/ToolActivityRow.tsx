@@ -1,4 +1,5 @@
 import type { ToolDelta } from '../sse';
+import SandboxAuditBadge from './SandboxAuditBadge';
 
 /** Color semantics per docs/UI-THEME.md: green=ok, yellow=warn, red=danger. */
 function statusClass(status: ToolDelta['status']): string {
@@ -42,6 +43,7 @@ export default function ToolActivityRow({ delta }: { delta: ToolDelta }) {
         <span className="tool-dur">{delta.durationMs}ms</span>
       )}
       {delta.argsSummary && <span className="tool-args" title={delta.argsSummary}>{delta.argsSummary}</span>}
+      {delta.sandbox && <SandboxAuditBadge audit={delta.sandbox} />}
     </div>
   );
 }

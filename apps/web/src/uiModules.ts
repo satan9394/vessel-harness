@@ -10,6 +10,8 @@
 
 /** Ordered module ids shown in the Customize panel. */
 export const UI_MODULES = [
+  'Swarm',
+  'CognitiveRules',
   'Team',
   'Tasks',
   'ChangedFiles',
@@ -30,6 +32,8 @@ export const STORAGE_KEY = 'vessel.ui.modules';
 
 /** Default: only Tasks + Changed Files on — "能力丰富界面安静". */
 export const DEFAULT_MODULES: UiModuleState = {
+  Swarm: false,
+  CognitiveRules: false,
   Team: false,
   Tasks: true,
   ChangedFiles: true,
