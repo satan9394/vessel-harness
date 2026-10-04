@@ -2,29 +2,33 @@
 
 > **用途**：新会话 / 新 Agent / 换人接手时，**先读本文件**：现状、未完成清单、验证命令、已知约束都在这里。
 > 规则本身仍在 [`AGENTS.md`](AGENTS.md)；会约束未来的决策在 [`docs/DESIGN-DECISIONS.md`](docs/DESIGN-DECISIONS.md)。
-> **最后更新**：2026-10-02。维护者：单人。
+> **最后更新**：2026-10-04。维护者：单人。
 
 ## 0. 快速接管协议（当用户直接说「继续未完成的」或「继续」时）
 
 **任何 Agent 在接收到「继续」/「继续未完成的」指令时，直接根据本段与 `.agent-state/run-state.json` 向用户汇报并执行：**
 
-1. **当前交付**：**Epic 183（V1.7 原生级安全沙箱与认知记忆体系）**，180 → 181 顺序实施、独立审查与最终门禁完成；本地全门禁通过，待用户验收。
+1. **当前交付与阶段状态**：**V2.0 阶段全量里程碑完整收官**（任务 182、183、184、185、186、187 全部交付并通过验收合入 `main`）；**当前处于活跃开发暂停状态**。
 2. **已完成与已验证阶段**：
-   - 180：受限令牌/Low Integrity/Job 暂停派生，bwrap/Seatbelt 探测、写目录白名单、Shell 管线与持久审计；定向 15 项、原生/运行时/组合根核验 23 项通过；
-   - 181：共享 SQLite 的 BM25/纯 TS cosine/RRF、持久向量事实、JSONL 经验提炼、受限预算动态指导；定向 9 项、上下文/生产集成核验 13 项通过；
-   - 最终 `tsc -b`、`typecheck:tests` 均 exit 0；`test:all` 根 **218 文件 / 2524 passed + 6 skipped**，Web **16 文件 / 154 passed**；离线 conformance **25/25**。
-3. **当前断点与未完成项**：
-   - 无 Epic 183 实施待办；初轮两项 benchmark 对宿主原生权限的依赖已通过显式测试 Mock 隔离，最终双 Root 全绿；
-   - Windows 写目录需维护者显式预配置 Low / 受限 SID ACL，未配置时 fail-closed；不自动改宿主权限。原生运行使用 Mock 验证，C# 仅编译核验；
-   - macOS 进程组生命周期清理不覆盖主动 setsid/setpgid 逃组的子进程；helper 降级与限制均在交付记录中。
+   - 182：跨实例异构 Swarm 网格与事件总线（commit `b6c05b2`）；
+   - 183：原生沙箱 Low Integrity 降权 + SQLite 纯 TS 混合记忆 RRF（commit `7ecd828`）；
+   - 187（184+186）：Mesh/Memory CLI 控制面、`vessel doctor` 自检诊断与会话后自主反思飞轮（commit `20f1f1f`）；
+   - 185：Web 控制台 Swarm 拓扑看板、经验规则面板与沙箱审计徽章（commit `bce2b1c`）；
+   - 架构调研与前瞻索引：天枢全景研报与 Claude Mods / DSH 兼容层深度归档（commit `d9462a9`）；
+   - 全量终态门禁：`tsc -b`、`typecheck:tests` 均 exit 0；Web 生产打包 568ms exit 0；`test:all` 双 Root **2,730 passed + 6 skipped 全绿**；全历史 `identity-guard.sh` 0 命中。
+3. **当前断点与运行状态**：
+   - **开发状态**：用户明确指示**暂不创建新任务卡、不继续推进代码开发**；
+   - **后续规划储备池**：详见 [`docs/research/TIANSHU-AND-MODS-INTEGRATION-OUTLOOK.md`](docs/research/TIANSHU-AND-MODS-INTEGRATION-OUTLOOK.md)（前缀缓存经济学 P1、安全受控 Mods 兼容层 P2、状态收敛与 AST 代码感知 P3）；
+   - **模型锁定规约**：默认开发模型锁定为 **GPT-6.1 Sol (`gpt-6.1-sol`)**，二级思考（`reasoning.effort: medium`），免多余确认。
 4. **一键恢复执行指令**：
-   - 先读 `docs/V1.7-IMPLEMENTATION-NOTES.md` 与机器状态，汇报已交证、待验收；不重做 180/181，不自动续卡，不驱动真实 Agent，不提交或发布。
+   - 先向用户汇报 V2.0 已全量闭环收官与当前处于暂停等待状态；
+   - 不自动续卡、不自动启动新任务、不自动调用外部真实 Agent、不执行任何永久删除。
 
 | 项 | 当前实况 |
 |---|---|
-| 仓库 / 分支 | `satan9394/vessel-harness` / `main` = `bce2b1c` |
-| 工作区状态 | V2.0 全路线（182、183、184、185、186、187）全量门禁闭环，已本地合入 |
-| 机器状态真源 | `.agent-state/run-state.json`（mode: bounded；revision 以文件为准） |
+| 仓库 / 分支 | `satan9394/vessel-harness` / `main` = `d9462a9` |
+| 工作区状态 | V2.0 全路线（182–187）全量门禁闭环已合入，调研索引已入库；工作区纯净 |
+| 机器状态真源 | `.agent-state/run-state.json`（revision 70, status: completed, mode: bounded） |
 | 当前任务卡 | V2.0 全部已闭环合入；暂不立卡推进开发；前沿调研与后续规划见 docs/research/TIANSHU-AND-MODS-INTEGRATION-OUTLOOK.md |
 
 ## 1. 治理与门禁（改动前必读）
