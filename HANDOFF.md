@@ -25,7 +25,7 @@
 | 仓库 / 分支 | `satan9394/vessel-harness` / `main` = `bce2b1c` |
 | 工作区状态 | V2.0 全路线（182、183、184、185、186、187）全量门禁闭环，已本地合入 |
 | 机器状态真源 | `.agent-state/run-state.json`（mode: bounded；revision 以文件为准） |
-| 当前任务卡 | V2.0 任务卡全部已闭环合入；待规划后续新里程碑 |
+| 当前任务卡 | V2.0 全部已闭环合入；暂不立卡推进开发；前沿调研与后续规划见 docs/research/TIANSHU-AND-MODS-INTEGRATION-OUTLOOK.md |
 
 ## 1. 治理与门禁（改动前必读）
 
