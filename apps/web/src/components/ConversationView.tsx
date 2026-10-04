@@ -6,6 +6,7 @@ import MessageList, { type ChatItem } from './MessageList';
 import UsageBar, { applyUsageDelta, emptyUsage, type UsageTotals } from './UsageBar';
 import TalkingMetricsBar, { type TalkingMetrics } from './TalkingMetricsBar';
 import { useI18n } from './LanguageProvider';
+import SandboxAuditHistory from './SandboxAuditHistory';
 
 interface Props {
   sessionId: string;
@@ -37,6 +38,7 @@ export default function ConversationView({ sessionId, api, onSessionUpdated }: P
   const [busy, setBusy] = useState(false); // a turn is in flight
   const [error, setError] = useState<string | null>(null);
   const [serverDown, setServerDown] = useState(false);
+  const [auditRevision, setAuditRevision] = useState(0);
   const pendingTool = useRef<Record<string, ToolDelta>>({});
   const listRef = useRef<HTMLDivElement | null>(null);
 
@@ -45,16 +47,17 @@ export default function ConversationView({ sessionId, api, onSessionUpdated }: P
   }, []);
 
   const onTool = useCallback((delta: ToolDelta) => {
+    if (delta.sandbox) setAuditRevision(value => value + 1);
     setItems((prev) => {
       const next = [...prev];
-      const key = delta.toolName ?? '?';
+      const key = delta.toolCallId ?? delta.toolName ?? '?';
       if (delta.status === 'started') {
         pendingTool.current[key] = delta;
         next.push({ id: nextId(), kind: 'tool', tool: delta });
       } else {
         // replace the matching started row (by toolName) with its terminal delta
         const idx = next.findIndex(
-          (it) => it.kind === 'tool' && (it.tool?.toolName ?? '?') === key && it.tool?.status === 'started',
+          (it) => it.kind === 'tool' && (it.tool?.toolCallId ?? it.tool?.toolName ?? '?') === key && it.tool?.status === 'started',
         );
         const start = pendingTool.current[key];
         const closed: ToolDelta = {
@@ -201,6 +204,7 @@ export default function ConversationView({ sessionId, api, onSessionUpdated }: P
         {error && !serverDown && <ConversationError text={error} />}
       </div>
       <TalkingMetricsBar metrics={turnMetrics} />
+      <SandboxAuditHistory api={api} sessionId={sessionId} revision={auditRevision} />
       <form className="composer" onSubmit={send}>
         <input
           className="input composer-input"

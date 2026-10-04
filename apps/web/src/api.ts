@@ -14,6 +14,8 @@ import type { GoalBudget, GoalIteration, GoalRunResult, GoalTask } from './goal'
 import type { SubagentDetail, SubagentItem } from './subagents';
 import type { TeamPlanStage, TeamPlanRevision } from './teamStages';
 import { bearerHeaders, daemonToken } from './auth';
+import type { MeshSnapshot, RulesSnapshot } from './dashboard';
+import type { SandboxAuditSnapshot } from './sandboxAudit';
 
 export interface ApiOptions {
   /** base URL, default '/api'. May be 'http://127.0.0.1:5678/api'. */
@@ -284,6 +286,15 @@ export function createApiClient(opts: ApiOptions = {}) {
       const res = await doFetch(`${base}/team/stages/${encodeURIComponent(stageId)}/tasks/${encodeURIComponent(taskId)}/artifacts/${index}/content`);
       if (!res.ok) { const failure = failureFromRawText(await res.text(), res.status); throw new ApiError(failure.message, res.status, failure.body); }
       return res.blob();
+    },
+    async meshPeers(dagId?: string): Promise<MeshSnapshot> {
+      return request(`/mesh/peers${dagId ? `?dagId=${encodeURIComponent(dagId)}` : ''}`);
+    },
+    async cognitiveRules(): Promise<RulesSnapshot> {
+      return request('/memory/rules');
+    },
+    async sandboxAudits(sessionId: string): Promise<SandboxAuditSnapshot> {
+      return request(`/system/sandbox-tier?sessionId=${encodeURIComponent(sessionId)}`);
     },
     /** GET /api/health */
     async health(): Promise<Health> {

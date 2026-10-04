@@ -1,6 +1,7 @@
 import type { EventBus } from '@vessel/core';
 import type {
   SandboxStatus,
+  SandboxConstraints,
   TeamMemberBrief,
   TeamPhaseName,
   TeamReviewConclusion,
@@ -34,12 +35,24 @@ export interface ConversationMessage {
 /** Tool activity status — the terminal state of a tool dispatch. */
 export type ToolActivityStatus = 'started' | 'done' | 'denied' | 'error';
 
+/** Facts about this execution, never a host capability prediction. */
+export interface SandboxAudit {
+  isolationTier: string;
+  sandboxed: boolean;
+  outcome: 'enforced' | 'fallback' | 'denied';
+  allowedWritePaths?: string[];
+  reason?: string;
+  constraints?: SandboxConstraints;
+}
+
 /** One row of the ToolActivity projection. */
 export interface ToolActivity {
+  toolCallId?: string;
   toolName: string;
   status: ToolActivityStatus;
   argsSummary?: string;
   durationMs?: number;
+  sandbox?: SandboxAudit;
   ts: number;
 }
 

@@ -143,7 +143,8 @@ export function createShellTool(opts: {
           const executable = process.platform === 'win32' ? win32.join(process.env.SystemRoot ?? 'C:\\Windows', 'System32', 'cmd.exe') : '/bin/sh';
           const argv = process.platform === 'win32' ? ['/d', '/s', '/c', command] : ['-c', command];
           const result = await native.execute(executable, argv, { cwd: opts.workspaceRoot, allowedWritePaths, cpuTimeoutMs: timeoutMs, lowIntegrity: true, signal: ctx?.signal });
-          await opts.nativeAudit?.({ isolationTier: result.isolationTier, sandboxed: result.sandboxed, outcome: result.sandboxed ? 'enforced' : 'fallback', allowedWritePaths, ...(!result.sandboxed ? { reason: 'native-helper-unavailable' } : {}) });
+          await opts.nativeAudit?.({ isolationTier: result.isolationTier, sandboxed: result.sandboxed, outcome: result.sandboxed ? 'enforced' : 'fallback', allowedWritePaths,
+            ...(result.constraints ? { constraints: result.constraints } : {}), ...(!result.sandboxed ? { reason: 'native-helper-unavailable' } : {}) });
           const output = (result.stdout + (result.stderr ? '\n[stderr]\n' + result.stderr : '')).trim();
           return {
             content: output || '(no output)',

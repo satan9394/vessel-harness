@@ -316,6 +316,8 @@ export async function composeHarness(opts: ComposeOptions): Promise<ComposedHarn
       };
     }
     // task 050: forward the turn's AbortSignal so in-flight tools (shell/MCP/subagent) can stop
+    // Observations follow the policy waterfall, whose allow verdict short-circuits later listeners.
+    await bus.emit('application/tool_started', { toolCallId: call.toolCallId, toolName: call.toolName, arguments: call.arguments });
     const result = await executor.runTool(spec, call, { workspaceRoot, cwd, sandbox, signal: exec?.signal ?? undefined });
     return { record: null, content: result.content, error: result.error, meta: result.meta };
   };

@@ -322,6 +322,32 @@ export function createVesselServer(opts: VesselServerOptions = {}): VesselServer
     const method = (req.method ?? 'GET').toUpperCase();
     const url = new URL(req.url ?? '/', `http://${req.headers.host ?? '127.0.0.1'}`);
     if (opts.authToken && !authMiddleware(req, res, opts.authToken, url.pathname)) return;
+    if (url.pathname === '/api/mesh/peers') {
+      if (method !== 'GET') return json(res, 405, { error: 'read_only' });
+      const dagId = url.searchParams.get('dagId');
+      if (dagId !== null && (!dagId.trim() || dagId.length > 128)) return json(res, 400, { error: 'invalid_dag_id' });
+      const local = opts.mesh?.local;
+      return json(res, 200, { configured: !!opts.mesh, local: local ? { nodeId: local.nodeId, endpoint: local.endpoint,
+        roleCapabilities: local.roleCapabilities, status: local.status, latencyMs: local.latencyMs } : null,
+        peers: opts.mesh?.listPeers().map(peer => {
+          const snapshot = dagId === null ? undefined : opts.mesh?.remoteSnapshot(peer.nodeId, dagId);
+          return { ...peer, ...(snapshot ? { remoteTasks: snapshot.tasks.map(task => ({ id: task.id, title: task.title, assignedRole: task.assignedRole, status: task.status })) } : {}) };
+        }) ?? [], observedAt: Date.now() });
+    }
+    if (url.pathname === '/api/memory/rules') {
+      if (method !== 'GET') return json(res, 405, { error: 'read_only' });
+      const category = url.searchParams.get('category') ?? undefined;
+      const limit = Number(url.searchParams.get('limit') ?? 1000);
+      if (category !== undefined && !['policy_denial', 'tool_failure', 'architecture_constraint'].includes(category) || !Number.isInteger(limit) || limit < 1 || limit > 1000) return json(res, 400, { error: 'invalid_rule_filter' });
+      const rules = await sessionRegistry.listReflectiveRules(limit, category as 'policy_denial' | 'tool_failure' | 'architecture_constraint' | undefined);
+      return json(res, 200, { rules, available: sessionRegistry.indexAvailable });
+    }
+    if (url.pathname === '/api/system/sandbox-tier') {
+      if (method !== 'GET') return json(res, 405, { error: 'read_only' });
+      const sessionId = url.searchParams.get('sessionId') ?? undefined;
+      if (sessionId !== undefined && !sessionRegistry.get(sessionId)) return json(res, 404, { error: 'session_not_found' });
+      return json(res, 200, { scope: 'execution', audits: await sessionRegistry.sandboxAudits(sessionId), observedAt: Date.now() });
+    }
     if (url.pathname.startsWith('/api/control/mesh/')) {
       if (!opts.authToken) return json(res, 403, { error: 'daemon_auth_required' });
       if (!opts.mesh) return json(res, 404, { error: 'mesh_unconfigured' });
@@ -1031,19 +1057,19 @@ export function createVesselServer(opts: VesselServerOptions = {}): VesselServer
       });
     });
 
-    // before_tool → tool delta (started). Listener returns void (noop) so it
-    // never short-circuits the policy waterfall.
-    forward('tool:start', 'before_tool', (payload) => {
-      const p = payload as { toolName?: string; arguments?: Record<string, unknown> };
-      sse('tool', { toolName: p.toolName, status: 'started', argsSummary: summarizeArgs(p.arguments) });
+    // Application execution observation follows the policy waterfall's allow verdict.
+    forward('tool:start', 'application/tool_started', (payload) => {
+      const p = payload as { toolCallId?: string; toolName?: string; arguments?: Record<string, unknown> };
+      sse('tool', { toolCallId: p.toolCallId, toolName: p.toolName, status: 'started', argsSummary: summarizeArgs(p.arguments) });
     });
 
     // after_tool → tool delta (terminal status)
     forward('tool:end', 'after_tool', (payload) => {
-      const p = payload as { toolName?: string; result?: { error?: { errorClass?: string } } };
+      const p = payload as { toolCallId: string; toolName?: string; result?: { error?: { errorClass?: string } } };
       let status = 'done';
       if (p.result?.error) status = p.result.error.errorClass === 'DENIED' ? 'denied' : 'error';
-      sse('tool', { toolName: p.toolName, status });
+      const sandbox = ctl.projections.toolActivity.activity(p.toolCallId)?.sandbox;
+      sse('tool', { toolCallId: p.toolCallId, toolName: p.toolName, status, ...(sandbox ? { sandbox } : {}) });
     });
 
     // policy_decision (deny) → policy delta

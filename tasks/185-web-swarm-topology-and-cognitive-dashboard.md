@@ -4,7 +4,7 @@
 - 优先级：P2
 - 关联模块：`apps/web`, `apps/local-server`, `packages/application`
 - 推荐执行配置：Codex (GPT-6.1 Sol · `reasoning.effort: medium`)
-- 状态：待执行
+- 状态：已合入（2026-10-04 本地验收）
 - 创建日期：2026-10-03
 
 ---
@@ -20,7 +20,7 @@
 1. **Swarm Mesh 节点拓扑视图（Swarm Topology Tab）**：
    - 增加独立集群拓扑页面，以网络节点图呈现主控节点与所有 Peer 节点连接状态、延迟波形、角色能力标签与远程子任务活跃度；
 2. **执行沙箱安全审计徽章（Sandbox Security Tier Badges）**：
-   - 在 Talking 详情抽屉和执行消息流中，为工具调用打上沙箱隔离等级标识（绿色 Low Integrity、黄色 Job Restricted、蓝色 bwrap、灰色 Fallback），点击可查看白名单目录与特权限制详情；
+   - 在 Talking 详情抽屉和执行消息流中，为工具调用打上沙箱隔离等级标识（按本次用户规约：绿色 `windows-job-restricted` / `bwrap-ns`、黄色 `lowIntegrity`、灰色 fallback），点击可查看白名单目录、内存限制与特权限制详情；
 3. **Cognitive Memory 规则看板（Reflective Rules Inspector）**：
    - 增加认知记忆查看器，支持按类别（`policy_denial` / `tool_failure` / `architecture_constraint`）过滤经验规则，支持实时关键词检索，展示规则触发频次与最近反思时间。
 
@@ -51,6 +51,17 @@
    - `npx vitest run --root apps/web apps/web/src/components/__tests__/SwarmTopologyView.test.tsx apps/web/src/components/__tests__/CognitiveRulesDashboard.test.tsx`
 2. 类型构建与 Web 构建通过：
    - `npx tsc -b tsconfig.json` (exit 0)
+   - `npm run typecheck:tests` (exit 0)
    - `npm run -w @vessel/web build` (exit 0)
 3. 全量回归测试双 Root 保持全绿：
    - `npm run test:all`
+
+## 5. 实施与交付入口
+
+- Web：Customize 中启用 `Swarm` / `CognitiveRules`；拓扑使用 SVG，5 秒刷新心跳状态、保留最近 20 个 RTT 观测；输入 DAG ID 可查看已观测的远端任务状态与活跃数。
+- 只读端点：`GET /api/mesh/peers?dagId=…`、`GET /api/memory/rules?category=…&limit=…`、`GET /api/system/sandbox-tier?sessionId=…`，复用既有 Bearer 鉴权，拒绝写方法，Mesh DTO 不含凭据或任务提示词。
+- 沙箱：实际执行审计经 Application 投影与 SSE 进入工具卡片，并可从持久 JSONL 重放至 Talking 审计抽屉；原生执行结果补充只读根、实际内存上限/无原生上限与降权说明。旧记录缺字段时明确显示未记录，不根据宿主能力推定执行隔离。
+- 经验规则：按类别与关键词组合过滤，显示 trigger / lesson / action / frequency / updatedAt；只读列表使用既有存储上限，明确标注最新 1,000 条。
+- 工作证明及完整日志：`evidence/2026-10-03/task185/DELIVERY.md`；可重跑的离线浏览器检查：`evidence/2026-10-03/task185/browser-check.ts`。
+- 无真实外部 Agent 调用；无新依赖、锁文件修改、Core 源码修改、commit 或 push。
+- 最终门禁：定向 **2 文件 / 12 passed**；`tsc -b`、`typecheck:tests`、Web build 均 exit 0；双 Root 全量 **根 226 文件 / 2558 passed + 6 skipped；Web 19 文件 / 172 passed**。生产浏览器离线检查通过（桌面/移动端、类别/搜索、执行徽章/约束与 Escape、Talking 持久审计）。

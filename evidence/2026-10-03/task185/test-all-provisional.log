@@ -1,0 +1,260 @@
+
+> composable-agent-harness@0.10.0 test:all
+> vitest run && vitest run --root apps/web
+
+
+ RUN  v5.0.1 E:/Code_file/Projects/Vessel_Harness
+
+(node:23388) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:15932) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:19896) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:13128) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:4480) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:17772) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:15472) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:21712) [DEP0190] DeprecationWarning: Passing args to a child process with shell option true can lead to security vulnerabilities, as the arguments are not escaped, only concatenated.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+(node:22524) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:12584) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:3580) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:21580) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:21532) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:21100) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:2644) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:22280) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:23988) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:22772) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:19528) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:19264) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:23160) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:23428) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+stdout | packages/memory/src/sqlite/sessionIndex.test.ts > SQLite session projection > reads 50-row and 1000-row hot pages in under5ms using only SQL
+session index: 1000-session/50-row page median 0.382ms
+
+stdout | packages/memory/src/sqlite/sessionIndex.test.ts > SQLite session projection > reads 50-row and 1000-row hot pages in under5ms using only SQL
+session index: 1000-session/1000-row page median 5.509ms
+
+ ❯ packages/memory/src/sqlite/sessionIndex.test.ts (7 tests | 1 failed) 580ms
+   ❯ SQLite session projection (7)
+     × reads 50-row and 1000-row hot pages in under5ms using only SQL 260ms
+(node:20368) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:22332) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:1920) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:3512) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:8340) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:12592) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:21644) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:19916) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:3176) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+ ❯ apps/local-server/src/dashboardApi.test.ts (2 tests | 1 failed) 234ms
+   × serves authenticated read-only mesh, persisted rules and actual execution audits without secrets 203ms
+(node:17104) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+ ❯ packages/application/src/nativeSandboxIntegration.test.ts (2 tests | 1 failed) 234ms
+   × projects real offline tool-loop native audits despite after_tool omitting metadata 120ms
+[?25l|
+o  
+[?25h|
+*  已切换。vessel run 现在走 DeepSeek/deepseek-chat（热生效，无需重启）
+|
+*  已保存供应商 "deepseek" 到 ~/.vessel/providers.json
+|
+•  mock 是内置离线供应商，无需配置。
+[?25l|
+o  
+[?25h|
+*  已切换。vessel run 现在走 DeepSeek/deepseek-chat（热生效，无需重启）
+|
+*  已保存供应商 "deepseek" 到 ~/.vessel/providers.json
+[?25l|
+o  
+[?25h|
+!  模拟网络失败 — 转手动输入模型 id（或留空退出）。
+|
+*  已切换。vessel run 现在走 vLLM（自托管）/custom-model（热生效，无需重启）
+|
+*  已保存供应商 "vllm" 到 ~/.vessel/providers.json
+[?25l|
+o  
+[?25h|
+*  已切换。vessel run 现在走 自定义供应商/m1（热生效，无需重启）
+|
+*  已保存供应商 "gateway-example-com-v1" 到 ~/.vessel/providers.json
+[?25l|
+o  
+(node:25100) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+[?25h ❯ packages/tools/src/execution/sandbox/windowsRestricted.test.ts (8 tests | 1 failed) 106ms
+   ❯ Windows restricted launcher (8)
+     × acknowledges provisioned execution only after the native helper confirms enforcement 25ms
+(node:8056) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+ ❯ packages/tools/src/execution/sandbox/platformSandbox.test.ts (7 tests | 1 failed) 107ms
+   ❯ native platform sandbox (7)
+     × probes usable bubblewrap namespaces and mounts the host read-only plus writable whitelist 24ms
+(node:1324) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 5 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  apps/local-server/src/dashboardApi.test.ts > serves authenticated read-only mesh, persisted rules and actual execution audits without secrets
+AssertionError: expected { scope: 'execution', …(2) } to match object { scope: 'execution', …(1) }
+(3 matching properties omitted from actual)
+
+- Expected
++ Received
+
+@@ -3,17 +3,10 @@
+      {
+        "sandbox": {
+          "allowedWritePaths": [
+            "<USER_HOME>\\AppData\\Local\\Temp\\vessel-dashboard-api-diDxL0",
+          ],
+-         "constraints": {
+-           "memoryLimitBytes": null,
+-           "privilegeReduction": "Fixture namespace confinement",
+-           "readOnlyPaths": [
+-             "/",
+-           ],
+-         },
+          "isolationTier": "bwrap-ns",
+          "sandboxed": true,
+        },
+        "sessionId": "sess_1791093355269_af9f72e4",
+        "toolName": "Shell",
+
+ ❯ apps/local-server/src/dashboardApi.test.ts:48:109
+
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/5]⎯
+
+ FAIL  packages/application/src/nativeSandboxIntegration.test.ts > projects real offline tool-loop native audits despite after_tool omitting metadata
+AssertionError: expected [ { toolCallId: 'tc_mock_1', …(6) } ] to match object [ { toolName: 'Shell', …(2) } ]
+(4 matching properties omitted from actual)
+
+- Expected
++ Received
+
+@@ -3,14 +3,10 @@
+      "sandbox": {
+        "allowedWritePaths": [
+          "<USER_HOME>\\AppData\\Local\\Temp\\vessel-native-compose-RJ9Jnn",
+          "<USER_HOME>\\AppData\\Local\\Temp",
+        ],
+-       "constraints": {
+-         "memoryLimitBytes": null,
+-         "readOnlyPaths": [],
+-       },
+        "isolationTier": "passthrough-fallback",
+        "outcome": "fallback",
+        "reason": "native-helper-unavailable",
+        "sandboxed": false,
+      },
+
+ ❯ packages/application/src/nativeSandboxIntegration.test.ts:45:62
+     43|   try {
+     44|     await controller.runTurn('Run the offline tool');
+     45|     expect(controller.projections.toolActivity.activities()).toMatchOb…
+       |                                                              ^
+     46|       isolationTier: 'passthrough-fallback', sandboxed: false, outcome…
+     47|       constraints: { memoryLimitBytes: null, readOnlyPaths: [] },
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/5]⎯
+
+ FAIL  packages/memory/src/sqlite/sessionIndex.test.ts > SQLite session projection > reads 50-row and 1000-row hot pages in under5ms using only SQL
+AssertionError: expected 5.509299999999939 to be less than 5
+ ❯ packages/memory/src/sqlite/sessionIndex.test.ts:70:114
+
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/5]⎯
+
+ FAIL  packages/tools/src/execution/sandbox/platformSandbox.test.ts > native platform sandbox > probes usable bubblewrap namespaces and mounts the host read-only plus writable whitelist
+AssertionError: expected { stdout: 'mock', stderr: '', …(3) } to match object { sandboxed: true, …(2) }
+(3 matching properties omitted from actual)
+
+- Expected
++ Received
+
+  {
+-   "constraints": {
+-     "memoryLimitBytes": null,
+-     "readOnlyPaths": [
+-       "/",
+-     ],
+-   },
+    "isolationTier": "bwrap-ns",
+    "sandboxed": true,
+  }
+
+ ❯ packages/tools/src/execution/sandbox/platformSandbox.test.ts:18:20
+     16|     const controller = new AbortController();
+     17|     const actual = await runner.execute('/bin/sh', ['-c', 'mock'], { c…
+     18|     expect(actual).toMatchObject({ sandboxed: true, isolationTier: 'bw…
+       |                    ^
+     19|     expect(run.mock.calls[0]![1]).toContain('--unshare-all');
+     20|     expect(run.mock.calls[0]![0]).toBe('/usr/bin/bwrap');
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/5]⎯
+
+ FAIL  packages/tools/src/execution/sandbox/windowsRestricted.test.ts > Windows restricted launcher > acknowledges provisioned execution only after the native helper confirms enforcement
+AssertionError: expected { stdout: 'mock', stderr: '', …(3) } to match object { stdout: 'mock', …(3) }
+(2 matching properties omitted from actual)
+
+- Expected
++ Received
+
+  {
+-   "constraints": {
+-     "memoryLimitBytes": 1024,
+-     "readOnlyPaths": [],
+-   },
+    "isolationTier": "windows-job-restricted",
+    "sandboxed": true,
+    "stdout": "mock",
+  }
+
+ ❯ packages/tools/src/execution/sandbox/windowsRestricted.test.ts:42:142
+
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[5/5]⎯
+
+
+ Test Files  5 failed | 221 passed (226)
+      Tests  5 failed | 2553 passed | 6 skipped (2564)
+   Start at  22:46:15
+   Duration  641.60s (tests 90%, import 7%, transform 2%, setup 1%)
+
+    Isolate  226 workers spawned · ~248ms startup each (spawn + environment, per file)
+             at least ~55.84s faster with isolate: false — reuses workers across files instead of one per file
+
+Exit code: 1

@@ -79,6 +79,9 @@ export function spawnOptions(options: SandboxExecutionOptions): SpawnOptions {
 }
 
 function convert(result: SpawnResult, isolationTier: SandboxExecutionResult['isolationTier']): SandboxExecutionResult {
-  return { stdout: result.stdout, stderr: result.stderr, exitCode: result.exitCode ?? 1, isolationTier, sandboxed: isolationTier !== 'passthrough-fallback' };
+  return { stdout: result.stdout, stderr: result.stderr, exitCode: result.exitCode ?? 1, isolationTier, sandboxed: isolationTier !== 'passthrough-fallback',
+    constraints: { readOnlyPaths: isolationTier === 'passthrough-fallback' ? [] : ['/'], memoryLimitBytes: null,
+      privilegeReduction: isolationTier === 'bwrap-ns' ? 'Bubblewrap namespace confinement. Root is read-only except write roots and the virtual /proc and /dev mounts.'
+        : isolationTier === 'macos-seatbelt' ? 'Seatbelt denies filesystem writes except configured write roots.' : 'No native privilege reduction.' } };
 }
-function pick(result: SandboxExecutionResult) { return { isolationTier: result.isolationTier, sandboxed: result.sandboxed }; }
+function pick(result: SandboxExecutionResult) { return { isolationTier: result.isolationTier, sandboxed: result.sandboxed, ...(result.constraints ? { constraints: result.constraints } : {}) }; }

@@ -39,10 +39,11 @@ describe('Windows restricted launcher', () => {
   it('acknowledges provisioned execution only after the native helper confirms enforcement', async () => {
     const run = vi.fn().mockResolvedValue(result(JSON.stringify({ Stdout: 'mock', Stderr: '', ExitCode: 0, Enforced: true })));
     const runner = new WindowsRestrictedRunner({ run });
-    expect(await runner.execute('cmd.exe', ['/c', 'echo mock'], { cwd, allowedWritePaths: [cwd], maxMemoryBytes: 1024, cpuTimeoutMs: 100 })).toMatchObject({ stdout: 'mock', sandboxed: true, isolationTier: 'windows-job-restricted' });
+    expect(await runner.execute('cmd.exe', ['/c', 'echo mock'], { cwd, allowedWritePaths: [cwd], maxMemoryBytes: 1024, cpuTimeoutMs: 100 })).toMatchObject({ stdout: 'mock', sandboxed: true, isolationTier: 'windows-job-restricted', constraints: { readOnlyPaths: [], memoryLimitBytes: 1024 } });
     const script = run.mock.calls[0]![2].stdin;
     expect(run.mock.calls[0]![0]).toMatch(/System32\\WindowsPowerShell\\v1\.0\\powershell\.exe$/);
     expect(script).toContain('CreateRestrictedToken'); expect(run.mock.calls[0]![2]).toMatchObject({ timeoutMs: 30100, maxOutputBytes: 1048576 });
+    expect((await runner.execute('cmd.exe', [], { cwd })).constraints?.memoryLimitBytes).toBe(512 * 1024 * 1024);
   });
 
   it('fails closed for unprovisioned ACLs with no fallback or command replay', async () => {

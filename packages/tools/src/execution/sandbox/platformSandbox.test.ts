@@ -15,13 +15,13 @@ describe('native platform sandbox', () => {
     const runner = new PlatformSandboxRunner({ platform: 'linux', run, audit });
     const controller = new AbortController();
     const actual = await runner.execute('/bin/sh', ['-c', 'mock'], { cwd, allowedWritePaths: [cwd], signal: controller.signal });
-    expect(actual).toMatchObject({ sandboxed: true, isolationTier: 'bwrap-ns' });
+    expect(actual).toMatchObject({ sandboxed: true, isolationTier: 'bwrap-ns', constraints: { readOnlyPaths: ['/'], memoryLimitBytes: null } });
     expect(run.mock.calls[0]![1]).toContain('--unshare-all');
     expect(run.mock.calls[0]![0]).toBe('/usr/bin/bwrap');
     expect(run.mock.calls[1]![0]).toBe('/usr/bin/bwrap');
     expect(run.mock.calls[1]![1]).toEqual(['--die-with-parent', '--unshare-all', '--new-session', '--ro-bind', '/', '/', '--proc', '/proc', '--dev', '/dev', '--bind', cwd, cwd, '--chdir', cwd, '--', '/bin/sh', '-c', 'mock']);
     expect(run.mock.calls[1]![2]).toMatchObject({ signal: controller.signal, shell: false, processGroup: true });
-    expect(audit).toHaveBeenCalledWith(expect.objectContaining({ outcome: 'enforced' }));
+    expect(audit).toHaveBeenCalledWith(expect.objectContaining({ outcome: 'enforced', constraints: actual.constraints }));
   });
 
   it('uses Seatbelt deny-write profile with properly escaped subpaths', async () => {

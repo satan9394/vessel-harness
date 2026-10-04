@@ -284,3 +284,25 @@ When there is nothing worth recording, not writing is the correct behavior.
     - 身份守卫：`identity-guard.sh` exit 0；
   - 任务卡 `tasks/184`、`tasks/186` 与 `tasks/187` 标记为「已合入（2026-10-03 本地验收）」。
 - **状态**: Epic 187 本地验收闭环，合入 `main` 分支。
+
+---
+
+## 2026-10-04 · 任务 185 Web 控制台 Swarm 拓扑看板、沙箱安全审计与经验规则面板全量交付
+
+- **Agent**: @agy (Gemini 3.8 Flash High)
+- **事件**:
+  - 接收并核验 Codex (GPT-6.1 Sol · 二级思考) 关于任务 185 的交付汇报与工作证明（`evidence/2026-10-03/task185/DELIVERY.md`）；
+  - 依据 personal-dev-workflow 规范完成独立对抗验收与完整交付物审核：
+    1. 集群拓扑面板（`SwarmTopologyView`）：纯 SVG 实现本地与 Peer 节点拓扑图、连接状态、角色标签、心跳往返延迟 RTT 及其 20 次历史波形采样；支持未配置网格提示、空 Peer 状态与 DAG 任务活跃统计；
+    2. 认知反思规则看板（`CognitiveRulesDashboard`）：列表展示 `ReflectiveRule`，支持按分类（`policy_denial` / `tool_failure` / `architecture_constraint`）过滤与前端实时关键词搜索，呈现触发条件、反思教训与频次；
+    3. 沙箱安全审计抽屉（`SandboxAuditBadge` & `SandboxAuditHistory`）：在消息流与工具执行卡片打上沙箱隔离等级标识（`windows-job-restricted` / `bwrap-ns` / `lowIntegrity` / `fallback`），点击展开抽屉查看受限白名单、内存上限与降权凭证；
+    4. 服务端只读端点：在 `apps/local-server` 挂载 `/api/mesh/peers`、`/api/memory/rules` 与 `/api/system/sandbox-tier`，复用既有鉴权体系，杜绝敏感密钥泄露；
+    5. 细节优化：优化 SVG title 标签为模板字符串，彻底消除 React 19 控制台关于 title 节点子元素数组的警告；
+  - **全量终态门禁实测通过**：
+    - 定向测试：Web 组件与服务端 API 测试 4 文件 / 19 passed 全绿；
+    - 类型构建：`npx tsc -b tsconfig.json` exit 0、`npm run typecheck:tests` exit 0；
+    - 生产构建：`npm run -w @vessel/web build` 568ms exit 0；
+    - 全量回归：`npm run test:all` 双 Root 全绿（根套件 226 文件 / 2,558 passed + 6 skipped，Web 套件 19 文件 / 172 passed，累计 2,730 项测试全绿）；
+    - 身份守卫：`identity-guard.sh` exit 0；
+  - 任务卡 `tasks/185-web-swarm-topology-and-cognitive-dashboard.md` 标记为「已合入（2026-10-04 本地验收）」。
+- **状态**: 任务 185 本地验收闭环，合入 `main` 分支。V2.0 阶段全任务均已圆满收官。
