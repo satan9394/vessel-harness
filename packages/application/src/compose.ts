@@ -1,9 +1,10 @@
+import { observeProviderCacheUsage } from '@vessel/llm';
 import * as path from 'node:path';
 import * as fs from 'node:fs';
-import type { ChatProvider, ChatToolDef, ToolCall, ToolResultRecord } from '@vessel/shared';
+import type { CacheUsageMetrics, ChatUsage, ChatProvider, ChatToolDef, ToolCall, ToolResultRecord } from '@vessel/shared';
 import { AgentLoop, EventBus, Session } from '@vessel/core';
-import { ContextBuilder, Compaction, createOverflowRecovery, type AdaptiveCompactionOptions } from '@vessel/context';
-import { ToolRegistry, createFsTools, createSearchTools, createShellTool, McpClient, registerMcpTools, type McpTransport, type NativeSandboxRunner } from '@vessel/tools';
+import { ContextBuilder, CompactionBoundaryGuard, Compaction, createOverflowRecovery, type AdaptiveCompactionOptions } from '@vessel/context';
+import { NoProgressGuard, ToolRegistry, createFsTools, createSearchTools, createShellTool, McpClient, registerMcpTools, type McpTransport, type NativeSandboxRunner } from '@vessel/tools';
 import { PolicyEngine, loadPolicyArtifacts } from '@vessel/policy';
 import { Executor, Sandbox } from '@vessel/runtime';
 import { loadBehaviorIR, compileBehavior } from '@vessel/behavior';
@@ -20,7 +21,7 @@ import {
 import { Telemetry } from '@vessel/telemetry';
 import { ExternalAgentRuntime, SubagentManager, createSubagentTool, type ExternalAgentConfig } from '@vessel/agents';
 import { ProjectStore, createMemoryTool, HybridMemoryStore, AutonomousReflectionEngine, collectSessionTrajectory, collectEvaluatorTrajectory, type SessionTrajectoryEvent, streamJsonlRecords, resolveSessionDir, type SessionIndexSource } from '@vessel/memory';
-import { AutoTaskRouter, type AutoRoute, type RouteMode, type TierBindings, type TierModelMap } from '@vessel/llm';
+import { CacheDriftDetector, AutoTaskRouter, type AutoRoute, type RouteMode, type TierBindings, type TierModelMap } from '@vessel/llm';
 import { EnforcementProjection } from './projections/EnforcementProjection.js';
 import type { ProcessTreeAuditEvent } from './projections/types.js';
 
@@ -39,6 +40,7 @@ export interface UsageStoreLike {
     cacheReadTokens?: number;
     /** cache 写入 token（Anthropic cache_creation）——task 090 的落库入口 */
     cacheCreationTokens?: number;
+    cacheMetrics?: CacheUsageMetrics;
   }): void;
 }
 
@@ -305,7 +307,13 @@ export async function composeHarness(opts: ComposeOptions): Promise<ComposedHarn
       for (const e of events) enforcement.recordProcessTree(e);
     },
   });
-  const runTool = async (call: ToolCall, exec?: { signal?: AbortSignal | null }) => {
+  const progressGuard = new NoProgressGuard(workspaceRoot, async (diagnostic, isCurrent) => {
+    let interrupt = false;
+    try { await session.appendSync({ type: 'audit/stagnation_break', ...diagnostic, surface: false }); }
+    finally { interrupt = isCurrent(); if (interrupt) loop.interrupt(); }
+    if (interrupt) await bus.emit('audit/stagnation_break', diagnostic);
+  });
+  const runTool = async (call: ToolCall, exec?: { signal?: AbortSignal | null }) => progressGuard.run(call.toolName, exec?.signal, async () => {
     const spec = registry.spec(call.toolName);
     if (!spec) {
       return {
@@ -320,7 +328,7 @@ export async function composeHarness(opts: ComposeOptions): Promise<ComposedHarn
     await bus.emit('application/tool_started', { toolCallId: call.toolCallId, toolName: call.toolName, arguments: call.arguments });
     const result = await executor.runTool(spec, call, { workspaceRoot, cwd, sandbox, signal: exec?.signal ?? undefined });
     return { record: null, content: result.content, error: result.error, meta: result.meta };
-  };
+  });
 
   // Behavior: IR -> compiler -> stable prompt sections (+ dual-channel warnings)
   const ir = loadBehaviorIR(opts.behaviorIRPath);
@@ -483,6 +491,34 @@ export async function composeHarness(opts: ComposeOptions): Promise<ComposedHarn
     reflect();
   }, 'memory:evaluator-reflection');
 
+  const toChatTools = (): ChatToolDef[] =>
+    registry.listVisible().map((t) => ({
+      type: 'function' as const,
+      function: { name: t.name, description: t.description, parameters: t.inputSchema as unknown as Record<string, unknown> },
+    }));
+
+  let prefixHash: string | undefined;
+  const drift = new CacheDriftDetector();
+  const cacheObserver = observeProviderCacheUsage(effectiveProvider);
+  bus.on('model_stream_end', payload => {
+    const call = payload as { usage?: ChatUsage };
+    if (call.usage) cacheObserver.annotate(call.usage);
+  }, 'application:stream-cache-metrics');
+  // Registered before controller/SSE projections; annotate usage synchronously before async audit writes.
+  bus.on('after_model', async payload => {
+    const call = payload as { usage?: ChatUsage };
+    if (!call.usage) return;
+    cacheObserver.annotate(call.usage);
+    const metrics = call.usage.cacheMetrics;
+    if (!metrics) return;
+    call.usage.cacheMetrics = metrics;
+    const alert = drift.check(session.sessionId, metrics, prefixHash);
+    if (alert) {
+      await session.appendSync({ type: 'audit/cache_drift', ...alert, surface: false });
+      await bus.emit('audit/cache_drift', alert);
+    }
+  }, 'application:cache-metrics');
+
   // V0.9 usage statistics: persist after_model usage into the store when wired
   if (opts.usageStore) {
     const usageProvider = opts.usageProvider ?? 'default';
@@ -490,7 +526,7 @@ export async function composeHarness(opts: ComposeOptions): Promise<ComposedHarn
       'after_model',
       (payload) => {
         const p = payload as {
-          usage?: { inputTokens?: number; outputTokens?: number; cacheReadTokens?: number; cacheCreationTokens?: number };
+          usage?: { inputTokens?: number; outputTokens?: number; cacheReadTokens?: number; cacheCreationTokens?: number; cacheMetrics?: CacheUsageMetrics };
         };
         if (!p.usage) return;
         opts.usageStore!.record({
@@ -499,6 +535,7 @@ export async function composeHarness(opts: ComposeOptions): Promise<ComposedHarn
           inputTokens: p.usage.inputTokens ?? 0,
           outputTokens: p.usage.outputTokens ?? 0,
           cacheReadTokens: p.usage.cacheReadTokens,
+          cacheMetrics: p.usage.cacheMetrics,
           // task 090：cache 写入 token 透传（上游上报后即自动分项计价）
           cacheCreationTokens: p.usage.cacheCreationTokens,
         });
@@ -507,22 +544,19 @@ export async function composeHarness(opts: ComposeOptions): Promise<ComposedHarn
     );
   }
 
-  const toChatTools = (): ChatToolDef[] =>
-    registry.listVisible().map((t) => ({
-      type: 'function' as const,
-      function: { name: t.name, description: t.description, parameters: t.inputSchema as unknown as Record<string, unknown> },
-    }));
-
   const loop = new AgentLoop({
     session,
     bus,
-    provider: effectiveProvider,
+    provider: cacheObserver.provider,
     model: effectiveModel,
     buildContext: async (step) => {
       const envelope = await builder.assemble(step);
-      if (compaction.shouldCompact(envelope.estimateTokens, builder.window)) {
+      prefixHash = envelope.prefixLayout.prefixByteHash;
+      if (CompactionBoundaryGuard.canCompactHistory(step - 1, session.replay()) && compaction.shouldCompact(envelope.estimateTokens, builder.window)) {
         await compaction.compact('pressure');
-        return { ...await builder.assemble(step), maxOutputTokens };
+        const compacted = await builder.assemble(step);
+        prefixHash = compacted.prefixLayout.prefixByteHash;
+        return { ...compacted, maxOutputTokens };
       }
       return { ...envelope, maxOutputTokens };
     },

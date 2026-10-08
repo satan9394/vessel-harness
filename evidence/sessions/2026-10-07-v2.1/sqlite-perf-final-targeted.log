@@ -1,0 +1,42 @@
+
+ RUN  v5.0.1 E:/Code_file/Projects/Vessel_Harness
+
+hybrid warm median: 16.361 ms; 1000 messages, 4 dimensions
+(node:19260) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+ ❯ packages/memory/src/sqlite/hybridSearch.test.ts (5 tests | 1 failed) 3147ms
+   ❯ hybrid memory recall (5)
+     × keeps warm median hybrid retrieval below 15 ms for a local 1000-message corpus 2940ms
+(node:21128) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+session index: 1000-session/50-row page median 0.219ms
+session index: 1000-session/1000-row page median 3.235ms
+(node:21324) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+FTS5: 1000-message search median 2.391ms
+(node:28072) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  packages/memory/src/sqlite/hybridSearch.test.ts > hybrid memory recall > keeps warm median hybrid retrieval below 15 ms for a local 1000-message corpus
+AssertionError: expected 16.36130000000003 to be less than 15
+ ❯ packages/memory/src/sqlite/hybridSearch.test.ts:66:20
+     64|     const median = samples.sort((a, b) => a - b)[10]!;
+     65|     console.info(`hybrid warm median: ${median.toFixed(3)} ms; 1000 me…
+     66|     expect(median).toBeLessThan(15);
+       |                    ^
+     67|   }, 120000);
+     68| });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed | 3 passed (4)
+      Tests  1 failed | 19 passed (20)
+   Start at  21:31:20
+   Duration  6.26s (tests 90%, transform 4%, import 4%, setup 1%)
+
+    Isolate  4 workers spawned · ~307ms startup each (spawn + environment, per file)
+             at least ~920ms faster with isolate: false — reuses workers across files instead of one per file
+

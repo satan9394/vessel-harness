@@ -1,0 +1,7 @@
+{"binary":"git","operation":"startup","samples":[61.340199999999996,52.52059999999999,52.98480000000001]}
+{"binary":"git","operation":"inventory","samples":[74.87130000000002,66.20070000000004,68.67599999999999]}
+{"binary":"D:\\Technology_application\\Git\\mingw64\\bin\\git.exe","operation":"startup","samples":[33.99959999999999,37.11779999999999,32.093999999999994]}
+{"binary":"D:\\Technology_application\\Git\\mingw64\\bin\\git.exe","operation":"inventory","samples":[61.757000000000005,54.273000000000025,50.03359999999998]}
+{"binary":"C:\\Users\\Satanchen\\.cache\\codex-runtimes\\codex-primary-runtime\\dependencies\\native\\git\\mingw64\\bin\\git.exe","operation":"startup","samples":[698.5133,41.544200000000046,54.05029999999988]}
+{"binary":"C:\\Users\\Satanchen\\.cache\\codex-runtimes\\codex-primary-runtime\\dependencies\\native\\git\\mingw64\\bin\\git.exe","operation":"inventory","samples":[78.3243,72.22479999999996,68.8429000000001]}
+{"operation":"fresh-sync-components-only","fileCount":16,"samples":[10.072100000000091,3.4564000000000306,3.4764999999999873,2.702199999999948,2.910400000000209,3.764900000000125,2.7829999999999018,2.504699999999957,2.496099999999842,2.419200000000046,2.493400000000065],"acceptanceMeasurement":false}

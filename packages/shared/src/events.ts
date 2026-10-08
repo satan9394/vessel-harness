@@ -357,7 +357,33 @@ export interface SandboxEnforcedRecord extends SessionRecordBase {
   surface: false;
 }
 
+export interface CacheDriftRecord extends SessionRecordBase {
+  type: 'audit/cache_drift';
+  sessionId: string;
+  previousHitRate: number;
+  currentHitRate: number;
+  previousPrefixHash?: string;
+  currentPrefixHash?: string;
+  droppedTokens: number;
+  timestamp: number;
+  surface: false;
+}
+
+export interface StagnationBreakRecord extends SessionRecordBase {
+  type: 'audit/stagnation_break';
+  stepIndex: number;
+  toolName: string;
+  stagnantStepCount: number;
+  consecutiveErrorCount: number;
+  reason?: string;
+  repeatedError?: string;
+  lastMeaningfulChange?: { stepIndex: number; toolName: string; timestamp: number; trackedFilesHash: string };
+  suggestion?: string;
+  surface: false;
+}
+
 export type SessionRecord =
+  | StagnationBreakRecord
   | UserMessageRecord
   | AssistantMessageRecord
   | AssistantAttemptRecord
@@ -376,7 +402,8 @@ export type SessionRecord =
   | CompactionOverflowInterceptedRecord
   | CompactionEndRecord
   | SessionCreatedRecord
-  | ModelUsageRecord;
+  | ModelUsageRecord
+  | CacheDriftRecord;
 
 // ---------------------------------------------------------------------------
 // Live extension events (A## subset used by V0.1)
@@ -392,6 +419,8 @@ export type EventType =
   | 'after_model'
   | 'before_tool'
   | 'policy_decision'
+  | 'audit/cache_drift'
+  | 'audit/stagnation_break'
   | 'audit/sandbox_enforced'
   | 'after_tool'
   | 'tool_error'

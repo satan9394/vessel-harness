@@ -3,7 +3,7 @@ import type { ApiClient } from '../api';
 import { ApiError, failureMessage } from '../api';
 import { createEventStream, type ConversationDelta, type ThinkingDelta, type ToolDelta, type UsageDelta } from '../sse';
 import MessageList, { type ChatItem } from './MessageList';
-import UsageBar, { applyUsageDelta, emptyUsage, type UsageTotals } from './UsageBar';
+import UsageBar, { applyUsageDelta, usageCallCost, emptyUsage, type UsageTotals } from './UsageBar';
 import TalkingMetricsBar, { type TalkingMetrics } from './TalkingMetricsBar';
 import { useI18n } from './LanguageProvider';
 import SandboxAuditHistory from './SandboxAuditHistory';
@@ -75,7 +75,7 @@ export default function ConversationView({ sessionId, api, onSessionUpdated }: P
 
   const onUsage = useCallback((delta: UsageDelta) => {
     setUsage((prev) => applyUsageDelta(prev, delta));
-    const deltaCost = applyUsageDelta(emptyUsage(), delta).costUsd;
+    const deltaCost = usageCallCost(delta);
     setTurnMetrics((prev) => ({
       inputTokens: (prev.inputTokens ?? 0) + (delta.inputTokens ?? 0),
       outputTokens: (prev.outputTokens ?? 0) + (delta.outputTokens ?? 0),
@@ -87,7 +87,16 @@ export default function ConversationView({ sessionId, api, onSessionUpdated }: P
         ? { latencyMs: (prev.latencyMs ?? 0) + (delta.latencyMs ?? 0) }
         : {}),
       costUsd: (prev.costUsd ?? 0) + deltaCost,
-      estimated: true,
+      estimated: Boolean(prev.estimated || (delta.estimated ?? true)),
+      ...(delta.cacheMetrics ? { cacheMetrics: {
+        ...delta.cacheMetrics,
+        promptTokens: (prev.cacheMetrics?.promptTokens ?? 0) + delta.cacheMetrics.promptTokens,
+        cachedTokens: (prev.cacheMetrics?.cachedTokens ?? 0) + delta.cacheMetrics.cachedTokens,
+        creationTokens: (prev.cacheMetrics?.creationTokens ?? 0) + delta.cacheMetrics.creationTokens,
+        estimatedSavingsUsd: (prev.cacheMetrics?.estimatedSavingsUsd ?? 0) + delta.cacheMetrics.estimatedSavingsUsd,
+        billedHitRate: ((prev.cacheMetrics?.cachedTokens ?? 0) + delta.cacheMetrics.cachedTokens) / Math.max(1, (prev.cacheMetrics?.promptTokens ?? 0) + delta.cacheMetrics.promptTokens),
+        estimated: Boolean(prev.cacheMetrics?.estimated || delta.cacheMetrics.estimated),
+      } } : {}),
     }));
   }, []);
 

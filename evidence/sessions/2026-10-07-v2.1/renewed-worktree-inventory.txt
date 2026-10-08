@@ -1,0 +1,75 @@
+ M AGENTS.md
+ M DEV_LOG.md
+ M HANDOFF.md
+ M apps/cli/src/cli.ts
+ M apps/cli/src/usage/UsageStore.ts
+ M apps/local-server/src/server.ts
+ M apps/web/src/api.ts
+ M apps/web/src/components/ConversationView.tsx
+ M apps/web/src/components/TalkingMetricsBar.tsx
+ M apps/web/src/components/UsageBar.tsx
+ M apps/web/src/sse.ts
+ M benchmarks/runners/src/lane/opencodeGoChatProvider.test.ts
+ M docs/EVENT-SPEC.md
+ M docs/PRICING.md
+ M package-lock.json
+ M packages/agents/package.json
+ M packages/agents/src/subagent/IsolatedRuntime.ts
+ M packages/application/src/compose.ts
+ M packages/application/src/projections/UsageProjection.ts
+ M packages/application/src/projections/types.ts
+ M packages/context/package.json
+ M packages/context/src/builder/Builder.ts
+ M packages/context/src/compaction/Compaction.ts
+ M packages/context/src/compaction/overflowRecovery.ts
+ M packages/context/src/context.test.ts
+ M packages/context/src/index.ts
+ M packages/context/tsconfig.json
+ M packages/engine/src/LoopEngine.ts
+ M packages/engine/src/index.ts
+ M packages/engine/src/real-generator-adapter.ts
+ M packages/llm/src/discovery/index.ts
+ M packages/llm/src/index.ts
+ M packages/llm/src/provider/AnthropicProvider.ts
+ M packages/llm/src/provider/MockProvider.ts
+ M packages/llm/src/provider/OpenAICompatibleProvider.ts
+ M packages/llm/src/provider/OpencodeGoProvider.ts
+ M packages/llm/src/provider/opencodeGoProvider.test.ts
+ M packages/llm/src/stream/parseAnthropic.test.ts
+ M packages/llm/src/stream/parseAnthropic.ts
+ M packages/llm/src/stream/parseOpenAI.test.ts
+ M packages/llm/src/stream/parseOpenAI.ts
+ M packages/memory/src/sqlite/SessionIndexStore.ts
+ M packages/memory/src/sqlite/sessionIndex.test.ts
+ M packages/shared/src/events.ts
+ M packages/shared/src/index.ts
+ M packages/shared/src/provider.ts
+ M packages/tools/src/index.ts
+ M tasks/README.md
+?? apps/web/src/cacheUsage.ts
+?? apps/web/src/components/__tests__/UsageBarCache.test.tsx
+?? docs/REVIEW-REPORT-V2.0.md
+?? evidence/sessions/2026-10-07-v2.1/
+?? packages/application/src/noProgressIntegration.test.ts
+?? packages/application/src/projections/cacheUsageProjection.test.ts
+?? packages/context/src/builder/TripartitePrefixBuilder.test.ts
+?? packages/context/src/builder/TripartitePrefixBuilder.ts
+?? packages/context/src/compaction/CompactionBoundaryGuard.test.ts
+?? packages/context/src/compaction/CompactionBoundaryGuard.ts
+?? packages/engine/src/breaker/
+?? packages/llm/src/canonical/
+?? packages/llm/src/discovery/CacheDriftDetector.ts
+?? packages/llm/src/discovery/cacheMetrics.test.ts
+?? packages/llm/src/discovery/observeProviderCacheUsage.ts
+?? packages/shared/src/cacheMetrics.ts
+?? packages/shared/src/noProgress.ts
+?? packages/tools/src/execution/NoProgressBreaker.ts
+?? packages/tools/src/execution/noProgressGuard.test.ts
+?? packages/tools/src/execution/noProgressGuard.ts
+?? packages/tools/src/filesystem/workspaceFingerprint.test.ts
+?? packages/tools/src/filesystem/workspaceFingerprint.ts
+?? scripts/bench-workspace-fingerprint.ts
+?? tasks/188-deterministic-serialization-and-prefix-layout.md
+?? tasks/189-cache-hit-rate-telemetry-and-multi-provider.md
+?? tasks/190-workspace-fingerprint-and-no-progress-breaker.md
+?? tasks/191-epic-v2-1-prefix-cache-and-convergence.md

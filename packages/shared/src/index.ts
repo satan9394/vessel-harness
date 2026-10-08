@@ -8,4 +8,6 @@ export * from './constants.js';
 export * from './atomicWrite.js';
 export * from './envRoot.js';
 export * from './vesselHome.js';
+export * from './cacheMetrics.js';
+export * from './noProgress.js';
 export { VERSION } from './constants.js';

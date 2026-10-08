@@ -705,4 +705,12 @@ v0.1 主流程（V0.1 平面：单 agent、无委派；`[V0.2]` 标注子代理/
 
 > 规律：**waterfall 改的是"将要发生"，记录存的是"已经发生"**；决策事件（A12/A13/A16/A17/A26）都有一对以上持久审计镜像——这正是「可审计、可回放」承诺的实现位（H07 approval/asked→decided 证据链、DSH 先持久后等待、审计事件）。
 
+## V2.1 缓存击穿审计（任务 189）
+
+`audit/cache_drift` 由 application 外层在 `after_model` 用量归一后产生：同一会话、同一 provider/model 的读取命中率由 >80% 降为 0 时，先写同名 SessionRecord（`surface:false`），再发只含数值/身份/哈希的事件。字段：`sessionId`、`previousHitRate`、`currentHitRate`、可选前后 `prefixHash`、`droppedTokens`、`timestamp`。不记录 Prompt 正文、密钥或完整请求。
+
+`audit/stagnation_break` 由父会话与隔离子会话的外层工具保护器写入（`surface:false`），随后中断执行；engine 保存 stopped 状态，不自动重试或续跑。字段为 `stepIndex`、`toolName`、`stagnantStepCount`、`consecutiveErrorCount`、可选 `reason`、`repeatedError`、`lastMeaningfulChange:{stepIndex,toolName,timestamp,trackedFilesHash}` 与 `suggestion`。默认连续三次无物理变更或同类错误触发；工作区观察失败以 `workspace_observation_failed` 停止，不能伪装为无变更。指纹仅记录哈希与统计量，不记录文件正文。
+
+`ChatUsage.cacheMetrics` 与 `model/usage.cacheMetrics` 是可选扩展；缺省意味着没有明确归一指标。OpenAI/Anthropic/DeepSeek 的流式输入用量在 outer provider wrapper 保留，输出专用帧不覆盖已知输入指标；隔离子会话通过自己的 turnId 识别事件，避免共享总线交叉归属。
+
 （完）

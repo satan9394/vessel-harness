@@ -1,0 +1,10 @@
+
+ RUN  v5.0.1 E:/Code_file/Projects/Vessel_Harness
+
+warning: in the working copy of 'code.ts', LF will be replaced by CRLF the next time Git touches it
+
+ Test Files  1 passed (1)
+      Tests  6 passed (6)
+   Start at  21:36:08
+   Duration  8.26s (tests 97%, transform 1%, import 1%)
+

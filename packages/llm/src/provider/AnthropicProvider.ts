@@ -1,3 +1,5 @@
+import { extractProviderCacheMetrics } from '@vessel/shared';
+import { canonicalJson } from '../canonical/canonicalJson.js';
 import type {
   ChatMessage,
   ChatProvider,
@@ -391,7 +393,7 @@ export class AnthropicProvider implements ChatProvider {
 
     let resp: Response;
     try {
-      resp = await fetch(url, { method: 'POST', headers, body: JSON.stringify(body), signal: controller.signal });
+      resp = await fetch(url, { method: 'POST', headers, body: canonicalJson(body), signal: controller.signal });
     } finally {
       clearTimeout(timer);
       external?.removeEventListener('abort', forwardAbort);
@@ -441,6 +443,7 @@ export class AnthropicProvider implements ChatProvider {
         inputTokens: data.usage?.input_tokens ?? 0,
         outputTokens: data.usage?.output_tokens ?? 0,
         cacheReadTokens: data.usage?.cache_read_input_tokens,
+        ...(data.usage && (data.usage.cache_read_input_tokens !== undefined || data.usage.cache_creation_input_tokens !== undefined) ? { cacheMetrics: extractProviderCacheMetrics(data.usage, this.id, request.model) } : {}),
         // task 099: cache write tokens ride along as an optional field; absent
         // on the wire stays undefined (never coerced to 0) so the pricing
         // fallback chain can distinguish "no data" from "reported zero".
@@ -523,7 +526,7 @@ export class AnthropicProvider implements ChatProvider {
       armIdle(); // covers the "connected but nothing came back" window too
       let resp: Response;
       try {
-        resp = await fetch(url, { method: 'POST', headers, body: JSON.stringify(body), signal: controller.signal });
+        resp = await fetch(url, { method: 'POST', headers, body: canonicalJson(body), signal: controller.signal });
       } catch (err) {
         // The abort WE caused must not surface as a bare AbortError (the consumer
         // would see an unexplained stream failure). A caller abort keeps its

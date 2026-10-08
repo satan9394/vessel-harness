@@ -111,3 +111,16 @@
 - 不要做任何永久删除（回收站铁律，全项目通用；**唯一书面例外见上方"技术栈与运行环境"：测试自建且位于 `os.tmpdir()` 下的临时目录**）。
 - 不要只做功能列表不验证：每张卡必须跑对应测试并留证据。
 - **不要自动驱动本机其他 agent**（`dsh` / `opencode` / `codex` / `claude` / `pi`）：它们是用户自己的工具，会消耗其配额并在其机器上留下会话记录。为基准/调试/验证而调用它们**必须逐次获得用户显式同意**，且执行前先说明"将调用哪些 agent、大概消耗什么"；`npm run bench:conformance -- --live` **永不自动跑**。需要跨 harness 证据时优先用**离线车道**（只跑 Vessel 自适配器）。见 `tasks/153`。
+
+---
+
+## 远端 GitHub 状态（2026-10-06）
+
+- 本项目已转为**纯本地开发**，不再向 GitHub 提交。
+- 远端 `satan9394/vessel-harness` 的 **GitHub Actions 已整体停用**
+  （`actions/permissions.enabled = false`）：不再触发任何 CI / CodeQL / Dependabot 运行。
+- CodeQL 默认扫描已从 `configured` 改为 `not-configured`。
+- 本地 `main` 领先 `origin/main`（未推送），按约定**不推送**。
+- 恢复方式（如需）：`gh api --method PUT repos/satan9394/vessel-harness/actions/permissions --input -`
+  （body `{"enabled":true}`）；CodeQL 用 `PATCH repos/satan9394/vessel-harness/code-scanning/default-setup`
+  （body `{"state":"configured"}`）。

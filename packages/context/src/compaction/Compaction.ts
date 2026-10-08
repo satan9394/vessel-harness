@@ -2,6 +2,7 @@ import * as crypto from 'node:crypto';
 import { COMPACTION_RETAIN_RATIO, type SessionRecord } from '@vessel/shared';
 import { Session } from '@vessel/core';
 import { computeAdaptiveThreshold, type AdaptiveCompactionOptions } from './adaptiveThreshold.js';
+import { CompactionBoundaryGuard } from './CompactionBoundaryGuard.js';
 
 export type CompactionTrigger = 'pressure' | 'overflow' | 'manual';
 
@@ -109,13 +110,10 @@ export class Compaction {
    * (pairs are never split — Claw 400 / OpenAI-compat orphaned tool lesson).
    */
   private balancedCut(records: SessionRecord[], target: number): number {
-    let openCalls = new Set<string>();
+    const { balancedAfter } = CompactionBoundaryGuard.accountToolCalls(records);
     let lastBalanced = 0;
     for (let i = 0; i < records.length; i++) {
-      const r = records[i]!;
-      if (r.type === 'tool/call') openCalls.add(r.toolCallId);
-      if (r.type === 'tool/result') openCalls.delete(r.toolCallId);
-      if (openCalls.size === 0) {
+      if (balancedAfter.has(i)) {
         lastBalanced = i + 1;
         if (lastBalanced >= target) return lastBalanced;
       }

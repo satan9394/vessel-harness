@@ -1,3 +1,5 @@
+import { extractProviderCacheMetrics } from '@vessel/shared';
+import { canonicalJson } from '../canonical/canonicalJson.js';
 import type {
   ChatMessage,
   ChatProvider,
@@ -37,7 +39,7 @@ function toOpenAIMessages(messages: ChatMessage[]): OpenAIChatMessage[] {
       base.tool_calls = m.toolCalls.map((tc) => ({
         id: tc.id,
         type: 'function' as const,
-        function: { name: tc.name, arguments: JSON.stringify(tc.arguments) },
+        function: { name: tc.name, arguments: canonicalJson(tc.arguments) },
       }));
     }
     return base;
@@ -61,7 +63,7 @@ interface OpenAIResponseBody {
     };
     finish_reason?: string;
   }[];
-  usage?: { prompt_tokens?: number; completion_tokens?: number; prompt_tokens_details?: { cached_tokens?: number } };
+  usage?: { prompt_tokens?: number; completion_tokens?: number; prompt_tokens_details?: { cached_tokens?: number }; prompt_cache_hit_tokens?: number; prompt_cache_miss_tokens?: number };
   error?: { message?: string; type?: string };
 }
 
@@ -136,7 +138,7 @@ export class OpenAICompatibleProvider implements ChatProvider {
       resp = await fetch(url, {
         method: 'POST',
         headers,
-        body: JSON.stringify({
+        body: canonicalJson({
           model: request.model || this.opts.model,
           messages: toOpenAIMessages(request.messages),
           tools: request.tools && request.tools.length > 0 ? toOpenAITools(request.tools) : undefined,
@@ -195,7 +197,8 @@ export class OpenAICompatibleProvider implements ChatProvider {
       usage: {
         inputTokens: body.usage?.prompt_tokens ?? 0,
         outputTokens: body.usage?.completion_tokens ?? 0,
-        cacheReadTokens: body.usage?.prompt_tokens_details?.cached_tokens,
+        cacheReadTokens: body.usage?.prompt_cache_hit_tokens ?? body.usage?.prompt_tokens_details?.cached_tokens,
+        ...(body.usage && (body.usage.prompt_cache_hit_tokens !== undefined || body.usage.prompt_tokens_details?.cached_tokens !== undefined) ? { cacheMetrics: extractProviderCacheMetrics(body.usage, this.id, request.model) } : {}),
       },
       raw: body,
       // task 109: DeepSeek 系 thinking 模式思维链归一进 ChatResponse（AgentLoop 持久化后回传）
@@ -261,7 +264,7 @@ export class OpenAICompatibleProvider implements ChatProvider {
         resp = await fetch(url, {
           method: 'POST',
           headers,
-          body: JSON.stringify({
+          body: canonicalJson({
             model: request.model || this.opts.model,
             messages: toOpenAIMessages(request.messages),
             tools: request.tools && request.tools.length > 0 ? toOpenAITools(request.tools) : undefined,

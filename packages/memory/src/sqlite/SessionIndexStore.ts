@@ -189,8 +189,20 @@ export class SessionIndexStore {
   }
   async listSessions(limit = 50, offset = 0, topicId?: string): Promise<IndexedSessionSummary[]> {
     const bounds = page(limit, offset); await this.queue;
-    const sql = `SELECT * FROM sessions_meta ${topicId === undefined ? '' : 'WHERE topic_id=?'} ORDER BY updated_at DESC,session_id DESC LIMIT ? OFFSET ?`;
-    const rows = topicId === undefined ? this.statement(sql).all(...bounds) : this.statement(sql).all(topicId, ...bounds);
+    const pageSql = `SELECT * FROM sessions_meta ${topicId === undefined ? '' : 'WHERE topic_id=?'} ORDER BY updated_at DESC,session_id DESC LIMIT ? OFFSET ?`;
+    const exceptional = ['created_at', 'updated_at', 'record_count', 'input_tokens', 'output_tokens', 'cache_read_tokens', 'cache_creation_tokens', 'total_tokens']
+      .map(column => `(typeof(${column})='real' OR ${column} NOT BETWEEN -9007199254740991 AND 9007199254740991)`).join(' OR ');
+    // Transfer a page in one SQLite value instead of materializing twelve native properties per row.
+    const sql = `SELECT json_group_array(json_object(
+      'session_id',session_id,'topic_id',topic_id,'title',title,'created_at',created_at,'updated_at',updated_at,
+      'record_count',record_count,'input_tokens',input_tokens,'output_tokens',output_tokens,
+      'cache_read_tokens',cache_read_tokens,'cache_creation_tokens',cache_creation_tokens,'total_tokens',total_tokens,'metadata',metadata)) AS page,
+      MAX(CASE WHEN ${exceptional} THEN 1 ELSE 0 END) AS exceptional FROM (${pageSql})`;
+    const result = topicId === undefined ? this.statement(sql).get(...bounds) : this.statement(sql).get(topicId, ...bounds);
+    // Native reads preserve REAL precision and unsafe INTEGER rejection on exceptional pages.
+    const rows = result!.exceptional
+      ? (topicId === undefined ? this.statement(pageSql).all(...bounds) : this.statement(pageSql).all(topicId, ...bounds))
+      : JSON.parse(String(result!.page)) as Record<string, string | number | null>[];
     return rows.map(row => ({ sessionId: String(row.session_id), topicId: row.topic_id === null ? undefined : String(row.topic_id), title: String(row.title),
       createdAt: Number(row.created_at), updatedAt: Number(row.updated_at), recordCount: Number(row.record_count),
       inputTokens: Number(row.input_tokens), outputTokens: Number(row.output_tokens), cacheReadTokens: Number(row.cache_read_tokens), cacheCreationTokens: Number(row.cache_creation_tokens), totalTokens: Number(row.total_tokens),

@@ -83,6 +83,7 @@ describe('parseOpenAIStreamChunk — plain text SSE → text_delta', () => {
       inputTokens: 7,
       outputTokens: 3,
       cacheReadTokens: 2,
+      cacheMetrics: { promptTokens: 7, cachedTokens: 2, creationTokens: 0, billedHitRate: 2 / 7, estimatedSavingsUsd: 0, provider: 'openai-compatible', model: '' },
     });
   });
 

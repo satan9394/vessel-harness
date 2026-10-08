@@ -217,9 +217,19 @@ default / strict 五种来源各一例 + 真实 `configs/` 价目一例）。
 
 ## 10. 不做的（后续卡）
 
-- `input_token_semantics`（input 是否含 cache）未做，故 cache 写入不从 inputTokens 扣减。
+- 历史原始 `inputTokens` 不改写；V2.1 对有明确 wire 缓存指标的新记录提供归一口径，见下节。
 - 本卡不引入汇率/多币种。
 - 095（导入导出）/ 096（多端点）与 UI 未做；091/092 见 §11/§12，093/094 见 §13/§14。
+
+### V2.1 缓存命中率与读取节省（任务 189）
+
+`CacheUsageMetrics.promptTokens` 含普通输入、缓存读取、缓存创建各一次：Anthropic 的三项相加，OpenAI 的 `prompt_tokens` 已包含命中量，DeepSeek 使用 prompt 总量或 hit/miss 合计。`billedHitRate = cachedTokens / promptTokens`，跨调用按 token 加权，不取各次百分比的算术平均；未测量的历史调用不混入分母。
+
+原始 `inputTokens` 保留。只有携带明确指标的新记录额外持久化 `billableInputTokens = promptTokens - cachedTokens - creationTokens`；投影、UsageStore、日模型分桶、recent 与 recompute 使用该字段计算普通输入成本，避免含缓存输入重复计价。旧行缺字段时沿用历史算法，不猜测协议语义。
+
+`estimatedSavingsUsd` 明确表示**读取节省**，即命中 token 按普通输入单价计费与缓存读价计费之差，不扣缓存创建溢价，也不代表净利润。单价复用既有模型/目录/协议/default 解析链，持久统计应用供应商成本倍率；缺少读价时不猜折扣，fallback 标记估算。CLI `vessel usage --cache` 展示加权命中率与读取节省，并说明未测量条目。
+
+明确测量的缓存 token 缺少适用单价时，以普通输入价保守估算，不能当成免费；存在读价但缺写价时仍使用 §7 的 `input × 1.25` 推导写价，并标记估算。显式零单价保留精确零值。`measuredCreationTokens` 在累计记录中持久化，重载与重算保持相同估算标记；未测量旧记录沿用历史计价。Web 每次模型调用的费用由服务端单独计价，重新打开会话不会把历史累计费用计入新回合。
 
 ## 11. 定价变更回填：`vessel usage recompute`（091）
 

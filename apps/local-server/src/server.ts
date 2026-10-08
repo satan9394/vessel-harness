@@ -1,3 +1,4 @@
+import { priceCacheMetrics, type CacheUsageMetrics } from '@vessel/shared';
 import * as fs from 'node:fs';
 import * as http from 'node:http';
 import * as path from 'node:path';
@@ -1037,6 +1038,7 @@ export function createVesselServer(opts: VesselServerOptions = {}): VesselServer
           inputTokens?: number;
           outputTokens?: number;
           reasoningTokens?: number;
+          cacheMetrics?: CacheUsageMetrics;
           cacheReadTokens?: number;
           cacheCreationTokens?: number;
         };
@@ -1046,7 +1048,12 @@ export function createVesselServer(opts: VesselServerOptions = {}): VesselServer
       const key = modelCallKey(p);
       const started = key ? modelStartedAt.get(key) : undefined;
       if (key) modelStartedAt.delete(key);
+      const totals = ctl.projections.usage.usage();
+      const cache = usage.cacheMetrics ? priceCacheMetrics(usage.cacheMetrics, ctl.projections.usage.pricing()) : undefined;
       sse('usage', {
+        cacheMetrics: cache,
+        ...ctl.projections.usage.costForUsage(usage),
+        summary: totals,
         inputTokens: usage.inputTokens ?? 0,
         outputTokens: usage.outputTokens ?? 0,
         reasoningTokens: usage.reasoningTokens,

@@ -306,3 +306,47 @@ When there is nothing worth recording, not writing is the correct behavior.
     - 身份守卫：`identity-guard.sh` exit 0；
   - 任务卡 `tasks/185-web-swarm-topology-and-cognitive-dashboard.md` 标记为「已合入（2026-10-04 本地验收）」。
 - **状态**: 任务 185 本地验收闭环，合入 `main` 分支。V2.0 阶段全任务均已圆满收官。
+
+---
+
+## 2026-10-05 · V2.0 全量阶段独立核验审查（Evaluator Review）与审查报告出具
+
+- **Agent**: @agy (Gemini 3.8 Flash High)
+- **事件**:
+  - 响应用户「执行review」指令，针对 V2.0 全量交付物（任务 182、Epic 183、Epic 187、任务 185 及前沿调研）执行独立 Evaluator 审查并出具权威核验报告（`docs/REVIEW-REPORT-V2.0.md`）；
+  - **核心纪律与边界独立取证**：
+    1. 薄核（Thin Core）铁律：V2.0 周期内 `packages/core` diff 严格为 0 行，零外部依赖入侵与反向依赖；
+    2. 安全沙箱与权限：Windows Job Object + Low Integrity 受限令牌降权真实编译挂载，POSIX/macOS 探测降级优雅留痕，密钥与敏感凭据脱敏；
+    3. 认知反思飞轮：确定性规则模式提炼，杜绝未受信文本污染指令；向量余弦计算防除零防溢出，SQLite WAL 表版本平滑迁移；
+    4. 分布式 Swarm 网格：24 字节 Launch Token + HMAC-SHA256 签名 + 时序安全比较 + 短窗口 Nonce 防重放，DAG 子图依赖闭包与所有权锁严密；
+    5. 锁文件与删除纪律：唯一 `package-lock.json`，无 pnpm/bun/yarn 锁文件，测试仅清理 `os.tmpdir()` 自建目录，零破坏性删除；
+  - **全量终态门禁实测通过**：
+    - 全量回归：`npm run test:all` 双 Root 全绿（根套件 226 文件 / 2,558 passed + 6 skipped，Web 套件 19 文件 / 172 passed，累计 **2,730 passed + 6 skipped** 全绿，exit 0）；
+    - 类型构建：`npx tsc -b tsconfig.json` exit 0、`npm run typecheck:tests` exit 0；
+    - 生产构建：`npm run -w @vessel/web build` 1.01s exit 0；
+    - 身份守卫：`identity-guard.sh` exit 0（中性身份 0 泄露）；
+    - 离线基线：`npm run bench:conformance` 25/25 100% 通过（exit 0）；
+    - CLI 诊断：`vessel doctor` 结构化自检 pass，exit 0。
+- **裁定**: **VERDICT: PASS**（无 BLOCKER、无 MAJOR，出具 `docs/REVIEW-REPORT-V2.0.md`）。
+
+---
+
+## 2026-10-08 · Epic 191 V2.1 前缀缓存经济学、无进展熔断与高韧性运行中枢全量交付闭环
+
+- **Agent**: @agy (Gemini 3.8 Flash High)
+- **事件**:
+  - 接收并核验 Codex (GPT-6.1 Sol · 二级思考) 关于 Epic 191（融合阶段 188、189、190）的最终交付工作证明（`evidence/sessions/2026-10-07-v2.1/final-delivery-proof.md`）；
+  - 针对 Windows 环境下进程调用与 NTFS 物理开销，经维护者拍板批准新性能指标（50 文件 fixture warm ≤ 50ms；全仓 ≤ 2000 文件 cold ≤ 1500ms、warm p95 ≤ 1000ms），解除了原理论 <25ms 阻塞；
+  - 依据 personal-dev-workflow 规范完成独立对抗验收与完整交付物审核：
+    1. 阶段一（任务 188：确定性序列化与三段式前缀）：在 `packages/llm/src/canonical/` 落地 `canonicalJson` / `stableStringify` 深排序序列化，在 `packages/context/src/builder/` 落地 `TripartitePrefixBuilder`，解耦 `stablePrefix`（SHA-256 指纹持久复用）、`scopedPrefix` 与 `volatileSuffix`，在 `packages/context/src/compaction/` 落地 `CompactionBoundaryGuard` 硬锁定 `turnIndex === 0` 压缩边界；
+    2. 阶段二（任务 189：多供应商真实缓存计费命中率与多维透视）：在 `packages/shared/src/cacheMetrics.ts` 与 `packages/llm/` 统一解包 Anthropic/OpenAI/DeepSeek 缓存计量字段，在 `packages/application/src/projections/` 聚合计算真实 `billedHitRate` 并提供 `audit/cache_drift` 击穿告警，打通 CLI `usage --cache` 与 Web `UsageBar` / `TalkingMetricsBar` 缓存徽章；
+    3. 阶段三（任务 190：工作区状态指纹与无进展死循环熔断器）：在 `packages/tools/src/filesystem/workspaceFingerprint.ts` 落地精准物理文件哈希与二进制 Git patch 比对，在 `packages/tools/src/execution/NoProgressBreaker.ts` 与 `packages/engine/` 实现连续停滞/重复报错的主动安全熔断；
+    4. 架构与边界守卫：`packages/core` 0 改动，0 外部依赖引入；删除纪律偏差（189 早期构建清空 dist）明确实测披露并于后续构建以 `--emptyOutDir false` 杜绝；
+  - **全量终态门禁实测通过**：
+    - 性能基准：`scripts/bench-workspace-fingerprint.ts` 实测 50 文件 fixture warm 最大 42.58ms；全仓 1739 文件 cold 905.85ms、warm p95 673.41ms，完全达标；
+    - 类型构建：`npx tsc -b tsconfig.json` exit 0、`npm run typecheck:tests` exit 0；
+    - 生产构建：`npm run -w @vessel/web build -- --emptyOutDir false` exit 0；
+    - 全量回归：`npm run test:all` 双 Root 全绿（根套件 236 文件 / 2634 passed / 6 skipped，Web 套件 20 文件 / 177 passed，累计 **2,811 passed + 6 skipped** 全绿，exit 0）；
+    - 身份守卫：`identity-guard.sh` exit 0（中性身份 0 泄露）；
+  - 任务卡 `tasks/188`、`tasks/189`、`tasks/190` 与 `tasks/191` 全部更新为「已验收 PASS」。
+- **状态**: Epic 191 本地交付闭环，V2.1 阶段里程碑全部收官。

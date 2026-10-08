@@ -1,0 +1,31 @@
+
+ RUN  v5.0.1 E:/Code_file/Projects/Vessel_Harness
+
+(node:13532) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+stdout | packages/memory/src/sqlite/sessionIndex.test.ts > SQLite session projection > reads 50-row and 1000-row hot pages in under5ms using only SQL
+session index: 1000-session/50-row page median 0.376ms
+
+stdout | packages/memory/src/sqlite/sessionIndex.test.ts > SQLite session projection > reads 50-row and 1000-row hot pages in under5ms using only SQL
+session index: 1000-session/1000-row page median 5.677ms
+
+ ❯ packages/memory/src/sqlite/sessionIndex.test.ts (7 tests | 1 failed) 747ms
+   ❯ SQLite session projection (7)
+     × reads 50-row and 1000-row hot pages in under5ms using only SQL 356ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  packages/memory/src/sqlite/sessionIndex.test.ts > SQLite session projection > reads 50-row and 1000-row hot pages in under5ms using only SQL
+AssertionError: expected 5.676799999999957 to be less than 5
+ ❯ packages/memory/src/sqlite/sessionIndex.test.ts:70:114
+
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 6 passed (7)
+   Start at  20:45:06
+   Duration  1.22s (tests 75%, transform 13%, import 9%, setup 2%, worker 1%)
+
+EXIT_CODE=1

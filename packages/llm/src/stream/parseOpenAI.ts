@@ -1,3 +1,4 @@
+import { extractProviderCacheMetrics } from '@vessel/shared';
 /**
  * llm/stream — OpenAI SSE `data:` line parser → StreamChunk[].
  *
@@ -82,7 +83,7 @@ export interface OpenAIDelta {
 export interface OpenAIStreamChunk {
   model?: string;
   choices?: { delta?: OpenAIDelta; finish_reason?: string | null }[];
-  usage?: { prompt_tokens?: number; completion_tokens?: number; prompt_tokens_details?: { cached_tokens?: number } };
+  usage?: { prompt_tokens?: number; completion_tokens?: number; prompt_tokens_details?: { cached_tokens?: number }; prompt_cache_hit_tokens?: number; prompt_cache_miss_tokens?: number };
 }
 
 export interface OpenAIToolState {
@@ -297,7 +298,8 @@ export function parseOpenAIStreamChunk(
       type: 'usage',
       inputTokens: body.usage.prompt_tokens,
       outputTokens: body.usage.completion_tokens,
-      cacheReadTokens: body.usage.prompt_tokens_details?.cached_tokens,
+      cacheReadTokens: body.usage.prompt_cache_hit_tokens ?? body.usage.prompt_tokens_details?.cached_tokens,
+      ...(body.usage.prompt_cache_hit_tokens !== undefined || body.usage.prompt_tokens_details?.cached_tokens !== undefined ? { cacheMetrics: extractProviderCacheMetrics(body.usage, 'openai-compatible', body.model ?? '') } : {}),
     });
   }
 

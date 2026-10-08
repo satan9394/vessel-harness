@@ -1,0 +1,658 @@
+
+> composable-agent-harness@0.10.0 test:all
+> vitest run && vitest run --root apps/web
+
+
+ RUN  v5.0.1 E:/Code_file/Projects/Vessel_Harness
+
+(node:27236) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:3788) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:22520) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:8864) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:23768) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:27860) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:19316) [DEP0190] DeprecationWarning: Passing args to a child process with shell option true can lead to security vulnerabilities, as the arguments are not escaped, only concatenated.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+(node:11172) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+ ❯ packages/agents/src/evaluator/evaluator-agent.test.ts (15 tests | 3 failed) 639ms
+   ❯ BRIEF — 未跑完的评审回合必须如实上报（旧实现恒 stopReason=completed） (5)
+     × ① kind=error 的回合 ⇒ stopReason 由 kind 决定（旧实现恒 completed ⇒ 必红） 88ms
+   ❯ BRIEF — evaluator 镜像事件 start/stop 的 delegateId 必须成对（旧实现两处各自现算 ⇒ 永不相等） (4)
+     × ② 投影按同一 delegateId 反查到该行并落定（镜像 TeamProjection.ts:180-205；旧实现丢事件 ⇒ 必红） 103ms
+     × ③ 负对照：修复只动 delegateId —— verdict 解析 / stopReason 映射 / result 键集 / 只读工具面逐字不变 100ms
+ ❯ packages/application/src/projections/teamProjection.test.ts (10 tests | 2 failed) 352ms
+   ❯ BRIEF — 真实 TeamProjection 收到 evaluator 的 stop（旧实现 delegateId 不配对 ⇒ 行停在 running） (3)
+     × ① 熔断回合（kind=error）：投影那一行由 running 落定为 done，start/stop 的 delegateId 成对 176ms
+     × ② kind=error 的评审回合：stopReason（非 completed）/isError/durationMs/产出预览都真的到达投影那一行 123ms
+(node:26940) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:17092) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:25952) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:24600) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:27480) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:18640) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+ ❯ benchmarks/runners/src/lane/opencodeGoChatProvider.test.ts (14 tests | 1 failed) 66ms
+   ❯ 102 — mock 端到端（解析 + 推理模型） (2)
+     × OpenAI 形态补全体 → content/toolCalls/usage/finishReason 正确归一 9ms
+(node:27920) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:10604) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:25548) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:12316) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:18788) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:20796) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:21888) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+stdout | packages/memory/src/sqlite/sessionIndex.test.ts > SQLite session projection > reads 50-row and 1000-row hot pages in under5ms using only SQL
+session index: 1000-session/50-row page median 0.473ms
+
+stdout | packages/memory/src/sqlite/sessionIndex.test.ts > SQLite session projection > reads 50-row and 1000-row hot pages in under5ms using only SQL
+session index: 1000-session/1000-row page median 6.536ms
+
+ ❯ packages/memory/src/sqlite/sessionIndex.test.ts (7 tests | 1 failed) 785ms
+   ❯ SQLite session projection (7)
+     × reads 50-row and 1000-row hot pages in under5ms using only SQL 407ms
+(node:18292) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+[?25l|
+o  
+[?25h|
+*  已切换。vessel run 现在走 DeepSeek/deepseek-chat（热生效，无需重启）
+|
+*  已保存供应商 "deepseek" 到 ~/.vessel/providers.json
+|
+•  mock 是内置离线供应商，无需配置。
+[?25l|
+o  
+[?25h|
+*  已切换。vessel run 现在走 DeepSeek/deepseek-chat（热生效，无需重启）
+|
+*  已保存供应商 "deepseek" 到 ~/.vessel/providers.json
+[?25l|
+o  
+[?25h|
+!  模拟网络失败 — 转手动输入模型 id（或留空退出）。
+|
+*  已切换。vessel run 现在走 vLLM（自托管）/custom-model（热生效，无需重启）
+|
+*  已保存供应商 "vllm" 到 ~/.vessel/providers.json
+[?25l|
+o  
+[?25h|
+*  已切换。vessel run 现在走 自定义供应商/m1（热生效，无需重启）
+|
+*  已保存供应商 "gateway-example-com-v1" 到 ~/.vessel/providers.json
+[?25l|
+o  
+(node:24828) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:16856) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:20188) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:4036) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:6992) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:26716) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:11992) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:22828) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+warning: in the working copy of 'code.ts', LF will be replaced by CRLF the next time Git touches it
+(node:27300) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:8800) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+[?25h ❯ packages/application/src/noProgressIntegration.test.ts (5 tests | 3 failed) 400ms
+   × reconciles a production four-call interrupted batch for a resumed new turn (wire) 113ms
+   × reconciles a production four-call interrupted batch for a resumed new turn (pressure) 72ms
+   × reconciles a production four-call interrupted batch for a resumed new turn (overflow) 65ms
+(node:4648) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:12148) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:12524) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+ ❯ packages/context/src/compaction/CompactionBoundaryGuard.test.ts (7 tests | 1 failed) 18ms
+   ❯ compaction boundary (7)
+     × abandons only durably ended batches and still blocks unfinished current turns 7ms
+ ❯ packages/tools/src/execution/noProgressGuard.test.ts (12 tests | 12 failed) 274ms
+   × classifies concrete error codes despite physical writes and resets between turns 65ms
+   × stops before execution when the workspace cannot be observed, with an explicit diagnostic 6ms
+   × ignores late old execution success after a new turn starts 27ms
+   × ignores late old execution rejection after a new turn starts 25ms
+   × ignores late old execution superseded after a new turn starts 25ms
+   × fences delayed old baseline and queued observations 9ms
+   × fences delayed old baseline_failure and queued observations 7ms
+   × fences delayed old observation and queued observations 6ms
+   × fences delayed old failure and queued observations 7ms
+   × exposes a generation fence across a delayed durable stop callback 32ms
+   × policy denials do not consume executed success observations 26ms
+   × policy denials do not consume executed error observations 31ms
+
+⎯⎯⎯⎯⎯⎯ Failed Tests 23 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  packages/application/src/noProgressIntegration.test.ts > reconciles a production four-call interrupted batch for a resumed new turn (wire)
+ FAIL  packages/application/src/noProgressIntegration.test.ts > reconciles a production four-call interrupted batch for a resumed new turn (pressure)
+ FAIL  packages/application/src/noProgressIntegration.test.ts > reconciles a production four-call interrupted batch for a resumed new turn (overflow)
+AssertionError: expected false to be true // Object.is equality
+
+- Expected
++ Received
+
+- true
++ false
+
+ ❯ packages/application/src/noProgressIntegration.test.ts:57:64
+     55|   const attempt = before.find(r => r.type === 'assistant/attempt');
+     56|   expect(attempt?.type === 'assistant/attempt' && attempt.toolCalls).t…
+     57|   expect(CompactionBoundaryGuard.canCompactHistory(0, before)).toBe(tr…
+       |                                                                ^
+     58|   const sessionId = harness.session.sessionId;
+     59|   await harness.close(); harness = undefined;
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/23]⎯
+
+ FAIL  benchmarks/runners/src/lane/opencodeGoChatProvider.test.ts > 102 — mock 端到端（解析 + 推理模型） > OpenAI 形态补全体 → content/toolCalls/usage/finishReason 正确归一
+AssertionError: expected { inputTokens: 248, …(3) } to deeply equal { inputTokens: 248, …(2) }
+
+- Expected
++ Received
+
+  {
++   "cacheMetrics": {
++     "billedHitRate": 0.7741935483870968,
++     "cachedTokens": 192,
++     "creationTokens": 0,
++     "estimatedSavingsUsd": 0,
++     "model": "mimo-v2.5",
++     "promptTokens": 248,
++     "provider": "opencode-go",
++   },
+    "cacheReadTokens": 192,
+    "inputTokens": 248,
+    "outputTokens": 8,
+  }
+
+ ❯ benchmarks/runners/src/lane/opencodeGoChatProvider.test.ts:238:23
+    236|     expect(res.finishReason).toBe('tool_calls');
+    237|     expect(res.toolCalls[0]).toMatchObject({ id: 'call_1', name: 'read…
+    238|     expect(res.usage).toEqual({ inputTokens: 248, outputTokens: 8, cac…
+       |                       ^
+    239|       cacheMetrics: { promptTokens: 248, cachedTokens: 192, creationTo…
+    240|         estimatedSavingsUsd: 0, provider: 'opencode-go', model: 'mimo-…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/23]⎯
+
+ FAIL  packages/agents/src/evaluator/evaluator-agent.test.ts > BRIEF — 未跑完的评审回合必须如实上报（旧实现恒 stopReason=completed） > ① kind=error 的回合 ⇒ stopReason 由 kind 决定（旧实现恒 completed ⇒ 必红）
+AssertionError: expected 'aborted' to be 'error' // Object.is equality
+
+Expected: "error"
+Received: "aborted"
+
+ ❯ packages/agents/src/evaluator/evaluator-agent.test.ts:276:41
+    274|     expect(stops).toHaveLength(1);
+    275|     // 删掉 `const stopReason = mapTurnKindToStopReason(turn.kind)` / 换回…
+    276|     expect(stops[0]!.result.stopReason).toBe('error');
+       |                                         ^
+    277|     // isError 与之一致（stopReason≠completed ⇒ isError）
+    278|     expect(stops[0]!.isError).toBe(true);
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/23]⎯
+
+ FAIL  packages/agents/src/evaluator/evaluator-agent.test.ts > BRIEF — evaluator 镜像事件 start/stop 的 delegateId 必须成对（旧实现两处各自现算 ⇒ 永不相等） > ② 投影按同一 delegateId 反查到该行并落定（镜像 TeamProjection.ts:180-205；旧实现丢事件 ⇒ 必红）
+AssertionError: expected 'aborted' to be 'error' // Object.is equality
+
+Expected: "error"
+Received: "aborted"
+
+ ❯ packages/agents/src/evaluator/evaluator-agent.test.ts:448:41
+    446|     await breakingAgent(workspace, bus).evaluate({ goal: 'g', generato…
+    447|
+    448|     expect(stops[0]!.result.stopReason).toBe('error');
+       |                                         ^
+    449|     const rows = mirrorDelegateRows(starts, stops);
+    450|     expect(rows).toHaveLength(1);
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/23]⎯
+
+ FAIL  packages/agents/src/evaluator/evaluator-agent.test.ts > BRIEF — evaluator 镜像事件 start/stop 的 delegateId 必须成对（旧实现两处各自现算 ⇒ 永不相等） > ③ 负对照：修复只动 delegateId —— verdict 解析 / stopReason 映射 / result 键集 / 只读工具面逐字不变
+AssertionError: expected { output: '', …(2) } to deeply equal { …(3) }
+
+- Expected
++ Received
+
+  {
+-   "diagnostic": "evaluator turn ended with kind=error",
+-   "output": "same intent denied 3 times: Read",
+-   "stopReason": "error",
++   "diagnostic": "evaluator turn ended with kind=interrupted",
++   "output": "",
++   "stopReason": "aborted",
+  }
+
+ ❯ packages/agents/src/evaluator/evaluator-agent.test.ts:508:31
+    506|     const stops2 = collectStops(bus2);
+    507|     await breakingAgent(workspace, bus2).evaluate({ goal: 'g', generat…
+    508|     expect(stops2[0]!.result).toEqual({
+       |                               ^
+    509|       output: BREAKER_TEXT,
+    510|       stopReason: 'error',
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[5/23]⎯
+
+ FAIL  packages/application/src/projections/teamProjection.test.ts > BRIEF — 真实 TeamProjection 收到 evaluator 的 stop（旧实现 delegateId 不配对 ⇒ 行停在 running） > ① 熔断回合（kind=error）：投影那一行由 running 落定为 done，start/stop 的 delegateId 成对
+AssertionError: expected { …(9) } to match object { …(6) }
+(3 matching properties omitted from actual)
+
+- Expected
++ Received
+
+@@ -2,7 +2,7 @@
+    "delegateId": "eval_1791430706134_9e4b97",
+    "isError": true,
+    "parentMemberId": "lead",
+    "preset": "evaluator",
+    "status": "done",
+-   "stopReason": "error",
++   "stopReason": "aborted",
+  }
+
+ ❯ packages/application/src/projections/teamProjection.test.ts:464:61
+    462|     const delegates = run.projection.state()!.delegates;
+    463|     expect(delegates).toHaveLength(1);
+    464|     expect(delegates.find((d) => d.delegateId === startId)).toMatchObj…
+       |                                                             ^
+    465|       delegateId: startId,
+    466|       parentMemberId: 'lead', // team_phase.delegateOf → 父成员（TeamProje…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[6/23]⎯
+
+ FAIL  packages/application/src/projections/teamProjection.test.ts > BRIEF — 真实 TeamProjection 收到 evaluator 的 stop（旧实现 delegateId 不配对 ⇒ 行停在 running） > ② kind=error 的评审回合：stopReason（非 completed）/isError/durationMs/产出预览都真的到达投影那一行
+AssertionError: expected 'aborted' to be 'error' // Object.is equality
+
+Expected: "error"
+Received: "aborted"
+
+ ❯ packages/application/src/projections/teamProjection.test.ts:487:29
+    485|     expect(row!.stopReason).not.toBe('completed');
+    486|     expect(row!.stopReason).toBe(run.stops[0]!.result.stopReason);
+    487|     expect(row!.stopReason).toBe('error');
+       |                             ^
+    488|     expect(row!.isError).toBe(true);
+    489|     expect(row!.isError).toBe(run.stops[0]!.isError);
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[7/23]⎯
+
+ FAIL  packages/context/src/compaction/CompactionBoundaryGuard.test.ts > compaction boundary > abandons only durably ended batches and still blocks unfinished current turns
+AssertionError: expected false to be true // Object.is equality
+
+- Expected
++ Received
+
+- true
++ false
+
+ ❯ packages/context/src/compaction/CompactionBoundaryGuard.test.ts:32:91
+     30|     const start = { type: 'turn/start', turnId: 'new' } as SessionReco…
+     31|     expect(CompactionBoundaryGuard.canCompactHistory(0, [attempt, resu…
+     32|     expect(CompactionBoundaryGuard.canCompactHistory(0, [attempt, resu…
+       |                                                                                           ^
+     33|     expect([...CompactionBoundaryGuard.abandonedToolCalls([attempt, re…
+     34|     const active = { type: 'assistant/attempt', toolCalls: [{ toolCall…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[8/23]⎯
+
+ FAIL  packages/memory/src/sqlite/sessionIndex.test.ts > SQLite session projection > reads 50-row and 1000-row hot pages in under5ms using only SQL
+AssertionError: expected 6.535900000000083 to be less than 5
+ ❯ packages/memory/src/sqlite/sessionIndex.test.ts:70:114
+
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[9/23]⎯
+
+ FAIL  packages/tools/src/execution/noProgressGuard.test.ts > classifies concrete error codes despite physical writes and resets between turns
+AssertionError: expected "vi.fn()" to be called with arguments: [ ObjectContaining{…}, Any<Function> ]
+
+Received:
+
+  1st vi.fn() call:
+
+  [
+-   ObjectContaining {
++   {
+      "consecutiveErrorCount": 3,
++     "lastMeaningfulChange": {
++       "stepIndex": 3,
++       "timestamp": 1791431083480,
++       "toolName": "Read",
++       "trackedFilesHash": "717b40c9fcc924d8789542d4aed5069e354304fead18b94eab94ad0228bfd799",
++     },
+      "reason": "repeated_tool_error",
+      "repeatedError": "ENOENT",
++     "shouldBreak": true,
+      "stagnantStepCount": 0,
++     "stepIndex": 3,
++     "suggestion": "Inspect the repeated failure and last physical change; adjust the strategy before resuming.",
++     "toolName": "Read",
+    },
+-   Any<Function>,
+  ]
+
+
+Number of calls: 1
+
+ ❯ packages/tools/src/execution/noProgressGuard.test.ts:19:16
+     17|   };
+     18|   for (let i = 0; i < 3; i++) await guard.run('Read', signal, execute);
+     19|   expect(stop).toHaveBeenCalledWith(expect.objectContaining({ reason: …
+       |                ^
+     20|   stop.mockClear();
+     21|   await guard.run('Read', new AbortController().signal, execute);
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[10/23]⎯
+
+ FAIL  packages/tools/src/execution/noProgressGuard.test.ts > stops before execution when the workspace cannot be observed, with an explicit diagnostic
+AssertionError: expected "vi.fn()" to be called with arguments: [ ObjectContaining{…}, Any<Function> ]
+
+Received:
+
+  1st vi.fn() call:
+
+  [
+-   ObjectContaining {
++   {
++     "consecutiveErrorCount": 0,
+      "reason": "workspace_observation_failed",
+      "repeatedError": "Error: EACCES",
++     "shouldBreak": true,
++     "stagnantStepCount": 0,
++     "stepIndex": 0,
++     "suggestion": "Restore read access to the workspace before resuming; physical progress cannot be verified.",
++     "toolName": "workspace_baseline",
+    },
+-   Any<Function>,
+  ]
+
+
+Number of calls: 1
+
+ ❯ packages/tools/src/execution/noProgressGuard.test.ts:30:16
+     28|   await expect(guard.run('Read', undefined, execute)).rejects.toThrow(…
+     29|   expect(execute).not.toHaveBeenCalled();
+     30|   expect(stop).toHaveBeenCalledWith(expect.objectContaining({ reason: …
+       |                ^
+     31| });
+     32|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[11/23]⎯
+
+ FAIL  packages/tools/src/execution/noProgressGuard.test.ts > ignores late old execution success after a new turn starts
+ FAIL  packages/tools/src/execution/noProgressGuard.test.ts > ignores late old execution superseded after a new turn starts
+AssertionError: expected "vi.fn()" to not be called at all, but actually been called 1 times
+
+Received:
+
+  1st vi.fn() call:
+
+    Array [
+      Object {
+        "consecutiveErrorCount": 0,
+        "lastMeaningfulChange": undefined,
+        "reason": "workspace_stagnation",
+        "repeatedError": undefined,
+        "shouldBreak": true,
+        "stagnantStepCount": 3,
+        "stepIndex": 3,
+        "suggestion": "Inspect the repeated failure and last physical change; adjust the strategy before resuming.",
+        "toolName": "Old",
+      },
+    ]
+
+
+Number of calls: 1
+
+ ❯ packages/tools/src/execution/noProgressGuard.test.ts:52:20
+     50|   if (outcome !== 'rejection') pending.resolve({}); else pending.rejec…
+     51|   await settled;
+     52|   expect(stop).not.toHaveBeenCalled();
+       |                    ^
+     53|   await guard.run('New', next.signal, async () => ({}));
+     54|   expect(stop).toHaveBeenCalledTimes(1);
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[12/23]⎯
+
+ FAIL  packages/tools/src/execution/noProgressGuard.test.ts > ignores late old execution rejection after a new turn starts
+AssertionError: expected "vi.fn()" to not be called at all, but actually been called 1 times
+
+Received:
+
+  1st vi.fn() call:
+
+    Array [
+      Object {
+        "consecutiveErrorCount": 1,
+        "lastMeaningfulChange": undefined,
+        "reason": "workspace_stagnation",
+        "repeatedError": "UNKNOWN",
+        "shouldBreak": true,
+        "stagnantStepCount": 3,
+        "stepIndex": 3,
+        "suggestion": "Inspect the repeated failure and last physical change; adjust the strategy before resuming.",
+        "toolName": "Old",
+      },
+    ]
+
+
+Number of calls: 1
+
+ ❯ packages/tools/src/execution/noProgressGuard.test.ts:52:20
+     50|   if (outcome !== 'rejection') pending.resolve({}); else pending.rejec…
+     51|   await settled;
+     52|   expect(stop).not.toHaveBeenCalled();
+       |                    ^
+     53|   await guard.run('New', next.signal, async () => ({}));
+     54|   expect(stop).toHaveBeenCalledTimes(1);
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[13/23]⎯
+
+ FAIL  packages/tools/src/execution/noProgressGuard.test.ts > fences delayed old baseline and queued observations
+AssertionError: expected "vi.fn()" to not be called at all, but actually been called 1 times
+
+Received:
+
+  1st vi.fn() call:
+
+    Array []
+
+
+Number of calls: 1
+
+ ❯ packages/tools/src/execution/noProgressGuard.test.ts:76:37
+     74|   if (phase.includes('failure')) delayed.reject(new Error('old fingerp…
+     75|   await Promise.all([run, queued]);
+     76|   if (baseline) expect(execute).not.toHaveBeenCalled();
+       |                                     ^
+     77|   expect(stop).not.toHaveBeenCalled();
+     78|   await guard.run('New', next.signal, async () => ({}));
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[14/23]⎯
+
+ FAIL  packages/tools/src/execution/noProgressGuard.test.ts > fences delayed old baseline_failure and queued observations
+AssertionError: expected "vi.fn()" to not be called at all, but actually been called 1 times
+
+Received:
+
+  1st vi.fn() call:
+
+    Array [
+      Object {
+        "consecutiveErrorCount": 0,
+        "reason": "workspace_observation_failed",
+        "repeatedError": "Error: old fingerprint failure",
+        "shouldBreak": true,
+        "stagnantStepCount": 0,
+        "stepIndex": 2,
+        "suggestion": "Restore read access to the workspace before resuming; physical progress cannot be verified.",
+        "toolName": "workspace_baseline",
+      },
+    ]
+
+
+Number of calls: 1
+
+ ❯ packages/tools/src/execution/noProgressGuard.test.ts:77:20
+     75|   await Promise.all([run, queued]);
+     76|   if (baseline) expect(execute).not.toHaveBeenCalled();
+     77|   expect(stop).not.toHaveBeenCalled();
+       |                    ^
+     78|   await guard.run('New', next.signal, async () => ({}));
+     79|   expect(stop).toHaveBeenCalledTimes(1);
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[15/23]⎯
+
+ FAIL  packages/tools/src/execution/noProgressGuard.test.ts > fences delayed old observation and queued observations
+AssertionError: expected "vi.fn()" to not be called at all, but actually been called 1 times
+
+Received:
+
+  1st vi.fn() call:
+
+    Array [
+      Object {
+        "consecutiveErrorCount": 0,
+        "lastMeaningfulChange": undefined,
+        "reason": "workspace_stagnation",
+        "repeatedError": undefined,
+        "shouldBreak": true,
+        "stagnantStepCount": 3,
+        "stepIndex": 3,
+        "suggestion": "Inspect the repeated failure and last physical change; adjust the strategy before resuming.",
+        "toolName": "Old",
+      },
+    ]
+
+
+Number of calls: 1
+
+ ❯ packages/tools/src/execution/noProgressGuard.test.ts:77:20
+     75|   await Promise.all([run, queued]);
+     76|   if (baseline) expect(execute).not.toHaveBeenCalled();
+     77|   expect(stop).not.toHaveBeenCalled();
+       |                    ^
+     78|   await guard.run('New', next.signal, async () => ({}));
+     79|   expect(stop).toHaveBeenCalledTimes(1);
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[16/23]⎯
+
+ FAIL  packages/tools/src/execution/noProgressGuard.test.ts > fences delayed old failure and queued observations
+AssertionError: expected "vi.fn()" to not be called at all, but actually been called 1 times
+
+Received:
+
+  1st vi.fn() call:
+
+    Array [
+      Object {
+        "consecutiveErrorCount": 0,
+        "reason": "workspace_observation_failed",
+        "repeatedError": "Error: old fingerprint failure",
+        "shouldBreak": true,
+        "stagnantStepCount": 0,
+        "stepIndex": 2,
+        "suggestion": "Restore read access to the workspace before resuming; physical progress cannot be verified.",
+        "toolName": "Old",
+      },
+    ]
+
+
+Number of calls: 1
+
+ ❯ packages/tools/src/execution/noProgressGuard.test.ts:77:20
+     75|   await Promise.all([run, queued]);
+     76|   if (baseline) expect(execute).not.toHaveBeenCalled();
+     77|   expect(stop).not.toHaveBeenCalled();
+       |                    ^
+     78|   await guard.run('New', next.signal, async () => ({}));
+     79|   expect(stop).toHaveBeenCalledTimes(1);
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[17/23]⎯
+
+ FAIL  packages/tools/src/execution/noProgressGuard.test.ts > exposes a generation fence across a delayed durable stop callback
+TypeError: isCurrent is not a function
+ ❯ NoProgressGuard.stop packages/tools/src/execution/noProgressGuard.test.ts:87:9
+     85|   const guard = new NoProgressGuard(root, async (_diagnostic, isCurren…
+     86|     entered.resolve(); await durable.promise;
+     87|     if (isCurrent()) interrupt();
+       |         ^
+     88|   });
+     89|   const old = new AbortController(); const next = new AbortController(…
+ ❯ NoProgressGuard.observe packages/tools/src/execution/noProgressGuard.ts:33:52
+ ❯ NoProgressGuard.run packages/tools/src/execution/noProgressGuard.ts:50:5
+ ❯ packages/tools/src/execution/noProgressGuard.test.ts:94:22
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[18/23]⎯
+
+ FAIL  packages/tools/src/execution/noProgressGuard.test.ts > policy denials do not consume executed success observations
+ FAIL  packages/tools/src/execution/noProgressGuard.test.ts > policy denials do not consume executed error observations
+AssertionError: expected "vi.fn()" to not be called at all, but actually been called 1 times
+
+Received:
+
+  1st vi.fn() call:
+
+    Array [
+      Object {
+        "consecutiveErrorCount": 3,
+        "lastMeaningfulChange": undefined,
+        "reason": "repeated_tool_error",
+        "repeatedError": "DENIED",
+        "shouldBreak": true,
+        "stagnantStepCount": 3,
+        "stepIndex": 3,
+        "suggestion": "Inspect the repeated failure and last physical change; adjust the strategy before resuming.",
+        "toolName": "Denied",
+      },
+    ]
+
+
+Number of calls: 1
+
+ ❯ packages/tools/src/execution/noProgressGuard.test.ts:102:20
+    100|   const signal = new AbortController().signal;
+    101|   for (let i = 0; i < 3; i++) await guard.run('Denied', signal, async …
+    102|   expect(stop).not.toHaveBeenCalled();
+       |                    ^
+    103|   const execute = async () => {
+    104|     if (outcome === 'success') return {};
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[19/23]⎯
+
+
+ Test Files  7 failed | 229 passed (236)
+      Tests  23 failed | 2599 passed | 6 skipped (2628)
+   Start at  20:32:14
+   Duration  752.84s (tests 90%, import 6%, transform 3%, setup 1%)
+
+    Isolate  236 workers spawned · ~214ms startup each (spawn + environment, per file)
+             at least ~50.30s faster with isolate: false — reuses workers across files instead of one per file
+
+EXIT_CODE=1

@@ -58,6 +58,11 @@ export interface ToolActivity {
 
 /** Cumulative model usage + cost estimate (Usage projection). */
 export interface UsageRecord {
+  measuredCalls: number;
+  promptTokensTotal: number;
+  cachedTokensTotal: number;
+  overallCacheHitRate: number;
+  estimatedSavingsUsd: number;
   inputTokens: number;
   outputTokens: number;
   cacheReadTokens: number;

@@ -1,3 +1,4 @@
+import { extractProviderCacheMetrics } from '@vessel/shared';
 /**
  * llm/stream — Anthropic SSE event parser → StreamChunk[].
  *
@@ -203,6 +204,7 @@ export function anthropicUsageChunk(
     inputTokens: usage.input_tokens,
     outputTokens: usage.output_tokens,
     cacheReadTokens: usage.cache_read_input_tokens,
+    ...(usage.cache_read_input_tokens !== undefined || usage.cache_creation_input_tokens !== undefined ? { cacheMetrics: extractProviderCacheMetrics(usage, 'anthropic', '') } : {}),
     // task 099: Anthropic reports cache writes only on message_start (the
     // message_delta frame carries output_tokens alone), so this stays
     // undefined there — the consumer folds per-field last-wins and an

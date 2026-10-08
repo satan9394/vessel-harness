@@ -1,6 +1,10 @@
 import type { EventBus } from '@vessel/core';
 import {
   EMPTY_PRICING_TABLE,
+  priceCacheMetrics,
+  unknownCacheInputTokens,
+  cacheTariffEstimated,
+  type CacheUsageMetrics,
   costBreakdown,
   resolvePrice,
   type CatalogPriceSource,
@@ -14,7 +18,7 @@ type AfterModelPayload = {
   turnId: string;
   step: number;
   response: unknown;
-  usage?: { inputTokens?: number; outputTokens?: number; cacheReadTokens?: number; cacheCreationTokens?: number };
+  usage?: { inputTokens?: number; outputTokens?: number; cacheReadTokens?: number; cacheCreationTokens?: number; cacheMetrics?: CacheUsageMetrics };
 };
 
 export interface UsageProjectionOptions {
@@ -53,6 +57,12 @@ export class UsageProjection {
   private cacheReadTokens = 0;
   private cacheCreationTokens = 0;
   private calls = 0;
+  private promptTokensTotal = 0;
+  private cachedTokensTotal = 0;
+  private measuredCreationTokens = 0;
+  private measuredCalls = 0;
+  private billedInputTokens = 0;
+  private estimatedSavingsUsd = 0;
 
   constructor(opts: UsageProjectionOptions = {}) {
     this.model = opts.model ?? 'default';
@@ -76,6 +86,13 @@ export class UsageProjection {
         this.outputTokens += usage.outputTokens ?? 0;
         this.cacheReadTokens += usage.cacheReadTokens ?? 0;
         this.cacheCreationTokens += usage.cacheCreationTokens ?? 0;
+        const metrics = usage.cacheMetrics;
+        this.promptTokensTotal += metrics?.promptTokens ?? 0;
+        this.cachedTokensTotal += metrics?.cachedTokens ?? 0;
+        this.measuredCreationTokens += metrics?.creationTokens ?? 0;
+        if (metrics) this.measuredCalls += 1;
+        this.billedInputTokens += metrics ? Math.max(0, metrics.promptTokens - metrics.cachedTokens - metrics.creationTokens) : usage.inputTokens ?? 0;
+        if (metrics) this.estimatedSavingsUsd += priceCacheMetrics(metrics, this.resolution).estimatedSavingsUsd;
         this.calls += 1;
       },
       'projection:usage',
@@ -87,6 +104,17 @@ export class UsageProjection {
     return this.resolution;
   }
 
+  costForUsage(usage: NonNullable<AfterModelPayload['usage']>): { costUsd: number; estimated: boolean } {
+    const metrics = usage.cacheMetrics;
+    const reads = metrics?.cachedTokens ?? 0;
+    const writes = metrics?.creationTokens ?? 0;
+    const input = metrics ? Math.max(0, metrics.promptTokens - reads - writes) : usage.inputTokens ?? 0;
+    return { costUsd: costBreakdown(this.resolution.price, {
+      inputTokens: input + unknownCacheInputTokens(this.resolution.price, reads, writes),
+      outputTokens: usage.outputTokens, cacheReadTokens: usage.cacheReadTokens, cacheCreationTokens: usage.cacheCreationTokens,
+    }).totalUsd, estimated: this.resolution.estimated || cacheTariffEstimated(this.resolution.price, reads, writes) };
+  }
+
   usage(): UsageRecord {
     const input = this.inputTokens;
     const output = this.outputTokens;
@@ -94,7 +122,7 @@ export class UsageProjection {
     const cacheWrite = this.cacheCreationTokens;
     // task 090：与 UsageStore / benchmarks 共用 costBreakdown（四项分算，含 cache 写入）
     const breakdown: CostBreakdown = costBreakdown(this.resolution.price, {
-      inputTokens: input,
+      inputTokens: this.billedInputTokens + unknownCacheInputTokens(this.resolution.price, this.cachedTokensTotal, this.measuredCreationTokens),
       outputTokens: output,
       cacheReadTokens: cache,
       cacheCreationTokens: cacheWrite,
@@ -105,10 +133,15 @@ export class UsageProjection {
       cacheReadTokens: cache,
       cacheCreationTokens: cacheWrite,
       calls: this.calls,
+      promptTokensTotal: this.promptTokensTotal,
+      measuredCalls: this.measuredCalls,
+      cachedTokensTotal: this.cachedTokensTotal,
+      overallCacheHitRate: this.promptTokensTotal > 0 ? this.cachedTokensTotal / this.promptTokensTotal : 0,
+      estimatedSavingsUsd: this.estimatedSavingsUsd,
       costUsd: breakdown.totalUsd,
       costBreakdown: breakdown,
       pricingSource: this.resolution.source,
-      estimated: this.resolution.estimated,
+      estimated: this.resolution.estimated || cacheTariffEstimated(this.resolution.price, this.cachedTokensTotal, this.measuredCreationTokens),
     };
   }
 }

@@ -44,6 +44,10 @@ export interface ToolDelta {
 
 /** usage delta — incremental tokens for this model call (calls is cumulative). */
 export interface UsageDelta {
+  costUsd?: number;
+  estimated?: boolean;
+  cacheMetrics?: import('./cacheUsage.js').CacheUsageMetrics;
+  summary?: import('./cacheUsage.js').UsageSummary;
   inputTokens?: number;
   outputTokens?: number;
   reasoningTokens?: number;

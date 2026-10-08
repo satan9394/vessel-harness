@@ -1,0 +1,8 @@
+{"name":"fixture-50-files","root":"C:\\Users\\SATANC~1\\AppData\\Local\\Temp\\vessel-fingerprint-bench-cOjImM","fileCount":50,"coldMs":76.84300000000002,"warmMedianMs":44.84370000000001,"warmMaxMs":87.35910000000001,"samplesMs":[76.84300000000002,43.40270000000004,44.84370000000001,44.890300000000025,41.14790000000005,43.6952,42.647699999999986,44.59489999999994,78.44180000000006,87.35910000000001,75.96249999999998],"within25ms":false}
+{"name":"actual-repository","root":"E:\\Code_file\\Projects\\Vessel_Harness","fileCount":1705,"coldMs":12428.2901,"warmMedianMs":1278.7360000000008,"warmMaxMs":1771.2044999999998,"samplesMs":[12428.2901,1771.2044999999998,1391.2596999999987,1278.7360000000008,1213.2569000000003,1016.0931999999993,1007.8366999999998,1051.701299999997,1116.869999999999,1425.8119000000006,1433.7011999999995],"within25ms":false}
+{"component":"git --version","samplesMs":[83.98189999999886,103.9362000000001,78.96169999999984,80.55359999999928,77.15239999999903]}
+{"component":"git -C E:\\Code_file\\Projects\\Vessel_Harness ls-files --cached --others --exclude-standard -t -z -- .","samplesMs":[124.15900000000329,110.00850000000355,113.03919999999925,115.79550000000017,127.57630000000063]}
+{"component":"git -C E:\\Code_file\\Projects\\Vessel_Harness diff --no-ext-diff --no-textconv --binary HEAD -- .","samplesMs":[214.225400000003,207.2097999999969,203.13780000000042,211.54979999999705,225.64979999999923]}
+{"component":"lstatSync","fileCount":1624,"elapsedMs":164.4974000000002}
+{"component":"readFileSync","fileCount":1624,"elapsedMs":304.40559999999823}
+{"component":"readFile-32-concurrent","fileCount":1624,"elapsedMs":198.4271000000008}

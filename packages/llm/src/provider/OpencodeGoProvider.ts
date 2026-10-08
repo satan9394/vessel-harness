@@ -1,3 +1,5 @@
+import { extractProviderCacheMetrics } from '@vessel/shared';
+import { canonicalJson } from '../canonical/canonicalJson.js';
 /**
  * task 102 / 103 — opencode-go 真实线协议客户端（Go 端点 `https://opencode.ai/zen/go/v1`）。
  *
@@ -341,7 +343,7 @@ export function toOpencodeGoWireMessages(messages: ChatRequest['messages']): Ope
       base.tool_calls = m.toolCalls.map((tc) => ({
         id: tc.id,
         type: 'function' as const,
-        function: { name: tc.name, arguments: JSON.stringify(tc.arguments) },
+        function: { name: tc.name, arguments: canonicalJson(tc.arguments) },
       }));
     }
     return base;
@@ -458,7 +460,10 @@ export function parseOpencodeGoChatCompletion(body: unknown): OpencodeGoCompleti
     outputTokens: b.usage?.completion_tokens ?? 0,
   };
   const cached = b.usage?.prompt_tokens_details?.cached_tokens;
-  if (typeof cached === 'number') usage.cacheReadTokens = cached;
+  if (typeof cached === 'number') {
+    usage.cacheReadTokens = cached;
+    usage.cacheMetrics = extractProviderCacheMetrics(b.usage as Record<string, unknown>, 'opencode-go', b.model ?? '');
+  }
   const out: OpencodeGoCompletion = {
     // task 109: DeepSeek 系 thinking 模式思维链在 `message.reasoning_content`，
     // opencode-go 在 `message.reasoning` —— 归一进同一个 reasoning 字段（响应归一，请求回传）。
@@ -560,7 +565,7 @@ export class OpencodeGoProvider implements ChatProvider {
       });
     }
     const url = `${this.baseUrl}${info.route}`;
-    const body = JSON.stringify(this.body(model, request));
+    const body = canonicalJson(this.body(model, request));
 
     let lastError: OpencodeGoError | undefined;
     for (let attempt = 1; attempt <= this.maxAttempts; attempt += 1) {
@@ -587,6 +592,7 @@ export class OpencodeGoProvider implements ChatProvider {
         throw httpErr;
       }
       const parsed = parseOpencodeGoChatCompletion(await resp.json());
+      if (parsed.usage.cacheMetrics) parsed.usage.cacheMetrics = { ...parsed.usage.cacheMetrics, provider: this.id, model };
       return {
         content: parsed.content,
         toolCalls: parsed.toolCalls,
