@@ -62,6 +62,7 @@ describe('parseAnthropicEvent — cache write usage (task 099)', () => {
       outputTokens: undefined,
       cacheReadTokens: 1024,
       cacheCreationTokens: 2095,
+      cacheMetrics: { promptTokens: 3131, cachedTokens: 1024, creationTokens: 2095, billedHitRate: 1024 / 3131, estimatedSavingsUsd: 0, provider: 'anthropic', model: '' },
     });
   });
 

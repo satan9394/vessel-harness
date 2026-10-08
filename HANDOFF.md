@@ -2,34 +2,39 @@
 
 > **用途**：新会话 / 新 Agent / 换人接手时，**先读本文件**：现状、未完成清单、验证命令、已知约束都在这里。
 > 规则本身仍在 [`AGENTS.md`](AGENTS.md)；会约束未来的决策在 [`docs/DESIGN-DECISIONS.md`](docs/DESIGN-DECISIONS.md)。
-> **最后更新**：2026-10-04。维护者：单人。
+> **最后更新**：2026-10-08。维护者：单人。
 
 ## 0. 快速接管协议（当用户直接说「继续未完成的」或「继续」时）
 
 **任何 Agent 在接收到「继续」/「继续未完成的」指令时，直接根据本段与 `.agent-state/run-state.json` 向用户汇报并执行：**
 
-1. **当前交付与阶段状态**：**V2.0 阶段全量里程碑完整收官**（任务 182、183、184、185、186、187 全部交付并通过验收合入 `main`）；**当前处于活跃开发暂停状态**。
-2. **已完成与已验证阶段**：
+1. **当前交付与阶段状态**：**V2.0 已收官并独立核验 PASS**；**V2.1 Epic 191（188、189、190）于 2026-10-08 按人类批准的新性能 DoD 完成功能验收闭环 PASS**，工作证明见 [`final-delivery-proof.md`](evidence/sessions/2026-10-07-v2.1/final-delivery-proof.md)。历史删除纪律偏差继续披露，未提交或推送。
+2. **已完成与已验证基线**：
    - 182：跨实例异构 Swarm 网格与事件总线（commit `b6c05b2`）；
    - 183：原生沙箱 Low Integrity 降权 + SQLite 纯 TS 混合记忆 RRF（commit `7ecd828`）；
    - 187（184+186）：Mesh/Memory CLI 控制面、`vessel doctor` 自检诊断与会话后自主反思飞轮（commit `20f1f1f`）；
    - 185：Web 控制台 Swarm 拓扑看板、经验规则面板与沙箱审计徽章（commit `bce2b1c`）；
-   - 架构调研与前瞻索引：天枢全景研报与 Claude Mods / DSH 兼容层深度归档（commit `d9462a9`）；
-   - 全量终态门禁：`tsc -b`、`typecheck:tests` 均 exit 0；Web 生产打包 568ms exit 0；`test:all` 双 Root **2,730 passed + 6 skipped 全绿**；全历史 `identity-guard.sh` 0 命中。
+   - 独立核验报告（Evaluator Review）：[`docs/REVIEW-REPORT-V2.0.md`](docs/REVIEW-REPORT-V2.0.md)（VERDICT: PASS）；
+   - 全量终态门禁基线：`tsc -b`、`typecheck:tests` 均 exit 0；Web 生产打包 exit 0；`test:all` 双 Root **2,730 passed + 6 skipped 全绿**；全历史 `identity-guard.sh` 0 命中。
 3. **当前断点与运行状态**：
-   - **开发状态**：用户明确指示**暂不创建新任务卡、不继续推进代码开发**；
-   - **后续规划储备池**：详见 [`docs/research/TIANSHU-AND-MODS-INTEGRATION-OUTLOOK.md`](docs/research/TIANSHU-AND-MODS-INTEGRATION-OUTLOOK.md)（前缀缓存经济学 P1、安全受控 Mods 兼容层 P2、状态收敛与 AST 代码感知 P3）；
+   - **最近完成路线**：**V2.1 Epic 191 已闭环，没有自动续卡授权**；
+   - **最终结果**：188–190 实现及具体审查问题已关闭，190/191 DoD 已按人类批准更新；fixture warm 最大 **42.58ms**、全仓 **1739 文件** cold **905.85ms** / warm p95 **673.41ms**，通过新指标。五项 accepted 机械门禁全部 exit 0，双 Root 合计 **2811 passed / 6 skipped**；独立终审确认功能门禁 PASS。最终工作证明 `evidence/sessions/2026-10-07-v2.1/final-delivery-proof.md`；
+   - **开发模式**：纯本地开发（禁止 git push，遵循 2026-10-06 规约）；
    - **模型锁定规约**：默认开发模型锁定为 **GPT-6.1 Sol (`gpt-6.1-sol`)**，二级思考（`reasoning.effort: medium`），免多余确认。
-4. **一键恢复执行指令**：
-   - 先向用户汇报 V2.0 已全量闭环收官与当前处于暂停等待状态；
-   - 不自动续卡、不自动启动新任务、不自动调用外部真实 Agent、不执行任何永久删除。
+4. **恢复执行指令**：
+   - 本 Mission 已完成；不重做已通过的门禁、不再等待已回答的性能选择、不自动启动新卡。下一步等待人类新任务或明确本地提交指令；
+   - 不自动 push、不调用外部真实 Agent、测试临时文件严格限定在 `os.tmpdir()` 内。
 
 | 项 | 当前实况 |
 |---|---|
-| 仓库 / 分支 | `satan9394/vessel-harness` / `main` = `d9462a9` |
-| 工作区状态 | V2.0 全路线（182–187）全量门禁闭环已合入，调研索引已入库；工作区纯净 |
-| 机器状态真源 | `.agent-state/run-state.json`（revision 70, status: completed, mode: bounded） |
-| 当前任务卡 | V2.0 全部已闭环合入；暂不立卡推进开发；前沿调研与后续规划见 docs/research/TIANSHU-AND-MODS-INTEGRATION-OUTLOOK.md |
+| 仓库 / 分支 | `satan9394/vessel-harness` / `main`（纯本地开发，不推送） |
+| 工作区状态 | V2.1 功能与新 DoD 验收 PASS；无本轮提交/推送 |
+| 机器状态真源 | `.agent-state/run-state.json`（以当前文件为准，mission completed，blocked 清空，所有卡完成） |
+| 当前任务卡 | `tasks/190-workspace-fingerprint-and-no-progress-breaker.md` ｜ [Epic] `tasks/191-epic-v2-1-prefix-cache-and-convergence.md` |
+
+V2.1 执行偏差：189 执行器三次默认 Vite 构建清空生成 `apps/web/dist`，违反任务删除纪律，已记录，不能声明红线全部遵守。后续 Web 构建必须加 `-- --emptyOutDir false`。为验证锁文件，本轮将旧 `node_modules` 完整移动到 `.tmp/2026-10-07/node_modules-before-epic191-npm-ci` 后执行 `npm ci`（exit 0）；备份保留，不清理。阶段性能实测本仓 1673 文件 warm 中位约 1285ms，见 `phase190-benchmark-final.log`，不得擅自降低验收标准。
+
+最终恢复点：PowerShell session **47315 已完成 exit 0**，最后 source 编辑后的五项 accepted 门禁全部通过；根 236 文件 / 2634 passed / 6 skipped，Web 20 文件 / 177 passed。交付文件收齐后的最终性能日志 `accepted-final-fingerprint-benchmark.log` 通过 2026-10-08 人类批准的新指标。所有工作器、测试与门禁进程均结束；旧 failed/frozen/renewed/resumed 记录只作历史，未删改。SQLite <5ms 保持原标准；指纹原 <25ms 被人类明确替代，不再是阻断。
 
 ## 1. 治理与门禁（改动前必读）
 

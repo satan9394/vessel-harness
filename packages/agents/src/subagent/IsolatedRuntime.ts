@@ -1,11 +1,13 @@
+import type { ChatUsage } from '@vessel/shared';
+import { observeProviderCacheUsage } from '@vessel/llm';
 import * as path from 'node:path';
 import * as crypto from 'node:crypto';
 import type { ChatProvider, PolicyArtifacts, ToolCall, ToolSpec } from '@vessel/shared';
 import { AgentLoop, EventBus, Session, type ToolResultOutcome } from '@vessel/core';
-import { Compaction, ContextBuilder, discoverInstructions, createOverflowRecovery, type AdaptiveCompactionOptions } from '@vessel/context';
+import { CompactionBoundaryGuard, Compaction, ContextBuilder, discoverInstructions, createOverflowRecovery, type AdaptiveCompactionOptions } from '@vessel/context';
 import { PolicyEngine } from '@vessel/policy';
 import { Executor, Sandbox } from '@vessel/runtime';
-import { ToolRegistry } from '@vessel/tools';
+import { NoProgressGuard, ToolRegistry } from '@vessel/tools';
 
 export type IsolatedSessionSource =
   | 'startup'
@@ -100,7 +102,13 @@ export async function createIsolatedRuntime(opts: IsolatedRuntimeOptions): Promi
   const executor = new Executor({
     decide: async (call, spec) => policyEngine.decide({ toolName: call.toolName, arguments: call.arguments }, spec),
   });
-  const runTool = async (call: ToolCall, exec?: { signal?: AbortSignal | null }): Promise<ToolResultOutcome> => {
+  const progressGuard = new NoProgressGuard(workspaceRoot, async (diagnostic, isCurrent) => {
+    let interrupt = false;
+    try { await session.appendSync({ type: 'audit/stagnation_break', ...diagnostic, surface: false }); }
+    finally { interrupt = isCurrent(); if (interrupt) loop.interrupt(); }
+    if (interrupt) await bus.emit('audit/stagnation_break', diagnostic);
+  });
+  const runTool = async (call: ToolCall, exec?: { signal?: AbortSignal | null }): Promise<ToolResultOutcome> => progressGuard.run(call.toolName, exec?.signal, async () => {
     const spec = registry.spec(call.toolName);
     if (!spec) {
       return {
@@ -112,7 +120,7 @@ export async function createIsolatedRuntime(opts: IsolatedRuntimeOptions): Promi
     }
     const result = await executor.runTool(spec, call, { workspaceRoot, cwd, sandbox, signal: exec?.signal ?? undefined });
     return { record: null, content: result.content, error: result.error, meta: result.meta };
-  };
+  });
 
   const instructions = () => discoverInstructions(cwd, workspaceRoot);
   const builder = new ContextBuilder({
@@ -127,16 +135,22 @@ export async function createIsolatedRuntime(opts: IsolatedRuntimeOptions): Promi
   const maxOutputTokens = opts.compactionBudget?.maxOutputTokens ?? opts.provider.defaultMaxOutputTokens ?? 4096;
   const compaction = new Compaction({ session, summarize: opts.summarize, adaptive: { ...opts.compactionBudget, maxOutputTokens } });
 
+  const cacheObserver = observeProviderCacheUsage(opts.provider);
+  const detachCache = bus.on('model_stream_end', payload => {
+    const call = payload as { turnId: string; usage?: ChatUsage };
+    if (call.usage && session.replay().some(record => record.type === 'turn/start' && record.turnId === call.turnId)) cacheObserver.annotate(call.usage);
+  }, 'isolated:cache-metrics');
+
   const loop = new AgentLoop({
     session,
     bus,
-    provider: opts.provider,
+    provider: cacheObserver.provider,
     temperature: opts.temperature,
     reasoningEffort: opts.reasoningEffort,
     model: opts.model,
     buildContext: async (step) => {
       const envelope = await builder.assemble(step);
-      if (compaction.shouldCompact(envelope.estimateTokens, builder.window)) {
+      if (CompactionBoundaryGuard.canCompactHistory(step - 1, session.replay()) && compaction.shouldCompact(envelope.estimateTokens, builder.window)) {
         await compaction.compact('pressure');
         return { ...await builder.assemble(step), maxOutputTokens };
       }
@@ -155,6 +169,7 @@ export async function createIsolatedRuntime(opts: IsolatedRuntimeOptions): Promi
     policyEngine,
     loop,
     async close() {
+      detachCache();
       await session.close();
     },
   };

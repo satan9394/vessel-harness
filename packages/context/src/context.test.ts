@@ -167,6 +167,63 @@ describe('context/builder — wire 历史投影（task 109 线协议修复）', 
     });
   }
 
+  it('retains unfinished advertised calls and projects ended batches without deleting evidence', async () => {
+    const session = await Session.open({ workspaceRoot: dir, sessionId: 'pending' });
+    await session.appendSync({ type: 'turn/start', turnId: 'old', surface: false });
+    await session.appendSync({ type: 'assistant/attempt', msgId: 'a', role: 'assistant', content: '',
+      toolCalls: [{ toolCallId: 'done', name: 'Read', arguments: {} }, { toolCallId: 'abandoned', name: 'Read', arguments: {} }], attemptNo: 1, surface: false });
+    await session.appendSync({ type: 'tool/result', toolCallId: 'done', toolName: 'Read', content: '', meta: {}, surface: true });
+    const builder = await makeBuilder(session);
+    const active = await builder.assemble(1);
+    expect(active.messages.find(m => m.role === 'assistant')?.toolCalls?.map(call => call.id)).toEqual(['done', 'abandoned']);
+    await session.appendSync({ type: 'turn/end', turnId: 'old', kind: 'interrupted', stats: { steps: 1, toolCalls: 1, durationMs: 1 }, surface: false });
+    const before = session.replay();
+    const ended = await builder.assemble(1);
+    expect(ended.messages.find(m => m.role === 'assistant')?.toolCalls?.map(call => call.id)).toEqual(['done']);
+    expect(ended.messages.find(m => m.role === 'tool')).toMatchObject({ content: '', toolCallId: 'done' });
+    expect(session.replay()).toEqual(before);
+    await session.close();
+  });
+
+  it('preserves a completed reused provider ID when resuming an abandoned earlier attempt', async () => {
+    let session = await Session.open({ workspaceRoot: dir, sessionId: 'reused-id' });
+    await session.appendSync({ type: 'turn/start', turnId: 'old', surface: false });
+    await session.appendSync({ type: 'assistant/attempt', msgId: 'old-attempt', role: 'assistant', content: '',
+      toolCalls: [{ toolCallId: 'reused', name: 'Read', arguments: { path: 'old' } }], attemptNo: 1, surface: false });
+    await session.appendSync({ type: 'turn/end', turnId: 'old', kind: 'interrupted', stats: { steps: 1, toolCalls: 0, durationMs: 1 }, surface: false });
+    await session.appendSync({ type: 'turn/start', turnId: 'next', surface: false });
+    await session.appendSync({ type: 'assistant/attempt', msgId: 'next-attempt', role: 'assistant', content: '',
+      toolCalls: [{ toolCallId: 'reused', name: 'Read', arguments: { path: 'next' } }], attemptNo: 1, surface: false });
+    await session.appendSync({ type: 'tool/result', toolCallId: 'reused', toolName: 'Read', content: 'next result', meta: {}, surface: true });
+    await session.appendSync({ type: 'turn/end', turnId: 'next', kind: 'success', stats: { steps: 1, toolCalls: 1, durationMs: 1 }, surface: false });
+    const before = session.replay();
+    await session.close();
+    session = await Session.open({ workspaceRoot: dir, sessionId: 'reused-id' });
+    const env = await (await makeBuilder(session)).assemble(1);
+    expect(env.messages.map(message => message.role)).toEqual(['system', 'assistant', 'tool']);
+    expect(env.messages[1]!.toolCalls).toEqual([{ id: 'reused', name: 'Read', arguments: { path: 'next' } }]);
+    expect(env.messages[2]).toMatchObject({ toolCallId: 'reused', content: 'next result' });
+    expect(session.replay()).toEqual(before);
+    await session.close();
+  });
+
+  it('does not abandon or compact an unfinished turn after an unmatched denied-input end', async () => {
+    const session = await Session.open({ workspaceRoot: dir, sessionId: 'unmatched-end' });
+    await session.appendSync({ type: 'turn/start', turnId: 'unfinished', surface: false });
+    await session.appendSync({ type: 'assistant/attempt', msgId: 'pending-attempt', role: 'assistant', content: '',
+      toolCalls: [{ toolCallId: 'pending', name: 'Read', arguments: {} }], attemptNo: 1, surface: false });
+    await session.appendSync({ type: 'turn/end', turnId: 'input-denied', kind: 'error', stats: { steps: 0, toolCalls: 0, durationMs: 1 }, surface: false });
+    await session.appendSync({ type: 'turn/start', turnId: 'newer', surface: false });
+    await session.appendSync({ type: 'assistant/message', msgId: 'newer-response', role: 'assistant', content: 'newer done', surface: true });
+    await session.appendSync({ type: 'turn/end', turnId: 'newer', kind: 'success', stats: { steps: 1, toolCalls: 0, durationMs: 1 }, surface: false });
+    const builder = await makeBuilder(session);
+    expect((await builder.assemble(1)).messages.find(message => message.toolCalls)?.toolCalls?.[0]?.id).toBe('pending');
+    const before = [...session.replay()];
+    expect((await new Compaction({ session }).compact('pressure')).removedRecords).toBe(0);
+    expect(session.replay().filter(record => record.type !== 'compaction/start' && record.type !== 'compaction/end')).toEqual(before);
+    await session.close();
+  });
+
   /** 工具多轮序列：user → assistant/attempt(Read) → tool/result → assistant/attempt(Write) → tool/result → assistant/message。 */
   async function seedToolSequence(session: Session): Promise<void> {
     await session.appendSync({ type: 'turn/start', turnId: 't1', surface: false });

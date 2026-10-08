@@ -83,7 +83,7 @@ Vessel CLI v${VERSION} — 可组合 Agent Harness（品牌 Vessel）
   vessel run --bench <scenarioId>    基准模式：运行 benchmarks/ 场景并产出 JSONL 报告
   vessel models [--provider p]       列出某供应商可用模型（OpenAI 兼容实时拉取 / Anthropic 内置清单）
   vessel setup                       交互向导：搜索选供应商 → 输 key → 拉模型 → 空格勾选 → 提交
-  vessel usage [--recent <n>] [--strict] [--since <date>] [--until <date>] [--by-day]
+  vessel usage [--cache] [--recent <n>] [--strict] [--since <date>] [--until <date>] [--by-day]
                                       使用统计（tokens/调用/成本分项 + 价格来源分布；
                                       --since/--until 本地日窗口、--by-day 按日列出；--strict 按不用兜底价重算）
   vessel usage recompute [--dry-run] [--since <date>] [--until <date>]
@@ -2182,7 +2182,7 @@ async function cmdUsageRecompute(flags: Map<string, string>): Promise<number> {
 }
 
 /**
- * `vessel usage [--recent <n>] [--strict] [--since <date>] [--until <date>] [--by-day]`
+ * `vessel usage [--cache] [--recent <n>] [--strict] [--since <date>] [--until <date>] [--by-day]`
  * — persistent usage statistics (V0.9).
  *
  * task 086：显式标出「估算条目 / 价格来源分布」；`--strict` 按「只用模型专属
@@ -2210,6 +2210,7 @@ async function cmdUsage(args: string[], flags: Map<string, string>): Promise<num
     // 窗口口径必须与人类报表一致：复用同一批取值（since/until 取自 flags、条数同 1096 行口径）。
     emitJson({
       totals: store.totals(),
+      ...(flags.has('cache') ? { cache: store.cacheSummary() } : {}),
       daily: store.daily({ since, until }),
       byProvider: store.byProvider(),
       byModel: store.byModel(),
@@ -2218,6 +2219,10 @@ async function cmdUsage(args: string[], flags: Map<string, string>): Promise<num
     return 0;
   }
 
+  if (flags.has('cache')) {
+    const cache = store.cacheSummary();
+    console.log(`Cache ${(cache.overallCacheHitRate * 100).toFixed(1)}% · ${cache.cachedTokensTotal}/${cache.promptTokensTotal} measured prompt tokens · ${cache.estimated ? 'estimated ' : ''}read savings $${cache.estimatedSavingsUsd.toFixed(4)} · ${cache.unmeasuredEntries} unmeasured legacy entries`);
+  }
   const t = store.totals();
   console.log(`=== 使用统计（${path.join(resolveUsageRoot(), 'usage.json')}）===`);
   console.log(`总消耗: input ${t.inputTokens.toLocaleString()} · output ${t.outputTokens.toLocaleString()} · cache 读 ${t.cacheReadTokens.toLocaleString()} · cache 写 ${t.cacheCreationTokens.toLocaleString()} · 调用 ${t.calls}`);

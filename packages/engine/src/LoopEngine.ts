@@ -1,5 +1,6 @@
 import type { EvaluatorVerdict } from '@vessel/agents';
 import type { RunControl } from './run-control.js';
+import { StagnationBreakError } from './breaker/StagnationBreakError.js';
 
 /**
  * V0.5 Loop Engine core (MISSION-V0.5 §三.1 / task 010).
@@ -274,6 +275,7 @@ export class LoopEngine {
       }
       const report = await this.runTask(task, iteration);
       lastReport = report;
+      if (report.result.reason.startsWith('stagnation_break:')) return report;
       const ctx: ContinueContext = { iteration, lastResult: report.result };
       const cont =
         report.outcome === 'met' || report.outcome === 'stopped'
@@ -372,6 +374,11 @@ export class LoopEngine {
           this.control.noteRetryExhausted(iteration, attempt);
         }
         const result = await admit(verdict, attempt, false);
+        this.phase('done', { iteration, taskId: task.id });
+        return { iteration, taskId: task.id, outcome: 'stopped', result };
+      } catch (error) {
+        if (!(error instanceof StagnationBreakError)) throw error;
+        const result = await admit({ verdict: 'error', evidence: [JSON.stringify(error.diagnostic)], reason: error.message }, attempt, false);
         this.phase('done', { iteration, taskId: task.id });
         return { iteration, taskId: task.id, outcome: 'stopped', result };
       } finally {

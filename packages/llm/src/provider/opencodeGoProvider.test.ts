@@ -74,7 +74,8 @@ describe('103 — createProvider 注册 opencode-go（SSOT 上提到 @vessel/llm
     expect(p.id).toBe('opencode-go');
     // 注入 fetch 替身（生产走全局 fetch）：直接构造同参数实例，断言头/路径/体
     const direct = new OpencodeGoProvider({ baseUrl: BASE, apiKey: 'sk-test-not-a-real-key', model: 'mimo-v2.5', fetchImpl });
-    await direct.chat(REQ);
+    const response = await direct.chat(REQ);
+    expect(response.usage.cacheMetrics).toMatchObject({ provider: OPENCODE_GO_PROVIDER_ID, model: REQ.model });
     expect(calls[0]!.url).toBe(`${BASE}/chat/completions`);
     expect(calls[0]!.headers[OPENCODE_GO_SESSION_HEADER]).toMatch(/^[0-9a-f-]{36}$/);
     expect(calls[0]!.headers['User-Agent']).toBe(OPENCODE_GO_USER_AGENT);

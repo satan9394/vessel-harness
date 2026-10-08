@@ -75,4 +75,53 @@ describe('SQLite session projection', () => {
     await expect(store.search({ query: 'x', limit: 0 })).rejects.toThrow('pagination'); await expect(store.search({ query: 'x'.repeat(257) })).rejects.toThrow('search');
     await expect(store.indexRecords('s', [record(0, 'user/message')])).rejects.toThrow('record');
   });
+  it('returns fresh ordered pages, topic filters and independent nested metadata', async () => {
+    const store = open();
+    for (const sessionId of ['a', 'b', 'c']) await store.indexMetadata(sessionId, {
+      topic: { topicId: sessionId === 'c' ? 'other' : 'topic', title: 'Title "' + sessionId },
+      updatedAt: new Date(2000).toISOString(), nested: { values: ['unicode 雪', null, true] },
+    });
+    expect((await store.listSessions(2)).map(row => row.sessionId)).toEqual(['c', 'b']);
+    expect((await store.listSessions(1, 1, 'topic')).map(row => row.sessionId)).toEqual(['a']);
+    expect(await store.listSessions(1, 3)).toEqual([]);
+    expect(await store.listSessions(1, 0, 'missing')).toEqual([]);
+    const first = (await store.listSessions(1, 0, 'topic'))[0]!;
+    expect(first.title).toBe('Title "b');
+    expect(first.metadata?.nested).toEqual({ values: ['unicode 雪', null, true] });
+    (first.metadata!.nested as { values: unknown[] }).values.push('caller mutation');
+    expect((await store.listSessions(1, 0, 'topic'))[0]!.metadata?.nested).toEqual({ values: ['unicode 雪', null, true] });
+    await store.indexMetadata('a', { topic: { topicId: 'other', title: 'changed' }, updatedAt: new Date(3000).toISOString() });
+    expect((await store.listSessions(1))[0]).toMatchObject({ sessionId: 'a', title: 'changed', updatedAt: 3000 });
+    expect((await store.listSessions(50, 0, 'topic')).map(row => row.sessionId)).toEqual(['b']);
+    await store.indexMetadata('a', null);
+    expect((await store.listSessions(1))[0]!.sessionId).toBe('c');
+  });
+  it('preserves native REAL precision for publicly indexed counters beyond int64', async () => {
+    const store = open();
+    await store.indexRecords('real', [record(1, 'model/usage', { turnId: 't', step: 1,
+      usage: { inputTokens: 12345678901234567000, outputTokens: 0 } })]);
+    const db = new DatabaseSync(store.dbPath);
+    try {
+      const native = db.prepare('SELECT input_tokens,total_tokens FROM sessions_meta WHERE session_id=?').get('real')!;
+      const listed = (await store.listSessions())[0]!;
+      expect(listed.inputTokens).toBe(native.input_tokens);
+      expect(listed.totalTokens).toBe(native.total_tokens);
+    } finally { db.close(); }
+  });
+  it('preserves native unsafe INTEGER rejection only for the selected page', async () => {
+    const store = open(); await store.indexMetadata('safe', { updatedAt: new Date(3000).toISOString() });
+    await store.indexMetadata('unsafe', { updatedAt: new Date(2000).toISOString(), topic: { topicId: 'unsafe' } });
+    const db = new DatabaseSync(store.dbPath);
+    try {
+      for (const value of [9007199254740992n, 9007199254740993n, -9007199254740992n]) {
+        db.prepare('UPDATE sessions_meta SET total_tokens=? WHERE session_id=?').run(value, 'unsafe');
+        let nativeError: unknown;
+        try { db.prepare('SELECT * FROM sessions_meta WHERE session_id=?').all('unsafe'); } catch (error) { nativeError = error; }
+        expect(nativeError).toBeInstanceOf(RangeError);
+        await expect(store.listSessions(1, 1)).rejects.toMatchObject({ code: (nativeError as NodeJS.ErrnoException).code });
+        await expect(store.listSessions(1, 0, 'unsafe')).rejects.toMatchObject({ code: (nativeError as NodeJS.ErrnoException).code });
+        expect((await store.listSessions(1))[0]!.sessionId).toBe('safe');
+      }
+    } finally { db.close(); }
+  });
 });

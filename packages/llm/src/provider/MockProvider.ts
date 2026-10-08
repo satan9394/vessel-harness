@@ -195,6 +195,7 @@ export class MockProvider implements ChatProvider {
       type: 'usage',
       inputTokens: usage.inputTokens,
       outputTokens: usage.outputTokens,
+      ...(usage.cacheMetrics ? { cacheMetrics: usage.cacheMetrics } : {}),
       ...(usage.cacheReadTokens !== undefined ? { cacheReadTokens: usage.cacheReadTokens } : {}),
       ...(usage.cacheCreationTokens !== undefined ? { cacheCreationTokens: usage.cacheCreationTokens } : {}),
     };

@@ -1,0 +1,14 @@
+
+ RUN  v5.0.1 E:/Code_file/Projects/Vessel_Harness
+
+(node:10420) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+ Test Files  11 passed (11)
+      Tests  172 passed (172)
+   Start at  07:23:23
+   Duration  37.14s (tests 76%, import 13%, transform 10%, setup 1%)
+
+    Isolate  11 workers spawned · ~312ms startup each (spawn + environment, per file)
+             at least ~3.12s faster with isolate: false — reuses workers across files instead of one per file
+

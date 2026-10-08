@@ -97,6 +97,7 @@ export interface ChatToolCall {
 export type ChatFinishReason = 'stop' | 'tool_calls' | 'length' | 'error';
 
 export interface ChatUsage {
+  cacheMetrics?: import('./cacheMetrics.js').CacheUsageMetrics;
   inputTokens: number;
   outputTokens: number;
   /** Provider-supplied cost estimate in USD; absent means not reported. */
@@ -146,6 +147,7 @@ export type StreamChunk =
     }
   | {
       type: 'usage';
+      cacheMetrics?: import('./cacheMetrics.js').CacheUsageMetrics;
       inputTokens?: number;
       outputTokens?: number;
       /** Provider-supplied cost estimate in USD, cumulative within this response. */

@@ -7,6 +7,7 @@ import { TeamRuntime } from '@vessel/agents';
 import { DEVELOPER_PRESET_ID, createDefaultPresetRegistry, type PresetRegistry } from '@vessel/agents';
 import type { GenerateContext, GeneratorOutput } from './LoopEngine.js';
 import { DEFAULT_HISTORY_LIMIT, RingHistory } from './bounded-history.js';
+import { StagnationBreakError } from './breaker/StagnationBreakError.js';
 
 /**
  * engine/RealGeneratorAdapter — task 061（V1.3 Goal Loop 真接线，docs/Vessel…§11）。
@@ -276,6 +277,10 @@ export class RealGeneratorAdapter {
       maxSteps: this.opts.maxSteps,
     });
 
+    let stagnation: StagnationBreakError['diagnostic'] | undefined;
+    const detachStagnation = runtime.bus.on('audit/stagnation_break', payload => {
+      stagnation = payload as StagnationBreakError['diagnostic'];
+    }, 'engine:generator-stagnation');
     const summary = await runtime.runTeam({
       task: req.goal,
       acceptance: req.acceptance,
@@ -288,7 +293,9 @@ export class RealGeneratorAdapter {
           tier: this.opts.developerTier,
         },
       ],
-    });
+    }).finally(detachStagnation);
+
+    if (stagnation) throw new StagnationBreakError(stagnation);
 
     if (summary.outcome !== 'completed') {
       // developer 会话失败 —— fail loud（运行失败是返回态不是成功产出；不静默转 output）

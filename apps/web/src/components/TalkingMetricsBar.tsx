@@ -1,6 +1,7 @@
 import { useI18n } from './LanguageProvider';
 
 export interface TalkingMetrics {
+  cacheMetrics?: import('../cacheUsage').CacheUsageMetrics;
   inputTokens?: number;
   outputTokens?: number;
   reasoningTokens?: number;
@@ -35,6 +36,9 @@ export default function TalkingMetricsBar({ metrics }: { metrics: TalkingMetrics
   }
   return (
     <dl className="talking-metrics" aria-label="Turn metrics">
+      {metrics.cacheMetrics && <div className="talking-metric" style={{ color: 'var(--green)' }}><dt>⚡ Cache</dt><dd>
+        {Math.round(metrics.cacheMetrics.billedHitRate * 100)}% · {metrics.cacheMetrics.estimated ? 'estimated ' : ''}read savings ${metrics.cacheMetrics.estimatedSavingsUsd.toFixed(4)}
+      </dd></div>}
       {values.map(([label, value]) => (
         <div className="talking-metric" key={label}>
           <dt>{label}</dt>

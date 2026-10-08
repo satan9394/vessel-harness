@@ -1,5 +1,11 @@
 /** Cumulative usage/cost triple after applying an incremental usage delta. */
 export interface UsageTotals {
+  measuredCalls?: number;
+  promptTokensTotal?: number;
+  cachedTokensTotal?: number;
+  overallCacheHitRate?: number;
+  estimatedSavingsUsd?: number;
+  estimated?: boolean;
   inputTokens: number;
   outputTokens: number;
   cacheReadTokens: number;
@@ -30,6 +36,7 @@ export function applyUsageDelta(totals: UsageTotals, delta: {
   cacheReadTokens?: number;
   cacheCreationTokens?: number;
   calls?: number;
+  summary?: import('../cacheUsage').UsageSummary;
 }): UsageTotals {
   const inputTokens = totals.inputTokens + (delta.inputTokens ?? 0);
   const outputTokens = totals.outputTokens + (delta.outputTokens ?? 0);
@@ -42,7 +49,12 @@ export function applyUsageDelta(totals: UsageTotals, delta: {
     (cacheCreationTokens / 1_000_000) * PRICE_CACHE_WRITE;
   // Preference the server's cumulative call count when present, else count locally.
   const calls = typeof delta.calls === 'number' ? delta.calls : totals.calls + (delta.calls ?? 0);
-  return { inputTokens, outputTokens, cacheReadTokens, cacheCreationTokens, calls, costUsd };
+  return { ...totals, inputTokens, outputTokens, cacheReadTokens, cacheCreationTokens, calls, costUsd, ...(delta.summary ?? {}) };
+}
+
+/** A resolved per-call server cost never includes older session calls after reconnect. */
+export function usageCallCost(delta: { costUsd?: number; inputTokens?: number; outputTokens?: number; cacheReadTokens?: number; cacheCreationTokens?: number }): number {
+  return delta.costUsd ?? applyUsageDelta(emptyUsage(), delta).costUsd;
 }
 
 function fmtUsd(n: number): string {
@@ -70,6 +82,9 @@ export default function UsageBar({ usage }: { usage: UsageTotals }) {
       <span className="usage-tokens">
         {usage.inputTokens}+{usage.outputTokens} tok{cacheLabel}
       </span>
+      {usage.overallCacheHitRate !== undefined && (usage.measuredCalls ?? 1) > 0 && <span className="usage-cache" style={{ color: 'var(--green)' }}>
+        ⚡ Cache {Math.round(usage.overallCacheHitRate * 100)}% · {usage.estimated ? 'estimated ' : ''}read savings ${ (usage.estimatedSavingsUsd ?? 0).toFixed(4) }
+      </span>}
       <span className="usage-cost">{fmtUsd(usage.costUsd)}</span>
     </div>
   );

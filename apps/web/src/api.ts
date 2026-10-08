@@ -17,6 +17,8 @@ import { bearerHeaders, daemonToken } from './auth';
 import type { MeshSnapshot, RulesSnapshot } from './dashboard';
 import type { SandboxAuditSnapshot } from './sandboxAudit';
 
+export type { UsageSummary, CacheUsageMetrics } from './cacheUsage';
+
 export interface ApiOptions {
   /** base URL, default '/api'. May be 'http://127.0.0.1:5678/api'. */
   base?: string;

@@ -78,11 +78,19 @@
 | Web 控制台 Swarm 节点拓扑面板、沙箱安全审计与经验规则看板 | 185 | 已合入（2026-10-04 本地验收） | `tasks/185-web-swarm-topology-and-cognitive-dashboard.md` |
 | 会话后自主反思与经验提炼引擎 (Autonomous Reflection Engine) | 186 | 已合入（2026-10-03 本地验收） | `tasks/186-post-session-autonomous-reflection-engine.md` |
 | [Epic] V2.0 Swarm 集群控制面、自检诊断与认知自愈飞轮 (184+186) | 187 | 已合入（2026-10-03 本地验收） | `tasks/187-epic-v2-swarm-workbench-and-cognitive-flywheel.md` |
+| 请求负载确定性序列化与前缀三段式分层 (Prefix Layout) | 188 | 已验收（2026-10-08，Epic 191 最终门禁与独立复核） | `tasks/188-deterministic-serialization-and-prefix-layout.md` |
+| 多供应商真实缓存计费命中率与多维透视 (Cache Hit Telemetry) | 189 | 已验收（2026-10-08）；历史清理偏差保留 | `tasks/189-cache-hit-rate-telemetry-and-multi-provider.md` |
+| 工作区状态指纹与无进展死循环熔断器 (No-Progress Breaker) | 190 | 已验收；新指标 fixture warm 42.58ms / 全仓 p95 673.41ms | `tasks/190-workspace-fingerprint-and-no-progress-breaker.md` |
+| [Epic] V2.1 前缀缓存经济学、无进展熔断与高韧性运行中枢 | 191 | PASS（2026-10-08）：2811 passed / 6 skipped，五项门禁 exit 0 | `tasks/191-epic-v2-1-prefix-cache-and-convergence.md` |
 
 ## 未闭合 / 下一目标
 
-- **当前里程碑全部闭环合入**：
-  - **V2.0 阶段完整收官**：
+- **最近完成路线：V2.1 Epic 191 已按人类批准的新性能 DoD 验收 PASS；等待新任务，不自动续卡**：
+  - 任务 188：确定性序列化、三段式前缀与 turn===0 压缩守卫；
+  - 任务 189：多供应商真实缓存计费命中率与击穿告警；
+  - 任务 190：工作区状态指纹与无进展死循环主动熔断器。
+- **前序已合入里程碑**：
+  - **V2.0 阶段完整收官（已独立核验 PASS，见 `docs/REVIEW-REPORT-V2.0.md`）**：
     - **Web 拓扑看板与沙箱审计（任务 185）**：SVG 拓扑连接图、波形指标、CognitiveRules 看板与 Talking 抽屉原生沙箱安全等级徽章（commit 本轮合入）；
     - **Swarm 集群控制面、自检诊断与认知自愈飞轮（Epic 187，含 184 + 186）**：CLI `vessel mesh` / `vessel memory` / `vessel doctor` 自检引擎，与会话后自主反思提炼引擎（commit `20f1f1f`）；
     - **跨实例异构 Swarm 网格与分布式事件总线（任务 182）**：commit `b6c05b2`；

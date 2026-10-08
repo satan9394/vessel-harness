@@ -1,0 +1,32 @@
+
+ RUN  v5.0.1 E:/Code_file/Projects/Vessel_Harness
+
+warning: in the working copy of 'code.ts', LF will be replaced by CRLF the next time Git touches it
+ ❯ packages/tools/src/filesystem/workspaceFingerprint.test.ts (6 tests | 1 failed) 8006ms
+   ❯ WorkspaceFingerprinter (6)
+     × does not read tracked paths through a parent junction outside the workspace 1237ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  packages/tools/src/filesystem/workspaceFingerprint.test.ts > WorkspaceFingerprinter > does not read tracked paths through a parent junction outside the workspace
+AssertionError: expected '0527d6bf64d1ca47b227011357308f3cf544d…' to be '2131abba541283af2ccaf69f292a950499f6e…' // Object.is equality
+
+Expected: "2131abba541283af2ccaf69f292a950499f6e2da5dd29cc00a867b9827f1f0ee"
+Received: "0527d6bf64d1ca47b227011357308f3cf544d1c898b0c953845041ef5b97564b"
+
+ ❯ packages/tools/src/filesystem/workspaceFingerprint.test.ts:96:75
+     94|     const first = await WorkspaceFingerprinter.compute(root);
+     95|     fs.writeFileSync(path.join(outside, 'code.ts'), 'outside changed');
+     96|     expect((await WorkspaceFingerprinter.compute(root)).trackedFilesHa…
+       |                                                                           ^
+     97|   });
+     98| });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 5 passed (6)
+   Start at  21:34:42
+   Duration  8.42s (tests 98%, transform 1%, import 1%)
+

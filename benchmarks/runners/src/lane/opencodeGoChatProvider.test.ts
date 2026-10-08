@@ -235,7 +235,9 @@ describe('102 — mock 端到端（解析 + 推理模型）', () => {
     const res = await provider(fetchImpl).chat({ model: 'mimo-v2.5', messages: [{ role: 'user', content: '读 a.txt' }] });
     expect(res.finishReason).toBe('tool_calls');
     expect(res.toolCalls[0]).toMatchObject({ id: 'call_1', name: 'read_file', arguments: { path: 'a.txt' } });
-    expect(res.usage).toEqual({ inputTokens: 248, outputTokens: 8, cacheReadTokens: 192 });
+    expect(res.usage).toEqual({ inputTokens: 248, outputTokens: 8, cacheReadTokens: 192,
+      cacheMetrics: { promptTokens: 248, cachedTokens: 192, creationTokens: 0, billedHitRate: 192 / 248,
+        estimatedSavingsUsd: 0, provider: 'opencode-go', model: 'mimo-v2.5' } });
     const raw = res.raw as { reasoning: string; reasoningTokens?: number };
     expect(raw.reasoning).toContain('读文件');
     expect(raw.reasoningTokens).toBe(8);

@@ -1,7 +1,7 @@
 import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
-import { renameWithRetry } from '@vessel/shared';
+import { cacheTariffEstimated, unknownCacheInputTokens, priceCacheMetrics, type CacheUsageMetrics, renameWithRetry } from '@vessel/shared';
 import { envRoot, vesselHome } from '../envRoot.js';
 import {
   costBreakdown,
@@ -65,6 +65,12 @@ export interface UsageCostBreakdown {
 }
 
 export interface UsageEntry {
+  /** Uncached billable input for calls carrying explicit wire metrics; legacy counts remain raw. */
+  billableInputTokens?: number;
+  cachePromptTokens?: number;
+  measuredCachedTokens?: number;
+  measuredCreationTokens?: number;
+  cacheSavingsUsd?: number;
   model: string;
   provider: string;
   inputTokens: number;
@@ -107,6 +113,10 @@ export interface UsageEntry {
 }
 
 export interface UsageRecentEntry {
+  measuredCachedTokens?: number;
+  measuredCreationTokens?: number;
+  /** Uncached billable input for calls carrying explicit wire metrics; legacy counts remain raw. */
+  billableInputTokens?: number;
   ts: string;
   provider: string;
   model: string;
@@ -127,6 +137,10 @@ export interface UsageRecentEntry {
  * 旧数据（无 `models`）该日跳过并计数，不伪造。
  */
 export interface UsageDailyModelBucket {
+  measuredCachedTokens?: number;
+  measuredCreationTokens?: number;
+  /** Uncached billable input for calls carrying explicit wire metrics; legacy counts remain raw. */
+  billableInputTokens?: number;
   inputTokens: number;
   outputTokens: number;
   cacheReadTokens: number;
@@ -440,8 +454,8 @@ export class UsageStore {
    * 倍率来自 `multiplierOf(provider)`（094；缺省 1）；非法值在 `costBreakdown`
    * 内抛 `RangeError`（fail loud，不静默按 1 处理）。
    */
-  private cost(price: TokenPrice, tokens: UsageTokens, provider: string): CostBreakdown {
-    return costBreakdown(price, tokens, { costMultiplier: this.multiplierOf(provider) });
+  private cost(price: TokenPrice, tokens: UsageTokens & { billableInputTokens?: number; measuredCachedTokens?: number; measuredCreationTokens?: number }, provider: string): CostBreakdown {
+    return costBreakdown(price, { ...tokens, inputTokens: (tokens.billableInputTokens ?? tokens.inputTokens ?? 0) + unknownCacheInputTokens(price, tokens.measuredCachedTokens ?? 0, tokens.measuredCreationTokens ?? 0) }, { costMultiplier: this.multiplierOf(provider) });
   }
 
   /** 分项合计（未乘倍率）——用于解释「总额 = 分项合计 × 倍率」（094）。 */
@@ -510,6 +524,8 @@ export class UsageStore {
               if (!mBucket || typeof mBucket !== 'object' || mKey.trim() === '') continue;
               models[mKey] = {
                 inputTokens: num(mBucket.inputTokens),
+                ...(mBucket.measuredCachedTokens !== undefined ? { measuredCachedTokens: num(mBucket.measuredCachedTokens), measuredCreationTokens: num(mBucket.measuredCreationTokens) } : {}),
+                ...(mBucket.billableInputTokens !== undefined ? { billableInputTokens: num(mBucket.billableInputTokens) } : {}),
                 outputTokens: num(mBucket.outputTokens),
                 cacheReadTokens: num(mBucket.cacheReadTokens),
                 cacheCreationTokens: num(mBucket.cacheCreationTokens),
@@ -668,6 +684,7 @@ export class UsageStore {
     cacheReadTokens?: number;
     /** cache 写入 token（Anthropic cache_creation）；task 090 */
     cacheCreationTokens?: number;
+    cacheMetrics?: CacheUsageMetrics;
     /** 归档本地日（缺省用 now() 的本地日；测试可注入固定日） */
     date?: string;
   }): UsageRecordResult {
@@ -677,13 +694,17 @@ export class UsageStore {
     const outT = input.outputTokens ?? 0;
     const cacheT = input.cacheReadTokens ?? 0;
     const cacheWT = input.cacheCreationTokens ?? 0;
+    const billableInput = input.cacheMetrics ? Math.max(0, input.cacheMetrics.promptTokens - input.cacheMetrics.cachedTokens - input.cacheMetrics.creationTokens) : inT;
     const cost = this.cost(resolved.price, {
-      inputTokens: inT,
+      inputTokens: billableInput,
+      measuredCachedTokens: input.cacheMetrics?.cachedTokens,
+      measuredCreationTokens: input.cacheMetrics?.creationTokens,
       outputTokens: outT,
       cacheReadTokens: cacheT,
       cacheCreationTokens: cacheWT,
     }, provider);
     const multiplier = cost.costMultiplier;
+    const estimated = resolved.estimated || cacheTariffEstimated(resolved.price, input.cacheMetrics?.cachedTokens ?? 0, input.cacheMetrics?.creationTokens ?? 0);
 
     const k = this.key(provider, model);
     const prev = this.data.entries[k];
@@ -717,6 +738,13 @@ export class UsageStore {
     this.data.entries[k] = {
       model,
       provider,
+      ...(input.cacheMetrics ? {
+        cachePromptTokens: (prev?.cachePromptTokens ?? 0) + input.cacheMetrics.promptTokens,
+        measuredCachedTokens: (prev?.measuredCachedTokens ?? 0) + input.cacheMetrics.cachedTokens,
+        measuredCreationTokens: (prev?.measuredCreationTokens ?? 0) + input.cacheMetrics.creationTokens,
+        cacheSavingsUsd: (prev?.cacheSavingsUsd ?? 0) + priceCacheMetrics(input.cacheMetrics, resolved, multiplier).estimatedSavingsUsd,
+      } : prev?.cachePromptTokens !== undefined ? { cachePromptTokens: prev.cachePromptTokens, measuredCachedTokens: prev.measuredCachedTokens, measuredCreationTokens: prev.measuredCreationTokens, cacheSavingsUsd: prev.cacheSavingsUsd } : {}),
+      billableInputTokens: (prev?.billableInputTokens ?? prev?.inputTokens ?? 0) + billableInput,
       inputTokens: (prev?.inputTokens ?? 0) + inT,
       outputTokens: (prev?.outputTokens ?? 0) + outT,
       cacheReadTokens: (prev?.cacheReadTokens ?? 0) + cacheT,
@@ -726,8 +754,8 @@ export class UsageStore {
       costBreakdown: entryBreakdown,
       cacheWriteDerivedCostUsd: (prev?.cacheWriteDerivedCostUsd ?? 0) + derivedCost,
       cacheWriteDerived: (prev?.cacheWriteDerived ?? false) || cost.cacheWriteDerived,
-      estimated: (prev?.estimated ?? false) || resolved.estimated,
-      estimatedCostUsd: (prev?.estimatedCostUsd ?? 0) + (resolved.estimated ? cost.totalUsd : 0),
+      estimated: (prev?.estimated ?? false) || estimated,
+      estimatedCostUsd: (prev?.estimatedCostUsd ?? 0) + (estimated ? cost.totalUsd : 0),
       pricingSource,
       lastTs: ts,
       events: (prev?.events ?? 0) + 1,
@@ -744,7 +772,7 @@ export class UsageStore {
     bucket.cacheCreationTokens += cacheWT;
     bucket.costUsd += cost.totalUsd;
     bucket.calls += 1;
-    bucket.estimatedCostUsd += resolved.estimated ? cost.totalUsd : 0;
+    bucket.estimatedCostUsd += estimated ? cost.totalUsd : 0;
     bucket.cacheWriteDerivedCostUsd += derivedCost;
     if (!bucket.firstTs) bucket.firstTs = ts;
     bucket.lastTs = ts;
@@ -753,13 +781,16 @@ export class UsageStore {
       inputTokens: 0, outputTokens: 0, cacheReadTokens: 0, cacheCreationTokens: 0,
       costUsd: 0, calls: 0, estimatedCostUsd: 0, cacheWriteDerivedCostUsd: 0,
     };
+    modelBucket.measuredCachedTokens = (modelBucket.measuredCachedTokens ?? 0) + (input.cacheMetrics?.cachedTokens ?? 0);
+    modelBucket.measuredCreationTokens = (modelBucket.measuredCreationTokens ?? 0) + (input.cacheMetrics?.creationTokens ?? 0);
+    modelBucket.billableInputTokens = (modelBucket.billableInputTokens ?? modelBucket.inputTokens) + billableInput;
     modelBucket.inputTokens += inT;
     modelBucket.outputTokens += outT;
     modelBucket.cacheReadTokens += cacheT;
     modelBucket.cacheCreationTokens += cacheWT;
     modelBucket.costUsd += cost.totalUsd;
     modelBucket.calls += 1;
-    modelBucket.estimatedCostUsd += resolved.estimated ? cost.totalUsd : 0;
+    modelBucket.estimatedCostUsd += estimated ? cost.totalUsd : 0;
     modelBucket.cacheWriteDerivedCostUsd += derivedCost;
     bucketModels[k] = modelBucket;
     bucket.models = bucketModels;
@@ -770,11 +801,14 @@ export class UsageStore {
       provider,
       model,
       inputTokens: inT,
+      billableInputTokens: billableInput,
+      measuredCachedTokens: input.cacheMetrics?.cachedTokens,
+      measuredCreationTokens: input.cacheMetrics?.creationTokens,
       outputTokens: outT,
       cacheReadTokens: cacheT,
       cacheCreationTokens: cacheWT,
       costUsd: cost.totalUsd,
-      estimated: resolved.estimated,
+      estimated: estimated,
       pricingSource: resolved.source,
     });
     if (this.data.recent.length > this.recentCap) this.data.recent = this.data.recent.slice(-this.recentCap);
@@ -783,7 +817,7 @@ export class UsageStore {
     return {
       costUsd: cost.totalUsd,
       source: resolved.source,
-      estimated: resolved.estimated,
+      estimated: estimated,
       breakdown: cost,
       cacheWritePriceSource: cost.cacheWritePriceSource,
       date,
@@ -838,6 +872,11 @@ export class UsageStore {
       entries.beforeUsd += entry.costUsd;
       const resolved = this.resolve(entry.model, entry.provider);
       const cost = this.cost(resolved.price, entry, entry.provider);
+      const estimated = resolved.estimated || cacheTariffEstimated(resolved.price, entry.measuredCachedTokens ?? 0, entry.measuredCreationTokens ?? 0);
+      const nextCacheSavings = entry.cachePromptTokens === undefined ? undefined : priceCacheMetrics({
+        promptTokens: entry.cachePromptTokens, cachedTokens: entry.measuredCachedTokens ?? 0, creationTokens: 0,
+        billedHitRate: 0, estimatedSavingsUsd: 0, provider: entry.provider, model: entry.model,
+      }, resolved, cost.costMultiplier).estimatedSavingsUsd;
       entries.afterUsd += cost.totalUsd;
       const nextBreakdown: UsageCostBreakdown = {
         inputUsd: cost.inputUsd,
@@ -845,15 +884,16 @@ export class UsageStore {
         cacheReadUsd: cost.cacheReadUsd,
         cacheWriteUsd: cost.cacheWriteUsd,
       };
-      const nextEstimatedCost = resolved.estimated ? cost.totalUsd : 0;
+      const nextEstimatedCost = estimated ? cost.totalUsd : 0;
       const nextDerivedCost = cost.cacheWriteDerived ? cost.cacheWriteUsd : 0;
       const nextMultiplier = cost.costMultiplier !== DEFAULT_COST_MULTIPLIER ? cost.costMultiplier : undefined;
       const prevBreakdown = entry.costBreakdown ?? emptyBreakdown();
       const changed =
         !sameMoney(entry.costUsd, cost.totalUsd) ||
+        (nextCacheSavings !== undefined && !sameMoney(entry.cacheSavingsUsd ?? 0, nextCacheSavings)) ||
         !sameMoney(entry.estimatedCostUsd, nextEstimatedCost) ||
         !sameMoney(entry.cacheWriteDerivedCostUsd ?? 0, nextDerivedCost) ||
-        entry.estimated !== resolved.estimated ||
+        entry.estimated !== estimated ||
         (entry.cacheWriteDerived ?? false) !== cost.cacheWriteDerived ||
         entry.pricingSource !== resolved.source ||
         entry.costMultiplier !== nextMultiplier ||
@@ -879,9 +919,10 @@ export class UsageStore {
       if (!dryRun) {
         const next: UsageEntry = {
           ...entry,
+          ...(nextCacheSavings !== undefined ? { cacheSavingsUsd: nextCacheSavings } : {}),
           costUsd: cost.totalUsd,
           costBreakdown: nextBreakdown,
-          estimated: resolved.estimated,
+          estimated: estimated,
           estimatedCostUsd: nextEstimatedCost,
           cacheWriteDerivedCostUsd: nextDerivedCost,
           cacheWriteDerived: cost.cacheWriteDerived,
@@ -920,14 +961,18 @@ export class UsageStore {
         const { provider, model } = splitEntryKey(mKey);
         const resolved = this.resolve(model, provider);
         const cost = this.cost(resolved.price, sub, provider);
+        const estimated = resolved.estimated || cacheTariffEstimated(resolved.price, sub.measuredCachedTokens ?? 0, sub.measuredCreationTokens ?? 0);
         const nextSub: UsageDailyModelBucket = {
           inputTokens: sub.inputTokens,
+          measuredCachedTokens: sub.measuredCachedTokens,
+          measuredCreationTokens: sub.measuredCreationTokens,
+          ...(sub.billableInputTokens !== undefined ? { billableInputTokens: sub.billableInputTokens } : {}),
           outputTokens: sub.outputTokens,
           cacheReadTokens: sub.cacheReadTokens,
           cacheCreationTokens: sub.cacheCreationTokens,
           costUsd: cost.totalUsd,
           calls: sub.calls,
-          estimatedCostUsd: resolved.estimated ? cost.totalUsd : 0,
+          estimatedCostUsd: estimated ? cost.totalUsd : 0,
           cacheWriteDerivedCostUsd: cost.cacheWriteDerived ? cost.cacheWriteUsd : 0,
         };
         nextModels[mKey] = nextSub;
@@ -965,8 +1010,9 @@ export class UsageStore {
       recent.beforeUsd += rec.costUsd;
       const resolved = this.resolve(rec.model, rec.provider);
       const cost = this.cost(resolved.price, rec, rec.provider);
+      const estimated = resolved.estimated || cacheTariffEstimated(resolved.price, rec.measuredCachedTokens ?? 0, rec.measuredCreationTokens ?? 0);
       recent.afterUsd += cost.totalUsd;
-      const changed = !sameMoney(rec.costUsd, cost.totalUsd) || rec.estimated !== resolved.estimated || rec.pricingSource !== resolved.source;
+      const changed = !sameMoney(rec.costUsd, cost.totalUsd) || rec.estimated !== estimated || rec.pricingSource !== resolved.source;
       if (!changed) continue;
       recent.changed += 1;
       changes.push({
@@ -982,7 +1028,7 @@ export class UsageStore {
         this.data.recent[i] = {
           ...rec,
           costUsd: cost.totalUsd,
-          estimated: resolved.estimated,
+          estimated: estimated,
           pricingSource: resolved.source,
         };
       }
@@ -1190,6 +1236,16 @@ export class UsageStore {
       map.set(e.provider, cur);
     }
     return [...map.values()].sort((a, b) => b.costUsd - a.costUsd);
+  }
+
+  cacheSummary() {
+    const entries = Object.values(this.data.entries);
+    const promptTokensTotal = entries.reduce((sum, entry) => sum + (entry.cachePromptTokens ?? 0), 0);
+    const cachedTokensTotal = entries.reduce((sum, entry) => sum + (entry.measuredCachedTokens ?? 0), 0);
+    return { promptTokensTotal, cachedTokensTotal, overallCacheHitRate: promptTokensTotal > 0 ? cachedTokensTotal / promptTokensTotal : 0,
+      estimatedSavingsUsd: entries.reduce((sum, entry) => sum + (entry.cacheSavingsUsd ?? 0), 0),
+      estimated: entries.some(entry => entry.cachePromptTokens !== undefined && entry.estimated),
+      unmeasuredEntries: entries.filter(entry => entry.cachePromptTokens === undefined).length };
   }
 
   byModel(): UsageEntry[] {

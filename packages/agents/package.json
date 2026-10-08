@@ -19,6 +19,7 @@
   "dependencies": {
     "@vessel/context": "^0.1.0",
     "@vessel/core": "^0.1.0",
+    "@vessel/llm": "^0.1.0",
     "@vessel/policy": "^0.1.0",
     "@vessel/runtime": "^0.1.0",
     "@vessel/shared": "^0.10.0",
