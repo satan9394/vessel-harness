@@ -1,0 +1,118 @@
+{
+  "schemaVersion": 1,
+  "revision": 159,
+  "mode": "bounded",
+  "mission": {
+    "goal": "V2.2 Sandboxed Mods & Middleware Mesh (Epic 195)",
+    "definitionOfDone": [
+      "Task 192 Onion Mod Middleware Pipeline implemented and verified",
+      "Task 193 Sandboxed Claude Code Mods Adapter implemented and verified against CVE-2026-82533",
+      "Task 194 Mod Manifest Permissions, CLI Control & Doctor implemented and verified",
+      "Epic 195 Master DoD full integration and regression passes",
+      "Thin Core absolute zero modification: packages/core diff is 0 lines",
+      "Full regression passes: npm run test:all (root + web) and npx tsc -b exit 0"
+    ],
+    "outOfScope": [
+      "External Agent real execution",
+      "Git push to remote repository (local-only per 2026-10-06 rule)",
+      "Permanent file deletion",
+      "Modifying packages/core (Thin Core rule)"
+    ],
+    "status": "completed"
+  },
+  "workset": [
+    {
+      "id": "192",
+      "status": "completed",
+      "title": "Onion Mod Middleware Pipeline"
+    },
+    {
+      "id": "193",
+      "status": "completed",
+      "title": "Sandboxed Claude Mods Adapter & Gateway"
+    },
+    {
+      "id": "194",
+      "status": "completed",
+      "title": "Mod Manifest Permissions & CLI Doctor"
+    },
+    {
+      "id": "195",
+      "status": "completed",
+      "title": "Epic V2.2 Sandboxed Mods & Middleware Mesh"
+    }
+  ],
+  "blocked": [],
+  "deferredBacklog": [
+    {
+      "id": "196",
+      "title": "Evaluator Red->Green Gate"
+    },
+    {
+      "id": "197",
+      "title": "AST Symbol Index & Dependency Graph"
+    },
+    {
+      "id": "198",
+      "title": "Impact-Driven Context Pruning"
+    },
+    {
+      "id": "199",
+      "title": "Epic V2.3 AST Code Awareness & Red->Green Gates"
+    }
+  ],
+  "budget": {
+    "run": {
+      "epoch": {
+        "used": 1,
+        "limit": 3
+      },
+      "cards": {
+        "used": 4,
+        "limit": 4
+      },
+      "repairs": {
+        "used": 3,
+        "limit": 5
+      },
+      "workersSpawned": {
+        "used": 6,
+        "limit": 8
+      },
+      "research": {
+        "used": 0,
+        "limit": 2
+      }
+    },
+    "mission": {
+      "runs": {
+        "used": 0,
+        "limit": 8
+      },
+      "cards": {
+        "used": 4,
+        "limit": 16
+      },
+      "repairs": {
+        "used": 3,
+        "limit": 15
+      }
+    },
+    "worksetLimit": 8,
+    "activeWorkerLimit": 3,
+    "maxSubagentDepth": 1
+  },
+  "workers": {
+    "active": 0
+  },
+  "lastVerifiedCommit": "0533ebf9",
+  "resumeFrom": "Epic195 cards192-195 mechanically verified locally; uncommitted. Evidence: evidence/sessions/2026-10-08-v2.2/PROOF.md. Human local diff review next; Direction C requires new authorization.",
+  "notesForNextRun": [
+    "Committed baseline remains 0533ebf9; V2.2 changes are uncommitted.",
+    "Full gates: root2734 + web177 =2911 passed /6 skipped; build, test types and web build exit0.",
+    "Core0; dependencies unchanged; no external agents, push or publication.",
+    "Independent security review interrupted by content filter; deterministic evidence and compatibility limits are in PROOF.md.",
+    "Direction C cards196-199 remain deferred; do not start automatically."
+  ],
+  "updatedAt": "2026-10-08T11:17:33.894Z"
+}

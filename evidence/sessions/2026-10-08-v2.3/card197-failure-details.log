@@ -1,0 +1,37 @@
+Captured from the pre-authorization functions.exec command result on 2026-10-08 07:29:06 (repository local clock), chunk 68d199. This is a retained transcript of that actual failure, not a rerun.
+Command: npx vitest run packages/context/tests/ast/symbolGraph.test.ts packages/tools/tests/symbolGraphTool.test.ts packages/application/src/symbolGraphIntegration.test.ts | Tee-Object -FilePath evidence/sessions/2026-10-08-v2.3/card197-tests.log
+Exit code: 1
+
+FAIL packages/context/tests/ast/symbolGraph.test.ts > exact AST symbol graph > updates actual single-file edits including edge resolution within 15ms on the fixture
+AssertionError: isolated benchmark child expected 1 to be +0
+Benchmark stdout:
+{
+  "command": "node --import tsx evidence/sessions/2026-10-08-v2.3/card197-check.ts",
+  "fixtureFiles": ["api.ts", "barrel.ts", "caller.ts", "noise.ts"],
+  "precision": 1,
+  "expectedCallers": ["caller.ts#caller", "caller.ts#execute"],
+  "actualCallers": ["caller.ts#caller", "caller.ts#execute"],
+  "warmupEdits": 8,
+  "measuredEdits": 12,
+  "samplesMs": [5.107999999999947,4.219099999999912,4.223300000000108,5.6766999999999825,4.180399999999963,3.7207999999998265,5.356899999999996,21.4070999999999,4.211399999999912,16.86200000000008,15.889399999999796,19.97349999999983],
+  "maximumMs": 21.4070999999999,
+  "meanMs": 9.235716666666605,
+  "timingScope": "UTF-8 source read, parse changed file, rebuild/check cached explicit files and resolve all graph edges; excludes disk write and subsequent assertions"
+}
+Benchmark stderr:
+node:internal/modules/run_main:107
+    triggerUncaughtException(
+    ^
+AssertionError [ERR_ASSERTION]: all warmed real-edit fixture updates must complete within 15ms
+    at <anonymous> (E:\Code_file\Projects\Vessel_Harness\evidence\sessions\2026-10-08-v2.3\card197-check.ts:39:10) {
+  generatedMessage: false,
+  code: 'ERR_ASSERTION',
+  actual: false,
+  expected: true,
+  operator: '=='
+}
+Node.js v24.14.0
+
+Test Files 1 failed | 2 passed (3)
+Tests 1 failed | 12 passed (13)
+Duration 6.47s

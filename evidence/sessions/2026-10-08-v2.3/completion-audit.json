@@ -1,0 +1,127 @@
+{
+  "epicComplete": true,
+  "approvedDoD": {
+    "meanMs": 15,
+    "maximumMs": 25
+  },
+  "semanticRequirement": "Complete recursive references and type-driven refresh retained; production graph unchanged by this approval",
+  "scoped": {
+    "graphTests": 12,
+    "toolTests": 4,
+    "totalPassed": 16,
+    "log": "accepted15-scoped.log"
+  },
+  "performance": {
+    "command": "node --import tsx evidence/sessions/2026-10-08-v2.3/card197-check.ts",
+    "fixtureFiles": [
+      "api.ts",
+      "barrel.ts",
+      "caller.ts",
+      "noise.ts"
+    ],
+    "precision": 1,
+    "expectedCallers": [
+      "caller.ts#caller",
+      "caller.ts#execute"
+    ],
+    "actualCallers": [
+      "caller.ts#caller",
+      "caller.ts#execute"
+    ],
+    "warmupEdits": 8,
+    "measuredEdits": 12,
+    "samplesMs": [
+      4.3530000000000655,
+      3.7691999999999553,
+      3.031400000000076,
+      3.082300000000032,
+      3.8737999999998465,
+      13.91820000000007,
+      8.432700000000068,
+      18.060799999999972,
+      15.871800000000121,
+      17.7804000000001,
+      15.628400000000056,
+      21.404800000000023
+    ],
+    "maximumMs": 21.404800000000023,
+    "meanMs": 10.767233333333365,
+    "timingScope": "UTF-8 source read, parse changed file, rebuild/check cached explicit files and resolve all graph edges; excludes disk write and subsequent assertions"
+  },
+  "finalGates": {
+    "startedAt": "2026-10-09T05:16:58.0268010Z",
+    "approvedDoD": {
+      "maximumMs": 25,
+      "meanMs": 15
+    },
+    "gates": [
+      {
+        "log": "accepted15-test-all.log",
+        "startedAt": "2026-10-09T05:16:58.0386452Z",
+        "exitCode": 0,
+        "finishedAt": "2026-10-09T05:28:32.4795479Z",
+        "name": "npm run test:all"
+      },
+      {
+        "log": "accepted15-build.log",
+        "startedAt": "2026-10-09T05:28:32.5167132Z",
+        "exitCode": 0,
+        "finishedAt": "2026-10-09T05:28:35.0534627Z",
+        "name": "npx tsc -b tsconfig.json"
+      },
+      {
+        "log": "accepted15-test-types.log",
+        "startedAt": "2026-10-09T05:28:35.0577566Z",
+        "exitCode": 0,
+        "finishedAt": "2026-10-09T05:28:37.3398301Z",
+        "name": "npm run typecheck:tests"
+      },
+      {
+        "log": "accepted15-web-tests.log",
+        "startedAt": "2026-10-09T05:28:37.3431587Z",
+        "exitCode": 0,
+        "finishedAt": "2026-10-09T05:28:44.6044664Z",
+        "name": "npm run test:web"
+      },
+      {
+        "log": "accepted15-web-build.log",
+        "startedAt": "2026-10-09T05:28:44.6069074Z",
+        "exitCode": 0,
+        "finishedAt": "2026-10-09T05:28:46.8983375Z",
+        "name": "npm run -w @vessel/web build -- --emptyOutDir false"
+      }
+    ],
+    "finishedAt": "2026-10-09T05:28:46.9013971Z"
+  },
+  "testSummaries": [
+    " Test Files  258 passed (258)",
+    "      Tests  2780 passed | 6 skipped (2786)",
+    " Test Files  20 passed (20)",
+    "      Tests  177 passed (177)"
+  ],
+  "evaluator": {
+    "redExit": 1,
+    "greenExit": 0,
+    "regressionExit": 0,
+    "signatureValid": true,
+    "evidence": "card199-evaluator-proof.json"
+  },
+  "pruning": {
+    "original": 60019,
+    "pruned": 10468,
+    "reduction": 0.8255885636215199,
+    "prefixByteHash": "fb6b420e8d90b26494ac1f337b7e306f9b7a33679c2a159bf5e8750d3aecd4e0"
+  },
+  "boundaries": {
+    "coreChanged": [],
+    "baselineFilesMissing": []
+  },
+  "currentSourceHashes": {
+    "packages/context/src/ast/symbolGraph.ts": "9f59843f8b76f8b765efb2efe8e749f2077cf9ff556398d0af494b7fd3c93396",
+    "packages/context/tests/ast/symbolGraph.test.ts": "9dfd820f4919610d96f36385530496ddf2147580da1a320b07ed023a33b6945a",
+    "packages/memory/src/sqlite/SessionIndexStore.ts": "5aed8effa87a489717c6b2c7542b0ce500a560997a8c0bfe20c68455b2ce6821",
+    "packages/application/src/v23Integration.test.ts": "40aa13e192d3d5fe1616958e394cfe72d90e3bb2be5db69ccfa1c5bec726c631"
+  },
+  "unmet": [],
+  "verifiedAt": "2026-10-09T05:29:28.282Z"
+}

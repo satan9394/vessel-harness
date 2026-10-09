@@ -5,13 +5,33 @@ import type {
   ToolExecutionResult,
   ToolSpec,
   Verdict,
+  ModExecutionContext,
+  ModInterceptResult,
 } from '@vessel/shared';
 
 export interface ExecutorHooks {
+  mods?: ExecutorModPipeline;
+  modContext?: () => ModExecutionContext;
+  onModFailure?: (call: ToolCall, error: unknown) => Promise<void> | void;
   /** policy re-check at pre-execute — tool layer never trusts who called it */
   decide?: (call: ToolCall, spec: ToolSpec) => Promise<Verdict>;
   onPreExecuteDeny?: (call: ToolCall, verdict: Verdict) => Promise<void> | void;
   onResult?: (call: ToolCall, result: ToolExecutionResult) => Promise<void> | void;
+}
+
+/** Structural seam: runtime never imports the policy implementation. */
+export interface ExecutorModPipeline {
+  dispatchObserve(type: string, payload: unknown, context: ModExecutionContext): Promise<void>;
+  dispatchRewriteToolInput(name: string, input: Record<string, unknown>, context: ModExecutionContext): Promise<Record<string, unknown>>;
+  dispatchIntercept(name: string, input: Record<string, unknown>, context: ModExecutionContext): Promise<ModInterceptResult>;
+}
+
+function interceptedResult(value: unknown): ToolExecutionResult {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) throw new TypeError('Invalid Mod tool result');
+  const result = value as ToolExecutionResult;
+  if (typeof result.content !== 'string' || !result.meta || typeof result.meta !== 'object' || Array.isArray(result.meta)) throw new TypeError('Invalid Mod tool result');
+  if (result.error && (!['INVALID_ARGS', 'TOOL_FAILURE', 'SANDBOX_DENIAL', 'TIMEOUT', 'DENIED', 'UNKNOWN'].includes(result.error.errorClass) || typeof result.error.message !== 'string')) throw new TypeError('Invalid Mod tool error');
+  return { content: result.content, meta: result.meta, ...(result.error ? { error: result.error } : {}) };
 }
 
 export interface ExecutorCtx {
@@ -28,6 +48,7 @@ export interface ExecutorCtx {
  * Policy is re-checked here even for non-model channels (POLICY-SPEC §2.3).
  */
 export class Executor {
+  private modFailed = false;
   constructor(private readonly hooks: ExecutorHooks = {}) {}
 
   async runTool(tool: ToolSpec, call: ToolCall, ctx: ExecutorCtx): Promise<ToolExecutionResult> {
@@ -41,6 +62,31 @@ export class Executor {
         };
         await this.hooks.onPreExecuteDeny?.(call, verdict);
         return { content: '', error, meta: { denied: true, decisionPath: verdict.decisionPath } };
+      }
+    }
+
+    if (this.hooks.mods) {
+      try {
+        if (this.modFailed) throw new Error('Mod pipeline circuit is open');
+        const context = this.hooks.modContext?.() ?? { sessionId: '', turnIndex: 0, metadata: {} };
+        await this.hooks.mods.dispatchObserve('before_tool', call, context);
+        call = { ...call, arguments: await this.hooks.mods.dispatchRewriteToolInput(call.toolName, call.arguments, context) };
+        if (!this.hooks.decide) throw new Error('Mod execution requires host policy');
+        const verdict = await this.hooks.decide(call, tool);
+        if (verdict.action !== 'allow') {
+          await this.hooks.onPreExecuteDeny?.(call, verdict);
+          return { content: '', error: { errorClass: 'DENIED', message: verdict.reason ?? 'Mod rewrite denied' }, meta: { denied: true, decisionPath: verdict.decisionPath } };
+        }
+        const intercepted = await this.hooks.mods.dispatchIntercept(call.toolName, call.arguments, context);
+        const result = intercepted.handled ? interceptedResult(intercepted.result)
+          : await new Executor({ decide: this.hooks.decide, onPreExecuteDeny: this.hooks.onPreExecuteDeny }).runTool(tool, call, ctx);
+        await this.hooks.onResult?.(call, result);
+        await this.hooks.mods.dispatchObserve('after_tool', { content: result.content, ...(result.error ? { error: result.error } : {}) }, context);
+        return result;
+      } catch (error) {
+        this.modFailed = true;
+        await this.hooks.onModFailure?.(call, error);
+        return { content: '', error: { errorClass: 'DENIED', message: 'Mod pipeline failed closed' }, meta: { denied: true, modFailure: true } };
       }
     }
 

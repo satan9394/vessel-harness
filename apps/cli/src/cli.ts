@@ -21,6 +21,7 @@ import { daemonCommands } from './daemon/daemonCommands.js';
 import { meshCommand } from './commands/meshCommand.js';
 import { memoryCommand } from './commands/memoryCommand.js';
 import { doctorCommand } from './commands/doctorCommand.js';
+import { modCommand } from './commands/modCommand.js';
 import { ProviderStore, parseBackupKeep, type ProviderConfig } from './providers/ProviderStore.js';
 import { createDefaultProviderStore } from './providers/defaultStore.js';
 import {
@@ -138,7 +139,8 @@ Vessel CLI v${VERSION} — 可组合 Agent Harness（品牌 Vessel）
   vessel daemon start|stop|status    后台服务（--port <n>、--json）
   vessel mesh|swarm status|peers|ping <peer-id>   Mesh control plane
   vessel memory|mem rules|search <query>|stats   Workspace cognitive memory
-  vessel doctor|diagnose [--probe-network]       System health diagnostics (offline by default)
+  vessel doctor|diagnose [--probe-network] [--mods] System health diagnostics (--mods scans only Mods)
+  vessel mod list|inspect <name>|verify <path>|audit <path> Static Mod inspection
   vessel serve --mode mcp-agent      通过 stdio 启动 MCP 子代理服务（协议仅占用 stdout）
   vessel web                         启动本地服务并打开浏览器
 
@@ -151,6 +153,7 @@ run 选项:
                                   anthropic 用 {base}/v1/messages（或 VESSEL_BASE_URL）
   --api-key <key>                 API 密钥（或 VESSEL_API_KEY；本地端点可不填）
   --max-steps <n>                 单轮步数上限（默认 64）
+  --mod <directory>               Explicitly load one dependency-free JS Mod in the restricted Worker
   --permission <mode>             权限模式：read-only（只读探索）| workspace-write（默认，写工作区）|
                                   danger-full-access（全权限，高危可执行）
   --policy <path>                 系统级策略文件（默认 configs/policy.default.yaml）
@@ -1034,6 +1037,7 @@ async function cmdRun(flags: Map<string, string>): Promise<number> {
     // `vessel resume` 透传：不给 sessionId 时 Session.open 会新建空会话，恢复语义失效。
     sessionId: flags.get('session-id'),
     permission,
+    mods: flags.has('mod') ? [path.resolve(workspace, flags.get('mod')!)] : undefined,
     // V0.9 usage statistics: record this session's model usage persistently
     // （task 086：--strict 只用模型专属价目，未收录模型按 0 计价）
     usageStore: createUsageStore({ strict: flags.has('strict') }),
@@ -3113,6 +3117,7 @@ async function dispatch(parsed: ParsedArgs): Promise<number> {
   if (first === 'mesh' || first === 'swarm') return meshCommand(parsed.positionals.slice(1), parsed.flags);
   if (first === 'memory' || first === 'mem') return memoryCommand(parsed.positionals.slice(1), parsed.flags);
   if (first === 'doctor' || first === 'diagnose') return doctorCommand(parsed.positionals.slice(1), parsed.flags);
+  if (first === 'mod') return modCommand(parsed.positionals.slice(1), { workspaceRoot: parsed.flags.get('workspace') });
   if (first === 'provider') return cmdProvider(parsed.positionals.slice(1), parsed.flags);
   if (first === 'mcp') return cmdMcp(parsed.positionals.slice(1), parsed.flags);
   if (first === 'diff') return cmdDiff(parsed.positionals.slice(1), parsed.flags);

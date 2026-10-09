@@ -36,6 +36,9 @@ export * from './review/index.js';
 
 export * from './credential/index.js';
 
+// The CLI's trusted Mod diagnostic uses the existing application/runtime edge.
+export { WorkerSandbox } from '@vessel/runtime';
+
 // task 098: provider catalog + /v1/models fetcher (moved down from apps/cli) —
 // shared SSOT for the CLI wizard and the benchmark real-model lane.
 export {

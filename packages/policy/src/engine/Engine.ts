@@ -4,6 +4,8 @@ export interface PermissionSpec {
   requiredPermission?: 'read' | 'workspace-write' | 'danger-full-access';
 }
 
+export type PolicyInterceptor = (call: { toolName: string; arguments: Record<string, unknown> }) => Verdict | undefined;
+
 /**
  * policy/engine — authoritative decision listener on the BeforeTool chain
  * (POLICY-SPEC §4.2). Decision order:
@@ -15,7 +17,7 @@ export interface PermissionSpec {
 export class PolicyEngine {
   private artifacts: PolicyArtifacts;
 
-  constructor(artifacts: PolicyArtifacts) {
+  constructor(artifacts: PolicyArtifacts, private readonly interceptors: readonly PolicyInterceptor[] = []) {
     this.artifacts = artifacts;
   }
 
@@ -27,6 +29,12 @@ export class PolicyEngine {
   async decide(call: { toolName: string; arguments: Record<string, unknown> }, spec?: PermissionSpec): Promise<Verdict> {
     const path: string[] = [];
     const a = this.artifacts;
+
+    // Mandatory gates may only narrow policy; an interceptor cannot grant access.
+    for (const intercept of this.interceptors) {
+      const verdict = intercept(call);
+      if (verdict?.action === 'deny') return verdict;
+    }
 
     // ① denied_tools — unconditional, before everything
     if (a.deniedTools.includes(call.toolName)) {

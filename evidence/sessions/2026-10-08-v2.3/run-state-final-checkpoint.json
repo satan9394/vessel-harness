@@ -1,0 +1,106 @@
+{
+  "schemaVersion": 1,
+  "revision": 210,
+  "mode": "bounded",
+  "mission": {
+    "goal": "V2.3 AST Code Awareness & Red-Green Gates (Epic 199)",
+    "definitionOfDone": [
+      "196 genuine signed Red/Green subprocess evidence and completion deny",
+      "197 precise AST graph with recursive references/type-driven refresh; user-approved2026-10-08 meanMs<=15ms and maximumMs<=25ms",
+      "198 impact pruning >=40% tokens and immutable prefix/task",
+      "199 dual-root tests, tsc build, test types, web build exit0 and delivery proof",
+      "packages/core zero diff; local only"
+    ],
+    "outOfScope": [
+      "External agents/live harnesses",
+      "Commits/push/publication",
+      "Permanent deletion",
+      "packages/core changes",
+      "Resident LSP services"
+    ],
+    "status": "completed"
+  },
+  "workset": [
+    {
+      "id": "196",
+      "status": "completed",
+      "title": "V2.3 card 196"
+    },
+    {
+      "id": "197",
+      "status": "completed",
+      "title": "V2.3 card 197"
+    },
+    {
+      "id": "198",
+      "status": "completed",
+      "title": "V2.3 card 198"
+    },
+    {
+      "id": "199",
+      "status": "completed",
+      "title": "V2.3 integration"
+    }
+  ],
+  "blocked": [],
+  "deferredBacklog": [
+    {
+      "id": "dependency-source-map-js-advisory",
+      "title": "Existing source-map-js1.2.1 high advisory GHSA-68fv-2mgg-jv7q; npm-audit.json; not introduced by parser"
+    }
+  ],
+  "budget": {
+    "run": {
+      "epoch": {
+        "used": 0,
+        "limit": 3
+      },
+      "cards": {
+        "used": 0,
+        "limit": 4
+      },
+      "repairs": {
+        "used": 0,
+        "limit": 5
+      },
+      "workersSpawned": {
+        "used": 1,
+        "limit": 8
+      },
+      "research": {
+        "used": 0,
+        "limit": 2
+      }
+    },
+    "mission": {
+      "runs": {
+        "used": 3,
+        "limit": 8
+      },
+      "cards": {
+        "used": 4,
+        "limit": 16
+      },
+      "repairs": {
+        "used": 8,
+        "limit": 15
+      }
+    },
+    "worksetLimit": 8,
+    "activeWorkerLimit": 3,
+    "maxSubagentDepth": 1
+  },
+  "workers": {
+    "active": 0
+  },
+  "lastVerifiedCommit": "0533ebf9",
+  "resumeFrom": "Epic199 completed: evidence/sessions/2026-10-08-v2.3/PROOF.md; final dual-root2957pass6skip, all requested gates0",
+  "notesForNextRun": [
+    "User-approved complete semantic mean15/peak25; graph12+tool4 scoped pass; standalone10.767/21.405 with all12samples",
+    "Final root2780pass6skip/Web177pass; build/test-types/web-tests/web-build0 after last source/test edit",
+    "All workers0; core0/baseline missing0; no commits/push/external harness; preserve earlier failed logs and dependency backups",
+    "Completion-audit verified genuine signed Red1/Green0/Regression0 and82.56percent pruning; old blocked audit retained",
+    "Mission complete; await new task authorization"
+  ],
+  "updatedAt": "2026-10-09T05:31:36.6323237Z"
+}

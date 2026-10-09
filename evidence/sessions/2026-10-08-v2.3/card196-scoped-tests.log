@@ -1,0 +1,14 @@
+COMMAND: npx vitest run packages/policy/tests/redGreenGate.test.ts packages/application/src/redGreenCompletion.test.ts packages/policy/src/policy.test.ts packages/application/src/modIntegration.test.ts
+
+ RUN  v5.0.1 E:/Code_file/Projects/Vessel_Harness
+
+
+ Test Files  4 passed (4)
+      Tests  41 passed (41)
+   Start at  04:29:23
+   Duration  10.55s (tests 49%, import 28%, transform 22%, setup 1%)
+
+    Isolate  4 workers spawned · ~262ms startup each (spawn + environment, per file)
+             at least ~787ms faster with isolate: false — reuses workers across files instead of one per file
+
+EXIT_CODE: 0

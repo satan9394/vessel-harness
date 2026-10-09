@@ -1,0 +1,90 @@
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import { createHash } from 'node:crypto';
+import { afterEach, beforeEach, expect, it } from 'vitest';
+import { RedGreenGate, PolicyEngine, compilePolicyYaml, type RedGreenGateConfig } from '../src/index.js';
+
+let root: string;
+let config: RedGreenGateConfig;
+beforeEach(() => {
+  root = fs.mkdtempSync(path.join(os.tmpdir(), 'vessel-red-green-'));
+  fs.writeFileSync(path.join(root, 'value.cjs'), 'module.exports=0');
+  fs.writeFileSync(path.join(root, 'repro.cjs'), "require('node:assert/strict').equal(require('./value.cjs'),1,'TARGET_BUG')");
+  config = { cwd: root, reproductionCommand: { executable: process.execPath, args: ['repro.cjs'] },
+    fullSuiteCommand: { executable: process.execPath, args: ['repro.cjs'] }, reproductionFiles: ['repro.cjs'], sourceFiles: ['value.cjs'], allowBaselineFailureReasons: ['TARGET_BUG'] };
+});
+afterEach(() => fs.rmSync(root, { recursive: true, force: true }));
+const fix = () => fs.writeFileSync(path.join(root, 'value.cjs'), 'module.exports=1');
+it('rejects false positives and missing full regression configuration', async () => {
+  fix(); const gate = new RedGreenGate();
+  expect(await gate.verifyRedPhase(config)).toMatchObject({ success: false, proof: { phase: 'rejected', redExecution: { exitCode: 0 } } });
+  expect((await gate.verifyRedPhase({ ...config, fullSuiteCommand: undefined })).success).toBe(false);
+});
+it('records real target assertion failure and refuses unfinished repairs', async () => {
+  const gate = new RedGreenGate(); const red = await gate.verifyRedPhase(config);
+  expect(red.success).toBe(true); expect(red.proof.redExecution.stderr).toContain('AssertionError');
+  expect(red.proof.signature).toMatch(/^[a-f0-9]{64}$/);
+  fs.writeFileSync(path.join(root, 'value.cjs'), 'module.exports=2');
+  expect(await gate.verifyGreenPhase(red.proof, config)).toMatchObject({ success: false, proof: { phase: 'rejected', greenExecution: { exitCode: 1 } } });
+  expect(gate.completionVerdict()?.action).toBe('deny');
+});
+it('rejects mixed real test failures and ambiguous reports even when a target assertion is present', async () => {
+  const gate = new RedGreenGate();
+  const mixed = { executable: process.execPath, args: ['-e',
+    "const test=require('node:test');const assert=require('node:assert/strict');test('target',()=>assert.equal(0,1,'TARGET_BUG'));test('setup',()=>{throw new SyntaxError('UNRELATED_SETUP_FAILURE')})"] };
+  const result = await gate.verifyRedPhase({ ...config, reproductionCommand: mixed });
+  expect(result.success).toBe(false);
+  expect(result.proof.redExecution.exitCode).toBe(1);
+  expect(result.proof.redExecution.stdout + result.proof.redExecution.stderr).toContain('UNRELATED_SETUP_FAILURE');
+  expect(gate.completionVerdict()?.action).toBe('deny');
+  expect((await gate.verifyRedPhase({ ...config, reproductionCommand: { executable: process.execPath,
+    args: ['-e', "console.error('AssertionError: TARGET_BUG');process.exit(1)"] } })).success).toBe(false);
+});
+it('rejects a changing Red baseline and an unchanged source repair', async () => {
+  const gate = new RedGreenGate();
+  const red = await gate.verifyRedPhase(config);
+  expect((await gate.verifyGreenPhase(red.proof, config)).error).toContain('No source repair');
+  config.reproductionCommand = { executable: process.execPath, args: ['-e', "require('node:fs').writeFileSync('value.cjs','module.exports=1');require('node:assert/strict').fail('TARGET_BUG')"] };
+  expect((await gate.verifyRedPhase(config)).success).toBe(false);
+});
+it('permits completion only after real Green plus full suite; later edits invalidate it', async () => {
+  const gate = new RedGreenGate(); const red = await gate.verifyRedPhase(config); fix();
+  const green = await gate.verifyGreenPhase(red.proof, config);
+  expect(green).toMatchObject({ success: true, proof: { phase: 'green_verified', regressionPassed: true, regressionExecution: { exitCode: 0 } } });
+  expect(gate.completionVerdict(path.join(root, 'other-workspace'))?.action).toBe('deny');
+  const policy = new PolicyEngine(compilePolicyYaml('version: "0.1"\nprofile: danger-full-access\napproval: never'), [call => call.toolName === 'claim_task_complete' ? gate.completionVerdict() : undefined]);
+  expect((await policy.decide({ toolName: 'claim_task_complete', arguments: { proof: { phase: 'green_verified' } } })).action).toBe('allow');
+  fs.writeFileSync(path.join(root, 'value.cjs'), 'module.exports=2');
+  expect((await policy.decide({ toolName: 'claim_task_complete', arguments: {} })).action).toBe('deny');
+});
+it('rejects modified evaluator tests, command identity and recomputed public signatures', async () => {
+  const gate = new RedGreenGate(); const red = await gate.verifyRedPhase(config); fix();
+  red.proof.redExecution.stderr = 'forged';
+  red.proof.signature = createHash('sha256').update(JSON.stringify({ ...red.proof, signature: '' })).digest('hex');
+  expect((await gate.verifyGreenPhase(red.proof, config)).success).toBe(false);
+  fs.writeFileSync(path.join(root, 'value.cjs'), 'module.exports=0');
+  const next = await gate.verifyRedPhase(config); fix();
+  expect((await gate.verifyGreenPhase(next.proof, { ...config, timeoutMs: 5000 })).success).toBe(false);
+  fs.writeFileSync(path.join(root, 'value.cjs'), 'module.exports=0');
+  const last = await gate.verifyRedPhase(config); fix();
+  fs.writeFileSync(path.join(root, 'repro.cjs'), '');
+  expect((await gate.verifyGreenPhase(last.proof, config)).success).toBe(false);
+});
+it('rejects regression failures, unrelated exits, spawn errors, shell syntax and timeouts', async () => {
+  const gate = new RedGreenGate();
+  config.fullSuiteCommand = { executable: process.execPath, args: ['-e', 'process.exit(7)'] };
+  const red = await gate.verifyRedPhase(config); fix();
+  expect((await gate.verifyGreenPhase(red.proof, config)).success).toBe(false);
+  for (const reproductionCommand of [
+    { executable: process.execPath, args: ['-e', 'process.exit(1)'] },
+    { executable: 'missing-vessel-executable', args: [] },
+    'node repro.cjs && echo fake',
+    { executable: process.execPath, args: ['-e', "setTimeout(()=>{},10000)"] },
+  ]) expect((await gate.verifyRedPhase({ ...config, reproductionCommand, timeoutMs: 100 })).success).toBe(false);
+});
+it('unverified completion and cross-evaluator proofs cannot grant authority', async () => {
+  const gate = new RedGreenGate(); expect(gate.completionVerdict()?.action).toBe('deny');
+  const red = await gate.verifyRedPhase(config); fix();
+  expect((await new RedGreenGate().verifyGreenPhase(red.proof, config)).success).toBe(false);
+});

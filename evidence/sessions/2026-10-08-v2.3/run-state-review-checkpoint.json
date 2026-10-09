@@ -1,0 +1,111 @@
+{
+  "schemaVersion": 1,
+  "revision": 192,
+  "mode": "bounded",
+  "mission": {
+    "goal": "V2.3 AST Code Awareness & Red-Green Gates (Epic 199)",
+    "definitionOfDone": [
+      "196 genuine signed Red/Green subprocess evidence and completion deny",
+      "197 precise AST graph with <=15ms incremental indexing",
+      "198 impact pruning >=40% tokens and immutable prefix/task",
+      "199 dual-root tests, tsc build, test types, web build exit0 and delivery proof",
+      "packages/core zero diff; local only"
+    ],
+    "outOfScope": [
+      "External agents/live harnesses",
+      "Commits/push/publication",
+      "Permanent deletion",
+      "packages/core changes",
+      "Resident LSP services"
+    ],
+    "status": "blocked"
+  },
+  "workset": [
+    {
+      "id": "196",
+      "status": "completed",
+      "title": "V2.3 card 196"
+    },
+    {
+      "id": "197",
+      "status": "blocked",
+      "title": "V2.3 card 197"
+    },
+    {
+      "id": "198",
+      "status": "completed",
+      "title": "V2.3 card 198"
+    },
+    {
+      "id": "199",
+      "status": "pending",
+      "title": "V2.3 integration"
+    }
+  ],
+  "blocked": [
+    {
+      "id": "197",
+      "title": "Latest review-repair precision suite:14pass/1latencyfail;max21.365ms>15ms; no further performance repair authorized"
+    }
+  ],
+  "deferredBacklog": [
+    {
+      "id": "dependency-source-map-js-advisory",
+      "title": "Existing source-map-js1.2.1 high advisory GHSA-68fv-2mgg-jv7q; npm-audit.json; not introduced by parser"
+    }
+  ],
+  "budget": {
+    "run": {
+      "epoch": {
+        "used": 0,
+        "limit": 3
+      },
+      "cards": {
+        "used": 0,
+        "limit": 4
+      },
+      "repairs": {
+        "used": 2,
+        "limit": 5
+      },
+      "workersSpawned": {
+        "used": 4,
+        "limit": 8
+      },
+      "research": {
+        "used": 0,
+        "limit": 2
+      }
+    },
+    "mission": {
+      "runs": {
+        "used": 2,
+        "limit": 8
+      },
+      "cards": {
+        "used": 3,
+        "limit": 16
+      },
+      "repairs": {
+        "used": 7,
+        "limit": 15
+      }
+    },
+    "worksetLimit": 8,
+    "activeWorkerLimit": 3,
+    "maxSubagentDepth": 1
+  },
+  "workers": {
+    "active": 0
+  },
+  "lastVerifiedCommit": "0533ebf9",
+  "resumeFrom": "REVIEW-CHECKPOINT.md:19615tests;19819tests/build/types0 and independent probes0;197latestmax21.365ms>15ms blocked;199pending. Await renewed performance authorization; no reruns to replace failure.",
+  "notesForNextRun": [
+    "No commits/push/publication/core changes; preserve V2.2 baseline and dependency backups",
+    "Workers0; scoped198 accepted; full dual-root/Web/199 end-to-end gates not executed",
+    "Original15ms and requestedmax10ms unchanged; latest197 failure supersedes earlier6.404ms pass",
+    "Finalnpmci alreadyexit0; source-map-js advisory is existingdeferredbacklog",
+    "Read evidence/sessions/2026-10-08-v2.3/REVIEW-CHECKPOINT.md and latest197failure before action"
+  ],
+  "updatedAt": "2026-10-08T15:30:31.694Z"
+}

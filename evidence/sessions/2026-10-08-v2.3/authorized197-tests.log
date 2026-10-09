@@ -1,0 +1,91 @@
+
+ RUN  v5.0.1 E:/Code_file/Projects/Vessel_Harness
+
+ ❯ packages/context/tests/ast/symbolGraph.test.ts (10 tests | 1 failed) 2539ms
+   ❯ exact AST symbol graph (10)
+     × updates actual single-file edits including edge resolution within 15ms on the fixture 1606ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  packages/context/tests/ast/symbolGraph.test.ts > exact AST symbol graph > updates actual single-file edits including edge resolution within 15ms on the fixture
+AssertionError: {
+  "command": "node --import tsx evidence/sessions/2026-10-08-v2.3/card197-check.ts",
+  "fixtureFiles": [
+    "api.ts",
+    "barrel.ts",
+    "caller.ts",
+    "noise.ts"
+  ],
+  "precision": 1,
+  "expectedCallers": [
+    "caller.ts#caller",
+    "caller.ts#execute"
+  ],
+  "actualCallers": [
+    "caller.ts#caller",
+    "caller.ts#execute"
+  ],
+  "warmupEdits": 8,
+  "measuredEdits": 12,
+  "samplesMs": [
+    19.965400000000045,
+    4.9659999999998945,
+    4.44360000000006,
+    16.59089999999992,
+    4.922800000000052,
+    15.577999999999975,
+    4.351199999999835,
+    8.478600000000142,
+    4.153999999999996,
+    2.980000000000018,
+    3.968900000000076,
+    3.4204999999999472
+  ],
+  "maximumMs": 19.965400000000045,
+  "meanMs": 7.818324999999997,
+  "timingScope": "UTF-8 source read, parse changed file, rebuild/check cached explicit files and resolve all graph edges; excludes disk write and subsequent assertions"
+}
+node:internal/modules/run_main:107
+    triggerUncaughtException(
+    ^
+
+AssertionError [ERR_ASSERTION]: all warmed real-edit fixture updates must complete within 15ms
+    at <anonymous> (E:\Code_file\Projects\Vessel_Harness\evidence\sessions\2026-10-08-v2.3\card197-check.ts:39:10) {
+  generatedMessage: false,
+  code: 'ERR_ASSERTION',
+  actual: false,
+  expected: true,
+  operator: '==',
+  diff: 'simple'
+}
+
+Node.js v24.14.0
+: expected 1 to be +0 // Object.is equality
+
+- Expected
++ Received
+
+- 0
++ 1
+
+ ❯ packages/context/tests/ast/symbolGraph.test.ts:129:64
+    127|     const repo = path.resolve(import.meta.dirname, '../../../..');
+    128|     const measured = spawnSync(process.execPath, ['--import', 'tsx', '…
+    129|     expect(measured.status, measured.stdout + measured.stderr).toBe(0);
+       |                                                                ^
+    130|     const proof = JSON.parse(measured.stdout);
+    131|     expect(proof.measuredEdits).toBe(12);
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed | 2 passed (3)
+      Tests  1 failed | 15 passed (16)
+   Start at  08:07:18
+   Duration  8.78s (tests 37%, import 37%, transform 25%, setup 1%)
+
+  Transform  transforming modules took 2.02s · 25% of tracked time, re-done on every run
+             persist transforms across runs with fsModuleCache: true
+             learn more: https://vitest.dev/guide/improving-performance#caching-between-reruns
+
+ExitCode=1

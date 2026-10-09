@@ -1,0 +1,41 @@
+{
+  "proof": {
+    "id": "b79d40d5-eb2f-430c-8b43-0982e0f17550",
+    "phase": "green_verified",
+    "redExecution": {
+      "command": "{\"executable\":\"D:\\\\Technology_application\\\\NVM_Windows\\\\nodejs\\\\node.exe\",\"args\":[\"repro.cjs\"]}",
+      "exitCode": 1,
+      "stdout": "",
+      "stderr": "node:assert:152\r\n  throw new AssertionError(obj);\r\n  ^\r\n\r\nAssertionError [ERR_ASSERTION]: TARGET_ADDITION_BUG\r\n\r\n-1 !== 5\r\n\r\n    at Object.<anonymous> (C:\\work\\AppData\\Local\\Temp\\vessel-v23-e2e-KkIurm\\repro.cjs:1:54)\r\n    at Module._compile (node:internal/modules/cjs/loader:1812:14)\r\n    at Object..js (node:internal/modules/cjs/loader:1943:10)\r\n    at Module.load (node:internal/modules/cjs/loader:1533:32)\r\n    at Module._load (node:internal/modules/cjs/loader:1335:12)\r\n    at wrapModuleLoad (node:internal/modules/cjs/loader:255:19)\r\n    at Module.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:154:5)\r\n    at node:internal/main/run_main_module:33:47 {\r\n  generatedMessage: false,\r\n  code: 'ERR_ASSERTION',\r\n  actual: -1,\r\n  expected: 5,\r\n  operator: 'strictEqual',\r\n  diff: 'simple'\r\n}\r\n\r\nNode.js v24.14.0\r\n",
+      "verifiedAt": "2026-10-08T15:50:50.956Z",
+      "failureSummary": "TARGET_ADDITION_BUG"
+    },
+    "signature": "63567bc7b4a33bc847bd0cf16fce371552157e207565d85e1fec7152823f1d63",
+    "greenExecution": {
+      "command": "{\"executable\":\"D:\\\\Technology_application\\\\NVM_Windows\\\\nodejs\\\\node.exe\",\"args\":[\"repro.cjs\"]}",
+      "exitCode": 0,
+      "stdout": "",
+      "stderr": "",
+      "verifiedAt": "2026-10-08T15:50:53.144Z"
+    },
+    "regressionExecution": {
+      "command": "{\"executable\":\"D:\\\\Technology_application\\\\NVM_Windows\\\\nodejs\\\\node.exe\",\"args\":[\"regression.cjs\"]}",
+      "exitCode": 0,
+      "stdout": "3 regression assertions passed\n",
+      "stderr": "",
+      "verifiedAt": "2026-10-08T15:50:53.221Z"
+    },
+    "regressionPassed": true
+  },
+  "prefixByteHash": "fb6b420e8d90b26494ac1f337b7e306f9b7a33679c2a159bf5e8750d3aecd4e0",
+  "reduction": 0.8255885636215199,
+  "originalTokenCount": 60019,
+  "prunedTokenCount": 10468,
+  "exactReferenceEdges": [
+    {
+      "fromId": "caller.mjs#calculate",
+      "toId": "arithmetic.mjs#add",
+      "relation": "references"
+    }
+  ]
+}

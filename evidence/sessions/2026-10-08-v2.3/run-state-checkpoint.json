@@ -1,0 +1,110 @@
+{
+  "schemaVersion": 1,
+  "revision": 167,
+  "mode": "bounded",
+  "mission": {
+    "goal": "V2.3 AST Code Awareness & Red-Green Gates (Epic 199)",
+    "definitionOfDone": [
+      "196 genuine signed Red/Green subprocess evidence and completion deny",
+      "197 precise AST graph with <=15ms incremental indexing",
+      "198 impact pruning >=40% tokens and immutable prefix/task",
+      "199 dual-root tests, tsc build, test types, web build exit0 and delivery proof",
+      "packages/core zero diff; local only"
+    ],
+    "outOfScope": [
+      "External agents/live harnesses",
+      "Commits/push/publication",
+      "Permanent deletion",
+      "packages/core changes",
+      "Resident LSP services"
+    ],
+    "status": "blocked"
+  },
+  "workset": [
+    {
+      "id": "196",
+      "status": "completed",
+      "title": "V2.3 card 196"
+    },
+    {
+      "id": "197",
+      "status": "blocked",
+      "title": "V2.3 card 197"
+    },
+    {
+      "id": "198",
+      "status": "pending",
+      "title": "V2.3 card 198"
+    },
+    {
+      "id": "199",
+      "status": "pending",
+      "title": "V2.3 integration"
+    }
+  ],
+  "blocked": [
+    {
+      "id": "197",
+      "title": "<=15ms incremental latency fails after targeted cache repair; suite12pass/1fail. Workflow §4 requires stop."
+    }
+  ],
+  "deferredBacklog": [
+    {
+      "id": "dependency-source-map-js-advisory",
+      "title": "Existing source-map-js1.2.1 high advisory GHSA-68fv-2mgg-jv7q; npm-audit.json; not introduced by parser"
+    }
+  ],
+  "budget": {
+    "run": {
+      "epoch": {
+        "used": 0,
+        "limit": 3
+      },
+      "cards": {
+        "used": 2,
+        "limit": 4
+      },
+      "repairs": {
+        "used": 2,
+        "limit": 5
+      },
+      "workersSpawned": {
+        "used": 2,
+        "limit": 8
+      },
+      "research": {
+        "used": 0,
+        "limit": 2
+      }
+    },
+    "mission": {
+      "runs": {
+        "used": 1,
+        "limit": 8
+      },
+      "cards": {
+        "used": 2,
+        "limit": 16
+      },
+      "repairs": {
+        "used": 2,
+        "limit": 15
+      }
+    },
+    "worksetLimit": 8,
+    "activeWorkerLimit": 3,
+    "maxSubagentDepth": 1
+  },
+  "workers": {
+    "active": 0
+  },
+  "lastVerifiedCommit": "0533ebf9",
+  "resumeFrom": "197 performance checkpoint: evidence/sessions/2026-10-08-v2.3/CHECKPOINT.md; await explicit additional repair authorization, originalDoD unchanged; 198/199 notstarted",
+  "notesForNextRun": [
+    "OriginalEpic199 scope and<=15ms criterion unchanged; do not markcomplete",
+    "Parentcheckpoint tsc-b/typesexit0; core0, missingbaseline0; allworkersstopped",
+    "Fulltestall/webbuild/finalnpmci remain gatesafter197/198",
+    "No commits/push; V2.2 baseline preserved"
+  ],
+  "updatedAt": "2026-10-08T14:31:41.102Z"
+}

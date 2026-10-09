@@ -205,6 +205,22 @@ npm run bench:conformance -- --all --live
 
 ## 开发
 
+### AST 符号图（V2.3，宿主显式启用）
+
+`composeHarness({ ...options, symbolGraph: { filePaths: ['src/api.ts', 'src/caller.ts'], paths: { '@app/*': ['./src/*.ts'] } } })`
+注册只读 `code_symbol_graph`；未配置时不注册。工具支持精确符号、引用、反向依赖和模块图，深度 1–3。
+宿主指定文件集（工作区相对路径）；每次调用重新检查规范路径、读权限、文件大小并刷新内容。
+导入解析仅查询已索引的文件，不会读取未列入文件集的依赖、凭据或外部库。`paths` / `baseUrl` 是显式路径映射，
+不会自动读取 `tsconfig.json` 或包的 `package.json`。
+
+解析器为 runtime 依赖 `typescript-parser`（固定 npm alias `typescript@5.9.3`）：项目构建仍使用 TypeScript 7，
+其安装包没有本功能所需的 JS Compiler API。索引是瞬态内存扩展，没有 LSP 进程或常驻服务。
+命名声明、import 别名、reexport / star / namespace、词法遮蔽和 implements 使用 Compiler API 的符号身份；
+未索引的库、动态 import / require、匿名声明及解构绑定不产生猜测性的符号节点。
+增量更新保留无关文件的 AST 身份与边，重新解析变更文件及反向依赖闭包；新增或移除文件刷新全部已索引文件。
+图谱不是完整的 TS 诊断或语言服务器；2026-10-08 人类批准的真实单文件更新门禁为 mean ≤10ms、peak ≤25ms（小型复杂引用 fixture），不能推断为全仓规模的上界。
+可运行证据：`node --import tsx evidence/sessions/2026-10-08-v2.3/card197-check.ts`；当前验收断点见该目录 `card197-proof.md`。
+
 ```powershell
 npm ci                 # 可复现安装（lockfile 必须与 package.json 一致；CI 用硬 npm ci 把关）
 npm run build          # tsc -b 类型 + 编译

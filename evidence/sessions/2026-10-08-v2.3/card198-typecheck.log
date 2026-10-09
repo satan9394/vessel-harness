@@ -1,0 +1,9 @@
+
+> composable-agent-harness@0.10.0 typecheck:tests
+> tsc -p tsconfig.test.json --pretty false
+
+packages/context/src/pruning/adaptivePruning.ts(33,61): error TS2322: Type '(root: ClassDeclaration | EnumDeclaration | ExportAssignment | ExportDeclaration | FunctionDeclaration | ... 5 more ... | VariableStatement) => Statement' is not assignable to type 'Transformer<ClassDeclaration | EnumDeclaration | ExportAssignment | ExportDeclaration | FunctionDeclaration | ... 5 more ... | VariableStatement>'.
+  Type 'Statement' is not assignable to type 'ClassDeclaration | EnumDeclaration | ExportAssignment | ExportDeclaration | FunctionDeclaration | ... 5 more ... | VariableStatement'.
+    Type 'Statement' is missing the following properties from type 'VariableStatement': declarationList, _flowContainerBrand
+
+EXIT_CODE=1

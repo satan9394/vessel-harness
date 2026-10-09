@@ -1,0 +1,28 @@
+{
+  "approvalDate": "2026-10-08",
+  "sourceLog": "card197-review-repair-tests.log",
+  "historicalExitCode": 1,
+  "historicalCriterion": "peak<=15ms",
+  "approvedCriterion": {
+    "meanMs": 10,
+    "maximumMs": 25
+  },
+  "samplesMs": [
+    10.309799999999996,
+    3.753400000000056,
+    21.365499999999884,
+    5.404800000000023,
+    5.257200000000012,
+    2.954300000000103,
+    4.077099999999973,
+    11.92470000000003,
+    2.8900999999998476,
+    2.822400000000016,
+    12.082599999999957,
+    2.8051000000000386
+  ],
+  "meanMs": 7.1372499999999945,
+  "maximumMs": 21.365499999999884,
+  "passesApprovedCriterion": true,
+  "precision": 1
+}

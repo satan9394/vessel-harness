@@ -10,4 +10,6 @@ export * from './envRoot.js';
 export * from './vesselHome.js';
 export * from './cacheMetrics.js';
 export * from './noProgress.js';
+export * from './mods.js';
+export * from './modManifest.js';
 export { VERSION } from './constants.js';

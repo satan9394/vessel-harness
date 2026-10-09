@@ -1,0 +1,90 @@
+
+ RUN  v5.0.1 E:/Code_file/Projects/Vessel_Harness
+
+ ❯ packages/context/tests/ast/symbolGraph.test.ts (11 tests | 1 failed) 2133ms
+   ❯ exact AST symbol graph (11)
+     × updates actual single-file edits including edge resolution within 15ms on the fixture 1283ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  packages/context/tests/ast/symbolGraph.test.ts > exact AST symbol graph > updates actual single-file edits including edge resolution within 15ms on the fixture
+AssertionError: {
+  "command": "node --import tsx evidence/sessions/2026-10-08-v2.3/card197-check.ts",
+  "fixtureFiles": [
+    "api.ts",
+    "barrel.ts",
+    "caller.ts",
+    "noise.ts"
+  ],
+  "precision": 1,
+  "expectedCallers": [
+    "caller.ts#caller",
+    "caller.ts#execute"
+  ],
+  "actualCallers": [
+    "caller.ts#caller",
+    "caller.ts#execute"
+  ],
+  "warmupEdits": 8,
+  "measuredEdits": 12,
+  "samplesMs": [
+    10.309799999999996,
+    3.753400000000056,
+    21.365499999999884,
+    5.404800000000023,
+    5.257200000000012,
+    2.954300000000103,
+    4.077099999999973,
+    11.92470000000003,
+    2.8900999999998476,
+    2.822400000000016,
+    12.082599999999957,
+    2.8051000000000386
+  ],
+  "maximumMs": 21.365499999999884,
+  "meanMs": 7.1372499999999945,
+  "timingScope": "UTF-8 source read, parse changed file, rebuild/check cached explicit files and resolve all graph edges; excludes disk write and subsequent assertions"
+}
+node:internal/modules/run_main:107
+    triggerUncaughtException(
+    ^
+
+AssertionError [ERR_ASSERTION]: all warmed real-edit fixture updates must complete within 15ms
+    at <anonymous> (E:\Code_file\Projects\Vessel_Harness\evidence\sessions\2026-10-08-v2.3\card197-check.ts:39:10) {
+  generatedMessage: false,
+  code: 'ERR_ASSERTION',
+  actual: false,
+  expected: true,
+  operator: '==',
+  diff: 'simple'
+}
+
+Node.js v24.14.0
+: expected 1 to be +0 // Object.is equality
+
+- Expected
++ Received
+
+- 0
++ 1
+
+ ❯ packages/context/tests/ast/symbolGraph.test.ts:135:64
+    133|     const repo = path.resolve(import.meta.dirname, '../../../..');
+    134|     const measured = spawnSync(process.execPath, ['--import', 'tsx', '…
+    135|     expect(measured.status, measured.stdout + measured.stderr).toBe(0);
+       |                                                                ^
+    136|     const proof = JSON.parse(measured.stdout);
+    137|     expect(proof.measuredEdits).toBe(12);
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed | 1 passed (2)
+      Tests  1 failed | 14 passed (15)
+   Start at  08:18:19
+   Duration  4.98s (tests 53%, import 27%, transform 19%, setup 1%)
+
+    Isolate  2 workers spawned · ~282ms startup each (spawn + environment, per file)
+             at least ~282ms faster with isolate: false — reuses workers across files instead of one per file
+
+ExitCode=1
