@@ -1,0 +1,42 @@
+
+ RUN  v5.0.1 E:/Code_file/Projects/Vessel_Harness
+
+ ❯ packages/policy/tests/redGreenGate.test.ts (7 tests | 1 failed) 1949ms
+   × records real target assertion failure and refuses unfinished repairs 140ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  packages/policy/tests/redGreenGate.test.ts > records real target assertion failure and refuses unfinished repairs
+AssertionError: expected { success: false, …(2) } to match object { success: false, proof: { …(2) } }
+(11 matching properties omitted from actual)
+
+- Expected
++ Received
+
+  {
+    "proof": {
+-     "greenExecution": {
+-       "exitCode": 1,
+-     },
+      "phase": "rejected",
+    },
+    "success": false,
+  }
+
+ ❯ packages/policy/tests/redGreenGate.test.ts:28:58
+     26|   expect(red.success).toBe(true); expect(red.proof.redExecution.stderr…
+     27|   expect(red.proof.signature).toMatch(/^[a-f0-9]{64}$/);
+     28|   expect(await gate.verifyGreenPhase(red.proof, config)).toMatchObject…
+       |                                                          ^
+     29|   expect(gate.completionVerdict()?.action).toBe('deny');
+     30| });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed | 1 passed (2)
+      Tests  1 failed | 13 passed (14)
+   Start at  07:19:56
+   Duration  7.49s (tests 38%, import 35%, transform 26%, setup 1%)
+
+EXIT_CODE: 1

@@ -82,10 +82,28 @@
 | 多供应商真实缓存计费命中率与多维透视 (Cache Hit Telemetry) | 189 | 已验收（2026-10-08）；历史清理偏差保留 | `tasks/189-cache-hit-rate-telemetry-and-multi-provider.md` |
 | 工作区状态指纹与无进展死循环熔断器 (No-Progress Breaker) | 190 | 已验收；新指标 fixture warm 42.58ms / 全仓 p95 673.41ms | `tasks/190-workspace-fingerprint-and-no-progress-breaker.md` |
 | [Epic] V2.1 前缀缓存经济学、无进展熔断与高韧性运行中枢 | 191 | PASS（2026-10-08）：2811 passed / 6 skipped，五项门禁 exit 0 | `tasks/191-epic-v2-1-prefix-cache-and-convergence.md` |
+| 洋葱式 Mod 中间件核心流水线 (Onion Mod Middleware Pipeline) | 192 | 已本地验证（28 定向测试） | `tasks/192-onion-mod-middleware-and-pipeline.md` |
+| Claude Code Mods 沙箱化兼容适配器与防提权网关 | 193 | 已本地验证（33 定向测试；独立评审受阻） | `tasks/193-sandboxed-claude-mods-adapter.md` |
+| Mod 权限清单静态审计、CLI 控制面与 Doctor 诊断 | 194 | 已本地验证（26 定向测试） | `tasks/194-mod-manifest-permissions-and-cli-doctor.md` |
+| [Epic] V2.2 沙箱化 Mod 中间件网络与插件生态兼容 | 195 | PASS 本地机械门禁：2911 passed / 6 skipped；未提交 | `tasks/195-epic-v2-2-sandboxed-mods-and-middleware-mesh.md` |
+| 评估器 Red→Green 缺陷复现前置硬门禁 | 196 | completed：15项定向测试及最终全量通过 | `tasks/196-evaluator-red-green-reproduction-gate.md` |
+| 轻量 AST 符号索引与依赖图谱 | 197 | completed：批准mean≤15ms/peak≤25ms；scoped16/16及最终全量通过 | `tasks/197-ast-code-awareness-and-dependency-graph.md` |
+| 变更影响面自适应上下文剪枝 | 198 | completed：19项定向测试及最终全量通过；组合剪枝82.56% | `tasks/198-impact-driven-context-pruning.md` |
+| [Epic] V2.3 结构化代码感知与 Red→Green 复现前置硬门禁 | 199 | PASS 本地机械验收：双Root2957passed/6skipped，全部类型/Web门禁exit0；未提交 | `tasks/199-epic-v2-3-ast-code-awareness-and-red-green-gates.md` |
 
 ## 未闭合 / 下一目标
 
-- **最近完成路线：V2.1 Epic 191 已按人类批准的新性能 DoD 验收 PASS；等待新任务，不自动续卡**：
+- **已完成本地机械验收：方向 B（V2.2 沙箱化 Mod 中间件网络与插件生态兼容，Epic 195）**：
+  - 任务 192：洋葱式 Mod 中间件核心流水线（`observe`/`rewrite`/`intercept` 三态洋葱契约，Fail-Closed 错误隔离）；
+  - 任务 193：Claude Code Mods 沙箱化兼容适配器（Worker 线程隔离、RPC 代理、拦截 CVE-2026-82533 提权与凭据访问）；
+  - 任务 194：Mod 权限清单静态审计与 CLI Doctor（`vessel.mod.json` 静态权限声明与诊断）；
+  - 任务 195：Epic V2.2 全量集成与机械验收；证据 `evidence/sessions/2026-10-08-v2.2/PROOF.md`。独立安全审计未完成，方向 C 等待新授权。
+- **已完成本地机械验收：方向 C（V2.3 结构化代码感知与 Red→Green 门禁，Epic 199）**：
+  - 任务 196：评估器 Red→Green 缺陷复现前置硬门禁（先失败后成功两阶段校验）；
+  - 任务 197：轻量 AST 符号索引与依赖图谱（TypeScript 符号图、反向依赖拓扑）；
+  - 任务 198：变更影响面自适应上下文剪枝（爆炸半径分析与 KV Cache 零破坏修剪）；
+  - 任务 199：Epic V2.3 全量集成与实战验收。
+- **最近已合入里程碑：V2.1 Epic 191 已按批准的新性能 DoD 验收合入（commit `0533ebf9`）**：
   - 任务 188：确定性序列化、三段式前缀与 turn===0 压缩守卫；
   - 任务 189：多供应商真实缓存计费命中率与击穿告警；
   - 任务 190：工作区状态指纹与无进展死循环主动熔断器。

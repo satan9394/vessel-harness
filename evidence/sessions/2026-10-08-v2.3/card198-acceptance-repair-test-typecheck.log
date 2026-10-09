@@ -1,0 +1,6 @@
+npm run typecheck:tests
+
+> composable-agent-harness@0.10.0 typecheck:tests
+> tsc -p tsconfig.test.json --pretty false
+
+EXIT_CODE=0

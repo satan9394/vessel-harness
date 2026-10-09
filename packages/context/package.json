@@ -11,7 +11,9 @@
       "import": "./dist/index.js"
     }
   },
-  "files": ["dist"],
+  "files": [
+    "dist"
+  ],
   "scripts": {
     "build": "tsc -b",
     "test": "vitest run"
@@ -19,6 +21,7 @@
   "dependencies": {
     "@vessel/core": "^0.1.0",
     "@vessel/llm": "^0.1.0",
-    "@vessel/shared": "^0.10.0"
+    "@vessel/shared": "^0.10.0",
+    "typescript-parser": "npm:typescript@5.9.3"
   }
 }

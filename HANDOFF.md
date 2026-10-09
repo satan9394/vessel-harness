@@ -8,33 +8,35 @@
 
 **任何 Agent 在接收到「继续」/「继续未完成的」指令时，直接根据本段与 `.agent-state/run-state.json` 向用户汇报并执行：**
 
-1. **当前交付与阶段状态**：**V2.0 已收官并独立核验 PASS**；**V2.1 Epic 191（188、189、190）于 2026-10-08 按人类批准的新性能 DoD 完成功能验收闭环 PASS**，工作证明见 [`final-delivery-proof.md`](evidence/sessions/2026-10-07-v2.1/final-delivery-proof.md)。历史删除纪律偏差继续披露，未提交或推送。
+1. **当前交付与阶段状态**：**V2.2 Epic 195（192–195）已于 2026-10-08 完成本地机械验收，未提交；双 Root 2911 passed / 6 skipped，构建、测试类型与 Web 构建 exit 0。证据 `evidence/sessions/2026-10-08-v2.2/PROOF.md`；独立安全评审受内容过滤阻断，不宣称安全审计 PASS。** **V2.0 已收官并独立核验 PASS**；**V2.1 Epic 191（188、189、190）于 2026-10-08 按人类批准的新性能 DoD 完成验收闭环，并已完成中性本地提交（commit `0533ebf9`）**。
 2. **已完成与已验证基线**：
-   - 182：跨实例异构 Swarm 网格与事件总线（commit `b6c05b2`）；
-   - 183：原生沙箱 Low Integrity 降权 + SQLite 纯 TS 混合记忆 RRF（commit `7ecd828`）；
-   - 187（184+186）：Mesh/Memory CLI 控制面、`vessel doctor` 自检诊断与会话后自主反思飞轮（commit `20f1f1f`）；
-   - 185：Web 控制台 Swarm 拓扑看板、经验规则面板与沙箱审计徽章（commit `bce2b1c`）；
-   - 独立核验报告（Evaluator Review）：[`docs/REVIEW-REPORT-V2.0.md`](docs/REVIEW-REPORT-V2.0.md)（VERDICT: PASS）；
-   - 全量终态门禁基线：`tsc -b`、`typecheck:tests` 均 exit 0；Web 生产打包 exit 0；`test:all` 双 Root **2,730 passed + 6 skipped 全绿**；全历史 `identity-guard.sh` 0 命中。
-3. **当前断点与运行状态**：
-   - **最近完成路线**：**V2.1 Epic 191 已闭环，没有自动续卡授权**；
-   - **最终结果**：188–190 实现及具体审查问题已关闭，190/191 DoD 已按人类批准更新；fixture warm 最大 **42.58ms**、全仓 **1739 文件** cold **905.85ms** / warm p95 **673.41ms**，通过新指标。五项 accepted 机械门禁全部 exit 0，双 Root 合计 **2811 passed / 6 skipped**；独立终审确认功能门禁 PASS。最终工作证明 `evidence/sessions/2026-10-07-v2.1/final-delivery-proof.md`；
-   - **开发模式**：纯本地开发（禁止 git push，遵循 2026-10-06 规约）；
+   - 188：请求确定性序列化、三段式前缀分层布局与 turn===0 压缩守卫；
+   - 189：多供应商真实缓存计费命中率与多维透视遥测；
+   - 190：工作区状态指纹与无进展死循环主动熔断器；
+   - 191：Epic V2.1 前缀缓存经济学与收敛中枢总卡；
+   - 全量终态门禁基线：`tsc -b`、`typecheck:tests` 均 exit 0；Web 生产打包 exit 0；`test:all` 双 Root **2,811 passed + 6 skipped 全绿**；全历史 `identity-guard.sh` 0 命中。
+3. **当前路线与目标**：
+   - **已完成路线：方向 B（V2.2 沙箱化 Mod 中间件网络与插件生态兼容，Epic 195）**：
+     - 子任务顺序：192（洋葱中间件流水线）→ 193（Claude Mods 沙箱与防提权）→ 194（权限清单与 CLI Doctor）→ 195（全量集成与验收）；
+   - **已完成本地验收路线：方向 C（V2.3 结构化代码感知与 Red→Green 门禁，Epic 199）**：
+     - 子任务顺序：196（Red→Green 缺陷复现硬门禁）→ 197（轻量 AST 符号索引与依赖图谱）→ 198（变更影响面自适应上下文剪枝）→ 199（全量实战验收）；
+   - **开发模式与约束**：纯本地开发（严禁 git push，遵循 2026-10-06 规约；薄核零侵入 packages/core；删除必进回收站）；
    - **模型锁定规约**：默认开发模型锁定为 **GPT-6.1 Sol (`gpt-6.1-sol`)**，二级思考（`reasoning.effort: medium`），免多余确认。
-4. **恢复执行指令**：
-   - 本 Mission 已完成；不重做已通过的门禁、不再等待已回答的性能选择、不自动启动新卡。下一步等待人类新任务或明确本地提交指令；
-   - 不自动 push、不调用外部真实 Agent、测试临时文件严格限定在 `os.tmpdir()` 内。
 
 | 项 | 当前实况 |
 |---|---|
 | 仓库 / 分支 | `satan9394/vessel-harness` / `main`（纯本地开发，不推送） |
-| 工作区状态 | V2.1 功能与新 DoD 验收 PASS；无本轮提交/推送 |
-| 机器状态真源 | `.agent-state/run-state.json`（以当前文件为准，mission completed，blocked 清空，所有卡完成） |
-| 当前任务卡 | `tasks/190-workspace-fingerprint-and-no-progress-breaker.md` ｜ [Epic] `tasks/191-epic-v2-1-prefix-cache-and-convergence.md` |
+| 工作区状态 | V2.2 已验证但未提交；V2.3 已按批准的完整语义15/25指标完成本地验收；双Root2957passed/6skipped，全部类型/Web门禁exit0；无提交/推送 |
+| 机器状态真源 | `.agent-state/run-state.json`（当前 Mission: Epic 199） |
+| 当前任务卡 | 196–199 completed；交证入口 `evidence/sessions/2026-10-08-v2.3/PROOF.md`，原始失败和修复记录保留 |
 
 V2.1 执行偏差：189 执行器三次默认 Vite 构建清空生成 `apps/web/dist`，违反任务删除纪律，已记录，不能声明红线全部遵守。后续 Web 构建必须加 `-- --emptyOutDir false`。为验证锁文件，本轮将旧 `node_modules` 完整移动到 `.tmp/2026-10-07/node_modules-before-epic191-npm-ci` 后执行 `npm ci`（exit 0）；备份保留，不清理。阶段性能实测本仓 1673 文件 warm 中位约 1285ms，见 `phase190-benchmark-final.log`，不得擅自降低验收标准。
 
-最终恢复点：PowerShell session **47315 已完成 exit 0**，最后 source 编辑后的五项 accepted 门禁全部通过；根 236 文件 / 2634 passed / 6 skipped，Web 20 文件 / 177 passed。交付文件收齐后的最终性能日志 `accepted-final-fingerprint-benchmark.log` 通过 2026-10-08 人类批准的新指标。所有工作器、测试与门禁进程均结束；旧 failed/frozen/renewed/resumed 记录只作历史，未删改。SQLite <5ms 保持原标准；指纹原 <25ms 被人类明确替代，不再是阻断。
+V2.2 恢复点：四卡已闭环，所有门禁与 CLI 冒烟完成；packages/core 0 改动，依赖锁不变，未驱动外部 Agent，未提交/推送/发布。只支持无依赖预编译 JS Mod 子集。V2.3 已获新授权；既有未提交改动保留，独立基线哈希见 `evidence/sessions/2026-10-08-v2.3/baseline.json`。
+
+V2.3 最终验收（2026-10-08）：196–199已completed，blocked解除。用户再次批准197完整递归引用/类型驱动刷新指标mean≤15ms、peak≤25ms；scoped12项图+4项工具全绿，独立12次真实更新mean10.767ms/peak21.405ms、精确率100%。最终test:all root258文件/2780passed+6skipped、Web20文件/177passed，合计2957passed/6skipped；tsc构建、测试类型、独立Web测试、带emptyOutDir=false的生产构建全部exit0，均在最后源码/测试编辑后运行。199真实组合Red1→Green0/Regression0、两次完成拒绝、SHA-256证明有效；198剪枝82.56%，静态前缀/任务/最近三轮保护。SQLite修复已通过最终全root，原5ms断言不变；core0、基线缺失0。机器Mission completed、workers0。证据 `evidence/sessions/2026-10-08-v2.3/PROOF.md`、completion-audit.json与accepted15-*.log；先前blocked检查点见PROOF-before15.md，失败日志/依赖备份全保留。纯本地未提交/推送，无外部Agent。下一步等待新任务授权，不自动推进新路线。
+
+V2.1 历史恢复点：PowerShell session **47315 已完成 exit 0**，最后 source 编辑后的五项 accepted 门禁全部通过；根 236 文件 / 2634 passed / 6 skipped，Web 20 文件 / 177 passed。交付文件收齐后的最终性能日志 `accepted-final-fingerprint-benchmark.log` 通过 2026-10-08 人类批准的新指标。所有工作器、测试与门禁进程均结束；旧 failed/frozen/renewed/resumed 记录只作历史，未删改。SQLite <5ms 保持原标准；指纹原 <25ms 被人类明确替代，不再是阻断。
 
 ## 1. 治理与门禁（改动前必读）
 
@@ -98,7 +100,7 @@ npm ci                          # 可复现安装；锁文件与 package.json �
 npx tsc -b tsconfig.json        # 类型 + 编译
 npm run typecheck:tests         # 测试文件类型检查（非 composite）
 npm run test:all                # 全量 = 根 + apps/web 两个 root
-npm run -w @vessel/web build    # web 生产构建（peer 不一致只有构建会暴露）
+npm run -w @vessel/web build -- --emptyOutDir false # web 生产构建（peer 不一致只有构建会暴露）
 bash scripts/identity-guard.sh  # 身份守卫（Git Bash / WSL / Linux / macOS 可跑）
 gh pr checks                    # 某个 PR 的必需检查
 ```
@@ -142,3 +144,4 @@ npm ci                 # 依赖与锁文件一致；随后可跑 §4 的完整�
   - 阶段一（任务 175：Web 交互式 DAG 画布与方案预审）已由 Codex 交付并测试全绿（`TeamDagCanvas.test.tsx` 5/5, `teamStageApi.test.ts` 5/5，`tsc -b` / `typecheck:tests` / `vite build` 均 exit 0）；
   - 因上游模型额度与算力限制，推进在阶段二（任务 176：后台常驻 Daemon 与系统通知）前挂起暂停；
   - 机器状态保存在 `.agent-state/run-state.json`，新会话开启后可通过 `/resume` 或直接执行阶段二无缝接管。
+

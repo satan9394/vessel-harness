@@ -1,0 +1,45 @@
+{
+  "startedAt": "2026-10-09T05:16:58.0268010Z",
+  "approvedDoD": {
+    "maximumMs": 25,
+    "meanMs": 15
+  },
+  "gates": [
+    {
+      "log": "accepted15-test-all.log",
+      "startedAt": "2026-10-09T05:16:58.0386452Z",
+      "exitCode": 0,
+      "finishedAt": "2026-10-09T05:28:32.4795479Z",
+      "name": "npm run test:all"
+    },
+    {
+      "log": "accepted15-build.log",
+      "startedAt": "2026-10-09T05:28:32.5167132Z",
+      "exitCode": 0,
+      "finishedAt": "2026-10-09T05:28:35.0534627Z",
+      "name": "npx tsc -b tsconfig.json"
+    },
+    {
+      "log": "accepted15-test-types.log",
+      "startedAt": "2026-10-09T05:28:35.0577566Z",
+      "exitCode": 0,
+      "finishedAt": "2026-10-09T05:28:37.3398301Z",
+      "name": "npm run typecheck:tests"
+    },
+    {
+      "log": "accepted15-web-tests.log",
+      "startedAt": "2026-10-09T05:28:37.3431587Z",
+      "exitCode": 0,
+      "finishedAt": "2026-10-09T05:28:44.6044664Z",
+      "name": "npm run test:web"
+    },
+    {
+      "log": "accepted15-web-build.log",
+      "startedAt": "2026-10-09T05:28:44.6069074Z",
+      "exitCode": 0,
+      "finishedAt": "2026-10-09T05:28:46.8983375Z",
+      "name": "npm run -w @vessel/web build -- --emptyOutDir false"
+    }
+  ],
+  "finishedAt": "2026-10-09T05:28:46.9013971Z"
+}

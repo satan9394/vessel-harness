@@ -1,0 +1,14 @@
+
+ RUN  v5.0.1 E:/Code_file/Projects/Vessel_Harness
+
+
+ Test Files  3 passed (3)
+      Tests  16 passed (16)
+   Start at  08:08:28
+   Duration  7.58s (import 41%, transform 29%, tests 29%, setup 1%)
+
+  Transform  transforming modules took 2.02s · 29% of tracked time, re-done on every run
+             persist transforms across runs with fsModuleCache: true
+             learn more: https://vitest.dev/guide/improving-performance#caching-between-reruns
+
+ExitCode=0

@@ -1,0 +1,53 @@
+{
+  "command": "node --import tsx evidence/sessions/2026-10-08-v2.3/card197-check.ts",
+  "fixtureFiles": [
+    "api.ts",
+    "barrel.ts",
+    "caller.ts",
+    "noise.ts"
+  ],
+  "precision": 1,
+  "expectedCallers": [
+    "caller.ts#caller",
+    "caller.ts#execute"
+  ],
+  "actualCallers": [
+    "caller.ts#caller",
+    "caller.ts#execute"
+  ],
+  "warmupEdits": 8,
+  "measuredEdits": 12,
+  "samplesMs": [
+    3.533300000000054,
+    3.4764000000000124,
+    2.6662999999999784,
+    3.2842999999999165,
+    3.1807999999999765,
+    2.710299999999961,
+    3.1327999999999747,
+    21.288799999999924,
+    13.48700000000008,
+    3.3625999999999294,
+    2.883699999999976,
+    4.446900000000028
+  ],
+  "maximumMs": 21.288799999999924,
+  "meanMs": 5.621099999999984,
+  "timingScope": "UTF-8 source read, parse changed file, rebuild/check cached explicit files and resolve all graph edges; excludes disk write and subsequent assertions"
+}
+node:internal/modules/run_main:107
+    triggerUncaughtException(
+    ^
+
+AssertionError [ERR_ASSERTION]: all warmed real-edit fixture updates must complete within 15ms
+    at <anonymous> (E:\Code_file\Projects\Vessel_Harness\evidence\sessions\2026-10-08-v2.3\card197-check.ts:39:10) {
+  generatedMessage: false,
+  code: 'ERR_ASSERTION',
+  actual: false,
+  expected: true,
+  operator: '==',
+  diff: 'simple'
+}
+
+Node.js v24.14.0
+ExitCode=1

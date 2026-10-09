@@ -1,0 +1,160 @@
+
+ RUN  v5.0.1 E:/Code_file/Projects/Vessel_Harness
+
+ ✓ packages/context/tests/ast/symbolGraph.test.ts > exact AST symbol graph > preserves actual self-recursion as an incoming caller and graph edge 146ms
+ ✓ packages/context/tests/ast/symbolGraph.test.ts > exact AST symbol graph > retargets 1000 unchanged imported calls from one binding without walking the caller AST 364ms
+ ✓ packages/context/tests/ast/symbolGraph.test.ts > exact AST symbol graph > refreshes cached type-driven member sites when a factory return type changes 74ms
+ ✓ packages/context/tests/ast/symbolGraph.test.ts > exact AST symbol graph > refreshes external duplicate member IDs after upstream declaration positions move 86ms
+ ✓ packages/context/tests/ast/symbolGraph.test.ts > exact AST symbol graph > resolves explicit workspace package path aliases without disk import discovery 42ms
+ ✓ packages/context/tests/ast/symbolGraph.test.ts > exact AST symbol graph > invalidates cached missing and resolved imports when the indexed file set changes 92ms
+ ✓ packages/context/tests/ast/symbolGraph.test.ts > exact AST symbol graph > stages all source reads atomically when a later file fails 56ms
+ ✓ packages/context/tests/ast/symbolGraph.test.ts > exact AST symbol graph > indexes exports, aliases, star exports, namespaces and implements 21ms
+ ✓ packages/context/tests/ast/symbolGraph.test.ts > exact AST symbol graph > keeps lexical shadowing and duplicate method identities separate without text noise 42ms
+ ✓ packages/context/tests/ast/symbolGraph.test.ts > exact AST symbol graph > refreshes callers when reexports change and removes vanished source nodes 30ms
+ ✓ packages/context/tests/ast/symbolGraph.test.ts > exact AST symbol graph > traverses precise reverse dependencies to bounded depth and protects graph snapshots 28ms
+ × packages/context/tests/ast/symbolGraph.test.ts > exact AST symbol graph > updates actual single-file edits with mean <=10ms and peak <=25ms on the fixture 2950ms
+   → {
+  "command": "node --import tsx evidence/sessions/2026-10-08-v2.3/card197-check.ts",
+  "fixtureFiles": [
+    "api.ts",
+    "barrel.ts",
+    "caller.ts",
+    "noise.ts"
+  ],
+  "precision": 1,
+  "expectedCallers": [
+    "caller.ts#caller",
+    "caller.ts#execute"
+  ],
+  "actualCallers": [
+    "caller.ts#caller",
+    "caller.ts#execute"
+  ],
+  "warmupEdits": 8,
+  "measuredEdits": 12,
+  "samplesMs": [
+    52.98389999999995,
+    102.39509999999996,
+    53.83800000000019,
+    106.04289999999992,
+    72.5625,
+    79.83230000000003,
+    43.746999999999844,
+    49.890499999999975,
+    14.939899999999852,
+    54.071899999999914,
+    24.686299999999846,
+    59.8438000000001
+  ],
+  "maximumMs": 106.04289999999992,
+  "meanMs": 59.569508333333296,
+  "timingScope": "UTF-8 source read, parse changed file, rebuild/check cached explicit files and resolve all graph edges; excludes disk write and subsequent assertions"
+}
+node:internal/modules/run_main:107
+    triggerUncaughtException(
+    ^
+
+AssertionError [ERR_ASSERTION]: mean warmed real-edit update must complete within 10ms
+    at <anonymous> (E:\Code_file\Projects\Vessel_Harness\evidence\sessions\2026-10-08-v2.3\card197-check.ts:40:10) {
+  generatedMessage: false,
+  code: 'ERR_ASSERTION',
+  actual: false,
+  expected: true,
+  operator: '==',
+  diff: 'simple'
+}
+
+Node.js v24.14.0
+: expected 1 to be +0 // Object.is equality
+ ✓ packages/application/src/symbolGraphIntegration.test.ts > keeps AST tool opt-in in the actual composition registry 50ms
+ ✓ packages/application/src/symbolGraphIntegration.test.ts > actual loop resolves configured workspace aliases through the registered AST tool 151ms
+ ✓ packages/application/src/symbolGraphIntegration.test.ts > policy removes denied AST schema and denies a forced generator tool call with an audit 56ms
+ ✓ packages/tools/tests/symbolGraphTool.test.ts > code_symbol_graph > returns implementers with service parity and follows mixed reference/implements paths 102ms
+ ✓ packages/tools/tests/symbolGraphTool.test.ts > code_symbol_graph > returns structured exact symbols, references, dependents and module graphs 60ms
+ ✓ packages/tools/tests/symbolGraphTool.test.ts > code_symbol_graph > enforces canonical read guards before indexing, queries and cached refresh 25ms
+ ✓ packages/tools/tests/symbolGraphTool.test.ts > code_symbol_graph > never discovers denied/unindexed imports and rejects invalid arguments 51ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  packages/context/tests/ast/symbolGraph.test.ts > exact AST symbol graph > updates actual single-file edits with mean <=10ms and peak <=25ms on the fixture
+AssertionError: {
+  "command": "node --import tsx evidence/sessions/2026-10-08-v2.3/card197-check.ts",
+  "fixtureFiles": [
+    "api.ts",
+    "barrel.ts",
+    "caller.ts",
+    "noise.ts"
+  ],
+  "precision": 1,
+  "expectedCallers": [
+    "caller.ts#caller",
+    "caller.ts#execute"
+  ],
+  "actualCallers": [
+    "caller.ts#caller",
+    "caller.ts#execute"
+  ],
+  "warmupEdits": 8,
+  "measuredEdits": 12,
+  "samplesMs": [
+    52.98389999999995,
+    102.39509999999996,
+    53.83800000000019,
+    106.04289999999992,
+    72.5625,
+    79.83230000000003,
+    43.746999999999844,
+    49.890499999999975,
+    14.939899999999852,
+    54.071899999999914,
+    24.686299999999846,
+    59.8438000000001
+  ],
+  "maximumMs": 106.04289999999992,
+  "meanMs": 59.569508333333296,
+  "timingScope": "UTF-8 source read, parse changed file, rebuild/check cached explicit files and resolve all graph edges; excludes disk write and subsequent assertions"
+}
+node:internal/modules/run_main:107
+    triggerUncaughtException(
+    ^
+
+AssertionError [ERR_ASSERTION]: mean warmed real-edit update must complete within 10ms
+    at <anonymous> (E:\Code_file\Projects\Vessel_Harness\evidence\sessions\2026-10-08-v2.3\card197-check.ts:40:10) {
+  generatedMessage: false,
+  code: 'ERR_ASSERTION',
+  actual: false,
+  expected: true,
+  operator: '==',
+  diff: 'simple'
+}
+
+Node.js v24.14.0
+: expected 1 to be +0 // Object.is equality
+
+- Expected
++ Received
+
+- 0
++ 1
+
+ ❯ packages/context/tests/ast/symbolGraph.test.ts:150:64
+    148|     const repo = path.resolve(import.meta.dirname, '../../../..');
+    149|     const measured = spawnSync(process.execPath, ['--import', 'tsx', '…
+    150|     expect(measured.status, measured.stdout + measured.stderr).toBe(0);
+       |                                                                ^
+    151|     const proof = JSON.parse(measured.stdout);
+    152|     expect(proof.measuredEdits).toBe(12);
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed | 2 passed (3)
+      Tests  1 failed | 18 passed (19)
+   Start at  09:11:34
+   Duration  13.09s (tests 39%, import 34%, transform 27%, setup 1%)
+
+  Transform  transforming modules took 3.12s · 27% of tracked time, re-done on every run
+             persist transforms across runs with fsModuleCache: true
+             learn more: https://vitest.dev/guide/improving-performance#caching-between-reruns
+
+EXIT_CODE=1

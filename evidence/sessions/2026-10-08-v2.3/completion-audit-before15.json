@@ -1,0 +1,43 @@
+{
+  "epicComplete": false,
+  "approvedDoD": {
+    "meanMs": 10,
+    "maximumMs": 25
+  },
+  "evaluator": {
+    "redExit": 1,
+    "greenExit": 0,
+    "regressionExit": 0,
+    "signatureValid": true
+  },
+  "pruning": {
+    "original": 60019,
+    "pruned": 10468,
+    "reduction": 0.8255885636215199,
+    "prefixByteHash": "fb6b420e8d90b26494ac1f337b7e306f9b7a33679c2a159bf5e8750d3aecd4e0"
+  },
+  "fullTestAttempt": {
+    "command": "npm run test:all",
+    "exitCode": 1,
+    "finishedAt": "2026-10-08T16:05:18.8780156Z",
+    "startedAt": "2026-10-08T15:52:05.7553002Z"
+  },
+  "independentGates": {
+    "completedAt": "2026-10-08T16:14:53.3322801Z",
+    "testTypes": 0,
+    "webTests": 0,
+    "webBuild": 0,
+    "build": 0
+  },
+  "unmet": [
+    "Root regression has two timing failures; no accepted root rerun",
+    "AST candidate repair failed and was reverted; further repair needs authorization",
+    "SQLite compact-row repair scoped13pass; complete root after repair remains unverified"
+  ],
+  "currentSourceHashes": {
+    "packages/context/src/ast/symbolGraph.ts": "9f59843f8b76f8b765efb2efe8e749f2077cf9ff556398d0af494b7fd3c93396",
+    "packages/context/tests/ast/symbolGraph.test.ts": "7c12f7a7a414be63de6335a1bf5ec772324ea0848950dcbbeea8c200210c200d",
+    "packages/memory/src/sqlite/SessionIndexStore.ts": "5aed8effa87a489717c6b2c7542b0ce500a560997a8c0bfe20c68455b2ce6821",
+    "packages/application/src/v23Integration.test.ts": "40aa13e192d3d5fe1616958e394cfe72d90e3bb2be5db69ccfa1c5bec726c631"
+  }
+}

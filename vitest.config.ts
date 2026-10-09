@@ -50,6 +50,9 @@ export default defineConfig({
     include: [
       'index.test.ts',
       'packages/*/src/**/*.test.ts',
+      'packages/policy/tests/**/*.test.ts',
+      'packages/context/tests/**/*.test.ts',
+      'packages/tools/tests/**/*.test.ts',
       'apps/cli/src/**/*.test.ts',
       'apps/local-server/src/**/*.test.ts',
       'benchmarks/runners/src/**/*.test.ts',

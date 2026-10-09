@@ -19,3 +19,4 @@ export * from './execution/selfHealing.js';
 export * from './execution/sandbox/types.js';
 export * from './execution/sandbox/platformSandbox.js';
 export * from './execution/sandbox/windowsRestricted.js';
+export * from './ast/symbolGraphTool.js';

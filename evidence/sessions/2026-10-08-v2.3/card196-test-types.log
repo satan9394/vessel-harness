@@ -1,0 +1,10 @@
+COMMAND: npm run typecheck:tests
+
+> composable-agent-harness@0.10.0 typecheck:tests
+> tsc -p tsconfig.test.json --pretty false
+
+packages/application/src/redGreenCompletion.test.ts(35,69): error TS2322: Type 'Promise<{ content: string; toolCalls: never[]; finishReason: string; usage: { inputTokens: number; outputTokens: number; }; }>' is not assignable to type 'Promise<ChatResponse>'.
+  Type '{ content: string; toolCalls: never[]; finishReason: string; usage: { inputTokens: number; outputTokens: number; }; }' is not assignable to type 'ChatResponse'.
+    Types of property 'finishReason' are incompatible.
+      Type 'string' is not assignable to type 'ChatFinishReason'.
+EXIT_CODE: 1

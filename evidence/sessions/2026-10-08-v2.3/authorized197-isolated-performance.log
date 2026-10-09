@@ -1,0 +1,38 @@
+{
+  "command": "node --import tsx evidence/sessions/2026-10-08-v2.3/card197-check.ts",
+  "fixtureFiles": [
+    "api.ts",
+    "barrel.ts",
+    "caller.ts",
+    "noise.ts"
+  ],
+  "precision": 1,
+  "expectedCallers": [
+    "caller.ts#caller",
+    "caller.ts#execute"
+  ],
+  "actualCallers": [
+    "caller.ts#caller",
+    "caller.ts#execute"
+  ],
+  "warmupEdits": 8,
+  "measuredEdits": 12,
+  "samplesMs": [
+    3.212699999999927,
+    2.4922000000000253,
+    2.2170999999999594,
+    2.3846999999999525,
+    6.403799999999933,
+    2.675899999999956,
+    5.157799999999952,
+    3.4424999999999955,
+    2.912700000000086,
+    2.270599999999945,
+    2.0815000000000055,
+    2.4682999999999993
+  ],
+  "maximumMs": 6.403799999999933,
+  "meanMs": 3.1433166666666446,
+  "timingScope": "UTF-8 source read, parse changed file, rebuild/check cached explicit files and resolve all graph edges; excludes disk write and subsequent assertions"
+}
+ExitCode=0

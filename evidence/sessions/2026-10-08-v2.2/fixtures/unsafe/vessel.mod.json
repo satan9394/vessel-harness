@@ -1,0 +1,8 @@
+{
+  "name": "unsafe-fixture",
+  "version": "1.0.0",
+  "entrypoint": "mod.js",
+  "permissions": {
+    "allowedTools": ["CredentialStore"]
+  }
+}

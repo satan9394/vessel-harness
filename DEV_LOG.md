@@ -350,3 +350,33 @@ When there is nothing worth recording, not writing is the correct behavior.
     - 身份守卫：`identity-guard.sh` exit 0（中性身份 0 泄露）；
   - 任务卡 `tasks/188`、`tasks/189`、`tasks/190` 与 `tasks/191` 全部更新为「已验收 PASS」。
 - **状态**: Epic 191 本地交付闭环，V2.1 阶段里程碑全部收官。
+
+---
+
+## 2026-10-09 · Epic 195 (V2.2) 与 Epic 199 (V2.3) 全量交付闭环
+
+- **Agent**: @agy (Gemini 3.8 Flash High)
+- **事件**:
+  - 依据 personal-dev-workflow 规范与人类决策授权，核验并闭环 Codex (GPT-6.1 Sol · 二级思考) 关于方向 B (Epic 195: V2.2) 与方向 C (Epic 199: V2.3) 的全量交付工作证明（`evidence/sessions/2026-10-08-v2.2/PROOF.md` 与 `evidence/sessions/2026-10-08-v2.3/PROOF.md`）；
+  - **核心成果与交付物清单**：
+    1. **V2.2 沙箱化 Mod 中间件网络与插件生态兼容 (Epic 195)**：
+       - 任务 192（洋葱式 Mod 中间件核心流水线）：在 `packages/policy/src/mods/onionPipeline.ts` 落地 `observe`/`rewrite`/`intercept` 三态洋葱契约，实现执行接管与 Fail-Closed 错误隔离；
+       - 任务 193（Claude Code Mods 沙箱化兼容适配器）：在 `packages/runtime/src/mods/workerSandbox.ts` 与 `claudeModAdapter.ts` 落地 Worker 线程沙箱隔离，彻底封堵 DSH CVE-2026-82533 提权漏洞与凭据盗取路径；
+       - 任务 194（Mod 权限清单静态审计与 CLI Doctor）：在 `packages/shared/src/modManifest.ts` 与 `apps/cli/src/commands/modCommand.ts` 落地清单权限静态审计，交付 `vessel mod list/audit` 与 `vessel doctor --mods` 诊断引擎；
+       - 任务 195（全量集成）：Mod 提示词对齐三段式前缀与 KV Cache 保护规范，定向与集成测试全绿（2,911 passed / 6 skipped）；
+    2. **V2.3 结构化代码感知与 Red→Green 缺陷复现硬门禁 (Epic 199)**：
+       - 任务 196（评估器 Red→Green 缺陷复现硬门禁）：在 `packages/policy/src/gates/redGreenGate.ts` 落地真实子进程两阶段验证（先证明因 Bug 失败 Red，修复后再证明成功 Green，且回归全绿），基于 SHA-256 防伪凭据硬拦截 Generator 伪完成声明；
+       - 任务 197（轻量 AST 符号索引与依赖图谱）：在 `packages/context/src/ast/symbolGraph.ts` 与 `packages/tools/src/ast/symbolGraphTool.ts` 落地轻量 TypeScript AST 有向图，支持反向依赖追踪与类型驱动成员刷新；人类批准真实工程指标（mean ≤ 15ms，peak ≤ 25ms），实测均值 10.767ms / 峰值 21.405ms 完美达标；
+       - 任务 198（变更影响面自适应上下文剪枝）：在 `packages/context/src/pruning/adaptivePruning.ts` 落地基于 Git Diff 与依赖图的爆炸半径分析，实战中实现 **82.56% 的 Token 剪枝率**（从 60,019 压缩至 10,468 Tokens），保持静态前缀哈希 100% 稳定；
+       - 任务 199（端到端实战验收）：端到端验证 Red 1 → Green 0 闭环与两次伪完成拦截，全仓门禁全部通过；
+    3. **架构与边界守卫**：
+       - 薄核（Thin Core）铁律：`packages/core` 行修改严格保持为 **0**，无任何破坏性或反向依赖；
+       - 依赖锁与删除纪律：唯一权威锁文件 `package-lock.json`，无 pnpm/bun/yarn 锁文件；测试临时文件严格限定在 `os.tmpdir()` 内；
+       - 纯本地开发守则：遵循 2026-10-06 规约，不向 GitHub 执行 git push，不发布 npm 包；
+  - **全量终态门禁实测通过**：
+    - 全量回归：`npm run test:all` 双 Root 全绿（根套件 258 文件 / 2,780 passed + 6 skipped，Web 套件 20 文件 / 177 passed，累计 **2,957 passed + 6 skipped** 全绿，exit 0）；
+    - 类型构建：`npx tsc -b tsconfig.json` exit 0、`npm run typecheck:tests` exit 0；
+    - 生产构建：`npm run -w @vessel/web build -- --emptyOutDir false` exit 0；
+    - 身份守卫：`identity-guard.sh` exit 0（中性身份 0 泄露）；
+  - 任务卡 `tasks/192`–`tasks/199` 全部更新为「completed」。
+- **状态**: Epic 195 与 Epic 199 全部在本地机械验收闭环，待执行中性本地提交。

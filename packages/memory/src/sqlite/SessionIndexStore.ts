@@ -30,6 +30,8 @@ export interface SessionIndexSource {
 export interface SessionIndexOptions { sources?: () => AsyncIterable<SessionIndexSource> }
 
 const sqliteRequire = createRequire(import.meta.url);
+const sessionColumns = ['session_id', 'topic_id', 'title', 'created_at', 'updated_at', 'record_count',
+  'input_tokens', 'output_tokens', 'cache_read_tokens', 'cache_creation_tokens', 'total_tokens', 'metadata'] as const;
 /** Read-only health check; never invokes disposable projection repair. */
 export async function diagnoseMemoryDatabase(file: string): Promise<{ status: 'pass' | 'warn' | 'fail'; message: string }> {
   if (!fs.existsSync(file)) return { status: 'warn', message: 'Workspace memory database has not been created.' };
@@ -192,21 +194,20 @@ export class SessionIndexStore {
     const pageSql = `SELECT * FROM sessions_meta ${topicId === undefined ? '' : 'WHERE topic_id=?'} ORDER BY updated_at DESC,session_id DESC LIMIT ? OFFSET ?`;
     const exceptional = ['created_at', 'updated_at', 'record_count', 'input_tokens', 'output_tokens', 'cache_read_tokens', 'cache_creation_tokens', 'total_tokens']
       .map(column => `(typeof(${column})='real' OR ${column} NOT BETWEEN -9007199254740991 AND 9007199254740991)`).join(' OR ');
-    // Transfer a page in one SQLite value instead of materializing twelve native properties per row.
-    const sql = `SELECT json_group_array(json_object(
-      'session_id',session_id,'topic_id',topic_id,'title',title,'created_at',created_at,'updated_at',updated_at,
-      'record_count',record_count,'input_tokens',input_tokens,'output_tokens',output_tokens,
-      'cache_read_tokens',cache_read_tokens,'cache_creation_tokens',cache_creation_tokens,'total_tokens',total_tokens,'metadata',metadata)) AS page,
+    // Transfer compact positional rows in one SQLite value, without repeating property names.
+    const sql = `SELECT json_group_array(json_array(${sessionColumns.join(',')})) AS page,
       MAX(CASE WHEN ${exceptional} THEN 1 ELSE 0 END) AS exceptional FROM (${pageSql})`;
     const result = topicId === undefined ? this.statement(sql).get(...bounds) : this.statement(sql).get(topicId, ...bounds);
     // Native reads preserve REAL precision and unsafe INTEGER rejection on exceptional pages.
     const rows = result!.exceptional
       ? (topicId === undefined ? this.statement(pageSql).all(...bounds) : this.statement(pageSql).all(topicId, ...bounds))
-      : JSON.parse(String(result!.page)) as Record<string, string | number | null>[];
-    return rows.map(row => ({ sessionId: String(row.session_id), topicId: row.topic_id === null ? undefined : String(row.topic_id), title: String(row.title),
-      createdAt: Number(row.created_at), updatedAt: Number(row.updated_at), recordCount: Number(row.record_count),
-      inputTokens: Number(row.input_tokens), outputTokens: Number(row.output_tokens), cacheReadTokens: Number(row.cache_read_tokens), cacheCreationTokens: Number(row.cache_creation_tokens), totalTokens: Number(row.total_tokens),
-      metadata: row.metadata ? JSON.parse(String(row.metadata)) as Record<string, unknown> : undefined }));
+        .map(row => sessionColumns.map(column => row[column]))
+      : JSON.parse(String(result!.page)) as (string | number | null)[][];
+    return rows.map(([sessionId, topicId, title, createdAt, updatedAt, recordCount, inputTokens, outputTokens, cacheReadTokens, cacheCreationTokens, totalTokens, metadata]) => ({
+      sessionId: String(sessionId), topicId: topicId === null ? undefined : String(topicId), title: String(title),
+      createdAt: Number(createdAt), updatedAt: Number(updatedAt), recordCount: Number(recordCount),
+      inputTokens: Number(inputTokens), outputTokens: Number(outputTokens), cacheReadTokens: Number(cacheReadTokens), cacheCreationTokens: Number(cacheCreationTokens), totalTokens: Number(totalTokens),
+      metadata: metadata ? JSON.parse(String(metadata)) as Record<string, unknown> : undefined }));
   }
   async search(params: SessionSearchParams): Promise<SessionSearchResult[]> {
     const bounds = page(params.limit ?? 20, params.offset ?? 0);

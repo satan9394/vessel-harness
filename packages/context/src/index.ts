@@ -6,3 +6,7 @@ export * from './compaction/Compaction.js';
 export * from './compaction/adaptiveThreshold.js';
 export * from './compaction/overflowClassifier.js';
 export * from './compaction/overflowRecovery.js';
+export * from './ast/types.js';
+export * from './ast/symbolGraph.js';
+export * from './pruning/types.js';
+export * from './pruning/adaptivePruning.js';

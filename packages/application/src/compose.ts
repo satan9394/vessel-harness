@@ -3,10 +3,11 @@ import * as path from 'node:path';
 import * as fs from 'node:fs';
 import type { CacheUsageMetrics, ChatUsage, ChatProvider, ChatToolDef, ToolCall, ToolResultRecord } from '@vessel/shared';
 import { AgentLoop, EventBus, Session } from '@vessel/core';
-import { ContextBuilder, CompactionBoundaryGuard, Compaction, createOverflowRecovery, type AdaptiveCompactionOptions } from '@vessel/context';
-import { NoProgressGuard, ToolRegistry, createFsTools, createSearchTools, createShellTool, McpClient, registerMcpTools, type McpTransport, type NativeSandboxRunner } from '@vessel/tools';
-import { PolicyEngine, loadPolicyArtifacts } from '@vessel/policy';
-import { Executor, Sandbox } from '@vessel/runtime';
+import { ContextBuilder, AdaptiveContextPruner, CompactionBoundaryGuard, Compaction, createOverflowRecovery, type AdaptiveCompactionOptions, type ContextPruneOptions } from '@vessel/context';
+import { NoProgressGuard, ToolRegistry, createFsTools, createSearchTools, createShellTool, createSymbolGraphAccess, McpClient, registerMcpTools, type McpTransport, type NativeSandboxRunner } from '@vessel/tools';
+import { PolicyEngine, loadPolicyArtifacts, ModPipeline, RedGreenGate } from '@vessel/policy';
+import { guardBugfixCompletion } from './redGreenCompletion.js';
+import { Executor, Sandbox, ClaudeModAdapter } from '@vessel/runtime';
 import { loadBehaviorIR, compileBehavior } from '@vessel/behavior';
 import { discoverInstructions } from '@vessel/context';
 import {
@@ -50,6 +51,15 @@ export interface ComposeMcpConnection {
 }
 
 export interface ComposeOptions {
+  /** Opt-in transient AST graph; only these explicit files are indexed. */
+  symbolGraph?: { filePaths: string[]; paths?: Record<string, string[]>; baseUrl?: string };
+  /** Opt-in tail pruning requires the explicitly guarded symbolGraph file set. */
+  adaptivePruning?: ContextPruneOptions & { activeFiles?: string[] };
+  /** Trusted evaluator-owned gate; no verification API is exposed to generator tools. */
+  taskType?: 'bugfix';
+  redGreenGate?: RedGreenGate;
+  /** Explicit opt-in directories; discovered manifests are never executed. */
+  mods?: string[];
   /** Offline/embedding replacement for native OS shell confinement. */
   nativeSandbox?: NativeSandboxRunner;
   workspaceRoot: string;
@@ -112,6 +122,7 @@ export interface ComposeOptions {
 }
 
 export interface ComposedHarness {
+  loadedMods: readonly { name: string; status: 'worker-isolated' }[];
   bus: EventBus;
   session: Session;
   registry: ToolRegistry;
@@ -234,7 +245,8 @@ export async function composeHarness(opts: ComposeOptions): Promise<ComposedHarn
     // are never handed to a process runner.
     artifacts.rules.push(...(plugin.policyRules ?? []));
   }
-  const policyEngine = new PolicyEngine(artifacts);
+  const redGreenGate = opts.taskType === 'bugfix' ? opts.redGreenGate ?? new RedGreenGate() : undefined;
+  const policyEngine = new PolicyEngine(artifacts, redGreenGate ? [call => call.toolName === 'claim_task_complete' ? redGreenGate.completionVerdict(cwd) : undefined] : []);
 
   // Tools: 6 builtin, bound to workspace + fs guards from the policy artifacts.
   // task 073: allow-set confinement — pass explicit authorization paths + the
@@ -280,9 +292,12 @@ export async function composeHarness(opts: ComposeOptions): Promise<ComposedHarn
       return [];
     }
   };
+  if (opts.adaptivePruning && !opts.symbolGraph) throw new Error('adaptivePruning requires symbolGraph');
+  const graphAccess = opts.symbolGraph ? createSymbolGraphAccess({ workspaceRoot, fsPolicy, ...opts.symbolGraph }) : undefined;
   const tools = [
     ...createFsTools({ workspaceRoot, fsPolicy }),
     ...createSearchTools({ workspaceRoot, fsPolicy }),
+    ...(graphAccess ? [graphAccess.tool] : []),
     createShellTool({ workspaceRoot, sandbox, nativeSandbox: opts.nativeSandbox, nativeAudit: async event => {
       const record = await session.appendSync({ ...event, type: 'audit/sandbox_enforced', surface: false });
       await bus.emit('audit/sandbox_enforced', record);
@@ -298,7 +313,49 @@ export async function composeHarness(opts: ComposeOptions): Promise<ComposedHarn
   // PRODUCTION consumer that pushes them into the enforcement projection, so an
   // escape is never left only in runtime memory. Only escape/terminate/failure
   // events are forwarded (the tool already filtered out routine bookkeeping).
+  const modPipeline = opts.mods?.length ? new ModPipeline() : undefined;
+  const loadedMods: { name: string; status: 'worker-isolated' }[] = [];
+  const contributions: string[] = [];
+  const modPolicy = async (call: ToolCall, spec: import('@vessel/shared').ToolSpec) => policyEngine.decide({ toolName: call.toolName, arguments: call.arguments }, spec);
+  const rpcExecutor = new Executor({ decide: modPolicy });
+  // ponytail: file-only RPC uses a separate confined tool set; hooks never recurse.
+  const rpcTools = createFsTools({ workspaceRoot, fsPolicy: { ...fsPolicy, confinement: true, allow: [] } });
+  for (const directory of opts.mods ?? []) {
+    const loaded = await ClaudeModAdapter.loadFromDirectory(path.resolve(cwd, directory));
+    const middleware = ClaudeModAdapter.createMiddleware(loaded, {
+      authorizeTool: async (name, input) => {
+        if (typeof input.path !== 'string') return false;
+        const relative = path.relative(fs.realpathSync.native(workspaceRoot), input.path);
+        if (relative.startsWith('..') || path.isAbsolute(relative)) return false;
+        const spec = rpcTools.find(tool => tool.name === name);
+        return Boolean(spec && ['Read', 'Write', 'Edit'].includes(name) && (await modPolicy({ toolCallId: 'mod-rpc', toolName: name, arguments: { ...input, path: relative } }, spec)).action === 'allow');
+      },
+      delegateTool: async (name, input, signal) => {
+        const spec = rpcTools.find(tool => tool.name === name);
+        if (!spec || !['Read', 'Write', 'Edit'].includes(name)) throw new Error('Mod RPC tool denied');
+        const arguments_ = { ...input, path: path.relative(fs.realpathSync.native(workspaceRoot), String(input.path)) };
+        return rpcExecutor.runTool(spec, { toolCallId: 'mod-rpc', toolName: name, arguments: arguments_ }, { workspaceRoot, cwd, sandbox, signal });
+      },
+    });
+    modPipeline!.register(middleware);
+    loadedMods.push({ name: loaded.manifest.name, status: 'worker-isolated' });
+    // Only contribution bytes reach the callback, once at session startup.
+    const text = loaded.manifest.systemPromptContribution?.replace(/\r\n?/g, '\n').trim() ?? '';
+    if (text) {
+      const formatted = await middleware.rewritePromptFragment!(text, { sessionId: session.sessionId, turnIndex: 0, metadata: {} });
+      if (typeof formatted !== 'string') throw new TypeError('Invalid Mod prompt fragment');
+      contributions.push(`[Mod: ${loaded.manifest.name}]\n${formatted}`);
+    }
+  }
   const executor = new Executor({
+    mods: modPipeline,
+    modContext: () => ({ sessionId: session.sessionId, turnIndex: session.replay().filter(record => record.type === 'user/message' && !record.source).length, metadata: {} }),
+    onPreExecuteDeny: modPipeline ? async (call, verdict) => {
+      await session.appendSync({ type: 'audit/denial', toolCallId: call.toolCallId, toolName: call.toolName, stage: 'rule', ruleRef: verdict.ruleRef, reason: verdict.reason ?? 'Mod tool policy denied', sandboxMode: artifacts.profile, surface: false });
+    } : undefined,
+    onModFailure: async (call, error) => {
+      await session.appendSync({ type: 'audit/denial', toolCallId: call.toolCallId, toolName: call.toolName, stage: 'hook', ruleRef: 'mod:pipeline', listener: 'runtime:mods', reason: String(error), surface: false });
+    },
     decide: async (call, spec) => policyEngine.decide({ toolName: call.toolName, arguments: call.arguments }, spec),
     onResult: (_call, result) => {
       const sandbox = result.meta?.sandbox as { audit?: readonly ProcessTreeAuditEvent[] } | undefined;
@@ -307,6 +364,14 @@ export async function composeHarness(opts: ComposeOptions): Promise<ComposedHarn
       for (const e of events) enforcement.recordProcessTree(e);
     },
   });
+  if (modPipeline) bus.on('before_turn', async () => {
+    try {
+      await modPipeline.dispatchObserve('turn_start', {}, { sessionId: session.sessionId, turnIndex: session.replay().filter(record => record.type === 'user/message' && !record.source).length, metadata: {} });
+      return { kind: 'defer' as const };
+    } catch {
+      return { kind: 'deny' as const, reason: 'Mod pipeline failed closed', ref: 'mod:pipeline' };
+    }
+  }, 'runtime:mods');
   const progressGuard = new NoProgressGuard(workspaceRoot, async (diagnostic, isCurrent) => {
     let interrupt = false;
     try { await session.appendSync({ type: 'audit/stagnation_break', ...diagnostic, surface: false }); }
@@ -402,6 +467,12 @@ export async function composeHarness(opts: ComposeOptions): Promise<ComposedHarn
     return formatIndexText(entries.sort((a, b) => a.rank - b.rank || a.name.localeCompare(b.name)));
   };
   const builder = new ContextBuilder({
+    adaptivePruning: opts.adaptivePruning && graphAccess ? {
+      pruner: new AdaptiveContextPruner({ workspaceRoot, graph: graphAccess.graph, refreshGraph: graphAccess.refresh,
+        activeFiles: () => opts.adaptivePruning?.activeFiles ?? [] }),
+      options: opts.adaptivePruning,
+    } : undefined,
+    scopedAppendix: contributions.join('\n\n'),
     session,
     model: effectiveModel,
     stableSections: () => compiled.promptSections,
@@ -547,7 +618,9 @@ export async function composeHarness(opts: ComposeOptions): Promise<ComposedHarn
   const loop = new AgentLoop({
     session,
     bus,
-    provider: cacheObserver.provider,
+    provider: redGreenGate ? guardBugfixCompletion(cacheObserver.provider, policyEngine, async reason => {
+      await session.appendSync({ type: 'audit/denial', toolCallId: 'completion', toolName: 'claim_task_complete', stage: 'rule', ruleRef: 'gate:red-green', reason, sandboxMode: artifacts.profile, surface: false });
+    }) : cacheObserver.provider,
     model: effectiveModel,
     buildContext: async (step) => {
       const envelope = await builder.assemble(step);
@@ -567,6 +640,7 @@ export async function composeHarness(opts: ComposeOptions): Promise<ComposedHarn
   });
 
   return {
+    loadedMods,
     bus,
     session,
     registry,

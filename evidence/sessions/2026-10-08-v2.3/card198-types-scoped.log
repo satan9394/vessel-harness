@@ -1,0 +1,14 @@
+npx vitest run packages/context/tests/pruning/adaptivePruning.test.ts packages/application/src/adaptivePruningIntegration.test.ts packages/application/src/symbolGraphIntegration.test.ts packages/tools/tests/symbolGraphTool.test.ts packages/context/src/builder/modScopedPrefix.test.ts
+
+ RUN  v5.0.1 E:/Code_file/Projects/Vessel_Harness
+
+
+ Test Files  5 passed (5)
+      Tests  17 passed (17)
+   Start at  08:22:40
+   Duration  11.38s (tests 40%, import 39%, transform 19%, setup 1%)
+
+    Isolate  5 workers spawned · ~282ms startup each (spawn + environment, per file)
+             at least ~1.13s faster with isolate: false — reuses workers across files instead of one per file
+
+EXIT_CODE=0

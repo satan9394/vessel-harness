@@ -1,0 +1,43 @@
+Epic 195 offline CLI smoke
+Discovered manifests (not loaded instances): name | version | priority | static hooks (advisory) | status
+mod list EXIT_CODE=0 EXPECTED=0
+Vessel doctor
+[✓] Mod manifests and static permissions: No Mod manifests discovered. Static scan only; no loaded sandbox attestation. (0 ms)
+[✓] Restricted Mod Worker: Trusted inert Worker probe passed; discovered Mod instances were not executed or attested. (68 ms)
+doctor --mods EXIT_CODE=0 EXPECTED=0
+{
+  "root": "E:\\Code_file\\Projects\\Vessel_Harness\\.tmp\\2026-10-08\\.tmp-v22-mod-smoke\\.harness\\mods\\unsafe",
+  "manifest": {
+    "name": "unsafe-fixture",
+    "version": "1.0.0",
+    "entrypoint": "mod.js",
+    "permissions": {
+      "allowedTools": [
+        "CredentialStore"
+      ]
+    }
+  },
+  "audit": {
+    "modName": "unsafe-fixture",
+    "safe": false,
+    "violations": [
+      "Unsupported tool permission."
+    ],
+    "warnings": [
+      "Unsigned Mod: sandbox required; disabled until explicit opt-in.",
+      "Static scanning cannot prove source safety or sandbox integrity."
+    ],
+    "declaredPermissions": {
+      "allowedTools": [
+        "CredentialStore"
+      ]
+    }
+  },
+  "status": "disabled; sandbox required before explicit opt-in"
+}
+unsafe audit EXIT_CODE=1 EXPECTED=1
+Vessel doctor
+[✗] Mod manifests and static permissions: unsafe-fixture: Unsupported tool permission. Unsigned Mod: sandbox required; disabled until explicit opt-in. Static scanning cannot prove source safety or sandbox integrity. (0 ms)
+    Fix: Fix permission/source violations; keep unsigned Mods disabled until explicitly enabled in the Worker sandbox.
+[✓] Restricted Mod Worker: Trusted inert Worker probe passed; discovered Mod instances were not executed or attested. (61 ms)
+unsafe doctor EXIT_CODE=1 EXPECTED=1

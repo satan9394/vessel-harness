@@ -3,13 +3,15 @@ import * as path from 'node:path';
 import { diagnoseMemoryDatabase } from '@vessel/memory';
 import { PlatformSandboxRunner } from '@vessel/tools';
 import { DaemonLifecycle } from '@vessel/local-server';
+import { discoverMods } from '@vessel/policy';
+import { WorkerSandbox } from '@vessel/application';
 import { createDefaultProviderStore } from '../providers/defaultStore.js';
 import { memoryDatabasePath } from './memoryCommand.js';
 import type { ProviderConfig } from '../providers/ProviderStore.js';
 
 export interface DoctorCheckItem {
   name: string;
-  category: 'runtime' | 'sandbox' | 'database' | 'providers' | 'daemon';
+  category: 'runtime' | 'sandbox' | 'database' | 'providers' | 'daemon' | 'mods';
   status: 'pass' | 'warn' | 'fail';
   message: string;
   remedy?: string;
@@ -23,6 +25,7 @@ export interface DoctorDependencies {
   database?: () => Promise<{ status: 'pass' | 'warn' | 'fail'; message: string }>;
   providers?: () => ProviderConfig[];
   daemon?: () => Promise<boolean>;
+  modSandbox?: () => Promise<boolean>;
   fetch?: typeof globalThis.fetch;
 }
 
@@ -30,18 +33,38 @@ export { diagnoseMemoryDatabase } from '@vessel/memory';
 
 export class VesselDoctorEngine {
   constructor(private readonly deps: DoctorDependencies = {}) {}
-  async diagnose(options: { probeNetwork?: boolean } = {}): Promise<DoctorReport> {
+  async diagnose(options: { probeNetwork?: boolean; modsOnly?: boolean } = {}): Promise<DoctorReport> {
     const checks: DoctorCheckItem[] = [];
     const check = async (name: string, category: DoctorCheckItem['category'], remedy: string, run: () => Promise<Pick<DoctorCheckItem, 'status' | 'message'>>) => {
       const start = performance.now();
       try { const result = await run(); checks.push({ name, category, ...result, ...(result.status !== 'pass' ? { remedy } : {}), durationMs: Math.round(performance.now() - start) }); }
       catch { checks.push({ name, category, status: 'fail', message: 'Check failed; inspect local configuration.', remedy, durationMs: Math.round(performance.now() - start) }); }
     };
+    const workspace = path.resolve(this.deps.workspace ?? process.cwd());
+    const mods = await discoverMods(workspace);
+    const checkMods = async () => {
+      await check('Mod manifests and static permissions', 'mods', 'Fix permission/source violations; keep unsigned Mods disabled until explicitly enabled in the Worker sandbox.', async () => ({
+        status: mods.some(mod => !mod.audit.safe) ? 'fail' : mods.length ? 'warn' : 'pass',
+        message: mods.length ? mods.map(mod => `${mod.manifest?.name ?? path.basename(mod.root)}: ${[...mod.audit.violations, ...mod.audit.warnings].join(' ')}`).join('\n') : 'No Mod manifests discovered. Static scan only; no loaded sandbox attestation.',
+      }));
+      await check('Restricted Mod Worker', 'mods', 'Use a Node version supporting permission-denied Workers (Node >=22.13/23.5); keep Mods disabled if this probe fails.', async () => {
+        // Fixed trusted inert source probes the runtime boundary, never discovered Mod code.
+        const available = await (this.deps.modSandbox ?? (async () => {
+          const sandbox = new WorkerSandbox({ root: workspace, manifest: { name: 'doctor-probe', version: '1', entrypoint: 'probe.js' }, source: 'module.exports = {};', timeoutMs: 5000 });
+          await sandbox.invoke('observe', []);
+          return true;
+        }))();
+        return { status: available ? 'pass' : 'fail', message: available ? 'Trusted inert Worker probe passed; discovered Mod instances were not executed or attested.' : 'Restricted Worker unavailable; Mod execution must remain disabled.' };
+      });
+    };
+    if (options.modsOnly) {
+      await checkMods();
+      return { timestamp: Date.now(), checks, allPassed: checks.every(item => item.status === 'pass') };
+    }
     await check('Node.js', 'runtime', 'Install Node.js >=20 (>=22.13 for built-in SQLite).', async () => {
       const version = this.deps.nodeVersion ?? process.versions.node;
       return { status: /^\d+\./.test(version) && Number(version.split('.')[0]) >= 20 ? 'pass' : 'fail', message: `Node.js ${version}; required >=20.` };
     });
-    const workspace = path.resolve(this.deps.workspace ?? process.cwd());
     await check('npm lockfile', 'runtime', 'Keep package-lock.json as the only lockfile; use npm.', async () => {
       const locks = ['package-lock.json', 'npm-shrinkwrap.json', 'pnpm-lock.yaml', 'pnpm-workspace.yaml', 'yarn.lock', 'bun.lock', 'bun.lockb'].filter(file => fs.existsSync(path.join(workspace, file)));
       return { status: locks.length === 1 && locks[0] === 'package-lock.json' ? 'pass' : 'fail', message: `Lockfiles: ${locks.join(', ') || 'none'}.` };
@@ -76,13 +99,14 @@ export class VesselDoctorEngine {
       const running = await (this.deps.daemon ?? (async () => !!await new DaemonLifecycle({ launch: async () => { throw new Error('doctor never launches daemon'); } }).status()))();
       return { status: running ? 'pass' : 'warn', message: running ? 'Authenticated local daemon is running.' : 'Local daemon is not running.' };
     });
+    if (mods.length) await checkMods();
     return { timestamp: Date.now(), checks, allPassed: checks.every(item => item.status === 'pass') };
   }
 }
 
 export async function doctorCommand(args: string[], flags = new Map<string, string>(), engine?: VesselDoctorEngine): Promise<number> {
-  if (args.length) { console.error('Usage: vessel doctor [--probe-network] [--json]'); return 2; }
-  const report = await (engine ?? new VesselDoctorEngine({ workspace: flags.get('workspace') })).diagnose({ probeNetwork: flags.has('probe-network') });
+  if (args.length) { console.error('Usage: vessel doctor [--probe-network] [--mods] [--json]'); return 2; }
+  const report = await (engine ?? new VesselDoctorEngine({ workspace: flags.get('workspace') })).diagnose({ probeNetwork: flags.has('probe-network'), modsOnly: flags.has('mods') });
   console.log(flags.has('json') ? JSON.stringify(report) : ['Vessel doctor', ...report.checks.map(item => `[${item.status === 'pass' ? '✓' : item.status === 'warn' ? '!' : '✗'}] ${item.name}: ${item.message} (${item.durationMs} ms)${item.remedy ? `\n    Fix: ${item.remedy}` : ''}`)].join('\n'));
   return report.checks.some(item => item.status === 'fail') ? 1 : 0;
 }

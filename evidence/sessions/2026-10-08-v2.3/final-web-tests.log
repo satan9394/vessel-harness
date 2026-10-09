@@ -1,0 +1,17 @@
+
+> composable-agent-harness@0.10.0 test:web
+> vitest run --root apps/web
+
+
+ RUN  v5.0.1 E:/Code_file/Projects/Vessel_Harness/apps/web
+
+
+ Test Files  20 passed (20)
+      Tests  177 passed (177)
+   Start at  09:14:39
+   Duration  10.99s (import 42%, tests 29%, transform 26%, worker 4%)
+
+    Isolate  20 workers spawned · ~290ms startup each (spawn + environment, per file)
+             at least ~5.52s faster with isolate: false — reuses workers across files instead of one per file
+
+EXIT_CODE=0

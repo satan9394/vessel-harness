@@ -11,6 +11,7 @@ import { Session } from '@vessel/core';
 import type { Instruction } from '../instructions/Instructions.js';
 import { TripartitePrefixBuilder, type TripartitePrefixResult } from './TripartitePrefixBuilder.js';
 import { CompactionBoundaryGuard } from '../compaction/CompactionBoundaryGuard.js';
+import type { ContextPruneOptions, IAdaptiveContextPruner, PrunedContextResult } from '../pruning/types.js';
 
 export interface RequestEnvelope {
   model: string;
@@ -18,9 +19,13 @@ export interface RequestEnvelope {
   tools: ChatToolDef[];
   estimateTokens: number;
   prefixLayout: TripartitePrefixResult;
+  pruning?: PrunedContextResult;
 }
 
 export interface BuilderDeps {
+  adaptivePruning?: { pruner: IAdaptiveContextPruner; options: ContextPruneOptions };
+  /** Frozen session data appended after scoped guidance, before conversation history. */
+  readonly scopedAppendix?: string;
   session: Session;
   model: string;
   /** behavior-compiled stable prompt sections (L2/L3 output), cached per session */
@@ -112,10 +117,12 @@ export class ContextBuilder {
   private injected = false;
   private readonly contextWindow: number;
   private readonly estimate: (t: string) => number;
+  private readonly scopedAppendix: string;
 
   constructor(private readonly deps: BuilderDeps) {
     this.contextWindow = deps.contextWindow ?? DEFAULT_CONTEXT_WINDOW;
     this.estimate = deps.estimateTokens ?? estimateTokens;
+    this.scopedAppendix = deps.scopedAppendix ?? '';
   }
 
   async assemble(step: number): Promise<RequestEnvelope> {
@@ -181,7 +188,16 @@ export class ContextBuilder {
     // Freeze the session snapshot independently of compactable conversation records.
     this.scopedLayer ??= history.filter(message => message.source === 'instruction' || message.source === 'memory');
     const scoped = [...this.scopedLayer];
-    const incremental = history.filter(message => message.source !== 'instruction' && message.source !== 'memory');
+    let incremental = history.filter(message => message.source !== 'instruction' && message.source !== 'memory');
+    let pruning: PrunedContextResult | undefined;
+    if (this.deps.adaptivePruning) {
+      const pruned = await this.deps.adaptivePruning.pruner.prune(incremental, {
+        ...this.deps.adaptivePruning.options,
+        protectedToolCallIds: records.flatMap(record => record.type === 'tool/result' && record.error ? [record.toolCallId] : []),
+      });
+      incremental = pruned.messages;
+      pruning = pruned.result;
+    }
     const goal = [...session.replay()].reverse().find(r => r.type === 'user/message' && (r.source === undefined || r.source === 'steer'));
     if (this.deps.reflectiveRules && goal?.type === 'user/message') {
       // Snapshot lessons per intent; changing retrieval results must not perturb microturns.
@@ -199,6 +215,7 @@ export class ContextBuilder {
       }
     }
     scoped.push(...this.reflectiveLayer);
+    if (this.scopedAppendix) scoped.push({ role: 'user', content: this.scopedAppendix, source: 'instruction' });
 
     // visible tool schemas (denied tools already trimmed by the registry)
     const tools: ChatToolDef[] = this.deps.getVisibleTools().map((t) => ({
@@ -223,7 +240,7 @@ export class ContextBuilder {
     const estimateTokens = this.estimate(canonicalJson(messages)) + this.estimate(canonicalJson(tools));
 
     void step;
-    return { model: this.deps.model, messages, tools, estimateTokens, prefixLayout };
+    return { model: this.deps.model, messages, tools, estimateTokens, prefixLayout, ...(pruning ? { pruning } : {}) };
   }
 
   get pressureRatio(): number {
