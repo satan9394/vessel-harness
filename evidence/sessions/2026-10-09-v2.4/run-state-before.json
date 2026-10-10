@@ -1,0 +1,105 @@
+{
+  "schemaVersion": 1,
+  "revision": 168,
+  "mode": "bounded",
+  "mission": {
+    "goal": "V2.4 Hybrid Chat-Canvas Workbench & Dual-Surface Visual Center (Epic 204)",
+    "definitionOfDone": [
+      "Task 200 Chat Inline Component IR & SSE Protocol implemented and verified",
+      "Task 201 Web Inline Interactive Widgets & Diff Inspector implemented and verified",
+      "Task 202 Dual-Surface Layout & Docked Inspector implemented and verified",
+      "Task 203 Terminal StatusLine & Rich ANSI Adapter implemented and verified",
+      "Task 204 Master Integration & Regression passes",
+      "Thin Core absolute zero modification: packages/core diff is 0 lines",
+      "Dual-root tests (npm run test:all), tsc build, and web build exit 0"
+    ],
+    "outOfScope": [
+      "External Agent real execution",
+      "Git push to remote repository (local-only per 2026-10-06 rule)",
+      "Permanent file deletion",
+      "Modifying packages/core (Thin Core rule)"
+    ],
+    "status": "in_progress"
+  },
+  "workset": [
+    {
+      "id": "200",
+      "status": "ready",
+      "title": "Chat Inline Component IR & SSE Protocol"
+    },
+    {
+      "id": "201",
+      "status": "pending",
+      "title": "Web Inline Widgets & Diff Inspector"
+    },
+    {
+      "id": "202",
+      "status": "pending",
+      "title": "Dual-Surface Layout & Docked Inspector"
+    },
+    {
+      "id": "203",
+      "status": "pending",
+      "title": "Terminal StatusLine & Rich ANSI Adapter"
+    },
+    {
+      "id": "204",
+      "status": "in_progress",
+      "title": "Epic V2.4 Hybrid Chat-Canvas Workbench"
+    }
+  ],
+  "blocked": [],
+  "deferredBacklog": [],
+  "budget": {
+    "run": {
+      "epoch": {
+        "used": 0,
+        "limit": 3
+      },
+      "cards": {
+        "used": 0,
+        "limit": 5
+      },
+      "repairs": {
+        "used": 0,
+        "limit": 5
+      },
+      "workersSpawned": {
+        "used": 0,
+        "limit": 8
+      },
+      "research": {
+        "used": 0,
+        "limit": 2
+      }
+    },
+    "mission": {
+      "runs": {
+        "used": 0,
+        "limit": 8
+      },
+      "cards": {
+        "used": 0,
+        "limit": 20
+      },
+      "repairs": {
+        "used": 0,
+        "limit": 15
+      }
+    },
+    "worksetLimit": 8,
+    "activeWorkerLimit": 3,
+    "maxSubagentDepth": 1
+  },
+  "workers": {
+    "active": 0
+  },
+  "lastVerifiedCommit": "3e6a56f",
+  "resumeFrom": "Epic 204 started; start execution from Task 200 (tasks/200-chat-inline-component-ir-and-sse-protocol.md).",
+  "notesForNextRun": [
+    "Epic 195 (V2.2) and Epic 199 (V2.3) completed and committed as 3e6a56f.",
+    "Epic 204 is the active milestone.",
+    "Adhere strictly to personal-dev-workflow, bounded autonomy limits, and thin-core zero-modification constraint."
+  ],
+  "updatedAt": "2026-10-10T04:00:00.000Z"
+}

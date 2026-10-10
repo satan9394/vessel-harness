@@ -1,0 +1,8 @@
+ M HANDOFF.md
+ M tasks/README.md
+?? evidence/sessions/2026-10-09-v2.4/
+?? tasks/200-chat-inline-component-ir-and-sse-protocol.md
+?? tasks/201-inline-interactive-widgets-and-diff-inspector.md
+?? tasks/202-dual-surface-layout-and-docked-inspector.md
+?? tasks/203-terminal-statusline-and-rich-ansi-reporter.md
+?? tasks/204-epic-v2-4-hybrid-chat-canvas-and-interactive-workbench.md

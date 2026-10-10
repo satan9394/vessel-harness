@@ -1,31 +1,49 @@
 import type { ConversationDelta, ToolDelta } from '../sse';
 import ToolActivityRow from './ToolActivityRow';
 import ThinkingBlock from './ThinkingBlock';
+import type { WidgetBlock, WidgetActionResponse } from '@vessel/shared';
+import { WidgetDispatcher } from './widgets/WidgetDispatcher';
 
 /** A renderable conversation item: either a message bubble or a tool activity row. */
 export interface ChatItem {
   id: string;
-  kind: 'message' | 'tool' | 'thinking';
+  kind: 'message' | 'tool' | 'thinking' | 'widget';
+  widget?: WidgetBlock;
   msg?: ConversationDelta;
   tool?: ToolDelta;
   thinking?: { text: string; durationMs?: number; streaming: boolean };
 }
 
 interface Props {
+  sessionId?: string;
+  onRespond?: (widgetId: string, optionId: string) => Promise<void>;
   items: ChatItem[];
   /** assistant is streaming — show a "thinking" indicator at the end. */
   thinking: boolean;
 }
 
 /** Scroll container for the conversation, with user/assistant bubbles + tool rows. */
-export default function MessageList({ items, thinking }: Props) {
+export function upsertWidget(items: ChatItem[], widget: WidgetBlock): ChatItem[] {
+  const index = items.findIndex(item => item.kind === 'widget' && item.widget?.id === widget.id);
+  if (index < 0) return [...items, { id: `widget:${widget.id}`, kind: 'widget', widget }];
+  // Replay must never reopen a terminal action.
+  if (items[index].widget?.status !== 'pending' && widget.status === 'pending') return items;
+  return items.map((item, i) => i === index ? { ...item, widget } : item);
+}
+export function resolveWidget(items: ChatItem[], response: WidgetActionResponse): ChatItem[] {
+  return items.map(item => item.widget?.kind === 'permission_action' && item.widget.id === response.widgetId && item.widget.payload.options.some(option => option.id === response.selectedOptionId)
+    ? { ...item, widget: { ...item.widget, status: 'resolved', resolution: { selectedOptionId: response.selectedOptionId, resolvedAt: response.resolvedAt } } } : item);
+}
+export default function MessageList({ items, thinking, sessionId = '', onRespond }: Props) {
   return (
     <div className="message-list" role="log" aria-live="polite">
       {items.length === 0 && !thinking && (
         <div className="conversation-empty">发送一条消息开始对话。实时增量将通过 SSE 显示在这里。</div>
       )}
       {items.map((item) =>
-        item.kind === 'tool' && item.tool ? (
+        item.kind === 'widget' && item.widget ? (
+          <WidgetDispatcher key={item.id} widget={item.widget} sessionId={sessionId} onRespond={onRespond} />
+        ) : item.kind === 'tool' && item.tool ? (
           <ToolActivityRow key={item.id} delta={item.tool} />
         ) : item.kind === 'thinking' && item.thinking ? (
           <div key={item.id} className="msg msg-assistant">

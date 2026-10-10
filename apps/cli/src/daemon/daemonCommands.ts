@@ -3,6 +3,7 @@ import * as path from 'node:path';
 import { spawn } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { NativeMeshEventBus, type MeshNodeDescriptor } from '@vessel/agents';
+import { WorkspaceFingerprinter } from '@vessel/tools';
 import { createVesselServer, VERSION, DaemonLifecycle, createNativeNotifier, startResidentTray, daemonRoot, readDaemonLock, writeDaemonFile, releaseDaemonLock, gracefulDaemonStop, protectDaemonPath, recycleDaemonPath, type DaemonControlContract, type DaemonInfo, type DaemonLaunch } from '@vessel/local-server';
 
 export function launchDetached(input: DaemonLaunch, entry: string, launch = spawn): Promise<number> {
@@ -80,6 +81,7 @@ async function runDaemonChild(flags: Map<string, string>): Promise<number> {
     for (const peer of peers) mesh.trustPeer(peer as MeshNodeDescriptor);
   }
   const server = daemonRuntime.server({
+    observeWorkspace: root => WorkspaceFingerprinter.compute(root),
     port: Number(flags.get('port')), authToken: token, mesh, notify: createNativeNotifier(), staticDir: daemonStaticDir(),
     daemon: { status: () => ({ ...info, uptimeSeconds: Math.floor(process.uptime()), memoryBytes: process.memoryUsage().rss }), stop: () => stop() },
   });

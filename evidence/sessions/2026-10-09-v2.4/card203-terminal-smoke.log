@@ -1,0 +1,7 @@
+TTY smoke (main, interactive exec session48543; observed output)
+Right arrow + Enter: Selected fixture option: deny
+hello: offline-fixture | unknown | hash f1f189b0 | cache unknown | ? | 1 turn 0.0s
+Reply: Offline TUI smoke complete.
+/quit: process exit0
+Only Node experimental SQLite warning; no external provider/agent invoked.
+Runnable fixture: npx tsx evidence/sessions/2026-10-09-v2.4/terminal-smoke.ts

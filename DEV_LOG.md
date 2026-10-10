@@ -379,4 +379,26 @@ When there is nothing worth recording, not writing is the correct behavior.
     - 生产构建：`npm run -w @vessel/web build -- --emptyOutDir false` exit 0；
     - 身份守卫：`identity-guard.sh` exit 0（中性身份 0 泄露）；
   - 任务卡 `tasks/192`–`tasks/199` 全部更新为「completed」。
-- **状态**: Epic 195 与 Epic 199 全部在本地机械验收闭环，待执行中性本地提交。
+- **状态**: Epic 195 与 Epic 199 全部在本地机械验收闭环，中性提交为 `3e6a56f`。
+
+---
+
+## 2026-10-10 · Epic 204 V2.4 混合 Chat-Canvas 交互工作台与双端视觉中枢全量交付闭环
+
+- **Agent**: @agy (Gemini 3.8 Flash High)
+- **事件**:
+  - 接收并核验 Codex (GPT-6.1 Sol · 二级思考) 关于 Epic 204（V2.4，融合任务 200–204）的全量交付工作证明（`evidence/sessions/2026-10-09-v2.4/PROOF.md`）；
+  - 依据 personal-dev-workflow 规范完成独立对抗验收与完整交付物审核：
+    1. 任务 200（Chat 流内嵌富交互组件 IR 与双向 SSE 协议）：在 `packages/shared/src/widgets.ts` 落地四大微组件鉴别联合体（DiffInspector, RedGreenGate, ImpactRadar, PermissionAction）与 SHA-256 传输校验和；在 `apps/local-server/src/routes/widgetRoutes.ts` 落地会话作用域发布、过期回收、决策响应端点与 SSE 增量推送（支持 `widget_block`, `action_request`, `action_response`），解耦表现层与 Policy 执行；
+    2. 任务 201（Web 对话流内嵌交互微组件与可折叠 Diff 检查器）：在 `apps/web/src/components/widgets/` 落地 React 19 交互微组件群与 `WidgetDispatcher`；在真实本地浏览器（端口 30824）完成冒烟实测（`browser-smoke.ts`）：27 行 Diff 默认折叠、展开后行号与语法高亮精确对齐；Red→Green 状态卡展示 SHA-256 防伪凭据；权限审批卡片点击后成功触发真实 HTTP `/respond` 端点，原地切换为禁用已决状态，刷新后状态持久；
+    3. 任务 202（双模态双轴工作台布局与常驻 Docked Inspector）：在 `apps/web/src/components/layout/DualSurfaceLayout.tsx` 构建主轴对话流 + 副轴全景 Inspector 画布；右侧面板聚合 Swarm 网格拓扑、认知反思规则、KV Cache 40 样本命中率波形与 AST 影响面拓扑四大 Tab；宽屏快捷键一键折叠（`Ctrl+I`），窄屏（<1024px）优雅降级为带焦点捕获的模态抽屉；
+    4. 任务 203（CLI 终端 StatusLine 与富 ANSI 组件同步适配）：在 `apps/cli/src/ui/` 落地动态底部 `TerminalStatusLine`（展示当前模型、原生沙箱等级、状态指纹前缀、缓存命中率与 250ms 平滑耗时 Ticker），支持无 TTY 降级；ANSI 渲染器实现 >15 行补丁折叠与方向键/回车就地决策；
+    5. 任务 204（全量双端验收与安全边界）：`packages/core` 行修改严格为 **0**；无新增外部依赖，唯一 `package-lock.json` 保持不变；纯本地开发，无 git push 与包发布；
+  - **全量终态门禁实测通过**：
+    - 全量回归：`npm run test:all` 双 Root 全绿（根套件 263 文件 / 2,808 passed + 6 skipped，Web 套件 22 文件 / 201 passed，累计 **3,009 passed + 6 skipped** 全绿，exit 0）；
+    - 类型构建：`npx tsc -b tsconfig.json` exit 0、`npm run typecheck:tests` exit 0、`npm run -w @vessel/web typecheck` exit 0；
+    - 生产构建：`npm run -w @vessel/web build -- --emptyOutDir false` 编译 67 模块 0 告警，exit 0；
+    - CLI 诊断：`npx tsx apps/cli/src/cli.ts --help` exit 0；
+    - 身份守卫：`identity-guard.sh` exit 0（中性身份 0 泄露）；
+  - 任务卡 `tasks/200`–`tasks/204` 全部标记为「completed」。
+- **状态**: Epic 204 本地交付闭环，V2.4 阶段里程碑全部收官。

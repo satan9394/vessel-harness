@@ -85,25 +85,28 @@
 | 洋葱式 Mod 中间件核心流水线 (Onion Mod Middleware Pipeline) | 192 | 已本地验证（28 定向测试） | `tasks/192-onion-mod-middleware-and-pipeline.md` |
 | Claude Code Mods 沙箱化兼容适配器与防提权网关 | 193 | 已本地验证（33 定向测试；独立评审受阻） | `tasks/193-sandboxed-claude-mods-adapter.md` |
 | Mod 权限清单静态审计、CLI 控制面与 Doctor 诊断 | 194 | 已本地验证（26 定向测试） | `tasks/194-mod-manifest-permissions-and-cli-doctor.md` |
-| [Epic] V2.2 沙箱化 Mod 中间件网络与插件生态兼容 | 195 | PASS 本地机械门禁：2911 passed / 6 skipped；未提交 | `tasks/195-epic-v2-2-sandboxed-mods-and-middleware-mesh.md` |
-| 评估器 Red→Green 缺陷复现前置硬门禁 | 196 | completed：15项定向测试及最终全量通过 | `tasks/196-evaluator-red-green-reproduction-gate.md` |
-| 轻量 AST 符号索引与依赖图谱 | 197 | completed：批准mean≤15ms/peak≤25ms；scoped16/16及最终全量通过 | `tasks/197-ast-code-awareness-and-dependency-graph.md` |
-| 变更影响面自适应上下文剪枝 | 198 | completed：19项定向测试及最终全量通过；组合剪枝82.56% | `tasks/198-impact-driven-context-pruning.md` |
-| [Epic] V2.3 结构化代码感知与 Red→Green 复现前置硬门禁 | 199 | PASS 本地机械验收：双Root2957passed/6skipped，全部类型/Web门禁exit0；未提交 | `tasks/199-epic-v2-3-ast-code-awareness-and-red-green-gates.md` |
+| [Epic] V2.2 沙箱化 Mod 中间件网络与插件生态兼容 | 195 | 已合入（2026-10-09，commit `3e6a56f`，双Root 2957 passed） | `tasks/195-epic-v2-2-sandboxed-mods-and-middleware-mesh.md` |
+| 评估器 Red→Green 缺陷复现前置硬门禁 | 196 | 已合入（2026-10-09，commit `3e6a56f`） | `tasks/196-evaluator-red-green-reproduction-gate.md` |
+| 轻量 AST 符号索引与依赖图谱 | 197 | 已合入（2026-10-09，批准mean≤15ms/peak≤25ms，commit `3e6a56f`） | `tasks/197-ast-code-awareness-and-dependency-graph.md` |
+| 变更影响面自适应上下文剪枝 | 198 | 已合入（2026-10-09，commit `3e6a56f`，剪枝率 82.56%） | `tasks/198-impact-driven-context-pruning.md` |
+| [Epic] V2.3 结构化代码感知与 Red→Green 复现前置硬门禁 | 199 | 已合入（2026-10-09，commit `3e6a56f`，双Root 2957 passed） | `tasks/199-epic-v2-3-ast-code-awareness-and-red-green-gates.md` |
+| Chat 流内嵌富交互组件 IR 与双向 SSE 协议 | 200 | 已完成（2026-10-10，本地验证） | `tasks/200-chat-inline-component-ir-and-sse-protocol.md` |
+| Web 对话流内嵌交互微组件与可折叠 Diff 检查器 | 201 | 已完成（2026-10-10，本地验证） | `tasks/201-inline-interactive-widgets-and-diff-inspector.md` |
+| 双模态双轴工作台布局与常驻 Docked Inspector | 202 | 已完成（2026-10-10，本地验证） | `tasks/202-dual-surface-layout-and-docked-inspector.md` |
+| CLI 终端 StatusLine 与富 ANSI 组件同步适配 | 203 | 已完成（2026-10-10，本地验证） | `tasks/203-terminal-statusline-and-rich-ansi-reporter.md` |
+| [Epic] V2.4 混合 Chat-Canvas 交互工作台与双端视觉中枢 | 204 | PASS（2026-10-10，3009 passed / 6 skipped） | `tasks/204-epic-v2-4-hybrid-chat-canvas-and-interactive-workbench.md` |
 
 ## 未闭合 / 下一目标
 
-- **已完成本地机械验收：方向 B（V2.2 沙箱化 Mod 中间件网络与插件生态兼容，Epic 195）**：
-  - 任务 192：洋葱式 Mod 中间件核心流水线（`observe`/`rewrite`/`intercept` 三态洋葱契约，Fail-Closed 错误隔离）；
-  - 任务 193：Claude Code Mods 沙箱化兼容适配器（Worker 线程隔离、RPC 代理、拦截 CVE-2026-82533 提权与凭据访问）；
-  - 任务 194：Mod 权限清单静态审计与 CLI Doctor（`vessel.mod.json` 静态权限声明与诊断）；
-  - 任务 195：Epic V2.2 全量集成与机械验收；证据 `evidence/sessions/2026-10-08-v2.2/PROOF.md`。独立安全审计未完成，方向 C 等待新授权。
-- **已完成本地机械验收：方向 C（V2.3 结构化代码感知与 Red→Green 门禁，Epic 199）**：
-  - 任务 196：评估器 Red→Green 缺陷复现前置硬门禁（先失败后成功两阶段校验）；
-  - 任务 197：轻量 AST 符号索引与依赖图谱（TypeScript 符号图、反向依赖拓扑）；
-  - 任务 198：变更影响面自适应上下文剪枝（爆炸半径分析与 KV Cache 零破坏修剪）；
-  - 任务 199：Epic V2.3 全量集成与实战验收。
-- **最近已合入里程碑：V2.1 Epic 191 已按批准的新性能 DoD 验收合入（commit `0533ebf9`）**：
+- **最近完成路线：V2.4 混合 Chat-Canvas 交互工作台与双端视觉中枢 (Epic 204)**：
+  - 任务 200：Chat 流内嵌富交互组件 IR 与双向 SSE 协议（WidgetBlock 契约与异步响应端点）；
+  - 任务 201：Web 对话流内嵌交互微组件（可折叠 Diff 检查器、Red→Green 状态卡、AST 影响面雷达、权限就地审批）；
+  - 任务 202：双模态双轴工作台布局（对话主轴 + 常驻 Docked Inspector 四大 Tab 全景画布）；
+  - 任务 203：CLI 终端 StatusLine 与富 ANSI 组件同步适配（动态状态栏、彩色折叠 Diff）；
+  - 任务 204：Epic V2.4 全量跨端集成与双端全景验收完成；证据 `evidence/sessions/2026-10-09-v2.4/PROOF.md`。下一步等待人类审阅，不自动推进新路线。
+- **最近已合入里程碑：V2.2 (Epic 195) 与 V2.3 (Epic 199) 已全量验收合入主干（commit `3e6a56f`）**：
+  - 任务 192–195：洋葱式 Mod 中间件流水线、Worker 线程沙箱（防御 CVE-2026-82533）、清单审计与 `vessel mod/doctor`；
+  - 任务 196–199：真实 Red→Green 缺陷复现硬门禁、增量 AST 符号依赖图、自适应上下文剪枝（82.56% 压缩率）。
   - 任务 188：确定性序列化、三段式前缀与 turn===0 压缩守卫；
   - 任务 189：多供应商真实缓存计费命中率与击穿告警；
   - 任务 190：工作区状态指纹与无进展死循环主动熔断器。
@@ -125,4 +128,3 @@
   **`--live` 真实基线未做且不再自动尝试**：事实登记在 `tasks/149`。未经用户逐次显式同意，不得运行 `--live`。
 - **发布准备**：**已按决策点 21 作废**（2026-09-28 追注）——本仓不再发布版本（不建 GitHub Release、不向 npm 发布新版本），`tasks/152` 的 release notes 与 1.0 门槛核对保留为**历史记录**，不再作为待办。
 - **外部阻塞（登记不空等）**：154 `release-report` 刷新；155 3h 墙钟 soak；156 1.0 门槛最终核验（停在 tag 前）。
-

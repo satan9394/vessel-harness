@@ -1,7 +1,10 @@
 import * as readline from 'node:readline';
 import * as fs from 'node:fs';
 import { randomUUID } from 'node:crypto';
-import type { ChatProvider } from '@vessel/shared';
+import { isWidgetBlock, type ChatProvider, type PermissionActionWidget, type WidgetActionResponse, type WidgetBlock } from '@vessel/shared';
+import { WorkspaceFingerprinter } from '@vessel/tools';
+import { TerminalStatusLine, terminalText, type ITerminalStatusLine } from '../ui/TerminalStatusLine.js';
+import { PermissionSelection, renderAnsiWidget } from '../ui/AnsiWidgetRenderer.js';
 import { MockProvider } from '@vessel/llm';
 import { composeHarness, SessionRegistry, type ComposedHarness, type ComposeMcpConnection, type SessionMeta, type SyncCredentialStore } from '@vessel/application';
 import { ProviderStore, type ProviderConfig } from '../providers/ProviderStore.js';
@@ -61,6 +64,11 @@ export interface ChatSessionIO {
   write(line: string): void;
   /** read a batch of canned inputs ahead of time (tests) */
   hasMore?(): boolean;
+  isTTY?: boolean;
+  statusLine?: ITerminalStatusLine;
+  writeWidget?(widget: WidgetBlock): void;
+  selectPermission?(widget: PermissionActionWidget): Promise<string | undefined>;
+  dispose?(): void;
 }
 
 /**
@@ -152,14 +160,20 @@ export class TwoStageCtrlC {
 
 /** stdio implementation (real stdin/stdout; Ctrl+C → two-stage / graceful EOF). */
 export function createStdioIO(ctrlC?: TwoStageCtrlC): ChatSessionIO {
+  const previousData = new Set(process.stdin.listeners('data'));
   const rl = readline.createInterface({ input: process.stdin, output: process.stdout, terminal: false });
+  const readlineData = process.stdin.listeners('data').filter(listener => !previousData.has(listener)) as Array<(chunk: Buffer | string) => void>;
   const reader = makeLineReader(rl);
+  const statusLine = process.stdout.isTTY ? new TerminalStatusLine(process.stdout) : undefined;
+  let cancelSelection: (() => void) | undefined;
 
   // Ctrl+C: idle → exit (EOF). With an active turn (two-stage, task 050) the
   // FIRST press interrupts it ('stay'), the SECOND press exits. A terminal-mode
   // interface emits its own 'SIGINT'; with terminal:false the process signal
   // fires — wire both, only one ever triggers (same guard as before 050).
   const onSigint = () => {
+    cancelSelection?.();
+    statusLine?.clear();
     process.stdout.write('\n'); // move off the half-typed prompt line
     if (ctrlC && ctrlC.press() === 'stay') {
       process.stdout.write('^C 已请求中断当前 turn（再次 Ctrl+C 退出）\n');
@@ -172,12 +186,82 @@ export function createStdioIO(ctrlC?: TwoStageCtrlC): ChatSessionIO {
   rl.on('SIGINT', onSigint);
 
   return {
+    isTTY: !!process.stdout.isTTY,
+    statusLine,
     readLine(prompt: string) {
+      statusLine?.clear();
       process.stdout.write(prompt);
       return reader.readLine();
     },
     write(line: string) {
-      console.log(line);
+      statusLine?.clear();
+      console.log(terminalText(line));
+    },
+    writeWidget(widget) {
+      statusLine?.clear();
+      console.log(renderAnsiWidget(widget, !!process.stdout.isTTY));
+    },
+    selectPermission(widget) {
+      if (!process.stdin.isTTY || !process.stdout.isTTY) return Promise.resolve(undefined);
+      statusLine?.clear();
+      const selection = new PermissionSelection(widget);
+      rl.pause();
+      for (const listener of readlineData) process.stdin.removeListener('data', listener);
+      const raw = process.stdin.isRaw;
+      process.stdin.setRawMode(true);
+      const draw = () => process.stdout.write(`\r\x1b[2K${selection.render().replace(/[^\x20-\x7e]/g, '?').slice(0, Math.max(1, process.stdout.columns - 1))}`);
+      draw();
+      return new Promise(resolve => {
+        let finished = false;
+        let buffered = '';
+        let escapeTimer: ReturnType<typeof setTimeout> | undefined;
+        const finish = (id?: string) => {
+          if (finished) return;
+          finished = true;
+          cancelSelection = undefined;
+          clearTimeout(escapeTimer);
+          process.stdout.removeListener('resize', draw);
+          process.stdin.pause();
+          process.stdin.removeListener('data', onData);
+          process.stdin.removeListener('end', onEnd);
+          process.stdin.removeListener('error', onEnd);
+          process.stdin.setRawMode(raw);
+          for (const listener of readlineData) process.stdin.on('data', listener);
+          process.stdout.write('\r\x1b[2K');
+          rl.resume();
+          resolve(id);
+        };
+        const onEnd = () => finish();
+        const onData = (chunk: Buffer | string) => {
+          clearTimeout(escapeTimer);
+          buffered += String(chunk);
+          while (buffered && !finished) {
+            if (buffered === '\x1b' || buffered === '\x1b[') { escapeTimer = setTimeout(() => finish(), 50); return; }
+            const key = buffered.startsWith('\x1b[') ? buffered.slice(0, 3) : buffered.charAt(0);
+            buffered = buffered.slice(key.length);
+            if (key === '\x03') { finish(); onSigint(); return; }
+            if (key === '\x1b') { finish(); return; }
+            const direction = ({ '\x1b[A': 'up', '\x1b[B': 'down', '\x1b[C': 'right', '\x1b[D': 'left', '\r': 'enter', '\n': 'enter' } as Record<string, string>)[key];
+            if (!direction) continue;
+            const id = selection.key(direction);
+            if (id !== undefined) finish(id); else draw();
+          }
+        };
+        cancelSelection = onEnd;
+        process.stdin.on('data', onData);
+        process.stdin.once('end', onEnd);
+        process.stdin.once('error', onEnd);
+        process.stdout.on('resize', draw);
+        process.stdin.resume();
+      });
+    },
+    dispose() {
+      cancelSelection?.();
+      statusLine?.dispose();
+      process.removeListener('SIGINT', onSigint);
+      rl.removeListener('SIGINT', onSigint);
+      reader.close();
+      rl.close();
     },
   };
 }
@@ -208,6 +292,8 @@ export interface ChatOptions {
    */
   settingsRoot?: string;
   io?: ChatSessionIO;
+  /** Presentation decision callback; selecting an option does not change policy. */
+  onWidgetResponse?: (response: WidgetActionResponse) => Promise<void> | void;
 }
 
 /**
@@ -425,6 +511,9 @@ export async function runChat(opts: ChatOptions): Promise<number> {
         },
       });
   const io = opts.io ?? createStdioIO(ctrlC ?? undefined);
+  const detaches: Array<() => void> = [];
+  let harness: ComposedHarness | null = null;
+  try {
 
   // current provider resolution (like cmdRun): explicit > current default > mock
   const currentId = store.getCurrent();
@@ -433,7 +522,6 @@ export async function runChat(opts: ChatOptions): Promise<number> {
   let model = opts.model ?? currentCfg?.model ?? 'mock-model';
   let permission: PermissionMode = opts.permission ?? 'workspace-write';
   let providerId = currentCfg?.id ?? 'mock';
-  let harness: ComposedHarness | null = null;
   /**
    * BRIEF-12：`/permission`、`/model` 的会话级变更**先挂起**，等下一次真正需要 harness 时
    * 再连同重建一起应用。**绝不预先置空 `harness`** —— 预置空会把「重建失败」退化成
@@ -466,6 +554,8 @@ export async function runChat(opts: ChatOptions): Promise<number> {
   let usingMockProvider = false;
   /** 提示**每会话一次**：`/permission`、`/model` 触发的 harness 重建不得重复刷屏。 */
   let mockNoticeShown = false;
+  let selectingPermission = false;
+  io.statusLine?.update({ modelName: model, sandboxTier: 'unknown', workspaceFingerprint: 'unknown', activeTurns: 0 });
 
   const buildHarness = async (): Promise<ComposedHarness> => {
     const cfg = providerId === 'mock' ? undefined : store.get(providerId);
@@ -539,6 +629,35 @@ export async function runChat(opts: ChatOptions): Promise<number> {
       }
       throw err;
     }
+    if (io.statusLine) {
+      detaches.push(harness.bus.on('before_model', payload => {
+        const envelope = (payload as { envelope?: { model?: string; reasoningEffort?: string } })?.envelope;
+        io.statusLine!.update({ modelName: envelope?.model ?? effModel, reasoningEffort: envelope?.reasoningEffort });
+      }, 'cli:status-model'));
+      detaches.push(harness.bus.on('after_model', payload => {
+        const metrics = (payload as { usage?: { cacheMetrics?: { billedHitRate?: number } } })?.usage?.cacheMetrics;
+        io.statusLine!.update({ cachedTokensRate: metrics?.billedHitRate });
+      }, 'cli:status-cache'));
+      detaches.push(harness.bus.on('audit/sandbox_enforced', payload => {
+        const audit = payload as { isolationTier?: string; outcome?: string };
+        const tier = audit?.isolationTier === 'windows-job-restricted' ? 'JobRestricted' : audit?.isolationTier === 'passthrough-fallback' ? 'Fallback' : audit?.isolationTier;
+        io.statusLine!.update({ sandboxTier: audit?.outcome === 'denied' ? 'Denied' : tier ?? 'unknown' });
+      }, 'cli:status-sandbox'));
+    }
+    detaches.push(harness.bus.on('ui/widget_block', async payload => {
+      if (!isWidgetBlock(payload)) return;
+      if (io.writeWidget) io.writeWidget(payload); else io.write(renderAnsiWidget(payload, io.isTTY));
+      if (payload.kind !== 'permission_action' || payload.status !== 'pending' || !io.selectPermission) return;
+      selectingPermission = true;
+      let selectedOptionId: string | undefined;
+      try { selectedOptionId = await io.selectPermission(payload); }
+      finally { selectingPermission = false; }
+      if (selectedOptionId && payload.payload.options.some(option => option.id === selectedOptionId)) {
+        const response = { widgetId: payload.id, selectedOptionId, resolvedAt: new Date().toISOString() };
+        if (opts.onWidgetResponse) await opts.onWidgetResponse(response);
+        else await harness.bus.emit('ui/widget_response', response);
+      }
+    }, 'cli:widgets'));
     // G-13-P1：把会话 id 记到外层，供 /permission、/model 之后回写登记表（拿不到 id 就没法 put）。
     currentSessionId = harness.session.sessionId;
 
@@ -756,6 +875,18 @@ export async function runChat(opts: ChatOptions): Promise<number> {
     activeTurnInterrupt = () => {
       harness!.loop.interrupt();
     };
+    const turnStarted = Date.now();
+    if (io.statusLine) {
+      let workspaceFingerprint = 'unknown';
+      try { workspaceFingerprint = (await WorkspaceFingerprinter.compute(sessionWorkspace)).trackedFilesHash; } catch { /* Observation failure cannot stop a turn. */ }
+      io.statusLine.update({ modelName: model, workspaceFingerprint, activeTurns: 1, turnElapsedMs: 0, sandboxTier: 'unknown', cachedTokensRate: undefined });
+      io.statusLine.render();
+    }
+    const statusTimer = io.statusLine ? setInterval(() => {
+      if (selectingPermission) return;
+      io.statusLine!.update({ turnElapsedMs: Date.now() - turnStarted });
+      io.statusLine!.render();
+    }, 250) : undefined;
     try {
       const result = await harness.loop.runTurn(input);
       // BRIEF-17：回合结果的**唯一出口**（BRIEF-16 1C② 的 mock 前缀只在这里加一次，
@@ -766,7 +897,10 @@ export async function runChat(opts: ChatOptions): Promise<number> {
     } catch (err) {
       io.write(`[错误] ${describeProviderError(err)}`);
     } finally {
+      clearInterval(statusTimer);
       activeTurnInterrupt = null;
+      io.statusLine?.update({ activeTurns: 0, turnElapsedMs: Date.now() - turnStarted });
+      io.statusLine?.render();
     }
 
     // 每回合成本增量（G-09）：成功 / 中断 / 出错三种分支都在 finally 后执行一次。
@@ -781,8 +915,13 @@ export async function runChat(opts: ChatOptions): Promise<number> {
     }
   }
 
-  await harness?.close();
   return 0;
+  } finally {
+    for (const detach of detaches) detach();
+    io.statusLine?.dispose();
+    io.dispose?.();
+    await harness?.close();
+  }
 }
 
 async function mockProvider(model: string) {

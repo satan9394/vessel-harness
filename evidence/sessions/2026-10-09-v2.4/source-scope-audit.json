@@ -1,0 +1,42 @@
+{
+  "sourceFiles": [
+    "apps/cli/src/cli.ts",
+    "apps/cli/src/daemon/daemonCommands.ts",
+    "apps/cli/src/tui/chat.ts",
+    "apps/local-server/src/index.ts",
+    "apps/local-server/src/server.ts",
+    "apps/web/src/api.ts",
+    "apps/web/src/components/ConversationView.tsx",
+    "apps/web/src/components/MessageList.tsx",
+    "apps/web/src/sse.ts",
+    "apps/web/src/styles.css",
+    "packages/shared/package.json",
+    "packages/shared/src/index.ts",
+    "apps/cli/src/tui/chatStatus.test.ts",
+    "apps/cli/src/ui/AnsiWidgetRenderer.ts",
+    "apps/cli/src/ui/TerminalStatusLine.ts",
+    "apps/cli/src/ui/statusLine.test.ts",
+    "apps/local-server/src/routes/sessionInspector.test.ts",
+    "apps/local-server/src/routes/sessionInspector.ts",
+    "apps/local-server/src/routes/widgetRoutes.test.ts",
+    "apps/local-server/src/routes/widgetRoutes.ts",
+    "apps/web/src/components/layout/DualSurfaceLayout.test.tsx",
+    "apps/web/src/components/layout/DualSurfaceLayout.tsx",
+    "apps/web/src/components/layout/layout.css",
+    "apps/web/src/components/widgets/AstImpactRadar.tsx",
+    "apps/web/src/components/widgets/InlineDiffInspector.tsx",
+    "apps/web/src/components/widgets/PermissionActionCard.tsx",
+    "apps/web/src/components/widgets/RedGreenGateBadge.tsx",
+    "apps/web/src/components/widgets/WidgetDispatcher.tsx",
+    "apps/web/src/components/widgets/widgets.test.tsx",
+    "apps/web/src/inspector.ts",
+    "packages/shared/src/inspector.ts",
+    "packages/shared/src/widgets.test.ts",
+    "packages/shared/src/widgets.ts"
+  ],
+  "outsideAllowedSource": [],
+  "latestSourceEdit": {
+    "FullName": "E:\\Code_file\\Projects\\Vessel_Harness\\apps\\web\\src\\sse.ts",
+    "LastWriteTime": "2026-10-10T00:26:26.0007641-07:00"
+  }
+}

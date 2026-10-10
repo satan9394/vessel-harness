@@ -2,33 +2,32 @@
 
 > **用途**：新会话 / 新 Agent / 换人接手时，**先读本文件**：现状、未完成清单、验证命令、已知约束都在这里。
 > 规则本身仍在 [`AGENTS.md`](AGENTS.md)；会约束未来的决策在 [`docs/DESIGN-DECISIONS.md`](docs/DESIGN-DECISIONS.md)。
-> **最后更新**：2026-10-08。维护者：单人。
+> **最后更新**：2026-10-10。维护者：单人。
 
 ## 0. 快速接管协议（当用户直接说「继续未完成的」或「继续」时）
 
 **任何 Agent 在接收到「继续」/「继续未完成的」指令时，直接根据本段与 `.agent-state/run-state.json` 向用户汇报并执行：**
 
-1. **当前交付与阶段状态**：**V2.2 Epic 195（192–195）已于 2026-10-08 完成本地机械验收，未提交；双 Root 2911 passed / 6 skipped，构建、测试类型与 Web 构建 exit 0。证据 `evidence/sessions/2026-10-08-v2.2/PROOF.md`；独立安全评审受内容过滤阻断，不宣称安全审计 PASS。** **V2.0 已收官并独立核验 PASS**；**V2.1 Epic 191（188、189、190）于 2026-10-08 按人类批准的新性能 DoD 完成验收闭环，并已完成中性本地提交（commit `0533ebf9`）**。
+1. **当前交付与阶段状态**：**V2.4 Epic 204（200–204）已于 2026-10-10 完成本地验收，未提交**。双 Root **3009 passed / 6 skipped**，全部类型检查、安全 Web 构建与 CLI help exit0；机器 Mission completed/workers0。下一步人类审阅，证据 `evidence/sessions/2026-10-09-v2.4/PROOF.md`。前序 V2.2/V2.3 已合入本地 `main`（commit `3e6a56f`）。
 2. **已完成与已验证基线**：
-   - 188：请求确定性序列化、三段式前缀分层布局与 turn===0 压缩守卫；
-   - 189：多供应商真实缓存计费命中率与多维透视遥测；
-   - 190：工作区状态指纹与无进展死循环主动熔断器；
-   - 191：Epic V2.1 前缀缓存经济学与收敛中枢总卡；
-   - 全量终态门禁基线：`tsc -b`、`typecheck:tests` 均 exit 0；Web 生产打包 exit 0；`test:all` 双 Root **2,811 passed + 6 skipped 全绿**；全历史 `identity-guard.sh` 0 命中。
+   - 192–195 (V2.2)：三态洋葱 Mod 中间件流水线、Worker 线程沙箱（防御 CVE-2026-82533）、清单权限审计与 CLI `vessel mod/doctor`；
+   - 196–199 (V2.3)：真实 Red→Green 缺陷复现硬门禁与 SHA-256 防伪凭据、增量 AST 符号依赖图谱（均值 10.7ms）、自适应上下文剪枝（剪枝率 82.56%）；
+   - 全量终态门禁基线：`tsc -b`、`typecheck:tests` 均 exit 0；Web 生产打包 exit 0；`test:all` 双 Root **2,957 passed + 6 skipped 全绿**；全历史 `identity-guard.sh` 0 命中。
 3. **当前路线与目标**：
-   - **已完成路线：方向 B（V2.2 沙箱化 Mod 中间件网络与插件生态兼容，Epic 195）**：
-     - 子任务顺序：192（洋葱中间件流水线）→ 193（Claude Mods 沙箱与防提权）→ 194（权限清单与 CLI Doctor）→ 195（全量集成与验收）；
-   - **已完成本地验收路线：方向 C（V2.3 结构化代码感知与 Red→Green 门禁，Epic 199）**：
-     - 子任务顺序：196（Red→Green 缺陷复现硬门禁）→ 197（轻量 AST 符号索引与依赖图谱）→ 198（变更影响面自适应上下文剪枝）→ 199（全量实战验收）；
+   - **最近完成路线：V2.4 混合 Chat-Canvas 交互工作台与双端视觉中枢 (Epic 204)**：
+     - 子任务顺序：200（Chat 内嵌组件 IR 与双向 SSE 协议）→ 201（Web 对话流内嵌微组件与 Diff 检查器）→ 202（双模态双轴工作台布局与常驻 Docked Inspector）→ 203（CLI 终端 StatusLine 与富 ANSI 适配）→ 204（全量双端验收）；
    - **开发模式与约束**：纯本地开发（严禁 git push，遵循 2026-10-06 规约；薄核零侵入 packages/core；删除必进回收站）；
    - **模型锁定规约**：默认开发模型锁定为 **GPT-6.1 Sol (`gpt-6.1-sol`)**，二级思考（`reasoning.effort: medium`），免多余确认。
 
 | 项 | 当前实况 |
 |---|---|
 | 仓库 / 分支 | `satan9394/vessel-harness` / `main`（纯本地开发，不推送） |
-| 工作区状态 | V2.2 已验证但未提交；V2.3 已按批准的完整语义15/25指标完成本地验收；双Root2957passed/6skipped，全部类型/Web门禁exit0；无提交/推送 |
-| 机器状态真源 | `.agent-state/run-state.json`（当前 Mission: Epic 199） |
-| 当前任务卡 | 196–199 completed；交证入口 `evidence/sessions/2026-10-08-v2.3/PROOF.md`，原始失败和修复记录保留 |
+| 工作区状态 | V2.2/V2.3 本地提交 `3e6a56f`；V2.4 200–204 本地验收完成，未提交 |
+| 机器状态真源 | `.agent-state/run-state.json`（Epic 204 completed，workers0） |
+| 当前任务卡 | [Epic] `tasks/204-epic-v2-4-hybrid-chat-canvas-and-interactive-workbench.md` ｜ 200–204 已闭环；等待人类审阅 |
+
+
+V2.4 最终恢复点（2026-10-10）：200–204本地完成。四类Widget IR+双向SSE/HTTP、React就地组件、四Tab Docked Inspector、CLI状态栏/ANSI与方向键审批全部交证。最终双Root root263文件/2808passed+6skipped、Web22文件/201passed，合计3009passed；tsc、测试类型、Web类型、安全Web构建、help全部exit0，均在最后源码/测试编辑后运行。Web桌面/800px与离线TTY冒烟通过，独立评审PASS；core0、33保护哈希不变、根依赖锁不变。未提交/推送/发布，无外部Agent。证据 `evidence/sessions/2026-10-09-v2.4/PROOF.md` 与 accepted-*.log；初次失败日志保留。机器Mission completed/workers0，下一步人类审阅，不自动续新里程碑。AST画布使用观测的影响报告，缓存历史仅当前挂载会话；审批只记录选择，不绕过Policy。
 
 V2.1 执行偏差：189 执行器三次默认 Vite 构建清空生成 `apps/web/dist`，违反任务删除纪律，已记录，不能声明红线全部遵守。后续 Web 构建必须加 `-- --emptyOutDir false`。为验证锁文件，本轮将旧 `node_modules` 完整移动到 `.tmp/2026-10-07/node_modules-before-epic191-npm-ci` 后执行 `npm ci`（exit 0）；备份保留，不清理。阶段性能实测本仓 1673 文件 warm 中位约 1285ms，见 `phase190-benchmark-final.log`，不得擅自降低验收标准。
 
@@ -144,4 +143,3 @@ npm ci                 # 依赖与锁文件一致；随后可跑 §4 的完整�
   - 阶段一（任务 175：Web 交互式 DAG 画布与方案预审）已由 Codex 交付并测试全绿（`TeamDagCanvas.test.tsx` 5/5, `teamStageApi.test.ts` 5/5，`tsc -b` / `typecheck:tests` / `vite build` 均 exit 0）；
   - 因上游模型额度与算力限制，推进在阶段二（任务 176：后台常驻 Daemon 与系统通知）前挂起暂停；
   - 机器状态保存在 `.agent-state/run-state.json`，新会话开启后可通过 `/resume` 或直接执行阶段二无缝接管。
-

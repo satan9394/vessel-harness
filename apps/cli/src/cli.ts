@@ -17,6 +17,7 @@ import {
   createVesselTaskExecutor,
 } from '@vessel/application';
 import { createVesselServer } from '@vessel/local-server';
+import { WorkspaceFingerprinter } from '@vessel/tools';
 import { daemonCommands } from './daemon/daemonCommands.js';
 import { meshCommand } from './commands/meshCommand.js';
 import { memoryCommand } from './commands/memoryCommand.js';
@@ -2797,7 +2798,7 @@ export interface ServeHandle {
 export async function startServe(opts: { port?: number; workspace?: string } = {}): Promise<ServeHandle> {
   const port = Number(opts.port ?? 5678);
   const workspace = path.resolve(opts.workspace ?? process.cwd());
-  const server = createVesselServer({ port, staticDir: undefined });
+  const server = createVesselServer({ port, staticDir: undefined, observeWorkspace: root => WorkspaceFingerprinter.compute(root) });
   try {
     await server.listen();
   } catch (err) {
