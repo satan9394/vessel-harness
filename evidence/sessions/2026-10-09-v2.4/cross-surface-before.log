@@ -1,0 +1,26 @@
+
+ RUN  v5.0.1 E:/Code_file/Projects/Vessel_Harness
+
+ ❯ benchmarks/runners/src/conformance/subagentEndToEnd.test.ts (0 test)
+
+⎯⎯⎯⎯⎯⎯ Failed Suites 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  benchmarks/runners/src/conformance/subagentEndToEnd.test.ts [ benchmarks/runners/src/conformance/subagentEndToEnd.test.ts ]
+Error: Cannot find package '@vessel/shared/widgets' imported from E:/Code_file/Projects/Vessel_Harness/apps/web/src/sse.ts
+ ❯ apps/web/src/sse.ts:15:1
+     13|
+     14| import { daemonToken } from './auth.js';
+     15| import { isWidgetBlock, type WidgetBlock, type WidgetActionResponse } …
+       | ^
+     16| import type { SandboxAudit } from './sandboxAudit.js';
+     17| import { isInspectorObservation, type InspectorObservation } from './i…
+ ❯ benchmarks/runners/src/conformance/subagentEndToEnd.test.ts:9:1
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  no tests
+   Start at  00:25:31
+   Duration  19.61s (transform 52%, setup 35%, worker 12%)
+

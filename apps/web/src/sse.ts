@@ -12,7 +12,10 @@
  */
 
 import { daemonToken } from './auth.js';
+// ponytail: root conformance imports this module; its package alias has no subpath support.
+import { isWidgetBlock, type WidgetBlock, type WidgetActionResponse } from '../../../packages/shared/src/widgets.js';
 import type { SandboxAudit } from './sandboxAudit.js';
+import { isInspectorObservation, type InspectorObservation } from './inspector.js';
 
 /** One incoming SSE frame after JSON parsing. */
 export interface SseFrame {
@@ -89,6 +92,9 @@ export interface TeamDelta {
 }
 
 export interface StreamHandlers {
+  onInspector?: (observation: InspectorObservation) => void;
+  onWidget?: (widget: WidgetBlock) => void;
+  onWidgetResponse?: (response: WidgetActionResponse) => void;
   /** Native EventSource open/reconnect boundary, for snapshot reconciliation. */
   onOpen?: () => void;
   onConversation?: (delta: ConversationDelta) => void;
@@ -117,7 +123,8 @@ function isRecord(value: unknown): value is Record<string, unknown> {
  * Returns { close } so callers can tear the stream down (unmount / session switch).
  */
 export function createEventStream(url: string, handlers: StreamHandlers = {}, options: { token?: string; fetch?: typeof globalThis.fetch; reconnectMs?: number } = {}): EventStream {
-  let source: { onmessage: ((event: MessageEvent) => void) | null; onopen: ((event: Event) => void) | null; close(): void };
+  let source: { onmessage: ((event: MessageEvent) => void) | null; onopen: ((event: Event) => void) | null; close(): void; addEventListener?: (type: string, listener: (event: MessageEvent) => void) => void };
+  let closed = false;
   try {
     const token = options.token ?? daemonToken();
     source = token ? new BearerEventSource(url, token, handlers, options) : new EventSource(url);
@@ -128,6 +135,7 @@ export function createEventStream(url: string, handlers: StreamHandlers = {}, op
   }
 
   source.onmessage = (ev: MessageEvent) => {
+    if (closed) return;
     let parsed: unknown;
     try {
       parsed = JSON.parse(ev.data as string);
@@ -144,6 +152,20 @@ export function createEventStream(url: string, handlers: StreamHandlers = {}, op
     const delta = (frame.delta ?? {}) as Record<string, unknown>;
     const ts = typeof frame.ts === 'number' ? frame.ts : Date.now();
     switch (frame.type) {
+      case 'inspector':
+        if (isInspectorObservation(frame.delta)) handlers.onInspector?.(frame.delta);
+        else handlers.onError?.(new Error('malformed inspector observation'));
+        break;
+      case 'widget':
+      case 'widget_block':
+      case 'action_request':
+        if (isWidgetBlock(frame.delta)) handlers.onWidget?.(frame.delta);
+        else handlers.onError?.(new Error('malformed widget frame'));
+        break;
+      case 'action_response':
+        if (isRecord(frame.delta) && typeof delta.widgetId === 'string' && typeof delta.selectedOptionId === 'string' && typeof delta.resolvedAt === 'string' && Number.isFinite(Date.parse(delta.resolvedAt))) handlers.onWidgetResponse?.(delta as unknown as WidgetActionResponse);
+        else handlers.onError?.(new Error('malformed widget response'));
+        break;
       case 'conversation':
         handlers.onConversation?.({ ...delta, ts } as unknown as ConversationDelta);
         break;
@@ -188,10 +210,14 @@ export function createEventStream(url: string, handlers: StreamHandlers = {}, op
     }
   };
 
-  source.onopen = () => handlers.onOpen?.();
+  source.onopen = () => { if (!closed) handlers.onOpen?.(); };
+  // Native EventSource does not send named events to onmessage. Bearer frames
+  // already enter the same dispatcher through their JSON envelope.
+  for (const name of ['widget', 'widget_block', 'action_request', 'action_response', 'inspector']) source.addEventListener?.(name, source.onmessage);
 
   return {
     close() {
+      closed = true;
       source.close();
     },
   };

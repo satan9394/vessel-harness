@@ -1,4 +1,4 @@
-import { priceCacheMetrics, type CacheUsageMetrics } from '@vessel/shared';
+import { isWidgetBlock, priceCacheMetrics, type CacheUsageMetrics } from '@vessel/shared';
 import * as fs from 'node:fs';
 import * as http from 'node:http';
 import * as path from 'node:path';
@@ -24,6 +24,8 @@ import { TeamStageRoutes } from './teamRoutes.js';
 import { authMiddleware, DAEMON_LOGIN_HTML } from './daemon/authMiddleware.js';
 import type { DaemonServerControl } from './daemon/types.js';
 import type { Notify } from './daemon/notifications.js';
+import { WidgetRoutes } from './routes/widgetRoutes.js';
+import { SessionInspector, type WorkspaceObserver } from './routes/sessionInspector.js';
 
 /**
  * SessionController factory. The server never composes a session itself — that
@@ -41,6 +43,8 @@ export type SessionFactory = (input: {
 }) => Promise<SessionController>;
 
 export interface VesselServerOptions {
+  /** Optional read-only workspace observer supplied by the CLI composition surface. */
+  observeWorkspace?: WorkspaceObserver;
   /** port to bind; defaults to 5678. Pass 0 for a random free port (tests). */
   port?: number;
   /** Non-loopback binding is explicit and requires daemon authentication. */
@@ -82,6 +86,8 @@ export interface VesselServerOptions {
 }
 
 export interface VesselServer {
+  /** Available on the concrete server; optional for existing control-only adapters. */
+  readonly widgets?: WidgetRoutes;
   /** Start listening. Resolves once the underlying http server is bound. */
   listen(): Promise<VesselServer>;
   /** Close the http server and all live sessions. */
@@ -246,6 +252,8 @@ export function createVesselServer(opts: VesselServerOptions = {}): VesselServer
 
   /** live session controllers keyed by session id (owns the run loop). */
   const controllers = new Map<string, SessionController>();
+  const widgets = new WidgetRoutes(id => controllers.has(id));
+  const inspector = new SessionInspector(opts.observeWorkspace);
 
   // ------------------------------------------------------------------
   // task 060 team seam — route state + live team run per session id
@@ -526,6 +534,12 @@ export function createVesselServer(opts: VesselServerOptions = {}): VesselServer
           registry: sessionRegistry,
         });
         controllers.set(ctl.sessionId, ctl);
+        subagentDetaches.push(ctl.bus.on('before_model', payload => {
+          inspector.observe(ctl.sessionId, payload, ctl.state.workspaceRoot);
+        }, 'local-server:inspector'));
+        subagentDetaches.push(ctl.bus.on('ui/widget_block', payload => {
+          if (isWidgetBlock(payload)) widgets.publish(ctl.sessionId, payload);
+        }, 'local-server:widgets'));
         if (opts.notify) subagentDetaches.push(ctl.bus.on('policy_decision', payload => {
           const decision = payload as { verdict?: string; toolName?: string };
           if (decision.verdict === 'ask') notify('Vessel approval required', `Session ${ctl.sessionId}: ${decision.toolName ?? 'tool'} needs approval.`);
@@ -549,10 +563,16 @@ export function createVesselServer(opts: VesselServerOptions = {}): VesselServer
     }
 
     // /api/sessions/:id/...
-    if (segs.length >= 3 && segs[1] === 'sessions') {
+    if (segs.length >= 3 && (segs[1] === 'sessions' || segs[1] === 'session')) {
       const id = segs[2] ?? '';
       const sub = segs[3];
       const ctl = controllers.get(id);
+
+      if (segs.length === 6 && sub === 'widget' && segs[5] === 'respond' && method === 'POST') {
+        if (!ctl) return json(res, 404, suggestNotFound(id));
+        const result = widgets.respond(id, segs[4]!, await readJsonBody(req));
+        return json(res, result.status, result.body);
+      }
 
       // GET /api/sessions/:id
       if (segs.length === 3 && method === 'GET') {
@@ -962,6 +982,12 @@ export function createVesselServer(opts: VesselServerOptions = {}): VesselServer
       // best-effort; responder may already be closed
       res.write(`data: ${JSON.stringify({ type, delta, ts: Date.now() })}\n\n`);
     };
+    // Named events also carry the existing {type, delta, ts} envelope.
+    const detachWidgets = widgets.subscribe(ctl.sessionId, (type, delta) => {
+      res.write(`event: ${type}\ndata: ${JSON.stringify({ type, delta, ts: Date.now() })}\n\n`);
+      if (type === 'widget_block') res.write(`event: widget\ndata: ${JSON.stringify({ type: 'widget', delta, ts: Date.now() })}\n\n`);
+    });
+    const detachInspector = inspector.subscribe(ctl.sessionId, observation => sse('inspector', observation));
 
     // task 060: forward team-run snapshots to this connection (session-scoped).
     const teamSend = (kind: TeamEventKind, state: unknown) => sse('team', { kind, state });
@@ -1093,6 +1119,8 @@ export function createVesselServer(opts: VesselServerOptions = {}): VesselServer
     const cleanup = () => {
       clearInterval(heartbeat);
       detachSubagents();
+      detachWidgets();
+      detachInspector();
       for (const off of forwards.values()) off();
       senders.delete(teamSend);
       if (senders.size === 0) teamSenders.delete(ctl.sessionId);
@@ -1131,6 +1159,7 @@ export function createVesselServer(opts: VesselServerOptions = {}): VesselServer
   }
 
   const vesselServer: VesselServer = {
+    widgets,
     port,
     async listen() {
       server.listen(port, opts.host ?? '127.0.0.1');
@@ -1145,6 +1174,8 @@ export function createVesselServer(opts: VesselServerOptions = {}): VesselServer
       return vesselServer;
     },
     async close() {
+      inspector.close();
+      widgets.close();
       await opts.mesh?.close();
       for (const ctl of controllers.values()) ctl.interrupt();
       for (const res of subagentStreams) res.end();

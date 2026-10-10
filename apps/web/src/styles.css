@@ -1103,3 +1103,24 @@ code {
 .team-plan-editor-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 8px 0; }
 .team-plan-editor-row label { display: grid; gap: 4px; max-width: 100%; }
 .team-plan-editor-row input, .team-plan-editor-row textarea, .team-plan-editor-row select { max-width: 100%; }
+
+/* ponytail: reuse the installed CSS theme; no Tailwind dependency is needed. */
+.inline-widget { margin: 12px 0; padding: 14px; border: 1px solid var(--border); border-radius: 10px; background: var(--panel); min-width: 0; }
+.widget-head, .widget-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+.widget-head .btn { margin-left: auto; }
+.inline-widget code, .inline-widget pre { font-family: var(--mono, monospace); }
+.inline-widget pre, .widget-hash { overflow-wrap: anywhere; white-space: pre-wrap; }
+.inline-widget details { margin-top: 10px; }
+.inline-widget summary { cursor: pointer; }
+.widget-diff { overflow-x: auto; margin-top: 12px; }
+.widget-diff table { border-collapse: collapse; width: 100%; white-space: pre; font-size: 12px; }
+.widget-diff td { padding: 2px 8px; }
+.widget-diff .diff-number { width: 3em; text-align: right; opacity: .6; user-select: none; }
+.diff-add { color: var(--green); background: rgba(45, 160, 99, .12); }
+.diff-remove { color: var(--red); background: rgba(210, 65, 65, .12); }
+.diff-meta { color: var(--dim); }
+.gate-light { width: 10px; height: 10px; border-radius: 50%; background: var(--yellow); }
+.gate-green_verified .gate-light { background: var(--green); }
+.gate-rejected .gate-light { background: var(--red); }
+.widget-danger { color: var(--red); }
+.widget-actions .btn:hover:not(:disabled) { transform: translateY(-1px); }

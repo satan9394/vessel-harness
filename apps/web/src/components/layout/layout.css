@@ -1,0 +1,16 @@
+.dual-surface { display: flex; flex: 1; min-height: 0; min-width: 0; }
+.chat-surface { display: flex; flex-direction: column; flex: 1; min-height: 0; min-width: 0; }
+.inspector-toolbar { display: flex; justify-content: flex-end; padding: 6px 16px; border-bottom: 1px solid var(--border); }
+.docked-inspector { display: flex; flex-direction: column; width: clamp(320px, 38%, 560px); min-height: 0; border-left: 1px solid var(--border); background: var(--panel); }
+.inspector-heading { display: flex; align-items: center; justify-content: space-between; padding: 12px; }
+.inspector-tabs { display: flex; flex-wrap: wrap; gap: 4px; padding: 0 12px 12px; border-bottom: 1px solid var(--border); }
+.inspector-tabs [aria-selected='true'] { border-color: var(--accent); color: var(--accent); }
+.inspector-content { overflow: auto; flex: 1; min-height: 0; }
+.cache-waveform, .impact-topology { display: block; width: 100%; color: var(--accent); }
+.workspace-fingerprint { display: block; overflow-wrap: anywhere; }
+.prefix-segments { display: flex; flex-wrap: wrap; gap: 12px; padding-left: 20px; }
+.impact-topology { overflow: visible; }
+@media (max-width: 1023px) {
+  .docked-inspector { position: fixed; inset: 0 0 0 auto; z-index: 61; width: min(90vw, 560px); box-shadow: -8px 0 30px #0005; }
+  .inspector-backdrop { position: fixed; inset: 0; z-index: 60; background: #0008; }
+}

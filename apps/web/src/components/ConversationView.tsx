@@ -2,11 +2,15 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import type { ApiClient } from '../api';
 import { ApiError, failureMessage } from '../api';
 import { createEventStream, type ConversationDelta, type ThinkingDelta, type ToolDelta, type UsageDelta } from '../sse';
-import MessageList, { type ChatItem } from './MessageList';
+import MessageList, { upsertWidget, resolveWidget, type ChatItem } from './MessageList';
 import UsageBar, { applyUsageDelta, usageCallCost, emptyUsage, type UsageTotals } from './UsageBar';
 import TalkingMetricsBar, { type TalkingMetrics } from './TalkingMetricsBar';
 import { useI18n } from './LanguageProvider';
 import SandboxAuditHistory from './SandboxAuditHistory';
+import { DualSurfaceLayout, appendCacheObservation } from './layout/DualSurfaceLayout';
+import type { CacheUsageMetrics } from '../cacheUsage';
+import type { InspectorObservation } from '../inspector';
+import type { ImpactRadarWidget } from '@vessel/shared';
 
 interface Props {
   sessionId: string;
@@ -34,6 +38,8 @@ export default function ConversationView({ sessionId, api, onSessionUpdated }: P
   const [items, setItems] = useState<ChatItem[]>([]);
   const [usage, setUsage] = useState<UsageTotals>(emptyUsage);
   const [turnMetrics, setTurnMetrics] = useState<TalkingMetrics>({});
+  const [cacheHistory, setCacheHistory] = useState<CacheUsageMetrics[]>([]);
+  const [observation, setObservation] = useState<InspectorObservation>();
   const [input, setInput] = useState('');
   const [busy, setBusy] = useState(false); // a turn is in flight
   const [error, setError] = useState<string | null>(null);
@@ -41,6 +47,12 @@ export default function ConversationView({ sessionId, api, onSessionUpdated }: P
   const [auditRevision, setAuditRevision] = useState(0);
   const pendingTool = useRef<Record<string, ToolDelta>>({});
   const listRef = useRef<HTMLDivElement | null>(null);
+  const activeSession = useRef(sessionId);
+  activeSession.current = sessionId;
+  const respondWidget = useCallback(async (widgetId: string, optionId: string) => {
+    await api.respondWidget(sessionId, widgetId, optionId);
+    if (activeSession.current === sessionId) setItems(previous => resolveWidget(previous, { widgetId, selectedOptionId: optionId, resolvedAt: new Date().toISOString() }));
+  }, [api, sessionId]);
 
   const appendMessage = useCallback((delta: ConversationDelta) => {
     setItems((prev) => [...prev, conversationItem(delta)]);
@@ -74,6 +86,7 @@ export default function ConversationView({ sessionId, api, onSessionUpdated }: P
   }, []);
 
   const onUsage = useCallback((delta: UsageDelta) => {
+    if (delta.cacheMetrics) setCacheHistory(history => appendCacheObservation(history, delta.cacheMetrics!));
     setUsage((prev) => applyUsageDelta(prev, delta));
     const deltaCost = usageCallCost(delta);
     setTurnMetrics((prev) => ({
@@ -138,6 +151,8 @@ export default function ConversationView({ sessionId, api, onSessionUpdated }: P
     setItems([]);
     setUsage(emptyUsage);
     setTurnMetrics({});
+    setCacheHistory([]);
+    setObservation(undefined);
     setBusy(false);
     setError(null);
     setServerDown(false);
@@ -148,6 +163,9 @@ export default function ConversationView({ sessionId, api, onSessionUpdated }: P
       onTool,
       onUsage,
       onThinking,
+      onWidget: widget => setItems(previous => upsertWidget(previous, widget)),
+      onWidgetResponse: response => setItems(previous => resolveWidget(previous, response)),
+      onInspector: setObservation,
       // policy denies surface as tool rows with status 'denied' via onTool.
     });
     return () => stream.close();
@@ -199,6 +217,7 @@ export default function ConversationView({ sessionId, api, onSessionUpdated }: P
   }, [items, busy]);
 
   return (
+    <DualSurfaceLayout sessionId={sessionId} api={api} cacheHistory={cacheHistory} observation={observation} impacts={items.flatMap(item => item.widget?.kind === 'impact_radar' ? [item.widget as ImpactRadarWidget] : [])}>
     <div className="conversation">
       <header className="conversation-head">
         <span className="dim">session {sessionId.slice(0, 8)}</span>
@@ -208,7 +227,7 @@ export default function ConversationView({ sessionId, api, onSessionUpdated }: P
         {serverDown ? (
           <div className="error-text conversation-empty">{t('serverDown')}</div>
         ) : (
-          <MessageList items={items} thinking={busy} />
+          <MessageList items={items} thinking={busy} sessionId={sessionId} onRespond={respondWidget} />
         )}
         {error && !serverDown && <ConversationError text={error} />}
       </div>
@@ -237,6 +256,7 @@ export default function ConversationView({ sessionId, api, onSessionUpdated }: P
         </button>
       </form>
     </div>
+    </DualSurfaceLayout>
   );
 }
 

@@ -289,6 +289,11 @@ export function createApiClient(opts: ApiOptions = {}) {
       if (!res.ok) { const failure = failureFromRawText(await res.text(), res.status); throw new ApiError(failure.message, res.status, failure.body); }
       return res.blob();
     },
+    async respondWidget(sessionId: string, widgetId: string, selectedOptionId: string): Promise<{ success: true }> {
+      return request(`/session/${encodeURIComponent(sessionId)}/widget/${encodeURIComponent(widgetId)}/respond`, {
+        method: 'POST', body: JSON.stringify({ selectedOptionId }),
+      });
+    },
     async meshPeers(dagId?: string): Promise<MeshSnapshot> {
       return request(`/mesh/peers${dagId ? `?dagId=${encodeURIComponent(dagId)}` : ''}`);
     },
