@@ -6,6 +6,13 @@
 
 ---
 
+## 2026-10-10 — 安全与稳定性修复（仓库健康体检）
+
+- **CodeQL `js/polynomial-redos`（code scanning alert #12）**：`packages/engine/src/session/topic.ts` 的代码围栏（三个反引号）剥离由回溯正则改为线性扫描函数 `stripCodeFences()`，消除以大量围栏符号输入触发的多项式回溯风险；对已闭合围栏的行为不变（`packages/engine/src/session/topic.test.ts` 全通过）。
+- **Dependabot GHSA-68fv-2mgg-jv7q（high，alert #13）**：通过根 `package.json` 的 `overrides` 把传递依赖 `source-map-js` 提升到 `>=1.2.2`（锁文件已重算）。
+
+---
+
 ## [Unreleased] - 2026-09-24
 
 > 本轮完成 **V1.3：双向子 Agent 网关体系与保全度评测套件 (Universal Subagent Mesh & Conformance)**（Epic 卡 167，任务 163–166，见 `docs/V1.3-ROADMAP.md`）。

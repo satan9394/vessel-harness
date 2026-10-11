@@ -22,6 +22,9 @@
     "packages/*",
     "benchmarks/runners"
   ],
+  "overrides": {
+    "source-map-js": ">=1.2.2"
+  },
   "engines": {
     "node": ">=20"
   },
