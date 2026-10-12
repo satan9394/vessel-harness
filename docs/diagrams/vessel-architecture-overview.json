@@ -1,0 +1,286 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "Vessel — 可组合 Agent Harness 架构总览",
+    "subtitle": "模块化单体 · 薄核 + 机制层 + 子系统层 + 类型契约层",
+    "locale": "zh-CN",
+    "output": "docs/diagrams/vessel-architecture-overview.html",
+    "quality_profile": "showcase",
+    "repository": {
+      "url": "https://github.com/satan9394/vessel-harness.git",
+      "provider": "github",
+      "link_mode": "web",
+      "revision": "9c764b811d737c1f3ba40649f4c3f3e4ec4f1bd2"
+    }
+  },
+  "components": [
+    {
+      "id": "cli",
+      "type": "backend",
+      "label": "apps/cli",
+      "sublabel": "进程入口 · headless",
+      "pos": [60, 55],
+      "size": [210, 58],
+      "sources": [{ "path": "apps/cli/src/cli.ts", "line": 1, "label": "CLI 入口" }]
+    },
+    {
+      "id": "server",
+      "type": "backend",
+      "label": "apps/local-server",
+      "sublabel": "本地 HTTP + SSE",
+      "pos": [310, 55],
+      "size": [210, 58],
+      "sources": [{ "path": "apps/local-server/src/server.ts", "line": 1, "label": "HTTP/SSE 服务" }]
+    },
+    {
+      "id": "web",
+      "type": "frontend",
+      "label": "apps/web",
+      "sublabel": "React + Vite UI",
+      "pos": [600, 55],
+      "size": [200, 58],
+      "sources": [{ "path": "apps/web/src/App.tsx", "line": 1, "label": "Web UI" }]
+    },
+    {
+      "id": "benchmarks",
+      "type": "external",
+      "label": "benchmarks",
+      "sublabel": "fixtures / scenarios / runners",
+      "pos": [840, 55],
+      "size": [230, 58],
+      "sources": [{ "path": "benchmarks/runners/src/runner.ts", "line": 1, "label": "基准 runner" }]
+    },
+    {
+      "id": "application",
+      "type": "backend",
+      "label": "application",
+      "sublabel": "composeHarness 组合根",
+      "tag": "装配 / 投影",
+      "pos": [415, 210],
+      "size": [300, 64],
+      "sources": [
+        { "path": "packages/application/src/compose.ts", "line": 172, "label": "composeHarness" },
+        { "path": "packages/application/src/projections/index.ts", "line": 1, "label": "投影" }
+      ]
+    },
+    {
+      "id": "core",
+      "type": "backend",
+      "label": "core",
+      "sublabel": "薄内核 · AgentLoop + EventBus + Session",
+      "tag": "唯一权威 loop",
+      "pos": [420, 350],
+      "size": [290, 100],
+      "sources": [
+        { "path": "packages/core/src/agent-loop/AgentLoop.ts", "line": 194, "label": "runTurn" },
+        { "path": "packages/core/src/events/EventBus.ts", "line": 116, "label": "EventBus 原语" },
+        { "path": "packages/core/src/session/Session.ts", "line": 49, "label": "Session.open" }
+      ]
+    },
+    {
+      "id": "llm",
+      "type": "cloud",
+      "label": "llm",
+      "sublabel": "provider · router",
+      "pos": [30, 560],
+      "size": [165, 62],
+      "sources": [
+        { "path": "packages/llm/src/provider/createProvider.ts", "line": 78, "label": "Provider 工厂" },
+        { "path": "packages/llm/src/router/Router.ts", "line": 1, "label": "模型路由" }
+      ]
+    },
+    {
+      "id": "context",
+      "type": "backend",
+      "label": "context",
+      "sublabel": "builder · compaction",
+      "pos": [320, 560],
+      "size": [165, 62],
+      "sources": [
+        { "path": "packages/context/src/builder/Builder.ts", "line": 31, "label": "L4 组装" },
+        { "path": "packages/context/src/compaction/Compaction.ts", "line": 60, "label": "事务化压缩" }
+      ]
+    },
+    {
+      "id": "behavior",
+      "type": "backend",
+      "label": "behavior",
+      "sublabel": "ir · compiler",
+      "pos": [610, 560],
+      "size": [165, 62],
+      "sources": [
+        { "path": "packages/behavior/src/compiler/Compiler.ts", "line": 23, "label": "compileBehavior" },
+        { "path": "packages/behavior/src/ir/BehaviorIR.ts", "line": 59, "label": "双通道校验" }
+      ]
+    },
+    {
+      "id": "policy",
+      "type": "security",
+      "label": "policy",
+      "sublabel": "engine · risk · hooks",
+      "tag": "硬执法",
+      "pos": [900, 560],
+      "size": [165, 62],
+      "sources": [
+        { "path": "packages/policy/src/engine/Engine.ts", "line": 29, "label": "六步裁决" },
+        { "path": "packages/policy/src/risk/Compiler.ts", "line": 1, "label": "四件套编译" }
+      ]
+    },
+    {
+      "id": "tools",
+      "type": "messagebus",
+      "label": "tools",
+      "sublabel": "registry · fs · shell · mcp",
+      "pos": [1190, 560],
+      "size": [165, 62],
+      "sources": [
+        { "path": "packages/tools/src/registry/Registry.ts", "line": 35, "label": "工具注册表" },
+        { "path": "packages/tools/src/filesystem/fsTools.ts", "line": 1, "label": "文件系统工具" }
+      ]
+    },
+    {
+      "id": "runtime",
+      "type": "cloud",
+      "label": "runtime",
+      "sublabel": "executor · sandbox",
+      "tag": "隔离 seam",
+      "pos": [1455, 560],
+      "size": [150, 62],
+      "sources": [
+        { "path": "packages/runtime/src/executor/Executor.ts", "line": 54, "label": "runTool 容器" },
+        { "path": "packages/runtime/src/sandbox/Sandbox.ts", "line": 1, "label": "confine seam" }
+      ]
+    },
+    {
+      "id": "agents",
+      "type": "backend",
+      "label": "agents",
+      "sublabel": "evaluator · subagent · team",
+      "pos": [30, 740],
+      "size": [165, 58],
+      "sources": [
+        { "path": "packages/agents/src/evaluator/Evaluator.ts", "line": 38, "label": "Evaluator" },
+        { "path": "packages/agents/src/subagent/SubagentManager.ts", "line": 1, "label": "子代理" }
+      ]
+    },
+    {
+      "id": "skills",
+      "type": "database",
+      "label": "skills",
+      "sublabel": "loader · search · plugin",
+      "pos": [320, 740],
+      "size": [165, 58],
+      "sources": [{ "path": "packages/skills/src/load/SkillLoader.ts", "line": 1, "label": "技能装载" }]
+    },
+    {
+      "id": "memory",
+      "type": "database",
+      "label": "memory",
+      "sublabel": "session dir · project · sqlite",
+      "pos": [610, 740],
+      "size": [165, 58],
+      "sources": [{ "path": "packages/memory/src/session/SessionDir.ts", "line": 1, "label": "会话目录" }]
+    },
+    {
+      "id": "engine",
+      "type": "backend",
+      "label": "engine",
+      "sublabel": "loop engine · task queue",
+      "pos": [900, 740],
+      "size": [165, 58],
+      "sources": [{ "path": "packages/engine/src/LoopEngine.ts", "line": 1, "label": "Loop Engine" }]
+    },
+    {
+      "id": "telemetry",
+      "type": "database",
+      "label": "telemetry",
+      "sublabel": "事件订阅 · 指标汇总",
+      "pos": [1190, 740],
+      "size": [165, 58],
+      "sources": [{ "path": "packages/telemetry/src/Telemetry.ts", "line": 267, "label": "Telemetry 消费方" }]
+    },
+    {
+      "id": "shared",
+      "type": "messagebus",
+      "label": "shared",
+      "sublabel": "类型 / 事件词汇",
+      "pos": [1455, 740],
+      "size": [150, 58],
+      "sources": [{ "path": "packages/shared/src/events.ts", "line": 1, "label": "事件词汇表" }]
+    }
+  ],
+  "boundaries": [
+    {
+      "kind": "region",
+      "label": "入口与组合根 · apps/* + benchmarks",
+      "wraps": ["cli", "server", "web", "benchmarks", "application"]
+    },
+    {
+      "kind": "region",
+      "label": "薄内核 · 唯一权威 loop + 事件真源",
+      "wraps": ["core"]
+    },
+    {
+      "kind": "region",
+      "label": "机制层 · 挂载于 core 的事件扩展点",
+      "wraps": ["llm", "context", "behavior", "policy", "tools", "runtime"]
+    },
+    {
+      "kind": "region",
+      "label": "扩展 / 子系统层 · 复用 core 的 Session / Preset / 事件 seam",
+      "wraps": ["agents", "skills", "memory", "engine", "telemetry"]
+    },
+    {
+      "kind": "region",
+      "label": "类型与事件契约 · 全包共享",
+      "wraps": ["shared"]
+    }
+  ],
+  "connections": [
+    { "id": "cli-app", "from": "cli", "to": "application", "label": "入口" },
+    { "id": "server-app", "from": "server", "to": "application", "label": "serve" },
+    { "id": "web-server", "from": "web", "to": "server", "label": "HTTP/SSE" },
+    { "id": "bench-app", "from": "benchmarks", "to": "application", "label": "bench" },
+    { "id": "app-core", "from": "application", "to": "core", "label": "装配", "variant": "emphasis" },
+    { "id": "core-llm", "from": "core", "to": "llm", "label": "A08/A09" },
+    { "id": "core-context", "from": "core", "to": "context", "label": "A07" },
+    { "id": "core-behavior", "from": "core", "to": "behavior", "label": "行为快照" },
+    { "id": "core-policy", "from": "core", "to": "policy", "label": "A12 裁决", "variant": "security" },
+    { "id": "core-tools", "from": "core", "to": "tools", "label": "工具分发" },
+    { "id": "core-runtime", "from": "core", "to": "runtime", "label": "runTool" },
+    { "id": "behavior-context", "from": "behavior", "to": "context", "label": "L2/L3 段" },
+    { "id": "behavior-policy", "from": "behavior", "to": "policy", "label": "policy_ref", "variant": "security" },
+    { "id": "policy-tools", "from": "policy", "to": "tools", "label": "裁剪可见集", "variant": "security" },
+    { "id": "runtime-tools", "from": "runtime", "to": "tools", "label": "confine" }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "薄核纪律",
+      "items": [
+        "core 只做 Model Call → Tool Call → Tool Result → State Update → Continue/Stop",
+        "core 不 import memory / skills / sandbox / subagent",
+        "可替换单元以 provider seam 注入，不是插件树"
+      ]
+    },
+    {
+      "dot": "rose",
+      "title": "依赖零环 + 硬执法",
+      "items": [
+        "机制层只依赖 core 提供的接口与事件，不反向依赖 core 实现",
+        "runtime 以结构化 seam 复核 policy：工具层不信任调用来源",
+        "policy 不反向依赖工具实现，拦截在事件链上完成"
+      ]
+    },
+    {
+      "dot": "emerald",
+      "title": "事件溯源会话",
+      "items": [
+        "append-only JSONL 事件日志是唯一真源（session/created … turn/end）",
+        "模型历史由 session surface 投影派生，model_visible_iff_recorded",
+        "telemetry 只订阅 emit 旁路，不参与裁决"
+      ]
+    }
+  ]
+}

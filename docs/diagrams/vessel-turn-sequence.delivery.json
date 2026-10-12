@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "receiptId": "005bce1b-e354-4f16-89cb-a203a6fdd4ba",
+  "status": "current",
+  "command": "deliver",
+  "type": "sequence",
+  "input": "E:\\Code_file\\Projects\\Vessel_Harness\\.archify\\sequence-turn-20261011-223634\\candidate.json",
+  "output": "E:\\Code_file\\Projects\\Vessel_Harness\\docs\\diagrams\\vessel-turn-sequence.html",
+  "specification": {
+    "sha256": "fd92ef9c6652a25a6aae2cf83c3bc1c2ce42e42b0da995cfb5949a9559a3cc64",
+    "bytes": 5605
+  },
+  "artifact": {
+    "sha256": "07c44558a72a5393447d3a6ceb46a837d8483cc74729e739388557649392cb80",
+    "bytes": 766524
+  }
+}

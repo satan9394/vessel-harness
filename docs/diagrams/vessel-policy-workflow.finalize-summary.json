@@ -1,0 +1,125 @@
+{
+  "schemaVersion": 1,
+  "ok": true,
+  "command": "finalize",
+  "status": "pass",
+  "type": "workflow",
+  "quality": "showcase",
+  "specification": {
+    "path": "E:\\Code_file\\Projects\\Vessel_Harness\\.archify\\workflow-policy-20261011-223634\\candidate.json",
+    "sha256": "d1860d1f146898a08be38b877dacd53c54e51a2e26629a3137f1addd958930f1",
+    "bytes": 5854
+  },
+  "artifact": {
+    "path": "E:\\Code_file\\Projects\\Vessel_Harness\\docs\\diagrams\\vessel-policy-workflow.html",
+    "sha256": "db8a7575ef67e1371fe6cb4012ba793312b21e34d3a73102bb3b6121f8f60ba8",
+    "bytes": 764206
+  },
+  "gates": {
+    "validate": "pass",
+    "deliver": "pass",
+    "check": "pass",
+    "browser-check": "pass"
+  },
+  "diagnostics": [],
+  "diagnosticSummary": {
+    "total": 0,
+    "shown": 0,
+    "truncated": false
+  },
+  "evidence": {
+    "receipt": "E:\\Code_file\\Projects\\Vessel_Harness\\docs\\diagrams\\vessel-policy-workflow.finalize.json",
+    "summaryReceipt": "E:\\Code_file\\Projects\\Vessel_Harness\\docs\\diagrams\\vessel-policy-workflow.finalize-summary.json",
+    "browserCheckReceipt": "E:\\Code_file\\Projects\\Vessel_Harness\\docs\\diagrams\\vessel-policy-workflow.browser-check.json"
+  },
+  "update": {
+    "status": "unavailable",
+    "installedVersion": null,
+    "availableVersion": null,
+    "releaseNotes": null,
+    "checkedAt": null,
+    "source": null,
+    "noticeRequired": false,
+    "noticeText": null,
+    "reason": "disabled"
+  },
+  "visualReview": "not-requested",
+  "durationMs": 5469,
+  "visualReviewRecommendation": {
+    "action": "inspect-route-readability",
+    "signals": {
+      "routesOverSuggestedBends": 2,
+      "routesOverSuggestedStretch": 1
+    },
+    "reason": "Automated gates passed, but crossings or detours still need perceptual review before claiming visual quality.",
+    "affectedRoutes": {
+      "crossings": [],
+      "detours": [
+        {
+          "relationship": {
+            "id": "ask-deny",
+            "from": "ask",
+            "to": "deny",
+            "label": "approval=never",
+            "collectionIndex": 1,
+            "artifactIndex": 2
+          },
+          "bends": 2,
+          "stretch": 1.354
+        },
+        {
+          "relationship": {
+            "id": "engine-deny",
+            "from": "engine",
+            "to": "deny",
+            "label": "deny 规则",
+            "collectionIndex": 7,
+            "artifactIndex": 8
+          },
+          "bends": 3,
+          "stretch": 1.234,
+          "directCorridorBlockers": [
+            {
+              "id": "allow",
+              "label": "allow",
+              "box": [
+                471,
+                351,
+                140,
+                52
+              ]
+            },
+            {
+              "id": "ask",
+              "label": "ask",
+              "box": [
+                619,
+                351,
+                140,
+                52
+              ]
+            }
+          ]
+        },
+        {
+          "relationship": {
+            "id": "pre-audit",
+            "from": "pre_exec",
+            "to": "audit",
+            "label": "复核拒绝",
+            "collectionIndex": 8,
+            "artifactIndex": 9
+          },
+          "bends": 3,
+          "stretch": 1.165
+        }
+      ],
+      "truncated": false
+    },
+    "hints": [
+      "ask → deny needs 2 bends: move node ask or deny so they share a row or column with matching centers, or sit diagonally with a clear corner.",
+      "pre_exec → audit needs 3 bends: move node pre_exec or audit so they share a row or column with matching centers, or sit diagonally with a clear corner."
+    ],
+    "repair": "Trace these relationships at the desktop viewport. For Architecture, use references/architecture-layout-repair.md: reflow a blocked main path or tangled connected scene, and repair an isolated defect locally only when the surrounding composition is accepted. Preserve all semantic content and user-fixed geometry. Rerun finalize once after the edit."
+  }
+}

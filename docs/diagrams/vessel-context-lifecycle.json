@@ -1,0 +1,78 @@
+{
+  "schema_version": 2,
+  "diagram_type": "lifecycle",
+  "meta": {
+    "title": "Vessel — Context 组装与 Compaction 事务",
+    "subtitle": "组装缓存 · 三入口统一触发 · 同一会话日志内原地替换",
+    "locale": "zh-CN",
+    "output": "docs/diagrams/vessel-context-lifecycle.html",
+    "quality_profile": "showcase",
+    "repository": {
+      "url": "https://github.com/satan9394/vessel-harness.git",
+      "provider": "github",
+      "link_mode": "web",
+      "revision": "9c764b811d737c1f3ba40649f4c3f3e4ec4f1bd2"
+    }
+  },
+  "lanes": [
+    { "id": "main", "label": "组装 / 压缩主链" },
+    { "id": "trigger", "label": "压缩触发入口" },
+    { "id": "boundary", "label": "边界与重载" },
+    { "id": "terminal", "label": "终态" }
+  ],
+  "states": [
+    { "id": "assemble", "type": "start", "label": "组装上下文", "sublabel": "A07 每步采样前", "lane": "main", "col": 0, "step": "01", "tag": "3 层", "sources": [{ "path": "packages/context/src/builder/Builder.ts", "line": 31 }] },
+    { "id": "cached", "type": "active", "label": "稳定层缓存", "sublabel": "每会话一次 · 跨轮复用", "lane": "main", "col": 1, "step": "02", "tag": "prefix cache", "sources": [{ "path": "packages/context/src/builder/Builder.ts", "line": 31 }] },
+    { "id": "pressure", "type": "decision", "label": "压力检查", "sublabel": "estimatedTokens ≥ 阈值", "lane": "main", "col": 2, "step": "03", "tag": "gate", "sources": [{ "path": "packages/context/src/compaction/adaptiveThreshold.ts", "line": 1 }] },
+    { "id": "replace", "type": "active", "label": "surface 替换", "sublabel": "最旧平衡区域 → 摘要", "lane": "main", "col": 3, "step": "04", "tag": "not_new_session", "sources": [{ "path": "packages/context/src/compaction/Compaction.ts", "line": 90 }] },
+    { "id": "done", "type": "success", "label": "装配完成", "sublabel": "请求就绪 · 继续采样", "lane": "main", "col": 4, "step": "05", "tag": "success", "sources": [{ "path": "packages/context/src/builder/Builder.ts", "line": 31 }] },
+    { "id": "overflow", "type": "waiting", "label": "overflow 触发", "sublabel": "CONTEXT_WINDOW_EXCEEDED", "lane": "trigger", "col": 2, "tag": "先压再试", "sources": [{ "path": "packages/context/src/compaction/overflowRecovery.ts", "line": 1 }] },
+    { "id": "postturn", "type": "waiting", "label": "轮末 / 手动", "sublabel": "post-turn 压缩检查", "lane": "trigger", "col": 4, "tag": "可选", "sources": [{ "path": "packages/context/src/compaction/Compaction.ts", "line": 60 }] },
+    { "id": "lock", "type": "active", "label": "compaction/start", "sublabel": "先持久锁 · 事务互斥", "lane": "boundary", "col": 2, "tag": "lock", "sources": [{ "path": "packages/context/src/compaction/Compaction.ts", "line": 70 }] },
+    { "id": "boundary_guard", "type": "decision", "label": "边界平衡", "sublabel": "tool call/result 不拆对", "lane": "boundary", "col": 3, "tag": "配对守卫", "sources": [{ "path": "packages/context/src/compaction/CompactionBoundaryGuard.ts", "line": 1 }] },
+    { "id": "reload", "type": "active", "label": "启动层重载", "sublabel": "AfterCompact 关键重读", "lane": "boundary", "col": 4, "tag": "≤5 / skill", "sources": [{ "path": "packages/context/src/compaction/Compaction.ts", "line": 99 }] },
+    { "id": "failed", "type": "failure", "label": "并发压缩拒绝", "sublabel": "已在进行中", "lane": "terminal", "col": 2, "tag": "terminal", "sources": [{ "path": "packages/context/src/compaction/Compaction.ts", "line": 61 }] }
+  ],
+  "transitions": [
+    { "from": "assemble", "to": "cached" },
+    { "from": "cached", "to": "pressure" },
+    { "from": "pressure", "to": "done", "label": "未达阈值" },
+    { "from": "pressure", "to": "lock", "label": "≥ 阈值", "variant": "emphasis" },
+    { "from": "overflow", "to": "lock", "variant": "security" },
+    { "from": "postturn", "to": "lock", "variant": "dashed" },
+    { "from": "lock", "to": "boundary_guard" },
+    { "from": "boundary_guard", "to": "replace", "label": "平衡切点" },
+    { "from": "replace", "to": "reload", "variant": "emphasis" },
+    { "from": "reload", "to": "done" },
+    { "from": "lock", "to": "failed", "variant": "security", "label": "并发" }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "组装纪律",
+      "items": [
+        "每步 A07 组装，但稳定层每会话一次并缓存，跨轮复用",
+        "唯一重建触发 = 压缩 replace 后的启动层重载",
+        "顺序 stable → project 指令 → volatile，动态内容不进 system prompt"
+      ]
+    },
+    {
+      "dot": "amber",
+      "title": "三入口统一",
+      "items": [
+        "pressure：巡检 estimatedTokens ≥ 阈值",
+        "overflow：CONTEXT_WINDOW_EXCEEDED 先压再试（≤1）",
+        "post-turn / 手动：轮末压缩检查"
+      ]
+    },
+    {
+      "dot": "rose",
+      "title": "事务化与守恒",
+      "items": [
+        "先落 compaction/start 锁再执行；compaction/end 恰好一次",
+        "最旧平衡区域替换为 <compacted-summary>，tool 配对永不拆",
+        "同一会话日志内原地替换（not_new_session），尾部逐字保留"
+      ]
+    }
+  ]
+}

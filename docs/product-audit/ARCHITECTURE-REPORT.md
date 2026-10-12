@@ -35,7 +35,7 @@
 
 | 项 | 结论 |
 |---|---|
-| 分层 | packages 13 个 + apps/cli + apps/local-server + apps/web + benchmarks/runners。依赖方向从 shared 叶子向上，无环。 |
+| 分层 | packages 14 个 + apps/cli + apps/local-server + apps/web + benchmarks/runners。依赖方向从 shared 叶子向上，无环。 |
 | 零环 | 抽查全部 tsconfig references：shared（叶子，零依赖）→ core/behavior → context/llm/memory/policy/runtime/skills/telemetry → tools(+runtime,policy) → agents → engine / application → cli / local-server / runners。apps/cli 对 benchmarks/runners 的单向边有显式注释（task 098，防 TS5055 环），runners 不再 import @vessel/cli。**判定：依赖零环成立，且是多年治理结果，符合 DESIGN-DECISIONS 的模块化单体约束。** |
 | 薄核 | core 只依赖 shared；policy 不反向依赖 tools；clean-room 注释（不照搬 Claude Code/Codex 实现）普遍存在。 |
 | 证据 | `packages/*/tsconfig.json`、`tsconfig.json`（17 个 project references）、`apps/cli/tsconfig.json` 内注释、`packages/application/src/compose.ts` 的 UsageStoreLike 最小契约接口（防 application→cli 反向依赖）。 |

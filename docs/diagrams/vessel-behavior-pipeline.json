@@ -1,0 +1,76 @@
+{
+  "schema_version": 1,
+  "diagram_type": "dataflow",
+  "meta": {
+    "title": "Vessel — Behavior IR 编译管线 L0→L4",
+    "subtitle": "行为声明的唯一事实源 · 逐层编译为各模型 Profile · 双通道强制",
+    "locale": "zh-CN",
+    "output": "docs/diagrams/vessel-behavior-pipeline.html",
+    "quality_profile": "showcase",
+    "viewBox": [1080, 620],
+    "repository": {
+      "url": "https://github.com/satan9394/vessel-harness.git",
+      "provider": "github",
+      "link_mode": "web",
+      "revision": "9c764b811d737c1f3ba40649f4c3f3e4ec4f1bd2"
+    }
+  },
+  "stages": [
+    { "label": "L0 行为 IR" },
+    { "label": "L1 生效快照" },
+    { "label": "L2 Model Profile" },
+    { "label": "L3 Harness Profile" },
+    { "label": "L4 组装产物" }
+  ],
+  "nodes": [
+    { "id": "ir", "type": "backend", "label": "behavior/ir", "sublabel": "IR 装载 + 校验", "stage": 0, "row": 1, "tag": "fail loud", "sources": [{ "path": "packages/behavior/src/ir/BehaviorIR.ts", "line": 59 }] },
+    { "id": "resolver", "type": "backend", "label": "behavior/resolver", "sublabel": "deep-merge 快照", "stage": 1, "row": 1, "tag": "合并优先级", "sources": [{ "path": "packages/behavior/src/ir/BehaviorIR.ts", "line": 1 }] },
+    { "id": "modelprof", "type": "cloud", "label": "llm/profiles", "sublabel": "每模型措辞 / 强度", "stage": 2, "row": 1, "tag": "同一意图", "sources": [{ "path": "packages/llm/src/provider/createProvider.ts", "line": 27 }] },
+    { "id": "harness", "type": "backend", "label": "behavior/compiler", "sublabel": "L3 渲染 + 双通道", "stage": 3, "row": 1, "tag": "policy_ref 缺失即告警", "sources": [{ "path": "packages/behavior/src/compiler/Compiler.ts", "line": 23 }] },
+    { "id": "policy", "type": "security", "label": "policy", "sublabel": "policy_ref → 执法规则", "stage": 3, "row": 0, "tag": "硬执法", "sources": [{ "path": "packages/policy/src/risk/Compiler.ts", "line": 1 }] },
+    { "id": "conformance", "type": "database", "label": "conformance 产物", "sublabel": "逐条断言供 Evaluator", "stage": 3, "row": 2, "sources": [{ "path": "packages/behavior/src/compiler/Compiler.ts", "line": 13 }] },
+    { "id": "instr", "type": "database", "label": "指令 / 技能注入层", "sublabel": "H03", "stage": 4, "row": 0, "sources": [{ "path": "packages/context/src/instructions/Instructions.ts", "line": 1 }] },
+    { "id": "promptcompiler", "type": "backend", "label": "context/builder", "sublabel": "L4 组装 RequestEnvelope", "stage": 4, "row": 1, "tag": "model_visible_iff_recorded", "sources": [{ "path": "packages/context/src/builder/Builder.ts", "line": 31 }] },
+    { "id": "history", "type": "database", "label": "会话事件投影", "sublabel": "surface 派生历史", "stage": 4, "row": 2, "sources": [{ "path": "packages/core/src/session/Session.ts", "line": 198 }] }
+  ],
+  "flows": [
+    { "id": "merge", "from": "ir", "to": "resolver", "label": "合并", "classification": "deep-merge", "variant": "emphasis" },
+    { "id": "render", "from": "resolver", "to": "modelprof", "label": "翻译", "classification": "L1→L2", "variant": "emphasis" },
+    { "id": "profile", "from": "modelprof", "to": "harness", "label": "稳定段", "classification": "L2→L3", "variant": "emphasis" },
+    { "id": "dualchannel", "from": "harness", "to": "policy", "label": "policy_ref", "classification": "双通道强制", "variant": "security", "labelAt": [745, 222] },
+    { "id": "conformance-out", "from": "harness", "to": "conformance", "label": "conformance", "classification": "验证产物", "variant": "dashed", "labelAt": [745, 315] },
+    { "id": "assemble", "from": "harness", "to": "promptcompiler", "label": "L4 组装", "classification": "L3→L4", "variant": "emphasis" },
+    { "id": "inject", "from": "instr", "to": "promptcompiler", "label": "注入层", "classification": "stable/project/volatile", "variant": "default", "labelAt": [960, 201] },
+    { "id": "project", "from": "history", "to": "promptcompiler", "label": "事件投影", "classification": "会话历史", "variant": "default", "labelAt": [960, 429] }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "四层职责",
+      "items": [
+        "L0 IR 与模型无关；未知 key 拒绝，问题在加载点 fail loud",
+        "L1 由 Resolver deep-merge 出当前执行单元的生效快照",
+        "L2 每个模型一层，措辞/强度差异但同一意图不可删",
+        "L3 产出工具 schema 裁剪、调度参数与 policy_ref"
+      ]
+    },
+    {
+      "dot": "rose",
+      "title": "双通道强制",
+      "items": [
+        "channel=runtime_policy 的条目必须解析到 policy 规则",
+        "缺失执法规则 ⇒ 编译告警，绝不静默丢弃",
+        "编译出的 Prompt Guidance 在 A07 注入（软），硬执法走 A12/A18/A20"
+      ]
+    },
+    {
+      "dot": "emerald",
+      "title": "装配纪律",
+      "items": [
+        "L4 按 stable → project → volatile 分层组装",
+        "进请求的段落都可由会话日志重建（model_visible_iff_recorded）",
+        "conformance 产物供 Evaluator / Conformance Suite 逐条断言"
+      ]
+    }
+  ]
+}

@@ -7,6 +7,9 @@ dist/
 *.tsbuildinfo
 .harness/
 .harness-sessions/
+# Archify 图表生成的工作目录（候选 JSON 与中间产物，不入版本库；
+# 定稿 HTML 与验证回执在 docs/diagrams/，随版本库保存）
+.archify/
 benchmarks/reports/run_*/
 benchmarks/reports/B*/run_*/
 *.log

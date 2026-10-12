@@ -1,0 +1,87 @@
+{
+  "schema_version": 2,
+  "diagram_type": "workflow",
+  "meta": {
+    "title": "Vessel — Policy 裁决与硬执法",
+    "subtitle": "before_tool 六步裁决 · guard 单调收窄 · fail-closed",
+    "locale": "zh-CN",
+    "output": "docs/diagrams/vessel-policy-workflow.html",
+    "quality_profile": "showcase",
+    "viewBox": [1080, 666],
+    "repository": {
+      "url": "https://github.com/satan9394/vessel-harness.git",
+      "provider": "github",
+      "link_mode": "web",
+      "revision": "9c764b811d737c1f3ba40649f4c3f3e4ec4f1bd2"
+    }
+  },
+  "lanes": [
+    { "id": "caller", "label": "工具调用方" },
+    { "id": "bus", "label": "EventBus · 事件链" },
+    { "id": "policy", "label": "Policy Engine · 硬执法", "variant": "exception" },
+    { "id": "runtime", "label": "Runtime · 执行" }
+  ],
+  "phases": [
+    { "id": "intake", "label": "拦截", "fromCol": 0, "toCol": 1 },
+    { "id": "adjudicate", "label": "六步裁决", "fromCol": 2, "toCol": 3, "variant": "security" },
+    { "id": "enforce", "label": "复核 + 执行 / 审计", "fromCol": 4, "toCol": 5, "variant": "dashed" }
+  ],
+  "groups": [
+    { "id": "decisions", "label": "三态裁决", "lane": "policy", "fromCol": 3, "toCol": 5, "variant": "security" },
+    { "id": "audit_path", "label": "审计落点", "lane": "bus", "fromCol": 3, "toCol": 5, "variant": "dashed" }
+  ],
+  "mainPath": ["tool_call", "before_tool", "engine", "allow", "pre_exec", "tool_run"],
+  "nodes": [
+    { "id": "tool_call", "lane": "caller", "col": 0, "type": "backend", "label": "工具调用", "sublabel": "模型 / 非模型通道", "width": 150, "sources": [{ "path": "packages/core/src/agent-loop/AgentLoop.ts", "line": 862 }] },
+    { "id": "before_tool", "lane": "bus", "col": 1, "type": "messagebus", "label": "before_tool A12", "sublabel": "waterfall 裁决点", "width": 150, "sources": [{ "path": "packages/core/src/agent-loop/AgentLoop.ts", "line": 862 }] },
+    { "id": "engine", "lane": "policy", "col": 2, "type": "security", "label": "Policy Engine", "sublabel": "六步裁决 + guard 单调", "tag": "权威监听器", "width": 160, "sources": [{ "path": "packages/policy/src/engine/Engine.ts", "line": 29 }] },
+    { "id": "allow", "lane": "policy", "col": 3, "type": "backend", "label": "allow", "sublabel": "allow 规则 / profile", "width": 140, "sources": [{ "path": "packages/policy/src/engine/Engine.ts", "line": 73 }] },
+    { "id": "ask", "lane": "policy", "col": 4, "type": "security", "label": "ask", "sublabel": "hook 收窄 / ask 规则", "width": 140, "sources": [{ "path": "packages/policy/src/engine/Engine.ts", "line": 63 }] },
+    { "id": "deny", "lane": "policy", "col": 5, "type": "security", "label": "deny", "sublabel": "denied_tools / deny 规则", "tag": "不可豁免", "width": 150, "sources": [{ "path": "packages/policy/src/engine/Engine.ts", "line": 39 }] },
+    { "id": "pre_exec", "lane": "runtime", "col": 4, "type": "cloud", "label": "Executor 复核", "sublabel": "工具层不信任调用来源", "width": 150, "sources": [{ "path": "packages/runtime/src/executor/Executor.ts", "line": 54 }] },
+    { "id": "tool_run", "lane": "runtime", "col": 5, "type": "cloud", "label": "confine 执行", "sublabel": "sandbox seam", "width": 140, "sources": [{ "path": "packages/runtime/src/sandbox/Sandbox.ts", "line": 1 }] },
+    { "id": "audit", "lane": "bus", "col": 5, "type": "messagebus", "label": "audit/denial B20", "sublabel": "policy_decision A13", "width": 150, "sources": [{ "path": "packages/core/src/agent-loop/AgentLoop.ts", "line": 1088 }] }
+  ],
+  "edges": [
+    { "id": "call-before", "from": "tool_call", "to": "before_tool", "variant": "emphasis" },
+    { "id": "before-engine", "from": "before_tool", "to": "engine", "variant": "security" },
+    { "id": "engine-allow", "from": "engine", "to": "allow", "variant": "emphasis" },
+    { "id": "allow-pre", "from": "allow", "to": "pre_exec", "label": "放行", "variant": "emphasis" },
+    { "id": "pre-run", "from": "pre_exec", "to": "tool_run", "variant": "emphasis" },
+    { "id": "engine-ask", "from": "engine", "to": "ask", "label": "ask 规则", "variant": "security", "fromSide": "top", "route": "up-channel" },
+    { "id": "engine-deny", "from": "engine", "to": "deny", "label": "deny 规则", "variant": "security", "role": "error" },
+    { "id": "ask-deny", "from": "ask", "to": "deny", "label": "approval=never", "variant": "security", "role": "error", "fromSide": "bottom", "toSide": "bottom", "route": "bottom-channel" },
+    { "id": "deny-audit", "from": "deny", "to": "audit", "label": "落审计", "variant": "security", "role": "error" },
+    { "id": "pre-audit", "from": "pre_exec", "to": "audit", "label": "复核拒绝", "variant": "security", "role": "branch" }
+  ],
+  "cards": [
+    {
+      "dot": "rose",
+      "title": "六步裁决序（Engine.decide）",
+      "items": [
+        "① denied_tools 裸工具名 deny，先于一切，并移出可见集",
+        "② deny 规则不可被任何更细 allow 豁免",
+        "③ hook override 只收窄不放宽 · ④ ask ⑤ allow ⑥ profile 比较",
+        "waterfall 全链后 guard 统一收窄（只严不松）"
+      ]
+    },
+    {
+      "dot": "amber",
+      "title": "fail-closed 三落点",
+      "items": [
+        "ask 无应答者 = unavailable = 拒绝",
+        "approval=never 在分发前服务内强制，应答者也绕不过",
+        "Executor 在执行期复核：工具层不信任调用来源"
+      ]
+    },
+    {
+      "dot": "cyan",
+      "title": "四件套与审计",
+      "items": [
+        "一份 Policy 声明编译出 Prompt Guidance / Tool Interceptor / Runtime Deny / Audit Event",
+        "拒绝路径落 audit/denial（stage: rule / hook / approval）",
+        "before_turn 否决与 before_tool 拒绝同待遇，均铸 audit/denial"
+      ]
+    }
+  ]
+}

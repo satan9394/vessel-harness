@@ -2,7 +2,7 @@
 
 > **用途**：新会话 / 新 Agent / 换人接手时，**先读本文件**：现状、未完成清单、验证命令、已知约束都在这里。
 > 规则本身仍在 [`AGENTS.md`](AGENTS.md)；会约束未来的决策在 [`docs/DESIGN-DECISIONS.md`](docs/DESIGN-DECISIONS.md)。
-> **最后更新**：2026-10-11。维护者：单人。
+> **最后更新**：2026-10-12。维护者：单人。
 
 ## 0. 快速接管协议（当用户直接说「继续未完成的」或「继续」时）
 
@@ -73,8 +73,9 @@ V2.1 历史恢复点：PowerShell session **47315 已完成 exit 0**，最后 so
 | 2026-09-28 | 文档与代码对齐：4 处死链、163–167 陈旧状态行、2 处作废的发布待办 | `DEV_LOG.md`（续 6/续 7）、上述审计文档 §H/§I |
 | 2026-09-27 | 决策点 19（包管理器锁定 npm）、20（个人信息边界与一次性历史改写）、21（不发布版本） | `docs/DESIGN-DECISIONS.md` |
 | 2026-09-25 | V1.3 双向子 Agent 网关体系交付合入（卡 163–167） | `CHANGELOG.md` `[Unreleased]`、`tasks/167-*.md` |
+| 2026-10-12 | Archify 架构可视化落地（5 张分层可交互图 → `docs/diagrams/`）；修复 `ARCHITECTURE.md` §6.1 等文档包清单漂移（13→14，补 `engine`/`application`） | `tasks/216-archify-architecture-visualization-and-doc-drift-repair.md`、`DEV_LOG.md`（2026-10-12） |
 
-**过程日志**逐条在 `DEV_LOG.md`（2026-09-27 有续 1–续 7）。
+**过程日志**逐条在 `DEV_LOG.md`（2026-09-27 有续 1–续 7；最新一条 2026-10-12）。
 
 ## 3. 未完成清单
 

@@ -76,7 +76,7 @@ V2.x：跨 Harness / 长周期自治 / Agent OS 化
 - `apps/cli/src`：约 3,410 行；
 - `packages/`：约 10,736 行；
 - `docs/`：约 12,681 行；
-- 现有核心 workspace 包约 13 个：
+- 现有核心 workspace 包约 14 个：
   - `shared`
   - `core`
   - `llm`
@@ -90,6 +90,7 @@ V2.x：跨 Harness / 长周期自治 / Agent OS 化
   - `agents`
   - `telemetry`
   - `engine`
+  - `application`
 - 另有：
   - `apps/cli`
   - `benchmarks/runners`

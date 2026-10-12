@@ -447,3 +447,16 @@ pm（如 @ai-sdk/openai-compatible）协议；
     5. 全量双 Root 3,155 passed / 6 skipped，定向测试全绿，	sc -b、	ypecheck:tests、Web 打包全部 exit 0，packages/core 0 变动。
 - **状态**: 机器账本 .agent-state/run-state.json 与 HANDOFF.md 完整同步，本地验收通过。
 
+---
+
+## 2026-10-12 · Archify 架构可视化落地 + 文档包清单漂移修复
+
+- **Agent**: @opencode (DeepSeek-v4.1-Flash)
+- **任务卡**: `tasks/216-archify-architecture-visualization-and-doc-drift-repair.md`（目标/验收的**唯一源**；本条仅记过程）
+- **事件**:
+  - 引入 [archify](https://github.com/tt-a1i/archify)（`tt-a1i/archify`，MIT，agent skill）把本仓整体逻辑架构可视化为 **5 张自包含可交互 HTML**（`docs/diagrams/`）：architecture 总览、sequence 一轮 turn 运行时序、workflow Policy 六步裁决、dataflow Behavior IR L0→L4、lifecycle Context 组装与 Compaction 事务。每张经 `finalize --quality showcase` 四门（validate/deliver/check/browser-check）全绿，节点带 `SRC` 证据钉在 commit `9c764b8`；skill 装在 `.agents/skills/archify/`（仓库内、OpenCode 可发现），`.archify/` 生成工作目录已入 `.gitignore`。产物含 5 个 HTML + 5 个可编辑源 JSON + 验证回执 + `docs/diagrams/README.md` 索引。
+  - 可视化暴露并修复**文档包清单漂移**（属 §3.2 A4「文档诚实化」同类）：`docs/ARCHITECTURE.md` §6.1 目录树补 `engine`、补 `apps/local-server` 与 `apps/web`、`vitest.workspace.ts` → 真实的 `vitest.config.ts`（双 root 说明）；`docs/product-audit/ARCHITECTURE-REPORT.md` 与 `docs/Vessel_后续开发方向与产品化路线_v1.0.md` 的「13 个包」改 14（后者并补漏掉的 `application`）。`docs/diagrams/README.md` 同步为「已修复」记录。
+  - 文档锚点无回归：`packages/telemetry/src/turnEndConditionGuard.test.ts` 按**内容唯一前缀**锚定 `ARCHITECTURE.md`（非行号），改动只在文件前半区、未触碰 §2.1/§4.11 两处锚点，定向复跑 43 passed。
+  - **全量终态门禁实测通过**：`npx tsc -b tsconfig.json` exit 0；`npm run test:all` 双 Root 全绿（根 268 文件 / 2873 passed + 6 skipped，Web 33 文件 / 282 passed，exit 0）。中途一次 `packages/context` 的 `symbolGraph` 性能断言（mean ≤15ms）在长跑中抖动失败，单独复跑 12/12 通过，属机器负载时序抖动、与本次纯文档改动无关。
+- **状态**: 本地完成，**未提交/推送**（遵循 2026-10-06 纯本地开发规约）；archify 产物与文档修复均保留在工作区。旁涉：CC Switch「常用提示词」写入 archify 任务书并同步 claude→opencode（均为应用外配置，不属本仓版本面）。
+
