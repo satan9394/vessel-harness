@@ -90,21 +90,43 @@
 | 轻量 AST 符号索引与依赖图谱 | 197 | 已合入（2026-10-09，批准mean≤15ms/peak≤25ms，commit `3e6a56f`） | `tasks/197-ast-code-awareness-and-dependency-graph.md` |
 | 变更影响面自适应上下文剪枝 | 198 | 已合入（2026-10-09，commit `3e6a56f`，剪枝率 82.56%） | `tasks/198-impact-driven-context-pruning.md` |
 | [Epic] V2.3 结构化代码感知与 Red→Green 复现前置硬门禁 | 199 | 已合入（2026-10-09，commit `3e6a56f`，双Root 2957 passed） | `tasks/199-epic-v2-3-ast-code-awareness-and-red-green-gates.md` |
-| Chat 流内嵌富交互组件 IR 与双向 SSE 协议 | 200 | 已完成（2026-10-10，本地验证） | `tasks/200-chat-inline-component-ir-and-sse-protocol.md` |
-| Web 对话流内嵌交互微组件与可折叠 Diff 检查器 | 201 | 已完成（2026-10-10，本地验证） | `tasks/201-inline-interactive-widgets-and-diff-inspector.md` |
-| 双模态双轴工作台布局与常驻 Docked Inspector | 202 | 已完成（2026-10-10，本地验证） | `tasks/202-dual-surface-layout-and-docked-inspector.md` |
-| CLI 终端 StatusLine 与富 ANSI 组件同步适配 | 203 | 已完成（2026-10-10，本地验证） | `tasks/203-terminal-statusline-and-rich-ansi-reporter.md` |
-| [Epic] V2.4 混合 Chat-Canvas 交互工作台与双端视觉中枢 | 204 | PASS（2026-10-10，3009 passed / 6 skipped） | `tasks/204-epic-v2-4-hybrid-chat-canvas-and-interactive-workbench.md` |
+| Chat 流内嵌富交互组件 IR 与双向 SSE 协议 | 200 | 已合入（2026-10-10，commit `dd8e72c`） | `tasks/200-chat-inline-component-ir-and-sse-protocol.md` |
+| Web 对话流内嵌交互微组件与可折叠 Diff 检查器 | 201 | 已合入（2026-10-10，commit `dd8e72c`） | `tasks/201-inline-interactive-widgets-and-diff-inspector.md` |
+| 双模态双轴工作台布局与常驻 Docked Inspector | 202 | 已合入（2026-10-10，commit `dd8e72c`） | `tasks/202-dual-surface-layout-and-docked-inspector.md` |
+| CLI 终端 StatusLine 与富 ANSI 组件同步适配 | 203 | 已合入（2026-10-10，commit `dd8e72c`） | `tasks/203-terminal-statusline-and-rich-ansi-reporter.md` |
+| [Epic] V2.4 混合 Chat-Canvas 交互工作台与双端视觉中枢 | 204 | 已合入（2026-10-10，commit `dd8e72c`，双Root 3009 passed） | `tasks/204-epic-v2-4-hybrid-chat-canvas-and-interactive-workbench.md` |
+| 画布区交互式补丁选择器与单 Hunk 采纳/回退 (Interactive Patch Picker) | 205 | 已验证（V2.5 本地完成） | `tasks/205-interactive-patch-picker-and-canvas-cherrypick.md` |
+| 流式思考链可视化折叠器与认知规则标注 (Streaming Reasoning & Rules) | 206 | 已验证（V2.5 本地完成） | `tasks/206-streaming-reasoning-flow-and-rule-callout.md` |
+| 全局快捷命令面板与全键盘无障碍导航 (Command Palette & Shortcuts) | 207 | 已验证（V2.5 本地完成） | `tasks/207-command-palette-and-keyboard-navigation.md` |
+| 桌面级注意力焦点系统与任务完成声音提示 (Desktop Attention & Audio) | 208 | 已验证（V2.5 本地完成） | `tasks/208-desktop-attention-notification-and-audio-cues.md` |
+| [Epic] V2.5 画布级交互协同与极客工作台 (Interactive Canvas & Workbench) | 209 | 已验证（3083 passed / 6 skipped） | `tasks/209-epic-v2-5-interactive-collaboration-and-canvas-workbench.md` |
+| 全域纯正国际化字典体系扩充与组件硬编码英文彻底解耦 (Comprehensive i18n) | 210 | 已验证（V2.6 本地完成） | `tasks/210-comprehensive-i18n-dictionary-and-component-decoupling.md` |
+| Local Server 供应商存储集成、/api/providers 端点与动态模型路由 (Provider Store & Models API) | 211 | 已验证（V2.6 本地完成） | `tasks/211-local-server-provider-store-and-models-api.md` |
+| Web 端模型与供应商可视化管理弹窗及一键连通性探测 (Provider Settings Modal) | 212 | 已验证（V2.6 本地完成） | `tasks/212-provider-settings-modal-and-connection-tester.md` |
+| 新建会话模型选择器升级与会话级多模型动态切换 (Session Model Picker & Dynamic Switching) | 213 | 已验证（V2.6 本地完成） | `tasks/213-session-model-picker-and-dynamic-switching.md` |
+| [Epic] V2.6 全域纯正国际化与可视化多模型接入中枢 (Epic Pure i18n & Visual Model Hub) | 214 | 已验证（3146 passed / 6 skipped） | `tasks/214-epic-v2-6-pure-i18n-and-visual-model-hub.md` |
+| 模型端点自动拉取、灵活配置 Schema 兼容与供应商管理自愈 (Provider Hub Model Pull & Schema Repair) | 215 | 已验证（2026-10-11 本地完成，双 Root 3155 passed / 6 skipped） | `tasks/215-provider-hub-model-pull-and-schema-repair.md` |
 
 ## 未闭合 / 下一目标
 
-- **最近完成路线：V2.4 混合 Chat-Canvas 交互工作台与双端视觉中枢 (Epic 204)**：
-  - 任务 200：Chat 流内嵌富交互组件 IR 与双向 SSE 协议（WidgetBlock 契约与异步响应端点）；
-  - 任务 201：Web 对话流内嵌交互微组件（可折叠 Diff 检查器、Red→Green 状态卡、AST 影响面雷达、权限就地审批）；
-  - 任务 202：双模态双轴工作台布局（对话主轴 + 常驻 Docked Inspector 四大 Tab 全景画布）；
-  - 任务 203：CLI 终端 StatusLine 与富 ANSI 组件同步适配（动态状态栏、彩色折叠 Diff）；
-  - 任务 204：Epic V2.4 全量跨端集成与双端全景验收完成；证据 `evidence/sessions/2026-10-09-v2.4/PROOF.md`。下一步等待人类审阅，不自动推进新路线。
-- **最近已合入里程碑：V2.2 (Epic 195) 与 V2.3 (Epic 199) 已全量验收合入主干（commit `3e6a56f`）**：
+- **当前就绪目标：无（等待维护者派发新卡）**。Card 215 已本地交付，见下方「最近已交付」。
+- **最近已交付（待维护者验收）：任务 215 模型端点自动拉取、灵活配置 Schema 兼容与供应商管理自愈**：
+  - 交付对象：OpenCode 搭载 DeepSeek-v4.1-Flash；
+  - 交付内容：
+    1. `normalizeProviderInput` 归一化兼容器（字典型 `models` / `options` 嵌套 / `npm` 协议声明）；
+    2. 新增 `POST /api/providers/pull-models` 端点与 Web「拉取模型」按钮，真实探测 `/v1/models` 并回填；
+    3. 供应商删除自愈（清理 `secretRef` 凭据）+ 后端**具体错误码透传**（不再一律 `provider_request_failed`）+ 前端按码本地化展示；
+    4. 术语规范化：`OpenAI 兼容 (OpenAI Compatible)` / `Anthropic (Claude)` / `API Key`；
+    5. 损坏/非法条目归类为 `provider_store_corrupted`（可操作但仍不泄露路径或密钥）；
+  - 门禁：定向测试 **27**（后端）+ **35**（前端含 i18n）全绿、双 Root **3155 passed / 6 skipped**、`tsc -b` / `typecheck:tests` / web typecheck / web build 全 exit 0、`packages/core` 0 变动；
+  - 证据：`evidence/sessions/2026-10-11-card215/PROOF.md`；任务书：`tasks/215-provider-hub-model-pull-and-schema-repair.md`。
+- **最近已验收路线：V2.6 全域纯正国际化与可视化多模型接入中枢 (Epic 214)**：
+  - 任务 210–214：全域纯正 i18n 字典、后端 ProviderStore 集成与安全 API、前端可视化设置弹窗与会话真实模型动态切换。双 Root 3,146 passed / 6 skipped 全绿。证据 `evidence/sessions/2026-10-11-v2.6/PROOF.md`。
+- **最近已验收路线：V2.5 画布级交互协同与极客工作台 (Epic 209)**：
+  - 任务 205–209：画布单 Hunk 补丁选择器、流式思考折叠与规则标注、全局命令面板 Ctrl+K、桌面注意力通知与音频合成提示。双 Root 3,083 passed / 6 skipped 全绿。
+- **最近已合入里程碑：V2.4 混合 Chat-Canvas 交互工作台与双端视觉中枢 (Epic 204，commit `dd8e72c`)**：
+  - 任务 200–204：Chat 内嵌组件 IR 与双向 SSE/HTTP 端点、React 就地微组件群、四 Tab 常驻 Docked Inspector、CLI 终端动态 StatusLine 与彩色折叠 Diff。双 Root 3,009 passed / 6 skipped 全绿。
+- **前序已合入里程碑：V2.2 (Epic 195) 与 V2.3 (Epic 199) 已全量验收合入主干（commit `3e6a56f`）**：
   - 任务 192–195：洋葱式 Mod 中间件流水线、Worker 线程沙箱（防御 CVE-2026-82533）、清单审计与 `vessel mod/doctor`；
   - 任务 196–199：真实 Red→Green 缺陷复现硬门禁、增量 AST 符号依赖图、自适应上下文剪枝（82.56% 压缩率）。
   - 任务 188：确定性序列化、三段式前缀与 turn===0 压缩守卫；

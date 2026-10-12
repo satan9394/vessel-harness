@@ -1,0 +1,973 @@
+
+ RUN  v5.0.1 E:/Code_file/Projects/Vessel_Harness/apps/web
+
+ ❯ src/components/widgets/widgets.test.tsx (12 tests | 3 failed) 168ms
+   ❯ inline widget rendering and timeline reconciliation (9)
+     × collapses more than 20 lines and honors an explicit default 13ms
+     × upserts replay IDs and never reopens a resolved action 5ms
+     × renders expired permissions with disabled choices 3ms
+ ❯ src/components/SubagentPanel.test.tsx (10 tests | 1 failed) 280ms
+   ❯ Subagent workspace (10)
+     × drawer exposes worktree, stage logs, all four token dimensions and close/cancel actions 57ms
+ ❯ src/components/__tests__/SandboxAuditBadge.test.tsx (6 tests | 4 failed) 114ms
+   ❯ sandbox execution audits (6)
+     × displays recorded readonly roots, enforced memory caps and platform privilege constraints 55ms
+     × renders keyboard-operable disclosure and truthful constraints 9ms
+     × does not invent whitelist/privilege enforcement on fallback 4ms
+     × renders the execution badge in cards and the Talking message flow only with audit evidence 5ms
+ ❯ src/components/layout/DualSurfaceLayout.test.tsx (14 tests | 2 failed) 109ms
+   ❯ Observed Inspector telemetry (4)
+     × bounds cache history to the last 40 observations without mutating previous samples 14ms
+     × distinguishes missing observations from measured zeroes and prefix from workspace hashes 6ms
+stderr | src/components/__tests__/CognitiveRulesDashboard.test.tsx > CognitiveRulesDashboard > category and search controls pass current values through their real handlers
+Invalid hook call. Hooks can only be called inside of the body of a function component. This could happen for one of the following reasons:
+1. You might have mismatching versions of React and the renderer (such as React DOM)
+2. You might be breaking the Rules of Hooks
+3. You might have more than one copy of React in the same app
+See https://react.dev/link/invalid-hook-call for tips about how to debug and fix this problem.
+
+ ❯ src/components/__tests__/CognitiveRulesDashboard.test.tsx (5 tests | 4 failed) 112ms
+   ❯ CognitiveRulesDashboard (5)
+     × renders category, trigger, lesson, action, hits and timestamp without interpreting lesson markup 62ms
+     × combines each category with case-insensitive live search across all meaningful rule fields 3ms
+     × category and search controls pass current values through their real handlers 4ms
+     × shows accessible loading while initial read is pending 8ms
+ ❯ src/components/__tests__/SwarmTopologyView.test.tsx (7 tests | 4 failed) 181ms
+   ❯ SwarmTopologyView (7)
+     × shows observed remote task activity without inventing load for absent snapshots 86ms
+     × renders SVG connections and complete local/peer details with explicit connectivity and RTT 12ms
+     × distinguishes unconfigured mesh, no peers and initial loading 3ms
+     × renders bounded RTT waveforms without recording offline values or removed peers 16ms
+stderr | src/components/team/TeamDagCanvas.test.tsx > team DAG workspace > renders every lifecycle state and selects the exact keyboard-accessible node
+Invalid hook call. Hooks can only be called inside of the body of a function component. This could happen for one of the following reasons:
+1. You might have mismatching versions of React and the renderer (such as React DOM)
+2. You might be breaking the Rules of Hooks
+3. You might have more than one copy of React in the same app
+See https://react.dev/link/invalid-hook-call for tips about how to debug and fix this problem.
+
+stderr | src/components/team/TeamDagCanvas.test.tsx > team DAG workspace > shows frozen roster routes and invokes approve/reject buttons only for staged plans
+Invalid hook call. Hooks can only be called inside of the body of a function component. This could happen for one of the following reasons:
+1. You might have mismatching versions of React and the renderer (such as React DOM)
+2. You might be breaking the Rules of Hooks
+3. You might have more than one copy of React in the same app
+See https://react.dev/link/invalid-hook-call for tips about how to debug and fix this problem.
+
+stderr | src/components/team/TeamDagCanvas.test.tsx > team DAG workspace > shows dependency/executor/error/artifacts and limits output to 300 characters
+Invalid hook call. Hooks can only be called inside of the body of a function component. This could happen for one of the following reasons:
+1. You might have mismatching versions of React and the renderer (such as React DOM)
+2. You might be breaking the Rules of Hooks
+3. You might have more than one copy of React in the same app
+See https://react.dev/link/invalid-hook-call for tips about how to debug and fix this problem.
+
+stderr | src/components/team/TeamDagCanvas.test.tsx > team DAG workspace > renders actual artifact comparison and invokes diff and close controls
+Invalid hook call. Hooks can only be called inside of the body of a function component. This could happen for one of the following reasons:
+1. You might have mismatching versions of React and the renderer (such as React DOM)
+2. You might be breaking the Rules of Hooks
+3. You might have more than one copy of React in the same app
+See https://react.dev/link/invalid-hook-call for tips about how to debug and fix this problem.
+
+stderr | src/components/team/TeamDagCanvas.test.tsx > team DAG workspace > edits member routes and task parameters through native controls and saves a revised preview
+Invalid hook call. Hooks can only be called inside of the body of a function component. This could happen for one of the following reasons:
+1. You might have mismatching versions of React and the renderer (such as React DOM)
+2. You might be breaking the Rules of Hooks
+3. You might have more than one copy of React in the same app
+See https://react.dev/link/invalid-hook-call for tips about how to debug and fix this problem.
+
+ ❯ src/components/team/TeamDagCanvas.test.tsx (8 tests | 7 failed) 108ms
+   ❯ team DAG workspace (8)
+     × layers out-of-order diamond dependencies and draws all four edges 34ms
+     × renders every lifecycle state and selects the exact keyboard-accessible node 4ms
+     × shows frozen roster routes and invokes approve/reject buttons only for staged plans 2ms
+     × shows dependency/executor/error/artifacts and limits output to 300 characters 2ms
+     × renders actual artifact comparison and invokes diff and close controls 1ms
+     × edits member routes and task parameters through native controls and saves a revised preview 3ms
+     × wires the stage workspace into the existing Team module and targets encoded HTTP ids 10ms
+ ❯ src/components/__tests__/UsageBarCache.test.tsx (5 tests | 3 failed) 83ms
+   ❯ server priced cache badges (5)
+     × renders the server hit rate, savings and cost 34ms
+     × labels fallback estimates and replaces cumulative totals 5ms
+     × shows per-message server-priced cache metadata 38ms
+ ❯ src/i18n.test.ts (11 tests | 1 failed) 45ms
+   ❯ i18n translate(t) (4)
+     × interpolates {var} placeholders from params 11ms
+ ❯ src/components.team.test.tsx (11 tests | 9 failed) 74ms
+   ❯ TeamPanel (task 060 panel rendering) (4)
+     × renders a friendly empty state when no team run exists 29ms
+     × renders roster member cards with phase status + output + review conclusion 8ms
+     × marks the live member of a running complex run and shows delegate rows 7ms
+     × survives an empty finished run (roster-only edge) 4ms
+   ❯ ModelSelector (task 060 model choice: Auto/Fast/Pro + pin) (4)
+     × shows Auto / Fast / Pro with Auto active by default 4ms
+     × reflects pin state: unpinned offers Pin, pinned offers Pinned · Unpin 3ms
+     × marks the user-selected mode segment active 2ms
+   ❯ ReviewRequiredPanel (task 060 external review area: §9.1 buttons) (3)
+     × pending review → External Review Required header + Copy / Open / Import buttons 5ms
+     × imported review shows the parsed result summary instead of the required header 6ms
+ ❯ src/UsageBar.test.tsx (7 tests | 3 failed) 52ms
+   ❯ UsageBar — cacheWrite (cacheCreation) 分项（task 107） (7)
+     × 渲染 cache 读/写分项并列，且写分项带 derived 提示 33ms
+     × 无 cacheWrite 时只渲染 cache 读，不出现写分项 4ms
+     × mock 增量链：多个 delta 累积后渲染正确（含缺字段帧回退） 5ms
+ ❯ src/components.subagent.test.tsx (2 tests | 2 failed) 53ms
+   ❯ SubagentPanel component (2)
+     × renders empty placeholder when no subagents exist 43ms
+     × renders active subagents cards with badge and cancel button 5ms
+ ❯ src/components/widgets/StreamingReasoningBlock.test.tsx (2 tests | 1 failed) 29ms
+   ❯ streaming reasoning interaction (2)
+     × renders only supplied matched rules with lesson/reflection and keeps unknown counts unknown 12ms
+ ❯ src/components.goal.test.tsx (9 tests | 9 failed) 73ms
+   ❯ GoalPanel (task 065/066 panel rendering) (9)
+     × renders a friendly empty state when there are no tasks 28ms
+     × renders the queue with status labels + goal text and highlights the selected row 7ms
+     × selected task detail shows the run trigger + terminal-task hint + 066 control labels 4ms
+     × pause is enabled only on a running in-progress task; resume only on a paused one (066 gating) 3ms
+     × renders a pending selected task with an enabled Run button 5ms
+     × iteration replay shows generator output summary + evaluator verdict/reason (met + not_met) 8ms
+     × shows a runnable pending iteration-empty state (No iterations yet) when the task never ran 4ms
+     × running=true renders the Running… label on the trigger button 7ms
+     × renders acceptance criteria for a selected task 4ms
+ ❯ src/components.topic.test.tsx (6 tests | 1 failed) 92ms
+   ❯ thinking and per-turn metrics components (3)
+     × shows all four token dimensions plus latency and estimated cost, including zero values 28ms
+
+⎯⎯⎯⎯⎯⎯ Failed Tests 54 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/components.goal.test.tsx > GoalPanel (task 065/066 panel rendering) > renders a friendly empty state when there are no tasks
+AssertionError: expected '<div class="goal-panel" data-testid="…' to contain 'No tasks yet'
+
+Expected: "No tasks yet"
+Received: "<div class="goal-panel" data-testid="goal-panel"><div class="goal-queue"><div class="goal-queue-head"><span class="goal-label">任务队列</span><span class="dim">0 个任务</span></div><div class="goal-empty dim"><div class="goal-empty-title">暂无任务</div><div>添加目标并运行，每次迭代都会显示生成结果与评估结论。</div></div></div></div>"
+
+ ❯ src/components.goal.test.tsx:45:18
+     43|   it('renders a friendly empty state when there are no tasks', () => {
+     44|     const html = panel();
+     45|     expect(html).toContain('No tasks yet');
+       |                  ^
+     46|     expect(html).toContain('0 tasks');
+     47|     expect(html).not.toContain('goal-task-row-active');
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/54]⎯
+
+ FAIL  src/components.goal.test.tsx > GoalPanel (task 065/066 panel rendering) > renders the queue with status labels + goal text and highlights the selected row
+AssertionError: expected '<div class="goal-panel" data-testid="…' to contain '2 tasks'
+
+Expected: "2 tasks"
+Received: "<div class="goal-panel" data-testid="goal-panel"><div class="goal-queue"><div class="goal-queue-head"><span class="goal-label">任务队列</span><span class="dim">2 个任务</span></div><div class="goal-task-list"><button type="button" class="goal-task-row goal-task-row-active" title="实现一个导出功能"><span class="goal-status goal-status-pending">待处理</span><span class="goal-task-goal">实现一个导出功能</span></button><button type="button" class="goal-task-row" title="重构模块并补测试"><span class="goal-status goal-status-met">已达成</span><span class="goal-task-goal">重构模块并补测试</span></button></div></div><div class="goal-detail" data-testid="goal-detail"><div class="goal-detail-head"><span class="goal-task-title" title="实现一个导出功能">实现一个导出功能</span><span class="goal-status goal-status-pending">待处理</span></div><div class="goal-actions"><button type="button" class="btn btn-primary">运行任务</button><span class="goal-controls"><button type="button" class="btn goal-control-btn" disabled="" title="挂起正在运行的任务">暂停</button><button type="button" class="btn goal-control-btn" disabled="" title="从暂停的位置继续任务">恢复</button><button type="button" class="btn goal-control-btn" title="设置最大迭代数与重试数，默认均为 1">预算</button></span></div><div class="goal-iterations"><div class="goal-label">迭代记录</div><div class="goal-empty dim" data-testid="goal-iterations-empty"><div class="goal-empty-title">暂无迭代记录</div><div>运行此任务以开始首轮迭代：生成、评估并判断目标是否达成。</div></div></div><div class="goal-acceptance dim"><span class="goal-label">验收标准</span><ul class="goal-acceptance-list"><li>AC-1 导出 run</li></ul></div></div></div>"
+
+ ❯ src/components.goal.test.tsx:53:18
+     51|     const tasks: GoalTask[] = [goalTaskFixture({ id: 'a' }), goalTaskM…
+     52|     const html = panel({ tasks, selectedId: 'a' });
+     53|     expect(html).toContain('2 tasks');
+       |                  ^
+     54|     expect(html).toContain('Pending');
+     55|     expect(html).toContain('Met');
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/54]⎯
+
+ FAIL  src/components.goal.test.tsx > GoalPanel (task 065/066 panel rendering) > selected task detail shows the run trigger + terminal-task hint + 066 control labels
+AssertionError: expected '<div class="goal-panel" data-testid="…' to contain 'Met'
+
+Expected: "Met"
+Received: "<div class="goal-panel" data-testid="goal-panel"><div class="goal-queue"><div class="goal-queue-head"><span class="goal-label">任务队列</span><span class="dim">1 个任务</span></div><div class="goal-task-list"><button type="button" class="goal-task-row goal-task-row-active" title="重构模块并补测试"><span class="goal-status goal-status-met">已达成</span><span class="goal-task-goal">重构模块并补测试</span></button></div></div><div class="goal-detail" data-testid="goal-detail"><div class="goal-detail-head"><span class="goal-task-title" title="重构模块并补测试">重构模块并补测试</span><span class="goal-status goal-status-met">已达成</span></div><div class="dim goal-outcome-reason">验收标准满足</div><div class="goal-actions"><button type="button" class="btn btn-primary" disabled="">运行任务</button><span class="dim goal-run-hint">• 已达成 — 已结束的任务无法直接运行</span><span class="goal-controls"><button type="button" class="btn goal-control-btn" disabled="" title="挂起正在运行的任务">暂停</button><button type="button" class="btn goal-control-btn" disabled="" title="从暂停的位置继续任务">恢复</button><button type="button" class="btn goal-control-btn" title="设置最大迭代数与重试数，默认均为 1">预算</button></span></div><div class="goal-iterations"><div class="goal-label">迭代记录</div><div class="goal-empty dim" data-testid="goal-iterations-empty"><div class="goal-empty-title">暂无迭代记录</div><div>运行此任务以开始首轮迭代：生成、评估并判断目标是否达成。</div></div></div><div class="goal-acceptance dim"><span class="goal-label">验收标准</span><ul class="goal-acceptance-list"><li>AC-1 导出 run</li></ul></div></div></div>"
+
+ ❯ src/components.goal.test.tsx:65:18
+     63|     const html = panel({ tasks: [goalTaskMetFixture()], selectedId: 't…
+     64|     expect(html).toContain('goal-detail');
+     65|     expect(html).toContain('Met');
+       |                  ^
+     66|     expect(html).toContain('Run task');
+     67|     expect(html).toContain('not available on a terminal task');
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/54]⎯
+
+ FAIL  src/components.goal.test.tsx > GoalPanel (task 065/066 panel rendering) > pause is enabled only on a running in-progress task; resume only on a paused one (066 gating)
+AssertionError: expected '<div class="goal-panel" data-testid="…' to contain 'Pause'
+
+Expected: "Pause"
+Received: "<div class="goal-panel" data-testid="goal-panel"><div class="goal-queue"><div class="goal-queue-head"><span class="goal-label">任务队列</span><span class="dim">1 个任务</span></div><div class="goal-task-list"><button type="button" class="goal-task-row goal-task-row-active" title="实现一个导出功能"><span class="goal-status goal-status-in-progress">执行中</span><span class="goal-task-goal">实现一个导出功能</span></button></div></div><div class="goal-detail" data-testid="goal-detail"><div class="goal-detail-head"><span class="goal-task-title" title="实现一个导出功能">实现一个导出功能</span><span class="goal-status goal-status-in-progress">执行中</span></div><div class="goal-actions"><button type="button" class="btn btn-primary" disabled="">运行中…</button><span class="goal-controls"><button type="button" class="btn goal-control-btn" title="挂起正在运行的任务">暂停</button><button type="button" class="btn goal-control-btn" disabled="" title="从暂停的位置继续任务">恢复</button><button type="button" class="btn goal-control-btn" title="设置最大迭代数与重试数，默认均为 1">预算</button></span></div><div class="goal-iterations"><div class="goal-label">迭代记录</div><div class="goal-empty dim" data-testid="goal-iterations-empty"><div class="goal-empty-title">暂无迭代记录</div><div>运行此任务以开始首轮迭代：生成、评估并判断目标是否达成。</div></div></div><div class="goal-acceptance dim"><span class="goal-label">验收标准</span><ul class="goal-acceptance-list"><li>AC-1 导出 run</li></ul></div></div></div>"
+
+ ❯ src/components.goal.test.tsx:81:25
+     79|     });
+     80|     // pause enabled (running in-progress), resume disabled (not pause…
+     81|     expect(runningHtml).toContain('Pause');
+       |                         ^
+     82|     expect(runningHtml).toContain('Resume');
+     83|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/54]⎯
+
+ FAIL  src/components.goal.test.tsx > GoalPanel (task 065/066 panel rendering) > renders a pending selected task with an enabled Run button
+AssertionError: expected '<div class="goal-panel" data-testid="…' to contain 'Pending'
+
+Expected: "Pending"
+Received: "<div class="goal-panel" data-testid="goal-panel"><div class="goal-queue"><div class="goal-queue-head"><span class="goal-label">任务队列</span><span class="dim">1 个任务</span></div><div class="goal-task-list"><button type="button" class="goal-task-row goal-task-row-active" title="实现一个导出功能"><span class="goal-status goal-status-pending">待处理</span><span class="goal-task-goal">实现一个导出功能</span></button></div></div><div class="goal-detail" data-testid="goal-detail"><div class="goal-detail-head"><span class="goal-task-title" title="实现一个导出功能">实现一个导出功能</span><span class="goal-status goal-status-pending">待处理</span></div><div class="goal-actions"><button type="button" class="btn btn-primary">运行任务</button><span class="goal-controls"><button type="button" class="btn goal-control-btn" disabled="" title="挂起正在运行的任务">暂停</button><button type="button" class="btn goal-control-btn" disabled="" title="从暂停的位置继续任务">恢复</button><button type="button" class="btn goal-control-btn" title="设置最大迭代数与重试数，默认均为 1">预算</button></span></div><div class="goal-iterations"><div class="goal-label">迭代记录</div><div class="goal-empty dim" data-testid="goal-iterations-empty"><div class="goal-empty-title">暂无迭代记录</div><div>运行此任务以开始首轮迭代：生成、评估并判断目标是否达成。</div></div></div><div class="goal-acceptance dim"><span class="goal-label">验收标准</span><ul class="goal-acceptance-list"><li>AC-1 导出 run</li></ul></div></div></div>"
+
+ ❯ src/components.goal.test.tsx:94:18
+     92|   it('renders a pending selected task with an enabled Run button', () …
+     93|     const html = panel({ tasks: [goalTaskFixture()], selectedId: 'task…
+     94|     expect(html).toContain('Pending');
+       |                  ^
+     95|     expect(html).toContain('Run task');
+     96|     expect(html).not.toContain('not available on a terminal task');
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[5/54]⎯
+
+ FAIL  src/components.goal.test.tsx > GoalPanel (task 065/066 panel rendering) > iteration replay shows generator output summary + evaluator verdict/reason (met + not_met)
+AssertionError: expected '<div class="goal-panel" data-testid="…' to contain 'Not met'
+
+Expected: "Not met"
+Received: "<div class="goal-panel" data-testid="goal-panel"><div class="goal-queue"><div class="goal-queue-head"><span class="goal-label">任务队列</span><span class="dim">2 个任务</span></div><div class="goal-task-list"><button type="button" class="goal-task-row goal-task-row-active" title="实现一个导出功能"><span class="goal-status goal-status-pending">待处理</span><span class="goal-task-goal">实现一个导出功能</span></button><button type="button" class="goal-task-row" title="重构模块并补测试"><span class="goal-status goal-status-met">已达成</span><span class="goal-task-goal">重构模块并补测试</span></button></div></div><div class="goal-detail" data-testid="goal-detail"><div class="goal-detail-head"><span class="goal-task-title" title="实现一个导出功能">实现一个导出功能</span><span class="goal-status goal-status-pending">待处理</span></div><div class="goal-actions"><button type="button" class="btn btn-primary">运行任务</button><span class="goal-controls"><button type="button" class="btn goal-control-btn" disabled="" title="挂起正在运行的任务">暂停</button><button type="button" class="btn goal-control-btn" disabled="" title="从暂停的位置继续任务">恢复</button><button type="button" class="btn goal-control-btn" title="设置最大迭代数与重试数，默认均为 1">预算</button></span></div><div class="goal-iterations"><div class="goal-label">迭代记录</div><div class="goal-iterations-list"><div class="goal-iteration" data-testid="goal-iteration"><div class="goal-iteration-head"><span class="goal-iteration-num">#1</span><span class="goal-verdict goal-verdict-not_met">未达成</span><span class="dim">· 执行中 → 未达成</span></div><div class="goal-iteration-reason dim">缺测试证据</div><div class="goal-gen-eval"><div class="goal-gen"><span class="goal-label">生成者</span><div class="goal-pre" title="生成结果摘要">已实现导出（src/out.ts）</div><div class="goal-artifact-count dim">1 个产物已落盘 </div></div><div class="goal-eval"><span class="goal-label">评估者</span><div class="goal-review goal-review-not_met"><div class="goal-review-verdict">未达成</div><div class="goal-review-reason dim">缺测试证据</div><ul class="goal-review-list"><li>未达成： AC-2 无测试结果</li></ul><ul class="goal-review-list"><li>建议： 补单测</li></ul></div></div></div></div><div class="goal-iteration" data-testid="goal-iteration"><div class="goal-iteration-head"><span class="goal-iteration-num">#2</span><span class="goal-verdict goal-verdict-met">已达成</span><span class="dim">· 重试后达成</span><span class="dim">· 执行中 → 已达成</span></div><div class="goal-iteration-reason dim">验收标准满足</div><div class="goal-gen-eval"><div class="goal-gen"><span class="goal-label">生成者</span><div class="goal-pre" title="生成结果摘要">重构完成，单测通过</div><div class="goal-artifact-count dim">2 个产物已落盘 </div></div><div class="goal-eval"><span class="goal-label">评估者</span><div class="goal-review goal-review-met"><div class="goal-review-verdict">已达成</div><div class="goal-review-reason dim">验收标准满足</div></div></div></div></div></div></div><div class="goal-acceptance dim"><span class="goal-label">验收标准</span><ul class="goal-acceptance-list"><li>AC-1 导出 run</li></ul></div></div></div>"
+
+ ❯ src/components.goal.test.tsx:112:18
+    110|     expect(html).toContain('重构完成，单测通过');
+    111|     // evaluator conclusions — verdict + reason, structured (not raw J…
+    112|     expect(html).toContain('Not met');
+       |                  ^
+    113|     expect(html).toContain('缺测试证据');
+    114|     expect(html).toContain('unmet: AC-2 无测试结果');
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[6/54]⎯
+
+ FAIL  src/components.goal.test.tsx > GoalPanel (task 065/066 panel rendering) > shows a runnable pending iteration-empty state (No iterations yet) when the task never ran
+AssertionError: expected '<div class="goal-panel" data-testid="…' to contain 'No iterations yet'
+
+Expected: "No iterations yet"
+Received: "<div class="goal-panel" data-testid="goal-panel"><div class="goal-queue"><div class="goal-queue-head"><span class="goal-label">任务队列</span><span class="dim">1 个任务</span></div><div class="goal-task-list"><button type="button" class="goal-task-row goal-task-row-active" title="实现一个导出功能"><span class="goal-status goal-status-pending">待处理</span><span class="goal-task-goal">实现一个导出功能</span></button></div></div><div class="goal-detail" data-testid="goal-detail"><div class="goal-detail-head"><span class="goal-task-title" title="实现一个导出功能">实现一个导出功能</span><span class="goal-status goal-status-pending">待处理</span></div><div class="goal-actions"><button type="button" class="btn btn-primary">运行任务</button><span class="goal-controls"><button type="button" class="btn goal-control-btn" disabled="" title="挂起正在运行的任务">暂停</button><button type="button" class="btn goal-control-btn" disabled="" title="从暂停的位置继续任务">恢复</button><button type="button" class="btn goal-control-btn" title="设置最大迭代数与重试数，默认均为 1">预算</button></span></div><div class="goal-iterations"><div class="goal-label">迭代记录</div><div class="goal-empty dim" data-testid="goal-iterations-empty"><div class="goal-empty-title">暂无迭代记录</div><div>运行此任务以开始首轮迭代：生成、评估并判断目标是否达成。</div></div></div><div class="goal-acceptance dim"><span class="goal-label">验收标准</span><ul class="goal-acceptance-list"><li>AC-1 导出 run</li></ul></div></div></div>"
+
+ ❯ src/components.goal.test.tsx:124:18
+    122|   it('shows a runnable pending iteration-empty state (No iterations ye…
+    123|     const html = panel({ tasks: [goalTaskFixture()], selectedId: 'task…
+    124|     expect(html).toContain('No iterations yet');
+       |                  ^
+    125|     expect(html).toContain('goal-iterations-empty');
+    126|   });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[7/54]⎯
+
+ FAIL  src/components.goal.test.tsx > GoalPanel (task 065/066 panel rendering) > running=true renders the Running… label on the trigger button
+AssertionError: expected '<div class="goal-panel" data-testid="…' to contain 'Running…'
+
+Expected: "Running…"
+Received: "<div class="goal-panel" data-testid="goal-panel"><div class="goal-queue"><div class="goal-queue-head"><span class="goal-label">任务队列</span><span class="dim">1 个任务</span></div><div class="goal-task-list"><button type="button" class="goal-task-row goal-task-row-active" title="实现一个导出功能"><span class="goal-status goal-status-in-progress">执行中</span><span class="goal-task-goal">实现一个导出功能</span></button></div></div><div class="goal-detail" data-testid="goal-detail"><div class="goal-detail-head"><span class="goal-task-title" title="实现一个导出功能">实现一个导出功能</span><span class="goal-status goal-status-in-progress">执行中</span></div><div class="goal-actions"><button type="button" class="btn btn-primary" disabled="">运行中…</button><span class="goal-controls"><button type="button" class="btn goal-control-btn" title="挂起正在运行的任务">暂停</button><button type="button" class="btn goal-control-btn" disabled="" title="从暂停的位置继续任务">恢复</button><button type="button" class="btn goal-control-btn" title="设置最大迭代数与重试数，默认均为 1">预算</button></span></div><div class="goal-iterations"><div class="goal-label">迭代记录</div><div class="goal-empty dim" data-testid="goal-iterations-empty"><div class="goal-empty-title">暂无迭代记录</div><div>运行此任务以开始首轮迭代：生成、评估并判断目标是否达成。</div></div></div><div class="goal-acceptance dim"><span class="goal-label">验收标准</span><ul class="goal-acceptance-list"><li>AC-1 导出 run</li></ul></div></div></div>"
+
+ ❯ src/components.goal.test.tsx:130:18
+    128|   it('running=true renders the Running… label on the trigger button', …
+    129|     const html = panel({ tasks: [goalTaskFixture({ status: 'in-progres…
+    130|     expect(html).toContain('Running…');
+       |                  ^
+    131|     expect((html.match(/disabled/g) ?? []).length).toBeGreaterThan(0);
+    132|   });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[8/54]⎯
+
+ FAIL  src/components.goal.test.tsx > GoalPanel (task 065/066 panel rendering) > renders acceptance criteria for a selected task
+AssertionError: expected '<div class="goal-panel" data-testid="…' to contain 'Acceptance'
+
+Expected: "Acceptance"
+Received: "<div class="goal-panel" data-testid="goal-panel"><div class="goal-queue"><div class="goal-queue-head"><span class="goal-label">任务队列</span><span class="dim">1 个任务</span></div><div class="goal-task-list"><button type="button" class="goal-task-row goal-task-row-active" title="实现一个导出功能"><span class="goal-status goal-status-pending">待处理</span><span class="goal-task-goal">实现一个导出功能</span></button></div></div><div class="goal-detail" data-testid="goal-detail"><div class="goal-detail-head"><span class="goal-task-title" title="实现一个导出功能">实现一个导出功能</span><span class="goal-status goal-status-pending">待处理</span></div><div class="goal-actions"><button type="button" class="btn btn-primary">运行任务</button><span class="goal-controls"><button type="button" class="btn goal-control-btn" disabled="" title="挂起正在运行的任务">暂停</button><button type="button" class="btn goal-control-btn" disabled="" title="从暂停的位置继续任务">恢复</button><button type="button" class="btn goal-control-btn" title="设置最大迭代数与重试数，默认均为 1">预算</button></span></div><div class="goal-iterations"><div class="goal-label">迭代记录</div><div class="goal-empty dim" data-testid="goal-iterations-empty"><div class="goal-empty-title">暂无迭代记录</div><div>运行此任务以开始首轮迭代：生成、评估并判断目标是否达成。</div></div></div><div class="goal-acceptance dim"><span class="goal-label">验收标准</span><ul class="goal-acceptance-list"><li>AC-1 导出 run</li></ul></div></div></div>"
+
+ ❯ src/components.goal.test.tsx:136:18
+    134|   it('renders acceptance criteria for a selected task', () => {
+    135|     const html = panel({ tasks: [goalTaskFixture()], selectedId: 'task…
+    136|     expect(html).toContain('Acceptance');
+       |                  ^
+    137|     expect(html).toContain('AC-1 导出 run');
+    138|   });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[9/54]⎯
+
+ FAIL  src/components.subagent.test.tsx > SubagentPanel component > renders empty placeholder when no subagents exist
+AssertionError: expected '<div class="subagent-panel" data-test…' to contain 'No active subagents'
+
+Expected: "No active subagents"
+Received: "<div class="subagent-panel" data-testid="subagent-panel"><section class="subagent-list" aria-label="子代理"><h3 class="side-label">子代理</h3><div class="side-empty">暂无运行中的子代理</div></section></div>"
+
+ ❯ src/components.subagent.test.tsx:10:18
+      8|   it('renders empty placeholder when no subagents exist', () => {
+      9|     const html = renderToStaticMarkup(<SubagentPanel subagents={[]} />…
+     10|     expect(html).toContain('No active subagents');
+       |                  ^
+     11|   });
+     12|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[10/54]⎯
+
+ FAIL  src/components.subagent.test.tsx > SubagentPanel component > renders active subagents cards with badge and cancel button
+AssertionError: expected '<div class="subagent-panel" data-test…' to contain 'Cancel'
+
+Expected: "Cancel"
+Received: "<div class="subagent-panel" data-testid="subagent-panel"><section class="subagent-list" aria-label="子代理"><h3 class="side-label">子代理</h3><ul class="side-list"><li class="subagent-card" data-testid="subagent-card-sub-1"><button type="button" class="side-item subagent-select" aria-expanded="false" aria-controls="subagent-detail"><span class="subagent-name">claude-subagent</span><span class="subagent-badge status-running">运行中</span></button><button type="button" class="topic-action" aria-label="取消 claude-subagent">取消</button></li></ul></section></div>"
+
+ ❯ src/components.subagent.test.tsx:28:18
+     26|     expect(html).toContain('claude-subagent');
+     27|     expect(html).toContain('status-running');
+     28|     expect(html).toContain('Cancel');
+       |                  ^
+     29|   });
+     30| });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[11/54]⎯
+
+ FAIL  src/components.team.test.tsx > TeamPanel (task 060 panel rendering) > renders a friendly empty state when no team run exists
+AssertionError: expected '<div class="team-empty dim"><div clas…' to contain 'No team run yet'
+
+Expected: "No team run yet"
+Received: "<div class="team-empty dim"><div class="team-empty-title">暂无团队运行记录</div><div>在本会话中运行团队任务后，将显示负责人、开发者与评审者的活动。</div></div>"
+
+ ❯ src/components.team.test.tsx:20:18
+     18|   it('renders a friendly empty state when no team run exists', () => {
+     19|     const html = render(<TeamPanel team={null} />);
+     20|     expect(html).toContain('No team run yet');
+       |                  ^
+     21|     expect(html).not.toContain('team-panel');
+     22|   });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[12/54]⎯
+
+ FAIL  src/components.team.test.tsx > TeamPanel (task 060 panel rendering) > renders roster member cards with phase status + output + review conclusion
+AssertionError: expected -1 to be less than -1
+ ❯ src/components.team.test.tsx:27:39
+     25|     const html = render(<TeamPanel team={mediumTeamFixture()} />);
+     26|     // roster order → Developer then Reviewer cards
+     27|     expect(html.indexOf('Developer')).toBeLessThan(html.indexOf('Revie…
+       |                                       ^
+     28|     // models + tiers visible per member
+     29|     expect(html).toContain('mock-pro');
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[13/54]⎯
+
+ FAIL  src/components.team.test.tsx > TeamPanel (task 060 panel rendering) > marks the live member of a running complex run and shows delegate rows
+AssertionError: expected '<div class="team-panel" data-testid="…' to contain 'Orchestrate'
+
+Expected: "Orchestrate"
+Received: "<div class="team-panel" data-testid="team-panel"><div class="team-run-head"><span class="run-status run-status-running">运行中</span><span class="team-run-task" title="做一个复杂架构重构">做一个复杂架构重构</span><span class="team-run-summary dim">3 个代理 · 运行中…</span></div><div class="team-cards"><div class="team-member"><div class="team-member-head"><span class="team-member-name">负责人</span><span class="team-member-model" title="mock-pro (mock)">mock-pro</span><span class="team-member-tier dim">专业</span></div><div class="team-phase"><span class="phase-status phase-completed">统筹</span><span class="dim">阶段 1</span></div><div class="team-output" title="输出预览"><div class="team-label">输出</div><div class="team-pre">PLAN…</div></div><div class="team-turns dim">1 个回合  · 最近 success</div><div class="team-tools"><span class="tool-chip tool-done" title="plan (done)">plan</span></div><div class="team-delegates"><div class="team-delegate"><span class="dim">委派 →</span> developer<span class="dim"> · 运行中</span></div></div></div><div class="team-member team-member-running"><div class="team-member-head"><span class="team-member-name">开发者</span><span class="team-member-model" title="mock-pro (mock)">mock-pro</span><span class="team-member-tier dim">专业</span><span class="team-member-live">实时运行</span></div><div class="team-phase"><span class="phase-status phase-running">生成</span><span class="dim">阶段 2</span></div></div><div class="team-member"><div class="team-member-head"><span class="team-member-name">评审者</span><span class="team-member-model" title="mock-review (mock)">mock-review</span><span class="team-member-tier dim">review</span></div><div class="dim team-phase-waiting">排队中…</div></div></div></div>"
+
+ ❯ src/components.team.test.tsx:50:18
+     48|     expect(html).toContain('running');
+     49|     expect(html).toContain('live');
+     50|     expect(html).toContain('Orchestrate');
+       |                  ^
+     51|     expect(html).toContain('delegate →');
+     52|     expect(html).toContain('developer');
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[14/54]⎯
+
+ FAIL  src/components.team.test.tsx > TeamPanel (task 060 panel rendering) > survives an empty finished run (roster-only edge)
+AssertionError: expected '<div class="team-panel" data-testid="…' to contain 'Developer'
+
+Expected: "Developer"
+Received: "<div class="team-panel" data-testid="team-panel"><div class="team-run-head"><span class="run-status run-status-completed">已完成</span><span class="team-run-task" title="实现一个导出功能">实现一个导出功能</span><span class="team-run-summary dim">2 个代理 · 5 秒内完成</span></div><div class="team-cards"><div class="team-member"><div class="team-member-head"><span class="team-member-name">开发者</span><span class="team-member-model" title="mock-pro (mock)">mock-pro</span><span class="team-member-tier dim">专业</span></div><div class="dim team-phase-waiting">排队中…</div></div><div class="team-member"><div class="team-member-head"><span class="team-member-name">评审者</span><span class="team-member-model" title="mock-review (mock)">mock-review</span><span class="team-member-tier dim">review</span></div><div class="dim team-phase-waiting">排队中…</div></div></div></div>"
+
+ ❯ src/components.team.test.tsx:58:18
+     56|     const state = { ...mediumTeamFixture(), phases: [], turns: [], too…
+     57|     const html = render(<TeamPanel team={state} />);
+     58|     expect(html).toContain('Developer');
+       |                  ^
+     59|     expect(html).toContain('queued…');
+     60|   });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[15/54]⎯
+
+ FAIL  src/components.team.test.tsx > ModelSelector (task 060 model choice: Auto/Fast/Pro + pin) > shows Auto / Fast / Pro with Auto active by default
+AssertionError: expected '<div class="model-selector" aria-labe…' to contain '>Auto<'
+
+Expected: ">Auto<"
+Received: "<div class="model-selector" aria-label="模型模式"><div class="model-modes" role="group" aria-label="模型模式"><button type="button" class="mode-btn mode-btn-active" aria-pressed="true">自动</button><button type="button" class="mode-btn" aria-pressed="false">快速</button><button type="button" class="mode-btn" aria-pressed="false">专业</button></div><span class="model-resolved dim" title="实际使用的模型">—</span><div class="model-actions"><button type="button" class="btn" title="确定当前模式使用的模型">确定模型 </button><button type="button" class="btn" title="为本会话固定当前模型，停止自动重新判断">为本会话固定模型 </button></div></div>"
+
+ ❯ src/components.team.test.tsx:68:18
+     66|   it('shows Auto / Fast / Pro with Auto active by default', () => {
+     67|     const html = render(<ModelSelector mode="auto" label={null} pinned…
+     68|     expect(html).toContain('>Auto<');
+       |                  ^
+     69|     expect(html).toContain('>Fast<');
+     70|     expect(html).toContain('>Pro<');
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[16/54]⎯
+
+ FAIL  src/components.team.test.tsx > ModelSelector (task 060 model choice: Auto/Fast/Pro + pin) > reflects pin state: unpinned offers Pin, pinned offers Pinned · Unpin
+AssertionError: expected '<div class="model-selector" aria-labe…' to contain 'Pin for this session'
+
+Expected: "Pin for this session"
+Received: "<div class="model-selector" aria-label="模型模式"><div class="model-modes" role="group" aria-label="模型模式"><button type="button" class="mode-btn mode-btn-active" aria-pressed="true">自动</button><button type="button" class="mode-btn" aria-pressed="false">快速</button><button type="button" class="mode-btn" aria-pressed="false">专业</button></div><span class="model-resolved dim" title="实际使用的模型">—</span><div class="model-actions"><button type="button" class="btn" title="确定当前模式使用的模型">确定模型 </button><button type="button" class="btn" title="为本会话固定当前模型，停止自动重新判断">为本会话固定模型 </button></div></div>"
+
+ ❯ src/components.team.test.tsx:87:19
+     85|   it('reflects pin state: unpinned offers Pin, pinned offers Pinned · …
+     86|     const loose = render(<ModelSelector mode="auto" label={null} pinne…
+     87|     expect(loose).toContain('Pin for this session');
+       |                   ^
+     88|     expect(loose).not.toContain('Unpin');
+     89|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[17/54]⎯
+
+ FAIL  src/components.team.test.tsx > ModelSelector (task 060 model choice: Auto/Fast/Pro + pin) > marks the user-selected mode segment active
+AssertionError: expected 'mode-btn-active" aria-pressed="true">…' to contain 'Pro'
+
+Expected: "Pro"
+Received: "mode-btn-active" aria-pressed="true">专业<"
+
+ ❯ src/components.team.test.tsx:100:51
+     98|     const activeIdx = html.indexOf('mode-btn-active');
+     99|     expect(activeIdx).toBeGreaterThan(-1);
+    100|     expect(html.slice(activeIdx, activeIdx + 40)).toContain('Pro');
+       |                                                   ^
+    101|   });
+    102| });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[18/54]⎯
+
+ FAIL  src/components.team.test.tsx > ReviewRequiredPanel (task 060 external review area: §9.1 buttons) > pending review → External Review Required header + Copy / Open / Import buttons
+AssertionError: expected '<div class="review-required" data-tes…' to contain 'External Review Required'
+
+Expected: "External Review Required"
+Received: "<div class="review-required" data-testid="review-required"><div class="review-required-title">需要外部评审</div><div class="review-row review-row-pending"><div class="review-row-head"><span class="review-status">待处理</span><span class="review-id dim" title="/tmp/ws">review_1</span></div><div class="review-task" title="实现一个导出功能">实现一个导出功能</div><div class="review-actions"><button type="button" class="btn" title="复制交接材料给外部评审者">复制交接材料 </button><button type="button" class="btn" title="在文件管理器中打开评审材料目录">打开文件夹 </button><label class="btn review-import-label">导入结果 <input type="file" accept=".txt,.md,.json" class="review-import-input"/></label></div></div></div>"
+
+ ❯ src/components.team.test.tsx:116:18
+    114|       <ReviewRequiredPanel reviews={[reviewFixture()]} onCopy={noop} o…
+    115|     );
+    116|     expect(html).toContain('External Review Required');
+       |                  ^
+    117|     expect(html).toContain('pending');
+    118|     expect(html).toContain('Copy Handoff');
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[19/54]⎯
+
+ FAIL  src/components.team.test.tsx > ReviewRequiredPanel (task 060 external review area: §9.1 buttons) > imported review shows the parsed result summary instead of the required header
+AssertionError: expected '<div class="review-required" data-tes…' to contain 'external · met'
+
+Expected: "external · met"
+Received: "<div class="review-required" data-testid="review-required"><div class="review-row review-row-imported"><div class="review-row-head"><span class="review-status">已导入</span><span class="review-id dim" title="/tmp/ws">review_1</span></div><div class="review-task" title="实现一个导出功能">实现一个导出功能</div><div class="review-results"><div class="review-result review-result-met">外部评审 · 已达成 — 验收标准满足</div></div><div class="review-actions"><button type="button" class="btn" title="复制交接材料给外部评审者">复制交接材料 </button><button type="button" class="btn" title="在文件管理器中打开评审材料目录">打开文件夹 </button><label class="btn review-import-label">导入结果 <input type="file" accept=".txt,.md,.json" class="review-import-input"/></label></div></div></div>"
+
+ ❯ src/components.team.test.tsx:146:18
+    144|     expect(html).not.toContain('External Review Required');
+    145|     expect(html).toContain('imported');
+    146|     expect(html).toContain('external · met');
+       |                  ^
+    147|     expect(html).toContain('验收标准满足');
+    148|   });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[20/54]⎯
+
+ FAIL  src/components.topic.test.tsx > thinking and per-turn metrics components > shows all four token dimensions plus latency and estimated cost, including zero values
+AssertionError: expected '<dl class="talking-metrics" aria-labe…' to contain '12 tok'
+
+Expected: "12 tok"
+Received: "<dl class="talking-metrics" aria-label="回合指标"><div class="talking-metric"><dt>提示</dt><dd>12 词元</dd></div><div class="talking-metric"><dt>输出</dt><dd>0 词元</dd></div><div class="talking-metric"><dt>推理</dt><dd>4 词元</dd></div><div class="talking-metric"><dt>缓存读取</dt><dd>0 词元</dd></div><div class="talking-metric"><dt>时延</dt><dd>150 毫秒</dd></div><div class="talking-metric"><dt>估算成本</dt><dd>~$0.0000</dd></div></dl>"
+
+ ❯ src/components.topic.test.tsx:122:18
+    120|       expect(html).toContain(t(label));
+    121|     }
+    122|     expect(html).toContain('12 tok');
+       |                  ^
+    123|     expect(html).toContain('0 tok');
+    124|     expect(html).toContain('150ms');
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[21/54]⎯
+
+ FAIL  src/i18n.test.ts > i18n translate(t) > interpolates {var} placeholders from params
+AssertionError: expected 'Vessel 本地服务运行正常（版本 0.4.2）' to contain 'v0.4.2'
+
+Expected: "v0.4.2"
+Received: "Vessel 本地服务运行正常（版本 0.4.2）"
+
+ ❯ src/i18n.test.ts:46:63
+     44|   it('interpolates {var} placeholders from params', () => {
+     45|     expect(translate('en')('statusOk', { version: '0.4.2' })).toBe('Ve…
+     46|     expect(translate('zh')('statusOk', { version: '0.4.2' })).toContai…
+       |                                                               ^
+     47|   });
+     48|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[22/54]⎯
+
+ FAIL  src/UsageBar.test.tsx > UsageBar — cacheWrite (cacheCreation) 分项（task 107） > 渲染 cache 读/写分项并列，且写分项带 derived 提示
+AssertionError: expected '<div class="usage-bar" title="累计模型用量（…' to contain 'cache 读 1024 / 写 2095'
+
+Expected: "cache 读 1024 / 写 2095"
+Received: "<div class="usage-bar" title="累计模型用量（调用次数、词元与估算费用）；缺少缓存写入价格时，按输入价格的 1.25 倍估算"><span class="usage-calls">次调用 3</span><span class="usage-tokens">10+5 词元（缓存：读取 1024 / 写入 2095）</span><span class="usage-cost">~$0.0000</span></div>"
+
+ ❯ src/UsageBar.test.tsx:50:18
+     48|       <UsageBar usage={totals({ calls: 3, inputTokens: 10, outputToken…
+     49|     );
+     50|     expect(html).toContain('cache 读 1024 / 写 2095');
+       |                  ^
+     51|     expect(html).toContain('cache 写价按 input×1.25 估算');
+     52|     expect(html).toContain('calls 3');
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[23/54]⎯
+
+ FAIL  src/UsageBar.test.tsx > UsageBar — cacheWrite (cacheCreation) 分项（task 107） > 无 cacheWrite 时只渲染 cache 读，不出现写分项
+AssertionError: expected '<div class="usage-bar" title="累计模型用量（…' to contain 'cache 读 1024'
+
+Expected: "cache 读 1024"
+Received: "<div class="usage-bar" title="累计模型用量（调用次数、词元与估算费用）"><span class="usage-calls">次调用 1</span><span class="usage-tokens">10+5 词元（缓存：读取 1024）</span><span class="usage-cost">~$0.0000</span></div>"
+
+ ❯ src/UsageBar.test.tsx:57:18
+     55|   it('无 cacheWrite 时只渲染 cache 读，不出现写分项', () => {
+     56|     const html = render(<UsageBar usage={totals({ calls: 1, inputToken…
+     57|     expect(html).toContain('cache 读 1024');
+       |                  ^
+     58|     expect(html).not.toContain('写');
+     59|     expect(html).not.toContain('input×1.25');
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[24/54]⎯
+
+ FAIL  src/UsageBar.test.tsx > UsageBar — cacheWrite (cacheCreation) 分项（task 107） > mock 增量链：多个 delta 累积后渲染正确（含缺字段帧回退）
+AssertionError: expected '<div class="usage-bar" title="累计模型用量（…' to contain 'cache 读 1024 / 写 2095'
+
+Expected: "cache 读 1024 / 写 2095"
+Received: "<div class="usage-bar" title="累计模型用量（调用次数、词元与估算费用）；缺少缓存写入价格时，按输入价格的 1.25 倍估算"><span class="usage-calls">次调用 1</span><span class="usage-tokens">12+8 词元（缓存：读取 1024 / 写入 2095）</span><span class="usage-cost">$0.0014</span></div>"
+
+ ❯ src/UsageBar.test.tsx:72:18
+     70|
+     71|     const html = render(<UsageBar usage={u} />);
+     72|     expect(html).toContain('cache 读 1024 / 写 2095');
+       |                  ^
+     73|     expect(html).toContain('12+8 tok');
+     74|   });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[25/54]⎯
+
+ FAIL  src/components/SubagentPanel.test.tsx > Subagent workspace > drawer exposes worktree, stage logs, all four token dimensions and close/cancel actions
+AssertionError: expected '<aside id="subagent-detail" class="su…' to contain '2,500 ms'
+
+Expected: "2,500 ms"
+Received: "<aside id="subagent-detail" class="subagent-drawer" role="dialog" aria-labelledby="subagent-detail-title" data-testid="subagent-drawer"><div class="subagent-drawer-heading"><h3 id="subagent-detail-title">Fixture worker  Details</h3><button type="button" class="btn" autofocus="">Close</button></div><dl class="subagent-fields"><dt>ID</dt><dd>sub/1</dd><dt>Provider</dt><dd>mock</dd><dt>Status</dt><dd>completed</dd><dt>Worktree</dt><dd>E:/tmp/isolated</dd><dt>Started</dt><dd>2026-10-01T00:00:00Z</dd><dt>Ended</dt><dd>2026-10-01T00:00:02.500Z</dd><dt>Duration</dt><dd>2,500ms</dd><dt>Exit code</dt><dd>—</dd></dl><h4>Token usage</h4><dl class="talking-metrics" aria-label="Subagent token usage"><div class="talking-metric"><dt>Prompt</dt><dd>—</dd></div><div class="talking-metric"><dt>Completion</dt><dd>—</dd></div><div class="talking-metric"><dt>Cache read</dt><dd>—</dd></div><div class="talking-metric"><dt>Cache write</dt><dd>—</dd></div></dl><h4>Execution stages</h4><ol class="subagent-logs" aria-live="polite"></ol></aside>"
+
+ ❯ src/components/SubagentPanel.test.tsx:73:23
+     71|     const completed = renderToStaticMarkup(<SubagentDetailDrawer subag…
+     72|     expect(completed).toContain('Duration');
+     73|     expect(completed).toContain('2,500 ms');
+       |                       ^
+     74|   });
+     75|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[26/54]⎯
+
+ FAIL  src/components/layout/DualSurfaceLayout.test.tsx > Observed Inspector telemetry > bounds cache history to the last 40 observations without mutating previous samples
+AssertionError: expected '<section class="dashboard-panel" aria…' to contain 'Last 40 observed'
+
+Expected: "Last 40 observed"
+Received: "<section class="dashboard-panel" aria-label="KV Cache economics"><h2>KV Cache economics</h2><p>Billed cache hit rate <strong>70.0%</strong> · provider / model</p><p>70  cached / 100  prompt tokens · 20  created</p><p>Estimated savings $0.0120</p><svg viewBox="0 0 300 80" class="cache-waveform" role="img" aria-label="Observed billed cache hit rate history"><title>70.0%, 70.0%, 70.0%, 70.0%, 70.0%, 70.0%, 70.0%, 70.0%, 70.0%, 70.0%, 70.0%, 70.0%, 70.0%, 70.0%, 70.0%, 70.0%, 70.0%, 70.0%, 70.0%, 70.0%, 70.0%, 70.0%, 70.0%, 70.0%, 70.0%, 70.0%, 70.0%, 70.0%, 70.0%, 70.0%, 70.0%, 70.0%, 70.0%, 70.0%, 70.0%, 70.0%, 70.0%, 70.0%, 70.0%, 70.0%</title><polyline fill="none" stroke="currentColor" stroke-width="2" points="2,24.800000000000004 9.58974358974359,24.800000000000004 17.17948717948718,24.800000000000004 24.76923076923077,24.800000000000004 32.35897435897436,24.800000000000004 39.94871794871795,24.800000000000004 47.53846153846154,24.800000000000004 55.12820512820513,24.800000000000004 62.717948717948715,24.800000000000004 70.3076923076923,24.800000000000004 77.8974358974359,24.800000000000004 85.48717948717949,24.800000000000004 93.07692307692308,24.800000000000004 100.66666666666667,24.800000000000004 108.25641025641026,24.800000000000004 115.84615384615384,24.800000000000004 123.43589743589743,24.800000000000004 131.02564102564102,24.800000000000004 138.6153846153846,24.800000000000004 146.2051282051282,24.800000000000004 153.7948717948718,24.800000000000004 161.3846153846154,24.800000000000004 168.97435897435898,24.800000000000004 176.56410256410257,24.800000000000004 184.15384615384616,24.800000000000004 191.74358974358975,24.800000000000004 199.33333333333334,24.800000000000004 206.92307692307693,24.800000000000004 214.51282051282053,24.800000000000004 222.10256410256412,24.800000000000004 229.69230769230768,24.800000000000004 237.28205128205127,24.800000000000004 244.87179487179486,24.800000000000004 252.46153846153845,24.800000000000004 260.05128205128204,24.800000000000004 267.64102564102564,24.800000000000004 275.2307692307692,24.800000000000004 282.8205128205128,24.800000000000004 290.4102564102564,24.800000000000004 298,24.800000000000004"></polyline></svg><p class="dim">Last 40  observed model calls in this session.</p><h3>Workspace fingerprint</h3><p class="dim">No workspace fingerprint observed.</p><h3>Prompt prefix segments</h3><p class="dim">No prompt prefix segments observed.</p></section>"
+
+ ❯ src/components/layout/DualSurfaceLayout.test.tsx:70:117
+     68|     expect(next).toHaveLength(40); expect(next[0].promptTokens).toBe(1…
+     69|     const html = renderToStaticMarkup(<CacheEconomicsPanel history={ne…
+     70|     expect(html).toContain('70.0%'); expect(html).toContain('Observed …
+       |                                                                                                                     ^
+     71|   });
+     72|   it('distinguishes missing observations from measured zeroes and pref…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[27/54]⎯
+
+ FAIL  src/components/layout/DualSurfaceLayout.test.tsx > Observed Inspector telemetry > distinguishes missing observations from measured zeroes and prefix from workspace hashes
+AssertionError: expected '<section class="dashboard-panel" aria…' to contain 'Stable · 0 bytes'
+
+Expected: "Stable · 0 bytes"
+Received: "<section class="dashboard-panel" aria-label="KV Cache economics"><h2>KV Cache economics</h2><p>Billed cache hit rate <strong>0.0%</strong> · provider / model</p><p>70  cached / 100  prompt tokens · 20  created</p><p>Estimated savings $0.0120</p><p class="dim">Last 1  observed model calls in this session.</p><h3>Workspace fingerprint</h3><code class="workspace-fingerprint">bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb</code><p role="status">Observed workspace fingerprint.</p><p>0  tracked files · 0  uncommitted diff bytes</p><h3>Prompt prefix segments</h3><ol class="prefix-segments"><li>Stable · 0  bytes</li><li>Scoped · 4  bytes</li><li>Volatile · 8  bytes</li></ol><p>Prefix SHA-256</p><code class="workspace-fingerprint">aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa</code></section>"
+
+ ❯ src/components/layout/DualSurfaceLayout.test.tsx:76:50
+
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[28/54]⎯
+
+ FAIL  src/components/team/TeamDagCanvas.test.tsx > team DAG workspace > layers out-of-order diamond dependencies and draws all four edges
+AssertionError: expected '<div class="team-dag-scroll"><svg ari…' to contain 'Team task dependencies'
+
+Expected: "Team task dependencies"
+Received: "<div class="team-dag-scroll"><svg aria-label="团队任务依赖" role="group" width="320" height="140"></svg></div>"
+
+ ❯ src/components/team/TeamDagCanvas.test.tsx:32:88
+     30|     expect(html.match(/data-edge=/g)).toHaveLength(4);
+     31|     expect(html).toContain(' C ');
+     32|     expect(renderToStaticMarkup(<TeamDagCanvas tasks={[]} onSelectTask…
+       |                                                                                        ^
+     33|   });
+     34|   it('renders every lifecycle state and selects the exact keyboard-acc…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[29/54]⎯
+
+ FAIL  src/components/team/TeamDagCanvas.test.tsx > team DAG workspace > renders every lifecycle state and selects the exact keyboard-accessible node
+TypeError: Cannot read properties of null (reading 'useContext')
+ ❯ process.env.NODE_ENV.exports.useContext node_modules/react/cjs/react.development.js:1258:25
+ ❯ useI18n src/components/LanguageProvider.tsx:41:15
+     39| /** Read language + translator from context; throws when used outside …
+     40| export function useI18n(): I18nApi {
+     41|   const api = useContext(I18nContext);
+       |               ^
+     42|   if (!api) throw new Error('useI18n must be used within <LanguageProv…
+     43|   return api;
+ ❯ TeamDagCanvas src/components/team/TeamDagCanvas.tsx:8:17
+ ❯ src/components/team/TeamDagCanvas.test.tsx:37:18
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[30/54]⎯
+
+ FAIL  src/components/team/TeamDagCanvas.test.tsx > team DAG workspace > shows frozen roster routes and invokes approve/reject buttons only for staged plans
+TypeError: Cannot read properties of null (reading 'useContext')
+ ❯ process.env.NODE_ENV.exports.useContext node_modules/react/cjs/react.development.js:1258:25
+ ❯ useI18n src/components/LanguageProvider.tsx:41:15
+     39| /** Read language + translator from context; throws when used outside …
+     40| export function useI18n(): I18nApi {
+     41|   const api = useContext(I18nContext);
+       |               ^
+     42|   if (!api) throw new Error('useI18n must be used within <LanguageProv…
+     43|   return api;
+ ❯ TeamStagedBanner src/components/team/TeamStagedBanner.tsx:8:17
+ ❯ src/components/team/TeamDagCanvas.test.tsx:46:18
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[31/54]⎯
+
+ FAIL  src/components/team/TeamDagCanvas.test.tsx > team DAG workspace > shows dependency/executor/error/artifacts and limits output to 300 characters
+TypeError: Cannot read properties of null (reading 'useContext')
+ ❯ process.env.NODE_ENV.exports.useContext node_modules/react/cjs/react.development.js:1258:25
+ ❯ useI18n src/components/LanguageProvider.tsx:41:15
+     39| /** Read language + translator from context; throws when used outside …
+     40| export function useI18n(): I18nApi {
+     41|   const api = useContext(I18nContext);
+       |               ^
+     42|   if (!api) throw new Error('useI18n must be used within <LanguageProv…
+     43|   return api;
+ ❯ TeamNodeDetails src/components/team/TeamNodeDrawer.tsx:13:17
+ ❯ src/components/team/TeamDagCanvas.test.tsx:57:18
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[32/54]⎯
+
+ FAIL  src/components/team/TeamDagCanvas.test.tsx > team DAG workspace > renders actual artifact comparison and invokes diff and close controls
+TypeError: Cannot read properties of null (reading 'useContext')
+ ❯ process.env.NODE_ENV.exports.useContext node_modules/react/cjs/react.development.js:1258:25
+ ❯ useI18n src/components/LanguageProvider.tsx:41:15
+     39| /** Read language + translator from context; throws when used outside …
+     40| export function useI18n(): I18nApi {
+     41|   const api = useContext(I18nContext);
+       |               ^
+     42|   if (!api) throw new Error('useI18n must be used within <LanguageProv…
+     43|   return api;
+ ❯ TeamNodeDetails src/components/team/TeamNodeDrawer.tsx:13:17
+ ❯ src/components/team/TeamDagCanvas.test.tsx:65:18
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[33/54]⎯
+
+ FAIL  src/components/team/TeamDagCanvas.test.tsx > team DAG workspace > edits member routes and task parameters through native controls and saves a revised preview
+TypeError: Cannot read properties of null (reading 'useContext')
+ ❯ process.env.NODE_ENV.exports.useContext node_modules/react/cjs/react.development.js:1258:25
+ ❯ useI18n src/components/LanguageProvider.tsx:41:15
+     39| /** Read language + translator from context; throws when used outside …
+     40| export function useI18n(): I18nApi {
+     41|   const api = useContext(I18nContext);
+       |               ^
+     42|   if (!api) throw new Error('useI18n must be used within <LanguageProv…
+     43|   return api;
+ ❯ TeamPlanEditorFields src/components/team/TeamPlanEditor.tsx:8:17
+ ❯ src/components/team/TeamDagCanvas.test.tsx:75:18
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[34/54]⎯
+
+ FAIL  src/components/team/TeamDagCanvas.test.tsx > team DAG workspace > wires the stage workspace into the existing Team module and targets encoded HTTP ids
+AssertionError: expected '<div class="team-module"><section cla…' to contain 'Staged team plans'
+
+Expected: "Staged team plans"
+Received: "<div class="team-module"><section class="team-stages-panel" aria-label="待审批的团队计划"><form class="team-run-composer"><input class="input" aria-label="团队计划任务" placeholder="预览团队计划…" value=""/><button class="btn" disabled="">生成计划预览</button></form></section><div class="model-selector" aria-label="模型模式"><div class="model-modes" role="group" aria-label="模型模式"><button type="button" class="mode-btn mode-btn-active" aria-pressed="true">自动</button><button type="button" class="mode-btn" aria-pressed="false">快速</button><button type="button" class="mode-btn" aria-pressed="false">专业</button></div><span class="model-resolved dim" title="实际使用的模型">—</span><div class="model-actions"><button type="button" class="btn" title="确定当前模式使用的模型">确定模型 </button><button type="button" class="btn" title="为本会话固定当前模型，停止自动重新判断">为本会话固定模型 </button></div></div><form class="team-run-composer"><input class="input composer-input" placeholder="输入团队任务，自动安排精简、开发与评审或完整协作团队…" value=""/><button type="submit" class="btn btn-primary" disabled="">运行团队</button></form><div class="team-module-section"><div class="team-empty dim"><div class="team-empty-title">暂无团队运行记录</div><div>在本会话中运行团队任务后，将显示负责人、开发者与评审者的活动。</div></div></div><div class="team-module-section"></div><div class="dim team-module-hint">团队活动实时更新，评审交接材料保存在 .vessel/reviews 目录。</div></div>"
+
+ ❯ src/components/team/TeamDagCanvas.test.tsx:111:80
+
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[35/54]⎯
+
+ FAIL  src/components/widgets/StreamingReasoningBlock.test.tsx > streaming reasoning interaction > renders only supplied matched rules with lesson/reflection and keeps unknown counts unknown
+AssertionError: expected 'Rule   r  ·  Shell denied Reflection:…' to contain 'Rule  r'
+
+Expected: "Rule  r"
+Received: "Rule   r  ·  Shell denied Reflection:   read-only Historical guidance; current policy takes precedence. Thought for 2.0s  ·  Token rate unavailable <script>untrusted</script>"
+
+ ❯ src/components/widgets/StreamingReasoningBlock.test.tsx:38:33
+     36|     const props = { content: '<script>untrusted</script>', isStreaming…
+     37|     expect(text(render(props))).toContain('Token rate unavailable');
+     38|     expect(text(render(props))).toContain('Rule  r');
+       |                                 ^
+     39|     expect(text(render(props))).toContain('denied'); expect(text(rende…
+     40|     expect(text(render({ ...props, reasoningTokens: 12 }))).toContain(…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[36/54]⎯
+
+ FAIL  src/components/widgets/widgets.test.tsx > inline widget rendering and timeline reconciliation > collapses more than 20 lines and honors an explicit default
+AssertionError: expected '<section class="inline-widget" aria-l…' to contain 'Expand 21 lines'
+
+Expected: "Expand 21 lines"
+Received: "<section class="inline-widget" aria-label="差异检视器"><header class="widget-head"><code>a.ts</code><span class="diff-add">+21</span><span class="diff-remove">−0</span><button type="button" class="btn" aria-expanded="false" aria-controls="_R_0_">展开 21 行</button></header><div id="_R_0_" class="widget-diff" hidden="" role="region" aria-label="统一差异"></div></section>"
+
+ ❯ src/components/widgets/widgets.test.tsx:38:84
+     36|   it('collapses more than 20 lines and honors an explicit default', ()…
+     37|     const long = { ...diff, payload: { ...diff.payload, patch: Array(2…
+     38|     expect(renderToStaticMarkup(<WidgetDispatcher widget={long} sessio…
+       |                                                                                    ^
+     39|     expect(renderToStaticMarkup(<WidgetDispatcher widget={{ ...long, p…
+     40|   });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[37/54]⎯
+
+ FAIL  src/components/widgets/widgets.test.tsx > inline widget rendering and timeline reconciliation > upserts replay IDs and never reopens a resolved action
+AssertionError: expected '<div class="message-list" role="log" …' to contain 'Resolved · Allow'
+
+Expected: "Resolved · Allow"
+Received: "<div class="message-list" role="log" aria-live="polite"><div class="message-keyboard-card" data-message-card="widget:w" tabindex="0" role="group" aria-label="交互组件卡片" aria-expanded="true"><div><section class="inline-widget" data-permission-action="true" aria-label="权限审批" aria-busy="false"><header class="widget-head"><strong>权限审批 · 文件写入</strong></header><p>Write file?</p><div class="widget-actions"><button type="button" class="btn btn-primary" disabled="">Allow</button><button type="button" class="btn widget-danger" disabled="">Deny</button></div><p role="status">已处理 · Allow</p></section></div></div></div>"
+
+ ❯ src/components/widgets/widgets.test.tsx:55:18
+     53|     expect(upsertWidget(items, action)).toBe(items);
+     54|     const html = renderToStaticMarkup(<MessageList items={items} think…
+     55|     expect(html).toContain('Resolved · Allow'); expect(html.match(/dis…
+       |                  ^
+     56|     expect(resolveWidget(items, { widgetId: 'w', selectedOptionId: 'in…
+     57|   });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[38/54]⎯
+
+ FAIL  src/components/widgets/widgets.test.tsx > inline widget rendering and timeline reconciliation > renders expired permissions with disabled choices
+AssertionError: expected '<section class="inline-widget" data-p…' to contain 'Expired'
+
+Expected: "Expired"
+Received: "<section class="inline-widget" data-permission-action="true" aria-label="权限审批" aria-busy="false"><header class="widget-head"><strong>权限审批 · 文件写入</strong></header><p>Write file?</p><div class="widget-actions"><button type="button" class="btn btn-primary" disabled="">Allow</button><button type="button" class="btn widget-danger" disabled="">Deny</button></div><p role="status">已过期</p></section>"
+
+ ❯ src/components/widgets/widgets.test.tsx:62:18
+     60|     expect(upsertWidget(expired, action)).toBe(expired);
+     61|     const html = renderToStaticMarkup(<WidgetDispatcher widget={{ ...a…
+     62|     expect(html).toContain('Expired'); expect(html.match(/disabled=""/…
+       |                  ^
+     63|   });
+     64| });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[39/54]⎯
+
+ FAIL  src/components/__tests__/CognitiveRulesDashboard.test.tsx > CognitiveRulesDashboard > renders category, trigger, lesson, action, hits and timestamp without interpreting lesson markup
+AssertionError: expected '<ul class="dashboard-cards" aria-labe…' to contain 'policy_denial'
+
+Expected: "policy_denial"
+Received: "<ul class="dashboard-cards" aria-label="反思规则"><li class="cognitive-rule"><span class="dashboard-tag">策略拒绝</span><small class="dashboard-meta">policy-1</small><dl><dt>触发条件</dt><dd>Write outside workspace</dd><dt>经验</dt><dd>Whitelist required</dd><dt>建议操作</dt><dd>Request scope approval</dd><dt>命中次数</dt><dd>4</dd><dt>更新时间</dt><dd><time dateTime="1970-01-01T00:00:01.000Z">1969/12/31 16:00:01</time></dd><dt>可信度</dt><dd>90%</dd></dl></li><li class="cognitive-rule"><span class="dashboard-tag">工具失败</span><small class="dashboard-meta">tool-1</small><dl><dt>触发条件</dt><dd>Failed shell</dd><dt>经验</dt><dd>Use absolute paths</dd><dt>建议操作</dt><dd>Check working directory</dd><dt>命中次数</dt><dd>2</dd><dt>更新时间</dt><dd><time dateTime="1970-01-01T00:00:02.000Z">1969/12/31 16:00:02</time></dd></dl></li><li class="cognitive-rule"><span class="dashboard-tag">架构约束</span><small class="dashboard-meta">arch-1</small><dl><dt>触发条件</dt><dd>Import core mechanism</dd><dt>经验</dt><dd>Keep Thin Core</dd><dt>建议操作</dt><dd>Use application composition</dd><dt>命中次数</dt><dd>7</dd><dt>更新时间</dt><dd><time dateTime="1970-01-01T00:00:03.000Z">1969/12/31 16:00:03</time></dd></dl></li><li class="cognitive-rule"><span class="dashboard-tag">策略拒绝</span><small class="dashboard-meta">untrusted</small><dl><dt>触发条件</dt><dd>Write outside workspace</dd><dt>经验</dt><dd>&lt;script&gt;external()&lt;/script&gt;</dd><dt>建议操作</dt><dd>Request scope approval</dd><dt>命中次数</dt><dd>4</dd><dt>更新时间</dt><dd><time dateTime="1970-01-01T00:00:01.000Z">1969/12/31 16:00:01</time></dd><dt>可信度</dt><dd>90%</dd></dl></li></ul>"
+
+ ❯ src/components/__tests__/CognitiveRulesDashboard.test.tsx:24:150
+     22|   it('renders category, trigger, lesson, action, hits and timestamp wi…
+     23|     const html = renderToStaticMarkup(<CognitiveRulesList rules={[...r…
+     24|     for (const rule of rules) for (const field of [rule.id, rule.categ…
+       |                                                                                                                                                      ^
+     25|     expect(html).toContain('<dd>4</dd>');
+     26|     expect(html).toContain('1970-01-01T00:00:01.000Z');
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[40/54]⎯
+
+ FAIL  src/components/__tests__/CognitiveRulesDashboard.test.tsx > CognitiveRulesDashboard > combines each category with case-insensitive live search across all meaningful rule fields
+AssertionError: expected '<p class="dashboard-empty">没有匹配的反思规则。…' to contain 'No matching reflective rules'
+
+Expected: "No matching reflective rules"
+Received: "<p class="dashboard-empty">没有匹配的反思规则。</p>"
+
+ ❯ src/components/__tests__/CognitiveRulesDashboard.test.tsx:39:69
+     37|     expect(filterCognitiveRules(rules, 'policy_denial', 'Thin Core')).…
+     38|     expect(filterCognitiveRules(rules, '', '')).toEqual(rules);
+     39|     expect(renderToStaticMarkup(<CognitiveRulesList rules={[]} />)).to…
+       |                                                                     ^
+     40|   });
+     41|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[41/54]⎯
+
+ FAIL  src/components/__tests__/CognitiveRulesDashboard.test.tsx > CognitiveRulesDashboard > category and search controls pass current values through their real handlers
+TypeError: Cannot read properties of null (reading 'useContext')
+ ❯ process.env.NODE_ENV.exports.useContext node_modules/react/cjs/react.development.js:1258:25
+ ❯ useI18n src/components/LanguageProvider.tsx:41:15
+     39| /** Read language + translator from context; throws when used outside …
+     40| export function useI18n(): I18nApi {
+     41|   const api = useContext(I18nContext);
+       |               ^
+     42|   if (!api) throw new Error('useI18n must be used within <LanguageProv…
+     43|   return api;
+ ❯ CognitiveRulesFilters src/components/CognitiveRulesDashboard.tsx:29:17
+ ❯ src/components/__tests__/CognitiveRulesDashboard.test.tsx:44:18
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[42/54]⎯
+
+ FAIL  src/components/__tests__/CognitiveRulesDashboard.test.tsx > CognitiveRulesDashboard > shows accessible loading while initial read is pending
+AssertionError: expected '<section class="dashboard-panel" aria…' to contain 'Loading reflective rules'
+
+Expected: "Loading reflective rules"
+Received: "<section class="dashboard-panel" aria-label="认知规则" aria-busy="true"><header class="dashboard-heading"><h2>认知规则</h2><button class="btn" disabled="">刷新</button></header><div class="dashboard-filters"><label>类别 <select aria-label="类别"><option value="" selected="">全部类别</option><option value="policy_denial">策略拒绝</option><option value="tool_failure">工具失败</option><option value="architecture_constraint">架构约束</option></select></label><label>搜索规则 <input type="search" placeholder="触发条件、经验或建议操作" value=""/></label></div><p role="status">正在加载反思规则…</p></section>"
+
+ ❯ src/components/__tests__/CognitiveRulesDashboard.test.tsx:75:18
+     73|   it('shows accessible loading while initial read is pending', () => {
+     74|     const html = renderToStaticMarkup(<CognitiveRulesDashboard api={{ …
+     75|     expect(html).toContain('Loading reflective rules');
+       |                  ^
+     76|     expect(html).toContain('aria-busy="true"');
+     77|   });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[43/54]⎯
+
+ FAIL  src/components/__tests__/SandboxAuditBadge.test.tsx > sandbox execution audits > displays recorded readonly roots, enforced memory caps and platform privilege constraints
+AssertionError: expected '<dl class="sandbox-audit-details"><dt…' to contain '536,870,912 bytes'
+
+Expected: "536,870,912 bytes"
+Received: "<dl class="sandbox-audit-details"><dt>执行结果</dt><dd>已强制应用</dd><dt>隔离级别</dt><dd>受限作业隔离</dd><dt>只读路径白名单</dt><dd><ul><li><code>/</code></li></ul></dd><dt>写入路径白名单</dt><dd><ul><li><code>C:\workspace</code></li><li><code>C:\tmp</code></li></ul></dd><dt>内存限制</dt><dd>536,870,912 字节</dd><dt>权限降低</dt><dd>Native restricted token audit</dd></dl>"
+
+ ❯ src/components/__tests__/SandboxAuditBadge.test.tsx:18:18
+
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[44/54]⎯
+
+ FAIL  src/components/__tests__/SandboxAuditBadge.test.tsx > sandbox execution audits > renders keyboard-operable disclosure and truthful constraints
+AssertionError: expected '<details class="sandbox-audit sandbox…' to contain 'Sandbox: windows-job-restricted'
+
+Expected: "Sandbox: windows-job-restricted"
+Received: "<details class="sandbox-audit sandbox-green"><summary aria-controls="_R_0_">沙箱： 受限作业隔离</summary><aside id="_R_0_" class="sandbox-audit-drawer" aria-label="沙箱安全约束"><button type="button" class="btn">关闭沙箱详情</button><dl class="sandbox-audit-details"><dt>执行结果</dt><dd>已强制应用</dd><dt>隔离级别</dt><dd>受限作业隔离</dd><dt>只读路径白名单</dt><dd>执行审计未记录此项。</dd><dt>写入路径白名单</dt><dd><ul><li><code>C:\workspace</code></li><li><code>C:\tmp</code></li></ul></dd><dt>内存限制</dt><dd>执行审计未记录此项。</dd><dt>权限降低</dt><dd>受限令牌、低完整性级别与作业对象隔离。</dd></dl></aside></details>"
+
+ ❯ src/components/__tests__/SandboxAuditBadge.test.tsx:36:18
+     34|     expect(html).toContain('<details');
+     35|     expect(html).toContain('<summary aria-controls=');
+     36|     expect(html).toContain('Sandbox: windows-job-restricted');
+       |                  ^
+     37|     expect(html).toContain('Close sandbox details');
+     38|     expect(html).toContain('C:\\workspace');
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[45/54]⎯
+
+ FAIL  src/components/__tests__/SandboxAuditBadge.test.tsx > sandbox execution audits > does not invent whitelist/privilege enforcement on fallback
+AssertionError: expected '<dl class="sandbox-audit-details"><dt…' to contain 'Not enforced for this execution.'
+
+Expected: "Not enforced for this execution."
+Received: "<dl class="sandbox-audit-details"><dt>执行结果</dt><dd>回退执行</dd><dt>隔离级别</dt><dd>passthrough-fallback</dd><dt>只读路径白名单</dt><dd>执行审计未记录此项。</dd><dt>写入路径白名单</dt><dd>执行审计未记录此项。</dd><dt>内存限制</dt><dd>执行审计未记录此项。</dd><dt>权限降低</dt><dd>本次执行未强制应用。</dd><dt>原因</dt><dd>helper unavailable</dd></dl>"
+
+ ❯ src/components/__tests__/SandboxAuditBadge.test.tsx:47:18
+     45|     const html = renderToStaticMarkup(<SandboxAuditDetails audit={{ is…
+     46|     expect(html).toContain('helper unavailable');
+     47|     expect(html).toContain('Not enforced for this execution.');
+       |                  ^
+     48|     expect(html.match(/Not recorded by the execution audit/g)).toHaveL…
+     49|   });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[46/54]⎯
+
+ FAIL  src/components/__tests__/SandboxAuditBadge.test.tsx > sandbox execution audits > renders the execution badge in cards and the Talking message flow only with audit evidence
+AssertionError: expected '<div class="tool-row tool-dot-ok"><sp…' to contain 'Sandbox: windows-job-restricted'
+
+Expected: "Sandbox: windows-job-restricted"
+Received: "<div class="tool-row tool-dot-ok"><span class="dot dot-ok" aria-hidden="true"></span><span class="tool-name">Shell</span><span class="tool-status">已完成</span><details class="sandbox-audit sandbox-green"><summary aria-controls="_R_6_">沙箱： 受限作业隔离</summary><aside id="_R_6_" class="sandbox-audit-drawer" aria-label="沙箱安全约束"><button type="button" class="btn">关闭沙箱详情</button><dl class="sandbox-audit-details"><dt>执行结果</dt><dd>已强制应用</dd><dt>隔离级别</dt><dd>受限作业隔离</dd><dt>只读路径白名单</dt><dd>执行审计未记录此项。</dd><dt>写入路径白名单</dt><dd><ul><li><code>C:\workspace</code></li><li><code>C:\tmp</code></li></ul></dd><dt>内存限制</dt><dd>执行审计未记录此项。</dd><dt>权限降低</dt><dd>受限令牌、低完整性级别与作业对象隔离。</dd></dl></aside></details></div>"
+
+ ❯ src/components/__tests__/SandboxAuditBadge.test.tsx:52:69
+     50|   it('renders the execution badge in cards and the Talking message flo…
+     51|     const delta = { toolName: 'Shell', status: 'done' as const, ts: 1,…
+     52|     expect(renderToStaticMarkup(<ToolActivityRow delta={delta} />)).to…
+       |                                                                     ^
+     53|     expect(renderToStaticMarkup(<MessageList items={[{ id: 'call', kin…
+     54|     expect(renderToStaticMarkup(<ToolActivityRow delta={{ toolName: 'R…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[47/54]⎯
+
+ FAIL  src/components/__tests__/SwarmTopologyView.test.tsx > SwarmTopologyView > shows observed remote task activity without inventing load for absent snapshots
+AssertionError: expected '<p class="dashboard-meta">2  个节点 · 记录…' to contain '1 active / 1 observed'
+
+Expected: "1 active / 1 observed"
+Received: "<p class="dashboard-meta">2  个节点 · 记录时间 <time dateTime="1970-01-01T00:00:01.000Z">1969/12/31 16:00:01</time></p><svg class="mesh-graph" viewBox="0 0 640 208" role="img" aria-label="代理节点连接"><title>本机节点连接了 2 个节点</title><g class="mesh-online"><line x1="130" y1="104" x2="460" y2="60" class="mesh-link"></line><circle cx="460" cy="60" r="12" class="mesh-dot"></circle><text x="480" y="55">peer-online</text><text x="480" y="75" class="mesh-rtt">在线 · 23 毫秒</text><title>peer-online: http://peer:3000, 在线</title></g><g class="mesh-busy"><line x1="130" y1="104" x2="460" y2="144" class="mesh-link"></line><circle cx="460" cy="144" r="12" class="mesh-dot"></circle><text x="480" y="139">peer-busy</text><text x="480" y="159" class="mesh-rtt">busy · 50 毫秒</text><title>peer-busy: http://busy:3000, busy</title></g><circle cx="130" cy="104" r="20" class="mesh-local"></circle><text x="24" y="72">local</text></svg><ul class="dashboard-cards" aria-label="代理网络节点"><li class="mesh-node mesh-online"><strong>local</strong> <span class="dashboard-tag">本机</span><span class="dashboard-status mesh-online">在线</span><dl><dt>端点</dt><dd>http://127.0.0.1:5678</dd><dt>角色</dt><dd>planner</dd><dt>心跳往返延迟</dt><dd>本机节点</dd></dl></li><li class="mesh-node mesh-online"><strong>peer-online</strong> <span class="dashboard-status mesh-online">在线</span><dl><dt>端点</dt><dd>http://peer:3000</dd><dt>角色</dt><dd>worker, reviewer</dd><dt>心跳往返延迟</dt><dd>23 毫秒</dd><dt>远端任务活动</dt><dd>1  运行中／ 1  已记录 <ul><li>Review patch · 评估者 · 运行中</li></ul></dd></dl></li><li class="mesh-node mesh-busy"><strong>peer-busy</strong> <span class="dashboard-status mesh-busy">busy</span><dl><dt>端点</dt><dd>http://busy:3000</dd><dt>角色</dt><dd>worker</dd><dt>心跳往返延迟</dt><dd>50 毫秒</dd><dt>远端任务活动</dt><dd>暂无任务图快照，请选择任务图查看任务。</dd></dl></li></ul>"
+
+ ❯ src/components/__tests__/SwarmTopologyView.test.tsx:21:18
+
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[48/54]⎯
+
+ FAIL  src/components/__tests__/SwarmTopologyView.test.tsx > SwarmTopologyView > renders SVG connections and complete local/peer details with explicit connectivity and RTT
+AssertionError: expected '<p class="dashboard-meta">3  个节点 · 记录…' to contain '23 ms'
+
+Expected: "23 ms"
+Received: "<p class="dashboard-meta">3  个节点 · 记录时间 <time dateTime="1970-01-01T00:00:01.000Z">1969/12/31 16:00:01</time></p><svg class="mesh-graph" viewBox="0 0 640 292" role="img" aria-label="代理节点连接"><title>本机节点连接了 3 个节点</title><g class="mesh-online"><line x1="130" y1="146" x2="460" y2="60" class="mesh-link"></line><circle cx="460" cy="60" r="12" class="mesh-dot"></circle><text x="480" y="55">peer-online</text><text x="480" y="75" class="mesh-rtt">在线 · 23 毫秒</text><title>peer-online: http://peer:3000, 在线</title></g><g class="mesh-busy"><line x1="130" y1="146" x2="460" y2="144" class="mesh-link"></line><circle cx="460" cy="144" r="12" class="mesh-dot"></circle><text x="480" y="139">peer-busy</text><text x="480" y="159" class="mesh-rtt">busy · 50 毫秒</text><title>peer-busy: http://busy:3000, busy</title></g><g class="mesh-offline"><line x1="130" y1="146" x2="460" y2="228" class="mesh-link mesh-link-offline"></line><circle cx="460" cy="228" r="12" class="mesh-dot"></circle><text x="480" y="223">peer-offline</text><text x="480" y="243" class="mesh-rtt">离线 · 往返延迟不可用</text><title>peer-offline: http://offline:3000, 离线</title></g><circle cx="130" cy="146" r="20" class="mesh-local"></circle><text x="24" y="114">local</text></svg><ul class="dashboard-cards" aria-label="代理网络节点"><li class="mesh-node mesh-online"><strong>local</strong> <span class="dashboard-tag">本机</span><span class="dashboard-status mesh-online">在线</span><dl><dt>端点</dt><dd>http://127.0.0.1:5678</dd><dt>角色</dt><dd>planner</dd><dt>心跳往返延迟</dt><dd>本机节点</dd></dl></li><li class="mesh-node mesh-online"><strong>peer-online</strong> <span class="dashboard-status mesh-online">在线</span><dl><dt>端点</dt><dd>http://peer:3000</dd><dt>角色</dt><dd>worker, reviewer</dd><dt>心跳往返延迟</dt><dd>23 毫秒</dd><dt>远端任务活动</dt><dd>暂无任务图快照，请选择任务图查看任务。</dd></dl></li><li class="mesh-node mesh-busy"><strong>peer-busy</strong> <span class="dashboard-status mesh-busy">busy</span><dl><dt>端点</dt><dd>http://busy:3000</dd><dt>角色</dt><dd>worker</dd><dt>心跳往返延迟</dt><dd>50 毫秒</dd><dt>远端任务活动</dt><dd>暂无任务图快照，请选择任务图查看任务。</dd></dl></li><li class="mesh-node mesh-offline"><strong>peer-offline</strong> <span class="dashboard-status mesh-offline">离线</span><dl><dt>端点</dt><dd>http://offline:3000</dd><dt>角色</dt><dd>未公布角色</dd><dt>心跳往返延迟</dt><dd>不可用</dd><dt>远端任务活动</dt><dd>暂无任务图快照，请选择任务图查看任务。</dd></dl></li></ul>"
+
+ ❯ src/components/__tests__/SwarmTopologyView.test.tsx:38:18
+     36|       for (const role of node.roleCapabilities) expect(html).toContain…
+     37|     }
+     38|     expect(html).toContain('23 ms');
+       |                  ^
+     39|     expect(html).toContain('RTT unavailable');
+     40|     expect(html).not.toContain('12 ms'); // stale latency must not imp…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[49/54]⎯
+
+ FAIL  src/components/__tests__/SwarmTopologyView.test.tsx > SwarmTopologyView > distinguishes unconfigured mesh, no peers and initial loading
+AssertionError: expected '<p class="dashboard-empty">尚未配置代理网络。<…' to contain 'Mesh is not configured'
+
+Expected: "Mesh is not configured"
+Received: "<p class="dashboard-empty">尚未配置代理网络。</p>"
+
+ ❯ src/components/__tests__/SwarmTopologyView.test.tsx:46:128
+     44|
+     45|   it('distinguishes unconfigured mesh, no peers and initial loading', …
+     46|     expect(renderToStaticMarkup(<SwarmTopologyPanel snapshot={{ ...sna…
+       |                                                                                                                                ^
+     47|     expect(renderToStaticMarkup(<SwarmTopologyPanel snapshot={{ ...sna…
+     48|     const html = renderToStaticMarkup(<SwarmTopologyView api={{ meshPe…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[50/54]⎯
+
+ FAIL  src/components/__tests__/SwarmTopologyView.test.tsx > SwarmTopologyView > renders bounded RTT waveforms without recording offline values or removed peers
+AssertionError: expected '<p class="dashboard-meta">3  个节点 · 记录…' to contain 'Recent heartbeat RTT for peer-online'
+
+Expected: "Recent heartbeat RTT for peer-online"
+Received: "<p class="dashboard-meta">3  个节点 · 记录时间 <time dateTime="1970-01-01T00:00:01.000Z">1969/12/31 16:00:01</time></p><svg class="mesh-graph" viewBox="0 0 640 292" role="img" aria-label="代理节点连接"><title>本机节点连接了 3 个节点</title><g class="mesh-online"><line x1="130" y1="146" x2="460" y2="60" class="mesh-link"></line><circle cx="460" cy="60" r="12" class="mesh-dot"></circle><text x="480" y="55">peer-online</text><text x="480" y="75" class="mesh-rtt">在线 · 23 毫秒</text><title>peer-online: http://peer:3000, 在线</title></g><g class="mesh-busy"><line x1="130" y1="146" x2="460" y2="144" class="mesh-link"></line><circle cx="460" cy="144" r="12" class="mesh-dot"></circle><text x="480" y="139">peer-busy</text><text x="480" y="159" class="mesh-rtt">busy · 50 毫秒</text><title>peer-busy: http://busy:3000, busy</title></g><g class="mesh-offline"><line x1="130" y1="146" x2="460" y2="228" class="mesh-link mesh-link-offline"></line><circle cx="460" cy="228" r="12" class="mesh-dot"></circle><text x="480" y="223">peer-offline</text><text x="480" y="243" class="mesh-rtt">离线 · 往返延迟不可用</text><title>peer-offline: http://offline:3000, 离线</title></g><circle cx="130" cy="146" r="20" class="mesh-local"></circle><text x="24" y="114">local</text></svg><ul class="dashboard-cards" aria-label="代理网络节点"><li class="mesh-node mesh-online"><strong>local</strong> <span class="dashboard-tag">本机</span><span class="dashboard-status mesh-online">在线</span><dl><dt>端点</dt><dd>http://127.0.0.1:5678</dd><dt>角色</dt><dd>planner</dd><dt>心跳往返延迟</dt><dd>本机节点</dd></dl></li><li class="mesh-node mesh-online"><strong>peer-online</strong> <span class="dashboard-status mesh-online">在线</span><dl><dt>端点</dt><dd>http://peer:3000</dd><dt>角色</dt><dd>worker, reviewer</dd><dt>心跳往返延迟</dt><dd>23 毫秒</dd><dt>远端任务活动</dt><dd>暂无任务图快照，请选择任务图查看任务。</dd></dl><svg class="mesh-waveform" viewBox="0 0 120 32" role="img" aria-label="peer-online 最近的心跳往返延迟"><title>最近 20 次成功记录：1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 23 毫秒</title><polyline fill="none" stroke="currentColor" stroke-width="2" points="2,28.782608695652172 8.105263157894736,27.565217391304348 14.210526315789474,26.347826086956523 20.31578947368421,25.130434782608695 26.42105263157895,23.91304347826087 32.526315789473685,22.695652173913043 38.63157894736842,21.47826086956522 44.73684210526316,20.26086956521739 50.8421052631579,19.043478260869563 56.94736842105263,17.826086956521742 63.05263157894737,16.608695652173914 69.15789473684211,15.391304347826088 75.26315789473684,14.173913043478262 81.36842105263158,12.956521739130434 87.47368421052632,11.73913043478261 93.57894736842105,10.521739130434781 99.6842105263158,9.304347826086957 105.78947368421052,8.086956521739129 111.89473684210526,6.869565217391305 118,2"></polyline></svg></li><li class="mesh-node mesh-busy"><strong>peer-busy</strong> <span class="dashboard-status mesh-busy">busy</span><dl><dt>端点</dt><dd>http://busy:3000</dd><dt>角色</dt><dd>worker</dd><dt>心跳往返延迟</dt><dd>50 毫秒</dd><dt>远端任务活动</dt><dd>暂无任务图快照，请选择任务图查看任务。</dd></dl></li><li class="mesh-node mesh-offline"><strong>peer-offline</strong> <span class="dashboard-status mesh-offline">离线</span><dl><dt>端点</dt><dd>http://offline:3000</dd><dt>角色</dt><dd>未公布角色</dd><dt>心跳往返延迟</dt><dd>不可用</dd><dt>远端任务活动</dt><dd>暂无任务图快照，请选择任务图查看任务。</dd></dl></li></ul>"
+
+ ❯ src/components/__tests__/SwarmTopologyView.test.tsx:62:18
+     60|     const html = renderToStaticMarkup(<SwarmTopologyPanel snapshot={sn…
+     61|     expect(html).toContain('<polyline');
+     62|     expect(html).toContain('Recent heartbeat RTT for peer-online');
+       |                  ^
+     63|     expect(html).not.toContain('Recent heartbeat RTT for peer-offline'…
+     64|   });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[51/54]⎯
+
+ FAIL  src/components/__tests__/UsageBarCache.test.tsx > server priced cache badges > renders the server hit rate, savings and cost
+AssertionError: expected '<div class="usage-bar" title="累计模型用量（…' to contain 'Cache 92%'
+
+Expected: "Cache 92%"
+Received: "<div class="usage-bar" title="累计模型用量（调用次数、词元与估算费用）"><span class="usage-calls">次调用 1</span><span class="usage-tokens">1000+0 词元</span><span class="usage-cache" style="color:var(--green)">⚡ 缓存 92% · 读取节省费用 $ 0.1234</span><span class="usage-cost">$0.9876</span></div>"
+
+ ❯ src/components/__tests__/UsageBarCache.test.tsx:12:18
+     10|     const usage = applyUsageDelta(emptyUsage(), { inputTokens: 1000, c…
+     11|     const html = renderToStaticMarkup(<UsageBar usage={usage} />);
+     12|     expect(html).toContain('Cache 92%'); expect(html).toContain('0.123…
+       |                  ^
+     13|   });
+     14|   it('labels fallback estimates and replaces cumulative totals', () =>…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[52/54]⎯
+
+ FAIL  src/components/__tests__/UsageBarCache.test.tsx > server priced cache badges > labels fallback estimates and replaces cumulative totals
+AssertionError: expected '<div class="usage-bar" title="累计模型用量（…' to contain 'estimated read savings'
+
+Expected: "estimated read savings"
+Received: "<div class="usage-bar" title="累计模型用量（调用次数、词元与估算费用）"><span class="usage-calls">次调用 2</span><span class="usage-tokens">0+0 词元</span><span class="usage-cache" style="color:var(--green)">⚡ 缓存 92% · 估算读取节省费用 $ 0.1234</span><span class="usage-cost">$0.9876</span></div>"
+
+ ❯ src/components/__tests__/UsageBarCache.test.tsx:18:62
+     16|     usage = applyUsageDelta(usage, { calls: 2, summary: { ...summary, …
+     17|     expect(usage.estimatedSavingsUsd).toBe(0.1234);
+     18|     expect(renderToStaticMarkup(<UsageBar usage={usage} />)).toContain…
+       |                                                              ^
+     19|   });
+     20|   it('does not show a false zero percent badge when cache metrics were…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[53/54]⎯
+
+ FAIL  src/components/__tests__/UsageBarCache.test.tsx > server priced cache badges > shows per-message server-priced cache metadata
+AssertionError: expected '<dl class="talking-metrics" aria-labe…' to contain 'estimated read savings'
+
+Expected: "estimated read savings"
+Received: "<dl class="talking-metrics" aria-label="回合指标"><div class="talking-metric" style="color:var(--green)"><dt>⚡ 缓存</dt><dd>92% · 估算读取节省费用 $ 0.1234</dd></div><div class="talking-metric"><dt>提示</dt><dd>1,000 词元</dd></div><div class="talking-metric"><dt>输出</dt><dd>—</dd></div><div class="talking-metric"><dt>推理</dt><dd>—</dd></div><div class="talking-metric"><dt>缓存读取</dt><dd>—</dd></div></dl>"
+
+ ❯ src/components/__tests__/UsageBarCache.test.tsx:26:49
+
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[54/54]⎯
+
+
+ Test Files  15 failed | 14 passed (29)
+      Tests  54 failed | 197 passed (251)
+   Start at  03:13:49
+   Duration  18.23s (import 42%, tests 28%, transform 26%, worker 3%)
+
+     Import  108 modules were evaluated 194 times · 3.73s total, 42% of tracked time
+             ~1.65s faster with isolate: false — shared modules are evaluated once per worker instead of once per file
+             learn more: https://vitest.dev/guide/improving-performance#test-isolation
+

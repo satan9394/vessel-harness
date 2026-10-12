@@ -1,3 +1,4 @@
+import { useI18n } from './LanguageProvider';
 import { useCallback, useEffect, useState } from 'react';
 import type { ApiClient } from '../api';
 import {
@@ -26,6 +27,7 @@ interface Props {
  * Renders <GoalPanel>.
  */
 export default function GoalModule({ sessionId, api }: Props) {
+  const { t } = useI18n();
   const [tasks, setTasks] = useState<GoalTask[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [iterations, setIterations] = useState<GoalIteration[]>([]);
@@ -114,7 +116,7 @@ export default function GoalModule({ sessionId, api }: Props) {
     const g = goal.trim();
     if (!g || busy) return;
     if (!projectRoot) {
-      showError(new Error('No owning project workspace for this session'));
+      showError(new Error(t('noOwningWorkspace')));
       return;
     }
     setBusy(true);
@@ -132,7 +134,7 @@ export default function GoalModule({ sessionId, api }: Props) {
     } finally {
       setBusy(false);
     }
-  }, [api, projectRoot, goal, busy, refreshTasks, showError]);
+  }, [api, projectRoot, goal, busy, refreshTasks, showError, t]);
 
   const run = useCallback(async () => {
     if (!selectedId || busy || running) return;
@@ -222,11 +224,11 @@ export default function GoalModule({ sessionId, api }: Props) {
           className="input composer-input"
           value={goal}
           onChange={(e) => setGoal(e.target.value)}
-          placeholder="Goal… (enqueue into this project's task queue)"
+          placeholder={t('uiGoalEnqueueIntoThisProjectSTaskQueue')}
           disabled={busy}
         />
         <button type="submit" className="btn btn-primary" disabled={busy || !goal.trim()}>
-          {busy ? 'Adding…' : 'Enqueue'}
+          {busy ? t('uiAdding') : t('uiEnqueue')}
         </button>
       </form>
       {error && <div className="error-text">{error}</div>}
@@ -245,8 +247,7 @@ export default function GoalModule({ sessionId, api }: Props) {
         enqueueCancelled={enqueueCancelled}
       />
       <div className="dim goal-module-hint">
-        Run control: Pause suspends, Resume continues; Budget sets maxIterations/maxRetries (§11.1 default 1/1).
-      </div>
+        {t('uiRunControlPauseSuspendsResumeContinuesBudgetSets')} </div>
     </div>
   );
 }

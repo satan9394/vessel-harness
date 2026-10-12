@@ -1,10 +1,17 @@
+import { localizedValue } from './i18n';
 import { useCallback, useEffect, useState } from 'react';
-import { createApiClient, type ApiClient, type Health, type Project, type SessionMeta } from './api';
+import { createApiClient, type ApiClient, type Health, type Project, type SessionMeta, type CreateSessionInput } from './api';
+import CommandPalette from './components/common/CommandPalette';
+import type { CommandItem } from './components/palette/types';
+import { INSPECTOR_TABS, INSPECTOR_LABELS, type InspectorTab } from './components/layout/DualSurfaceLayout';
 import Sidebar from './components/Sidebar';
 import StatusBar from './components/StatusBar';
 import NewSessionForm, { type NewSessionResult } from './components/NewSessionForm';
 import ConversationView from './components/ConversationView';
+import AttentionControls from './components/AttentionControls';
+import { AttentionManager } from './utils/attentionManager';
 import CustomizePanel from './components/CustomizePanel';
+import ProviderSettingsModal from './components/providers/ProviderSettingsModal';
 import LanguageSwitcher from './components/LanguageSwitcher';
 import { LanguageProvider, useI18n } from './components/LanguageProvider';
 import UsageBar, { emptyUsage } from './components/UsageBar';
@@ -53,12 +60,18 @@ export default function App() {
 
 function AppShell() {
   const { t } = useI18n();
+  const [attention] = useState(() => new AttentionManager());
+  useEffect(() => { attention.attach(); return () => attention.dispose(); }, [attention]);
   const [api] = useState<ApiClient>(() => createApiClient());
   const [health, setHealth] = useState<Health | null>(null);
   const [projects, setProjects] = useState<Project[]>([]);
   const [sessions, setSessions] = useState<SessionMeta[]>([]);
   const [serverError, setServerError] = useState(false);
+  const [showProviders, setShowProviders] = useState(false);
+  const [providerRevision, setProviderRevision] = useState(0);
   const [showNew, setShowNew] = useState(false);
+  const [newPermission, setNewPermission] = useState<CreateSessionInput['permission']>('workspace-write');
+  const [viewRequest, setViewRequest] = useState<{ action: 'clear' | 'collapse' | 'expand' | 'export' | InspectorTab; serial: number }>();
   const [selectedSessionId, setSelectedSessionId] = useState<string | null>(null);
   const [modules, setModules] = useState<UiModuleState>(() => loadModules());
 
@@ -104,8 +117,23 @@ function AppShell() {
 
   const nothingSelected = !selectedSessionId || !sessions.some((s) => s.id === selectedSessionId);
 
+  const requestView = (action: 'clear' | 'collapse' | 'expand' | 'export' | InspectorTab) => setViewRequest(previous => ({ action, serial: (previous?.serial ?? 0) + 1 }));
+  const commands: CommandItem[] = [
+    { id: 'providers', title: t('modelSettings'), category: 'action', keywords: ['provider', 'model'], execute: () => setShowProviders(true) },
+    { id: 'new', title: t('newSessionTitle'), category: 'session', execute: () => { setNewPermission('workspace-write'); setShowNew(true); } },
+    ...(['read-only', 'workspace-write'] as const).map(permission => ({ id: `sandbox:${permission}`, title: t('paletteSandbox', { permission: t(permission === 'read-only' ? 'permissionReadOnly' : 'permissionWorkspaceWrite') }), category: 'action' as const, keywords: ['security'], execute: () => { setNewPermission(permission); setShowNew(true); } })),
+    ...sessions.filter(session => !session.topic?.isArchived).map(session => ({ id: `session:${session.id}`, title: t('paletteSession', { title: session.topic?.title ?? session.id, root: session.workspaceRoot }), category: 'session' as const, keywords: [session.id], execute: () => setSelectedSessionId(session.id) })),
+    ...(!nothingSelected ? [
+      ...INSPECTOR_TABS.map(tab => ({ id: `inspector:${tab}`, title: t('paletteInspector', { tab: t(INSPECTOR_LABELS[tab]) }), category: 'navigation' as const, execute: () => requestView(tab) })),
+      { id: 'export', title: t('paletteExportJson'), category: 'action' as const, execute: () => requestView('export') },
+      { id: 'clear', title: t('paletteClearScreen'), category: 'view' as const, execute: () => requestView('clear') },
+      { id: 'collapse', title: t('paletteCollapse'), category: 'view' as const, execute: () => requestView('collapse') },
+      { id: 'expand', title: t('paletteExpand'), category: 'view' as const, execute: () => requestView('expand') },
+    ] : []),
+  ];
+
   return (
-    <div className="app">
+    <div className="app" data-provider-revision={providerRevision}>
       <Sidebar
         projects={projects}
         sessions={sessions}
@@ -119,6 +147,9 @@ function AppShell() {
         <div className="topbar">
           <StatusBar health={health} error={serverError} />
           <div className="topbar-actions">
+            <button className="btn" onClick={() => setShowProviders(true)}>{t('modelSettings')}</button>
+            <AttentionControls attention={attention} />
+            <CommandPalette commands={commands} />
             <CustomizePanel modules={modules} onChange={handleModulesChange} />
             <LanguageSwitcher />
           </div>
@@ -136,12 +167,13 @@ function AppShell() {
           </section>
         ) : (
           <div className="conversation-wrap">
-            <ConversationView sessionId={selectedSessionId as string} api={api} onSessionUpdated={() => void connect()} />
+            <ConversationView providerRevision={providerRevision} onConfigureModels={() => setShowProviders(true)} attention={attention} viewRequest={viewRequest} sessionId={selectedSessionId as string} api={api} onSessionUpdated={() => void connect()} />
             <ModuleSections modules={modules} api={api} sessionId={selectedSessionId as string} />
           </div>
         )}
       </main>
-      {showNew && <NewSessionForm api={api} onCreated={onCreated} onClose={() => setShowNew(false)} />}
+      {showNew && <NewSessionForm hidden={showProviders} providerRevision={providerRevision} onConfigureModels={() => setShowProviders(true)} initialPermission={newPermission} api={api} onCreated={onCreated} onClose={() => setShowNew(false)} />}
+      {showProviders && <ProviderSettingsModal api={api} onClose={() => setShowProviders(false)} onChanged={() => setProviderRevision(previous => previous + 1)} />}
     </div>
   );
 }
@@ -188,14 +220,14 @@ function ModuleSection({
       if (!sessionId) {
         return (
           <div className="module-card">
-            <div className="module-card-title">Team</div>
+            <div className="module-card-title">{t('uiTeam')}</div>
             <div className="module-card-body dim">{t('teamModuleNoSession')}</div>
           </div>
         );
       }
       return (
         <div className="module-card module-card-team">
-          <div className="module-card-title">Team</div>
+          <div className="module-card-title">{t('uiTeam')}</div>
           <div className="module-card-body">
             <TeamModule sessionId={sessionId} api={api} />
           </div>
@@ -207,32 +239,32 @@ function ModuleSection({
       if (!sessionId) {
         return (
           <div className="module-card">
-            <div className="module-card-title">Goals</div>
+            <div className="module-card-title">{t('uiGoals')}</div>
             <div className="module-card-body dim">{t('goalModuleNoSession')}</div>
           </div>
         );
       }
       return (
         <div className="module-card module-card-goal">
-          <div className="module-card-title">Goals</div>
+          <div className="module-card-title">{t('uiGoals')}</div>
           <div className="module-card-body">
             <GoalModule sessionId={sessionId} api={api} />
           </div>
         </div>
       );
     case 'ChangedFiles':
-      return <PlaceholderCard title="Changed Files">{t('changedFilesPlaceholder')}</PlaceholderCard>;
+      return <PlaceholderCard title={t('uiChangedFiles')}>{t('changedFilesPlaceholder')}</PlaceholderCard>;
     case 'Cost':
       // 042 UsageBar reuse; placeholders until live usage is lifted up from a session.
       return (
-        <PlaceholderCard title="Cost">
+        <PlaceholderCard title={t('uiCost')}>
           <UsageBar usage={emptyUsage()} />
         </PlaceholderCard>
       );
     case 'ToolActivity':
       // 042 ToolActivityRow reuse; placeholder rows until a live tool stream is lifted up.
       return (
-        <PlaceholderCard title="Tool Activity">
+        <PlaceholderCard title={t('uiToolActivity')}>
           <div className="tool-activity-list">
             {SAMPLE_TOOL_ACTIVITY.map((tool, i) => (
               <ToolActivityRow key={i} delta={tool} />
@@ -244,7 +276,7 @@ function ModuleSection({
       if (UNIMPLEMENTED.includes(id)) {
         return (
           <div className="module-card">
-            <div className="module-card-title">{id}</div>
+            <div className="module-card-title">{localizedValue(id, t)}</div>
             <div className="module-card-body dim">{t('unimplemented')}</div>
           </div>
         );

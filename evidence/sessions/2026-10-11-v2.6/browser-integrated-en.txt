@@ -1,0 +1,80 @@
+- complementary:
+  - generic: Vessel
+  - button "+ New Session"
+  - navigation:
+    - generic: Projects
+    - list:
+      - listitem "C:\\work\\AppData\\Local\\Temp\\vessel-v26-browser-gTC1X8\\workspace"
+    - generic: Recent Sessions
+    - textbox "Search topics or sessions…"
+    - checkbox "Show archived"
+    - text: Show archived
+    - generic: Today
+    - button "First local fixture"
+    - button "workspace"
+    - button "Rename topic"
+    - button "Archive topic"
+    - region "Subagents":
+      - heading "Subagents" [level=3]
+      - generic: No active subagents
+  - generic: Settings
+- main:
+  - generic: Vessel local server ok (v0.10.0)
+  - button "Model settings"
+  - generic "Attention settings":
+    - button "Mute cues"
+    - button "Enable notifications"
+  - button "Commands"
+  - button "Customize"
+  - button "Language": English
+  - button "Open Inspector"
+  - generic: session sess_179
+  - generic: Current model
+  - combobox "Current model":
+    - option "ollama / fixture-a"
+    - option "ollama / fixture-b" [selected]
+  - button "Configure new model"
+  - generic "Total model usage (calls, tokens and estimated cost)":
+    - generic: calls 2
+    - generic: 6+10 tok
+    - generic: ~$0.0000
+  - log:
+    - group "message card":
+      - generic: You
+      - generic: First local fixture turn
+    - group "message card":
+      - generic: Vessel
+      - generic: "Local fixture response: fixture-a"
+    - group "message card":
+      - generic: You
+      - generic: Second local fixture turn
+    - group "message card":
+      - generic: Vessel
+      - generic: "Local fixture response: fixture-b"
+  - generic "Turn metrics":
+    - term: Prompt
+    - definition: 3 tok
+    - term: Completion
+    - definition: 5 tok
+    - term: Reasoning
+    - definition: —
+    - term: Cache read
+    - definition: 0 tok
+    - term: Latency
+    - definition: 39ms
+    - term: Est. cost
+    - definition: $0.0000
+  - generic "Talking sandbox audits"
+  - textbox "Type a message… (Enter to send)"
+  - button "Send" [disabled]
+  - button "Stop" [disabled]
+  - generic: Goals
+  - textbox "Goal… (enqueue into this project's task queue)"
+  - button "Enqueue" [disabled]
+  - generic: Task queue
+  - generic: 0 tasks
+  - generic: No tasks yet
+  - generic: Enqueue a goal and run it — each iteration shows the generator output and the evaluator verdict.
+  - generic: "Run control: Pause suspends, Resume continues; Budget sets maxIterations/maxRetries (§11.1 default 1/1)."
+  - generic: Changed Files
+  - generic: Changed files placeholder (under development).

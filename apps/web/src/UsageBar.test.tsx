@@ -1,5 +1,7 @@
-import { describe, it, expect } from 'vitest';
-import { renderToStaticMarkup } from 'react-dom/server';
+import type { ReactNode as I18nTestNode } from 'react';
+import { LanguageProvider } from './components/LanguageProvider';
+import { describe, it, expect , vi } from 'vitest';
+import { renderToStaticMarkup as renderMarkup } from 'react-dom/server';
 import type { ReactElement } from 'react';
 import UsageBar, { applyUsageDelta, emptyUsage, type UsageTotals } from './components/UsageBar';
 
@@ -45,14 +47,14 @@ describe('UsageBar — cacheWrite (cacheCreation) 分项（task 107）', () => {
     const html = render(
       <UsageBar usage={totals({ calls: 3, inputTokens: 10, outputTokens: 5, cacheReadTokens: 1024, cacheCreationTokens: 2095 })} />,
     );
-    expect(html).toContain('cache 读 1024 / 写 2095');
-    expect(html).toContain('cache 写价按 input×1.25 估算');
+    expect(html).toContain('cache read 1024 / write 2095');
+    expect(html).toContain('cache write price estimated at 1.25× input');
     expect(html).toContain('calls 3');
   });
 
   it('无 cacheWrite 时只渲染 cache 读，不出现写分项', () => {
     const html = render(<UsageBar usage={totals({ calls: 1, inputTokens: 10, outputTokens: 5, cacheReadTokens: 1024 })} />);
-    expect(html).toContain('cache 读 1024');
+    expect(html).toContain('cache read 1024');
     expect(html).not.toContain('写');
     expect(html).not.toContain('input×1.25');
   });
@@ -67,7 +69,7 @@ describe('UsageBar — cacheWrite (cacheCreation) 分项（task 107）', () => {
     expect(u.cacheCreationTokens).toBe(2095);
 
     const html = render(<UsageBar usage={u} />);
-    expect(html).toContain('cache 读 1024 / 写 2095');
+    expect(html).toContain('cache read 1024 / write 2095');
     expect(html).toContain('12+8 tok');
   });
 
@@ -75,3 +77,8 @@ describe('UsageBar — cacheWrite (cacheCreation) 分项（task 107）', () => {
     expect(render(<UsageBar usage={emptyUsage()} />)).toBe('');
   });
 });
+function renderToStaticMarkup(node: I18nTestNode): string {
+  return renderMarkup(<LanguageProvider>{node}</LanguageProvider>).replace(/\s+/g, ' ');
+}
+
+vi.mock('./i18n', async original => ({ ...await original<typeof import('./i18n')>(), getInitialLang: () => 'en' as const }));

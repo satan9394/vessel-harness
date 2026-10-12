@@ -1,0 +1,35 @@
+
+ RUN  v5.0.1 E:/Code_file/Projects/Vessel_Harness/apps/web
+
+ ❯ src/components/__tests__/SwarmTopologyView.test.tsx (7 tests | 1 failed) 78ms
+   ❯ SwarmTopologyView (7)
+     × renders SVG connections and complete local/peer details with explicit connectivity and RTT 11ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/components/__tests__/SwarmTopologyView.test.tsx > SwarmTopologyView > renders SVG connections and complete local/peer details with explicit connectivity and RTT
+AssertionError: expected '<p class="dashboard-meta">3 peers · O…' to contain 'Planner'
+
+Expected: "Planner"
+Received: "<p class="dashboard-meta">3 peers · Observed <time dateTime="1970-01-01T00:00:01.000Z">1969/12/31 16:00:01</time></p><svg class="mesh-graph" viewBox="0 0 640 292" role="img" aria-label="Swarm peer connections"><title>Local node connected to 3 peers</title><g class="mesh-online"><line x1="130" y1="146" x2="460" y2="60" class="mesh-link"></line><circle cx="460" cy="60" r="12" class="mesh-dot"></circle><text x="480" y="55">peer-online</text><text x="480" y="75" class="mesh-rtt">online · 23ms</text><title>peer-online: http://peer:3000, online</title></g><g class="mesh-busy"><line x1="130" y1="146" x2="460" y2="144" class="mesh-link"></line><circle cx="460" cy="144" r="12" class="mesh-dot"></circle><text x="480" y="139">peer-busy</text><text x="480" y="159" class="mesh-rtt">busy · 50ms</text><title>peer-busy: http://busy:3000, busy</title></g><g class="mesh-offline"><line x1="130" y1="146" x2="460" y2="228" class="mesh-link mesh-link-offline"></line><circle cx="460" cy="228" r="12" class="mesh-dot"></circle><text x="480" y="223">peer-offline</text><text x="480" y="243" class="mesh-rtt">offline · RTT unavailable</text><title>peer-offline: http://offline:3000, offline</title></g><circle cx="130" cy="146" r="20" class="mesh-local"></circle><text x="24" y="114">local</text></svg><ul class="dashboard-cards" aria-label="Mesh nodes"><li class="mesh-node mesh-online"><strong>local</strong> <span class="dashboard-tag">Local</span><span class="dashboard-status mesh-online">online</span><dl><dt>Endpoint</dt><dd>http://127.0.0.1:5678</dd><dt>Roles</dt><dd>planner</dd><dt>Heartbeat RTT</dt><dd>Local node</dd></dl></li><li class="mesh-node mesh-online"><strong>peer-online</strong> <span class="dashboard-status mesh-online">online</span><dl><dt>Endpoint</dt><dd>http://peer:3000</dd><dt>Roles</dt><dd>worker, Reviewer</dd><dt>Heartbeat RTT</dt><dd>23ms</dd><dt>Remote task activity</dt><dd>No DAG snapshot observed. Select a DAG to inspect tasks.</dd></dl></li><li class="mesh-node mesh-busy"><strong>peer-busy</strong> <span class="dashboard-status mesh-busy">busy</span><dl><dt>Endpoint</dt><dd>http://busy:3000</dd><dt>Roles</dt><dd>worker</dd><dt>Heartbeat RTT</dt><dd>50ms</dd><dt>Remote task activity</dt><dd>No DAG snapshot observed. Select a DAG to inspect tasks.</dd></dl></li><li class="mesh-node mesh-offline"><strong>peer-offline</strong> <span class="dashboard-status mesh-offline">offline</span><dl><dt>Endpoint</dt><dd>http://offline:3000</dd><dt>Roles</dt><dd>No roles advertised</dd><dt>Heartbeat RTT</dt><dd>Unavailable</dd><dt>Remote task activity</dt><dd>No DAG snapshot observed. Select a DAG to inspect tasks.</dd></dl></li></ul>"
+
+ ❯ src/components/__tests__/SwarmTopologyView.test.tsx:36:62
+     34|       expect(html).toContain(node.endpoint);
+     35|       expect(html).toContain(node.status);
+     36|       for (const role of node.roleCapabilities) expect(html).toContain…
+       |                                                              ^
+     37|     }
+     38|     expect(html).toContain('23ms');
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed | 29 passed (30)
+      Tests  1 failed | 255 passed (256)
+   Start at  03:20:46
+   Duration  15.32s (import 41%, transform 29%, tests 27%, worker 3%)
+
+     Import  109 modules were evaluated 193 times · 3.27s total, 41% of tracked time
+             ~1.42s faster with isolate: false — shared modules are evaluated once per worker instead of once per file
+             learn more: https://vitest.dev/guide/improving-performance#test-isolation
+

@@ -1,0 +1,17 @@
+
+> @vessel/web@0.10.0 build
+> vite build --emptyOutDir false
+
+vite v8.3.0 building client environment for production...
+transforming...
+[plugin rolldown:vite-resolve] Module "node:fs" has been externalized for browser compatibility, imported by "E:/Code_file/Projects/Vessel_Harness/packages/shared/dist/atomicWrite.js". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.
+[plugin rolldown:vite-resolve] Module "node:path" has been externalized for browser compatibility, imported by "E:/Code_file/Projects/Vessel_Harness/packages/shared/dist/vesselHome.js". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.
+[plugin rolldown:vite-resolve] Module "node:os" has been externalized for browser compatibility, imported by "E:/Code_file/Projects/Vessel_Harness/packages/shared/dist/vesselHome.js". See https://vite.dev/guide/troubleshooting.html#module-externalized-for-browser-compatibility for more details.
+✓ 95 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/index.html                   0.43 kB │ gzip:   0.30 kB
+dist/assets/index-B-o07FYi.css   29.72 kB │ gzip:   6.40 kB
+dist/assets/index-DReAyYWa.js   389.95 kB │ gzip: 118.47 kB
+
+✓ built in 819ms

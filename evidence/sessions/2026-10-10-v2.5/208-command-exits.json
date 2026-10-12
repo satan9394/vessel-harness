@@ -1,0 +1,42 @@
+[
+  {
+    "name": "web-tests",
+    "command": "npx vitest run --root apps/web",
+    "exitCode": 0,
+    "startedAt": "2026-10-11T04:50:53.0247632Z",
+    "endedAt": "2026-10-11T04:51:04.1286228Z",
+    "log": "E:\\Code_file\\Projects\\Vessel_Harness\\evidence\\sessions\\2026-10-10-v2.5\\208-web-tests.log"
+  },
+  {
+    "name": "web-types",
+    "command": "npm run -w @vessel/web typecheck",
+    "exitCode": 0,
+    "startedAt": "2026-10-11T04:51:04.1365259Z",
+    "endedAt": "2026-10-11T04:51:06.0382807Z",
+    "log": "E:\\Code_file\\Projects\\Vessel_Harness\\evidence\\sessions\\2026-10-10-v2.5\\208-web-types.log"
+  },
+  {
+    "name": "tsc-build",
+    "command": "npx tsc -b tsconfig.json",
+    "exitCode": 0,
+    "startedAt": "2026-10-11T04:51:06.0417810Z",
+    "endedAt": "2026-10-11T04:51:08.3407101Z",
+    "log": "E:\\Code_file\\Projects\\Vessel_Harness\\evidence\\sessions\\2026-10-10-v2.5\\208-tsc-build.log"
+  },
+  {
+    "name": "test-types",
+    "command": "npm run typecheck:tests",
+    "exitCode": 0,
+    "startedAt": "2026-10-11T04:51:08.3419329Z",
+    "endedAt": "2026-10-11T04:51:11.7500738Z",
+    "log": "E:\\Code_file\\Projects\\Vessel_Harness\\evidence\\sessions\\2026-10-10-v2.5\\208-test-types.log"
+  },
+  {
+    "name": "web-build",
+    "command": "npm run -w @vessel/web build -- --emptyOutDir false",
+    "exitCode": 0,
+    "startedAt": "2026-10-11T04:51:11.7512921Z",
+    "endedAt": "2026-10-11T04:51:13.7460554Z",
+    "log": "E:\\Code_file\\Projects\\Vessel_Harness\\evidence\\sessions\\2026-10-10-v2.5\\208-web-build.log"
+  }
+]

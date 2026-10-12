@@ -1,0 +1,14 @@
+import * as fs from 'node:fs';
+import * as os from 'node:os';
+import * as path from 'node:path';
+import { PatchRoutes } from '../../../apps/local-server/src/routes/patchRoutes.ts';
+const root = fs.mkdtempSync(path.join(os.tmpdir(), 'vessel-review-utf8-'));
+const file = path.join(root, 'data.txt');
+const before = Buffer.from([0x61, 0x0a, 0xff, 0x0a]);
+fs.writeFileSync(file, before);
+const routes = new PatchRoutes(() => ({ workspaceRoot: root, permission: 'workspace-write' }));
+routes.publish('s', { id: 'w', kind: 'diff_inspector', status: 'pending', turnIndex: 0, timestamp: new Date().toISOString(), payload: { filePath: 'data.txt', patch: '@@ -1 +1 @@\n-a\n+A\n', additions: 1, deletions: 1 } });
+console.log(JSON.stringify({ root, beforeHex: before.toString('hex'), result: routes.apply('s', { widgetId: 'w', hunkId: 'data.txt#hunk-0', action: 'accept' }), afterHex: fs.readFileSync(file).toString('hex') }));
+fs.writeFileSync(file, Buffer.from('a\r\nb\nc\r\n'));
+routes.publish('s', { id: 'mixed', kind: 'diff_inspector', status: 'pending', turnIndex: 0, timestamp: new Date().toISOString(), payload: { filePath: 'data.txt', patch: '@@ -1 +1 @@\n-a\n+A\n', additions: 1, deletions: 1 } });
+console.log(JSON.stringify({ case: 'mixed-eol', beforeHex: Buffer.from('a\r\nb\nc\r\n').toString('hex'), result: routes.apply('s', { widgetId: 'mixed', hunkId: 'data.txt#hunk-0', action: 'accept' }), afterHex: fs.readFileSync(file).toString('hex') }));

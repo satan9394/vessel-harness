@@ -1,0 +1,44 @@
+[
+  {
+    "endedAt": "2026-10-11T05:01:51.9742633Z",
+    "startedAt": "2026-10-11T04:52:17.2245291Z",
+    "gate": "test-all",
+    "exitCode": 0
+  },
+  {
+    "endedAt": "2026-10-11T05:01:53.1270561Z",
+    "startedAt": "2026-10-11T05:01:51.9922119Z",
+    "gate": "tsc-build",
+    "exitCode": 0
+  },
+  {
+    "endedAt": "2026-10-11T05:01:54.8454044Z",
+    "startedAt": "2026-10-11T05:01:53.1324126Z",
+    "gate": "test-types",
+    "exitCode": 0
+  },
+  {
+    "endedAt": "2026-10-11T05:01:55.8062767Z",
+    "startedAt": "2026-10-11T05:01:54.8474926Z",
+    "gate": "web-types",
+    "exitCode": 0
+  },
+  {
+    "endedAt": "2026-10-11T05:01:56.7361102Z",
+    "startedAt": "2026-10-11T05:01:55.8083831Z",
+    "gate": "web-build",
+    "exitCode": 0
+  },
+  {
+    "endedAt": "2026-10-11T05:01:59.7717116Z",
+    "startedAt": "2026-10-11T05:01:56.7380093Z",
+    "gate": "cli-help",
+    "exitCode": 0
+  },
+  {
+    "endedAt": "2026-10-11T05:02:00.0927860Z",
+    "startedAt": "2026-10-11T05:01:59.7730998Z",
+    "gate": "boundaries",
+    "exitCode": 0
+  }
+]

@@ -1,0 +1,4 @@
+{
+  "exit": 0,
+  "command": "npm run -w @vessel/web typecheck"
+}

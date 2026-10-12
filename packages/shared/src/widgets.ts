@@ -9,7 +9,7 @@ export interface BaseWidgetBlock {
 }
 export interface DiffInspectorWidget extends BaseWidgetBlock {
   kind: 'diff_inspector';
-  payload: { filePath: string; additions: number; deletions: number; patch: string; collapsedByDefault?: boolean };
+  payload: { filePath: string; additions: number; deletions: number; patch: string; collapsedByDefault?: boolean; hunkStatuses?: Record<string, 'accepted' | 'rejected'> };
 }
 export interface RedGreenGateWidget extends BaseWidgetBlock {
   kind: 'red_green_gate';

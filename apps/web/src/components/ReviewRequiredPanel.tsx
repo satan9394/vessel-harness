@@ -1,3 +1,5 @@
+import { localizedValue } from '../i18n';
+import { useI18n } from './LanguageProvider';
 import type { ReviewRecord } from '../team';
 
 /**
@@ -17,14 +19,15 @@ export interface ReviewRequiredPanelProps {
 }
 
 export default function ReviewRequiredPanel({ reviews, busy = false, onCopy, onOpenFolder, onImport }: ReviewRequiredPanelProps) {
+  const { t } = useI18n();
   if (reviews.length === 0) return null;
   return (
     <div className="review-required" data-testid="review-required">
-      {reviews.some((r) => r.status === 'pending') && <div className="review-required-title">External Review Required</div>}
+      {reviews.some((r) => r.status === 'pending') && <div className="review-required-title">{t('uiExternalReviewRequired')}</div>}
       {reviews.map((review) => (
         <div className={`review-row review-row-${review.status}`} key={review.id}>
           <div className="review-row-head">
-            <span className="review-status">{review.status === 'pending' ? 'pending' : 'imported'}</span>
+            <span className="review-status">{localizedValue(review.status, t)}</span>
             <span className="review-id dim" title={review.workspaceRoot ?? ''}>
               {review.id}
             </span>
@@ -36,7 +39,7 @@ export default function ReviewRequiredPanel({ reviews, busy = false, onCopy, onO
             <div className="review-results">
               {review.results.map((r) => (
                 <div key={r.id} className={`review-result review-result-${r.conclusion.verdict}`}>
-                  {r.source} · {r.conclusion.verdict}
+                  {localizedValue(r.source, t)} · {localizedValue(r.conclusion.verdict, t)}
                   {r.conclusion.reason ? ` — ${r.conclusion.reason}` : ''}
                 </div>
               ))}
@@ -48,22 +51,19 @@ export default function ReviewRequiredPanel({ reviews, busy = false, onCopy, onO
               className="btn"
               disabled={busy}
               onClick={() => onCopy(review)}
-              title="copy the handoff.md artifact for the external reviewer"
+              title={t('uiCopyTheHandoffMdArtifactForTheExternal')}
             >
-              Copy Handoff
-            </button>
+              {t('uiCopyHandoff')} </button>
             <button
               type="button"
               className="btn"
               disabled={busy}
               onClick={() => onOpenFolder(review)}
-              title="open .vessel/reviews/<id> in the OS file manager"
+              title={t('uiOpenVesselReviewsIdInTheOSFile')}
             >
-              Open Folder
-            </button>
+              {t('uiOpenFolder')} </button>
             <label className="btn review-import-label">
-              Import Result
-              <input
+              {t('uiImportResult')} <input
                 type="file"
                 accept=".txt,.md,.json"
                 className="review-import-input"

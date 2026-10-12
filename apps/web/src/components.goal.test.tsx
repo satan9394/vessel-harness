@@ -1,5 +1,7 @@
-import { describe, it, expect } from 'vitest';
-import { renderToStaticMarkup } from 'react-dom/server';
+import type { ReactNode as I18nTestNode } from 'react';
+import { LanguageProvider } from './components/LanguageProvider';
+import { describe, it, expect , vi } from 'vitest';
+import { renderToStaticMarkup as renderMarkup } from 'react-dom/server';
 import type { ReactElement, ComponentProps } from 'react';
 import GoalPanel from './components/GoalPanel';
 import {
@@ -49,7 +51,7 @@ describe('GoalPanel (task 065/066 panel rendering)', () => {
     const tasks: GoalTask[] = [goalTaskFixture({ id: 'a' }), goalTaskMetFixture()];
     const html = panel({ tasks, selectedId: 'a' });
     expect(html).toContain('2 tasks');
-    expect(html).toContain('Pending');
+    expect(html).toContain('pending');
     expect(html).toContain('Met');
     expect(html).toContain('goal-task-row-active');
     // queue rows are buttons (selectable)
@@ -84,12 +86,12 @@ describe('GoalPanel (task 065/066 panel rendering)', () => {
       selectedId: 'task_1',
       running: true,
     });
-    expect(pausedHtml).toContain('Paused');
+    expect(pausedHtml).toContain('paused');
   });
 
   it('renders a pending selected task with an enabled Run button', () => {
     const html = panel({ tasks: [goalTaskFixture()], selectedId: 'task_1' });
-    expect(html).toContain('Pending');
+    expect(html).toContain('pending');
     expect(html).toContain('Run task');
     expect(html).not.toContain('not available on a terminal task');
   });
@@ -135,3 +137,8 @@ describe('GoalPanel (task 065/066 panel rendering)', () => {
     expect(html).toContain('AC-1 导出 run');
   });
 });
+function renderToStaticMarkup(node: I18nTestNode): string {
+  return renderMarkup(<LanguageProvider>{node}</LanguageProvider>).replace(/\s+/g, ' ');
+}
+
+vi.mock('./i18n', async original => ({ ...await original<typeof import('./i18n')>(), getInitialLang: () => 'en' as const }));

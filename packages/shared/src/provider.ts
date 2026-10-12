@@ -97,6 +97,8 @@ export interface ChatToolCall {
 export type ChatFinishReason = 'stop' | 'tool_calls' | 'length' | 'error';
 
 export interface ChatUsage {
+  /** Actual provider-reported reasoning tokens; absent means unavailable. */
+  reasoningTokens?: number;
   cacheMetrics?: import('./cacheMetrics.js').CacheUsageMetrics;
   inputTokens: number;
   outputTokens: number;
@@ -147,6 +149,8 @@ export type StreamChunk =
     }
   | {
       type: 'usage';
+      /** Actual provider-reported reasoning count, cumulative per response. */
+      reasoningTokens?: number;
       cacheMetrics?: import('./cacheMetrics.js').CacheUsageMetrics;
       inputTokens?: number;
       outputTokens?: number;

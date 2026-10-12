@@ -11,7 +11,7 @@ export interface WidgetDispatcherProps {
 }
 export function WidgetDispatcher({ widget, sessionId, onRespond }: WidgetDispatcherProps): React.JSX.Element {
   switch (widget.kind) {
-    case 'diff_inspector': return <InlineDiffInspector widget={widget} />;
+    case 'diff_inspector': return <InlineDiffInspector key={`${sessionId}:${widget.id}`} widget={widget} sessionId={sessionId} />;
     case 'red_green_gate': return <RedGreenGateBadge widget={widget} />;
     case 'impact_radar': return <AstImpactRadar widget={widget} />;
     case 'permission_action': return <PermissionActionCard key={`${sessionId}:${widget.id}`} widget={widget} onRespond={onRespond} />;

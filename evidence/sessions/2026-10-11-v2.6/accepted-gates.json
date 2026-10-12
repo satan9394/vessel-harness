@@ -1,0 +1,56 @@
+[
+  {
+    "log": "accepted-20261011-153119-test-all.log",
+    "finishedAt": "2026-10-11T15:48:16.0690111Z",
+    "name": "test-all",
+    "exitCode": 0,
+    "startedAt": "2026-10-11T15:31:19.5071750Z",
+    "command": "npm.cmd run test:all"
+  },
+  {
+    "log": "accepted-20261011-153119-tsc.log",
+    "finishedAt": "2026-10-11T15:48:20.1271350Z",
+    "name": "tsc",
+    "exitCode": 0,
+    "startedAt": "2026-10-11T15:48:16.1326814Z",
+    "command": "npx.cmd tsc -b tsconfig.json"
+  },
+  {
+    "log": "accepted-20261011-153119-test-types.log",
+    "finishedAt": "2026-10-11T15:48:22.8206870Z",
+    "name": "test-types",
+    "exitCode": 0,
+    "startedAt": "2026-10-11T15:48:20.1342222Z",
+    "command": "npm.cmd run typecheck:tests"
+  },
+  {
+    "log": "accepted-20261011-153119-web-types.log",
+    "finishedAt": "2026-10-11T15:48:24.1086972Z",
+    "name": "web-types",
+    "exitCode": 0,
+    "startedAt": "2026-10-11T15:48:22.8238811Z",
+    "command": "npm.cmd run -w @vessel/web typecheck"
+  },
+  {
+    "log": "accepted-20261011-153119-web-build.log",
+    "finishedAt": "2026-10-11T15:48:26.5308596Z",
+    "name": "web-build",
+    "exitCode": 0,
+    "startedAt": "2026-10-11T15:48:24.1115761Z",
+    "command": "npm.cmd run -w @vessel/web build -- --emptyOutDir false"
+  },
+  {
+    "log": "accepted-20261011-153119-cli-help.log",
+    "finishedAt": "2026-10-11T15:48:36.0997480Z",
+    "name": "cli-help",
+    "exitCode": 0,
+    "startedAt": "2026-10-11T15:48:26.5335138Z",
+    "command": "npx.cmd tsx apps/cli/src/cli.ts --help"
+  },
+  {
+    "coreChangedLines": 0,
+    "exitCode": 0,
+    "name": "thin-core-and-protected-hashes",
+    "protectedFiles": 125
+  }
+]

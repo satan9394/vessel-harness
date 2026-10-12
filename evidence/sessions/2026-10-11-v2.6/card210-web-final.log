@@ -1,0 +1,35 @@
+
+ RUN  v5.0.1 E:/Code_file/Projects/Vessel_Harness/apps/web
+
+ ❯ src/components/team/TeamDagCanvas.test.tsx (8 tests | 1 failed) 118ms
+   ❯ team DAG workspace (8)
+     × shows frozen roster routes and invokes approve/reject buttons only for staged plans 17ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/components/team/TeamDagCanvas.test.tsx > team DAG workspace > shows frozen roster routes and invokes approve/reject buttons only for staged plans
+AssertionError: expected '<section class="team-staged-banner" a…' to contain 'medium'
+
+Expected: "medium"
+Received: "<section class="team-staged-banner" aria-label="Team plan awaiting approval"><strong>Review team plan · 1 task</strong><ul><li>developer · generator · mock/model-1 · Medium</li></ul><button class="btn btn-primary">Approve &amp; Run</button> <button class="btn">Reject</button></section>"
+
+ ❯ src/components/team/TeamDagCanvas.test.tsx:48:92
+     46|     const tree = TeamStagedBanner({ stage, onApprove: approve, onRejec…
+     47|     const html = renderToStaticMarkup(tree);
+     48|     expect(html).toContain('1 task'); expect(html).toContain('mock/mod…
+       |                                                                                            ^
+     49|     const buttons = nodes(tree).filter(n => n.type === 'button');
+     50|     (buttons[0]!.props.onClick as () => void)(); (buttons[1]!.props.on…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed | 29 passed (30)
+      Tests  1 failed | 255 passed (256)
+   Start at  03:19:00
+   Duration  12.93s (import 43%, transform 28%, tests 26%, worker 3%)
+
+     Import  109 modules were evaluated 170 times · 2.97s total, 43% of tracked time
+             ~1.06s faster with isolate: false — shared modules are evaluated once per worker instead of once per file
+             learn more: https://vitest.dev/guide/improving-performance#test-isolation
+

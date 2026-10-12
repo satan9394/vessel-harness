@@ -1,0 +1,16 @@
+
+> @vessel/web@0.10.0 test
+> vitest run
+
+
+ RUN  v5.0.1 E:/Code_file/Projects/Vessel_Harness/apps/web
+
+
+ Test Files  26 passed (26)
+      Tests  222 passed (222)
+   Start at  21:41:35
+   Duration  8.30s (import 42%, tests 31%, transform 24%, worker 3%)
+
+    Isolate  26 workers spawned · ~145ms startup each (spawn + environment, per file)
+             at least ~3.63s faster with isolate: false — reuses workers across files instead of one per file
+

@@ -7,3 +7,6 @@ export * from './daemon/types.js';
 export * from './daemon/daemonLifecycle.js';
 export * from './daemon/notifications.js';
 export * from './daemon/tray.js';
+export * from './providers/ProviderStore.js';
+export * from './providers/defaultStore.js';
+export * from './routes/providerRoutes.js';

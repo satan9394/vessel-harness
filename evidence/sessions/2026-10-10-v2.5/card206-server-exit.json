@@ -1,0 +1,4 @@
+{
+  "exit": 0,
+  "command": "npx vitest run apps/local-server/src/reasoning.test.ts apps/local-server/src/server.test.ts"
+}

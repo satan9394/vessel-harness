@@ -1,5 +1,7 @@
+import type { ReactNode as I18nTestNode } from 'react';
+import { LanguageProvider } from '../LanguageProvider';
 import { isValidElement, type ReactElement, type ReactNode } from 'react';
-import { renderToStaticMarkup } from 'react-dom/server';
+import { renderToStaticMarkup as renderMarkup } from 'react-dom/server';
 import { describe, expect, it, vi } from 'vitest';
 import { createApiClient } from '../../api';
 import { layoutDag, type TeamDagTask, type TeamPlanStage } from '../../teamStages';
@@ -43,7 +45,7 @@ describe('team DAG workspace', () => {
     const approve = vi.fn(); const reject = vi.fn();
     const tree = TeamStagedBanner({ stage, onApprove: approve, onReject: reject });
     const html = renderToStaticMarkup(tree);
-    expect(html).toContain('1 tasks'); expect(html).toContain('mock/model-1'); expect(html).toContain('medium');
+    expect(html).toContain('1 task'); expect(html).toContain('mock/model-1'); expect(html).toContain('Medium');
     const buttons = nodes(tree).filter(n => n.type === 'button');
     (buttons[0]!.props.onClick as () => void)(); (buttons[1]!.props.onClick as () => void)();
     expect(approve).toHaveBeenCalledOnce(); expect(reject).toHaveBeenCalledOnce();
@@ -114,4 +116,15 @@ describe('team DAG workspace', () => {
     await api.reviseTeamStage('id/1', plan);
     expect(calls[4]![0]).toBe('/api/team/stages/id%2F1/revise'); expect(calls[4]![1]?.body).toBe(JSON.stringify(plan));
   });
+});
+
+function renderToStaticMarkup(node: I18nTestNode): string {
+  return renderMarkup(<LanguageProvider>{node}</LanguageProvider>).replace(/\s+/g, ' ');
+}
+
+vi.mock('../../i18n', async original => ({ ...await original<typeof import('../../i18n')>(), getInitialLang: () => 'en' as const }));
+
+vi.mock('../LanguageProvider', async original => {
+  const { translate } = await import('../../i18n');
+  return { ...await original<typeof import('../LanguageProvider')>(), useI18n: () => ({ lang: 'en', t: translate('en'), setLang: vi.fn() }) };
 });

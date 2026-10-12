@@ -2,32 +2,43 @@
 
 > **用途**：新会话 / 新 Agent / 换人接手时，**先读本文件**：现状、未完成清单、验证命令、已知约束都在这里。
 > 规则本身仍在 [`AGENTS.md`](AGENTS.md)；会约束未来的决策在 [`docs/DESIGN-DECISIONS.md`](docs/DESIGN-DECISIONS.md)。
-> **最后更新**：2026-10-10。维护者：单人。
+> **最后更新**：2026-10-11。维护者：单人。
 
 ## 0. 快速接管协议（当用户直接说「继续未完成的」或「继续」时）
 
 **任何 Agent 在接收到「继续」/「继续未完成的」指令时，直接根据本段与 `.agent-state/run-state.json` 向用户汇报并执行：**
 
-1. **当前交付与阶段状态**：**V2.4 Epic 204（200–204）已于 2026-10-10 完成本地验收，未提交**。双 Root **3009 passed / 6 skipped**，全部类型检查、安全 Web 构建与 CLI help exit0；机器 Mission completed/workers0。下一步人类审阅，证据 `evidence/sessions/2026-10-09-v2.4/PROOF.md`。前序 V2.2/V2.3 已合入本地 `main`（commit `3e6a56f`）。
+1. **当前交付与阶段状态**：**V2.5 Epic 209（205–209）已于 2026-10-10 本地验收完成（双 Root 3083 passed / 6 skipped 全绿）**。**V2.6 Epic 214（210–214）已于 2026-10-11 本地验收完成（双 Root 3146 passed / 6 skipped）**。前序 V2.4 已提交至本地 `main`（commit `dd8e72c`）。
 2. **已完成与已验证基线**：
    - 192–195 (V2.2)：三态洋葱 Mod 中间件流水线、Worker 线程沙箱（防御 CVE-2026-82533）、清单权限审计与 CLI `vessel mod/doctor`；
    - 196–199 (V2.3)：真实 Red→Green 缺陷复现硬门禁与 SHA-256 防伪凭据、增量 AST 符号依赖图谱（均值 10.7ms）、自适应上下文剪枝（剪枝率 82.56%）；
-   - 全量终态门禁基线：`tsc -b`、`typecheck:tests` 均 exit 0；Web 生产打包 exit 0；`test:all` 双 Root **2,957 passed + 6 skipped 全绿**；全历史 `identity-guard.sh` 0 命中。
+   - 200–204 (V2.4)：Chat 内嵌组件 IR 与双向 SSE/HTTP 端点、React 就地微组件群、四 Tab 常驻 Docked Inspector、CLI 终端动态 StatusLine 与彩色折叠 Diff；
+   - 205–209 (V2.5)：画布单 Hunk 补丁选择器、流式思考折叠与规则标注、全局命令面板 Ctrl+K、桌面注意力通知与音频合成提示（3083 passed / 6 skipped）；
+   - 全量终态门禁基线：`tsc -b`、`typecheck:tests` 均 exit 0；Web 生产打包 exit 0；全历史 `identity-guard.sh` 0 命中。
 3. **当前路线与目标**：
-   - **最近完成路线：V2.4 混合 Chat-Canvas 交互工作台与双端视觉中枢 (Epic 204)**：
-     - 子任务顺序：200（Chat 内嵌组件 IR 与双向 SSE 协议）→ 201（Web 对话流内嵌微组件与 Diff 检查器）→ 202（双模态双轴工作台布局与常驻 Docked Inspector）→ 203（CLI 终端 StatusLine 与富 ANSI 适配）→ 204（全量双端验收）；
-   - **开发模式与约束**：纯本地开发（严禁 git push，遵循 2026-10-06 规约；薄核零侵入 packages/core；删除必进回收站）；
+   - **最近已验收路线：V2.6 全域纯正国际化与可视化多模型接入中枢 (Epic 214)**：
+     - 子任务顺序：210（全域纯正 i18n 字典扩充与组件硬编码英文彻底解耦）→ 211（Local Server 供应商存储与 /api/providers /api/models REST API）→ 212（Web 端可视化供应商管理面板与连通性测试）→ 213（新建会话模型选择与动态切换）→ 214（全量集成门禁验收）；
+   - **开发模式与约束**：纯本地开发（严禁 git push，遵循 2026-10-06 规约；薄核零侵入 packages/core；删除必进回收站；Web 构建必须携带 `-- --emptyOutDir false`）；
    - **模型锁定规约**：默认开发模型锁定为 **GPT-6.1 Sol (`gpt-6.1-sol`)**，二级思考（`reasoning.effort: medium`），免多余确认。
 
 | 项 | 当前实况 |
 |---|---|
 | 仓库 / 分支 | `satan9394/vessel-harness` / `main`（纯本地开发，不推送） |
-| 工作区状态 | V2.2/V2.3 本地提交 `3e6a56f`；V2.4 200–204 本地验收完成，未提交 |
-| 机器状态真源 | `.agent-state/run-state.json`（Epic 204 completed，workers0） |
-| 当前任务卡 | [Epic] `tasks/204-epic-v2-4-hybrid-chat-canvas-and-interactive-workbench.md` ｜ 200–204 已闭环；等待人类审阅 |
+| 工作区状态 | HEAD `dd8e72c`；V2.5/V2.6/Card 215 已验收改动保留（未提交） |
+| 机器状态真源 | `.agent-state/run-state.json`（Epic 214 completed；Card 215 本轮**未经 runstate 控制器**登记，以本文件与本行上方交付段为准） |
+| 当前任务卡 | 无（V2.5、V2.6、Card 215 均已全部闭环） |
 
+Card 215 本地交付与验收（2026-10-11，OpenCode 交付 + Antigravity 验收）：后端新增 `normalizeProviderInput` 归一化兼容器（字典型 `models` / `options.baseURL|apiKey` 嵌套 / `npm` 协议声明），新增 `POST /api/providers/pull-models` 端点与 Web「Pull models」按钮，供应商删除时清理 `secretRef` 凭据，后端**具体错误码透传**（不再一律 `provider_request_failed`）并由前端按码本地化展示，术语规范化为 `OpenAI 兼容 (OpenAI Compatible)` / `Anthropic (Claude)` / `API Key`。门禁：定向测试 27（后端）+ 35（前端含 i18n）全绿、双 Root **3155 passed / 6 skipped**、`tsc -b` / `typecheck:tests` / web typecheck / web build（`-- --emptyOutDir false`）全 exit 0、`packages/core` **0 变动**。纯本地、未提交/推送、无删除、未驱动外部 Agent。证据 `evidence/sessions/2026-10-11-card215/PROOF.md`。
 
-V2.4 最终恢复点（2026-10-10）：200–204本地完成。四类Widget IR+双向SSE/HTTP、React就地组件、四Tab Docked Inspector、CLI状态栏/ANSI与方向键审批全部交证。最终双Root root263文件/2808passed+6skipped、Web22文件/201passed，合计3009passed；tsc、测试类型、Web类型、安全Web构建、help全部exit0，均在最后源码/测试编辑后运行。Web桌面/800px与离线TTY冒烟通过，独立评审PASS；core0、33保护哈希不变、根依赖锁不变。未提交/推送/发布，无外部Agent。证据 `evidence/sessions/2026-10-09-v2.4/PROOF.md` 与 accepted-*.log；初次失败日志保留。机器Mission completed/workers0，下一步人类审阅，不自动续新里程碑。AST画布使用观测的影响报告，缓存历史仅当前挂载会话；审批只记录选择，不绕过Policy。
+Card 215 待办登记（2026-10-11）：解决用户提出的模型自动拉取缺失、协议/密钥术语不符合开发者习惯、带有 secretRef 的既有供应商无法删除、以及用户真实生态 Schema（workbuddy 嵌套 options 与字典型 models）被后端强行拦截报错等重大问题。任务卡已落盘。
+
+V2.6 启动背景（2026-10-11）：解决 Web 界面中英文混杂、翻译生硬机翻，以及后端未暴露 ProviderStore 导致用户无法在前端添加或切换真实模型的重大可用性痛点。五张任务卡 210–214 已规划并落盘。后台历史 5678/5173 服务已安全停止，端口已释放。
+
+V2.6 最终验收（2026-10-11）：210–214 按序闭环；全域强类型中英字典、供应商安全 API/探测、可视化设置、真实模型创建与动态切换交证。最后源码/测试编辑后的 root 268 文件 / 2869 passed + 6 skipped，Web 33 文件 / 277 passed，合计 3146 passed；七项终态门禁全部 exit 0。独立评审 PASS，实际浏览器中英/800px、配置引导/发现/保存/创建/切换、历史与输入保全通过；出站 fixture-a/2 → fixture-b/4。core 0、125 保护哈希及根锁未变；无删除、外部 Agent、提交/推送/发布。证据 evidence/sessions/2026-10-11-v2.6/PROOF.md、accepted-gates.json、completion-audit.json。Mission completed，workers 0；预览已停止。不自动续新路线。内部 hub 身份/未知端点限制/未定价估算见 card213-proof.md；不声称实时供应商或账单验证。早期预览临时项目索引记录保留，最终预览已明确隔离 ProjectRegistry。
+
+V2.5 最终验收（2026-10-10）：205–209按序闭环。单Hunk采纳/丢弃/回退与双视图SSE同步、真实记忆规则命中与流式折叠、命令面板/键盘导航、新会话权限预设、离焦注意力/原生合成音/持久静音均交证。最终root266文件/2832passed+6skipped，Web29文件/251passed，合计3083passed；七项最终门禁全部exit0，均在最后源码/测试编辑后执行。独立评审发现的字节损坏与命令导致busy不退出已修复并复验。真实浏览器桌面/800px通过；原生通知与音频按离线Mock验收，不声称OS实际送达或可听。core0、保护哈希与根锁不变；无删除、外部Agent、提交/推送/发布。证据 `evidence/sessions/2026-10-10-v2.5/PROOF.md`、`final-gates.json`、`completion-audit.json`。历史服务已停止。
+
+V2.4 最终验收与合入（2026-10-10）：200–204本地完成并提交 `dd8e72c`。四类Widget IR+双向SSE/HTTP、React就地组件、四Tab Docked Inspector、CLI状态栏/ANSI与方向键审批全部交证。最终双Root root263文件/2808passed+6skipped、Web22文件/201passed，合计3009passed；tsc、测试类型、Web类型、安全Web构建、help全部exit0，均在最后源码/测试编辑后运行。Web桌面/800px与离线TTY冒烟通过，独立评审PASS；core0、33保护哈希不变、根依赖锁不变。未推送/发布，无外部Agent。证据 `evidence/sessions/2026-10-09-v2.4/PROOF.md`。本地服务 `task-557` 于 `http://127.0.0.1:5678` 正常守护运行中。
 
 V2.1 执行偏差：189 执行器三次默认 Vite 构建清空生成 `apps/web/dist`，违反任务删除纪律，已记录，不能声明红线全部遵守。后续 Web 构建必须加 `-- --emptyOutDir false`。为验证锁文件，本轮将旧 `node_modules` 完整移动到 `.tmp/2026-10-07/node_modules-before-epic191-npm-ci` 后执行 `npm ci`（exit 0）；备份保留，不清理。阶段性能实测本仓 1673 文件 warm 中位约 1285ms，见 `phase190-benchmark-final.log`，不得擅自降低验收标准。
 

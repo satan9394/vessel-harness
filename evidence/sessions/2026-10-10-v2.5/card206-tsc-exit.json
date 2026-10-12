@@ -1,0 +1,4 @@
+{
+  "exit": 0,
+  "command": "npx tsc -b tsconfig.json"
+}

@@ -1,0 +1,157 @@
+[
+  {
+    "Algorithm": "SHA256",
+    "Hash": "430550CF9F105EB423017A84D916841112734F9C1F60023B39A465081179580F",
+    "Path": "E:\\Code_file\\Projects\\Vessel_Harness\\packages\\core\\package.json"
+  },
+  {
+    "Algorithm": "SHA256",
+    "Hash": "F577B0E3524E4B06D95CB67774333C3518110D11843F01CBCE004A66CA4C7F1A",
+    "Path": "E:\\Code_file\\Projects\\Vessel_Harness\\packages\\core\\src\\agent-loop\\AgentLoop.before-stop-verdict.test.ts"
+  },
+  {
+    "Algorithm": "SHA256",
+    "Hash": "FBF1EBA9558B90FCD8246684F14599AD27801317E9C88CB4B3D8C40F21794B75",
+    "Path": "E:\\Code_file\\Projects\\Vessel_Harness\\packages\\core\\src\\agent-loop\\AgentLoop.before-tool-gate.test.ts"
+  },
+  {
+    "Algorithm": "SHA256",
+    "Hash": "5CF7F5ACF41B56255930E817B2795D25EE75F054D7A103A31AED43BE005652FD",
+    "Path": "E:\\Code_file\\Projects\\Vessel_Harness\\packages\\core\\src\\agent-loop\\AgentLoop.before-turn-audit.test.ts"
+  },
+  {
+    "Algorithm": "SHA256",
+    "Hash": "A86596B997B69D32B3C5E8089D7C974C24B8E83550DEC8C78311A2D3CEEFCF90",
+    "Path": "E:\\Code_file\\Projects\\Vessel_Harness\\packages\\core\\src\\agent-loop\\AgentLoop.before-turn-block.test.ts"
+  },
+  {
+    "Algorithm": "SHA256",
+    "Hash": "8C98058222482A12C1C4D9CC5FB72417D871D4CF336F6B34DF5BC8A488D3B3B6",
+    "Path": "E:\\Code_file\\Projects\\Vessel_Harness\\packages\\core\\src\\agent-loop\\AgentLoop.denial-breaker.test.ts"
+  },
+  {
+    "Algorithm": "SHA256",
+    "Hash": "A16F446CC1BC68FECB11CBE9F2BF1720966B6D452AD8943C79CE9F2AF6904909",
+    "Path": "E:\\Code_file\\Projects\\Vessel_Harness\\packages\\core\\src\\agent-loop\\AgentLoop.finish-reason.test.ts"
+  },
+  {
+    "Algorithm": "SHA256",
+    "Hash": "45CCC259DAAFD9DA7248E63B336F3A2F09196AF4023515A83A8D34F4BF4EAF6E",
+    "Path": "E:\\Code_file\\Projects\\Vessel_Harness\\packages\\core\\src\\agent-loop\\AgentLoop.interrupt.test.ts"
+  },
+  {
+    "Algorithm": "SHA256",
+    "Hash": "95FF1D1B218D6DAED0682DC2100189072BEE03B908C14AC22A16BFA24F855C6C",
+    "Path": "E:\\Code_file\\Projects\\Vessel_Harness\\packages\\core\\src\\agent-loop\\AgentLoop.llm-retry-record.test.ts"
+  },
+  {
+    "Algorithm": "SHA256",
+    "Hash": "ADE9C1F9EE303ADC769BE573340147D0D9B27A762DB085491DFA52648DB32BC3",
+    "Path": "E:\\Code_file\\Projects\\Vessel_Harness\\packages\\core\\src\\agent-loop\\AgentLoop.log-evidence.test.ts"
+  },
+  {
+    "Algorithm": "SHA256",
+    "Hash": "FF89DF68F6CFFDD2F9BA75BF6CCDFB0B2E360555DDB04A565B0AC3F3A209B1A4",
+    "Path": "E:\\Code_file\\Projects\\Vessel_Harness\\packages\\core\\src\\agent-loop\\AgentLoop.request-header.test.ts"
+  },
+  {
+    "Algorithm": "SHA256",
+    "Hash": "4664589B1BD4C5034CF802A2A44760A1CE1267CA011CD88DEEF19572A3E683D1",
+    "Path": "E:\\Code_file\\Projects\\Vessel_Harness\\packages\\core\\src\\agent-loop\\AgentLoop.steer.test.ts"
+  },
+  {
+    "Algorithm": "SHA256",
+    "Hash": "BC235A7EECF81CB5F88F5FD5B0CA377F613F3CE616F6DA9F25512B1BF6C0D153",
+    "Path": "E:\\Code_file\\Projects\\Vessel_Harness\\packages\\core\\src\\agent-loop\\AgentLoop.stream.test.ts"
+  },
+  {
+    "Algorithm": "SHA256",
+    "Hash": "A8C494A6CEACA4A92434AD94D56AA6D76B69739439FF160629855FEDF2B695FF",
+    "Path": "E:\\Code_file\\Projects\\Vessel_Harness\\packages\\core\\src\\agent-loop\\AgentLoop.test.ts"
+  },
+  {
+    "Algorithm": "SHA256",
+    "Hash": "0E1488FC85DEB67E8F340E14B43D5539CBA8457D29F04615EA727D325C4CF1BB",
+    "Path": "E:\\Code_file\\Projects\\Vessel_Harness\\packages\\core\\src\\agent-loop\\AgentLoop.ts"
+  },
+  {
+    "Algorithm": "SHA256",
+    "Hash": "9F38DDD234F6DCE5B8C981CF06F17D9E7458995AD853873DDF1362E7C6D65AB2",
+    "Path": "E:\\Code_file\\Projects\\Vessel_Harness\\packages\\core\\src\\agent-loop\\InterruptController.test.ts"
+  },
+  {
+    "Algorithm": "SHA256",
+    "Hash": "09FB2404E73AE9CAA5B47D6C35461BA6DD3A18F21F073D6A97C6851E1D1E7A8D",
+    "Path": "E:\\Code_file\\Projects\\Vessel_Harness\\packages\\core\\src\\agent-loop\\InterruptController.ts"
+  },
+  {
+    "Algorithm": "SHA256",
+    "Hash": "E294EE37B2708CFD8D817CAC5641AE60DC81E8430F85BF7854A262E29752BBB0",
+    "Path": "E:\\Code_file\\Projects\\Vessel_Harness\\packages\\core\\src\\agent-loop\\SteeringQueue.test.ts"
+  },
+  {
+    "Algorithm": "SHA256",
+    "Hash": "04CE257E5A67C294D86EEC927899A4FFDD7203124651561610AA9A304F10F19D",
+    "Path": "E:\\Code_file\\Projects\\Vessel_Harness\\packages\\core\\src\\agent-loop\\SteeringQueue.ts"
+  },
+  {
+    "Algorithm": "SHA256",
+    "Hash": "90C1FE8FA304A5CB5D6C64506C6590FA86EB375976C79AEDBD010673991029E4",
+    "Path": "E:\\Code_file\\Projects\\Vessel_Harness\\packages\\core\\src\\events\\EventBus.test.ts"
+  },
+  {
+    "Algorithm": "SHA256",
+    "Hash": "1DFBFC347EC0F5981327F6203C440D0DE10EA7ED7307D93DC4900F7BB82CE690",
+    "Path": "E:\\Code_file\\Projects\\Vessel_Harness\\packages\\core\\src\\events\\EventBus.ts"
+  },
+  {
+    "Algorithm": "SHA256",
+    "Hash": "03D89C7192613CB3949885C154E5A22FDDB0D97647BF0BA8C2EDF575CF87A332",
+    "Path": "E:\\Code_file\\Projects\\Vessel_Harness\\packages\\core\\src\\events\\EventBus.waterfall-error-policy.test.ts"
+  },
+  {
+    "Algorithm": "SHA256",
+    "Hash": "BA8A362DE4FE33CC9EE2A7EF1190124AB3F29BC241BFDDD51A9D6ED70600520E",
+    "Path": "E:\\Code_file\\Projects\\Vessel_Harness\\packages\\core\\src\\index.ts"
+  },
+  {
+    "Algorithm": "SHA256",
+    "Hash": "F1906E01A630DED3786CBB4AD730FB2D46A70FD08946F8D7E991085215A6453F",
+    "Path": "E:\\Code_file\\Projects\\Vessel_Harness\\packages\\core\\src\\session\\Session.test.ts"
+  },
+  {
+    "Algorithm": "SHA256",
+    "Hash": "80D544D44EE5F226A8FDC8AF674C815F15661193341CD988C99CEC880EDE78E3",
+    "Path": "E:\\Code_file\\Projects\\Vessel_Harness\\packages\\core\\src\\session\\Session.ts"
+  },
+  {
+    "Algorithm": "SHA256",
+    "Hash": "D5B0ABE1945C7D0D4D445546FE5D44EDABF72432982F486FB951231327A1E7D9",
+    "Path": "E:\\Code_file\\Projects\\Vessel_Harness\\packages\\core\\src\\session\\SessionLease.test.ts"
+  },
+  {
+    "Algorithm": "SHA256",
+    "Hash": "3944A74D60597BA85F6E4D4EDE6BCBBDC9ED4B00EA21ABF3AB5944320D46F54A",
+    "Path": "E:\\Code_file\\Projects\\Vessel_Harness\\packages\\core\\src\\session\\streaming\\ChunkedSession.ts"
+  },
+  {
+    "Algorithm": "SHA256",
+    "Hash": "04AFB8E62AF2AD1B6D96FD0A46CD85E05D95344DBF448DBC33A639BF962A5B5B",
+    "Path": "E:\\Code_file\\Projects\\Vessel_Harness\\packages\\core\\src\\session\\streaming\\chunkedSession.test.ts"
+  },
+  {
+    "Algorithm": "SHA256",
+    "Hash": "494C9FAD57775D22AC8CCDD0ADC9C7717D98832DFA10E263650699DD12D593CD",
+    "Path": "E:\\Code_file\\Projects\\Vessel_Harness\\packages\\core\\src\\session\\streaming\\types.ts"
+  },
+  {
+    "Algorithm": "SHA256",
+    "Hash": "5A6BDBF24E5F1CC041AF26BCF008B367D1AEBE653C83B4D3870CF1CBCD00AED8",
+    "Path": "E:\\Code_file\\Projects\\Vessel_Harness\\packages\\core\\src\\state\\State.ts"
+  },
+  {
+    "Algorithm": "SHA256",
+    "Hash": "54C08143595D6DF93199DC58CB0EB3A0861AB6FBFE518430906F64B3F8C3F864",
+    "Path": "E:\\Code_file\\Projects\\Vessel_Harness\\packages\\core\\tsconfig.json"
+  }
+]

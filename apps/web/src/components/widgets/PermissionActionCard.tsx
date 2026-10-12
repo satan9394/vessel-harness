@@ -1,7 +1,10 @@
+import { localizedValue } from '../../i18n';
+import { useI18n } from '../LanguageProvider';
 import { useEffect, useRef, useState } from 'react';
 import type { PermissionActionWidget } from '@vessel/shared';
 
 export default function PermissionActionCard({ widget, onRespond }: { widget: PermissionActionWidget; onRespond?: (widgetId: string, optionId: string) => Promise<void> }) {
+  const { t } = useI18n();
   const [pending, setPending] = useState(false);
   const [selected, setSelected] = useState<string>();
   const [error, setError] = useState<string>();
@@ -17,9 +20,9 @@ export default function PermissionActionCard({ widget, onRespond }: { widget: Pe
     catch (err) { if (alive.current) setError(err instanceof Error ? err.message : String(err)); }
     finally { inFlight.current = false; if (alive.current) setPending(false); }
   }
-  return <section className="inline-widget" aria-label="Permission action" aria-busy={pending}><header className="widget-head"><strong>Permission · {widget.payload.actionType.replace(/_/g, ' ')}</strong></header><p>{widget.payload.description}</p>
+  return <section className="inline-widget" data-permission-action aria-label={t('uiPermissionAction')} aria-busy={pending}><header className="widget-head"><strong>{t('uiPermission')} {localizedValue(widget.payload.actionType, t)}</strong></header><p>{widget.payload.description}</p>
     <div className="widget-actions">{widget.payload.options.map(option => <button key={option.id} type="button" className={`btn ${option.tone === 'primary' ? 'btn-primary' : option.tone === 'danger' ? 'widget-danger' : ''}`} disabled={disabled} onClick={() => void respond(option.id)}>{option.label}</button>)}</div>
-    <p role="status">{pending ? 'Sending response…' : resolved ? `Resolved · ${widget.payload.options.find(option => option.id === resolved)?.label ?? resolved}` : widget.status === 'expired' ? 'Expired' : !onRespond ? 'Response unavailable' : 'Awaiting your decision'}</p>
-    {error && !resolved && widget.status === 'pending' && <p role="alert" className="error-text">{error} · Choose an option to retry.</p>}
+    <p role="status">{pending ? t('uiSendingResponse') : resolved ? t('resolvedChoice', { choice: widget.payload.options.find(option => option.id === resolved)?.label ?? resolved }) : widget.status === 'expired' ? t('uiExpired') : !onRespond ? t('uiResponseUnavailable') : t('uiAwaitingYourDecision')}</p>
+    {error && !resolved && widget.status === 'pending' && <p role="alert" className="error-text">{error}  {t('uiChooseAnOptionToRetry')}</p>}
   </section>;
 }

@@ -402,3 +402,48 @@ When there is nothing worth recording, not writing is the correct behavior.
     - 身份守卫：`identity-guard.sh` exit 0（中性身份 0 泄露）；
   - 任务卡 `tasks/200`–`tasks/204` 全部标记为「completed」。
 - **状态**: Epic 204 本地交付闭环，V2.4 阶段里程碑全部收官。
+
+---
+
+## 2026-10-10 · Epic 209 (V2.5) 画布级交互协同与极客工作台全量交付闭环
+
+- **Agent**: @codex + @opencode + @agy
+- **事件**:
+  - 交付 V2.5 画布级交互协同体系（tasks 205–209）：
+    1. 任务 205（画布交互补丁选择器与单块 Cherry-pick）：在 pps/web/src/components/canvas/InteractivePatchPicker.tsx 落地逐 Hunk 审阅、单块采纳/丢弃与撤销回退，后端提供 POST /api/session/:id/patch/apply 端点安全应用选定补丁；
+    2. 任务 206（流式思考折叠流与认知规则标注）：在 pps/web/src/components/widgets/StreamingReasoningBlock.tsx 动态流式折叠思考链，展示耗时与 Token 生成速率，并在思考块标注命中的认知反思规则；
+    3. 任务 207（全局极客命令面板与键盘快捷键）：在 pps/web/src/components/palette/CommandPalette.tsx 落地 Ctrl+K 命令面板，支持模糊搜索、动作执行与全键盘无鼠标流；
+    4. 任务 208（桌面注意力通知与音频合成提示）：在 pps/web/src/utils/attentionManager.ts 与 udioSynthesizer.ts 实现窗口离焦通知与 Web Audio 合成音效提醒，支持用户偏好静音持久化；
+    5. 任务 209（全量集成门禁）：双 Root 3,083 passed / 6 skipped 全绿，TypeScript 构建与安全 Web 生产打包全部 exit 0，packages/core 0 变动。
+- **状态**: Epic 209 本地闭环，改动已保留在工作区。
+
+---
+
+## 2026-10-11 · Epic 214 (V2.6) 全域纯正国际化与可视化多模型接入中枢全量交付闭环
+
+- **Agent**: @codex + @opencode + @agy
+- **事件**:
+  - 交付 V2.6 全域纯正国际化与可视化模型接入中枢（tasks 210–214）：
+    1. 任务 210（全域纯正 i18n 字典扩充与组件硬编码英文彻底解耦）：在 pps/web/src/i18n.ts 扩充强类型中英双语字典，建立地道纯正的技术中文语言包，重构全仓组件消除硬编码英文字符串；
+    2. 任务 211（Local Server 供应商存储与 REST API）：在 pps/local-server 集成 ProviderStore，落地 GET/POST/DELETE /api/providers 及 POST /api/providers/test 连通性测试端点，API Key 安全脱敏；
+    3. 任务 212（Web 端可视化供应商管理面板与连通性测试）：在 pps/web/src/components/providers/ProviderSettingsModal.tsx 落地图形化供应商管理、端点连通性测试指示与一键保存；
+    4. 任务 213（新建会话模型选择与动态切换）：在 NewSessionForm.tsx 与顶部工具栏 ModelSelector.tsx 联动 ProviderStore，支持真实模型发现、按组选择与会话级动态模型切换；
+    5. 任务 214（全量终态集成验收）：双 Root 3,146 passed / 6 skipped，构建与类型门禁全部 exit 0，packages/core 0 变动。
+- **状态**: Epic 214 本地闭环，改动已保留在工作区。
+
+---
+
+## 2026-10-11 · Card 215 模型端点自动拉取、灵活配置 Schema 兼容与供应商管理自愈交付与闭环
+
+- **Agent**: @opencode (DeepSeek-v4.1-Flash) + @agy (Gemini 3.8 Flash High)
+- **事件**:
+  - 针对真实用户反馈的问题（缺少模型自动拉取、协议与密钥术语不地道、带 secretRef 供应商无法删除、workbuddy options 嵌套与字典型 models 被 400 拦截）闭环 Card 215：
+    1. 后端落地 
+ormalizeProviderInput 归一化兼容器：自动识别字典型 models 对象、提取 options.baseURL 与 options.apiKey 嵌套，解析 
+pm（如 @ai-sdk/openai-compatible）协议；
+    2. 新增 POST /api/providers/pull-models 真实探测 /v1/models 端点，前端提供「一键拉取模型」按钮自动填充；
+    3. 修复 secretRef 关联凭据清理逻辑，支持既有/孤儿条目安全删除，后端透传具体错误码与白名单分类 provider_store_corrupted，前端具体化错误提示，杜绝笼统吞错；
+    4. 术语规范化为 OpenAI 兼容 (OpenAI Compatible)、Anthropic (Claude) 与 API Key；
+    5. 全量双 Root 3,155 passed / 6 skipped，定向测试全绿，	sc -b、	ypecheck:tests、Web 打包全部 exit 0，packages/core 0 变动。
+- **状态**: 机器账本 .agent-state/run-state.json 与 HANDOFF.md 完整同步，本地验收通过。
+

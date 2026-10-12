@@ -1,3 +1,4 @@
+import { localizedValue } from '../i18n';
 import { useEffect, useRef, useState } from 'react';
 import {
   UI_MODULES,
@@ -64,7 +65,7 @@ export default function CustomizePanel({ modules, onChange }: Props) {
                   checked={modules[key]}
                   onChange={() => setModule(key)}
                 />
-                <span>{key}</span>
+                <span>{localizedValue(key, t)}</span>
               </label>
             ))}
           </div>

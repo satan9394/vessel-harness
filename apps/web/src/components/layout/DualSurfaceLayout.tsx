@@ -1,24 +1,30 @@
+import type { MessageKey } from '../../i18n';
+import { useI18n } from '../LanguageProvider';
 import { useEffect, useId, useRef, useState, type ReactNode } from 'react';
-import type { ImpactRadarWidget } from '@vessel/shared';
+import type { ImpactRadarWidget, DiffInspectorWidget } from '@vessel/shared';
+import { createApiClient } from '../../api';
 import type { ApiClient } from '../../api';
 import type { CacheUsageMetrics } from '../../cacheUsage';
 import type { InspectorObservation } from '../../inspector';
 import SwarmTopologyView from '../SwarmTopologyView';
 import CognitiveRulesDashboard from '../CognitiveRulesDashboard';
 import AstImpactRadar from '../widgets/AstImpactRadar';
+import InlineDiffInspector from '../widgets/InlineDiffInspector';
 import './layout.css';
 
 export const INSPECTOR_STORAGE_KEY = 'vessel.inspector';
-export const INSPECTOR_TABS = ['swarm', 'cognition', 'cache', 'ast'] as const;
+export const INSPECTOR_TABS = ['swarm', 'cognition', 'cache', 'ast', 'patch'] as const;
 export type InspectorTab = typeof INSPECTOR_TABS[number];
 export interface DualSurfaceLayoutProps {
   children: ReactNode;
   inspectorDefaultOpen?: boolean;
   sessionId: string;
-  api?: Pick<ApiClient, 'meshPeers' | 'cognitiveRules'>;
+  api?: Pick<ApiClient, 'meshPeers' | 'cognitiveRules'> & Partial<Pick<ApiClient, 'applyPatch'>>;
   cacheHistory?: CacheUsageMetrics[];
   impacts?: ImpactRadarWidget[];
+  patches?: DiffInspectorWidget[];
   observation?: InspectorObservation;
+  tabRequest?: { tab: InspectorTab; serial: number };
 }
 export function readInspectorState(storage: Pick<Storage, 'getItem'> | undefined, defaultOpen: boolean) {
   try {
@@ -43,6 +49,7 @@ export function appendCacheObservation(history: CacheUsageMetrics[], sample: Cac
 }
 
 export function CacheEconomicsPanel({ history = [], observation }: { history?: CacheUsageMetrics[]; observation?: InspectorObservation }) {
+  const { t } = useI18n();
   const latest = history.at(-1);
   const previousFingerprint = useRef<string | undefined>(undefined);
   const [changed, setChanged] = useState(false);
@@ -50,42 +57,57 @@ export function CacheEconomicsPanel({ history = [], observation }: { history?: C
     setChanged(previousFingerprint.current !== undefined && observation?.workspace?.trackedFilesHash !== previousFingerprint.current);
     previousFingerprint.current = observation?.workspace?.trackedFilesHash;
   }, [observation?.workspace?.trackedFilesHash]);
-  return <section className="dashboard-panel" aria-label="KV Cache economics">
-    <h2>KV Cache economics</h2>
+  return <section className="dashboard-panel" aria-label={t('uiKVCacheEconomics')}>
+    <h2>{t('uiKVCacheEconomics')}</h2>
     {latest ? <>
-      <p>Billed cache hit rate <strong>{(latest.billedHitRate * 100).toFixed(1)}%</strong> · {latest.provider} / {latest.model}</p>
-      <p>{latest.cachedTokens} cached / {latest.promptTokens} prompt tokens · {latest.creationTokens} created</p>
-      <p>Estimated savings ${latest.estimatedSavingsUsd.toFixed(4)}{latest.estimated && ' · Estimated usage'}</p>
-      {history.length > 1 && <svg viewBox="0 0 300 80" className="cache-waveform" role="img" aria-label="Observed billed cache hit rate history"><title>{history.map(sample => `${(sample.billedHitRate * 100).toFixed(1)}%`).join(', ')}</title><polyline fill="none" stroke="currentColor" strokeWidth="2" points={history.map((sample, index) => `${2 + index * 296 / (history.length - 1)},${78 - Math.max(0, Math.min(1, sample.billedHitRate)) * 76}`).join(' ')} /></svg>}
-      <p className="dim">Last {history.length} observed model calls in this session.</p>
-    </> : <p className="dim">No cache usage observed in this session.</p>}
-    <h3>Workspace fingerprint</h3>
-    {observation?.workspace ? <><code className="workspace-fingerprint">{observation.workspace.trackedFilesHash}</code><p role="status">{changed ? 'Fingerprint changed since the previous observation.' : 'Observed workspace fingerprint.'}</p><p>{observation.workspace.fileCount} tracked files · {observation.workspace.uncommittedDiffBytes} uncommitted diff bytes</p></> : <p className="dim">No workspace fingerprint observed.</p>}
-    <h3>Prompt prefix segments</h3>
-    {observation?.prefix ? <><ol className="prefix-segments"><li>Stable · {observation.prefix.stableBytes} bytes</li><li>Scoped · {observation.prefix.scopedBytes} bytes</li><li>Volatile · {observation.prefix.volatileBytes} bytes</li></ol><p>Prefix SHA-256</p><code className="workspace-fingerprint">{observation.prefix.sha256}</code></> : <p className="dim">No prompt prefix segments observed.</p>}
+      <p>{t('uiBilledCacheHitRate')} <strong>{(latest.billedHitRate * 100).toFixed(1)}%</strong> · {latest.provider} / {latest.model}</p>
+      <p>{latest.cachedTokens}  {t('uiCached')} {latest.promptTokens}  {t('uiPromptTokens')} {latest.creationTokens}  {t('uiCreated')}</p>
+      <p>{t('uiEstimatedSavings')}{latest.estimatedSavingsUsd.toFixed(4)}{latest.estimated && t('estimatedUsage')}</p>
+      {history.length > 1 && <svg viewBox="0 0 300 80" className="cache-waveform" role="img" aria-label={t('uiObservedBilledCacheHitRateHistory')}><title>{history.map(sample => `${(sample.billedHitRate * 100).toFixed(1)}%`).join(', ')}</title><polyline fill="none" stroke="currentColor" strokeWidth="2" points={history.map((sample, index) => `${2 + index * 296 / (history.length - 1)},${78 - Math.max(0, Math.min(1, sample.billedHitRate)) * 76}`).join(' ')} /></svg>}
+      <p className="dim">{t('uiLast')} {history.length}  {t('uiObservedModelCallsInThisSession')}</p>
+    </> : <p className="dim">{t('uiNoCacheUsageObservedInThisSession')}</p>}
+    <h3>{t('uiWorkspaceFingerprint')}</h3>
+    {observation?.workspace ? <><code className="workspace-fingerprint">{observation.workspace.trackedFilesHash}</code><p role="status">{changed ? t('uiFingerprintChangedSinceThePreviousObservation') : t('uiObservedWorkspaceFingerprint')}</p><p>{observation.workspace.fileCount}  {t('uiTrackedFiles')} {observation.workspace.uncommittedDiffBytes}  {t('uiUncommittedDiffBytes')}</p></> : <p className="dim">{t('uiNoWorkspaceFingerprintObserved')}</p>}
+    <h3>{t('uiPromptPrefixSegments')}</h3>
+    {observation?.prefix ? <><ol className="prefix-segments"><li>{t('uiStable')} {observation.prefix.stableBytes}  {t('uiBytes')}</li><li>{t('uiScoped')} {observation.prefix.scopedBytes}  {t('uiBytes')}</li><li>{t('uiVolatile')} {observation.prefix.volatileBytes}  {t('uiBytes')}</li></ol><p>{t('uiPrefixSHA256')}</p><code className="workspace-fingerprint">{observation.prefix.sha256}</code></> : <p className="dim">{t('uiNoPromptPrefixSegmentsObserved')}</p>}
   </section>;
 }
 
 export function AstTopologyPanel({ impacts = [] }: { impacts?: ImpactRadarWidget[] }) {
-  return <section className="dashboard-panel" aria-label="AST symbol dependencies"><h2>AST symbol dependencies</h2>
-    <p className="dim">Observed impact reports for this session.</p>
+  const { t } = useI18n();
+  return <section className="dashboard-panel" aria-label={t('uiASTSymbolDependencies')}><h2>{t('uiASTSymbolDependencies')}</h2>
+    <p className="dim">{t('uiObservedImpactReportsForThisSession')}</p>
     {impacts.length ? impacts.map(widget => <div key={widget.id}>
-      <svg className="impact-topology" viewBox={`0 0 400 ${Math.max(70, widget.payload.blastRadius.affectedCallers.length * 45 + 25)}`} role="img" aria-label={`Observed callers of ${widget.payload.targetSymbol}`}>
-        <title>{`${widget.payload.blastRadius.affectedCallers.length} reported callers of ${widget.payload.targetSymbol}`}</title>
+      <svg className="impact-topology" viewBox={`0 0 400 ${Math.max(70, widget.payload.blastRadius.affectedCallers.length * 45 + 25)}`} role="img" aria-label={t('observedCallers', { symbol: widget.payload.targetSymbol })}>
+        <title>{t('reportedCallers', { count: String(widget.payload.blastRadius.affectedCallers.length), symbol: widget.payload.targetSymbol })}</title>
         <text x="8" y="20">{widget.payload.targetSymbol}</text>
         {widget.payload.blastRadius.affectedCallers.map((caller, index) => <g key={`${caller.filePath}:${caller.symbolName}:${index}`}><path d={`M 20 28 V ${index * 45 + 50} H 60`} fill="none" stroke="currentColor" /><text x="65" y={index * 45 + 55}>{caller.symbolName}</text></g>)}
-      </svg><AstImpactRadar widget={widget} /></div>) : <p className="dim">No AST impact reports observed.</p>}
+      </svg><AstImpactRadar widget={widget} /></div>) : <p className="dim">{t('uiNoASTImpactReportsObserved')}</p>}
   </section>;
 }
 
-const labels: Record<InspectorTab, string> = { swarm: 'Swarm', cognition: 'Cognition', cache: 'KV Cache', ast: 'AST' };
-export function DualSurfaceLayout({ children, inspectorDefaultOpen = false, sessionId, api, cacheHistory, impacts, observation }: DualSurfaceLayoutProps) {
+export function PatchCanvasPanel({ sessionId, patches = [], api }: { sessionId: string; patches?: DiffInspectorWidget[]; api?: Pick<ApiClient, 'applyPatch'> }) {
+  const { t } = useI18n();
+  return <section className="dashboard-panel" aria-label={t('uiPatchWorkbench')}><h2>{t('uiPatchWorkbench')}</h2>
+    <p className="dim">{t('uiReviewTextChangesOneHunkAtATime')}</p>
+    {patches.length ? patches.map(widget => <InlineDiffInspector key={`${sessionId}:${widget.id}`} sessionId={sessionId}
+      widget={{ ...widget, payload: { ...widget.payload, collapsedByDefault: false } }}
+      onAction={async (hunkId, action) => { await (api ?? createApiClient()).applyPatch(sessionId, widget.id, hunkId, action); }} />)
+      : <p className="dim">{t('uiNoPatchProposalsObservedInThisSession')}</p>}
+  </section>;
+}
+export const INSPECTOR_LABELS: Record<InspectorTab, MessageKey> = { swarm: 'tabSwarm', cognition: 'tabRules', cache: 'tabCache', ast: 'tabImpact', patch: 'tabPatch' };
+export function DualSurfaceLayout({ children, inspectorDefaultOpen = false, sessionId, api, cacheHistory, impacts, patches, observation, tabRequest }: DualSurfaceLayoutProps) {
+  const { t } = useI18n();
   const [state, setState] = useState(() => browserInspectorState(inspectorDefaultOpen));
   const [narrow, setNarrow] = useState(() => typeof window !== 'undefined' && window.matchMedia('(max-width: 1023px)').matches);
   const id = useId();
   const panel = useRef<HTMLDivElement>(null);
   const toggle = useRef<HTMLButtonElement>(null);
   const modal = state.open && narrow;
+  useEffect(() => {
+    if (tabRequest) setState({ open: true, tab: tabRequest.tab });
+  }, [tabRequest?.tab, tabRequest?.serial]);
   useEffect(() => {
     try { window.localStorage.setItem(INSPECTOR_STORAGE_KEY, JSON.stringify(state)); } catch { /* Optional persistence. */ }
   }, [state]);
@@ -98,7 +120,7 @@ export function DualSurfaceLayout({ children, inspectorDefaultOpen = false, sess
   useEffect(() => {
     const keydown = (event: KeyboardEvent) => {
       const target = event.target instanceof HTMLElement ? event.target : null;
-      if (isInspectorShortcut(event, Boolean(target?.closest('input, textarea, select, [contenteditable]:not([contenteditable="false"])')))) {
+      if (!event.defaultPrevented && !document.querySelector('[role="dialog"]') && isInspectorShortcut(event, Boolean(target?.closest('input, textarea, select, [contenteditable]:not([contenteditable="false"])')))) {
         event.preventDefault(); setState(previous => ({ ...previous, open: !previous.open }));
       }
     };
@@ -124,22 +146,24 @@ export function DualSurfaceLayout({ children, inspectorDefaultOpen = false, sess
   }, [modal]);
   return <div className={`dual-surface${state.open ? ' inspector-open' : ''}`} data-session-id={sessionId}>
     <div className="chat-surface" inert={modal}>
-      <div className="inspector-toolbar"><button ref={toggle} className="btn" aria-expanded={state.open} aria-controls={`${id}-inspector`} title="Toggle Inspector (Ctrl/Cmd+I)" onClick={() => setState(value => ({ ...value, open: !value.open }))}>{state.open ? 'Collapse Inspector' : 'Open Inspector'}</button></div>
+      <div className="inspector-toolbar"><button ref={toggle} className="btn" aria-expanded={state.open} aria-controls={`${id}-inspector`} title={t('uiToggleInspectorCtrlCmdI')} onClick={() => setState(value => ({ ...value, open: !value.open }))}>{state.open ? t('uiCollapseInspector') : t('uiOpenInspector')}</button></div>
       {children}
     </div>
     {state.open && <>
       {modal && <div className="inspector-backdrop" onClick={() => setState(value => ({ ...value, open: false }))} />}
-      <div className="docked-inspector" id={`${id}-inspector`} ref={panel} role={modal ? 'dialog' : 'complementary'} aria-modal={modal || undefined} aria-label="Session Inspector" tabIndex={-1}>
-        <header className="inspector-heading"><strong>Inspector</strong><button className="btn" onClick={() => setState(value => ({ ...value, open: false }))} aria-label="Close Inspector">Close</button></header>
-        <div className="inspector-tabs" role="tablist" aria-label="Inspector panels">{INSPECTOR_TABS.map((tab, index) => <button key={tab} id={`${id}-${tab}`} className="btn" role="tab" aria-selected={state.tab === tab} aria-controls={`${id}-panel`} tabIndex={state.tab === tab ? 0 : -1} onClick={() => setState(value => ({ ...value, tab }))} onKeyDown={event => {
-          const next = event.key === 'ArrowRight' ? (index + 1) % 4 : event.key === 'ArrowLeft' ? (index + 3) % 4 : event.key === 'Home' ? 0 : event.key === 'End' ? 3 : -1;
+      <div className="docked-inspector" id={`${id}-inspector`} ref={panel} role={modal ? 'dialog' : 'complementary'} aria-modal={modal || undefined} aria-label={t('uiSessionInspector')} tabIndex={-1}>
+        <header className="inspector-heading"><strong>{t('inspectorTitle')}</strong><button className="btn" onClick={() => setState(value => ({ ...value, open: false }))} aria-label={t('uiCloseInspector')}>{t('close')}</button></header>
+        <div className="inspector-tabs" role="tablist" aria-label={t('uiInspectorPanels')}>{INSPECTOR_TABS.map((tab, index) => <button key={tab} id={`${id}-${tab}`} className="btn" role="tab" aria-selected={state.tab === tab} aria-controls={`${id}-panel`} tabIndex={state.tab === tab ? 0 : -1} onClick={() => setState(value => ({ ...value, tab }))} onKeyDown={event => {
+          const count = INSPECTOR_TABS.length;
+          const next = event.key === 'ArrowRight' ? (index + 1) % count : event.key === 'ArrowLeft' ? (index + count - 1) % count : event.key === 'Home' ? 0 : event.key === 'End' ? count - 1 : -1;
           if (next < 0) return; event.preventDefault(); setState(value => ({ ...value, tab: INSPECTOR_TABS[next] })); document.getElementById(`${id}-${INSPECTOR_TABS[next]}`)?.focus();
-        }}>{labels[tab]}</button>)}</div>
+        }}>{t(INSPECTOR_LABELS[tab])}</button>)}</div>
         <div role="tabpanel" id={`${id}-panel`} aria-labelledby={`${id}-${state.tab}`} className="inspector-content" key={sessionId}>
           {state.tab === 'swarm' && <SwarmTopologyView api={api} />}
           {state.tab === 'cognition' && <CognitiveRulesDashboard api={api} />}
           {state.tab === 'cache' && <CacheEconomicsPanel history={cacheHistory} observation={observation} />}
           {state.tab === 'ast' && <AstTopologyPanel impacts={impacts} />}
+          {state.tab === 'patch' && <PatchCanvasPanel sessionId={sessionId} patches={patches} api={api?.applyPatch ? { applyPatch: api.applyPatch } : undefined} />}
         </div>
       </div>
     </>}

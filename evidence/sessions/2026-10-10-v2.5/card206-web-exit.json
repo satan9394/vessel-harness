@@ -1,0 +1,4 @@
+{
+  "exit": 0,
+  "command": "npx vitest run --root apps/web src/components/widgets/StreamingReasoningBlock.test.tsx src/components/ConversationView.reasoning.test.ts src/sse.test.ts src/components.topic.test.tsx"
+}

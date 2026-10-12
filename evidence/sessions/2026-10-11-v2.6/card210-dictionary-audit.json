@@ -1,0 +1,25 @@
+{
+  "messageCount": 478,
+  "moduleInterfaces": [
+    "CommonMessages",
+    "SessionMessages",
+    "ModelMessages",
+    "CanvasMessages",
+    "PatchMessages",
+    "ReasoningMessages",
+    "PaletteMessages",
+    "AttentionMessages",
+    "StatusMessages"
+  ],
+  "staticJsxTextRemainder": [
+    "Vessel",
+    "SHA-256",
+    "vessel serve",
+    "arrow entity"
+  ],
+  "allowedRemainderReason": "Product name, hash algorithm, executable command and a symbol, rather than untranslated UI prose.",
+  "englishHanCharacters": 0,
+  "preservesWireEnums": true,
+  "preservesCssEnums": true,
+  "permissionKeyboardSelector": "[data-permission-action] button:not(:disabled)"
+}

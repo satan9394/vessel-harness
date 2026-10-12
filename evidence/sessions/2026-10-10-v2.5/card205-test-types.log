@@ -1,0 +1,8 @@
+
+> composable-agent-harness@0.10.0 typecheck:tests
+> tsc -p tsconfig.test.json --pretty false
+
+apps/local-server/src/routes/patchRoutes.test.ts(28,35): error TS18048: 'server' is possibly 'undefined'.
+apps/local-server/src/routes/patchRoutes.test.ts(46,7): error TS18048: 'server' is possibly 'undefined'.
+apps/local-server/src/routes/patchRoutes.test.ts(50,75): error TS18048: 'server' is possibly 'undefined'.
+apps/local-server/src/routes/patchRoutes.test.ts(53,84): error TS18048: 'server' is possibly 'undefined'.

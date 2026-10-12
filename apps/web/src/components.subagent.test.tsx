@@ -1,5 +1,7 @@
-import { describe, expect, it } from 'vitest';
-import { renderToStaticMarkup } from 'react-dom/server';
+import type { ReactNode as I18nTestNode } from 'react';
+import { LanguageProvider } from './components/LanguageProvider';
+import { describe, expect, it , vi } from 'vitest';
+import { renderToStaticMarkup as renderMarkup } from 'react-dom/server';
 import { SubagentPanel, type SubagentItem } from './components/SubagentPanel.js';
 
 describe('SubagentPanel component', () => {
@@ -26,3 +28,9 @@ describe('SubagentPanel component', () => {
     expect(html).toContain('Cancel');
   });
 });
+
+function renderToStaticMarkup(node: I18nTestNode): string {
+  return renderMarkup(<LanguageProvider>{node}</LanguageProvider>).replace(/\s+/g, ' ');
+}
+
+vi.mock('./i18n', async original => ({ ...await original<typeof import('./i18n')>(), getInitialLang: () => 'en' as const }));

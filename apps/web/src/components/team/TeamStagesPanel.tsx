@@ -1,3 +1,5 @@
+import { localizedValue } from '../../i18n';
+import { useI18n } from '../LanguageProvider';
 import { useEffect, useRef, useState } from 'react';
 import type { ApiClient } from '../../api';
 import type { TeamPlanStage } from '../../teamStages';
@@ -7,6 +9,7 @@ import TeamNodeDrawer from './TeamNodeDrawer';
 import TeamPlanEditor from './TeamPlanEditor';
 
 export default function TeamStagesPanel({ api, sessionId }: { api: ApiClient; sessionId: string }) {
+  const { t } = useI18n();
   const [stages, setStages] = useState<TeamPlanStage[]>([]);
   const [task, setTask] = useState('');
   const [selected, setSelected] = useState<string>();
@@ -36,16 +39,16 @@ export default function TeamStagesPanel({ api, sessionId }: { api: ApiClient; se
     catch (err) { if (current === revision.current) setError(err instanceof Error ? err.message : String(err)); }
     finally { acting.current = false; if (current === revision.current) setBusy(false); }
   }
-  return <section className="team-stages-panel" aria-label="Staged team plans">
+  return <section className="team-stages-panel" aria-label={t('uiStagedTeamPlans')}>
     <form className="team-run-composer" onSubmit={e => { e.preventDefault(); if (task.trim()) void act(() => api.stageTeam(sessionId, { task: task.trim() })); }}>
-      <input className="input" aria-label="Team plan task" placeholder="Preview a team plan…" value={task} onChange={e => setTask(e.target.value)} />
-      <button className="btn" disabled={busy || !task.trim()}>Stage plan</button>
+      <input className="input" aria-label={t('uiTeamPlanTask')} placeholder={t('uiPreviewATeamPlan')} value={task} onChange={e => setTask(e.target.value)} />
+      <button className="btn" disabled={busy || !task.trim()}>{t('uiStagePlan')}</button>
     </form>
     {error && <p role="alert">{error}</p>}
-    {stages.map(stage => <section key={stage.id} aria-label={`Team stage ${stage.id}`}>
+    {stages.map(stage => <section key={stage.id} aria-label={t('teamStage', { id: stage.id })}>
       <TeamStagedBanner stage={stage} busy={busy} onApprove={() => void act(() => api.approveTeamStage(stage.id))} onReject={() => void act(() => api.rejectTeamStage(stage.id))} />
       <TeamPlanEditor stage={stage} busy={busy} onSave={plan => void act(() => api.reviseTeamStage(stage.id, plan))} />
-      <p>{stage.status}</p>{stage.error && <p role="alert">{stage.error}</p>}
+      <p>{localizedValue(stage.status, t)}</p>{stage.error && <p role="alert">{stage.error}</p>}
       <TeamDagCanvas tasks={stage.tasks} activeTaskId={stage.tasks.find(node => `${stage.id}:${node.id}` === selected)?.id} onSelectTask={id => setSelected(`${stage.id}:${id}`)} />
       {stage.tasks.filter(node => `${stage.id}:${node.id}` === selected).map(node => <TeamNodeDrawer key={`${stage.id}:${node.id}`} api={api} stageId={stage.id} task={node} onClose={() => setSelected(undefined)} />)}
     </section>)}

@@ -1,6 +1,8 @@
+import type { ReactNode as I18nTestNode } from 'react';
+import { LanguageProvider } from '../LanguageProvider';
 import { describe, expect, it, vi } from 'vitest';
 import { isValidElement, type ReactElement, type ReactNode } from 'react';
-import { renderToStaticMarkup } from 'react-dom/server';
+import { renderToStaticMarkup as renderMarkup } from 'react-dom/server';
 import { createApiClient } from '../../api';
 import { pollDashboard, type ReflectiveRuleView } from '../../dashboard';
 import { CognitiveRulesDashboard, CognitiveRulesFilters, CognitiveRulesList, filterCognitiveRules } from '../CognitiveRulesDashboard';
@@ -73,4 +75,15 @@ describe('CognitiveRulesDashboard', () => {
     expect(html).toContain('Loading reflective rules');
     expect(html).toContain('aria-busy="true"');
   });
+});
+
+function renderToStaticMarkup(node: I18nTestNode): string {
+  return renderMarkup(<LanguageProvider>{node}</LanguageProvider>).replace(/\s+/g, ' ');
+}
+
+vi.mock('../../i18n', async original => ({ ...await original<typeof import('../../i18n')>(), getInitialLang: () => 'en' as const }));
+
+vi.mock('../LanguageProvider', async original => {
+  const { translate } = await import('../../i18n');
+  return { ...await original<typeof import('../LanguageProvider')>(), useI18n: () => ({ lang: 'en', t: translate('en'), setLang: vi.fn() }) };
 });

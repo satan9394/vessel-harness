@@ -119,9 +119,9 @@ describe('thinking and per-turn metrics components', () => {
     for (const label of ['metricPrompt', 'metricCompletion', 'metricThinking', 'metricCacheRead', 'metricLatency', 'metricCost'] as const) {
       expect(html).toContain(t(label));
     }
-    expect(html).toContain('12 tok');
-    expect(html).toContain('0 tok');
-    expect(html).toContain('150ms');
+    expect(html).toContain(`12 ${t('tokenUnit')}`);
+    expect(html).toContain(`0 ${t('tokenUnit')}`);
+    expect(html).toContain(t('timeMilliseconds', { value: '150' }));
     expect(html).toContain('~$0.0000');
     expect(render(<TalkingMetricsBar metrics={{}} />)).toBe('');
   });

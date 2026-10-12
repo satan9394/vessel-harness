@@ -13,5 +13,7 @@ export * from './noProgress.js';
 export * from './mods.js';
 export * from './modManifest.js';
 export * from './widgets.js';
+export * from './patch.js';
 export * from './inspector.js';
 export { VERSION } from './constants.js';
+export * from './reasoning.js';
