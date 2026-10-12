@@ -1,0 +1,91 @@
+{
+  "schema_version": 1,
+  "diagram_type": "sequence",
+  "meta": {
+    "title": "Vessel — 一轮 turn 的运行时序",
+    "subtitle": "AgentLoop 驱动 · 事件总线裁决 · 事件日志为唯一真源",
+    "locale": "zh-CN",
+    "output": "docs/diagrams/vessel-turn-sequence.html",
+    "quality_profile": "showcase",
+    "viewBox": [1080, 696],
+    "column_fit": "spread",
+    "repository": {
+      "url": "https://github.com/satan9394/vessel-harness.git",
+      "provider": "github",
+      "link_mode": "web",
+      "revision": "9c764b811d737c1f3ba40649f4c3f3e4ec4f1bd2"
+    }
+  },
+  "participants": [
+    { "id": "cli", "type": "external", "label": "apps/cli", "sublabel": "调用方", "sources": [{ "path": "apps/cli/src/cli.ts", "line": 1 }] },
+    { "id": "loop", "type": "backend", "label": "core", "sublabel": "AgentLoop", "sources": [{ "path": "packages/core/src/agent-loop/AgentLoop.ts", "line": 205 }] },
+    { "id": "bus", "type": "messagebus", "label": "EventBus", "sublabel": "waterfall/serial", "sources": [{ "path": "packages/core/src/events/EventBus.ts", "line": 116 }] },
+    { "id": "ctx", "type": "backend", "label": "context", "sublabel": "builder", "sources": [{ "path": "packages/context/src/builder/Builder.ts", "line": 31 }] },
+    { "id": "model", "type": "cloud", "label": "llm", "sublabel": "Provider 流", "sources": [{ "path": "packages/llm/src/provider/createProvider.ts", "line": 78 }] },
+    { "id": "policy", "type": "security", "label": "policy", "sublabel": "engine", "sources": [{ "path": "packages/policy/src/engine/Engine.ts", "line": 29 }] },
+    { "id": "runtime", "type": "cloud", "label": "runtime", "sublabel": "Executor", "sources": [{ "path": "packages/runtime/src/executor/Executor.ts", "line": 54 }] },
+    { "id": "session", "type": "database", "label": "Session", "sublabel": "JSONL 日志", "sources": [{ "path": "packages/core/src/session/Session.ts", "line": 198 }] }
+  ],
+  "segments": [
+    { "from": 145, "to": 205, "label": "入口裁决" },
+    { "from": 205, "to": 370, "label": "单步循环" },
+    { "from": 370, "to": 505, "label": "工具裁决" },
+    { "from": 505, "to": 598, "label": "收尾" }
+  ],
+  "messages": [
+    { "id": "run-turn", "from": "cli", "to": "loop", "y": 160, "label": "runTurn(input)", "variant": "default" },
+    { "id": "before-turn", "from": "loop", "to": "bus", "y": 188, "label": "before_turn A03", "variant": "emphasis" },
+    { "id": "admit", "from": "bus", "to": "loop", "y": 216, "label": "放行 / deny", "variant": "return" },
+    { "id": "open-turn", "from": "loop", "to": "session", "y": 244, "label": "turn/start + user/message", "variant": "default" },
+    { "id": "before-model", "from": "loop", "to": "bus", "y": 272, "label": "before_model A07", "variant": "emphasis" },
+    { "id": "stream", "from": "loop", "to": "model", "y": 300, "label": "stream(request)", "variant": "emphasis" },
+    { "id": "response", "from": "model", "to": "loop", "y": 328, "label": "文本 / tool calls", "variant": "return" },
+    { "id": "after-model", "from": "loop", "to": "bus", "y": 356, "label": "after_model A10", "variant": "default" },
+    { "id": "before-tool", "from": "loop", "to": "bus", "y": 384, "label": "before_tool A12", "variant": "emphasis" },
+    { "id": "decide", "from": "bus", "to": "policy", "y": 412, "label": "decide(call, spec)", "variant": "security" },
+    { "id": "verdict", "from": "policy", "to": "bus", "y": 440, "label": "allow / deny / ask", "variant": "return" },
+    { "id": "run-tool", "from": "bus", "to": "runtime", "y": 468, "label": "runTool 复核", "variant": "security" },
+    { "id": "persist-result", "from": "runtime", "to": "session", "y": 496, "label": "tool/result 落盘", "variant": "default" },
+    { "id": "before-stop", "from": "loop", "to": "bus", "y": 524, "label": "before_stop A04", "variant": "emphasis" },
+    { "id": "close-turn", "from": "loop", "to": "session", "y": 552, "label": "turn/end(success)", "variant": "default" },
+    { "id": "after-turn", "from": "loop", "to": "bus", "y": 580, "label": "after_turn A06", "variant": "dashed" }
+  ],
+  "activations": [
+    { "participant": "loop", "from": 165, "to": 584, "type": "backend" },
+    { "participant": "bus", "from": 184, "to": 582, "type": "messagebus" },
+    { "participant": "ctx", "from": 296, "to": 304, "type": "backend" },
+    { "participant": "model", "from": 296, "to": 332, "type": "cloud" },
+    { "participant": "policy", "from": 408, "to": 444, "type": "security" },
+    { "participant": "runtime", "from": 464, "to": 500, "type": "cloud" },
+    { "participant": "session", "from": 240, "to": 556, "type": "database" }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "驱动与真源",
+      "items": [
+        "core AgentLoop 是唯一权威 loop，无工具调用 / 纯文本即停",
+        "Session 的 append-only 事件日志是唯一真源",
+        "模型可见 = 已记录（model_visible_iff_recorded）"
+      ]
+    },
+    {
+      "dot": "rose",
+      "title": "裁决与执法",
+      "items": [
+        "before_tool 上挂 policy 权威监听器，六步裁决后放行",
+        "runtime 在执行期复核（工具层不信任调用来源）",
+        "ask 无应答者 / approval=never ⇒ fail-closed 拒绝"
+      ]
+    },
+    {
+      "dot": "orange",
+      "title": "可审计的例外",
+      "items": [
+        "before_turn 否决：0 次模型调用，落 audit/denial + turn/end(kind=error)",
+        "before_stop 可 forceContinue 强制再走一步",
+        "after_turn 是 evaluator 门禁与轮末压缩检查位"
+      ]
+    }
+  ]
+}

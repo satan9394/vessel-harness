@@ -1,0 +1,197 @@
+{
+  "schemaVersion": 1,
+  "ok": true,
+  "command": "finalize",
+  "status": "pass",
+  "type": "lifecycle",
+  "quality": "showcase",
+  "specification": {
+    "path": "E:\\Code_file\\Projects\\Vessel_Harness\\.archify\\lifecycle-context-20261011-223634\\candidate.json",
+    "sha256": "ae5e3d7331e6d4b33ec1d5ef6f878c0f5029ed22f77c7a27038c7cd1e6ac5a50",
+    "bytes": 5247
+  },
+  "artifact": {
+    "path": "E:\\Code_file\\Projects\\Vessel_Harness\\docs\\diagrams\\vessel-context-lifecycle.html",
+    "sha256": "dbaa428ddacfcbc6e1e0de8e2f9be55677f11dcb646ca6d12f4cd724e743e75a",
+    "bytes": 770036
+  },
+  "gates": {
+    "validate": "pass",
+    "deliver": "pass",
+    "check": "pass",
+    "browser-check": "pass"
+  },
+  "diagnostics": [],
+  "diagnosticSummary": {
+    "total": 0,
+    "shown": 0,
+    "truncated": false
+  },
+  "evidence": {
+    "receipt": "E:\\Code_file\\Projects\\Vessel_Harness\\docs\\diagrams\\vessel-context-lifecycle.finalize.json",
+    "summaryReceipt": "E:\\Code_file\\Projects\\Vessel_Harness\\docs\\diagrams\\vessel-context-lifecycle.finalize-summary.json",
+    "browserCheckReceipt": "E:\\Code_file\\Projects\\Vessel_Harness\\docs\\diagrams\\vessel-context-lifecycle.browser-check.json"
+  },
+  "update": {
+    "status": "unavailable",
+    "installedVersion": null,
+    "availableVersion": null,
+    "releaseNotes": null,
+    "checkedAt": null,
+    "source": null,
+    "noticeRequired": false,
+    "noticeText": null,
+    "reason": "disabled"
+  },
+  "visualReview": "not-requested",
+  "durationMs": 5402,
+  "visualReviewRecommendation": {
+    "action": "inspect-route-readability",
+    "signals": {
+      "resolvedCrossovers": 4,
+      "routesOverSuggestedBends": 1,
+      "routesOverSuggestedStretch": 2
+    },
+    "reason": "Automated gates passed, but crossings or detours still need perceptual review before claiming visual quality.",
+    "affectedRoutes": {
+      "crossings": [
+        {
+          "left": {
+            "from": "pressure",
+            "to": "done",
+            "label": "未达阈值",
+            "collectionIndex": 2,
+            "artifactIndex": 3
+          },
+          "right": {
+            "from": "boundary_guard",
+            "to": "replace",
+            "label": "平衡切点",
+            "collectionIndex": 7,
+            "artifactIndex": 8
+          },
+          "point": [
+            742,
+            192
+          ]
+        },
+        {
+          "left": {
+            "from": "pressure",
+            "to": "done",
+            "label": "未达阈值",
+            "collectionIndex": 2,
+            "artifactIndex": 3
+          },
+          "right": {
+            "from": "replace",
+            "to": "reload",
+            "label": "",
+            "collectionIndex": 8,
+            "artifactIndex": 9
+          },
+          "point": [
+            757,
+            192
+          ]
+        },
+        {
+          "left": {
+            "from": "postturn",
+            "to": "lock",
+            "label": "",
+            "collectionIndex": 5,
+            "artifactIndex": 6
+          },
+          "right": {
+            "from": "boundary_guard",
+            "to": "replace",
+            "label": "平衡切点",
+            "collectionIndex": 7,
+            "artifactIndex": 8
+          },
+          "point": [
+            742,
+            364
+          ]
+        },
+        {
+          "left": {
+            "from": "postturn",
+            "to": "lock",
+            "label": "",
+            "collectionIndex": 5,
+            "artifactIndex": 6
+          },
+          "right": {
+            "from": "replace",
+            "to": "reload",
+            "label": "",
+            "collectionIndex": 8,
+            "artifactIndex": 9
+          },
+          "point": [
+            757,
+            364
+          ]
+        }
+      ],
+      "detours": [
+        {
+          "relationship": {
+            "from": "pressure",
+            "to": "done",
+            "label": "未达阈值",
+            "collectionIndex": 2,
+            "artifactIndex": 3
+          },
+          "bends": 2,
+          "stretch": 1.366,
+          "directCorridorBlockers": [
+            {
+              "id": "replace",
+              "label": "surface 替换",
+              "box": [
+                672,
+                56,
+                140,
+                64
+              ]
+            }
+          ]
+        },
+        {
+          "relationship": {
+            "from": "pressure",
+            "to": "lock",
+            "label": "≥ 阈值",
+            "collectionIndex": 3,
+            "artifactIndex": 4
+          },
+          "bends": 4,
+          "stretch": 1.451,
+          "directCorridorBlockers": [
+            {
+              "id": "overflow",
+              "label": "overflow 触发",
+              "box": [
+                468,
+                240,
+                140,
+                64
+              ]
+            }
+          ]
+        }
+      ],
+      "truncated": false
+    },
+    "hints": [
+      "pressure → done crosses boundary_guard → replace: move the node of whichever is a branch, return, or second entrance to the other side of the main path, so that relationship runs through an empty corridor.",
+      "pressure → done crosses replace → reload: move the node of whichever is a branch, return, or second entrance to the other side of the main path, so that relationship runs through an empty corridor.",
+      "postturn → lock crosses boundary_guard → replace: move the node of whichever is a branch, return, or second entrance to the other side of the main path, so that relationship runs through an empty corridor.",
+      "postturn → lock crosses replace → reload: move the node of whichever is a branch, return, or second entrance to the other side of the main path, so that relationship runs through an empty corridor."
+    ],
+    "repair": "Trace these relationships at the desktop viewport. For Architecture, use references/architecture-layout-repair.md: reflow a blocked main path or tangled connected scene, and repair an isolated defect locally only when the surrounding composition is accepted. Preserve all semantic content and user-fixed geometry. Rerun finalize once after the edit."
+  }
+}

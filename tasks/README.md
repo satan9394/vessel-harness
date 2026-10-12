@@ -106,10 +106,16 @@
 | 新建会话模型选择器升级与会话级多模型动态切换 (Session Model Picker & Dynamic Switching) | 213 | 已验证（V2.6 本地完成） | `tasks/213-session-model-picker-and-dynamic-switching.md` |
 | [Epic] V2.6 全域纯正国际化与可视化多模型接入中枢 (Epic Pure i18n & Visual Model Hub) | 214 | 已验证（3146 passed / 6 skipped） | `tasks/214-epic-v2-6-pure-i18n-and-visual-model-hub.md` |
 | 模型端点自动拉取、灵活配置 Schema 兼容与供应商管理自愈 (Provider Hub Model Pull & Schema Repair) | 215 | 已验证（2026-10-11 本地完成，双 Root 3155 passed / 6 skipped） | `tasks/215-provider-hub-model-pull-and-schema-repair.md` |
+| 项目整体逻辑架构可视化与文档包清单漂移修复 (Archify Architecture Visualization & Doc-Drift Repair) | 216 | 已验证（2026-10-12 本地完成，双 Root 2873 passed / 6 skipped） | `tasks/216-archify-architecture-visualization-and-doc-drift-repair.md`、`docs/diagrams/README.md` |
 
 ## 未闭合 / 下一目标
 
-- **当前就绪目标：无（等待维护者派发新卡）**。Card 215 已本地交付，见下方「最近已交付」。
+- **当前就绪目标：无（等待维护者派发新卡）**。Card 215、Card 216 均已本地交付，见下方「最近已交付」。
+- **最近已交付（待维护者验收）：任务 216 项目整体逻辑架构可视化与文档包清单漂移修复**：
+  - 交付对象：OpenCode 搭载 DeepSeek-v4.1-Flash；
+  - 交付内容：archify 产出的 5 类分层可交互图（`docs/diagrams/`，四门全绿、SRC 证据钉 `9c764b8`）+ `docs/ARCHITECTURE.md` §6.1 等文档包清单漂移（13→14，补 `engine`/`application`）修复；
+  - 门禁：`tsc -b` exit 0、双 Root **2873 passed / 6 skipped**（Web 282）、telemetry 文档锚点守卫 43 passed；
+  - 证据：`tasks/216-archify-architecture-visualization-and-doc-drift-repair.md`、`docs/diagrams/README.md`。
 - **最近已交付（待维护者验收）：任务 215 模型端点自动拉取、灵活配置 Schema 兼容与供应商管理自愈**：
   - 交付对象：OpenCode 搭载 DeepSeek-v4.1-Flash；
   - 交付内容：

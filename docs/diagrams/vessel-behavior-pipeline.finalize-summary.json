@@ -1,0 +1,48 @@
+{
+  "schemaVersion": 1,
+  "ok": true,
+  "command": "finalize",
+  "status": "pass",
+  "type": "dataflow",
+  "quality": "showcase",
+  "specification": {
+    "path": "E:\\Code_file\\Projects\\Vessel_Harness\\.archify\\dataflow-behavior-20261011-223634\\candidate.json",
+    "sha256": "70cd223d2629fb4a918f85bfd146f4ee6cd3e136036a8814bc7faf97472855d6",
+    "bytes": 5192
+  },
+  "artifact": {
+    "path": "E:\\Code_file\\Projects\\Vessel_Harness\\docs\\diagrams\\vessel-behavior-pipeline.html",
+    "sha256": "c91538e29d2fbff17cec38537ca9b1fa478cc15cd2ce48e50a987ac7d4942067",
+    "bytes": 763149
+  },
+  "gates": {
+    "validate": "pass",
+    "deliver": "pass",
+    "check": "pass",
+    "browser-check": "pass"
+  },
+  "diagnostics": [],
+  "diagnosticSummary": {
+    "total": 0,
+    "shown": 0,
+    "truncated": false
+  },
+  "evidence": {
+    "receipt": "E:\\Code_file\\Projects\\Vessel_Harness\\docs\\diagrams\\vessel-behavior-pipeline.finalize.json",
+    "summaryReceipt": "E:\\Code_file\\Projects\\Vessel_Harness\\docs\\diagrams\\vessel-behavior-pipeline.finalize-summary.json",
+    "browserCheckReceipt": "E:\\Code_file\\Projects\\Vessel_Harness\\docs\\diagrams\\vessel-behavior-pipeline.browser-check.json"
+  },
+  "update": {
+    "status": "unavailable",
+    "installedVersion": null,
+    "availableVersion": null,
+    "releaseNotes": null,
+    "checkedAt": null,
+    "source": null,
+    "noticeRequired": false,
+    "noticeText": null,
+    "reason": "disabled"
+  },
+  "visualReview": "not-requested",
+  "durationMs": 5475
+}

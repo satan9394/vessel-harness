@@ -403,8 +403,10 @@ TS Brain 先行 + 语言中立执行 seam（D3 决策点 15）：全 TS，执行
 ```text
 composable-agent-harness/
 ├── apps/
-│   └── cli/                  # 进程入口：自建轻量 CLI（任务书 §20：Commander/自建轻量 CLI 选自建）；
-│                             #   headless `run --bench` seam 供 D7 runner（ours adapter 契约 stub）
+│   ├── cli/                  # 进程入口：自建轻量 CLI（任务书 §20：Commander/自建轻量 CLI 选自建）；
+│   │                         #   headless `run --bench` seam 供 D7 runner（ours adapter 契约 stub）
+│   ├── local-server/         # 本地 HTTP + SSE 服务（serve / mesh / team / widget 路由；与 cli 共用 @vessel/application SSOT，task 098）
+│   └── web/                  # React + Vite 本地观察台（独立 noEmit 配置，不在 `tsc -b` 图内）
 ├── packages/
 │   ├── core/                 # agent-loop / state / session / events（§4.1）
 │   ├── llm/                  # provider / router / profiles（§4.2）
@@ -417,13 +419,14 @@ composable-agent-harness/
 │   ├── skills/               # 发现根 + frontmatter + 索引（§4.9）
 │   ├── agents/               # evaluator（§4.10）
 │   ├── telemetry/            #（§4.11）
+│   ├── engine/               # Loop Engine / task queue / handoff（V0.5 编排层，见 §7 演进路线）
 │   ├── application/          # 组合根 + 共享应用层（compose / projections / credential /
 │   │                         #   providers：供应商目录 + /v1 models 拉取 SSOT，task 098）
 │   └── shared/               # 类型/事件词汇表/常量（JSON Schema、profile 声明类型）
 ├── benchmarks/               # fixtures/ scenarios/ runners/ reports/（D7 §2 契约）
 ├── configs/                  # behavior.default.yaml、policy 基线（system 作用域内置）、pricing.json
 ├── docs/                     # D1–D8 规范（本文件属 D8）
-└── vitest.workspace.ts       # Vitest 多包工作区
+└── vitest.config.ts          # Vitest 多包工作区（根 + apps/web 两个 root；web 独立配置不在根 include 内）
 ```
 
 模块依赖方向（task 098 起显式约束）：`apps/cli` 与 `benchmarks/runners` 都只**向下**依赖

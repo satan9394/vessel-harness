@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "receiptId": "e8e9f5b9-952d-4e12-b4ae-562b3b9a4a6b",
+  "status": "current",
+  "command": "deliver",
+  "type": "workflow",
+  "input": "E:\\Code_file\\Projects\\Vessel_Harness\\.archify\\workflow-policy-20261011-223634\\candidate.json",
+  "output": "E:\\Code_file\\Projects\\Vessel_Harness\\docs\\diagrams\\vessel-policy-workflow.html",
+  "specification": {
+    "sha256": "d1860d1f146898a08be38b877dacd53c54e51a2e26629a3137f1addd958930f1",
+    "bytes": 5854
+  },
+  "artifact": {
+    "sha256": "db8a7575ef67e1371fe6cb4012ba793312b21e34d3a73102bb3b6121f8f60ba8",
+    "bytes": 764206
+  }
+}

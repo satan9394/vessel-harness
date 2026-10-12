@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "receiptId": "78654fe3-1714-4d46-8062-cb4097ac5d58",
+  "status": "current",
+  "command": "deliver",
+  "type": "lifecycle",
+  "input": "E:\\Code_file\\Projects\\Vessel_Harness\\.archify\\lifecycle-context-20261011-223634\\candidate.json",
+  "output": "E:\\Code_file\\Projects\\Vessel_Harness\\docs\\diagrams\\vessel-context-lifecycle.html",
+  "specification": {
+    "sha256": "ae5e3d7331e6d4b33ec1d5ef6f878c0f5029ed22f77c7a27038c7cd1e6ac5a50",
+    "bytes": 5247
+  },
+  "artifact": {
+    "sha256": "dbaa428ddacfcbc6e1e0de8e2f9be55677f11dcb646ca6d12f4cd724e743e75a",
+    "bytes": 770036
+  }
+}

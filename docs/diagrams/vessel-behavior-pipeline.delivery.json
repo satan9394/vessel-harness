@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "receiptId": "af224d8a-8294-4891-b670-192c6d2fb530",
+  "status": "current",
+  "command": "deliver",
+  "type": "dataflow",
+  "input": "E:\\Code_file\\Projects\\Vessel_Harness\\.archify\\dataflow-behavior-20261011-223634\\candidate.json",
+  "output": "E:\\Code_file\\Projects\\Vessel_Harness\\docs\\diagrams\\vessel-behavior-pipeline.html",
+  "specification": {
+    "sha256": "70cd223d2629fb4a918f85bfd146f4ee6cd3e136036a8814bc7faf97472855d6",
+    "bytes": 5192
+  },
+  "artifact": {
+    "sha256": "c91538e29d2fbff17cec38537ca9b1fa478cc15cd2ce48e50a987ac7d4942067",
+    "bytes": 763149
+  }
+}

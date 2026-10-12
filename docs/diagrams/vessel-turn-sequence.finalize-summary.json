@@ -1,0 +1,48 @@
+{
+  "schemaVersion": 1,
+  "ok": true,
+  "command": "finalize",
+  "status": "pass",
+  "type": "sequence",
+  "quality": "showcase",
+  "specification": {
+    "path": "E:\\Code_file\\Projects\\Vessel_Harness\\.archify\\sequence-turn-20261011-223634\\candidate.json",
+    "sha256": "fd92ef9c6652a25a6aae2cf83c3bc1c2ce42e42b0da995cfb5949a9559a3cc64",
+    "bytes": 5605
+  },
+  "artifact": {
+    "path": "E:\\Code_file\\Projects\\Vessel_Harness\\docs\\diagrams\\vessel-turn-sequence.html",
+    "sha256": "07c44558a72a5393447d3a6ceb46a837d8483cc74729e739388557649392cb80",
+    "bytes": 766524
+  },
+  "gates": {
+    "validate": "pass",
+    "deliver": "pass",
+    "check": "pass",
+    "browser-check": "pass"
+  },
+  "diagnostics": [],
+  "diagnosticSummary": {
+    "total": 0,
+    "shown": 0,
+    "truncated": false
+  },
+  "evidence": {
+    "receipt": "E:\\Code_file\\Projects\\Vessel_Harness\\docs\\diagrams\\vessel-turn-sequence.finalize.json",
+    "summaryReceipt": "E:\\Code_file\\Projects\\Vessel_Harness\\docs\\diagrams\\vessel-turn-sequence.finalize-summary.json",
+    "browserCheckReceipt": "E:\\Code_file\\Projects\\Vessel_Harness\\docs\\diagrams\\vessel-turn-sequence.browser-check.json"
+  },
+  "update": {
+    "status": "unavailable",
+    "installedVersion": null,
+    "availableVersion": null,
+    "releaseNotes": null,
+    "checkedAt": null,
+    "source": null,
+    "noticeRequired": false,
+    "noticeText": null,
+    "reason": "disabled"
+  },
+  "visualReview": "not-requested",
+  "durationMs": 5343
+}

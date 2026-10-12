@@ -1,0 +1,127 @@
+{
+  "schemaVersion": 1,
+  "ok": true,
+  "command": "finalize",
+  "status": "pass",
+  "type": "architecture",
+  "quality": "showcase",
+  "specification": {
+    "path": "E:\\Code_file\\Projects\\Vessel_Harness\\.archify\\architecture-overview-20261011-223634\\candidate.json",
+    "sha256": "a04eef20b6aeae365daa83354c37f02025f5720d57380ad615ed033cdacc289d",
+    "bytes": 10287
+  },
+  "artifact": {
+    "path": "E:\\Code_file\\Projects\\Vessel_Harness\\docs\\diagrams\\vessel-architecture-overview.html",
+    "sha256": "287fbf424a770960656f0a223cc5b9ed74d60a8461ac017ed7a2d58ca4172c35",
+    "bytes": 793088
+  },
+  "gates": {
+    "validate": "pass",
+    "deliver": "pass",
+    "check": "pass",
+    "browser-check": "pass"
+  },
+  "diagnostics": [],
+  "diagnosticSummary": {
+    "total": 0,
+    "shown": 0,
+    "truncated": false
+  },
+  "evidence": {
+    "receipt": "E:\\Code_file\\Projects\\Vessel_Harness\\docs\\diagrams\\vessel-architecture-overview.finalize.json",
+    "summaryReceipt": "E:\\Code_file\\Projects\\Vessel_Harness\\docs\\diagrams\\vessel-architecture-overview.finalize-summary.json",
+    "browserCheckReceipt": "E:\\Code_file\\Projects\\Vessel_Harness\\docs\\diagrams\\vessel-architecture-overview.browser-check.json"
+  },
+  "update": {
+    "status": "unavailable",
+    "installedVersion": null,
+    "availableVersion": null,
+    "releaseNotes": null,
+    "checkedAt": null,
+    "source": null,
+    "noticeRequired": false,
+    "noticeText": null,
+    "reason": "disabled"
+  },
+  "visualReview": "not-requested",
+  "durationMs": 11800,
+  "visualReviewRecommendation": {
+    "action": "inspect-route-readability",
+    "signals": {
+      "resolvedCrossovers": 2,
+      "routesOverSuggestedBends": 1
+    },
+    "reason": "Automated gates passed, but crossings or detours still need perceptual review before claiming visual quality.",
+    "affectedRoutes": {
+      "crossings": [
+        {
+          "left": {
+            "id": "core-behavior",
+            "from": "core",
+            "to": "behavior",
+            "label": "行为快照",
+            "collectionIndex": 7,
+            "artifactIndex": 8
+          },
+          "right": {
+            "id": "core-tools",
+            "from": "core",
+            "to": "tools",
+            "label": "工具分发",
+            "collectionIndex": 9,
+            "artifactIndex": 10
+          },
+          "point": [
+            586,
+            505
+          ],
+          "sharedNode": "core"
+        },
+        {
+          "left": {
+            "id": "core-policy",
+            "from": "core",
+            "to": "policy",
+            "label": "A12 裁决",
+            "collectionIndex": 8,
+            "artifactIndex": 9
+          },
+          "right": {
+            "id": "core-tools",
+            "from": "core",
+            "to": "tools",
+            "label": "工具分发",
+            "collectionIndex": 9,
+            "artifactIndex": 10
+          },
+          "point": [
+            586,
+            474
+          ],
+          "sharedNode": "core"
+        }
+      ],
+      "detours": [
+        {
+          "relationship": {
+            "id": "core-policy",
+            "from": "core",
+            "to": "policy",
+            "label": "A12 裁决",
+            "collectionIndex": 8,
+            "artifactIndex": 9
+          },
+          "bends": 3,
+          "stretch": 1
+        }
+      ],
+      "truncated": false
+    },
+    "hints": [
+      "core → behavior and core → tools cross next to core: move node behavior or tools so the two reach core from different sides (for example one level with it, one directly above or below it).",
+      "core → policy and core → tools cross next to core: move node policy or tools so the two reach core from different sides (for example one level with it, one directly above or below it).",
+      "core → policy needs 3 bends: move node core or policy so they share a row or column with matching centers, or sit diagonally with a clear corner."
+    ],
+    "repair": "Trace these relationships at the desktop viewport. For Architecture, use references/architecture-layout-repair.md: reflow a blocked main path or tangled connected scene, and repair an isolated defect locally only when the surrounding composition is accepted. Preserve all semantic content and user-fixed geometry. Rerun finalize once after the edit."
+  }
+}

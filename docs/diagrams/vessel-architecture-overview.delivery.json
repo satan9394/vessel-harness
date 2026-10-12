@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "receiptId": "9e72be18-3c42-4f41-b505-fbb87b7a8e20",
+  "status": "current",
+  "command": "deliver",
+  "type": "architecture",
+  "input": "E:\\Code_file\\Projects\\Vessel_Harness\\.archify\\architecture-overview-20261011-223634\\candidate.json",
+  "output": "E:\\Code_file\\Projects\\Vessel_Harness\\docs\\diagrams\\vessel-architecture-overview.html",
+  "specification": {
+    "sha256": "a04eef20b6aeae365daa83354c37f02025f5720d57380ad615ed033cdacc289d",
+    "bytes": 10287
+  },
+  "artifact": {
+    "sha256": "287fbf424a770960656f0a223cc5b9ed74d60a8461ac017ed7a2d58ca4172c35",
+    "bytes": 793088
+  }
+}
