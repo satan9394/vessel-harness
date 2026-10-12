@@ -1,0 +1,99 @@
+- complementary:
+  - generic: Vessel
+  - button "+ 新建会话"
+  - navigation:
+    - generic: 项目
+    - list:
+      - listitem "C:\\Users\\SATANC~1\\AppData\\Local\\Temp\\vessel-v26-browser-gTC1X8\\workspace"
+    - generic: 历史会话
+    - textbox "搜索主题或会话…"
+    - checkbox "显示已归档"
+    - text: 显示已归档
+    - generic: 今天
+    - button "First local fixture"
+    - button "workspace"
+    - button "重命名主题"
+    - button "归档主题"
+    - region "子代理":
+      - heading "子代理" [level=3]
+      - generic: 暂无运行中的子代理
+  - generic: 设置
+- main:
+  - generic: Vessel 本地服务运行正常（版本 0.10.0）
+  - button "模型设置"
+  - generic "提醒设置":
+    - button "关闭提示音"
+    - button "开启桌面通知"
+  - button "命令"
+  - button "自定义"
+  - button "语言": 中文
+  - button "收起检视器" [expanded]
+  - generic: 会话 sess_179
+  - generic: 当前模型
+  - combobox "当前模型":
+    - option "ollama / fixture-a"
+    - option "ollama / fixture-b" [selected]
+  - button "配置新模型"
+  - generic "累计模型用量（调用次数、词元与估算费用）":
+    - generic: 次调用 2
+    - generic: 6+10 词元
+    - generic: ~$0.0000
+  - log:
+    - group "消息卡片":
+      - generic: 您
+      - generic: First local fixture turn
+    - group "消息卡片":
+      - generic: Vessel
+      - generic: "Local fixture response: fixture-a"
+    - group "消息卡片":
+      - generic: 您
+      - generic: Second local fixture turn
+    - group "消息卡片":
+      - generic: Vessel
+      - generic: "Local fixture response: fixture-b"
+  - generic "回合指标":
+    - term: 提示
+    - definition: 3 词元
+    - term: 输出
+    - definition: 5 词元
+    - term: 推理
+    - definition: —
+    - term: 缓存读取
+    - definition: 0 词元
+    - term: 时延
+    - definition: 39 毫秒
+    - term: 估算成本
+    - definition: $0.0000
+  - generic "会话沙箱审计"
+  - textbox "输入消息…（按回车发送）"
+  - button "发送" [disabled]
+  - button "停止" [disabled]
+  - complementary "会话检视器":
+    - strong: 画布检视器
+    - button "关闭检视器": 关闭
+    - tablist "检视器面板":
+      - tab "代理网络" [selected]
+      - tab "认知规则"
+      - tab "模型缓存"
+      - tab "影响范围"
+      - tab "代码补丁"
+    - tabpanel "代理网络":
+      - region "代理网络拓扑":
+        - heading "代理网络拓扑" [level=2]
+        - button "刷新"
+        - paragraph: 心跳状态刷新间隔为 5 秒。
+        - text: 任务图标识
+        - textbox "任务图标识":
+          - /placeholder: 查看已记录的远端任务
+        - button "查看任务图"
+        - paragraph: 尚未配置代理网络。
+  - generic: 目标任务
+  - textbox "输入目标，加入本项目的任务队列…"
+  - button "加入队列" [disabled]
+  - generic: 任务队列
+  - generic: 0 个任务
+  - generic: 暂无任务
+  - generic: 添加目标并运行，每次迭代都会显示生成结果与评估结论。
+  - generic: 暂停可挂起运行，恢复可继续执行；预算用于设置最大迭代数与重试数，默认均为 1。
+  - generic: 变更文件
+  - generic: 变更文件列表占位（开发中）。

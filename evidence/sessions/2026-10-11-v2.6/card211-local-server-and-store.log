@@ -1,0 +1,62 @@
+
+ RUN  v5.0.1 E:/Code_file/Projects/Vessel_Harness
+
+(node:1012) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:8172) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:8852) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:21916) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:25040) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:1012) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:18212) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:20900) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:25176) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:8364) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+[?25l|
+o  
+[?25h|
+*  已切换。vessel run 现在走 DeepSeek/deepseek-chat（热生效，无需重启）
+|
+*  已保存供应商 "deepseek" 到 ~/.vessel/providers.json
+|
+•  mock 是内置离线供应商，无需配置。
+[?25l|
+o  
+[?25h|
+*  已切换。vessel run 现在走 DeepSeek/deepseek-chat（热生效，无需重启）
+|
+*  已保存供应商 "deepseek" 到 ~/.vessel/providers.json
+[?25l|
+o  
+[?25h|
+!  模拟网络失败 — 转手动输入模型 id（或留空退出）。
+|
+*  已切换。vessel run 现在走 vLLM（自托管）/custom-model（热生效，无需重启）
+|
+*  已保存供应商 "vllm" 到 ~/.vessel/providers.json
+[?25l|
+o  
+[?25h|
+*  已切换。vessel run 现在走 自定义供应商/m1（热生效，无需重启）
+|
+*  已保存供应商 "gateway-example-com-v1" 到 ~/.vessel/providers.json
+[?25l|
+o  
+[?25h
+ Test Files  29 passed (29)
+      Tests  268 passed (268)
+   Start at  03:27:57
+   Duration  81.97s (tests 70%, import 23%, transform 7%, setup 1%)
+
+    Isolate  29 workers spawned · ~204ms startup each (spawn + environment, per file)
+             at least ~5.71s faster with isolate: false — reuses workers across files instead of one per file
+

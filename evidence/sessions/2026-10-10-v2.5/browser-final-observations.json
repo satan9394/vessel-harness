@@ -1,0 +1,9 @@
+{
+  "url": "http://127.0.0.1:35725/",
+  "title": "(Completed) Vessel — Local UI",
+  "runningButtonCount": 0,
+  "stopEnabled": false,
+  "mutePressed": "true",
+  "patchCanvas": "Patch workbench\n\nReview text changes one hunk at a time. Revert safely removes a selected applied hunk; reapply restores it.\n\nsample.txt\n+2\n−2\nCollapse diff\nSide-by-side view\nsample.txt @@ −1,1 +1,1 @@\naccepted\nAccept hunk\nRevert hunk\n1\t\t-old first\n\t1\t+new first\nsample.txt @@ −3,1 +3,1 @@\nrejected\nReapply hunk\nDiscard hunk\n3\t\t-old last\n\t3\t+new last",
+  "consoleWarningsOrErrors": []
+}

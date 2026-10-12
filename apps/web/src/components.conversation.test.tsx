@@ -1,6 +1,8 @@
-import { describe, it, expect } from 'vitest';
+import type { ReactNode as I18nTestNode } from 'react';
+import { LanguageProvider } from './components/LanguageProvider';
+import { describe, it, expect , vi } from 'vitest';
 import { readFileSync } from 'node:fs';
-import { renderToStaticMarkup } from 'react-dom/server';
+import { renderToStaticMarkup as renderMarkup } from 'react-dom/server';
 import { ApiError } from './api';
 import { ConversationError, MAX_ERROR_TEXT, turnErrorText } from './components/ConversationView';
 
@@ -108,3 +110,9 @@ describe('ConversationView error wiring (static source guard)', () => {
     expect(source).toMatch(/ConversationError\s+text=\{error\}/);
   });
 });
+
+function renderToStaticMarkup(node: I18nTestNode): string {
+  return renderMarkup(<LanguageProvider>{node}</LanguageProvider>).replace(/\s+/g, ' ');
+}
+
+vi.mock('./i18n', async original => ({ ...await original<typeof import('./i18n')>(), getInitialLang: () => 'en' as const }));

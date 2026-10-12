@@ -1,0 +1,13 @@
+
+ RUN  v5.0.1 E:/Code_file/Projects/Vessel_Harness/apps/web
+
+
+ Test Files  4 passed (4)
+      Tests  69 passed (69)
+   Start at  21:19:06
+   Duration  8.31s (transform 48%, import 37%, tests 13%, worker 1%)
+
+     Import  49 modules were evaluated 71 times · 2.03s total, 37% of tracked time
+             ~629ms faster with isolate: false — shared modules are evaluated once per worker instead of once per file
+             learn more: https://vitest.dev/guide/improving-performance#test-isolation
+

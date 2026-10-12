@@ -1,7 +1,8 @@
-import { describe, it, expect } from 'vitest';
-import { renderToStaticMarkup } from 'react-dom/server';
+import type { ReactNode as I18nTestNode } from 'react';
+import { LanguageProvider } from './components/LanguageProvider';
+import { describe, it, expect , vi } from 'vitest';
+import { renderToStaticMarkup as renderMarkup } from 'react-dom/server';
 import type { ReactElement } from 'react';
-import ModelSelector from './components/ModelSelector';
 import TeamPanel from './components/TeamPanel';
 import ReviewRequiredPanel from './components/ReviewRequiredPanel';
 import { complexRunningFixture, mediumTeamFixture, reviewFixture } from './team.fixtures';
@@ -58,47 +59,6 @@ describe('TeamPanel (task 060 panel rendering)', () => {
   });
 });
 
-describe('ModelSelector (task 060 model choice: Auto/Fast/Pro + pin)', () => {
-  const noop = () => {};
-
-  it('shows Auto / Fast / Pro with Auto active by default', () => {
-    const html = render(<ModelSelector mode="auto" label={null} pinned={false} onSelect={noop} onResolve={noop} onPin={noop} onUnpin={noop} />);
-    expect(html).toContain('>Auto<');
-    expect(html).toContain('>Fast<');
-    expect(html).toContain('>Pro<');
-    // auto segment is the active one
-    expect(html).toContain('aria-pressed="true"');
-    expect(html).toContain('aria-pressed="false"');
-    // unresolved placeholder
-    expect(html).toContain('—');
-  });
-
-  it('renders the resolved actual model label (Auto → <model>)', () => {
-    const html = render(
-      <ModelSelector mode="auto" label="Auto → mock-pro" pinned={false} onSelect={noop} onResolve={noop} onPin={noop} onUnpin={noop} />,
-    );
-    expect(html).toContain('Auto → mock-pro');
-  });
-
-  it('reflects pin state: unpinned offers Pin, pinned offers Pinned · Unpin', () => {
-    const loose = render(<ModelSelector mode="auto" label={null} pinned={false} onSelect={noop} onResolve={noop} onPin={noop} onUnpin={noop} />);
-    expect(loose).toContain('Pin for this session');
-    expect(loose).not.toContain('Unpin');
-
-    const locked = render(<ModelSelector mode="fast" label="Fast → mock-fast" pinned onSelect={noop} onResolve={noop} onPin={noop} onUnpin={noop} />);
-    expect(locked).toContain('Pinned · Unpin');
-    expect(locked).not.toContain('Pin for this session');
-  });
-
-  it('marks the user-selected mode segment active', () => {
-    const html = render(<ModelSelector mode="pro" label={null} pinned={false} onSelect={noop} onResolve={noop} onPin={noop} onUnpin={noop} />);
-    // exactly one active segment, on Pro
-    const activeIdx = html.indexOf('mode-btn-active');
-    expect(activeIdx).toBeGreaterThan(-1);
-    expect(html.slice(activeIdx, activeIdx + 40)).toContain('Pro');
-  });
-});
-
 describe('ReviewRequiredPanel (task 060 external review area: §9.1 buttons)', () => {
   const noop = () => {};
 
@@ -141,7 +101,13 @@ describe('ReviewRequiredPanel (task 060 external review area: §9.1 buttons)', (
     const html = render(<ReviewRequiredPanel reviews={[imported]} onCopy={noop} onOpenFolder={noop} onImport={noop} />);
     expect(html).not.toContain('External Review Required');
     expect(html).toContain('imported');
-    expect(html).toContain('external · met');
+    expect(html).toContain('external · Met');
     expect(html).toContain('验收标准满足');
   });
 });
+
+function renderToStaticMarkup(node: I18nTestNode): string {
+  return renderMarkup(<LanguageProvider>{node}</LanguageProvider>).replace(/\s+/g, ' ');
+}
+
+vi.mock('./i18n', async original => ({ ...await original<typeof import('./i18n')>(), getInitialLang: () => 'en' as const }));

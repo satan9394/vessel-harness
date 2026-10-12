@@ -1,0 +1,1 @@
+const fs=require('fs');const p='apps/web/src/i18n.ts';let s=fs.readFileSync(p,'utf8');const start=s.indexOf('export const zh:');const end=s.indexOf('export const en:');s=s.slice(0,start)+s.slice(start,end).replace('languageEnglish: "English"','languageEnglish: "英语"')+s.slice(end).replace('languageChinese: "中文"','languageChinese: "Chinese"');fs.writeFileSync(p,s);

@@ -1,5 +1,7 @@
+import type { ReactNode as I18nTestNode } from 'react';
+import { LanguageProvider } from '../LanguageProvider';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { renderToStaticMarkup } from 'react-dom/server';
+import { renderToStaticMarkup as renderMarkup } from 'react-dom/server';
 import type { PermissionActionWidget, DiffInspectorWidget, WidgetBlock } from '@vessel/shared';
 import { WidgetDispatcher } from './WidgetDispatcher';
 import { parseUnifiedDiff } from './InlineDiffInspector';
@@ -98,3 +100,9 @@ describe('widget API and SSE transports', () => {
     await vi.waitFor(() => expect(widgets).toEqual([action])); await vi.waitFor(() => expect(onWidgetResponse).toHaveBeenCalledOnce()); stream.close();
   });
 });
+
+function renderToStaticMarkup(node: I18nTestNode): string {
+  return renderMarkup(<LanguageProvider>{node}</LanguageProvider>).replace(/\s+/g, ' ');
+}
+
+vi.mock('../../i18n', async original => ({ ...await original<typeof import('../../i18n')>(), getInitialLang: () => 'en' as const }));

@@ -1,0 +1,4 @@
+
+> @vessel/web@0.10.0 typecheck
+> tsc -p tsconfig.json
+

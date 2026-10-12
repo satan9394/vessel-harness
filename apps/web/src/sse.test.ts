@@ -118,6 +118,21 @@ describe('createEventStream', () => {
     expect(onError).toHaveBeenCalledWith(expect.objectContaining({ message: 'malformed thinking delta' }));
   });
 
+  it('retains keyed reasoning callouts and measured token metadata while rejecting malformed values', () => {
+    vi.stubGlobal('EventSource', FakeEventSource);
+    const onThinking = vi.fn(); const onError = vi.fn();
+    createEventStream('/url', { onThinking, onError }); const inst = FakeEventSource.instances[0];
+    const matchedRules = [{ id: 'r', trigger: 'Shell', lesson: 'policy denial', recommendedAction: 'read-only' }];
+    emit(inst, { type: 'thinking', delta: { phase: 'start', callId: 't:1', matchedRules }, ts: 1 });
+    emit(inst, { type: 'thinking', delta: { phase: 'usage', callId: 't:1', reasoningTokens: 0, outputTokens: 20, modelDurationMs: 1000 }, ts: 2 });
+    expect(onThinking).toHaveBeenCalledWith({ phase: 'start', callId: 't:1', matchedRules, ts: 1 });
+    expect(onThinking).toHaveBeenCalledWith({ phase: 'usage', callId: 't:1', reasoningTokens: 0, outputTokens: 20, modelDurationMs: 1000, ts: 2 });
+    for (const bad of [{ reasoningTokens: -1 }, { reasoningTokens: 1.5 }, { outputTokens: -1 }, { modelDurationMs: -1 }, { callId: {} }, { matchedRules: [{ id: 'r', trigger: 'bad', lesson: {} }] }]) {
+      emit(inst, { type: 'thinking', delta: { phase: 'usage', ...bad }, ts: 3 });
+    }
+    expect(onThinking).toHaveBeenCalledTimes(2); expect(onError).toHaveBeenCalledTimes(6);
+  });
+
   it('ignores unknown frame types (e.g. ping) without failing', () => {
     vi.stubGlobal('EventSource', FakeEventSource);
     const onEvent = vi.fn();

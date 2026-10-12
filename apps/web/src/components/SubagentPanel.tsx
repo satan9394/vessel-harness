@@ -1,3 +1,5 @@
+import { localizedValue } from '../i18n';
+import { useI18n } from './LanguageProvider';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { createApiClient, type ApiClient } from '../api';
 import { watchSubagents, type SubagentDetail, type SubagentItem, type SubagentUsage } from '../subagents';
@@ -10,17 +12,18 @@ export function SubagentListPanel({ subagents, selectedId, onSelect, onCancel, c
   onSelect: (id: string) => void;
   cancellingId?: string | null;
 }) {
-  return <section className="subagent-list" aria-label="Subagents">
-    <h3 className="side-label">Subagents</h3>
-    {subagents.length === 0 ? <div className="side-empty">No active subagents</div> :
+  const { t } = useI18n();
+  return <section className="subagent-list" aria-label={t('uiSubagents')}>
+    <h3 className="side-label">{t('uiSubagents')}</h3>
+    {subagents.length === 0 ? <div className="side-empty">{t('uiNoActiveSubagents')}</div> :
       <ul className="side-list">{subagents.map((sub) => <li className="subagent-card" key={sub.id} data-testid={`subagent-card-${sub.id}`}>
         <button type="button" className={`side-item subagent-select${selectedId === sub.id ? ' side-item-active' : ''}`}
           aria-expanded={selectedId === sub.id} aria-controls="subagent-detail" onClick={() => onSelect(sub.id)}>
           <span className="subagent-name">{sub.name}</span>
-          <span className={`subagent-badge status-${sub.status}`}>{sub.status}</span>
+          <span className={`subagent-badge status-${sub.status}`}>{localizedValue(sub.status, t)}</span>
         </button>
         {sub.status === 'running' && onCancel && <button type="button" className="topic-action"
-          disabled={cancellingId === sub.id} aria-label={`Cancel ${sub.name}`} onClick={() => onCancel(sub.id)}>Cancel</button>}
+          disabled={cancellingId === sub.id} aria-label={t('cancelAgent', { name: sub.name })} onClick={() => onCancel(sub.id)}>{t('cancelLabel')}</button>}
       </li>)}</ul>}
   </section>;
 }
@@ -32,29 +35,30 @@ export function SubagentDetailDrawer({ subagent, detail, onClose, onCancel, canc
   onCancel?: (id: string) => void;
   cancelling?: boolean;
 }) {
+  const { t } = useI18n();
   const usage: SubagentUsage = detail?.usage ?? {};
   const durationMs = subagent.endedAt ? Date.parse(subagent.endedAt) - Date.parse(subagent.startedAt) : undefined;
   return <aside id="subagent-detail" className="subagent-drawer" role="dialog" aria-labelledby="subagent-detail-title"
     data-testid="subagent-drawer" onKeyDown={(event) => { if (event.key === 'Escape') onClose(); }}>
-    <div className="subagent-drawer-heading"><h3 id="subagent-detail-title">{subagent.name} Details</h3>
-      <button type="button" className="btn" autoFocus onClick={onClose}>Close</button></div>
+    <div className="subagent-drawer-heading"><h3 id="subagent-detail-title">{subagent.name}  {t('uiDetails')}</h3>
+      <button type="button" className="btn" autoFocus onClick={onClose}>{t('close')}</button></div>
     <dl className="subagent-fields">
-      <dt>ID</dt><dd>{subagent.id}</dd><dt>Provider</dt><dd>{subagent.provider}</dd>
-      <dt>Status</dt><dd>{subagent.status}</dd><dt>Worktree</dt><dd>{subagent.worktreePath ?? '—'}</dd>
-      <dt>Started</dt><dd>{subagent.startedAt}</dd><dt>Ended</dt><dd>{subagent.endedAt ?? '—'}</dd>
-      <dt>Duration</dt><dd>{durationMs === undefined ? '—' : `${durationMs.toLocaleString()} ms`}</dd>
-      <dt>Exit code</dt><dd>{subagent.exitCode ?? '—'}</dd>
+      <dt>{t('uiID')}</dt><dd>{subagent.id}</dd><dt>{t('uiProvider')}</dt><dd>{subagent.provider}</dd>
+      <dt>{t('uiStatus')}</dt><dd>{localizedValue(subagent.status, t)}</dd><dt>{t('uiWorktree')}</dt><dd>{subagent.worktreePath ?? '—'}</dd>
+      <dt>{t('uiStarted')}</dt><dd>{subagent.startedAt}</dd><dt>{t('uiEnded')}</dt><dd>{subagent.endedAt ?? '—'}</dd>
+      <dt>{t('uiDuration')}</dt><dd>{durationMs === undefined ? '—' : t('timeMilliseconds', { value: durationMs.toLocaleString() })}</dd>
+      <dt>{t('uiExitCode')}</dt><dd>{subagent.exitCode ?? '—'}</dd>
     </dl>
     {subagent.lastError && <p className="error-text">{subagent.lastError}</p>}
-    <h4>Token usage</h4><dl className="talking-metrics" aria-label="Subagent token usage">
-      {([['Input', 'inputTokens'], ['Output', 'outputTokens'], ['Cache read', 'cacheReadTokens'], ['Cache write', 'cacheWriteTokens']] as const)
-        .map(([label, key]) => <div className="talking-metric" key={key}><dt>{label}</dt><dd>{usage[key] === undefined ? '—' : `${usage[key].toLocaleString()} tok`}</dd></div>)}
+    <h4>{t('uiTokenUsage')}</h4><dl className="talking-metrics" aria-label={t('uiSubagentTokenUsage')}>
+      {([['metricPrompt', 'inputTokens'], ['metricCompletion', 'outputTokens'], ['metricCacheRead', 'cacheReadTokens'], ['cacheWriteLabel', 'cacheWriteTokens']] as const)
+        .map(([label, key]) => <div className="talking-metric" key={key}><dt>{t(label)}</dt><dd>{usage[key] === undefined ? '—' : `${usage[key].toLocaleString()} ${t('tokenUnit')}`}</dd></div>)}
     </dl>
-    <h4>Execution stages</h4><ol className="subagent-logs" aria-live="polite">
-      {detail?.logs.map((log, index) => <li key={index}><time dateTime={new Date(log.ts).toISOString()}>{new Date(log.ts).toLocaleTimeString()}</time> <strong>{log.phase}</strong> {log.message}</li>)}
+    <h4>{t('uiExecutionStages')}</h4><ol className="subagent-logs" aria-live="polite">
+      {detail?.logs.map((log, index) => <li key={index}><time dateTime={new Date(log.ts).toISOString()}>{new Date(log.ts).toLocaleTimeString()}</time> <strong>{localizedValue(log.phase, t)}</strong> {log.message}</li>)}
     </ol>
     {subagent.status === 'running' && onCancel && <button type="button" className="btn" disabled={cancelling}
-      onClick={() => onCancel(subagent.id)}>Cancel</button>}
+      onClick={() => onCancel(subagent.id)}>{t('cancelLabel')}</button>}
   </aside>;
 }
 

@@ -1,0 +1,4 @@
+{
+  "command": "git diff --check after closeout whitespace repair",
+  "exit": 0
+}

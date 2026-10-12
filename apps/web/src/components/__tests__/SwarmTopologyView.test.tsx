@@ -1,5 +1,7 @@
+import type { ReactNode as I18nTestNode } from 'react';
+import { LanguageProvider } from '../LanguageProvider';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { renderToStaticMarkup } from 'react-dom/server';
+import { renderToStaticMarkup as renderMarkup } from 'react-dom/server';
 import { createApiClient } from '../../api';
 import { appendRttSamples, pollDashboard, type MeshSnapshot } from '../../dashboard';
 import { SwarmTopologyPanel, SwarmTopologyView } from '../SwarmTopologyView';
@@ -31,11 +33,11 @@ describe('SwarmTopologyView', () => {
       expect(html).toContain(node.nodeId);
       expect(html).toContain(node.endpoint);
       expect(html).toContain(node.status);
-      for (const role of node.roleCapabilities) expect(html).toContain(role);
+      for (const role of node.roleCapabilities) expect(html).toContain(role === 'reviewer' ? 'Reviewer' : role);
     }
-    expect(html).toContain('23 ms');
+    expect(html).toContain('23ms');
     expect(html).toContain('RTT unavailable');
-    expect(html).not.toContain('12 ms'); // stale latency must not imply offline connectivity
+    expect(html).not.toContain('12ms'); // stale latency must not imply offline connectivity
     expect(html).toContain('mesh-link-offline');
     expect(html).toContain('Local node');
   });
@@ -114,3 +116,9 @@ describe('SwarmTopologyView', () => {
     expect(read).toHaveBeenCalledTimes(2);
   });
 });
+
+function renderToStaticMarkup(node: I18nTestNode): string {
+  return renderMarkup(<LanguageProvider>{node}</LanguageProvider>).replace(/\s+/g, ' ');
+}
+
+vi.mock('../../i18n', async original => ({ ...await original<typeof import('../../i18n')>(), getInitialLang: () => 'en' as const }));

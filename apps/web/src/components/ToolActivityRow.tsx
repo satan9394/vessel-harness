@@ -1,3 +1,5 @@
+import { localizedValue } from '../i18n';
+import { useI18n } from './LanguageProvider';
 import type { ToolDelta } from '../sse';
 import SandboxAuditBadge from './SandboxAuditBadge';
 
@@ -16,31 +18,17 @@ function statusClass(status: ToolDelta['status']): string {
   }
 }
 
-function statusLabel(status: ToolDelta['status']): string {
-  switch (status) {
-    case 'started':
-      return 'started';
-    case 'done':
-      return 'done';
-    case 'denied':
-      return 'denied';
-    case 'error':
-      return 'error';
-    default:
-      return status;
-  }
-}
-
 /** One tool dispatch row: name + status dot + optional duration & args. */
 export default function ToolActivityRow({ delta }: { delta: ToolDelta }) {
-  const name = delta.toolName ?? '(tool)';
+  const { t } = useI18n();
+  const name = delta.toolName ?? t('noTool');
   return (
     <div className={`tool-row tool-${statusClass(delta.status)}`}>
       <span className={`dot ${statusClass(delta.status)}`} aria-hidden="true" />
       <span className="tool-name">{name}</span>
-      <span className="tool-status">{statusLabel(delta.status)}</span>
+      <span className="tool-status">{localizedValue(delta.status, t)}</span>
       {typeof delta.durationMs === 'number' && (
-        <span className="tool-dur">{delta.durationMs}ms</span>
+        <span className="tool-dur">{t('timeMilliseconds', { value: String(delta.durationMs) })}</span>
       )}
       {delta.argsSummary && <span className="tool-args" title={delta.argsSummary}>{delta.argsSummary}</span>}
       {delta.sandbox && <SandboxAuditBadge audit={delta.sandbox} />}

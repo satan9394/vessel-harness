@@ -11,6 +11,7 @@
  * Both transports reconnect on network drop; daemon streams stop retrying on auth rejection.
  */
 
+import { isMatchedReasoningRule, type MatchedReasoningRule } from '../../../packages/shared/src/reasoning.js';
 import { daemonToken } from './auth.js';
 // ponytail: root conformance imports this module; its package alias has no subpath support.
 import { isWidgetBlock, type WidgetBlock, type WidgetActionResponse } from '../../../packages/shared/src/widgets.js';
@@ -64,7 +65,12 @@ export interface UsageDelta {
 
 /** Live reasoning text and lifecycle, projected from existing model-stream events. */
 export interface ThinkingDelta {
-  phase: 'start' | 'delta' | 'end';
+  phase: 'start' | 'delta' | 'end' | 'usage';
+  callId?: string;
+  reasoningTokens?: number;
+  outputTokens?: number;
+  modelDurationMs?: number;
+  matchedRules?: MatchedReasoningRule[];
   text?: string;
   durationMs?: number;
   ts: number;
@@ -176,7 +182,7 @@ export function createEventStream(url: string, handlers: StreamHandlers = {}, op
         handlers.onUsage?.({ ...delta, ts } as unknown as UsageDelta);
         break;
       case 'thinking':
-        if (!isRecord(frame.delta) || !['start', 'delta', 'end'].includes(String(frame.delta.phase))) {
+        if (!isRecord(frame.delta) || !['start', 'delta', 'end', 'usage'].includes(String(frame.delta.phase))) {
           handlers.onError?.(new Error('malformed thinking frame'));
           break;
         }
@@ -191,8 +197,21 @@ export function createEventStream(url: string, handlers: StreamHandlers = {}, op
           handlers.onError?.(new Error('malformed thinking duration'));
           break;
         }
+        if ((frame.delta.outputTokens !== undefined && (typeof frame.delta.outputTokens !== 'number' || !Number.isInteger(frame.delta.outputTokens) || frame.delta.outputTokens < 0)) ||
+          (frame.delta.modelDurationMs !== undefined && (typeof frame.delta.modelDurationMs !== 'number' || !Number.isFinite(frame.delta.modelDurationMs) || frame.delta.modelDurationMs < 0)) ||
+          (frame.delta.callId !== undefined && typeof frame.delta.callId !== 'string') ||
+          (frame.delta.reasoningTokens !== undefined && (typeof frame.delta.reasoningTokens !== 'number' || !Number.isInteger(frame.delta.reasoningTokens) || frame.delta.reasoningTokens < 0)) ||
+          (frame.delta.matchedRules !== undefined && (!Array.isArray(frame.delta.matchedRules) || frame.delta.matchedRules.length > 20 || !frame.delta.matchedRules.every(isMatchedReasoningRule)))) {
+          handlers.onError?.(new Error('malformed thinking metadata'));
+          break;
+        }
         handlers.onThinking?.({
           phase: frame.delta.phase as ThinkingDelta['phase'],
+          ...(typeof frame.delta.outputTokens === 'number' ? { outputTokens: frame.delta.outputTokens } : {}),
+          ...(typeof frame.delta.modelDurationMs === 'number' ? { modelDurationMs: frame.delta.modelDurationMs } : {}),
+          ...(typeof frame.delta.callId === 'string' ? { callId: frame.delta.callId } : {}),
+          ...(typeof frame.delta.reasoningTokens === 'number' ? { reasoningTokens: frame.delta.reasoningTokens } : {}),
+          ...(Array.isArray(frame.delta.matchedRules) ? { matchedRules: frame.delta.matchedRules } : {}),
           ...(typeof frame.delta.text === 'string' ? { text: frame.delta.text } : {}),
           ...(typeof frame.delta.durationMs === 'number' ? { durationMs: frame.delta.durationMs } : {}),
           ts,

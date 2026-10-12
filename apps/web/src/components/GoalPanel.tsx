@@ -1,11 +1,11 @@
+import { localizedValue } from '../i18n';
+import { useI18n } from './LanguageProvider';
 import {
   generatorArtifactCount,
   generatorOutputSummary,
   goalControlEnabled,
   goalStatusClass,
-  goalVerdictDisplay,
   GOAL_CONTROL_SEAM,
-  GOAL_STATUS_LABELS,
   sortIterations,
   type GoalIteration,
   type GoalReviewConclusion,
@@ -50,6 +50,7 @@ export default function GoalPanel({
   budget?: { maxIterations: number; maxRetries: number };
   enqueueCancelled: boolean;
 }) {
+  const { t } = useI18n();
   const selected = tasks.find((t) => t.id === selectedId) ?? null;
   const controls = selected
     ? goalControlEnabled(GOAL_CONTROL_SEAM, selected.status, running)
@@ -59,16 +60,16 @@ export default function GoalPanel({
     <div className="goal-panel" data-testid="goal-panel">
       <div className="goal-queue">
         <div className="goal-queue-head">
-          <span className="goal-label">Task queue</span>
-          <span className="dim">{tasks.length} task{tasks.length === 1 ? '' : 's'}</span>
+          <span className="goal-label">{t('uiTaskQueue')}</span>
+          <span className="dim">{t('taskCount', { count: String(tasks.length), plural: tasks.length === 1 ? '' : 's' })}</span>
         </div>
         {enqueueCancelled && (
-          <div className="dim goal-note">Terminal tasks can't be run — requeue them first (runtime).</div>
+          <div className="dim goal-note">{t('uiTerminalTasksCanTBeRunRequeueThem')}</div>
         )}
         {tasks.length === 0 ? (
           <div className="goal-empty dim">
-            <div className="goal-empty-title">No tasks yet</div>
-            <div>Enqueue a goal and run it — each iteration shows the generator output and the evaluator verdict.</div>
+            <div className="goal-empty-title">{t('uiNoTasksYet')}</div>
+            <div>{t('uiEnqueueAGoalAndRunItEachIteration')}</div>
           </div>
         ) : (
           <div className="goal-task-list">
@@ -80,7 +81,7 @@ export default function GoalPanel({
                 onClick={() => onSelect(task.id)}
                 title={task.goal}
               >
-                <span className={`goal-status ${goalStatusClass(task.status)}`}>{GOAL_STATUS_LABELS[task.status]}</span>
+                <span className={`goal-status ${goalStatusClass(task.status)}`}>{localizedValue(task.status, t)}</span>
                 <span className="goal-task-goal">{task.goal}</span>
               </button>
             ))}
@@ -94,7 +95,7 @@ export default function GoalPanel({
             <span className="goal-task-title" title={selected.goal}>
               {selected.goal}
             </span>
-            <span className={`goal-status ${goalStatusClass(selected.status)}`}>{GOAL_STATUS_LABELS[selected.status]}</span>
+            <span className={`goal-status ${goalStatusClass(selected.status)}`}>{localizedValue(selected.status, t)}</span>
           </div>
           {selected.outcome?.reason && <div className="dim goal-outcome-reason">{selected.outcome.reason}</div>}
           <div className="goal-actions">
@@ -104,10 +105,10 @@ export default function GoalPanel({
               disabled={busy || running || !runnable(selected.status)}
               onClick={onRun}
             >
-              {running ? 'Running…' : 'Run task'}
+              {running ? t('uiRunning') : t('uiRunTask')}
             </button>
             {!runnable(selected.status) && (
-              <span className="dim goal-run-hint">&#8226; {selected.status} &mdash; run not available on a terminal task</span>
+              <span className="dim goal-run-hint">&#8226; {localizedValue(selected.status, t)} — {t('terminalTask')}</span>
             )}
             {/* 066 run control — pause/resume/budget wired to the API */}
             <span className="goal-controls">
@@ -120,9 +121,9 @@ export default function GoalPanel({
                     className="btn goal-control-btn"
                     disabled={busy || !ctl.enabled}
                     onClick={handler}
-                    title={ctl.hint}
+                    title={t(({ pause: 'pauseHint', resume: 'resumeHint', budget: 'budgetHint' } as const)[ctl.id])}
                   >
-                    {ctl.label}
+                    {t(ctl.id)}
                     {ctl.id === 'budget' && budget ? (
                       <span className="goal-budget-line"> {budget.maxIterations}/{budget.maxRetries}</span>
                     ) : null}
@@ -133,11 +134,11 @@ export default function GoalPanel({
           </div>
 
           <div className="goal-iterations">
-            <div className="goal-label">Iterations</div>
+            <div className="goal-label">{t('uiIterations')}</div>
             {iterations.length === 0 ? (
               <div className="goal-empty dim" data-testid="goal-iterations-empty">
-                <div className="goal-empty-title">No iterations yet</div>
-                <div>Run this task to produce the first iteration (gen &rarr; eval &rarr; met/not_met).</div>
+                <div className="goal-empty-title">{t('uiNoIterationsYet')}</div>
+                <div>{t('uiRunThisTaskToProduceTheFirstIteration')}</div>
               </div>
             ) : (
               <div className="goal-iterations-list">
@@ -150,7 +151,7 @@ export default function GoalPanel({
 
           {selected.acceptance.length > 0 && (
             <div className="goal-acceptance dim">
-              <span className="goal-label">Acceptance</span>
+              <span className="goal-label">{t('uiAcceptance')}</span>
               <ul className="goal-acceptance-list">
                 {selected.acceptance.map((a) => (
                   <li key={a}>{a}</li>
@@ -170,40 +171,40 @@ function runnable(status: GoalTask['status']): boolean {
 
 /** One persisted iteration (063) — generator summary + evaluator verdict/reason. */
 function IterationRow({ iteration }: { iteration: GoalIteration }) {
+  const { t } = useI18n();
   return (
     <div className="goal-iteration" data-testid="goal-iteration">
       <div className="goal-iteration-head">
         <span className="goal-iteration-num">#{iteration.iteration}</span>
-        <span className={`goal-verdict goal-verdict-${iteration.verdict}`}>{goalVerdictDisplay(iteration.verdict)}</span>
-        {iteration.metAfterRetries && <span className="dim">· after retries</span>}
+        <span className={`goal-verdict goal-verdict-${iteration.verdict}`}>{localizedValue(iteration.verdict, t)}</span>
+        {iteration.metAfterRetries && <span className="dim">{t('uiAfterRetries')}</span>}
         {iteration.transition && (
-          <span className="dim">· {iteration.transition.from} &rarr; {iteration.transition.to}</span>
+          <span className="dim">· {localizedValue(iteration.transition.from, t)} &rarr; {localizedValue(iteration.transition.to, t)}</span>
         )}
       </div>
       {iteration.reason && <div className="goal-iteration-reason dim">{iteration.reason}</div>}
 
       <div className="goal-gen-eval">
         <div className="goal-gen">
-          <span className="goal-label">Generator</span>
+          <span className="goal-label">{t('uiGenerator')}</span>
           {iteration.generator ? (
-            <div className="goal-pre" title="generator output summary">
+            <div className="goal-pre" title={t('uiGeneratorOutputSummary')}>
               {generatorOutputSummary(iteration.generator)}
             </div>
           ) : (
-            <div className="dim">(no generator snapshot)</div>
+            <div className="dim">{t('uiNoGeneratorSnapshot')}</div>
           )}
           {iteration.generator && (
             <div className="goal-artifact-count dim">
-              {generatorArtifactCount(iteration.generator)} artifact{generatorArtifactCount(iteration.generator) === 1 ? '' : 's'} on disk
-            </div>
+              {t('artifactCount', { count: String(generatorArtifactCount(iteration.generator)), plural: generatorArtifactCount(iteration.generator) === 1 ? '' : 's' })} </div>
           )}
         </div>
         <div className="goal-eval">
-          <span className="goal-label">Evaluator</span>
+          <span className="goal-label">{t('uiEvaluator')}</span>
           {iteration.evaluator ? (
             <EvaluationBlock conclusion={iteration.evaluator.conclusion} />
           ) : (
-            <div className="dim">(no evaluator snapshot)</div>
+            <div className="dim">{t('uiNoEvaluatorSnapshot')}</div>
           )}
         </div>
       </div>
@@ -213,21 +214,22 @@ function IterationRow({ iteration }: { iteration: GoalIteration }) {
 
 /** Structured evaluator conclusion (058 shape: verdict + unmet + suggestions). */
 function EvaluationBlock({ conclusion }: { conclusion: GoalReviewConclusion }) {
+  const { t } = useI18n();
   return (
     <div className={`goal-review goal-review-${conclusion.verdict}`}>
-      <div className="goal-review-verdict">{goalVerdictDisplay(conclusion.verdict)}</div>
+      <div className="goal-review-verdict">{localizedValue(conclusion.verdict, t)}</div>
       {conclusion.reason && <div className="goal-review-reason dim">{conclusion.reason}</div>}
       {conclusion.unmet.length > 0 && (
         <ul className="goal-review-list">
           {conclusion.unmet.map((u) => (
-            <li key={u}>unmet: {u}</li>
+            <li key={u}>{t('uiUnmet')} {u}</li>
           ))}
         </ul>
       )}
       {conclusion.suggestions.length > 0 && (
         <ul className="goal-review-list">
           {conclusion.suggestions.map((s) => (
-            <li key={s}>suggest: {s}</li>
+            <li key={s}>{t('uiSuggest')} {s}</li>
           ))}
         </ul>
       )}

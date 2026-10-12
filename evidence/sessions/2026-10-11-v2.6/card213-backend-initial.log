@@ -1,0 +1,126 @@
+
+ RUN  v5.0.1 E:/Code_file/Projects/Vessel_Harness
+
+(node:2620) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+ ❯ apps/local-server/src/sessionModelHub.test.ts (13 tests | 1 failed) 12109ms
+   ❯ session model hub (13)
+     × switches outgoing provider/model while keeping history, policy and open SSE 7242ms
+(node:26420) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  apps/local-server/src/sessionModelHub.test.ts > session model hub > switches outgoing provider/model while keeping history, policy and open SSE
+AssertionError: expected [ { role: 'system', …(1) }, …(2) ] to deeply equal ArrayContaining{…}
+
+- Expected
++ Received
+
+- ArrayContaining [
+-   ObjectContaining {
+-     "content": "first turn",
++ [
++   {
++     "content": "你是 Vessel 系统中的一个 Agent（Composable Agent Harness 核心）。
++
++ 纯文本回复即停止；不要在无需工具时强行调用工具。
++
++ 重试要有退避：同一操作连续失败时先读报错改方式；确需重试则加大间隔或改变参数，不原样反复重发；达到上限带证据上报或换方案。
++
++ 复杂、多步或有破坏性的任务先给出计划（目标→步骤→验证方式）再动手；执行中发现与计划冲突的新证据时先更新计划再继续。
++
++ 不要改写受保护路径（.git/.env/.ssh 等）；该约束由策略引擎硬执法。
++
++ 删除/格式化等破坏性命令会被策略引擎拦截；先说明原因与范围。
++
++ 凭据与密钥不写入文件、不落日志、不外发；凭据类文件读取由策略引擎硬拦截，需要密文时走环境注入。
++
++ 以检查结果（测试/命令输出）作为完成依据，不自证完成。
++
++ 拿不到真实验证结果（测试跑不了、环境不可用、数据取不到）就如实上报并说明阻塞，不用假输出或推测冒充结论。
++
++ 需要长期成立的规则与项目事实写入项目指令文件（AGENTS.md），不依赖对话记忆——对话会被压缩或交接，文件不会丢。
++
++ 上下文被压缩或交接后，基于摘要与最新请求继续，不重做已完成的工作；收尾说明要足以让下一个执行者直接续作。
++
++ 注意上下文占用：长输出与大批量调用会挤占窗口；优先按需读取与精简输出，接近窗口上限时先压缩再继续。
++
++ 回复简洁直给：先结论后细节，控制篇幅；CLI/日志类场景尤其要短，不写客套开场与无关展开。
++
++ 模型/工具/Agent 都可被替换——输出结构化、可交接、不制造对当前模型/会话的隐性依赖。
++
++ 以最低必要复杂度完成任务：够用即止，不堆多余 Agent/工具/步骤；新增能力先证其必要。
++
++ 模型负责聪明、系统负责可靠——动手前先定：调谁、给什么上下文、允许做什么、如何验证、何时停、出错怎么办。
++
++ 重要规则不只靠自觉：Prompt 引导 + 策略识别 + Runtime 拦截 + 审计记录四层执行；被拦截即服从并解释，不绕行。
++
++ 不自证完成：产出须经独立评估（Evaluator / 确定性判据 / 测试证据）确认后才可宣告完成。
++
++ 自动化只管执行、判断权留给人：重大、不可逆或证据不足的决策先停下升级给用户，不擅自推进。
++
++ 这是硬执法策略：受保护路径写入与危险命令会被引擎拒绝并记录审计事件。
++
++ 不要改写受保护路径：.git, .git/**, .claude, .ssh, .harness/credentials, .env（硬执法，不可豁免）。
++
++ 不要读取凭据/敏感文件：**/.aws/credentials, **/.ssh/**, **/.env（硬执法）。
++
++ 破坏性命令（destructive-delete, disk-format, partition-write）被硬拦截，先说明原因与范围再考虑受管替代。
++
++ 不要 force push 重写共享分支历史。
++
++ [Tool schemas]
++ [{\"description\":\"Read a file from the workspace and return its text content (UTF-8, ≤10MiB).\",\"name\":\"Read\",\"parameters\":{\"properties\":{\"path\":{\"description\":\"workspace-relative file path\",\"type\":\"string\"}},\"required\":[\"path\"],\"type\":\"object\"}},{\"description\":\"Write a file in the workspace (creates directories as needed).\",\"name\":\"Write\",\"parameters\":{\"properties\":{\"content\":{\"description\":\"full file content to write\",\"type\":\"string\"},\"path\":{\"description\":\"workspace-relative file path\",\"type\":\"string\"}},\"required\":[\"path\",\"content\"],\"type\":\"object\"}},{\"description\":\"Replace an exact literal substring in a file (single occurrence).\",\"name\":\"Edit\",\"parameters\":{\"properties\":{\"new_string\":{\"description\":\"replacement text\",\"type\":\"string\"},\"old_string\":{\"description\":\"exact text to replace\",\"type\":\"string\"},\"path\":{\"type\":\"string\"},\"replace_all\":{\"description\":\"replace every occurrence\",\"type\":\"boolean\"}},\"required\":[\"path\",\"old_string\",\"new_string\"],\"type\":\"object\"}},{\"description\":\"List workspace files matching a glob pattern (e.g. \\\"src/**/*.ts\\\").\",\"name\":\"Glob\",\"parameters\":{\"properties\":{\"ignore\":{\"description\":\"extra directory names to skip\",\"items\":{\"type\":\"string\"},\"type\":\"array\"},\"pattern\":{\"description\":\"glob pattern, relative to workspace root\",\"type\":\"string\"}},\"required\":[\"pattern\"],\"type\":\"object\"}},{\"description\":\"Search file contents with a regular expression; returns file:line matches.\",\"name\":\"Grep\",\"parameters\":{\"properties\":{\"ignore\":{\"items\":{\"type\":\"string\"},\"type\":\"array\"},\"include\":{\"description\":\"optional glob filter, e.g. \\\"src/**/*.ts\\\"\",\"type\":\"string\"},\"maxResults\":{\"description\":\"cap on returned matches (default 200)\",\"type\":\"number\"},\"pattern\":{\"description\":\"regular expression\",\"type\":\"string\"}},\"required\":[\"pattern\"],\"type\":\"object\"}},{\"description\":\"Run a shell command in the workspace (Windows: cmd.exe; POSIX: /bin/sh).\",\"name\":\"Shell\",\"parameters\":{\"properties\":{\"command\":{\"description\":\"shell command line\",\"type\":\"string\"},\"terminateEscaped\":{\"description\":\"task 072 hard response: terminate descendants detected outside the confined set (default false = audit only)\",\"type\":\"boolean\"},\"timeoutMs\":{\"description\":\"override timeout (default 30000)\",\"type\":\"number\"}},\"required\":[\"command\"],\"type\":\"object\"}},{\"description\":\"按需加载技能正文（SKILL.md 全文，含 skill_content 结构标记）。渐进披露：默认上下文只有技能索引，需要技能正文时调用本工具获取。技能是建议性知识，不豁免权限。被判为 UNTRUSTED 的技能（泄露/逆向来源）仍会出现在索引里，但本工具会拒绝装载其正文（DENIED: untrusted-skill）。\",\"name\":\"Skill\",\"parameters\":{\"properties\":{\"name\":{\"description\":\"技能名\",\"type\":\"string\"}},\"required\":[\"name\"],\"type\":\"object\"}},{\"description\":\"按关键字检索技能（名称/描述），返回命中 + 来源（scope/sourcePath/可信度）。也可用 resolve 查看同名技能在多层作用域的冲突裁决。被判为 UNTRUSTED 的技能仍会列出（保留可见性），但会标注「不可装载」——`Skill` 工具会拒绝返回其正文。\",\"name\":\"SkillSearch\",\"parameters\":{\"properties\":{\"keyword\":{\"description\":\"检索关键字\",\"type\":\"string\"},\"resolve\":{\"description\":\"可选：查看某技能名的分层来源与裁决\",\"type\":\"string\"}},\"required\":[],\"type\":\"object\"}},{\"description\":\"长期记忆（跨会话）：read/write/list/search/snapshot，可按 scope（user/project/local）隔离；write 写入对应作用域 topic 文件并更新索引；snapshot 返回冻结快照用于注入。\",\"name\":\"Memory\",\"parameters\":{\"properties\":{\"content\":{\"description\":\"topic 内容（write）\",\"type\":\"string\"},\"keyword\":{\"description\":\"检索关键字（search）\",\"type\":\"string\"},\"name\":{\"description\":\"topic 名（read/write）\",\"type\":\"string\"},\"op\":{\"description\":\"memory 操作\",\"enum\":[\"read\",\"write\",\"list\",\"search\",\"snapshot\"],\"type\":\"string\"},\"scope\":{\"description\":\"作用域（默认 project）\",\"enum\":[\"user\",\"project\",\"local\"],\"type\":\"string\"}},\"required\":[\"op\"],\"type\":\"object\"}}]",
++     "role": "system",
+    },
+-   ObjectContaining {
+-     "content": "alpha:a",
++   {
++     "content": "second turn",
++     "role": "user",
++   },
++   {
++     "content": "<compacted-summary>
++ 用户请求：first turn
++ <已压缩区域的头部摘要>
++ {\"type\":\"turn/start\",\"turnId\":\"turn_1791731883051_c5fd3c\",\"surface\":false,\"seq\":1,\"ts\":\"2026-10-11T15:18:03.052Z\"}
++ {\"type\":\"user/message\",\"msgId\":\"m_64a0be2f\",\"role\":\"user\",\"content\":\"first turn\",\"surface\":true,\"seq\":2,\"ts\":\"2026-10-11T15:18:03.089Z\"}
++ {\"type\":\"step/start\",\"stepId\":\"step_turn_1791731883051_c5fd3c_1\",\"turnId\":\"turn_1791731883051_c5fd3c\",\"surface\":false,\"seq\":3,\"ts\":\"2026-10-11T15:18:03.100Z\"}
++ {\"type\":\"request/header\",\"requestId\":\"req_turn_1791731883051_c5fd3c_step1\",\"turnId\":\"turn_1791731883051_c5fd3c\",\"step\":1,\"provider\":\"local-model-hub\",\"model\":\"local-model-hub\",\"estimateTokens\":2284,\"messageCount\":2,\"toolCount\":9,\"surface\":false,\"seq\":6,\"ts\":\"2026-10-11T15:18:03.401Z\"}
++ {\"type\":\"assistant/message\",\"msgId\":\"m_33659714\",\"role\":\"assistant\",\"content\":\"alpha:a\",\"surface\":true,\"seq\":7,\"ts\":\"2026-10-11T15:18:03.477Z\"}
++ {\"type\":\"step/end\",\"stepId\":\"step_turn_1791731883051_c5fd3c_1\",\"turnId\":\"turn_1791731883051_c5fd3c\",\"surface\":false,\"seq\":8,\"ts\":\"2026-10-11T15:18:03.480Z\"}
++ {\"type\":\"model/usage\",\"turnId\":\"turn_1791731883051_c5fd3c\",\"step\":1,\"usage\":{\"inputTokens\":2,\"outputTokens\":1},\"surface\":false,\"seq\":9,\"ts\":\"2026-10-11T15:18:03.502Z\"}
++ {\"type\":\"turn/end\",\"turnId\":\"turn_1791731883051_c5fd3c\",\"kind\":\"success\",\"stats\":{\"steps\":1,\"toolCalls\":0,\"durationMs\":473,\"tokensUsed\":3},\"seq\":10,\"ts\":\"2026-10-11T15:18:03.524Z\"}
++ <已压缩区域的尾部摘要>
++ {\"type\":\"turn/start\",\"turnId\":\"turn_1791731883051_c5fd3c\",\"surface\":false,\"seq\":1,\"ts\":\"2026-10-11T15:18:03.052Z\"}
++ {\"type\":\"user/message\",\"msgId\":\"m_64a0be2f\",\"role\":\"user\",\"content\":\"first turn\",\"surface\":true,\"seq\":2,\"ts\":\"2026-10-11T15:18:03.089Z\"}
++ {\"type\":\"step/start\",\"stepId\":\"step_turn_1791731883051_c5fd3c_1\",\"turnId\":\"turn_1791731883051_c5fd3c\",\"surface\":false,\"seq\":3,\"ts\":\"2026-10-11T15:18:03.100Z\"}
++ {\"type\":\"request/header\",\"requestId\":\"req_turn_1791731883051_c5fd3c_step1\",\"turnId\":\"turn_1791731883051_c5fd3c\",\"step\":1,\"provider\":\"local-model-hub\",\"model\":\"local-model-hub\",\"estimateTokens\":2284,\"messageCount\":2,\"toolCount\":9,\"surface\":false,\"seq\":6,\"ts\":\"2026-10-11T15:18:03.401Z\"}
++ {\"type\":\"assistant/message\",\"msgId\":\"m_33659714\",\"role\":\"assistant\",\"content\":\"alpha:a\",\"surface\":true,
++ </compacted-summary>",
++     "role": "user",
++     "source": "compacted-summary",
+    },
+  ]
+
+ ❯ apps/local-server/src/sessionModelHub.test.ts:57:42
+
+     55|       expect(await (await call(`/api/sessions/${id}/turns`, 'POST', { …
+     56|       expect(calls.map(call => [call.provider, call.request.model])).t…
+     57|       expect(calls[1]!.request.messages).toEqual(expect.arrayContainin…
+       |                                          ^
+     58|       expect(calls[1]!.request.maxTokens).toBe(1024);
+     59|       let received = ''; for (let i = 0; i < 8 && !received.includes('…
+ Test Files  1 failed | 1 passed (2)
+      Tests  1 failed | 35 passed (36)
+   Start at  08:17:35
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+   Duration  41.10s (transform 53%, tests 35%, import 12%)
+
+  Transform  transforming modules took 21.28s · 53% of tracked time, re-done on every run
+             persist transforms across runs with fsModuleCache: true
+             learn more: https://vitest.dev/guide/improving-performance#caching-between-reruns
+

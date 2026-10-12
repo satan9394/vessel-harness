@@ -1,0 +1,11 @@
+{
+  "card": 205,
+  "status": "passed",
+  "checks": [
+    { "command": "npx vitest run packages/shared/src/patch.test.ts apps/local-server/src/routes/patchRoutes.test.ts apps/local-server/src/routes/widgetRoutes.test.ts", "exitCode": 0, "passed": 25, "files": 3, "log": "card205-revert-accepted-root.log" },
+    { "command": "npx vitest run --root apps/web src/components/canvas/InteractivePatchPicker.test.tsx src/components/widgets/widgets.test.tsx src/components/layout/DualSurfaceLayout.test.tsx src/api.test.ts", "exitCode": 0, "passed": 69, "files": 4, "log": "card205-revert-accepted-web.log" },
+    { "command": "npx tsc -b tsconfig.json", "exitCode": 0, "log": "card205-revert-accepted-tsc.log" },
+    { "command": "npm run typecheck:tests", "exitCode": 0, "log": "card205-revert-accepted-test-types.log" },
+    { "command": "npx tsc -p apps/web/tsconfig.json --noEmit", "exitCode": 0, "log": "card205-revert-accepted-web-types.log" }
+  ]
+}

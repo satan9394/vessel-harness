@@ -1,16 +1,14 @@
+import { useI18n } from './LanguageProvider';
 import { useCallback, useEffect, useState } from 'react';
 import type { ApiClient } from '../api';
 import { createEventStream, type TeamDelta } from '../sse';
 import {
   normalizeTeamState,
-  routeLabel,
   sortReviews,
   type ReviewRecord,
-  type RouteMode,
   type RouteState,
   type TeamRunState,
 } from '../team';
-import ModelSelector from './ModelSelector';
 import TeamPanel from './TeamPanel';
 import TeamStagesPanel from './team/TeamStagesPanel';
 import ReviewRequiredPanel from './ReviewRequiredPanel';
@@ -26,9 +24,10 @@ interface Props {
  *  - live team snapshots over the session SSE stream ('team' frames) +
  *    GET /team-runs/current as the page-load fallback
  *  - external review handoffs via /api/reviews
- * Renders ModelSelector + TeamPanel + ReviewRequiredPanel.
+ * Renders TeamPanel + ReviewRequiredPanel.
  */
 export default function TeamModule({ sessionId, api }: Props) {
+  const { t } = useI18n();
   const [route, setRoute] = useState<RouteState | null>(null);
   const [team, setTeam] = useState<TeamRunState | null>(null);
   const [reviews, setReviews] = useState<ReviewRecord[]>([]);
@@ -68,61 +67,6 @@ export default function TeamModule({ sessionId, api }: Props) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sessionId]);
 
-  const setMode = useCallback(
-    async (mode: RouteMode) => {
-      setBusy(true);
-      setError(null);
-      try {
-        const next = await api.setRouteMode(sessionId, mode);
-        setRoute(next);
-      } catch (err) {
-        showError(err);
-      } finally {
-        setBusy(false);
-      }
-    },
-    [api, sessionId, showError],
-  );
-
-  const resolve = useCallback(async () => {
-    setBusy(true);
-    setError(null);
-    try {
-      await api.resolveRoute(sessionId, task.trim() || undefined);
-      await refresh();
-    } catch (err) {
-      showError(err);
-    } finally {
-      setBusy(false);
-    }
-  }, [api, sessionId, task, refresh, showError]);
-
-  const pin = useCallback(async () => {
-    setBusy(true);
-    setError(null);
-    try {
-      const next = await api.pinRoute(sessionId);
-      setRoute(next);
-    } catch (err) {
-      showError(err);
-    } finally {
-      setBusy(false);
-    }
-  }, [api, sessionId, showError]);
-
-  const unpin = useCallback(async () => {
-    setBusy(true);
-    setError(null);
-    try {
-      const next = await api.unpinRoute(sessionId);
-      setRoute(next);
-    } catch (err) {
-      showError(err);
-    } finally {
-      setBusy(false);
-    }
-  }, [api, sessionId, showError]);
-
   const run = useCallback(
     async (e: React.FormEvent) => {
       e.preventDefault();
@@ -149,13 +93,13 @@ export default function TeamModule({ sessionId, api }: Props) {
       setNotice(null);
       try {
         const markdown = await api.handoffMarkdown(review.id);
-        await copyToClipboard(markdown);
-        setNotice('Handoff copied to clipboard');
+        await copyToClipboard(markdown, t('clipboardUnavailable'));
+        setNotice(t('handoffCopied'));
       } catch (err) {
         showError(err);
       }
     },
-    [api, showError],
+    [api, showError, t],
   );
 
   const openFolder = useCallback(
@@ -163,12 +107,12 @@ export default function TeamModule({ sessionId, api }: Props) {
       setNotice(null);
       try {
         await api.openReviewFolder(review.id);
-        setNotice('Folder opened');
+        setNotice(t('folderOpened'));
       } catch (err) {
         showError(err);
       }
     },
-    [api, showError],
+    [api, showError, t],
   );
 
   const importResult = useCallback(
@@ -178,41 +122,29 @@ export default function TeamModule({ sessionId, api }: Props) {
       try {
         const { review: updated } = await api.importReview(review.id, text);
         setReviews((prev) => sortReviews(prev.map((r) => (r.id === updated.id ? updated : r))));
-        setNotice('Review result imported');
+        setNotice(t('reviewImported'));
       } catch (err) {
         showError(err);
       } finally {
         setBusy(false);
       }
     },
-    [api, showError],
+    [api, showError, t],
   );
-
-  const label = route ? routeLabel(route.route) : null;
 
   return (
     <div className="team-module">
       <TeamStagesPanel key={sessionId} api={api} sessionId={sessionId} />
-      <ModelSelector
-        mode={route?.mode ?? 'auto'}
-        label={label}
-        pinned={route?.pinned ?? false}
-        busy={busy}
-        onSelect={setMode}
-        onResolve={resolve}
-        onPin={pin}
-        onUnpin={unpin}
-      />
       <form className="team-run-composer" onSubmit={run}>
         <input
           className="input composer-input"
           value={task}
           onChange={(e) => setTask(e.target.value)}
-          placeholder="Team task… (Auto resolves the roster: small / dev+reviewer / lead+dev+reviewer)"
+          placeholder={t('uiTeamTaskAutoResolvesTheRosterSmallDev')}
           disabled={busy}
         />
         <button type="submit" className="btn btn-primary" disabled={busy || !task.trim()}>
-          {busy ? 'Running…' : 'Run team'}
+          {busy ? t('uiRunning') : t('uiRunTeam')}
         </button>
       </form>
       {error && <div className="error-text">{error}</div>}
@@ -229,12 +161,12 @@ export default function TeamModule({ sessionId, api }: Props) {
           onImport={importResult}
         />
       </div>
-      <div className="dim team-module-hint">Team activity streams live from the session SSE; review handoffs live under .vessel/reviews.</div>
+      <div className="dim team-module-hint">{t('uiTeamActivityStreamsLiveFromTheSessionSSE')}</div>
     </div>
   );
 }
 
-async function copyToClipboard(text: string): Promise<void> {
+async function copyToClipboard(text: string, unavailable: string): Promise<void> {
   try {
     const nav = (globalThis as { navigator?: { clipboard?: { writeText(t: string): Promise<void> } } }).navigator;
     if (nav?.clipboard?.writeText) {
@@ -244,5 +176,5 @@ async function copyToClipboard(text: string): Promise<void> {
   } catch {
     // clipboard blocked — swallow (notice still shown)
   }
-  throw new Error('Clipboard unavailable');
+  throw new Error(unavailable);
 }

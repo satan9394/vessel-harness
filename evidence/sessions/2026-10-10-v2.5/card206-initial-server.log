@@ -1,0 +1,41 @@
+
+ RUN  v5.0.1 E:/Code_file/Projects/Vessel_Harness
+
+(node:25808) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+ ❯ apps/local-server/src/server.test.ts (24 tests | 1 failed) 18354ms
+   ❯ local server HTTP API + SSE (11)
+     × projects reasoning stream chunks into thinking SSE start, delta, and end frames 4130ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  apps/local-server/src/server.test.ts > local server HTTP API + SSE > projects reasoning stream chunks into thinking SSE start, delta, and end frames
+AssertionError: expected [ 'start', 'delta', 'end', 'usage' ] to deeply equal [ 'start', 'delta', 'end', …(2) ]
+
+- Expected
++ Received
+
+  [
+    "start",
+    "delta",
+    "end",
+    "usage",
+-   "usage",
+  ]
+
+ ❯ apps/local-server/src/server.test.ts:392:50
+    390|       await turnPromise;
+    391|       await reader.cancel();
+    392|       expect(thinking.map(({ phase }) => phase)).toEqual(['start', 'de…
+       |                                                  ^
+    393|       expect(thinking[1]?.text).toBe('check the constraints');
+    394|       expect(thinking[2]?.durationMs).toEqual(expect.any(Number));
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed | 1 passed (2)
+      Tests  1 failed | 26 passed (27)
+   Start at  21:28:21
+   Duration  25.87s (tests 72%, import 16%, transform 12%)
+

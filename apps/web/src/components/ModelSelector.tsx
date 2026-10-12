@@ -1,77 +1,73 @@
-import { ROUTE_MODES, ROUTE_MODE_LABELS, type RouteMode } from '../team';
+import { useEffect, useRef, useState } from 'react';
+import { ApiError, type ApiClient, type ModelOption, type SessionMeta } from '../api';
+import { useI18n } from './LanguageProvider';
+import { modelKey } from './NewSessionForm';
 
-/**
- * Model selection control (task 060, docs §10): Auto / Fast / Pro with the
- * resolved actual model shown as 「Auto → <model>」and a Pin for this session
- * toggle. Presentational — state + actions are lifted into TeamModule.
- */
 export interface ModelSelectorProps {
-  mode: RouteMode;
-  /** resolved display label (e.g. "Auto → mock-pro"); null until resolved */
-  label: string | null;
-  pinned: boolean;
+  api: ApiClient;
+  sessionId: string;
+  providerRevision?: number;
   busy?: boolean;
-  onSelect: (mode: RouteMode) => void;
-  onResolve: () => void;
-  onPin: () => void;
-  onUnpin: () => void;
+  onConfigureModels?: () => void;
+  onUpdated?: () => void;
+  onBusyChange?: (busy: boolean) => void;
 }
 
-export default function ModelSelector({
-  mode,
-  label,
-  pinned,
-  busy = false,
-  onSelect,
-  onResolve,
-  onPin,
-  onUnpin,
-}: ModelSelectorProps) {
-  return (
-    <div className="model-selector" aria-label="model mode">
-      <div className="model-modes" role="group" aria-label="model mode">
-        {ROUTE_MODES.map((m) => (
-          <button
-            key={m}
-            type="button"
-            className={`mode-btn${mode === m ? ' mode-btn-active' : ''}`}
-            aria-pressed={mode === m}
-            disabled={busy}
-            onClick={() => onSelect(m)}
-          >
-            {ROUTE_MODE_LABELS[m]}
-          </button>
-        ))}
-      </div>
-      <span className={`model-resolved${label ? '' : ' dim'}`} title="resolved actual model">
-        {label ?? '—'}
-      </span>
-      <div className="model-actions">
-        <button type="button" className="btn" disabled={busy} onClick={onResolve} title="resolve the actual model for this mode">
-          Resolve
-        </button>
-        {pinned ? (
-          <button
-            type="button"
-            className="btn model-pin-on"
-            disabled={busy}
-            onClick={onUnpin}
-            title="unpin — the next auto resolution re-judges"
-          >
-            Pinned · Unpin
-          </button>
-        ) : (
-          <button
-            type="button"
-            className="btn"
-            disabled={busy}
-            onClick={onPin}
-            title="pin this resolution for the session (no automatic re-judge)"
-          >
-            Pin for this session
-          </button>
-        )}
-      </div>
-    </div>
-  );
+export default function ModelSelector({ api, sessionId, providerRevision = 0, busy = false, onConfigureModels, onUpdated, onBusyChange }: ModelSelectorProps) {
+  const { t } = useI18n();
+  const [models, setModels] = useState<ModelOption[]>([]);
+  const [session, setSession] = useState<SessionMeta>();
+  const [loading, setLoading] = useState(true);
+  const [switching, setSwitching] = useState(false);
+  const [failure, setFailure] = useState<'load' | 'switch' | 'busy'>();
+  const generation = useRef(0);
+  const busyOwned = useRef(false);
+  useEffect(() => {
+    let live = true;
+    setLoading(true); setFailure(undefined);
+    Promise.resolve().then(() => api.listModels()).then(catalog => {
+      if (live) setModels(catalog.models.filter(model => model.providerName !== 'mock'));
+    }).catch(() => { if (live) setFailure('load'); }).finally(() => { if (live) setLoading(false); });
+    return () => { live = false; };
+  }, [api, providerRevision]);
+  useEffect(() => {
+    const current = ++generation.current;
+    setSession(undefined); setSwitching(false);
+    Promise.resolve().then(() => api.getSession(sessionId)).then(result => {
+      if (current === generation.current) setSession(result.session);
+    }).catch(() => { if (current === generation.current) setFailure('load'); });
+    return () => {
+      generation.current += 1;
+      if (busyOwned.current) { busyOwned.current = false; onBusyChange?.(false); }
+    };
+  }, [api, sessionId, onBusyChange]);
+
+  async function select(key: string) {
+    const chosen = models.find(model => modelKey(model) === key);
+    if (!chosen || busy || switching || loading || !session) return;
+    const current = generation.current;
+    busyOwned.current = true; setSwitching(true); onBusyChange?.(true); setFailure(undefined);
+    try {
+      const result = await api.switchSessionModel(sessionId, { provider: chosen.providerName, model: chosen.id });
+      if (current === generation.current) { setSession(result.session); onUpdated?.(); }
+    } catch (error) {
+      if (current === generation.current) setFailure(error instanceof ApiError && error.status === 409 && (error.body as { error?: string } | null)?.error === 'session_busy' ? 'busy' : 'switch');
+    } finally {
+      if (current === generation.current) { busyOwned.current = false; setSwitching(false); onBusyChange?.(false); }
+    }
+  }
+  const selected = session?.provider && session.model ? JSON.stringify([session.provider, session.model]) : '';
+  const listed = models.some(model => modelKey(model) === selected);
+  const label = session?.provider === 'mock' ? t('modelOffline') : session?.model ? `${session.provider} / ${session.model}` : '—';
+  return <div className="model-selector">
+    <label htmlFor="activeSessionModel">{t('currentModel')}</label>
+    <select id="activeSessionModel" className="input" value={selected} disabled={busy || switching || loading || !session || failure === 'load'} onChange={event => void select(event.target.value)}>
+      {!listed && <option value={selected}>{label}</option>}
+      {models.map(model => <option key={modelKey(model)} value={modelKey(model)}>{model.providerName} / {model.id}</option>)}
+    </select>
+    {loading || switching ? <span role="status" className="dim">{t('loading')}</span> : null}
+    {!loading && !models.length && <span className="dim">{t('noModelsConfigured')}</span>}
+    {onConfigureModels && <button type="button" className="btn" disabled={busy || switching} onClick={onConfigureModels}>{t('configureModels')}</button>}
+    {failure && <span role="alert" className="error-text">{t(failure === 'load' ? 'modelLoadFailed' : failure === 'busy' ? 'modelSwitchBusy' : 'modelSwitchFailed')}</span>}
+  </div>;
 }

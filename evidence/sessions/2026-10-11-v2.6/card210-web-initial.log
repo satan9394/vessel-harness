@@ -1,0 +1,1136 @@
+
+ RUN  v5.0.1 E:/Code_file/Projects/Vessel_Harness/apps/web
+
+ ❯ src/components/widgets/widgets.test.tsx (12 tests | 9 failed) 216ms
+   ❯ inline widget rendering and timeline reconciliation (9)
+     × distinguishes hunk content beginning with triple signs from file headers 42ms
+     × parses unified hunks, aligned line numbers and actual added/removed counts 24ms
+     × collapses more than 20 lines and honors an explicit default 1ms
+     × renders red_verified, hash prefix and expandable full verification 2ms
+     × renders green_verified, hash prefix and expandable full verification 1ms
+     × renders rejected, hash prefix and expandable full verification 1ms
+     × renders callers and files safely as text 1ms
+     × upserts replay IDs and never reopens a resolved action 5ms
+     × renders expired permissions with disabled choices 2ms
+stderr | src/components/SubagentPanel.test.tsx > Subagent workspace > card click selects exact worker and cancel targets only that id
+Invalid hook call. Hooks can only be called inside of the body of a function component. This could happen for one of the following reasons:
+1. You might have mismatching versions of React and the renderer (such as React DOM)
+2. You might be breaking the Rules of Hooks
+3. You might have more than one copy of React in the same app
+See https://react.dev/link/invalid-hook-call for tips about how to debug and fix this problem.
+
+stderr | src/components/SubagentPanel.test.tsx > Subagent workspace > drawer exposes worktree, stage logs, all four token dimensions and close/cancel actions
+Invalid hook call. Hooks can only be called inside of the body of a function component. This could happen for one of the following reasons:
+1. You might have mismatching versions of React and the renderer (such as React DOM)
+2. You might be breaking the Rules of Hooks
+3. You might have more than one copy of React in the same app
+See https://react.dev/link/invalid-hook-call for tips about how to debug and fix this problem.
+
+ ❯ src/components/SubagentPanel.test.tsx (10 tests | 3 failed) 215ms
+   ❯ Subagent workspace (10)
+     × renders empty state and accessible running/completed/failed cards 21ms
+     × card click selects exact worker and cancel targets only that id 6ms
+     × drawer exposes worktree, stage logs, all four token dimensions and close/cancel actions 2ms
+stderr | src/components/__tests__/CognitiveRulesDashboard.test.tsx > CognitiveRulesDashboard > category and search controls pass current values through their real handlers
+Invalid hook call. Hooks can only be called inside of the body of a function component. This could happen for one of the following reasons:
+1. You might have mismatching versions of React and the renderer (such as React DOM)
+2. You might be breaking the Rules of Hooks
+3. You might have more than one copy of React in the same app
+See https://react.dev/link/invalid-hook-call for tips about how to debug and fix this problem.
+
+ ❯ src/components/__tests__/CognitiveRulesDashboard.test.tsx (5 tests | 4 failed) 81ms
+   ❯ CognitiveRulesDashboard (5)
+     × renders category, trigger, lesson, action, hits and timestamp without interpreting lesson markup 15ms
+     × combines each category with case-insensitive live search across all meaningful rule fields 4ms
+     × category and search controls pass current values through their real handlers 5ms
+     × shows accessible loading while initial read is pending 2ms
+ ❯ src/components/__tests__/SandboxAuditBadge.test.tsx (6 tests | 4 failed) 91ms
+   ❯ sandbox execution audits (6)
+     × displays recorded readonly roots, enforced memory caps and platform privilege constraints 18ms
+     × renders keyboard-operable disclosure and truthful constraints 1ms
+     × does not invent whitelist/privilege enforcement on fallback 1ms
+     × renders the execution badge in cards and the Talking message flow only with audit evidence 7ms
+stderr | src/components/canvas/InteractivePatchPicker.test.tsx > interactive hunk decisions > reconciles two instances with authoritative SSE statuses after accept, revert and reapply
+Invalid hook call. Hooks can only be called inside of the body of a function component. This could happen for one of the following reasons:
+1. You might have mismatching versions of React and the renderer (such as React DOM)
+2. You might be breaking the Rules of Hooks
+3. You might have more than one copy of React in the same app
+See https://react.dev/link/invalid-hook-call for tips about how to debug and fix this problem.
+
+stderr | src/components/canvas/InteractivePatchPicker.test.tsx > interactive hunk decisions > invokes discard with exact ID, waits before marking rejected and permits safe reapply
+Invalid hook call. Hooks can only be called inside of the body of a function component. This could happen for one of the following reasons:
+1. You might have mismatching versions of React and the renderer (such as React DOM)
+2. You might be breaking the Rules of Hooks
+3. You might have more than one copy of React in the same app
+See https://react.dev/link/invalid-hook-call for tips about how to debug and fix this problem.
+
+stderr | src/components/canvas/InteractivePatchPicker.test.tsx > interactive hunk decisions > surfaces server conflicts and permits retry without inventing accepted status
+Invalid hook call. Hooks can only be called inside of the body of a function component. This could happen for one of the following reasons:
+1. You might have mismatching versions of React and the renderer (such as React DOM)
+2. You might be breaking the Rules of Hooks
+3. You might have more than one copy of React in the same app
+See https://react.dev/link/invalid-hook-call for tips about how to debug and fix this problem.
+
+stderr | src/components/canvas/InteractivePatchPicker.test.tsx > interactive hunk decisions > toggles unified/side-by-side views and respects replayed terminal states
+Invalid hook call. Hooks can only be called inside of the body of a function component. This could happen for one of the following reasons:
+1. You might have mismatching versions of React and the renderer (such as React DOM)
+2. You might be breaking the Rules of Hooks
+3. You might have more than one copy of React in the same app
+See https://react.dev/link/invalid-hook-call for tips about how to debug and fix this problem.
+
+ ❯ src/components/canvas/InteractivePatchPicker.test.tsx (5 tests | 4 failed) 80ms
+   ❯ interactive hunk decisions (5)
+     × reconciles two instances with authoritative SSE statuses after accept, revert and reapply 14ms
+     × invokes discard with exact ID, waits before marking rejected and permits safe reapply 2ms
+     × surfaces server conflicts and permits retry without inventing accepted status 2ms
+     × toggles unified/side-by-side views and respects replayed terminal states 3ms
+stderr | src/components/team/TeamDagCanvas.test.tsx > team DAG workspace > renders every lifecycle state and selects the exact keyboard-accessible node
+Invalid hook call. Hooks can only be called inside of the body of a function component. This could happen for one of the following reasons:
+1. You might have mismatching versions of React and the renderer (such as React DOM)
+2. You might be breaking the Rules of Hooks
+3. You might have more than one copy of React in the same app
+See https://react.dev/link/invalid-hook-call for tips about how to debug and fix this problem.
+
+stderr | src/components/team/TeamDagCanvas.test.tsx > team DAG workspace > shows frozen roster routes and invokes approve/reject buttons only for staged plans
+Invalid hook call. Hooks can only be called inside of the body of a function component. This could happen for one of the following reasons:
+1. You might have mismatching versions of React and the renderer (such as React DOM)
+2. You might be breaking the Rules of Hooks
+3. You might have more than one copy of React in the same app
+See https://react.dev/link/invalid-hook-call for tips about how to debug and fix this problem.
+
+stderr | src/components/team/TeamDagCanvas.test.tsx > team DAG workspace > shows dependency/executor/error/artifacts and limits output to 300 characters
+Invalid hook call. Hooks can only be called inside of the body of a function component. This could happen for one of the following reasons:
+1. You might have mismatching versions of React and the renderer (such as React DOM)
+2. You might be breaking the Rules of Hooks
+3. You might have more than one copy of React in the same app
+See https://react.dev/link/invalid-hook-call for tips about how to debug and fix this problem.
+
+stderr | src/components/team/TeamDagCanvas.test.tsx > team DAG workspace > renders actual artifact comparison and invokes diff and close controls
+Invalid hook call. Hooks can only be called inside of the body of a function component. This could happen for one of the following reasons:
+1. You might have mismatching versions of React and the renderer (such as React DOM)
+2. You might be breaking the Rules of Hooks
+3. You might have more than one copy of React in the same app
+See https://react.dev/link/invalid-hook-call for tips about how to debug and fix this problem.
+
+stderr | src/components/team/TeamDagCanvas.test.tsx > team DAG workspace > edits member routes and task parameters through native controls and saves a revised preview
+Invalid hook call. Hooks can only be called inside of the body of a function component. This could happen for one of the following reasons:
+1. You might have mismatching versions of React and the renderer (such as React DOM)
+2. You might be breaking the Rules of Hooks
+3. You might have more than one copy of React in the same app
+See https://react.dev/link/invalid-hook-call for tips about how to debug and fix this problem.
+
+ ❯ src/components/team/TeamDagCanvas.test.tsx (8 tests | 7 failed) 76ms
+   ❯ team DAG workspace (8)
+     × layers out-of-order diamond dependencies and draws all four edges 17ms
+     × renders every lifecycle state and selects the exact keyboard-accessible node 4ms
+     × shows frozen roster routes and invokes approve/reject buttons only for staged plans 2ms
+     × shows dependency/executor/error/artifacts and limits output to 300 characters 2ms
+     × renders actual artifact comparison and invokes diff and close controls 1ms
+     × edits member routes and task parameters through native controls and saves a revised preview 2ms
+     × wires the stage workspace into the existing Team module and targets encoded HTTP ids 4ms
+ ❯ src/components/__tests__/SwarmTopologyView.test.tsx (7 tests | 4 failed) 78ms
+   ❯ SwarmTopologyView (7)
+     × shows observed remote task activity without inventing load for absent snapshots 17ms
+     × renders SVG connections and complete local/peer details with explicit connectivity and RTT 1ms
+     × distinguishes unconfigured mesh, no peers and initial loading 1ms
+     × renders bounded RTT waveforms without recording offline values or removed peers 5ms
+stderr | src/components/layout/DualSurfaceLayout.test.tsx > Inspector layout and state controller > renders a server proposal in the canvas and routes the selected hunk through injected API
+Invalid hook call. Hooks can only be called inside of the body of a function component. This could happen for one of the following reasons:
+1. You might have mismatching versions of React and the renderer (such as React DOM)
+2. You might be breaking the Rules of Hooks
+3. You might have more than one copy of React in the same app
+See https://react.dev/link/invalid-hook-call for tips about how to debug and fix this problem.
+
+ ❯ src/components/layout/DualSurfaceLayout.test.tsx (14 tests | 11 failed) 83ms
+   ❯ Inspector layout and state controller (10)
+     × renders a server proposal in the canvas and routes the selected hunk through injected API 13ms
+     × renders folded conversation and default docked inspector 9ms
+     × mounts selected swarm panel 2ms
+     × mounts selected cognition panel 1ms
+     × mounts selected cache panel 1ms
+     × mounts selected ast panel 1ms
+     × mounts selected patch panel 1ms
+     × makes a narrow inspector modal with background inert and a backdrop 1ms
+   ❯ Observed Inspector telemetry (4)
+     × bounds cache history to the last 40 observations without mutating previous samples 3ms
+     × distinguishes missing observations from measured zeroes and prefix from workspace hashes 1ms
+     × renders actual observed target/callers/files without claiming a complete dependency graph 2ms
+ ❯ src/components/__tests__/UsageBarCache.test.tsx (5 tests | 4 failed) 66ms
+   ❯ server priced cache badges (5)
+     × renders the server hit rate, savings and cost 14ms
+     × labels fallback estimates and replaces cumulative totals 1ms
+     × does not show a false zero percent badge when cache metrics were not reported 1ms
+     × shows per-message server-priced cache metadata 45ms
+ ❯ src/i18n.test.ts (11 tests | 1 failed) 40ms
+   ❯ i18n translate(t) (4)
+     × interpolates {var} placeholders from params 10ms
+ ❯ src/components.subagent.test.tsx (2 tests | 2 failed) 24ms
+   ❯ SubagentPanel component (2)
+     × renders empty placeholder when no subagents exist 18ms
+     × renders active subagents cards with badge and cancel button 2ms
+ ❯ src/components.team.test.tsx (11 tests | 11 failed) 29ms
+   ❯ TeamPanel (task 060 panel rendering) (4)
+     × renders a friendly empty state when no team run exists 13ms
+     × renders roster member cards with phase status + output + review conclusion 1ms
+     × marks the live member of a running complex run and shows delegate rows 2ms
+     × survives an empty finished run (roster-only edge) 1ms
+   ❯ ModelSelector (task 060 model choice: Auto/Fast/Pro + pin) (4)
+     × shows Auto / Fast / Pro with Auto active by default 1ms
+     × renders the resolved actual model label (Auto → <model>) 1ms
+     × reflects pin state: unpinned offers Pin, pinned offers Pinned · Unpin 1ms
+     × marks the user-selected mode segment active 0ms
+   ❯ ReviewRequiredPanel (task 060 external review area: §9.1 buttons) (3)
+     × is hidden when there are no review records 1ms
+     × pending review → External Review Required header + Copy / Open / Import buttons 1ms
+     × imported review shows the parsed result summary instead of the required header 3ms
+stderr | src/components/palette/CommandPalette.test.tsx > command palette keyboard and registry > opens with ctrlKey+K, closes with Esc and restores prior focus
+Invalid hook call. Hooks can only be called inside of the body of a function component. This could happen for one of the following reasons:
+1. You might have mismatching versions of React and the renderer (such as React DOM)
+2. You might be breaking the Rules of Hooks
+3. You might have more than one copy of React in the same app
+See https://react.dev/link/invalid-hook-call for tips about how to debug and fix this problem.
+
+stderr | src/components/palette/CommandPalette.test.tsx > command palette keyboard and registry > opens with metaKey+K, closes with Esc and restores prior focus
+Invalid hook call. Hooks can only be called inside of the body of a function component. This could happen for one of the following reasons:
+1. You might have mismatching versions of React and the renderer (such as React DOM)
+2. You might be breaking the Rules of Hooks
+3. You might have more than one copy of React in the same app
+See https://react.dev/link/invalid-hook-call for tips about how to debug and fix this problem.
+
+stderr | src/components/palette/CommandPalette.test.tsx > command palette keyboard and registry > filters, selects with arrows and executes exactly once with Enter
+Invalid hook call. Hooks can only be called inside of the body of a function component. This could happen for one of the following reasons:
+1. You might have mismatching versions of React and the renderer (such as React DOM)
+2. You might be breaking the Rules of Hooks
+3. You might have more than one copy of React in the same app
+See https://react.dev/link/invalid-hook-call for tips about how to debug and fix this problem.
+
+stderr | src/components/palette/CommandPalette.test.tsx > command palette keyboard and registry > blocks opening over another dialog and ignores composition/extra modifiers
+Invalid hook call. Hooks can only be called inside of the body of a function component. This could happen for one of the following reasons:
+1. You might have mismatching versions of React and the renderer (such as React DOM)
+2. You might be breaking the Rules of Hooks
+3. You might have more than one copy of React in the same app
+See https://react.dev/link/invalid-hook-call for tips about how to debug and fix this problem.
+
+stderr | src/components/palette/CommandPalette.test.tsx > command palette keyboard and registry > does not treat typing ? as a shortcut and does not execute an empty result
+Invalid hook call. Hooks can only be called inside of the body of a function component. This could happen for one of the following reasons:
+1. You might have mismatching versions of React and the renderer (such as React DOM)
+2. You might be breaking the Rules of Hooks
+3. You might have more than one copy of React in the same app
+See https://react.dev/link/invalid-hook-call for tips about how to debug and fix this problem.
+
+stderr | src/components/palette/CommandPalette.test.tsx > message navigation guards > navigates actual cards, folds with Space, exits with Esc, and respects typing/dialogs
+Invalid hook call. Hooks can only be called inside of the body of a function component. This could happen for one of the following reasons:
+1. You might have mismatching versions of React and the renderer (such as React DOM)
+2. You might be breaking the Rules of Hooks
+3. You might have more than one copy of React in the same app
+See https://react.dev/link/invalid-hook-call for tips about how to debug and fix this problem.
+
+stderr | src/components/palette/CommandPalette.test.tsx > message navigation guards > submits the real new-session permission preset without modifying an existing session
+Invalid hook call. Hooks can only be called inside of the body of a function component. This could happen for one of the following reasons:
+1. You might have mismatching versions of React and the renderer (such as React DOM)
+2. You might be breaking the Rules of Hooks
+3. You might have more than one copy of React in the same app
+See https://react.dev/link/invalid-hook-call for tips about how to debug and fix this problem.
+
+ ❯ src/components/palette/CommandPalette.test.tsx (9 tests | 7 failed) 29ms
+   ❯ command palette keyboard and registry (7)
+     × opens with ctrlKey+K, closes with Esc and restores prior focus 7ms
+     × opens with metaKey+K, closes with Esc and restores prior focus 2ms
+     × filters, selects with arrows and executes exactly once with Enter 2ms
+     × blocks opening over another dialog and ignores composition/extra modifiers 1ms
+     × does not treat typing ? as a shortcut and does not execute an empty result 1ms
+   ❯ message navigation guards (2)
+     × navigates actual cards, folds with Space, exits with Esc, and respects typing/dialogs 3ms
+     × submits the real new-session permission preset without modifying an existing session 3ms
+ ❯ src/components/widgets/StreamingReasoningBlock.test.tsx (2 tests | 2 failed) 20ms
+   ❯ streaming reasoning interaction (2)
+     × ticks while streaming, folds on completion, toggles on demand, restarts and cleans up timers 14ms
+     × renders only supplied matched rules with lesson/reflection and keeps unknown counts unknown 4ms
+ ❯ src/UsageBar.test.tsx (7 tests | 4 failed) 25ms
+   ❯ UsageBar — cacheWrite (cacheCreation) 分项（task 107） (7)
+     × 渲染 cache 读/写分项并列，且写分项带 derived 提示 13ms
+     × 无 cacheWrite 时只渲染 cache 读，不出现写分项 2ms
+     × mock 增量链：多个 delta 累积后渲染正确（含缺字段帧回退） 2ms
+     × 全零 usage 不渲染任何内容 1ms
+ ❯ src/components.goal.test.tsx (9 tests | 9 failed) 14ms
+   ❯ GoalPanel (task 065/066 panel rendering) (9)
+     × renders a friendly empty state when there are no tasks 9ms
+     × renders the queue with status labels + goal text and highlights the selected row 1ms
+     × selected task detail shows the run trigger + terminal-task hint + 066 control labels 1ms
+     × pause is enabled only on a running in-progress task; resume only on a paused one (066 gating) 0ms
+     × renders a pending selected task with an enabled Run button 0ms
+     × iteration replay shows generator output summary + evaluator verdict/reason (met + not_met) 1ms
+     × shows a runnable pending iteration-empty state (No iterations yet) when the task never ran 0ms
+     × running=true renders the Running… label on the trigger button 0ms
+     × renders acceptance criteria for a selected task 0ms
+
+⎯⎯⎯⎯⎯⎯ Failed Tests 86 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/components.goal.test.tsx > GoalPanel (task 065/066 panel rendering) > renders a friendly empty state when there are no tasks
+ FAIL  src/components.goal.test.tsx > GoalPanel (task 065/066 panel rendering) > renders the queue with status labels + goal text and highlights the selected row
+ FAIL  src/components.goal.test.tsx > GoalPanel (task 065/066 panel rendering) > selected task detail shows the run trigger + terminal-task hint + 066 control labels
+ FAIL  src/components.goal.test.tsx > GoalPanel (task 065/066 panel rendering) > pause is enabled only on a running in-progress task; resume only on a paused one (066 gating)
+ FAIL  src/components.goal.test.tsx > GoalPanel (task 065/066 panel rendering) > renders a pending selected task with an enabled Run button
+ FAIL  src/components.goal.test.tsx > GoalPanel (task 065/066 panel rendering) > iteration replay shows generator output summary + evaluator verdict/reason (met + not_met)
+ FAIL  src/components.goal.test.tsx > GoalPanel (task 065/066 panel rendering) > shows a runnable pending iteration-empty state (No iterations yet) when the task never ran
+ FAIL  src/components.goal.test.tsx > GoalPanel (task 065/066 panel rendering) > running=true renders the Running… label on the trigger button
+ FAIL  src/components.goal.test.tsx > GoalPanel (task 065/066 panel rendering) > renders acceptance criteria for a selected task
+Error: useI18n must be used within <LanguageProvider>
+ ❯ useI18n src/components/LanguageProvider.tsx:42:19
+     40| export function useI18n(): I18nApi {
+     41|   const api = useContext(I18nContext);
+     42|   if (!api) throw new Error('useI18n must be used within <LanguageProv…
+       |                   ^
+     43|   return api;
+     44| }
+ ❯ GoalPanel src/components/GoalPanel.tsx:53:17
+ ❯ Object.react_stack_bottom_frame node_modules/react-dom/cjs/react-dom-server-legacy.node.development.js:10371:18
+ ❯ renderWithHooks node_modules/react-dom/cjs/react-dom-server-legacy.node.development.js:5361:19
+ ❯ renderElement node_modules/react-dom/cjs/react-dom-server-legacy.node.development.js:5796:23
+ ❯ retryNode node_modules/react-dom/cjs/react-dom-server-legacy.node.development.js:6783:21
+ ❯ performWork node_modules/react-dom/cjs/react-dom-server-legacy.node.development.js:7919:19
+ ❯ startWork node_modules/react-dom/cjs/react-dom-server-legacy.node.development.js:8807:7
+ ❯ renderToStringImpl node_modules/react-dom/cjs/react-dom-server-legacy.node.development.js:8933:7
+ ❯ process.env.NODE_ENV.exports.renderToStaticMarkup node_modules/react-dom/cjs/react-dom-server-legacy.node.development.js:10426:14
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/86]⎯
+
+ FAIL  src/components.subagent.test.tsx > SubagentPanel component > renders empty placeholder when no subagents exist
+ FAIL  src/components.subagent.test.tsx > SubagentPanel component > renders active subagents cards with badge and cancel button
+ FAIL  src/components/SubagentPanel.test.tsx > Subagent workspace > renders empty state and accessible running/completed/failed cards
+Error: useI18n must be used within <LanguageProvider>
+ ❯ useI18n src/components/LanguageProvider.tsx:42:19
+     40| export function useI18n(): I18nApi {
+     41|   const api = useContext(I18nContext);
+     42|   if (!api) throw new Error('useI18n must be used within <LanguageProv…
+       |                   ^
+     43|   return api;
+     44| }
+ ❯ SubagentListPanel src/components/SubagentPanel.tsx:15:17
+ ❯ Object.react_stack_bottom_frame node_modules/react-dom/cjs/react-dom-server-legacy.node.development.js:10371:18
+ ❯ renderWithHooks node_modules/react-dom/cjs/react-dom-server-legacy.node.development.js:5361:19
+ ❯ renderElement node_modules/react-dom/cjs/react-dom-server-legacy.node.development.js:5796:23
+ ❯ retryNode node_modules/react-dom/cjs/react-dom-server-legacy.node.development.js:6783:21
+ ❯ renderNodeDestructive node_modules/react-dom/cjs/react-dom-server-legacy.node.development.js:6717:11
+ ❯ renderNode node_modules/react-dom/cjs/react-dom-server-legacy.node.development.js:7268:18
+ ❯ renderChildrenArray node_modules/react-dom/cjs/react-dom-server-legacy.node.development.js:7029:11
+ ❯ retryNode node_modules/react-dom/cjs/react-dom-server-legacy.node.development.js:6796:13
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/86]⎯
+
+ FAIL  src/components.team.test.tsx > TeamPanel (task 060 panel rendering) > renders a friendly empty state when no team run exists
+ FAIL  src/components.team.test.tsx > TeamPanel (task 060 panel rendering) > renders roster member cards with phase status + output + review conclusion
+ FAIL  src/components.team.test.tsx > TeamPanel (task 060 panel rendering) > marks the live member of a running complex run and shows delegate rows
+ FAIL  src/components.team.test.tsx > TeamPanel (task 060 panel rendering) > survives an empty finished run (roster-only edge)
+Error: useI18n must be used within <LanguageProvider>
+ ❯ useI18n src/components/LanguageProvider.tsx:42:19
+     40| export function useI18n(): I18nApi {
+     41|   const api = useContext(I18nContext);
+     42|   if (!api) throw new Error('useI18n must be used within <LanguageProv…
+       |                   ^
+     43|   return api;
+     44| }
+ ❯ TeamPanel src/components/TeamPanel.tsx:16:17
+ ❯ Object.react_stack_bottom_frame node_modules/react-dom/cjs/react-dom-server-legacy.node.development.js:10371:18
+ ❯ renderWithHooks node_modules/react-dom/cjs/react-dom-server-legacy.node.development.js:5361:19
+ ❯ renderElement node_modules/react-dom/cjs/react-dom-server-legacy.node.development.js:5796:23
+ ❯ retryNode node_modules/react-dom/cjs/react-dom-server-legacy.node.development.js:6783:21
+ ❯ performWork node_modules/react-dom/cjs/react-dom-server-legacy.node.development.js:7919:19
+ ❯ startWork node_modules/react-dom/cjs/react-dom-server-legacy.node.development.js:8807:7
+ ❯ renderToStringImpl node_modules/react-dom/cjs/react-dom-server-legacy.node.development.js:8933:7
+ ❯ process.env.NODE_ENV.exports.renderToStaticMarkup node_modules/react-dom/cjs/react-dom-server-legacy.node.development.js:10426:14
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/86]⎯
+
+ FAIL  src/components.team.test.tsx > ModelSelector (task 060 model choice: Auto/Fast/Pro + pin) > shows Auto / Fast / Pro with Auto active by default
+ FAIL  src/components.team.test.tsx > ModelSelector (task 060 model choice: Auto/Fast/Pro + pin) > renders the resolved actual model label (Auto → <model>)
+ FAIL  src/components.team.test.tsx > ModelSelector (task 060 model choice: Auto/Fast/Pro + pin) > reflects pin state: unpinned offers Pin, pinned offers Pinned · Unpin
+ FAIL  src/components.team.test.tsx > ModelSelector (task 060 model choice: Auto/Fast/Pro + pin) > marks the user-selected mode segment active
+Error: useI18n must be used within <LanguageProvider>
+ ❯ useI18n src/components/LanguageProvider.tsx:42:19
+     40| export function useI18n(): I18nApi {
+     41|   const api = useContext(I18nContext);
+     42|   if (!api) throw new Error('useI18n must be used within <LanguageProv…
+       |                   ^
+     43|   return api;
+     44| }
+ ❯ ModelSelector src/components/ModelSelector.tsx:32:17
+ ❯ Object.react_stack_bottom_frame node_modules/react-dom/cjs/react-dom-server-legacy.node.development.js:10371:18
+ ❯ renderWithHooks node_modules/react-dom/cjs/react-dom-server-legacy.node.development.js:5361:19
+ ❯ renderElement node_modules/react-dom/cjs/react-dom-server-legacy.node.development.js:5796:23
+ ❯ retryNode node_modules/react-dom/cjs/react-dom-server-legacy.node.development.js:6783:21
+ ❯ performWork node_modules/react-dom/cjs/react-dom-server-legacy.node.development.js:7919:19
+ ❯ startWork node_modules/react-dom/cjs/react-dom-server-legacy.node.development.js:8807:7
+ ❯ renderToStringImpl node_modules/react-dom/cjs/react-dom-server-legacy.node.development.js:8933:7
+ ❯ process.env.NODE_ENV.exports.renderToStaticMarkup node_modules/react-dom/cjs/react-dom-server-legacy.node.development.js:10426:14
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/86]⎯
+
+ FAIL  src/components.team.test.tsx > ReviewRequiredPanel (task 060 external review area: §9.1 buttons) > is hidden when there are no review records
+ FAIL  src/components.team.test.tsx > ReviewRequiredPanel (task 060 external review area: §9.1 buttons) > pending review → External Review Required header + Copy / Open / Import buttons
+ FAIL  src/components.team.test.tsx > ReviewRequiredPanel (task 060 external review area: §9.1 buttons) > imported review shows the parsed result summary instead of the required header
+Error: useI18n must be used within <LanguageProvider>
+ ❯ useI18n src/components/LanguageProvider.tsx:42:19
+     40| export function useI18n(): I18nApi {
+     41|   const api = useContext(I18nContext);
+     42|   if (!api) throw new Error('useI18n must be used within <LanguageProv…
+       |                   ^
+     43|   return api;
+     44| }
+ ❯ ReviewRequiredPanel src/components/ReviewRequiredPanel.tsx:22:17
+ ❯ Object.react_stack_bottom_frame node_modules/react-dom/cjs/react-dom-server-legacy.node.development.js:10371:18
+ ❯ renderWithHooks node_modules/react-dom/cjs/react-dom-server-legacy.node.development.js:5361:19
+ ❯ renderElement node_modules/react-dom/cjs/react-dom-server-legacy.node.development.js:5796:23
+ ❯ retryNode node_modules/react-dom/cjs/react-dom-server-legacy.node.development.js:6783:21
+ ❯ performWork node_modules/react-dom/cjs/react-dom-server-legacy.node.development.js:7919:19
+ ❯ startWork node_modules/react-dom/cjs/react-dom-server-legacy.node.development.js:8807:7
+ ❯ renderToStringImpl node_modules/react-dom/cjs/react-dom-server-legacy.node.development.js:8933:7
+ ❯ process.env.NODE_ENV.exports.renderToStaticMarkup node_modules/react-dom/cjs/react-dom-server-legacy.node.development.js:10426:14
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[5/86]⎯
+
+ FAIL  src/i18n.test.ts > i18n translate(t) > interpolates {var} placeholders from params
+AssertionError: expected 'Vessel 本地服务运行正常（版本 0.4.2）' to contain 'v0.4.2'
+
+Expected: "v0.4.2"
+Received: "Vessel 本地服务运行正常（版本 0.4.2）"
+
+ ❯ src/i18n.test.ts:46:63
+     44|   it('interpolates {var} placeholders from params', () => {
+     45|     expect(translate('en')('statusOk', { version: '0.4.2' })).toBe('Ve…
+     46|     expect(translate('zh')('statusOk', { version: '0.4.2' })).toContai…
+       |                                                               ^
+     47|   });
+     48|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[6/86]⎯
+
+ FAIL  src/UsageBar.test.tsx > UsageBar — cacheWrite (cacheCreation) 分项（task 107） > 渲染 cache 读/写分项并列，且写分项带 derived 提示
+ FAIL  src/UsageBar.test.tsx > UsageBar — cacheWrite (cacheCreation) 分项（task 107） > 无 cacheWrite 时只渲染 cache 读，不出现写分项
+ FAIL  src/UsageBar.test.tsx > UsageBar — cacheWrite (cacheCreation) 分项（task 107） > mock 增量链：多个 delta 累积后渲染正确（含缺字段帧回退）
+ FAIL  src/UsageBar.test.tsx > UsageBar — cacheWrite (cacheCreation) 分项（task 107） > 全零 usage 不渲染任何内容
+ FAIL  src/components/__tests__/UsageBarCache.test.tsx > server priced cache badges > renders the server hit rate, savings and cost
+ FAIL  src/components/__tests__/UsageBarCache.test.tsx > server priced cache badges > labels fallback estimates and replaces cumulative totals
+ FAIL  src/components/__tests__/UsageBarCache.test.tsx > server priced cache badges > does not show a false zero percent badge when cache metrics were not reported
+Error: useI18n must be used within <LanguageProvider>
+ ❯ useI18n src/components/LanguageProvider.tsx:42:19
+     40| export function useI18n(): I18nApi {
+     41|   const api = useContext(I18nContext);
+     42|   if (!api) throw new Error('useI18n must be used within <LanguageProv…
+       |                   ^
+     43|   return api;
+     44| }
+ ❯ UsageBar src/components/UsageBar.tsx:68:17
+ ❯ Object.react_stack_bottom_frame node_modules/react-dom/cjs/react-dom-server-legacy.node.development.js:10371:18
+ ❯ renderWithHooks node_modules/react-dom/cjs/react-dom-server-legacy.node.development.js:5361:19
+ ❯ renderElement node_modules/react-dom/cjs/react-dom-server-legacy.node.development.js:5796:23
+ ❯ retryNode node_modules/react-dom/cjs/react-dom-server-legacy.node.development.js:6783:21
+ ❯ performWork node_modules/react-dom/cjs/react-dom-server-legacy.node.development.js:7919:19
+ ❯ startWork node_modules/react-dom/cjs/react-dom-server-legacy.node.development.js:8807:7
+ ❯ renderToStringImpl node_modules/react-dom/cjs/react-dom-server-legacy.node.development.js:8933:7
+ ❯ process.env.NODE_ENV.exports.renderToStaticMarkup node_modules/react-dom/cjs/react-dom-server-legacy.node.development.js:10426:14
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[7/86]⎯
+
+ FAIL  src/components/SubagentPanel.test.tsx > Subagent workspace > card click selects exact worker and cancel targets only that id
+TypeError: Cannot read properties of null (reading 'useContext')
+ ❯ process.env.NODE_ENV.exports.useContext node_modules/react/cjs/react.development.js:1258:25
+ ❯ useI18n src/components/LanguageProvider.tsx:41:15
+     39| /** Read language + translator from context; throws when used outside …
+     40| export function useI18n(): I18nApi {
+     41|   const api = useContext(I18nContext);
+       |               ^
+     42|   if (!api) throw new Error('useI18n must be used within <LanguageProv…
+     43|   return api;
+ ❯ SubagentListPanel src/components/SubagentPanel.tsx:15:17
+ ❯ src/components/SubagentPanel.test.tsx:41:18
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[8/86]⎯
+
+ FAIL  src/components/SubagentPanel.test.tsx > Subagent workspace > drawer exposes worktree, stage logs, all four token dimensions and close/cancel actions
+TypeError: Cannot read properties of null (reading 'useContext')
+ ❯ process.env.NODE_ENV.exports.useContext node_modules/react/cjs/react.development.js:1258:25
+ ❯ useI18n src/components/LanguageProvider.tsx:41:15
+     39| /** Read language + translator from context; throws when used outside …
+     40| export function useI18n(): I18nApi {
+     41|   const api = useContext(I18nContext);
+       |               ^
+     42|   if (!api) throw new Error('useI18n must be used within <LanguageProv…
+     43|   return api;
+ ❯ SubagentDetailDrawer src/components/SubagentPanel.tsx:38:17
+ ❯ src/components/SubagentPanel.test.tsx:56:18
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[9/86]⎯
+
+ FAIL  src/components/canvas/InteractivePatchPicker.test.tsx > interactive hunk decisions > reconciles two instances with authoritative SSE statuses after accept, revert and reapply
+TypeError: Cannot read properties of null (reading 'useContext')
+ ❯ process.env.NODE_ENV.exports.useContext node_modules/react/cjs/react.development.js:1258:25
+ ❯ useI18n src/components/LanguageProvider.tsx:41:15
+     39| /** Read language + translator from context; throws when used outside …
+     40| export function useI18n(): I18nApi {
+     41|   const api = useContext(I18nContext);
+       |               ^
+     42|   if (!api) throw new Error('useI18n must be used within <LanguageProv…
+     43|   return api;
+ ❯ Module.InteractivePatchPicker src/components/canvas/InteractivePatchPicker.tsx:11:17
+ ❯ render src/components/canvas/InteractivePatchPicker.test.tsx:19:137
+ ❯ view src/components/canvas/InteractivePatchPicker.test.tsx:27:71
+ ❯ src/components/canvas/InteractivePatchPicker.test.tsx:29:17
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[10/86]⎯
+
+ FAIL  src/components/canvas/InteractivePatchPicker.test.tsx > interactive hunk decisions > invokes discard with exact ID, waits before marking rejected and permits safe reapply
+TypeError: Cannot read properties of null (reading 'useContext')
+ ❯ process.env.NODE_ENV.exports.useContext node_modules/react/cjs/react.development.js:1258:25
+ ❯ useI18n src/components/LanguageProvider.tsx:41:15
+     39| /** Read language + translator from context; throws when used outside …
+     40| export function useI18n(): I18nApi {
+     41|   const api = useContext(I18nContext);
+       |               ^
+     42|   if (!api) throw new Error('useI18n must be used within <LanguageProv…
+     43|   return api;
+ ❯ Module.InteractivePatchPicker src/components/canvas/InteractivePatchPicker.tsx:11:17
+ ❯ render src/components/canvas/InteractivePatchPicker.test.tsx:19:137
+ ❯ src/components/canvas/InteractivePatchPicker.test.tsx:41:27
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[11/86]⎯
+
+ FAIL  src/components/canvas/InteractivePatchPicker.test.tsx > interactive hunk decisions > surfaces server conflicts and permits retry without inventing accepted status
+TypeError: Cannot read properties of null (reading 'useContext')
+ ❯ process.env.NODE_ENV.exports.useContext node_modules/react/cjs/react.development.js:1258:25
+ ❯ useI18n src/components/LanguageProvider.tsx:41:15
+     39| /** Read language + translator from context; throws when used outside …
+     40| export function useI18n(): I18nApi {
+     41|   const api = useContext(I18nContext);
+       |               ^
+     42|   if (!api) throw new Error('useI18n must be used within <LanguageProv…
+     43|   return api;
+ ❯ Module.InteractivePatchPicker src/components/canvas/InteractivePatchPicker.tsx:11:17
+ ❯ render src/components/canvas/InteractivePatchPicker.test.tsx:19:137
+ ❯ src/components/canvas/InteractivePatchPicker.test.tsx:52:17
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[12/86]⎯
+
+ FAIL  src/components/canvas/InteractivePatchPicker.test.tsx > interactive hunk decisions > toggles unified/side-by-side views and respects replayed terminal states
+TypeError: Cannot read properties of null (reading 'useContext')
+ ❯ process.env.NODE_ENV.exports.useContext node_modules/react/cjs/react.development.js:1258:25
+ ❯ useI18n src/components/LanguageProvider.tsx:41:15
+     39| /** Read language + translator from context; throws when used outside …
+     40| export function useI18n(): I18nApi {
+     41|   const api = useContext(I18nContext);
+       |               ^
+     42|   if (!api) throw new Error('useI18n must be used within <LanguageProv…
+     43|   return api;
+ ❯ Module.InteractivePatchPicker src/components/canvas/InteractivePatchPicker.tsx:11:17
+ ❯ render src/components/canvas/InteractivePatchPicker.test.tsx:19:137
+ ❯ src/components/canvas/InteractivePatchPicker.test.tsx:59:41
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[13/86]⎯
+
+ FAIL  src/components/layout/DualSurfaceLayout.test.tsx > Inspector layout and state controller > renders a server proposal in the canvas and routes the selected hunk through injected API
+TypeError: Cannot read properties of null (reading 'useContext')
+ ❯ process.env.NODE_ENV.exports.useContext node_modules/react/cjs/react.development.js:1258:25
+ ❯ useI18n src/components/LanguageProvider.tsx:41:15
+     39| /** Read language + translator from context; throws when used outside …
+     40| export function useI18n(): I18nApi {
+     41|   const api = useContext(I18nContext);
+       |               ^
+     42|   if (!api) throw new Error('useI18n must be used within <LanguageProv…
+     43|   return api;
+ ❯ PatchCanvasPanel src/components/layout/DualSurfaceLayout.tsx:90:17
+ ❯ src/components/layout/DualSurfaceLayout.test.tsx:18:18
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[14/86]⎯
+
+ FAIL  src/components/layout/DualSurfaceLayout.test.tsx > Inspector layout and state controller > renders folded conversation and default docked inspector
+ FAIL  src/components/layout/DualSurfaceLayout.test.tsx > Inspector layout and state controller > mounts selected swarm panel
+ FAIL  src/components/layout/DualSurfaceLayout.test.tsx > Inspector layout and state controller > mounts selected cognition panel
+ FAIL  src/components/layout/DualSurfaceLayout.test.tsx > Inspector layout and state controller > mounts selected cache panel
+ FAIL  src/components/layout/DualSurfaceLayout.test.tsx > Inspector layout and state controller > mounts selected ast panel
+ FAIL  src/components/layout/DualSurfaceLayout.test.tsx > Inspector layout and state controller > mounts selected patch panel
+ FAIL  src/components/layout/DualSurfaceLayout.test.tsx > Inspector layout and state controller > makes a narrow inspector modal with background inert and a backdrop
+Error: useI18n must be used within <LanguageProvider>
+ ❯ useI18n src/components/LanguageProvider.tsx:42:19
+     40| export function useI18n(): I18nApi {
+     41|   const api = useContext(I18nContext);
+     42|   if (!api) throw new Error('useI18n must be used within <LanguageProv…
+       |                   ^
+     43|   return api;
+     44| }
+ ❯ DualSurfaceLayout src/components/layout/DualSurfaceLayout.tsx:101:17
+ ❯ Object.react_stack_bottom_frame node_modules/react-dom/cjs/react-dom-server-legacy.node.development.js:10371:18
+ ❯ renderWithHooks node_modules/react-dom/cjs/react-dom-server-legacy.node.development.js:5361:19
+ ❯ renderElement node_modules/react-dom/cjs/react-dom-server-legacy.node.development.js:5796:23
+ ❯ retryNode node_modules/react-dom/cjs/react-dom-server-legacy.node.development.js:6783:21
+ ❯ performWork node_modules/react-dom/cjs/react-dom-server-legacy.node.development.js:7919:19
+ ❯ startWork node_modules/react-dom/cjs/react-dom-server-legacy.node.development.js:8807:7
+ ❯ renderToStringImpl node_modules/react-dom/cjs/react-dom-server-legacy.node.development.js:8933:7
+ ❯ process.env.NODE_ENV.exports.renderToStaticMarkup node_modules/react-dom/cjs/react-dom-server-legacy.node.development.js:10426:14
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[15/86]⎯
+
+ FAIL  src/components/layout/DualSurfaceLayout.test.tsx > Observed Inspector telemetry > bounds cache history to the last 40 observations without mutating previous samples
+ FAIL  src/components/layout/DualSurfaceLayout.test.tsx > Observed Inspector telemetry > distinguishes missing observations from measured zeroes and prefix from workspace hashes
+Error: useI18n must be used within <LanguageProvider>
+ ❯ useI18n src/components/LanguageProvider.tsx:42:19
+     40| export function useI18n(): I18nApi {
+     41|   const api = useContext(I18nContext);
+     42|   if (!api) throw new Error('useI18n must be used within <LanguageProv…
+       |                   ^
+     43|   return api;
+     44| }
+ ❯ CacheEconomicsPanel src/components/layout/DualSurfaceLayout.tsx:52:17
+ ❯ Object.react_stack_bottom_frame node_modules/react-dom/cjs/react-dom-server-legacy.node.development.js:10371:18
+ ❯ renderWithHooks node_modules/react-dom/cjs/react-dom-server-legacy.node.development.js:5361:19
+ ❯ renderElement node_modules/react-dom/cjs/react-dom-server-legacy.node.development.js:5796:23
+ ❯ retryNode node_modules/react-dom/cjs/react-dom-server-legacy.node.development.js:6783:21
+ ❯ performWork node_modules/react-dom/cjs/react-dom-server-legacy.node.development.js:7919:19
+ ❯ startWork node_modules/react-dom/cjs/react-dom-server-legacy.node.development.js:8807:7
+ ❯ renderToStringImpl node_modules/react-dom/cjs/react-dom-server-legacy.node.development.js:8933:7
+ ❯ process.env.NODE_ENV.exports.renderToStaticMarkup node_modules/react-dom/cjs/react-dom-server-legacy.node.development.js:10426:14
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[16/86]⎯
+
+ FAIL  src/components/layout/DualSurfaceLayout.test.tsx > Observed Inspector telemetry > renders actual observed target/callers/files without claiming a complete dependency graph
+Error: useI18n must be used within <LanguageProvider>
+ ❯ useI18n src/components/LanguageProvider.tsx:42:19
+     40| export function useI18n(): I18nApi {
+     41|   const api = useContext(I18nContext);
+     42|   if (!api) throw new Error('useI18n must be used within <LanguageProv…
+       |                   ^
+     43|   return api;
+     44| }
+ ❯ AstTopologyPanel src/components/layout/DualSurfaceLayout.tsx:77:17
+ ❯ Object.react_stack_bottom_frame node_modules/react-dom/cjs/react-dom-server-legacy.node.development.js:10371:18
+ ❯ renderWithHooks node_modules/react-dom/cjs/react-dom-server-legacy.node.development.js:5361:19
+ ❯ renderElement node_modules/react-dom/cjs/react-dom-server-legacy.node.development.js:5796:23
+ ❯ retryNode node_modules/react-dom/cjs/react-dom-server-legacy.node.development.js:6783:21
+ ❯ performWork node_modules/react-dom/cjs/react-dom-server-legacy.node.development.js:7919:19
+ ❯ startWork node_modules/react-dom/cjs/react-dom-server-legacy.node.development.js:8807:7
+ ❯ renderToStringImpl node_modules/react-dom/cjs/react-dom-server-legacy.node.development.js:8933:7
+ ❯ process.env.NODE_ENV.exports.renderToStaticMarkup node_modules/react-dom/cjs/react-dom-server-legacy.node.development.js:10426:14
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[17/86]⎯
+
+ FAIL  src/components/palette/CommandPalette.test.tsx > command palette keyboard and registry > opens with ctrlKey+K, closes with Esc and restores prior focus
+ FAIL  src/components/palette/CommandPalette.test.tsx > command palette keyboard and registry > opens with metaKey+K, closes with Esc and restores prior focus
+TypeError: Cannot read properties of null (reading 'useContext')
+ ❯ process.env.NODE_ENV.exports.useContext node_modules/react/cjs/react.development.js:1258:25
+ ❯ useI18n src/components/LanguageProvider.tsx:41:15
+     39| /** Read language + translator from context; throws when used outside …
+     40| export function useI18n(): I18nApi {
+     41|   const api = useContext(I18nContext);
+       |               ^
+     42|   if (!api) throw new Error('useI18n must be used within <LanguageProv…
+     43|   return api;
+ ❯ Module.CommandPalette src/components/common/CommandPalette.tsx:24:17
+ ❯ palette src/components/palette/CommandPalette.test.tsx:52:22
+ ❯ src/components/palette/CommandPalette.test.tsx:73:42
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[18/86]⎯
+
+ FAIL  src/components/palette/CommandPalette.test.tsx > command palette keyboard and registry > filters, selects with arrows and executes exactly once with Enter
+TypeError: Cannot read properties of null (reading 'useContext')
+ ❯ process.env.NODE_ENV.exports.useContext node_modules/react/cjs/react.development.js:1258:25
+ ❯ useI18n src/components/LanguageProvider.tsx:41:15
+     39| /** Read language + translator from context; throws when used outside …
+     40| export function useI18n(): I18nApi {
+     41|   const api = useContext(I18nContext);
+       |               ^
+     42|   if (!api) throw new Error('useI18n must be used within <LanguageProv…
+     43|   return api;
+ ❯ Module.CommandPalette src/components/common/CommandPalette.tsx:24:17
+ ❯ palette src/components/palette/CommandPalette.test.tsx:52:22
+ ❯ src/components/palette/CommandPalette.test.tsx:81:5
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[19/86]⎯
+
+ FAIL  src/components/palette/CommandPalette.test.tsx > command palette keyboard and registry > blocks opening over another dialog and ignores composition/extra modifiers
+TypeError: Cannot read properties of null (reading 'useContext')
+ ❯ process.env.NODE_ENV.exports.useContext node_modules/react/cjs/react.development.js:1258:25
+ ❯ useI18n src/components/LanguageProvider.tsx:41:15
+     39| /** Read language + translator from context; throws when used outside …
+     40| export function useI18n(): I18nApi {
+     41|   const api = useContext(I18nContext);
+       |               ^
+     42|   if (!api) throw new Error('useI18n must be used within <LanguageProv…
+     43|   return api;
+ ❯ Module.CommandPalette src/components/common/CommandPalette.tsx:24:17
+ ❯ palette src/components/palette/CommandPalette.test.tsx:52:22
+ ❯ src/components/palette/CommandPalette.test.tsx:89:5
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[20/86]⎯
+
+ FAIL  src/components/palette/CommandPalette.test.tsx > command palette keyboard and registry > does not treat typing ? as a shortcut and does not execute an empty result
+TypeError: Cannot read properties of null (reading 'useContext')
+ ❯ process.env.NODE_ENV.exports.useContext node_modules/react/cjs/react.development.js:1258:25
+ ❯ useI18n src/components/LanguageProvider.tsx:41:15
+     39| /** Read language + translator from context; throws when used outside …
+     40| export function useI18n(): I18nApi {
+     41|   const api = useContext(I18nContext);
+       |               ^
+     42|   if (!api) throw new Error('useI18n must be used within <LanguageProv…
+     43|   return api;
+ ❯ Module.CommandPalette src/components/common/CommandPalette.tsx:24:17
+ ❯ palette src/components/palette/CommandPalette.test.tsx:52:22
+ ❯ src/components/palette/CommandPalette.test.tsx:94:5
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[21/86]⎯
+
+ FAIL  src/components/palette/CommandPalette.test.tsx > message navigation guards > navigates actual cards, folds with Space, exits with Esc, and respects typing/dialogs
+TypeError: Cannot read properties of null (reading 'useContext')
+ ❯ process.env.NODE_ENV.exports.useContext node_modules/react/cjs/react.development.js:1258:25
+ ❯ useI18n src/components/LanguageProvider.tsx:41:15
+     39| /** Read language + translator from context; throws when used outside …
+     40| export function useI18n(): I18nApi {
+     41|   const api = useContext(I18nContext);
+       |               ^
+     42|   if (!api) throw new Error('useI18n must be used within <LanguageProv…
+     43|   return api;
+ ❯ Module.MessageList src/components/MessageList.tsx:43:17
+ ❯ render src/components/palette/CommandPalette.test.tsx:112:65
+ ❯ src/components/palette/CommandPalette.test.tsx:113:5
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[22/86]⎯
+
+ FAIL  src/components/palette/CommandPalette.test.tsx > message navigation guards > submits the real new-session permission preset without modifying an existing session
+TypeError: Cannot read properties of null (reading 'useContext')
+ ❯ process.env.NODE_ENV.exports.useContext node_modules/react/cjs/react.development.js:1258:25
+ ❯ useI18n src/components/LanguageProvider.tsx:41:15
+     39| /** Read language + translator from context; throws when used outside …
+     40| export function useI18n(): I18nApi {
+     41|   const api = useContext(I18nContext);
+       |               ^
+     42|   if (!api) throw new Error('useI18n must be used within <LanguageProv…
+     43|   return api;
+ ❯ Module.NewSessionForm src/components/NewSessionForm.tsx:19:17
+ ❯ render src/components/palette/CommandPalette.test.tsx:123:59
+ ❯ src/components/palette/CommandPalette.test.tsx:124:16
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[23/86]⎯
+
+ FAIL  src/components/team/TeamDagCanvas.test.tsx > team DAG workspace > layers out-of-order diamond dependencies and draws all four edges
+Error: useI18n must be used within <LanguageProvider>
+ ❯ useI18n src/components/LanguageProvider.tsx:42:19
+     40| export function useI18n(): I18nApi {
+     41|   const api = useContext(I18nContext);
+     42|   if (!api) throw new Error('useI18n must be used within <LanguageProv…
+       |                   ^
+     43|   return api;
+     44| }
+ ❯ TeamDagCanvas src/components/team/TeamDagCanvas.tsx:8:17
+ ❯ Object.react_stack_bottom_frame node_modules/react-dom/cjs/react-dom-server-legacy.node.development.js:10371:18
+ ❯ renderWithHooks node_modules/react-dom/cjs/react-dom-server-legacy.node.development.js:5361:19
+ ❯ renderElement node_modules/react-dom/cjs/react-dom-server-legacy.node.development.js:5796:23
+ ❯ retryNode node_modules/react-dom/cjs/react-dom-server-legacy.node.development.js:6783:21
+ ❯ performWork node_modules/react-dom/cjs/react-dom-server-legacy.node.development.js:7919:19
+ ❯ startWork node_modules/react-dom/cjs/react-dom-server-legacy.node.development.js:8807:7
+ ❯ renderToStringImpl node_modules/react-dom/cjs/react-dom-server-legacy.node.development.js:8933:7
+ ❯ process.env.NODE_ENV.exports.renderToStaticMarkup node_modules/react-dom/cjs/react-dom-server-legacy.node.development.js:10426:14
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[24/86]⎯
+
+ FAIL  src/components/team/TeamDagCanvas.test.tsx > team DAG workspace > renders every lifecycle state and selects the exact keyboard-accessible node
+TypeError: Cannot read properties of null (reading 'useContext')
+ ❯ process.env.NODE_ENV.exports.useContext node_modules/react/cjs/react.development.js:1258:25
+ ❯ useI18n src/components/LanguageProvider.tsx:41:15
+     39| /** Read language + translator from context; throws when used outside …
+     40| export function useI18n(): I18nApi {
+     41|   const api = useContext(I18nContext);
+       |               ^
+     42|   if (!api) throw new Error('useI18n must be used within <LanguageProv…
+     43|   return api;
+ ❯ TeamDagCanvas src/components/team/TeamDagCanvas.tsx:8:17
+ ❯ src/components/team/TeamDagCanvas.test.tsx:35:18
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[25/86]⎯
+
+ FAIL  src/components/team/TeamDagCanvas.test.tsx > team DAG workspace > shows frozen roster routes and invokes approve/reject buttons only for staged plans
+TypeError: Cannot read properties of null (reading 'useContext')
+ ❯ process.env.NODE_ENV.exports.useContext node_modules/react/cjs/react.development.js:1258:25
+ ❯ useI18n src/components/LanguageProvider.tsx:41:15
+     39| /** Read language + translator from context; throws when used outside …
+     40| export function useI18n(): I18nApi {
+     41|   const api = useContext(I18nContext);
+       |               ^
+     42|   if (!api) throw new Error('useI18n must be used within <LanguageProv…
+     43|   return api;
+ ❯ TeamStagedBanner src/components/team/TeamStagedBanner.tsx:7:17
+ ❯ src/components/team/TeamDagCanvas.test.tsx:44:18
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[26/86]⎯
+
+ FAIL  src/components/team/TeamDagCanvas.test.tsx > team DAG workspace > shows dependency/executor/error/artifacts and limits output to 300 characters
+TypeError: Cannot read properties of null (reading 'useContext')
+ ❯ process.env.NODE_ENV.exports.useContext node_modules/react/cjs/react.development.js:1258:25
+ ❯ useI18n src/components/LanguageProvider.tsx:41:15
+     39| /** Read language + translator from context; throws when used outside …
+     40| export function useI18n(): I18nApi {
+     41|   const api = useContext(I18nContext);
+       |               ^
+     42|   if (!api) throw new Error('useI18n must be used within <LanguageProv…
+     43|   return api;
+ ❯ TeamNodeDetails src/components/team/TeamNodeDrawer.tsx:13:17
+ ❯ src/components/team/TeamDagCanvas.test.tsx:55:18
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[27/86]⎯
+
+ FAIL  src/components/team/TeamDagCanvas.test.tsx > team DAG workspace > renders actual artifact comparison and invokes diff and close controls
+TypeError: Cannot read properties of null (reading 'useContext')
+ ❯ process.env.NODE_ENV.exports.useContext node_modules/react/cjs/react.development.js:1258:25
+ ❯ useI18n src/components/LanguageProvider.tsx:41:15
+     39| /** Read language + translator from context; throws when used outside …
+     40| export function useI18n(): I18nApi {
+     41|   const api = useContext(I18nContext);
+       |               ^
+     42|   if (!api) throw new Error('useI18n must be used within <LanguageProv…
+     43|   return api;
+ ❯ TeamNodeDetails src/components/team/TeamNodeDrawer.tsx:13:17
+ ❯ src/components/team/TeamDagCanvas.test.tsx:63:18
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[28/86]⎯
+
+ FAIL  src/components/team/TeamDagCanvas.test.tsx > team DAG workspace > edits member routes and task parameters through native controls and saves a revised preview
+TypeError: Cannot read properties of null (reading 'useContext')
+ ❯ process.env.NODE_ENV.exports.useContext node_modules/react/cjs/react.development.js:1258:25
+ ❯ useI18n src/components/LanguageProvider.tsx:41:15
+     39| /** Read language + translator from context; throws when used outside …
+     40| export function useI18n(): I18nApi {
+     41|   const api = useContext(I18nContext);
+       |               ^
+     42|   if (!api) throw new Error('useI18n must be used within <LanguageProv…
+     43|   return api;
+ ❯ TeamPlanEditorFields src/components/team/TeamPlanEditor.tsx:8:17
+ ❯ src/components/team/TeamDagCanvas.test.tsx:73:18
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[29/86]⎯
+
+ FAIL  src/components/team/TeamDagCanvas.test.tsx > team DAG workspace > wires the stage workspace into the existing Team module and targets encoded HTTP ids
+Error: useI18n must be used within <LanguageProvider>
+ ❯ useI18n src/components/LanguageProvider.tsx:42:19
+     40| export function useI18n(): I18nApi {
+     41|   const api = useContext(I18nContext);
+     42|   if (!api) throw new Error('useI18n must be used within <LanguageProv…
+       |                   ^
+     43|   return api;
+     44| }
+ ❯ TeamModule src/components/TeamModule.tsx:33:17
+ ❯ Object.react_stack_bottom_frame node_modules/react-dom/cjs/react-dom-server-legacy.node.development.js:10371:18
+ ❯ renderWithHooks node_modules/react-dom/cjs/react-dom-server-legacy.node.development.js:5361:19
+ ❯ renderElement node_modules/react-dom/cjs/react-dom-server-legacy.node.development.js:5796:23
+ ❯ retryNode node_modules/react-dom/cjs/react-dom-server-legacy.node.development.js:6783:21
+ ❯ performWork node_modules/react-dom/cjs/react-dom-server-legacy.node.development.js:7919:19
+ ❯ startWork node_modules/react-dom/cjs/react-dom-server-legacy.node.development.js:8807:7
+ ❯ renderToStringImpl node_modules/react-dom/cjs/react-dom-server-legacy.node.development.js:8933:7
+ ❯ process.env.NODE_ENV.exports.renderToStaticMarkup node_modules/react-dom/cjs/react-dom-server-legacy.node.development.js:10426:14
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[30/86]⎯
+
+ FAIL  src/components/widgets/StreamingReasoningBlock.test.tsx > streaming reasoning interaction > ticks while streaming, folds on completion, toggles on demand, restarts and cleans up timers
+AssertionError: expected 'Thinking… Thought for undefined  ·  T…' to contain '1.2s'
+
+Expected: "1.2s"
+Received: "Thinking… Thought for undefined  ·  Thought for undefined ab"
+
+ ❯ src/components/widgets/StreamingReasoningBlock.test.tsx:25:55
+     23|     expect(render(props).find(n => n.type === 'details')?.props.open).…
+     24|     vi.advanceTimersByTime(1200);
+     25|     expect(text(render({ ...props, content: 'ab' }))).toContain('1.2s'…
+       |                                                       ^
+     26|     const ended = { ...props, isStreaming: false, elapsedMs: 1250 };
+     27|     render(ended); const folded = render(ended);
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[31/86]⎯
+
+ FAIL  src/components/widgets/StreamingReasoningBlock.test.tsx > streaming reasoning interaction > renders only supplied matched rules with lesson/reflection and keeps unknown counts unknown
+AssertionError: expected 'Thought for undefined   r  ·  Shell d…' to contain 'Token rate unavailable'
+
+Expected: "Token rate unavailable"
+Received: "Thought for undefined   r  ·  Shell denied Thought for undefined   read-only Thought for undefined Thought for Thought for undefined  ·  Thought for undefined <script>untrusted</script>"
+
+ ❯ src/components/widgets/StreamingReasoningBlock.test.tsx:38:33
+     36|   it('renders only supplied matched rules with lesson/reflection and k…
+     37|     const props = { content: '<script>untrusted</script>', isStreaming…
+     38|     expect(text(render(props))).toContain('Token rate unavailable');
+       |                                 ^
+     39|     expect(text(render(props))).toContain('Rule  r');
+     40|     expect(text(render(props))).toContain('denied'); expect(text(rende…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[32/86]⎯
+
+ FAIL  src/components/widgets/widgets.test.tsx > inline widget rendering and timeline reconciliation > distinguishes hunk content beginning with triple signs from file headers
+ FAIL  src/components/widgets/widgets.test.tsx > inline widget rendering and timeline reconciliation > parses unified hunks, aligned line numbers and actual added/removed counts
+ FAIL  src/components/widgets/widgets.test.tsx > inline widget rendering and timeline reconciliation > collapses more than 20 lines and honors an explicit default
+Error: useI18n must be used within <LanguageProvider>
+ ❯ useI18n src/components/LanguageProvider.tsx:42:19
+     40| export function useI18n(): I18nApi {
+     41|   const api = useContext(I18nContext);
+     42|   if (!api) throw new Error('useI18n must be used within <LanguageProv…
+       |                   ^
+     43|   return api;
+     44| }
+ ❯ InlineDiffInspector src/components/widgets/InlineDiffInspector.tsx:11:17
+ ❯ Object.react_stack_bottom_frame node_modules/react-dom/cjs/react-dom-server-legacy.node.development.js:10371:18
+ ❯ renderWithHooks node_modules/react-dom/cjs/react-dom-server-legacy.node.development.js:5361:19
+ ❯ renderElement node_modules/react-dom/cjs/react-dom-server-legacy.node.development.js:5796:23
+ ❯ retryNode node_modules/react-dom/cjs/react-dom-server-legacy.node.development.js:6783:21
+ ❯ renderNodeDestructive node_modules/react-dom/cjs/react-dom-server-legacy.node.development.js:6717:11
+ ❯ finishFunctionComponent node_modules/react-dom/cjs/react-dom-server-legacy.node.development.js:5405:13
+ ❯ renderElement node_modules/react-dom/cjs/react-dom-server-legacy.node.development.js:5851:11
+ ❯ retryNode node_modules/react-dom/cjs/react-dom-server-legacy.node.development.js:6783:21
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[33/86]⎯
+
+ FAIL  src/components/widgets/widgets.test.tsx > inline widget rendering and timeline reconciliation > renders red_verified, hash prefix and expandable full verification
+ FAIL  src/components/widgets/widgets.test.tsx > inline widget rendering and timeline reconciliation > renders green_verified, hash prefix and expandable full verification
+ FAIL  src/components/widgets/widgets.test.tsx > inline widget rendering and timeline reconciliation > renders rejected, hash prefix and expandable full verification
+Error: useI18n must be used within <LanguageProvider>
+ ❯ useI18n src/components/LanguageProvider.tsx:42:19
+     40| export function useI18n(): I18nApi {
+     41|   const api = useContext(I18nContext);
+     42|   if (!api) throw new Error('useI18n must be used within <LanguageProv…
+       |                   ^
+     43|   return api;
+     44| }
+ ❯ RedGreenGateBadge src/components/widgets/RedGreenGateBadge.tsx:6:17
+ ❯ Object.react_stack_bottom_frame node_modules/react-dom/cjs/react-dom-server-legacy.node.development.js:10371:18
+ ❯ renderWithHooks node_modules/react-dom/cjs/react-dom-server-legacy.node.development.js:5361:19
+ ❯ renderElement node_modules/react-dom/cjs/react-dom-server-legacy.node.development.js:5796:23
+ ❯ retryNode node_modules/react-dom/cjs/react-dom-server-legacy.node.development.js:6783:21
+ ❯ renderNodeDestructive node_modules/react-dom/cjs/react-dom-server-legacy.node.development.js:6717:11
+ ❯ finishFunctionComponent node_modules/react-dom/cjs/react-dom-server-legacy.node.development.js:5405:13
+ ❯ renderElement node_modules/react-dom/cjs/react-dom-server-legacy.node.development.js:5851:11
+ ❯ retryNode node_modules/react-dom/cjs/react-dom-server-legacy.node.development.js:6783:21
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[34/86]⎯
+
+ FAIL  src/components/widgets/widgets.test.tsx > inline widget rendering and timeline reconciliation > renders callers and files safely as text
+Error: useI18n must be used within <LanguageProvider>
+ ❯ useI18n src/components/LanguageProvider.tsx:42:19
+     40| export function useI18n(): I18nApi {
+     41|   const api = useContext(I18nContext);
+     42|   if (!api) throw new Error('useI18n must be used within <LanguageProv…
+       |                   ^
+     43|   return api;
+     44| }
+ ❯ AstImpactRadar src/components/widgets/AstImpactRadar.tsx:5:17
+ ❯ Object.react_stack_bottom_frame node_modules/react-dom/cjs/react-dom-server-legacy.node.development.js:10371:18
+ ❯ renderWithHooks node_modules/react-dom/cjs/react-dom-server-legacy.node.development.js:5361:19
+ ❯ renderElement node_modules/react-dom/cjs/react-dom-server-legacy.node.development.js:5796:23
+ ❯ retryNode node_modules/react-dom/cjs/react-dom-server-legacy.node.development.js:6783:21
+ ❯ renderNodeDestructive node_modules/react-dom/cjs/react-dom-server-legacy.node.development.js:6717:11
+ ❯ finishFunctionComponent node_modules/react-dom/cjs/react-dom-server-legacy.node.development.js:5405:13
+ ❯ renderElement node_modules/react-dom/cjs/react-dom-server-legacy.node.development.js:5851:11
+ ❯ retryNode node_modules/react-dom/cjs/react-dom-server-legacy.node.development.js:6783:21
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[35/86]⎯
+
+ FAIL  src/components/widgets/widgets.test.tsx > inline widget rendering and timeline reconciliation > upserts replay IDs and never reopens a resolved action
+Error: useI18n must be used within <LanguageProvider>
+ ❯ useI18n src/components/LanguageProvider.tsx:42:19
+     40| export function useI18n(): I18nApi {
+     41|   const api = useContext(I18nContext);
+     42|   if (!api) throw new Error('useI18n must be used within <LanguageProv…
+       |                   ^
+     43|   return api;
+     44| }
+ ❯ MessageList src/components/MessageList.tsx:43:17
+ ❯ Object.react_stack_bottom_frame node_modules/react-dom/cjs/react-dom-server-legacy.node.development.js:10371:18
+ ❯ renderWithHooks node_modules/react-dom/cjs/react-dom-server-legacy.node.development.js:5361:19
+ ❯ renderElement node_modules/react-dom/cjs/react-dom-server-legacy.node.development.js:5796:23
+ ❯ retryNode node_modules/react-dom/cjs/react-dom-server-legacy.node.development.js:6783:21
+ ❯ performWork node_modules/react-dom/cjs/react-dom-server-legacy.node.development.js:7919:19
+ ❯ startWork node_modules/react-dom/cjs/react-dom-server-legacy.node.development.js:8807:7
+ ❯ renderToStringImpl node_modules/react-dom/cjs/react-dom-server-legacy.node.development.js:8933:7
+ ❯ process.env.NODE_ENV.exports.renderToStaticMarkup node_modules/react-dom/cjs/react-dom-server-legacy.node.development.js:10426:14
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[36/86]⎯
+
+ FAIL  src/components/widgets/widgets.test.tsx > inline widget rendering and timeline reconciliation > renders expired permissions with disabled choices
+Error: useI18n must be used within <LanguageProvider>
+ ❯ useI18n src/components/LanguageProvider.tsx:42:19
+     40| export function useI18n(): I18nApi {
+     41|   const api = useContext(I18nContext);
+     42|   if (!api) throw new Error('useI18n must be used within <LanguageProv…
+       |                   ^
+     43|   return api;
+     44| }
+ ❯ PermissionActionCard src/components/widgets/PermissionActionCard.tsx:6:17
+ ❯ Object.react_stack_bottom_frame node_modules/react-dom/cjs/react-dom-server-legacy.node.development.js:10371:18
+ ❯ renderWithHooks node_modules/react-dom/cjs/react-dom-server-legacy.node.development.js:5361:19
+ ❯ renderElement node_modules/react-dom/cjs/react-dom-server-legacy.node.development.js:5796:23
+ ❯ retryNode node_modules/react-dom/cjs/react-dom-server-legacy.node.development.js:6783:21
+ ❯ renderNodeDestructive node_modules/react-dom/cjs/react-dom-server-legacy.node.development.js:6717:11
+ ❯ finishFunctionComponent node_modules/react-dom/cjs/react-dom-server-legacy.node.development.js:5405:13
+ ❯ renderElement node_modules/react-dom/cjs/react-dom-server-legacy.node.development.js:5851:11
+ ❯ retryNode node_modules/react-dom/cjs/react-dom-server-legacy.node.development.js:6783:21
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[37/86]⎯
+
+ FAIL  src/components/__tests__/CognitiveRulesDashboard.test.tsx > CognitiveRulesDashboard > renders category, trigger, lesson, action, hits and timestamp without interpreting lesson markup
+ FAIL  src/components/__tests__/CognitiveRulesDashboard.test.tsx > CognitiveRulesDashboard > combines each category with case-insensitive live search across all meaningful rule fields
+Error: useI18n must be used within <LanguageProvider>
+ ❯ useI18n src/components/LanguageProvider.tsx:42:19
+     40| export function useI18n(): I18nApi {
+     41|   const api = useContext(I18nContext);
+     42|   if (!api) throw new Error('useI18n must be used within <LanguageProv…
+       |                   ^
+     43|   return api;
+     44| }
+ ❯ CognitiveRulesList src/components/CognitiveRulesDashboard.tsx:14:17
+ ❯ Object.react_stack_bottom_frame node_modules/react-dom/cjs/react-dom-server-legacy.node.development.js:10371:18
+ ❯ renderWithHooks node_modules/react-dom/cjs/react-dom-server-legacy.node.development.js:5361:19
+ ❯ renderElement node_modules/react-dom/cjs/react-dom-server-legacy.node.development.js:5796:23
+ ❯ retryNode node_modules/react-dom/cjs/react-dom-server-legacy.node.development.js:6783:21
+ ❯ performWork node_modules/react-dom/cjs/react-dom-server-legacy.node.development.js:7919:19
+ ❯ startWork node_modules/react-dom/cjs/react-dom-server-legacy.node.development.js:8807:7
+ ❯ renderToStringImpl node_modules/react-dom/cjs/react-dom-server-legacy.node.development.js:8933:7
+ ❯ process.env.NODE_ENV.exports.renderToStaticMarkup node_modules/react-dom/cjs/react-dom-server-legacy.node.development.js:10426:14
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[38/86]⎯
+
+ FAIL  src/components/__tests__/CognitiveRulesDashboard.test.tsx > CognitiveRulesDashboard > category and search controls pass current values through their real handlers
+TypeError: Cannot read properties of null (reading 'useContext')
+ ❯ process.env.NODE_ENV.exports.useContext node_modules/react/cjs/react.development.js:1258:25
+ ❯ useI18n src/components/LanguageProvider.tsx:41:15
+     39| /** Read language + translator from context; throws when used outside …
+     40| export function useI18n(): I18nApi {
+     41|   const api = useContext(I18nContext);
+       |               ^
+     42|   if (!api) throw new Error('useI18n must be used within <LanguageProv…
+     43|   return api;
+ ❯ CognitiveRulesFilters src/components/CognitiveRulesDashboard.tsx:28:17
+ ❯ src/components/__tests__/CognitiveRulesDashboard.test.tsx:42:18
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[39/86]⎯
+
+ FAIL  src/components/__tests__/CognitiveRulesDashboard.test.tsx > CognitiveRulesDashboard > shows accessible loading while initial read is pending
+Error: useI18n must be used within <LanguageProvider>
+ ❯ useI18n src/components/LanguageProvider.tsx:42:19
+     40| export function useI18n(): I18nApi {
+     41|   const api = useContext(I18nContext);
+     42|   if (!api) throw new Error('useI18n must be used within <LanguageProv…
+       |                   ^
+     43|   return api;
+     44| }
+ ❯ CognitiveRulesDashboard src/components/CognitiveRulesDashboard.tsx:35:17
+ ❯ Object.react_stack_bottom_frame node_modules/react-dom/cjs/react-dom-server-legacy.node.development.js:10371:18
+ ❯ renderWithHooks node_modules/react-dom/cjs/react-dom-server-legacy.node.development.js:5361:19
+ ❯ renderElement node_modules/react-dom/cjs/react-dom-server-legacy.node.development.js:5796:23
+ ❯ retryNode node_modules/react-dom/cjs/react-dom-server-legacy.node.development.js:6783:21
+ ❯ performWork node_modules/react-dom/cjs/react-dom-server-legacy.node.development.js:7919:19
+ ❯ startWork node_modules/react-dom/cjs/react-dom-server-legacy.node.development.js:8807:7
+ ❯ renderToStringImpl node_modules/react-dom/cjs/react-dom-server-legacy.node.development.js:8933:7
+ ❯ process.env.NODE_ENV.exports.renderToStaticMarkup node_modules/react-dom/cjs/react-dom-server-legacy.node.development.js:10426:14
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[40/86]⎯
+
+ FAIL  src/components/__tests__/SandboxAuditBadge.test.tsx > sandbox execution audits > displays recorded readonly roots, enforced memory caps and platform privilege constraints
+ FAIL  src/components/__tests__/SandboxAuditBadge.test.tsx > sandbox execution audits > does not invent whitelist/privilege enforcement on fallback
+Error: useI18n must be used within <LanguageProvider>
+ ❯ useI18n src/components/LanguageProvider.tsx:42:19
+     40| export function useI18n(): I18nApi {
+     41|   const api = useContext(I18nContext);
+     42|   if (!api) throw new Error('useI18n must be used within <LanguageProv…
+       |                   ^
+     43|   return api;
+     44| }
+ ❯ SandboxAuditDetails src/components/SandboxAuditBadge.tsx:15:17
+ ❯ Object.react_stack_bottom_frame node_modules/react-dom/cjs/react-dom-server-legacy.node.development.js:10371:18
+ ❯ renderWithHooks node_modules/react-dom/cjs/react-dom-server-legacy.node.development.js:5361:19
+ ❯ renderElement node_modules/react-dom/cjs/react-dom-server-legacy.node.development.js:5796:23
+ ❯ retryNode node_modules/react-dom/cjs/react-dom-server-legacy.node.development.js:6783:21
+ ❯ performWork node_modules/react-dom/cjs/react-dom-server-legacy.node.development.js:7919:19
+ ❯ startWork node_modules/react-dom/cjs/react-dom-server-legacy.node.development.js:8807:7
+ ❯ renderToStringImpl node_modules/react-dom/cjs/react-dom-server-legacy.node.development.js:8933:7
+ ❯ process.env.NODE_ENV.exports.renderToStaticMarkup node_modules/react-dom/cjs/react-dom-server-legacy.node.development.js:10426:14
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[41/86]⎯
+
+ FAIL  src/components/__tests__/SandboxAuditBadge.test.tsx > sandbox execution audits > renders keyboard-operable disclosure and truthful constraints
+Error: useI18n must be used within <LanguageProvider>
+ ❯ useI18n src/components/LanguageProvider.tsx:42:19
+     40| export function useI18n(): I18nApi {
+     41|   const api = useContext(I18nContext);
+     42|   if (!api) throw new Error('useI18n must be used within <LanguageProv…
+       |                   ^
+     43|   return api;
+     44| }
+ ❯ SandboxAuditBadge src/components/SandboxAuditBadge.tsx:43:17
+ ❯ Object.react_stack_bottom_frame node_modules/react-dom/cjs/react-dom-server-legacy.node.development.js:10371:18
+ ❯ renderWithHooks node_modules/react-dom/cjs/react-dom-server-legacy.node.development.js:5361:19
+ ❯ renderElement node_modules/react-dom/cjs/react-dom-server-legacy.node.development.js:5796:23
+ ❯ retryNode node_modules/react-dom/cjs/react-dom-server-legacy.node.development.js:6783:21
+ ❯ performWork node_modules/react-dom/cjs/react-dom-server-legacy.node.development.js:7919:19
+ ❯ startWork node_modules/react-dom/cjs/react-dom-server-legacy.node.development.js:8807:7
+ ❯ renderToStringImpl node_modules/react-dom/cjs/react-dom-server-legacy.node.development.js:8933:7
+ ❯ process.env.NODE_ENV.exports.renderToStaticMarkup node_modules/react-dom/cjs/react-dom-server-legacy.node.development.js:10426:14
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[42/86]⎯
+
+ FAIL  src/components/__tests__/SandboxAuditBadge.test.tsx > sandbox execution audits > renders the execution badge in cards and the Talking message flow only with audit evidence
+Error: useI18n must be used within <LanguageProvider>
+ ❯ useI18n src/components/LanguageProvider.tsx:42:19
+     40| export function useI18n(): I18nApi {
+     41|   const api = useContext(I18nContext);
+     42|   if (!api) throw new Error('useI18n must be used within <LanguageProv…
+       |                   ^
+     43|   return api;
+     44| }
+ ❯ SandboxAuditBadge src/components/SandboxAuditBadge.tsx:43:17
+ ❯ Object.react_stack_bottom_frame node_modules/react-dom/cjs/react-dom-server-legacy.node.development.js:10371:18
+ ❯ renderWithHooks node_modules/react-dom/cjs/react-dom-server-legacy.node.development.js:5361:19
+ ❯ renderElement node_modules/react-dom/cjs/react-dom-server-legacy.node.development.js:5796:23
+ ❯ retryNode node_modules/react-dom/cjs/react-dom-server-legacy.node.development.js:6783:21
+ ❯ renderNodeDestructive node_modules/react-dom/cjs/react-dom-server-legacy.node.development.js:6717:11
+ ❯ renderNode node_modules/react-dom/cjs/react-dom-server-legacy.node.development.js:7268:18
+ ❯ renderChildrenArray node_modules/react-dom/cjs/react-dom-server-legacy.node.development.js:7029:11
+ ❯ retryNode node_modules/react-dom/cjs/react-dom-server-legacy.node.development.js:6796:13
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[43/86]⎯
+
+ FAIL  src/components/__tests__/SwarmTopologyView.test.tsx > SwarmTopologyView > shows observed remote task activity without inventing load for absent snapshots
+ FAIL  src/components/__tests__/SwarmTopologyView.test.tsx > SwarmTopologyView > renders SVG connections and complete local/peer details with explicit connectivity and RTT
+ FAIL  src/components/__tests__/SwarmTopologyView.test.tsx > SwarmTopologyView > distinguishes unconfigured mesh, no peers and initial loading
+ FAIL  src/components/__tests__/SwarmTopologyView.test.tsx > SwarmTopologyView > renders bounded RTT waveforms without recording offline values or removed peers
+Error: useI18n must be used within <LanguageProvider>
+ ❯ useI18n src/components/LanguageProvider.tsx:42:19
+     40| export function useI18n(): I18nApi {
+     41|   const api = useContext(I18nContext);
+     42|   if (!api) throw new Error('useI18n must be used within <LanguageProv…
+       |                   ^
+     43|   return api;
+     44| }
+ ❯ SwarmTopologyPanel src/components/SwarmTopologyView.tsx:28:17
+ ❯ Object.react_stack_bottom_frame node_modules/react-dom/cjs/react-dom-server-legacy.node.development.js:10371:18
+ ❯ renderWithHooks node_modules/react-dom/cjs/react-dom-server-legacy.node.development.js:5361:19
+ ❯ renderElement node_modules/react-dom/cjs/react-dom-server-legacy.node.development.js:5796:23
+ ❯ retryNode node_modules/react-dom/cjs/react-dom-server-legacy.node.development.js:6783:21
+ ❯ performWork node_modules/react-dom/cjs/react-dom-server-legacy.node.development.js:7919:19
+ ❯ startWork node_modules/react-dom/cjs/react-dom-server-legacy.node.development.js:8807:7
+ ❯ renderToStringImpl node_modules/react-dom/cjs/react-dom-server-legacy.node.development.js:8933:7
+ ❯ process.env.NODE_ENV.exports.renderToStaticMarkup node_modules/react-dom/cjs/react-dom-server-legacy.node.development.js:10426:14
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[44/86]⎯
+
+ FAIL  src/components/__tests__/UsageBarCache.test.tsx > server priced cache badges > shows per-message server-priced cache metadata
+AssertionError: expected '<dl class="talking-metrics" aria-labe…' to contain 'estimated read savings'
+
+Expected: "estimated read savings"
+Received: "<dl class="talking-metrics" aria-label="回合指标"><div class="talking-metric" style="color:var(--green)"><dt>⚡ 缓存</dt><dd>92% · 估算读取节省费用 $ 0.1234</dd></div><div class="talking-metric"><dt>提示</dt><dd>1,000 tok</dd></div><div class="talking-metric"><dt>输出</dt><dd>—</dd></div><div class="talking-metric"><dt>推理</dt><dd>—</dd></div><div class="talking-metric"><dt>缓存读取</dt><dd>—</dd></div></dl>"
+
+ ❯ src/components/__tests__/UsageBarCache.test.tsx:25:49
+
+
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[45/86]⎯
+
+ Test Files  16 failed | 13 passed (29)
+      Tests  86 failed | 165 passed (251)
+   Start at  03:12:42
+   Duration  21.69s (transform 48%, import 31%, tests 18%, worker 2%)
+
+     Import  108 modules were evaluated 211 times · 3.36s total, 31% of tracked time
+             ~1.64s faster with isolate: false — shared modules are evaluated once per worker instead of once per file
+             learn more: https://vitest.dev/guide/improving-performance#test-isolation
+

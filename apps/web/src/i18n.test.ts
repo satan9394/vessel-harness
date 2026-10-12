@@ -7,6 +7,8 @@ import {
   loadStoredLang,
   saveLang,
   translate,
+  localizedValue,
+  type MessageKey,
   type Lang,
   type PersistStorage,
 } from './i18n';
@@ -43,12 +45,49 @@ describe('i18n translate(t)', () => {
 
   it('interpolates {var} placeholders from params', () => {
     expect(translate('en')('statusOk', { version: '0.4.2' })).toBe('Vessel local server ok (v0.4.2)');
-    expect(translate('zh')('statusOk', { version: '0.4.2' })).toContain('v0.4.2');
+    expect(translate('zh')('statusOk', { version: '0.4.2' })).toContain('版本 0.4.2');
   });
 
   it('falls back to en / the raw key for an unknown key', () => {
     expect(translate('zh')('settings' as never)).toBe('设置'); // known key, fine
     expect(translate('en')('definitelyMissing' as never)).toBe('definitelyMissing');
+  });
+});
+
+describe('complete V2.6 dictionaries', () => {
+  it('keeps every interpolation contract identical and fills every parameter in both languages', () => {
+    for (const key of Object.keys(DICT.en) as MessageKey[]) {
+      const placeholders = (value: string) => [...value.matchAll(/\{(\w+)\}/g)].map(match => match[1]).sort();
+      const expected = placeholders(DICT.en[key]);
+      // English inflects count nouns; Chinese has no plural suffix.
+      expect(placeholders(DICT.zh[key]).filter(name => name !== 'plural'), key)
+        .toEqual(expected.filter(name => name !== 'plural'));
+      const params = Object.fromEntries(expected.map(name => [name, `value-${name}`]));
+      for (const lang of ['zh', 'en'] as const) {
+        expect(translate(lang)(key, params), `${lang}:${key}`).not.toMatch(/\{\w+\}/);
+      }
+    }
+  });
+
+  it('localizes enum labels while preserving unknown observed values', () => {
+    const t = translate('zh');
+    expect(localizedValue('pending', t)).toBe('待处理');
+    expect(localizedValue('windows-job-restricted', t)).toBe('受限作业隔离');
+    expect(localizedValue('policy_denial', t)).toBe('策略拒绝');
+    expect(localizedValue('third-party-role', t)).toBe('third-party-role');
+  });
+
+  it('uses natural Chinese for the session, canvas, permission, reasoning and command flows', () => {
+    const t = translate('zh');
+    expect(t('emptyBody')).not.toMatch(/Recent Sessions|New Session/);
+    expect(t('permissionReadOnly')).toBe('只读探索权限');
+    expect(t('permissionWorkspaceWrite')).toBe('工作区读写权限');
+    expect(t('inspectorTitle')).toBe('画布检视器');
+    expect(t('acceptHunk')).toBe('采纳此块');
+    expect(t('reasoningRate', { rate: '12.5' })).toContain('推理词元／秒');
+    expect(t('palettePlaceholder')).toBe('输入命令或搜索历史会话…');
+    expect(translate('en')('palettePlaceholder')).toBe('Type a command or search sessions…');
+    expect(Object.values(DICT.en).join('\n')).not.toMatch(/[\u4e00-\u9fff]/);
   });
 });
 

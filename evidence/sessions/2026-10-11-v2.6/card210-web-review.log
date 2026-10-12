@@ -1,0 +1,66 @@
+
+ RUN  v5.0.1 E:/Code_file/Projects/Vessel_Harness/apps/web
+
+ ❯ src/components/layout/DualSurfaceLayout.test.tsx (14 tests | 2 failed) 104ms
+   ❯ Observed Inspector telemetry (4)
+     × bounds cache history to the last 40 observations without mutating previous samples 12ms
+     × distinguishes missing observations from measured zeroes and prefix from workspace hashes 5ms
+ ❯ src/components/team/TeamDagCanvas.test.tsx (8 tests | 1 failed) 149ms
+   ❯ team DAG workspace (8)
+     × shows frozen roster routes and invokes approve/reject buttons only for staged plans 14ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 3 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/components/layout/DualSurfaceLayout.test.tsx > Observed Inspector telemetry > bounds cache history to the last 40 observations without mutating previous samples
+AssertionError: expected '<section class="dashboard-panel" aria…' to contain 'Last 40 observed'
+
+Expected: "Last 40 observed"
+Received: "<section class="dashboard-panel" aria-label="KV Cache economics"><h2>KV Cache economics</h2><p>Billed cache hit rate <strong>70.0%</strong> · provider / model</p><p>70  cached / 100  prompt tokens · 20  created</p><p>Estimated savings $0.0120</p><svg viewBox="0 0 300 80" class="cache-waveform" role="img" aria-label="Observed billed cache hit rate history"><title>70.0%, 70.0%, 70.0%, 70.0%, 70.0%, 70.0%, 70.0%, 70.0%, 70.0%, 70.0%, 70.0%, 70.0%, 70.0%, 70.0%, 70.0%, 70.0%, 70.0%, 70.0%, 70.0%, 70.0%, 70.0%, 70.0%, 70.0%, 70.0%, 70.0%, 70.0%, 70.0%, 70.0%, 70.0%, 70.0%, 70.0%, 70.0%, 70.0%, 70.0%, 70.0%, 70.0%, 70.0%, 70.0%, 70.0%, 70.0%</title><polyline fill="none" stroke="currentColor" stroke-width="2" points="2,24.800000000000004 9.58974358974359,24.800000000000004 17.17948717948718,24.800000000000004 24.76923076923077,24.800000000000004 32.35897435897436,24.800000000000004 39.94871794871795,24.800000000000004 47.53846153846154,24.800000000000004 55.12820512820513,24.800000000000004 62.717948717948715,24.800000000000004 70.3076923076923,24.800000000000004 77.8974358974359,24.800000000000004 85.48717948717949,24.800000000000004 93.07692307692308,24.800000000000004 100.66666666666667,24.800000000000004 108.25641025641026,24.800000000000004 115.84615384615384,24.800000000000004 123.43589743589743,24.800000000000004 131.02564102564102,24.800000000000004 138.6153846153846,24.800000000000004 146.2051282051282,24.800000000000004 153.7948717948718,24.800000000000004 161.3846153846154,24.800000000000004 168.97435897435898,24.800000000000004 176.56410256410257,24.800000000000004 184.15384615384616,24.800000000000004 191.74358974358975,24.800000000000004 199.33333333333334,24.800000000000004 206.92307692307693,24.800000000000004 214.51282051282053,24.800000000000004 222.10256410256412,24.800000000000004 229.69230769230768,24.800000000000004 237.28205128205127,24.800000000000004 244.87179487179486,24.800000000000004 252.46153846153845,24.800000000000004 260.05128205128204,24.800000000000004 267.64102564102564,24.800000000000004 275.2307692307692,24.800000000000004 282.8205128205128,24.800000000000004 290.4102564102564,24.800000000000004 298,24.800000000000004"></polyline></svg><p class="dim">Last 40  observed model calls in this session.</p><h3>Workspace fingerprint</h3><p class="dim">No workspace fingerprint observed.</p><h3>Prompt prefix segments</h3><p class="dim">No prompt prefix segments observed.</p></section>"
+
+ ❯ src/components/layout/DualSurfaceLayout.test.tsx:70:117
+     68|     expect(next).toHaveLength(40); expect(next[0].promptTokens).toBe(1…
+     69|     const html = renderToStaticMarkup(<CacheEconomicsPanel history={ne…
+     70|     expect(html).toContain('70.0%'); expect(html).toContain('Observed …
+       |                                                                                                                     ^
+     71|   });
+     72|   it('distinguishes missing observations from measured zeroes and pref…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/3]⎯
+
+ FAIL  src/components/layout/DualSurfaceLayout.test.tsx > Observed Inspector telemetry > distinguishes missing observations from measured zeroes and prefix from workspace hashes
+AssertionError: expected '<section class="dashboard-panel" aria…' to contain 'Stable · 0 bytes'
+
+Expected: "Stable · 0 bytes"
+Received: "<section class="dashboard-panel" aria-label="KV Cache economics"><h2>KV Cache economics</h2><p>Billed cache hit rate <strong>0.0%</strong> · provider / model</p><p>70  cached / 100  prompt tokens · 20  created</p><p>Estimated savings $0.0120</p><p class="dim">Last 1  observed model calls in this session.</p><h3>Workspace fingerprint</h3><code class="workspace-fingerprint">bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb</code><p role="status">Observed workspace fingerprint.</p><p>0  tracked files · 0  uncommitted diff bytes</p><h3>Prompt prefix segments</h3><ol class="prefix-segments"><li>Stable · 0  bytes</li><li>Scoped · 4  bytes</li><li>Volatile · 8  bytes</li></ol><p>Prefix SHA-256</p><code class="workspace-fingerprint">aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa</code></section>"
+
+ ❯ src/components/layout/DualSurfaceLayout.test.tsx:76:50
+
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/3]⎯
+
+ FAIL  src/components/team/TeamDagCanvas.test.tsx > team DAG workspace > shows frozen roster routes and invokes approve/reject buttons only for staged plans
+AssertionError: expected '<section class="team-staged-banner" a…' to contain '1 tasks'
+
+Expected: "1 tasks"
+Received: "<section class="team-staged-banner" aria-label="Team plan awaiting approval"><strong>Review team plan · 1 task</strong><ul><li>developer · generator · mock/model-1 · Medium</li></ul><button class="btn btn-primary">Approve &amp; Run</button> <button class="btn">Reject</button></section>"
+
+ ❯ src/components/team/TeamDagCanvas.test.tsx:48:18
+     46|     const tree = TeamStagedBanner({ stage, onApprove: approve, onRejec…
+     47|     const html = renderToStaticMarkup(tree);
+     48|     expect(html).toContain('1 tasks'); expect(html).toContain('mock/mo…
+       |                  ^
+     49|     const buttons = nodes(tree).filter(n => n.type === 'button');
+     50|     (buttons[0]!.props.onClick as () => void)(); (buttons[1]!.props.on…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/3]⎯
+
+
+ Test Files  2 failed | 28 passed (30)
+      Tests  3 failed | 253 passed (256)
+   Start at  03:18:08
+   Duration  19.35s (import 40%, transform 31%, tests 26%, worker 3%)
+
+     Import  109 modules were evaluated 197 times · 3.79s total, 40% of tracked time
+             ~1.69s faster with isolate: false — shared modules are evaluated once per worker instead of once per file
+             learn more: https://vitest.dev/guide/improving-performance#test-isolation
+

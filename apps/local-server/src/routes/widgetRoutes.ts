@@ -8,7 +8,7 @@ export class WidgetRoutes {
   private readonly blocks = new Map<string, Map<string, WidgetBlock>>();
   private readonly senders = new Map<string, Set<Send>>();
   private readonly pending = new Map<string, Map<string, PendingAction>>();
-  constructor(private readonly sessionExists: (id: string) => boolean) {}
+  constructor(private readonly sessionExists: (id: string) => boolean, private readonly onPublish?: (id: string, widget: WidgetBlock) => void) {}
 
   publish(sessionId: string, widget: WidgetBlock): void {
     if (!this.sessionExists(sessionId)) throw new Error('session_not_found');
@@ -18,6 +18,7 @@ export class WidgetRoutes {
     if (blocks.has(widget.id)) throw new Error('duplicate_widget');
     const copy = structuredClone(widget);
     blocks.set(copy.id, copy);
+    this.onPublish?.(sessionId, copy);
     // Non-waiting producer publications still have a bounded decision lifetime.
     if (copy.kind === 'permission_action' && copy.status === 'pending' && !this.pending.get(sessionId)?.has(copy.id)) {
       let actions = this.pending.get(sessionId);
@@ -87,6 +88,12 @@ export class WidgetRoutes {
     for (const [sessionId, actions] of this.pending) for (const widgetId of actions.keys()) this.expire(sessionId, widgetId);
     this.senders.clear();
     this.blocks.clear();
+  }
+  patchDecision(sessionId: string, widgetId: string, hunkId: string, status: 'accepted' | 'rejected'): void {
+    const widget = this.blocks.get(sessionId)?.get(widgetId);
+    if (widget?.kind !== 'diff_inspector') return;
+    widget.payload.hunkStatuses = { ...widget.payload.hunkStatuses, [hunkId]: status };
+    this.emit(sessionId, 'widget_block', widget);
   }
   private emit(sessionId: string, kind: WidgetEventKind, value: WidgetBlock | WidgetActionResponse): void {
     for (const send of this.senders.get(sessionId) ?? []) this.send(sessionId, send, kind, value);

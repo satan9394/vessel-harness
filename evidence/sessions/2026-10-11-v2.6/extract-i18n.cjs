@@ -1,0 +1,4 @@
+const ts = require('typescript-parser/lib/typescript.js'), fs = require('fs'), path = require('path');
+const root='apps/web/src'; const found=[];
+function scan(dir){for(const item of fs.readdirSync(dir,{withFileTypes:true})){const file=path.join(dir,item.name);if(item.isDirectory())scan(file);else if(file.endsWith('.tsx')&&!file.includes('.test.')){const source=ts.createSourceFile(file,fs.readFileSync(file,'utf8'),ts.ScriptTarget.Latest,true,ts.ScriptKind.TSX);function walk(n){if(ts.isJsxText(n)&&/[A-Za-z\u4e00-\u9fff]/.test(n.text))found.push(n.text.trim());if(ts.isJsxAttribute(n)&&['title','aria-label','placeholder'].includes(n.name.getText(source))&&n.initializer&&ts.isStringLiteral(n.initializer))found.push(n.initializer.text);ts.forEachChild(n,walk);}walk(source);}}}scan(root);fs.writeFileSync('evidence/sessions/2026-10-11-v2.6/i18n-phrases.json',JSON.stringify([...new Set(found)].sort(),null,2));
+

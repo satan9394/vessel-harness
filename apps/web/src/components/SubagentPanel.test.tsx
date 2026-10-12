@@ -70,7 +70,7 @@ describe('Subagent workspace', () => {
     expect(renderToStaticMarkup(<SubagentDetailDrawer subagent={{ ...running, status: 'failed', lastError: 'Process failed', exitCode: 7 }} onClose={close} />)).toContain('Process failed');
     const completed = renderToStaticMarkup(<SubagentDetailDrawer subagent={{ ...running, status: 'completed', endedAt: '2026-10-01T00:00:02.500Z' }} onClose={close} />);
     expect(completed).toContain('Duration');
-    expect(completed).toContain('2,500 ms');
+    expect(completed).toContain('2,500ms');
   });
 
   it('uses exact list/detail/cancel routes and surfaces server failure', async () => {
@@ -176,4 +176,10 @@ describe('Subagent workspace', () => {
     await vi.waitFor(() => expect(change.mock.lastCall?.[0]).toEqual([newWorker]));
     watcher.close();
   });
+});
+
+// Use the real English dictionary while exercising JSX handlers without a renderer.
+vi.mock('./LanguageProvider', async () => {
+  const { translate } = await import('../i18n');
+  return { useI18n: () => ({ lang: 'en', t: translate('en'), setLang: vi.fn() }) };
 });

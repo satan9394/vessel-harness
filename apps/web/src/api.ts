@@ -52,6 +52,8 @@ export interface SessionMeta {
   createdAt: string;
   updatedAt?: string;
   topic?: SessionTopic;
+  provider?: string;
+  model?: string;
   [key: string]: unknown;
 }
 
@@ -68,6 +70,20 @@ export interface CreateSessionInput {
   model?: string;
   permission?: 'workspace-write' | 'read-only';
 }
+
+export interface ProviderInfo {
+  name: string;
+  protocol: 'openai-compatible' | 'anthropic';
+  baseUrl: string;
+  apiKeyMasked: string;
+  models: string[];
+  isDefault?: boolean;
+}
+export interface AddProviderInput { name: string; protocol: ProviderInfo['protocol']; baseUrl: string; apiKey: string; models: string[] }
+export interface ModelOption { id: string; name: string; providerName: string; protocol: string }
+export interface TestProviderResult { ok: boolean; latencyMs?: number; availableModels?: string[]; error?: string }
+/** 「一键拉取模型」结果（task 215）：真实探测 `/v1/models` 后的可用模型清单。 */
+export interface PullModelsResult { ok: boolean; latencyMs?: number; models?: string[]; error?: string }
 
 /** HTTP + JSON errors from the server are surfaced together for the UI. */
 export class ApiError extends Error {
@@ -294,6 +310,11 @@ export function createApiClient(opts: ApiOptions = {}) {
         method: 'POST', body: JSON.stringify({ selectedOptionId }),
       });
     },
+    async applyPatch(sessionId: string, widgetId: string, hunkId: string, action: 'accept' | 'reject'): Promise<{ hunk: import('@vessel/shared').DiffHunk }> {
+      return request(`/session/${encodeURIComponent(sessionId)}/patch/apply`, {
+        method: 'POST', body: JSON.stringify({ widgetId, hunkId, action }),
+      });
+    },
     async meshPeers(dagId?: string): Promise<MeshSnapshot> {
       return request(`/mesh/peers${dagId ? `?dagId=${encodeURIComponent(dagId)}` : ''}`);
     },
@@ -304,6 +325,21 @@ export function createApiClient(opts: ApiOptions = {}) {
       return request(`/system/sandbox-tier?sessionId=${encodeURIComponent(sessionId)}`);
     },
     /** GET /api/health */
+    async listProviders(): Promise<{ providers: ProviderInfo[] }> { return request('/providers'); },
+    async addProvider(input: AddProviderInput): Promise<{ provider: ProviderInfo }> {
+      return request('/providers', { method: 'POST', body: JSON.stringify(input) });
+    },
+    async deleteProvider(name: string): Promise<{ ok: boolean }> {
+      return request(`/providers/${encodeURIComponent(name)}`, { method: 'DELETE' });
+    },
+    async testProvider(input: Pick<AddProviderInput, 'protocol' | 'baseUrl' | 'apiKey'>): Promise<TestProviderResult> {
+      return request('/providers/test', { method: 'POST', body: JSON.stringify(input) });
+    },
+    /** POST /api/providers/pull-models — 探测端点 `/v1/models` 并返回可用模型清单（task 215）。 */
+    async pullProviderModels(input: Pick<AddProviderInput, 'protocol' | 'baseUrl' | 'apiKey'>): Promise<PullModelsResult> {
+      return request('/providers/pull-models', { method: 'POST', body: JSON.stringify(input) });
+    },
+    async listModels(): Promise<{ models: ModelOption[] }> { return request('/models'); },
     async health(): Promise<Health> {
       return request<Health>('/health');
     },
@@ -345,6 +381,12 @@ export function createApiClient(opts: ApiOptions = {}) {
         method: 'POST',
         body: JSON.stringify(input),
       });
+    },
+    async getSession(id: string): Promise<{ session: SessionMeta }> {
+      return request(`/sessions/${encodeURIComponent(id)}`);
+    },
+    async switchSessionModel(id: string, selection: { provider: string; model: string }): Promise<{ session: SessionMeta }> {
+      return request(`/sessions/${encodeURIComponent(id)}/model`, { method: 'PATCH', body: JSON.stringify(selection) });
     },
     /** POST /api/sessions/:id/turns */
     async runTurn(id: string, prompt: string): Promise<TurnResult> {

@@ -1,3 +1,5 @@
+import { localizedValue } from '../../i18n';
+import { useI18n } from '../LanguageProvider';
 import type { TeamDagTask } from '../../teamStages';
 import { useEffect, useRef, useState } from 'react';
 import type { ApiClient } from '../../api';
@@ -8,18 +10,19 @@ export function TeamNodeDetails({ task, onClose, artifact, onArtifact, artifactU
   onArtifact?: (index: number) => void; artifactUrl?: (index: number) => string;
   onDownload?: (index: number) => void;
 }) {
-  return <aside className="team-node-drawer" aria-label={`Task details: ${task.title}`}>
-    <button className="btn" onClick={onClose} aria-label="Close task details">Close</button>
+  const { t } = useI18n();
+  return <aside className="team-node-drawer" aria-label={t('taskDetails', { title: task.title })}>
+    <button className="btn" onClick={onClose} aria-label={t('uiCloseTaskDetails')}>{t('close')}</button>
     <h3>{task.title}</h3><p>{task.description}</p>
-    <p>Status: {task.status} · Executor: {task.claimedBy ?? 'Unclaimed'}</p>
-    <p>Dependencies: {task.dependencies.join(', ') || 'None'}</p>
+    <p>{t('uiStatusLabel')} {localizedValue(task.status, t)}  {t('uiExecutor')} {task.claimedBy ?? t('uiUnclaimed')}</p>
+    <p>{t('uiDependencies')} {task.dependencies.join(', ') || t('uiNone')}</p>
     {task.result && <pre>{task.result.output.slice(0, 300)}</pre>}
     {task.error && <p role="alert">{task.error}</p>}
     {task.result?.artifacts.map((file, index) => <p key={file}>
       {onDownload ? <button className="btn" onClick={() => onDownload(index)}>{file}</button> : artifactUrl ? <a href={artifactUrl(index)} target="_blank" rel="noreferrer">{file}</a> : <code>{file}</code>}{' '}
-      {onArtifact && <button className="btn" onClick={() => onArtifact(index)}>View diff</button>}
+      {onArtifact && <button className="btn" onClick={() => onArtifact(index)}>{t('uiViewDiff')}</button>}
     </p>)}
-    {artifact && <section aria-label="Artifact diff"><p>{artifact.path} · {artifact.comparison}</p><pre>{artifact.diff || 'No workspace changes against HEAD.'}</pre>{artifact.error && <p role="alert">{artifact.error}</p>}</section>}
+    {artifact && <section aria-label={t('uiArtifactDiff')}><p>{artifact.path} · {artifact.comparison}</p><pre>{artifact.diff || t('uiNoWorkspaceChangesAgainstHEAD')}</pre>{artifact.error && <p role="alert">{artifact.error}</p>}</section>}
   </aside>;
 }
 

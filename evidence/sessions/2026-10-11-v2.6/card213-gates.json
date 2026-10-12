@@ -1,0 +1,42 @@
+[
+  {
+    "exitCode": 0,
+    "log": "evidence/sessions/2026-10-11-v2.6/card213-target-backend-accepted-2.log",
+    "name": "target-backend"
+  },
+  {
+    "exitCode": 0,
+    "log": "evidence/sessions/2026-10-11-v2.6/card213-target-web-accepted-2.log",
+    "name": "target-web"
+  },
+  {
+    "exitCode": 0,
+    "log": "evidence/sessions/2026-10-11-v2.6/card213-web-accepted-2.log",
+    "name": "web"
+  },
+  {
+    "exitCode": 0,
+    "log": "evidence/sessions/2026-10-11-v2.6/card213-local-server-accepted-2.log",
+    "name": "local-server"
+  },
+  {
+    "exitCode": 0,
+    "log": "evidence/sessions/2026-10-11-v2.6/card213-tsc-accepted-2.log",
+    "name": "tsc"
+  },
+  {
+    "exitCode": 0,
+    "log": "evidence/sessions/2026-10-11-v2.6/card213-tests-types-accepted-2.log",
+    "name": "tests-types"
+  },
+  {
+    "exitCode": 0,
+    "log": "evidence/sessions/2026-10-11-v2.6/card213-web-types-accepted-2.log",
+    "name": "web-types"
+  },
+  {
+    "exitCode": 0,
+    "log": "evidence/sessions/2026-10-11-v2.6/card213-safe-build-accepted-2.log",
+    "name": "safe-build"
+  }
+]

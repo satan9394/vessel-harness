@@ -1,0 +1,68 @@
+{
+  "sessions": [
+    {
+      "id": "sess_1791693479520_1014ac47",
+      "workspaceRoot": "E:\\Code_file\\Projects\\Vessel_Harness\\evidence\\sessions\\2026-10-10-v2.5\\browser-workspace",
+      "provider": "unknown",
+      "model": "unknown",
+      "permission": "workspace-write",
+      "createdAt": "2026-10-11T04:37:59.520Z",
+      "updatedAt": "2026-10-11T04:37:59.544Z",
+      "topic": {
+        "topicId": "topic_sess_1791693479520_1014ac47",
+        "createdAt": 1791693479536,
+        "isArchived": true,
+        "title": "Offline historical rule fixture",
+        "updatedAt": 1791693479544
+      }
+    },
+    {
+      "id": "sess_1791693502882_4068f20f",
+      "workspaceRoot": "E:\\Code_file\\Projects\\Vessel_Harness\\evidence\\sessions\\2026-10-10-v2.5\\browser-workspace",
+      "provider": "mock",
+      "model": "v25-offline-fixture",
+      "permission": "workspace-write",
+      "createdAt": "2026-10-11T04:38:22.890Z",
+      "updatedAt": "2026-10-11T04:53:06.679Z",
+      "topic": {
+        "topicId": "topic_sess_1791693502882_4068f20f",
+        "title": "Shell review the iso",
+        "createdAt": 1791693834616,
+        "updatedAt": 1791693834616,
+        "isArchived": false
+      }
+    },
+    {
+      "id": "sess_1791694573174_5b59b798",
+      "workspaceRoot": "E:\\Code_file\\Projects\\Vessel_Harness\\evidence\\sessions\\2026-10-10-v2.5\\browser-workspace",
+      "provider": "unknown",
+      "model": "unknown",
+      "permission": "workspace-write",
+      "createdAt": "2026-10-11T04:56:13.174Z",
+      "updatedAt": "2026-10-11T04:56:13.195Z",
+      "topic": {
+        "topicId": "topic_sess_1791694573174_5b59b798",
+        "createdAt": 1791694573191,
+        "isArchived": true,
+        "title": "Offline historical rule fixture",
+        "updatedAt": 1791694573195
+      }
+    },
+    {
+      "id": "sess_1791694598104_38119861",
+      "workspaceRoot": "E:\\Code_file\\Projects\\Vessel_Harness\\evidence\\sessions\\2026-10-10-v2.5\\browser-workspace",
+      "provider": "mock",
+      "model": "v25-offline-fixture",
+      "permission": "workspace-write",
+      "createdAt": "2026-10-11T04:56:38.111Z",
+      "updatedAt": "2026-10-11T04:56:53.438Z",
+      "topic": {
+        "topicId": "topic_sess_1791694598104_38119861",
+        "title": "Shell final integrat",
+        "createdAt": 1791694607839,
+        "updatedAt": 1791694607839,
+        "isArchived": false
+      }
+    }
+  ]
+}

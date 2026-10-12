@@ -1,3 +1,5 @@
+import { SessionModelHub } from './sessionModelHub.js';
+import { ReasoningStream } from './reasoning.js';
 import { isWidgetBlock, priceCacheMetrics, type CacheUsageMetrics } from '@vessel/shared';
 import * as fs from 'node:fs';
 import * as http from 'node:http';
@@ -8,7 +10,7 @@ import { spawn } from 'node:child_process';
 import { SessionController, SessionRegistry, ProjectRegistry, ReviewHandoffStore } from '@vessel/application';
 import type { SessionPermission, ReviewHandoffRecord } from '@vessel/application';
 import type { Listener, TurnResult } from '@vessel/core';
-import { MockProvider } from '@vessel/llm';
+import { MockProvider, createProvider, providerNameForConfig } from '@vessel/llm';
 import type { ChatProvider } from '@vessel/shared';
 import { loadPolicyArtifacts } from '@vessel/policy';
 import type { SessionMeta } from '@vessel/application';
@@ -25,7 +27,11 @@ import { authMiddleware, DAEMON_LOGIN_HTML } from './daemon/authMiddleware.js';
 import type { DaemonServerControl } from './daemon/types.js';
 import type { Notify } from './daemon/notifications.js';
 import { WidgetRoutes } from './routes/widgetRoutes.js';
+import { PatchRoutes } from './routes/patchRoutes.js';
 import { SessionInspector, type WorkspaceObserver } from './routes/sessionInspector.js';
+import { ProviderRoutes } from './routes/providerRoutes.js';
+import { createDefaultProviderStore } from './providers/defaultStore.js';
+import type { ProviderStore, ProviderConfig } from './providers/ProviderStore.js';
 
 /**
  * SessionController factory. The server never composes a session itself — that
@@ -43,6 +49,11 @@ export type SessionFactory = (input: {
 }) => Promise<SessionController>;
 
 export interface VesselServerOptions {
+  /** Lazy credential-backed store; tests inject a temporary store. */
+  providerStore?: ProviderStore;
+  providerFetch?: typeof fetch;
+  providerProbeTimeoutMs?: number;
+  providerBuilder?: (config: ProviderConfig) => ChatProvider;
   /** Optional read-only workspace observer supplied by the CLI composition surface. */
   observeWorkspace?: WorkspaceObserver;
   /** port to bind; defaults to 5678. Pass 0 for a random free port (tests). */
@@ -129,6 +140,11 @@ async function readJsonBody(req: http.IncomingMessage): Promise<unknown> {
   }
 }
 
+/** Authenticated remote hosts remain available; unauthenticated Host must be loopback. */
+function trustedOrigin(req: http.IncomingMessage, url: URL, authenticated: boolean): boolean {
+  return (authenticated || ['localhost', '127.0.0.1', '[::1]'].includes(url.hostname)) && (!req.headers.origin || req.headers.origin === url.origin);
+}
+
 /** Split a URL pathname into segments (`/api/sessions/abc` → ['api','sessions','abc']). */
 function segment(pathname: string): string[] {
   return pathname.split('/').filter((s) => s.length > 0);
@@ -138,6 +154,29 @@ function json(res: http.ServerResponse, status: number, body: unknown): void {
   const payload = JSON.stringify(body);
   res.writeHead(status, { 'Content-Type': 'application/json; charset=utf-8' });
   res.end(payload);
+}
+
+/** 允许透传给客户端的机器错误码（task 215）。形如 `invalid_models` / `provider_not_found`。 */
+const PROVIDER_ERROR_CODE_RE = /^[a-z][a-z0-9_]{0,63}$/;
+
+/**
+ * `ProviderStore` 的**自由文本**失败（文件损坏 / 条目非法）→ 概括但仍可操作的码。
+ * 这些 message 自带 `providers.json` 绝对路径甚至条目 id，**绝不能**原样外泄，
+ * 但对用户来说「配置坏了」比「未知失败」可操作得多（task 215 的删除自愈诉求）。
+ */
+const PROVIDER_CORRUPTION_RE = /^(providers|current) file corrupted\b|^invalid provider\b|^provider "/;
+
+/**
+ * 把供应商路由抛出的异常收敛为**可安全外泄**的具体错误码（task 215）。
+ *
+ * 纯机器码（`invalid_models` 等）原样透传；文件损坏/条目非法归为
+ * `provider_store_corrupted`；其余自由文本一律回落 `provider_request_failed`。
+ */
+function providerErrorCode(error: unknown): string {
+  const message = error instanceof Error ? error.message.trim() : '';
+  if (PROVIDER_ERROR_CODE_RE.test(message)) return message;
+  if (PROVIDER_CORRUPTION_RE.test(message)) return 'provider_store_corrupted';
+  return 'provider_request_failed';
 }
 
 /**
@@ -233,26 +272,43 @@ export function createVesselServer(opts: VesselServerOptions = {}): VesselServer
   const staticDir = path.resolve(opts.staticDir ?? DEFAULT_STATIC);
   const projectRegistry = opts.projectRegistry ?? new ProjectRegistry();
   const sessionRegistry = opts.sessionRegistry ?? new SessionRegistry({ index: true });
+  let store = opts.providerStore;
+  const providerRoutes = new ProviderRoutes(() => store ??= createDefaultProviderStore(), opts.providerFetch, opts.providerProbeTimeoutMs);
+  const modelHubs = new Map<string, SessionModelHub>();
+  const buildProvider = (cfg: ProviderConfig): ChatProvider => opts.providerBuilder?.(cfg) ?? createProvider(providerNameForConfig(cfg), { baseUrl: cfg.baseUrl, apiKey: cfg.apiKey, model: cfg.model });
   const defaultFactory: SessionFactory = async (input) => {
-    const provider = new MockProvider([{ when: /.*/, response: { text: `(mock) ${input.model ?? 'default'}` } }], {
+    const cfg = input.provider && input.provider !== 'mock' ? providerRoutes.resolve(input.provider, input.model) : undefined;
+    const model = cfg?.model ?? input.model ?? 'default';
+    const provider = cfg ? buildProvider(cfg) : new MockProvider([{ when: /.*/, response: { text: `(mock) ${model}` } }], {
       model: input.model ?? 'default',
     });
-    return SessionController.create({
+    const hub = new SessionModelHub({ provider: cfg?.id ?? 'mock', model }, provider);
+    const ctl = await SessionController.create({
       workspaceRoot: input.workspaceRoot,
-      provider,
-      model: input.model ?? 'default',
+      provider: hub,
+      providerId: hub.id,
+      model: hub.id,
+      strictPricing: true,
       policySystemPath: DEFAULT_POLICY,
       behaviorIRPath: DEFAULT_BEHAVIOR,
       permission: input.permission ?? 'workspace-write',
       registry: input.registry,
       subagent: opts.externalAgents?.length ? { externalAgents: opts.externalAgents } : undefined,
     });
+    hub.attach(ctl.session.dir);
+    try { const meta = input.registry?.get(ctl.sessionId); if (meta) input.registry!.put({ ...meta, ...hub.selection }); }
+    catch (error) { await ctl.close(); throw error; }
+    modelHubs.set(ctl.sessionId, hub);
+    return ctl;
   };
   const sessionFactory = opts.sessionFactory ?? defaultFactory;
 
   /** live session controllers keyed by session id (owns the run loop). */
   const controllers = new Map<string, SessionController>();
-  const widgets = new WidgetRoutes(id => controllers.has(id));
+  const patches = new PatchRoutes(id => controllers.get(id)?.state);
+  const widgets = new WidgetRoutes(id => controllers.has(id), (id, widget) => {
+    if (widget.kind === 'diff_inspector') patches.publish(id, widget);
+  });
   const inspector = new SessionInspector(opts.observeWorkspace);
 
   // ------------------------------------------------------------------
@@ -331,6 +387,25 @@ export function createVesselServer(opts: VesselServerOptions = {}): VesselServer
     const method = (req.method ?? 'GET').toUpperCase();
     const url = new URL(req.url ?? '/', `http://${req.headers.host ?? '127.0.0.1'}`);
     if (opts.authToken && !authMiddleware(req, res, opts.authToken, url.pathname)) return;
+    const providerRoute = url.pathname === '/api/models' || url.pathname === '/api/providers' || url.pathname.startsWith('/api/providers/');
+    const sameOrigin = trustedOrigin(req, url, Boolean(opts.authToken));
+    if (providerRoute) {
+      if (!sameOrigin) return json(res, 403, { error: 'cross_origin_denied' });
+      try {
+        if (url.pathname === '/api/models' && method === 'GET') return json(res, 200, { models: providerRoutes.models() });
+        if (url.pathname === '/api/providers' && method === 'GET') return json(res, 200, { providers: providerRoutes.list() });
+        if (url.pathname === '/api/providers' && method === 'POST') return json(res, 201, { provider: providerRoutes.save(await readJsonBody(req)) });
+        if (url.pathname === '/api/providers/test' && method === 'POST') return json(res, 200, await providerRoutes.test(await readJsonBody(req)));
+        if (url.pathname === '/api/providers/pull-models' && method === 'POST') return json(res, 200, await providerRoutes.pullModels(await readJsonBody(req)));
+        if (/^\/api\/providers\/[^/]+$/.test(url.pathname) && method === 'DELETE') return providerRoutes.remove(decodeURIComponent(url.pathname.slice('/api/providers/'.length))) ? json(res, 200, { ok: true }) : json(res, 404, { error: 'unknown_provider' });
+        return json(res, 405, { error: 'method_not_allowed' });
+      } catch (error) {
+        // task 215：透传**具体**错误码，不再一律 400 provider_request_failed。
+        // 只放行形如 `invalid_models` 的机器码；文件损坏等自由文本 message
+        // （可能夹带路径/密钥）一律回落到通用码，绝不外泄。
+        return json(res, 400, { error: providerErrorCode(error) });
+      }
+    }
     if (url.pathname === '/api/mesh/peers') {
       if (method !== 'GET') return json(res, 405, { error: 'read_only' });
       const dagId = url.searchParams.get('dagId');
@@ -391,6 +466,7 @@ export function createVesselServer(opts: VesselServerOptions = {}): VesselServer
   }
 
   async function handleApi(method: string, segs: string[], req: http.IncomingMessage, res: http.ServerResponse, url: URL): Promise<void> {
+    const sameOrigin = trustedOrigin(req, url, Boolean(opts.authToken));
     if (segs.length === 2 && segs[1] === 'sessions' && method === 'GET') {
       const limit = Number(url.searchParams.get('limit') ?? 1000); const offset = Number(url.searchParams.get('offset') ?? 0);
       try { return json(res, 200, { sessions: await sessionRegistry.listIndexed(limit, offset, url.searchParams.get('topicId') ?? undefined) }); }
@@ -524,8 +600,11 @@ export function createVesselServer(opts: VesselServerOptions = {}): VesselServer
         permission?: SessionPermission;
       } | null;
       if (!body) return json(res, 400, { error: 'bad_json' });
-      if (!body.workspaceRoot) return json(res, 400, { error: 'missing_workspaceRoot' });
+      if (typeof body.workspaceRoot !== 'string' || !body.workspaceRoot.trim()) return json(res, 400, { error: 'missing_workspaceRoot' });
+      if (body.provider !== undefined && (typeof body.provider !== 'string' || !body.provider.trim()) || body.model !== undefined && (typeof body.model !== 'string' || !body.model.trim()) || body.permission !== undefined && !['read-only', 'workspace-write', 'danger-full-access'].includes(body.permission)) return json(res, 400, { error: 'invalid_session_input' });
+      if (body.provider && body.provider !== 'mock' && !sameOrigin) return json(res, 403, { error: 'cross_origin_denied' });
       try {
+        if (body.provider && body.provider !== 'mock') providerRoutes.resolve(body.provider, body.model);
         const ctl = await sessionFactory({
           workspaceRoot: body.workspaceRoot,
           provider: body.provider,
@@ -548,7 +627,7 @@ export function createVesselServer(opts: VesselServerOptions = {}): VesselServer
         const meta = sessionRegistry.get(ctl.sessionId);
         return json(res, 201, { session: (meta ?? ctl.state) });
       } catch (err) {
-        return json(res, 400, { error: 'session_create_failed', message: err instanceof Error ? err.message : String(err) });
+        return json(res, 400, { error: 'session_create_failed' });
       }
     }
 
@@ -568,6 +647,16 @@ export function createVesselServer(opts: VesselServerOptions = {}): VesselServer
       const sub = segs[3];
       const ctl = controllers.get(id);
 
+      if (segs.length === 5 && sub === 'patch' && segs[4] === 'apply' && method === 'POST') {
+        const body = await readJsonBody(req);
+        const result = patches.apply(id, body);
+        if (result.status === 200) {
+          const decision = body as { widgetId: string; hunkId: string; action: string };
+          widgets.patchDecision(id, decision.widgetId, decision.hunkId, decision.action === 'accept' ? 'accepted' : 'rejected');
+        }
+        return json(res, result.status, result.body);
+      }
+
       if (segs.length === 6 && sub === 'widget' && segs[5] === 'respond' && method === 'POST') {
         if (!ctl) return json(res, 404, suggestNotFound(id));
         const result = widgets.respond(id, segs[4]!, await readJsonBody(req));
@@ -577,7 +666,31 @@ export function createVesselServer(opts: VesselServerOptions = {}): VesselServer
       // GET /api/sessions/:id
       if (segs.length === 3 && method === 'GET') {
         if (!ctl) return json(res, 404, suggestNotFound(id));
-        return json(res, 200, { session: ctl.state });
+        return json(res, 200, { session: { ...ctl.state, ...modelHubs.get(id)?.selection } });
+      }
+
+      // PATCH /api/sessions/:id/model — transport is replaced only at an idle boundary.
+      if (segs.length === 4 && sub === 'model' && method === 'PATCH') {
+        if (!ctl) return json(res, 404, suggestNotFound(id));
+        if (!sameOrigin) return json(res, 403, { error: 'cross_origin_denied' });
+        const body = await readJsonBody(req);
+        if (!body || typeof body !== 'object' || Array.isArray(body)) return json(res, 400, { error: 'invalid_model_selection' });
+        const { provider, model } = body as { provider?: unknown; model?: unknown };
+        const valid = (value: unknown): value is string => typeof value === 'string' && value.trim() === value && value.length > 0 && value.length <= 256 && !/[\x00-\x1f\x7f]/.test(value);
+        if (!valid(provider) || !valid(model)) return json(res, 400, { error: 'invalid_model_selection' });
+        const hub = modelHubs.get(id);
+        if (!hub) return json(res, 409, { error: 'model_switch_unavailable' });
+        if (ctl.loop.turnActive || teamStates.get(id)?.inFlight || teamStages.list(id).some(stage => stage?.status === 'running')) return json(res, 409, { error: 'session_busy' });
+        const previous = sessionRegistry.get(id);
+        try {
+          const config = providerRoutes.resolve(provider, model);
+          const target = buildProvider(config);
+          if (!previous) return json(res, 404, suggestNotFound(id));
+          try { sessionRegistry.put({ ...previous, provider, model }); }
+          catch (error) { sessionRegistry.put(previous); throw error; }
+          hub.select({ provider, model }, target);
+          return json(res, 200, { session: { ...ctl.state, ...hub.selection } });
+        } catch { return json(res, 400, { error: 'model_switch_failed' }); }
       }
 
       // POST /api/sessions/:id/turns
@@ -718,6 +831,7 @@ export function createVesselServer(opts: VesselServerOptions = {}): VesselServer
         }
         try {
           const route = st.route.resolve({ task: body.task, mode: body.mode });
+          st.inFlight = true;
           const handle = await startTeamRun({
             workspaceRoot: ctl.state.workspaceRoot,
             task: body.task,
@@ -741,6 +855,7 @@ export function createVesselServer(opts: VesselServerOptions = {}): VesselServer
           broadcastTeam(id, 'start', handle.snapshot());
           return json(res, 202, { run: { runId: handle.runId, status: 'running' } });
         } catch (err) {
+          st.inFlight = false;
           return json(res, 400, { error: 'team_run_failed', message: err instanceof Error ? err.message : String(err) });
         }
       }
@@ -1003,7 +1118,7 @@ export function createVesselServer(opts: VesselServerOptions = {}): VesselServer
 
     const forwards = new Map<string, () => void>();
     const modelStartedAt = new Map<string, number>();
-    const reasoningCalls = new Set<string>();
+    const reasoning = new ReasoningStream(delta => sse('thinking', delta));
     const modelCallKey = (payload: unknown): string | undefined => {
       if (!payload || typeof payload !== 'object') return undefined;
       const p = payload as { turnId?: unknown; step?: unknown };
@@ -1018,25 +1133,13 @@ export function createVesselServer(opts: VesselServerOptions = {}): VesselServer
     forward('model-start', 'before_model', (payload) => {
       const key = modelCallKey(payload);
       if (key) modelStartedAt.set(key, Date.now());
+      reasoning.before(payload);
     });
-    forward('thinking-delta', 'model_stream_delta', (payload) => {
-      const key = modelCallKey(payload);
-      const chunk = (payload as { chunk?: { type?: string; text?: string } } | undefined)?.chunk;
-      if (!key || chunk?.type !== 'reasoning_delta' || typeof chunk.text !== 'string' || chunk.text === '') return;
-      if (!reasoningCalls.has(key)) {
-        reasoningCalls.add(key);
-        sse('thinking', { phase: 'start' });
-      }
-      sse('thinking', { phase: 'delta', text: chunk.text });
-    });
-    forward('thinking-end', 'model_stream_end', (payload) => {
-      const key = modelCallKey(payload);
-      if (!key || !reasoningCalls.delete(key)) return;
-      const started = modelStartedAt.get(key);
-      const failed = (payload as { finishReason?: unknown } | undefined)?.finishReason === 'error';
-      sse('thinking', { phase: 'end', durationMs: started === undefined ? undefined : Math.max(0, Date.now() - started) });
-      if (failed) modelStartedAt.delete(key);
-    });
+    forward('thinking-start', 'model_stream_start', payload => reasoning.start(payload));
+    forward('thinking-delta', 'model_stream_delta', payload => reasoning.delta(payload));
+    forward('thinking-end', 'model_stream_end', payload => reasoning.end(payload));
+    forward('thinking-after', 'after_model', payload => reasoning.after(payload));
+    forward('thinking-turn-end', 'after_turn', () => { reasoning.finish(); modelStartedAt.clear(); });
 
     // after_model → conversation delta (assistant text / tool-call summary)
     forward('conversation', 'after_model', (payload) => {

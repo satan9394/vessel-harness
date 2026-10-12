@@ -1,3 +1,4 @@
+import { useI18n } from './LanguageProvider';
 /** Cumulative usage/cost triple after applying an incremental usage delta. */
 export interface UsageTotals {
   measuredCalls?: number;
@@ -64,26 +65,27 @@ function fmtUsd(n: number): string {
 
 /** Thin read-only usage strip (session header or footer). */
 export default function UsageBar({ usage }: { usage: UsageTotals }) {
+  const { t } = useI18n();
   if (usage.calls === 0 && usage.inputTokens === 0 && usage.outputTokens === 0) {
     return null;
   }
   // cache 分项：读/写并列（task 107）。只显示实际发生的项，缺字段一律按 0 回退。
   const cacheParts: string[] = [];
-  if (usage.cacheReadTokens > 0) cacheParts.push(`读 ${usage.cacheReadTokens}`);
-  if (usage.cacheCreationTokens > 0) cacheParts.push(`写 ${usage.cacheCreationTokens}`);
-  const cacheLabel = cacheParts.length > 0 ? ` (cache ${cacheParts.join(' / ')})` : '';
+  if (usage.cacheReadTokens > 0) cacheParts.push(t('cacheReadCount', { count: String(usage.cacheReadTokens) }));
+  if (usage.cacheCreationTokens > 0) cacheParts.push(t('cacheWriteCount', { count: String(usage.cacheCreationTokens) }));
+  const cacheLabel = cacheParts.length > 0 ? t('cacheBreakdown', { parts: cacheParts.join(' / ') }) : '';
   const derivedHint =
     usage.cacheCreationTokens > 0
-      ? '；cache 写价按 input×1.25 估算（价目缺 cacheWrite 字段时，089 derived）'
+      ? t('cachePriceEstimate')
       : '';
   return (
-    <div className="usage-bar" title={`累计模型用量（calls / tokens / 估算成本）${derivedHint}`}>
-      <span className="usage-calls">calls {usage.calls}</span>
+    <div className="usage-bar" title={t('usageTitle', { hint: derivedHint })}>
+      <span className="usage-calls">{t('uiCalls')} {usage.calls}</span>
       <span className="usage-tokens">
-        {usage.inputTokens}+{usage.outputTokens} tok{cacheLabel}
+        {usage.inputTokens}+{usage.outputTokens} {t('tokenUnit')}{cacheLabel}
       </span>
       {usage.overallCacheHitRate !== undefined && (usage.measuredCalls ?? 1) > 0 && <span className="usage-cache" style={{ color: 'var(--green)' }}>
-        ⚡ Cache {Math.round(usage.overallCacheHitRate * 100)}% · {usage.estimated ? 'estimated ' : ''}read savings ${ (usage.estimatedSavingsUsd ?? 0).toFixed(4) }
+        {t('uiCache')} {Math.round(usage.overallCacheHitRate * 100)}% · {usage.estimated ? t('uiEstimated') : ''}{t('uiReadSavings')}{ (usage.estimatedSavingsUsd ?? 0).toFixed(4) }
       </span>}
       <span className="usage-cost">{fmtUsd(usage.costUsd)}</span>
     </div>

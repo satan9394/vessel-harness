@@ -1,0 +1,287 @@
+{
+  "pass": true,
+  "head": "dd8e72c",
+  "latestSourceEdit": "2026-10-11T04:51:02.440Z",
+  "boundaries": {
+    "pass": true,
+    "coreDiffLines": 0,
+    "protectedHashesUnchanged": true,
+    "failures": []
+  },
+  "allGatesAfterFinalSourceEdit": true,
+  "gates": [
+    {
+      "endedAt": "2026-10-11T05:01:51.9742633Z",
+      "startedAt": "2026-10-11T04:52:17.2245291Z",
+      "gate": "test-all",
+      "exitCode": 0
+    },
+    {
+      "endedAt": "2026-10-11T05:01:53.1270561Z",
+      "startedAt": "2026-10-11T05:01:51.9922119Z",
+      "gate": "tsc-build",
+      "exitCode": 0
+    },
+    {
+      "endedAt": "2026-10-11T05:01:54.8454044Z",
+      "startedAt": "2026-10-11T05:01:53.1324126Z",
+      "gate": "test-types",
+      "exitCode": 0
+    },
+    {
+      "endedAt": "2026-10-11T05:01:55.8062767Z",
+      "startedAt": "2026-10-11T05:01:54.8474926Z",
+      "gate": "web-types",
+      "exitCode": 0
+    },
+    {
+      "endedAt": "2026-10-11T05:01:56.7361102Z",
+      "startedAt": "2026-10-11T05:01:55.8083831Z",
+      "gate": "web-build",
+      "exitCode": 0
+    },
+    {
+      "endedAt": "2026-10-11T05:01:59.7717116Z",
+      "startedAt": "2026-10-11T05:01:56.7380093Z",
+      "gate": "cli-help",
+      "exitCode": 0
+    },
+    {
+      "endedAt": "2026-10-11T05:02:00.0927860Z",
+      "startedAt": "2026-10-11T05:01:59.7730998Z",
+      "gate": "boundaries",
+      "exitCode": 0
+    }
+  ],
+  "source": [
+    {
+      "file": "apps/local-server/src/routes/widgetRoutes.ts",
+      "editedAt": "2026-10-11T00:38:10.851Z",
+      "sha256": "4d2ae95411a02ddb7a9a554593caae53ee86d35f4d1ae329e12fcee640ac9f4b"
+    },
+    {
+      "file": "apps/local-server/src/server.test.ts",
+      "editedAt": "2026-10-11T04:30:21.417Z",
+      "sha256": "1a336732ba4f64ff6bcb36f64fdbedb17783e06d162c9f92321e23f5a8d8ea32"
+    },
+    {
+      "file": "apps/local-server/src/server.ts",
+      "editedAt": "2026-10-11T04:32:18.129Z",
+      "sha256": "f7c70c470b95911dbd271c55844b0ac1241626facc9c677379d43bf193be840c"
+    },
+    {
+      "file": "apps/web/src/App.tsx",
+      "editedAt": "2026-10-11T04:45:20.167Z",
+      "sha256": "f5d535485fb87fb1d01c02c8a1955d1a92ab40e4d8acc03f334053028c0eebca"
+    },
+    {
+      "file": "apps/web/src/api.ts",
+      "editedAt": "2026-10-11T00:38:10.854Z",
+      "sha256": "6b2f224f511961cfbc85e3d10531fe2987a896bdbc79924e1fe953f71a2a7042"
+    },
+    {
+      "file": "apps/web/src/components/ConversationView.tsx",
+      "editedAt": "2026-10-11T04:50:06.571Z",
+      "sha256": "15e43591923f2bf04685a19ac8c80f024893f6d9cf249314c1985a8ee51da56a"
+    },
+    {
+      "file": "apps/web/src/components/MessageList.tsx",
+      "editedAt": "2026-10-11T04:38:55.567Z",
+      "sha256": "622f4b35aff4a6bc25cc38a50fe0bf108b62d901f933d7a9e7e651bbb87f47b4"
+    },
+    {
+      "file": "apps/web/src/components/NewSessionForm.tsx",
+      "editedAt": "2026-10-11T04:38:55.567Z",
+      "sha256": "2527d81b908914f718e70f3d8479ed4c418f92d298f3f7fbb49f96b383bc40c3"
+    },
+    {
+      "file": "apps/web/src/components/layout/DualSurfaceLayout.test.tsx",
+      "editedAt": "2026-10-11T00:44:42.132Z",
+      "sha256": "e053c8706dedb0ac7f89f48b98345d1169ae1b136a2541abd21dda07e264e9d9"
+    },
+    {
+      "file": "apps/web/src/components/layout/DualSurfaceLayout.tsx",
+      "editedAt": "2026-10-11T04:37:37.258Z",
+      "sha256": "f3f6170cb64958fb7aa9e3894b07fb2fc8e89ebce0f1137f44a0932d8b23ed2c"
+    },
+    {
+      "file": "apps/web/src/components/widgets/InlineDiffInspector.tsx",
+      "editedAt": "2026-10-11T00:44:10.257Z",
+      "sha256": "49e294cb870b42f927483fe6b42eba4c9192422a2c1226655c106a10a12fa4d8"
+    },
+    {
+      "file": "apps/web/src/components/widgets/WidgetDispatcher.tsx",
+      "editedAt": "2026-10-11T00:38:34.848Z",
+      "sha256": "be14e16afbe7a7595b6abe1d2cc8cfdfcbd3196cd9e3febaded1c3e7f707008c"
+    },
+    {
+      "file": "apps/web/src/sse.test.ts",
+      "editedAt": "2026-10-11T04:28:19.903Z",
+      "sha256": "bec9a11027ebd3f95faaa1222a04736309b9c8d324addfaafe6610ed733349ff"
+    },
+    {
+      "file": "apps/web/src/sse.ts",
+      "editedAt": "2026-10-11T04:26:15.281Z",
+      "sha256": "7d16a113e70e5d2ae5d71ba384b987f9515b4e3f02b38cf6394c97d3a0b9226b"
+    },
+    {
+      "file": "apps/web/src/styles.css",
+      "editedAt": "2026-10-11T04:46:54.276Z",
+      "sha256": "91fc844e9c81f58338a36946d8b579d333bb84bda884b9fa4e72c6c12af35b82"
+    },
+    {
+      "file": "packages/shared/src/index.ts",
+      "editedAt": "2026-10-11T04:22:58.411Z",
+      "sha256": "aecf19e48c2e31ac41c06e7df6cf117ca73611b76dd6a87f33dbb2f8a2457d09"
+    },
+    {
+      "file": "packages/shared/src/provider.ts",
+      "editedAt": "2026-10-11T04:24:01.791Z",
+      "sha256": "e9152fce14f9c3bbfd89f6bbb4f0fe62fc4a3ae02b129273c092061d95e46960"
+    },
+    {
+      "file": "packages/shared/src/widgets.ts",
+      "editedAt": "2026-10-11T00:38:10.850Z",
+      "sha256": "27ca9bb5a2940918e9af7007604e13ad17a89c3865a3eb042734abc38904b5b9"
+    },
+    {
+      "file": "apps/local-server/src/reasoning.test.ts",
+      "editedAt": "2026-10-11T04:32:18.130Z",
+      "sha256": "8bfe8500a8b95ba40bf975d7e9f005a9cfca34b80bbae2e78a9a969a90587ce6"
+    },
+    {
+      "file": "apps/local-server/src/reasoning.ts",
+      "editedAt": "2026-10-11T04:32:14.496Z",
+      "sha256": "17e8999b3062dc8cf5fe451168b71670102ef2379aaa317fd98602ea43880ac8"
+    },
+    {
+      "file": "apps/local-server/src/routes/patchRoutes.test.ts",
+      "editedAt": "2026-10-11T04:51:02.440Z",
+      "sha256": "52b4e186884586b35a55c369897b188ea27ea823e5a8dde8c74be888ce570ba7"
+    },
+    {
+      "file": "apps/local-server/src/routes/patchRoutes.ts",
+      "editedAt": "2026-10-11T04:51:02.439Z",
+      "sha256": "1be620a218bb69d983ba8c0fe7d6b4a2ff15d32fb0849955bc9f6aae2a6f2148"
+    },
+    {
+      "file": "apps/web/src/components/AttentionControls.tsx",
+      "editedAt": "2026-10-11T04:45:20.169Z",
+      "sha256": "e125ced07445608dad1d3bc1bc4682792b4b16274f801ae2c4735eebfc43286b"
+    },
+    {
+      "file": "apps/web/src/components/ConversationView.attention.test.tsx",
+      "editedAt": "2026-10-11T04:50:26.394Z",
+      "sha256": "3bcbdae1ab3c965070668e647edaa63d7bf57f8ec0dee82b50d9b009937f4f41"
+    },
+    {
+      "file": "apps/web/src/components/ConversationView.reasoning.test.ts",
+      "editedAt": "2026-10-11T04:27:50.703Z",
+      "sha256": "a39b7eb47ad50f8a4c6740f7e45b7654a696ae508df6c7bfcf2194a9ef91b6f4"
+    },
+    {
+      "file": "apps/web/src/components/canvas/InteractivePatchPicker.test.tsx",
+      "editedAt": "2026-10-11T04:36:12.982Z",
+      "sha256": "402c7cbaf1c95a72efa2e3b45b291fc64154e56498e51a92e015e12f3c2f5a29"
+    },
+    {
+      "file": "apps/web/src/components/canvas/InteractivePatchPicker.tsx",
+      "editedAt": "2026-10-11T04:36:48.459Z",
+      "sha256": "39709546b024f739a976be26ae2a338b3bd374967db0ddf535f0ef8a3b89d88a"
+    },
+    {
+      "file": "apps/web/src/components/common/CommandPalette.tsx",
+      "editedAt": "2026-10-11T04:36:18.577Z",
+      "sha256": "bb098857d8fc3995b62f654ff577ff69486afdc179cb5631e6cd616fe6130c4f"
+    },
+    {
+      "file": "apps/web/src/components/common/commandPalette.css",
+      "editedAt": "2026-10-11T04:36:18.577Z",
+      "sha256": "d37055ef7558b9e47ef5221029358aa50a2584a0e806797d4fd2bf442d4eec0b"
+    },
+    {
+      "file": "apps/web/src/components/palette/CommandPalette.test.tsx",
+      "editedAt": "2026-10-11T04:41:31.688Z",
+      "sha256": "1efd52b6d37987cae52f91838dc2b44e84e174b0eecab090bc670e0fd1a18e98"
+    },
+    {
+      "file": "apps/web/src/components/palette/types.ts",
+      "editedAt": "2026-10-11T04:36:18.575Z",
+      "sha256": "b0f0db80c95deb185d7995a44f72b2b4bedf8ebb3d174e74f9eeb55844c647a2"
+    },
+    {
+      "file": "apps/web/src/components/widgets/StreamingReasoningBlock.test.tsx",
+      "editedAt": "2026-10-11T04:27:50.701Z",
+      "sha256": "46daf593ea508d66d6aed506adfedbee6f9a757fbc769a2b5750b5c1096f9f85"
+    },
+    {
+      "file": "apps/web/src/components/widgets/StreamingReasoningBlock.tsx",
+      "editedAt": "2026-10-11T04:31:03.055Z",
+      "sha256": "aeb54e5528f571e50c299f3d3018a0c45708f0863c3378e4675d979fcb340f64"
+    },
+    {
+      "file": "apps/web/src/utils/attentionManager.test.ts",
+      "editedAt": "2026-10-11T04:46:26.895Z",
+      "sha256": "f933299d5f709d1c8b8c57a319ca385711639d7f730f3404d77f086f0d236743"
+    },
+    {
+      "file": "apps/web/src/utils/attentionManager.ts",
+      "editedAt": "2026-10-11T04:45:20.169Z",
+      "sha256": "920ea50540f10fd841fc72dc277cc3421927b3e8fef1b5c6ae54d63675fd381f"
+    },
+    {
+      "file": "apps/web/src/utils/audioSynthesizer.test.ts",
+      "editedAt": "2026-10-11T04:46:54.275Z",
+      "sha256": "def185ac0557ba5e606da6b8ea84085b3fd12125bebb7b7462b7941490c60385"
+    },
+    {
+      "file": "apps/web/src/utils/audioSynthesizer.ts",
+      "editedAt": "2026-10-11T04:45:20.168Z",
+      "sha256": "02f2cd67eb3695204cf878f995e35a10dd16c028db8c982b463726f778e6d2ac"
+    },
+    {
+      "file": "packages/shared/src/patch.test.ts",
+      "editedAt": "2026-10-11T04:19:23.333Z",
+      "sha256": "6c7fb83e92f80ccb8f9d36c9c7bd05fcfd2150119434f93a5a813fa72f4a065c"
+    },
+    {
+      "file": "packages/shared/src/patch.ts",
+      "editedAt": "2026-10-11T04:19:23.331Z",
+      "sha256": "3912a42b04c9c57b413f184c0abd8a71f387da973f7cdabe2554a4166b460685"
+    },
+    {
+      "file": "packages/shared/src/reasoning.ts",
+      "editedAt": "2026-10-11T04:22:58.404Z",
+      "sha256": "222019b6874e26f5c0f2665f0ab4d88853879bdc04de1eaa0b2ed61ad4d3ba25"
+    }
+  ],
+  "activeWorkers": 0,
+  "missionStatus": "completed",
+  "workset": [
+    {
+      "id": "205",
+      "status": "completed",
+      "title": "Interactive Patch Picker & Canvas Cherrypick"
+    },
+    {
+      "id": "206",
+      "status": "completed",
+      "title": "Streaming Reasoning Flow & Rule Callout"
+    },
+    {
+      "id": "207",
+      "status": "completed",
+      "title": "Command Palette & Keyboard Navigation"
+    },
+    {
+      "id": "208",
+      "status": "completed",
+      "title": "Desktop Attention Notification & Audio Cues"
+    },
+    {
+      "id": "209",
+      "status": "completed",
+      "title": "Epic V2.5 Interactive Collaboration & Canvas Workbench"
+    }
+  ]
+}

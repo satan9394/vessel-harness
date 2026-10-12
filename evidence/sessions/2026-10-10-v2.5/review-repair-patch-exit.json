@@ -1,0 +1,4 @@
+{
+  "exit": 0,
+  "command": "npx vitest run apps/local-server/src/routes/patchRoutes.test.ts packages/shared/src/patch.test.ts"
+}

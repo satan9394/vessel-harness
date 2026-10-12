@@ -42,7 +42,7 @@ export default function LanguageSwitcher() {
         aria-label={t('language')}
         onClick={() => setOpen((o) => !o)}
       >
-        {lang === 'zh' ? '中文' : 'EN'}
+        {t(lang === 'zh' ? 'languageChinese' : 'languageEnglish')}
       </button>
       {open && (
         <div className="lang-switch-popover" role="menu" aria-label={t('language')}>
@@ -52,7 +52,7 @@ export default function LanguageSwitcher() {
             role="menuitem"
             onClick={() => choose('zh')}
           >
-            中文
+            {t('languageChinese')}
           </button>
           <button
             type="button"
@@ -60,7 +60,7 @@ export default function LanguageSwitcher() {
             role="menuitem"
             onClick={() => choose('en')}
           >
-            English
+            {t('languageEnglish')}
           </button>
         </div>
       )}
