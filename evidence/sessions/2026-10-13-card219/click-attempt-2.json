@@ -1,0 +1,168 @@
+{
+  "receipts": [
+    {
+      "step": "Navigation: activity",
+      "status": "PASS",
+      "durationMs": 78
+    },
+    {
+      "step": "Navigation: studio",
+      "status": "PASS",
+      "durationMs": 78
+    },
+    {
+      "step": "Navigation: settings",
+      "status": "PASS",
+      "durationMs": 47
+    },
+    {
+      "step": "Navigation: workbench",
+      "status": "PASS",
+      "durationMs": 62
+    },
+    {
+      "step": "Empty task cannot create session",
+      "status": "PASS",
+      "durationMs": 0
+    },
+    {
+      "step": "Project selector click and choose fixture",
+      "status": "PASS",
+      "durationMs": 63
+    },
+    {
+      "step": "Task input focus and typing",
+      "status": "PASS",
+      "durationMs": 62
+    },
+    {
+      "step": "Model pill switch: [\"local-fixture\",\"fixture-a\"]",
+      "status": "PASS",
+      "durationMs": 78
+    },
+    {
+      "step": "Model pill switch: [\"local-fixture\",\"fixture-b\"]",
+      "status": "PASS",
+      "durationMs": 62
+    },
+    {
+      "step": "Permission pill: read-only",
+      "status": "PASS",
+      "durationMs": 78
+    },
+    {
+      "step": "Permission pill: workspace-write",
+      "status": "PASS",
+      "durationMs": 63
+    },
+    {
+      "step": "Start task creates session and real streamed response",
+      "status": "PASS",
+      "durationMs": 1000
+    },
+    {
+      "step": "Streamed thinking expand",
+      "status": "PASS",
+      "durationMs": 94
+    },
+    {
+      "step": "Streamed thinking collapse",
+      "status": "PASS",
+      "durationMs": 234
+    },
+    {
+      "step": "Send input by button",
+      "status": "PASS",
+      "durationMs": 94
+    },
+    {
+      "step": "Send input by Enter",
+      "status": "PASS",
+      "durationMs": 47
+    },
+    {
+      "step": "History session click",
+      "status": "PASS",
+      "durationMs": 47
+    },
+    {
+      "step": "Inspector open",
+      "status": "PASS",
+      "durationMs": 94
+    },
+    {
+      "step": "Inspector tab: Swarm",
+      "status": "PASS",
+      "durationMs": 47
+    },
+    {
+      "step": "Inspector tab: Cognition",
+      "status": "PASS",
+      "durationMs": 31
+    },
+    {
+      "step": "Inspector tab: KV Cache",
+      "status": "PASS",
+      "durationMs": 78
+    },
+    {
+      "step": "Inspector tab: AST",
+      "status": "PASS",
+      "durationMs": 63
+    },
+    {
+      "step": "Inspector tab: Patch",
+      "status": "PASS",
+      "durationMs": 63
+    },
+    {
+      "step": "Patch accept persists file",
+      "status": "FAIL",
+      "error": "Locator expected to have text 'Accepted'\nActual value: accepted \nCall log:\n  - Expect \"to_have_text\" with timeout 5000ms\n  - waiting for locator(\".docked-inspector article[aria-label=\\\"a.txt#hunk-0\\\"]\").get_by_role(\"status\")\n    - locator resolved to <span role=\"status\">pending</span>\n    - unexpected value \"pending\"\n    13 \u00d7 locator resolved to <span role=\"status\">accepted</span>\n       - unexpected value \"accepted\"\n\nAria snapshot:\n- status: accepted"
+    }
+  ],
+  "errors": [],
+  "mutations": [
+    {
+      "url": "http://127.0.0.1:54502/api/projects/open",
+      "method": "POST",
+      "body": "{\"workspaceRoot\":\"C:\\\\Users\\\\SATANC~1\\\\AppData\\\\Local\\\\Temp\\\\vessel-card219-browser-KuYAKc\\\\workspace\"}"
+    },
+    {
+      "url": "http://127.0.0.1:54502/api/sessions",
+      "method": "POST",
+      "body": "{\"workspaceRoot\":\"C:\\\\Users\\\\SATANC~1\\\\AppData\\\\Local\\\\Temp\\\\vessel-card219-browser-KuYAKc\\\\workspace\",\"permission\":\"workspace-write\",\"provider\":\"local-fixture\",\"model\":\"fixture-b\"}"
+    },
+    {
+      "url": "http://127.0.0.1:54502/api/sessions/sess_1791871178235_9e96fb13/topic",
+      "method": "PATCH",
+      "body": "{\"title\":\"Card 219 real click task\"}"
+    },
+    {
+      "url": "http://127.0.0.1:54502/api/sessions/sess_1791871178235_9e96fb13/turns",
+      "method": "POST",
+      "body": "{\"prompt\":\"Card 219 real click task\"}"
+    },
+    {
+      "url": "http://127.0.0.1:54502/api/sessions/sess_1791871178235_9e96fb13/turns",
+      "method": "POST",
+      "body": "{\"prompt\":\"Button send click\"}"
+    },
+    {
+      "url": "http://127.0.0.1:54502/api/sessions/sess_1791871178235_9e96fb13/turns",
+      "method": "POST",
+      "body": "{\"prompt\":\"Enter send click\"}"
+    },
+    {
+      "url": "http://127.0.0.1:54502/api/session/sess_1791871000351_eac95495/patch/apply",
+      "method": "POST",
+      "body": "{\"widgetId\":\"proposal\",\"hunkId\":\"a.txt#hunk-0\",\"action\":\"accept\"}"
+    }
+  ],
+  "matrix_gaps": [
+    "Inspector has five current tabs, not the four historical tabs in the card.",
+    "Task permission offers read-only and workspace-write; no full-access preset.",
+    "Empty task is blocked with disabled Start, without a validation alert.",
+    "Customize has no reset-to-default control."
+  ]
+}

@@ -1,0 +1,20 @@
+[
+  {
+    "status": "PASS",
+    "drawer": false,
+    "viewport": 1440,
+    "documentWidth": 1440
+  },
+  {
+    "status": "PASS",
+    "drawer": false,
+    "viewport": 800,
+    "documentWidth": 800
+  },
+  {
+    "status": "PASS",
+    "drawer": true,
+    "viewport": 800,
+    "documentWidth": 800
+  }
+]

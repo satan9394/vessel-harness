@@ -1,0 +1,40 @@
+{
+  "baselineHead": "26ba6fe996e88824e3b969b4d0c185060e2b4893",
+  "currentHead": "26ba6fe996e88824e3b969b4d0c185060e2b4893",
+  "coreDiff": [],
+  "coreUntracked": [],
+  "coreChangedLines": 0,
+  "lockSHA256": "659C785C9C276761F9D88271BC2FD2365A9FE218AB4ACA4C989D73790D82E24D",
+  "lockUnchanged": true,
+  "foreignLockFilesIntroduced": [],
+  "productSourceDiff": [
+    "apps/web/src/components/ConversationView.attention.test.tsx",
+    "apps/web/src/components/ConversationView.tsx"
+  ],
+  "unauthorizedSourceDiff": [],
+  "currentStatus": [
+    " M HANDOFF.md",
+    " M apps/web/src/components/ConversationView.attention.test.tsx",
+    " M apps/web/src/components/ConversationView.tsx",
+    " M tasks/README.md",
+    "?? evidence/sessions/2026-10-13-card219/",
+    "?? tasks/219-full-surface-interactive-click-testing-suite.md"
+  ],
+  "preexistingStatus": [
+    " M HANDOFF.md",
+    " M tasks/README.md",
+    "?? tasks/219-full-surface-interactive-click-testing-suite.md"
+  ],
+  "noCommitPushPublish": true,
+  "providedCredentialAbsent": true,
+  "fixtureTermination": {
+    "fixturePorts": [
+      62812,
+      62807
+    ],
+    "remainingListeners": 0,
+    "browserRunExitCode": 0,
+    "fixtureStop": "Ctrl+C",
+    "tempRootsPreserved": true
+  }
+}

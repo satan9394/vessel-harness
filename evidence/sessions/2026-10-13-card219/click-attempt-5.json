@@ -1,0 +1,173 @@
+{
+  "receipts": [
+    {
+      "step": "Navigation: activity",
+      "status": "PASS",
+      "durationMs": 94
+    },
+    {
+      "step": "Navigation: studio",
+      "status": "PASS",
+      "durationMs": 78
+    },
+    {
+      "step": "Navigation: settings",
+      "status": "PASS",
+      "durationMs": 62
+    },
+    {
+      "step": "Navigation: workbench",
+      "status": "PASS",
+      "durationMs": 32
+    },
+    {
+      "step": "Empty task cannot create session",
+      "status": "PASS",
+      "durationMs": 0
+    },
+    {
+      "step": "Project selector click and choose fixture",
+      "status": "PASS",
+      "durationMs": 63
+    },
+    {
+      "step": "Task input focus and typing",
+      "status": "PASS",
+      "durationMs": 78
+    },
+    {
+      "step": "Model pill switch: [\"local-fixture\",\"fixture-a\"]",
+      "status": "PASS",
+      "durationMs": 94
+    },
+    {
+      "step": "Model pill switch: [\"local-fixture\",\"fixture-b\"]",
+      "status": "PASS",
+      "durationMs": 109
+    },
+    {
+      "step": "Permission pill: read-only",
+      "status": "PASS",
+      "durationMs": 78
+    },
+    {
+      "step": "Permission pill: workspace-write",
+      "status": "PASS",
+      "durationMs": 110
+    },
+    {
+      "step": "Start task creates session and real streamed response",
+      "status": "PASS",
+      "durationMs": 516
+    },
+    {
+      "step": "Streamed thinking expand",
+      "status": "PASS",
+      "durationMs": 93
+    },
+    {
+      "step": "Streamed thinking collapse",
+      "status": "PASS",
+      "durationMs": 266
+    },
+    {
+      "step": "Send input by button",
+      "status": "PASS",
+      "durationMs": 63
+    },
+    {
+      "step": "Send input by Enter",
+      "status": "PASS",
+      "durationMs": 47
+    },
+    {
+      "step": "History session click",
+      "status": "PASS",
+      "durationMs": 94
+    },
+    {
+      "step": "Inspector open",
+      "status": "PASS",
+      "durationMs": 47
+    },
+    {
+      "step": "Inspector tab: Swarm",
+      "status": "PASS",
+      "durationMs": 63
+    },
+    {
+      "step": "Inspector tab: Cognition",
+      "status": "PASS",
+      "durationMs": 46
+    },
+    {
+      "step": "Inspector tab: KV Cache",
+      "status": "PASS",
+      "durationMs": 63
+    },
+    {
+      "step": "Inspector tab: AST",
+      "status": "PASS",
+      "durationMs": 78
+    },
+    {
+      "step": "Inspector tab: Patch",
+      "status": "PASS",
+      "durationMs": 78
+    },
+    {
+      "step": "Patch accept persists file",
+      "status": "PASS",
+      "durationMs": 78
+    },
+    {
+      "step": "Patch discard second hunk",
+      "status": "FAIL",
+      "error": "Locator.click: Timeout 30000ms exceeded.\nCall log:\n  - waiting for locator(\".docked-inspector article[aria-label=\\\"a.txt#hunk-1\\\"]\").get_by_role(\"button\", name=\"Discard hunk\", exact=True)\n    - locator resolved to <button disabled class=\"btn\" type=\"button\">Discard hunk</button>\n  - attempting click action\n    2 \u00d7 waiting for element to be visible, enabled and stable\n      - element is not enabled\n    - retrying click action\n    - waiting 20ms\n    2 \u00d7 waiting for element to be visible, enabled and stable\n      - element is not enabled\n    - retrying click action\n      - waiting 100ms\n    57 \u00d7 waiting for element to be visible, enabled and stable\n       - element is not enabled\n     - retrying click action\n       - waiting 500ms\n"
+    }
+  ],
+  "errors": [],
+  "mutations": [
+    {
+      "url": "http://127.0.0.1:50531/api/projects/open",
+      "method": "POST",
+      "body": "{\"workspaceRoot\": \"C:\\\\Users\\\\SATANC~1\\\\AppData\\\\Local\\\\Temp\\\\vessel-card219-browser-fjcdGx\\\\workspace\"}"
+    },
+    {
+      "url": "http://127.0.0.1:50531/api/sessions",
+      "method": "POST",
+      "body": "{\"workspaceRoot\": \"C:\\\\Users\\\\SATANC~1\\\\AppData\\\\Local\\\\Temp\\\\vessel-card219-browser-fjcdGx\\\\workspace\", \"permission\": \"workspace-write\", \"provider\": \"local-fixture\", \"model\": \"fixture-b\"}"
+    },
+    {
+      "url": "http://127.0.0.1:50531/api/sessions/sess_1791871384697_f408ae00/topic",
+      "method": "PATCH",
+      "body": "{\"title\": \"Card 219 real click task\"}"
+    },
+    {
+      "url": "http://127.0.0.1:50531/api/sessions/sess_1791871384697_f408ae00/turns",
+      "method": "POST",
+      "body": "{\"prompt\": \"Card 219 real click task\"}"
+    },
+    {
+      "url": "http://127.0.0.1:50531/api/sessions/sess_1791871384697_f408ae00/turns",
+      "method": "POST",
+      "body": "{\"prompt\": \"Button send click\"}"
+    },
+    {
+      "url": "http://127.0.0.1:50531/api/sessions/sess_1791871384697_f408ae00/turns",
+      "method": "POST",
+      "body": "{\"prompt\": \"Enter send click\"}"
+    },
+    {
+      "url": "http://127.0.0.1:50531/api/session/sess_1791871264891_bbd3fd7a/patch/apply",
+      "method": "POST",
+      "body": "{\"widgetId\": \"proposal\", \"hunkId\": \"a.txt#hunk-0\", \"action\": \"accept\"}"
+    }
+  ],
+  "matrix_gaps": [
+    "Inspector has five current tabs, not the four historical tabs in the card.",
+    "Task permission offers read-only and workspace-write; no full-access preset.",
+    "Empty task is blocked with disabled Start, without a validation alert.",
+    "Customize has no reset-to-default control."
+  ]
+}

@@ -1,0 +1,55 @@
+{"step": "Navigation: activity", "status": "PASS", "durationMs": 78}
+{"step": "Navigation: studio", "status": "PASS", "durationMs": 78}
+{"step": "Navigation: settings", "status": "PASS", "durationMs": 47}
+{"step": "Navigation: workbench", "status": "PASS", "durationMs": 62}
+{"step": "Empty task cannot create session", "status": "PASS", "durationMs": 0}
+{"step": "Project selector click and choose fixture", "status": "PASS", "durationMs": 63}
+{"step": "Task input focus and typing", "status": "PASS", "durationMs": 62}
+{"step": "Model pill switch: [\"local-fixture\",\"fixture-a\"]", "status": "PASS", "durationMs": 78}
+{"step": "Model pill switch: [\"local-fixture\",\"fixture-b\"]", "status": "PASS", "durationMs": 62}
+{"step": "Permission pill: read-only", "status": "PASS", "durationMs": 78}
+{"step": "Permission pill: workspace-write", "status": "PASS", "durationMs": 63}
+{"step": "Start task creates session and real streamed response", "status": "PASS", "durationMs": 1000}
+{"step": "Streamed thinking expand", "status": "PASS", "durationMs": 94}
+{"step": "Streamed thinking collapse", "status": "PASS", "durationMs": 234}
+{"step": "Send input by button", "status": "PASS", "durationMs": 94}
+{"step": "Send input by Enter", "status": "PASS", "durationMs": 47}
+{"step": "History session click", "status": "PASS", "durationMs": 47}
+{"step": "Inspector open", "status": "PASS", "durationMs": 94}
+{"step": "Inspector tab: Swarm", "status": "PASS", "durationMs": 47}
+{"step": "Inspector tab: Cognition", "status": "PASS", "durationMs": 31}
+{"step": "Inspector tab: KV Cache", "status": "PASS", "durationMs": 78}
+{"step": "Inspector tab: AST", "status": "PASS", "durationMs": 63}
+{"step": "Inspector tab: Patch", "status": "PASS", "durationMs": 63}
+{"step": "Patch accept persists file", "status": "FAIL", "error": "Locator expected to have text 'Accepted'\nActual value: accepted \nCall log:\n  - Expect \"to_have_text\" with timeout 5000ms\n  - waiting for locator(\".docked-inspector article[aria-label=\\\"a.txt#hunk-0\\\"]\").get_by_role(\"status\")\n    - locator resolved to <span role=\"status\">pending</span>\n    - unexpected value \"pending\"\n    13 \u00d7 locator resolved to <span role=\"status\">accepted</span>\n       - unexpected value \"accepted\"\n\nAria snapshot:\n- status: accepted"}
+Traceback (most recent call last):
+  File "E:\Code_file\Projects\Vessel_Harness\evidence\sessions\2026-10-13-card219\click-walkthrough.py", line 80, in <module>
+    step('Patch accept persists file', lambda: (patch.get_by_role('button',name='Accept hunk',exact=True).click(),expect(patch.get_by_role('status')).to_have_text('Accepted')))
+  File "E:\Code_file\Projects\Vessel_Harness\evidence\sessions\2026-10-13-card219\click-walkthrough.py", line 21, in step
+    action()
+  File "E:\Code_file\Projects\Vessel_Harness\evidence\sessions\2026-10-13-card219\click-walkthrough.py", line 80, in <lambda>
+    step('Patch accept persists file', lambda: (patch.get_by_role('button',name='Accept hunk',exact=True).click(),expect(patch.get_by_role('status')).to_have_text('Accepted')))
+                                                                                                                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Satanchen\AppData\Roaming\Python\Python311\site-packages\playwright\sync_api\_generated.py", line 22526, in to_have_text
+    self._sync(
+  File "C:\Users\Satanchen\AppData\Roaming\Python\Python311\site-packages\playwright\_impl\_sync_base.py", line 115, in _sync
+    return task.result()
+           ^^^^^^^^^^^^^
+  File "C:\Users\Satanchen\AppData\Roaming\Python\Python311\site-packages\playwright\_impl\_assertions.py", line 637, in to_have_text
+    await self._expect_impl(
+  File "C:\Users\Satanchen\AppData\Roaming\Python\Python311\site-packages\playwright\_impl\_assertions.py", line 126, in _expect_impl
+    _record_soft_or_raise(
+  File "C:\Users\Satanchen\AppData\Roaming\Python\Python311\site-packages\playwright\_impl\_assertions.py", line 60, in _record_soft_or_raise
+    raise error
+AssertionError: Locator expected to have text 'Accepted'
+Actual value: accepted 
+Call log:
+  - Expect "to_have_text" with timeout 5000ms
+  - waiting for locator(".docked-inspector article[aria-label=\"a.txt#hunk-0\"]").get_by_role("status")
+    - locator resolved to <span role="status">pending</span>
+    - unexpected value "pending"
+    13 �� locator resolved to <span role="status">accepted</span>
+       - unexpected value "accepted"
+
+Aria snapshot:
+- status: accepted

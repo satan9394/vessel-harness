@@ -1,0 +1,47 @@
+{"step": "Navigation: activity", "status": "PASS", "durationMs": 109}
+{"step": "Navigation: studio", "status": "PASS", "durationMs": 78}
+{"step": "Navigation: settings", "status": "PASS", "durationMs": 47}
+{"step": "Navigation: workbench", "status": "PASS", "durationMs": 47}
+{"step": "Empty task cannot create session", "status": "PASS", "durationMs": 0}
+{"step": "Project selector click and choose fixture", "status": "PASS", "durationMs": 78}
+{"step": "Task input focus and typing", "status": "PASS", "durationMs": 62}
+{"step": "Model pill switch: [\"local-fixture\",\"fixture-a\"]", "status": "PASS", "durationMs": 63}
+{"step": "Model pill switch: [\"local-fixture\",\"fixture-b\"]", "status": "PASS", "durationMs": 109}
+{"step": "Permission pill: read-only", "status": "PASS", "durationMs": 94}
+{"step": "Permission pill: workspace-write", "status": "PASS", "durationMs": 78}
+{"step": "Start task creates session and real streamed response", "status": "PASS", "durationMs": 562}
+{"step": "Streamed thinking expand", "status": "PASS", "durationMs": 125}
+{"step": "Streamed thinking collapse", "status": "PASS", "durationMs": 282}
+{"step": "Send input by button", "status": "FAIL", "error": "Locator.fill: Error: strict mode violation: locator(\".composer-input\") resolved to 2 elements:\n    1) <input value=\"\" class=\"input composer-input\" placeholder=\"Type a message\u2026 (Enter to send)\"/> aka get_by_role(\"textbox\", name=\"Type a message\u2026 (Enter to\")\n    2) <input value=\"\" class=\"input composer-input\" placeholder=\"Goal\u2026 (enqueue into this project's task queue)\"/> aka get_by_role(\"textbox\", name=\"Goal\u2026 (enqueue into this\")\n\nCall log:\n  - waiting for locator(\".composer-input\")\n"}
+Traceback (most recent call last):
+  File "E:\Code_file\Projects\Vessel_Harness\evidence\sessions\2026-10-13-card219\click-walkthrough.py", line 68, in <module>
+    step('Send input by button', lambda: (page.locator('.composer-input').fill('Button send click'),click('.composer button[type="submit"]'),expect(page.locator('.message-list-scroll')).to_contain_text('Button send click')))
+  File "E:\Code_file\Projects\Vessel_Harness\evidence\sessions\2026-10-13-card219\click-walkthrough.py", line 21, in step
+    action()
+  File "E:\Code_file\Projects\Vessel_Harness\evidence\sessions\2026-10-13-card219\click-walkthrough.py", line 68, in <lambda>
+    step('Send input by button', lambda: (page.locator('.composer-input').fill('Button send click'),click('.composer button[type="submit"]'),expect(page.locator('.message-list-scroll')).to_contain_text('Button send click')))
+                                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Satanchen\AppData\Roaming\Python\Python311\site-packages\playwright\sync_api\_generated.py", line 18030, in fill
+    self._sync(
+  File "C:\Users\Satanchen\AppData\Roaming\Python\Python311\site-packages\playwright\_impl\_sync_base.py", line 115, in _sync
+    return task.result()
+           ^^^^^^^^^^^^^
+  File "C:\Users\Satanchen\AppData\Roaming\Python\Python311\site-packages\playwright\_impl\_locator.py", line 216, in fill
+    return await self._frame.fill(self._selector, strict=True, **params)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Satanchen\AppData\Roaming\Python\Python311\site-packages\playwright\_impl\_frame.py", line 632, in fill
+    await self._fill(**locals_to_params(locals()))
+  File "C:\Users\Satanchen\AppData\Roaming\Python\Python311\site-packages\playwright\_impl\_frame.py", line 644, in _fill
+    await self._channel.send("fill", self._timeout, locals_to_params(locals()))
+  File "C:\Users\Satanchen\AppData\Roaming\Python\Python311\site-packages\playwright\_impl\_connection.py", line 69, in send
+    return await self._connection.wrap_api_call(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Satanchen\AppData\Roaming\Python\Python311\site-packages\playwright\_impl\_connection.py", line 563, in wrap_api_call
+    raise rewrite_error(error, f"{parsed_st['apiName']}: {error}") from None
+playwright._impl._errors.Error: Locator.fill: Error: strict mode violation: locator(".composer-input") resolved to 2 elements:
+    1) <input value="" class="input composer-input" placeholder="Type a message�� (Enter to send)"/> aka get_by_role("textbox", name="Type a message�� (Enter to")
+    2) <input value="" class="input composer-input" placeholder="Goal�� (enqueue into this project's task queue)"/> aka get_by_role("textbox", name="Goal�� (enqueue into this")
+
+Call log:
+  - waiting for locator(".composer-input")
+

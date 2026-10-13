@@ -1,0 +1,86 @@
+
+ RUN  v5.0.1 E:/Code_file/Projects/Vessel_Harness
+
+ ❯ packages/context/tests/ast/symbolGraph.test.ts (12 tests | 1 failed) 2204ms
+   ❯ exact AST symbol graph (12)
+     × updates actual single-file edits with mean <=15ms and peak <=25ms on the fixture 1617ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  packages/context/tests/ast/symbolGraph.test.ts > exact AST symbol graph > updates actual single-file edits with mean <=15ms and peak <=25ms on the fixture
+AssertionError: {
+  "command": "node --import tsx evidence/sessions/2026-10-08-v2.3/card197-check.ts",
+  "fixtureFiles": [
+    "api.ts",
+    "barrel.ts",
+    "caller.ts",
+    "noise.ts"
+  ],
+  "precision": 1,
+  "expectedCallers": [
+    "caller.ts#caller",
+    "caller.ts#execute"
+  ],
+  "actualCallers": [
+    "caller.ts#caller",
+    "caller.ts#execute"
+  ],
+  "warmupEdits": 8,
+  "measuredEdits": 12,
+  "samplesMs": [
+    29.50980000000004,
+    39.497499999999945,
+    30.53150000000005,
+    21.16210000000001,
+    15.615800000000036,
+    13.953800000000001,
+    13.588100000000168,
+    7.4184999999999945,
+    15.200500000000147,
+    16.388099999999895,
+    14.798800000000028,
+    14.524799999999914
+  ],
+  "maximumMs": 39.497499999999945,
+  "meanMs": 19.34910833333335,
+  "timingScope": "UTF-8 source read, parse changed file, rebuild/check cached explicit files and resolve all graph edges; excludes disk write and subsequent assertions"
+}
+node:internal/modules/run_main:107
+    triggerUncaughtException(
+    ^
+
+AssertionError [ERR_ASSERTION]: mean warmed real-edit update must complete within 15ms
+    at <anonymous> (E:\Code_file\Projects\Vessel_Harness\evidence\sessions\2026-10-08-v2.3\card197-check.ts:40:10) {
+  generatedMessage: false,
+  code: 'ERR_ASSERTION',
+  actual: false,
+  expected: true,
+  operator: '==',
+  diff: 'simple'
+}
+
+Node.js v24.14.0
+: expected 1 to be +0 // Object.is equality
+
+- Expected
++ Received
+
+- 0
++ 1
+
+ ❯ packages/context/tests/ast/symbolGraph.test.ts:150:64
+    148|     const repo = path.resolve(import.meta.dirname, '../../../..');
+    149|     const measured = spawnSync(process.execPath, ['--import', 'tsx', '…
+    150|     expect(measured.status, measured.stdout + measured.stderr).toBe(0);
+       |                                                                ^
+    151|     const proof = JSON.parse(measured.stdout);
+    152|     expect(proof.measuredEdits).toBe(12);
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 11 passed (12)
+   Start at  04:13:24
+   Duration  3.61s (tests 79%, import 9%, transform 9%, worker 2%, setup 1%)
+

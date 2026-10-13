@@ -37,6 +37,20 @@ function conversationItem(delta: ConversationDelta): ChatItem {
   return { id: nextId(), kind: 'message', msg: delta };
 }
 
+interface ConversationSnapshot {
+  items: ChatItem[];
+  usage: UsageTotals;
+  turnMetrics: TalkingMetrics;
+  cacheHistory: CacheUsageMetrics[];
+  observation?: InspectorObservation;
+  input: string;
+  pendingTool: Record<string, ToolDelta>;
+}
+// ponytail: replay only observations from this page lifetime, including view remounts.
+// The existing server API has no transcript hydration; reloads and unseen turns
+// cannot be reconstructed here. Weak API ownership keeps different clients isolated.
+const snapshotsByClient = new WeakMap<ApiClient, Map<string, ConversationSnapshot>>();
+
 /**
  * Conversation main view for a selected session: message list + input, plus a
  * live SSE stream over /api/sessions/:id/events that appends assistant text,
@@ -44,18 +58,20 @@ function conversationItem(delta: ConversationDelta): ChatItem {
  */
 export default function ConversationView({ sessionId, api, onSessionUpdated, viewRequest, attention, providerRevision, onConfigureModels, initialTask, onInitialTaskConsumed, sessionTitle }: Props) {
   const { t } = useI18n();
-  const [items, setItems] = useState<ChatItem[]>([]);
-  const [usage, setUsage] = useState<UsageTotals>(emptyUsage);
-  const [turnMetrics, setTurnMetrics] = useState<TalkingMetrics>({});
-  const [cacheHistory, setCacheHistory] = useState<CacheUsageMetrics[]>([]);
-  const [observation, setObservation] = useState<InspectorObservation>();
-  const [input, setInput] = useState('');
+  const saved = snapshotsByClient.get(api)?.get(sessionId);
+  const [items, setItems] = useState<ChatItem[]>(() => saved?.items ?? []);
+  const [usage, setUsage] = useState<UsageTotals>(() => saved?.usage ?? emptyUsage());
+  const [turnMetrics, setTurnMetrics] = useState<TalkingMetrics>(() => saved?.turnMetrics ?? {});
+  const [cacheHistory, setCacheHistory] = useState<CacheUsageMetrics[]>(() => saved?.cacheHistory ?? []);
+  const [observation, setObservation] = useState<InspectorObservation | undefined>(() => saved?.observation);
+  const [input, setInput] = useState(() => saved?.input ?? '');
   const [modelBusy, setModelBusy] = useState(false);
   const [busy, setBusy] = useState(false); // a turn is in flight
   const [error, setError] = useState<string | null>(null);
   const [serverDown, setServerDown] = useState(false);
   const [auditRevision, setAuditRevision] = useState(0);
   const pendingTool = useRef<Record<string, ToolDelta>>({});
+  const latest = useRef({ items, usage, turnMetrics, cacheHistory, observation, input });
   const listRef = useRef<HTMLDivElement | null>(null);
   const activeSession = useRef(sessionId);
   const sessionGeneration = useRef(0);
@@ -141,43 +157,56 @@ export default function ConversationView({ sessionId, api, onSessionUpdated, vie
     setItems(prev => applyThinkingDelta(prev, delta));
   }, []);
 
-  // Open the SSE stream for this session; reset local state per session switch.
   useEffect(() => {
-    sessionGeneration.current += 1;
+    latest.current = { items, usage, turnMetrics, cacheHistory, observation, input };
+  }, [items, usage, turnMetrics, cacheHistory, observation, input]);
+
+  // Restore this page's observations and subscribe only to new live deltas.
+  useEffect(() => {
+    const generation = ++sessionGeneration.current;
+    let snapshots = snapshotsByClient.get(api);
+    if (!snapshots) { snapshots = new Map(); snapshotsByClient.set(api, snapshots); }
+    const saved = snapshots.get(sessionId);
     attention?.clear();
-    setItems([]);
-    setUsage(emptyUsage);
-    setTurnMetrics({});
-    setCacheHistory([]);
-    setObservation(undefined);
+    setItems(saved?.items ?? []);
+    setUsage(saved?.usage ?? emptyUsage());
+    setTurnMetrics(saved?.turnMetrics ?? {});
+    setCacheHistory(saved?.cacheHistory ?? []);
+    setObservation(saved?.observation);
+    setInput(saved?.input ?? '');
+    setModelBusy(false);
     setBusy(false);
     setError(null);
     setServerDown(false);
-    pendingTool.current = {};
+    pendingTool.current = { ...saved?.pendingTool };
 
     let connected = true;
+    const current = () => connected && activeSession.current === sessionId && sessionGeneration.current === generation;
     const stream = createEventStream(`/api/sessions/${encodeURIComponent(sessionId)}/events`, {
-      onConversation: delta => { setItems(previous => finishThinking(previous)); appendMessage(delta); },
-      onTool,
-      onUsage,
-      onThinking: delta => { if (connected && activeSession.current === sessionId) onThinking(delta); },
+      onConversation: delta => { if (!current()) return; setItems(previous => finishThinking(previous)); appendMessage(delta); },
+      onTool: delta => { if (current()) onTool(delta); },
+      onUsage: delta => { if (current()) onUsage(delta); },
+      onThinking: delta => { if (current()) onThinking(delta); },
       onWidget: widget => {
-        if (!connected || activeSession.current !== sessionId) return;
+        if (!current()) return;
         attention?.widget(sessionId, widget);
         setItems(previous => upsertWidget(previous, widget));
       },
       onWidgetResponse: response => {
-        if (!connected || activeSession.current !== sessionId) return;
+        if (!current()) return;
         attention?.resolvedWidget(sessionId, response.widgetId);
         setItems(previous => resolveWidget(previous, response));
       },
-      onInspector: setObservation,
+      onInspector: delta => { if (current()) setObservation(delta); },
       // policy denies surface as tool rows with status 'denied' via onTool.
     });
-    return () => { connected = false; sessionGeneration.current += 1; stream.close(); attention?.clear(); };
+    return () => {
+      connected = false; sessionGeneration.current += 1; stream.close(); attention?.clear();
+      snapshots.set(sessionId, { ...latest.current, items: finishThinking(latest.current.items), pendingTool: { ...pendingTool.current } });
+    };
     // api is stable across mounts; only the session drives reconnects.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sessionId]);
+  }, [api, sessionId]);
 
   const send = useCallback(
     async (text: string) => {

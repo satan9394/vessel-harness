@@ -1,0 +1,108 @@
+{
+  "receipts": [
+    {
+      "step": "Navigation: activity",
+      "status": "PASS",
+      "durationMs": 109
+    },
+    {
+      "step": "Navigation: studio",
+      "status": "PASS",
+      "durationMs": 78
+    },
+    {
+      "step": "Navigation: settings",
+      "status": "PASS",
+      "durationMs": 47
+    },
+    {
+      "step": "Navigation: workbench",
+      "status": "PASS",
+      "durationMs": 47
+    },
+    {
+      "step": "Empty task cannot create session",
+      "status": "PASS",
+      "durationMs": 0
+    },
+    {
+      "step": "Project selector click and choose fixture",
+      "status": "PASS",
+      "durationMs": 78
+    },
+    {
+      "step": "Task input focus and typing",
+      "status": "PASS",
+      "durationMs": 62
+    },
+    {
+      "step": "Model pill switch: [\"local-fixture\",\"fixture-a\"]",
+      "status": "PASS",
+      "durationMs": 63
+    },
+    {
+      "step": "Model pill switch: [\"local-fixture\",\"fixture-b\"]",
+      "status": "PASS",
+      "durationMs": 109
+    },
+    {
+      "step": "Permission pill: read-only",
+      "status": "PASS",
+      "durationMs": 94
+    },
+    {
+      "step": "Permission pill: workspace-write",
+      "status": "PASS",
+      "durationMs": 78
+    },
+    {
+      "step": "Start task creates session and real streamed response",
+      "status": "PASS",
+      "durationMs": 562
+    },
+    {
+      "step": "Streamed thinking expand",
+      "status": "PASS",
+      "durationMs": 125
+    },
+    {
+      "step": "Streamed thinking collapse",
+      "status": "PASS",
+      "durationMs": 282
+    },
+    {
+      "step": "Send input by button",
+      "status": "FAIL",
+      "error": "Locator.fill: Error: strict mode violation: locator(\".composer-input\") resolved to 2 elements:\n    1) <input value=\"\" class=\"input composer-input\" placeholder=\"Type a message\u2026 (Enter to send)\"/> aka get_by_role(\"textbox\", name=\"Type a message\u2026 (Enter to\")\n    2) <input value=\"\" class=\"input composer-input\" placeholder=\"Goal\u2026 (enqueue into this project's task queue)\"/> aka get_by_role(\"textbox\", name=\"Goal\u2026 (enqueue into this\")\n\nCall log:\n  - waiting for locator(\".composer-input\")\n"
+    }
+  ],
+  "errors": [],
+  "mutations": [
+    {
+      "url": "http://127.0.0.1:54502/api/projects/open",
+      "method": "POST",
+      "body": "{\"workspaceRoot\":\"C:\\\\Users\\\\SATANC~1\\\\AppData\\\\Local\\\\Temp\\\\vessel-card219-browser-KuYAKc\\\\workspace\"}"
+    },
+    {
+      "url": "http://127.0.0.1:54502/api/sessions",
+      "method": "POST",
+      "body": "{\"workspaceRoot\":\"C:\\\\Users\\\\SATANC~1\\\\AppData\\\\Local\\\\Temp\\\\vessel-card219-browser-KuYAKc\\\\workspace\",\"permission\":\"workspace-write\",\"provider\":\"local-fixture\",\"model\":\"fixture-b\"}"
+    },
+    {
+      "url": "http://127.0.0.1:54502/api/sessions/sess_1791871107077_9cd9af70/topic",
+      "method": "PATCH",
+      "body": "{\"title\":\"Card 219 real click task\"}"
+    },
+    {
+      "url": "http://127.0.0.1:54502/api/sessions/sess_1791871107077_9cd9af70/turns",
+      "method": "POST",
+      "body": "{\"prompt\":\"Card 219 real click task\"}"
+    }
+  ],
+  "matrix_gaps": [
+    "Inspector has five current tabs, not the four historical tabs in the card.",
+    "Task permission offers read-only and workspace-write; no full-access preset.",
+    "Empty task is blocked with disabled Start, without a validation alert.",
+    "Customize has no reset-to-default control."
+  ]
+}

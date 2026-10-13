@@ -1,0 +1,258 @@
+{
+  "receipts": [
+    {
+      "step": "Navigation: activity",
+      "status": "PASS",
+      "durationMs": 125
+    },
+    {
+      "step": "Navigation: studio",
+      "status": "PASS",
+      "durationMs": 78
+    },
+    {
+      "step": "Navigation: settings",
+      "status": "PASS",
+      "durationMs": 78
+    },
+    {
+      "step": "Navigation: workbench",
+      "status": "PASS",
+      "durationMs": 47
+    },
+    {
+      "step": "Empty task cannot create session",
+      "status": "PASS",
+      "durationMs": 16
+    },
+    {
+      "step": "Project selector click and choose fixture",
+      "status": "PASS",
+      "durationMs": 94
+    },
+    {
+      "step": "Task input focus and typing",
+      "status": "PASS",
+      "durationMs": 62
+    },
+    {
+      "step": "Model pill switch: [\"local-fixture\",\"fixture-a\"]",
+      "status": "PASS",
+      "durationMs": 78
+    },
+    {
+      "step": "Model pill switch: [\"local-fixture\",\"fixture-b\"]",
+      "status": "PASS",
+      "durationMs": 63
+    },
+    {
+      "step": "Permission pill: read-only",
+      "status": "PASS",
+      "durationMs": 62
+    },
+    {
+      "step": "Permission pill: workspace-write",
+      "status": "PASS",
+      "durationMs": 63
+    },
+    {
+      "step": "Start task creates session and real streamed response",
+      "status": "PASS",
+      "durationMs": 469
+    },
+    {
+      "step": "Streamed thinking expand",
+      "status": "PASS",
+      "durationMs": 62
+    },
+    {
+      "step": "Streamed thinking collapse",
+      "status": "PASS",
+      "durationMs": 266
+    },
+    {
+      "step": "Send input by button",
+      "status": "PASS",
+      "durationMs": 94
+    },
+    {
+      "step": "Send input by Enter",
+      "status": "PASS",
+      "durationMs": 47
+    },
+    {
+      "step": "History session click",
+      "status": "PASS",
+      "durationMs": 94
+    },
+    {
+      "step": "Inspector open",
+      "status": "PASS",
+      "durationMs": 62
+    },
+    {
+      "step": "Inspector tab: Swarm",
+      "status": "PASS",
+      "durationMs": 62
+    },
+    {
+      "step": "Inspector tab: Cognition",
+      "status": "PASS",
+      "durationMs": 78
+    },
+    {
+      "step": "Inspector tab: KV Cache",
+      "status": "PASS",
+      "durationMs": 94
+    },
+    {
+      "step": "Inspector tab: AST",
+      "status": "PASS",
+      "durationMs": 63
+    },
+    {
+      "step": "Inspector tab: Patch",
+      "status": "PASS",
+      "durationMs": 79
+    },
+    {
+      "step": "Patch accept persists file",
+      "status": "PASS",
+      "durationMs": 78
+    },
+    {
+      "step": "Patch discard second hunk",
+      "status": "PASS",
+      "durationMs": 78
+    },
+    {
+      "step": "Patch revert accepted hunk",
+      "status": "PASS",
+      "durationMs": 110
+    },
+    {
+      "step": "Provider drawer open",
+      "status": "PASS",
+      "durationMs": 78
+    },
+    {
+      "step": "Provider preset DeepSeek",
+      "status": "PASS",
+      "durationMs": 110
+    },
+    {
+      "step": "Provider preset OpenAI",
+      "status": "PASS",
+      "durationMs": 93
+    },
+    {
+      "step": "Provider preset Claude",
+      "status": "PASS",
+      "durationMs": 110
+    },
+    {
+      "step": "Provider preset Ollama",
+      "status": "PASS",
+      "durationMs": 125
+    },
+    {
+      "step": "Provider local form entry",
+      "status": "PASS",
+      "durationMs": 109
+    },
+    {
+      "step": "Provider test connection",
+      "status": "PASS",
+      "durationMs": 47
+    },
+    {
+      "step": "Provider pull models",
+      "status": "PASS",
+      "durationMs": 62
+    },
+    {
+      "step": "Provider save and API readback",
+      "status": "FAIL",
+      "error": "Locator expected to be visible\nActual value: None\nError: element(s) not found \nCall log:\n  - Expect \"to_be_visible\" with timeout 5000ms\n  - waiting for locator(\".provider-modal\").locator(\".provider-card\").filter(has_text=\"click-fixture\")\n\nAria snapshot:\n- navigation \"Vessel\":\n  - button \"Workbench\"\n  - button \"Activity\"\n  - button \"Agent Studio\"\n  - button \"Settings\"\n- complementary:\n  - text: Vessel\n  - button \"+ New Session\"\n  - navigation:\n    - text: Projects\n    - list:\n      - listitem \"C:\\\\Users\\\\SATANC~1\\\\AppData\\\\Local\\\\Temp\\\\vessel-card219-browser-fjcdGx\\\\workspace\":\n        - button \"workspace\"\n    - text: Recent Sessions\n    - textbox \"Search sessions\u2026\"\n    - checkbox \"Show archived\"\n    - text: Show archived workspace\n    - button \"Card 219 real click task\"\n    - button \"2026/10/12\"\n    - group: \u00b7\u00b7\u00b7\n    - button \"Reply with exactly VESSEL_CARD219_LIVE_OK. Do not call any tools.\"\n    - button \"2026/10/12\"\n    - group: \u00b7\u00b7\u00b7\n    - button \"Card 219 real click task\"\n    - button \"2026/10/12\"\n    - group: \u00b7\u00b7\u00b7\n    - button \"Card 219 real click task\"\n    - button \"2026/10/12\"\n    - group: \u00b7\u00b7\u00b7\n    - button \"Review workbench navigation\"\n    - button \"2026/10/12\"\n    - group: \u00b7\u00b7\u00b7\n    - paragraph: Project \u2192 Session \u2192 Run \u2192 Subagent\n- main:\n  - text: Vessel local server ok (v0.10.0)\n  - button \"Commands\"\n  - group: Preferences\n  - heading \"Settings\" [level=2]\n  - button \"Model settings\"\n  - paragraph: Visibility only. Policy permissions, capabilities and runs remain unchanged.\n  - button \"Layout\"\n  - button \"Language\": English\n  - button \"Mute cues\"\n  - 'button \"Notifications: denied\" [disabled]'\n- dialog \"Model settings\":\n  - heading \"Model settings\" [level=3]\n  - button \"Close\" [disabled]\n  - article:\n    - strong: local-fixture\n    - text: OpenAI Compatible\n    - code: http://127.0.0.1:50522/v1\n    - text: No key required fixture-a, fixture-b\n    - button \"Delete\" [disabled]\n  - heading \"Add provider\" [level=4]\n  - group:\n    - text: Preset\n    - combobox \"Preset\" [disabled]:\n      - option \"DeepSeek\" [disabled]\n      - option \"OpenAI\" [disabled]\n      - option \"Claude\" [disabled]\n      - option \"Ollama\" [disabled] [selected]\n      - option \"Custom compatible endpoint\" [disabled]\n    - text: Provider name\n    - textbox \"Provider name\" [disabled]: click-fixture\n    - text: Protocol\n    - combobox \"Protocol\" [disabled]:\n      - option \"OpenAI Compatible\" [disabled] [selected]\n      - option \"Anthropic (Claude)\" [disabled]\n    - text: Base URL\n    - textbox \"Base URL\" [disabled]: http://127.0.0.1:50522/v1\n    - text: API Key\n    - textbox \"API Key\" [disabled]: card219-test-only-placeholder\n    - paragraph: Keys are stored securely on this machine. Local compatible endpoints may omit the key.\n    - text: Models (comma separated)\n    - textbox \"Models (comma separated)\" [disabled]: fixture-a, fixture-b\n  - button \"Pull models\" [disabled]\n  - button \"Test connection\" [disabled]\n  - button \"Adding\u2026\" [disabled]"
+    }
+  ],
+  "errors": [],
+  "mutations": [
+    {
+      "url": "http://127.0.0.1:50531/api/projects/open",
+      "method": "POST",
+      "body": "{\"workspaceRoot\": \"C:\\\\Users\\\\SATANC~1\\\\AppData\\\\Local\\\\Temp\\\\vessel-card219-browser-fjcdGx\\\\workspace\"}"
+    },
+    {
+      "url": "http://127.0.0.1:50531/api/sessions",
+      "method": "POST",
+      "body": "{\"workspaceRoot\": \"C:\\\\Users\\\\SATANC~1\\\\AppData\\\\Local\\\\Temp\\\\vessel-card219-browser-fjcdGx\\\\workspace\", \"permission\": \"workspace-write\", \"provider\": \"local-fixture\", \"model\": \"fixture-b\"}"
+    },
+    {
+      "url": "http://127.0.0.1:50531/api/sessions/sess_1791871483998_1046e6e0/topic",
+      "method": "PATCH",
+      "body": "{\"title\": \"Card 219 real click task\"}"
+    },
+    {
+      "url": "http://127.0.0.1:50531/api/sessions/sess_1791871483998_1046e6e0/turns",
+      "method": "POST",
+      "body": "{\"prompt\": \"Card 219 real click task\"}"
+    },
+    {
+      "url": "http://127.0.0.1:50531/api/sessions/sess_1791871483998_1046e6e0/turns",
+      "method": "POST",
+      "body": "{\"prompt\": \"Button send click\"}"
+    },
+    {
+      "url": "http://127.0.0.1:50531/api/sessions/sess_1791871483998_1046e6e0/turns",
+      "method": "POST",
+      "body": "{\"prompt\": \"Enter send click\"}"
+    },
+    {
+      "url": "http://127.0.0.1:50531/api/session/sess_1791871264891_bbd3fd7a/patch/apply",
+      "method": "POST",
+      "body": "{\"widgetId\": \"proposal\", \"hunkId\": \"a.txt#hunk-0\", \"action\": \"reject\"}"
+    },
+    {
+      "url": "http://127.0.0.1:50531/api/session/sess_1791871264891_bbd3fd7a/patch/apply",
+      "method": "POST",
+      "body": "{\"widgetId\": \"proposal\", \"hunkId\": \"a.txt#hunk-0\", \"action\": \"accept\"}"
+    },
+    {
+      "url": "http://127.0.0.1:50531/api/session/sess_1791871264891_bbd3fd7a/patch/apply",
+      "method": "POST",
+      "body": "{\"widgetId\": \"proposal\", \"hunkId\": \"a.txt#hunk-1\", \"action\": \"accept\"}"
+    },
+    {
+      "url": "http://127.0.0.1:50531/api/session/sess_1791871264891_bbd3fd7a/patch/apply",
+      "method": "POST",
+      "body": "{\"widgetId\": \"proposal\", \"hunkId\": \"a.txt#hunk-1\", \"action\": \"reject\"}"
+    },
+    {
+      "url": "http://127.0.0.1:50531/api/session/sess_1791871264891_bbd3fd7a/patch/apply",
+      "method": "POST",
+      "body": "{\"widgetId\": \"proposal\", \"hunkId\": \"a.txt#hunk-0\", \"action\": \"reject\"}"
+    },
+    {
+      "url": "http://127.0.0.1:50531/api/providers/test",
+      "method": "POST",
+      "body": "{\"name\": \"click-fixture\", \"protocol\": \"openai-compatible\", \"baseUrl\": \"http://127.0.0.1:50522/v1\", \"apiKey\": \"[redacted]\", \"models\": []}"
+    },
+    {
+      "url": "http://127.0.0.1:50531/api/providers/pull-models",
+      "method": "POST",
+      "body": "{\"name\": \"click-fixture\", \"protocol\": \"openai-compatible\", \"baseUrl\": \"http://127.0.0.1:50522/v1\", \"apiKey\": \"[redacted]\", \"models\": [\"fixture-a\", \"fixture-b\"]}"
+    },
+    {
+      "url": "http://127.0.0.1:50531/api/providers",
+      "method": "POST",
+      "body": "{\"name\": \"click-fixture\", \"protocol\": \"openai-compatible\", \"baseUrl\": \"http://127.0.0.1:50522/v1\", \"apiKey\": \"[redacted]\", \"models\": [\"fixture-a\", \"fixture-b\"]}"
+    }
+  ],
+  "matrix_gaps": [
+    "Inspector has five current tabs, not the four historical tabs in the card.",
+    "Task permission offers read-only and workspace-write; no full-access preset.",
+    "Empty task is blocked with disabled Start, without a validation alert.",
+    "Customize has no reset-to-default control."
+  ]
+}
