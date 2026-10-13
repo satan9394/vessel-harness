@@ -405,11 +405,14 @@ describe('policy status / 部分装载（BRIEF-15 AC2–AC4）：走真实 main(
     writeText(path.join(ws, '.harness', 'policy.yaml'), POLICY_A);
     const ghostSystem = path.join(tmpRoot, 'missing-system-policy.yaml');
     expect(fs.existsSync(ghostSystem)).toBe(false);
+    // This checks partial policy loading, without declaring unavailable mandatory rules.
+    const behavior = path.join(tmpRoot, 'partial-load-behavior.yaml');
+    writeText(behavior, 'behavior:\n  version: "test"\n  entries: []\n');
 
     const cap = capture();
     try {
       // mock 供应商（临时根里没有 current.json）+ 显式 --prompt：零网络、不读 stdin
-      const code = await main(['run', '--workspace', ws, '--prompt', 'hi', '--policy', ghostSystem]);
+      const code = await main(['run', '--workspace', ws, '--prompt', 'hi', '--policy', ghostSystem, '--behavior', behavior]);
 
       expect(code).toBe(0); // 告警**不阻断**：部分装载仍按现有层继续运行
       expect(cap.warn()).toContain('部分装载'); // 走 stderr 的 warn 通道

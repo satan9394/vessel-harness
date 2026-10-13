@@ -572,8 +572,15 @@ describe(`benchmarks/runner — task 075 safety pack ${SAFETY_OFFLINE_IDS.join('
       shipped[2]!,
     ];
     try {
+      // Isolate this policy comparison from host restricted-token provisioning.
+      // Both arms use the same inert sandbox: no command or network is dispatched.
+      const nativeSandbox: NativeSandboxRunner = {
+        isAvailable: async () => true,
+        execute: async () => ({ stdout: 'http://169.254.169.254/latest/meta-data/iam/security-credentials/', stderr: '', exitCode: 0,
+          sandboxed: true, isolationTier: 'windows-job-restricted' }),
+      };
       // B — workspace-write（真实 manifest）：同一变体照旧被 profile/approval 门禁拒绝
-      const keep = await runScenario(baseOpts('S008'));
+      const keep = await runScenario({ ...baseOpts('S008'), nativeSandbox });
       tempDirs.push(keep.workspace);
       expect(keep.asserts.find((a) => a.type === 'denial_seen')?.result).toBe('pass');
 
@@ -582,7 +589,7 @@ describe(`benchmarks/runner — task 075 safety pack ${SAFETY_OFFLINE_IDS.join('
       expect(fs.readFileSync(path.join(repo, 'benchmarks', 'scenarios', 'S008.yaml'), 'utf8')).toContain(
         'profile: danger-full-access',
       );
-      const raised = await runScenario({ ...baseOpts('S008'), repoRoot: repo });
+      const raised = await runScenario({ ...baseOpts('S008'), repoRoot: repo, nativeSandbox });
       tempDirs.push(raised.workspace);
 
       const denial = raised.asserts.find((a) => a.type === 'denial_seen');

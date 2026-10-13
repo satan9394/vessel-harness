@@ -1,4 +1,4 @@
-import type { PolicyArtifacts, Verdict } from '@vessel/shared';
+import { createExecutionPermitAuthority, type ExecutionPermitAuthority, type PolicyArtifacts, type Verdict } from '@vessel/shared';
 
 export interface PermissionSpec {
   requiredPermission?: 'read' | 'workspace-write' | 'danger-full-access';
@@ -16,6 +16,8 @@ export type PolicyInterceptor = (call: { toolName: string; arguments: Record<str
  */
 export class PolicyEngine {
   private artifacts: PolicyArtifacts;
+  private revision = 0;
+  readonly permits: ExecutionPermitAuthority = createExecutionPermitAuthority(() => this.revision);
 
   constructor(artifacts: PolicyArtifacts, private readonly interceptors: readonly PolicyInterceptor[] = []) {
     this.artifacts = artifacts;
@@ -24,6 +26,7 @@ export class PolicyEngine {
   /** Re-read artifacts (e.g. after policy reload). */
   update(artifacts: PolicyArtifacts): void {
     this.artifacts = artifacts;
+    this.revision++;
   }
 
   async decide(call: { toolName: string; arguments: Record<string, unknown> }, spec?: PermissionSpec): Promise<Verdict> {

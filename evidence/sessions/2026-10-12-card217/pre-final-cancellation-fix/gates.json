@@ -1,0 +1,23 @@
+[
+  {
+    "exitCode": 0,
+    "name": "01-directed",
+    "finishedAt": "2026-10-12T17:31:38.3028199Z",
+    "startedAt": "2026-10-12T17:31:06.5755764Z",
+    "command": "npx.cmd vitest run packages/context/src/context.test.ts packages/context/src/compaction packages/behavior/src/compiler/Compiler.test.ts packages/engine/src/execution-run.test.ts packages/application/src/ExecutionLoop.test.ts packages/application/src/noProgressIntegration.test.ts packages/application/src/composeActivation.test.ts packages/application/src/session/SessionController.test.ts packages/application/src/projections/projections.test.ts packages/runtime/src/executor packages/runtime/src/mods/modExecution.test.ts packages/tools/src/execution/pipeline.test.ts packages/tools/src/execution/selfHealing.test.ts packages/core/src/agent-loop/AgentLoop.test.ts packages/core/src/agent-loop/AgentLoop.before-tool-gate.test.ts packages/core/src/agent-loop/AgentLoop.denial-breaker.test.ts"
+  },
+  {
+    "exitCode": 0,
+    "name": "02-tsc",
+    "finishedAt": "2026-10-12T17:31:43.7440828Z",
+    "startedAt": "2026-10-12T17:31:38.3616900Z",
+    "command": "npx.cmd tsc -b tsconfig.json"
+  },
+  {
+    "exitCode": 0,
+    "name": "03-test-types",
+    "finishedAt": "2026-10-12T17:31:48.0673202Z",
+    "startedAt": "2026-10-12T17:31:43.7560314Z",
+    "command": "npm.cmd run typecheck:tests"
+  }
+]

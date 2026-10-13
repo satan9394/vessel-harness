@@ -1,4 +1,5 @@
 import type { ChatProvider } from '@vessel/shared';
+import { projectSession } from '@vessel/shared';
 import type { ChatUsage, SessionRecord } from '@vessel/shared';
 import type { SteerSource } from '@vessel/core';
 import type { ComposedHarness, ComposeOptions } from '../compose.js';
@@ -93,7 +94,7 @@ export class SessionController {
     this.permission = (opts.permission ?? 'workspace-write') as SessionPermission;
 
     this.projections = {
-      conversation: new ConversationProjection(),
+      conversation: new ConversationProjection(() => this.projection),
       toolActivity: new ToolActivityProjection(),
       usage: new UsageProjection({
         model: this.model,
@@ -160,6 +161,11 @@ export class SessionController {
     return this.harness.session;
   }
 
+  /** UI, model history and reopen share the same committed revision rules. */
+  get projection() {
+    return projectSession(this.sessionId, this.session.replay());
+  }
+
   /** The composed EventBus — subscribe to before_model/before_tool/etc. */
   get bus() {
     return this.harness.bus;
@@ -185,10 +191,8 @@ export class SessionController {
   }
 
   /**
-   * Run one user turn through the session loop. The loop owns a per-turn
-   * interrupt scope (AgentLoop.begin/end), so calling runTurn while an older
-   * turn is still running aborts that stale turn (same semantics as the
-   * controller's previous per-call AbortController).
+   * Run one user turn through the application lifecycle. A running execution
+   * owns the session; a competing runTurn is rejected until that owner settles.
    */
   async runTurn(prompt: string) {
     if (this.usageWriteFailure) throw this.usageWriteFailure;

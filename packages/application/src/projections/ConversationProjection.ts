@@ -1,5 +1,6 @@
 import type { EventBus } from '@vessel/core';
 import type { ConversationMessage } from './types.js';
+import type { SessionProjection } from '@vessel/shared';
 
 type BeforeTurnPayload = { turnId: string; input: string };
 type AfterModelPayload = {
@@ -21,6 +22,8 @@ type AfterModelPayload = {
  */
 export class ConversationProjection {
   private readonly items: ConversationMessage[] = [];
+
+  constructor(private readonly source?: () => SessionProjection) {}
 
   attach(bus: EventBus): () => void {
     const offPrompt = bus.on(
@@ -57,6 +60,13 @@ export class ConversationProjection {
   }
 
   messages(): ConversationMessage[] {
+    if (this.source) return this.source().visibleMessages.flatMap<ConversationMessage>(record => {
+      const ts = Date.parse(record.ts);
+      if (record.type === 'user/message' && (!record.source || record.source === 'user' || record.source === 'steer' || record.source === 'compacted-summary')) return [{ role: 'user', text: record.content, ts }];
+      if (record.type === 'assistant/message') return [{ role: 'assistant', text: record.content, ts }];
+      if (record.type === 'assistant/attempt') return record.toolCalls.map(call => ({ role: 'assistant', toolName: call.name, ts }));
+      return [];
+    });
     return this.items;
   }
 }

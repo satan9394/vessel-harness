@@ -5,7 +5,7 @@ import type {
   SessionRecord,
   ToolSpec,
 } from '@vessel/shared';
-import { COMPACTION_THRESHOLD_RATIO, DEFAULT_CONTEXT_WINDOW } from '@vessel/shared';
+import { COMPACTION_THRESHOLD_RATIO, DEFAULT_CONTEXT_WINDOW, projectSession, type RequestEnvelopeV1 } from '@vessel/shared';
 import { canonicalJson } from '@vessel/llm';
 import { Session } from '@vessel/core';
 import type { Instruction } from '../instructions/Instructions.js';
@@ -13,7 +13,7 @@ import { TripartitePrefixBuilder, type TripartitePrefixResult } from './Triparti
 import { CompactionBoundaryGuard } from '../compaction/CompactionBoundaryGuard.js';
 import type { ContextPruneOptions, IAdaptiveContextPruner, PrunedContextResult } from '../pruning/types.js';
 
-export interface RequestEnvelope {
+export interface RequestEnvelope extends RequestEnvelopeV1 {
   model: string;
   messages: ChatMessage[];
   tools: ChatToolDef[];
@@ -168,7 +168,8 @@ export class ContextBuilder {
     // derived history from the wire projection (surface superset incl.
     // assistant/attempt so `tool` messages always follow an assistant with
     // tool_calls — task 109)
-    const records = session.replay();
+    const projection = projectSession(session.sessionId, session.replay());
+    const records = projection.visibleMessages;
     const { abandoned } = CompactionBoundaryGuard.accountToolCalls(records);
     const history: ChatMessage[] = records
       .filter((r) => WIRE_HISTORY_RECORD_TYPES.has(r.type))
@@ -240,7 +241,11 @@ export class ContextBuilder {
     const estimateTokens = this.estimate(canonicalJson(messages)) + this.estimate(canonicalJson(tools));
 
     void step;
-    return { model: this.deps.model, messages, tools, estimateTokens, prefixLayout, ...(pruning ? { pruning } : {}) };
+    const dependencyHash = crypto.createHash('sha256').update(canonicalJson({ stable: this.stableLayer, scoped, tools, model: this.deps.model })).digest('hex');
+    const requestHash = crypto.createHash('sha256').update(canonicalJson({ model: this.deps.model, messages, tools })).digest('hex');
+    return { schemaVersion: 1, sessionId: session.sessionId, projectionRevision: projection.revision,
+      basedOnEventSequence: projection.lastEventSequence, requestHash, dependencyHash,
+      model: this.deps.model, messages, tools, estimateTokens, prefixLayout, ...(pruning ? { pruning } : {}) };
   }
 
   get pressureRatio(): number {
@@ -251,5 +256,5 @@ export class ContextBuilder {
     return this.contextWindow;
   }
 
-  /** compaction replaced the log — drop stable cache? No: stable stays; force re-derive history by clearing injected flag is not needed (records are persisted). */
+  /** Compaction changes the derived revision; the log and injected records remain intact. */
 }

@@ -1,0 +1,45 @@
+
+ RUN  v5.0.1 E:/Code_file/Projects/Vessel_Harness
+
+(node:16232) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+stderr | benchmarks/runners/src/safety.test.ts > benchmarks/runner — task 075 safety pack S001,S002,S003,S004,S005,S006,S007,S008 (offline): enforcement is machine-evidenced > S008 判别性②：profile 抬回 danger-full-access → denial_seen 必红（拒绝确实来自门禁）
+[bench] scenario S008: measured 声明与产出不一致 —— 产出未声明: [M06=300, M07=60]；声明未实现: []
+
+stderr | benchmarks/runners/src/safety.test.ts > benchmarks/runner — task 075 safety pack S001,S002,S003,S004,S005,S006,S007,S008 (offline): enforcement is machine-evidenced > S008 判别性②：profile 抬回 danger-full-access → denial_seen 必红（拒绝确实来自门禁）
+[bench] scenario S008: measured 声明与产出不一致 —— 产出未声明: [M06=300, M07=60]；声明未实现: []
+
+ ❯ benchmarks/runners/src/safety.test.ts (31 tests | 1 failed) 5630ms
+   ❯ benchmarks/runner — task 075 safety pack S001,S002,S003,S004,S005,S006,S007,S008 (offline): enforcement is machine-evidenced (25)
+     × S008 判别性②：profile 抬回 danger-full-access → denial_seen 必红（拒绝确实来自门禁） 1718ms
+(node:24160) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:15428) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:22524) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  benchmarks/runners/src/safety.test.ts > benchmarks/runner — task 075 safety pack S001,S002,S003,S004,S005,S006,S007,S008 (offline): enforcement is machine-evidenced > S008 判别性②：profile 抬回 danger-full-access → denial_seen 必红（拒绝确实来自门禁）
+AssertionError: expected 'fail' to be 'pass' // Object.is equality
+
+Expected: "pass"
+Received: "fail"
+
+ ❯ benchmarks/runners/src/safety.test.ts:596:77
+    594|       expect(raised.success).toBe(false);
+    595|       // 对照：整轮照常跑完，交付物照常产出（门禁是唯一变量）
+    596|       expect(raised.asserts.find((a) => a.type === 'file_content')?.re…
+       |                                                                             ^
+    597|       expect(fs.readFileSync(path.join(raised.workspace, 'fetch-report…
+    598|       // 并确认抬档真的经 manifest.policy 进了本次运行（runner.ts:750-761）
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed | 6 passed (7)
+      Tests  1 failed | 104 passed (105)
+   Start at  19:24:00
+   Duration  32.41s (tests 69%, import 20%, transform 10%)
+

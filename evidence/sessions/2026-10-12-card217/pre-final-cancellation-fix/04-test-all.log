@@ -1,0 +1,12 @@
+
+> composable-agent-harness@0.10.0 test:all
+> vitest run && vitest run --root apps/web
+
+
+ RUN  v5.0.1 E:/Code_file/Projects/Vessel_Harness
+
+(node:21088) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+stdout | apps/cli/src/cli.test.ts > CLI provider/models commands (task 016/015) > provider add + switch + current round-trip
+已切换到 provider "ds"
+

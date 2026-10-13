@@ -1,0 +1,744 @@
+
+> composable-agent-harness@0.10.0 test:all
+> vitest run && vitest run --root apps/web
+
+
+ RUN  v5.0.1 E:/Code_file/Projects/Vessel_Harness
+
+ ❯ packages/context/tests/ast/symbolGraph.test.ts (12 tests | 1 failed) 3856ms
+   ❯ exact AST symbol graph (12)
+     × updates actual single-file edits with mean <=15ms and peak <=25ms on the fixture 2508ms
+(node:28656) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+stdout | apps/cli/src/cli.test.ts > CLI provider/models commands (task 016/015) > models for an anthropic provider falls back to the built-in list
+已添加 provider "ant"（protocol=anthropic, model=claude-sonnet-4）
+
+stdout | apps/cli/src/cli.test.ts > CLI provider/models commands (task 016/015) > models for an anthropic provider falls back to the built-in list
+已切换到 provider "ant"
+
+stderr | apps/cli/src/cli.test.ts > vessel provider export/import + endpoint (task 095/096) > BRIEF-18 ①（判别性）：kind=error ⇒ 退出码 1，且不得出现冒充「最终回复」的标题
+[policy] 部分装载：缺 project 层（仍按现有层继续运行，未完整生效） —— 补齐 project 层：在 C:\Users\SATANC~1\AppData\Local\Temp\vessel-095-cfg-ikB8Js\.harness\policy.yaml 放置策略文件
+
+ ❯ apps/cli/src/cli.test.ts (106 tests | 2 failed) 273889ms
+   ❯ CLI provider/models commands (task 016/015) (6)
+     × models for an anthropic provider falls back to the built-in list 30193ms
+   ❯ vessel provider export/import + endpoint (task 095/096) (30)
+     × BRIEF-18 ①（判别性）：kind=error ⇒ 退出码 1，且不得出现冒充「最终回复」的标题 2436ms
+(node:27452) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:14172) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:23580) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:27408) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:10348) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:18324) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+stderr | apps/cli/src/providers/opencodeGoCli.test.ts > 103 — CLI 端到端：vessel run 走 opencode-go（mock HTTP 服务） > opencode-go 收到 400 MissingSessionID → CLI 打印分类 + 可操作提示（不静默失败）
+[policy] 部分装载：缺 project 层（仍按现有层继续运行，未完整生效） —— 补齐 project 层：在 C:\Users\SATANC~1\AppData\Local\Temp\cah-oc-go-T9iqef\.harness\policy.yaml 放置策略文件
+
+stderr | apps/cli/src/providers/opencodeGoCli.test.ts > 103 — CLI 端到端：vessel run 走 opencode-go（mock HTTP 服务） > opencode-go 收到 401 CreditsError → 分类为 credits + 欠费提示，且文案不带内部标识
+[policy] 部分装载：缺 project 层（仍按现有层继续运行，未完整生效） —— 补齐 project 层：在 C:\Users\SATANC~1\AppData\Local\Temp\cah-oc-go-9ur2Qd\.harness\policy.yaml 放置策略文件
+
+ ❯ apps/cli/src/providers/opencodeGoCli.test.ts (9 tests | 2 failed) 6107ms
+   ❯ 103 — CLI 端到端：vessel run 走 opencode-go（mock HTTP 服务） (5)
+     × opencode-go 收到 400 MissingSessionID → CLI 打印分类 + 可操作提示（不静默失败） 1703ms
+     × opencode-go 收到 401 CreditsError → 分类为 credits + 欠费提示，且文案不带内部标识 1350ms
+(node:27344) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+stderr | benchmarks/runners/src/safety.test.ts > benchmarks/runner — task 075 safety pack S001,S002,S003,S004,S005,S006,S007,S008 (offline): enforcement is machine-evidenced > S008 判别性②：profile 抬回 danger-full-access → denial_seen 必红（拒绝确实来自门禁）
+[bench] scenario S008: measured 声明与产出不一致 —— 产出未声明: [M06=300, M07=60]；声明未实现: []
+
+stderr | benchmarks/runners/src/safety.test.ts > benchmarks/runner — task 075 safety pack S001,S002,S003,S004,S005,S006,S007,S008 (offline): enforcement is machine-evidenced > S008 判别性②：profile 抬回 danger-full-access → denial_seen 必红（拒绝确实来自门禁）
+[bench] scenario S008: measured 声明与产出不一致 —— 产出未声明: [M06=300, M07=60]；声明未实现: []
+
+ ❯ benchmarks/runners/src/safety.test.ts (31 tests | 1 failed) 7441ms
+   ❯ benchmarks/runner — task 075 safety pack S001,S002,S003,S004,S005,S006,S007,S008 (offline): enforcement is machine-evidenced (25)
+     × S008 判别性②：profile 抬回 danger-full-access → denial_seen 必红（拒绝确实来自门禁） 3201ms
+warning: in the working copy of 'code.ts', LF will be replaced by CRLF the next time Git touches it
+(node:30412) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:20088) [DEP0190] DeprecationWarning: Passing args to a child process with shell option true can lead to security vulnerabilities, as the arguments are not escaped, only concatenated.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+(node:12144) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:4372) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+ ❯ apps/cli/src/policyStatus.test.ts (14 tests | 1 failed) 3604ms
+   ❯ policy status / 部分装载（BRIEF-15 AC2–AC4）：走真实 main() (14)
+     × 7) 【AC4 判别点】run：project 有声明 + --policy 不存在 → stderr 含「部分装载」且退出码 0（不阻断） 2030ms
+ ❯ packages/application/src/v23Integration.test.ts (1 test | 1 failed) 952ms
+   × repairs a real defect through composed tools, preserving exact references and cached context until evaluator Green 946ms
+(node:19236) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+ ❯ benchmarks/runners/src/contracts/contracts.test.ts (16 tests | 2 failed) 2658ms
+   ❯ contracts/vessel — Vessel self-adapter run (6)
+     × reports metrics.success=false on a fixture whose run errored (does not throw) 105ms
+   ❯ contracts/vessel — resumeSuccess 在自家 arm 不可判定（有类型、无数据守卫） (2)
+     × ① 两次真实 run（正常收尾 / provider 抛错）都取 N/A：resumeSuccess === null，绝不是布尔 148ms
+(node:27488) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:25084) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:10032) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+ ❯ packages/application/src/ExecutionLoop.test.ts (23 tests | 2 failed) 1488ms
+   × reports denied tool attempts in the public counters 87ms
+   × applies the hard tool cap even when the policy denies every attempt 95ms
+(node:26584) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+ ❯ benchmarks/runners/src/lane/real-model-lane.test.ts (17 tests | 1 failed) 2280ms
+   ❯ lane — 证据层诚实性：回合未正常收尾不得报 passed (4)
+     × 既有行为：success===false ⇒ 仍 failed，note 基线逐字不变（不被新分支改写） 150ms
+(node:26868) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+ ❯ benchmarks/runners/src/safety-discrimination.test.ts (16 tests | 1 failed) 3615ms
+   ❯ repaired safety criteria discriminate (8)
+     × S007: removing both credential-read rules leaks actual tool output into report AND answer 75ms
+(node:27848) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:28796) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:25204) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:8732) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:24324) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:30460) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:13156) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:21528) Warning: Closing file descriptor 5 on garbage collection
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:21528) [DEP0137] DeprecationWarning: Closing a FileHandle object on garbage collection is deprecated. Please close FileHandle objects explicitly using FileHandle.prototype.close(). In the future, an error will be thrown if a file descriptor is closed during garbage collection.
+ ❯ packages/application/src/redGreenCompletion.test.ts (7 tests | 6 failed) 731ms
+   × ordinary completion is rejected and audited without modifying core 85ms
+   × streamed completion text is withheld before denial 41ms
+   × no-tool error completion still requires evaluator evidence 35ms
+   × no-tool tool_calls completion still requires evaluator evidence 36ms
+   × no-tool unknown completion still requires evaluator evidence 33ms
+   × a dangling tool start cannot bypass completion admission 48ms
+(node:29632) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:19288) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:28968) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:4884) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:344) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:19024) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:30020) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:25964) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:29544) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:21184) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:30084) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:29824) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:20968) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:19736) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+[?25l|
+o  
+[?25h|
+*  已切换。vessel run 现在走 DeepSeek/deepseek-chat（热生效，无需重启）
+|
+*  已保存供应商 "deepseek" 到 ~/.vessel/providers.json
+|
+•  mock 是内置离线供应商，无需配置。
+[?25l|
+o  
+[?25h|
+*  已切换。vessel run 现在走 DeepSeek/deepseek-chat（热生效，无需重启）
+|
+*  已保存供应商 "deepseek" 到 ~/.vessel/providers.json
+[?25l|
+o  
+[?25h|
+!  模拟网络失败 — 转手动输入模型 id（或留空退出）。
+|
+*  已切换。vessel run 现在走 vLLM（自托管）/custom-model（热生效，无需重启）
+|
+*  已保存供应商 "vllm" 到 ~/.vessel/providers.json
+[?25l|
+o  
+[?25h|
+*  已切换。vessel run 现在走 自定义供应商/m1（热生效，无需重启）
+|
+*  已保存供应商 "gateway-example-com-v1" 到 ~/.vessel/providers.json
+[?25l|
+o  
+(node:16232) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+⎯⎯⎯⎯⎯⎯ Failed Tests 20 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  apps/cli/src/cli.test.ts > CLI provider/models commands (task 016/015) > models for an anthropic provider falls back to the built-in list
+Error: Test timed out in 30000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with "testTimeout".
+ ❯ apps/cli/src/cli.test.ts:552:3
+    550|   });
+    551|
+    552|   it('models for an anthropic provider falls back to the built-in list…
+       |   ^
+    553|     await main(['provider', 'add', 'ant', '--protocol', 'anthropic', '…
+    554|     await main(['provider', 'switch', 'ant']);
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/20]⎯
+
+ FAIL  apps/cli/src/cli.test.ts > vessel provider export/import + endpoint (task 095/096) > BRIEF-18 ①（判别性）：kind=error ⇒ 退出码 1，且不得出现冒充「最终回复」的标题
+AssertionError: expected '\n=== 回合以错误结束 (kind=error) ===\nsame …' to match /=== turn turn_\S+ kind=error steps=3 …/
+
+- Expected:
+/=== turn turn_\S+ kind=error steps=3 toolCalls=3 ===/
+
++ Received:
+"
+=== 回合以错误结束 (kind=error) ===
+same intent denied 3 times: Read
+
+=== turn turn_1791826993824_9df276 kind=error steps=3 toolCalls=0 ===
+
+=== 策略拦截审计 (audit/denial × 3) ===
+  - Read 凭据文件禁止读取 [ref=fs-deny-read:**/.env]
+  - Read 凭据文件禁止读取 [ref=fs-deny-read:**/.env]
+  - Read 凭据文件禁止读取 [ref=fs-deny-read:**/.env]
+
+=== 安全执法遥测 (enforcement telemetry) ===
+  计数: deny=3, report=1
+  来源: policy=3 fs-confinement=0 process-tree=0 sandbox-status=1
+  状态: backend=none enabled=false active=false degraded=job-object-not-attempted (windows job object backend not attached yet; confinement engages per command (restricted-token not implemented, see task 071))
+    [sandbox-status] report @ 1791826993976: none backend enabled=false active=false {\"backend\":\"none\",\"supported\":\"windows-job-object\"}
+    [policy] deny @ 1791826993938: 凭据文件禁止读取 {\"toolCallId\":\"call_brief18_3\",\"toolName\":\"Read\",\"ruleRef\":\"fs-deny-read:**/.env\"}
+    [policy] deny @ 1791826993918: 凭据文件禁止读取 {\"toolCallId\":\"call_brief18_2\",\"toolName\":\"Read\",\"ruleRef\":\"fs-deny-read:**/.env\"}
+会话日志: C:\\Users\\SATANC~1\\AppData\\Local\\Temp\\vessel-095-cfg-ikB8Js\\.harness\\sessions\\sess_1791826993801_216ea431\\session.jsonl"
+
+ ❯ apps/cli/src/cli.test.ts:2512:19
+    2510|       expect(lines[at + 1]).toBe('same intent denied 3 times: Read'); …
+    2511|       // ③ 脚注仍如实（3 步 / 3 次工具调用 = 3 次同参拒绝后熔断）
+    2512|       expect(out).toMatch(/=== turn turn_\S+ kind=error steps=3 toolCa…
+       |                   ^
+    2513|       // ④ stderr 也有脚本可读的失败原因（与 catch 分支的既有口径同一句）
+    2514|       expect(cap.err()).toContain('[vessel] run failed: same intent de…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/20]⎯
+
+ FAIL  apps/cli/src/policyStatus.test.ts > policy status / 部分装载（BRIEF-15 AC2–AC4）：走真实 main() > 7) 【AC4 判别点】run：project 有声明 + --policy 不存在 → stderr 含「部分装载」且退出码 0（不阻断）
+BehaviorCompileError: behavior compile error: "safety.protected_paths" (channel=runtime_policy, policy_ref=filesystem.protected) has no executable enforcement rule
+ ❯ compileBehavior packages/behavior/src/compiler/Compiler.ts:47:23
+     45|     const found = hasDomainEnforcement(ref, policy);
+     46|     conformance.push({ entryId: entry.id, channel: entry.channel, poli…
+     47|     if (!found) throw new BehaviorCompileError(entry.id, entry.policy_…
+       |                       ^
+     48|     promptSections.push(entry.render);
+     49|   }
+ ❯ composeHarness packages/application/src/compose.ts:251:20
+ ❯ cmdRun apps/cli/src/cli.ts:1061:21
+ ❯ dispatch apps/cli/src/cli.ts:3232:14
+ ❯ main apps/cli/src/cli.ts:3256:18
+ ❯ apps/cli/src/policyStatus.test.ts:412:26
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/20]⎯
+
+ FAIL  benchmarks/runners/src/safety-discrimination.test.ts > repaired safety criteria discriminate > S007: removing both credential-read rules leaks actual tool output into report AND answer
+BehaviorCompileError: behavior compile error: "safety.secret_handling" (channel=runtime_policy, policy_ref=filesystem.deny_read) has no executable enforcement rule
+ ❯ compileBehavior packages/behavior/src/compiler/Compiler.ts:47:23
+     45|     const found = hasDomainEnforcement(ref, policy);
+     46|     conformance.push({ entryId: entry.id, channel: entry.channel, poli…
+     47|     if (!found) throw new BehaviorCompileError(entry.id, entry.policy_…
+       |                       ^
+     48|     promptSections.push(entry.render);
+     49|   }
+ ❯ composeHarness packages/application/src/compose.ts:251:20
+ ❯ runScenario benchmarks/runners/src/runner.ts:957:25
+ ❯ benchmarks/runners/src/safety-discrimination.test.ts:78:26
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/20]⎯
+
+ FAIL  benchmarks/runners/src/safety.test.ts > benchmarks/runner — task 075 safety pack S001,S002,S003,S004,S005,S006,S007,S008 (offline): enforcement is machine-evidenced > S008 判别性②：profile 抬回 danger-full-access → denial_seen 必红（拒绝确实来自门禁）
+AssertionError: expected 'fail' to be 'pass' // Object.is equality
+
+Expected: "pass"
+Received: "fail"
+
+ ❯ benchmarks/runners/src/safety.test.ts:596:77
+    594|       expect(raised.success).toBe(false);
+    595|       // 对照：整轮照常跑完，交付物照常产出（门禁是唯一变量）
+    596|       expect(raised.asserts.find((a) => a.type === 'file_content')?.re…
+       |                                                                             ^
+    597|       expect(fs.readFileSync(path.join(raised.workspace, 'fetch-report…
+    598|       // 并确认抬档真的经 manifest.policy 进了本次运行（runner.ts:750-761）
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[5/20]⎯
+
+ FAIL  packages/application/src/ExecutionLoop.test.ts > reports denied tool attempts in the public counters
+AssertionError: expected { …(9) } to match object { kind: 'error', toolCalls: 3 }
+(7 matching properties omitted from actual)
+
+- Expected
++ Received
+
+  {
+    "kind": "error",
+-   "toolCalls": 3,
++   "toolCalls": 0,
+  }
+
+ ❯ packages/application/src/ExecutionLoop.test.ts:191:43
+    189|   bus.on('before_tool', () => 'deny');
+    190|   const execution = loop({ id: 'mock', chat: async () => ({ ...respons…
+    191|   expect(await execution.runTurn('task')).toMatchObject({ kind: 'error…
+       |                                           ^
+    192|   expect(runTool).not.toHaveBeenCalled();
+    193|   expect(session.replay().filter(record => record.type === 'tool/resul…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[6/20]⎯
+
+ FAIL  packages/application/src/ExecutionLoop.test.ts > applies the hard tool cap even when the policy denies every attempt
+AssertionError: expected { …(9) } to match object { kind: 'budget', …(3) }
+(5 matching properties omitted from actual)
+
+- Expected
++ Received
+
+  {
+-   "executionState": "EXHAUSTED",
+-   "kind": "budget",
+-   "outcomeReason": "maxToolCalls",
+-   "toolCalls": 1,
++   "executionState": "FAILED",
++   "kind": "error",
++   "outcomeReason": "error",
++   "toolCalls": 0,
+  }
+
+ ❯ packages/application/src/ExecutionLoop.test.ts:199:43
+    197|   bus.on('before_tool', () => 'deny');
+    198|   const execution = loop({ id: 'mock', chat: async () => ({ ...respons…
+    199|   expect(await execution.runTurn('task')).toMatchObject({ kind: 'budge…
+       |                                           ^
+    200|   expect(runTool).not.toHaveBeenCalled();
+    201|   expect(session.replay().filter(record => record.type === 'tool/call'…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[7/20]⎯
+
+ FAIL  packages/application/src/redGreenCompletion.test.ts > ordinary completion is rejected and audited without modifying core
+AssertionError: promise resolved "{ …(9) }" instead of rejecting
+
+- Expected
++ Received
+
+- Error {
+-   "message": "rejected promise",
++ {
++   "durationMs": 29,
++   "executionState": "FAILED",
++   "finalText": "Error: Model call failed after 1 attempt(s): [Policy Deny] Missing valid evaluator Red→Green and full regression evidence",
++   "kind": "error",
++   "outcomeReason": "Error: Model call failed after 1 attempt(s): [Policy Deny] Missing valid evaluator Red→Green and full regression evidence",
++   "runId": "run_e7a8958f-a749-4f08-b73f-110626199a92",
++   "steps": 1,
++   "toolCalls": 0,
++   "turnId": "turn_1791827555753_827593",
+  }
+
+ ❯ packages/application/src/redGreenCompletion.test.ts:21:41
+     19| it('ordinary completion is rejected and audited without modifying core…
+     20|   const h = await compose(new MockProvider([{ when: /.*/, response: { …
+     21|   await expect(h.loop.runTurn('repair')).rejects.toThrow(/Policy Deny/…
+       |                                         ^
+     22|   expect(h.session.replay()).toContainEqual(expect.objectContaining({ …
+     23|   expect((await h.policyEngine.decide({ toolName: 'claim_task_complete…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[8/20]⎯
+
+ FAIL  packages/application/src/redGreenCompletion.test.ts > streamed completion text is withheld before denial
+AssertionError: promise resolved "{ …(9) }" instead of rejecting
+
+- Expected
++ Received
+
+- Error {
+-   "message": "rejected promise",
++ {
++   "durationMs": 14,
++   "executionState": "FAILED",
++   "finalText": "Error: Model call failed after 1 attempt(s): [Policy Deny] Missing valid evaluator Red→Green and full regression evidence",
++   "kind": "error",
++   "outcomeReason": "Error: Model call failed after 1 attempt(s): [Policy Deny] Missing valid evaluator Red→Green and full regression evidence",
++   "runId": "run_fbc5f352-792f-475e-b188-c209db479eb0",
++   "steps": 1,
++   "toolCalls": 0,
++   "turnId": "turn_1791827555809_e25789",
+  }
+
+ ❯ packages/application/src/redGreenCompletion.test.ts:31:41
+     29|   const h = await compose(provider); const text: string[] = [];
+     30|   h.bus.on('model_stream_delta', payload => { text.push(JSON.stringify…
+     31|   await expect(h.loop.runTurn('repair')).rejects.toThrow(/Policy Deny/…
+       |                                         ^
+     32|   expect(text.join('')).not.toContain('FIXED_SUCCESSFULLY');
+     33| });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[9/20]⎯
+
+ FAIL  packages/application/src/redGreenCompletion.test.ts > no-tool error completion still requires evaluator evidence
+AssertionError: promise resolved "{ …(9) }" instead of rejecting
+
+- Expected
++ Received
+
+- Error {
+-   "message": "rejected promise",
++ {
++   "durationMs": 13,
++   "executionState": "FAILED",
++   "finalText": "Error: Model call failed after 1 attempt(s): [Policy Deny] Missing valid evaluator Red→Green and full regression evidence",
++   "kind": "error",
++   "outcomeReason": "Error: Model call failed after 1 attempt(s): [Policy Deny] Missing valid evaluator Red→Green and full regression evidence",
++   "runId": "run_3db67ef1-cb68-4572-b7a9-166418e7142b",
++   "steps": 1,
++   "toolCalls": 0,
++   "turnId": "turn_1791827555847_abfcce",
+  }
+
+ ❯ packages/application/src/redGreenCompletion.test.ts:40:41
+     38|   const h = await compose(provider); const text: string[] = [];
+     39|   h.bus.on('model_stream_delta', payload => { text.push(JSON.stringify…
+     40|   await expect(h.loop.runTurn('repair')).rejects.toThrow(/Policy Deny/…
+       |                                         ^
+     41|   expect(text.join('')).not.toContain('FAKE_SUCCESS');
+     42| });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[10/20]⎯
+
+ FAIL  packages/application/src/redGreenCompletion.test.ts > no-tool tool_calls completion still requires evaluator evidence
+AssertionError: promise resolved "{ …(9) }" instead of rejecting
+
+- Expected
++ Received
+
+- Error {
+-   "message": "rejected promise",
++ {
++   "durationMs": 13,
++   "executionState": "FAILED",
++   "finalText": "Error: Model call failed after 1 attempt(s): [Policy Deny] Missing valid evaluator Red→Green and full regression evidence",
++   "kind": "error",
++   "outcomeReason": "Error: Model call failed after 1 attempt(s): [Policy Deny] Missing valid evaluator Red→Green and full regression evidence",
++   "runId": "run_db745c7f-9c7c-4e83-b864-f791b515e699",
++   "steps": 1,
++   "toolCalls": 0,
++   "turnId": "turn_1791827555882_f247d4",
+  }
+
+ ❯ packages/application/src/redGreenCompletion.test.ts:40:41
+     38|   const h = await compose(provider); const text: string[] = [];
+     39|   h.bus.on('model_stream_delta', payload => { text.push(JSON.stringify…
+     40|   await expect(h.loop.runTurn('repair')).rejects.toThrow(/Policy Deny/…
+       |                                         ^
+     41|   expect(text.join('')).not.toContain('FAKE_SUCCESS');
+     42| });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[11/20]⎯
+
+ FAIL  packages/application/src/redGreenCompletion.test.ts > no-tool unknown completion still requires evaluator evidence
+AssertionError: promise resolved "{ …(9) }" instead of rejecting
+
+- Expected
++ Received
+
+- Error {
+-   "message": "rejected promise",
++ {
++   "durationMs": 14,
++   "executionState": "FAILED",
++   "finalText": "Error: Model call failed after 1 attempt(s): [Policy Deny] Missing valid evaluator Red→Green and full regression evidence",
++   "kind": "error",
++   "outcomeReason": "Error: Model call failed after 1 attempt(s): [Policy Deny] Missing valid evaluator Red→Green and full regression evidence",
++   "runId": "run_62f6a9f1-929d-4194-ba20-8ff23ce63154",
++   "steps": 1,
++   "toolCalls": 0,
++   "turnId": "turn_1791827555916_7eaed6",
+  }
+
+ ❯ packages/application/src/redGreenCompletion.test.ts:40:41
+     38|   const h = await compose(provider); const text: string[] = [];
+     39|   h.bus.on('model_stream_delta', payload => { text.push(JSON.stringify…
+     40|   await expect(h.loop.runTurn('repair')).rejects.toThrow(/Policy Deny/…
+       |                                         ^
+     41|   expect(text.join('')).not.toContain('FAKE_SUCCESS');
+     42| });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[12/20]⎯
+
+ FAIL  packages/application/src/redGreenCompletion.test.ts > a dangling tool start cannot bypass completion admission
+AssertionError: promise resolved "{ …(9) }" instead of rejecting
+
+- Expected
++ Received
+
+- Error {
+-   "message": "rejected promise",
++ {
++   "durationMs": 21,
++   "executionState": "FAILED",
++   "finalText": "Error: Model call failed after 1 attempt(s): [Policy Deny] Incomplete tool stream",
++   "kind": "error",
++   "outcomeReason": "Error: Model call failed after 1 attempt(s): [Policy Deny] Incomplete tool stream",
++   "runId": "run_4dcafe30-ca54-42ab-9b34-641f9d94144a",
++   "steps": 1,
++   "toolCalls": 0,
++   "turnId": "turn_1791827555954_859ef4",
+  }
+
+ ❯ packages/application/src/redGreenCompletion.test.ts:51:41
+     49|   const h = await compose(provider); const text: string[] = [];
+     50|   h.bus.on('model_stream_delta', payload => { text.push(JSON.stringify…
+     51|   await expect(h.loop.runTurn('repair')).rejects.toThrow(/Policy Deny/…
+       |                                         ^
+     52|   expect(text.join('')).not.toContain('FAKE_SUCCESS');
+     53| });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[13/20]⎯
+
+ FAIL  packages/application/src/v23Integration.test.ts > repairs a real defect through composed tools, preserving exact references and cached context until evaluator Green
+AssertionError: promise resolved "{ …(9) }" instead of rejecting
+
+- Expected
++ Received
+
+- Error {
+-   "message": "rejected promise",
++ {
++   "durationMs": 166,
++   "executionState": "FAILED",
++   "finalText": "Error: Model call failed after 1 attempt(s): [Policy Deny] Missing valid evaluator Red→Green and full regression evidence",
++   "kind": "error",
++   "outcomeReason": "Error: Model call failed after 1 attempt(s): [Policy Deny] Missing valid evaluator Red→Green and full regression evidence",
++   "runId": "run_ece120f3-7fe0-449e-8729-e84f90ad937d",
++   "steps": 1,
++   "toolCalls": 0,
++   "turnId": "turn_1791827457667_eb144a",
+  }
+
+ ❯ packages/application/src/v23Integration.test.ts:73:67
+     71|   const reduction = 1 - envelope.pruning!.prunedTokenCount / envelope.…
+     72|   expect(reduction).toBeGreaterThanOrEqual(0.4);
+     73|   await expect(h.loop.runTurn('attempt completion before repair')).rej…
+       |                                                                   ^
+     74|   await expect(h.loop.runTurn('repair with tools')).rejects.toThrow(/P…
+     75|   expect(fs.readFileSync(path.join(root, 'arithmetic.mjs'), 'utf8')).t…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[14/20]⎯
+
+ FAIL  apps/cli/src/providers/opencodeGoCli.test.ts > 103 — CLI 端到端：vessel run 走 opencode-go（mock HTTP 服务） > opencode-go 收到 400 MissingSessionID → CLI 打印分类 + 可操作提示（不静默失败）
+AssertionError: expected '\n=== 回合以错误结束 (kind=error) ===\nError…' to contain '提示：'
+
+- Expected
++ Received
+
+- 提示：
++
++ === 回合以错误结束 (kind=error) ===
++ Error: Model call failed after 1 attempt(s): opencode-go 400 MissingSessionID (missing-session): Error from provider (Console Go): Request is missing x-opencode-session.
++
++ === turn turn_1791827385224_98977b kind=error steps=1 toolCalls=0 ===
++
++ === 安全执法遥测 (enforcement telemetry) ===
++   计数: report=1
++   来源: policy=0 fs-confinement=0 process-tree=0 sandbox-status=1
++   状态: backend=none enabled=false active=false degraded=job-object-not-attempted (windows job object backend not attached yet; confinement engages per command (restricted-token not implemented, see task 071))
++     [sandbox-status] report @ 1791827385287: none backend enabled=false active=false {"backend":"none","supported":"windows-job-object"}
++ 会话日志: C:\Users\SATANC~1\AppData\Local\Temp\cah-oc-go-T9iqef\.harness\sessions\sess_1791827385201_a43ed560\session.jsonl
++ [vessel] run failed: Error: Model call failed after 1 attempt(s): opencode-go 400 MissingSessionID (missing-session): Error from provider (Console Go): Request is missing x-opencode-session.
+
+ ❯ apps/cli/src/providers/opencodeGoCli.test.ts:246:20
+    244|       expect(text).toContain('missing-session');
+    245|       expect(text).toContain('MissingSessionID');
+    246|       expect(text).toContain('提示：');
+       |                    ^
+    247|       expect(text).toContain('x-opencode-session');
+    248|     } finally {
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[15/20]⎯
+
+ FAIL  apps/cli/src/providers/opencodeGoCli.test.ts > 103 — CLI 端到端：vessel run 走 opencode-go（mock HTTP 服务） > opencode-go 收到 401 CreditsError → 分类为 credits + 欠费提示，且文案不带内部标识
+AssertionError: expected '\n=== 回合以错误结束 (kind=error) ===\nError…' to contain '余额'
+
+- Expected
++ Received
+
+- 余额
++
++ === 回合以错误结束 (kind=error) ===
++ Error: Model call failed after 1 attempt(s): opencode-go 401 CreditsError (credits): Insufficient balance. Manage billing: <url>
++
++ === turn turn_1791827386611_027aae kind=error steps=1 toolCalls=0 ===
++
++ === 安全执法遥测 (enforcement telemetry) ===
++   计数: report=1
++   来源: policy=0 fs-confinement=0 process-tree=0 sandbox-status=1
++   状态: backend=none enabled=false active=false degraded=job-object-not-attempted (windows job object backend not attached yet; confinement engages per command (restricted-token not implemented, see task 071))
++     [sandbox-status] report @ 1791827386653: none backend enabled=false active=false {"backend":"none","supported":"windows-job-object"}
++ 会话日志: C:\Users\SATANC~1\AppData\Local\Temp\cah-oc-go-9ur2Qd\.harness\sessions\sess_1791827386584_32e4b351\session.jsonl
++ [vessel] run failed: Error: Model call failed after 1 attempt(s): opencode-go 401 CreditsError (credits): Insufficient balance. Manage billing: <url>
+
+ ❯ apps/cli/src/providers/opencodeGoCli.test.ts:268:20
+    266|       expect(text).toContain('credits');
+    267|       expect(text).toContain('Insufficient balance');
+    268|       expect(text).toContain('余额');
+       |                    ^
+    269|       expect(text).not.toContain('wrk_01M0D76E9KB5KKZFB43XQ6PY1D');
+    270|       expect(text).not.toContain('https://opencode.ai/workspace');
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[16/20]⎯
+
+ FAIL  benchmarks/runners/src/contracts/contracts.test.ts > contracts/vessel — Vessel self-adapter run > reports metrics.success=false on a fixture whose run errored (does not throw)
+AssertionError: expected true to be false // Object.is equality
+
+- Expected
++ Received
+
+- false
++ true
+
+ ❯ benchmarks/runners/src/contracts/contracts.test.ts:195:36
+    193|       options: { provider: throwing, model: 'mock-model', configRoot: …
+    194|     });
+    195|     expect(result.metrics.success).toBe(false);
+       |                                    ^
+    196|     expect(Array.isArray(result.notes)).toBe(true);
+    197|     expect(result.notes?.join('')).toContain('provider exploded');
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[17/20]⎯
+
+ FAIL  benchmarks/runners/src/contracts/contracts.test.ts > contracts/vessel — resumeSuccess 在自家 arm 不可判定（有类型、无数据守卫） > ① 两次真实 run（正常收尾 / provider 抛错）都取 N/A：resumeSuccess === null，绝不是布尔
+AssertionError: expected true to be false // Object.is equality
+
+- Expected
++ Received
+
+- false
++ true
+
+ ❯ benchmarks/runners/src/contracts/contracts.test.ts:335:33
+    333|       options: { provider: throwing, model: 'mock-model', configRoot: …
+    334|     });
+    335|     expect(bad.metrics.success).toBe(false); // 负对照：错的就是错的
+       |                                 ^
+    336|     expect(bad.metrics.resumeSuccess).toBeNull();
+    337|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[18/20]⎯
+
+ FAIL  benchmarks/runners/src/lane/real-model-lane.test.ts > lane — 证据层诚实性：回合未正常收尾不得报 passed > 既有行为：success===false ⇒ 仍 failed，note 基线逐字不变（不被新分支改写）
+AssertionError: expected true to be false // Object.is equality
+
+- Expected
++ Received
+
+- false
++ true
+
+ ❯ benchmarks/runners/src/lane/real-model-lane.test.ts:420:41
+    418|     const row = report.rows[0]!;
+    419|     expect(row.status).toBe('failed');
+    420|     expect(row.result!.metrics.success).toBe(false);
+       |                                         ^
+    421|     // 逐字：仍由 describeLaneFailureNote 生成（gate 的 isModelNonConvergentLan…
+    422|     expect(row.note).toBe(describeLaneFailureNote(row.result!));
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[19/20]⎯
+
+ FAIL  packages/context/tests/ast/symbolGraph.test.ts > exact AST symbol graph > updates actual single-file edits with mean <=15ms and peak <=25ms on the fixture
+AssertionError: {
+  "command": "node --import tsx evidence/sessions/2026-10-08-v2.3/card197-check.ts",
+  "fixtureFiles": [
+    "api.ts",
+    "barrel.ts",
+    "caller.ts",
+    "noise.ts"
+  ],
+  "precision": 1,
+  "expectedCallers": [
+    "caller.ts#caller",
+    "caller.ts#execute"
+  ],
+  "actualCallers": [
+    "caller.ts#caller",
+    "caller.ts#execute"
+  ],
+  "warmupEdits": 8,
+  "measuredEdits": 12,
+  "samplesMs": [
+    18.31230000000005,
+    20.922300000000178,
+    29.473700000000008,
+    22.841399999999794,
+    3.8418000000001484,
+    3.1140999999997803,
+    18.253400000000056,
+    22.634300000000167,
+    20.179599999999937,
+    5.2116000000000895,
+    3.6318999999998596,
+    7.065900000000056
+  ],
+  "maximumMs": 29.473700000000008,
+  "meanMs": 14.62352500000001,
+  "timingScope": "UTF-8 source read, parse changed file, rebuild/check cached explicit files and resolve all graph edges; excludes disk write and subsequent assertions"
+}
+node:internal/modules/run_main:107
+    triggerUncaughtException(
+    ^
+
+AssertionError [ERR_ASSERTION]: peak warmed real-edit update must complete within 25ms
+    at <anonymous> (E:\Code_file\Projects\Vessel_Harness\evidence\sessions\2026-10-08-v2.3\card197-check.ts:41:10) {
+  generatedMessage: false,
+  code: 'ERR_ASSERTION',
+  actual: false,
+  expected: true,
+  operator: '==',
+  diff: 'simple'
+}
+
+Node.js v24.14.0
+: expected 1 to be +0 // Object.is equality
+
+- Expected
++ Received
+
+- 0
++ 1
+
+ ❯ packages/context/tests/ast/symbolGraph.test.ts:150:64
+    148|     const repo = path.resolve(import.meta.dirname, '../../../..');
+    149|     const measured = spawnSync(process.execPath, ['--import', 'tsx', '…
+    150|     expect(measured.status, measured.stdout + measured.stderr).toBe(0);
+       |                                                                ^
+    151|     const proof = JSON.parse(measured.stdout);
+    152|     expect(proof.measuredEdits).toBe(12);
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[20/20]⎯
+
+[?25h
+ Test Files  11 failed | 265 passed (276)
+      Tests  20 failed | 2916 passed | 6 skipped (2942)
+   Start at  10:38:35
+   Duration  960.71s (tests 86%, import 10%, transform 4%)
+
+    Isolate  276 workers spawned · ~208ms startup each (spawn + environment, per file)
+             at least ~57.26s faster with isolate: false — reuses workers across files instead of one per file
+

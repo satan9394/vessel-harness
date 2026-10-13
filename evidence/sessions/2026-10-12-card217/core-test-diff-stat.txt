@@ -1,0 +1,4 @@
+ packages/core/src/agent-loop/AgentLoop.before-tool-gate.test.ts | 2 +-
+ packages/core/src/agent-loop/AgentLoop.denial-breaker.test.ts   | 2 +-
+ packages/core/src/agent-loop/AgentLoop.test.ts                  | 2 +-
+ 3 files changed, 3 insertions(+), 3 deletions(-)

@@ -24,7 +24,7 @@ export function protectTool(tool: ToolSpec): ToolSpec {
           failed = value; throw value.error;
         }
         return value;
-      }, { signal: ctx.signal, onRetry: retry => retries.push(retry) });
+      }, { maxRetries: tool.effects === 'read_only' || tool.effects === 'idempotent_write' || (!tool.effects && tool.requiredPermission === 'read') ? 2 : 0, signal: ctx.signal, onRetry: retry => retries.push(retry) });
     } catch (error) {
       if (failed && failed.error === error) result = failed;
       else {

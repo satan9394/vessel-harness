@@ -1,13 +1,14 @@
 import { observeProviderCacheUsage } from '@vessel/llm';
 import * as path from 'node:path';
 import * as fs from 'node:fs';
+import { randomUUID } from 'node:crypto';
 import type { CacheUsageMetrics, ChatUsage, ChatProvider, ChatToolDef, ToolCall, ToolResultRecord } from '@vessel/shared';
 import { AgentLoop, EventBus, Session } from '@vessel/core';
 import { ContextBuilder, AdaptiveContextPruner, CompactionBoundaryGuard, Compaction, createOverflowRecovery, type AdaptiveCompactionOptions, type ContextPruneOptions } from '@vessel/context';
 import { NoProgressGuard, ToolRegistry, createFsTools, createSearchTools, createShellTool, createSymbolGraphAccess, McpClient, registerMcpTools, type McpTransport, type NativeSandboxRunner } from '@vessel/tools';
 import { PolicyEngine, loadPolicyArtifacts, ModPipeline, RedGreenGate } from '@vessel/policy';
 import { guardBugfixCompletion } from './redGreenCompletion.js';
-import { Executor, Sandbox, ClaudeModAdapter } from '@vessel/runtime';
+import { Executor, Sandbox, ClaudeModAdapter, EffectJournal } from '@vessel/runtime';
 import { loadBehaviorIR, compileBehavior } from '@vessel/behavior';
 import { discoverInstructions } from '@vessel/context';
 import {
@@ -24,6 +25,8 @@ import { ExternalAgentRuntime, SubagentManager, createSubagentTool, type Externa
 import { ProjectStore, createMemoryTool, HybridMemoryStore, AutonomousReflectionEngine, collectSessionTrajectory, collectEvaluatorTrajectory, type SessionTrajectoryEvent, streamJsonlRecords, resolveSessionDir, type SessionIndexSource } from '@vessel/memory';
 import { CacheDriftDetector, AutoTaskRouter, type AutoRoute, type RouteMode, type TierBindings, type TierModelMap } from '@vessel/llm';
 import { EnforcementProjection } from './projections/EnforcementProjection.js';
+import { ExecutionLoop } from './ExecutionLoop.js';
+import type { ExecutionBudget } from '@vessel/engine';
 import type { ProcessTreeAuditEvent } from './projections/types.js';
 
 /**
@@ -72,6 +75,7 @@ export interface ComposeOptions {
   behaviorIRPath: string;
   sessionId?: string;
   maxSteps?: number;
+  executionBudget?: Partial<ExecutionBudget>;
   contextWindow?: number;
   compactionBudget?: Omit<AdaptiveCompactionOptions, 'contextWindow'>;
   /** injected compaction summarizer (LLM); defaults to heuristic */
@@ -227,9 +231,6 @@ export async function composeHarness(opts: ComposeOptions): Promise<ComposedHarn
     effectiveProvider = routedProvider;
   }
 
-  const session = await Session.open({ workspaceRoot, sessionId: opts.sessionId });
-  const bus = new EventBus();
-
   // Policy: one declaration -> four artifacts -> engine (hard) + guidance (soft)
   const artifacts = loadPolicyArtifacts({
     systemPath: opts.policySystemPath,
@@ -245,6 +246,12 @@ export async function composeHarness(opts: ComposeOptions): Promise<ComposedHarn
     // are never handed to a process runner.
     artifacts.rules.push(...(plugin.policyRules ?? []));
   }
+  // Mandatory behavior must compile before acquiring a session lease or invoking Mods.
+  const ir = loadBehaviorIR(opts.behaviorIRPath);
+  const compiled = compileBehavior(ir, artifacts);
+  const behaviorWarnings = compiled.warnings;
+  const session = await Session.open({ workspaceRoot, sessionId: opts.sessionId });
+  const bus = new EventBus();
   const redGreenGate = opts.taskType === 'bugfix' ? opts.redGreenGate ?? new RedGreenGate() : undefined;
   const policyEngine = new PolicyEngine(artifacts, redGreenGate ? [call => call.toolName === 'claim_task_complete' ? redGreenGate.completionVerdict(cwd) : undefined] : []);
 
@@ -317,7 +324,12 @@ export async function composeHarness(opts: ComposeOptions): Promise<ComposedHarn
   const loadedMods: { name: string; status: 'worker-isolated' }[] = [];
   const contributions: string[] = [];
   const modPolicy = async (call: ToolCall, spec: import('@vessel/shared').ToolSpec) => policyEngine.decide({ toolName: call.toolName, arguments: call.arguments }, spec);
-  const rpcExecutor = new Executor({ decide: modPolicy });
+  const effectJournal = new EffectJournal(path.join(session.dir, 'execution.jsonl'));
+  const effectHooks = {
+    beforeDispatch: async (call: ToolCall, spec: import('@vessel/shared').ToolSpec, invocation: import('@vessel/shared').CanonicalToolInvocation, context: import('@vessel/runtime').ExecutorCtx) => effectJournal.begin(call, spec, invocation, context.executionKey),
+    afterDispatch: async (call: ToolCall, result: import('@vessel/shared').ToolExecutionResult, context: import('@vessel/runtime').ExecutorCtx) => effectJournal.finish(call, result, context.executionKey),
+  };
+  const rpcExecutor = new Executor({ decide: modPolicy, permitAuthority: policyEngine.permits, ...effectHooks });
   // ponytail: file-only RPC uses a separate confined tool set; hooks never recurse.
   const rpcTools = createFsTools({ workspaceRoot, fsPolicy: { ...fsPolicy, confinement: true, allow: [] } });
   for (const directory of opts.mods ?? []) {
@@ -334,7 +346,7 @@ export async function composeHarness(opts: ComposeOptions): Promise<ComposedHarn
         const spec = rpcTools.find(tool => tool.name === name);
         if (!spec || !['Read', 'Write', 'Edit'].includes(name)) throw new Error('Mod RPC tool denied');
         const arguments_ = { ...input, path: path.relative(fs.realpathSync.native(workspaceRoot), String(input.path)) };
-        return rpcExecutor.runTool(spec, { toolCallId: 'mod-rpc', toolName: name, arguments: arguments_ }, { workspaceRoot, cwd, sandbox, signal });
+        return rpcExecutor.runTool(spec, { toolCallId: 'mod-rpc', toolName: name, arguments: arguments_ }, { workspaceRoot, cwd, sandbox, signal, executionKey: `mod-rpc:${randomUUID()}`, subject: { sessionId: session.sessionId, runId: 'mod-rpc', agentInstanceId: loaded.manifest.name } });
       },
     });
     modPipeline!.register(middleware);
@@ -348,6 +360,8 @@ export async function composeHarness(opts: ComposeOptions): Promise<ComposedHarn
     }
   }
   const executor = new Executor({
+    permitAuthority: policyEngine.permits,
+    ...effectHooks,
     mods: modPipeline,
     modContext: () => ({ sessionId: session.sessionId, turnIndex: session.replay().filter(record => record.type === 'user/message' && !record.source).length, metadata: {} }),
     onPreExecuteDeny: modPipeline ? async (call, verdict) => {
@@ -391,14 +405,12 @@ export async function composeHarness(opts: ComposeOptions): Promise<ComposedHarn
     // task 050: forward the turn's AbortSignal so in-flight tools (shell/MCP/subagent) can stop
     // Observations follow the policy waterfall, whose allow verdict short-circuits later listeners.
     await bus.emit('application/tool_started', { toolCallId: call.toolCallId, toolName: call.toolName, arguments: call.arguments });
-    const result = await executor.runTool(spec, call, { workspaceRoot, cwd, sandbox, signal: exec?.signal ?? undefined });
+    const result = await executor.runTool(spec, call, { workspaceRoot, cwd, sandbox, signal: exec?.signal ?? undefined,
+      executionKey: `${session.sessionId}:${session.replay().filter(record => record.type === 'tool/call').at(-1)?.seq ?? 0}:${call.toolCallId}`,
+      subject: { sessionId: session.sessionId, runId: loop.executionRunId, agentInstanceId: 'primary' },
+    });
     return { record: null, content: result.content, error: result.error, meta: result.meta };
   });
-
-  // Behavior: IR -> compiler -> stable prompt sections (+ dual-channel warnings)
-  const ir = loadBehaviorIR(opts.behaviorIRPath);
-  const compiled = compileBehavior(ir, artifacts);
-  const behaviorWarnings = compiled.warnings;
 
   // V0.2 subagent: manager + `Subagent` tool (isolated child sessions, caps 1–3)
   let subagentManager: SubagentManager | undefined;
@@ -615,7 +627,7 @@ export async function composeHarness(opts: ComposeOptions): Promise<ComposedHarn
     );
   }
 
-  const loop = new AgentLoop({
+  const loop = new ExecutionLoop({
     session,
     bus,
     provider: redGreenGate ? guardBugfixCompletion(cacheObserver.provider, policyEngine, async reason => {
@@ -637,7 +649,8 @@ export async function composeHarness(opts: ComposeOptions): Promise<ComposedHarn
     runTool,
     getVisibleTools: toChatTools,
     maxSteps: opts.maxSteps,
-  });
+  }, opts.executionBudget);
+  await loop.recoverIncompleteRuns();
 
   return {
     loadedMods,

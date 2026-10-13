@@ -6,7 +6,7 @@ import type { ChatProvider, PolicyArtifacts, ToolCall, ToolSpec } from '@vessel/
 import { AgentLoop, EventBus, Session, type ToolResultOutcome } from '@vessel/core';
 import { CompactionBoundaryGuard, Compaction, ContextBuilder, discoverInstructions, createOverflowRecovery, type AdaptiveCompactionOptions } from '@vessel/context';
 import { PolicyEngine } from '@vessel/policy';
-import { Executor, Sandbox } from '@vessel/runtime';
+import { Executor, Sandbox, EffectJournal } from '@vessel/runtime';
 import { NoProgressGuard, ToolRegistry } from '@vessel/tools';
 
 export type IsolatedSessionSource =
@@ -99,7 +99,11 @@ export async function createIsolatedRuntime(opts: IsolatedRuntimeOptions): Promi
   const registry = new ToolRegistry(opts.tools);
 
   // Executor: pre-execute policy recheck (tool layer never trusts the caller)
+  const effectJournal = new EffectJournal(path.join(session.dir, 'execution.jsonl'));
   const executor = new Executor({
+    permitAuthority: policyEngine.permits,
+    beforeDispatch: async (call, spec, invocation, context) => effectJournal.begin(call, spec, invocation, context.executionKey),
+    afterDispatch: async (call, result, context) => effectJournal.finish(call, result, context.executionKey),
     decide: async (call, spec) => policyEngine.decide({ toolName: call.toolName, arguments: call.arguments }, spec),
   });
   const progressGuard = new NoProgressGuard(workspaceRoot, async (diagnostic, isCurrent) => {
@@ -118,7 +122,10 @@ export async function createIsolatedRuntime(opts: IsolatedRuntimeOptions): Promi
         meta: {},
       };
     }
-    const result = await executor.runTool(spec, call, { workspaceRoot, cwd, sandbox, signal: exec?.signal ?? undefined });
+    const result = await executor.runTool(spec, call, { workspaceRoot, cwd, sandbox, signal: exec?.signal ?? undefined,
+      executionKey: `${session.sessionId}:${session.replay().filter(record => record.type === 'tool/call').at(-1)?.seq ?? 0}:${call.toolCallId}`,
+      subject: { sessionId: session.sessionId, runId: `turn:${session.replay().filter(record => record.type === 'user/message' && !record.source).length}`, agentInstanceId: opts.agentPreset ?? 'isolated' },
+    });
     return { record: null, content: result.content, error: result.error, meta: result.meta };
   });
 

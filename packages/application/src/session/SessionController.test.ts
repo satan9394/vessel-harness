@@ -178,7 +178,9 @@ describe('SessionController', () => {
     expect(ctl.projections.usage).toBeDefined();
     expect(ctl.projections.policy).toBeDefined();
 
-    // feed the bus directly → projections update incrementally.
+    // Conversation derives durable facts; usage/tool/policy remain bus observations.
+    await ctl.session.appendSync({ type: 'user/message', msgId: 'u1', role: 'user', content: 'hello', surface: true });
+    await ctl.session.appendSync({ type: 'assistant/message', msgId: 'a1', role: 'assistant', content: 'hi', surface: true });
     await ctl.bus.waterfall('before_turn', { turnId: 't1', input: 'hello' });
     await ctl.bus.emit('after_model', {
       turnId: 't1',

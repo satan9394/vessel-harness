@@ -1,0 +1,37 @@
+[
+  {
+    "exitCode": 0,
+    "startedAt": "2026-10-13T02:30:26.6678142Z",
+    "command": "npx.cmd vitest run packages/context/src/context.test.ts packages/context/src/compaction packages/behavior/src/compiler/Compiler.test.ts packages/engine/src/execution-run.test.ts packages/application/src/ExecutionLoop.test.ts packages/application/src/noProgressIntegration.test.ts packages/application/src/composeActivation.test.ts packages/application/src/redGreenCompletion.test.ts packages/application/src/v23Integration.test.ts apps/cli/src/providers/opencodeGoCli.test.ts apps/cli/src/policyStatus.test.ts benchmarks/runners/src/contracts/contracts.test.ts benchmarks/runners/src/lane/real-model-lane.test.ts benchmarks/runners/src/safety.test.ts benchmarks/runners/src/safety-discrimination.test.ts packages/application/src/session/SessionController.test.ts packages/application/src/projections/projections.test.ts packages/runtime/src/executor packages/runtime/src/mods/modExecution.test.ts packages/policy/src/engine/permit.test.ts packages/context/tests/ast/symbolGraph.test.ts packages/tools/src/execution/pipeline.test.ts packages/tools/src/execution/selfHealing.test.ts packages/core/src/agent-loop/AgentLoop.test.ts packages/core/src/agent-loop/AgentLoop.before-tool-gate.test.ts packages/core/src/agent-loop/AgentLoop.denial-breaker.test.ts",
+    "name": "01-directed",
+    "finishedAt": "2026-10-13T02:31:09.2201311Z"
+  },
+  {
+    "exitCode": 0,
+    "startedAt": "2026-10-13T02:31:09.2385383Z",
+    "command": "npx.cmd vitest run apps/cli/src/cli.test.ts -t anthropic provider falls|BRIEF-18",
+    "name": "01b-cli-regressions",
+    "finishedAt": "2026-10-13T02:31:24.2620924Z"
+  },
+  {
+    "exitCode": 0,
+    "startedAt": "2026-10-13T02:31:24.2656152Z",
+    "command": "npx.cmd tsc -b tsconfig.json",
+    "name": "02-tsc",
+    "finishedAt": "2026-10-13T02:31:27.0207890Z"
+  },
+  {
+    "exitCode": 0,
+    "startedAt": "2026-10-13T02:31:27.0236513Z",
+    "command": "npm.cmd run typecheck:tests",
+    "name": "03-test-types",
+    "finishedAt": "2026-10-13T02:31:29.2973361Z"
+  },
+  {
+    "exitCode": 0,
+    "startedAt": "2026-10-13T02:31:29.2999956Z",
+    "command": "npm.cmd run test:all",
+    "name": "04-test-all",
+    "finishedAt": "2026-10-13T02:40:50.7632474Z"
+  }
+]

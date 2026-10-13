@@ -21,7 +21,7 @@ async function makeLoop(dir: string, script: MockScriptEntry[], prompt: string) 
     createShellTool({ workspaceRoot: dir, sandbox }),
   ];
   const registry = new ToolRegistry(tools);
-  const executor = new Executor();
+  const executor = new Executor({ decide: async () => ({ action: 'allow', decisionPath: ['fixture:host-policy'] }) });
   const provider = new MockProvider(script, { model: 'mock', vars: { cwd: dir } });
   const loop = new AgentLoop({
     session, bus, provider, model: 'mock',
