@@ -57,6 +57,7 @@ export default function CustomizePanel({ modules, onChange }: Props) {
       {open && (
         <div className="customize-popover" role="dialog" aria-label={t('customizeHead')}>
           <div className="customize-head">{t('customizeHead')}</div>
+          <p className="dim layout-boundary">{t('layoutBoundary')}</p>
           <div className="customize-list">
             {UI_MODULES.map((key) => (
               <label key={key} className="customize-item">

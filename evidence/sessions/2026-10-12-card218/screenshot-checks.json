@@ -1,0 +1,223 @@
+{
+  "url": "http://127.0.0.1:31828",
+  "checks": [
+    {
+      "lang": "zh",
+      "view": "01-workbench-overview.png",
+      "ok": true
+    },
+    {
+      "lang": "zh",
+      "view": "02-provider-settings.png",
+      "ok": true
+    },
+    {
+      "lang": "zh",
+      "view": "03-command-palette.png",
+      "ok": true
+    },
+    {
+      "lang": "zh",
+      "view": "04-new-session.png",
+      "ok": true
+    },
+    {
+      "lang": "zh",
+      "view": "05-customize-modules.png",
+      "ok": true
+    },
+    {
+      "lang": "zh",
+      "viewport": [
+        375,
+        812
+      ],
+      "overflow": {
+        "scroll": 375,
+        "viewport": 375
+      },
+      "ok": true
+    },
+    {
+      "lang": "zh",
+      "viewport": [
+        390,
+        844
+      ],
+      "overflow": {
+        "scroll": 390,
+        "viewport": 390
+      },
+      "ok": true
+    },
+    {
+      "lang": "zh",
+      "viewport": [
+        768,
+        1024
+      ],
+      "overflow": {
+        "scroll": 768,
+        "viewport": 768
+      },
+      "ok": true
+    },
+    {
+      "lang": "zh",
+      "viewport": [
+        800,
+        900
+      ],
+      "overflow": {
+        "scroll": 800,
+        "viewport": 800
+      },
+      "ok": true
+    },
+    {
+      "lang": "zh",
+      "viewport": [
+        1024,
+        768
+      ],
+      "overflow": {
+        "scroll": 1024,
+        "viewport": 1024
+      },
+      "ok": true
+    },
+    {
+      "lang": "zh",
+      "viewport": [
+        1280,
+        800
+      ],
+      "overflow": {
+        "scroll": 1280,
+        "viewport": 1280
+      },
+      "ok": true
+    },
+    {
+      "lang": "zh",
+      "viewport": [
+        1440,
+        900
+      ],
+      "overflow": {
+        "scroll": 1440,
+        "viewport": 1440
+      },
+      "ok": true
+    },
+    {
+      "lang": "en",
+      "view": "01-workbench-overview.png",
+      "ok": true
+    },
+    {
+      "lang": "en",
+      "view": "02-provider-settings.png",
+      "ok": true
+    },
+    {
+      "lang": "en",
+      "view": "03-command-palette.png",
+      "ok": true
+    },
+    {
+      "lang": "en",
+      "view": "04-new-session.png",
+      "ok": true
+    },
+    {
+      "lang": "en",
+      "view": "05-customize-modules.png",
+      "ok": true
+    },
+    {
+      "lang": "en",
+      "viewport": [
+        375,
+        812
+      ],
+      "overflow": {
+        "scroll": 375,
+        "viewport": 375
+      },
+      "ok": true
+    },
+    {
+      "lang": "en",
+      "viewport": [
+        390,
+        844
+      ],
+      "overflow": {
+        "scroll": 390,
+        "viewport": 390
+      },
+      "ok": true
+    },
+    {
+      "lang": "en",
+      "viewport": [
+        768,
+        1024
+      ],
+      "overflow": {
+        "scroll": 768,
+        "viewport": 768
+      },
+      "ok": true
+    },
+    {
+      "lang": "en",
+      "viewport": [
+        800,
+        900
+      ],
+      "overflow": {
+        "scroll": 800,
+        "viewport": 800
+      },
+      "ok": true
+    },
+    {
+      "lang": "en",
+      "viewport": [
+        1024,
+        768
+      ],
+      "overflow": {
+        "scroll": 1024,
+        "viewport": 1024
+      },
+      "ok": true
+    },
+    {
+      "lang": "en",
+      "viewport": [
+        1280,
+        800
+      ],
+      "overflow": {
+        "scroll": 1280,
+        "viewport": 1280
+      },
+      "ok": true
+    },
+    {
+      "lang": "en",
+      "viewport": [
+        1440,
+        900
+      ],
+      "overflow": {
+        "scroll": 1440,
+        "viewport": 1440
+      },
+      "ok": true
+    }
+  ]
+}

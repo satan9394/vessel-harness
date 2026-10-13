@@ -108,13 +108,13 @@
 | 模型端点自动拉取、灵活配置 Schema 兼容与供应商管理自愈 (Provider Hub Model Pull & Schema Repair) | 215 | 已验证（2026-10-11 本地完成，双 Root 3155 passed / 6 skipped） | `tasks/215-provider-hub-model-pull-and-schema-repair.md` |
 | 项目整体逻辑架构可视化与文档包清单漂移修复 (Archify Architecture Visualization & Doc-Drift Repair) | 216 | 已验证（2026-10-12 本地完成，双 Root 2873 passed / 6 skipped） | `tasks/216-archify-architecture-visualization-and-doc-drift-repair.md`、`docs/diagrams/README.md` |
 | Vessel 架构整改与实施规范落地 (Architecture Improvement Plan Implementation) | 217 | 已验证（2026-10-12 本地交证，待验收；双 Root 3219 passed / 6 skipped） | `tasks/217-architecture-improvement-plan-implementation.md` |
-| Vessel Web UI/UX 工作台整改规范落地 (Web UI/UX Workbench Improvement) | 218 | 就绪待执行（第一事实源：`docs/plans/Vessel_Web_UI_UX_Improvement_Plan.md`） | `tasks/218-web-ui-ux-workbench-improvement-implementation.md` |
+| Vessel Web UI/UX 工作台整改规范落地 (Web UI/UX Workbench Improvement) | 218 | 已验证（2026-10-12 本地交证，待验收） | `tasks/218-web-ui-ux-workbench-improvement-implementation.md` |
 
 ## 未闭合 / 下一目标
 
+- **最近已交付（本地已验证，待维护者验收）：任务 218 Web 工作台整改**：见 `tasks/218-web-ui-ux-workbench-improvement-implementation.md` 与 `evidence/sessions/2026-10-12-card218/PROOF.md`；standard 交证即停。
+
 - **最近已交付（本地已验证，待维护者验收）：任务 217 架构整改落地**：见 `tasks/217-architecture-improvement-plan-implementation.md` 与 `evidence/sessions/2026-10-12-card217/PROOF.md`；standard 交证即停，未提交/推送/发布。
-- **下一目标（本次未启动）：Card 218 Web 工作台整改**：
-  - **任务 218 Web 工作台整改落地**：第一事实源 `docs/plans/Vessel_Web_UI_UX_Improvement_Plan.md`（信息架构重组、一体化任务输入流、命令面板语义分组、800px 移动端自适应），任务书 `tasks/218-web-ui-ux-workbench-improvement-implementation.md`；
 - **最近已交付（已合入本地提交 `520492d`）：任务 216 项目整体逻辑架构可视化与文档包清单漂移修复**：
   - 交付对象：OpenCode 搭载 DeepSeek-v4.1-Flash；
   - 交付内容：archify 产出的 5 类分层可交互图（`docs/diagrams/`，四门全绿、SRC 证据钉 `9c764b8`）+ `docs/ARCHITECTURE.md` §6.1 等文档包清单漂移（13→14，补 `engine`/`application`）修复；

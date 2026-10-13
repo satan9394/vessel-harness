@@ -1,88 +1,92 @@
+"""Capture the bilingual UI; VESSEL_SCREENSHOT_URL selects an isolated fixture.
+
+Run the card218 browser fixture first for deterministic project/model/session data.
+All requested views must exist: missing selectors or horizontal overflow fail closed.
+"""
+import json
 import os
-import time
+from pathlib import Path
 from playwright.sync_api import sync_playwright
 
-BASE_URL = "http://localhost:5173"
-OUT_DIR = os.path.abspath("docs/screenshots")
+BASE_URL = os.environ.get("VESSEL_SCREENSHOT_URL", "http://localhost:5173")
+OUT_DIR = Path("docs/screenshots").resolve()
+EVIDENCE = Path(os.environ.get("VESSEL_SCREENSHOT_EVIDENCE", "evidence/sessions/2026-10-12-card218")).resolve()
 
-def capture_lang(browser, lang):
-    print(f"\n==========================================")
-    print(f"=== Capturing screenshots for language: {lang} ===")
-    print(f"==========================================")
-    sub_dir = f"{OUT_DIR}/{lang}"
-    os.makedirs(sub_dir, exist_ok=True)
-    
-    def make_page(viewport={"width": 1440, "height": 900}):
-        ctx = browser.new_context(viewport=viewport, device_scale_factor=2)
-        p = ctx.new_page()
-        p.goto(BASE_URL)
-        p.evaluate(f"localStorage.setItem('vessel.ui.lang', '{lang}')")
-        p.reload()
-        p.wait_for_load_state("domcontentloaded")
-        p.wait_for_selector(".app, .topbar, .sidebar", timeout=10000)
-        time.sleep(0.8)
-        return ctx, p
 
-    # 1. Overview
-    ctx, page = make_page()
-    page.screenshot(path=f"{sub_dir}/01-workbench-overview.png")
-    print(f"[OK] {lang}/01-workbench-overview.png")
-    ctx.close()
+def capture_lang(browser, lang, checks):
+    target = OUT_DIR / lang
+    target.mkdir(parents=True, exist_ok=True)
 
-    # 2. Provider Settings Modal
-    ctx, page = make_page()
-    settings_btn = page.locator("button.btn:has-text('模型设置'), button.btn:has-text('Model settings')").first
-    if settings_btn.count() > 0:
-        settings_btn.click()
-        page.wait_for_selector(".modal-backdrop, .provider-settings-modal, [role='dialog']", timeout=5000)
-        time.sleep(0.8)
-        page.screenshot(path=f"{sub_dir}/02-provider-settings.png")
-        print(f"[OK] {lang}/02-provider-settings.png")
-    ctx.close()
+    def make_page(width=1440, height=900):
+        ctx = browser.new_context(viewport={"width": width, "height": height}, device_scale_factor=2)
+        ctx.add_init_script("localStorage.setItem('vessel.ui.lang', " + json.dumps(lang) + ")")
+        page = ctx.new_page()
+        page.goto(BASE_URL)
+        page.locator(".task-composer").wait_for()
+        page.wait_for_function("!document.querySelector('.task-composer select:disabled')")
+        return ctx, page
 
-    # 3. Command Palette (Ctrl+K)
-    ctx, page = make_page()
-    page.keyboard.press("Control+k")
-    time.sleep(0.8)
-    page.screenshot(path=f"{sub_dir}/03-command-palette.png")
-    print(f"[OK] {lang}/03-command-palette.png")
-    ctx.close()
+    def capture(name, action=None):
+        ctx, page = make_page()
+        try:
+            if action:
+                action(page)
+            page.screenshot(path=str(target / name))
+            checks.append({"lang": lang, "view": name, "ok": True})
+            print(f"[OK] {lang}/{name}", flush=True)
+        finally:
+            ctx.close()
 
-    # 4. New Session Form
-    ctx, page = make_page()
-    new_btn = page.locator("button:has-text('新建会话'), button:has-text('New session')").first
-    if new_btn.count() > 0:
-        new_btn.click()
-        page.wait_for_selector(".overlay[role='dialog'], form.modal", timeout=5000)
-        time.sleep(0.8)
-        page.screenshot(path=f"{sub_dir}/04-new-session.png")
-        print(f"[OK] {lang}/04-new-session.png")
-    ctx.close()
+    capture("01-workbench-overview.png")
 
-    # 5. Customize Panel
-    ctx, page = make_page()
-    customize_btn = page.locator("button.customize-toggle, button:has-text('自定义'), button:has-text('Customize')").first
-    if customize_btn.count() > 0:
-        customize_btn.click()
-        time.sleep(0.8)
-        page.screenshot(path=f"{sub_dir}/05-customize-modules.png")
-        print(f"[OK] {lang}/05-customize-modules.png")
-    ctx.close()
+    def providers(page):
+        page.locator('[data-area="settings"]').click()
+        page.locator('[data-action="configure-models"]').first.click()
+        page.locator(".provider-modal").wait_for()
+    capture("02-provider-settings.png", providers)
 
-    # 6. Responsive Mobile (800px width)
-    ctx, page = make_page(viewport={"width": 800, "height": 850})
-    time.sleep(0.8)
-    page.screenshot(path=f"{sub_dir}/06-mobile-responsive-800px.png")
-    print(f"[OK] {lang}/06-mobile-responsive-800px.png")
-    ctx.close()
+    def palette(page):
+        page.keyboard.press("Control+k")
+        page.locator(".command-dialog").wait_for()
+        assert "sess_" not in page.locator('[role="listbox"]').inner_text()
+    capture("03-command-palette.png", palette)
+
+    def advanced(page):
+        page.locator('[data-action="advanced-session"]').click()
+        page.locator("form.modal").wait_for()
+    capture("04-new-session.png", advanced)
+
+    def layout(page):
+        page.locator('[data-area="settings"]').click()
+        page.locator(".main-body .customize-toggle").click()
+        page.locator(".main-body .customize-popover").wait_for()
+    capture("05-customize-modules.png", layout)
+
+    for width, height in [(375, 812), (390, 844), (768, 1024), (800, 900), (1024, 768), (1280, 800), (1440, 900)]:
+        ctx, page = make_page(width, height)
+        try:
+            dimensions = page.evaluate("({scroll: document.documentElement.scrollWidth, viewport: innerWidth})")
+            assert dimensions["scroll"] <= dimensions["viewport"], dimensions
+            if width == 800:
+                page.screenshot(path=str(target / "06-mobile-responsive-800px.png"))
+            checks.append({"lang": lang, "viewport": [width, height], "overflow": dimensions, "ok": True})
+        finally:
+            ctx.close()
+
 
 def run():
+    checks = []
     with sync_playwright() as p:
         browser = p.chromium.launch(headless=True)
-        capture_lang(browser, "zh")
-        capture_lang(browser, "en")
-        browser.close()
-    print("\n[SUCCESS] All screenshots generated successfully in docs/screenshots/{zh,en}!")
+        try:
+            for lang in ["zh", "en"]:
+                capture_lang(browser, lang, checks)
+        finally:
+            browser.close()
+    EVIDENCE.mkdir(parents=True, exist_ok=True)
+    (EVIDENCE / "screenshot-checks.json").write_text(json.dumps({"url": BASE_URL, "checks": checks}, indent=2), encoding="utf-8")
+    print("[SUCCESS] All 12 bilingual Retina screenshots refreshed; responsive checks passed.")
+
 
 if __name__ == "__main__":
     run()

@@ -1,10 +1,12 @@
 import { localizedValue } from './i18n';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { createApiClient, type ApiClient, type Health, type Project, type SessionMeta, type CreateSessionInput } from './api';
-import CommandPalette from './components/common/CommandPalette';
+import CommandPalette, { trapFocus } from './components/common/CommandPalette';
 import type { CommandItem } from './components/palette/types';
 import { INSPECTOR_TABS, INSPECTOR_LABELS, type InspectorTab } from './components/layout/DualSurfaceLayout';
 import Sidebar from './components/Sidebar';
+import SubagentWorkspace from './components/SubagentPanel';
+import TaskComposer, { projectName, readableSessionTitle } from './components/TaskComposer';
 import StatusBar from './components/StatusBar';
 import NewSessionForm, { type NewSessionResult } from './components/NewSessionForm';
 import ConversationView from './components/ConversationView';
@@ -14,13 +16,10 @@ import CustomizePanel from './components/CustomizePanel';
 import ProviderSettingsModal from './components/providers/ProviderSettingsModal';
 import LanguageSwitcher from './components/LanguageSwitcher';
 import { LanguageProvider, useI18n } from './components/LanguageProvider';
-import UsageBar, { emptyUsage } from './components/UsageBar';
-import ToolActivityRow from './components/ToolActivityRow';
 import TeamModule from './components/TeamModule';
 import GoalModule from './components/GoalModule';
 import SwarmTopologyView from './components/SwarmTopologyView';
 import CognitiveRulesDashboard from './components/CognitiveRulesDashboard';
-import type { ToolDelta } from './sse';
 import {
   loadModules,
   saveModules,
@@ -70,6 +69,27 @@ function AppShell() {
   const [showProviders, setShowProviders] = useState(false);
   const [providerRevision, setProviderRevision] = useState(0);
   const [showNew, setShowNew] = useState(false);
+  const [area, setArea] = useState<'workbench' | 'activity' | 'studio' | 'settings'>('workbench');
+  const [drawer, setDrawer] = useState(false);
+  const [taskStarting, setTaskStarting] = useState(false);
+  const navigationFocus = useRef<HTMLElement | null>(null);
+  const [projectRoot, setProjectRoot] = useState('');
+  useEffect(() => {
+    if (!drawer) return;
+    navigationFocus.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    const navigation = document.querySelector<HTMLElement>('.navigation-shell');
+    navigation?.querySelector<HTMLButtonElement>('button')?.focus();
+    const close = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') { event.preventDefault(); setDrawer(false); }
+      else if (navigation) trapFocus(event, navigation);
+    };
+    window.addEventListener('keydown', close);
+    return () => {
+      window.removeEventListener('keydown', close);
+      if (navigationFocus.current?.isConnected) navigationFocus.current.focus();
+    };
+  }, [drawer]);
+  const [initialTask, setInitialTask] = useState<{ sessionId: string; text: string }>();
   const [newPermission, setNewPermission] = useState<CreateSessionInput['permission']>('workspace-write');
   const [viewRequest, setViewRequest] = useState<{ action: 'clear' | 'collapse' | 'expand' | 'export' | InspectorTab; serial: number }>();
   const [selectedSessionId, setSelectedSessionId] = useState<string | null>(null);
@@ -96,6 +116,7 @@ function AppShell() {
       setHealth(h);
       const [{ projects: ps }, { sessions: ss }] = await Promise.all([api.projects(), api.sessions()]);
       setProjects(ps);
+      setProjectRoot(current => current || ps[0]?.root || '');
       setSessions(ss);
       // Keep selection valid if a session was removed on the server.
       setSelectedSessionId((cur) => (cur && ss.some((s) => s.id === cur) ? cur : null));
@@ -111,6 +132,7 @@ function AppShell() {
 
   function onCreated(result: NewSessionResult) {
     // auto-open the freshly created session
+    setArea('workbench');
     setSelectedSessionId(result.sessionId);
     void connect();
   }
@@ -120,9 +142,10 @@ function AppShell() {
   const requestView = (action: 'clear' | 'collapse' | 'expand' | 'export' | InspectorTab) => setViewRequest(previous => ({ action, serial: (previous?.serial ?? 0) + 1 }));
   const commands: CommandItem[] = [
     { id: 'providers', title: t('modelSettings'), category: 'action', keywords: ['provider', 'model'], execute: () => setShowProviders(true) },
-    { id: 'new', title: t('newSessionTitle'), category: 'session', execute: () => { setNewPermission('workspace-write'); setShowNew(true); } },
-    ...(['read-only', 'workspace-write'] as const).map(permission => ({ id: `sandbox:${permission}`, title: t('paletteSandbox', { permission: t(permission === 'read-only' ? 'permissionReadOnly' : 'permissionWorkspaceWrite') }), category: 'action' as const, keywords: ['security'], execute: () => { setNewPermission(permission); setShowNew(true); } })),
-    ...sessions.filter(session => !session.topic?.isArchived).map(session => ({ id: `session:${session.id}`, title: t('paletteSession', { title: session.topic?.title ?? session.id, root: session.workspaceRoot }), category: 'session' as const, keywords: [session.id], execute: () => setSelectedSessionId(session.id) })),
+    { id: 'new', title: t('newSessionTitle'), category: 'action', execute: () => { if (taskStarting) return; setArea('workbench'); setSelectedSessionId(null); } },
+    ...(['read-only', 'workspace-write'] as const).map(permission => ({ id: `sandbox:${permission}`, title: t('paletteSandbox', { permission: t(permission === 'read-only' ? 'permissionReadOnly' : 'permissionWorkspaceWrite') }), category: 'action' as const, keywords: ['security'], execute: () => { if (taskStarting) return; setNewPermission(permission); setShowNew(true); } })),
+    ...projects.map(project => ({ id: `project:${project.root}`, title: projectName(project.root), category: 'project' as const, keywords: [project.root], execute: () => { if (taskStarting) return; setProjectRoot(project.root); setArea('workbench'); setSelectedSessionId(null); } })),
+    ...sessions.filter(session => !session.topic?.isArchived).map(session => ({ id: `session:${session.id}`, title: `${readableSessionTitle(session, t('sessionNew'))} · ${projectName(session.workspaceRoot)}`, category: 'session' as const, keywords: [session.id, session.workspaceRoot], execute: () => { if (taskStarting) return; setArea('workbench'); setSelectedSessionId(session.id); } })),
     ...(!nothingSelected ? [
       ...INSPECTOR_TABS.map(tab => ({ id: `inspector:${tab}`, title: t('paletteInspector', { tab: t(INSPECTOR_LABELS[tab]) }), category: 'navigation' as const, execute: () => requestView(tab) })),
       { id: 'export', title: t('paletteExportJson'), category: 'action' as const, execute: () => requestView('export') },
@@ -133,46 +156,59 @@ function AppShell() {
   ];
 
   return (
-    <div className="app" data-provider-revision={providerRevision}>
+    <div className={`app${drawer ? ' navigation-open' : ''}`} data-provider-revision={providerRevision}>
+      {drawer && <button className="navigation-backdrop" aria-label={t('close')} onClick={() => setDrawer(false)} />}
+      <div className="navigation-shell" role={drawer ? 'dialog' : undefined} aria-modal={drawer ? true : undefined} aria-label={drawer ? t('navigationMenu') : undefined}>
+      <button className="btn navigation-close" onClick={() => setDrawer(false)}>{t('close')}</button>
+      <nav className="primary-nav" aria-label="Vessel">
+        {(['workbench', 'activity', 'studio', 'settings'] as const).map(value => <button key={value} data-area={value} className={`btn${area === value ? ' side-item-active' : ''}`} aria-current={area === value ? 'page' : undefined} onClick={() => { setArea(value); setDrawer(false); }}>{t(value === 'studio' ? 'agentStudio' : value)}</button>)}
+      </nav>
+      <div className="session-navigation" inert={taskStarting}>
       <Sidebar
         projects={projects}
         sessions={sessions}
-        onNewSession={() => setShowNew(true)}
+        onNewSession={() => { if (taskStarting) return; setArea('workbench'); setSelectedSessionId(null); setDrawer(false); }}
+        selectedProjectRoot={projectRoot}
+        onSelectProject={root => { if (taskStarting) return; setProjectRoot(root); setArea('workbench'); setSelectedSessionId(null); setDrawer(false); }}
         selectedSessionId={selectedSessionId}
-        onSelectSession={setSelectedSessionId}
+        onSelectSession={id => { if (taskStarting) return; setSelectedSessionId(id); setArea('workbench'); setDrawer(false); }}
         onRenameTopic={(id, title) => void updateSessionTopic(id, { title })}
         onArchiveTopic={(id, isArchived) => void updateSessionTopic(id, { isArchived })}
       />
-      <main className="main">
+      </div>
+      </div>
+      <main className="main" inert={drawer}>
         <div className="topbar">
+          <button className="btn navigation-toggle" aria-label={t('navigationMenu')} aria-expanded={drawer} onClick={() => setDrawer(value => !value)}>☰</button>
           <StatusBar health={health} error={serverError} />
           <div className="topbar-actions">
-            <button className="btn" onClick={() => setShowProviders(true)}>{t('modelSettings')}</button>
-            <AttentionControls attention={attention} />
+
             <CommandPalette commands={commands} />
-            <CustomizePanel modules={modules} onChange={handleModulesChange} />
-            <LanguageSwitcher />
+            <details className="preferences-menu"><summary className="btn">{t('preferences')}</summary><div className="preferences-content"><AttentionControls attention={attention} /><CustomizePanel modules={modules} onChange={handleModulesChange} /><LanguageSwitcher /></div></details>
           </div>
         </div>
+        {area === 'activity' ? <section className="main-body"><h2>{t('activity')}</h2><p className="dim">{t('activityHint')}</p><div className="activity-sessions">{sessions.filter(session => !session.topic?.isArchived).map(session => <button className="btn" key={session.id} disabled={taskStarting} onClick={() => { if (taskStarting) return; setSelectedSessionId(session.id); setArea('workbench'); }}><strong>{readableSessionTitle(session, t('sessionNew'))}</strong><span>{projectName(session.workspaceRoot)} · {new Date(session.updatedAt ?? session.createdAt).toLocaleString()}</span></button>)}</div>{!sessions.length && <p>{t('noSessions')}</p>}<SubagentWorkspace api={api} /></section>
+ : null}
+        {area === 'studio' ? <section className="main-body"><h2>{t('agentStudio')}</h2><p className="dim">{t('studioHint')}</p><CognitiveRulesDashboard api={api} /></section>
+ : null}
+        {area === 'settings' ? <section className="main-body"><h2>{t('settings')}</h2><button className="btn" data-action="configure-models" onClick={() => setShowProviders(true)}>{t('modelSettings')}</button><p className="dim">{t('layoutBoundary')}</p><CustomizePanel modules={modules} onChange={handleModulesChange} /><LanguageSwitcher /><AttentionControls attention={attention} /></section>
+ : null}
+        <div className="workbench-region" hidden={area !== 'workbench'}>
         {nothingSelected ? (
-          <section className="main-body">
-            <h2>{t('emptyTitle')}</h2>
-            <p className="dim">{t('emptyBody')}</p>
-            {serverError && (
-              <p className="error-text">
-                {t('serverDown')} <code>vessel serve</code>
-              </p>
-            )}
-            <ModuleSections modules={modules} api={api} sessionId={null} />
+          <section className="main-body workbench-home">
+            <p className="dim">{t('hierarchyHint')}</p>
+            {serverError && <p role="alert" className="error-text">{t('serverDown')} <code>vessel serve</code> <button className="btn" onClick={() => void connect()}>{t('modelRetry')}</button></p>}
+            <TaskComposer onBusyChange={setTaskStarting} api={api} projects={projects} selectedRoot={projectRoot} onSelectProject={setProjectRoot} providerRevision={providerRevision} disabled={serverError || !health?.ok} onConfigureModels={() => setShowProviders(true)} onAdvanced={() => setShowNew(true)} onStarted={(session, task) => { setSessions(current => [session, ...current.filter(item => item.id !== session.id)]); setProjectRoot(session.workspaceRoot); setInitialTask({ sessionId: session.id, text: task }); setSelectedSessionId(session.id); void connect(); }} />
           </section>
         ) : (
           <div className="conversation-wrap">
-            <ConversationView providerRevision={providerRevision} onConfigureModels={() => setShowProviders(true)} attention={attention} viewRequest={viewRequest} sessionId={selectedSessionId as string} api={api} onSessionUpdated={() => void connect()} />
+            <ConversationView initialTask={initialTask} onInitialTaskConsumed={() => setInitialTask(undefined)} sessionTitle={readableSessionTitle(sessions.find(session => session.id === selectedSessionId)!, t('sessionNew'))} providerRevision={providerRevision} onConfigureModels={() => setShowProviders(true)} attention={attention} viewRequest={viewRequest} sessionId={selectedSessionId as string} api={api} onSessionUpdated={() => void connect()} />
             <ModuleSections modules={modules} api={api} sessionId={selectedSessionId as string} />
           </div>
         )}
+        </div>
       </main>
-      {showNew && <NewSessionForm hidden={showProviders} providerRevision={providerRevision} onConfigureModels={() => setShowProviders(true)} initialPermission={newPermission} api={api} onCreated={onCreated} onClose={() => setShowNew(false)} />}
+      {showNew && <NewSessionForm hidden={showProviders} providerRevision={providerRevision} onConfigureModels={() => setShowProviders(true)} initialWorkspaceRoot={projectRoot} initialPermission={newPermission} api={api} onCreated={onCreated} onClose={() => setShowNew(false)} />}
       {showProviders && <ProviderSettingsModal api={api} onClose={() => setShowProviders(false)} onChanged={() => setProviderRevision(previous => previous + 1)} />}
     </div>
   );
@@ -253,25 +289,10 @@ function ModuleSection({
         </div>
       );
     case 'ChangedFiles':
-      return <PlaceholderCard title={t('uiChangedFiles')}>{t('changedFilesPlaceholder')}</PlaceholderCard>;
     case 'Cost':
-      // 042 UsageBar reuse; placeholders until live usage is lifted up from a session.
-      return (
-        <PlaceholderCard title={t('uiCost')}>
-          <UsageBar usage={emptyUsage()} />
-        </PlaceholderCard>
-      );
     case 'ToolActivity':
-      // 042 ToolActivityRow reuse; placeholder rows until a live tool stream is lifted up.
-      return (
-        <PlaceholderCard title={t('uiToolActivity')}>
-          <div className="tool-activity-list">
-            {SAMPLE_TOOL_ACTIVITY.map((tool, i) => (
-              <ToolActivityRow key={i} delta={tool} />
-            ))}
-          </div>
-        </PlaceholderCard>
-      );
+      // Real session data is shown in the conversation Inspector.
+      return null;
     default:
       if (UNIMPLEMENTED.includes(id)) {
         return (
@@ -284,21 +305,3 @@ function ModuleSection({
       return null;
   }
 }
-
-function PlaceholderCard({ title, children }: { title: string; children?: React.ReactNode }) {
-  const { t } = useI18n();
-  return (
-    <div className="module-card">
-      <div className="module-card-title">{title}</div>
-      <div className="module-card-body dim">{children ?? t('placeholderDev')}</div>
-    </div>
-  );
-}
-
-const now = Date.now();
-/** Placeholder tool rows for the Tool Activity module until live data is wired. */
-const SAMPLE_TOOL_ACTIVITY: ToolDelta[] = [
-  { toolName: 'read_file', status: 'done', argsSummary: 'src/App.tsx', durationMs: 12, ts: now },
-  { toolName: 'grep', status: 'done', argsSummary: 'pattern=task 043', durationMs: 8, ts: now },
-  { toolName: 'write_file', status: 'started', argsSummary: 'src/components/CustomizePanel.tsx', ts: now },
-];

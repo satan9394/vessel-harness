@@ -1,0 +1,88 @@
+{
+  "checks": [
+    {
+      "check": "inline start, exactly one session/turn, chosen backend permission",
+      "ok": true
+    },
+    {
+      "check": "area navigation retains conversation",
+      "ok": true
+    },
+    {
+      "check": "layout visibility never mutates backend policy",
+      "ok": true
+    },
+    {
+      "check": "semantic palette search and keyboard execution",
+      "ok": true
+    },
+    {
+      "check": "800px navigation drawer and Escape",
+      "ok": true
+    },
+    {
+      "check": "pending creation owns navigation; failure retains draft; no duplicate create",
+      "ok": true
+    },
+    {
+      "check": "first turn failure retains task without automatic retry",
+      "ok": true
+    },
+    {
+      "check": "no browser runtime errors",
+      "ok": true
+    }
+  ],
+  "mutations": [
+    {
+      "url": "http://127.0.0.1:31828/api/projects/open",
+      "method": "POST",
+      "body": "{\"workspaceRoot\":\"C:\\\\Users\\\\WORK\\\\AppData\\\\Local\\\\Temp\\\\vessel-card218-browser-IVjiSu\\\\workspace\"}"
+    },
+    {
+      "url": "http://127.0.0.1:31828/api/sessions",
+      "method": "POST",
+      "body": "{\"workspaceRoot\":\"C:\\\\Users\\\\WORK\\\\AppData\\\\Local\\\\Temp\\\\vessel-card218-browser-IVjiSu\\\\workspace\",\"permission\":\"read-only\",\"provider\":\"local-fixture\",\"model\":\"fixture-a\"}"
+    },
+    {
+      "url": "http://127.0.0.1:31828/api/sessions/sess_1791863772328_61478e65/topic",
+      "method": "PATCH",
+      "body": "{\"title\":\"Inspect the workbench fixture without writing files\"}"
+    },
+    {
+      "url": "http://127.0.0.1:31828/api/sessions/sess_1791863772328_61478e65/turns",
+      "method": "POST",
+      "body": "{\"prompt\":\"Inspect the workbench fixture without writing files\"}"
+    },
+    {
+      "url": "http://127.0.0.1:31828/api/projects/open",
+      "method": "POST",
+      "body": "{\"workspaceRoot\":\"C:\\\\Users\\\\WORK\\\\AppData\\\\Local\\\\Temp\\\\vessel-card218-browser-IVjiSu\\\\workspace\"}"
+    },
+    {
+      "url": "http://127.0.0.1:31828/api/sessions",
+      "method": "POST",
+      "body": "{\"workspaceRoot\":\"C:\\\\Users\\\\WORK\\\\AppData\\\\Local\\\\Temp\\\\vessel-card218-browser-IVjiSu\\\\workspace\",\"permission\":\"workspace-write\",\"provider\":\"local-fixture\",\"model\":\"fixture-a\"}"
+    },
+    {
+      "url": "http://127.0.0.1:31828/api/projects/open",
+      "method": "POST",
+      "body": "{\"workspaceRoot\":\"C:\\\\Users\\\\WORK\\\\AppData\\\\Local\\\\Temp\\\\vessel-card218-browser-IVjiSu\\\\workspace\"}"
+    },
+    {
+      "url": "http://127.0.0.1:31828/api/sessions",
+      "method": "POST",
+      "body": "{\"workspaceRoot\":\"C:\\\\Users\\\\WORK\\\\AppData\\\\Local\\\\Temp\\\\vessel-card218-browser-IVjiSu\\\\workspace\",\"permission\":\"workspace-write\",\"provider\":\"local-fixture\",\"model\":\"fixture-a\"}"
+    },
+    {
+      "url": "http://127.0.0.1:31828/api/sessions/sess_1791863776476_c20f527e/topic",
+      "method": "PATCH",
+      "body": "{\"title\":\"Failed first task remains recoverable\"}"
+    },
+    {
+      "url": "http://127.0.0.1:31828/api/sessions/sess_1791863776476_c20f527e/turns",
+      "method": "POST",
+      "body": "{\"prompt\":\"Failed first task remains recoverable\"}"
+    }
+  ]
+}

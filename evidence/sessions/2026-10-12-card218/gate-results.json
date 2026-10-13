@@ -1,0 +1,58 @@
+{
+  "gates": [
+    {
+      "log": "executor-web-tests.log",
+      "passed": 291,
+      "command": "npm run -w @vessel/web test",
+      "files": 34,
+      "exitCode": 0
+    },
+    {
+      "log": "executor-typecheck.log",
+      "command": "npm run -w @vessel/web typecheck",
+      "exitCode": 0
+    },
+    {
+      "log": "web-build.log",
+      "command": "npm run -w @vessel/web build -- --emptyOutDir false",
+      "exitCode": 0
+    },
+    {
+      "log": "tsc-build.log",
+      "command": "npx tsc -b tsconfig.json",
+      "exitCode": 0
+    },
+    {
+      "log": "typecheck-tests.log",
+      "command": "npm run typecheck:tests",
+      "exitCode": 0
+    },
+    {
+      "exitCode": 0,
+      "webPassed": 291,
+      "command": "npm run test:all",
+      "passed": 3228,
+      "log": "test-all.log",
+      "rootPassed": 2937,
+      "webFiles": 34,
+      "rootFiles": 276,
+      "skipped": 6
+    },
+    {
+      "captures": 12,
+      "command": "python scripts/generate-screenshots.py",
+      "log": "screenshots.log",
+      "exitCode": 0,
+      "viewportChecks": 14
+    },
+    {
+      "log": "browser-checks.log",
+      "command": "python evidence/sessions/2026-10-12-card218/browser-checks.py",
+      "exitCode": 0
+    }
+  ],
+  "independentReview": "PASS",
+  "sourceAudit": "scope-audit.json",
+  "at": "2026-10-13T04:07:54.4938072Z",
+  "finalBuild": "index-qf0QG-gs"
+}

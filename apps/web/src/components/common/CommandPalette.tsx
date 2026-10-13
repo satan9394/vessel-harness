@@ -1,6 +1,6 @@
 import { useI18n } from '../LanguageProvider';
 import { useEffect, useId, useRef, useState } from 'react';
-import { searchCommands, type CommandItem } from '../palette/types';
+import { groupedCommands, searchCommands, commandGroup, COMMAND_GROUPS, type CommandGroup, type CommandItem } from '../palette/types';
 import './commandPalette.css';
 
 export function isTypingTarget(target: EventTarget | null): boolean {
@@ -14,11 +14,18 @@ export function isPaletteShortcut(event: Pick<KeyboardEvent, 'key' | 'ctrlKey' |
 }
 export function trapFocus(event: Pick<KeyboardEvent, 'key' | 'shiftKey' | 'preventDefault'>, dialog: HTMLElement): void {
   if (event.key !== 'Tab') return;
-  const controls = Array.from(dialog.querySelectorAll<HTMLElement>('button:not(:disabled), input:not(:disabled), [tabindex="0"]'));
-  const first = controls[0]; const last = controls.at(-1);
-  if (!first) { event.preventDefault(); dialog.focus(); }
-  else if (event.shiftKey && (document.activeElement === first || !dialog.contains(document.activeElement))) { event.preventDefault(); last?.focus(); }
-  else if (!event.shiftKey && (document.activeElement === last || !dialog.contains(document.activeElement))) { event.preventDefault(); first.focus(); }
+  const controls = Array.from(dialog.querySelectorAll<HTMLElement>('button:not(:disabled), input:not(:disabled), select:not(:disabled), textarea:not(:disabled), a[href], summary, [tabindex="0"]')).filter(control => {
+    if (control.closest('[hidden], [inert]') || control.getAttribute?.('tabindex') === '-1') return false;
+    const closedDetails = control.closest('details:not([open])');
+    const summary = closedDetails?.querySelector('summary');
+    if (closedDetails && control !== summary && !summary?.contains(control)) return false;
+    return typeof control.getClientRects !== 'function' || control.getClientRects().length > 0;
+  });
+  event.preventDefault();
+  if (!controls.length) { dialog.focus(); return; }
+  const current = controls.indexOf(document.activeElement as HTMLElement);
+  const next = current < 0 ? (event.shiftKey ? controls.length - 1 : 0) : (current + (event.shiftKey ? -1 : 1) + controls.length) % controls.length;
+  controls[next]!.focus();
 }
 export default function CommandPalette({ commands }: { commands: CommandItem[] }) {
   const { t } = useI18n();
@@ -26,12 +33,13 @@ export default function CommandPalette({ commands }: { commands: CommandItem[] }
   const [help, setHelp] = useState(false);
   const [query, setQuery] = useState('');
   const [selected, setSelected] = useState(0);
+  const [collapsed, setCollapsed] = useState<CommandGroup[]>([]);
   const [error, setError] = useState<string>();
   const dialog = useRef<HTMLDivElement>(null);
   const input = useRef<HTMLInputElement>(null);
   const restore = useRef<HTMLElement | null>(null);
   const id = useId();
-  const results = searchCommands(commands, query);
+  const results = groupedCommands(commands, query, collapsed);
   const index = Math.min(selected, Math.max(0, results.length - 1));
   const show = (cheatsheet = false) => {
     restore.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
@@ -74,7 +82,13 @@ export default function CommandPalette({ commands }: { commands: CommandItem[] }
           if (event.key === 'Enter') { event.preventDefault(); if (results[index]) execute(results[index]); }
         }} />
         {help && <p>{t('uiCtrlCmdKCommandsJKOrMessages')}</p>}
-        <div id={`${id}-results`} role="listbox" aria-label={t('uiMatchingCommands')}>{results.map((command, i) => <div id={`${id}-${i}`} key={command.id} role="option" aria-selected={index === i} className="command-option" onMouseDown={event => event.preventDefault()} onClick={() => execute(command)}>{command.title}<small>{t(({ session: 'paletteCategorySession', action: 'paletteCategoryAction', view: 'paletteCategoryView', navigation: 'paletteCategoryNavigation' } as const)[command.category])}</small></div>)}</div>
+        <div id={`${id}-results`} role="listbox" aria-label={t('uiMatchingCommands')}>
+          {COMMAND_GROUPS.map(group => {
+            const entries = results.map((command, i) => ({ command, i })).filter(({ command }) => commandGroup(command) === group);
+            const count = searchCommands(commands, query).filter(command => commandGroup(command) === group).length;
+            return count ? <section className="command-group" key={group}><button type="button" className="command-group-toggle" aria-expanded={!collapsed.includes(group) || Boolean(query.trim())} onClick={() => { setCollapsed(previous => previous.includes(group) ? previous.filter(value => value !== group) : [...previous, group]); setSelected(0); }}>{t(group === 'system' ? 'systemActions' : group === 'project' ? 'recentProjects' : 'activeSessions')}</button>{entries.map(({ command, i }) => <div id={`${id}-${i}`} key={command.id} role="option" aria-selected={index === i} className="command-option" onMouseDown={event => event.preventDefault()} onClick={() => execute(command)}>{command.title}</div>)}</section> : null;
+          })}
+        </div>
         {!results.length && <p role="status">{t('uiNoMatchingCommands')}</p>}
         <button className="btn" onClick={() => setOpen(false)}>{t('close')}</button>
       </div>

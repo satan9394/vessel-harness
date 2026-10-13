@@ -15,6 +15,9 @@ import type { ImpactRadarWidget } from '@vessel/shared';
 import type { AttentionManager } from '../utils/attentionManager';
 
 interface Props {
+  initialTask?: { sessionId: string; text: string };
+  onInitialTaskConsumed?: () => void;
+  sessionTitle?: string;
   providerRevision?: number;
   onConfigureModels?: () => void;
   attention?: AttentionManager;
@@ -39,7 +42,7 @@ function conversationItem(delta: ConversationDelta): ChatItem {
  * live SSE stream over /api/sessions/:id/events that appends assistant text,
  * tool activity, usage and policy deltas as they happen.
  */
-export default function ConversationView({ sessionId, api, onSessionUpdated, viewRequest, attention, providerRevision, onConfigureModels }: Props) {
+export default function ConversationView({ sessionId, api, onSessionUpdated, viewRequest, attention, providerRevision, onConfigureModels, initialTask, onInitialTaskConsumed, sessionTitle }: Props) {
   const { t } = useI18n();
   const [items, setItems] = useState<ChatItem[]>([]);
   const [usage, setUsage] = useState<UsageTotals>(emptyUsage);
@@ -177,9 +180,8 @@ export default function ConversationView({ sessionId, api, onSessionUpdated, vie
   }, [sessionId]);
 
   const send = useCallback(
-    async (e: React.FormEvent) => {
-      e.preventDefault();
-      const prompt = input.trim();
+    async (text: string) => {
+      const prompt = text.trim();
       if (!prompt || busy || modelBusy) return;
       attention?.unlockAudio();
       setInput('');
@@ -201,6 +203,7 @@ export default function ConversationView({ sessionId, api, onSessionUpdated, vie
       } catch (err) {
         if (activeSession.current !== sessionId || sessionGeneration.current !== generation) return;
         attention?.completed('error', Date.now() - startedAt);
+        setInput(prompt);
         if (err instanceof ApiError && err.status === 0) {
           setServerDown(true);
           setError(t('serverDown'));
@@ -217,6 +220,20 @@ export default function ConversationView({ sessionId, api, onSessionUpdated, vie
     [api, busy, modelBusy, input, sessionId, appendMessage, onSessionUpdated, t, attention],
   );
 
+  const claimedTask = useRef<string | null>(null);
+  useEffect(() => {
+    if (!initialTask || initialTask.sessionId !== sessionId || claimedTask.current === sessionId) return;
+    let cancelled = false;
+    // Delay until the stream effect has mounted; StrictMode cleanup cancels its first pass.
+    queueMicrotask(() => {
+      if (cancelled || claimedTask.current === sessionId) return;
+      claimedTask.current = sessionId;
+      onInitialTaskConsumed?.();
+      void send(initialTask.text);
+    });
+    return () => { cancelled = true; };
+  }, [initialTask, sessionId, send, onInitialTaskConsumed]);
+
   const stop = useCallback(() => {
     // Stop (task 050): ask the server to interrupt the in-flight turn. Best
     // effort — the server answers quickly; ignore failures (turn may end first).
@@ -232,7 +249,7 @@ export default function ConversationView({ sessionId, api, onSessionUpdated, vie
     <DualSurfaceLayout tabRequest={viewRequest && !['clear', 'collapse', 'expand', 'export'].includes(viewRequest.action) ? { tab: viewRequest.action as InspectorTab, serial: viewRequest.serial } : undefined} sessionId={sessionId} api={api} cacheHistory={cacheHistory} observation={observation} impacts={items.flatMap(item => item.widget?.kind === 'impact_radar' ? [item.widget as ImpactRadarWidget] : [])} patches={items.flatMap(item => item.widget?.kind === 'diff_inspector' ? [item.widget] : [])}>
     <div className="conversation">
       <header className="conversation-head">
-        <span className="dim">{t('uiSession')} {sessionId.slice(0, 8)}</span>
+        <span className="dim">{t('uiSession')} · {sessionTitle || t('sessionNew')}</span>
         <ModelSelector key={sessionId} sessionId={sessionId} api={api} providerRevision={providerRevision} busy={busy} onConfigureModels={onConfigureModels} onUpdated={onSessionUpdated} onBusyChange={setModelBusy} />
         <UsageBar usage={usage} />
       </header>
@@ -246,7 +263,7 @@ export default function ConversationView({ sessionId, api, onSessionUpdated, vie
       </div>
       <TalkingMetricsBar metrics={turnMetrics} />
       <SandboxAuditHistory api={api} sessionId={sessionId} revision={auditRevision} />
-      <form className="composer" onSubmit={send}>
+      <form className="composer" onSubmit={event => { event.preventDefault(); void send(input); }}>
         <input
           className="input composer-input"
           value={input}

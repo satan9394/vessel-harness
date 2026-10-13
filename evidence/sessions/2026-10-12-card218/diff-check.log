@@ -1,0 +1,11 @@
+warning: in the working copy of 'apps/web/src/App.tsx', CRLF will be replaced by LF the next time Git touches it
+warning: in the working copy of 'apps/web/src/components/ConversationView.tsx', CRLF will be replaced by LF the next time Git touches it
+warning: in the working copy of 'apps/web/src/components/CustomizePanel.tsx', CRLF will be replaced by LF the next time Git touches it
+warning: in the working copy of 'apps/web/src/components/ModelSelector.tsx', CRLF will be replaced by LF the next time Git touches it
+warning: in the working copy of 'apps/web/src/components/NewSessionForm.tsx', CRLF will be replaced by LF the next time Git touches it
+warning: in the working copy of 'apps/web/src/components/Sidebar.tsx', CRLF will be replaced by LF the next time Git touches it
+warning: in the working copy of 'apps/web/src/components/common/CommandPalette.tsx', CRLF will be replaced by LF the next time Git touches it
+warning: in the working copy of 'apps/web/src/components/palette/CommandPalette.test.tsx', CRLF will be replaced by LF the next time Git touches it
+warning: in the working copy of 'apps/web/src/components/palette/types.ts', CRLF will be replaced by LF the next time Git touches it
+warning: in the working copy of 'apps/web/src/i18n.ts', CRLF will be replaced by LF the next time Git touches it
+warning: in the working copy of 'apps/web/src/styles.css', CRLF will be replaced by LF the next time Git touches it
