@@ -15,6 +15,7 @@ import { registerMcpTools } from '../mcp/mcpTools.js';
 
 vi.mock('node:fs', async original => ({ ...await original<typeof import('node:fs')>() }));
 const transient = (code = 'EBUSY') => Object.assign(new Error('fixture transient'), { code });
+const authorizedExecutor = () => new Executor({ decide: async () => ({ action: 'allow', decisionPath: ['fixture:host-policy'] }) });
 const tool = (name: string, execute: ToolSpec['execute']): ToolSpec => ({ name, execute, family: 'other', requiredPermission: 'read', exclusive: false, description: name, inputSchema: { type: 'object', properties: {} } });
 
 describe('production tool protection', () => {
@@ -23,7 +24,7 @@ describe('production tool protection', () => {
   afterEach(() => { vi.restoreAllMocks(); fs.rmSync(root, { recursive: true, force: true }); });
   const policy = () => compilePolicyYaml('policy:\n  version: 1\n  profile: workspace-write\n  approval: never');
   function context(signal?: AbortSignal) { return { workspaceRoot: root, cwd: root, sandbox: new Sandbox(), signal }; }
-  async function run(registry: ToolRegistry, name: string, args: Record<string, unknown> = {}, executor = new Executor(), signal?: AbortSignal) {
+  async function run(registry: ToolRegistry, name: string, args: Record<string, unknown> = {}, executor = authorizedExecutor(), signal?: AbortSignal) {
     return executor.runTool(registry.spec(name)!, { toolName: name, toolCallId: 'fixture-call', arguments: args }, context(signal));
   }
 
@@ -117,8 +118,8 @@ describe('production tool protection', () => {
     const controller = new AbortController();
     const execute = vi.fn(async () => { controller.abort(); throw transient(); });
     const registry = new ToolRegistry([tool('Cancel', execute)]);
-    await run(registry, 'Cancel', {}, new Executor(), controller.signal); expect(execute).toHaveBeenCalledOnce();
-    await run(registry, 'Cancel', {}, new Executor(), controller.signal); expect(execute).toHaveBeenCalledOnce();
+    await run(registry, 'Cancel', {}, authorizedExecutor(), controller.signal); expect(execute).toHaveBeenCalledOnce();
+    await run(registry, 'Cancel', {}, authorizedExecutor(), controller.signal); expect(execute).toHaveBeenCalledOnce();
   });
 
   it('bounds returned and thrown huge errors while preserving small thrown-error identity', async () => {

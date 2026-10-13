@@ -10,6 +10,7 @@
 // Model-stream payloads reuse the provider streaming contract types so the
 // event vocabulary and the ChatProvider seam can never drift apart.
 import type { ChatFinishReason, ChatToolCall, ChatUsage, StreamChunk } from './provider.js';
+import type { ExecutionBudget, ExecutionCounters, ExecutionState } from './lifecycle.js';
 
 // ---------------------------------------------------------------------------
 // Persistent records (B## subset used by V0.1)
@@ -382,7 +383,15 @@ export interface StagnationBreakRecord extends SessionRecordBase {
   surface: false;
 }
 
+export interface RunStateRecord extends SessionRecordBase {
+  type: 'run/state'; runId: string; state: ExecutionState; revision: number; counters: ExecutionCounters; budget: ExecutionBudget; startedAt: number; outcomeReason: string; surface: false;
+}
+export interface RunAttemptRecord extends SessionRecordBase {
+  type: 'run/attempt'; runId: string; attemptId: string; counters: ExecutionCounters; surface: false;
+}
 export type SessionRecord =
+  | RunStateRecord
+  | RunAttemptRecord
   | StagnationBreakRecord
   | UserMessageRecord
   | AssistantMessageRecord

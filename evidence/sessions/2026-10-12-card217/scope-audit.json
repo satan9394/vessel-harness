@@ -1,0 +1,12 @@
+{
+  "finalCheckedAt": "2026-10-13T02:40:51.0699293Z",
+  "noPushPublish": true,
+  "foreignLocksAdded": [],
+  "rootLockChanged": false,
+  "coreImplementationChangedFiles": 0,
+  "coreTestChangedFiles": [
+    "packages/core/src/agent-loop/AgentLoop.before-tool-gate.test.ts",
+    "packages/core/src/agent-loop/AgentLoop.denial-breaker.test.ts",
+    "packages/core/src/agent-loop/AgentLoop.test.ts"
+  ]
+}

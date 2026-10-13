@@ -15,6 +15,8 @@ export interface ToolInputSchema {
 
 export interface ToolSpec {
   name: string;
+  canonicalToolId?: string;
+  effects?: 'read_only' | 'idempotent_write' | 'non_idempotent' | 'externally_irreversible';
   description: string;
   family: ToolFamily;
   requiredPermission: RequiredPermission;

@@ -18,6 +18,7 @@ export function createFsTools(opts: { workspaceRoot: string; fsPolicy: FsPolicyC
 
   const read: ToolSpec = {
     name: 'Read',
+    effects: 'read_only',
     description: 'Read a file from the workspace and return its text content (UTF-8, ≤10MiB).',
     family: 'file_read',
     requiredPermission: 'read',
@@ -54,6 +55,7 @@ export function createFsTools(opts: { workspaceRoot: string; fsPolicy: FsPolicyC
 
   const write: ToolSpec = {
     name: 'Write',
+    effects: 'idempotent_write',
     description: 'Write a file in the workspace (creates directories as needed).',
     family: 'file_write',
     requiredPermission: 'workspace-write',
@@ -90,6 +92,7 @@ export function createFsTools(opts: { workspaceRoot: string; fsPolicy: FsPolicyC
 
   const edit: ToolSpec = {
     name: 'Edit',
+    effects: 'non_idempotent',
     description: 'Replace an exact literal substring in a file (single occurrence).',
     family: 'file_write',
     requiredPermission: 'workspace-write',

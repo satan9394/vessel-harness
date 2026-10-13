@@ -17,3 +17,6 @@ export * from './patch.js';
 export * from './inspector.js';
 export { VERSION } from './constants.js';
 export * from './reasoning.js';
+export * from './projection.js';
+export * from './lifecycle.js';
+export * from './execution.js';

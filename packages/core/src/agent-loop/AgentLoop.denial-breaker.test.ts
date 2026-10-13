@@ -95,7 +95,7 @@ async function makeHarness(
     ...(opts.extraTools ?? []),
   ];
   const registry = new ToolRegistry(tools);
-  const executor = new Executor();
+  const executor = new Executor({ decide: async () => ({ action: 'allow', decisionPath: ['fixture:host-policy'] }) });
   const provider = new MockProvider(script, { model: 'mock', vars: { cwd: dir } });
   /** every tool call that actually reached the execution face (tool layer) */
   const executed: ToolCall[] = [];

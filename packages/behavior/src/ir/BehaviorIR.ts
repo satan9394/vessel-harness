@@ -23,7 +23,7 @@ const ENTRY_KEYS = new Set(['id', 'class', 'channel', 'default', 'policy_ref', '
 /**
  * behavior/ir — load + validate the Behavior IR declaration (ARCHITECTURE §4.3).
  * Unknown keys fail loud; entries with channel=runtime_policy REQUIRE policy_ref
- * (双通道强制 — compiler warns when the policy side has no matching rule).
+ * (双通道强制 — compiler rejects missing executable policy enforcement).
  */
 export function loadBehaviorIR(filePath: string): BehaviorIR {
   if (!fs.existsSync(filePath)) {
@@ -56,7 +56,7 @@ export function parseBehaviorIR(text: string, source = '<string>'): BehaviorIR {
     if (channel !== 'prompt_guidance' && channel !== 'runtime_policy') {
       throw new Error(`behavior IR (${source}): entry "${id}" channel must be prompt_guidance|runtime_policy`);
     }
-    if (channel === 'runtime_policy' && !e.policy_ref) {
+    if (channel === 'runtime_policy' && (typeof e.policy_ref !== 'string' || !e.policy_ref.trim() || e.policy_ref.trim() !== e.policy_ref)) {
       throw new Error(`behavior IR (${source}): entry "${id}" channel=runtime_policy requires policy_ref`);
     }
     if (typeof e.render !== 'string' || !e.render) {

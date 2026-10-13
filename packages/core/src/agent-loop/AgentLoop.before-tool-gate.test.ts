@@ -32,7 +32,7 @@ async function makeHarness(dir: string, script: MockScriptEntry[]) {
   const sandbox = new Sandbox();
   const tools: ToolSpec[] = createFsTools({ workspaceRoot: dir, fsPolicy: FS_POLICY });
   const registry = new ToolRegistry(tools);
-  const executor = new Executor();
+  const executor = new Executor({ decide: async () => ({ action: 'allow', decisionPath: ['fixture:host-policy'] }) });
   const provider = new MockProvider(script, { model: 'mock', vars: { cwd: dir } });
   /** every tool call that actually reached execution */
   const executed: ToolCall[] = [];

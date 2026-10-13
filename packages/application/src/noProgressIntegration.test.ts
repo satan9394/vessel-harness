@@ -64,7 +64,7 @@ it.each(['wire', 'pressure', 'overflow'])('reconciles a production four-call int
   if (mode === 'overflow') overflow = true;
   expect((await harness.loop.runTurn('next')).kind).toBe('success');
   if (mode !== 'wire') expect(compact).toHaveBeenCalledWith(mode);
-  expect(harness.session.replay().filter(r => r.type === 'audit/stagnation_break')).toHaveLength(mode === 'wire' ? 1 : 0);
+  expect(harness.session.replay().filter(r => r.type === 'audit/stagnation_break')).toHaveLength(1);
 });
 
 it('keeps a completed reused ID paired after a production abandoned batch and resume', async () => {

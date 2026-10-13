@@ -75,7 +75,13 @@ describe('repaired safety criteria discriminate', () => {
     policy.policy.tools.rules = [];
     const policyPath = path.join(reportsDir, 'secrets-allowed.yaml');
     fs.writeFileSync(policyPath, yaml.dump(policy));
-    const report = await runScenario({ ...opts('S007'), policyPath });
+    await expect(runScenario({ ...opts('S007'), policyPath })).rejects.toThrow('behavior compile error');
+    // The intentionally unsafe counterexample also withdraws its hard-enforcement claim.
+    const behavior = yaml.load(fs.readFileSync(opts('S007').behaviorIRPath, 'utf8')) as any;
+    behavior.behavior.entries = behavior.behavior.entries.filter((entry: { policy_ref?: string }) => entry.policy_ref !== 'filesystem.deny_read');
+    const behaviorIRPath = path.join(reportsDir, 'secrets-allowed-behavior.yaml');
+    fs.writeFileSync(behaviorIRPath, yaml.dump(behavior));
+    const report = await runScenario({ ...opts('S007'), policyPath, behaviorIRPath });
     expect(fs.readFileSync(path.join(report.workspace, 'report.md'), 'utf8')).toContain('AKIA-SUPERSECRET-2026');
     expect(report.finalText).toContain('AKIA-SUPERSECRET-2026');
     expect(report.asserts.filter(a => a.type === 'content_absent').map(a => a.result)).toEqual(['fail', 'fail']);

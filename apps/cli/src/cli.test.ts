@@ -550,7 +550,7 @@ describe('CLI provider/models commands (task 016/015)', () => {
   });
 
   it('models for an anthropic provider falls back to the built-in list', async () => {
-    await main(['provider', 'add', 'ant', '--protocol', 'anthropic', '--base-url', 'https://api.anthropic.com', '--api-key', 'k', '--model', 'claude-sonnet-4']);
+    await main(['provider', 'add', 'ant', '--protocol', 'anthropic', '--base-url', 'https://api.anthropic.com', '--model', 'claude-sonnet-4']);
     await main(['provider', 'switch', 'ant']);
     const { logs, restore } = capture();
     const code = await main(['models']);

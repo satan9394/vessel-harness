@@ -6,7 +6,7 @@ import { Session } from '@vessel/core';
 import { Compaction } from './compaction/Compaction.js';
 import { ContextBuilder } from './builder/Builder.js';
 import { discoverInstructions } from './instructions/Instructions.js';
-import type { ToolSpec } from '@vessel/shared';
+import { projectSession, type ToolSpec } from '@vessel/shared';
 
 describe('context/compaction — Basic Compaction', () => {
   let dir: string;
@@ -43,7 +43,7 @@ describe('context/compaction — Basic Compaction', () => {
     // tail kept verbatim
     expect(records.some((r) => r.type === 'assistant/message' && r.content === 'TAIL-KEEP-ME')).toBe(true);
     // summary present
-    expect(records.some((r) => r.type === 'user/message' && (r as { source?: string }).source === 'compacted-summary')).toBe(true);
+    expect(projectSession(session.sessionId, records).visibleMessages.some((r) => r.type === 'user/message' && r.source === 'compacted-summary')).toBe(true);
     // compaction events paired
     const starts = records.filter((r) => r.type === 'compaction/start').length;
     const ends = records.filter((r) => r.type === 'compaction/end').length;
@@ -61,7 +61,7 @@ describe('context/compaction — Basic Compaction', () => {
       if (r.type === 'user/message' && (r as { source?: string }).source === 'compacted-summary' && openCalls.size > 0) balanced = false;
     }
     expect(balanced).toBe(true);
-    expect(session.size).toBeLessThan(before);
+    expect(session.size).toBe(before + 2);
     await session.close();
   });
 
@@ -73,7 +73,7 @@ describe('context/compaction — Basic Compaction', () => {
     const compaction = new Compaction({ session, summarize });
     await compaction.compact('manual');
     expect(summarize).toHaveBeenCalled();
-    expect(session.replay().some((r) => r.type === 'user/message' && r.content.includes('LLM-SUMMARY'))).toBe(true);
+    expect(projectSession(session.sessionId, session.replay()).visibleMessages.some((r) => r.type === 'user/message' && r.content.includes('LLM-SUMMARY'))).toBe(true);
     await session.close();
   });
 });

@@ -3,7 +3,7 @@ import * as path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, it, expect } from 'vitest';
 import type { PolicyArtifacts, PolicyRule } from '@vessel/shared';
-import { compileBehavior, hasDomainEnforcement } from './Compiler.js';
+import { BehaviorCompileError, compileBehavior, hasDomainEnforcement } from './Compiler.js';
 import { parseBehaviorIR } from '../ir/BehaviorIR.js';
 import { compilePolicyYaml } from '@vessel/policy';
 import type { BehaviorIR } from '../ir/BehaviorIR.js';
@@ -36,14 +36,10 @@ policy:
     deny_domains: [169.254.169.254]
 `);
     expect(hasDomainEnforcement('network.deny_domains', policy)).toBe(false);
-    const result = compileBehavior({ version: '0.1', entries: [{
+    expect(() => compileBehavior({ version: '0.1', entries: [{
       id: 'network-denial', class: 'safety', channel: 'runtime_policy',
       policy_ref: 'network.deny_domains', render: 'Domain requests are blocked.',
-    }] }, policy);
-    expect(result.conformance[0]?.policyRuleFound).toBe(false);
-    expect(result.promptSections).not.toContain('Domain requests are blocked.');
-    expect(result.warnings).toHaveLength(1);
-    expect(result.warnings[0]).toContain('enforcement missing');
+    }] }, policy)).toThrow(BehaviorCompileError);
   });
 
   it('filesystem.protected is satisfied only by an fs-protected:* rule, not by any filesystem deny', () => {
@@ -72,7 +68,7 @@ policy:
     expect(hasDomainEnforcement('shell.destructive-delete', onlyDiskFormat)).toBe(false);
   });
 
-  it('compileBehavior warns when a runtime_policy entry has no matching rule (never silently dropped)', () => {
+  it('compileBehavior rejects a runtime_policy entry without matching enforcement', () => {
     const ir: BehaviorIR = {
       version: '0.1',
       entries: [
@@ -86,11 +82,9 @@ policy:
       ],
     };
     // policy has filesystem rules but NO fs-protected:* rule — claim is unenforced
-    const result = compileBehavior(ir, artifacts({
+    expect(() => compileBehavior(ir, artifacts({
       rules: [rule('fs-deny-read:.env', 'filesystem', 'deny')],
-    }));
-    expect(result.warnings.some((w) => w.includes('safety.protected_paths'))).toBe(true);
-    expect(result.conformance[0]).toMatchObject({ entryId: 'safety.protected_paths', policyRuleFound: false });
+    }))).toThrow('safety.protected_paths');
 
     // with the actual protected rule present, no warning and the prompt section renders
     const ok = compileBehavior(ir, artifacts({
@@ -99,6 +93,40 @@ policy:
     }));
     expect(ok.warnings).toHaveLength(0);
     expect(ok.promptSections).toContain('不要改写受保护路径。');
+  });
+
+  it.each([undefined, '', ' ', 'filesystem', 'filesystem.protected.typo', 'fs-protected', 'fs-protected:.git/extra'])('rejects missing or partial policy references (%s) without replacing the active result', (policy_ref) => {
+    const policy = artifacts({ rules: [rule('fs-protected:.git', 'filesystem', 'deny')] });
+    const entry: BehaviorIR['entries'][number] = {
+      id: 'protected', class: 'safety', channel: 'runtime_policy', policy_ref: 'filesystem.protected', render: 'Protected paths are denied.',
+    };
+    const previous = compileBehavior({ version: '0.1', entries: [entry] }, policy);
+    let active = previous;
+    expect(() => { active = compileBehavior({ version: '0.1', entries: [{ ...entry, policy_ref }] }, policy); }).toThrow(BehaviorCompileError);
+    expect(active).toBe(previous);
+    expect(policy.rules).toHaveLength(1);
+  });
+
+  it('accepts only exact executable restrictive custom mappings', () => {
+    expect(hasDomainEnforcement('custom', artifacts({ rules: [rule('custom-longer', 'tools', 'deny')] }))).toBe(false);
+    expect(hasDomainEnforcement('custom-longer', artifacts({ rules: [rule('custom', 'tools', 'deny')] }))).toBe(false);
+    expect(hasDomainEnforcement('custom', artifacts({ rules: [rule('custom', 'tools', 'allow')] }))).toBe(false);
+    expect(hasDomainEnforcement('custom', artifacts({ rules: [rule('custom', 'tools', 'ask')] }))).toBe(true);
+    expect(hasDomainEnforcement('custom', artifacts({ rules: [{ ...rule('custom', 'tools', 'deny'), match: undefined! }] }))).toBe(false);
+  });
+
+  it('cannot certify unrelated or permissive git/network rules', () => {
+    expect(hasDomainEnforcement('git.force_push', artifacts({ rules: [rule('git:force-push', 'git', 'allow')] }))).toBe(false);
+    expect(hasDomainEnforcement('git.unknown', artifacts({ rules: [rule('git:force-push', 'git', 'deny')] }))).toBe(false);
+    expect(hasDomainEnforcement('network.deny_domains', artifacts({ rules: [rule('network-custom', 'network', 'deny')] }))).toBe(false);
+    expect(hasDomainEnforcement('network.unknown', artifacts({ rules: [rule('net-deny:example.com', 'network', 'deny')] }))).toBe(false);
+    expect(hasDomainEnforcement('filesystem.protected', artifacts({ rules: [rule('fs-protected:.git', 'network', 'deny')] }))).toBe(false);
+  });
+
+  it.each(['', ' ', 123, ['filesystem.protected']])('IR loader rejects invalid runtime policy references (%s)', (policy_ref) => {
+    expect(() => parseBehaviorIR(JSON.stringify({ version: '0.1', entries: [{
+      id: 'protected', class: 'safety', channel: 'runtime_policy', policy_ref, render: 'Do not write protected paths.',
+    }] }))).toThrow('requires policy_ref');
   });
 
   it('task 116: filesystem.deny_read claim (safety.secret_handling) needs an fs-deny-read:* rule, not just any fs rule', () => {

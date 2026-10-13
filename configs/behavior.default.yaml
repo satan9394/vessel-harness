@@ -1,7 +1,7 @@
 # Composable Agent Harness — Behavior IR default (v0.2, D4).
 # Each entry: id / channel (prompt_guidance | runtime_policy) / render intent.
 # channel=runtime_policy entries MUST also exist in configs/policy.default.yaml
-# (双通道强制 — the compiler warns when a policy_ref is missing).
+# (双通道强制 — compilation fails when policy_ref enforcement is missing).
 #
 # v0.2 (task 116): prompt-engineering audit against open-source agent system prompts
 # (opencode prompts / Codex AGENTS.md / Claude Code public docs — REFERENCE DATA in

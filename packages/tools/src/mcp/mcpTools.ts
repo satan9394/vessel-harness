@@ -40,6 +40,8 @@ export function mcpToolToSpec(serverName: string, desc: McpToolDescriptor, clien
   };
   return {
     name,
+    canonicalToolId: `mcp:${encodeURIComponent(serverName)}/${encodeURIComponent(desc.name)}`,
+    effects: desc.annotations?.readOnlyHint === true ? 'read_only' : desc.annotations?.idempotentHint === true ? 'idempotent_write' : 'non_idempotent',
     description: desc.description ? `[MCP ${serverName}] ${desc.description}` : `MCP tool ${desc.name} from ${serverName}`,
     family: 'other',
     // MCP tools default to workspace-write; policy rules can narrow/deny per name

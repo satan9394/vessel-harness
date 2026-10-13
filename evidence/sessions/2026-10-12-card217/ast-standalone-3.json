@@ -1,0 +1,37 @@
+{
+  "command": "node --import tsx evidence/sessions/2026-10-08-v2.3/card197-check.ts",
+  "fixtureFiles": [
+    "api.ts",
+    "barrel.ts",
+    "caller.ts",
+    "noise.ts"
+  ],
+  "precision": 1,
+  "expectedCallers": [
+    "caller.ts#caller",
+    "caller.ts#execute"
+  ],
+  "actualCallers": [
+    "caller.ts#caller",
+    "caller.ts#execute"
+  ],
+  "warmupEdits": 8,
+  "measuredEdits": 12,
+  "samplesMs": [
+    2.8717000000000326,
+    2.5853000000000748,
+    3.5506000000000313,
+    2.4435999999999467,
+    2.6025000000000773,
+    2.7876999999999725,
+    2.5733000000000175,
+    4.698399999999992,
+    3.036200000000008,
+    2.682199999999966,
+    2.1632999999999356,
+    2.875099999999975
+  ],
+  "maximumMs": 4.698399999999992,
+  "meanMs": 2.9058250000000023,
+  "timingScope": "UTF-8 source read, parse changed file, rebuild/check cached explicit files and resolve all graph edges; excludes disk write and subsequent assertions"
+}

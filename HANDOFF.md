@@ -8,25 +8,30 @@
 
 **任何 Agent 在接收到「继续」/「继续未完成的」指令时，直接根据本段与 `.agent-state/run-state.json` 向用户汇报并执行：**
 
-1. **当前交付与阶段状态**：**V2.5 Epic 209（205–209）已于 2026-10-10 本地验收完成（双 Root 3083 passed / 6 skipped 全绿）**。**V2.6 Epic 214（210–214）已于 2026-10-11 本地验收完成（双 Root 3146 passed / 6 skipped）**。前序 V2.4 已提交至本地 `main`（commit `dd8e72c`）。
+1. **当前交付与阶段状态**：**V2.5 Epic 209（205–209）已于 2026-10-10 本地验收完成（双 Root 3083 passed / 6 skipped 全绿）**。**V2.6 Epic 214（210–214）已于 2026-10-11 本地验收完成（双 Root 3146 passed / 6 skipped）**。**Card 217（ARC-01..05 架构整改落地）已于 2026-10-12 本地验收完成（双 Root 3219 passed / 6 skipped，core 源码严格 0 变动）**。前序 V2.4 已提交至本地 `main`（commit `dd8e72c`），V2.6+215+216 合入 `520492d`。
 2. **已完成与已验证基线**：
    - 192–195 (V2.2)：三态洋葱 Mod 中间件流水线、Worker 线程沙箱（防御 CVE-2026-82533）、清单权限审计与 CLI `vessel mod/doctor`；
    - 196–199 (V2.3)：真实 Red→Green 缺陷复现硬门禁与 SHA-256 防伪凭据、增量 AST 符号依赖图谱（均值 10.7ms）、自适应上下文剪枝（剪枝率 82.56%）；
    - 200–204 (V2.4)：Chat 内嵌组件 IR 与双向 SSE/HTTP 端点、React 就地微组件群、四 Tab 常驻 Docked Inspector、CLI 终端动态 StatusLine 与彩色折叠 Diff；
    - 205–209 (V2.5)：画布单 Hunk 补丁选择器、流式思考折叠与规则标注、全局命令面板 Ctrl+K、桌面注意力通知与音频合成提示（3083 passed / 6 skipped）；
+   - 210–216 (V2.6+)：全域纯正 i18n 字典、可视化多模型接入中枢、自动拉取与 Schema 归一化、Archify 架构可视化与中英双语 Retina 截图（3155 passed / 6 skipped）；
+   - 217 (V2.7)：ARC-01..05 契约与执行可靠性中枢（SessionProjection 契约、Compaction 守恒断言、Fail-to-compile 策略门禁、Run 预算熔断、ExecutionPermit 凭证与副作用审计，3219 passed / 6 skipped）；
    - 全量终态门禁基线：`tsc -b`、`typecheck:tests` 均 exit 0；Web 生产打包 exit 0；全历史 `identity-guard.sh` 0 命中。
 3. **当前路线与目标**：
-   - **最近已验收路线：V2.6 全域纯正国际化与可视化多模型接入中枢 (Epic 214)**：
-     - 子任务顺序：210（全域纯正 i18n 字典扩充与组件硬编码英文彻底解耦）→ 211（Local Server 供应商存储与 /api/providers /api/models REST API）→ 212（Web 端可视化供应商管理面板与连通性测试）→ 213（新建会话模型选择与动态切换）→ 214（全量集成门禁验收）；
-   - **开发模式与约束**：纯本地开发（严禁 git push，遵循 2026-10-06 规约；薄核零侵入 packages/core；删除必进回收站；Web 构建必须携带 `-- --emptyOutDir false`）；
+   - **最高优先级主线：两份整改实施规范（VESSEL-ARCH-2026-01 与 VESSEL-UI-2026-01）**：
+     - Card 217（架构整改落地 ARC-01..05）已验收闭环；
+     - Card 218（Web UI/UX 工作台整改落地）就绪待执行；
+   - **开发模式与约束**：纯本地开发（严禁 git push，遵循 2026-10-06 规约；薄核零侵入 packages/core 源码；删除必进回收站；Web 构建必须携带 `-- --emptyOutDir false`）；
    - **模型锁定规约**：默认开发模型锁定为 **GPT-6.1 Sol (`gpt-6.1-sol`)**，二级思考（`reasoning.effort: medium`），免多余确认。
 
 | 项 | 当前实况 |
 |---|---|
 | 仓库 / 分支 | `satan9394/vessel-harness` / `main`（纯本地开发，不推送） |
-| 工作区状态 | HEAD `dd8e72c`；V2.5/V2.6/Card 215 已验收改动保留（未提交） |
-| 机器状态真源 | `.agent-state/run-state.json`（Epic 214 completed；Card 215 本轮**未经 runstate 控制器**登记，以本文件与本行上方交付段为准） |
-| 当前任务卡 | 无（V2.5、V2.6、Card 215 均已全部闭环） |
+| 工作区状态 | HEAD `520492d`；Card 217 已验收待提交本地 commit |
+| 机器状态真源 | `.agent-state/run-state.json`（Card 217 completed；Card 218 ready） |
+| 当前任务卡 | `tasks/218-web-ui-ux-workbench-improvement-implementation.md`（就绪待交付执行） |
+
+Card 217 本地交付与验收（2026-10-12，Codex 交付 + Antigravity 验收）：依据 `docs/plans/Vessel_Harness_Architecture_Improvement_Plan.md` (VESSEL-ARCH-2026-01) 落地 P0 级 ARC-01 至 ARC-05。定义不可变 Event Log 与 SessionProjection/RequestEnvelope 契约，Compaction 落地目标/安全拒绝/工具成对守恒断言；Behavior 编译期缺少强制策略引用时硬性抛出 `BehaviorCompileError`（Fail-to-compile）；Application/Engine 层强化 Run/Turn 预算限制（Token/Step/时间硬预算与 Cancel 确定性终态）；Runtime/Policy 落地参数绑定型单次 `ExecutionPermit` 凭证，审计 EffectJournal 防重放。门禁：定向测试 330 passed，affected CLI 6 passed，`tsc -b` / `typecheck:tests` / 全量 `npm run test:all` 双 Root **3,219 passed / 6 skipped** 全绿。`packages/core/src` 源码 **0 行修改**，经人类授权仅修改 3 个 core 测试 fixture 注入最小 policy stub（+3/-3 lines）。证据 `evidence/sessions/2026-10-12-card217/PROOF.md`。
 
 Card 215 本地交付与验收（2026-10-11，OpenCode 交付 + Antigravity 验收）：后端新增 `normalizeProviderInput` 归一化兼容器（字典型 `models` / `options.baseURL|apiKey` 嵌套 / `npm` 协议声明），新增 `POST /api/providers/pull-models` 端点与 Web「Pull models」按钮，供应商删除时清理 `secretRef` 凭据，后端**具体错误码透传**（不再一律 `provider_request_failed`）并由前端按码本地化展示，术语规范化为 `OpenAI 兼容 (OpenAI Compatible)` / `Anthropic (Claude)` / `API Key`。门禁：定向测试 27（后端）+ 35（前端含 i18n）全绿、双 Root **3155 passed / 6 skipped**、`tsc -b` / `typecheck:tests` / web typecheck / web build（`-- --emptyOutDir false`）全 exit 0、`packages/core` **0 变动**。纯本地、未提交/推送、无删除、未驱动外部 Agent。证据 `evidence/sessions/2026-10-11-card215/PROOF.md`。
 
