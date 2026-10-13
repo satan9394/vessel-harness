@@ -8,6 +8,7 @@ export interface NewSessionResult {
 }
 
 interface Props {
+  initialWorkspaceRoot?: string;
   api: ApiClient;
   onCreated: (result: NewSessionResult) => void;
   onClose: () => void;
@@ -18,9 +19,9 @@ interface Props {
 }
 
 /** New Session flow: prompt workspaceRoot → open project → create session. */
-export default function NewSessionForm({ api, onCreated, onClose, initialPermission = 'workspace-write', providerRevision = 0, onConfigureModels, hidden = false }: Props) {
+export default function NewSessionForm({ api, onCreated, onClose, initialPermission = 'workspace-write', providerRevision = 0, onConfigureModels, hidden = false, initialWorkspaceRoot = '' }: Props) {
   const { t } = useI18n();
-  const [value, setValue] = useState('');
+  const [value, setValue] = useState(initialWorkspaceRoot);
   const [models, setModels] = useState<ModelOption[]>([]);
   const [selection, setSelection] = useState('');
   const [loading, setLoading] = useState(true);
@@ -31,7 +32,7 @@ export default function NewSessionForm({ api, onCreated, onClose, initialPermiss
       if (!live) return;
       const real = catalog.filter(model => model.providerName !== 'mock');
       setModels(real);
-      setSelection(previous => real.some(model => modelKey(model) === previous) ? previous : real[0] ? modelKey(real[0]) : '');
+      setSelection(previous => previous || (real[0] ? modelKey(real[0]) : ''));
     }).catch(() => { if (live) setLoadFailed(true); }).finally(() => { if (live) setLoading(false); });
     return () => { live = false; };
   }, [api, providerRevision]);
@@ -42,7 +43,7 @@ export default function NewSessionForm({ api, onCreated, onClose, initialPermiss
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     const ws = value.trim();
-    if (!ws || busy || loading || loadFailed) return;
+    if (!ws || busy || loading || loadFailed || (selection && !models.some(model => modelKey(model) === selection))) return;
     setBusy(true);
     setError(null);
     try {
@@ -64,7 +65,8 @@ export default function NewSessionForm({ api, onCreated, onClose, initialPermiss
         <h3>{t('newSessionTitle')}</h3>
         <label className="field-label" htmlFor="sessionModel">{t('selectModel')}</label>
         <select id="sessionModel" className="input" value={selection} disabled={busy || loading} onChange={event => setSelection(event.target.value)}>
-          {!models.length && <option value="">{t('modelOffline')}</option>}
+          {selection && !models.some(model => modelKey(model) === selection) && <option value={selection}>{t('modelUnavailable')}</option>}
+          {!models.length && !selection && <option value="">{t('modelOffline')}</option>}
           {models.map(model => <option key={modelKey(model)} value={modelKey(model)}>{model.providerName} / {model.id}</option>)}
         </select>
         {loading && <p className="dim" role="status">{t('loading')}</p>}
@@ -90,7 +92,7 @@ export default function NewSessionForm({ api, onCreated, onClose, initialPermiss
         <div className="modal-actions">
           <button type="button" className="btn" onClick={onClose} disabled={busy}>
             {t('cancel')} </button>
-          <button type="submit" className="btn btn-primary" disabled={busy || loading || loadFailed || !value.trim()}>
+          <button type="submit" className="btn btn-primary" disabled={busy || loading || loadFailed || !value.trim() || Boolean(selection && !models.some(model => modelKey(model) === selection))}>
             {busy ? t('creating') : t('create')}
           </button>
         </div>

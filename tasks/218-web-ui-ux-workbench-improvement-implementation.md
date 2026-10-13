@@ -1,6 +1,6 @@
 # 任务卡 218：Vessel Web UI/UX 工作台整改规范落地 (Web UI/UX Workbench Improvement Implementation)
 
-**状态**：就绪待执行（2026-10-12）  
+**状态**：已验证（2026-10-12，本地交证，待维护者验收）
 **负责人**：Codex (GPT-6.1 Sol / Medium 思考深度)  
 **模式**：standard（一卡一闭环，交证即停）  
 **第一事实源**：`docs/plans/Vessel_Web_UI_UX_Improvement_Plan.md` (VESSEL-UI-2026-01)  
@@ -39,8 +39,21 @@
 
 ## 3. 验收标准 (Acceptance Criteria)
 
-- [ ] 完全遵照 `docs/plans/Vessel_Web_UI_UX_Improvement_Plan.md` 落地 UI-P0 级工作台体验；
-- [ ] 编写或更新对应的组件单测，定向测试 100% 通过；
-- [ ] 运行 `python scripts/generate-screenshots.py` 重新捕获中英文双语 Retina 截图并验证视觉效果；
-- [ ] Web 构建 `npm run -w @vessel/web build -- --emptyOutDir false` exit 0；
-- [ ] 全量双 Root 测试全绿。
+- [x] 完全遵照 `docs/plans/Vessel_Web_UI_UX_Improvement_Plan.md` 落地 UI-P0 级工作台体验；
+- [x] 编写或更新对应的组件单测，定向测试 100% 通过；
+- [x] 运行 `python scripts/generate-screenshots.py` 重新捕获中英文双语 Retina 截图并验证视觉效果；
+- [x] Web 构建 `npm run -w @vessel/web build -- --emptyOutDir false` exit 0；
+- [x] 全量双 Root 测试全绿。
+
+## 4. Execution envelope
+
+- Not Doing: backend contracts, Policy semantics, core, dependencies, commits or publication.
+- Blast Radius: apps/web/src, screenshot generator, bilingual screenshots, this card and its index.
+- Verification: component tests and Web typecheck; semantic navigation/task flow and responsive browser checks; safe Web build and both test roots after final source edits.
+- Expected Evidence: evidence/sessions/2026-10-12-card218/ logs and screenshot checks.
+
+## 5. Result
+
+UI-P0 已本地验证；第一事实源保持 VESSEL-UI-2026-01。交付摘要、完整命令与门禁数字、独立评审、浏览器交互、双语截图和边界均见 [PROOF](../evidence/sessions/2026-10-12-card218/PROOF.md)。
+
+standard 交证即停；未提交、推送或发布。不自动启动下一卡。

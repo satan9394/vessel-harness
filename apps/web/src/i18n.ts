@@ -325,6 +325,27 @@ export interface CommonMessages {
   unimplemented: MessageTemplate;
   tasksPlaceholder: MessageTemplate;
   changedFilesPlaceholder: MessageTemplate;
+  modelUnavailable: MessageTemplate;
+  workbench: MessageTemplate;
+  activity: MessageTemplate;
+  agentStudio: MessageTemplate;
+  taskPrompt: MessageTemplate;
+  taskPlaceholder: MessageTemplate;
+  startTask: MessageTemplate;
+  advancedSession: MessageTemplate;
+  chooseProject: MessageTemplate;
+  openProjectPath: MessageTemplate;
+  layoutBoundary: MessageTemplate;
+  recentProjects: MessageTemplate;
+  activeSessions: MessageTemplate;
+  systemActions: MessageTemplate;
+  navigationMenu: MessageTemplate;
+  preferences: MessageTemplate;
+  sessionNew: MessageTemplate;
+  hierarchyHint: MessageTemplate;
+  activityHint: MessageTemplate;
+  studioHint: MessageTemplate;
+  modelRetry: MessageTemplate;
   customize: MessageTemplate;
   customizeHead: MessageTemplate;
   interruptTitle: MessageTemplate;
@@ -591,6 +612,28 @@ export interface Messages extends CommonMessages, SessionMessages, ModelMessages
   PatchMessages, ReasoningMessages, PaletteMessages, AttentionMessages, StatusMessages {}
 
 export const zh: Messages = {
+  modelUnavailable: '所选模型已不可用，请明确选择其他模型。',
+  workbench: '工作台',
+  activity: '活动',
+  agentStudio: 'Agent Studio',
+  taskPrompt: '让 Vessel 完成什么任务？',
+  taskPlaceholder: '描述目标、范围与验收标准…',
+  startTask: '开始任务',
+  advancedSession: '高级新会话',
+  chooseProject: '选择项目',
+  openProjectPath: '打开项目目录',
+  layoutBoundary: '仅改变视图显隐；Policy 权限、能力与运行不受影响。',
+  recentProjects: '最近项目',
+  activeSessions: '活跃会话',
+  systemActions: '系统操作',
+  navigationMenu: '打开导航',
+  preferences: '偏好设置',
+  sessionNew: '新会话',
+  hierarchyHint: '项目 → 会话 → 运行 → 子代理',
+  activityHint: '会话活动来自服务端记录；打开会话查看运行和审批。',
+  studioHint: '只读行为视图。编辑与编译验证需要后端有效配置契约。',
+  modelRetry: '重新加载模型',
+
   providerPreset: "快捷模板",
   providerCustom: "自定义兼容端点",
   providerName: "供应商名称",
@@ -664,7 +707,7 @@ export const zh: Messages = {
   modelLoadFailed: "无法加载模型，请重试",
   modelSwitchFailed: "模型切换失败，当前模型保持不变",
   modelSwitchBusy: "会话正在执行，请结束当前任务后再切换",
-  modelOffline: "离线演示",
+  modelOffline: "演示模型（不连接真实供应商）",
   configureModels: "配置新模型",
   sessionCreateFailed: "无法创建会话，请检查工作目录和模型配置",
   currentModel: "当前模型",
@@ -1074,14 +1117,14 @@ export const zh: Messages = {
   newSession: '+ 新建会话',
   projects: '项目',
   recentSessions: "历史会话",
-  topicSearch: '搜索主题或会话…',
+  topicSearch: '搜索会话…',
   topicToday: '今天',
   topicLastSevenDays: '最近 7 天',
   topicEarlier: '更早',
-  topicUntitled: '未命名主题',
+  topicUntitled: '新会话',
   topicShowArchived: '显示已归档',
-  topicRename: '重命名主题',
-  topicArchive: '归档主题',
+  topicRename: '重命名会话',
+  topicArchive: '归档会话',
   topicRestore: '恢复主题',
   topicSave: '保存',
   topicCancel: '取消',
@@ -1110,7 +1153,7 @@ export const zh: Messages = {
   unimplemented: '未实现（占位）。',
   tasksPlaceholder: '任务列表占位（开发中）。',
   changedFilesPlaceholder: '变更文件列表占位（开发中）。',
-  customize: '自定义',
+  customize: '工作台视图',
   customizeHead: '显示模块',
   interruptTitle: "中断当前回合",
   teamModuleNoSession: "选择或新建会话后，将显示模型选择、团队活动与外部评审面板。",
@@ -1118,6 +1161,28 @@ export const zh: Messages = {
 };
 
 export const en: Messages = {
+  modelUnavailable: 'The selected model is unavailable. Choose a replacement explicitly.',
+  workbench: 'Workbench',
+  activity: 'Activity',
+  agentStudio: 'Agent Studio',
+  taskPrompt: 'What should Vessel work on?',
+  taskPlaceholder: 'Describe the goal, scope and acceptance criteria…',
+  startTask: 'Start task',
+  advancedSession: 'Advanced session',
+  chooseProject: 'Choose project',
+  openProjectPath: 'Open project directory',
+  layoutBoundary: 'Visibility only. Policy permissions, capabilities and runs remain unchanged.',
+  recentProjects: 'Recent projects',
+  activeSessions: 'Active sessions',
+  systemActions: 'System actions',
+  navigationMenu: 'Open navigation',
+  preferences: 'Preferences',
+  sessionNew: 'New session',
+  hierarchyHint: 'Project → Session → Run → Subagent',
+  activityHint: 'Session activity comes from server records. Open a session to inspect runs and approvals.',
+  studioHint: 'Read-only behavior view. Editing and compile verification require the backend effective configuration contract.',
+  modelRetry: 'Retry model catalog',
+
   providerPreset: "Preset",
   providerCustom: "Custom compatible endpoint",
   providerName: "Provider name",
@@ -1191,7 +1256,7 @@ export const en: Messages = {
   modelLoadFailed: "Unable to load models. Please retry.",
   modelSwitchFailed: "Model switch failed. The current model is unchanged.",
   modelSwitchBusy: "Wait for the active task to finish before switching models.",
-  modelOffline: "Offline demo",
+  modelOffline: "Demo model (no real provider connection)",
   configureModels: "Configure new model",
   sessionCreateFailed: "Unable to create session. Check the workspace and model configuration.",
   currentModel: "Current model",
@@ -1601,14 +1666,14 @@ export const en: Messages = {
   newSession: '+ New Session',
   projects: 'Projects',
   recentSessions: 'Recent Sessions',
-  topicSearch: 'Search topics or sessions…',
+  topicSearch: 'Search sessions…',
   topicToday: 'Today',
   topicLastSevenDays: 'Previous 7 days',
   topicEarlier: 'Earlier',
-  topicUntitled: 'Untitled topic',
+  topicUntitled: 'New session',
   topicShowArchived: 'Show archived',
-  topicRename: 'Rename topic',
-  topicArchive: 'Archive topic',
+  topicRename: 'Rename session',
+  topicArchive: 'Archive session',
   topicRestore: 'Restore topic',
   topicSave: 'Save',
   topicCancel: 'Cancel',
@@ -1638,7 +1703,7 @@ export const en: Messages = {
   unimplemented: 'Not implemented (placeholder).',
   tasksPlaceholder: 'Task list placeholder (under development).',
   changedFilesPlaceholder: 'Changed files placeholder (under development).',
-  customize: 'Customize',
+  customize: 'Layout',
   customizeHead: 'Display modules',
   interruptTitle: 'Interrupt the current turn (placeholder: POST /interrupt)',
   teamModuleNoSession:

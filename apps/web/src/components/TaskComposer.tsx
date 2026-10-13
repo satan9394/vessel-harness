@@ -1,0 +1,88 @@
+import { useEffect, useState } from 'react';
+import type { ApiClient, CreateSessionInput, ModelOption, Project, SessionMeta } from '../api';
+import { useI18n } from './LanguageProvider';
+import { modelKey } from './NewSessionForm';
+
+export function projectName(root: string): string { return root.split(/[\\/]/).filter(Boolean).at(-1) || root; }
+export function readableSessionTitle(session: SessionMeta, fallback: string): string {
+  const title = session.topic?.title?.trim();
+  return title && !/^sess_|^untitled topic$|^未命名主题$/i.test(title) ? title : fallback;
+}
+/** Create a session only; its first turn goes through the existing conversation stream. */
+export async function createTaskSession(api: ApiClient, input: CreateSessionInput, task: string, onBusyChange?: (busy: boolean) => void): Promise<SessionMeta> {
+  if (!input.workspaceRoot.trim() || !task.trim()) throw new Error('Project and task are required');
+  onBusyChange?.(true);
+  try {
+  await api.openProject(input.workspaceRoot.trim());
+  const { session } = await api.createSession({ ...input, workspaceRoot: input.workspaceRoot.trim() });
+  // ponytail: Titles are deterministic task summaries, never a second model call.
+  try { await api.updateSessionTopic(session.id, { title: task.trim().replace(/\s+/g, ' ').slice(0, 80) }); } catch { /* Creation remains usable when metadata cannot be saved. */ }
+  return session;
+  } finally { onBusyChange?.(false); }
+}
+export default function TaskComposer({ api, projects, selectedRoot, onSelectProject, providerRevision, disabled, onConfigureModels, onAdvanced, onStarted, onBusyChange }: {
+  api: ApiClient; projects: Project[]; selectedRoot: string; onSelectProject: (root: string) => void;
+  providerRevision: number; disabled: boolean; onConfigureModels: () => void; onAdvanced: () => void;
+  onBusyChange?: (busy: boolean) => void;
+  onStarted: (session: SessionMeta, task: string) => void;
+}) {
+  const { t } = useI18n();
+  const [task, setTask] = useState('');
+  const [path, setPath] = useState('');
+  const [models, setModels] = useState<ModelOption[]>([]);
+  const [selection, setSelection] = useState('');
+  const [permission, setPermission] = useState<NonNullable<CreateSessionInput['permission']>>('workspace-write');
+  const [loading, setLoading] = useState(true);
+  const [failed, setFailed] = useState(false);
+  const [retry, setRetry] = useState(0);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+  useEffect(() => {
+    let live = true; setLoading(true); setFailed(false);
+    void api.listModels().then(({ models: catalog }) => {
+      if (!live) return;
+      const real = catalog.filter(model => model.providerName !== 'mock'); setModels(real);
+      setSelection(previous => previous || (real[0] ? modelKey(real[0]) : ''));
+    }).catch(() => { if (live) setFailed(true); }).finally(() => { if (live) setLoading(false); });
+    return () => { live = false; };
+  }, [api, providerRevision, retry]);
+  const root = selectedRoot || path.trim();
+  const unavailable = Boolean(selection && !models.some(model => modelKey(model) === selection));
+  async function submit(event: React.FormEvent) {
+    event.preventDefault(); if (!root || !task.trim() || busy || loading || failed || unavailable || disabled) return;
+    setBusy(true); setError('');
+    try {
+      const model = models.find(item => modelKey(item) === selection);
+      const session = await createTaskSession(api, { workspaceRoot: root, permission, ...(model ? { provider: model.providerName, model: model.id } : {}) }, task, onBusyChange);
+      onStarted(session, task.trim());
+    } catch { setError(t('sessionCreateFailed')); } finally { setBusy(false); }
+  }
+  return <form className="task-composer" onSubmit={submit}>
+    <h2>{t('taskPrompt')}</h2>
+    <label htmlFor="taskProject">{t('chooseProject')}</label>
+    <select id="taskProject" className="input" value={selectedRoot} disabled={busy} onChange={event => onSelectProject(event.target.value)}>
+      <option value="">{t('openProjectPath')}</option>
+      {projects.map(project => <option key={project.root} value={project.root}>{projectName(project.root)}</option>)}
+    </select>
+    {selectedRoot ? <p className="composer-root dim" title={root}>{root}</p> : <input className="input" aria-label={t('workspacePath')} placeholder={t('workspacePlaceholder')} value={path} onChange={event => setPath(event.target.value)} disabled={busy} />}
+    <label htmlFor="taskInput">{t('taskPrompt')}</label>
+    <textarea id="taskInput" className="input task-input" placeholder={t('taskPlaceholder')} value={task} onChange={event => setTask(event.target.value)} disabled={busy} />
+    <div className="composer-options">
+      <label>{t('selectModel')}<select className="input model-pill" aria-label={t('selectModel')} value={selection} disabled={busy || loading} onChange={event => setSelection(event.target.value)}>
+        {unavailable && <option value={selection}>{t('modelUnavailable')}</option>}
+        {!models.length && !selection && <option value="">{t('modelOffline')}</option>}
+        {models.map(model => <option key={modelKey(model)} value={modelKey(model)}>{model.providerName} / {model.id}</option>)}
+      </select></label>
+      <label>{t('permissionLabel')}<select className="input" aria-label={t('permissionLabel')} value={permission} disabled={busy} onChange={event => setPermission(event.target.value as typeof permission)}>
+        <option value="read-only">{t('permissionReadOnly')}</option><option value="workspace-write">{t('permissionWorkspaceWrite')}</option>
+      </select></label>
+      <button className="btn btn-primary" type="submit" disabled={busy || disabled || loading || failed || unavailable || !root || !task.trim()}>{busy ? t('creating') : t('startTask')}</button>
+    </div>
+    {unavailable && !loading && <p role="alert" className="error-text">{t('modelUnavailable')}</p>}
+    {loading && <p role="status" className="dim">{t('loading')}</p>}
+    {failed && <p role="alert" className="error-text">{t('modelLoadFailed')} <button className="btn" type="button" onClick={() => setRetry(value => value + 1)}>{t('modelRetry')}</button></p>}
+    {!loading && !failed && !models.length && <p className="dim">{t('noModelsConfigured')} · {t('modelOffline')}</p>}
+    {error && <p role="alert" className="error-text">{error}</p>}
+    <div className="composer-secondary"><button className="btn" type="button" data-action="advanced-session" onClick={onAdvanced} disabled={busy}>{t('advancedSession')}</button><button className="btn" type="button" data-action="configure-models" onClick={onConfigureModels} disabled={busy}>{t('configureModels')}</button></div>
+  </form>;
+}

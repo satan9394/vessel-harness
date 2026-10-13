@@ -2,9 +2,11 @@ import { useMemo, useState } from 'react';
 import type { Project, SessionMeta } from '../api';
 import { VesselLogo } from './VesselLogo';
 import { useI18n } from './LanguageProvider';
-import SubagentWorkspace from './SubagentPanel';
+import { projectName, readableSessionTitle } from './TaskComposer';
 
 export interface SidebarProps {
+  selectedProjectRoot?: string;
+  onSelectProject?: (root: string) => void;
   projects: Project[];
   sessions: SessionMeta[];
   onNewSession: () => void;
@@ -86,14 +88,11 @@ export function groupSessionsByDateAndTopic(sessions: SessionMeta[], now = Date.
   return [...periods].map(([key, topics]) => ({ key, topics: [...topics.values()] })).filter((period) => period.topics.length > 0);
 }
 
-function sessionLabel(session: SessionMeta): string {
-  const parts = session.workspaceRoot.split(/[\\/]/).filter(Boolean);
-  return parts.at(-1) || session.id.slice(0, 12);
-}
-
 /** Left rail: projects plus searchable, date-grouped Topic navigation. */
 export default function Sidebar({
   projects,
+  selectedProjectRoot,
+  onSelectProject,
   sessions,
   onNewSession,
   selectedSessionId,
@@ -107,8 +106,8 @@ export default function Sidebar({
   const [editingTopicId, setEditingTopicId] = useState<string | null>(null);
   const [draftTitle, setDraftTitle] = useState('');
   const periods = useMemo(
-    () => groupSessionsByDateAndTopic(filterSessionsByTopic(sessions, query, showArchived)),
-    [sessions, query, showArchived],
+    () => [...new Set([...projects.map(project => project.root), ...sessions.map(session => session.workspaceRoot)])].map(root => ({ root, topics: groupSessionsByDateAndTopic(filterSessionsByTopic(sessions.filter(session => session.workspaceRoot === root), query, showArchived)).flatMap(period => period.topics) })),
+    [projects, sessions, query, showArchived],
   );
 
   function beginRename(group: SidebarTopicGroup) {
@@ -142,7 +141,7 @@ export default function Sidebar({
             ) : (
               projects.map((project) => (
                 <li key={project.root} className="side-item" title={project.root}>
-                  {project.root}
+                  <button type="button" className={`project-select${project.root === selectedProjectRoot ? ' side-item-active' : ''}`} onClick={() => onSelectProject?.(project.root)}>{projectName(project.root)}</button>
                 </li>
               ))
             )}
@@ -169,8 +168,8 @@ export default function Sidebar({
           ) : (
             <div className="topic-period-list">
               {periods.map((period) => (
-                <section className="topic-period" key={period.key}>
-                  <div className="side-label">{t(period.key)}</div>
+                <section className="topic-period" key={period.root}>
+                  <div className="side-label">{projectName(period.root)}</div>
                   {period.topics.map((group) => (
                     <section className="topic-group" key={group.topicId}>
                       <div className="topic-heading">
@@ -199,7 +198,7 @@ export default function Sidebar({
                             onClick={() => onSelectSession(group.sessions[0]!.id)}
                             title={group.title}
                           >
-                            {group.title || t('topicUntitled')}
+                            {readableSessionTitle(group.sessions[0]!, t('sessionNew'))}
                           </button>
                         )}
                       </div>
@@ -211,11 +210,11 @@ export default function Sidebar({
                           title={session.workspaceRoot}
                           onClick={() => onSelectSession(session.id)}
                         >
-                          {sessionLabel(session)}
+                          {group.sessions.length > 1 ? readableSessionTitle(session, t('sessionNew')) : new Date(session.updatedAt ?? session.createdAt).toLocaleDateString()}
                         </button>
                       ))}
                       {editingTopicId !== group.topicId && (
-                        <div className="topic-actions">
+                        <details className="topic-actions"><summary aria-label={t('preferences')}>···</summary>
                           <button type="button" className="topic-action" onClick={() => beginRename(group)}>
                             {t('topicRename')}
                           </button>
@@ -226,7 +225,7 @@ export default function Sidebar({
                           >
                             {group.isArchived ? t('topicRestore') : t('topicArchive')}
                           </button>
-                        </div>
+                        </details>
                       )}
                     </section>
                   ))}
@@ -235,12 +234,10 @@ export default function Sidebar({
             </div>
           )}
         </section>
-        <SubagentWorkspace />
+        <p className="dim hierarchy-hint">{t('hierarchyHint')}</p>
       </nav>
 
-      <div className="side-footer">
-        <span className="side-item">{t('settings')}</span>
-      </div>
+
     </aside>
   );
 }

@@ -96,6 +96,24 @@ describe('command palette keyboard and registry', () => {
     invoke(tree.find(node => node.type === 'input')!, 'onChange', { target: { value: 'no match' } }); tree = palette();
     invoke(tree.find(node => node.type === 'input')!, 'onKeyDown', event('Enter')); await Promise.resolve(); expect(command.execute).not.toHaveBeenCalled();
   });
+  it('cycles through visible summaries while excluding closed disclosure and hidden controls', () => {
+    const dialog = new Element(); const first = new Element(); const summary = new Element(); const hidden = new Element(); const closedButton = new Element();
+    const details = new Element(); details.choice = summary;
+    summary.closest = selector => selector === 'details:not([open])' ? details : null;
+    closedButton.closest = selector => selector === 'details:not([open])' ? details : null;
+    hidden.closest = selector => selector === '[hidden], [inert]' ? dialog : null;
+    dialog.controls = [first, summary, closedButton, hidden];
+    doc.activeElement = first;
+    trapFocus(event('Tab'), dialog as unknown as HTMLElement); expect(doc.activeElement).toBe(summary);
+    trapFocus(event('Tab'), dialog as unknown as HTMLElement); expect(doc.activeElement).toBe(first);
+    trapFocus(event('Tab', { shiftKey: true }), dialog as unknown as HTMLElement); expect(doc.activeElement).toBe(summary);
+    expect(closedButton.focus).not.toHaveBeenCalled(); expect(hidden.focus).not.toHaveBeenCalled();
+  });
+  it('skips CSS-hidden controls with no client rectangles', () => {
+    const dialog = new Element(); const visible = new Element(); const hidden = Object.assign(new Element(), { getClientRects: () => [] });
+    dialog.controls = [visible, hidden]; doc.activeElement = visible;
+    trapFocus(event('Tab'), dialog as unknown as HTMLElement); expect(doc.activeElement).toBe(visible); expect(hidden.focus).not.toHaveBeenCalled();
+  });
   it('traps forward/reverse Tab and recognizes editable descendants', () => {
     const dialog = new Element(); const first = new Element(); const last = new Element(); dialog.controls = [first, last];
     doc.activeElement = last; const forward = event('Tab'); trapFocus(forward, dialog as unknown as HTMLElement); expect(doc.activeElement).toBe(first); expect(forward.preventDefault).toHaveBeenCalled();
