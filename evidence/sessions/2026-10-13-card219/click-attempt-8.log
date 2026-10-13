@@ -1,0 +1,123 @@
+{"step": "Navigation: activity", "status": "PASS", "durationMs": 94}
+{"step": "Navigation: studio", "status": "PASS", "durationMs": 63}
+{"step": "Navigation: settings", "status": "PASS", "durationMs": 62}
+{"step": "Navigation: workbench", "status": "PASS", "durationMs": 47}
+{"step": "Empty task cannot create session", "status": "PASS", "durationMs": 0}
+{"step": "Project selector click and choose fixture", "status": "PASS", "durationMs": 63}
+{"step": "Task input focus and typing", "status": "PASS", "durationMs": 62}
+{"step": "Model pill switch: [\"local-fixture\",\"fixture-a\"]", "status": "PASS", "durationMs": 79}
+{"step": "Model pill switch: [\"local-fixture\",\"fixture-b\"]", "status": "PASS", "durationMs": 46}
+{"step": "Permission pill: read-only", "status": "PASS", "durationMs": 79}
+{"step": "Permission pill: workspace-write", "status": "PASS", "durationMs": 62}
+{"step": "Start task creates session and real streamed response", "status": "PASS", "durationMs": 391}
+{"step": "Streamed thinking expand", "status": "PASS", "durationMs": 125}
+{"step": "Streamed thinking collapse", "status": "PASS", "durationMs": 265}
+{"step": "Send input by button and assistant completion", "status": "PASS", "durationMs": 110}
+{"step": "Send input by Enter and assistant completion", "status": "PASS", "durationMs": 110}
+{"step": "History session click selects exact ID", "status": "PASS", "durationMs": 62}
+{"step": "Inspector open", "status": "PASS", "durationMs": 63}
+{"step": "Inspector tab: Swarm", "status": "PASS", "durationMs": 46}
+{"step": "Inspector tab: Cognition", "status": "PASS", "durationMs": 63}
+{"step": "Inspector tab: KV Cache", "status": "PASS", "durationMs": 78}
+{"step": "Inspector tab: AST", "status": "PASS", "durationMs": 62}
+{"step": "Inspector tab: Patch", "status": "PASS", "durationMs": 47}
+{"step": "Patch accept persists file", "status": "PASS", "durationMs": 109}
+{"step": "Patch accepted bytes readback", "status": "PASS", "durationMs": 0}
+{"step": "Patch discard second hunk", "status": "PASS", "durationMs": 47}
+{"step": "Patch revert accepted hunk", "status": "PASS", "durationMs": 109}
+{"step": "Patch rejected bytes readback", "status": "PASS", "durationMs": 0}
+{"step": "Provider drawer open", "status": "PASS", "durationMs": 47}
+{"step": "Provider preset DeepSeek", "status": "PASS", "durationMs": 78}
+{"step": "Provider preset OpenAI", "status": "PASS", "durationMs": 63}
+{"step": "Provider preset Claude", "status": "PASS", "durationMs": 47}
+{"step": "Provider preset Ollama", "status": "PASS", "durationMs": 78}
+{"step": "Provider local form entry", "status": "PASS", "durationMs": 47}
+{"step": "Provider test connection busy and latency result", "status": "PASS", "durationMs": 891}
+{"step": "Provider pull models busy and result", "status": "PASS", "durationMs": 906}
+{"step": "Provider save and API readback", "status": "PASS", "durationMs": 6016}
+{"step": "Provider server and credential metadata saved", "status": "PASS", "durationMs": 2531}
+{"step": "Provider close", "status": "PASS", "durationMs": 1391}
+{"step": "Provider delete confirmation", "status": "PASS", "durationMs": 1375}
+{"step": "Provider confirmed delete and API readback", "status": "PASS", "durationMs": 2922}
+{"step": "Provider credential cascade removal (metadata only)", "status": "PASS", "durationMs": 16}
+{"step": "Customize open", "status": "PASS", "durationMs": 31}
+{"step": "Customize persistence and visibility: Swarm", "status": "FAIL", "error": "Locator expected to be visible\nActual value: None\nError: element(s) not found \nCall log:\n  - Expect \"to_be_visible\" with timeout 30000ms\n  - waiting for locator(\".module-sections section[aria-label=\\\"Swarm topology\\\"]\")\n\nAria snapshot:\n- navigation \"Vessel\":\n  - button \"Workbench\"\n  - button \"Activity\"\n  - button \"Agent Studio\"\n  - button \"Settings\"\n- complementary:\n  - text: Vessel\n  - button \"+ New Session\"\n  - navigation:\n    - text: Projects\n    - list:\n      - listitem \"C:\\\\Users\\\\WORK\\\\AppData\\\\Local\\\\Temp\\\\vessel-card219-browser-OdL7Oz\\\\workspace\":\n        - button \"workspace\"\n    - text: Recent Sessions\n    - textbox \"Search sessions\u2026\"\n    - checkbox \"Show archived\"\n    - text: Show archived workspace\n    - button \"Card 219 real click task\"\n    - button \"2026/10/12\"\n    - group: \u00b7\u00b7\u00b7\n    - button \"Review workbench navigation\"\n    - button \"2026/10/12\"\n    - group: \u00b7\u00b7\u00b7\n    - paragraph: Project \u2192 Session \u2192 Run \u2192 Subagent\n- main:\n  - text: Vessel local server ok (v0.10.0)\n  - button \"Commands\"\n  - group: Preferences\n  - paragraph: Project \u2192 Session \u2192 Run \u2192 Subagent\n  - heading \"What should Vessel work on?\" [level=2]\n  - text: Choose project\n  - combobox \"Choose project\":\n    - option \"Open project directory\"\n    - option \"workspace\" [selected]\n  - paragraph: C:\\work\\AppData\\Local\\Temp\\vessel-card219-browser-OdL7Oz\\workspace\n  - text: What should Vessel work on?\n  - textbox \"What should Vessel work on?\":\n    - /placeholder: Describe the goal, scope and acceptance criteria\u2026\n  - text: Select model\n  - combobox \"Select model\":\n    - option \"local-fixture / fixture-a\" [selected]\n    - option \"local-fixture / fixture-b\"\n  - text: New session permission (current session unchanged)\n  - combobox \"New session permission (current session unchanged)\":\n    - option \"Read-only\"\n    - option \"Workspace write\" [selected]\n  - button \"Start task\" [disabled]\n  - button \"Advanced session\"\n  - button \"Configure new model\""}
+Traceback (most recent call last):
+  File "E:\Code_file\Projects\Vessel_Harness\evidence\sessions\2026-10-13-card219\click-walkthrough.py", line 166, in <module>
+    step('Customize persistence'+(' and visibility: ' if key not in ['ChangedFiles','Cost','ToolActivity'] else ' (no independent module): ')+key,lambda index=index,key=key:customize_toggle(index,key))
+  File "E:\Code_file\Projects\Vessel_Harness\evidence\sessions\2026-10-13-card219\click-walkthrough.py", line 24, in step
+    action()
+  File "E:\Code_file\Projects\Vessel_Harness\evidence\sessions\2026-10-13-card219\click-walkthrough.py", line 166, in <lambda>
+    step('Customize persistence'+(' and visibility: ' if key not in ['ChangedFiles','Cost','ToolActivity'] else ' (no independent module): ')+key,lambda index=index,key=key:customize_toggle(index,key))
+                                                                                                                                                                             ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "E:\Code_file\Projects\Vessel_Harness\evidence\sessions\2026-10-13-card219\click-walkthrough.py", line 82, in customize_toggle
+    if not original:expect(module).to_be_visible()
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\work\AppData\Roaming\Python\Python311\site-packages\playwright\sync_api\_generated.py", line 23019, in to_be_visible
+    self._sync(
+  File "C:\work\AppData\Roaming\Python\Python311\site-packages\playwright\_impl\_sync_base.py", line 115, in _sync
+    return task.result()
+           ^^^^^^^^^^^^^
+  File "C:\work\AppData\Roaming\Python\Python311\site-packages\playwright\_impl\_assertions.py", line 841, in to_be_visible
+    await self._expect_impl(
+  File "C:\work\AppData\Roaming\Python\Python311\site-packages\playwright\_impl\_assertions.py", line 126, in _expect_impl
+    _record_soft_or_raise(
+  File "C:\work\AppData\Roaming\Python\Python311\site-packages\playwright\_impl\_assertions.py", line 60, in _record_soft_or_raise
+    raise error
+AssertionError: Locator expected to be visible
+Actual value: None
+Error: element(s) not found 
+Call log:
+  - Expect "to_be_visible" with timeout 30000ms
+  - waiting for locator(".module-sections section[aria-label=\"Swarm topology\"]")
+
+Aria snapshot:
+- navigation "Vessel":
+  - button "Workbench"
+  - button "Activity"
+  - button "Agent Studio"
+  - button "Settings"
+- complementary:
+  - text: Vessel
+  - button "+ New Session"
+  - navigation:
+    - text: Projects
+    - list:
+      - listitem "C:\\work\\AppData\\Local\\Temp\\vessel-card219-browser-OdL7Oz\\workspace":
+        - button "workspace"
+    - text: Recent Sessions
+    - textbox "Search sessions��"
+    - checkbox "Show archived"
+    - text: Show archived workspace
+    - button "Card 219 real click task"
+    - button "2026/10/12"
+    - group: ������
+    - button "Review workbench navigation"
+    - button "2026/10/12"
+    - group: ������
+    - paragraph: Project �� Session �� Run �� Subagent
+- main:
+  - text: Vessel local server ok (v0.10.0)
+  - button "Commands"
+  - group: Preferences
+  - paragraph: Project �� Session �� Run �� Subagent
+  - heading "What should Vessel work on?" [level=2]
+  - text: Choose project
+  - combobox "Choose project":
+    - option "Open project directory"
+    - option "workspace" [selected]
+  - paragraph: C:\work\AppData\Local\Temp\vessel-card219-browser-OdL7Oz\workspace
+  - text: What should Vessel work on?
+  - textbox "What should Vessel work on?":
+    - /placeholder: Describe the goal, scope and acceptance criteria��
+  - text: Select model
+  - combobox "Select model":
+    - option "local-fixture / fixture-a" [selected]
+    - option "local-fixture / fixture-b"
+  - text: New session permission (current session unchanged)
+  - combobox "New session permission (current session unchanged)":
+    - option "Read-only"
+    - option "Workspace write" [selected]
+  - button "Start task" [disabled]
+  - button "Advanced session"
+  - button "Configure new model"

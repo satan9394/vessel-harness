@@ -1,0 +1,157 @@
+
+ RUN  v5.0.1 E:/Code_file/Projects/Vessel_Harness/apps/web
+
+ ❯ src/components/ConversationView.attention.test.tsx (16 tests | 3 failed) 48ms
+   ❯ attention integration and stale turn guards (16)
+     × restores observed messages, reasoning, widget, tool and usage after switching away and back 16ms
+     × ignores every callback from a closed stream even after A to B to A 4ms
+     × retains a page-local snapshot across unmount and closes incomplete reasoning 3ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 3 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/components/ConversationView.attention.test.tsx > attention integration and stale turn guards > restores observed messages, reasoning, widget, tool and usage after switching away and back
+AssertionError: expected [] to deeply equal [ …(5) ]
+
+- Expected
++ Received
+
+- [
+-   {
+-     "id": "1791890656863-1",
+-     "kind": "message",
+-     "msg": {
+-       "role": "user",
+-       "text": "original user",
+-       "ts": 1,
+-     },
+-   },
+-   {
+-     "id": "1791890656863-2",
+-     "kind": "thinking",
+-     "thinking": {
+-       "callId": "a",
+-       "durationMs": 1791890656861,
+-       "matchedRules": undefined,
+-       "startedAt": 2,
+-       "streaming": false,
+-       "text": "reasoning",
+-     },
+-   },
+-   {
+-     "id": "1791890656863-3",
+-     "kind": "message",
+-     "msg": {
+-       "role": "assistant",
+-       "text": "original assistant",
+-       "ts": 4,
+-     },
+-   },
+-   {
+-     "id": "1791890656863-4",
+-     "kind": "tool",
+-     "tool": {
+-       "status": "started",
+-       "toolCallId": "read",
+-       "toolName": "read",
+-       "ts": 5,
+-     },
+-   },
+-   {
+-     "id": "widget:approval",
+-     "kind": "widget",
+-     "widget": {
+-       "id": "approval",
+-       "kind": "permission_action",
+-       "payload": {
+-         "actionType": "filesystem_write",
+-         "description": "allow",
+-         "options": [
+-           {
+-             "id": "yes",
+-             "label": "Yes",
+-             "tone": "primary",
+-           },
+-         ],
+-       },
+-       "status": "pending",
+-       "timestamp": "now",
+-       "turnIndex": 0,
+-     },
+-   },
+- ]
++ []
+
+ ❯ src/components/ConversationView.attention.test.tsx:76:81
+     74|     streams.at(-1)!.handlers.onConversation?.({ role: 'assistant', tex…
+     75|     render('s1'); const restored = render('s1');
+     76|     expect(restored.find(node => Array.isArray(node.props.items))!.pro…
+       |                                                                                 ^
+     77|     expect(restored.find(node => node.props.usage)!.props.usage).toEqu…
+     78|     streams.at(-1)!.handlers.onWidget?.(widget);
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/3]⎯
+
+ FAIL  src/components/ConversationView.attention.test.tsx > attention integration and stale turn guards > ignores every callback from a closed stream even after A to B to A
+AssertionError: expected [ …(2) ] to deeply equal []
+
+- Expected
++ Received
+
+- []
++ [
++   {
++     "id": "1791890656876-6",
++     "kind": "message",
++     "msg": {
++       "role": "assistant",
++       "text": "stale",
++       "ts": 1,
++     },
++   },
++   {
++     "id": "1791890656876-7",
++     "kind": "tool",
++     "tool": {
++       "durationMs": undefined,
++       "status": "done",
++       "toolName": "stale",
++       "ts": 1,
++     },
++   },
++ ]
+
+ ❯ src/components/ConversationView.attention.test.tsx:95:77
+     93|     old.onInspector?.({ observedAt: 'stale' } as unknown as import('..…
+     94|     const tree = render('s1');
+     95|     expect(tree.find(node => Array.isArray(node.props.items))!.props.i…
+       |                                                                             ^
+     96|     expect(tree.find(node => node.props.usage)!.props.usage).toMatchOb…
+     97|     expect(tree[0].props.observation).toBeUndefined();
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/3]⎯
+
+ FAIL  src/components/ConversationView.attention.test.tsx > attention integration and stale turn guards > retains a page-local snapshot across unmount and closes incomplete reasoning
+AssertionError: expected undefined to be 'remember' // Object.is equality
+
+- Expected:
+"remember"
+
++ Received:
+undefined
+
+ ❯ src/components/ConversationView.attention.test.tsx:108:33
+    106|     const restored = render();
+    107|     const items = restored.find(node => Array.isArray(node.props.items…
+    108|     expect(items[0]?.msg?.text).toBe('remember');
+       |                                 ^
+    109|     expect(items.find(item => item.kind === 'thinking')?.thinking).toM…
+    110|     expect(restored.find(node => node.type === 'input')!.props.value).…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/3]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  3 failed | 13 passed (16)
+   Start at  04:24:15
+   Duration  1.30s (import 54%, transform 42%, tests 4%)
+

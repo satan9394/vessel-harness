@@ -1,0 +1,23 @@
+[
+  {
+    "name": "tsc-build",
+    "command": "npx tsc -b",
+    "startedAt": "2026-10-13T11:15:42.1886972Z",
+    "endedAt": "2026-10-13T11:15:47.4856896Z",
+    "exitCode": 0
+  },
+  {
+    "name": "typecheck-tests",
+    "command": "npm run typecheck:tests",
+    "startedAt": "2026-10-13T11:15:47.5273715Z",
+    "endedAt": "2026-10-13T11:15:51.5643556Z",
+    "exitCode": 0
+  },
+  {
+    "name": "web-build",
+    "command": "npm run -w @vessel/web build -- --emptyOutDir false",
+    "startedAt": "2026-10-13T11:15:51.6079460Z",
+    "endedAt": "2026-10-13T11:15:57.6742909Z",
+    "exitCode": 0
+  }
+]

@@ -2,7 +2,7 @@
 
 > **用途**：新会话 / 新 Agent / 换人接手时，**先读本文件**：现状、未完成清单、验证命令、已知约束都在这里。
 > 规则本身仍在 [`AGENTS.md`](AGENTS.md)；会约束未来的决策在 [`docs/DESIGN-DECISIONS.md`](docs/DESIGN-DECISIONS.md)。
-> **最后更新**：2026-10-12。维护者：单人。
+> **最后更新**：2026-10-13。维护者：单人。
 
 ## 0. 快速接管协议（当用户直接说「继续未完成的」或「继续」时）
 
@@ -28,9 +28,9 @@
 | 项 | 当前实况 |
 |---|---|
 | 仓库 / 分支 | `satan9394/vessel-harness` / `main`（纯本地开发，不推送） |
-| 工作区状态 | HEAD `6442171`；Card 218 已验收待提交本地 commit |
-| 机器状态真源 | `.agent-state/run-state.json`（Card 217/218 均已 completed） |
-| 当前任务卡 | 无（Card 217、Card 218 两份整改规划已全部验收闭环） |
+| 工作区状态 | HEAD `26ba6fe`；Card 218 已合入本地提交 |
+| 机器状态真源 | `.agent-state/run-state.json`（历史 bounded 状态；Card 219 为 standard，终态以任务卡为准） |
+| 当前任务卡 | `tasks/219-full-surface-interactive-click-testing-suite.md`（已验证；结果与边界见 `evidence/sessions/2026-10-13-card219/PROOF.md`，交证即停） |
 
 Card 218 本地交付与验收（2026-10-12，Codex 交付 + Antigravity 验收）：依据 `docs/plans/Vessel_Web_UI_UX_Improvement_Plan.md` (VESSEL-UI-2026-01) 落地 UI-P0 级 Agent 工作台体验。重构信息架构为 Workbench / Activity / Agent Studio / Settings 四大一级导航；首页集成 Project → Task → Start 就地任务启动器（带模型与权限直选 Pill，空输入校验与失败可重编草稿）；Ctrl+K 全局命令面板按系统操作/最近项目/活跃会话语义折叠分组，隐藏调试裸 ID 与长路径；视图定制与系统权限解耦；≤800px 移动端自适应为无障碍抽屉，焦点循环与 Escape 回位。门禁：Web 单测 34 文件 / 291 passed、Web typecheck exit 0、Web 打包（`-- --emptyOutDir false`）exit 0、全量双 Root **3,228 passed / 6 skipped** 全绿、12 张中英双语 Retina 截图全部刷新、packages/core **0 变动**、依赖锁无变化。证据 `evidence/sessions/2026-10-12-card218/PROOF.md`。
 

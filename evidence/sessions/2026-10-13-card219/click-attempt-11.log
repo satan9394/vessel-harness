@@ -1,0 +1,76 @@
+{"step": "Navigation: activity", "status": "PASS", "durationMs": 234}
+{"step": "Navigation: studio", "status": "PASS", "durationMs": 78}
+{"step": "Navigation: settings", "status": "PASS", "durationMs": 63}
+{"step": "Navigation: workbench", "status": "PASS", "durationMs": 31}
+{"step": "Empty task cannot create session", "status": "PASS", "durationMs": 16}
+{"step": "Project selector click and choose fixture", "status": "PASS", "durationMs": 78}
+{"step": "Task input focus and typing", "status": "PASS", "durationMs": 109}
+{"step": "Model pill switch: [\"local-fixture\",\"fixture-a\"]", "status": "PASS", "durationMs": 79}
+{"step": "Model pill switch: [\"local-fixture\",\"fixture-b\"]", "status": "PASS", "durationMs": 62}
+{"step": "Permission pill: read-only", "status": "PASS", "durationMs": 63}
+{"step": "Permission pill: workspace-write", "status": "PASS", "durationMs": 78}
+{"step": "Start task creates session and real streamed response", "status": "PASS", "durationMs": 578}
+{"step": "Streamed thinking expand", "status": "PASS", "durationMs": 94}
+{"step": "Streamed thinking collapse", "status": "PASS", "durationMs": 234}
+{"step": "Send input by button and assistant completion", "status": "PASS", "durationMs": 141}
+{"step": "Send input by Enter and assistant completion", "status": "PASS", "durationMs": 125}
+{"step": "History session click selects exact ID", "status": "PASS", "durationMs": 78}
+{"step": "Inspector open", "status": "PASS", "durationMs": 63}
+{"step": "Inspector exposes exactly five current tabs", "status": "PASS", "durationMs": 15}
+{"step": "Inspector tab: Swarm", "status": "PASS", "durationMs": 31}
+{"step": "Inspector tab: Cognition", "status": "PASS", "durationMs": 47}
+{"step": "Inspector tab: KV Cache", "status": "PASS", "durationMs": 62}
+{"step": "Inspector tab: AST", "status": "PASS", "durationMs": 31}
+{"step": "Inspector tab: Patch", "status": "PASS", "durationMs": 63}
+{"step": "Patch accept persists file", "status": "PASS", "durationMs": 109}
+{"step": "Patch accepted bytes readback", "status": "PASS", "durationMs": 0}
+{"step": "Patch discard pending second hunk", "status": "PASS", "durationMs": 62}
+{"step": "Patch revert accepted hunk", "status": "PASS", "durationMs": 94}
+{"step": "Patch rejected bytes readback", "status": "PASS", "durationMs": 0}
+{"step": "Provider drawer open", "status": "PASS", "durationMs": 47}
+{"step": "Provider preset DeepSeek", "status": "PASS", "durationMs": 125}
+{"step": "Provider preset OpenAI", "status": "PASS", "durationMs": 93}
+{"step": "Provider preset Claude", "status": "PASS", "durationMs": 125}
+{"step": "Provider preset Ollama", "status": "PASS", "durationMs": 94}
+{"step": "Provider local form entry", "status": "PASS", "durationMs": 125}
+{"step": "Provider test connection busy and latency result", "status": "PASS", "durationMs": 953}
+{"step": "Provider pull models busy and result", "status": "PASS", "durationMs": 985}
+{"step": "Provider save and API readback", "status": "PASS", "durationMs": 8109}
+{"step": "Provider server and credential metadata saved", "status": "PASS", "durationMs": 4063}
+{"step": "Provider close", "status": "PASS", "durationMs": 2500}
+{"step": "Provider delete confirmation", "status": "PASS", "durationMs": 2406}
+{"step": "Provider confirmed delete and API readback", "status": "PASS", "durationMs": 4469}
+{"step": "Provider credential cascade removal (metadata only)", "status": "PASS", "durationMs": 31}
+{"step": "Customize open", "status": "PASS", "durationMs": 46}
+{"step": "Customize persistence and visibility: Swarm", "status": "PASS", "durationMs": 297}
+{"step": "Customize persistence and visibility: CognitiveRules", "status": "PASS", "durationMs": 281}
+{"step": "Customize persistence and visibility: Team", "status": "PASS", "durationMs": 312}
+{"step": "Customize persistence and visibility: Tasks", "status": "PASS", "durationMs": 250}
+{"step": "Customize persistence (no independent module): ChangedFiles", "status": "PASS", "durationMs": 328}
+{"step": "Customize persistence and visibility: Context", "status": "PASS", "durationMs": 313}
+{"step": "Customize persistence (no independent module): ToolActivity", "status": "PASS", "durationMs": 281}
+{"step": "Customize persistence and visibility: Logs", "status": "PASS", "durationMs": 328}
+{"step": "Customize persistence (no independent module): Cost", "status": "PASS", "durationMs": 328}
+{"step": "Customize persistence and visibility: MCP", "status": "PASS", "durationMs": 282}
+{"step": "Customize persistence and visibility: Policy", "status": "PASS", "durationMs": 297}
+{"step": "Customize no backend policy mutations", "status": "PASS", "durationMs": 0}
+{"step": "Ctrl+K auto focuses input", "status": "PASS", "durationMs": 47}
+{"step": "Command arrow navigation receipt", "status": "PASS", "durationMs": 0}
+{"step": "Command Escape restores focus", "status": "PASS", "durationMs": 31}
+{"step": "Command category collapse system", "status": "PASS", "durationMs": 109}
+{"step": "Command category execute system: Model settings", "status": "PASS", "durationMs": 94}
+{"step": "System action opens provider settings", "status": "PASS", "durationMs": 15}
+{"step": "Command category collapse project", "status": "PASS", "durationMs": 79}
+{"step": "Command category execute project: workspace", "status": "PASS", "durationMs": 62}
+{"step": "Recent project action selects composer project", "status": "PASS", "durationMs": 0}
+{"step": "Command category collapse session", "status": "PASS", "durationMs": 78}
+{"step": "Command category execute session: Card 219 real click task \u00b7 workspace", "status": "PASS", "durationMs": 63}
+{"step": "Active session action opens matching session", "status": "PASS", "durationMs": 31}
+{"step": "Close inspector before navigation drawer scenario", "status": "PASS", "durationMs": 62}
+{"step": "800px navigation collapses", "status": "PASS", "durationMs": 16}
+{"step": "800px drawer open and main inert", "status": "PASS", "durationMs": 47}
+{"step": "800px focus loop Tab 60 times", "status": "PASS", "durationMs": 0}
+{"step": "800px focus loop Shift+Tab 60 times", "status": "PASS", "durationMs": 0}
+{"step": "800px Escape restores main and focus", "status": "PASS", "durationMs": 31}
+{"step": "800px backdrop closes drawer", "status": "PASS", "durationMs": 110}
+{"step": "Hard gate console errors and uncaught exceptions zero", "status": "PASS", "durationMs": 0}

@@ -1,0 +1,28 @@
+{
+  "url": "http://127.0.0.1:62812",
+  "receipts": [
+    {
+      "step": "Create and complete actual turn",
+      "status": "PASS",
+      "sessionId": "sess_1791890813435_2cb92392",
+      "userPresent": true,
+      "assistantPresent": true
+    },
+    {
+      "step": "Click away to another historical session",
+      "status": "PASS"
+    },
+    {
+      "step": "Click back restores selected exact ID",
+      "status": "PASS",
+      "sessionId": "sess_1791890813435_2cb92392"
+    },
+    {
+      "step": "Historical user and assistant message tree readback",
+      "status": "PASS"
+    }
+  ],
+  "consoleErrors": [],
+  "pageErrors": [],
+  "status": "PASS"
+}

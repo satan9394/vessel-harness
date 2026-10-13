@@ -7,7 +7,7 @@ import ConversationView from './ConversationView';
 
 // This package uses node, so exercise the component's real callbacks with a tiny
 // hook lifecycle harness. Desktop/visual behavior is separately browser-verified.
-const hooks = vi.hoisted(() => ({ cursor: 0, cells: [] as unknown[], effects: [] as Array<{ dependencies?: unknown[]; cleanup?: () => void }>, jobs: [] as Array<() => void> }));
+const hooks = vi.hoisted(() => ({ cursor: 0, cells: [] as unknown[], effects: [] as Array<{ dependencies?: unknown[]; cleanup?: () => void; setup?: () => (() => void) | undefined }>, jobs: [] as Array<() => void> }));
 const streams = vi.hoisted(() => [] as Array<{ handlers: StreamHandlers; close: ReturnType<typeof vi.fn> }>);
 vi.mock('react', async importOriginal => ({
   ...await importOriginal<typeof import('react')>(),
@@ -21,7 +21,7 @@ vi.mock('react', async importOriginal => ({
   useEffect: (effect: () => (() => void) | undefined, dependencies?: unknown[]) => {
     const index = hooks.cursor++; const previous = hooks.effects[index];
     if (!previous || dependencies?.some((value, i) => value !== previous.dependencies?.[i])) hooks.jobs.push(() => {
-      previous?.cleanup?.(); hooks.effects[index] = { dependencies, cleanup: effect() };
+      previous?.cleanup?.(); hooks.effects[index] = { dependencies, setup: effect, cleanup: effect() };
     });
   },
 }));
@@ -58,6 +58,84 @@ beforeEach(() => {
 });
 afterEach(() => { for (const effect of hooks.effects) effect?.cleanup?.(); vi.restoreAllMocks(); vi.useRealTimers(); vi.unstubAllGlobals(); });
 describe('attention integration and stale turn guards', () => {
+  it('restores observed messages, reasoning, widget, tool and usage after switching away and back', () => {
+    render(); const first = streams[0].handlers;
+    first.onConversation?.({ role: 'user', text: 'original user', ts: 1 });
+    first.onThinking?.({ phase: 'start', callId: 'a', ts: 2 });
+    first.onThinking?.({ phase: 'delta', callId: 'a', text: 'reasoning', ts: 3 });
+    first.onConversation?.({ role: 'assistant', text: 'original assistant', ts: 4 });
+    first.onTool?.({ toolCallId: 'read', toolName: 'read', status: 'started', ts: 5 });
+    const widget = { id: 'approval', kind: 'permission_action' as const, status: 'pending' as const, turnIndex: 0, timestamp: 'now', payload: { actionType: 'filesystem_write' as const, description: 'allow', options: [{ id: 'yes', label: 'Yes', tone: 'primary' as const }] } };
+    first.onWidget?.(widget);
+    first.onUsage?.({ inputTokens: 7, outputTokens: 3, calls: 1, ts: 6 });
+    const observation = { observedAt: 'snapshot' } as unknown as import('../inspector').InspectorObservation;
+    first.onInspector?.(observation);
+    const before = render(); const items = before.find(node => Array.isArray(node.props.items))!.props.items;
+    const usage = before.find(node => node.props.usage)!.props.usage;
+    render('s2'); render('s2');
+    streams.at(-1)!.handlers.onConversation?.({ role: 'assistant', text: 'other session', ts: 7 }); render('s2');
+    render('s1'); const restored = render('s1');
+    expect(restored.find(node => Array.isArray(node.props.items))!.props.items).toEqual(items);
+    expect(restored.find(node => node.props.usage)!.props.usage).toEqual(usage);
+    expect(restored[0].props.observation).toEqual(observation);
+    streams.at(-1)!.handlers.onWidget?.(widget);
+    streams.at(-1)!.handlers.onTool?.({ toolCallId: 'read', toolName: 'read', status: 'done', ts: 15 });
+    const next = render('s1').find(node => Array.isArray(node.props.items))!.props.items as import('./MessageList').ChatItem[];
+    expect(next.filter(item => item.kind === 'widget')).toHaveLength(1);
+    expect(next.filter(item => item.kind === 'tool')).toHaveLength(1);
+    expect(next.find(item => item.kind === 'tool')?.tool).toMatchObject({ status: 'done', durationMs: 10 });
+    expect(next.flatMap(item => item.msg?.text ?? [])).toEqual(['original user', 'original assistant']);
+  });
+  it('ignores every callback from a closed stream even after A to B to A', () => {
+    render(); const old = streams[0].handlers;
+    render('s2'); render('s2'); render('s1'); render('s1');
+    old.onConversation?.({ role: 'assistant', text: 'stale', ts: 1 });
+    old.onTool?.({ status: 'done', toolName: 'stale', ts: 1 });
+    old.onUsage?.({ inputTokens: 999, calls: 99, ts: 1 });
+    old.onThinking?.({ phase: 'delta', text: 'stale', ts: 1 });
+    old.onInspector?.({ observedAt: 'stale' } as unknown as import('../inspector').InspectorObservation);
+    const tree = render('s1');
+    expect(tree.find(node => Array.isArray(node.props.items))!.props.items).toEqual([]);
+    expect(tree.find(node => node.props.usage)!.props.usage).toMatchObject({ inputTokens: 0, calls: 0 });
+    expect(tree[0].props.observation).toBeUndefined();
+  });
+  it('retains a page-local snapshot across unmount and closes incomplete reasoning', () => {
+    render(); streams[0].handlers.onConversation?.({ role: 'user', text: 'remember', ts: 1 });
+    streams[0].handlers.onThinking?.({ phase: 'delta', text: 'partial', callId: 'partial', ts: 2 });
+    const tree = render();
+    (tree.find(node => node.type === 'input')!.props.onChange as (event: unknown) => void)({ target: { value: 'draft' } }); render();
+    for (const effect of hooks.effects) effect?.cleanup?.();
+    hooks.cells = []; hooks.effects = []; hooks.jobs = []; render();
+    // StrictMode repeats setup/cleanup before restored state has another render.
+    for (const effect of hooks.effects) effect?.cleanup?.();
+    for (const effect of hooks.effects) if (effect) effect.cleanup = effect.setup?.();
+    const restored = render();
+    const items = restored.find(node => Array.isArray(node.props.items))!.props.items as import('./MessageList').ChatItem[];
+    expect(items[0]?.msg?.text).toBe('remember');
+    expect(items.find(item => item.kind === 'thinking')?.thinking).toMatchObject({ text: 'partial', streaming: false });
+    expect(restored.find(node => node.type === 'input')!.props.value).toBe('draft');
+    expect(restored.find(node => node.type === 'button' && node.props.type === 'submit')!.props.children).toBe('send');
+    api = { runTurn: vi.fn() } as unknown as ApiClient;
+    for (const effect of hooks.effects) effect?.cleanup?.();
+    hooks.cells = []; hooks.effects = []; hooks.jobs = []; render();
+    expect(render().find(node => Array.isArray(node.props.items))!.props.items).toEqual([]);
+  });
+  it('keeps drafts isolated and does not resurrect a cleared screen on return', () => {
+    let tree = render();
+    (tree.find(node => node.type === 'input')!.props.onChange as (event: unknown) => void)({ target: { value: 's1 draft' } });
+    streams[0].handlers.onConversation?.({ role: 'assistant', text: 'clear me', ts: 1 }); render();
+    render('s2'); tree = render('s2');
+    expect(tree.find(node => node.type === 'input')!.props.value).toBe('');
+    (tree.find(node => node.type === 'input')!.props.onChange as (event: unknown) => void)({ target: { value: 's2 draft' } }); render('s2');
+    render('s1'); tree = render('s1');
+    expect(tree.find(node => node.type === 'input')!.props.value).toBe('s1 draft');
+    render('s1', { action: 'clear', serial: 1 }); render('s1', { action: 'clear', serial: 1 });
+    render('s2'); tree = render('s2');
+    expect(tree.find(node => node.type === 'input')!.props.value).toBe('s2 draft');
+    render('s1'); tree = render('s1');
+    expect(tree.find(node => Array.isArray(node.props.items))!.props.items).toEqual([]);
+    expect(tree.find(node => node.type === 'input')!.props.value).toBe('s1 draft');
+  });
   it('uses actual successful local runTurn duration and unlocks from submit', async () => {
     vi.useFakeTimers(); vi.setSystemTime(0);
     let finish!: (value: TurnResult) => void;

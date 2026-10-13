@@ -1,0 +1,299 @@
+{
+  "receipts": [
+    {
+      "step": "Navigation: activity",
+      "status": "PASS",
+      "durationMs": 94
+    },
+    {
+      "step": "Navigation: studio",
+      "status": "PASS",
+      "durationMs": 63
+    },
+    {
+      "step": "Navigation: settings",
+      "status": "PASS",
+      "durationMs": 62
+    },
+    {
+      "step": "Navigation: workbench",
+      "status": "PASS",
+      "durationMs": 47
+    },
+    {
+      "step": "Empty task cannot create session",
+      "status": "PASS",
+      "durationMs": 0
+    },
+    {
+      "step": "Project selector click and choose fixture",
+      "status": "PASS",
+      "durationMs": 63
+    },
+    {
+      "step": "Task input focus and typing",
+      "status": "PASS",
+      "durationMs": 62
+    },
+    {
+      "step": "Model pill switch: [\"local-fixture\",\"fixture-a\"]",
+      "status": "PASS",
+      "durationMs": 79
+    },
+    {
+      "step": "Model pill switch: [\"local-fixture\",\"fixture-b\"]",
+      "status": "PASS",
+      "durationMs": 46
+    },
+    {
+      "step": "Permission pill: read-only",
+      "status": "PASS",
+      "durationMs": 79
+    },
+    {
+      "step": "Permission pill: workspace-write",
+      "status": "PASS",
+      "durationMs": 62
+    },
+    {
+      "step": "Start task creates session and real streamed response",
+      "status": "PASS",
+      "durationMs": 391
+    },
+    {
+      "step": "Streamed thinking expand",
+      "status": "PASS",
+      "durationMs": 125
+    },
+    {
+      "step": "Streamed thinking collapse",
+      "status": "PASS",
+      "durationMs": 265
+    },
+    {
+      "step": "Send input by button and assistant completion",
+      "status": "PASS",
+      "durationMs": 110
+    },
+    {
+      "step": "Send input by Enter and assistant completion",
+      "status": "PASS",
+      "durationMs": 110
+    },
+    {
+      "step": "History session click selects exact ID",
+      "status": "PASS",
+      "durationMs": 62
+    },
+    {
+      "step": "Inspector open",
+      "status": "PASS",
+      "durationMs": 63
+    },
+    {
+      "step": "Inspector tab: Swarm",
+      "status": "PASS",
+      "durationMs": 46
+    },
+    {
+      "step": "Inspector tab: Cognition",
+      "status": "PASS",
+      "durationMs": 63
+    },
+    {
+      "step": "Inspector tab: KV Cache",
+      "status": "PASS",
+      "durationMs": 78
+    },
+    {
+      "step": "Inspector tab: AST",
+      "status": "PASS",
+      "durationMs": 62
+    },
+    {
+      "step": "Inspector tab: Patch",
+      "status": "PASS",
+      "durationMs": 47
+    },
+    {
+      "step": "Patch accept persists file",
+      "status": "PASS",
+      "durationMs": 109
+    },
+    {
+      "step": "Patch accepted bytes readback",
+      "status": "PASS",
+      "durationMs": 0
+    },
+    {
+      "step": "Patch discard second hunk",
+      "status": "PASS",
+      "durationMs": 47
+    },
+    {
+      "step": "Patch revert accepted hunk",
+      "status": "PASS",
+      "durationMs": 109
+    },
+    {
+      "step": "Patch rejected bytes readback",
+      "status": "PASS",
+      "durationMs": 0
+    },
+    {
+      "step": "Provider drawer open",
+      "status": "PASS",
+      "durationMs": 47
+    },
+    {
+      "step": "Provider preset DeepSeek",
+      "status": "PASS",
+      "durationMs": 78
+    },
+    {
+      "step": "Provider preset OpenAI",
+      "status": "PASS",
+      "durationMs": 63
+    },
+    {
+      "step": "Provider preset Claude",
+      "status": "PASS",
+      "durationMs": 47
+    },
+    {
+      "step": "Provider preset Ollama",
+      "status": "PASS",
+      "durationMs": 78
+    },
+    {
+      "step": "Provider local form entry",
+      "status": "PASS",
+      "durationMs": 47
+    },
+    {
+      "step": "Provider test connection busy and latency result",
+      "status": "PASS",
+      "durationMs": 891
+    },
+    {
+      "step": "Provider pull models busy and result",
+      "status": "PASS",
+      "durationMs": 906
+    },
+    {
+      "step": "Provider save and API readback",
+      "status": "PASS",
+      "durationMs": 6016
+    },
+    {
+      "step": "Provider server and credential metadata saved",
+      "status": "PASS",
+      "durationMs": 2531
+    },
+    {
+      "step": "Provider close",
+      "status": "PASS",
+      "durationMs": 1391
+    },
+    {
+      "step": "Provider delete confirmation",
+      "status": "PASS",
+      "durationMs": 1375
+    },
+    {
+      "step": "Provider confirmed delete and API readback",
+      "status": "PASS",
+      "durationMs": 2922
+    },
+    {
+      "step": "Provider credential cascade removal (metadata only)",
+      "status": "PASS",
+      "durationMs": 16
+    },
+    {
+      "step": "Customize open",
+      "status": "PASS",
+      "durationMs": 31
+    },
+    {
+      "step": "Customize persistence and visibility: Swarm",
+      "status": "FAIL",
+      "error": "Locator expected to be visible\nActual value: None\nError: element(s) not found \nCall log:\n  - Expect \"to_be_visible\" with timeout 30000ms\n  - waiting for locator(\".module-sections section[aria-label=\\\"Swarm topology\\\"]\")\n\nAria snapshot:\n- navigation \"Vessel\":\n  - button \"Workbench\"\n  - button \"Activity\"\n  - button \"Agent Studio\"\n  - button \"Settings\"\n- complementary:\n  - text: Vessel\n  - button \"+ New Session\"\n  - navigation:\n    - text: Projects\n    - list:\n      - listitem \"C:\\\\Users\\\\WORK\\\\AppData\\\\Local\\\\Temp\\\\vessel-card219-browser-OdL7Oz\\\\workspace\":\n        - button \"workspace\"\n    - text: Recent Sessions\n    - textbox \"Search sessions\u2026\"\n    - checkbox \"Show archived\"\n    - text: Show archived workspace\n    - button \"Card 219 real click task\"\n    - button \"2026/10/12\"\n    - group: \u00b7\u00b7\u00b7\n    - button \"Review workbench navigation\"\n    - button \"2026/10/12\"\n    - group: \u00b7\u00b7\u00b7\n    - paragraph: Project \u2192 Session \u2192 Run \u2192 Subagent\n- main:\n  - text: Vessel local server ok (v0.10.0)\n  - button \"Commands\"\n  - group: Preferences\n  - paragraph: Project \u2192 Session \u2192 Run \u2192 Subagent\n  - heading \"What should Vessel work on?\" [level=2]\n  - text: Choose project\n  - combobox \"Choose project\":\n    - option \"Open project directory\"\n    - option \"workspace\" [selected]\n  - paragraph: C:\\work\\AppData\\Local\\Temp\\vessel-card219-browser-OdL7Oz\\workspace\n  - text: What should Vessel work on?\n  - textbox \"What should Vessel work on?\":\n    - /placeholder: Describe the goal, scope and acceptance criteria\u2026\n  - text: Select model\n  - combobox \"Select model\":\n    - option \"local-fixture / fixture-a\" [selected]\n    - option \"local-fixture / fixture-b\"\n  - text: New session permission (current session unchanged)\n  - combobox \"New session permission (current session unchanged)\":\n    - option \"Read-only\"\n    - option \"Workspace write\" [selected]\n  - button \"Start task\" [disabled]\n  - button \"Advanced session\"\n  - button \"Configure new model\""
+    }
+  ],
+  "errors": [],
+  "mutations": [
+    {
+      "url": "http://127.0.0.1:58619/api/projects/open",
+      "method": "POST",
+      "body": "{\"workspaceRoot\": \"C:\\\\Users\\\\WORK\\\\AppData\\\\Local\\\\Temp\\\\vessel-card219-browser-OdL7Oz\\\\workspace\"}"
+    },
+    {
+      "url": "http://127.0.0.1:58619/api/sessions",
+      "method": "POST",
+      "body": "{\"workspaceRoot\": \"C:\\\\Users\\\\WORK\\\\AppData\\\\Local\\\\Temp\\\\vessel-card219-browser-OdL7Oz\\\\workspace\", \"permission\": \"workspace-write\", \"provider\": \"local-fixture\", \"model\": \"fixture-b\"}"
+    },
+    {
+      "url": "http://127.0.0.1:58619/api/sessions/sess_1791871876831_a2cafab4/topic",
+      "method": "PATCH",
+      "body": "{\"title\": \"Card 219 real click task\"}"
+    },
+    {
+      "url": "http://127.0.0.1:58619/api/sessions/sess_1791871876831_a2cafab4/turns",
+      "method": "POST",
+      "body": "{\"prompt\": \"Card 219 real click task\"}"
+    },
+    {
+      "url": "http://127.0.0.1:58619/api/sessions/sess_1791871876831_a2cafab4/turns",
+      "method": "POST",
+      "body": "{\"prompt\": \"Button send click\"}"
+    },
+    {
+      "url": "http://127.0.0.1:58619/api/sessions/sess_1791871876831_a2cafab4/turns",
+      "method": "POST",
+      "body": "{\"prompt\": \"Enter send click\"}"
+    },
+    {
+      "url": "http://127.0.0.1:58619/api/session/sess_1791871774691_9f590603/patch/apply",
+      "method": "POST",
+      "body": "{\"widgetId\": \"proposal\", \"hunkId\": \"a.txt#hunk-0\", \"action\": \"accept\"}"
+    },
+    {
+      "url": "http://127.0.0.1:58619/api/session/sess_1791871774691_9f590603/patch/apply",
+      "method": "POST",
+      "body": "{\"widgetId\": \"proposal\", \"hunkId\": \"a.txt#hunk-1\", \"action\": \"reject\"}"
+    },
+    {
+      "url": "http://127.0.0.1:58619/api/session/sess_1791871774691_9f590603/patch/apply",
+      "method": "POST",
+      "body": "{\"widgetId\": \"proposal\", \"hunkId\": \"a.txt#hunk-0\", \"action\": \"reject\"}"
+    },
+    {
+      "url": "http://127.0.0.1:58619/api/providers/test",
+      "method": "POST",
+      "body": "{\"name\": \"click-fixture-1791871874\", \"protocol\": \"openai-compatible\", \"baseUrl\": \"http://127.0.0.1:58616/v1\", \"apiKey\": \"[redacted]\", \"models\": []}"
+    },
+    {
+      "url": "http://127.0.0.1:58619/api/providers/pull-models",
+      "method": "POST",
+      "body": "{\"name\": \"click-fixture-1791871874\", \"protocol\": \"openai-compatible\", \"baseUrl\": \"http://127.0.0.1:58616/v1\", \"apiKey\": \"[redacted]\", \"models\": [\"fixture-a\", \"fixture-b\"]}"
+    },
+    {
+      "url": "http://127.0.0.1:58619/api/providers",
+      "method": "POST",
+      "body": "{\"name\": \"click-fixture-1791871874\", \"protocol\": \"openai-compatible\", \"baseUrl\": \"http://127.0.0.1:58616/v1\", \"apiKey\": \"[redacted]\", \"models\": [\"fixture-a\", \"fixture-b\"]}"
+    },
+    {
+      "url": "http://127.0.0.1:58619/api/providers/click-fixture-1791871874",
+      "method": "DELETE",
+      "body": null
+    }
+  ],
+  "matrix_gaps": [
+    "Inspector has five current tabs, not the four historical tabs in the card.",
+    "Task permission offers read-only and workspace-write; no full-access preset.",
+    "Empty task is blocked with disabled Start, without a validation alert.",
+    "Customize has no reset-to-default control.",
+    "ChangedFiles, Cost, ToolActivity toggles persist but current ModuleSection returns null; no separate module visibility exists."
+  ]
+}

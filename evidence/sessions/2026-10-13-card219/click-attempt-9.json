@@ -1,0 +1,429 @@
+{
+  "receipts": [
+    {
+      "step": "Navigation: activity",
+      "status": "PASS",
+      "durationMs": 62
+    },
+    {
+      "step": "Navigation: studio",
+      "status": "PASS",
+      "durationMs": 63
+    },
+    {
+      "step": "Navigation: settings",
+      "status": "PASS",
+      "durationMs": 46
+    },
+    {
+      "step": "Navigation: workbench",
+      "status": "PASS",
+      "durationMs": 47
+    },
+    {
+      "step": "Empty task cannot create session",
+      "status": "PASS",
+      "durationMs": 0
+    },
+    {
+      "step": "Project selector click and choose fixture",
+      "status": "PASS",
+      "durationMs": 47
+    },
+    {
+      "step": "Task input focus and typing",
+      "status": "PASS",
+      "durationMs": 47
+    },
+    {
+      "step": "Model pill switch: [\"local-fixture\",\"fixture-a\"]",
+      "status": "PASS",
+      "durationMs": 47
+    },
+    {
+      "step": "Model pill switch: [\"local-fixture\",\"fixture-b\"]",
+      "status": "PASS",
+      "durationMs": 63
+    },
+    {
+      "step": "Permission pill: read-only",
+      "status": "PASS",
+      "durationMs": 47
+    },
+    {
+      "step": "Permission pill: workspace-write",
+      "status": "PASS",
+      "durationMs": 62
+    },
+    {
+      "step": "Start task creates session and real streamed response",
+      "status": "PASS",
+      "durationMs": 344
+    },
+    {
+      "step": "Streamed thinking expand",
+      "status": "PASS",
+      "durationMs": 94
+    },
+    {
+      "step": "Streamed thinking collapse",
+      "status": "PASS",
+      "durationMs": 218
+    },
+    {
+      "step": "Send input by button and assistant completion",
+      "status": "PASS",
+      "durationMs": 94
+    },
+    {
+      "step": "Send input by Enter and assistant completion",
+      "status": "PASS",
+      "durationMs": 78
+    },
+    {
+      "step": "History session click selects exact ID",
+      "status": "PASS",
+      "durationMs": 47
+    },
+    {
+      "step": "Inspector open",
+      "status": "PASS",
+      "durationMs": 62
+    },
+    {
+      "step": "Inspector tab: Swarm",
+      "status": "PASS",
+      "durationMs": 47
+    },
+    {
+      "step": "Inspector tab: Cognition",
+      "status": "PASS",
+      "durationMs": 46
+    },
+    {
+      "step": "Inspector tab: KV Cache",
+      "status": "PASS",
+      "durationMs": 47
+    },
+    {
+      "step": "Inspector tab: AST",
+      "status": "PASS",
+      "durationMs": 47
+    },
+    {
+      "step": "Inspector tab: Patch",
+      "status": "PASS",
+      "durationMs": 63
+    },
+    {
+      "step": "Patch accept persists file",
+      "status": "PASS",
+      "durationMs": 62
+    },
+    {
+      "step": "Patch accepted bytes readback",
+      "status": "PASS",
+      "durationMs": 0
+    },
+    {
+      "step": "Patch discard second hunk",
+      "status": "PASS",
+      "durationMs": 62
+    },
+    {
+      "step": "Patch revert accepted hunk",
+      "status": "PASS",
+      "durationMs": 63
+    },
+    {
+      "step": "Patch rejected bytes readback",
+      "status": "PASS",
+      "durationMs": 0
+    },
+    {
+      "step": "Provider drawer open",
+      "status": "PASS",
+      "durationMs": 47
+    },
+    {
+      "step": "Provider preset DeepSeek",
+      "status": "PASS",
+      "durationMs": 94
+    },
+    {
+      "step": "Provider preset OpenAI",
+      "status": "PASS",
+      "durationMs": 78
+    },
+    {
+      "step": "Provider preset Claude",
+      "status": "PASS",
+      "durationMs": 78
+    },
+    {
+      "step": "Provider preset Ollama",
+      "status": "PASS",
+      "durationMs": 62
+    },
+    {
+      "step": "Provider local form entry",
+      "status": "PASS",
+      "durationMs": 47
+    },
+    {
+      "step": "Provider test connection busy and latency result",
+      "status": "PASS",
+      "durationMs": 891
+    },
+    {
+      "step": "Provider pull models busy and result",
+      "status": "PASS",
+      "durationMs": 891
+    },
+    {
+      "step": "Provider save and API readback",
+      "status": "PASS",
+      "durationMs": 3937
+    },
+    {
+      "step": "Provider server and credential metadata saved",
+      "status": "PASS",
+      "durationMs": 2453
+    },
+    {
+      "step": "Provider close",
+      "status": "PASS",
+      "durationMs": 1422
+    },
+    {
+      "step": "Provider delete confirmation",
+      "status": "PASS",
+      "durationMs": 1375
+    },
+    {
+      "step": "Provider confirmed delete and API readback",
+      "status": "PASS",
+      "durationMs": 2937
+    },
+    {
+      "step": "Provider credential cascade removal (metadata only)",
+      "status": "PASS",
+      "durationMs": 16
+    },
+    {
+      "step": "Customize open",
+      "status": "PASS",
+      "durationMs": 32
+    },
+    {
+      "step": "Customize persistence and visibility: Swarm",
+      "status": "PASS",
+      "durationMs": 250
+    },
+    {
+      "step": "Customize persistence and visibility: CognitiveRules",
+      "status": "PASS",
+      "durationMs": 344
+    },
+    {
+      "step": "Customize persistence and visibility: Team",
+      "status": "PASS",
+      "durationMs": 344
+    },
+    {
+      "step": "Customize persistence and visibility: Tasks",
+      "status": "PASS",
+      "durationMs": 312
+    },
+    {
+      "step": "Customize persistence (no independent module): ChangedFiles",
+      "status": "PASS",
+      "durationMs": 250
+    },
+    {
+      "step": "Customize persistence and visibility: Context",
+      "status": "PASS",
+      "durationMs": 328
+    },
+    {
+      "step": "Customize persistence (no independent module): ToolActivity",
+      "status": "PASS",
+      "durationMs": 235
+    },
+    {
+      "step": "Customize persistence and visibility: Logs",
+      "status": "PASS",
+      "durationMs": 234
+    },
+    {
+      "step": "Customize persistence (no independent module): Cost",
+      "status": "PASS",
+      "durationMs": 235
+    },
+    {
+      "step": "Customize persistence and visibility: MCP",
+      "status": "PASS",
+      "durationMs": 250
+    },
+    {
+      "step": "Customize persistence and visibility: Policy",
+      "status": "PASS",
+      "durationMs": 250
+    },
+    {
+      "step": "Customize no backend policy mutations",
+      "status": "PASS",
+      "durationMs": 0
+    },
+    {
+      "step": "Ctrl+K auto focuses input",
+      "status": "PASS",
+      "durationMs": 79
+    },
+    {
+      "step": "Command arrow navigation receipt",
+      "status": "PASS",
+      "durationMs": 0
+    },
+    {
+      "step": "Command Escape restores focus",
+      "status": "PASS",
+      "durationMs": 32
+    },
+    {
+      "step": "Command category collapse system",
+      "status": "PASS",
+      "durationMs": 156
+    },
+    {
+      "step": "Command category execute system: Model settings",
+      "status": "PASS",
+      "durationMs": 94
+    },
+    {
+      "step": "System action opens provider settings",
+      "status": "PASS",
+      "durationMs": 15
+    },
+    {
+      "step": "Command category collapse project",
+      "status": "PASS",
+      "durationMs": 78
+    },
+    {
+      "step": "Command category execute project: workspace",
+      "status": "PASS",
+      "durationMs": 47
+    },
+    {
+      "step": "Recent project action selects composer project",
+      "status": "PASS",
+      "durationMs": 16
+    },
+    {
+      "step": "Command category collapse session",
+      "status": "PASS",
+      "durationMs": 78
+    },
+    {
+      "step": "Command category execute session: Card 219 real click task \u00b7 workspace",
+      "status": "PASS",
+      "durationMs": 109
+    },
+    {
+      "step": "Active session action opens matching session",
+      "status": "PASS",
+      "durationMs": 47
+    },
+    {
+      "step": "800px navigation collapses",
+      "status": "PASS",
+      "durationMs": 31
+    },
+    {
+      "step": "800px drawer open and main inert",
+      "status": "FAIL",
+      "error": "Locator.click: Timeout 30000ms exceeded.\nCall log:\n  - waiting for locator(\".navigation-toggle\")\n    - locator resolved to <button aria-expanded=\"false\" aria-label=\"Open navigation\" class=\"btn navigation-toggle\">\u2630</button>\n  - attempting click action\n    2 \u00d7 waiting for element to be visible, enabled and stable\n      - element is visible, enabled and stable\n      - scrolling into view if needed\n      - done scrolling\n      - <div class=\"inspector-backdrop\"></div> from <div class=\"workbench-region\">\u2026</div> subtree intercepts pointer events\n    - retrying click action\n    - waiting 20ms\n    2 \u00d7 waiting for element to be visible, enabled and stable\n      - element is visible, enabled and stable\n      - scrolling into view if needed\n      - done scrolling\n      - <div class=\"inspector-backdrop\"></div> from <div class=\"workbench-region\">\u2026</div> subtree intercepts pointer events\n    - retrying click action\n      - waiting 100ms\n    57 \u00d7 waiting for element to be visible, enabled and stable\n       - element is visible, enabled and stable\n       - scrolling into view if needed\n       - done scrolling\n       - <div class=\"inspector-backdrop\"></div> from <div class=\"workbench-region\">\u2026</div> subtree intercepts pointer events\n     - retrying click action\n       - waiting 500ms\n"
+    }
+  ],
+  "errors": [],
+  "mutations": [
+    {
+      "url": "http://127.0.0.1:58619/api/projects/open",
+      "method": "POST",
+      "body": "{\"workspaceRoot\": \"C:\\\\Users\\\\WORK\\\\AppData\\\\Local\\\\Temp\\\\vessel-card219-browser-OdL7Oz\\\\workspace\"}"
+    },
+    {
+      "url": "http://127.0.0.1:58619/api/sessions",
+      "method": "POST",
+      "body": "{\"workspaceRoot\": \"C:\\\\Users\\\\WORK\\\\AppData\\\\Local\\\\Temp\\\\vessel-card219-browser-OdL7Oz\\\\workspace\", \"permission\": \"workspace-write\", \"provider\": \"local-fixture\", \"model\": \"fixture-b\"}"
+    },
+    {
+      "url": "http://127.0.0.1:58619/api/sessions/sess_1791871952445_020cf8a8/topic",
+      "method": "PATCH",
+      "body": "{\"title\": \"Card 219 real click task\"}"
+    },
+    {
+      "url": "http://127.0.0.1:58619/api/sessions/sess_1791871952445_020cf8a8/turns",
+      "method": "POST",
+      "body": "{\"prompt\": \"Card 219 real click task\"}"
+    },
+    {
+      "url": "http://127.0.0.1:58619/api/sessions/sess_1791871952445_020cf8a8/turns",
+      "method": "POST",
+      "body": "{\"prompt\": \"Button send click\"}"
+    },
+    {
+      "url": "http://127.0.0.1:58619/api/sessions/sess_1791871952445_020cf8a8/turns",
+      "method": "POST",
+      "body": "{\"prompt\": \"Enter send click\"}"
+    },
+    {
+      "url": "http://127.0.0.1:58619/api/session/sess_1791871774691_9f590603/patch/apply",
+      "method": "POST",
+      "body": "{\"widgetId\": \"proposal\", \"hunkId\": \"a.txt#hunk-0\", \"action\": \"accept\"}"
+    },
+    {
+      "url": "http://127.0.0.1:58619/api/session/sess_1791871774691_9f590603/patch/apply",
+      "method": "POST",
+      "body": "{\"widgetId\": \"proposal\", \"hunkId\": \"a.txt#hunk-1\", \"action\": \"accept\"}"
+    },
+    {
+      "url": "http://127.0.0.1:58619/api/session/sess_1791871774691_9f590603/patch/apply",
+      "method": "POST",
+      "body": "{\"widgetId\": \"proposal\", \"hunkId\": \"a.txt#hunk-1\", \"action\": \"reject\"}"
+    },
+    {
+      "url": "http://127.0.0.1:58619/api/session/sess_1791871774691_9f590603/patch/apply",
+      "method": "POST",
+      "body": "{\"widgetId\": \"proposal\", \"hunkId\": \"a.txt#hunk-0\", \"action\": \"reject\"}"
+    },
+    {
+      "url": "http://127.0.0.1:58619/api/providers/test",
+      "method": "POST",
+      "body": "{\"name\": \"click-fixture-1791871950\", \"protocol\": \"openai-compatible\", \"baseUrl\": \"http://127.0.0.1:58616/v1\", \"apiKey\": \"[redacted]\", \"models\": []}"
+    },
+    {
+      "url": "http://127.0.0.1:58619/api/providers/pull-models",
+      "method": "POST",
+      "body": "{\"name\": \"click-fixture-1791871950\", \"protocol\": \"openai-compatible\", \"baseUrl\": \"http://127.0.0.1:58616/v1\", \"apiKey\": \"[redacted]\", \"models\": [\"fixture-a\", \"fixture-b\"]}"
+    },
+    {
+      "url": "http://127.0.0.1:58619/api/providers",
+      "method": "POST",
+      "body": "{\"name\": \"click-fixture-1791871950\", \"protocol\": \"openai-compatible\", \"baseUrl\": \"http://127.0.0.1:58616/v1\", \"apiKey\": \"[redacted]\", \"models\": [\"fixture-a\", \"fixture-b\"]}"
+    },
+    {
+      "url": "http://127.0.0.1:58619/api/providers/click-fixture-1791871950",
+      "method": "DELETE",
+      "body": null
+    }
+  ],
+  "matrix_gaps": [
+    "Inspector has five current tabs, not the four historical tabs in the card.",
+    "Task permission offers read-only and workspace-write; no full-access preset.",
+    "Empty task is blocked with disabled Start, without a validation alert.",
+    "Customize has no reset-to-default control.",
+    "ChangedFiles, Cost, ToolActivity toggles persist but current ModuleSection returns null; no separate module visibility exists."
+  ]
+}

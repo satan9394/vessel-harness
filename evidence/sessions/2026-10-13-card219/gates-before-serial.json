@@ -1,0 +1,23 @@
+[
+  {
+    "name": "tsc-build",
+    "command": "npx tsc -b",
+    "startedAt": "2026-10-13T05:57:04.7647249Z",
+    "endedAt": "2026-10-13T05:57:07.1643048Z",
+    "exitCode": 0
+  },
+  {
+    "name": "typecheck-tests",
+    "command": "npm run typecheck:tests",
+    "startedAt": "2026-10-13T05:57:07.2095399Z",
+    "endedAt": "2026-10-13T05:57:10.9266244Z",
+    "exitCode": 0
+  },
+  {
+    "name": "test-all",
+    "command": "npm run test:all",
+    "startedAt": "2026-10-13T05:57:10.9367424Z",
+    "endedAt": "2026-10-13T06:10:31.9274358Z",
+    "exitCode": 1
+  }
+]

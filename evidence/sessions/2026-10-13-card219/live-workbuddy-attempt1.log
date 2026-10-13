@@ -1,0 +1,16 @@
+{
+  "at": "2026-10-13T06:01:35.060482+00:00",
+  "endpoint": "http://127.0.0.1:7863/v1",
+  "model": "deepseek-v4.1-flash",
+  "checks": [
+    {
+      "check": "Live connection probe through real local-server",
+      "ok": true
+    }
+  ],
+  "consoleErrors": [],
+  "pageErrors": [],
+  "passed": false,
+  "failure": "Requested model absent from discovery",
+  "cleanupStatus": 404
+}

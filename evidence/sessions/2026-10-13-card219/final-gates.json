@@ -1,0 +1,44 @@
+[
+  {
+    "name": "web-tests",
+    "command": "npx vitest run --root apps/web",
+    "startedAt": "2026-10-13T11:30:00.9908081Z",
+    "endedAt": "2026-10-13T11:30:15.0156216Z",
+    "exitCode": 0
+  },
+  {
+    "name": "tsc-build",
+    "command": "npx tsc -b",
+    "startedAt": "2026-10-13T11:30:15.0382365Z",
+    "endedAt": "2026-10-13T11:30:17.0684187Z",
+    "exitCode": 0
+  },
+  {
+    "name": "typecheck-tests",
+    "command": "npm run typecheck:tests",
+    "startedAt": "2026-10-13T11:30:17.0725617Z",
+    "endedAt": "2026-10-13T11:30:19.4986201Z",
+    "exitCode": 0
+  },
+  {
+    "name": "web-typecheck",
+    "command": "npm run -w @vessel/web typecheck",
+    "startedAt": "2026-10-13T11:30:19.5009370Z",
+    "endedAt": "2026-10-13T11:30:21.3689619Z",
+    "exitCode": 0
+  },
+  {
+    "name": "web-build",
+    "command": "npm run -w @vessel/web build -- --emptyOutDir false",
+    "startedAt": "2026-10-13T11:30:21.3713536Z",
+    "endedAt": "2026-10-13T11:30:23.5119706Z",
+    "exitCode": 0
+  },
+  {
+    "name": "test-all",
+    "command": "npm run test:all",
+    "startedAt": "2026-10-13T11:30:23.5150013Z",
+    "endedAt": "2026-10-13T11:40:03.4644271Z",
+    "exitCode": 0
+  }
+]

@@ -1,0 +1,10 @@
+{
+  "fixturePorts": [
+    62812,
+    62807
+  ],
+  "remainingListeners": 0,
+  "browserRunExitCode": 0,
+  "fixtureStop": "Ctrl+C",
+  "tempRootsPreserved": true
+}

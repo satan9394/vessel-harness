@@ -1,0 +1,83 @@
+{
+  "status": "verified",
+  "completionDate": "2026-10-13",
+  "walkthroughPass": 77,
+  "walkthroughFail": 0,
+  "consoleErrors": 0,
+  "uncaughtExceptions": 0,
+  "historyReadbackPass": 4,
+  "layoutPass": 3,
+  "requiredGates": [
+    {
+      "name": "web-tests",
+      "command": "npx vitest run --root apps/web",
+      "startedAt": "2026-10-13T11:30:00.9908081Z",
+      "endedAt": "2026-10-13T11:30:15.0156216Z",
+      "exitCode": 0
+    },
+    {
+      "name": "tsc-build",
+      "command": "npx tsc -b",
+      "startedAt": "2026-10-13T11:30:15.0382365Z",
+      "endedAt": "2026-10-13T11:30:17.0684187Z",
+      "exitCode": 0
+    },
+    {
+      "name": "typecheck-tests",
+      "command": "npm run typecheck:tests",
+      "startedAt": "2026-10-13T11:30:17.0725617Z",
+      "endedAt": "2026-10-13T11:30:19.4986201Z",
+      "exitCode": 0
+    },
+    {
+      "name": "web-typecheck",
+      "command": "npm run -w @vessel/web typecheck",
+      "startedAt": "2026-10-13T11:30:19.500937Z",
+      "endedAt": "2026-10-13T11:30:21.3689619Z",
+      "exitCode": 0
+    },
+    {
+      "name": "web-build",
+      "command": "npm run -w @vessel/web build -- --emptyOutDir false",
+      "startedAt": "2026-10-13T11:30:21.3713536Z",
+      "endedAt": "2026-10-13T11:30:23.5119706Z",
+      "exitCode": 0
+    },
+    {
+      "name": "test-all",
+      "command": "npm run test:all",
+      "startedAt": "2026-10-13T11:30:23.5150013Z",
+      "endedAt": "2026-10-13T11:40:03.4644271Z",
+      "exitCode": 0
+    }
+  ],
+  "rootTestsPassed": 2937,
+  "webTestsPassed": 295,
+  "totalTestsPassed": 3232,
+  "skipped": 6,
+  "coreChangedLines": 0,
+  "backendChangedLines": 0,
+  "npmLockUnchanged": true,
+  "foreignLockFilesIntroduced": [],
+  "sourceEvidence": [
+    {
+      "path": "apps/web/src/components/ConversationView.tsx",
+      "lastWriteUtc": "2026-10-13T11:25:56.2542988Z",
+      "sha256": "57DBB9094C2DABB81356E78F0584415408D26CC187B2F5B80044660A30DC38EE"
+    },
+    {
+      "path": "apps/web/src/components/ConversationView.attention.test.tsx",
+      "lastWriteUtc": "2026-10-13T11:27:41.9091637Z",
+      "sha256": "179AB226E219A70D4C35F61213BA0878ACF0AC079F1E30D2C5231BFECDA92EBF"
+    }
+  ],
+  "scope": "Seven-area card matrix with user-approved absent-control observations; targeted Web-only replay repair",
+  "limitations": [
+    "Replay covers page-lifetime observations, not reload/unseen server history",
+    "Live workbuddy conversation unsuccessful; probe/discovery/save passed"
+  ],
+  "fixturesStopped": true,
+  "cardVerified": true,
+  "standardStopped": true,
+  "noCommitPushPublish": true
+}
