@@ -1,13 +1,13 @@
 import { SessionModelHub } from './sessionModelHub.js';
 import { ReasoningStream } from './reasoning.js';
-import { isWidgetBlock, priceCacheMetrics, type CacheUsageMetrics } from '@vessel/shared';
+import { isWidgetBlock, priceCacheMetrics, TASK_TREE_STATUSES, type BehaviorEntry, type CacheUsageMetrics, type TaskTreeStatus } from '@vessel/shared';
 import * as fs from 'node:fs';
 import * as http from 'node:http';
 import * as path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { once } from 'node:events';
 import { spawn } from 'node:child_process';
-import { SessionController, SessionRegistry, ProjectRegistry, ReviewHandoffStore } from '@vessel/application';
+import { SessionController, SessionRegistry, ProjectRegistry, ReviewHandoffStore, TaskTreeRegistry, loadBehaviorLibrary } from '@vessel/application';
 import type { SessionPermission, ReviewHandoffRecord } from '@vessel/application';
 import type { Listener, TurnResult } from '@vessel/core';
 import { MockProvider, createProvider, providerNameForConfig } from '@vessel/llm';
@@ -31,6 +31,10 @@ import { PatchRoutes } from './routes/patchRoutes.js';
 import { SessionInspector, type WorkspaceObserver } from './routes/sessionInspector.js';
 import { ProviderRoutes } from './routes/providerRoutes.js';
 import { BehaviorRoutes } from './routes/behaviorRoutes.js';
+import { BehaviorComposeRoutes } from './routes/behaviorCompose.js';
+import { TaskTreeRoutes } from './routes/taskTrees.js';
+import { ActivityRoutes } from './routes/activityRoutes.js';
+import { TraceRoutes } from './routes/traceRoutes.js';
 import { createDefaultProviderStore } from './providers/defaultStore.js';
 import type { ProviderStore, ProviderConfig } from './providers/ProviderStore.js';
 
@@ -95,11 +99,17 @@ export interface VesselServerOptions {
   authToken?: string;
   daemon?: DaemonServerControl;
   notify?: Notify;
+  /** ARC-10 team task-tree registry (read side of `/api/tasks/tree`). */
+  taskTrees?: TaskTreeRegistry;
+  /** behavior IR used to populate the Studio Composer library (defaults to repo behavior.default.yaml). */
+  behaviorLibraryPath?: string;
 }
 
 export interface VesselServer {
   /** Available on the concrete server; optional for existing control-only adapters. */
   readonly widgets?: WidgetRoutes;
+  /** ARC-10 team task-tree registry exposed for the Web task tree. */
+  readonly taskTrees?: TaskTreeRegistry;
   /** Start listening. Resolves once the underlying http server is bound. */
   listen(): Promise<VesselServer>;
   /** Close the http server and all live sessions. */
@@ -344,6 +354,34 @@ export function createVesselServer(opts: VesselServerOptions = {}): VesselServer
   }));
   const subagentStreams = new Set<http.ServerResponse>();
 
+  // ---------------- card 222: ARC-10/UI-016, UI-013, UI-015, UI-017 read sides ----------------
+  const taskTrees = opts.taskTrees ?? new TaskTreeRegistry();
+  const taskTreeRoutes = new TaskTreeRoutes(taskTrees);
+  const composeRoutes = new BehaviorComposeRoutes(id => id ? controllers.get(id)?.policyArtifacts : policyArtifacts);
+  const traceRoutes = new TraceRoutes(id => controllers.get(id)?.session.replay());
+  const activityRoutes = new ActivityRoutes({
+    sessions: () => sessionRegistry.listIndexed(500, 0),
+    live: (id) => {
+      const ctl = controllers.get(id);
+      return ctl ? { turnActive: ctl.loop.turnActive } : undefined;
+    },
+    approvals: () => widgets.pendingApprovals().map((approval) => ({
+      sessionId: approval.sessionId, widgetId: approval.widgetId, actionType: approval.actionType,
+      description: approval.description, requestedAt: approval.requestedAt,
+      options: approval.options.map((option) => ({ id: option.id, label: option.label, tone: option.tone })),
+    })),
+    subagents: () => subagentSeam.listSubagents(),
+    teamStages: () => teamStages.list().flatMap(stage => stage ? [{ id: stage.id, status: stage.status, createdAt: stage.createdAt, tasks: stage.tasks.map(task => ({ status: task.status })) }] : []),
+    goalTasks: () => goalSeam.listTasks(),
+  });
+  let behaviorLibrary: BehaviorEntry[] | undefined;
+  const libraryEntries = (): BehaviorEntry[] => {
+    if (behaviorLibrary) return behaviorLibrary;
+    try { behaviorLibrary = loadBehaviorLibrary(opts.behaviorLibraryPath ?? DEFAULT_BEHAVIOR); }
+    catch { behaviorLibrary = []; }
+    return behaviorLibrary;
+  };
+
   interface SessionTeamState {
     route: RouteSeam;
     /** current run handle (finished or running) — snapshot source for the UI */
@@ -397,6 +435,17 @@ export function createVesselServer(opts: VesselServerOptions = {}): VesselServer
       if (method !== 'GET') return json(res, 405, { error: 'read_only' });
       const snapshot = behaviorRoutes.inspect(url.searchParams.get('sessionId'));
       return snapshot ? json(res, 200, snapshot) : json(res, 404, { error: 'behavior_snapshot_unavailable' });
+    }
+    if (url.pathname === '/api/behavior/library') {
+      if (!sameOrigin) return json(res, 403, { error: 'origin_denied' });
+      if (method !== 'GET') return json(res, 405, { error: 'read_only' });
+      return json(res, 200, { entries: libraryEntries() });
+    }
+    if (url.pathname === '/api/behavior/compose') {
+      if (!sameOrigin) return json(res, 403, { error: 'origin_denied' });
+      if (method !== 'POST') return json(res, 405, { error: 'read_only' });
+      const result = composeRoutes.compose(await readJsonBody(req));
+      return json(res, result.status, result.body);
     }
     if (providerRoute) {
       if (!sameOrigin) return json(res, 403, { error: 'cross_origin_denied' });
@@ -484,6 +533,19 @@ export function createVesselServer(opts: VesselServerOptions = {}): VesselServer
     if (segs.length === 3 && segs[1] === 'sessions' && segs[2] === 'search' && method === 'GET') {
       try { const results = await sessionRegistry.search({ query: url.searchParams.get('q') ?? '', limit: Number(url.searchParams.get('limit') ?? 20), offset: Number(url.searchParams.get('offset') ?? 0) }); return json(res, 200, { results, indexed: sessionRegistry.indexAvailable }); }
       catch (error) { if (error instanceof RangeError) return json(res, 400, { error: 'invalid_search' }); throw error; }
+    }
+
+    if (segs.length === 3 && segs[1] === 'tasks' && segs[2] === 'tree' && method === 'GET') {
+      const status = url.searchParams.get('status') ?? undefined;
+      if (status !== undefined && !TASK_TREE_STATUSES.includes(status as TaskTreeStatus)) return json(res, 400, { error: 'invalid_status' });
+      return json(res, 200, taskTreeRoutes.list({
+        projectRoot: url.searchParams.get('projectRoot') ?? undefined,
+        rootInstanceId: url.searchParams.get('rootInstanceId') ?? undefined,
+        status: status as TaskTreeStatus | undefined,
+      }));
+    }
+    if (segs.length === 3 && segs[1] === 'activity' && segs[2] === 'runs' && method === 'GET') {
+      return json(res, 200, await activityRoutes.list());
     }
 
     if (opts.daemon && segs.length === 3 && segs[1] === 'daemon') {
@@ -744,6 +806,13 @@ export function createVesselServer(opts: VesselServerOptions = {}): VesselServer
         }
         ctl.steer(body.message);
         return json(res, 200, { ok: true, pendingSteerCount: ctl.pendingSteerCount });
+      }
+
+      // GET /api/sessions/:id/trace — structured, sanitized step trace (UI-017)
+      if (segs.length === 4 && sub === 'trace' && method === 'GET') {
+        const report = traceRoutes.report(id);
+        if (!report) return json(res, 404, suggestNotFound(id));
+        return json(res, 200, { trace: report });
       }
 
       // GET /api/sessions/:id/events → SSE
@@ -1273,6 +1342,7 @@ export function createVesselServer(opts: VesselServerOptions = {}): VesselServer
 
   const vesselServer: VesselServer = {
     widgets,
+    taskTrees,
     port,
     async listen() {
       server.listen(port, opts.host ?? '127.0.0.1');

@@ -1,0 +1,124 @@
+
+> composable-agent-harness@0.10.0 test:all
+> vitest run && vitest run --root apps/web
+
+
+ RUN  v5.0.1 E:/Code_file/Projects/Vessel_Harness
+
+(node:10440) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:8384) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:30796) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:680) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:28856) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:4760) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+warning: in the working copy of 'code.ts', LF will be replaced by CRLF the next time Git touches it
+(node:10896) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:25436) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:4920) [DEP0190] DeprecationWarning: Passing args to a child process with shell option true can lead to security vulnerabilities, as the arguments are not escaped, only concatenated.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+(node:9184) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:4800) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:28616) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:19716) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:24560) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:15812) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:14664) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:27316) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:23620) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:28208) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:24712) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:28924) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:30724) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:31352) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:10020) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:30372) Warning: Closing file descriptor 5 on garbage collection
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:30372) [DEP0137] DeprecationWarning: Closing a FileHandle object on garbage collection is deprecated. Please close FileHandle objects explicitly using FileHandle.prototype.close(). In the future, an error will be thrown if a file descriptor is closed during garbage collection.
+(node:27784) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:29340) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:12224) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:10472) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:29056) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:16336) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:20116) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:24316) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:29300) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:1208) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:26980) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:15992) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:11720) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:27904) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+[?25l鈹?鈼? 
+[?25h鈹?鈼? 宸插垏鎹€倂essel run 鐜板湪璧?DeepSeek/deepseek-chat锛堢儹鐢熸晥锛屾棤闇€閲嶅惎锛?鈹?鈼? 宸蹭繚瀛樹緵搴斿晢 "deepseek" 鍒?~/.vessel/providers.json
+鈹?鈼? mock 鏄唴缃绾夸緵搴斿晢锛屾棤闇€閰嶇疆銆?[?25l鈹?鈼? 
+[?25h鈹?鈼? 宸插垏鎹€倂essel run 鐜板湪璧?DeepSeek/deepseek-chat锛堢儹鐢熸晥锛屾棤闇€閲嶅惎锛?鈹?鈼? 宸蹭繚瀛樹緵搴斿晢 "deepseek" 鍒?~/.vessel/providers.json
+[?25l鈹?鈼? 
+[?25h鈹?鈻? 妯℃嫙缃戠粶澶辫触 鈥?杞墜鍔ㄨ緭鍏ユā鍨?id锛堟垨鐣欑┖閫€鍑猴級銆?鈹?鈼? 宸插垏鎹€倂essel run 鐜板湪璧?vLLM锛堣嚜鎵樼锛?custom-model锛堢儹鐢熸晥锛屾棤闇€閲嶅惎锛?鈹?鈼? 宸蹭繚瀛樹緵搴斿晢 "vllm" 鍒?~/.vessel/providers.json
+[?25l鈹?鈼? 
+[?25h鈹?鈼? 宸插垏鎹€倂essel run 鐜板湪璧?鑷畾涔変緵搴斿晢/m1锛堢儹鐢熸晥锛屾棤闇€閲嶅惎锛?鈹?鈼? 宸蹭繚瀛樹緵搴斿晢 "gateway-example-com-v1" 鍒?~/.vessel/providers.json
+[?25l鈹?鈼? 
+[?25h(node:21540) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:17340) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:20832) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+ Test Files  289 passed (289)
+      Tests  3037 passed | 6 skipped (3043)
+   Start at  05:00:59
+   Duration  743.93s (tests 85%, import 12%, transform 1%, setup 1%)
+
+    Isolate  289 workers spawned 路 ~198ms startup each (spawn + environment, per file)
+             at least ~57.03s faster with isolate: false 鈥?reuses workers across files instead of one per file
+
+
+ RUN  v5.0.1 E:/Code_file/Projects/Vessel_Harness/apps/web
+
+
+ Test Files  37 passed (37)
+      Tests  319 passed (319)
+   Start at  05:13:24
+   Duration  18.83s (import 43%, tests 36%, transform 18%, worker 3%)
+
+     Import  109 modules were evaluated 165 times 路 4.36s total, 43% of tracked time
+             ~1.48s faster with isolate: false 鈥?shared modules are evaluated once per worker instead of once per file
+             learn more: https://vitest.dev/guide/improving-performance#test-isolation
+

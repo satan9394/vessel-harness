@@ -70,8 +70,20 @@ export class WidgetRoutes {
     return { status: 200, body: { success: true } };
   }
 
-  subscribe(sessionId: string, send: Send): () => void {
-    let senders = this.senders.get(sessionId);
+  /** Pending permission decisions — read side for the Activity approval queue (UI-013). */
+  pendingApprovals(sessionId?: string): { sessionId: string; widgetId: string; actionType: PermissionActionWidget['payload']['actionType']; description: string; requestedAt: string; options: PermissionActionWidget['payload']['options'] }[] {
+    const result: { sessionId: string; widgetId: string; actionType: PermissionActionWidget['payload']['actionType']; description: string; requestedAt: string; options: PermissionActionWidget['payload']['options'] }[] = [];
+    for (const [id, blocks] of this.blocks) {
+      if (sessionId !== undefined && id !== sessionId) continue;
+      for (const widget of blocks.values()) {
+        if (widget.kind !== 'permission_action' || widget.status !== 'pending') continue;
+        result.push({ sessionId: id, widgetId: widget.id, actionType: widget.payload.actionType, description: widget.payload.description, requestedAt: widget.timestamp, options: widget.payload.options.map(option => ({ ...option })) });
+      }
+    }
+    return result.sort((a, b) => a.requestedAt.localeCompare(b.requestedAt) || a.widgetId.localeCompare(b.widgetId));
+  }
+
+  subscribe(sessionId: string, send: Send): () => void {    let senders = this.senders.get(sessionId);
     if (!senders) { senders = new Set(); this.senders.set(sessionId, senders); }
     senders.add(send);
     for (const widget of this.blocks.get(sessionId)?.values() ?? []) {

@@ -670,8 +670,98 @@ export interface StatusMessages {
   legacyStatusFail: MessageTemplate;
 }
 
+export interface WorkbenchMessages {
+  tabTasks: MessageTemplate;
+  tabTrace: MessageTemplate;
+  tasksTitle: MessageTemplate;
+  tasksHint: MessageTemplate;
+  tasksEmpty: MessageTemplate;
+  tasksReadError: MessageTemplate;
+  tasksProjectLabel: MessageTemplate;
+  tasksSelect: MessageTemplate;
+  tasksNode: MessageTemplate;
+  tasksDuration: MessageTemplate;
+  tasksAttempt: MessageTemplate;
+  tasksDependencies: MessageTemplate;
+  tasksNone: MessageTemplate;
+  tasksChildren: MessageTemplate;
+  tasksAggregate: MessageTemplate;
+  tasksFocusParent: MessageTemplate;
+  tasksLease: MessageTemplate;
+  tasksError: MessageTemplate;
+  tasksCancelledBy: MessageTemplate;
+  taskStatusPending: MessageTemplate;
+  taskStatusRunning: MessageTemplate;
+  taskStatusWaitingApproval: MessageTemplate;
+  taskStatusCompleted: MessageTemplate;
+  taskStatusFailed: MessageTemplate;
+  taskStatusCancelled: MessageTemplate;
+  activityQueueTitle: MessageTemplate;
+  activityQueueHint: MessageTemplate;
+  activityQueueEmpty: MessageTemplate;
+  activityQueueReadError: MessageTemplate;
+  activityNeedsAttention: MessageTemplate;
+  activityRunning: MessageTemplate;
+  activityCompleted: MessageTemplate;
+  activityFailed: MessageTemplate;
+  activityKindSession: MessageTemplate;
+  activityKindTeam: MessageTemplate;
+  activityKindSubagent: MessageTemplate;
+  activityKindGoal: MessageTemplate;
+  activityApprove: MessageTemplate;
+  activityDeny: MessageTemplate;
+  activityApprovalFor: MessageTemplate;
+  activityUpdated: MessageTemplate;
+  activityApprovalDone: MessageTemplate;
+  activityApprovalError: MessageTemplate;
+  activityProject: MessageTemplate;
+  composerTitle: MessageTemplate;
+  composerHint: MessageTemplate;
+  composerLibrary: MessageTemplate;
+  composerStaged: MessageTemplate;
+  composerPriority: MessageTemplate;
+  composerAdd: MessageTemplate;
+  composerRemove: MessageTemplate;
+  composerMoveUp: MessageTemplate;
+  composerMoveDown: MessageTemplate;
+  composerVerify: MessageTemplate;
+  composerVerifying: MessageTemplate;
+  composerVerdict: MessageTemplate;
+  composerVerdictVerified: MessageTemplate;
+  composerVerdictEnforceable: MessageTemplate;
+  composerVerdictIncomplete: MessageTemplate;
+  composerVerdictRejected: MessageTemplate;
+  composerConflicts: MessageTemplate;
+  composerNoConflicts: MessageTemplate;
+  composerConformance: MessageTemplate;
+  composerPolicyRef: MessageTemplate;
+  composerPolicyFound: MessageTemplate;
+  composerPolicyMissing: MessageTemplate;
+  composerCompatibility: MessageTemplate;
+  composerSnapshot: MessageTemplate;
+  composerDiagnostics: MessageTemplate;
+  composerNoDiagnostics: MessageTemplate;
+  composerLevels: MessageTemplate;
+  composerEmptyStaged: MessageTemplate;
+  composerReadError: MessageTemplate;
+  composerVerifyError: MessageTemplate;
+  traceTitle: MessageTemplate;
+  traceHint: MessageTemplate;
+  traceEmpty: MessageTemplate;
+  traceReadError: MessageTemplate;
+  traceTurns: MessageTemplate;
+  traceRecords: MessageTemplate;
+  traceRedacted: MessageTemplate;
+  traceCompact: MessageTemplate;
+  traceShowDetail: MessageTemplate;
+  traceStepSeq: MessageTemplate;
+  traceDetail: MessageTemplate;
+  traceTurn: MessageTemplate;
+  traceStepLabel: MessageTemplate;
+}
+
 export interface Messages extends CommonMessages, SessionMessages, ModelMessages, CanvasMessages,
-  PatchMessages, ReasoningMessages, PaletteMessages, AttentionMessages, StatusMessages {}
+  PatchMessages, ReasoningMessages, PaletteMessages, AttentionMessages, StatusMessages, WorkbenchMessages {}
 
 export const zh: Messages = {
   behaviorInspector: '行为有效快照',
@@ -1281,6 +1371,93 @@ export const zh: Messages = {
   interruptTitle: "中断当前回合",
   teamModuleNoSession: "选择或新建会话后，将显示模型选择、团队活动与外部评审面板。",
   goalModuleNoSession: "选择或新建会话后，将显示任务队列、迭代回放与运行控制面板。",
+  tabTasks: "任务树",
+  tabTrace: "追踪",
+  tasksTitle: "团队任务树",
+  tasksHint: "展示子代理实例的父子拓扑、依赖、租约与状态，可逐节点跳转。",
+  tasksEmpty: "暂无任务树。运行一次团队任务或子代理调度后即可查看。",
+  tasksReadError: "读取任务树失败：{error}",
+  tasksProjectLabel: "项目",
+  tasksSelect: "选择任务树",
+  tasksNode: "节点",
+  tasksDuration: "耗时",
+  tasksAttempt: "尝试",
+  tasksDependencies: "依赖",
+  tasksNone: "无",
+  tasksChildren: "子节点",
+  tasksAggregate: "子节点汇总",
+  tasksFocusParent: "定位父节点",
+  tasksLease: "租约",
+  tasksError: "错误",
+  tasksCancelledBy: "取消来源",
+  taskStatusPending: "等待中",
+  taskStatusRunning: "运行中",
+  taskStatusWaitingApproval: "等待授权",
+  taskStatusCompleted: "已完成",
+  taskStatusFailed: "失败",
+  taskStatusCancelled: "已取消",
+  activityQueueTitle: "活动与审批队列",
+  activityQueueHint: "跨项目聚合运行中与等待授权的任务，可直接就地批准或拒绝。",
+  activityQueueEmpty: "当前没有需要关注的活动。",
+  activityQueueReadError: "读取活动队列失败：{error}",
+  activityNeedsAttention: "需要关注",
+  activityRunning: "运行中",
+  activityCompleted: "已完成",
+  activityFailed: "失败",
+  activityKindSession: "会话",
+  activityKindTeam: "团队",
+  activityKindSubagent: "子代理",
+  activityKindGoal: "目标",
+  activityApprove: "批准",
+  activityDeny: "拒绝",
+  activityApprovalFor: "待授权操作",
+  activityUpdated: "更新于",
+  activityApprovalDone: "审批已提交。",
+  activityApprovalError: "审批提交失败：{error}",
+  activityProject: "项目",
+  composerTitle: "Agent Studio 组合器",
+  composerHint: "组合行为规则、调整优先级、检测冲突，并在激活前校验一致性。",
+  composerLibrary: "行为库",
+  composerStaged: "已组合规则",
+  composerPriority: "优先级",
+  composerAdd: "加入",
+  composerRemove: "移除",
+  composerMoveUp: "上移",
+  composerMoveDown: "下移",
+  composerVerify: "校验一致性",
+  composerVerifying: "校验中…",
+  composerVerdict: "结论",
+  composerVerdictVerified: "已验证",
+  composerVerdictEnforceable: "可执法",
+  composerVerdictIncomplete: "不完整",
+  composerVerdictRejected: "已拒绝（不可激活）",
+  composerConflicts: "冲突检测",
+  composerNoConflicts: "未检测到冲突。",
+  composerConformance: "一致性映射",
+  composerPolicyRef: "策略引用",
+  composerPolicyFound: "已找到执法规则",
+  composerPolicyMissing: "缺少执法规则",
+  composerCompatibility: "兼容等级",
+  composerSnapshot: "快照哈希",
+  composerDiagnostics: "编译诊断",
+  composerNoDiagnostics: "无诊断。",
+  composerLevels: "生效链",
+  composerEmptyStaged: "尚未加入任何规则。",
+  composerReadError: "读取行为库失败：{error}",
+  composerVerifyError: "校验失败：{error}",
+  traceTitle: "结构化追踪",
+  traceHint: "按回合与步骤检视事件结构；原始参数与输出已脱敏，仅保留结构与键名。",
+  traceEmpty: "此会话暂无可展示的追踪记录。",
+  traceReadError: "读取追踪失败：{error}",
+  traceTurns: "回合",
+  traceRecords: "记录",
+  traceRedacted: "已脱敏字段",
+  traceCompact: "紧凑视图",
+  traceShowDetail: "显示详情",
+  traceStepSeq: "序号",
+  traceDetail: "详情",
+  traceTurn: "回合 {turnId}",
+  traceStepLabel: "步骤 {step}",
 };
 
 export const en: Messages = {
@@ -1894,6 +2071,93 @@ export const en: Messages = {
     'Select or start a session and the Team panel (model select / 3-agent activity / External Review) appears here.',
   goalModuleNoSession:
     'Select or start a session and the Goals panel (task queue / iteration replay / per-run control) appears here.',
+  tabTasks: 'Task tree',
+  tabTrace: 'Trace',
+  tasksTitle: 'Team task tree',
+  tasksHint: 'Parent/child topology, dependencies, leases and status for scoped subagent instances — click a node to navigate.',
+  tasksEmpty: 'No task tree yet. Run a team task or subagent schedule to populate it.',
+  tasksReadError: 'Could not read the task tree: {error}',
+  tasksProjectLabel: 'Project',
+  tasksSelect: 'Select a task tree',
+  tasksNode: 'Node',
+  tasksDuration: 'Duration',
+  tasksAttempt: 'Attempt',
+  tasksDependencies: 'Dependencies',
+  tasksNone: 'none',
+  tasksChildren: 'Children',
+  tasksAggregate: 'Child aggregate',
+  tasksFocusParent: 'Focus parent',
+  tasksLease: 'Lease',
+  tasksError: 'Error',
+  tasksCancelledBy: 'Cancelled by',
+  taskStatusPending: 'Pending',
+  taskStatusRunning: 'Running',
+  taskStatusWaitingApproval: 'Waiting approval',
+  taskStatusCompleted: 'Completed',
+  taskStatusFailed: 'Failed',
+  taskStatusCancelled: 'Cancelled',
+  activityQueueTitle: 'Activity & approval queue',
+  activityQueueHint: 'Active and WAITING_APPROVAL work aggregated across projects, with inline approval.',
+  activityQueueEmpty: 'Nothing needs attention right now.',
+  activityQueueReadError: 'Could not read the activity queue: {error}',
+  activityNeedsAttention: 'Needs attention',
+  activityRunning: 'Running',
+  activityCompleted: 'Completed',
+  activityFailed: 'Failed',
+  activityKindSession: 'Session',
+  activityKindTeam: 'Team',
+  activityKindSubagent: 'Subagent',
+  activityKindGoal: 'Goal',
+  activityApprove: 'Approve',
+  activityDeny: 'Deny',
+  activityApprovalFor: 'Awaiting approval',
+  activityUpdated: 'Updated',
+  activityApprovalDone: 'Decision submitted.',
+  activityApprovalError: 'Could not submit the decision: {error}',
+  activityProject: 'Project',
+  composerTitle: 'Agent Studio composer',
+  composerHint: 'Compose behavior rules, reorder priorities, detect conflicts and verify conformance before activation.',
+  composerLibrary: 'Behavior library',
+  composerStaged: 'Composed rules',
+  composerPriority: 'Priority',
+  composerAdd: 'Add',
+  composerRemove: 'Remove',
+  composerMoveUp: 'Move up',
+  composerMoveDown: 'Move down',
+  composerVerify: 'Verify conformance',
+  composerVerifying: 'Verifying…',
+  composerVerdict: 'Verdict',
+  composerVerdictVerified: 'Verified',
+  composerVerdictEnforceable: 'Enforceable',
+  composerVerdictIncomplete: 'Incomplete',
+  composerVerdictRejected: 'Rejected (not activatable)',
+  composerConflicts: 'Conflict check',
+  composerNoConflicts: 'No conflicts detected.',
+  composerConformance: 'Conformance mapping',
+  composerPolicyRef: 'Policy ref',
+  composerPolicyFound: 'Enforcement rule found',
+  composerPolicyMissing: 'No enforcement rule',
+  composerCompatibility: 'Compatibility',
+  composerSnapshot: 'Snapshot hash',
+  composerDiagnostics: 'Compile diagnostics',
+  composerNoDiagnostics: 'No diagnostics.',
+  composerLevels: 'Effective chain',
+  composerEmptyStaged: 'No rules added yet.',
+  composerReadError: 'Could not read the behavior library: {error}',
+  composerVerifyError: 'Verification failed: {error}',
+  traceTitle: 'Structured trace',
+  traceHint: 'Inspect events by turn and step. Raw arguments and output are sanitized — only structure and keys remain.',
+  traceEmpty: 'No trace records are available for this session.',
+  traceReadError: 'Could not read the trace: {error}',
+  traceTurns: 'Turns',
+  traceRecords: 'records',
+  traceRedacted: 'Redacted fields',
+  traceCompact: 'Compact view',
+  traceShowDetail: 'Show detail',
+  traceStepSeq: 'Seq',
+  traceDetail: 'Detail',
+  traceTurn: 'Turn {turnId}',
+  traceStepLabel: 'Step {step}',
 };
 
 /** All dictionaries keyed by language. */

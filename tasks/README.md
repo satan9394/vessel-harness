@@ -111,17 +111,22 @@
 | Vessel Web UI/UX 工作台整改规范落地 (Web UI/UX Workbench Improvement) | 218 | 已验证（已合入本地提交 `26ba6fe`；双 Root 3228 passed / 6 skipped） | `tasks/218-web-ui-ux-workbench-improvement-implementation.md` |
 | 全量功能端到端交互与真实点击测试套件 (Full Surface Click-Testing Suite) | 219 | 已验证（2026-10-13；交证即停） | `tasks/219-full-surface-interactive-click-testing-suite.md` |
 | Provider 能力协商契约与 Context 分层版本化缓存落地 (Provider Capability Contract & Context Layered Cache) | 220 | 已验证（已合入本地提交 `030fc0f`；双 Root 3271 passed / 6 skipped） | `tasks/220-provider-capability-contract-and-layered-cache.md` |
-| Behavior 语义 IR、五级兼容性等级与 Agent Studio L0-L4 检查器 (Behavior Semantic IR & Studio Inspector) | 221 | 已验证（2026-10-14；四道门禁 exit 0，双 Root 3,296 passed / 6 skipped） | `tasks/221-behavior-semantic-ir-and-agent-studio-inspector.md` |
+| Behavior 语义 IR、五级兼容性等级与 Agent Studio L0-L4 检查器 (Behavior Semantic IR & Studio Inspector) | 221 | 已验证（已合入本地提交 `bd4a0b8`；双 Root 3296 passed / 6 skipped） | `tasks/221-behavior-semantic-ir-and-agent-studio-inspector.md` |
+| [Epic] 架构与UI优化方案全量收官：任务树、故障注入、Studio Composer与审批队列 (Full Architecture & UI Plan Completion) | 222 | 已验证（2026-10-14；双 Root 3,356 passed / 6 skipped；`packages/core` 0 变动） | `tasks/222-subagent-team-task-tree-and-instance-spec.md` |
 
 ## 未闭合 / 下一目标
 
-- **当前攻坚：无**（goal 模式队列已清空，等待维护者派发下一张卡）。
-- **最近已交付（本地未提交，交证即停）：任务 221 Behavior 语义 IR、五级兼容性等级与 Agent Studio L0-L4 检查器**：
+- **两份整改实施规范（VESSEL-ARCH-2026-01 / VESSEL-UI-2026-01）已随任务 217–222 全量落地**：ARC-01..11 与 UI-001..017 的剩余 P2/P3 项在本轮收官；当前无可自主推进的卡，等待维护者新授权。
+- **最近已交付（本地未提交，2026-10-14）：任务 222 [Epic] 架构与UI优化方案全量收官**：
+  - 验收入口：`tasks/222-subagent-team-task-tree-and-instance-spec.md`；证据与限制：`evidence/sessions/2026-10-14-card222/PROOF.md`（含对抗评审 `REVIEW.md`）。
+  - 交付：ARC-10 `AgentInstanceSpec` / `TaskLease` / `TaskTreeNode` 契约与 `TaskTreeScheduler`（依赖 DAG、租约超时、父子取消级联、结果归并、权限单调收窄）、`/api/tasks/tree` 与 Web 团队任务树；ARC-11 故障注入四断点套件（`EffectJournal` 防重放不可逆副作用）、Behavior Golden Conformance（L0→L4 稳定性与 fail-to-compile）、Compaction 100% 守恒；UI-013 跨项目活动与集中审批队列、UI-015 交互式 Agent Studio Composer、UI-017 结构化脱敏 Trace。全部中英双语 + 800px 响应式。
+  - 门禁：`tsc -b` / `typecheck:tests` / Web build（`-- --emptyOutDir false`）/ `test:all` 顺序 exit 0；双 Root **3,356 passed / 6 skipped** 全绿；`packages/core` 行修改 **0**；离线 Chromium + CDP 实拍 8 张（中/英 × 桌面/800px）与 `browser-capture-meta.json`。
+- **前序已交付（已合入本地提交 `bd4a0b8`）：任务 221 Behavior 语义 IR、五级兼容性等级与 Agent Studio L0-L4 检查器**：
   - 验收入口：`tasks/221-behavior-semantic-ir-and-agent-studio-inspector.md`；证据与限制：`evidence/sessions/2026-10-13-card221/PROOF.md`。
   - 交付：ARC-07 语义 IR 与五级兼容阶梯、L0→L4 生效快照与编译溯源、`/api/behavior/inspect`、Web Agent Studio 只读检查器（中英双语 + 800px 响应式）；`packages/core` 0 变动。
   - 攻坚收口：`HybridMemoryStore` 内存向量索引（热中位 18–24ms → 6.288ms）消除 `hybridSearch` 门禁的环境性红；三个绝对毫秒门禁统一为「预热 + 仅计时超线的有界重测」（阈值/统计量/断言未改）；离线 Chromium + CDP 实拍 6 张截图。
-  - 门禁：`tsc -b`、`typecheck:tests`、Web build、`test:all` 全部 exit 0；根 282 文件 / 2,988 passed + 6 skipped，web 36 文件 / 308 passed。
-- **最近已交付（已合入本地提交 `030fc0f`）：任务 220 Provider 能力协商契约与 Context 分层版本化缓存落地**：
+  - 门禁：`tsc -b`、`typecheck:tests`、Web build、`test:all` 全部 exit 0；根 282 文件 / 2,988 passed + 6 skipped，web 36 文件 / 308 passed，合计 3,296 passed / 6 skipped。
+- **前序已交付（已合入本地提交 `030fc0f`）：任务 220 Provider 能力协商契约与 Context 分层版本化缓存落地**：
   - 验收入口：`tasks/220-provider-capability-contract-and-layered-cache.md`；证据与限制：`evidence/sessions/2026-10-13-card220/PROOF.md`。双 Root 3,271 passed / 6 skipped 全绿，Thin Core 0 变动。
 - **前序已交付（已合入本地提交 `1276d39`）：任务 219 全量功能端到端交互与真实点击测试套件**：
   - 验收入口：`tasks/219-full-surface-interactive-click-testing-suite.md`；证据与限制：`evidence/sessions/2026-10-13-card219/PROOF.md`。standard 闭环，交证即停。

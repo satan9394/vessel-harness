@@ -1,0 +1,18 @@
+{
+  "card": 222,
+  "runAt": "2026-10-14",
+  "note": "Summarises the four ordered final gates. Exit codes were observed from the runner console; the corresponding raw output is in final-01..04-*.log. (The runner's own JSON aggregation produced an empty file on the first run due to a PowerShell function-scope bug in run-gates.ps1, since fixed; the gate results below are transcribed from the runner output and the logs.)",
+  "coreDiffLines": 0,
+  "gates": [
+    { "gate": "final-01-tsc", "command": "npx tsc -b tsconfig.json", "exitCode": 0, "log": "final-01-tsc.log" },
+    { "gate": "final-02-typecheck-tests", "command": "npm run typecheck:tests", "exitCode": 0, "log": "final-02-typecheck-tests.log" },
+    { "gate": "final-03-web-build", "command": "npm run -w @vessel/web build -- --emptyOutDir false", "exitCode": 0, "log": "final-03-web-build.log" },
+    { "gate": "final-04-test-all", "command": "npm run test:all", "exitCode": 0, "log": "final-04-test-all.log" }
+  ],
+  "testAll": {
+    "root": { "files": 289, "passed": 3037, "skipped": 6 },
+    "web": { "files": 37, "passed": 319, "skipped": 0 },
+    "total": { "passed": 3356, "skipped": 6 },
+    "requirement": ">= 3296 passed / 6 skipped (dual roots)"
+  }
+}

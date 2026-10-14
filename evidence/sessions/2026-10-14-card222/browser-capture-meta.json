@@ -1,0 +1,254 @@
+{
+  "tool": "offline-chromium-cdp",
+  "builtFor": "card 222 (ARC-10 / UI-013 / UI-015 / UI-016 / UI-017)",
+  "chromium": "Chrome/153.0.8010.12",
+  "appUrl": "http://127.0.0.1:32822",
+  "capturedAt": "2026-10-14T11:58:10.526Z",
+  "shots": [
+    {
+      "id": "activity-en-desktop",
+      "file": "card222-activity-en-desktop.png",
+      "lang": "en",
+      "viewport": {
+        "width": 1440,
+        "height": 1000
+      },
+      "url": "http://127.0.0.1:32822",
+      "bytes": 44267,
+      "sha256": "e9cf4743049da01f0c13c326c338e305346efdd444b276f8e713d7b4b43b9085",
+      "facts": {
+        "treeStatuses": [
+          "completed",
+          "waiting_approval",
+          "completed",
+          "pending",
+          "pending"
+        ],
+        "treeNodes": [
+          "card222-root-b",
+          "patch",
+          "explore",
+          "docs",
+          "verify"
+        ],
+        "queueStatuses": [
+          "needs_attention"
+        ],
+        "approvalButtons": [
+          "Session",
+          "Approve (Allow once)",
+          "Deny (Deny)"
+        ]
+      },
+      "text": "Vessel local server ok (v0.10.0) Commands Preferences Activity Session activity comes from server records. Open a session to inspect runs and approvals. Activity & approval queue Active and WAITING_APPROVAL work aggregated across projects, with inline approval. Retry model catalog Needs attention · 1 Needs attention Session Plan the refactor of Project: C:\\Users\\SATANC~1\\AppData\\Local\\Temp\\vessel-card222-fixture-szvBbY Updated: 2026/10/14 04:53:21 Session Awaiting approval: Write src/components/navigation.ts (12 lines) Approve (Allow once) Deny (Deny) Plan the refactor of vessel-card222-fixtur",
+      "capturedAt": "2026-10-14T11:57:48.266Z"
+    },
+    {
+      "id": "studio-en-desktop",
+      "file": "card222-studio-en-desktop.png",
+      "lang": "en",
+      "viewport": {
+        "width": 1440,
+        "height": 1000
+      },
+      "url": "http://127.0.0.1:32822",
+      "bytes": 131488,
+      "sha256": "0eddd6daea8bb913da2bdadd0b0b4f3b83e18f97ef565b397db35b7bfde8f577",
+      "facts": {
+        "libraryRules": 18,
+        "stagedRules": 3,
+        "verdict": "Enforceable",
+        "conflicts": 1,
+        "conformance": 3,
+        "levels": "No diagnostics."
+      },
+      "text": "Vessel local server ok (v0.10.0) Commands Preferences Agent Studio Read-only inspection of effective behavior, policy mappings and compilation sources. Agent Studio composer Compose behavior rules, reorder priorities, detect conflicts and verify conformance before activation. Behavior library loop.turn_ends_without_tool_call prompt_guidance 纯文本回复即停止；不要在无需工具时强行调用工具。 Add retry.exponential_backoff prompt_guidance 重试要有退避：同一操作连续失败时先读报错改方式；确需重试则加大间隔或改变参数，不原样反复重发；达到上限带证据上报或换方案。 Add planning.plan_before_execute prompt_guidance 复杂、多步或有破坏性的任务先给出计划（目标→步骤→验证方式）再动手；执行中发现与计划冲突的新证据时先更新计划再继续。 Add safety.prote",
+      "capturedAt": "2026-10-14T11:57:51.711Z"
+    },
+    {
+      "id": "activity-zh-desktop",
+      "file": "card222-activity-zh-desktop.png",
+      "lang": "zh",
+      "viewport": {
+        "width": 1440,
+        "height": 1000
+      },
+      "url": "http://127.0.0.1:32822",
+      "bytes": 46533,
+      "sha256": "42252923da1d948cb27acfcef11ccfe4e18eb77201677211e00062e307969971",
+      "facts": {
+        "treeStatuses": [
+          "completed",
+          "waiting_approval",
+          "completed",
+          "pending",
+          "pending"
+        ],
+        "treeNodes": [
+          "card222-root-b",
+          "patch",
+          "explore",
+          "docs",
+          "verify"
+        ],
+        "queueStatuses": [
+          "needs_attention"
+        ],
+        "approvalButtons": [
+          "会话",
+          "批准 (Allow once)",
+          "拒绝 (Deny)"
+        ]
+      },
+      "text": "Vessel 本地服务运行正常（版本 0.10.0） 命令 偏好设置 活动 会话活动来自服务端记录；打开会话查看运行和审批。 活动与审批队列 跨项目聚合运行中与等待授权的任务，可直接就地批准或拒绝。 重新加载模型 需要关注 · 1 需要关注 会话 Plan the refactor of 项目: C:\\Users\\SATANC~1\\AppData\\Local\\Temp\\vessel-card222-fixture-szvBbY 更新于: 2026/10/14 04:53:21 会话 待授权操作: Write src/components/navigation.ts (12 lines) 批准 (Allow once) 拒绝 (Deny) Plan the refactor of vessel-card222-fixture-szvBbY · 2026/10/14 04:53:21 团队任务树 展示子代理实例的父子拓扑、依赖、租约与状态，可逐节点跳转。 重新加载模型 E:/Code_file/Projects/second-repo · card222-root-bE:/Code_file/Projects/Vessel_Harness · card222-root 项目: E:/Code_file/Projects/second-repo · card222-root-b Coor",
+      "capturedAt": "2026-10-14T11:57:54.561Z"
+    },
+    {
+      "id": "studio-zh-desktop",
+      "file": "card222-studio-zh-desktop.png",
+      "lang": "zh",
+      "viewport": {
+        "width": 1440,
+        "height": 1000
+      },
+      "url": "http://127.0.0.1:32822",
+      "bytes": 135298,
+      "sha256": "8206ba7dfc8ecc1854dc0600d171c70d17474340ec9092fc07f84f8c0191aea4",
+      "facts": {
+        "libraryRules": 18,
+        "stagedRules": 3,
+        "verdict": "可执法",
+        "conflicts": 1,
+        "conformance": 3,
+        "levels": "无诊断。"
+      },
+      "text": "Vessel 本地服务运行正常（版本 0.10.0） 命令 偏好设置 Agent Studio 只读检查实际生效的行为、策略映射与编译来源。 Agent Studio 组合器 组合行为规则、调整优先级、检测冲突，并在激活前校验一致性。 行为库 loop.turn_ends_without_tool_call prompt_guidance 纯文本回复即停止；不要在无需工具时强行调用工具。 加入 retry.exponential_backoff prompt_guidance 重试要有退避：同一操作连续失败时先读报错改方式；确需重试则加大间隔或改变参数，不原样反复重发；达到上限带证据上报或换方案。 加入 planning.plan_before_execute prompt_guidance 复杂、多步或有破坏性的任务先给出计划（目标→步骤→验证方式）再动手；执行中发现与计划冲突的新证据时先更新计划再继续。 加入 safety.protected_paths runtime_policy 不要改写受保护路径（.git/.env/.ssh 等）；该约束由策略引擎硬执法。 加入 safety.dangerous_shell runtime_policy 删除/格式化等破坏性命令会被策略引擎拦截；先说明原因与范围。 加入 safety.secret_handling runtime_po",
+      "capturedAt": "2026-10-14T11:57:58.000Z"
+    },
+    {
+      "id": "activity-en-mobile800",
+      "file": "card222-activity-en-mobile800.png",
+      "lang": "en",
+      "viewport": {
+        "width": 800,
+        "height": 1000
+      },
+      "url": "http://127.0.0.1:32822",
+      "bytes": 39115,
+      "sha256": "1b40efbd41c76fe6828325ac79fd19948f32f26825117680c733bc4e06156e01",
+      "facts": {
+        "treeStatuses": [
+          "completed",
+          "waiting_approval",
+          "completed",
+          "pending",
+          "pending"
+        ],
+        "treeNodes": [
+          "card222-root-b",
+          "patch",
+          "explore",
+          "docs",
+          "verify"
+        ],
+        "queueStatuses": [
+          "needs_attention"
+        ],
+        "approvalButtons": [
+          "Session",
+          "Approve (Allow once)",
+          "Deny (Deny)"
+        ]
+      },
+      "text": "☰ Vessel local server ok (v0.10.0) Commands Preferences Activity Session activity comes from server records. Open a session to inspect runs and approvals. Activity & approval queue Active and WAITING_APPROVAL work aggregated across projects, with inline approval. Retry model catalog Needs attention · 1 Needs attention Session Plan the refactor of Project: C:\\Users\\SATANC~1\\AppData\\Local\\Temp\\vessel-card222-fixture-szvBbY Updated: 2026/10/14 04:53:21 Session Awaiting approval: Write src/components/navigation.ts (12 lines) Approve (Allow once) Deny (Deny) Plan the refactor of vessel-card222-fixt",
+      "capturedAt": "2026-10-14T11:58:00.883Z"
+    },
+    {
+      "id": "studio-en-mobile800",
+      "file": "card222-studio-en-mobile800.png",
+      "lang": "en",
+      "viewport": {
+        "width": 800,
+        "height": 1000
+      },
+      "url": "http://127.0.0.1:32822",
+      "bytes": 111904,
+      "sha256": "5f5e805781a2afc5b998e751e0e5ac01e57607cef06f295a7fa4b3add4ded2d1",
+      "facts": {
+        "libraryRules": 18,
+        "stagedRules": 3,
+        "verdict": "Enforceable",
+        "conflicts": 1,
+        "conformance": 3,
+        "levels": "No diagnostics."
+      },
+      "text": "☰ Vessel local server ok (v0.10.0) Commands Preferences Agent Studio Read-only inspection of effective behavior, policy mappings and compilation sources. Agent Studio composer Compose behavior rules, reorder priorities, detect conflicts and verify conformance before activation. Behavior library loop.turn_ends_without_tool_call prompt_guidance 纯文本回复即停止；不要在无需工具时强行调用工具。 Add retry.exponential_backoff prompt_guidance 重试要有退避：同一操作连续失败时先读报错改方式；确需重试则加大间隔或改变参数，不原样反复重发；达到上限带证据上报或换方案。 Add planning.plan_before_execute prompt_guidance 复杂、多步或有破坏性的任务先给出计划（目标→步骤→验证方式）再动手；执行中发现与计划冲突的新证据时先更新计划再继续。 Add safety.pro",
+      "capturedAt": "2026-10-14T11:58:04.265Z"
+    },
+    {
+      "id": "activity-zh-mobile800",
+      "file": "card222-activity-zh-mobile800.png",
+      "lang": "zh",
+      "viewport": {
+        "width": 800,
+        "height": 1000
+      },
+      "url": "http://127.0.0.1:32822",
+      "bytes": 40844,
+      "sha256": "f2918369eaba7d7b17f91dc916b6bce0497bc5934e4ff572c30cbcd6db72be6a",
+      "facts": {
+        "treeStatuses": [
+          "completed",
+          "waiting_approval",
+          "completed",
+          "pending",
+          "pending"
+        ],
+        "treeNodes": [
+          "card222-root-b",
+          "patch",
+          "explore",
+          "docs",
+          "verify"
+        ],
+        "queueStatuses": [
+          "needs_attention"
+        ],
+        "approvalButtons": [
+          "会话",
+          "批准 (Allow once)",
+          "拒绝 (Deny)"
+        ]
+      },
+      "text": "☰ Vessel 本地服务运行正常（版本 0.10.0） 命令 偏好设置 活动 会话活动来自服务端记录；打开会话查看运行和审批。 活动与审批队列 跨项目聚合运行中与等待授权的任务，可直接就地批准或拒绝。 重新加载模型 需要关注 · 1 需要关注 会话 Plan the refactor of 项目: C:\\Users\\SATANC~1\\AppData\\Local\\Temp\\vessel-card222-fixture-szvBbY 更新于: 2026/10/14 04:53:21 会话 待授权操作: Write src/components/navigation.ts (12 lines) 批准 (Allow once) 拒绝 (Deny) Plan the refactor of vessel-card222-fixture-szvBbY · 2026/10/14 04:53:21 团队任务树 展示子代理实例的父子拓扑、依赖、租约与状态，可逐节点跳转。 重新加载模型 E:/Code_file/Projects/second-repo · card222-root-bE:/Code_file/Projects/Vessel_Harness · card222-root 项目: E:/Code_file/Projects/second-repo · card222-root-b Co",
+      "capturedAt": "2026-10-14T11:58:07.102Z"
+    },
+    {
+      "id": "studio-zh-mobile800",
+      "file": "card222-studio-zh-mobile800.png",
+      "lang": "zh",
+      "viewport": {
+        "width": 800,
+        "height": 1000
+      },
+      "url": "http://127.0.0.1:32822",
+      "bytes": 115788,
+      "sha256": "feaeb8450e4152f41bd004911266d072313a5d8b387c38e8098bd193c8a91317",
+      "facts": {
+        "libraryRules": 18,
+        "stagedRules": 3,
+        "verdict": "可执法",
+        "conflicts": 1,
+        "conformance": 3,
+        "levels": "无诊断。"
+      },
+      "text": "☰ Vessel 本地服务运行正常（版本 0.10.0） 命令 偏好设置 Agent Studio 只读检查实际生效的行为、策略映射与编译来源。 Agent Studio 组合器 组合行为规则、调整优先级、检测冲突，并在激活前校验一致性。 行为库 loop.turn_ends_without_tool_call prompt_guidance 纯文本回复即停止；不要在无需工具时强行调用工具。 加入 retry.exponential_backoff prompt_guidance 重试要有退避：同一操作连续失败时先读报错改方式；确需重试则加大间隔或改变参数，不原样反复重发；达到上限带证据上报或换方案。 加入 planning.plan_before_execute prompt_guidance 复杂、多步或有破坏性的任务先给出计划（目标→步骤→验证方式）再动手；执行中发现与计划冲突的新证据时先更新计划再继续。 加入 safety.protected_paths runtime_policy 不要改写受保护路径（.git/.env/.ssh 等）；该约束由策略引擎硬执法。 加入 safety.dangerous_shell runtime_policy 删除/格式化等破坏性命令会被策略引擎拦截；先说明原因与范围。 加入 safety.secret_handling runtime_",
+      "capturedAt": "2026-10-14T11:58:10.525Z"
+    }
+  ],
+  "assertions": {
+    "note": "per-shot `facts` above are the authoritative DOM-derived evidence"
+  },
+  "captureMode": "full-surface: internal `main` overflow released at capture time so each PNG shows the entire surface",
+  "events": []
+}

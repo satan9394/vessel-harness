@@ -23,3 +23,5 @@ export * from './execution.js';
 export * from './capabilities.js';
 export * from './contextCache.js';
 export * from './behavior.js';
+export * from './composer.js';
+export * from './team.js';

@@ -42,9 +42,9 @@ describe('Inspector layout and state controller', () => {
     expect(folded).toContain('Timeline'); expect(folded).toContain('aria-expanded="false"'); expect(folded).not.toContain('role="tabpanel"');
     const docked = renderToStaticMarkup(<DualSurfaceLayout sessionId="session" inspectorDefaultOpen><p>Timeline</p></DualSurfaceLayout>);
     expect(docked).toContain('role="complementary"'); expect(docked).toContain('Swarm topology'); expect(docked).not.toContain('aria-modal');
-    expect(docked.match(/role="tab"/g)).toHaveLength(6);
+    expect(docked.match(/role="tab"/g)).toHaveLength(8);
   });
-  it.each([['swarm', 'Swarm topology'], ['cognition', 'Cognitive rules'], ['context', 'Context cache layers'], ['cache', 'KV Cache economics'], ['ast', 'AST symbol dependencies'], ['patch', 'Patch workbench']])('mounts selected %s panel', (tab, heading) => {
+  it.each([['swarm', 'Swarm topology'], ['cognition', 'Cognitive rules'], ['context', 'Context cache layers'], ['cache', 'KV Cache economics'], ['ast', 'AST symbol dependencies'], ['patch', 'Patch workbench'], ['tasks', 'Team task tree'], ['trace', 'Structured trace']])('mounts selected %s panel', (tab, heading) => {
     browser(tab);
     const html = renderToStaticMarkup(<DualSurfaceLayout sessionId="s">Timeline</DualSurfaceLayout>);
     expect(html).toContain(heading); expect(html.match(/aria-selected="true"/g)).toHaveLength(1); expect(html.match(/role="tabpanel"/g)).toHaveLength(1);
