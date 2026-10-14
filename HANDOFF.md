@@ -29,10 +29,10 @@
 | 项 | 当前实况 |
 |---|---|
 | 仓库 / 分支 | `satan9394/vessel-harness` / `main`（纯本地开发，不推送） |
-| 工作区状态 | HEAD `bd4a0b8`；Card 217–221 已合入本地提交；**Card 222（本 Epic 收官）已在工作树完成、未提交** |
-| 机器状态真源 | `.agent-state/run-state.json`（Card 210–221 已标记 completed；本仓无 `scripts/runstate.js`，故 Card 222 仍记 `ready`，待下次获授权的 bounded 运行用控制器推进） |
-| 当前任务卡 | `tasks/222-subagent-team-task-tree-and-instance-spec.md`（**已验证**，2026-10-14；架构与 UI 两份整改规范剩余 P2/P3 项已随本轮全量收官；等待维护者新授权） |
-| 前序已合入任务 | `tasks/221-behavior-semantic-ir-and-agent-studio-inspector.md`（已验证；证据 `evidence/sessions/2026-10-13-card221/PROOF.md`，commit `bd4a0b8`） |
+| 工作区状态 | HEAD `c7cb0ca`；Card 217–222 全部合入本地提交；两份优化方案 100% 全面闭环 |
+| 机器状态真源 | `.agent-state/run-state.json`（Card 210–222 已全部标记 completed） |
+| 当前任务卡 | 无进行中卡片；两份整改实施规范（VESSEL-ARCH-2026-01 与 VESSEL-UI-2026-01）已全量落地，准备回归主线 |
+| 前序已合入任务 | `tasks/222-subagent-team-task-tree-and-instance-spec.md`（已验证并合入；证据 `evidence/sessions/2026-10-14-card222/PROOF.md`，commit `c7cb0ca`） |
 
 Card 222 本地交付与验收（2026-10-14，OpenCode goal 模式交付）：依据架构整改规范 ARC-10/ARC-11 与 UI 规范 UI-013/UI-015/UI-016/UI-017 一次性收官。契约层新增 `AgentInstanceSpec` / `TaskLease` / `TaskTreeNode` / `PermissionScope` 与单调收窄原语（`packages/shared/src/team.ts`）；`packages/application` 落地 `TaskTreeScheduler` 与 `TaskTreeRegistry`（依赖 DAG 就绪判定、租约 TTL 超时、父子取消级联、阻塞依赖取消、审批门禁、子结果归并、按**有效父作用域**逐级收窄），执行一律委托注入的 executor，**不存在第二套循环**；local-server 新增 `/api/tasks/tree`、`/api/activity/runs`、`/api/behavior/library`、`/api/behavior/compose`、`/api/sessions/:id/trace`；Web 新增团队任务树、跨项目活动与集中审批队列、交互式 Agent Studio Composer、结构化脱敏 Trace，全部中英双语 + 800px 响应式。ARC-11 交付故障注入四断点套件（对不可逆副作用计数永不复跑）、Behavior Golden Conformance（L0→L4 稳定性 / fail-to-compile / Verified 仅在有运行时证据时授予）、Compaction 100% 守恒断言。门禁：四门顺序 exit 0，双 Root **3,356 passed / 6 skipped** 全绿，`packages/core` 行修改 **0**，锁文件与 `package.json` 未变；离线 Chromium + CDP 实拍 8 张（中/英 × 桌面/800px）并存 `browser-capture-meta.json`。证据 `evidence/sessions/2026-10-14-card222/PROOF.md`（含 `REVIEW.md` 对抗评审与「不宣称」清单）。
 
