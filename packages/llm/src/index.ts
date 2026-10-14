@@ -15,3 +15,4 @@ export * from './stream/parseAnthropic.js';
 export * from './discovery/probeOpenAIModels.js';
 export * from './discovery/observeProviderCacheUsage.js';
 export * from './discovery/CacheDriftDetector.js';
+export * from './capabilities.js';

@@ -1,15 +1,17 @@
 import * as crypto from 'node:crypto';
 import type {
+  ContextCacheLayerSnapshot,
   ChatMessage,
   ChatToolDef,
   SessionRecord,
   ToolSpec,
 } from '@vessel/shared';
-import { COMPACTION_THRESHOLD_RATIO, DEFAULT_CONTEXT_WINDOW, projectSession, type RequestEnvelopeV1 } from '@vessel/shared';
+import { COMPACTION_THRESHOLD_RATIO, DEFAULT_CONTEXT_WINDOW, projectSession, assertProjectionPublicationKnown, type RequestEnvelopeV1 } from '@vessel/shared';
 import { canonicalJson } from '@vessel/llm';
 import { Session } from '@vessel/core';
 import type { Instruction } from '../instructions/Instructions.js';
 import { TripartitePrefixBuilder, type TripartitePrefixResult } from './TripartitePrefixBuilder.js';
+import { LayeredContextCache, contextDependencyHash } from '../cache/LayeredContextCache.js';
 import { CompactionBoundaryGuard } from '../compaction/CompactionBoundaryGuard.js';
 import type { ContextPruneOptions, IAdaptiveContextPruner, PrunedContextResult } from '../pruning/types.js';
 
@@ -20,17 +22,23 @@ export interface RequestEnvelope extends RequestEnvelopeV1 {
   estimateTokens: number;
   prefixLayout: TripartitePrefixResult;
   pruning?: PrunedContextResult;
+  cacheLayers: ContextCacheLayerSnapshot[];
 }
 
 export interface BuilderDeps {
+  modelSelection?: () => { providerId: string; model: string };
+  cacheDependencies?: () => {
+    providerId?: string; modelProfileHash?: string; policyRevision?: string;
+    skillManifestHash?: string; tokenizerVersion?: string; contextSchemaVersion?: number;
+  };
   adaptivePruning?: { pruner: IAdaptiveContextPruner; options: ContextPruneOptions };
   /** Frozen session data appended after scoped guidance, before conversation history. */
   readonly scopedAppendix?: string;
   session: Session;
   model: string;
-  /** behavior-compiled stable prompt sections (L2/L3 output), cached per session */
+  /** behavior-compiled stable prompt sections (L2/L3 output), cached while dependencies match */
   stableSections: () => string[];
-  /** policy Prompt Guidance (soft channel), cached per session */
+  /** policy Prompt Guidance (soft channel), cached while dependencies match */
   policyGuidance: () => string[];
   /** AGENTS.md chain — injected once per session as user messages (可回放可压缩) */
   instructions: () => Instruction[];
@@ -110,11 +118,12 @@ const WIRE_HISTORY_RECORD_TYPES: ReadonlySet<SessionRecord['type']> = new Set<Se
  * the session surface projection (模型可见 ⟺ 已记录).
  */
 export class ContextBuilder {
-  private stableLayer: ChatMessage[] | null = null;
+  private readonly cache = new LayeredContextCache();
   private scopedLayer: ChatMessage[] | null = null;
   private reflectiveGoal: string | null = null;
   private reflectiveLayer: ChatMessage[] = [];
   private injected = false;
+  private instructionSnapshotHash: string | undefined;
   private readonly contextWindow: number;
   private readonly estimate: (t: string) => number;
   private readonly scopedAppendix: string;
@@ -128,19 +137,20 @@ export class ContextBuilder {
   async assemble(step: number): Promise<RequestEnvelope> {
     const session = this.deps.session;
 
-    // stable layer — assembled once per session, reused across turns (prefix cache)
-    if (!this.stableLayer) {
-      const stable = [
-        '你是 Vessel 系统中的一个 Agent（Composable Agent Harness 核心）。',
-        ...this.deps.stableSections(),
-        ...this.deps.policyGuidance(),
-      ].join('\n\n');
-      this.stableLayer = [{ role: 'system', content: stable }];
-    }
+    const versions = this.deps.cacheDependencies?.() ?? {};
+    const selection = this.deps.modelSelection?.();
+    const model = selection?.model ?? this.deps.model;
+    const providerId = selection?.providerId ?? versions.providerId;
+    const instructions = this.deps.instructions();
+    const stableInputs = { behavior: this.deps.stableSections(), policy: this.deps.policyGuidance(), policyRevision: versions.policyRevision, skillManifestHash: versions.skillManifestHash, contextSchemaVersion: versions.contextSchemaVersion };
+    const stableLayer = this.cache.get('assembly', stableInputs, () => [{ role: 'system' as const, content: [
+      '你是 Vessel 系统中的一个 Agent（Composable Agent Harness 核心）。',
+      ...stableInputs.behavior, ...stableInputs.policy,
+    ].join('\n\n') }], 'stable');
 
     // project instructions — injected once per session, persisted as user messages
     if (!this.injected) {
-      for (const instr of this.deps.instructions()) {
+      for (const instr of instructions) {
         await session.append({
           type: 'user/message',
           msgId: `m_instr_${crypto.randomBytes(4).toString('hex')}`,
@@ -163,12 +173,27 @@ export class ContextBuilder {
         });
       }
       this.injected = true;
+      this.instructionSnapshotHash = contextDependencyHash(instructions);
+    } else if (this.instructionSnapshotHash !== contextDependencyHash(instructions)) {
+      // Configuration refresh is a durable instruction snapshot, not invisible request-only data.
+      for (const instr of instructions) {
+        await session.append({ type: 'user/message', msgId: `m_instr_${crypto.randomBytes(4).toString('hex')}`,
+          role: 'user', content: `[指令文件 ${instr.sourcePath}]\n${instr.content}`, source: 'instruction', surface: true });
+      }
+      if (!instructions.length) {
+        await session.append({ type: 'user/message', msgId: `m_instr_${crypto.randomBytes(4).toString('hex')}`,
+          role: 'user', content: '[Instruction snapshot removed: no active instruction files]', source: 'instruction', surface: true });
+      }
+      this.instructionSnapshotHash = contextDependencyHash(instructions);
     }
 
     // derived history from the wire projection (surface superset incl.
     // assistant/attempt so `tool` messages always follow an assistant with
     // tool_calls — task 109)
-    const projection = projectSession(session.sessionId, session.replay());
+    const events = session.replay();
+    assertProjectionPublicationKnown(events);
+    const projection = this.cache.get('projection', { sessionId: session.sessionId, events },
+      () => projectSession(session.sessionId, events));
     const records = projection.visibleMessages;
     const { abandoned } = CompactionBoundaryGuard.accountToolCalls(records);
     const history: ChatMessage[] = records
@@ -188,7 +213,10 @@ export class ContextBuilder {
 
     // Freeze the session snapshot independently of compactable conversation records.
     this.scopedLayer ??= history.filter(message => message.source === 'instruction' || message.source === 'memory');
-    const scoped = [...this.scopedLayer];
+    const scoped = this.cache.get('assembly', { instructions, memory: this.scopedLayer.filter(m => m.source === 'memory'), contextSchemaVersion: versions.contextSchemaVersion }, () => [
+      ...instructions.map(instr => ({ role: 'user' as const, content: `[指令文件 ${instr.sourcePath}]\n${instr.content}`, source: 'instruction' as const })),
+      ...this.scopedLayer!.filter(m => m.source === 'memory'),
+    ], 'scoped');
     let incremental = history.filter(message => message.source !== 'instruction' && message.source !== 'memory');
     let pruning: PrunedContextResult | undefined;
     if (this.deps.adaptivePruning) {
@@ -228,24 +256,30 @@ export class ContextBuilder {
       },
     }));
 
-    const prefixLayout = new TripartitePrefixBuilder().build({
-      coreRoleInstructions: this.stableLayer[0]!.content,
+    const prefixInputs = { model, providerId, modelProfileHash: versions.modelProfileHash,
+      stable: stableLayer, tools, scoped };
+    const cachedPrefix = this.cache.get('provider-prefix', prefixInputs, () => new TripartitePrefixBuilder().build({
+      coreRoleInstructions: stableLayer[0]!.content,
       architectureConstraints: [],
       toolSchemas: tools.map(tool => tool.function),
       projectRules: scoped.map(message => message.content).join('\n\n'),
-      ephemeralContext: [...incremental.map(message => message.content), volatileMsg.content].filter(Boolean).join('\n\n'),
-    });
+    }));
+    const volatileSuffix = [...incremental.map(message => message.content), volatileMsg.content].filter(Boolean).join('\n\n');
+    const prefixLayout = { ...cachedPrefix, volatileSuffix,
+      fullPrompt: [cachedPrefix.stablePrefix, cachedPrefix.scopedPrefix, volatileSuffix].filter(Boolean).join('\n\n') };
     // Preserve user-level provenance and tool adjacency while enforcing prefix order.
     const messages: ChatMessage[] = [{ role: 'system', content: prefixLayout.stablePrefix }, ...scoped, ...incremental];
     if (volatileMsg.content) messages.push(volatileMsg);
-    const estimateTokens = this.estimate(canonicalJson(messages)) + this.estimate(canonicalJson(tools));
+    const tokenDependencies = { model, providerId, contextWindow: this.deps.contextWindow ?? DEFAULT_CONTEXT_WINDOW, tokenizerVersion: versions.tokenizerVersion };
+    const estimateTokens = this.cache.get('token-estimation', { ...tokenDependencies, messages }, () => this.estimate(canonicalJson(messages)), 'messages')
+      + this.cache.get('token-estimation', { ...tokenDependencies, tools }, () => this.estimate(canonicalJson(tools)), 'tools');
 
     void step;
-    const dependencyHash = crypto.createHash('sha256').update(canonicalJson({ stable: this.stableLayer, scoped, tools, model: this.deps.model })).digest('hex');
-    const requestHash = crypto.createHash('sha256').update(canonicalJson({ model: this.deps.model, messages, tools })).digest('hex');
+    const dependencyHash = crypto.createHash('sha256').update(canonicalJson({ stable: stableLayer, scoped, tools, model, providerId, versions })).digest('hex');
+    const requestHash = crypto.createHash('sha256').update(canonicalJson({ model, messages, tools })).digest('hex');
     return { schemaVersion: 1, sessionId: session.sessionId, projectionRevision: projection.revision,
       basedOnEventSequence: projection.lastEventSequence, requestHash, dependencyHash,
-      model: this.deps.model, messages, tools, estimateTokens, prefixLayout, ...(pruning ? { pruning } : {}) };
+      model, messages, tools, estimateTokens, prefixLayout, cacheLayers: this.cache.snapshot(), ...(pruning ? { pruning } : {}) };
   }
 
   get pressureRatio(): number {

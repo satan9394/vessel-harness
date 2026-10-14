@@ -820,6 +820,12 @@ code {
 
 .model-selector { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; min-width: 0; }
 .model-selector .input { width: auto; max-width: 100%; min-width: 0; }
+.model-capabilities { flex-basis: 100%; }
+.provider-capabilities { flex-basis: 100%; min-width: 0; }
+.capability-status { display: grid; gap: 6px; margin: 10px 0; font-size: 0.85rem; }
+.capability-status > div { display: flex; flex-wrap: wrap; gap: 4px 12px; }
+.capability-status dt { min-width: 140px; font-weight: 600; }
+.capability-status dd { margin: 0; overflow-wrap: anywhere; }
 .model-modes { display: inline-flex; border: 1px solid var(--border); border-radius: 6px; overflow: hidden; }
 .mode-btn { border: 0; border-right: 1px solid var(--border); background: var(--panel); color: var(--text); padding: 4px 10px; cursor: pointer; font-size: 12px; }
 .mode-btn:last-child { border-right: 0; }

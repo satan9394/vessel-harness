@@ -22,10 +22,17 @@ export class SymbolGraphService implements ISymbolGraphService {
   private declarationIds = new WeakMap<ts.Node, string>();
   private names = new WeakSet<ts.Node>();
   private referenceSites = new Map<string, ReferenceSite[]>();
-  private refreshStats = { traversedFiles: [] as string[], checkerLookups: 0 };
+  private refreshStats = { traversedFiles: [] as string[], checkerLookups: 0, moduleResolutions: 0 };
+  private readonly absolutePaths = new Map<string, string>();
+  private readonly relativePaths = new Map<string, string>();
+  private readonly moduleResolutions = new Map<string, ts.ResolvedModule | undefined>();
+  private compilerOptions: ts.CompilerOptions;
+  private resolutionConfiguration: string;
+  private readonly compilerHost: ts.CompilerHost;
+  private indexing: Promise<void> = Promise.resolve();
   /** Diagnostics for verifying incremental work, without exposing mutable graph/cache state. */
-  getRefreshStats(): { traversedFiles: string[]; checkerLookups: number } {
-    return { traversedFiles: [...this.refreshStats.traversedFiles], checkerLookups: this.refreshStats.checkerLookups };
+  getRefreshStats(): { traversedFiles: string[]; checkerLookups: number; moduleResolutions: number } {
+    return { ...this.refreshStats, traversedFiles: [...this.refreshStats.traversedFiles] };
   }
   constructor(private readonly options: {
     workspaceRoot: string;
@@ -33,15 +40,55 @@ export class SymbolGraphService implements ISymbolGraphService {
     /** Explicit compiler path mappings; resolution remains inside the indexed set. */
     paths?: Record<string, string[]>;
     baseUrl?: string;
-  }) {}
+  }) {
+    this.compilerOptions = { noLib: true, allowJs: true, target: ts.ScriptTarget.Latest,
+      moduleResolution: ts.ModuleResolutionKind.Node10, paths: structuredClone(options.paths),
+      baseUrl: path.resolve(options.workspaceRoot, options.baseUrl ?? '.') };
+    this.resolutionConfiguration = JSON.stringify({ paths: options.paths, baseUrl: options.baseUrl });
+    const resolutionHost: ts.ModuleResolutionHost = {
+      fileExists: file => this.sources.has(this.absolute(file)),
+      readFile: file => this.sources.get(this.absolute(file))?.text,
+      directoryExists: directory => [...this.sources.keys()].some(file => file.startsWith(this.absolute(directory) + '/')),
+    };
+    this.compilerHost = {
+      getSourceFile: file => this.sources.get(this.absolute(file)),
+      getDefaultLibFileName: () => '', writeFile: () => {}, getCurrentDirectory: () => options.workspaceRoot,
+      getDirectories: () => [], getCanonicalFileName: file => file, useCaseSensitiveFileNames: () => true,
+      getNewLine: () => '\n', fileExists: resolutionHost.fileExists, readFile: resolutionHost.readFile,
+      resolveModuleNames: (names, containing) => names.map(name => {
+        const key = `${containing}\0${name}`;
+        if (!this.moduleResolutions.has(key)) {
+          this.refreshStats.moduleResolutions++;
+          this.moduleResolutions.set(key, ts.resolveModuleName(name, containing, this.compilerOptions, resolutionHost).resolvedModule);
+        }
+        return this.moduleResolutions.get(key);
+      }),
+    };
+  }
 
-  private absolute(filePath: string): string { return path.resolve(this.options.workspaceRoot, filePath).replace(/\\/g, '/'); }
-  private relative(filePath: string): string { return path.relative(this.options.workspaceRoot, filePath).replace(/\\/g, '/'); }
+  private absolute(filePath: string): string {
+    let absolute = this.absolutePaths.get(filePath);
+    if (absolute === undefined) { absolute = path.resolve(this.options.workspaceRoot, filePath).replace(/\\/g, '/'); this.absolutePaths.set(filePath, absolute); }
+    return absolute;
+  }
+  private relative(filePath: string): string {
+    let relative = this.relativePaths.get(filePath);
+    if (relative === undefined) { relative = path.relative(this.options.workspaceRoot, filePath).replace(/\\/g, '/'); this.relativePaths.set(filePath, relative); }
+    return relative;
+  }
 
-  async indexFiles(filePaths: string[]): Promise<void> {
+  indexFiles(filePaths: string[]): Promise<void> {
+    const paths = [...filePaths];
+    const indexed = this.indexing.then(() => this.indexFilesSerial(paths));
+    this.indexing = indexed.catch(() => {});
+    return indexed;
+  }
+
+  private async indexFilesSerial(filePaths: string[]): Promise<void> {
     const staged = new Map(this.sources);
-    let changed = false;
-    let fileSetChanged = false;
+    const resolutionConfiguration = JSON.stringify({ paths: this.options.paths, baseUrl: this.options.baseUrl });
+    let changed = resolutionConfiguration !== this.resolutionConfiguration;
+    let fileSetChanged = changed;
     const changedFiles = new Set<string>();
     for (const filePath of filePaths) {
       const absolute = this.absolute(filePath);
@@ -49,7 +96,7 @@ export class SymbolGraphService implements ISymbolGraphService {
       if (relative.startsWith('../') || path.isAbsolute(relative)) throw new Error('path outside workspace');
       if (!/\.[cm]?[jt]sx?$/.test(absolute)) throw new Error('TypeScript/JavaScript file required');
       let text: string | undefined;
-      try { text = this.options.readFile ? this.options.readFile(absolute) : fs.readFileSync(absolute, 'utf8'); }
+      try { text = this.options.readFile ? this.options.readFile(absolute) : await fs.promises.readFile(absolute, 'utf8'); }
       catch (error) { if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error; }
       const old = this.sources.get(absolute);
       if (text === undefined) {
@@ -62,11 +109,18 @@ export class SymbolGraphService implements ISymbolGraphService {
       changedFiles.add(relative);
       changed = true;
     }
-    if (changed) { this.sources = staged; this.rebuild(changedFiles, fileSetChanged); }
+    if (changed) {
+      if (resolutionConfiguration !== this.resolutionConfiguration) {
+        this.compilerOptions = { ...this.compilerOptions, paths: structuredClone(this.options.paths),
+          baseUrl: path.resolve(this.options.workspaceRoot, this.options.baseUrl ?? '.') };
+        this.resolutionConfiguration = resolutionConfiguration;
+      }
+      this.sources = staged; this.rebuild(changedFiles, fileSetChanged);
+    }
   }
 
   private rebuild(changedFiles: Set<string>, fileSetChanged: boolean): void {
-    this.refreshStats = { traversedFiles: [...changedFiles].filter(file => this.sources.has(this.absolute(file))), checkerLookups: 0 };
+    this.refreshStats = { traversedFiles: [...changedFiles].filter(file => this.sources.has(this.absolute(file))), checkerLookups: 0, moduleResolutions: 0 };
     // Re-resolve the entire reverse dependency closure, retaining unrelated AST identities/edges.
     // New/removed files can resolve previously missing imports, so file-set changes refresh all files.
     const affected = fileSetChanged ? new Set([...this.sources.keys()].map(file => this.relative(file))) : new Set(changedFiles);
@@ -82,23 +136,9 @@ export class SymbolGraphService implements ISymbolGraphService {
       }
     }
     for (const changed of changedFiles) affected.add(changed);
-    const compilerOptions: ts.CompilerOptions = { noLib: true, allowJs: true, target: ts.ScriptTarget.Latest,
-      moduleResolution: ts.ModuleResolutionKind.Node10, paths: this.options.paths,
-      baseUrl: path.resolve(this.options.workspaceRoot, this.options.baseUrl ?? '.') };
-    const resolutionHost: ts.ModuleResolutionHost = {
-      fileExists: file => this.sources.has(this.absolute(file)),
-      readFile: file => this.sources.get(this.absolute(file))?.text,
-      directoryExists: directory => [...this.sources.keys()].some(file => file.startsWith(this.absolute(directory) + '/')),
-    };
-    const host: ts.CompilerHost = {
-      getSourceFile: file => this.sources.get(this.absolute(file)),
-      getDefaultLibFileName: () => '', writeFile: () => {}, getCurrentDirectory: () => this.options.workspaceRoot,
-      getDirectories: () => [], getCanonicalFileName: file => file, useCaseSensitiveFileNames: () => true,
-      getNewLine: () => '\n', fileExists: file => this.sources.has(this.absolute(file)),
-      readFile: file => this.sources.get(this.absolute(file))?.text,
-      resolveModuleNames: (names, containing) => names.map(name => ts.resolveModuleName(name, containing, compilerOptions, resolutionHost).resolvedModule),
-    };
-    const program = ts.createProgram([...this.sources.keys()], compilerOptions, host, this.program);
+    // Resolution depends on specifier/location and the explicit file set, not declaration text.
+    if (fileSetChanged) this.moduleResolutions.clear();
+    const program = ts.createProgram([...this.sources.keys()], this.compilerOptions, this.compilerHost, fileSetChanged ? undefined : this.program);
     this.program = program;
     const checker = program.getTypeChecker();
     const getSymbol = (node: ts.Node) => { this.refreshStats.checkerLookups++; return checker.getSymbolAtLocation(node); };

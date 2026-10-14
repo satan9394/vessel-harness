@@ -1,0 +1,80 @@
+
+ RUN  v5.0.1 E:/Code_file/Projects/Vessel_Harness
+
+ ❯ packages/llm/src/capabilities.test.ts (13 tests | 3 failed) 52ms
+   ❯ ARC-08 capability negotiation (13)
+     × preserves explicit tools=false with conflicting request (support=true) 31ms
+     × preserves explicit reasoning=false with conflicting request (support=true) 1ms
+     × preserves explicit streaming=false with conflicting request (support=true) 3ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 3 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  packages/llm/src/capabilities.test.ts > ARC-08 capability negotiation > preserves explicit tools=false with conflicting request (support=true)
+ FAIL  packages/llm/src/capabilities.test.ts > ARC-08 capability negotiation > preserves explicit reasoning=false with conflicting request (support=true)
+AssertionError: promise resolved "{ content: 'ok', toolCalls: [], …(4) }" instead of rejecting
+
+- Expected
++ Received
+
+- Error {
+-   "message": "rejected promise",
++ {
++   "content": "ok",
++   "finishReason": "stop",
++   "raw": {
++     "choices": [
++       {
++         "finish_reason": "stop",
++         "message": {
++           "content": "ok",
++         },
++       },
++     ],
++   },
++   "reasoningContent": undefined,
++   "toolCalls": [],
++   "usage": {
++     "cacheReadTokens": undefined,
++     "inputTokens": 0,
++     "outputTokens": 0,
++   },
+  }
+
+ ❯ packages/llm/src/capabilities.test.ts:58:26
+     56|       ? (async () => { for await (const _chunk of provider.stream!(req…
+     57|       : provider.chat(request);
+     58|     await expect(attempt).rejects.toMatchObject({ name: 'CapabilityMis…
+       |                          ^
+     59|     expect(fetchSpy).not.toHaveBeenCalled();
+     60|   });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/3]⎯
+
+ FAIL  packages/llm/src/capabilities.test.ts > ARC-08 capability negotiation > preserves explicit streaming=false with conflicting request (support=true)
+AssertionError: promise resolved "undefined" instead of rejecting
+
+- Expected:
+Error {
+  "message": "rejected promise",
+}
+
++ Received:
+undefined
+
+ ❯ packages/llm/src/capabilities.test.ts:58:26
+     56|       ? (async () => { for await (const _chunk of provider.stream!(req…
+     57|       : provider.chat(request);
+     58|     await expect(attempt).rejects.toMatchObject({ name: 'CapabilityMis…
+       |                          ^
+     59|     expect(fetchSpy).not.toHaveBeenCalled();
+     60|   });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/3]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  3 failed | 10 passed (13)
+   Start at  09:28:04
+   Duration  1.08s (import 47%, transform 44%, tests 6%, setup 2%, worker 1%)
+
+exit=1

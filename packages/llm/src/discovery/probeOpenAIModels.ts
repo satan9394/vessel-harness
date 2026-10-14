@@ -1,3 +1,5 @@
+import type { ProviderCapabilities } from '@vessel/shared';
+import { discoverProviderCapabilities } from '../capabilities.js';
 /**
  * Safe model discovery for OpenAI-compatible providers.
  *
@@ -8,6 +10,7 @@
  */
 
 export interface DiscoveredModel {
+  capabilities?: ProviderCapabilities;
   /** Model identifier as returned by the provider. */
   id: string;
   /** Provider-reported context window, when one is available. */
@@ -151,6 +154,7 @@ function discoverModel(entry: unknown, secret: string): DiscoveredModel | null {
   const model: DiscoveredModel = {
     id,
     supportsReasoning: REASONING_MODEL_PATTERN.test(id),
+    capabilities: discoverProviderCapabilities(entry),
   };
   if (contextWindow !== undefined) model.contextWindow = contextWindow;
   if (ownedBy !== undefined) model.ownedBy = ownedBy;

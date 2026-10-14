@@ -8,6 +8,7 @@
  */
 
 // Team/route/review wire shapes (task 060) — see ./team for the full mirrors.
+import type { ProviderCapabilities } from '@vessel/shared';
 import type { ReviewRecord, RouteMode, RouteState, TeamRunState } from './team';
 // Goal/Loop wire shapes (task 065) — see ./goal for the full mirrors.
 import type { GoalBudget, GoalIteration, GoalRunResult, GoalTask } from './goal';
@@ -78,12 +79,13 @@ export interface ProviderInfo {
   apiKeyMasked: string;
   models: string[];
   isDefault?: boolean;
+  modelCapabilities?: Record<string, ProviderCapabilities>;
 }
-export interface AddProviderInput { name: string; protocol: ProviderInfo['protocol']; baseUrl: string; apiKey: string; models: string[] }
-export interface ModelOption { id: string; name: string; providerName: string; protocol: string }
-export interface TestProviderResult { ok: boolean; latencyMs?: number; availableModels?: string[]; error?: string }
+export interface AddProviderInput { name: string; protocol: ProviderInfo['protocol']; baseUrl: string; apiKey: string; models: string[]; modelCapabilities?: Record<string, ProviderCapabilities> }
+export interface ModelOption { id: string; name: string; providerName: string; protocol: string; capabilities?: ProviderCapabilities }
+export interface TestProviderResult { ok: boolean; latencyMs?: number; availableModels?: string[]; modelCapabilities?: Record<string, ProviderCapabilities>; error?: string }
 /** 「一键拉取模型」结果（task 215）：真实探测 `/v1/models` 后的可用模型清单。 */
-export interface PullModelsResult { ok: boolean; latencyMs?: number; models?: string[]; error?: string }
+export interface PullModelsResult { ok: boolean; latencyMs?: number; models?: string[]; modelCapabilities?: Record<string, ProviderCapabilities>; error?: string }
 
 /** HTTP + JSON errors from the server are surfaced together for the UI. */
 export class ApiError extends Error {

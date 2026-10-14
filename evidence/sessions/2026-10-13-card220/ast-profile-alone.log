@@ -1,0 +1,146 @@
+{
+  "command": "node --import tsx evidence/sessions/2026-10-08-v2.3/card197-check.ts",
+  "fixtureFiles": [
+    "api.ts",
+    "barrel.ts",
+    "caller.ts",
+    "noise.ts"
+  ],
+  "precision": 1,
+  "expectedCallers": [
+    "caller.ts#caller",
+    "caller.ts#execute"
+  ],
+  "actualCallers": [
+    "caller.ts#caller",
+    "caller.ts#execute"
+  ],
+  "warmupEdits": 8,
+  "measuredEdits": 12,
+  "samplesMs": [
+    18.890499999999975,
+    3.7205999999998767,
+    14.600500000000011,
+    15.124599999999873,
+    3.845700000000079,
+    16.278800000000047,
+    13.664700000000039,
+    13.465200000000095,
+    17.762300000000096,
+    12.909400000000005,
+    12.525699999999915,
+    14.508399999999938
+  ],
+  "maximumMs": 18.890499999999975,
+  "meanMs": 13.10803333333333,
+  "timingScope": "UTF-8 source read, parse changed file, rebuild/check cached explicit files and resolve all graph edges; excludes disk write and subsequent assertions"
+}
+{
+  "compilerMeasures": {
+    "Parse": 28.7533999999996,
+    "ResolveModule": 3.529700000000048,
+    "Program": 20.74310000000014,
+    "Bind": 11.938500000000886
+  },
+  "fixtureReads": [
+    {
+      "file": "C:/Users/SATANC~1/AppData/Local/Temp/vessel-card197-proof-AdZwcO/api.ts",
+      "durationMs": 7.578999999999951
+    },
+    {
+      "file": "C:/Users/SATANC~1/AppData/Local/Temp/vessel-card197-proof-AdZwcO/barrel.ts",
+      "durationMs": 0.6928000000000338
+    },
+    {
+      "file": "C:/Users/SATANC~1/AppData/Local/Temp/vessel-card197-proof-AdZwcO/caller.ts",
+      "durationMs": 0.6927000000000589
+    },
+    {
+      "file": "C:/Users/SATANC~1/AppData/Local/Temp/vessel-card197-proof-AdZwcO/noise.ts",
+      "durationMs": 0.6005000000000109
+    },
+    {
+      "file": "C:/Users/SATANC~1/AppData/Local/Temp/vessel-card197-proof-AdZwcO/api.ts",
+      "durationMs": 1.5851000000000113
+    },
+    {
+      "file": "C:/Users/SATANC~1/AppData/Local/Temp/vessel-card197-proof-AdZwcO/api.ts",
+      "durationMs": 16.653600000000097
+    },
+    {
+      "file": "C:/Users/SATANC~1/AppData/Local/Temp/vessel-card197-proof-AdZwcO/api.ts",
+      "durationMs": 20.615600000000086
+    },
+    {
+      "file": "C:/Users/SATANC~1/AppData/Local/Temp/vessel-card197-proof-AdZwcO/api.ts",
+      "durationMs": 2.487600000000157
+    },
+    {
+      "file": "C:/Users/SATANC~1/AppData/Local/Temp/vessel-card197-proof-AdZwcO/api.ts",
+      "durationMs": 12.604399999999941
+    },
+    {
+      "file": "C:/Users/SATANC~1/AppData/Local/Temp/vessel-card197-proof-AdZwcO/api.ts",
+      "durationMs": 1.5226000000000113
+    },
+    {
+      "file": "C:/Users/SATANC~1/AppData/Local/Temp/vessel-card197-proof-AdZwcO/api.ts",
+      "durationMs": 12.43269999999984
+    },
+    {
+      "file": "C:/Users/SATANC~1/AppData/Local/Temp/vessel-card197-proof-AdZwcO/api.ts",
+      "durationMs": 14.332900000000109
+    },
+    {
+      "file": "C:/Users/SATANC~1/AppData/Local/Temp/vessel-card197-proof-AdZwcO/api.ts",
+      "durationMs": 14.821500000000015
+    },
+    {
+      "file": "C:/Users/SATANC~1/AppData/Local/Temp/vessel-card197-proof-AdZwcO/api.ts",
+      "durationMs": 1.3332000000000335
+    },
+    {
+      "file": "C:/Users/SATANC~1/AppData/Local/Temp/vessel-card197-proof-AdZwcO/api.ts",
+      "durationMs": 12.642700000000104
+    },
+    {
+      "file": "C:/Users/SATANC~1/AppData/Local/Temp/vessel-card197-proof-AdZwcO/api.ts",
+      "durationMs": 13.035399999999981
+    },
+    {
+      "file": "C:/Users/SATANC~1/AppData/Local/Temp/vessel-card197-proof-AdZwcO/api.ts",
+      "durationMs": 1.5705000000000382
+    },
+    {
+      "file": "C:/Users/SATANC~1/AppData/Local/Temp/vessel-card197-proof-AdZwcO/api.ts",
+      "durationMs": 14.194400000000087
+    },
+    {
+      "file": "C:/Users/SATANC~1/AppData/Local/Temp/vessel-card197-proof-AdZwcO/api.ts",
+      "durationMs": 11.558399999999892
+    },
+    {
+      "file": "C:/Users/SATANC~1/AppData/Local/Temp/vessel-card197-proof-AdZwcO/api.ts",
+      "durationMs": 11.735300000000052
+    },
+    {
+      "file": "C:/Users/SATANC~1/AppData/Local/Temp/vessel-card197-proof-AdZwcO/api.ts",
+      "durationMs": 11.083899999999858
+    },
+    {
+      "file": "C:/Users/SATANC~1/AppData/Local/Temp/vessel-card197-proof-AdZwcO/api.ts",
+      "durationMs": 11.47770000000014
+    },
+    {
+      "file": "C:/Users/SATANC~1/AppData/Local/Temp/vessel-card197-proof-AdZwcO/api.ts",
+      "durationMs": 10.837099999999964
+    },
+    {
+      "file": "C:/Users/SATANC~1/AppData/Local/Temp/vessel-card197-proof-AdZwcO/api.ts",
+      "durationMs": 12.773699999999963
+    }
+  ],
+  "totalReadMs": 218.86330000000044,
+  "processPlatform": "win32",
+  "nodeVersion": "v24.14.0"
+}

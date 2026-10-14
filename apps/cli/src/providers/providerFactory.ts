@@ -6,7 +6,7 @@ import {
   OPENCODE_GO_PROVIDER_ID,
   type OpencodeGoErrorKind,
 } from '@vessel/llm';
-import type { ChatProvider } from '@vessel/shared';
+import type { ChatProvider, ProviderCapabilities } from '@vessel/shared';
 import { findPreset } from '@vessel/application';
 
 /**
@@ -35,6 +35,7 @@ export const REAL_PROVIDER_NAMES: ReadonlySet<string> = new Set<string>([
 
 /** 已存供应商配置的最小面（ProviderStore.ProviderConfig 的子集）。 */
 export interface ProviderPlanConfig {
+  modelCapabilities?: Record<string, ProviderCapabilities>;
   id?: string;
   protocol?: string;
   baseUrl?: string;
@@ -55,6 +56,7 @@ export interface ProviderPlanInput {
 
 /** 解析结果：给 `createProvider` 用的 provider 名 + 端点参数。 */
 export interface ProviderPlan {
+  modelCapabilities?: Record<string, ProviderCapabilities>;
   /** provider 名（可能是 `opencode-go`；mock 为 'mock'） */
   providerName: string;
   baseUrl: string | undefined;
@@ -109,6 +111,8 @@ export function planProvider(input: ProviderPlanInput): ProviderPlan {
   return {
     providerName,
     baseUrl,
+    ...(input.config?.modelCapabilities && baseUrl === input.config.baseUrl && providerName === providerNameForConfig(input.config)
+      ? { modelCapabilities: input.config.modelCapabilities } : {}),
     apiKey: input.apiKey ?? input.config?.apiKey,
     // 空串/纯空白的 model ⇒ 与「未设置该来源」完全相同：继续落下一级，最后落既有常量。
     model: unsetIfBlank(input.model) ?? unsetIfBlank(input.config?.model) ?? 'mock-model',
@@ -134,6 +138,7 @@ export function buildRealProvider(plan: ProviderPlan, opts: { sessionId?: string
     baseUrl: plan.baseUrl,
     apiKey: plan.apiKey,
     model: plan.model,
+    modelCapabilities: plan.modelCapabilities,
     ...(opts.sessionId ? { sessionId: opts.sessionId } : {}),
   });
 }

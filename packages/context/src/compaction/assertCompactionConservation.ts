@@ -1,22 +1,31 @@
 import type { CompactionConservationCheckInput } from '@vessel/shared';
 
 export class CompactionConservationError extends Error {
-  constructor(public readonly violationType: 'goal_lost' | 'denial_lost' | 'orphaned_tool_call' | 'orphaned_tool_result', message: string) {
+  constructor(public readonly violationType: 'goal_lost' | 'constraint_lost' | 'latest_instruction_lost' | 'denial_lost' | 'tool_pair_lost' | 'orphaned_tool_call' | 'orphaned_tool_result', message: string) {
     super(`Compaction conservation violation [${violationType}]: ${message}`);
     this.name = 'CompactionConservationError';
   }
 }
 
 export function assertCompactionConservation(input: CompactionConservationCheckInput): void {
+  const preservedText = input.compactedMessages.map(message => String(message.content ?? '')).join('\n');
   const originalGoal = input.originalMessages.find(message => message.role === 'system' || message.role === 'user');
   const goal = input.preservedGoalPrefix ?? (typeof originalGoal?.content === 'string' ? originalGoal.content : undefined);
-  if (goal && !String(input.compactedMessages[0]?.content ?? '').includes(goal)) {
+  if (goal && !preservedText.includes(goal)) {
     throw new CompactionConservationError('goal_lost', 'Missing original goal');
   }
   for (const message of input.originalMessages) {
     if (message.metadata?.preserveVerbatim === true && typeof message.content === 'string'
-      && !String(input.compactedMessages[0]?.content ?? '').includes(message.content)) {
-      throw new CompactionConservationError('goal_lost', 'Missing preserved user constraint');
+      && !preservedText.includes(message.content)) {
+      throw new CompactionConservationError('constraint_lost', 'Missing preserved user constraint');
+    }
+  }
+  if (input.latestInstruction && !preservedText.includes(input.latestInstruction)) {
+    throw new CompactionConservationError('latest_instruction_lost', 'Missing latest instruction');
+  }
+  for (const pair of input.requiredToolPairs ?? []) {
+    if (!preservedText.includes(pair.callText) || !preservedText.includes(pair.resultText)) {
+      throw new CompactionConservationError('tool_pair_lost', pair.toolCallId);
     }
   }
   const references = input.compactedMessages.flatMap(message => {

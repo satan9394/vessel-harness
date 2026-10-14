@@ -1,0 +1,27 @@
+
+ RUN  v5.0.1 E:/Code_file/Projects/Vessel_Harness
+
+ ❯ packages/context/tests/ast/symbolGraph.test.ts (16 tests | 1 failed) 2806ms
+   ❯ exact AST symbol graph (16)
+     × reads same-size rewrites, replacement, removal and recreation from fresh bytes 101ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  packages/context/tests/ast/symbolGraph.test.ts > exact AST symbol graph > reads same-size rewrites, replacement, removal and recreation from fresh bytes
+Error: EPERM: operation not permitted, rename 'C:\Users\SATANC~1\AppData\Local\Temp\vessel-ast-5ys6Fm\replacement.ts' -> 'C:\Users\SATANC~1\AppData\Local\Temp\vessel-ast-5ys6Fm\fresh.ts'
+ ❯ packages/context/tests/ast/symbolGraph.test.ts:35:8
+     33|     const replacement = path.join(root, 'replacement.ts');
+     34|     fs.writeFileSync(replacement, 'export const third = 3;');
+     35|     fs.renameSync(replacement, file);
+       |        ^
+     36|     await graph.indexFiles(['fresh.ts']);
+     37|     expect(await graph.findSymbols({ symbolName: 'other' })).toEqual([…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed | 1 passed (2)
+      Tests  1 failed | 19 passed (20)
+   Start at  17:51:33
+   Duration  5.68s (tests 58%, import 24%, transform 17%, setup 1%)
+

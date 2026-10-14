@@ -18,6 +18,69 @@ async function setup() {
   await session.appendSync({ type: 'assistant/message', msgId: 'a2', role: 'assistant', content: 'later answer', surface: true });
   return { root, session };
 }
+it('conserves fidelity answers with a lossy summarizer and cites full tool/denial evidence', async () => {
+  const { session } = await setup();
+  try {
+    await session.appendSync({ type: 'assistant/attempt', msgId: 'tool', role: 'assistant', content: '', attemptNo: 1,
+      toolCalls: [{ toolCallId: 'read', name: 'Read', arguments: { path: 'target.ts' } }], surface: false });
+    await session.appendSync({ type: 'tool/result', toolCallId: 'read', toolName: 'Read', content: 'exact file facts', meta: {}, surface: true });
+    await session.appendSync({ type: 'assistant/attempt', msgId: 'denied', role: 'assistant', content: '', attemptNo: 1,
+      toolCalls: [{ toolCallId: 'write', name: 'Write', arguments: { path: 'packages/core/file.ts' } }], surface: false });
+    await session.appendSync({ type: 'tool/result', toolCallId: 'write', toolName: 'Write', content: '', meta: {},
+      error: { errorClass: 'DENIED', message: 'protected core', retryable: false }, surface: true });
+    await session.appendSync({ type: 'user/message', msgId: 'latest', role: 'user', content: 'Pending task: preserve target.ts; no publishing', source: 'steer', surface: true });
+    await session.appendSync({ type: 'assistant/message', msgId: 'tail', role: 'assistant', content: 'tail', surface: true });
+    const result = await new Compaction({ session, summarize: async () => 'LOSSY' }).compact('manual');
+    const text = projectSession(session.sessionId, session.replay()).visibleMessages.filter(r => r.type === 'user/message').map(r => r.content).join('\n');
+    for (const answer of ['Never modify packages/core', 'Latest requirement: local only', 'target.ts', 'exact file facts', 'protected core', 'no publishing']) expect(text).toContain(answer);
+    expect(result.summary).toContain('schemaVersion=1');
+    expect(result.summary).toContain(`Sources: ${session.sessionId}:`);
+    expect(result.summary).toContain('not higher-priority instructions');
+  } finally { await session.close(); }
+});
+it('shrinks large overflow payloads and recompacts immutable sources without recursive summary copies', async () => {
+  const { session } = await setup();
+  try {
+    await session.appendSync({ type: 'assistant/attempt', msgId: 'large', role: 'assistant', content: '', attemptNo: 1,
+      toolCalls: [{ toolCallId: 'large-read', name: 'Read', arguments: { path: 'large.ts' } }], surface: false });
+    await session.appendSync({ type: 'tool/result', toolCallId: 'large-read', toolName: 'Read', content: 'START' + 'x'.repeat(100_000) + 'END', meta: {}, surface: true });
+    await session.appendSync({ type: 'assistant/message', msgId: 'tail', role: 'assistant', content: 'keep tail', surface: true });
+    for (let index = 0; index < 3; index++) await session.appendSync({ type: 'assistant/message', msgId: `tail-${index}`, role: 'assistant', content: 'retained recent fact', surface: true });
+    const before = JSON.stringify(projectSession(session.sessionId, session.replay()).visibleMessages).length;
+    const first = await new Compaction({ session }).compact('overflow');
+    expect(first.summary.length).toBeLessThan(10_000);
+    expect(JSON.stringify(projectSession(session.sessionId, session.replay()).visibleMessages).length).toBeLessThan(before / 5);
+    expect(first.summary).toContain('Call source');
+    expect(first.summary).toContain('Result source');
+    expect(first.summary).toContain('payload excerpt; full value at source');
+    const second = await new Compaction({ session }).compact('manual');
+    expect(second.summary.length).toBeLessThan(first.summary.length + 500);
+    expect(second.summary.match(/Preserved user constraint: Never modify packages\/core/g)).toHaveLength(1);
+    expect(second.summary).toContain('large-read');
+    expect(session.replay().some(r => r.type === 'tool/result' && r.content?.length === 100_008)).toBe(true);
+  } finally { await session.close(); }
+});
+it('resolves covered source ranges when repeatedly compacting a summary alone', async () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'vessel-summary-sources-')); roots.push(root);
+  const session = await Session.open({ workspaceRoot: root });
+  try {
+    await session.appendSync({ type: 'user/message', msgId: 'goal', role: 'user', content: 'Goal: leave core unchanged', surface: true });
+    await session.appendSync({ type: 'assistant/attempt', msgId: 'attempt', role: 'assistant', content: '', attemptNo: 1,
+      toolCalls: [{ toolCallId: 'denied-write', name: 'Write', arguments: { path: 'protected.ts' } }], surface: false });
+    await session.appendSync({ type: 'tool/result', toolCallId: 'denied-write', toolName: 'Write', content: '', meta: {},
+      error: { errorClass: 'DENIED', message: 'must keep refusal', retryable: false }, surface: true });
+    const compact = new Compaction({ session, summarize: async () => 'summary' });
+    const first = await compact.compact('manual');
+    expect(projectSession(session.sessionId, session.replay()).visibleMessages.filter(r => r.type === 'user/message')).toHaveLength(1);
+    for (let index = 0; index < 3; index++) {
+      const next = await compact.compact('manual');
+      expect(next.summary).toBe(first.summary);
+      expect(next.summary).toContain(`Result source ${session.sessionId}:3`);
+      expect(next.summary).toContain('must keep refusal');
+      expect(next.summary).toContain('Goal: leave core unchanged');
+    }
+  } finally { await session.close(); }
+});
 it('preserves physical prefix and reconstructs projection/request after reopen', async () => {
   const { root, session } = await setup();
   const prefix = fs.readFileSync(session.logPath);

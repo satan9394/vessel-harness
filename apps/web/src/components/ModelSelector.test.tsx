@@ -1,5 +1,6 @@
 import { isValidElement, type ReactElement, type ReactNode } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import CapabilityStatus from './providers/CapabilityStatus';
 import ModelSelector from './ModelSelector';
 import { ApiError, type ApiClient } from '../api';
 import { translate } from '../i18n';
@@ -27,6 +28,12 @@ describe('ModelSelector actual session models', () => {
     render(); await settle(); expect(selector().props.value).toBe(JSON.stringify(['alpha', 'a']));
     expect(render().filter(node => node.type === 'option').map(node => node.props.children)).toEqual([['alpha', ' / ', 'a'], ['beta', ' / ', 'b']]);
     await select(); expect(api.switchSessionModel).toHaveBeenCalledWith('s1', { provider: 'beta', model: 'b' }); expect(selector().props.value).toBe(JSON.stringify(['beta', 'b'])); expect(onUpdated).toHaveBeenCalledOnce();
+  });
+  it('uses the selected model backend capability snapshot', async () => {
+    const capabilities = { tools: { status: 'declared', value: false } } as import('@vessel/shared').ProviderCapabilities;
+    vi.mocked(api.listModels).mockResolvedValue({ models: [{ ...models[0]!, capabilities }, models[1]!] });
+    render(); await settle(); expect(render().find(node => node.type === CapabilityStatus)?.props.capabilities).toBe(capabilities);
+    await select(); expect(render().find(node => node.type === CapabilityStatus)?.props.capabilities).toBeUndefined();
   });
   it('keeps selection after failed switch and translates busy errors', async () => {
     vi.mocked(api.switchSessionModel).mockRejectedValue(new ApiError('session_busy', 409, { error: 'session_busy' }));

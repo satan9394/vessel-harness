@@ -1,0 +1,123 @@
+=== synchronous: exact original fixture and thresholds ===
+{
+  "command": "node --import tsx evidence/sessions/2026-10-08-v2.3/card197-check.ts",
+  "fixtureFiles": [
+    "api.ts",
+    "barrel.ts",
+    "caller.ts",
+    "noise.ts"
+  ],
+  "precision": 1,
+  "expectedCallers": [
+    "caller.ts#caller",
+    "caller.ts#execute"
+  ],
+  "actualCallers": [
+    "caller.ts#caller",
+    "caller.ts#execute"
+  ],
+  "warmupEdits": 8,
+  "measuredEdits": 12,
+  "samplesMs": [
+    11.22709999999995,
+    2.4242000000000417,
+    11.254299999999944,
+    2.5687000000000353,
+    10.013400000000047,
+    2.607499999999959,
+    2.2087000000000216,
+    12.083799999999997,
+    2.8285999999999376,
+    4.338300000000004,
+    3.3333999999999833,
+    8.738500000000045
+  ],
+  "maximumMs": 12.083799999999997,
+  "meanMs": 6.135541666666664,
+  "timingScope": "UTF-8 source read, parse changed file, rebuild/check cached explicit files and resolve all graph edges; excludes disk write and subsequent assertions"
+}
+
+
+exit=0
+=== awaited-utf8: exact original fixture and thresholds ===
+{
+  "command": "node --import tsx evidence/sessions/2026-10-08-v2.3/card197-check.ts",
+  "fixtureFiles": [
+    "api.ts",
+    "barrel.ts",
+    "caller.ts",
+    "noise.ts"
+  ],
+  "precision": 1,
+  "expectedCallers": [
+    "caller.ts#caller",
+    "caller.ts#execute"
+  ],
+  "actualCallers": [
+    "caller.ts#caller",
+    "caller.ts#execute"
+  ],
+  "warmupEdits": 8,
+  "measuredEdits": 12,
+  "samplesMs": [
+    3.1178999999999633,
+    3.9745999999998958,
+    3.109899999999925,
+    4.688800000000015,
+    8.203000000000088,
+    3.2940999999999576,
+    2.4443999999999733,
+    2.548599999999965,
+    4.813099999999963,
+    2.9969999999999573,
+    3.1092000000001008,
+    2.550200000000018
+  ],
+  "maximumMs": 8.203000000000088,
+  "meanMs": 3.737566666666652,
+  "timingScope": "UTF-8 source read, parse changed file, rebuild/check cached explicit files and resolve all graph edges; excludes disk write and subsequent assertions"
+}
+
+
+exit=0
+=== awaited-buffer: exact original fixture and thresholds ===
+{
+  "command": "node --import tsx evidence/sessions/2026-10-08-v2.3/card197-check.ts",
+  "fixtureFiles": [
+    "api.ts",
+    "barrel.ts",
+    "caller.ts",
+    "noise.ts"
+  ],
+  "precision": 1,
+  "expectedCallers": [
+    "caller.ts#caller",
+    "caller.ts#execute"
+  ],
+  "actualCallers": [
+    "caller.ts#caller",
+    "caller.ts#execute"
+  ],
+  "warmupEdits": 8,
+  "measuredEdits": 12,
+  "samplesMs": [
+    2.982399999999984,
+    3.0903999999999314,
+    4.7195999999999,
+    7.8840999999999894,
+    2.978399999999965,
+    2.99350000000004,
+    3.350900000000024,
+    2.5114000000000942,
+    2.624500000000012,
+    2.647100000000023,
+    3.913799999999924,
+    2.6416000000000395
+  ],
+  "maximumMs": 7.8840999999999894,
+  "meanMs": 3.5281416666666607,
+  "timingScope": "UTF-8 source read, parse changed file, rebuild/check cached explicit files and resolve all graph edges; excludes disk write and subsequent assertions"
+}
+
+
+exit=0

@@ -1,3 +1,5 @@
+import { capabilitiesFor, negotiateRequest } from '../capabilities.js';
+import type { ProviderCapabilities } from '@vessel/shared';
 import { extractProviderCacheMetrics } from '@vessel/shared';
 import { canonicalJson } from '../canonical/canonicalJson.js';
 import type {
@@ -69,6 +71,8 @@ interface AnthropicResponseContentBlock {
 }
 
 export interface AnthropicProviderOptions {
+  capabilities?: Partial<ProviderCapabilities>;
+  modelCapabilities?: Record<string, ProviderCapabilities>;
   baseUrl: string;
   apiKey?: string;
   model: string;
@@ -358,7 +362,10 @@ export class AnthropicProvider implements ChatProvider {
 
   constructor(private readonly opts: AnthropicProviderOptions) {}
 
+  get capabilities(): ProviderCapabilities { return capabilitiesFor(this.id, this.opts.model, this.opts.modelCapabilities?.[this.opts.model] ?? this.opts.capabilities); }
+
   async chat(request: ChatRequest): Promise<ChatResponse> {
+    negotiateRequest(this.id, { ...request, model: request.model || (this.opts.model) }, capabilitiesFor(this.id, request.model || (this.opts.model), this.opts.modelCapabilities?.[request.model || (this.opts.model)] ?? this.opts.capabilities));
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), this.opts.timeoutMs ?? 60_000);
     // task 050: forward the turn-level signal onto the fetch controller
@@ -460,6 +467,7 @@ export class AnthropicProvider implements ChatProvider {
    * StreamChunk[]. Does not change chat()'s one-shot behavior.
    */
   async *stream(request: ChatRequest): AsyncGenerator<StreamChunk> {
+    negotiateRequest(this.id, { ...request, model: request.model || (this.opts.model) }, capabilitiesFor(this.id, request.model || (this.opts.model), this.opts.modelCapabilities?.[request.model || (this.opts.model)] ?? this.opts.capabilities), true);
     const url = this.opts.baseUrl.replace(/\/$/, '') + '/v1/messages';
     const { system, rest } = splitSystem(request.messages);
     const headers: Record<string, string> = {

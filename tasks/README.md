@@ -110,9 +110,12 @@
 | Vessel 架构整改与实施规范落地 (Architecture Improvement Plan Implementation) | 217 | 已验证（已合入本地提交 `6442171`；双 Root 3219 passed / 6 skipped） | `tasks/217-architecture-improvement-plan-implementation.md` |
 | Vessel Web UI/UX 工作台整改规范落地 (Web UI/UX Workbench Improvement) | 218 | 已验证（已合入本地提交 `26ba6fe`；双 Root 3228 passed / 6 skipped） | `tasks/218-web-ui-ux-workbench-improvement-implementation.md` |
 | 全量功能端到端交互与真实点击测试套件 (Full Surface Click-Testing Suite) | 219 | 已验证（2026-10-13；交证即停） | `tasks/219-full-surface-interactive-click-testing-suite.md` |
+| Provider 能力协商契约与 Context 分层版本化缓存落地 (Provider Capability Contract & Context Layered Cache) | 220 | 已验证（2026-10-13；交证即停） | `tasks/220-provider-capability-contract-and-layered-cache.md` |
 
 ## 未闭合 / 下一目标
 
+- **最近已交付：任务 220 Provider 能力协商契约与 Context 分层版本化缓存落地**：
+  - 验收入口：`tasks/220-provider-capability-contract-and-layered-cache.md`；证据与限制：`evidence/sessions/2026-10-13-card220/PROOF.md`。standard 闭环，交证即停；等待人类验收。
 - **最近已交付：任务 219 全量功能端到端交互与真实点击测试套件**：
   - 验收入口：`tasks/219-full-surface-interactive-click-testing-suite.md`；证据与限制：`evidence/sessions/2026-10-13-card219/PROOF.md`。standard 闭环，交证即停。
 - **最近已交付（已合入本地提交 `26ba6fe`）：任务 218 Web UI/UX 工作台整改规范落地**：

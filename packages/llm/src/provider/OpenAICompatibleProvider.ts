@@ -1,3 +1,5 @@
+import { capabilitiesFor, negotiateRequest } from '../capabilities.js';
+import type { ProviderCapabilities } from '@vessel/shared';
 import { extractProviderCacheMetrics } from '@vessel/shared';
 import { canonicalJson } from '../canonical/canonicalJson.js';
 import type {
@@ -68,6 +70,8 @@ interface OpenAIResponseBody {
 }
 
 export interface OpenAICompatibleOptions {
+  capabilities?: Partial<ProviderCapabilities>;
+  modelCapabilities?: Record<string, ProviderCapabilities>;
   baseUrl: string;
   apiKey?: string;
   model: string;
@@ -119,7 +123,10 @@ export class OpenAICompatibleProvider implements ChatProvider {
 
   constructor(private readonly opts: OpenAICompatibleOptions) {}
 
+  get capabilities(): ProviderCapabilities { return capabilitiesFor(this.id, this.opts.model, this.opts.modelCapabilities?.[this.opts.model] ?? this.opts.capabilities); }
+
   async chat(request: ChatRequest): Promise<ChatResponse> {
+    negotiateRequest(this.id, { ...request, model: request.model || (this.opts.model) }, capabilitiesFor(this.id, request.model || (this.opts.model), this.opts.modelCapabilities?.[request.model || (this.opts.model)] ?? this.opts.capabilities));
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), this.opts.timeoutMs ?? 60_000);
     // task 050: forward the turn-level signal onto the fetch controller
@@ -213,6 +220,7 @@ export class OpenAICompatibleProvider implements ChatProvider {
    * typed StreamChunk[]. Does not change chat()'s one-shot behavior.
    */
   async *stream(request: ChatRequest): AsyncGenerator<StreamChunk> {
+    negotiateRequest(this.id, { ...request, model: request.model || (this.opts.model) }, capabilitiesFor(this.id, request.model || (this.opts.model), this.opts.modelCapabilities?.[request.model || (this.opts.model)] ?? this.opts.capabilities), true);
     const url = this.opts.baseUrl.replace(/\/$/, '') + '/chat/completions';
     const headers: Record<string, string> = { 'Content-Type': 'application/json' };
     if (this.opts.apiKey) headers.Authorization = `Bearer ${this.opts.apiKey}`;

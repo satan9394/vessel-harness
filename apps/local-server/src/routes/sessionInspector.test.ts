@@ -3,6 +3,16 @@ import { SessionInspector } from './sessionInspector.js';
 const payload = { envelope: { prefixLayout: { stablePrefix: '秘密', scopedPrefix: 'rules', volatileSuffix: 'now', prefixByteHash: 'a'.repeat(64) } } };
 const workspace = { timestamp: 1, trackedFilesHash: 'b'.repeat(64), fileCount: 2, uncommittedDiffBytes: 3 };
 describe('session inspector telemetry', () => {
+  it('projects all cache layers and revision without cached contents or arbitrary properties', () => {
+    const cacheLayers = ['assembly', 'provider-prefix', 'projection', 'token-estimation'].map(layer => ({ layer, dependencyHash: 'c'.repeat(64), hits: 2, misses: 1, invalidations: 0, entries: 1, content: 'private prompt' }));
+    const inspector = new SessionInspector(); const receive = vi.fn(); inspector.subscribe('a', receive);
+    inspector.observe('a', { envelope: { ...payload.envelope, cacheLayers, projectionRevision: 3 } }, '/fixture');
+    expect(receive.mock.lastCall?.[0]).toMatchObject({ projectionRevision: 3, cacheLayers: cacheLayers.map(({ content: _, ...layer }) => layer) });
+    expect(JSON.stringify(receive.mock.calls)).not.toContain('private prompt');
+    inspector.observe('a', { envelope: { ...payload.envelope, cacheLayers: [{ layer: 'assembly', dependencyHash: 'secret' }], projectionRevision: -1 } }, '/fixture');
+    expect(receive.mock.lastCall?.[0].cacheLayers).toBeUndefined();
+    expect(receive.mock.lastCall?.[0].projectionRevision).toBeUndefined(); inspector.close();
+  });
   it('publishes byte counts and distinct hashes without prompt contents; replays only its session', async () => {
     const inspector = new SessionInspector(async () => workspace);
     const receive = vi.fn(); inspector.subscribe('a', receive);

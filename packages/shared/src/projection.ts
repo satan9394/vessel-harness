@@ -8,6 +8,11 @@ export function markProjectionPublicationUncertain(event: SessionRecord): void {
   uncertainPublications.add(event);
 }
 
+/** Identity-bound uncertainty must be checked even when a derived projection is cached. */
+export function assertProjectionPublicationKnown(events: readonly SessionRecord[]): void {
+  if (events.some(event => uncertainPublications.has(event))) throw new Error('Projection publication outcome unknown; reopen session before continuing');
+}
+
 /** Derived view. The event log is never rewritten when this revision changes. */
 export interface SessionProjection {
   readonly sessionId: string;
@@ -40,6 +45,8 @@ export interface CompactionConservationCheckInput {
   readonly compactedMessages: readonly ConservationMessage[];
   readonly preservedGoalPrefix?: string;
   readonly requiredDenialEventIds?: readonly string[];
+  readonly requiredToolPairs?: readonly { toolCallId: string; callText: string; resultText: string }[];
+  readonly latestInstruction?: string;
 }
 
 export interface ConservationMessage {
@@ -52,7 +59,7 @@ export interface ConservationMessage {
 
 /** A committed event is the atomic publication; replay needs no mutable sidecar. */
 export function projectSession(sessionId: string, events: readonly SessionRecord[]): SessionProjection {
-  if (events.some(event => uncertainPublications.has(event))) throw new Error('Projection publication outcome unknown; reopen session before continuing');
+  assertProjectionPublicationKnown(events);
   let records = [...events];
   let revision = 0;
   const compactedRanges: { startSeq: number; endSeq: number; summary: string }[] = [];

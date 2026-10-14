@@ -1,3 +1,5 @@
+import { capabilitiesFor, negotiateRequest } from '../capabilities.js';
+import type { ProviderCapabilities } from '@vessel/shared';
 import {
   INJECTED_MESSAGE_SOURCES,
   type ChatMessage,
@@ -29,6 +31,8 @@ export interface MockScriptEntry {
 }
 
 export interface MockProviderOptions {
+  capabilities?: Partial<ProviderCapabilities>;
+  modelCapabilities?: Record<string, ProviderCapabilities>;
   model?: string;
   /** placeholder substitution in tool arguments, e.g. {cwd} */
   vars?: Record<string, string>;
@@ -113,7 +117,10 @@ export class MockProvider implements ChatProvider {
     return { entry: this.script.find((e) => this.matches(e, ctx)), ctx };
   }
 
+  get capabilities(): ProviderCapabilities { return capabilitiesFor(this.id, this.opts.model, this.opts.capabilities); }
+
   async chat(request: ChatRequest): Promise<ChatResponse> {
+    negotiateRequest(this.id, { ...request, model: request.model || (this.opts.model ?? 'mock-model') }, capabilitiesFor(this.id, request.model || (this.opts.model ?? 'mock-model'), this.opts.modelCapabilities?.[request.model || (this.opts.model ?? 'mock-model')] ?? this.opts.capabilities));
     const { entry, ctx } = this.resolve(request);
     const model = this.opts.model ?? 'mock-model';
 
@@ -161,6 +168,7 @@ export class MockProvider implements ChatProvider {
    * synchronously, mirroring the script resolution used by chat().
    */
   async *stream(request: ChatRequest): AsyncGenerator<StreamChunk> {
+    negotiateRequest(this.id, { ...request, model: request.model || (this.opts.model ?? 'mock-model') }, capabilitiesFor(this.id, request.model || (this.opts.model ?? 'mock-model'), this.opts.modelCapabilities?.[request.model || (this.opts.model ?? 'mock-model')] ?? this.opts.capabilities), true);
     const model = this.opts.model ?? 'mock-model';
     yield { type: 'message_start', model };
 

@@ -69,6 +69,8 @@ export interface ComposeOptions {
   cwd?: string;
   provider: ChatProvider;
   model: string;
+  /** Current dispatch identity when an embedding supports session model switching. */
+  contextModelSelection?: () => { providerId: string; model: string };
   policySystemPath: string;
   /** project-scope policy override (.harness/policy.yaml) — merged when present */
   policyProjectPath?: string;
@@ -488,6 +490,7 @@ export async function composeHarness(opts: ComposeOptions): Promise<ComposedHarn
     session,
     model: effectiveModel,
     stableSections: () => compiled.promptSections,
+    modelSelection: opts.contextModelSelection,
     policyGuidance: () => artifacts.promptGuidance,
     instructions,
     getVisibleTools: () => registry.listVisible(),
@@ -495,6 +498,7 @@ export async function composeHarness(opts: ComposeOptions): Promise<ComposedHarn
     projectMemory: projectStore ? () => projectStore.snapshot() : undefined,
     reflectiveRules: memoryEnabled ? historicalRules : undefined,
     contextWindow: opts.contextWindow,
+    cacheDependencies: () => ({ providerId: effectiveProvider.id }),
   });
   const maxOutputTokens = opts.compactionBudget?.maxOutputTokens ?? effectiveProvider.defaultMaxOutputTokens ?? 4096;
   const compaction = new Compaction({ session, summarize: opts.summarize, adaptive: { ...opts.compactionBudget, maxOutputTokens } });

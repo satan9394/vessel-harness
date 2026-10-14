@@ -28,6 +28,29 @@ describe('provider HTTP routes', () => {
     base = `http://127.0.0.1:${server.port}`;
   });
   afterEach(async () => { await server.close(); fs.rmSync(dir, { recursive: true, force: true }); });
+  it('shares explicit model capabilities between registry and dispatch, preserving unknown and clearing stale endpoint metadata', async () => {
+    await call('/api/providers', 'POST', { ...input, models: { 'deepseek-chat': { capabilities: { tools: false, context_window: 64000 } }, 'deepseek-reasoner': {} } });
+    const catalog = await (await call('/api/models')).json() as { models: Array<{ id: string; capabilities: unknown }> };
+    expect(catalog.models.find(model => model.id === 'deepseek-chat')?.capabilities).toMatchObject({ tools: { status: 'declared', value: false }, contextWindow: { status: 'declared', value: 64000 }, promptCache: { status: 'unknown' } });
+    await call('/api/sessions', 'POST', { workspaceRoot: dir, provider: input.name, model: 'deepseek-chat' });
+    expect(builder).toHaveBeenLastCalledWith(expect.objectContaining({ modelCapabilities: expect.objectContaining({ 'deepseek-chat': expect.objectContaining({ tools: { status: 'declared', value: false, source: 'model metadata' } }) }) }));
+    const providers = await (await call('/api/providers')).text();
+    expect(providers).toContain('modelCapabilities'); expect(providers).not.toContain(input.apiKey);
+    expect((await call('/api/providers', 'POST', { ...input, models: ['deepseek-chat'] })).status).toBe(201);
+    expect(Object.keys(store.get(input.name)!.modelCapabilities!)).toEqual(['deepseek-chat']);
+    await call('/api/providers', 'POST', { ...input, baseUrl: 'https://different.example/v1' });
+    expect(store.get(input.name)?.modelCapabilities).toBeUndefined();
+  });
+  it('does not certify client supplied detection and strips arbitrary metadata', async () => {
+    await call('/api/providers', 'POST', { ...input, modelCapabilities: { 'deepseek-chat': { tools: { status: 'detected', value: false, source: 'private credential' } } } });
+    const response = await (await call('/api/models')).text();
+    expect(response).toContain('declared'); expect(response).not.toContain('detected'); expect(response).not.toContain('private credential');
+  });
+  it('uses the dispatch adapter identity for variant-provider capabilities', async () => {
+    await call('/api/providers', 'POST', { ...input, name: 'opencode-go' });
+    const response = await (await call('/api/models')).json() as { models: Array<{ providerName: string; capabilities: unknown }> };
+    expect(response.models.find(model => model.providerName === 'opencode-go')?.capabilities).toMatchObject({ streaming: { status: 'declared', value: false }, toolCallStreaming: { status: 'declared', value: false } });
+  });
   it('creates, masks, lists, updates and removes credential-backed configurations', async () => {
     const created = await call('/api/providers', 'POST', input);
     expect(created.status).toBe(201);

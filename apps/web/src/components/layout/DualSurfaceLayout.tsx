@@ -13,7 +13,7 @@ import InlineDiffInspector from '../widgets/InlineDiffInspector';
 import './layout.css';
 
 export const INSPECTOR_STORAGE_KEY = 'vessel.inspector';
-export const INSPECTOR_TABS = ['swarm', 'cognition', 'cache', 'ast', 'patch'] as const;
+export const INSPECTOR_TABS = ['swarm', 'cognition', 'context', 'cache', 'ast', 'patch'] as const;
 export type InspectorTab = typeof INSPECTOR_TABS[number];
 export interface DualSurfaceLayoutProps {
   children: ReactNode;
@@ -96,7 +96,19 @@ export function PatchCanvasPanel({ sessionId, patches = [], api }: { sessionId: 
       : <p className="dim">{t('uiNoPatchProposalsObservedInThisSession')}</p>}
   </section>;
 }
-export const INSPECTOR_LABELS: Record<InspectorTab, MessageKey> = { swarm: 'tabSwarm', cognition: 'tabRules', cache: 'tabCache', ast: 'tabImpact', patch: 'tabPatch' };
+export function ContextPanel({ observation }: { observation?: InspectorObservation }) {
+  const { t } = useI18n();
+  const labels = { assembly: 'contextCacheAssembly', 'provider-prefix': 'contextCacheProviderPrefix', projection: 'contextCacheProjection', 'token-estimation': 'contextCacheTokenEstimation' } as const;
+  return <section className="dashboard-panel" aria-label={t('tabContext')}>
+    <h2>{t('contextCacheLayers')}</h2>{observation?.projectionRevision !== undefined && <p>{t('contextProjectionRevision', { revision: String(observation.projectionRevision) })}</p>}<p className="dim">{t('contextCacheLocalHint')}</p>
+    {observation?.cacheLayers?.length ? observation.cacheLayers.map(layer => <section key={layer.layer}>
+      <h3>{t(labels[layer.layer])}</h3><p>{t('contextCacheVersion')}</p><code className="workspace-fingerprint">{layer.dependencyHash}</code>
+      <p>{t('contextCacheCounts', { hits: String(layer.hits), misses: String(layer.misses), invalidations: String(layer.invalidations), entries: String(layer.entries) })}</p>
+    </section>) : <p className="dim">{t('contextCacheEmpty')}</p>}
+  </section>;
+}
+
+export const INSPECTOR_LABELS: Record<InspectorTab, MessageKey> = { swarm: 'tabSwarm', cognition: 'tabRules', context: 'tabContext', cache: 'tabCache', ast: 'tabImpact', patch: 'tabPatch' };
 export function DualSurfaceLayout({ children, inspectorDefaultOpen = false, sessionId, api, cacheHistory, impacts, patches, observation, tabRequest }: DualSurfaceLayoutProps) {
   const { t } = useI18n();
   const [state, setState] = useState(() => browserInspectorState(inspectorDefaultOpen));
@@ -161,6 +173,7 @@ export function DualSurfaceLayout({ children, inspectorDefaultOpen = false, sess
         <div role="tabpanel" id={`${id}-panel`} aria-labelledby={`${id}-${state.tab}`} className="inspector-content" key={sessionId}>
           {state.tab === 'swarm' && <SwarmTopologyView api={api} />}
           {state.tab === 'cognition' && <CognitiveRulesDashboard api={api} />}
+          {state.tab === 'context' && <ContextPanel observation={observation} />}
           {state.tab === 'cache' && <CacheEconomicsPanel history={cacheHistory} observation={observation} />}
           {state.tab === 'ast' && <AstTopologyPanel impacts={impacts} />}
           {state.tab === 'patch' && <PatchCanvasPanel sessionId={sessionId} patches={patches} api={api?.applyPatch ? { applyPatch: api.applyPatch } : undefined} />}

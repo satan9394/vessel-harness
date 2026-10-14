@@ -1,5 +1,6 @@
 import { isValidElement, type ReactElement, type ReactNode } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import CapabilityStatus from './CapabilityStatus';
 import ProviderSettingsModal, { PROVIDER_PRESETS, validateProvider } from './ProviderSettingsModal';
 import { createApiClient, ApiError, type ApiClient, type ProviderInfo } from '../../api';
 import { translate } from '../../i18n';
@@ -64,6 +65,18 @@ describe('provider settings', () => {
     change('preset', 'Claude'); tree = render(); expect(tree.find(node => node.props.id === 'provider-protocol')!.props.value).toBe('anthropic');
     change('preset', 'Ollama'); tree = render(); expect(tree.find(node => node.props.id === 'provider-url')!.props.value).toBe('http://localhost:11434/v1');
     hooks.lang = 'zh'; expect(render().find(node => node.props.role === 'dialog')!.props['aria-label']).toBe('模型设置');
+  });
+  it('binds per-model evidence and carries discovered capabilities through save', async () => {
+    const modelCapabilities = { alpha: { tools: { status: 'declared', value: false } } as import('@vessel/shared').ProviderCapabilities };
+    vi.mocked(api.listProviders).mockResolvedValue({ providers: [{ ...configured, models: ['alpha'], modelCapabilities }] });
+    render(); await settle(); expect(render().find(node => node.type === CapabilityStatus)?.props.capabilities).toBe(modelCapabilities.alpha);
+    change('preset', 'Ollama'); vi.mocked(api.pullProviderModels).mockResolvedValue({ ok: true, models: ['alpha'], modelCapabilities });
+    invoke(button('Pull models'), 'onClick'); await settle();
+    invoke(render().find(node => node.type === 'form')!, 'onSubmit', { preventDefault() {} }); await settle();
+    expect(api.addProvider).toHaveBeenCalledWith(expect.objectContaining({ models: ['alpha'], modelCapabilities }));
+    change('url', 'http://localhost:11435/v1');
+    invoke(render().find(node => node.type === 'form')!, 'onSubmit', { preventDefault() {} }); await settle();
+    expect(api.addProvider).toHaveBeenLastCalledWith(expect.objectContaining({ modelCapabilities: undefined }));
   });
   it('validates before making requests and discovers models over keyless loopback', async () => {
     render(); await settle(); invoke(button('Test connection'), 'onClick'); await settle();

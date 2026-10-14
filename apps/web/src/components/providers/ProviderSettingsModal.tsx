@@ -1,6 +1,7 @@
 import { useEffect, useId, useRef, useState } from 'react';
 import { ApiError, type AddProviderInput, type ApiClient, type ProviderInfo, type TestProviderResult } from '../../api';
 import type { ModelMessages } from '../../i18n';
+import CapabilityStatus from './CapabilityStatus';
 import { useI18n } from '../LanguageProvider';
 
 export const PROVIDER_PRESETS: Record<string, AddProviderInput> = {
@@ -88,7 +89,7 @@ export default function ProviderSettingsModal({ api, onClose, onChanged }: {
     void refresh().catch((thrown: unknown) => { if (mounted.current) { const failure = providerFailure(thrown); fail(failure.key, failure.params); } }).finally(() => { if (mounted.current) setLoading(false); });
     return () => { mounted.current = false; if (restore instanceof HTMLElement && restore.isConnected) restore.focus(); };
   }, [api]);
-  function change(next: Partial<AddProviderInput>) { setForm(previous => ({ ...previous, ...next })); setResult(undefined); fail(undefined); setNotice(undefined); setNoticeParams(undefined); }
+  function change(next: Partial<AddProviderInput>) { setForm(previous => ({ ...previous, ...next, modelCapabilities: undefined })); setResult(undefined); fail(undefined); setNotice(undefined); setNoticeParams(undefined); }
   function providerInput(): AddProviderInput {
     return { ...form, name: form.name.trim(), baseUrl: form.baseUrl.trim(), apiKey: form.apiKey.trim(), models: [...new Set(models.split(/[,，]/).map(model => model.trim()).filter(Boolean))] };
   }
@@ -102,7 +103,7 @@ export default function ProviderSettingsModal({ api, onClose, onChanged }: {
     try {
       if (action === 'test') {
         const tested = await api.testProvider(input);
-        if (mounted.current) { setResult(tested); if (tested.ok && !models.trim() && tested.availableModels?.length) setModels(tested.availableModels.join(', ')); }
+        if (mounted.current) { setResult(tested); if (tested.ok) { setForm(previous => ({ ...previous, modelCapabilities: tested.modelCapabilities })); if (!models.trim() && tested.availableModels?.length) setModels(tested.availableModels.join(', ')); } }
       } else {
         if (action === 'save') await api.addProvider(input);
         else if (deleting) { const removed = await api.deleteProvider(deleting); if (!removed.ok) throw new Error('delete_failed'); }
@@ -129,6 +130,7 @@ export default function ProviderSettingsModal({ api, onClose, onChanged }: {
       const discovered = [...new Set(pulled.models ?? [])];
       if (!discovered.length) { fail('providerPullEmpty'); return; }
       setResult(undefined);
+      setForm(previous => ({ ...previous, modelCapabilities: pulled.modelCapabilities }));
       setModels(discovered.join(', '));
       setNotice('providerPulled');
       setNoticeParams({ count: String(discovered.length) });
@@ -154,6 +156,7 @@ export default function ProviderSettingsModal({ api, onClose, onChanged }: {
       {loading ? <p role="status">{t('loading')}</p> : providers.length ? <div className="provider-list">{providers.map(provider => <article className="provider-card" key={provider.name}>
         <strong>{provider.name}</strong><span className="provider-badge">{t(provider.protocol === 'anthropic' ? 'providerAnthropic' : 'providerOpenai')}</span>
         <code>{provider.baseUrl}</code><span>{provider.apiKeyMasked || t('providerNoKey')}</span><span>{provider.models.join(', ')}</span>
+        <details className="provider-capabilities"><summary>{t('capabilitiesTitle')}</summary>{provider.models.map(model => <section key={model}><h4>{model}</h4><CapabilityStatus capabilities={provider.modelCapabilities?.[model]} /></section>)}</details>
         {deleting === provider.name ? <div><span>{t('providerDeleteConfirm', { name: provider.name })}</span><button className="btn" disabled={!!busy} onClick={() => void run('delete')}>{t('confirm')}</button><button className="btn" disabled={!!busy} onClick={() => setDeleting(undefined)}>{t('cancel')}</button></div>
           : <button className="btn" disabled={!!busy} onClick={() => setDeleting(provider.name)}>{t('delete')}</button>}
       </article>)}</div> : <p className="dim">{t('providerEmpty')}</p>}

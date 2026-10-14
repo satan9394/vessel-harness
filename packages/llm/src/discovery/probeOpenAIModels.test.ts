@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { discoverProviderCapabilities } from '../capabilities.js';
 import { normalizeOpenAIModelsUrl, probeOpenAIModels } from './probeOpenAIModels.js';
 
 afterEach(() => {
@@ -47,8 +48,8 @@ describe('probeOpenAIModels', () => {
     expect(result).toEqual({
       ok: true,
       models: [
-        { id: 'gpt-4o', contextWindow: 128000, supportsReasoning: false, ownedBy: 'openai' },
-        { id: 'deepseek-reasoner', supportsReasoning: true, ownedBy: 'deepseek' },
+        { id: 'gpt-4o', contextWindow: 128000, supportsReasoning: false, ownedBy: 'openai', capabilities: discoverProviderCapabilities({ context_window: 128000 }) },
+        { id: 'deepseek-reasoner', supportsReasoning: true, ownedBy: 'deepseek', capabilities: discoverProviderCapabilities({}) },
       ],
     });
   });
@@ -103,7 +104,7 @@ describe('probeOpenAIModels', () => {
       ] }));
 
     const result = await probeOpenAIModels({ baseUrl: 'https://example.test/v1', apiKey, fetchFn });
-    expect(result).toEqual({ ok: true, models: [{ id: 'safe-model', supportsReasoning: false, ownedBy: 'safe-provider' }] });
+    expect(result).toEqual({ ok: true, models: [{ id: 'safe-model', supportsReasoning: false, ownedBy: 'safe-provider', capabilities: discoverProviderCapabilities({}) }] });
     expect(JSON.stringify(result)).not.toContain(apiKey);
   });
 
