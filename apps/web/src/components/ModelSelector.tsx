@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { ApiError, type ApiClient, type ModelOption, type SessionMeta } from '../api';
 import { useI18n } from './LanguageProvider';
+import CapabilityStatus from './providers/CapabilityStatus';
 import { modelKey } from './NewSessionForm';
 
 export interface ModelSelectorProps {
@@ -65,6 +66,7 @@ export default function ModelSelector({ api, sessionId, providerRevision = 0, bu
       {!listed && <option value={selected}>{label}</option>}
       {models.map(model => <option key={modelKey(model)} value={modelKey(model)}>{model.providerName} / {model.id}</option>)}
     </select>
+    {session && <details className="model-capabilities"><summary>{t('capabilitiesTitle')}</summary><CapabilityStatus capabilities={models.find(model => modelKey(model) === selected)?.capabilities} /></details>}
     {session && <span className="dim effective-permission" title={session.workspaceRoot}>{t('permissionLabel')}: {session.permission === 'read-only' ? t('permissionReadOnly') : session.permission === 'workspace-write' ? t('permissionWorkspaceWrite') : session.permission === 'danger-full-access' ? t('permissionDangerFull') : '—'}</span>}
     {loading || switching ? <span role="status" className="dim">{t('loading')}</span> : null}
     {!loading && !models.length && <span className="dim">{t('noModelsConfigured')}</span>}

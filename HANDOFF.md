@@ -23,14 +23,20 @@
      - Card 217（架构整改落地 ARC-01..05）已验收合入 `6442171`；
      - Card 218（Web UI/UX 工作台整改落地）已验收闭环；
    - **开发模式与约束**：纯本地开发（严禁 git push，遵循 2026-10-06 规约；薄核零侵入 packages/core 源码；删除必进回收站；Web 构建必须携带 `-- --emptyOutDir false`）；
+   - **架构职责分工（2026-10-13 用户明确纠偏）**：Antigravity (主会话) 严格定位为**规划与指挥者 (Planner/Commander)**，只负责需求拆解、契约设计、任务卡编制、验收与对账；**严禁自行进行代码开发**。所有代码实现与测试执行一律派发给隔离执行器 **Codex**（GPT-6.1 Sol / Medium 思考深度）以 standard 模式执行；
    - **模型锁定规约**：默认开发模型锁定为 **GPT-6.1 Sol (`gpt-6.1-sol`)**，二级思考（`reasoning.effort: medium`），免多余确认。
 
 | 项 | 当前实况 |
 |---|---|
 | 仓库 / 分支 | `satan9394/vessel-harness` / `main`（纯本地开发，不推送） |
-| 工作区状态 | HEAD `26ba6fe`；Card 218 已合入本地提交 |
-| 机器状态真源 | `.agent-state/run-state.json`（历史 bounded 状态；Card 219 为 standard，终态以任务卡为准） |
-| 当前任务卡 | `tasks/219-full-surface-interactive-click-testing-suite.md`（已验证；结果与边界见 `evidence/sessions/2026-10-13-card219/PROOF.md`，交证即停） |
+| 工作区状态 | HEAD `1276d39`；Card 217、218、219 均已合入本地提交；Card 220 已通过验收并交证即停 |
+| 机器状态真源 | `.agent-state/run-state.json`（Card 210–220 全部 completed） |
+| 当前任务卡 | `tasks/220-provider-capability-contract-and-layered-cache.md`（已验证；standard 交证即停；等待合入或下一卡） |
+| 前序已合入任务 | `tasks/219-full-surface-interactive-click-testing-suite.md`（已验证；证据 `evidence/sessions/2026-10-13-card219/PROOF.md`，commit `1276d39`） |
+
+Card 220 本地交付与验收（2026-10-13，Codex 交付 + Antigravity 验收）：依据架构整改规范（ARC-06/08/09）与 UI 规范（UI-011/UI-009）落地 Provider 能力协商契约与 Context 分层版本化缓存。定义三态 `detected | declared | unknown` 能力模型，调度前硬拦截不支持的强制约束（抛出 `CapabilityMismatchError`，零网络调用）；落地 Assembly / Provider Prefix / Projection / Token Estimation 四层缓存及依赖 Hash 失效；强化 Compaction 压缩中的任务目标、约束、最新指令、工具对偶与拒绝记录 100% 守恒；Web/Local-Server 透传能力与缓存状态并完成中英双语展示。门禁：定向单测 120 passed，最终全量四大门禁顺序 exit 0，双 Root **3,271 passed / 6 skipped** 全绿，`packages/core` 行修改严格为 **0**。证据 `evidence/sessions/2026-10-13-card220/PROOF.md`。
+
+Card 219 本地交付与验收（2026-10-13，Codex 交付 + Antigravity 验收）：全量前端交互与真实无头浏览器（Playwright Chromium）走查测试。走查 77 项点击断言全绿，0 console errors，0 uncaught exceptions；发现并靶向修复会话切换历史消息丢失缺陷（WeakMap 投影与代际连接守卫）。门禁：全量双 Root **3,232 passed / 6 skipped** 全绿，`npx tsc -b` / `npm run typecheck:tests` exit 0，packages/core **0 变动**。证据 `evidence/sessions/2026-10-13-card219/PROOF.md`。
 
 Card 218 本地交付与验收（2026-10-12，Codex 交付 + Antigravity 验收）：依据 `docs/plans/Vessel_Web_UI_UX_Improvement_Plan.md` (VESSEL-UI-2026-01) 落地 UI-P0 级 Agent 工作台体验。重构信息架构为 Workbench / Activity / Agent Studio / Settings 四大一级导航；首页集成 Project → Task → Start 就地任务启动器（带模型与权限直选 Pill，空输入校验与失败可重编草稿）；Ctrl+K 全局命令面板按系统操作/最近项目/活跃会话语义折叠分组，隐藏调试裸 ID 与长路径；视图定制与系统权限解耦；≤800px 移动端自适应为无障碍抽屉，焦点循环与 Escape 回位。门禁：Web 单测 34 文件 / 291 passed、Web typecheck exit 0、Web 打包（`-- --emptyOutDir false`）exit 0、全量双 Root **3,228 passed / 6 skipped** 全绿、12 张中英双语 Retina 截图全部刷新、packages/core **0 变动**、依赖锁无变化。证据 `evidence/sessions/2026-10-12-card218/PROOF.md`。
 

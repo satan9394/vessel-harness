@@ -1,3 +1,5 @@
+import { capabilitiesFor, negotiateRequest } from '../capabilities.js';
+import type { ProviderCapabilities } from '@vessel/shared';
 import { extractProviderCacheMetrics } from '@vessel/shared';
 import { canonicalJson } from '../canonical/canonicalJson.js';
 /**
@@ -301,6 +303,8 @@ export function opencodeGoErrorHint(kind: OpencodeGoErrorKind): string | undefin
 export type OpencodeGoFetch = (url: string, init: RequestInit) => Promise<Response>;
 
 export interface OpencodeGoProviderOptions {
+  capabilities?: Partial<ProviderCapabilities>;
+  modelCapabilities?: Record<string, ProviderCapabilities>;
   baseUrl: string;
   apiKey?: string;
   model: string;
@@ -506,7 +510,7 @@ export class OpencodeGoProvider implements ChatProvider {
   private readonly fetchImpl: OpencodeGoFetch;
   private readonly forcedRoute: OpencodeGoRoute | undefined;
 
-  constructor(opts: OpencodeGoProviderOptions) {
+  constructor(private readonly opts: OpencodeGoProviderOptions) {
     this.baseUrl = opts.baseUrl.replace(/\/$/, '');
     this.apiKey = opts.apiKey;
     this.model = opts.model;
@@ -553,7 +557,10 @@ export class OpencodeGoProvider implements ChatProvider {
     return body;
   }
 
+  get capabilities(): ProviderCapabilities { return capabilitiesFor(this.id, this.opts.model, this.opts.modelCapabilities?.[this.opts.model] ?? this.opts.capabilities); }
+
   async chat(request: ChatRequest): Promise<ChatResponse> {
+    negotiateRequest(this.id, { ...request, model: request.model || (this.opts.model) }, capabilitiesFor(this.id, request.model || (this.opts.model), this.opts.modelCapabilities?.[request.model || (this.opts.model)] ?? this.opts.capabilities));
     const model = request.model && request.model.length > 0 ? request.model : this.model;
     const info = this.routeInfo(model);
     if (info.support !== 'implemented') {

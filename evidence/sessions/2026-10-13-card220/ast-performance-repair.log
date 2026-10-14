@@ -1,0 +1,82 @@
+=== baseline: unchanged Card 197 assertions, two SHA-256 workers ===
+{
+  "command": "node --import tsx evidence/sessions/2026-10-08-v2.3/card197-check.ts",
+  "fixtureFiles": [
+    "api.ts",
+    "barrel.ts",
+    "caller.ts",
+    "noise.ts"
+  ],
+  "precision": 1,
+  "expectedCallers": [
+    "caller.ts#caller",
+    "caller.ts#execute"
+  ],
+  "actualCallers": [
+    "caller.ts#caller",
+    "caller.ts#execute"
+  ],
+  "warmupEdits": 8,
+  "measuredEdits": 12,
+  "samplesMs": [
+    4.091299999999819,
+    3.546500000000151,
+    3.097500000000082,
+    3.3644000000001597,
+    3.1177999999999884,
+    3.04079999999999,
+    2.764699999999948,
+    7.079400000000078,
+    3.5945999999999003,
+    3.2158999999999196,
+    3.019900000000007,
+    3.697599999999966
+  ],
+  "maximumMs": 7.079400000000078,
+  "meanMs": 3.6358666666666672,
+  "timingScope": "UTF-8 source read, parse changed file, rebuild/check cached explicit files and resolve all graph edges; excludes disk write and subsequent assertions"
+}
+
+
+exit=0
+=== candidate: unchanged Card 197 assertions, two SHA-256 workers ===
+{
+  "command": "node --import tsx evidence/sessions/2026-10-08-v2.3/card197-check.ts",
+  "fixtureFiles": [
+    "api.ts",
+    "barrel.ts",
+    "caller.ts",
+    "noise.ts"
+  ],
+  "precision": 1,
+  "expectedCallers": [
+    "caller.ts#caller",
+    "caller.ts#execute"
+  ],
+  "actualCallers": [
+    "caller.ts#caller",
+    "caller.ts#execute"
+  ],
+  "warmupEdits": 8,
+  "measuredEdits": 12,
+  "samplesMs": [
+    4.69640000000004,
+    2.8103000000000975,
+    3.147499999999809,
+    3.8736999999998716,
+    3.4091000000000804,
+    3.0748000000000957,
+    2.5896999999999935,
+    3.3201000000001386,
+    2.717999999999847,
+    5.490700000000061,
+    2.9786999999998898,
+    2.5925999999999476
+  ],
+  "maximumMs": 5.490700000000061,
+  "meanMs": 3.3917999999999893,
+  "timingScope": "UTF-8 source read, parse changed file, rebuild/check cached explicit files and resolve all graph edges; excludes disk write and subsequent assertions"
+}
+
+
+exit=0

@@ -1,0 +1,285 @@
+{
+  "checkedAt": "2026-10-14T01:09:43.8666170Z",
+  "verdict": "PASS",
+  "head": "1276d39dce50a4e26a59696e004457377183007c",
+  "coreDiffStat": [],
+  "untrackedCore": [],
+  "manifestOrNpmLockChanges": [],
+  "forbiddenLocks": [],
+  "diffCheckExit": 0,
+  "diffCheckOutput": [],
+  "sourceEditsAfterGateStart": [],
+  "root": {
+    "skipped": 6,
+    "files": 279,
+    "passed": 2970
+  },
+  "web": {
+    "skipped": 0,
+    "files": 35,
+    "passed": 301
+  },
+  "totalPassed": 3271,
+  "sourceFiles": [
+    {
+      "path": "apps/cli/src/providers/providerFactory.capabilities.test.ts",
+      "modifiedAt": "2026-10-14T00:45:58.5157415Z",
+      "sha256": "4EAAADB2B8F2E80C2E9ABD75FFF66D6B30909A7151427FA9E4DBED20281E1E82"
+    },
+    {
+      "path": "apps/cli/src/providers/providerFactory.ts",
+      "modifiedAt": "2026-10-14T00:46:32.4345930Z",
+      "sha256": "D484260CAD30A433869E90AF1D9FEBB1198AD17EA539D24097A9D809FDE071EF"
+    },
+    {
+      "path": "apps/local-server/src/providers/ProviderStore.ts",
+      "modifiedAt": "2026-10-13T12:47:02.2899511Z",
+      "sha256": "8806BE50B924F2F5A35A1798511ACC402D4B5F69224E8A0F2D1B0C66765FC574"
+    },
+    {
+      "path": "apps/local-server/src/routes/providerRoutes.test.ts",
+      "modifiedAt": "2026-10-13T12:54:15.0277093Z",
+      "sha256": "9986118DBDEA87E274CF0FAD090A734E8644F68F63FF4F49CDF35001B30BAB50"
+    },
+    {
+      "path": "apps/local-server/src/routes/providerRoutes.ts",
+      "modifiedAt": "2026-10-13T12:54:15.0267090Z",
+      "sha256": "4087DC0C37F19D19129CCC5E978F82DC536AA22277DC5D1250835468212F9C9C"
+    },
+    {
+      "path": "apps/local-server/src/routes/sessionInspector.test.ts",
+      "modifiedAt": "2026-10-13T12:42:02.3745214Z",
+      "sha256": "9CE6BE1E43922B561B318B6EC5C7FCE5526A3E35F714B2EF288615C41AEC654F"
+    },
+    {
+      "path": "apps/local-server/src/routes/sessionInspector.ts",
+      "modifiedAt": "2026-10-13T12:39:27.8801921Z",
+      "sha256": "886A9149A48C9B87ACE57BCE6146E3F80498949B4ED7B9638C361CDBEA4D286B"
+    },
+    {
+      "path": "apps/local-server/src/server.ts",
+      "modifiedAt": "2026-10-13T12:45:50.5044231Z",
+      "sha256": "EDF693EBE068BD2EA724F4A64E0FA50BD392313DEA420E570D4AECC07B6EDA1D"
+    },
+    {
+      "path": "apps/web/src/api.ts",
+      "modifiedAt": "2026-10-13T12:42:00.7980414Z",
+      "sha256": "1AFF7D4736A1A6C8817CFB946638314A0ADE8A37FF99862B210897AD72978406"
+    },
+    {
+      "path": "apps/web/src/components/layout/DualSurfaceLayout.test.tsx",
+      "modifiedAt": "2026-10-13T12:44:51.7840973Z",
+      "sha256": "5388F482B909404E0C725B2EFC3529203EF6B9B0390790786D51ECFC2E6285D6"
+    },
+    {
+      "path": "apps/web/src/components/layout/DualSurfaceLayout.tsx",
+      "modifiedAt": "2026-10-13T12:44:51.7776947Z",
+      "sha256": "DFBBDF4A849FE41D9DE20DC84B326C5F59B984E1BBC48032064625116E32F8B0"
+    },
+    {
+      "path": "apps/web/src/components/ModelSelector.test.tsx",
+      "modifiedAt": "2026-10-13T12:43:42.0756751Z",
+      "sha256": "55327ABBEFD057E6CA265083D35624E97CD37D65837C6515BC27F3E72A782B53"
+    },
+    {
+      "path": "apps/web/src/components/ModelSelector.tsx",
+      "modifiedAt": "2026-10-13T12:42:00.7937407Z",
+      "sha256": "E546F6707C89DB848F1C60B5FA137CB0CF12F33C73FFF10EC534D3F9B71A313F"
+    },
+    {
+      "path": "apps/web/src/components/providers/CapabilityStatus.test.tsx",
+      "modifiedAt": "2026-10-13T12:43:42.6956834Z",
+      "sha256": "DD08E6ED45B8C380E49A96094A08B7A7A0251BDDBB07C22BACE492EA3FF411E6"
+    },
+    {
+      "path": "apps/web/src/components/providers/CapabilityStatus.tsx",
+      "modifiedAt": "2026-10-13T12:41:02.7018468Z",
+      "sha256": "92B05E8A81203F3A3A8AC5F5DABA8413FEAE62A4721B98283DA889089577427B"
+    },
+    {
+      "path": "apps/web/src/components/providers/ProviderSettingsModal.test.tsx",
+      "modifiedAt": "2026-10-13T12:44:51.7833371Z",
+      "sha256": "047075ADFF7F640CDE3951DAF1F626C73CF5199BF29B67FE8E6589CABC761463"
+    },
+    {
+      "path": "apps/web/src/components/providers/ProviderSettingsModal.tsx",
+      "modifiedAt": "2026-10-13T12:42:00.7970318Z",
+      "sha256": "5B680D47FFCFA1E2CDB22602DB62078FFCF3108575F374AAD1B54F92A20855FE"
+    },
+    {
+      "path": "apps/web/src/i18n.ts",
+      "modifiedAt": "2026-10-13T12:44:51.7648437Z",
+      "sha256": "4BB76217BB1C63BCA020102485E6A972BBFCDFB2B9F4C3579CC909F0BB3DE9D4"
+    },
+    {
+      "path": "apps/web/src/inspector.ts",
+      "modifiedAt": "2026-10-13T12:44:51.7794269Z",
+      "sha256": "C9A04352EA5D503C41C22EE15AEFAD5EC1988116809484F70F8BB88F2CED2BBD"
+    },
+    {
+      "path": "packages/application/src/compose.ts",
+      "modifiedAt": "2026-10-13T12:45:32.4815293Z",
+      "sha256": "D76C3432B87B96D8C5D02AA92361E84388E453A46F67CE33231A75EC222E1060"
+    },
+    {
+      "path": "packages/context/src/ast/symbolGraph.ts",
+      "modifiedAt": "2026-10-14T00:54:21.1291401Z",
+      "sha256": "8D80E7BA2832033F6030714665A5D99C2EA73B7CCC77C844ADAF872385DA8B86"
+    },
+    {
+      "path": "packages/context/src/builder/Builder.ts",
+      "modifiedAt": "2026-10-13T12:51:52.3314268Z",
+      "sha256": "636A78487F1E13019AAE3BAAF1615DFC9AAC4A897899B2132A48A3C3DA19FFBC"
+    },
+    {
+      "path": "packages/context/src/cache/LayeredContextCache.test.ts",
+      "modifiedAt": "2026-10-13T12:51:52.3324289Z",
+      "sha256": "B2BDD66B7AE8D740C71B81142B2A7523B8D6509AE787CB758CF47AD31DD6E4E3"
+    },
+    {
+      "path": "packages/context/src/cache/LayeredContextCache.ts",
+      "modifiedAt": "2026-10-13T12:38:23.2779952Z",
+      "sha256": "0868A76B185E9233329B032CC4CC3B9F75AA5E90D2503EAA5444A055616C64E2"
+    },
+    {
+      "path": "packages/context/src/compaction/assertCompactionConservation.test.ts",
+      "modifiedAt": "2026-10-13T12:40:44.4659977Z",
+      "sha256": "99BFE6BB6F9504B9A92C270B7D9577AFD13DB1EF521FDC38667F2B9B43618829"
+    },
+    {
+      "path": "packages/context/src/compaction/assertCompactionConservation.ts",
+      "modifiedAt": "2026-10-13T12:40:00.5250217Z",
+      "sha256": "ED0141D5454C5B50C0F56EB7ADF72BBB682045A9B8C0A63A4C0335B6C8DE74A9"
+    },
+    {
+      "path": "packages/context/src/compaction/Compaction.ts",
+      "modifiedAt": "2026-10-13T16:18:42.0875861Z",
+      "sha256": "92EE72E1C00607EF8277E583C93D92F775CE36099A06A21B9B947A56FDC88F77"
+    },
+    {
+      "path": "packages/context/src/compaction/projectionCommit.test.ts",
+      "modifiedAt": "2026-10-13T12:51:04.8942861Z",
+      "sha256": "0F23E8133E09C5764D2FD54E483985FEBC90718CA487F512ABD4EEBFE7B3FBFE"
+    },
+    {
+      "path": "packages/context/src/index.ts",
+      "modifiedAt": "2026-10-13T12:39:19.7332379Z",
+      "sha256": "C003E0F018515BD4D24E3045E7F1B15D41E1D399D98FDAD27C9849A693AC4771"
+    },
+    {
+      "path": "packages/context/tests/ast/symbolGraph.test.ts",
+      "modifiedAt": "2026-10-14T00:54:21.4545857Z",
+      "sha256": "2F8147C7D1F1E4CC395E30436849DBB5FC479D7C11A188A6D75481F89BF1C976"
+    },
+    {
+      "path": "packages/llm/src/capabilities.test.ts",
+      "modifiedAt": "2026-10-13T16:28:02.1080257Z",
+      "sha256": "49C336E6CBE37BBCC2D0DD3CC4054BA9E72D906B285A10346244862E0019FFAE"
+    },
+    {
+      "path": "packages/llm/src/capabilities.ts",
+      "modifiedAt": "2026-10-13T16:28:22.0671166Z",
+      "sha256": "83DB19A25C1883A08CDFA7B8892AA8043F885F143A296151835353E899D23C60"
+    },
+    {
+      "path": "packages/llm/src/discovery/probeOpenAIModels.test.ts",
+      "modifiedAt": "2026-10-13T12:41:44.2202487Z",
+      "sha256": "5A52F519582268FF300C5A1956A320F459BC2BEE2CC3266F3E55B5E71E6E714E"
+    },
+    {
+      "path": "packages/llm/src/discovery/probeOpenAIModels.ts",
+      "modifiedAt": "2026-10-13T12:39:22.9224873Z",
+      "sha256": "BD7FDCCD0552FB0FF392E92A7619ED6F46B3367AF6BD44BE7A324FC618919275"
+    },
+    {
+      "path": "packages/llm/src/index.ts",
+      "modifiedAt": "2026-10-13T12:39:22.9154357Z",
+      "sha256": "B0E543D76FDF8B3384BABDB0EB1D8E884A0DAFD43C8F7F2C5F9FAA8D573FFD2B"
+    },
+    {
+      "path": "packages/llm/src/provider/AnthropicProvider.ts",
+      "modifiedAt": "2026-10-13T12:44:12.8452691Z",
+      "sha256": "1534591CF1F2E4709BAD1C3F926B93BB47693850022DE9AB1B11AF61652A0C05"
+    },
+    {
+      "path": "packages/llm/src/provider/createProvider.ts",
+      "modifiedAt": "2026-10-13T12:40:54.1391237Z",
+      "sha256": "78B29EB897A7ACECA291DD3AB82DFC650C46654907EF20973B6579F49557AE03"
+    },
+    {
+      "path": "packages/llm/src/provider/MockProvider.ts",
+      "modifiedAt": "2026-10-13T12:44:12.8467763Z",
+      "sha256": "A5682C5265173B91149E2A6B682BE86455683A6D05D8D1453D573822F3D266A7"
+    },
+    {
+      "path": "packages/llm/src/provider/OpenAICompatibleProvider.ts",
+      "modifiedAt": "2026-10-13T12:44:12.8442690Z",
+      "sha256": "7FE2627ED6882636E2D9DE933544F8EEB85DF64595196FC2061E3D228D1458C8"
+    },
+    {
+      "path": "packages/llm/src/provider/OpencodeGoProvider.ts",
+      "modifiedAt": "2026-10-13T12:44:12.8452691Z",
+      "sha256": "9E0C5F142744E434E45CAA283D6B637940CBF179AC32D26EF931B98446A0C99E"
+    },
+    {
+      "path": "packages/shared/src/capabilities.ts",
+      "modifiedAt": "2026-10-13T12:38:49.0886548Z",
+      "sha256": "FA658F82A7187FFE2DDC91B81F650D87300FEF75CB62096A5D3917B4CF9AA812"
+    },
+    {
+      "path": "packages/shared/src/contextCache.ts",
+      "modifiedAt": "2026-10-13T12:38:23.2759527Z",
+      "sha256": "8FCB1B9BDB8AF71E44E75612DDAEF680EC7370D1555D94BF45E57EC456F54128"
+    },
+    {
+      "path": "packages/shared/src/index.ts",
+      "modifiedAt": "2026-10-13T12:39:22.9134254Z",
+      "sha256": "A07373A2FB6A0964396EC33F8D82B4961D867D0F6291ED9C219FB022628D3FDC"
+    },
+    {
+      "path": "packages/shared/src/inspector.ts",
+      "modifiedAt": "2026-10-13T12:39:01.4549462Z",
+      "sha256": "DA315948CEB5B0689D5BBB86A5FBCCE837F6EF2F54EE2480C4BBCE04D2B3F73D"
+    },
+    {
+      "path": "packages/shared/src/projection.ts",
+      "modifiedAt": "2026-10-13T12:44:29.2961983Z",
+      "sha256": "5B29CE7A3313CEDB6B7C2A65D4AB67281048887C9BD887205E7F65412709B215"
+    },
+    {
+      "path": "packages/shared/src/provider.ts",
+      "modifiedAt": "2026-10-13T12:39:22.9134254Z",
+      "sha256": "33861D713F049B7B9AF76490CA28C4C0A4B8A6D421E70DD059DCC274634DC8E6"
+    }
+  ],
+  "gates": [
+    {
+      "command": "npx tsc -b",
+      "startedAt": "2026-10-14T00:56:23.7003008Z",
+      "finishedAt": "2026-10-14T00:56:25.8777262Z",
+      "exitCode": 0,
+      "log": "E:\\Code_file\\Projects\\Vessel_Harness\\evidence\\sessions\\2026-10-13-card220\\accepted-final-01-tsc.log"
+    },
+    {
+      "command": "npm run typecheck:tests",
+      "startedAt": "2026-10-14T00:56:25.9070755Z",
+      "finishedAt": "2026-10-14T00:56:27.7547445Z",
+      "exitCode": 0,
+      "log": "E:\\Code_file\\Projects\\Vessel_Harness\\evidence\\sessions\\2026-10-13-card220\\accepted-final-02-typecheck-tests.log"
+    },
+    {
+      "command": "npm run -w @vessel/web build -- --emptyOutDir false",
+      "startedAt": "2026-10-14T00:56:27.762858Z",
+      "finishedAt": "2026-10-14T00:56:29.1794584Z",
+      "exitCode": 0,
+      "log": "E:\\Code_file\\Projects\\Vessel_Harness\\evidence\\sessions\\2026-10-13-card220\\accepted-final-03-web-build.log"
+    },
+    {
+      "command": "npm run test:all",
+      "startedAt": "2026-10-14T00:56:29.1821733Z",
+      "finishedAt": "2026-10-14T01:07:28.4967417Z",
+      "exitCode": 0,
+      "log": "E:\\Code_file\\Projects\\Vessel_Harness\\evidence\\sessions\\2026-10-13-card220\\accepted-final-04-test-all.log"
+    }
+  ]
+}

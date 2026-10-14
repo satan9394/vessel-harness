@@ -275,7 +275,7 @@ export function createVesselServer(opts: VesselServerOptions = {}): VesselServer
   let store = opts.providerStore;
   const providerRoutes = new ProviderRoutes(() => store ??= createDefaultProviderStore(), opts.providerFetch, opts.providerProbeTimeoutMs);
   const modelHubs = new Map<string, SessionModelHub>();
-  const buildProvider = (cfg: ProviderConfig): ChatProvider => opts.providerBuilder?.(cfg) ?? createProvider(providerNameForConfig(cfg), { baseUrl: cfg.baseUrl, apiKey: cfg.apiKey, model: cfg.model });
+  const buildProvider = (cfg: ProviderConfig): ChatProvider => opts.providerBuilder?.(cfg) ?? createProvider(providerNameForConfig(cfg), { baseUrl: cfg.baseUrl, apiKey: cfg.apiKey, model: cfg.model, modelCapabilities: cfg.modelCapabilities });
   const defaultFactory: SessionFactory = async (input) => {
     const cfg = input.provider && input.provider !== 'mock' ? providerRoutes.resolve(input.provider, input.model) : undefined;
     const model = cfg?.model ?? input.model ?? 'default';
@@ -288,6 +288,7 @@ export function createVesselServer(opts: VesselServerOptions = {}): VesselServer
       provider: hub,
       providerId: hub.id,
       model: hub.id,
+      contextModelSelection: () => ({ providerId: hub.selection.provider, model: hub.selection.model }),
       strictPricing: true,
       policySystemPath: DEFAULT_POLICY,
       behaviorIRPath: DEFAULT_BEHAVIOR,

@@ -71,6 +71,7 @@ export interface ChatToolDef {
 }
 
 export interface ChatRequest {
+  requiredCapabilities?: import("./capabilities.js").CapabilityRequirements;
   model: string;
   messages: ChatMessage[];
   tools?: ChatToolDef[];
@@ -167,6 +168,7 @@ export type StreamChunk =
  * Implementations: OpenAICompatibleProvider (HTTP), MockProvider (deterministic scripts).
  */
 export interface ChatProvider {
+  readonly capabilities?: import("./capabilities.js").ProviderCapabilities;
   readonly defaultMaxOutputTokens?: number;
   readonly id: string;
   chat(request: ChatRequest): Promise<ChatResponse>;

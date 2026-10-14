@@ -1,0 +1,58 @@
+=== baseline: unchanged Card 197 assertions, two SHA-256 workers ===
+
+node:internal/modules/run_main:107
+    triggerUncaughtException(
+    ^
+
+Error: Transform failed with 6 errors:
+C:\work\AppData\Local\Temp\vessel-ast-repair-816Wjb\baseline-check.ts:19:2: ERROR: Top-level await is currently not supported with the "cjs" output format
+C:\work\AppData\Local\Temp\vessel-ast-repair-816Wjb\baseline-check.ts:21:18: ERROR: Top-level await is currently not supported with the "cjs" output format
+C:\work\AppData\Local\Temp\vessel-ast-repair-816Wjb\baseline-check.ts:25:4: ERROR: Top-level await is currently not supported with the "cjs" output format
+C:\work\AppData\Local\Temp\vessel-ast-repair-816Wjb\baseline-check.ts:30:37: ERROR: Top-level await is currently not supported with the "cjs" output format
+C:\work\AppData\Local\Temp\vessel-ast-repair-816Wjb\baseline-check.ts:31:18: ERROR: Top-level await is currently not supported with the "cjs" output format
+...
+    at failureErrorWithLog (E:\Code_file\Projects\Vessel_Harness\node_modules\esbuild\lib\main.js:1752:15)
+    at E:\Code_file\Projects\Vessel_Harness\node_modules\esbuild\lib\main.js:1019:50
+    at responseCallbacks.<computed> (E:\Code_file\Projects\Vessel_Harness\node_modules\esbuild\lib\main.js:886:9)
+    at handleIncomingPacket (E:\Code_file\Projects\Vessel_Harness\node_modules\esbuild\lib\main.js:941:12)
+    at Socket.readFromStdout (E:\Code_file\Projects\Vessel_Harness\node_modules\esbuild\lib\main.js:864:7)
+    at Socket.emit (node:events:508:28)
+    at addChunk (node:internal/streams/readable:563:12)
+    at readableAddChunkPushByteMode (node:internal/streams/readable:514:3)
+    at Readable.push (node:internal/streams/readable:394:5)
+    at Pipe.onStreamRead (node:internal/stream_base_commons:189:23) {
+  name: 'TransformError'
+}
+
+Node.js v24.14.0
+
+exit=1
+=== candidate: unchanged Card 197 assertions, two SHA-256 workers ===
+
+node:internal/modules/run_main:107
+    triggerUncaughtException(
+    ^
+
+Error: Transform failed with 6 errors:
+C:\work\AppData\Local\Temp\vessel-ast-repair-816Wjb\candidate-check.ts:19:2: ERROR: Top-level await is currently not supported with the "cjs" output format
+C:\work\AppData\Local\Temp\vessel-ast-repair-816Wjb\candidate-check.ts:21:18: ERROR: Top-level await is currently not supported with the "cjs" output format
+C:\work\AppData\Local\Temp\vessel-ast-repair-816Wjb\candidate-check.ts:25:4: ERROR: Top-level await is currently not supported with the "cjs" output format
+C:\work\AppData\Local\Temp\vessel-ast-repair-816Wjb\candidate-check.ts:30:37: ERROR: Top-level await is currently not supported with the "cjs" output format
+C:\work\AppData\Local\Temp\vessel-ast-repair-816Wjb\candidate-check.ts:31:18: ERROR: Top-level await is currently not supported with the "cjs" output format
+...
+    at failureErrorWithLog (E:\Code_file\Projects\Vessel_Harness\node_modules\esbuild\lib\main.js:1752:15)
+    at E:\Code_file\Projects\Vessel_Harness\node_modules\esbuild\lib\main.js:1019:50
+    at responseCallbacks.<computed> (E:\Code_file\Projects\Vessel_Harness\node_modules\esbuild\lib\main.js:886:9)
+    at handleIncomingPacket (E:\Code_file\Projects\Vessel_Harness\node_modules\esbuild\lib\main.js:941:12)
+    at Socket.readFromStdout (E:\Code_file\Projects\Vessel_Harness\node_modules\esbuild\lib\main.js:864:7)
+    at Socket.emit (node:events:508:28)
+    at addChunk (node:internal/streams/readable:563:12)
+    at readableAddChunkPushByteMode (node:internal/streams/readable:514:3)
+    at Readable.push (node:internal/streams/readable:394:5)
+    at Pipe.onStreamRead (node:internal/stream_base_commons:189:23) {
+  name: 'TransformError'
+}
+
+Node.js v24.14.0
+
+exit=1

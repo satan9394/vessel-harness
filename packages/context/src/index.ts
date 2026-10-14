@@ -11,3 +11,4 @@ export * from './ast/types.js';
 export * from './ast/symbolGraph.js';
 export * from './pruning/types.js';
 export * from './pruning/adaptivePruning.js';
+export * from './cache/LayeredContextCache.js';

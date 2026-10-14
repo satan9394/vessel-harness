@@ -1,4 +1,6 @@
 import type { ProviderConfig, ProviderStore } from '../providers/ProviderStore.js';
+import type { ProviderCapabilities } from '@vessel/shared';
+import { capabilitiesFor, discoverProviderCapabilities, providerNameForConfig } from '@vessel/llm';
 
 export interface ProviderDto {
   name: string;
@@ -7,6 +9,7 @@ export interface ProviderDto {
   apiKeyMasked: string;
   models: string[];
   isDefault?: boolean;
+  modelCapabilities: Record<string, ProviderCapabilities>;
 }
 export interface AddProviderInput {
   name: string;
@@ -14,11 +17,12 @@ export interface AddProviderInput {
   baseUrl: string;
   apiKey: string;
   models: string[];
+  modelCapabilities?: Record<string, ProviderCapabilities>;
 }
-export interface TestProviderResult { ok: boolean; latencyMs?: number; availableModels?: string[]; error?: string }
+export interface TestProviderResult { ok: boolean; latencyMs?: number; availableModels?: string[]; modelCapabilities?: Record<string, ProviderCapabilities>; error?: string }
 /** 「拉取模型」端点返回（task 215）：真实探测 `/v1/models` 后的可用模型清单。 */
-export interface PullModelsResult { ok: boolean; latencyMs?: number; models?: string[]; error?: string }
-export interface ModelOptionDto { id: string; name: string; providerName: string; protocol: string }
+export interface PullModelsResult { ok: boolean; latencyMs?: number; models?: string[]; modelCapabilities?: Record<string, ProviderCapabilities>; error?: string }
+export interface ModelOptionDto { id: string; name: string; providerName: string; protocol: string; capabilities: ProviderCapabilities }
 
 function record(value: unknown): Record<string, unknown> {
   if (!value || typeof value !== 'object' || Array.isArray(value)) throw new Error('invalid_provider_input');
@@ -58,12 +62,27 @@ export function normalizeProviderInput(input: unknown): AddProviderInput {
     protocol = 'anthropic';
   }
   let models: string[] = [];
+  let modelCapabilities: Record<string, ProviderCapabilities> | undefined;
   if (Array.isArray(b.models)) {
     models = b.models.filter((model): model is string => typeof model === 'string' && model.trim().length > 0);
   } else if (typeof b.models === 'string') {
     models = b.models.split(/[,，]/).map(model => model.trim()).filter(Boolean);
   } else if (b.models && typeof b.models === 'object') {
     models = Object.keys(b.models as Record<string, unknown>).filter(key => key.trim().length > 0);
+    modelCapabilities = Object.fromEntries(models.map(model => [model, discoverProviderCapabilities(record((b.models as Record<string, unknown>)[model]))]));
+  }
+  if (b.modelCapabilities !== undefined) {
+    const supplied = record(b.modelCapabilities);
+    modelCapabilities = Object.fromEntries(models.map(model => {
+      const snapshot = supplied[model] === undefined ? {} : record(supplied[model]);
+      // Input declarations cannot self-certify detection or carry arbitrary source text.
+      const metadata = Object.fromEntries(Object.entries(snapshot).map(([key, value]) => {
+        const capability = record(value);
+        if (!['detected', 'declared', 'unknown'].includes(String(capability.status))) throw new Error('invalid_provider_input');
+        return [key, capability.status === 'unknown' ? undefined : capability.value];
+      }));
+      return [model, discoverProviderCapabilities(metadata)];
+    }));
   }
   return {
     name: (name ?? '') as string,
@@ -71,6 +90,7 @@ export function normalizeProviderInput(input: unknown): AddProviderInput {
     baseUrl: typeof rawUrl === 'string' ? rawUrl : '',
     apiKey: typeof rawKey === 'string' ? rawKey : '',
     models,
+    ...(modelCapabilities ? { modelCapabilities } : {}),
   };
 }
 export function providerUrl(value: unknown): URL {
@@ -95,7 +115,7 @@ export class ProviderRoutes {
   constructor(private readonly store: () => ProviderStore, private readonly fetcher: typeof fetch = fetch, private readonly timeoutMs = 8000) {}
   private dto(cfg: ProviderConfig): ProviderDto {
     const baseUrl = providerUrl(cfg.baseUrl).href.replace(/\/$/, '');
-    return { name: cfg.id, protocol: cfg.protocol as ProviderDto['protocol'], baseUrl, apiKeyMasked: cfg.apiKey ? cfg.apiKey.length > 8 ? `****${cfg.apiKey.slice(-4)}` : '****' : '', models: providerModels(cfg), isDefault: this.store().getCurrent() === cfg.id };
+    return { name: cfg.id, protocol: cfg.protocol as ProviderDto['protocol'], baseUrl, apiKeyMasked: cfg.apiKey ? cfg.apiKey.length > 8 ? `****${cfg.apiKey.slice(-4)}` : '****' : '', models: providerModels(cfg), modelCapabilities: Object.fromEntries(providerModels(cfg).map(model => [model, capabilitiesFor(providerNameForConfig(cfg), model, cfg.modelCapabilities?.[model])])), isDefault: this.store().getCurrent() === cfg.id };
   }
   list(): ProviderDto[] { return this.store().load().map(cfg => this.dto(cfg)); }
   save(value: unknown): ProviderDto {
@@ -104,7 +124,10 @@ export class ProviderRoutes {
     if (!text(b.name, 80) || !/^[\p{L}\p{N}_.-]+$/u.test(b.name) || b.name === 'mock') throw new Error('invalid_provider_name');
     if (!b.models.length || b.models.length > 256 || !b.models.every(m => text(m))) throw new Error('invalid_models');
     const models = [...new Set(b.models)];
-    const cfg: ProviderConfig = { id: b.name, name: b.name, ...conn, model: models[0]!, models };
+    const previous = this.store().get(b.name);
+    const snapshots = b.modelCapabilities ?? (previous?.baseUrl === conn.baseUrl && previous.protocol === conn.protocol ? previous.modelCapabilities : undefined);
+    const cfg: ProviderConfig = { id: b.name, name: b.name, ...conn, model: models[0]!, models,
+      modelCapabilities: snapshots ? Object.fromEntries(Object.entries(snapshots).filter(([model]) => models.includes(model))) : undefined };
     const store = this.store();
     if (!store.credentialsEnabled) throw new Error('secure_store_required');
     if (store.get(cfg.id)) store.update(cfg.id, { ...cfg, secretRef: undefined });
@@ -122,7 +145,7 @@ export class ProviderRoutes {
     return true;
   }
   models(): ModelOptionDto[] {
-    return this.store().list().flatMap(cfg => providerModels(cfg).map(id => ({ id, name: id, providerName: cfg.id, protocol: cfg.protocol })));
+    return this.store().list().flatMap(cfg => providerModels(cfg).map(id => ({ id, name: id, providerName: cfg.id, protocol: cfg.protocol, capabilities: capabilitiesFor(providerNameForConfig(cfg), id, cfg.modelCapabilities?.[id]) })));
   }
   resolve(name: string, model?: string): ProviderConfig {
     const cfg = this.store().get(name);
@@ -142,7 +165,13 @@ export class ProviderRoutes {
       if (!response.ok) return { ok: false, error: `http_${response.status}` };
       const body = record(await response.json());
       if (!Array.isArray(body.data) || !body.data.every(v => v && typeof v === 'object' && text((v as { id?: unknown }).id))) return { ok: false, error: 'invalid_models_response' };
-      return { ok: true, latencyMs: Math.round(performance.now() - start), availableModels: [...new Set(body.data.map(v => (v as { id: string }).id))] };
+      const modelCapabilities = Object.fromEntries(body.data.map(v => [(v as { id: string }).id, discoverProviderCapabilities(v as Record<string, unknown>)]));
+      const input = record(value);
+      const saved = typeof input.name === 'string' ? this.store().get(input.name) : undefined;
+      if (saved && saved.baseUrl === conn.baseUrl && saved.protocol === conn.protocol) this.store().update(saved.id, {
+        modelCapabilities: Object.fromEntries(Object.entries(modelCapabilities).filter(([model]) => providerModels(saved).includes(model))),
+      });
+      return { ok: true, latencyMs: Math.round(performance.now() - start), availableModels: [...new Set(body.data.map(v => (v as { id: string }).id))], modelCapabilities };
     } catch (error) {
       return { ok: false, error: error instanceof Error && (error.name === 'TimeoutError' || error.name === 'AbortError') ? 'connection_timeout' : 'connection_failed' };
     }
@@ -155,7 +184,7 @@ export class ProviderRoutes {
   async pullModels(value: unknown): Promise<PullModelsResult> {
     const probed = await this.test(value);
     return probed.ok
-      ? { ok: true, latencyMs: probed.latencyMs, models: probed.availableModels ?? [] }
+      ? { ok: true, latencyMs: probed.latencyMs, models: probed.availableModels ?? [], modelCapabilities: probed.modelCapabilities }
       : { ok: false, error: probed.error };
   }
 }

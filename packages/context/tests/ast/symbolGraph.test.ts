@@ -22,6 +22,51 @@ beforeEach(async () => {
 afterEach(() => fs.rmSync(root, { recursive: true, force: true }));
 
 describe('exact AST symbol graph', () => {
+  it('reads same-size rewrites, atomic replacement, removal and recreation from fresh bytes', async () => {
+    const file = path.join(root, 'fresh.ts');
+    fs.writeFileSync(file, 'export const first = 1;');
+    await graph.indexFiles(['fresh.ts']);
+    fs.writeFileSync(file, 'export const other = 2;');
+    await graph.indexFiles(['fresh.ts']);
+    expect(await graph.findSymbols({ symbolName: 'first' })).toEqual([]);
+    expect(await graph.findSymbols({ symbolName: 'other' })).toHaveLength(1);
+    const replacement = path.join(root, 'replacement.ts');
+    fs.writeFileSync(replacement, 'export const third = 3;');
+    fs.renameSync(replacement, file);
+    await graph.indexFiles(['fresh.ts']);
+    expect(await graph.findSymbols({ symbolName: 'other' })).toEqual([]);
+    expect(await graph.findSymbols({ symbolName: 'third' })).toHaveLength(1);
+    fs.rmSync(file);
+    await graph.indexFiles(['fresh.ts']);
+    expect(await graph.findSymbols({ filePath: 'fresh.ts' })).toEqual([]);
+    fs.writeFileSync(file, 'export const again = 4;');
+    await graph.indexFiles(['fresh.ts']);
+    expect(await graph.findSymbols({ symbolName: 'again' })).toHaveLength(1);
+  });
+  it('serializes overlapping reads so concurrent file additions form a union', async () => {
+    fs.writeFileSync(path.join(root, 'one.ts'), 'export const one = 1;');
+    fs.writeFileSync(path.join(root, 'two.ts'), 'export const two = 2;');
+    await Promise.all([graph.indexFiles(['one.ts']), graph.indexFiles(['two.ts'])]);
+    expect(await graph.findSymbols({ symbolName: 'one' })).toHaveLength(1);
+    expect(await graph.findSymbols({ symbolName: 'two' })).toHaveLength(1);
+  });
+  it('keeps failed reads transactional and recovers the queue for the next operation', async () => {
+    let deny = false;
+    const transactional = new SymbolGraphService({ workspaceRoot: root, readFile: file => {
+      if (deny && file.endsWith('/barrel.ts')) { deny = false; throw new Error('denied callback'); }
+      return fs.readFileSync(file, 'utf8');
+    } });
+    await transactional.indexFiles(Object.keys(fixture));
+    fs.writeFileSync(path.join(root, 'api.ts'), 'export function renamed() {}');
+    deny = true;
+    const failed = expect(transactional.indexFiles(['api.ts', 'barrel.ts'])).rejects.toThrow('denied callback');
+    const next = transactional.indexFiles(['noise.ts']);
+    await failed; await next;
+    expect(await transactional.findSymbols({ symbolName: 'renamed' })).toEqual([]);
+    expect(await transactional.findSymbols({ filePath: 'api.ts', symbolName: 'execute' })).toHaveLength(1);
+    await transactional.indexFiles(['api.ts']);
+    expect(await transactional.findSymbols({ symbolName: 'renamed' })).toHaveLength(1);
+  });
   it('preserves actual self-recursion as an incoming caller and graph edge', async () => {
     fs.writeFileSync(path.join(root, 'recursive.ts'), 'export function recurse(n: number): number { return n ? recurse(n - 1) : 0 }');
     await graph.indexFiles(['recursive.ts']);
@@ -53,6 +98,7 @@ describe('exact AST symbol graph', () => {
     fs.writeFileSync(path.join(root, 'factory.ts'), 'import { A, B } from "./members.js"; export function make() { return new B() }');
     await graph.indexFiles(['factory.ts']);
     expect(graph.getRefreshStats().traversedFiles).toEqual(['factory.ts']);
+    expect(graph.getRefreshStats().moduleResolutions).toBe(0);
     expect(await graph.getIncomingReferences(methods[0]!.id)).toEqual([]);
     expect((await graph.getIncomingReferences(methods[1]!.id)).map(node => node.id)).toContain('memberCaller.ts#call');
   });
@@ -87,6 +133,21 @@ describe('exact AST symbol graph', () => {
     fs.writeFileSync(path.join(root, 'nested.ts'), 'export function future() { return 2 }');
     await mapped.indexFiles(['nested.ts']);
     expect((await mapped.getIncomingReferences('nested.ts#future')).map(node => node.id)).toEqual(['futureCaller.ts#call']);
+  });
+  it('invalidates specifier and path-mapping caches without losing type-driven resolution', async () => {
+    const options = { workspaceRoot: root, paths: { '@vessel/entry': ['./api.ts'] } };
+    fs.writeFileSync(path.join(root, 'mappedCaller.ts'), 'import { execute } from "@vessel/entry"; export function call() { return execute() }');
+    const mapped = new SymbolGraphService(options);
+    await mapped.indexFiles(['api.ts', 'noise.ts', 'mappedCaller.ts']);
+    expect((await mapped.getIncomingReferences('api.ts#execute')).map(node => node.id)).toEqual(['mappedCaller.ts#call']);
+    options.paths['@vessel/entry'] = ['./noise.ts'];
+    await mapped.indexFiles([]);
+    expect(await mapped.getIncomingReferences('api.ts#execute')).toEqual([]);
+    expect((await mapped.getIncomingReferences('noise.ts#execute')).map(node => node.id)).toContain('mappedCaller.ts#call');
+    fs.writeFileSync(path.join(root, 'mappedCaller.ts'), 'import { execute } from "./api.js"; export function call() { return execute() }');
+    await mapped.indexFiles(['mappedCaller.ts']);
+    expect((await mapped.getIncomingReferences('api.ts#execute')).map(node => node.id)).toEqual(['mappedCaller.ts#call']);
+    expect((await mapped.getIncomingReferences('noise.ts#execute')).map(node => node.id)).not.toContain('mappedCaller.ts#call');
   });
   it('stages all source reads atomically when a later file fails', async () => {
     let deny = false;

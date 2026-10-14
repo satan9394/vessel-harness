@@ -1,4 +1,4 @@
-import type { ChatProvider } from '@vessel/shared';
+import type { ChatProvider, ProviderCapabilities } from '@vessel/shared';
 import { OpenAICompatibleProvider, type OpenAICompatibleOptions } from './OpenAICompatibleProvider.js';
 import { AnthropicProvider, type AnthropicProviderOptions } from './AnthropicProvider.js';
 import { MockProvider, type MockProviderOptions, type MockScriptEntry } from './MockProvider.js';
@@ -27,6 +27,8 @@ import { OpencodeGoProvider, OPENCODE_GO_PROVIDER_ID } from './OpencodeGoProvide
 export type ProviderName = 'mock' | 'openai-compatible' | 'anthropic';
 
 export interface ProviderCreateOptions {
+  capabilities?: Partial<ProviderCapabilities>;
+  modelCapabilities?: Record<string, ProviderCapabilities>;
   /** endpoint URL for openai-compatible / anthropic / opencode-go */
   baseUrl?: string;
   apiKey?: string;
@@ -78,12 +80,14 @@ export function providerNameForConfig(cfg: ProviderSelection | undefined, fallba
 export function createProvider(name: string, opts: ProviderCreateOptions): ChatProvider {
   switch (name) {
     case 'mock':
-      return new MockProvider(opts.script ?? [], { model: opts.model, ...(opts.mock ?? {}) });
+      return new MockProvider(opts.script ?? [], { model: opts.model, capabilities: opts.capabilities, modelCapabilities: opts.modelCapabilities, ...(opts.mock ?? {}) });
     case 'openai-compatible':
       return new OpenAICompatibleProvider({
         baseUrl: requireUrl(name, opts.baseUrl),
         apiKey: opts.apiKey,
         model: opts.model,
+        capabilities: opts.capabilities,
+        modelCapabilities: opts.modelCapabilities,
         timeoutMs: opts.timeoutMs,
         streamIdleTimeoutMs: opts.streamIdleTimeoutMs,
       });
@@ -92,6 +96,8 @@ export function createProvider(name: string, opts: ProviderCreateOptions): ChatP
         baseUrl: requireUrl(name, opts.baseUrl),
         apiKey: opts.apiKey,
         model: opts.model,
+        capabilities: opts.capabilities,
+        modelCapabilities: opts.modelCapabilities,
         timeoutMs: opts.timeoutMs,
         sessionId: opts.sessionId,
         userAgent: opts.userAgent,
@@ -103,6 +109,8 @@ export function createProvider(name: string, opts: ProviderCreateOptions): ChatP
         baseUrl: requireUrl(name, opts.baseUrl),
         apiKey: opts.apiKey,
         model: opts.model,
+        capabilities: opts.capabilities,
+        modelCapabilities: opts.modelCapabilities,
         anthropicVersion: opts.anthropicVersion,
         timeoutMs: opts.timeoutMs,
         streamIdleTimeoutMs: opts.streamIdleTimeoutMs,

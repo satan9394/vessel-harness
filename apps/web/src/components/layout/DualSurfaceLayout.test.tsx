@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { isValidElement, type ReactNode, type ReactElement } from 'react';
 import type { ImpactRadarWidget } from '@vessel/shared';
-import { appendCacheObservation, AstTopologyPanel, CacheEconomicsPanel, DualSurfaceLayout, INSPECTOR_STORAGE_KEY, isInspectorShortcut, readInspectorState, PatchCanvasPanel } from './DualSurfaceLayout';
+import { appendCacheObservation, AstTopologyPanel, CacheEconomicsPanel, ContextPanel, DualSurfaceLayout, INSPECTOR_STORAGE_KEY, isInspectorShortcut, readInspectorState, PatchCanvasPanel } from './DualSurfaceLayout';
 import { isInspectorObservation } from '../../inspector';
 import { createEventStream } from '../../sse';
 
@@ -42,9 +42,9 @@ describe('Inspector layout and state controller', () => {
     expect(folded).toContain('Timeline'); expect(folded).toContain('aria-expanded="false"'); expect(folded).not.toContain('role="tabpanel"');
     const docked = renderToStaticMarkup(<DualSurfaceLayout sessionId="session" inspectorDefaultOpen><p>Timeline</p></DualSurfaceLayout>);
     expect(docked).toContain('role="complementary"'); expect(docked).toContain('Swarm topology'); expect(docked).not.toContain('aria-modal');
-    expect(docked.match(/role="tab"/g)).toHaveLength(5);
+    expect(docked.match(/role="tab"/g)).toHaveLength(6);
   });
-  it.each([['swarm', 'Swarm topology'], ['cognition', 'Cognitive rules'], ['cache', 'KV Cache economics'], ['ast', 'AST symbol dependencies'], ['patch', 'Patch workbench']])('mounts selected %s panel', (tab, heading) => {
+  it.each([['swarm', 'Swarm topology'], ['cognition', 'Cognitive rules'], ['context', 'Context cache layers'], ['cache', 'KV Cache economics'], ['ast', 'AST symbol dependencies'], ['patch', 'Patch workbench']])('mounts selected %s panel', (tab, heading) => {
     browser(tab);
     const html = renderToStaticMarkup(<DualSurfaceLayout sessionId="s">Timeline</DualSurfaceLayout>);
     expect(html).toContain(heading); expect(html.match(/aria-selected="true"/g)).toHaveLength(1); expect(html.match(/role="tabpanel"/g)).toHaveLength(1);
@@ -74,6 +74,16 @@ describe('Observed Inspector telemetry', () => {
     const observation = { observedAt: 1, prefix: { stableBytes: 0, scopedBytes: 4, volatileBytes: 8, sha256: 'a'.repeat(64) }, workspace: { trackedFilesHash: 'b'.repeat(64), fileCount: 0, uncommittedDiffBytes: 0, timestamp: 1 } };
     const html = renderToStaticMarkup(<CacheEconomicsPanel history={[{ ...cache, billedHitRate: 0 }]} observation={observation} />);
     expect(html).toContain('0.0%'); expect(html).toMatch(/Stable · 0\s+bytes/); expect(html).toContain('a'.repeat(64)); expect(html).toContain('b'.repeat(64)); expect(html).toMatch(/0\s+tracked files/);
+  });
+  it('renders four backend cache dependency versions and rejects corrupt snapshots', () => {
+    const observation = { observedAt: 1, projectionRevision: 3, cacheLayers: (['assembly', 'provider-prefix', 'projection', 'token-estimation'] as const).map(layer => ({ layer, dependencyHash: 'c'.repeat(64), hits: 0, misses: 2, invalidations: 1, entries: 1 })) };
+    expect(isInspectorObservation(observation)).toBe(true);
+    const html = renderToStaticMarkup(<ContextPanel observation={observation} />);
+    for (const label of ['Assembly cache', 'Provider prefix cache', 'Projection cache', 'Token estimation cache']) expect(html).toContain(label);
+    expect(html).toContain('Hits 0 · Misses 2 · Invalidations 1 · Entries 1'); expect(html).toContain('c'.repeat(64));
+    expect(html).toContain('upstream provider cache acceptance'); expect(html).toContain('Effective projection revision 3');
+    expect(renderToStaticMarkup(<ContextPanel />)).toContain('No context cache snapshot observed');
+    for (const cacheLayers of [[{ ...observation.cacheLayers[0], hits: -1 }], [{ ...observation.cacheLayers[0], layer: 'invented' }], [observation.cacheLayers[0], observation.cacheLayers[0]], [{ ...observation.cacheLayers[0], dependencyHash: 'secret' }], null]) expect(isInspectorObservation({ ...observation, cacheLayers })).toBe(false);
   });
   it('renders actual observed target/callers/files without claiming a complete dependency graph', () => {
     const widget: ImpactRadarWidget = { id: 'impact', kind: 'impact_radar', timestamp: '2026-10-09T00:00:00Z', turnIndex: 0, status: 'resolved', payload: { targetSymbol: '<target>', blastRadius: { modifiedFiles: ['a.ts'], affectedCallers: [{ filePath: 'b.ts', symbolName: 'caller' }] } } };

@@ -387,6 +387,32 @@ export interface SessionMessages {
 
 /** Model UI messages. */
 export interface ModelMessages {
+  capabilitiesTitle: MessageTemplate;
+  capabilityDetected: MessageTemplate;
+  capabilityDeclared: MessageTemplate;
+  capabilityUnknown: MessageTemplate;
+  capabilitySupported: MessageTemplate;
+  capabilityUnsupported: MessageTemplate;
+  capabilityTools: MessageTemplate;
+  capabilityStreaming: MessageTemplate;
+  capabilityContextWindow: MessageTemplate;
+  capabilityStructuredOutput: MessageTemplate;
+  capabilityReasoning: MessageTemplate;
+  capabilityMultimodalInput: MessageTemplate;
+  capabilityMultimodalOutput: MessageTemplate;
+  capabilityTokenUsage: MessageTemplate;
+  tabContext: MessageTemplate;
+  contextCacheLayers: MessageTemplate;
+  contextCacheLocalHint: MessageTemplate;
+  contextCacheEmpty: MessageTemplate;
+  contextCacheAssembly: MessageTemplate;
+  contextCacheProviderPrefix: MessageTemplate;
+  contextCacheProjection: MessageTemplate;
+  contextCacheTokenEstimation: MessageTemplate;
+  contextCacheVersion: MessageTemplate;
+  contextProjectionRevision: MessageTemplate;
+  contextCacheCounts: MessageTemplate;
+
   providerPreset: MessageTemplate;
   providerCustom: MessageTemplate;
   providerName: MessageTemplate;
@@ -666,6 +692,31 @@ export const zh: Messages = {
   providerPullModels: "拉取模型",
   providerPulling: "正在拉取模型…",
   providerPulled: "已拉取 {count} 个模型。",
+  capabilitiesTitle: "模型能力",
+  capabilityDetected: "已探测",
+  capabilityDeclared: "已声明",
+  capabilityUnknown: "未知",
+  capabilitySupported: "支持",
+  capabilityUnsupported: "不支持",
+  capabilityTools: "工具调用",
+  capabilityStreaming: "流式输出",
+  capabilityContextWindow: "上下文窗口",
+  capabilityStructuredOutput: "结构化输出",
+  capabilityReasoning: "推理",
+  capabilityMultimodalInput: "多模态输入",
+  capabilityMultimodalOutput: "多模态输出",
+  capabilityTokenUsage: "用量报告",
+  tabContext: "上下文",
+  contextCacheLayers: "上下文缓存层",
+  contextCacheLocalHint: "本地派生缓存快照；不代表供应商上游缓存命中。",
+  contextCacheEmpty: "尚无上下文缓存快照。",
+  contextCacheAssembly: "组装缓存",
+  contextCacheProviderPrefix: "供应商前缀缓存",
+  contextCacheProjection: "投影缓存",
+  contextCacheTokenEstimation: "Token 估算缓存",
+  contextCacheVersion: "依赖版本",
+  contextProjectionRevision: "有效投影版本 {revision}",
+  contextCacheCounts: "命中 {hits} · 未命中 {misses} · 失效 {invalidations} · 条目 {entries}",
   providerPullEmpty: "端点未返回任何模型，请检查接口地址与密钥。",
   providerErrInvalidProtocol: "接口协议无效，仅支持 OpenAI 兼容与 Anthropic。",
   providerErrNotFound: "该供应商不存在或已被删除。",
@@ -1215,6 +1266,31 @@ export const en: Messages = {
   providerPullModels: "Pull models",
   providerPulling: "Pulling models…",
   providerPulled: "Pulled {count} models.",
+  capabilitiesTitle: "Model capabilities",
+  capabilityDetected: "Detected",
+  capabilityDeclared: "Declared",
+  capabilityUnknown: "Unknown",
+  capabilitySupported: "Supported",
+  capabilityUnsupported: "Unsupported",
+  capabilityTools: "Tool calling",
+  capabilityStreaming: "Streaming",
+  capabilityContextWindow: "Context window",
+  capabilityStructuredOutput: "Structured output",
+  capabilityReasoning: "Reasoning",
+  capabilityMultimodalInput: "Multimodal input",
+  capabilityMultimodalOutput: "Multimodal output",
+  capabilityTokenUsage: "Usage reporting",
+  tabContext: "Context",
+  contextCacheLayers: "Context cache layers",
+  contextCacheLocalHint: "Local derived cache snapshot; upstream provider cache acceptance is measured separately.",
+  contextCacheEmpty: "No context cache snapshot observed.",
+  contextCacheAssembly: "Assembly cache",
+  contextCacheProviderPrefix: "Provider prefix cache",
+  contextCacheProjection: "Projection cache",
+  contextCacheTokenEstimation: "Token estimation cache",
+  contextCacheVersion: "Dependency version",
+  contextProjectionRevision: "Effective projection revision {revision}",
+  contextCacheCounts: "Hits {hits} · Misses {misses} · Invalidations {invalidations} · Entries {entries}",
   providerPullEmpty: "The endpoint returned no models. Check the base URL and API key.",
   providerErrInvalidProtocol: "Invalid protocol. Only OpenAI Compatible and Anthropic are supported.",
   providerErrNotFound: "That provider does not exist or was already removed.",

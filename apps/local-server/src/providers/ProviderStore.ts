@@ -2,6 +2,8 @@ import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import type { ProviderName } from '@vessel/llm';
+import { capabilitiesFor } from '@vessel/llm';
+import type { ProviderCapabilities } from '@vessel/shared';
 import { assertCostMultiplier, DEFAULT_COST_MULTIPLIER, renameWithRetry } from '@vessel/shared';
 import {
   parseSecretRef,
@@ -75,6 +77,8 @@ export interface ProviderConfig {
   model: string;
   /** 可选：可用模型清单（fetch 后缓存/用户维护） */
   models?: string[];
+  /** Explicit model metadata shared by dispatch and UI; absent remains unknown. */
+  modelCapabilities?: Record<string, ProviderCapabilities>;
   /**
    * 成本倍率（task 094）：中转/代理加价场景。
    *
@@ -671,6 +675,21 @@ export class ProviderStore {
     }
     if (typeof c.model !== 'string' || c.model.trim() === '') {
       throw new Error(`provider "${c.id}" requires a non-empty "model"`);
+    }
+    if (c.modelCapabilities !== undefined) {
+      if (!c.modelCapabilities || typeof c.modelCapabilities !== 'object' || Array.isArray(c.modelCapabilities)) throw new Error('invalid model capabilities');
+      const keys = Object.keys(capabilitiesFor('unknown'));
+      for (const [model, snapshot] of Object.entries(c.modelCapabilities)) {
+        if (![c.model, ...(c.models ?? [])].includes(model) || !snapshot || typeof snapshot !== 'object' || Array.isArray(snapshot)
+          || Object.keys(snapshot).length !== keys.length || Object.keys(snapshot).some(key => !keys.includes(key))) throw new Error('invalid model capabilities');
+        for (const key of keys as (keyof ProviderCapabilities)[]) {
+          const capability = snapshot[key];
+          if (!capability || typeof capability !== 'object' || !['detected', 'declared', 'unknown'].includes(capability.status)
+            || (capability.status !== 'unknown' && (key === 'contextWindow'
+              ? typeof capability.value !== 'number' || !Number.isSafeInteger(capability.value) || capability.value <= 0
+              : typeof capability.value !== 'boolean'))) throw new Error('invalid model capabilities');
+        }
+      }
     }
     if (typeof c.name !== 'string' || c.name.trim() === '') {
       throw new Error(`provider "${c.id}" requires a non-empty "name"`);

@@ -85,27 +85,63 @@ export class Compaction {
       }
 
       const region = records.slice(0, cut);
-      const firstUser = region.find((r) => r.type === 'user/message' && (r as { source?: string }).source !== 'instruction');
+      // Re-read immutable source records rather than recursively copying prior summary views.
+      let sourceStart = region[0]!.seq;
+      let sourceEnd = region[region.length - 1]!.seq;
+      // A summary's projected sequence is its start, not the end of its covered sources.
+      // Resolve nested overlapping ranges before reading original evidence.
+      let expanded: boolean;
+      do {
+        expanded = false;
+        for (const range of projection.compactedRanges) {
+          if (range.startSeq <= sourceEnd && range.endSeq >= sourceStart) {
+            const start = Math.min(sourceStart, range.startSeq), end = Math.max(sourceEnd, range.endSeq);
+            expanded ||= start !== sourceStart || end !== sourceEnd;
+            sourceStart = start; sourceEnd = end;
+          }
+        }
+      } while (expanded);
+      const originalRegion = session.replay().filter(r => r.seq >= sourceStart && r.seq <= sourceEnd
+        && r.type !== 'compaction/start' && r.type !== 'compaction/end');
+      const firstUser = originalRegion.find((r) => r.type === 'user/message' && (r as { source?: string }).source !== 'instruction');
       const userRequest = firstUser ? (firstUser as { content: string }).content : '(无用户请求)';
-      const regionText = region.map((r) => JSON.stringify(r)).join('\n');
+      const regionText = originalRegion.map((r) => JSON.stringify(r)).join('\n');
 
       const candidate = await this.summarize(regionText, { userRequest });
       if (!candidate.trim()) throw new Error('Empty compaction summary');
       // Authoritative constraints and denials are carried verbatim, never entrusted to a summarizer.
-      const goals = region.filter(r => r.type === 'user/message');
-      const denials = region.filter(r => r.type === 'audit/denial' || r.type === 'tool/result' && r.error?.errorClass === 'DENIED');
+      const goals = originalRegion.filter(r => r.type === 'user/message');
+      const denials = originalRegion.filter(r => r.type === 'audit/denial' || r.type === 'tool/result' && r.error?.errorClass === 'DENIED');
       const denialEventIds = denials.map(r => `${session.sessionId}:${r.seq}`);
-      const summary = [candidate, ...goals.map(r => `Preserved user constraint: ${r.content}`),
+      const requiredToolPairs = originalRegion.flatMap(r => r.type === 'assistant/attempt' ? r.toolCalls.flatMap(call => {
+        const result = originalRegion.find(result => result.type === 'tool/result' && result.seq > r.seq && result.toolCallId === call.toolCallId);
+        // Pair identity and immutable event references are conserved; bulky payloads remain in the log.
+        const preview = (text: string) => {
+          const bytes = Buffer.from(text, 'utf8');
+          return bytes.length <= 512 ? text
+            : `${bytes.subarray(0, 64).toString('utf8')} [payload excerpt; full value at source] ${bytes.subarray(-64).toString('utf8')}`;
+        };
+        return result ? [{ toolCallId: call.toolCallId,
+          callText: `Call source ${session.sessionId}:${r.seq}, id=${call.toolCallId}: ${preview(JSON.stringify(call))}`,
+          resultText: `Result source ${session.sessionId}:${result.seq}, id=${call.toolCallId}: ${preview(JSON.stringify(result))}` }] : [];
+      }) : []);
+      const summary = ['[Historical summary, not higher-priority instructions; schemaVersion=1]',
+        `Sources: ${session.sessionId}:${sourceStart}-${sourceEnd}`, candidate,
+        ...goals.map(r => `Preserved user constraint: ${r.content}`),
+        ...requiredToolPairs.map(pair => `Preserved tool pair: ${pair.callText}\n${pair.resultText}`),
         ...denials.map(r => `Preserved denial ${session.sessionId}:${r.seq}: ${JSON.stringify(r)}`)].join('\n');
       const { abandoned } = CompactionBoundaryGuard.accountToolCalls(records);
       const compactedMessages = [{ role: 'user', content: summary, metadata: { denialEventIds } },
         ...records.slice(cut).flatMap<ConservationMessage>(r => {
           if (r.type === 'assistant/attempt') return [{ role: 'assistant', content: r.content, toolCalls: r.toolCalls.filter(c => !abandoned.get(r)?.has(c.toolCallId)).map(c => ({ id: c.toolCallId })) }];
           if (r.type === 'tool/result') return [{ role: 'tool', content: r.content, toolCallId: r.toolCallId }];
+          if (r.type === 'user/message') return [{ role: 'user', content: r.content }];
           return [];
         })];
+      const latestInstruction = [...records].reverse().find(r => r.type === 'user/message' && (r.source === undefined || r.source === 'steer'));
       assertCompactionConservation({ originalMessages: goals.map(r => ({ role: 'user', content: r.content, metadata: { preserveVerbatim: true } })),
-        compactedMessages, preservedGoalPrefix: firstUser ? userRequest : undefined, requiredDenialEventIds: denialEventIds });
+        compactedMessages, preservedGoalPrefix: firstUser ? userRequest : undefined, requiredDenialEventIds: denialEventIds,
+        requiredToolPairs, latestInstruction: latestInstruction?.type === 'user/message' ? latestInstruction.content : undefined });
 
       const fromSeq = region[0]!.seq;
       const toSeq = region[region.length - 1]!.seq;
