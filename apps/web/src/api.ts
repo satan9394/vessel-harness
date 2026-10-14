@@ -8,7 +8,7 @@
  */
 
 // Team/route/review wire shapes (task 060) — see ./team for the full mirrors.
-import type { ProviderCapabilities } from '@vessel/shared';
+import type { BehaviorInspection, ProviderCapabilities } from '@vessel/shared';
 import type { ReviewRecord, RouteMode, RouteState, TeamRunState } from './team';
 // Goal/Loop wire shapes (task 065) — see ./goal for the full mirrors.
 import type { GoalBudget, GoalIteration, GoalRunResult, GoalTask } from './goal';
@@ -319,6 +319,9 @@ export function createApiClient(opts: ApiOptions = {}) {
     },
     async meshPeers(dagId?: string): Promise<MeshSnapshot> {
       return request(`/mesh/peers${dagId ? `?dagId=${encodeURIComponent(dagId)}` : ''}`);
+    },
+    async inspectBehavior(sessionId: string): Promise<{ sessionId: string; inspection: BehaviorInspection }> {
+      return request('/behavior/inspect?sessionId=' + encodeURIComponent(sessionId));
     },
     async cognitiveRules(): Promise<RulesSnapshot> {
       return request('/memory/rules');

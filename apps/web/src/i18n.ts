@@ -345,6 +345,42 @@ export interface CommonMessages {
   hierarchyHint: MessageTemplate;
   activityHint: MessageTemplate;
   studioHint: MessageTemplate;
+  behaviorInspector: MessageTemplate;
+  behaviorSelectSession: MessageTemplate;
+  behaviorUnavailable: MessageTemplate;
+  behaviorReadError: MessageTemplate;
+  behaviorChain: MessageTemplate;
+  behaviorSource: MessageTemplate;
+  behaviorPriority: MessageTemplate;
+  behaviorChannel: MessageTemplate;
+  behaviorMapping: MessageTemplate;
+  behaviorNoMapping: MessageTemplate;
+  behaviorSnapshot: MessageTemplate;
+  behaviorProvenance: MessageTemplate;
+  behaviorDiagnostics: MessageTemplate;
+  behaviorNoDiagnostics: MessageTemplate;
+  behaviorNoEntries: MessageTemplate;
+  behaviorAvailable: MessageTemplate;
+  behaviorLayerUnavailable: MessageTemplate;
+  behaviorL4Unavailable: MessageTemplate;
+  behaviorAssertions: MessageTemplate;
+  behaviorPassed: MessageTemplate;
+  behaviorFailed: MessageTemplate;
+  behaviorInstruction: MessageTemplate;
+  behaviorWorkflow: MessageTemplate;
+  behaviorConstraint: MessageTemplate;
+  behaviorToolStrategy: MessageTemplate;
+  behaviorVerification: MessageTemplate;
+  behaviorResourceBudget: MessageTemplate;
+  behaviorContextStrategy: MessageTemplate;
+  behaviorImportable: MessageTemplate;
+  behaviorRenderable: MessageTemplate;
+  behaviorMappable: MessageTemplate;
+  behaviorEnforceable: MessageTemplate;
+  behaviorVerified: MessageTemplate;
+  behaviorPromptChannel: MessageTemplate;
+  behaviorPolicyChannel: MessageTemplate;
+
   modelRetry: MessageTemplate;
   customize: MessageTemplate;
   customizeHead: MessageTemplate;
@@ -638,6 +674,42 @@ export interface Messages extends CommonMessages, SessionMessages, ModelMessages
   PatchMessages, ReasoningMessages, PaletteMessages, AttentionMessages, StatusMessages {}
 
 export const zh: Messages = {
+  behaviorInspector: '行为有效快照',
+  behaviorSelectSession: '选择一个会话以检查实际生效的行为。',
+  behaviorUnavailable: '此会话没有可用的行为快照。',
+  behaviorReadError: '读取行为快照失败：{error}',
+  behaviorChain: '生效链 L0 → L4',
+  behaviorSource: '来源',
+  behaviorPriority: '优先级',
+  behaviorChannel: '执法通道',
+  behaviorMapping: '策略执法映射',
+  behaviorNoMapping: '无策略映射',
+  behaviorSnapshot: '查看快照',
+  behaviorProvenance: '字段合并溯源',
+  behaviorDiagnostics: '编译诊断',
+  behaviorNoDiagnostics: '无编译诊断',
+  behaviorNoEntries: '快照中没有行为条目。',
+  behaviorAvailable: '可用',
+  behaviorLayerUnavailable: '不可用',
+  behaviorL4Unavailable: '尚无运行时一致性验证证据；不得视为已验证。',
+  behaviorAssertions: '验证断言与证据',
+  behaviorPassed: '通过',
+  behaviorFailed: '失败',
+  behaviorInstruction: '指令',
+  behaviorWorkflow: '工作流',
+  behaviorConstraint: '约束',
+  behaviorToolStrategy: '工具策略',
+  behaviorVerification: '验证',
+  behaviorResourceBudget: '资源预算',
+  behaviorContextStrategy: '上下文策略',
+  behaviorImportable: '可导入',
+  behaviorRenderable: '可渲染',
+  behaviorMappable: '可映射',
+  behaviorEnforceable: '可执法',
+  behaviorVerified: '已验证',
+  behaviorPromptChannel: '提示引导',
+  behaviorPolicyChannel: '运行时策略',
+
   modelUnavailable: '所选模型已不可用，请明确选择其他模型。',
   workbench: '工作台',
   activity: '活动',
@@ -657,7 +729,7 @@ export const zh: Messages = {
   sessionNew: '新会话',
   hierarchyHint: '项目 → 会话 → 运行 → 子代理',
   activityHint: '会话活动来自服务端记录；打开会话查看运行和审批。',
-  studioHint: '只读行为视图。编辑与编译验证需要后端有效配置契约。',
+  studioHint: '只读检查实际生效的行为、策略映射与编译来源。',
   modelRetry: '重新加载模型',
 
   providerPreset: "快捷模板",
@@ -1212,6 +1284,42 @@ export const zh: Messages = {
 };
 
 export const en: Messages = {
+  behaviorInspector: 'Effective behavior snapshot',
+  behaviorSelectSession: 'Select a session to inspect its effective behavior.',
+  behaviorUnavailable: 'No behavior snapshot is available for this session.',
+  behaviorReadError: 'Could not read behavior snapshot: {error}',
+  behaviorChain: 'Effective chain L0 → L4',
+  behaviorSource: 'Source',
+  behaviorPriority: 'Priority',
+  behaviorChannel: 'Enforcement channel',
+  behaviorMapping: 'Policy enforcement mapping',
+  behaviorNoMapping: 'No policy mapping',
+  behaviorSnapshot: 'Inspect snapshot',
+  behaviorProvenance: 'Field merge provenance',
+  behaviorDiagnostics: 'Compilation diagnostics',
+  behaviorNoDiagnostics: 'No compilation diagnostics',
+  behaviorNoEntries: 'This snapshot contains no behavior entries.',
+  behaviorAvailable: 'Available',
+  behaviorLayerUnavailable: 'Unavailable',
+  behaviorL4Unavailable: 'Runtime conformance evidence is unavailable; this layer is not verified.',
+  behaviorAssertions: 'Assertions and evidence',
+  behaviorPassed: 'Passed',
+  behaviorFailed: 'Failed',
+  behaviorInstruction: 'Instruction',
+  behaviorWorkflow: 'Workflow',
+  behaviorConstraint: 'Constraint',
+  behaviorToolStrategy: 'Tool strategy',
+  behaviorVerification: 'Verification',
+  behaviorResourceBudget: 'Resource budget',
+  behaviorContextStrategy: 'Context strategy',
+  behaviorImportable: 'Importable',
+  behaviorRenderable: 'Renderable',
+  behaviorMappable: 'Mappable',
+  behaviorEnforceable: 'Enforceable',
+  behaviorVerified: 'Verified',
+  behaviorPromptChannel: 'Prompt guidance',
+  behaviorPolicyChannel: 'Runtime policy',
+
   modelUnavailable: 'The selected model is unavailable. Choose a replacement explicitly.',
   workbench: 'Workbench',
   activity: 'Activity',
@@ -1231,7 +1339,7 @@ export const en: Messages = {
   sessionNew: 'New session',
   hierarchyHint: 'Project → Session → Run → Subagent',
   activityHint: 'Session activity comes from server records. Open a session to inspect runs and approvals.',
-  studioHint: 'Read-only behavior view. Editing and compile verification require the backend effective configuration contract.',
+  studioHint: 'Read-only inspection of effective behavior, policy mappings and compilation sources.',
   modelRetry: 'Retry model catalog',
 
   providerPreset: "Preset",

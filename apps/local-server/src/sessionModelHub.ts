@@ -12,6 +12,7 @@ export class SessionModelHub implements ChatProvider {
   private auditFile?: string;
   constructor(private selected: ModelSelection, private target: ChatProvider) {}
   get selection(): ModelSelection { return { ...this.selected }; }
+  get capabilities() { return this.target.capabilities; }
   attach(sessionDir: string): void { this.auditFile = path.join(sessionDir, 'model-delegations.jsonl'); }
   select(selection: ModelSelection, target: ChatProvider): void { this.selected = { ...selection }; this.target = target; }
   private delegate(request: ChatRequest): { provider: ChatProvider; request: ChatRequest } {

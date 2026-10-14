@@ -146,6 +146,12 @@ export class SessionController {
   }
 
   /** Current control-plane state snapshot. */
+  get behaviorInspection() { return this.harness.behaviorInspection; }
+  validateBehaviorModel(provider: ChatProvider, model: string, providerId?: string) {
+    this.harness.validateBehaviorModel(provider, model, providerId);
+  }
+
+  /** Current control-plane state snapshot. */
   get state(): SessionState {
     return {
       id: this.sessionId,

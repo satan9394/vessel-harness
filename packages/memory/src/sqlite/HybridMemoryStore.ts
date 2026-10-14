@@ -62,6 +62,37 @@ export function extractReflectiveRule(record: SessionRecord): RuleInput | undefi
 
 /** Adds hybrid recall and derived lessons to the existing disposable JSONL session projection. */
 export class HybridMemoryStore extends SessionIndexStore {
+  /**
+   * 已索引 embedding 的内存镜像（`sessionId → seq → { vector, content }`）。
+   *
+   * 它只做**热路径加速**：`memory_embeddings` 表始终是唯一事实源，镜像的每次读写点都与
+   * 表内变化严格同点发生（构造/重建/对账时从表重载，写入与删除时同步增删）。这样
+   * `searchHybrid` 的向量那一跳不再做「全表 JOIN + 逐行 JSON.parse」，但候选集合、
+   * 排序与返回内容与改前逐字节一致。content 随向量一起缓存，因为 JOIN 原本就是从这里取正文。
+   */
+  private readonly embeddings = new Map<string, Map<number, { vector: number[]; content: string }>>();
+  private putEmbedding(sessionId: string, seq: number, vector: number[], content: string): void {
+    let bySeq = this.embeddings.get(sessionId);
+    if (!bySeq) { bySeq = new Map(); this.embeddings.set(sessionId, bySeq); }
+    bySeq.set(seq, { vector: [...vector], content });
+  }
+  private dropEmbedding(sessionId: string, seq: number): void {
+    const bySeq = this.embeddings.get(sessionId); if (!bySeq) return;
+    bySeq.delete(seq); if (!bySeq.size) this.embeddings.delete(sessionId);
+  }
+  private dropEmbeddings(sessionId?: string): void {
+    if (sessionId === undefined) this.embeddings.clear(); else this.embeddings.delete(sessionId);
+  }
+  /** 绑定镜像与表：先清掉该范围，再按表的当前内容重建（覆盖重启、重建与对账三条路径）。 */
+  private loadEmbeddings(sessionId?: string): void {
+    this.dropEmbeddings(sessionId);
+    const sql = `SELECT e.session_id,e.seq,e.embedding,m.content FROM memory_embeddings e JOIN messages_fts m ON m.session_id=e.session_id AND m.seq=e.seq`;
+    const rows = sessionId === undefined ? this.db.prepare(sql).all() : this.db.prepare(`${sql} WHERE e.session_id=?`).all(sessionId);
+    for (const row of rows) {
+      try { this.putEmbedding(String(row.session_id), Number(row.seq), JSON.parse(String(row.embedding)) as number[], String(row.content)); }
+      catch { /* 与 jsonl/镜像的既有口径一致：损坏行不进镜像，也不因此让整个 store 打不开 */ }
+    }
+  }
   constructor(dbPath: string) {
     super(dbPath);
     this.db.exec(`CREATE TABLE IF NOT EXISTS memory_embeddings(session_id TEXT NOT NULL,seq INTEGER NOT NULL,embedding TEXT NOT NULL,PRIMARY KEY(session_id,seq));
@@ -123,6 +154,7 @@ export class HybridMemoryStore extends SessionIndexStore {
     if (previous?.json === JSON.stringify(record)) return;
     super.insert(sessionId, record);
     this.db.prepare('DELETE FROM memory_embeddings WHERE session_id=? AND seq=?').run(sessionId, record.seq);
+    this.dropEmbedding(sessionId, record.seq);
     const old = this.db.prepare('SELECT rule_id FROM reflective_events WHERE session_id=? AND seq=?').get(sessionId, record.seq);
     this.db.prepare('DELETE FROM reflective_events WHERE session_id=? AND seq=?').run(sessionId, record.seq);
     if (old) this.db.prepare('UPDATE reflective_rules SET frequency=frequency-1 WHERE id=?').run(old.rule_id!);
@@ -140,10 +172,11 @@ export class HybridMemoryStore extends SessionIndexStore {
   protected override remove(sessionId: string): void {
     super.remove(sessionId);
     this.db.prepare('DELETE FROM memory_embeddings WHERE session_id=?').run(sessionId);
+    this.dropEmbeddings(sessionId);
     this.db.prepare('DELETE FROM reflective_events WHERE session_id=?').run(sessionId); this.refreshRules();
   }
   protected override resetProjection(): void {
-    this.db.exec('DELETE FROM memory_embeddings; DELETE FROM reflective_events;'); this.refreshRules();
+    this.db.exec('DELETE FROM memory_embeddings; DELETE FROM reflective_events;'); this.dropEmbeddings(); this.refreshRules();
   }
   async indexEmbedding(sessionId: string, seq: number, embedding: number[]): Promise<void> {
     vector(embedding); await this.queue;
@@ -152,23 +185,28 @@ export class HybridMemoryStore extends SessionIndexStore {
     const fd = fs.openSync(this.dbPath + '.embeddings.jsonl', 'a', 0o600);
     try { fs.writeSync(fd, '\n' + JSON.stringify({ sessionId, seq, embedding, fingerprint: this.fingerprint(String(message.content)) }) + '\n'); fs.fsyncSync(fd); } finally { fs.closeSync(fd); }
     this.db.prepare('INSERT INTO memory_embeddings VALUES(?,?,?) ON CONFLICT(session_id,seq) DO UPDATE SET embedding=excluded.embedding').run(sessionId, seq, JSON.stringify(embedding));
+    this.putEmbedding(sessionId, seq, embedding, String(message.content));
   }
   private fingerprint(content: string): string { return createHash('sha256').update(content).digest('hex'); }
   private restoreEmbeddings(sessionId?: string): void {
-    const file = this.dbPath + '.embeddings.jsonl'; if (!fs.existsSync(file)) return;
-    const latest = new Map<string, { sessionId: string; seq: number; embedding: number[]; fingerprint: string }>();
-    for (const line of jsonlLinesSync(file)) {
-      try {
-        const item = JSON.parse(line) as { sessionId: string; seq: number; embedding: number[]; fingerprint: string };
-        vector(item.embedding);
-        if (typeof item.sessionId !== 'string' || !Number.isSafeInteger(item.seq) || item.seq < 1 || typeof item.fingerprint !== 'string') continue;
-        if (sessionId === undefined || item.sessionId === sessionId) latest.set(JSON.stringify([item.sessionId, item.seq]), item);
-      } catch { /* malformed embedding facts stay in the journal, never mutate session history. */ }
+    const file = this.dbPath + '.embeddings.jsonl';
+    // 表是唯一事实源：无论日志是否存在，重放完成后都按表的当前内容重建镜像。
+    if (fs.existsSync(file)) {
+      const latest = new Map<string, { sessionId: string; seq: number; embedding: number[]; fingerprint: string }>();
+      for (const line of jsonlLinesSync(file)) {
+        try {
+          const item = JSON.parse(line) as { sessionId: string; seq: number; embedding: number[]; fingerprint: string };
+          vector(item.embedding);
+          if (typeof item.sessionId !== 'string' || !Number.isSafeInteger(item.seq) || item.seq < 1 || typeof item.fingerprint !== 'string') continue;
+          if (sessionId === undefined || item.sessionId === sessionId) latest.set(JSON.stringify([item.sessionId, item.seq]), item);
+        } catch { /* malformed embedding facts stay in the journal, never mutate session history. */ }
+      }
+      for (const item of latest.values()) {
+        const row = this.db.prepare('SELECT content FROM messages_fts WHERE session_id=? AND seq=?').get(item.sessionId, item.seq);
+        if (row && this.fingerprint(String(row.content)) === item.fingerprint) this.db.prepare('INSERT OR REPLACE INTO memory_embeddings VALUES(?,?,?)').run(item.sessionId, item.seq, JSON.stringify(item.embedding));
+      }
     }
-    for (const item of latest.values()) {
-      const row = this.db.prepare('SELECT content FROM messages_fts WHERE session_id=? AND seq=?').get(item.sessionId, item.seq);
-      if (row && this.fingerprint(String(row.content)) === item.fingerprint) this.db.prepare('INSERT OR REPLACE INTO memory_embeddings VALUES(?,?,?)').run(item.sessionId, item.seq, JSON.stringify(item.embedding));
-    }
+    this.loadEmbeddings(sessionId);
   }
   override async indexRecords(sessionId: string, records: readonly SessionRecord[]): Promise<void> { await super.indexRecords(sessionId, records); this.refreshRules(); }
   override async reconcileSession(source: SessionIndexSource): Promise<void> { await super.reconcileSession(source); this.refreshRules(); this.restoreEmbeddings(source.sessionId); }
@@ -194,10 +232,15 @@ export class HybridMemoryStore extends SessionIndexStore {
     }
     if (params.embedding) {
       const query = params.embedding;
-      const rows = this.db.prepare(`SELECT e.session_id,e.seq,e.embedding,m.content FROM memory_embeddings e JOIN messages_fts m ON m.session_id=e.session_id AND m.seq=e.seq`).all()
-        .map(row => { const embedding = JSON.parse(String(row.embedding)) as number[]; return { row, score: embedding.length === query.length ? cosineSimilarity(query, embedding) : 0 }; })
-        .filter(item => item.score > 0).sort((a, b) => b.score - a.score || String(a.row.session_id).localeCompare(String(b.row.session_id)) || Number(a.row.seq) - Number(b.row.seq));
-      rows.forEach(({ row }, i) => add(String(row.session_id), Number(row.seq), String(row.content), i + 1, 'vectorRank'));
+      // 读内存镜像（与 memory_embeddings 表同点同步），候选集合、排序键与取正文的位置与
+      // 原来的「全表 JOIN + 逐行 JSON.parse」完全一致，只是不再每查一次就扫表与反序列化。
+      const scored: { sessionId: string; seq: number; content: string; score: number }[] = [];
+      for (const [sessionId, bySeq] of this.embeddings) for (const [seq, entry] of bySeq) {
+        const score = entry.vector.length === query.length ? cosineSimilarity(query, entry.vector) : 0;
+        if (score > 0) scored.push({ sessionId, seq, content: entry.content, score });
+      }
+      scored.sort((a, b) => b.score - a.score || a.sessionId.localeCompare(b.sessionId) || a.seq - b.seq);
+      scored.forEach((item, i) => add(item.sessionId, item.seq, item.content, i + 1, 'vectorRank'));
     }
     return [...candidates.values()].filter(row => row.rrfScore >= min).sort((a, b) => b.rrfScore - a.rrfScore || a.sessionId.localeCompare(b.sessionId) || a.matchedContent.localeCompare(b.matchedContent)).slice(0, limit);
   }

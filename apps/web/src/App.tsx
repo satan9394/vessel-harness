@@ -20,6 +20,7 @@ import TeamModule from './components/TeamModule';
 import GoalModule from './components/GoalModule';
 import SwarmTopologyView from './components/SwarmTopologyView';
 import CognitiveRulesDashboard from './components/CognitiveRulesDashboard';
+import AgentStudioInspector from './components/studio/AgentStudioInspector';
 import {
   loadModules,
   saveModules,
@@ -189,7 +190,7 @@ function AppShell() {
         </div>
         {area === 'activity' ? <section className="main-body"><h2>{t('activity')}</h2><p className="dim">{t('activityHint')}</p><div className="activity-sessions">{sessions.filter(session => !session.topic?.isArchived).map(session => <button className="btn" key={session.id} disabled={taskStarting} onClick={() => { if (taskStarting) return; setSelectedSessionId(session.id); setArea('workbench'); }}><strong>{readableSessionTitle(session, t('sessionNew'))}</strong><span>{projectName(session.workspaceRoot)} · {new Date(session.updatedAt ?? session.createdAt).toLocaleString()}</span></button>)}</div>{!sessions.length && <p>{t('noSessions')}</p>}<SubagentWorkspace api={api} /></section>
  : null}
-        {area === 'studio' ? <section className="main-body"><h2>{t('agentStudio')}</h2><p className="dim">{t('studioHint')}</p><CognitiveRulesDashboard api={api} /></section>
+        {area === 'studio' ? <section className="main-body"><h2>{t('agentStudio')}</h2><p className="dim">{t('studioHint')}</p><AgentStudioInspector api={api} selectedSessionId={nothingSelected ? null : selectedSessionId} /><CognitiveRulesDashboard api={api} /></section>
  : null}
         {area === 'settings' ? <section className="main-body"><h2>{t('settings')}</h2><button className="btn" data-action="configure-models" onClick={() => setShowProviders(true)}>{t('modelSettings')}</button><p className="dim">{t('layoutBoundary')}</p><CustomizePanel modules={modules} onChange={handleModulesChange} /><LanguageSwitcher /><AttentionControls attention={attention} /></section>
  : null}

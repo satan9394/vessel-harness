@@ -1,0 +1,18 @@
+﻿[
+    {
+        "name":  "01-tsc",
+        "exitCode":  0,
+        "command":  "npx.cmd tsc -b",
+        "startedAt":  "2026-10-14T06:32:01.3035171+00:00",
+        "finishedAt":  "2026-10-14T06:32:16.7831915+00:00",
+        "log":  "E:\\Code_file\\Projects\\Vessel_Harness\\evidence\\sessions\\2026-10-13-card221\\accepted-01-tsc.log"
+    },
+    {
+        "name":  "02-typecheck-tests",
+        "exitCode":  1,
+        "command":  "npm.cmd run typecheck:tests",
+        "startedAt":  "2026-10-14T06:32:17.2449321+00:00",
+        "finishedAt":  "2026-10-14T06:32:24.4646972+00:00",
+        "log":  "E:\\Code_file\\Projects\\Vessel_Harness\\evidence\\sessions\\2026-10-13-card221\\accepted-02-typecheck-tests.log"
+    }
+]

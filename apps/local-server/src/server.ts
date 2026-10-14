@@ -30,6 +30,7 @@ import { WidgetRoutes } from './routes/widgetRoutes.js';
 import { PatchRoutes } from './routes/patchRoutes.js';
 import { SessionInspector, type WorkspaceObserver } from './routes/sessionInspector.js';
 import { ProviderRoutes } from './routes/providerRoutes.js';
+import { BehaviorRoutes } from './routes/behaviorRoutes.js';
 import { createDefaultProviderStore } from './providers/defaultStore.js';
 import type { ProviderStore, ProviderConfig } from './providers/ProviderStore.js';
 
@@ -306,6 +307,7 @@ export function createVesselServer(opts: VesselServerOptions = {}): VesselServer
 
   /** live session controllers keyed by session id (owns the run loop). */
   const controllers = new Map<string, SessionController>();
+  const behaviorRoutes = new BehaviorRoutes(id => controllers.get(id)?.behaviorInspection);
   const patches = new PatchRoutes(id => controllers.get(id)?.state);
   const widgets = new WidgetRoutes(id => controllers.has(id), (id, widget) => {
     if (widget.kind === 'diff_inspector') patches.publish(id, widget);
@@ -390,6 +392,12 @@ export function createVesselServer(opts: VesselServerOptions = {}): VesselServer
     if (opts.authToken && !authMiddleware(req, res, opts.authToken, url.pathname)) return;
     const providerRoute = url.pathname === '/api/models' || url.pathname === '/api/providers' || url.pathname.startsWith('/api/providers/');
     const sameOrigin = trustedOrigin(req, url, Boolean(opts.authToken));
+    if (url.pathname === '/api/behavior/effective' || url.pathname === '/api/behavior/inspect') {
+      if (!sameOrigin) return json(res, 403, { error: 'origin_denied' });
+      if (method !== 'GET') return json(res, 405, { error: 'read_only' });
+      const snapshot = behaviorRoutes.inspect(url.searchParams.get('sessionId'));
+      return snapshot ? json(res, 200, snapshot) : json(res, 404, { error: 'behavior_snapshot_unavailable' });
+    }
     if (providerRoute) {
       if (!sameOrigin) return json(res, 403, { error: 'cross_origin_denied' });
       try {
@@ -686,6 +694,7 @@ export function createVesselServer(opts: VesselServerOptions = {}): VesselServer
         try {
           const config = providerRoutes.resolve(provider, model);
           const target = buildProvider(config);
+          ctl.validateBehaviorModel(target, model, provider);
           if (!previous) return json(res, 404, suggestNotFound(id));
           try { sessionRegistry.put({ ...previous, provider, model }); }
           catch (error) { sessionRegistry.put(previous); throw error; }

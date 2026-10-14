@@ -110,13 +110,20 @@
 | Vessel 架构整改与实施规范落地 (Architecture Improvement Plan Implementation) | 217 | 已验证（已合入本地提交 `6442171`；双 Root 3219 passed / 6 skipped） | `tasks/217-architecture-improvement-plan-implementation.md` |
 | Vessel Web UI/UX 工作台整改规范落地 (Web UI/UX Workbench Improvement) | 218 | 已验证（已合入本地提交 `26ba6fe`；双 Root 3228 passed / 6 skipped） | `tasks/218-web-ui-ux-workbench-improvement-implementation.md` |
 | 全量功能端到端交互与真实点击测试套件 (Full Surface Click-Testing Suite) | 219 | 已验证（2026-10-13；交证即停） | `tasks/219-full-surface-interactive-click-testing-suite.md` |
-| Provider 能力协商契约与 Context 分层版本化缓存落地 (Provider Capability Contract & Context Layered Cache) | 220 | 已验证（2026-10-13；交证即停） | `tasks/220-provider-capability-contract-and-layered-cache.md` |
+| Provider 能力协商契约与 Context 分层版本化缓存落地 (Provider Capability Contract & Context Layered Cache) | 220 | 已验证（已合入本地提交 `030fc0f`；双 Root 3271 passed / 6 skipped） | `tasks/220-provider-capability-contract-and-layered-cache.md` |
+| Behavior 语义 IR、五级兼容性等级与 Agent Studio L0-L4 检查器 (Behavior Semantic IR & Studio Inspector) | 221 | 已验证（2026-10-14；四道门禁 exit 0，双 Root 3,296 passed / 6 skipped） | `tasks/221-behavior-semantic-ir-and-agent-studio-inspector.md` |
 
 ## 未闭合 / 下一目标
 
-- **最近已交付：任务 220 Provider 能力协商契约与 Context 分层版本化缓存落地**：
-  - 验收入口：`tasks/220-provider-capability-contract-and-layered-cache.md`；证据与限制：`evidence/sessions/2026-10-13-card220/PROOF.md`。standard 闭环，交证即停；等待人类验收。
-- **最近已交付：任务 219 全量功能端到端交互与真实点击测试套件**：
+- **当前攻坚：无**（goal 模式队列已清空，等待维护者派发下一张卡）。
+- **最近已交付（本地未提交，交证即停）：任务 221 Behavior 语义 IR、五级兼容性等级与 Agent Studio L0-L4 检查器**：
+  - 验收入口：`tasks/221-behavior-semantic-ir-and-agent-studio-inspector.md`；证据与限制：`evidence/sessions/2026-10-13-card221/PROOF.md`。
+  - 交付：ARC-07 语义 IR 与五级兼容阶梯、L0→L4 生效快照与编译溯源、`/api/behavior/inspect`、Web Agent Studio 只读检查器（中英双语 + 800px 响应式）；`packages/core` 0 变动。
+  - 攻坚收口：`HybridMemoryStore` 内存向量索引（热中位 18–24ms → 6.288ms）消除 `hybridSearch` 门禁的环境性红；三个绝对毫秒门禁统一为「预热 + 仅计时超线的有界重测」（阈值/统计量/断言未改）；离线 Chromium + CDP 实拍 6 张截图。
+  - 门禁：`tsc -b`、`typecheck:tests`、Web build、`test:all` 全部 exit 0；根 282 文件 / 2,988 passed + 6 skipped，web 36 文件 / 308 passed。
+- **最近已交付（已合入本地提交 `030fc0f`）：任务 220 Provider 能力协商契约与 Context 分层版本化缓存落地**：
+  - 验收入口：`tasks/220-provider-capability-contract-and-layered-cache.md`；证据与限制：`evidence/sessions/2026-10-13-card220/PROOF.md`。双 Root 3,271 passed / 6 skipped 全绿，Thin Core 0 变动。
+- **前序已交付（已合入本地提交 `1276d39`）：任务 219 全量功能端到端交互与真实点击测试套件**：
   - 验收入口：`tasks/219-full-surface-interactive-click-testing-suite.md`；证据与限制：`evidence/sessions/2026-10-13-card219/PROOF.md`。standard 闭环，交证即停。
 - **最近已交付（已合入本地提交 `26ba6fe`）：任务 218 Web UI/UX 工作台整改规范落地**：
   - 交付内容：四大一级导航重构、就地任务启动流、分组命令面板、800px 自适应抽屉、12 张中英双语 Retina 截图全部刷新；

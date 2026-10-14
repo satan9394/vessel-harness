@@ -1,0 +1,19 @@
+
+ RUN  v5.0.1 E:/Code_file/Projects/Vessel_Harness
+
+hybrid warm median [attempt 1/3]: 6.288 ms; 1000 messages, 4 dimensions
+(node:29704) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:28528) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+session index: 1000-session/50-row page median [attempt 1/5] 0.447ms
+session index: 1000-session/1000-row page median [attempt 1/5] 3.629ms
+
+ Test Files  3 passed (3)
+      Tests  31 passed (31)
+   Start at  03:00:58
+   Duration  12.10s (tests 88%, import 7%, transform 4%, setup 1%)
+
+    Isolate  3 workers spawned 路 ~368ms startup each (spawn + environment, per file)
+             at least ~737ms faster with isolate: false 鈥?reuses workers across files instead of one per file
+
