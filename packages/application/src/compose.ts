@@ -2,14 +2,14 @@ import { observeProviderCacheUsage } from '@vessel/llm';
 import * as path from 'node:path';
 import * as fs from 'node:fs';
 import { randomUUID } from 'node:crypto';
-import type { CacheUsageMetrics, ChatUsage, ChatProvider, ChatToolDef, ToolCall, ToolResultRecord } from '@vessel/shared';
+import type { BehaviorInspection, RequestEnvelopeV1, CacheUsageMetrics, ChatUsage, ChatProvider, ChatToolDef, ToolCall, ToolResultRecord } from '@vessel/shared';
 import { AgentLoop, EventBus, Session } from '@vessel/core';
 import { ContextBuilder, AdaptiveContextPruner, CompactionBoundaryGuard, Compaction, createOverflowRecovery, type AdaptiveCompactionOptions, type ContextPruneOptions } from '@vessel/context';
 import { NoProgressGuard, ToolRegistry, createFsTools, createSearchTools, createShellTool, createSymbolGraphAccess, McpClient, registerMcpTools, type McpTransport, type NativeSandboxRunner } from '@vessel/tools';
 import { PolicyEngine, loadPolicyArtifacts, ModPipeline, RedGreenGate } from '@vessel/policy';
 import { guardBugfixCompletion } from './redGreenCompletion.js';
 import { Executor, Sandbox, ClaudeModAdapter, EffectJournal } from '@vessel/runtime';
-import { loadBehaviorIR, compileBehavior } from '@vessel/behavior';
+import { loadBehaviorIR, compileBehavior, behaviorSnapshotHash } from '@vessel/behavior';
 import { discoverInstructions } from '@vessel/context';
 import {
   listIndex,
@@ -139,6 +139,8 @@ export interface ComposedHarness {
   telemetry: Telemetry;
   artifacts: ReturnType<typeof loadPolicyArtifacts>;
   behaviorWarnings: string[];
+  readonly behaviorInspection: BehaviorInspection;
+  validateBehaviorModel(provider: ChatProvider, model: string, providerId?: string): void;
   /** Workspace plugins discovered during composition; hook commands remain opaque data. */
   discoveredPlugins: DiscoveredPlugin[];
   subagentManager?: SubagentManager;
@@ -250,10 +252,37 @@ export async function composeHarness(opts: ComposeOptions): Promise<ComposedHarn
   }
   // Mandatory behavior must compile before acquiring a session lease or invoking Mods.
   const ir = loadBehaviorIR(opts.behaviorIRPath);
-  const compiled = compileBehavior(ir, artifacts);
+  const modelProfile = () => {
+    const selection = opts.contextModelSelection?.();
+    return { provider: selection?.providerId ?? effectiveProvider.id, model: selection?.model ?? effectiveModel, capabilities: effectiveProvider.capabilities };
+  };
+  let profileHash = behaviorSnapshotHash(modelProfile());
+  let compiled = compileBehavior(ir, artifacts, { modelProfile: modelProfile() });
+  let behaviorInspection = compiled.inspection;
+  const refreshBehaviorProfile = () => {
+    const current = modelProfile();
+    const hash = behaviorSnapshotHash(current);
+    if (hash !== profileHash) {
+      const candidate = compileBehavior(ir, artifacts, { modelProfile: current });
+      compiled = candidate; behaviorInspection = candidate.inspection; profileHash = hash;
+    }
+  };
+  const observeBehaviorRequest = (request: RequestEnvelopeV1) => {
+    behaviorInspection = { ...compiled.inspection, layers: compiled.inspection.layers.map(layer => layer.level !== 'L4' ? layer : {
+      level: 'L4', status: 'available', sourceRefs: compiled.inspection.entries.map(entry => entry.sourceRef),
+      snapshotHash: request.requestHash,
+      snapshot: { requestHash: request.requestHash, dependencyHash: request.dependencyHash, model: request.model,
+        projectionRevision: request.projectionRevision, basedOnEventSequence: request.basedOnEventSequence,
+        estimateTokens: request.estimateTokens, messageCount: request.messages.length, toolCount: request.tools.length },
+    }) };
+  };
   const behaviorWarnings = compiled.warnings;
   const session = await Session.open({ workspaceRoot, sessionId: opts.sessionId });
   const bus = new EventBus();
+  const detachBehaviorInspection = bus.on('before_model', payload => {
+    const request = (payload as { envelope: RequestEnvelopeV1 }).envelope;
+    observeBehaviorRequest(request);
+  }, 'application:behavior-inspection');
   const redGreenGate = opts.taskType === 'bugfix' ? opts.redGreenGate ?? new RedGreenGate() : undefined;
   const policyEngine = new PolicyEngine(artifacts, redGreenGate ? [call => call.toolName === 'claim_task_complete' ? redGreenGate.completionVerdict(cwd) : undefined] : []);
 
@@ -639,6 +668,7 @@ export async function composeHarness(opts: ComposeOptions): Promise<ComposedHarn
     }) : cacheObserver.provider,
     model: effectiveModel,
     buildContext: async (step) => {
+      refreshBehaviorProfile();
       const envelope = await builder.assemble(step);
       prefixHash = envelope.prefixLayout.prefixByteHash;
       if (CompactionBoundaryGuard.canCompactHistory(step - 1, session.replay()) && compaction.shouldCompact(envelope.estimateTokens, builder.window)) {
@@ -668,6 +698,10 @@ export async function composeHarness(opts: ComposeOptions): Promise<ComposedHarn
     telemetry,
     artifacts,
     behaviorWarnings,
+    get behaviorInspection() { refreshBehaviorProfile(); return structuredClone(behaviorInspection); },
+    validateBehaviorModel(provider, model, providerId = provider.id) {
+      compileBehavior(ir, artifacts, { modelProfile: { provider: providerId, model, capabilities: provider.capabilities } });
+    },
     discoveredPlugins,
     subagentManager,
     externalAgentRuntime,
@@ -680,6 +714,7 @@ export async function composeHarness(opts: ComposeOptions): Promise<ComposedHarn
     sandbox,
     enforcement,
     async close() {
+      detachBehaviorInspection();
       telemetry.detach();
       enforcementDetach();
       enforcementFoldDetach();

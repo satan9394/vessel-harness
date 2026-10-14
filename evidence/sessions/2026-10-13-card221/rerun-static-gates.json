@@ -1,0 +1,20 @@
+[
+  {
+    "name": "rerun-01-tsc",
+    "command": "npx.cmd tsc -b",
+    "exitCode": 0,
+    "seconds": 7.3
+  },
+  {
+    "name": "rerun-02-typecheck-tests",
+    "command": "npm.cmd run typecheck:tests",
+    "exitCode": 0,
+    "seconds": 5.5
+  },
+  {
+    "name": "rerun-03-web-build",
+    "command": "npm.cmd run -w @vessel/web build -- --emptyOutDir false",
+    "exitCode": 0,
+    "seconds": 5.5
+  }
+]

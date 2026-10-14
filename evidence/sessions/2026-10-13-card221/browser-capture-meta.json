@@ -1,0 +1,1810 @@
+{
+  "appUrl": "http://127.0.0.1:32821",
+  "chrome": "C:\\work\\AppData\\Local\\ms-playwright\\chromium-1243\\chrome-win64\\chrome.exe",
+  "viewportDesktop": {
+    "width": 1440,
+    "height": 960,
+    "deviceScaleFactor": 2
+  },
+  "viewportResponsive": {
+    "width": 800,
+    "height": 1000,
+    "deviceScaleFactor": 2
+  },
+  "shots": [
+    {
+      "file": "card221-studio-inspector-zh-desktop.png",
+      "bytes": 77925,
+      "sha256": "7c41f0bb5ab86a29df683a52b436917e7f3679ab3b31ee273b51aef03e478a39"
+    },
+    {
+      "file": "card221-studio-inspector-zh-entries.png",
+      "bytes": 75602,
+      "sha256": "f0326d0e53298672bd1e91020c3c2c399883e163133c08b4013333f24df951cb"
+    },
+    {
+      "file": "card221-studio-inspector-en-desktop.png",
+      "bytes": 78083,
+      "sha256": "9fad8f647f9cbb177497baa84a5dc7415760d678c47c5bb9b10f54e7adab6f2a"
+    },
+    {
+      "file": "card221-studio-inspector-en-entries.png",
+      "bytes": 76405,
+      "sha256": "23804fcb970ef9481d0ecc25cd0d32a07273f790638a55ceffdc1545caacc932"
+    },
+    {
+      "file": "card221-studio-inspector-en-800px.png",
+      "bytes": 62036,
+      "sha256": "01cb7c8bc5a8b3f23467a3a0ffd530c5130bd97f697260de618b501967183caa"
+    },
+    {
+      "file": "card221-studio-inspector-en-800px-entries.png",
+      "bytes": 53771,
+      "sha256": "8f5bb0512193010b37519120eaba7dc6471941da9e00fb63a83fb0da2b15de26"
+    }
+  ],
+  "ladderStepsPerEntry": 90,
+  "layerLevels": [
+    "L0",
+    "L1",
+    "L2",
+    "L3",
+    "L4"
+  ],
+  "inspectorText": {
+    "zh": "行为有效快照\n刷新\n\nf2b381443f6c02d11925e4f5b0a8b0ffa4ddfc86199d51ddfcbfebb8696fc49d\n\n生效链 L0 → L4\nL0 可用\n\n来源: E:\\Code_file\\Projects\\Vessel_Harness\\configs\\behavior.default.yaml\n\ne28b727ddcbb65224726e88d783136177e5a6c72b4ee223518bf12b837d01fb8\n查看快照\nL1 可用\n\n来源: E:\\Code_file\\Projects\\Vessel_Harness\\configs\\behavior.default.yaml\n\ned1824b7633fe5068837835491a6e6a21891e2cc7dbc26e6afa0bc2626c13e87\n查看快照\nL2 可用\n\n来源: E:\\Code_file\\Projects\\Vessel_Harness\\configs\\behavior.default.yaml\n\n98e1e56ff4ee45ea9d7f80a3de283285b9906b9b74ce4e9aea9139ce1f26d026\n查看快照\nL3 可用\n\n来源: E:\\Code_file\\Projects\\Vessel_Harness\\configs\\behavior.default.yaml\n\n3c49ff7b4e245691103c6d9e53f2e0bff280b921961865635fcb2325d1805594\n查看快照\nL4 可用\n\n来源: E:\\Code_file\\Projects\\Vessel_Harness\\configs\\behavior.default.yaml, E:\\Code_file\\Projects\\Vessel_Harness\\configs\\behavior.default.yaml, E:\\Code_file\\Projects\\Vessel_Harness\\configs\\behavior.default.yaml, E:\\Code_file\\Projects\\Vessel_Harness\\configs\\behavior.default.yaml, E:\\Code_file\\Projects\\Vessel_Harness\\configs\\behavior.default.yaml, E:\\Code_file\\Projects\\Vessel_Harness\\configs\\behavior.default.yaml, E:\\Code_file\\Projects\\Vessel_Harness\\configs\\behavior.default.yaml, E:\\Code_file\\Projects\\Vessel_Harness\\configs\\behavior.default.yaml, E:\\Code_file\\Projects\\Vessel_Harness\\configs\\behavior.default.yaml, E:\\Code_file\\Projects\\Vessel_Harness\\configs\\behavior.default.yaml, E:\\Code_file\\Projects\\Vessel_Harness\\configs\\behavior.default.yaml, E:\\Code_file\\Projects\\Vessel_Harness\\configs\\behavior.default.yaml, E:\\Code_file\\Projects\\Vessel_Harness\\configs\\behavior.default.yaml, E:\\Code_file\\Projects\\Vessel_Harness\\configs\\behavior.default.yaml, E:\\Code_file\\Projects\\Vessel_Harness\\configs\\behavior.default.yaml, E:\\Code_file\\Projects\\Vessel_Harness\\configs\\behavior.default.yaml, E:\\Code_file\\Projects\\Vessel_Harness\\configs\\behavior.default.yaml, E:\\Code_file\\Projects\\Vessel_Harness\\configs\\behavior.default.yaml\n\nd7ec845162798a1b1cb8a22cd9d33010bc5e76c424aa30e038f475e588efc206\n查看快照\nloop.turn_ends_without_tool_call 工作流\n来源\nE:\\Code_file\\Projects\\Vessel_Harness\\configs\\behavior.default.yaml\n优先级\n0\n执法通道\n提示引导\n可导入\n可渲染\n可映射\n可执法\n已验证\n策略执法映射\n\n无策略映射\n\n字段合并溯源\nretry.exponential_backoff 工作流\n来源\nE:\\Code_file\\Projects\\Vessel_Harness\\configs\\behavior.default.yaml\n优先级\n0\n执法通道\n提示引导\n可导入\n可渲染\n可映射\n可执法\n已验证\n策略执法映射\n\n无策略映射\n\n字段合并溯源\nplanning.plan_before_execute 工作流\n来源\nE:\\Code_file\\Projects\\Vessel_Harness\\configs\\behavior.default.yaml\n优先级\n0\n执法通道\n提示引导\n可导入\n可渲染\n可映射\n可执法\n已验证\n策略执法映射\n\n无策略映射\n\n字段合并溯源\nsafety.protected_paths 约束\n来源\nE:\\Code_file\\Projects\\Vessel_Harness\\configs\\behavior.default.yaml\n优先级\n0\n执法通道\n运行时策略\n可导入\n可渲染\n可映射\n可执法\n已验证\n策略执法映射\n\nfilesystem.protected\n\nfs-protected:.git\nfs-protected:.git/**\nfs-protected:.claude\nfs-protected:.ssh\nfs-protected:.harness/credentials\nfs-protected:.env\n字段合并溯源\nsafety.dangerous_shell 约束\n来源\nE:\\Code_file\\Projects\\Vessel_Harness\\configs\\behavior.default.yaml\n优先级\n0\n执法通道\n运行时策略\n可导入\n可渲染\n可映射\n可执法\n已验证\n策略执法映射\n\nshell.deny\n\nshell-deny:destructive-delete\nshell-deny:disk-format\nshell-deny:partition-write\n字段合并溯源\nsafety.secret_handling 约束\n来源\nE:\\Code_file\\Projects\\Vessel_Harness\\configs\\behavior.default.yaml\n优先级\n0\n执法通道\n运行时策略\n可导入\n可渲染\n可映射\n可执法\n已验证\n策略执法映射\n\nfilesystem.deny_read\n\nfs-deny-read:**/.aws/credentials\nfs-deny-read:**/.ssh/**\nfs-deny-read:**/.env\n字段合并溯源\nverification.independent_evaluator 验证\n来源\nE:\\Code_file\\Projects\\Vessel_Harness\\configs\\behavior.default.yaml\n优先级\n0\n执法通道\n提示引导\n可导入\n可渲染\n可映射\n可执法\n已验证\n策略执法映射\n\n无策略映射\n\n字段合并溯源\nverification.honest_failure 验证\n来源\nE:\\Code_file\\Projects\\Vessel_Harness\\configs\\behavior.default.yaml\n优先级\n0\n执法通道\n提示引导\n可导入\n可渲染\n可映射\n可执法\n已验证\n策略执法映射\n\n无策略映射\n\n字段合并溯源\ncontext.rules_in_files 上下文策略\n来源\nE:\\Code_file\\Projects\\Vessel_Harness\\configs\\behavior.default.yaml\n优先级\n0\n执法通道\n提示引导\n可导入\n可渲染\n可映射\n可执法\n已验证\n策略执法映射\n\n无策略映射\n\n字段合并溯源\ncontext.resume_after_compaction 上下文策略\n来源\nE:\\Code_file\\Projects\\Vessel_Harness\\configs\\behavior.default.yaml\n优先级\n0\n执法通道\n提示引导\n可导入\n可渲染\n可映射\n可执法\n已验证\n策略执法映射\n\n无策略映射\n\n字段合并溯源\ncontext.budget_awareness 上下文策略\n来源\nE:\\Code_file\\Projects\\Vessel_Harness\\configs\\behavior.de",
+    "en": "Effective behavior snapshot\nRefresh\n\nf2b381443f6c02d11925e4f5b0a8b0ffa4ddfc86199d51ddfcbfebb8696fc49d\n\nEffective chain L0 → L4\nL0 Available\n\nSource: E:\\Code_file\\Projects\\Vessel_Harness\\configs\\behavior.default.yaml\n\ne28b727ddcbb65224726e88d783136177e5a6c72b4ee223518bf12b837d01fb8\nInspect snapshot\nL1 Available\n\nSource: E:\\Code_file\\Projects\\Vessel_Harness\\configs\\behavior.default.yaml\n\ned1824b7633fe5068837835491a6e6a21891e2cc7dbc26e6afa0bc2626c13e87\nInspect snapshot\nL2 Available\n\nSource: E:\\Code_file\\Projects\\Vessel_Harness\\configs\\behavior.default.yaml\n\n98e1e56ff4ee45ea9d7f80a3de283285b9906b9b74ce4e9aea9139ce1f26d026\nInspect snapshot\nL3 Available\n\nSource: E:\\Code_file\\Projects\\Vessel_Harness\\configs\\behavior.default.yaml\n\n3c49ff7b4e245691103c6d9e53f2e0bff280b921961865635fcb2325d1805594\nInspect snapshot\nL4 Available\n\nSource: E:\\Code_file\\Projects\\Vessel_Harness\\configs\\behavior.default.yaml, E:\\Code_file\\Projects\\Vessel_Harness\\configs\\behavior.default.yaml, E:\\Code_file\\Projects\\Vessel_Harness\\configs\\behavior.default.yaml, E:\\Code_file\\Projects\\Vessel_Harness\\configs\\behavior.default.yaml, E:\\Code_file\\Projects\\Vessel_Harness\\configs\\behavior.default.yaml, E:\\Code_file\\Projects\\Vessel_Harness\\configs\\behavior.default.yaml, E:\\Code_file\\Projects\\Vessel_Harness\\configs\\behavior.default.yaml, E:\\Code_file\\Projects\\Vessel_Harness\\configs\\behavior.default.yaml, E:\\Code_file\\Projects\\Vessel_Harness\\configs\\behavior.default.yaml, E:\\Code_file\\Projects\\Vessel_Harness\\configs\\behavior.default.yaml, E:\\Code_file\\Projects\\Vessel_Harness\\configs\\behavior.default.yaml, E:\\Code_file\\Projects\\Vessel_Harness\\configs\\behavior.default.yaml, E:\\Code_file\\Projects\\Vessel_Harness\\configs\\behavior.default.yaml, E:\\Code_file\\Projects\\Vessel_Harness\\configs\\behavior.default.yaml, E:\\Code_file\\Projects\\Vessel_Harness\\configs\\behavior.default.yaml, E:\\Code_file\\Projects\\Vessel_Harness\\configs\\behavior.default.yaml, E:\\Code_file\\Projects\\Vessel_Harness\\configs\\behavior.default.yaml, E:\\Code_file\\Projects\\Vessel_Harness\\configs\\behavior.default.yaml\n\nd7ec845162798a1b1cb8a22cd9d33010bc5e76c424aa30e038f475e588efc206\nInspect snapshot\nloop.turn_ends_without_tool_call Workflow\nSource\nE:\\Code_file\\Projects\\Vessel_Harness\\configs\\behavior.default.yaml\nPriority\n0\nEnforcement channel\nPrompt guidance\nImportable\nRenderable\nMappable\nEnforceable\nVerified\nPolicy enforcement mapping\n\nNo policy mapping\n\nField merge provenance\nretry.exponential_backoff Workflow\nSource\nE:\\Code_file\\Projects\\Vessel_Harness\\configs\\behavior.default.yaml\nPriority\n0\nEnforcement channel\nPrompt guidance\nImportable\nRenderable\nMappable\nEnforceable\nVerified\nPolicy enforcement mapping\n\nNo policy mapping\n\nField merge provenance\nplanning.plan_before_execute Workflow\nSource\nE:\\Code_file\\Projects\\Vessel_Harness\\configs\\behavior.default.yaml\nPriority\n0\nEnforcement channel\nPrompt guidance\nImportable\nRenderable\nMappable\nEnforceable\nVerified\nPolicy enforcement mapping\n\nNo policy mapping\n\nField merge provenance\nsafety.protected_paths Constraint\nSource\nE:\\Code_file\\Projects\\Vessel_Harness\\configs\\behavior.default.yaml\nPriority\n0\nEnforcement channel\nRuntime policy\nImportable\nRenderable\nMappable\nEnforceable\nVerified\nPolicy enforcement mapping\n\nfilesystem.protected\n\nfs-protected:.git\nfs-protected:.git/**\nfs-protected:.claude\nfs-protected:.ssh\nfs-protected:.harness/credentials\nfs-protected:.env\nField merge provenance\nsafety.dangerous_shell Constraint\nSource\nE:\\Code_file\\Projects\\Vessel_Harness\\configs\\behavior.default.yaml\nPriority\n0\nEnforcement channel\nRuntime policy\nImportable\nRenderable\nMappable\nEnforceable\nVerified\nPolicy enforcement mapping\n\nshell.deny\n\nshell-deny:destructive-delete\nshell-deny:disk-format\nshell-deny:partition-write\nField merge provenance\nsafety.secret_handling Constraint\nSource\nE:\\Code_file\\Projects\\Vessel_Harness\\configs\\behavior.default.yaml\nPriority\n0\nEnforcement channel\nRuntime policy\nImportable\nRenderable\nMappable\nEnforceable\nVerified\nPolicy enforcement mapping\n\nfilesystem.deny_read\n"
+  },
+  "apiInspect": {
+    "sessionId": "sess_1791965463045_dc49927e",
+    "inspection": {
+      "version": "0.2",
+      "snapshotHash": "f2b381443f6c02d11925e4f5b0a8b0ffa4ddfc86199d51ddfcbfebb8696fc49d",
+      "entries": [
+        {
+          "id": "loop.turn_ends_without_tool_call",
+          "category": "Workflow",
+          "sourceRef": "E:\\Code_file\\Projects\\Vessel_Harness\\configs\\behavior.default.yaml",
+          "priority": 0,
+          "channel": "prompt_guidance",
+          "compatibility": "Mappable",
+          "policyRef": null,
+          "policyRuleIds": [],
+          "assertions": [],
+          "assertionResults": [],
+          "provenance": {
+            "id": {
+              "sourceRef": "E:\\Code_file\\Projects\\Vessel_Harness\\configs\\behavior.default.yaml",
+              "priority": 0,
+              "strategy": "immutable"
+            },
+            "class": {
+              "sourceRef": "E:\\Code_file\\Projects\\Vessel_Harness\\configs\\behavior.default.yaml",
+              "priority": 0,
+              "strategy": "replace"
+            },
+            "channel": {
+              "sourceRef": "E:\\Code_file\\Projects\\Vessel_Harness\\configs\\behavior.default.yaml",
+              "priority": 0,
+              "strategy": "immutable"
+            },
+            "default": {
+              "sourceRef": "E:\\Code_file\\Projects\\Vessel_Harness\\configs\\behavior.default.yaml",
+              "priority": 0,
+              "strategy": "replace"
+            },
+            "render": {
+              "sourceRef": "E:\\Code_file\\Projects\\Vessel_Harness\\configs\\behavior.default.yaml",
+              "priority": 0,
+              "strategy": "replace"
+            },
+            "sourceRef": {
+              "sourceRef": "E:\\Code_file\\Projects\\Vessel_Harness\\configs\\behavior.default.yaml",
+              "priority": 0,
+              "strategy": "replace"
+            },
+            "category": {
+              "sourceRef": "E:\\Code_file\\Projects\\Vessel_Harness\\configs\\behavior.default.yaml",
+              "priority": 0,
+              "strategy": "immutable"
+            },
+            "enforcementChannel": {
+              "sourceRef": "E:\\Code_file\\Projects\\Vessel_Harness\\configs\\behavior.default.yaml",
+              "priority": 0,
+              "strategy": "immutable"
+            }
+          }
+        },
+        {
+          "id": "retry.exponential_backoff",
+          "category": "Workflow",
+          "sourceRef": "E:\\Code_file\\Projects\\Vessel_Harness\\configs\\behavior.default.yaml",
+          "priority": 0,
+          "channel": "prompt_guidance",
+          "compatibility": "Mappable",
+          "policyRef": null,
+          "policyRuleIds": [],
+          "assertions": [],
+          "assertionResults": [],
+          "provenance": {
+            "id": {
+              "sourceRef": "E:\\Code_file\\Projects\\Vessel_Harness\\configs\\behavior.default.yaml",
+              "priority": 0,
+              "strategy": "immutable"
+            },
+            "class": {
+              "sourceRef": "E:\\Code_file\\Projects\\Vessel_Harness\\configs\\behavior.default.yaml",
+              "priority": 0,
+              "strategy": "replace"
+            },
+            "channel": {
+              "sourceRef": "E:\\Code_file\\Projects\\Vessel_Harness\\configs\\behavior.default.yaml",
+              "priority": 0,
+              "strategy": "immutable"
+            },
+            "default": {
+              "sourceRef": "E:\\Code_file\\Projects\\Vessel_Harness\\configs\\behavior.default.yaml",
+              "priority": 0,
+              "strategy": "replace"
+            },
+            "render": {
+              "sourceRef": "E:\\Code_file\\Projects\\Vessel_Harness\\configs\\behavior.default.yaml",
+              "priority": 0,
+              "strategy": "replace"
+            },
+            "sourceRef": {
+              "sourceRef": "E:\\Code_file\\Projects\\Vessel_Harness\\configs\\behavior.default.yaml",
+              "priority": 0,
+              "strategy": "replace"
+            },
+            "category": {
+              "sourceRef": "E:\\Code_file\\Projects\\Vessel_Harness\\configs\\behavior.default.yaml",
+              "priority": 0,
+              "strategy": "immutable"
+            },
+            "enforcementChannel": {
+              "sourceRef": "E:\\Code_file\\Projects\\Vessel_Harness\\configs\\behavior.default.yaml",
+              "priority": 0,
+              "strategy": "immutable"
+            }
+          }
+        },
+        {
+          "id": "planning.plan_before_execute",
+          "category": "Workflow",
+          "sourceRef": "E:\\Code_file\\Projects\\Vessel_Harness\\configs\\behavior.default.yaml",
+          "priority": 0,
+          "channel": "prompt_guidance",
+          "compatibility": "Mappable",
+          "policyRef": null,
+          "policyRuleIds": [],
+          "assertions": [],
+          "assertionResults": [],
+          "provenance": {
+            "id": {
+              "sourceRef": "E:\\Code_file\\Projects\\Vessel_Harness\\configs\\behavior.default.yaml",
+              "priority": 0,
+              "strategy": "immutable"
+            },
+            "class": {
+              "sourceRef": "E:\\Code_file\\Projects\\Vessel_Harness\\configs\\behavior.default.yaml",
+              "priority": 0,
+              "strategy": "replace"
+            },
+            "channel": {
+              "sourceRef": "E:\\Code_file\\Projects\\Vessel_Harness\\configs\\behavior.default.yaml",
+              "priority": 0,
+              "strategy": "immutable"
+            },
+            "default": {
+              "sourceRef": "E:\\Code_file\\Projects\\Vessel_Harness\\configs\\behavior.default.yaml",
+              "priority": 0,
+              "strategy": "replace"
+            },
+            "render": {
+              "sourceRef": "E:\\Code_file\\Projects\\Vessel_Harness\\configs\\behavior.default.yaml",
+              "priority": 0,
+              "strategy": "replace"
+            },
+            "sourceRef": {
+              "sourceRef": "E:\\Code_file\\Projects\\Vessel_Harness\\configs\\behavior.default.yaml",
+              "priority": 0,
+              "strategy": "replace"
+            },
+            "category": {
+              "sourceRef": "E:\\Code_file\\Projects\\Vessel_Harness\\configs\\behavior.default.yaml",
+              "priority": 0,
+              "strategy": "immutable"
+            },
+            "enforcementChannel": {
+              "sourceRef": "E:\\Code_file\\Projects\\Vessel_Harness\\configs\\behavior.default.yaml",
+              "priority": 0,
+              "strategy": "immutable"
+            }
+          }
+        },
+        {
+          "id": "safety.protected_paths",
+          "category": "Constraint",
+          "sourceRef": "E:\\Code_file\\Projects\\Vessel_Harness\\configs\\behavior.default.yaml",
+          "priority": 0,
+          "channel": "runtime_policy",
+          "compatibility": "Enforceable",
+          "policyRef": "filesystem.protected",
+          "policyRuleIds": [
+            "fs-protected:.git",
+            "fs-protected:.git/**",
+            "fs-protected:.claude",
+            "fs-protected:.ssh",
+            "fs-protected:.harness/credentials",
+            "fs-protected:.env"
+          ],
+          "assertions": [],
+          "assertionResults": [],
+          "provenance": {
+            "id": {
+              "sourceRef": "E:\\Code_file\\Projects\\Vessel_Harness\\configs\\behavior.default.yaml",
+              "priority": 0,
+              "strategy": "immutable"
+            },
+            "class": {
+              "sourceRef": "E:\\Code_file\\Projects\\Vessel_Harness\\configs\\behavior.default.yaml",
+              "priority": 0,
+              "strategy": "replace"
+            },
+            "channel": {
+              "sourceRef": "E:\\Code_file\\Projects\\Vessel_Harness\\configs\\behavior.default.yaml",
+              "priority": 0,
+              "strategy": "immutable"
+            },
+            "policy_ref": {
+              "sourceRef": "E:\\Code_file\\Projects\\Vessel_Harness\\configs\\behavior.default.yaml",
+              "priority": 0,
+              "strategy": "immutable"
+            },
+            "render": {
+              "sourceRef": "E:\\Code_file\\Projects\\Vessel_Harness\\configs\\behavior.default.yaml",
+              "priority": 0,
+              "strategy": "replace"
+            },
+            "default": {
+              "sourceRef": "E:\\Code_file\\Projects\\Vessel_Harness\\configs\\behavior.default.yaml",
+              "priority": 0,
+              "strategy": "replace"
+            },
+            "sourceRef": {
+              "sourceRef": "E:\\Code_file\\Projects\\Vessel_Harness\\configs\\behavior.default.yaml",
+              "priority": 0,
+              "strategy": "replace"
+            },
+            "category": {
+              "sourceRef": "E:\\Code_file\\Projects\\Vessel_Harness\\configs\\behavior.default.yaml",
+              "priority": 0,
+              "strategy": "immutable"
+            },
+            "enforcementChannel": {
+              "sourceRef": "E:\\Code_file\\Projects\\Vessel_Harness\\configs\\behavior.default.yaml",
+              "priority": 0,
+              "strategy": "immutable"
+            }
+          }
+        },
+        {
+          "id": "safety.dangerous_shell",
+          "category": "Constraint",
+          "sourceRef": "E:\\Code_file\\Projects\\Vessel_Harness\\configs\\behavior.default.yaml",
+          "priority": 0,
+          "channel": "runtime_policy",
+          "compatibility": "Enforceable",
+          "policyRef": "shell.deny",
+          "policyRuleIds": [
+            "shell-deny:destructive-delete",
+            "shell-deny:disk-format",
+            "shell-deny:partition-write"
+          ],
+          "assertions": [],
+          "assertionResults": [],
+          "provenance": {
+            "id": {
+              "sourceRef": "E:\\Code_file\\Projects\\Vessel_Harness\\configs\\behavior.default.yaml",
+              "priority": 0,
+              "strategy": "immutable"
+            },
+            "class": {
+              "sourceRef": "E:\\Code_file\\Projects\\Vessel_Harness\\configs\\behavior.default.yaml",
+              "priority": 0,
+              "strategy": "replace"
+            },
+            "channel": {
+              "sourceRef": "E:\\Code_file\\Projects\\Vessel_Harness\\configs\\behavior.default.yaml",
+              "priority": 0,
+              "strategy": "immutable"
+            },
+            "policy_ref": {
+              "sourceRef": "E:\\Code_file\\Projects\\Vessel_Harness\\configs\\behavior.default.yaml",
+              "priority": 0,
+              "strategy": "immutable"
+            },
+            "render": {
+              "sourceRef": "E:\\Code_file\\Projects\\Vessel_Harness\\configs\\behavior.default.yaml",
+              "priority": 0,
+              "strategy": "replace"
+            },
+            "default": {
+              "sourceRef": "E:\\Code_file\\Projects\\Vessel_Harness\\configs\\behavior.default.yaml",
+              "priority": 0,
+              "strategy": "replace"
+            },
+            "sourceRef": {
+              "sourceRef": "E:\\Code_file\\Projects\\Vessel_Harness\\configs\\behavior.default.yaml",
+              "priority": 0,
+              "strategy": "replace"
+            },
+            "category": {
+              "sourceRef": "E:\\Code_file\\Projects\\Vessel_Harness\\configs\\behavior.default.yaml",
+              "priority": 0,
+              "strategy": "immutable"
+            },
+            "enforcementChannel": {
+              "sourceRef": "E:\\Code_file\\Projects\\Vessel_Harness\\configs\\behavior.default.yaml",
+              "priority": 0,
+              "strategy": "immutable"
+            }
+          }
+        },
+        {
+          "id": "safety.secret_handling",
+          "category": "Constraint",
+          "sourceRef": "E:\\Code_file\\Projects\\Vessel_Harness\\configs\\behavior.default.yaml",
+          "priority": 0,
+          "channel": "runtime_policy",
+          "compatibility": "Enforceable",
+          "policyRef": "filesystem.deny_read",
+          "policyRuleIds": [
+            "fs-deny-read:**/.aws/credentials",
+            "fs-deny-read:**/.ssh/**",
+            "fs-deny-read:**/.env"
+          ],
+          "assertions": [],
+          "assertionResults": [],
+          "provenance": {
+            "id": {
+              "sourceRef": "E:\\Code_file\\Projects\\Vessel_Harness\\configs\\behavior.default.yaml",
+              "priority": 0,
+              "strategy": "immutable"
+            },
+            "class": {
+              "sourceRef": "E:\\Code_file\\Projects\\Vessel_Harness\\configs\\behavior.default.yaml",
+              "priority": 0,
+              "strategy": "replace"
+            },
+            "channel": {
+              "sourceRef": "E:\\Code_file\\Projects\\Vessel_Harness\\configs\\behavior.default.yaml",
+              "priority": 0,
+              "strategy": "immutable"
+            },
+            "policy_ref": {
+              "sourceRef": "E:\\Code_file\\Projects\\Vessel_Harness\\configs\\behavior.default.yaml",
+              "priority": 0,
+              "strategy": "immutable"
+            },
+            "render": {
+              "sourceRef": "E:\\Code_file\\Projects\\Vessel_Harness\\configs\\behavior.default.yaml",
+              "priority": 0,
+              "strategy": "replace"
+            },
+            "default": {
+              "sourceRef": "E:\\Code_file\\Projects\\Vessel_Harness\\configs\\behavior.default.yaml",
+              "priority": 0,
+              "strategy": "replace"
+            },
+            "sourceRef": {
+              "sourceRef": "E:\\Code_file\\Projects\\Vessel_Harness\\configs\\behavior.default.yaml",
+              "priority": 0,
+              "strategy": "replace"
+            },
+            "category": {
+              "sourceRef": "E:\\Code_file\\Projects\\Vessel_Harness\\configs\\behavior.default.yaml",
+              "priority": 0,
+              "strategy": "immutable"
+            },
+            "enforcementChannel": {
+              "sourceRef": "E:\\Code_file\\Projects\\Vessel_Harness\\configs\\behavior.default.yaml",
+              "priority": 0,
+              "strategy": "immutable"
+            }
+          }
+        },
+        {
+          "id": "verification.independent_evaluator",
+          "category": "Verification",
+          "sourceRef": "E:\\Code_file\\Projects\\Vessel_Harness\\configs\\behavior.default.yaml",
+          "priority": 0,
+          "channel": "prompt_guidance",
+          "compatibility": "Mappable",
+          "policyRef": null,
+          "policyRuleIds": [],
+          "assertions": [],
+          "assertionResults": [],
+          "provenance": {
+            "id": {
+              "sourceRef": "E:\\Code_file\\Projects\\Vessel_Harness\\configs\\behavior.default.yaml",
+              "priority": 0,
+              "strategy": "immutable"
+            },
+            "class": {
+              "sourceRef": "E:\\Code_file\\Projects\\Vessel_Harness\\configs\\behavior.default.yaml",
+              "priority": 0,
+              "strategy": "replace"
+            },
+            "channel": {
+              "sourceRef": "E:\\Code_file\\Projects\\Vessel_Harness\\configs\\behavior.default.yaml",
+              "priority": 0,
+              "strategy": "immutable"
+            },
+            "default": {
+              "sourceRef": "E:\\Code_file\\Projects\\Vessel_Harness\\configs\\behavior.default.yaml",
+              "priority": 0,
+              "strategy": "replace"
+            },
+            "render": {
+              "sourceRef": "E:\\Code_file\\Projects\\Vessel_Harness\\configs\\behavior.default.yaml",
+              "priority": 0,
+              "strategy": "replace"
+            },
+            "sourceRef": {
+              "sourceRef": "E:\\Code_file\\Projects\\Vessel_Harness\\configs\\behavior.default.yaml",
+              "priority": 0,
+              "strategy": "replace"
+            },
+            "category": {
+              "sourceRef": "E:\\Code_file\\Projects\\Vessel_Harness\\configs\\behavior.default.yaml",
+              "priority": 0,
+              "strategy": "immutable"
+            },
+            "enforcementChannel": {
+              "sourceRef": "E:\\Code_file\\Projects\\Vessel_Harness\\configs\\behavior.default.yaml",
+              "priority": 0,
+              "strategy": "immutable"
+            }
+          }
+        },
+        {
+          "id": "verification.honest_failure",
+          "category": "Verification",
+          "sourceRef": "E:\\Code_file\\Projects\\Vessel_Harness\\configs\\behavior.default.yaml",
+          "priority": 0,
+          "channel": "prompt_guidance",
+          "compatibility": "Mappable",
+          "policyRef": null,
+          "policyRuleIds": [],
+          "assertions": [],
+          "assertionResults": [],
+          "provenance": {
+            "id": {
+              "sourceRef": "E:\\Code_file\\Projects\\Vessel_Harness\\configs\\behavior.default.yaml",
+              "priority": 0,
+              "strategy": "immutable"
+            },
+            "class": {
+              "sourceRef": "E:\\Code_file\\Projects\\Vessel_Harness\\configs\\behavior.default.yaml",
+              "priority": 0,
+              "strategy": "replace"
+            },
+            "channel": {
+              "sourceRef": "E:\\Code_file\\Projects\\Vessel_Harness\\configs\\behavior.default.yaml",
+              "priority": 0,
+              "strategy": "immutable"
+            },
+            "default": {
+              "sourceRef": "E:\\Code_file\\Projects\\Vessel_Harness\\configs\\behavior.default.yaml",
+              "priority": 0,
+              "strategy": "replace"
+            },
+            "render": {
+              "sourceRef": "E:\\Code_file\\Projects\\Vessel_Harness\\configs\\behavior.default.yaml",
+              "priority": 0,
+              "strategy": "replace"
+            },
+            "sourceRef": {
+              "sourceRef": "E:\\Code_file\\Projects\\Vessel_Harness\\configs\\behavior.default.yaml",
+              "priority": 0,
+              "strategy": "replace"
+            },
+            "category": {
+              "sourceRef": "E:\\Code_file\\Projects\\Vessel_Harness\\configs\\behavior.default.yaml",
+              "priority": 0,
+              "strategy": "immutable"
+            },
+            "enforcementChannel": {
+              "sourceRef": "E:\\Code_file\\Projects\\Vessel_Harness\\configs\\behavior.default.yaml",
+              "priority": 0,
+              "strategy": "immutable"
+            }
+          }
+        },
+        {
+          "id": "context.rules_in_files",
+          "category": "ContextStrategy",
+          "sourceRef": "E:\\Code_file\\Projects\\Vessel_Harness\\configs\\behavior.default.yaml",
+          "priority": 0,
+          "channel": "prompt_guidance",
+          "compatibility": "Mappable",
+          "policyRef": null,
+          "policyRuleIds": [],
+          "assertions": [],
+          "assertionResults": [],
+          "provenance": {
+            "id": {
+              "sourceRef": "E:\\Code_file\\Projects\\Vessel_Harness\\configs\\behavior.default.yaml",
+              "priority": 0,
+              "strategy": "immutable"
+            },
+            "class": {
+              "sourceRef": "E:\\Code_file\\Projects\\Vessel_Harness\\configs\\behavior.default.yaml",
+              "priority": 0,
+              "strategy": "replace"
+            },
+            "channel": {
+              "sourceRef": "E:\\Code_file\\Projects\\Vessel_Harness\\configs\\behavior.default.yaml",
+              "priority": 0,
+              "strategy": "immutable"
+            },
+            "default": {
+              "sourceRef": "E:\\Code_file\\Projects\\Vessel_Harness\\configs\\behavior.default.yaml",
+              "priority": 0,
+              "strategy": "replace"
+            },
+            "render": {
+              "sourceRef": "E:\\Code_file\\Projects\\Vessel_Harness\\configs\\behavior.default.yaml",
+              "priority": 0,
+              "strategy": "replace"
+            },
+            "sourceRef": {
+              "sourceRef": "E:\\Code_file\\Projects\\Vessel_Harness\\configs\\behavior.default.yaml",
+              "priority": 0,
+              "strategy": "replace"
+            },
+            "category": {
+              "sourceRef": "E:\\Code_file\\Projects\\Vessel_Harness\\configs\\behavior.default.yaml",
+              "priority": 0,
+              "strategy": "immutable"
+            },
+            "enforcementChannel": {
+              "sourceRef": "E:\\Code_file\\Projects\\Vessel_Harness\\configs\\behavior.default.yaml",
+              "priority": 0,
+              "strategy": "immutable"
+            }
+          }
+        },
+        {
+          "id": "context.resume_after_compaction",
+          "category": "ContextStrategy",
+          "sourceRef": "E:\\Code_file\\Projects\\Vessel_Harness\\configs\\behavior.default.yaml",
+          "priority": 0,
+          "channel": "prompt_guidance",
+          "compatibility": "Mappable",
+          "policyRef": null,
+          "policyRuleIds": [],
+          "assertions": [],
+          "assertionResults": [],
+          "provenance": {
+            "id": {
+              "sourceRef": "E:\\Code_file\\Projects\\Vessel_Harness\\configs\\behavior.default.yaml",
+              "priority": 0,
+              "strategy": "immutable"
+            },
+            "class": {
+              "sourceRef": "E:\\Code_file\\Projects\\Vessel_Harness\\configs\\behavior.default.yaml",
+              "priority": 0,
+              "strategy": "replace"
+            },
+            "channel": {
+              "sourceRef": "E:\\Code_file\\Projects\\Vessel_Harness\\configs\\behavior.default.yaml",
+              "priority": 0,
+              "strategy": "immutable"
+            },
+            "default": {
+              "sourceRef": "E:\\Code_file\\Projects\\Vessel_Harness\\configs\\behavior.default.yaml",
+              "priority": 0,
+              "strategy": "replace"
+            },
+            "render": {
+              "sourceRef": "E:\\Code_file\\Projects\\Vessel_Harness\\configs\\behavior.default.yaml",
+              "priority": 0,
+              "strategy": "replace"
+            },
+            "sourceRef": {
+              "sourceRef": "E:\\Code_file\\Projects\\Vessel_Harness\\configs\\behavior.default.yaml",
+              "priority": 0,
+              "strategy": "replace"
+            },
+            "category": {
+              "sourceRef": "E:\\Code_file\\Projects\\Vessel_Harness\\configs\\behavior.default.yaml",
+              "priority": 0,
+              "strategy": "immutable"
+            },
+            "enforcementChannel": {
+              "sourceRef": "E:\\Code_file\\Projects\\Vessel_Harness\\configs\\behavior.default.yaml",
+              "priority": 0,
+              "strategy": "immutable"
+            }
+          }
+        },
+        {
+          "id": "context.budget_awareness",
+          "category": "ContextStrategy",
+          "sourceRef": "E:\\Code_file\\Projects\\Vessel_Harness\\configs\\behavior.default.yaml",
+          "priority": 0,
+          "channel": "prompt_guidance",
+          "compatibility": "Mappable",
+          "policyRef": null,
+          "policyRuleIds": [],
+          "assertions": [],
+          "assertionResults": [],
+          "provenance": {
+            "id": {
+              "sourceRef": "E:\\Code_file\\Projects\\Vessel_Harness\\configs\\behavior.default.yaml",
+              "priority": 0,
+              "strategy": "immutable"
+            },
+            "class": {
+              "sourceRef": "E:\\Code_file\\Projects\\Vessel_Harness\\configs\\behavior.default.yaml",
+              "priority": 0,
+              "strategy": "replace"
+            },
+            "channel": {
+              "sourceRef": "E:\\Code_file\\Projects\\Vessel_Harness\\configs\\behavior.default.yaml",
+              "priority": 0,
+              "strategy": "immutable"
+            },
+            "default": {
+              "sourceRef": "E:\\Code_file\\Projects\\Vessel_Harness\\configs\\behavior.default.yaml",
+              "priority": 0,
+              "strategy": "replace"
+            },
+            "render": {
+              "sourceRef": "E:\\Code_file\\Projects\\Vessel_Harness\\configs\\behavior.default.yaml",
+              "priority": 0,
+              "strategy": "replace"
+            },
+            "sourceRef": {
+              "sourceRef": "E:\\Code_file\\Projects\\Vessel_Harness\\configs\\behavior.default.yaml",
+              "priority": 0,
+              "strategy": "replace"
+            },
+            "category": {
+              "sourceRef": "E:\\Code_file\\Projects\\Vessel_Harness\\configs\\behavior.default.yaml",
+              "priority": 0,
+              "strategy": "immutable"
+            },
+            "enforcementChannel": {
+              "sourceRef": "E:\\Code_file\\Projects\\Vessel_Harness\\configs\\behavior.default.yaml",
+              "priority": 0,
+              "strategy": "immutable"
+            }
+          }
+        },
+        {
+          "id": "communication.concise_direct",
+          "category": "Instruction",
+          "sourceRef": "E:\\Code_file\\Projects\\Vessel_Harness\\configs\\behavior.default.yaml",
+          "priority": 0,
+          "channel": "prompt_guidance",
+          "compatibility": "Mappable",
+          "policyRef": null,
+          "policyRuleIds": [],
+          "assertions": [],
+          "assertionResults": [],
+          "provenance": {
+            "id": {
+              "sourceRef": "E:\\Code_file\\Projects\\Vessel_Harness\\configs\\behavior.default.yaml",
+              "priority": 0,
+              "strategy": "immutable"
+            },
+            "class": {
+              "sourceRef": "E:\\Code_file\\Projects\\Vessel_Harness\\configs\\behavior.default.yaml",
+              "priority": 0,
+              "strategy": "replace"
+            },
+            "channel": {
+              "sourceRef": "E:\\Code_file\\Projects\\Vessel_Harness\\configs\\behavior.default.yaml",
+              "priority": 0,
+              "strategy": "immutable"
+            },
+            "default": {
+              "sourceRef": "E:\\Code_file\\Projects\\Vessel_Harness\\configs\\behavior.default.yaml",
+              "priority": 0,
+              "strategy": "replace"
+            },
+            "render": {
+              "sourceRef": "E:\\Code_file\\Projects\\Vessel_Harness\\configs\\behavior.default.yaml",
+              "priority": 0,
+              "strategy": "replace"
+            },
+            "sourceRef": {
+              "sourceRef": "E:\\Code_file\\Projects\\Vessel_Harness\\configs\\behavior.default.yaml",
+              "priority": 0,
+              "strategy": "replace"
+            },
+            "category": {
+              "sourceRef": "E:\\Code_file\\Projects\\Vessel_Harness\\configs\\behavior.default.yaml",
+              "priority": 0,
+              "strategy": "immutable"
+            },
+            "enforcementChannel": {
+              "sourceRef": "E:\\Code_file\\Projects\\Vessel_Harness\\configs\\behavior.default.yaml",
+              "priority": 0,
+              "strategy": "immutable"
+            }
+          }
+        },
+        {
+          "id": "vessel.replaceable",
+          "category": "Instruction",
+          "sourceRef": "E:\\Code_file\\Projects\\Vessel_Harness\\configs\\behavior.default.yaml",
+          "priority": 0,
+          "channel": "prompt_guidance",
+          "compatibility": "Mappable",
+          "policyRef": null,
+          "policyRuleIds": [],
+          "assertions": [],
+          "assertionResults": [],
+          "provenance": {
+            "id": {
+              "sourceRef": "E:\\Code_file\\Projects\\Vessel_Harness\\configs\\behavior.default.yaml",
+              "priority": 0,
+              "strategy": "immutable"
+            },
+            "class": {
+              "sourceRef": "E:\\Code_file\\Projects\\Vessel_Harness\\configs\\behavior.default.yaml",
+              "priority": 0,
+              "strategy": "replace"
+            },
+            "channel": {
+              "sourceRef": "E:\\Code_file\\Projects\\Vessel_Harness\\configs\\behavior.default.yaml",
+              "priority": 0,
+              "strategy": "immutable"
+            },
+            "default": {
+              "sourceRef": "E:\\Code_file\\Projects\\Vessel_Harness\\configs\\behavior.default.yaml",
+              "priority": 0,
+              "strategy": "replace"
+            },
+            "render": {
+              "sourceRef": "E:\\Code_file\\Projects\\Vessel_Harness\\configs\\behavior.default.yaml",
+              "priority": 0,
+              "strategy": "replace"
+            },
+            "sourceRef": {
+              "sourceRef": "E:\\Code_file\\Projects\\Vessel_Harness\\configs\\behavior.default.yaml",
+              "priority": 0,
+              "strategy": "replace"
+            },
+            "category": {
+              "sourceRef": "E:\\Code_file\\Projects\\Vessel_Harness\\configs\\behavior.default.yaml",
+              "priority": 0,
+              "strategy": "immutable"
+            },
+            "enforcementChannel": {
+              "sourceRef": "E:\\Code_file\\Projects\\Vessel_Harness\\configs\\behavior.default.yaml",
+              "priority": 0,
+              "strategy": "immutable"
+            }
+          }
+        },
+        {
+          "id": "vessel.minimal_complexity",
+          "category": "Instruction",
+          "sourceRef": "E:\\Code_file\\Projects\\Vessel_Harness\\configs\\behavior.default.yaml",
+          "priority": 0,
+          "channel": "prompt_guidance",
+          "compatibility": "Mappable",
+          "policyRef": null,
+          "policyRuleIds": [],
+          "assertions": [],
+          "assertionResults": [],
+          "provenance": {
+            "id": {
+              "sourceRef": "E:\\Code_file\\Projects\\Vessel_Harness\\configs\\behavior.default.yaml",
+              "priority": 0,
+              "strategy": "immutable"
+            },
+            "class": {
+              "sourceRef": "E:\\Code_file\\Projects\\Vessel_Harness\\configs\\behavior.default.yaml",
+              "priority": 0,
+              "strategy": "replace"
+            },
+            "channel": {
+              "sourceRef": "E:\\Code_file\\Projects\\Vessel_Harness\\configs\\behavior.default.yaml",
+              "priority": 0,
+              "strategy": "immutable"
+            },
+            "default": {
+              "sourceRef": "E:\\Code_file\\Projects\\Vessel_Harness\\configs\\behavior.default.yaml",
+              "priority": 0,
+              "strategy": "replace"
+            },
+            "render": {
+              "sourceRef": "E:\\Code_file\\Projects\\Vessel_Harness\\configs\\behavior.default.yaml",
+              "priority": 0,
+              "strategy": "replace"
+            },
+            "sourceRef": {
+              "sourceRef": "E:\\Code_file\\Projects\\Vessel_Harness\\configs\\behavior.default.yaml",
+              "priority": 0,
+              "strategy": "replace"
+            },
+            "category": {
+              "sourceRef": "E:\\Code_file\\Projects\\Vessel_Harness\\configs\\behavior.default.yaml",
+              "priority": 0,
+              "strategy": "immutable"
+            },
+            "enforcementChannel": {
+              "sourceRef": "E:\\Code_file\\Projects\\Vessel_Harness\\configs\\behavior.default.yaml",
+              "priority": 0,
+              "strategy": "immutable"
+            }
+          }
+        },
+        {
+          "id": "vessel.harness_carries",
+          "category": "Instruction",
+          "sourceRef": "E:\\Code_file\\Projects\\Vessel_Harness\\configs\\behavior.default.yaml",
+          "priority": 0,
+          "channel": "prompt_guidance",
+          "compatibility": "Mappable",
+          "policyRef": null,
+          "policyRuleIds": [],
+          "assertions": [],
+          "assertionResults": [],
+          "provenance": {
+            "id": {
+              "sourceRef": "E:\\Code_file\\Projects\\Vessel_Harness\\configs\\behavior.default.yaml",
+              "priority": 0,
+              "strategy": "immutable"
+            },
+            "class": {
+              "sourceRef": "E:\\Code_file\\Projects\\Vessel_Harness\\configs\\behavior.default.yaml",
+              "priority": 0,
+              "strategy": "replace"
+            },
+            "channel": {
+              "sourceRef": "E:\\Code_file\\Projects\\Vessel_Harness\\configs\\behavior.default.yaml",
+              "priority": 0,
+              "strategy": "immutable"
+            },
+            "default": {
+              "sourceRef": "E:\\Code_file\\Projects\\Vessel_Harness\\configs\\behavior.default.yaml",
+              "priority": 0,
+              "strategy": "replace"
+            },
+            "render": {
+              "sourceRef": "E:\\Code_file\\Projects\\Vessel_Harness\\configs\\behavior.default.yaml",
+              "priority": 0,
+              "strategy": "replace"
+            },
+            "sourceRef": {
+              "sourceRef": "E:\\Code_file\\Projects\\Vessel_Harness\\configs\\behavior.default.yaml",
+              "priority": 0,
+              "strategy": "replace"
+            },
+            "category": {
+              "sourceRef": "E:\\Code_file\\Projects\\Vessel_Harness\\configs\\behavior.default.yaml",
+              "priority": 0,
+              "strategy": "immutable"
+            },
+            "enforcementChannel": {
+              "sourceRef": "E:\\Code_file\\Projects\\Vessel_Harness\\configs\\behavior.default.yaml",
+              "priority": 0,
+              "strategy": "immutable"
+            }
+          }
+        },
+        {
+          "id": "vessel.soft_guidance_hard_boundaries",
+          "category": "Instruction",
+          "sourceRef": "E:\\Code_file\\Projects\\Vessel_Harness\\configs\\behavior.default.yaml",
+          "priority": 0,
+          "channel": "prompt_guidance",
+          "compatibility": "Mappable",
+          "policyRef": null,
+          "policyRuleIds": [],
+          "assertions": [],
+          "assertionResults": [],
+          "provenance": {
+            "id": {
+              "sourceRef": "E:\\Code_file\\Projects\\Vessel_Harness\\configs\\behavior.default.yaml",
+              "priority": 0,
+              "strategy": "immutable"
+            },
+            "class": {
+              "sourceRef": "E:\\Code_file\\Projects\\Vessel_Harness\\configs\\behavior.default.yaml",
+              "priority": 0,
+              "strategy": "replace"
+            },
+            "channel": {
+              "sourceRef": "E:\\Code_file\\Projects\\Vessel_Harness\\configs\\behavior.default.yaml",
+              "priority": 0,
+              "strategy": "immutable"
+            },
+            "default": {
+              "sourceRef": "E:\\Code_file\\Projects\\Vessel_Harness\\configs\\behavior.default.yaml",
+              "priority": 0,
+              "strategy": "replace"
+            },
+            "render": {
+              "sourceRef": "E:\\Code_file\\Projects\\Vessel_Harness\\configs\\behavior.default.yaml",
+              "priority": 0,
+              "strategy": "replace"
+            },
+            "sourceRef": {
+              "sourceRef": "E:\\Code_file\\Projects\\Vessel_Harness\\configs\\behavior.default.yaml",
+              "priority": 0,
+              "strategy": "replace"
+            },
+            "category": {
+              "sourceRef": "E:\\Code_file\\Projects\\Vessel_Harness\\configs\\behavior.default.yaml",
+              "priority": 0,
+              "strategy": "immutable"
+            },
+            "enforcementChannel": {
+              "sourceRef": "E:\\Code_file\\Projects\\Vessel_Harness\\configs\\behavior.default.yaml",
+              "priority": 0,
+              "strategy": "immutable"
+            }
+          }
+        },
+        {
+          "id": "vessel.no_self_certification",
+          "category": "Instruction",
+          "sourceRef": "E:\\Code_file\\Projects\\Vessel_Harness\\configs\\behavior.default.yaml",
+          "priority": 0,
+          "channel": "prompt_guidance",
+          "compatibility": "Mappable",
+          "policyRef": null,
+          "policyRuleIds": [],
+          "assertions": [],
+          "assertionResults": [],
+          "provenance": {
+            "id": {
+              "sourceRef": "E:\\Code_file\\Projects\\Vessel_Harness\\configs\\behavior.default.yaml",
+              "priority": 0,
+              "strategy": "immutable"
+            },
+            "class": {
+              "sourceRef": "E:\\Code_file\\Projects\\Vessel_Harness\\configs\\behavior.default.yaml",
+              "priority": 0,
+              "strategy": "replace"
+            },
+            "channel": {
+              "sourceRef": "E:\\Code_file\\Projects\\Vessel_Harness\\configs\\behavior.default.yaml",
+              "priority": 0,
+              "strategy": "immutable"
+            },
+            "default": {
+              "sourceRef": "E:\\Code_file\\Projects\\Vessel_Harness\\configs\\behavior.default.yaml",
+              "priority": 0,
+              "strategy": "replace"
+            },
+            "render": {
+              "sourceRef": "E:\\Code_file\\Projects\\Vessel_Harness\\configs\\behavior.default.yaml",
+              "priority": 0,
+              "strategy": "replace"
+            },
+            "sourceRef": {
+              "sourceRef": "E:\\Code_file\\Projects\\Vessel_Harness\\configs\\behavior.default.yaml",
+              "priority": 0,
+              "strategy": "replace"
+            },
+            "category": {
+              "sourceRef": "E:\\Code_file\\Projects\\Vessel_Harness\\configs\\behavior.default.yaml",
+              "priority": 0,
+              "strategy": "immutable"
+            },
+            "enforcementChannel": {
+              "sourceRef": "E:\\Code_file\\Projects\\Vessel_Harness\\configs\\behavior.default.yaml",
+              "priority": 0,
+              "strategy": "immutable"
+            }
+          }
+        },
+        {
+          "id": "vessel.human_above_loop",
+          "category": "Instruction",
+          "sourceRef": "E:\\Code_file\\Projects\\Vessel_Harness\\configs\\behavior.default.yaml",
+          "priority": 0,
+          "channel": "prompt_guidance",
+          "compatibility": "Mappable",
+          "policyRef": null,
+          "policyRuleIds": [],
+          "assertions": [],
+          "assertionResults": [],
+          "provenance": {
+            "id": {
+              "sourceRef": "E:\\Code_file\\Projects\\Vessel_Harness\\configs\\behavior.default.yaml",
+              "priority": 0,
+              "strategy": "immutable"
+            },
+            "class": {
+              "sourceRef": "E:\\Code_file\\Projects\\Vessel_Harness\\configs\\behavior.default.yaml",
+              "priority": 0,
+              "strategy": "replace"
+            },
+            "channel": {
+              "sourceRef": "E:\\Code_file\\Projects\\Vessel_Harness\\configs\\behavior.default.yaml",
+              "priority": 0,
+              "strategy": "immutable"
+            },
+            "default": {
+              "sourceRef": "E:\\Code_file\\Projects\\Vessel_Harness\\configs\\behavior.default.yaml",
+              "priority": 0,
+              "strategy": "replace"
+            },
+            "render": {
+              "sourceRef": "E:\\Code_file\\Projects\\Vessel_Harness\\configs\\behavior.default.yaml",
+              "priority": 0,
+              "strategy": "replace"
+            },
+            "sourceRef": {
+              "sourceRef": "E:\\Code_file\\Projects\\Vessel_Harness\\configs\\behavior.default.yaml",
+              "priority": 0,
+              "strategy": "replace"
+            },
+            "category": {
+              "sourceRef": "E:\\Code_file\\Projects\\Vessel_Harness\\configs\\behavior.default.yaml",
+              "priority": 0,
+              "strategy": "immutable"
+            },
+            "enforcementChannel": {
+              "sourceRef": "E:\\Code_file\\Projects\\Vessel_Harness\\configs\\behavior.default.yaml",
+              "priority": 0,
+              "strategy": "immutable"
+            }
+          }
+        }
+      ],
+      "layers": [
+        {
+          "level": "L0",
+          "status": "available",
+          "sourceRefs": [
+            "E:\\Code_file\\Projects\\Vessel_Harness\\configs\\behavior.default.yaml"
+          ],
+          "snapshot": [
+            {
+              "version": "0.2",
+              "entries": [
+                {
+                  "id": "loop.turn_ends_without_tool_call",
+                  "class": "loop",
+                  "channel": "prompt_guidance",
+                  "default": true,
+                  "render": "纯文本回复即停止；不要在无需工具时强行调用工具。",
+                  "sourceRef": "E:\\Code_file\\Projects\\Vessel_Harness\\configs\\behavior.default.yaml"
+                },
+                {
+                  "id": "retry.exponential_backoff",
+                  "class": "loop",
+                  "channel": "prompt_guidance",
+                  "default": true,
+                  "render": "重试要有退避：同一操作连续失败时先读报错改方式；确需重试则加大间隔或改变参数，不原样反复重发；达到上限带证据上报或换方案。",
+                  "sourceRef": "E:\\Code_file\\Projects\\Vessel_Harness\\configs\\behavior.default.yaml"
+                },
+                {
+                  "id": "planning.plan_before_execute",
+                  "class": "planning",
+                  "channel": "prompt_guidance",
+                  "default": true,
+                  "render": "复杂、多步或有破坏性的任务先给出计划（目标→步骤→验证方式）再动手；执行中发现与计划冲突的新证据时先更新计划再继续。",
+                  "sourceRef": "E:\\Code_file\\Projects\\Vessel_Harness\\configs\\behavior.default.yaml"
+                },
+                {
+                  "id": "safety.protected_paths",
+                  "class": "safety",
+                  "channel": "runtime_policy",
+                  "policy_ref": "filesystem.protected",
+                  "render": "不要改写受保护路径（.git/.env/.ssh 等）；该约束由策略引擎硬执法。",
+                  "default": false,
+                  "sourceRef": "E:\\Code_file\\Projects\\Vessel_Harness\\configs\\behavior.default.yaml"
+                },
+                {
+                  "id": "safety.dangerous_shell",
+                  "class": "safety",
+                  "channel": "runtime_policy",
+                  "policy_ref": "shell.deny",
+                  "render": "删除/格式化等破坏性命令会被策略引擎拦截；先说明原因与范围。",
+                  "default": false,
+                  "sourceRef": "E:\\Code_file\\Projects\\Vessel_Harness\\configs\\behavior.default.yaml"
+                },
+                {
+                  "id": "safety.secret_handling",
+                  "class": "safety",
+                  "channel": "runtime_policy",
+                  "policy_ref": "filesystem.deny_read",
+                  "render": "凭据与密钥不写入文件、不落日志、不外发；凭据类文件读取由策略引擎硬拦截，需要密文时走环境注入。",
+                  "default": false,
+                  "sourceRef": "E:\\Code_file\\Projects\\Vessel_Harness\\configs\\behavior.default.yaml"
+                },
+                {
+                  "id": "verification.independent_evaluator",
+                  "class": "verification",
+                  "channel": "prompt_guidance",
+                  "default": true,
+                  "render": "以检查结果（测试/命令输出）作为完成依据，不自证完成。",
+                  "sourceRef": "E:\\Code_file\\Projects\\Vessel_Harness\\configs\\behavior.default.yaml"
+                },
+                {
+                  "id": "verification.honest_failure",
+                  "class": "verification",
+                  "channel": "prompt_guidance",
+                  "default": true,
+                  "render": "拿不到真实验证结果（测试跑不了、环境不可用、数据取不到）就如实上报并说明阻塞，不用假输出或推测冒充结论。",
+                  "sourceRef": "E:\\Code_file\\Projects\\Vessel_Harness\\configs\\behavior.default.yaml"
+                },
+                {
+                  "id": "context.rules_in_files",
+                  "class": "context",
+                  "channel": "prompt_guidance",
+                  "default": true,
+                  "render": "需要长期成立的规则与项目事实写入项目指令文件（AGENTS.md），不依赖对话记忆——对话会被压缩或交接，文件不会丢。",
+                  "sourceRef": "E:\\Code_file\\Projects\\Vessel_Harness\\configs\\behavior.default.yaml"
+                },
+                {
+                  "id": "context.resume_after_compaction",
+                  "class": "context",
+                  "channel": "prompt_guidance",
+                  "default": true,
+                  "render": "上下文被压缩或交接后，基于摘要与最新请求继续，不重做已完成的工作；收尾说明要足以让下一个执行者直接续作。",
+                  "sourceRef": "E:\\Code_file\\Projects\\Vessel_Harness\\configs\\behavior.default.yaml"
+                },
+                {
+                  "id": "context.budget_awareness",
+                  "class": "context",
+                  "channel": "prompt_guidance",
+                  "default": true,
+                  "render": "注意上下文占用：长输出与大批量调用会挤占窗口；优先按需读取与精简输出，接近窗口上限时先压缩再继续。",
+                  "sourceRef": "E:\\Code_file\\Projects\\Vessel_Harness\\configs\\behavior.default.yaml"
+                },
+                {
+                  "id": "communication.concise_direct",
+                  "class": "communication",
+                  "channel": "prompt_guidance",
+                  "default": true,
+                  "render": "回复简洁直给：先结论后细节，控制篇幅；CLI/日志类场景尤其要短，不写客套开场与无关展开。",
+                  "sourceRef": "E:\\Code_file\\Projects\\Vessel_Harness\\configs\\behavior.default.yaml"
+                },
+                {
+                  "id": "vessel.replaceable",
+                  "class": "vessel",
+                  "channel": "prompt_guidance",
+                  "default": true,
+                  "render": "模型/工具/Agent 都可被替换——输出结构化、可交接、不制造对当前模型/会话的隐性依赖。",
+                  "sourceRef": "E:\\Code_file\\Projects\\Vessel_Harness\\configs\\behavior.default.yaml"
+                },
+                {
+                  "id": "vessel.minimal_complexity",
+                  "class": "vessel",
+                  "channel": "prompt_guidance",
+                  "default": true,
+                  "render": "以最低必要复杂度完成任务：够用即止，不堆多余 Agent/工具/步骤；新增能力先证其必要。",
+                  "sourceRef": "E:\\Code_file\\Projects\\Vessel_Harness\\configs\\behavior.default.yaml"
+                },
+                {
+                  "id": "vessel.harness_carries",
+                  "class": "vessel",
+                  "channel": "prompt_guidance",
+                  "default": true,
+                  "render": "模型负责聪明、系统负责可靠——动手前先定：调谁、给什么上下文、允许做什么、如何验证、何时停、出错怎么办。",
+                  "sourceRef": "E:\\Code_file\\Projects\\Vessel_Harness\\configs\\behavior.default.yaml"
+                },
+                {
+                  "id": "vessel.soft_guidance_hard_boundaries",
+                  "class": "vessel",
+                  "channel": "prompt_guidance",
+                  "default": true,
+                  "render": "重要规则不只靠自觉：Prompt 引导 + 策略识别 + Runtime 拦截 + 审计记录四层执行；被拦截即服从并解释，不绕行。",
+                  "sourceRef": "E:\\Code_file\\Projects\\Vessel_Harness\\configs\\behavior.default.yaml"
+                },
+                {
+                  "id": "vessel.no_self_certification",
+                  "class": "vessel",
+                  "channel": "prompt_guidance",
+                  "default": true,
+                  "render": "不自证完成：产出须经独立评估（Evaluator / 确定性判据 / 测试证据）确认后才可宣告完成。",
+                  "sourceRef": "E:\\Code_file\\Projects\\Vessel_Harness\\configs\\behavior.default.yaml"
+                },
+                {
+                  "id": "vessel.human_above_loop",
+                  "class": "vessel",
+                  "channel": "prompt_guidance",
+                  "default": true,
+                  "render": "自动化只管执行、判断权留给人：重大、不可逆或证据不足的决策先停下升级给用户，不擅自推进。",
+                  "sourceRef": "E:\\Code_file\\Projects\\Vessel_Harness\\configs\\behavior.default.yaml"
+                }
+              ],
+              "sourceRef": "E:\\Code_file\\Projects\\Vessel_Harness\\configs\\behavior.default.yaml"
+            }
+          ],
+          "snapshotHash": "e28b727ddcbb65224726e88d783136177e5a6c72b4ee223518bf12b837d01fb8"
+        },
+        {
+          "level": "L1",
+          "status": "available",
+          "sourceRefs": [
+            "E:\\Code_file\\Projects\\Vessel_Harness\\configs\\behavior.default.yaml"
+          ],
+          "snapshot": {
+            "version": "0.2",
+            "entries": [
+              {
+                "id": "loop.turn_ends_without_tool_call",
+                "class": "loop",
+                "channel": "prompt_guidance",
+                "default": true,
+                "render": "纯文本回复即停止；不要在无需工具时强行调用工具。",
+                "sourceRef": "E:\\Code_file\\Projects\\Vessel_Harness\\configs\\behavior.default.yaml",
+                "category": "Workflow",
+                "enforcementChannel": "prompt_guidance",
+                "priority": 0
+              },
+              {
+                "id": "retry.exponential_backoff",
+                "class": "loop",
+                "channel": "prompt_guidance",
+                "default": true,
+                "render": "重试要有退避：同一操作连续失败时先读报错改方式；确需重试则加大间隔或改变参数，不原样反复重发；达到上限带证据上报或换方案。",
+                "sourceRef": "E:\\Code_file\\Projects\\Vessel_Harness\\configs\\behavior.default.yaml",
+                "category": "Workflow",
+                "enforcementChannel": "prompt_guidance",
+                "priority": 0
+              },
+              {
+                "id": "planning.plan_before_execute",
+                "class": "planning",
+                "channel": "prompt_guidance",
+                "default": true,
+                "render": "复杂、多步或有破坏性的任务先给出计划（目标→步骤→验证方式）再动手；执行中发现与计划冲突的新证据时先更新计划再继续。",
+                "sourceRef": "E:\\Code_file\\Projects\\Vessel_Harness\\configs\\behavior.default.yaml",
+                "category": "Workflow",
+                "enforcementChannel": "prompt_guidance",
+                "priority": 0
+              },
+              {
+                "id": "safety.protected_paths",
+                "class": "safety",
+                "channel": "runtime_policy",
+                "policy_ref": "filesystem.protected",
+                "render": "不要改写受保护路径（.git/.env/.ssh 等）；该约束由策略引擎硬执法。",
+                "default": false,
+                "sourceRef": "E:\\Code_file\\Projects\\Vessel_Harness\\configs\\behavior.default.yaml",
+                "category": "Constraint",
+                "enforcementChannel": "runtime_policy",
+                "priority": 0
+              },
+              {
+                "id": "safety.dangerous_shell",
+                "class": "safety",
+                "channel": "runtime_policy",
+                "policy_ref": "shell.deny",
+                "render": "删除/格式化等破坏性命令会被策略引擎拦截；先说明原因与范围。",
+                "default": false,
+                "sourceRef": "E:\\Code_file\\Projects\\Vessel_Harness\\configs\\behavior.default.yaml",
+                "category": "Constraint",
+                "enforcementChannel": "runtime_policy",
+                "priority": 0
+              },
+              {
+                "id": "safety.secret_handling",
+                "class": "safety",
+                "channel": "runtime_policy",
+                "policy_ref": "filesystem.deny_read",
+                "render": "凭据与密钥不写入文件、不落日志、不外发；凭据类文件读取由策略引擎硬拦截，需要密文时走环境注入。",
+                "default": false,
+                "sourceRef": "E:\\Code_file\\Projects\\Vessel_Harness\\configs\\behavior.default.yaml",
+                "category": "Constraint",
+                "enforcementChannel": "runtime_policy",
+                "priority": 0
+              },
+              {
+                "id": "verification.independent_evaluator",
+                "class": "verification",
+                "channel": "prompt_guidance",
+                "default": true,
+                "render": "以检查结果（测试/命令输出）作为完成依据，不自证完成。",
+                "sourceRef": "E:\\Code_file\\Projects\\Vessel_Harness\\configs\\behavior.default.yaml",
+                "category": "Verification",
+                "enforcementChannel": "prompt_guidance",
+                "priority": 0
+              },
+              {
+                "id": "verification.honest_failure",
+                "class": "verification",
+                "channel": "prompt_guidance",
+                "default": true,
+                "render": "拿不到真实验证结果（测试跑不了、环境不可用、数据取不到）就如实上报并说明阻塞，不用假输出或推测冒充结论。",
+                "sourceRef": "E:\\Code_file\\Projects\\Vessel_Harness\\configs\\behavior.default.yaml",
+                "category": "Verification",
+                "enforcementChannel": "prompt_guidance",
+                "priority": 0
+              },
+              {
+                "id": "context.rules_in_files",
+                "class": "context",
+                "channel": "prompt_guidance",
+                "default": true,
+                "render": "需要长期成立的规则与项目事实写入项目指令文件（AGENTS.md），不依赖对话记忆——对话会被压缩或交接，文件不会丢。",
+                "sourceRef": "E:\\Code_file\\Projects\\Vessel_Harness\\configs\\behavior.default.yaml",
+                "category": "ContextStrategy",
+                "enforcementChannel": "prompt_guidance",
+                "priority": 0
+              },
+              {
+                "id": "context.resume_after_compaction",
+                "class": "context",
+                "channel": "prompt_guidance",
+                "default": true,
+                "render": "上下文被压缩或交接后，基于摘要与最新请求继续，不重做已完成的工作；收尾说明要足以让下一个执行者直接续作。",
+                "sourceRef": "E:\\Code_file\\Projects\\Vessel_Harness\\configs\\behavior.default.yaml",
+                "category": "ContextStrategy",
+                "enforcementChannel": "prompt_guidance",
+                "priority": 0
+              },
+              {
+                "id": "context.budget_awareness",
+                "class": "context",
+                "channel": "prompt_guidance",
+                "default": true,
+                "render": "注意上下文占用：长输出与大批量调用会挤占窗口；优先按需读取与精简输出，接近窗口上限时先压缩再继续。",
+                "sourceRef": "E:\\Code_file\\Projects\\Vessel_Harness\\configs\\behavior.default.yaml",
+                "category": "ContextStrategy",
+                "enforcementChannel": "prompt_guidance",
+                "priority": 0
+              },
+              {
+                "id": "communication.concise_direct",
+                "class": "communication",
+                "channel": "prompt_guidance",
+                "default": true,
+                "render": "回复简洁直给：先结论后细节，控制篇幅；CLI/日志类场景尤其要短，不写客套开场与无关展开。",
+                "sourceRef": "E:\\Code_file\\Projects\\Vessel_Harness\\configs\\behavior.default.yaml",
+                "category": "Instruction",
+                "enforcementChannel": "prompt_guidance",
+                "priority": 0
+              },
+              {
+                "id": "vessel.replaceable",
+                "class": "vessel",
+                "channel": "prompt_guidance",
+                "default": true,
+                "render": "模型/工具/Agent 都可被替换——输出结构化、可交接、不制造对当前模型/会话的隐性依赖。",
+                "sourceRef": "E:\\Code_file\\Projects\\Vessel_Harness\\configs\\behavior.default.yaml",
+                "category": "Instruction",
+                "enforcementChannel": "prompt_guidance",
+                "priority": 0
+              },
+              {
+                "id": "vessel.minimal_complexity",
+                "class": "vessel",
+                "channel": "prompt_guidance",
+                "default": true,
+                "render": "以最低必要复杂度完成任务：够用即止，不堆多余 Agent/工具/步骤；新增能力先证其必要。",
+                "sourceRef": "E:\\Code_file\\Projects\\Vessel_Harness\\configs\\behavior.default.yaml",
+                "category": "Instruction",
+                "enforcementChannel": "prompt_guidance",
+                "priority": 0
+              },
+              {
+                "id": "vessel.harness_carries",
+                "class": "vessel",
+                "channel": "prompt_guidance",
+                "default": true,
+                "render": "模型负责聪明、系统负责可靠——动手前先定：调谁、给什么上下文、允许做什么、如何验证、何时停、出错怎么办。",
+                "sourceRef": "E:\\Code_file\\Projects\\Vessel_Harness\\configs\\behavior.default.yaml",
+                "category": "Instruction",
+                "enforcementChannel": "prompt_guidance",
+                "priority": 0
+              },
+              {
+                "id": "vessel.soft_guidance_hard_boundaries",
+                "class": "vessel",
+                "channel": "prompt_guidance",
+                "default": true,
+                "render": "重要规则不只靠自觉：Prompt 引导 + 策略识别 + Runtime 拦截 + 审计记录四层执行；被拦截即服从并解释，不绕行。",
+                "sourceRef": "E:\\Code_file\\Projects\\Vessel_Harness\\configs\\behavior.default.yaml",
+                "category": "Instruction",
+                "enforcementChannel": "prompt_guidance",
+                "priority": 0
+              },
+              {
+                "id": "vessel.no_self_certification",
+                "class": "vessel",
+                "channel": "prompt_guidance",
+                "default": true,
+                "render": "不自证完成：产出须经独立评估（Evaluator / 确定性判据 / 测试证据）确认后才可宣告完成。",
+                "sourceRef": "E:\\Code_file\\Projects\\Vessel_Harness\\configs\\behavior.default.yaml",
+                "category": "Instruction",
+                "enforcementChannel": "prompt_guidance",
+                "priority": 0
+              },
+              {
+                "id": "vessel.human_above_loop",
+                "class": "vessel",
+                "channel": "prompt_guidance",
+                "default": true,
+                "render": "自动化只管执行、判断权留给人：重大、不可逆或证据不足的决策先停下升级给用户，不擅自推进。",
+                "sourceRef": "E:\\Code_file\\Projects\\Vessel_Harness\\configs\\behavior.default.yaml",
+                "category": "Instruction",
+                "enforcementChannel": "prompt_guidance",
+                "priority": 0
+              }
+            ]
+          },
+          "snapshotHash": "ed1824b7633fe5068837835491a6e6a21891e2cc7dbc26e6afa0bc2626c13e87"
+        },
+        {
+          "level": "L2",
+          "status": "available",
+          "sourceRefs": [
+            "E:\\Code_file\\Projects\\Vessel_Harness\\configs\\behavior.default.yaml"
+          ],
+          "snapshot": {
+            "promptSections": [
+              "纯文本回复即停止；不要在无需工具时强行调用工具。",
+              "重试要有退避：同一操作连续失败时先读报错改方式；确需重试则加大间隔或改变参数，不原样反复重发；达到上限带证据上报或换方案。",
+              "复杂、多步或有破坏性的任务先给出计划（目标→步骤→验证方式）再动手；执行中发现与计划冲突的新证据时先更新计划再继续。",
+              "不要改写受保护路径（.git/.env/.ssh 等）；该约束由策略引擎硬执法。",
+              "删除/格式化等破坏性命令会被策略引擎拦截；先说明原因与范围。",
+              "凭据与密钥不写入文件、不落日志、不外发；凭据类文件读取由策略引擎硬拦截，需要密文时走环境注入。",
+              "以检查结果（测试/命令输出）作为完成依据，不自证完成。",
+              "拿不到真实验证结果（测试跑不了、环境不可用、数据取不到）就如实上报并说明阻塞，不用假输出或推测冒充结论。",
+              "需要长期成立的规则与项目事实写入项目指令文件（AGENTS.md），不依赖对话记忆——对话会被压缩或交接，文件不会丢。",
+              "上下文被压缩或交接后，基于摘要与最新请求继续，不重做已完成的工作；收尾说明要足以让下一个执行者直接续作。",
+              "注意上下文占用：长输出与大批量调用会挤占窗口；优先按需读取与精简输出，接近窗口上限时先压缩再继续。",
+              "回复简洁直给：先结论后细节，控制篇幅；CLI/日志类场景尤其要短，不写客套开场与无关展开。",
+              "模型/工具/Agent 都可被替换——输出结构化、可交接、不制造对当前模型/会话的隐性依赖。",
+              "以最低必要复杂度完成任务：够用即止，不堆多余 Agent/工具/步骤；新增能力先证其必要。",
+              "模型负责聪明、系统负责可靠——动手前先定：调谁、给什么上下文、允许做什么、如何验证、何时停、出错怎么办。",
+              "重要规则不只靠自觉：Prompt 引导 + 策略识别 + Runtime 拦截 + 审计记录四层执行；被拦截即服从并解释，不绕行。",
+              "不自证完成：产出须经独立评估（Evaluator / 确定性判据 / 测试证据）确认后才可宣告完成。",
+              "自动化只管执行、判断权留给人：重大、不可逆或证据不足的决策先停下升级给用户，不擅自推进。"
+            ],
+            "modelProfile": {
+              "provider": "mock",
+              "model": "mock",
+              "capabilities": {
+                "tools": {
+                  "status": "declared",
+                  "value": true
+                },
+                "parallelToolCalls": {
+                  "status": "unknown"
+                },
+                "toolCallStreaming": {
+                  "status": "declared",
+                  "value": true
+                },
+                "structuredOutput": {
+                  "status": "declared",
+                  "value": false
+                },
+                "jsonSchema": {
+                  "status": "declared",
+                  "value": false
+                },
+                "reasoning": {
+                  "status": "declared",
+                  "value": true
+                },
+                "streaming": {
+                  "status": "declared",
+                  "value": true
+                },
+                "stopReason": {
+                  "status": "declared",
+                  "value": true
+                },
+                "multimodalInput": {
+                  "status": "declared",
+                  "value": false
+                },
+                "multimodalOutput": {
+                  "status": "declared",
+                  "value": false
+                },
+                "contextWindow": {
+                  "status": "unknown"
+                },
+                "tokenUsage": {
+                  "status": "declared",
+                  "value": true
+                },
+                "costEstimation": {
+                  "status": "unknown"
+                },
+                "promptCache": {
+                  "status": "unknown"
+                },
+                "rateLimit": {
+                  "status": "unknown"
+                },
+                "retry": {
+                  "status": "unknown"
+                }
+              }
+            }
+          },
+          "snapshotHash": "98e1e56ff4ee45ea9d7f80a3de283285b9906b9b74ce4e9aea9139ce1f26d026"
+        },
+        {
+          "level": "L3",
+          "status": "available",
+          "sourceRefs": [
+            "E:\\Code_file\\Projects\\Vessel_Harness\\configs\\behavior.default.yaml"
+          ],
+          "snapshot": {
+            "harnessConfig": {
+              "deniedTools": [],
+              "profile": "workspace-write",
+              "approval": "never"
+            },
+            "conformance": [
+              {
+                "entryId": "loop.turn_ends_without_tool_call",
+                "channel": "prompt_guidance",
+                "policyRef": null,
+                "policyRuleFound": true
+              },
+              {
+                "entryId": "retry.exponential_backoff",
+                "channel": "prompt_guidance",
+                "policyRef": null,
+                "policyRuleFound": true
+              },
+              {
+                "entryId": "planning.plan_before_execute",
+                "channel": "prompt_guidance",
+                "policyRef": null,
+                "policyRuleFound": true
+              },
+              {
+                "entryId": "safety.protected_paths",
+                "channel": "runtime_policy",
+                "policyRef": "filesystem.protected",
+                "policyRuleFound": true
+              },
+              {
+                "entryId": "safety.dangerous_shell",
+                "channel": "runtime_policy",
+                "policyRef": "shell.deny",
+                "policyRuleFound": true
+              },
+              {
+                "entryId": "safety.secret_handling",
+                "channel": "runtime_policy",
+                "policyRef": "filesystem.deny_read",
+                "policyRuleFound": true
+              },
+              {
+                "entryId": "verification.independent_evaluator",
+                "channel": "prompt_guidance",
+                "policyRef": null,
+                "policyRuleFound": true
+              },
+              {
+                "entryId": "verification.honest_failure",
+                "channel": "prompt_guidance",
+                "policyRef": null,
+                "policyRuleFound": true
+              },
+              {
+                "entryId": "context.rules_in_files",
+                "channel": "prompt_guidance",
+                "policyRef": null,
+                "policyRuleFound": true
+              },
+              {
+                "entryId": "context.resume_after_compaction",
+                "channel": "prompt_guidance",
+                "policyRef": null,
+                "policyRuleFound": true
+              },
+              {
+                "entryId": "context.budget_awareness",
+                "channel": "prompt_guidance",
+                "policyRef": null,
+                "policyRuleFound": true
+              },
+              {
+                "entryId": "communication.concise_direct",
+                "channel": "prompt_guidance",
+                "policyRef": null,
+                "policyRuleFound": true
+              },
+              {
+                "entryId": "vessel.replaceable",
+                "channel": "prompt_guidance",
+                "policyRef": null,
+                "policyRuleFound": true
+              },
+              {
+                "entryId": "vessel.minimal_complexity",
+                "channel": "prompt_guidance",
+                "policyRef": null,
+                "policyRuleFound": true
+              },
+              {
+                "entryId": "vessel.harness_carries",
+                "channel": "prompt_guidance",
+                "policyRef": null,
+                "policyRuleFound": true
+              },
+              {
+                "entryId": "vessel.soft_guidance_hard_boundaries",
+                "channel": "prompt_guidance",
+                "policyRef": null,
+                "policyRuleFound": true
+              },
+              {
+                "entryId": "vessel.no_self_certification",
+                "channel": "prompt_guidance",
+                "policyRef": null,
+                "policyRuleFound": true
+              },
+              {
+                "entryId": "vessel.human_above_loop",
+                "channel": "prompt_guidance",
+                "policyRef": null,
+                "policyRuleFound": true
+              }
+            ],
+            "mappings": [
+              {
+                "entryId": "loop.turn_ends_without_tool_call",
+                "policyRef": null,
+                "ruleIds": []
+              },
+              {
+                "entryId": "retry.exponential_backoff",
+                "policyRef": null,
+                "ruleIds": []
+              },
+              {
+                "entryId": "planning.plan_before_execute",
+                "policyRef": null,
+                "ruleIds": []
+              },
+              {
+                "entryId": "safety.protected_paths",
+                "policyRef": "filesystem.protected",
+                "ruleIds": [
+                  "fs-protected:.git",
+                  "fs-protected:.git/**",
+                  "fs-protected:.claude",
+                  "fs-protected:.ssh",
+                  "fs-protected:.harness/credentials",
+                  "fs-protected:.env"
+                ]
+              },
+              {
+                "entryId": "safety.dangerous_shell",
+                "policyRef": "shell.deny",
+                "ruleIds": [
+                  "shell-deny:destructive-delete",
+                  "shell-deny:disk-format",
+                  "shell-deny:partition-write"
+                ]
+              },
+              {
+                "entryId": "safety.secret_handling",
+                "policyRef": "filesystem.deny_read",
+                "ruleIds": [
+                  "fs-deny-read:**/.aws/credentials",
+                  "fs-deny-read:**/.ssh/**",
+                  "fs-deny-read:**/.env"
+                ]
+              },
+              {
+                "entryId": "verification.independent_evaluator",
+                "policyRef": null,
+                "ruleIds": []
+              },
+              {
+                "entryId": "verification.honest_failure",
+                "policyRef": null,
+                "ruleIds": []
+              },
+              {
+                "entryId": "context.rules_in_files",
+                "policyRef": null,
+                "ruleIds": []
+              },
+              {
+                "entryId": "context.resume_after_compaction",
+                "policyRef": null,
+                "ruleIds": []
+              },
+              {
+                "entryId": "context.budget_awareness",
+                "policyRef": null,
+                "ruleIds": []
+              },
+              {
+                "entryId": "communication.concise_direct",
+                "policyRef": null,
+                "ruleIds": []
+              },
+              {
+                "entryId": "vessel.replaceable",
+                "policyRef": null,
+                "ruleIds": []
+              },
+              {
+                "entryId": "vessel.minimal_complexity",
+                "policyRef": null,
+                "ruleIds": []
+              },
+              {
+                "entryId": "vessel.harness_carries",
+                "policyRef": null,
+                "ruleIds": []
+              },
+              {
+                "entryId": "vessel.soft_guidance_hard_boundaries",
+                "policyRef": null,
+                "ruleIds": []
+              },
+              {
+                "entryId": "vessel.no_self_certification",
+                "policyRef": null,
+                "ruleIds": []
+              },
+              {
+                "entryId": "vessel.human_above_loop",
+                "policyRef": null,
+                "ruleIds": []
+              }
+            ]
+          },
+          "snapshotHash": "3c49ff7b4e245691103c6d9e53f2e0bff280b921961865635fcb2325d1805594"
+        },
+        {
+          "level": "L4",
+          "status": "available",
+          "sourceRefs": [
+            "E:\\Code_file\\Projects\\Vessel_Harness\\configs\\behavior.default.yaml",
+            "E:\\Code_file\\Projects\\Vessel_Harness\\configs\\behavior.default.yaml",
+            "E:\\Code_file\\Projects\\Vessel_Harness\\configs\\behavior.default.yaml",
+            "E:\\Code_file\\Projects\\Vessel_Harness\\configs\\behavior.default.yaml",
+            "E:\\Code_file\\Projects\\Vessel_Harness\\configs\\behavior.default.yaml",
+            "E:\\Code_file\\Projects\\Vessel_Harness\\configs\\behavior.default.yaml",
+            "E:\\Code_file\\Projects\\Vessel_Harness\\configs\\behavior.default.yaml",
+            "E:\\Code_file\\Projects\\Vessel_Harness\\configs\\behavior.default.yaml",
+            "E:\\Code_file\\Projects\\Vessel_Harness\\configs\\behavior.default.yaml",
+            "E:\\Code_file\\Projects\\Vessel_Harness\\configs\\behavior.default.yaml",
+            "E:\\Code_file\\Projects\\Vessel_Harness\\configs\\behavior.default.yaml",
+            "E:\\Code_file\\Projects\\Vessel_Harness\\configs\\behavior.default.yaml",
+            "E:\\Code_file\\Projects\\Vessel_Harness\\configs\\behavior.default.yaml",
+            "E:\\Code_file\\Projects\\Vessel_Harness\\configs\\behavior.default.yaml",
+            "E:\\Code_file\\Projects\\Vessel_Harness\\configs\\behavior.default.yaml",
+            "E:\\Code_file\\Projects\\Vessel_Harness\\configs\\behavior.default.yaml",
+            "E:\\Code_file\\Projects\\Vessel_Harness\\configs\\behavior.default.yaml",
+            "E:\\Code_file\\Projects\\Vessel_Harness\\configs\\behavior.default.yaml"
+          ],
+          "snapshotHash": "d7ec845162798a1b1cb8a22cd9d33010bc5e76c424aa30e038f475e588efc206",
+          "snapshot": {
+            "requestHash": "d7ec845162798a1b1cb8a22cd9d33010bc5e76c424aa30e038f475e588efc206",
+            "dependencyHash": "5d0b8a6f572e7bf94ac8dbf612b23beb8bddbb1c6d0955491f9f42a6c6ac418c",
+            "model": "mock",
+            "projectionRevision": 0,
+            "basedOnEventSequence": 6,
+            "estimateTokens": 1968,
+            "messageCount": 2,
+            "toolCount": 8
+          }
+        }
+      ],
+      "diagnostics": []
+    }
+  }
+}

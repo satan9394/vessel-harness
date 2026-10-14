@@ -1,0 +1,26 @@
+﻿[
+    {
+        "name":  "01-tsc",
+        "exitCode":  0,
+        "command":  "npx.cmd tsc -b",
+        "startedAt":  "2026-10-14T06:44:23.5147701+00:00",
+        "finishedAt":  "2026-10-14T06:44:30.1610194+00:00",
+        "log":  "E:\\Code_file\\Projects\\Vessel_Harness\\evidence\\sessions\\2026-10-13-card221\\accepted-01-tsc.log"
+    },
+    {
+        "name":  "02-typecheck-tests",
+        "exitCode":  0,
+        "command":  "npm.cmd run typecheck:tests",
+        "startedAt":  "2026-10-14T06:44:30.6456261+00:00",
+        "finishedAt":  "2026-10-14T06:44:38.0414414+00:00",
+        "log":  "E:\\Code_file\\Projects\\Vessel_Harness\\evidence\\sessions\\2026-10-13-card221\\accepted-02-typecheck-tests.log"
+    },
+    {
+        "name":  "03-web-build",
+        "exitCode":  0,
+        "command":  "npm.cmd run -w @vessel/web build -- --emptyOutDir false",
+        "startedAt":  "2026-10-14T06:44:38.0453920+00:00",
+        "finishedAt":  "2026-10-14T06:44:44.7868315+00:00",
+        "log":  "E:\\Code_file\\Projects\\Vessel_Harness\\evidence\\sessions\\2026-10-13-card221\\accepted-03-web-build.log"
+    }
+]

@@ -1,0 +1,171 @@
+{
+  "version": 1,
+  "saved_at": 1791961488916.0,
+  "run": {
+    "id": "ddedea5788ef5",
+    "session_id": "ueus",
+    "tab_id": 752306693,
+    "name": "card221-inspector",
+    "url": "http://127.0.0.1:32821/",
+    "started_at": 1791961202868.0,
+    "stopped_at": 1791961488641.0,
+    "state": "stopped",
+    "stop_reason": "requested",
+    "requests": 0,
+    "operations": 0,
+    "errors": 0,
+    "dropped_requests": 0,
+    "dropped_operations": 0,
+    "dropped_console": 0,
+    "coverage": [
+      "from_start",
+      "task_tab",
+      "text_bodies_bounded",
+      "time_window_not_causality",
+      "page_main_frame",
+      "worker_targets_not_captured",
+      "manual_main_frame_only",
+      "initial_load_not_recorded"
+    ],
+    "next_since": 7,
+    "active_rules": 0,
+    "saved_at": 1791961488644.0,
+    "environment": {
+      "extension_version": "0.3.2",
+      "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/155.0.0.0 Safari/537.36"
+    }
+  },
+  "requests": [],
+  "operations": [],
+  "console": [],
+  "pages": [
+    {
+      "at": 1791961202965.0,
+      "state": "available",
+      "url": "http://127.0.0.1:32821/",
+      "title": "Vessel — Local UI",
+      "text": "工作台\n活动\nAgent Studio\n设置\nVessel\n+ 新建会话\n项目\nvessel-card221-browser-CXgrdv\n历史会话\n显示已归档\nvessel-card221-browser-CXgrdv\nInspect the active B\n2026/10/13\n···\n重命名会话\n归档会话\n项目 → 会话 → 运行 → 子代理\nVessel 本地服务运行正常（版本 0.10.0）\n命令\n偏好设置\n关闭提示音\n开启桌面通知\n工作台视图\n中文\n项目 → 会话 → 运行 → 子代理\n让 Vessel 完成什么任务？\n选择项目\nC:\\work\\AppData\\Local\\Temp\\vessel-card221-browser-CXgrdv\n让 Vessel 完成什么任务？\n选择模型\n新会话权限（不影响当前会话）\n开始任务\n尚未配置模型\n·\n演示模型（不连接真实供应商）\n高级新会话\n配置新模型",
+      "truncated": false,
+      "fields": [
+        {
+          "key": "http://127.0.0.1:32821/||id:taskProject",
+          "name": "taskProject",
+          "label": "选择项目",
+          "value": "C:\\work\\AppData\\Local\\Temp\\vessel-card221-browser-CXgrdv",
+          "state": "available"
+        },
+        {
+          "key": "http://127.0.0.1:32821/||id:taskInput",
+          "name": "taskInput",
+          "label": "让 Vessel 完成什么任务？",
+          "value": "",
+          "state": "available"
+        }
+      ],
+      "fields_partial": true
+    }
+  ],
+  "rules": [],
+  "replays": [],
+  "performance": [
+    {
+      "id": "ddedea5788ef5:p1",
+      "document_key": "1791961137954.6:0",
+      "sequence": 6,
+      "time_origin": 1791961137954.6,
+      "started_at": 1791961202923.0,
+      "observed_at": 1791961488634.0,
+      "url": "http://127.0.0.1:32821/",
+      "navigation": "navigate",
+      "state": "completed",
+      "early": false,
+      "scope": "main_frame",
+      "visibility": [
+        {
+          "at": 1791961202923.0,
+          "state": "visible"
+        }
+      ],
+      "visibility_truncated": false,
+      "metrics": {
+        "cls": {
+          "value": 0.0009269821020890922,
+          "state": "partial",
+          "reasons": [
+            "started_late"
+          ]
+        },
+        "dom_content_loaded_ms": {
+          "value": 235.40000000223517,
+          "state": "available",
+          "reasons": []
+        },
+        "fcp_ms": {
+          "value": 640.0,
+          "state": "partial",
+          "reasons": [
+            "started_late"
+          ]
+        },
+        "lcp_ms": {
+          "value": 640.0,
+          "state": "partial",
+          "reasons": [
+            "started_late"
+          ]
+        },
+        "load_ms": {
+          "value": 768.6999999992549,
+          "state": "available",
+          "reasons": []
+        },
+        "long_task_count": {
+          "value": 3.0,
+          "state": "partial",
+          "reasons": [
+            "started_late"
+          ]
+        },
+        "long_task_max_ms": {
+          "value": 123.0,
+          "state": "partial",
+          "reasons": [
+            "started_late"
+          ]
+        },
+        "long_task_total_ms": {
+          "value": 275.0,
+          "state": "partial",
+          "reasons": [
+            "started_late"
+          ]
+        },
+        "ttfb_ms": {
+          "value": 28.699999999254945,
+          "state": "available",
+          "reasons": []
+        }
+      },
+      "long_tasks": [
+        {
+          "at": 1791961138260.9,
+          "duration_ms": 123.0
+        },
+        {
+          "at": 1791961138598.6,
+          "duration_ms": 102.0
+        },
+        {
+          "at": 1791961138145.3,
+          "duration_ms": 50.0
+        }
+      ],
+      "long_tasks_truncated": false,
+      "coverage": [
+        "main_frame_only",
+        "started_late",
+        "visibility_before_capture_unknown"
+      ]
+    }
+  ]
+}

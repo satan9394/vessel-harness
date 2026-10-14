@@ -23,16 +23,16 @@
      - Card 217（架构整改落地 ARC-01..05）已验收合入 `6442171`；
      - Card 218（Web UI/UX 工作台整改落地）已验收闭环；
    - **开发模式与约束**：纯本地开发（严禁 git push，遵循 2026-10-06 规约；薄核零侵入 packages/core 源码；删除必进回收站；Web 构建必须携带 `-- --emptyOutDir false`）；
-   - **架构职责分工（2026-10-13 用户明确纠偏）**：Antigravity (主会话) 严格定位为**规划与指挥者 (Planner/Commander)**，只负责需求拆解、契约设计、任务卡编制、验收与对账；**严禁自行进行代码开发**。所有代码实现与测试执行一律派发给隔离执行器 **Codex**（GPT-6.1 Sol / Medium 思考深度）以 standard 模式执行；
-   - **模型锁定规约**：默认开发模型锁定为 **GPT-6.1 Sol (`gpt-6.1-sol`)**，二级思考（`reasoning.effort: medium`），免多余确认。
+   - **架构职责分工（2026-10-14 用户明确指令）**：Antigravity (主会话) 严格定位为**规划与指挥者 (Planner/Commander)**，负责需求拆解、契约设计、任务卡编制、验收与对账；**严禁自行进行代码开发**。因 Codex 出现算力与内置浏览器环境瓶颈，代码实现与全量验证门禁全面移交给隔离执行器 **OpenCode（搭载 DeepSeek-v4.1-Flash，思考深度设为 high 最高思考深度）** 以 **goal 目标模式** 执行攻坚闭环；
+   - **模型锁定规约**：当前接盘执行模型变更为 **DeepSeek-v4.1-Flash**（思考深度：`high`），以 `goal` 模式直达目标。
 
 | 项 | 当前实况 |
 |---|---|
 | 仓库 / 分支 | `satan9394/vessel-harness` / `main`（纯本地开发，不推送） |
-| 工作区状态 | HEAD `1276d39`；Card 217、218、219 均已合入本地提交；Card 220 已通过验收并交证即停 |
-| 机器状态真源 | `.agent-state/run-state.json`（Card 210–220 全部 completed） |
-| 当前任务卡 | `tasks/220-provider-capability-contract-and-layered-cache.md`（已验证；standard 交证即停；等待合入或下一卡） |
-| 前序已合入任务 | `tasks/219-full-surface-interactive-click-testing-suite.md`（已验证；证据 `evidence/sessions/2026-10-13-card219/PROOF.md`，commit `1276d39`） |
+| 工作区状态 | HEAD `030fc0f`；Card 217–220 均已合入本地提交；Card 221 代码已就绪待攻坚收尾 |
+| 机器状态真源 | `.agent-state/run-state.json`（Card 221 执行中/转交 OpenCode goal 模式） |
+| 当前任务卡 | `tasks/221-behavior-semantic-ir-and-agent-studio-inspector.md`（进行中；OpenCode 接盘） |
+| 前序已合入任务 | `tasks/220-provider-capability-contract-and-layered-cache.md`（已合入；commit `030fc0f`） |
 
 Card 220 本地交付与验收（2026-10-13，Codex 交付 + Antigravity 验收）：依据架构整改规范（ARC-06/08/09）与 UI 规范（UI-011/UI-009）落地 Provider 能力协商契约与 Context 分层版本化缓存。定义三态 `detected | declared | unknown` 能力模型，调度前硬拦截不支持的强制约束（抛出 `CapabilityMismatchError`，零网络调用）；落地 Assembly / Provider Prefix / Projection / Token Estimation 四层缓存及依赖 Hash 失效；强化 Compaction 压缩中的任务目标、约束、最新指令、工具对偶与拒绝记录 100% 守恒；Web/Local-Server 透传能力与缓存状态并完成中英双语展示。门禁：定向单测 120 passed，最终全量四大门禁顺序 exit 0，双 Root **3,271 passed / 6 skipped** 全绿，`packages/core` 行修改严格为 **0**。证据 `evidence/sessions/2026-10-13-card220/PROOF.md`。
 
