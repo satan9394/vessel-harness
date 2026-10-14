@@ -19,6 +19,10 @@ import type { MeshSnapshot, RulesSnapshot } from './dashboard';
 import type { SandboxAuditSnapshot } from './sandboxAudit';
 
 export type { UsageSummary, CacheUsageMetrics } from './cacheUsage';
+export type {
+  ActivityResponse, BehaviorConformanceReportView, ComposerLibraryEntry, TaskTreeStatus, TaskTreesResponse, TraceReportView,
+} from './workbench';
+import type { ActivityResponse, BehaviorConformanceReportView, ComposerLibraryEntry, TaskTreeStatus, TaskTreesResponse, TraceReportView } from './workbench';
 
 export interface ApiOptions {
   /** base URL, default '/api'. May be 'http://127.0.0.1:5678/api'. */
@@ -356,6 +360,30 @@ export function createApiClient(opts: ApiOptions = {}) {
     },
     async cancelSubagent(id: string): Promise<{ ok: boolean }> {
       return request(`/subagents/${encodeURIComponent(id)}/cancel`, { method: 'POST' });
+    },
+    /** Card 222 (UI-016) — ARC-10 team task trees. */
+    async taskTrees(query: { projectRoot?: string; rootInstanceId?: string; status?: TaskTreeStatus } = {}): Promise<TaskTreesResponse> {
+      const params = new URLSearchParams();
+      if (query.projectRoot) params.set('projectRoot', query.projectRoot);
+      if (query.rootInstanceId) params.set('rootInstanceId', query.rootInstanceId);
+      if (query.status) params.set('status', query.status);
+      const suffix = params.size ? `?${params.toString()}` : '';
+      return request(`/tasks/tree${suffix}`);
+    },
+    /** Card 222 (UI-013) — cross-project activity + approval queue. */
+    async activityRuns(): Promise<ActivityResponse> {
+      return request('/activity/runs');
+    },
+    /** Card 222 (UI-015) — behavior library + non-activating conformance verification. */
+    async behaviorLibrary(): Promise<{ entries: ComposerLibraryEntry[] }> {
+      return request('/behavior/library');
+    },
+    async composeBehavior(entries: ComposerLibraryEntry[], sessionId?: string): Promise<BehaviorConformanceReportView> {
+      return request('/behavior/compose', { method: 'POST', body: JSON.stringify({ entries, sessionId }) });
+    },
+    /** Card 222 (UI-017) — structured, sanitized step trace. */
+    async sessionTrace(sessionId: string): Promise<{ trace: TraceReportView }> {
+      return request(`/sessions/${encodeURIComponent(sessionId)}/trace`);
     },
     subagentEventsUrl: `${base}/subagents/events`,
     /** GET /api/projects */

@@ -36,6 +36,10 @@ export * from './review/index.js';
 
 export * from './credential/index.js';
 
+export * from './team/index.js';
+
+export * from './behavior/index.js';
+
 // The CLI's trusted Mod diagnostic uses the existing application/runtime edge.
 export { WorkerSandbox } from '@vessel/runtime';
 

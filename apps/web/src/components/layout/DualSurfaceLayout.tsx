@@ -10,16 +10,18 @@ import SwarmTopologyView from '../SwarmTopologyView';
 import CognitiveRulesDashboard from '../CognitiveRulesDashboard';
 import AstImpactRadar from '../widgets/AstImpactRadar';
 import InlineDiffInspector from '../widgets/InlineDiffInspector';
+import TeamTaskTree from '../tasks/TeamTaskTree';
+import TracePanel from '../trace/TracePanel';
 import './layout.css';
 
 export const INSPECTOR_STORAGE_KEY = 'vessel.inspector';
-export const INSPECTOR_TABS = ['swarm', 'cognition', 'context', 'cache', 'ast', 'patch'] as const;
+export const INSPECTOR_TABS = ['swarm', 'cognition', 'context', 'cache', 'ast', 'patch', 'tasks', 'trace'] as const;
 export type InspectorTab = typeof INSPECTOR_TABS[number];
 export interface DualSurfaceLayoutProps {
   children: ReactNode;
   inspectorDefaultOpen?: boolean;
   sessionId: string;
-  api?: Pick<ApiClient, 'meshPeers' | 'cognitiveRules'> & Partial<Pick<ApiClient, 'applyPatch'>>;
+  api?: Pick<ApiClient, 'meshPeers' | 'cognitiveRules'> & Partial<Pick<ApiClient, 'applyPatch' | 'taskTrees' | 'sessionTrace'>>;
   cacheHistory?: CacheUsageMetrics[];
   impacts?: ImpactRadarWidget[];
   patches?: DiffInspectorWidget[];
@@ -108,7 +110,7 @@ export function ContextPanel({ observation }: { observation?: InspectorObservati
   </section>;
 }
 
-export const INSPECTOR_LABELS: Record<InspectorTab, MessageKey> = { swarm: 'tabSwarm', cognition: 'tabRules', context: 'tabContext', cache: 'tabCache', ast: 'tabImpact', patch: 'tabPatch' };
+export const INSPECTOR_LABELS: Record<InspectorTab, MessageKey> = { swarm: 'tabSwarm', cognition: 'tabRules', context: 'tabContext', cache: 'tabCache', ast: 'tabImpact', patch: 'tabPatch', tasks: 'tabTasks', trace: 'tabTrace' };
 export function DualSurfaceLayout({ children, inspectorDefaultOpen = false, sessionId, api, cacheHistory, impacts, patches, observation, tabRequest }: DualSurfaceLayoutProps) {
   const { t } = useI18n();
   const [state, setState] = useState(() => browserInspectorState(inspectorDefaultOpen));
@@ -177,6 +179,8 @@ export function DualSurfaceLayout({ children, inspectorDefaultOpen = false, sess
           {state.tab === 'cache' && <CacheEconomicsPanel history={cacheHistory} observation={observation} />}
           {state.tab === 'ast' && <AstTopologyPanel impacts={impacts} />}
           {state.tab === 'patch' && <PatchCanvasPanel sessionId={sessionId} patches={patches} api={api?.applyPatch ? { applyPatch: api.applyPatch } : undefined} />}
+          {state.tab === 'tasks' && <TeamTaskTree api={api?.taskTrees ? { taskTrees: api.taskTrees } : undefined} sessionId={sessionId} />}
+          {state.tab === 'trace' && <TracePanel api={api?.sessionTrace ? { sessionTrace: api.sessionTrace } : undefined} sessionId={sessionId} />}
         </div>
       </div>
     </>}

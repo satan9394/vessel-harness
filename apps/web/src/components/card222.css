@@ -1,0 +1,69 @@
+.task-tree-list,
+.activity-queue-list,
+.composer-staged-list,
+.composer-library-list,
+.trace-turns {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.task-tree-node,
+.activity-run,
+.composer-rule,
+.trace-step {
+  border: 1px solid #8883;
+  border-radius: 6px;
+  padding: 0.5rem 0.6rem;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem 0.8rem;
+  align-items: center;
+}
+
+.task-tree-node[data-status='failed'],
+.activity-run[data-status='failed'] { border-color: #c0392b; }
+.task-tree-node[data-status='cancelled'] { border-color: #999; opacity: 0.85; }
+.task-tree-node[data-status='waiting_approval'],
+.activity-run[data-status='needs_attention'] { border-color: #d08700; }
+
+.status-badge {
+  font-size: 0.75rem;
+  padding: 0.1rem 0.45rem;
+  border-radius: 999px;
+  background: #8882;
+  white-space: nowrap;
+}
+
+.card222-detail {
+  margin-top: 0.6rem;
+  padding: 0.6rem;
+  border: 1px solid #8883;
+  border-radius: 6px;
+}
+
+.composer-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+}
+
+.composer-rule-actions { display: flex; gap: 0.3rem; flex-wrap: wrap; }
+
+.trace-detail {
+  max-width: 100%;
+  overflow-x: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-size: 0.78rem;
+}
+
+@media (max-width: 800px) {
+  .composer-grid { grid-template-columns: 1fr; }
+  .task-tree-node,
+  .activity-run,
+  .composer-rule { flex-direction: column; align-items: flex-start; }
+}
