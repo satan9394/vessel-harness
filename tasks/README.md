@@ -8,7 +8,7 @@
 `NNN-短横线描述.md`，如 `001-project-memory.md`；V1.1 路线卡用 `V1.1-<字母>-<短横线描述>.md`。
 状态取值：待执行 / 执行中 / 待验收 / 已合入 / 打回。
 
-最近本地交付：任务 242 Agent Studio 行为配置与有效安全策略分层已交付（明确候选配置编译验证与未激活草稿状态，防止误解为在线热更新，双 Root 3044+409 passed 全绿、web build exit 0、core 0 变动）。详见 [任务卡 242](242-arch-07-ui-07-agent-studio-advisory-separation.md)。
+最近本地交付：任务 243 Activity 专职行动中心与路由归位已交付（消除普通会话列表重复展示，严格限制仅真实 session 类型可触发会话导航杜绝伪跳转，已完成项优雅折叠，双 Root 3044+410 passed 全绿、web build exit 0、core 0 变动）。详见 [任务卡 243](243-ui-04-activity-focused-action-center.md)。
 
 ## 怎么读这个目录
 
@@ -134,6 +134,7 @@
 | 清理未实现模块占位符与无面板死逻辑 (UI-08) | 240 | **已完成（2026-10-20）**：收敛 UI 模块为 Tasks/Team/Swarm/CognitiveRules 四大真实面板，剔除未实现灰色卡片与死逻辑，旧配置安全平滑过滤；双 Root 3044+407 passed 全绿 | `tasks/240-ui-08-clean-unimplemented-placeholders.md` |
 | ProviderHub 管理与添加分离 + 凭据免输直测 (ARCH-05 + UI-06) | 241 | **已完成（2026-10-20）**：支持已配凭据免输一键直测，结构化分离已配供应商管理与 72+ 预设展台，兼顾新旧凭据安全；双 Root 3044+408 passed 全绿 | `tasks/241-arch-05-ui-06-provider-hub-management-separation.md` |
 | Agent Studio 行为配置与有效安全策略分层 (ARCH-07 + UI-07) | 242 | **已完成（2026-10-20）**：明确候选配置编译验证与离线草稿未激活状态，防止误解为作用于运行态，强化安全策略不可覆盖性；双 Root 3044+409 passed 全绿 | `tasks/242-arch-07-ui-07-agent-studio-advisory-separation.md` |
+| Activity 专职行动中心与路由归位 (UI-04) | 243 | **已完成（2026-10-20）**：消除普通会话列表重复展示，严格限制仅真实 session 类型可触发会话导航杜绝伪跳转，已完成项优雅折叠；双 Root 3044+410 passed 全绿 | `tasks/243-ui-04-activity-focused-action-center.md` |
 
 ## 未闭合 / 下一目标
 

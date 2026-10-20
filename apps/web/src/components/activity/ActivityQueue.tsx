@@ -62,9 +62,9 @@ export default function ActivityQueue({ api, onOpenSession, initial }: ActivityQ
       {notice ? <p role="status">{notice}</p> : null}
       {data && data.runs.length === 0 ? <p className="dim">{t('activityQueueEmpty')}</p> : null}
 
-      {groups.map((group) => (
-        <section key={group.status} aria-label={t(activityStatusLabelKey(group.status))}>
-          <h4>{t(activityStatusLabelKey(group.status))} · {group.runs.length}</h4>
+      {groups.map((group) => {
+        const isCompleted = group.status === 'completed';
+        const content = (
           <ul className="activity-queue-list">
             {group.runs.map((run) => (
               <li key={`${run.kind}:${run.id}`} className="activity-run" data-status={run.status} data-kind={run.kind} data-run-id={run.id}>
@@ -73,7 +73,11 @@ export default function ActivityQueue({ api, onOpenSession, initial }: ActivityQ
                 <strong>{run.title}</strong>
                 <span className="dim" title={run.projectRoot}>{t('activityProject')}: {shortPathLabel(run.projectRoot)}</span>
                 <span className="dim">{t('activityUpdated')}: {formatStamp(run.updatedAt)}</span>
-                {onOpenSession && <button className="btn" onClick={() => onOpenSession(run.id)}>{t('activityKindSession')}</button>}
+                {run.kind === 'session' && onOpenSession && (
+                  <button className="btn" onClick={() => onOpenSession(run.id)}>
+                    {t('activityKindSession')}
+                  </button>
+                )}
                 {run.approval && (
                   <>
                     <span className="dim">{t('activityApprovalFor')}: {run.approval.description}</span>
@@ -88,8 +92,24 @@ export default function ActivityQueue({ api, onOpenSession, initial }: ActivityQ
               </li>
             ))}
           </ul>
-        </section>
-      ))}
+        );
+
+        if (isCompleted) {
+          return (
+            <details key={group.status} className="activity-completed-group" aria-label={t(activityStatusLabelKey(group.status))}>
+              <summary><h4>{t(activityStatusLabelKey(group.status))} · {group.runs.length}</h4></summary>
+              {content}
+            </details>
+          );
+        }
+
+        return (
+          <section key={group.status} aria-label={t(activityStatusLabelKey(group.status))}>
+            <h4>{t(activityStatusLabelKey(group.status))} · {group.runs.length}</h4>
+            {content}
+          </section>
+        );
+      })}
     </section>
   );
 }

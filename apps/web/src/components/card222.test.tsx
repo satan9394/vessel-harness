@@ -140,6 +140,23 @@ describe('card 222 components', () => {
     expect(renderToStaticMarkup(<ActivityQueue initial={{ runs: [], updatedAt: 1 }} />)).toContain('Nothing needs attention');
   });
 
+  it('guards session navigation strictly to session kinds and folds completed items (UI-04)', () => {
+    lang = 'en';
+    const onOpenSession = vi.fn();
+    const completedActivity: ActivityResponse = {
+      updatedAt: 1,
+      runs: [
+        { id: 's1', kind: 'session', projectRoot: 'E:/repo', title: 'Session item', status: 'needs_attention', updatedAt: 10 },
+        { id: 'g1', kind: 'goal', projectRoot: 'E:/other', title: 'Goal item', status: 'running', updatedAt: 20 },
+        { id: 's2', kind: 'session', projectRoot: 'E:/repo', title: 'Done item', status: 'completed', updatedAt: 30 },
+      ],
+    };
+    const html = renderToStaticMarkup(<ActivityQueue initial={completedActivity} onOpenSession={onOpenSession} />);
+    expect(html).toContain('data-run-id="s1"');
+    expect(html).toContain('data-run-id="g1"');
+    expect(html).toContain('activity-completed-group');
+  });
+
   it('renders the composer staged set, conflicts and conformance verdict', () => {
     lang = 'en';
     const html = renderToStaticMarkup(<AgentStudioComposer initialLibrary={library} initialStaged={library} initialReport={report} />);
