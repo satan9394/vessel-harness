@@ -576,6 +576,9 @@ export interface ModelMessages {
 
 /** Canvas UI messages. */
 export interface CanvasMessages {
+  inspectorGroupChanges: MessageTemplate;
+  inspectorGroupExecution: MessageTemplate;
+  inspectorGroupDiagnostics: MessageTemplate;
   tabSwarm: MessageTemplate;
   tabRules: MessageTemplate;
   tabCache: MessageTemplate;
@@ -1035,6 +1038,9 @@ export const zh: Messages = {
   sessionCreateFailed: "无法创建会话，请检查工作目录和模型配置",
   currentModel: "当前模型",
   noModelsConfigured: "尚未配置模型",
+  inspectorGroupChanges: "变更",
+  inspectorGroupExecution: "执行",
+  inspectorGroupDiagnostics: "诊断",
   tabSwarm: "代理网络",
   tabRules: "认知规则",
   tabCache: "模型缓存",
@@ -1796,6 +1802,9 @@ export const en: Messages = {
   sessionCreateFailed: "Unable to create session. Check the workspace and model configuration.",
   currentModel: "Current model",
   noModelsConfigured: "No models configured",
+  inspectorGroupChanges: "Changes",
+  inspectorGroupExecution: "Execution",
+  inspectorGroupDiagnostics: "Diagnostics",
   tabSwarm: "Swarm",
   tabRules: "Cognition",
   tabCache: "KV Cache",
