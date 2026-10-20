@@ -393,7 +393,20 @@ export function createVesselServer(opts: VesselServerOptions = {}): VesselServer
     sessions: () => sessionRegistry.listIndexed(500, 0),
     live: (id) => {
       const ctl = controllers.get(id);
-      return ctl ? { turnActive: ctl.loop.turnActive } : undefined;
+      if (!ctl) return undefined;
+      const records = [...ctl.session.replay()];
+      const lastTurnEnd = records.filter((r) => r.type === 'turn/end').at(-1) as { kind?: string } | undefined;
+      let lastRunStatus: 'completed' | 'failed' | 'interrupted' | 'cancelled' | undefined;
+      if (lastTurnEnd?.kind === 'failure') lastRunStatus = 'failed';
+      else if (lastTurnEnd?.kind === 'interrupted') lastRunStatus = 'interrupted';
+      else if (lastTurnEnd?.kind === 'cancelled') lastRunStatus = 'cancelled';
+      else if (lastTurnEnd?.kind === 'success') lastRunStatus = 'completed';
+
+      return {
+        turnActive: ctl.loop.turnActive,
+        lastRunStatus,
+        recordCount: records.length,
+      };
     },
     approvals: () => widgets.pendingApprovals().map((approval) => ({
       sessionId: approval.sessionId, widgetId: approval.widgetId, actionType: approval.actionType,

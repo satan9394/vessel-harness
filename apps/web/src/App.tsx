@@ -118,11 +118,30 @@ function AppShell() {
 
   const deleteSession = useCallback(async (idOrIds: string | string[]) => {
     const ids = Array.isArray(idOrIds) ? idOrIds : [idOrIds];
-    try {
-      await Promise.all(ids.map(id => api.deleteSession(id).catch(() => {})));
-      setSessions((current) => current.filter((item) => !ids.includes(item.id)));
-      setSelectedSessionId((cur) => (cur && ids.includes(cur) ? null : cur));
-    } catch {
+    const successfulIds: string[] = [];
+    let hasFailure = false;
+
+    await Promise.all(
+      ids.map(async (id) => {
+        try {
+          const res = await api.deleteSession(id);
+          if (res?.ok) {
+            successfulIds.push(id);
+          } else {
+            hasFailure = true;
+          }
+        } catch {
+          hasFailure = true;
+        }
+      })
+    );
+
+    if (successfulIds.length > 0) {
+      setSessions((current) => current.filter((item) => !successfulIds.includes(item.id)));
+      setSelectedSessionId((cur) => (cur && successfulIds.includes(cur) ? null : cur));
+    }
+
+    if (hasFailure) {
       setServerError(true);
     }
   }, [api]);

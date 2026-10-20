@@ -8,7 +8,7 @@
 `NNN-短横线描述.md`，如 `001-project-memory.md`；V1.1 路线卡用 `V1.1-<字母>-<短横线描述>.md`。
 状态取值：待执行 / 执行中 / 待验收 / 已合入 / 打回。
 
-最近本地交付：任务 235 的 Taste-Skill 全屏通栏 Edge-to-Edge UI 重构已交付（彻底消除浮动孤岛与大圆角弧形，顶天立地全屏覆盖，Web 50 文件 / 404 单测全绿）。详见 [任务卡](235-taste-skill-full-surface-ui-refactoring.md)。
+最近本地交付：任务 236（会话/Run 真实状态机建立）与任务 237（会话物理删除端到端回执与前端一致性）已交付（双 Root 全绿、core 0 变动、真实性筑基完成）。详见 [任务卡 236](236-arch-01-session-run-truthful-status.md) 与 [任务卡 237](237-arch-02-session-deletion-truthful-receipts.md)。
 
 ## 怎么读这个目录
 
@@ -127,6 +127,8 @@
 | 供应商能力继承与协商拦截修复 (Provider Capability Inheritance & Negotiation Repair) | 233 | **已完成（2026-10-19）**：协议感知能力推断 + 工具能力协商自愈；双 Root 3,461 passed | `tasks/233-provider-capability-inheritance-and-negotiation-repair.md` |
 | OpenUI 生成式排版体系融入与 Web 体验痛点全景整改 (OpenUI Generative UI & UX Polish) | 234 | **已完成（2026-10-19）**：凭据免输复用 + 回收站物理删除会话 + 深浅主题切换常驻 + 实体按钮交互教育 + GFM/OpenUI 生成式卡片；双 Root 3,445 passed | `tasks/234-openui-generative-ui-and-ux-polish-plan.md` |
 | Taste-Skill 全屏通栏 UI 重构 | 235 | **已完成（2026-10-20）**：独立审查出 5 项审美缺陷，彻底消除浮动孤岛弧形，重塑 Edge-to-Edge 全屏工整工作台；Web 404 测试全绿 | `tasks/235-taste-skill-full-surface-ui-refactoring.md`、`evidence/sessions/2026-10-20-taste-skill-audit-235.md` |
+| 会话与 Run 真实状态机建立 (ARCH-01 + UI-02) | 236 | **已完成（2026-10-20）**：彻底消除无 Turn 即 completed 的欺骗逻辑，支持 RunOutcomeStatus 8态，最后权威事件与 recordCount 提取；定向测试全绿 | `tasks/236-arch-01-session-run-truthful-status.md` |
+| 会话物理删除端到端回执与前端数据一致性 (ARCH-02 + UI-01) | 237 | **已完成（2026-10-20）**：消除删除 Promise.all 吞错假成功，精准按服务端 ok 回执过滤前端 state，失败留存并报警；Web api 单测 40 项全绿 | `tasks/237-arch-02-session-deletion-truthful-receipts.md` |
 
 ## 未闭合 / 下一目标
 
