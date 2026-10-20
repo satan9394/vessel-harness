@@ -15,8 +15,42 @@ import TracePanel from '../trace/TracePanel';
 import './layout.css';
 
 export const INSPECTOR_STORAGE_KEY = 'vessel.inspector';
-export const INSPECTOR_TABS = ['swarm', 'cognition', 'context', 'cache', 'ast', 'patch', 'tasks', 'trace'] as const;
+
+export const INSPECTOR_GROUPS = ['changes', 'execution', 'diagnostics'] as const;
+export type InspectorGroup = typeof INSPECTOR_GROUPS[number];
+
+export const GROUP_TABS: Record<InspectorGroup, readonly InspectorTab[]> = {
+  changes: ['patch', 'ast'],
+  execution: ['tasks', 'swarm'],
+  diagnostics: ['trace', 'cache', 'context', 'cognition'],
+} as const;
+
+export const INSPECTOR_TABS = ['patch', 'ast', 'tasks', 'swarm', 'trace', 'cache', 'context', 'cognition'] as const;
 export type InspectorTab = typeof INSPECTOR_TABS[number];
+
+export const INSPECTOR_GROUP_LABELS: Record<InspectorGroup, MessageKey> = {
+  changes: 'inspectorGroupChanges',
+  execution: 'inspectorGroupExecution',
+  diagnostics: 'inspectorGroupDiagnostics',
+};
+
+export const INSPECTOR_LABELS: Record<InspectorTab, MessageKey> = {
+  patch: 'tabPatch',
+  ast: 'tabImpact',
+  tasks: 'tabTasks',
+  swarm: 'tabSwarm',
+  trace: 'tabTrace',
+  cache: 'tabCache',
+  context: 'tabContext',
+  cognition: 'tabRules',
+};
+
+export function tabToGroup(tab: InspectorTab): InspectorGroup {
+  if ((GROUP_TABS.changes as readonly string[]).includes(tab)) return 'changes';
+  if ((GROUP_TABS.execution as readonly string[]).includes(tab)) return 'execution';
+  return 'diagnostics';
+}
+
 export interface DualSurfaceLayoutProps {
   children: ReactNode;
   inspectorDefaultOpen?: boolean;
@@ -28,24 +62,31 @@ export interface DualSurfaceLayoutProps {
   observation?: InspectorObservation;
   tabRequest?: { tab: InspectorTab; serial: number };
 }
+
 export function readInspectorState(storage: Pick<Storage, 'getItem'> | undefined, defaultOpen: boolean) {
   try {
     const value: unknown = JSON.parse(storage?.getItem(INSPECTOR_STORAGE_KEY) ?? 'null');
     if (value && typeof value === 'object') {
       const state = value as { open?: unknown; tab?: unknown };
-      return { open: typeof state.open === 'boolean' ? state.open : defaultOpen,
-        tab: INSPECTOR_TABS.includes(state.tab as InspectorTab) ? state.tab as InspectorTab : 'swarm' as InspectorTab };
+      const rawTab = state.tab as InspectorTab;
+      return {
+        open: typeof state.open === 'boolean' ? state.open : defaultOpen,
+        tab: INSPECTOR_TABS.includes(rawTab) ? rawTab : ('patch' as InspectorTab),
+      };
     }
   } catch { /* Storage may be disabled or contain an older value. */ }
-  return { open: defaultOpen, tab: 'swarm' as InspectorTab };
+  return { open: defaultOpen, tab: 'patch' as InspectorTab };
 }
+
 function browserInspectorState(defaultOpen: boolean) {
   try { return readInspectorState(typeof window === 'undefined' ? undefined : window.localStorage, defaultOpen); }
   catch { return readInspectorState(undefined, defaultOpen); }
 }
+
 export function isInspectorShortcut(event: Pick<KeyboardEvent, 'key' | 'ctrlKey' | 'metaKey' | 'altKey' | 'shiftKey'>, editable: boolean) {
   return !editable && !event.altKey && !event.shiftKey && (event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'i';
 }
+
 export function appendCacheObservation(history: CacheUsageMetrics[], sample: CacheUsageMetrics): CacheUsageMetrics[] {
   return [...history.slice(-39), sample];
 }
@@ -98,6 +139,7 @@ export function PatchCanvasPanel({ sessionId, patches = [], api }: { sessionId: 
       : <p className="dim">{t('uiNoPatchProposalsObservedInThisSession')}</p>}
   </section>;
 }
+
 export function ContextPanel({ observation }: { observation?: InspectorObservation }) {
   const { t } = useI18n();
   const labels = { assembly: 'contextCacheAssembly', 'provider-prefix': 'contextCacheProviderPrefix', projection: 'contextCacheProjection', 'token-estimation': 'contextCacheTokenEstimation' } as const;
@@ -110,7 +152,6 @@ export function ContextPanel({ observation }: { observation?: InspectorObservati
   </section>;
 }
 
-export const INSPECTOR_LABELS: Record<InspectorTab, MessageKey> = { swarm: 'tabSwarm', cognition: 'tabRules', context: 'tabContext', cache: 'tabCache', ast: 'tabImpact', patch: 'tabPatch', tasks: 'tabTasks', trace: 'tabTrace' };
 export function DualSurfaceLayout({ children, inspectorDefaultOpen = false, sessionId, api, cacheHistory, impacts, patches, observation, tabRequest }: DualSurfaceLayoutProps) {
   const { t } = useI18n();
   const [state, setState] = useState(() => browserInspectorState(inspectorDefaultOpen));
@@ -119,18 +160,24 @@ export function DualSurfaceLayout({ children, inspectorDefaultOpen = false, sess
   const panel = useRef<HTMLDivElement>(null);
   const toggle = useRef<HTMLButtonElement>(null);
   const modal = state.open && narrow;
+
   useEffect(() => {
-    if (tabRequest) setState({ open: true, tab: tabRequest.tab });
+    if (tabRequest && INSPECTOR_TABS.includes(tabRequest.tab)) {
+      setState({ open: true, tab: tabRequest.tab });
+    }
   }, [tabRequest?.tab, tabRequest?.serial]);
+
   useEffect(() => {
     try { window.localStorage.setItem(INSPECTOR_STORAGE_KEY, JSON.stringify(state)); } catch { /* Optional persistence. */ }
   }, [state]);
+
   useEffect(() => {
     const media = window.matchMedia('(max-width: 1180px)');
     const resize = () => setNarrow(media.matches);
     media.addEventListener('change', resize);
     return () => media.removeEventListener('change', resize);
   }, []);
+
   useEffect(() => {
     const keydown = (event: KeyboardEvent) => {
       const target = event.target instanceof HTMLElement ? event.target : null;
@@ -141,6 +188,7 @@ export function DualSurfaceLayout({ children, inspectorDefaultOpen = false, sess
     window.addEventListener('keydown', keydown);
     return () => window.removeEventListener('keydown', keydown);
   }, []);
+
   useEffect(() => {
     if (!modal) return;
     const previous = document.activeElement instanceof HTMLElement ? document.activeElement : null;
@@ -158,6 +206,10 @@ export function DualSurfaceLayout({ children, inspectorDefaultOpen = false, sess
     document.addEventListener('keydown', keydown);
     return () => { document.removeEventListener('keydown', keydown); (previous?.isConnected ? previous : toggle.current)?.focus(); };
   }, [modal]);
+
+  const currentGroup = tabToGroup(state.tab);
+  const activeSubtabs = GROUP_TABS[currentGroup];
+
   return <div className={`dual-surface${state.open ? ' inspector-open' : ''}`} data-session-id={sessionId}>
     <div className="chat-surface" inert={modal}>
       <div className="inspector-toolbar"><button ref={toggle} className="btn" aria-expanded={state.open} aria-controls={`${id}-inspector`} title={t('uiToggleInspectorCtrlCmdI')} onClick={() => setState(value => ({ ...value, open: !value.open }))}>{state.open ? t('uiCollapseInspector') : t('uiOpenInspector')}</button></div>
@@ -166,21 +218,76 @@ export function DualSurfaceLayout({ children, inspectorDefaultOpen = false, sess
     {state.open && <>
       {modal && <div className="inspector-backdrop" onClick={() => setState(value => ({ ...value, open: false }))} />}
       <div className="docked-inspector" id={`${id}-inspector`} ref={panel} role={modal ? 'dialog' : 'complementary'} aria-modal={modal || undefined} aria-label={t('uiSessionInspector')} tabIndex={-1}>
-        <header className="inspector-heading"><strong>{t('inspectorTitle')}</strong><button className="btn" onClick={() => setState(value => ({ ...value, open: false }))} aria-label={t('uiCloseInspector')}>{t('close')}</button></header>
-        <div className="inspector-tabs" role="tablist" aria-label={t('uiInspectorPanels')}>{INSPECTOR_TABS.map((tab, index) => <button key={tab} id={`${id}-${tab}`} className="btn" role="tab" aria-selected={state.tab === tab} aria-controls={`${id}-panel`} tabIndex={state.tab === tab ? 0 : -1} onClick={() => setState(value => ({ ...value, tab }))} onKeyDown={event => {
-          const count = INSPECTOR_TABS.length;
-          const next = event.key === 'ArrowRight' ? (index + 1) % count : event.key === 'ArrowLeft' ? (index + count - 1) % count : event.key === 'Home' ? 0 : event.key === 'End' ? count - 1 : -1;
-          if (next < 0) return; event.preventDefault(); setState(value => ({ ...value, tab: INSPECTOR_TABS[next] })); document.getElementById(`${id}-${INSPECTOR_TABS[next]}`)?.focus();
-        }}>{t(INSPECTOR_LABELS[tab])}</button>)}</div>
+        <header className="inspector-heading">
+          <strong>{t('inspectorTitle')}</strong>
+          <button className="btn" onClick={() => setState(value => ({ ...value, open: false }))} aria-label={t('uiCloseInspector')}>{t('close')}</button>
+        </header>
+        <div className="inspector-nav">
+          <div className="inspector-groups" role="tablist" aria-label={t('inspectorTitle')}>
+            {INSPECTOR_GROUPS.map(group => {
+              const isSelected = currentGroup === group;
+              return (
+                <button
+                  key={group}
+                  type="button"
+                  className={`btn inspector-group-btn${isSelected ? ' is-active' : ''}`}
+                  role="tab"
+                  aria-selected={isSelected}
+                  aria-controls={`${id}-subtabs`}
+                  onClick={() => {
+                    if (!isSelected) {
+                      const firstTab = GROUP_TABS[group][0];
+                      setState(value => ({ ...value, tab: firstTab }));
+                    }
+                  }}
+                >
+                  {t(INSPECTOR_GROUP_LABELS[group])}
+                </button>
+              );
+            })}
+          </div>
+          <div className="inspector-subtabs" id={`${id}-subtabs`} role="tablist" aria-label={t(INSPECTOR_GROUP_LABELS[currentGroup])}>
+            {activeSubtabs.map((tab, index) => {
+              const isSelected = state.tab === tab;
+              return (
+                <button
+                  key={tab}
+                  id={`${id}-${tab}`}
+                  type="button"
+                  className={`btn inspector-subtab-btn${isSelected ? ' is-active' : ''}`}
+                  role="tab"
+                  aria-selected={isSelected}
+                  aria-controls={`${id}-panel`}
+                  tabIndex={isSelected ? 0 : -1}
+                  onClick={() => setState(value => ({ ...value, tab }))}
+                  onKeyDown={event => {
+                    const count = activeSubtabs.length;
+                    const next = event.key === 'ArrowRight' ? (index + 1) % count
+                      : event.key === 'ArrowLeft' ? (index + count - 1) % count
+                      : event.key === 'Home' ? 0
+                      : event.key === 'End' ? count - 1
+                      : -1;
+                    if (next < 0) return;
+                    event.preventDefault();
+                    setState(value => ({ ...value, tab: activeSubtabs[next] }));
+                    document.getElementById(`${id}-${activeSubtabs[next]}`)?.focus();
+                  }}
+                >
+                  {t(INSPECTOR_LABELS[tab])}
+                </button>
+              );
+            })}
+          </div>
+        </div>
         <div role="tabpanel" id={`${id}-panel`} aria-labelledby={`${id}-${state.tab}`} className="inspector-content" key={sessionId}>
-          {state.tab === 'swarm' && <SwarmTopologyView api={api} />}
-          {state.tab === 'cognition' && <CognitiveRulesDashboard api={api} />}
-          {state.tab === 'context' && <ContextPanel observation={observation} />}
-          {state.tab === 'cache' && <CacheEconomicsPanel history={cacheHistory} observation={observation} />}
-          {state.tab === 'ast' && <AstTopologyPanel impacts={impacts} />}
           {state.tab === 'patch' && <PatchCanvasPanel sessionId={sessionId} patches={patches} api={api?.applyPatch ? { applyPatch: api.applyPatch } : undefined} />}
+          {state.tab === 'ast' && <AstTopologyPanel impacts={impacts} />}
           {state.tab === 'tasks' && <TeamTaskTree api={api?.taskTrees ? { taskTrees: api.taskTrees } : undefined} sessionId={sessionId} />}
+          {state.tab === 'swarm' && <SwarmTopologyView api={api} />}
           {state.tab === 'trace' && <TracePanel api={api?.sessionTrace ? { sessionTrace: api.sessionTrace } : undefined} sessionId={sessionId} />}
+          {state.tab === 'cache' && <CacheEconomicsPanel history={cacheHistory} observation={observation} />}
+          {state.tab === 'context' && <ContextPanel observation={observation} />}
+          {state.tab === 'cognition' && <CognitiveRulesDashboard api={api} />}
         </div>
       </div>
     </>}

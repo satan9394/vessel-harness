@@ -8,7 +8,7 @@
 `NNN-短横线描述.md`，如 `001-project-memory.md`；V1.1 路线卡用 `V1.1-<字母>-<短横线描述>.md`。
 状态取值：待执行 / 执行中 / 待验收 / 已合入 / 打回。
 
-最近本地交付：任务 238 Workbench 导航收敛与单一主工作台已交付（彻底移除 58px 孤立 Rail，收敛为单一 260px 侧栏与底部直观区域导航，双 Root 3044+406 passed 全绿、core 0 变动）。详见 [任务卡 238](238-ui-03-workbench-navigation-convergence.md)。
+最近本地交付：任务 239 Inspector 8 合 3 职责化重组已交付（将 8 个平级标签重组为变更/执行/诊断 3 大职责组，两级无障碍导航，默认 patch，旧状态与 tabRequest 平滑迁移，双 Root 3044+407 passed 全绿、core 0 变动）。详见 [任务卡 239](239-ui-05-inspector-8-to-3-groups.md)。
 
 ## 怎么读这个目录
 
@@ -130,6 +130,7 @@
 | 会话与 Run 真实状态机建立 (ARCH-01 + UI-02) | 236 | **已完成（2026-10-20）**：彻底消除无 Turn 即 completed 的欺骗逻辑，支持 RunOutcomeStatus 8态，最后权威事件与 recordCount 提取；定向测试全绿 | `tasks/236-arch-01-session-run-truthful-status.md` |
 | 会话物理删除端到端回执与前端数据一致性 (ARCH-02 + UI-01) | 237 | **已完成（2026-10-20）**：消除删除 Promise.all 吞错假成功，精准按服务端 ok 回执过滤前端 state，失败留存并报警；Web api 单测 40 项全绿 | `tasks/237-arch-02-session-deletion-truthful-receipts.md` |
 | Workbench 导航收敛与单一主工作台 (UI-03) | 238 | **已完成（2026-10-20）**：移除常驻 58px Rail，整合为单一 260px 侧栏与底部直观区域导航 + Ctrl+K 直达 + 窄屏 left: 0 抽屉；双 Root 3044+406 passed 全绿 | `tasks/238-ui-03-workbench-navigation-convergence.md` |
+| Inspector 8 合 3 职责化重组 (UI-05) | 239 | **已完成（2026-10-20）**：将 8 个平级标签重组为变更/执行/诊断 3 大职责组，两级无障碍导航，默认 patch，旧状态与 tabRequest 平滑迁移；双 Root 3044+407 passed 全绿 | `tasks/239-ui-05-inspector-8-to-3-groups.md` |
 
 ## 未闭合 / 下一目标
 
