@@ -1,15 +1,24 @@
 /**
- * Vessel Local Web — UI module toggles (task 043).
+ * Vessel Local Web — UI module toggles (task 043, updated in task 240).
  *
- * The Customize panel checkbox state (Team / Tasks / Changed Files / Context /
- * Tool Activity / Logs / Cost / MCP / Policy) persists to localStorage under a
- * single JSON key. Storage is injected so the logic is unit-testable under the
- * node environment (which has no `localStorage`); in the browser it defaults to
- * the real `window.localStorage`.
+ * The Customize panel checkbox state persists to localStorage under a single JSON key.
+ * Only modules that have real, active panel implementations are exposed to the user.
+ * Unimplemented or integrated modules (ChangedFiles/Cost/ToolActivity/Context/Logs/MCP/Policy)
+ * are filtered out so that no empty or fake placeholder cards are ever rendered.
  */
 
-/** Ordered module ids shown in the Customize panel. */
-export const UI_MODULES = [
+/** Active UI module ids that have real dedicated panel implementations. */
+export const ACTIVE_UI_MODULES = [
+  'Tasks',
+  'Team',
+  'Swarm',
+  'CognitiveRules',
+] as const;
+
+export type ActiveUiModuleId = (typeof ACTIVE_UI_MODULES)[number];
+
+/** All historical and active module identifiers for storage backward-compatibility. */
+export const ALL_UI_MODULES = [
   'Swarm',
   'CognitiveRules',
   'Team',
@@ -23,20 +32,23 @@ export const UI_MODULES = [
   'Policy',
 ] as const;
 
-export type UiModuleId = (typeof UI_MODULES)[number];
+export type UiModuleId = (typeof ALL_UI_MODULES)[number];
+
+/** Modules exposed in the Customize panel (only active, real ones). */
+export const UI_MODULES = ACTIVE_UI_MODULES;
 
 export type UiModuleState = Record<UiModuleId, boolean>;
 
 /** localStorage key persisted by the Customize panel. */
 export const STORAGE_KEY = 'vessel.ui.modules';
 
-/** Default: only Tasks + Changed Files on — "能力丰富界面安静". */
+/** Default: only Tasks on — "能力丰富界面安静". */
 export const DEFAULT_MODULES: UiModuleState = {
+  Tasks: true,
+  Team: false,
   Swarm: false,
   CognitiveRules: false,
-  Team: false,
-  Tasks: true,
-  ChangedFiles: true,
+  ChangedFiles: false,
   Context: false,
   ToolActivity: false,
   Logs: false,
@@ -60,7 +72,7 @@ function pickLocalStorage(): PersistStorage | null {
   }
 }
 
-/** Read persisted state; falls back to defaults on missing / corrupt / partial. */
+/** Read persisted state; falls back to defaults on missing / corrupt / partial, and filters out dead modules. */
 export function loadModules(storage?: PersistStorage | null): UiModuleState {
   const store = storage === undefined ? pickLocalStorage() : storage;
   if (!store) return { ...DEFAULT_MODULES };
@@ -74,7 +86,8 @@ export function loadModules(storage?: PersistStorage | null): UiModuleState {
   try {
     const parsed = JSON.parse(raw) as Partial<UiModuleState>;
     const next: UiModuleState = { ...DEFAULT_MODULES };
-    for (const key of UI_MODULES) {
+    // Only recover state for active modules; historical/dead placeholders remain false
+    for (const key of ACTIVE_UI_MODULES) {
       if (typeof parsed[key] === 'boolean') next[key] = parsed[key];
     }
     return next;

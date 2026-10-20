@@ -27,33 +27,21 @@ import AgentStudioComposer from './components/studio/AgentStudioComposer';
 import ActivityQueue from './components/activity/ActivityQueue';
 import TeamTaskTree from './components/tasks/TeamTaskTree';
 import {
+  ACTIVE_UI_MODULES,
   loadModules,
   saveModules,
   type UiModuleState,
   type UiModuleId,
+  type ActiveUiModuleId,
 } from './uiModules';
 
-/** Enabled module sections rendered below the conversation / empty state. */
-const SECTION_ORDER: UiModuleId[] = [
+/** Enabled module sections rendered below the conversation / empty state (active modules only). */
+const SECTION_ORDER: ActiveUiModuleId[] = [
   'Swarm',
   'CognitiveRules',
   'Team',
   'Tasks',
-  'ChangedFiles',
-  'Context',
-  'ToolActivity',
-  'Logs',
-  'Cost',
-  'MCP',
-  'Policy',
 ];
-/**
- * **已声明未实现**（非丢数据）：这四个模块在模块选择器里可勾选，但面板本体尚未实现，
- * 渲染时显示 `t('unimplemented')` 占位（见下方 `UNIMPLEMENTED.includes(id)` 分支）。
- * 触发条件 = 对应后端投影/接口就绪（Context / Logs / MCP / Policy 各有其数据源），
- * 届时逐个从本清单移除并把面板接上。
- */
-const UNIMPLEMENTED: UiModuleId[] = ['Context', 'Logs', 'MCP', 'Policy'];
 
 export default function App() {
   return (
@@ -330,20 +318,7 @@ function ModuleSection({
           </div>
         </div>
       );
-    case 'ChangedFiles':
-    case 'Cost':
-    case 'ToolActivity':
-      // Real session data is shown in the conversation Inspector.
-      return null;
     default:
-      if (UNIMPLEMENTED.includes(id)) {
-        return (
-          <div className="module-card">
-            <div className="module-card-title">{localizedValue(id, t)}</div>
-            <div className="module-card-body dim">{t('unimplemented')}</div>
-          </div>
-        );
-      }
       return null;
   }
 }
