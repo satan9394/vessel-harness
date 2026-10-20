@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import {
+  ACTIVE_UI_MODULES,
   DEFAULT_MODULES,
   STORAGE_KEY,
   UI_MODULES,
@@ -21,26 +22,28 @@ function memoryStorage(): PersistStorage & { dump: () => Map<string, string> } {
 }
 
 describe('uiModules', () => {
-  it('returns defaults when nothing is persisted', () => {
+  it('returns defaults when nothing is persisted and only exposes active panels', () => {
     const store = memoryStorage();
     expect(loadModules(store)).toEqual(DEFAULT_MODULES);
-    expect(UI_MODULES).toHaveLength(11);
+    expect(UI_MODULES).toHaveLength(4);
+    expect(UI_MODULES).toEqual(ACTIVE_UI_MODULES);
+    expect(UI_MODULES).toContain('Tasks');
+    expect(UI_MODULES).toContain('Team');
     expect(UI_MODULES).toContain('Swarm');
     expect(UI_MODULES).toContain('CognitiveRules');
   });
 
-  it('defaults to Tasks + Changed Files on and the rest off', () => {
+  it('defaults to Tasks on and others off for a quiet interface', () => {
     expect(DEFAULT_MODULES.Tasks).toBe(true);
-    expect(DEFAULT_MODULES.ChangedFiles).toBe(true);
     for (const key of UI_MODULES) {
-      if (key === 'Tasks' || key === 'ChangedFiles') continue;
+      if (key === 'Tasks') continue;
       expect(DEFAULT_MODULES[key]).toBe(false);
     }
   });
 
   it('persists toggled state and reloads it identically', () => {
     const store = memoryStorage();
-    const next = toggleModule(toggleModule(DEFAULT_MODULES, 'Cost'), 'ToolActivity');
+    const next = toggleModule(toggleModule(DEFAULT_MODULES, 'Team'), 'Swarm');
 
     saveModules(next, store);
 
@@ -51,23 +54,36 @@ describe('uiModules', () => {
     expect(loadModules(store)).toEqual(next);
   });
 
-  it('toggles a single module immutably', () => {
-    const a = toggleModule(DEFAULT_MODULES, 'Cost');
-    expect(a.Cost).toBe(true);
-    expect(DEFAULT_MODULES.Cost).toBe(false); // original untouched
-    const b = toggleModule(a, 'Cost');
-    expect(b.Cost).toBe(false);
+  it('toggles a single active module immutably', () => {
+    const a = toggleModule(DEFAULT_MODULES, 'Team');
+    expect(a.Team).toBe(true);
+    expect(DEFAULT_MODULES.Team).toBe(false); // original untouched
+    const b = toggleModule(a, 'Team');
+    expect(b.Team).toBe(false);
   });
 
-  it('recovers from corrupt/partial persisted JSON', () => {
+  it('recovers from corrupt/partial persisted JSON and filters out dead placeholders', () => {
     const store = memoryStorage();
     store.setItem(STORAGE_KEY, '{not valid json!');
     expect(loadModules(store)).toEqual(DEFAULT_MODULES);
 
-    // partial top-level object: missing keys fall back to defaults
-    store.setItem(STORAGE_KEY, JSON.stringify({ Cost: true }));
+    // Historical persisted object containing dead/unimplemented placeholders:
+    // Dead modules (Cost, Context, Logs) must be safely filtered out to false.
+    store.setItem(
+      STORAGE_KEY,
+      JSON.stringify({
+        Cost: true,
+        Context: true,
+        Logs: true,
+        Swarm: true,
+        Tasks: false,
+      }),
+    );
     const loaded = loadModules(store);
-    expect(loaded.Cost).toBe(true);
-    expect(loaded.Tasks).toBe(true); // default preserved
+    expect(loaded.Swarm).toBe(true);
+    expect(loaded.Tasks).toBe(false);
+    expect(loaded.Cost).toBe(false);
+    expect(loaded.Context).toBe(false);
+    expect(loaded.Logs).toBe(false);
   });
 });
