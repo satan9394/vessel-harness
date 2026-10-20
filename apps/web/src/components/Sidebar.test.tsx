@@ -1,4 +1,4 @@
-﻿import { renderToStaticMarkup } from 'react-dom/server';
+import { renderToStaticMarkup } from 'react-dom/server';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { SessionMeta } from '../api';
 import { translate } from '../i18n';
@@ -49,6 +49,29 @@ describe('Sidebar date and topic grouping', () => {
   });
 });
 
+describe('Sidebar unified area footer navigation', () => {
+  it('renders all four area buttons and marks the selected area active', () => {
+    const html = renderToStaticMarkup(
+      <Sidebar
+        area="activity"
+        onSelectArea={() => {}}
+        projects={[]}
+        sessions={[]}
+        onNewSession={() => {}}
+        onSelectSession={() => {}}
+      />
+    );
+    expect(html).toContain('sidebar-footer');
+    expect(html).toContain('sidebar-area-tabs');
+    expect(html).toContain('data-area="workbench"');
+    expect(html).toContain('data-area="activity"');
+    expect(html).toContain('data-area="studio"');
+    expect(html).toContain('data-area="settings"');
+    expect(html).toContain('data-area="activity" class="sidebar-area-btn active" aria-selected="true"');
+    expect(html).toContain('sidebar-theme-toggle');
+  });
+});
+
 describe('Sidebar topic filtering', () => {
   const active = session('Active-ID', now);
   const archived = { ...session('archived', now), topic: { ...session('archived', now).topic!, isArchived: true } };
@@ -65,3 +88,5 @@ describe('Sidebar topic filtering', () => {
     expect(filterSessionsByTopic([{ ...active, topic: undefined }], 'active-id', false)).toHaveLength(1);
   });
 });
+
+

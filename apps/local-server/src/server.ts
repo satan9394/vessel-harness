@@ -169,7 +169,9 @@ async function readJsonBody(req: http.IncomingMessage): Promise<unknown> {
 /** Authenticated remote hosts remain available; unauthenticated Host must be loopback. */
 function trustedOrigin(req: http.IncomingMessage, url: URL, authenticated: boolean): boolean {
   const isLoopback = (host: string) => ['localhost', '127.0.0.1', '[::1]'].includes(host);
-  if (!req.headers.origin) return authenticated || isLoopback(url.hostname);
+  const hostAllowed = authenticated || isLoopback(url.hostname);
+  if (!hostAllowed) return false;
+  if (!req.headers.origin) return true;
   try {
     const originUrl = new URL(req.headers.origin);
     if (isLoopback(originUrl.hostname) && isLoopback(url.hostname)) return true;

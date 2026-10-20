@@ -1,11 +1,15 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import type { Project, SessionMeta } from '../api';
 import { VesselLogo } from './VesselLogo';
 import { useI18n } from './LanguageProvider';
 import { projectName, readableSessionTitle } from './TaskComposer';
 import { formatClock } from '../utils/timeFormat';
+import { applyTheme, getStoredTheme, type ThemeMode } from '../utils/theme';
+import { RAIL_AREAS, GLYPHS, type RailArea } from './layout/Rail';
 
 export interface SidebarProps {
+  area?: RailArea;
+  onSelectArea?: (area: RailArea) => void;
   selectedProjectRoot?: string;
   onSelectProject?: (root: string) => void;
   projects: Project[];
@@ -98,6 +102,8 @@ export function groupSessionsByDateAndTopic(sessions: SessionMeta[], now = Date.
 
 /** Left rail: projects plus searchable, date-grouped Topic navigation. */
 export default function Sidebar({
+  area,
+  onSelectArea,
   projects,
   selectedProjectRoot,
   onSelectProject,
@@ -111,6 +117,11 @@ export default function Sidebar({
   onCollapse,
 }: SidebarProps) {
   const { t } = useI18n();
+  const [theme, setTheme] = useState<ThemeMode>(() => getStoredTheme());
+  useEffect(() => {
+    applyTheme(theme);
+  }, [theme]);
+  const isDark = theme === 'dark' || (theme === 'system' && typeof window !== 'undefined' && window.matchMedia?.('(prefers-color-scheme: dark)').matches);
   const [query, setQuery] = useState('');
   const [showArchived, setShowArchived] = useState(false);
   const [editingTopicId, setEditingTopicId] = useState<string | null>(null);
@@ -268,7 +279,60 @@ export default function Sidebar({
         <p className="dim hierarchy-hint">{t('hierarchyHint')}</p>
       </nav>
 
-
+      <div className="sidebar-footer">
+        <div className="sidebar-area-tabs" role="tablist" aria-label={t('navigationMenu')}>
+          {RAIL_AREAS.map((val) => (
+            <button
+              key={val}
+              type="button"
+              role="tab"
+              data-area={val}
+              className={`sidebar-area-btn${area === val ? ' active' : ''}`}
+              aria-selected={area === val}
+              aria-label={t(val === 'studio' ? 'agentStudio' : val)}
+              title={t(val === 'studio' ? 'agentStudio' : val)}
+              onClick={() => onSelectArea?.(val)}
+            >
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                {GLYPHS[val]}
+              </svg>
+              <span className="sidebar-area-label">{t(val === 'studio' ? 'agentStudio' : val)}</span>
+            </button>
+          ))}
+        </div>
+        <div className="sidebar-footer-extra">
+          <button
+            type="button"
+            className="btn btn-sm sidebar-theme-toggle"
+            aria-label={isDark ? '切换浅色模式' : '切换深色模式'}
+            title={isDark ? '切换为浅色主题 (Light)' : '切换为深色主题 (Dark)'}
+            onClick={() => {
+              const next = isDark ? 'light' : 'dark';
+              setTheme(next);
+              applyTheme(next);
+            }}
+          >
+            {isDark ? (
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <circle cx="12" cy="12" r="5" />
+                <line x1="12" y1="1" x2="12" y2="3" />
+                <line x1="12" y1="21" x2="12" y2="23" />
+                <line x1="4.22" y1="4.22" x2="5.64" y2="5.64" />
+                <line x1="18.36" y1="18.36" x2="19.78" y2="19.78" />
+                <line x1="1" y1="12" x2="3" y2="12" />
+                <line x1="21" y1="12" x2="23" y2="12" />
+                <line x1="4.22" y1="19.78" x2="5.64" y2="18.36" />
+                <line x1="18.36" y1="5.64" x2="19.78" y2="4.22" />
+              </svg>
+            ) : (
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
+              </svg>
+            )}
+            <span className="sidebar-theme-text">{isDark ? 'Dark' : 'Light'}</span>
+          </button>
+        </div>
+      </div>
     </aside>
   );
 }

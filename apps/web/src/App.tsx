@@ -4,7 +4,7 @@ import { createApiClient, type ApiClient, type Health, type Project, type Sessio
 import CommandPalette, { trapFocus } from './components/common/CommandPalette';
 import type { CommandItem } from './components/palette/types';
 import { INSPECTOR_TABS, INSPECTOR_LABELS, type InspectorTab } from './components/layout/DualSurfaceLayout';
-import Rail from './components/layout/Rail';
+import type { RailArea } from './components/layout/Rail';
 import Sidebar from './components/Sidebar';
 import SubagentWorkspace from './components/SubagentPanel';
 import TaskComposer, { projectName, readableSessionTitle } from './components/TaskComposer';
@@ -178,6 +178,10 @@ function AppShell() {
 
   const requestView = (action: 'clear' | 'collapse' | 'expand' | 'export' | InspectorTab) => setViewRequest(previous => ({ action, serial: (previous?.serial ?? 0) + 1 }));
   const commands: CommandItem[] = [
+    { id: 'area:workbench', title: t('workbench'), category: 'navigation', execute: () => { setArea('workbench'); setDrawer(false); } },
+    { id: 'area:activity', title: t('activity'), category: 'navigation', execute: () => { setArea('activity'); setDrawer(false); } },
+    { id: 'area:studio', title: t('agentStudio'), category: 'navigation', execute: () => { setArea('studio'); setDrawer(false); } },
+    { id: 'area:settings', title: t('settings'), category: 'navigation', execute: () => { setArea('settings'); setDrawer(false); } },
     { id: 'providers', title: t('modelSettings'), category: 'action', keywords: ['provider', 'model'], execute: () => setShowProviders(true) },
     { id: 'new', title: t('newSessionTitle'), category: 'action', execute: () => { if (taskStarting) return; setArea('workbench'); setSelectedSessionId(null); } },
     ...(['read-only', 'workspace-write'] as const).map(permission => ({ id: `sandbox:${permission}`, title: t('paletteSandbox', { permission: t(permission === 'read-only' ? 'permissionReadOnly' : 'permissionWorkspaceWrite') }), category: 'action' as const, keywords: ['security'], execute: () => { if (taskStarting) return; setNewPermission(permission); setShowNew(true); } })),
@@ -194,12 +198,13 @@ function AppShell() {
 
   return (
     <div className={`app${drawer ? ' navigation-open' : ''}${sidebarCollapsed ? ' sidebar-collapsed' : ''}`} data-provider-revision={providerRevision}>
-      <Rail area={area} onSelect={value => { setArea(value); setDrawer(false); }} />
       {drawer && <button className="navigation-backdrop" aria-label={t('close')} onClick={() => setDrawer(false)} />}
       <div className="navigation-shell" role={drawer ? 'dialog' : undefined} aria-modal={drawer ? true : undefined} aria-label={drawer ? t('navigationMenu') : undefined}>
         <button className="btn navigation-close" onClick={() => setDrawer(false)}>{t('close')}</button>
         <div className="session-navigation" inert={taskStarting}>
           <Sidebar
+            area={area}
+            onSelectArea={value => { setArea(value); setDrawer(false); }}
             projects={projects}
             sessions={sessions}
             onNewSession={() => { if (taskStarting) return; setArea('workbench'); setSelectedSessionId(null); setDrawer(false); }}

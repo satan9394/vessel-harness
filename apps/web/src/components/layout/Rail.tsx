@@ -8,7 +8,7 @@ export const RAIL_AREAS = ['workbench', 'activity', 'studio', 'settings'] as con
 export type RailArea = typeof RAIL_AREAS[number];
 
 /** 16px stroked glyphs, one per area — no external icon dependency. */
-const GLYPHS: Record<RailArea, ReactElement> = {
+export const GLYPHS: Record<RailArea, ReactElement> = {
   workbench: <><rect x="3" y="3" width="7" height="9" rx="2" /><rect x="14" y="3" width="7" height="5" rx="2" /><rect x="14" y="12" width="7" height="9" rx="2" /><rect x="3" y="16" width="7" height="5" rx="2" /></>,
   activity: <path d="M3 12h4l2.5-7 5 14 2.5-7h4" />,
   studio: <path d="M12 3l2.2 5.3L20 9.5l-4 3.9.9 5.6L12 16.4 7.1 19l.9-5.6-4-3.9 5.8-1.2z" />,
