@@ -1,7 +1,7 @@
 import type { CompactionConservationCheckInput } from '@vessel/shared';
 
 export class CompactionConservationError extends Error {
-  constructor(public readonly violationType: 'goal_lost' | 'constraint_lost' | 'latest_instruction_lost' | 'denial_lost' | 'tool_pair_lost' | 'orphaned_tool_call' | 'orphaned_tool_result', message: string) {
+  constructor(public readonly violationType: 'goal_lost' | 'constraint_lost' | 'latest_instruction_lost' | 'denial_lost' | 'tool_pair_lost' | 'orphaned_tool_call' | 'orphaned_tool_result' | 'keep_id_lost', message: string) {
     super(`Compaction conservation violation [${violationType}]: ${message}`);
     this.name = 'CompactionConservationError';
   }
@@ -46,4 +46,21 @@ export function assertCompactionConservation(input: CompactionConservationCheckI
     }
   }
   if (pending.size) throw new CompactionConservationError('orphaned_tool_call', [...pending].join(', '));
+  if (input.requiredKeepIds?.length) {
+    const presentIds = new Set<string>();
+    for (const message of input.compactedMessages) {
+      if (typeof message.id === 'string') presentIds.add(message.id);
+      const meta = message.metadata;
+      if (typeof meta?.keepID === 'string') presentIds.add(meta.keepID);
+      if (typeof meta?.keepId === 'string') presentIds.add(meta.keepId);
+      if (Array.isArray(meta?.keepIds)) {
+        for (const id of meta.keepIds) if (typeof id === 'string') presentIds.add(id);
+      }
+    }
+    for (const id of input.requiredKeepIds) {
+      if (!presentIds.has(id)) {
+        throw new CompactionConservationError('keep_id_lost', id);
+      }
+    }
+  }
 }

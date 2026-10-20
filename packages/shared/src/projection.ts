@@ -47,9 +47,11 @@ export interface CompactionConservationCheckInput {
   readonly requiredDenialEventIds?: readonly string[];
   readonly requiredToolPairs?: readonly { toolCallId: string; callText: string; resultText: string }[];
   readonly latestInstruction?: string;
+  readonly requiredKeepIds?: readonly string[];
 }
 
 export interface ConservationMessage {
+  id?: string;
   role: string;
   content: unknown;
   toolCalls?: readonly { id: string }[];

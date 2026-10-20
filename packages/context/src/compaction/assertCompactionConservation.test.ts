@@ -7,6 +7,30 @@ it('retains goal, explicit denial references and ordered call/result pairs', () 
       { role: 'assistant', content: '', toolCalls: [{ id: 'a' }] }, { role: 'tool', content: '', toolCallId: 'a' }] })).not.toThrow();
 });
 
+it('retains OpenCode 2.1 metadata.keepID contract for preserved message citations', () => {
+  expect(() => assertCompactionConservation({
+    originalMessages: [],
+    requiredKeepIds: ['msg-101', 'msg-102'],
+    compactedMessages: [
+      { role: 'user', content: 'preserved context', metadata: { keepID: 'msg-101' } },
+      { role: 'assistant', content: 'summary', metadata: { keepId: 'msg-102' } },
+    ],
+  })).not.toThrow();
+
+  try {
+    assertCompactionConservation({
+      originalMessages: [],
+      requiredKeepIds: ['msg-101', 'msg-missing'],
+      compactedMessages: [
+        { role: 'user', content: 'preserved context', metadata: { keepID: 'msg-101' } },
+      ],
+    });
+    throw new Error('accepted');
+  } catch (error) {
+    expect(error).toHaveProperty('violationType', 'keep_id_lost');
+  }
+});
+
 it.each([
   [{ originalMessages: [{ role: 'user', content: 'goal' }, { role: 'user', content: 'Do not touch core', metadata: { preserveVerbatim: true } }], compactedMessages: [{ role: 'user', content: 'goal' }] }, 'constraint_lost'],
   [{ originalMessages: [], latestInstruction: 'local only', compactedMessages: [{ role: 'user', content: 'goal' }] }, 'latest_instruction_lost'],
