@@ -791,6 +791,10 @@ export interface WorkbenchMessages {
   composerMoveDown: MessageTemplate;
   composerVerify: MessageTemplate;
   composerVerifying: MessageTemplate;
+  composerAdvisoryHint: MessageTemplate;
+  composerStatusDraft: MessageTemplate;
+  composerNotActive: MessageTemplate;
+  composerCompileFailed: MessageTemplate;
   composerVerdict: MessageTemplate;
   composerVerdictVerified: MessageTemplate;
   composerVerdictEnforceable: MessageTemplate;
@@ -1556,8 +1560,12 @@ export const zh: Messages = {
   composerRemove: "移除",
   composerMoveUp: "上移",
   composerMoveDown: "下移",
-  composerVerify: "校验一致性",
-  composerVerifying: "校验中…",
+  composerVerify: "验证候选配置",
+  composerVerifying: "正在验证候选配置…",
+  composerAdvisoryHint: "候选配置编译评估（仅供离线验证，未作用于正在运行的 Agent 实例）",
+  composerStatusDraft: "候选草稿",
+  composerNotActive: "未激活至运行态",
+  composerCompileFailed: "编译未通过，禁止启用",
   composerVerdict: "结论",
   composerVerdictVerified: "已验证",
   composerVerdictEnforceable: "可执法",
@@ -2323,8 +2331,12 @@ export const en: Messages = {
   composerRemove: 'Remove',
   composerMoveUp: 'Move up',
   composerMoveDown: 'Move down',
-  composerVerify: 'Verify conformance',
-  composerVerifying: 'Verifying…',
+  composerVerify: 'Verify candidate configuration',
+  composerVerifying: 'Verifying candidate configuration…',
+  composerAdvisoryHint: 'Advisory candidate evaluation (offline verification only — not active on running agents)',
+  composerStatusDraft: 'Candidate draft',
+  composerNotActive: 'Not active on running agents',
+  composerCompileFailed: 'Compile failed — cannot be activated',
   composerVerdict: 'Verdict',
   composerVerdictVerified: 'Verified',
   composerVerdictEnforceable: 'Enforceable',

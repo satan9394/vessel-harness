@@ -60,6 +60,9 @@
 
 /* P6: empty/loading states are quiet, readable placeholders — never a bare label. */
 .composer-empty { border: 1px dashed var(--ring-2); border-radius: var(--r-1); padding: 0.7rem 0.8rem; margin: 0; }
+.composer-advisory-banner { margin-bottom: 0.8rem; padding: 0.4rem 0.6rem; border-left: 3px solid var(--accent); background: var(--panel-2); font-size: 0.8rem; border-radius: 0 var(--r-1) var(--r-1) 0; }
+.composer-active-state { display: flex; align-items: center; gap: 0.5rem; margin: 0.4rem 0; font-size: 0.85rem; }
+.status-badge.status-draft { background: var(--accent-soft); color: var(--accent); font-weight: 600; }
 
 .trace-detail {
   max-width: 100%;
