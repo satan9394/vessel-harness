@@ -1779,6 +1779,7 @@ code {
 .provider-hub-panel .provider-list { margin-top: 12px; }
 .provider-hub-panel .provider-card { padding: 16px; background: var(--panel-2); border-radius: var(--r-panel); }
 .provider-hub-panel .provider-card > strong { font-size: 15px; }
+.provider-card-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; width: 100%; margin-top: 8px; padding-top: 8px; border-top: var(--ring-hairline) solid var(--ring); }
 .provider-card-test { flex-basis: 100%; display: flex; flex-wrap: wrap; gap: 8px; }
 .provider-card-test label, .provider-card-test p { width: 100%; }
 .provider-card-test label { display: grid; gap: 6px; }
