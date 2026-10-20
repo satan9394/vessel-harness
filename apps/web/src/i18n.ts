@@ -118,6 +118,7 @@ export interface CommonMessages {
   uiNoPatchProposalsObservedInThisSession: MessageTemplate;
   uiCtrlCmdKCommandsJKOrMessages: MessageTemplate;
   close: MessageTemplate;
+  scrollToBottom: MessageTemplate;
   uiTeam: MessageTemplate;
   uiGoals: MessageTemplate;
   uiChangedFiles: MessageTemplate;
@@ -1242,6 +1243,7 @@ export const zh: Messages = {
   uiMatchingCommands: "匹配的命令",
   uiNoMatchingCommands: "没有匹配的命令。",
   close: "关闭",
+  scrollToBottom: "回到底部",
   attentionTitle: "提醒设置",
   soundMute: "关闭提示音",
   soundUnmute: "开启提示音",
@@ -2010,6 +2012,7 @@ export const en: Messages = {
   uiMatchingCommands: "Matching commands",
   uiNoMatchingCommands: "No matching commands.",
   close: "Close",
+  scrollToBottom: "Scroll to bottom",
   attentionTitle: "Attention settings",
   soundMute: "Mute cues",
   soundUnmute: "Unmute cues",

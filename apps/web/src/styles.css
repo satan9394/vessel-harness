@@ -798,6 +798,7 @@ code {
 
 /* ---------- conversation view (task 042) ---------- */
 .conversation {
+  position: relative;
   flex: 1;
   display: flex;
   flex-direction: column;
@@ -830,6 +831,34 @@ code {
   margin: 0 auto;
   width: 100%;
   max-width: 760px;
+}
+
+.scroll-to-bottom-pill {
+  position: absolute;
+  bottom: 84px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  background: var(--surface-2);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 9999px;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  transition: all 0.15s ease-out;
+  z-index: 10;
+  backdrop-filter: blur(8px);
+}
+
+.scroll-to-bottom-pill:hover {
+  background: var(--surface-3);
+  transform: translateX(-50%) translateY(-2px);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.2);
 }
 
 .conversation-empty {
