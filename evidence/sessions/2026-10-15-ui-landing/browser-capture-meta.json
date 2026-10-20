@@ -1,0 +1,1996 @@
+{
+  "tool": "offline-chromium-cdp",
+  "builtFor": "VESSEL-UI-2026-02 UI landing (docs/design-prototypes/IMPLEMENTATION-PLAN.md)",
+  "matrix": "full",
+  "chromium": "Chrome/153.0.8010.12",
+  "appUrl": "http://127.0.0.1:32830",
+  "capturedAt": "2026-10-15T08:06:17.613Z",
+  "shots": [
+    {
+      "id": "full-workbench-zh-light-desktop",
+      "file": "full-workbench-zh-light-desktop.png",
+      "lang": "zh",
+      "theme": "light",
+      "viewport": {
+        "width": 1440,
+        "height": 1000
+      },
+      "area": "workbench",
+      "url": "http://127.0.0.1:32830",
+      "bytes": 67701,
+      "sha256": "cb331782b959043c2d631b38f4c196b795a6deca5788106427f71e94b7b71ac3",
+      "facts": {
+        "theme": "light dark",
+        "bg": "rgb(228, 232, 243)",
+        "panelRadius": "24px",
+        "navBackdrop": "none",
+        "topbarBackdrop": "none",
+        "navBg": "rgb(255, 255, 255)",
+        "gridCols": "58px 232px 1102px",
+        "navAreas": [
+          "workbench",
+          "activity",
+          "studio",
+          "settings"
+        ]
+      },
+      "text": "Vessel 本地服务运行正常（版本 0.10.0） 命令 偏好设置 项目 → 会话 → 运行 → 子代理 让 Vessel 完成什么任务？ 选择项目 打开项目目录 让 Vessel 完成什么任务？ 选择模型 opencode-go / mimo-v2.5 新会话权限（不影响当前会话） 只读探索权限 工作区读写权限 开始任务 高级新会话 配置新模型",
+      "capturedAt": "2026-10-15T08:03:49.905Z"
+    },
+    {
+      "id": "full-activity-zh-light-desktop",
+      "file": "full-activity-zh-light-desktop.png",
+      "lang": "zh",
+      "theme": "light",
+      "viewport": {
+        "width": 1440,
+        "height": 1000
+      },
+      "area": "activity",
+      "url": "http://127.0.0.1:32830",
+      "bytes": 117408,
+      "sha256": "b979032aea3ce90626a86aeb49ca9949476b2a154e6d52350229a018171d3549",
+      "facts": {
+        "theme": "light dark",
+        "bg": "rgb(228, 232, 243)",
+        "panelRadius": "24px",
+        "navBackdrop": "none",
+        "topbarBackdrop": "none",
+        "navBg": "rgb(255, 255, 255)",
+        "gridCols": "58px 232px 1102px",
+        "navAreas": [
+          "workbench",
+          "activity",
+          "studio",
+          "settings"
+        ]
+      },
+      "text": "Vessel 本地服务运行正常（版本 0.10.0） 命令 偏好设置 活动 会话活动来自服务端记录；打开会话查看运行和审批。 活动与审批队列 跨项目聚合运行中与等待授权的任务，可直接就地批准或拒绝。 重新加载模型 需要关注 · 1 需要关注 会话 Plan the refactor of 项目: C:\\Users\\SATANC~1\\AppData\\Local\\Temp\\vessel-uilanding-fixture-OPAtVt 更新于: 2026/10/15 00:25:03 会话 待授权操作: Write src/components/navigation.ts (12 lines) 批准 (Allow once) 拒绝 (Deny) 运行中 · 2 运行中 目标 Refactor the navigation module 项目: C:\\Users\\SATANC~1\\AppData\\Local\\Temp\\vessel-uilanding-fixture-OPAtVt 更新于: 2026/10/15 00:25:03 会话 运行中 目标 Survey call sites of the navigation module 项目: C:\\Users\\SATANC~1\\AppData\\Local\\Temp\\vessel-uilanding-fixture-OPAtVt 更新于: 2026/10/15 00:25:03 会话 失败 · 1 失败 目标 Verify the build and stage the diff 项目: C:\\Users\\SATANC~1\\AppData\\Local\\Temp\\vessel-uilanding-fixture-OPAtVt 更新于: 2026/10/15 00:25:03 会话 Plan the refactor of vessel-uilanding-fixture-OPAtVt · 00:25 团队任务树 展示子代理实例的父子拓扑、依赖、租约与状态，可逐节点跳转。 重新加载模型 E:/Code_file/Projects/s",
+      "capturedAt": "2026-10-15T08:03:52.393Z"
+    },
+    {
+      "id": "full-studio-zh-light-desktop",
+      "file": "full-studio-zh-light-desktop.png",
+      "lang": "zh",
+      "theme": "light",
+      "viewport": {
+        "width": 1440,
+        "height": 1000
+      },
+      "area": "studio",
+      "url": "http://127.0.0.1:32830",
+      "bytes": 173063,
+      "sha256": "5b67700b673f6bd7a01fa063989d903c06e2975002f23765340584a84832232d",
+      "facts": {
+        "theme": "light dark",
+        "bg": "rgb(228, 232, 243)",
+        "panelRadius": "24px",
+        "navBackdrop": "none",
+        "topbarBackdrop": "none",
+        "navBg": "rgb(255, 255, 255)",
+        "gridCols": "58px 232px 1102px",
+        "navAreas": [
+          "workbench",
+          "activity",
+          "studio",
+          "settings"
+        ]
+      },
+      "text": "Vessel 本地服务运行正常（版本 0.10.0） 命令 偏好设置 Agent Studio 只读检查实际生效的行为、策略映射与编译来源。 Agent Studio 组合器 组合行为规则、调整优先级、检测冲突，并在激活前校验一致性。 行为库 loop.turn_ends_without_tool_call prompt_guidance 纯文本回复即停止；不要在无需工具时强行调用工具。 加入 retry.exponential_backoff prompt_guidance 重试要有退避：同一操作连续失败时先读报错改方式；确需重试则加大间隔或改变参数，不原样反复重发；达到上限带证据上报或换方案。 加入 planning.plan_before_execute prompt_guidance 复杂、多步或有破坏性的任务先给出计划（目标→步骤→验证方式）再动手；执行中发现与计划冲突的新证据时先更新计划再继续。 加入 safety.protected_paths runtime_policy 不要改写受保护路径（.git/.env/.ssh 等）；该约束由策略引擎硬执法。 加入 safety.dangerous_shell runtime_policy 删除/格式化等破坏性命令会被策略引擎拦截；先说明原因与范围。 加入 safety.secret_handling runtime_policy 凭据与密钥不写入文件、不落日志、不外发；凭据类文件读取由策略引擎硬拦截，需要密文时走环境注入。 加入 verification.independent_evaluator prompt_guidance 以检查结果（测试/命令输出）作为完成依据，不自证完成。 加入 verification.honest_failure prompt_guidance 拿不到真实验证结果（测试跑不了、环境不可用、数据取不到）就如实上报并说明阻塞，不用假输出或推测冒充结论。 加入 context.rules_in_files prompt_guidance 需要长期成立的规则与项目事实写入项目指令文件（",
+      "capturedAt": "2026-10-15T08:03:55.055Z"
+    },
+    {
+      "id": "full-settings-zh-light-desktop",
+      "file": "full-settings-zh-light-desktop.png",
+      "lang": "zh",
+      "theme": "light",
+      "viewport": {
+        "width": 1440,
+        "height": 1000
+      },
+      "area": "settings",
+      "url": "http://127.0.0.1:32830",
+      "bytes": 60746,
+      "sha256": "677c30c77259c38c35b5140224b4ff93f0a2a9a59d1f842e381d330f9561d207",
+      "facts": {
+        "theme": "light dark",
+        "bg": "rgb(228, 232, 243)",
+        "panelRadius": "24px",
+        "navBackdrop": "none",
+        "topbarBackdrop": "none",
+        "navBg": "rgb(255, 255, 255)",
+        "gridCols": "58px 232px 1102px",
+        "navAreas": [
+          "workbench",
+          "activity",
+          "studio",
+          "settings"
+        ]
+      },
+      "text": "Vessel 本地服务运行正常（版本 0.10.0） 命令 偏好设置 设置 模型设置 仅改变视图显隐；Policy 权限、能力与运行不受影响。 工作台视图 中文 关闭提示音 开启桌面通知",
+      "capturedAt": "2026-10-15T08:03:57.446Z"
+    },
+    {
+      "id": "full-workbench-zh-light-1366",
+      "file": "full-workbench-zh-light-1366.png",
+      "lang": "zh",
+      "theme": "light",
+      "viewport": {
+        "width": 1366,
+        "height": 900
+      },
+      "area": "workbench",
+      "url": "http://127.0.0.1:32830",
+      "bytes": 64914,
+      "sha256": "93308e6450c6e0d24a8ac125b0b581a2fa0d7992518d0a1838907807c30f54f6",
+      "facts": {
+        "theme": "light dark",
+        "bg": "rgb(228, 232, 243)",
+        "panelRadius": "24px",
+        "navBackdrop": "none",
+        "topbarBackdrop": "none",
+        "navBg": "rgb(255, 255, 255)",
+        "gridCols": "58px 232px 1028px",
+        "navAreas": [
+          "workbench",
+          "activity",
+          "studio",
+          "settings"
+        ]
+      },
+      "text": "Vessel 本地服务运行正常（版本 0.10.0） 命令 偏好设置 项目 → 会话 → 运行 → 子代理 让 Vessel 完成什么任务？ 选择项目 打开项目目录 让 Vessel 完成什么任务？ 选择模型 opencode-go / mimo-v2.5 新会话权限（不影响当前会话） 只读探索权限 工作区读写权限 开始任务 高级新会话 配置新模型",
+      "capturedAt": "2026-10-15T08:03:59.074Z"
+    },
+    {
+      "id": "full-activity-zh-light-1366",
+      "file": "full-activity-zh-light-1366.png",
+      "lang": "zh",
+      "theme": "light",
+      "viewport": {
+        "width": 1366,
+        "height": 900
+      },
+      "area": "activity",
+      "url": "http://127.0.0.1:32830",
+      "bytes": 114528,
+      "sha256": "6cd5b92311c1fdceb4cbe03613d79284fea19d7e640dbf17f8cfeda9c551b8ff",
+      "facts": {
+        "theme": "light dark",
+        "bg": "rgb(228, 232, 243)",
+        "panelRadius": "24px",
+        "navBackdrop": "none",
+        "topbarBackdrop": "none",
+        "navBg": "rgb(255, 255, 255)",
+        "gridCols": "58px 232px 1028px",
+        "navAreas": [
+          "workbench",
+          "activity",
+          "studio",
+          "settings"
+        ]
+      },
+      "text": "Vessel 本地服务运行正常（版本 0.10.0） 命令 偏好设置 活动 会话活动来自服务端记录；打开会话查看运行和审批。 活动与审批队列 跨项目聚合运行中与等待授权的任务，可直接就地批准或拒绝。 重新加载模型 需要关注 · 1 需要关注 会话 Plan the refactor of 项目: C:\\Users\\SATANC~1\\AppData\\Local\\Temp\\vessel-uilanding-fixture-OPAtVt 更新于: 2026/10/15 00:25:03 会话 待授权操作: Write src/components/navigation.ts (12 lines) 批准 (Allow once) 拒绝 (Deny) 运行中 · 2 运行中 目标 Refactor the navigation module 项目: C:\\Users\\SATANC~1\\AppData\\Local\\Temp\\vessel-uilanding-fixture-OPAtVt 更新于: 2026/10/15 00:25:03 会话 运行中 目标 Survey call sites of the navigation module 项目: C:\\Users\\SATANC~1\\AppData\\Local\\Temp\\vessel-uilanding-fixture-OPAtVt 更新于: 2026/10/15 00:25:03 会话 失败 · 1 失败 目标 Verify the build and stage the diff 项目: C:\\Users\\SATANC~1\\AppData\\Local\\Temp\\vessel-uilanding-fixture-OPAtVt 更新于: 2026/10/15 00:25:03 会话 Plan the refactor of vessel-uilanding-fixture-OPAtVt · 00:25 团队任务树 展示子代理实例的父子拓扑、依赖、租约与状态，可逐节点跳转。 重新加载模型 E:/Code_file/Projects/s",
+      "capturedAt": "2026-10-15T08:04:01.469Z"
+    },
+    {
+      "id": "full-studio-zh-light-1366",
+      "file": "full-studio-zh-light-1366.png",
+      "lang": "zh",
+      "theme": "light",
+      "viewport": {
+        "width": 1366,
+        "height": 900
+      },
+      "area": "studio",
+      "url": "http://127.0.0.1:32830",
+      "bytes": 169295,
+      "sha256": "eb7317263192519d87f19edb30f8a19806426ede88dff3fa86c52569fc335506",
+      "facts": {
+        "theme": "light dark",
+        "bg": "rgb(228, 232, 243)",
+        "panelRadius": "24px",
+        "navBackdrop": "none",
+        "topbarBackdrop": "none",
+        "navBg": "rgb(255, 255, 255)",
+        "gridCols": "58px 232px 1028px",
+        "navAreas": [
+          "workbench",
+          "activity",
+          "studio",
+          "settings"
+        ]
+      },
+      "text": "Vessel 本地服务运行正常（版本 0.10.0） 命令 偏好设置 Agent Studio 只读检查实际生效的行为、策略映射与编译来源。 Agent Studio 组合器 组合行为规则、调整优先级、检测冲突，并在激活前校验一致性。 行为库 loop.turn_ends_without_tool_call prompt_guidance 纯文本回复即停止；不要在无需工具时强行调用工具。 加入 retry.exponential_backoff prompt_guidance 重试要有退避：同一操作连续失败时先读报错改方式；确需重试则加大间隔或改变参数，不原样反复重发；达到上限带证据上报或换方案。 加入 planning.plan_before_execute prompt_guidance 复杂、多步或有破坏性的任务先给出计划（目标→步骤→验证方式）再动手；执行中发现与计划冲突的新证据时先更新计划再继续。 加入 safety.protected_paths runtime_policy 不要改写受保护路径（.git/.env/.ssh 等）；该约束由策略引擎硬执法。 加入 safety.dangerous_shell runtime_policy 删除/格式化等破坏性命令会被策略引擎拦截；先说明原因与范围。 加入 safety.secret_handling runtime_policy 凭据与密钥不写入文件、不落日志、不外发；凭据类文件读取由策略引擎硬拦截，需要密文时走环境注入。 加入 verification.independent_evaluator prompt_guidance 以检查结果（测试/命令输出）作为完成依据，不自证完成。 加入 verification.honest_failure prompt_guidance 拿不到真实验证结果（测试跑不了、环境不可用、数据取不到）就如实上报并说明阻塞，不用假输出或推测冒充结论。 加入 context.rules_in_files prompt_guidance 需要长期成立的规则与项目事实写入项目指令文件（",
+      "capturedAt": "2026-10-15T08:04:03.932Z"
+    },
+    {
+      "id": "full-settings-zh-light-1366",
+      "file": "full-settings-zh-light-1366.png",
+      "lang": "zh",
+      "theme": "light",
+      "viewport": {
+        "width": 1366,
+        "height": 900
+      },
+      "area": "settings",
+      "url": "http://127.0.0.1:32830",
+      "bytes": 58089,
+      "sha256": "8028584435386a013c6f698dd61505bb5511bd35201654ef29ed4f1c00abb66b",
+      "facts": {
+        "theme": "light dark",
+        "bg": "rgb(228, 232, 243)",
+        "panelRadius": "24px",
+        "navBackdrop": "none",
+        "topbarBackdrop": "none",
+        "navBg": "rgb(255, 255, 255)",
+        "gridCols": "58px 232px 1028px",
+        "navAreas": [
+          "workbench",
+          "activity",
+          "studio",
+          "settings"
+        ]
+      },
+      "text": "Vessel 本地服务运行正常（版本 0.10.0） 命令 偏好设置 设置 模型设置 仅改变视图显隐；Policy 权限、能力与运行不受影响。 工作台视图 中文 关闭提示音 开启桌面通知",
+      "capturedAt": "2026-10-15T08:04:06.296Z"
+    },
+    {
+      "id": "full-workbench-zh-light-1023",
+      "file": "full-workbench-zh-light-1023.png",
+      "lang": "zh",
+      "theme": "light",
+      "viewport": {
+        "width": 1023,
+        "height": 900
+      },
+      "area": "workbench",
+      "url": "http://127.0.0.1:32830",
+      "bytes": 48514,
+      "sha256": "d0ab3bf04c4d36970e1cd70654d07cf43cb970e1eba8f2ac9d3cb26bbd6a8654",
+      "facts": {
+        "theme": "light dark",
+        "bg": "rgb(228, 232, 243)",
+        "panelRadius": "24px",
+        "navBackdrop": "none",
+        "topbarBackdrop": "none",
+        "navBg": "rgb(255, 255, 255)",
+        "gridCols": "58px 929px",
+        "navAreas": [
+          "workbench",
+          "activity",
+          "studio",
+          "settings"
+        ]
+      },
+      "text": "☰ Vessel 本地服务运行正常（版本 0.10.0） 命令 偏好设置 项目 → 会话 → 运行 → 子代理 让 Vessel 完成什么任务？ 选择项目 打开项目目录 让 Vessel 完成什么任务？ 选择模型 opencode-go / mimo-v2.5 新会话权限（不影响当前会话） 只读探索权限 工作区读写权限 开始任务 高级新会话 配置新模型",
+      "capturedAt": "2026-10-15T08:04:07.932Z"
+    },
+    {
+      "id": "full-activity-zh-light-1023",
+      "file": "full-activity-zh-light-1023.png",
+      "lang": "zh",
+      "theme": "light",
+      "viewport": {
+        "width": 1023,
+        "height": 900
+      },
+      "area": "activity",
+      "url": "http://127.0.0.1:32830",
+      "bytes": 93195,
+      "sha256": "f2bf2d80c2a814e60b49769a8c5ab74c027ff3355819eeacabd4a5a2d532a6d6",
+      "facts": {
+        "theme": "light dark",
+        "bg": "rgb(228, 232, 243)",
+        "panelRadius": "24px",
+        "navBackdrop": "none",
+        "topbarBackdrop": "none",
+        "navBg": "rgb(255, 255, 255)",
+        "gridCols": "58px 929px",
+        "navAreas": [
+          "workbench",
+          "activity",
+          "studio",
+          "settings"
+        ]
+      },
+      "text": "☰ Vessel 本地服务运行正常（版本 0.10.0） 命令 偏好设置 活动 会话活动来自服务端记录；打开会话查看运行和审批。 活动与审批队列 跨项目聚合运行中与等待授权的任务，可直接就地批准或拒绝。 重新加载模型 需要关注 · 1 需要关注 会话 Plan the refactor of 项目: C:\\Users\\SATANC~1\\AppData\\Local\\Temp\\vessel-uilanding-fixture-OPAtVt 更新于: 2026/10/15 00:25:03 会话 待授权操作: Write src/components/navigation.ts (12 lines) 批准 (Allow once) 拒绝 (Deny) 运行中 · 2 运行中 目标 Refactor the navigation module 项目: C:\\Users\\SATANC~1\\AppData\\Local\\Temp\\vessel-uilanding-fixture-OPAtVt 更新于: 2026/10/15 00:25:03 会话 运行中 目标 Survey call sites of the navigation module 项目: C:\\Users\\SATANC~1\\AppData\\Local\\Temp\\vessel-uilanding-fixture-OPAtVt 更新于: 2026/10/15 00:25:03 会话 失败 · 1 失败 目标 Verify the build and stage the diff 项目: C:\\Users\\SATANC~1\\AppData\\Local\\Temp\\vessel-uilanding-fixture-OPAtVt 更新于: 2026/10/15 00:25:03 会话 Plan the refactor of vessel-uilanding-fixture-OPAtVt · 00:25 团队任务树 展示子代理实例的父子拓扑、依赖、租约与状态，可逐节点跳转。 重新加载模型 E:/Code_file/Projects",
+      "capturedAt": "2026-10-15T08:04:10.291Z"
+    },
+    {
+      "id": "full-studio-zh-light-1023",
+      "file": "full-studio-zh-light-1023.png",
+      "lang": "zh",
+      "theme": "light",
+      "viewport": {
+        "width": 1023,
+        "height": 900
+      },
+      "area": "studio",
+      "url": "http://127.0.0.1:32830",
+      "bytes": 145301,
+      "sha256": "3ead5b334bed11721887a6d07630b84ab667a6c0a01fa02f98b93fb48a5bd9c5",
+      "facts": {
+        "theme": "light dark",
+        "bg": "rgb(228, 232, 243)",
+        "panelRadius": "24px",
+        "navBackdrop": "none",
+        "topbarBackdrop": "none",
+        "navBg": "rgb(255, 255, 255)",
+        "gridCols": "58px 929px",
+        "navAreas": [
+          "workbench",
+          "activity",
+          "studio",
+          "settings"
+        ]
+      },
+      "text": "☰ Vessel 本地服务运行正常（版本 0.10.0） 命令 偏好设置 Agent Studio 只读检查实际生效的行为、策略映射与编译来源。 Agent Studio 组合器 组合行为规则、调整优先级、检测冲突，并在激活前校验一致性。 行为库 loop.turn_ends_without_tool_call prompt_guidance 纯文本回复即停止；不要在无需工具时强行调用工具。 加入 retry.exponential_backoff prompt_guidance 重试要有退避：同一操作连续失败时先读报错改方式；确需重试则加大间隔或改变参数，不原样反复重发；达到上限带证据上报或换方案。 加入 planning.plan_before_execute prompt_guidance 复杂、多步或有破坏性的任务先给出计划（目标→步骤→验证方式）再动手；执行中发现与计划冲突的新证据时先更新计划再继续。 加入 safety.protected_paths runtime_policy 不要改写受保护路径（.git/.env/.ssh 等）；该约束由策略引擎硬执法。 加入 safety.dangerous_shell runtime_policy 删除/格式化等破坏性命令会被策略引擎拦截；先说明原因与范围。 加入 safety.secret_handling runtime_policy 凭据与密钥不写入文件、不落日志、不外发；凭据类文件读取由策略引擎硬拦截，需要密文时走环境注入。 加入 verification.independent_evaluator prompt_guidance 以检查结果（测试/命令输出）作为完成依据，不自证完成。 加入 verification.honest_failure prompt_guidance 拿不到真实验证结果（测试跑不了、环境不可用、数据取不到）就如实上报并说明阻塞，不用假输出或推测冒充结论。 加入 context.rules_in_files prompt_guidance 需要长期成立的规则与项目事实写入项目指令文",
+      "capturedAt": "2026-10-15T08:04:12.704Z"
+    },
+    {
+      "id": "full-settings-zh-light-1023",
+      "file": "full-settings-zh-light-1023.png",
+      "lang": "zh",
+      "theme": "light",
+      "viewport": {
+        "width": 1023,
+        "height": 900
+      },
+      "area": "settings",
+      "url": "http://127.0.0.1:32830",
+      "bytes": 41912,
+      "sha256": "4743fa687b0454552e5268d6a97088175cd72a6cff4b5b3cc2e6d81762a9592f",
+      "facts": {
+        "theme": "light dark",
+        "bg": "rgb(228, 232, 243)",
+        "panelRadius": "24px",
+        "navBackdrop": "none",
+        "topbarBackdrop": "none",
+        "navBg": "rgb(255, 255, 255)",
+        "gridCols": "58px 929px",
+        "navAreas": [
+          "workbench",
+          "activity",
+          "studio",
+          "settings"
+        ]
+      },
+      "text": "☰ Vessel 本地服务运行正常（版本 0.10.0） 命令 偏好设置 设置 模型设置 仅改变视图显隐；Policy 权限、能力与运行不受影响。 工作台视图 中文 关闭提示音 开启桌面通知",
+      "capturedAt": "2026-10-15T08:04:15.050Z"
+    },
+    {
+      "id": "full-workbench-zh-light-800",
+      "file": "full-workbench-zh-light-800.png",
+      "lang": "zh",
+      "theme": "light",
+      "viewport": {
+        "width": 800,
+        "height": 1000
+      },
+      "area": "workbench",
+      "url": "http://127.0.0.1:32830",
+      "bytes": 47518,
+      "sha256": "7905960a849ad099ad8834ec47141455f6ca6ba115e554e9af27707eb5e7809c",
+      "facts": {
+        "theme": "light dark",
+        "bg": "rgb(228, 232, 243)",
+        "panelRadius": "24px",
+        "navBackdrop": "none",
+        "topbarBackdrop": "none",
+        "navBg": "rgb(255, 255, 255)",
+        "gridCols": "58px 706px",
+        "navAreas": [
+          "workbench",
+          "activity",
+          "studio",
+          "settings"
+        ]
+      },
+      "text": "☰ Vessel 本地服务运行正常（版本 0.10.0） 命令 偏好设置 项目 → 会话 → 运行 → 子代理 让 Vessel 完成什么任务？ 选择项目 打开项目目录 让 Vessel 完成什么任务？ 选择模型 opencode-go / mimo-v2.5 新会话权限（不影响当前会话） 只读探索权限 工作区读写权限 开始任务 高级新会话 配置新模型",
+      "capturedAt": "2026-10-15T08:04:16.748Z"
+    },
+    {
+      "id": "full-activity-zh-light-800",
+      "file": "full-activity-zh-light-800.png",
+      "lang": "zh",
+      "theme": "light",
+      "viewport": {
+        "width": 800,
+        "height": 1000
+      },
+      "area": "activity",
+      "url": "http://127.0.0.1:32830",
+      "bytes": 97747,
+      "sha256": "76168620863c255db8f60746706c0fba3b0eb48811c37fcd8086cd7165119539",
+      "facts": {
+        "theme": "light dark",
+        "bg": "rgb(228, 232, 243)",
+        "panelRadius": "24px",
+        "navBackdrop": "none",
+        "topbarBackdrop": "none",
+        "navBg": "rgb(255, 255, 255)",
+        "gridCols": "58px 706px",
+        "navAreas": [
+          "workbench",
+          "activity",
+          "studio",
+          "settings"
+        ]
+      },
+      "text": "☰ Vessel 本地服务运行正常（版本 0.10.0） 命令 偏好设置 活动 会话活动来自服务端记录；打开会话查看运行和审批。 活动与审批队列 跨项目聚合运行中与等待授权的任务，可直接就地批准或拒绝。 重新加载模型 需要关注 · 1 需要关注 会话 Plan the refactor of 项目: C:\\Users\\SATANC~1\\AppData\\Local\\Temp\\vessel-uilanding-fixture-OPAtVt 更新于: 2026/10/15 00:25:03 会话 待授权操作: Write src/components/navigation.ts (12 lines) 批准 (Allow once) 拒绝 (Deny) 运行中 · 2 运行中 目标 Refactor the navigation module 项目: C:\\Users\\SATANC~1\\AppData\\Local\\Temp\\vessel-uilanding-fixture-OPAtVt 更新于: 2026/10/15 00:25:03 会话 运行中 目标 Survey call sites of the navigation module 项目: C:\\Users\\SATANC~1\\AppData\\Local\\Temp\\vessel-uilanding-fixture-OPAtVt 更新于: 2026/10/15 00:25:03 会话 失败 · 1 失败 目标 Verify the build and stage the diff 项目: C:\\Users\\SATANC~1\\AppData\\Local\\Temp\\vessel-uilanding-fixture-OPAtVt 更新于: 2026/10/15 00:25:03 会话 Plan the refactor of vessel-uilanding-fixture-OPAtVt · 00:25 团队任务树 展示子代理实例的父子拓扑、依赖、租约与状态，可逐节点跳转。 重新加载模型 E:/Code_file/Projects",
+      "capturedAt": "2026-10-15T08:04:19.232Z"
+    },
+    {
+      "id": "full-studio-zh-light-800",
+      "file": "full-studio-zh-light-800.png",
+      "lang": "zh",
+      "theme": "light",
+      "viewport": {
+        "width": 800,
+        "height": 1000
+      },
+      "area": "studio",
+      "url": "http://127.0.0.1:32830",
+      "bytes": 136471,
+      "sha256": "7b6bc83c67c57bcb6027d6202407cc8dcd5211c7d74780d5b66d6153842846a9",
+      "facts": {
+        "theme": "light dark",
+        "bg": "rgb(228, 232, 243)",
+        "panelRadius": "24px",
+        "navBackdrop": "none",
+        "topbarBackdrop": "none",
+        "navBg": "rgb(255, 255, 255)",
+        "gridCols": "58px 706px",
+        "navAreas": [
+          "workbench",
+          "activity",
+          "studio",
+          "settings"
+        ]
+      },
+      "text": "☰ Vessel 本地服务运行正常（版本 0.10.0） 命令 偏好设置 Agent Studio 只读检查实际生效的行为、策略映射与编译来源。 Agent Studio 组合器 组合行为规则、调整优先级、检测冲突，并在激活前校验一致性。 行为库 loop.turn_ends_without_tool_call prompt_guidance 纯文本回复即停止；不要在无需工具时强行调用工具。 加入 retry.exponential_backoff prompt_guidance 重试要有退避：同一操作连续失败时先读报错改方式；确需重试则加大间隔或改变参数，不原样反复重发；达到上限带证据上报或换方案。 加入 planning.plan_before_execute prompt_guidance 复杂、多步或有破坏性的任务先给出计划（目标→步骤→验证方式）再动手；执行中发现与计划冲突的新证据时先更新计划再继续。 加入 safety.protected_paths runtime_policy 不要改写受保护路径（.git/.env/.ssh 等）；该约束由策略引擎硬执法。 加入 safety.dangerous_shell runtime_policy 删除/格式化等破坏性命令会被策略引擎拦截；先说明原因与范围。 加入 safety.secret_handling runtime_policy 凭据与密钥不写入文件、不落日志、不外发；凭据类文件读取由策略引擎硬拦截，需要密文时走环境注入。 加入 verification.independent_evaluator prompt_guidance 以检查结果（测试/命令输出）作为完成依据，不自证完成。 加入 verification.honest_failure prompt_guidance 拿不到真实验证结果（测试跑不了、环境不可用、数据取不到）就如实上报并说明阻塞，不用假输出或推测冒充结论。 加入 context.rules_in_files prompt_guidance 需要长期成立的规则与项目事实写入项目指令文",
+      "capturedAt": "2026-10-15T08:04:21.655Z"
+    },
+    {
+      "id": "full-settings-zh-light-800",
+      "file": "full-settings-zh-light-800.png",
+      "lang": "zh",
+      "theme": "light",
+      "viewport": {
+        "width": 800,
+        "height": 1000
+      },
+      "area": "settings",
+      "url": "http://127.0.0.1:32830",
+      "bytes": 40311,
+      "sha256": "1e05eba5fc743bf8c63291a5246a9527bd068ce257bafa066fc940499040fc9d",
+      "facts": {
+        "theme": "light dark",
+        "bg": "rgb(228, 232, 243)",
+        "panelRadius": "24px",
+        "navBackdrop": "none",
+        "topbarBackdrop": "none",
+        "navBg": "rgb(255, 255, 255)",
+        "gridCols": "58px 706px",
+        "navAreas": [
+          "workbench",
+          "activity",
+          "studio",
+          "settings"
+        ]
+      },
+      "text": "☰ Vessel 本地服务运行正常（版本 0.10.0） 命令 偏好设置 设置 模型设置 仅改变视图显隐；Policy 权限、能力与运行不受影响。 工作台视图 中文 关闭提示音 开启桌面通知",
+      "capturedAt": "2026-10-15T08:04:24.012Z"
+    },
+    {
+      "id": "full-workbench-zh-dark-desktop",
+      "file": "full-workbench-zh-dark-desktop.png",
+      "lang": "zh",
+      "theme": "dark",
+      "viewport": {
+        "width": 1440,
+        "height": 1000
+      },
+      "area": "workbench",
+      "url": "http://127.0.0.1:32830",
+      "bytes": 57722,
+      "sha256": "5a4350bb5498f0482fd3f8f465851df726afe7f548a2ba5d440bc9f07eeea586",
+      "facts": {
+        "theme": "light dark",
+        "bg": "rgb(6, 7, 13)",
+        "panelRadius": "24px",
+        "navBackdrop": "none",
+        "topbarBackdrop": "none",
+        "navBg": "rgb(13, 15, 24)",
+        "gridCols": "58px 232px 1102px",
+        "navAreas": [
+          "workbench",
+          "activity",
+          "studio",
+          "settings"
+        ]
+      },
+      "text": "Vessel 本地服务运行正常（版本 0.10.0） 命令 偏好设置 项目 → 会话 → 运行 → 子代理 让 Vessel 完成什么任务？ 选择项目 打开项目目录 让 Vessel 完成什么任务？ 选择模型 opencode-go / mimo-v2.5 新会话权限（不影响当前会话） 只读探索权限 工作区读写权限 开始任务 高级新会话 配置新模型",
+      "capturedAt": "2026-10-15T08:04:25.661Z"
+    },
+    {
+      "id": "full-activity-zh-dark-desktop",
+      "file": "full-activity-zh-dark-desktop.png",
+      "lang": "zh",
+      "theme": "dark",
+      "viewport": {
+        "width": 1440,
+        "height": 1000
+      },
+      "area": "activity",
+      "url": "http://127.0.0.1:32830",
+      "bytes": 101424,
+      "sha256": "1c5c70aa7bb72449d92b2dd37bcbd71a9a2af223849715315b7dd4b3127ed59d",
+      "facts": {
+        "theme": "light dark",
+        "bg": "rgb(6, 7, 13)",
+        "panelRadius": "24px",
+        "navBackdrop": "none",
+        "topbarBackdrop": "none",
+        "navBg": "rgb(13, 15, 24)",
+        "gridCols": "58px 232px 1102px",
+        "navAreas": [
+          "workbench",
+          "activity",
+          "studio",
+          "settings"
+        ]
+      },
+      "text": "Vessel 本地服务运行正常（版本 0.10.0） 命令 偏好设置 活动 会话活动来自服务端记录；打开会话查看运行和审批。 活动与审批队列 跨项目聚合运行中与等待授权的任务，可直接就地批准或拒绝。 重新加载模型 需要关注 · 1 需要关注 会话 Plan the refactor of 项目: C:\\Users\\SATANC~1\\AppData\\Local\\Temp\\vessel-uilanding-fixture-OPAtVt 更新于: 2026/10/15 00:25:03 会话 待授权操作: Write src/components/navigation.ts (12 lines) 批准 (Allow once) 拒绝 (Deny) 运行中 · 2 运行中 目标 Refactor the navigation module 项目: C:\\Users\\SATANC~1\\AppData\\Local\\Temp\\vessel-uilanding-fixture-OPAtVt 更新于: 2026/10/15 00:25:03 会话 运行中 目标 Survey call sites of the navigation module 项目: C:\\Users\\SATANC~1\\AppData\\Local\\Temp\\vessel-uilanding-fixture-OPAtVt 更新于: 2026/10/15 00:25:03 会话 失败 · 1 失败 目标 Verify the build and stage the diff 项目: C:\\Users\\SATANC~1\\AppData\\Local\\Temp\\vessel-uilanding-fixture-OPAtVt 更新于: 2026/10/15 00:25:03 会话 Plan the refactor of vessel-uilanding-fixture-OPAtVt · 00:25 团队任务树 展示子代理实例的父子拓扑、依赖、租约与状态，可逐节点跳转。 重新加载模型 E:/Code_file/Projects/s",
+      "capturedAt": "2026-10-15T08:04:28.108Z"
+    },
+    {
+      "id": "full-studio-zh-dark-desktop",
+      "file": "full-studio-zh-dark-desktop.png",
+      "lang": "zh",
+      "theme": "dark",
+      "viewport": {
+        "width": 1440,
+        "height": 1000
+      },
+      "area": "studio",
+      "url": "http://127.0.0.1:32830",
+      "bytes": 156183,
+      "sha256": "58e23f6dd8a4d9d4dc9d3fa6a4f71f3a18cd0f763132a9bdf715552c3c0e617e",
+      "facts": {
+        "theme": "light dark",
+        "bg": "rgb(6, 7, 13)",
+        "panelRadius": "24px",
+        "navBackdrop": "none",
+        "topbarBackdrop": "none",
+        "navBg": "rgb(13, 15, 24)",
+        "gridCols": "58px 232px 1102px",
+        "navAreas": [
+          "workbench",
+          "activity",
+          "studio",
+          "settings"
+        ]
+      },
+      "text": "Vessel 本地服务运行正常（版本 0.10.0） 命令 偏好设置 Agent Studio 只读检查实际生效的行为、策略映射与编译来源。 Agent Studio 组合器 组合行为规则、调整优先级、检测冲突，并在激活前校验一致性。 行为库 loop.turn_ends_without_tool_call prompt_guidance 纯文本回复即停止；不要在无需工具时强行调用工具。 加入 retry.exponential_backoff prompt_guidance 重试要有退避：同一操作连续失败时先读报错改方式；确需重试则加大间隔或改变参数，不原样反复重发；达到上限带证据上报或换方案。 加入 planning.plan_before_execute prompt_guidance 复杂、多步或有破坏性的任务先给出计划（目标→步骤→验证方式）再动手；执行中发现与计划冲突的新证据时先更新计划再继续。 加入 safety.protected_paths runtime_policy 不要改写受保护路径（.git/.env/.ssh 等）；该约束由策略引擎硬执法。 加入 safety.dangerous_shell runtime_policy 删除/格式化等破坏性命令会被策略引擎拦截；先说明原因与范围。 加入 safety.secret_handling runtime_policy 凭据与密钥不写入文件、不落日志、不外发；凭据类文件读取由策略引擎硬拦截，需要密文时走环境注入。 加入 verification.independent_evaluator prompt_guidance 以检查结果（测试/命令输出）作为完成依据，不自证完成。 加入 verification.honest_failure prompt_guidance 拿不到真实验证结果（测试跑不了、环境不可用、数据取不到）就如实上报并说明阻塞，不用假输出或推测冒充结论。 加入 context.rules_in_files prompt_guidance 需要长期成立的规则与项目事实写入项目指令文件（",
+      "capturedAt": "2026-10-15T08:04:30.584Z"
+    },
+    {
+      "id": "full-settings-zh-dark-desktop",
+      "file": "full-settings-zh-dark-desktop.png",
+      "lang": "zh",
+      "theme": "dark",
+      "viewport": {
+        "width": 1440,
+        "height": 1000
+      },
+      "area": "settings",
+      "url": "http://127.0.0.1:32830",
+      "bytes": 51522,
+      "sha256": "742c3fc757446f526eb81ee9d2cd7ffce3cd014694f6c420619c5b5c2396f573",
+      "facts": {
+        "theme": "light dark",
+        "bg": "rgb(6, 7, 13)",
+        "panelRadius": "24px",
+        "navBackdrop": "none",
+        "topbarBackdrop": "none",
+        "navBg": "rgb(13, 15, 24)",
+        "gridCols": "58px 232px 1102px",
+        "navAreas": [
+          "workbench",
+          "activity",
+          "studio",
+          "settings"
+        ]
+      },
+      "text": "Vessel 本地服务运行正常（版本 0.10.0） 命令 偏好设置 设置 模型设置 仅改变视图显隐；Policy 权限、能力与运行不受影响。 工作台视图 中文 关闭提示音 开启桌面通知",
+      "capturedAt": "2026-10-15T08:04:32.953Z"
+    },
+    {
+      "id": "full-workbench-zh-dark-1366",
+      "file": "full-workbench-zh-dark-1366.png",
+      "lang": "zh",
+      "theme": "dark",
+      "viewport": {
+        "width": 1366,
+        "height": 900
+      },
+      "area": "workbench",
+      "url": "http://127.0.0.1:32830",
+      "bytes": 55352,
+      "sha256": "93ec798b6d563d7eb19f2f2fa0d967e1134141f7cd58e758dc036e4bfd1f7d6b",
+      "facts": {
+        "theme": "light dark",
+        "bg": "rgb(6, 7, 13)",
+        "panelRadius": "24px",
+        "navBackdrop": "none",
+        "topbarBackdrop": "none",
+        "navBg": "rgb(13, 15, 24)",
+        "gridCols": "58px 232px 1028px",
+        "navAreas": [
+          "workbench",
+          "activity",
+          "studio",
+          "settings"
+        ]
+      },
+      "text": "Vessel 本地服务运行正常（版本 0.10.0） 命令 偏好设置 项目 → 会话 → 运行 → 子代理 让 Vessel 完成什么任务？ 选择项目 打开项目目录 让 Vessel 完成什么任务？ 选择模型 opencode-go / mimo-v2.5 新会话权限（不影响当前会话） 只读探索权限 工作区读写权限 开始任务 高级新会话 配置新模型",
+      "capturedAt": "2026-10-15T08:04:34.614Z"
+    },
+    {
+      "id": "full-activity-zh-dark-1366",
+      "file": "full-activity-zh-dark-1366.png",
+      "lang": "zh",
+      "theme": "dark",
+      "viewport": {
+        "width": 1366,
+        "height": 900
+      },
+      "area": "activity",
+      "url": "http://127.0.0.1:32830",
+      "bytes": 98794,
+      "sha256": "544680ef077dbc9458a9116a9b0620749239888d5b178bb41be7a3bd9794a71d",
+      "facts": {
+        "theme": "light dark",
+        "bg": "rgb(6, 7, 13)",
+        "panelRadius": "24px",
+        "navBackdrop": "none",
+        "topbarBackdrop": "none",
+        "navBg": "rgb(13, 15, 24)",
+        "gridCols": "58px 232px 1028px",
+        "navAreas": [
+          "workbench",
+          "activity",
+          "studio",
+          "settings"
+        ]
+      },
+      "text": "Vessel 本地服务运行正常（版本 0.10.0） 命令 偏好设置 活动 会话活动来自服务端记录；打开会话查看运行和审批。 活动与审批队列 跨项目聚合运行中与等待授权的任务，可直接就地批准或拒绝。 重新加载模型 需要关注 · 1 需要关注 会话 Plan the refactor of 项目: C:\\Users\\SATANC~1\\AppData\\Local\\Temp\\vessel-uilanding-fixture-OPAtVt 更新于: 2026/10/15 00:25:03 会话 待授权操作: Write src/components/navigation.ts (12 lines) 批准 (Allow once) 拒绝 (Deny) 运行中 · 2 运行中 目标 Refactor the navigation module 项目: C:\\Users\\SATANC~1\\AppData\\Local\\Temp\\vessel-uilanding-fixture-OPAtVt 更新于: 2026/10/15 00:25:03 会话 运行中 目标 Survey call sites of the navigation module 项目: C:\\Users\\SATANC~1\\AppData\\Local\\Temp\\vessel-uilanding-fixture-OPAtVt 更新于: 2026/10/15 00:25:03 会话 失败 · 1 失败 目标 Verify the build and stage the diff 项目: C:\\Users\\SATANC~1\\AppData\\Local\\Temp\\vessel-uilanding-fixture-OPAtVt 更新于: 2026/10/15 00:25:03 会话 Plan the refactor of vessel-uilanding-fixture-OPAtVt · 00:25 团队任务树 展示子代理实例的父子拓扑、依赖、租约与状态，可逐节点跳转。 重新加载模型 E:/Code_file/Projects/s",
+      "capturedAt": "2026-10-15T08:04:37.030Z"
+    },
+    {
+      "id": "full-studio-zh-dark-1366",
+      "file": "full-studio-zh-dark-1366.png",
+      "lang": "zh",
+      "theme": "dark",
+      "viewport": {
+        "width": 1366,
+        "height": 900
+      },
+      "area": "studio",
+      "url": "http://127.0.0.1:32830",
+      "bytes": 152988,
+      "sha256": "22468a50596be1c92160826704373af75175c09d41a69999990b6fc4225e83bc",
+      "facts": {
+        "theme": "light dark",
+        "bg": "rgb(6, 7, 13)",
+        "panelRadius": "24px",
+        "navBackdrop": "none",
+        "topbarBackdrop": "none",
+        "navBg": "rgb(13, 15, 24)",
+        "gridCols": "58px 232px 1028px",
+        "navAreas": [
+          "workbench",
+          "activity",
+          "studio",
+          "settings"
+        ]
+      },
+      "text": "Vessel 本地服务运行正常（版本 0.10.0） 命令 偏好设置 Agent Studio 只读检查实际生效的行为、策略映射与编译来源。 Agent Studio 组合器 组合行为规则、调整优先级、检测冲突，并在激活前校验一致性。 行为库 loop.turn_ends_without_tool_call prompt_guidance 纯文本回复即停止；不要在无需工具时强行调用工具。 加入 retry.exponential_backoff prompt_guidance 重试要有退避：同一操作连续失败时先读报错改方式；确需重试则加大间隔或改变参数，不原样反复重发；达到上限带证据上报或换方案。 加入 planning.plan_before_execute prompt_guidance 复杂、多步或有破坏性的任务先给出计划（目标→步骤→验证方式）再动手；执行中发现与计划冲突的新证据时先更新计划再继续。 加入 safety.protected_paths runtime_policy 不要改写受保护路径（.git/.env/.ssh 等）；该约束由策略引擎硬执法。 加入 safety.dangerous_shell runtime_policy 删除/格式化等破坏性命令会被策略引擎拦截；先说明原因与范围。 加入 safety.secret_handling runtime_policy 凭据与密钥不写入文件、不落日志、不外发；凭据类文件读取由策略引擎硬拦截，需要密文时走环境注入。 加入 verification.independent_evaluator prompt_guidance 以检查结果（测试/命令输出）作为完成依据，不自证完成。 加入 verification.honest_failure prompt_guidance 拿不到真实验证结果（测试跑不了、环境不可用、数据取不到）就如实上报并说明阻塞，不用假输出或推测冒充结论。 加入 context.rules_in_files prompt_guidance 需要长期成立的规则与项目事实写入项目指令文件（",
+      "capturedAt": "2026-10-15T08:04:39.751Z"
+    },
+    {
+      "id": "full-settings-zh-dark-1366",
+      "file": "full-settings-zh-dark-1366.png",
+      "lang": "zh",
+      "theme": "dark",
+      "viewport": {
+        "width": 1366,
+        "height": 900
+      },
+      "area": "settings",
+      "url": "http://127.0.0.1:32830",
+      "bytes": 49143,
+      "sha256": "b498da0ee8661031803ac7a380d164fcfd45c32c5ed11a4ecce880165ed36398",
+      "facts": {
+        "theme": "light dark",
+        "bg": "rgb(6, 7, 13)",
+        "panelRadius": "24px",
+        "navBackdrop": "none",
+        "topbarBackdrop": "none",
+        "navBg": "rgb(13, 15, 24)",
+        "gridCols": "58px 232px 1028px",
+        "navAreas": [
+          "workbench",
+          "activity",
+          "studio",
+          "settings"
+        ]
+      },
+      "text": "Vessel 本地服务运行正常（版本 0.10.0） 命令 偏好设置 设置 模型设置 仅改变视图显隐；Policy 权限、能力与运行不受影响。 工作台视图 中文 关闭提示音 开启桌面通知",
+      "capturedAt": "2026-10-15T08:04:42.409Z"
+    },
+    {
+      "id": "full-workbench-zh-dark-1023",
+      "file": "full-workbench-zh-dark-1023.png",
+      "lang": "zh",
+      "theme": "dark",
+      "viewport": {
+        "width": 1023,
+        "height": 900
+      },
+      "area": "workbench",
+      "url": "http://127.0.0.1:32830",
+      "bytes": 41510,
+      "sha256": "cef07e48d21a401f543f4209bb363e4a53b13a85bde1c3ad610d0f2268a27571",
+      "facts": {
+        "theme": "light dark",
+        "bg": "rgb(6, 7, 13)",
+        "panelRadius": "24px",
+        "navBackdrop": "none",
+        "topbarBackdrop": "none",
+        "navBg": "rgb(13, 15, 24)",
+        "gridCols": "58px 929px",
+        "navAreas": [
+          "workbench",
+          "activity",
+          "studio",
+          "settings"
+        ]
+      },
+      "text": "☰ Vessel 本地服务运行正常（版本 0.10.0） 命令 偏好设置 项目 → 会话 → 运行 → 子代理 让 Vessel 完成什么任务？ 选择项目 打开项目目录 让 Vessel 完成什么任务？ 选择模型 opencode-go / mimo-v2.5 新会话权限（不影响当前会话） 只读探索权限 工作区读写权限 开始任务 高级新会话 配置新模型",
+      "capturedAt": "2026-10-15T08:04:44.094Z"
+    },
+    {
+      "id": "full-activity-zh-dark-1023",
+      "file": "full-activity-zh-dark-1023.png",
+      "lang": "zh",
+      "theme": "dark",
+      "viewport": {
+        "width": 1023,
+        "height": 900
+      },
+      "area": "activity",
+      "url": "http://127.0.0.1:32830",
+      "bytes": 82301,
+      "sha256": "f425276a4c242a9dbc3e70a7ae2419fa2b14074ef11971ea9de050f78c34d777",
+      "facts": {
+        "theme": "light dark",
+        "bg": "rgb(6, 7, 13)",
+        "panelRadius": "24px",
+        "navBackdrop": "none",
+        "topbarBackdrop": "none",
+        "navBg": "rgb(13, 15, 24)",
+        "gridCols": "58px 929px",
+        "navAreas": [
+          "workbench",
+          "activity",
+          "studio",
+          "settings"
+        ]
+      },
+      "text": "☰ Vessel 本地服务运行正常（版本 0.10.0） 命令 偏好设置 活动 会话活动来自服务端记录；打开会话查看运行和审批。 活动与审批队列 跨项目聚合运行中与等待授权的任务，可直接就地批准或拒绝。 重新加载模型 需要关注 · 1 需要关注 会话 Plan the refactor of 项目: C:\\Users\\SATANC~1\\AppData\\Local\\Temp\\vessel-uilanding-fixture-OPAtVt 更新于: 2026/10/15 00:25:03 会话 待授权操作: Write src/components/navigation.ts (12 lines) 批准 (Allow once) 拒绝 (Deny) 运行中 · 2 运行中 目标 Refactor the navigation module 项目: C:\\Users\\SATANC~1\\AppData\\Local\\Temp\\vessel-uilanding-fixture-OPAtVt 更新于: 2026/10/15 00:25:03 会话 运行中 目标 Survey call sites of the navigation module 项目: C:\\Users\\SATANC~1\\AppData\\Local\\Temp\\vessel-uilanding-fixture-OPAtVt 更新于: 2026/10/15 00:25:03 会话 失败 · 1 失败 目标 Verify the build and stage the diff 项目: C:\\Users\\SATANC~1\\AppData\\Local\\Temp\\vessel-uilanding-fixture-OPAtVt 更新于: 2026/10/15 00:25:03 会话 Plan the refactor of vessel-uilanding-fixture-OPAtVt · 00:25 团队任务树 展示子代理实例的父子拓扑、依赖、租约与状态，可逐节点跳转。 重新加载模型 E:/Code_file/Projects",
+      "capturedAt": "2026-10-15T08:04:46.490Z"
+    },
+    {
+      "id": "full-studio-zh-dark-1023",
+      "file": "full-studio-zh-dark-1023.png",
+      "lang": "zh",
+      "theme": "dark",
+      "viewport": {
+        "width": 1023,
+        "height": 900
+      },
+      "area": "studio",
+      "url": "http://127.0.0.1:32830",
+      "bytes": 133271,
+      "sha256": "3417f081a4168c31e2d72c96e185fa8a91bc4785f6f71e25aec847b4381b658b",
+      "facts": {
+        "theme": "light dark",
+        "bg": "rgb(6, 7, 13)",
+        "panelRadius": "24px",
+        "navBackdrop": "none",
+        "topbarBackdrop": "none",
+        "navBg": "rgb(13, 15, 24)",
+        "gridCols": "58px 929px",
+        "navAreas": [
+          "workbench",
+          "activity",
+          "studio",
+          "settings"
+        ]
+      },
+      "text": "☰ Vessel 本地服务运行正常（版本 0.10.0） 命令 偏好设置 Agent Studio 只读检查实际生效的行为、策略映射与编译来源。 Agent Studio 组合器 组合行为规则、调整优先级、检测冲突，并在激活前校验一致性。 行为库 loop.turn_ends_without_tool_call prompt_guidance 纯文本回复即停止；不要在无需工具时强行调用工具。 加入 retry.exponential_backoff prompt_guidance 重试要有退避：同一操作连续失败时先读报错改方式；确需重试则加大间隔或改变参数，不原样反复重发；达到上限带证据上报或换方案。 加入 planning.plan_before_execute prompt_guidance 复杂、多步或有破坏性的任务先给出计划（目标→步骤→验证方式）再动手；执行中发现与计划冲突的新证据时先更新计划再继续。 加入 safety.protected_paths runtime_policy 不要改写受保护路径（.git/.env/.ssh 等）；该约束由策略引擎硬执法。 加入 safety.dangerous_shell runtime_policy 删除/格式化等破坏性命令会被策略引擎拦截；先说明原因与范围。 加入 safety.secret_handling runtime_policy 凭据与密钥不写入文件、不落日志、不外发；凭据类文件读取由策略引擎硬拦截，需要密文时走环境注入。 加入 verification.independent_evaluator prompt_guidance 以检查结果（测试/命令输出）作为完成依据，不自证完成。 加入 verification.honest_failure prompt_guidance 拿不到真实验证结果（测试跑不了、环境不可用、数据取不到）就如实上报并说明阻塞，不用假输出或推测冒充结论。 加入 context.rules_in_files prompt_guidance 需要长期成立的规则与项目事实写入项目指令文",
+      "capturedAt": "2026-10-15T08:04:48.979Z"
+    },
+    {
+      "id": "full-settings-zh-dark-1023",
+      "file": "full-settings-zh-dark-1023.png",
+      "lang": "zh",
+      "theme": "dark",
+      "viewport": {
+        "width": 1023,
+        "height": 900
+      },
+      "area": "settings",
+      "url": "http://127.0.0.1:32830",
+      "bytes": 35567,
+      "sha256": "1968eb6b6eefc7ab7decf1686b9c0f521e6c0e3650eb3ad07c69ae5c2681746a",
+      "facts": {
+        "theme": "light dark",
+        "bg": "rgb(6, 7, 13)",
+        "panelRadius": "24px",
+        "navBackdrop": "none",
+        "topbarBackdrop": "none",
+        "navBg": "rgb(13, 15, 24)",
+        "gridCols": "58px 929px",
+        "navAreas": [
+          "workbench",
+          "activity",
+          "studio",
+          "settings"
+        ]
+      },
+      "text": "☰ Vessel 本地服务运行正常（版本 0.10.0） 命令 偏好设置 设置 模型设置 仅改变视图显隐；Policy 权限、能力与运行不受影响。 工作台视图 中文 关闭提示音 开启桌面通知",
+      "capturedAt": "2026-10-15T08:04:51.354Z"
+    },
+    {
+      "id": "full-workbench-zh-dark-800",
+      "file": "full-workbench-zh-dark-800.png",
+      "lang": "zh",
+      "theme": "dark",
+      "viewport": {
+        "width": 800,
+        "height": 1000
+      },
+      "area": "workbench",
+      "url": "http://127.0.0.1:32830",
+      "bytes": 40824,
+      "sha256": "00c0810fda8032d606eb0c593ccbec27580d43478579beec245aae1c80fd4068",
+      "facts": {
+        "theme": "light dark",
+        "bg": "rgb(6, 7, 13)",
+        "panelRadius": "24px",
+        "navBackdrop": "none",
+        "topbarBackdrop": "none",
+        "navBg": "rgb(13, 15, 24)",
+        "gridCols": "58px 706px",
+        "navAreas": [
+          "workbench",
+          "activity",
+          "studio",
+          "settings"
+        ]
+      },
+      "text": "☰ Vessel 本地服务运行正常（版本 0.10.0） 命令 偏好设置 项目 → 会话 → 运行 → 子代理 让 Vessel 完成什么任务？ 选择项目 打开项目目录 让 Vessel 完成什么任务？ 选择模型 opencode-go / mimo-v2.5 新会话权限（不影响当前会话） 只读探索权限 工作区读写权限 开始任务 高级新会话 配置新模型",
+      "capturedAt": "2026-10-15T08:04:53.083Z"
+    },
+    {
+      "id": "full-activity-zh-dark-800",
+      "file": "full-activity-zh-dark-800.png",
+      "lang": "zh",
+      "theme": "dark",
+      "viewport": {
+        "width": 800,
+        "height": 1000
+      },
+      "area": "activity",
+      "url": "http://127.0.0.1:32830",
+      "bytes": 86858,
+      "sha256": "81720fa27d406c9128765d99fbf758654f5ddfd8a3969f1180f2554ec1c35724",
+      "facts": {
+        "theme": "light dark",
+        "bg": "rgb(6, 7, 13)",
+        "panelRadius": "24px",
+        "navBackdrop": "none",
+        "topbarBackdrop": "none",
+        "navBg": "rgb(13, 15, 24)",
+        "gridCols": "58px 706px",
+        "navAreas": [
+          "workbench",
+          "activity",
+          "studio",
+          "settings"
+        ]
+      },
+      "text": "☰ Vessel 本地服务运行正常（版本 0.10.0） 命令 偏好设置 活动 会话活动来自服务端记录；打开会话查看运行和审批。 活动与审批队列 跨项目聚合运行中与等待授权的任务，可直接就地批准或拒绝。 重新加载模型 需要关注 · 1 需要关注 会话 Plan the refactor of 项目: C:\\Users\\SATANC~1\\AppData\\Local\\Temp\\vessel-uilanding-fixture-OPAtVt 更新于: 2026/10/15 00:25:03 会话 待授权操作: Write src/components/navigation.ts (12 lines) 批准 (Allow once) 拒绝 (Deny) 运行中 · 2 运行中 目标 Refactor the navigation module 项目: C:\\Users\\SATANC~1\\AppData\\Local\\Temp\\vessel-uilanding-fixture-OPAtVt 更新于: 2026/10/15 00:25:03 会话 运行中 目标 Survey call sites of the navigation module 项目: C:\\Users\\SATANC~1\\AppData\\Local\\Temp\\vessel-uilanding-fixture-OPAtVt 更新于: 2026/10/15 00:25:03 会话 失败 · 1 失败 目标 Verify the build and stage the diff 项目: C:\\Users\\SATANC~1\\AppData\\Local\\Temp\\vessel-uilanding-fixture-OPAtVt 更新于: 2026/10/15 00:25:03 会话 Plan the refactor of vessel-uilanding-fixture-OPAtVt · 00:25 团队任务树 展示子代理实例的父子拓扑、依赖、租约与状态，可逐节点跳转。 重新加载模型 E:/Code_file/Projects",
+      "capturedAt": "2026-10-15T08:04:55.512Z"
+    },
+    {
+      "id": "full-studio-zh-dark-800",
+      "file": "full-studio-zh-dark-800.png",
+      "lang": "zh",
+      "theme": "dark",
+      "viewport": {
+        "width": 800,
+        "height": 1000
+      },
+      "area": "studio",
+      "url": "http://127.0.0.1:32830",
+      "bytes": 125590,
+      "sha256": "c556188f617e69c645e1d5854a8941613b559f4883f4b98506ed62a3b5704477",
+      "facts": {
+        "theme": "light dark",
+        "bg": "rgb(6, 7, 13)",
+        "panelRadius": "24px",
+        "navBackdrop": "none",
+        "topbarBackdrop": "none",
+        "navBg": "rgb(13, 15, 24)",
+        "gridCols": "58px 706px",
+        "navAreas": [
+          "workbench",
+          "activity",
+          "studio",
+          "settings"
+        ]
+      },
+      "text": "☰ Vessel 本地服务运行正常（版本 0.10.0） 命令 偏好设置 Agent Studio 只读检查实际生效的行为、策略映射与编译来源。 Agent Studio 组合器 组合行为规则、调整优先级、检测冲突，并在激活前校验一致性。 行为库 loop.turn_ends_without_tool_call prompt_guidance 纯文本回复即停止；不要在无需工具时强行调用工具。 加入 retry.exponential_backoff prompt_guidance 重试要有退避：同一操作连续失败时先读报错改方式；确需重试则加大间隔或改变参数，不原样反复重发；达到上限带证据上报或换方案。 加入 planning.plan_before_execute prompt_guidance 复杂、多步或有破坏性的任务先给出计划（目标→步骤→验证方式）再动手；执行中发现与计划冲突的新证据时先更新计划再继续。 加入 safety.protected_paths runtime_policy 不要改写受保护路径（.git/.env/.ssh 等）；该约束由策略引擎硬执法。 加入 safety.dangerous_shell runtime_policy 删除/格式化等破坏性命令会被策略引擎拦截；先说明原因与范围。 加入 safety.secret_handling runtime_policy 凭据与密钥不写入文件、不落日志、不外发；凭据类文件读取由策略引擎硬拦截，需要密文时走环境注入。 加入 verification.independent_evaluator prompt_guidance 以检查结果（测试/命令输出）作为完成依据，不自证完成。 加入 verification.honest_failure prompt_guidance 拿不到真实验证结果（测试跑不了、环境不可用、数据取不到）就如实上报并说明阻塞，不用假输出或推测冒充结论。 加入 context.rules_in_files prompt_guidance 需要长期成立的规则与项目事实写入项目指令文",
+      "capturedAt": "2026-10-15T08:04:58.133Z"
+    },
+    {
+      "id": "full-settings-zh-dark-800",
+      "file": "full-settings-zh-dark-800.png",
+      "lang": "zh",
+      "theme": "dark",
+      "viewport": {
+        "width": 800,
+        "height": 1000
+      },
+      "area": "settings",
+      "url": "http://127.0.0.1:32830",
+      "bytes": 35014,
+      "sha256": "36efa92b1a3e874ffd2481cc8ad61c15a2dcbe6133d2c548d8424ef96563ef42",
+      "facts": {
+        "theme": "light dark",
+        "bg": "rgb(6, 7, 13)",
+        "panelRadius": "24px",
+        "navBackdrop": "none",
+        "topbarBackdrop": "none",
+        "navBg": "rgb(13, 15, 24)",
+        "gridCols": "58px 706px",
+        "navAreas": [
+          "workbench",
+          "activity",
+          "studio",
+          "settings"
+        ]
+      },
+      "text": "☰ Vessel 本地服务运行正常（版本 0.10.0） 命令 偏好设置 设置 模型设置 仅改变视图显隐；Policy 权限、能力与运行不受影响。 工作台视图 中文 关闭提示音 开启桌面通知",
+      "capturedAt": "2026-10-15T08:05:00.712Z"
+    },
+    {
+      "id": "full-workbench-en-light-desktop",
+      "file": "full-workbench-en-light-desktop.png",
+      "lang": "en",
+      "theme": "light",
+      "viewport": {
+        "width": 1440,
+        "height": 1000
+      },
+      "area": "workbench",
+      "url": "http://127.0.0.1:32830",
+      "bytes": 66668,
+      "sha256": "08b1dd3df0d80a1cc507100137b365b43a226bd9fd009d79ecfbdeeef2265cd1",
+      "facts": {
+        "theme": "light dark",
+        "bg": "rgb(228, 232, 243)",
+        "panelRadius": "24px",
+        "navBackdrop": "none",
+        "topbarBackdrop": "none",
+        "navBg": "rgb(255, 255, 255)",
+        "gridCols": "58px 232px 1102px",
+        "navAreas": [
+          "workbench",
+          "activity",
+          "studio",
+          "settings"
+        ]
+      },
+      "text": "Vessel local server ok (v0.10.0) Commands Preferences Project → Session → Run → Subagent What should Vessel work on? Choose project Open project directory What should Vessel work on? Select model opencode-go / mimo-v2.5 New session permission (current session unchanged) Read-only Workspace write Start task Advanced session Configure new model",
+      "capturedAt": "2026-10-15T08:05:02.417Z"
+    },
+    {
+      "id": "full-activity-en-light-desktop",
+      "file": "full-activity-en-light-desktop.png",
+      "lang": "en",
+      "theme": "light",
+      "viewport": {
+        "width": 1440,
+        "height": 1000
+      },
+      "area": "activity",
+      "url": "http://127.0.0.1:32830",
+      "bytes": 112393,
+      "sha256": "271e92d004d0114bbf810807d7e73611b11d741d4037afcb46f2acd3d12f9c6a",
+      "facts": {
+        "theme": "light dark",
+        "bg": "rgb(228, 232, 243)",
+        "panelRadius": "24px",
+        "navBackdrop": "none",
+        "topbarBackdrop": "none",
+        "navBg": "rgb(255, 255, 255)",
+        "gridCols": "58px 232px 1102px",
+        "navAreas": [
+          "workbench",
+          "activity",
+          "studio",
+          "settings"
+        ]
+      },
+      "text": "Vessel local server ok (v0.10.0) Commands Preferences Activity Session activity comes from server records. Open a session to inspect runs and approvals. Activity & approval queue Active and WAITING_APPROVAL work aggregated across projects, with inline approval. Retry model catalog Needs attention · 1 Needs attention Session Plan the refactor of Project: C:\\Users\\SATANC~1\\AppData\\Local\\Temp\\vessel-uilanding-fixture-OPAtVt Updated: 2026/10/15 00:25:03 Session Awaiting approval: Write src/components/navigation.ts (12 lines) Approve (Allow once) Deny (Deny) Running · 2 Running Goal Refactor the navigation module Project: C:\\Users\\SATANC~1\\AppData\\Local\\Temp\\vessel-uilanding-fixture-OPAtVt Updated: 2026/10/15 00:25:03 Session Running Goal Survey call sites of the navigation module Project: C:\\Users\\SATANC~1\\AppData\\Local\\Temp\\vessel-uilanding-fixture-OPAtVt Updated: 2026/10/15 00:25:03 Sessio",
+      "capturedAt": "2026-10-15T08:05:04.973Z"
+    },
+    {
+      "id": "full-studio-en-light-desktop",
+      "file": "full-studio-en-light-desktop.png",
+      "lang": "en",
+      "theme": "light",
+      "viewport": {
+        "width": 1440,
+        "height": 1000
+      },
+      "area": "studio",
+      "url": "http://127.0.0.1:32830",
+      "bytes": 172893,
+      "sha256": "c61a39a213bf63af3bee9a9b738f071f09a46b776fe23f32ec0608e07253e32c",
+      "facts": {
+        "theme": "light dark",
+        "bg": "rgb(228, 232, 243)",
+        "panelRadius": "24px",
+        "navBackdrop": "none",
+        "topbarBackdrop": "none",
+        "navBg": "rgb(255, 255, 255)",
+        "gridCols": "58px 232px 1102px",
+        "navAreas": [
+          "workbench",
+          "activity",
+          "studio",
+          "settings"
+        ]
+      },
+      "text": "Vessel local server ok (v0.10.0) Commands Preferences Agent Studio Read-only inspection of effective behavior, policy mappings and compilation sources. Agent Studio composer Compose behavior rules, reorder priorities, detect conflicts and verify conformance before activation. Behavior library loop.turn_ends_without_tool_call prompt_guidance 纯文本回复即停止；不要在无需工具时强行调用工具。 Add retry.exponential_backoff prompt_guidance 重试要有退避：同一操作连续失败时先读报错改方式；确需重试则加大间隔或改变参数，不原样反复重发；达到上限带证据上报或换方案。 Add planning.plan_before_execute prompt_guidance 复杂、多步或有破坏性的任务先给出计划（目标→步骤→验证方式）再动手；执行中发现与计划冲突的新证据时先更新计划再继续。 Add safety.protected_paths runtime_policy 不要改写受保护路径（.git/.env/.ssh 等）；该约束由策略引擎硬执法。 Add safety.dangerous_shell runtime_policy 删除/格式化等破坏性命令会被策略引擎拦截；先说明原因与范围。 Add safety.secret_handling runtime_policy 凭据与密钥不写入文件、不落日志、不外发；凭据类文件读取由策略引擎硬拦截，需要密文时走环境注入。 Add verification.independent_evaluator prompt_guidance 以检查结果（测试/命令输出）作",
+      "capturedAt": "2026-10-15T08:05:07.558Z"
+    },
+    {
+      "id": "full-settings-en-light-desktop",
+      "file": "full-settings-en-light-desktop.png",
+      "lang": "en",
+      "theme": "light",
+      "viewport": {
+        "width": 1440,
+        "height": 1000
+      },
+      "area": "settings",
+      "url": "http://127.0.0.1:32830",
+      "bytes": 59784,
+      "sha256": "8b23bb76574bd3597c6e4a1b5efbced2022d87f88c31986970f39e45d660dcbe",
+      "facts": {
+        "theme": "light dark",
+        "bg": "rgb(228, 232, 243)",
+        "panelRadius": "24px",
+        "navBackdrop": "none",
+        "topbarBackdrop": "none",
+        "navBg": "rgb(255, 255, 255)",
+        "gridCols": "58px 232px 1102px",
+        "navAreas": [
+          "workbench",
+          "activity",
+          "studio",
+          "settings"
+        ]
+      },
+      "text": "Vessel local server ok (v0.10.0) Commands Preferences Settings Model settings Visibility only. Policy permissions, capabilities and runs remain unchanged. Layout English Mute cues Enable notifications",
+      "capturedAt": "2026-10-15T08:05:09.957Z"
+    },
+    {
+      "id": "full-workbench-en-light-1366",
+      "file": "full-workbench-en-light-1366.png",
+      "lang": "en",
+      "theme": "light",
+      "viewport": {
+        "width": 1366,
+        "height": 900
+      },
+      "area": "workbench",
+      "url": "http://127.0.0.1:32830",
+      "bytes": 63799,
+      "sha256": "3b645b37e6c97899c1c36aa5405baac8af8ddd011ca1a326c693a59649534cfe",
+      "facts": {
+        "theme": "light dark",
+        "bg": "rgb(228, 232, 243)",
+        "panelRadius": "24px",
+        "navBackdrop": "none",
+        "topbarBackdrop": "none",
+        "navBg": "rgb(255, 255, 255)",
+        "gridCols": "58px 232px 1028px",
+        "navAreas": [
+          "workbench",
+          "activity",
+          "studio",
+          "settings"
+        ]
+      },
+      "text": "Vessel local server ok (v0.10.0) Commands Preferences Project → Session → Run → Subagent What should Vessel work on? Choose project Open project directory What should Vessel work on? Select model opencode-go / mimo-v2.5 New session permission (current session unchanged) Read-only Workspace write Start task Advanced session Configure new model",
+      "capturedAt": "2026-10-15T08:05:11.662Z"
+    },
+    {
+      "id": "full-activity-en-light-1366",
+      "file": "full-activity-en-light-1366.png",
+      "lang": "en",
+      "theme": "light",
+      "viewport": {
+        "width": 1366,
+        "height": 900
+      },
+      "area": "activity",
+      "url": "http://127.0.0.1:32830",
+      "bytes": 115354,
+      "sha256": "b8c2b525af0649fb28462b262ab31323747312eea6eeab3345bbcafe7820ec4e",
+      "facts": {
+        "theme": "light dark",
+        "bg": "rgb(228, 232, 243)",
+        "panelRadius": "24px",
+        "navBackdrop": "none",
+        "topbarBackdrop": "none",
+        "navBg": "rgb(255, 255, 255)",
+        "gridCols": "58px 232px 1028px",
+        "navAreas": [
+          "workbench",
+          "activity",
+          "studio",
+          "settings"
+        ]
+      },
+      "text": "Vessel local server ok (v0.10.0) Commands Preferences Activity Session activity comes from server records. Open a session to inspect runs and approvals. Activity & approval queue Active and WAITING_APPROVAL work aggregated across projects, with inline approval. Retry model catalog Needs attention · 1 Needs attention Session Plan the refactor of Project: C:\\Users\\SATANC~1\\AppData\\Local\\Temp\\vessel-uilanding-fixture-OPAtVt Updated: 2026/10/15 00:25:03 Session Awaiting approval: Write src/components/navigation.ts (12 lines) Approve (Allow once) Deny (Deny) Running · 2 Running Goal Refactor the navigation module Project: C:\\Users\\SATANC~1\\AppData\\Local\\Temp\\vessel-uilanding-fixture-OPAtVt Updated: 2026/10/15 00:25:03 Session Running Goal Survey call sites of the navigation module Project: C:\\Users\\SATANC~1\\AppData\\Local\\Temp\\vessel-uilanding-fixture-OPAtVt Updated: 2026/10/15 00:25:03 Sessio",
+      "capturedAt": "2026-10-15T08:05:14.248Z"
+    },
+    {
+      "id": "full-studio-en-light-1366",
+      "file": "full-studio-en-light-1366.png",
+      "lang": "en",
+      "theme": "light",
+      "viewport": {
+        "width": 1366,
+        "height": 900
+      },
+      "area": "studio",
+      "url": "http://127.0.0.1:32830",
+      "bytes": 167926,
+      "sha256": "6b7200ddb96ffcbb83a4617c78dc2c7b664ce58bf3a4cb97a1e9d8e4569fb70d",
+      "facts": {
+        "theme": "light dark",
+        "bg": "rgb(228, 232, 243)",
+        "panelRadius": "24px",
+        "navBackdrop": "none",
+        "topbarBackdrop": "none",
+        "navBg": "rgb(255, 255, 255)",
+        "gridCols": "58px 232px 1028px",
+        "navAreas": [
+          "workbench",
+          "activity",
+          "studio",
+          "settings"
+        ]
+      },
+      "text": "Vessel local server ok (v0.10.0) Commands Preferences Agent Studio Read-only inspection of effective behavior, policy mappings and compilation sources. Agent Studio composer Compose behavior rules, reorder priorities, detect conflicts and verify conformance before activation. Behavior library loop.turn_ends_without_tool_call prompt_guidance 纯文本回复即停止；不要在无需工具时强行调用工具。 Add retry.exponential_backoff prompt_guidance 重试要有退避：同一操作连续失败时先读报错改方式；确需重试则加大间隔或改变参数，不原样反复重发；达到上限带证据上报或换方案。 Add planning.plan_before_execute prompt_guidance 复杂、多步或有破坏性的任务先给出计划（目标→步骤→验证方式）再动手；执行中发现与计划冲突的新证据时先更新计划再继续。 Add safety.protected_paths runtime_policy 不要改写受保护路径（.git/.env/.ssh 等）；该约束由策略引擎硬执法。 Add safety.dangerous_shell runtime_policy 删除/格式化等破坏性命令会被策略引擎拦截；先说明原因与范围。 Add safety.secret_handling runtime_policy 凭据与密钥不写入文件、不落日志、不外发；凭据类文件读取由策略引擎硬拦截，需要密文时走环境注入。 Add verification.independent_evaluator prompt_guidance 以检查结果（测试/命令输出）作",
+      "capturedAt": "2026-10-15T08:05:16.946Z"
+    },
+    {
+      "id": "full-settings-en-light-1366",
+      "file": "full-settings-en-light-1366.png",
+      "lang": "en",
+      "theme": "light",
+      "viewport": {
+        "width": 1366,
+        "height": 900
+      },
+      "area": "settings",
+      "url": "http://127.0.0.1:32830",
+      "bytes": 57081,
+      "sha256": "68d2823ff830e6f2abf7b58647729597c2d971a541fa3dccd63b12ad0f55d3ea",
+      "facts": {
+        "theme": "light dark",
+        "bg": "rgb(228, 232, 243)",
+        "panelRadius": "24px",
+        "navBackdrop": "none",
+        "topbarBackdrop": "none",
+        "navBg": "rgb(255, 255, 255)",
+        "gridCols": "58px 232px 1028px",
+        "navAreas": [
+          "workbench",
+          "activity",
+          "studio",
+          "settings"
+        ]
+      },
+      "text": "Vessel local server ok (v0.10.0) Commands Preferences Settings Model settings Visibility only. Policy permissions, capabilities and runs remain unchanged. Layout English Mute cues Enable notifications",
+      "capturedAt": "2026-10-15T08:05:19.532Z"
+    },
+    {
+      "id": "full-workbench-en-light-1023",
+      "file": "full-workbench-en-light-1023.png",
+      "lang": "en",
+      "theme": "light",
+      "viewport": {
+        "width": 1023,
+        "height": 900
+      },
+      "area": "workbench",
+      "url": "http://127.0.0.1:32830",
+      "bytes": 47434,
+      "sha256": "c6d70b75781e5100c6ee9a10cac0f50642cffed02b907c6bb0510e728a9fc01b",
+      "facts": {
+        "theme": "light dark",
+        "bg": "rgb(228, 232, 243)",
+        "panelRadius": "24px",
+        "navBackdrop": "none",
+        "topbarBackdrop": "none",
+        "navBg": "rgb(255, 255, 255)",
+        "gridCols": "58px 929px",
+        "navAreas": [
+          "workbench",
+          "activity",
+          "studio",
+          "settings"
+        ]
+      },
+      "text": "☰ Vessel local server ok (v0.10.0) Commands Preferences Project → Session → Run → Subagent What should Vessel work on? Choose project Open project directory What should Vessel work on? Select model opencode-go / mimo-v2.5 New session permission (current session unchanged) Read-only Workspace write Start task Advanced session Configure new model",
+      "capturedAt": "2026-10-15T08:05:21.343Z"
+    },
+    {
+      "id": "full-activity-en-light-1023",
+      "file": "full-activity-en-light-1023.png",
+      "lang": "en",
+      "theme": "light",
+      "viewport": {
+        "width": 1023,
+        "height": 900
+      },
+      "area": "activity",
+      "url": "http://127.0.0.1:32830",
+      "bytes": 93763,
+      "sha256": "c4eee8b1750cf0c69e2f443091a61519525449c62aa6e4600b15da5b03f1d0a6",
+      "facts": {
+        "theme": "light dark",
+        "bg": "rgb(228, 232, 243)",
+        "panelRadius": "24px",
+        "navBackdrop": "none",
+        "topbarBackdrop": "none",
+        "navBg": "rgb(255, 255, 255)",
+        "gridCols": "58px 929px",
+        "navAreas": [
+          "workbench",
+          "activity",
+          "studio",
+          "settings"
+        ]
+      },
+      "text": "☰ Vessel local server ok (v0.10.0) Commands Preferences Activity Session activity comes from server records. Open a session to inspect runs and approvals. Activity & approval queue Active and WAITING_APPROVAL work aggregated across projects, with inline approval. Retry model catalog Needs attention · 1 Needs attention Session Plan the refactor of Project: C:\\Users\\SATANC~1\\AppData\\Local\\Temp\\vessel-uilanding-fixture-OPAtVt Updated: 2026/10/15 00:25:03 Session Awaiting approval: Write src/components/navigation.ts (12 lines) Approve (Allow once) Deny (Deny) Running · 2 Running Goal Refactor the navigation module Project: C:\\Users\\SATANC~1\\AppData\\Local\\Temp\\vessel-uilanding-fixture-OPAtVt Updated: 2026/10/15 00:25:03 Session Running Goal Survey call sites of the navigation module Project: C:\\Users\\SATANC~1\\AppData\\Local\\Temp\\vessel-uilanding-fixture-OPAtVt Updated: 2026/10/15 00:25:03 Sess",
+      "capturedAt": "2026-10-15T08:05:23.915Z"
+    },
+    {
+      "id": "full-studio-en-light-1023",
+      "file": "full-studio-en-light-1023.png",
+      "lang": "en",
+      "theme": "light",
+      "viewport": {
+        "width": 1023,
+        "height": 900
+      },
+      "area": "studio",
+      "url": "http://127.0.0.1:32830",
+      "bytes": 143385,
+      "sha256": "1741150f643b6a2c512e393c7416f6ebb5dbe851abbe1770e4a921735004972f",
+      "facts": {
+        "theme": "light dark",
+        "bg": "rgb(228, 232, 243)",
+        "panelRadius": "24px",
+        "navBackdrop": "none",
+        "topbarBackdrop": "none",
+        "navBg": "rgb(255, 255, 255)",
+        "gridCols": "58px 929px",
+        "navAreas": [
+          "workbench",
+          "activity",
+          "studio",
+          "settings"
+        ]
+      },
+      "text": "☰ Vessel local server ok (v0.10.0) Commands Preferences Agent Studio Read-only inspection of effective behavior, policy mappings and compilation sources. Agent Studio composer Compose behavior rules, reorder priorities, detect conflicts and verify conformance before activation. Behavior library loop.turn_ends_without_tool_call prompt_guidance 纯文本回复即停止；不要在无需工具时强行调用工具。 Add retry.exponential_backoff prompt_guidance 重试要有退避：同一操作连续失败时先读报错改方式；确需重试则加大间隔或改变参数，不原样反复重发；达到上限带证据上报或换方案。 Add planning.plan_before_execute prompt_guidance 复杂、多步或有破坏性的任务先给出计划（目标→步骤→验证方式）再动手；执行中发现与计划冲突的新证据时先更新计划再继续。 Add safety.protected_paths runtime_policy 不要改写受保护路径（.git/.env/.ssh 等）；该约束由策略引擎硬执法。 Add safety.dangerous_shell runtime_policy 删除/格式化等破坏性命令会被策略引擎拦截；先说明原因与范围。 Add safety.secret_handling runtime_policy 凭据与密钥不写入文件、不落日志、不外发；凭据类文件读取由策略引擎硬拦截，需要密文时走环境注入。 Add verification.independent_evaluator prompt_guidance 以检查结果（测试/命令输出",
+      "capturedAt": "2026-10-15T08:05:26.540Z"
+    },
+    {
+      "id": "full-settings-en-light-1023",
+      "file": "full-settings-en-light-1023.png",
+      "lang": "en",
+      "theme": "light",
+      "viewport": {
+        "width": 1023,
+        "height": 900
+      },
+      "area": "settings",
+      "url": "http://127.0.0.1:32830",
+      "bytes": 40808,
+      "sha256": "1dd4854f356ff95f2d11842c14140c02927addfc891a55cec33c86511d184bbd",
+      "facts": {
+        "theme": "light dark",
+        "bg": "rgb(228, 232, 243)",
+        "panelRadius": "24px",
+        "navBackdrop": "none",
+        "topbarBackdrop": "none",
+        "navBg": "rgb(255, 255, 255)",
+        "gridCols": "58px 929px",
+        "navAreas": [
+          "workbench",
+          "activity",
+          "studio",
+          "settings"
+        ]
+      },
+      "text": "☰ Vessel local server ok (v0.10.0) Commands Preferences Settings Model settings Visibility only. Policy permissions, capabilities and runs remain unchanged. Layout English Mute cues Enable notifications",
+      "capturedAt": "2026-10-15T08:05:28.920Z"
+    },
+    {
+      "id": "full-workbench-en-light-800",
+      "file": "full-workbench-en-light-800.png",
+      "lang": "en",
+      "theme": "light",
+      "viewport": {
+        "width": 800,
+        "height": 1000
+      },
+      "area": "workbench",
+      "url": "http://127.0.0.1:32830",
+      "bytes": 46358,
+      "sha256": "f3984bbd417667341aa8aa16c032952917f7a2e5e64872d7235f6d4bfa062907",
+      "facts": {
+        "theme": "light dark",
+        "bg": "rgb(228, 232, 243)",
+        "panelRadius": "24px",
+        "navBackdrop": "none",
+        "topbarBackdrop": "none",
+        "navBg": "rgb(255, 255, 255)",
+        "gridCols": "58px 706px",
+        "navAreas": [
+          "workbench",
+          "activity",
+          "studio",
+          "settings"
+        ]
+      },
+      "text": "☰ Vessel local server ok (v0.10.0) Commands Preferences Project → Session → Run → Subagent What should Vessel work on? Choose project Open project directory What should Vessel work on? Select model opencode-go / mimo-v2.5 New session permission (current session unchanged) Read-only Workspace write Start task Advanced session Configure new model",
+      "capturedAt": "2026-10-15T08:05:30.649Z"
+    },
+    {
+      "id": "full-activity-en-light-800",
+      "file": "full-activity-en-light-800.png",
+      "lang": "en",
+      "theme": "light",
+      "viewport": {
+        "width": 800,
+        "height": 1000
+      },
+      "area": "activity",
+      "url": "http://127.0.0.1:32830",
+      "bytes": 96897,
+      "sha256": "67b25d4f86ee94b9d9ab63a752194cd780a9bfbde0ccba2af2081b9b2f3d51f9",
+      "facts": {
+        "theme": "light dark",
+        "bg": "rgb(228, 232, 243)",
+        "panelRadius": "24px",
+        "navBackdrop": "none",
+        "topbarBackdrop": "none",
+        "navBg": "rgb(255, 255, 255)",
+        "gridCols": "58px 706px",
+        "navAreas": [
+          "workbench",
+          "activity",
+          "studio",
+          "settings"
+        ]
+      },
+      "text": "☰ Vessel local server ok (v0.10.0) Commands Preferences Activity Session activity comes from server records. Open a session to inspect runs and approvals. Activity & approval queue Active and WAITING_APPROVAL work aggregated across projects, with inline approval. Retry model catalog Needs attention · 1 Needs attention Session Plan the refactor of Project: C:\\Users\\SATANC~1\\AppData\\Local\\Temp\\vessel-uilanding-fixture-OPAtVt Updated: 2026/10/15 00:25:03 Session Awaiting approval: Write src/components/navigation.ts (12 lines) Approve (Allow once) Deny (Deny) Running · 2 Running Goal Refactor the navigation module Project: C:\\Users\\SATANC~1\\AppData\\Local\\Temp\\vessel-uilanding-fixture-OPAtVt Updated: 2026/10/15 00:25:03 Session Running Goal Survey call sites of the navigation module Project: C:\\Users\\SATANC~1\\AppData\\Local\\Temp\\vessel-uilanding-fixture-OPAtVt Updated: 2026/10/15 00:25:03 Sess",
+      "capturedAt": "2026-10-15T08:05:33.133Z"
+    },
+    {
+      "id": "full-studio-en-light-800",
+      "file": "full-studio-en-light-800.png",
+      "lang": "en",
+      "theme": "light",
+      "viewport": {
+        "width": 800,
+        "height": 1000
+      },
+      "area": "studio",
+      "url": "http://127.0.0.1:32830",
+      "bytes": 135741,
+      "sha256": "612575671088ca8aca60bbb515c298248e9de0d0c29c0c9641f5d02edcd52d67",
+      "facts": {
+        "theme": "light dark",
+        "bg": "rgb(228, 232, 243)",
+        "panelRadius": "24px",
+        "navBackdrop": "none",
+        "topbarBackdrop": "none",
+        "navBg": "rgb(255, 255, 255)",
+        "gridCols": "58px 706px",
+        "navAreas": [
+          "workbench",
+          "activity",
+          "studio",
+          "settings"
+        ]
+      },
+      "text": "☰ Vessel local server ok (v0.10.0) Commands Preferences Agent Studio Read-only inspection of effective behavior, policy mappings and compilation sources. Agent Studio composer Compose behavior rules, reorder priorities, detect conflicts and verify conformance before activation. Behavior library loop.turn_ends_without_tool_call prompt_guidance 纯文本回复即停止；不要在无需工具时强行调用工具。 Add retry.exponential_backoff prompt_guidance 重试要有退避：同一操作连续失败时先读报错改方式；确需重试则加大间隔或改变参数，不原样反复重发；达到上限带证据上报或换方案。 Add planning.plan_before_execute prompt_guidance 复杂、多步或有破坏性的任务先给出计划（目标→步骤→验证方式）再动手；执行中发现与计划冲突的新证据时先更新计划再继续。 Add safety.protected_paths runtime_policy 不要改写受保护路径（.git/.env/.ssh 等）；该约束由策略引擎硬执法。 Add safety.dangerous_shell runtime_policy 删除/格式化等破坏性命令会被策略引擎拦截；先说明原因与范围。 Add safety.secret_handling runtime_policy 凭据与密钥不写入文件、不落日志、不外发；凭据类文件读取由策略引擎硬拦截，需要密文时走环境注入。 Add verification.independent_evaluator prompt_guidance 以检查结果（测试/命令输出",
+      "capturedAt": "2026-10-15T08:05:35.587Z"
+    },
+    {
+      "id": "full-settings-en-light-800",
+      "file": "full-settings-en-light-800.png",
+      "lang": "en",
+      "theme": "light",
+      "viewport": {
+        "width": 800,
+        "height": 1000
+      },
+      "area": "settings",
+      "url": "http://127.0.0.1:32830",
+      "bytes": 39374,
+      "sha256": "de161db98b914283b29fd65c42ee31a489dbecc65772dd10f3fa355e7c2f9077",
+      "facts": {
+        "theme": "light dark",
+        "bg": "rgb(228, 232, 243)",
+        "panelRadius": "24px",
+        "navBackdrop": "none",
+        "topbarBackdrop": "none",
+        "navBg": "rgb(255, 255, 255)",
+        "gridCols": "58px 706px",
+        "navAreas": [
+          "workbench",
+          "activity",
+          "studio",
+          "settings"
+        ]
+      },
+      "text": "☰ Vessel local server ok (v0.10.0) Commands Preferences Settings Model settings Visibility only. Policy permissions, capabilities and runs remain unchanged. Layout English Mute cues Enable notifications",
+      "capturedAt": "2026-10-15T08:05:37.946Z"
+    },
+    {
+      "id": "full-workbench-en-dark-desktop",
+      "file": "full-workbench-en-dark-desktop.png",
+      "lang": "en",
+      "theme": "dark",
+      "viewport": {
+        "width": 1440,
+        "height": 1000
+      },
+      "area": "workbench",
+      "url": "http://127.0.0.1:32830",
+      "bytes": 56647,
+      "sha256": "f4cfa79dde66d8a4e89677b7b32743e18586ca164ad9733d639daea5f2470068",
+      "facts": {
+        "theme": "light dark",
+        "bg": "rgb(6, 7, 13)",
+        "panelRadius": "24px",
+        "navBackdrop": "none",
+        "topbarBackdrop": "none",
+        "navBg": "rgb(13, 15, 24)",
+        "gridCols": "58px 232px 1102px",
+        "navAreas": [
+          "workbench",
+          "activity",
+          "studio",
+          "settings"
+        ]
+      },
+      "text": "Vessel local server ok (v0.10.0) Commands Preferences Project → Session → Run → Subagent What should Vessel work on? Choose project Open project directory What should Vessel work on? Select model opencode-go / mimo-v2.5 New session permission (current session unchanged) Read-only Workspace write Start task Advanced session Configure new model",
+      "capturedAt": "2026-10-15T08:05:39.723Z"
+    },
+    {
+      "id": "full-activity-en-dark-desktop",
+      "file": "full-activity-en-dark-desktop.png",
+      "lang": "en",
+      "theme": "dark",
+      "viewport": {
+        "width": 1440,
+        "height": 1000
+      },
+      "area": "activity",
+      "url": "http://127.0.0.1:32830",
+      "bytes": 96990,
+      "sha256": "b7f1781a9966b9499e46df63a4ca925b890580dd422b42a3fdc4fee40d96dec4",
+      "facts": {
+        "theme": "light dark",
+        "bg": "rgb(6, 7, 13)",
+        "panelRadius": "24px",
+        "navBackdrop": "none",
+        "topbarBackdrop": "none",
+        "navBg": "rgb(13, 15, 24)",
+        "gridCols": "58px 232px 1102px",
+        "navAreas": [
+          "workbench",
+          "activity",
+          "studio",
+          "settings"
+        ]
+      },
+      "text": "Vessel local server ok (v0.10.0) Commands Preferences Activity Session activity comes from server records. Open a session to inspect runs and approvals. Activity & approval queue Active and WAITING_APPROVAL work aggregated across projects, with inline approval. Retry model catalog Needs attention · 1 Needs attention Session Plan the refactor of Project: C:\\Users\\SATANC~1\\AppData\\Local\\Temp\\vessel-uilanding-fixture-OPAtVt Updated: 2026/10/15 00:25:03 Session Awaiting approval: Write src/components/navigation.ts (12 lines) Approve (Allow once) Deny (Deny) Running · 2 Running Goal Refactor the navigation module Project: C:\\Users\\SATANC~1\\AppData\\Local\\Temp\\vessel-uilanding-fixture-OPAtVt Updated: 2026/10/15 00:25:03 Session Running Goal Survey call sites of the navigation module Project: C:\\Users\\SATANC~1\\AppData\\Local\\Temp\\vessel-uilanding-fixture-OPAtVt Updated: 2026/10/15 00:25:03 Sessio",
+      "capturedAt": "2026-10-15T08:05:42.349Z"
+    },
+    {
+      "id": "full-studio-en-dark-desktop",
+      "file": "full-studio-en-dark-desktop.png",
+      "lang": "en",
+      "theme": "dark",
+      "viewport": {
+        "width": 1440,
+        "height": 1000
+      },
+      "area": "studio",
+      "url": "http://127.0.0.1:32830",
+      "bytes": 154303,
+      "sha256": "5e00f1ede351cfb50378795dfc45d09a3017aa79f276f6cfa6ed1b5d195c0eaa",
+      "facts": {
+        "theme": "light dark",
+        "bg": "rgb(6, 7, 13)",
+        "panelRadius": "24px",
+        "navBackdrop": "none",
+        "topbarBackdrop": "none",
+        "navBg": "rgb(13, 15, 24)",
+        "gridCols": "58px 232px 1102px",
+        "navAreas": [
+          "workbench",
+          "activity",
+          "studio",
+          "settings"
+        ]
+      },
+      "text": "Vessel local server ok (v0.10.0) Commands Preferences Agent Studio Read-only inspection of effective behavior, policy mappings and compilation sources. Agent Studio composer Compose behavior rules, reorder priorities, detect conflicts and verify conformance before activation. Behavior library loop.turn_ends_without_tool_call prompt_guidance 纯文本回复即停止；不要在无需工具时强行调用工具。 Add retry.exponential_backoff prompt_guidance 重试要有退避：同一操作连续失败时先读报错改方式；确需重试则加大间隔或改变参数，不原样反复重发；达到上限带证据上报或换方案。 Add planning.plan_before_execute prompt_guidance 复杂、多步或有破坏性的任务先给出计划（目标→步骤→验证方式）再动手；执行中发现与计划冲突的新证据时先更新计划再继续。 Add safety.protected_paths runtime_policy 不要改写受保护路径（.git/.env/.ssh 等）；该约束由策略引擎硬执法。 Add safety.dangerous_shell runtime_policy 删除/格式化等破坏性命令会被策略引擎拦截；先说明原因与范围。 Add safety.secret_handling runtime_policy 凭据与密钥不写入文件、不落日志、不外发；凭据类文件读取由策略引擎硬拦截，需要密文时走环境注入。 Add verification.independent_evaluator prompt_guidance 以检查结果（测试/命令输出）作",
+      "capturedAt": "2026-10-15T08:05:44.964Z"
+    },
+    {
+      "id": "full-settings-en-dark-desktop",
+      "file": "full-settings-en-dark-desktop.png",
+      "lang": "en",
+      "theme": "dark",
+      "viewport": {
+        "width": 1440,
+        "height": 1000
+      },
+      "area": "settings",
+      "url": "http://127.0.0.1:32830",
+      "bytes": 50572,
+      "sha256": "562f30c86c762af0cacc4a0db7b8ee3d31f031fadccf9ad08e20fb83ac2e3600",
+      "facts": {
+        "theme": "light dark",
+        "bg": "rgb(6, 7, 13)",
+        "panelRadius": "24px",
+        "navBackdrop": "none",
+        "topbarBackdrop": "none",
+        "navBg": "rgb(13, 15, 24)",
+        "gridCols": "58px 232px 1102px",
+        "navAreas": [
+          "workbench",
+          "activity",
+          "studio",
+          "settings"
+        ]
+      },
+      "text": "Vessel local server ok (v0.10.0) Commands Preferences Settings Model settings Visibility only. Policy permissions, capabilities and runs remain unchanged. Layout English Mute cues Enable notifications",
+      "capturedAt": "2026-10-15T08:05:47.616Z"
+    },
+    {
+      "id": "full-workbench-en-dark-1366",
+      "file": "full-workbench-en-dark-1366.png",
+      "lang": "en",
+      "theme": "dark",
+      "viewport": {
+        "width": 1366,
+        "height": 900
+      },
+      "area": "workbench",
+      "url": "http://127.0.0.1:32830",
+      "bytes": 54317,
+      "sha256": "f507a96897fcdc21b98614b60ac23b04d0749ec86d8b8b376b018bd9ec9b6fc7",
+      "facts": {
+        "theme": "light dark",
+        "bg": "rgb(6, 7, 13)",
+        "panelRadius": "24px",
+        "navBackdrop": "none",
+        "topbarBackdrop": "none",
+        "navBg": "rgb(13, 15, 24)",
+        "gridCols": "58px 232px 1028px",
+        "navAreas": [
+          "workbench",
+          "activity",
+          "studio",
+          "settings"
+        ]
+      },
+      "text": "Vessel local server ok (v0.10.0) Commands Preferences Project → Session → Run → Subagent What should Vessel work on? Choose project Open project directory What should Vessel work on? Select model opencode-go / mimo-v2.5 New session permission (current session unchanged) Read-only Workspace write Start task Advanced session Configure new model",
+      "capturedAt": "2026-10-15T08:05:49.301Z"
+    },
+    {
+      "id": "full-activity-en-dark-1366",
+      "file": "full-activity-en-dark-1366.png",
+      "lang": "en",
+      "theme": "dark",
+      "viewport": {
+        "width": 1366,
+        "height": 900
+      },
+      "area": "activity",
+      "url": "http://127.0.0.1:32830",
+      "bytes": 98280,
+      "sha256": "e1dc52684361151244b549f5ea52d4d4c8dfbb5c744954be6f2165b9a2cac372",
+      "facts": {
+        "theme": "light dark",
+        "bg": "rgb(6, 7, 13)",
+        "panelRadius": "24px",
+        "navBackdrop": "none",
+        "topbarBackdrop": "none",
+        "navBg": "rgb(13, 15, 24)",
+        "gridCols": "58px 232px 1028px",
+        "navAreas": [
+          "workbench",
+          "activity",
+          "studio",
+          "settings"
+        ]
+      },
+      "text": "Vessel local server ok (v0.10.0) Commands Preferences Activity Session activity comes from server records. Open a session to inspect runs and approvals. Activity & approval queue Active and WAITING_APPROVAL work aggregated across projects, with inline approval. Retry model catalog Needs attention · 1 Needs attention Session Plan the refactor of Project: C:\\Users\\SATANC~1\\AppData\\Local\\Temp\\vessel-uilanding-fixture-OPAtVt Updated: 2026/10/15 00:25:03 Session Awaiting approval: Write src/components/navigation.ts (12 lines) Approve (Allow once) Deny (Deny) Running · 2 Running Goal Refactor the navigation module Project: C:\\Users\\SATANC~1\\AppData\\Local\\Temp\\vessel-uilanding-fixture-OPAtVt Updated: 2026/10/15 00:25:03 Session Running Goal Survey call sites of the navigation module Project: C:\\Users\\SATANC~1\\AppData\\Local\\Temp\\vessel-uilanding-fixture-OPAtVt Updated: 2026/10/15 00:25:03 Sessio",
+      "capturedAt": "2026-10-15T08:05:51.711Z"
+    },
+    {
+      "id": "full-studio-en-dark-1366",
+      "file": "full-studio-en-dark-1366.png",
+      "lang": "en",
+      "theme": "dark",
+      "viewport": {
+        "width": 1366,
+        "height": 900
+      },
+      "area": "studio",
+      "url": "http://127.0.0.1:32830",
+      "bytes": 150775,
+      "sha256": "31fe323b8ce997f1a81daa62f31a38f3b70eac4827be25e7587ab0d27c981ae5",
+      "facts": {
+        "theme": "light dark",
+        "bg": "rgb(6, 7, 13)",
+        "panelRadius": "24px",
+        "navBackdrop": "none",
+        "topbarBackdrop": "none",
+        "navBg": "rgb(13, 15, 24)",
+        "gridCols": "58px 232px 1028px",
+        "navAreas": [
+          "workbench",
+          "activity",
+          "studio",
+          "settings"
+        ]
+      },
+      "text": "Vessel local server ok (v0.10.0) Commands Preferences Agent Studio Read-only inspection of effective behavior, policy mappings and compilation sources. Agent Studio composer Compose behavior rules, reorder priorities, detect conflicts and verify conformance before activation. Behavior library loop.turn_ends_without_tool_call prompt_guidance 纯文本回复即停止；不要在无需工具时强行调用工具。 Add retry.exponential_backoff prompt_guidance 重试要有退避：同一操作连续失败时先读报错改方式；确需重试则加大间隔或改变参数，不原样反复重发；达到上限带证据上报或换方案。 Add planning.plan_before_execute prompt_guidance 复杂、多步或有破坏性的任务先给出计划（目标→步骤→验证方式）再动手；执行中发现与计划冲突的新证据时先更新计划再继续。 Add safety.protected_paths runtime_policy 不要改写受保护路径（.git/.env/.ssh 等）；该约束由策略引擎硬执法。 Add safety.dangerous_shell runtime_policy 删除/格式化等破坏性命令会被策略引擎拦截；先说明原因与范围。 Add safety.secret_handling runtime_policy 凭据与密钥不写入文件、不落日志、不外发；凭据类文件读取由策略引擎硬拦截，需要密文时走环境注入。 Add verification.independent_evaluator prompt_guidance 以检查结果（测试/命令输出）作",
+      "capturedAt": "2026-10-15T08:05:54.222Z"
+    },
+    {
+      "id": "full-settings-en-dark-1366",
+      "file": "full-settings-en-dark-1366.png",
+      "lang": "en",
+      "theme": "dark",
+      "viewport": {
+        "width": 1366,
+        "height": 900
+      },
+      "area": "settings",
+      "url": "http://127.0.0.1:32830",
+      "bytes": 48183,
+      "sha256": "99d5c4b77a03ba4ea047aab63315f7cbab83c9dab7ea654856a0add48ef5b118",
+      "facts": {
+        "theme": "light dark",
+        "bg": "rgb(6, 7, 13)",
+        "panelRadius": "24px",
+        "navBackdrop": "none",
+        "topbarBackdrop": "none",
+        "navBg": "rgb(13, 15, 24)",
+        "gridCols": "58px 232px 1028px",
+        "navAreas": [
+          "workbench",
+          "activity",
+          "studio",
+          "settings"
+        ]
+      },
+      "text": "Vessel local server ok (v0.10.0) Commands Preferences Settings Model settings Visibility only. Policy permissions, capabilities and runs remain unchanged. Layout English Mute cues Enable notifications",
+      "capturedAt": "2026-10-15T08:05:56.855Z"
+    },
+    {
+      "id": "full-workbench-en-dark-1023",
+      "file": "full-workbench-en-dark-1023.png",
+      "lang": "en",
+      "theme": "dark",
+      "viewport": {
+        "width": 1023,
+        "height": 900
+      },
+      "area": "workbench",
+      "url": "http://127.0.0.1:32830",
+      "bytes": 41244,
+      "sha256": "386c713a8378dd7e6bb8c915e1ee9c3abc0fce6de110fa6e9f2613347d8833ab",
+      "facts": {
+        "theme": "light dark",
+        "bg": "rgb(6, 7, 13)",
+        "panelRadius": "24px",
+        "navBackdrop": "none",
+        "topbarBackdrop": "none",
+        "navBg": "rgb(13, 15, 24)",
+        "gridCols": "58px 929px",
+        "navAreas": [
+          "workbench",
+          "activity",
+          "studio",
+          "settings"
+        ]
+      },
+      "text": "☰ Local server not connected — please run `vessel serve` (127.0.0.1:5678). Commands Preferences Project → Session → Run → Subagent What should Vessel work on? Choose project Open project directory What should Vessel work on? Select model Demo model (no real provider connection) New session permission (current session unchanged) Read-only Workspace write Start task Loading… Advanced session Configure new model",
+      "capturedAt": "2026-10-15T08:05:58.734Z"
+    },
+    {
+      "id": "full-activity-en-dark-1023",
+      "file": "full-activity-en-dark-1023.png",
+      "lang": "en",
+      "theme": "dark",
+      "viewport": {
+        "width": 1023,
+        "height": 900
+      },
+      "area": "activity",
+      "url": "http://127.0.0.1:32830",
+      "bytes": 81878,
+      "sha256": "3cb472d9fadfb22f247e37f426af3f7acc089a12edc715a532a32ba67cf28c67",
+      "facts": {
+        "theme": "light dark",
+        "bg": "rgb(6, 7, 13)",
+        "panelRadius": "24px",
+        "navBackdrop": "none",
+        "topbarBackdrop": "none",
+        "navBg": "rgb(13, 15, 24)",
+        "gridCols": "58px 929px",
+        "navAreas": [
+          "workbench",
+          "activity",
+          "studio",
+          "settings"
+        ]
+      },
+      "text": "☰ Vessel local server ok (v0.10.0) Commands Preferences Activity Session activity comes from server records. Open a session to inspect runs and approvals. Activity & approval queue Active and WAITING_APPROVAL work aggregated across projects, with inline approval. Retry model catalog Needs attention · 1 Needs attention Session Plan the refactor of Project: C:\\Users\\SATANC~1\\AppData\\Local\\Temp\\vessel-uilanding-fixture-OPAtVt Updated: 2026/10/15 00:25:03 Session Awaiting approval: Write src/components/navigation.ts (12 lines) Approve (Allow once) Deny (Deny) Running · 2 Running Goal Refactor the navigation module Project: C:\\Users\\SATANC~1\\AppData\\Local\\Temp\\vessel-uilanding-fixture-OPAtVt Updated: 2026/10/15 00:25:03 Session Running Goal Survey call sites of the navigation module Project: C:\\Users\\SATANC~1\\AppData\\Local\\Temp\\vessel-uilanding-fixture-OPAtVt Updated: 2026/10/15 00:25:03 Sess",
+      "capturedAt": "2026-10-15T08:06:01.836Z"
+    },
+    {
+      "id": "full-studio-en-dark-1023",
+      "file": "full-studio-en-dark-1023.png",
+      "lang": "en",
+      "theme": "dark",
+      "viewport": {
+        "width": 1023,
+        "height": 900
+      },
+      "area": "studio",
+      "url": "http://127.0.0.1:32830",
+      "bytes": 131496,
+      "sha256": "1c16ca4533d04bfa21c445d7a7424d3d6ce3a227bfc57d9b28742837ce2ca3d3",
+      "facts": {
+        "theme": "light dark",
+        "bg": "rgb(6, 7, 13)",
+        "panelRadius": "24px",
+        "navBackdrop": "none",
+        "topbarBackdrop": "none",
+        "navBg": "rgb(13, 15, 24)",
+        "gridCols": "58px 929px",
+        "navAreas": [
+          "workbench",
+          "activity",
+          "studio",
+          "settings"
+        ]
+      },
+      "text": "☰ Vessel local server ok (v0.10.0) Commands Preferences Agent Studio Read-only inspection of effective behavior, policy mappings and compilation sources. Agent Studio composer Compose behavior rules, reorder priorities, detect conflicts and verify conformance before activation. Behavior library loop.turn_ends_without_tool_call prompt_guidance 纯文本回复即停止；不要在无需工具时强行调用工具。 Add retry.exponential_backoff prompt_guidance 重试要有退避：同一操作连续失败时先读报错改方式；确需重试则加大间隔或改变参数，不原样反复重发；达到上限带证据上报或换方案。 Add planning.plan_before_execute prompt_guidance 复杂、多步或有破坏性的任务先给出计划（目标→步骤→验证方式）再动手；执行中发现与计划冲突的新证据时先更新计划再继续。 Add safety.protected_paths runtime_policy 不要改写受保护路径（.git/.env/.ssh 等）；该约束由策略引擎硬执法。 Add safety.dangerous_shell runtime_policy 删除/格式化等破坏性命令会被策略引擎拦截；先说明原因与范围。 Add safety.secret_handling runtime_policy 凭据与密钥不写入文件、不落日志、不外发；凭据类文件读取由策略引擎硬拦截，需要密文时走环境注入。 Add verification.independent_evaluator prompt_guidance 以检查结果（测试/命令输出",
+      "capturedAt": "2026-10-15T08:06:04.266Z"
+    },
+    {
+      "id": "full-settings-en-dark-1023",
+      "file": "full-settings-en-dark-1023.png",
+      "lang": "en",
+      "theme": "dark",
+      "viewport": {
+        "width": 1023,
+        "height": 900
+      },
+      "area": "settings",
+      "url": "http://127.0.0.1:32830",
+      "bytes": 34782,
+      "sha256": "887e5b59fcc6b71930e99e2644c7aefd72d724c435490272debb320deac7fda5",
+      "facts": {
+        "theme": "light dark",
+        "bg": "rgb(6, 7, 13)",
+        "panelRadius": "24px",
+        "navBackdrop": "none",
+        "topbarBackdrop": "none",
+        "navBg": "rgb(13, 15, 24)",
+        "gridCols": "58px 929px",
+        "navAreas": [
+          "workbench",
+          "activity",
+          "studio",
+          "settings"
+        ]
+      },
+      "text": "☰ Vessel local server ok (v0.10.0) Commands Preferences Settings Model settings Visibility only. Policy permissions, capabilities and runs remain unchanged. Layout English Mute cues Enable notifications",
+      "capturedAt": "2026-10-15T08:06:06.619Z"
+    },
+    {
+      "id": "full-workbench-en-dark-800",
+      "file": "full-workbench-en-dark-800.png",
+      "lang": "en",
+      "theme": "dark",
+      "viewport": {
+        "width": 800,
+        "height": 1000
+      },
+      "area": "workbench",
+      "url": "http://127.0.0.1:32830",
+      "bytes": 39611,
+      "sha256": "92ec7a6b5e82efb2d1f1b73984d85377e4bacba26370a9959219a60ac0d53356",
+      "facts": {
+        "theme": "light dark",
+        "bg": "rgb(6, 7, 13)",
+        "panelRadius": "24px",
+        "navBackdrop": "none",
+        "topbarBackdrop": "none",
+        "navBg": "rgb(13, 15, 24)",
+        "gridCols": "58px 706px",
+        "navAreas": [
+          "workbench",
+          "activity",
+          "studio",
+          "settings"
+        ]
+      },
+      "text": "☰ Vessel local server ok (v0.10.0) Commands Preferences Project → Session → Run → Subagent What should Vessel work on? Choose project Open project directory What should Vessel work on? Select model opencode-go / mimo-v2.5 New session permission (current session unchanged) Read-only Workspace write Start task Advanced session Configure new model",
+      "capturedAt": "2026-10-15T08:06:08.277Z"
+    },
+    {
+      "id": "full-activity-en-dark-800",
+      "file": "full-activity-en-dark-800.png",
+      "lang": "en",
+      "theme": "dark",
+      "viewport": {
+        "width": 800,
+        "height": 1000
+      },
+      "area": "activity",
+      "url": "http://127.0.0.1:32830",
+      "bytes": 86244,
+      "sha256": "34ef4a3fe79f27e7a1f9b91b5796f4edb77869bda1b0b93bbebef0d3bd8fc407",
+      "facts": {
+        "theme": "light dark",
+        "bg": "rgb(6, 7, 13)",
+        "panelRadius": "24px",
+        "navBackdrop": "none",
+        "topbarBackdrop": "none",
+        "navBg": "rgb(13, 15, 24)",
+        "gridCols": "58px 706px",
+        "navAreas": [
+          "workbench",
+          "activity",
+          "studio",
+          "settings"
+        ]
+      },
+      "text": "☰ Vessel local server ok (v0.10.0) Commands Preferences Activity Session activity comes from server records. Open a session to inspect runs and approvals. Activity & approval queue Active and WAITING_APPROVAL work aggregated across projects, with inline approval. Retry model catalog Needs attention · 1 Needs attention Session Plan the refactor of Project: C:\\Users\\SATANC~1\\AppData\\Local\\Temp\\vessel-uilanding-fixture-OPAtVt Updated: 2026/10/15 00:25:03 Session Awaiting approval: Write src/components/navigation.ts (12 lines) Approve (Allow once) Deny (Deny) Running · 2 Running Goal Refactor the navigation module Project: C:\\Users\\SATANC~1\\AppData\\Local\\Temp\\vessel-uilanding-fixture-OPAtVt Updated: 2026/10/15 00:25:03 Session Running Goal Survey call sites of the navigation module Project: C:\\Users\\SATANC~1\\AppData\\Local\\Temp\\vessel-uilanding-fixture-OPAtVt Updated: 2026/10/15 00:25:03 Sess",
+      "capturedAt": "2026-10-15T08:06:10.679Z"
+    },
+    {
+      "id": "full-studio-en-dark-800",
+      "file": "full-studio-en-dark-800.png",
+      "lang": "en",
+      "theme": "dark",
+      "viewport": {
+        "width": 800,
+        "height": 1000
+      },
+      "area": "studio",
+      "url": "http://127.0.0.1:32830",
+      "bytes": 124376,
+      "sha256": "fda0391df8f1b0b32ee131aa4f27108b84dbe04d9333aec3b0d61ef41b36bb6f",
+      "facts": {
+        "theme": "light dark",
+        "bg": "rgb(6, 7, 13)",
+        "panelRadius": "24px",
+        "navBackdrop": "none",
+        "topbarBackdrop": "none",
+        "navBg": "rgb(13, 15, 24)",
+        "gridCols": "58px 706px",
+        "navAreas": [
+          "workbench",
+          "activity",
+          "studio",
+          "settings"
+        ]
+      },
+      "text": "☰ Vessel local server ok (v0.10.0) Commands Preferences Agent Studio Read-only inspection of effective behavior, policy mappings and compilation sources. Agent Studio composer Compose behavior rules, reorder priorities, detect conflicts and verify conformance before activation. Behavior library loop.turn_ends_without_tool_call prompt_guidance 纯文本回复即停止；不要在无需工具时强行调用工具。 Add retry.exponential_backoff prompt_guidance 重试要有退避：同一操作连续失败时先读报错改方式；确需重试则加大间隔或改变参数，不原样反复重发；达到上限带证据上报或换方案。 Add planning.plan_before_execute prompt_guidance 复杂、多步或有破坏性的任务先给出计划（目标→步骤→验证方式）再动手；执行中发现与计划冲突的新证据时先更新计划再继续。 Add safety.protected_paths runtime_policy 不要改写受保护路径（.git/.env/.ssh 等）；该约束由策略引擎硬执法。 Add safety.dangerous_shell runtime_policy 删除/格式化等破坏性命令会被策略引擎拦截；先说明原因与范围。 Add safety.secret_handling runtime_policy 凭据与密钥不写入文件、不落日志、不外发；凭据类文件读取由策略引擎硬拦截，需要密文时走环境注入。 Add verification.independent_evaluator prompt_guidance 以检查结果（测试/命令输出",
+      "capturedAt": "2026-10-15T08:06:13.165Z"
+    },
+    {
+      "id": "full-settings-en-dark-800",
+      "file": "full-settings-en-dark-800.png",
+      "lang": "en",
+      "theme": "dark",
+      "viewport": {
+        "width": 800,
+        "height": 1000
+      },
+      "area": "settings",
+      "url": "http://127.0.0.1:32830",
+      "bytes": 34149,
+      "sha256": "0e782ff8c49e5be61b112c92bba0e5f9cd3ff158b7b48bfeb74ffd35e1ca7a68",
+      "facts": {
+        "theme": "light dark",
+        "bg": "rgb(6, 7, 13)",
+        "panelRadius": "24px",
+        "navBackdrop": "none",
+        "topbarBackdrop": "none",
+        "navBg": "rgb(13, 15, 24)",
+        "gridCols": "58px 706px",
+        "navAreas": [
+          "workbench",
+          "activity",
+          "studio",
+          "settings"
+        ]
+      },
+      "text": "☰ Vessel local server ok (v0.10.0) Commands Preferences Settings Model settings Visibility only. Policy permissions, capabilities and runs remain unchanged. Layout English Mute cues Enable notifications",
+      "capturedAt": "2026-10-15T08:06:15.508Z"
+    }
+  ],
+  "captureMode": "full-surface for matrix shots (internal `main` overflow released); one viewport-faithful shot appended",
+  "events": []
+}

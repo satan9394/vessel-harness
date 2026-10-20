@@ -1,0 +1,28 @@
+PASS actual checks + independent structured review accept one artifact
+PASS failed real check is retained and one directed repair reruns checks
+PASS a claimed pass cannot override a failed verification command
+PASS untracked out-of-scope changes block acceptance
+PASS reviewer source mutation invalidates its verdict
+FAIL zero exit with malformed final response fails closed
+AssertionError [ERR_ASSERTION]: The input did not match the regular expression /No valid final JSON/. Input:
+
+"EPERM: operation not permitted, rename 'C:\\Users\\Satanchen\\AppData\\Local\\Temp\\.pdw\\test-runs\\1792149605712\\malformed\\.pdw\\tasks\\20261016112042-155f8f\\state.json.10644.48ac11.tmp' -> 'C:\\Users\\Satanchen\\AppData\\Local\\Temp\\.pdw\\test-runs\\1792149605712\\malformed\\.pdw\\tasks\\20261016112042-155f8f\\state.json'"
+
+    at file:///C:/Users/Satanchen/AppData/Local/Temp/opencode/pdw131-868874258/personal-dev-workflow/scripts/pdw.test.mjs:99:88
+    at test (file:///C:/Users/Satanchen/AppData/Local/Temp/opencode/pdw131-868874258/personal-dev-workflow/scripts/pdw.test.mjs:60:15)
+    at file:///C:/Users/Satanchen/AppData/Local/Temp/opencode/pdw131-868874258/personal-dev-workflow/scripts/pdw.test.mjs:98:7
+PASS pre-run source drift does not reuse old evidence
+PASS invocation cap survives resume and config limit increases
+PASS timeouts stop the recorded process tree before releasing the lock
+PASS project lock rejects a second coordinator
+PASS cancel stops both parallel children and retains a recoverable task
+PASS parser does not accept JSON smuggled in tool argument events
+PASS intermediate assistant text does not corrupt final OpenCode JSON
+PASS accepted task status explicitly marks later evidence stale
+PASS installation preserves project rules and refuses an overwrite
+PASS Codex receives the selected model, effort and model-specific task guidance
+PASS ambiguous model-specific settings and unsupported effort backends are rejected
+PASS a new task has an automatic handoff and reading it does not spend or reset budget
+PASS handoff preserves raw success evidence and invalidates it after source or contract drift
+PASS automatic blocked handoff includes the failed check without inventing a review
+{"evidence":"C:\\Users\\Satanchen\\AppData\\Local\\Temp\\.pdw\\test-runs\\1792149605712","passed":19,"failed":1}

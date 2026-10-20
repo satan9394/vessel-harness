@@ -165,6 +165,40 @@ describe('local server HTTP API + SSE', () => {
     expect(state.session.id).toBe(created.session.id);
   });
 
+  it('DELETE /api/sessions/:id clears session, stops controller, and enforces origin check', async () => {
+    const create = await fetch(`${base}/api/sessions`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ workspaceRoot: ws, permission: 'read-only' }),
+    });
+    expect(create.status).toBe(201);
+    const { session } = (await create.json()) as { session: { id: string } };
+
+    // Cross-origin DELETE is denied
+    const denied = await fetch(`${base}/api/sessions/${session.id}`, {
+      method: 'DELETE',
+      headers: { Origin: 'http://evil.com' },
+    });
+    expect(denied.status).toBe(403);
+
+    // Valid DELETE succeeds
+    const deleted = await fetch(`${base}/api/sessions/${session.id}`, {
+      method: 'DELETE',
+    });
+    expect(deleted.status).toBe(200);
+    expect(await deleted.json()).toEqual({ ok: true, id: session.id });
+
+    // Subsequent GET returns 404
+    const getAfter = await fetch(`${base}/api/sessions/${session.id}`);
+    expect(getAfter.status).toBe(404);
+
+    // Repeated DELETE returns 404
+    const repeated = await fetch(`${base}/api/sessions/${session.id}`, {
+      method: 'DELETE',
+    });
+    expect(repeated.status).toBe(404);
+  });
+
   it('PATCH /api/sessions/:id/topic renames and archives without discarding the session', async () => {
     const create = await fetch(`${base}/api/sessions`, {
       method: 'POST',

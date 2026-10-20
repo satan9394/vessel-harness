@@ -418,6 +418,9 @@ export function createApiClient(opts: ApiOptions = {}) {
     async getSession(id: string): Promise<{ session: SessionMeta }> {
       return request(`/sessions/${encodeURIComponent(id)}`);
     },
+    async deleteSession(id: string): Promise<{ ok: boolean; id: string }> {
+      return request<{ ok: boolean; id: string }>(`/sessions/${encodeURIComponent(id)}`, { method: 'DELETE' });
+    },
     async switchSessionModel(id: string, selection: { provider: string; model: string }): Promise<{ session: SessionMeta }> {
       return request(`/sessions/${encodeURIComponent(id)}/model`, { method: 'PATCH', body: JSON.stringify(selection) });
     },

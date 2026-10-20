@@ -1,0 +1,97 @@
+PASS actual checks + independent structured review accept one artifact
+PASS failed real check is retained and one directed repair reruns checks
+PASS a claimed pass cannot override a failed verification command
+FAIL untracked out-of-scope changes block acceptance
+AssertionError [ERR_ASSERTION]: run 20261016111809-9fef50
+[1/8] scan -> opencode (fixture/deepseek)
+[2/8] test-plan -> opencode (fixture/deepseek)
+[3/8] implement -> opencode (fixture/deepseek)
+[4/8] review-0 -> opencode (fixture/deepseek)
+{
+  "id": "20261016111809-9fef50",
+  "status": "accepted_local",
+  "failure": null,
+  "report": "E:\\Code_file\\Projects\\Vessel_Harness\\.pdw\\test-runs\\1792149456000\\scope\\.pdw\\tasks\\20261016111809-9fef50\\REPORT.md"
+}
+
+
+
+0 !== 1
+
+    at command (file:///E:/Code_file/Projects/Vessel_Harness/.agents/skills/personal-dev-workflow/scripts/pdw.test.mjs:40:10)
+    at file:///E:/Code_file/Projects/Vessel_Harness/.agents/skills/personal-dev-workflow/scripts/pdw.test.mjs:93:38
+    at test (file:///E:/Code_file/Projects/Vessel_Harness/.agents/skills/personal-dev-workflow/scripts/pdw.test.mjs:60:15)
+    at file:///E:/Code_file/Projects/Vessel_Harness/.agents/skills/personal-dev-workflow/scripts/pdw.test.mjs:92:7
+FAIL reviewer source mutation invalidates its verdict
+AssertionError [ERR_ASSERTION]: run 20261016111815-01de06
+[1/8] scan -> opencode (fixture/deepseek)
+[2/8] test-plan -> opencode (fixture/deepseek)
+[3/8] implement -> opencode (fixture/deepseek)
+[4/8] review-0 -> opencode (fixture/deepseek)
+{
+  "id": "20261016111815-01de06",
+  "status": "accepted_local",
+  "failure": null,
+  "report": "E:\\Code_file\\Projects\\Vessel_Harness\\.pdw\\test-runs\\1792149456000\\mutating\\.pdw\\tasks\\20261016111815-01de06\\REPORT.md"
+}
+
+
+
+0 !== 1
+
+    at command (file:///E:/Code_file/Projects/Vessel_Harness/.agents/skills/personal-dev-workflow/scripts/pdw.test.mjs:40:10)
+    at file:///E:/Code_file/Projects/Vessel_Harness/.agents/skills/personal-dev-workflow/scripts/pdw.test.mjs:96:51
+    at test (file:///E:/Code_file/Projects/Vessel_Harness/.agents/skills/personal-dev-workflow/scripts/pdw.test.mjs:60:15)
+    at file:///E:/Code_file/Projects/Vessel_Harness/.agents/skills/personal-dev-workflow/scripts/pdw.test.mjs:95:7
+PASS zero exit with malformed final response fails closed
+FAIL pre-run source drift does not reuse old evidence
+AssertionError [ERR_ASSERTION]: run 20261016111826-80b87f
+[1/8] scan -> opencode (fixture/deepseek)
+[2/8] test-plan -> opencode (fixture/deepseek)
+[3/8] implement -> opencode (fixture/deepseek)
+[4/8] review-0 -> opencode (fixture/deepseek)
+{
+  "id": "20261016111826-80b87f",
+  "status": "accepted_local",
+  "failure": null,
+  "report": "E:\\Code_file\\Projects\\Vessel_Harness\\.pdw\\test-runs\\1792149456000\\drift\\.pdw\\tasks\\20261016111826-80b87f\\REPORT.md"
+}
+
+
+
+0 !== 1
+
+    at command (file:///E:/Code_file/Projects/Vessel_Harness/.agents/skills/personal-dev-workflow/scripts/pdw.test.mjs:40:10)
+    at file:///E:/Code_file/Projects/Vessel_Harness/.agents/skills/personal-dev-workflow/scripts/pdw.test.mjs:102:95
+    at test (file:///E:/Code_file/Projects/Vessel_Harness/.agents/skills/personal-dev-workflow/scripts/pdw.test.mjs:60:15)
+    at file:///E:/Code_file/Projects/Vessel_Harness/.agents/skills/personal-dev-workflow/scripts/pdw.test.mjs:101:7
+PASS invocation cap survives resume and config limit increases
+PASS timeouts stop the recorded process tree before releasing the lock
+PASS project lock rejects a second coordinator
+PASS cancel stops both parallel children and retains a recoverable task
+PASS parser does not accept JSON smuggled in tool argument events
+PASS intermediate assistant text does not corrupt final OpenCode JSON
+FAIL accepted task status explicitly marks later evidence stale
+AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+
+true !== false
+
+    at file:///E:/Code_file/Projects/Vessel_Harness/.agents/skills/personal-dev-workflow/scripts/pdw.test.mjs:145:10
+    at test (file:///E:/Code_file/Projects/Vessel_Harness/.agents/skills/personal-dev-workflow/scripts/pdw.test.mjs:60:15)
+    at file:///E:/Code_file/Projects/Vessel_Harness/.agents/skills/personal-dev-workflow/scripts/pdw.test.mjs:143:7
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+PASS installation preserves project rules and refuses an overwrite
+PASS Codex receives the selected model, effort and model-specific task guidance
+PASS ambiguous model-specific settings and unsupported effort backends are rejected
+PASS a new task has an automatic handoff and reading it does not spend or reset budget
+FAIL handoff preserves raw success evidence and invalidates it after source or contract drift
+AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+
+true !== false
+
+    at file:///E:/Code_file/Projects/Vessel_Harness/.agents/skills/personal-dev-workflow/scripts/pdw.test.mjs:194:10
+    at test (file:///E:/Code_file/Projects/Vessel_Harness/.agents/skills/personal-dev-workflow/scripts/pdw.test.mjs:60:15)
+    at file:///E:/Code_file/Projects/Vessel_Harness/.agents/skills/personal-dev-workflow/scripts/pdw.test.mjs:185:7
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+PASS automatic blocked handoff includes the failed check without inventing a review
+{"evidence":"E:\\Code_file\\Projects\\Vessel_Harness\\.pdw\\test-runs\\1792149456000","passed":15,"failed":5}

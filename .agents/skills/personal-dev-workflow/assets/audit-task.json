@@ -1,0 +1,15 @@
+{
+  "goal": "只读审查本项目实际安装的 PDW Skill 和 CLI 接力程序，核对可运行入口、真实验证、模型路由和限制；给出有依据的结论，禁止修改源码。",
+  "mode": "audit",
+  "scope": [".agents/skills/personal-dev-workflow", "pdw.ps1"],
+  "acceptance": [
+    {"id": "AC1", "description": "确认 Skill 与程序入口存在、帮助可执行，引用实际文件或命令证据。"},
+    {"id": "AC2", "description": "核对当前项目角色路由和预算/权限边界，区分已实测能力与未实测能力；不得读取全局凭据。"},
+    {"id": "AC3", "description": "交付包含具体依据的独立复核，不能把语法或模拟测试通过写成所有真实 CLI、浏览器或生产集成通过。"}
+  ],
+  "checks": [
+    {"id": "runtime-syntax", "command": "node", "args": ["--check", ".agents/skills/personal-dev-workflow/scripts/pdw.mjs"]},
+    {"id": "drivers-syntax", "command": "node", "args": ["--check", ".agents/skills/personal-dev-workflow/scripts/drivers.mjs"]},
+    {"id": "entry-help", "command": "node", "args": [".agents/skills/personal-dev-workflow/scripts/pdw.mjs", "help"]}
+  ]
+}

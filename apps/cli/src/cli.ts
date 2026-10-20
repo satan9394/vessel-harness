@@ -136,14 +136,14 @@ Vessel CLI v${VERSION} — 可组合 Agent Harness（品牌 Vessel）
   vessel settings set <key> <value>  设置（theme: dark|light；locale: zh|en；非法值给说明）
   vessel policy status               显示生效策略层次（system/project：路径 / 是否存在 / 声明条数 / 哈希；只读）
   vessel bench-report --input <json>  基准报告看板：聚合 076 RunResult[]（或 082 lane report）→ 打印 CLI 摘要表 + 写 md/json（任务 083）
-  vessel serve [--port <n>]          启动本地服务（默认 http://127.0.0.1:5678，不开浏览器）
+  vessel serve [--port <n>] [--workspace <dir>]  启动本地服务（默认 http://127.0.0.1:5678；工作区默认当前目录并自动入库，不开浏览器）
   vessel daemon start|stop|status    后台服务（--port <n>、--json）
   vessel mesh|swarm status|peers|ping <peer-id>   Mesh control plane
   vessel memory|mem rules|search <query>|stats   Workspace cognitive memory
   vessel doctor|diagnose [--probe-network] [--mods] System health diagnostics (--mods scans only Mods)
   vessel mod list|inspect <name>|verify <path>|audit <path> Static Mod inspection
   vessel serve --mode mcp-agent      通过 stdio 启动 MCP 子代理服务（协议仅占用 stdout）
-  vessel web                         启动本地服务并打开浏览器
+  vessel web [--workspace <dir>]      启动本地服务并打开浏览器（工作区默认当前目录并自动入库）
 
 run 选项:
   --prompt <text>                 用户输入（缺省从 stdin 读取）
@@ -2798,7 +2798,7 @@ export interface ServeHandle {
 export async function startServe(opts: { port?: number; workspace?: string } = {}): Promise<ServeHandle> {
   const port = Number(opts.port ?? 5678);
   const workspace = path.resolve(opts.workspace ?? process.cwd());
-  const server = createVesselServer({ port, staticDir: undefined, observeWorkspace: root => WorkspaceFingerprinter.compute(root) });
+  const server = createVesselServer({ port, workspace, staticDir: undefined, observeWorkspace: root => WorkspaceFingerprinter.compute(root) });
   try {
     await server.listen();
   } catch (err) {

@@ -1,0 +1,432 @@
+<!DOCTYPE html>
+<html lang="zh-CN" style="color-scheme: light dark" data-theme="light" data-lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Vessel 原型 · 方向二「极简 Paper」</title>
+<style>
+/*
+  Vessel Web 原型 —— 方向二：极简 Notion × OpenAI 风
+  暖中性灰阶、大留白、发丝分隔线代替卡片边框、几乎无阴影、单一强调色。
+*/
+
+/* ---------- tokens: light ---------- */
+:root{
+  --bg:#ffffff; --surface:#fbfbfa; --surface-2:#f4f4f2; --panel:#ffffff; --rail:#fbfbfa;
+  --line:#eaeae7; --line-strong:#dcdcd7; --line-focus:rgba(47,111,237,.35);
+  --text:#1c1c1a; --text-2:#64635e; --text-3:#97958e;
+  --ink:#1c1c1a; --ink-fg:#ffffff;
+  --accent:#2f6fed; --accent-soft:rgba(47,111,237,.08);
+  --ok:#1a7f4b; --warn:#8a6d1f; --danger:#b3261e;
+  --ok-soft:rgba(26,127,75,.09); --warn-soft:rgba(138,109,31,.10); --danger-soft:rgba(179,38,30,.08);
+  --pop:0 8px 30px rgba(20,20,18,.10),0 1px 3px rgba(20,20,18,.06);
+  --code-bg:#f4f4f2; --sel:rgba(47,111,237,.16);
+}
+/* ---------- tokens: dark ---------- */
+:root[data-theme="dark"]{
+  --bg:#191918; --surface:#1f1f1e; --surface-2:#262625; --panel:#1f1f1e; --rail:#1c1c1b;
+  --line:#2e2e2c; --line-strong:#3d3d3a; --line-focus:rgba(122,162,255,.45);
+  --text:#ededeb; --text-2:#a3a29d; --text-3:#78776f;
+  --ink:#f0f0ee; --ink-fg:#181817;
+  --accent:#7aa2ff; --accent-soft:rgba(122,162,255,.12);
+  --ok:#5fbf8a; --warn:#d4b768; --danger:#e2867c;
+  --ok-soft:rgba(95,191,138,.13); --warn-soft:rgba(212,183,104,.13); --danger-soft:rgba(226,134,124,.13);
+  --pop:0 10px 34px rgba(0,0,0,.5),0 1px 3px rgba(0,0,0,.4);
+  --code-bg:#262625; --sel:rgba(122,162,255,.22);
+}
+:root{
+  --s1:4px; --s2:8px; --s3:12px; --s4:18px; --s5:28px; --s6:40px; --s7:64px;
+  --r1:6px; --r2:8px; --r3:12px; --r-pill:999px;
+  --fs-11:11px; --fs-12:12px; --fs-13:13px; --fs-14:14px; --fs-16:16px; --fs-21:21px; --fs-28:28px;
+  --sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Inter,Roboto,"Helvetica Neue","PingFang SC","Microsoft YaHei",sans-serif;
+  --mono:ui-monospace,SFMono-Regular,"JetBrains Mono","Cascadia Code",Consolas,monospace;
+  --ease:cubic-bezier(.4,0,.2,1); --dur:120ms;
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{background:var(--bg); color:var(--text); font-family:var(--sans); font-size:var(--fs-14); line-height:1.65;
+  -webkit-font-smoothing:antialiased; font-variant-numeric:tabular-nums}
+::selection{background:var(--sel)}
+
+/* review bar */
+.reviewbar{position:sticky;top:0;z-index:99;display:flex;gap:var(--s4);align-items:center;flex-wrap:wrap;
+  padding:9px var(--s5);background:var(--surface-2);border-bottom:1px dashed var(--line-strong);font-size:var(--fs-12);color:var(--text-2)}
+.reviewbar b{color:var(--text);font-weight:600}
+.reviewbar .grp{display:flex;align-items:center;gap:6px}
+.reviewbar .grp>span{color:var(--text-3)}
+.rbtn{padding:3px 10px;border:1px solid var(--line-strong);border-radius:var(--r-pill);background:transparent;color:var(--text-2);font:inherit;cursor:pointer;transition:all var(--dur) var(--ease)}
+.rbtn:hover{border-color:var(--text-3);color:var(--text)}
+.rbtn[aria-pressed="true"]{background:var(--ink);color:var(--ink-fg);border-color:var(--ink)}
+.reviewbar .note{margin-left:auto;color:var(--text-3);font-style:italic}
+
+.board{padding:var(--s6) var(--s5) var(--s7);max-width:1320px;margin:0 auto;display:flex;flex-direction:column;gap:var(--s7)}
+.frame{display:flex;flex-direction:column;gap:var(--s3);margin:0}
+.frame>figcaption{display:flex;align-items:baseline;gap:var(--s3)}
+.frame>figcaption .idx{font-family:var(--mono);font-size:var(--fs-11);color:var(--text-3);letter-spacing:.1em}
+.frame>figcaption h2{margin:0;font-size:var(--fs-16);font-weight:620}
+.frame>figcaption p{margin:0;color:var(--text-3);font-size:var(--fs-12)}
+.canvas{border:1px solid var(--line);border-radius:var(--r3);overflow:hidden;background:var(--bg)}
+
+/* shell */
+.app{display:grid;grid-template-columns:256px 1fr;min-height:520px}
+body.vp800 .app{grid-template-columns:52px 1fr}
+body.vp800 .railtext{display:none}
+body.vp800 .conv-cols{grid-template-columns:1fr}
+body.vp800 .inspector{display:none}
+/* 真实实现中 ≤800px 为无障碍抽屉；原型以图标栏代表折叠形态 */
+@media (max-width:800px){
+  .app{grid-template-columns:52px 1fr}
+  .railtext{display:none}
+  .conv-cols{grid-template-columns:1fr}
+  .inspector{display:none}
+}
+
+/* rail */
+.rail{display:flex;flex-direction:column;gap:var(--s4);padding:var(--s4) var(--s3);background:var(--rail);border-right:1px solid var(--line)}
+.brand{display:flex;align-items:center;gap:9px;padding:2px var(--s2) var(--s3);font-weight:620;font-size:var(--fs-14)}
+.brand .mark{width:20px;height:20px;border-radius:6px;background:var(--ink);color:var(--ink-fg);display:grid;place-items:center;font-size:10px;font-weight:800}
+.brand .sub{margin-left:auto;font-size:var(--fs-11);color:var(--text-3);font-family:var(--mono)}
+.areas{display:flex;flex-direction:column;gap:1px}
+.area{display:flex;align-items:center;gap:10px;padding:6px 8px;border-radius:var(--r1);color:var(--text-2);cursor:pointer;border:0;background:transparent;font:inherit;text-align:left;transition:background var(--dur) var(--ease)}
+.area:hover{background:var(--surface-2);color:var(--text)}
+.area[aria-current="page"]{background:var(--surface-2);color:var(--text);font-weight:600}
+.area .ico{width:16px;text-align:center;opacity:.55;font-size:12px}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:7px;padding:6px 12px;border-radius:var(--r1);
+  border:1px solid var(--line-strong);background:var(--bg);color:var(--text);font:inherit;font-weight:500;cursor:pointer;
+  white-space:nowrap;transition:background var(--dur) var(--ease),border-color var(--dur) var(--ease)}
+.btn:hover{background:var(--surface-2);border-color:var(--text-3)}
+.btn-primary{background:var(--ink);color:var(--ink-fg);border-color:transparent}
+.btn-primary:hover{background:var(--ink);opacity:.88;border-color:transparent}
+.btn-ghost{border-color:transparent;background:transparent;color:var(--text-2)}
+.btn-ghost:hover{background:var(--surface-2);color:var(--text)}
+.btn-danger{border-color:transparent;background:var(--danger-soft);color:var(--danger)}
+.btn-sm{padding:4px 9px;font-size:var(--fs-12)}
+.newbtn{width:100%}
+.grp{display:flex;flex-direction:column;gap:1px}
+.grp>.lbl{padding:var(--s3) var(--s2) 5px;font-size:var(--fs-11);letter-spacing:.02em;color:var(--text-3);font-weight:500}
+.item{display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:var(--r1);color:var(--text-2);cursor:pointer}
+.item:hover{background:var(--surface-2);color:var(--text)}
+.item[aria-current="true"]{background:var(--surface-2);color:var(--text);font-weight:550}
+.item .dot{width:5px;height:5px;border-radius:50%;background:var(--text-3);flex:none;opacity:.6}
+.item .dot.live{background:var(--ok);opacity:1}
+.item .name{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.item .when{font-size:var(--fs-11);color:var(--text-3)}
+.search{padding:7px 10px;border-radius:var(--r1);border:1px solid var(--line);background:var(--surface);color:var(--text);font:inherit;font-size:var(--fs-12);width:100%}
+.search::placeholder{color:var(--text-3)}
+.search:focus,.ta:focus{outline:2px solid var(--line-focus);outline-offset:1px;border-color:transparent}
+.rail-foot{margin-top:auto;padding:var(--s3) var(--s2) 0;border-top:1px solid var(--line);font-size:var(--fs-11);color:var(--text-3);font-family:var(--mono);line-height:1.8}
+
+/* main */
+.main{display:flex;flex-direction:column;min-width:0}
+.topbar{display:flex;align-items:center;gap:var(--s3);padding:12px var(--s6);border-bottom:1px solid var(--line)}
+.status{display:flex;align-items:center;gap:8px;color:var(--text-2);font-size:var(--fs-12)}
+.status .led{width:7px;height:7px;border-radius:50%;background:var(--ok)}
+.top-actions{margin-left:auto;display:flex;align-items:center;gap:var(--s2)}
+.kbd{font-family:var(--mono);font-size:10px;padding:2px 5px;border:1px solid var(--line-strong);border-radius:4px;color:var(--text-3);background:var(--surface)}
+.body{padding:var(--s6) var(--s6) var(--s7);display:flex;flex-direction:column;gap:var(--s6);min-width:0}
+h1.title{margin:0 0 6px;font-size:var(--fs-28);font-weight:620;letter-spacing:-.022em;line-height:1.25;text-wrap:balance}
+.lede{margin:0;color:var(--text-2);max-width:62ch;text-wrap:pretty}
+
+.composer{border:1px solid var(--line);border-radius:var(--r3);background:var(--panel);padding:var(--s4);display:flex;flex-direction:column;gap:var(--s3)}
+.pills{display:flex;gap:var(--s2);flex-wrap:wrap}
+.pill{display:inline-flex;align-items:center;gap:6px;padding:3px 10px;border:1px solid var(--line);border-radius:var(--r-pill);background:transparent;color:var(--text-2);font-size:var(--fs-12);cursor:pointer}
+.pill:hover{border-color:var(--line-strong);color:var(--text)}
+.pill .k{color:var(--text-3)}
+.pill.accent{background:var(--accent-soft);border-color:transparent;color:var(--accent)}
+.ta{min-height:86px;padding:12px 2px;border:0;background:transparent;color:var(--text);font:inherit;resize:none;width:100%;line-height:1.7}
+.ta::placeholder{color:var(--text-3)}
+.composer-foot{display:flex;align-items:center;gap:var(--s2);border-top:1px solid var(--line);padding-top:var(--s3)}
+.composer-foot .hint{margin-left:auto;color:var(--text-3);font-size:var(--fs-11)}
+
+.section-label{display:flex;align-items:baseline;gap:var(--s2);margin-bottom:2px}
+.section-label h2{margin:0;font-size:var(--fs-14);font-weight:600}
+.section-label span{color:var(--text-3);font-size:var(--fs-12)}
+.mini-list{display:flex;flex-direction:column}
+.mini{display:flex;align-items:center;gap:var(--s3);padding:11px 4px;border-top:1px solid var(--line);cursor:pointer}
+.mini:hover{background:var(--surface)}
+.mini .t{font-weight:550;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.mini .m{color:var(--text-3);font-size:var(--fs-11);font-family:var(--mono);margin-left:auto;white-space:nowrap}
+
+.badge{display:inline-flex;align-items:center;gap:5px;padding:1px 8px;border-radius:var(--r-pill);font-size:var(--fs-11);font-weight:540}
+.badge.ok{background:var(--ok-soft);color:var(--ok)}
+.badge.warn{background:var(--warn-soft);color:var(--warn)}
+.badge.danger{background:var(--danger-soft);color:var(--danger)}
+.badge.info{background:var(--accent-soft);color:var(--accent)}
+.badge.mute{background:var(--surface-2);color:var(--text-2)}
+
+/* conversation */
+.conv-head{display:flex;align-items:center;gap:var(--s3);padding:var(--s3) var(--s6);border-bottom:1px solid var(--line)}
+.conv-head .ttl{font-weight:620;font-size:var(--fs-16)}
+.conv-head .meta{color:var(--text-3);font-size:var(--fs-12);display:flex;gap:var(--s2);align-items:center}
+.conv-head .acts{margin-left:auto;display:flex;gap:6px}
+.conv-cols{display:grid;grid-template-columns:1fr 300px;min-height:440px}
+.stream{padding:var(--s5) var(--s6);display:flex;flex-direction:column;gap:var(--s5);min-width:0}
+.msg{display:flex;gap:var(--s3);max-width:72ch}
+.avatar{width:24px;height:24px;border-radius:var(--r1);flex:none;display:grid;place-items:center;font-size:10px;font-weight:700}
+.avatar.u{background:var(--surface-2);color:var(--text-2)}
+.avatar.a{background:var(--ink);color:var(--ink-fg)}
+.msg .role{font-size:var(--fs-11);color:var(--text-3);margin-bottom:2px;font-weight:550}
+.msg p{margin:0 0 6px}
+.msg p:last-child{margin-bottom:0}
+.think{border-left:2px solid var(--line-strong);padding:4px 0 4px 14px;margin:8px 0;color:var(--text-2);font-size:var(--fs-13)}
+.think summary{cursor:pointer;color:var(--text-3);font-size:var(--fs-12)}
+.tool{display:flex;align-items:center;gap:var(--s2);padding:9px 12px;border-radius:var(--r1);background:var(--surface);
+  font-family:var(--mono);font-size:var(--fs-12);color:var(--text-2);border:1px solid var(--line)}
+.tool .name{color:var(--text);font-weight:600}
+.tool .st{margin-left:auto;display:flex;gap:10px;color:var(--text-3);font-size:var(--fs-11)}
+.approval{border:1px solid var(--warn-soft);border-left:3px solid var(--warn);border-radius:var(--r1);background:var(--warn-soft);
+  padding:var(--s3) var(--s4);display:flex;flex-direction:column;gap:var(--s2)}
+.approval .hd{display:flex;align-items:center;gap:8px;font-weight:600;color:var(--warn)}
+.approval .op{font-family:var(--mono);font-size:var(--fs-12);color:var(--text-2)}
+.approval .row{display:flex;gap:8px}
+.usage{display:flex;gap:var(--s5);padding:11px var(--s6);border-top:1px solid var(--line);color:var(--text-3);font-size:var(--fs-11);font-family:var(--mono)}
+.usage b{color:var(--text-2);font-weight:600}
+.composer-input{display:flex;gap:var(--s2);align-items:flex-end;padding:var(--s4) var(--s6);border-top:1px solid var(--line)}
+.composer-input .ta{min-height:48px;padding:8px 12px;border:1px solid var(--line);border-radius:var(--r2);background:var(--surface)}
+
+.inspector{border-left:1px solid var(--line);display:flex;flex-direction:column;min-width:0}
+.tabs{display:flex;gap:var(--s4);padding:0 var(--s4);border-bottom:1px solid var(--line);overflow-x:auto}
+.tab{padding:11px 0;border:0;background:transparent;color:var(--text-3);font:inherit;font-size:var(--fs-12);cursor:pointer;border-bottom:2px solid transparent;white-space:nowrap}
+.tab:hover{color:var(--text-2)}
+.tab[aria-selected="true"]{color:var(--text);border-bottom-color:var(--text);font-weight:600}
+.insp-body{padding:var(--s4);display:flex;flex-direction:column;gap:var(--s5);overflow:auto}
+.kv{display:grid;grid-template-columns:auto 1fr;gap:5px var(--s3);font-size:var(--fs-12);margin:0}
+.kv dt{color:var(--text-3)}
+.kv dd{margin:0;font-family:var(--mono);overflow-wrap:anywhere}
+.filelist{display:flex;flex-direction:column}
+.file{display:flex;align-items:center;gap:8px;padding:7px 6px;border-top:1px solid var(--line);font-family:var(--mono);font-size:var(--fs-12);color:var(--text-2)}
+.file:first-child{border-top:0}
+.file .add{color:var(--ok)} .file .del{color:var(--danger)} .file .tags{margin-left:auto;display:flex;gap:6px;font-size:var(--fs-11)}
+
+/* fragments */
+.frag{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:var(--s5);padding:var(--s5) var(--s6)}
+.frag .box{display:flex;flex-direction:column;gap:var(--s3)}
+.frag .box>h3{margin:0;font-size:var(--fs-12);color:var(--text-3);font-weight:550}
+.rowbtns{display:flex;gap:var(--s2);flex-wrap:wrap}
+table.grid{width:100%;border-collapse:collapse;font-size:var(--fs-12)}
+table.grid th{text-align:left;color:var(--text-3);font-weight:550;padding:6px 8px 6px 0;border-bottom:1px solid var(--line)}
+table.grid td{padding:8px 8px 8px 0;border-bottom:1px solid var(--line);font-family:var(--mono);color:var(--text-2)}
+table.grid tr:last-child td{border-bottom:0}
+.empty{border:1px dashed var(--line-strong);border-radius:var(--r2);padding:var(--s5);text-align:center;color:var(--text-3)}
+.empty .big{font-size:var(--fs-21);margin-bottom:6px;opacity:.4}
+.toast{border:1px solid var(--line);border-radius:var(--r2);background:var(--panel);box-shadow:var(--pop);padding:11px var(--s3);display:flex;gap:10px;align-items:flex-start}
+.toast .x{margin-left:auto;color:var(--text-3);cursor:pointer}
+.swatches{display:flex;gap:6px;flex-wrap:wrap}
+.sw{width:46px;height:32px;border-radius:var(--r1);border:1px solid var(--line);display:grid;place-items:end center;font-size:9px;color:var(--text-3);padding-bottom:2px}
+.typerow{display:flex;align-items:baseline;gap:var(--s3);padding:6px 0;border-bottom:1px solid var(--line)}
+.typerow:last-child{border-bottom:0}
+.typerow code{font-family:var(--mono);font-size:var(--fs-11);color:var(--text-3);width:60px;flex:none}
+</style>
+</head>
+<body>
+
+<div class="reviewbar">
+  <b>方向二 · 极简 Paper</b>
+  <div class="grp"><span>主题</span>
+    <button class="rbtn" data-theme-btn="auto" aria-pressed="true">跟随系统</button>
+    <button class="rbtn" data-theme-btn="light" aria-pressed="false">浅色</button>
+    <button class="rbtn" data-theme-btn="dark" aria-pressed="false">深色</button>
+  </div>
+  <div class="grp"><span>语言</span>
+    <button class="rbtn" data-lang-btn="zh" aria-pressed="true">中</button>
+    <button class="rbtn" data-lang-btn="en" aria-pressed="false">EN</button>
+  </div>
+  <div class="grp"><span>视口</span>
+    <button class="rbtn" data-vp-btn="desktop" aria-pressed="true">桌面</button>
+    <button class="rbtn" data-vp-btn="800" aria-pressed="false">800px</button>
+  </div>
+  <span class="note">评审工具条 · 不属于产品 UI</span>
+</div>
+
+<div class="board">
+
+  <!-- FRAME A -->
+  <figure class="frame">
+    <figcaption><span class="idx">A</span><h2 data-zh="工作台首页" data-en="Workbench home">工作台首页</h2><p data-zh="留白优先，单列阅读流" data-en="Whitespace-first, single reading column">留白优先，单列阅读流</p></figcaption>
+    <div class="canvas">
+      <div class="app">
+        <aside class="rail">
+          <div class="brand"><span class="mark">V</span><span class="railtext">Vessel</span><span class="sub railtext">v0.10.0</span></div>
+          <nav class="areas">
+            <button class="area" aria-current="page"><span class="ico">▤</span><span class="railtext" data-zh="工作台" data-en="Workbench">工作台</span></button>
+            <button class="area"><span class="ico">◔</span><span class="railtext" data-zh="活动" data-en="Activity">活动</span></button>
+            <button class="area"><span class="ico">❖</span><span class="railtext" data-zh="Agent Studio" data-en="Agent Studio">Agent Studio</span></button>
+            <button class="area"><span class="ico">⚙</span><span class="railtext" data-zh="设置" data-en="Settings">设置</span></button>
+          </nav>
+          <button class="btn btn-primary newbtn">＋ <span class="railtext" data-zh="新建会话" data-en="New session">新建会话</span></button>
+          <div class="grp">
+            <div class="lbl"><span class="railtext" data-zh="项目" data-en="Projects">项目</span></div>
+            <div class="item" aria-current="true"><span class="dot"></span><span class="name railtext">vessel-harness</span></div>
+            <div class="item"><span class="dot"></span><span class="name railtext">second-repo</span></div>
+          </div>
+          <div class="grp">
+            <div class="lbl"><span class="railtext" data-zh="历史会话" data-en="Sessions">历史会话</span></div>
+            <input class="search railtext" placeholder="搜索会话…" data-ph-zh="搜索会话…" data-ph-en="Search sessions…">
+            <div class="item"><span class="dot live"></span><span class="name railtext" data-zh="重构 Provider 能力协商" data-en="Refactor provider negotiation">重构 Provider 能力协商</span></div>
+            <div class="item"><span class="dot"></span><span class="name railtext" data-zh="画布单 Hunk 补丁选择器" data-en="Canvas single-hunk picker">画布单 Hunk 补丁选择器</span></div>
+            <div class="item"><span class="dot"></span><span class="name railtext" data-zh="检查 sandbox 逃逸路径" data-en="Audit sandbox escapes">检查 sandbox 逃逸路径</span></div>
+          </div>
+          <div class="rail-foot railtext" data-zh="项目 → 会话 → 运行 → 子代理" data-en="Project → Session → Run → Subagents">项目 → 会话 → 运行 → 子代理</div>
+        </aside>
+        <div class="main">
+          <header class="topbar">
+            <div class="status"><span class="led"></span><span data-zh="本地服务运行正常" data-en="Local server healthy">本地服务运行正常</span><span style="color:var(--text-3)">· v0.10.0</span></div>
+            <div class="top-actions"><button class="btn btn-ghost btn-sm"><span class="kbd">⌘</span><span class="kbd">K</span></button><button class="btn btn-ghost btn-sm" data-zh="偏好设置" data-en="Preferences">偏好设置</button></div>
+          </header>
+          <div class="body">
+            <div>
+              <h1 class="title" data-zh="开始一个任务" data-en="Start a task">开始一个任务</h1>
+              <p class="lede" data-zh="选择项目，写下目标。Vessel 在受策略约束的循环里执行，并把每一处证据留在会话里。" data-en="Pick a project and describe the goal. Vessel runs inside a policy-constrained loop and leaves the evidence in the session.">选择项目，写下目标。Vessel 在受策略约束的循环里执行，并把每一处证据留在会话里。</p>
+            </div>
+            <div class="composer">
+              <div class="pills">
+                <span class="pill"><span class="k" data-zh="项目" data-en="Project">项目</span> vessel-harness</span>
+                <span class="pill"><span class="k" data-zh="模型" data-en="Model">模型</span> deepseek-v4.1-flash</span>
+                <span class="pill"><span class="k" data-zh="权限" data-en="Policy">权限</span> workspace-write</span>
+                <span class="pill accent" data-zh="goal 模式" data-en="goal mode">goal 模式</span>
+              </div>
+              <textarea class="ta" rows="3" data-ph-zh="描述你要完成的任务…" data-ph-en="Describe the task…"></textarea>
+              <div class="composer-foot">
+                <button class="btn btn-primary" data-zh="开始任务" data-en="Start task">开始任务</button>
+                <button class="btn btn-ghost btn-sm" data-zh="进阶设置" data-en="Advanced">进阶设置</button>
+                <span class="hint" data-zh="Ctrl + Enter 发送" data-en="Ctrl + Enter to send">Ctrl + Enter 发送</span>
+              </div>
+            </div>
+            <div>
+              <div class="section-label"><h2 data-zh="最近会话" data-en="Recent sessions">最近会话</h2><span data-zh="3 条" data-en="3 items">3 条</span></div>
+              <div class="mini-list">
+                <div class="mini"><span class="badge ok" data-zh="运行中" data-en="Running">运行中</span><span class="t" data-zh="重构 Provider 能力协商" data-en="Refactor provider negotiation">重构 Provider 能力协商</span><span class="m">vessel-harness · 12 步</span></div>
+                <div class="mini"><span class="badge mute" data-zh="已完成" data-en="Done">已完成</span><span class="t" data-zh="画布单 Hunk 补丁选择器" data-en="Canvas single-hunk picker">画布单 Hunk 补丁选择器</span><span class="m">vessel-harness · 28 步</span></div>
+                <div class="mini"><span class="badge warn" data-zh="待审批" data-en="Awaiting">待审批</span><span class="t" data-zh="检查 sandbox 逃逸路径" data-en="Audit sandbox escapes">检查 sandbox 逃逸路径</span><span class="m">second-repo · 9 步</span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </figure>
+
+  <!-- FRAME B -->
+  <figure class="frame">
+    <figcaption><span class="idx">B</span><h2 data-zh="会话视图" data-en="Conversation view">会话视图</h2><p data-zh="阅读流 + 轻量 Inspector" data-en="Reading stream + light Inspector">阅读流 + 轻量 Inspector</p></figcaption>
+    <div class="canvas">
+      <div class="app" style="min-height:560px">
+        <aside class="rail">
+          <div class="brand"><span class="mark">V</span><span class="railtext">Vessel</span><span class="sub railtext">v0.10.0</span></div>
+          <nav class="areas">
+            <button class="area" aria-current="page"><span class="ico">▤</span><span class="railtext" data-zh="工作台" data-en="Workbench">工作台</span></button>
+            <button class="area"><span class="ico">◔</span><span class="railtext" data-zh="活动" data-en="Activity">活动</span></button>
+            <button class="area"><span class="ico">❖</span><span class="railtext" data-zh="Agent Studio" data-en="Agent Studio">Agent Studio</span></button>
+            <button class="area"><span class="ico">⚙</span><span class="railtext" data-zh="设置" data-en="Settings">设置</span></button>
+          </nav>
+          <button class="btn btn-primary newbtn">＋ <span class="railtext" data-zh="新建会话" data-en="New session">新建会话</span></button>
+          <div class="grp">
+            <div class="lbl"><span class="railtext" data-zh="项目" data-en="Projects">项目</span></div>
+            <div class="item" aria-current="true"><span class="dot"></span><span class="name railtext">vessel-harness</span></div>
+            <div class="item"><span class="dot"></span><span class="name railtext">second-repo</span></div>
+          </div>
+          <div class="grp">
+            <div class="lbl"><span class="railtext" data-zh="历史会话" data-en="Sessions">历史会话</span></div>
+            <div class="item" aria-current="true"><span class="dot live"></span><span class="name railtext" data-zh="重构 Provider 能力协商" data-en="Refactor provider negotiation">重构 Provider 能力协商</span></div>
+            <div class="item"><span class="dot"></span><span class="name railtext" data-zh="画布单 Hunk 补丁选择器" data-en="Canvas single-hunk picker">画布单 Hunk 补丁选择器</span></div>
+          </div>
+          <div class="rail-foot railtext" data-zh="项目 → 会话 → 运行 → 子代理" data-en="Project → Session → Run → Subagents">项目 → 会话 → 运行 → 子代理</div>
+        </aside>
+        <div class="main">
+          <header class="topbar">
+            <div class="status"><span class="led"></span><span data-zh="本地服务运行正常" data-en="Local server healthy">本地服务运行正常</span><span style="color:var(--text-3)">· v0.10.0</span></div>
+            <div class="top-actions"><button class="btn btn-ghost btn-sm"><span class="kbd">⌘</span><span class="kbd">K</span></button><button class="btn btn-ghost btn-sm" data-zh="偏好设置" data-en="Preferences">偏好设置</button></div>
+          </header>
+          <div class="conv-head">
+            <div><div class="ttl" data-zh="重构 Provider 能力协商" data-en="Refactor provider negotiation">重构 Provider 能力协商</div>
+              <div class="meta"><span class="badge ok" data-zh="运行中" data-en="Running">运行中</span><span>vessel-harness</span><span>·</span><span data-zh="12 步" data-en="12 steps">12 步</span></div></div>
+            <div class="acts"><button class="btn btn-sm" data-zh="导出 JSON" data-en="Export JSON">导出 JSON</button><button class="btn btn-sm btn-ghost" data-zh="清屏" data-en="Clear">清屏</button></div>
+          </div>
+          <div class="conv-cols">
+            <div class="stream">
+              <div class="msg"><div class="avatar u">你</div><div class="bubble" style="min-width:0"><div class="role" data-zh="用户" data-en="User">用户</div><p data-zh="把 Provider 能力协商接到调度前拦截：不支持的强制约束直接抛错，不要发网络请求。" data-en="Gate dispatch on capability negotiation: hard-fail unsupported constraints before any network call.">把 Provider 能力协商接到调度前拦截：不支持的强制约束直接抛错，不要发网络请求。</p></div></div>
+              <div class="msg"><div class="avatar a">V</div><div class="bubble" style="min-width:0"><div class="role">Vessel</div>
+                <details class="think" open><summary data-zh="思考 · 12s" data-en="Thinking · 12s">思考 · 12s</summary><div data-zh="先读 shared 的能力契约，确认调度入口只有一处；拦截放在 composeHarness 之前，零网络调用才可证。" data-en="Read the capability contract in shared, confirm a single dispatch entry, and gate before composeHarness so zero-network is provable.">先读 shared 的能力契约，确认调度入口只有一处；拦截放在 composeHarness 之前，零网络调用才可证。</div></details>
+                <p data-zh="我先读契约，再改调度路径。" data-en="I'll read the contract first, then change the dispatch path.">我先读契约，再改调度路径。</p></div></div>
+              <div class="tool"><span class="name">Read</span><span>packages/shared/src/provider.ts</span><span class="st"><span data-zh="成功" data-en="ok">成功</span><span>14ms</span></span></div>
+              <div class="tool"><span class="name">Edit</span><span>providerRoutes.ts</span><span class="st"><span data-zh="成功" data-en="ok">成功</span><span>18ms</span><span style="color:var(--ok)">+24</span><span style="color:var(--danger)">−6</span></span></div>
+              <div class="msg"><div class="avatar a">V</div><div class="bubble" style="min-width:0"><p data-zh="三态 detected / declared / unknown 已定义，并在调度前硬拦截。下一步要改 Web 端节点命名，需要授权。" data-en="Three-state detected / declared / unknown is defined and hard-fails before dispatch. The next step touches Web node naming and needs authorization.">三态 detected / declared / unknown 已定义，并在调度前硬拦截。下一步要改 Web 端节点命名，需要授权。</p></div></div>
+              <div class="approval">
+                <div class="hd">⚠ <span data-zh="需要授权" data-en="Authorization required">需要授权</span></div>
+                <div class="op">Write  apps/web/src/components/navigation.ts  <span style="color:var(--text-3)">(12 lines)</span></div>
+                <div class="row"><button class="btn btn-primary btn-sm" data-zh="批准一次" data-en="Allow once">批准一次</button><button class="btn btn-danger btn-sm" data-zh="拒绝" data-en="Deny">拒绝</button><button class="btn btn-ghost btn-sm" data-zh="查看 diff" data-en="View diff">查看 diff</button></div>
+              </div>
+            </div>
+            <aside class="inspector">
+              <div class="tabs"><button class="tab" aria-selected="true" data-zh="概览" data-en="Overview">概览</button><button class="tab" data-zh="变更" data-en="Changes">变更</button><button class="tab" data-zh="上下文" data-en="Context">上下文</button><button class="tab" data-zh="追踪" data-en="Trace">追踪</button></div>
+              <div class="insp-body">
+                <dl class="kv"><dt data-zh="运行" data-en="Run">运行</dt><dd>run_7f31c2</dd><dt data-zh="模型" data-en="Model">模型</dt><dd>deepseek-v4.1-flash</dd><dt data-zh="权限" data-en="Policy">权限</dt><dd>workspace-write</dd><dt data-zh="预算" data-en="Budget">预算</dt><dd>12 / 40</dd></dl>
+                <div>
+                  <div class="section-label" style="margin-bottom:4px"><h2 style="font-size:var(--fs-12)" data-zh="变更文件" data-en="Changed files">变更文件</h2></div>
+                  <div class="filelist">
+                    <div class="file">provider.ts <span class="tags"><span class="add">+24</span><span class="del">−6</span></span></div>
+                    <div class="file">providerRoutes.ts <span class="tags"><span class="add">+11</span><span class="del">−2</span></span></div>
+                    <div class="file">CapabilityStatus.tsx <span class="tags"><span class="add">+96</span></span></div>
+                  </div>
+                </div>
+                <div class="empty"><div class="big">◇</div><div data-zh="选择文件查看逐行 diff" data-en="Select a file to inspect the diff">选择文件查看逐行 diff</div></div>
+              </div>
+            </aside>
+          </div>
+          <div class="usage"><span><b data-zh="输入" data-en="in">输入</b> 12.4k</span><span><b data-zh="输出" data-en="out">输出</b> 1.8k</span><span><b data-zh="缓存命中" data-en="cache">缓存命中</b> 61%</span><span><b data-zh="花费" data-en="cost">花费</b> $0.0124</span></div>
+          <div class="composer-input"><textarea class="ta" rows="2" data-ph-zh="继续给 Vessel 指令…" data-ph-en="Give Vessel the next instruction…"></textarea><button class="btn btn-primary" data-zh="发送" data-en="Send">发送</button></div>
+        </div>
+      </div>
+    </div>
+  </figure>
+
+  <!-- FRAME C -->
+  <figure class="frame">
+    <figcaption><span class="idx">C</span><h2 data-zh="组件与状态" data-en="Components &amp; states">组件与状态</h2><p data-zh="发丝线分隔、去边框化" data-en="Hairline dividers, de-bordered">发丝线分隔、去边框化</p></figcaption>
+    <div class="canvas">
+      <div class="frag">
+        <div class="box"><h3 data-zh="按钮" data-en="Buttons">按钮</h3><div class="rowbtns"><button class="btn btn-primary" data-zh="开始任务" data-en="Primary">开始任务</button><button class="btn" data-zh="次级" data-en="Secondary">次级</button><button class="btn btn-ghost" data-zh="幽灵" data-en="Ghost">幽灵</button><button class="btn btn-danger" data-zh="拒绝" data-en="Deny">拒绝</button></div></div>
+        <div class="box"><h3 data-zh="状态徽章" data-en="Badges">状态徽章</h3><div class="rowbtns"><span class="badge ok" data-zh="成功" data-en="Success">成功</span><span class="badge warn" data-zh="待审批" data-en="Awaiting">待审批</span><span class="badge danger" data-zh="失败" data-en="Failed">失败</span><span class="badge info" data-zh="运行中" data-en="Running">运行中</span><span class="badge mute" data-zh="已完成" data-en="Done">已完成</span></div></div>
+        <div class="box"><h3 data-zh="输入" data-en="Inputs">输入</h3><input class="search" placeholder="搜索会话…" data-ph-zh="搜索会话…" data-ph-en="Search sessions…"><textarea class="ta" rows="2" data-ph-zh="描述任务…" data-ph-en="Describe the task…" style="border:1px solid var(--line);border-radius:var(--r2);background:var(--surface);padding:10px 12px;min-height:56px"></textarea></div>
+        <div class="box"><h3 data-zh="列表（去边框）" data-en="List (de-bordered)">列表（去边框）</h3>
+          <table class="grid"><thead><tr><th data-zh="工具" data-en="Tool">工具</th><th data-zh="状态" data-en="Status">状态</th><th data-zh="耗时" data-en="Time">耗时</th></tr></thead><tbody><tr><td>Read</td><td style="color:var(--ok)">ok</td><td>14ms</td></tr><tr><td>Edit</td><td style="color:var(--ok)">ok</td><td>18ms</td></tr><tr><td>Bash</td><td style="color:var(--danger)">denied</td><td>2ms</td></tr></tbody></table></div>
+        <div class="box"><h3 data-zh="空态" data-en="Empty state">空态</h3><div class="empty"><div class="big">◇</div><div data-zh="还没有项目" data-en="No projects yet">还没有项目</div><div style="font-size:var(--fs-11);margin-top:4px" data-zh="打开一个目录作为工作区" data-en="Open a directory as a workspace">打开一个目录作为工作区</div></div></div>
+        <div class="box"><h3 data-zh="提示" data-en="Toast">提示</h3><div class="toast"><span style="color:var(--accent)">●</span><div><div style="font-weight:600" data-zh="已保存供应商" data-en="Provider saved">已保存供应商</div><div style="color:var(--text-3);font-size:var(--fs-11)" data-zh="用 vessel provider switch 切换默认" data-en="Use vessel provider switch to change default">用 vessel provider switch 切换默认</div></div><span class="x">✕</span></div></div>
+        <div class="box"><h3 data-zh="色板" data-en="Palette">色板</h3><div class="swatches"><div class="sw" style="background:var(--bg)">bg</div><div class="sw" style="background:var(--surface)">s1</div><div class="sw" style="background:var(--surface-2)">s2</div><div class="sw" style="background:var(--ink);color:var(--ink-fg)">ink</div><div class="sw" style="background:var(--accent);color:#fff">ac</div><div class="sw" style="background:var(--ok);color:#fff">ok</div><div class="sw" style="background:var(--warn);color:#fff">wn</div><div class="sw" style="background:var(--danger);color:#fff">er</div></div></div>
+        <div class="box"><h3 data-zh="字阶" data-en="Type scale">字阶</h3>
+          <div class="typerow"><code>28/620</code><span style="font-size:var(--fs-28);font-weight:620;letter-spacing:-.022em">开始一个任务</span></div>
+          <div class="typerow"><code>16/620</code><span style="font-size:var(--fs-16);font-weight:620">会话视图</span></div>
+          <div class="typerow"><code>14/400</code><span style="font-size:var(--fs-14)">界面正文内容，行高 1.65</span></div>
+          <div class="typerow"><code>12/550</code><span style="font-size:var(--fs-12);font-weight:550">次级标签文本</span></div>
+          <div class="typerow"><code>11/400</code><span style="font-size:var(--fs-11);color:var(--text-3)">注释与元信息</span></div>
+        </div>
+      </div>
+    </div>
+  </figure>
+
+</div>
+
+<script>
+(function(){
+  var root=document.documentElement, mq=window.matchMedia('(prefers-color-scheme: dark)'), choice='auto';
+  function resolve(){ root.setAttribute('data-theme', choice==='auto'?(mq.matches?'dark':'light'):choice); }
+  var hm=/(?:^|[#&?])theme=(dark|light)/.exec(location.search+location.hash);
+  if(hm) choice=hm[1];
+  mq.addEventListener('change',resolve); resolve();
+  function press(sel,attr,val){ document.querySelectorAll(sel).forEach(function(b){ b.setAttribute('aria-pressed',String(b.getAttribute(attr)===val)); }); }
+  press('[data-theme-btn]','data-theme-btn',choice);
+  document.querySelectorAll('[data-theme-btn]').forEach(function(b){ b.addEventListener('click',function(){ choice=b.getAttribute('data-theme-btn'); resolve(); press('[data-theme-btn]','data-theme-btn',choice); }); });
+  document.querySelectorAll('[data-lang-btn]').forEach(function(b){ b.addEventListener('click',function(){ var lang=b.getAttribute('data-lang-btn'); root.setAttribute('data-lang',lang);
+    document.querySelectorAll('[data-zh]').forEach(function(el){ el.textContent=el.getAttribute('data-'+lang); });
+    document.querySelectorAll('[data-ph-zh]').forEach(function(el){ el.setAttribute('placeholder',el.getAttribute('data-ph-'+lang)); });
+    press('[data-lang-btn]','data-lang-btn',lang); }); });
+  document.querySelectorAll('[data-vp-btn]').forEach(function(b){ b.addEventListener('click',function(){ var vp=b.getAttribute('data-vp-btn'); document.body.classList.toggle('vp800',vp==='800'); press('[data-vp-btn]','data-vp-btn',vp); }); });
+  var q = location.search + location.hash;
+  var m2 = /(?:^|[#&?])lang=(zh|en)/.exec(q);
+  if (m2) { var lb = document.querySelector('[data-lang-btn="'+m2[1]+'"]'); if (lb) lb.click(); }
+  var m3 = /(?:^|[#&?])vp=(800|desktop)/.exec(q);
+  if (m3) { var vb = document.querySelector('[data-vp-btn="'+m3[1]+'"]'); if (vb) vb.click(); }
+})();
+</script>
+</body>
+</html>

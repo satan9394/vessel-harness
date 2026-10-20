@@ -1,0 +1,6 @@
+{
+  "installed": "C:\\Users\\SATANC~1\\AppData\\Local\\Temp\\pdw-iso-891107478\\.agents\\skills\\personal-dev-workflow",
+  "launcher": "C:\\Users\\SATANC~1\\AppData\\Local\\Temp\\pdw-iso-891107478\\pdw.ps1",
+  "initialized": true,
+  "next": "Ask your coding agent: use PDW to complete <goal>. Or run ./pdw.ps1 doctor"
+}

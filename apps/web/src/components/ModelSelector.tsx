@@ -3,6 +3,7 @@ import { ApiError, type ApiClient, type ModelOption, type SessionMeta } from '..
 import { useI18n } from './LanguageProvider';
 import CapabilityStatus from './providers/CapabilityStatus';
 import { modelKey } from './NewSessionForm';
+import { ModelQuickSwitcher } from './providers/ModelQuickSwitcher';
 
 export interface ModelSelectorProps {
   api: ApiClient;
@@ -62,10 +63,11 @@ export default function ModelSelector({ api, sessionId, providerRevision = 0, bu
   const label = session?.provider === 'mock' ? t('modelOffline') : session?.model ? `${session.provider} / ${session.model}` : '—';
   return <div className="model-selector">
     <label htmlFor="activeSessionModel">{t('currentModel')}</label>
-    <select id="activeSessionModel" className="input" value={selected} disabled={busy || switching || loading || !session || failure === 'load'} onChange={event => void select(event.target.value)}>
+    <select hidden aria-hidden="true" tabIndex={-1} id="activeSessionModel" className="input" value={selected} disabled={busy || switching || loading || !session || failure === 'load'} onChange={event => void select(event.target.value)}>
       {!listed && <option value={selected}>{label}</option>}
       {models.map(model => <option key={modelKey(model)} value={modelKey(model)}>{model.providerName} / {model.id}</option>)}
     </select>
+    <ModelQuickSwitcher models={models} current={session?.provider && session.model ? { provider: session.provider, model: session.model } : null} disabled={busy || switching || loading || !session || failure === 'load'} onSelect={model => void select(JSON.stringify([model.provider, model.model]))} onOpenSettings={onConfigureModels} compact />
     {session && <details className="model-capabilities"><summary>{t('capabilitiesTitle')}</summary><CapabilityStatus capabilities={models.find(model => modelKey(model) === selected)?.capabilities} /></details>}
     {session && <span className="dim effective-permission" title={session.workspaceRoot}>{t('permissionLabel')}: {session.permission === 'read-only' ? t('permissionReadOnly') : session.permission === 'workspace-write' ? t('permissionWorkspaceWrite') : session.permission === 'danger-full-access' ? t('permissionDangerFull') : '—'}</span>}
     {loading || switching ? <span role="status" className="dim">{t('loading')}</span> : null}

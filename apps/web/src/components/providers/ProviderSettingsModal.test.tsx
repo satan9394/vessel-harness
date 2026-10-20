@@ -4,6 +4,9 @@ import CapabilityStatus from './CapabilityStatus';
 import ProviderSettingsModal, { PROVIDER_PRESETS, validateProvider } from './ProviderSettingsModal';
 import { createApiClient, ApiError, type ApiClient, type ProviderInfo } from '../../api';
 import { translate } from '../../i18n';
+import { ModelChips, type ModelChipsProps } from './ModelChips';
+import { PresetsGallery } from './PresetsGallery';
+import { PROVIDER_PRESETS_CATALOG } from './presetsData';
 
 // Exercise event handlers with the repository's dependency-free hook harness.
 const hooks = vi.hoisted(() => ({ values: [] as unknown[], cursor: 0, effects: [] as (() => void)[], cleanups: [] as (() => void)[], lang: 'en' as 'en' | 'zh' }));
@@ -58,6 +61,27 @@ beforeEach(() => {
 afterEach(() => { hooks.cleanups.forEach(cleanup => cleanup?.()); hooks.values = []; hooks.effects = []; hooks.cleanups = []; vi.unstubAllGlobals(); vi.clearAllMocks(); });
 
 describe('provider settings', () => {
+  it('prefills the form from a gallery card and persists the chip default first', async () => {
+    render(); await settle();
+    const gallery = render().find(node => node.type === PresetsGallery)!;
+    (gallery.props.onSelect as (preset: typeof PROVIDER_PRESETS_CATALOG[number]) => void)(PROVIDER_PRESETS_CATALOG.find(preset => preset.id === 'openrouter')!);
+    expect(render().find(node => node.props.id === 'provider-name')!.props.value).toBe('openrouter');
+    expect(render().find(node => node.props.id === 'provider-url')!.props.value).toBe('https://openrouter.ai/api/v1');
+    change('key', 'test-key');
+    function chips() { return render().find(node => node.type === ModelChips)!.props as unknown as ModelChipsProps; }
+    chips().onAdd?.('custom-model');
+    chips().onSetDefault?.('custom-model');
+    expect(chips().defaultModel).toBe('custom-model');
+    invoke(render().find(node => node.type === 'form')!, 'onSubmit', { preventDefault() {} }); await settle();
+    expect(api.addProvider).toHaveBeenCalledWith(expect.objectContaining({ models: ['custom-model', 'openrouter/auto'] }));
+  });
+  it('keeps pulled candidates visible when deselected and supports removing and reselecting', async () => {
+    render(); await settle(); change('preset', 'Ollama'); invoke(button('Pull models'), 'onClick'); await settle();
+    function chips() { return render().find(node => node.type === ModelChips)!.props as unknown as ModelChipsProps; }
+    chips().onToggle('alpha'); expect(chips().selected).toEqual(['beta']); expect(chips().models).toEqual(['alpha', 'beta']);
+    chips().onToggle('alpha'); expect(chips().selected).toEqual(['beta', 'alpha']);
+    chips().onRemove?.('alpha'); expect(chips().models).toEqual(['beta']); expect(chips().selected).toEqual(['beta']);
+  });
   it('shows masked config and excludes mock, switches presets and locale immediately', async () => {
     render(); await settle(); let tree = render();
     expect(tree.some(node => node.props.children === '****1234')).toBe(true);

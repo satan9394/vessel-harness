@@ -1,0 +1,787 @@
+<!DOCTYPE html>
+<html lang="zh-CN" style="color-scheme: light dark" data-theme="light" data-lang="zh" data-dir="precision">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Vessel Console · 五方向精修对比</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet">
+<style>
+/*
+  Vessel Console 精修版 · 三方向共用同一套结构与工艺，只换皮。
+  工艺基线：浮动面板、发丝 ring（无 1px 灰描边）、双层 bezel、柔和扩散阴影（无硬投影）、
+  大留白、大字阶、去边发丝列表（无三列对称网格）、自定义 cubic-bezier、只动 transform/opacity。
+*/
+
+/* ============================================================
+   方向一 · 克制精密（Precision） —— OLED 中性 + 靛蓝 + 柔和扩散
+   ============================================================ */
+html[data-dir="precision"]{
+  --font-sans:"Geist","Segoe UI Variable Display","Segoe UI",system-ui,-apple-system,sans-serif;
+  --font-display:var(--font-sans);
+  --r-ctl:13px; --r-card:18px; --r-panel:24px; --r-pill:999px;
+  --lbl-ls:.18em; --lbl-fw:560; --lbl-tt:uppercase;
+  --pad-home:32px clamp(24px,5vw,64px) 48px; --pad-li:14px;
+}
+html[data-dir="precision"][data-theme="light"]{
+  --bg:#ECECF1; --panel:#FFFFFF; --panel-2:#F6F7FA; --panel-3:#EFF0F5;
+  --ring:rgba(10,11,16,.06); --ring-2:rgba(10,11,16,.11);
+  --text:#090A0E; --text-2:#565C69; --text-3:#8A909C;
+  --accent:#5157E8; --accent-fg:#fff; --accent-soft:rgba(81,87,232,.09);
+  --ok:#0E7A4E; --warn:#8C5E00; --danger:#B22C23;
+  --ok-soft:rgba(14,122,78,.1); --warn-soft:rgba(140,94,0,.11); --danger-soft:rgba(178,44,35,.09);
+  --shadow-1:0 1px 2px rgba(10,11,16,.05),0 10px 24px -16px rgba(10,11,16,.18);
+  --shadow-2:0 1px 1px rgba(10,11,16,.04),0 34px 80px -34px rgba(10,11,16,.3);
+  --glow-a:rgba(99,102,241,.18); --glow-b:rgba(13,148,136,.13);
+  --hl:inset 0 1px 0 rgba(255,255,255,.85);
+}
+html[data-dir="precision"][data-theme="dark"]{
+  --bg:#050608; --panel:#0B0C11; --panel-2:#111319; --panel-3:#161820;
+  --ring:rgba(255,255,255,.07); --ring-2:rgba(255,255,255,.13);
+  --text:#F1F3F8; --text-2:#99A0AF; --text-3:#6B7181;
+  --accent:#8E96FF; --accent-fg:#0A0A12; --accent-soft:rgba(142,150,255,.13);
+  --ok:#4ADE94; --warn:#F4C151; --danger:#FF7C72;
+  --ok-soft:rgba(74,222,148,.12); --warn-soft:rgba(244,193,81,.12); --danger-soft:rgba(255,124,114,.12);
+  --shadow-1:0 1px 2px rgba(0,0,0,.55);
+  --shadow-2:0 1px 0 rgba(255,255,255,.05),0 44px 96px -44px rgba(0,0,0,.98);
+  --glow-a:rgba(99,102,241,.24); --glow-b:rgba(13,148,136,.17);
+  --hl:inset 0 1px 0 rgba(255,255,255,.06);
+}
+
+/* ============================================================
+   方向二 · 单色 Monochrome（OpenAI 风） —— 纯黑白 + 零彩色强调 + 极致克制
+   ============================================================ */
+html[data-dir="mono"]{
+  --font-sans:"Geist","Segoe UI Variable Display","Segoe UI",system-ui,-apple-system,sans-serif;
+  --font-display:var(--font-sans);
+  --r-ctl:10px; --r-card:14px; --r-panel:18px; --r-pill:999px;
+  --lbl-ls:.14em; --lbl-fw:500; --lbl-tt:uppercase;
+  --pad-home:44px clamp(28px,6vw,84px) 60px; --pad-li:17px;
+  --glow-c:transparent;
+}
+html[data-dir="mono"][data-theme="light"]{
+  --bg:#FFFFFF; --panel:#FFFFFF; --panel-2:#F6F6F6; --panel-3:#EFEFEF;
+  --ring:rgba(0,0,0,.09); --ring-2:rgba(0,0,0,.2);
+  --text:#0B0B0B; --text-2:#5B5B5B; --text-3:#909090;
+  --accent:#0B0B0B; --accent-fg:#FFFFFF; --accent-soft:rgba(0,0,0,.06);
+  --ok:#1A7F4B; --warn:#8A6A00; --danger:#B4231A;
+  --ok-soft:rgba(26,127,75,.09); --warn-soft:rgba(138,106,0,.1); --danger-soft:rgba(180,35,26,.08);
+  --shadow-1:none;
+  --shadow-2:0 1px 1px rgba(0,0,0,.03),0 26px 52px -34px rgba(0,0,0,.2);
+  --glow-a:transparent; --glow-b:transparent; --glow-c:transparent;
+  --hl:none;
+}
+html[data-dir="mono"][data-theme="dark"]{
+  --bg:#000000; --panel:#0A0A0A; --panel-2:#151515; --panel-3:#1E1E1E;
+  --ring:rgba(255,255,255,.1); --ring-2:rgba(255,255,255,.22);
+  --text:#FFFFFF; --text-2:#A6A6A6; --text-3:#767676;
+  --accent:#FFFFFF; --accent-fg:#000000; --accent-soft:rgba(255,255,255,.09);
+  --ok:#3FBF77; --warn:#E0B341; --danger:#FF6B6B;
+  --ok-soft:rgba(63,191,119,.12); --warn-soft:rgba(224,179,65,.12); --danger-soft:rgba(255,107,107,.12);
+  --shadow-1:none; --shadow-2:none;
+  --glow-a:transparent; --glow-b:transparent; --glow-c:transparent;
+  --hl:none;
+}
+
+/* ============================================================
+   方向三 · 瑞士网格 Swiss（Swiss Grid） —— 冷中性 + 结构线 + 信号红
+   ============================================================ */
+html[data-dir="swiss"]{
+  --font-sans:"Geist","Helvetica Neue","Segoe UI Variable Display",Arial,system-ui,sans-serif;
+  --font-display:var(--font-sans);
+  --r-ctl:4px; --r-card:6px; --r-panel:8px; --r-pill:4px;
+  --lbl-ls:.2em; --lbl-fw:700; --lbl-tt:uppercase;
+  --pad-home:36px clamp(24px,5vw,64px) 52px; --pad-li:15px;
+  --glow-c:transparent;
+}
+html[data-dir="swiss"][data-theme="light"]{
+  --bg:#F1F1EF; --panel:#FFFFFF; --panel-2:#E9E9E5; --panel-3:#DEDEDA;
+  --ring:rgba(18,18,18,.16); --ring-2:rgba(18,18,18,.34);
+  --text:#0E0E0E; --text-2:#4A4A46; --text-3:#7C7C76;
+  --accent:#D93025; --accent-fg:#FFFFFF; --accent-soft:rgba(217,48,37,.09);
+  --ok:#0F6B3D; --warn:#8A5A00; --danger:#B4231A;
+  --ok-soft:rgba(15,107,61,.1); --warn-soft:rgba(138,90,0,.11); --danger-soft:rgba(180,35,26,.09);
+  --shadow-1:none; --shadow-2:none;
+  --glow-a:transparent; --glow-b:transparent; --glow-c:transparent;
+  --hl:none;
+}
+html[data-dir="swiss"][data-theme="dark"]{
+  --bg:#0F0F0F; --panel:#171717; --panel-2:#212121; --panel-3:#2B2B2B;
+  --ring:rgba(255,255,255,.16); --ring-2:rgba(255,255,255,.34);
+  --text:#F2F2F0; --text-2:#A8A8A4; --text-3:#787874;
+  --accent:#FF5C4D; --accent-fg:#140402; --accent-soft:rgba(255,92,77,.13);
+  --ok:#4FC98A; --warn:#E8BE5C; --danger:#FF7A70;
+  --ok-soft:rgba(79,201,138,.13); --warn-soft:rgba(232,190,92,.13); --danger-soft:rgba(255,122,112,.13);
+  --shadow-1:none; --shadow-2:none;
+  --glow-a:transparent; --glow-b:transparent; --glow-c:transparent;
+  --hl:none;
+}
+
+/* ============================================================
+   方向四 · 柔玻璃 Soft Glass —— 半透明叠层 + 柔和光场 + 大圆角
+   ============================================================ */
+html[data-dir="glass"]{
+  --font-sans:"Geist","Segoe UI Variable Display","Segoe UI",system-ui,sans-serif;
+  --font-display:var(--font-sans);
+  --r-ctl:16px; --r-card:22px; --r-panel:30px; --r-pill:999px;
+  --lbl-ls:.16em; --lbl-fw:540; --lbl-tt:uppercase;
+  --pad-home:38px clamp(26px,5vw,72px) 54px; --pad-li:16px;
+}
+html[data-dir="glass"][data-theme="light"]{
+  --bg:#E9EDF7; --panel:#FFFFFF; --panel-2:#F2F4FB; --panel-3:#E4E8F5;
+  --ring:rgba(38,44,80,.08); --ring-2:rgba(38,44,80,.16);
+  --text:#0C1020; --text-2:#525A73; --text-3:#858CA3;
+  --accent:#5B6CFF; --accent-fg:#FFFFFF; --accent-soft:rgba(91,108,255,.1);
+  --ok:#0F7A55; --warn:#8A6100; --danger:#B4292E;
+  --ok-soft:rgba(15,122,85,.1); --warn-soft:rgba(138,97,0,.11); --danger-soft:rgba(180,41,46,.09);
+  --shadow-1:0 1px 2px rgba(38,44,80,.05);
+  --shadow-2:0 1px 1px rgba(38,44,80,.04),0 40px 90px -40px rgba(38,44,80,.32);
+  --glow-a:rgba(122,132,255,.5); --glow-b:rgba(94,220,196,.42); --glow-c:rgba(255,178,150,.36);
+  --hl:inset 0 1px 0 rgba(255,255,255,.9);
+}
+html[data-dir="glass"][data-theme="dark"]{
+  --bg:#06070D; --panel:#0D0F18; --panel-2:#131725; --panel-3:#1A1F30;
+  --ring:rgba(255,255,255,.08); --ring-2:rgba(255,255,255,.16);
+  --text:#EEF0F8; --text-2:#98A0B8; --text-3:#6A7288;
+  --accent:#9BA6FF; --accent-fg:#0A0C18; --accent-soft:rgba(155,166,255,.14);
+  --ok:#4ADE94; --warn:#F4C151; --danger:#FF7C72;
+  --ok-soft:rgba(74,222,148,.12); --warn-soft:rgba(244,193,81,.12); --danger-soft:rgba(255,124,114,.12);
+  --shadow-1:0 1px 2px rgba(0,0,0,.5);
+  --shadow-2:0 1px 0 rgba(255,255,255,.06),0 50px 110px -50px rgba(0,0,0,.98);
+  --glow-a:rgba(112,124,255,.42); --glow-b:rgba(46,180,166,.34); --glow-c:rgba(255,140,120,.26);
+  --hl:inset 0 1px 0 rgba(255,255,255,.07);
+}
+
+/* ============================================================
+   方向五 · 高反差 Noir —— 纯黑 + 荧光酸绿 + 极紧字距
+   ============================================================ */
+html[data-dir="noir"]{
+  --font-sans:"Geist","Segoe UI Variable Display","Segoe UI",system-ui,sans-serif;
+  --font-display:var(--font-sans);
+  --r-ctl:6px; --r-card:9px; --r-panel:12px; --r-pill:999px;
+  --lbl-ls:.24em; --lbl-fw:600; --lbl-tt:uppercase;
+  --pad-home:34px clamp(24px,5vw,68px) 52px; --pad-li:15px;
+  --glow-c:transparent;
+}
+html[data-dir="noir"][data-theme="light"]{
+  --bg:#F2F2EE; --panel:#FBFBF8; --panel-2:#EAEAE4; --panel-3:#E0E0D8;
+  --ring:rgba(0,0,0,.12); --ring-2:rgba(0,0,0,.28);
+  --text:#08090A; --text-2:#4C4E4A; --text-3:#7E807A;
+  --accent:#1F2400; --accent-fg:#CCFF00; --accent-soft:rgba(120,140,0,.12);
+  --ok:#146A33; --warn:#7A5A00; --danger:#A82019;
+  --ok-soft:rgba(20,106,51,.11); --warn-soft:rgba(122,90,0,.12); --danger-soft:rgba(168,32,25,.1);
+  --shadow-1:none; --shadow-2:none;
+  --glow-a:transparent; --glow-b:transparent; --glow-c:transparent;
+  --hl:none;
+}
+html[data-dir="noir"][data-theme="dark"]{
+  --bg:#000000; --panel:#0B0C0A; --panel-2:#141613; --panel-3:#1C1F1A;
+  --ring:rgba(255,255,255,.11); --ring-2:rgba(255,255,255,.24);
+  --text:#F7F8F4; --text-2:#9CA396; --text-3:#6C736A;
+  --accent:#CCFF00; --accent-fg:#0A0C00; --accent-soft:rgba(204,255,0,.13);
+  --ok:#8CE05C; --warn:#F5C542; --danger:#FF6B5E;
+  --ok-soft:rgba(140,224,92,.12); --warn-soft:rgba(245,197,66,.12); --danger-soft:rgba(255,107,94,.12);
+  --shadow-1:none; --shadow-2:none;
+  --glow-a:rgba(204,255,0,.09); --glow-b:transparent; --glow-c:transparent;
+  --hl:inset 0 1px 0 rgba(255,255,255,.06);
+}
+
+/* ---------- 公共 ---------- */
+:root{
+  --ease:cubic-bezier(.32,.72,0,1); --fast:cubic-bezier(.25,.46,.45,.94);
+  --s-1:4px; --s-2:8px; --s-3:12px; --s-4:16px; --s-5:22px; --s-6:32px; --s-7:48px;
+  --glow-c:transparent;
+}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0}
+body{
+  background:var(--bg); color:var(--text); font-family:var(--font-sans);
+  font-size:13.5px; line-height:1.55; letter-spacing:-.006em;
+  -webkit-font-smoothing:antialiased; font-variant-numeric:tabular-nums; overflow:hidden;
+}
+::selection{background:var(--accent-soft)}
+button{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+.ambient{position:fixed;inset:0;z-index:0;pointer-events:none;
+  background:
+    radial-gradient(58% 44% at 10% -6%, var(--glow-a), transparent 62%),
+    radial-gradient(50% 40% at 97% 2%, var(--glow-b), transparent 64%);
+  transition:background .7s var(--ease);
+}
+
+/* shell */
+.shell{position:relative;z-index:1;height:100dvh;display:grid;grid-template-columns:262px minmax(0,1fr);
+  gap:14px;padding:14px;transition:grid-template-columns .5s var(--ease)}
+.panel{border-radius:var(--r-panel);background:var(--panel);border:1px solid var(--ring);box-shadow:var(--shadow-2);overflow:hidden}
+
+/* rail */
+.rail{display:flex;flex-direction:column;gap:var(--s-4);padding:18px 14px 14px}
+.brand{display:flex;align-items:center;gap:10px;padding:2px 8px 14px}
+.brand .mark{width:26px;height:26px;border-radius:calc(var(--r-ctl) - 3px);display:grid;place-items:center;
+  background:linear-gradient(150deg,var(--accent),color-mix(in srgb,var(--accent) 52%,#000));
+  color:var(--accent-fg);box-shadow:var(--hl),0 6px 16px -6px var(--accent)}
+.brand .name{font-weight:600;letter-spacing:-.02em;font-size:14.5px}
+.brand .ver{margin-left:auto;font-size:10.5px;color:var(--text-3)}
+.nav{display:flex;flex-direction:column;gap:2px}
+.nav button{display:flex;align-items:center;gap:10px;padding:8px 10px;border:0;background:transparent;
+  border-radius:calc(var(--r-ctl) - 2px);color:var(--text-2);cursor:pointer;text-align:left;
+  transition:background .35s var(--ease),color .35s var(--ease)}
+.nav button:hover{background:var(--panel-2);color:var(--text)}
+.nav button[aria-current="page"]{background:var(--panel-2);color:var(--text);font-weight:560;box-shadow:var(--hl)}
+.nav svg{flex:none;opacity:.75}
+
+/* 胶囊按钮 + 内嵌尾随图标圈 */
+.btn{display:inline-flex;align-items:center;gap:10px;padding:9px 9px 9px 18px;border:1px solid transparent;
+  border-radius:var(--r-pill);background:var(--panel-2);color:var(--text);cursor:pointer;white-space:nowrap;
+  font-weight:520;transition:transform .5s var(--ease),background .35s var(--ease),border-color .35s var(--ease),box-shadow .5s var(--ease)}
+.btn:hover{background:var(--panel-3)}
+.btn:active{transform:scale(.975)}
+.btn .ic{width:26px;height:26px;border-radius:var(--r-pill);display:grid;place-items:center;
+  background:rgba(127,127,140,.16);transition:transform .5s var(--ease)}
+.btn:hover .ic{transform:translate(2px,-1px) scale(1.06)}
+.btn-primary{background:var(--accent);color:var(--accent-fg);border-color:transparent;
+  box-shadow:var(--hl),0 14px 30px -14px color-mix(in srgb,var(--accent) 70%,transparent)}
+.btn-primary .ic{background:color-mix(in srgb,var(--accent-fg) 20%,transparent)}
+.btn-primary:hover{background:color-mix(in srgb,var(--accent) 88%,#fff)}
+.btn-ghost{background:transparent;font-weight:480;color:var(--text-2);padding:8px 14px}
+.btn-ghost:hover{background:var(--panel-2);color:var(--text)}
+.btn-danger{background:var(--danger-soft);color:var(--danger)}
+.btn-sm{padding:6px 12px;font-size:12.5px}
+.block{width:100%;justify-content:space-between}
+
+.grp{padding-top:var(--s-3);border-top:1px solid var(--ring)}
+.lbl{font-size:10.5px;letter-spacing:var(--lbl-ls);text-transform:var(--lbl-tt);color:var(--text-3);
+  font-weight:var(--lbl-fw);padding:0 10px 6px}
+.searchbox{display:flex;align-items:center;gap:8px;margin:0 4px 6px;padding:7px 11px;
+  border-radius:calc(var(--r-ctl) - 2px);background:var(--panel-2);border:1px solid transparent;transition:border-color .35s var(--ease)}
+.searchbox:focus-within{border-color:var(--ring-2)}
+.searchbox input{flex:1;min-width:0;border:0;background:transparent;color:var(--text);font:inherit;font-size:12.5px;outline:none}
+.searchbox input::placeholder{color:var(--text-3)}
+.row{display:flex;align-items:center;gap:9px;padding:7px 10px;border-radius:calc(var(--r-ctl) - 2px);color:var(--text-2);
+  cursor:pointer;transition:background .3s var(--ease),color .3s var(--ease)}
+.row:hover{background:var(--panel-2);color:var(--text)}
+.row[aria-current="true"]{background:var(--panel-2);color:var(--text)}
+.row .tag{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.row .when{font-size:11px;color:var(--text-3)}
+.led{width:7px;height:7px;border-radius:50%;flex:none;background:var(--text-3);opacity:.5}
+.led.on{background:var(--ok);opacity:1;box-shadow:0 0 0 3px var(--ok-soft)}
+.led.wait{background:var(--warn);opacity:1;box-shadow:0 0 0 3px var(--warn-soft)}
+.railfoot{margin-top:auto;padding:12px 10px 2px;border-top:1px solid var(--ring);
+  font-size:10.5px;color:var(--text-3);line-height:1.8}
+
+/* stage */
+.stage{display:flex;flex-direction:column;min-width:0}
+.stagebar{display:flex;align-items:center;gap:var(--s-3);padding:14px 20px;border-bottom:1px solid var(--ring)}
+.status{display:inline-flex;align-items:center;gap:9px;padding:5px 12px 5px 10px;border-radius:var(--r-pill);
+  background:var(--panel-2);font-size:12px;color:var(--text-2);box-shadow:var(--hl)}
+.stagebar .right{margin-left:auto;display:flex;align-items:center;gap:var(--s-2)}
+.kbd{font-size:10px;padding:2px 6px;border-radius:calc(var(--r-ctl) - 5px);background:var(--panel-3);color:var(--text-3)}
+.chipbtn{display:inline-flex;align-items:center;gap:8px;padding:6px 12px;border-radius:var(--r-pill);
+  border:1px solid var(--ring);background:transparent;color:var(--text-2);cursor:pointer;font-size:12.5px;white-space:nowrap;
+  transition:background .35s var(--ease),color .35s var(--ease),border-color .35s var(--ease)}
+.chipbtn:hover{background:var(--panel-2);color:var(--text);border-color:var(--ring-2)}
+
+.view{flex:1;min-height:0;overflow-y:auto;display:none}
+.view.on{display:flex;flex-direction:column}
+.home{padding:var(--pad-home);gap:var(--s-6)}
+.eyebrow{display:inline-flex;align-items:center;gap:9px;align-self:flex-start;padding:5px 13px;border-radius:var(--r-pill);
+  background:var(--panel-2);border:1px solid var(--ring);font-size:10.5px;letter-spacing:var(--lbl-ls);
+  text-transform:var(--lbl-tt);font-weight:var(--lbl-fw);color:var(--text-2);box-shadow:var(--hl)}
+.hero{display:flex;flex-direction:column;gap:var(--s-3);max-width:74ch}
+h1{margin:0;font-family:var(--font-display);font-size:clamp(34px,4.2vw,50px);line-height:1.04;
+  letter-spacing:-.038em;font-weight:560;text-wrap:balance}
+html[data-dir="mono"] h1{font-weight:600;letter-spacing:-.045em}
+html[data-dir="swiss"] h1{font-weight:700;letter-spacing:-.032em}
+html[data-dir="noir"] h1{font-weight:640;letter-spacing:-.05em}
+html[data-dir="mono"] .brand .mark{background:var(--text);color:var(--bg);box-shadow:none}
+html[data-dir="mono"] .btn-primary{box-shadow:none}
+html[data-dir="mono"] .btn-primary:hover{background:color-mix(in srgb,var(--accent) 86%,#888)}
+html[data-dir="mono"] .ava.v{background:var(--text);color:var(--bg)}
+html[data-dir="swiss"] .btn,html[data-dir="swiss"] .btn-primary,html[data-dir="swiss"] .chip,
+html[data-dir="swiss"] .chipbtn,html[data-dir="swiss"] .status,html[data-dir="swiss"] .pill,
+html[data-dir="swiss"] .searchbox,html[data-dir="swiss"] .row,html[data-dir="swiss"] .nav button{border-radius:var(--r-ctl)}
+html[data-dir="swiss"] .btn-primary{box-shadow:none}
+html[data-dir="swiss"] .grp .lbl{border-bottom:2px solid var(--text);padding-bottom:4px;display:inline-block}
+html[data-dir="glass"] .panel{background:color-mix(in srgb,var(--panel) 78%,transparent)}
+html[data-dir="glass"] .rail,html[data-dir="glass"] .stagebar{backdrop-filter:blur(26px) saturate(1.7)}
+html[data-dir="glass"] .ambient{background:
+  radial-gradient(52% 42% at 6% -4%, var(--glow-a), transparent 60%),
+  radial-gradient(46% 40% at 98% 4%, var(--glow-b), transparent 62%),
+  radial-gradient(60% 44% at 52% 106%, var(--glow-c), transparent 64%)}
+html[data-dir="noir"] .pill{border-radius:2px}
+html[data-dir="noir"] .btn-primary{box-shadow:var(--hl),0 0 34px -8px color-mix(in srgb,var(--accent) 50%,transparent)}
+html[data-dir="noir"] .led.on{box-shadow:0 0 10px var(--ok)}
+.lede{margin:0;color:var(--text-2);font-size:14.5px;max-width:62ch;text-wrap:pretty}
+
+/* 双层 bezel */
+.bezel{padding:6px;border-radius:calc(var(--r-panel) + 6px);background:var(--panel-3);
+  border:1px solid var(--ring);box-shadow:var(--hl),var(--shadow-1)}
+.bezel .core{border-radius:var(--r-panel);background:var(--panel);border:1px solid var(--ring);
+  box-shadow:var(--hl);padding:16px 18px}
+.chips{display:flex;gap:var(--s-2);flex-wrap:wrap;margin-bottom:14px}
+.chip{display:inline-flex;align-items:center;gap:7px;padding:5px 12px;border-radius:var(--r-pill);
+  border:1px solid var(--ring);background:transparent;color:var(--text-2);font-size:12.5px;cursor:pointer;white-space:nowrap;
+  transition:border-color .35s var(--ease),background .35s var(--ease),color .35s var(--ease)}
+.chip:hover{border-color:var(--ring-2);color:var(--text)}
+.chip b{font-weight:520;color:var(--text)}
+.chip .k{color:var(--text-3);font-size:10.5px;letter-spacing:var(--lbl-ls);text-transform:var(--lbl-tt)}
+.chip.solid{background:var(--accent-soft);border-color:transparent;color:var(--accent)}
+textarea{width:100%;border:0;background:transparent;color:var(--text);font:inherit;font-size:15px;
+  line-height:1.6;resize:none;outline:none;min-height:92px}
+html[data-dir="mono"] .li:hover{background:linear-gradient(90deg,var(--panel-2),transparent 55%)}
+textarea::placeholder{color:var(--text-3)}
+.crow{display:flex;align-items:center;gap:var(--s-2);padding-top:14px;margin-top:12px;border-top:1px solid var(--ring)}
+.hint{margin-left:auto;color:var(--text-3);font-size:11.5px;display:flex;align-items:center;gap:6px}
+
+.sec{display:flex;flex-direction:column;gap:var(--s-1)}
+.sechead{display:flex;align-items:baseline;gap:var(--s-3);padding:0 2px 8px}
+.sechead h2{margin:0;font-size:10.5px;letter-spacing:var(--lbl-ls);text-transform:var(--lbl-tt);
+  color:var(--text-3);font-weight:var(--lbl-fw)}
+.sechead .more{margin-left:auto;font-size:12.5px;color:var(--text-2);cursor:pointer}
+.sechead .more:hover{color:var(--text)}
+.list{display:flex;flex-direction:column}
+.li{display:flex;align-items:center;gap:14px;padding:var(--pad-li) 4px;border-top:1px solid var(--ring);cursor:pointer;
+  transition:padding-left .45s var(--ease),background .3s var(--ease)}
+.li:last-child{border-bottom:1px solid var(--ring)}
+.li:hover{padding-left:10px;background:linear-gradient(90deg,var(--panel-2),transparent 60%)}
+.li .ttl{font-weight:520;letter-spacing:-.012em}
+html[data-dir="swiss"] .li .ttl{font-weight:600;letter-spacing:-.005em}
+.li .meta{margin-left:auto;display:flex;align-items:center;gap:14px;color:var(--text-3);font-size:12px}
+.pill{display:inline-flex;align-items:center;gap:6px;padding:3px 10px;border-radius:var(--r-pill);font-size:11px;
+  font-weight:540;letter-spacing:.01em}
+.pill::before{content:"";width:5px;height:5px;border-radius:50%;background:currentColor}
+.pill.ok{background:var(--ok-soft);color:var(--ok)}
+.pill.wait{background:var(--warn-soft);color:var(--warn)}
+.pill.bad{background:var(--danger-soft);color:var(--danger)}
+.pill.run{background:var(--accent-soft);color:var(--accent)}
+.pill.mute{background:var(--panel-2);color:var(--text-2)}
+html[data-dir="noir"] .ava{border-radius:var(--r-ctl)}
+
+/* conversation */
+.convhead{display:flex;align-items:center;gap:var(--s-3);padding:16px 22px;border-bottom:1px solid var(--ring)}
+.convhead .h{display:flex;flex-direction:column;gap:4px;min-width:0}
+.convhead .h b{font-size:16px;font-weight:560;letter-spacing:-.02em}
+.convhead .h .m{display:flex;align-items:center;gap:10px;color:var(--text-3);font-size:12px}
+.convbody{flex:1;min-height:0;display:grid;grid-template-columns:minmax(0,1fr) 330px}
+.stream{padding:24px 26px var(--s-6);display:flex;flex-direction:column;gap:var(--s-5);min-width:0;overflow-y:auto}
+html[data-dir="mono"] .stream{padding:36px 44px var(--s-6)}
+.turn{display:flex;gap:14px;max-width:80ch}
+.ava{width:28px;height:28px;border-radius:calc(var(--r-ctl) - 4px);flex:none;display:grid;place-items:center;font-size:11px;
+  font-weight:600;background:var(--panel-2);color:var(--text-2);box-shadow:var(--hl)}
+.ava.v{background:linear-gradient(150deg,var(--accent),color-mix(in srgb,var(--accent) 50%,#000));color:var(--accent-fg)}
+.turn .body{min-width:0;display:flex;flex-direction:column;gap:10px}
+.role{font-size:10.5px;letter-spacing:var(--lbl-ls);text-transform:var(--lbl-tt);color:var(--text-3);font-weight:var(--lbl-fw)}
+.turn p{margin:0;font-size:14px;line-height:1.62;text-wrap:pretty}
+.tb{padding:5px;border-radius:calc(var(--r-card) + 5px);background:var(--panel-2);border:1px solid var(--ring)}
+.tb .core{border-radius:var(--r-card);background:var(--panel);padding:12px 14px;border:1px solid var(--ring);box-shadow:var(--hl)}
+.tb summary{cursor:pointer;list-style:none;font-size:11px;color:var(--text-3);
+  letter-spacing:.02em;display:flex;align-items:center;gap:8px}
+.tb summary::-webkit-details-marker{display:none}
+.tb .txt{margin-top:9px;color:var(--text-2);font-size:13px;line-height:1.6}
+.tool{display:flex;align-items:center;gap:12px;padding:11px 14px;border-radius:var(--r-ctl);
+  background:var(--panel-2);border:1px solid var(--ring);box-shadow:var(--hl);font-size:12px}
+.tool .nm{font-weight:520;color:var(--text);text-transform:var(--lbl-tt);letter-spacing:.04em}
+.tool .pth{color:var(--text-2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+  font-family:"Geist Mono","Cascadia Mono","Microsoft YaHei",ui-monospace,monospace}
+.tool .rt{margin-left:auto;display:flex;gap:12px;color:var(--text-3);font-size:11px;flex:none}
+.add{color:var(--ok)} .del{color:var(--danger)}
+.approve{padding:5px;border-radius:calc(var(--r-card) + 5px);background:var(--warn-soft)}
+.approve .core{border-radius:var(--r-card);background:var(--panel);border:1px solid var(--ring);box-shadow:var(--hl);
+  padding:14px 16px;display:flex;flex-direction:column;gap:12px}
+.approve .hd{display:flex;align-items:center;gap:9px;font-weight:560;color:var(--warn);font-size:13px}
+.approve .op{font-size:12px;color:var(--text-2);padding:9px 12px;border-radius:calc(var(--r-ctl) - 3px);background:var(--panel-2);
+  font-family:"Geist Mono","Cascadia Mono",ui-monospace,monospace}
+.approve .row{display:flex;gap:9px;align-items:center}
+.usage{display:flex;gap:20px;padding:12px 26px;border-top:1px solid var(--ring);
+  font-size:11.5px;color:var(--text-3)}
+.usage b{color:var(--text-2);font-weight:500}
+
+.insp{border-left:1px solid var(--ring);display:flex;flex-direction:column;min-width:0;overflow-y:auto}
+.itabs{display:flex;gap:20px;padding:0 18px;border-bottom:1px solid var(--ring)}
+.itab{padding:14px 0;border:0;background:transparent;color:var(--text-3);cursor:pointer;font-size:12.5px;
+  border-bottom:2px solid transparent;margin-bottom:-1px;transition:color .3s var(--ease)}
+.itab:hover{color:var(--text-2)}
+.itab[aria-selected="true"]{color:var(--text);border-bottom-color:var(--accent);font-weight:540}
+.ibody{padding:18px;display:flex;flex-direction:column;gap:var(--s-5)}
+.ilabel{font-size:10.5px;letter-spacing:var(--lbl-ls);text-transform:var(--lbl-tt);color:var(--text-3);
+  font-weight:var(--lbl-fw);margin-bottom:10px}
+.kv{display:flex;flex-direction:column;gap:9px}
+.kv .r{display:flex;align-items:baseline;gap:12px;font-size:12.5px}
+.kv .r span{color:var(--text-3);min-width:52px}
+.kv .r b{font-weight:480;font-family:"Geist Mono","Cascadia Mono",ui-monospace,monospace;font-size:12px;overflow-wrap:anywhere}
+.files{display:flex;flex-direction:column}
+.f{display:flex;align-items:center;gap:10px;padding:10px 2px;border-top:1px solid var(--ring);
+  font-family:"Geist Mono","Cascadia Mono",ui-monospace,monospace;font-size:12px;color:var(--text-2)}
+.f:last-child{border-bottom:1px solid var(--ring)}
+.f .nm{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.f .dt{margin-left:auto;display:flex;gap:9px;font-size:11px}
+.blank{border:1px dashed var(--ring-2);border-radius:var(--r-ctl);padding:26px 18px;text-align:center;color:var(--text-3)}
+.blank .big{font-size:22px;opacity:.45;margin-bottom:6px}
+
+/* 评审工具岛 */
+.switcher{position:fixed;right:18px;bottom:18px;z-index:60;display:flex;align-items:center;gap:6px;flex-wrap:wrap;
+  max-width:min(92vw,860px);justify-content:flex-end;
+  padding:6px;border-radius:var(--r-pill);border:1px solid var(--ring-2);
+  background:color-mix(in srgb,var(--panel) 78%,transparent);backdrop-filter:blur(20px) saturate(1.5);
+  box-shadow:var(--shadow-2)}
+.switcher .sep{width:1px;height:18px;background:var(--ring-2);margin:0 3px}
+.switcher button{padding:6px 13px;border:0;border-radius:var(--r-pill);background:transparent;color:var(--text-2);
+  font-size:12px;cursor:pointer;transition:background .35s var(--ease),color .35s var(--ease)}
+.switcher button:hover{background:var(--panel-2);color:var(--text)}
+.switcher button[aria-pressed="true"]{background:var(--accent);color:var(--accent-fg);font-weight:540}
+.switcher .lbl{font-size:10px;letter-spacing:.15em;text-transform:uppercase;color:var(--text-3);padding:0 5px}
+
+/* 入场 */
+@keyframes rise{from{opacity:0;transform:translate3d(0,20px,0)}to{opacity:1;transform:none}}
+[data-in]{animation:rise .85s var(--ease) both}
+[data-in="2"]{animation-delay:.07s}
+[data-in="3"]{animation-delay:.14s}
+[data-in="4"]{animation-delay:.21s}
+html[data-dir="glass"] .blank{border-radius:var(--r-card)}
+@media (prefers-reduced-motion:reduce){[data-in]{animation:none}
+  *{transition-duration:.01ms !important}}
+
+/* 响应式 */
+@media (max-width:900px){
+  .shell{grid-template-columns:64px minmax(0,1fr)}
+  .rail .hide,.rail .grp,.railfoot,.brand .name,.brand .ver{display:none}
+  .brand{justify-content:center;padding:2px 0 14px}
+  .convbody{grid-template-columns:minmax(0,1fr)}
+  .insp{display:none}
+  .nav button{justify-content:center;padding:10px 0}
+}
+</style>
+</head>
+<body>
+<div class="ambient"></div>
+
+<div class="shell">
+  <aside class="panel rail">
+    <div class="brand">
+      <span class="mark">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5l8 14 8-14"/></svg>
+      </span>
+      <span class="name">Vessel</span>
+      <span class="ver">v0.10.0</span>
+    </div>
+
+    <nav class="nav">
+      <button aria-current="page">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9" rx="2"/><rect x="14" y="3" width="7" height="5" rx="2"/><rect x="14" y="12" width="7" height="9" rx="2"/><rect x="3" y="16" width="7" height="5" rx="2"/></svg>
+        <span class="hide" data-zh="工作台" data-en="Workbench">工作台</span>
+      </button>
+      <button>
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v3M12 18v3M3 12h3M18 12h3"/><circle cx="12" cy="12" r="4"/></svg>
+        <span class="hide" data-zh="活动" data-en="Activity">活动</span>
+      </button>
+      <button>
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l2.2 5.3L20 9.5l-4 3.9.9 5.6L12 16.4 7.1 19l.9-5.6-4-3.9 5.8-1.2z"/></svg>
+        <span class="hide" data-zh="Agent Studio" data-en="Agent Studio">Agent Studio</span>
+      </button>
+      <button>
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 2.5v2.6M12 18.9v2.6M4.2 4.2l1.9 1.9M17.9 17.9l1.9 1.9M2.5 12h2.6M18.9 12h2.6M4.2 19.8l1.9-1.9M17.9 6.1l1.9-1.9"/></svg>
+        <span class="hide" data-zh="设置" data-en="Settings">设置</span>
+      </button>
+    </nav>
+
+    <button class="btn btn-primary block hide">
+      <span data-zh="新建会话" data-en="New session">新建会话</span>
+      <span class="ic"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></span>
+    </button>
+
+    <div class="grp">
+      <div class="lbl" data-zh="项目" data-en="Projects">项目</div>
+      <div class="row" aria-current="true"><span class="led on"></span><span class="tag">vessel-harness</span></div>
+      <div class="row"><span class="led"></span><span class="tag">second-repo</span></div>
+    </div>
+
+    <div class="grp">
+      <div class="lbl" data-zh="会话" data-en="Sessions">会话</div>
+      <div class="searchbox">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"><circle cx="11" cy="11" r="6"/><path d="M20 20l-4.5-4.5"/></svg>
+        <input placeholder="搜索会话" data-ph-zh="搜索会话" data-ph-en="Search sessions">
+      </div>
+      <div class="row" aria-current="true"><span class="led on"></span><span class="tag" data-zh="重构 Provider 能力协商" data-en="Refactor provider negotiation">重构 Provider 能力协商</span></div>
+      <div class="row"><span class="led"></span><span class="tag" data-zh="画布单 Hunk 补丁选择器" data-en="Canvas single-hunk picker">画布单 Hunk 补丁选择器</span><span class="when" data-zh="昨天" data-en="yesterday">昨天</span></div>
+      <div class="row"><span class="led wait"></span><span class="tag" data-zh="检查 sandbox 逃逸路径" data-en="Audit sandbox escapes">检查 sandbox 逃逸路径</span><span class="when">10-12</span></div>
+    </div>
+
+    <div class="railfoot">项目 → 会话 → 运行 → 子代理</div>
+  </aside>
+
+  <main class="panel stage">
+    <div class="stagebar">
+      <span class="status"><span class="led on"></span><span data-zh="本地服务运行正常" data-en="Local server healthy">本地服务运行正常</span></span>
+      <div class="right">
+        <button class="chipbtn"><span class="kbd">Ctrl</span><span class="kbd">K</span><span data-zh="命令" data-en="Command">命令</span></button>
+        <button class="chipbtn" data-zh="偏好设置" data-en="Preferences">偏好设置</button>
+      </div>
+    </div>
+
+    <section class="view on home" id="v-home">
+      <div class="hero">
+        <span class="eyebrow" data-in="1">
+          <span class="led on"></span>
+          <span data-zh="本地工作台 · 已就绪" data-en="Local workbench · ready">本地工作台 · 已就绪</span>
+        </span>
+        <h1 data-in="2" data-zh="开始一个任务" data-en="Start a task">开始一个任务</h1>
+        <p class="lede" data-in="3" data-zh="选择项目、写下目标，Vessel 在受策略约束的循环里执行，并把每一步证据留在会话里。" data-en="Pick a project and write the goal. Vessel runs it inside a policy-constrained loop and keeps every piece of evidence in the session.">选择项目、写下目标，Vessel 在受策略约束的循环里执行，并把每一步证据留在会话里。</p>
+      </div>
+
+      <div class="bezel" data-in="3">
+        <div class="core">
+          <div class="chips">
+            <span class="chip"><span class="k" data-zh="项目" data-en="Project">项目</span><b>vessel-harness</b>
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M6 9l6 6 6-6"/></svg></span>
+            <span class="chip"><span class="k" data-zh="模型" data-en="Model">模型</span><b>deepseek-v4.1-flash</b>
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M6 9l6 6 6-6"/></svg></span>
+            <span class="chip"><span class="k" data-zh="权限" data-en="Policy">权限</span><b>workspace-write</b>
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M6 9l6 6 6-6"/></svg></span>
+            <span class="chip solid"><span class="k" data-zh="模式" data-en="Mode">模式</span><b>goal</b></span>
+          </div>
+          <textarea rows="3" data-ph-zh="描述你要完成的任务，例如：把 Provider 能力协商接到调度前拦截…" data-ph-en="Describe the task, e.g. gate dispatch on provider capability negotiation…"></textarea>
+          <div class="crow">
+            <button class="btn btn-primary">
+              <span data-zh="开始任务" data-en="Start task">开始任务</span>
+              <span class="ic"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M7 17L17 7M9 7h8v8"/></svg></span>
+            </button>
+            <button class="btn btn-ghost" data-zh="进阶设置" data-en="Advanced">进阶设置</button>
+            <span class="hint"><span class="kbd">Ctrl</span><span class="kbd">Enter</span><span data-zh="发送" data-en="to send">发送</span></span>
+          </div>
+        </div>
+      </div>
+
+      <div class="sec" data-in="4">
+        <div class="sechead">
+          <h2 data-zh="最近会话" data-en="Recent sessions">最近会话</h2>
+          <span class="more" data-zh="查看全部" data-en="View all">查看全部</span>
+        </div>
+        <div class="list">
+          <div class="li">
+            <span class="pill run" data-zh="运行中" data-en="Running">运行中</span>
+            <span class="ttl" data-zh="重构 Provider 能力协商" data-en="Refactor provider negotiation">重构 Provider 能力协商</span>
+            <span class="meta"><span>vessel-harness</span><span>12 step</span><span>$0.012</span></span>
+          </div>
+          <div class="li">
+            <span class="pill mute" data-zh="已完成" data-en="Done">已完成</span>
+            <span class="ttl" data-zh="画布单 Hunk 补丁选择器" data-en="Canvas single-hunk picker">画布单 Hunk 补丁选择器</span>
+            <span class="meta"><span>vessel-harness</span><span>28 step</span><span>$0.041</span></span>
+          </div>
+          <div class="li">
+            <span class="pill wait" data-zh="待审批" data-en="Awaiting">待审批</span>
+            <span class="ttl" data-zh="检查 sandbox 逃逸路径" data-en="Audit sandbox escapes">检查 sandbox 逃逸路径</span>
+            <span class="meta"><span>second-repo</span><span>9 step</span><span>$0.008</span></span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="view" id="v-conv">
+      <div class="convhead">
+        <div class="h">
+          <b data-zh="重构 Provider 能力协商" data-en="Refactor provider negotiation">重构 Provider 能力协商</b>
+          <span class="m"><span class="pill run" data-zh="运行中" data-en="Running">运行中</span><span>vessel-harness</span><span>·</span><span>12 step</span></span>
+        </div>
+        <div style="margin-left:auto;display:flex;gap:8px">
+          <button class="chipbtn" data-zh="导出" data-en="Export">导出</button>
+          <button class="chipbtn" data-zh="清屏" data-en="Clear">清屏</button>
+        </div>
+      </div>
+
+      <div class="convbody">
+        <div class="stream">
+          <div class="turn">
+            <span class="ava">你</span>
+            <div class="body">
+              <span class="role" data-zh="用户" data-en="User">用户</span>
+              <p data-zh="把 Provider 能力协商接到调度前拦截：不支持的强制约束直接抛错，不要发网络请求。" data-en="Gate dispatch on provider capability negotiation: hard-fail unsupported constraints before any network call.">把 Provider 能力协商接到调度前拦截：不支持的强制约束直接抛错，不要发网络请求。</p>
+            </div>
+          </div>
+
+          <div class="turn">
+            <span class="ava v">V</span>
+            <div class="body">
+              <span class="role">Vessel</span>
+              <div class="tb"><div class="core">
+                <details open>
+                  <summary>
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 8v4l3 2"/></svg>
+                    <span data-zh="思考 · 12s" data-en="Thinking · 12s">思考 · 12s</span>
+                  </summary>
+                  <div class="txt" data-zh="先读 shared 里的能力契约，确认调度入口只有一处；拦截必须发生在 composeHarness 之前，这样零网络调用是可证的。" data-en="Read the capability contract in shared, confirm there is a single dispatch entry, and make the gate fire before composeHarness so zero-network is provable.">先读 shared 里的能力契约，确认调度入口只有一处；拦截必须发生在 composeHarness 之前，这样零网络调用是可证的。</div>
+                </details>
+              </div></div>
+              <p data-zh="我先读契约，再改调度路径。" data-en="I'll read the contract first, then change the dispatch path.">我先读契约，再改调度路径。</p>
+            </div>
+          </div>
+
+          <div class="tool">
+            <span class="nm">Read</span><span class="pth">packages/shared/src/provider.ts</span>
+            <span class="rt"><span data-zh="成功" data-en="ok">成功</span><span>14ms</span></span>
+          </div>
+          <div class="tool">
+            <span class="nm">Edit</span><span class="pth">apps/local-server/src/routes/providerRoutes.ts</span>
+            <span class="rt"><span data-zh="成功" data-en="ok">成功</span><span>18ms</span><span class="add">+24</span><span class="del">−6</span></span>
+          </div>
+
+          <div class="turn">
+            <span class="ava v">V</span>
+            <div class="body">
+              <p data-zh="契约已定义三态 detected / declared / unknown，并在调度前硬拦截。下一步要动 Web 端的节点命名，需要授权。" data-en="The contract now defines detected / declared / unknown and hard-fails before dispatch. The next step touches Web node naming and needs authorization.">契约已定义三态 detected / declared / unknown，并在调度前硬拦截。下一步要动 Web 端的节点命名，需要授权。</p>
+            </div>
+          </div>
+
+          <div class="approve"><div class="core">
+            <div class="hd">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4l9 16H3z"/><path d="M12 10v4M12 17.5v.01"/></svg>
+              <span data-zh="需要授权" data-en="Authorization required">需要授权</span>
+            </div>
+            <div class="op">Write · apps/web/src/components/navigation.ts · 12 lines</div>
+            <div class="row">
+              <button class="btn btn-primary btn-sm" style="padding:8px 8px 8px 16px">
+                <span data-zh="批准一次" data-en="Allow once">批准一次</span>
+                <span class="ic" style="width:22px;height:22px"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M5 13l4 4L19 7"/></svg></span>
+              </button>
+              <button class="btn btn-danger btn-sm" data-zh="拒绝" data-en="Deny">拒绝</button>
+              <button class="btn btn-ghost btn-sm" data-zh="查看 diff" data-en="View diff">查看 diff</button>
+            </div>
+          </div></div>
+        </div>
+
+        <aside class="insp">
+          <div class="itabs">
+            <button class="itab" aria-selected="true" data-zh="概览" data-en="Overview">概览</button>
+            <button class="itab" data-zh="变更" data-en="Changes">变更</button>
+            <button class="itab" data-zh="上下文" data-en="Context">上下文</button>
+            <button class="itab" data-zh="追踪" data-en="Trace">追踪</button>
+          </div>
+          <div class="ibody">
+            <div>
+              <div class="ilabel" data-zh="运行" data-en="Run">运行</div>
+              <div class="kv">
+                <div class="r"><span data-zh="标识" data-en="ID">标识</span><b>run_7f31c2</b></div>
+                <div class="r"><span data-zh="模型" data-en="Model">模型</span><b>deepseek-v4.1-flash</b></div>
+                <div class="r"><span data-zh="权限" data-en="Policy">权限</span><b>workspace-write</b></div>
+                <div class="r"><span data-zh="预算" data-en="Budget">预算</span><b>12 / 40 step</b></div>
+              </div>
+            </div>
+            <div>
+              <div class="ilabel" data-zh="变更文件" data-en="Changed files">变更文件</div>
+              <div class="files">
+                <div class="f"><span class="nm">provider.ts</span><span class="dt"><span class="add">+24</span><span class="del">−6</span></span></div>
+                <div class="f"><span class="nm">providerRoutes.ts</span><span class="dt"><span class="add">+11</span><span class="del">−2</span></span></div>
+                <div class="f"><span class="nm">CapabilityStatus.tsx</span><span class="dt"><span class="add">+96</span></span></div>
+              </div>
+            </div>
+            <div class="blank">
+              <div class="big">◇</div>
+              <div data-zh="选择一个文件查看逐行 diff" data-en="Select a file to inspect the diff">选择一个文件查看逐行 diff</div>
+            </div>
+          </div>
+        </aside>
+      </div>
+
+      <div class="usage">
+        <span><b data-zh="输入" data-en="in">输入</b> 12.4k</span>
+        <span><b data-zh="输出" data-en="out">输出</b> 1.8k</span>
+        <span><b data-zh="缓存命中" data-en="cache">缓存命中</b> 61%</span>
+        <span><b data-zh="花费" data-en="cost">花费</b> $0.0124</span>
+      </div>
+
+      <div class="bezel" style="margin:0 22px 20px;border-radius:calc(var(--r-panel) - 2px)">
+        <div class="core" style="border-radius:calc(var(--r-panel) - 6px);padding:12px 12px 12px 18px;display:flex;align-items:flex-end;gap:12px">
+          <textarea rows="1" style="min-height:24px;font-size:14px" data-ph-zh="继续给 Vessel 指令…" data-ph-en="Give Vessel the next instruction…"></textarea>
+          <button class="btn btn-primary btn-sm" style="padding:7px 7px 7px 15px">
+            <span data-zh="发送" data-en="Send">发送</span>
+            <span class="ic" style="width:22px;height:22px"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M7 17L17 7M9 7h8v8"/></svg></span>
+          </button>
+        </div>
+      </div>
+    </section>
+  </main>
+</div>
+
+<div class="switcher">
+  <span class="lbl" data-zh="方向" data-en="Style">方向</span>
+  <button data-dir-btn="precision" aria-pressed="true" data-zh="精密" data-en="Precision">精密</button>
+  <button data-dir-btn="mono" aria-pressed="false" data-zh="单色" data-en="Mono">单色</button>
+  <button data-dir-btn="swiss" aria-pressed="false" data-zh="瑞士" data-en="Swiss">瑞士</button>
+  <button data-dir-btn="glass" aria-pressed="false" data-zh="玻璃" data-en="Glass">玻璃</button>
+  <button data-dir-btn="noir" aria-pressed="false" data-zh="高反差" data-en="Noir">高反差</button>
+  <span class="sep"></span>
+  <span class="lbl" data-zh="界面" data-en="View">界面</span>
+  <button data-screen="home" aria-pressed="true" data-zh="工作台" data-en="Home">工作台</button>
+  <button data-screen="conv" aria-pressed="false" data-zh="会话" data-en="Chat">会话</button>
+  <span class="sep"></span>
+  <button data-theme-btn="auto" aria-pressed="true" data-zh="跟随系统" data-en="Auto">跟随系统</button>
+  <button data-theme-btn="light" aria-pressed="false" data-zh="浅色" data-en="Light">浅色</button>
+  <button data-theme-btn="dark" aria-pressed="false" data-zh="深色" data-en="Dark">深色</button>
+  <span class="sep"></span>
+  <button data-lang-btn="zh" aria-pressed="true">中</button>
+  <button data-lang-btn="en" aria-pressed="false">EN</button>
+</div>
+
+<script>
+(function(){
+  var root = document.documentElement;
+  var mq = window.matchMedia('(prefers-color-scheme: dark)');
+  var q = location.search + location.hash;
+  function grab(re, dflt){ var m = re.exec(q); return m ? m[1] : dflt; }
+
+  var themeChoice = grab(/(?:^|[#&?])theme=(dark|light|auto)/, 'auto');
+  var screen = grab(/(?:^|[#&?])screen=(home|conv)/, 'home');
+  var lang = grab(/(?:^|[#&?])lang=(zh|en)/, 'zh');
+  var dir = grab(/(?:^|[#&?])dir=(precision|mono|swiss|glass|noir)/, 'precision');
+
+  function press(sel, attr, val){
+    document.querySelectorAll(sel).forEach(function(b){ b.setAttribute('aria-pressed', String(b.getAttribute(attr) === val)); });
+  }
+  function resolveTheme(){
+    root.setAttribute('data-theme', themeChoice === 'auto' ? (mq.matches ? 'dark' : 'light') : themeChoice);
+    press('[data-theme-btn]','data-theme-btn', themeChoice);
+  }
+  function applyLang(l){
+    root.setAttribute('data-lang', l);
+    document.querySelectorAll('[data-zh]').forEach(function(el){ el.textContent = el.getAttribute('data-' + l); });
+    document.querySelectorAll('[data-ph-zh]').forEach(function(el){ el.setAttribute('placeholder', el.getAttribute('data-ph-' + l)); });
+    press('[data-lang-btn]','data-lang-btn', l);
+  }
+  function applyScreen(s){
+    document.getElementById('v-home').classList.toggle('on', s === 'home');
+    document.getElementById('v-conv').classList.toggle('on', s === 'conv');
+    press('[data-screen]','data-screen', s);
+  }
+  function applyDir(d){
+    root.setAttribute('data-dir', d);
+    press('[data-dir-btn]','data-dir-btn', d);
+    // 重新触发入场动画，让换皮有"被编排"的观感
+    if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches){
+      document.querySelectorAll('[data-in]').forEach(function(el){
+        el.style.animation = 'none';
+        void el.offsetWidth;
+        el.style.animation = '';
+      });
+    }
+  }
+
+  mq.addEventListener('change', resolveTheme);
+  resolveTheme(); applyLang(lang); applyScreen(screen); applyDir(dir);
+
+  document.querySelectorAll('[data-theme-btn]').forEach(function(b){
+    b.addEventListener('click', function(){ themeChoice = b.getAttribute('data-theme-btn'); resolveTheme(); });
+  });
+  document.querySelectorAll('[data-lang-btn]').forEach(function(b){
+    b.addEventListener('click', function(){ applyLang(b.getAttribute('data-lang-btn')); });
+  });
+  document.querySelectorAll('[data-screen]').forEach(function(b){
+    b.addEventListener('click', function(){ applyScreen(b.getAttribute('data-screen')); });
+  });
+  document.querySelectorAll('[data-dir-btn]').forEach(function(b){
+    b.addEventListener('click', function(){ applyDir(b.getAttribute('data-dir-btn')); });
+  });
+})();
+</script>
+</body>
+</html>

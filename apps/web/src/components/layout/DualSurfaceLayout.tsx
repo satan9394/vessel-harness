@@ -114,7 +114,7 @@ export const INSPECTOR_LABELS: Record<InspectorTab, MessageKey> = { swarm: 'tabS
 export function DualSurfaceLayout({ children, inspectorDefaultOpen = false, sessionId, api, cacheHistory, impacts, patches, observation, tabRequest }: DualSurfaceLayoutProps) {
   const { t } = useI18n();
   const [state, setState] = useState(() => browserInspectorState(inspectorDefaultOpen));
-  const [narrow, setNarrow] = useState(() => typeof window !== 'undefined' && window.matchMedia('(max-width: 1023px)').matches);
+  const [narrow, setNarrow] = useState(() => typeof window !== 'undefined' && window.matchMedia('(max-width: 1180px)').matches);
   const id = useId();
   const panel = useRef<HTMLDivElement>(null);
   const toggle = useRef<HTMLButtonElement>(null);
@@ -126,7 +126,7 @@ export function DualSurfaceLayout({ children, inspectorDefaultOpen = false, sess
     try { window.localStorage.setItem(INSPECTOR_STORAGE_KEY, JSON.stringify(state)); } catch { /* Optional persistence. */ }
   }, [state]);
   useEffect(() => {
-    const media = window.matchMedia('(max-width: 1023px)');
+    const media = window.matchMedia('(max-width: 1180px)');
     const resize = () => setNarrow(media.matches);
     media.addEventListener('change', resize);
     return () => media.removeEventListener('change', resize);

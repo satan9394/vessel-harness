@@ -1,0 +1,8 @@
+{
+  "components/Sidebar.tsx": "edce080159eefc611b82512deff46bc0d125878f5f3833cd91415d82013ccc7c",
+  "components/TaskComposer.tsx": "cc9a3397cc7c5ba25d8d788c91f5541ffd2a3025d50c694406090b14e1fe6543",
+  "components/Sidebar.test.tsx": "a0349e34d94ccf714126e0d524c30ba6c4c19371779619bf64e36e1b4470b973",
+  "i18n.ts": "7d323995bb432bd5038351eb687278dc4c110ea35db447d13365c1d39e86b7b5",
+  "styles.css": "1892c12f085d0b78e94b2081c9d3e978fa38385ee6d264d3e084848bb5321777",
+  "components/dashboard.css": "b8344c029b378ac06cc89bd6e4f2f0540775b769815cd7346da86b38063f6cd5"
+}

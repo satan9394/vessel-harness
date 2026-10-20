@@ -2,7 +2,7 @@ import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import type { ProviderName } from '@vessel/llm';
-import { capabilitiesFor } from '@vessel/llm';
+import { capabilitiesFor, discoverProviderCapabilities } from '@vessel/llm';
 import type { ProviderCapabilities } from '@vessel/shared';
 import { assertCostMultiplier, DEFAULT_COST_MULTIPLIER, renameWithRetry } from '@vessel/shared';
 import {
@@ -261,7 +261,8 @@ export class ProviderStore {
    */
   load(): ProviderConfig[] {
     const list = this.rawLoad();
-    return this.resolveSecrets(list);
+    const resolved = this.resolveSecrets(list);
+    return this.healModelCapabilities(resolved);
   }
 
   /**
@@ -640,6 +641,43 @@ export class ProviderStore {
       this.writeJsonAtomic(this.providersFile, toPersist.filter((p) => p.id !== 'mock'));
     }
     return resolved;
+  }
+
+  /**
+   * 模型能力自愈（task 233）：修复早期探测将未显式返回 tools 字段的标准 OpenAI-compatible /
+   * Anthropic 端点模型置为 `tools: unknown` 的历史遗留配置。
+   */
+  private healModelCapabilities(list: ProviderConfig[]): ProviderConfig[] {
+    let changed = false;
+    const healed = list.map((c) => {
+      if (!c.modelCapabilities || (c.protocol !== 'openai-compatible' && c.protocol !== 'anthropic')) return c;
+      let modelChanged = false;
+      const nextCaps: Record<string, ProviderCapabilities> = {};
+      for (const [model, snapshot] of Object.entries(c.modelCapabilities)) {
+        if (snapshot && typeof snapshot === 'object' && snapshot.tools?.status === 'unknown') {
+          const metadata: Record<string, unknown> = {};
+          for (const [key, val] of Object.entries(snapshot)) {
+            if (val && typeof val === 'object' && val.status !== 'unknown') {
+              metadata[key] = val.value;
+            }
+          }
+          nextCaps[model] = discoverProviderCapabilities(metadata, c.protocol);
+          modelChanged = true;
+        } else {
+          nextCaps[model] = snapshot;
+        }
+      }
+      if (modelChanged) {
+        changed = true;
+        return { ...c, modelCapabilities: nextCaps };
+      }
+      return c;
+    });
+    if (changed) {
+      const toPersist = healed.map((r) => this.stripSecretForPersist(r));
+      this.writeJsonAtomic(this.providersFile, toPersist.filter((p) => p.id !== 'mock'));
+    }
+    return healed;
   }
 
   /**

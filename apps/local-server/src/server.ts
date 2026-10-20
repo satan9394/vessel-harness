@@ -8,6 +8,8 @@ import { fileURLToPath } from 'node:url';
 import { once } from 'node:events';
 import { spawn } from 'node:child_process';
 import { SessionController, SessionRegistry, ProjectRegistry, ReviewHandoffStore, TaskTreeRegistry, loadBehaviorLibrary } from '@vessel/application';
+import { resolveSessionDir } from '@vessel/memory';
+import { recycleDaemonPath } from './daemon/daemonLifecycle.js';
 import type { SessionPermission, ReviewHandoffRecord } from '@vessel/application';
 import type { Listener, TurnResult } from '@vessel/core';
 import { MockProvider, createProvider, providerNameForConfig } from '@vessel/llm';
@@ -54,6 +56,8 @@ export type SessionFactory = (input: {
 }) => Promise<SessionController>;
 
 export interface VesselServerOptions {
+  /** Optional startup workspace directory; when supplied, automatically registered in ProjectRegistry. */
+  workspace?: string;
   /** Lazy credential-backed store; tests inject a temporary store. */
   providerStore?: ProviderStore;
   providerFetch?: typeof fetch;
@@ -128,6 +132,17 @@ const DEFAULT_POLICY = path.join(REPO_ROOT, 'configs', 'policy.default.yaml');
 const DEFAULT_BEHAVIOR = path.join(REPO_ROOT, 'configs', 'behavior.default.yaml');
 const DEFAULT_STATIC = path.join(PKG_DIR, '..', 'public');
 
+/** Resolve once at startup; candidate roots are injectable for filesystem-isolated tests. */
+export function resolveStaticDir(
+  staticDir?: string,
+  webDistDir = path.join(REPO_ROOT, 'apps', 'web', 'dist'),
+  publicDir = DEFAULT_STATIC,
+): string {
+  if (staticDir !== undefined) return path.resolve(staticDir);
+  const index = path.join(webDistDir, 'index.html');
+  return path.resolve(fs.existsSync(index) && fs.statSync(index).isFile() ? webDistDir : publicDir);
+}
+
 const SSE_HEADERS = {
   'Content-Type': 'text/event-stream',
   'Cache-Control': 'no-cache',
@@ -153,7 +168,15 @@ async function readJsonBody(req: http.IncomingMessage): Promise<unknown> {
 
 /** Authenticated remote hosts remain available; unauthenticated Host must be loopback. */
 function trustedOrigin(req: http.IncomingMessage, url: URL, authenticated: boolean): boolean {
-  return (authenticated || ['localhost', '127.0.0.1', '[::1]'].includes(url.hostname)) && (!req.headers.origin || req.headers.origin === url.origin);
+  const isLoopback = (host: string) => ['localhost', '127.0.0.1', '[::1]'].includes(host);
+  if (!req.headers.origin) return authenticated || isLoopback(url.hostname);
+  try {
+    const originUrl = new URL(req.headers.origin);
+    if (isLoopback(originUrl.hostname) && isLoopback(url.hostname)) return true;
+    return authenticated || req.headers.origin === url.origin;
+  } catch {
+    return false;
+  }
 }
 
 /** Split a URL pathname into segments (`/api/sessions/abc` → ['api','sessions','abc']). */
@@ -280,8 +303,15 @@ export function createVesselServer(opts: VesselServerOptions = {}): VesselServer
   if (opts.host && !['127.0.0.1', 'localhost', '::1'].includes(opts.host) && !opts.authToken) throw new Error('remote bind requires a launch token');
   if (opts.mesh && (!opts.authToken || opts.mesh.local.token !== opts.authToken || opts.daemon && opts.mesh.local.nodeId !== opts.daemon.status().instanceId)) throw new Error('mesh identity must match daemon');
   const port = opts.port ?? DEFAULT_PORT;
-  const staticDir = path.resolve(opts.staticDir ?? DEFAULT_STATIC);
+  const staticDir = resolveStaticDir(opts.staticDir);
+  const webUi = staticDir === path.resolve(REPO_ROOT, 'apps', 'web', 'dist')
+    && fs.existsSync(path.join(staticDir, 'index.html')) && fs.statSync(path.join(staticDir, 'index.html')).isFile();
+  const workspace = opts.workspace === undefined ? undefined : path.resolve(opts.workspace);
   const projectRegistry = opts.projectRegistry ?? new ProjectRegistry();
+  if (workspace !== undefined) {
+    try { projectRegistry.open(workspace); }
+    catch { /* ponytail: startup registration is best-effort; explicit project/open retains its errors. */ }
+  }
   const sessionRegistry = opts.sessionRegistry ?? new SessionRegistry({ index: true });
   let store = opts.providerStore;
   const providerRoutes = new ProviderRoutes(() => store ??= createDefaultProviderStore(), opts.providerFetch, opts.providerProbeTimeoutMs);
@@ -428,6 +458,14 @@ export function createVesselServer(opts: VesselServerOptions = {}): VesselServer
     const method = (req.method ?? 'GET').toUpperCase();
     const url = new URL(req.url ?? '/', `http://${req.headers.host ?? '127.0.0.1'}`);
     if (opts.authToken && !authMiddleware(req, res, opts.authToken, url.pathname)) return;
+    // Inspect the raw target: URL parsing removes literal and encoded dot segments.
+    let rawPath: string;
+    try {
+      rawPath = decodeURIComponent((req.url ?? '/').split('?')[0]!);
+    } catch {
+      return json(res, 400, { error: 'invalid_path' });
+    }
+    if (rawPath.split(/[\\/]/).includes('..')) return json(res, 403, { error: 'forbidden' });
     const providerRoute = url.pathname === '/api/models' || url.pathname === '/api/providers' || url.pathname.startsWith('/api/providers/');
     const sameOrigin = trustedOrigin(req, url, Boolean(opts.authToken));
     if (url.pathname === '/api/behavior/effective' || url.pathname === '/api/behavior/inspect') {
@@ -520,7 +558,7 @@ export function createVesselServer(opts: VesselServerOptions = {}): VesselServer
       return handleApi(method, segs, req, res, url);
     }
     // everything else → static assets
-    return serveStatic(url.pathname, res);
+    return serveStatic(decodeURIComponent(url.pathname), method, res);
   }
 
   async function handleApi(method: string, segs: string[], req: http.IncomingMessage, res: http.ServerResponse, url: URL): Promise<void> {
@@ -621,7 +659,7 @@ export function createVesselServer(opts: VesselServerOptions = {}): VesselServer
     }
     // GET /api/health
     if (segs.length === 2 && segs[1] === 'health' && method === 'GET') {
-      return json(res, 200, { ok: true, version: VERSION });
+      return json(res, 200, { ok: true, version: VERSION, webUi, ...(workspace ? { workspace } : {}) });
     }
 
     // GET /api/projects
@@ -732,6 +770,29 @@ export function createVesselServer(opts: VesselServerOptions = {}): VesselServer
         if (!ctl) return json(res, 404, suggestNotFound(id));
         const result = widgets.respond(id, segs[4]!, await readJsonBody(req));
         return json(res, result.status, result.body);
+      }
+
+      // DELETE /api/sessions/:id
+      if (segs.length === 3 && method === 'DELETE') {
+        if (!sameOrigin) return json(res, 403, { error: 'cross_origin_denied' });
+        const existing = sessionRegistry.get(id);
+        if (!existing && !ctl) return json(res, 404, suggestNotFound(id));
+        if (ctl) {
+          ctl.interrupt();
+          controllers.delete(id);
+        }
+        sessionRegistry.remove(id);
+        if (existing?.workspaceRoot) {
+          try {
+            const sessionDir = resolveSessionDir(existing.workspaceRoot, id);
+            if (fs.existsSync(sessionDir)) {
+              void recycleDaemonPath(sessionDir).catch(() => {});
+            }
+          } catch {
+            // best-effort cleanup
+          }
+        }
+        return json(res, 200, { ok: true, id });
       }
 
       // GET /api/sessions/:id
@@ -1316,16 +1377,19 @@ export function createVesselServer(opts: VesselServerOptions = {}): VesselServer
     return { error: 'session_not_found', sessionId: id };
   }
 
-  function serveStatic(pathname: string, res: http.ServerResponse): void {
-    let file = pathname === '/' ? 'index.html' : pathname.replace(/^\/+/, '');
+  function serveStatic(pathname: string, method: string, res: http.ServerResponse): void {
+    const file = pathname === '/' ? 'index.html' : pathname.replace(/^\/+/, '');
     // prevent path traversal
-    const safe = path.normalize(file).replace(/^(\.\.(\/|\\|$))+/, '');
-    const target = path.join(staticDir, safe);
+    const targetPath = path.resolve(staticDir, file);
+    let target = targetPath;
     if (!target.startsWith(staticDir + path.sep) && target !== staticDir) {
       return json(res, 403, { error: 'forbidden' });
     }
     if (!fs.existsSync(target) || !fs.statSync(target).isFile()) {
-      return json(res, 404, { error: 'not_found' });
+      // Concrete asset names take precedence over HTML Accept headers.
+      if (method !== 'GET' || path.extname(pathname)) return json(res, 404, { error: 'not_found' });
+      target = path.join(staticDir, 'index.html');
+      if (!fs.existsSync(target) || !fs.statSync(target).isFile()) return json(res, 404, { error: 'not_found' });
     }
     const ext = path.extname(target).toLowerCase();
     const mime =

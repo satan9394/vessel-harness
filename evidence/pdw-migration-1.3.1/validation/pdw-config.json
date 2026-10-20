@@ -1,0 +1,40 @@
+{
+  "schema_version": 1,
+  "roles": {
+    "scan": {
+      "backend": "opencode",
+      "executable": "D:\\Technology_application\\NVM_Windows\\nodejs\\node_modules\\@opencode\\cli\\bin\\opencode.exe",
+      "model": "workbuddy/deepseek-v4.1-flash"
+    },
+    "test-plan": {
+      "backend": "opencode",
+      "executable": "D:\\Technology_application\\NVM_Windows\\nodejs\\node_modules\\@opencode\\cli\\bin\\opencode.exe",
+      "model": "workbuddy/deepseek-v4.1-flash"
+    },
+    "implement": {
+      "backend": "codex",
+      "executable": "C:\\Users\\Satanchen\\AppData\\Local\\OpenAI\\Codex\\bin\\e78bad9887fa50cf\\codex.exe",
+      "model": null
+    },
+    "review": {
+      "backend": "opencode",
+      "executable": "D:\\Technology_application\\NVM_Windows\\nodejs\\node_modules\\@opencode\\cli\\bin\\opencode.exe",
+      "model": "workbuddy/deepseek-v4.1-flash"
+    },
+    "planner": {
+      "backend": "agy",
+      "executable": "C:\\Users\\Satanchen\\AppData\\Local\\agy\\bin\\agy.exe",
+      "model": null
+    }
+  },
+  "limits": {
+    "max_cli_calls": 8,
+    "max_repairs": 1,
+    "call_timeout_seconds": 600,
+    "task_timeout_seconds": 3600
+  },
+  "cost": {
+    "status": "unknown",
+    "hard_money_limit": false
+  }
+}

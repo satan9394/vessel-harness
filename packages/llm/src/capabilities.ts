@@ -28,8 +28,8 @@ export function capabilitiesFor(protocol: string, _model?: string, declarations?
 }
 
 /** Only explicit endpoint metadata provides declarations; names are not evidence. */
-export function discoverProviderCapabilities(metadata: Record<string, unknown>): ProviderCapabilities {
-  const result = capabilitiesFor('unknown');
+export function discoverProviderCapabilities(metadata: Record<string, unknown>, protocol?: string): ProviderCapabilities {
+  const result = capabilitiesFor(protocol ?? 'unknown');
   const aliases: Partial<Record<keyof ProviderCapabilities, string[]>> = {
     tools: ['tools', 'supports_tools', 'tool_calling'], reasoning: ['reasoning', 'supports_reasoning'],
     streaming: ['streaming', 'supports_streaming'], contextWindow: ['context_window', 'contextWindow', 'max_context_length', 'context_length', 'max_model_len'],

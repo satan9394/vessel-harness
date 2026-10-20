@@ -1286,6 +1286,9 @@ describe('vessel serve / vessel web (task 044)', () => {
     realPark = cli.serveRuntime.park;
     realOpen = cli.serveRuntime.open;
     sessionDir = fs.mkdtempSync(path.join(os.tmpdir(), 'cah-cli-serve-session-'));
+    vi.stubEnv('USERPROFILE', sessionDir);
+    vi.stubEnv('HOME', sessionDir);
+    expect(os.homedir()).toBe(sessionDir);
     oldSessionRoot = process.env.VESSEL_SESSION_ROOT;
     process.env.VESSEL_SESSION_ROOT = sessionDir;
   });
@@ -1294,6 +1297,7 @@ describe('vessel serve / vessel web (task 044)', () => {
     cli.serveRuntime.open = realOpen;
     if (oldSessionRoot === undefined) delete process.env.VESSEL_SESSION_ROOT;
     else process.env.VESSEL_SESSION_ROOT = oldSessionRoot;
+    vi.unstubAllEnvs();
     fs.rmSync(sessionDir, { recursive: true, force: true });
   });
 
@@ -1307,6 +1311,10 @@ describe('vessel serve / vessel web (task 044)', () => {
     expect(res.status).toBe(200);
     const body = (await res.json()) as { ok: boolean };
     expect(body.ok).toBe(true);
+    expect(await (await fetch(new URL('/api/health', handle.url))).json()).toMatchObject({ workspace: process.cwd() });
+    expect(await (await fetch(new URL('/api/projects', handle.url))).json()).toEqual({ projects: [
+      expect.objectContaining({ root: process.cwd() }),
+    ] });
     restore();
     // close() returns normally and frees the port
     await expect(handle.close()).resolves.toBeUndefined();
@@ -1319,6 +1327,20 @@ describe('vessel serve / vessel web (task 044)', () => {
     restore();
     expect(code).toBe(0);
     expect(logs.join('\n')).toContain('Vessel local server: http://127.0.0.1:');
+  });
+
+  it('startServe forwards an explicit workspace into projects and health', async () => {
+    const { restore } = capture();
+    const handle = await startServe({ port: 0, workspace: path.relative(process.cwd(), sessionDir) });
+    try {
+      expect(await (await fetch(handle.url + '/api/projects')).json()).toEqual({ projects: [
+        expect.objectContaining({ root: sessionDir }),
+      ] });
+      expect(await (await fetch(handle.url + '/api/health')).json()).toMatchObject({ workspace: sessionDir });
+    } finally {
+      await handle.close();
+      restore();
+    }
   });
 
   it('main dispatch: vessel web starts the server, opens the browser, and parks', async () => {
@@ -1339,8 +1361,8 @@ describe('vessel serve / vessel web (task 044)', () => {
     restore();
     expect(code).toBe(0);
     const out = logs.join('\n');
-    expect(out).toContain('vessel serve');
-    expect(out).toContain('vessel web');
+    expect(out).toContain('vessel serve [--port <n>] [--workspace <dir>]');
+    expect(out).toContain('vessel web [--workspace <dir>]');
   });
 });
 

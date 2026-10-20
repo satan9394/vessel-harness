@@ -12,7 +12,7 @@
 .dashboard-cards dl { display: grid; grid-template-columns: auto 1fr; gap: 8px 12px; margin-bottom: 0; }
 .dashboard-cards dt { color: var(--dim); }
 .dashboard-cards dd { margin: 0; white-space: pre-wrap; }
-.dashboard-tag { display: inline-block; font-size: 12px; background: var(--panel2); border: 1px solid var(--border); border-radius: 4px; padding: 2px 6px; margin-right: 8px; }
+.dashboard-tag { display: inline-block; font-size: 12px; background: var(--panel-2); border: 1px solid var(--border); border-radius: 4px; padding: 2px 6px; margin-right: 8px; }
 .dashboard-status { display: inline-block; margin-left: 8px; font-size: 12px; }
 .mesh-online { color: var(--green); }
 .mesh-busy { color: var(--yellow); }

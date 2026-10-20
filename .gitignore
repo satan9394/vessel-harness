@@ -58,3 +58,5 @@ id_ed25519
 .npmrc.local
 .pypirc
 secrets.json
+.pdw/
+*.zip

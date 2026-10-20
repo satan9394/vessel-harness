@@ -36,7 +36,7 @@ describe('daemon strict Bearer HTTP/SSE authentication', () => {
     expect(bundle.headers.get('content-type')).toContain('text/javascript'); expect(await bundle.text()).toContain('fixture Web bundle');
   });
   it('only health is public; HTML entry contains a token form but no secret', async () => {
-    expect(await (await fetch(base + '/api/health')).json()).toEqual({ ok: true, version: '0.10.0' });
+    expect(await (await fetch(base + '/api/health')).json()).toEqual({ ok: true, version: '0.10.0', webUi: false });
     const response = await fetch(base + '/api/health', { headers: { Accept: 'text/html' } });
     expect(response.headers.get('cache-control')).toBe('no-store');
     const html = await response.text(); expect(html).toBe(DAEMON_LOGIN_HTML);

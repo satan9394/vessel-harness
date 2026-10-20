@@ -69,7 +69,7 @@ export function normalizeProviderInput(input: unknown): AddProviderInput {
     models = b.models.split(/[,，]/).map(model => model.trim()).filter(Boolean);
   } else if (b.models && typeof b.models === 'object') {
     models = Object.keys(b.models as Record<string, unknown>).filter(key => key.trim().length > 0);
-    modelCapabilities = Object.fromEntries(models.map(model => [model, discoverProviderCapabilities(record((b.models as Record<string, unknown>)[model]))]));
+    modelCapabilities = Object.fromEntries(models.map(model => [model, discoverProviderCapabilities(record((b.models as Record<string, unknown>)[model]), protocol)]));
   }
   if (b.modelCapabilities !== undefined) {
     const supplied = record(b.modelCapabilities);
@@ -81,7 +81,7 @@ export function normalizeProviderInput(input: unknown): AddProviderInput {
         if (!['detected', 'declared', 'unknown'].includes(String(capability.status))) throw new Error('invalid_provider_input');
         return [key, capability.status === 'unknown' ? undefined : capability.value];
       }));
-      return [model, discoverProviderCapabilities(metadata)];
+      return [model, discoverProviderCapabilities(metadata, protocol)];
     }));
   }
   return {
@@ -100,13 +100,17 @@ export function providerUrl(value: unknown): URL {
   if (!['http:', 'https:'].includes(url.protocol) || url.username || url.password || url.search || url.hash) throw new Error('invalid_base_url');
   return url;
 }
-function connection(value: unknown): Pick<AddProviderInput, 'protocol' | 'baseUrl' | 'apiKey'> {
+function connection(value: unknown, fallbackApiKey?: string): Pick<AddProviderInput, 'protocol' | 'baseUrl' | 'apiKey'> {
   const b = record(value);
   if (b.protocol !== 'openai-compatible' && b.protocol !== 'anthropic') throw new Error('invalid_protocol');
   const url = providerUrl(b.baseUrl);
   const local = ['localhost', '127.0.0.1', '[::1]'].includes(url.hostname);
-  if (typeof b.apiKey !== 'string' || b.apiKey.length > 8192 || /[\x00-\x1f\x7f]/.test(b.apiKey) || (!b.apiKey.trim() && !(local && b.protocol === 'openai-compatible'))) throw new Error('invalid_api_key');
-  return { protocol: b.protocol, baseUrl: url.href.replace(/\/$/, ''), apiKey: b.apiKey.trim() };
+  let key = typeof b.apiKey === 'string' ? b.apiKey.trim() : '';
+  if (!key && fallbackApiKey) {
+    key = fallbackApiKey.trim();
+  }
+  if (typeof key !== 'string' || key.length > 8192 || /[\x00-\x1f\x7f]/.test(key) || (!key && !(local && b.protocol === 'openai-compatible'))) throw new Error('invalid_api_key');
+  return { protocol: b.protocol, baseUrl: url.href.replace(/\/$/, ''), apiKey: key };
 }
 export function providerModels(cfg: ProviderConfig): string[] {
   return [...new Set([cfg.model, ...(cfg.models ?? [])])];
@@ -120,17 +124,17 @@ export class ProviderRoutes {
   list(): ProviderDto[] { return this.store().load().map(cfg => this.dto(cfg)); }
   save(value: unknown): ProviderDto {
     const b = normalizeProviderInput(value);
-    const conn = connection(b);
+    const previous = this.store().get(b.name);
+    const conn = connection(b, previous?.apiKey);
     if (!text(b.name, 80) || !/^[\p{L}\p{N}_.-]+$/u.test(b.name) || b.name === 'mock') throw new Error('invalid_provider_name');
     if (!b.models.length || b.models.length > 256 || !b.models.every(m => text(m))) throw new Error('invalid_models');
     const models = [...new Set(b.models)];
-    const previous = this.store().get(b.name);
     const snapshots = b.modelCapabilities ?? (previous?.baseUrl === conn.baseUrl && previous.protocol === conn.protocol ? previous.modelCapabilities : undefined);
     const cfg: ProviderConfig = { id: b.name, name: b.name, ...conn, model: models[0]!, models,
       modelCapabilities: snapshots ? Object.fromEntries(Object.entries(snapshots).filter(([model]) => models.includes(model))) : undefined };
     const store = this.store();
     if (!store.credentialsEnabled) throw new Error('secure_store_required');
-    if (store.get(cfg.id)) store.update(cfg.id, { ...cfg, secretRef: undefined });
+    if (store.get(cfg.id)) store.update(cfg.id, { ...cfg, secretRef: !b.apiKey.trim() && previous?.secretRef ? previous.secretRef : undefined });
     else store.add(cfg);
     return this.dto(store.get(cfg.id)!);
   }
@@ -155,7 +159,10 @@ export class ProviderRoutes {
     return { ...cfg, model: model ?? cfg.model };
   }
   async test(value: unknown): Promise<TestProviderResult> {
-    const conn = connection(value);
+    const input = record(value);
+    const providerName = typeof input.name === 'string' ? input.name : typeof input.id === 'string' ? input.id : undefined;
+    const previous = providerName ? this.store().get(providerName) : undefined;
+    const conn = connection(value, previous?.apiKey);
     const start = performance.now();
     const base = conn.baseUrl.replace(/\/$/, '');
     const endpoint = `${base}${conn.protocol === 'anthropic' && !base.endsWith('/v1') ? '/v1' : ''}/models`;
@@ -165,7 +172,7 @@ export class ProviderRoutes {
       if (!response.ok) return { ok: false, error: `http_${response.status}` };
       const body = record(await response.json());
       if (!Array.isArray(body.data) || !body.data.every(v => v && typeof v === 'object' && text((v as { id?: unknown }).id))) return { ok: false, error: 'invalid_models_response' };
-      const modelCapabilities = Object.fromEntries(body.data.map(v => [(v as { id: string }).id, discoverProviderCapabilities(v as Record<string, unknown>)]));
+      const modelCapabilities = Object.fromEntries(body.data.map(v => [(v as { id: string }).id, discoverProviderCapabilities(v as Record<string, unknown>, conn.protocol)]));
       const input = record(value);
       const saved = typeof input.name === 'string' ? this.store().get(input.name) : undefined;
       if (saved && saved.baseUrl === conn.baseUrl && saved.protocol === conn.protocol) this.store().update(saved.id, {

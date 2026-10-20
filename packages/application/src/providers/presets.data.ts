@@ -48,6 +48,7 @@ export interface ProviderPreset {
 
 export const PROVIDER_CATALOG: ProviderPreset[] = [
   // ---- official (intl official) ----
+  { id: 'lark', name: '飞书 Lark（火山方舟）', protocol: 'openai-compatible', baseUrl: 'https://ark.cn-beijing.volces.com/api/v3', defaultModel: 'doubao-1-5-pro-32k-250115', category: 'cn', hint: '飞书 / 火山方舟端点；支持豆包大模型与自建 Endpoint' },
   { id: 'anthropic', name: 'Anthropic（Claude 官方）', protocol: 'anthropic', baseUrl: 'https://api.anthropic.com', defaultModel: 'claude-sonnet-4-5', category: 'official', hint: 'Anthropic Messages API' },
   { id: 'openai', name: 'OpenAI（GPT 官方）', protocol: 'openai-compatible', baseUrl: 'https://api.openai.com/v1', defaultModel: 'gpt-4o', category: 'official', hint: 'Chat Completions' },
   { id: 'google-gemini', name: 'Google Gemini', protocol: 'openai-compatible', baseUrl: 'https://generativelanguage.googleapis.com/v1beta/openai', defaultModel: 'gemini-2.5-flash', category: 'official', hint: 'OpenAI 兼容端点' },
@@ -123,6 +124,7 @@ export const PROVIDER_CATALOG: ProviderPreset[] = [
   { id: 'pipellm', name: 'PIPELLM', protocol: 'openai-compatible', baseUrl: 'https://cc-api.pipellm.ai', defaultModel: '', category: 'aggregator', hint: '第三方中转' },
   { id: 'qiniu', name: 'Qiniu 七牛', protocol: 'openai-compatible', baseUrl: 'https://api.qnaigc.com/v1', defaultModel: '', category: 'aggregator', hint: '第三方中转' },
   { id: 'packycode', name: 'PackyCode', protocol: 'openai-compatible', baseUrl: '', defaultModel: '', category: 'aggregator', hint: '订阅制（cc-switch 常见）；base-url 交互填' },
+  { id: 'commandgota', name: 'Command GOTA', protocol: 'openai-compatible', baseUrl: 'https://api.commandcode.ai/provider/v1', defaultModel: 'deepseek/deepseek-v4.1-flash', category: 'aggregator', hint: 'CommandCode 官方网关；支持 DeepSeek / GPT' },
 
   // ---- local ----
   { id: 'ollama', name: 'Ollama（本地）', protocol: 'openai-compatible', baseUrl: 'http://localhost:11434/v1', defaultModel: 'llama3.1', category: 'local', hint: '本地' },

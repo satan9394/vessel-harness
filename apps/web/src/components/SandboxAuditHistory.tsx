@@ -2,6 +2,7 @@ import { useI18n } from './LanguageProvider';
 import { useEffect, useState } from 'react';
 import type { ApiClient } from '../api';
 import type { SandboxAuditSnapshot } from '../sandboxAudit';
+import { formatStamp } from '../utils/timeFormat';
 import SandboxAuditBadge from './SandboxAuditBadge';
 
 export default function SandboxAuditHistory({ api, sessionId, revision }: { api: ApiClient; sessionId: string; revision: number }) {
@@ -23,7 +24,7 @@ export default function SandboxAuditHistory({ api, sessionId, revision }: { api:
       : snapshot === null ? <p role="status">{t('uiLoadingExecutionAudits')}</p>
         : snapshot.audits.length === 0 ? <p>{t('uiNoSandboxExecutionAuditsRecorded')}</p>
           : <ul>{snapshot.audits.map((entry, index) => <li key={`${entry.ts}-${index}`}>
-            <span>{entry.toolName} · {new Date(entry.ts).toLocaleString()} </span>
+            <span>{entry.toolName} · <time dateTime={new Date(entry.ts).toISOString()}>{formatStamp(entry.ts)}</time> </span>
             <SandboxAuditBadge audit={entry.sandbox} />
           </li>)}</ul>}
   </details>;

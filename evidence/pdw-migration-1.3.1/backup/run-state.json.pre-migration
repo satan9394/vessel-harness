@@ -1,0 +1,145 @@
+{
+  "schemaVersion": 1,
+  "revision": 253,
+  "mode": "bounded",
+  "mission": {
+    "goal": "V2.6 Pure i18n & Visual Model Hub (Epic 214)",
+    "definitionOfDone": [
+      "Task 210 Comprehensive i18n & Pure Localization implemented and verified",
+      "Task 211 Local Server Provider Store & Models API implemented and verified",
+      "Task 212 Web Provider Settings Modal & Connection Tester implemented and verified",
+      "Task 213 Session Model Picker & Dynamic Switching implemented and verified",
+      "Task 214 Epic V2.6 Master Integration & Regression passes",
+      "Thin Core absolute zero modification: packages/core diff is 0 lines",
+      "Dual-root tests (npm run test:all), tsc build, and web build exit 0"
+    ],
+    "outOfScope": [
+      "External Agent real execution",
+      "Git push to remote repository (local-only per 2026-10-06 rule)",
+      "Permanent file deletion",
+      "Modifying packages/core (Thin Core rule)"
+    ],
+    "status": "completed"
+  },
+  "workset": [
+    {
+      "id": "210",
+      "status": "completed",
+      "title": "Comprehensive i18n & Pure Localization"
+    },
+    {
+      "id": "211",
+      "status": "completed",
+      "title": "Local Server Provider Store & Models API"
+    },
+    {
+      "id": "212",
+      "status": "completed",
+      "title": "Web Provider Settings Modal & Connection Tester"
+    },
+    {
+      "id": "213",
+      "status": "completed",
+      "title": "Session Model Picker & Dynamic Switching"
+    },
+    {
+      "id": "214",
+      "status": "completed",
+      "title": "Epic V2.6 Pure i18n & Visual Model Hub"
+    },
+    {
+      "id": "215",
+      "status": "completed",
+      "title": "Provider Hub Model Pull & Schema Repair"
+    },
+    {
+      "id": "216",
+      "status": "completed",
+      "title": "Archify Architecture Visualization & Doc-Drift Repair"
+    },
+    {
+      "id": "217",
+      "status": "completed",
+      "title": "Architecture Improvement Plan Implementation (ARC-01..05)"
+    },
+    {
+      "id": "218",
+      "status": "completed",
+      "title": "Web UI/UX Workbench Improvement Implementation"
+    },
+    {
+      "id": "219",
+      "status": "completed",
+      "title": "Full Surface Interactive E2E & Click-Testing Suite"
+    },
+    {
+      "id": "220",
+      "status": "completed",
+      "title": "Provider Capability Contract & Context Layered Cache"
+    },
+    {
+      "id": "221",
+      "status": "completed",
+      "title": "Behavior Semantic IR, Compatibility Levels & Agent Studio Inspector"
+    },
+    {
+      "id": "222",
+      "status": "completed",
+      "title": "Subagent/Team Task Tree Scheduling and AgentInstanceSpec"
+    }
+  ],
+  "blocked": [],
+  "deferredBacklog": [],
+  "budget": {
+    "run": {
+      "epoch": {
+        "used": 0,
+        "limit": 3
+      },
+      "cards": {
+        "used": 10,
+        "limit": 10
+      },
+      "repairs": {
+        "used": 2,
+        "limit": 5
+      },
+      "workersSpawned": {
+        "used": 10,
+        "limit": 10
+      },
+      "research": {
+        "used": 0,
+        "limit": 2
+      }
+    },
+    "mission": {
+      "runs": {
+        "used": 1,
+        "limit": 8
+      },
+      "cards": {
+        "used": 10,
+        "limit": 20
+      },
+      "repairs": {
+        "used": 2,
+        "limit": 15
+      }
+    },
+    "worksetLimit": 10,
+    "activeWorkerLimit": 3,
+    "maxSubagentDepth": 1
+  },
+  "workers": {
+    "active": 0
+  },
+  "lastVerifiedCommit": "bd4a0b8",
+  "resumeFrom": "Card 221 completed: Behavior semantic IR, 5-level compatibility ladder, effective snapshot compilation, and Agent Studio read-only inspector implemented and verified; dual-root 3,296 passed / 6 skipped; packages/core 0 lines diff; commit bd4a0b8. Ready for Card 222.",
+  "notesForNextRun": [
+    "V2.6, Card 215, Card 216, Card 217, Card 218, Card 219, Card 220, and Card 221 verified locally.",
+    "Web builds must always use -- --emptyOutDir false; core remains protected.",
+    "Local-only policy preserved: no remote git push or npm publication."
+  ],
+  "updatedAt": "2026-10-14T10:14:00.000Z"
+}

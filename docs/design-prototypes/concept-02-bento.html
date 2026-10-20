@@ -1,0 +1,410 @@
+<!DOCTYPE html>
+<html lang="zh-CN" style="color-scheme: light dark" data-theme="light" data-lang="zh" data-screen="home">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>概念 02 · 舱位（Bento Mission Control）</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+/*
+  概念 02 · 舱位（Bento Mission Control）
+  结构创新：没有侧栏。顶部是一条**分段控件**导航；首页是**不对称 bento 网格**（大卡 2×2、高卡 1×2、宽卡 2×1），
+  会话视图是「窄步骤索引 + 执行流 + 小卡面板组」的三栏驾驶舱。
+*/
+:root{
+  --sans:"Geist","Segoe UI Variable Display","Segoe UI",system-ui,-apple-system,sans-serif;
+  --mono:"Geist Mono","Cascadia Mono",ui-monospace,SFMono-Regular,Consolas,monospace;
+  --bg:#EAEAEF; --panel:#FFFFFF; --panel-2:#F5F6F9; --panel-3:#EDEEF4;
+  --ring:rgba(10,11,16,.06); --ring-2:rgba(10,11,16,.12);
+  --text:#090A0E; --text-2:#565C69; --text-3:#8A909C;
+  --accent:#5157E8; --accent-fg:#fff; --accent-soft:rgba(81,87,232,.09);
+  --ok:#0E7A4E; --warn:#8C5E00; --danger:#B22C23;
+  --ok-soft:rgba(14,122,78,.1); --warn-soft:rgba(140,94,0,.11); --danger-soft:rgba(178,44,35,.09);
+  --shadow-1:0 1px 2px rgba(10,11,16,.05),0 10px 24px -18px rgba(10,11,16,.2);
+  --shadow-2:0 1px 1px rgba(10,11,16,.04),0 34px 76px -38px rgba(10,11,16,.32);
+  --glow-a:rgba(99,102,241,.17); --glow-b:rgba(20,184,166,.12);
+  --hl:inset 0 1px 0 rgba(255,255,255,.85);
+  --r-1:13px; --r-2:18px; --r-3:24px; --r-pill:999px;
+  --ease:cubic-bezier(.32,.72,0,1);
+}
+:root[data-theme="dark"]{
+    --bg:#050608; --panel:#0B0C11; --panel-2:#111319; --panel-3:#161820;
+    --ring:rgba(255,255,255,.07); --ring-2:rgba(255,255,255,.14);
+    --text:#F1F3F8; --text-2:#99A0AF; --text-3:#6B7181;
+    --accent:#8E96FF; --accent-fg:#0A0A12; --accent-soft:rgba(142,150,255,.13);
+    --ok:#4ADE94; --warn:#F4C151; --danger:#FF7C72;
+    --ok-soft:rgba(74,222,148,.12); --warn-soft:rgba(244,193,81,.12); --danger-soft:rgba(255,124,114,.12);
+    --shadow-1:0 1px 2px rgba(0,0,0,.55);
+    --shadow-2:0 1px 0 rgba(255,255,255,.05),0 40px 88px -42px rgba(0,0,0,.98);
+    --glow-a:rgba(99,102,241,.22); --glow-b:rgba(20,184,166,.16);
+    --hl:inset 0 1px 0 rgba(255,255,255,.06);
+  }
+
+*{box-sizing:border-box}
+html,body{height:100%;margin:0}
+body{background:var(--bg);color:var(--text);font-family:var(--sans);font-size:13.5px;line-height:1.55;
+  letter-spacing:-.006em;-webkit-font-smoothing:antialiased;font-variant-numeric:tabular-nums;overflow:hidden}
+body::before{content:"";position:fixed;inset:0;pointer-events:none;z-index:0;
+  background:radial-gradient(60% 44% at 50% -10%, var(--glow-a), transparent 64%),
+             radial-gradient(46% 36% at 100% 100%, var(--glow-b), transparent 66%)}
+button{font:inherit;color:inherit;cursor:pointer}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:8px}
+
+.shell{position:relative;z-index:1;height:100dvh;display:flex;flex-direction:column;gap:14px;padding:14px}
+
+/* ---- 顶部：分段控件，不是侧栏 ---- */
+.topbar{display:flex;align-items:center;gap:16px;padding:10px 14px;border-radius:var(--r-3);
+  background:var(--panel);border:1px solid var(--ring);box-shadow:var(--shadow-2);flex:none}
+.brand{display:inline-flex;align-items:center;gap:9px;font-weight:600;letter-spacing:-.02em;font-size:14px}
+.brand .mark{width:24px;height:24px;border-radius:8px;display:grid;place-items:center;
+  background:linear-gradient(150deg,var(--accent),color-mix(in srgb,var(--accent) 52%,#000));
+  color:var(--accent-fg);box-shadow:var(--hl),0 6px 16px -6px var(--accent)}
+.seg{display:flex;gap:2px;padding:3px;border-radius:var(--r-pill);background:var(--panel-2);border:1px solid var(--ring)}
+.seg button{padding:6px 15px;border:0;border-radius:var(--r-pill);background:transparent;color:var(--text-2);font-size:12.5px;
+  transition:background .35s var(--ease),color .35s var(--ease)}
+.seg button:hover{color:var(--text)}
+.seg button[aria-current="page"]{background:var(--panel);color:var(--text);font-weight:540;box-shadow:var(--shadow-1)}
+.topbar .right{margin-left:auto;display:flex;align-items:center;gap:8px}
+.statusled{display:inline-flex;align-items:center;gap:7px;font-size:11.5px;color:var(--text-3);padding-right:6px}
+.statusled i{width:6px;height:6px;border-radius:50%;background:var(--ok);box-shadow:0 0 0 3px var(--ok-soft)}
+.ghost{width:32px;height:32px;border-radius:var(--r-pill);border:1px solid var(--ring);background:transparent;
+  display:grid;place-items:center;color:var(--text-2);transition:background .35s var(--ease),color .35s var(--ease)}
+.ghost:hover{background:var(--panel-2);color:var(--text)}
+
+.btn{display:inline-flex;align-items:center;gap:10px;padding:8px 8px 8px 16px;border:1px solid transparent;
+  border-radius:var(--r-pill);background:var(--panel-2);color:var(--text);white-space:nowrap;font-weight:520;
+  transition:transform .5s var(--ease),background .35s var(--ease)}
+.btn:active{transform:scale(.975)}
+.btn .ic{width:24px;height:24px;border-radius:50%;display:grid;place-items:center;background:rgba(127,127,140,.16);
+  transition:transform .5s var(--ease)}
+.btn:hover .ic{transform:translate(2px,-1px) scale(1.06)}
+.btn-primary{background:var(--accent);color:var(--accent-fg);
+  box-shadow:var(--hl),0 14px 30px -15px color-mix(in srgb,var(--accent) 72%,transparent)}
+.btn-primary .ic{background:color-mix(in srgb,var(--accent-fg) 20%,transparent)}
+.btn-ghost{background:transparent;color:var(--text-2);padding:8px 14px;font-weight:480}
+.btn-ghost:hover{background:var(--panel-2);color:var(--text)}
+
+/* ---- bento 网格 ---- */
+.stage{flex:1;min-height:0;overflow-y:auto;display:none}
+.stage.on{display:block}
+.bento{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));grid-auto-rows:minmax(132px,auto);
+  gap:14px;padding-bottom:6px}
+.tile{border-radius:var(--r-3);background:var(--panel);border:1px solid var(--ring);box-shadow:var(--shadow-2);
+  padding:18px;display:flex;flex-direction:column;gap:12px;min-width:0;overflow:hidden;
+  transition:transform .5s var(--ease),box-shadow .5s var(--ease)}
+.tile:hover{transform:translateY(-2px)}
+.t-run{grid-column:span 2;grid-row:span 2}
+.t-approve{grid-column:span 1;grid-row:span 2}
+.t-cost{grid-column:span 1}
+.t-ctx{grid-column:span 1}
+.t-tools{grid-column:span 2}
+.t-sessions{grid-column:span 2}
+.th{display:flex;align-items:baseline;gap:10px}
+.th h2{margin:0;font-size:10.5px;letter-spacing:.18em;text-transform:uppercase;color:var(--text-3);font-weight:560}
+.th .more{margin-left:auto;font-size:12px;color:var(--text-2);cursor:pointer}
+
+.big{display:flex;flex-direction:column;gap:8px}
+.big .ttl{font-size:21px;letter-spacing:-.032em;font-weight:600;line-height:1.2}
+.big .meta{display:flex;align-items:center;gap:10px;color:var(--text-3);font-size:12px}
+.prog{height:4px;border-radius:2px;background:var(--panel-2);overflow:hidden;margin-top:2px}
+.prog i{display:block;height:100%;width:62%;border-radius:2px;background:var(--accent)}
+.steps{display:flex;flex-direction:column;gap:1px;margin-top:4px}
+.step{display:flex;align-items:center;gap:11px;padding:8px 2px;border-top:1px solid var(--ring);font-size:12.5px;color:var(--text-2)}
+.step:first-child{border-top:0}
+.step .n{width:18px;font-family:var(--mono);font-size:11px;color:var(--text-3);text-align:right}
+.step .what{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.step .d{font-family:var(--mono);font-size:11px;color:var(--text-3)}
+.step.now .what{color:var(--text);font-weight:520}
+.step.now .n{color:var(--accent)}
+
+.pill{display:inline-flex;align-items:center;gap:6px;padding:3px 10px;border-radius:var(--r-pill);font-size:11px;font-weight:540}
+.pill::before{content:"";width:5px;height:5px;border-radius:50%;background:currentColor}
+.pill.run{background:var(--accent-soft);color:var(--accent)}
+.pill.wait{background:var(--warn-soft);color:var(--warn)}
+.pill.ok{background:var(--ok-soft);color:var(--ok)}
+.pill.mute{background:var(--panel-2);color:var(--text-2)}
+
+.appr{padding:5px;border-radius:calc(var(--r-2) + 4px);background:var(--warn-soft)}
+.appr .core{border-radius:var(--r-2);background:var(--panel);border:1px solid var(--ring);box-shadow:var(--hl);
+  padding:13px 14px;display:flex;flex-direction:column;gap:10px}
+.appr .op{font-family:var(--mono);font-size:11.5px;color:var(--text-2);padding:8px 10px;border-radius:9px;background:var(--panel-2);
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.appr .row{display:flex;gap:8px}
+.mini{padding:6px 12px;border-radius:var(--r-pill);border:1px solid var(--ring);background:transparent;font-size:12px;
+  transition:background .35s var(--ease),border-color .35s var(--ease)}
+.mini:hover{background:var(--panel-2);border-color:var(--ring-2)}
+.mini.pri{background:var(--accent);color:var(--accent-fg);border-color:transparent;font-weight:520}
+
+.num{font-size:30px;letter-spacing:-.04em;font-weight:600;font-family:var(--mono)}
+.spark{height:34px;width:100%}
+.kv{display:flex;flex-direction:column;gap:8px;font-size:12.5px}
+.kv .r{display:flex;gap:10px;align-items:baseline}
+.kv .r span{color:var(--text-3);min-width:44px}
+.kv .r b{font-family:var(--mono);font-weight:480;font-size:12px}
+.bar{height:6px;border-radius:3px;background:var(--panel-2);overflow:hidden}
+.bar i{display:block;height:100%;border-radius:3px;background:var(--accent)}
+.bar.warn i{background:var(--warn)}
+
+.tools{display:flex;flex-direction:column}
+.tool{display:flex;align-items:center;gap:11px;padding:8px 2px;border-top:1px solid var(--ring);font-size:12px}
+.tool:first-child{border-top:0}
+.tool .nm{font-weight:520;text-transform:uppercase;letter-spacing:.04em}
+.tool .pth{font-family:var(--mono);color:var(--text-2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tool .d{margin-left:auto;font-family:var(--mono);font-size:11px;color:var(--text-3);flex:none}
+
+.sess{display:flex;flex-direction:column}
+.s{display:flex;align-items:center;gap:12px;padding:10px 2px;border-top:1px solid var(--ring);cursor:pointer;
+  transition:padding-left .45s var(--ease)}
+.s:first-child{border-top:0}
+.s:hover{padding-left:8px}
+.s .t{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:500}
+.s .m{font-size:11.5px;color:var(--text-3);font-family:var(--mono)}
+
+/* ---- 会话：三栏驾驶舱 ---- */
+.cockpit{display:grid;grid-template-columns:196px minmax(0,1fr) 300px;gap:14px;height:100%;min-height:0}
+.panelcol{border-radius:var(--r-3);background:var(--panel);border:1px solid var(--ring);box-shadow:var(--shadow-2);
+  display:flex;flex-direction:column;min-height:0;overflow:hidden}
+.idx{padding:14px 12px;overflow-y:auto}
+.idx .lbl{font-size:10.5px;letter-spacing:.18em;text-transform:uppercase;color:var(--text-3);font-weight:560;padding:0 8px 8px}
+.idxitem{display:flex;align-items:center;gap:9px;padding:8px 10px;border-radius:10px;color:var(--text-2);font-size:12.5px;
+  cursor:pointer;transition:background .3s var(--ease),color .3s var(--ease)}
+.idxitem:hover{background:var(--panel-2);color:var(--text)}
+.idxitem[aria-current="true"]{background:var(--panel-2);color:var(--text);font-weight:520}
+.idxitem .n{font-family:var(--mono);font-size:11px;color:var(--text-3);width:16px}
+.center{display:flex;flex-direction:column;min-height:0}
+.chead{padding:16px 20px;border-bottom:1px solid var(--ring)}
+.chead h1{margin:0 0 5px;font-size:19px;letter-spacing:-.028em;font-weight:600}
+.chead .m{display:flex;align-items:center;gap:10px;color:var(--text-3);font-size:12px}
+.stream{padding:20px;display:flex;flex-direction:column;gap:18px;overflow-y:auto;min-height:0}
+.turn{display:flex;gap:13px}
+.ava{width:26px;height:26px;border-radius:9px;flex:none;display:grid;place-items:center;font-size:10.5px;font-weight:600;
+  background:var(--panel-2);color:var(--text-2);box-shadow:var(--hl)}
+.ava.v{background:linear-gradient(150deg,var(--accent),color-mix(in srgb,var(--accent) 50%,#000));color:var(--accent-fg)}
+.turn .body{min-width:0;display:flex;flex-direction:column;gap:9px}
+.role{font-size:10.5px;letter-spacing:.18em;text-transform:uppercase;color:var(--text-3);font-weight:560}
+.turn p{margin:0;font-size:14px;line-height:1.62}
+.tb{padding:5px;border-radius:calc(var(--r-2) + 4px);background:var(--panel-3);border:1px solid var(--ring)}
+.tb .core{border-radius:var(--r-2);background:var(--panel);border:1px solid var(--ring);padding:12px 14px}
+.tb summary{cursor:pointer;list-style:none;font-size:11px;color:var(--text-3);display:flex;align-items:center;gap:8px}
+.tb summary::-webkit-details-marker{display:none}
+.tb .txt{margin-top:8px;color:var(--text-2);font-size:13px}
+.usage2{display:flex;gap:16px;padding:12px 20px;border-top:1px solid var(--ring);font-family:var(--mono);font-size:11.5px;color:var(--text-3)}
+.panelcol.side{padding:16px;gap:18px;overflow-y:auto}
+
+@keyframes rise{from{opacity:0;transform:translate3d(0,20px,0)}to{opacity:1;transform:none}}
+[data-in]{animation:rise .8s var(--ease) both}
+[data-in="2"]{animation-delay:.05s}[data-in="3"]{animation-delay:.1s}
+[data-in="4"]{animation-delay:.15s}[data-in="5"]{animation-delay:.2s}[data-in="6"]{animation-delay:.25s}
+@media (prefers-reduced-motion:reduce){[data-in]{animation:none}*{transition-duration:.01ms !important}}
+
+.switcher{position:fixed;right:22px;bottom:22px;z-index:60;display:flex;align-items:center;gap:6px;padding:6px;
+  border-radius:var(--r-pill);border:1px solid var(--ring-2);background:color-mix(in srgb,var(--panel) 82%,transparent);
+  backdrop-filter:blur(20px) saturate(1.5);box-shadow:var(--shadow-2)}
+.switcher .sep{width:1px;height:18px;background:var(--ring-2);margin:0 3px}
+.switcher button{padding:6px 13px;border:0;border-radius:var(--r-pill);background:transparent;color:var(--text-2);font-size:12px;
+  transition:background .35s var(--ease),color .35s var(--ease)}
+.switcher button:hover{background:var(--panel-2);color:var(--text)}
+.switcher button[aria-pressed="true"]{background:var(--accent);color:var(--accent-fg);font-weight:540}
+.switcher .lbl{font-size:10px;letter-spacing:.15em;text-transform:uppercase;color:var(--text-3);padding:0 5px}
+
+@media (max-width:1100px){
+  .bento{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .t-run,.t-approve,.t-tools,.t-sessions{grid-column:span 2;grid-row:auto}
+  .cockpit{grid-template-columns:minmax(0,1fr)}
+  .panelcol.side,.panelcol.idxcol{display:none}
+}
+@media (max-width:700px){
+  .bento{grid-template-columns:minmax(0,1fr)}
+  .t-run,.t-approve,.t-cost,.t-ctx,.t-tools,.t-sessions{grid-column:span 1}
+  .seg{display:none}
+}
+</style>
+</head>
+<body>
+<div class="shell">
+
+  <header class="topbar">
+    <span class="brand"><span class="mark"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5l8 14 8-14"/></svg></span>Vessel</span>
+    <nav class="seg">
+      <button aria-current="page" data-screen-btn="home" data-zh="工作台" data-en="Workbench">工作台</button>
+      <button data-zh="活动" data-en="Activity">活动</button>
+      <button data-zh="Agent Studio" data-en="Agent Studio">Agent Studio</button>
+      <button data-zh="设置" data-en="Settings">设置</button>
+    </nav>
+    <div class="right">
+      <span class="statusled"><i></i><span data-zh="本地服务运行正常" data-en="Local server healthy">本地服务运行正常</span></span>
+      <button class="btn btn-primary" style="padding:7px 7px 7px 15px"><span data-zh="新建会话" data-en="New session">新建会话</span>
+        <span class="ic"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></span></button>
+      <button class="ghost" aria-label="Preferences"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round"><circle cx="12" cy="12" r="3"/><path d="M12 2.5v2.6M12 18.9v2.6M4.2 4.2l1.9 1.9M17.9 17.9l1.9 1.9M2.5 12h2.6M18.9 12h2.6M4.2 19.8l1.9-1.9M17.9 6.1l1.9-1.9"/></svg></button>
+    </div>
+  </header>
+
+  <!-- ============ 舱位首页 ============ -->
+  <section class="stage on" id="v-home">
+    <div class="bento">
+
+      <div class="tile t-run" data-in="1">
+        <div class="th"><h2 data-zh="当前运行" data-en="Current run">当前运行</h2><span class="more" data-zh="打开" data-en="Open">打开</span></div>
+        <div class="big">
+          <span class="ttl" data-zh="重构 Provider 能力协商" data-en="Refactor provider negotiation">重构 Provider 能力协商</span>
+          <span class="meta"><span class="pill run" data-zh="运行中" data-en="Running">运行中</span><span>vessel-harness</span><span>·</span><span>12 / 40 step</span></span>
+          <div class="prog"><i></i></div>
+        </div>
+        <div class="steps">
+          <div class="step"><span class="n">09</span><span class="what">Read · packages/shared/src/provider.ts</span><span class="d">14ms</span></div>
+          <div class="step"><span class="n">10</span><span class="what">Edit · providerRoutes.ts</span><span class="d">18ms</span></div>
+          <div class="step now"><span class="n">11</span><span class="what" data-zh="等待授权：写入 navigation.ts" data-en="Awaiting approval: write navigation.ts">等待授权：写入 navigation.ts</span><span class="d">—</span></div>
+        </div>
+      </div>
+
+      <div class="tile t-approve" data-in="2">
+        <div class="th"><h2 data-zh="待审批" data-en="Approvals">待审批</h2><span class="pill wait">2</span></div>
+        <div class="appr"><div class="core">
+          <div class="op">Write · navigation.ts · 12 lines</div>
+          <div class="row"><button class="mini pri" data-zh="批准" data-en="Allow">批准</button><button class="mini" data-zh="拒绝" data-en="Deny">拒绝</button></div>
+        </div></div>
+        <div class="appr"><div class="core">
+          <div class="op">Bash · rm -rf dist · 1 cmd</div>
+          <div class="row"><button class="mini pri" data-zh="批准" data-en="Allow">批准</button><button class="mini" data-zh="拒绝" data-en="Deny">拒绝</button></div>
+        </div></div>
+      </div>
+
+      <div class="tile t-cost" data-in="3">
+        <div class="th"><h2 data-zh="花费" data-en="Cost">花费</h2></div>
+        <span class="num">$0.0124</span>
+        <svg class="spark" viewBox="0 0 120 34" preserveAspectRatio="none"><polyline fill="none" stroke="var(--accent)" stroke-width="1.6" stroke-linecap="round" points="0,28 12,24 24,26 36,18 48,20 60,12 72,14 84,9 96,11 108,6 120,7"/></svg>
+        <div class="kv"><div class="r"><span data-zh="缓存" data-en="Cache">缓存</span><b>61%</b></div></div>
+      </div>
+
+      <div class="tile t-ctx" data-in="3">
+        <div class="th"><h2 data-zh="上下文" data-en="Context">上下文</h2></div>
+        <div class="kv"><div class="r"><span data-zh="占用" data-en="Used">占用</span><b>46%</b></div></div>
+        <div class="bar"><i style="width:46%"></i></div>
+        <div class="kv"><div class="r"><span data-zh="剪枝" data-en="Pruned">剪枝</span><b>82.6%</b></div></div>
+        <div class="bar warn"><i style="width:82%"></i></div>
+      </div>
+
+      <div class="tile t-tools" data-in="4">
+        <div class="th"><h2 data-zh="工具活动" data-en="Tool activity">工具活动</h2><span class="more" data-zh="全部" data-en="All">全部</span></div>
+        <div class="tools">
+          <div class="tool"><span class="nm">Read</span><span class="pth">packages/shared/src/provider.ts</span><span class="d">14ms</span></div>
+          <div class="tool"><span class="nm">Edit</span><span class="pth">providerRoutes.ts</span><span class="d">18ms</span></div>
+          <div class="tool"><span class="nm">Bash</span><span class="pth">npx vitest run</span><span class="d">2.1s</span></div>
+        </div>
+      </div>
+
+      <div class="tile t-sessions" data-in="5">
+        <div class="th"><h2 data-zh="会话" data-en="Sessions">会话</h2><span class="more" data-zh="查看全部" data-en="View all">查看全部</span></div>
+        <div class="sess">
+          <div class="s"><span class="pill run" data-zh="运行中" data-en="Running">运行中</span><span class="t" data-zh="重构 Provider 能力协商" data-en="Refactor provider negotiation">重构 Provider 能力协商</span><span class="m">vessel-harness · 12</span></div>
+          <div class="s"><span class="pill ok" data-zh="已完成" data-en="Done">已完成</span><span class="t" data-zh="画布单 Hunk 补丁选择器" data-en="Canvas single-hunk picker">画布单 Hunk 补丁选择器</span><span class="m">vessel-harness · 28</span></div>
+          <div class="s"><span class="pill wait" data-zh="待审批" data-en="Awaiting">待审批</span><span class="t" data-zh="检查 sandbox 逃逸路径" data-en="Audit sandbox escapes">检查 sandbox 逃逸路径</span><span class="m">second-repo · 9</span></div>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ============ 会话驾驶舱 ============ -->
+  <section class="stage" id="v-session">
+    <div class="cockpit">
+      <div class="panelcol idxcol">
+        <div class="idx">
+          <div class="lbl" data-zh="步骤索引" data-en="Steps">步骤索引</div>
+          <div class="idxitem"><span class="n">01</span><span data-zh="读取契约" data-en="Read contract">读取契约</span></div>
+          <div class="idxitem"><span class="n">02</span><span data-zh="定位调度入口" data-en="Locate dispatch">定位调度入口</span></div>
+          <div class="idxitem"><span class="n">…</span><span data-zh="中间 8 步" data-en="8 more steps">中间 8 步</span></div>
+          <div class="idxitem" aria-current="true"><span class="n">11</span><span data-zh="写入 navigation.ts" data-en="Write navigation.ts">写入 navigation.ts</span></div>
+          <div class="idxitem"><span class="n">12</span><span data-zh="跑测试" data-en="Run tests">跑测试</span></div>
+        </div>
+      </div>
+
+      <div class="panelcol center">
+        <div class="chead">
+          <h1 data-zh="重构 Provider 能力协商" data-en="Refactor provider negotiation">重构 Provider 能力协商</h1>
+          <span class="m"><span class="pill run" data-zh="运行中" data-en="Running">运行中</span><span>vessel-harness</span><span>·</span><span>12 step</span></span>
+        </div>
+        <div class="stream">
+          <div class="turn"><span class="ava">你</span><div class="body">
+            <span class="role" data-zh="用户" data-en="User">用户</span>
+            <p data-zh="把 Provider 能力协商接到调度前拦截：不支持的强制约束直接抛错，不要发网络请求。" data-en="Gate dispatch on provider capability negotiation: hard-fail unsupported constraints before any network call.">把 Provider 能力协商接到调度前拦截：不支持的强制约束直接抛错，不要发网络请求。</p>
+          </div></div>
+          <div class="turn"><span class="ava v">V</span><div class="body">
+            <span class="role">Vessel</span>
+            <div class="tb"><div class="core"><details open>
+              <summary><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 8v4l3 2"/></svg><span data-zh="思考 · 12s" data-en="Thinking · 12s">思考 · 12s</span></summary>
+              <div class="txt" data-zh="拦截必须发生在 composeHarness 之前，这样零网络调用是可证的。" data-en="The gate must fire before composeHarness so zero-network is provable.">拦截必须发生在 composeHarness 之前，这样零网络调用是可证的。</div>
+            </details></div></div>
+            <p data-zh="契约已改好，下一步要动 Web 端节点命名，需要授权。" data-en="Contract updated. The next step touches Web node naming and needs authorization.">契约已改好，下一步要动 Web 端节点命名，需要授权。</p>
+          </div></div>
+        </div>
+        <div class="usage2">
+          <span><b data-zh="输入" data-en="in">输入</b> 12.4k</span><span><b data-zh="输出" data-en="out">输出</b> 1.8k</span>
+          <span><b data-zh="缓存" data-en="cache">缓存</b> 61%</span><span><b data-zh="花费" data-en="cost">花费</b> $0.0124</span>
+        </div>
+      </div>
+
+      <div class="panelcol side">
+        <div><div class="th" style="margin-bottom:9px"><h2 data-zh="运行" data-en="Run">运行</h2></div>
+          <div class="kv">
+            <div class="r"><span data-zh="标识" data-en="ID">标识</span><b>run_7f31c2</b></div>
+            <div class="r"><span data-zh="权限" data-en="Policy">权限</span><b>workspace-write</b></div>
+          </div></div>
+        <div><div class="th" style="margin-bottom:9px"><h2 data-zh="变更文件" data-en="Files">变更文件</h2></div>
+          <div class="tools">
+            <div class="tool"><span class="nm">M</span><span class="pth">provider.ts</span><span class="d"><span style="color:var(--ok)">+24</span> <span style="color:var(--danger)">−6</span></span></div>
+            <div class="tool"><span class="nm">A</span><span class="pth">CapabilityStatus.tsx</span><span class="d"><span style="color:var(--ok)">+96</span></span></div>
+          </div></div>
+        <div><div class="th" style="margin-bottom:9px"><h2 data-zh="检查器" data-en="Inspector">检查器</h2></div>
+          <div class="kv"><div class="r"><span data-zh="步数" data-en="Steps">步数</span><b>12</b></div><div class="r"><span data-zh="耗时" data-en="Elapsed">耗时</span><b>48s</b></div></div></div>
+      </div>
+    </div>
+  </section>
+
+</div>
+
+<div class="switcher">
+  <span class="lbl" data-zh="界面" data-en="View">界面</span>
+  <button data-screen-btn="home" aria-pressed="true" data-zh="舱位" data-en="Bento">舱位</button>
+  <button data-screen-btn="session" aria-pressed="false" data-zh="会话" data-en="Session">会话</button>
+  <span class="sep"></span>
+  <button data-theme-btn="auto" aria-pressed="true" data-zh="跟随系统" data-en="Auto">跟随系统</button>
+  <button data-theme-btn="light" aria-pressed="false" data-zh="浅色" data-en="Light">浅色</button>
+  <button data-theme-btn="dark" aria-pressed="false" data-zh="深色" data-en="Dark">深色</button>
+  <span class="sep"></span>
+  <button data-lang-btn="zh" aria-pressed="true">中</button>
+  <button data-lang-btn="en" aria-pressed="false">EN</button>
+</div>
+
+<script>
+(function(){
+  var root=document.documentElement, mq=window.matchMedia('(prefers-color-scheme: dark)');
+  var q=location.search+location.hash; function grab(re,d){var m=re.exec(q);return m?m[1]:d;}
+  var choice=grab(/(?:^|[#&?])theme=(dark|light|auto)/,'auto');
+  var lang=grab(/(?:^|[#&?])lang=(zh|en)/,'zh');
+  var screen=grab(/(?:^|[#&?])screen=(home|session)/,'home');
+  function press(sel,attr,val){document.querySelectorAll(sel).forEach(function(b){b.setAttribute('aria-pressed',String(b.getAttribute(attr)===val));});}
+  function resolveTheme(){root.setAttribute('data-theme',choice==='auto'?(mq.matches?'dark':'light'):choice);press('[data-theme-btn]','data-theme-btn',choice);}
+  function applyLang(l){root.setAttribute('data-lang',l);
+    document.querySelectorAll('[data-zh]').forEach(function(e){e.textContent=e.getAttribute('data-'+l);});
+    document.querySelectorAll('[data-ph-zh]').forEach(function(e){e.setAttribute('placeholder',e.getAttribute('data-ph-'+l));});
+    press('[data-lang-btn]','data-lang-btn',l);}
+  function applyScreen(s){
+    document.getElementById('v-home').classList.toggle('on',s==='home');
+    document.getElementById('v-session').classList.toggle('on',s==='session');
+    press('.switcher [data-screen-btn]','data-screen-btn',s);
+    document.querySelectorAll('.seg [data-screen-btn]').forEach(function(b){
+      b.setAttribute('aria-current',String(b.getAttribute('data-screen-btn')===s));});
+    if(!window.matchMedia('(prefers-reduced-motion: reduce)').matches){
+      document.querySelectorAll('[data-in]').forEach(function(el){el.style.animation='none';void el.offsetWidth;el.style.animation='';});}
+  }
+  mq.addEventListener('change',resolveTheme); resolveTheme(); applyLang(lang); applyScreen(screen);
+  document.querySelectorAll('[data-theme-btn]').forEach(function(b){b.addEventListener('click',function(){choice=b.getAttribute('data-theme-btn');resolveTheme();});});
+  document.querySelectorAll('[data-lang-btn]').forEach(function(b){b.addEventListener('click',function(){applyLang(b.getAttribute('data-lang-btn'));});});
+  document.querySelectorAll('[data-screen-btn]').forEach(function(b){b.addEventListener('click',function(){applyScreen(b.getAttribute('data-screen-btn'));});});
+})();
+</script>
+</body>
+</html>

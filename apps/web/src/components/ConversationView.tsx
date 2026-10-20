@@ -8,6 +8,8 @@ import UsageBar, { applyUsageDelta, usageCallCost, emptyUsage, type UsageTotals 
 import TalkingMetricsBar, { type TalkingMetrics } from './TalkingMetricsBar';
 import { useI18n } from './LanguageProvider';
 import SandboxAuditHistory from './SandboxAuditHistory';
+import PlanChecklist, { usePlanTasks, planProgress } from './PlanChecklist';
+import ComposerCapsules, { MetersRow, useContextWindow } from './ComposerMeters';
 import { DualSurfaceLayout, appendCacheObservation, type InspectorTab } from './layout/DualSurfaceLayout';
 import type { CacheUsageMetrics } from '../cacheUsage';
 import type { InspectorObservation } from '../inspector';
@@ -70,6 +72,10 @@ export default function ConversationView({ sessionId, api, onSessionUpdated, vie
   const [error, setError] = useState<string | null>(null);
   const [serverDown, setServerDown] = useState(false);
   const [auditRevision, setAuditRevision] = useState(0);
+  const contextWindow = useContextWindow(api, sessionId, providerRevision);
+  const planTasks = usePlanTasks(api, sessionId, items.length);
+  const planProgressValue = planProgress(planTasks);
+  const setRouteMode = useCallback((mode: 'auto' | 'fast' | 'pro') => { void api.setRouteMode(sessionId, mode).catch(() => { /* best effort: the capsule keeps its previous value */ }); }, [api, sessionId]);
   const pendingTool = useRef<Record<string, ToolDelta>>({});
   const latest = useRef({ items, usage, turnMetrics, cacheHistory, observation, input });
   const listRef = useRef<HTMLDivElement | null>(null);
@@ -282,7 +288,8 @@ export default function ConversationView({ sessionId, api, onSessionUpdated, vie
         <ModelSelector key={sessionId} sessionId={sessionId} api={api} providerRevision={providerRevision} busy={busy} onConfigureModels={onConfigureModels} onUpdated={onSessionUpdated} onBusyChange={setModelBusy} />
         <UsageBar usage={usage} />
       </header>
-      <div className="message-list-scroll" ref={listRef}>
+      <div className="message-list-scroll scroll-fade-mask" ref={listRef}>
+        <PlanChecklist sessionId={sessionId} api={api} revision={items.length} />
         {serverDown ? (
           <div className="error-text conversation-empty">{t('serverDown')}</div>
         ) : (
@@ -292,28 +299,32 @@ export default function ConversationView({ sessionId, api, onSessionUpdated, vie
       </div>
       <TalkingMetricsBar metrics={turnMetrics} />
       <SandboxAuditHistory api={api} sessionId={sessionId} revision={auditRevision} />
-      <form className="composer" onSubmit={event => { event.preventDefault(); void send(input); }}>
-        <input
-          className="input composer-input"
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          placeholder={t('inputPlaceholder')}
-          disabled={serverDown}
-          autoFocus
-        />
-        <button type="submit" className="btn btn-primary" disabled={busy || modelBusy || !input.trim() || serverDown}>
-          {busy ? t('running') : t('send')}
-        </button>
-        <button
-          type="button"
-          className="btn"
-          disabled={!busy}
-          title={t('interruptTitle')}
-          onClick={stop}
-        >
-          {t('stop')}
-        </button>
-      </form>
+      <div className="composer-shell">
+        <ComposerCapsules api={api} sessionId={sessionId} fallbackMode="auto" onModeChange={mode => setRouteMode(mode)} />
+        <form className="composer" onSubmit={event => { event.preventDefault(); void send(input); }}>
+          <input
+            className="input composer-input"
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            placeholder={t('inputPlaceholder')}
+            disabled={serverDown}
+            autoFocus
+          />
+          <button type="submit" className="btn btn-primary" disabled={busy || modelBusy || !input.trim() || serverDown}>
+            {busy ? t('running') : t('send')}
+          </button>
+          <button
+            type="button"
+            className="btn"
+            disabled={!busy}
+            title={t('interruptTitle')}
+            onClick={stop}
+          >
+            {t('stop')}
+          </button>
+        </form>
+        <MetersRow usage={usage} metrics={turnMetrics} contextWindow={contextWindow} plan={planProgressValue} />
+      </div>
     </div>
     </DualSurfaceLayout>
   );
