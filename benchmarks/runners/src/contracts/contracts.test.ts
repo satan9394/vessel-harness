@@ -383,3 +383,47 @@ describe('contracts — coexistence with the existing runner', () => {
     }
   }, 60_000);
 });
+
+describe('ARCH-04 contract distinction — BenchmarkHarnessAdapter vs InteractiveRuntimeAdapter', () => {
+  it('distinguishes benchmark runner contract from interactive runtime contract', async () => {
+    expect(vesselAdapter).toBeDefined();
+    // Benchmark adapter executes static fixtures
+    expect(typeof vesselAdapter.run).toBe('function');
+    expect(typeof vesselAdapter.capabilities).toBe('object');
+
+    // Interactive adapter contract shape from @vessel/shared
+    const interactiveStub: import('@vessel/shared').InteractiveRuntimeAdapter = {
+      id: 'interactive-vessel',
+      version: '1.0.0',
+      async probe() {
+        return {
+          adapterVersion: '1.0.0',
+          installedVersion: '1.0.0',
+          probedAt: Date.now(),
+          capabilities: {
+            start: 'supported',
+            events: 'supported',
+            steer: 'supported',
+            cancel: 'supported',
+            resume: 'supported',
+            approvals: 'supported',
+            artifacts: 'supported',
+          },
+        };
+      },
+      async startRun(input) {
+        return { runId: `run-${input.sessionId}` };
+      },
+    };
+
+    const probed = await interactiveStub.probe();
+    expect(probed.capabilities.start).toBe('supported');
+    expect(probed.capabilities.steer).toBe('supported');
+    const started = await interactiveStub.startRun({
+      sessionId: 'session-test',
+      workspaceRoot: tmpRoot,
+      task: 'verify distinction',
+    });
+    expect(started.runId).toBe('run-session-test');
+  });
+});

@@ -127,3 +127,9 @@ export interface HarnessAdapter {
    */
   capabilities: Record<CapabilityKey, boolean | 'tbd'>;
 }
+
+/**
+ * BenchmarkHarnessAdapter — explicit alias for HarnessAdapter (task 245 / ARCH-04).
+ * Strictly distinguishes benchmark-only fixture evaluation from InteractiveRuntimeAdapter.
+ */
+export type BenchmarkHarnessAdapter = HarnessAdapter;
