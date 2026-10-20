@@ -349,6 +349,8 @@ export function createVesselServer(opts: VesselServerOptions = {}): VesselServer
 
   /** live session controllers keyed by session id (owns the run loop). */
   const controllers = new Map<string, SessionController>();
+  const deletingSessions = new Set<string>();
+  const activeTurns = new Map<string, Promise<unknown>>();
   const behaviorRoutes = new BehaviorRoutes(id => controllers.get(id)?.behaviorInspection);
   const patches = new PatchRoutes(id => controllers.get(id)?.state);
   const widgets = new WidgetRoutes(id => controllers.has(id), (id, widget) => {
@@ -770,6 +772,9 @@ export function createVesselServer(opts: VesselServerOptions = {}): VesselServer
       const id = segs[2] ?? '';
       const sub = segs[3];
       const ctl = controllers.get(id);
+      if (deletingSessions.has(id) && method !== 'GET') {
+        return json(res, 409, { error: 'session_deleting', id });
+      }
 
       if (segs.length === 5 && sub === 'patch' && segs[4] === 'apply' && method === 'POST') {
         const body = await readJsonBody(req);
@@ -792,22 +797,31 @@ export function createVesselServer(opts: VesselServerOptions = {}): VesselServer
         if (!sameOrigin) return json(res, 403, { error: 'cross_origin_denied' });
         const existing = sessionRegistry.get(id);
         if (!existing && !ctl) return json(res, 404, suggestNotFound(id));
-        if (ctl) {
-          ctl.interrupt();
-          controllers.delete(id);
+        if ((ctl?.loop.turnActive && !activeTurns.has(id)) || teamStates.get(id)?.inFlight || teamStages.list(id).some(stage => stage?.status === 'running')) {
+          return json(res, 409, { error: 'session_busy' });
         }
-        sessionRegistry.remove(id);
-        if (existing?.workspaceRoot) {
-          try {
+        deletingSessions.add(id);
+        try {
+          ctl?.interrupt();
+          // Let the interrupted writer settle before recycling its session directory.
+          await activeTurns.get(id)?.catch(() => {});
+          if (existing?.workspaceRoot) {
             const sessionDir = resolveSessionDir(existing.workspaceRoot, id);
             if (fs.existsSync(sessionDir)) {
-              void recycleDaemonPath(sessionDir).catch(() => {});
+              await recycleDaemonPath(sessionDir);
             }
-          } catch {
-            // best-effort cleanup
           }
+          // Recycling succeeded; release the removed controller's open log handles.
+          // A telemetry close error cannot undo the completed recycle operation.
+          await ctl?.close().catch(() => {});
+          controllers.delete(id);
+          sessionRegistry.remove(id);
+          return json(res, 200, { ok: true, id });
+        } catch {
+          return json(res, 500, { error: 'session_recycle_failed', id });
+        } finally {
+          deletingSessions.delete(id);
         }
-        return json(res, 200, { ok: true, id });
       }
 
       // GET /api/sessions/:id
@@ -848,8 +862,12 @@ export function createVesselServer(opts: VesselServerOptions = {}): VesselServer
         if (!body || typeof body.prompt !== 'string' || body.prompt.trim() === '') {
           return json(res, 400, { error: 'missing_prompt' });
         }
+        if (deletingSessions.has(id)) return json(res, 409, { error: 'session_deleting', id });
+        if (controllers.get(id) !== ctl) return json(res, 404, suggestNotFound(id));
         try {
-          const result = await ctl.runTurn(body.prompt);
+          const turn = ctl.runTurn(body.prompt);
+          if (!activeTurns.has(id)) activeTurns.set(id, turn);
+          const result = await turn.finally(() => { if (activeTurns.get(id) === turn) activeTurns.delete(id); });
           notify(result.kind === 'error' ? 'Vessel task failed' : 'Vessel task finished', `Session ${id}: ${result.kind}`);
           // BRIEF-19: a turn that ended in error must not be reported as HTTP 200 —
           // status-code-only clients would read the failure as success. Body shape

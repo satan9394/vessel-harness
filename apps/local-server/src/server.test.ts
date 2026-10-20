@@ -1,13 +1,19 @@
 import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { MockProvider } from '@vessel/llm';
 import { SessionRegistry, ProjectRegistry, ReviewHandoffStore, type SessionController } from '@vessel/application';
 import { IterationStore, ProjectTaskQueue } from '@vessel/engine';
 import { createVesselServer, type VesselServer } from './server.js';
 import type { ChatProvider, ChatRequest, ChatResponse, StreamChunk } from '@vessel/shared';
 import { GoalSeam } from './goalSeam.js';
+
+const { recyclePath } = vi.hoisted(() => ({ recyclePath: vi.fn<() => Promise<void>>() }));
+vi.mock('./daemon/daemonLifecycle.js', async (importOriginal) => ({
+  ...await importOriginal<typeof import('./daemon/daemonLifecycle.js')>(),
+  recycleDaemonPath: recyclePath,
+}));
 
 const POLICY = path.resolve('configs/policy.default.yaml');
 const BEHAVIOR = path.resolve('configs/behavior.default.yaml');
@@ -79,6 +85,7 @@ describe('local server HTTP API + SSE', () => {
   let base: string;
 
   beforeEach(async () => {
+    recyclePath.mockReset().mockResolvedValue(undefined);
     dir = fs.mkdtempSync(path.join(os.tmpdir(), 'cah-local-server-'));
     ws = path.join(dir, 'workspace');
     home = path.join(dir, 'vessel-home');
@@ -197,6 +204,52 @@ describe('local server HTTP API + SSE', () => {
       method: 'DELETE',
     });
     expect(repeated.status).toBe(404);
+  });
+
+  it('waits for recycling before acknowledging deletion or removing the session index', async () => {
+    const created = await fetch(`${base}/api/sessions`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ workspaceRoot: ws }),
+    });
+    const { session } = await created.json() as { session: { id: string } };
+    let release!: () => void;
+    recyclePath.mockImplementationOnce(() => new Promise<void>(resolve => { release = resolve; }));
+    let acknowledged = false;
+    const deletion = fetch(`${base}/api/sessions/${session.id}`, { method: 'DELETE' }).then(response => {
+      acknowledged = true;
+      return response;
+    });
+    try {
+      await waitFor(() => recyclePath.mock.calls.length === 1);
+      expect(acknowledged).toBe(false);
+      const competingDelete = await fetch(`${base}/api/sessions/${session.id}`, { method: 'DELETE' });
+      expect(competingDelete.status).toBe(409);
+      const competingTurn = await fetch(`${base}/api/sessions/${session.id}/turns`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ prompt: 'must not run' }),
+      });
+      expect(competingTurn.status).toBe(409);
+      expect(await competingTurn.json()).toEqual({ error: 'session_deleting', id: session.id });
+      expect(recyclePath).toHaveBeenCalledTimes(1);
+      const listing = await fetch(`${base}/api/sessions`).then(response => response.json()) as { sessions: { id: string }[] };
+      expect(listing.sessions.some(item => item.id === session.id)).toBe(true);
+    } finally {
+      release?.();
+    }
+    expect((await deletion).status).toBe(200);
+  });
+
+  it('reports recycling failure and retains the session for a successful retry', async () => {
+    const created = await fetch(`${base}/api/sessions`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ workspaceRoot: ws }),
+    });
+    const { session } = await created.json() as { session: { id: string } };
+    recyclePath.mockRejectedValueOnce(new Error('recycle unavailable'));
+    const failed = await fetch(`${base}/api/sessions/${session.id}`, { method: 'DELETE' });
+    expect(failed.status).toBe(500);
+    expect(await failed.json()).toEqual({ error: 'session_recycle_failed', id: session.id });
+    const listing = await fetch(`${base}/api/sessions`).then(response => response.json()) as { sessions: { id: string }[] };
+    expect(listing.sessions.some(item => item.id === session.id)).toBe(true);
+    expect((await fetch(`${base}/api/sessions/${session.id}`)).status).toBe(200);
+    expect((await fetch(`${base}/api/sessions/${session.id}`, { method: 'DELETE' })).status).toBe(200);
   });
 
   it('PATCH /api/sessions/:id/topic renames and archives without discarding the session', async () => {
@@ -567,6 +620,29 @@ describe('local server — POST /interrupt stops an in-flight turn (task 050)', 
   afterEach(async () => {
     if (server) await server.close();
     fs.rmSync(dir, { recursive: true, force: true });
+  });
+
+  it('settles the interrupted writer before recycling a session', async () => {
+    recyclePath.mockReset().mockImplementation(async () => { expect(ctl!.loop.turnActive).toBe(false); });
+    const created = await fetch(`${base}/api/sessions`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ workspaceRoot: ws }),
+    }).then(response => response.json()) as { session: { id: string } };
+    const id = created.session.id;
+    const turn = fetch(`${base}/api/sessions/${id}/turns`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ prompt: 'stream something' }),
+    });
+    await waitFor(() => gated.holding);
+    const interrupt = vi.spyOn(ctl!, 'interrupt');
+    const deletion = fetch(`${base}/api/sessions/${id}`, { method: 'DELETE' });
+    try {
+      await waitFor(() => interrupt.mock.calls.length > 0);
+      expect(recyclePath).not.toHaveBeenCalled();
+    } finally {
+      gated.release();
+    }
+    expect((await turn).status).toBe(200);
+    expect((await deletion).status).toBe(200);
+    expect(recyclePath).toHaveBeenCalledTimes(1);
   });
 
   it('a turn in flight ends kind=interrupted with turn/start → turn/end pairing kept', async () => {

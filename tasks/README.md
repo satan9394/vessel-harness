@@ -8,9 +8,13 @@
 `NNN-短横线描述.md`，如 `001-project-memory.md`；V1.1 路线卡用 `V1.1-<字母>-<短横线描述>.md`。
 状态取值：待执行 / 执行中 / 待验收 / 已合入 / 打回。
 
-最近本地交付：任务 247 Compaction 守恒断言对齐 OpenCode 2.1 与全景真实走查已交付（实现 OpenCode 2.1 metadata.keepID 守恒断言、全景真实 Chromium 自动化走查 7/7 PASSED 全绿、0 报错存证留档，双 Root 3045+413 passed 全绿、core 0 变动）。详见 [任务卡 247](247-arch-08-09-ui-10-compaction-conservation-and-walkthrough.md)。
+最近本地交付：任务 248 Taste Web 工作台审查与优化已本地交付，指定门禁通过，待用户验收；额外全仓诊断两项 Windows runtime 失败详见 [任务卡 248](248-taste-workbench-elevation.md)。前序 [任务卡 247](247-arch-08-09-ui-10-compaction-conservation-and-walkthrough.md)。
 
 ## 怎么读这个目录
+
+| 本地交付 | 状态 | 任务卡 |
+|---|---|---|
+| Taste 工作台审查与优化 | 待验收 | [248](248-taste-workbench-elevation.md) |
 
 本目录是**进度事实源**，不在此维护一份会腐烂的汇总表。查进度请：
 

@@ -82,7 +82,7 @@ export default function ActivityQueue({ api, onOpenSession, initial }: ActivityQ
                   <>
                     <span className="dim">{t('activityApprovalFor')}: {run.approval.description}</span>
                     {run.approval.options.map((option) => (
-                      <button key={option.id} className="btn" disabled={busy !== null}
+                      <button key={option.id} className={`btn ${option.tone === 'danger' ? 'btn-danger' : 'btn-secondary'}`} disabled={busy !== null}
                         onClick={() => void decide(run, option.id)}>
                         {option.tone === 'danger' ? t('activityDeny') : t('activityApprove')} ({option.label})
                       </button>
