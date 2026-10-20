@@ -29,6 +29,8 @@
 .task-tree-node[data-status='cancelled'] { border-color: var(--ring-2); opacity: 0.85; }
 .task-tree-node[data-status='waiting_approval'],
 .activity-run[data-status='needs_attention'] { border-color: var(--warn); }
+.activity-run[data-status='failed'] { border-color: var(--danger); }
+.activity-run[data-status='unknown'] { border-color: var(--ring-2); }
 
 .status-badge {
   font-size: 0.75rem;
@@ -37,6 +39,9 @@
   background: var(--panel-2);
   white-space: nowrap;
 }
+.status-badge.status-needs_attention { color: var(--warn); background: var(--warn-soft); }
+.status-badge.status-failed { color: var(--danger); background: var(--danger-soft); }
+.status-badge.status-unknown { color: var(--dim); background: var(--panel-3); }
 
 .card222-detail {
   margin-top: 0.6rem;

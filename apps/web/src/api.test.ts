@@ -889,4 +889,22 @@ describe('createApiClient — handoffMarkdown 失败原因不再丢掉 (BRIEF-25
     expect(viaHandoff.status).toBe(viaRequest.status);
     expect(viaHandoff.body).toEqual(viaRequest.body);
   });
+
+  it('deleteSession sends DELETE /sessions/:id and returns { ok: true, id }', async () => {
+    const urls: string[] = [];
+    const methods: (string | undefined)[] = [];
+    const mockFetch = vi.fn(async (url: string, init?: RequestInit) => {
+      urls.push(url);
+      methods.push(init?.method);
+      return jsonResponse(200, { ok: true, id: 'sess_123' });
+    });
+    vi.stubGlobal('fetch', mockFetch);
+
+    const api = createApiClient({ base: '/api' });
+    const res = await api.deleteSession('sess_123');
+
+    expect(urls).toEqual(['/api/sessions/sess_123']);
+    expect(methods).toEqual(['DELETE']);
+    expect(res).toEqual({ ok: true, id: 'sess_123' });
+  });
 });

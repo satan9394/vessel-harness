@@ -765,6 +765,7 @@ export interface WorkbenchMessages {
   activityRunning: MessageTemplate;
   activityCompleted: MessageTemplate;
   activityFailed: MessageTemplate;
+  activityUnknown: MessageTemplate;
   activityKindSession: MessageTemplate;
   activityKindTeam: MessageTemplate;
   activityKindSubagent: MessageTemplate;
@@ -1528,6 +1529,7 @@ export const zh: Messages = {
   activityRunning: "运行中",
   activityCompleted: "已完成",
   activityFailed: "失败",
+  activityUnknown: "未确认",
   activityKindSession: "会话",
   activityKindTeam: "团队",
   activityKindSubagent: "子代理",
@@ -2291,6 +2293,7 @@ export const en: Messages = {
   activityRunning: 'Running',
   activityCompleted: 'Completed',
   activityFailed: 'Failed',
+  activityUnknown: 'Unknown',
   activityKindSession: 'Session',
   activityKindTeam: 'Team',
   activityKindSubagent: 'Subagent',

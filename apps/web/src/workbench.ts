@@ -96,7 +96,8 @@ export function flattenTree(snapshot: TaskTreeSnapshotView): { node: TaskTreeNod
 // ---------------------------------------------------------------------------
 
 export type ActivityKind = 'session' | 'team' | 'subagent' | 'goal';
-export type ActivityStatus = 'needs_attention' | 'running' | 'completed' | 'failed';
+export type RunOutcomeStatus = 'queued' | 'running' | 'waiting_approval' | 'completed' | 'failed' | 'interrupted' | 'cancelled' | 'unknown';
+export type ActivityStatus = 'needs_attention' | 'running' | 'completed' | 'failed' | 'unknown';
 
 export interface ActivityApprovalView {
   sessionId: string;
@@ -118,20 +119,23 @@ export interface ActivityRunView {
   detail?: string;
   updatedAt: number;
   href?: string;
+  outcome?: RunOutcomeStatus;
+  statusSource?: 'live' | 'event_log' | 'approval_queue' | 'inferred';
 }
 
 export interface ActivityResponse { runs: ActivityRunView[]; updatedAt: number }
 
 const ACTIVITY_STATUS_KEYS: Record<ActivityStatus, MessageKey> = {
   needs_attention: 'activityNeedsAttention',
+  failed: 'activityFailed',
+  unknown: 'activityUnknown' as MessageKey,
   running: 'activityRunning',
   completed: 'activityCompleted',
-  failed: 'activityFailed',
 };
 export function activityStatusLabelKey(status: ActivityStatus): MessageKey { return ACTIVITY_STATUS_KEYS[status]; }
 
 export function groupActivity(runs: ActivityRunView[]): { status: ActivityStatus; runs: ActivityRunView[] }[] {
-  const order: ActivityStatus[] = ['needs_attention', 'running', 'failed', 'completed'];
+  const order: ActivityStatus[] = ['needs_attention', 'failed', 'unknown', 'running', 'completed'];
   return order.map((status) => ({ status, runs: runs.filter((run) => run.status === status) })).filter((group) => group.runs.length > 0);
 }
 
