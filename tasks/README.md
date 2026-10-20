@@ -8,7 +8,7 @@
 `NNN-短横线描述.md`，如 `001-project-memory.md`；V1.1 路线卡用 `V1.1-<字母>-<短横线描述>.md`。
 状态取值：待执行 / 执行中 / 待验收 / 已合入 / 打回。
 
-最近本地交付：任务 245 区分 BenchmarkAdapter 与 InteractiveRuntimeAdapter 已交付（明确解耦离线基准与持续交互运行时适配器契约，建立真实版本与能力探针矩阵，17 项测试全绿、core 0 变动）。详见 [任务卡 245](245-arch-04-distinguish-benchmark-and-interactive-runtime-adapter.md)。
+最近本地交付：任务 246 Event/SSE 断线重连与高信噪比执行体验已交付（实现视区保护与智能滚动守卫、杜绝流式抢夺视区并提供悬浮回到底部药丸、解决中文 IME 选词回车误发送、SSE onOpen 自动恢复与数据对齐，双 Root 3045+413 passed 全绿、core 0 变动）。详见 [任务卡 246](246-arch-06-ui-09-sse-reconnect-and-high-snr-stream.md)。
 
 ## 怎么读这个目录
 
@@ -137,6 +137,7 @@
 | Activity 专职行动中心与路由归位 (UI-04) | 243 | **已完成（2026-10-20）**：消除普通会话列表重复展示，严格限制仅真实 session 类型可触发会话导航杜绝伪跳转，已完成项优雅折叠；双 Root 3044+410 passed 全绿 | `tasks/243-ui-04-activity-focused-action-center.md` |
 | EffectJournal 故障注入与未知副作用恢复证明 (ARCH-03) | 244 | **已完成（2026-10-20）**：核验四类崩溃边界与非幂等工具单次执行硬约束，未决写操作阻断盲目重放，10 项定向测试全部通过 | `tasks/244-arch-03-effect-journal-fault-injection-proof.md` |
 | 区分 BenchmarkAdapter 与 InteractiveRuntimeAdapter (ARCH-04) | 245 | **已完成（2026-10-20）**：明确解耦离线 Benchmark 评估与持续交互式运行时契约，建立真实版本与能力探针矩阵；定向测试全绿 | `tasks/245-arch-04-distinguish-benchmark-and-interactive-runtime-adapter.md` |
+| Event/SSE 断线重连与高信噪比执行体验 (ARCH-06 + UI-09) | 246 | **已完成（2026-10-20）**：视区保护与智能滚动守卫（<=120px 贴底、悬浮回到底部药丸）、中文 IME 组合防护杜绝回车误发、SSE 重连自愈与会话同步；双 Root 3045+413 passed 全绿 | `tasks/246-arch-06-ui-09-sse-reconnect-and-high-snr-stream.md` |
 
 ## 未闭合 / 下一目标
 

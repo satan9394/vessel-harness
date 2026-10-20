@@ -72,6 +72,9 @@ export default function ConversationView({ sessionId, api, onSessionUpdated, vie
   const [error, setError] = useState<string | null>(null);
   const [serverDown, setServerDown] = useState(false);
   const [auditRevision, setAuditRevision] = useState(0);
+  const [isAtBottom, setIsAtBottom] = useState(true);
+  const isAtBottomRef = useRef(true);
+  const isComposingRef = useRef(false);
   const contextWindow = useContextWindow(api, sessionId, providerRevision);
   const planTasks = usePlanTasks(api, sessionId, items.length);
   const planProgressValue = planProgress(planTasks);
@@ -189,6 +192,12 @@ export default function ConversationView({ sessionId, api, onSessionUpdated, vie
     let connected = true;
     const current = () => connected && activeSession.current === sessionId && sessionGeneration.current === generation;
     const stream = createEventStream(`/api/sessions/${encodeURIComponent(sessionId)}/events`, {
+      onOpen: () => {
+        if (!current()) return;
+        setServerDown(false);
+        setError(prev => prev === t('serverDown') ? null : prev);
+        void onSessionUpdated?.();
+      },
       onConversation: delta => { if (!current()) return; setItems(previous => finishThinking(previous)); appendMessage(delta); },
       onTool: delta => { if (current()) onTool(delta); },
       onUsage: delta => { if (current()) onUsage(delta); },
@@ -275,10 +284,53 @@ export default function ConversationView({ sessionId, api, onSessionUpdated, vie
     void api.interruptSession(sessionId).catch(() => undefined);
   }, [api, sessionId]);
 
-  // Keep the newest row scrolled into view.
+  const handleScroll = useCallback(() => {
+    const el = listRef.current;
+    if (!el) return;
+    const distance = el.scrollHeight - el.scrollTop - el.clientHeight;
+    const atBottom = distance <= 120;
+    isAtBottomRef.current = atBottom;
+    setIsAtBottom(atBottom);
+  }, []);
+
+  const scrollToBottom = useCallback(() => {
+    const el = listRef.current;
+    if (el) {
+      el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' });
+      isAtBottomRef.current = true;
+      setIsAtBottom(true);
+    }
+  }, []);
+
+  const handleCompositionStart = useCallback(() => {
+    isComposingRef.current = true;
+  }, []);
+
+  const handleCompositionEnd = useCallback(() => {
+    isComposingRef.current = false;
+  }, []);
+
+  const handleKeyDown = useCallback((e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+      if (isComposingRef.current || e.nativeEvent.isComposing || (e as unknown as { keyCode?: number }).keyCode === 229) {
+        e.stopPropagation();
+      }
+    }
+  }, []);
+
+  // Keep the newest row scrolled into view if already at bottom.
   useEffect(() => {
-    listRef.current?.scrollTo({ top: listRef.current.scrollHeight });
+    if (isAtBottomRef.current && listRef.current) {
+      listRef.current.scrollTo({ top: listRef.current.scrollHeight, behavior: 'smooth' });
+    }
   }, [items, busy]);
+
+  // When switching sessions, reset scroll state to bottom.
+  useEffect(() => {
+    isAtBottomRef.current = true;
+    setIsAtBottom(true);
+    listRef.current?.scrollTo({ top: listRef.current.scrollHeight });
+  }, [sessionId]);
 
   return (
     <DualSurfaceLayout tabRequest={viewRequest && !['clear', 'collapse', 'expand', 'export'].includes(viewRequest.action) ? { tab: viewRequest.action as InspectorTab, serial: viewRequest.serial } : undefined} sessionId={sessionId} api={api} cacheHistory={cacheHistory} observation={observation} impacts={items.flatMap(item => item.widget?.kind === 'impact_radar' ? [item.widget as ImpactRadarWidget] : [])} patches={items.flatMap(item => item.widget?.kind === 'diff_inspector' ? [item.widget] : [])}>
@@ -288,7 +340,7 @@ export default function ConversationView({ sessionId, api, onSessionUpdated, vie
         <ModelSelector key={sessionId} sessionId={sessionId} api={api} providerRevision={providerRevision} busy={busy} onConfigureModels={onConfigureModels} onUpdated={onSessionUpdated} onBusyChange={setModelBusy} />
         <UsageBar usage={usage} />
       </header>
-      <div className="message-list-scroll scroll-fade-mask" ref={listRef}>
+      <div className="message-list-scroll scroll-fade-mask" ref={listRef} onScroll={handleScroll}>
         <PlanChecklist sessionId={sessionId} api={api} revision={items.length} />
         {serverDown ? (
           <div className="error-text conversation-empty">{t('serverDown')}</div>
@@ -297,15 +349,36 @@ export default function ConversationView({ sessionId, api, onSessionUpdated, vie
         )}
         {error && !serverDown && <ConversationError text={error} />}
       </div>
+      {!isAtBottom && (
+        <button
+          type="button"
+          className="scroll-to-bottom-pill"
+          onClick={scrollToBottom}
+          title={t('scrollToBottom')}
+        >
+          <span aria-hidden="true">↓</span>
+          <span>{t('scrollToBottom')}</span>
+        </button>
+      )}
       <TalkingMetricsBar metrics={turnMetrics} />
       <SandboxAuditHistory api={api} sessionId={sessionId} revision={auditRevision} />
       <div className="composer-shell">
         <ComposerCapsules api={api} sessionId={sessionId} fallbackMode="auto" onModeChange={mode => setRouteMode(mode)} />
-        <form className="composer" onSubmit={event => { event.preventDefault(); void send(input); }}>
+        <form
+          className="composer"
+          onSubmit={event => {
+            event.preventDefault();
+            if (isComposingRef.current) return;
+            void send(input);
+          }}
+        >
           <input
             className="input composer-input"
             value={input}
             onChange={(e) => setInput(e.target.value)}
+            onCompositionStart={handleCompositionStart}
+            onCompositionEnd={handleCompositionEnd}
+            onKeyDown={handleKeyDown}
             placeholder={t('inputPlaceholder')}
             disabled={serverDown}
             autoFocus
