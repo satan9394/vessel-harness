@@ -38,13 +38,16 @@ export default function AgentStudioComposer({ api, sessionId, initialLibrary, in
   const [report, setReport] = useState<BehaviorConformanceReportView | null>(initialReport ?? null);
   const [error, setError] = useState<unknown>(null);
   const [busy, setBusy] = useState(false);
+  const [loading, setLoading] = useState(Boolean(api && !initialLibrary));
 
   useEffect(() => {
     if (!api) return;
     let active = true;
+    setLoading(true);
     api.behaviorLibrary()
-      .then((response) => { if (active) setLibrary(response.entries); })
-      .catch((failure) => { if (active) setError(failure); });
+      .then((response) => { if (active) { setLibrary(response.entries); setError(null); } })
+      .catch((failure) => { if (active) setError(failure); })
+      .finally(() => { if (active) setLoading(false); });
     return () => { active = false; };
   }, [api]);
 
@@ -84,20 +87,23 @@ export default function AgentStudioComposer({ api, sessionId, initialLibrary, in
       {error ? <p role="alert" className="error-text">{t('composerReadError', { error: String((error as Error)?.message ?? error) })}</p> : null}
 
       <div className="composer-grid">
-        <div>
+        <div className="composer-col">
           <h4>{t('composerLibrary')}</h4>
-          <ul className="composer-library-list">
-            {library.map((entry) => (
-              <li key={entry.id} className="composer-rule" data-entry={entry.id}>
-                <strong>{entry.id}</strong>
-                <span className="status-badge">{entry.channel}</span>
-                <span className="dim">{entry.render}</span>
-                <button className="btn" disabled={stagedIds.has(entry.id)} onClick={() => add(entry)}>{t('composerAdd')}</button>
-              </li>
-            ))}
-          </ul>
+          {loading ? <p className="composer-empty dim" role="status">{t('composerLoadingLibrary')}</p>
+            : library.length === 0 ? <p className="composer-empty dim">{t('composerEmptyLibrary')}</p> : (
+            <ul className="composer-library-list">
+              {library.map((entry) => (
+                <li key={entry.id} className="composer-rule" data-entry={entry.id}>
+                  <strong>{entry.id}</strong>
+                  <span className="status-badge">{entry.channel}</span>
+                  <span className="dim">{entry.render}</span>
+                  <button className="btn" disabled={stagedIds.has(entry.id)} onClick={() => add(entry)}>{t('composerAdd')}</button>
+                </li>
+              ))}
+            </ul>
+          )}
         </div>
-        <div>
+        <div className="composer-col">
           <h4>{t('composerStaged')}</h4>
           {staged.length === 0 ? <p className="dim">{t('composerEmptyStaged')}</p> : (
             <ul className="composer-staged-list">

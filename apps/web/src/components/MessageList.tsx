@@ -5,6 +5,7 @@ import { hasOpenDialog, isTypingTarget } from './common/CommandPalette';
 import type { ConversationDelta, ToolDelta } from '../sse';
 import ToolActivityRow from './ToolActivityRow';
 import StreamingReasoningBlock from './widgets/StreamingReasoningBlock';
+import ConversationRenderer from './ConversationRenderer';
 import type { MatchedReasoningRule } from '@vessel/shared';
 import type { WidgetBlock, WidgetActionResponse } from '@vessel/shared';
 import { WidgetDispatcher } from './widgets/WidgetDispatcher';
@@ -105,7 +106,7 @@ export default function MessageList({ items, thinking, sessionId = '', onRespond
           <div key={item.id} className={`msg msg-${item.msg?.role ?? 'assistant'}`}>
             <div className="msg-role">{item.msg?.role === 'user' ? t('uiYou') : 'Vessel'}</div>
             <div className="msg-body">
-              {item.msg?.text ?? ''}
+              <ConversationRenderer content={item.msg?.text ?? ''} />
               {item.msg?.toolName ? (
                 <span className="msg-tool-call">({t('toolCalled', { name: item.msg.toolName })})</span>
               ) : null}

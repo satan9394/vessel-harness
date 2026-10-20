@@ -460,3 +460,53 @@ pm（如 @ai-sdk/openai-compatible）协议；
   - **全量终态门禁实测通过**：`npx tsc -b tsconfig.json` exit 0；`npm run test:all` 双 Root 全绿（根 268 文件 / 2873 passed + 6 skipped，Web 33 文件 / 282 passed，exit 0）。中途一次 `packages/context` 的 `symbolGraph` 性能断言（mean ≤15ms）在长跑中抖动失败，单独复跑 12/12 通过，属机器负载时序抖动、与本次纯文档改动无关。
 - **状态**: 本地完成，**未提交/推送**（遵循 2026-10-06 纯本地开发规约）；archify 产物与文档修复均保留在工作区。旁涉：CC Switch「常用提示词」写入 archify 任务书并同步 claude→opencode（均为应用外配置，不属本仓版本面）。
 
+
+---
+
+## 2026-10-16 · Card 223 Web UI 玻璃改造落地实施 + 真实浏览器功能走查与修复
+
+- **Agent**: @opencode (DeepSeek-v4.1-Flash，goal 模式)
+- **任务卡**: `tasks/223-web-ui-visual-overhaul-and-design-skills.md`（目标/验收**唯一处**；本条仅记过程）
+- **事件**:
+  - 按 `docs/design-prototypes/IMPLEMENTATION-PLAN.md`（VESSEL-UI-2026-02）把「玻璃视觉 + 四栏工作台/审阅台」的 **P1–P8 全量落地**到 `apps/web`：
+    P1 `.tokens` 玻璃令牌层（旧变量名全部保留为别名）；P2 玻璃外壳（rail/顶栏 `backdrop-filter`、面板浮动）；
+    P3 新增 `components/layout/Rail.tsx` 58px 图标轨 + `58px 232px 1fr` 网格 + 300px 审阅栏（真实 8 Tab 检视器）；
+    P4 `components/PlanChecklist.tsx` 常驻计划清单（`计划 · n/m`，数据源真实 Goal 队列）；
+    P5 `components/ComposerMeters.tsx` 四胶囊（项目/模型/审批档位/模式，含 B1 的 route resolve+pin）+ 常驻计量；
+    P6 修丑点（残留硬编码色清零、`utils/timeFormat.ts` 统一 `HH:mm`/`MM-DD`、空/加载/错误态、Studio 卡片墙去边）；
+    P7 把 `FEATURE-COVERAGE.md` 的 **B1–B18** 逐条核对到真实入口（补齐此前缺的 B1 解析/锁定），C 项四模块保持 `t('unimplemented')` 占位语义；
+    P8 门禁 + 中英×浅深×桌面/1366/1023/800 全矩阵 **64 张**截图。
+  - 用 `browser-skill`（`bsk` CLI，独立 Agent Window，**未借用用户任何标签页**）做真实浏览器功能走查：
+    覆盖四区域 / 命令面板 / 语言切换 / 会话视图；共修复 **5 处缺陷**，其中**阻断级**一处 ——
+    **Vite 8 代理默认 `changeOrigin: true` 会改写 Host，使后端 `trustedOrigin` 判为跨域，从而拦掉所有带 Origin 的写请求**
+    （`behavior/compose`、供应商增删/测试/拉取、真实供应商建会话，全部 403）→ `apps/web/vite.config.ts` 改 `changeOrigin: false`（只动开发代理，未削弱后端安全门禁）。
+    其余四处：矮视口下 `.dual-surface` 被同级模块面板挤压致输入区与「目标任务」卡重叠；输入区「模型」胶囊裸显 `default`；活动页长绝对路径与 `toLocaleString` 长时间格式；Agent Studio 详情卡片墙去边框。
+  - 走查另核实一处**环境事实**：**`vessel serve` / `vessel web` 只服务 `apps/local-server/public` 的那张着陆页，并不提供本 Web UI**；
+    构建产物 `apps/web/dist` 没有被复制进该目录，也没有相应脚本 —— 查看 Web UI 的实际入口是 Vite dev（且必须 `--host 127.0.0.1`，否则只监听 IPv6 `[::1]` 连不上）。
+- **状态**: 本地完成，**未提交/未推送/未发布**（遵循 2026-10-06 纯本地开发规约）；改动与证据均保留在工作区。
+  `packages/core` 全程**零改动**。门禁（最后一次编辑之后执行）：`npx tsc -b` / `npm run typecheck:tests` /
+  `npm run -w @vessel/web build -- --emptyOutDir false` / `npm run test:all` 全部 exit 0
+  （根 289 文件 / 3037 passed + 6 skipped，web 40 文件 / 340 passed）。
+  证据：`evidence/sessions/2026-10-15-ui-landing/`（`PROOF.md`、`gallery.html`、`bsk-functional/FINDINGS.md` + 12 张走查截图）。
+  未验证（不谎报）：未做真实 provider 联网走查（全程 mock provider）；移动端未真机验证。
+
+---
+
+## 2026-10-19 · Card 233 供应商能力继承与协商拦截修复交付 + Card 234 UX/排版/OpenUI 全景规划
+
+- **Agent**: @agy (Gemini 3.8 Flash High)
+- **任务卡**: `tasks/233-provider-capability-inheritance-and-negotiation-repair.md`（已闭环）；`tasks/234-openui-generative-ui-and-ux-polish-plan.md`（待用户确认规划）
+- **事件**:
+  - **Card 233 闭环交付**：解决用户在 Web 端配置 `commandgota` 搭配 `deepseek/deepseek-v4.1-flash` 时触发的调度硬拦截报错（`required tools=true, available unknown`）：
+    1. 根因查明：标准端点 `/v1/models` 未声明 tools 字段，导致 `discoverProviderCapabilities` 初始化为 unknown；
+    2. 落地协议感知能力发现机制：在 `packages/llm` 中支持传入线协议，继承协议适配器基础能力（如 tools=true），同时保留显式覆盖；
+    3. 服务路由注入与持久化自愈：在 `ProviderRoutes` 注入协议，并在 `ProviderStore.load()` 中增加 `healModelCapabilities()`，自动修复磁盘中已有的 `~/.vessel/providers.json`；
+    4. 全量验证通过：`tsc -b`、`typecheck:tests`、Web build、`npm run test:all` 双 Root 337 文件 / 3,461 passed 全部通过，`packages/core` 严格 0 行变更。
+  - **用户新痛点登记与架构调研**：
+    1. **已存供应商二次测试与拉取免输 Key**：已有供应商已有安全凭据，测试与拉取端点应支持凭据复用，拒绝强制反复填写；
+    2. **会话永久删除**：侧边栏缺少会话删除能力，新增后端安全删除端点（移入回收站）与前端二次确认删除交互；
+    3. **深浅色主题切换能力修复**：消除此前 CSS 强制仅跟随系统的限制，提供常驻实体 ThemeToggle 与 localStorage 偏好持久化；
+    4. **按钮交互教育与实体化**：杜绝纯文字链接式伪按钮，统一微边框、底色、按压动效、悬浮 Tooltip 与快捷键提示；
+    5. **融入 OpenUI（thesysdev/openui）与富排版生成式 UI 体系**：调研 OpenUI Lang 与组件渲染架构，规划阶段一流式 Markdown 完整排版（消灭裸标签）与阶段二 OpenUI Generative UI（结构化看板、指标卡片与交互表单）深度融合。
+- **状态**: Card 233 已合入本地；Card 234 编制全景规划案，等待用户审核确认后再推进执行。
+

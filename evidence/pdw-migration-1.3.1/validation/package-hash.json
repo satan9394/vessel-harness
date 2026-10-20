@@ -1,0 +1,57 @@
+﻿{
+    "package_version":  "1.3.1-local",
+    "archive":  "artifacts/personal-dev-workflow-1.3.1-local.zip",
+    "archive_sha256_certutil":  "042423fbb60a70ce437861ae2c4b81e76e21e5867dcd99cc5abeeacefdf443c5",
+    "archive_sha256_from_manifest":  "042423fbb60a70ce437861ae2c4b81e76e21e5867dcd99cc5abeeacefdf443c5",
+    "archive_sha256_match":  true,
+    "archive_bytes_actual":  31771,
+    "archive_bytes_manifest":  31771,
+    "archive_bytes_match":  true,
+    "files_verified":  7,
+    "all_file_hashes_match":  true,
+    "files":  [
+                  {
+                      "path":  "agents/openai.yaml",
+                      "expected":  "f8cfe876a8484a5e2b2bf1f8f8ce93fe794670f58e1d29cb76c5181030bc8851",
+                      "actual":  "f8cfe876a8484a5e2b2bf1f8f8ce93fe794670f58e1d29cb76c5181030bc8851",
+                      "match":  true
+                  },
+                  {
+                      "path":  "assets/audit-task.json",
+                      "expected":  "fe2d91b68377965f59c936a4b410f7060e7297b26242441c0f29e6b739082e36",
+                      "actual":  "fe2d91b68377965f59c936a4b410f7060e7297b26242441c0f29e6b739082e36",
+                      "match":  true
+                  },
+                  {
+                      "path":  "references/runtime.md",
+                      "expected":  "4993a1fa6fa678f054e66b6f3b4def73f7d3bfdff9681e07d083804e8182d303",
+                      "actual":  "4993a1fa6fa678f054e66b6f3b4def73f7d3bfdff9681e07d083804e8182d303",
+                      "match":  true
+                  },
+                  {
+                      "path":  "scripts/drivers.mjs",
+                      "expected":  "135fce5ee0f3746e743fbb1489d6c6993854f105a8ee673ab93d0f05c1d7e546",
+                      "actual":  "135fce5ee0f3746e743fbb1489d6c6993854f105a8ee673ab93d0f05c1d7e546",
+                      "match":  true
+                  },
+                  {
+                      "path":  "scripts/pdw.mjs",
+                      "expected":  "f98d5d38de2a8d888f513201c06a7d546d44b2b8438628f5c99225b0db170dfe",
+                      "actual":  "f98d5d38de2a8d888f513201c06a7d546d44b2b8438628f5c99225b0db170dfe",
+                      "match":  true
+                  },
+                  {
+                      "path":  "scripts/pdw.test.mjs",
+                      "expected":  "4ddaa750f1f6245e1b57b86237b0401865a8278f8c541f4d29b64a32f4790dac",
+                      "actual":  "4ddaa750f1f6245e1b57b86237b0401865a8278f8c541f4d29b64a32f4790dac",
+                      "match":  true
+                  },
+                  {
+                      "path":  "SKILL.md",
+                      "expected":  "1c38d34f9cf94b6f5b285927db61aa176c5c28aacbabe7d87961e93870ce0709",
+                      "actual":  "1c38d34f9cf94b6f5b285927db61aa176c5c28aacbabe7d87961e93870ce0709",
+                      "match":  true
+                  }
+              ],
+    "result":  "PASS"
+}

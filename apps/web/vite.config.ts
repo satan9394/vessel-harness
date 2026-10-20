@@ -9,7 +9,12 @@ export default defineConfig({
   server: {
     port: 5173,
     proxy: {
-      '/api': 'http://127.0.0.1:5678',
+      // `changeOrigin: false` keeps the browser's Host, so the local server's
+      // same-origin gate (`trustedOrigin`) sees the dev origin as the request
+      // origin. Vite's proxy defaults to `changeOrigin: true`, which rewrites
+      // Host to 127.0.0.1:5678 and makes every Origin-bearing request (all
+      // POST/PUT/PATCH/DELETE) fail with 403 origin_denied.
+      '/api': { target: 'http://127.0.0.1:5678', changeOrigin: false },
     },
   },
 });

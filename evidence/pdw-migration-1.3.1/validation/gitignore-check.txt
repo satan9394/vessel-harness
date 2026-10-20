@@ -1,0 +1,31 @@
+﻿# .gitignore semantics check (2026-10-16), git check-ignore -v
+
+IGNORED  .pdw/config.json   <- .gitignore:61:.pdw/	.pdw/config.json
+IGNORED  .pdw/tasks/x/state.json   <- .gitignore:61:.pdw/	.pdw/tasks/x/state.json
+IGNORED  .agent-state/run-state.json   <- .gitignore:36:.agent-state/	.agent-state/run-state.json
+IGNORED  RUN_STATE.md   <- .gitignore:27:RUN_STATE.md	RUN_STATE.md
+tracked  pdw.ps1
+tracked  .agents/skills/personal-dev-workflow/SKILL.md
+tracked  evidence/pdw-migration-1.3.1/MIGRATION.md
+IGNORED  node_modules/x   <- .gitignore:1:node_modules/	node_modules/x
+IGNORED  dist/x   <- .gitignore:2:dist/	dist/x
+IGNORED  .dsh-mission/x   <- .gitignore:28:.dsh-mission/*	.dsh-mission/x
+IGNORED  .harness/x   <- .gitignore:8:.harness/	.harness/x
+IGNORED  .archify/x   <- .gitignore:12:.archify/	.archify/x
+IGNORED  benchmarks/reports/conformance/x   <- .gitignore:22:benchmarks/reports/conformance/	benchmarks/reports/conformance/x
+
+# diff vs backup/gitignore.pre-migration (only addition = .pdw/)
+
+InputObject SideIndicator
+----------- -------------
+.pdw/       =>           
+
+
+
+
+# root-cause experiment for the 5 in-project selftest failures:
+# fixtures live under .pdw/ which is gitignored -> git ls-files -c -o --exclude-standard returns empty
+$ git -C '.pdw/test-runs/1792149456000/success space & literal' ls-files -c -o --exclude-standard
+exit=0, output=[]  (empty)
+$ git -C 'evidence/pdw-migration-1.3.1' ls-files -c -o --exclude-standard
+exit=0, output (first 5)=LEGACY-STATE.md | MIGRATION.md | backup/AGENTS.md.pre-migration | backup/RUN_STATE.md.pre-migration | backup/gitignore.pre-migration

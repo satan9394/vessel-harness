@@ -2,13 +2,13 @@
 
 > **用途**：新会话 / 新 Agent / 换人接手时，**先读本文件**：现状、未完成清单、验证命令、已知约束都在这里。
 > 规则本身仍在 [`AGENTS.md`](AGENTS.md)；会约束未来的决策在 [`docs/DESIGN-DECISIONS.md`](docs/DESIGN-DECISIONS.md)。
-> **最后更新**：2026-10-13。维护者：单人。
+> **最后更新**：2026-10-17。维护者：单人。
 
 ## 0. 快速接管协议（当用户直接说「继续未完成的」或「继续」时）
 
 **任何 Agent 在接收到「继续」/「继续未完成的」指令时，直接根据本段与 `.agent-state/run-state.json` 向用户汇报并执行：**
 
-1. **当前交付与阶段状态**：**V2.5 Epic 209（205–209）已于 2026-10-10 本地验收完成（双 Root 3083 passed / 6 skipped 全绿）**。**V2.6 Epic 214（210–214）已于 2026-10-11 本地验收完成（双 Root 3146 passed / 6 skipped）**。**Card 217（ARC-01..05 架构整改）与 Card 218（Web 工作台整改）已于 2026-10-12/13 本地全部验收完成（双 Root 3228 passed / 6 skipped，Web build exit 0，12 张中英双语截图全部刷新，core 源码严格 0 变动）**。前序 V2.4 已提交至本地 `main`（commit `dd8e72c`），V2.6+215+216 合入 `520492d`，Card 217 合入 `6442171`。
+1. **当前交付与阶段状态**：**Card 235（基于 Taste-Skill 的 Web 工作台审美审查与全屏通栏 UI 重构）已于 2026-10-20 本地交付（Web 50 文件 / 404 passed 全绿，Core 0 变动）**。根据 [Leonxlnx/taste-skill](https://github.com/Leonxlnx/taste-skill) 规范彻底清除了弧形孤岛卡片、四周 12px 留白缝隙与多余毛玻璃材质，落地顶天立地、以 1px 细线划分的工业级 Edge-to-Edge 全屏工作台。前序 **Card 234（OpenUI 生成式排版体系融入与 Web 体验痛点全景整改）已于 2026-10-19 本地闭环通过（双 Root 3445 passed / 6 skipped 全绿，Core 0 变动）**。凭据免输复用、会话安全回收站删除、深浅主题常驻切换、实体按钮交互教育、GFM Markdown 解析与 OpenUI 生成式卡片已全面交付。前序 Card 233（供应商能力继承与协商拦截修复）亦已本地合入。前序 Card 225–232 模型供应商全屏独立中枢、高级模型搜索筛选器与 CC-Switch 权威预设已全部落地。**V2.5 Epic 209（205–209）已于 2026-10-10 本地验收完成（双 Root 3083 passed / 6 skipped 全绿）**。**V2.6 Epic 214（210–214）已于 2026-10-11 本地验收完成（双 Root 3146 passed / 6 skipped）**。**Card 217（ARC-01..05 架构整改）与 Card 218（Web 工作台整改）已于 2026-10-12/13 本地全部验收完成（双 Root 3228 passed / 6 skipped，Web build exit 0，12 张中英双语截图全部刷新，core 源码严格 0 变动）**。前序 V2.4 已提交至本地 `main`（commit `dd8e72c`），V2.6+215+216 合入 `520492d`，Card 217 合入 `6442171`。
 2. **已完成与已验证基线**：
    - 192–195 (V2.2)：三态洋葱 Mod 中间件流水线、Worker 线程沙箱（防御 CVE-2026-82533）、清单权限审计与 CLI `vessel mod/doctor`；
    - 196–199 (V2.3)：真实 Red→Green 缺陷复现硬门禁与 SHA-256 防伪凭据、增量 AST 符号依赖图谱（均值 10.7ms）、自适应上下文剪枝（剪枝率 82.56%）；
@@ -29,10 +29,14 @@
 | 项 | 当前实况 |
 |---|---|
 | 仓库 / 分支 | `satan9394/vessel-harness` / `main`（纯本地开发，不推送） |
-| 工作区状态 | HEAD `c7cb0ca`；Card 217–222 全部合入本地提交；两份优化方案 100% 全面闭环 |
-| 机器状态真源 | `.agent-state/run-state.json`（Card 210–222 已全部标记 completed） |
-| 当前任务卡 | 无进行中卡片；两份整改实施规范（VESSEL-ARCH-2026-01 与 VESSEL-UI-2026-01）已全量落地，准备回归主线 |
-| 前序已合入任务 | `tasks/222-subagent-team-task-tree-and-instance-spec.md`（已验证并合入；证据 `evidence/sessions/2026-10-14-card222/PROOF.md`，commit `c7cb0ca`） |
+| 工作区状态 | HEAD `c7cb0ca`（未提交）；未提交改动 = 卡 223/224/225/226/227/228/229/230/231 与**卡 232（模型供应商全屏独立中枢、高级模型搜索筛选器与 CC-Switch 权威预设补齐）** |
+| 机器状态真源 | `.pdw/`（1.3.3-local，配置就绪，doctor exit 0） |
+| 当前任务卡 | **Task 234（OpenUI 生成式排版体系融入与 Web 体验痛点全景整改，已本地验证合入）**；前序卡 225–233 全部本地验收闭环 |
+| 前序已合入任务 | `tasks/234-openui-generative-ui-and-ux-polish-plan.md`（双 Root 3445 passed / 6 skipped 全绿，Thin Core 严格 0 变动，凭据复用 + 回收站删除 + 主题常驻 + 实体按钮 + OpenUI 引擎） |
+
+Card 223 本地交付与走查闭合（2026-10-15/16，OpenCode goal 模式）：按 `docs/design-prototypes/IMPLEMENTATION-PLAN.md`（VESSEL-UI-2026-02）把「玻璃视觉 + 四栏工作台/审阅台」的 **P1–P8 全量落地到 `apps/web`**（`.tokens` 玻璃令牌层 → 玻璃外壳 → `Rail.tsx` 58px 图标轨 + `58px 232px 1fr` 网格 + 300px 审阅栏（真实 8 Tab 检视器）→ `PlanChecklist.tsx` 常驻计划清单 → `ComposerMeters.tsx` 四胶囊 + 常驻计量 → 修丑点 → `FEATURE-COVERAGE.md` 的 B1–B18 逐条核对 → 全矩阵 64 张截图）。随后用 `browser-skill`（独立 Agent Window，未借用用户标签页）做真实浏览器功能走查，修复 5 处缺陷，含阻断级一处：**Vite 8 代理默认 `changeOrigin: true` 改写 Host，令后端 `trustedOrigin()` 判为跨域、拦掉所有带 Origin 的写请求（403）** → `vite.config.ts` 改 `changeOrigin: false`。门禁四门顺序 exit 0，双 Root **3,037 passed + 6 skipped / web 340 passed**，`packages/core` **零改动**。证据 `evidence/sessions/2026-10-15-ui-landing/`（`PROOF.md`、`gallery.html`、`bsk-functional/FINDINGS.md`）；未验证项：真实 provider 联网走查、移动端真机。
+
+Card 224 本地交付（2026-10-16 → 已升级至 **1.3.2-local**）：PDW `personal-dev-workflow` 由 1.0.0（`.agent-state` 控制器）适配为 1.3.1-local，随后升级到 **1.3.2-local**（完整 Skill 目录 + Node 运行器 + 项目级 `.pdw/` + 零安装入口 `pdw.ps1`）；`doctor` 实测 1.3.2-local，5 个角色全部 `ready`（scan/test-plan/review = OC + `workbuddy/deepseek-v4.1-flash`；implement = Codex `host-default`；planner = AGY `host-default`），包哈希逐项一致、`install` 防覆盖保护保持、夹具编排隔离 20/20；旧状态零改动并归档为 `evidence/pdw-migration-1.3.1/LEGACY-STATE.md`。迁移与回滚见 `evidence/pdw-migration-1.3.1/MIGRATION.md`（文件名仍带 1.3.1，内容对 1.3.x 同样适用）。**注意**：`AGENTS.md`（GPT-6.1 Sol / medium）与 `HANDOFF.md`（OC + DeepSeek-v4.1-Flash / high）的模型口径仍冲突，**待维护者拍板**。
 
 Card 222 本地交付与验收（2026-10-14，OpenCode goal 模式交付）：依据架构整改规范 ARC-10/ARC-11 与 UI 规范 UI-013/UI-015/UI-016/UI-017 一次性收官。契约层新增 `AgentInstanceSpec` / `TaskLease` / `TaskTreeNode` / `PermissionScope` 与单调收窄原语（`packages/shared/src/team.ts`）；`packages/application` 落地 `TaskTreeScheduler` 与 `TaskTreeRegistry`（依赖 DAG 就绪判定、租约 TTL 超时、父子取消级联、阻塞依赖取消、审批门禁、子结果归并、按**有效父作用域**逐级收窄），执行一律委托注入的 executor，**不存在第二套循环**；local-server 新增 `/api/tasks/tree`、`/api/activity/runs`、`/api/behavior/library`、`/api/behavior/compose`、`/api/sessions/:id/trace`；Web 新增团队任务树、跨项目活动与集中审批队列、交互式 Agent Studio Composer、结构化脱敏 Trace，全部中英双语 + 800px 响应式。ARC-11 交付故障注入四断点套件（对不可逆副作用计数永不复跑）、Behavior Golden Conformance（L0→L4 稳定性 / fail-to-compile / Verified 仅在有运行时证据时授予）、Compaction 100% 守恒断言。门禁：四门顺序 exit 0，双 Root **3,356 passed / 6 skipped** 全绿，`packages/core` 行修改 **0**，锁文件与 `package.json` 未变；离线 Chromium + CDP 实拍 8 张（中/英 × 桌面/800px）并存 `browser-capture-meta.json`。证据 `evidence/sessions/2026-10-14-card222/PROOF.md`（含 `REVIEW.md` 对抗评审与「不宣称」清单）。
 
@@ -92,6 +96,7 @@ V2.1 历史恢复点：PowerShell session **47315 已完成 exit 0**，最后 so
 | 2026-09-27 | 决策点 19（包管理器锁定 npm）、20（个人信息边界与一次性历史改写）、21（不发布版本） | `docs/DESIGN-DECISIONS.md` |
 | 2026-09-25 | V1.3 双向子 Agent 网关体系交付合入（卡 163–167） | `CHANGELOG.md` `[Unreleased]`、`tasks/167-*.md` |
 | 2026-10-12 | Archify 架构可视化落地（5 张分层可交互图 → `docs/diagrams/`）；修复 `ARCHITECTURE.md` §6.1 等文档包清单漂移（13→14，补 `engine`/`application`） | `tasks/216-archify-architecture-visualization-and-doc-drift-repair.md`、`DEV_LOG.md`（2026-10-12） |
+| 2026-10-16 | **PDW 工作流适配：personal-dev-workflow 1.0.0 → 1.3.1-local**（Skill 整体替换 + 根 `pdw.ps1` + 项目级 `.pdw/`；`doctor` exit 0；防覆盖保护保持；旧 `.agent-state/` 状态与预算**零改动**并归档） | `tasks/224-pdw-1.3.1-local-adoption.md`、`evidence/pdw-migration-1.3.1/MIGRATION.md`、`evidence/pdw-migration-1.3.1/LEGACY-STATE.md` |
 
 **过程日志**逐条在 `DEV_LOG.md`（2026-09-27 有续 1–续 7；最新一条 2026-10-12）。
 

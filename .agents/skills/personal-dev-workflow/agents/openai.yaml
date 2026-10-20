@@ -1,0 +1,4 @@
+interface:
+  display_name: "PDW 多 Agent 开发"
+  short_description: "低成本扫描、复杂实现、独立验收与可恢复的跨 CLI 项目工作流"
+  default_prompt: "使用 $personal-dev-workflow 按成本分配角色，完成当前项目任务并交付真实验证证据。"

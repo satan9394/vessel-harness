@@ -70,6 +70,12 @@
 
 拆卡 → 派活 → 交证 → 验证 → 验收 → 复盘。详见 `.agents/skills/personal-dev-workflow/`（Codex/OpenCode/DSH/Antigravity 均从此处发现）。做多步开发前先读其 `SKILL.md`。
 
+<!-- pdw-entry -->
+PDW 现行版本 **1.3.3-local**：完整 Skill 目录 + Node 运行器 + 项目级 `.pdw/`；零安装入口为仓库根 `pdw.ps1`（本块由 `pdw.mjs install` 写入，勿删标记）。
+实质性 PDW / 多 Agent 任务：由协调者把目标编译成可执行契约（`node .agents/skills/personal-dev-workflow/scripts/pdw.mjs new --from <contract.json>`）并驱动运行器，**不把 JSON 配置或角色聊天推给用户**。自动执行后端目前仅 OC / Codex / AGY；CC、DSH 只能担任协调者或辅助模式，不得汇报成 CLI 自动接力已通过。
+启动命令、旧状态（`.agent-state/`、`RUN_STATE.md`、`tasks/`）如何保留、以及回滚步骤见 `evidence/pdw-migration-1.3.1/MIGRATION.md`。
+<!-- /pdw-entry -->
+
 - 默认 `standard`：一卡一闭环，交证即停，不自动续下一卡。
 - `bounded` 连续自治需显式授权并先定 Mission 信封；其机器真相源 `.agent-state/run-state.json`（已忽略），`RUN_STATE.md` 只是生成视图。
 - 主会话 = 指挥：只留「目标 + 文件指针 + 结果摘要」；长期目标挂 goal。
@@ -79,7 +85,7 @@
 
 ### 记录纪律（单一最佳位置，2026-10-12 立）
 
-每个事实只写一处，**不把同一事实写进多处**（依据 skill 的 `references/memory-policy.md`）。硬规则：
+每个事实只写一处，**不把同一事实写进多处**（依据旧版 PDW 的 `references/memory-policy.md`；1.3.1 包已不含该文档，本条规则本身继续有效）。硬规则：
 
 1. **动手前先建卡**：凡满足「可独立验收 / 需跨会话续接 / 会交接给他人 / 失败需各自回滚」任一条的工作，**先落一张任务卡**（`tasks/NNN-*.md`，含 Goal / Not Doing / Acceptance / Blast Radius / Expected Evidence / Result），再执行。规则是**先建卡、后动手**——补卡不算。
 2. **单一最佳位置**：目标与验收 → **任务卡**；代码事实 → **git diff / commit**（不重抄）；长期决策 → **`docs/`**；稳定规则与真实教训 → **本文件**；用户可见的**版本级交付**才进 **`CHANGELOG.md`**；一次性过程记录才进 **`DEV_LOG.md`**。
@@ -113,6 +119,14 @@
 - **测试超时不是断言**：真实 IO / 大队列用例要显式给足超时（如 1500 任务的队列用例 120s、真实 job holder 用例 120s），慢 runner 上默认 30s 会产生与回归无关的红。
 - **版本**：dev 依赖已到 TypeScript 7 / vite 8 / vitest 5 / React 19 / js-yaml 5；升大版本前先看该包的移除项（如 TS7 移除 `baseUrl`，`paths` 必须 `./`）。
 
+### 查看 Web UI 的正确入口（2026-10-18，卡 225 更新）
+
+- **生产/直连模式（`vessel serve` / `vessel web`）**：自卡 225 起，后端服务（`createVesselServer`）内置 `resolveStaticDir()` 双重探测——未显式指定 `staticDir` 时，优先自动托管 `apps/web/dist`（若存在且含 `index.html`），并内置 SPA 页面路由回退支持（非 `/api/` 且无扩展名的前端深链 GET 请求直接回退返回 `index.html`，扩展名资源保留精确 404）；若未构建 `apps/web/dist` 则优雅回退到 `apps/local-server/public/` 着陆页。
+- **开发/热更模式（Vite dev server）**：本地热更开发调试仍推荐使用 Vite：`cd apps/web && npx vite --port 5173 --strictPort --host 127.0.0.1`（API 由 dev 代理到 `127.0.0.1:5678`，故须先 `vessel serve`）。
+- **必须带 `--host 127.0.0.1`**：不带时 vite 只监听 IPv6 `[::1]:5173`；而 `browser-skill` 驱动的 Chrome 走 IPv4 `127.0.0.1`，会 `ERR_CONNECTION_REFUSED`。
+- **dev 代理必须 `changeOrigin: false`**（`apps/web/vite.config.ts` 已如此）：**Vite 8 代理默认 `changeOrigin: true`**，会把 Host 改写成上游 `127.0.0.1:5678`；后端 `trustedOrigin()` 用 `req.headers.host` 构造 `url.origin` 与浏览器 `Origin` 比对，于是全部**带 Origin 的写请求**（`POST/PUT/PATCH/DELETE`，如 `behavior/compose`、供应商增删/测试/拉取、**用真实供应商新建会话**）被判 `cross_origin_denied` → **403**（GET 不带 Origin 才侥幸通过）。修代理侧，不要放宽后端同源门禁。
+- **本宿主（OpenCode）会回收子进程**：后台起的长驻服务（`vessel serve` / vite / bsk daemon）在宿主重启后会被取消（表现为 `! Shell cancelled`），需重新拉起；这不是代码错误。
+
 ## 禁做清单（「别这样做」，来自踩坑与决策）
 
 - 不要在实现里照搬 Claude Code / Codex / DSH 源码大段实现（clean-room，任务书 §19）。
@@ -136,3 +150,18 @@
 - 恢复方式（如需）：`gh api --method PUT repos/satan9394/vessel-harness/actions/permissions --input -`
   （body `{"enabled":true}`）；CodeQL 用 `PATCH repos/satan9394/vessel-harness/code-scanning/default-setup`
   （body `{"state":"configured"}`）。
+<!-- pdw-skill-sync -->
+## PDW 技能同步（默认配置，2026-10-17 重切后；源 = GitHub）
+
+- **唯一技能源**：GitHub `satan9394/personal-dev-workflow`，分支 `main`（滚动，无 tag / 无 Release），子路径 `skills/personal-dev-workflow/`。
+- **本地镜像（离线兜底）**：`C:\work\.agents_four_skills\personal-dev-workflow`——只在取不到 GitHub 时使用，且版本串须与远端一致才可采用。
+- **本地副本**：`.agents\skills\personal-dev-workflow\`（9 文件，与源逐字节一致）。
+- **改 `.pdw\config.json` 前必须先经用户确认**：模型、思考档位（`reasoning_effort` / `model#variant`）、上限与 `prompt_guidance` 的任何改动，先给出 diff 与预期效果、等用户明确确认后再落盘；确认前不动文件。改前把原文件备份到 `.pdw\skill-upgrade-<YYYYMMDD>\config.json.bak-<用途>-<YYYYMMDD>`。
+- **首选一条命令自更新**：`node .agents\skills\personal-dev-workflow\scripts\update.mjs --project <项目根>`（`--dry-run` 只看差异）。它自带备份、原子替换与 `doctor` 复核，幂等、不动 `.pdw\config.json`、不删除文件、不 commit/push；无差异只回「已是最新（<版本>）」。
+- 手工兜底（脚本不可用或需人工判断时）：
+  1. 取远端到临时目录：`git clone --depth 1 --branch main https://github.com/satan9394/personal-dev-workflow <临时目录>`；网络不可用时退回本地镜像，并在报告中写明用了兜底。
+  2. 用远端 `skills/personal-dev-workflow/` 的 9 个文件与本地副本逐字节比对（sha256；缺文件也算差异）；**版本串相同不代表内容相同**，重切过的包按散列判新旧。
+  3. 无差异 → 只回一句「已是最新（<版本>）」，不改任何文件。
+  4. 有差异 → 备份本地副本到 `.pdw\skill-upgrade-<YYYYMMDD>\` → 用远端 9 文件整份替换（保留 `agents/ assets/ references/ scripts/` 四层）→ **不要动 `.pdw\config.json`** → 跑 `node .agents\skills\personal-dev-workflow\scripts\pdw.mjs doctor --project <项目根>` → 报告散列与 doctor 结果。
+- 不要直接改本地镜像；镜像是 GitHub 的下游副本。
+<!-- /pdw-skill-sync -->

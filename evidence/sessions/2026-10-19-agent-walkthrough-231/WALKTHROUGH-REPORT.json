@@ -1,0 +1,40 @@
+{
+  "timestamp": "2026-10-19T14:48:43Z",
+  "totalSteps": 5,
+  "passedSteps": 5,
+  "failedSteps": 0,
+  "consoleErrors": [],
+  "pageErrors": [],
+  "steps": [
+    {
+      "step": "01_OpenHomePage",
+      "status": "PASS",
+      "durationMs": 2906,
+      "details": "Loaded home with brand header"
+    },
+    {
+      "step": "02_InspectModelControls",
+      "status": "PASS",
+      "durationMs": 484,
+      "details": "Quick Switcher popover opened and dismissed"
+    },
+    {
+      "step": "03_OpenProviderModal",
+      "status": "PASS",
+      "durationMs": 922,
+      "details": "Provider settings modal opened with Presets Gallery"
+    },
+    {
+      "step": "04_InteractPresetsGallery",
+      "status": "PASS",
+      "durationMs": 1094,
+      "details": "Presets gallery filtered and clicked DeepSeek to prefill form"
+    },
+    {
+      "step": "05_ValidateModelChips",
+      "status": "PASS",
+      "durationMs": 531,
+      "details": "Model chips rendered and custom model added"
+    }
+  ]
+}

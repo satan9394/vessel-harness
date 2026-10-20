@@ -1,0 +1,65 @@
+# RUN STATE (generated)
+
+> Machine source of truth: `.agent-state/run-state.json`. Do not edit counters here.
+
+## Mission
+V2.6 Pure i18n & Visual Model Hub (Epic 214)
+
+## Definition of Done
+- [ ] Task 210 Comprehensive i18n & Pure Localization implemented and verified
+- [ ] Task 211 Local Server Provider Store & Models API implemented and verified
+- [ ] Task 212 Web Provider Settings Modal & Connection Tester implemented and verified
+- [ ] Task 213 Session Model Picker & Dynamic Switching implemented and verified
+- [ ] Task 214 Epic V2.6 Master Integration & Regression passes
+- [ ] Thin Core absolute zero modification: packages/core diff is 0 lines
+- [ ] Dual-root tests (npm run test:all), tsc build, and web build exit 0
+
+## Out of scope
+- External Agent real execution
+- Git push to remote repository (local-only per 2026-10-06 rule)
+- Permanent file deletion
+- Modifying packages/core (Thin Core rule)
+
+## Status
+- Mission: completed
+- Revision: 249
+- Updated: 2026-10-11T15:50:38.221Z
+
+## WorkSet (5/8)
+- 210 Comprehensive i18n & Pure Localization — completed
+- 211 Local Server Provider Store & Models API — completed
+- 212 Web Provider Settings Modal & Connection Tester — completed
+- 213 Session Model Picker & Dynamic Switching — completed
+- 214 Epic V2.6 Pure i18n & Visual Model Hub — completed
+
+## Blocked
+- —
+
+## Deferred Backlog
+- —
+
+## Run Budget
+- Epoch: 0/3
+- Cards: 5/5
+- Repairs: 1/5
+- Workers spawned: 7/8
+- Research passes: 0/2
+- Active workers: 0/3
+- Max subagent depth: 1
+
+## Mission Budget
+- Runs: 1/8
+- Cards: 5/20
+- Repairs: 1/15
+
+## Last verified commit
+dd8e72c
+
+## Resume From
+Epic214 completed: cards210-214 closed; 3146 passed/6 skipped, all7 final gates0; review/browser PASS; core0/125 hashes unchanged. Proof evidence/sessions/2026-10-11-v2.6/PROOF.md. Await new user instruction.
+
+## Notes for next run
+- V2.6 accepted locally; HEAD dd8e72c and V2.5/V2.6 uncommitted work preserved. No commit/push/publish.
+- No active workers or preview services. Do not auto-start another route.
+- Endpoint limits/tariffs and earlier preview project-index registration are candidly documented in PROOF.md.
+- Web builds must always use -- --emptyOutDir false; core remains protected.

@@ -4,6 +4,7 @@ import { createApiClient, type ApiClient, type Health, type Project, type Sessio
 import CommandPalette, { trapFocus } from './components/common/CommandPalette';
 import type { CommandItem } from './components/palette/types';
 import { INSPECTOR_TABS, INSPECTOR_LABELS, type InspectorTab } from './components/layout/DualSurfaceLayout';
+import Rail from './components/layout/Rail';
 import Sidebar from './components/Sidebar';
 import SubagentWorkspace from './components/SubagentPanel';
 import TaskComposer, { projectName, readableSessionTitle } from './components/TaskComposer';
@@ -14,6 +15,7 @@ import AttentionControls from './components/AttentionControls';
 import { AttentionManager } from './utils/attentionManager';
 import CustomizePanel from './components/CustomizePanel';
 import ProviderSettingsModal from './components/providers/ProviderSettingsModal';
+import ProviderHub from './components/providers/ProviderHub';
 import LanguageSwitcher from './components/LanguageSwitcher';
 import { LanguageProvider, useI18n } from './components/LanguageProvider';
 import TeamModule from './components/TeamModule';
@@ -75,6 +77,7 @@ function AppShell() {
   const [showNew, setShowNew] = useState(false);
   const [area, setArea] = useState<'workbench' | 'activity' | 'studio' | 'settings'>('workbench');
   const [drawer, setDrawer] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [taskStarting, setTaskStarting] = useState(false);
   const navigationFocus = useRef<HTMLElement | null>(null);
   const [projectRoot, setProjectRoot] = useState('');
@@ -108,6 +111,17 @@ function AppShell() {
     try {
       const { session } = await api.updateSessionTopic(id, input);
       setSessions((current) => current.map((item) => item.id === session.id ? session : item));
+    } catch {
+      setServerError(true);
+    }
+  }, [api]);
+
+  const deleteSession = useCallback(async (idOrIds: string | string[]) => {
+    const ids = Array.isArray(idOrIds) ? idOrIds : [idOrIds];
+    try {
+      await Promise.all(ids.map(id => api.deleteSession(id).catch(() => {})));
+      setSessions((current) => current.filter((item) => !ids.includes(item.id)));
+      setSelectedSessionId((cur) => (cur && ids.includes(cur) ? null : cur));
     } catch {
       setServerError(true);
     }
@@ -160,33 +174,33 @@ function AppShell() {
   ];
 
   return (
-    <div className={`app${drawer ? ' navigation-open' : ''}`} data-provider-revision={providerRevision}>
+    <div className={`app${drawer ? ' navigation-open' : ''}${sidebarCollapsed ? ' sidebar-collapsed' : ''}`} data-provider-revision={providerRevision}>
+      <Rail area={area} onSelect={value => { setArea(value); setDrawer(false); }} />
       {drawer && <button className="navigation-backdrop" aria-label={t('close')} onClick={() => setDrawer(false)} />}
       <div className="navigation-shell" role={drawer ? 'dialog' : undefined} aria-modal={drawer ? true : undefined} aria-label={drawer ? t('navigationMenu') : undefined}>
-      <button className="btn navigation-close" onClick={() => setDrawer(false)}>{t('close')}</button>
-      <nav className="primary-nav" aria-label="Vessel">
-        {(['workbench', 'activity', 'studio', 'settings'] as const).map(value => <button key={value} data-area={value} className={`btn${area === value ? ' side-item-active' : ''}`} aria-current={area === value ? 'page' : undefined} onClick={() => { setArea(value); setDrawer(false); }}>{t(value === 'studio' ? 'agentStudio' : value)}</button>)}
-      </nav>
-      <div className="session-navigation" inert={taskStarting}>
-      <Sidebar
-        projects={projects}
-        sessions={sessions}
-        onNewSession={() => { if (taskStarting) return; setArea('workbench'); setSelectedSessionId(null); setDrawer(false); }}
-        selectedProjectRoot={projectRoot}
-        onSelectProject={root => { if (taskStarting) return; setProjectRoot(root); setArea('workbench'); setSelectedSessionId(null); setDrawer(false); }}
-        selectedSessionId={selectedSessionId}
-        onSelectSession={id => { if (taskStarting) return; setSelectedSessionId(id); setArea('workbench'); setDrawer(false); }}
-        onRenameTopic={(id, title) => void updateSessionTopic(id, { title })}
-        onArchiveTopic={(id, isArchived) => void updateSessionTopic(id, { isArchived })}
-      />
-      </div>
+        <button className="btn navigation-close" onClick={() => setDrawer(false)}>{t('close')}</button>
+        <div className="session-navigation" inert={taskStarting}>
+          <Sidebar
+            projects={projects}
+            sessions={sessions}
+            onNewSession={() => { if (taskStarting) return; setArea('workbench'); setSelectedSessionId(null); setDrawer(false); }}
+            selectedProjectRoot={projectRoot}
+            onSelectProject={root => { if (taskStarting) return; setProjectRoot(root); setArea('workbench'); setSelectedSessionId(null); setDrawer(false); }}
+            selectedSessionId={selectedSessionId}
+            onSelectSession={id => { if (taskStarting) return; setSelectedSessionId(id); setArea('workbench'); setDrawer(false); }}
+            onRenameTopic={(id, title) => void updateSessionTopic(id, { title })}
+            onArchiveTopic={(id, isArchived) => void updateSessionTopic(id, { isArchived })}
+            onDeleteSession={(id) => void deleteSession(id)}
+            onCollapse={() => setSidebarCollapsed(true)}
+          />
+        </div>
       </div>
       <main className="main" inert={drawer}>
         <div className="topbar">
           <button className="btn navigation-toggle" aria-label={t('navigationMenu')} aria-expanded={drawer} onClick={() => setDrawer(value => !value)}>☰</button>
+          {sidebarCollapsed && <button className="btn desktop-sidebar-toggle" aria-label="展开侧边栏" title="展开侧边栏" onClick={() => setSidebarCollapsed(false)}>›</button>}
           <StatusBar health={health} error={serverError} />
           <div className="topbar-actions">
-
             <CommandPalette commands={commands} />
             <details className="preferences-menu"><summary className="btn">{t('preferences')}</summary><div className="preferences-content"><AttentionControls attention={attention} /><CustomizePanel modules={modules} onChange={handleModulesChange} /><LanguageSwitcher /></div></details>
           </div>
@@ -195,7 +209,7 @@ function AppShell() {
  : null}
         {area === 'studio' ? <section className="main-body"><h2>{t('agentStudio')}</h2><p className="dim">{t('studioHint')}</p><AgentStudioComposer api={api} sessionId={nothingSelected ? null : selectedSessionId} /><AgentStudioInspector api={api} selectedSessionId={nothingSelected ? null : selectedSessionId} /><CognitiveRulesDashboard api={api} /></section>
  : null}
-        {area === 'settings' ? <section className="main-body"><h2>{t('settings')}</h2><button className="btn" data-action="configure-models" onClick={() => setShowProviders(true)}>{t('modelSettings')}</button><p className="dim">{t('layoutBoundary')}</p><CustomizePanel modules={modules} onChange={handleModulesChange} /><LanguageSwitcher /><AttentionControls attention={attention} /></section>
+        {area === 'settings' ? <section className="main-body"><h2>{t('settings')}</h2><ProviderHub api={api} onChanged={() => setProviderRevision(previous => previous + 1)} /><p className="dim">{t('layoutBoundary')}</p><CustomizePanel modules={modules} onChange={handleModulesChange} /><LanguageSwitcher /><AttentionControls attention={attention} /></section>
  : null}
         <div className="workbench-region" hidden={area !== 'workbench'}>
         {nothingSelected ? (

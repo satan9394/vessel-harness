@@ -1,0 +1,346 @@
+# tasks/ — 任务卡看板
+
+> 个人开发工作流（personal-dev-workflow）在本仓库的进度载体。一张卡一个文件，状态写在卡内首行。
+> 生命周期：拆卡 → 派活 → 交证 → 验证 → 验收 → 复盘。详见 skills/personal-dev-workflow 与根 AGENTS.md。
+
+## 卡命名
+
+`NNN-短横线描述.md`，如 `001-project-memory.md`；V1.1 路线卡用 `V1.1-<字母>-<短横线描述>.md`。
+状态取值：待执行 / 执行中 / 待验收 / 已合入 / 打回。
+
+最近本地交付：任务 235 的 Taste-Skill 全屏通栏 Edge-to-Edge UI 重构已交付（彻底消除浮动孤岛与大圆角弧形，顶天立地全屏覆盖，Web 50 文件 / 404 单测全绿）。详见 [任务卡](235-taste-skill-full-surface-ui-refactoring.md)。
+
+## 怎么读这个目录
+
+本目录是**进度事实源**，不在此维护一份会腐烂的汇总表。查进度请：
+
+1. 看下表「路线层」——每个里程碑/版本收官时更新一次（现状：V0.1–V0.10 + V1.0 + V1.1 全部收官）。
+2. 具体某卡的状态 → 直接读卡首行；卡面由执行者与指挥侧回填，含门禁实测数字与验收结论。
+
+> 历史说明：本文件此前维护过一张止于 018 的硬编码表，早已与目录实况脱节，
+> 且与 `docs/V1.1-ROADMAP.md`、`docs/V1.0-CHECKPOINT.md` 重复。现改为"路线索引 + 指向卡面"，
+> 停止复制易腐的逐卡状态。
+>
+> **2026-09-18 对账**：014–122 的卡状态行此前多为「待执行/执行中/待验收」而实际已合入；
+> 已批量改准为「已合入（2026-09-18 对账）」并在下一行保留**原状态文本**作历史层。
+> 例外：`118`（已合入）、`119`（**部分完成**——S002/S006 恒真判据仍待加锁）。
+
+## 路线层（里程碑级）
+
+| 版本 / 路线 | 卡区间 | 状态 | 权威记录 |
+|---|---|---|---|
+| V0.1–V0.5（任务书主线） | 001-013 | 已合入（独立验收 PASS） | `docs/REVIEW-REPORT-V0{1..5}.md`、`docs/V0x-IMPLEMENTATION-NOTES.md` |
+| V0.6–V0.10（产品化） | 014-031 | 已合入 | `CHANGELOG.md`（V0.1→V0.10 中英双语） |
+| V1.0（Milestone A–G） | 032-084 | 已合入（收官） | `docs/V1.0-CHECKPOINT.md`、`docs/V1.0-ROADMAP-PROGRESS.md` |
+| V1.1（A–F 六卡） | `V1.1-*.md` | 已合入（收官；余环境补齐项非阻塞） | `docs/V1.1-ROADMAP.md` |
+| 产品演进 / 独立评审 | 085-122 | 已合入 | `docs/product-evolution/EVALUATION-REPORT-*.md`、`tasks/1xx` |
+| CI 修复与安全加固 | 123 | 已合入 | `tasks/123-ci-tsc-build-repair.md` |
+| `Session.loadExisting` 补 `await`（fd 泄漏） | 124 | 已合入（评审 PASS + 其发现的租约清理） | `tasks/124-session-load-existing-await.md` |
+| Cross-Harness Conformance 驱动 + soak 默认参数修复 + 1.0 门槛核对 | 125-126 | 已合入 | `tasks/125-*.md`、`tasks/126-*.md`、`docs/V1.6-STABLE-CHECKLIST.md` |
+| CLI/TUI 能力补齐（`vessel mcp` / `vessel diff` / TUI `/mcp` `/diff`） | 127-129 | 已合入 | `tasks/127-*.md`、`tasks/128-*.md`、`tasks/129-*.md` |
+| 「两份实现」收敛（MCP 装配 / mock 文案 / guide locale） | 130-132 | 已合入 | `tasks/130-*.md`、`tasks/131-*.md`、`tasks/132-*.md` |
+| 记忆同步 #1 + mock 冒烟脚本收敛 + B19 口径 + G-08 `vesselHome` + 文档补齐 | 133-138 | 已合入 | `tasks/133-*.md`…`tasks/138-*.md` |
+| 记忆同步 #2 | 139 | 已合入 | `tasks/139-memory-sync-2.md` |
+| 文档诚实化收尾（残余扫描 #2 / 已声明未实现标注 / by-design / `stream-json` 登记） | 140-143 | 已合入 | `tasks/140-*.md`…`tasks/143-*.md` |
+| 记忆同步 #3 | 144 | 已合入 | `tasks/144-memory-sync-3.md` |
+| 残留清算 B1：真实模型 lane 接场景 policy | 145 | 已合入 | `tasks/145-real-model-lane-scenario-policy.md` |
+| 残留清算 B2–B5：已核实闭合 | 146 | 已合入 | `tasks/146-residual-b2-b5-verified-closed.md` |
+| 记忆同步 #4 | 147 | 已合入 | `tasks/147-memory-sync-4.md` |
+| 全量偶发红：`cli.test.ts` real-IO 用例补显式超时 | 148 | 已合入 | `tasks/148-cli-test-real-io-timeouts.md` |
+| `--live` 基线尝试 → 发现外部 adapter 与真实 CLI 不匹配（blocked） | 149 | blocked（已记录根因） | `tasks/149-live-baseline-blocked.md` |
+| 回退 `--live` adapter 工作 + 立"不自动驱动本机其他 agent"口径 | 153 | 已合入 | `tasks/153-live-revert-and-external-agent-policy.md` |
+| 第三方模型供应商动态自省与探测引擎 (Dynamic Model Discovery) | 157 | 已合入 | `tasks/157-dynamic-model-discovery.md` |
+| OpenAI 协议 Reasoning 思考流解析标准化 (Stream Reasoning Ingestion) | 158 | 已合入 | `tasks/158-openai-reasoning-stream.md` |
+| Claude Code 社区插件与 Hook 生态全兼容层 (Claude Plugin Compatibility) | 159 | 已合入 | `tasks/159-claude-plugin-compatibility.md` |
+| Session 架构升级 Topic 实体支持与持久化索引 (Topic Entities & Registry) | 160 | 已合入 | `tasks/160-session-topic-entities.md` |
+| Web 侧边栏 Topic 列表重构与 Thinking/Talking 详情抽屉 (Web Topic & Observability) | 161 | 已合入 | `tasks/161-web-topic-and-observability.md` |
+| [Epic] 开放生态深度兼容与极度透明可观察性体系 (融合 157–161) | 162 | 已合入 | `tasks/162-epic-open-ecosystem-and-observability.md` |
+| Vessel 转换为子 Agent：MCP 子代理服务器模式 (Inbound Subagent as MCP Server) | 163 | 已合入（2026-09-25） | `tasks/163-inbound-mcp-subagent.md` |
+| 外部 CLI 交互桥接与虚拟人类代理 (Virtual Human Proxy & Interactive Gating) | 164 | 已合入（2026-09-25） | `tasks/164-virtual-human-proxy.md` |
+| 外部异构子代理运行时与 Worktree 隔离 (Outbound Heterogeneous Subagent Runtime) | 165 | 已合入（2026-09-25） | `tasks/165-outbound-subagent-runtime.md` |
+| 跨 Agent 全量功能保全与双盲评测套件 (Subagent Capability Conformance Suite) | 166 | 已合入（2026-09-25） | `tasks/166-subagent-capability-conformance.md` |
+| [Epic] 双向子 Agent 网关体系与保全度评测套件 (融合 163–166) | 167 | 已合入（2026-09-25） | `tasks/167-epic-universal-subagent-mesh.md` |
+| 公开化脱敏与 GitHub 治理（转 Public / 身份与本机路径脱敏 / 不发布版本 / 必须走 PR + CI） | 168 | 已合入（2026-09-27） | `tasks/168-desensitize-and-public-hygiene.md`、`evidence/sessions/2026-09-27-desensitization-and-governance.md`、决策点 20/21 |
+| [Epic] 工业级多 Agent 协作工作台与分布式可观察性控制面 | 169 | 已合入（本地验收；Git 未提交） | `tasks/169-epic-universal-subagent-workspace.md` |
+| 动态自适应上下文压实与 400 溢出自愈防线 | 170 | 本地全门禁通过；待验收 | `tasks/170-adaptive-compaction-and-overflow-recovery.md` |
+| MCP 进程树 Job Object 绑定、disabled 规范化与延迟代理 | 171 | 本地全门禁通过；待验收 | `tasks/171-mcp-process-tree-job-object-and-lazy-proxy.md` |
+| Agent-Teams 反应式 DAG 编排与队员模型快照隔离 | 172 | 本地全门禁通过；待验收 | `tasks/172-agent-teams-dag-orchestration-and-route-snapshots.md` |
+| 多帧增量会话持久化与极限长会话韧性评测套件 | 173 | 本地全门禁通过；待验收 | `tasks/173-session-streaming-and-multiframe-zstd-eval.md` |
+| [Epic] V1.5 工业级韧性、高密持久化与多 Agent 协同网格体系 | 174 | 本地全门禁通过；待验收 | `tasks/174-epic-industrial-resilience-and-teams-mesh.md` |
+| Web 交互式 DAG 拓扑画布与方案预审控制台 | 175 | 本地全门禁通过；待验收 | `tasks/175-visual-team-dag-canvas-and-staged-approval.md` |
+| 后台常驻 Daemon 守护进程与系统通知驻留 | 176 | 本地全门禁通过；待验收 | `tasks/176-headless-daemon-and-tray-resilience.md` |
+| 工具级自愈退避与大载荷动态截断管道 | 177 | 本地全门禁通过；待验收 | `tasks/177-tool-self-healing-and-bounded-output.md` |
+| SQLite WAL 模式高性能会话元数据与全文检索 | 178 | 本地全门禁通过；待验收 | `tasks/178-sqlite-wal-session-index-and-fts5-search.md` |
+| [Epic] V1.6 工业级团队协同工作台、常驻守护进程与高性能会话中枢 | 179 | 本地全门禁通过；待验收 | `tasks/179-epic-universal-team-workspace-and-daemon-mesh.md` |
+| 原生级操作系统沙箱与低完整性安全隔离 | 180 | 本地全门禁通过；待验收 | `tasks/180-os-native-sandboxing-and-restricted-tokens.md` |
+| 自主演进经验图谱与轻量混合记忆检索 | 181 | 本地全门禁通过；待验收 | `tasks/181-evolving-knowledge-graph-and-hybrid-memory.md` |
+| 跨实例异构 Swarm 网格与分布式事件总线 | 182 | 已合入（2026-10-03 本地验收） | `tasks/182-cross-instance-swarm-mesh-and-event-bus.md` |
+| [Epic] V1.7 原生级安全沙箱与认知记忆体系 (180+181) | 183 | 已合入（2026-10-03 本地验收） | `tasks/183-epic-hardened-runtime-and-cognitive-memory.md` |
+| Mesh/Memory CLI 控制面与 `vessel doctor` 系统健康自检引擎 | 184 | 已合入（2026-10-03 本地验收） | `tasks/184-mesh-memory-cli-and-doctor-diagnostic.md` |
+| Web 控制台 Swarm 节点拓扑面板、沙箱安全审计与经验规则看板 | 185 | 已合入（2026-10-04 本地验收） | `tasks/185-web-swarm-topology-and-cognitive-dashboard.md` |
+| 会话后自主反思与经验提炼引擎 (Autonomous Reflection Engine) | 186 | 已合入（2026-10-03 本地验收） | `tasks/186-post-session-autonomous-reflection-engine.md` |
+| [Epic] V2.0 Swarm 集群控制面、自检诊断与认知自愈飞轮 (184+186) | 187 | 已合入（2026-10-03 本地验收） | `tasks/187-epic-v2-swarm-workbench-and-cognitive-flywheel.md` |
+| 请求负载确定性序列化与前缀三段式分层 (Prefix Layout) | 188 | 已验收（2026-10-08，Epic 191 最终门禁与独立复核） | `tasks/188-deterministic-serialization-and-prefix-layout.md` |
+| 多供应商真实缓存计费命中率与多维透视 (Cache Hit Telemetry) | 189 | 已验收（2026-10-08）；历史清理偏差保留 | `tasks/189-cache-hit-rate-telemetry-and-multi-provider.md` |
+| 工作区状态指纹与无进展死循环熔断器 (No-Progress Breaker) | 190 | 已验收；新指标 fixture warm 42.58ms / 全仓 p95 673.41ms | `tasks/190-workspace-fingerprint-and-no-progress-breaker.md` |
+| [Epic] V2.1 前缀缓存经济学、无进展熔断与高韧性运行中枢 | 191 | PASS（2026-10-08）：2811 passed / 6 skipped，五项门禁 exit 0 | `tasks/191-epic-v2-1-prefix-cache-and-convergence.md` |
+| 洋葱式 Mod 中间件核心流水线 (Onion Mod Middleware Pipeline) | 192 | 已本地验证（28 定向测试） | `tasks/192-onion-mod-middleware-and-pipeline.md` |
+| Claude Code Mods 沙箱化兼容适配器与防提权网关 | 193 | 已本地验证（33 定向测试；独立评审受阻） | `tasks/193-sandboxed-claude-mods-adapter.md` |
+| Mod 权限清单静态审计、CLI 控制面与 Doctor 诊断 | 194 | 已本地验证（26 定向测试） | `tasks/194-mod-manifest-permissions-and-cli-doctor.md` |
+| [Epic] V2.2 沙箱化 Mod 中间件网络与插件生态兼容 | 195 | 已合入（2026-10-09，commit `3e6a56f`，双Root 2957 passed） | `tasks/195-epic-v2-2-sandboxed-mods-and-middleware-mesh.md` |
+| 评估器 Red→Green 缺陷复现前置硬门禁 | 196 | 已合入（2026-10-09，commit `3e6a56f`） | `tasks/196-evaluator-red-green-reproduction-gate.md` |
+| 轻量 AST 符号索引与依赖图谱 | 197 | 已合入（2026-10-09，批准mean≤15ms/peak≤25ms，commit `3e6a56f`） | `tasks/197-ast-code-awareness-and-dependency-graph.md` |
+| 变更影响面自适应上下文剪枝 | 198 | 已合入（2026-10-09，commit `3e6a56f`，剪枝率 82.56%） | `tasks/198-impact-driven-context-pruning.md` |
+| [Epic] V2.3 结构化代码感知与 Red→Green 复现前置硬门禁 | 199 | 已合入（2026-10-09，commit `3e6a56f`，双Root 2957 passed） | `tasks/199-epic-v2-3-ast-code-awareness-and-red-green-gates.md` |
+| Chat 流内嵌富交互组件 IR 与双向 SSE 协议 | 200 | 已合入（2026-10-10，commit `dd8e72c`） | `tasks/200-chat-inline-component-ir-and-sse-protocol.md` |
+| Web 对话流内嵌交互微组件与可折叠 Diff 检查器 | 201 | 已合入（2026-10-10，commit `dd8e72c`） | `tasks/201-inline-interactive-widgets-and-diff-inspector.md` |
+| 双模态双轴工作台布局与常驻 Docked Inspector | 202 | 已合入（2026-10-10，commit `dd8e72c`） | `tasks/202-dual-surface-layout-and-docked-inspector.md` |
+| CLI 终端 StatusLine 与富 ANSI 组件同步适配 | 203 | 已合入（2026-10-10，commit `dd8e72c`） | `tasks/203-terminal-statusline-and-rich-ansi-reporter.md` |
+| [Epic] V2.4 混合 Chat-Canvas 交互工作台与双端视觉中枢 | 204 | 已合入（2026-10-10，commit `dd8e72c`，双Root 3009 passed） | `tasks/204-epic-v2-4-hybrid-chat-canvas-and-interactive-workbench.md` |
+| 画布区交互式补丁选择器与单 Hunk 采纳/回退 (Interactive Patch Picker) | 205 | 已验证（V2.5 本地完成） | `tasks/205-interactive-patch-picker-and-canvas-cherrypick.md` |
+| 流式思考链可视化折叠器与认知规则标注 (Streaming Reasoning & Rules) | 206 | 已验证（V2.5 本地完成） | `tasks/206-streaming-reasoning-flow-and-rule-callout.md` |
+| 全局快捷命令面板与全键盘无障碍导航 (Command Palette & Shortcuts) | 207 | 已验证（V2.5 本地完成） | `tasks/207-command-palette-and-keyboard-navigation.md` |
+| 桌面级注意力焦点系统与任务完成声音提示 (Desktop Attention & Audio) | 208 | 已验证（V2.5 本地完成） | `tasks/208-desktop-attention-notification-and-audio-cues.md` |
+| [Epic] V2.5 画布级交互协同与极客工作台 (Interactive Canvas & Workbench) | 209 | 已验证（3083 passed / 6 skipped） | `tasks/209-epic-v2-5-interactive-collaboration-and-canvas-workbench.md` |
+| 全域纯正国际化字典体系扩充与组件硬编码英文彻底解耦 (Comprehensive i18n) | 210 | 已验证（V2.6 本地完成） | `tasks/210-comprehensive-i18n-dictionary-and-component-decoupling.md` |
+| Local Server 供应商存储集成、/api/providers 端点与动态模型路由 (Provider Store & Models API) | 211 | 已验证（V2.6 本地完成） | `tasks/211-local-server-provider-store-and-models-api.md` |
+| Web 端模型与供应商可视化管理弹窗及一键连通性探测 (Provider Settings Modal) | 212 | 已验证（V2.6 本地完成） | `tasks/212-provider-settings-modal-and-connection-tester.md` |
+| 新建会话模型选择器升级与会话级多模型动态切换 (Session Model Picker & Dynamic Switching) | 213 | 已验证（V2.6 本地完成） | `tasks/213-session-model-picker-and-dynamic-switching.md` |
+| [Epic] V2.6 全域纯正国际化与可视化多模型接入中枢 (Epic Pure i18n & Visual Model Hub) | 214 | 已验证（3146 passed / 6 skipped） | `tasks/214-epic-v2-6-pure-i18n-and-visual-model-hub.md` |
+| 模型端点自动拉取、灵活配置 Schema 兼容与供应商管理自愈 (Provider Hub Model Pull & Schema Repair) | 215 | 已验证（2026-10-11 本地完成，双 Root 3155 passed / 6 skipped） | `tasks/215-provider-hub-model-pull-and-schema-repair.md` |
+| 项目整体逻辑架构可视化与文档包清单漂移修复 (Archify Architecture Visualization & Doc-Drift Repair) | 216 | 已验证（2026-10-12 本地完成，双 Root 2873 passed / 6 skipped） | `tasks/216-archify-architecture-visualization-and-doc-drift-repair.md`、`docs/diagrams/README.md` |
+| Vessel 架构整改与实施规范落地 (Architecture Improvement Plan Implementation) | 217 | 已验证（已合入本地提交 `6442171`；双 Root 3219 passed / 6 skipped） | `tasks/217-architecture-improvement-plan-implementation.md` |
+| Vessel Web UI/UX 工作台整改规范落地 (Web UI/UX Workbench Improvement) | 218 | 已验证（已合入本地提交 `26ba6fe`；双 Root 3228 passed / 6 skipped） | `tasks/218-web-ui-ux-workbench-improvement-implementation.md` |
+| 全量功能端到端交互与真实点击测试套件 (Full Surface Click-Testing Suite) | 219 | 已验证（2026-10-13；交证即停） | `tasks/219-full-surface-interactive-click-testing-suite.md` |
+| Provider 能力协商契约与 Context 分层版本化缓存落地 (Provider Capability Contract & Context Layered Cache) | 220 | 已验证（已合入本地提交 `030fc0f`；双 Root 3271 passed / 6 skipped） | `tasks/220-provider-capability-contract-and-layered-cache.md` |
+| Behavior 语义 IR、五级兼容性等级与 Agent Studio L0-L4 检查器 (Behavior Semantic IR & Studio Inspector) | 221 | 已验证（已合入本地提交 `bd4a0b8`；双 Root 3296 passed / 6 skipped） | `tasks/221-behavior-semantic-ir-and-agent-studio-inspector.md` |
+| [Epic] 架构与UI优化方案全量收官：任务树、故障注入、Studio Composer与审批队列 (Full Architecture & UI Plan Completion) | 222 | 已验证（已合入本地提交 `c7cb0ca`；双 Root 3,356 passed / 6 skipped；`packages/core` 0 变动） | `tasks/222-subagent-team-task-tree-and-instance-spec.md` |
+| Web UI 视觉重塑与设计技能引入：三套候选方向原型 + 设计语言令牌 (Web UI Visual Overhaul & Design Skill Intake) | 223 | **已落地 + 走查闭合（2026-10-15/16）**：原型阶段完成 → P1–P8 已实施到 `apps/web` → browser-skill 真实走查修复 5 处（含 Vite 代理 403）；门禁四项 exit 0、双 root 全绿、core 零改动 | `tasks/223-web-ui-visual-overhaul-and-design-skills.md`、`docs/design-prototypes/`、`docs/DESIGN.md`、`evidence/sessions/2026-10-15-ui-landing/PROOF.md`、`evidence/sessions/2026-10-15-ui-landing/bsk-functional/FINDINGS.md` |
+| PDW 工作流适配：personal-dev-workflow 1.0.0 → 1.3.1-local (PDW Workflow Adaptation) | 224 | **已完成（2026-10-16）**：Skill 替换 + `pdw.ps1` + `.pdw/` 配置；`doctor` exit 0；包哈希字节一致；防覆盖保护保持；夹具编排 20/20；旧状态零改动并归档 | `tasks/224-pdw-1.3.1-local-adoption.md`、`evidence/pdw-migration-1.3.1/MIGRATION.md`、`evidence/pdw-migration-1.3.1/LEGACY-STATE.md` |
+| Local Server 静态托管与 Web UI 生产直连（SPA 路由回退与 dist 优先探测） | 225 | **已完成（2026-10-18）**：PDW 契约多角色闭环（Codex 实现 + OpenCode 复核 pass）；dist 优先探测 + SPA 客户端路由回退 + 穿越安全防护 + 19 项定向测试 | `tasks/225-local-server-web-ui-hosting-and-spa-fallback.md` |
+| CLI Serve 工作区自动注册与服务自省增强（VesselServerOptions.workspace、/api/health 增强与 USAGE 衔接） | 226 | **已完成（2026-10-18）**：PDW 契约多角色闭环（Codex 实现 + OpenCode 复核 pass）；工作区启动自动入库 ProjectRegistry + /api/health 增强 (webUi/workspace) + USAGE 更新 + 156 项定向测试 | `tasks/226-cli-serve-workspace-auto-registration-and-server-info.md` |
+| 基于 Open Claude UI (CDS) 的 Web UI 深度优化 (Web UI CDS Elevation & Physics) | 228 | **已完成（2026-10-19）**：OpenCode 完成 CDS 逆向规范拆解与对标调研 + 对抗性独立审查；Codex 独立沙箱编码实施 IME 守卫与单测、0.5px 发丝细边、精密圆角拓扑与双滚动羽化消隐遮罩；双 Root 3,414 passed | `tasks/228-vessel-web-ui-cds-elevation.md`、`evidence/sessions/2026-10-19-open-claude-ui-study.md`、`evidence/sessions/2026-10-19-opencode-review-228.md` |
+| 基于 CDS 的 Web UI 消息流与工具调用卡片质感升级 (Web UI Message Stream & Tool Cards) | 229 | **已完成（2026-10-19）**：OpenCode 审计与独立对抗审查；Codex 独立沙箱编码实施工具调用折叠卡片（CDS 3.5 规范、状态呼吸灯、时间与参数排版）、思考流强调线与平滑折叠、Markdown/气泡排版美化与动效时长令牌；14 个单测全绿；双 Root 3,428 passed | `tasks/229-vessel-web-ui-message-stream-and-tool-cards.md`、`evidence/sessions/2026-10-19-opencode-audit-229.md`、`evidence/sessions/2026-10-19-opencode-review-229.md` |
+| 基于 CDS 的侧边栏会话管理与任务输入器质感升级 (Web UI Sidebar & Task Composer) | 230 | **已完成（2026-10-19）**：OpenCode 审计与独立对抗审查；Codex 独立沙箱编码实施侧边栏打破线框牢笼、真实日期分组（今天/昨天/最近7天/更早）、active rail 发丝高亮与内联操作悬停浮现；输入器同心圆角（--r-composer: 20px）与三态投影、流线型胶囊选择器与发送按钮微回弹；6 个新单测全绿；双 Root 3,434 passed | `tasks/230-vessel-web-ui-sidebar-and-task-composer.md`、`evidence/sessions/2026-10-19-opencode-audit-230.md`、`evidence/sessions/2026-10-19-opencode-review-230.md` |
+| 基于 CC-Switch 理念的模型供应商中枢与快捷切换器全量重构 (Provider Hub & Quick Switcher) | 231 | **已完成（2026-10-19）**：OpenCode 审计与独立对抗审查；Codex 独立沙箱编码实施 70 款权威预设分类展台（国内直连/国际官方/聚合/本地/其他国际）、流线型模型胶囊多选器（Chips）、就地快捷秒切浮层菜单（ModelQuickSwitcher）与零配置新手引导卡片；18 个新单测全绿；Web 389 项单测全绿；Chromium E2E 5/5 全绿 | `tasks/231-provider-hub-and-cc-switch-reconstruction.md`、`evidence/sessions/2026-10-19-opencode-audit-231.md`、`evidence/sessions/2026-10-19-opencode-review-231.md`、`evidence/sessions/2026-10-19-agent-walkthrough-231/` |
+| 模型供应商全屏独立中枢、高级模型搜索筛选器与 CC-Switch 权威预设补齐 (Provider Hub Full-Surface & Advanced Model Picker) | 232 | **已完成（2026-10-19）**：彻底解决设置页仅有按钮弹窗的痛点，落地 Settings 全屏独立平铺大视图（ProviderHub）；重构 ModelChips 支持海量模型实时搜索、全选/全不选/反选与羽化遮罩；补齐飞书 Lark 预设（72 款预设齐备）；Web 单测 396 项全绿；Chromium E2E 4/4 全绿 | `tasks/232-provider-hub-full-surface-and-advanced-model-picker.md`、`evidence/sessions/2026-10-19-opencode-audit-232.md`、`evidence/sessions/2026-10-19-opencode-review-232.md`、`evidence/sessions/2026-10-19-agent-walkthrough-232/` |
+| 供应商能力继承与协商拦截修复 (Provider Capability Inheritance & Negotiation Repair) | 233 | **已完成（2026-10-19）**：协议感知能力推断 + 工具能力协商自愈；双 Root 3,461 passed | `tasks/233-provider-capability-inheritance-and-negotiation-repair.md` |
+| OpenUI 生成式排版体系融入与 Web 体验痛点全景整改 (OpenUI Generative UI & UX Polish) | 234 | **已完成（2026-10-19）**：凭据免输复用 + 回收站物理删除会话 + 深浅主题切换常驻 + 实体按钮交互教育 + GFM/OpenUI 生成式卡片；双 Root 3,445 passed | `tasks/234-openui-generative-ui-and-ux-polish-plan.md` |
+| Taste-Skill 全屏通栏 UI 重构 | 235 | **已完成（2026-10-20）**：独立审查出 5 项审美缺陷，彻底消除浮动孤岛弧形，重塑 Edge-to-Edge 全屏工整工作台；Web 404 测试全绿 | `tasks/235-taste-skill-full-surface-ui-refactoring.md`、`evidence/sessions/2026-10-20-taste-skill-audit-235.md` |
+
+## 未闭合 / 下一目标
+
+- **最近已交付（2026-10-19，本地验收通过）：任务 232 模型供应商全屏独立中枢、高级模型搜索筛选器与 CC-Switch 权威预设补齐 (Provider Hub Full-Surface & Advanced Model Picker)**：
+  - 交付内容：
+    1. `Settings 独立全屏大视图 (ProviderHub)`：彻底解决用户切到设置区域时只有“模型设置”四个字加孤零零按钮的糟糕体验；在 Settings 区域直接完整平铺展开专业、大气的模型中枢大厅，包含已配供应商状态卡片、CC-Switch 级权威预设展台与极简表单，告别二级弹窗断层；同时保留快捷弹窗唤起兼容性。
+    2. `高级模型筛选器与批量操作栏 (ModelChips)`：针对飞书 Lark、OpenRouter 等海量模型，新增实时模糊搜索框（支持清除/Esc）；新增全部/已选/未选分段过滤；新增「全选」、「全不选」、「反选」批量操作；展示「已选 X / 共 Y 个模型」计数徽章；配置 `max-height: 240px` 与上下发丝羽化消隐遮罩（Fade Mask），自适应承载数百候选模型。
+    3. `飞书 Lark 权威预设对齐`：在 `packages/application/src/providers/presets.data.ts` 与 `apps/web/src/components/providers/presetsData.ts` 中双向对齐加入飞书 Lark（火山方舟，默认 `doubao-1-5-pro-32k-250115`），展台收录权威预设达 72 款。
+  - 多角色协同与执行证明：
+    - `前期架构审计 (scan/audit)`：OpenCode（`deepseek/deepseek-v4.1-flash`）产出深度审计报告 `evidence/sessions/2026-10-19-opencode-audit-232.md`；
+    - `代码实施 (implement)`：Codex（`gpt-6.1-sol`，思考深度 `medium`）在独立沙箱中实施，消耗 220,344 tokens，日志位于 `evidence/sessions/2026-10-19-codex-task-232.log`；
+    - `独立对抗审查 (review)`：OpenCode（`deepseek/deepseek-v4.1-flash#max`）顶格审查产出 `evidence/sessions/2026-10-19-opencode-review-232.md`；
+    - `真实浏览器端到端走查 (walkthrough)`：Playwright 驱动 Chromium 走查 4/4 全绿，Console Errors = 0, Page Errors = 0，截图 4 张存盘于 `evidence/sessions/2026-10-19-agent-walkthrough-232/`。
+  - 门禁：`tsc -b` exit 0，`npm run typecheck:tests` exit 0，Web 生产打包 184ms exit 0，Web 单测 48 文件 / 396 passed (100%)，`packages/core` 严格 0 改动。
+  - 验收入口：`tasks/232-provider-hub-full-surface-and-advanced-model-picker.md`。
+
+- **前序已交付（2026-10-19，本地验收通过）：任务 231 基于 CC-Switch 理念的模型供应商中枢与快捷切换器全量重构 (Provider Hub & Quick Switcher)**：
+  - 交付内容：
+    1. `70 款权威预设分类展台 (Presets Gallery)`：彻底解决此前硬编码 4 个简陋预设的问题，完整引入并分类 70 款权威预设（国内直连：DeepSeek、Kimi Coding、豆包 Seed、通义千问、智谱 GLM、MiniMax 等；国际官方：Claude、OpenAI、Gemini、Grok、Mistral 等；聚合平台：SiliconFlow、OpenRouter、NewAPI 等；本地模型：Ollama、vLLM、LM Studio 等）；支持分类 Tab 与实时搜索过滤；点击卡片一键自动预填 Base URL、线协议与推荐模型，**用户仅需粘贴 API Key**。
+    2. `可视化模型胶囊标签多选器 (Model Chips)`：彻底废除逗号分隔的纯文本手敲输入框；支持一键探测 `/v1/models`，模型呈现为流线型交互式胶囊标签（Pills/Chips），支持点选启用/禁用、标记默认星标（★）、删除与回车自定义模型 ID。
+    3. `就地快捷秒切浮层菜单 (Model Quick Switcher)`：终结主界面与设置弹窗的割裂；在 `TaskComposer` 和会话顶部集成当前模型状态胶囊（显示供应商/模型与在线绿点）；点击直接弹出极简 Popover，按供应商分组展示模型、支持搜索、上下键键盘导航与一键秒切，热生效无跳转。
+    4. `零配置新手开箱向导卡片 (Zero-Config Guide)`：当没有配置任何模型时，工作台主区域直观展示 4 张快捷接入卡片（DeepSeek、Claude、OpenRouter、自定义），点击直接唤起弹窗并预选对应预设。
+  - 多角色协同与执行证明：
+    - `前期架构审计 (scan/audit)`：OpenCode（`deepseek/deepseek-v4.1-flash`）对组件架构进行深度审计，产出报告 `evidence/sessions/2026-10-19-opencode-audit-231.md`；
+    - `代码实施 (implement)`：Codex（`gpt-6.1-sol`，思考深度 `medium`）在独立隔离沙箱中实施，消耗 210,965 tokens，日志位于 `evidence/sessions/2026-10-19-codex-task-231.log`；
+    - `独立对抗审查 (review)`：OpenCode（`deepseek/deepseek-v4.1-flash#max`）顶格对抗审查产出 `evidence/sessions/2026-10-19-opencode-review-231.md`；
+    - `真实浏览器端到端走查 (walkthrough)`：Playwright 驱动 Chromium 走查 5/5 全绿，Console Errors = 0, Page Errors = 0，截图 6 张存盘于 `evidence/sessions/2026-10-19-agent-walkthrough-231/`。
+  - 门禁：`tsc -b` exit 0，`npm run typecheck:tests` exit 0，Web 生产打包 242ms exit 0，Web 单测 47 文件 / 389 passed (100%)，`packages/core` 与 `packages/runtime` 严格 0 改动。
+  - 验收入口：`tasks/231-provider-hub-and-cc-switch-reconstruction.md`。
+
+- **前序已交付（2026-10-19，本地验收通过）：任务 230 基于 Open Claude UI (CDS) 的侧边栏会话管理与任务输入器质感升级 (Web UI Sidebar & Task Composer)**：
+  - 交付内容：
+    1. `侧边栏打破线框牢笼与真实日期分段`：彻底清除 `.topic-group` 间生硬的横向切线，改用物理间距与悬停面板底色区分；修复日期分组展示，真实呈现「今天 (Today) / 昨天 (Yesterday) / 最近 7 天 (Previous 7 Days) / 更早 (Earlier)」规范日期分段（补充 `topicYesterday` 词条）。
+    2. `发丝高亮指示条与内联微动效操作栏`：当前选中的会话左侧挂载 2px 宽度的柔和指示轨（`border-radius: var(--r-pill); background: var(--accent);`），带有平滑伸展过渡；将原生粗糙的 `<details><summary>` 替换为悬停/聚焦时通过 `--dur-snap: 120ms` 平滑浮现的内联图标按钮（重命名/归档）。
+    3. `任务输入器 CDS 同心圆角容器与三态柔和投影`：重构 `TaskComposer.tsx`，输入区域升级为拥有 `--r-composer: 20px` 同心圆角 Surface 容器，挂载 Normal、Hover、Focus-within 三态柔和投影与发丝双环；原生 `<select>` 升级为流线型胶囊选择器（`capsule-select`）；发送按钮（Send Button）挂载 `:active { transform: scale(0.98); }` 微回弹；100% 完整保留 IME 中文拼音守卫与表单提交流程。
+    4. `变量清理与单测覆盖`：彻底清理 `--panel2` 与 `--row-line`；新增 `Sidebar.test.tsx` 涵盖日期分段边界、会话归档/过滤与最新活跃连续性等 6 个测试用例。
+  - 多角色协同与执行证明：
+    - `前期组件审计 (scan/audit)`：OpenCode（`deepseek/deepseek-v4.1-flash`）对组件架构进行逐行审计，产出报告 `evidence/sessions/2026-10-19-opencode-audit-230.md`；
+    - `代码实施 (implement)`：Codex（`gpt-6.1-sol`，思考深度 `medium`）在独立隔离沙箱中实施，消耗 215,636 tokens，日志位于 `evidence/sessions/2026-10-19-codex-task-230.log`；
+    - `独立对抗审查 (review)`：OpenCode（`deepseek/deepseek-v4.1-flash#max`）顶格审查产出 `evidence/sessions/2026-10-19-opencode-review-230.md`，结论 VERIFIED / 零阻断缺陷。
+  - 门禁：`tsc -b` exit 0，`npm run typecheck:tests` exit 0，Web 生产打包 200ms exit 0，Web 单测 43 文件 / 371 passed (100%)，双 Root 全量测试 **332 测试文件 / 3,434 passed | 6 skipped** 全绿，`packages/core` 0 改动。
+  - 验收入口：`tasks/230-vessel-web-ui-sidebar-and-task-composer.md`。
+
+- **前序已交付（2026-10-19，本地验收通过）：任务 229 基于 Open Claude UI (CDS) 的 Web UI 消息流与工具调用卡片质感升级 (Web UI Message Stream & Tool Cards)**：
+  - 交付内容：
+    1. `交互式工具调用决策卡片（CDS 3.5 规范）`：将单调文本行重构为折叠卡片/胶囊 `ToolActivityRow.tsx`，具备 `var(--panel-2)` 色阶垫底、发丝细边与 `--r-sm` 精密圆角；状态指示灯（`.tool-dot`）在运行态显式微呼吸脉冲（`pulse-glow`），成功呈现凝练翠绿，失败/拦截呈现柔红；参数摘要截断与双行省略；自动毫秒/秒格式化；补齐完善的 `role="group"` 与 `aria-label` 语义。
+    2. `思考流折叠卡片（Thinking Accordion）发丝强调线`：挂载左侧 `--think: #7c5ce0` 思考主题色发丝强调线与动态状态指示点（`thinking-dot`），支持平滑折叠展开微动画。
+    3. `消息流排版与 Markdown 渲染美化`：助手消息正文挂载 `text-wrap: pretty;` 消除孤字掉行；计数器、时间、Token 计量等动态数字启用 `font-variant-numeric: tabular-nums`，消除数字跳动重排。
+    4. `补齐 CDS 动效令牌与物理学缓动`：补充 `--dur-fast: 60ms` 到 `--dur-slow: 450ms` 5 阶时长令牌与 `--ease-swift`, `--ease-enter` 缓动曲线。
+  - 多角色协同与执行证明：
+    - `前期组件审计 (scan/audit)`：OpenCode（`deepseek/deepseek-v4.1-flash`）对既有组件架构进行逐行审计，产出报告 `evidence/sessions/2026-10-19-opencode-audit-229.md`；
+    - `代码实施 (implement)`：Codex（`gpt-6.1-sol`，思考深度 `medium`）在独立沙箱中实施，消耗 126,878 tokens，日志位于 `evidence/sessions/2026-10-19-codex-task-229.log`；
+    - `独立对抗审查 (review)`：OpenCode（`deepseek/deepseek-v4.1-flash#max`）顶格审查产出 `evidence/sessions/2026-10-19-opencode-review-229.md`，结论 VERIFIED / 零阻塞缺陷。
+  - 门禁：`tsc -b` exit 0，`npm run typecheck:tests` exit 0，Web 生产打包 289ms exit 0，Web 单测 42 文件 / 365 passed (100%)，双 Root 全量测试 **331 测试文件 / 3,428 passed | 6 skipped** 全绿，`packages/core` 0 改动。
+  - 验收入口：`tasks/229-vessel-web-ui-message-stream-and-tool-cards.md`。
+
+- **前序已交付（2026-10-19，本地验收通过）：任务 228 基于 Open Claude UI (CDS) 的 Web UI 深度优化 (Web UI CDS Elevation & Physics)**：
+  - 交付内容：
+    1. `IME 中文/日文输入法合成守卫`：`TaskComposer.tsx` 建立 `isComposingRef` + `nativeEvent.isComposing` + `keyCode === 229` 三重守卫，拦截拼音选词阶段按 Enter 误触提交，并新增独立单测 `TaskComposer.test.tsx`（6 个用例全绿）。
+    2. `视网膜高分屏发丝细边与表面色阶`：引入 `--ring-hairline: 1px`，在 `@2x/@3x` 高分屏自适应补偿为 `0.5px`，消除边框粗重感；补齐 4/6/8/10/20px 精密圆角矩阵（`--r-0` 到 `--r-composer`）；优化三层立体焦点环（`--focus-ring`）。
+    3. `原生滚动消隐非线性遮罩`：消息流容器（`ConversationView.tsx`）与检视器面板（`layout.css` `.inspector-content`）挂载 CSS `mask-image` 24px 上下羽化渐隐，消除生硬硬裁切感。
+    4. `交互时间常数与微反馈`：对齐 CDS 几何咬合物理常数（120ms 切换，70ms 触觉按压反馈 `:active { transform: scale(0.98); }`）。
+  - 多角色协同与执行证明：
+    - `调研走查 (scan/audit)`：OpenCode（`commandgota/deepseek/deepseek-v4.1-flash`）逆向研究 CDS（17.7 万字），产出 1.6 万字对标报告 `evidence/sessions/2026-10-19-open-claude-ui-study.md`；
+    - `代码实施 (implement)`：Codex（`gpt-6.1-sol`，思考深度 `medium`）在独立隔离沙箱推进，消耗 118,951 tokens，日志位于 `evidence/sessions/2026-10-19-codex-task-228.log`；
+    - `独立对抗审查 (review)`：OpenCode（`commandgota/deepseek/deepseek-v4.1-flash#max`）顶格审查产出 `evidence/sessions/2026-10-19-opencode-review-228.md`。
+  - 门禁：`tsc -b` exit 0，`npm run typecheck:tests` exit 0，Web 生产打包 321ms exit 0，Web 单测 41 文件 / 351 passed (100%)，全量测试 **330 测试文件 / 3,414 passed | 6 skipped** 全绿，`packages/core` 0 改动。
+  - 验收入口：`tasks/228-vessel-web-ui-cds-elevation.md`。
+
+- **前序已交付（2026-10-18，本地验收通过）：任务 227 Web UI 结构重塑与设计系统规范落地 (Web UI Structural Refinement & Design System)**：
+  - 交付内容：
+    1. `统一 1180px 抽屉断点`：消除 1024px–1180px 检视器在主流式内容下方错位堆叠的断点死区，在中窄屏下优雅回退为 Drawer Overlay（含遮罩与平滑过渡）。
+    2. `桌面侧栏折叠支持`：新增 `.sidebar-collapsed` 状态与 `.desktop-sidebar-toggle` 按钮，用户可一键收拢左侧 Session 列表，为聊天流释放充沛呼吸宽度。
+    3. `空白工作台（workbench-home）体验重塑`：终结单输入框孤岛感，新增常用启动胶囊 (`starter-pill`，点击自动草稿)、最近会话网格 (`home-session-grid`) 与工作区状态卡片 (`home-workspace`)。
+    4. `视觉减负与微交互落地`：消除多层嵌套线框牢笼（Border Prison），采用 `var(--panel-2)` 色阶区隔，全局按钮与 Tab 补齐 `:active { transform: scale(0.98); }` 按压微反馈与清晰的 `:focus-visible` 焦点环。
+  - 多角色协同与执行证明：
+    - `调研走查 (scan/audit)`：OpenCode（`commandgota/deepseek/deepseek-v4.1-flash`）深度研读 `impeccable`、`emil-design-eng`、`make-interfaces-feel-better` 等技能，产出 5000+ 字审查报告 `evidence/sessions/2026-10-18-ui-structural-audit.md`；
+    - `代码实施 (implement)`：Codex（`gpt-6.1-sol`，思考深度 `medium`）在独立隔离沙箱中推进，消耗 128,895 tokens，日志位于 `evidence/sessions/2026-10-18-codex-task-227.log`；
+    - `独立对抗审查 (review)`：OpenCode（`commandgota/deepseek/deepseek-v4.1-flash#max`）顶格审查产出 `evidence/sessions/2026-10-18-opencode-review-227.md`。
+  - 门禁：`tsc -b` exit 0，`npm run typecheck:tests` exit 0，Web 生产打包 257ms exit 0，Web 单测 40 文件 / 345 passed (100%)，双 Root 全量测试 **329 测试文件 / 3,408 passed | 6 skipped** 全绿，`packages/core` 0 改动。
+  - 验收入口：`tasks/227-web-ui-structural-refinement-and-design-system.md`。
+
+- **前序已交付（2026-10-18，本地验收通过）：任务 226 CLI Serve 工作区自动注册与服务自省增强（VesselServerOptions.workspace、/api/health 增强与 USAGE 衔接）**：
+  - 交付内容：
+    1. `VesselServerOptions.workspace`：`createVesselServer` 增加可选工作区路径参数，启动时以最佳努力调用 `projectRegistry.open(workspace)` 自动入库，消除 Web UI 启动后项目下拉列表为空的断点。
+    2. `startServe` 传参贯通：`apps/cli/src/cli.ts` 将已解析的工作区绝对路径传递给 `createVesselServer({ workspace, ... })`，`vessel serve` 与 `vessel web` 默认以当前目录自动注册进索引。
+    3. `GET /api/health` 扩充：响应新增 `webUi: boolean`（指示是否由 `apps/web/dist` 提供生产 Web 界面）与 `workspace?: string`，保持原有 `{ ok: true, version: string }` 完全兼容。
+    4. `USAGE` 文案同步：更新 CLI 帮助中 `vessel serve` 与 `vessel web` 命令，标明可选的 `[--workspace <dir>]` 参数及工作区默认行为。
+  - PDW 流程与多角色分工：
+    - `scan` / `test-plan`：OpenCode（`commandgota/deepseek/deepseek-v4.1-flash`）定位实现与制定测试矩阵；
+    - `implement`：Codex（`gpt-6.1-sol`，思考深度 `medium`）独立在隔离沙箱中编写实现与单测；
+    - `review`：OpenCode（`commandgota/deepseek/deepseek-v4.1-flash#max`）顶格思考独立复核通过（verdict: pass）。
+  - 门禁：`tsc -b` exit 0，`npm run typecheck:tests` exit 0，定向单测 `server.test.ts` (49/49) + `cli.test.ts` (107/107) 全绿，`apps/local-server` 全包 189 passed，Web 打包 exit 0 (930ms)，全量 `npm run test:all` 双 Root **329 文件 / 3,403 passed | 6 skipped** 全绿，`packages/core` 0 改动。
+  - 验收入口：`tasks/226-cli-serve-workspace-auto-registration-and-server-info.md`，PDW 产物 `.pdw/tasks/20261018102744-05f80d/`。
+
+- **前序已交付（2026-10-18，本地验收通过）：任务 225 Local Server 静态托管与 Web UI 生产直连（SPA 路由回退与 dist 优先探测）**：
+  - 交付内容：
+    1. `resolveStaticDir`：优先探测 `apps/web/dist`（含 `index.html`），缺失/无效时回退 `apps/local-server/public`；保持显式 `staticDir` 优先级最高。
+    2. `serveStatic` SPA 路由回退：非 `/api/` 且无文件扩展名的页面导航 GET 请求（或 Accept 含 text/html）在无物理文件时回退返回 `index.html`（200 text/html），扩展名资源精确 404，无 index.html 优雅回落 404（非 500）。
+    3. 路径穿越防护：在 WHATWG URL 规范化前直接解码 rawPath 检查 `..`，硬拦截 403 `{ error: "forbidden" }`。
+    4. 单元与集成测试：`apps/local-server/src/server.test.ts` 新增 19 项覆盖，全文件 43 项测试全部通过。
+  - PDW 流程与多角色分工：
+    - `scan` / `test-plan`：OpenCode（`commandgota/deepseek/deepseek-v4.1-flash`）定位实现与建立测试矩阵；
+    - `implement`：Codex（`gpt-6.1-sol`，思考深度 `medium`）独立在沙箱会话中编写实现与单测；
+    - `review`：OpenCode（`commandgota/deepseek/deepseek-v4.1-flash#max`）顶格思考独立审查通过（verdict: pass）。
+  - 门禁：`npx vitest run apps/local-server/src/server.test.ts` 43/43 exit 0，`tsc -b` exit 0，`npm run typecheck:tests` exit 0，`npm run test:all` 双 Root 3,396 passed / 6 skipped 全绿，`apps/web` `vite build` 1.04s exit 0，`packages/core` 0 改动。
+  - 验收入口：`tasks/225-local-server-web-ui-hosting-and-spa-fallback.md`，PDW 证据产物 `.pdw/tasks/20261018084924-70fefd/`。
+
+- **前序已交付（2026-10-16，未提交）：任务 224 PDW 工作流适配至 1.3.1-local**：
+  - 生效版本 **1.3.1-local**（`.agents/skills/personal-dev-workflow/` 完整目录 + 根 `pdw.ps1` + `.pdw/config.json`）；
+    `doctor` exit 0（OC / Codex / AGY 三后端实测可用，模型全部显式）；包 7 文件哈希与清单逐项一致；`install` 防覆盖保护未被绕过。
+  - 旧状态零改动：`.agent-state/run-state.json`（rev 253）、`RUN_STATE.md`、`tasks/` 与旧预算**不**冒充新版 `.pdw/tasks`，
+    整理为 `evidence/pdw-migration-1.3.1/LEGACY-STATE.md`（含「无自动转换」与续接方式）；迁移时无活动协调者/Worker。
+  - 验证：隔离安装 + 原规则保留；夹具套件隔离 20/20（仓库内 5 项失败已定位为 `.pdw/` 被 gitignore 的夹具环境限制，附对照实验）；
+    `.gitignore` 旧规则经 `git check-ignore -v` 全数复核未变。
+  - 未验证：真实模型调用（`demo`/`run`）与全量门禁未跑（改动不在其图内）；模型口径冲突（AGENTS=GPT-6.1 Sol/medium vs HANDOFF=OC+DeepSeek/ high）留给用户拍板。
+  - 证据：`evidence/pdw-migration-1.3.1/`（`MIGRATION.md`、`LEGACY-STATE.md`、`backup/`、`validation/`、`REVIEW.md`）；纯本地未提交/未推送。
+
+- **已交付闭环（2026-10-19）：任务 234 OpenUI 生成式排版体系融入与 Web 体验痛点全景整改**：
+  - 核心痛点与交付内容：
+    1. 凭据复用：`providerRoutes.ts` 与 `ProviderSettingsModal.tsx` 支持在测试连接与拉取模型时安全复用已有存储凭据，免除重复输入 API Key；
+    2. 会话删除：`DELETE /api/sessions/:id` 端点接入 Windows 回收站安全删除，侧边栏新增实体垃圾桶按钮与行内防误触二次确认；
+    3. 主题切换：三态 Theme 管理器（`getStoredTheme`/`applyTheme`/`toggleTheme`），在 Rail 底部常驻实体 ThemeToggle 按钮并解绑媒体查询硬限制，localStorage 持久化；
+    4. 按钮实体化：重构 `.btn`、`.topic-action` 等交互元素，赋予明确微边框、底色填充、按压动效与 Tooltip 交互教育，消除纯文本伪按钮；
+    5. OpenUI 与富排版：新增 `ConversationRenderer`（轻量 GFM 解析器，支持标题、列表、表格、任务复选框、一键复制代码块）并支持 OpenUI Generative UI 规范卡片。
+  - 门禁：`tsc -b`、`typecheck:tests`、Web build 均 exit 0，双 Root 全量测试 **3445 passed / 6 skipped**（根 3041，Web 404），`packages/core` 严格 0 行变更。
+  - 任务书：`tasks/234-openui-generative-ui-and-ux-polish-plan.md`。
+
+- **已交付闭环（2026-10-19）：任务 233 供应商能力继承与协商拦截修复 (Provider Capability Inheritance & Negotiation Repair)**：
+  - 交付对象：修复使用标准三方 OpenAI-compatible / Anthropic 供应商（如 Command GOTA、DeepSeek 等）时，因端点未返回 tools 导致模型能力降级为 `tools=unknown` 并触发 Turn 运行时硬拦截（`CapabilityMismatchError: required tools=true, available unknown`）的问题。
+  - 核心改动：
+    1. `packages/llm/src/capabilities.ts`: `discoverProviderCapabilities(metadata, protocol?: string)` 协议感知能力发现；
+    2. `apps/local-server/src/routes/providerRoutes.ts`: 在端点测试与输入归一化中传递供应商线协议；
+    3. `apps/local-server/src/providers/ProviderStore.ts`: `healModelCapabilities` 自动自愈持久化配置。
+  - 门禁：`tsc -b`、`typecheck:tests`、Web build、`test:all` 全通过，双 Root **3461 passed / 6 skipped**（根 3065，Web 396），`packages/core` 严格 0 行变更。
+  - 任务书：`tasks/233-provider-capability-inheritance-and-negotiation-repair.md`。
+
+- **已落地 + 走查闭合（2026-10-15/16）：任务 223 Web UI 视觉重塑 —— 按 IMPLEMENTATION-PLAN 的 P1–P8 实施到 `apps/web`**：
+  - 视觉 = **玻璃（Glass）**；骨架 = **四栏工作台/审阅台**（58 图标轨 + 232 会话栏 + 中央过程流 + 300 审阅栏）。
+  - 落地内容：P1 `.tokens` 玻璃令牌（旧名别名）；P2 玻璃外壳（rail/顶栏毛玻璃、面板浮动）；
+    P3 `Rail.tsx` 图标轨 + `58px 232px 1fr` 网格 + 300px 审阅栏（真实 8 Tab 检视器，≤1023px 模态）；
+    P4 `PlanChecklist.tsx` 常驻计划清单（`计划 · n/m`，数据源真实 Goal 队列）；
+    P5 `ComposerMeters.tsx` 四胶囊（项目/模型/审批档位/模式，含 B1 解析+锁定）+ 常驻计量；
+    P6 `utils/timeFormat.ts`（`HH:mm`/`MM-DD`）+ 硬编码色清零 + 空/加载/错误态 + Studio 去边。
+  - 功能回归：`docs/design-prototypes/FEATURE-COVERAGE.md` 的 **B1–B18 逐条有可达入口**，C 项四模块保持 `t('unimplemented')` 占位语义。
+  - **真实浏览器走查（`browser-skill` / 独立 Agent Window）**：修复 5 处缺陷，含阻断级一处 —— Vite 8 代理默认
+    `changeOrigin: true` 改写 Host，使后端 `trustedOrigin` 判为跨域、拦掉所有带 Origin 的写请求 → `vite.config.ts` 改 `changeOrigin: false`。
+    另核实：`vessel serve` / `vessel web` 只给着陆页，查看 Web UI 的实际入口是 Vite dev（须 `--host 127.0.0.1`）。
+  - 门禁：`npx tsc -b` / `npm run typecheck:tests` / `npm run -w @vessel/web build -- --emptyOutDir false` / `npm run test:all`
+    （根 289 文件 3037 passed + 6 skipped，web 40 文件 340 passed）全 exit 0；`packages/core` 零改动。
+  - 证据：`evidence/sessions/2026-10-15-ui-landing/`（门禁日志 `PROOF.md`、截图矩阵 64 张 + 画廊 `gallery.html`、
+    走查 `bsk-functional/FINDINGS.md` + 12 张截图）。
+  - 纯本地：未 commit / 未 push / 无永久删除。
+
+- **两份整改实施规范（VESSEL-ARCH-2026-01 / VESSEL-UI-2026-01）已随任务 217–222 全量落地**：ARC-01..11 与 UI-001..017 的剩余 P2/P3 项在本轮收官。
+- **最近已交付（已合入本地提交 `c7cb0ca`，2026-10-14）：任务 222 [Epic] 架构与UI优化方案全量收官**：
+  - 验收入口：`tasks/222-subagent-team-task-tree-and-instance-spec.md`；证据与限制：`evidence/sessions/2026-10-14-card222/PROOF.md`（含对抗评审 `REVIEW.md`）。
+  - 交付：ARC-10 `AgentInstanceSpec` / `TaskLease` / `TaskTreeNode` 契约与 `TaskTreeScheduler`（依赖 DAG、租约超时、父子取消级联、结果归并、权限单调收窄）、`/api/tasks/tree` 与 Web 团队任务树；ARC-11 故障注入四断点套件（`EffectJournal` 防重放不可逆副作用）、Behavior Golden Conformance（L0→L4 稳定性与 fail-to-compile）、Compaction 100% 守恒；UI-013 跨项目活动与集中审批队列、UI-015 交互式 Agent Studio Composer、UI-017 结构化脱敏 Trace。全部中英双语 + 800px 响应式。
+  - 门禁：`tsc -b` / `typecheck:tests` / Web build（`-- --emptyOutDir false`）/ `test:all` 顺序 exit 0；双 Root **3,356 passed / 6 skipped** 全绿；`packages/core` 行修改 **0**；离线 Chromium + CDP 实拍 8 张（中/英 × 桌面/800px）与 `browser-capture-meta.json`。
+- **前序已交付（已合入本地提交 `bd4a0b8`）：任务 221 Behavior 语义 IR、五级兼容性等级与 Agent Studio L0-L4 检查器**：
+  - 验收入口：`tasks/221-behavior-semantic-ir-and-agent-studio-inspector.md`；证据与限制：`evidence/sessions/2026-10-13-card221/PROOF.md`。
+  - 交付：ARC-07 语义 IR 与五级兼容阶梯、L0→L4 生效快照与编译溯源、`/api/behavior/inspect`、Web Agent Studio 只读检查器（中英双语 + 800px 响应式）；`packages/core` 0 变动。
+  - 攻坚收口：`HybridMemoryStore` 内存向量索引（热中位 18–24ms → 6.288ms）消除 `hybridSearch` 门禁的环境性红；三个绝对毫秒门禁统一为「预热 + 仅计时超线的有界重测」（阈值/统计量/断言未改）；离线 Chromium + CDP 实拍 6 张截图。
+  - 门禁：`tsc -b`、`typecheck:tests`、Web build、`test:all` 全部 exit 0；根 282 文件 / 2,988 passed + 6 skipped，web 36 文件 / 308 passed，合计 3,296 passed / 6 skipped。
+- **前序已交付（已合入本地提交 `030fc0f`）：任务 220 Provider 能力协商契约与 Context 分层版本化缓存落地**：
+  - 验收入口：`tasks/220-provider-capability-contract-and-layered-cache.md`；证据与限制：`evidence/sessions/2026-10-13-card220/PROOF.md`。双 Root 3,271 passed / 6 skipped 全绿，Thin Core 0 变动。
+- **前序已交付（已合入本地提交 `1276d39`）：任务 219 全量功能端到端交互与真实点击测试套件**：
+  - 验收入口：`tasks/219-full-surface-interactive-click-testing-suite.md`；证据与限制：`evidence/sessions/2026-10-13-card219/PROOF.md`。standard 闭环，交证即停。
+- **最近已交付（已合入本地提交 `26ba6fe`）：任务 218 Web UI/UX 工作台整改规范落地**：
+  - 交付内容：四大一级导航重构、就地任务启动流、分组命令面板、800px 自适应抽屉、12 张中英双语 Retina 截图全部刷新；
+- **前序已交付（已合入本地提交 `6442171`）：任务 217 架构整改落地 ARC-01..05**：
+  - 交付内容：SessionProjection 契约、Compaction 守恒断言、Fail-to-compile 策略门禁、Run 预算熔断、ExecutionPermit 凭证与副作用审计；
+- **最近已交付（已合入本地提交 `520492d`）：任务 216 项目整体逻辑架构可视化与文档包清单漂移修复**：
+  - 交付对象：OpenCode 搭载 DeepSeek-v4.1-Flash；
+  - 交付内容：archify 产出的 5 类分层可交互图（`docs/diagrams/`，四门全绿、SRC 证据钉 `9c764b8`）+ `docs/ARCHITECTURE.md` §6.1 等文档包清单漂移（13→14，补 `engine`/`application`）修复；
+  - 门禁：`tsc -b` exit 0、双 Root **2873 passed / 6 skipped**（Web 282）、telemetry 文档锚点守卫 43 passed；
+  - 证据：`tasks/216-archify-architecture-visualization-and-doc-drift-repair.md`、`docs/diagrams/README.md`。
+- **最近已交付（待维护者验收）：任务 215 模型端点自动拉取、灵活配置 Schema 兼容与供应商管理自愈**：
+  - 交付对象：OpenCode 搭载 DeepSeek-v4.1-Flash；
+  - 交付内容：
+    1. `normalizeProviderInput` 归一化兼容器（字典型 `models` / `options` 嵌套 / `npm` 协议声明）；
+    2. 新增 `POST /api/providers/pull-models` 端点与 Web「拉取模型」按钮，真实探测 `/v1/models` 并回填；
+    3. 供应商删除自愈（清理 `secretRef` 凭据）+ 后端**具体错误码透传**（不再一律 `provider_request_failed`）+ 前端按码本地化展示；
+    4. 术语规范化：`OpenAI 兼容 (OpenAI Compatible)` / `Anthropic (Claude)` / `API Key`；
+    5. 损坏/非法条目归类为 `provider_store_corrupted`（可操作但仍不泄露路径或密钥）；
+  - 门禁：定向测试 **27**（后端）+ **35**（前端含 i18n）全绿、双 Root **3155 passed / 6 skipped**、`tsc -b` / `typecheck:tests` / web typecheck / web build 全 exit 0、`packages/core` 0 变动；
+  - 证据：`evidence/sessions/2026-10-11-card215/PROOF.md`；任务书：`tasks/215-provider-hub-model-pull-and-schema-repair.md`。
+- **最近已验收路线：V2.6 全域纯正国际化与可视化多模型接入中枢 (Epic 214)**：
+  - 任务 210–214：全域纯正 i18n 字典、后端 ProviderStore 集成与安全 API、前端可视化设置弹窗与会话真实模型动态切换。双 Root 3,146 passed / 6 skipped 全绿。证据 `evidence/sessions/2026-10-11-v2.6/PROOF.md`。
+- **最近已验收路线：V2.5 画布级交互协同与极客工作台 (Epic 209)**：
+  - 任务 205–209：画布单 Hunk 补丁选择器、流式思考折叠与规则标注、全局命令面板 Ctrl+K、桌面注意力通知与音频合成提示。双 Root 3,083 passed / 6 skipped 全绿。
+- **最近已合入里程碑：V2.4 混合 Chat-Canvas 交互工作台与双端视觉中枢 (Epic 204，commit `dd8e72c`)**：
+  - 任务 200–204：Chat 内嵌组件 IR 与双向 SSE/HTTP 端点、React 就地微组件群、四 Tab 常驻 Docked Inspector、CLI 终端动态 StatusLine 与彩色折叠 Diff。双 Root 3,009 passed / 6 skipped 全绿。
+- **前序已合入里程碑：V2.2 (Epic 195) 与 V2.3 (Epic 199) 已全量验收合入主干（commit `3e6a56f`）**：
+  - 任务 192–195：洋葱式 Mod 中间件流水线、Worker 线程沙箱（防御 CVE-2026-82533）、清单审计与 `vessel mod/doctor`；
+  - 任务 196–199：真实 Red→Green 缺陷复现硬门禁、增量 AST 符号依赖图、自适应上下文剪枝（82.56% 压缩率）。
+  - 任务 188：确定性序列化、三段式前缀与 turn===0 压缩守卫；
+  - 任务 189：多供应商真实缓存计费命中率与击穿告警；
+  - 任务 190：工作区状态指纹与无进展死循环主动熔断器。
+- **前序已合入里程碑**：
+  - **V2.0 阶段完整收官（已独立核验 PASS，见 `docs/REVIEW-REPORT-V2.0.md`）**：
+    - **Web 拓扑看板与沙箱审计（任务 185）**：SVG 拓扑连接图、波形指标、CognitiveRules 看板与 Talking 抽屉原生沙箱安全等级徽章（commit 本轮合入）；
+    - **Swarm 集群控制面、自检诊断与认知自愈飞轮（Epic 187，含 184 + 186）**：CLI `vessel mesh` / `vessel memory` / `vessel doctor` 自检引擎，与会话后自主反思提炼引擎（commit `20f1f1f`）；
+    - **跨实例异构 Swarm 网格与分布式事件总线（任务 182）**：commit `b6c05b2`；
+    - **原生级安全沙箱与认知记忆体系（Epic 183）**：commit `7ecd828`。
+
+- **前序收官里程碑**：**V1.3 已收官**（Epic 卡 167，2026-09-25 合入，见 `CHANGELOG.md` 的 `[Unreleased]` 段与 `docs/V1.3-PROGRESS.md`）。
+  - 入站 MCP 子代理服务器（163）、虚拟人类代理与交互拦截（164）、出站异构子代理运行时与 Worktree 隔离（165）、跨 Agent 全量保全度双盲评测套件（166）均已通过全量门禁并合入。
+- **已完成里程碑（V1.2 / 开放生态与极致透视，Epic 卡 162 已全量合入）**：
+  - 动态模型探测、Reasoning 思考流、Claude 插件生态兼容、Topic 实体架构、Web 树状侧边栏与 Talking 详情抽屉全部通过验收并合入。
+- **环境补齐项（非阻塞）**：opencode-go 余额 → 重跑 real-model lane；Packaging gate 需 dist。
+  见 `docs/V1.1-ROADMAP.md` §5。
+
+- **Cross-Harness Conformance**：驱动与入口已交付，离线 `--all` **25/25 exit 0**。
+  **`--live` 真实基线未做且不再自动尝试**：事实登记在 `tasks/149`。未经用户逐次显式同意，不得运行 `--live`。
+- **发布准备**：**已按决策点 21 作废**（2026-09-28 追注）——本仓不再发布版本（不建 GitHub Release、不向 npm 发布新版本），`tasks/152` 的 release notes 与 1.0 门槛核对保留为**历史记录**，不再作为待办。
+- **外部阻塞（登记不空等）**：154 `release-report` 刷新；155 3h 墙钟 soak；156 1.0 门槛最终核验（停在 tag 前）。

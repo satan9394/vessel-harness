@@ -1,0 +1,110 @@
+{
+  "generated": "2026-10-16",
+  "note": "Exit-code ledger for the PDW 1.3.1-local migration validation. Every row was executed in this session; the artifact path holds the raw output. 'expected' documents why a non-zero code can still be a PASS.",
+  "rows": [
+    {
+      "id": "package-hash",
+      "command": "node verify-pdw-hash.js <zip-extract> <manifest.json>  (+ certutil -hashfile <zip> SHA256)",
+      "exit_code": 0,
+      "artifact": "validation/package-hash.json",
+      "result": "PASS (7/7 file hashes match; ZIP sha256 = 042423fbb60a70ce437861ae2c4b81e76e21e5867dcd99cc5abeeacefdf443c5)",
+      "expected": "0"
+    },
+    {
+      "id": "install-project",
+      "command": "node <extract>/scripts/pdw.mjs install --project E:\\Code_file\\Projects\\Vessel_Harness",
+      "exit_code": 0,
+      "artifact": "validation/install.txt",
+      "result": "installed skill + pdw.ps1 + AGENTS entry + .pdw init",
+      "expected": "0"
+    },
+    {
+      "id": "skill-integrity",
+      "command": "node skill-check.js <installed skill dir>",
+      "exit_code": 0,
+      "artifact": "validation/skill-integrity.json",
+      "result": "PASS (frontmatter=name+description; version 1.3.1-local; all local links resolve; expected files present)",
+      "expected": "0"
+    },
+    {
+      "id": "help",
+      "command": ".\\pdw.ps1 help",
+      "exit_code": 0,
+      "artifact": "validation/help.txt",
+      "result": "command list printed",
+      "expected": "0"
+    },
+    {
+      "id": "doctor",
+      "command": ".\\pdw.ps1 doctor",
+      "exit_code": 0,
+      "artifact": "validation/doctor.json",
+      "result": "5/5 roles available + model_explicit (opencode v2.0.30 / codex-cli 0.163.0-alpha.10.2 / agy 1.3.5)",
+      "expected": "0"
+    },
+    {
+      "id": "install-isolated-first",
+      "command": "node <extract>/scripts/pdw.mjs install --project <temp isolated dir>",
+      "exit_code": 0,
+      "artifact": "validation/iso-install-1.txt",
+      "result": "installed into isolated dir",
+      "expected": "0"
+    },
+    {
+      "id": "install-isolated-second",
+      "command": "node <extract>/scripts/pdw.mjs install --project <same isolated dir>",
+      "exit_code": 1,
+      "artifact": "validation/iso-install-2.txt",
+      "result": "refused: 'Target skill already exists; inspect its version before replacing it'",
+      "expected": "1 (overwrite protection must hold)"
+    },
+    {
+      "id": "install-isolated-help",
+      "command": "node <isolated>/.agents/skills/personal-dev-workflow/scripts/pdw.mjs help",
+      "exit_code": 0,
+      "artifact": "validation/iso-help.txt",
+      "result": "installed copy runs",
+      "expected": "0"
+    },
+    {
+      "id": "install-isolated-assertions",
+      "command": "assertions over the isolated project (AGENTS sentinel preserved, pdw-entry added, .gitignore .pdw/, skill/launcher/config present)",
+      "exit_code": 0,
+      "artifact": "validation/install-isolated.json",
+      "result": "PASS (all true; duplicate_install_refused=true)",
+      "expected": "0"
+    },
+    {
+      "id": "selftest-isolated-run1",
+      "command": "node <extract>/scripts/pdw.test.mjs   (project root = C:\\Users\\...\\AppData\\Local\\Temp, non-git)",
+      "exit_code": 1,
+      "artifact": "validation/pdw-selftest-isolated-run1.txt",
+      "result": "19 passed / 1 failed - the single failure was a transient Windows EPERM on renaming state.json.tmp (file lock), unrelated to orchestration logic",
+      "expected": "0 (re-run confirmed 20/20)"
+    },
+    {
+      "id": "selftest-isolated-run2",
+      "command": "node <extract>/scripts/pdw.test.mjs   (same non-git root)",
+      "exit_code": 0,
+      "artifact": "validation/pdw-selftest-isolated.txt",
+      "result": "20 passed / 0 failed",
+      "expected": "0"
+    },
+    {
+      "id": "selftest-in-project",
+      "command": "node .agents/skills/personal-dev-workflow/scripts/pdw.test.mjs   (this repo, a git project where .pdw/ is gitignored)",
+      "exit_code": 1,
+      "artifact": "validation/pdw-selftest-inproject.txt",
+      "result": "15 passed / 5 failed - all 5 are fingerprint-dependent assertions that cannot fire because fixtures live under the gitignored .pdw/ (empty snapshot). Fixture-harness environment limitation; documented with a control experiment in validation/gitignore-check.txt",
+      "expected": "1 is accepted only with the documented root cause; the same suite passes 20/20 outside a git project"
+    },
+    {
+      "id": "gitignore-semantics",
+      "command": "git check-ignore -v <paths>; diff backup/gitignore.pre-migration .gitignore",
+      "exit_code": 0,
+      "artifact": "validation/gitignore-check.txt",
+      "result": "only addition is .pdw/ (line 61); every pre-existing rule still in effect",
+      "expected": "0"
+    }
+  ]
+}

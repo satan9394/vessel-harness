@@ -54,6 +54,21 @@ describe('Inspector layout and state controller', () => {
     const html = renderToStaticMarkup(<DualSurfaceLayout sessionId="s">Timeline</DualSurfaceLayout>);
     expect(html).toContain('role="dialog"'); expect(html).toContain('aria-modal="true"'); expect(html).toContain('inert=""'); expect(html).toContain('inspector-backdrop');
   });
+  it.each([1024, 1100, 1180, 1181, 1440])('keeps modal semantics aligned with docking at %ipx', width => {
+    browser('cache');
+    window.matchMedia = vi.fn(query => ({ matches: width <= Number(query.match(/max-width: (\d+)px/)?.[1]) }) as MediaQueryList);
+    const html = renderToStaticMarkup(<DualSurfaceLayout sessionId="s">Timeline</DualSurfaceLayout>);
+    if (width <= 1180) {
+      expect(html).toContain('role="dialog"');
+      expect(html).toContain('aria-modal="true"');
+      expect(html).toContain('inspector-backdrop');
+      expect(html).toContain('inert=""');
+    } else {
+      expect(html).toContain('role="complementary"');
+      expect(html).not.toContain('inspector-backdrop');
+      expect(html).not.toContain('inert=""');
+    }
+  });
   it('recognizes platform shortcuts, ignores editable controls and unrelated modifiers', () => {
     const key = { key: 'i', ctrlKey: true, metaKey: false, altKey: false, shiftKey: false };
     expect(isInspectorShortcut(key, false)).toBe(true); expect(isInspectorShortcut({ ...key, ctrlKey: false, metaKey: true }, false)).toBe(true);

@@ -1,0 +1,3 @@
+packages/core diff: 0 lines
+Task source files: Sidebar.tsx, TaskComposer.tsx, Sidebar.test.tsx, i18n.ts, styles.css, dashboard.css
+All implementation and evidence files are under apps/web/.

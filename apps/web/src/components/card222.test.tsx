@@ -86,7 +86,7 @@ describe('card 222 workbench helpers', () => {
     expect(staged.map((entry) => entry.id)).toEqual(['protect', 'style']);
     const moved = reorderPriority(staged, 1, -1);
     expect(moved.map((entry) => entry.id)).toEqual(['style', 'protect']);
-    expect(moved[0]!.priority).toBeGreaterThan(moved[1]!.priority);
+    expect(moved[0]!.priority!).toBeGreaterThan(moved[1]!.priority!);
     expect(reorderPriority(staged, 0, -1).map((entry) => entry.id)).toEqual(['protect', 'style']);
   });
 

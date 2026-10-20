@@ -1,0 +1,554 @@
+<!DOCTYPE html>
+<html lang="zh-CN" style="color-scheme: light dark" data-theme="light" data-lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Vessel 原型 · 方向一「克制精密」</title>
+<style>
+/*
+  Vessel Web 原型 —— 方向一：克制精密开发者工具风
+  tokens 全部走 CSS 变量；浅色为默认，深色跟随系统（本页评审栏可强制覆盖）。
+  参考基调：Linear / Vercel / Raycast —— 弱边框、强层级、留白分区、克制动效。
+*/
+
+/* ---------- tokens: light ---------- */
+:root{
+  --bg:#ffffff; --surface:#fafafb; --surface-2:#f3f4f7; --panel:#ffffff; --rail:#f7f8fa;
+  --line:rgba(16,18,24,.08); --line-strong:rgba(16,18,24,.14); --line-focus:rgba(79,91,213,.45);
+  --text:#101319; --text-2:#4a5160; --text-3:#7a8296;
+  --accent:#4f5bd5; --accent-ink:#ffffff; --accent-soft:rgba(79,91,213,.10);
+  --ok:#1f8a5b; --warn:#9a6b00; --danger:#c0392b; --info:#4f5bd5;
+  --ok-soft:rgba(31,138,91,.10); --warn-soft:rgba(154,107,0,.12); --danger-soft:rgba(192,57,43,.10); --info-soft:rgba(79,91,213,.10);
+  --shadow-1:0 1px 2px rgba(16,18,24,.06),0 1px 1px rgba(16,18,24,.04);
+  --shadow-2:0 10px 30px rgba(16,18,24,.10),0 2px 8px rgba(16,18,24,.06);
+  --code-bg:#f3f4f7; --sel:rgba(79,91,213,.14);
+}
+/* ---------- tokens: dark ---------- */
+:root[data-theme="dark"]{
+  --bg:#08090c; --surface:#0e1015; --surface-2:#141822; --panel:#0e1015; --rail:#0b0d12;
+  --line:rgba(255,255,255,.07); --line-strong:rgba(255,255,255,.13); --line-focus:rgba(124,140,255,.55);
+  --text:#e7eaf0; --text-2:#a2aab9; --text-3:#6e778a;
+  --accent:#7c8cff; --accent-ink:#0a0b10; --accent-soft:rgba(124,140,255,.14);
+  --ok:#3dd68c; --warn:#e0b341; --danger:#ff6b6b; --info:#7c8cff;
+  --ok-soft:rgba(61,214,140,.13); --warn-soft:rgba(224,179,65,.14); --danger-soft:rgba(255,107,107,.13); --info-soft:rgba(124,140,255,.14);
+  --shadow-1:0 1px 2px rgba(0,0,0,.5);
+  --shadow-2:0 16px 40px rgba(0,0,0,.6),0 2px 8px rgba(0,0,0,.4);
+  --code-bg:#141822; --sel:rgba(124,140,255,.22);
+}
+
+/* ---------- scale ---------- */
+:root{
+  --s1:4px; --s2:8px; --s3:12px; --s4:16px; --s5:24px; --s6:32px; --s7:48px; --s8:64px;
+  --r1:6px; --r2:10px; --r3:14px; --r-pill:999px;
+  --fs-11:11px; --fs-12:12px; --fs-13:13px; --fs-14:14px; --fs-16:16px; --fs-20:20px; --fs-26:26px;
+  --sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Inter,Roboto,"Helvetica Neue","PingFang SC","Microsoft YaHei",sans-serif;
+  --mono:ui-monospace,SFMono-Regular,"JetBrains Mono","Cascadia Code",Consolas,monospace;
+  --ease:cubic-bezier(.4,0,.2,1); --dur:150ms;
+}
+
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{
+  background:var(--bg); color:var(--text); font-family:var(--sans);
+  font-size:var(--fs-13); line-height:1.55; -webkit-font-smoothing:antialiased;
+  font-variant-numeric:tabular-nums;
+}
+::selection{background:var(--sel)}
+
+/* ---------- review bar (评审工具，不属于产品 UI) ---------- */
+.reviewbar{
+  position:sticky; top:0; z-index:99; display:flex; gap:var(--s4); align-items:center; flex-wrap:wrap;
+  padding:10px var(--s5); background:var(--surface-2); border-bottom:1px dashed var(--line-strong);
+  font-size:var(--fs-12); color:var(--text-2);
+}
+.reviewbar b{color:var(--text); font-weight:600}
+.reviewbar .grp{display:flex; align-items:center; gap:6px}
+.reviewbar .grp>span{color:var(--text-3)}
+.rbtn{
+  padding:4px 10px; border:1px solid var(--line-strong); border-radius:var(--r-pill);
+  background:transparent; color:var(--text-2); font:inherit; cursor:pointer; transition:all var(--dur) var(--ease);
+}
+.rbtn:hover{border-color:var(--text-3); color:var(--text)}
+.rbtn[aria-pressed="true"]{background:var(--text); color:var(--bg); border-color:var(--text)}
+.reviewbar .note{margin-left:auto; color:var(--text-3); font-style:italic}
+
+/* ---------- board ---------- */
+.board{padding:var(--s6) var(--s5) var(--s8); max-width:1440px; margin:0 auto; display:flex; flex-direction:column; gap:var(--s7)}
+.frame{display:flex; flex-direction:column; gap:var(--s3)}
+.frame>figcaption{display:flex; align-items:baseline; gap:var(--s3)}
+.frame>figcaption .idx{font-family:var(--mono); font-size:var(--fs-11); color:var(--accent); letter-spacing:.08em}
+.frame>figcaption h2{margin:0; font-size:var(--fs-16); font-weight:600; letter-spacing:-.01em}
+.frame>figcaption p{margin:0; color:var(--text-3); font-size:var(--fs-12)}
+.canvas{
+  border:1px solid var(--line); border-radius:var(--r3); overflow:hidden; background:var(--bg);
+  box-shadow:var(--shadow-2);
+}
+
+/* ---------- app shell ---------- */
+.app{display:grid; grid-template-columns:248px 1fr; min-height:520px; transition:none}
+body.vp800 .app{grid-template-columns:64px 1fr}
+body.vp800 .app .railtext{display:none}
+body.vp800 .conv-cols{grid-template-columns:1fr}
+body.vp800 .inspector{display:none}
+body.vp800 .recent{grid-template-columns:1fr}
+/* 真实实现中 ≤800px 为无障碍抽屉；原型以图标栏代表折叠形态 */
+@media (max-width:800px){
+  .app{grid-template-columns:64px 1fr}
+  .railtext{display:none}
+  .conv-cols{grid-template-columns:1fr}
+  .inspector{display:none}
+  .recent{grid-template-columns:1fr}
+}
+
+/* ---------- rail ---------- */
+.rail{display:flex; flex-direction:column; gap:var(--s4); padding:var(--s4) var(--s3);
+  background:var(--rail); border-right:1px solid var(--line)}
+.brand{display:flex; align-items:center; gap:var(--s2); padding:0 var(--s2) var(--s3); font-weight:650; letter-spacing:-.01em}
+.brand .mark{width:22px; height:22px; border-radius:7px; background:linear-gradient(150deg,var(--accent),color-mix(in srgb,var(--accent) 55%, #000));
+  display:grid; place-items:center; color:var(--accent-ink); font-size:11px; font-weight:800}
+.brand .sub{margin-left:auto; font-size:var(--fs-11); color:var(--text-3); font-family:var(--mono)}
+.areas{display:flex; flex-direction:column; gap:2px}
+.area{display:flex; align-items:center; gap:10px; padding:7px 10px; border-radius:var(--r1); color:var(--text-2);
+  cursor:pointer; border:0; background:transparent; font:inherit; text-align:left; transition:background var(--dur) var(--ease),color var(--dur) var(--ease)}
+.area:hover{background:var(--surface-2); color:var(--text)}
+.area[aria-current="page"]{background:var(--accent-soft); color:var(--accent); font-weight:600}
+.area .ico{width:16px; text-align:center; opacity:.9}
+.btn{
+  display:inline-flex; align-items:center; justify-content:center; gap:7px;
+  padding:7px 12px; border-radius:var(--r1); border:1px solid var(--line-strong); background:var(--panel);
+  color:var(--text); font:inherit; font-weight:550; cursor:pointer; white-space:nowrap;
+  transition:background var(--dur) var(--ease),border-color var(--dur) var(--ease),transform var(--dur) var(--ease);
+}
+.btn:hover{background:var(--surface-2); border-color:var(--text-3)}
+.btn:active{transform:translateY(.5px)}
+.btn-primary{background:var(--accent); border-color:transparent; color:var(--accent-ink)}
+.btn-primary:hover{background:color-mix(in srgb,var(--accent) 88%, #fff); border-color:transparent}
+.btn-ghost{border-color:transparent; background:transparent; color:var(--text-2)}
+.btn-ghost:hover{background:var(--surface-2); color:var(--text)}
+.btn-danger{border-color:transparent; background:var(--danger-soft); color:var(--danger)}
+.btn-sm{padding:4px 9px; font-size:var(--fs-12)}
+.newbtn{width:100%}
+.grp{display:flex; flex-direction:column; gap:2px}
+.grp>.lbl{display:flex; align-items:center; gap:6px; padding:var(--s3) var(--s2) 6px;
+  font-size:var(--fs-11); letter-spacing:.08em; text-transform:uppercase; color:var(--text-3); font-weight:600}
+.item{display:flex; align-items:center; gap:8px; padding:7px 10px; border-radius:var(--r1); color:var(--text-2); cursor:pointer}
+.item:hover{background:var(--surface-2); color:var(--text)}
+.item[aria-current="true"]{background:var(--surface-2); color:var(--text); font-weight:600; box-shadow:inset 2px 0 0 var(--accent)}
+.item .dot{width:6px; height:6px; border-radius:50%; background:var(--text-3); flex:none}
+.item .dot.live{background:var(--ok); box-shadow:0 0 0 3px var(--ok-soft)}
+.item .name{flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+.item .when{font-size:var(--fs-11); color:var(--text-3); font-variant-numeric:tabular-nums}
+.item .path{font-family:var(--mono); font-size:var(--fs-11); color:var(--text-3)}
+.search{padding:7px 10px; border-radius:var(--r1); border:1px solid var(--line); background:var(--surface-2);
+  color:var(--text); font:inherit; font-size:var(--fs-12); width:100%}
+.search::placeholder{color:var(--text-3)}
+.rail-foot{margin-top:auto; padding:var(--s3) var(--s2) 0; border-top:1px solid var(--line);
+  font-size:var(--fs-11); color:var(--text-3); font-family:var(--mono); line-height:1.7}
+
+/* ---------- main ---------- */
+.main{display:flex; flex-direction:column; min-width:0}
+.topbar{display:flex; align-items:center; gap:var(--s3); padding:10px var(--s5); border-bottom:1px solid var(--line); background:var(--bg)}
+.status{display:flex; align-items:center; gap:8px; color:var(--text-2); font-size:var(--fs-12)}
+.status .led{width:8px; height:8px; border-radius:50%; background:var(--ok); box-shadow:0 0 0 3px var(--ok-soft)}
+.top-actions{margin-left:auto; display:flex; align-items:center; gap:var(--s2)}
+.kbd{font-family:var(--mono); font-size:var(--fs-11); padding:1px 5px; border:1px solid var(--line-strong); border-radius:5px; color:var(--text-3); background:var(--surface)}
+.body{padding:var(--s6) var(--s5); display:flex; flex-direction:column; gap:var(--s5); min-width:0}
+
+h1.title{margin:0; font-size:var(--fs-26); font-weight:640; letter-spacing:-.022em; text-wrap:balance}
+.lede{margin:0; color:var(--text-2); max-width:64ch; text-wrap:pretty}
+
+/* composer */
+.card{background:var(--panel); border:1px solid var(--line); border-radius:var(--r3); box-shadow:var(--shadow-1)}
+.card.pad{padding:var(--s4)}
+.composer{padding:var(--s4); display:flex; flex-direction:column; gap:var(--s3)}
+.pills{display:flex; gap:var(--s2); flex-wrap:wrap}
+.pill{display:inline-flex; align-items:center; gap:6px; padding:4px 10px; border:1px solid var(--line); border-radius:var(--r-pill);
+  background:var(--surface); color:var(--text-2); font-size:var(--fs-12); cursor:pointer}
+.pill:hover{border-color:var(--line-strong); color:var(--text)}
+.pill .k{color:var(--text-3)}
+.pill.accent{background:var(--accent-soft); border-color:transparent; color:var(--accent)}
+.ta{min-height:78px; padding:12px 14px; border-radius:var(--r2); border:1px solid var(--line); background:var(--surface);
+  color:var(--text); font:inherit; resize:none; width:100%}
+.ta::placeholder{color:var(--text-3)}
+.ta:focus,.search:focus{outline:2px solid var(--line-focus); outline-offset:1px; border-color:transparent}
+.composer-foot{display:flex; align-items:center; gap:var(--s2)}
+.composer-foot .hint{margin-left:auto; color:var(--text-3); font-size:var(--fs-11)}
+
+/* recent grid */
+.recent{display:grid; grid-template-columns:repeat(3,1fr); gap:var(--s3)}
+.section-label{display:flex; align-items:baseline; gap:var(--s2)}
+.section-label h2{margin:0; font-size:var(--fs-14); font-weight:620}
+.section-label span{color:var(--text-3); font-size:var(--fs-12)}
+.mini{padding:var(--s3) var(--s4); border-radius:var(--r2); border:1px solid var(--line); background:var(--panel);
+  display:flex; flex-direction:column; gap:6px; cursor:pointer; transition:border-color var(--dur) var(--ease),transform var(--dur) var(--ease)}
+.mini:hover{border-color:var(--line-strong); transform:translateY(-1px)}
+.mini .t{font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+.mini .m{color:var(--text-3); font-size:var(--fs-11); font-family:var(--mono)}
+.mini .s{display:flex; gap:6px; align-items:center; font-size:var(--fs-11); color:var(--text-2)}
+
+/* badges */
+.badge{display:inline-flex; align-items:center; gap:5px; padding:2px 8px; border-radius:var(--r-pill);
+  font-size:var(--fs-11); font-weight:600; letter-spacing:.01em}
+.badge::before{content:""; width:5px; height:5px; border-radius:50%; background:currentColor}
+.badge.ok{background:var(--ok-soft); color:var(--ok)}
+.badge.warn{background:var(--warn-soft); color:var(--warn)}
+.badge.danger{background:var(--danger-soft); color:var(--danger)}
+.badge.info{background:var(--info-soft); color:var(--info)}
+.badge.mute{background:var(--surface-2); color:var(--text-2)}
+
+/* conversation */
+.conv-head{display:flex; align-items:center; gap:var(--s3); padding:var(--s3) var(--s5); border-bottom:1px solid var(--line)}
+.conv-head .ttl{font-weight:620}
+.conv-head .meta{color:var(--text-3); font-size:var(--fs-12); display:flex; gap:var(--s2); align-items:center}
+.conv-head .acts{margin-left:auto; display:flex; gap:6px}
+.conv-cols{display:grid; grid-template-columns:1fr 320px; min-height:420px}
+.stream{padding:var(--s5); display:flex; flex-direction:column; gap:var(--s4); min-width:0}
+.msg{display:flex; gap:var(--s3); max-width:76ch}
+.avatar{width:26px; height:26px; border-radius:8px; flex:none; display:grid; place-items:center; font-size:var(--fs-11); font-weight:700}
+.avatar.u{background:var(--surface-2); color:var(--text-2)}
+.avatar.a{background:var(--accent-soft); color:var(--accent)}
+.msg .bubble{min-width:0}
+.msg .role{font-size:var(--fs-11); color:var(--text-3); text-transform:uppercase; letter-spacing:.07em; font-weight:600; margin-bottom:3px}
+.msg p{margin:0 0 6px}
+.msg p:last-child{margin-bottom:0}
+.think{border-left:2px solid var(--line-strong); padding:6px 0 6px 12px; margin:6px 0; color:var(--text-2); font-size:var(--fs-12)}
+.think summary{cursor:pointer; color:var(--text-3); font-family:var(--mono); font-size:var(--fs-11); letter-spacing:.02em}
+.tool{display:flex; align-items:center; gap:var(--s2); padding:8px 12px; border:1px solid var(--line); border-radius:var(--r1);
+  background:var(--surface); font-family:var(--mono); font-size:var(--fs-12); color:var(--text-2)}
+.tool .name{color:var(--text); font-weight:600}
+.tool .st{margin-left:auto; display:flex; gap:10px; color:var(--text-3); font-size:var(--fs-11)}
+.approval{border:1px solid var(--warn); border-radius:var(--r2); background:var(--warn-soft); padding:var(--s3) var(--s4); display:flex; flex-direction:column; gap:var(--s2)}
+.approval .hd{display:flex; align-items:center; gap:8px; font-weight:620; color:var(--warn)}
+.approval .op{font-family:var(--mono); font-size:var(--fs-12); color:var(--text-2)}
+.approval .row{display:flex; gap:8px}
+.usage{display:flex; gap:var(--s4); padding:10px var(--s5); border-top:1px solid var(--line); color:var(--text-3); font-size:var(--fs-11); font-family:var(--mono)}
+.usage b{color:var(--text-2); font-weight:600}
+.composer-input{display:flex; gap:var(--s2); align-items:flex-end; padding:var(--s4) var(--s5); border-top:1px solid var(--line)}
+
+.inspector{border-left:1px solid var(--line); background:var(--surface); display:flex; flex-direction:column; min-width:0}
+.tabs{display:flex; gap:2px; padding:var(--s2) var(--s3) 0; border-bottom:1px solid var(--line); overflow-x:auto}
+.tab{padding:7px 10px; border:0; background:transparent; color:var(--text-2); font:inherit; font-size:var(--fs-12);
+  cursor:pointer; border-bottom:2px solid transparent; white-space:nowrap}
+.tab:hover{color:var(--text)}
+.tab[aria-selected="true"]{color:var(--accent); border-bottom-color:var(--accent); font-weight:600}
+.insp-body{padding:var(--s4); display:flex; flex-direction:column; gap:var(--s4); overflow:auto}
+.kv{display:grid; grid-template-columns:auto 1fr; gap:4px var(--s3); font-size:var(--fs-12)}
+.kv dt{color:var(--text-3)}
+.kv dd{margin:0; font-family:var(--mono); overflow-wrap:anywhere}
+.filelist{display:flex; flex-direction:column; gap:2px}
+.file{display:flex; align-items:center; gap:8px; padding:6px 8px; border-radius:var(--r1); font-family:var(--mono); font-size:var(--fs-12); color:var(--text-2)}
+.file:hover{background:var(--surface-2)}
+.file .add{color:var(--ok)} .file .del{color:var(--danger)} .file .tags{margin-left:auto; display:flex; gap:6px; font-size:var(--fs-11)}
+
+/* fragment grid */
+.frag{display:grid; grid-template-columns:repeat(auto-fill,minmax(260px,1fr)); gap:var(--s4); padding:var(--s5)}
+.frag .box{border:1px solid var(--line); border-radius:var(--r2); padding:var(--s4); background:var(--panel); display:flex; flex-direction:column; gap:var(--s3)}
+.frag .box>h3{margin:0; font-size:var(--fs-12); text-transform:uppercase; letter-spacing:.08em; color:var(--text-3); font-weight:600}
+.rowbtns{display:flex; gap:var(--s2); flex-wrap:wrap}
+table.grid{width:100%; border-collapse:collapse; font-size:var(--fs-12)}
+table.grid th{text-align:left; color:var(--text-3); font-weight:600; font-size:var(--fs-11);
+  text-transform:uppercase; letter-spacing:.06em; padding:6px 8px; border-bottom:1px solid var(--line)}
+table.grid td{padding:7px 8px; border-bottom:1px solid var(--line); font-family:var(--mono); color:var(--text-2)}
+table.grid tr:last-child td{border-bottom:0}
+.empty{border:1px dashed var(--line-strong); border-radius:var(--r2); padding:var(--s5); text-align:center; color:var(--text-3)}
+.empty .big{font-size:var(--fs-20); margin-bottom:6px; opacity:.5}
+.toast{border:1px solid var(--line-strong); border-left:3px solid var(--accent); border-radius:var(--r1);
+  background:var(--panel); box-shadow:var(--shadow-2); padding:10px var(--s3); display:flex; gap:10px; align-items:flex-start}
+.toast .x{margin-left:auto; color:var(--text-3); cursor:pointer}
+.swatches{display:flex; gap:6px; flex-wrap:wrap}
+.sw{width:44px; height:30px; border-radius:var(--r1); border:1px solid var(--line); display:grid; place-items:end center; font-size:9px; color:var(--text-3)}
+.typerow{display:flex; align-items:baseline; gap:var(--s3); padding:5px 0; border-bottom:1px solid var(--line)}
+.typerow:last-child{border-bottom:0}
+.typerow code{font-family:var(--mono); font-size:var(--fs-11); color:var(--text-3); width:64px; flex:none}
+</style>
+</head>
+<body>
+
+<div class="reviewbar">
+  <b>方向一 · 克制精密</b>
+  <div class="grp"><span>主题</span>
+    <button class="rbtn" data-theme-btn="auto" aria-pressed="true">跟随系统</button>
+    <button class="rbtn" data-theme-btn="light" aria-pressed="false">浅色</button>
+    <button class="rbtn" data-theme-btn="dark" aria-pressed="false">深色</button>
+  </div>
+  <div class="grp"><span>语言</span>
+    <button class="rbtn" data-lang-btn="zh" aria-pressed="true">中</button>
+    <button class="rbtn" data-lang-btn="en" aria-pressed="false">EN</button>
+  </div>
+  <div class="grp"><span>视口</span>
+    <button class="rbtn" data-vp-btn="desktop" aria-pressed="true">桌面</button>
+    <button class="rbtn" data-vp-btn="800" aria-pressed="false">800px</button>
+  </div>
+  <span class="note">评审工具条 · 不属于产品 UI</span>
+</div>
+
+<div class="board">
+
+  <!-- ================= FRAME A ================= -->
+  <figure class="frame" style="margin:0">
+    <figcaption><span class="idx">A</span><h2 data-zh="工作台首页" data-en="Workbench home">工作台首页</h2><p data-zh="Project → Task → Start，配置就地可见" data-en="Project → Task → Start, config in place">Project → Task → Start，配置就地可见</p></figcaption>
+    <div class="canvas">
+      <div class="app">
+        <aside class="rail">
+          <div class="brand"><span class="mark">V</span><span class="railtext">Vessel</span><span class="sub railtext">v0.10.0</span></div>
+          <nav class="areas">
+            <button class="area" aria-current="page"><span class="ico">▤</span><span class="railtext" data-zh="工作台" data-en="Workbench">工作台</span></button>
+            <button class="area"><span class="ico">◔</span><span class="railtext" data-zh="活动" data-en="Activity">活动</span></button>
+            <button class="area"><span class="ico">❖</span><span class="railtext" data-zh="Agent Studio" data-en="Agent Studio">Agent Studio</span></button>
+            <button class="area"><span class="ico">⚙</span><span class="railtext" data-zh="设置" data-en="Settings">设置</span></button>
+          </nav>
+          <button class="btn btn-primary newbtn">＋ <span class="railtext" data-zh="新建会话" data-en="New session">新建会话</span></button>
+          <div class="grp">
+            <div class="lbl"><span class="railtext" data-zh="项目" data-en="Projects">项目</span></div>
+            <div class="item" aria-current="true"><span class="dot"></span><span class="name railtext">vessel-harness</span></div>
+            <div class="item"><span class="dot"></span><span class="name railtext">second-repo</span></div>
+          </div>
+          <div class="grp">
+            <div class="lbl"><span class="railtext" data-zh="历史会话" data-en="Sessions">历史会话</span></div>
+            <input class="search railtext" placeholder="搜索会话…" data-ph-zh="搜索会话…" data-ph-en="Search sessions…">
+            <div class="item"><span class="dot live"></span><span class="name railtext" data-zh="重构 Provider 能力协商" data-en="Refactor provider negotiation">重构 Provider 能力协商</span><span class="when railtext">14:03</span></div>
+            <div class="item"><span class="dot"></span><span class="name railtext" data-zh="画布单 Hunk 补丁选择器" data-en="Canvas single-hunk picker">画布单 Hunk 补丁选择器</span><span class="when railtext" data-zh="昨天" data-en="yesterday">昨天</span></div>
+            <div class="item"><span class="dot"></span><span class="name railtext" data-zh="检查 sandbox 逃逸路径" data-en="Audit sandbox escapes">检查 sandbox 逃逸路径</span><span class="when railtext">10-12</span></div>
+          </div>
+          <div class="rail-foot railtext" data-zh="项目 → 会话 → 运行 → 子代理" data-en="Project → Session → Run → Subagents">项目 → 会话 → 运行 → 子代理</div>
+        </aside>
+
+        <div class="main">
+          <header class="topbar">
+            <div class="status"><span class="led"></span><span data-zh="本地服务运行正常" data-en="Local server healthy">本地服务运行正常</span><span style="color:var(--text-3)">· v0.10.0</span></div>
+            <div class="top-actions">
+              <button class="btn btn-ghost btn-sm"><span class="kbd">Ctrl</span><span class="kbd">K</span><span data-zh="命令" data-en="Command">命令</span></button>
+              <button class="btn btn-ghost btn-sm" data-zh="偏好设置" data-en="Preferences">偏好设置</button>
+            </div>
+          </header>
+          <div class="body">
+            <div>
+              <h1 class="title" data-zh="开始一个任务" data-en="Start a task">开始一个任务</h1>
+              <p class="lede" data-zh="选择项目、写下目标。Vessel 会在受策略约束的执行循环里运行，并把每一步证据留在会话里。" data-en="Pick a project and describe the goal. Vessel runs it inside a policy-constrained loop and keeps the evidence in the session.">选择项目、写下目标。Vessel 会在受策略约束的执行循环里运行，并把每一步证据留在会话里。</p>
+            </div>
+
+            <div class="card composer">
+              <div class="pills">
+                <span class="pill"><span class="k" data-zh="项目" data-en="Project">项目</span> vessel-harness ▾</span>
+                <span class="pill"><span class="k" data-zh="模型" data-en="Model">模型</span> deepseek-v4.1-flash ▾</span>
+                <span class="pill"><span class="k" data-zh="权限" data-en="Policy">权限</span> workspace-write ▾</span>
+                <span class="pill accent"><span class="k" data-zh="模式" data-en="Mode">模式</span> goal</span>
+              </div>
+              <textarea class="ta" rows="3" data-ph-zh="描述你要完成的任务，例如：把 Provider 能力协商接到调度前拦截…" data-ph-en="Describe the task, e.g. gate dispatch on provider capability negotiation…"></textarea>
+              <div class="composer-foot">
+                <button class="btn btn-primary" data-zh="开始任务" data-en="Start task">开始任务</button>
+                <button class="btn btn-ghost btn-sm" data-zh="进阶设置" data-en="Advanced">进阶设置</button>
+                <span class="hint" data-zh="Ctrl + Enter 发送" data-en="Ctrl + Enter to send">Ctrl + Enter 发送</span>
+              </div>
+            </div>
+
+            <div class="section-label"><h2 data-zh="最近会话" data-en="Recent sessions">最近会话</h2><span data-zh="3 条" data-en="3 items">3 条</span></div>
+            <div class="recent">
+              <div class="mini"><div class="t" data-zh="重构 Provider 能力协商" data-en="Refactor provider negotiation">重构 Provider 能力协商</div><div class="m">vessel-harness · 14:03</div><div class="s"><span class="badge ok" data-zh="运行中" data-en="Running">运行中</span><span style="color:var(--text-3)" data-zh="12 步 · $0.012" data-en="12 steps · $0.012">12 步 · $0.012</span></div></div>
+              <div class="mini"><div class="t" data-zh="画布单 Hunk 补丁选择器" data-en="Canvas single-hunk picker">画布单 Hunk 补丁选择器</div><div class="m">vessel-harness · 昨天</div><div class="s"><span class="badge mute" data-zh="已完成" data-en="Done">已完成</span><span style="color:var(--text-3)" data-zh="28 步 · $0.041" data-en="28 steps · $0.041">28 步 · $0.041</span></div></div>
+              <div class="mini"><div class="t" data-zh="检查 sandbox 逃逸路径" data-en="Audit sandbox escapes">检查 sandbox 逃逸路径</div><div class="m">second-repo · 10-12</div><div class="s"><span class="badge warn" data-zh="待审批" data-en="Needs approval">待审批</span><span style="color:var(--text-3)" data-zh="9 步 · $0.008" data-en="9 steps · $0.008">9 步 · $0.008</span></div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </figure>
+
+  <!-- ================= FRAME B ================= -->
+  <figure class="frame" style="margin:0">
+    <figcaption><span class="idx">B</span><h2 data-zh="会话视图" data-en="Conversation view">会话视图</h2><p data-zh="执行流 + 右侧 Inspector，审批与工具行就地可见" data-en="Execution stream + right Inspector, approvals and tool rows in place">执行流 + 右侧 Inspector，审批与工具行就地可见</p></figcaption>
+    <div class="canvas">
+      <div class="app" style="min-height:560px">
+        <aside class="rail">
+          <div class="brand"><span class="mark">V</span><span class="railtext">Vessel</span><span class="sub railtext">v0.10.0</span></div>
+          <nav class="areas">
+            <button class="area" aria-current="page"><span class="ico">▤</span><span class="railtext" data-zh="工作台" data-en="Workbench">工作台</span></button>
+            <button class="area"><span class="ico">◔</span><span class="railtext" data-zh="活动" data-en="Activity">活动</span></button>
+            <button class="area"><span class="ico">❖</span><span class="railtext" data-zh="Agent Studio" data-en="Agent Studio">Agent Studio</span></button>
+            <button class="area"><span class="ico">⚙</span><span class="railtext" data-zh="设置" data-en="Settings">设置</span></button>
+          </nav>
+          <button class="btn btn-primary newbtn">＋ <span class="railtext" data-zh="新建会话" data-en="New session">新建会话</span></button>
+          <div class="grp">
+            <div class="lbl"><span class="railtext" data-zh="项目" data-en="Projects">项目</span></div>
+            <div class="item" aria-current="true"><span class="dot"></span><span class="name railtext">vessel-harness</span></div>
+            <div class="item"><span class="dot"></span><span class="name railtext">second-repo</span></div>
+          </div>
+          <div class="grp">
+            <div class="lbl"><span class="railtext" data-zh="历史会话" data-en="Sessions">历史会话</span></div>
+            <div class="item" aria-current="true"><span class="dot live"></span><span class="name railtext" data-zh="重构 Provider 能力协商" data-en="Refactor provider negotiation">重构 Provider 能力协商</span></div>
+            <div class="item"><span class="dot"></span><span class="name railtext" data-zh="画布单 Hunk 补丁选择器" data-en="Canvas single-hunk picker">画布单 Hunk 补丁选择器</span></div>
+            <div class="item"><span class="dot"></span><span class="name railtext" data-zh="检查 sandbox 逃逸路径" data-en="Audit sandbox escapes">检查 sandbox 逃逸路径</span></div>
+          </div>
+          <div class="rail-foot railtext" data-zh="项目 → 会话 → 运行 → 子代理" data-en="Project → Session → Run → Subagents">项目 → 会话 → 运行 → 子代理</div>
+        </aside>
+
+        <div class="main">
+          <header class="topbar">
+            <div class="status"><span class="led"></span><span data-zh="本地服务运行正常" data-en="Local server healthy">本地服务运行正常</span><span style="color:var(--text-3)">· v0.10.0</span></div>
+            <div class="top-actions">
+              <button class="btn btn-ghost btn-sm"><span class="kbd">Ctrl</span><span class="kbd">K</span><span data-zh="命令" data-en="Command">命令</span></button>
+              <button class="btn btn-ghost btn-sm" data-zh="偏好设置" data-en="Preferences">偏好设置</button>
+            </div>
+          </header>
+
+          <div class="conv-head">
+            <div>
+              <div class="ttl" data-zh="重构 Provider 能力协商" data-en="Refactor provider negotiation">重构 Provider 能力协商</div>
+              <div class="meta"><span class="badge ok" data-zh="运行中" data-en="Running">运行中</span><span>vessel-harness</span><span>·</span><span data-zh="12 步" data-en="12 steps">12 步</span></div>
+            </div>
+            <div class="acts">
+              <button class="btn btn-sm" data-zh="导出 JSON" data-en="Export JSON">导出 JSON</button>
+              <button class="btn btn-sm btn-ghost" data-zh="清屏" data-en="Clear">清屏</button>
+            </div>
+          </div>
+
+          <div class="conv-cols">
+            <div class="stream">
+              <div class="msg"><div class="avatar u">你</div><div class="bubble"><div class="role" data-zh="用户" data-en="User">用户</div><p data-zh="把 Provider 能力协商接到调度前拦截：不支持的强制约束直接抛错，不要发网络请求。" data-en="Gate dispatch on provider capability negotiation: hard-fail unsupported constraints before any network call.">把 Provider 能力协商接到调度前拦截：不支持的强制约束直接抛错，不要发网络请求。</p></div></div>
+
+              <div class="msg"><div class="avatar a">V</div><div class="bubble"><div class="role" data-zh="Vessel" data-en="Vessel">Vessel</div>
+                <details class="think" open><summary data-zh="▾ 思考 · 12s" data-en="▾ Thinking · 12s">▾ 思考 · 12s</summary><div data-zh="先读 shared 里的能力契约，再确认调度入口只有一处；拦截必须发生在 composeHarness 之前，这样零网络调用是可证的。" data-en="Read the capability contract in shared, confirm there is a single dispatch entry, and make the gate fire before composeHarness so zero-network is provable.">先读 shared 里的能力契约，再确认调度入口只有一处；拦截必须发生在 composeHarness 之前，这样零网络调用是可证的。</div></details>
+                <p data-zh="我先读契约，再改调度路径。" data-en="I'll read the contract first, then change the dispatch path.">我先读契约，再改调度路径。</p>
+              </div></div>
+
+              <div class="tool"><span class="name">Read</span><span>packages/shared/src/provider.ts</span><span class="st"><span data-zh="成功" data-en="ok">成功</span><span>14ms</span></span></div>
+              <div class="tool"><span class="name">Edit</span><span>apps/local-server/src/routes/providerRoutes.ts</span><span class="st"><span data-zh="成功" data-en="ok">成功</span><span>18ms</span><span class="add" style="color:var(--ok)">+24</span><span class="del" style="color:var(--danger)">−6</span></span></div>
+
+              <div class="msg"><div class="avatar a">V</div><div class="bubble"><p data-zh="契约已定义三态 detected / declared / unknown，并在调度前硬拦截。下一步要动 Web 端的节点命名，需要授权。" data-en="Contract now defines detected / declared / unknown and hard-fails before dispatch. Next step touches Web node naming and needs authorization.">契约已定义三态 detected / declared / unknown，并在调度前硬拦截。下一步要动 Web 端的节点命名，需要授权。</p></div></div>
+
+              <div class="approval">
+                <div class="hd">⚠ <span data-zh="需要授权" data-en="Authorization required">需要授权</span></div>
+                <div class="op">Write  apps/web/src/components/navigation.ts  <span style="color:var(--text-3)">(12 lines)</span></div>
+                <div class="row"><button class="btn btn-primary btn-sm" data-zh="批准一次" data-en="Allow once">批准一次</button><button class="btn btn-danger btn-sm" data-zh="拒绝" data-en="Deny">拒绝</button><button class="btn btn-ghost btn-sm" data-zh="查看 diff" data-en="View diff">查看 diff</button></div>
+              </div>
+            </div>
+
+            <aside class="inspector">
+              <div class="tabs">
+                <button class="tab" aria-selected="true" data-zh="概览" data-en="Overview">概览</button>
+                <button class="tab" data-zh="变更" data-en="Changes">变更</button>
+                <button class="tab" data-zh="上下文" data-en="Context">上下文</button>
+                <button class="tab" data-zh="追踪" data-en="Trace">追踪</button>
+              </div>
+              <div class="insp-body">
+                <dl class="kv">
+                  <dt data-zh="运行" data-en="Run">运行</dt><dd>run_7f31c2</dd>
+                  <dt data-zh="模型" data-en="Model">模型</dt><dd>deepseek-v4.1-flash</dd>
+                  <dt data-zh="权限" data-en="Policy">权限</dt><dd>workspace-write</dd>
+                  <dt data-zh="预算" data-en="Budget">预算</dt><dd>step 12 / 40</dd>
+                </dl>
+                <div>
+                  <div class="section-label" style="margin-bottom:6px"><h2 style="font-size:var(--fs-12)" data-zh="变更文件" data-en="Changed files">变更文件</h2></div>
+                  <div class="filelist">
+                    <div class="file"><span data-zh="改" data-en="M">改</span> provider.ts <span class="tags"><span class="add">+24</span><span class="del">−6</span></span></div>
+                    <div class="file"><span data-zh="改" data-en="M">改</span> providerRoutes.ts <span class="tags"><span class="add">+11</span><span class="del">−2</span></span></div>
+                    <div class="file"><span data-zh="新" data-en="A">新</span> CapabilityStatus.tsx <span class="tags"><span class="add">+96</span></span></div>
+                  </div>
+                </div>
+                <div class="empty" style="padding:var(--s4)">
+                  <div class="big">◇</div>
+                  <div data-zh="选择一个文件查看逐行 diff" data-en="Select a file to inspect the line diff">选择一个文件查看逐行 diff</div>
+                </div>
+              </div>
+            </aside>
+          </div>
+
+          <div class="usage"><span><b data-zh="输入" data-en="in">输入</b> 12.4k</span><span><b data-zh="输出" data-en="out">输出</b> 1.8k</span><span><b data-zh="缓存命中" data-en="cache hit">缓存命中</b> 61%</span><span><b data-zh="花费" data-en="cost">花费</b> $0.0124</span></div>
+          <div class="composer-input">
+            <textarea class="ta" rows="2" style="min-height:52px" data-ph-zh="继续给 Vessel 指令…" data-ph-en="Give Vessel the next instruction…"></textarea>
+            <button class="btn btn-primary" data-zh="发送" data-en="Send">发送</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </figure>
+
+  <!-- ================= FRAME C ================= -->
+  <figure class="frame" style="margin:0">
+    <figcaption><span class="idx">C</span><h2 data-zh="组件与状态" data-en="Components &amp; states">组件与状态</h2><p data-zh="按钮 / 徽章 / 表格 / 空态 / 提示 / 色板与字阶" data-en="Buttons / badges / table / empty / toast / palette &amp; scale">按钮 / 徽章 / 表格 / 空态 / 提示 / 色板与字阶</p></figcaption>
+    <div class="canvas">
+      <div class="frag">
+        <div class="box"><h3 data-zh="按钮" data-en="Buttons">按钮</h3>
+          <div class="rowbtns"><button class="btn btn-primary" data-zh="开始任务" data-en="Primary">开始任务</button><button class="btn" data-zh="次级按钮" data-en="Secondary">次级按钮</button><button class="btn btn-ghost" data-zh="幽灵" data-en="Ghost">幽灵</button><button class="btn btn-danger" data-zh="拒绝" data-en="Deny">拒绝</button><button class="btn" disabled style="opacity:.5" data-zh="禁用" data-en="Disabled">禁用</button></div>
+        </div>
+        <div class="box"><h3 data-zh="状态徽章" data-en="Badges">状态徽章</h3>
+          <div class="rowbtns"><span class="badge ok" data-zh="成功" data-en="Success">成功</span><span class="badge warn" data-zh="待审批" data-en="Awaiting">待审批</span><span class="badge danger" data-zh="失败" data-en="Failed">失败</span><span class="badge info" data-zh="运行中" data-en="Running">运行中</span><span class="badge mute" data-zh="已完成" data-en="Done">已完成</span></div>
+        </div>
+        <div class="box"><h3 data-zh="输入" data-en="Inputs">输入</h3>
+          <input class="search" placeholder="搜索会话…" data-ph-zh="搜索会话…" data-ph-en="Search sessions…">
+          <textarea class="ta" rows="2" style="min-height:52px" data-ph-zh="描述任务…" data-ph-en="Describe the task…"></textarea>
+        </div>
+        <div class="box"><h3 data-zh="表格" data-en="Table">表格</h3>
+          <table class="grid"><thead><tr><th data-zh="工具" data-en="Tool">工具</th><th data-zh="状态" data-en="Status">状态</th><th data-zh="耗时" data-en="Time">耗时</th></tr></thead>
+          <tbody><tr><td>Read</td><td style="color:var(--ok)">ok</td><td>14ms</td></tr><tr><td>Edit</td><td style="color:var(--ok)">ok</td><td>18ms</td></tr><tr><td>Bash</td><td style="color:var(--danger)">denied</td><td>2ms</td></tr></tbody></table>
+        </div>
+        <div class="box"><h3 data-zh="空态" data-en="Empty state">空态</h3>
+          <div class="empty"><div class="big">◇</div><div data-zh="还没有项目" data-en="No projects yet">还没有项目</div><div style="font-size:var(--fs-11);margin-top:4px" data-zh="打开一个目录作为工作区开始" data-en="Open a directory as a workspace to begin">打开一个目录作为工作区开始</div></div>
+        </div>
+        <div class="box"><h3 data-zh="提示" data-en="Toast">提示</h3>
+          <div class="toast"><span style="color:var(--accent)">●</span><div><div style="font-weight:600" data-zh="已保存供应商" data-en="Provider saved">已保存供应商</div><div style="color:var(--text-3);font-size:var(--fs-11)" data-zh="用 vessel provider switch 切换默认" data-en="Use vessel provider switch to change default">用 vessel provider switch 切换默认</div></div><span class="x">✕</span></div>
+        </div>
+        <div class="box"><h3 data-zh="色板" data-en="Palette">色板</h3>
+          <div class="swatches">
+            <div class="sw" style="background:var(--bg)">bg</div><div class="sw" style="background:var(--surface)">s1</div><div class="sw" style="background:var(--surface-2)">s2</div>
+            <div class="sw" style="background:var(--accent);color:#fff">ac</div><div class="sw" style="background:var(--ok);color:#fff">ok</div><div class="sw" style="background:var(--warn);color:#fff">wn</div><div class="sw" style="background:var(--danger);color:#fff">er</div>
+          </div>
+        </div>
+        <div class="box"><h3 data-zh="字阶" data-en="Type scale">字阶</h3>
+          <div class="typerow"><code>26/640</code><span style="font-size:var(--fs-26);font-weight:640;letter-spacing:-.022em">开始一个任务</span></div>
+          <div class="typerow"><code>16/620</code><span style="font-size:var(--fs-16);font-weight:620">会话视图</span></div>
+          <div class="typerow"><code>14/550</code><span style="font-size:var(--fs-14);font-weight:550">正文标题</span></div>
+          <div class="typerow"><code>13/400</code><span style="font-size:var(--fs-13)">界面正文内容</span></div>
+          <div class="typerow"><code>11/600</code><span style="font-size:var(--fs-11);text-transform:uppercase;letter-spacing:.08em;color:var(--text-3)">LABEL</span></div>
+        </div>
+      </div>
+    </div>
+  </figure>
+
+</div>
+
+<script>
+(function(){
+  var root=document.documentElement;
+  var mq=window.matchMedia('(prefers-color-scheme: dark)');
+  var choice='auto';
+  function resolve(){ root.setAttribute('data-theme', choice==='auto' ? (mq.matches?'dark':'light') : choice); }
+  // 允许用 URL 片段固定主题（评审/截图用）：...html#theme=dark
+  var hm=/(?:^|[#&?])theme=(dark|light)/.exec(location.search+location.hash);
+  if(hm) choice=hm[1];
+  mq.addEventListener('change', resolve); resolve();
+  press('[data-theme-btn]','data-theme-btn',choice);
+
+  function press(sel,attr,val){
+    document.querySelectorAll(sel).forEach(function(b){ b.setAttribute('aria-pressed', String(b.getAttribute(attr)===val)); });
+  }
+  document.querySelectorAll('[data-theme-btn]').forEach(function(b){
+    b.addEventListener('click',function(){ choice=b.getAttribute('data-theme-btn'); resolve(); press('[data-theme-btn]','data-theme-btn',choice); });
+  });
+  document.querySelectorAll('[data-lang-btn]').forEach(function(b){
+    b.addEventListener('click',function(){
+      var lang=b.getAttribute('data-lang-btn');
+      root.setAttribute('data-lang',lang);
+      document.querySelectorAll('[data-zh]').forEach(function(el){ el.textContent=el.getAttribute('data-'+lang); });
+      document.querySelectorAll('[data-ph-zh]').forEach(function(el){ el.setAttribute('placeholder', el.getAttribute('data-ph-'+lang)); });
+      press('[data-lang-btn]','data-lang-btn',lang);
+    });
+  });
+  document.querySelectorAll('[data-vp-btn]').forEach(function(b){
+    b.addEventListener('click',function(){
+      var vp=b.getAttribute('data-vp-btn');
+      document.body.classList.toggle('vp800', vp==='800');
+      press('[data-vp-btn]','data-vp-btn',vp);
+    });
+  });
+
+  // 评审/截图可用的 URL 片段：...html#theme=dark&lang=en&vp=800
+  var q = location.search + location.hash;
+  var m2 = /(?:^|[#&?])lang=(zh|en)/.exec(q);
+  if (m2) { var lb = document.querySelector('[data-lang-btn="'+m2[1]+'"]'); if (lb) lb.click(); }
+  var m3 = /(?:^|[#&?])vp=(800|desktop)/.exec(q);
+  if (m3) { var vb = document.querySelector('[data-vp-btn="'+m3[1]+'"]'); if (vb) vb.click(); }
+})();
+</script>
+</body>
+</html>

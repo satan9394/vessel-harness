@@ -3,7 +3,7 @@ import * as os from 'node:os';
 import * as path from 'node:path';
 import { beforeEach, afterEach, describe, expect, it, vi } from 'vitest';
 import { ProjectRegistry, SessionRegistry } from '@vessel/application';
-import { MockProvider } from '@vessel/llm';
+import { MockProvider, capabilitiesFor } from '@vessel/llm';
 import { ProviderStore } from '../providers/ProviderStore.js';
 import { createVesselServer, type VesselServer } from '../server.js';
 import { ProviderRoutes, normalizeProviderInput } from './providerRoutes.js';
@@ -82,7 +82,7 @@ describe('provider HTTP routes', () => {
   });
   it('uses authenticated bounded probes for both protocols and validates discovered models', async () => {
     probe.mockResolvedValue(new Response(JSON.stringify({ data: [{ id: 'm1' }] }), { status: 200 }));
-    expect(await (await call('/api/providers/test', 'POST', input)).json()).toMatchObject({ ok: true, availableModels: ['m1'], latencyMs: expect.any(Number) });
+    expect(await (await call('/api/providers/test', 'POST', input)).json()).toMatchObject({ ok: true, availableModels: ['m1'], modelCapabilities: { m1: expect.objectContaining({ tools: expect.objectContaining({ status: 'declared', value: true }) }) }, latencyMs: expect.any(Number) });
     expect(probe).toHaveBeenLastCalledWith('https://api.deepseek.com/v1/models', expect.objectContaining({ headers: { Authorization: `Bearer ${input.apiKey}` }, redirect: 'error', signal: expect.any(AbortSignal) }));
     await call('/api/providers/test', 'POST', { ...input, protocol: 'anthropic', baseUrl: 'https://api.anthropic.com' });
     expect(probe).toHaveBeenLastCalledWith('https://api.anthropic.com/v1/models', expect.objectContaining({ headers: { 'x-api-key': input.apiKey, 'anthropic-version': '2023-06-01' } }));
@@ -191,6 +191,15 @@ describe('provider HTTP routes', () => {
     expect(await (await call('/api/providers')).json()).toEqual({ error: 'provider_store_corrupted' });
     // 删除也拿到具体原因（不是通用「操作失败」）
     expect(await (await call('/api/providers/deepseek', 'DELETE')).json()).toEqual({ error: 'provider_store_corrupted' });
+  });
+  it('heals stale unknown model capabilities on load for openai-compatible providers (task 233)', async () => {
+    const rawUnknown = Object.fromEntries(Object.keys(capabilitiesFor('unknown')).map(k => [k, { status: 'unknown' }]));
+    const corruptCaps = { 'deepseek-chat': { ...rawUnknown, contextWindow: { status: 'declared', value: 128000, source: 'model metadata' } } };
+    fs.mkdirSync(store.rootDir, { recursive: true });
+    fs.writeFileSync(store.providersFile, JSON.stringify([{ ...input, id: input.name, model: input.models[0], modelCapabilities: corruptCaps }]));
+    const loaded = store.get('deepseek');
+    expect(loaded?.modelCapabilities?.['deepseek-chat']?.tools).toMatchObject({ status: 'declared', value: true });
+    expect(loaded?.modelCapabilities?.['deepseek-chat']?.contextWindow).toMatchObject({ status: 'declared', value: 128000 });
   });
   it('deletes a pre-existing secretRef-backed provider and tolerates an unresolvable credential (task 215)', async () => {
     const secrets = store.credentialStore as unknown as { setSync(s: string, a: string, key: string): void };

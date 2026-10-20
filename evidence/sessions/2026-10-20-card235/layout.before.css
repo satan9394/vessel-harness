@@ -1,0 +1,40 @@
+/* Four-column skeleton (DESIGN.md §4): the inspector dock is the 300px review bar.
+   `flex: 1 0 auto` + a usable `min-height` keep the process stream from being
+   squeezed below its content by a sibling module panel (which used to make the
+   composer overlap the module sections); `.conversation-wrap` scrolls instead. */
+.dual-surface { display: grid; grid-template-columns: minmax(0, 1fr); flex: 1 0 auto; min-height: 420px; min-width: 0; }
+.dual-surface.inspector-open { grid-template-columns: minmax(0, 1fr) 300px; gap: 12px; }
+.chat-surface { display: flex; flex-direction: column; flex: 1; min-height: 0; min-width: 0; }
+.inspector-toolbar { display: flex; justify-content: flex-end; padding: 10px 16px 0; }
+.docked-inspector {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  min-width: 0;
+  border-radius: var(--r-panel);
+  border: var(--ring-hairline) solid var(--ring);
+  background: var(--panel);
+  overflow: hidden;
+}
+.inspector-heading { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 12px 12px 6px; }
+.inspector-heading strong { font-size: 13.5px; letter-spacing: -0.01em; }
+.inspector-tabs { display: flex; flex-wrap: wrap; gap: 4px; padding: 0 12px 12px; border-bottom: var(--ring-hairline) solid var(--ring); }
+.inspector-tabs .btn { border: var(--ring-hairline) solid transparent; background: transparent; border-radius: var(--r-sm); padding: 4px 10px; font-size: 12px; color: var(--text-2); }
+.inspector-tabs .btn:hover { background: var(--panel-2); color: var(--text); }
+.inspector-tabs [aria-selected='true'] { background: var(--accent-soft); border-color: var(--ring-2); color: var(--accent); }
+.inspector-content {
+  overflow: auto; overscroll-behavior: contain; flex: 1; min-height: 0; padding: 24px 12px;
+  -webkit-mask-image: linear-gradient(to bottom, transparent 0%, black 24px, black calc(100% - 24px), transparent 100%);
+  mask-image: linear-gradient(to bottom, transparent 0%, black 24px, black calc(100% - 24px), transparent 100%);
+}
+.inspector-content .card, .inspector-content .module-card { border: 0; box-shadow: none; background: var(--panel-2); }
+.inspector-backdrop { position: fixed; inset: 0; z-index: 60; background: #0008; animation: inspector-reveal 150ms var(--ease); }
+@keyframes inspector-reveal { from { opacity: 0; } }
+.cache-waveform, .impact-topology { display: block; width: 100%; color: var(--accent); }
+.workspace-fingerprint { display: block; overflow-wrap: anywhere; }
+.prefix-segments { display: flex; flex-wrap: wrap; gap: 12px; padding-left: 20px; }
+.impact-topology { overflow: visible; }
+@media (max-width: 1180px) {
+  .dual-surface.inspector-open { grid-template-columns: minmax(0, 1fr); }
+  .docked-inspector { position: fixed; inset: 0 0 0 auto; z-index: 61; width: min(90vw, 520px); border-radius: 0; animation: inspector-reveal 150ms var(--ease); }
+}

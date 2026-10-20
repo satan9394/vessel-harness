@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useI18n } from '../LanguageProvider';
 import type { ApiClient } from '../../api';
 import { activityStatusLabelKey, groupActivity, type ActivityResponse, type ActivityRunView } from '../../workbench';
+import { formatStamp, shortPathLabel } from '../../utils/timeFormat';
 import '../card222.css';
 
 export interface ActivityQueueProps {
@@ -70,8 +71,8 @@ export default function ActivityQueue({ api, onOpenSession, initial }: ActivityQ
                 <span className={`status-badge status-${run.status}`}>{t(activityStatusLabelKey(run.status))}</span>
                 <span className="status-badge">{t(KIND_KEYS[run.kind])}</span>
                 <strong>{run.title}</strong>
-                <span className="dim">{t('activityProject')}: {run.projectRoot || '—'}</span>
-                <span className="dim">{t('activityUpdated')}: {run.updatedAt ? new Date(run.updatedAt).toLocaleString() : '—'}</span>
+                <span className="dim" title={run.projectRoot}>{t('activityProject')}: {shortPathLabel(run.projectRoot)}</span>
+                <span className="dim">{t('activityUpdated')}: {formatStamp(run.updatedAt)}</span>
                 {onOpenSession && <button className="btn" onClick={() => onOpenSession(run.id)}>{t('activityKindSession')}</button>}
                 {run.approval && (
                   <>

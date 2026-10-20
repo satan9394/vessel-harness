@@ -139,6 +139,13 @@ export interface CommonMessages {
   uiNoEvaluatorSnapshot: MessageTemplate;
   uiGoalEnqueueIntoThisProjectSTaskQueue: MessageTemplate;
   uiRunControlPauseSuspendsResumeContinuesBudgetSets: MessageTemplate;
+  uiPlan: MessageTemplate;
+  uiPlanProgress: MessageTemplate;
+  uiStepDone: MessageTemplate;
+  uiStepCurrent: MessageTemplate;
+  uiStepTodo: MessageTemplate;
+  uiPlanEmpty: MessageTemplate;
+  uiElapsed: MessageTemplate;
   uiNoMatchingReflectiveRules: MessageTemplate;
   uiReflectiveRules: MessageTemplate;
   uiTrigger: MessageTemplate;
@@ -343,6 +350,21 @@ export interface CommonMessages {
   preferences: MessageTemplate;
   sessionNew: MessageTemplate;
   hierarchyHint: MessageTemplate;
+  collapseSidebar: MessageTemplate;
+  expandSidebar: MessageTemplate;
+  workbenchWelcome: MessageTemplate;
+  activeWorkspace: MessageTemplate;
+  homeServerOnline: MessageTemplate;
+  homeServerOffline: MessageTemplate;
+  quickStart: MessageTemplate;
+  starterReview: MessageTemplate;
+  starterBenchmarks: MessageTemplate;
+  starterExplore: MessageTemplate;
+  starterReviewPrompt: MessageTemplate;
+  starterBenchmarksPrompt: MessageTemplate;
+  starterExplorePrompt: MessageTemplate;
+  homeUpdated: MessageTemplate;
+  homeNoSessions: MessageTemplate;
   activityHint: MessageTemplate;
   studioHint: MessageTemplate;
   behaviorInspector: MessageTemplate;
@@ -386,6 +408,13 @@ export interface CommonMessages {
   customizeHead: MessageTemplate;
   interruptTitle: MessageTemplate;
   teamModuleNoSession: MessageTemplate;
+  uiProject: MessageTemplate;
+  uiApprovalTier: MessageTemplate;
+  uiMode: MessageTemplate;
+  uiContextOccupancy: MessageTemplate;
+  uiKeyHints: MessageTemplate;
+  uiSendHint: MessageTemplate;
+  uiNewlineHint: MessageTemplate;
   goalModuleNoSession: MessageTemplate;
 }
 
@@ -406,6 +435,7 @@ export interface SessionMessages {
   recentSessions: MessageTemplate;
   topicSearch: MessageTemplate;
   topicToday: MessageTemplate;
+  topicYesterday: MessageTemplate;
   topicLastSevenDays: MessageTemplate;
   topicEarlier: MessageTemplate;
   topicUntitled: MessageTemplate;
@@ -423,6 +453,37 @@ export interface SessionMessages {
 
 /** Model UI messages. */
 export interface ModelMessages {
+  selectAll: MessageTemplate;
+  deselectAll: MessageTemplate;
+  invertSelection: MessageTemplate;
+  modelFilterAll: MessageTemplate;
+  modelFilterSelected: MessageTemplate;
+  modelFilterUnselected: MessageTemplate;
+  modelSearchCount: MessageTemplate;
+  modelSearchClear: MessageTemplate;
+  providerConfigured: MessageTemplate;
+  providerUntested: MessageTemplate;
+  providerRetestHint: MessageTemplate;
+  providerRetest: MessageTemplate;
+  presetCategoryAll: MessageTemplate;
+  presetCategoryCn: MessageTemplate;
+  presetCategoryOfficial: MessageTemplate;
+  presetCategoryAggregator: MessageTemplate;
+  presetCategoryLocal: MessageTemplate;
+  presetCategoryIntl: MessageTemplate;
+  presetSearchPlaceholder: MessageTemplate;
+  presetNoResults: MessageTemplate;
+  modelSearchPlaceholder: MessageTemplate;
+  modelAddPlaceholder: MessageTemplate;
+  modelSetAsDefault: MessageTemplate;
+  currentLabel: MessageTemplate;
+  onboardingTitle: MessageTemplate;
+  onboardingSubtitle: MessageTemplate;
+  onboardingRecommendedModels: MessageTemplate;
+  onboardingCustomHint: MessageTemplate;
+  modelRemove: MessageTemplate;
+  providerModelCount: MessageTemplate;
+  providerAuthExternal: MessageTemplate;
   capabilitiesTitle: MessageTemplate;
   capabilityDetected: MessageTemplate;
   capabilityDeclared: MessageTemplate;
@@ -743,6 +804,8 @@ export interface WorkbenchMessages {
   composerNoDiagnostics: MessageTemplate;
   composerLevels: MessageTemplate;
   composerEmptyStaged: MessageTemplate;
+  composerEmptyLibrary: MessageTemplate;
+  composerLoadingLibrary: MessageTemplate;
   composerReadError: MessageTemplate;
   composerVerifyError: MessageTemplate;
   traceTitle: MessageTemplate;
@@ -764,6 +827,37 @@ export interface Messages extends CommonMessages, SessionMessages, ModelMessages
   PatchMessages, ReasoningMessages, PaletteMessages, AttentionMessages, StatusMessages, WorkbenchMessages {}
 
 export const zh: Messages = {
+  presetCategoryAll: '全部',
+  presetCategoryCn: '国内',
+  presetCategoryOfficial: '国际官方',
+  presetCategoryAggregator: '聚合网关',
+  presetCategoryLocal: '本地',
+  presetCategoryIntl: '国际平台',
+  presetSearchPlaceholder: '搜索供应商或模型…',
+  presetNoResults: '未找到匹配项',
+  selectAll: '全选',
+  deselectAll: '全不选',
+  invertSelection: '反选',
+  modelFilterAll: '全部',
+  modelFilterSelected: '已选',
+  modelFilterUnselected: '未选',
+  modelSearchCount: '已选 {selected} / {total}',
+  modelSearchClear: '清除模型搜索',
+  providerConfigured: '已配置供应商',
+  providerUntested: '尚未测试',
+  providerRetest: '重新测试连接',
+  providerRetestHint: '重新输入密钥以测试连接；不会修改已保存的密钥。本地端点可留空。',
+  modelSearchPlaceholder: '搜索模型…',
+  modelAddPlaceholder: '输入模型 ID，按 Enter 添加',
+  modelSetAsDefault: '设为默认模型',
+  currentLabel: '当前',
+  onboardingTitle: '30 秒快捷接入',
+  onboardingSubtitle: '选择供应商，粘贴 API Key，即可开始。',
+  onboardingRecommendedModels: '推荐模型：{models}',
+  onboardingCustomHint: '接入自定义兼容端点',
+  modelRemove: '移除模型',
+  providerModelCount: '{count} 个模型',
+  providerAuthExternal: '此预设需要外部凭据配置；此表单仅支持 API Key。',
   behaviorInspector: '行为有效快照',
   behaviorSelectSession: '选择一个会话以检查实际生效的行为。',
   behaviorUnavailable: '此会话没有可用的行为快照。',
@@ -818,6 +912,21 @@ export const zh: Messages = {
   preferences: '偏好设置',
   sessionNew: '新会话',
   hierarchyHint: '项目 → 会话 → 运行 → 子代理',
+  collapseSidebar: '收起侧边栏',
+  expandSidebar: '展开侧边栏',
+  workbenchWelcome: '你的工作台',
+  activeWorkspace: '当前工作区',
+  homeServerOnline: '服务已连接',
+  homeServerOffline: '服务已断开',
+  quickStart: '快速开始',
+  starterReview: '审查代码',
+  starterBenchmarks: '运行基准测试',
+  starterExplore: '探索系统',
+  starterReviewPrompt: '审查当前工作区代码的正确性、安全性和测试缺口。先汇总发现，再进行修改。',
+  starterBenchmarksPrompt: '查找当前工作区的离线基准测试说明，运行相关检查并汇总结果。',
+  starterExplorePrompt: '探索当前工作区，说明其架构、主要入口及运行方式。',
+  homeUpdated: '更新于 {time}',
+  homeNoSessions: '最近会话将显示在这里。从上方开始一项任务吧。',
   activityHint: '会话活动来自服务端记录；打开会话查看运行和审批。',
   studioHint: '只读检查实际生效的行为、策略映射与编译来源。',
   modelRetry: '重新加载模型',
@@ -1157,6 +1266,13 @@ export const zh: Messages = {
   uiNoEvaluatorSnapshot: "（暂无评估结果快照）",
   uiGoalEnqueueIntoThisProjectSTaskQueue: "输入目标，加入本项目的任务队列…",
   uiRunControlPauseSuspendsResumeContinuesBudgetSets: "暂停可挂起运行，恢复可继续执行；预算用于设置最大迭代数与重试数，默认均为 1。",
+  uiPlan: "计划",
+  uiPlanProgress: "计划 · {done} / {total}",
+  uiStepDone: "已完成",
+  uiStepCurrent: "进行中",
+  uiStepTodo: "待办",
+  uiPlanEmpty: "本会话暂无计划步骤——启动一次任务后会在此常驻显示进度。",
+  uiElapsed: "耗时",
   uiNoMatchingReflectiveRules: "没有匹配的反思规则。",
   uiReflectiveRules: "反思规则",
   uiTrigger: "触发条件",
@@ -1332,6 +1448,7 @@ export const zh: Messages = {
   recentSessions: "历史会话",
   topicSearch: '搜索会话…',
   topicToday: '今天',
+  topicYesterday: '昨天',
   topicLastSevenDays: '最近 7 天',
   topicEarlier: '更早',
   topicUntitled: '新会话',
@@ -1371,6 +1488,13 @@ export const zh: Messages = {
   interruptTitle: "中断当前回合",
   teamModuleNoSession: "选择或新建会话后，将显示模型选择、团队活动与外部评审面板。",
   goalModuleNoSession: "选择或新建会话后，将显示任务队列、迭代回放与运行控制面板。",
+  uiProject: "项目",
+  uiApprovalTier: "审批档位",
+  uiMode: "模式",
+  uiContextOccupancy: "上下文占用",
+  uiKeyHints: "键位提示",
+  uiSendHint: "发送",
+  uiNewlineHint: "换行",
   tabTasks: "任务树",
   tabTrace: "追踪",
   tasksTitle: "团队任务树",
@@ -1443,6 +1567,8 @@ export const zh: Messages = {
   composerNoDiagnostics: "无诊断。",
   composerLevels: "生效链",
   composerEmptyStaged: "尚未加入任何规则。",
+  composerEmptyLibrary: "行为库为空——请先在设置中导入或创建行为规则。",
+  composerLoadingLibrary: "正在读取行为库…",
   composerReadError: "读取行为库失败：{error}",
   composerVerifyError: "校验失败：{error}",
   traceTitle: "结构化追踪",
@@ -1461,6 +1587,37 @@ export const zh: Messages = {
 };
 
 export const en: Messages = {
+  presetCategoryAll: "All",
+  presetCategoryCn: "CN",
+  presetCategoryOfficial: "Official",
+  presetCategoryAggregator: "Aggregator",
+  presetCategoryLocal: "Local",
+  presetCategoryIntl: "Intl",
+  presetSearchPlaceholder: 'Search providers or models…',
+  presetNoResults: "No matching results",
+  selectAll: 'Select All',
+  deselectAll: 'Deselect All',
+  invertSelection: 'Invert',
+  modelFilterAll: 'All',
+  modelFilterSelected: 'Selected',
+  modelFilterUnselected: 'Unselected',
+  modelSearchCount: 'Selected {selected} / {total}',
+  modelSearchClear: 'Clear model search',
+  providerConfigured: 'Configured providers',
+  providerUntested: 'Not tested',
+  providerRetest: 'Retest connection',
+  providerRetestHint: 'Re-enter the key to test; the saved key stays unchanged. Local endpoints may leave it blank.',
+  modelSearchPlaceholder: 'Search models…',
+  modelAddPlaceholder: 'Model ID · Enter to add',
+  modelSetAsDefault: "Set as default model",
+  currentLabel: "Current",
+  onboardingTitle: "Connect in 30 seconds",
+  onboardingSubtitle: "Choose a provider and add your API key to get started.",
+  onboardingRecommendedModels: "Recommended: {models}",
+  onboardingCustomHint: "Connect a custom compatible endpoint",
+  modelRemove: "Remove model",
+  providerModelCount: "{count} models",
+  providerAuthExternal: "This preset needs external credentials; this form supports API keys only.",
   behaviorInspector: 'Effective behavior snapshot',
   behaviorSelectSession: 'Select a session to inspect its effective behavior.',
   behaviorUnavailable: 'No behavior snapshot is available for this session.',
@@ -1515,6 +1672,21 @@ export const en: Messages = {
   preferences: 'Preferences',
   sessionNew: 'New session',
   hierarchyHint: 'Project → Session → Run → Subagent',
+  collapseSidebar: 'Collapse sidebar',
+  expandSidebar: 'Expand sidebar',
+  workbenchWelcome: 'Your workbench',
+  activeWorkspace: 'Active workspace',
+  homeServerOnline: 'Server connected',
+  homeServerOffline: 'Server disconnected',
+  quickStart: 'Quick start',
+  starterReview: 'Review code',
+  starterBenchmarks: 'Run benchmarks',
+  starterExplore: 'Explore system',
+  starterReviewPrompt: 'Review this workspace for correctness, security, and missing tests. Summarize findings before making changes.',
+  starterBenchmarksPrompt: 'Find the offline benchmark instructions for this workspace, run the relevant checks, and summarize the results.',
+  starterExplorePrompt: 'Explore this workspace and explain its architecture, main entry points, and how to run it.',
+  homeUpdated: 'Updated {time}',
+  homeNoSessions: 'Your recent sessions will appear here. Start a task above to begin.',
   activityHint: 'Session activity comes from server records. Open a session to inspect runs and approvals.',
   studioHint: 'Read-only inspection of effective behavior, policy mappings and compilation sources.',
   modelRetry: 'Retry model catalog',
@@ -1854,6 +2026,13 @@ export const en: Messages = {
   uiNoEvaluatorSnapshot: "(no evaluator snapshot)",
   uiGoalEnqueueIntoThisProjectSTaskQueue: "Goal… (enqueue into this project's task queue)",
   uiRunControlPauseSuspendsResumeContinuesBudgetSets: "Run control: Pause suspends, Resume continues; Budget sets maxIterations/maxRetries (§11.1 default 1/1).",
+  uiPlan: "Plan",
+  uiPlanProgress: "Plan · {done} / {total}",
+  uiStepDone: "Done",
+  uiStepCurrent: "Current",
+  uiStepTodo: "Todo",
+  uiPlanEmpty: "No plan steps for this session yet — start a task and progress will live here.",
+  uiElapsed: "elapsed",
   uiNoMatchingReflectiveRules: "No matching reflective rules.",
   uiReflectiveRules: "Reflective rules",
   uiTrigger: "Trigger",
@@ -2029,6 +2208,7 @@ export const en: Messages = {
   recentSessions: 'Recent Sessions',
   topicSearch: 'Search sessions…',
   topicToday: 'Today',
+  topicYesterday: 'Yesterday',
   topicLastSevenDays: 'Previous 7 days',
   topicEarlier: 'Earlier',
   topicUntitled: 'New session',
@@ -2069,6 +2249,13 @@ export const en: Messages = {
   interruptTitle: 'Interrupt the current turn (placeholder: POST /interrupt)',
   teamModuleNoSession:
     'Select or start a session and the Team panel (model select / 3-agent activity / External Review) appears here.',
+  uiProject: "Project",
+  uiApprovalTier: "Approval",
+  uiMode: "Mode",
+  uiContextOccupancy: "Context",
+  uiKeyHints: "key hints",
+  uiSendHint: "send",
+  uiNewlineHint: "newline",
   goalModuleNoSession:
     'Select or start a session and the Goals panel (task queue / iteration replay / per-run control) appears here.',
   tabTasks: 'Task tree',
@@ -2143,6 +2330,8 @@ export const en: Messages = {
   composerNoDiagnostics: 'No diagnostics.',
   composerLevels: 'Effective chain',
   composerEmptyStaged: 'No rules added yet.',
+  composerEmptyLibrary: 'The behavior library is empty — import or create a rule in Settings first.',
+  composerLoadingLibrary: 'Loading the behavior library…',
   composerReadError: 'Could not read the behavior library: {error}',
   composerVerifyError: 'Verification failed: {error}',
   traceTitle: 'Structured trace',

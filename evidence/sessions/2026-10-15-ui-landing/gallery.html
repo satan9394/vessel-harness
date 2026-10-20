@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="zh-CN" style="color-scheme: light dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Vessel UI 落地 · 证据画廊</title>
+<style>
+  :root { --bg:#e4e8f3; --panel:#fff; --ring:rgba(38,44,80,.12); --text:#0c1020; --text-2:#525a73; --accent:#5b6cff; }
+  @media (prefers-color-scheme: dark) { :root { --bg:#06070d; --panel:#0d0f18; --ring:rgba(255,255,255,.12); --text:#eef0f8; --text-2:#98a0b8; --accent:#9ba6ff; } }
+  body { margin:0; padding:32px; background:var(--bg); color:var(--text); font:13.5px/1.55 'Segoe UI',system-ui,sans-serif; }
+  h1 { font-size:22px; letter-spacing:-.02em; }
+  h2 { font-size:15px; margin-top:32px; color:var(--text-2); letter-spacing:.04em; text-transform:uppercase; }
+  p { color:var(--text-2); }
+  .grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(340px,1fr)); gap:16px; margin-top:16px; }
+  figure { margin:0; background:var(--panel); border:1px solid var(--ring); border-radius:16px; overflow:hidden; }
+  img { display:block; width:100%; height:auto; }
+  figcaption { padding:8px 12px; font-size:11.5px; color:var(--text-2); }
+</style>
+</head>
+<body>
+<h1>Vessel UI 落地 · 证据画廊</h1>
+<p>VESSEL-UI-2026-02 实施会话（2026-10-15）。离线 Chromium 实拍，零 npm 依赖；门禁与逐项回归见 <code>PROOF.md</code> 与 <code>docs/design-prototypes/FEATURE-COVERAGE.md</code>。</p>
+
+<h2>P2 · 玻璃外壳</h2>
+<div class="grid">
+  <figure><img src="p2-workbench-light.png" alt="工作台 浅色"><figcaption>工作台 / 浅色 1440</figcaption></figure>
+  <figure><img src="p2-workbench-dark.png" alt="工作台 深色"><figcaption>工作台 / 深色 1440</figcaption></figure>
+  <figure><img src="p2-activity-dark.png" alt="活动 深色"><figcaption>活动 / 深色</figcaption></figure>
+</div>
+
+<h2>P3 · 四栏骨架 + 8 Tab 检视器</h2>
+<div class="grid">
+  <figure><img src="p3-session-light.png" alt="会话四栏 浅色"><figcaption>会话四栏 / 浅色</figcaption></figure>
+  <figure><img src="p3-session-dark.png" alt="会话四栏 深色"><figcaption>会话四栏 / 深色</figcaption></figure>
+  <figure><img src="p3-session-en-dark.png" alt="会话四栏 英文"><figcaption>会话四栏 / 英文</figcaption></figure>
+  <figure><img src="p3-session-1023-dark.png" alt="1023px 模态"><figcaption>1023px → 检视器模态</figcaption></figure>
+</div>
+
+<h2>P4 · 常驻计划清单</h2>
+<div class="grid">
+  <figure><img src="p4-session-dark.png" alt="计划清单 深色"><figcaption>计划 · n/m 三态 / 深色</figcaption></figure>
+  <figure><img src="p4-session-light.png" alt="计划清单 浅色"><figcaption>计划 · n/m / 浅色</figcaption></figure>
+</div>
+
+<h2>P5 · 输入区胶囊 + 常驻计量</h2>
+<div class="grid">
+  <figure><img src="p5-session-dark.png" alt="胶囊与计量 深色"><figcaption>项目/模型/审批档位/模式 + 计量 / 深色</figcaption></figure>
+  <figure><img src="p5-session-en-dark.png" alt="胶囊与计量 英文"><figcaption>同上 / 英文</figcaption></figure>
+</div>
+
+<h2>P6 · 修丑点</h2>
+<div class="grid">
+  <figure><img src="p6-studio-light.png" alt="Studio 浅色"><figcaption>Agent Studio（去边分区）/ 浅色</figcaption></figure>
+  <figure><img src="p6-studio-dark.png" alt="Studio 深色"><figcaption>Agent Studio / 深色</figcaption></figure>
+  <figure><img src="p6-activity-dark.png" alt="活动列表"><figcaption>活动列表 / 时间 HH:mm·MM-DD</figcaption></figure>
+</div>
+
+<h2>P8 · 截图矩阵（中英 × 浅深 × 桌面/1366/1023/800，四个区域各一张）</h2>
+<p>完整 64 张在 <code>browser-capture-meta.json</code> 的 <code>full-*</code> 条目中；下面抽 8 张代表。</p>
+<div class="grid">
+  <figure><img src="full-workbench-zh-light-1440.png" alt=""><figcaption>工作台 zh/light/1440</figcaption></figure>
+  <figure><img src="full-activity-zh-dark-1366.png" alt=""><figcaption>活动 zh/dark/1366</figcaption></figure>
+  <figure><img src="full-studio-en-light-1023.png" alt=""><figcaption>Studio en/light/1023</figcaption></figure>
+  <figure><img src="full-settings-en-dark-800.png" alt=""><figcaption>设置 en/dark/800</figcaption></figure>
+  <figure><img src="full-workbench-en-dark-1366.png" alt=""><figcaption>工作台 en/dark/1366</figcaption></figure>
+  <figure><img src="full-activity-zh-light-800.png" alt=""><figcaption>活动 zh/light/800</figcaption></figure>
+  <figure><img src="full-studio-zh-dark-1440.png" alt=""><figcaption>Studio zh/dark/1440</figcaption></figure>
+  <figure><img src="full-settings-zh-light-1023.png" alt=""><figcaption>设置 zh/light/1023</figcaption></figure>
+</div>
+</body>
+</html>

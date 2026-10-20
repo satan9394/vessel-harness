@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="zh-CN" style="color-scheme: light dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Vessel Web 视觉方向 · 三选一对比</title>
+<style>
+/* 对比索引页：三栏各自绑定该方向的设计令牌，以真实取值呈现 */
+:root{
+  --page-bg:#f6f7f9; --page-panel:#ffffff; --page-line:#e2e5ea; --page-text:#12151b; --page-dim:#666e7e;
+  --sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Inter,Roboto,"Helvetica Neue","PingFang SC","Microsoft YaHei",sans-serif;
+  --mono:ui-monospace,SFMono-Regular,"JetBrains Mono","Cascadia Code",Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){
+  :root{ --page-bg:#0b0d11; --page-panel:#12151b; --page-line:#232833; --page-text:#e7eaf0; --page-dim:#98a1b2; }
+}
+
+/* 方向一 —— 克制精密 */
+.d1{ --bg:#ffffff; --panel:#fafafb; --line:rgba(16,18,24,.10); --text:#101319; --accent:#4f5bd5; --ok:#1f8a5b; --warn:#9a6b00; --danger:#c0392b; --radius:10px; --density:"舒适"; --fontvar:var(--sans); }
+.d1.dark{ --bg:#08090c; --panel:#0e1015; --line:rgba(255,255,255,.10); --text:#e7eaf0; --accent:#7c8cff; --ok:#3dd68c; --warn:#e0b341; --danger:#ff6b6b; }
+/* 方向二 —— 极简 Paper */
+.d2{ --bg:#ffffff; --panel:#fbfbfa; --line:#eaeae7; --text:#1c1c1a; --accent:#2f6fed; --ok:#1a7f4b; --warn:#8a6d1f; --danger:#b3261e; --radius:8px; --fontvar:var(--sans); }
+.d2.dark{ --bg:#191918; --panel:#1f1f1e; --line:#2e2e2c; --text:#ededeb; --accent:#7aa2ff; --ok:#5fbf8a; --warn:#d4b768; --danger:#e2867c; }
+/* 方向三 —— 工业终端 */
+.d3{ --bg:#f2f2ec; --panel:#fbfbf6; --line:#c7c7b8; --text:#111309; --accent:#0b6f85; --ok:#166b34; --warn:#8a5a00; --danger:#a8201a; --radius:0px; --fontvar:var(--mono); }
+.d3.dark{ --bg:#05070a; --panel:#0a0e13; --line:#1d2833; --text:#d7e3ee; --accent:#39d0d8; --ok:#4ade80; --warn:#fbbf24; --danger:#f87171; }
+
+*{box-sizing:border-box}
+body{margin:0;background:var(--page-bg);color:var(--page-text);font-family:var(--sans);font-size:14px;line-height:1.6;-webkit-font-smoothing:antialiased}
+.wrap{max-width:1240px;margin:0 auto;padding:48px 24px 72px}
+header.top{display:flex;flex-direction:column;gap:10px;margin-bottom:36px}
+header.top h1{margin:0;font-size:28px;font-weight:660;letter-spacing:-.022em}
+header.top p{margin:0;color:var(--page-dim);max-width:76ch}
+header.top .kb{font-family:var(--mono);font-size:12px;color:var(--page-dim)}
+
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:20px}
+.switch{display:flex;gap:8px;align-items:center;margin:22px 0 0;font-size:12px;color:var(--page-dim)}
+.switch button{padding:4px 12px;border:1px solid var(--page-line);background:transparent;color:var(--page-dim);border-radius:999px;font:inherit;font-size:12px;cursor:pointer}
+.switch button[aria-pressed="true"]{background:var(--page-text);color:var(--page-bg);border-color:var(--page-text)}
+
+.card{border:1px solid var(--page-line);border-radius:14px;background:var(--page-panel);overflow:hidden;display:flex;flex-direction:column}
+.card .preview{padding:18px;background:var(--bg);color:var(--text);font-family:var(--fontvar);border-bottom:1px solid var(--line);display:flex;flex-direction:column;gap:10px;min-height:186px}
+.card .preview .bar{display:flex;align-items:center;gap:8px;font-size:11px;opacity:.75}
+.card .preview .dot{width:8px;height:8px;border-radius:50%;background:var(--ok)}
+.card .preview .row{display:flex;gap:8px;flex-wrap:wrap}
+.card .preview .pv-btn{padding:6px 12px;border-radius:calc(var(--radius) * .65);border:1px solid var(--line);font-size:12px}
+.card .preview .pv-btn.pri{background:var(--accent);color:#fff;border-color:transparent;font-weight:600}
+.card .preview .pv-badge{padding:1px 7px;border-radius:999px;font-size:10px;border:1px solid var(--line)}
+.card .preview .pv-box{border-radius:var(--radius);border:1px solid var(--line);padding:12px;background:var(--panel);display:flex;flex-direction:column;gap:6px}
+.card .preview .pv-h{font-size:18px;font-weight:660;letter-spacing:-.01em}
+.card .preview .pv-p{font-size:12px;opacity:.72}
+.card .preview .pv-swatches{display:flex;gap:6px}
+.card .preview .pv-sw{width:26px;height:18px;border-radius:calc(var(--radius) * .5);border:1px solid var(--line)}
+.card .meta{padding:18px;display:flex;flex-direction:column;gap:12px}
+.card .meta h2{margin:0;font-size:17px;font-weight:640;letter-spacing:-.01em}
+.card .meta .tag{font-family:var(--mono);font-size:11px;color:var(--page-dim)}
+.card .meta .ch{color:var(--page-dim);font-size:13px}
+.card .meta dl{display:grid;grid-template-columns:auto 1fr;gap:4px 14px;margin:0;font-size:12.5px}
+.card .meta dt{color:var(--page-dim)}
+.card .meta dd{margin:0}
+.card .meta .open{margin-top:auto;display:inline-flex;align-items:center;gap:6px;align-self:flex-start;
+  padding:8px 14px;border-radius:10px;background:var(--page-text);color:var(--page-bg);text-decoration:none;font-weight:600;font-size:13px}
+.card .meta .open:hover{opacity:.88}
+
+.tbl{margin-top:40px;border:1px solid var(--page-line);border-radius:14px;overflow:hidden;background:var(--page-panel)}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th,td{text-align:left;padding:11px 16px;border-bottom:1px solid var(--page-line)}
+th{font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--page-dim);font-weight:600}
+tr:last-child td{border-bottom:0}
+td:first-child{color:var(--page-dim);white-space:nowrap}
+footer.note{margin-top:28px;color:var(--page-dim);font-size:12.5px;line-height:1.8}
+footer.note code{font-family:var(--mono);font-size:12px;background:var(--page-panel);border:1px solid var(--page-line);padding:1px 5px;border-radius:4px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <div style="align-self:flex-start;padding:12px 18px;border-radius:12px;border:1px solid var(--page-line);background:var(--page-panel);font-size:13px;line-height:1.75">
+      <b>→ 主交付物：<a href="prototype-full-glass.html" style="color:inherit">prototype-full-glass.html</a>（玻璃主题 · 功能完整 · 含模块全览板）</b><br>
+      <b>要落地实施</b>：读 <a href="IMPLEMENTATION-PLAN.md" style="color:inherit">IMPLEMENTATION-PLAN.md</a>（P1–P8 分阶段 + DoD）
+      与 <a href="NEW-CONVERSATION-PROMPT.md" style="color:inherit">NEW-CONVERSATION-PROMPT.md</a>（开局 Prompt）；
+      功能回归基准见 <a href="FEATURE-COVERAGE.md" style="color:inherit">FEATURE-COVERAGE.md</a>（B1–B18）。<br>
+      <b>要看全部模块</b>：打开后点左侧图标轨最下面的<b>「全览」</b>图标（▦），那一页把 11 个区域铺在一条滚动里，带左侧目录：
+      全局骨架 / 工作台双结构 / 会话双结构 / Inspector 四 Tab / 内嵌微组件 / 画布与团队 DAG / 模块全览（11 个）/ 活动与审计 / Agent Studio / 设置与弹窗 / 新建会话·命令面板·偏好。<br>
+      其余区域也可单独进：左侧图标轨 = 工作台 / 会话 / 画布 / 活动 / Studio / 设置；右下角浮动岛可切换<b>结构</b>（工作台·列表 ↔ 舱位，会话·流 ↔ 时间轴）与浅/深、中/EN。<br>
+      更早的探索稿仅作存档。
+    </div>
+    <h1>Vessel Web · 视觉与结构探索稿</h1>
+    <p>同一套界面骨架（侧栏 · 顶栏 · 工作台首页 · 会话视图 · 组件与状态），三种不同的视觉语言。三份原型都是自包含 HTML，可离线打开，支持浅/深色与 800px 视口切换。</p>
+    <div class="switch">
+      <span>缩略图主题</span>
+      <button data-th="light" aria-pressed="false">浅色</button>
+      <button data-th="dark" aria-pressed="false">深色</button>
+      <span class="kb">/? 仅影响本页缩略图，不影响原型文件</span>
+    </div>
+  </header>
+
+  <h2 style="margin:34px 0 4px;font-size:17px;font-weight:640;letter-spacing:-.01em">结构概念（骨架不同，不只是换皮）</h2>
+  <p style="margin:0 0 14px;color:var(--page-dim);font-size:13px;max-width:84ch">三套各自换了信息架构与主视图，而不是同一骨架换配色。</p>
+  <div class="grid" style="margin-bottom:8px">
+    <section class="card">
+      <div class="meta" style="padding:18px">
+        <div class="tag">CONCEPT 01</div>
+        <h2>聚光 Command-First</h2>
+        <p class="ch">没有侧栏。整页是一条大命令栏 + 实时结果流，运行中的会话沉到底部 dock；会话视图是居中窄列，检查器是浮层抽屉。</p>
+        <a class="open" href="concept-01-spotlight.html">打开 聚光 →</a>
+      </div>
+    </section>
+    <section class="card">
+      <div class="meta" style="padding:18px">
+        <div class="tag">CONCEPT 02</div>
+        <h2>舱位 Bento 任务控制台</h2>
+        <p class="ch">没有侧栏，改为顶部分段导航；首页是不对称 bento 网格（2×2 运行卡 + 1×2 审批卡 + 2×1 宽卡）；会话是三栏驾驶舱。</p>
+        <a class="open" href="concept-02-bento.html">打开 舱位 →</a>
+      </div>
+    </section>
+    <section class="card">
+      <div class="meta" style="padding:18px">
+        <div class="tag">CONCEPT 03</div>
+        <h2>时间轴 Timeline DVR</h2>
+        <p class="ch">会话不是聊天记录，而是一根横向执行时间轴：思考 / 工具 / 审批 / 策略四条泳道，每步是可点选的时长条，底部可拖拽 scrubber。</p>
+        <a class="open" href="concept-03-timeline.html">打开 时间轴 →</a>
+      </div>
+    </section>
+  </div>
+
+  <h2 style="margin:34px 0 4px;font-size:17px;font-weight:640;letter-spacing:-.01em">方向皮肤（同一骨架，五种审美）</h2>
+  <p style="margin:0 0 14px;color:var(--page-dim);font-size:13px;max-width:84ch">同一骨架、同一工艺，只换视觉方向。打开后点右下角"方向"组切换：精密 / 单色 / 瑞士 / 玻璃 / 高反差。</p>
+
+  <div class="grid">
+
+    <section class="card d1" id="c1">
+      <div class="preview">
+        <div class="bar"><span class="dot"></span><span>本地服务正常 · v0.10.0</span></div>
+        <div class="pv-h">开始一个任务</div>
+        <div class="pv-p">选择项目、写下目标，Vessel 在受策略约束的循环里执行。</div>
+        <div class="pv-box">
+          <div class="pv-p" style="opacity:.9">描述你要完成的任务…</div>
+          <div class="row"><span class="pv-btn pri">开始任务</span><span class="pv-btn">进阶设置</span><span class="pv-badge">workspace-write</span></div>
+        </div>
+        <div class="pv-swatches"><span class="pv-sw" style="background:#101319"></span><span class="pv-sw" style="background:#4f5bd5"></span><span class="pv-sw" style="background:#1f8a5b"></span><span class="pv-sw" style="background:#9a6b00"></span><span class="pv-sw" style="background:#c0392b"></span></div>
+      </div>
+      <div class="meta">
+        <div class="tag">DIRECTION 01</div>
+        <h2>克制精密</h2>
+        <p class="ch">Linear / Vercel / Raycast 的调性：弱边框、分层面板、留白分区、克制动效。深色最出彩，浅色同样干净。</p>
+        <dl>
+          <dt>圆角</dt><dd>6 / 10 / 14px</dd>
+          <dt>字体</dt><dd>系统无衬线 · 13px 基准</dd>
+          <dt>分隔</dt><dd>极低对比发丝线 + 面板填充</dd>
+          <dt>动效</dt><dd>150ms ease-out，仅悬停/状态</dd>
+          <dt>强项</dt><dd>密度与高级感兼顾，最贴 Agent 工具定位</dd>
+          <dt>取舍</dt><dd>需要认真做层级，否则容易回到“灰框”</dd>
+        </dl>
+        <a class="open" href="direction-1-precision.html">打开方向一原型 →</a>
+      </div>
+    </section>
+
+    <section class="card d2" id="c2">
+      <div class="preview">
+        <div class="bar"><span class="dot"></span><span>本地服务正常 · v0.10.0</span></div>
+        <div class="pv-h">开始一个任务</div>
+        <div class="pv-p">选择项目，写下目标。Vessel 在受策略约束的循环里执行。</div>
+        <div class="pv-box">
+          <div class="pv-p" style="opacity:.9">描述你要完成的任务…</div>
+          <div class="row"><span class="pv-btn pri">开始任务</span><span class="pv-btn">进阶设置</span><span class="pv-badge">workspace-write</span></div>
+        </div>
+        <div class="pv-swatches"><span class="pv-sw" style="background:#1c1c1a"></span><span class="pv-sw" style="background:#2f6fed"></span><span class="pv-sw" style="background:#1a7f4b"></span><span class="pv-sw" style="background:#8a6d1f"></span><span class="pv-sw" style="background:#b3261e"></span></div>
+      </div>
+      <div class="meta">
+        <div class="tag">DIRECTION 02</div>
+        <h2>极简 Paper</h2>
+        <p class="ch">Notion × OpenAI：暖中性灰阶、大留白、发丝分隔线代替卡片边框、几乎无阴影、单一强调色。</p>
+        <dl>
+          <dt>圆角</dt><dd>6 / 8 / 12px</dd>
+          <dt>字体</dt><dd>系统无衬线 · 14px 基准 · 行高 1.65</dd>
+          <dt>分隔</dt><dd>发丝线 + 无边框列表</dd>
+          <dt>动效</dt><dd>120ms，近乎无感</dd>
+          <dt>强项</dt><dd>长时间阅读最舒适，文档与设置页优雅</dd>
+          <dt>取舍</dt><dd>密度偏低，密集执行流需要额外滚动</dd>
+        </dl>
+        <a class="open" href="direction-2-paper.html">打开方向二原型 →</a>
+      </div>
+    </section>
+
+    <section class="card d3" id="c3">
+      <div class="preview">
+        <div class="bar"><span class="dot"></span><span>LOCAL SERVER HEALTHY · V0.10.0</span></div>
+        <div class="pv-h">开始一个任务</div>
+        <div class="pv-p">选择项目、写下目标。Vessel 在受策略约束的循环里执行。</div>
+        <div class="pv-box">
+          <div class="pv-p" style="opacity:.9">&gt; describe the task…</div>
+          <div class="row"><span class="pv-btn pri">START TASK</span><span class="pv-btn">ADVANCED</span><span class="pv-badge">WORKSPACE-WRITE</span></div>
+        </div>
+        <div class="pv-swatches"><span class="pv-sw" style="background:#05070a"></span><span class="pv-sw" style="background:#39d0d8"></span><span class="pv-sw" style="background:#4ade80"></span><span class="pv-sw" style="background:#fbbf24"></span><span class="pv-sw" style="background:#f87171"></span></div>
+      </div>
+      <div class="meta">
+        <div class="tag">DIRECTION 03</div>
+        <h2>工业终端</h2>
+        <p class="ch">等宽字体、直角边框、方格与括号记号、全大写标签。与 CLI / TUI 同一气质，深色为主。</p>
+        <dl>
+          <dt>圆角</dt><dd>0 – 2px</dd>
+          <dt>字体</dt><dd>等宽全站 · 12px 基准</dd>
+          <dt>分隔</dt><dd>高对比直线与网格</dd>
+          <dt>动效</dt><dd>60ms 线性，近乎瞬时</dd>
+          <dt>强项</dt><dd>信息密度最高，与终端血统自洽</dd>
+          <dt>取舍</dt><dd>阅读负担大，非技术用户门槛高</dd>
+        </dl>
+        <a class="open" href="direction-3-terminal.html">打开方向三原型 →</a>
+      </div>
+    </section>
+
+  </div>
+
+  <div class="tbl">
+    <table>
+      <thead><tr><th>维度</th><th>方向一 克制精密</th><th>方向二 极简 Paper</th><th>方向三 工业终端</th></tr></thead>
+      <tbody>
+        <tr><td>默认主题</td><td>深色优（浅色同样成立）</td><td>浅色优</td><td>深色为主</td></tr>
+        <tr><td>信息密度</td><td>中高</td><td>中低</td><td>高</td></tr>
+        <tr><td>对比强度</td><td>中</td><td>低</td><td>高</td></tr>
+        <tr><td>阅读舒适度</td><td>高</td><td>最高</td><td>中</td></tr>
+        <tr><td>与 CLI/TUI 一致性</td><td>中</td><td>低</td><td>最高</td></tr>
+        <tr><td>实施风险</td><td>中（重做令牌层）</td><td>中（需重构分隔与留白）</td><td>低（纯 CSS 换肤即可）</td></tr>
+        <tr><td>最佳场景</td><td>面向开发者的日常主力界面</td><td>偏文档 / 设置 / 评审场景</td><td>贴终端工作流的高级用户</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <footer class="note">
+    原型文件：<code>docs/design-prototypes/direction-1-precision.html</code>、<code>direction-2-paper.html</code>、<code>direction-3-terminal.html</code>。
+    令牌草稿见 <code>docs/DESIGN.md</code>。每份原型右上角的评审工具条可切主题 / 语言 / 视口，该工具条不属于产品 UI。
+  </footer>
+</div>
+
+<script>
+(function(){
+  var btns=document.querySelectorAll('[data-th]');
+  btns.forEach(function(b){ b.addEventListener('click',function(){
+    var dark=b.getAttribute('data-th')==='dark';
+    ['c1','c2','c3'].forEach(function(id){ document.getElementById(id).classList.toggle('dark',dark); });
+    btns.forEach(function(x){ x.setAttribute('aria-pressed',String(x===b)); });
+  }); });
+})();
+</script>
+</body>
+</html>

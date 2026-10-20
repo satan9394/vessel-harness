@@ -9,6 +9,18 @@ describe('ARC-08 capability negotiation', () => {
     expect(discoverProviderCapabilities({ id: 'deepseek-r1' }).reasoning).toEqual({ status: 'unknown' });
     expect(discoverProviderCapabilities({ context_window: 8192, supports_reasoning: false }).reasoning).toMatchObject({ status: 'declared', value: false });
   });
+  it('seeds adapter defaults when protocol is provided and allows metadata to override', () => {
+    const oai = discoverProviderCapabilities({ id: 'deepseek/deepseek-v4.1-flash', context_length: 1000000 }, 'openai-compatible');
+    expect(oai.tools).toMatchObject({ status: 'declared', value: true });
+    expect(oai.streaming).toMatchObject({ status: 'declared', value: true });
+    expect(oai.contextWindow).toMatchObject({ status: 'declared', value: 1000000 });
+
+    const ant = discoverProviderCapabilities({ id: 'claude-3-7-sonnet', supports_tools: true }, 'anthropic');
+    expect(ant.tools).toMatchObject({ status: 'declared', value: true });
+
+    const restricted = discoverProviderCapabilities({ id: 'deepseek-reasoner', supports_tools: false }, 'openai-compatible');
+    expect(restricted.tools).toMatchObject({ status: 'declared', value: false });
+  });
   it('requires evidence for mandatory unknown capabilities and checks context size', () => {
     const capabilities = capabilitiesFor('unknown');
     expect(() => negotiateCapabilities('custom', 'm', capabilities, { tools: true })).toThrow(CapabilityMismatchError);

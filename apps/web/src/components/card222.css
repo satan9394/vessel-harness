@@ -15,8 +15,8 @@
 .activity-run,
 .composer-rule,
 .trace-step {
-  border: 1px solid #8883;
-  border-radius: 6px;
+  border: 1px solid var(--ring);
+  border-radius: var(--r-1);
   padding: 0.5rem 0.6rem;
   display: flex;
   flex-wrap: wrap;
@@ -25,24 +25,24 @@
 }
 
 .task-tree-node[data-status='failed'],
-.activity-run[data-status='failed'] { border-color: #c0392b; }
-.task-tree-node[data-status='cancelled'] { border-color: #999; opacity: 0.85; }
+.activity-run[data-status='failed'] { border-color: var(--danger); }
+.task-tree-node[data-status='cancelled'] { border-color: var(--ring-2); opacity: 0.85; }
 .task-tree-node[data-status='waiting_approval'],
-.activity-run[data-status='needs_attention'] { border-color: #d08700; }
+.activity-run[data-status='needs_attention'] { border-color: var(--warn); }
 
 .status-badge {
   font-size: 0.75rem;
   padding: 0.1rem 0.45rem;
-  border-radius: 999px;
-  background: #8882;
+  border-radius: var(--r-pill);
+  background: var(--panel-2);
   white-space: nowrap;
 }
 
 .card222-detail {
   margin-top: 0.6rem;
   padding: 0.6rem;
-  border: 1px solid #8883;
-  border-radius: 6px;
+  border: 1px solid var(--ring);
+  border-radius: var(--r-1);
 }
 
 .composer-grid {
@@ -52,6 +52,9 @@
 }
 
 .composer-rule-actions { display: flex; gap: 0.3rem; flex-wrap: wrap; }
+
+/* P6: empty/loading states are quiet, readable placeholders — never a bare label. */
+.composer-empty { border: 1px dashed var(--ring-2); border-radius: var(--r-1); padding: 0.7rem 0.8rem; margin: 0; }
 
 .trace-detail {
   max-width: 100%;
