@@ -8,7 +8,7 @@
 `NNN-短横线描述.md`，如 `001-project-memory.md`；V1.1 路线卡用 `V1.1-<字母>-<短横线描述>.md`。
 状态取值：待执行 / 执行中 / 待验收 / 已合入 / 打回。
 
-最近本地交付：任务 241 ProviderHub 管理与添加分离 + 凭据免输直测已交付（彻底解决重新测试强制要求重新输入 API Key 痛点，实现已存凭据一键直测，结构化分离已配管理与添加展台，双 Root 3044+408 passed 全绿、web build exit 0、core 0 变动）。详见 [任务卡 241](241-arch-05-ui-06-provider-hub-management-separation.md)。
+最近本地交付：任务 242 Agent Studio 行为配置与有效安全策略分层已交付（明确候选配置编译验证与未激活草稿状态，防止误解为在线热更新，双 Root 3044+409 passed 全绿、web build exit 0、core 0 变动）。详见 [任务卡 242](242-arch-07-ui-07-agent-studio-advisory-separation.md)。
 
 ## 怎么读这个目录
 
@@ -133,6 +133,7 @@
 | Inspector 8 合 3 职责化重组 (UI-05) | 239 | **已完成（2026-10-20）**：将 8 个平级标签重组为变更/执行/诊断 3 大职责组，两级无障碍导航，默认 patch，旧状态与 tabRequest 平滑迁移；双 Root 3044+407 passed 全绿 | `tasks/239-ui-05-inspector-8-to-3-groups.md` |
 | 清理未实现模块占位符与无面板死逻辑 (UI-08) | 240 | **已完成（2026-10-20）**：收敛 UI 模块为 Tasks/Team/Swarm/CognitiveRules 四大真实面板，剔除未实现灰色卡片与死逻辑，旧配置安全平滑过滤；双 Root 3044+407 passed 全绿 | `tasks/240-ui-08-clean-unimplemented-placeholders.md` |
 | ProviderHub 管理与添加分离 + 凭据免输直测 (ARCH-05 + UI-06) | 241 | **已完成（2026-10-20）**：支持已配凭据免输一键直测，结构化分离已配供应商管理与 72+ 预设展台，兼顾新旧凭据安全；双 Root 3044+408 passed 全绿 | `tasks/241-arch-05-ui-06-provider-hub-management-separation.md` |
+| Agent Studio 行为配置与有效安全策略分层 (ARCH-07 + UI-07) | 242 | **已完成（2026-10-20）**：明确候选配置编译验证与离线草稿未激活状态，防止误解为作用于运行态，强化安全策略不可覆盖性；双 Root 3044+409 passed 全绿 | `tasks/242-arch-07-ui-07-agent-studio-advisory-separation.md` |
 
 ## 未闭合 / 下一目标
 

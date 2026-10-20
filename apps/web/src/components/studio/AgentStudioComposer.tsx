@@ -84,6 +84,7 @@ export default function AgentStudioComposer({ api, sessionId, initialLibrary, in
     <section className="dashboard-panel agent-studio-composer" aria-label={t('composerTitle')}>
       <h3>{t('composerTitle')}</h3>
       <p className="dim">{t('composerHint')}</p>
+      <div className="composer-advisory-banner dim" role="note">{t('composerAdvisoryHint')}</div>
       {error ? <p role="alert" className="error-text">{t('composerReadError', { error: String((error as Error)?.message ?? error) })}</p> : null}
 
       <div className="composer-grid">
@@ -128,6 +129,7 @@ export default function AgentStudioComposer({ api, sessionId, initialLibrary, in
       {report && (
         <div className="card222-detail composer-report" aria-label={t('composerVerdict')}>
           <p>{t('composerVerdict')}: <strong className={`status-badge verdict-${report.verdict}`}>{t(VERDICT_KEYS[report.verdict])}</strong></p>
+          <p className="composer-active-state"><span className="status-badge status-draft">{t('composerStatusDraft')}</span> {report.verdict === 'rejected' ? <strong className="error-text">{t('composerCompileFailed')}</strong> : <span className="dim">{t('composerNotActive')}</span>}</p>
           {report.snapshotHash && <p>{t('composerSnapshot')}: <code>{report.snapshotHash.slice(0, 16)}…</code></p>}
           <h4>{t('composerConflicts')}</h4>
           {report.conflicts.length === 0 ? <p className="dim">{t('composerNoConflicts')}</p> : (

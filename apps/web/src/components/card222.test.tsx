@@ -150,6 +150,21 @@ describe('card 222 components', () => {
     expect(renderToStaticMarkup(<AgentStudioComposer initialLibrary={library} initialStaged={library} initialReport={report} />)).toContain('已拒绝（不可激活）');
   });
 
+  it('clearly marks advisory verification without claiming live activation (UI-07)', () => {
+    lang = 'en';
+    const html = renderToStaticMarkup(<AgentStudioComposer initialLibrary={library} initialStaged={library} initialReport={report} />);
+    expect(html).toContain('Verify candidate configuration');
+    expect(html).toContain('Advisory candidate evaluation');
+    expect(html).toContain('Candidate draft');
+    expect(html).toContain('Compile failed — cannot be activated');
+    lang = 'zh';
+    const zh = renderToStaticMarkup(<AgentStudioComposer initialLibrary={library} initialStaged={library} initialReport={report} />);
+    expect(zh).toContain('验证候选配置');
+    expect(zh).toContain('候选配置编译评估');
+    expect(zh).toContain('候选草稿');
+    expect(zh).toContain('编译未通过，禁止启用');
+  });
+
   it('renders a structured sanitized trace (keys only, no raw values)', () => {
     lang = 'en';
     const html = renderToStaticMarkup(<TracePanel initial={trace} sessionId="s1" />);
