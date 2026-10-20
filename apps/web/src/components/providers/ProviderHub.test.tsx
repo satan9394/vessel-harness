@@ -76,6 +76,15 @@ describe('ProviderHub page', () => {
     expect(render('lark').find(node => node.props.id === 'provider-name')!.props.value).toBe('lark');
     expect(render('lark').find(node => node.props.id === 'provider-models')!.props.value).toBe('doubao-1-5-pro-32k-250115');
   });
+  it('directly tests a configured provider without re-entering the API key', async () => {
+    const { api, onChanged, render } = setup(); render(); await settle();
+    const directBtn = render().find(node => node.type === 'button' && typeof node.props.children === 'string' && (node.props.children as string).includes('Test connection'))!;
+    (directBtn.props.onClick as () => void)();
+    await settle();
+    expect(api.testProvider).toHaveBeenCalledWith(expect.objectContaining({ name: 'existing', apiKey: '' }));
+    expect(onChanged).toHaveBeenCalledOnce();
+    expect(render().some(node => node.props.children === 'Connected · 42 ms')).toBe(true);
+  });
   it('retests a saved provider with a re-entered key and never sends its masked key', async () => {
     const { api, onChanged, render } = setup(); render(); await settle();
     (render().find(node => node.props.children === 'Retest connection')!.props.onClick as () => void)();

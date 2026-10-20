@@ -214,15 +214,20 @@ export default function ProviderSettingsModal({ api, onClose, onChanged, initial
         <code>{provider.baseUrl}</code><span>{provider.apiKeyMasked || t('providerNoKey')}</span><span>{t('providerModelCount', { count: String(provider.models.length) })}</span>
         <span className={`provider-badge${savedResults[provider.name]?.ok ? ' provider-status-ok' : ''}`} role="status">{savedResults[provider.name] ? savedResults[provider.name]!.ok ? t('providerConnected', { ms: String(savedResults[provider.name]!.latencyMs ?? 0) }) : t(providerFailure(savedResults[provider.name]!.error).key, providerFailure(savedResults[provider.name]!.error).params) : t('providerUntested')}</span>
         <details className="provider-capabilities"><summary>{t('capabilitiesTitle')}</summary>{provider.models.map(model => <section key={model}><h4>{model}</h4><CapabilityStatus capabilities={provider.modelCapabilities?.[model]} /></section>)}</details>
-        {testingSaved === provider.name ? <form className="provider-card-test" onSubmit={event => { event.preventDefault(); void testSaved(provider); }}>
-          <label>{t('providerApiKey')}<input className="input" type="password" autoComplete="off" maxLength={8192} value={savedKey} disabled={!!busy} onChange={event => setSavedKey(event.target.value)} /></label>
-          <p className="dim">{t('providerRetestHint')}</p>
-          <button className="btn" type="submit" disabled={!!busy}>{busy === 'test' ? t('providerTesting') : t('providerTest')}</button>
-          <button className="btn btn-secondary" type="button" disabled={!!busy} onClick={() => void testDirect(provider)}>⚡ 直接测试</button>
-          <button className="btn" type="button" disabled={!!busy} onClick={() => { setTestingSaved(undefined); setSavedKey(''); }}>{t('cancel')}</button>
-        </form> : <button className="btn" type="button" disabled={!!busy} onClick={() => { setTestingSaved(provider.name); setSavedKey(''); }}>{t('providerRetest')}</button>}
-        {deleting === provider.name ? <div><span>{t('providerDeleteConfirm', { name: provider.name })}</span><button className="btn" disabled={!!busy} onClick={() => void run('delete')}>{t('confirm')}</button><button className="btn" disabled={!!busy} onClick={() => setDeleting(undefined)}>{t('cancel')}</button></div>
-          : <button className="btn" disabled={!!busy} onClick={() => setDeleting(provider.name)}>{t('delete')}</button>}
+        <div className="provider-card-actions">
+          <button className="btn" type="button" disabled={!!busy} onClick={() => void testDirect(provider)} title={t('providerTest')}>
+            {busy === 'test' && testingSaved === undefined ? t('providerTesting') : `⚡ ${t('providerTest')}`}
+          </button>
+          {testingSaved === provider.name ? <form className="provider-card-test" onSubmit={event => { event.preventDefault(); void testSaved(provider); }}>
+            <label>{t('providerApiKey')}<input className="input" type="password" autoComplete="off" maxLength={8192} value={savedKey} disabled={!!busy} onChange={event => setSavedKey(event.target.value)} /></label>
+            <p className="dim">{t('providerRetestHint')}</p>
+            <button className="btn" type="submit" disabled={!!busy}>{busy === 'test' ? t('providerTesting') : t('providerTest')}</button>
+            <button className="btn btn-secondary" type="button" disabled={!!busy} onClick={() => void testDirect(provider)}>⚡ 直接测试</button>
+            <button className="btn" type="button" disabled={!!busy} onClick={() => { setTestingSaved(undefined); setSavedKey(''); }}>{t('cancel')}</button>
+          </form> : <button className="btn btn-secondary" type="button" disabled={!!busy} onClick={() => { setTestingSaved(provider.name); setSavedKey(''); }}>{t('providerRetest')}</button>}
+          {deleting === provider.name ? <div><span>{t('providerDeleteConfirm', { name: provider.name })}</span><button className="btn" disabled={!!busy} onClick={() => void run('delete')}>{t('confirm')}</button><button className="btn" disabled={!!busy} onClick={() => setDeleting(undefined)}>{t('cancel')}</button></div>
+            : <button className="btn" disabled={!!busy} onClick={() => setDeleting(provider.name)}>{t('delete')}</button>}
+        </div>
       </article>)}</div> : <p className="dim">{t('providerEmpty')}</p>}
       </section>
       <form noValidate onSubmit={event => { event.preventDefault(); void run('save'); }}>
