@@ -44,6 +44,7 @@ export interface ActivitySessionSource {
   updatedAt?: string;
   topic?: { title?: string; isArchived?: boolean };
   lastRunStatus?: RunOutcomeStatus;
+  errorDetail?: string;
   recordCount?: number;
 }
 
@@ -154,11 +155,6 @@ export class ActivityRoutes {
         status = 'unknown';
         outcome = 'queued';
         statusSource = 'inferred';
-      } else if (typeof session.recordCount === 'number' && session.recordCount > 0) {
-        // 历史已索引会话带有有效记录，且未被标记报错中断
-        status = 'completed';
-        outcome = 'completed';
-        statusSource = 'inferred';
       } else {
         // 无法从现有数据确证成功结果，归为 unknown
         status = 'unknown';
@@ -174,6 +170,7 @@ export class ActivityRoutes {
         status,
         outcome,
         statusSource,
+        detail: live?.errorDetail ?? session.errorDetail,
         needsApproval: Boolean(approval),
         approval,
         updatedAt: time(session.updatedAt ?? session.createdAt),

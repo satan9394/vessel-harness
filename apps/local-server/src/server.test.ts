@@ -8,6 +8,9 @@ import { IterationStore, ProjectTaskQueue } from '@vessel/engine';
 import { createVesselServer, type VesselServer } from './server.js';
 import type { ChatProvider, ChatRequest, ChatResponse, StreamChunk } from '@vessel/shared';
 import { GoalSeam } from './goalSeam.js';
+import { ActivityRoutes } from './routes/activityRoutes.js';
+import { ProviderRoutes } from './routes/providerRoutes.js';
+import { ProviderStore } from './providers/ProviderStore.js';
 
 const { recyclePath } = vi.hoisted(() => ({ recyclePath: vi.fn<() => Promise<void>>() }));
 vi.mock('./daemon/daemonLifecycle.js', async (importOriginal) => ({
@@ -83,6 +86,7 @@ describe('local server HTTP API + SSE', () => {
   let home: string;
   let server: VesselServer;
   let base: string;
+  let controller: SessionController;
 
   beforeEach(async () => {
     recyclePath.mockReset().mockResolvedValue(undefined);
@@ -102,7 +106,8 @@ describe('local server HTTP API + SSE', () => {
         const provider = new MockProvider([{ when: /.*/, response: { text: `SERVER-ECHO:${input.model ?? 'default'}` } }], {
           model: input.model ?? 'default',
         });
-        return importSession(provider, input);
+        controller = await importSession(provider, input);
+        return controller;
       },
       staticDir: ws,
     });
@@ -137,6 +142,75 @@ describe('local server HTTP API + SSE', () => {
     const body = (await res.json()) as { ok: boolean; version: string };
     expect(body.ok).toBe(true);
     expect(body.version).toBe('0.10.0');
+  });
+
+  it.each(['error', 'budget', 'failure', 'success', 'interrupted', 'cancelled'] as const)(
+    'projects terminal kind=%s from the live session log', async kind => {
+      const created = await fetch(`${base}/api/sessions`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ workspaceRoot: ws }),
+      });
+      const { session } = await created.json() as { session: { id: string } };
+      await controller.session.appendSync({ type: 'turn/end', turnId: 'fixture', kind,
+        errorDetail: 'fixture failure detail', stats: { steps: 1, toolCalls: 0, durationMs: 1 }, surface: false });
+      const { runs } = await (await fetch(`${base}/api/activity/runs`)).json() as { runs: Array<Record<string, unknown>> };
+      const outcome = kind === 'success' ? 'completed' : kind === 'interrupted' || kind === 'cancelled' ? kind : 'failed';
+      expect(runs.find(run => run.id === session.id)).toMatchObject({
+        status: outcome === 'completed' ? 'completed' : 'failed', outcome, statusSource: 'live', detail: 'fixture failure detail',
+      });
+    },
+  );
+
+  it('does not reuse an older success after a newer unfinished turn', async () => {
+    await fetch(`${base}/api/sessions`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ workspaceRoot: ws }),
+    });
+    await controller.session.appendSync({ type: 'turn/end', turnId: 'old', kind: 'success',
+      stats: { steps: 1, toolCalls: 0, durationMs: 1 }, surface: false });
+    await controller.session.appendSync({ type: 'turn/start', turnId: 'new', surface: false });
+    const { runs } = await (await fetch(`${base}/api/activity/runs`)).json() as { runs: Array<Record<string, unknown>> };
+    expect(runs[0]).toMatchObject({ status: 'failed', outcome: 'interrupted', statusSource: 'live' });
+  });
+
+  it('keeps indexed sessions without terminal evidence unknown and preserves error details', async () => {
+    const routes = new ActivityRoutes({
+      sessions: async () => [{ id: 'crashed', workspaceRoot: ws, recordCount: 3, errorDetail: 'indexed failure' },
+        { id: 'live-error', workspaceRoot: ws, recordCount: 3 }],
+      live: id => id === 'live-error' ? { turnActive: false, errorDetail: 'live failure', recordCount: 3 } : undefined,
+      approvals: () => [], subagents: async () => [], teamStages: () => [], goalTasks: () => [],
+    });
+    const { runs } = await routes.list();
+    expect(runs.find(run => run.id === 'crashed')).toMatchObject({ status: 'unknown', outcome: 'unknown', statusSource: 'inferred', detail: 'indexed failure' });
+    expect(runs.find(run => run.id === 'live-error')).toMatchObject({ status: 'unknown', outcome: 'unknown', detail: 'live failure' });
+  });
+
+  it.each(['test', 'pullModels'] as const)('%s binds stored keys to the saved URL and protocol', async method => {
+    const secrets = new Map<string, string>();
+    const store = new ProviderStore({ rootDir: path.join(dir, 'providers'), credentialStore: {
+      backend: 'memory', setSync: (s, a, key) => { secrets.set(`${s}/${a}`, key); },
+      getSync: (s, a) => secrets.get(`${s}/${a}`) ?? null, deleteSync: (s, a) => { secrets.delete(`${s}/${a}`); },
+    } });
+    const probe = vi.fn<typeof fetch>().mockImplementation(async () => new Response(JSON.stringify({ data: [{ id: 'fixture' }] })));
+    const routes = new ProviderRoutes(() => store, probe);
+    for (const protocol of ['openai-compatible', 'anthropic'] as const) {
+      routes.save({ name: 'saved', protocol, baseUrl: 'https://saved.invalid/v1', apiKey: 'synthetic-secret', models: ['fixture'] });
+      for (const apiKey of ['', undefined]) {
+        for (const identity of [{ name: 'saved' }, { id: 'saved' }]) {
+          expect(await routes[method]({ ...identity, protocol: protocol === 'anthropic' ? 'openai-compatible' : 'anthropic', baseUrl: 'https://attacker.invalid/v1', apiKey })).toMatchObject({ ok: true });
+          expect(probe).toHaveBeenLastCalledWith('https://saved.invalid/v1/models', expect.objectContaining({
+            redirect: 'error', headers: protocol === 'anthropic'
+              ? { 'x-api-key': 'synthetic-secret', 'anthropic-version': '2023-06-01' }
+              : { Authorization: 'Bearer synthetic-secret' },
+          }));
+        }
+      }
+    }
+    // An explicitly supplied key authorizes testing the caller's destination.
+    await routes[method]({ name: 'saved', protocol: 'openai-compatible', baseUrl: 'https://new.invalid/v1', apiKey: 'new-key' });
+    expect(probe).toHaveBeenLastCalledWith('https://new.invalid/v1/models', expect.objectContaining({ headers: { Authorization: 'Bearer new-key' } }));
+    probe.mockImplementation(async () => new Response(JSON.stringify({ data: [{ id: 'prefix-synthetic-secret-suffix' }] })));
+    const reflected = await routes[method]({ name: 'saved', apiKey: '' });
+    expect(reflected).toEqual({ ok: false, error: 'invalid_models_response' });
+    expect(JSON.stringify(reflected)).not.toContain('synthetic-secret');
   });
 
   it('POST /api/projects/open + GET /api/projects works', async () => {

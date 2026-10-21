@@ -9,31 +9,49 @@ import { ProviderRoutes } from '../../apps/local-server/dist/routes/providerRout
 import { EffectJournal } from '../../packages/runtime/dist/executor/EffectJournal.js';
 import { assertCompactionConservation } from '../../packages/context/dist/compaction/assertCompactionConservation.js';
 import { Compaction } from '../../packages/context/dist/compaction/Compaction.js';
+const verify250 = process.argv.includes('--verify-250');
 
 const activity = new ActivityRoutes({ sessions: async () => [{ id: 'crashed', workspaceRoot: '/fixture', recordCount: 3 }],
   live: () => undefined, approvals: () => [], subagents: async () => [], teamStages: () => [], goalTasks: () => [] });
 const row = (await activity.list()).runs[0];
-assert.equal(row.status, 'completed');
-console.log('F1 reproduced: recordCount=3, no terminal evidence => completed / source=' + row.statusSource);
+assert.equal(row.status, verify250 ? 'unknown' : 'completed');
+assert.equal(row.outcome, verify250 ? 'unknown' : 'completed');
+console.log(`F1 ${verify250 ? 'resolved' : 'reproduced'}: recordCount=3, no terminal evidence => ${row.status} / source=${row.statusSource}`);
 
 const synthetic = 'AUDIT_SYNTHETIC_CREDENTIAL_249';
 const saved = { id: 'saved', protocol: 'openai-compatible', baseUrl: 'https://saved.invalid/v1', apiKey: synthetic, model: 'fixture' };
 let captured;
-const providers = new ProviderRoutes(() => ({ get: id => id === 'saved' ? saved : undefined }), async (url, options) => {
+const providers = new ProviderRoutes(() => ({ get: id => id === 'saved' ? saved : undefined, update: () => {} }), async (url, options) => {
   captured = { url, hasSavedCredential: options.headers.Authorization === `Bearer ${synthetic}` };
   return new Response(JSON.stringify({ data: [] }), { status: 200 });
 });
 const tested = await providers.test({ name: 'saved', protocol: 'openai-compatible', baseUrl: 'https://different.invalid/v1', apiKey: '' });
 assert.equal(captured.hasSavedCredential, true);
-assert.equal(captured.url, 'https://different.invalid/v1/models');
+assert.equal(captured.url, verify250 ? 'https://saved.invalid/v1/models' : 'https://different.invalid/v1/models');
 assert.equal(JSON.stringify(tested).includes(synthetic), false);
-console.log('F2 reproduced: caller endpoint different.invalid receives saved Authorization; normal DTO omits synthetic secret; fetch stub only');
+console.log(`F2 ${verify250 ? 'resolved: saved endpoint receives saved Authorization' : 'reproduced: caller endpoint receives saved Authorization'}; fetch stub only`);
+if (verify250) {
+  for (const method of ['test', 'pullModels']) {
+    for (const apiKey of ['', undefined]) {
+      const result = await providers[method]({ name: 'saved', protocol: 'anthropic', baseUrl: 'https://different.invalid/v1', apiKey });
+      assert.equal(result.ok, true);
+      assert.equal(captured.url, 'https://saved.invalid/v1/models');
+      assert.equal(captured.hasSavedCredential, true);
+    }
+  }
+  console.log('F2 regression: test/pullModels with empty/omitted key and spoofed protocol stay bound');
+}
 
 const reflected = new ProviderRoutes(() => ({ get: () => saved, update: () => {} }), async () =>
   new Response(JSON.stringify({ data: [{ id: synthetic }] }), { status: 200 }));
 const reflectedResult = await reflected.test({ name: 'saved', protocol: saved.protocol, baseUrl: saved.baseUrl, apiKey: '' });
-assert.equal(JSON.stringify(reflectedResult).includes(synthetic), true);
-console.log('F3 reproduced: upstream model id reflecting the synthetic credential survives response; value suppressed from log');
+assert.equal(JSON.stringify(reflectedResult).includes(synthetic), !verify250);
+console.log(verify250 ? 'F3 resolved: credential-bearing model IDs rejected' : 'F3 reproduced: upstream model id reflecting the synthetic credential survives response; value suppressed from log');
+if (verify250) {
+  assert.deepEqual(reflectedResult, { ok: false, error: 'invalid_models_response' });
+  console.log('Task 250 controls PASS (offline stubs; no real credential or upstream request).');
+  process.exit(0);
+}
 
 assertCompactionConservation({ originalMessages: [{ id: 'anchor', role: 'assistant', content: 'ESSENTIAL_ANCHOR' }],
   compactedMessages: [{ role: 'assistant', content: 'unrelated', metadata: { keepID: 'anchor' } }], requiredKeepIds: ['anchor'] });

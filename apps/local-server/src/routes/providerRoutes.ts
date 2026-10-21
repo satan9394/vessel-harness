@@ -162,7 +162,10 @@ export class ProviderRoutes {
     const input = record(value);
     const providerName = typeof input.name === 'string' ? input.name : typeof input.id === 'string' ? input.id : undefined;
     const previous = providerName ? this.store().get(providerName) : undefined;
-    const conn = connection(value, previous?.apiKey);
+    // Stored credentials may only be used with their saved destination and protocol.
+    const conn = previous && !input.apiKey
+      ? connection({ ...input, baseUrl: previous.baseUrl, protocol: previous.protocol }, previous.apiKey)
+      : connection(value);
     const start = performance.now();
     const base = conn.baseUrl.replace(/\/$/, '');
     const endpoint = `${base}${conn.protocol === 'anthropic' && !base.endsWith('/v1') ? '/v1' : ''}/models`;
@@ -172,6 +175,7 @@ export class ProviderRoutes {
       if (!response.ok) return { ok: false, error: `http_${response.status}` };
       const body = record(await response.json());
       if (!Array.isArray(body.data) || !body.data.every(v => v && typeof v === 'object' && text((v as { id?: unknown }).id))) return { ok: false, error: 'invalid_models_response' };
+      if (conn.apiKey && body.data.some(v => (v as { id: string }).id.includes(conn.apiKey))) return { ok: false, error: 'invalid_models_response' };
       const modelCapabilities = Object.fromEntries(body.data.map(v => [(v as { id: string }).id, discoverProviderCapabilities(v as Record<string, unknown>, conn.protocol)]));
       const input = record(value);
       const saved = typeof input.name === 'string' ? this.store().get(input.name) : undefined;
