@@ -8,12 +8,13 @@
 `NNN-短横线描述.md`，如 `001-project-memory.md`；V1.1 路线卡用 `V1.1-<字母>-<短横线描述>.md`。
 状态取值：待执行 / 执行中 / 待验收 / 已合入 / 打回。
 
-最近本地交付：任务 248 Taste Web 工作台审查与优化已本地交付，指定门禁通过，待用户验收；额外全仓诊断两项 Windows runtime 失败详见 [任务卡 248](248-taste-workbench-elevation.md)。前序 [任务卡 247](247-arch-08-09-ui-10-compaction-conservation-and-walkthrough.md)。
+最近本地交付：[任务卡 249](249-adversarial-audit.md) 独立对抗审计已交证，待验收；被审计控制结论与门禁证据见卡内报告。前序任务 248 Taste Web 工作台审查与优化已本地交付，指定门禁通过，待用户验收；额外全仓诊断两项 Windows runtime 失败详见 [任务卡 248](248-taste-workbench-elevation.md)。前序 [任务卡 247](247-arch-08-09-ui-10-compaction-conservation-and-walkthrough.md)。
 
 ## 怎么读这个目录
 
 | 本地交付 | 状态 | 任务卡 |
 |---|---|---|
+| Tasks 236–248 独立对抗审计 | 已交证 / 待验收 | [249](249-adversarial-audit.md) |
 | Taste 工作台审查与优化 | 待验收 | [248](248-taste-workbench-elevation.md) |
 
 本目录是**进度事实源**，不在此维护一份会腐烂的汇总表。查进度请：

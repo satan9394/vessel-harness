@@ -1,6 +1,6 @@
 # 249 — Adversarial audit of Tasks 236–248
 
-Status: IN PROGRESS
+Status: 已完成审计 / 待验收（被审计控制结论 FAIL）
 
 ## Goal
 Independently verify lifecycle, deletion, credential, streaming and compaction controls against pre-236 commit 3a1bf2f, HEAD and the working tree.
@@ -23,4 +23,4 @@ evidence/sessions/2026-10-20-codex-adversarial-review-249.md and gate logs.
 3. Execute required gates and write a verdict with precise limitations.
 
 ## Result
-Pending audit.
+See [independent adversarial audit and fresh gate evidence](../evidence/sessions/2026-10-20-codex-adversarial-review-249.md). Audit delivered; product findings remain open. No product/core changes, commits or publication.
