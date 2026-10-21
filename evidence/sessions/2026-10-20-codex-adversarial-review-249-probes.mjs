@@ -11,6 +11,40 @@ import { assertCompactionConservation } from '../../packages/context/dist/compac
 import { Compaction } from '../../packages/context/dist/compaction/Compaction.js';
 const verify250 = process.argv.includes('--verify-250');
 const verify251 = process.argv.includes('--verify-251');
+const verify252 = process.argv.includes('--verify-252');
+
+if (verify252) {
+  const { composeHarness } = await import('../../packages/application/dist/compose.js');
+  const { Session } = await import('../../packages/core/dist/index.js');
+  const { MockProvider } = await import('../../packages/llm/dist/index.js');
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'vessel-audit252-'));
+  const file = path.join(root, 'execution.jsonl');
+  const call = { toolCallId: 'durable', toolName: 'Write', arguments: {} };
+  const tool = { name: 'Write', requiredPermission: 'workspace-write', effects: 'non_idempotent' };
+  const invocation = { canonicalToolId: 'builtin:Write', subject: { sessionId: 'audit', runId: 'r', agentInstanceId: 'a' }, argumentsCanonicalHash: 'hash', requestedScopes: [] };
+  new EffectJournal(file).begin(call, tool, invocation);
+  const prefix = fs.readFileSync(file);
+  fs.appendFileSync(file, '{"kind":"intent","key":"call-partial');
+  const recovered = new EffectJournal(file);
+  assert.deepEqual(fs.readFileSync(file), prefix);
+  assert.equal(recovered.pending().length, 1);
+  assert.throws(() => recovered.begin(call, tool, invocation), /OUTCOME_UNKNOWN/);
+  recovered.finish(call, { content: 'reconciled', meta: {} });
+  assert.equal(new EffectJournal(file).pending().length, 0);
+  const repo = path.resolve(import.meta.dirname, '../..');
+  const options = { workspaceRoot: root, sessionId: 'retry', provider: new MockProvider([]), model: 'mock', memory: { enabled: false },
+    policySystemPath: path.join(repo, 'configs/policy.default.yaml'), behaviorIRPath: path.join(repo, 'configs/behavior.default.yaml') };
+  await assert.rejects(composeHarness({ ...options, adaptivePruning: { tokenThreshold: 100, targetTokenBudget: 0, preserveRecentTurns: 3 } }), /adaptivePruning requires symbolGraph/);
+  assert.equal(fs.existsSync(path.join(root, '.harness/sessions/retry/.lease')), false);
+  const reopened = await Session.open({ workspaceRoot: root, sessionId: 'retry' });
+  await reopened.close();
+  await assert.rejects(composeHarness({ ...options, mods: ['missing-mod'] }));
+  const harness = await composeHarness(options);
+  await harness.close();
+  console.log('F5 resolved: torn-tail repair preserves durable intent and replay protection; subsequent appends reload; synchronous/asynchronous composition failures release lease for immediate reopen.');
+  console.log('Task 252 offline controls PASS; fixture retained at ' + root);
+  process.exit(0);
+}
 
 if (!verify251) {
 const activity = new ActivityRoutes({ sessions: async () => [{ id: 'crashed', workspaceRoot: '/fixture', recordCount: 3 }],

@@ -5,9 +5,32 @@ import { fileURLToPath } from 'node:url';
 import { it, expect } from 'vitest';
 import { MockProvider } from '@vessel/llm';
 import { BehaviorCompileError } from '@vessel/behavior';
+import { Session } from '@vessel/core';
 import { composeHarness } from './compose.js';
 
 const REPO_ROOT = fileURLToPath(new URL('../../../', import.meta.url));
+
+it('releases the session lease after synchronous and asynchronous assembly failures', async () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'vessel-rollback-'));
+  const options = {
+    workspaceRoot: root, sessionId: 'retry', model: 'mock', memory: { enabled: false },
+    provider: new MockProvider([]),
+    policySystemPath: path.join(REPO_ROOT, 'configs', 'policy.default.yaml'),
+    behaviorIRPath: path.join(REPO_ROOT, 'configs', 'behavior.default.yaml'),
+  };
+  try {
+    await expect(composeHarness({ ...options, adaptivePruning: { tokenThreshold: 100, targetTokenBudget: 0, preserveRecentTurns: 3 } })).rejects.toThrow('adaptivePruning requires symbolGraph');
+    expect(fs.existsSync(path.join(root, '.harness', 'sessions', 'retry', '.lease'))).toBe(false);
+    const reopened = await Session.open({ workspaceRoot: root, sessionId: 'retry' });
+    await reopened.close();
+    await expect(composeHarness({ ...options, mods: ['missing-mod'] })).rejects.toThrow();
+    expect(fs.existsSync(path.join(root, '.harness', 'sessions', 'retry', '.lease'))).toBe(false);
+    const harness = await composeHarness(options);
+    await harness.close();
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
 
 it('rejects an unenforced candidate before session activation and retains the previous runnable harness', async () => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'vessel-activation-'));
