@@ -313,6 +313,7 @@ export default function ConversationView({ sessionId, api, onSessionUpdated, vie
   const handleKeyDown = useCallback((e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter') {
       if (isComposingRef.current || e.nativeEvent.isComposing || (e as unknown as { keyCode?: number }).keyCode === 229) {
+        e.preventDefault();
         e.stopPropagation();
       }
     }

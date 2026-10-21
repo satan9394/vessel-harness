@@ -67,14 +67,14 @@ export function projectSession(sessionId: string, events: readonly SessionRecord
   const compactedRanges: { startSeq: number; endSeq: number; summary: string }[] = [];
   for (const event of events) {
     if (event.type !== 'compaction/end' || event.outcome !== 'committed') continue;
-    const commit = event.projectionCommit as { expectedRevision: number; startSeq: number; endSeq: number; summary: string } | undefined;
+    const commit = event.projectionCommit as { expectedRevision: number; startSeq: number; endSeq: number; summary: string; metadata?: Record<string, unknown> } | undefined;
     if (!commit || commit.expectedRevision !== revision || !Number.isInteger(commit.startSeq) || !Number.isInteger(commit.endSeq)
       || commit.startSeq > commit.endSeq || commit.endSeq >= event.seq || typeof commit.summary !== 'string') {
       throw new Error('Invalid compaction projection commit');
     }
     const summary: SessionRecord = { type: 'user/message', msgId: `projection_${event.seq}`, role: 'user',
       content: `<compacted-summary>\n${commit.summary}\n</compacted-summary>`, source: 'compacted-summary', surface: true,
-      seq: commit.startSeq, ts: event.ts };
+      seq: commit.startSeq, ts: event.ts, metadata: commit.metadata };
     const start = records.findIndex(record => record.seq >= commit.startSeq);
     records = records.filter(record => record.seq < commit.startSeq || record.seq > commit.endSeq);
     records.splice(start, 0, summary);

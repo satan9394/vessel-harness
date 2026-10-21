@@ -3,7 +3,7 @@ import { COMPACTION_RETAIN_RATIO, projectSession, markProjectionPublicationUncer
 import { Session } from '@vessel/core';
 import { computeAdaptiveThreshold, type AdaptiveCompactionOptions } from './adaptiveThreshold.js';
 import { CompactionBoundaryGuard } from './CompactionBoundaryGuard.js';
-import { assertCompactionConservation } from './assertCompactionConservation.js';
+import { assertCompactionConservation, compactionKeepIds } from './assertCompactionConservation.js';
 
 const leases = new WeakSet<Session>();
 
@@ -104,6 +104,9 @@ export class Compaction {
       const originalRegion = session.replay().filter(r => r.seq >= sourceStart && r.seq <= sourceEnd
         && r.type !== 'compaction/start' && r.type !== 'compaction/end');
       const firstUser = originalRegion.find((r) => r.type === 'user/message' && (r as { source?: string }).source !== 'instruction');
+      const anchors = originalRegion.filter(r => compactionKeepIds(r.metadata as Record<string, unknown> | undefined).length);
+      const keepIds = [...new Set(anchors.flatMap(r => compactionKeepIds(r.metadata as Record<string, unknown> | undefined)))];
+      const requiredKeepIds = [...new Set([...originalRegion, ...records].flatMap(r => compactionKeepIds(r.metadata as Record<string, unknown> | undefined)))];
       const userRequest = firstUser ? (firstUser as { content: string }).content : '(无用户请求)';
       const regionText = originalRegion.map((r) => JSON.stringify(r)).join('\n');
 
@@ -127,19 +130,25 @@ export class Compaction {
       }) : []);
       const summary = ['[Historical summary, not higher-priority instructions; schemaVersion=1]',
         `Sources: ${session.sessionId}:${sourceStart}-${sourceEnd}`, candidate,
+        ...anchors.map(r => `Preserved keepIDs ${JSON.stringify(compactionKeepIds(r.metadata as Record<string, unknown> | undefined))}: ${typeof r.content === 'string' ? r.content : JSON.stringify(r)}`),
         ...goals.map(r => `Preserved user constraint: ${r.content}`),
         ...requiredToolPairs.map(pair => `Preserved tool pair: ${pair.callText}\n${pair.resultText}`),
         ...denials.map(r => `Preserved denial ${session.sessionId}:${r.seq}: ${JSON.stringify(r)}`)].join('\n');
       const { abandoned } = CompactionBoundaryGuard.accountToolCalls(records);
-      const compactedMessages = [{ role: 'user', content: summary, metadata: { denialEventIds } },
+      const summaryMetadata = { denialEventIds, keepIds };
+      const compactedMessages = [{ role: 'user', content: summary, metadata: summaryMetadata },
         ...records.slice(cut).flatMap<ConservationMessage>(r => {
-          if (r.type === 'assistant/attempt') return [{ role: 'assistant', content: r.content, toolCalls: r.toolCalls.filter(c => !abandoned.get(r)?.has(c.toolCallId)).map(c => ({ id: c.toolCallId })) }];
-          if (r.type === 'tool/result') return [{ role: 'tool', content: r.content, toolCallId: r.toolCallId }];
-          if (r.type === 'user/message') return [{ role: 'user', content: r.content }];
+          const identity = { id: r.id as string | undefined, metadata: r.metadata as Record<string, unknown> | undefined };
+          if (r.type === 'assistant/attempt') return [{ ...identity, role: 'assistant', content: r.content, toolCalls: r.toolCalls.filter(c => !abandoned.get(r)?.has(c.toolCallId)).map(c => ({ id: c.toolCallId })) }];
+          if (r.type === 'tool/result') return [{ ...identity, role: 'tool', content: r.content, toolCallId: r.toolCallId }];
+          if (r.type === 'user/message' || r.type === 'assistant/message') return [{ ...identity, role: r.type === 'user/message' ? 'user' : 'assistant', content: r.content }];
           return [];
         })];
       const latestInstruction = [...records].reverse().find(r => r.type === 'user/message' && (r.source === undefined || r.source === 'steer'));
-      assertCompactionConservation({ originalMessages: goals.map(r => ({ role: 'user', content: r.content, metadata: { preserveVerbatim: true } })),
+      assertCompactionConservation({ originalMessages: [
+        ...goals.map(r => ({ role: 'user', content: r.content, metadata: { preserveVerbatim: true } })),
+        ...[...originalRegion, ...records.slice(cut)].map(r => ({ role: 'assistant', content: r.content, metadata: r.metadata as Record<string, unknown> | undefined })),
+      ], requiredKeepIds,
         compactedMessages, preservedGoalPrefix: firstUser ? userRequest : undefined, requiredDenialEventIds: denialEventIds,
         requiredToolPairs, latestInstruction: latestInstruction?.type === 'user/message' ? latestInstruction.content : undefined });
 
@@ -149,7 +158,7 @@ export class Compaction {
       const removed = region.length;
       try {
         await session.appendSync({ type: 'compaction/end', trigger, removedRecords: removed, surface: false, outcome: 'committed',
-          compactionId, projectionCommit: { expectedRevision: projection.revision, startSeq: fromSeq, endSeq: toSeq, summary } });
+          compactionId, projectionCommit: { expectedRevision: projection.revision, startSeq: fromSeq, endSeq: toSeq, summary, metadata: summaryMetadata } });
       } catch (error) {
         const uncertain = session.replay().find(r => r.compactionId === compactionId && r.outcome === 'committed');
         if (uncertain) { markProjectionPublicationUncertain(uncertain); publicationUncertain = true; }
