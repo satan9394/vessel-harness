@@ -12,7 +12,35 @@ type Entry = Intent | Outcome;
 export class EffectJournal {
   private readonly entries: Entry[];
   constructor(private readonly file: string) {
-    this.entries = fs.existsSync(file) ? fs.readFileSync(file, 'utf8').split('\n').filter(Boolean).map(line => JSON.parse(line) as Entry) : [];
+    this.entries = [];
+    if (!fs.existsSync(file)) return;
+    const data = fs.readFileSync(file);
+    let offset = 0;
+    let repairAt: number | undefined;
+    while (offset < data.length) {
+      const newline = data.indexOf(10, offset);
+      const end = newline === -1 ? data.length : newline;
+      const line = data.subarray(offset, end).toString('utf8');
+      if (line.trim()) {
+        try { this.entries.push(JSON.parse(line) as Entry); }
+        catch (error) {
+          // Only an unterminated tail can be a torn append. Interior corruption
+          // must fail closed rather than silently dropping durable effect history.
+          if (newline !== -1 || !(error instanceof SyntaxError)) throw error;
+          repairAt = offset;
+          break;
+        }
+      }
+      offset = end + 1;
+    }
+    if (repairAt !== undefined || (data.length > 0 && data[data.length - 1] !== 10)) {
+      const fd = fs.openSync(file, 'r+');
+      try {
+        if (repairAt !== undefined) fs.ftruncateSync(fd, repairAt);
+        else fs.writeSync(fd, '\n', data.length);
+        fs.fsyncSync(fd);
+      } finally { fs.closeSync(fd); }
+    }
   }
   private append(entry: Entry): void {
     const fd = fs.openSync(this.file, 'a');

@@ -12,6 +12,38 @@ describe('durable execution recovery boundaries', () => {
   const call = { toolCallId: 'call', toolName: 'Write', arguments: {} };
   const invocation: CanonicalToolInvocation = { canonicalToolId: 'builtin:Write', subject: { sessionId: 's', runId: 'r', agentInstanceId: 'a' }, argumentsCanonicalHash: 'hash', requestedScopes: [] };
   const tool = { name: 'Write', requiredPermission: 'workspace-write', effects: 'non_idempotent' } as ToolSpec;
+  it('repairs a torn tail while preserving durable intents and replay protection', () => {
+    new EffectJournal(file).begin(call, tool, { ...invocation, argumentsCanonicalHash: '多字节' });
+    const prefix = fs.readFileSync(file);
+    fs.appendFileSync(file, '{"kind":"intent","key":"call-partial');
+    const recovered = new EffectJournal(file);
+    expect(recovered.pending()).toMatchObject([{ key: 'call', effects: 'non_idempotent' }]);
+    expect(fs.readFileSync(file)).toEqual(prefix);
+    expect(() => recovered.begin(call, tool, { ...invocation, argumentsCanonicalHash: '多字节' })).toThrow('OUTCOME_UNKNOWN');
+    recovered.finish(call, { content: 'reconciled', meta: {} });
+    recovered.begin({ ...call, toolCallId: 'next' }, tool, invocation);
+    expect(new EffectJournal(file).pending()).toMatchObject([{ key: 'next' }]);
+    expect(fs.readFileSync(file, 'utf8').trim().split('\n').map(line => JSON.parse(line))).toHaveLength(3);
+  });
+  it('recovers an entirely torn file and separates valid unterminated entries before appending', () => {
+    fs.writeFileSync(file, '{"kind":"intent","key":"call-partial');
+    const recovered = new EffectJournal(file);
+    expect(recovered.pending()).toEqual([]);
+    recovered.begin(call, tool, invocation);
+    fs.writeFileSync(file, fs.readFileSync(file, 'utf8').trimEnd());
+    new EffectJournal(file).finish(call, { content: 'done', meta: {} });
+    expect(new EffectJournal(file).pending()).toEqual([]);
+    expect(() => new EffectJournal(file).begin(call, tool, invocation)).toThrow('already observed');
+  });
+  it('does not discard corruption in completed lines or valid records after it', () => {
+    new EffectJournal(file).begin(call, tool, invocation);
+    const valid = fs.readFileSync(file, 'utf8');
+    for (const contents of [valid + '{broken}\n', '{broken}\n' + valid]) {
+      fs.writeFileSync(file, contents);
+      expect(() => new EffectJournal(file)).toThrow(SyntaxError);
+      expect(fs.readFileSync(file, 'utf8')).toBe(contents);
+    }
+  });
   it('crash before intent is retryable; intent before dispatch and effect before outcome pause writes', () => {
     const journal = new EffectJournal(file);
     expect(journal.pending()).toEqual([]);
