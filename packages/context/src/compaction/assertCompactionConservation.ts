@@ -1,4 +1,13 @@
-import type { CompactionConservationCheckInput } from '@vessel/shared';
+import type { CompactionConservationCheckInput, ConservationMessage } from '@vessel/shared';
+
+export function compactionKeepIds(metadata?: Record<string, unknown>): string[] {
+  return [metadata?.keepID, metadata?.keepId, ...(Array.isArray(metadata?.keepIds) ? metadata.keepIds : [])]
+    .filter((id): id is string => typeof id === 'string');
+}
+
+function messageKeepIds(message: ConservationMessage): string[] {
+  return [...(typeof message.id === 'string' ? [message.id] : []), ...compactionKeepIds(message.metadata)];
+}
 
 export class CompactionConservationError extends Error {
   constructor(public readonly violationType: 'goal_lost' | 'constraint_lost' | 'latest_instruction_lost' | 'denial_lost' | 'tool_pair_lost' | 'orphaned_tool_call' | 'orphaned_tool_result' | 'keep_id_lost', message: string) {
@@ -49,17 +58,18 @@ export function assertCompactionConservation(input: CompactionConservationCheckI
   if (input.requiredKeepIds?.length) {
     const presentIds = new Set<string>();
     for (const message of input.compactedMessages) {
-      if (typeof message.id === 'string') presentIds.add(message.id);
-      const meta = message.metadata;
-      if (typeof meta?.keepID === 'string') presentIds.add(meta.keepID);
-      if (typeof meta?.keepId === 'string') presentIds.add(meta.keepId);
-      if (Array.isArray(meta?.keepIds)) {
-        for (const id of meta.keepIds) if (typeof id === 'string') presentIds.add(id);
-      }
+      for (const id of messageKeepIds(message)) presentIds.add(id);
     }
     for (const id of input.requiredKeepIds) {
       if (!presentIds.has(id)) {
         throw new CompactionConservationError('keep_id_lost', id);
+      }
+      for (const original of input.originalMessages.filter(message => messageKeepIds(message).includes(id))) {
+        const content = original.content;
+        if (typeof content === 'string' && !input.compactedMessages.some(message =>
+          messageKeepIds(message).includes(id) && String(message.content ?? '').includes(content))) {
+          throw new CompactionConservationError('keep_id_lost', `Missing anchor content for ${id}`);
+        }
       }
     }
   }

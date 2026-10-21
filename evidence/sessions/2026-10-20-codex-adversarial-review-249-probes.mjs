@@ -10,7 +10,9 @@ import { EffectJournal } from '../../packages/runtime/dist/executor/EffectJourna
 import { assertCompactionConservation } from '../../packages/context/dist/compaction/assertCompactionConservation.js';
 import { Compaction } from '../../packages/context/dist/compaction/Compaction.js';
 const verify250 = process.argv.includes('--verify-250');
+const verify251 = process.argv.includes('--verify-251');
 
+if (!verify251) {
 const activity = new ActivityRoutes({ sessions: async () => [{ id: 'crashed', workspaceRoot: '/fixture', recordCount: 3 }],
   live: () => undefined, approvals: () => [], subagents: async () => [], teamStages: () => [], goalTasks: () => [] });
 const row = (await activity.list()).runs[0];
@@ -53,9 +55,13 @@ if (verify250) {
   process.exit(0);
 }
 
-assertCompactionConservation({ originalMessages: [{ id: 'anchor', role: 'assistant', content: 'ESSENTIAL_ANCHOR' }],
+}
+
+const labelOnly = () => assertCompactionConservation({ originalMessages: [{ id: 'anchor', role: 'assistant', content: 'ESSENTIAL_ANCHOR' }],
   compactedMessages: [{ role: 'assistant', content: 'unrelated', metadata: { keepID: 'anchor' } }], requiredKeepIds: ['anchor'] });
-console.log('F4 reproduced: keepID label alone passes conservation with anchor content lost');
+if (verify251) assert.throws(labelOnly, error => error.violationType === 'keep_id_lost');
+else labelOnly();
+console.log(verify251 ? 'F4 resolved: label without anchor content rejected (keep_id_lost)' : 'F4 reproduced: keepID label alone passes conservation with anchor content lost');
 
 const records = Array.from({ length: 6 }, (_, i) => ({ seq: i + 1, ts: new Date(0).toISOString(),
   type: 'user/message', content: `fixture-${i}`, metadata: { keepID: `keep-${i}` } }));
@@ -64,7 +70,14 @@ const fakeSession = { sessionId: 'audit', replay: () => records.slice(), appendS
 } };
 const compacted = await new Compaction({ session: fakeSession, summarize: async () => 'ordinary summary' }).compact('manual');
 assert.ok(compacted.removedRecords > 0);
-assert.equal(compacted.summary.includes('keep-0'), false);
+assert.equal(compacted.summary.includes('keep-0'), verify251);
+if (verify251) {
+  const commit = records.find(record => record.outcome === 'committed').projectionCommit;
+  assert.ok(commit.metadata.keepIds.includes('keep-0'));
+  assert.ok(compacted.summary.includes('fixture-0'));
+  console.log('F4 production PASS: keep-0 identity, summary metadata and anchor content conserved');
+  process.exit(0);
+}
 console.log('F4 production probe: Compaction committed summary without keep-0 metadata; source records retained');
 
 const root = fs.mkdtempSync(path.join(os.tmpdir(), 'vessel-audit249-'));

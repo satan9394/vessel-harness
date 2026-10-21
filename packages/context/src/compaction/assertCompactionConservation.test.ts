@@ -1,6 +1,16 @@
 import { it, expect } from 'vitest';
 import { assertCompactionConservation } from './assertCompactionConservation.js';
 
+it.each(['missing', 'label-only', 'orphaned'])('rejects lost keepID anchor: %s', mode => {
+  expect(() => assertCompactionConservation({
+    originalMessages: [{ id: 'anchor', role: 'assistant', content: 'ESSENTIAL_ANCHOR' }],
+    compactedMessages: [
+      { role: 'assistant', content: mode === 'missing' ? 'ESSENTIAL_ANCHOR' : 'unrelated', metadata: mode === 'missing' ? {} : { keepID: 'anchor' } },
+      { role: 'assistant', content: mode === 'orphaned' ? 'ESSENTIAL_ANCHOR' : '' },
+    ], requiredKeepIds: ['anchor'],
+  })).toThrow(expect.objectContaining({ violationType: 'keep_id_lost' }));
+});
+
 it('retains goal, explicit denial references and ordered call/result pairs', () => {
   expect(() => assertCompactionConservation({ originalMessages: [], preservedGoalPrefix: 'protect core', requiredDenialEventIds: ['deny:1'],
     compactedMessages: [{ role: 'user', content: 'Goal: protect core', metadata: { denialEventIds: ['deny:1'] } },

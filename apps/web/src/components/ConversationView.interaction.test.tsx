@@ -106,12 +106,15 @@ describe('ConversationView Task 246: Scroll guard, IME protection, and SSE recon
 
     // 2. Press Enter during composition
     const stopPropagation = vi.fn();
+    const preventKeyDefault = vi.fn();
     (inputNode.props.onKeyDown as (e: unknown) => void)({
       key: 'Enter',
       nativeEvent: { isComposing: true },
+      preventDefault: preventKeyDefault,
       stopPropagation,
     });
     expect(stopPropagation).toHaveBeenCalled();
+    expect(preventKeyDefault).toHaveBeenCalledOnce();
 
     // Try submitting form while still composing
     const preventDefault = vi.fn();
@@ -129,6 +132,33 @@ describe('ConversationView Task 246: Scroll guard, IME protection, and SSE recon
     await (currentForm.props.onSubmit as (e: unknown) => Promise<void>)({ preventDefault });
     expect(api.runTurn).toHaveBeenCalledWith('s1', '中文输入测试');
   });
+
+  it.each(['ref', 'native', '229', 'normal', 'shift'])(
+    'cancels implicit submission only for IME Enter (%s)', async mode => {
+      let tree = render();
+      let input = tree.find(node => node.type === 'input')!;
+      (input.props.onChange as (e: unknown) => void)({ target: { value: 'draft' } });
+      tree = render();
+      input = tree.find(node => node.type === 'input')!;
+      const form = tree.find(node => node.type === 'form')!;
+      if (mode === 'ref') (input.props.onCompositionStart as () => void)();
+      const event = {
+        key: mode === 'shift' ? 'Shift' : 'Enter', keyCode: mode === '229' ? 229 : 13,
+        nativeEvent: { isComposing: mode === 'native' || mode === 'shift' },
+        defaultPrevented: false,
+        preventDefault: vi.fn(() => { event.defaultPrevented = true; }), stopPropagation: vi.fn(),
+      };
+      (input.props.onKeyDown as (e: unknown) => void)(event);
+      // Model the browser's implicit default action; uncancelled Enter submits.
+      if (event.key === 'Enter' && !event.defaultPrevented) {
+        await (form.props.onSubmit as (e: unknown) => void)({ preventDefault: vi.fn() });
+      }
+      const blocked = ['ref', 'native', '229'].includes(mode);
+      expect(event.preventDefault).toHaveBeenCalledTimes(blocked ? 1 : 0);
+      expect(event.stopPropagation).toHaveBeenCalledTimes(blocked ? 1 : 0);
+      expect(api.runTurn).toHaveBeenCalledTimes(mode === 'normal' ? 1 : 0);
+    },
+  );
 
   it('manages scroll state and renders scroll-to-bottom button when scrolled up', () => {
     const tree = render();
