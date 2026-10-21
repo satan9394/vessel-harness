@@ -1,0 +1,7 @@
+﻿core=0
+tsc=0
+test-types=0
+all-tests=1
+build-safe=0
+web-tests=0
+focused-controls=0
