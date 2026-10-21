@@ -1,0 +1,44 @@
+{
+  "runs": [
+    {
+      "id": "task_1792049103817_d75f554d",
+      "kind": "goal",
+      "projectRoot": "C:\\Users\\SATANC~1\\AppData\\Local\\Temp\\vessel-uilanding-fixture-OPAtVt",
+      "title": "Verify the build and stage the diff",
+      "status": "failed",
+      "needsApproval": false,
+      "updatedAt": 1792049103936
+    },
+    {
+      "id": "task_1792049103811_87e2fe38",
+      "kind": "goal",
+      "projectRoot": "C:\\Users\\SATANC~1\\AppData\\Local\\Temp\\vessel-uilanding-fixture-OPAtVt",
+      "title": "Refactor the navigation module",
+      "status": "running",
+      "needsApproval": false,
+      "updatedAt": 1792049103811
+    },
+    {
+      "id": "task_1792049103801_08ba27fc",
+      "kind": "goal",
+      "projectRoot": "C:\\Users\\SATANC~1\\AppData\\Local\\Temp\\vessel-uilanding-fixture-OPAtVt",
+      "title": "Survey call sites of the navigation module",
+      "status": "running",
+      "needsApproval": false,
+      "updatedAt": 1792049103801
+    },
+    {
+      "id": "sess_1792583751073_cc114a5b",
+      "kind": "session",
+      "projectRoot": "E:\\Code_file\\Projects\\Vessel_Harness",
+      "title": "测试：仅回复 OK，不使用工具。",
+      "status": "completed",
+      "outcome": "completed",
+      "statusSource": "live",
+      "needsApproval": false,
+      "updatedAt": 1792583755772,
+      "href": "/api/sessions/sess_1792583751073_cc114a5b"
+    }
+  ],
+  "updatedAt": 1792583966178
+}

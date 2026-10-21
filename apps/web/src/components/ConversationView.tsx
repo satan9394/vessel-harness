@@ -48,9 +48,7 @@ interface ConversationSnapshot {
   input: string;
   pendingTool: Record<string, ToolDelta>;
 }
-// ponytail: replay only observations from this page lifetime, including view remounts.
-// The existing server API has no transcript hydration; reloads and unseen turns
-// cannot be reconstructed here. Weak API ownership keeps different clients isolated.
+// Weak API ownership keeps page-local drafts and observations isolated by client.
 const snapshotsByClient = new WeakMap<ApiClient, Map<string, ConversationSnapshot>>();
 
 /**
@@ -69,6 +67,8 @@ export default function ConversationView({ sessionId, api, onSessionUpdated, vie
   const [input, setInput] = useState(() => saved?.input ?? '');
   const [modelBusy, setModelBusy] = useState(false);
   const [busy, setBusy] = useState(false); // a turn is in flight
+  const [historyReady, setHistoryReady] = useState(() => Boolean(saved?.items.length) || !api.sessionMessages);
+  const hydrationPending = useRef(!historyReady);
   const [error, setError] = useState<string | null>(null);
   const [serverDown, setServerDown] = useState(false);
   const [auditRevision, setAuditRevision] = useState(0);
@@ -176,6 +176,8 @@ export default function ConversationView({ sessionId, api, onSessionUpdated, vie
     let snapshots = snapshotsByClient.get(api);
     if (!snapshots) { snapshots = new Map(); snapshotsByClient.set(api, snapshots); }
     const saved = snapshots.get(sessionId);
+    hydrationPending.current = !saved?.items.length && Boolean(api.sessionMessages);
+    setHistoryReady(Boolean(saved?.items.length) || !api.sessionMessages);
     attention?.clear();
     setItems(saved?.items ?? []);
     setUsage(saved?.usage ?? emptyUsage());
@@ -191,7 +193,23 @@ export default function ConversationView({ sessionId, api, onSessionUpdated, vie
 
     let connected = true;
     const current = () => connected && activeSession.current === sessionId && sessionGeneration.current === generation;
-    const stream = createEventStream(`/api/sessions/${encodeURIComponent(sessionId)}/events`, {
+    let streamHydrated = false;
+    const hydrate = (transcript: import('../sse').SessionTranscript) => {
+      if (!current()) return;
+      setItems(transcript.messages);
+      setUsage(emptyUsage());
+      setTurnMetrics({});
+      setCacheHistory([]);
+      pendingTool.current = {};
+      for (const item of transcript.messages) if (item.tool?.status === 'started') pendingTool.current[item.tool.toolCallId ?? item.tool.toolName ?? '?'] = item.tool;
+      for (const delta of transcript.usage) onUsage(delta);
+    };
+    const needsHistory = !saved?.items.length;
+    if (needsHistory && api.sessionMessages) void api.sessionMessages(sessionId).then(transcript => {
+      if (!streamHydrated) hydrate(transcript);
+    }).catch(err => { if (current() && !streamHydrated) setError(turnErrorText(err)); });
+    const stream = createEventStream(`/api/sessions/${encodeURIComponent(sessionId)}/events${needsHistory ? '?hydrate=1' : ''}`, {
+      onTranscript: transcript => { if (!current()) return; streamHydrated = true; hydrate(transcript); hydrationPending.current = false; setHistoryReady(true); setError(null); },
       onOpen: () => {
         if (!current()) return;
         setServerDown(false);
@@ -226,7 +244,7 @@ export default function ConversationView({ sessionId, api, onSessionUpdated, vie
   const send = useCallback(
     async (text: string) => {
       const prompt = text.trim();
-      if (!prompt || busy || modelBusy) return;
+      if (!prompt || busy || modelBusy || !historyReady || hydrationPending.current) return;
       attention?.unlockAudio();
       setInput('');
       setTurnMetrics({});
@@ -261,22 +279,22 @@ export default function ConversationView({ sessionId, api, onSessionUpdated, vie
         void onSessionUpdated?.();
       }
     },
-    [api, busy, modelBusy, input, sessionId, appendMessage, onSessionUpdated, t, attention],
+    [api, busy, modelBusy, historyReady, input, sessionId, appendMessage, onSessionUpdated, t, attention],
   );
 
   const claimedTask = useRef<string | null>(null);
   useEffect(() => {
-    if (!initialTask || initialTask.sessionId !== sessionId || claimedTask.current === sessionId) return;
+    if (!initialTask || initialTask.sessionId !== sessionId || claimedTask.current === sessionId || !historyReady) return;
     let cancelled = false;
     // Delay until the stream effect has mounted; StrictMode cleanup cancels its first pass.
     queueMicrotask(() => {
-      if (cancelled || claimedTask.current === sessionId) return;
+      if (cancelled || claimedTask.current === sessionId || hydrationPending.current) return;
       claimedTask.current = sessionId;
       onInitialTaskConsumed?.();
       void send(initialTask.text);
     });
     return () => { cancelled = true; };
-  }, [initialTask, sessionId, send, onInitialTaskConsumed]);
+  }, [initialTask, sessionId, send, onInitialTaskConsumed, historyReady]);
 
   const stop = useCallback(() => {
     // Stop (task 050): ask the server to interrupt the in-flight turn. Best
@@ -381,10 +399,10 @@ export default function ConversationView({ sessionId, api, onSessionUpdated, vie
             onCompositionEnd={handleCompositionEnd}
             onKeyDown={handleKeyDown}
             placeholder={t('inputPlaceholder')}
-            disabled={serverDown}
+            disabled={serverDown || !historyReady}
             autoFocus
           />
-          <button type="submit" className="btn btn-primary" disabled={busy || modelBusy || !input.trim() || serverDown}>
+          <button type="submit" className="btn btn-primary" disabled={busy || modelBusy || !historyReady || !input.trim() || serverDown}>
             {busy ? t('running') : t('send')}
           </button>
           <button

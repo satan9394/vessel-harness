@@ -1,0 +1,43 @@
+{
+  "browser": "IAB",
+  "userAgent": "Chrome/155.0.0.0 Windows NT 10.0 Win64 x64",
+  "viewports": [
+    [
+      1440,
+      900
+    ],
+    [
+      800,
+      1000
+    ],
+    [
+      390,
+      844
+    ]
+  ],
+  "modeledIME": {
+    "compositionStart": "synthetic DOM CompositionEvent via CDP",
+    "enter": "browser key press",
+    "duringComposition": "ceshi retained; no session created",
+    "afterComposition": "one task created, one user message and assistant OK"
+  },
+  "nativeIME": "Input.imeSetComposition unsupported",
+  "button": {
+    "hover": true,
+    "border": "0.946186 CSS px under browser scale",
+    "activeTransform": "matrix(1,0,0,1,0,0.853525) during transition"
+  },
+  "provider": {
+    "apiKey": "",
+    "result": "connection success",
+    "latencyMs": 2071
+  },
+  "liveTurn": {
+    "calls": 1,
+    "promptTokens": 11063,
+    "outputTokens": 2,
+    "cacheReadTokens": 2048,
+    "latencyMs": 3252,
+    "cost": "UI estimate $0.0000; actual charge unknown"
+  }
+}

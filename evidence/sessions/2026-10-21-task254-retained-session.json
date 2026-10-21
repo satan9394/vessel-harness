@@ -1,0 +1,16 @@
+{
+  "id": "sess_1792583751073_cc114a5b",
+  "port": 61441,
+  "http": [
+    200,
+    200
+  ],
+  "messages": 2,
+  "usageCalls": 1,
+  "sseSnapshot": true,
+  "before": "5e3c62a66624fd309f3dbdda2c88564a62ed6331d7eef97a6ba79c259a22f95c",
+  "after": "5e3c62a66624fd309f3dbdda2c88564a62ed6331d7eef97a6ba79c259a22f95c",
+  "browser": "Unavailable: browser inventory empty; iab creation rejected",
+  "isolatedRegistry": "E:\\Code_file\\Projects\\Vessel_Harness\\evidence\\sessions\\task254-replay-oqbItf",
+  "platform": "win32"
+}

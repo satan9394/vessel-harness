@@ -1,0 +1,446 @@
+[
+  {
+    "file": "01-desktop-dark.jpg",
+    "width": 1440,
+    "height": 900,
+    "bytes": 50744,
+    "sha256": "c50ebac3a6369e28efec4792616b5e93b3f4b7ebce311b0c98eb9efda6f29a1b",
+    "corner_rgb": [
+      22,
+      27,
+      33
+    ]
+  },
+  {
+    "file": "02-desktop-light.jpg",
+    "width": 1440,
+    "height": 900,
+    "bytes": 52360,
+    "sha256": "1d3568cf619462d8e5d455ce3eb0e2aa3d57688c60c9a0f327d6ad6e57d6af9d",
+    "corner_rgb": [
+      247,
+      248,
+      250
+    ]
+  },
+  {
+    "file": "03-tablet-light.jpg",
+    "width": 800,
+    "height": 930,
+    "bytes": 33137,
+    "sha256": "8a902da7792f695be5da5aa2147d47c2f1beb9be577f11b2a9f60bf08b514526",
+    "corner_rgb": [
+      255,
+      255,
+      255
+    ]
+  },
+  {
+    "file": "04-tablet-dark.jpg",
+    "width": 800,
+    "height": 930,
+    "bytes": 32623,
+    "sha256": "37eca99bc155cbb8e339ea6ab357d71db9084fcc98f50cc097f2d5a61969cbc2",
+    "corner_rgb": [
+      12,
+      16,
+      25
+    ]
+  },
+  {
+    "file": "05-mobile-dark.jpg",
+    "width": 390,
+    "height": 844,
+    "bytes": 26072,
+    "sha256": "1cfcf6df1fd9c33363e14daf1a46a484f702376e46cc6af6558276288227ec98",
+    "corner_rgb": [
+      12,
+      16,
+      25
+    ]
+  },
+  {
+    "file": "06-mobile-navigation-dark.jpg",
+    "width": 390,
+    "height": 844,
+    "bytes": 20122,
+    "sha256": "8b1fa1345e6c0df053268ffdedbeb8bbac78971e1703ff06808c50048baba682",
+    "corner_rgb": [
+      23,
+      26,
+      33
+    ]
+  },
+  {
+    "file": "07-mobile-light.jpg",
+    "width": 390,
+    "height": 844,
+    "bytes": 26919,
+    "sha256": "c1253e544d0e4ec6bafba52d25eee5c1213a1a9f20164e43f333c1f21fa72a5f",
+    "corner_rgb": [
+      251,
+      255,
+      248
+    ]
+  },
+  {
+    "file": "08-input-shift-enter.jpg",
+    "width": 1440,
+    "height": 900,
+    "bytes": 55787,
+    "sha256": "b08f77e03c18e0be00fe5aa92c40519e670a541592195efefdcd60783c1899cb",
+    "corner_rgb": [
+      247,
+      248,
+      250
+    ]
+  },
+  {
+    "file": "09-create-invalid-workspace.jpg",
+    "width": 1440,
+    "height": 900,
+    "bytes": 63029,
+    "sha256": "91a2034ada1e2dc02de5f8d81c8738215ea05a2af40e94d75ed60eb5ff3bbb5c",
+    "corner_rgb": [
+      160,
+      161,
+      163
+    ]
+  },
+  {
+    "file": "10-session-created.jpg",
+    "width": 1440,
+    "height": 900,
+    "bytes": 75940,
+    "sha256": "b732d5288fcb72a7ffbae134df4c0f6889bc8dcd3d7b741c86da01ccec23ecd2",
+    "corner_rgb": [
+      247,
+      248,
+      250
+    ]
+  },
+  {
+    "file": "11-delete-confirmation.jpg",
+    "width": 1440,
+    "height": 900,
+    "bytes": 75720,
+    "sha256": "c2ba313a6c2c36e03b5e9f58f40b39ef2475e94a81d194c70a7b24d2ef722006",
+    "corner_rgb": [
+      247,
+      248,
+      250
+    ]
+  },
+  {
+    "file": "12-delete-cancel-retained.jpg",
+    "width": 1440,
+    "height": 900,
+    "bytes": 75274,
+    "sha256": "6cffcfe688bfd43472d82154124223b7554a648ba6ab7e2c98f46248a002d5f8",
+    "corner_rgb": [
+      247,
+      248,
+      250
+    ]
+  },
+  {
+    "file": "13-delete-result.jpg",
+    "width": 1440,
+    "height": 900,
+    "bytes": 52310,
+    "sha256": "68bb147a00ae47cb642f8676c7cbbf6c0b53b523b2a12a406f47dc008b731ae6",
+    "corner_rgb": [
+      247,
+      248,
+      250
+    ]
+  },
+  {
+    "file": "14-reload-no-ghost.jpg",
+    "width": 1440,
+    "height": 900,
+    "bytes": 50609,
+    "sha256": "84396d3164bb5546298761beb92a93fb93f7d460829aeab05fe5868c82475a23",
+    "corner_rgb": [
+      247,
+      248,
+      250
+    ]
+  },
+  {
+    "file": "15-activity.jpg",
+    "width": 1440,
+    "height": 900,
+    "bytes": 68558,
+    "sha256": "b60fe971615c89408146ccfa82ad5bc8de314d80290ee425e0aed3a7d41a9db6",
+    "corner_rgb": [
+      247,
+      248,
+      250
+    ]
+  },
+  {
+    "file": "16-activity-click.jpg",
+    "width": 1440,
+    "height": 900,
+    "bytes": 68558,
+    "sha256": "b60fe971615c89408146ccfa82ad5bc8de314d80290ee425e0aed3a7d41a9db6",
+    "corner_rgb": [
+      247,
+      248,
+      250
+    ]
+  },
+  {
+    "file": "17-settings-provider-hub.jpg",
+    "width": 1440,
+    "height": 900,
+    "bytes": 80392,
+    "sha256": "784019ccfa84a622f2234d093e91cee999b1ffc8ab76dfd06a708566d0421bc4",
+    "corner_rgb": [
+      247,
+      248,
+      250
+    ]
+  },
+  {
+    "file": "18-provider-test-result.jpg",
+    "width": 1440,
+    "height": 900,
+    "bytes": 84512,
+    "sha256": "e47e2531a9d80b9c082efdd0539a7e7e0271fd189c0833e7723959211a3eefd7",
+    "corner_rgb": [
+      247,
+      248,
+      250
+    ]
+  },
+  {
+    "file": "19-studio-candidate.jpg",
+    "width": 1440,
+    "height": 900,
+    "bytes": 88772,
+    "sha256": "5316769b5ee5121881c61c67f7eb1de1c4ca6eaba2b1af77f888852054fa1753",
+    "corner_rgb": [
+      247,
+      248,
+      250
+    ]
+  },
+  {
+    "file": "20-studio-full.jpg",
+    "width": 1440,
+    "height": 900,
+    "bytes": 103503,
+    "sha256": "a50b3fdffd0d575bc36d5a5903421c09f5fd61497a6a4c7b376018fd46ec2070",
+    "corner_rgb": [
+      247,
+      248,
+      250
+    ]
+  },
+  {
+    "file": "21-inspector-desktop-light.jpg",
+    "width": 1440,
+    "height": 900,
+    "bytes": 86624,
+    "sha256": "6188685265d403e499c5b6fe4c2ce991c76f1caac33a0f33d9e34b5bd9bf2f77",
+    "corner_rgb": [
+      247,
+      248,
+      250
+    ]
+  },
+  {
+    "file": "22-inspector-execution.jpg",
+    "width": 1440,
+    "height": 900,
+    "bytes": 87198,
+    "sha256": "292831abb94033855996e8cb004f1bcf4d53359f5196fb0981beabcc389b5329",
+    "corner_rgb": [
+      247,
+      248,
+      250
+    ]
+  },
+  {
+    "file": "23-inspector-diagnostics.jpg",
+    "width": 1440,
+    "height": 900,
+    "bytes": 89525,
+    "sha256": "58780701cbe54bb637458d6bafdb34a882dd42ef36d8c35ca044041ddfe73629",
+    "corner_rgb": [
+      247,
+      248,
+      250
+    ]
+  },
+  {
+    "file": "24-inspector-desktop-dark.jpg",
+    "width": 1440,
+    "height": 900,
+    "bytes": 74964,
+    "sha256": "35c946da8641765d15a45073b42921267113a70e57a95d1816afe3b0db26179d",
+    "corner_rgb": [
+      22,
+      27,
+      33
+    ]
+  },
+  {
+    "file": "25-inspector-tablet-dark.jpg",
+    "width": 800,
+    "height": 930,
+    "bytes": 32799,
+    "sha256": "38ed5644ab8a42c52494c390a1730ab4a059a7265fcc43a5e751177d9cd343b5",
+    "corner_rgb": [
+      7,
+      8,
+      12
+    ]
+  },
+  {
+    "file": "26-inspector-mobile-dark.jpg",
+    "width": 390,
+    "height": 453,
+    "bytes": 6626,
+    "sha256": "243250d4a052b2ca96ea8568ab9b189e3f0262647954ca3e3dbc57cdaf67817e",
+    "corner_rgb": [
+      6,
+      10,
+      13
+    ]
+  },
+  {
+    "file": "27-ime-modeled-enter-retained.jpg",
+    "width": 1440,
+    "height": 900,
+    "bytes": 52818,
+    "sha256": "70b34ad0c2c9321cb6c27da8b9421ec99c12e7a2d50a2f8a8b5897bf528c92bf",
+    "corner_rgb": [
+      22,
+      27,
+      33
+    ]
+  },
+  {
+    "file": "28-normal-enter-turn.jpg",
+    "width": 1440,
+    "height": 900,
+    "bytes": 84155,
+    "sha256": "1131c875525b910f707969d27c63b091e7ec58fefca71dc22ea9ffaa9dfa320e",
+    "corner_rgb": [
+      22,
+      27,
+      33
+    ]
+  },
+  {
+    "file": "29-activity-completed.jpg",
+    "width": 1440,
+    "height": 900,
+    "bytes": 75397,
+    "sha256": "8d7a2912b3993fe46dad0a80b98a9246039dd5ac7d98c9a2f5794790f92bcb2f",
+    "corner_rgb": [
+      22,
+      27,
+      33
+    ]
+  },
+  {
+    "file": "30-live-session-inspector.jpg",
+    "width": 1440,
+    "height": 900,
+    "bytes": 84027,
+    "sha256": "d00344ae84e2014e0e2fbf1b116733af5eaa983ed7e9f327ce3360afa9075489",
+    "corner_rgb": [
+      22,
+      27,
+      33
+    ]
+  },
+  {
+    "file": "31-conversation-tablet-dark.jpg",
+    "width": 800,
+    "height": 930,
+    "bytes": 57219,
+    "sha256": "e48f879e3b3e958c764f9ad6a2a4a5b5829a67207721eb43ad9e54870879a646",
+    "corner_rgb": [
+      13,
+      16,
+      23
+    ]
+  },
+  {
+    "file": "32-conversation-tablet-light.jpg",
+    "width": 800,
+    "height": 930,
+    "bytes": 59828,
+    "sha256": "2424c5b0ddf5ee2588217014b0ae339c1641dd978f4737c1aa652030f909967b",
+    "corner_rgb": [
+      255,
+      255,
+      248
+    ]
+  },
+  {
+    "file": "33-conversation-mobile-light.jpg",
+    "width": 390,
+    "height": 844,
+    "bytes": 37954,
+    "sha256": "59b093ae454916efdcf5be3c6c6aed7d8d4825dc95e0678a4e22057465dc9a8f",
+    "corner_rgb": [
+      251,
+      255,
+      248
+    ]
+  },
+  {
+    "file": "34-button-active.jpg",
+    "width": 1440,
+    "height": 900,
+    "bytes": 86490,
+    "sha256": "ac3f3137d6bec65b78dc8cad82c86f0954d7c97b4282d4b779dce5ad59a0af62",
+    "corner_rgb": [
+      247,
+      248,
+      250
+    ]
+  },
+  {
+    "file": "35-command-cache-navigation.jpg",
+    "width": 1440,
+    "height": 900,
+    "bytes": 100116,
+    "sha256": "fe3f135341b0306661840ee4d697711982882cb00d48face30f2a8fe83ec119d",
+    "corner_rgb": [
+      247,
+      248,
+      250
+    ]
+  },
+  {
+    "file": "36-conversation-desktop-dark.jpg",
+    "width": 1440,
+    "height": 900,
+    "bytes": 82729,
+    "sha256": "c1d287c93de27062f6e07399a1fd758ee7338bf6f346963665b1f4130402e5ec",
+    "corner_rgb": [
+      22,
+      27,
+      33
+    ]
+  },
+  {
+    "file": "37-reopened-live-session.jpg",
+    "width": 1440,
+    "height": 900,
+    "bytes": 74669,
+    "sha256": "4fe50fd07facef3475e24d40a7f99368319dc3e317e1d50621625ca94145b758",
+    "corner_rgb": [
+      22,
+      27,
+      33
+    ]
+  }
+]

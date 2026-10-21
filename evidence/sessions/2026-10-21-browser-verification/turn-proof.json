@@ -1,0 +1,41 @@
+{
+  "SessionId": "sess_1792583751073_cc114a5b",
+  "SubmittedTestMessageCount": 1,
+  "InjectedInstructionMessageCount": 1,
+  "AssistantMessages": 1,
+  "ToolCalls": 0,
+  "Terminal": [
+    {
+      "kind": "success",
+      "executionState": "COMPLETED",
+      "stats": {
+        "steps": 1,
+        "toolCalls": 0,
+        "durationMs": 3526,
+        "tokensUsed": 11065
+      }
+    }
+  ],
+  "States": [
+    {
+      "state": "PREPARING",
+      "revision": 1
+    },
+    {
+      "state": "RUNNING",
+      "revision": 2
+    },
+    {
+      "state": "RUNNING",
+      "revision": 3
+    },
+    {
+      "state": "FINALIZING",
+      "revision": 4
+    },
+    {
+      "state": "COMPLETED",
+      "revision": 5
+    }
+  ]
+}

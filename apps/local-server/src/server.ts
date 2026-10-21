@@ -48,6 +48,8 @@ import type { ProviderStore, ProviderConfig } from './providers/ProviderStore.js
  * external dependencies.
  */
 export type SessionFactory = (input: {
+  /** When supplied, resume this exact persisted session instead of creating a new one. */
+  sessionId?: string;
   workspaceRoot: string;
   provider?: string;
   model?: string;
@@ -320,13 +322,19 @@ export function createVesselServer(opts: VesselServerOptions = {}): VesselServer
   const modelHubs = new Map<string, SessionModelHub>();
   const buildProvider = (cfg: ProviderConfig): ChatProvider => opts.providerBuilder?.(cfg) ?? createProvider(providerNameForConfig(cfg), { baseUrl: cfg.baseUrl, apiKey: cfg.apiKey, model: cfg.model, modelCapabilities: cfg.modelCapabilities });
   const defaultFactory: SessionFactory = async (input) => {
-    const cfg = input.provider && input.provider !== 'mock' ? providerRoutes.resolve(input.provider, input.model) : undefined;
+    let cfg: ProviderConfig | undefined;
+    try { cfg = input.provider && input.provider !== 'mock' ? providerRoutes.resolve(input.provider, input.model) : undefined; }
+    catch (error) { if (!input.sessionId) throw error; }
     const model = cfg?.model ?? input.model ?? 'default';
-    const provider = cfg ? buildProvider(cfg) : new MockProvider([{ when: /.*/, response: { text: `(mock) ${model}` } }], {
+    // Historical reading remains available when its provider was removed. Execution fails closed.
+    const provider = cfg ? buildProvider(cfg) : input.sessionId && input.provider && input.provider !== 'mock'
+      ? { id: input.provider, async chat(): Promise<never> { throw new Error('session_provider_unavailable'); } }
+      : new MockProvider([{ when: /.*/, response: { text: `(mock) ${model}` } }], {
       model: input.model ?? 'default',
     });
-    const hub = new SessionModelHub({ provider: cfg?.id ?? 'mock', model }, provider);
+    const hub = new SessionModelHub({ provider: cfg?.id ?? input.provider ?? 'mock', model }, provider);
     const ctl = await SessionController.create({
+      sessionId: input.sessionId,
       workspaceRoot: input.workspaceRoot,
       provider: hub,
       providerId: hub.id,
@@ -340,7 +348,7 @@ export function createVesselServer(opts: VesselServerOptions = {}): VesselServer
       subagent: opts.externalAgents?.length ? { externalAgents: opts.externalAgents } : undefined,
     });
     hub.attach(ctl.session.dir);
-    try { const meta = input.registry?.get(ctl.sessionId); if (meta) input.registry!.put({ ...meta, ...hub.selection }); }
+    try { const meta = input.registry?.get(ctl.sessionId); if (meta && !input.sessionId) input.registry!.put({ ...meta, ...hub.selection }); }
     catch (error) { await ctl.close(); throw error; }
     modelHubs.set(ctl.sessionId, hub);
     return ctl;
@@ -349,6 +357,7 @@ export function createVesselServer(opts: VesselServerOptions = {}): VesselServer
 
   /** live session controllers keyed by session id (owns the run loop). */
   const controllers = new Map<string, SessionController>();
+  const restoring = new Map<string, Promise<SessionController>>();
   const deletingSessions = new Set<string>();
   const activeTurns = new Map<string, Promise<unknown>>();
   const behaviorRoutes = new BehaviorRoutes(id => controllers.get(id)?.behaviorInspection);
@@ -740,18 +749,7 @@ export function createVesselServer(opts: VesselServerOptions = {}): VesselServer
           permission: body.permission,
           registry: sessionRegistry,
         });
-        controllers.set(ctl.sessionId, ctl);
-        subagentDetaches.push(ctl.bus.on('before_model', payload => {
-          inspector.observe(ctl.sessionId, payload, ctl.state.workspaceRoot);
-        }, 'local-server:inspector'));
-        subagentDetaches.push(ctl.bus.on('ui/widget_block', payload => {
-          if (isWidgetBlock(payload)) widgets.publish(ctl.sessionId, payload);
-        }, 'local-server:widgets'));
-        if (opts.notify) subagentDetaches.push(ctl.bus.on('policy_decision', payload => {
-          const decision = payload as { verdict?: string; toolName?: string };
-          if (decision.verdict === 'ask') notify('Vessel approval required', `Session ${ctl.sessionId}: ${decision.toolName ?? 'tool'} needs approval.`);
-        }, 'local-server:notification:approval'));
-        subagentDetaches.push(subagentSeam.attach(ctl.bus, id => ctl.cancelSubagent(id)));
+        attachController(ctl);
         const meta = sessionRegistry.get(ctl.sessionId);
         return json(res, 201, { session: (meta ?? ctl.state) });
       } catch (err) {
@@ -773,7 +771,30 @@ export function createVesselServer(opts: VesselServerOptions = {}): VesselServer
     if (segs.length >= 3 && (segs[1] === 'sessions' || segs[1] === 'session')) {
       const id = segs[2] ?? '';
       const sub = segs[3];
-      const ctl = controllers.get(id);
+      let ctl = controllers.get(id);
+      if (method === 'DELETE' && restoring.has(id)) return json(res, 409, { error: 'session_busy' });
+      if (!ctl && !deletingSessions.has(id) && method !== 'DELETE') {
+        const meta = sessionRegistry.get(id);
+        if (meta && fs.existsSync(path.join(resolveSessionDir(meta.workspaceRoot, id), 'session.jsonl'))) {
+          let pending = restoring.get(id);
+          if (!pending) {
+            pending = sessionFactory({ ...meta, sessionId: id, registry: sessionRegistry }).then(async opened => {
+              try {
+                sessionRegistry.put(meta); // Preserve title, creation time and archive state on resume.
+                attachController(opened);
+                return opened;
+              } catch (error) { await opened.close(); throw error; }
+            }).finally(() => restoring.delete(id));
+            restoring.set(id, pending);
+          }
+          try { ctl = await pending; }
+          catch { return json(res, 409, { error: 'session_restore_failed', id }); }
+        }
+      }
+      if (segs.length === 4 && sub === 'messages' && method === 'GET') {
+        if (!ctl) return json(res, 404, suggestNotFound(id));
+        return json(res, 200, sessionMessages(ctl));
+      }
       if (deletingSessions.has(id) && method !== 'GET') {
         return json(res, 409, { error: 'session_deleting', id });
       }
@@ -1261,6 +1282,53 @@ export function createVesselServer(opts: VesselServerOptions = {}): VesselServer
     return json(res, 404, { error: 'not_found' });
   }
 
+  function attachController(ctl: SessionController): void {
+    controllers.set(ctl.sessionId, ctl);
+    subagentDetaches.push(ctl.bus.on('before_model', payload => {
+      inspector.observe(ctl.sessionId, payload, ctl.state.workspaceRoot);
+    }, 'local-server:inspector'));
+    subagentDetaches.push(ctl.bus.on('ui/widget_block', payload => {
+      if (isWidgetBlock(payload)) widgets.publish(ctl.sessionId, payload);
+    }, 'local-server:widgets'));
+    if (opts.notify) subagentDetaches.push(ctl.bus.on('policy_decision', payload => {
+      const decision = payload as { verdict?: string; toolName?: string };
+      if (decision.verdict === 'ask') notify('Vessel approval required', `Session ${ctl.sessionId}: ${decision.toolName ?? 'tool'} needs approval.`);
+    }, 'local-server:notification:approval'));
+    subagentDetaches.push(subagentSeam.attach(ctl.bus, id => ctl.cancelSubagent(id)));
+  }
+
+  function sessionMessages(ctl: SessionController) {
+    const messages: Array<{ id: string; kind: 'message' | 'tool'; msg?: { role: 'user' | 'assistant'; text: string; ts: number }; tool?: { toolCallId: string; toolName: string; status: 'started' | 'done' | 'error'; ts: number } }> = [];
+    const usage = [];
+    let calls = 0;
+    for (const record of ctl.session.replay()) {
+      const ts = Date.parse(record.ts);
+      if (record.type === 'user/message' && (!record.source || record.source === 'user' || record.source === 'steer')) {
+        messages.push({ id: `record:${record.seq}`, kind: 'message', msg: { role: 'user', text: record.content, ts } });
+      } else if ((record.type === 'assistant/message' || record.type === 'assistant/attempt') && record.content) {
+        messages.push({ id: `record:${record.seq}`, kind: 'message', msg: { role: 'assistant', text: record.content, ts } });
+      } else if (record.type === 'tool/call') {
+        messages.push({ id: `tool:${record.toolCallId}`, kind: 'tool', tool: { toolCallId: record.toolCallId, toolName: record.toolName, status: 'started', ts } });
+      } else if (record.type === 'tool/result') {
+        const tool = { toolCallId: record.toolCallId, toolName: record.toolName, status: record.error ? 'error' as const : 'done' as const, ts };
+        const index = messages.findIndex(item => item.tool?.toolCallId === record.toolCallId);
+        if (index >= 0) messages[index] = { ...messages[index]!, tool };
+        else messages.push({ id: `tool:${record.toolCallId}`, kind: 'tool', tool });
+      } else if (record.type === 'model/usage') {
+        usage.push({ ...record.usage, ...ctl.projections.usage.costForUsage(record.usage), calls: ++calls, ts });
+      }
+    }
+    const summary = usage.reduce((total, delta) => ({
+      inputTokens: total.inputTokens + (delta.inputTokens ?? 0),
+      outputTokens: total.outputTokens + (delta.outputTokens ?? 0),
+      cacheReadTokens: total.cacheReadTokens + (delta.cacheReadTokens ?? 0),
+      cacheCreationTokens: total.cacheCreationTokens + (delta.cacheCreationTokens ?? 0),
+      calls: total.calls + 1, costUsd: total.costUsd + delta.costUsd,
+      estimated: total.estimated || delta.estimated,
+    }), { inputTokens: 0, outputTokens: 0, cacheReadTokens: 0, cacheCreationTokens: 0, calls: 0, costUsd: 0, estimated: false });
+    return { messages, usage: usage.map((delta, index) => index === usage.length - 1 ? { ...delta, summary } : delta), summary };
+  }
+
   function streamEvents(ctl: SessionController, req: http.IncomingMessage, res: http.ServerResponse): void {
     subagentStreams.add(res);
     res.once('close', () => subagentStreams.delete(res));
@@ -1272,6 +1340,8 @@ export function createVesselServer(opts: VesselServerOptions = {}): VesselServer
       // best-effort; responder may already be closed
       res.write(`data: ${JSON.stringify({ type, delta, ts: Date.now() })}\n\n`);
     };
+    // Snapshot and listener registration are synchronous: no turn can fall between them.
+    if (new URL(req.url!, 'http://localhost').searchParams.get('hydrate') === '1') sse('transcript', sessionMessages(ctl));
     // Named events also carry the existing {type, delta, ts} envelope.
     const detachWidgets = widgets.subscribe(ctl.sessionId, (type, delta) => {
       res.write(`event: ${type}\ndata: ${JSON.stringify({ type, delta, ts: Date.now() })}\n\n`);
@@ -1353,18 +1423,19 @@ export function createVesselServer(opts: VesselServerOptions = {}): VesselServer
       const started = key ? modelStartedAt.get(key) : undefined;
       if (key) modelStartedAt.delete(key);
       const totals = ctl.projections.usage.usage();
+      const persisted = sessionMessages(ctl).summary;
       const cache = usage.cacheMetrics ? priceCacheMetrics(usage.cacheMetrics, ctl.projections.usage.pricing()) : undefined;
       sse('usage', {
         cacheMetrics: cache,
         ...ctl.projections.usage.costForUsage(usage),
-        summary: totals,
+        summary: { ...totals, ...persisted },
         inputTokens: usage.inputTokens ?? 0,
         outputTokens: usage.outputTokens ?? 0,
         reasoningTokens: usage.reasoningTokens,
         cacheReadTokens: usage.cacheReadTokens ?? 0,
         cacheCreationTokens: usage.cacheCreationTokens ?? 0,
         latencyMs: started === undefined ? undefined : Math.max(0, Date.now() - started),
-        calls: ctl.projections.usage.usage().calls,
+        calls: persisted.calls,
       });
     });
 
@@ -1456,6 +1527,7 @@ export function createVesselServer(opts: VesselServerOptions = {}): VesselServer
       return vesselServer;
     },
     async close() {
+      await Promise.allSettled(restoring.values());
       inspector.close();
       widgets.close();
       await opts.mesh?.close();

@@ -97,7 +97,13 @@ export interface TeamDelta {
   ts: number;
 }
 
+export interface SessionTranscript {
+  messages: Array<{ id: string; kind: 'message' | 'tool'; msg?: ConversationDelta; tool?: ToolDelta }>;
+  usage: UsageDelta[];
+}
+
 export interface StreamHandlers {
+  onTranscript?: (transcript: SessionTranscript) => void;
   onInspector?: (observation: InspectorObservation) => void;
   onWidget?: (widget: WidgetBlock) => void;
   onWidgetResponse?: (response: WidgetActionResponse) => void;
@@ -158,6 +164,9 @@ export function createEventStream(url: string, handlers: StreamHandlers = {}, op
     const delta = (frame.delta ?? {}) as Record<string, unknown>;
     const ts = typeof frame.ts === 'number' ? frame.ts : Date.now();
     switch (frame.type) {
+      case 'transcript':
+        if (Array.isArray(delta.messages) && Array.isArray(delta.usage)) handlers.onTranscript?.(delta as unknown as SessionTranscript);
+        break;
       case 'inspector':
         if (isInspectorObservation(frame.delta)) handlers.onInspector?.(frame.delta);
         else handlers.onError?.(new Error('malformed inspector observation'));

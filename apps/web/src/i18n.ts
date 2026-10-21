@@ -762,6 +762,7 @@ export interface WorkbenchMessages {
   taskStatusFailed: MessageTemplate;
   taskStatusCancelled: MessageTemplate;
   activityQueueTitle: MessageTemplate;
+  activityRefresh: MessageTemplate;
   activityQueueHint: MessageTemplate;
   activityQueueEmpty: MessageTemplate;
   activityQueueReadError: MessageTemplate;
@@ -1534,6 +1535,7 @@ export const zh: Messages = {
   taskStatusFailed: "失败",
   taskStatusCancelled: "已取消",
   activityQueueTitle: "活动与审批队列",
+  activityRefresh: "刷新活动",
   activityQueueHint: "跨项目聚合运行中与等待授权的任务，可直接就地批准或拒绝。",
   activityQueueEmpty: "当前没有需要关注的活动。",
   activityQueueReadError: "读取活动队列失败：{error}",
@@ -2306,6 +2308,7 @@ export const en: Messages = {
   taskStatusFailed: 'Failed',
   taskStatusCancelled: 'Cancelled',
   activityQueueTitle: 'Activity & approval queue',
+  activityRefresh: 'Refresh activity',
   activityQueueHint: 'Active and WAITING_APPROVAL work aggregated across projects, with inline approval.',
   activityQueueEmpty: 'Nothing needs attention right now.',
   activityQueueReadError: 'Could not read the activity queue: {error}',
