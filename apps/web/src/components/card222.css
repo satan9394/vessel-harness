@@ -39,6 +39,10 @@
   background: var(--panel-2);
   white-space: nowrap;
 }
+
+.activity-run > strong { overflow-wrap: anywhere; }
+.activity-run-details { flex-basis: 100%; min-width: 0; overflow-wrap: anywhere; }
+.activity-run-details summary { cursor: pointer; }
 .status-badge.status-needs_attention { color: var(--warn); background: var(--warn-soft); }
 .status-badge.status-failed { color: var(--danger); background: var(--danger-soft); }
 .status-badge.status-unknown { color: var(--dim); background: var(--panel-3); }

@@ -2,6 +2,16 @@ import { describe, expect, it } from 'vitest';
 import { ActivityRoutes, type ActivitySources } from './activityRoutes.js';
 
 describe('ActivityRoutes (ARCH-01 / UI-02 Truthful Status)', () => {
+  it.each([
+    ['pending', 'unknown'], ['in-progress', 'running'], ['paused', 'needs_attention'],
+    ['met', 'completed'], ['not_met', 'failed'], ['cancelled', 'failed'],
+  ] as const)('maps goal %s to %s', async (status, expected) => {
+    const routes = new ActivityRoutes({
+      sessions: async () => [], live: () => undefined, approvals: () => [], subagents: async () => [], teamStages: () => [],
+      goalTasks: () => [{ id: 'goal', projectRoot: '/workspace', goal: 'Do work', status }],
+    });
+    expect((await routes.list()).runs[0]?.status).toBe(expected);
+  });
   it('does not falsely mark empty or unknown sessions as completed', async () => {
     const sources: ActivitySources = {
       sessions: async () => [

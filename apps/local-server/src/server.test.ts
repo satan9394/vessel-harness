@@ -87,6 +87,7 @@ describe('local server HTTP API + SSE', () => {
   let server: VesselServer;
   let base: string;
   let controller: SessionController;
+  let sessionRegistry: SessionRegistry;
 
   beforeEach(async () => {
     recyclePath.mockReset().mockResolvedValue(undefined);
@@ -96,7 +97,7 @@ describe('local server HTTP API + SSE', () => {
     fs.mkdirSync(ws, { recursive: true });
 
     const projectRegistry = new ProjectRegistry({ vesselHome: home });
-    const sessionRegistry = new SessionRegistry({ vesselHome: home });
+    sessionRegistry = new SessionRegistry({ vesselHome: home });
 
     server = createVesselServer({
       port: 0,
@@ -122,10 +123,11 @@ describe('local server HTTP API + SSE', () => {
 
   async function importSession(
     provider: InstanceType<typeof MockProvider>,
-    input: { workspaceRoot: string; model?: string; permission?: 'read-only' | 'workspace-write' | 'danger-full-access'; registry?: SessionRegistry },
+    input: { sessionId?: string; workspaceRoot: string; model?: string; permission?: 'read-only' | 'workspace-write' | 'danger-full-access'; registry?: SessionRegistry },
   ): Promise<SessionController> {
     const { SessionController } = await import('@vessel/application');
     return SessionController.create({
+      sessionId: input.sessionId,
       workspaceRoot: input.workspaceRoot,
       provider,
       model: input.model ?? 'default',
@@ -135,6 +137,54 @@ describe('local server HTTP API + SSE', () => {
       registry: input.registry,
     });
   }
+
+  it('restores disk sessions once across concurrent detail, messages and SSE requests', async () => {
+    const registry = sessionRegistry;
+    const old = await importSession(new MockProvider([{ when: /.*/, response: { text: 'persisted answer' } }]), { workspaceRoot: ws, registry });
+    await old.runTurn('persisted question');
+    registry.renameTopic(old.sessionId, 'Retained title');
+    const meta = registry.get(old.sessionId)!;
+    await old.close();
+    const id = old.sessionId;
+    const abort = new AbortController();
+    const responses = await Promise.all([
+      fetch(`${base}/api/sessions/${id}`),
+      fetch(`${base}/api/sessions/${id}/messages`),
+      fetch(`${base}/api/sessions/${id}/events?hydrate=1`, { signal: abort.signal }),
+    ]);
+    expect(responses.map(response => response.status)).toEqual([200, 200, 200]);
+    const transcript = await responses[1]!.json() as { messages: { msg?: { text: string } }[]; usage: unknown[] };
+    expect(transcript.messages.map((item: { msg?: { text: string } }) => item.msg?.text)).toEqual(['persisted question', 'persisted answer']);
+    expect(transcript.usage).toHaveLength(1);
+    const reader = responses[2]!.body!.getReader();
+    const frame = new TextDecoder().decode((await reader.read()).value);
+    expect(frame).toContain('"type":"transcript"');
+    expect(frame).toContain('persisted answer');
+    abort.abort();
+    expect(new SessionRegistry({ vesselHome: home }).get(id)).toMatchObject({ ...meta, updatedAt: expect.any(String) });
+    expect(controller.sessionId).toBe(id);
+    await controller.runTurn('continue after restore');
+    const continued = await (await fetch(`${base}/api/sessions/${id}/messages`)).json() as { summary: { calls: number }; messages: unknown[] };
+    expect(continued.summary.calls).toBe(2);
+    expect(continued.messages).toHaveLength(4);
+    expect((await fetch(`${base}/api/sessions/missing/messages`)).status).toBe(404);
+  });
+
+  it('replays assistant attempts, tool outcomes and measured usage without injected instructions', async () => {
+    const response = await fetch(`${base}/api/sessions`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ workspaceRoot: ws }) });
+    const { session } = await response.json() as { session: { id: string } };
+    await controller.session.appendSync({ type: 'user/message', msgId: 'hidden', role: 'user', source: 'instruction', content: 'internal instruction', surface: true });
+    await controller.session.appendSync({ type: 'assistant/attempt', msgId: 'a', content: 'checking files', toolCalls: [{ id: 'tc', name: 'Read', arguments: {} }], attemptNo: 1, surface: false });
+    await controller.session.appendSync({ type: 'tool/call', toolCallId: 'tc', toolName: 'Read', arguments: {}, mode: 'auto', surface: false });
+    await controller.session.appendSync({ type: 'tool/result', toolCallId: 'tc', toolName: 'Read', content: 'file', meta: {}, surface: true });
+    await controller.session.appendSync({ type: 'model/usage', turnId: 't', step: 1, usage: { inputTokens: 7, outputTokens: 3 }, surface: false });
+    const body = await (await fetch(`${base}/api/sessions/${session.id}/messages`)).json() as { messages: { msg: { text: string }; tool: { toolCallId: string; status: string } }[]; usage: unknown[] };
+    expect(body.messages).toHaveLength(2);
+    expect(body.messages[0]!.msg.text).toBe('checking files');
+    expect(body.messages[1]!.tool).toMatchObject({ toolCallId: 'tc', status: 'done' });
+    expect(body.usage[0]).toMatchObject({ inputTokens: 7, outputTokens: 3, calls: 1 });
+    expect(JSON.stringify(body)).not.toContain('internal instruction');
+  });
 
   it('GET /api/health returns ok + version', async () => {
     const res = await fetch(`${base}/api/health`);

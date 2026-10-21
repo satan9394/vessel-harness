@@ -92,6 +92,49 @@ afterEach(() => {
 });
 
 describe('ConversationView Task 246: Scroll guard, IME protection, and SSE reconnect', () => {
+  it('hydrates a fresh page from disk and reconciles the SSE connection snapshot once', async () => {
+    const transcript = {
+      messages: [
+        { id: 'r1', kind: 'message' as const, msg: { role: 'user' as const, text: 'disk question', ts: 1 } },
+        { id: 'r2', kind: 'message' as const, msg: { role: 'assistant' as const, text: 'disk answer', ts: 2 } },
+      ],
+      usage: [{ inputTokens: 7, outputTokens: 3, calls: 1, ts: 3 }],
+    };
+    api.sessionMessages = vi.fn().mockResolvedValue(transcript);
+    render();
+    await Promise.resolve();
+    let tree = render();
+    expect(api.sessionMessages).toHaveBeenCalledWith('s1');
+    expect(tree.find(node => Array.isArray(node.props.items))!.props.items).toEqual(transcript.messages);
+    (tree.find(node => node.type === 'input')!.props.onChange as (event: unknown) => void)({ target: { value: 'new prompt' } });
+    tree = render();
+    await (tree.find(node => node.type === 'form')!.props.onSubmit as (event: unknown) => Promise<void>)({ preventDefault() {} });
+    expect(api.runTurn).not.toHaveBeenCalled(); // A pending snapshot must not erase an optimistic new turn.
+    streams[0].handlers.onTranscript?.(transcript);
+    streams[0].handlers.onConversation?.({ role: 'assistant', text: 'live answer', ts: 4 });
+    tree = render();
+    expect((tree.find(node => Array.isArray(node.props.items))!.props.items as import('./MessageList').ChatItem[]).map(item => item.msg?.text)).toEqual(['disk question', 'disk answer', 'live answer']);
+    expect(tree.find(node => node.props.usage)!.props.usage).toMatchObject({ inputTokens: 7, outputTokens: 3, calls: 1 });
+  });
+
+  it('ignores late HTTP hydration after the connection snapshot or a session switch', async () => {
+    let resolve!: (value: import('../sse').SessionTranscript) => void;
+    api.sessionMessages = vi.fn(() => new Promise<import('../sse').SessionTranscript>(done => { resolve = done; }));
+    render();
+    const finish = resolve;
+    streams[0].handlers.onTranscript?.({ messages: [], usage: [] });
+    streams[0].handlers.onConversation?.({ role: 'assistant', text: 'fresh', ts: 3 });
+    finish({ messages: [], usage: [] });
+    await Promise.resolve();
+    expect((render().find(node => Array.isArray(node.props.items))!.props.items as import('./MessageList').ChatItem[])[0].msg?.text).toBe('fresh');
+    render('s2');
+    const finishSecond = resolve;
+    render('s3');
+    finishSecond({ messages: [{ id: 'stale', kind: 'message', msg: { role: 'user', text: 'stale', ts: 1 } }], usage: [] });
+    await Promise.resolve();
+    expect(render('s3').find(node => Array.isArray(node.props.items))!.props.items).toEqual([]);
+  });
+
   it('protects against Enter key submission during IME composition', async () => {
     const tree = render();
     const inputNode = tree.find(node => node.type === 'input')!;

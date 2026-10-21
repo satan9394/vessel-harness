@@ -1,0 +1,5 @@
+F1 resolved: recordCount=3, no terminal evidence => unknown / source=inferred
+F2 resolved: saved endpoint receives saved Authorization; fetch stub only
+F2 regression: test/pullModels with empty/omitted key and spoofed protocol stay bound
+F3 resolved: credential-bearing model IDs rejected
+Task 250 controls PASS (offline stubs; no real credential or upstream request).

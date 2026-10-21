@@ -57,7 +57,7 @@ export default function ActivityQueue({ api, onOpenSession, initial }: ActivityQ
     <section className="dashboard-panel activity-queue" aria-label={t('activityQueueTitle')}>
       <h3>{t('activityQueueTitle')}</h3>
       <p className="dim">{t('activityQueueHint')}</p>
-      <button className="btn" onClick={() => setRevision((value) => value + 1)}>{t('modelRetry')}</button>
+      <button className="btn" onClick={() => setRevision((value) => value + 1)}>{t('activityRefresh')}</button>
       {error ? <p role="alert" className="error-text">{t('activityQueueReadError', { error: String((error as Error)?.message ?? error) })}</p> : null}
       {notice ? <p role="status">{notice}</p> : null}
       {data && data.runs.length === 0 ? <p className="dim">{t('activityQueueEmpty')}</p> : null}
@@ -71,6 +71,13 @@ export default function ActivityQueue({ api, onOpenSession, initial }: ActivityQ
                 <span className={`status-badge status-${run.status}`}>{t(activityStatusLabelKey(run.status))}</span>
                 <span className="status-badge">{t(KIND_KEYS[run.kind])}</span>
                 <strong>{run.title}</strong>
+                {run.kind !== 'session' && (
+                  <details className="activity-run-details">
+                    <summary>{t('traceShowDetail')}</summary>
+                    <p>{run.detail || run.title}</p>
+                    <p>{t('activityProject')}: {run.projectRoot}</p>
+                  </details>
+                )}
                 <span className="dim" title={run.projectRoot}>{t('activityProject')}: {shortPathLabel(run.projectRoot)}</span>
                 <span className="dim">{t('activityUpdated')}: {formatStamp(run.updatedAt)}</span>
                 {run.kind === 'session' && onOpenSession && (

@@ -1,0 +1,96 @@
+- complementary:
+  - generic: Vessel
+  - button "收起侧边栏": ‹
+  - button "+ 新建会话"
+  - navigation:
+    - generic: 项目
+    - list:
+      - listitem "C:\\work\\AppData\\Local\\Temp\\vessel-v26-browser-AypIuM\\workspace":
+        - button "workspace"
+      - listitem "E:\\Code_file\\Projects\\Vessel_Harness":
+        - button "Vessel_Harness"
+      - listitem "E:\\Code_file\\C_file":
+        - button "C_file"
+    - generic: 历史会话
+    - searchbox "搜索会话…"
+    - checkbox "显示已归档"
+    - text: 显示已归档
+    - generic: workspace
+    - generic: Vessel_Harness
+    - generic: 今天
+    - button "测试：仅回复 OK，不使用工具。"
+    - button "重命名会话":
+    - button "归档会话":
+    - button "删除":
+    - button "04:55"
+    - generic: C_file
+    - paragraph: 项目 → 会话 → 运行 → 子代理
+  - tablist "打开导航":
+    - tab "工作台" [selected]:
+      - generic: 工作台
+    - tab "活动":
+      - generic: 活动
+    - tab "Agent Studio":
+      - generic: Agent Studio
+    - tab "设置":
+      - generic: 设置
+  - button "切换浅色模式":
+    - generic: Dark
+- main:
+  - generic: Vessel 本地服务运行正常（版本 0.10.0）
+  - button "命令"
+  - generic "偏好设置"
+  - button "打开检视器"
+  - generic: 会话 · 测试：仅回复 OK，不使用工具。
+  - generic: 当前模型
+  - button "commandgota / deepseek/deepseek-v4.1-flash":
+    - generic: commandgota / deepseek/deepseek-v4.1-flash
+    - generic: ⌄
+  - generic "模型能力"
+  - generic "E:\\Code_file\\Projects\\Vessel_Harness": "新会话权限（不影响当前会话）: 只读探索权限"
+  - button "配置新模型"
+  - region "计划":
+    - generic: 计划 · 0 / 0
+    - paragraph: 本会话暂无计划步骤——启动一次任务后会在此常驻显示进度。
+  - log:
+    - generic: 发送一条消息开始对话，实时响应将在这里显示。
+  - generic "会话沙箱审计"
+  - group "模式":
+    - generic: 项目
+    - generic: Vessel_Harness
+    - generic: 模型
+    - generic "commandgota / deepseek/deepseek-v4.1-flash"
+    - generic: 审批档位
+    - generic: 只读探索权限
+    - generic: 模式
+    - button "自动" [pressed]
+    - button "快速"
+    - button "专业"
+    - button "确定模型"
+    - button "为本会话固定模型"
+  - textbox "输入消息…（按回车发送）" [active]
+  - button "发送" [disabled]
+  - button "停止" [disabled]
+  - generic "上下文占用":
+    - generic: 上下文占用
+    - text: 0%
+    - generic: ⚡ 缓存
+    - generic: —
+    - generic: 费用
+    - text: $0.0000
+    - generic: 计划
+    - text: 0/0
+    - generic: 键位提示
+    - generic: 命令（Ctrl/Cmd+K）
+    - generic: 切换画布检视器（Ctrl/Cmd+I）
+    - generic: 发送
+    - generic: ⏎
+    - generic: 换行
+  - generic: 目标任务
+  - textbox "输入目标，加入本项目的任务队列…"
+  - button "加入队列" [disabled]
+  - generic: 任务队列
+  - generic: 0 个任务
+  - generic: 暂无任务
+  - generic: 添加目标并运行，每次迭代都会显示生成结果与评估结论。
+  - generic: 暂停可挂起运行，恢复可继续执行；预算用于设置最大迭代数与重试数，默认均为 1。

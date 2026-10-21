@@ -190,7 +190,7 @@ export class ActivityRoutes {
     }
 
     for (const task of this.sources.goalTasks()) {
-      const status: ActivityStatus = task.status === 'paused' ? 'needs_attention' : task.status === 'met' ? 'completed' : task.status === 'not_met' || task.status === 'cancelled' ? 'failed' : 'running';
+      const status: ActivityStatus = task.status === 'paused' ? 'needs_attention' : task.status === 'met' ? 'completed' : task.status === 'not_met' || task.status === 'cancelled' ? 'failed' : task.status === 'in-progress' ? 'running' : 'unknown';
       runs.push({ id: task.id, kind: 'goal', projectRoot: task.projectRoot, title: task.goal, status, needsApproval: false, updatedAt: time(task.updatedAt ?? task.createdAt) });
     }
 

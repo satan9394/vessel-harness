@@ -154,6 +154,14 @@ describe('card 222 components', () => {
     const html = renderToStaticMarkup(<ActivityQueue initial={completedActivity} onOpenSession={onOpenSession} />);
     expect(html).toContain('data-run-id="s1"');
     expect(html).toContain('data-run-id="g1"');
+    expect(html).toContain('<summary>Show detail</summary>');
+    expect(html).toContain('<p>Goal item</p>');
+    expect(html).toContain('Refresh activity');
+    expect(html).not.toContain('Reload models');
+    lang = 'zh';
+    const chinese = renderToStaticMarkup(<ActivityQueue initial={completedActivity} />);
+    expect(chinese).toContain('刷新活动');
+    expect(chinese).not.toContain('重新加载模型');
     expect(html).toContain('activity-completed-group');
   });
 

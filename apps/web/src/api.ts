@@ -418,6 +418,9 @@ export function createApiClient(opts: ApiOptions = {}) {
     async getSession(id: string): Promise<{ session: SessionMeta }> {
       return request(`/sessions/${encodeURIComponent(id)}`);
     },
+    async sessionMessages(id: string): Promise<import('./sse').SessionTranscript> {
+      return request<import('./sse').SessionTranscript>(`/sessions/${encodeURIComponent(id)}/messages`);
+    },
     async deleteSession(id: string): Promise<{ ok: boolean; id: string }> {
       return request<{ ok: boolean; id: string }>(`/sessions/${encodeURIComponent(id)}`, { method: 'DELETE' });
     },

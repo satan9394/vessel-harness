@@ -1,0 +1,32 @@
+{
+  "runs": [
+    {
+      "id": "task_1792049103817_d75f554d",
+      "kind": "goal",
+      "projectRoot": "C:\\work\\AppData\\Local\\Temp\\vessel-uilanding-fixture-OPAtVt",
+      "title": "Verify the build and stage the diff",
+      "status": "failed",
+      "needsApproval": false,
+      "updatedAt": 1792049103936
+    },
+    {
+      "id": "task_1792049103811_87e2fe38",
+      "kind": "goal",
+      "projectRoot": "C:\\work\\AppData\\Local\\Temp\\vessel-uilanding-fixture-OPAtVt",
+      "title": "Refactor the navigation module",
+      "status": "running",
+      "needsApproval": false,
+      "updatedAt": 1792049103811
+    },
+    {
+      "id": "task_1792049103801_08ba27fc",
+      "kind": "goal",
+      "projectRoot": "C:\\work\\AppData\\Local\\Temp\\vessel-uilanding-fixture-OPAtVt",
+      "title": "Survey call sites of the navigation module",
+      "status": "running",
+      "needsApproval": false,
+      "updatedAt": 1792049103801
+    }
+  ],
+  "updatedAt": 1792583620092
+}

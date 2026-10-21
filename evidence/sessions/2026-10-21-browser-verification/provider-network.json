@@ -1,0 +1,14 @@
+[
+  {
+    "method": "Network.requestWillBeSent",
+    "requestId": "18684.53",
+    "url": "http://127.0.0.1:5678/api/providers/test",
+    "postData": "{\"name\":\"commandgota\",\"protocol\":\"openai-compatible\",\"baseUrl\":\"https://api.commandcode.ai/provider/v1\",\"models\":[\"deepseek/deepseek-v4.1-flash\"],\"apiKey\":\"\"}"
+  },
+  {
+    "method": "Network.responseReceived",
+    "requestId": "18684.53",
+    "url": "http://127.0.0.1:5678/api/providers/test",
+    "status": 200
+  }
+]
