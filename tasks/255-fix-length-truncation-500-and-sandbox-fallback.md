@@ -76,3 +76,5 @@ Implemented; targeted tests 65/65 and web 424/424 pass. Build/typechecks pass. I
 - 同时发现第二处：`GetNamedSecurityInfo` 只请求 `DACL|LABEL`，缺 owner/group，`AccessCheck` 恒返回 `ERROR_INVALID_SECURITY_DESCR(1338)`，等于所有写根永远被拒。改为 `OWNER|GROUP|DACL|LABEL` 后正常。已按实测改。
 - 仍不通，且不是本卡范围：受限令牌 + Low 在 `CREATE_NO_WINDOW`/`CREATE_NEW_CONSOLE` 下必然 `0xC0000142 STATUS_DLL_INIT_FAILED`；对照实验显示普通令牌 + Low 正常、受限令牌在继承父控制台时能启动。属启动标志与控制台策略问题，转 [卡 256](256-windows-sandbox-launch-console.md)。
 - 全量门禁：`npx vitest run packages/tools/src/execution/sandbox` 17/17；`tsc -b`、`typecheck:tests`、`test:web` 424/424 通过；`test:all` 的 2 项失败集中在 `packages/runtime` 的 `virtualProxy` 与 `process-tree`，两个文件单独跑 23/23 通过、且本卡 diff 未触碰该包，判为全量并行下的环境性抖动并如实记录，未做掩盖。
+- 复跑 `test:all` 两条腿全绿：根 291 文件 / 3082 通过 + 6 跳过（427s），web 51 文件 / 424 通过（19s），退出码 0（`evidence/task255/test-all-rerun.log`），前述 2 项确认是并行抖动而非回归。
+- 提交：`8034500`（实现、卡面、证据）与 `c254248`（14 个 runner 脚本改读 `OPENCODE_TOKEN`），已推送 `origin/feat/v2.8-taste-ui`。
