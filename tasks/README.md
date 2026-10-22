@@ -19,6 +19,7 @@
 | apps/web typecheck 门禁修复 (卡 257) | 已实现，门禁全绿 | [257](257-web-typecheck-gate.md) |
 | 消除虚假完成信号 (卡 258) | 已实现，五项定向门禁全绿（待验收） | [258](258-false-completion-signal.md) |
 | 删除的跨阶段一致性 (卡 259) | 已实现，五项定向门禁全绿；待浏览器复验/协调者验收 | [259](259-delete-stage-consistency.md) |
+| 浏览器运行时验收 (卡 260) | 待执行（需 Codex 应用内置浏览器） | [260](260-browser-runtime-acceptance.md) |
 | 浏览器实测缺陷整改 (BV-01~04) | 待验收（定向门禁通过，待浏览器复验） | [254](254-browser-audit-remediation.md) |
 | 内置浏览器六场景审查 | 审查已交付 | [253](253-browser-verification.md) |
 | EffectJournal 破损容错与租约回滚 (F5) | 待验收 | [252](252-effect-journal-torn-tail-and-lease-rollback.md) |
