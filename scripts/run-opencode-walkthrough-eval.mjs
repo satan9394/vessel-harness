@@ -42,7 +42,7 @@ const req = https.request('https://api.commandcode.ai/provider/v1/chat/completio
   method: 'POST',
   headers: {
     'Content-Type': 'application/json',
-    'Authorization': 'Bearer user_2gihhXuqKLjAbWa9eRE9GyEEWzMeMXJNbMUHZvKEvUNAfK4YDMX58vfkT129WY3QaQH7UMpf1bvbQqyMDxhZCmdG'
+    'Authorization': `Bearer ${process.env.OPENCODE_TOKEN ?? ''}`
   },
   timeout: 120000
 }, (res) => {

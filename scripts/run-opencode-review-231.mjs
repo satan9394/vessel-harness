@@ -64,7 +64,7 @@ function sendRequest(retryCount = 0) {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      'Authorization': 'Bearer user_2gihhXuqKLjAbWa9eRE9GyEEWzMeMXJNbMUHZvKEvUNAfK4YDMX58vfkT129WY3QaQH7UMpf1bvbQqyMDxhZCmdG'
+      'Authorization': `Bearer ${process.env.OPENCODE_TOKEN ?? ''}`
     },
     timeout: 60000
   }, (res) => {
