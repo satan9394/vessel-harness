@@ -798,20 +798,30 @@ export function createVesselServer(opts: VesselServerOptions = {}): VesselServer
           ctl?.interrupt();
           // Let the interrupted writer settle before recycling its session directory.
           await activeTurns.get(id)?.catch(() => {});
-          if (existing?.workspaceRoot) {
-            const sessionDir = resolveSessionDir(existing.workspaceRoot, id);
-            if (fs.existsSync(sessionDir)) {
-              await recycleDaemonPath(sessionDir);
+          try {
+            sessionRegistry.remove(id);
+          } catch (error) {
+            return json(res, 500, { error: error instanceof AggregateError ? 'session_index_stale' : 'session_index_failed', id, stage: 'index' });
+          }
+          try {
+            if (existing?.workspaceRoot) {
+              const sessionDir = resolveSessionDir(existing.workspaceRoot, id);
+              if (fs.existsSync(sessionDir)) await recycleDaemonPath(sessionDir);
             }
+          } catch {
+            try {
+              if (existing) sessionRegistry.restore(existing);
+            } catch {
+              return json(res, 500, { error: 'session_index_stale', id, stage: 'rollback' });
+            }
+            return json(res, 500, { error: 'session_recycle_failed', id, stage: 'recycle' });
           }
           // Recycling succeeded; release the removed controller's open log handles.
           // A telemetry close error cannot undo the completed recycle operation.
-          await ctl?.close().catch(() => {});
+          let cleanupWarning: string | undefined;
+          try { await ctl?.close(); } catch { cleanupWarning = 'session_controller_close_failed'; }
           controllers.delete(id);
-          sessionRegistry.remove(id);
-          return json(res, 200, { ok: true, id });
-        } catch {
-          return json(res, 500, { error: 'session_recycle_failed', id });
+          return json(res, 200, { ok: true, id, ...(cleanupWarning ? { warning: cleanupWarning, stage: 'controller' } : {}) });
         } finally {
           deletingSessions.delete(id);
         }

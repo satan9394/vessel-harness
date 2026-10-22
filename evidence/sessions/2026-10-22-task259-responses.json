@@ -1,0 +1,35 @@
+{
+  "root": "C:\\work\\AppData\\Local\\Temp\\vessel-task259-browser-plx4VM",
+  "responses": [
+    {
+      "status": 500,
+      "body": {
+        "error": "session_index_failed",
+        "id": "task259-b",
+        "stage": "index"
+      },
+      "visible": true,
+      "visibleAfterRestart": true
+    },
+    {
+      "status": 500,
+      "body": {
+        "error": "session_recycle_failed",
+        "id": "task259-recycle",
+        "stage": "recycle"
+      },
+      "visible": true,
+      "visibleAfterRestart": true
+    },
+    {
+      "status": 500,
+      "body": {
+        "error": "session_index_stale",
+        "id": "task259-stale",
+        "stage": "rollback"
+      },
+      "visible": true,
+      "visibleAfterRestart": false
+    }
+  ]
+}

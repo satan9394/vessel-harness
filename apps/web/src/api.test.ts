@@ -1,5 +1,6 @@
 import { describe, it, expect, afterEach, vi } from 'vitest';
-import { createApiClient, ApiError, failureMessage, RAW_BODY_REASON_MAX } from './api';
+import { createApiClient, ApiError, failureMessage, RAW_BODY_REASON_MAX, sessionDeleteMessage } from './api';
+import { translate } from './i18n';
 
 /** Build a minimal Response-like stub for the mocked global fetch. */
 function jsonResponse(status: number, body: unknown): Response {
@@ -31,6 +32,19 @@ afterEach(() => {
 });
 
 describe('createApiClient', () => {
+  it.each(['session_index_failed', 'session_recycle_failed', 'session_index_stale', 'session_busy', 'session_deleting', 'unknown'])(
+    'preserves deletion diagnostics and maps %s to bilingual copy', async error => {
+      const body = { error, id: 'fixture', stage: 'rollback' };
+      vi.stubGlobal('fetch', vi.fn().mockResolvedValue(jsonResponse(500, body)));
+      let caught: unknown;
+      try { await createApiClient().deleteSession('fixture'); } catch (failure) { caught = failure; }
+      expect(caught).toBeInstanceOf(ApiError);
+      expect((caught as ApiError).body).toEqual(body);
+      const key = sessionDeleteMessage(caught);
+      expect(translate('en')(key)).not.toBe(key);
+      expect(translate('zh')(key)).not.toBe(translate('en')(key));
+    },
+  );
   it('GET /health hits the right URL and returns the body', async () => {
     const calls: { url: string; init?: RequestInit }[] = [];
     const mockFetch = vi.fn(async (url: string, init?: RequestInit) => {

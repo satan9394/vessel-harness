@@ -105,6 +105,18 @@ export class ApiError extends Error {
   }
 }
 
+/** Stable deletion reasons; unknown/transport failures retain an explicit generic message. */
+export function sessionDeleteMessage(error: unknown): import('./i18n').MessageKey {
+  const body = error instanceof ApiError ? error.body as { error?: string } | null : null;
+  switch (body?.error) {
+    case 'session_index_failed': return 'sessionDeleteIndexFailed';
+    case 'session_recycle_failed': return 'sessionDeleteRecycleFailed';
+    case 'session_index_stale': return 'sessionDeleteIndexStale';
+    case 'session_busy': case 'session_deleting': return 'sessionDeleteBusy';
+    default: return 'sessionDeleteFailed';
+  }
+}
+
 /**
  * Body fields that carry a human-readable failure reason, in precedence order.
  *
@@ -422,8 +434,8 @@ export function createApiClient(opts: ApiOptions = {}) {
     async sessionMessages(id: string): Promise<import('./sse').SessionTranscript> {
       return request<import('./sse').SessionTranscript>(`/sessions/${encodeURIComponent(id)}/messages`);
     },
-    async deleteSession(id: string): Promise<{ ok: boolean; id: string }> {
-      return request<{ ok: boolean; id: string }>(`/sessions/${encodeURIComponent(id)}`, { method: 'DELETE' });
+    async deleteSession(id: string): Promise<{ ok: boolean; id: string; warning?: 'session_controller_close_failed' }> {
+      return request<{ ok: boolean; id: string; warning?: 'session_controller_close_failed' }>(`/sessions/${encodeURIComponent(id)}`, { method: 'DELETE' });
     },
     async switchSessionModel(id: string, selection: { provider: string; model: string }): Promise<{ session: SessionMeta }> {
       return request(`/sessions/${encodeURIComponent(id)}/model`, { method: 'PATCH', body: JSON.stringify(selection) });

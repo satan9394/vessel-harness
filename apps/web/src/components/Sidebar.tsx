@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import type { Project, SessionMeta } from '../api';
+import type { MessageKey } from '../i18n';
 import { VesselLogo } from './VesselLogo';
 import { useI18n } from './LanguageProvider';
 import { projectName, readableSessionTitle } from './TaskComposer';
@@ -22,6 +23,8 @@ export interface SidebarProps {
   onRenameTopic?: (sessionId: string, title: string) => void;
   onArchiveTopic?: (sessionId: string, archived: boolean) => void;
   onDeleteSession?: (sessionId: string | string[]) => void;
+  deleteErrors?: Record<string, MessageKey>;
+  deletingIds?: string[];
   onCollapse?: () => void;
 }
 
@@ -114,6 +117,8 @@ export default function Sidebar({
   onRenameTopic,
   onArchiveTopic,
   onDeleteSession,
+  deleteErrors = {},
+  deletingIds = [],
   onCollapse,
 }: SidebarProps) {
   const { t } = useI18n();
@@ -244,7 +249,7 @@ export default function Sidebar({
                                 </button>
                                 {confirmDeleteId === group.sessions[0]!.id ? (
                                   <span className="topic-delete-confirm">
-                                    <button type="button" className="btn btn-sm btn-danger" onClick={() => { onDeleteSession?.(group.sessions.map((s) => s.id)); setConfirmDeleteId(null); }}>{t('confirm')}</button>
+                                    <button type="button" className="btn btn-sm btn-danger" disabled={group.sessions.some(s => deletingIds.includes(s.id))} onClick={() => { onDeleteSession?.(group.sessions.map((s) => s.id)); setConfirmDeleteId(null); }}>{t('confirm')}</button>
                                     <button type="button" className="btn btn-sm" onClick={() => setConfirmDeleteId(null)}>{t('cancel')}</button>
                                   </span>
                                 ) : (
@@ -265,6 +270,12 @@ export default function Sidebar({
                             >
                               {group.sessions.length > 1 ? readableSessionTitle(session, t('sessionNew')) : formatClock(session.updatedAt ?? session.createdAt)}
                             </button>
+                          ))}
+                          {group.sessions.filter(session => deleteErrors[session.id]).map(session => (
+                            <div key={`delete-${session.id}`} role="alert">
+                              <p>{session.id}: {t(deleteErrors[session.id]!)}</p>
+                              <button type="button" className="btn btn-sm" disabled={deletingIds.includes(session.id)} onClick={() => onDeleteSession?.(session.id)}>{t('retry')}</button>
+                            </div>
                           ))}
 
                     </section>

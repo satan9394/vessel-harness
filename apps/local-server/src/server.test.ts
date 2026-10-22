@@ -332,7 +332,7 @@ describe('local server HTTP API + SSE', () => {
     expect(repeated.status).toBe(404);
   });
 
-  it('waits for recycling before acknowledging deletion or removing the session index', async () => {
+  it('waits for recycling before acknowledging deletion, after durably removing the session index', async () => {
     const created = await fetch(`${base}/api/sessions`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ workspaceRoot: ws }),
     });
@@ -356,7 +356,8 @@ describe('local server HTTP API + SSE', () => {
       expect(await competingTurn.json()).toEqual({ error: 'session_deleting', id: session.id });
       expect(recyclePath).toHaveBeenCalledTimes(1);
       const listing = await fetch(`${base}/api/sessions`).then(response => response.json()) as { sessions: { id: string }[] };
-      expect(listing.sessions.some(item => item.id === session.id)).toBe(true);
+      expect(listing.sessions.some(item => item.id === session.id)).toBe(false);
+      expect(new SessionRegistry({ vesselHome: home }).get(session.id)).toBeUndefined();
     } finally {
       release?.();
     }
@@ -371,11 +372,73 @@ describe('local server HTTP API + SSE', () => {
     recyclePath.mockRejectedValueOnce(new Error('recycle unavailable'));
     const failed = await fetch(`${base}/api/sessions/${session.id}`, { method: 'DELETE' });
     expect(failed.status).toBe(500);
-    expect(await failed.json()).toEqual({ error: 'session_recycle_failed', id: session.id });
+    expect(await failed.json()).toEqual({ error: 'session_recycle_failed', id: session.id, stage: 'recycle' });
     const listing = await fetch(`${base}/api/sessions`).then(response => response.json()) as { sessions: { id: string }[] };
     expect(listing.sessions.some(item => item.id === session.id)).toBe(true);
     expect((await fetch(`${base}/api/sessions/${session.id}`)).status).toBe(200);
+    expect(new SessionRegistry({ vesselHome: home }).get(session.id)).toEqual(sessionRegistry.get(session.id));
     expect((await fetch(`${base}/api/sessions/${session.id}`, { method: 'DELETE' })).status).toBe(200);
+  });
+
+  it('reports index failure without recycling or closing and succeeds on retry', async () => {
+    const created = await fetch(`${base}/api/sessions`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ workspaceRoot: ws }),
+    });
+    const { session } = await created.json() as { session: { id: string } };
+    const previous = sessionRegistry.get(session.id);
+    const close = vi.spyOn(controller, 'close');
+    const restore = vi.spyOn(sessionRegistry, 'restore');
+    // The registry's public remove really runs; fail its compatibility snapshot after journal commit.
+    const persist = vi.spyOn(sessionRegistry as unknown as { persist(): void }, 'persist');
+    const original = persist.getMockImplementation()!;
+    persist.mockImplementationOnce(() => { original.call(sessionRegistry); throw new Error('snapshot failed'); });
+    const failed = await fetch(`${base}/api/sessions/${session.id}`, { method: 'DELETE' });
+    expect(failed.status).toBe(500);
+    expect(await failed.json()).toEqual({ error: 'session_index_failed', id: session.id, stage: 'index' });
+    expect(recyclePath).not.toHaveBeenCalled();
+    expect(close).not.toHaveBeenCalled();
+    expect(restore).toHaveBeenCalledWith(previous);
+    expect(sessionRegistry.get(session.id)).toEqual(previous);
+    expect(new SessionRegistry({ vesselHome: home }).get(session.id)).toEqual(previous);
+    expect((await fetch(`${base}/api/sessions/${session.id}`, { method: 'DELETE' })).status).toBe(200);
+  });
+
+  it('reports stale index on failed recycle rollback, retains metadata and repairs on retry', async () => {
+    const created = await fetch(`${base}/api/sessions`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ workspaceRoot: ws }),
+    });
+    const { session } = await created.json() as { session: { id: string } };
+    const previous = sessionRegistry.get(session.id);
+    const close = vi.spyOn(controller, 'close');
+    const persist = vi.spyOn(sessionRegistry as unknown as { persist(): void }, 'persist');
+    recyclePath.mockImplementationOnce(async () => {
+      persist.mockImplementationOnce(() => { throw new Error('rollback unavailable'); });
+      throw new Error('recycle unavailable');
+    });
+    const failed = await fetch(`${base}/api/sessions/${session.id}`, { method: 'DELETE' });
+    expect(failed.status).toBe(500);
+    expect(await failed.json()).toEqual({ error: 'session_index_stale', id: session.id, stage: 'rollback' });
+    expect(sessionRegistry.get(session.id)).toEqual(previous);
+    expect(new SessionRegistry({ vesselHome: home }).get(session.id)).toBeUndefined();
+    expect(close).not.toHaveBeenCalled();
+    expect(fs.existsSync(path.join(ws, '.harness', 'sessions', session.id))).toBe(true);
+    expect((await fetch(`${base}/api/sessions/${session.id}`, { method: 'DELETE' })).status).toBe(200);
+    expect(new SessionRegistry({ vesselHome: home }).get(session.id)).toBeUndefined();
+  });
+
+  it('acknowledges completed recycling with a controller close warning', async () => {
+    const created = await fetch(`${base}/api/sessions`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ workspaceRoot: ws }),
+    });
+    const { session } = await created.json() as { session: { id: string } };
+    const close = vi.spyOn(controller, 'close').mockRejectedValueOnce(new Error('telemetry close failed'));
+    const deleted = await fetch(`${base}/api/sessions/${session.id}`, { method: 'DELETE' });
+    expect(deleted.status).toBe(200);
+    expect(await deleted.json()).toEqual({ ok: true, id: session.id, warning: 'session_controller_close_failed', stage: 'controller' });
+    expect(new SessionRegistry({ vesselHome: home }).get(session.id)).toBeUndefined();
+    expect((await fetch(`${base}/api/sessions/${session.id}`)).status).toBe(404);
+    close.mockRestore();
+    await controller.close();
   });
 
   it.each([0, 2000])('returns HTTP 200 and preserves a model length stop (%i chunks)', async chunks => {

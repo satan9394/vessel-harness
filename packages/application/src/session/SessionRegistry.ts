@@ -412,11 +412,30 @@ export class SessionRegistry {
    * intact (no permanent deletion — removal from the registry only).
    */
   remove(id: string): boolean {
-    if (!this.sessions.has(id)) return false;
+    const previous = this.sessions.get(id);
+    if (!previous) return false;
     this.indexTopic({ id } as SessionMeta);
     this.sessions.delete(id);
-    this.persist();
+    try {
+      this.persist();
+    } catch (error) {
+      // persist can commit the journal before the compatibility snapshot fails.
+      // Compensate both durable views as well as the in-memory/topic indexes.
+      // A failed fsync may also leave a complete tombstone on disk before the
+      // persistedMetadata cache advanced. Always append an explicit restoration.
+      this.persistedMetadata.delete(id);
+      try { this.restore(previous); }
+      catch (rollbackError) { throw new AggregateError([error, rollbackError], 'session_index_stale'); }
+      throw error;
+    }
     return true;
+  }
+
+  /** Restore exact metadata after a failed recycle; keep it visible even if persistence fails. */
+  restore(meta: SessionMeta): void {
+    this.sessions.set(meta.id, meta);
+    this.indexTopic(meta);
+    this.persist();
   }
 
   private indexTopic(meta: SessionMeta): void {

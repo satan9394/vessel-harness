@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { createApiClient, type ApiClient, type Health, type Project, type SessionMeta, type CreateSessionInput } from './api';
+import { createApiClient, sessionDeleteMessage, type ApiClient, type Health, type Project, type SessionMeta, type CreateSessionInput } from './api';
+import type { MessageKey } from './i18n';
 import CommandPalette, { trapFocus } from './components/common/CommandPalette';
 import type { CommandItem } from './components/palette/types';
 import { INSPECTOR_TABS, INSPECTOR_LABELS, type InspectorTab } from './components/layout/DualSurfaceLayout';
@@ -56,6 +57,10 @@ function AppShell() {
   const [health, setHealth] = useState<Health | null>(null);
   const [projects, setProjects] = useState<Project[]>([]);
   const [sessions, setSessions] = useState<SessionMeta[]>([]);
+  const [deleteErrors, setDeleteErrors] = useState<Record<string, MessageKey>>({});
+  const [deletingIds, setDeletingIds] = useState<string[]>([]);
+  const deleting = useRef(new Set<string>());
+  const [deleteWarnings, setDeleteWarnings] = useState<string[]>([]);
   const [serverError, setServerError] = useState(false);
   const [showProviders, setShowProviders] = useState(false);
   const [providerRevision, setProviderRevision] = useState(0);
@@ -102,9 +107,12 @@ function AppShell() {
   }, [api]);
 
   const deleteSession = useCallback(async (idOrIds: string | string[]) => {
-    const ids = Array.isArray(idOrIds) ? idOrIds : [idOrIds];
+    const ids = [...new Set(Array.isArray(idOrIds) ? idOrIds : [idOrIds])].filter(id => !deleting.current.has(id));
+    ids.forEach(id => deleting.current.add(id));
+    setDeletingIds([...deleting.current]);
     const successfulIds: string[] = [];
-    let hasFailure = false;
+    const failures: Record<string, MessageKey> = {};
+    const warnings: string[] = [];
 
     await Promise.all(
       ids.map(async (id) => {
@@ -112,11 +120,14 @@ function AppShell() {
           const res = await api.deleteSession(id);
           if (res?.ok) {
             successfulIds.push(id);
+            if (res.warning) warnings.push(id);
           } else {
-            hasFailure = true;
+            failures[id] = 'sessionDeleteFailed';
           }
-        } catch {
-          hasFailure = true;
+        } catch (error) {
+          failures[id] = sessionDeleteMessage(error);
+        } finally {
+          deleting.current.delete(id);
         }
       })
     );
@@ -126,9 +137,13 @@ function AppShell() {
       setSelectedSessionId((cur) => (cur && successfulIds.includes(cur) ? null : cur));
     }
 
-    if (hasFailure) {
-      setServerError(true);
-    }
+    setDeleteErrors(current => {
+      const next = { ...current };
+      ids.forEach(id => { delete next[id]; });
+      return { ...next, ...failures };
+    });
+    setDeletingIds([...deleting.current]);
+    setDeleteWarnings(current => [...current, ...warnings]);
   }, [api]);
 
   const connect = useCallback(async () => {
@@ -200,8 +215,11 @@ function AppShell() {
             onRenameTopic={(id, title) => void updateSessionTopic(id, { title })}
             onArchiveTopic={(id, isArchived) => void updateSessionTopic(id, { isArchived })}
             onDeleteSession={(id) => void deleteSession(id)}
+            deleteErrors={deleteErrors}
+            deletingIds={deletingIds}
             onCollapse={() => setSidebarCollapsed(true)}
           />
+          {deleteWarnings.map(id => <p key={id} role="status">{id}: {t('sessionDeleteCleanupWarning')}</p>)}
         </div>
       </div>
       <main className="main" inert={drawer}>

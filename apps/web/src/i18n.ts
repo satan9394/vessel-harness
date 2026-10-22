@@ -560,6 +560,12 @@ export interface ModelMessages {
   modelOffline: MessageTemplate;
   configureModels: MessageTemplate;
   sessionCreateFailed: MessageTemplate;
+  sessionDeleteIndexFailed: MessageTemplate;
+  sessionDeleteRecycleFailed: MessageTemplate;
+  sessionDeleteIndexStale: MessageTemplate;
+  sessionDeleteBusy: MessageTemplate;
+  sessionDeleteFailed: MessageTemplate;
+  sessionDeleteCleanupWarning: MessageTemplate;
   currentModel: MessageTemplate;
   noModelsConfigured: MessageTemplate;
   modelAuto: MessageTemplate;
@@ -1043,6 +1049,12 @@ export const zh: Messages = {
   modelOffline: "演示模型（不连接真实供应商）",
   configureModels: "配置新模型",
   sessionCreateFailed: "无法创建会话，请检查工作目录和模型配置",
+  sessionDeleteIndexFailed: "无法更新会话索引；历史记录已保留，可重试。",
+  sessionDeleteRecycleFailed: "无法移入回收站；会话索引已恢复，可重试。",
+  sessionDeleteIndexStale: "删除失败，历史记录已保留，但索引需要修复；请重试并检查刷新后的列表。",
+  sessionDeleteBusy: "会话正在运行或删除中；请稍后重试。",
+  sessionDeleteFailed: "无法确认删除结果；请检查连接、刷新列表后重试。",
+  sessionDeleteCleanupWarning: "会话已删除，但关闭控制器时出错。",
   currentModel: "当前模型",
   noModelsConfigured: "尚未配置模型",
   inspectorGroupChanges: "变更",
@@ -1814,6 +1826,12 @@ export const en: Messages = {
   modelOffline: "Demo model (no real provider connection)",
   configureModels: "Configure new model",
   sessionCreateFailed: "Unable to create session. Check the workspace and model configuration.",
+  sessionDeleteIndexFailed: "Could not update the session index. History is preserved; retry is available.",
+  sessionDeleteRecycleFailed: "Could not move history to the Recycle Bin. The session index was restored; retry is available.",
+  sessionDeleteIndexStale: "Deletion failed. History is preserved, but the index needs repair. Retry and check the refreshed list.",
+  sessionDeleteBusy: "The session is running or being deleted. Try again shortly.",
+  sessionDeleteFailed: "Could not confirm deletion. Check the connection and refresh the list before retrying.",
+  sessionDeleteCleanupWarning: "Session deleted, but closing its controller failed.",
   currentModel: "Current model",
   noModelsConfigured: "No models configured",
   inspectorGroupChanges: "Changes",
