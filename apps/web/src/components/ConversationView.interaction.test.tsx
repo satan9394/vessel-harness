@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi, type Mock } from 'vitest';
 import { isValidElement, type ReactElement, type ReactNode } from 'react';
 import type { ApiClient } from '../api';
 import type { StreamHandlers } from '../sse';
@@ -63,9 +63,9 @@ function nodes(root: ReactNode): ReactElement<Record<string, unknown>>[] {
 }
 
 let api: ApiClient;
-let sessionUpdatedSpy: ReturnType<typeof vi.fn>;
+let sessionUpdatedSpy: Mock<() => void>;
 
-function render(sessionId = 's1', onSessionUpdated = sessionUpdatedSpy) {
+function render(sessionId = 's1', onSessionUpdated: (() => void) | undefined = () => { sessionUpdatedSpy(); }) {
   hooks.cursor = 0;
   const tree = ConversationView({ sessionId, api, onSessionUpdated });
   for (const job of hooks.jobs.splice(0)) job();
@@ -77,7 +77,7 @@ beforeEach(() => {
   hooks.effects = [];
   hooks.jobs = [];
   streams.splice(0);
-  sessionUpdatedSpy = vi.fn();
+  sessionUpdatedSpy = vi.fn<() => void>();
   api = {
     runTurn: vi.fn().mockResolvedValue({ kind: 'completed', finalText: 'ok', steps: [], turnId: 't1' }),
     interruptSession: vi.fn().mockResolvedValue(undefined),
@@ -246,7 +246,7 @@ describe('ConversationView Task 246: Scroll guard, IME protection, and SSE recon
 
   it('manages scroll state and renders scroll-to-bottom button when scrolled up', () => {
     const tree = render();
-    const scrollContainer = tree.find(node => node.props.className?.includes('message-list-scroll'))!;
+    const scrollContainer = tree.find(node => String(node.props.className ?? '').includes('message-list-scroll'))!;
     expect(scrollContainer).toBeDefined();
 
     // Initially at bottom, so pill is not shown

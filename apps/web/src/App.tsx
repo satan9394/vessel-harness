@@ -1,10 +1,8 @@
-import { localizedValue } from './i18n';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { createApiClient, type ApiClient, type Health, type Project, type SessionMeta, type CreateSessionInput } from './api';
 import CommandPalette, { trapFocus } from './components/common/CommandPalette';
 import type { CommandItem } from './components/palette/types';
 import { INSPECTOR_TABS, INSPECTOR_LABELS, type InspectorTab } from './components/layout/DualSurfaceLayout';
-import type { RailArea } from './components/layout/Rail';
 import Sidebar from './components/Sidebar';
 import SubagentWorkspace from './components/SubagentPanel';
 import TaskComposer, { projectName, readableSessionTitle } from './components/TaskComposer';
@@ -27,7 +25,6 @@ import AgentStudioComposer from './components/studio/AgentStudioComposer';
 import ActivityQueue from './components/activity/ActivityQueue';
 import TeamTaskTree from './components/tasks/TeamTaskTree';
 import {
-  ACTIVE_UI_MODULES,
   loadModules,
   saveModules,
   type UiModuleState,
