@@ -16,6 +16,7 @@
 |---|---|---|
 | 长输出截断 500 根治与沙箱 Token 权限 (卡 255) | 已实现并通过定向门禁（沙箱启动缺口转卡 256） | [255](255-fix-length-truncation-500-and-sandbox-fallback.md) |
 | Windows 受限沙箱启动链路 (卡 256) | 执行中 | [256](256-windows-sandbox-launch-console.md) |
+| apps/web typecheck 门禁修复 (卡 257) | 已实现，门禁全绿 | [257](257-web-typecheck-gate.md) |
 | 浏览器实测缺陷整改 (BV-01~04) | 待验收（定向门禁通过，待浏览器复验） | [254](254-browser-audit-remediation.md) |
 | 内置浏览器六场景审查 | 审查已交付 | [253](253-browser-verification.md) |
 | EffectJournal 破损容错与租约回滚 (F5) | 待验收 | [252](252-effect-journal-torn-tail-and-lease-rollback.md) |

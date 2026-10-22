@@ -1,7 +1,7 @@
 import { useEffect, useState, type ReactElement } from 'react';
 import { VesselLogo } from '../VesselLogo';
 import { useI18n } from '../LanguageProvider';
-import { applyTheme, getStoredTheme, toggleTheme, type ThemeMode } from '../../utils/theme';
+import { applyTheme, getStoredTheme, type ThemeMode } from '../../utils/theme';
 
 /** Product-level regions reachable from the 58px icon rail (DESIGN.md §4). */
 export const RAIL_AREAS = ['workbench', 'activity', 'studio', 'settings'] as const;

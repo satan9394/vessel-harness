@@ -146,9 +146,9 @@ describe('card 222 components', () => {
     const completedActivity: ActivityResponse = {
       updatedAt: 1,
       runs: [
-        { id: 's1', kind: 'session', projectRoot: 'E:/repo', title: 'Session item', status: 'needs_attention', updatedAt: 10 },
-        { id: 'g1', kind: 'goal', projectRoot: 'E:/other', title: 'Goal item', status: 'running', updatedAt: 20 },
-        { id: 's2', kind: 'session', projectRoot: 'E:/repo', title: 'Done item', status: 'completed', updatedAt: 30 },
+        { id: 's1', kind: 'session', projectRoot: 'E:/repo', title: 'Session item', status: 'needs_attention', updatedAt: 10, needsApproval: false },
+        { id: 'g1', kind: 'goal', projectRoot: 'E:/other', title: 'Goal item', status: 'running', updatedAt: 20, needsApproval: false },
+        { id: 's2', kind: 'session', projectRoot: 'E:/repo', title: 'Done item', status: 'completed', updatedAt: 30, needsApproval: false },
       ],
     };
     const html = renderToStaticMarkup(<ActivityQueue initial={completedActivity} onOpenSession={onOpenSession} />);

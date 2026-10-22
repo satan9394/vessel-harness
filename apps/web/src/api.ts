@@ -342,7 +342,7 @@ export function createApiClient(opts: ApiOptions = {}) {
     async deleteProvider(name: string): Promise<{ ok: boolean }> {
       return request(`/providers/${encodeURIComponent(name)}`, { method: 'DELETE' });
     },
-    async testProvider(input: Pick<AddProviderInput, 'protocol' | 'baseUrl' | 'apiKey'>): Promise<TestProviderResult> {
+    async testProvider(input: Pick<AddProviderInput, 'protocol' | 'baseUrl' | 'apiKey'> & Partial<Pick<AddProviderInput, 'name' | 'models'>>): Promise<TestProviderResult> {
       return request('/providers/test', { method: 'POST', body: JSON.stringify(input) });
     },
     /** POST /api/providers/pull-models — 探测端点 `/v1/models` 并返回可用模型清单（task 215）。 */
