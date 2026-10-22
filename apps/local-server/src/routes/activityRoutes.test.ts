@@ -2,6 +2,54 @@ import { describe, expect, it } from 'vitest';
 import { ActivityRoutes, type ActivitySources } from './activityRoutes.js';
 
 describe('ActivityRoutes (ARCH-01 / UI-02 Truthful Status)', () => {
+  const emptySources: ActivitySources = {
+    sessions: async () => [], live: () => undefined, approvals: () => [],
+    subagents: async () => [], teamStages: () => [], goalTasks: () => [],
+  };
+
+  it.each([
+    ['approved', undefined, 'unknown', 'queued'],
+    ['rejected', undefined, 'failed', 'cancelled'],
+    ['finished', [{ status: 'cancelled' }], 'failed', 'cancelled'],
+    ['finished', [{ status: 'completed' }, { status: 'cancelled' }], 'failed', 'cancelled'],
+    ['finished', [{ status: 'failed' }, { status: 'cancelled' }], 'failed', 'failed'],
+    ['finished', undefined, 'unknown', 'unknown'],
+    ['finished', [], 'unknown', 'unknown'],
+    ['finished', [{ status: 'pending' }], 'unknown', 'unknown'],
+    ['finished', [{ status: 'unexpected' }], 'unknown', 'unknown'],
+    ['finished', [{ status: 'completed' }, { status: 'running' }], 'unknown', 'unknown'],
+    ['finished', [{ status: 'completed' }], 'completed', 'completed'],
+    ['staged', undefined, 'needs_attention', 'waiting_approval'],
+    ['running', undefined, 'running', 'running'],
+    [undefined, undefined, 'unknown', 'unknown'],
+    ['unexpected', undefined, 'unknown', 'unknown'],
+  ] as const)('projects team %s / %j as %s / %s', async (status, tasks, expected, outcome) => {
+    const routes = new ActivityRoutes({ ...emptySources,
+      teamStages: () => [{ id: 'team', status, createdAt: 1, tasks }] as unknown as ReturnType<ActivitySources['teamStages']>,
+    });
+    expect((await routes.list()).runs[0]).toMatchObject({ status: expected, outcome, statusSource: 'inferred' });
+  });
+
+  it.each([
+    ['idle', 'unknown', 'queued'], ['running', 'running', 'running'],
+    ['completed', 'completed', 'completed'], ['failed', 'failed', 'failed'],
+    ['cancelled', 'failed', 'cancelled'], [undefined, 'unknown', 'unknown'],
+    ['unexpected', 'unknown', 'unknown'],
+  ] as const)('projects subagent %s as %s / %s', async (status, expected, outcome) => {
+    const routes = new ActivityRoutes({ ...emptySources,
+      subagents: async () => [{ id: 'idle', name: 'idle', status, startedAt: '2026-10-22T00:00:00Z' }] as Awaited<ReturnType<ActivitySources['subagents']>>,
+    });
+    expect((await routes.list()).runs[0]).toMatchObject({ status: expected, outcome, statusSource: 'inferred' });
+  });
+
+  it.each(['live', 'event_log'] as const)('preserves an explicitly successful session from %s', async source => {
+    const routes = new ActivityRoutes({ ...emptySources,
+      sessions: async () => [{ id: 'success', workspaceRoot: '/workspace', ...(source === 'event_log' ? { lastRunStatus: 'completed' as const } : {}) }],
+      live: () => source === 'live' ? { turnActive: false, lastRunStatus: 'completed' } : undefined,
+    });
+    expect((await routes.list()).runs[0]).toMatchObject({ status: 'completed', outcome: 'completed', statusSource: source });
+  });
+
   it.each([
     ['pending', 'unknown'], ['in-progress', 'running'], ['paused', 'needs_attention'],
     ['met', 'completed'], ['not_met', 'failed'], ['cancelled', 'failed'],
