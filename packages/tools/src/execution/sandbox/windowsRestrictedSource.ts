@@ -24,6 +24,9 @@ public static class VesselRestricted {
   [DllImport("advapi32.dll", CharSet=CharSet.Unicode, SetLastError=true)] static extern bool ConvertStringSidToSid(string sid,out IntPtr p);
   [DllImport("advapi32.dll", SetLastError=true)] static extern bool CreateRestrictedToken(IntPtr token,uint flags,uint disabled,[In] SID_AND_ATTRIBUTES[] disable,uint deleted,IntPtr privileges,uint count,[In] SID_AND_ATTRIBUTES[] restrict,out IntPtr result);
   [DllImport("advapi32.dll", SetLastError=true)] static extern bool SetTokenInformation(IntPtr token,int kind,ref SID_AND_ATTRIBUTES data,int size);
+  [DllImport("advapi32.dll", SetLastError=true)] static extern bool GetTokenInformation(IntPtr token,int kind,IntPtr data,int size,out int needed);
+  [DllImport("advapi32.dll")] static extern IntPtr GetSidSubAuthorityCount(IntPtr sid);
+  [DllImport("advapi32.dll")] static extern IntPtr GetSidSubAuthority(IntPtr sid,uint index);
   [DllImport("advapi32.dll")] static extern int GetLengthSid(IntPtr sid);
   [DllImport("advapi32.dll", SetLastError=true)] static extern bool DuplicateTokenEx(IntPtr token,uint access,IntPtr attrs,int level,int type,out IntPtr result);
   [DllImport("advapi32.dll", CharSet=CharSet.Unicode)] static extern uint GetNamedSecurityInfo(string name,int kind,uint flags,out IntPtr owner,out IntPtr group,out IntPtr dacl,out IntPtr sacl,out IntPtr sd);
@@ -42,6 +45,30 @@ public static class VesselRestricted {
   [DllImport("kernel32.dll", SetLastError=true)] static extern bool GetExitCodeProcess(IntPtr h,out uint code);
   public class Result { public string Stdout,Stderr; public int ExitCode; public bool Enforced; }
   static void Check(bool value,string operation) { if(!value) throw new Win32Exception(Marshal.GetLastWin32Error(),operation); }
+  static uint IntegrityRid(IntPtr token) {
+    int needed;
+    bool queried=GetTokenInformation(token,25,IntPtr.Zero,0,out needed);
+    if(!queried && Marshal.GetLastWin32Error()!=122) Check(false,"query TokenIntegrityLevel size");
+    if(needed<=0) throw new InvalidOperationException("invalid TokenIntegrityLevel size");
+    IntPtr data=Marshal.AllocHGlobal(needed);
+    try {
+      Check(GetTokenInformation(token,25,data,needed,out needed),"query TokenIntegrityLevel");
+      IntPtr sid=Marshal.ReadIntPtr(data);
+      byte count=Marshal.ReadByte(GetSidSubAuthorityCount(sid));
+      if(count==0) throw new InvalidOperationException("invalid integrity SID");
+      return unchecked((uint)Marshal.ReadInt32(GetSidSubAuthority(sid,(uint)(count-1))));
+    } finally { Marshal.FreeHGlobal(data); }
+  }
+  static void SetLowIntegrity(IntPtr token,ref SID_AND_ATTRIBUTES label) {
+    // Never raise an already Low/Untrusted token. Query failures remain fail-closed.
+    if(IntegrityRid(token)<=4096) return;
+    if(!SetTokenInformation(token,25,ref label,Marshal.SizeOf(typeof(SID_AND_ATTRIBUTES))+GetLengthSid(label.Sid))) {
+      int error=Marshal.GetLastWin32Error();
+      // A failed relabel is safe only if the resulting token is independently proven Low or below.
+      if(IntegrityRid(token)>4096) throw new Win32Exception(error,"SetTokenIntegrityLevel");
+    }
+    if(IntegrityRid(token)>4096) throw new InvalidOperationException("sandbox token exceeds Low Integrity");
+  }
   static string Quote(string s) {
     var result=new StringBuilder("\""); int slashes=0;
     foreach(char c in s) {
@@ -60,7 +87,8 @@ public static class VesselRestricted {
   }
   static void CheckRoot(string root,string sid,IntPtr token) {
     IntPtr owner,group,dacl,sacl,sd,text=IntPtr.Zero; uint length;
-    uint error=GetNamedSecurityInfo(root,1,4|16,out owner,out group,out dacl,out sacl,out sd);
+    // OWNER|GROUP|DACL|LABEL：AccessCheck 要求安全描述符自带 owner/group，缺了会返回 ERROR_INVALID_SECURITY_DESCR(1338)。
+    uint error=GetNamedSecurityInfo(root,1,1|2|4|16,out owner,out group,out dacl,out sacl,out sd);
     if(error!=0) throw new Win32Exception((int)error,"sandbox ACL preflight");
     try {
       Check(ConvertSecurityDescriptorToStringSecurityDescriptor(sd,1,4|16,out text,out length),"sandbox SDDL");
@@ -74,17 +102,21 @@ public static class VesselRestricted {
     } finally { if(text!=IntPtr.Zero) LocalFree(text); LocalFree(sd); }
   }
   public static Result Run(string command,string[] args,string cwd,string[] roots,string sid,ulong memory,uint timeout) {
-    IntPtr original=IntPtr.Zero,token=IntPtr.Zero,impersonation=IntPtr.Zero,admin=IntPtr.Zero,restrict=IntPtr.Zero,low=IntPtr.Zero,job=IntPtr.Zero,ro=IntPtr.Zero,wo=IntPtr.Zero,re=IntPtr.Zero,we=IntPtr.Zero;
+    IntPtr original=IntPtr.Zero,token=IntPtr.Zero,primary=IntPtr.Zero,impersonation=IntPtr.Zero,admin=IntPtr.Zero,restrict=IntPtr.Zero,low=IntPtr.Zero,job=IntPtr.Zero,ro=IntPtr.Zero,wo=IntPtr.Zero,re=IntPtr.Zero,we=IntPtr.Zero;
     var process=new PROCESS_INFORMATION();
     try {
-      Check(OpenProcessToken(GetCurrentProcess(),0xB,out original),"OpenProcessToken");
+      // TOKEN_ASSIGN_PRIMARY | TOKEN_DUPLICATE | TOKEN_QUERY | TOKEN_ADJUST_DEFAULT
+      Check(OpenProcessToken(GetCurrentProcess(),0x2B,out original),"OpenProcessToken");
       Check(ConvertStringSidToSid("S-1-5-32-544",out admin),"admin SID");
       Check(ConvertStringSidToSid(sid,out restrict),"restricted SID");
       // DISABLE_MAX_PRIVILEGE | WRITE_RESTRICTED. Administrators become deny-only; read access remains normal.
       Check(CreateRestrictedToken(original,1|8,1,new[]{new SID_AND_ATTRIBUTES{Sid=admin}},0,IntPtr.Zero,1,new[]{new SID_AND_ATTRIBUTES{Sid=restrict}},out token),"CreateRestrictedToken");
+      // CreateRestrictedToken 返回的句柄不带 TOKEN_ADJUST_DEFAULT（实测 0xB/0x2B 源句柄都一样，直接 SetTokenInformation 恒 Access Denied），
+      // 故先复制出带 TOKEN_ALL_ACCESS 的主令牌，在副本上降完整性级别，再以副本启动子进程。
+      Check(DuplicateTokenEx(token,0x1F01FF,IntPtr.Zero,2,1,out primary),"DuplicateTokenEx(primary)");
       Check(ConvertStringSidToSid("S-1-16-4096",out low),"Low Integrity SID");
       var label=new SID_AND_ATTRIBUTES{Sid=low,Attributes=0x20};
-      Check(SetTokenInformation(token,25,ref label,Marshal.SizeOf(typeof(SID_AND_ATTRIBUTES))+GetLengthSid(low)),"SetTokenIntegrityLevel");
+      SetLowIntegrity(primary,ref label);
       Check(DuplicateTokenEx(token,0x20008,IntPtr.Zero,2,2,out impersonation),"DuplicateTokenEx");
       foreach(string root in roots) CheckRoot(root,sid,impersonation);
       job=CreateJobObject(IntPtr.Zero,null); Check(job!=IntPtr.Zero,"CreateJobObject");
@@ -95,7 +127,7 @@ public static class VesselRestricted {
       Check(SetHandleInformation(ro,1,0),"stdout inheritance"); Check(SetHandleInformation(re,1,0),"stderr inheritance");
       var startup=new STARTUPINFO{cb=Marshal.SizeOf(typeof(STARTUPINFO)),flags=0x100,output=wo,error=we};
       var argv=new StringBuilder(Quote(command)); foreach(string arg in args) argv.Append(" ").Append(Quote(arg));
-      Check(CreateProcessAsUser(token,null,argv,IntPtr.Zero,IntPtr.Zero,true,0x4|0x8000000,IntPtr.Zero,cwd,ref startup,out process),"CreateProcessAsUser");
+      Check(CreateProcessAsUser(primary,null,argv,IntPtr.Zero,IntPtr.Zero,true,0x4|0x8000000,IntPtr.Zero,cwd,ref startup,out process),"CreateProcessAsUser");
       Check(AssignProcessToJobObject(job,process.process),"AssignProcessToJobObject");
       CloseHandle(wo); wo=IntPtr.Zero; CloseHandle(we); we=IntPtr.Zero;
       IntPtr outHandle=ro,errHandle=re; ro=re=IntPtr.Zero;
@@ -110,7 +142,7 @@ public static class VesselRestricted {
     } finally {
       if(process.process!=IntPtr.Zero) { TerminateProcess(process.process,1); CloseHandle(process.process); }
       if(process.thread!=IntPtr.Zero) CloseHandle(process.thread);
-      foreach(IntPtr h in new[]{job,original,token,impersonation,ro,wo,re,we}) if(h!=IntPtr.Zero) CloseHandle(h);
+      foreach(IntPtr h in new[]{job,original,token,primary,impersonation,ro,wo,re,we}) if(h!=IntPtr.Zero) CloseHandle(h);
       foreach(IntPtr s in new[]{admin,restrict,low}) if(s!=IntPtr.Zero) LocalFree(s);
     }
   }

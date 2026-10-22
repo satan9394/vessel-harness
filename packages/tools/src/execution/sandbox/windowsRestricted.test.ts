@@ -1,4 +1,5 @@
-import { mkdtempSync, rmSync } from 'node:fs';
+import { execFileSync } from 'node:child_process';
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -22,6 +23,27 @@ describe('Windows restricted launcher', () => {
     expect(script).not.toContain('Set-Acl'); expect(script).not.toContain('SetNamedSecurityInfo');
   });
 
+  it('requests integrity adjustment rights and fails closed unless the token is verified Low', () => {
+    expect(WINDOWS_RESTRICTED_SOURCE).toContain('OpenProcessToken(GetCurrentProcess(),0x2B,out original)');
+    expect(WINDOWS_RESTRICTED_SOURCE).toContain('if(IntegrityRid(token)<=4096) return;');
+    expect(WINDOWS_RESTRICTED_SOURCE).toContain('if(IntegrityRid(token)>4096) throw new Win32Exception(error,"SetTokenIntegrityLevel")');
+    // CreateRestrictedToken 的句柄不带 TOKEN_ADJUST_DEFAULT：降级必须在 0x1F01FF 的主令牌副本上做，并从该副本启动。
+    expect(WINDOWS_RESTRICTED_SOURCE).toContain('DuplicateTokenEx(token,0x1F01FF,IntPtr.Zero,2,1,out primary)');
+    expect(WINDOWS_RESTRICTED_SOURCE).toContain('SetLowIntegrity(primary,ref label)');
+    expect(WINDOWS_RESTRICTED_SOURCE).not.toContain('SetLowIntegrity(token,ref label)');
+    expect(WINDOWS_RESTRICTED_SOURCE.indexOf('DuplicateTokenEx(token,0x1F01FF,IntPtr.Zero,2,1,out primary)'))
+      .toBeLessThan(WINDOWS_RESTRICTED_SOURCE.indexOf('SetLowIntegrity(primary,ref label)'));
+    expect(WINDOWS_RESTRICTED_SOURCE.indexOf('SetLowIntegrity(primary,ref label)'))
+      .toBeLessThan(WINDOWS_RESTRICTED_SOURCE.indexOf('Check(CreateProcessAsUser(primary,'));
+  });
+
+  it.skipIf(process.platform !== 'win32')('compiles the production C# launcher on Windows', () => {
+    const source = join(cwd, 'VesselRestricted.cs');
+    writeFileSync(source, WINDOWS_RESTRICTED_SOURCE);
+    const compiler = join(process.env.SystemRoot ?? 'C:\\Windows', 'Microsoft.NET', 'Framework64', 'v4.0.30319', 'csc.exe');
+    expect(() => execFileSync(compiler, ['/nologo', '/target:library', `/out:${join(cwd, 'VesselRestricted.dll')}`, source], { encoding: 'utf8', timeout: 30000 })).not.toThrow();
+  }, 40000);
+
   it('derives a stable per-worktree restricted SID and keeps injected shell data outside script syntax', () => {
     expect(restrictedWriteSid(cwd)).toBe(restrictedWriteSid(cwd.toUpperCase()));
     expect(restrictedWriteSid(cwd)).not.toBe(restrictedWriteSid(cwd + '-other'));
@@ -30,6 +52,8 @@ describe('Windows restricted launcher', () => {
   });
 
   it('requires explicit Low mandatory labels and restricted write AccessCheck before launching', () => {
+    // AccessCheck 需要描述符自带 owner/group，否则固定返回 ERROR_INVALID_SECURITY_DESCR(1338)。
+    expect(WINDOWS_RESTRICTED_SOURCE).toContain('GetNamedSecurityInfo(root,1,1|2|4|16,');
     expect(WINDOWS_RESTRICTED_SOURCE).toContain('(ML;OICI;NW;;;LW)');
     expect(WINDOWS_RESTRICTED_SOURCE).toContain('AccessCheck(sd,token,0x120116');
     expect(WINDOWS_RESTRICTED_SOURCE.indexOf('foreach(string root in roots) CheckRoot')).toBeLessThan(WINDOWS_RESTRICTED_SOURCE.indexOf('Check(CreateProcessAsUser'));

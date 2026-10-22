@@ -8,12 +8,14 @@
 `NNN-短横线描述.md`，如 `001-project-memory.md`；V1.1 路线卡用 `V1.1-<字母>-<短横线描述>.md`。
 状态取值：待执行 / 执行中 / 待验收 / 已合入 / 打回。
 
-最近本地交付：任务 254 浏览器实测缺陷整改（会话重载历史恢复、Goal 真实状态与 Activity 细节优化）已实现，定向门禁通过，待浏览器复验。前序 [任务卡 253](253-browser-verification.md) 内置浏览器六场景审查报告已交付（产品验收存在失败项，见报告）。前序 [任务卡 252](252-effect-journal-torn-tail-and-lease-rollback.md) F5 修复已实现，待验收（Windows 进程树门禁未通过）。前序 [任务卡 251](251-compaction-keepid-and-ime-hardening.md) 上下文压缩 keepID 守卫接入与输入法回车提交加固（F4/F7）已交付。前序 [任务卡 250](250-session-completion-and-credential-binding.md) 状态机虚假完成消除与免输直测目标强绑定（F1/F2/F3）已交付。前序 [任务卡 249](249-adversarial-audit.md) 独立对抗审计，前序 [任务卡 248](248-taste-workbench-elevation.md) Taste UI 工作台重构。
+最近本地交付：任务 255 根治长输出截断 HTTP 500 导致 Web 卡死与修复 Windows 沙箱 Token 权限已实现并通过定向门禁（native 复验暴露的沙箱启动缺口转 [任务卡 256](256-windows-sandbox-launch-console.md)）。前序 [任务卡 254](254-browser-audit-remediation.md) 浏览器实测缺陷整改（会话重载历史恢复、Goal 真实状态与 Activity 细节优化）已实现，定向门禁通过，待浏览器复验。前序 [任务卡 253](253-browser-verification.md) 内置浏览器六场景审查报告已交付（产品验收存在失败项，见报告）。前序 [任务卡 252](252-effect-journal-torn-tail-and-lease-rollback.md) F5 修复已实现，待验收（Windows 进程树门禁未通过）。前序 [任务卡 251](251-compaction-keepid-and-ime-hardening.md) 上下文压缩 keepID 守卫接入与输入法回车提交加固（F4/F7）已交付。前序 [任务卡 250](250-session-completion-and-credential-binding.md) 状态机虚假完成消除与免输直测目标强绑定（F1/F2/F3）已交付。前序 [任务卡 249](249-adversarial-audit.md) 独立对抗审计，前序 [任务卡 248](248-taste-workbench-elevation.md) Taste UI 工作台重构。
 
 ## 怎么读这个目录
 
 | 本地交付 | 状态 | 任务卡 |
 |---|---|---|
+| 长输出截断 500 根治与沙箱 Token 权限 (卡 255) | 已实现并通过定向门禁（沙箱启动缺口转卡 256） | [255](255-fix-length-truncation-500-and-sandbox-fallback.md) |
+| Windows 受限沙箱启动链路 (卡 256) | 执行中 | [256](256-windows-sandbox-launch-console.md) |
 | 浏览器实测缺陷整改 (BV-01~04) | 待验收（定向门禁通过，待浏览器复验） | [254](254-browser-audit-remediation.md) |
 | 内置浏览器六场景审查 | 审查已交付 | [253](253-browser-verification.md) |
 | EffectJournal 破损容错与租约回滚 (F5) | 待验收 | [252](252-effect-journal-torn-tail-and-lease-rollback.md) |

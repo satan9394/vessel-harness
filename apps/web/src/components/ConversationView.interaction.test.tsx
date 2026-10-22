@@ -92,6 +92,47 @@ afterEach(() => {
 });
 
 describe('ConversationView Task 246: Scroll guard, IME protection, and SSE reconnect', () => {
+  it.each(['before', 'after', 'missing'])('retains length-limited output with SSE %s the HTTP response', async streamTiming => {
+    let complete!: (result: import('../api').TurnResult) => void;
+    vi.mocked(api.runTurn).mockImplementation(() => new Promise(resolve => { complete = resolve; }));
+    let tree = render();
+    (tree.find(node => node.type === 'input')!.props.onChange as (event: unknown) => void)({ target: { value: 'write a game' } });
+    tree = render();
+    const submitted = (tree.find(node => node.type === 'form')!.props.onSubmit as (event: unknown) => Promise<void>)({ preventDefault() {} });
+    const delta = { role: 'assistant' as const, text: 'partial game code', ts: 4 };
+    if (streamTiming === 'before') streams[0].handlers.onConversation?.(delta);
+    complete({ kind: 'error', finishReason: 'length', finalText: delta.text, steps: [], turnId: 't1' });
+    await submitted;
+    if (streamTiming === 'after') streams[0].handlers.onConversation?.(delta);
+    tree = render();
+    const items = tree.find(node => Array.isArray(node.props.items))!.props.items as import('./MessageList').ChatItem[];
+    expect(items.filter(item => item.msg?.role === 'assistant').map(item => item.msg?.text)).toEqual(['partial game code']);
+    expect(tree.find(node => node.type === 'input')!.props.value).toBe('');
+    expect(tree.find(node => node.props.role === 'status')?.props.children).toBe('responseLengthLimit');
+    expect(tree.find(node => node.props.text)).toBeUndefined(); // No ConversationError banner.
+    expect(tree.find(node => node.type === 'button' && node.props.type === 'button' && node.props.title === 'interruptTitle')!.props.disabled).toBe(true);
+
+    // A subsequent turn clears the previous length notice immediately.
+    (tree.find(node => node.type === 'input')!.props.onChange as (event: unknown) => void)({ target: { value: 'continue' } });
+    tree = render();
+    const continued = (tree.find(node => node.type === 'form')!.props.onSubmit as (event: unknown) => Promise<void>)({ preventDefault() {} });
+    expect(render().find(node => node.props.role === 'status')).toBeUndefined();
+    complete({ kind: 'completed', finalText: 'done', steps: [], turnId: 't2' });
+    await continued;
+  });
+
+  it('clears the length notice when switching sessions', async () => {
+    let tree = render();
+    (tree.find(node => node.type === 'input')!.props.onChange as (event: unknown) => void)({ target: { value: 'write code' } });
+    vi.mocked(api.runTurn).mockResolvedValue({ kind: 'error', finishReason: 'length', finalText: 'partial', steps: [], turnId: 't1' });
+    tree = render();
+    await (tree.find(node => node.type === 'form')!.props.onSubmit as (event: unknown) => Promise<void>)({ preventDefault() {} });
+    expect(render().find(node => node.props.role === 'status')).toBeDefined();
+    render('s2');
+    expect(render('s2').find(node => node.props.role === 'status')).toBeUndefined();
+    expect(render('s2').find(node => Array.isArray(node.props.items))!.props.items).toEqual([]);
+  });
+
   it('hydrates a fresh page from disk and reconciles the SSE connection snapshot once', async () => {
     const transcript = {
       messages: [
@@ -212,19 +253,14 @@ describe('ConversationView Task 246: Scroll guard, IME protection, and SSE recon
     let pill = render().find(node => node.props.className === 'scroll-to-bottom-pill');
     expect(pill).toBeUndefined();
 
-    // Find the listRef cell inside hooks.cells
-    const refCell = hooks.cells.find(cell => cell && typeof cell === 'object' && 'current' in cell && (cell as { current: unknown }).current !== undefined);
     const mockElement = {
       scrollHeight: 1000,
       scrollTop: 200,
       clientHeight: 500, // distance = 1000 - 200 - 500 = 300px > 120px -> not at bottom
       scrollTo: vi.fn(),
     };
-    // Attach mock element to the ref cell
-    const listRefCell = hooks.cells.find(cell => cell && typeof cell === 'object' && 'current' in cell && Object.keys(cell).length === 1 && (cell as { current: unknown }).current === null);
-    if (listRefCell) {
-      (listRefCell as { current: unknown }).current = mockElement;
-    }
+    // Attach to the actual scroll container, independent of other component refs.
+    (scrollContainer.props.ref as { current: unknown }).current = mockElement;
 
     // Trigger onScroll
     (scrollContainer.props.onScroll as () => void)();
