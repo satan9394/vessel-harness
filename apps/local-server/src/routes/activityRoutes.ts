@@ -179,14 +179,26 @@ export class ActivityRoutes {
     }
 
     for (const stage of this.sources.teamStages()) {
-      const failed = stage.status === 'finished' && (stage.tasks ?? []).some((task) => task.status === 'failed');
-      const status: ActivityStatus = stage.status === 'staged' ? 'needs_attention' : stage.status === 'running' ? 'running' : failed ? 'failed' : 'completed';
-      runs.push({ id: stage.id, kind: 'team', projectRoot: root, title: `Team plan ${stage.id}`, status, needsApproval: stage.status === 'staged', updatedAt: stage.createdAt });
+      let status: ActivityStatus = 'unknown';
+      let outcome: RunOutcomeStatus = 'unknown';
+      if (stage.status === 'staged') { status = 'needs_attention'; outcome = 'waiting_approval'; }
+      else if (stage.status === 'approved') { outcome = 'queued'; }
+      else if (stage.status === 'rejected') { status = 'failed'; outcome = 'cancelled'; }
+      else if (stage.status === 'running') { status = 'running'; outcome = 'running'; }
+      else if (stage.status === 'finished') {
+        const tasks = stage.tasks ?? [];
+        if (tasks.some(task => task.status === 'failed')) { status = 'failed'; outcome = 'failed'; }
+        else if (tasks.some(task => task.status === 'cancelled')) { status = 'failed'; outcome = 'cancelled'; }
+        // A finished scheduler alone proves no success; require every task to succeed.
+        else if (tasks.length > 0 && tasks.every(task => task.status === 'completed')) { status = 'completed'; outcome = 'completed'; }
+      }
+      runs.push({ id: stage.id, kind: 'team', projectRoot: root, title: `Team plan ${stage.id}`, status, outcome, statusSource: 'inferred', needsApproval: stage.status === 'staged', updatedAt: stage.createdAt });
     }
 
     for (const subagent of subagents) {
-      const status: ActivityStatus = subagent.status === 'running' ? 'running' : subagent.status === 'failed' || subagent.status === 'cancelled' ? 'failed' : 'completed';
-      runs.push({ id: subagent.id, kind: 'subagent', projectRoot: subagent.worktreePath ?? root, title: subagent.name, status, needsApproval: false, updatedAt: time(subagent.endedAt ?? subagent.startedAt) });
+      const status: ActivityStatus = subagent.status === 'running' ? 'running' : subagent.status === 'failed' || subagent.status === 'cancelled' ? 'failed' : subagent.status === 'completed' ? 'completed' : 'unknown';
+      const outcome: RunOutcomeStatus = subagent.status === 'idle' ? 'queued' : subagent.status === 'running' || subagent.status === 'completed' || subagent.status === 'failed' || subagent.status === 'cancelled' ? subagent.status : 'unknown';
+      runs.push({ id: subagent.id, kind: 'subagent', projectRoot: subagent.worktreePath ?? root, title: subagent.name, status, outcome, statusSource: 'inferred', needsApproval: false, updatedAt: time(subagent.endedAt ?? subagent.startedAt) });
     }
 
     for (const task of this.sources.goalTasks()) {
