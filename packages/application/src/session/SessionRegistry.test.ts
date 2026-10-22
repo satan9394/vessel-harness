@@ -14,6 +14,7 @@ vi.mock('node:fs', async () => {
   return {
     ...actual,
     renameSync: vi.fn((...args: Parameters<typeof renameSync>) => renameSync(...args)),
+    fsyncSync: vi.fn((fd: number) => actual.fsyncSync(fd)),
   };
 });
 
@@ -102,6 +103,42 @@ describe('SessionRegistry', () => {
     const reg2 = new SessionRegistry({ vesselHome: home });
     expect(reg2.get(a.id)).toBeUndefined();
     expect(reg2.get(b.id)).toBeDefined();
+  });
+
+  it('restores exact memory, topic, journal and snapshot after a removal snapshot fails', () => {
+    const reg = new SessionRegistry({ vesselHome: home });
+    const meta = reg.create({ workspaceRoot: ws });
+    reg.nameTopicFromPrompt(meta.id, 'Preserve this topic');
+    const previous = { ...reg.get(meta.id)! };
+    vi.mocked(fs.renameSync).mockImplementationOnce(() => { throw Object.assign(new Error('disk unavailable'), { code: 'EIO' }); });
+    expect(() => reg.remove(meta.id)).toThrow('disk unavailable');
+    expect(reg.get(meta.id)).toEqual(previous);
+    expect(reg.listByTopic(previous.topic!.topicId)).toEqual([previous]);
+    expect(new SessionRegistry({ vesselHome: home }).get(meta.id)).toEqual(previous);
+    expect(JSON.parse(fs.readFileSync(path.join(home, 'sessions.json'), 'utf8')).sessions).toEqual([previous]);
+    expect(reg.remove(meta.id)).toBe(true);
+    expect(new SessionRegistry({ vesselHome: home }).get(meta.id)).toBeUndefined();
+  });
+
+  it('keeps restored metadata visible and diagnoses a failed removal compensation', () => {
+    const reg = new SessionRegistry({ vesselHome: home });
+    const meta = reg.create({ workspaceRoot: ws });
+    const fail = () => { throw Object.assign(new Error('disk unavailable'), { code: 'EIO' }); };
+    vi.mocked(fs.renameSync).mockImplementationOnce(fail).mockImplementationOnce(fail);
+    expect(() => reg.remove(meta.id)).toThrow('session_index_stale');
+    expect(reg.get(meta.id)).toEqual(meta);
+    // The compensation journal is authoritative even though both snapshots failed.
+    expect(new SessionRegistry({ vesselHome: home }).get(meta.id)).toEqual(meta);
+    expect(reg.remove(meta.id)).toBe(true);
+  });
+
+  it('appends restoration even when fsync fails after writing a complete tombstone', () => {
+    const reg = new SessionRegistry({ vesselHome: home });
+    const meta = reg.create({ workspaceRoot: ws });
+    vi.mocked(fs.fsyncSync).mockImplementationOnce(() => { throw new Error('fsync failed'); });
+    expect(() => reg.remove(meta.id)).toThrow('fsync failed');
+    expect(reg.get(meta.id)).toEqual(meta);
+    expect(new SessionRegistry({ vesselHome: home }).get(meta.id)).toEqual(meta);
   });
 
   it('auto-names, indexes, renames, archives and persists Topic metadata', () => {
