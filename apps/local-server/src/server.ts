@@ -217,39 +217,9 @@ function providerErrorCode(error: unknown): string {
   return 'provider_request_failed';
 }
 
-/**
- * BRIEF-19（失败被上报为成功 · HTTP 面）—— 回合结束 `kind` → HTTP 状态码的**唯一**决策点。
- *
- * 复现（改前）：`POST /api/sessions/:id/turns` 恒回 200，`kind='error'` 只写在 body 里
- * （旧 :315-320）。于是**只看状态码**的客户端（`curl -f`、fetch 的 `res.ok`、各类 HTTP
- * 中间件）把失败的回合读成成功——同族已在 `vessel run`（cli.ts `turnExitCode`：`error` ⇒ 1）
- * 与 TUI（error 显式标记）上定案，本函数是同一裁决在 HTTP 面的落地。
- *
- * 裁决（四个 kind 全部钉死，与 CLI `turnExitCode` 逐条对齐）：
- * - `error` ⇒ **500**：这是 harness 侧"回合**没有正常完成**"（没有代理/上游可归因 ⇒ 用 500，
- *   不用 502/503——那两个是网关语义：上游无响应/不可用，本仓无此对象）。
- *   **Round 99 更正（此前这里的理由不准确）**：原文写"回合**跑完了**（`turn/start` → `turn/end`
- *   配对成立）"，但 `kind='error'` 至少有**两类**来源，其中一类**根本没有 `turn/start`**：
- *   ① 熔断 `DenialLimitError` 等（`AgentLoop` 的 catch 把消息写进 `finalText`）——这类**跑过**回合；
- *   ② **`BeforeTurn` 拦截**（输入级否决）——该分支**从不写 `turn/start`/`step/start`**、
- *      0 次模型调用，只写 `assistant/message`(=`[blocked] …`,带原因)、`turn/end{kind:'error'}`
- *      与一条 `audit/denial{stage:'before_turn'}`。
- *   两类共用同一个 `kind='error'` ⇒ **HTTP 面无法区分**，故此处**只能**按"回合以错误结束"统一给 500；
- *   而"**策略拒绝用户输入**是否更该是 403/422"是一个**未裁决的语义问题**——`finalText` 与审计能告诉
- *   人"被拒的原因"，但**机读面分辨不出**。若要分开，需要给 `TurnResult` 加一个**可机读的判别字段**
- *   （并同步 `turn/end` 与四个消费面），属独立卡；**在那之前，本函数不做假设**。
- * - `success` ⇒ 200（逐字不变）、`budget` ⇒ 200、`interrupted` ⇒ 200：
- *   budget 是用户自己下的预算（`--max-steps` / `maxSteps`）耗尽，且还覆盖"模型回了纯空文本"
- *   这条既有边界（AgentLoop.ts:344-347）；interrupted 是用户自己按的停止（POST /interrupt，
- *   既有 server.test.ts:426 已把 200 钉住）。两者都**不是**失败，改成 5xx 等于凭空发明失败信号，
- *   会让正常/主动停止的客户端报错。
- *
- * body 形状不变（仍 `{ finalText, kind, steps, turnId }`）：不复用本文件的
- * `{ error: 'turn_failed', message }` 形状——那个形状属于"请求没能跑起来"（`ctl.runTurn` 抛异常），
- * 与"回合跑完但以 error 收场"是两回事；在同一路径上塞第二种 body 形状会逼客户端按字段存在性分支。
- */
-export function turnStatusFor(kind: TurnResult['kind']): number {
-  return kind === 'error' ? 500 : 200;
+/** A model length limit preserves the partial result; other turn errors remain HTTP failures. */
+export function turnStatusFor(kind: TurnResult['kind'], finishReason?: string): number {
+  return kind === 'error' && finishReason !== 'length' ? 500 : 200;
 }
 
 /**
@@ -891,15 +861,16 @@ export function createVesselServer(opts: VesselServerOptions = {}): VesselServer
           const turn = ctl.runTurn(body.prompt);
           if (!activeTurns.has(id)) activeTurns.set(id, turn);
           const result = await turn.finally(() => { if (activeTurns.get(id) === turn) activeTurns.delete(id); });
-          notify(result.kind === 'error' ? 'Vessel task failed' : 'Vessel task finished', `Session ${id}: ${result.kind}`);
-          // BRIEF-19: a turn that ended in error must not be reported as HTTP 200 —
-          // status-code-only clients would read the failure as success. Body shape
-          // (and every field's meaning) is unchanged; only the status differs.
-          return json(res, turnStatusFor(result.kind), {
+          // Core persists the terminal reason on turn/end rather than TurnResult.
+          const terminal = [...ctl.session.replay()].findLast(record => record.type === 'turn/end' && record.turnId === result.turnId);
+          const finishReason = terminal?.type === 'turn/end' && typeof terminal.finishReason === 'string' ? terminal.finishReason : undefined;
+          notify(result.kind === 'error' && finishReason !== 'length' ? 'Vessel task failed' : 'Vessel task finished', `Session ${id}: ${result.kind}`);
+          return json(res, turnStatusFor(result.kind, finishReason), {
             finalText: result.finalText,
             kind: result.kind,
             steps: result.steps,
             turnId: result.turnId,
+            finishReason,
           });
         } catch (err) {
           notify('Vessel task failed', `Session ${id} encountered an error.`);

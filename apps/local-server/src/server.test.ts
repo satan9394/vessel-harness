@@ -88,8 +88,10 @@ describe('local server HTTP API + SSE', () => {
   let base: string;
   let controller: SessionController;
   let sessionRegistry: SessionRegistry;
+  let providerOverride: ChatProvider | undefined;
 
   beforeEach(async () => {
+    providerOverride = undefined;
     recyclePath.mockReset().mockResolvedValue(undefined);
     dir = fs.mkdtempSync(path.join(os.tmpdir(), 'cah-local-server-'));
     ws = path.join(dir, 'workspace');
@@ -104,7 +106,7 @@ describe('local server HTTP API + SSE', () => {
       projectRegistry,
       sessionRegistry,
       sessionFactory: async (input) => {
-        const provider = new MockProvider([{ when: /.*/, response: { text: `SERVER-ECHO:${input.model ?? 'default'}` } }], {
+        const provider = providerOverride ?? new MockProvider([{ when: /.*/, response: { text: `SERVER-ECHO:${input.model ?? 'default'}` } }], {
           model: input.model ?? 'default',
         });
         controller = await importSession(provider, input);
@@ -122,7 +124,7 @@ describe('local server HTTP API + SSE', () => {
   });
 
   async function importSession(
-    provider: InstanceType<typeof MockProvider>,
+    provider: ChatProvider,
     input: { sessionId?: string; workspaceRoot: string; model?: string; permission?: 'read-only' | 'workspace-write' | 'danger-full-access'; registry?: SessionRegistry },
   ): Promise<SessionController> {
     const { SessionController } = await import('@vessel/application');
@@ -374,6 +376,23 @@ describe('local server HTTP API + SSE', () => {
     expect(listing.sessions.some(item => item.id === session.id)).toBe(true);
     expect((await fetch(`${base}/api/sessions/${session.id}`)).status).toBe(200);
     expect((await fetch(`${base}/api/sessions/${session.id}`, { method: 'DELETE' })).status).toBe(200);
+  });
+
+  it.each([0, 2000])('returns HTTP 200 and preserves a model length stop (%i chunks)', async chunks => {
+    const finalText = '2048, '.repeat(chunks);
+    providerOverride = {
+      id: 'length-fixture',
+      async chat() { return { content: finalText, toolCalls: [], finishReason: 'length', usage: { inputTokens: 1, outputTokens: 4096 } }; },
+    };
+    const created = await fetch(`${base}/api/sessions`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ workspaceRoot: ws }),
+    });
+    const { session } = await created.json() as { session: { id: string } };
+    const response = await fetch(`${base}/api/sessions/${session.id}/turns`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ prompt: 'write 2048' }),
+    });
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({ finalText, kind: 'error', finishReason: 'length', steps: 1, turnId: expect.any(String) });
   });
 
   it('PATCH /api/sessions/:id/topic renames and archives without discarding the session', async () => {

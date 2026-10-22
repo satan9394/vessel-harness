@@ -65,6 +65,7 @@ export interface SessionMeta {
 export interface TurnResult {
   finalText: string;
   kind: string;
+  finishReason?: string;
   steps: unknown[];
   turnId: string;
 }

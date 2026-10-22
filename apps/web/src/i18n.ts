@@ -76,6 +76,7 @@ export interface CommonMessages {
   cacheBreakdown: MessageTemplate;
   cachePriceEstimate: MessageTemplate;
   interrupted: MessageTemplate;
+  responseLengthLimit: MessageTemplate;
   privilegeWindows: MessageTemplate;
   privilegeBwrap: MessageTemplate;
   privilegeLow: MessageTemplate;
@@ -1112,6 +1113,7 @@ export const zh: Messages = {
   cacheBreakdown: "（缓存：{parts}）",
   cachePriceEstimate: "；缺少缓存写入价格时，按输入价格的 1.25 倍估算",
   interrupted: "[已中断]",
+  responseLengthLimit: "内容达到模型长度上限，可继续生成。",
   privilegeWindows: "受限令牌、低完整性级别与作业对象隔离。",
   privilegeBwrap: "命名空间隔离。",
   privilegeLow: "低完整性令牌，未报告完整原生隔离。",
@@ -1882,6 +1884,7 @@ export const en: Messages = {
   cacheBreakdown: " (cache {parts})",
   cachePriceEstimate: "; cache write price estimated at 1.25× input when not configured",
   interrupted: "[interrupted]",
+  responseLengthLimit: "Response reached the model length limit. You can ask to continue.",
   privilegeWindows: "Restricted token, Low Integrity, and Job Object confinement.",
   privilegeBwrap: "Bubblewrap namespace confinement.",
   privilegeLow: "Low Integrity token; full native isolation is not reported.",

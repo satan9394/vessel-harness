@@ -70,6 +70,7 @@ export default function ConversationView({ sessionId, api, onSessionUpdated, vie
   const [historyReady, setHistoryReady] = useState(() => Boolean(saved?.items.length) || !api.sessionMessages);
   const hydrationPending = useRef(!historyReady);
   const [error, setError] = useState<string | null>(null);
+  const [lengthLimited, setLengthLimited] = useState(false);
   const [serverDown, setServerDown] = useState(false);
   const [auditRevision, setAuditRevision] = useState(0);
   const [isAtBottom, setIsAtBottom] = useState(true);
@@ -80,6 +81,7 @@ export default function ConversationView({ sessionId, api, onSessionUpdated, vie
   const planProgressValue = planProgress(planTasks);
   const setRouteMode = useCallback((mode: 'auto' | 'fast' | 'pro') => { void api.setRouteMode(sessionId, mode).catch(() => { /* best effort: the capsule keeps its previous value */ }); }, [api, sessionId]);
   const pendingTool = useRef<Record<string, ToolDelta>>({});
+  const fallbackAssistant = useRef<string | null>(null);
   const latest = useRef({ items, usage, turnMetrics, cacheHistory, observation, input });
   const listRef = useRef<HTMLDivElement | null>(null);
   const activeSession = useRef(sessionId);
@@ -188,6 +190,8 @@ export default function ConversationView({ sessionId, api, onSessionUpdated, vie
     setModelBusy(false);
     setBusy(false);
     setError(null);
+    setLengthLimited(false);
+    fallbackAssistant.current = null;
     setServerDown(false);
     pendingTool.current = { ...saved?.pendingTool };
 
@@ -216,7 +220,13 @@ export default function ConversationView({ sessionId, api, onSessionUpdated, vie
         setError(prev => prev === t('serverDown') ? null : prev);
         void onSessionUpdated?.();
       },
-      onConversation: delta => { if (!current()) return; setItems(previous => finishThinking(previous)); appendMessage(delta); },
+      onConversation: delta => {
+        if (!current()) return;
+        const fallback = delta.role === 'assistant' && delta.text ? fallbackAssistant.current : null;
+        if (fallback) fallbackAssistant.current = null;
+        setItems(previous => finishThinking(fallback ? previous.filter(item => item.id !== fallback) : previous));
+        appendMessage(delta);
+      },
       onTool: delta => { if (current()) onTool(delta); },
       onUsage: delta => { if (current()) onUsage(delta); },
       onThinking: delta => { if (current()) onThinking(delta); },
@@ -248,9 +258,12 @@ export default function ConversationView({ sessionId, api, onSessionUpdated, vie
       attention?.unlockAudio();
       setInput('');
       setTurnMetrics({});
-      appendMessage({ role: 'user', text: prompt, ts: Date.now() });
+      const userItem = conversationItem({ role: 'user', text: prompt, ts: Date.now() });
+      setItems(previous => [...previous, userItem]);
       setBusy(true);
       setError(null);
+      setLengthLimited(false);
+      fallbackAssistant.current = null;
       setServerDown(false);
       const generation = sessionGeneration.current;
       const startedAt = Date.now();
@@ -258,6 +271,18 @@ export default function ConversationView({ sessionId, api, onSessionUpdated, vie
         const result = await api.runTurn(sessionId, prompt);
         if (activeSession.current !== sessionId || sessionGeneration.current !== generation) return;
         attention?.completed(result.kind, Date.now() - startedAt);
+        if (result.finishReason === 'length') {
+          setLengthLimited(true);
+          if (result.finalText) {
+            const fallback = conversationItem({ role: 'assistant', text: result.finalText, ts: Date.now() });
+            fallbackAssistant.current = fallback.id;
+            setItems(previous => {
+              const turnItems = previous.slice(previous.findIndex(item => item.id === userItem.id) + 1);
+              if (turnItems.some(item => item.msg?.role === 'assistant' && item.msg.text)) return previous;
+              return [...previous, fallback];
+            });
+          }
+        }
         if (result.kind === 'interrupted') {
           // task 050 minimal feedback: the turn was stopped mid-flight by Stop
           appendMessage({ role: 'assistant', text: t('interrupted'), ts: Date.now() });
@@ -367,6 +392,7 @@ export default function ConversationView({ sessionId, api, onSessionUpdated, vie
           <MessageList foldRequest={viewRequest && (viewRequest.action === 'collapse' || viewRequest.action === 'expand') ? { collapsed: viewRequest.action === 'collapse', serial: viewRequest.serial } : undefined} items={items} thinking={busy} sessionId={sessionId} onRespond={respondWidget} />
         )}
         {error && !serverDown && <ConversationError text={error} />}
+        {lengthLimited && <div className="dim conversation-error" role="status">{t('responseLengthLimit')}</div>}
       </div>
       {!isAtBottom && (
         <button

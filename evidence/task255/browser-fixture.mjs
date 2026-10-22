@@ -1,0 +1,14 @@
+﻿import { mkdtempSync, mkdirSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join, resolve } from 'node:path';
+import { createVesselServer } from '../../apps/local-server/dist/server.js';
+import { SessionController, SessionRegistry, ProjectRegistry } from '../../packages/application/dist/index.js';
+const root = mkdtempSync(join(tmpdir(), 'vessel-task255-browser-'));
+const ws = join(root, 'workspace'); mkdirSync(ws);
+const registry = new SessionRegistry({ vesselHome: join(root, 'home') });
+const projects = new ProjectRegistry({ vesselHome: join(root, 'home') });
+const provider = { id: 'offline-length-fixture', async chat() { return { content: 'Task 255 partial output retained.\n\n```js\nconst board = [2, 0, 4, 0];\n```', toolCalls: [], finishReason: 'length', usage: { inputTokens: 1, outputTokens: 4096 } }; } };
+const server = createVesselServer({ port: 31855, projectRegistry: projects, sessionRegistry: registry, staticDir: resolve('apps/web/dist'), sessionFactory: input => SessionController.create({ ...input, provider, model: 'offline-length-fixture', registry: input.registry ?? registry, policySystemPath: resolve('configs/policy.default.yaml'), behaviorIRPath: resolve('configs/behavior.default.yaml') }) });
+await server.listen();
+const response = await fetch('http://127.0.0.1:31855/api/sessions', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ workspaceRoot: ws }) });
+console.log('OFFLINE_BROWSER_FIXTURE', server.port, await response.text());
