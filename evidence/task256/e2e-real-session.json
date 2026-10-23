@@ -1,0 +1,28 @@
+{
+  "what": "card 256 end-to-end: real model -> Shell tool -> restricted sandbox",
+  "date": "2026-10-23",
+  "environment": {
+    "provider": "commandgota-real / deepseek/deepseek-v4.1-flash",
+    "port": 5791,
+    "workspace": "system-temp fixture (dedicated ws + dedicated TEMP root, both provisioned out of band)",
+    "isolation": "VESSEL_PROVIDER_ROOT / VESSEL_USAGE_ROOT pointed at the fixture so the real ~/.vessel is untouched",
+    "note": "the OS temp directory itself was NOT modified; the launcher's temp write root was the fixture's tmp dir"
+  },
+  "result": {
+    "provider_registered": 201,
+    "session_created": 201,
+    "turn_status": 200,
+    "turn_kind": "success",
+    "final_text": "命令已执行，工具真实输出如下：\n\n```\ne2e-sandbox-ok\n```"
+  },
+  "session_records": {
+    "file": "<ws>/.harness/sessions/sess_1792768130421_e8054d4e/session.jsonl",
+    "count": 24,
+    "relevant": [
+      { "type": "tool/call" },
+      { "type": "audit/sandbox_enforced", "outcome": "enforced", "sandboxed": true, "isolationTier": "windows-job-restricted" },
+      { "type": "tool/result" }
+    ]
+  },
+  "conclusion": "The Shell tool executed inside the restricted sandbox during a real model turn: the audit record says enforced, and the model echoed the tool's real output rather than inventing one."
+}

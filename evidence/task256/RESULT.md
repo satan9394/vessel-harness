@@ -52,8 +52,21 @@ CMDLINE="cmd.exe" "/c" "C:\...\dump.bat"
 - `checks`：`{echoOk:true, echoText:true, low:true, writeOk:true, outsideDenied:true}`
 - `pass: true`
 
-## 5. 未覆盖 / 边界
+## 5. 端到端验证：真实模型 → Shell 工具 → 沙箱
+
+`evidence/task256/e2e-real-session.json`。用 `commandgota-real / deepseek/deepseek-v4.1-flash`，
+起独立服务（端口 5791），工作区是系统临时目录下的夹具，**并把该夹具的 tmp 子目录当作 TEMP**，
+避免改动操作系统真正的临时目录：
+
+- 供应商注册 201、会话创建 201（`permission: danger-full-access`）、回合 200 / `kind: success`
+- 模型最终回复原样贴出了工具输出 `e2e-sandbox-ok`（不是编造）
+- `session.jsonl` 24 条记录，其中：`tool/call` → **`audit/sandbox_enforced`（outcome: enforced, sandboxed: true, isolationTier: windows-job-restricted）** → `tool/result`
+
+即：**模型在真实会话里成功调用 Shell，且确实走的是受限沙箱**，不是 passthrough。
+夹具自带的隔离供应商库已随夹具一并回收，真实 `~/.vessel` 未被写入。
+
+## 6. 未覆盖 / 边界
 
 - 只验证了 `cmd.exe` 与内置命令；`whoami.exe` 在该令牌下无法运行，属已知限制，不代表沙箱失效。
 - Job Object 的进程树清理沿用既有实现，本轮未改。
-- 真实工具调用链（Tool → Sandbox）尚未在真实模型会话里端到端跑过，下一步可用 `commandgota-real` 验证。
+- 已用真实模型会话端到端验证过一次 Shell 调用；尚未覆盖「写根外写入被工具链拒绝」在会话内的表现。
