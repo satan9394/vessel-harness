@@ -78,6 +78,9 @@ export interface CreateSessionInput {
 }
 
 export interface ProviderInfo {
+  catalogEvidence?: { verifiedAt: number; expiresAt: number; lastAttemptAt: number; lastError?: string; modelIds: string[] };
+  catalogState?: 'unknown' | 'fresh' | 'stale' | 'expired';
+  staleModels?: string[];
   name: string;
   protocol: 'openai-compatible' | 'anthropic';
   baseUrl: string;

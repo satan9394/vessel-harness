@@ -1,8 +1,11 @@
 import type { ProviderConfig, ProviderStore } from '../providers/ProviderStore.js';
-import type { ProviderCapabilities } from '@vessel/shared';
+import { canonicalArgumentsHash, type ProviderCapabilities } from '@vessel/shared';
 import { capabilitiesFor, discoverProviderCapabilities, providerNameForConfig } from '@vessel/llm';
 
 export interface ProviderDto {
+  catalogEvidence?: ProviderConfig['catalogEvidence'];
+  catalogState?: 'unknown' | 'fresh' | 'stale' | 'expired';
+  staleModels?: string[];
   name: string;
   protocol: 'openai-compatible' | 'anthropic';
   baseUrl: string;
@@ -116,10 +119,15 @@ export function providerModels(cfg: ProviderConfig): string[] {
   return [...new Set([cfg.model, ...(cfg.models ?? [])])];
 }
 export class ProviderRoutes {
-  constructor(private readonly store: () => ProviderStore, private readonly fetcher: typeof fetch = fetch, private readonly timeoutMs = 8000) {}
+  private readonly discoveries = new Map<string, { catalogEvidence: NonNullable<ProviderConfig['catalogEvidence']>; modelCapabilities: Record<string, ProviderCapabilities> }>();
+  constructor(private readonly store: () => ProviderStore, private readonly fetcher: typeof fetch = fetch, private readonly timeoutMs = 8000,
+    private readonly now = Date.now, private readonly evidenceTtlMs = 86_400_000) {}
   private dto(cfg: ProviderConfig): ProviderDto {
     const baseUrl = providerUrl(cfg.baseUrl).href.replace(/\/$/, '');
-    return { name: cfg.id, protocol: cfg.protocol as ProviderDto['protocol'], baseUrl, apiKeyMasked: cfg.apiKey ? cfg.apiKey.length > 8 ? `****${cfg.apiKey.slice(-4)}` : '****' : '', models: providerModels(cfg), modelCapabilities: Object.fromEntries(providerModels(cfg).map(model => [model, capabilitiesFor(providerNameForConfig(cfg), model, cfg.modelCapabilities?.[model])])), isDefault: this.store().getCurrent() === cfg.id };
+    const evidence = cfg.catalogEvidence;
+    const staleModels = evidence ? providerModels(cfg).filter(model => !evidence.modelIds.includes(model)) : [];
+    return { catalogEvidence: evidence, staleModels, catalogState: !evidence ? 'unknown' : evidence.lastError || staleModels.length ? 'stale' : evidence.expiresAt <= this.now() ? 'expired' : 'fresh',
+      name: cfg.id, protocol: cfg.protocol as ProviderDto['protocol'], baseUrl, apiKeyMasked: cfg.apiKey ? cfg.apiKey.length > 8 ? `****${cfg.apiKey.slice(-4)}` : '****' : '', models: providerModels(cfg), modelCapabilities: Object.fromEntries(providerModels(cfg).map(model => [model, capabilitiesFor(providerNameForConfig(cfg), model, cfg.modelCapabilities?.[model])])), isDefault: this.store().getCurrent() === cfg.id };
   }
   list(): ProviderDto[] { return this.store().load().map(cfg => this.dto(cfg)); }
   save(value: unknown): ProviderDto {
@@ -129,8 +137,22 @@ export class ProviderRoutes {
     if (!text(b.name, 80) || !/^[\p{L}\p{N}_.-]+$/u.test(b.name) || b.name === 'mock') throw new Error('invalid_provider_name');
     if (!b.models.length || b.models.length > 256 || !b.models.every(m => text(m))) throw new Error('invalid_models');
     const models = [...new Set(b.models)];
-    const snapshots = b.modelCapabilities ?? (previous?.baseUrl === conn.baseUrl && previous.protocol === conn.protocol ? previous.modelCapabilities : undefined);
+    const discovery = this.discoveries.get(canonicalArgumentsHash(conn));
+    const sameIdentity = previous?.baseUrl === conn.baseUrl && previous.protocol === conn.protocol && previous.apiKey === conn.apiKey;
+    const snapshots = b.modelCapabilities ?? discovery?.modelCapabilities ?? (sameIdentity ? previous.modelCapabilities : undefined);
+    if (b.modelCapabilities) for (const [model, snapshot] of Object.entries(b.modelCapabilities)) for (const key of Object.keys(snapshot) as (keyof ProviderCapabilities)[]) {
+      const capability = snapshot[key];
+      const observed = discovery?.modelCapabilities[model]?.[key] ?? (sameIdentity ? previous.modelCapabilities?.[model]?.[key] : undefined);
+      if (capability.status === 'unknown') continue;
+      if (observed && observed.status !== 'unknown' && observed.value === capability.value) {
+        (snapshot as Record<string, unknown>)[key] = structuredClone(observed);
+      } else if (capability.source === 'model metadata') {
+        capability.source = 'user override';
+        capability.evidence = { origin: 'user_override', observedAt: this.now(), expiresAt: this.now() + this.evidenceTtlMs };
+      }
+    }
     const cfg: ProviderConfig = { id: b.name, name: b.name, ...conn, model: models[0]!, models,
+      catalogEvidence: discovery?.catalogEvidence ?? (sameIdentity ? previous.catalogEvidence : undefined),
       modelCapabilities: snapshots ? Object.fromEntries(Object.entries(snapshots).filter(([model]) => models.includes(model))) : undefined };
     const store = this.store();
     if (!store.credentialsEnabled) throw new Error('secure_store_required');
@@ -170,21 +192,38 @@ export class ProviderRoutes {
     const base = conn.baseUrl.replace(/\/$/, '');
     const endpoint = `${base}${conn.protocol === 'anthropic' && !base.endsWith('/v1') ? '/v1' : ''}/models`;
     const headers: Record<string, string> = conn.protocol === 'anthropic' ? { 'x-api-key': conn.apiKey, 'anthropic-version': '2023-06-01' } : conn.apiKey ? { Authorization: `Bearer ${conn.apiKey}` } : {};
+    const bound = previous && previous.baseUrl === conn.baseUrl && previous.protocol === conn.protocol && previous.apiKey === conn.apiKey ? previous : undefined;
+    const failed = (error: string): TestProviderResult => {
+      const cached = this.discoveries.get(canonicalArgumentsHash(conn));
+      if (cached) cached.catalogEvidence = { ...cached.catalogEvidence, lastAttemptAt: this.now(), lastError: error };
+      if (bound?.catalogEvidence) this.store().update(bound.id, { catalogEvidence: { ...bound.catalogEvidence, lastAttemptAt: this.now(), lastError: error } });
+      return { ok: false, error };
+    };
     try {
       const response = await this.fetcher(endpoint, { headers, redirect: 'error', signal: AbortSignal.timeout(this.timeoutMs) });
-      if (!response.ok) return { ok: false, error: `http_${response.status}` };
+      if (!response.ok) return failed(`http_${response.status}`);
       const body = record(await response.json());
-      if (!Array.isArray(body.data) || !body.data.every(v => v && typeof v === 'object' && text((v as { id?: unknown }).id))) return { ok: false, error: 'invalid_models_response' };
-      if (conn.apiKey && body.data.some(v => (v as { id: string }).id.includes(conn.apiKey))) return { ok: false, error: 'invalid_models_response' };
+      if (!Array.isArray(body.data) || !body.data.every(v => v && typeof v === 'object' && text((v as { id?: unknown }).id))) return failed('invalid_models_response');
+      if (conn.apiKey && body.data.some(v => (v as { id: string }).id.includes(conn.apiKey))) return failed('invalid_models_response');
       const modelCapabilities = Object.fromEntries(body.data.map(v => [(v as { id: string }).id, discoverProviderCapabilities(v as Record<string, unknown>, conn.protocol)]));
+      const verifiedAt = this.now(); const expiresAt = verifiedAt + this.evidenceTtlMs;
+      for (const snapshot of Object.values(modelCapabilities)) for (const capability of Object.values(snapshot)) {
+        if (capability.status !== 'unknown' && capability.source === 'model metadata') capability.evidence = { observedAt: verifiedAt, expiresAt, origin: 'provider_metadata' };
+      }
+      const catalogEvidence = { verifiedAt, expiresAt, lastAttemptAt: verifiedAt, modelIds: body.data.map(v => (v as { id: string }).id) };
+      const identity = canonicalArgumentsHash(conn);
+      this.discoveries.delete(identity);
+      this.discoveries.set(identity, { catalogEvidence, modelCapabilities: structuredClone(modelCapabilities) });
+      if (this.discoveries.size > 32) this.discoveries.delete(this.discoveries.keys().next().value!);
       const input = record(value);
       const saved = typeof input.name === 'string' ? this.store().get(input.name) : undefined;
-      if (saved && saved.baseUrl === conn.baseUrl && saved.protocol === conn.protocol) this.store().update(saved.id, {
-        modelCapabilities: Object.fromEntries(Object.entries(modelCapabilities).filter(([model]) => providerModels(saved).includes(model))),
+      if (saved && saved.baseUrl === conn.baseUrl && saved.protocol === conn.protocol && saved.apiKey === conn.apiKey) this.store().update(saved.id, {
+        modelCapabilities: { ...saved.modelCapabilities, ...Object.fromEntries(Object.entries(modelCapabilities).filter(([model]) => providerModels(saved).includes(model))) },
+        catalogEvidence,
       });
       return { ok: true, latencyMs: Math.round(performance.now() - start), availableModels: [...new Set(body.data.map(v => (v as { id: string }).id))], modelCapabilities };
     } catch (error) {
-      return { ok: false, error: error instanceof Error && (error.name === 'TimeoutError' || error.name === 'AbortError') ? 'connection_timeout' : 'connection_failed' };
+      return failed(error instanceof Error && (error.name === 'TimeoutError' || error.name === 'AbortError') ? 'connection_timeout' : 'connection_failed');
     }
   }
   /**

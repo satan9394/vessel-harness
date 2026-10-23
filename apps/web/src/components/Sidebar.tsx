@@ -249,6 +249,7 @@ export default function Sidebar({
                                 </button>
                                 {confirmDeleteId === group.sessions[0]!.id ? (
                                   <span className="topic-delete-confirm">
+                                    <span className="dim">{t('sessionRecycleConfirm', { count: String(group.sessions.length) })}</span>
                                     <button type="button" className="btn btn-sm btn-danger" disabled={group.sessions.some(s => deletingIds.includes(s.id))} onClick={() => { onDeleteSession?.(group.sessions.map((s) => s.id)); setConfirmDeleteId(null); }}>{t('confirm')}</button>
                                     <button type="button" className="btn btn-sm" onClick={() => setConfirmDeleteId(null)}>{t('cancel')}</button>
                                   </span>

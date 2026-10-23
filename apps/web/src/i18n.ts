@@ -465,6 +465,12 @@ export interface ModelMessages {
   modelSearchClear: MessageTemplate;
   providerConfigured: MessageTemplate;
   providerUntested: MessageTemplate;
+  providerCatalogFresh: MessageTemplate;
+  providerCatalogUnknown: MessageTemplate;
+  providerCatalogStale: MessageTemplate;
+  providerCatalogExpired: MessageTemplate;
+  providerVerifiedAt: MessageTemplate;
+  capabilityExpired: MessageTemplate;
   providerRetestHint: MessageTemplate;
   providerRetest: MessageTemplate;
   presetCategoryAll: MessageTemplate;
@@ -830,6 +836,8 @@ export interface WorkbenchMessages {
   activityApprovalFor: MessageTemplate;
   activityUpdated: MessageTemplate;
   activityApprovalDone: MessageTemplate;
+  activityDecisionUnavailable: MessageTemplate;
+  sessionRecycleConfirm: MessageTemplate;
   activityApprovalError: MessageTemplate;
   activityProject: MessageTemplate;
   composerTitle: MessageTemplate;
@@ -905,6 +913,12 @@ export const zh: Messages = {
   modelSearchClear: '清除模型搜索',
   providerConfigured: '已配置供应商',
   providerUntested: '尚未测试',
+  providerCatalogFresh: '模型目录已验证',
+  providerCatalogUnknown: '模型目录尚未验证',
+  providerCatalogStale: '模型目录陈旧；保留原配置，请重新拉取',
+  providerCatalogExpired: '模型目录证据已过期，请重新验证',
+  providerVerifiedAt: '最后验证：{time}',
+  capabilityExpired: '证据已过期；不能作为能力支持依据',
   providerRetest: '重新测试连接',
   providerRetestHint: '重新输入密钥以测试连接；不会修改已保存的密钥。本地端点可留空。',
   modelSearchPlaceholder: '搜索模型…',
@@ -1653,6 +1667,8 @@ export const zh: Messages = {
   activityApprovalFor: "待授权操作",
   activityUpdated: "更新于",
   activityApprovalDone: "审批已提交。",
+  activityDecisionUnavailable: '审批只读：当前没有可用的响应接口。',
+  sessionRecycleConfirm: '将这组 {count} 个会话移入回收站？',
   activityApprovalError: "审批提交失败：{error}",
   activityProject: "项目",
   composerTitle: "Agent Studio 组合器",
@@ -1725,6 +1741,12 @@ export const en: Messages = {
   modelSearchClear: 'Clear model search',
   providerConfigured: 'Configured providers',
   providerUntested: 'Not tested',
+  providerCatalogFresh: 'Model catalog verified',
+  providerCatalogUnknown: 'Model catalog unverified',
+  providerCatalogStale: 'Model catalog stale; saved configuration retained. Refresh discovery.',
+  providerCatalogExpired: 'Model catalog evidence expired; verify again.',
+  providerVerifiedAt: 'Last verified: {time}',
+  capabilityExpired: 'Evidence expired; cannot establish capability support',
   providerRetest: 'Retest connection',
   providerRetestHint: 'Re-enter the key to test; the saved key stays unchanged. Local endpoints may leave it blank.',
   modelSearchPlaceholder: 'Search models…',
@@ -2476,6 +2498,8 @@ export const en: Messages = {
   activityApprovalFor: 'Awaiting approval',
   activityUpdated: 'Updated',
   activityApprovalDone: 'Decision submitted.',
+  activityDecisionUnavailable: 'Read-only approval: no response interface is available here.',
+  sessionRecycleConfirm: 'Move all {count} sessions in this group to the Recycle Bin?',
   activityApprovalError: 'Could not submit the decision: {error}',
   activityProject: 'Project',
   composerTitle: 'Agent Studio composer',

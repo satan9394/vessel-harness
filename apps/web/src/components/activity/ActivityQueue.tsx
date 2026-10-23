@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useI18n } from '../LanguageProvider';
 import type { ApiClient } from '../../api';
 import { activityStatusLabelKey, groupActivity, type ActivityResponse, type ActivityRunView } from '../../workbench';
@@ -6,7 +6,7 @@ import { formatStamp, shortPathLabel } from '../../utils/timeFormat';
 import '../card222.css';
 
 export interface ActivityQueueProps {
-  api?: Pick<ApiClient, 'activityRuns' | 'respondWidget'>;
+  api?: Pick<ApiClient, 'activityRuns' | 'respondWidget'> & Partial<Pick<ApiClient, 'approveTeamStage' | 'rejectTeamStage'>>;
   onOpenSession?: (sessionId: string) => void;
   /** server-side render / test fixture: preloaded queue, no fetch. */
   initial?: ActivityResponse;
@@ -26,6 +26,7 @@ export default function ActivityQueue({ api, onOpenSession, initial }: ActivityQ
   const [busy, setBusy] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [revision, setRevision] = useState(0);
+  const deciding = useRef(false);
 
   useEffect(() => {
     if (!api) return;
@@ -37,18 +38,33 @@ export default function ActivityQueue({ api, onOpenSession, initial }: ActivityQ
   }, [api, revision]);
 
   const decide = async (run: ActivityRunView, optionId: string) => {
-    if (!api || !run.approval) return;
+    if (!api || !run.approval || deciding.current) return;
+    deciding.current = true;
     setBusy(`${run.id}:${optionId}`);
     setNotice(null);
     try {
       await api.respondWidget(run.approval.sessionId, run.approval.widgetId, optionId);
+      setData(await api.activityRuns());
+      setError(null);
       setNotice(t('activityApprovalDone'));
-      setRevision((value) => value + 1);
     } catch (failure) {
       setError(failure);
     } finally {
       setBusy(null);
+      deciding.current = false;
     }
+  };
+
+  const decideTeam = async (run: ActivityRunView, approve: boolean) => {
+    const respond = approve ? api?.approveTeamStage : api?.rejectTeamStage;
+    if (!api || !respond || deciding.current) return;
+    deciding.current = true; setBusy(run.id); setNotice(null);
+    try {
+      await respond(run.id);
+      setData(await api.activityRuns());
+      setError(null); setNotice(t('activityApprovalDone'));
+    } catch (failure) { setError(failure); }
+    finally { deciding.current = false; setBusy(null); }
   };
 
   const groups = data ? groupActivity(data.runs) : [];
@@ -76,6 +92,14 @@ export default function ActivityQueue({ api, onOpenSession, initial }: ActivityQ
                     <summary>{t('traceShowDetail')}</summary>
                     <p>{run.detail || run.title}</p>
                     <p>{t('activityProject')}: {run.projectRoot}</p>
+                    {run.entity ? <>
+                      <p>{t(activityStatusLabelKey(run.status))} · {run.entity.status}</p>
+                      {run.entity.provider && <p>{run.entity.provider}</p>}
+                      {run.entity.startedAt && <p>{run.entity.startedAt} — {run.entity.endedAt ?? '…'}</p>}
+                      {run.entity.error && <p role="alert">{run.entity.error}</p>}
+                      {run.entity.tasks && <ul>{run.entity.tasks.map((task, index) => <li key={task.id ?? index}>{task.title ?? task.id} · {task.status}</li>)}</ul>}
+                      {run.entity.acceptance && <ul>{run.entity.acceptance.map((criterion, index) => <li key={index}>{criterion}</li>)}</ul>}
+                    </> : <p>{t('activityUnknown')}</p>}
                   </details>
                 )}
                 <span className="dim" title={run.projectRoot}>{t('activityProject')}: {shortPathLabel(run.projectRoot)}</span>
@@ -89,13 +113,19 @@ export default function ActivityQueue({ api, onOpenSession, initial }: ActivityQ
                   <>
                     <span className="dim">{t('activityApprovalFor')}: {run.approval.description}</span>
                     {run.approval.options.map((option) => (
-                      <button key={option.id} className={`btn ${option.tone === 'danger' ? 'btn-danger' : 'btn-secondary'}`} disabled={busy !== null}
+                      <button key={option.id} className={`btn ${option.tone === 'danger' ? 'btn-danger' : 'btn-secondary'}`} disabled={!api || busy !== null}
                         onClick={() => void decide(run, option.id)}>
                         {option.tone === 'danger' ? t('activityDeny') : t('activityApprove')} ({option.label})
                       </button>
                     ))}
                   </>
                 )}
+                {run.kind === 'team' && run.entity?.status === 'staged' && <>
+                  <button className="btn" disabled={!api?.approveTeamStage || busy !== null} onClick={() => void decideTeam(run, true)}>{t('activityApprove')}</button>
+                  <button className="btn btn-danger" disabled={!api?.rejectTeamStage || busy !== null} onClick={() => void decideTeam(run, false)}>{t('activityDeny')}</button>
+                </>}
+                {run.needsApproval && (run.approval ? !api : run.kind !== 'team' || !api?.approveTeamStage || !api?.rejectTeamStage)
+                  && <p className="dim">{t('activityDecisionUnavailable')}</p>}
               </li>
             ))}
           </ul>

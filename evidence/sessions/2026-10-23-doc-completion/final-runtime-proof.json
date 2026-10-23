@@ -1,0 +1,99 @@
+{
+  "batch": [
+    {
+      "id": "completion-group-a",
+      "indexed": false,
+      "directoryExists": false
+    },
+    {
+      "id": "completion-group-b",
+      "indexed": true,
+      "directoryExists": true
+    },
+    {
+      "id": "completion-group-c",
+      "indexed": false,
+      "directoryExists": false
+    }
+  ],
+  "realOutput": "DOC_COMPLETION_OK",
+  "diffAfter": "after\n",
+  "entities": [
+    {
+      "id": "fixture-subagent",
+      "kind": "subagent",
+      "projectRoot": "C:\\Users\\SATANC~1\\AppData\\Local\\Temp\\vessel-doc-completion-zx8XGq\\workspace",
+      "title": "Fixture subagent failure (no child CLI)",
+      "status": "failed",
+      "outcome": "failed",
+      "statusSource": "inferred",
+      "needsApproval": false,
+      "entity": {
+        "status": "failed",
+        "provider": "commandgota-real",
+        "startedAt": "2026-10-23T07:11:21.213Z",
+        "endedAt": "2026-10-23T07:11:21.213Z",
+        "error": "Injected source fixture failure; no external agent executed"
+      },
+      "updatedAt": 1792739481213
+    },
+    {
+      "id": "task_1792739481296_23889fcb",
+      "kind": "goal",
+      "projectRoot": "C:\\Users\\SATANC~1\\AppData\\Local\\Temp\\vessel-doc-completion-zx8XGq\\workspace",
+      "title": "Fixture goal details",
+      "status": "unknown",
+      "needsApproval": false,
+      "entity": {
+        "status": "pending",
+        "acceptance": [
+          "Preserve source references",
+          "Do not launch external agents"
+        ]
+      },
+      "updatedAt": 1792739481296
+    },
+    {
+      "id": "stage_9b527f42-b860-49a3-ab4d-b1c44399a591",
+      "kind": "team",
+      "projectRoot": "",
+      "title": "Team plan stage_9b527f42-b860-49a3-ab4d-b1c44399a591",
+      "status": "cancelled",
+      "outcome": "cancelled",
+      "statusSource": "inferred",
+      "needsApproval": false,
+      "entity": {
+        "status": "rejected",
+        "tasks": [
+          {
+            "id": "task_1",
+            "title": "Generate",
+            "status": "pending"
+          },
+          {
+            "id": "task_2",
+            "title": "Review",
+            "status": "pending"
+          }
+        ]
+      },
+      "updatedAt": 1792739481292
+    }
+  ],
+  "approvedSession": {
+    "id": "sess_1792736582589_ff9dd432",
+    "kind": "session",
+    "projectRoot": "C:\\Users\\SATANC~1\\AppData\\Local\\Temp\\vessel-doc-completion-zx8XGq\\workspace",
+    "title": "Read README.md. Write completion-proof.txt with exactly DOC_COMPLETION_OK. Reply",
+    "status": "completed",
+    "outcome": "completed",
+    "statusSource": "live",
+    "runId": "turn_1792736582984_f123af",
+    "observedAt": 1792736593971,
+    "revision": 51,
+    "reasonCode": "turn_success",
+    "needsApproval": false,
+    "updatedAt": 1792739481269,
+    "href": "/api/sessions/sess_1792736582589_ff9dd432"
+  }
+}

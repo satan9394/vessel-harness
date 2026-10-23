@@ -145,3 +145,18 @@ console.log(r.metrics);                        // §15 L3 全字段
 - docs/Vessel_后续开发方向与产品化路线_v1.0.md §15.1（L3 统一采集字段）
 - docs/BENCHMARK-SPEC.md §4（M01–M14 指标定义）、§6.3（各家非交互面）、§7（adapter 清单）
 - benchmarks/runners/src/contracts/（本契约实现 + tests）
+## Interactive facade and version evidence (2026-10-23)
+
+`ExternalInteractiveAdapter` in `packages/agents/src/external/InteractiveAdapter.ts` implements the separate shared `InteractiveRuntimeAdapter`; benchmark `run(fixture)` is unchanged. `ExternalAgentRuntime.interactiveAdapter(id)` reuses the existing isolated execution/cleanup path. No new agent loop is introduced.
+
+Explicit `probe()` runs bounded, shell-free `--version` and configured `interactive.helpArgs` (default `--help`). It records installedVersion, adapterVersion, platform, probedAt, transformVersion and evidenceSource. Start/cancel require exact `interactive.verifiedVersions`, an evidenceSource, and configured flags present in help. Discovery/import never starts probes. A missing version is unknown; an unreviewed version is degraded/unsupported. A reviewed declaration is not live conformance proof. Arbitrary allowedTools/options are rejected; this facade requests read-only execution. Cancellation awaits the existing runtime result/cleanup. Resume, steering, canonical streaming events, interactive approvals and artifact receipts remain unsupported and have no executable entrypoints.
+
+| Runtime | Installed-version/live evidence in this completion | start/cancel | events/steer/resume/approvals/artifacts |
+|---|---|---|---|
+| codex | Not invoked; requires separate explicit authorization | unknown until reviewed probe | unsupported by this facade |
+| opencode | Not invoked; requires separate explicit authorization | unknown until reviewed probe | unsupported by this facade |
+| dsh | Not invoked; requires separate explicit authorization | unknown until reviewed probe | unsupported by this facade |
+| claude-code | Not invoked; requires separate explicit authorization | unknown until reviewed probe | unsupported by this facade |
+| pi | Not invoked; requires separate explicit authorization | unknown until reviewed probe | unsupported by this facade |
+
+Each row is covered by an injected version/help fixture in `InteractiveAdapter.test.ts`; synthetic version `1.2.3` is not an installed runtime claim. Do not populate reviewed version lists from model guesses.

@@ -267,3 +267,9 @@ node apps/cli/dist/cli.js models --provider ant   # anthropic 内置清单
 - 查价实现只有一份：`packages/shared/src/pricing.ts`（归一规则、回退链、`estimated` 语义、`costBreakdown` 四项分算），CLI / `UsageProjection` / benchmarks 共用；详见 `docs/PRICING.md`。
 - `vessel run --strict`：本次会话按 strict 口径计价（未收录模型按 0 记并标 `unpriced`，token 计数仍保留）。
 - mock 会话也会产生 usage 记录（E2E 接线验证），可 `vessel usage` 直接看到。
+
+## Web catalog evidence (2026-10-23)
+
+Provider Hub opens configured providers first; Add provider reveals the preset/custom form. Navigation preserves the unsaved draft. Saved-key testing remains a direct action and never puts the key into the add form.
+
+Successful saved-provider discovery records model IDs, last verification/attempt, and a 24-hour expiry. Failed discovery preserves the previous key, endpoint, model selection and capability snapshot while marking the catalog stale. A model absent from a successful refreshed catalog remains configured but is explicitly listed as stale. Expired catalogs are shown separately from failed refreshes; configurations without a historical receipt remain unknown. Discovery metadata is a provider declaration, not a behavioral capability probe. Its timestamp/expiry is carried separately; mandatory capability negotiation refuses expired positive metadata. User-supplied capability data cannot certify detection or probe timestamps.

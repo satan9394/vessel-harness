@@ -8,6 +8,11 @@ const locale = vi.hoisted(() => ({ lang: 'en' as 'en' | 'zh' }));
 vi.mock('../LanguageProvider', () => ({ useI18n: () => ({ t: translate(locale.lang) }) }));
 
 describe('Backend capability evidence', () => {
+  it.each(['en', 'zh'] as const)('labels expired model metadata without presenting it as fresh support in %s', lang => {
+    locale.lang = lang;
+    const capabilities = { tools: { status: 'declared', value: true, evidence: { observedAt: 1, expiresAt: 2, origin: 'provider_metadata' } } } as ProviderCapabilities;
+    expect(renderToStaticMarkup(<CapabilityStatus capabilities={capabilities} />)).toContain(translate(lang)('capabilityExpired'));
+  });
   it.each(['en', 'zh'] as const)('distinguishes declared false, detected zero and unknown in %s', lang => {
     locale.lang = lang;
     const capabilities = { tools: { status: 'declared', value: false, source: '<metadata>' }, contextWindow: { status: 'detected', value: 0 }, reasoning: { status: 'unknown' } } as ProviderCapabilities;

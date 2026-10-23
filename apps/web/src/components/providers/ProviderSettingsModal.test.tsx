@@ -31,6 +31,8 @@ function nodes(root: ReactNode): ReactElement<Record<string, unknown>>[] {
 }
 function invoke(node: ReactElement<Record<string, unknown>>, handler: string, event = {}) { (node.props[handler] as (event: unknown) => void)(event); }
 class Element {
+  hidden = false;
+  closest() { return this.hidden ? this : null; }
   isConnected = true;
   controls: Element[] = [];
   focus() { doc.activeElement = this; }
@@ -192,6 +194,16 @@ describe('provider settings', () => {
     invoke(render().find(node => node.props.role === 'dialog')!, 'onKeyDown', event); expect(doc.activeElement).toBe(root.controls[0]);
     invoke(render().find(node => node.props.role === 'dialog')!, 'onKeyDown', { ...event, key: 'Escape' }); expect(onClose).toHaveBeenCalledOnce();
     hooks.cleanups.forEach(cleanup => cleanup?.()); expect(doc.activeElement).toBe(previous);
+  });
+  it('skips hidden pane controls when wrapping focus in either direction', async () => {
+    render(); await settle();
+    const hidden = new Element(); hidden.hidden = true; root.controls.push(hidden);
+    const event = { key: 'Tab', shiftKey: true, preventDefault: vi.fn(), stopPropagation: vi.fn() };
+    doc.activeElement = root.controls[0]!;
+    invoke(render().find(node => node.props.role === 'dialog')!, 'onKeyDown', event);
+    expect(doc.activeElement).toBe(root.controls[1]);
+    invoke(render().find(node => node.props.role === 'dialog')!, 'onKeyDown', { ...event, shiftKey: false });
+    expect(doc.activeElement).toBe(root.controls[0]);
   });
   it('pulls the live model list into the form (task 215)', async () => {
     render(); await settle(); change('preset', 'Ollama');

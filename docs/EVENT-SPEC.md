@@ -730,3 +730,7 @@ Activity会话行的`id`是Session身份，新增可选`runId`是最新回合身
 `success→completed`；`error/failure/budget→failed`；`interrupted/cancelled`分别保留；陌生kind、最新start缺终态或终态身份不匹配→unknown。当前实际运行/审批分别优先显示running/waiting_approval。仅已观察到的恢复器`turn/end{interrupted}`可以证明中断，不能根据静止的start推断中断。注册会话的日志缺失/读取失败返回unknown及原因，已知无执行回合为queued。原Activity `status`保持兼容（queued显示unknown，waiting_approval显示needs_attention），原有客户端可忽略新增字段。
 
 （完）
+
+## Compaction evidence receipts (2026-10-23)
+
+New committed `compaction/end.projectionCommit.metadata` includes `summaryHash` (SHA-256 of canonical `{summary, provenance}`) and `provenance` schemaVersion 1: sourceSessionId, sourceStart/sourceEnd, SHA-256 of original persisted JSON records, source event refs, important file refs and current policy/pending approval/pending effect refs. The immutable log is retained. Replay validates both source and summary hashes; legacy commits without receipts remain readable. A changed pending authority snapshot during summarization rejects the commit. Summary references remain historical user-level context, never policy or approval authority. `audit/effect_reconciled` records the operator receipt identity and resolution; explanatory evidence lives in the fsynced execution journal.

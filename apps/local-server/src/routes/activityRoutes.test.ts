@@ -7,6 +7,19 @@ describe('ActivityRoutes (ARCH-01 / UI-02 Truthful Status)', () => {
     subagents: async () => [], teamStages: () => [], goalTasks: () => [],
   };
 
+  it('projects actual team tasks, subagent execution and goal acceptance into distinct details', async () => {
+    const routes = new ActivityRoutes({ ...emptySources,
+      teamStages: () => [{ id: 'team', status: 'staged', projectRoot: '/team-project', createdAt: 1, tasks: [{ id: 't', title: 'Review change', status: 'pending' }] }],
+      subagents: async () => [{ id: 'agent', name: 'Reviewer', status: 'failed', provider: 'fixture', startedAt: '2026-10-23', lastError: 'exit failure' }],
+      goalTasks: () => [{ id: 'goal', projectRoot: '/fixture', goal: 'Ship', status: 'paused', acceptance: ['Tests pass'] }],
+    });
+    const { runs } = await routes.list();
+    expect(runs.find(run => run.id === 'team')?.projectRoot).toBe('/team-project');
+    expect(runs.find(run => run.id === 'team')?.entity).toEqual({ status: 'staged', tasks: [{ id: 't', title: 'Review change', status: 'pending' }] });
+    expect(runs.find(run => run.id === 'agent')?.entity).toMatchObject({ status: 'failed', provider: 'fixture', error: 'exit failure' });
+    expect(runs.find(run => run.id === 'goal')?.entity).toEqual({ status: 'paused', acceptance: ['Tests pass'] });
+  });
+
   it.each(['queued', 'running', 'waiting_approval', 'completed', 'failed', 'interrupted', 'cancelled', 'unknown'] as const)(
     'projects the eight-state contract: %s with separate session/run identity', async outcome => {
       const observation = { runId: 'run-123', observedAt: 10, revision: 4, reasonCode: 'fixture', lastRunStatus: outcome === 'running' || outcome === 'waiting_approval' ? 'completed' as const : outcome };

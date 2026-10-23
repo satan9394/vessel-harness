@@ -78,6 +78,16 @@ beforeEach(() => {
 });
 
 describe('TaskComposer IME and keyboard submission', () => {
+  it.each([false, true])('marks first task readiness only with a selected loaded model (model present=%s)', async present => {
+    const mark = vi.fn(); const frames = vi.fn((callback: () => void) => { callback(); return 1; });
+    vi.stubGlobal('requestAnimationFrame', frames); vi.stubGlobal('cancelAnimationFrame', vi.fn());
+    vi.stubGlobal('performance', { getEntriesByName: () => [], mark });
+    try {
+      vi.mocked(api.listModels).mockResolvedValue({ models: present ? [{ id: 'm', name: 'm', providerName: 'fixture', protocol: 'openai-compatible' }] : [] });
+      render(); for (let i = 0; i < 12; i++) await Promise.resolve(); render();
+      expect(mark).toHaveBeenCalledTimes(present ? 1 : 0);
+    } finally { hooks.cleanups.forEach(cleanup => cleanup?.()); hooks.cleanups = []; vi.unstubAllGlobals(); }
+  });
   it('isolates workspace drafts, restores them after navigation and separates API clients', () => {
     invoke(textarea(), 'onChange', { target: { value: 'workspace A draft' } });
     selectedRoot = 'E:/workspace-b';

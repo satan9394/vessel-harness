@@ -1,0 +1,25 @@
+{
+  "navOpen": {
+    "dialogs": 1,
+    "focus": "Close"
+  },
+  "navClosed": {
+    "expanded": "false",
+    "focus": "btn navigation-toggle"
+  },
+  "commandClose": {
+    "dialog": false,
+    "focus": "Commands"
+  },
+  "attempt200": "five Control_L+equal; reset Control_L+0",
+  "scaleInitial": {
+    "dpr": 1.0000000111675431,
+    "scale": 1,
+    "width": 390
+  },
+  "scaleFinal": {
+    "dpr": 1.0000000111675431,
+    "scale": 1,
+    "width": 390
+  }
+}

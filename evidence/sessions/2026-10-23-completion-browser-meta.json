@@ -1,0 +1,7 @@
+{
+  "root": "C:\\Users\\SATANC~1\\AppData\\Local\\Temp\\vessel-doc-completion-zx8XGq",
+  "workspace": "C:\\Users\\SATANC~1\\AppData\\Local\\Temp\\vessel-doc-completion-zx8XGq\\workspace",
+  "port": 3017,
+  "provider": "commandgota-real",
+  "model": "deepseek/deepseek-v4.1-flash"
+}

@@ -305,7 +305,8 @@ export function createVesselServer(opts: VesselServerOptions = {}): VesselServer
       model: input.model ?? 'default',
     });
     const hub = new SessionModelHub({ provider: cfg?.id ?? input.provider ?? 'mock', model }, provider);
-    const ctl = await SessionController.create({
+    let ctl: SessionController;
+    ctl = await SessionController.create({
       sessionId: input.sessionId,
       workspaceRoot: input.workspaceRoot,
       provider: hub,
@@ -313,6 +314,7 @@ export function createVesselServer(opts: VesselServerOptions = {}): VesselServer
       model: hub.id,
       contextModelSelection: () => ({ providerId: hub.selection.provider, model: hub.selection.model }),
       strictPricing: true,
+      compactionRecoveryFacts: () => ({ pendingApprovalRefs: widgets.pendingApprovals(ctl.sessionId).map(approval => approval.widgetId) }),
       policySystemPath: DEFAULT_POLICY,
       behaviorIRPath: DEFAULT_BEHAVIOR,
       permission: input.permission ?? 'workspace-write',
@@ -397,7 +399,7 @@ export function createVesselServer(opts: VesselServerOptions = {}): VesselServer
       options: approval.options.map((option) => ({ id: option.id, label: option.label, tone: option.tone })),
     })),
     subagents: () => subagentSeam.listSubagents(),
-    teamStages: () => teamStages.list().flatMap(stage => stage ? [{ id: stage.id, status: stage.status, createdAt: stage.createdAt, tasks: stage.tasks.map(task => ({ status: task.status })) }] : []),
+    teamStages: () => teamStages.list().flatMap(stage => stage ? [{ id: stage.id, status: stage.status, projectRoot: sessionRegistry.get(stage.sessionId)?.workspaceRoot, createdAt: stage.createdAt, tasks: stage.tasks.map(task => ({ id: task.id, title: task.title, status: task.status })) }] : []),
     goalTasks: () => goalSeam.listTasks(),
   });
   let behaviorLibrary: BehaviorEntry[] | undefined;
@@ -770,6 +772,18 @@ export function createVesselServer(opts: VesselServerOptions = {}): VesselServer
       if (segs.length === 4 && sub === 'policy') {
         if (!ctl) return json(res, 404, { error: 'policy_snapshot_unavailable', id });
         return json(res, 200, { sessionId: id, policy: inspectEffectivePolicy(ctl.policyArtifacts) });
+      }
+      if (segs.length === 4 && sub === 'effects') {
+        if (!sameOrigin) return json(res, 403, { error: 'origin_denied' });
+        if (!ctl) return json(res, 404, { error: 'session_not_found' });
+        if (method === 'GET') return json(res, 200, { pending: ctl.pendingEffects() });
+        if (method === 'POST') {
+          try {
+            await ctl.reconcileEffect(await readJsonBody(req) as Parameters<SessionController['reconcileEffect']>[0]);
+            return json(res, 200, { pending: ctl.pendingEffects() });
+          } catch { return json(res, 409, { error: 'effect_reconciliation_rejected' }); }
+        }
+        return json(res, 405, { error: 'method_not_allowed' });
       }
       if (deletingSessions.has(id) && method !== 'GET') {
         return json(res, 409, { error: 'session_deleting', id });

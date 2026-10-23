@@ -11,6 +11,7 @@ import { GoalSeam } from './goalSeam.js';
 import { ActivityRoutes } from './routes/activityRoutes.js';
 import { ProviderRoutes } from './routes/providerRoutes.js';
 import { ProviderStore } from './providers/ProviderStore.js';
+import type { EffectJournal } from '@vessel/runtime';
 
 const { recyclePath } = vi.hoisted(() => ({ recyclePath: vi.fn<() => Promise<void>>() }));
 vi.mock('./daemon/daemonLifecycle.js', async (importOriginal) => ({
@@ -199,6 +200,28 @@ describe('local server HTTP API + SSE', () => {
     expect(continued.summary.calls).toBe(2);
     expect(continued.messages).toHaveLength(4);
     expect((await fetch(`${base}/api/sessions/missing/messages`)).status).toBe(404);
+  });
+
+  it('exposes unknown effects for operator reconciliation, rejects stale identity and persists the receipt on reopen', async () => {
+    const response = await fetch(`${base}/api/sessions`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ workspaceRoot: ws }) });
+    const { session } = await response.json() as { session: { id: string } };
+    const journal = (controller as unknown as { harness: { effectJournal: EffectJournal } }).harness.effectJournal;
+    journal.begin({ toolCallId: 'fixture-write', toolName: 'Write', arguments: { path: 'file' } },
+      { name: 'Write', requiredPermission: 'workspace-write', effects: 'non_idempotent' } as import('@vessel/shared').ToolSpec,
+      { canonicalToolId: 'builtin:Write', subject: { sessionId: session.id, runId: 'run', agentInstanceId: 'agent' }, argumentsCanonicalHash: 'args', requestedScopes: ['workspace-write'] });
+    const url = `${base}/api/sessions/${session.id}/effects`;
+    const { pending } = await (await fetch(url)).json() as { pending: ReturnType<SessionController['pendingEffects']> };
+    expect(pending).toHaveLength(1); expect(JSON.stringify(pending)).not.toContain('"path"');
+    const receipt = { ...pending[0], resolution: 'not_applied', evidence: 'operator inspected filesystem' };
+    expect((await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...receipt, invocationHash: 'wrong' }) })).status).toBe(409);
+    expect((await fetch(url, { method: 'POST', headers: { Origin: 'https://foreign.invalid', 'Content-Type': 'application/json' }, body: JSON.stringify(receipt) })).status).toBe(403);
+    const resolved = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(receipt) });
+    expect(resolved.status).toBe(200); expect(await resolved.json()).toEqual({ pending: [] });
+    expect((await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(receipt) })).status).toBe(200);
+    expect((await fetch(url, { method: 'PUT' })).status).toBe(405);
+    await controller.close();
+    const recovered = await importSession(new MockProvider([{ when: /.*/, response: { text: 'ok' } }]), { workspaceRoot: ws, sessionId: session.id });
+    expect(recovered.pendingEffects()).toEqual([]); await recovered.close();
   });
 
   it('replays assistant attempts, tool outcomes and measured usage without injected instructions', async () => {

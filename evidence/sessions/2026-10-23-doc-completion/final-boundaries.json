@@ -1,0 +1,11 @@
+{
+  "head": "46b7291188db6f95303683a8016d5434b252d142",
+  "explanation": "Separate Harness2 planning edits appeared after first aggregate snapshot; preserved, not authored by this completion task",
+  "observedUtc": "2026-10-23T12:25:46.8837936Z",
+  "protectedProductChanges": [],
+  "concurrentOtherEdits": [
+    "HANDOFF.md",
+    "docs/HARNESS2-ABSORPTION-ASSESSMENT.md",
+    "docs/HARNESS2-AGENT-BRIEF.md"
+  ]
+}

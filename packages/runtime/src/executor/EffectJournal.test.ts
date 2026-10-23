@@ -2,7 +2,7 @@ import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import type { CanonicalToolInvocation, ToolSpec } from '@vessel/shared';
+import { canonicalArgumentsHash, type CanonicalToolInvocation, type ToolSpec } from '@vessel/shared';
 import { EffectJournal } from './EffectJournal.js';
 
 describe('durable execution recovery boundaries', () => {
@@ -12,6 +12,27 @@ describe('durable execution recovery boundaries', () => {
   const call = { toolCallId: 'call', toolName: 'Write', arguments: {} };
   const invocation: CanonicalToolInvocation = { canonicalToolId: 'builtin:Write', subject: { sessionId: 's', runId: 'r', agentInstanceId: 'a' }, argumentsCanonicalHash: 'hash', requestedScopes: [] };
   const tool = { name: 'Write', requiredPermission: 'workspace-write', effects: 'non_idempotent' } as ToolSpec;
+  it.each(['applied', 'not_applied'] as const)('durably reconciles %s without permitting replay and rejects stale or conflicting receipts', resolution => {
+    const journal = new EffectJournal(file); journal.begin(call, tool, invocation);
+    const receipt = { key: call.toolCallId, attempt: 1, invocationHash: canonicalArgumentsHash(invocation), resolution, evidence: 'operator inspected fixture receipt' };
+    expect(() => journal.reconcile({ ...receipt, invocationHash: 'wrong' })).toThrow('identity');
+    expect(() => journal.reconcile({ ...receipt, attempt: 2 })).toThrow('identity');
+    journal.reconcile(receipt); journal.reconcile(receipt);
+    const reopened = new EffectJournal(file);
+    expect(reopened.pending()).toEqual([]);
+    expect(() => reopened.begin(call, tool, invocation)).toThrow('already observed');
+    expect(() => reopened.reconcile({ ...receipt, evidence: 'different' })).toThrow('conflict');
+    reopened.begin({ ...call, toolCallId: 'next' }, tool, invocation);
+    expect(reopened.pending().map(entry => entry.key)).toEqual(['next']);
+  });
+  it('fails closed for orphan outcomes, reordered records and semantic corruption without repairing them', () => {
+    const journal = new EffectJournal(file); journal.begin(call, tool, invocation); journal.finish(call, { content: 'ok', meta: {} });
+    const lines = fs.readFileSync(file, 'utf8').trim().split('\n');
+    for (const content of [lines.reverse().join('\n') + '\n', '{"kind":"unknown","key":"call","attempt":1}\n']) {
+      fs.writeFileSync(file, content);
+      expect(() => new EffectJournal(file)).toThrow(); expect(fs.readFileSync(file, 'utf8')).toBe(content);
+    }
+  });
   it('repairs a torn tail while preserving durable intents and replay protection', () => {
     new EffectJournal(file).begin(call, tool, { ...invocation, argumentsCanonicalHash: '多字节' });
     const prefix = fs.readFileSync(file);

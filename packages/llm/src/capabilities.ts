@@ -53,7 +53,8 @@ export function negotiateCapabilities(provider: string, model: string, capabilit
   for (const key of Object.keys(requirements) as (keyof ProviderCapabilityValues)[]) {
     const required = requirements[key];
     if (required === undefined) continue;
-    const available = capabilities[key];
+    const raw = capabilities[key];
+    const available = raw.evidence && raw.evidence.expiresAt <= Date.now() ? { status: 'unknown' as const, evidence: raw.evidence } : raw;
     if (available.status === 'unknown' || (key === 'contextWindow' ? typeof available.value !== 'number' || available.value < Number(required) : available.value !== required)) {
       throw new CapabilityMismatchError(provider, model, key, required, available);
     }

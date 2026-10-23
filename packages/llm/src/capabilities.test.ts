@@ -5,6 +5,13 @@ import { createProvider } from './provider/createProvider.js';
 const tool = { type: 'function' as const, function: { name: 'read', description: '', parameters: {} } };
 afterEach(() => vi.unstubAllGlobals());
 describe('ARC-08 capability negotiation', () => {
+  it('does not grant a required capability from expired metadata evidence', () => {
+    const caps = capabilitiesFor('openai-compatible');
+    caps.tools = { status: 'declared', value: true, source: 'model metadata', evidence: { origin: 'provider_metadata', observedAt: 1, expiresAt: 2 } };
+    expect(() => negotiateCapabilities('fixture', 'm', caps, { tools: true })).toThrow(CapabilityMismatchError);
+    caps.tools.evidence!.expiresAt = Date.now() + 60000;
+    expect(() => negotiateCapabilities('fixture', 'm', caps, { tools: true })).not.toThrow();
+  });
   it('does not infer endpoint capability from a reasoning model name', () => {
     expect(discoverProviderCapabilities({ id: 'deepseek-r1' }).reasoning).toEqual({ status: 'unknown' });
     expect(discoverProviderCapabilities({ context_window: 8192, supports_reasoning: false }).reasoning).toMatchObject({ status: 'declared', value: false });

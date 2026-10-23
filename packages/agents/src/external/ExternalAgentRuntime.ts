@@ -3,6 +3,7 @@ import * as fs from 'node:fs';
 import { spawn } from 'node:child_process';
 import { tmpdir } from 'node:os';
 import * as path from 'node:path';
+import { ExternalInteractiveAdapter, probeExternalRuntime, type ProbeCommand } from './InteractiveAdapter.js';
 import { EventBus } from '@vessel/core';
 import type { ChatToolCall, ChatUsage, StreamChunk, SubagentResultContract } from '@vessel/shared';
 import {
@@ -24,6 +25,7 @@ const MAX_DIFF_BYTES = 128 * 1024;
 const DEFAULT_TIMEOUT_MS = 60_000;
 
 export interface ExternalAgentConfig {
+  interactive?: { verifiedVersions: string[]; evidenceSource: string; helpArgs?: string[] };
   id: string;
   command: string;
   /** Argument array; {prompt}, {workspace}, and {agent_id} are substituted without a shell. */
@@ -84,6 +86,12 @@ interface WorkspaceLease {
  * all gone; ambiguous or live leases fail closed.
  */
 export class ExternalAgentRuntime {
+  probe(agentId: string, command?: ProbeCommand) {
+    const config = this.agents.get(agentId);
+    if (!config) throw new Error('external_agent_not_found');
+    return probeExternalRuntime(config, command);
+  }
+  interactiveAdapter(agentId: string) { return new ExternalInteractiveAdapter(agentId, this); }
   private readonly activeRuns = new Map<string, AbortController>();
 
   cancel(delegateId: string): boolean {

@@ -1,0 +1,140 @@
+{
+  "definition": "navigation start to first rAF after project, health and model loaded; no prompt needed; warm local reloads; not standardized browser TTI",
+  "samples": [
+    {
+      "devicePixelRatio": 1.0000000111675431,
+      "entries": [
+        {
+          "duration": 0,
+          "name": "vessel:task-ready",
+          "startTime": 170.80000000074506
+        }
+      ],
+      "navigation": [
+        {
+          "domContentLoaded": 72.40000000037253,
+          "responseEnd": 10.300000000745058
+        }
+      ],
+      "paint": [
+        {
+          "name": "first-paint",
+          "startTime": 116
+        },
+        {
+          "name": "first-contentful-paint",
+          "startTime": 116
+        }
+      ],
+      "width": 390
+    },
+    {
+      "devicePixelRatio": 1.0000000111675431,
+      "entries": [
+        {
+          "duration": 0,
+          "name": "vessel:task-ready",
+          "startTime": 187.09999999962747
+        }
+      ],
+      "navigation": [
+        {
+          "domContentLoaded": 107.3999999994412,
+          "responseEnd": 7.699999999254942
+        }
+      ],
+      "paint": [
+        {
+          "name": "first-paint",
+          "startTime": 164
+        },
+        {
+          "name": "first-contentful-paint",
+          "startTime": 164
+        }
+      ],
+      "width": 390
+    },
+    {
+      "devicePixelRatio": 1.0000000111675431,
+      "entries": [
+        {
+          "duration": 0,
+          "name": "vessel:task-ready",
+          "startTime": 159.29999999981374
+        }
+      ],
+      "navigation": [
+        {
+          "domContentLoaded": 92.09999999962749,
+          "responseEnd": 4
+        }
+      ],
+      "paint": [
+        {
+          "name": "first-paint",
+          "startTime": 140
+        },
+        {
+          "name": "first-contentful-paint",
+          "startTime": 140
+        }
+      ],
+      "width": 390
+    },
+    {
+      "devicePixelRatio": 1.0000000111675431,
+      "entries": [
+        {
+          "duration": 0,
+          "name": "vessel:task-ready",
+          "startTime": 153
+        }
+      ],
+      "navigation": [
+        {
+          "domContentLoaded": 77.90000000037253,
+          "responseEnd": 7.800000000745058
+        }
+      ],
+      "paint": [
+        {
+          "name": "first-paint",
+          "startTime": 136
+        },
+        {
+          "name": "first-contentful-paint",
+          "startTime": 136
+        }
+      ],
+      "width": 390
+    },
+    {
+      "devicePixelRatio": 1.0000000111675431,
+      "entries": [
+        {
+          "duration": 0,
+          "name": "vessel:task-ready",
+          "startTime": 165.20000000018626
+        }
+      ],
+      "navigation": [
+        {
+          "domContentLoaded": 87.20000000018626,
+          "responseEnd": 14.099999999627473
+        }
+      ],
+      "paint": [
+        {
+          "name": "first-paint",
+          "startTime": 116
+        },
+        {
+          "name": "first-contentful-paint",
+          "startTime": 116
+        }
+      ],
+      "width": 390
+    }
+  ]
+}

@@ -1,0 +1,7 @@
+{
+  "definition": "max(state-ready rAF User Timing mark, observed first-contentful-paint), navigation start origin; observed lower bound, not standardized TTI or interaction latency",
+  "minMs": 148.0,
+  "raw": "performance-accepted.json",
+  "maxMs": 280.5,
+  "samples": 24
+}

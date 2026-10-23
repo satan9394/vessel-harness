@@ -1,0 +1,10 @@
+warning: in the working copy of 'apps/local-server/src/server.test.ts', CRLF will be replaced by LF the next time Git touches it
+warning: in the working copy of 'apps/local-server/src/server.ts', CRLF will be replaced by LF the next time Git touches it
+warning: in the working copy of 'docs/EVENT-SPEC.md', CRLF will be replaced by LF the next time Git touches it
+warning: in the working copy of 'docs/HARNESS-ADAPTER-CONTRACT.md', CRLF will be replaced by LF the next time Git touches it
+warning: in the working copy of 'docs/POLICY-SPEC.md', CRLF will be replaced by LF the next time Git touches it
+warning: in the working copy of 'docs/PROVIDER-MANAGEMENT.md', CRLF will be replaced by LF the next time Git touches it
+warning: in the working copy of 'packages/agents/src/external/ExternalAgentRuntime.ts', CRLF will be replaced by LF the next time Git touches it
+warning: in the working copy of 'packages/application/src/compose.ts', CRLF will be replaced by LF the next time Git touches it
+warning: in the working copy of 'packages/context/src/compaction/Compaction.ts', CRLF will be replaced by LF the next time Git touches it
+warning: in the working copy of 'packages/shared/src/capabilities.ts', CRLF will be replaced by LF the next time Git touches it
