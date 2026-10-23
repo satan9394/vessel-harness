@@ -1,10 +1,12 @@
 # Harness² 可吸收优点评估（面向 Vessel）
 
 > 文档性质：外部项目对照评估 + 吸收路线建议。**不包含任何代码改动**。
+> 状态：待研究（未立项、未排期）。开工前需用户拍板选一项，见 `HANDOFF.md` §3.2「待研究」。
 > 评估对象：`google-research/harness2`（本地副本 `E:\Code_file\Projects\harness2`，论文 arXiv 2610.14224，Apache-2.0）。
 > 吸收方：本仓库 Vessel（Composable Agent Harness）。
 > 结论依据：五个维度的只读代码分析 + 关键结论回源交叉验证。**全部为静态阅读，未运行 Harness²，也未运行 Vessel 测试**；文中一切"现状"均为源码可证的事实，凡属推断均已标注。
 > 读者：接手实施的人或 Agent。若只读一节，读 §3 与 §6。
+> 配套文档：`docs/HARNESS2-AGENT-BRIEF.md`（给接手实施 Agent 的对齐提示词，与本报告成对使用）。
 
 ---
 
