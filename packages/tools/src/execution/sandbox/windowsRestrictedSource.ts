@@ -43,7 +43,7 @@ public static class VesselRestricted {
   [DllImport("kernel32.dll", SetLastError=true)] static extern uint ResumeThread(IntPtr thread);
   [DllImport("kernel32.dll")] static extern uint WaitForSingleObject(IntPtr h,uint timeout);
   [DllImport("kernel32.dll", SetLastError=true)] static extern bool GetExitCodeProcess(IntPtr h,out uint code);
-  public class Result { public string Stdout,Stderr; public int ExitCode; public bool Enforced; }
+  public class Result { public string Stdout,Stderr; public int ExitCode; public bool Enforced; public uint ChildIntegrityRid; }
   static void Check(bool value,string operation) { if(!value) throw new Win32Exception(Marshal.GetLastWin32Error(),operation); }
   static uint IntegrityRid(IntPtr token) {
     int needed;
@@ -70,6 +70,9 @@ public static class VesselRestricted {
     if(IntegrityRid(token)>4096) throw new InvalidOperationException("sandbox token exceeds Low Integrity");
   }
   static string Quote(string s) {
+    // Windows 的命令行解析只在必要时需要引号。此前无条件加引号会把 /c 变成带引号的 "/c"，
+    // 受限令牌下 cmd 对内置命令（ver/echo）的解析因此失败；路径含空格时仍走完整转义。
+    if(s.Length>0 && s.IndexOfAny(new[]{' ','\t','\n','\v','"'})<0) return s;
     var result=new StringBuilder("\""); int slashes=0;
     foreach(char c in s) {
       if(c=='\\') { slashes++; continue; }
@@ -102,7 +105,7 @@ public static class VesselRestricted {
     } finally { if(text!=IntPtr.Zero) LocalFree(text); LocalFree(sd); }
   }
   public static Result Run(string command,string[] args,string cwd,string[] roots,string sid,ulong memory,uint timeout) {
-    IntPtr original=IntPtr.Zero,token=IntPtr.Zero,primary=IntPtr.Zero,impersonation=IntPtr.Zero,admin=IntPtr.Zero,restrict=IntPtr.Zero,low=IntPtr.Zero,job=IntPtr.Zero,ro=IntPtr.Zero,wo=IntPtr.Zero,re=IntPtr.Zero,we=IntPtr.Zero;
+    IntPtr original=IntPtr.Zero,token=IntPtr.Zero,primary=IntPtr.Zero,impersonation=IntPtr.Zero,admin=IntPtr.Zero,restrict=IntPtr.Zero,low=IntPtr.Zero,job=IntPtr.Zero,ri=IntPtr.Zero,wi=IntPtr.Zero,ro=IntPtr.Zero,wo=IntPtr.Zero,re=IntPtr.Zero,we=IntPtr.Zero;
     var process=new PROCESS_INFORMATION();
     try {
       // TOKEN_ASSIGN_PRIMARY | TOKEN_DUPLICATE | TOKEN_QUERY | TOKEN_ADJUST_DEFAULT
@@ -123,12 +126,22 @@ public static class VesselRestricted {
       var limits=new EXTENDED_LIMITS(); limits.basic.flags=0x2000|0x100|0x8|0x2; limits.basic.active=64; limits.basic.processTime=(long)timeout*10000; limits.processMemory=new UIntPtr(memory);
       Check(SetInformationJobObject(job,9,ref limits,(uint)Marshal.SizeOf(typeof(EXTENDED_LIMITS))),"SetInformationJobObject");
       var attrs=new SECURITY_ATTRIBUTES{Length=Marshal.SizeOf(typeof(SECURITY_ATTRIBUTES)),Inherit=1};
+      // STARTF_USESTDHANDLES requires valid stdin too. A pipe with no writer supplies EOF.
+      Check(CreatePipe(out ri,out wi,ref attrs,0),"stdin pipe");
+      CloseHandle(wi); wi=IntPtr.Zero;
       Check(CreatePipe(out ro,out wo,ref attrs,0),"stdout pipe"); Check(CreatePipe(out re,out we,ref attrs,0),"stderr pipe");
       Check(SetHandleInformation(ro,1,0),"stdout inheritance"); Check(SetHandleInformation(re,1,0),"stderr inheritance");
-      var startup=new STARTUPINFO{cb=Marshal.SizeOf(typeof(STARTUPINFO)),flags=0x100,output=wo,error=we};
+      var startup=new STARTUPINFO{cb=Marshal.SizeOf(typeof(STARTUPINFO)),flags=0x100,input=ri,output=wo,error=we};
       var argv=new StringBuilder(Quote(command)); foreach(string arg in args) argv.Append(" ").Append(Quote(arg));
-      Check(CreateProcessAsUser(primary,null,argv,IntPtr.Zero,IntPtr.Zero,true,0x4|0x8000000,IntPtr.Zero,cwd,ref startup,out process),"CreateProcessAsUser");
+      // CREATE_SUSPENDED | DETACHED_PROCESS: no console allocation under the restricted token.
+      // Standard output/error use the inherited pipes; Job assignment still precedes execution.
+      Check(CreateProcessAsUser(primary,null,argv,IntPtr.Zero,IntPtr.Zero,true,0x4|0x8,IntPtr.Zero,cwd,ref startup,out process),"CreateProcessAsUser");
       Check(AssignProcessToJobObject(job,process.process),"AssignProcessToJobObject");
+      // whoami cannot run under a restricted token here (it dies in DLL init), so report the child's
+      // own token integrity instead of inferring Low from a helper process.
+      uint childRid=0; IntPtr childToken=IntPtr.Zero;
+      if(OpenProcessToken(process.process,0x8,out childToken)) { try { childRid=IntegrityRid(childToken); } finally { CloseHandle(childToken); } }
+      CloseHandle(ri); ri=IntPtr.Zero;
       CloseHandle(wo); wo=IntPtr.Zero; CloseHandle(we); we=IntPtr.Zero;
       IntPtr outHandle=ro,errHandle=re; ro=re=IntPtr.Zero;
       var stdout=Task.Run(()=>ReadBounded(outHandle)); var stderr=Task.Run(()=>ReadBounded(errHandle));
@@ -138,11 +151,11 @@ public static class VesselRestricted {
       uint code; Check(GetExitCodeProcess(process.process,out code),"GetExitCodeProcess");
       // Close descendants even when the root exits, so inherited stdout handles cannot keep this launcher alive.
       Check(TerminateJobObject(job,code),"TerminateJobObject");
-      return new Result{Stdout=stdout.Result,Stderr=stderr.Result,ExitCode=timedOut?124:(int)code,Enforced=true};
+      return new Result{Stdout=stdout.Result,Stderr=stderr.Result,ExitCode=timedOut?124:(int)code,Enforced=true,ChildIntegrityRid=childRid};
     } finally {
       if(process.process!=IntPtr.Zero) { TerminateProcess(process.process,1); CloseHandle(process.process); }
       if(process.thread!=IntPtr.Zero) CloseHandle(process.thread);
-      foreach(IntPtr h in new[]{job,original,token,primary,impersonation,ro,wo,re,we}) if(h!=IntPtr.Zero) CloseHandle(h);
+      foreach(IntPtr h in new[]{job,original,token,primary,impersonation,ri,wi,ro,wo,re,we}) if(h!=IntPtr.Zero) CloseHandle(h);
       foreach(IntPtr s in new[]{admin,restrict,low}) if(s!=IntPtr.Zero) LocalFree(s);
     }
   }

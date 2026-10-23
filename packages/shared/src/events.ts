@@ -345,6 +345,8 @@ export interface SandboxConstraints {
   /** null means this execution had no native memory cap; absent constraints mean unknown. */
   memoryLimitBytes: number | null;
   privilegeReduction: string;
+  /** Integrity RID of the child token when the platform reports it (4096 = Low, 8192 = Medium). */
+  integrityRid?: number;
 }
 
 export interface SandboxEnforcedRecord extends SessionRecordBase {

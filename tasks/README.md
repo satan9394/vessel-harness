@@ -29,7 +29,7 @@
 | 会话多行输入 (卡 262) | 已修并验证，六项门禁及真实模型IAB通过；待协调者验收 | [262](262-browser-fix-multiline.md) |
 | 真实会话回收失败修复 (卡 261) | 已修并验证，六项门禁及真实模型IAB/OS回收站通过；待协调者验收 | [261](261-browser-fix-delete-recycle.md) |
 | 长输出截断 500 根治与沙箱 Token 权限 (卡 255) | 已实现并通过定向门禁（沙箱启动缺口转卡 256） | [255](255-fix-length-truncation-500-and-sandbox-fallback.md) |
-| Windows 受限沙箱启动链路 (卡 256) | 执行中 | [256](256-windows-sandbox-launch-console.md) |
+| Windows 受限沙箱启动链路 (卡 256) | 已完成，原生验收通过 | [256](256-windows-sandbox-launch-console.md) |
 | apps/web typecheck 门禁修复 (卡 257) | 已实现，门禁全绿 | [257](257-web-typecheck-gate.md) |
 | 消除虚假完成信号 (卡 258) | 已实现，五项定向门禁全绿（待验收） | [258](258-false-completion-signal.md) |
 | 删除的跨阶段一致性 (卡 259) | 已实现，五项定向门禁全绿；待浏览器复验/协调者验收 | [259](259-delete-stage-consistency.md) |
