@@ -1,0 +1,23 @@
+{
+  "id": "R10",
+  "category": "adapter-unavailable",
+  "source": "benchmarks/runners/src/adapters/codex.test.ts",
+  "title": "surface a run-time failure (CLI non-zero exit) as metrics.success=false, still a valid RunResult",
+  "outcome": "passed",
+  "live": false,
+  "assertions": [
+    {
+      "ancestorTitles": [
+        "adapters/codex — error & environment handling"
+      ],
+      "fullName": "adapters/codex — error & environment handling surface a run-time failure (CLI non-zero exit) as metrics.success=false, still a valid RunResult",
+      "status": "passed",
+      "title": "surface a run-time failure (CLI non-zero exit) as metrics.success=false, still a valid RunResult",
+      "duration": 14.374100000000027,
+      "failureMessages": [],
+      "meta": {},
+      "tags": [],
+      "benchmarks": []
+    }
+  ]
+}

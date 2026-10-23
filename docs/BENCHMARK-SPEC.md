@@ -15,6 +15,47 @@
 
 ---
 
+## ARCH-09 可靠性 fixture 闭环（卡 274）
+
+`npm run bench:reliability` 在当前工作树执行 14 个既有确定性测试 fixture；
+它复用根 Vitest 配置与原有断言，不修改 25 个 YAML scenario，也不将旧报告当作本轮证据。
+显式映射唯一事实源为 `benchmarks/runners/src/reliability.ts` 的 `fixtures`；
+每个条目绑定源测试文件和精确测试标题，缺失、重复、跳过、失败均不能算通过。
+
+清点既有 YAML 后，相关但不能替代本轮判据的场景包括：S001 是永久删除拒绝，
+不是软删失败回滚；B019 是正常 MCP 注册/执行，不是未知工具错误；B027 是 handoff
+续跑，不是事件重放去重；B022 是 tier 路由，不是模型能力协商；B025 是中断，不是
+进程崩溃。因此七类直接复用下面的现有测试 fixture，不给旧 YAML 场景虚标覆盖。
+
+| 类别 | Fixture | 判据及隔离边界 |
+|---|---|---|
+| 失败后重试成功 | R01 | 注入 429 后恢复，验证调用次数、最终结果、等待前持久化 retry 记录 |
+| 崩溃 | R02–R05 | 子进程在 intent/effect/outcome 四个边界实际退出 73；重开控制器、人工对账 seam、验证副作用计数不重复 |
+| 软删与部分删除 | R06–R08 | HTTP 删除等待回收完成；回收失败保留可重试；索引回滚失败后的元数据及重试修复（注入回收器） |
+| 真实 adapter 不可用 | R09–R10 | 生产 Codex adapter 的环境缺失与非零退出路径，注入 resolver/command；验证 pending-environment 或 success=false |
+| 未知工具调用 | R11 | 进程内 MCP 传输返回未知工具错误，经真实工具注册表映射为 TOOL_FAILURE |
+| 事件重放 | R12 | 同一会话重复折叠及重建记录对象后，拒绝事件只计一次 |
+| 不同模型能力协商 | R13–R14 | 未知必需能力、上下文大小、模型级声明、stream 拦截；验证不回退模型、不发网络请求 |
+
+本命令仅提供 offline/mock 机制证据，可用于 CI；不会验证真实供应商质量、真实外部 CLI
+可用性、原生系统回收站或所有事件投影/重连路径。崩溃检查运行本仓临时 Node worker，
+不是外部 agent。HTTP fixture 使用临时工作区与系统分配的空闲端口；回收和网络边界由原测试注入。
+`--live` 明确拒绝并退出 1，不能由一个开关意外消耗配额；真实 live 实验必须另行授权、
+使用对应 live runner 并单独记录 `live: true`。本闭环不运行全量 `test:all`。
+
+每次执行新建 `evidence/sessions/task274-reliability-<UTC>-<随机后缀>/`，含：
+
+- `manifest.json`：`head`、Node/npm 版本、开始/结束时间、平台/架构、工作树状态、diff hash、
+  选定测试与 runner/config/lockfile hash、七类成功覆盖 ID、每项 outcome/evidence/reason、`live: false`。
+- `R01.json`–`R14.json`：精确源测试映射与本次 Vitest assertion 结果；`vitest.json` 为完整机器报告，
+  `process.log` 为本次运行输出。路径以仓库根为基准。
+
+退出 0 仅表示 10–20 项全部通过、七类齐全且 Vitest 正常退出；其余退出 1。
+缺类别明确报 `缺少类别 X`，不能用总数代替覆盖。运行期间 HEAD 或已记录文件变化也失败。
+关闭 Vitest 自动 retry，避免掩盖不稳定断言。直接重复上述命令两次，比较 manifest 中
+`fixtures` 的 ID/category/outcome 和 `categories`；时间戳、路径与时长预期不同。
+工作树有改动时 SHA 只标识基线，应结合 dirty 状态及 hash 复核，不能据此声称该提交本身已验收。
+
 ## 0. 摘要
 
 本规范把任务书 §15–§17 的强制要求正式化为可落地执行的定义。核心内容六件事：

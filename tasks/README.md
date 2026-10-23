@@ -12,10 +12,11 @@
 
 ## 怎么读这个目录
 
-最近新增交付：[272](272-arch01-run-outcome-evidence.md) ARCH-01剩余运行结果证据已修并验证；两波12项本地闭环，完整证据在修复报告，待协调者验收。
+最近新增交付：[274](274-arch09-reliability-fixture-loop.md) ARCH-09 离线可靠性 fixture 闭环已交证，待协调者全量门禁与验收。前序 [272](272-arch01-run-outcome-evidence.md) ARCH-01剩余运行结果证据已修并验证；两波12项本地闭环，完整证据在修复报告，待协调者验收。
 
 | 本地交付 | 状态 | 任务卡 |
 |---|---|---|
+| ARCH-09 可靠性 fixture 闭环 (卡 274) | 已交证，待协调者全量门禁与验收 | [274](274-arch09-reliability-fixture-loop.md) |
 | ARCH-01运行结果证据 (卡 272) | 已修并验证，六项门禁及真实Stop冷启动/刷新通过；待协调者验收 | [272](272-arch01-run-outcome-evidence.md) |
 | ARCH-06断线恢复 (卡 271) | 已修并验证，六项门禁及真实运行中30秒断线/刷新/三会话切换通过；待协调者验收 | [271](271-arch06-session-stream-recovery.md) |
 | UI-09工具细节与Stop (卡 270) | 已修并验证，六项门禁及真实模型24工具/滚动/Stop通过；待协调者验收 | [270](270-ui09-tool-details-stop.md) |

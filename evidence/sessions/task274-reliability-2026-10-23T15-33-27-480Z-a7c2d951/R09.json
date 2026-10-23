@@ -1,0 +1,23 @@
+{
+  "id": "R09",
+  "category": "adapter-unavailable",
+  "source": "benchmarks/runners/src/adapters/codex.test.ts",
+  "title": "marks run pending-environment when Codex CLI is absent, without throwing",
+  "outcome": "passed",
+  "live": false,
+  "assertions": [
+    {
+      "ancestorTitles": [
+        "adapters/codex — error & environment handling"
+      ],
+      "fullName": "adapters/codex — error & environment handling marks run pending-environment when Codex CLI is absent, without throwing",
+      "status": "passed",
+      "title": "marks run pending-environment when Codex CLI is absent, without throwing",
+      "duration": 8.869700000000023,
+      "failureMessages": [],
+      "meta": {},
+      "tags": [],
+      "benchmarks": []
+    }
+  ]
+}

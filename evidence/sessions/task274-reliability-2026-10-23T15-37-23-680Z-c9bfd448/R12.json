@@ -1,0 +1,23 @@
+{
+  "id": "R12",
+  "category": "event-replay",
+  "source": "packages/application/src/projections/projections.test.ts",
+  "title": "foldSession is idempotent: folding the same session twice never double-counts",
+  "outcome": "passed",
+  "live": false,
+  "assertions": [
+    {
+      "ancestorTitles": [
+        "EnforcementProjection (task 074 runtime enforcement telemetry)"
+      ],
+      "fullName": "EnforcementProjection (task 074 runtime enforcement telemetry) foldSession is idempotent: folding the same session twice never double-counts",
+      "status": "passed",
+      "title": "foldSession is idempotent: folding the same session twice never double-counts",
+      "duration": 2.597099999999955,
+      "failureMessages": [],
+      "meta": {},
+      "tags": [],
+      "benchmarks": []
+    }
+  ]
+}

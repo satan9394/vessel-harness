@@ -1,0 +1,23 @@
+{
+  "id": "R14",
+  "category": "capability-negotiation",
+  "source": "packages/llm/src/capabilities.test.ts",
+  "title": "blocks stream and model-specific declarations without falling back to another model",
+  "outcome": "passed",
+  "live": false,
+  "assertions": [
+    {
+      "ancestorTitles": [
+        "ARC-08 capability negotiation"
+      ],
+      "fullName": "ARC-08 capability negotiation blocks stream and model-specific declarations without falling back to another model",
+      "status": "passed",
+      "title": "blocks stream and model-specific declarations without falling back to another model",
+      "duration": 2.9579999999999984,
+      "failureMessages": [],
+      "meta": {},
+      "tags": [],
+      "benchmarks": []
+    }
+  ]
+}
