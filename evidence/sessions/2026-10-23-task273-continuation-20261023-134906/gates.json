@@ -1,0 +1,37 @@
+[
+  {
+    "command": "npx vitest run apps/local-server",
+    "seconds": 118.090829,
+    "id": "local-server",
+    "exitCode": 0,
+    "log": "evidence\\sessions\\2026-10-23-task273-continuation-20261023-134906\\local-server.log"
+  },
+  {
+    "command": "npm run test:web",
+    "seconds": 24.0011114,
+    "id": "web-tests",
+    "exitCode": 0,
+    "log": "evidence\\sessions\\2026-10-23-task273-continuation-20261023-134906\\web-tests.log"
+  },
+  {
+    "command": "npm run -w @vessel/web build -- --emptyOutDir false",
+    "seconds": 1.3590943,
+    "id": "web-build",
+    "exitCode": 0,
+    "log": "evidence\\sessions\\2026-10-23-task273-continuation-20261023-134906\\web-build.log"
+  },
+  {
+    "command": "npm run typecheck:tests",
+    "seconds": 3.8102933,
+    "id": "test-types",
+    "exitCode": 0,
+    "log": "evidence\\sessions\\2026-10-23-task273-continuation-20261023-134906\\test-types.log"
+  },
+  {
+    "command": "npm run -w @vessel/web typecheck",
+    "seconds": 2.0129224,
+    "id": "web-types",
+    "exitCode": 0,
+    "log": "evidence\\sessions\\2026-10-23-task273-continuation-20261023-134906\\web-types.log"
+  }
+]

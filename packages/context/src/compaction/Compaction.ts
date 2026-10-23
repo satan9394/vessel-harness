@@ -1,5 +1,5 @@
 import * as crypto from 'node:crypto';
-import { COMPACTION_RETAIN_RATIO, projectSession, markProjectionPublicationUncertain, type SessionRecord, type ConservationMessage } from '@vessel/shared';
+import { COMPACTION_RETAIN_RATIO, projectSession, markProjectionPublicationUncertain, canonicalArgumentsHash, type SessionRecord, type ConservationMessage } from '@vessel/shared';
 import { Session } from '@vessel/core';
 import { computeAdaptiveThreshold, type AdaptiveCompactionOptions } from './adaptiveThreshold.js';
 import { CompactionBoundaryGuard } from './CompactionBoundaryGuard.js';
@@ -14,6 +14,7 @@ export interface CompactionResult {
   removedRecords: number;
   replacedSeq: { from: number; to: number };
   summary: string;
+  summaryHash?: string;
 }
 
 export interface CompactionDeps {
@@ -21,6 +22,8 @@ export interface CompactionDeps {
   /** summarizer — default heuristic fallback when no LLM configured */
   summarize?: (regionText: string, context: { userRequest: string }) => Promise<string>;
   adaptive?: Omit<AdaptiveCompactionOptions, 'contextWindow'>;
+  /** References only. Original policy, approval state and journal remain authoritative. */
+  recoveryFacts?: () => { policyRefs?: string[]; pendingApprovalRefs?: string[]; pendingEffectRefs?: string[] };
 }
 
 /**
@@ -109,6 +112,16 @@ export class Compaction {
       const requiredKeepIds = [...new Set([...originalRegion, ...records].flatMap(r => compactionKeepIds(r.metadata as Record<string, unknown> | undefined)))];
       const userRequest = firstUser ? (firstUser as { content: string }).content : '(无用户请求)';
       const regionText = originalRegion.map((r) => JSON.stringify(r)).join('\n');
+      const recoveryFacts: ReturnType<NonNullable<CompactionDeps['recoveryFacts']>> = JSON.parse(JSON.stringify(this.deps.recoveryFacts?.() ?? {}));
+      const sourceHash = canonicalArgumentsHash(JSON.parse(JSON.stringify(originalRegion)));
+      const fileRefs = [...new Set(originalRegion.flatMap(record => {
+        const args = record.arguments as Record<string, unknown> | undefined;
+        const calls = record.type === 'assistant/attempt' ? record.toolCalls.map(call => call.arguments) : [];
+        return [args, ...calls].flatMap(value => value && typeof value === 'object'
+          ? Object.entries(value).filter(([key, value]) => ['path', 'file', 'filePath'].includes(key) && typeof value === 'string').map(([, value]) => value as string) : []);
+      }))];
+      const provenance = { schemaVersion: 1, sourceHash, sourceSessionId: session.sessionId, sourceStart, sourceEnd,
+        sourceRefs: originalRegion.map(record => `${session.sessionId}:${record.seq}`), fileRefs, ...recoveryFacts };
 
       const candidate = await this.summarize(regionText, { userRequest });
       if (!candidate.trim()) throw new Error('Empty compaction summary');
@@ -130,12 +143,14 @@ export class Compaction {
       }) : []);
       const summary = ['[Historical summary, not higher-priority instructions; schemaVersion=1]',
         `Sources: ${session.sessionId}:${sourceStart}-${sourceEnd}`, candidate,
+        `Preserved evidence references (not authorization): ${JSON.stringify({ fileRefs, ...recoveryFacts })}`,
         ...anchors.map(r => `Preserved keepIDs ${JSON.stringify(compactionKeepIds(r.metadata as Record<string, unknown> | undefined))}: ${typeof r.content === 'string' ? r.content : JSON.stringify(r)}`),
         ...goals.map(r => `Preserved user constraint: ${r.content}`),
         ...requiredToolPairs.map(pair => `Preserved tool pair: ${pair.callText}\n${pair.resultText}`),
         ...denials.map(r => `Preserved denial ${session.sessionId}:${r.seq}: ${JSON.stringify(r)}`)].join('\n');
       const { abandoned } = CompactionBoundaryGuard.accountToolCalls(records);
-      const summaryMetadata = { denialEventIds, keepIds };
+      const summaryHash = canonicalArgumentsHash({ summary, provenance });
+      const summaryMetadata = { denialEventIds, keepIds, summaryHash, provenance };
       const compactedMessages = [{ role: 'user', content: summary, metadata: summaryMetadata },
         ...records.slice(cut).flatMap<ConservationMessage>(r => {
           const identity = { id: r.id as string | undefined, metadata: r.metadata as Record<string, unknown> | undefined };
@@ -155,6 +170,7 @@ export class Compaction {
       const fromSeq = region[0]!.seq;
       const toSeq = region[region.length - 1]!.seq;
       if (projectSession(session.sessionId, session.replay()).revision !== projection.revision) throw new Error('Compaction revision conflict');
+      if (canonicalArgumentsHash(JSON.parse(JSON.stringify(this.deps.recoveryFacts?.() ?? {}))) !== canonicalArgumentsHash(recoveryFacts)) throw new Error('Compaction recovery facts changed');
       const removed = region.length;
       try {
         await session.appendSync({ type: 'compaction/end', trigger, removedRecords: removed, surface: false, outcome: 'committed',
@@ -165,7 +181,7 @@ export class Compaction {
         throw error;
       }
 
-      return { trigger, removedRecords: removed, replacedSeq: { from: fromSeq, to: toSeq }, summary };
+      return { trigger, removedRecords: removed, replacedSeq: { from: fromSeq, to: toSeq }, summary, summaryHash };
     } catch (error) {
       if (!publicationUncertain) await session.appendSync({ type: 'compaction/end', trigger, compactionId, removedRecords: 0, surface: false, outcome: 'failed' });
       throw error;

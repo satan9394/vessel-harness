@@ -1,0 +1,30 @@
+﻿[
+    {
+        "exitCode":  0,
+        "command":  "npx tsc -b tsconfig.json",
+        "name":  "tsc",
+        "seconds":  2.5160397,
+        "log":  "evidence/sessions/2026-10-23-task273-tsc.log"
+    },
+    {
+        "exitCode":  0,
+        "command":  "npm run typecheck:tests",
+        "name":  "tests-typecheck",
+        "seconds":  4.4561817,
+        "log":  "evidence/sessions/2026-10-23-task273-tests-typecheck.log"
+    },
+    {
+        "exitCode":  0,
+        "command":  "npm run -w @vessel/web typecheck",
+        "name":  "web-typecheck",
+        "seconds":  3.4461383999999997,
+        "log":  "evidence/sessions/2026-10-23-task273-web-typecheck.log"
+    },
+    {
+        "exitCode":  1,
+        "command":  "npx vitest run apps/local-server",
+        "name":  "local-server",
+        "seconds":  116.9226477,
+        "log":  "evidence/sessions/2026-10-23-task273-local-server.log"
+    }
+]
