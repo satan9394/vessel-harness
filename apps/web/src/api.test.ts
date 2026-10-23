@@ -32,7 +32,7 @@ afterEach(() => {
 });
 
 describe('createApiClient', () => {
-  it.each(['session_index_failed', 'session_recycle_failed', 'session_index_stale', 'session_busy', 'session_deleting', 'unknown'])(
+  it.each(['session_index_failed', 'session_recycle_failed', 'session_controller_close_failed', 'session_index_stale', 'session_busy', 'session_deleting', 'unknown'])(
     'preserves deletion diagnostics and maps %s to bilingual copy', async error => {
       const body = { error, id: 'fixture', stage: 'rollback' };
       vi.stubGlobal('fetch', vi.fn().mockResolvedValue(jsonResponse(500, body)));
@@ -41,6 +41,7 @@ describe('createApiClient', () => {
       expect(caught).toBeInstanceOf(ApiError);
       expect((caught as ApiError).body).toEqual(body);
       const key = sessionDeleteMessage(caught);
+      if (error === 'session_controller_close_failed') expect(key).toBe('sessionDeleteCloseFailed');
       expect(translate('en')(key)).not.toBe(key);
       expect(translate('zh')(key)).not.toBe(translate('en')(key));
     },

@@ -1,0 +1,83 @@
+
+ RUN  v5.0.1 E:/Code_file/Projects/Vessel_Harness
+
+(node:12860) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:28436) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+ ❯ apps/local-server/src/server.test.ts (45 tests | 3 failed) 24552ms
+   ❯ local server HTTP API + SSE (31)
+     × reports recycling failure and retains the session for a successful retry 131ms
+     × reports stale index on failed recycle rollback, retains metadata and repairs on retry 111ms
+     × restores the session without recycling when controller close fails 123ms
+(node:26976) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 3 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  apps/local-server/src/server.test.ts > local server HTTP API + SSE > reports recycling failure and retains the session for a successful retry
+AssertionError: expected 404 to be 200 // Object.is equality
+
+- Expected
++ Received
+
+- 200
++ 404
+
+ ❯ apps/local-server/src/server.test.ts:383:72
+    381|     const listing = await fetch(`${base}/api/sessions`).then(response …
+    382|     expect(listing.sessions.some(item => item.id === session.id)).toBe…
+    383|     expect((await fetch(`${base}/api/sessions/${session.id}`)).status)…
+       |                                                                        ^
+    384|     expect(new SessionRegistry({ vesselHome: home }).get(session.id)).…
+    385|     const resumed = await fetch(`${base}/api/sessions/${session.id}/tu…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/3]⎯
+
+ FAIL  apps/local-server/src/server.test.ts > local server HTTP API + SSE > reports stale index on failed recycle rollback, retains metadata and repairs on retry
+AssertionError: expected "close" to not be called at all, but actually been called 1 times
+
+Received:
+
+  1st close call:
+
+    Array []
+
+
+Number of calls: 1
+
+ ❯ apps/local-server/src/server.test.ts:432:23
+    430|     expect(sessionRegistry.get(session.id)).toEqual(previous);
+    431|     expect(new SessionRegistry({ vesselHome: home }).get(session.id)).…
+    432|     expect(close).not.toHaveBeenCalled();
+       |                       ^
+    433|     expect(fs.existsSync(path.join(ws, '.harness', 'sessions', session…
+    434|     expect((await fetch(`${base}/api/sessions/${session.id}`, { method…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/3]⎯
+
+ FAIL  apps/local-server/src/server.test.ts > local server HTTP API + SSE > restores the session without recycling when controller close fails
+AssertionError: expected 404 to be 200 // Object.is equality
+
+- Expected
++ Received
+
+- 200
++ 404
+
+ ❯ apps/local-server/src/server.test.ts:453:72
+    451|     expect(recyclePath).not.toHaveBeenCalled();
+    452|     expect(new SessionRegistry({ vesselHome: home }).get(session.id)).…
+    453|     expect((await fetch(`${base}/api/sessions/${session.id}`)).status)…
+       |                                                                        ^
+    454|     expect((await fetch(`${base}/api/sessions/${session.id}`, { method…
+    455|   });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/3]⎯
+
+
+ Test Files  1 failed | 2 passed (3)
+      Tests  3 failed | 51 passed (54)
+   Start at  07:01:51
+   Duration  45.08s (tests 67%, transform 19%, import 13%)
+

@@ -16,6 +16,16 @@ function render(delta: Partial<ToolDelta> = {}): string {
 beforeEach(() => { language.current = 'en'; });
 
 describe('ToolActivityRow', () => {
+  it('folds tool parameters by default while showing failure reasons outside the disclosure', () => {
+    const ok = render({ argsSummary: 'read fixture' });
+    expect(ok).toContain('<details class="tool-details"><summary>Tool details</summary>');
+    expect(ok).not.toContain('<details open');
+    for (const status of ['error', 'denied'] as const) {
+      const html = render({ status, argsSummary: 'fixture args', errorDetail: 'fixture denied' });
+      expect(html).toContain('role="alert"');
+      expect(html).toMatch(/<\/details>.*fixture denied/s);
+    }
+  });
   it('renders the name, localized status, duration and full argument title', () => {
     const html = render({ durationMs: 42, argsSummary: 'apps/web/src/styles.css' });
     expect(html).toContain('<span class="tool-name">read_file</span>');

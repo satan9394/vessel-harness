@@ -46,6 +46,8 @@
 .status-badge.status-needs_attention { color: var(--warn); background: var(--warn-soft); }
 .status-badge.status-failed { color: var(--danger); background: var(--danger-soft); }
 .status-badge.status-unknown { color: var(--dim); background: var(--panel-3); }
+.status-badge.status-interrupted,
+.status-badge.status-cancelled { color: var(--dim); background: var(--panel-3); }
 
 .card222-detail {
   margin-top: 0.6rem;
@@ -75,6 +77,13 @@
   word-break: break-word;
   font-size: 0.78rem;
 }
+
+.effective-policy-view { overflow-wrap: anywhere; min-width: 0; }
+.effective-policy-view details { margin-block: 0.5rem; }
+.effective-policy-view summary { cursor: pointer; }
+.effective-policy-view dt { color: var(--dim); margin-top: 0.5rem; }
+.effective-policy-view dd { margin-left: 0; }
+.policy-unenforced { border-left: 2px solid var(--warn); padding-left: 1.2rem; }
 
 @media (max-width: 800px) {
   .composer-grid { grid-template-columns: 1fr; }

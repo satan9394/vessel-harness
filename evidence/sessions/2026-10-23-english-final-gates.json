@@ -1,0 +1,32 @@
+[
+  {
+    "log": "evidence/sessions/2026-10-23-english-final-tsc.log",
+    "exit": 0,
+    "name": "tsc"
+  },
+  {
+    "log": "evidence/sessions/2026-10-23-english-final-test-types.log",
+    "exit": 0,
+    "name": "test-types"
+  },
+  {
+    "log": "evidence/sessions/2026-10-23-english-final-web-types.log",
+    "exit": 0,
+    "name": "web-types"
+  },
+  {
+    "log": "evidence/sessions/2026-10-23-english-final-server.log",
+    "exit": 0,
+    "name": "server"
+  },
+  {
+    "log": "evidence/sessions/2026-10-23-english-final-web.log",
+    "exit": 0,
+    "name": "web"
+  },
+  {
+    "log": "evidence/sessions/2026-10-23-english-final-web-build.log",
+    "exit": 0,
+    "name": "web-build"
+  }
+]

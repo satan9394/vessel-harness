@@ -1,7 +1,7 @@
 import * as crypto from 'node:crypto';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
-import type { PolicyArtifacts, PolicyDeclaration, ProfileMode } from '@vessel/shared';
+import type { PolicyArtifacts, PolicyDeclaration, PolicySource, ProfileMode } from '@vessel/shared';
 import { compilePolicy, compilePolicyYaml, parsePolicyYaml } from './Compiler.js';
 
 export interface PolicyLoadOptions {
@@ -18,13 +18,13 @@ export interface PolicyLoadOptions {
  */
 export function loadPolicyArtifacts(opts: PolicyLoadOptions = {}): PolicyArtifacts {
   const decls: PolicyDeclaration[] = [];
-
-  if (opts.systemPath && fs.existsSync(opts.systemPath)) {
-    decls.push(parsePolicyYaml(fs.readFileSync(opts.systemPath, 'utf8')));
-  }
-  if (opts.projectPath && fs.existsSync(opts.projectPath)) {
-    // workspace trust gate: project policy is honored only for trusted workspaces
-    decls.push(parsePolicyYaml(fs.readFileSync(opts.projectPath, 'utf8')));
+  const sources: PolicySource[] = [];
+  // The project path is supplied only after the existing workspace trust gate.
+  for (const [kind, ref] of [['system', opts.systemPath], ['project', opts.projectPath]] as const) {
+    if (!ref || !fs.existsSync(ref)) continue;
+    const bytes = fs.readFileSync(ref);
+    decls.push(parsePolicyYaml(bytes.toString('utf8')));
+    sources.push({ kind, ref, hash: crypto.createHash('sha256').update(bytes).digest('hex') });
   }
 
   if (decls.length === 0) {
@@ -38,7 +38,10 @@ export function loadPolicyArtifacts(opts: PolicyLoadOptions = {}): PolicyArtifac
   if (opts.sessionOverrides?.approval) merged.approval = opts.sessionOverrides.approval;
   if (opts.sessionOverrides?.profile) merged.profile = opts.sessionOverrides.profile;
 
-  return compilePolicy(merged);
+  if (opts.sessionOverrides?.approval || opts.sessionOverrides?.profile) {
+    sources.push({ kind: 'session', ref: 'session overrides', overrides: { ...opts.sessionOverrides } });
+  }
+  return { ...compilePolicy(merged), sources };
 }
 
 /** 策略层次名（POLICY-SPEC §3.5：`system > project`；session 覆盖见 `PolicyLoadOptions`）。 */

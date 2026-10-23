@@ -61,6 +61,26 @@ beforeEach(() => {
 afterEach(() => { hooks.cleanups.forEach(cleanup => cleanup?.()); hooks.values = []; hooks.effects = []; hooks.cleanups = []; vi.unstubAllGlobals(); vi.clearAllMocks(); });
 
 describe('provider settings', () => {
+  it('selects the built-in Mock preset without credential fields or registration', async () => {
+    render(); await settle();
+    const mock = PROVIDER_PRESETS_CATALOG.find(preset => preset.id === 'mock');
+    expect(mock).toBeDefined();
+    const gallery = render().find(node => node.type === PresetsGallery)!;
+    (gallery.props.onSelect as (preset: typeof PROVIDER_PRESETS_CATALOG[number]) => void)(mock!);
+    const tree = render();
+    expect(tree.find(node => node.props.id === 'provider-preset')!.props.value).toBe('mock');
+    expect(tree.find(node => node.type === PresetsGallery)!.props.selectedId).toBe('mock');
+    expect(tree.some(node => node.props.id === 'provider-key')).toBe(false);
+    expect(tree.some(node => node.props.id === 'provider-url')).toBe(false);
+    expect(tree.some(node => node.props.children === 'Built-in offline model. Select mock / mock in the task model picker. No endpoint or API key is needed.')).toBe(true);
+    invoke(tree.find(node => node.type === 'form')!, 'onSubmit', { preventDefault() {} }); await settle();
+    expect(api.addProvider).not.toHaveBeenCalled(); expect(api.testProvider).not.toHaveBeenCalled();
+    change('preset', 'OpenAI');
+    const protocol = render().find(node => node.props.id === 'provider-protocol')!;
+    expect(protocol.props.value).toBe('openai-compatible');
+    expect(nodes(protocol.props.children as ReactNode).filter(node => node.type === 'option').map(node => node.props.value)).toEqual(['openai-compatible', 'anthropic']);
+  });
+
   it('prefills the form from a gallery card and persists the chip default first', async () => {
     render(); await settle();
     const gallery = render().find(node => node.type === PresetsGallery)!;

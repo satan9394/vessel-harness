@@ -1,0 +1,56 @@
+{
+  "model": "deepseek/deepseek-v4.1-flash",
+  "toolCalls": 24,
+  "provider": "commandgota-real",
+  "toolFailureLines": [
+    {
+      "line": 82,
+      "message": "read failed: ENOENT: no such file or directory, stat 'C:\\Users\\SATANC~1\\AppData\\Local\\Temp\\vessel-fix-delete-0344b788\\ui09\\missing.txt'",
+      "errorClass": "TOOL_FAILURE"
+    }
+  ],
+  "sessionId": "sess_1792696634029_23f3e3c8",
+  "terminalLines": [
+    {
+      "line": 90,
+      "toolCalls": 22,
+      "kind": "success"
+    },
+    {
+      "line": 113,
+      "toolCalls": 1,
+      "kind": "success"
+    },
+    {
+      "line": 136,
+      "toolCalls": 1,
+      "kind": "success"
+    },
+    {
+      "line": 147,
+      "toolCalls": 0,
+      "kind": "interrupted"
+    }
+  ],
+  "numberedFilesCorrect": 21,
+  "requestHeaderRecords": 8,
+  "completedModelUsageRecords": 7,
+  "scrollEvidence": {
+    "afterHeight": {
+      "clientHeight": 158,
+      "scrollHeight": 2623
+    },
+    "beforeHeight": {
+      "clientHeight": 2217,
+      "scrollHeight": 2217
+    },
+    "refreshDetailsOpen": 0,
+    "refreshTools": 24,
+    "historyScrollTopAfter": 71.43701934814453,
+    "toolOnlyMessages": 0,
+    "composerOverlap": false,
+    "backToBottomFinalDistance": -0.286865234375,
+    "historyScrollTopBefore": 71.43701934814453,
+    "refreshErrors": 1
+  }
+}

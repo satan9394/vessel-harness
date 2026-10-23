@@ -1,0 +1,27 @@
+{
+  "provider": "commandgota-real",
+  "sessionId": "sess_1792694672837_c9697e87",
+  "containsB": 0,
+  "model": "deepseek/deepseek-v4.1-flash",
+  "events": [
+    {
+      "line": 5,
+      "type": "user/message",
+      "kind": null,
+      "content": "Reply exactly DRAFT_A_OK."
+    },
+    {
+      "line": 9,
+      "type": "assistant/message",
+      "kind": null,
+      "content": "DRAFT_A_OK"
+    },
+    {
+      "line": 12,
+      "type": "turn/end",
+      "kind": "success",
+      "content": null
+    }
+  ],
+  "userMessages": 1
+}

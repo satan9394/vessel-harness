@@ -6,7 +6,7 @@
 
 export type ActivityKind = 'session' | 'team' | 'subagent' | 'goal';
 export type RunOutcomeStatus = 'queued' | 'running' | 'waiting_approval' | 'completed' | 'failed' | 'interrupted' | 'cancelled' | 'unknown';
-export type ActivityStatus = 'needs_attention' | 'running' | 'completed' | 'failed' | 'unknown';
+export type ActivityStatus = 'needs_attention' | 'running' | 'completed' | 'failed' | 'interrupted' | 'cancelled' | 'unknown';
 
 export interface ActivityRun {
   id: string;
@@ -24,6 +24,10 @@ export interface ActivityRun {
   /** canonical observed outcome (ARCH-01) */
   outcome?: RunOutcomeStatus;
   statusSource?: 'live' | 'event_log' | 'approval_queue' | 'inferred';
+  runId?: string;
+  observedAt?: number;
+  revision?: number;
+  reasonCode?: string;
 }
 
 export interface ActivityApprovalOption { id: string; label: string; tone: string }
@@ -38,6 +42,10 @@ export interface ActivityApproval {
 }
 
 export interface ActivitySessionSource {
+  runId?: string;
+  observedAt?: number;
+  revision?: number;
+  reasonCode?: string;
   id: string;
   workspaceRoot: string;
   createdAt?: string;
@@ -49,6 +57,10 @@ export interface ActivitySessionSource {
 }
 
 export interface ActivityLiveState {
+  runId?: string;
+  observedAt?: number;
+  revision?: number;
+  reasonCode?: string;
   turnActive: boolean;
   lastRunStatus?: RunOutcomeStatus;
   errorDetail?: string;
@@ -97,8 +109,15 @@ const STATUS_ORDER: Record<ActivityStatus, number> = {
   failed: 1,
   running: 2,
   unknown: 3,
-  completed: 4,
+  interrupted: 4,
+  cancelled: 5,
+  completed: 6,
 };
+
+function sessionStatus(outcome: RunOutcomeStatus): ActivityStatus {
+  return outcome === 'failed' || outcome === 'interrupted' || outcome === 'cancelled' || outcome === 'completed'
+    ? outcome : 'unknown';
+}
 
 function time(value: string | number | undefined): number {
   if (typeof value === 'number') return value;
@@ -136,19 +155,11 @@ export class ActivityRoutes {
         statusSource = 'live';
       } else if (live?.lastRunStatus) {
         outcome = live.lastRunStatus;
-        status = outcome === 'failed' || outcome === 'interrupted' || outcome === 'cancelled'
-          ? 'failed'
-          : outcome === 'completed'
-            ? 'completed'
-            : 'unknown';
+        status = sessionStatus(outcome);
         statusSource = 'live';
       } else if (session.lastRunStatus) {
         outcome = session.lastRunStatus;
-        status = outcome === 'failed' || outcome === 'interrupted' || outcome === 'cancelled'
-          ? 'failed'
-          : outcome === 'completed'
-            ? 'completed'
-            : 'unknown';
+        status = sessionStatus(outcome);
         statusSource = 'event_log';
       } else if (session.recordCount === 0 || live?.recordCount === 0) {
         // 空会话，从未执行任何有效 Turn，归为 unknown / queued，绝不冒充 completed
@@ -170,6 +181,10 @@ export class ActivityRoutes {
         status,
         outcome,
         statusSource,
+        runId: live?.runId ?? session.runId,
+        observedAt: live?.observedAt ?? session.observedAt ?? Date.now(),
+        revision: live?.revision ?? session.revision,
+        reasonCode: approval ? 'approval_pending' : live?.turnActive ? 'turn_active' : live?.reasonCode ?? session.reasonCode,
         detail: live?.errorDetail ?? session.errorDetail,
         needsApproval: Boolean(approval),
         approval,
@@ -183,12 +198,12 @@ export class ActivityRoutes {
       let outcome: RunOutcomeStatus = 'unknown';
       if (stage.status === 'staged') { status = 'needs_attention'; outcome = 'waiting_approval'; }
       else if (stage.status === 'approved') { outcome = 'queued'; }
-      else if (stage.status === 'rejected') { status = 'failed'; outcome = 'cancelled'; }
+      else if (stage.status === 'rejected') { status = 'cancelled'; outcome = 'cancelled'; }
       else if (stage.status === 'running') { status = 'running'; outcome = 'running'; }
       else if (stage.status === 'finished') {
         const tasks = stage.tasks ?? [];
         if (tasks.some(task => task.status === 'failed')) { status = 'failed'; outcome = 'failed'; }
-        else if (tasks.some(task => task.status === 'cancelled')) { status = 'failed'; outcome = 'cancelled'; }
+        else if (tasks.some(task => task.status === 'cancelled')) { status = 'cancelled'; outcome = 'cancelled'; }
         // A finished scheduler alone proves no success; require every task to succeed.
         else if (tasks.length > 0 && tasks.every(task => task.status === 'completed')) { status = 'completed'; outcome = 'completed'; }
       }
@@ -196,13 +211,13 @@ export class ActivityRoutes {
     }
 
     for (const subagent of subagents) {
-      const status: ActivityStatus = subagent.status === 'running' ? 'running' : subagent.status === 'failed' || subagent.status === 'cancelled' ? 'failed' : subagent.status === 'completed' ? 'completed' : 'unknown';
+      const status: ActivityStatus = subagent.status === 'running' || subagent.status === 'failed' || subagent.status === 'cancelled' || subagent.status === 'completed' ? subagent.status : 'unknown';
       const outcome: RunOutcomeStatus = subagent.status === 'idle' ? 'queued' : subagent.status === 'running' || subagent.status === 'completed' || subagent.status === 'failed' || subagent.status === 'cancelled' ? subagent.status : 'unknown';
       runs.push({ id: subagent.id, kind: 'subagent', projectRoot: subagent.worktreePath ?? root, title: subagent.name, status, outcome, statusSource: 'inferred', needsApproval: false, updatedAt: time(subagent.endedAt ?? subagent.startedAt) });
     }
 
     for (const task of this.sources.goalTasks()) {
-      const status: ActivityStatus = task.status === 'paused' ? 'needs_attention' : task.status === 'met' ? 'completed' : task.status === 'not_met' || task.status === 'cancelled' ? 'failed' : task.status === 'in-progress' ? 'running' : 'unknown';
+      const status: ActivityStatus = task.status === 'paused' ? 'needs_attention' : task.status === 'met' ? 'completed' : task.status === 'not_met' ? 'failed' : task.status === 'cancelled' ? 'cancelled' : task.status === 'in-progress' ? 'running' : 'unknown';
       runs.push({ id: task.id, kind: 'goal', projectRoot: task.projectRoot, title: task.goal, status, needsApproval: false, updatedAt: time(task.updatedAt ?? task.createdAt) });
     }
 

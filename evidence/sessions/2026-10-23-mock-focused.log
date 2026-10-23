@@ -1,0 +1,58 @@
+
+ RUN  v5.0.1 E:/Code_file/Projects/Vessel_Harness/apps/web
+
+ ❯ src/components/providers/ModelQuickSwitcher.test.tsx (5 tests | 2 failed) 21ms
+   ❯ ModelQuickSwitcher (5)
+     × toggles the panel, groups providers, and filters models 11ms
+     × wraps ArrowUp and dismisses with Escape without submitting or selecting 3ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/components/providers/ModelQuickSwitcher.test.tsx > ModelQuickSwitcher > toggles the panel, groups providers, and filters models
+AssertionError: expected [ 'switcher-item-0', …(3) ] to deeply equal [ 'switcher-item-0', …(2) ]
+
+- Expected
++ Received
+
+  [
+    "switcher-item-0",
+    "switcher-item-1",
+    "switcher-item-2",
++   "switcher-item-3",
+  ]
+
+ ❯ src/components/providers/ModelQuickSwitcher.test.tsx:49:92
+     47|   it('toggles the panel, groups providers, and filters models', () => {
+     48|     expect(render().some(node => node.props.role === 'dialog')).toBe(f…
+     49|     expect(open().filter(node => node.props.role === 'option').map(nod…
+       |                                                                                            ^
+     50|     invoke(render().find(node => node.type === 'input')!, 'onChange', …
+     51|     expect(render().filter(node => node.props.role === 'option')).toHa…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯
+
+ FAIL  src/components/providers/ModelQuickSwitcher.test.tsx > ModelQuickSwitcher > wraps ArrowUp and dismisses with Escape without submitting or selecting
+AssertionError: expected 'switcher-item-3' to be 'switcher-item-2' // Object.is equality
+
+Expected: "switcher-item-2"
+Received: "switcher-item-3"
+
+ ❯ src/components/providers/ModelQuickSwitcher.test.tsx:68:90
+     66|     open();
+     67|     invoke(render()[0]!, 'onKeyDown', { key: 'ArrowUp', nativeEvent: {…
+     68|     expect(render().find(node => node.type === 'input')!.props['aria-a…
+       |                                                                                          ^
+     69|     invoke(render()[0]!, 'onKeyDown', { key: 'Escape', nativeEvent: {}…
+     70|     expect(render().some(node => node.props.role === 'dialog')).toBe(f…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/2]⎯
+
+
+ Test Files  1 failed | 3 passed (4)
+      Tests  2 failed | 39 passed (41)
+   Start at  08:43:06
+   Duration  2.43s (tests 61%, import 20%, transform 18%, worker 1%)
+
+    Isolate  4 workers spawned · ~150ms startup each (spawn + environment, per file)
+             at least ~449ms faster with isolate: false — reuses workers across files instead of one per file
+

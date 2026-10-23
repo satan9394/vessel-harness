@@ -70,6 +70,9 @@ export class WidgetRoutes {
     return { status: 200, body: { success: true } };
   }
 
+  /** Current observer state, including terminal decisions; never replay a resolved request as pending. */
+  snapshot(sessionId: string): WidgetBlock[] { return structuredClone([...(this.blocks.get(sessionId)?.values() ?? [])]); }
+
   /** Pending permission decisions — read side for the Activity approval queue (UI-013). */
   pendingApprovals(sessionId?: string): { sessionId: string; widgetId: string; actionType: PermissionActionWidget['payload']['actionType']; description: string; requestedAt: string; options: PermissionActionWidget['payload']['options'] }[] {
     const result: { sessionId: string; widgetId: string; actionType: PermissionActionWidget['payload']['actionType']; description: string; requestedAt: string; options: PermissionActionWidget['payload']['options'] }[] = [];

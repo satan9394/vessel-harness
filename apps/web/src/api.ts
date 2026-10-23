@@ -8,7 +8,7 @@
  */
 
 // Team/route/review wire shapes (task 060) — see ./team for the full mirrors.
-import type { BehaviorInspection, ProviderCapabilities } from '@vessel/shared';
+import type { BehaviorInspection, EffectivePolicyInspection, ProviderCapabilities } from '@vessel/shared';
 import type { ReviewRecord, RouteMode, RouteState, TeamRunState } from './team';
 // Goal/Loop wire shapes (task 065) — see ./goal for the full mirrors.
 import type { GoalBudget, GoalIteration, GoalRunResult, GoalTask } from './goal';
@@ -111,6 +111,7 @@ export function sessionDeleteMessage(error: unknown): import('./i18n').MessageKe
   switch (body?.error) {
     case 'session_index_failed': return 'sessionDeleteIndexFailed';
     case 'session_recycle_failed': return 'sessionDeleteRecycleFailed';
+    case 'session_controller_close_failed': return 'sessionDeleteCloseFailed';
     case 'session_index_stale': return 'sessionDeleteIndexStale';
     case 'session_busy': case 'session_deleting': return 'sessionDeleteBusy';
     default: return 'sessionDeleteFailed';
@@ -339,6 +340,9 @@ export function createApiClient(opts: ApiOptions = {}) {
     },
     async inspectBehavior(sessionId: string): Promise<{ sessionId: string; inspection: BehaviorInspection }> {
       return request('/behavior/inspect?sessionId=' + encodeURIComponent(sessionId));
+    },
+    async effectivePolicy(sessionId: string): Promise<{ sessionId: string; policy: EffectivePolicyInspection }> {
+      return request('/sessions/' + encodeURIComponent(sessionId) + '/policy');
     },
     async cognitiveRules(): Promise<RulesSnapshot> {
       return request('/memory/rules');

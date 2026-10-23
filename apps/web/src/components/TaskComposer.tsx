@@ -3,7 +3,10 @@ import type { ApiClient, CreateSessionInput, ModelOption, Project, SessionMeta }
 import { useI18n } from './LanguageProvider';
 import { modelKey } from './NewSessionForm';
 import { ModelQuickSwitcher } from './providers/ModelQuickSwitcher';
-import { PROVIDER_PRESETS_CATALOG } from './providers/presetsData';
+import { localizePreset, PROVIDER_PRESETS_CATALOG } from './providers/presetsData';
+
+// Page-local drafts survive navigation without writing task text to disk.
+const draftsByClient = new WeakMap<ApiClient, Map<string, string>>();
 
 export function projectName(root: string): string { return root.split(/[\\/]/).filter(Boolean).at(-1) || root; }
 export function readableSessionTitle(session: SessionMeta, fallback: string): string {
@@ -29,8 +32,17 @@ export default function TaskComposer({ api, projects, selectedRoot, onSelectProj
   draftRequest?: { text: string; serial: number };
   onStarted: (session: SessionMeta, task: string) => void;
 }) {
-  const { t } = useI18n();
-  const [task, setTask] = useState('');
+  const { t, lang } = useI18n();
+  const [path, setPath] = useState('');
+  const root = selectedRoot || path.trim();
+  const [drafts, setDrafts] = useState(() => new Map(draftsByClient.get(api)));
+  const task = drafts.get(root) ?? '';
+  function setTask(text: string) {
+    const next = new Map(drafts);
+    next.set(root, text);
+    draftsByClient.set(api, next);
+    setDrafts(next);
+  }
   const taskInput = useRef<HTMLTextAreaElement>(null);
   const isComposingRef = useRef(false);
   useEffect(() => {
@@ -38,7 +50,6 @@ export default function TaskComposer({ api, projects, selectedRoot, onSelectProj
     setTask(draftRequest.text);
     taskInput.current?.focus();
   }, [draftRequest]);
-  const [path, setPath] = useState('');
   const [models, setModels] = useState<ModelOption[]>([]);
   const [selection, setSelection] = useState('');
   const [permission, setPermission] = useState<NonNullable<CreateSessionInput['permission']>>('workspace-write');
@@ -51,13 +62,13 @@ export default function TaskComposer({ api, projects, selectedRoot, onSelectProj
     let live = true; setLoading(true); setFailed(false);
     void api.listModels().then(({ models: catalog }) => {
       if (!live) return;
-      const real = catalog.filter(model => model.providerName !== 'mock'); setModels(real);
-      setSelection(previous => previous || (real[0] ? modelKey(real[0]) : ''));
+      setModels(catalog);
+      const preferred = catalog.find(model => model.providerName !== 'mock') ?? catalog[0];
+      setSelection(previous => previous || (preferred ? modelKey(preferred) : ''));
     }).catch(() => { if (live) setFailed(true); }).finally(() => { if (live) setLoading(false); });
     return () => { live = false; };
   }, [api, providerRevision, retry]);
   const selectedModel = models.find(model => modelKey(model) === selection);
-  const root = selectedRoot || path.trim();
   const unavailable = Boolean(selection && !models.some(model => modelKey(model) === selection));
   async function submit(event: React.FormEvent) {
     event.preventDefault(); if (isComposingRef.current || !root || !task.trim() || busy || loading || failed || unavailable || disabled) return;
@@ -65,6 +76,7 @@ export default function TaskComposer({ api, projects, selectedRoot, onSelectProj
     try {
       const model = models.find(item => modelKey(item) === selection);
       const session = await createTaskSession(api, { workspaceRoot: root, permission, ...(model ? { provider: model.providerName, model: model.id } : {}) }, task, onBusyChange);
+      setTask('');
       onStarted(session, task.trim());
     } catch { setError(t('sessionCreateFailed')); } finally { setBusy(false); }
   }
@@ -81,7 +93,7 @@ export default function TaskComposer({ api, projects, selectedRoot, onSelectProj
     {selectedRoot ? <p className="composer-root dim" title={root}>{root}</p> : <input className="input" aria-label={t('workspacePath')} placeholder={t('workspacePlaceholder')} value={path} onChange={event => setPath(event.target.value)} disabled={busy} />}
     <div className="composer-surface">
     <label htmlFor="taskInput">{t('taskPrompt')}</label>
-    <textarea ref={taskInput} id="taskInput" className="input task-input" placeholder={t('taskPlaceholder')} value={task} onChange={event => setTask(event.target.value)} disabled={busy}
+    <textarea ref={taskInput} id="taskInput" className="input task-input" placeholder={t('taskPlaceholder')} value={task} onChange={event => setTask(event.target.value)} disabled={busy} autoFocus
       onCompositionStart={() => { isComposingRef.current = true; }}
       onCompositionEnd={() => { isComposingRef.current = false; }}
       onKeyDown={event => {
@@ -102,12 +114,12 @@ export default function TaskComposer({ api, projects, selectedRoot, onSelectProj
     {unavailable && !loading && <p role="alert" className="error-text">{t('modelUnavailable')}</p>}
     {loading && <p role="status" className="dim">{t('loading')}</p>}
     {failed && <p role="alert" className="error-text">{t('modelLoadFailed')} <button className="btn" type="button" onClick={() => setRetry(value => value + 1)}>{t('modelRetry')}</button></p>}
-    {!loading && !failed && !models.length && <section className="task-composer-onboarding" aria-label={t('onboardingTitle')}>
+    {!loading && !failed && !models.some(model => model.providerName !== 'mock') && <section className="task-composer-onboarding" aria-label={t('onboardingTitle')}>
       <h3>{t('onboardingTitle')}</h3><p className="dim">{t('onboardingSubtitle')}</p>
       <div className="onboarding-grid">{['deepseek', 'anthropic', 'openrouter', 'custom'].map(id => {
         const preset = PROVIDER_PRESETS_CATALOG.find(item => item.id === id);
         return <button type="button" key={id} className="onboarding-card" disabled={busy || disabled} onClick={() => onConfigureModels(id)}>
-          <strong>{id === 'anthropic' ? 'Claude' : preset?.name ?? t('providerCustom')}</strong>
+          <strong>{id === 'anthropic' ? 'Claude' : preset ? localizePreset(preset, lang).name : t('providerCustom')}</strong>
           <small>{preset?.defaultModel ? t('onboardingRecommendedModels', { models: preset.defaultModel }) : t('onboardingCustomHint')}</small>
         </button>;
       })}</div>

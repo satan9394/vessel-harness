@@ -6,6 +6,7 @@ import { deriveTopicTitle, type SessionTopic } from '@vessel/engine';
 import { envRoot, writeFileAtomic, vesselHome } from '@vessel/shared';
 import { SessionIndexStore, jsonlLinesSync, streamJsonlRecords, resolveSessionDir, type SessionIndexSource, type SessionSearchParams, type SessionSearchResult, type IndexedSessionSummary } from '@vessel/memory';
 import type { SessionRecord } from '@vessel/shared';
+import { emptyRunObservation, observeRunRecord, type RunObservation } from './RunObservation.js';
 import { HybridMemoryStore, type HybridSearchParams, type HybridSearchResult, type ReflectiveRule } from '@vessel/memory';
 
 /** Persisted metadata describing one application session. */
@@ -186,6 +187,19 @@ export class SessionRegistry {
       } catch (error) { this.disableIndex(error); }
     }
     return (topicId === undefined ? this.list() : this.listByTopic(topicId)).slice(offset, offset + limit);
+  }
+  /** Cold Activity reads history without acquiring a writer lease or composing a model. */
+  async observeRun(id: string): Promise<RunObservation> {
+    const meta = this.sessions.get(id);
+    let observation = emptyRunObservation();
+    if (!meta) return { ...observation, lastRunStatus: 'unknown', reasonCode: 'session_missing' };
+    try {
+      for await (const record of this.source(meta).records()) observation = observeRunRecord(observation, record);
+      if (!observation.recordCount) return { ...observation, lastRunStatus: 'unknown', reasonCode: 'event_log_empty' };
+      return observation;
+    } catch {
+      return { ...observation, lastRunStatus: 'unknown', reasonCode: 'event_log_unavailable', errorDetail: undefined };
+    }
   }
   async search(params: SessionSearchParams): Promise<SessionSearchResult[]> {
     if (typeof params.query !== 'string' || params.query.length > 256 || !Number.isInteger(params.limit ?? 20) || (params.limit ?? 20) < 1 || (params.limit ?? 20) > 1000 || !Number.isInteger(params.offset ?? 0) || (params.offset ?? 0) < 0) throw new RangeError('Invalid search query/pagination');

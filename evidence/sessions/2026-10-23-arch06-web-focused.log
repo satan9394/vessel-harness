@@ -1,0 +1,37 @@
+
+ RUN  v5.0.1 E:/Code_file/Projects/Vessel_Harness/apps/web
+
+ ❯ src/components/ConversationView.interaction.test.tsx (22 tests | 1 failed) 60ms
+   ❯ ConversationView Task 246: Scroll guard, IME protection, and SSE reconnect (22)
+     × restores active runs and isolates late recovery across three rapid session switches 8ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/components/ConversationView.interaction.test.tsx > ConversationView Task 246: Scroll guard, IME protection, and SSE reconnect > restores active runs and isolates late recovery across three rapid session switches
+AssertionError: expected true to be false // Object.is equality
+
+- Expected
++ Received
+
+- false
++ true
+
+ ❯ src/components/ConversationView.interaction.test.tsx:136:91
+    134|     expect(tree.some(node => node.props.title === 'interruptTitle')).t…
+    135|     streams[2].handlers.onRun?.({ active: false, kind: 'interrupted' }…
+    136|     tree = render('s3'); expect(tree.some(node => node.props.title ===…
+       |                                                                                           ^
+    137|     expect(streams[0].close).toHaveBeenCalled(); expect(streams[1].clo…
+    138|   });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed | 2 passed (3)
+      Tests  1 failed | 36 passed (37)
+   Start at  12:53:34
+   Duration  1.95s (import 47%, transform 45%, tests 8%, worker 1%)
+
+    Isolate  3 workers spawned · ~157ms startup each (spawn + environment, per file)
+             at least ~313ms faster with isolate: false — reuses workers across files instead of one per file
+

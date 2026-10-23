@@ -1,0 +1,20 @@
+[
+  {
+    "line": 5,
+    "type": "user/message",
+    "kind": null,
+    "content": "Mock preset fixture check"
+  },
+  {
+    "line": 9,
+    "type": "assistant/message",
+    "kind": null,
+    "content": "(mock) mock"
+  },
+  {
+    "line": 12,
+    "type": "turn/end",
+    "kind": "success",
+    "content": null
+  }
+]

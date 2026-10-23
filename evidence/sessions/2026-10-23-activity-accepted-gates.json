@@ -1,0 +1,32 @@
+[
+  {
+    "exit": 0,
+    "name": "tsc",
+    "log": "evidence/sessions/2026-10-23-activity-accepted-tsc.log"
+  },
+  {
+    "exit": 0,
+    "name": "test-types",
+    "log": "evidence/sessions/2026-10-23-activity-accepted-test-types.log"
+  },
+  {
+    "exit": 0,
+    "name": "web-types",
+    "log": "evidence/sessions/2026-10-23-activity-accepted-web-types.log"
+  },
+  {
+    "exit": 0,
+    "name": "server",
+    "log": "evidence/sessions/2026-10-23-activity-accepted-server.log"
+  },
+  {
+    "exit": 0,
+    "name": "web",
+    "log": "evidence/sessions/2026-10-23-activity-accepted-web.log"
+  },
+  {
+    "exit": 0,
+    "name": "web-build",
+    "log": "evidence/sessions/2026-10-23-activity-accepted-web-build.log"
+  }
+]

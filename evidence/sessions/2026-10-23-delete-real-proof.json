@@ -1,0 +1,50 @@
+[
+  {
+    "type": "request/header",
+    "provider": "local-model-hub",
+    "arithmeticReply": false,
+    "kind": null,
+    "model": "deepseek/deepseek-v4.1-flash",
+    "line": 7
+  },
+  {
+    "type": "assistant/message",
+    "provider": null,
+    "arithmeticReply": false,
+    "kind": null,
+    "model": null,
+    "line": 9
+  },
+  {
+    "type": "turn/end",
+    "provider": null,
+    "arithmeticReply": false,
+    "kind": "success",
+    "model": null,
+    "line": 12
+  },
+  {
+    "type": "request/header",
+    "provider": "local-model-hub",
+    "arithmeticReply": false,
+    "kind": null,
+    "model": "deepseek/deepseek-v4.1-flash",
+    "line": 21
+  },
+  {
+    "type": "assistant/message",
+    "provider": null,
+    "arithmeticReply": true,
+    "kind": null,
+    "model": null,
+    "line": 23
+  },
+  {
+    "type": "turn/end",
+    "provider": null,
+    "arithmeticReply": false,
+    "kind": "success",
+    "model": null,
+    "line": 26
+  }
+]

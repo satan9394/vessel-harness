@@ -1,0 +1,138 @@
+[
+  {
+    "line": 1,
+    "type": "run/state",
+    "kind": null,
+    "state": "PREPARING",
+    "finishReason": null,
+    "outputTokens": null
+  },
+  {
+    "line": 2,
+    "type": "run/state",
+    "kind": null,
+    "state": "RUNNING",
+    "finishReason": null,
+    "outputTokens": null
+  },
+  {
+    "line": 8,
+    "type": "run/state",
+    "kind": null,
+    "state": "RUNNING",
+    "finishReason": null,
+    "outputTokens": null
+  },
+  {
+    "line": 11,
+    "type": "model/usage",
+    "kind": null,
+    "state": null,
+    "finishReason": null,
+    "outputTokens": 4096
+  },
+  {
+    "line": 12,
+    "type": "turn/end",
+    "kind": "error",
+    "state": null,
+    "finishReason": "length",
+    "outputTokens": null
+  },
+  {
+    "line": 13,
+    "type": "run/state",
+    "kind": null,
+    "state": "FAILED",
+    "finishReason": null,
+    "outputTokens": null
+  },
+  {
+    "line": 14,
+    "type": "run/state",
+    "kind": null,
+    "state": "PREPARING",
+    "finishReason": null,
+    "outputTokens": null
+  },
+  {
+    "line": 15,
+    "type": "run/state",
+    "kind": null,
+    "state": "RUNNING",
+    "finishReason": null,
+    "outputTokens": null
+  },
+  {
+    "line": 21,
+    "type": "run/state",
+    "kind": null,
+    "state": "RUNNING",
+    "finishReason": null,
+    "outputTokens": null
+  },
+  {
+    "line": 25,
+    "type": "model/usage",
+    "kind": null,
+    "state": null,
+    "finishReason": null,
+    "outputTokens": 4096
+  },
+  {
+    "line": 26,
+    "type": "turn/end",
+    "kind": "error",
+    "state": null,
+    "finishReason": "length",
+    "outputTokens": null
+  },
+  {
+    "line": 27,
+    "type": "run/state",
+    "kind": null,
+    "state": "FAILED",
+    "finishReason": null,
+    "outputTokens": null
+  },
+  {
+    "line": 28,
+    "type": "run/state",
+    "kind": null,
+    "state": "PREPARING",
+    "finishReason": null,
+    "outputTokens": null
+  },
+  {
+    "line": 29,
+    "type": "run/state",
+    "kind": null,
+    "state": "RUNNING",
+    "finishReason": null,
+    "outputTokens": null
+  },
+  {
+    "line": 35,
+    "type": "run/state",
+    "kind": null,
+    "state": "RUNNING",
+    "finishReason": null,
+    "outputTokens": null
+  },
+  {
+    "line": 36,
+    "type": "turn/end",
+    "kind": "interrupted",
+    "state": null,
+    "finishReason": null,
+    "outputTokens": null
+  },
+  {
+    "line": 37,
+    "type": "run/state",
+    "kind": null,
+    "state": "CANCELLED",
+    "finishReason": null,
+    "outputTokens": null
+  }
+]

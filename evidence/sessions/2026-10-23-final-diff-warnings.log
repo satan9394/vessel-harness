@@ -1,0 +1,9 @@
+warning: in the working copy of 'apps/local-server/src/server.test.ts', CRLF will be replaced by LF the next time Git touches it
+warning: in the working copy of 'apps/local-server/src/server.ts', CRLF will be replaced by LF the next time Git touches it
+warning: in the working copy of 'apps/web/src/components.workbench.test.tsx', CRLF will be replaced by LF the next time Git touches it
+warning: in the working copy of 'apps/web/src/components/ConversationView.attention.test.tsx', CRLF will be replaced by LF the next time Git touches it
+warning: in the working copy of 'apps/web/src/components/ConversationView.interaction.test.tsx', CRLF will be replaced by LF the next time Git touches it
+warning: in the working copy of 'apps/web/src/sse.ts', CRLF will be replaced by LF the next time Git touches it
+warning: in the working copy of 'docs/EVENT-SPEC.md', CRLF will be replaced by LF the next time Git touches it
+warning: in the working copy of 'packages/application/src/compose.ts', CRLF will be replaced by LF the next time Git touches it
+warning: in the working copy of 'tasks/README.md', CRLF will be replaced by LF the next time Git touches it

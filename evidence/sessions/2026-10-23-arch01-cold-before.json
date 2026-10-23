@@ -1,0 +1,44 @@
+[
+  {
+    "id": "sess_1792684077121_3483b2b0",
+    "status": "unknown",
+    "outcome": "unknown",
+    "statusSource": "inferred"
+  },
+  {
+    "id": "sess_1792680183420_dbe0dd54",
+    "status": "unknown",
+    "outcome": "unknown",
+    "statusSource": "inferred"
+  },
+  {
+    "id": "sess_1792682051988_c9647438",
+    "status": "unknown",
+    "outcome": "unknown",
+    "statusSource": "inferred"
+  },
+  {
+    "id": "sess_1792678325171_ad8ee34f",
+    "status": "unknown",
+    "outcome": "unknown",
+    "statusSource": "inferred"
+  },
+  {
+    "id": "sess_1792696362049_6f1a51ad",
+    "status": "interrupted",
+    "outcome": "interrupted",
+    "statusSource": "live"
+  },
+  {
+    "id": "sess_1792694672837_c9697e87",
+    "status": "completed",
+    "outcome": "completed",
+    "statusSource": "live"
+  },
+  {
+    "id": "sess_1792696634029_23f3e3c8",
+    "status": "completed",
+    "outcome": "completed",
+    "statusSource": "live"
+  }
+]

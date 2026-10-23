@@ -7,13 +7,14 @@ import * as path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { once } from 'node:events';
 import { spawn } from 'node:child_process';
-import { SessionController, SessionRegistry, ProjectRegistry, ReviewHandoffStore, TaskTreeRegistry, loadBehaviorLibrary } from '@vessel/application';
+import { SessionController, SessionRegistry, ProjectRegistry, ReviewHandoffStore, TaskTreeRegistry, loadBehaviorLibrary, observeRun } from '@vessel/application';
 import { resolveSessionDir } from '@vessel/memory';
 import { recycleDaemonPath } from './daemon/daemonLifecycle.js';
 import type { SessionPermission, ReviewHandoffRecord } from '@vessel/application';
 import type { Listener, TurnResult } from '@vessel/core';
 import { MockProvider, createProvider, providerNameForConfig } from '@vessel/llm';
-import type { ChatProvider } from '@vessel/shared';
+import type { ChatProvider, SessionStreamRun, WidgetBlock } from '@vessel/shared';
+import { SessionEventStream } from './routes/sessionEventStream.js';
 import { loadPolicyArtifacts } from '@vessel/policy';
 import type { SessionMeta } from '@vessel/application';
 import { DEFAULT_TIER_BINDINGS, RouteSeam, startTeamRun } from './teamSeam.js';
@@ -33,6 +34,7 @@ import { PatchRoutes } from './routes/patchRoutes.js';
 import { SessionInspector, type WorkspaceObserver } from './routes/sessionInspector.js';
 import { ProviderRoutes } from './routes/providerRoutes.js';
 import { BehaviorRoutes } from './routes/behaviorRoutes.js';
+import { inspectEffectivePolicy } from './routes/policyRoutes.js';
 import { BehaviorComposeRoutes } from './routes/behaviorCompose.js';
 import { TaskTreeRoutes } from './routes/taskTrees.js';
 import { ActivityRoutes } from './routes/activityRoutes.js';
@@ -327,6 +329,7 @@ export function createVesselServer(opts: VesselServerOptions = {}): VesselServer
 
   /** live session controllers keyed by session id (owns the run loop). */
   const controllers = new Map<string, SessionController>();
+  const eventHubs = new Map<string, ReturnType<typeof createSessionEvents>>();
   const restoring = new Map<string, Promise<SessionController>>();
   const deletingSessions = new Set<string>();
   const activeTurns = new Map<string, Promise<unknown>>();
@@ -373,24 +376,19 @@ export function createVesselServer(opts: VesselServerOptions = {}): VesselServer
   const composeRoutes = new BehaviorComposeRoutes(id => id ? controllers.get(id)?.policyArtifacts : policyArtifacts);
   const traceRoutes = new TraceRoutes(id => controllers.get(id)?.session.replay());
   const activityRoutes = new ActivityRoutes({
-    sessions: () => sessionRegistry.listIndexed(500, 0),
+    sessions: async () => {
+      const sessions = await sessionRegistry.listIndexed(500, 0);
+      const observed = [];
+      for (const session of sessions) observed.push(controllers.has(session.id) ? session : { ...session, ...await sessionRegistry.observeRun(session.id) });
+      return observed;
+    },
     live: (id) => {
       const ctl = controllers.get(id);
       if (!ctl) return undefined;
       const records = [...ctl.session.replay()];
-      const lastTurnEnd = records.filter((r) => r.type === 'turn/start' || r.type === 'turn/end').at(-1) as { type: string; kind?: string; errorDetail?: string } | undefined;
-      let lastRunStatus: 'completed' | 'failed' | 'interrupted' | 'cancelled' | undefined;
-      if (lastTurnEnd?.type === 'turn/start') lastRunStatus = 'interrupted';
-      else if (lastTurnEnd?.kind === 'failure' || lastTurnEnd?.kind === 'error' || lastTurnEnd?.kind === 'budget') lastRunStatus = 'failed';
-      else if (lastTurnEnd?.kind === 'interrupted') lastRunStatus = 'interrupted';
-      else if (lastTurnEnd?.kind === 'cancelled') lastRunStatus = 'cancelled';
-      else if (lastTurnEnd?.kind === 'success') lastRunStatus = 'completed';
-
       return {
+        ...observeRun(records),
         turnActive: ctl.loop.turnActive,
-        lastRunStatus,
-        errorDetail: lastTurnEnd?.errorDetail,
-        recordCount: records.length,
       };
     },
     approvals: () => widgets.pendingApprovals().map((approval) => ({
@@ -741,11 +739,15 @@ export function createVesselServer(opts: VesselServerOptions = {}): VesselServer
     if (segs.length >= 3 && (segs[1] === 'sessions' || segs[1] === 'session')) {
       const id = segs[2] ?? '';
       const sub = segs[3];
+      if (segs.length === 4 && sub === 'policy') {
+        if (!sameOrigin) return json(res, 403, { error: 'origin_denied' });
+        if (method !== 'GET') return json(res, 405, { error: 'read_only' });
+      }
       let ctl = controllers.get(id);
       if (method === 'DELETE' && restoring.has(id)) return json(res, 409, { error: 'session_busy' });
       if (!ctl && !deletingSessions.has(id) && method !== 'DELETE') {
         const meta = sessionRegistry.get(id);
-        if (meta && fs.existsSync(path.join(resolveSessionDir(meta.workspaceRoot, id), 'session.jsonl'))) {
+        if (meta && fs.existsSync(resolveSessionDir(meta.workspaceRoot, id))) {
           let pending = restoring.get(id);
           if (!pending) {
             pending = sessionFactory({ ...meta, sessionId: id, registry: sessionRegistry }).then(async opened => {
@@ -764,6 +766,10 @@ export function createVesselServer(opts: VesselServerOptions = {}): VesselServer
       if (segs.length === 4 && sub === 'messages' && method === 'GET') {
         if (!ctl) return json(res, 404, suggestNotFound(id));
         return json(res, 200, sessionMessages(ctl));
+      }
+      if (segs.length === 4 && sub === 'policy') {
+        if (!ctl) return json(res, 404, { error: 'policy_snapshot_unavailable', id });
+        return json(res, 200, { sessionId: id, policy: inspectEffectivePolicy(ctl.policyArtifacts) });
       }
       if (deletingSessions.has(id) && method !== 'GET') {
         return json(res, 409, { error: 'session_deleting', id });
@@ -803,7 +809,12 @@ export function createVesselServer(opts: VesselServerOptions = {}): VesselServer
           } catch (error) {
             return json(res, 500, { error: error instanceof AggregateError ? 'session_index_stale' : 'session_index_failed', id, stage: 'index' });
           }
+          // Windows recycling cannot move a directory with an open JSONL writer.
+          // On failure, restore the index and lazily reopen a fresh controller.
+          let stage: 'controller' | 'recycle' = 'controller';
           try {
+            try { await ctl?.close(); } finally { eventHubs.get(id)?.close(); eventHubs.delete(id); controllers.delete(id); }
+            stage = 'recycle';
             if (existing?.workspaceRoot) {
               const sessionDir = resolveSessionDir(existing.workspaceRoot, id);
               if (fs.existsSync(sessionDir)) await recycleDaemonPath(sessionDir);
@@ -814,14 +825,9 @@ export function createVesselServer(opts: VesselServerOptions = {}): VesselServer
             } catch {
               return json(res, 500, { error: 'session_index_stale', id, stage: 'rollback' });
             }
-            return json(res, 500, { error: 'session_recycle_failed', id, stage: 'recycle' });
+            return json(res, 500, { error: stage === 'controller' ? 'session_controller_close_failed' : 'session_recycle_failed', id, stage });
           }
-          // Recycling succeeded; release the removed controller's open log handles.
-          // A telemetry close error cannot undo the completed recycle operation.
-          let cleanupWarning: string | undefined;
-          try { await ctl?.close(); } catch { cleanupWarning = 'session_controller_close_failed'; }
-          controllers.delete(id);
-          return json(res, 200, { ok: true, id, ...(cleanupWarning ? { warning: cleanupWarning, stage: 'controller' } : {}) });
+          return json(res, 200, { ok: true, id });
         } finally {
           deletingSessions.delete(id);
         }
@@ -1279,20 +1285,33 @@ export function createVesselServer(opts: VesselServerOptions = {}): VesselServer
   }
 
   function sessionMessages(ctl: SessionController) {
-    const messages: Array<{ id: string; kind: 'message' | 'tool'; msg?: { role: 'user' | 'assistant'; text: string; ts: number }; tool?: { toolCallId: string; toolName: string; status: 'started' | 'done' | 'error'; ts: number } }> = [];
+    const messages: Array<{ id: string; kind: 'message' | 'tool' | 'widget'; widget?: WidgetBlock; msg?: { role: 'user' | 'assistant'; text: string; ts: number; termination?: 'length' | 'interrupted' }; tool?: { toolCallId: string; toolName: string; status: 'started' | 'done' | 'error' | 'denied'; argsSummary?: string; errorDetail?: string; ts: number } }> = [];
     const usage = [];
     let calls = 0;
+    let turnAssistant: number | undefined;
     for (const record of ctl.session.replay()) {
       const ts = Date.parse(record.ts);
-      if (record.type === 'user/message' && (!record.source || record.source === 'user' || record.source === 'steer')) {
+      if (record.type === 'turn/start') {
+        turnAssistant = undefined;
+      } else if (record.type === 'user/message' && (!record.source || record.source === 'user' || record.source === 'steer')) {
         messages.push({ id: `record:${record.seq}`, kind: 'message', msg: { role: 'user', text: record.content, ts } });
       } else if ((record.type === 'assistant/message' || record.type === 'assistant/attempt') && record.content) {
+        turnAssistant = messages.length;
         messages.push({ id: `record:${record.seq}`, kind: 'message', msg: { role: 'assistant', text: record.content, ts } });
+      } else if (record.type === 'turn/end') {
+        const termination = record.finishReason === 'length' ? 'length' : record.kind === 'interrupted' ? 'interrupted' : undefined;
+        if (termination) {
+          const message = turnAssistant === undefined ? undefined : messages[turnAssistant]?.msg;
+          if (message) message.termination = termination;
+          else messages.push({ id: `terminal:${record.seq}`, kind: 'message', msg: { role: 'assistant', text: '', ts, termination } });
+        }
       } else if (record.type === 'tool/call') {
-        messages.push({ id: `tool:${record.toolCallId}`, kind: 'tool', tool: { toolCallId: record.toolCallId, toolName: record.toolName, status: 'started', ts } });
+        messages.push({ id: `tool:${record.toolCallId}`, kind: 'tool', tool: { toolCallId: record.toolCallId, toolName: record.toolName, status: 'started', argsSummary: summarizeArgs(record.arguments), ts } });
       } else if (record.type === 'tool/result') {
-        const tool = { toolCallId: record.toolCallId, toolName: record.toolName, status: record.error ? 'error' as const : 'done' as const, ts };
         const index = messages.findIndex(item => item.tool?.toolCallId === record.toolCallId);
+        const tool = { ...(index >= 0 ? messages[index]!.tool : {}), toolCallId: record.toolCallId, toolName: record.toolName,
+          status: record.error ? record.error.errorClass === 'DENIED' ? 'denied' as const : 'error' as const : 'done' as const,
+          errorDetail: record.error?.message, ts };
         if (index >= 0) messages[index] = { ...messages[index]!, tool };
         else messages.push({ id: `tool:${record.toolCallId}`, kind: 'tool', tool });
       } else if (record.type === 'model/usage') {
@@ -1307,41 +1326,56 @@ export function createVesselServer(opts: VesselServerOptions = {}): VesselServer
       calls: total.calls + 1, costUsd: total.costUsd + delta.costUsd,
       estimated: total.estimated || delta.estimated,
     }), { inputTokens: 0, outputTokens: 0, cacheReadTokens: 0, cacheCreationTokens: 0, calls: 0, costUsd: 0, estimated: false });
-    return { messages, usage: usage.map((delta, index) => index === usage.length - 1 ? { ...delta, summary } : delta), summary };
+    for (const widget of widgets.snapshot(ctl.sessionId)) messages.push({ id: `widget:${widget.id}`, kind: 'widget', widget });
+    return { messages, usage: usage.map((delta, index) => index === usage.length - 1 ? { ...delta, summary } : delta), summary,
+      run: sessionRun(ctl), inspector: inspector.snapshot(ctl.sessionId) };
+  }
+
+  function sessionRun(ctl: SessionController): SessionStreamRun {
+    const last = [...ctl.session.replay()].findLast(record => record.type === 'turn/start' || record.type === 'turn/end');
+    return { active: ctl.loop.turnActive, turnId: last?.turnId, kind: last?.type === 'turn/end' ? last.kind : undefined,
+      finishReason: last?.type === 'turn/end' && typeof last.finishReason === 'string' ? last.finishReason : undefined };
   }
 
   function streamEvents(ctl: SessionController, req: http.IncomingMessage, res: http.ServerResponse): void {
+    let hub = eventHubs.get(ctl.sessionId);
+    if (!hub) { hub = createSessionEvents(ctl); eventHubs.set(ctl.sessionId, hub); }
     subagentStreams.add(res);
     res.once('close', () => subagentStreams.delete(res));
     res.writeHead(200, SSE_HEADERS);
-    res.write(`data: ${JSON.stringify({ type: 'ping', ts: Date.now() })}\n\n`);
+    const stream = hub.stream;
+    const url = new URL(req.url!, 'http://localhost');
+    const cursor = typeof req.headers['last-event-id'] === 'string' ? req.headers['last-event-id'] : url.searchParams.get('cursor') ?? undefined;
+    const detach = stream.subscribe(text => { res.write(text); }, cursor, url.searchParams.get('hydrate') === '1');
+    hub.readers.add(res);
+    // Metadata-only observers retain named snapshots without receiving past user prompts.
+    for (const widget of widgets.snapshot(ctl.sessionId)) {
+      res.write(stream.bootstrap('widget_block', widget));
+      if (widget.kind === 'permission_action' && widget.status === 'pending') res.write(stream.bootstrap('action_request', widget));
+    }
+    const observation = inspector.snapshot(ctl.sessionId);
+    if (observation) res.write(stream.bootstrap('inspector', observation));
+    const heartbeat = setInterval(() => res.write(stream.heartbeat()), 15000);
+    const cleanup = () => { clearInterval(heartbeat); detach(); hub!.readers.delete(res); };
+    req.on('close', cleanup); res.on('close', cleanup); res.on('error', cleanup);
+  }
 
-    // Emit a single SSE data frame from a projection delta.
-    const sse = (type: string, delta: unknown) => {
-      // best-effort; responder may already be closed
-      res.write(`data: ${JSON.stringify({ type, delta, ts: Date.now() })}\n\n`);
-    };
-    // Snapshot and listener registration are synchronous: no turn can fall between them.
-    if (new URL(req.url!, 'http://localhost').searchParams.get('hydrate') === '1') sse('transcript', sessionMessages(ctl));
-    // Named events also carry the existing {type, delta, ts} envelope.
-    const detachWidgets = widgets.subscribe(ctl.sessionId, (type, delta) => {
-      res.write(`event: ${type}\ndata: ${JSON.stringify({ type, delta, ts: Date.now() })}\n\n`);
-      if (type === 'widget_block') res.write(`event: widget\ndata: ${JSON.stringify({ type: 'widget', delta, ts: Date.now() })}\n\n`);
+  function createSessionEvents(ctl: SessionController) {
+    const stream = new SessionEventStream(ctl.sessionId, hydrate => hydrate ? sessionMessages(ctl) : {
+      run: sessionRun(ctl), widgets: widgets.snapshot(ctl.sessionId), inspector: inspector.snapshot(ctl.sessionId),
     });
+    const readers = new Set<http.ServerResponse>();
+    stream.setTurn(sessionRun(ctl).turnId);
+    const sse = (type: string, delta: unknown) => stream.publish(type, delta);
+    const detachWidgets = widgets.subscribe(ctl.sessionId, (type, delta) => sse(type, delta));
     const detachInspector = inspector.subscribe(ctl.sessionId, observation => sse('inspector', observation));
-
-    // task 060: forward team-run snapshots to this connection (session-scoped).
     const teamSend = (kind: TeamEventKind, state: unknown) => sse('team', { kind, state });
     let senders = teamSenders.get(ctl.sessionId);
-    if (!senders) {
-      senders = new Set();
-      teamSenders.set(ctl.sessionId, senders);
-    }
+    if (!senders) { senders = new Set(); teamSenders.set(ctl.sessionId, senders); }
     senders.add(teamSend);
     const detachSubagents = subagentSeam.subscribe((type, delta) => sse(type, delta));
     const current = teamStates.get(ctl.sessionId)?.run?.snapshot?.();
     if (current) teamSend('start', current);
-
     const forwards = new Map<string, () => void>();
     const modelStartedAt = new Map<string, number>();
     const reasoning = new ReasoningStream(delta => sse('thinking', delta));
@@ -1356,6 +1390,14 @@ export function createVesselServer(opts: VesselServerOptions = {}): VesselServer
     };
 
     // Model-call boundaries feed per-call latency and the opt-in thinking view.
+    forward('run-start', 'before_turn', payload => {
+      const { turnId } = payload as { turnId: string };
+      stream.setTurn(turnId); sse('run', { active: true, turnId });
+    });
+    forward('run-end', 'after_turn', payload => {
+      const { turnId, kind } = payload as { turnId: string; kind: string };
+      sse('run', { active: false, turnId, kind, finishReason: sessionRun(ctl).finishReason });
+    });
     forward('model-start', 'before_model', (payload) => {
       const key = modelCallKey(payload);
       if (key) modelStartedAt.set(key, Date.now());
@@ -1367,16 +1409,12 @@ export function createVesselServer(opts: VesselServerOptions = {}): VesselServer
     forward('thinking-after', 'after_model', payload => reasoning.after(payload));
     forward('thinking-turn-end', 'after_turn', () => { reasoning.finish(); modelStartedAt.clear(); });
 
-    // after_model → conversation delta (assistant text / tool-call summary)
+    // Tool lifecycle rows already carry call names; preserve only assistant phase text.
     forward('conversation', 'after_model', (payload) => {
       const p = payload as { response?: { content?: string; toolCalls?: { name?: string }[] } };
       const response = p.response;
       if (!response) return;
-      if (response.toolCalls && response.toolCalls.length > 0) {
-        for (const tc of response.toolCalls) {
-          sse('conversation', { role: 'assistant', toolName: tc.name });
-        }
-      } else if (typeof response.content === 'string' && response.content !== '') {
+      if (typeof response.content === 'string' && response.content !== '') {
         sse('conversation', { role: 'assistant', text: response.content });
       }
     });
@@ -1428,11 +1466,11 @@ export function createVesselServer(opts: VesselServerOptions = {}): VesselServer
 
     // after_tool → tool delta (terminal status)
     forward('tool:end', 'after_tool', (payload) => {
-      const p = payload as { toolCallId: string; toolName?: string; result?: { error?: { errorClass?: string } } };
+      const p = payload as { toolCallId: string; toolName?: string; result?: { error?: { errorClass?: string; message?: string } } };
       let status = 'done';
       if (p.result?.error) status = p.result.error.errorClass === 'DENIED' ? 'denied' : 'error';
       const sandbox = ctl.projections.toolActivity.activity(p.toolCallId)?.sandbox;
-      sse('tool', { toolCallId: p.toolCallId, toolName: p.toolName, status, ...(sandbox ? { sandbox } : {}) });
+      sse('tool', { toolCallId: p.toolCallId, toolName: p.toolName, status, errorDetail: p.result?.error?.message, ...(sandbox ? { sandbox } : {}) });
     });
 
     // policy_decision (deny) → policy delta
@@ -1442,12 +1480,8 @@ export function createVesselServer(opts: VesselServerOptions = {}): VesselServer
       sse('policy', { toolName: p.toolName, rule: p.ruleRef, reason: p.reason });
     });
 
-    const heartbeat = setInterval(() => {
-      res.write(`data: ${JSON.stringify({ type: 'ping', ts: Date.now() })}\n\n`);
-    }, 15000);
-
-    const cleanup = () => {
-      clearInterval(heartbeat);
+    const close = () => {
+      for (const res of readers) res.end(); readers.clear(); stream.close();
       detachSubagents();
       detachWidgets();
       detachInspector();
@@ -1455,9 +1489,7 @@ export function createVesselServer(opts: VesselServerOptions = {}): VesselServer
       senders.delete(teamSend);
       if (senders.size === 0) teamSenders.delete(ctl.sessionId);
     };
-    req.on('close', cleanup);
-    res.on('close', cleanup);
-    res.on('error', cleanup);
+    return { stream, readers, close };
   }
 
   function suggestNotFound(id: string): { error: string; sessionId: string } {
@@ -1509,6 +1541,8 @@ export function createVesselServer(opts: VesselServerOptions = {}): VesselServer
     },
     async close() {
       await Promise.allSettled(restoring.values());
+      for (const hub of eventHubs.values()) hub.close();
+      eventHubs.clear();
       inspector.close();
       widgets.close();
       await opts.mesh?.close();

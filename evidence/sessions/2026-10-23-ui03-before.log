@@ -1,0 +1,71 @@
+
+ RUN  v5.0.1 E:/Code_file/Projects/Vessel_Harness/apps/web
+
+ ❯ src/components/TaskComposer.test.tsx (12 tests | 3 failed) 990ms
+   ❯ TaskComposer IME and keyboard submission (12)
+     × isolates workspace drafts, restores them after navigation and separates API clients 12ms
+     × clears only the submitted workspace draft after successful creation 112ms
+     × preserves the current workspace draft when creation fails 119ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 3 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/components/TaskComposer.test.tsx > TaskComposer IME and keyboard submission > isolates workspace drafts, restores them after navigation and separates API clients
+AssertionError: expected 'workspace A draft' to be '' // Object.is equality
+
+- Expected
++ Received
+
++ workspace A draft
+
+ ❯ src/components/TaskComposer.test.tsx:84:36
+     82|     invoke(textarea(), 'onChange', { target: { value: 'workspace A dra…
+     83|     selectedRoot = 'E:/workspace-b';
+     84|     expect(textarea().props.value).toBe('');
+       |                                    ^
+     85|     invoke(textarea(), 'onChange', { target: { value: 'workspace B dra…
+     86|     selectedRoot = 'E:/workspace';
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/3]⎯
+
+ FAIL  src/components/TaskComposer.test.tsx > TaskComposer IME and keyboard submission > clears only the submitted workspace draft after successful creation
+AssertionError: expected 'workspace B task' to be '' // Object.is equality
+
+- Expected
++ Received
+
++ workspace B task
+
+ ❯ src/components/TaskComposer.test.tsx:106:36
+    104|     await vi.waitFor(() => expect(onStarted).toHaveBeenCalledOnce());
+    105|     expect(api.createSession).toHaveBeenCalledWith(expect.objectContai…
+    106|     expect(textarea().props.value).toBe('');
+       |                                    ^
+    107|     selectedRoot = 'E:/workspace';
+    108|     expect(textarea().props.value).toBe('执行任务');
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/3]⎯
+
+ FAIL  src/components/TaskComposer.test.tsx > TaskComposer IME and keyboard submission > preserves the current workspace draft when creation fails
+AssertionError: expected '执行任务' to be '' // Object.is equality
+
+- Expected
++ Received
+
++ 执行任务
+
+ ❯ src/components/TaskComposer.test.tsx:115:69
+    113|     await ready(); enter();
+    114|     await vi.waitFor(() => expect(render().some(node => node.props.rol…
+    115|     selectedRoot = 'E:/workspace-b'; expect(textarea().props.value).to…
+       |                                                                     ^
+    116|     selectedRoot = 'E:/workspace'; expect(textarea().props.value).toBe…
+    117|     expect(onStarted).not.toHaveBeenCalled();
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/3]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  3 failed | 9 passed (12)
+   Start at  08:59:27
+   Duration  1.51s (tests 74%, transform 15%, import 11%, worker 1%)
+

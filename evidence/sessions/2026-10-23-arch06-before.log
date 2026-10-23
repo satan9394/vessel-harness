@@ -1,0 +1,61 @@
+
+ RUN  v5.0.1 E:/Code_file/Projects/Vessel_Harness
+
+(node:26448) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+ ❯ apps/local-server/src/server.test.ts (50 tests | 1 failed | 49 skipped) 161ms
+   ❯ local server HTTP API + SSE (36)
+     × replays a disconnected session cursor and checkpoints messages, usage and resolved approvals without cross-session frames 156ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  apps/local-server/src/server.test.ts > local server HTTP API + SSE > replays a disconnected session cursor and checkpoints messages, usage and resolved approvals without cross-session frames
+AssertionError: expected { type: 'transcript', …(2) } to match object { version: 1, …(4) }
+(6 matching properties omitted from actual)
+
+- Expected
++ Received
+
+  {
+-   "cursor": Any<Number>,
+-   "eventId": Any<String>,
+-   "sessionId": "sess_1792698161762_4ef3c499",
+-   "streamId": Any<String>,
+-   "version": 1,
++   "delta": {
++     "messages": [],
++     "summary": {
++       "cacheCreationTokens": 0,
++       "cacheReadTokens": 0,
++       "calls": 0,
++       "costUsd": 0,
++       "estimated": false,
++       "inputTokens": 0,
++       "outputTokens": 0,
++     },
++     "usage": [],
++   },
++   "ts": 1792698161788,
++   "type": "transcript",
+  }
+
+ ❯ apps/local-server/src/server.test.ts:656:21
+    654|     const frames = (text: string) => text.split('\n').filter(line => l…
+    655|     const initial = frames(initialText).find(frame => frame.type === '…
+    656|     expect(initial).toMatchObject({ version: 1, sessionId: session.id,…
+       |                     ^
+    657|     await firstController.runTurn('disconnected request');
+    658|     const widget = { id: 'offline-approval', kind: 'permission_action'…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 49 skipped (50)
+   Start at  12:42:36
+   Duration  5.00s (import 49%, transform 47%, tests 3%, setup 1%)
+
+  Transform  transforming modules took 2.26s · 47% of tracked time, re-done on every run
+             persist transforms across runs with fsModuleCache: true
+             learn more: https://vitest.dev/guide/improving-performance#caching-between-reruns
+

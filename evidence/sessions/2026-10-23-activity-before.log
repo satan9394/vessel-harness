@@ -1,0 +1,152 @@
+
+ RUN  v5.0.1 E:/Code_file/Projects/Vessel_Harness
+
+ ❯ apps/local-server/src/routes/activityRoutes.test.ts (35 tests | 8 failed) 61ms
+   ❯ ActivityRoutes (ARCH-01 / UI-02 Truthful Status) (35)
+     × projects team rejected / undefined as cancelled / cancelled 11ms
+     × projects team finished / [{"status":"cancelled"}] as cancelled / cancelled 2ms
+     × projects team finished / [{"status":"completed"},{"status":"cancelled"}] as cancelled / cancelled 3ms
+     × projects subagent cancelled as cancelled / cancelled 1ms
+     × distinguishes failure, cancellation and interruption from live 14ms
+     × distinguishes failure, cancellation and interruption from event_log 1ms
+     × maps goal cancelled to cancelled 2ms
+     × reflects failed, interrupted and running outcomes truthfully 1ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 8 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  apps/local-server/src/routes/activityRoutes.test.ts > ActivityRoutes (ARCH-01 / UI-02 Truthful Status) > projects team rejected / undefined as cancelled / cancelled
+ FAIL  apps/local-server/src/routes/activityRoutes.test.ts > ActivityRoutes (ARCH-01 / UI-02 Truthful Status) > projects team finished / [{"status":"cancelled"}] as cancelled / cancelled
+ FAIL  apps/local-server/src/routes/activityRoutes.test.ts > ActivityRoutes (ARCH-01 / UI-02 Truthful Status) > projects team finished / [{"status":"completed"},{"status":"cancelled"}] as cancelled / cancelled
+AssertionError: expected { id: 'team', kind: 'team', …(7) } to match object { status: 'cancelled', …(2) }
+(6 matching properties omitted from actual)
+
+- Expected
++ Received
+
+  {
+    "outcome": "cancelled",
+-   "status": "cancelled",
++   "status": "failed",
+    "statusSource": "inferred",
+  }
+
+ ❯ apps/local-server/src/routes/activityRoutes.test.ts:30:43
+     28|       teamStages: () => [{ id: 'team', status, createdAt: 1, tasks }] …
+     29|     });
+     30|     expect((await routes.list()).runs[0]).toMatchObject({ status: expe…
+       |                                           ^
+     31|   });
+     32|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/8]⎯
+
+ FAIL  apps/local-server/src/routes/activityRoutes.test.ts > ActivityRoutes (ARCH-01 / UI-02 Truthful Status) > projects subagent cancelled as cancelled / cancelled
+AssertionError: expected { id: 'idle', kind: 'subagent', …(7) } to match object { status: 'cancelled', …(2) }
+(6 matching properties omitted from actual)
+
+- Expected
++ Received
+
+  {
+    "outcome": "cancelled",
+-   "status": "cancelled",
++   "status": "failed",
+    "statusSource": "inferred",
+  }
+
+ ❯ apps/local-server/src/routes/activityRoutes.test.ts:42:43
+     40|       subagents: async () => [{ id: 'idle', name: 'idle', status, star…
+     41|     });
+     42|     expect((await routes.list()).runs[0]).toMatchObject({ status: expe…
+       |                                           ^
+     43|   });
+     44|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/8]⎯
+
+ FAIL  apps/local-server/src/routes/activityRoutes.test.ts > ActivityRoutes (ARCH-01 / UI-02 Truthful Status) > distinguishes failure, cancellation and interruption from live
+AssertionError: expected { id: 'cancelled', …(11) } to match object { status: 'cancelled', …(2) }
+(9 matching properties omitted from actual)
+
+- Expected
++ Received
+
+  {
+    "outcome": "cancelled",
+-   "status": "cancelled",
++   "status": "failed",
+    "statusSource": "live",
+  }
+
+ ❯ apps/local-server/src/routes/activityRoutes.test.ts:61:82
+     59|     });
+     60|     const { runs } = await routes.list();
+     61|     for (const outcome of outcomes) expect(runs.find(run => run.id ===…
+       |                                                                                  ^
+     62|   });
+     63|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/8]⎯
+
+ FAIL  apps/local-server/src/routes/activityRoutes.test.ts > ActivityRoutes (ARCH-01 / UI-02 Truthful Status) > distinguishes failure, cancellation and interruption from event_log
+AssertionError: expected { id: 'cancelled', …(11) } to match object { status: 'cancelled', …(2) }
+(9 matching properties omitted from actual)
+
+- Expected
++ Received
+
+  {
+    "outcome": "cancelled",
+-   "status": "cancelled",
++   "status": "failed",
+    "statusSource": "event_log",
+  }
+
+ ❯ apps/local-server/src/routes/activityRoutes.test.ts:61:82
+     59|     });
+     60|     const { runs } = await routes.list();
+     61|     for (const outcome of outcomes) expect(runs.find(run => run.id ===…
+       |                                                                                  ^
+     62|   });
+     63|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/8]⎯
+
+ FAIL  apps/local-server/src/routes/activityRoutes.test.ts > ActivityRoutes (ARCH-01 / UI-02 Truthful Status) > maps goal cancelled to cancelled
+AssertionError: expected 'failed' to be 'cancelled' // Object.is equality
+
+Expected: "cancelled"
+Received: "failed"
+
+ ❯ apps/local-server/src/routes/activityRoutes.test.ts:72:51
+     70|       goalTasks: () => [{ id: 'goal', projectRoot: '/workspace', goal:…
+     71|     });
+     72|     expect((await routes.list()).runs[0]?.status).toBe(expected);
+       |                                                   ^
+     73|   });
+     74|   it('does not falsely mark empty or unknown sessions as completed', a…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[5/8]⎯
+
+ FAIL  apps/local-server/src/routes/activityRoutes.test.ts > ActivityRoutes (ARCH-01 / UI-02 Truthful Status) > reflects failed, interrupted and running outcomes truthfully
+AssertionError: expected 'failed' to be 'interrupted' // Object.is equality
+
+Expected: "interrupted"
+Received: "failed"
+
+ ❯ apps/local-server/src/routes/activityRoutes.test.ts:122:64
+    120|     expect(runs.find((r) => r.id === 's-failed')?.outcome).toBe('faile…
+    121|
+    122|     expect(runs.find((r) => r.id === 's-interrupted')?.status).toBe('i…
+       |                                                                ^
+    123|     expect(runs.find((r) => r.id === 's-interrupted')?.outcome).toBe('…
+    124|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[6/8]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  8 failed | 27 passed (35)
+   Start at  08:24:36
+   Duration  708ms (transform 46%, tests 21%, import 20%, setup 9%, worker 4%)
+

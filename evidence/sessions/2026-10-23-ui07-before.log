@@ -1,0 +1,38 @@
+
+ RUN  v5.0.1 E:/Code_file/Projects/Vessel_Harness
+
+ ❯ apps/local-server/src/routes/policyRoutes.test.ts (1 test | 1 failed) 112ms
+   ❯ effective session Policy (1)
+     × reads the bound policy and source hashes without activating candidates or rereading changed files 107ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  apps/local-server/src/routes/policyRoutes.test.ts > effective session Policy > reads the bound policy and source hashes without activating candidates or rereading changed files
+AssertionError: expected 404 to be 200 // Object.is equality
+
+- Expected
++ Received
+
+- 200
++ 404
+
+ ❯ apps/local-server/src/routes/policyRoutes.test.ts:28:31
+     26|       const url = `${base}/api/sessions/${ctl.sessionId}/policy`;
+     27|       const response = await fetch(url);
+     28|       expect(response.status).toBe(200);
+       |                               ^
+     29|       const before = await response.json() as { sessionId: string; pol…
+     30|       expect(before).toMatchObject({ sessionId: ctl.sessionId, policy:…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  1 failed (1)
+   Start at  11:52:24
+   Duration  5.74s (import 53%, transform 43%, tests 2%, worker 1%, setup 1%)
+
+  Transform  transforming modules took 2.25s · 43% of tracked time, re-done on every run
+             persist transforms across runs with fsModuleCache: true
+             learn more: https://vitest.dev/guide/improving-performance#caching-between-reruns
+

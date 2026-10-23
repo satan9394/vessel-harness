@@ -39,7 +39,17 @@ export interface PolicyDeclarationOnly {
 }
 
 /** The four artifacts produced by the Policy Compiler, plus unimplemented declarations. */
+export interface PolicySource {
+  kind: 'system' | 'project' | 'session' | 'plugin';
+  ref: string;
+  hash?: string;
+  overrides?: { approval?: ApprovalPolicy; profile?: ProfileMode };
+  ruleIds?: string[];
+}
+
 export interface PolicyArtifacts {
+  /** Captured when loaded; querying effective policy must never reread source files. */
+  sources?: PolicySource[];
   /** Prompt Guidance — soft channel, injected at BeforeModel; produces no audit facts. */
   promptGuidance: string[];
   /** Tool Interceptor — deny tools removed from the visible schema + execution rejected. */
@@ -62,6 +72,21 @@ export interface PolicyArtifacts {
   };
   /** readonly shell command prefixes (readonly identification; exempt from approval) */
   shellAllow?: string[];
+}
+
+/** Read-only, serializable projection of the currently bound runtime policy. */
+export interface EffectivePolicyInspection {
+  readOnly: true;
+  snapshotHash: string;
+  sources: PolicySource[];
+  profile: ProfileMode;
+  approval: ApprovalPolicy;
+  rules: Omit<PolicyRule, 'match'>[];
+  deniedTools: string[];
+  filesystem?: PolicyArtifacts['fsConfig'];
+  shellAllow: string[];
+  advisoryGuidanceCount: number;
+  declarationOnly: PolicyDeclarationOnly[];
 }
 
 export interface PolicyDeclaration {

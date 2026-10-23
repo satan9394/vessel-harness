@@ -1,7 +1,7 @@
 .dashboard-panel { padding: 24px; min-width: 0; overflow-y: auto; }
 .module-sections > .dashboard-panel { grid-column: 1 / -1; }
-/* Keep tall dashboard panels from shrinking the Talking composer beneath them. */
-.conversation-wrap:has(.dashboard-panel) { flex: 1 0 auto; }
+/* Bound the wrapper; the dual surface keeps its minimum beside sibling modules. */
+.conversation-wrap:has(.dashboard-panel) { flex: 1 1 0%; }
 .conversation-wrap:has(.dashboard-panel) > .conversation { min-height: 420px; }
 .dashboard-heading { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
 .dashboard-heading h2 { margin: 0; }

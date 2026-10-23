@@ -1,12 +1,12 @@
 import { useState } from 'react';
 import { useI18n } from '../LanguageProvider';
-import { PRESET_CATEGORIES, PROVIDER_PRESETS_CATALOG, type PresetInfo, type ProviderCategory } from './presetsData';
+import { localizePreset, PRESET_CATEGORIES, PROVIDER_PRESETS_CATALOG, type PresetInfo, type ProviderCategory } from './presetsData';
 
 export function PresetsGallery({ onSelect, selectedId, disabled }: { onSelect: (preset: PresetInfo) => void; selectedId?: string; disabled?: boolean }) {
-  const { t } = useI18n();
+  const { t, lang } = useI18n();
   const [query, setQuery] = useState('');
   const [category, setCategory] = useState<ProviderCategory | 'all'>('all');
-  const presets = PROVIDER_PRESETS_CATALOG.filter(preset => (category === 'all' || preset.category === category)
+  const presets = PROVIDER_PRESETS_CATALOG.map(preset => localizePreset(preset, lang)).filter(preset => (category === 'all' || preset.category === category)
     && `${preset.id} ${preset.name} ${preset.defaultModel} ${preset.hint ?? ''}`.toLowerCase().includes(query.trim().toLowerCase()));
   return <section className="preset-gallery" aria-label={t('providerPreset')}>
     <input className="input" type="search" aria-label={t('presetSearchPlaceholder')} placeholder={t('presetSearchPlaceholder')} value={query} onChange={event => setQuery(event.target.value)} disabled={disabled} />

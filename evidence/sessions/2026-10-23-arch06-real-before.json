@@ -1,0 +1,8 @@
+{
+  "file": "RECOVERY_OK\n",
+  "run": null,
+  "fixture": null,
+  "failure": "Native EventSource stopped after temporary SSE HTTP503; UI stayed busy until reload",
+  "messages": 0,
+  "usage": 0
+}

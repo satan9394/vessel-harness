@@ -1116,6 +1116,10 @@ code {
   text-overflow: ellipsis;
 }
 
+.tool-details summary { cursor: pointer; color: var(--dim); font-size: 12px; }
+.tool-details .tool-args { display: block; white-space: pre-wrap; max-height: 16rem; overflow: auto; }
+.tool-error { color: var(--danger); white-space: pre-wrap; overflow-wrap: anywhere; margin: 4px 0; }
+
 /* usage strip */
 .usage-bar {
   display: flex;
@@ -1158,6 +1162,7 @@ code {
 /* composer */
 .composer {
   display: flex;
+  align-items: flex-end;
   gap: 8px;
   padding: 12px 24px;
   border-top: 1px solid var(--border);
@@ -1168,6 +1173,11 @@ code {
 
 .composer-input {
   flex: 1;
+  min-height: 38px;
+  max-height: 200px;
+  field-sizing: content;
+  resize: vertical;
+  line-height: 1.5;
 }
 
 /* ---------- top bar: status + customize (task 043) ---------- */
@@ -1546,11 +1556,6 @@ code {
     min-height: 0;
     overflow-x: hidden;
     overflow-y: auto;
-  }
-
-  .conversation-wrap {
-    min-height: 420px;
-    flex: 0 0 auto;
   }
 
   .topbar {

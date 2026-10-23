@@ -52,6 +52,11 @@ export class SessionInspector {
     });
   }
 
+  snapshot(sessionId: string): InspectorObservation | undefined {
+    const observation = this.observations.get(sessionId);
+    return observation ? structuredClone(observation) : undefined;
+  }
+
   subscribe(sessionId: string, receive: Receive): () => void {
     let receivers = this.receivers.get(sessionId);
     if (!receivers) { receivers = new Set(); this.receivers.set(sessionId, receivers); }

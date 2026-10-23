@@ -6,6 +6,8 @@
 
 ## 0. 快速接管协议（当用户直接说「继续未完成的」或「继续」时）
 
+**当前续接覆盖以下历史快照（2026-10-22）**：浏览器验收两波修复12项已本地实现、验证并交证，唯一当前事实源为[evidence/sessions/2026-10-23-fix-wave-report.md](evidence/sessions/2026-10-23-fix-wave-report.md)。卡272已交证，无遗留半截实现；等待协调者验收/test:all，不自动开启新任务。指定真实模型不变，累计17个修复真实执行回合；独立的150%缩放等未验证边界仍在报告中。用户明确禁止本执行者改packages/core、commit/push、test:all；不重置现有夹具与状态。以下旧卡234/235状态只作历史背景。
+
 **任何 Agent 在接收到「继续」/「继续未完成的」指令时，直接根据本段与 `.agent-state/run-state.json` 向用户汇报并执行：**
 
 1. **当前交付与阶段状态**：**Card 235（基于 Taste-Skill 的 Web 工作台审美审查与全屏通栏 UI 重构）已于 2026-10-20 本地交付（Web 50 文件 / 404 passed 全绿，Core 0 变动）**。根据 [Leonxlnx/taste-skill](https://github.com/Leonxlnx/taste-skill) 规范彻底清除了弧形孤岛卡片、四周 12px 留白缝隙与多余毛玻璃材质，落地顶天立地、以 1px 细线划分的工业级 Edge-to-Edge 全屏工作台。前序 **Card 234（OpenUI 生成式排版体系融入与 Web 体验痛点全景整改）已于 2026-10-19 本地闭环通过（双 Root 3445 passed / 6 skipped 全绿，Core 0 变动）**。凭据免输复用、会话安全回收站删除、深浅主题常驻切换、实体按钮交互教育、GFM Markdown 解析与 OpenUI 生成式卡片已全面交付。前序 Card 233（供应商能力继承与协商拦截修复）亦已本地合入。前序 Card 225–232 模型供应商全屏独立中枢、高级模型搜索筛选器与 CC-Switch 权威预设已全部落地。**V2.5 Epic 209（205–209）已于 2026-10-10 本地验收完成（双 Root 3083 passed / 6 skipped 全绿）**。**V2.6 Epic 214（210–214）已于 2026-10-11 本地验收完成（双 Root 3146 passed / 6 skipped）**。**Card 217（ARC-01..05 架构整改）与 Card 218（Web 工作台整改）已于 2026-10-12/13 本地全部验收完成（双 Root 3228 passed / 6 skipped，Web build exit 0，12 张中英双语截图全部刷新，core 源码严格 0 变动）**。前序 V2.4 已提交至本地 `main`（commit `dd8e72c`），V2.6+215+216 合入 `520492d`，Card 217 合入 `6442171`。

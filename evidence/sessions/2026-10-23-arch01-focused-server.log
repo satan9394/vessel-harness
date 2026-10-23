@@ -1,0 +1,15 @@
+
+ RUN  v5.0.1 E:/Code_file/Projects/Vessel_Harness
+
+(node:23644) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+ Test Files  1 passed (1)
+      Tests  7 passed | 49 skipped (56)
+   Start at  16:59:21
+   Duration  5.33s (import 43%, transform 42%, tests 15%)
+
+  Transform  transforming modules took 2.15s · 42% of tracked time, re-done on every run
+             persist transforms across runs with fsModuleCache: true
+             learn more: https://vitest.dev/guide/improving-performance#caching-between-reruns
+

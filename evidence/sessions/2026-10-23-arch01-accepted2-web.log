@@ -1,0 +1,17 @@
+
+> composable-agent-harness@0.10.0 test:web
+> vitest run --root apps/web
+
+
+ RUN  v5.0.1 E:/Code_file/Projects/Vessel_Harness/apps/web
+
+
+ Test Files  55 passed (55)
+      Tests  473 passed (473)
+   Start at  17:10:10
+   Duration  18.74s (tests 43%, import 38%, transform 16%, worker 3%)
+
+     Import  145 modules were evaluated 275 times · 3.91s total, 38% of tracked time
+             ~1.85s faster with isolate: false — shared modules are evaluated once per worker instead of once per file
+             learn more: https://vitest.dev/guide/improving-performance#test-isolation
+

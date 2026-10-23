@@ -46,6 +46,7 @@ export default function MessageList({ items, thinking, sessionId = '', onRespond
   const list = useRef<HTMLDivElement>(null);
   const previousFocus = useRef<HTMLElement | null>(null);
   const [collapsed, setCollapsed] = useState<Set<string>>(() => new Set());
+  const folded = (item: ChatItem) => collapsed.has(item.id) && !(item.kind === 'tool' && (item.tool?.status === 'error' || item.tool?.status === 'denied'));
   useEffect(() => {
     if (foldRequest) setCollapsed(new Set(foldRequest.collapsed ? items.map(item => item.id) : []));
   }, [foldRequest?.serial]);
@@ -91,9 +92,9 @@ export default function MessageList({ items, thinking, sessionId = '', onRespond
       {items.length === 0 && !thinking && (
         <div className="conversation-empty">{t('conversationEmpty')}</div>
       )}
-      {items.map((item) => <div key={item.id} className="message-keyboard-card" data-message-card={item.id} tabIndex={0} role="group" aria-label={t('messageCard', { kind: localizedValue(item.kind, t) })} aria-expanded={!collapsed.has(item.id)}>
-        {collapsed.has(item.id) && <span className="dim">{t('uiCollapsed')} {localizedValue(item.kind, t)}  {t('uiCardSpaceToExpand')}</span>}
-        <div hidden={collapsed.has(item.id)}>{item.kind === 'widget' && item.widget ? (
+      {items.map((item) => <div key={item.id} className="message-keyboard-card" data-message-card={item.id} tabIndex={0} role="group" aria-label={t('messageCard', { kind: localizedValue(item.kind, t) })} aria-expanded={!folded(item)}>
+        {folded(item) && <span className="dim">{t('uiCollapsed')} {localizedValue(item.kind, t)}  {t('uiCardSpaceToExpand')}</span>}
+        <div hidden={folded(item)}>{item.kind === 'widget' && item.widget ? (
           <WidgetDispatcher key={item.id} widget={item.widget} sessionId={sessionId} onRespond={onRespond} />
         ) : item.kind === 'tool' && item.tool ? (
           <ToolActivityRow key={item.id} delta={item.tool} />
@@ -107,6 +108,9 @@ export default function MessageList({ items, thinking, sessionId = '', onRespond
             <div className="msg-role">{item.msg?.role === 'user' ? t('uiYou') : 'Vessel'}</div>
             <div className="msg-body">
               <ConversationRenderer content={item.msg?.text ?? ''} />
+              {item.msg?.termination && <div className="dim conversation-error" role="status">
+                {t(item.msg.termination === 'length' ? 'responseLengthLimit' : 'interrupted')}
+              </div>}
               {item.msg?.toolName ? (
                 <span className="msg-tool-call">({t('toolCalled', { name: item.msg.toolName })})</span>
               ) : null}

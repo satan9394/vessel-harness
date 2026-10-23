@@ -7,11 +7,25 @@ describe('ActivityRoutes (ARCH-01 / UI-02 Truthful Status)', () => {
     subagents: async () => [], teamStages: () => [], goalTasks: () => [],
   };
 
+  it.each(['queued', 'running', 'waiting_approval', 'completed', 'failed', 'interrupted', 'cancelled', 'unknown'] as const)(
+    'projects the eight-state contract: %s with separate session/run identity', async outcome => {
+      const observation = { runId: 'run-123', observedAt: 10, revision: 4, reasonCode: 'fixture', lastRunStatus: outcome === 'running' || outcome === 'waiting_approval' ? 'completed' as const : outcome };
+      const routes = new ActivityRoutes({ ...emptySources,
+        sessions: async () => [{ id: 'session-123', workspaceRoot: '/workspace', ...observation }],
+        live: () => outcome === 'running' || outcome === 'waiting_approval' ? { ...observation, turnActive: true } : undefined,
+        approvals: () => outcome === 'waiting_approval' ? [{ sessionId: 'session-123', widgetId: 'approval', actionType: 'write', description: 'fixture', requestedAt: '2026-10-23T00:00:00Z', options: [] }] : [],
+      });
+      const status = outcome === 'queued' ? 'unknown' : outcome === 'waiting_approval' ? 'needs_attention' : outcome;
+      expect((await routes.list()).runs[0]).toMatchObject({ id: 'session-123', runId: 'run-123', status, outcome, observedAt: 10, revision: 4,
+        statusSource: outcome === 'running' ? 'live' : outcome === 'waiting_approval' ? 'approval_queue' : 'event_log' });
+    },
+  );
+
   it.each([
     ['approved', undefined, 'unknown', 'queued'],
-    ['rejected', undefined, 'failed', 'cancelled'],
-    ['finished', [{ status: 'cancelled' }], 'failed', 'cancelled'],
-    ['finished', [{ status: 'completed' }, { status: 'cancelled' }], 'failed', 'cancelled'],
+    ['rejected', undefined, 'cancelled', 'cancelled'],
+    ['finished', [{ status: 'cancelled' }], 'cancelled', 'cancelled'],
+    ['finished', [{ status: 'completed' }, { status: 'cancelled' }], 'cancelled', 'cancelled'],
     ['finished', [{ status: 'failed' }, { status: 'cancelled' }], 'failed', 'failed'],
     ['finished', undefined, 'unknown', 'unknown'],
     ['finished', [], 'unknown', 'unknown'],
@@ -33,7 +47,7 @@ describe('ActivityRoutes (ARCH-01 / UI-02 Truthful Status)', () => {
   it.each([
     ['idle', 'unknown', 'queued'], ['running', 'running', 'running'],
     ['completed', 'completed', 'completed'], ['failed', 'failed', 'failed'],
-    ['cancelled', 'failed', 'cancelled'], [undefined, 'unknown', 'unknown'],
+    ['cancelled', 'cancelled', 'cancelled'], [undefined, 'unknown', 'unknown'],
     ['unexpected', 'unknown', 'unknown'],
   ] as const)('projects subagent %s as %s / %s', async (status, expected, outcome) => {
     const routes = new ActivityRoutes({ ...emptySources,
@@ -50,9 +64,20 @@ describe('ActivityRoutes (ARCH-01 / UI-02 Truthful Status)', () => {
     expect((await routes.list()).runs[0]).toMatchObject({ status: 'completed', outcome: 'completed', statusSource: source });
   });
 
+  it.each(['live', 'event_log'] as const)('distinguishes failure, cancellation and interruption from %s', async source => {
+    const outcomes = ['failed', 'cancelled', 'interrupted'] as const;
+    const routes = new ActivityRoutes({ ...emptySources,
+      sessions: async () => outcomes.map(outcome => ({ id: outcome, workspaceRoot: '/workspace',
+        ...(source === 'event_log' ? { lastRunStatus: outcome } : {}) })),
+      live: id => source === 'live' ? { turnActive: false, lastRunStatus: outcomes.find(outcome => outcome === id) } : undefined,
+    });
+    const { runs } = await routes.list();
+    for (const outcome of outcomes) expect(runs.find(run => run.id === outcome)).toMatchObject({ status: outcome, outcome, statusSource: source });
+  });
+
   it.each([
     ['pending', 'unknown'], ['in-progress', 'running'], ['paused', 'needs_attention'],
-    ['met', 'completed'], ['not_met', 'failed'], ['cancelled', 'failed'],
+    ['met', 'completed'], ['not_met', 'failed'], ['cancelled', 'cancelled'],
   ] as const)('maps goal %s to %s', async (status, expected) => {
     const routes = new ActivityRoutes({
       sessions: async () => [], live: () => undefined, approvals: () => [], subagents: async () => [], teamStages: () => [],
@@ -108,7 +133,7 @@ describe('ActivityRoutes (ARCH-01 / UI-02 Truthful Status)', () => {
     expect(runs.find((r) => r.id === 's-failed')?.status).toBe('failed');
     expect(runs.find((r) => r.id === 's-failed')?.outcome).toBe('failed');
 
-    expect(runs.find((r) => r.id === 's-interrupted')?.status).toBe('failed');
+    expect(runs.find((r) => r.id === 's-interrupted')?.status).toBe('interrupted');
     expect(runs.find((r) => r.id === 's-interrupted')?.outcome).toBe('interrupted');
 
     expect(runs.find((r) => r.id === 's-running')?.status).toBe('running');

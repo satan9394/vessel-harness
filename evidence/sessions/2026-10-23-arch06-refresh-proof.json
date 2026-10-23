@@ -1,0 +1,9 @@
+{
+  "details": 48,
+  "disabled": false,
+  "errors": 1,
+  "promptCount": 1,
+  "running": false,
+  "tools": 48,
+  "usage": "次调用 35\n255200+4879 词元（缓存：读取 244992）\n~$0.0000"
+}

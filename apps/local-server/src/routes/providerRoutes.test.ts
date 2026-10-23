@@ -28,6 +28,15 @@ describe('provider HTTP routes', () => {
     base = `http://127.0.0.1:${server.port}`;
   });
   afterEach(async () => { await server.close(); fs.rmSync(dir, { recursive: true, force: true }); });
+  it('keeps Mock built in and rejects configurable Mock protocol without network probing', async () => {
+    expect(normalizeProviderInput(input).protocol).toBe('openai-compatible');
+    expect(normalizeProviderInput({ ...input, protocol: 'anthropic' }).protocol).toBe('anthropic');
+    const rejected = await call('/api/providers', 'POST', { ...input, name: 'offline', protocol: 'mock' });
+    expect(rejected.status).toBe(400);
+    expect(await rejected.json()).toMatchObject({ error: 'invalid_protocol' });
+    expect(store.get('mock')).toMatchObject({ id: 'mock', protocol: 'mock', model: 'mock' });
+    expect(probe).not.toHaveBeenCalled();
+  });
   it('shares explicit model capabilities between registry and dispatch, preserving unknown and clearing stale endpoint metadata', async () => {
     await call('/api/providers', 'POST', { ...input, models: { 'deepseek-chat': { capabilities: { tools: false, context_window: 64000 } }, 'deepseek-reasoner': {} } });
     const catalog = await (await call('/api/models')).json() as { models: Array<{ id: string; capabilities: unknown }> };

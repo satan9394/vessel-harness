@@ -1,0 +1,12 @@
+{
+  "fault": {
+    "startedAt": 1792712881646,
+    "until": 1792712911646
+  },
+  "usageAtDrop": 11,
+  "runAtDrop": {
+    "active": false,
+    "turnId": "turn_1792712871721_805b70",
+    "kind": "success"
+  }
+}
