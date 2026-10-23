@@ -1,0 +1,23 @@
+{
+  "id": "R01",
+  "category": "retry",
+  "source": "packages/core/src/agent-loop/AgentLoop.llm-retry-record.test.ts",
+  "title": "① 一次可重试失败 ⇒ 会话日志出现一条 llm/retry：字段如实、且在任何等待之前落盘",
+  "outcome": "passed",
+  "live": false,
+  "assertions": [
+    {
+      "ancestorTitles": [
+        "B13 llm/retry 持久记录（会话日志 = 唯一真源）"
+      ],
+      "fullName": "B13 llm/retry 持久记录（会话日志 = 唯一真源） ① 一次可重试失败 ⇒ 会话日志出现一条 llm/retry：字段如实、且在任何等待之前落盘",
+      "status": "passed",
+      "title": "① 一次可重试失败 ⇒ 会话日志出现一条 llm/retry：字段如实、且在任何等待之前落盘",
+      "duration": 242.4378,
+      "failureMessages": [],
+      "meta": {},
+      "tags": [],
+      "benchmarks": []
+    }
+  ]
+}

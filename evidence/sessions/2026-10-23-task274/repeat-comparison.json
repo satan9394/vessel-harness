@@ -1,0 +1,8 @@
+﻿{
+    "sameHead":  true,
+    "sameCategories":  true,
+    "bothSuccess":  true,
+    "fixtureCount":  14,
+    "sameFixtureOutcomes":  true,
+    "sameSourceHashes":  true
+}

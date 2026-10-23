@@ -1,0 +1,23 @@
+{
+  "id": "R11",
+  "category": "unknown-tool",
+  "source": "packages/tools/src/mcp/mcp.test.ts",
+  "title": "unknown MCP tool calls surface as TOOL_FAILURE (never crash the registry)",
+  "outcome": "passed",
+  "live": false,
+  "assertions": [
+    {
+      "ancestorTitles": [
+        "V0.2-M4 MCP — stdio client abstraction + dynamic registration + policy wiring"
+      ],
+      "fullName": "V0.2-M4 MCP — stdio client abstraction + dynamic registration + policy wiring unknown MCP tool calls surface as TOOL_FAILURE (never crash the registry)",
+      "status": "passed",
+      "title": "unknown MCP tool calls surface as TOOL_FAILURE (never crash the registry)",
+      "duration": 2.459600000000023,
+      "failureMessages": [],
+      "meta": {},
+      "tags": [],
+      "benchmarks": []
+    }
+  ]
+}

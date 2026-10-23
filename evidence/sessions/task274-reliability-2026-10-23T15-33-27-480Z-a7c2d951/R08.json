@@ -1,0 +1,23 @@
+{
+  "id": "R08",
+  "category": "soft-delete",
+  "source": "apps/local-server/src/server.test.ts",
+  "title": "reports stale index on failed recycle rollback, retains metadata and repairs on retry",
+  "outcome": "passed",
+  "live": false,
+  "assertions": [
+    {
+      "ancestorTitles": [
+        "local server HTTP API + SSE"
+      ],
+      "fullName": "local server HTTP API + SSE reports stale index on failed recycle rollback, retains metadata and repairs on retry",
+      "status": "passed",
+      "title": "reports stale index on failed recycle rollback, retains metadata and repairs on retry",
+      "duration": 60.18119999999999,
+      "failureMessages": [],
+      "meta": {},
+      "tags": [],
+      "benchmarks": []
+    }
+  ]
+}
