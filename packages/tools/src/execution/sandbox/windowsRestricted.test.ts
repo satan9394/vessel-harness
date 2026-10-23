@@ -19,7 +19,9 @@ describe('Windows restricted launcher', () => {
     expect(script).toContain('S-1-5-32-544'); expect(script).toContain('S-1-16-4096');
     expect(script).toContain('SetTokenInformation(token,25');
     expect(script.indexOf('AssignProcessToJobObject(job,process.process)')).toBeLessThan(script.indexOf('ResumeThread(process.thread)'));
-    expect(script).toContain('0x4|0x8000000'); expect(script).toContain('0x2000|0x100|0x8|0x2');
+    expect(script).toContain('true,0x4|0x8,IntPtr.Zero,cwd'); expect(script).toContain('0x2000|0x100|0x8|0x2');
+    expect(script).toContain('flags=0x100,input=ri,output=wo,error=we');
+    expect(script.indexOf('CloseHandle(wi); wi=IntPtr.Zero;')).toBeLessThan(script.indexOf('Check(CreateProcessAsUser'));
     expect(script).not.toContain('Set-Acl'); expect(script).not.toContain('SetNamedSecurityInfo');
   });
 
@@ -60,6 +62,19 @@ describe('Windows restricted launcher', () => {
     expect(WINDOWS_RESTRICTED_SOURCE).toContain('TerminateProcess(process.process,1)');
   });
 
+  it('does not quote arguments that do not need it, and reports the child token integrity', () => {
+    // 无条件加引号会把 /c 变成 "/c"，受限令牌下 cmd 对内置命令的解析会失败。
+    expect(WINDOWS_RESTRICTED_SOURCE).toContain("if(s.Length>0 && s.IndexOfAny(new[]{' ','\\t','\\n','\\v','\"'})<0) return s;");
+    expect(WINDOWS_RESTRICTED_SOURCE).toContain('ChildIntegrityRid=childRid');
+  });
+
+  it('surfaces the child integrity RID when the launcher reports it', async () => {
+    const run = vi.fn().mockResolvedValue(result(JSON.stringify({ Stdout: 'ok', Stderr: '', ExitCode: 0, Enforced: true, ChildIntegrityRid: 4096 })));
+    const runner = new WindowsRestrictedRunner({ run });
+    const executed = await runner.execute('cmd.exe', ['/c', 'echo ok'], { cwd, allowedWritePaths: [cwd] });
+    expect(executed.constraints?.integrityRid).toBe(4096);
+  });
+
   it('acknowledges provisioned execution only after the native helper confirms enforcement', async () => {
     const run = vi.fn().mockResolvedValue(result(JSON.stringify({ Stdout: 'mock', Stderr: '', ExitCode: 0, Enforced: true })));
     const runner = new WindowsRestrictedRunner({ run });
@@ -70,11 +85,15 @@ describe('Windows restricted launcher', () => {
     expect((await runner.execute('cmd.exe', [], { cwd })).constraints?.memoryLimitBytes).toBe(512 * 1024 * 1024);
   });
 
-  it('fails closed for unprovisioned ACLs with no fallback or command replay', async () => {
-    const run = vi.fn().mockResolvedValue({ ...result('', 1), stderr: 'sandbox directory requires provisioned Low Integrity and restricted SID ACL' });
+  it.each([
+    'sandbox directory requires provisioned Low Integrity and restricted SID ACL',
+    'SetTokenIntegrityLevel',
+    'sandbox restricted write access denied',
+  ])('fails closed for %s with no fallback or command replay', async (reason) => {
+    const run = vi.fn().mockResolvedValue({ ...result('', 1), stderr: reason });
     const audit = vi.fn();
     const runner = new PlatformSandboxRunner({ platform: 'win32', run, windows: new WindowsRestrictedRunner({ run }), audit });
-    await expect(runner.execute('cmd.exe', ['/c', 'mock'], { cwd })).rejects.toThrow('requires provisioned');
+    await expect(runner.execute('cmd.exe', ['/c', 'mock'], { cwd })).rejects.toThrow(reason);
     expect(run).toHaveBeenCalledOnce(); expect(audit).toHaveBeenCalledWith(expect.objectContaining({ outcome: 'denied', sandboxed: false }));
   });
 

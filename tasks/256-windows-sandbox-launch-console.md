@@ -1,8 +1,8 @@
 # 任务卡 256: 打通 Windows 受限沙箱启动链路（受限令牌 + Low 下的子进程初始化）
 
-**状态**: 执行中
+**状态**: 已完成（原生验收通过，2026-10-23）
 **创建时间**: 2026-10-21
-**执行者**: 待派（OpenCode / Codex）
+**执行者**: Codex
 **协调者**: OpenCode（原 Antigravity，2026-10-21 起 agy CLI 限额）
 
 ---
@@ -47,6 +47,8 @@
 
 选定后必须回答：受限令牌下 `cmd.exe` 与 PowerShell 之外的可执行文件是否同样能起（至少再验一个非 cmd 目标）。
 
+2026-10-23 执行决策：先验证方案 A：`CREATE_SUSPENDED | DETACHED_PROCESS`，保持现有 stdout/stderr 管道、受限令牌、Low、Job 和 ACL 预检不变。避免依赖父控制台或修改桌面/系统 ACL；以原生探针决定是否采用，不将编译通过当作启动成功。
+
 ## 6. Expected Evidence
 
 - native 冒烟 JSON（stdout / exit code / 完整性标签行 / 写根结果）
@@ -56,4 +58,16 @@
 
 ## 7. Result
 
-待执行。
+**已完成（原生验收通过）。** 完整证据见 [RESULT](../evidence/task256/RESULT.md)。
+
+三层缺陷逐层修掉：
+
+1. 受限令牌下**新建控制台**必然 `0xC0000142`。改用 `CREATE_SUSPENDED | DETACHED_PROCESS (0x4|0x8)`，不请求新控制台，stdin 接无写端管道（立即 EOF），stdout/stderr 仍走既有管道。
+2. 换标志后 `cmd.exe /c ver` 报 `'"ver' 不是内部或外部命令`：原 `Quote()` 无条件加引号，把 `/c` 变成 `"/c"`。改为仅在含空格/引号/控制字符时加引号。
+3. `whoami` 在该令牌下必 `0xC0000142`（DLL 初始化失败，不是权限拒绝），不能用来证明 Low。改由启动器在创建子进程后直接查询子进程令牌的完整性 RID（`Result.ChildIntegrityRid` → `constraints.integrityRid`）。
+
+原生探针（宿主环境执行，`evidence/task256/native-smoke.json`，exit 0）：`echo` 输出 `sandbox-ok`、退出 0；`integrityRid = 4096`（Low）；provisioned 写根写入并读回成功；根外写入被拒（exit 1）；`pass: true`。
+
+说明：上一轮记录的「provision 阶段 exit 1」是 **Codex CLI 自身 workspace-write 沙箱**阻止了 `icacls /setintegritylevel`，不是产品缺陷；宿主机执行同一探针即通过。
+
+未覆盖：只验证了 `cmd.exe` 与内置命令，`whoami.exe` 在该令牌下无法运行（已知限制）；真实工具链（Tool → Sandbox）尚未在真实模型会话端到端跑过。

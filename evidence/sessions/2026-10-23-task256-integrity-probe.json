@@ -1,0 +1,36 @@
+{
+  "dir": "C:\\work\\AppData\\Local\\Temp\\vessel-integrity-AjnVXc",
+  "outside": "C:\\work\\AppData\\Local\\Temp\\vessel-outside-zjB1n6",
+  "results": [
+    {
+      "label": "whoami-direct",
+      "exitCode": -1073741502,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "label": "whoami-via-cmd",
+      "exitCode": -1073741502,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "label": "whoami-user",
+      "exitCode": -1073741502,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "label": "write-outside",
+      "exitCode": 1,
+      "stdout": "",
+      "stderr": "????????????????????????\r\n"
+    },
+    {
+      "label": "write-inside",
+      "exitCode": 0,
+      "stdout": "ok \r\n",
+      "stderr": ""
+    }
+  ]
+}

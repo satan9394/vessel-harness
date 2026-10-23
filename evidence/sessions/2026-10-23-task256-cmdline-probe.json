@@ -1,0 +1,9 @@
+{
+  "dir": "C:\\work\\AppData\\Local\\Temp\\vessel-cmdline-gtFBKy",
+  "bat": "C:\\work\\AppData\\Local\\Temp\\vessel-cmdline-gtFBKy\\dump.bat",
+  "exitCode": 0,
+  "stdout": "",
+  "stderr": "",
+  "cmdline": "CMDLINE=\"cmd.exe\" \"/c\" \"C:\\work\\AppData\\Local\\Temp\\vessel-cmdline-gtFBKy\\dump.bat\"\r\n",
+  "args": "ARGS=\r\n"
+}
