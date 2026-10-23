@@ -1,0 +1,41 @@
+
+ RUN  v5.0.1 E:/Code_file/Projects/Vessel_Harness
+
+(node:16888) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+ ❯ apps/local-server/src/server.test.ts (47 tests | 1 failed) 55089ms
+   ❯ local server HTTP API + SSE (33)
+     × does not reuse an older success after a newer unfinished turn 110ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  apps/local-server/src/server.test.ts > local server HTTP API + SSE > does not reuse an older success after a newer unfinished turn
+AssertionError: expected { …(7) } to match object { status: 'interrupted', …(2) }
+(6 matching properties omitted from actual)
+
+- Expected
++ Received
+
+  {
+-   "outcome": "interrupted",
+-   "status": "interrupted",
+-   "statusSource": "live",
++   "status": "failed",
+  }
+
+ ❯ apps/local-server/src/server.test.ts:252:21
+    250|     await controller.session.appendSync({ type: 'turn/start', turnId: …
+    251|     const { runs } = await (await fetch(`${base}/api/activity/runs`)).…
+    252|     expect(runs[0]).toMatchObject({ status: 'interrupted', outcome: 'i…
+       |                     ^
+    253|   });
+    254|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed | 1 passed (2)
+      Tests  1 failed | 81 passed (82)
+   Start at  08:25:35
+   Duration  66.08s (tests 85%, transform 8%, import 7%)
+

@@ -12,8 +12,22 @@
 
 ## 怎么读这个目录
 
+最近新增交付：[272](272-arch01-run-outcome-evidence.md) ARCH-01剩余运行结果证据已修并验证；两波12项本地闭环，完整证据在修复报告，待协调者验收。
+
 | 本地交付 | 状态 | 任务卡 |
 |---|---|---|
+| ARCH-01运行结果证据 (卡 272) | 已修并验证，六项门禁及真实Stop冷启动/刷新通过；待协调者验收 | [272](272-arch01-run-outcome-evidence.md) |
+| ARCH-06断线恢复 (卡 271) | 已修并验证，六项门禁及真实运行中30秒断线/刷新/三会话切换通过；待协调者验收 | [271](271-arch06-session-stream-recovery.md) |
+| UI-09工具细节与Stop (卡 270) | 已修并验证，六项门禁及真实模型24工具/滚动/Stop通过；待协调者验收 | [270](270-ui09-tool-details-stop.md) |
+| UI-07生效Policy汇总 (卡 269) | 已修并验证，六项门禁及真实模型历史会话IAB通过；待协调者验收 | [269](269-ui07-effective-policy.md) |
+| UI-03工作区草稿隔离 (卡 268) | 已修并验证，六项门禁及IAB/真实模型唯一需求通过；待协调者验收 | [268](268-ui03-workspace-drafts.md) |
+| 英文残留国际化 (卡 267) | 已修并验证，六项门禁及IAB英文预设/主题标签通过；待协调者验收 | [267](267-browser-fix-english-residuals.md) |
+| Mock预设可见可用 (卡 266) | 已修并验证，六项门禁及IAB显式Mock运行通过；待协调者验收 | [266](266-browser-fix-mock-preset.md) |
+| 首屏输入焦点 (卡 265) | 已修并验证，六项门禁及IAB直接输入通过；待协调者验收 | [265](265-browser-fix-initial-focus.md) |
+| Activity取消语义 (卡 264) | 已修并验证，六项门禁及真实Stop会话Activity刷新通过；待协调者验收 | [264](264-browser-fix-activity-cancellation.md) |
+| 终止原因刷新恢复 (卡 263) | 已修并验证，六项门禁及真实模型length/Stop刷新通过；待协调者验收 | [263](263-browser-fix-terminal-history.md) |
+| 会话多行输入 (卡 262) | 已修并验证，六项门禁及真实模型IAB通过；待协调者验收 | [262](262-browser-fix-multiline.md) |
+| 真实会话回收失败修复 (卡 261) | 已修并验证，六项门禁及真实模型IAB/OS回收站通过；待协调者验收 | [261](261-browser-fix-delete-recycle.md) |
 | 长输出截断 500 根治与沙箱 Token 权限 (卡 255) | 已实现并通过定向门禁（沙箱启动缺口转卡 256） | [255](255-fix-length-truncation-500-and-sandbox-fallback.md) |
 | Windows 受限沙箱启动链路 (卡 256) | 执行中 | [256](256-windows-sandbox-launch-console.md) |
 | apps/web typecheck 门禁修复 (卡 257) | 已实现，门禁全绿 | [257](257-web-typecheck-gate.md) |

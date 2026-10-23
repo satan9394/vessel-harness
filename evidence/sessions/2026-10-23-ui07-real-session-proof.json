@@ -1,0 +1,12 @@
+{
+  "sessionId": "sess_1792694672837_c9697e87",
+  "readOnly": true,
+  "profile": "workspace-write",
+  "sourceKinds": [
+    "system",
+    "session"
+  ],
+  "rules": 16,
+  "unenforced": 1,
+  "snapshotHash": "02b37621633f4d67c27780486415ad27e41741a586871d72f0ba6fdee70f6306"
+}

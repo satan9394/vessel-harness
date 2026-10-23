@@ -315,8 +315,8 @@ export default function Sidebar({
           <button
             type="button"
             className="btn btn-sm sidebar-theme-toggle"
-            aria-label={isDark ? '切换浅色模式' : '切换深色模式'}
-            title={isDark ? '切换为浅色主题 (Light)' : '切换为深色主题 (Dark)'}
+            aria-label={t(isDark ? 'themeSwitchLight' : 'themeSwitchDark')}
+            title={t(isDark ? 'themeSwitchLight' : 'themeSwitchDark')}
             onClick={() => {
               const next = isDark ? 'light' : 'dark';
               setTheme(next);

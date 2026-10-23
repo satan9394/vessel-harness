@@ -67,10 +67,14 @@ export default function ConversationView({ sessionId, api, onSessionUpdated, vie
   const [input, setInput] = useState(() => saved?.input ?? '');
   const [modelBusy, setModelBusy] = useState(false);
   const [busy, setBusy] = useState(false); // a turn is in flight
+  const [stopping, setStopping] = useState(false);
+  const stopPending = useRef(false);
+  const turnRevision = useRef(0);
+  const remoteActive = useRef(false);
+  const checkpointRevision = useRef(0);
   const [historyReady, setHistoryReady] = useState(() => Boolean(saved?.items.length) || !api.sessionMessages);
   const hydrationPending = useRef(!historyReady);
   const [error, setError] = useState<string | null>(null);
-  const [lengthLimited, setLengthLimited] = useState(false);
   const [serverDown, setServerDown] = useState(false);
   const [auditRevision, setAuditRevision] = useState(0);
   const [isAtBottom, setIsAtBottom] = useState(true);
@@ -84,6 +88,18 @@ export default function ConversationView({ sessionId, api, onSessionUpdated, vie
   const fallbackAssistant = useRef<string | null>(null);
   const latest = useRef({ items, usage, turnMetrics, cacheHistory, observation, input });
   const listRef = useRef<HTMLDivElement | null>(null);
+  const inputRef = useRef<HTMLTextAreaElement | null>(null);
+  const focusOrigin = useRef<Element | null>(null);
+  useEffect(() => {
+    const field = inputRef.current;
+    if (!field) return;
+    const doc = field.ownerDocument;
+    if (!historyReady) { focusOrigin.current = doc.activeElement; return; }
+    if (serverDown) return;
+    // Async hydration must not take focus back from a control the user selected.
+    if (!doc.activeElement || doc.activeElement === doc.body || doc.activeElement === focusOrigin.current) field.focus();
+    focusOrigin.current = null;
+  }, [sessionId, historyReady, serverDown]);
   const activeSession = useRef(sessionId);
   const sessionGeneration = useRef(0);
   activeSession.current = sessionId;
@@ -189,8 +205,10 @@ export default function ConversationView({ sessionId, api, onSessionUpdated, vie
     setInput(saved?.input ?? '');
     setModelBusy(false);
     setBusy(false);
+    remoteActive.current = false;
+    setStopping(false);
+    stopPending.current = false;
     setError(null);
-    setLengthLimited(false);
     fallbackAssistant.current = null;
     setServerDown(false);
     pendingTool.current = { ...saved?.pendingTool };
@@ -200,7 +218,13 @@ export default function ConversationView({ sessionId, api, onSessionUpdated, vie
     let streamHydrated = false;
     const hydrate = (transcript: import('../sse').SessionTranscript) => {
       if (!current()) return;
+      checkpointRevision.current++;
+      fallbackAssistant.current = null;
       setItems(transcript.messages);
+      attention?.clear();
+      for (const item of transcript.messages) if (item.widget?.status === 'pending') attention?.widget(sessionId, item.widget);
+      if (transcript.run) { remoteActive.current = transcript.run.active; setBusy(transcript.run.active); }
+      if (transcript.inspector) setObservation(transcript.inspector);
       setUsage(emptyUsage());
       setTurnMetrics({});
       setCacheHistory([]);
@@ -212,8 +236,30 @@ export default function ConversationView({ sessionId, api, onSessionUpdated, vie
     if (needsHistory && api.sessionMessages) void api.sessionMessages(sessionId).then(transcript => {
       if (!streamHydrated) hydrate(transcript);
     }).catch(err => { if (current() && !streamHydrated) setError(turnErrorText(err)); });
-    const stream = createEventStream(`/api/sessions/${encodeURIComponent(sessionId)}/events${needsHistory ? '?hydrate=1' : ''}`, {
-      onTranscript: transcript => { if (!current()) return; streamHydrated = true; hydrate(transcript); hydrationPending.current = false; setHistoryReady(true); setError(null); },
+    const stream = createEventStream(`/api/sessions/${encodeURIComponent(sessionId)}/events?hydrate=1`, {
+      onTranscript: transcript => { if (!current()) return; streamHydrated = true; hydrate(transcript); hydrationPending.current = false; setHistoryReady(true); setServerDown(false); setError(null); },
+      onDisconnect: () => { if (!current()) return; hydrationPending.current = true; setHistoryReady(false); setServerDown(true); setError(t('serverDown')); },
+      onRun: run => {
+        if (!current()) return;
+        remoteActive.current = run.active; setBusy(run.active);
+        if (!run.active) {
+          turnRevision.current++;
+          setModelBusy(false); setStopping(false); stopPending.current = false;
+          const termination = run.finishReason === 'length' ? 'length' : run.kind === 'interrupted' ? 'interrupted' : undefined;
+          setItems(previous => {
+            const finished = finishThinking(previous);
+            if (!termination) return finished;
+            let start = -1, assistant = -1;
+            for (let i = 0; i < finished.length; i++) {
+              if (finished[i].msg?.role === 'user') start = i;
+              if (finished[i].msg?.role === 'assistant') assistant = i;
+            }
+            if (start < 0) return finished;
+            return assistant > start ? finished.map((item, i) => i === assistant ? { ...item, msg: { ...item.msg!, termination } } : item)
+              : [...finished, conversationItem({ role: 'assistant', text: '', ts: Date.now(), termination })];
+          });
+        }
+      },
       onOpen: () => {
         if (!current()) return;
         setServerDown(false);
@@ -224,8 +270,15 @@ export default function ConversationView({ sessionId, api, onSessionUpdated, vie
         if (!current()) return;
         const fallback = delta.role === 'assistant' && delta.text ? fallbackAssistant.current : null;
         if (fallback) fallbackAssistant.current = null;
-        setItems(previous => finishThinking(fallback ? previous.filter(item => item.id !== fallback) : previous));
-        appendMessage(delta);
+        if (fallback) {
+          setItems(previous => {
+            const termination = previous.find(item => item.id === fallback)?.msg?.termination;
+            return [...finishThinking(previous.filter(item => item.id !== fallback)), conversationItem({ ...delta, termination })];
+          });
+        } else {
+          setItems(previous => finishThinking(previous));
+          appendMessage(delta);
+        }
       },
       onTool: delta => { if (current()) onTool(delta); },
       onUsage: delta => { if (current()) onUsage(delta); },
@@ -253,44 +306,45 @@ export default function ConversationView({ sessionId, api, onSessionUpdated, vie
 
   const send = useCallback(
     async (text: string) => {
-      const prompt = text.trim();
-      if (!prompt || busy || modelBusy || !historyReady || hydrationPending.current) return;
+      const prompt = text;
+      if (!prompt.trim() || busy || modelBusy || !historyReady || hydrationPending.current) return;
       attention?.unlockAudio();
       setInput('');
       setTurnMetrics({});
       const userItem = conversationItem({ role: 'user', text: prompt, ts: Date.now() });
       setItems(previous => [...previous, userItem]);
       setBusy(true);
+      setStopping(false);
+      stopPending.current = false;
+      const turn = ++turnRevision.current;
       setError(null);
-      setLengthLimited(false);
       fallbackAssistant.current = null;
       setServerDown(false);
       const generation = sessionGeneration.current;
+      const checkpoint = checkpointRevision.current;
       const startedAt = Date.now();
       try {
         const result = await api.runTurn(sessionId, prompt);
         if (activeSession.current !== sessionId || sessionGeneration.current !== generation) return;
         attention?.completed(result.kind, Date.now() - startedAt);
-        if (result.finishReason === 'length') {
-          setLengthLimited(true);
-          if (result.finalText) {
-            const fallback = conversationItem({ role: 'assistant', text: result.finalText, ts: Date.now() });
+        const termination = result.finishReason === 'length' ? 'length' : result.kind === 'interrupted' ? 'interrupted' : undefined;
+        if (termination && checkpoint === checkpointRevision.current) {
+          const fallback = conversationItem({ role: 'assistant', text: result.finalText, ts: Date.now(), termination });
+          setItems(previous => {
+            const start = previous.findIndex(item => item.id === userItem.id);
+            let index = -1;
+            for (let i = previous.length - 1; i > start; i--) {
+              if (previous[i].kind === 'message' && previous[i].msg?.role === 'assistant') { index = i; break; }
+            }
+            if (start >= 0 && index > start) return previous.map((item, i) => i === index ? { ...item, msg: { ...item.msg!, termination } } : item);
             fallbackAssistant.current = fallback.id;
-            setItems(previous => {
-              const turnItems = previous.slice(previous.findIndex(item => item.id === userItem.id) + 1);
-              if (turnItems.some(item => item.msg?.role === 'assistant' && item.msg.text)) return previous;
-              return [...previous, fallback];
-            });
-          }
-        }
-        if (result.kind === 'interrupted') {
-          // task 050 minimal feedback: the turn was stopped mid-flight by Stop
-          appendMessage({ role: 'assistant', text: t('interrupted'), ts: Date.now() });
+            return [...previous, fallback];
+          });
         }
       } catch (err) {
         if (activeSession.current !== sessionId || sessionGeneration.current !== generation) return;
-        attention?.completed('error', Date.now() - startedAt);
-        setInput(prompt);
+        if (!(err instanceof ApiError && err.status === 0)) attention?.completed('error', Date.now() - startedAt);
+        setInput(draft => draft || prompt);
         if (err instanceof ApiError && err.status === 0) {
           setServerDown(true);
           setError(t('serverDown'));
@@ -299,8 +353,11 @@ export default function ConversationView({ sessionId, api, onSessionUpdated, vie
         }
       } finally {
         if (activeSession.current !== sessionId || sessionGeneration.current !== generation) return;
+        if (turnRevision.current === turn) turnRevision.current++;
+        setStopping(false);
+        stopPending.current = false;
         setItems(previous => finishThinking(previous));
-        setBusy(false);
+        setBusy(remoteActive.current);
         void onSessionUpdated?.();
       }
     },
@@ -322,10 +379,13 @@ export default function ConversationView({ sessionId, api, onSessionUpdated, vie
   }, [initialTask, sessionId, send, onInitialTaskConsumed, historyReady]);
 
   const stop = useCallback(() => {
-    // Stop (task 050): ask the server to interrupt the in-flight turn. Best
-    // effort — the server answers quickly; ignore failures (turn may end first).
-    void api.interruptSession(sessionId).catch(() => undefined);
-  }, [api, sessionId]);
+    if (!busy || stopPending.current) return;
+    const generation = sessionGeneration.current, turn = turnRevision.current;
+    const current = () => activeSession.current === sessionId && sessionGeneration.current === generation && turnRevision.current === turn;
+    stopPending.current = true; setStopping(true); setError(null);
+    void api.interruptSession(sessionId).catch(() => { if (current()) setError(t('stopFailed')); })
+      .finally(() => { if (current()) { stopPending.current = false; setStopping(false); } });
+  }, [api, sessionId, busy, t]);
 
   const handleScroll = useCallback(() => {
     const el = listRef.current;
@@ -353,14 +413,17 @@ export default function ConversationView({ sessionId, api, onSessionUpdated, vie
     isComposingRef.current = false;
   }, []);
 
-  const handleKeyDown = useCallback((e: React.KeyboardEvent<HTMLInputElement>) => {
+  const handleKeyDown = useCallback((e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === 'Enter') {
       if (isComposingRef.current || e.nativeEvent.isComposing || (e as unknown as { keyCode?: number }).keyCode === 229) {
         e.preventDefault();
         e.stopPropagation();
+      } else if (!e.shiftKey) {
+        e.preventDefault();
+        void send(input);
       }
     }
-  }, []);
+  }, [input, send]);
 
   // Keep the newest row scrolled into view if already at bottom.
   useEffect(() => {
@@ -392,7 +455,6 @@ export default function ConversationView({ sessionId, api, onSessionUpdated, vie
           <MessageList foldRequest={viewRequest && (viewRequest.action === 'collapse' || viewRequest.action === 'expand') ? { collapsed: viewRequest.action === 'collapse', serial: viewRequest.serial } : undefined} items={items} thinking={busy} sessionId={sessionId} onRespond={respondWidget} />
         )}
         {error && !serverDown && <ConversationError text={error} />}
-        {lengthLimited && <div className="dim conversation-error" role="status">{t('responseLengthLimit')}</div>}
       </div>
       {!isAtBottom && (
         <button
@@ -417,8 +479,9 @@ export default function ConversationView({ sessionId, api, onSessionUpdated, vie
             void send(input);
           }}
         >
-          <input
+          <textarea
             className="input composer-input"
+            rows={Math.min(8, input.split('\n').length)}
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onCompositionStart={handleCompositionStart}
@@ -426,7 +489,7 @@ export default function ConversationView({ sessionId, api, onSessionUpdated, vie
             onKeyDown={handleKeyDown}
             placeholder={t('inputPlaceholder')}
             disabled={serverDown || !historyReady}
-            autoFocus
+            ref={inputRef}
           />
           <button type="submit" className="btn btn-primary" disabled={busy || modelBusy || !historyReady || !input.trim() || serverDown}>
             {busy ? t('running') : t('send')}
@@ -434,11 +497,11 @@ export default function ConversationView({ sessionId, api, onSessionUpdated, vie
           <button
             type="button"
             className="btn"
-            disabled={!busy}
+            disabled={!busy || stopping}
             title={t('interruptTitle')}
             onClick={stop}
           >
-            {t('stop')}
+            {t(stopping ? 'stopPending' : 'stop')}
           </button>
         </form>
         <MetersRow usage={usage} metrics={turnMetrics} contextWindow={contextWindow} plan={planProgressValue} />

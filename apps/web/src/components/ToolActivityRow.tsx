@@ -36,7 +36,8 @@ export default function ToolActivityRow({ delta }: { delta: ToolDelta }) {
               : t('timeMilliseconds', { value: String(delta.durationMs) })}</span>
           )}
         </div>
-        {delta.argsSummary && <div className="tool-args" title={delta.argsSummary}>{delta.argsSummary}</div>}
+        {delta.argsSummary && <details className="tool-details"><summary>{t('toolDetails')}</summary><div className="tool-args" title={delta.argsSummary}>{delta.argsSummary}</div></details>}
+        {(delta.status === 'error' || delta.status === 'denied') && delta.errorDetail && <p role="alert" className="tool-error">{delta.errorDetail}</p>}
       </div>
       {delta.sandbox && <div className="tool-badge"><SandboxAuditBadge audit={delta.sandbox} /></div>}
     </div>

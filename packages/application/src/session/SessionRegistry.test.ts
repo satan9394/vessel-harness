@@ -34,6 +34,32 @@ describe('SessionRegistry', () => {
     fs.rmSync(dir, { recursive: true, force: true });
   });
 
+  it('reads streamed archive run evidence after a registry restart without a writer lease or data mutation', async () => {
+    const reg = new SessionRegistry({ vesselHome: home, index: false });
+    const meta = reg.create({ workspaceRoot: ws, provider: 'mock', model: 'mock', permission: 'workspace-write' });
+    const bytes = fs.readFileSync(path.join(home, 'sessions.json'), 'utf8');
+    const restarted = new SessionRegistry({ vesselHome: home, index: false,
+      recordSource: async function* () {
+        yield { seq: 1, ts: '2026-10-23T00:00:00Z', type: 'turn/start', turnId: 'archived', surface: false };
+        yield { seq: 2, ts: '2026-10-23T00:00:01Z', type: 'turn/end', turnId: 'archived', kind: 'interrupted', stats: { steps: 0, toolCalls: 0, durationMs: 1 }, surface: false };
+      },
+    });
+    expect(await restarted.observeRun(meta.id)).toMatchObject({ lastRunStatus: 'interrupted', runId: 'archived', revision: 2 });
+    expect(fs.readFileSync(path.join(home, 'sessions.json'), 'utf8')).toBe(bytes);
+    expect(fs.existsSync(path.join(ws, '.harness', 'sessions', meta.id, '.lease'))).toBe(false);
+    expect(await restarted.observeRun('missing')).toMatchObject({ lastRunStatus: 'unknown', reasonCode: 'session_missing' });
+    expect(await reg.observeRun(meta.id)).toMatchObject({ lastRunStatus: 'unknown', reasonCode: 'event_log_empty' });
+  });
+
+  it('keeps unavailable history unknown even if a previous success was streamed before the read failed', async () => {
+    const registry = new SessionRegistry({ vesselHome: home, index: false, recordSource: async function* () {
+      yield { seq: 1, ts: '2026-10-23T00:00:00Z', type: 'turn/end', turnId: 'old', kind: 'success', stats: { steps: 0, toolCalls: 0, durationMs: 1 }, surface: false };
+      throw new Error('fixture archive unavailable');
+    } });
+    const meta = registry.create({ workspaceRoot: ws, provider: 'mock', model: 'mock', permission: 'workspace-write' });
+    expect(await registry.observeRun(meta.id)).toMatchObject({ lastRunStatus: 'unknown', reasonCode: 'event_log_unavailable' });
+  });
+
   it('create/list/get round-trips session metadata', () => {
     const reg = new SessionRegistry({ vesselHome: home });
     const meta = reg.create({

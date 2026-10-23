@@ -44,9 +44,18 @@ const doc = { addEventListener: vi.fn(), removeEventListener: vi.fn() };
 beforeEach(() => { hooks.values = []; hooks.effects = []; hooks.cleanups = []; vi.clearAllMocks(); vi.stubGlobal('document', doc); });
 afterEach(() => { hooks.cleanups.forEach(cleanup => cleanup?.()); vi.unstubAllGlobals(); });
 describe('ModelQuickSwitcher', () => {
+  it('finds and explicitly chooses the offline Mock model', () => {
+    open();
+    invoke(render().find(node => node.type === 'input')!, 'onChange', { target: { value: 'mock' } });
+    const options = render().filter(node => node.props.role === 'option');
+    expect(options).toHaveLength(1);
+    invoke(options[0]!, 'onClick');
+    expect(onSelect).toHaveBeenCalledWith({ provider: 'mock', model: 'mock' });
+  });
+
   it('toggles the panel, groups providers, and filters models', () => {
     expect(render().some(node => node.props.role === 'dialog')).toBe(false);
-    expect(open().filter(node => node.props.role === 'option').map(node => node.props.id)).toEqual(['switcher-item-0', 'switcher-item-1', 'switcher-item-2']);
+    expect(open().filter(node => node.props.role === 'option').map(node => node.props.id)).toEqual(['switcher-item-0', 'switcher-item-1', 'switcher-item-2', 'switcher-item-3']);
     invoke(render().find(node => node.type === 'input')!, 'onChange', { target: { value: ' beta ' } });
     expect(render().filter(node => node.props.role === 'option')).toHaveLength(1);
     invoke(render().find(node => node.props.role === 'option')!, 'onClick');
@@ -65,7 +74,7 @@ describe('ModelQuickSwitcher', () => {
   it('wraps ArrowUp and dismisses with Escape without submitting or selecting', () => {
     open();
     invoke(render()[0]!, 'onKeyDown', { key: 'ArrowUp', nativeEvent: {}, preventDefault() {} });
-    expect(render().find(node => node.type === 'input')!.props['aria-activedescendant']).toBe('switcher-item-2');
+    expect(render().find(node => node.type === 'input')!.props['aria-activedescendant']).toBe('switcher-item-3');
     invoke(render()[0]!, 'onKeyDown', { key: 'Escape', nativeEvent: {}, preventDefault() {}, stopPropagation() {} });
     expect(render().some(node => node.props.role === 'dialog')).toBe(false); expect(onSelect).not.toHaveBeenCalled();
   });

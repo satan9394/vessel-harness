@@ -11,7 +11,7 @@ vi.mock('./LanguageProvider', () => ({ useI18n: () => ({ t: translate('en'), lan
 vi.mock('react', async original => ({ ...await original<typeof import('react')>(),
   useState: (initial: unknown) => {
     const i = hooks.cursor++;
-    if (!(i in hooks.values)) hooks.values[i] = initial;
+    if (!(i in hooks.values)) hooks.values[i] = typeof initial === 'function' ? initial() : initial;
     return [hooks.values[i], (next: unknown) => { hooks.values[i] = typeof next === 'function' ? next(hooks.values[i]) : next; }];
   },
   useRef: (initial: unknown) => {
@@ -37,11 +37,12 @@ function nodes(root: ReactNode): ReactElement<Record<string, unknown>>[] {
   return [root, ...nodes(root.props.children as ReactNode)];
 }
 let api: ApiClient;
+let selectedRoot: string;
 const onStarted = vi.fn();
 const onConfigureModels = vi.fn();
 function render() {
   hooks.cursor = 0;
-  const tree = nodes(TaskComposer({ api, projects: [], selectedRoot: 'E:/workspace', onSelectProject: () => {},
+  const tree = nodes(TaskComposer({ api, projects: [], selectedRoot, onSelectProject: () => {},
     providerRevision: 0, disabled: false, onConfigureModels, onAdvanced: () => {}, onStarted }));
   hooks.effects.splice(0).forEach(effect => effect());
   return tree;
@@ -68,6 +69,7 @@ async function expectNoSubmission() {
 beforeEach(() => {
   hooks.cleanups.forEach(cleanup => cleanup?.());
   hooks.values = []; hooks.cursor = 0; hooks.effects = []; hooks.cleanups = []; vi.clearAllMocks();
+  selectedRoot = 'E:/workspace';
   api = {
     listModels: vi.fn(async () => ({ models: [] })), openProject: vi.fn(async () => ({})),
     createSession: vi.fn(async () => ({ session: { id: 'new', workspaceRoot: 'E:/workspace' } })),
@@ -76,6 +78,59 @@ beforeEach(() => {
 });
 
 describe('TaskComposer IME and keyboard submission', () => {
+  it('isolates workspace drafts, restores them after navigation and separates API clients', () => {
+    invoke(textarea(), 'onChange', { target: { value: 'workspace A draft' } });
+    selectedRoot = 'E:/workspace-b';
+    expect(textarea().props.value).toBe('');
+    invoke(textarea(), 'onChange', { target: { value: 'workspace B draft' } });
+    selectedRoot = 'E:/workspace';
+    expect(textarea().props.value).toBe('workspace A draft');
+    hooks.cleanups.forEach(cleanup => cleanup?.());
+    hooks.values = []; hooks.effects = []; hooks.cleanups = [];
+    expect(textarea().props.value).toBe('workspace A draft');
+    selectedRoot = 'E:/workspace-b';
+    expect(textarea().props.value).toBe('workspace B draft');
+    hooks.cleanups.forEach(cleanup => cleanup?.());
+    hooks.values = []; hooks.effects = []; hooks.cleanups = [];
+    api = { ...api };
+    expect(textarea().props.value).toBe('');
+  });
+
+  it('clears only the submitted workspace draft after successful creation', async () => {
+    await ready();
+    selectedRoot = 'E:/workspace-b';
+    invoke(textarea(), 'onChange', { target: { value: 'workspace B task' } });
+    enter();
+    await vi.waitFor(() => expect(onStarted).toHaveBeenCalledOnce());
+    expect(api.createSession).toHaveBeenCalledWith(expect.objectContaining({ workspaceRoot: 'E:/workspace-b' }));
+    expect(textarea().props.value).toBe('');
+    selectedRoot = 'E:/workspace';
+    expect(textarea().props.value).toBe('执行任务');
+  });
+
+  it('preserves the current workspace draft when creation fails', async () => {
+    vi.mocked(api.createSession).mockRejectedValueOnce(new Error('fixture failure'));
+    await ready(); enter();
+    await vi.waitFor(() => expect(render().some(node => node.props.role === 'alert')).toBe(true));
+    selectedRoot = 'E:/workspace-b'; expect(textarea().props.value).toBe('');
+    selectedRoot = 'E:/workspace'; expect(textarea().props.value).toBe('执行任务');
+    expect(onStarted).not.toHaveBeenCalled();
+  });
+
+  it('can explicitly start with the built-in Mock while real models are configured', async () => {
+    vi.mocked(api.listModels).mockResolvedValue({ models: [
+      { id: 'mock', providerName: 'mock', name: 'Mock', protocol: 'mock' },
+      { id: 'one', providerName: 'real', name: 'One', protocol: 'openai-compatible' },
+    ] });
+    await ready();
+    const switcher = render().find(node => node.type === ModelQuickSwitcher)!.props as unknown as ModelQuickSwitcherProps;
+    expect(switcher.current).toEqual({ provider: 'real', model: 'one' });
+    expect(switcher.models.some(model => model.providerName === 'mock')).toBe(true);
+    switcher.onSelect({ provider: 'mock', model: 'mock' });
+    enter();
+    await vi.waitFor(() => expect(api.createSession).toHaveBeenCalledWith(expect.objectContaining({ provider: 'mock', model: 'mock' })));
+  });
+
   it('opens the requested onboarding preset without submitting a session', async () => {
     render(); await ready();
     const cards = render().filter(node => node.props.className === 'onboarding-card');

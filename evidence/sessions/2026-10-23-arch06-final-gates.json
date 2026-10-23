@@ -1,0 +1,26 @@
+[
+  {
+    "exitCode": 0,
+    "name": "tsc"
+  },
+  {
+    "exitCode": 1,
+    "name": "test-types"
+  },
+  {
+    "exitCode": 0,
+    "name": "web-types"
+  },
+  {
+    "exitCode": 0,
+    "name": "server"
+  },
+  {
+    "exitCode": 0,
+    "name": "web"
+  },
+  {
+    "exitCode": 0,
+    "name": "web-build"
+  }
+]

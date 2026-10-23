@@ -1,0 +1,38 @@
+{
+  "after": {
+    "id": "sess_1792682051988_c9647438",
+    "kind": "session",
+    "projectRoot": "C:\\work\\AppData\\Local\\Temp\\vessel-fix-delete-0344b788",
+    "title": "No tools or commentary. Write a 6000-word story about a ship. Continue until cut",
+    "status": "interrupted",
+    "outcome": "interrupted",
+    "statusSource": "event_log",
+    "runId": "turn_1792682304473_38e8f7",
+    "observedAt": 1792682305465,
+    "revision": 37,
+    "reasonCode": "turn_interrupted",
+    "needsApproval": false,
+    "updatedAt": 1792682999141,
+    "href": "/api/sessions/sess_1792682051988_c9647438"
+  },
+  "before": {
+    "id": "sess_1792682051988_c9647438",
+    "kind": "session",
+    "projectRoot": "C:\\work\\AppData\\Local\\Temp\\vessel-fix-delete-0344b788",
+    "title": "No tools or commentary. Write a 6000-word story about a ship. Continue until cut",
+    "status": "interrupted",
+    "outcome": "interrupted",
+    "statusSource": "event_log",
+    "runId": "turn_1792682304473_38e8f7",
+    "observedAt": 1792682305465,
+    "revision": 37,
+    "reasonCode": "turn_interrupted",
+    "needsApproval": false,
+    "updatedAt": 1792682999141,
+    "href": "/api/sessions/sess_1792682051988_c9647438"
+  },
+  "unchangedHash": true,
+  "jsonlLine": 36,
+  "sha256": "2CC9C2C9FE27A63CDE714BC488AE87F4F64C3360BC24FBC87164DD53C198BD03",
+  "length": 47467
+}

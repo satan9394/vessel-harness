@@ -1,0 +1,27 @@
+
+ RUN  v5.0.1 E:/Code_file/Projects/Vessel_Harness
+
+ ❯ apps/local-server/src/daemon/daemonRecycle.windows.test.ts (2 tests | 1 failed) 6781ms
+   ❯ Windows native recycling (2)
+     × recycles a session directory while its Node JSONL writer remains open 4468ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  apps/local-server/src/daemon/daemonRecycle.windows.test.ts > Windows native recycling > recycles a session directory while its Node JSONL writer remains open
+Error: daemon state recycle failed
+ ❯ ChildProcess.<anonymous> apps/local-server/src/daemon/daemonLifecycle.ts:83:65
+     81|     const child = spawn(command, args, { windowsHide: true, stdio: 'ig…
+     82|     child.once('error', reject);
+     83|     child.once('close', code => code === 0 ? resolve() : reject(new Er…
+       |                                                                 ^
+     84|   });
+     85| }
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 1 passed (2)
+   Start at  06:55:53
+   Duration  8.06s (tests 94%, transform 4%, import 1%, worker 1%, setup 1%)
+

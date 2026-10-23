@@ -1,0 +1,27 @@
+
+ RUN  v5.0.1 E:/Code_file/Projects/Vessel_Harness/apps/web
+
+ ❯ src/components/ConversationView.interaction.test.tsx (15 tests | 1 failed | 14 skipped) 15ms
+   ❯ ConversationView Task 246: Scroll guard, IME protection, and SSE reconnect (15)
+     × preserves pasted newlines, leaves Shift+Enter to the textarea, and sends once on Enter 14ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/components/ConversationView.interaction.test.tsx > ConversationView Task 246: Scroll guard, IME protection, and SSE reconnect > preserves pasted newlines, leaves Shift+Enter to the textarea, and sends once on Enter
+AssertionError: expected undefined to be defined
+ ❯ src/components/ConversationView.interaction.test.tsx:98:19
+     96|     let tree = render();
+     97|     let input = tree.find(node => node.type === 'textarea')!;
+     98|     expect(input).toBeDefined();
+       |                   ^
+     99|     const pasted = '\nfirst line\n第二行\n';
+    100|     (input.props.onChange as (event: unknown) => void)({ target: { val…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 14 skipped (15)
+   Start at  07:36:00
+   Duration  2.06s (transform 51%, import 47%, worker 1%, tests 1%)
+

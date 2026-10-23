@@ -67,6 +67,7 @@ describe('composeHarness Claude/Claw plugin integration', () => {
 
     expect(harness.discoveredPlugins.map((plugin) => plugin.id)).toEqual(['claw-workspace', 'ship-kit']);
     expect(harness.artifacts.rules.map((rule) => rule.id)).toContain('plugin:ship-kit:hook:preToolUse:0');
+    expect(harness.artifacts.sources).toContainEqual({ kind: 'plugin', ref: pluginRoot, ruleIds: ['plugin:ship-kit:hook:preToolUse:0'] });
     expect(harness.discoveredPlugins.find((plugin) => plugin.id === 'ship-kit')?.declarationOnlyHooks).toMatchObject([
       { hookEvent: 'postToolUse', enforced: false },
     ]);

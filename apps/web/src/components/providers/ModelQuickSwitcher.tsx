@@ -21,7 +21,7 @@ export function ModelQuickSwitcher({ models, current, onSelect, onOpenSettings, 
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
   const [active, setActive] = useState(0);
-  const filtered = models.filter(model => model.providerName !== 'mock' && `${model.providerName} ${model.id} ${model.name}`.toLowerCase().includes(query.trim().toLowerCase()));
+  const filtered = models.filter(model => `${model.providerName} ${model.id} ${model.name}`.toLowerCase().includes(query.trim().toLowerCase()));
   const groups = [...new Set(filtered.map(model => model.providerName))];
   const ordered = groups.flatMap(provider => filtered.filter(model => model.providerName === provider));
   const online = !!current && models.some(model => model.providerName !== 'mock' && model.providerName === current.provider && model.id === current.model);
@@ -63,7 +63,7 @@ export function ModelQuickSwitcher({ models, current, onSelect, onOpenSettings, 
             const index = ordered.indexOf(model);
             const selected = current?.provider === provider && current.model === model.id;
             return <button key={model.id} id={`${id}-item-${index}`} type="button" role="option" aria-selected={selected} className={`model-switcher-item${index === active ? ' is-active' : ''}`} onClick={() => choose(model)} onPointerMove={() => setActive(index)}>
-              <span>{model.id}</span>{selected && <span className="provider-badge">✓ {t('currentLabel')}</span>}
+              <span>{model.providerName === 'mock' ? t('modelOffline') : model.id}</span>{selected && <span className="provider-badge">✓ {t('currentLabel')}</span>}
             </button>;
           })}
         </div>)}

@@ -1,0 +1,32 @@
+[
+  {
+    "exit": 0,
+    "name": "tsc",
+    "log": "evidence/sessions/2026-10-23-ui09-accepted-tsc.log"
+  },
+  {
+    "exit": 0,
+    "name": "test-types",
+    "log": "evidence/sessions/2026-10-23-ui09-accepted-test-types.log"
+  },
+  {
+    "exit": 0,
+    "name": "web-types",
+    "log": "evidence/sessions/2026-10-23-ui09-accepted-web-types.log"
+  },
+  {
+    "exit": 0,
+    "name": "server",
+    "log": "evidence/sessions/2026-10-23-ui09-accepted-server.log"
+  },
+  {
+    "exit": 0,
+    "name": "web",
+    "log": "evidence/sessions/2026-10-23-ui09-accepted-web.log"
+  },
+  {
+    "exit": 0,
+    "name": "web-build",
+    "log": "evidence/sessions/2026-10-23-ui09-accepted-web-build.log"
+  }
+]

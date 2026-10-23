@@ -1,0 +1,13 @@
+{
+  "resumeCountBefore": 2843,
+  "fault": {
+    "startedAt": 1792713061180,
+    "until": 1792713091180
+  },
+  "usageAtDrop": 32,
+  "rejectedBefore": 58,
+  "runAtDrop": {
+    "active": true,
+    "turnId": "turn_1792713046059_67f7eb"
+  }
+}

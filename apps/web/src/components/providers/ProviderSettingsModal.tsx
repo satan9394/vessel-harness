@@ -5,10 +5,10 @@ import CapabilityStatus from './CapabilityStatus';
 import { useI18n } from '../LanguageProvider';
 import { ModelChips } from './ModelChips';
 import { PresetsGallery } from './PresetsGallery';
-import { PROVIDER_PRESETS_CATALOG, type PresetInfo } from './presetsData';
+import { localizePreset, PROVIDER_PRESETS_CATALOG, type PresetInfo } from './presetsData';
 
 export const PROVIDER_PRESETS: Record<string, AddProviderInput> = {
-  ...Object.fromEntries(PROVIDER_PRESETS_CATALOG.map(preset => [preset.id, {
+  ...Object.fromEntries(PROVIDER_PRESETS_CATALOG.filter((preset): preset is PresetInfo & { protocol: AddProviderInput['protocol'] } => preset.protocol !== 'mock').map(preset => [preset.id, {
     name: preset.id, protocol: preset.protocol, baseUrl: preset.baseUrl, apiKey: '', models: preset.defaultModel ? [preset.defaultModel] : [],
   }])),
   DeepSeek: { name: 'deepseek', protocol: 'openai-compatible', baseUrl: 'https://api.deepseek.com/v1', apiKey: '', models: ['deepseek-chat', 'deepseek-reasoner'] },
@@ -67,7 +67,11 @@ export function providerFailure(error: unknown): { key: keyof ModelMessages; par
 export default function ProviderSettingsModal({ api, onClose, onChanged, initialPreset, embedded = false }: {
   api: ApiClient; onClose?: () => void; onChanged?: () => void; initialPreset?: string; embedded?: boolean;
 }) {
-  const { t } = useI18n();
+  const { t, lang } = useI18n();
+  function presetName(key: string) {
+    const info = PROVIDER_PRESETS_CATALOG.find(item => item.id === key);
+    return info ? localizePreset(info, lang).name : key;
+  }
   const id = 'provider';
   const dialog = useRef<HTMLDivElement>(null);
   const mounted = useRef(true);
@@ -102,6 +106,7 @@ export default function ProviderSettingsModal({ api, onClose, onChanged, initial
   }, [api, embedded]);
   function change(next: Partial<AddProviderInput>) { setForm(previous => ({ ...previous, ...next, modelCapabilities: undefined })); setResult(undefined); fail(undefined); setNotice(undefined); setNoticeParams(undefined); }
   function pickPreset(key: string) {
+    if (key === 'mock') { setPreset(key); setResult(undefined); fail(undefined); setNotice(undefined); return; }
     const next = PROVIDER_PRESETS[key];
     if (!next) return;
     setPreset(key); change(next); setModels(next.models.join(', ')); setCandidates(next.models);
@@ -145,6 +150,7 @@ export default function ProviderSettingsModal({ api, onClose, onChanged, initial
     } finally { if (mounted.current) { setBusy(undefined); setSavedKey(''); } }
   }
   async function run(action: 'test' | 'save' | 'delete') {
+    if (preset === 'mock' && action !== 'delete') return;
     if (busy || !loaded) return;
     const input = providerInput();
     const invalid = action === 'delete' ? undefined : validateProvider(input, providers, action === 'save');
@@ -232,13 +238,14 @@ export default function ProviderSettingsModal({ api, onClose, onChanged, initial
       </section>
       <form noValidate onSubmit={event => { event.preventDefault(); void run('save'); }}>
         <h4>{t('providerAdd')}</h4>
-        <PresetsGallery onSelect={pickGallery} selectedId={PROVIDER_PRESETS_CATALOG.find(item => item.id === preset || item.baseUrl === form.baseUrl)?.id} disabled={!!busy || loading || !loaded} />
+        <PresetsGallery onSelect={pickGallery} selectedId={PROVIDER_PRESETS_CATALOG.find(item => item.id === preset)?.id ?? PROVIDER_PRESETS_CATALOG.find(item => item.baseUrl === form.baseUrl)?.id} disabled={!!busy || loading || !loaded} />
         <fieldset disabled={!!busy || loading || !loaded} className="provider-fields">
-          <label htmlFor={`${id}-preset`}>{t('providerPreset')}</label><select id={`${id}-preset`} className="input" value={preset} onChange={event => pickPreset(event.target.value)}>{Object.keys(PROVIDER_PRESETS).map(key => <option key={key} value={key}>{key === 'custom' ? t('providerCustom') : PROVIDER_PRESETS_CATALOG.find(item => item.id === key)?.name ?? key}</option>)}</select>
+          <label htmlFor={`${id}-preset`}>{t('providerPreset')}</label><select id={`${id}-preset`} className="input" value={preset} onChange={event => pickPreset(event.target.value)}><option value="mock">{presetName('mock')}</option>{Object.keys(PROVIDER_PRESETS).map(key => <option key={key} value={key}>{key === 'custom' ? t('providerCustom') : presetName(key)}</option>)}</select>
+          {preset === 'mock' ? <section aria-label="Mock"><p>{t('providerMockHint')}</p><p>{t('providerProtocol')}: mock</p><code>mock / mock</code></section> : <>
           <label htmlFor={`${id}-name`}>{t('providerName')}</label><input id={`${id}-name`} className="input" maxLength={80} value={form.name} onChange={event => change({ name: event.target.value })} />
           <label htmlFor={`${id}-protocol`}>{t('providerProtocol')}</label><select id={`${id}-protocol`} className="input" value={form.protocol} onChange={event => change({ protocol: event.target.value as AddProviderInput['protocol'] })}><option value="openai-compatible">{t('providerOpenai')}</option><option value="anthropic">{t('providerAnthropic')}</option></select>
           <label htmlFor={`${id}-url`}>{t('providerBaseUrl')}</label><input id={`${id}-url`} className="input" value={form.baseUrl} onChange={event => change({ baseUrl: event.target.value })} />
-          <label htmlFor={`${id}-key`}>{t('providerApiKey')}</label><input id={`${id}-key`} className="input" type="password" autoComplete="off" value={form.apiKey} placeholder={providers.some(p => p.name === form.name) ? '•••••••• (已保存凭据，留空保持不变)' : ''} onChange={event => change({ apiKey: event.target.value })} aria-describedby={`${id}-hint`} />
+          <label htmlFor={`${id}-key`}>{t('providerApiKey')}</label><input id={`${id}-key`} className="input" type="password" autoComplete="off" value={form.apiKey} placeholder={providers.some(p => p.name === form.name) ? t('providerSavedKeyPlaceholder') : ''} onChange={event => change({ apiKey: event.target.value })} aria-describedby={`${id}-hint`} />
           <p id={`${id}-hint`} className="dim">{t('providerKeyHint')}</p>
           {['oauth', 'env'].includes(PROVIDER_PRESETS_CATALOG.find(item => item.id === preset)?.auth ?? '') && <p role="note" className="dim">{t('providerAuthExternal')}</p>}
           <p>{t('providerModels')}</p>
@@ -250,11 +257,12 @@ export default function ProviderSettingsModal({ api, onClose, onChanged, initial
             onRemove={model => { setCandidates(previous => previous.filter(item => item !== model)); updateModels(providerInput().models.filter(item => item !== model)); }}
             onAdd={model => updateModels([...providerInput().models, model])} />
           <input type="hidden" id={`${id}-models`} className="input" value={models} onChange={event => { setModels(event.target.value); fail(undefined); }} />
+          </>}
         </fieldset>
         {error && <p role="alert" className="error-text">{t(error, errorParams)} <button type="button" className="btn" disabled={!!busy} onClick={() => { setLoading(true); void refresh().then(() => setError(undefined)).catch((thrown: unknown) => { const failure = providerFailure(thrown); fail(failure.key, failure.params); }).finally(() => setLoading(false)); }}>{t('retry')}</button></p>}
         {notice && <p role="status">{t(notice, noticeParams)}</p>}
         {result && <p role="status" className={`provider-result ${result.ok ? 'success' : 'failure'}`}>{testText}</p>}
-        <div className="modal-actions"><button type="button" className="btn" disabled={!!busy || loading || !loaded} onClick={() => void pull()}>{busy === 'pull' ? t('providerPulling') : t('providerPullModels')}</button><button type="button" className="btn" disabled={!!busy || loading || !loaded} onClick={() => void run('test')}>{busy === 'test' ? t('providerTesting') : t('providerTest')}</button><button className="btn btn-primary" type="submit" disabled={!!busy || loading || !loaded}>{busy === 'save' ? t('uiAdding') : t('save')}</button></div>
+        {preset !== 'mock' && <div className="modal-actions"><button type="button" className="btn" disabled={!!busy || loading || !loaded} onClick={() => void pull()}>{busy === 'pull' ? t('providerPulling') : t('providerPullModels')}</button><button type="button" className="btn" disabled={!!busy || loading || !loaded} onClick={() => void run('test')}>{busy === 'test' ? t('providerTesting') : t('providerTest')}</button><button className="btn btn-primary" type="submit" disabled={!!busy || loading || !loaded}>{busy === 'save' ? t('uiAdding') : t('save')}</button></div>}
       </form>
       </div>
     </div>

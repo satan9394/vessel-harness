@@ -1,0 +1,9 @@
+
+ RUN  v5.0.1 E:/Code_file/Projects/Vessel_Harness/apps/web
+
+
+ Test Files  2 passed (2)
+      Tests  19 passed (19)
+   Start at  08:59:57
+   Duration  1.82s (tests 71%, import 16%, transform 13%, worker 1%)
+

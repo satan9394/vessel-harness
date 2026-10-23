@@ -22,6 +22,7 @@ import GoalModule from './components/GoalModule';
 import SwarmTopologyView from './components/SwarmTopologyView';
 import CognitiveRulesDashboard from './components/CognitiveRulesDashboard';
 import AgentStudioInspector from './components/studio/AgentStudioInspector';
+import EffectivePolicyPanel from './components/studio/EffectivePolicyPanel';
 import AgentStudioComposer from './components/studio/AgentStudioComposer';
 import ActivityQueue from './components/activity/ActivityQueue';
 import TeamTaskTree from './components/tasks/TeamTaskTree';
@@ -234,7 +235,7 @@ function AppShell() {
         </div>
         {area === 'activity' ? <section className="main-body"><h2>{t('activity')}</h2><p className="dim">{t('activityHint')}</p><ActivityQueue api={api} onOpenSession={id => { setSelectedSessionId(id); setArea('workbench'); }} /><TeamTaskTree api={api} sessionId={nothingSelected ? null : selectedSessionId} /><SubagentWorkspace api={api} /></section>
  : null}
-        {area === 'studio' ? <section className="main-body"><h2>{t('agentStudio')}</h2><p className="dim">{t('studioHint')}</p><AgentStudioComposer api={api} sessionId={nothingSelected ? null : selectedSessionId} /><AgentStudioInspector api={api} selectedSessionId={nothingSelected ? null : selectedSessionId} /><CognitiveRulesDashboard api={api} /></section>
+        {area === 'studio' ? <section className="main-body"><h2>{t('agentStudio')}</h2><p className="dim">{t('studioHint')}</p><AgentStudioComposer api={api} sessionId={nothingSelected ? null : selectedSessionId} /><EffectivePolicyPanel api={api} selectedSessionId={nothingSelected ? null : selectedSessionId} /><AgentStudioInspector api={api} selectedSessionId={nothingSelected ? null : selectedSessionId} /><CognitiveRulesDashboard api={api} /></section>
  : null}
         {area === 'settings' ? <section className="main-body"><h2>{t('settings')}</h2><ProviderHub api={api} onChanged={() => setProviderRevision(previous => previous + 1)} /><p className="dim">{t('layoutBoundary')}</p><CustomizePanel modules={modules} onChange={handleModulesChange} /><LanguageSwitcher /><AttentionControls attention={attention} /></section>
  : null}

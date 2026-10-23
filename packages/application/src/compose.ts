@@ -249,6 +249,7 @@ export async function composeHarness(opts: ComposeOptions): Promise<ComposedHarn
     // Commands and lifecycle events remain visible in `discoveredPlugins` but
     // are never handed to a process runner.
     artifacts.rules.push(...(plugin.policyRules ?? []));
+    if (plugin.policyRules?.length) artifacts.sources?.push({ kind: 'plugin', ref: plugin.rootDir, ruleIds: plugin.policyRules.map(rule => rule.id) });
   }
   // Mandatory behavior must compile before acquiring a session lease or invoking Mods.
   const ir = loadBehaviorIR(opts.behaviorIRPath);

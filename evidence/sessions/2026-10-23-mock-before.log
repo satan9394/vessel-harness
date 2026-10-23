@@ -1,0 +1,89 @@
+
+ RUN  v5.0.1 E:/Code_file/Projects/Vessel_Harness/apps/web
+
+ ❯ src/components/TaskComposer.test.tsx (9 tests | 1 failed) 699ms
+   ❯ TaskComposer IME and keyboard submission (9)
+     × can explicitly start with the built-in Mock while real models are configured 71ms
+ ❯ src/components/providers/ProviderSettingsModal.test.tsx (25 tests | 1 failed) 316ms
+   ❯ provider settings (23)
+     × selects the built-in Mock preset without credential fields or registration 10ms
+ ❯ src/components/providers/presetsData.test.ts (2 tests | 1 failed) 22ms
+   ❯ web provider catalog snapshot (2)
+     × keeps all configurable application presets and metadata in sync 20ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 3 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/components/TaskComposer.test.tsx > TaskComposer IME and keyboard submission > can explicitly start with the built-in Mock while real models are configured
+AssertionError: expected false to be true // Object.is equality
+
+- Expected
++ Received
+
+- true
++ false
+
+ ❯ src/components/TaskComposer.test.tsx:87:74
+     85|     const switcher = render().find(node => node.type === ModelQuickSwi…
+     86|     expect(switcher.current).toEqual({ provider: 'real', model: 'one' …
+     87|     expect(switcher.models.some(model => model.providerName === 'mock'…
+       |                                                                          ^
+     88|     switcher.onSelect({ provider: 'mock', model: 'mock' });
+     89|     enter();
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/3]⎯
+
+ FAIL  src/components/providers/presetsData.test.ts > web provider catalog snapshot > keeps all configurable application presets and metadata in sync
+AssertionError: expected [ { id: 'lark', …(6) }, …(71) ] to deeply equal [ { id: 'lark', …(6) }, …(72) ]
+
+- Expected
++ Received
+
+@@ -613,16 +613,6 @@
+      "defaultModel": "",
+      "id": "jan",
+      "name": "Jan（本地）",
+      "protocol": "openai-compatible",
+    },
+-   {
+-     "auth": "none",
+-     "baseUrl": "",
+-     "category": "local",
+-     "defaultModel": "mock",
+-     "hint": "内置离线 provider",
+-     "id": "mock",
+-     "name": "Mock（离线测试）",
+-     "protocol": "mock",
+-   },
+  ]
+
+ ❯ src/components/providers/presetsData.test.ts:11:38
+      9|     const entries = source.split('\n').filter(line => line.trim().star…
+     10|     expect(PROVIDER_PRESETS_CATALOG.length).toBeGreaterThanOrEqual(55);
+     11|     expect(PROVIDER_PRESETS_CATALOG).toEqual(entries.map(line => Objec…
+       |                                      ^
+     12|     expect(new Set(PROVIDER_PRESETS_CATALOG.map(preset => preset.id)).…
+     13|   });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/3]⎯
+
+ FAIL  src/components/providers/ProviderSettingsModal.test.tsx > provider settings > selects the built-in Mock preset without credential fields or registration
+AssertionError: expected undefined to be defined
+ ❯ src/components/providers/ProviderSettingsModal.test.tsx:67:18
+     65|     render(); await settle();
+
+     66|     const mock = PROVIDER_PRESETS_CATALOG.find(preset => preset.id ===…
+     67|     expect(mock).toBeDefined();
+       |                  ^
+     68|     const gallery = render().find(node => node.type === PresetsGallery…
+     69|     (gallery.props.onSelect as (preset: typeof PROVIDER_PRESETS_CATALO…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/3]⎯
+
+ Test Files  3 failed (3)
+      Tests  3 failed | 33 passed (36)
+   Start at  08:41:58
+   Duration  2.24s (tests 62%, import 19%, transform 18%, worker 1%)
+
+    Isolate  3 workers spawned · ~177ms startup each (spawn + environment, per file)
+             at least ~354ms faster with isolate: false — reuses workers across files instead of one per file
+

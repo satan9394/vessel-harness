@@ -1,0 +1,17 @@
+[
+  {
+    "exit": 0,
+    "log": "evidence/sessions/2026-10-23-termination-tsc.log",
+    "name": "tsc"
+  },
+  {
+    "exit": 0,
+    "log": "evidence/sessions/2026-10-23-termination-test-types.log",
+    "name": "test-types"
+  },
+  {
+    "exit": 1,
+    "log": "evidence/sessions/2026-10-23-termination-web-types.log",
+    "name": "web-types"
+  }
+]

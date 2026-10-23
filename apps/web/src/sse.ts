@@ -17,9 +17,15 @@ import { daemonToken } from './auth.js';
 import { isWidgetBlock, type WidgetBlock, type WidgetActionResponse } from '../../../packages/shared/src/widgets.js';
 import type { SandboxAudit } from './sandboxAudit.js';
 import { isInspectorObservation, type InspectorObservation } from './inspector.js';
+import type { SessionStreamRun } from '../../../packages/shared/src/sessionStream.js';
 
 /** One incoming SSE frame after JSON parsing. */
 export interface SseFrame {
+  version?: 1;
+  sessionId?: string;
+  streamId?: string;
+  cursor?: number;
+  eventId?: string;
   type: string;
   delta?: unknown;
   ts?: number;
@@ -30,6 +36,7 @@ export interface SseFrame {
 /** conversation delta — a user prompt or an assistant text / tool-call marker. */
 export interface ConversationDelta {
   role: 'user' | 'assistant';
+  termination?: 'length' | 'interrupted';
   text?: string;
   toolName?: string;
   ts: number;
@@ -42,6 +49,7 @@ export interface ToolDelta {
   toolName?: string;
   status: 'started' | 'done' | 'denied' | 'error';
   argsSummary?: string;
+  errorDetail?: string;
   durationMs?: number;
   ts: number;
 }
@@ -98,11 +106,15 @@ export interface TeamDelta {
 }
 
 export interface SessionTranscript {
-  messages: Array<{ id: string; kind: 'message' | 'tool'; msg?: ConversationDelta; tool?: ToolDelta }>;
+  messages: Array<{ id: string; kind: 'message' | 'tool' | 'widget'; msg?: ConversationDelta; tool?: ToolDelta; widget?: WidgetBlock }>;
   usage: UsageDelta[];
+  run?: SessionStreamRun;
+  inspector?: InspectorObservation;
 }
 
 export interface StreamHandlers {
+  onRun?: (run: SessionStreamRun) => void;
+  onDisconnect?: () => void;
   onTranscript?: (transcript: SessionTranscript) => void;
   onInspector?: (observation: InspectorObservation) => void;
   onWidget?: (widget: WidgetBlock) => void;
@@ -135,19 +147,25 @@ function isRecord(value: unknown): value is Record<string, unknown> {
  * Returns { close } so callers can tear the stream down (unmount / session switch).
  */
 export function createEventStream(url: string, handlers: StreamHandlers = {}, options: { token?: string; fetch?: typeof globalThis.fetch; reconnectMs?: number } = {}): EventStream {
-  let source: { onmessage: ((event: MessageEvent) => void) | null; onopen: ((event: Event) => void) | null; close(): void; addEventListener?: (type: string, listener: (event: MessageEvent) => void) => void };
+  let source: { onmessage: ((event: MessageEvent) => void) | null; onopen: ((event: Event) => void) | null; onerror?: unknown; close(): void; addEventListener?: (type: string, listener: (event: MessageEvent) => void) => void };
   let closed = false;
-  try {
-    const token = options.token ?? daemonToken();
-    source = token ? new BearerEventSource(url, token, handlers, options) : new EventSource(url);
-  } catch (err) {
-    // EventSource constructor can throw in odd environments; surface it.
-    handlers.onError?.(err);
-    return { close: () => {} };
-  }
-
-  source.onmessage = (ev: MessageEvent) => {
-    if (closed) return;
+  let generation = 0;
+  let reconnectTimer: ReturnType<typeof setTimeout> | undefined;
+  let streamId: string | undefined;
+  let cursor: number | undefined;
+  const expectedSession = /\/sessions\/([^/?]+)\/events/.exec(url)?.[1];
+  const token = options.token ?? daemonToken();
+  const open = (resume = false) => {
+    const version = ++generation;
+    let target = url;
+    if (resume && streamId !== undefined && cursor !== undefined) {
+      const parsed = new URL(url, 'http://localhost'); parsed.searchParams.set('cursor', `${streamId}:${cursor}`);
+      target = /^https?:/.test(url) ? parsed.href : `${parsed.pathname}${parsed.search}`;
+    }
+    try { source = token ? new BearerEventSource(target, token, handlers, options) : new EventSource(target); }
+    catch (err) { handlers.onError?.(err); return; }
+    source.onmessage = (ev: MessageEvent) => {
+    if (closed || generation !== version) return;
     let parsed: unknown;
     try {
       parsed = JSON.parse(ev.data as string);
@@ -160,12 +178,38 @@ export function createEventStream(url: string, handlers: StreamHandlers = {}, op
       handlers.onError?.(new Error('malformed SSE frame'));
       return;
     }
+    if (frame.version !== undefined) {
+      if (frame.version !== 1 || typeof frame.streamId !== 'string' || !Number.isSafeInteger(frame.cursor) || frame.cursor! < 0 ||
+        typeof frame.sessionId !== 'string' || (expectedSession && frame.sessionId !== decodeURIComponent(expectedSession))) {
+        handlers.onError?.(new Error('invalid session stream identity')); return;
+      }
+      const checkpoint = frame.type === 'transcript' || frame.type === 'checkpoint';
+      if (frame.type === 'ping' && (streamId === undefined || streamId !== frame.streamId)) return;
+      if (!checkpoint && (streamId === undefined || streamId !== frame.streamId || frame.cursor! > (cursor ?? 0) + (frame.type === 'ping' ? 0 : 1))) {
+        handlers.onDisconnect?.(); source.close(); open(true); return;
+      }
+      if (!checkpoint && frame.cursor! <= (cursor ?? -1)) return;
+      if (checkpoint && frame.type === 'transcript' && (!isRecord(frame.delta) || !Array.isArray(frame.delta.messages) || !Array.isArray(frame.delta.usage))) {
+        handlers.onError?.(new Error('malformed transcript checkpoint')); return;
+      }
+      streamId = frame.streamId; cursor = frame.cursor;
+    }
     handlers.onEvent?.(frame);
     const delta = (frame.delta ?? {}) as Record<string, unknown>;
     const ts = typeof frame.ts === 'number' ? frame.ts : Date.now();
     switch (frame.type) {
       case 'transcript':
         if (Array.isArray(delta.messages) && Array.isArray(delta.usage)) handlers.onTranscript?.(delta as unknown as SessionTranscript);
+        if (isInspectorObservation(delta.inspector)) handlers.onInspector?.(delta.inspector);
+        if (isRecord(delta.run) && typeof delta.run.active === 'boolean') handlers.onRun?.(delta.run as unknown as SessionStreamRun);
+        break;
+      case 'checkpoint':
+        if (Array.isArray(delta.widgets)) for (const widget of delta.widgets) if (isWidgetBlock(widget)) handlers.onWidget?.(widget);
+        if (isInspectorObservation(delta.inspector)) handlers.onInspector?.(delta.inspector);
+        if (isRecord(delta.run) && typeof delta.run.active === 'boolean') handlers.onRun?.(delta.run as unknown as SessionStreamRun);
+        break;
+      case 'run':
+        if (typeof delta.active === 'boolean') handlers.onRun?.(delta as unknown as SessionStreamRun);
         break;
       case 'inspector':
         if (isInspectorObservation(frame.delta)) handlers.onInspector?.(frame.delta);
@@ -238,15 +282,25 @@ export function createEventStream(url: string, handlers: StreamHandlers = {}, op
     }
   };
 
-  source.onopen = () => { if (!closed) handlers.onOpen?.(); };
+  source.onopen = () => { if (!closed && generation === version) handlers.onOpen?.(); };
+  source.onerror = () => {
+    if (closed || generation !== version) return;
+    handlers.onDisconnect?.();
+    // A native EventSource may permanently close after a temporary HTTP 503.
+    if (!token) {
+      source.close(); clearTimeout(reconnectTimer);
+      reconnectTimer = setTimeout(() => { if (!closed && generation === version) open(true); }, options.reconnectMs ?? 1000);
+    }
+  };
   // Native EventSource does not send named events to onmessage. Bearer frames
   // already enter the same dispatcher through their JSON envelope.
   for (const name of ['widget', 'widget_block', 'action_request', 'action_response', 'inspector']) source.addEventListener?.(name, source.onmessage);
-
+  };
+  open();
   return {
     close() {
       closed = true;
-      source.close();
+      generation++; clearTimeout(reconnectTimer); source?.close();
     },
   };
 }
@@ -255,6 +309,8 @@ export function createEventStream(url: string, handlers: StreamHandlers = {}, op
 class BearerEventSource {
   onmessage: ((event: MessageEvent) => void) | null = null;
   onopen: ((event: Event) => void) | null = null;
+  onerror: ((event: Event) => void) | null = null;
+  private lastEventId?: string;
   private closed = false;
   private readonly abort = new AbortController();
   private timer?: ReturnType<typeof setTimeout>;
@@ -266,7 +322,7 @@ class BearerEventSource {
     let retry = true;
     try {
       const response = await (this.options.fetch ?? globalThis.fetch)(this.url, {
-        headers: { Authorization: `Bearer ${this.token}` }, signal: this.abort.signal,
+        headers: { Authorization: `Bearer ${this.token}`, ...(this.lastEventId ? { 'Last-Event-ID': this.lastEventId } : {}) }, signal: this.abort.signal,
       });
       if (response.status === 401 || response.status === 403) retry = false;
       if (!response.ok || !response.body) throw new Error(`SSE connection failed: HTTP ${response.status}`);
@@ -281,12 +337,15 @@ class BearerEventSource {
           let boundary: RegExpExecArray | null;
           while ((boundary = /\r?\n\r?\n/.exec(pending))) {
             const raw = pending.slice(0, boundary.index); pending = pending.slice(boundary.index + boundary[0].length);
+            const id = raw.split(/\r?\n/).find(line => line.startsWith('id:'))?.slice(3).trim();
+            if (id !== undefined && !id.includes('\0')) this.lastEventId = id;
             const data = raw.split(/\r?\n/).filter(line => line.startsWith('data:')).map(line => line.slice(5).replace(/^ /, '')).join('\n');
             if (data && !this.closed) this.onmessage?.(new MessageEvent('message', { data }));
           }
         }
       } finally { await reader.cancel().catch(() => {}); reader.releaseLock(); this.reader = undefined; }
     } catch (error) { if (!this.closed) this.handlers.onError?.(error); }
+    if (!this.closed) this.onerror?.(new Event('error'));
     if (!this.closed && retry) this.timer = setTimeout(() => void this.connect(), this.options.reconnectMs ?? 1000);
   }
 }

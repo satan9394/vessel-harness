@@ -1,0 +1,32 @@
+[
+  {
+    "name": "tsc",
+    "exit": 0,
+    "log": "evidence/sessions/2026-10-23-multiline-tsc.log"
+  },
+  {
+    "name": "test-types",
+    "exit": 0,
+    "log": "evidence/sessions/2026-10-23-multiline-test-types.log"
+  },
+  {
+    "name": "web-types",
+    "exit": 0,
+    "log": "evidence/sessions/2026-10-23-multiline-web-types.log"
+  },
+  {
+    "name": "server",
+    "exit": 0,
+    "log": "evidence/sessions/2026-10-23-multiline-server.log"
+  },
+  {
+    "name": "web",
+    "exit": 0,
+    "log": "evidence/sessions/2026-10-23-multiline-web.log"
+  },
+  {
+    "name": "web-build",
+    "exit": 0,
+    "log": "evidence/sessions/2026-10-23-multiline-web-build.log"
+  }
+]

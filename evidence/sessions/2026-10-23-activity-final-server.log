@@ -1,0 +1,66 @@
+
+ RUN  v5.0.1 E:/Code_file/Projects/Vessel_Harness
+
+(node:25140) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+ ❯ apps/local-server/src/server.test.ts (47 tests | 1 failed) 35404ms
+   ❯ local server HTTP API + SSE (33)
+     × does not reuse an older success after a newer unfinished turn 124ms
+(node:16112) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:28624) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:24956) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:24160) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:26180) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:2016) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:22152) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:7672) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:21008) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:24900) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:15072) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  apps/local-server/src/server.test.ts > local server HTTP API + SSE > does not reuse an older success after a newer unfinished turn
+AssertionError: expected { …(7) } to match object { status: 'interrupted', …(2) }
+(6 matching properties omitted from actual)
+
+- Expected
++ Received
+
+  {
+-   "outcome": "interrupted",
+-   "status": "interrupted",
+-   "statusSource": "live",
++   "status": "failed",
+  }
+
+ ❯ apps/local-server/src/server.test.ts:252:21
+    250|     await controller.session.appendSync({ type: 'turn/start', turnId: …
+    251|     const { runs } = await (await fetch(`${base}/api/activity/runs`)).…
+    252|     expect(runs[0]).toMatchObject({ status: 'interrupted', outcome: 'i…
+       |                     ^
+    253|   });
+    254|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed | 21 passed (22)
+      Tests  1 failed | 224 passed (225)
+   Start at  08:26:45
+   Duration  86.02s (tests 75%, import 18%, transform 7%)
+
+    Isolate  22 workers spawned · ~236ms startup each (spawn + environment, per file)
+             at least ~4.96s faster with isolate: false — reuses workers across files instead of one per file
+

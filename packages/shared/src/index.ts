@@ -2,6 +2,7 @@ export * from './events.js';
 export * from './tools.js';
 export * from './provider.js';
 export * from './policy.js';
+export * from './sessionStream.js';
 export * from './metrics.js';
 export * from './pricing.js';
 export * from './constants.js';

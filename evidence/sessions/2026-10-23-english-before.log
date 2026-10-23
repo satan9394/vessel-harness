@@ -1,0 +1,52 @@
+
+ RUN  v5.0.1 E:/Code_file/Projects/Vessel_Harness/apps/web
+
+ ❯ src/components/Sidebar.test.tsx (8 tests | 1 failed) 58ms
+   ❯ Sidebar date and topic grouping (5)
+     × uses English accessible theme action labels 24ms
+ ❯ src/components/providers/presetsData.test.ts (3 tests | 1 failed) 14ms
+   ❯ web provider catalog snapshot (3)
+     × localizes every English name and description without changing connection metadata 6ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/components/Sidebar.test.tsx > Sidebar date and topic grouping > uses English accessible theme action labels
+AssertionError: expected '<aside class="sidebar"><div class="br…' to match /aria-label="Switch to (light|dark) th…/
+
+- Expected:
+/aria-label="Switch to (light|dark) theme"/
+
++ Received:
+"<aside class=\"sidebar\"><div class=\"brand\"><svg class=\"logo\" width=\"20\" height=\"20\" viewBox=\"0 0 24 24\" fill=\"none\" aria-hidden=\"true\"><path d=\"M4 5h16v14H4z\" stroke=\"var(--accent)\" stroke-width=\"2\" fill=\"none\" stroke-linejoin=\"round\"></path><path d=\"M8 15l2.5-4 2 2.5L15 9l3 5\" stroke=\"var(--accent)\" stroke-width=\"2\" stroke-linejoin=\"round\" fill=\"none\"></path></svg><span class=\"brand-name\">Vessel</span></div><button type=\"button\" class=\"btn btn-primary\">+ New Session</button><nav class=\"side-nav\"><section><div class=\"side-label\">Projects</div><ul class=\"side-list\"><li class=\"side-empty\">No projects</li></ul></section><section><div class=\"side-label\">Recent Sessions</div><div class=\"side-search\"><svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" aria-hidden=\"true\"><circle cx=\"10.5\" cy=\"10.5\" r=\"6.5\"></circle><path d=\"m16 16 4 4\"></path></svg><input type=\"search\" class=\"topic-search\" aria-label=\"Search sessions…\" placeholder=\"Search sessions…\" value=\"\"/></div><label class=\"topic-archived-toggle\"><input type=\"checkbox\"/>Show archived</label><div class=\"side-empty\">No sessions</div></section><p class=\"dim hierarchy-hint\">Project → Session → Run → Subagent</p></nav><div class=\"sidebar-footer\"><div class=\"sidebar-area-tabs\" role=\"tablist\" aria-label=\"Open navigation\"><button type=\"button\" role=\"tab\" data-area=\"workbench\" class=\"sidebar-area-btn\" aria-selected=\"false\" aria-label=\"Workbench\" title=\"Workbench\"><svg width=\"15\" height=\"15\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.6\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><rect x=\"3\" y=\"3\" width=\"7\" height=\"9\" rx=\"2\"></rect><rect x=\"14\" y=\"3\" width=\"7\" height=\"5\" rx=\"2\"></rect><rect x=\"14\" y=\"12\" width=\"7\" height=\"9\" rx=\"2\"></rect><rect x=\"3\" y=\"16\" width=\"7\" height=\"5\" rx=\"2\"></rect></svg><span class=\"sidebar-area-label\">Workbench</span></button><button type=\"button\" role=\"tab\" data-area=\"activity\" class=\"sidebar-area-btn\" aria-selected=\"false\" aria-label=\"Activity\" title=\"Activity\"><svg width=\"15\" height=\"15\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.6\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M3 12h4l2.5-7 5 14 2.5-7h4\"></path></svg><span class=\"sidebar-area-label\">Activity</span></button><button type=\"button\" role=\"tab\" data-area=\"studio\" class=\"sidebar-area-btn\" aria-selected=\"false\" aria-label=\"Agent Studio\" title=\"Agent Studio\"><svg width=\"15\" height=\"15\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.6\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M12 3l2.2 5.3L20 9.5l-4 3.9.9 5.6L12 16.4 7.1 19l.9-5.6-4-3.9 5.8-1.2z\"></path></svg><span class=\"sidebar-area-label\">Agent Studio</span></button><button type=\"button\" role=\"tab\" data-area=\"settings\" class=\"sidebar-area-btn\" aria-selected=\"false\" aria-label=\"Settings\" title=\"Settings\"><svg width=\"15\" height=\"15\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.6\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><circle cx=\"12\" cy=\"12\" r=\"3\"></circle><path d=\"M12 2.7v3M12 18.3v3M4.2 7.5l2.6 1.5M17.2 15l2.6 1.5M4.2 16.5l2.6-1.5M17.2 9l2.6-1.5\"></path></svg><span class=\"sidebar-area-label\">Settings</span></button></div><div class=\"sidebar-footer-extra\"><button type=\"button\" class=\"btn btn-sm sidebar-theme-toggle\" aria-label=\"切换深色模式\" title=\"切换为深色主题 (Dark)\"><svg width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.6\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z\"></path></svg><span class=\"sidebar-theme-text\">Light</span></button></div></div></aside>"
+
+ ❯ src/components/Sidebar.test.tsx:20:18
+     18|   it('uses English accessible theme action labels', () => {
+     19|     const html = renderToStaticMarkup(<Sidebar projects={[]} sessions=…
+     20|     expect(html).toMatch(/aria-label="Switch to (light|dark) theme"/);
+       |                  ^
+     21|     expect(html).toMatch(/title="Switch to (light|dark) theme"/);
+     22|     expect(html).not.toMatch(/切换[浅深]色/);
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯
+
+ FAIL  src/components/providers/presetsData.test.ts > web provider catalog snapshot > localizes every English name and description without changing connection metadata
+TypeError: localizePreset is not a function
+ ❯ src/components/providers/presetsData.test.ts:9:23
+      7|   it('localizes every English name and description without changing co…
+      8|     for (const preset of PROVIDER_PRESETS_CATALOG) {
+      9|       const english = localizePreset(preset, 'en');
+       |                       ^
+     10|       expect(`${english.name} ${english.hint ?? ''}`, preset.id).not.t…
+     11|       expect({ ...english, name: preset.name, hint: preset.hint }).toE…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/2]⎯
+
+
+ Test Files  2 failed (2)
+      Tests  2 failed | 9 passed (11)
+   Start at  08:50:11
+   Duration  1.35s (import 43%, transform 43%, tests 11%, worker 3%)
+
+    Isolate  2 workers spawned · ~325ms startup each (spawn + environment, per file)
+             at least ~325ms faster with isolate: false — reuses workers across files instead of one per file
+

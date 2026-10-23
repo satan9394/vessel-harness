@@ -1,0 +1,11 @@
+
+ RUN  v5.0.1 E:/Code_file/Projects/Vessel_Harness
+
+(node:28044) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+ Test Files  1 passed (1)
+      Tests  2 passed | 45 skipped (47)
+   Start at  08:05:59
+   Duration  13.82s (tests 62%, import 19%, transform 18%)
+

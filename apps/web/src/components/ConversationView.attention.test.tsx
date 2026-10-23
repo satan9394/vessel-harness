@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { isValidElement, type ReactElement, type ReactNode } from 'react';
 import type { ApiClient, TurnResult } from '../api';
+import { ApiError } from '../api';
 import type { StreamHandlers } from '../sse';
 import { AttentionManager } from '../utils/attentionManager';
 import ConversationView from './ConversationView';
@@ -46,7 +47,7 @@ function render(sessionId = 's1', viewRequest?: Parameters<typeof ConversationVi
 }
 function submit() {
   const initial = render();
-  (initial.find(node => node.type === 'input')!.props.onChange as (event: unknown) => void)({ target: { value: 'do task' } });
+  (initial.find(node => node.type === 'textarea')!.props.onChange as (event: unknown) => void)({ target: { value: 'do task' } });
   const tree = render();
   return (tree.find(node => node.type === 'form')!.props.onSubmit as (event: unknown) => Promise<void>)({ preventDefault() {} });
 }
@@ -58,6 +59,23 @@ beforeEach(() => {
 });
 afterEach(() => { for (const effect of hooks.effects) effect?.cleanup?.(); vi.restoreAllMocks(); vi.useRealTimers(); vi.unstubAllGlobals(); });
 describe('attention integration and stale turn guards', () => {
+  it('preserves a newer draft and does not announce execution failure when the HTTP connection drops', async () => {
+    let reject!: (reason: unknown) => void;
+    vi.mocked(api.runTurn).mockImplementation(() => new Promise((_resolve, fail) => { reject = fail; }));
+    const request = submit();
+    let tree = render();
+    (tree.find(node => node.type === 'textarea')!.props.onChange as (event: unknown) => void)({ target: { value: 'keep newer draft' } });
+    streams[0].handlers.onDisconnect?.();
+    reject(new ApiError('connection dropped', 0, undefined)); await request;
+    tree = render();
+    expect(tree.find(node => node.type === 'textarea')!.props.value).toBe('keep newer draft');
+    expect(completed).not.toHaveBeenCalled();
+    streams[0].handlers.onTranscript?.({ messages: [], usage: [], run: { active: true } });
+    streams[0].handlers.onRun?.({ active: true });
+    expect(render().find(node => node.props.title === 'interruptTitle')!.props.disabled).toBe(false);
+    streams[0].handlers.onRun?.({ active: false, kind: 'interrupted' });
+    expect(render().find(node => node.props.title === 'interruptTitle')!.props.disabled).toBe(true);
+  });
   it('restores observed messages, reasoning, widget, tool and usage after switching away and back', () => {
     render(); const first = streams[0].handlers;
     first.onConversation?.({ role: 'user', text: 'original user', ts: 1 });
@@ -103,7 +121,7 @@ describe('attention integration and stale turn guards', () => {
     render(); streams[0].handlers.onConversation?.({ role: 'user', text: 'remember', ts: 1 });
     streams[0].handlers.onThinking?.({ phase: 'delta', text: 'partial', callId: 'partial', ts: 2 });
     const tree = render();
-    (tree.find(node => node.type === 'input')!.props.onChange as (event: unknown) => void)({ target: { value: 'draft' } }); render();
+    (tree.find(node => node.type === 'textarea')!.props.onChange as (event: unknown) => void)({ target: { value: 'draft' } }); render();
     for (const effect of hooks.effects) effect?.cleanup?.();
     hooks.cells = []; hooks.effects = []; hooks.jobs = []; render();
     // StrictMode repeats setup/cleanup before restored state has another render.
@@ -113,7 +131,7 @@ describe('attention integration and stale turn guards', () => {
     const items = restored.find(node => Array.isArray(node.props.items))!.props.items as import('./MessageList').ChatItem[];
     expect(items[0]?.msg?.text).toBe('remember');
     expect(items.find(item => item.kind === 'thinking')?.thinking).toMatchObject({ text: 'partial', streaming: false });
-    expect(restored.find(node => node.type === 'input')!.props.value).toBe('draft');
+    expect(restored.find(node => node.type === 'textarea')!.props.value).toBe('draft');
     expect(restored.find(node => node.type === 'button' && node.props.type === 'submit')!.props.children).toBe('send');
     api = { runTurn: vi.fn() } as unknown as ApiClient;
     for (const effect of hooks.effects) effect?.cleanup?.();
@@ -122,19 +140,19 @@ describe('attention integration and stale turn guards', () => {
   });
   it('keeps drafts isolated and does not resurrect a cleared screen on return', () => {
     let tree = render();
-    (tree.find(node => node.type === 'input')!.props.onChange as (event: unknown) => void)({ target: { value: 's1 draft' } });
+    (tree.find(node => node.type === 'textarea')!.props.onChange as (event: unknown) => void)({ target: { value: 's1 draft' } });
     streams[0].handlers.onConversation?.({ role: 'assistant', text: 'clear me', ts: 1 }); render();
     render('s2'); tree = render('s2');
-    expect(tree.find(node => node.type === 'input')!.props.value).toBe('');
-    (tree.find(node => node.type === 'input')!.props.onChange as (event: unknown) => void)({ target: { value: 's2 draft' } }); render('s2');
+    expect(tree.find(node => node.type === 'textarea')!.props.value).toBe('');
+    (tree.find(node => node.type === 'textarea')!.props.onChange as (event: unknown) => void)({ target: { value: 's2 draft' } }); render('s2');
     render('s1'); tree = render('s1');
-    expect(tree.find(node => node.type === 'input')!.props.value).toBe('s1 draft');
+    expect(tree.find(node => node.type === 'textarea')!.props.value).toBe('s1 draft');
     render('s1', { action: 'clear', serial: 1 }); render('s1', { action: 'clear', serial: 1 });
     render('s2'); tree = render('s2');
-    expect(tree.find(node => node.type === 'input')!.props.value).toBe('s2 draft');
+    expect(tree.find(node => node.type === 'textarea')!.props.value).toBe('s2 draft');
     render('s1'); tree = render('s1');
     expect(tree.find(node => Array.isArray(node.props.items))!.props.items).toEqual([]);
-    expect(tree.find(node => node.type === 'input')!.props.value).toBe('s1 draft');
+    expect(tree.find(node => node.type === 'textarea')!.props.value).toBe('s1 draft');
   });
   it('uses actual successful local runTurn duration and unlocks from submit', async () => {
     vi.useFakeTimers(); vi.setSystemTime(0);

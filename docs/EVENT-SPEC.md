@@ -713,4 +713,20 @@ v0.1 主流程（V0.1 平面：单 agent、无委派；`[V0.2]` 标注子代理/
 
 `ChatUsage.cacheMetrics` 与 `model/usage.cacheMetrics` 是可选扩展；缺省意味着没有明确归一指标。OpenAI/Anthropic/DeepSeek 的流式输入用量在 outer provider wrapper 保留，输出专用帧不覆盖已知输入指标；隔离子会话通过自己的 turnId 识别事件，避免共享总线交叉归属。
 
+## Web会话SSE恢复（任务271）
+
+`GET /api/sessions/:id/events?hydrate=1`使用会话独立、运行实例内唯一的生产者。增量信封新增`version:1`、`sessionId`、`streamId`（运行实例epoch）、单调`cursor`、`eventId`及可用时的`turnId`。SSE `id`为`streamId:cursor`；原生及Bearer客户端均支持`Last-Event-ID`，显式补缺可用`cursor=`查询参数。
+
+每会话最多保留512帧/2MiB，观察者断开不停止生产。可用游标先补增量，随后发送权威checkpoint；过期、未来或异epoch游标直接checkpoint。`hydrate=1`的transcript包含持久消息、工具结果、usage和当前运行/审批/检查器快照；无hydrate的checkpoint仅含运行元数据，避免向纯观察者发送历史用户正文。心跳只带当前cursor水位、不设置SSE id，最后一帧丢失也可被发现。
+
+客户端拒绝跨会话信封、丢弃已处理cursor，发现缺口后从最后确认cursor重连；临时HTTP失败继续受控重连，Bearer认证401/403停止重试。快照替换浏览器缓存，计费不重复相加，保留当前未发送草稿。旧无版本信封仍可消费。
+
+此窗口不是持久流日志。服务重启产生新epoch，持久消息/工具/usage从session记录恢复；实时推理和内存审批组件不保证跨进程重启恢复，缺失时不得伪造决策或成功。全局子代理通知的归属语义不在此会话消息协议的保证内。
+
+## Activity运行结果证据（任务272）
+
+Activity会话行的`id`是Session身份，新增可选`runId`是最新回合身份；`outcome`描述该Run结果，不表示Session已关闭。实时与冷启动只读历史共用观察器，保留`statusSource`并追加`observedAt`、`revision`（已读最大seq）、`reasonCode`。读取历史不会取得写租约、修复日志或加载模型。
+
+`success→completed`；`error/failure/budget→failed`；`interrupted/cancelled`分别保留；陌生kind、最新start缺终态或终态身份不匹配→unknown。当前实际运行/审批分别优先显示running/waiting_approval。仅已观察到的恢复器`turn/end{interrupted}`可以证明中断，不能根据静止的start推断中断。注册会话的日志缺失/读取失败返回unknown及原因，已知无执行回合为queued。原Activity `status`保持兼容（queued显示unknown，waiting_approval显示needs_attention），原有客户端可忽略新增字段。
+
 （完）

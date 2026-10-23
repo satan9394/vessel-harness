@@ -190,7 +190,8 @@ export class SessionController {
   /** Copy effective policy data while retaining compiled matcher functions. */
   get policyArtifacts() {
     const artifacts = this.harness.artifacts;
-    return { ...artifacts, promptGuidance: [...artifacts.promptGuidance], deniedTools: [...artifacts.deniedTools],
+    return { ...artifacts, sources: artifacts.sources ? structuredClone(artifacts.sources) : undefined,
+      promptGuidance: [...artifacts.promptGuidance], deniedTools: [...artifacts.deniedTools],
       rules: artifacts.rules.map(rule => ({ ...rule })), fsConfig: artifacts.fsConfig ? structuredClone(artifacts.fsConfig) : undefined,
       shellAllow: artifacts.shellAllow ? [...artifacts.shellAllow] : undefined,
       declarationOnly: artifacts.declarationOnly ? structuredClone(artifacts.declarationOnly) : undefined };
@@ -247,7 +248,8 @@ export class SessionController {
   /** Close the composed harness (session log, MCP clients, telemetry detach). */
   async close(): Promise<void> {
     this.detachProjections();
-    await this.harness.close();
+    try { await this.harness.close(); }
+    finally { await this.session.close(); }
     if (this.usageWriteFailure) throw this.usageWriteFailure;
   }
 }

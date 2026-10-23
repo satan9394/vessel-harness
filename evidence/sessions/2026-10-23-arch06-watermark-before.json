@@ -1,0 +1,13 @@
+{
+  "failure": "Pre-replay heartbeat ahead of acknowledged cursor triggered immediate repeated reconnects",
+  "startedAt": 1792712941929,
+  "rejected": 58,
+  "restoredAt": 1792712971933,
+  "resumesCount": 2527,
+  "firstResume": {
+    "at": 1792712972087,
+    "url": "/api/sessions/sess_1792696634029_23f3e3c8/events?hydrate=1&cursor=9668d741-b08b-4c22-bd7d-6bb1d1ab5a8b%3A98",
+    "lastEventId": null
+  },
+  "dropped": 2
+}

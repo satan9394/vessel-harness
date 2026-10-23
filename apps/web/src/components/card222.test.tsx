@@ -117,6 +117,21 @@ describe('card 222 API client contract', () => {
 });
 
 describe('card 222 components', () => {
+  it.each(['en', 'zh'] as const)('keeps failed, interrupted and cancelled activity in separate groups (%s)', locale => {
+    lang = locale;
+    const statuses = ['failed', 'interrupted', 'cancelled'] as const;
+    const initial: ActivityResponse = { updatedAt: 1, runs: statuses.map(status => ({
+      id: status, title: `${status} item`, status, outcome: status, kind: 'session', projectRoot: '/fixture', needsApproval: false, updatedAt: 1,
+    })) };
+    expect(groupActivity(initial.runs).map(group => group.status)).toEqual(statuses);
+    const html = renderToStaticMarkup(<ActivityQueue initial={initial} />);
+    const labels = locale === 'en' ? ['Failed', 'Interrupted', 'Cancelled'] : ['失败', '已中断', '已取消'];
+    for (let i = 0; i < statuses.length; i++) {
+      expect(html).toContain(`<section aria-label="${labels[i]}">`);
+      expect(html).toContain(`<span class="status-badge status-${statuses[i]}">${labels[i]}</span>`);
+    }
+  });
+
   it('renders the team task tree topology, metrics and statuses (en + zh)', () => {
     lang = 'en';
     const html = renderToStaticMarkup(<TeamTaskTree initial={trees} />);

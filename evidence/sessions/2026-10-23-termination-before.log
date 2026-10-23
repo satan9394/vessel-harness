@@ -1,0 +1,60 @@
+
+ RUN  v5.0.1 E:/Code_file/Projects/Vessel_Harness
+
+(node:4136) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+ ❯ apps/local-server/src/server.test.ts (47 tests | 2 failed | 45 skipped) 459ms
+   ❯ local server HTTP API + SSE (33)
+     × restores length termination on its message from a closed disk session 258ms
+     × restores interrupted termination on its message from a closed disk session 194ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  apps/local-server/src/server.test.ts > local server HTTP API + SSE > restores length termination on its message from a closed disk session
+AssertionError: expected undefined to be 'length' // Object.is equality
+
+- Expected:
+"length"
+
++ Received:
+undefined
+
+ ❯ apps/local-server/src/server.test.ts:158:100
+    156|       messages: { msg?: { role: string; text: string; termination?: st…
+    157|     };
+    158|     expect(transcript.messages.findLast(item => item.msg?.role === 'as…
+       |                                                                                                    ^
+    159|     const abort = new AbortController();
+    160|     const stream = await fetch(`${base}/api/sessions/${id}/events?hydr…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯
+
+ FAIL  apps/local-server/src/server.test.ts > local server HTTP API + SSE > restores interrupted termination on its message from a closed disk session
+AssertionError: expected undefined to be 'interrupted' // Object.is equality
+
+- Expected:
+"interrupted"
+
++ Received:
+undefined
+
+ ❯ apps/local-server/src/server.test.ts:158:100
+    156|       messages: { msg?: { role: string; text: string; termination?: st…
+    157|     };
+    158|     expect(transcript.messages.findLast(item => item.msg?.role === 'as…
+       |                                                                                                    ^
+    159|     const abort = new AbortController();
+    160|     const stream = await fetch(`${base}/api/sessions/${id}/events?hydr…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/2]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  2 failed | 45 skipped (47)
+   Start at  08:03:01
+   Duration  6.00s (import 49%, transform 43%, tests 8%)
+
+  Transform  transforming modules took 2.49s · 43% of tracked time, re-done on every run
+             persist transforms across runs with fsModuleCache: true
+             learn more: https://vitest.dev/guide/improving-performance#caching-between-reruns
+

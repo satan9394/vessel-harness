@@ -1,0 +1,37 @@
+
+ RUN  v5.0.1 E:/Code_file/Projects/Vessel_Harness/apps/web
+
+ ❯ src/components/ConversationView.interaction.test.tsx (15 tests | 1 failed) 62ms
+   ❯ ConversationView Task 246: Scroll guard, IME protection, and SSE reconnect (15)
+     × keeps termination with its message without leaking it into another session 12ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/components/ConversationView.interaction.test.tsx > ConversationView Task 246: Scroll guard, IME protection, and SSE reconnect > keeps termination with its message without leaking it into another session
+AssertionError: expected false to be true // Object.is equality
+
+- Expected
++ Received
+
+- true
++ false
+
+ ❯ src/components/ConversationView.interaction.test.tsx:161:58
+    159|     expect(render('s2').find(node => Array.isArray(node.props.items))!…
+    160|     expect((render('s1').find(node => Array.isArray(node.props.items))…
+    161|       .some(item => item.msg?.termination === 'length')).toBe(true);
+       |                                                          ^
+    162|   });
+    163|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed | 2 passed (3)
+      Tests  1 failed | 33 passed (34)
+   Start at  08:06:14
+   Duration  2.66s (import 50%, transform 41%, tests 8%, worker 1%)
+
+    Isolate  3 workers spawned · ~213ms startup each (spawn + environment, per file)
+             at least ~427ms faster with isolate: false — reuses workers across files instead of one per file
+

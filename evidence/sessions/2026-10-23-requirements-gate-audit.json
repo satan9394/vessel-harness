@@ -1,0 +1,74 @@
+[
+  {
+    "item": "delete",
+    "gate": "evidence/sessions/2026-10-23-delete-gates.json",
+    "checks": 6,
+    "nonzero": 0
+  },
+  {
+    "item": "multiline-final",
+    "gate": "evidence/sessions/2026-10-23-multiline-final-gates.json",
+    "checks": 6,
+    "nonzero": 0
+  },
+  {
+    "item": "termination-final",
+    "gate": "evidence/sessions/2026-10-23-termination-final-gates.json",
+    "checks": 6,
+    "nonzero": 0
+  },
+  {
+    "item": "activity-accepted",
+    "gate": "evidence/sessions/2026-10-23-activity-accepted-gates.json",
+    "checks": 6,
+    "nonzero": 0
+  },
+  {
+    "item": "focus-accepted",
+    "gate": "evidence/sessions/2026-10-23-focus-accepted-gates.json",
+    "checks": 6,
+    "nonzero": 0
+  },
+  {
+    "item": "mock-accepted",
+    "gate": "evidence/sessions/2026-10-23-mock-accepted-gates.json",
+    "checks": 6,
+    "nonzero": 0
+  },
+  {
+    "item": "english-final",
+    "gate": "evidence/sessions/2026-10-23-english-final-gates.json",
+    "checks": 6,
+    "nonzero": 0
+  },
+  {
+    "item": "ui03-final",
+    "gate": "evidence/sessions/2026-10-23-ui03-final-gates.json",
+    "checks": 6,
+    "nonzero": 0
+  },
+  {
+    "item": "ui07-final",
+    "gate": "evidence/sessions/2026-10-23-ui07-final-gates.json",
+    "checks": 6,
+    "nonzero": 0
+  },
+  {
+    "item": "ui09-accepted3",
+    "gate": "evidence/sessions/2026-10-23-ui09-accepted3-gates.json",
+    "checks": 6,
+    "nonzero": 0
+  },
+  {
+    "item": "arch06-accepted2",
+    "gate": "evidence/sessions/2026-10-23-arch06-accepted2-gates.json",
+    "checks": 6,
+    "nonzero": 0
+  },
+  {
+    "item": "arch01-accepted4",
+    "gate": "evidence/sessions/2026-10-23-arch01-accepted4-gates.json",
+    "checks": 6,
+    "nonzero": 0
+  }
+]

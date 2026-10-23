@@ -2,7 +2,7 @@ import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { MockProvider } from '@vessel/llm';
 import { SessionController } from './SessionController.js';
 import { SessionRegistry } from './SessionRegistry.js';
@@ -51,6 +51,23 @@ describe('SessionController', () => {
     expect(result.finalText).toContain('HELLO-CONTROLLED');
 
     await ctl.close();
+  });
+
+  it('releases the writer and lease even if harness shutdown fails', async () => {
+    const opts = {
+      workspaceRoot: ws, provider: new MockProvider([{ when: /.*/, response: { text: 'OK' } }]),
+      model: 'mock', policySystemPath: POLICY, behaviorIRPath: BEHAVIOR,
+    };
+    const ctl = await SessionController.create(opts);
+    await ctl.runTurn('hello');
+    const harness = (ctl as unknown as { harness: { close(): Promise<void> } }).harness;
+    const close = vi.spyOn(harness, 'close').mockRejectedValueOnce(new Error('shutdown failed'));
+    try {
+      await expect(ctl.close()).rejects.toThrow('shutdown failed');
+      expect(fs.existsSync(path.join(ws, '.harness', 'sessions', ctl.sessionId, '.lease'))).toBe(false);
+      const resumed = await SessionController.create({ ...opts, sessionId: ctl.sessionId });
+      await resumed.close();
+    } finally { close.mockRestore(); await ctl.close(); }
   });
 
   it('create registers its session in a shared registry', async () => {

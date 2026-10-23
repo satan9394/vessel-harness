@@ -1,0 +1,51 @@
+
+ RUN  v5.0.1 E:/Code_file/Projects/Vessel_Harness/apps/web
+
+ ❯ src/components/ConversationView.interaction.test.tsx (17 tests | 2 failed) 44ms
+   ❯ ConversationView Task 246: Scroll guard, IME protection, and SSE reconnect (17)
+     × focuses only an unclaimed input after async history becomes ready (other control focused=false) 8ms
+     × focuses only an unclaimed input after async history becomes ready (other control focused=true) 1ms
+ ❯ src/components.workbench.test.tsx (7 tests | 1 failed) 32ms
+   ❯ task-first workbench contract (6)
+     × renders a persistent composer with project/task/model/permission and optional advanced entry 18ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 3 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/components.workbench.test.tsx > task-first workbench contract > renders a persistent composer with project/task/model/permission and optional advanced entry
+AssertionError: expected '<form class="task-composer"><h2>让 Ves…' to match /<textarea[^>]*autoFocus=""/i
+
+- Expected:
+/<textarea[^>]*autoFocus=""/i
+
++ Received:
+"<form class=\"task-composer\"><h2>让 Vessel 完成什么任务？</h2><label for=\"taskProject\">选择项目</label><div class=\"capsule-select\"><select id=\"taskProject\" class=\"input\"><option value=\"\">打开项目目录</option><option value=\"E:/Projects/Vessel\" selected=\"\">Vessel</option></select><svg viewBox=\"0 0 16 16\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.5\" aria-hidden=\"true\"><path d=\"m4 6 4 4 4-4\"></path></svg></div><p class=\"composer-root dim\" title=\"E:/Projects/Vessel\">E:/Projects/Vessel</p><div class=\"composer-surface\"><label for=\"taskInput\">让 Vessel 完成什么任务？</label><textarea id=\"taskInput\" class=\"input task-input\" placeholder=\"描述目标、范围与验收标准…\"></textarea><div class=\"composer-options composer-pills\"><div class=\"model-switcher model-pill\"><button type=\"button\" class=\"model-switcher-trigger\" disabled=\"\" aria-expanded=\"false\" aria-controls=\"_R_3l_-panel\" aria-haspopup=\"dialog\"><span class=\"model-switcher-dot\" data-state=\"offline\" aria-hidden=\"true\"></span><span>演示模型（不连接真实供应商） / 选择模型</span><span aria-hidden=\"true\">⌄</span></button></div><label>新会话权限（不影响当前会话）<span class=\"capsule-select\"><select class=\"input\" aria-label=\"新会话权限（不影响当前会话）\"><option value=\"read-only\">只读探索权限</option><option value=\"workspace-write\" selected=\"\">工作区读写权限</option></select><svg viewBox=\"0 0 16 16\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.5\" aria-hidden=\"true\"><path d=\"m4 6 4 4 4-4\"></path></svg></span></label><button class=\"btn btn-primary composer-send\" type=\"submit\" disabled=\"\">开始任务</button></div></div><p role=\"status\" class=\"dim\">正在加载…</p><div class=\"composer-secondary\"><button class=\"btn\" type=\"button\" data-action=\"advanced-session\">高级新会话</button><button class=\"btn\" type=\"button\" data-action=\"configure-models\">配置新模型</button></div></form>"
+
+ ❯ src/components.workbench.test.tsx:49:18
+     47|     expect(html).toContain('class="task-composer"');
+     48|     expect(html).toContain('id="taskProject"'); expect(html).toContain…
+     49|     expect(html).toMatch(/<textarea[^>]*autoFocus=""/i);
+       |                  ^
+     50|     expect(html).toContain('model-pill'); expect(html).toContain('valu…
+     51|     expect(html).toContain('data-action="advanced-session"'); expect(h…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/3]⎯
+
+ FAIL  src/components/ConversationView.interaction.test.tsx > ConversationView Task 246: Scroll guard, IME protection, and SSE reconnect > focuses only an unclaimed input after async history becomes ready (other control focused=false)
+ FAIL  src/components/ConversationView.interaction.test.tsx > ConversationView Task 246: Scroll guard, IME protection, and SSE reconnect > focuses only an unclaimed input after async history becomes ready (other control focused=true)
+AssertionError: expected undefined to be defined
+ ❯ src/components/ConversationView.interaction.test.tsx:103:29
+    101|     const focus = vi.fn();
+    102|     const ownerDocument = { body, activeElement: otherFocused ? { tagN…
+    103|     expect(input.props.ref).toBeDefined();
+       |                             ^
+    104|     (input.props.ref as { current: unknown }).current = { focus, owner…
+    105|     resolve({ messages: [], usage: [] });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/3]⎯
+
+
+ Test Files  2 failed (2)
+      Tests  3 failed | 21 passed (24)
+   Start at  08:33:14
+   Duration  1.90s (import 48%, transform 46%, tests 5%, worker 1%)
+

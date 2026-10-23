@@ -140,6 +140,35 @@ describe('local server HTTP API + SSE', () => {
     });
   }
 
+  it.each(['length', 'interrupted'] as const)('restores %s termination on its message from a closed disk session', async termination => {
+    const gated = new GatedServerProvider();
+    const provider: ChatProvider = termination === 'interrupted' ? gated : {
+      id: 'length-history',
+      async chat() { return { content: 'partial', toolCalls: [], finishReason: 'length', usage: { inputTokens: 1, outputTokens: 2 } }; },
+    };
+    const old = await importSession(provider, { workspaceRoot: ws, registry: sessionRegistry });
+    const turn = old.runTurn('history fixture');
+    if (termination === 'interrupted') { await gated.started; old.interrupt(); gated.release(); }
+    await turn;
+    const id = old.sessionId;
+    await old.close();
+    const transcript = await (await fetch(`${base}/api/sessions/${id}/messages`)).json() as {
+      messages: { msg?: { role: string; text: string; termination?: string } }[];
+    };
+    expect(transcript.messages.findLast(item => item.msg?.role === 'assistant')?.msg?.termination).toBe(termination);
+    await fetch(`${base}/api/sessions/${id}/turns`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ prompt: 'a later normal reply' }),
+    });
+    const continued = await (await fetch(`${base}/api/sessions/${id}/messages`)).json() as typeof transcript;
+    expect(continued.messages.filter(item => item.msg?.termination)).toHaveLength(1);
+    expect(continued.messages.at(-1)?.msg?.termination).toBeUndefined();
+    const abort = new AbortController();
+    const stream = await fetch(`${base}/api/sessions/${id}/events?hydrate=1`, { signal: abort.signal });
+    const reader = stream.body!.getReader();
+    try { expect(new TextDecoder().decode((await reader.read()).value)).toContain(`"termination":"${termination}"`); }
+    finally { await reader.cancel(); abort.abort(); }
+  });
+
   it('restores disk sessions once across concurrent detail, messages and SSE requests', async () => {
     const registry = sessionRegistry;
     const old = await importSession(new MockProvider([{ when: /.*/, response: { text: 'persisted answer' } }]), { workspaceRoot: ws, registry });
@@ -188,6 +217,39 @@ describe('local server HTTP API + SSE', () => {
     expect(JSON.stringify(body)).not.toContain('internal instruction');
   });
 
+  it.each(['TOOL_FAILURE', 'DENIED'] as const)('preserves tool arguments and %s reason in HTTP, hydrated and live SSE', async errorClass => {
+    const created = await fetch(`${base}/api/sessions`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ workspaceRoot: ws }) });
+    const { session } = await created.json() as { session: { id: string } };
+    const error = { errorClass, message: 'fixture tool failure' };
+    await controller.session.appendSync({ type: 'tool/call', toolCallId: 'bad', toolName: 'Read', arguments: { path: 'fixture.txt' }, mode: 'auto', surface: false });
+    await controller.session.appendSync({ type: 'tool/result', toolCallId: 'bad', toolName: 'Read', error, meta: {}, surface: true });
+    const expected = { status: errorClass === 'DENIED' ? 'denied' : 'error', errorDetail: error.message, argsSummary: expect.stringContaining('fixture.txt') };
+    const transcript = await (await fetch(`${base}/api/sessions/${session.id}/messages`)).json() as { messages: { tool: unknown }[] };
+    expect(transcript.messages[0]!.tool).toMatchObject(expected);
+    const response = await fetch(`${base}/api/sessions/${session.id}/events?hydrate=1`);
+    const reader = response.body!.getReader();
+    try {
+      const decoder = new TextDecoder();
+      let buffer = '';
+      while (!buffer.includes('"type":"transcript"')) buffer += decoder.decode((await reader.read()).value);
+      const frame = buffer.split('\n').filter(line => line.startsWith('data: ')).map(line => JSON.parse(line.slice(6))).find(frame => frame.type === 'transcript');
+      expect(frame.delta.messages[0].tool).toMatchObject(expected);
+      await controller.bus.emit('after_tool', { toolCallId: 'bad', toolName: 'Read', result: { content: '', error, meta: {} } });
+      buffer = '';
+      while (!buffer.includes('"type":"tool"')) buffer += decoder.decode((await reader.read()).value);
+      expect(buffer).toContain('"errorDetail":"fixture tool failure"');
+      expect(buffer).toContain(`"status":"${expected.status}"`);
+      await controller.bus.emit('after_model', { turnId: 'fixture', step: 1, response: {
+        content: 'phase summary', toolCalls: [{ id: 'next', name: 'Read', arguments: { path: 'next.txt' } }],
+      } });
+      buffer = '';
+      while (!buffer.includes('"type":"conversation"')) buffer += decoder.decode((await reader.read()).value);
+      const conversation = buffer.split('\n').filter(line => line.startsWith('data: ')).map(line => JSON.parse(line.slice(6))).find(frame => frame.type === 'conversation');
+      expect(conversation.delta).toMatchObject({ role: 'assistant', text: 'phase summary' });
+      expect(conversation.delta).not.toHaveProperty('toolName');
+    } finally { await reader.cancel(); }
+  });
+
   it('GET /api/health returns ok + version', async () => {
     const res = await fetch(`${base}/api/health`);
     expect(res.status).toBe(200);
@@ -207,21 +269,43 @@ describe('local server HTTP API + SSE', () => {
       const { runs } = await (await fetch(`${base}/api/activity/runs`)).json() as { runs: Array<Record<string, unknown>> };
       const outcome = kind === 'success' ? 'completed' : kind === 'interrupted' || kind === 'cancelled' ? kind : 'failed';
       expect(runs.find(run => run.id === session.id)).toMatchObject({
-        status: outcome === 'completed' ? 'completed' : 'failed', outcome, statusSource: 'live', detail: 'fixture failure detail',
+        status: outcome, outcome, statusSource: 'live', detail: 'fixture failure detail',
       });
     },
   );
 
   it('does not reuse an older success after a newer unfinished turn', async () => {
-    await fetch(`${base}/api/sessions`, {
+    const created = await fetch(`${base}/api/sessions`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ workspaceRoot: ws }),
     });
+    const { session } = await created.json() as { session: { id: string } };
     await controller.session.appendSync({ type: 'turn/end', turnId: 'old', kind: 'success',
       stats: { steps: 1, toolCalls: 0, durationMs: 1 }, surface: false });
     await controller.session.appendSync({ type: 'turn/start', turnId: 'new', surface: false });
     const { runs } = await (await fetch(`${base}/api/activity/runs`)).json() as { runs: Array<Record<string, unknown>> };
-    expect(runs[0]).toMatchObject({ status: 'failed', outcome: 'interrupted', statusSource: 'live' });
+    expect(runs.find(run => run.id === session.id)).toMatchObject({ status: 'unknown', outcome: 'unknown', statusSource: 'live' });
   });
+
+  it.each(['success', 'error', 'interrupted', 'cancelled', 'unfinished', 'unrecognized'] as const)(
+    'preserves cold %s run evidence without restoring a controller or rewriting the log', async kind => {
+      const previousController = controller;
+      const old = await importSession(new MockProvider([]), { workspaceRoot: ws, registry: sessionRegistry });
+      const id = old.sessionId;
+      await old.session.appendSync({ type: 'turn/start', turnId: 'run-evidence', surface: false });
+      if (kind !== 'unfinished') await old.session.appendSync({ type: 'turn/end', turnId: 'run-evidence', kind,
+        stats: { steps: 1, toolCalls: 0, durationMs: 1 }, surface: false });
+      await old.close();
+      const file = path.join(ws, '.harness', 'sessions', id, 'session.jsonl');
+      const before = fs.readFileSync(file, 'utf8');
+      for (let refresh = 0; refresh < 2; refresh++) {
+        const body = await (await fetch(`${base}/api/activity/runs`)).json() as { runs: Array<Record<string, unknown>> };
+        const outcome = kind === 'success' ? 'completed' : kind === 'error' ? 'failed' : kind === 'unfinished' || kind === 'unrecognized' ? 'unknown' : kind;
+        expect(body.runs.find(run => run.id === id)).toMatchObject({ status: outcome, outcome, statusSource: 'event_log', runId: 'run-evidence' });
+      }
+      expect(controller).toBe(previousController);
+      expect(fs.readFileSync(file, 'utf8')).toBe(before);
+    },
+  );
 
   it('keeps indexed sessions without terminal evidence unknown and preserves error details', async () => {
     const routes = new ActivityRoutes({
@@ -337,8 +421,13 @@ describe('local server HTTP API + SSE', () => {
       method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ workspaceRoot: ws }),
     });
     const { session } = await created.json() as { session: { id: string } };
+    const close = vi.spyOn(controller, 'close');
     let release!: () => void;
-    recyclePath.mockImplementationOnce(() => new Promise<void>(resolve => { release = resolve; }));
+    recyclePath.mockImplementationOnce(() => {
+      expect(close).toHaveBeenCalledTimes(1);
+      expect(fs.existsSync(path.join(ws, '.harness', 'sessions', session.id, '.lease'))).toBe(false);
+      return new Promise<void>(resolve => { release = resolve; });
+    });
     let acknowledged = false;
     const deletion = fetch(`${base}/api/sessions/${session.id}`, { method: 'DELETE' }).then(response => {
       acknowledged = true;
@@ -377,6 +466,10 @@ describe('local server HTTP API + SSE', () => {
     expect(listing.sessions.some(item => item.id === session.id)).toBe(true);
     expect((await fetch(`${base}/api/sessions/${session.id}`)).status).toBe(200);
     expect(new SessionRegistry({ vesselHome: home }).get(session.id)).toEqual(sessionRegistry.get(session.id));
+    const resumed = await fetch(`${base}/api/sessions/${session.id}/turns`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ prompt: 'resumed after recycle failure' }),
+    });
+    expect(resumed.status).toBe(200);
     expect((await fetch(`${base}/api/sessions/${session.id}`, { method: 'DELETE' })).status).toBe(200);
   });
 
@@ -420,25 +513,29 @@ describe('local server HTTP API + SSE', () => {
     expect(await failed.json()).toEqual({ error: 'session_index_stale', id: session.id, stage: 'rollback' });
     expect(sessionRegistry.get(session.id)).toEqual(previous);
     expect(new SessionRegistry({ vesselHome: home }).get(session.id)).toBeUndefined();
-    expect(close).not.toHaveBeenCalled();
+    expect(close).toHaveBeenCalledTimes(1);
     expect(fs.existsSync(path.join(ws, '.harness', 'sessions', session.id))).toBe(true);
     expect((await fetch(`${base}/api/sessions/${session.id}`, { method: 'DELETE' })).status).toBe(200);
     expect(new SessionRegistry({ vesselHome: home }).get(session.id)).toBeUndefined();
   });
 
-  it('acknowledges completed recycling with a controller close warning', async () => {
+  it('restores the session without recycling when controller close fails', async () => {
     const created = await fetch(`${base}/api/sessions`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ workspaceRoot: ws }),
     });
     const { session } = await created.json() as { session: { id: string } };
-    const close = vi.spyOn(controller, 'close').mockRejectedValueOnce(new Error('telemetry close failed'));
+    const originalClose = controller.close.bind(controller);
+    vi.spyOn(controller, 'close').mockImplementationOnce(async () => {
+      await originalClose();
+      throw new Error('telemetry close failed');
+    });
     const deleted = await fetch(`${base}/api/sessions/${session.id}`, { method: 'DELETE' });
-    expect(deleted.status).toBe(200);
-    expect(await deleted.json()).toEqual({ ok: true, id: session.id, warning: 'session_controller_close_failed', stage: 'controller' });
-    expect(new SessionRegistry({ vesselHome: home }).get(session.id)).toBeUndefined();
-    expect((await fetch(`${base}/api/sessions/${session.id}`)).status).toBe(404);
-    close.mockRestore();
-    await controller.close();
+    expect(deleted.status).toBe(500);
+    expect(await deleted.json()).toEqual({ error: 'session_controller_close_failed', id: session.id, stage: 'controller' });
+    expect(recyclePath).not.toHaveBeenCalled();
+    expect(new SessionRegistry({ vesselHome: home }).get(session.id)).toBeDefined();
+    expect((await fetch(`${base}/api/sessions/${session.id}`)).status).toBe(200);
+    expect((await fetch(`${base}/api/sessions/${session.id}`, { method: 'DELETE' })).status).toBe(200);
   });
 
   it.each([0, 2000])('returns HTTP 200 and preserves a model length stop (%i chunks)', async chunks => {
@@ -565,6 +662,43 @@ describe('local server HTTP API + SSE', () => {
     }
     expect(gotPing).toBe(true);
     await reader.cancel();
+  });
+
+  it('replays a disconnected session cursor and checkpoints messages, usage and resolved approvals without cross-session frames', async () => {
+    const create = await fetch(`${base}/api/sessions`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ workspaceRoot: ws }) });
+    const { session } = await create.json() as { session: { id: string } };
+    const firstController = controller;
+    const first = await fetch(`${base}/api/sessions/${session.id}/events?hydrate=1`);
+    const firstReader = first.body!.getReader();
+    const initialText = new TextDecoder().decode((await firstReader.read()).value);
+    await firstReader.cancel();
+    const frames = (text: string) => text.split('\n').filter(line => line.startsWith('data: ')).map(line => JSON.parse(line.slice(6)));
+    const initial = frames(initialText).find(frame => frame.type === 'transcript');
+    expect(frames(initialText)[0].type).toBe('transcript'); // checkpoint must precede watermark detection
+    expect(initial).toMatchObject({ version: 1, sessionId: session.id, cursor: expect.any(Number), eventId: expect.any(String), streamId: expect.any(String) });
+    await firstController.runTurn('disconnected request');
+    const widget = { id: 'offline-approval', kind: 'permission_action' as const, status: 'pending' as const, turnIndex: 0, timestamp: new Date().toISOString(),
+      payload: { actionType: 'filesystem_write' as const, description: 'fixture approval', options: [{ id: 'deny', label: 'Deny', tone: 'danger' as const }] } };
+    server.widgets!.publish(session.id, widget);
+    expect(server.widgets!.respond(session.id, widget.id, { selectedOptionId: 'deny' }).status).toBe(200);
+    await fetch(`${base}/api/sessions`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ workspaceRoot: ws }) });
+    await controller.runTurn('other-session-only');
+    const recovered = await fetch(`${base}/api/sessions/${session.id}/events?hydrate=1`, { headers: { 'Last-Event-ID': `${initial.streamId}:${initial.cursor}` } });
+    const reader = recovered.body!.getReader();
+    try {
+      let text = '';
+      while (!frames(text).some(frame => frame.type === 'transcript')) text += new TextDecoder().decode((await reader.read()).value);
+      const replay = frames(text).filter(frame => frame.type !== 'ping');
+      expect(replay.every(frame => frame.sessionId === session.id && frame.version === 1)).toBe(true);
+      expect(replay.filter(frame => frame.type === 'conversation')).toEqual([expect.objectContaining({ delta: expect.objectContaining({ text: 'SERVER-ECHO:default' }) })]);
+      expect(replay.filter(frame => frame.type === 'usage')).toHaveLength(1);
+      const snapshot = replay.find(frame => frame.type === 'transcript');
+      expect(snapshot.delta.messages.filter((item: { kind: string }) => item.kind === 'message')).toHaveLength(2);
+      expect(snapshot.delta.messages.find((item: { widget?: { id: string } }) => item.widget?.id === widget.id).widget).toMatchObject({ status: 'resolved', resolution: { selectedOptionId: 'deny' } });
+      expect(snapshot.delta.usage).toHaveLength(1);
+      expect(snapshot.delta.run).toMatchObject({ active: false, kind: 'success' });
+      expect(text).not.toContain('other-session-only');
+    } finally { await reader.cancel(); }
   });
 
   it('unknown session id → 404', async () => {

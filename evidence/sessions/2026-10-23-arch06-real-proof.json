@@ -1,0 +1,32 @@
+{
+  "messageCount": 64,
+  "tools": 48,
+  "usageCount": 35,
+  "rejectedDuringFault": 29,
+  "summary": {
+    "inputTokens": 255200,
+    "outputTokens": 4879,
+    "cacheReadTokens": 244992,
+    "cacheCreationTokens": 0,
+    "calls": 35,
+    "costUsd": 0,
+    "estimated": false
+  },
+  "blockedMs": 30002,
+  "sessionId": "sess_1792696634029_23f3e3c8",
+  "runAtDrop": {
+    "active": true,
+    "turnId": "turn_1792713046059_67f7eb"
+  },
+  "run": {
+    "active": false,
+    "turnId": "turn_1792713046059_67f7eb",
+    "kind": "success"
+  },
+  "firstResume": {
+    "at": 1792713091603,
+    "url": "/api/sessions/sess_1792696634029_23f3e3c8/events?hydrate=1&cursor=17038faa-c976-4f0a-9948-5bf0dfa37573%3A45",
+    "lastEventId": null
+  },
+  "finalFile": "step08\n"
+}

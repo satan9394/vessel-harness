@@ -1,0 +1,186 @@
+
+ RUN  v5.0.1 E:/Code_file/Projects/Vessel_Harness
+
+(node:22500) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+ ❯ apps/local-server/src/server.test.ts (56 tests | 7 failed | 49 skipped) 736ms
+   ❯ local server HTTP API + SSE (42)
+     × does not reuse an older success after a newer unfinished turn 182ms
+     × preserves cold success run evidence without restoring a controller or rewriting the log 84ms
+     × preserves cold error run evidence without restoring a controller or rewriting the log 81ms
+     × preserves cold interrupted run evidence without restoring a controller or rewriting the log 101ms
+     × preserves cold cancelled run evidence without restoring a controller or rewriting the log 87ms
+     × preserves cold unfinished run evidence without restoring a controller or rewriting the log 96ms
+     × preserves cold unrecognized run evidence without restoring a controller or rewriting the log 101ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 7 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  apps/local-server/src/server.test.ts > local server HTTP API + SSE > does not reuse an older success after a newer unfinished turn
+AssertionError: expected { …(10) } to match object { status: 'unknown', …(2) }
+(7 matching properties omitted from actual)
+
+- Expected
++ Received
+
+  {
+-   "outcome": "unknown",
+-   "status": "unknown",
++   "outcome": "interrupted",
++   "status": "interrupted",
+    "statusSource": "live",
+  }
+
+ ❯ apps/local-server/src/server.test.ts:286:53
+    284|     await controller.session.appendSync({ type: 'turn/start', turnId: …
+    285|     const { runs } = await (await fetch(`${base}/api/activity/runs`)).…
+    286|     expect(runs.find(run => run.id === session.id)).toMatchObject({ st…
+       |                                                     ^
+    287|   });
+    288|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/7]⎯
+
+ FAIL  apps/local-server/src/server.test.ts > local server HTTP API + SSE > preserves cold success run evidence without restoring a controller or rewriting the log
+AssertionError: expected { …(10) } to match object { status: 'completed', …(3) }
+(7 matching properties omitted from actual)
+
+- Expected
++ Received
+
+  {
+-   "outcome": "completed",
+-   "runId": "run-evidence",
+-   "status": "completed",
+-   "statusSource": "event_log",
++   "outcome": "unknown",
++   "status": "unknown",
++   "statusSource": "inferred",
+  }
+
+ ❯ apps/local-server/src/server.test.ts:302:54
+    300|         const body = await (await fetch(`${base}/api/activity/runs`)).…
+    301|         const outcome = kind === 'success' ? 'completed' : kind === 'e…
+    302|         expect(body.runs.find(run => run.id === id)).toMatchObject({ s…
+       |                                                      ^
+    303|       }
+    304|       expect(controller).toBeUndefined();
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/7]⎯
+
+ FAIL  apps/local-server/src/server.test.ts > local server HTTP API + SSE > preserves cold error run evidence without restoring a controller or rewriting the log
+AssertionError: expected { …(10) } to match object { status: 'failed', …(3) }
+(7 matching properties omitted from actual)
+
+- Expected
++ Received
+
+  {
+-   "outcome": "failed",
+-   "runId": "run-evidence",
+-   "status": "failed",
+-   "statusSource": "event_log",
++   "outcome": "unknown",
++   "status": "unknown",
++   "statusSource": "inferred",
+  }
+
+ ❯ apps/local-server/src/server.test.ts:302:54
+    300|         const body = await (await fetch(`${base}/api/activity/runs`)).…
+    301|         const outcome = kind === 'success' ? 'completed' : kind === 'e…
+    302|         expect(body.runs.find(run => run.id === id)).toMatchObject({ s…
+       |                                                      ^
+    303|       }
+    304|       expect(controller).toBeUndefined();
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/7]⎯
+
+ FAIL  apps/local-server/src/server.test.ts > local server HTTP API + SSE > preserves cold interrupted run evidence without restoring a controller or rewriting the log
+AssertionError: expected { …(10) } to match object { status: 'interrupted', …(3) }
+(7 matching properties omitted from actual)
+
+- Expected
++ Received
+
+  {
+-   "outcome": "interrupted",
+-   "runId": "run-evidence",
+-   "status": "interrupted",
+-   "statusSource": "event_log",
++   "outcome": "unknown",
++   "status": "unknown",
++   "statusSource": "inferred",
+  }
+
+ ❯ apps/local-server/src/server.test.ts:302:54
+    300|         const body = await (await fetch(`${base}/api/activity/runs`)).…
+    301|         const outcome = kind === 'success' ? 'completed' : kind === 'e…
+    302|         expect(body.runs.find(run => run.id === id)).toMatchObject({ s…
+       |                                                      ^
+    303|       }
+    304|       expect(controller).toBeUndefined();
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/7]⎯
+
+ FAIL  apps/local-server/src/server.test.ts > local server HTTP API + SSE > preserves cold cancelled run evidence without restoring a controller or rewriting the log
+AssertionError: expected { …(10) } to match object { status: 'cancelled', …(3) }
+(7 matching properties omitted from actual)
+
+- Expected
++ Received
+
+  {
+-   "outcome": "cancelled",
+-   "runId": "run-evidence",
+-   "status": "cancelled",
+-   "statusSource": "event_log",
++   "outcome": "unknown",
++   "status": "unknown",
++   "statusSource": "inferred",
+  }
+
+ ❯ apps/local-server/src/server.test.ts:302:54
+    300|         const body = await (await fetch(`${base}/api/activity/runs`)).…
+    301|         const outcome = kind === 'success' ? 'completed' : kind === 'e…
+    302|         expect(body.runs.find(run => run.id === id)).toMatchObject({ s…
+       |                                                      ^
+    303|       }
+    304|       expect(controller).toBeUndefined();
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[5/7]⎯
+
+ FAIL  apps/local-server/src/server.test.ts > local server HTTP API + SSE > preserves cold unfinished run evidence without restoring a controller or rewriting the log
+ FAIL  apps/local-server/src/server.test.ts > local server HTTP API + SSE > preserves cold unrecognized run evidence without restoring a controller or rewriting the log
+AssertionError: expected { …(10) } to match object { status: 'unknown', …(3) }
+(7 matching properties omitted from actual)
+
+- Expected
++ Received
+
+  {
+    "outcome": "unknown",
+-   "runId": "run-evidence",
+    "status": "unknown",
+-   "statusSource": "event_log",
++   "statusSource": "inferred",
+  }
+
+ ❯ apps/local-server/src/server.test.ts:302:54
+    300|         const body = await (await fetch(`${base}/api/activity/runs`)).…
+    301|         const outcome = kind === 'success' ? 'completed' : kind === 'e…
+    302|         expect(body.runs.find(run => run.id === id)).toMatchObject({ s…
+       |                                                      ^
+    303|       }
+    304|       expect(controller).toBeUndefined();
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[6/7]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  7 failed | 49 skipped (56)
+   Start at  16:58:36
+   Duration  5.33s (import 45%, transform 40%, tests 14%)
+
+  Transform  transforming modules took 2.09s · 40% of tracked time, re-done on every run
+             persist transforms across runs with fsModuleCache: true
+             learn more: https://vitest.dev/guide/improving-performance#caching-between-reruns
+

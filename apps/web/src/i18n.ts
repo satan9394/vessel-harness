@@ -562,6 +562,7 @@ export interface ModelMessages {
   sessionCreateFailed: MessageTemplate;
   sessionDeleteIndexFailed: MessageTemplate;
   sessionDeleteRecycleFailed: MessageTemplate;
+  sessionDeleteCloseFailed: MessageTemplate;
   sessionDeleteIndexStale: MessageTemplate;
   sessionDeleteBusy: MessageTemplate;
   sessionDeleteFailed: MessageTemplate;
@@ -777,6 +778,48 @@ export interface WorkbenchMessages {
   activityRunning: MessageTemplate;
   activityCompleted: MessageTemplate;
   activityFailed: MessageTemplate;
+  activityInterrupted: MessageTemplate;
+  activityCancelled: MessageTemplate;
+  providerMockHint: MessageTemplate;
+  toolDetails: MessageTemplate;
+  stopPending: MessageTemplate;
+  stopFailed: MessageTemplate;
+  policyEffectiveTitle: MessageTemplate;
+  policyReadOnlyHint: MessageTemplate;
+  policySelectSession: MessageTemplate;
+  policyRuntimeBoundary: MessageTemplate;
+  policyProfile: MessageTemplate;
+  policyApproval: MessageTemplate;
+  policySnapshot: MessageTemplate;
+  policySources: MessageTemplate;
+  policySourceSystem: MessageTemplate;
+  policySourceProject: MessageTemplate;
+  policySourceSession: MessageTemplate;
+  policySourcePlugin: MessageTemplate;
+  policySessionOverrides: MessageTemplate;
+  policySourcesUnknown: MessageTemplate;
+  policyEnforced: MessageTemplate;
+  policyHardBoundary: MessageTemplate;
+  policyRuntimeRules: MessageTemplate;
+  policyDeniedTools: MessageTemplate;
+  policyFilesystem: MessageTemplate;
+  policyProtectedPaths: MessageTemplate;
+  policyDeniedReads: MessageTemplate;
+  policyConfinement: MessageTemplate;
+  policyAllowedPaths: MessageTemplate;
+  policyEnabled: MessageTemplate;
+  policyDisabled: MessageTemplate;
+  policyShellReadonly: MessageTemplate;
+  policyAdvisory: MessageTemplate;
+  policyGuidanceCount: MessageTemplate;
+  policyUnenforced: MessageTemplate;
+  policyNotEnforced: MessageTemplate;
+  policyNone: MessageTemplate;
+  policyUnavailable: MessageTemplate;
+  policyReadFailed: MessageTemplate;
+  providerSavedKeyPlaceholder: MessageTemplate;
+  themeSwitchLight: MessageTemplate;
+  themeSwitchDark: MessageTemplate;
   activityUnknown: MessageTemplate;
   activityKindSession: MessageTemplate;
   activityKindTeam: MessageTemplate;
@@ -1051,6 +1094,7 @@ export const zh: Messages = {
   sessionCreateFailed: "无法创建会话，请检查工作目录和模型配置",
   sessionDeleteIndexFailed: "无法更新会话索引；历史记录已保留，可重试。",
   sessionDeleteRecycleFailed: "无法移入回收站；会话索引已恢复，可重试。",
+  sessionDeleteCloseFailed: "无法关闭会话写入器；未回收数据，会话索引已恢复。",
   sessionDeleteIndexStale: "删除失败，历史记录已保留，但索引需要修复；请重试并检查刷新后的列表。",
   sessionDeleteBusy: "会话正在运行或删除中；请稍后重试。",
   sessionDeleteFailed: "无法确认删除结果；请检查连接、刷新列表后重试。",
@@ -1499,7 +1543,7 @@ export const zh: Messages = {
   metricCacheRead: '缓存读取',
   metricLatency: '时延',
   metricCost: '估算成本',
-  inputPlaceholder: "输入消息…（按回车发送）",
+  inputPlaceholder: "输入消息…（Enter 发送，Shift+Enter 换行）",
   serverDown: "无法连接本地服务，请先运行 vessel serve（127.0.0.1:5678）。",
   statusOk: "Vessel 本地服务运行正常（版本 {version}）",
   statusDown: "本地服务未连接，请先运行 vessel serve（127.0.0.1:5678）。",
@@ -1557,6 +1601,48 @@ export const zh: Messages = {
   activityRunning: "运行中",
   activityCompleted: "已完成",
   activityFailed: "失败",
+  activityInterrupted: "已中断",
+  activityCancelled: "已取消",
+  providerMockHint: "内置离线模型。在任务模型选择器中选择 mock / mock 即可使用，无需端点或 API Key。",
+  toolDetails: "工具详情",
+  stopPending: "正在请求停止…",
+  stopFailed: "停止请求失败，尚未确认中断。请重试；运行状态与未发送草稿已保留。",
+  policyEffectiveTitle: "当前生效 Policy（只读）",
+  policyReadOnlyHint: "来自所选会话的运行配置。候选行为验证不会修改或弱化此策略。",
+  policySelectSession: "选择已有会话以查看其当前生效策略。",
+  policyRuntimeBoundary: "此快照绑定当前会话运行实例；源文件后续修改不会自动作用于该实例。",
+  policyProfile: "当前权限档位",
+  policyApproval: "审批模式",
+  policySnapshot: "生效快照哈希",
+  policySources: "加载时的来源",
+  policySourceSystem: "系统策略",
+  policySourceProject: "项目策略",
+  policySourceSession: "会话覆盖",
+  policySourcePlugin: "插件策略",
+  policySessionOverrides: "实际覆盖值",
+  policySourcesUnknown: "该运行实例未记录策略来源，不能推断来源文件。",
+  policyEnforced: "运行时强制执法",
+  policyHardBoundary: "权限档位与审批由服务执行；匹配规则由 Policy Engine 执行，受保护文件另有工具守卫。",
+  policyRuntimeRules: "运行时规则",
+  policyDeniedTools: "拦截并隐藏的工具",
+  policyFilesystem: "文件工具守卫",
+  policyProtectedPaths: "禁止写入路径",
+  policyDeniedReads: "禁止读取路径",
+  policyConfinement: "显式允许集边界",
+  policyAllowedPaths: "额外授权路径",
+  policyEnabled: "已启用",
+  policyDisabled: "未启用",
+  policyShellReadonly: "Shell 只读命令识别前缀",
+  policyAdvisory: "软性提示引导",
+  policyGuidanceCount: "{count} 条提示引导；不构成强制执法证据。",
+  policyUnenforced: "仅声明，未执法",
+  policyNotEnforced: "未执法",
+  policyNone: "无",
+  policyUnavailable: "当前会话的生效策略不可用；请重新打开会话并刷新。原因：",
+  policyReadFailed: "读取生效策略失败，可刷新重试。原因：",
+  providerSavedKeyPlaceholder: "••••••••（已保存凭据，留空保持不变）",
+  themeSwitchLight: "切换为浅色主题",
+  themeSwitchDark: "切换为深色主题",
   activityUnknown: "未确认",
   activityKindSession: "会话",
   activityKindTeam: "团队",
@@ -1828,6 +1914,7 @@ export const en: Messages = {
   sessionCreateFailed: "Unable to create session. Check the workspace and model configuration.",
   sessionDeleteIndexFailed: "Could not update the session index. History is preserved; retry is available.",
   sessionDeleteRecycleFailed: "Could not move history to the Recycle Bin. The session index was restored; retry is available.",
+  sessionDeleteCloseFailed: "Could not close the session writer. History was not recycled and the session index was restored.",
   sessionDeleteIndexStale: "Deletion failed. History is preserved, but the index needs repair. Retry and check the refreshed list.",
   sessionDeleteBusy: "The session is running or being deleted. Try again shortly.",
   sessionDeleteFailed: "Could not confirm deletion. Check the connection and refresh the list before retrying.",
@@ -2276,7 +2363,7 @@ export const en: Messages = {
   metricCacheRead: 'Cache read',
   metricLatency: 'Latency',
   metricCost: 'Est. cost',
-  inputPlaceholder: 'Type a message… (Enter to send)',
+  inputPlaceholder: 'Type a message… (Enter to send, Shift+Enter for newline)',
   serverDown: 'Cannot reach local server — please run `vessel serve` (127.0.0.1:5678).',
   statusOk: 'Vessel local server ok (v{version})',
   statusDown: 'Local server not connected — please run `vessel serve` (127.0.0.1:5678).',
@@ -2337,6 +2424,48 @@ export const en: Messages = {
   activityRunning: 'Running',
   activityCompleted: 'Completed',
   activityFailed: 'Failed',
+  activityInterrupted: 'Interrupted',
+  activityCancelled: 'Cancelled',
+  providerMockHint: 'Built-in offline model. Select mock / mock in the task model picker. No endpoint or API key is needed.',
+  toolDetails: 'Tool details',
+  stopPending: 'Requesting stop…',
+  stopFailed: 'Stop request failed; interruption is unconfirmed. Retry stopping. Run state and unsent draft are preserved.',
+  policyEffectiveTitle: 'Current effective Policy (read-only)',
+  policyReadOnlyHint: 'From the selected session runtime. Validating candidate behavior cannot change or weaken this policy.',
+  policySelectSession: 'Select an existing session to inspect its effective policy.',
+  policyRuntimeBoundary: 'This snapshot is bound to the current session runtime; later source-file edits do not automatically apply to it.',
+  policyProfile: 'Current permission profile',
+  policyApproval: 'Approval mode',
+  policySnapshot: 'Effective snapshot hash',
+  policySources: 'Sources captured at load time',
+  policySourceSystem: 'System policy',
+  policySourceProject: 'Project policy',
+  policySourceSession: 'Session overrides',
+  policySourcePlugin: 'Plugin policy',
+  policySessionOverrides: 'Applied overrides',
+  policySourcesUnknown: 'This runtime did not record policy sources; source files cannot be inferred.',
+  policyEnforced: 'Hard runtime enforcement',
+  policyHardBoundary: 'The service enforces the profile and approval mode; Policy Engine evaluates matching rules, with additional file-tool guards.',
+  policyRuntimeRules: 'Runtime rules',
+  policyDeniedTools: 'Intercepted and hidden tools',
+  policyFilesystem: 'File-tool guards',
+  policyProtectedPaths: 'Write-protected paths',
+  policyDeniedReads: 'Denied read paths',
+  policyConfinement: 'Explicit allow-set confinement',
+  policyAllowedPaths: 'Additional authorized paths',
+  policyEnabled: 'Enabled',
+  policyDisabled: 'Disabled',
+  policyShellReadonly: 'Shell read-only command prefixes',
+  policyAdvisory: 'Advisory prompt guidance',
+  policyGuidanceCount: '{count} guidance entries; these do not prove hard enforcement.',
+  policyUnenforced: 'Declared only, not enforced',
+  policyNotEnforced: 'Not enforced',
+  policyNone: 'None',
+  policyUnavailable: 'Effective policy is unavailable for this session. Reopen the session and refresh. Reason:',
+  policyReadFailed: 'Could not read effective policy. Refresh to retry. Reason:',
+  providerSavedKeyPlaceholder: '•••••••• (saved credential; leave blank to keep)',
+  themeSwitchLight: 'Switch to light theme',
+  themeSwitchDark: 'Switch to dark theme',
   activityUnknown: 'Unknown',
   activityKindSession: 'Session',
   activityKindTeam: 'Team',

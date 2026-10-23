@@ -21,6 +21,18 @@ function render() { hooks.cursor = 0; return nodes(PresetsGallery({ onSelect, se
 function cards() { return render().filter(node => node.props.className === 'preset-card'); }
 beforeEach(() => { hooks.values = []; vi.clearAllMocks(); });
 describe('PresetsGallery', () => {
+  it('renders English display names and descriptions across the catalog', () => {
+    const labels = render().filter(node => node.type === 'strong' || node.type === 'small').map(node => node.props.children).join(' ');
+    expect(labels).toContain('Lark (Volcengine Ark)');
+    expect(labels).toContain('Built-in offline provider');
+    expect(labels).not.toMatch(/[\u3400-\u9fff]/);
+  });
+  it('finds and selects the built-in offline Mock preset', () => {
+    invoke(render().find(node => node.type === 'input')!, 'onChange', { target: { value: 'mock' } });
+    expect(cards()).toHaveLength(1);
+    invoke(cards()[0]!, 'onClick');
+    expect(onSelect).toHaveBeenCalledWith(expect.objectContaining({ id: 'mock', protocol: 'mock', auth: 'none' }));
+  });
   it('shows the full catalog and filters by category and case-insensitive search together', () => {
     expect(cards()).toHaveLength(PROVIDER_PRESETS_CATALOG.length);
     invoke(render().find(node => node.props.children === 'CN')!, 'onClick');

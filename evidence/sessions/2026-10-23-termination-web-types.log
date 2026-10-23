@@ -1,0 +1,14 @@
+
+> @vessel/web@0.10.0 typecheck
+> tsc -p tsconfig.json
+
+src/components/ConversationView.tsx(283,36): error TS2550: Property 'findLastIndex' does not exist on type 'ChatItem[]'. Do you need to change your target library? Try changing the 'lib' compiler option to 'es2023' or later.
+src/components/ConversationView.tsx(283,51): error TS7006: Parameter 'item' implicitly has an 'any' type.
+src/components/ConversationView.tsx(283,57): error TS7006: Parameter 'i' implicitly has an 'any' type.
+npm error Lifecycle script `typecheck` failed with error:
+npm error code 1
+npm error path E:\Code_file\Projects\Vessel_Harness\apps\web
+npm error workspace @vessel/web@0.10.0
+npm error location E:\Code_file\Projects\Vessel_Harness\apps\web
+npm error command failed
+npm error command C:\WINDOWS\system32\cmd.exe /d /s /c tsc -p tsconfig.json

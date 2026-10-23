@@ -46,6 +46,7 @@ describe('task-first workbench contract', () => {
     const html = renderToStaticMarkup(<LanguageProvider><TaskComposer api={{} as ApiClient} projects={[{ root: 'E:/Projects/Vessel' }]} selectedRoot="E:/Projects/Vessel" onSelectProject={() => {}} providerRevision={0} disabled={false} onConfigureModels={() => {}} onAdvanced={() => {}} onStarted={() => {}} /></LanguageProvider>);
     expect(html).toContain('class="task-composer"');
     expect(html).toContain('id="taskProject"'); expect(html).toContain('id="taskInput"');
+    expect(html).toMatch(/<textarea[^>]*autoFocus=""/i);
     expect(html).toContain('model-pill'); expect(html).toContain('value="read-only"');
     expect(html).toContain('data-action="advanced-session"'); expect(html).not.toContain('role="dialog"');
   });

@@ -4,7 +4,8 @@ import type { SessionMeta } from '../api';
 import { translate } from '../i18n';
 import Sidebar, { filterSessionsByTopic, groupSessionsByDateAndTopic } from './Sidebar';
 
-vi.mock('./LanguageProvider', () => ({ useI18n: () => ({ t: translate('en'), lang: 'en' }) }));
+const locale = vi.hoisted(() => ({ lang: 'en' as 'en' | 'zh' }));
+vi.mock('./LanguageProvider', () => ({ useI18n: () => ({ t: translate(locale.lang), lang: locale.lang }) }));
 const now = new Date(2026, 9, 19, 12).getTime();
 const midnight = new Date(2026, 9, 19).getTime();
 const day = 24 * 60 * 60 * 1000;
@@ -12,9 +13,19 @@ function session(id: string, time: number, topicId = id): SessionMeta {
   return { id, workspaceRoot: 'E:/workspace', createdAt: new Date(time).toISOString(),
     topic: { topicId, title: `Task ${id}`, createdAt: time, updatedAt: time } };
 }
-afterEach(() => vi.useRealTimers());
+afterEach(() => { vi.useRealTimers(); vi.unstubAllGlobals(); locale.lang = 'en'; });
 
 describe('Sidebar date and topic grouping', () => {
+  it.each([
+    ['en', 'dark', 'Switch to light theme'], ['en', 'light', 'Switch to dark theme'],
+    ['zh', 'dark', '切换为浅色主题'], ['zh', 'light', '切换为深色主题'],
+  ] as const)('localizes the accessible theme action (%s/%s)', (lang, theme, label) => {
+    locale.lang = lang;
+    vi.stubGlobal('localStorage', { getItem: () => theme });
+    const html = renderToStaticMarkup(<Sidebar projects={[]} sessions={[]} selectedSessionId={null} onNewSession={() => {}} onSelectSession={() => {}} />);
+    expect(html).toContain(`aria-label="${label}"`);
+    expect(html).toContain(`title="${label}"`);
+  });
   it('keeps all four periods ordered and assigns exact boundaries', () => {
     const input = [session('old', midnight - 7 * day - 1), session('week', midnight - 7 * day),
       session('yesterday', midnight - day), session('today', midnight), session('last-night', midnight - 1)];

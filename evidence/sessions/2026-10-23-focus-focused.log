@@ -1,0 +1,36 @@
+
+ RUN  v5.0.1 E:/Code_file/Projects/Vessel_Harness/apps/web
+
+ ❯ src/components/ConversationView.interaction.test.tsx (17 tests | 2 failed) 53ms
+   ❯ ConversationView Task 246: Scroll guard, IME protection, and SSE reconnect (17)
+     × focuses only an unclaimed input after async history becomes ready (other control focused=false) 13ms
+     × focuses only an unclaimed input after async history becomes ready (other control focused=true) 3ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/components/ConversationView.interaction.test.tsx > ConversationView Task 246: Scroll guard, IME protection, and SSE reconnect > focuses only an unclaimed input after async history becomes ready (other control focused=false)
+ FAIL  src/components/ConversationView.interaction.test.tsx > ConversationView Task 246: Scroll guard, IME protection, and SSE reconnect > focuses only an unclaimed input after async history becomes ready (other control focused=true)
+AssertionError: expected true to be false // Object.is equality
+
+- Expected
++ Received
+
+- false
++ true
+
+ ❯ src/components/ConversationView.interaction.test.tsx:107:77
+    105|     resolve({ messages: [], usage: [] });
+    106|     await Promise.resolve();
+    107|     expect(render().find(node => node.type === 'textarea')!.props.disa…
+       |                                                                             ^
+    108|     expect(focus).toHaveBeenCalledTimes(otherFocused ? 0 : 1);
+    109|     render();
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯
+
+
+ Test Files  1 failed | 1 passed (2)
+      Tests  2 failed | 22 passed (24)
+   Start at  08:33:35
+   Duration  1.87s (transform 48%, import 46%, tests 5%, worker 1%)
+

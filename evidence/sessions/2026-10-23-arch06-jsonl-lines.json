@@ -1,0 +1,310 @@
+[
+  {
+    "type": "tool/result",
+    "turnId": null,
+    "line": 225,
+    "toolName": "Write",
+    "kind": null
+  },
+  {
+    "type": "model/usage",
+    "turnId": "turn_1792712931192_3d6186",
+    "line": 231,
+    "toolName": null,
+    "kind": null
+  },
+  {
+    "type": "tool/result",
+    "turnId": null,
+    "line": 234,
+    "toolName": "Write",
+    "kind": null
+  },
+  {
+    "type": "model/usage",
+    "turnId": "turn_1792712931192_3d6186",
+    "line": 240,
+    "toolName": null,
+    "kind": null
+  },
+  {
+    "type": "tool/result",
+    "turnId": null,
+    "line": 243,
+    "toolName": "Write",
+    "kind": null
+  },
+  {
+    "type": "model/usage",
+    "turnId": "turn_1792712931192_3d6186",
+    "line": 249,
+    "toolName": null,
+    "kind": null
+  },
+  {
+    "type": "tool/result",
+    "turnId": null,
+    "line": 252,
+    "toolName": "Write",
+    "kind": null
+  },
+  {
+    "type": "model/usage",
+    "turnId": "turn_1792712931192_3d6186",
+    "line": 258,
+    "toolName": null,
+    "kind": null
+  },
+  {
+    "type": "tool/result",
+    "turnId": null,
+    "line": 261,
+    "toolName": "Write",
+    "kind": null
+  },
+  {
+    "type": "model/usage",
+    "turnId": "turn_1792712931192_3d6186",
+    "line": 267,
+    "toolName": null,
+    "kind": null
+  },
+  {
+    "type": "tool/result",
+    "turnId": null,
+    "line": 270,
+    "toolName": "Write",
+    "kind": null
+  },
+  {
+    "type": "model/usage",
+    "turnId": "turn_1792712931192_3d6186",
+    "line": 276,
+    "toolName": null,
+    "kind": null
+  },
+  {
+    "type": "tool/result",
+    "turnId": null,
+    "line": 279,
+    "toolName": "Write",
+    "kind": null
+  },
+  {
+    "type": "model/usage",
+    "turnId": "turn_1792712931192_3d6186",
+    "line": 285,
+    "toolName": null,
+    "kind": null
+  },
+  {
+    "type": "tool/result",
+    "turnId": null,
+    "line": 288,
+    "toolName": "Write",
+    "kind": null
+  },
+  {
+    "type": "model/usage",
+    "turnId": "turn_1792712931192_3d6186",
+    "line": 294,
+    "toolName": null,
+    "kind": null
+  },
+  {
+    "type": "tool/result",
+    "turnId": null,
+    "line": 297,
+    "toolName": "Write",
+    "kind": null
+  },
+  {
+    "type": "model/usage",
+    "turnId": "turn_1792712931192_3d6186",
+    "line": 303,
+    "toolName": null,
+    "kind": null
+  },
+  {
+    "type": "tool/result",
+    "turnId": null,
+    "line": 306,
+    "toolName": "Write",
+    "kind": null
+  },
+  {
+    "type": "model/usage",
+    "turnId": "turn_1792712931192_3d6186",
+    "line": 312,
+    "toolName": null,
+    "kind": null
+  },
+  {
+    "type": "tool/result",
+    "turnId": null,
+    "line": 315,
+    "toolName": "Read",
+    "kind": null
+  },
+  {
+    "type": "model/usage",
+    "turnId": "turn_1792712931192_3d6186",
+    "line": 322,
+    "toolName": null,
+    "kind": null
+  },
+  {
+    "type": "turn/end",
+    "turnId": "turn_1792712931192_3d6186",
+    "line": 323,
+    "toolName": null,
+    "kind": "success"
+  },
+  {
+    "type": "turn/start",
+    "turnId": "turn_1792713046059_67f7eb",
+    "line": 329,
+    "toolName": null,
+    "kind": null
+  },
+  {
+    "type": "model/usage",
+    "turnId": "turn_1792713046059_67f7eb",
+    "line": 335,
+    "toolName": null,
+    "kind": null
+  },
+  {
+    "type": "tool/result",
+    "turnId": null,
+    "line": 338,
+    "toolName": "Write",
+    "kind": null
+  },
+  {
+    "type": "model/usage",
+    "turnId": "turn_1792713046059_67f7eb",
+    "line": 344,
+    "toolName": null,
+    "kind": null
+  },
+  {
+    "type": "tool/result",
+    "turnId": null,
+    "line": 347,
+    "toolName": "Write",
+    "kind": null
+  },
+  {
+    "type": "model/usage",
+    "turnId": "turn_1792713046059_67f7eb",
+    "line": 353,
+    "toolName": null,
+    "kind": null
+  },
+  {
+    "type": "tool/result",
+    "turnId": null,
+    "line": 356,
+    "toolName": "Write",
+    "kind": null
+  },
+  {
+    "type": "model/usage",
+    "turnId": "turn_1792713046059_67f7eb",
+    "line": 362,
+    "toolName": null,
+    "kind": null
+  },
+  {
+    "type": "tool/result",
+    "turnId": null,
+    "line": 365,
+    "toolName": "Write",
+    "kind": null
+  },
+  {
+    "type": "model/usage",
+    "turnId": "turn_1792713046059_67f7eb",
+    "line": 371,
+    "toolName": null,
+    "kind": null
+  },
+  {
+    "type": "tool/result",
+    "turnId": null,
+    "line": 374,
+    "toolName": "Write",
+    "kind": null
+  },
+  {
+    "type": "model/usage",
+    "turnId": "turn_1792713046059_67f7eb",
+    "line": 380,
+    "toolName": null,
+    "kind": null
+  },
+  {
+    "type": "tool/result",
+    "turnId": null,
+    "line": 383,
+    "toolName": "Write",
+    "kind": null
+  },
+  {
+    "type": "model/usage",
+    "turnId": "turn_1792713046059_67f7eb",
+    "line": 389,
+    "toolName": null,
+    "kind": null
+  },
+  {
+    "type": "tool/result",
+    "turnId": null,
+    "line": 392,
+    "toolName": "Write",
+    "kind": null
+  },
+  {
+    "type": "model/usage",
+    "turnId": "turn_1792713046059_67f7eb",
+    "line": 398,
+    "toolName": null,
+    "kind": null
+  },
+  {
+    "type": "tool/result",
+    "turnId": null,
+    "line": 401,
+    "toolName": "Write",
+    "kind": null
+  },
+  {
+    "type": "model/usage",
+    "turnId": "turn_1792713046059_67f7eb",
+    "line": 407,
+    "toolName": null,
+    "kind": null
+  },
+  {
+    "type": "tool/result",
+    "turnId": null,
+    "line": 410,
+    "toolName": "Read",
+    "kind": null
+  },
+  {
+    "type": "model/usage",
+    "turnId": "turn_1792713046059_67f7eb",
+    "line": 417,
+    "toolName": null,
+    "kind": null
+  },
+  {
+    "type": "turn/end",
+    "turnId": "turn_1792713046059_67f7eb",
+    "line": 418,
+    "toolName": null,
+    "kind": "success"
+  }
+]

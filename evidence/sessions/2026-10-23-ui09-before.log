@@ -1,0 +1,46 @@
+
+ RUN  v5.0.1 E:/Code_file/Projects/Vessel_Harness/apps/web
+
+ ❯ src/components/ConversationView.interaction.test.tsx (18 tests | 1 failed) 67ms
+   ❯ ConversationView Task 246: Scroll guard, IME protection, and SSE reconnect (18)
+     × reports Stop failures, blocks duplicate Stop requests and retains the active draft for retry 14ms
+ ❯ src/components/ToolActivityRow.test.tsx (15 tests | 1 failed) 25ms
+   ❯ ToolActivityRow (15)
+     × folds tool parameters by default while showing failure reasons outside the disclosure 14ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/components/ConversationView.interaction.test.tsx > ConversationView Task 246: Scroll guard, IME protection, and SSE reconnect > reports Stop failures, blocks duplicate Stop requests and retains the active draft for retry
+AssertionError: expected "vi.fn()" to be called 1 times, but got 2 times
+ ❯ src/components/ConversationView.interaction.test.tsx:110:34
+    108|     const stop = tree.find(node => node.props.title === 'interruptTitl…
+    109|     stop(); stop();
+    110|     expect(api.interruptSession).toHaveBeenCalledTimes(1);
+       |                                  ^
+    111|     expect(render().find(node => node.props.title === 'interruptTitle'…
+    112|     rejectStop(new Error('fixture stop failure')); await Promise.resol…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯
+
+ FAIL  src/components/ToolActivityRow.test.tsx > ToolActivityRow > folds tool parameters by default while showing failure reasons outside the disclosure
+AssertionError: expected '<div class="tool-row tool-row--ok" da…' to contain '<details class="tool-details"><summar…'
+
+Expected: "<details class="tool-details"><summary>Tool details</summary>"
+Received: "<div class="tool-row tool-row--ok" data-status="done" data-tone="ok" role="group" aria-label="read_file · done"><span class="tool-rail" aria-hidden="true"><span class="tool-dot"></span></span><div class="tool-main"><div class="tool-head"><span class="tool-name">read_file</span><span class="tool-status">done</span></div><div class="tool-args" title="read fixture">read fixture</div></div></div>"
+
+ ❯ src/components/ToolActivityRow.test.tsx:21:16
+     19|   it('folds tool parameters by default while showing failure reasons o…
+     20|     const ok = render({ argsSummary: 'read fixture' });
+     21|     expect(ok).toContain('<details class="tool-details"><summary>Tool …
+       |                ^
+     22|     expect(ok).not.toContain('<details open');
+     23|     for (const status of ['error', 'denied'] as const) {
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/2]⎯
+
+
+ Test Files  2 failed (2)
+      Tests  2 failed | 31 passed (33)
+   Start at  12:05:44
+   Duration  1.64s (transform 46%, import 46%, tests 7%, worker 1%)
+
