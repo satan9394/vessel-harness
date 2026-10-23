@@ -51,6 +51,7 @@ export interface ProviderEndpoint {
 }
 
 export interface ProviderConfig {
+  catalogEvidence?: { verifiedAt: number; expiresAt: number; lastAttemptAt: number; lastError?: string; modelIds: string[] };
   /** 唯一 id（键；'mock' 为内置保留） */
   id: string;
   /** 展示名 */
@@ -714,6 +715,13 @@ export class ProviderStore {
     if (typeof c.model !== 'string' || c.model.trim() === '') {
       throw new Error(`provider "${c.id}" requires a non-empty "model"`);
     }
+    if (c.catalogEvidence !== undefined) {
+      const evidence = c.catalogEvidence;
+      if (!evidence || ![evidence.verifiedAt, evidence.expiresAt, evidence.lastAttemptAt].every(value => Number.isSafeInteger(value) && value >= 0)
+        || evidence.expiresAt <= evidence.verifiedAt || !Array.isArray(evidence.modelIds) || evidence.modelIds.length > 10000
+        || !evidence.modelIds.every(id => typeof id === 'string' && id.length > 0 && id.length <= 256)
+        || evidence.lastError !== undefined && !/^(http_\d{3}|invalid_models_response|connection_timeout|connection_failed)$/.test(evidence.lastError)) throw new Error('invalid catalog evidence');
+    }
     if (c.modelCapabilities !== undefined) {
       if (!c.modelCapabilities || typeof c.modelCapabilities !== 'object' || Array.isArray(c.modelCapabilities)) throw new Error('invalid model capabilities');
       const keys = Object.keys(capabilitiesFor('unknown'));
@@ -722,6 +730,8 @@ export class ProviderStore {
           || Object.keys(snapshot).length !== keys.length || Object.keys(snapshot).some(key => !keys.includes(key))) throw new Error('invalid model capabilities');
         for (const key of keys as (keyof ProviderCapabilities)[]) {
           const capability = snapshot[key];
+          if (capability?.evidence && (![capability.evidence.observedAt, capability.evidence.expiresAt].every(value => Number.isSafeInteger(value) && value >= 0)
+            || capability.evidence.expiresAt <= capability.evidence.observedAt || !['provider_metadata', 'probe', 'user_override'].includes(capability.evidence.origin))) throw new Error('invalid capability evidence');
           if (!capability || typeof capability !== 'object' || !['detected', 'declared', 'unknown'].includes(capability.status)
             || (capability.status !== 'unknown' && (key === 'contextWindow'
               ? typeof capability.value !== 'number' || !Number.isSafeInteger(capability.value) || capability.value <= 0

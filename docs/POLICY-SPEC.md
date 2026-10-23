@@ -606,3 +606,9 @@ decisionPath:
 | workspace trust | 项目规则装载门 | Pi ProjectTrust / cc workspace trust |
 
 （完）
+
+## Operator reconciliation of unknown effects (2026-10-23)
+
+The production chain is PolicyEngine → argument-bound ExecutionPermit → intent fsync → dispatch → outcome fsync → session projection. `execution.jsonl` remains beside the session log under its existing writer lease. This provides at-most-once dispatch for a recorded invocation plus explicit reconciliation, not distributed exactly-once execution.
+
+An unknown write blocks further writes. An operator first inspects GET `/api/sessions/:id/effects`, checks the actual external/file-system result, then POSTs the returned `key`, `attempt`, `invocationHash`, a resolution `applied` or `not_applied`, and a non-empty `evidence` explanation to the same endpoint. The session must be idle. Existing origin/auth checks apply; stale or conflicting receipts return 409. This endpoint is not a model tool or an approval shortcut. A receipt is an operator attestation, not independent proof of an external action. It releases the write barrier but never allows the old invocation key to run again. Identical receipt retries are idempotent in the journal. Preserve the journal and evidence when rolling back; do not delete unknown intents or blindly retry them.

@@ -1,0 +1,4 @@
+
+> composable-agent-harness@0.10.0 build
+> tsc -b tsconfig.json
+

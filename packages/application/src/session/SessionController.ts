@@ -1,4 +1,6 @@
 import type { ChatProvider } from '@vessel/shared';
+import { canonicalArgumentsHash } from '@vessel/shared';
+import type { EffectReconciliation } from '@vessel/runtime';
 import { projectSession } from '@vessel/shared';
 import type { ChatUsage, SessionRecord } from '@vessel/shared';
 import type { SteerSource } from '@vessel/core';
@@ -185,6 +187,18 @@ export class SessionController {
   /** Visible tool face for child runtimes; the child must also inherit session policy. */
   get tools() {
     return this.harness.registry.listVisible();
+  }
+
+  /** Operator recovery stays outside the model/tool authority surface. */
+  pendingEffects() {
+    return this.harness.effectJournal.pending().map(intent => ({ key: intent.key, attempt: intent.attempt,
+      effects: intent.effects, tool: intent.invocation.canonicalToolId, invocationHash: canonicalArgumentsHash(intent.invocation) }));
+  }
+  async reconcileEffect(input: EffectReconciliation) {
+    if (this.loop.turnActive) throw new Error('session_busy');
+    this.harness.effectJournal.reconcile(input);
+    await this.session.appendSync({ type: 'audit/effect_reconciled', surface: false,
+      key: input.key, attempt: input.attempt, invocationHash: input.invocationHash, resolution: input.resolution });
   }
 
   /** Copy effective policy data while retaining compiled matcher functions. */

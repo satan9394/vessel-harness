@@ -1,0 +1,54 @@
+
+ RUN  v5.0.1 E:/Code_file/Projects/Vessel_Harness/apps/web
+
+ ❯ src/components/TaskComposer.test.tsx (14 tests | 12 failed) 18ms
+   ❯ TaskComposer IME and keyboard submission (14)
+     × isolates workspace drafts, restores them after navigation and separates API clients 4ms
+     × clears only the submitted workspace draft after successful creation 1ms
+     × preserves the current workspace draft when creation fails 0ms
+     × can explicitly start with the built-in Mock while real models are configured 0ms
+     × opens the requested onboarding preset without submitting a session 0ms
+     × submits the model chosen in the quick switcher 0ms
+     × leaves Enter to the IME while composition is active across renders 0ms
+     × guards native composition and legacy keyCode: {"nativeEvent":{"isComposing":true}} 0ms
+     × guards native composition and legacy keyCode: {"keyCode":229} 2ms
+     × submits the completed text on Enter after compositionEnd 0ms
+     × allows the native Shift+Enter newline and keeps multiline text without submitting 0ms
+     × blocks form submission during composition as well 0ms
+
+⎯⎯⎯⎯⎯⎯ Failed Tests 12 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/components/TaskComposer.test.tsx > TaskComposer IME and keyboard submission > isolates workspace drafts, restores them after navigation and separates API clients
+ FAIL  src/components/TaskComposer.test.tsx > TaskComposer IME and keyboard submission > clears only the submitted workspace draft after successful creation
+ FAIL  src/components/TaskComposer.test.tsx > TaskComposer IME and keyboard submission > preserves the current workspace draft when creation fails
+ FAIL  src/components/TaskComposer.test.tsx > TaskComposer IME and keyboard submission > can explicitly start with the built-in Mock while real models are configured
+ FAIL  src/components/TaskComposer.test.tsx > TaskComposer IME and keyboard submission > opens the requested onboarding preset without submitting a session
+ FAIL  src/components/TaskComposer.test.tsx > TaskComposer IME and keyboard submission > submits the model chosen in the quick switcher
+ FAIL  src/components/TaskComposer.test.tsx > TaskComposer IME and keyboard submission > leaves Enter to the IME while composition is active across renders
+ FAIL  src/components/TaskComposer.test.tsx > TaskComposer IME and keyboard submission > guards native composition and legacy keyCode: {"nativeEvent":{"isComposing":true}}
+ FAIL  src/components/TaskComposer.test.tsx > TaskComposer IME and keyboard submission > guards native composition and legacy keyCode: {"keyCode":229}
+ FAIL  src/components/TaskComposer.test.tsx > TaskComposer IME and keyboard submission > submits the completed text on Enter after compositionEnd
+ FAIL  src/components/TaskComposer.test.tsx > TaskComposer IME and keyboard submission > allows the native Shift+Enter newline and keeps multiline text without submitting
+ FAIL  src/components/TaskComposer.test.tsx > TaskComposer IME and keyboard submission > blocks form submission during composition as well
+ReferenceError: cancelAnimationFrame is not defined
+ ❯ src/components/TaskComposer.tsx:79:18
+     77|       if (!performance.getEntriesByName('vessel:task-ready').length) p…
+     78|     });
+     79|     return () => cancelAnimationFrame(frame);
+       |                  ^
+     80|   }, [disabled, loading, failed, unavailable, selectedModel, root]);
+     81|   async function submit(event: React.FormEvent) {
+
+ Test Files  1 failed | 4 passed (5)
+      Tests  12 failed | 48 passed (60)
+   Start at  00:05:27
+   Duration  2.48s (import 36%, tests 35%, transform 27%, worker 2%)
+
+    Isolate  5 workers spawned · ~176ms startup each (spawn + environment, per file)
+             at least ~704ms faster with isolate: false — reuses workers across files instead of one per file
+
+ ❯ src/components/TaskComposer.test.tsx:70:37
+ ❯ src/components/TaskComposer.test.tsx:70:18
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/12]⎯
+

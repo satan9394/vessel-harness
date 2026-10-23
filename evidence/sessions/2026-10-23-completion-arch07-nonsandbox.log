@@ -1,0 +1,37 @@
+
+ RUN  v5.0.1 E:/Code_file/Projects/Vessel_Harness
+
+ ❯ packages/agents/src/subagent/subagent.test.ts (14 tests | 1 failed) 373ms
+   ❯ V0.2-M1 subagent — delegation (H11) (14)
+     × honors provider output defaults and explicit compaction budget=undefined 22ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  packages/agents/src/subagent/subagent.test.ts > V0.2-M1 subagent — delegation (H11) > honors provider output defaults and explicit compaction budget=undefined
+TypeError: Execution arguments must be JSON
+ ❯ canonical packages/shared/src/execution.ts:30:95
+     28|     }
+     29|     const result = JSON.stringify(input);
+     30|     if (result === undefined || (typeof input === 'number' && !Number.…
+       |                                                                                               ^
+     31|     return result;
+     32|   }
+ ❯ packages/shared/src/execution.ts:27:85
+ ❯ canonical packages/shared/src/execution.ts:27:46
+ ❯ canonical packages/shared/src/execution.ts:24:50
+ ❯ canonicalArgumentsHash packages/shared/src/execution.ts:33:38
+ ❯ Compaction.compact packages/context/src/compaction/Compaction.ts:116:26
+ ❯ Object.buildContext packages/agents/src/subagent/IsolatedRuntime.ts:161:9
+ ❯ AgentLoop.runTurnInner packages/core/src/agent-loop/AgentLoop.ts:345:26
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed | 2 passed (3)
+      Tests  1 failed | 24 passed (25)
+   Start at  23:55:28
+   Duration  3.83s (import 47%, transform 39%, tests 13%, setup 1%)
+
+    Isolate  3 workers spawned · ~141ms startup each (spawn + environment, per file)
+             at least ~283ms faster with isolate: false — reuses workers across files instead of one per file
+

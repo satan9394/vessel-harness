@@ -70,6 +70,14 @@ export default function TaskComposer({ api, projects, selectedRoot, onSelectProj
   }, [api, providerRevision, retry]);
   const selectedModel = models.find(model => modelKey(model) === selection);
   const unavailable = Boolean(selection && !models.some(model => modelKey(model) === selection));
+  useEffect(() => {
+    if (disabled || loading || failed || unavailable || !selectedModel || !root || typeof requestAnimationFrame !== 'function') return;
+    // State-ready animation frame; paint timing is measured separately. No prompt data.
+    const frame = requestAnimationFrame(() => {
+      if (!performance.getEntriesByName('vessel:task-ready').length) performance.mark('vessel:task-ready');
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [disabled, loading, failed, unavailable, selectedModel, root]);
   async function submit(event: React.FormEvent) {
     event.preventDefault(); if (isComposingRef.current || !root || !task.trim() || busy || loading || failed || unavailable || disabled) return;
     setBusy(true); setError('');

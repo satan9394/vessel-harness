@@ -45,12 +45,31 @@ function setup() {
 afterEach(() => { hooks.cleanups.forEach(cleanup => cleanup?.()); hooks.values = []; hooks.effects = []; hooks.cleanups = []; vi.clearAllMocks(); });
 
 describe('ProviderHub page', () => {
-  it('renders the registry and editor immediately without dialog semantics or focus interception', async () => {
+  it('refreshes stale catalog evidence immediately after a failed configured-provider test', async () => {
+    const { api, render, onChanged } = setup(); render(); await settle();
+    vi.mocked(api.testProvider).mockResolvedValue({ ok: false, error: 'http_503' });
+    vi.mocked(api.listProviders).mockResolvedValue({ providers: [{ name: 'existing', protocol: 'openai-compatible', baseUrl: 'https://example.com/v1', apiKeyMasked: '****1234', models: ['alpha'], catalogState: 'stale' }] });
+    const button = render().find(node => node.type === 'button' && String(node.props.children).includes('⚡'))!;
+    (button.props.onClick as () => void)(); await settle();
+    expect(render().some(node => node.props.children === translate('en')('providerCatalogStale'))).toBe(true);
+    expect(onChanged).not.toHaveBeenCalled();
+    expect(api.listProviders).toHaveBeenCalledTimes(2);
+  });
+  it('opens configured providers, separates adding and preserves the draft when navigating back', async () => {
     const { render } = setup(); render(); await settle(); const tree = render();
     expect(tree.some(node => node.type === 'h2' && node.props.children === 'Model settings')).toBe(true);
     expect(tree.some(node => node.props.role === 'dialog' || node.props['aria-modal'])).toBe(false);
     expect(tree.some(node => node.props.children === '****1234')).toBe(true);
     expect(tree.some(node => node.type === PresetsGallery)).toBe(true);
+    expect(tree.find(node => node.type === 'form')?.props.hidden).toBe(true);
+    expect(tree.find(node => node.props.className === 'provider-registry')?.props.hidden).toBe(false);
+    (tree.find(node => node.type === 'button' && node.props.children === 'Add provider')!.props.onClick as () => void)();
+    expect(render().find(node => node.type === 'form')?.props.hidden).toBe(false);
+    expect(render().find(node => node.props.className === 'provider-registry')?.props.hidden).toBe(true);
+    (render().find(node => node.props.id === 'provider-name')!.props.onChange as (event: unknown) => void)({ target: { value: 'kept-draft' } });
+    (render().find(node => node.type === 'button' && node.props.children === 'Configured providers')!.props.onClick as () => void)();
+    (render().find(node => node.type === 'button' && node.props.children === 'Add provider')!.props.onClick as () => void)();
+    expect(render().find(node => node.props.id === 'provider-name')?.props.value).toBe('kept-draft');
     expect(tree.filter(node => node.type === 'button').map(node => node.props.children)).toContain('Test connection');
     const stopPropagation = vi.fn();
     (tree.find(node => node.props.role === 'region')!.props.onKeyDown as (event: unknown) => void)({ key: 'Escape', stopPropagation });

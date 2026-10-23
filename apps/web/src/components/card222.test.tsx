@@ -151,7 +151,7 @@ describe('card 222 components', () => {
     const html = renderToStaticMarkup(<ActivityQueue initial={activity} />);
     for (const value of ['Activity &amp; approval queue', 'Needs attention', 'Running', 'Fix navigation', 'write src/app.ts', 'Allow once', 'Deny']) expect(html).toContain(value);
     expect(html).toContain('data-status="needs_attention"');
-    expect(html).not.toContain('disabled=""');
+    expect(html).toContain('disabled=""'); // No response transport: read-only approval.
     expect(renderToStaticMarkup(<ActivityQueue initial={{ runs: [], updatedAt: 1 }} />)).toContain('Nothing needs attention');
   });
 

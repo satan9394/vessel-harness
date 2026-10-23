@@ -28,6 +28,15 @@ export interface ActivityRun {
   observedAt?: number;
   revision?: number;
   reasonCode?: string;
+  entity?: {
+    status: string;
+    tasks?: { id?: string; title?: string; status: string }[];
+    acceptance?: string[];
+    provider?: string;
+    startedAt?: string;
+    endedAt?: string;
+    error?: string;
+  };
 }
 
 export interface ActivityApprovalOption { id: string; label: string; tone: string }
@@ -74,13 +83,16 @@ export interface ActivitySubagentSource {
   worktreePath?: string;
   startedAt: string;
   endedAt?: string;
+  provider?: string;
+  lastError?: string;
 }
 
 export interface ActivityTeamStageSource {
+  projectRoot?: string;
   id: string;
   status: 'staged' | 'approved' | 'rejected' | 'running' | 'finished';
   createdAt: number;
-  tasks?: { status: string }[];
+  tasks?: { id?: string; title?: string; status: string }[];
 }
 
 export interface ActivityGoalSource {
@@ -90,6 +102,7 @@ export interface ActivityGoalSource {
   status: 'pending' | 'in-progress' | 'paused' | 'met' | 'not_met' | 'cancelled';
   createdAt?: string;
   updatedAt?: string;
+  acceptance?: string[];
 }
 
 export interface ActivitySources {
@@ -207,18 +220,18 @@ export class ActivityRoutes {
         // A finished scheduler alone proves no success; require every task to succeed.
         else if (tasks.length > 0 && tasks.every(task => task.status === 'completed')) { status = 'completed'; outcome = 'completed'; }
       }
-      runs.push({ id: stage.id, kind: 'team', projectRoot: root, title: `Team plan ${stage.id}`, status, outcome, statusSource: 'inferred', needsApproval: stage.status === 'staged', updatedAt: stage.createdAt });
+      runs.push({ id: stage.id, kind: 'team', projectRoot: stage.projectRoot ?? root, title: `Team plan ${stage.id}`, status, outcome, statusSource: 'inferred', needsApproval: stage.status === 'staged', entity: { status: stage.status, tasks: stage.tasks }, updatedAt: stage.createdAt });
     }
 
     for (const subagent of subagents) {
       const status: ActivityStatus = subagent.status === 'running' || subagent.status === 'failed' || subagent.status === 'cancelled' || subagent.status === 'completed' ? subagent.status : 'unknown';
       const outcome: RunOutcomeStatus = subagent.status === 'idle' ? 'queued' : subagent.status === 'running' || subagent.status === 'completed' || subagent.status === 'failed' || subagent.status === 'cancelled' ? subagent.status : 'unknown';
-      runs.push({ id: subagent.id, kind: 'subagent', projectRoot: subagent.worktreePath ?? root, title: subagent.name, status, outcome, statusSource: 'inferred', needsApproval: false, updatedAt: time(subagent.endedAt ?? subagent.startedAt) });
+      runs.push({ id: subagent.id, kind: 'subagent', projectRoot: subagent.worktreePath ?? root, title: subagent.name, status, outcome, statusSource: 'inferred', needsApproval: false, entity: { status: subagent.status, provider: subagent.provider, startedAt: subagent.startedAt, endedAt: subagent.endedAt, error: subagent.lastError }, updatedAt: time(subagent.endedAt ?? subagent.startedAt) });
     }
 
     for (const task of this.sources.goalTasks()) {
       const status: ActivityStatus = task.status === 'paused' ? 'needs_attention' : task.status === 'met' ? 'completed' : task.status === 'not_met' ? 'failed' : task.status === 'cancelled' ? 'cancelled' : task.status === 'in-progress' ? 'running' : 'unknown';
-      runs.push({ id: task.id, kind: 'goal', projectRoot: task.projectRoot, title: task.goal, status, needsApproval: false, updatedAt: time(task.updatedAt ?? task.createdAt) });
+      runs.push({ id: task.id, kind: 'goal', projectRoot: task.projectRoot, title: task.goal, status, needsApproval: false, entity: { status: task.status, acceptance: task.acceptance }, updatedAt: time(task.updatedAt ?? task.createdAt) });
     }
 
     runs.sort((a, b) => STATUS_ORDER[a.status] - STATUS_ORDER[b.status] || b.updatedAt - a.updatedAt || a.id.localeCompare(b.id));

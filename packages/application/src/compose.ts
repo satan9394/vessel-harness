@@ -82,6 +82,7 @@ export interface ComposeOptions {
   compactionBudget?: Omit<AdaptiveCompactionOptions, 'contextWindow'>;
   /** injected compaction summarizer (LLM); defaults to heuristic */
   summarize?: (regionText: string, context: { userRequest: string }) => Promise<string>;
+  compactionRecoveryFacts?: () => { pendingApprovalRefs?: string[] };
   /** V0.2: register the `Subagent` tool (isolated child sessions, concurrency 1–3) */
   subagent?: {
     enabled?: boolean;
@@ -128,6 +129,7 @@ export interface ComposeOptions {
 }
 
 export interface ComposedHarness {
+  effectJournal: EffectJournal;
   loadedMods: readonly { name: string; status: 'worker-isolated' }[];
   bus: EventBus;
   session: Session;
@@ -532,7 +534,11 @@ export async function composeHarness(opts: ComposeOptions): Promise<ComposedHarn
       cacheDependencies: () => ({ providerId: effectiveProvider.id }),
     });
     const maxOutputTokens = opts.compactionBudget?.maxOutputTokens ?? effectiveProvider.defaultMaxOutputTokens ?? 4096;
-    const compaction = new Compaction({ session, summarize: opts.summarize, adaptive: { ...opts.compactionBudget, maxOutputTokens } });
+    const compaction = new Compaction({ session, summarize: opts.summarize, adaptive: { ...opts.compactionBudget, maxOutputTokens }, recoveryFacts: () => ({
+      policyRefs: [...artifacts.rules.map(rule => rule.id), ...(artifacts.sources ?? []).map(source => `${source.ref}:${source.hash ?? 'unknown'}`)],
+      pendingEffectRefs: effectJournal.pending().filter(intent => intent.effects !== 'read_only').map(intent => `${intent.key}:${intent.attempt}`),
+      ...opts.compactionRecoveryFacts?.(),
+    }) });
 
     // BeforeTool authoritative listener: the policy engine
     bus.on(
@@ -690,6 +696,7 @@ export async function composeHarness(opts: ComposeOptions): Promise<ComposedHarn
 
     return {
       loadedMods,
+      effectJournal,
       bus,
       session,
       registry,

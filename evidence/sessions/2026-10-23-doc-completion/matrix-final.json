@@ -1,0 +1,666 @@
+[
+  {
+    "name": "launcher-390-dark-zh",
+    "bodyWidth": 390,
+    "containmentIssues": [
+      {
+        "parentRight": 374.30513763427734,
+        "right": 387.85483169555664,
+        "selector": ".composer-options > *",
+        "tag": "DIV"
+      },
+      {
+        "parentRight": 374.30513763427734,
+        "right": 387.85483169555664,
+        "selector": ".composer-options > *",
+        "tag": "LABEL"
+      },
+      {
+        "parentRight": 374.30513763427734,
+        "right": 387.85483169555664,
+        "selector": ".composer-options > *",
+        "tag": "BUTTON"
+      }
+    ],
+    "height": 844,
+    "scrollWidth": 390,
+    "theme": "dark",
+    "width": 390,
+    "contrast": {
+      "checked": 18,
+      "failures": [],
+      "min": 6.152739606307679
+    }
+  },
+  {
+    "name": "conversation-390-dark-zh",
+    "bodyWidth": 390,
+    "containmentIssues": [],
+    "height": 844,
+    "scrollWidth": 390,
+    "theme": "dark",
+    "width": 390,
+    "contrast": {
+      "checked": 123,
+      "failures": [],
+      "min": 4.826874144590628
+    }
+  },
+  {
+    "name": "activity-390-dark-zh",
+    "bodyWidth": 390,
+    "containmentIssues": [],
+    "height": 844,
+    "scrollWidth": 390,
+    "theme": "dark",
+    "width": 390,
+    "contrast": {
+      "checked": 35,
+      "failures": [],
+      "min": 4.948151087173341
+    }
+  },
+  {
+    "name": "providers-configured-390-dark-zh",
+    "bodyWidth": 390,
+    "containmentIssues": [],
+    "height": 844,
+    "scrollWidth": 390,
+    "theme": "dark",
+    "width": 390,
+    "contrast": {
+      "checked": 55,
+      "failures": [],
+      "min": 6.152739606307679
+    }
+  },
+  {
+    "name": "providers-add-390-dark-zh",
+    "bodyWidth": 390,
+    "containmentIssues": [],
+    "height": 844,
+    "scrollWidth": 390,
+    "theme": "dark",
+    "width": 390,
+    "contrast": {
+      "checked": 35,
+      "failures": [],
+      "min": 5.624016439464753
+    }
+  },
+  {
+    "name": "launcher-390-dark-en",
+    "bodyWidth": 390,
+    "containmentIssues": [
+      {
+        "parentRight": 374.30513763427734,
+        "right": 387.85483169555664,
+        "selector": ".composer-options > *",
+        "tag": "DIV"
+      },
+      {
+        "parentRight": 374.30513763427734,
+        "right": 387.85483169555664,
+        "selector": ".composer-options > *",
+        "tag": "LABEL"
+      },
+      {
+        "parentRight": 374.30513763427734,
+        "right": 387.85483169555664,
+        "selector": ".composer-options > *",
+        "tag": "BUTTON"
+      }
+    ],
+    "height": 844,
+    "scrollWidth": 390,
+    "theme": "dark",
+    "width": 390,
+    "contrast": {
+      "checked": 18,
+      "failures": [],
+      "min": 6.152739606307679
+    }
+  },
+  {
+    "name": "conversation-390-dark-en",
+    "bodyWidth": 390,
+    "containmentIssues": [],
+    "height": 844,
+    "scrollWidth": 390,
+    "theme": "dark",
+    "width": 390,
+    "contrast": {
+      "checked": 114,
+      "failures": [],
+      "min": 4.826874144590628
+    }
+  },
+  {
+    "name": "activity-390-dark-en",
+    "bodyWidth": 390,
+    "containmentIssues": [],
+    "height": 844,
+    "scrollWidth": 390,
+    "theme": "dark",
+    "width": 390,
+    "contrast": {
+      "checked": 35,
+      "failures": [],
+      "min": 4.948151087173341
+    }
+  },
+  {
+    "name": "providers-configured-390-dark-en",
+    "bodyWidth": 390,
+    "containmentIssues": [],
+    "height": 844,
+    "scrollWidth": 390,
+    "theme": "dark",
+    "width": 390,
+    "contrast": {
+      "checked": 52,
+      "failures": [],
+      "min": 6.152739606307679
+    }
+  },
+  {
+    "name": "providers-add-390-dark-en",
+    "bodyWidth": 390,
+    "containmentIssues": [],
+    "height": 844,
+    "scrollWidth": 390,
+    "theme": "dark",
+    "width": 390,
+    "contrast": {
+      "checked": 35,
+      "failures": [],
+      "min": 5.624016439464753
+    }
+  },
+  {
+    "name": "launcher-390-light-zh",
+    "bodyWidth": 390,
+    "containmentIssues": [
+      {
+        "parentRight": 374.30513763427734,
+        "right": 387.85483169555664,
+        "selector": ".composer-options > *",
+        "tag": "DIV"
+      },
+      {
+        "parentRight": 374.30513763427734,
+        "right": 387.85483169555664,
+        "selector": ".composer-options > *",
+        "tag": "LABEL"
+      },
+      {
+        "parentRight": 374.30513763427734,
+        "right": 387.85483169555664,
+        "selector": ".composer-options > *",
+        "tag": "BUTTON"
+      }
+    ],
+    "height": 844,
+    "scrollWidth": 390,
+    "theme": "light",
+    "width": 390,
+    "contrast": {
+      "checked": 18,
+      "failures": [],
+      "min": 5.246855630597905
+    }
+  },
+  {
+    "name": "conversation-390-light-zh",
+    "bodyWidth": 390,
+    "containmentIssues": [],
+    "height": 844,
+    "scrollWidth": 390,
+    "theme": "light",
+    "width": 390,
+    "contrast": {
+      "checked": 121,
+      "failures": [
+        {
+          "bg": [
+            216.48705882,
+            218.29741172,
+            220.03999996
+          ],
+          "classes": "tool-status",
+          "color": "rgb(15, 122, 85)",
+          "ratio": 3.8187608826620862,
+          "required": 4.5,
+          "tag": "SPAN",
+          "text": "已完成"
+        }
+      ],
+      "min": 3.8187608826620862
+    }
+  },
+  {
+    "name": "activity-390-light-zh",
+    "bodyWidth": 390,
+    "containmentIssues": [],
+    "height": 844,
+    "scrollWidth": 390,
+    "theme": "light",
+    "width": 390,
+    "contrast": {
+      "checked": 35,
+      "failures": [],
+      "min": 4.499918329120844
+    }
+  },
+  {
+    "name": "providers-configured-390-light-zh",
+    "bodyWidth": 390,
+    "containmentIssues": [],
+    "height": 844,
+    "scrollWidth": 390,
+    "theme": "light",
+    "width": 390,
+    "contrast": {
+      "checked": 55,
+      "failures": [],
+      "min": 5.246855630597905
+    }
+  },
+  {
+    "name": "providers-add-390-light-zh",
+    "bodyWidth": 390,
+    "containmentIssues": [],
+    "height": 844,
+    "scrollWidth": 390,
+    "theme": "light",
+    "width": 390,
+    "contrast": {
+      "checked": 35,
+      "failures": [],
+      "min": 4.928534454871429
+    }
+  },
+  {
+    "name": "launcher-390-light-en",
+    "bodyWidth": 390,
+    "containmentIssues": [
+      {
+        "parentRight": 374.30513763427734,
+        "right": 387.85483169555664,
+        "selector": ".composer-options > *",
+        "tag": "DIV"
+      },
+      {
+        "parentRight": 374.30513763427734,
+        "right": 387.85483169555664,
+        "selector": ".composer-options > *",
+        "tag": "LABEL"
+      },
+      {
+        "parentRight": 374.30513763427734,
+        "right": 387.85483169555664,
+        "selector": ".composer-options > *",
+        "tag": "BUTTON"
+      }
+    ],
+    "height": 844,
+    "scrollWidth": 390,
+    "theme": "light",
+    "width": 390,
+    "contrast": {
+      "checked": 18,
+      "failures": [],
+      "min": 5.246855630597905
+    }
+  },
+  {
+    "name": "conversation-390-light-en",
+    "bodyWidth": 390,
+    "containmentIssues": [],
+    "height": 844,
+    "scrollWidth": 390,
+    "theme": "light",
+    "width": 390,
+    "contrast": {
+      "checked": 115,
+      "failures": [],
+      "min": 4.556939106662738
+    }
+  },
+  {
+    "name": "activity-390-light-en",
+    "bodyWidth": 390,
+    "containmentIssues": [],
+    "height": 844,
+    "scrollWidth": 390,
+    "theme": "light",
+    "width": 390,
+    "contrast": {
+      "checked": 35,
+      "failures": [],
+      "min": 4.499918329120844
+    }
+  },
+  {
+    "name": "providers-configured-390-light-en",
+    "bodyWidth": 390,
+    "containmentIssues": [],
+    "height": 844,
+    "scrollWidth": 390,
+    "theme": "light",
+    "width": 390,
+    "contrast": {
+      "checked": 52,
+      "failures": [],
+      "min": 5.246855630597905
+    }
+  },
+  {
+    "name": "providers-add-390-light-en",
+    "bodyWidth": 390,
+    "containmentIssues": [],
+    "height": 844,
+    "scrollWidth": 390,
+    "theme": "light",
+    "width": 390,
+    "contrast": {
+      "checked": 35,
+      "failures": [],
+      "min": 4.928534454871429
+    }
+  },
+  {
+    "name": "launcher-800-dark-zh",
+    "bodyWidth": 800,
+    "containmentIssues": [],
+    "height": 900,
+    "scrollWidth": 800,
+    "theme": "dark",
+    "width": 800,
+    "contrast": {
+      "checked": 18,
+      "failures": [],
+      "min": 6.152739606307679
+    }
+  },
+  {
+    "name": "conversation-800-dark-zh",
+    "bodyWidth": 800,
+    "containmentIssues": [],
+    "height": 900,
+    "scrollWidth": 800,
+    "theme": "dark",
+    "width": 800,
+    "contrast": {
+      "checked": 131,
+      "failures": [],
+      "min": 4.826874144590628
+    }
+  },
+  {
+    "name": "activity-800-dark-zh",
+    "bodyWidth": 800,
+    "containmentIssues": [],
+    "height": 900,
+    "scrollWidth": 800,
+    "theme": "dark",
+    "width": 800,
+    "contrast": {
+      "checked": 38,
+      "failures": [],
+      "min": 4.948151087173341
+    }
+  },
+  {
+    "name": "providers-configured-800-dark-zh",
+    "bodyWidth": 800,
+    "containmentIssues": [],
+    "height": 900,
+    "scrollWidth": 800,
+    "theme": "dark",
+    "width": 800,
+    "contrast": {
+      "checked": 63,
+      "failures": [],
+      "min": 6.152739606307679
+    }
+  },
+  {
+    "name": "providers-add-800-dark-zh",
+    "bodyWidth": 800,
+    "containmentIssues": [],
+    "height": 900,
+    "scrollWidth": 800,
+    "theme": "dark",
+    "width": 800,
+    "contrast": {
+      "checked": 66,
+      "failures": [],
+      "min": 5.624016439464753
+    }
+  },
+  {
+    "name": "launcher-800-dark-en",
+    "bodyWidth": 800,
+    "containmentIssues": [],
+    "height": 900,
+    "scrollWidth": 800,
+    "theme": "dark",
+    "width": 800,
+    "contrast": {
+      "checked": 18,
+      "failures": [],
+      "min": 6.152739606307679
+    }
+  },
+  {
+    "name": "conversation-800-dark-en",
+    "bodyWidth": 800,
+    "containmentIssues": [],
+    "height": 900,
+    "scrollWidth": 800,
+    "theme": "dark",
+    "width": 800,
+    "contrast": {
+      "checked": 124,
+      "failures": [],
+      "min": 4.826874144590628
+    }
+  },
+  {
+    "name": "activity-800-dark-en",
+    "bodyWidth": 800,
+    "containmentIssues": [],
+    "height": 900,
+    "scrollWidth": 800,
+    "theme": "dark",
+    "width": 800,
+    "contrast": {
+      "checked": 39,
+      "failures": [],
+      "min": 4.948151087173341
+    }
+  },
+  {
+    "name": "providers-configured-800-dark-en",
+    "bodyWidth": 800,
+    "containmentIssues": [],
+    "height": 900,
+    "scrollWidth": 800,
+    "theme": "dark",
+    "width": 800,
+    "contrast": {
+      "checked": 63,
+      "failures": [],
+      "min": 6.152739606307679
+    }
+  },
+  {
+    "name": "providers-add-800-dark-en",
+    "bodyWidth": 800,
+    "containmentIssues": [],
+    "height": 900,
+    "scrollWidth": 800,
+    "theme": "dark",
+    "width": 800,
+    "contrast": {
+      "checked": 66,
+      "failures": [],
+      "min": 5.624016439464753
+    }
+  },
+  {
+    "name": "launcher-800-light-zh",
+    "bodyWidth": 800,
+    "containmentIssues": [],
+    "height": 900,
+    "scrollWidth": 800,
+    "theme": "light",
+    "width": 800,
+    "contrast": {
+      "checked": 18,
+      "failures": [],
+      "min": 5.246855630597905
+    }
+  },
+  {
+    "name": "conversation-800-light-zh",
+    "bodyWidth": 800,
+    "containmentIssues": [],
+    "height": 900,
+    "scrollWidth": 800,
+    "theme": "light",
+    "width": 800,
+    "contrast": {
+      "checked": 129,
+      "failures": [
+        {
+          "bg": [
+            216.48705882,
+            218.29741172,
+            220.03999996
+          ],
+          "classes": "tool-status",
+          "color": "rgb(15, 122, 85)",
+          "ratio": 3.8187608826620862,
+          "required": 4.5,
+          "tag": "SPAN",
+          "text": "已完成"
+        }
+      ],
+      "min": 3.8187608826620862
+    }
+  },
+  {
+    "name": "activity-800-light-zh",
+    "bodyWidth": 800,
+    "containmentIssues": [],
+    "height": 900,
+    "scrollWidth": 800,
+    "theme": "light",
+    "width": 800,
+    "contrast": {
+      "checked": 38,
+      "failures": [],
+      "min": 4.499918329120844
+    }
+  },
+  {
+    "name": "providers-configured-800-light-zh",
+    "bodyWidth": 800,
+    "containmentIssues": [],
+    "height": 900,
+    "scrollWidth": 800,
+    "theme": "light",
+    "width": 800,
+    "contrast": {
+      "checked": 63,
+      "failures": [],
+      "min": 5.246855630597905
+    }
+  },
+  {
+    "name": "providers-add-800-light-zh",
+    "bodyWidth": 800,
+    "containmentIssues": [],
+    "height": 900,
+    "scrollWidth": 800,
+    "theme": "light",
+    "width": 800,
+    "contrast": {
+      "checked": 66,
+      "failures": [],
+      "min": 4.928534454871429
+    }
+  },
+  {
+    "name": "launcher-800-light-en",
+    "bodyWidth": 800,
+    "containmentIssues": [],
+    "height": 900,
+    "scrollWidth": 800,
+    "theme": "light",
+    "width": 800,
+    "contrast": {
+      "checked": 18,
+      "failures": [],
+      "min": 5.246855630597905
+    }
+  },
+  {
+    "name": "conversation-800-light-en",
+    "bodyWidth": 800,
+    "containmentIssues": [],
+    "height": 900,
+    "scrollWidth": 800,
+    "theme": "light",
+    "width": 800,
+    "contrast": {
+      "checked": 128,
+      "failures": [],
+      "min": 4.556939106662738
+    }
+  },
+  {
+    "name": "activity-800-light-en",
+    "bodyWidth": 800,
+    "containmentIssues": [],
+    "height": 900,
+    "scrollWidth": 800,
+    "theme": "light",
+    "width": 800,
+    "contrast": {
+      "checked": 39,
+      "failures": [],
+      "min": 4.499918329120844
+    }
+  },
+  {
+    "name": "providers-configured-800-light-en",
+    "bodyWidth": 800,
+    "containmentIssues": [],
+    "height": 900,
+    "scrollWidth": 800,
+    "theme": "light",
+    "width": 800,
+    "contrast": {
+      "checked": 63,
+      "failures": [],
+      "min": 5.246855630597905
+    }
+  },
+  {
+    "name": "providers-add-800-light-en",
+    "bodyWidth": 800,
+    "containmentIssues": [],
+    "height": 900,
+    "scrollWidth": 800,
+    "theme": "light",
+    "width": 800,
+    "contrast": {
+      "checked": 66,
+      "failures": [],
+      "min": 4.928534454871429
+    }
+  }
+]

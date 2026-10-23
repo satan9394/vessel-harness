@@ -35,6 +35,9 @@ export interface ArtifactReceipt {
 }
 
 export interface RuntimeProbeResult {
+  platform?: string;
+  transformVersion?: number;
+  evidenceSource?: string;
   installedVersion?: string;
   adapterVersion: string;
   capabilities: RuntimeCapabilities;

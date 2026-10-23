@@ -109,6 +109,7 @@ export interface ActivityApprovalView {
 }
 
 export interface ActivityRunView {
+  entity?: { status: string; tasks?: { id?: string; title?: string; status: string }[]; acceptance?: string[]; provider?: string; startedAt?: string; endedAt?: string; error?: string };
   id: string;
   kind: ActivityKind;
   projectRoot: string;

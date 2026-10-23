@@ -78,6 +78,7 @@ export default function ProviderSettingsModal({ api, onClose, onChanged, initial
   const [providers, setProviders] = useState<ProviderInfo[]>([]);
   const [loading, setLoading] = useState(true);
   const [loaded, setLoaded] = useState(false);
+  const [view, setView] = useState<'configured' | 'add'>(initialPreset ? 'add' : 'configured');
   const [preset, setPreset] = useState(initialPreset && PROVIDER_PRESETS[initialPreset] ? initialPreset : 'DeepSeek');
   const [form, setForm] = useState(PROVIDER_PRESETS[preset]!);
   const [models, setModels] = useState(form.models.join(', '));
@@ -113,7 +114,7 @@ export default function ProviderSettingsModal({ api, onClose, onChanged, initial
   }
   function pickGallery(info: PresetInfo) { pickPreset(info.id); }
   useEffect(() => {
-    if (initialPreset) pickPreset(initialPreset);
+    if (initialPreset) { pickPreset(initialPreset); setView('add'); }
   }, [initialPreset]);
   function updateModels(next: string[]) { setModels([...new Set(next)].join(', ')); setResult(undefined); fail(undefined); setNotice(undefined); }
   function providerInput(): AddProviderInput {
@@ -126,7 +127,8 @@ export default function ProviderSettingsModal({ api, onClose, onChanged, initial
       const tested = await api.testProvider({ name: provider.name, protocol: provider.protocol, baseUrl: provider.baseUrl, models: provider.models, apiKey: '' });
       if (mounted.current) {
         setSavedResults(previous => ({ ...previous, [provider.name]: tested }));
-        if (tested.ok) { onChanged?.(); await refresh(); }
+        if (tested.ok) onChanged?.();
+        await refresh();
       }
     } catch (thrown) {
       if (mounted.current) { const failure = providerFailure(thrown); fail(failure.key, failure.params); }
@@ -143,7 +145,8 @@ export default function ProviderSettingsModal({ api, onClose, onChanged, initial
       const tested = await api.testProvider(input);
       if (mounted.current) {
         setSavedResults(previous => ({ ...previous, [provider.name]: tested }));
-        if (tested.ok) { onChanged?.(); await refresh(); }
+        if (tested.ok) onChanged?.();
+        await refresh();
       }
     } catch (thrown) {
       if (mounted.current) { const failure = providerFailure(thrown); fail(failure.key, failure.params); }
@@ -204,7 +207,7 @@ export default function ProviderSettingsModal({ api, onClose, onChanged, initial
       event.stopPropagation();
       if (event.key === 'Escape' && !busy) { event.preventDefault(); onClose?.(); }
       if (event.key === 'Tab' && dialog.current) {
-        const controls = Array.from(dialog.current.querySelectorAll<HTMLElement>('button:not(:disabled), input:not(:disabled):not([type="hidden"]), select:not(:disabled), [tabindex="0"]'));
+        const controls = Array.from(dialog.current.querySelectorAll<HTMLElement>('button:not(:disabled), input:not(:disabled):not([type="hidden"]), select:not(:disabled), [tabindex="0"]')).filter(control => !control.closest('[hidden]'));
         const first = controls[0]; const last = controls.at(-1);
         if (!first) { event.preventDefault(); dialog.current.focus(); }
         else if (event.shiftKey && (document.activeElement === first || !dialog.current.contains(document.activeElement))) { event.preventDefault(); last?.focus(); }
@@ -212,12 +215,20 @@ export default function ProviderSettingsModal({ api, onClose, onChanged, initial
       }
     }}>
       <div className="provider-heading">{embedded ? <h2>{t('modelSettings')}</h2> : <h3>{t('modelSettings')}</h3>}{!embedded && <button className="btn" disabled={!!busy} onClick={onClose}>{t('close')}</button>}</div>
+      <div role="group" aria-label={t('modelSettings')}>
+        <button className="btn" type="button" aria-pressed={view === 'configured'} disabled={!!busy} onClick={() => setView('configured')}>{t('providerConfigured')}</button>
+        <button className="btn" type="button" aria-pressed={view === 'add'} disabled={!!busy} onClick={() => setView('add')}>{t('providerAdd')}</button>
+      </div>
+      {error && <p role="alert" className="error-text">{t(error, errorParams)} <button type="button" className="btn" disabled={!!busy} onClick={() => { setLoading(true); void refresh().then(() => setError(undefined)).catch((thrown: unknown) => { const failure = providerFailure(thrown); fail(failure.key, failure.params); }).finally(() => setLoading(false)); }}>{t('retry')}</button></p>}
       <div className="provider-hub-content">
-      <section className="provider-registry" aria-label={t('providerConfigured')}>
+      <section hidden={view !== 'configured'} className="provider-registry" aria-label={t('providerConfigured')}>
       <h3>{t('providerConfigured')}</h3>
       {loading ? <p role="status">{t('loading')}</p> : providers.length ? <div className="provider-list">{providers.map(provider => <article className="provider-card" key={provider.name}>
         <strong>{provider.name}</strong><span className="provider-badge">{t(provider.protocol === 'anthropic' ? 'providerAnthropic' : 'providerOpenai')}</span>
         <code>{provider.baseUrl}</code><span>{provider.apiKeyMasked || t('providerNoKey')}</span><span>{t('providerModelCount', { count: String(provider.models.length) })}</span>
+        <p role="status">{t(provider.catalogState === 'fresh' ? 'providerCatalogFresh' : provider.catalogState === 'stale' ? 'providerCatalogStale' : provider.catalogState === 'expired' ? 'providerCatalogExpired' : 'providerCatalogUnknown')}</p>
+        {provider.catalogEvidence && <p className="dim">{t('providerVerifiedAt', { time: new Date(provider.catalogEvidence.verifiedAt).toLocaleString() })}</p>}
+        {provider.staleModels?.length ? <p role="status">{t('providerCatalogStale')}: {provider.staleModels.join(', ')}</p> : null}
         <span className={`provider-badge${savedResults[provider.name]?.ok ? ' provider-status-ok' : ''}`} role="status">{savedResults[provider.name] ? savedResults[provider.name]!.ok ? t('providerConnected', { ms: String(savedResults[provider.name]!.latencyMs ?? 0) }) : t(providerFailure(savedResults[provider.name]!.error).key, providerFailure(savedResults[provider.name]!.error).params) : t('providerUntested')}</span>
         <details className="provider-capabilities"><summary>{t('capabilitiesTitle')}</summary>{provider.models.map(model => <section key={model}><h4>{model}</h4><CapabilityStatus capabilities={provider.modelCapabilities?.[model]} /></section>)}</details>
         <div className="provider-card-actions">
@@ -228,7 +239,7 @@ export default function ProviderSettingsModal({ api, onClose, onChanged, initial
             <label>{t('providerApiKey')}<input className="input" type="password" autoComplete="off" maxLength={8192} value={savedKey} disabled={!!busy} onChange={event => setSavedKey(event.target.value)} /></label>
             <p className="dim">{t('providerRetestHint')}</p>
             <button className="btn" type="submit" disabled={!!busy}>{busy === 'test' ? t('providerTesting') : t('providerTest')}</button>
-            <button className="btn btn-secondary" type="button" disabled={!!busy} onClick={() => void testDirect(provider)}>⚡ 直接测试</button>
+            <button className="btn btn-secondary" type="button" disabled={!!busy} onClick={() => void testDirect(provider)}>{t('providerTest')}</button>
             <button className="btn" type="button" disabled={!!busy} onClick={() => { setTestingSaved(undefined); setSavedKey(''); }}>{t('cancel')}</button>
           </form> : <button className="btn btn-secondary" type="button" disabled={!!busy} onClick={() => { setTestingSaved(provider.name); setSavedKey(''); }}>{t('providerRetest')}</button>}
           {deleting === provider.name ? <div><span>{t('providerDeleteConfirm', { name: provider.name })}</span><button className="btn" disabled={!!busy} onClick={() => void run('delete')}>{t('confirm')}</button><button className="btn" disabled={!!busy} onClick={() => setDeleting(undefined)}>{t('cancel')}</button></div>
@@ -236,7 +247,7 @@ export default function ProviderSettingsModal({ api, onClose, onChanged, initial
         </div>
       </article>)}</div> : <p className="dim">{t('providerEmpty')}</p>}
       </section>
-      <form noValidate onSubmit={event => { event.preventDefault(); void run('save'); }}>
+      <form hidden={view !== 'add'} noValidate onSubmit={event => { event.preventDefault(); void run('save'); }}>
         <h4>{t('providerAdd')}</h4>
         <PresetsGallery onSelect={pickGallery} selectedId={PROVIDER_PRESETS_CATALOG.find(item => item.id === preset)?.id ?? PROVIDER_PRESETS_CATALOG.find(item => item.baseUrl === form.baseUrl)?.id} disabled={!!busy || loading || !loaded} />
         <fieldset disabled={!!busy || loading || !loaded} className="provider-fields">
@@ -259,7 +270,6 @@ export default function ProviderSettingsModal({ api, onClose, onChanged, initial
           <input type="hidden" id={`${id}-models`} className="input" value={models} onChange={event => { setModels(event.target.value); fail(undefined); }} />
           </>}
         </fieldset>
-        {error && <p role="alert" className="error-text">{t(error, errorParams)} <button type="button" className="btn" disabled={!!busy} onClick={() => { setLoading(true); void refresh().then(() => setError(undefined)).catch((thrown: unknown) => { const failure = providerFailure(thrown); fail(failure.key, failure.params); }).finally(() => setLoading(false)); }}>{t('retry')}</button></p>}
         {notice && <p role="status">{t(notice, noticeParams)}</p>}
         {result && <p role="status" className={`provider-result ${result.ok ? 'success' : 'failure'}`}>{testText}</p>}
         {preset !== 'mock' && <div className="modal-actions"><button type="button" className="btn" disabled={!!busy || loading || !loaded} onClick={() => void pull()}>{busy === 'pull' ? t('providerPulling') : t('providerPullModels')}</button><button type="button" className="btn" disabled={!!busy || loading || !loaded} onClick={() => void run('test')}>{busy === 'test' ? t('providerTesting') : t('providerTest')}</button><button className="btn btn-primary" type="submit" disabled={!!busy || loading || !loaded}>{busy === 'save' ? t('uiAdding') : t('save')}</button></div>}

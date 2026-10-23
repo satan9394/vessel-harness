@@ -1,0 +1,108 @@
+{
+  "protectedChanges": [
+    "HANDOFF.md"
+  ],
+  "boundaryPass": true,
+  "protectedBoundaryDefinition": "unchanged during this gate; concurrent preexisting protected edits preserved",
+  "checks": [
+    {
+      "arguments": [
+        "run",
+        "build"
+      ],
+      "exitCode": 0,
+      "executable": "npm",
+      "id": "build",
+      "log": "E:\\Code_file\\Projects\\Vessel_Harness\\evidence\\sessions\\2026-10-23-doc-completion\\gates\\20261023-122432\\build.log"
+    },
+    {
+      "arguments": [
+        "run",
+        "typecheck:tests"
+      ],
+      "exitCode": 0,
+      "executable": "npm",
+      "id": "test-types",
+      "log": "E:\\Code_file\\Projects\\Vessel_Harness\\evidence\\sessions\\2026-10-23-doc-completion\\gates\\20261023-122432\\test-types.log"
+    },
+    {
+      "arguments": [
+        "run",
+        "-w",
+        "@vessel/web",
+        "typecheck"
+      ],
+      "exitCode": 0,
+      "executable": "npm",
+      "id": "web-types",
+      "log": "E:\\Code_file\\Projects\\Vessel_Harness\\evidence\\sessions\\2026-10-23-doc-completion\\gates\\20261023-122432\\web-types.log"
+    },
+    {
+      "arguments": [
+        "node_modules/vitest/vitest.mjs",
+        "run",
+        "--no-cache",
+        "apps/local-server",
+        "packages/runtime/src/executor",
+        "packages/policy/src/engine/permit.test.ts",
+        "packages/application/src/session/SessionController.test.ts",
+        "packages/application/src/session/RunObservation.test.ts",
+        "packages/application/src/session/effect-recovery.test.ts",
+        "packages/application/src/team/TaskTreeScheduler.test.ts",
+        "packages/application/src/providers/presets.data.test.ts",
+        "packages/agents/src/external/InteractiveAdapter.test.ts",
+        "packages/agents/src/subagent/subagent.test.ts",
+        "packages/context/src/compaction",
+        "packages/context/src/cache/LayeredContextCache.test.ts",
+        "packages/shared/src/projection.test.ts",
+        "packages/shared/src/team.test.ts",
+        "packages/llm/src/capabilities.test.ts",
+        "benchmarks/runners/src/contracts/contracts.test.ts"
+      ],
+      "exitCode": 0,
+      "executable": "node",
+      "id": "root-targeted",
+      "log": "E:\\Code_file\\Projects\\Vessel_Harness\\evidence\\sessions\\2026-10-23-doc-completion\\gates\\20261023-122432\\root-targeted.log"
+    },
+    {
+      "arguments": [
+        "node_modules/vitest/vitest.mjs",
+        "run",
+        "--no-cache",
+        "--root",
+        "apps/web"
+      ],
+      "exitCode": 0,
+      "executable": "node",
+      "id": "web-tests",
+      "log": "E:\\Code_file\\Projects\\Vessel_Harness\\evidence\\sessions\\2026-10-23-doc-completion\\gates\\20261023-122432\\web-tests.log"
+    },
+    {
+      "arguments": [
+        "run",
+        "-w",
+        "@vessel/web",
+        "build",
+        "--",
+        "--emptyOutDir",
+        "false"
+      ],
+      "exitCode": 0,
+      "executable": "npm",
+      "id": "web-build",
+      "log": "E:\\Code_file\\Projects\\Vessel_Harness\\evidence\\sessions\\2026-10-23-doc-completion\\gates\\20261023-122432\\web-build.log"
+    },
+    {
+      "arguments": [
+        "diff",
+        "--check"
+      ],
+      "exitCode": 0,
+      "executable": "git",
+      "id": "diff-check",
+      "log": "E:\\Code_file\\Projects\\Vessel_Harness\\evidence\\sessions\\2026-10-23-doc-completion\\gates\\20261023-122432\\diff-check.log"
+    }
+  ],
+  "finalHead": "46b7291188db6f95303683a8016d5434b252d142",
+  "baselineHead": "46b7291188db6f95303683a8016d5434b252d142"
+}

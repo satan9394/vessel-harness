@@ -14,8 +14,9 @@ export default function CapabilityStatus({ capabilities }: { capabilities?: Prov
   return <dl className="capability-status">{(Object.keys(FIELDS) as (keyof typeof FIELDS)[]).map(field => {
     const capability = capabilities?.[field];
     const known = capability && capability.status !== 'unknown';
+    const expired = capability?.evidence && capability.evidence.expiresAt <= Date.now();
     return <div key={field}><dt>{t(FIELDS[field])}</dt><dd>
-      <span>{t(known ? capability.status === 'detected' ? 'capabilityDetected' : 'capabilityDeclared' : 'capabilityUnknown')}</span>
+      <span>{t(expired ? 'capabilityExpired' : known ? capability.status === 'detected' ? 'capabilityDetected' : 'capabilityDeclared' : 'capabilityUnknown')}</span>
       {known && <> · {typeof capability.value === 'number' ? capability.value.toLocaleString() : t(capability.value ? 'capabilitySupported' : 'capabilityUnsupported')}{capability.source && <small className="dim"> · {capability.source}</small>}</>}
     </dd></div>;
   })}</dl>;

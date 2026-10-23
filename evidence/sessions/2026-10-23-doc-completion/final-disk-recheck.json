@@ -1,0 +1,10 @@
+{
+  "realOutput": "DOC_COMPLETION_OK",
+  "serverRestartedForFinalCSS": true,
+  "diffAfter": "after\n",
+  "endpoint": "/api/activity/runs",
+  "observedUtc": "2026-10-23T12:25:46.6879792Z",
+  "earlierRecheck": "Earlier /api/activity request was wrong endpoint and returned404; this successful recheck supersedes that flag.",
+  "activityItems": 1,
+  "activityReachable": true
+}

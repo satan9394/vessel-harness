@@ -1,0 +1,962 @@
+[
+  {
+    "name": "launcher-390-dark-zh",
+    "bodyWidth": 390,
+    "height": 844,
+    "scrollWidth": 390,
+    "theme": "dark",
+    "width": 390
+  },
+  {
+    "name": "conversation-390-dark-zh",
+    "bodyWidth": 390,
+    "height": 844,
+    "scrollWidth": 390,
+    "theme": "dark",
+    "width": 390
+  },
+  {
+    "name": "activity-390-dark-zh",
+    "bodyWidth": 390,
+    "height": 844,
+    "scrollWidth": 390,
+    "theme": "dark",
+    "width": 390
+  },
+  {
+    "name": "providers-configured-390-dark-zh",
+    "bodyWidth": 390,
+    "height": 844,
+    "scrollWidth": 390,
+    "theme": "dark",
+    "width": 390
+  },
+  {
+    "name": "providers-add-390-dark-zh",
+    "bodyWidth": 390,
+    "height": 844,
+    "scrollWidth": 390,
+    "theme": "dark",
+    "width": 390
+  },
+  {
+    "name": "launcher-390-dark-en",
+    "bodyWidth": 390,
+    "height": 844,
+    "scrollWidth": 390,
+    "theme": "dark",
+    "width": 390
+  },
+  {
+    "name": "conversation-390-dark-en",
+    "bodyWidth": 390,
+    "height": 844,
+    "scrollWidth": 390,
+    "theme": "dark",
+    "width": 390
+  },
+  {
+    "name": "activity-390-dark-en",
+    "bodyWidth": 390,
+    "height": 844,
+    "scrollWidth": 390,
+    "theme": "dark",
+    "width": 390
+  },
+  {
+    "name": "providers-configured-390-dark-en",
+    "bodyWidth": 390,
+    "height": 844,
+    "scrollWidth": 390,
+    "theme": "dark",
+    "width": 390
+  },
+  {
+    "name": "providers-add-390-dark-en",
+    "bodyWidth": 390,
+    "height": 844,
+    "scrollWidth": 390,
+    "theme": "dark",
+    "width": 390
+  },
+  {
+    "name": "launcher-390-light-zh",
+    "bodyWidth": 390,
+    "height": 844,
+    "scrollWidth": 390,
+    "theme": "light",
+    "width": 390
+  },
+  {
+    "name": "conversation-390-light-zh",
+    "bodyWidth": 390,
+    "height": 844,
+    "scrollWidth": 390,
+    "theme": "light",
+    "width": 390
+  },
+  {
+    "name": "activity-390-light-zh",
+    "bodyWidth": 390,
+    "height": 844,
+    "scrollWidth": 390,
+    "theme": "light",
+    "width": 390
+  },
+  {
+    "name": "providers-configured-390-light-zh",
+    "bodyWidth": 390,
+    "height": 844,
+    "scrollWidth": 390,
+    "theme": "light",
+    "width": 390
+  },
+  {
+    "name": "providers-add-390-light-zh",
+    "bodyWidth": 390,
+    "height": 844,
+    "scrollWidth": 390,
+    "theme": "light",
+    "width": 390
+  },
+  {
+    "name": "launcher-390-light-en",
+    "bodyWidth": 390,
+    "height": 844,
+    "scrollWidth": 390,
+    "theme": "light",
+    "width": 390
+  },
+  {
+    "name": "conversation-390-light-en",
+    "bodyWidth": 390,
+    "height": 844,
+    "scrollWidth": 390,
+    "theme": "light",
+    "width": 390
+  },
+  {
+    "name": "activity-390-light-en",
+    "bodyWidth": 390,
+    "height": 844,
+    "scrollWidth": 390,
+    "theme": "light",
+    "width": 390
+  },
+  {
+    "name": "providers-configured-390-light-en",
+    "bodyWidth": 390,
+    "height": 844,
+    "scrollWidth": 390,
+    "theme": "light",
+    "width": 390
+  },
+  {
+    "name": "providers-add-390-light-en",
+    "bodyWidth": 390,
+    "height": 844,
+    "scrollWidth": 390,
+    "theme": "light",
+    "width": 390
+  },
+  {
+    "name": "launcher-800-dark-zh",
+    "bodyWidth": 800,
+    "height": 900,
+    "scrollWidth": 800,
+    "theme": "dark",
+    "width": 800
+  },
+  {
+    "name": "conversation-800-dark-zh",
+    "bodyWidth": 800,
+    "height": 900,
+    "scrollWidth": 800,
+    "theme": "dark",
+    "width": 800
+  },
+  {
+    "name": "activity-800-dark-zh",
+    "bodyWidth": 800,
+    "height": 900,
+    "scrollWidth": 800,
+    "theme": "dark",
+    "width": 800
+  },
+  {
+    "name": "providers-configured-800-dark-zh",
+    "bodyWidth": 800,
+    "height": 900,
+    "scrollWidth": 800,
+    "theme": "dark",
+    "width": 800
+  },
+  {
+    "name": "providers-add-800-dark-zh",
+    "bodyWidth": 800,
+    "height": 900,
+    "scrollWidth": 800,
+    "theme": "dark",
+    "width": 800
+  },
+  {
+    "name": "launcher-800-dark-en",
+    "bodyWidth": 800,
+    "height": 900,
+    "scrollWidth": 800,
+    "theme": "dark",
+    "width": 800
+  },
+  {
+    "name": "conversation-800-dark-en",
+    "bodyWidth": 800,
+    "height": 900,
+    "scrollWidth": 800,
+    "theme": "dark",
+    "width": 800
+  },
+  {
+    "name": "activity-800-dark-en",
+    "bodyWidth": 800,
+    "height": 900,
+    "scrollWidth": 800,
+    "theme": "dark",
+    "width": 800
+  },
+  {
+    "name": "providers-configured-800-dark-en",
+    "bodyWidth": 800,
+    "height": 900,
+    "scrollWidth": 800,
+    "theme": "dark",
+    "width": 800
+  },
+  {
+    "name": "providers-add-800-dark-en",
+    "bodyWidth": 800,
+    "height": 900,
+    "scrollWidth": 800,
+    "theme": "dark",
+    "width": 800
+  },
+  {
+    "name": "launcher-800-light-zh",
+    "bodyWidth": 800,
+    "height": 900,
+    "scrollWidth": 800,
+    "theme": "light",
+    "width": 800
+  },
+  {
+    "name": "conversation-800-light-zh",
+    "bodyWidth": 800,
+    "height": 900,
+    "scrollWidth": 800,
+    "theme": "light",
+    "width": 800
+  },
+  {
+    "name": "activity-800-light-zh",
+    "bodyWidth": 800,
+    "height": 900,
+    "scrollWidth": 800,
+    "theme": "light",
+    "width": 800
+  },
+  {
+    "name": "providers-configured-800-light-zh",
+    "bodyWidth": 800,
+    "height": 900,
+    "scrollWidth": 800,
+    "theme": "light",
+    "width": 800
+  },
+  {
+    "name": "providers-add-800-light-zh",
+    "bodyWidth": 800,
+    "height": 900,
+    "scrollWidth": 800,
+    "theme": "light",
+    "width": 800
+  },
+  {
+    "name": "launcher-800-light-en",
+    "bodyWidth": 800,
+    "height": 900,
+    "scrollWidth": 800,
+    "theme": "light",
+    "width": 800
+  },
+  {
+    "name": "conversation-800-light-en",
+    "bodyWidth": 800,
+    "height": 900,
+    "scrollWidth": 800,
+    "theme": "light",
+    "width": 800
+  },
+  {
+    "name": "activity-800-light-en",
+    "bodyWidth": 800,
+    "height": 900,
+    "scrollWidth": 800,
+    "theme": "light",
+    "width": 800
+  },
+  {
+    "name": "providers-configured-800-light-en",
+    "bodyWidth": 800,
+    "height": 900,
+    "scrollWidth": 800,
+    "theme": "light",
+    "width": 800
+  },
+  {
+    "name": "providers-add-800-light-en",
+    "bodyWidth": 800,
+    "height": 900,
+    "scrollWidth": 800,
+    "theme": "light",
+    "width": 800
+  },
+  {
+    "name": "launcher-1180-dark-zh",
+    "bodyWidth": 1180,
+    "height": 900,
+    "scrollWidth": 1180,
+    "theme": "dark",
+    "width": 1180
+  },
+  {
+    "name": "conversation-1180-dark-zh",
+    "bodyWidth": 1180,
+    "height": 900,
+    "scrollWidth": 1180,
+    "theme": "dark",
+    "width": 1180
+  },
+  {
+    "name": "activity-1180-dark-zh",
+    "bodyWidth": 1180,
+    "height": 900,
+    "scrollWidth": 1180,
+    "theme": "dark",
+    "width": 1180
+  },
+  {
+    "name": "providers-configured-1180-dark-zh",
+    "bodyWidth": 1180,
+    "height": 900,
+    "scrollWidth": 1180,
+    "theme": "dark",
+    "width": 1180
+  },
+  {
+    "name": "providers-add-1180-dark-zh",
+    "bodyWidth": 1180,
+    "height": 900,
+    "scrollWidth": 1180,
+    "theme": "dark",
+    "width": 1180
+  },
+  {
+    "name": "launcher-1180-dark-en",
+    "bodyWidth": 1180,
+    "height": 900,
+    "scrollWidth": 1180,
+    "theme": "dark",
+    "width": 1180
+  },
+  {
+    "name": "conversation-1180-dark-en",
+    "bodyWidth": 1180,
+    "height": 900,
+    "scrollWidth": 1180,
+    "theme": "dark",
+    "width": 1180
+  },
+  {
+    "name": "activity-1180-dark-en",
+    "bodyWidth": 1180,
+    "height": 900,
+    "scrollWidth": 1180,
+    "theme": "dark",
+    "width": 1180
+  },
+  {
+    "name": "providers-configured-1180-dark-en",
+    "bodyWidth": 1180,
+    "height": 900,
+    "scrollWidth": 1180,
+    "theme": "dark",
+    "width": 1180
+  },
+  {
+    "name": "providers-add-1180-dark-en",
+    "bodyWidth": 1180,
+    "height": 900,
+    "scrollWidth": 1180,
+    "theme": "dark",
+    "width": 1180
+  },
+  {
+    "name": "launcher-1180-light-zh",
+    "bodyWidth": 1180,
+    "height": 900,
+    "scrollWidth": 1180,
+    "theme": "light",
+    "width": 1180
+  },
+  {
+    "name": "conversation-1180-light-zh",
+    "bodyWidth": 1180,
+    "height": 900,
+    "scrollWidth": 1180,
+    "theme": "light",
+    "width": 1180
+  },
+  {
+    "name": "activity-1180-light-zh",
+    "bodyWidth": 1180,
+    "height": 900,
+    "scrollWidth": 1180,
+    "theme": "light",
+    "width": 1180
+  },
+  {
+    "name": "providers-configured-1180-light-zh",
+    "bodyWidth": 1180,
+    "height": 900,
+    "scrollWidth": 1180,
+    "theme": "light",
+    "width": 1180
+  },
+  {
+    "name": "providers-add-1180-light-zh",
+    "bodyWidth": 1180,
+    "height": 900,
+    "scrollWidth": 1180,
+    "theme": "light",
+    "width": 1180
+  },
+  {
+    "name": "launcher-1180-light-en",
+    "bodyWidth": 1180,
+    "height": 900,
+    "scrollWidth": 1180,
+    "theme": "light",
+    "width": 1180
+  },
+  {
+    "name": "conversation-1180-light-en",
+    "bodyWidth": 1180,
+    "height": 900,
+    "scrollWidth": 1180,
+    "theme": "light",
+    "width": 1180
+  },
+  {
+    "name": "activity-1180-light-en",
+    "bodyWidth": 1180,
+    "height": 900,
+    "scrollWidth": 1180,
+    "theme": "light",
+    "width": 1180
+  },
+  {
+    "name": "providers-configured-1180-light-en",
+    "bodyWidth": 1180,
+    "height": 900,
+    "scrollWidth": 1180,
+    "theme": "light",
+    "width": 1180
+  },
+  {
+    "name": "providers-add-1180-light-en",
+    "bodyWidth": 1180,
+    "height": 900,
+    "scrollWidth": 1180,
+    "theme": "light",
+    "width": 1180
+  },
+  {
+    "name": "launcher-1440-dark-zh",
+    "bodyWidth": 1440,
+    "height": 900,
+    "scrollWidth": 1440,
+    "theme": "dark",
+    "width": 1440
+  },
+  {
+    "name": "conversation-1440-dark-zh",
+    "bodyWidth": 1440,
+    "height": 900,
+    "scrollWidth": 1440,
+    "theme": "dark",
+    "width": 1440
+  },
+  {
+    "name": "activity-1440-dark-zh",
+    "bodyWidth": 1440,
+    "height": 900,
+    "scrollWidth": 1440,
+    "theme": "dark",
+    "width": 1440
+  },
+  {
+    "name": "providers-configured-1440-dark-zh",
+    "bodyWidth": 1440,
+    "height": 900,
+    "scrollWidth": 1440,
+    "theme": "dark",
+    "width": 1440
+  },
+  {
+    "name": "providers-add-1440-dark-zh",
+    "bodyWidth": 1440,
+    "height": 900,
+    "scrollWidth": 1440,
+    "theme": "dark",
+    "width": 1440
+  },
+  {
+    "name": "launcher-1440-dark-en",
+    "bodyWidth": 1440,
+    "height": 900,
+    "scrollWidth": 1440,
+    "theme": "dark",
+    "width": 1440
+  },
+  {
+    "name": "conversation-1440-dark-en",
+    "bodyWidth": 1440,
+    "height": 900,
+    "scrollWidth": 1440,
+    "theme": "dark",
+    "width": 1440
+  },
+  {
+    "name": "activity-1440-dark-en",
+    "bodyWidth": 1440,
+    "height": 900,
+    "scrollWidth": 1440,
+    "theme": "dark",
+    "width": 1440
+  },
+  {
+    "name": "providers-configured-1440-dark-en",
+    "bodyWidth": 1440,
+    "height": 900,
+    "scrollWidth": 1440,
+    "theme": "dark",
+    "width": 1440
+  },
+  {
+    "name": "providers-add-1440-dark-en",
+    "bodyWidth": 1440,
+    "height": 900,
+    "scrollWidth": 1440,
+    "theme": "dark",
+    "width": 1440
+  },
+  {
+    "name": "launcher-1440-light-zh",
+    "bodyWidth": 1440,
+    "height": 900,
+    "scrollWidth": 1440,
+    "theme": "light",
+    "width": 1440
+  },
+  {
+    "name": "conversation-1440-light-zh",
+    "bodyWidth": 1440,
+    "height": 900,
+    "scrollWidth": 1440,
+    "theme": "light",
+    "width": 1440
+  },
+  {
+    "name": "activity-1440-light-zh",
+    "bodyWidth": 1440,
+    "height": 900,
+    "scrollWidth": 1440,
+    "theme": "light",
+    "width": 1440
+  },
+  {
+    "name": "providers-configured-1440-light-zh",
+    "bodyWidth": 1440,
+    "height": 900,
+    "scrollWidth": 1440,
+    "theme": "light",
+    "width": 1440
+  },
+  {
+    "name": "providers-add-1440-light-zh",
+    "bodyWidth": 1440,
+    "height": 900,
+    "scrollWidth": 1440,
+    "theme": "light",
+    "width": 1440
+  },
+  {
+    "name": "launcher-1440-light-en",
+    "bodyWidth": 1440,
+    "height": 900,
+    "scrollWidth": 1440,
+    "theme": "light",
+    "width": 1440
+  },
+  {
+    "name": "conversation-1440-light-en",
+    "bodyWidth": 1440,
+    "height": 900,
+    "scrollWidth": 1440,
+    "theme": "light",
+    "width": 1440
+  },
+  {
+    "name": "activity-1440-light-en",
+    "bodyWidth": 1440,
+    "height": 900,
+    "scrollWidth": 1440,
+    "theme": "light",
+    "width": 1440
+  },
+  {
+    "name": "providers-configured-1440-light-en",
+    "bodyWidth": 1440,
+    "height": 900,
+    "scrollWidth": 1440,
+    "theme": "light",
+    "width": 1440
+  },
+  {
+    "name": "providers-add-1440-light-en",
+    "bodyWidth": 1440,
+    "height": 900,
+    "scrollWidth": 1440,
+    "theme": "light",
+    "width": 1440
+  },
+  {
+    "name": "launcher-1920-dark-zh",
+    "bodyWidth": 1920,
+    "height": 1080,
+    "scrollWidth": 1920,
+    "theme": "dark",
+    "width": 1920
+  },
+  {
+    "name": "conversation-1920-dark-zh",
+    "bodyWidth": 1920,
+    "height": 1080,
+    "scrollWidth": 1920,
+    "theme": "dark",
+    "width": 1920
+  },
+  {
+    "name": "activity-1920-dark-zh",
+    "bodyWidth": 1920,
+    "height": 1080,
+    "scrollWidth": 1920,
+    "theme": "dark",
+    "width": 1920
+  },
+  {
+    "name": "providers-configured-1920-dark-zh",
+    "bodyWidth": 1920,
+    "height": 1080,
+    "scrollWidth": 1920,
+    "theme": "dark",
+    "width": 1920
+  },
+  {
+    "name": "providers-add-1920-dark-zh",
+    "bodyWidth": 1920,
+    "height": 1080,
+    "scrollWidth": 1920,
+    "theme": "dark",
+    "width": 1920
+  },
+  {
+    "name": "launcher-1920-dark-en",
+    "bodyWidth": 1920,
+    "height": 1080,
+    "scrollWidth": 1920,
+    "theme": "dark",
+    "width": 1920
+  },
+  {
+    "name": "conversation-1920-dark-en",
+    "bodyWidth": 1920,
+    "height": 1080,
+    "scrollWidth": 1920,
+    "theme": "dark",
+    "width": 1920
+  },
+  {
+    "name": "activity-1920-dark-en",
+    "bodyWidth": 1920,
+    "height": 1080,
+    "scrollWidth": 1920,
+    "theme": "dark",
+    "width": 1920
+  },
+  {
+    "name": "providers-configured-1920-dark-en",
+    "bodyWidth": 1920,
+    "height": 1080,
+    "scrollWidth": 1920,
+    "theme": "dark",
+    "width": 1920
+  },
+  {
+    "name": "providers-add-1920-dark-en",
+    "bodyWidth": 1920,
+    "height": 1080,
+    "scrollWidth": 1920,
+    "theme": "dark",
+    "width": 1920
+  },
+  {
+    "name": "launcher-1920-light-zh",
+    "bodyWidth": 1920,
+    "height": 1080,
+    "scrollWidth": 1920,
+    "theme": "light",
+    "width": 1920
+  },
+  {
+    "name": "conversation-1920-light-zh",
+    "bodyWidth": 1920,
+    "height": 1080,
+    "scrollWidth": 1920,
+    "theme": "light",
+    "width": 1920
+  },
+  {
+    "name": "activity-1920-light-zh",
+    "bodyWidth": 1920,
+    "height": 1080,
+    "scrollWidth": 1920,
+    "theme": "light",
+    "width": 1920
+  },
+  {
+    "name": "providers-configured-1920-light-zh",
+    "bodyWidth": 1920,
+    "height": 1080,
+    "scrollWidth": 1920,
+    "theme": "light",
+    "width": 1920
+  },
+  {
+    "name": "providers-add-1920-light-zh",
+    "bodyWidth": 1920,
+    "height": 1080,
+    "scrollWidth": 1920,
+    "theme": "light",
+    "width": 1920
+  },
+  {
+    "name": "launcher-1920-light-en",
+    "bodyWidth": 1920,
+    "height": 1080,
+    "scrollWidth": 1920,
+    "theme": "light",
+    "width": 1920
+  },
+  {
+    "name": "conversation-1920-light-en",
+    "bodyWidth": 1920,
+    "height": 1080,
+    "scrollWidth": 1920,
+    "theme": "light",
+    "width": 1920
+  },
+  {
+    "name": "activity-1920-light-en",
+    "bodyWidth": 1920,
+    "height": 1080,
+    "scrollWidth": 1920,
+    "theme": "light",
+    "width": 1920
+  },
+  {
+    "name": "providers-configured-1920-light-en",
+    "bodyWidth": 1920,
+    "height": 1080,
+    "scrollWidth": 1920,
+    "theme": "light",
+    "width": 1920
+  },
+  {
+    "name": "providers-add-1920-light-en",
+    "bodyWidth": 1920,
+    "height": 1080,
+    "scrollWidth": 1920,
+    "theme": "light",
+    "width": 1920
+  },
+  {
+    "name": "launcher-2560-dark-zh",
+    "bodyWidth": 2560,
+    "height": 1440,
+    "scrollWidth": 2560,
+    "theme": "dark",
+    "width": 2560
+  },
+  {
+    "name": "conversation-2560-dark-zh",
+    "bodyWidth": 2560,
+    "height": 1440,
+    "scrollWidth": 2560,
+    "theme": "dark",
+    "width": 2560
+  },
+  {
+    "name": "activity-2560-dark-zh",
+    "bodyWidth": 2560,
+    "height": 1440,
+    "scrollWidth": 2560,
+    "theme": "dark",
+    "width": 2560
+  },
+  {
+    "name": "providers-configured-2560-dark-zh",
+    "bodyWidth": 2560,
+    "height": 1440,
+    "scrollWidth": 2560,
+    "theme": "dark",
+    "width": 2560
+  },
+  {
+    "name": "providers-add-2560-dark-zh",
+    "bodyWidth": 2560,
+    "height": 1440,
+    "scrollWidth": 2560,
+    "theme": "dark",
+    "width": 2560
+  },
+  {
+    "name": "launcher-2560-dark-en",
+    "bodyWidth": 2560,
+    "height": 1440,
+    "scrollWidth": 2560,
+    "theme": "dark",
+    "width": 2560
+  },
+  {
+    "name": "conversation-2560-dark-en",
+    "bodyWidth": 2560,
+    "height": 1440,
+    "scrollWidth": 2560,
+    "theme": "dark",
+    "width": 2560
+  },
+  {
+    "name": "activity-2560-dark-en",
+    "bodyWidth": 2560,
+    "height": 1440,
+    "scrollWidth": 2560,
+    "theme": "dark",
+    "width": 2560
+  },
+  {
+    "name": "providers-configured-2560-dark-en",
+    "bodyWidth": 2560,
+    "height": 1440,
+    "scrollWidth": 2560,
+    "theme": "dark",
+    "width": 2560
+  },
+  {
+    "name": "providers-add-2560-dark-en",
+    "bodyWidth": 2560,
+    "height": 1440,
+    "scrollWidth": 2560,
+    "theme": "dark",
+    "width": 2560
+  },
+  {
+    "name": "launcher-2560-light-zh",
+    "bodyWidth": 2560,
+    "height": 1440,
+    "scrollWidth": 2560,
+    "theme": "light",
+    "width": 2560
+  },
+  {
+    "name": "conversation-2560-light-zh",
+    "bodyWidth": 2560,
+    "height": 1440,
+    "scrollWidth": 2560,
+    "theme": "light",
+    "width": 2560
+  },
+  {
+    "name": "activity-2560-light-zh",
+    "bodyWidth": 2560,
+    "height": 1440,
+    "scrollWidth": 2560,
+    "theme": "light",
+    "width": 2560
+  },
+  {
+    "name": "providers-configured-2560-light-zh",
+    "bodyWidth": 2560,
+    "height": 1440,
+    "scrollWidth": 2560,
+    "theme": "light",
+    "width": 2560
+  },
+  {
+    "name": "providers-add-2560-light-zh",
+    "bodyWidth": 2560,
+    "height": 1440,
+    "scrollWidth": 2560,
+    "theme": "light",
+    "width": 2560
+  },
+  {
+    "name": "launcher-2560-light-en",
+    "bodyWidth": 2560,
+    "height": 1440,
+    "scrollWidth": 2560,
+    "theme": "light",
+    "width": 2560
+  },
+  {
+    "name": "conversation-2560-light-en",
+    "bodyWidth": 2560,
+    "height": 1440,
+    "scrollWidth": 2560,
+    "theme": "light",
+    "width": 2560
+  },
+  {
+    "name": "activity-2560-light-en",
+    "bodyWidth": 2560,
+    "height": 1440,
+    "scrollWidth": 2560,
+    "theme": "light",
+    "width": 2560
+  },
+  {
+    "name": "providers-configured-2560-light-en",
+    "bodyWidth": 2560,
+    "height": 1440,
+    "scrollWidth": 2560,
+    "theme": "light",
+    "width": 2560
+  },
+  {
+    "name": "providers-add-2560-light-en",
+    "bodyWidth": 2560,
+    "height": 1440,
+    "scrollWidth": 2560,
+    "theme": "light",
+    "width": 2560
+  }
+]

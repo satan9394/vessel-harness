@@ -1,0 +1,11 @@
+{
+  "wrapBackward": {
+    "hidden": false,
+    "text": "Delete"
+  },
+  "wrapForward": {
+    "hidden": false,
+    "text": "Close"
+  },
+  "focusRestored": "Configure new model"
+}
