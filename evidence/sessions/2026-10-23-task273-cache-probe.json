@@ -1,0 +1,34 @@
+{
+  "metadataProvenanceRetained": true,
+  "independentlyRecomputedSourceHash": true,
+  "results": [
+    {
+      "name": "summary",
+      "warmCacheMutationRejected": true
+    },
+    {
+      "name": "provenance",
+      "warmCacheMutationRejected": true
+    },
+    {
+      "name": "source",
+      "warmCacheMutationRejected": true
+    },
+    {
+      "name": "sourceHash",
+      "warmCacheMutationRejected": true
+    },
+    {
+      "name": "nestedSource",
+      "warmCacheMutationRejected": true
+    },
+    {
+      "name": "replacedSource",
+      "warmCacheMutationRejected": true
+    },
+    {
+      "name": "removedSource",
+      "warmCacheMutationRejected": true
+    }
+  ]
+}

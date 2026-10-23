@@ -1,7 +1,12 @@
 import type { ChatMessage, ChatToolDef } from './provider.js';
 import type { SessionRecord } from './events.js';
+import { canonicalArgumentsHash } from './execution.js';
 
 const uncertainPublications = new WeakSet<SessionRecord>();
+// Replay repeats validation of old commits. Compare source bytes on every read so
+// mutable records cannot bypass verification, but canonicalize unchanged evidence once.
+const evidenceSnapshots = new WeakMap<SessionRecord, { seq: number; json: string }>();
+const sourceHashes = new WeakMap<SessionRecord, { sources: readonly { seq: number; json: string }[]; hash: string }>();
 
 /** A failed persistence barrier cannot establish an in-memory publication. Reopen from disk. */
 export function markProjectionPublicationUncertain(event: SessionRecord): void {
@@ -65,9 +70,31 @@ export function projectSession(sessionId: string, events: readonly SessionRecord
   let records = [...events];
   let revision = 0;
   const compactedRanges: { startSeq: number; endSeq: number; summary: string }[] = [];
+  let evidenceRecords: { seq: number; json: string }[] | undefined;
   for (const event of events) {
     if (event.type !== 'compaction/end' || event.outcome !== 'committed') continue;
     const commit = event.projectionCommit as { expectedRevision: number; startSeq: number; endSeq: number; summary: string; metadata?: Record<string, unknown> } | undefined;
+    if (commit?.metadata?.summaryHash) {
+      const provenance = commit.metadata.provenance as { sourceStart: number; sourceEnd: number; sourceHash: string } | undefined;
+      if (!provenance || commit.metadata.summaryHash !== canonicalArgumentsHash({ summary: commit.summary, provenance })) throw new Error('Compaction evidence hash mismatch');
+      evidenceRecords ??= events.filter(record => record.type !== 'compaction/start' && record.type !== 'compaction/end')
+        .map(record => {
+          const json = JSON.stringify(record);
+          let snapshot = evidenceSnapshots.get(record);
+          if (snapshot?.json !== json) {
+            snapshot = { seq: record.seq, json };
+            evidenceSnapshots.set(record, snapshot);
+          }
+          return snapshot;
+        });
+      const sources = evidenceRecords.filter(record => record.seq >= provenance.sourceStart && record.seq <= provenance.sourceEnd);
+      let source = sourceHashes.get(event);
+      if (!source || source.sources.length !== sources.length || sources.some((record, index) => record !== source!.sources[index])) {
+        source = { sources, hash: canonicalArgumentsHash(sources.map(record => JSON.parse(record.json))) };
+        sourceHashes.set(event, source);
+      }
+      if (provenance.sourceHash !== source.hash) throw new Error('Compaction evidence hash mismatch');
+    }
     if (!commit || commit.expectedRevision !== revision || !Number.isInteger(commit.startSeq) || !Number.isInteger(commit.endSeq)
       || commit.startSeq > commit.endSeq || commit.endSeq >= event.seq || typeof commit.summary !== 'string') {
       throw new Error('Invalid compaction projection commit');
