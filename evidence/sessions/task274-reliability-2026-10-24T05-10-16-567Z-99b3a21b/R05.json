@@ -1,0 +1,21 @@
+{
+  "id": "R05",
+  "category": "crash",
+  "source": "packages/application/src/session/effect-recovery.test.ts",
+  "title": "recovers a real policy/executor process exit at after_outcome through SessionController and explicit reconcile",
+  "outcome": "passed",
+  "live": false,
+  "assertions": [
+    {
+      "ancestorTitles": [],
+      "fullName": "recovers a real policy/executor process exit at after_outcome through SessionController and explicit reconcile",
+      "status": "passed",
+      "title": "recovers a real policy/executor process exit at after_outcome through SessionController and explicit reconcile",
+      "duration": 675.0527000000002,
+      "failureMessages": [],
+      "meta": {},
+      "tags": [],
+      "benchmarks": []
+    }
+  ]
+}

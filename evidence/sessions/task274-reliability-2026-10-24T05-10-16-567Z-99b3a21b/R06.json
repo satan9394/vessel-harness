@@ -1,0 +1,23 @@
+{
+  "id": "R06",
+  "category": "soft-delete",
+  "source": "apps/local-server/src/server.test.ts",
+  "title": "waits for recycling before acknowledging deletion, after durably removing the session index",
+  "outcome": "passed",
+  "live": false,
+  "assertions": [
+    {
+      "ancestorTitles": [
+        "local server HTTP API + SSE"
+      ],
+      "fullName": "local server HTTP API + SSE waits for recycling before acknowledging deletion, after durably removing the session index",
+      "status": "passed",
+      "title": "waits for recycling before acknowledging deletion, after durably removing the session index",
+      "duration": 150.89810000000034,
+      "failureMessages": [],
+      "meta": {},
+      "tags": [],
+      "benchmarks": []
+    }
+  ]
+}
