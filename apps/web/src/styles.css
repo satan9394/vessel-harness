@@ -589,7 +589,7 @@ body::before { content: none; }
 .plan-empty { margin: 6px 0 0; font-size: 12px; }
 
 /* ---------- P5: composer capsules + always-on meters (DESIGN.md §4.2) ---------- */
-.composer-shell { display: flex; flex-direction: column; gap: 8px; padding: 10px 16px 12px; border-top: 1px solid var(--ring); }
+.composer-shell { display: flex; flex: none; flex-direction: column; gap: 8px; padding: 10px 16px 12px; border-top: 1px solid var(--ring); }
 .composer-capsules { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
 .capsule { display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border: 1px solid var(--ring); border-radius: var(--r-pill); background: var(--panel-2); font-size: 11.5px; max-width: 100%; }
 .capsule-k { color: var(--text-3); letter-spacing: 0.1em; text-transform: uppercase; font-size: 10px; }
@@ -606,7 +606,7 @@ body::before { content: none; }
 .meters .meter b { color: var(--text-3); font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; font-size: 10px; }
 .cbar { display: inline-block; width: 64px; height: 6px; border-radius: var(--r-pill); background: var(--panel-3); overflow: hidden; }
 .cbar i { display: block; height: 100%; background: var(--accent); }
-.meter-keys { margin-left: auto; }
+.meter-keys { margin-left: auto; flex-wrap: wrap; min-width: 0; max-width: 100%; }
 .meter-keys kbd { border: 1px solid var(--ring-2); border-radius: 5px; padding: 0 5px; font: inherit; font-size: 10px; background: var(--panel-2); }
 .composer-shell .composer { padding: 0; border-top: 0; }
 

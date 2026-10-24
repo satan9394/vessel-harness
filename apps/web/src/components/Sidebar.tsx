@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import type { Project, SessionMeta } from '../api';
 import type { MessageKey } from '../i18n';
 import { VesselLogo } from './VesselLogo';
@@ -132,6 +132,11 @@ export default function Sidebar({
   const [editingTopicId, setEditingTopicId] = useState<string | null>(null);
   const [draftTitle, setDraftTitle] = useState('');
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+  const restoreDeleteFocus = useRef<string | null>(null);
+  function cancelDelete() {
+    restoreDeleteFocus.current = confirmDeleteId;
+    setConfirmDeleteId(null);
+  }
   const workspaceGroups = useMemo(() => {
     const roots = [...new Set([...projects.map(project => project.root), ...sessions.map(session => session.workspaceRoot)])];
     return roots.map(root => ({
@@ -248,13 +253,23 @@ export default function Sidebar({
                                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true"><path d="M4 8h16v12H4zM3 4h18v4H3z" /><path d={group.isArchived ? 'm9 14 3-3 3 3M12 11v6' : 'M9 12h6'} /></svg>
                                 </button>
                                 {confirmDeleteId === group.sessions[0]!.id ? (
-                                  <span className="topic-delete-confirm">
+                                  <span className="topic-delete-confirm" onKeyDown={event => {
+                                    if (event.key !== 'Escape') return;
+                                    event.preventDefault();
+                                    event.stopPropagation();
+                                    cancelDelete();
+                                  }}>
                                     <span className="dim">{t('sessionRecycleConfirm', { count: String(group.sessions.length) })}</span>
                                     <button type="button" className="btn btn-sm btn-danger" disabled={group.sessions.some(s => deletingIds.includes(s.id))} onClick={() => { onDeleteSession?.(group.sessions.map((s) => s.id)); setConfirmDeleteId(null); }}>{t('confirm')}</button>
-                                    <button type="button" className="btn btn-sm" onClick={() => setConfirmDeleteId(null)}>{t('cancel')}</button>
+                                    <button type="button" className="btn btn-sm" autoFocus onClick={cancelDelete}>{t('cancel')}</button>
                                   </span>
                                 ) : (
-                                  <button type="button" className="topic-action topic-action-danger" aria-label={t('delete')} title={t('delete')} onClick={() => setConfirmDeleteId(group.sessions[0]!.id)}>
+                                  <button type="button" className="topic-action topic-action-danger" aria-label={t('delete')} title={t('delete')} ref={button => {
+                                    if (button && restoreDeleteFocus.current === group.sessions[0]!.id) {
+                                      restoreDeleteFocus.current = null;
+                                      button.focus();
+                                    }
+                                  }} onClick={() => setConfirmDeleteId(group.sessions[0]!.id)}>
                                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true"><path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M10 11v6M14 11v6" /></svg>
                                   </button>
                                 )}
