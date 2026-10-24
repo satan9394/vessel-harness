@@ -68,6 +68,8 @@ const MEASURE = `(() => {
     footerOverflowPx: conv && shell ? +(shell.getBoundingClientRect().bottom - conv.getBoundingClientRect().bottom).toFixed(2) : null,
     sectionsGapPx: conv && sections ? +(sections.getBoundingClientRect().top - conv.getBoundingClientRect().bottom).toFixed(2) : null,
     transcriptClientH: list ? list.clientHeight : null,
+    transcriptOnScreen: list ? list.getBoundingClientRect().bottom > 0 && list.getBoundingClientRect().top < window.innerHeight : null,
+    wrapScrollable: wrap ? wrap.scrollHeight > wrap.clientHeight + 1 : null,
   };
 })()`;
 
@@ -89,7 +91,14 @@ try {
   await new Promise((res, rej) => { conn.onopen = res; conn.onerror = () => rej(new Error('CDP websocket failed')); });
   let id = 0; const pending = new Map();
   conn.onmessage = ev => { const m = JSON.parse(ev.data); if (m.id && pending.has(m.id)) { const { res, rej } = pending.get(m.id); pending.delete(m.id); m.error ? rej(new Error(JSON.stringify(m.error))) : res(m.result); } };
-  const send = (method, params = {}, sessionId) => new Promise((res, rej) => { id += 1; pending.set(id, { res, rej }); conn.send(JSON.stringify({ id, method, params, ...(sessionId ? { sessionId } : {}) })); });
+  // A hung CDP call must fail the check, not hang the runner until the task timeout.
+  conn.onclose = () => { for (const { rej } of pending.values()) rej(new Error('CDP socket closed')); pending.clear(); };
+  const send = (method, params = {}, sessionId) => new Promise((res, rej) => {
+    id += 1;
+    const timer = setTimeout(() => { pending.delete(id); rej(new Error(`CDP timeout: ${method}`)); }, 20_000);
+    pending.set(id, { res: v => { clearTimeout(timer); res(v); }, rej: e => { clearTimeout(timer); rej(e); } });
+    conn.send(JSON.stringify({ id, method, params, ...(sessionId ? { sessionId } : {}) }));
+  });
   const { targetId } = await send('Target.createTarget', { url: 'about:blank' });
   const { sessionId } = await send('Target.attachToTarget', { targetId, flatten: true });
   await send('Page.enable', {}, sessionId);
@@ -126,6 +135,11 @@ try {
     else if (m.sectionsGapPx < -0.5) bad.push(`sectionsGapPx=${m.sectionsGapPx}`);
     if (m.overlap !== false) bad.push(`overlap=${m.overlap} (${m.overlapPx}px)`);
     if ((m.transcriptClientH ?? 0) < c.minTranscript) bad.push(`transcriptClientH=${m.transcriptClientH}`);
+    // The floor above is a layout height, not visibility: on a very short viewport the column can be
+    // taller than the window, and after scrolling to the bottom the transcript legitimately sits
+    // above the fold. What must not happen is it being unreachable — so if it is off-screen, the
+    // wrapper has to be scrollable. (Review R1 on PDW task 20261024095132-1bac7e.)
+    if (m.transcriptOnScreen === false && m.wrapScrollable !== true) bad.push('transcript off-screen and wrapper not scrollable');
     results.push({ case: c.name, ...m, failures: bad });
     if (bad.length) fails.push(`${c.name}: ${bad.join(', ')}`);
   }
@@ -137,7 +151,12 @@ try {
 }
 
 const out = { generatedAt: new Date().toISOString(), cases: results, failures: fails };
-writeFileSync(join(repo, 'evidence', 'sessions', 'ui-geom-check.json'), `${JSON.stringify(out, null, 2)}\n`);
+// Written outside the repository on purpose: this script runs as a PDW acceptance check, and a
+// check that mutates a tracked/untracked-in-scope file makes the task look like it drifted after
+// the implement stage (measured three times before this was moved out).
+const outPath = join(process.env.TEMP ?? tmpdir(), 'vessel-ui-geom-check.json');
+writeFileSync(outPath, `${JSON.stringify(out, null, 2)}\n`);
 console.log(JSON.stringify(out, null, 2));
+console.log(`report: ${outPath}`);
 if (fails.length) { console.error(`geometry check failed:\n  ${fails.join('\n  ')}`); process.exit(1); }
 console.log(`geometry check passed (${CASES.length} cases)`);
