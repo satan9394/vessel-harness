@@ -24,6 +24,8 @@ export type { Project, ProjectRegistryOptions } from './project/ProjectRegistry.
 
 export { SessionRegistry } from './session/SessionRegistry.js';
 export { observeRun } from './session/RunObservation.js';
+export { listSessionEffects, resolveSessionEffect } from './session/effectsRecovery.js';
+export type { PendingEffectView, SessionEffects } from './session/effectsRecovery.js';
 export type { SessionMeta, SessionInput, SessionRegistryOptions } from './session/SessionRegistry.js';
 export type { SessionTopic } from '@vessel/engine';
 export { defaultSessionRoot, resolveSessionRoot } from './session/SessionRegistry.js';

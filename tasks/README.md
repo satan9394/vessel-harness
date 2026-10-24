@@ -12,10 +12,12 @@
 
 ## 怎么读这个目录
 
-最近新增交付：[277](277-ui-p2-fixes.md) 两个 UI P2 已实现并通过定向门禁；浏览器几何与方向口径待复验。前序 [274](274-arch09-reliability-fixture-loop.md) ARCH-09 离线可靠性 fixture 闭环已交证，待协调者全量门禁与验收。前序 [272](272-arch01-run-outcome-evidence.md) ARCH-01剩余运行结果证据已修并验证；两波12项本地闭环，完整证据在修复报告，待协调者验收。
+最近新增交付：[279](279-cli-effects-reconcile.md) 未知副作用有了 CLI 出路（`vessel effects list|resolve`，写同样的 `audit/effect_reconciled`）；定向测试与真实 CLI 进程验证通过。前序 [278](278-effect-outcome-classification.md) 一次工具失败不再锁死会话（把「跑完没」与「成功没」分开判定）；定向门禁与真实模型会话通过。前序 [277](277-ui-p2-fixes.md) 两个 UI P2 已实现并通过定向门禁；浏览器几何与方向口径待复验。前序 [274](274-arch09-reliability-fixture-loop.md) ARCH-09 离线可靠性 fixture 闭环已交证，待协调者全量门禁与验收。
 
 | 本地交付 | 状态 | 任务卡 |
 |---|---|---|
+| 未知副作用的 CLI 出路 (卡 279) | 已实现，定向测试 + 真实 CLI 进程验证通过 | [279](279-cli-effects-reconcile.md) |
+| 工具失败锁死会话 (卡 278) | 已实现，定向门禁 + 真实模型会话通过 | [278](278-effect-outcome-classification.md) |
 | ARCH-09 可靠性 fixture 闭环 (卡 274) | 已交证，待协调者全量门禁与验收 | [274](274-arch09-reliability-fixture-loop.md) |
 | ARCH-01运行结果证据 (卡 272) | 已修并验证，六项门禁及真实Stop冷启动/刷新通过；待协调者验收 | [272](272-arch01-run-outcome-evidence.md) |
 | ARCH-06断线恢复 (卡 271) | 已修并验证，六项门禁及真实运行中30秒断线/刷新/三会话切换通过；待协调者验收 | [271](271-arch06-session-stream-recovery.md) |

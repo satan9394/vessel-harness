@@ -14,6 +14,25 @@ export interface EffectReconciliation {
 interface Reconciliation extends EffectReconciliation { kind: 'reconciliation'; reconciledAt: string }
 type Entry = Intent | Outcome | Reconciliation;
 
+/**
+ * Did this invocation finish? Not "did it succeed" — those are different questions, and conflating
+ * them bricked sessions: Shell reports a non-zero exit code as TOOL_FAILURE, so running `npm test`
+ * with one failing assertion marked the effect unknown and blocked every later write in the session
+ * (measured in a real model session, card 276).
+ *
+ * Unknown means: we cannot tell whether the dispatch ran to completion. That is the case when the
+ * tool threw after dispatch, when it was killed or timed out mid-flight, or when it says so itself.
+ * A tool that returns a result — even a failing one — has told us its attempt ended, which is an
+ * observation. Replay of that exact invocation stays prohibited either way.
+ */
+function outcomeUnknown(result: ToolExecutionResult): boolean {
+  const error = result.error;
+  if (!error) return false;
+  if (result.meta.dispatchThrew === true) return true;
+  if (error.errorClass === 'TIMEOUT' || error.errorClass === 'UNKNOWN') return true;
+  return error.detail?.timedOut === true || error.detail?.killed === true;
+}
+
 /** Durable dispatch boundary. Unknown writes are reconciled by a caller, never replayed.
  * The owning Session supplies its existing single-writer lease for this journal.
  */
@@ -102,7 +121,9 @@ export class EffectJournal {
     const previous = this.entries.filter((entry): entry is Intent => entry.kind === 'intent' && entry.key === key).at(-1);
     const effects = tool.effects ?? (tool.requiredPermission === 'read' ? 'read_only' : 'non_idempotent');
     if (!previous && effects !== 'read_only' && this.pending().some(intent => intent.effects !== 'read_only')) {
-      throw new Error('OUTCOME_UNKNOWN: pending session effect requires reconciliation before further writes');
+      const blocking = this.pending().filter(intent => intent.effects !== 'read_only')
+        .map(intent => `${intent.key}#${intent.attempt}(${intent.effects})`).join(', ');
+      throw new Error(`OUTCOME_UNKNOWN: pending session effect requires reconciliation before further writes (${blocking}; journal ${this.file})`);
     }
     if (previous) {
       if (previous.effects !== effects) throw new Error('Effect classification changed during recovery');
@@ -116,6 +137,6 @@ export class EffectJournal {
     const intent = this.entries.filter((entry): entry is Intent => entry.kind === 'intent' && entry.key === key).at(-1);
     if (!intent) throw new Error('Missing execution intent');
     if (this.settled(intent)) throw new Error('Invocation already observed; replay prohibited');
-    this.append({ kind: 'outcome', key: intent.key, attempt: intent.attempt, status: result.error && intent.effects !== 'read_only' ? 'outcome_unknown' : 'observed' });
+    this.append({ kind: 'outcome', key: intent.key, attempt: intent.attempt, status: intent.effects !== 'read_only' && outcomeUnknown(result) ? 'outcome_unknown' : 'observed' });
   }
 }

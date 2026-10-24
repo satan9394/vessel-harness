@@ -23,6 +23,7 @@ import { meshCommand } from './commands/meshCommand.js';
 import { memoryCommand } from './commands/memoryCommand.js';
 import { doctorCommand } from './commands/doctorCommand.js';
 import { modCommand } from './commands/modCommand.js';
+import { effectsCommand } from './commands/effectsCommand.js';
 import { ProviderStore, parseBackupKeep, type ProviderConfig } from './providers/ProviderStore.js';
 import { createDefaultProviderStore } from './providers/defaultStore.js';
 import {
@@ -123,6 +124,10 @@ Vessel CLI v${VERSION} — 可组合 Agent Harness（品牌 Vessel）
   vessel mcp path                    打印 MCP 配置文件路径
   vessel migrate                     一次性迁移旧状态目录 ~/.dsh → ~/.vessel（数据复制 + 旧目录进回收站）
   vessel sessions list               列出历史会话（最近活动在前）
+  vessel effects list [--session <id>]
+                                     列出被未知副作用挡住写入的会话（journal 中未结算的 intent）
+  vessel effects resolve --session <id> --key <key> --attempt <n> --applied|--not-applied --evidence "<说明>"
+                                     人工回执并解除写入阻断（等价于 POST /api/sessions/:id/effects；旧调用仍不可重放）
   vessel resume <id>|--last           恢复历史会话（--last = 最近一条）
   vessel diff [<id>|--last]           会话改动的只读提示（Write/Edit 文件 + shell + git status；不回滚）
   vessel review handoff <request.json>   生成外部评审 handoff（.vessel/reviews/<id>/handoff.md；task 059）
@@ -3153,6 +3158,7 @@ async function dispatch(parsed: ParsedArgs): Promise<number> {
     }
     return cmdSessionsList({ json: isJson(parsed.flags) });
   }
+  if (first === 'effects') return effectsCommand(parsed.positionals.slice(1), { workspaceRoot: parsed.flags.get('workspace'), json: isJson(parsed.flags), flags: parsed.flags });
   if (first === 'resume') {
     const args = parsed.positionals.slice(1);
     // Agent 侦察结论：Session.open 对任意 id 都会建目录，故"不存在的 id"必须在此拦住，
