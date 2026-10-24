@@ -121,6 +121,21 @@
   安全包 S008（云元数据 SSRF）随即失效，证明该改动等于默认放开联网。逐进程网络隔离需要 AppContainer/WFP，
   属独立课题，不在 v0.1 范围。
 
+- **工作区需要一次性准备（`scripts/provision-sandbox.ps1`）**。受限令牌沙箱要求工作区带 Low 标签、
+  且其按路径派生的合成 SID 被授予写权限，否则启动前即拒绝（`sandbox directory requires provisioned Low
+  Integrity and restricted SID ACL`）。普通项目目录没有这两项，所以「完全访问」下的 Shell 在未准备的工作区里
+  会如实失败。准备是**显式、一次、可撤销**的：
+  `.\scripts\provision-sandbox.ps1 -Path <项目目录>`，撤销用 `-Revoke`（移除授权并把标签设回 Medium）。
+  实测：准备后 `echo` 在沙箱内执行（exit 0、`integrityRid=4096`、审计 `enforced`），撤销后再次拒绝。
+  **不做**「会话中静默改用户目录 ACL」：OpenAI Codex 的 Windows 沙箱同样把 ACL 配置放在 setup 阶段并要求提权，
+  Claude Code 在原生 Windows 上干脆不隔离；本仓跟随前者的形态——显式准备，而不是运行时偷改。
+
+- **写根只有工作区，不再包含 `os.tmpdir()`（2026-10-23）**。预检要求**每一个**写根都已准备，
+  而系统临时目录永远不会被准备，于是它让每次执行都以「工作区未准备」失败——即使工作区本身已经准备好
+  （实测：准备完工作区后仍被拒，报错路径指向 `%TEMP%`）。低完整性令牌本来也写不进 Medium 标签的临时目录，
+  这个写根从未真正提供能力，已从沙箱路径移除。同时被拒时会附带可操作提示
+  （`run: scripts/provision-sandbox.ps1 -Path "<workspace>"`），避免模型把「未准备」读成「Shell 坏了」。
+
 ### 2.5 Audit Event（审计，四件套的"证据"）
 
 **v1 口径（2026-09-18 拍定）：决策镜像只记 deny** —— 走策略链的 deny 分支产出 `audit/denial`(B20)；**不实现 allow 镜像**（零消费者 + 每条工具调用都落一条会显著膨胀会话日志 + 生产者须在 core，属运行时语义变更）。下表是**完整契约**（含尚未接线的记录）：

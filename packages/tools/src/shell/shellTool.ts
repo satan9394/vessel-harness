@@ -1,7 +1,6 @@
 import type { SandboxStatus, ToolSpec } from '@vessel/shared';
 import type { Sandbox } from '@vessel/runtime';
 import { errorCode } from '../execution/selfHealing.js';
-import { tmpdir } from 'node:os';
 import { win32 } from 'node:path';
 import { PlatformSandboxRunner } from '../execution/sandbox/platformSandbox.js';
 import type { NativeSandboxRunner, SandboxAuditEvent } from '../execution/sandbox/types.js';
@@ -137,7 +136,12 @@ export function createShellTool(opts: {
         return { content: '', error: { errorClass: 'INVALID_ARGS', message: 'command required' }, meta: {} };
       }
       if (native) {
-        const allowedWritePaths = [opts.workspaceRoot, tmpdir()];
+        // Only the workspace is a write root. `os.tmpdir()` used to be included for scratch files,
+        // but the sandbox preflight requires *every* root to be ACL-provisioned (Low label + the
+        // restricted SID grant), and the OS temp directory never is — so including it turned every
+        // command into "sandbox directory requires provisioned ... ACL". A Low-integrity token
+        // cannot write the Medium-labelled temp directory anyway, so the root bought nothing.
+        const allowedWritePaths = [opts.workspaceRoot];
         try {
           // Wrap every command: readonly prefix parsing cannot exclude shell redirection or substitution.
           const executable = process.platform === 'win32' ? win32.join(process.env.SystemRoot ?? 'C:\\Windows', 'System32', 'cmd.exe') : '/bin/sh';
@@ -153,7 +157,12 @@ export function createShellTool(opts: {
           };
         } catch (error) {
           await opts.nativeAudit?.({ isolationTier: process.platform === 'win32' ? 'windows-job-restricted' : 'passthrough-fallback', sandboxed: false, outcome: 'denied', allowedWritePaths, reason: String(error) });
-          return { content: '', error: { errorClass: 'DENIED', message: `sandbox execution denied: ${String(error)}` }, meta: { retryUnsafe: true } };
+          // The raw preflight error is a bare path complaint. Say what to do about it, otherwise the
+          // only honest reading is "Shell is broken" (measured: a real model session retried three
+          // times and then reported the tool as unavailable).
+          const unprepared = /requires provisioned Low Integrity and restricted SID ACL/.test(String(error));
+          const hint = unprepared ? ` — this workspace is not prepared for the sandbox; run: scripts/provision-sandbox.ps1 -Path "${opts.workspaceRoot}"` : '';
+          return { content: '', error: { errorClass: 'DENIED', message: `sandbox execution denied: ${String(error)}${hint}` }, meta: { retryUnsafe: true } };
         }
       }
       // confine seam: with the Windows Job Object backend this reports the

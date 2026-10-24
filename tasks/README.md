@@ -31,7 +31,7 @@
 | 真实会话回收失败修复 (卡 261) | 已修并验证，六项门禁及真实模型IAB/OS回收站通过；待协调者验收 | [261](261-browser-fix-delete-recycle.md) |
 | 长输出截断 500 根治与沙箱 Token 权限 (卡 255) | 已实现并通过定向门禁（沙箱启动缺口转卡 256） | [255](255-fix-length-truncation-500-and-sandbox-fallback.md) |
 | Windows 受限沙箱启动链路 (卡 256) | 已完成，原生验收通过 | [256](256-windows-sandbox-launch-console.md) |
-| Shell 权限与联网边界 (卡 276) | 原方案否决（沙箱不限网络）；改为 UI 显式开关，已实现 | [276](276-shell-under-workspace-write.md) |
+| Shell 权限与联网边界 (卡 276) | 原方案否决（沙箱不限网络）；改为 UI 显式开关 + 工作区准备脚本，已实现 | [276](276-shell-under-workspace-write.md) |
 | UI 两个 P2 缺陷 (卡 277) | 已实现，定向门禁通过；浏览器几何与方向口径待复验 | [277](277-ui-p2-fixes.md) |
 | apps/web typecheck 门禁修复 (卡 257) | 已实现，门禁全绿 | [257](257-web-typecheck-gate.md) |
 | 消除虚假完成信号 (卡 258) | 已实现，五项定向门禁全绿（待验收） | [258](258-false-completion-signal.md) |

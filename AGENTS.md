@@ -118,6 +118,7 @@ PDW 现行版本 **1.3.3-local**：完整 Skill 目录 + Node 运行器 + 项目
 - **CI 覆盖 `apps/web`**：`apps/web` 不在 `tsc -b` 图内（独立 `noEmit` 配置），CI 另有 `typecheck` + `vite build` 两步；升级 vite/React/plugin 后必须本地跑 `npm run -w @vessel/web build`（peer 不一致只有构建会暴露）。
 - **测试超时不是断言**：真实 IO / 大队列用例要显式给足超时（如 1500 任务的队列用例 120s、真实 job holder 用例 120s），慢 runner 上默认 30s 会产生与回归无关的红。
 - **版本**：dev 依赖已到 TypeScript 7 / vite 8 / vitest 5 / React 19 / js-yaml 5；升大版本前先看该包的移除项（如 TS7 移除 `baseUrl`，`paths` 必须 `./`）。
+- **`dist` 会落后于 `src`，而真实运行走 `dist`**：`vitest` 直接读 `src`，所以测试全绿不代表 `vessel serve` / `apps/cli` 跑的是同一份代码——它们通过包导出加载 `packages/*/dist`。回滚改动后尤其危险：2026-10-23 复验「完全访问下 Shell 能否执行」时，`dist` 里还留着已回滚的实现，测出了与源码相反的结论。**任何真实进程复验前先 `npx tsc -b tsconfig.json`**，改完源码同理。
 
 ### 查看 Web UI 的正确入口（2026-10-18，卡 225 更新）
 
@@ -138,6 +139,7 @@ PDW 现行版本 **1.3.3-local**：完整 Skill 目录 + Node 运行器 + 项目
 - 不要只做功能列表不验证：每张卡必须跑对应测试并留证据。
 - **不要自动驱动本机其他 agent**（`dsh` / `opencode` / `codex` / `claude` / `pi`）：它们是用户自己的工具，会消耗其配额并在其机器上留下会话记录。为基准/调试/验证而调用它们**必须逐次获得用户显式同意**，且执行前先说明"将调用哪些 agent、大概消耗什么"；`npm run bench:conformance -- --live` **永不自动跑**。需要跨 harness 证据时优先用**离线车道**（只跑 Vessel 自适配器）。见 `tasks/153`。
 - **不要把中文提示词用 PowerShell 管道喂给原生 CLI**（`Get-Content -Raw $f | & codex exec ...`）：PowerShell 会按 ANSI 代码页重编码，中文全变 `?`，agent 只收到 ASCII 骨架（2026-10-23 实测 7 次派单全中，事后从 rollout 逐条比对才确认）。派单统一走 `scripts/dispatch-codex.ps1`——它用 cmd 输入重定向传原始字节并先校验 UTF-8。
+- **也不要用 `Get-Content` / `Set-Content` 改源码**：同样按 ANSI 代码页往返，会把文件里已有的中文注释变成 `鈥?` 之类乱码，`Set-Content -Encoding UTF8` 还会顺手加 BOM（2026-10-23 改 `shellTool.ts` 时实测，已用 `git show HEAD:<path>` 原始字节还原）。改文件用编辑工具或 Node 的 `readFileSync`/`writeFileSync`；若已污染，用 `git checkout -- <path>` 恢复后重做，不要试图修补乱码。
 
 ---
 
