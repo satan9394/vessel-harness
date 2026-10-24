@@ -1,6 +1,6 @@
 # 任务卡 277: 修复浏览器验收的两个 P2 缺陷
 
-**状态**: C-F1 已重做并在真实 Chrome 中复测通过（待用户在自己的英文/浅色/两会话条件下确认）；B-F1 已由用户复验通过
+**状态**: 已收口（2026-10-24）：B-F1 用户浏览器复验通过；C-F1 首版被判不通过后重做，PDW 任务 `20261024095132-1bac7e` 达 `accepted_local`，几何检查 5 视口全绿
 **创建时间**: 2026-10-23
 **执行者**: Codex (`gpt-6.1-sol`, medium)
 **协调者**: OpenCode
@@ -52,9 +52,31 @@
 
 ## 6. Result
 
-Implemented locally; no commit/push, `packages/*` edits, or `test:all` run.
+### 最终状态（2026-10-24，PDW 任务 `20261024095132-1bac7e` = `accepted_local`）
 
-### 2026-10-24 浏览器复验结果 → C-F1 判为不通过，已重做
+C-F1 已修复并通过**机器验收**，不再是「看起来对」：`scripts/ui-geom-check.mjs` 会自己构建、
+起服务、驱动本机 Chrome（CDP，无 Playwright 依赖），在 5 个视口断言四条不变量，
+PDW 在 checks 阶段实跑 exit 0（`checks-0-1fa1a2/1.stdout.log`：`geometry check passed (5 cases)`），
+同时 `web-tests` 58 文件 / 494 通过、`web-typecheck` exit 0。
+
+最终修法（Codex 实现，PDW 契约约束）：
+
+1. `layout.css` 基础 `.dual-surface` 的 `min-height: 420px` → `auto`——原来的固定地板在
+   **>800px 分支**同样会造成越界，960×600 与 1440×480 实测 `sectionsGapPx=-112.7`、重叠 17.81px；
+2. `styles.css` 的 `.message-list-scroll` 由 `min-height: 0` 改为 `60px`——把「正文不被挤没」
+   从口号变成可测下限（改前 360×900 八行草稿只剩 48px）；
+3. 删除 `dashboard.css` 里 `> .conversation { min-height: 420px }` 这条同类死规则；
+4. `layout.mobile.test.ts` 重写，覆盖 base / 800px / 700px 三个分支并读 `dashboard.css`。
+
+验收判据（写进检查脚本，不是散文）：footer 不超出 `.conversation`、`.module-sections` 不早于它、
+`KEY HINTS` 矩形与 Goals 矩形不相交（1px）、正文布局高度 ≥60px；若某视口下正文被滚出视口上方，
+则容器必须可滚动（可达性），这条来自复核意见 R1。
+
+剩余 intentionally 接受的行为：1440×480 这类极短视口 + 8 行草稿时，正文会落在视口上方，
+需要向上滚动查看——这是「整列比窗口高就滚动」的既定口径，已在检查里表述为「可滚动即可达」。
+用户可见的确认仍建议做一次（判据见下），但不再是唯一证据。
+
+### 历史：2026-10-24 浏览器复验 → C-F1 判为不通过（已由上面收口）
 
 独立复验（Chrome，360×900，英文、浅色、Inspector 关闭，两个可删除分组）给出：
 
@@ -163,3 +185,23 @@ Logs: `evidence/sessions/2026-10-23-card277/`.
 6. 回归看一遍 1440×900：composer 仍在底部、对话记录自己滚动、模块卡不被压。
 3. Keyboard: Tab to the second session's Delete button → Enter → check Cancel focused → Escape → check confirmation absent and the same session's Delete focused → Tab and Shift+Tab traverse normally. Repeat Escape from Confirm. Reopen and mouse-cancel, then reopen and mouse-confirm a disposable session; confirm exactly one delete/recycle action.
 4. Open Inspector, command palette, and model switcher independently and check their existing Escape behavior. The component test verifies local propagation only; it does not certify these browser overlays.
+
+### Bounded viewport follow-up (2026-10-24)
+
+Implementation rechecked under contract 20261024091657-a14eca: cover the base column and both 800px/700px breakpoints, preserve a usable transcript, and remove the obsolete dashboard conversation minimum. No usage, configuration, or component interface changes; CSS comments and this task record document the layout behavior. The 420px desktop minimum and obsolete dashboard override are removed; the transcript retains a 60px minimum. Static checks traverse every rule and media branch, explicitly covering 800px and 700px.
+
+Fresh contract checks (2026-10-24): `node node_modules/vitest/vitest.mjs run --root apps/web` exited 0 (58 files / 494 passed); `node node_modules/typescript/bin/tsc -p apps/web/tsconfig.json --noEmit` exited 0; prerequisite `node node_modules/typescript/bin/tsc -b tsconfig.json` exited 0. `git diff --check` passed.
+
+Broader regression: `npm run test:all` exited 1 after 558.73s: root 301 files passed / 4 failed; 3193 tests passed / 5 failed / 6 skipped. Failures were `process-tree.test.ts` (pre-spawned grandchild missing from enumeration), `virtualProxy.test.ts` (taskkill access denied), `provisionScript.test.ts` (two provisioning access-denied failures), and `daemonRecycle.windows.test.ts` (expected recycling rejection resolved). These files are outside scope and were not edited; no baseline comparison was run to classify them as pre-existing. The command's chained web leg did not run; the separate contract web run above passed.
+
+Historical browser attempts under that earlier contract were interrupted without measurements: the first after more than two minutes, the retry at 90 seconds; port 9341 never exposed a reachable CDP endpoint. Only the two disposable server processes from those attempts were stopped. The earlier statement that `evidence/sessions/ui-geom-check.json` recorded this failure was incorrect: the artifact currently contains a later five-case successful run generated at 2026-10-24T09:38:50.025Z. That artifact is prior evidence, not a fresh check for the current contract.
+
+Current bounded implementation (contract 20261024093917-cbfcb8): preserved the existing content-based CSS fix and strengthened `layout.mobile.test.ts` to reject fixed minimums on the intermediate `.chat-surface`/`.conversation-wrap` boxes as well as the conversation/dual surface, and reject later transcript overrides that remove its 60px minimum, size containment, or own scrolling. Base rules, both 800px/700px branches, and dashboard CSS remain covered. No usage/configuration/interface changes are required; this maintenance record and existing CSS comments describe the behavior. No acceptance criteria or checking instrument were edited.
+
+Implementation self-checks after the regression-guard edit: `node node_modules/vitest/vitest.mjs run --root apps/web` exit 0 (58 files / 494 tests passed, 26.63s); `node node_modules/typescript/bin/tsc -p apps/web/tsconfig.json --noEmit` exit 0. These are scoped web checks, not a full repository regression claim.
+
+Geometry is intentionally delegated to the runner's checks stage; this implementation role did not launch a browser or run `scripts/ui-geom-check.mjs`. AC1-AC3 require fresh runner evidence. The instrument measures the position/height clauses but does not populate messages or measure outer/inner scroll extents, so AC3's content-filled transcript/outer-wrapper scroll clause still needs an independent browser probe. The broader card's keyboard checks remain outside this bounded contract.
+
+Contract 20261024095132-1bac7e: retained the existing content-based column minimums in both width branches and the 60px transcript reservation. Added transcript `overscroll-behavior-y: contain` so reaching its scroll boundary does not chain the same gesture into the module wrapper; the regression guard also rejects later overrides of this behavior. The outer wrapper remains available for reaching modules on short/narrow viewports. No usage, configuration, or component interface changed; documentation belongs here and in the CSS comments. Browser geometry and content-filled scrolling remain runner/reviewer checks, not implementation self-test claims.
+
+Self-checks for this contract after the CSS/test edit: `node node_modules/vitest/vitest.mjs run --root apps/web` exit 0 (58 files / 494 tests passed, 27.68s); `node node_modules/typescript/bin/tsc -p apps/web/tsconfig.json --noEmit` exit 0; `git diff --check` exit 0. AC4's six static layout tests passed within that suite. The pre-existing edits to the out-of-scope geometry instrument and its historical evidence were left untouched; no browser or geometry check was launched by this role.

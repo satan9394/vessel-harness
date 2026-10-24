@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-24T08:52:58.103Z",
+  "generatedAt": "2026-10-24T10:06:49.257Z",
   "cases": [
     {
       "case": "360x900-1line",
@@ -38,6 +38,8 @@
       "footerOverflowPx": 0,
       "sectionsGapPx": 0,
       "transcriptClientH": 167,
+      "transcriptOnScreen": true,
+      "wrapScrollable": true,
       "failures": []
     },
     {
@@ -53,9 +55,9 @@
         "height": 236.61
       },
       "conversation": {
-        "top": -42.86,
+        "top": -54.86,
         "bottom": 662.59,
-        "height": 705.45
+        "height": 717.45
       },
       "composer": {
         "top": 250.75,
@@ -68,104 +70,100 @@
         "height": 237.61
       },
       "transcript": {
-        "top": 164.83,
+        "top": 152.83,
         "bottom": 212.83,
-        "height": 48
+        "height": 60
       },
       "overlap": false,
       "overlapPx": 0,
       "footerOverflowPx": 0,
       "sectionsGapPx": 0,
-      "transcriptClientH": 48,
-      "failures": [
-        "transcriptClientH=48"
-      ]
+      "transcriptClientH": 60,
+      "transcriptOnScreen": true,
+      "wrapScrollable": true,
+      "failures": []
     },
     {
       "case": "960x600-8lines",
       "hints": {
-        "top": 444.89,
-        "bottom": 462.7,
+        "top": 332.89,
+        "bottom": 350.7,
         "height": 17.81
       },
       "goals": {
-        "top": 363,
-        "bottom": 599.61,
+        "top": 363.7,
+        "bottom": 600.31,
         "height": 236.61
       },
       "conversation": {
-        "top": -15,
-        "bottom": 474.7,
-        "height": 489.7
+        "top": -139,
+        "bottom": 362.7,
+        "height": 501.7
       },
       "composer": {
-        "top": 198.84,
-        "bottom": 474.7,
+        "top": 86.84,
+        "bottom": 362.7,
         "height": 275.86
       },
       "sections": {
-        "top": 362,
-        "bottom": 599.61,
+        "top": 362.7,
+        "bottom": 600.31,
         "height": 237.61
       },
       "transcript": {
-        "top": 112.92,
-        "bottom": 160.92,
-        "height": 48
+        "top": -11.08,
+        "bottom": 48.92,
+        "height": 60
       },
-      "overlap": true,
-      "overlapPx": 17.81,
+      "overlap": false,
+      "overlapPx": 0,
       "footerOverflowPx": 0,
-      "sectionsGapPx": -112.7,
-      "transcriptClientH": 48,
-      "failures": [
-        "sectionsGapPx=-112.7",
-        "overlap=true (17.81px)",
-        "transcriptClientH=48"
-      ]
+      "sectionsGapPx": 0,
+      "transcriptClientH": 60,
+      "transcriptOnScreen": true,
+      "wrapScrollable": true,
+      "failures": []
     },
     {
       "case": "1440x480-8lines",
       "hints": {
-        "top": 324.89,
-        "bottom": 342.7,
+        "top": 212.89,
+        "bottom": 230.7,
         "height": 17.81
       },
       "goals": {
-        "top": 243,
-        "bottom": 479.61,
+        "top": 243.7,
+        "bottom": 480.31,
         "height": 236.61
       },
       "conversation": {
-        "top": -135,
-        "bottom": 354.7,
-        "height": 489.7
+        "top": -259,
+        "bottom": 242.7,
+        "height": 501.7
       },
       "composer": {
-        "top": 78.84,
-        "bottom": 354.7,
+        "top": -33.16,
+        "bottom": 242.7,
         "height": 275.86
       },
       "sections": {
-        "top": 242,
-        "bottom": 479.61,
+        "top": 242.7,
+        "bottom": 480.31,
         "height": 237.61
       },
       "transcript": {
-        "top": -7.08,
-        "bottom": 40.92,
-        "height": 48
+        "top": -131.08,
+        "bottom": -71.08,
+        "height": 60
       },
-      "overlap": true,
-      "overlapPx": 17.81,
+      "overlap": false,
+      "overlapPx": 0,
       "footerOverflowPx": 0,
-      "sectionsGapPx": -112.7,
-      "transcriptClientH": 48,
-      "failures": [
-        "sectionsGapPx=-112.7",
-        "overlap=true (17.81px)",
-        "transcriptClientH=48"
-      ]
+      "sectionsGapPx": 0,
+      "transcriptClientH": 60,
+      "transcriptOnScreen": false,
+      "wrapScrollable": true,
+      "failures": []
     },
     {
       "case": "1440x900-8lines",
@@ -204,12 +202,10 @@
       "footerOverflowPx": 0,
       "sectionsGapPx": 0,
       "transcriptClientH": 130,
+      "transcriptOnScreen": true,
+      "wrapScrollable": false,
       "failures": []
     }
   ],
-  "failures": [
-    "360x900-8lines: transcriptClientH=48",
-    "960x600-8lines: sectionsGapPx=-112.7, overlap=true (17.81px), transcriptClientH=48",
-    "1440x480-8lines: sectionsGapPx=-112.7, overlap=true (17.81px), transcriptClientH=48"
-  ]
+  "failures": []
 }

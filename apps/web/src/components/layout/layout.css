@@ -1,6 +1,6 @@
-/* A fixed flex basis bounds transcript scrolling; the outer wrapper still
-   scrolls to sibling modules when the viewport cannot fit both surfaces. */
-.dual-surface { display: grid; grid-template-columns: minmax(0, 1fr); flex: 1 0 420px; min-height: 420px; min-width: 0; }
+/* The flex basis bounds transcript scrolling; the automatic minimum grows with
+   the composer. The outer wrapper scrolls when sibling modules cannot also fit. */
+.dual-surface { display: grid; grid-template-columns: minmax(0, 1fr); flex: 1 0 420px; min-height: auto; min-width: 0; }
 .dual-surface.inspector-open { grid-template-columns: minmax(0, 1fr) 300px; gap: 0; }
 .chat-surface { display: flex; flex-direction: column; flex: 1; min-height: 0; min-width: 0; }
 .inspector-toolbar { display: flex; justify-content: flex-end; padding: 10px 16px 0; }
