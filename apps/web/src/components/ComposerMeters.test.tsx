@@ -1,4 +1,5 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
+import { readFileSync } from 'node:fs';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { LanguageProvider } from './LanguageProvider';
 import type { ReactNode } from 'react';
@@ -11,6 +12,25 @@ function render(node: ReactNode): string {
 }
 
 describe('P5 composer capsules + meters', () => {
+  it('keeps English key hints visible with wrapping classes and non-shrinking composer CSS', () => {
+    const css = readFileSync(new URL('../styles.css', import.meta.url), 'utf8');
+    const shell = css.match(/\.composer-shell\s*\{([^}]+)\}/)![1];
+    const hints = css.match(/\.meter-keys\s*\{([^}]+)\}/)![1];
+    expect(shell).toMatch(/flex:\s*none\s*;/);
+    expect(hints).toMatch(/flex-wrap:\s*wrap\s*;/);
+    expect(hints).toMatch(/min-width:\s*0\s*;/);
+    expect(hints).toMatch(/max-width:\s*100%\s*;/);
+    vi.stubGlobal('localStorage', { getItem: () => 'en' });
+    try {
+      const html = render(<MetersRow usage={emptyUsage()} metrics={{}} />);
+      expect(html).toContain('meter meter-keys');
+      expect(html).toContain('key hints');
+      expect(html).toContain('newline');
+    } finally { vi.unstubAllGlobals(); }
+    // Structural/CSS regression only: neither Node nor jsdom calculates layout geometry.
+    // Browser: populated Mock session, Inspector closed, English, 360x900; compare
+    // .meter-keys.parentElement and .module-card-goal rectangles (card 277 Result).
+  });
   it('maps the session permission to an existing dictionary key (B16 reuse)', () => {
     expect(permissionLabelKey('read-only')).toBe('permissionReadOnly');
     expect(permissionLabelKey('workspace-write')).toBe('permissionWorkspaceWrite');
