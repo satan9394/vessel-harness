@@ -12,10 +12,11 @@
 
 ## 怎么读这个目录
 
-最近新增交付：[280](280-arch09-traceable-fixtures.md) ARCH-09 的可追溯性收口（14 fixture / 7 类别逐个复核、conformance 25/25、全量两 root 全绿）；跨 harness live 证据仍归 ARCH-04。前序 [279](279-cli-effects-reconcile.md) 未知副作用有了 CLI 出路（`vessel effects list|resolve`，写同样的 `audit/effect_reconciled`）；定向测试与真实 CLI 进程验证通过。前序 [278](278-effect-outcome-classification.md) 一次工具失败不再锁死会话（把「跑完没」与「成功没」分开判定）；定向门禁与真实模型会话通过。前序 [277](277-ui-p2-fixes.md) 两个 UI P2 已实现并通过定向门禁；浏览器几何与方向口径待复验。
+最近新增交付：[282](282-effect-block-message.md) 会话被未知副作用挡住时，工具结果里直接给出解除命令（带本会话 id）；定向测试通过。前序 [280](280-arch09-traceable-fixtures.md) ARCH-09 的可追溯性收口（14 fixture / 7 类别逐个复核、conformance 25/25、全量两 root 全绿）；跨 harness live 证据仍归 ARCH-04。前序 [279](279-cli-effects-reconcile.md) 未知副作用有了 CLI 出路（`vessel effects list|resolve`，写同样的 `audit/effect_reconciled`）；定向测试与真实 CLI 进程验证通过。前序 [278](278-effect-outcome-classification.md) 一次工具失败不再锁死会话（把「跑完没」与「成功没」分开判定）；定向门禁与真实模型会话通过。前序 [277](277-ui-p2-fixes.md) 两个 UI P2 已实现并通过定向门禁；浏览器几何与方向口径待复验。
 
 | 本地交付 | 状态 | 任务卡 |
 |---|---|---|
+| 阻断消息给出解除命令 (卡 282) | 已实现，定向测试通过 | [282](282-effect-block-message.md) |
 | ARCH-07 POSIX 降级口径 (卡 281) | 阻塞：需用户对安全口径拍板（默认拒绝 vs 照常执行但标注） | [281](281-arch07-posix-fallback-decision.md) |
 | ARCH-09 可追溯 fixture 收口 (卡 280) | 已完成：14 fixture/7 类别复核 + conformance 25/25 + 全量两 root 绿 | [280](280-arch09-traceable-fixtures.md) |
 | 未知副作用的 CLI 出路 (卡 279) | 已实现，定向测试 + 真实 CLI 进程验证通过 | [279](279-cli-effects-reconcile.md) |
