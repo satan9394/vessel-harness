@@ -75,7 +75,7 @@ PDW 现行版本 **1.3.3-local**：完整 Skill 目录 + Node 运行器 + 项目
 实质性 PDW / 多 Agent 任务：由协调者把目标编译成可执行契约（`node .agents/skills/personal-dev-workflow/scripts/pdw.mjs new --from <contract.json>`）并驱动运行器，**不把 JSON 配置或角色聊天推给用户**。自动执行后端目前仅 OC / Codex / AGY；CC、DSH 只能担任协调者或辅助模式，不得汇报成 CLI 自动接力已通过。
 启动命令、旧状态（`.agent-state/`、`RUN_STATE.md`、`tasks/`）如何保留、以及回滚步骤见 `evidence/pdw-migration-1.3.1/MIGRATION.md`。
 
-**UI 类契约的浏览器验收必须落在 `checks` 里**：implement 角色跑在 Codex 的 OS 沙箱内，起不了浏览器（2026-10-24 实测两次 `implement reported blocked`，原因都是「我跑不了浏览器验收」）。所以契约要把几何/交互验收写成运行器执行的检查命令（如 `node scripts/ui-geom-check.mjs`，它自己 build + 起服务 + 驱动本机 Chrome），并在 `notes` 里写明「实现者不要因为跑不了浏览器而报 blocked」。两条配套约束：检查脚本**不得往仓库里写文件**（写进任务 scope 会导致 checks 阶段被判 source drift，已实测三次），报告写 `%TEMP%`；实现者的自我验证只覆盖代码、单测与类型检查。
+**UI 类契约的浏览器验收默认放在 `checks` 里**：implement 角色跑在 Codex 的 OS 沙箱内，**默认配置下**起不了浏览器（2026-10-24 实测：`codex sandbox` 默认是只读，连仓库内写文件都被拒；`workspace-write` 下 Chrome 也要 `--no-sandbox --user-data-dir=<工作区内路径> --headless=new --disable-gpu` 才起得来，加上这四个参数后实测 exit 0）。因此契约的常规写法是把几何/交互验收写成运行器执行的检查命令（如 `node scripts/ui-geom-check.mjs`，它自己 build + 起服务 + 驱动本机 Chrome），并在 `notes` 里写明「实现者不要因为跑不了浏览器而报 blocked」；只有当确实需要 implement 自验时，才在契约里给出上面那组沙箱内可用参数。两条配套约束：检查脚本**不得往仓库里写文件**（写进任务 scope 会导致 checks 阶段被判 source drift，已实测三次），报告写 `%TEMP%`；实现者的自我验证默认只覆盖代码、单测与类型检查。
 <!-- /pdw-entry -->
 
 - 默认 `standard`：一卡一闭环，交证即停，不自动续下一卡。
