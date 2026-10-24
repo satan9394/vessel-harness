@@ -114,7 +114,7 @@ export default function TaskComposer({ api, projects, selectedRoot, onSelectProj
       <ModelQuickSwitcher models={models} current={selectedModel ? { provider: selectedModel.providerName, model: selectedModel.id } : null}
         disabled={busy || loading || failed || disabled} onSelect={model => setSelection(JSON.stringify([model.provider, model.model]))} onOpenSettings={() => onConfigureModels()} />
       <label>{t('permissionLabel')}<span className="capsule-select"><select className="input" aria-label={t('permissionLabel')} value={permission} disabled={busy} onChange={event => setPermission(event.target.value as typeof permission)}>
-        <option value="read-only">{t('permissionReadOnly')}</option><option value="workspace-write">{t('permissionWorkspaceWrite')}</option>
+        <option value="read-only">{t('permissionReadOnly')}</option><option value="workspace-write">{t('permissionWorkspaceWrite')}</option><option value="danger-full-access">{t('permissionDangerFull')}</option>
       </select><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true"><path d="m4 6 4 4 4-4" /></svg></span></label>
       <button className="btn btn-primary composer-send" type="submit" disabled={busy || disabled || loading || failed || unavailable || !root || !task.trim()}>{busy ? t('creating') : t('startTask')}</button>
     </div>

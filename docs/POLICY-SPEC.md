@@ -111,8 +111,15 @@
 - **Policy Engine**：`BeforeTool` 链上注册的权威裁决监听器，按 §4.2 决策序给出 ALLOW/DENY/ASK。
 - **guard 单调**：全链后强制执行的 ToolGuard——只能收窄（把 allow/ask 收成 deny/更严），任何监听器不得放宽（deepseek-harness.md 行 168/242/411）。
 - **BeforeWrite / BeforeShell 守卫**（D5 A18/A20）：文件写类工具对 canonical 化后的 targetPath 检查受保护路径与 deny_read/读写边界；shell 命令解析出 argv 后做只读识别与危险命令判定。**字符串解析只作只读识别与 deny 判定，不作主防线**（claude-code.md 行 208：解析不了 fail-closed 弹批准；comparison.md H05 行 330）。
-- **沙箱（OS 级兜底）**：`ctx.sandbox.confine(argv, policy)` seam，fail-closed（无后端 `SANDBOX_UNAVAILABLE` 即拒），enforcement full|partial 透明上报。**实现状态（2026-09-18 核实）**：**Windows 已交付 Job Object + process-tree（071/072，`docs/SANDBOX-WINDOWS.md`）**——命名 Job Object 包裹子进程、`TerminateJobObject` 连孙进程终止、活动进程数上限、`os.tmpdir()` 独立工作目录，`status()` 只在**真附加成功**时报 `active`；**受限令牌/低完整性降权未实现，Linux/macOS 为 passthrough**（H08 Decision 的 bwrap/Seatbelt/Windows ACL 是**规划**，不是现状）。**最终防线**：Behavior Safety/deny 规则管不住任意子进程是各家共识，能拦子进程的只有 OS 级边界。
+- **沙箱（OS 级兜底）**：`ctx.sandbox.confine(argv, policy)` seam，fail-closed（无后端 `SANDBOX_UNAVAILABLE` 即拒），enforcement full|partial 透明上报。**实现状态（2026-09-18 核实）**：**Windows 已交付 Job Object + process-tree（071/072，`docs/SANDBOX-WINDOWS.md`）**——命名 Job Object 包裹子进程、`TerminateJobObject` 连孙进程终止、活动进程数上限、`os.tmpdir()` 独立工作目录，`status()` 只在**真附加成功**时报 `active`；**受限令牌 + Low 完整性已交付（卡 256，真实模型会话审计记录为 `enforced`）；Linux/macOS 为 passthrough**（H08 Decision 的 bwrap/Seatbelt/Windows ACL 是**规划**，不是现状）。**最终防线**：Behavior Safety/deny 规则管不住任意子进程是各家共识，能拦子进程的只有 OS 级边界。
 - **never_auto 危险集合**：关键路径删除（rm -rf /、~ 等 destructive-delete）、需人交互的工具、显式 ask 项——**任何 profile（含 danger-full-access）都不自动放行**（claude-code.md 行 206；comparison.md H07 Proposed Spec `never_auto`）。
+
+- **沙箱边界：只管文件与进程，不管联网（2026-10-23 实测）**。在受限令牌 + Low 完整性 + Job Object 内执行
+  `nslookup example.com`，真实解析到外部地址（`104.20.23.154`、`172.66.147.243`），说明**网络出口不受该沙箱约束**。
+  因此 `Shell` 仍要求 `danger-full-access`（workspace-write 下由 profile 门禁拒绝）；UI 的权限选择器显式提供
+  该档位并附「可执行命令、可联网」的警告，由用户按会话决定。把 Shell 降到 workspace-write 曾尝试并**被否决**：
+  安全包 S008（云元数据 SSRF）随即失效，证明该改动等于默认放开联网。逐进程网络隔离需要 AppContainer/WFP，
+  属独立课题，不在 v0.1 范围。
 
 ### 2.5 Audit Event（审计，四件套的"证据"）
 

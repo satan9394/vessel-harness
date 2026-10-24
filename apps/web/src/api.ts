@@ -74,7 +74,7 @@ export interface CreateSessionInput {
   workspaceRoot: string;
   provider?: string;
   model?: string;
-  permission?: 'workspace-write' | 'read-only';
+  permission?: 'workspace-write' | 'read-only' | 'danger-full-access';
 }
 
 export interface ProviderInfo {

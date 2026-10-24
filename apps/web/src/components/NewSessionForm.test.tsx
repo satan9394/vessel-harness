@@ -43,4 +43,19 @@ describe('NewSessionForm real model choice', () => {
     render(); await vi.waitFor(() => expect(render().some(node => node.props.role === 'alert')).toBe(true));
     expect(render().find(node => node.props.role === 'alert')!.props.children).toBe('无法加载模型，请重试');
   });
+
+  it('offers full access with an explicit network warning and submits it', async () => {
+    let tree = render(); change(field(tree, 'workspaceRoot'), 'E:/workspace'); await settle(); tree = render();
+    const options = tree.filter(node => node.type === 'option').map(node => node.props.value);
+    expect(options).toContain('danger-full-access');
+    const select = field(tree, 'sessionPermission');
+    expect(select.props.children).toHaveLength(3);
+    // The warning only appears once full access is selected.
+    expect(tree.some(node => node.props.role === 'note')).toBe(false);
+    change(select, 'danger-full-access'); tree = render();
+    const note = tree.find(node => node.props.role === 'note');
+    expect(note?.props.children).toBe('完整权限下模型可执行任意命令；原生沙箱只约束文件与进程，不限制联网。');
+    await (tree.find(node => node.type === 'form')!.props.onSubmit as (e: unknown) => Promise<void>)({ preventDefault() {} });
+    expect(api.createSession).toHaveBeenCalledWith(expect.objectContaining({ permission: 'danger-full-access' }));
+  });
 });

@@ -424,6 +424,7 @@ export interface CommonMessages {
 export interface SessionMessages {
   create: MessageTemplate;
   permissionDangerFull: MessageTemplate;
+  permissionDangerHint: MessageTemplate;
   newSessionTitle: MessageTemplate;
   permissionLabel: MessageTemplate;
   permissionReadOnly: MessageTemplate;
@@ -1096,7 +1097,8 @@ export const zh: Messages = {
   loading: "正在加载…",
   create: "创建",
   creating: "正在创建…",
-  permissionDangerFull: "完全访问权限",
+  permissionDangerFull: "完全访问权限（可执行命令、可联网）",
+  permissionDangerHint: "完整权限下模型可执行任意命令；原生沙箱只约束文件与进程，不限制联网。",
   modelSettings: "模型设置",
   providerRefreshFailed: "配置已更新，但列表刷新失败。请重试。",
   selectModel: "选择模型",
@@ -1924,7 +1926,8 @@ export const en: Messages = {
   loading: "Loading…",
   create: "Create",
   creating: "Creating…",
-  permissionDangerFull: "Full access",
+  permissionDangerFull: "Full access (runs commands, can reach the network)",
+  permissionDangerHint: "Full access lets the model run arbitrary commands. The native sandbox restricts files and processes, not network egress.",
   modelSettings: "Model settings",
   providerRefreshFailed: "Configuration updated, but the list could not refresh. Please retry.",
   selectModel: "Select model",
