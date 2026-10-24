@@ -175,7 +175,10 @@ export class Executor {
         errorClass: 'TOOL_FAILURE',
         message: (err as Error).message ?? String(err),
       };
-      result = { content: '', error, meta: {} };
+      // The tool died mid-flight, so whether its side effect landed is unknowable from here. The
+      // effect journal must see that distinction: a tool that *returns* a failure has reported a
+      // completed attempt, a tool that throws has not.
+      result = { content: '', error, meta: { dispatchThrew: true } };
     }
 
     // post-execute: freeze + hooks

@@ -89,13 +89,43 @@ describe('ARC-11 fault injection — no duplicate execution of non-idempotent to
     expect(effectCount()).toBe(1);
   });
 
-  it('boundary 3b — an errored non-idempotent effect stays unresolved (outcome_unknown)', () => {
+  it('boundary 3b — a tool that threw mid-flight leaves the effect unresolved', () => {
     const journal = new EffectJournal(journalFile);
     journal.begin(call, writeTool, invocation);
-    journal.finish(call, { content: '', error: { errorClass: 'TOOL_FAILURE', message: 'lost response' }, meta: {} });
+    // The tool never returned: the Executor marks this as a post-dispatch throw.
+    journal.finish(call, { content: '', error: { errorClass: 'TOOL_FAILURE', message: 'socket closed' }, meta: { dispatchThrew: true } });
     const recovered = new EffectJournal(journalFile);
     expect(recovered.pending()).toHaveLength(1);
     expect(() => dispatchOnce(recovered)).toThrow('OUTCOME_UNKNOWN');
+  });
+
+  it('boundary 3c — a completed command that failed is an observed outcome, not an unknown one', () => {
+    // Card 276: Shell reports a non-zero exit code as a returned TOOL_FAILURE. Blocking on that
+    // made one failing `npm test` brick every later write in the session.
+    for (const result of [
+      { content: 'boom', error: { errorClass: 'TOOL_FAILURE' as const, message: 'exit code 1', detail: { exitCode: 1 } }, meta: { exitCode: 1 } },
+      { content: '', error: { errorClass: 'DENIED' as const, message: 'sandbox execution denied' }, meta: {} },
+      { content: '', error: { errorClass: 'INVALID_ARGS' as const, message: 'command required' }, meta: {} },
+    ]) {
+      const journal = new EffectJournal(path.join(root, `journal-${result.error.errorClass}.jsonl`));
+      journal.begin(call, writeTool, invocation);
+      journal.finish(call, result);
+      expect(journal.pending()).toEqual([]);
+      expect(() => journal.begin({ ...call, toolCallId: 'later' }, writeTool, invocation)).not.toThrow();
+    }
+  });
+
+  it('boundary 3d — killed and timed-out dispatches stay unresolved', () => {
+    for (const [name, result] of [
+      ['timeout-class', { content: '', error: { errorClass: 'TIMEOUT' as const, message: 'timed out' }, meta: {} }],
+      ['timed-out-detail', { content: '', error: { errorClass: 'TOOL_FAILURE' as const, message: 'timed out', detail: { timedOut: true } }, meta: {} }],
+      ['killed-detail', { content: '', error: { errorClass: 'TOOL_FAILURE' as const, message: 'interrupted', detail: { killed: true } }, meta: {} }],
+    ] as const) {
+      const journal = new EffectJournal(path.join(root, `journal-${name}.jsonl`));
+      journal.begin(call, writeTool, invocation);
+      journal.finish(call, result);
+      expect(journal.pending()).toHaveLength(1);
+    }
   });
 
   it('boundary 4 — approval transition binds the exact operation hash (no widen, no replay)', () => {

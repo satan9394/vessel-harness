@@ -85,7 +85,7 @@ describe('durable execution recovery boundaries', () => {
   });
   it('failed/unknown effects remain unresolved; read recovery records a new attempt', () => {
     const journal = new EffectJournal(file); journal.begin(call, tool, invocation);
-    journal.finish(call, { content: '', error: { errorClass: 'TOOL_FAILURE', message: 'lost response' }, meta: {} });
+    journal.finish(call, { content: '', error: { errorClass: 'TOOL_FAILURE', message: 'lost response' }, meta: { dispatchThrew: true } });
     expect(() => new EffectJournal(file).begin(call, tool, invocation)).toThrow('OUTCOME_UNKNOWN');
     const read = { ...tool, effects: 'read_only' as const }; const readCall = { ...call, toolCallId: 'read' };
     journal.begin(readCall, read, invocation);
