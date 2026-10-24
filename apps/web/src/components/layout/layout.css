@@ -74,6 +74,10 @@
   .docked-inspector { position: fixed; inset: 0 0 0 auto; z-index: 61; width: min(90vw, 520px); border-radius: 0; animation: inspector-reveal 150ms var(--ease); }
 }
 @media (max-width: 800px) {
-  /* Wrapped model controls and composer need room above/below a usable transcript. */
-  .dual-surface { flex-basis: 720px; min-height: 720px; }
+  /* Wrapped model controls and composer need room above/below a usable transcript. The 720px basis
+     is a floor, not a cap: a multi-line draft makes the composer taller than 720px minus the
+     toolbar, and pinning min-height to 720 let the footer spill over the module cards below
+     (card 277 C-F1). `min-height: auto` is the flex item's content-based floor — max(720px
+     basis, what the toolbar + transcript floor + composer actually need). */
+  .dual-surface { flex-basis: 720px; min-height: auto; }
 }

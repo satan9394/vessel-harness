@@ -827,7 +827,12 @@ code {
   flex: 1;
   display: flex;
   flex-direction: column;
-  min-height: 0;
+  /* Card 277 C-F1: `min-height: 0` let the conversation shrink below its own content, so once the
+     composer grew (a multi-line draft) the footer spilled past the box and painted over the module
+     cards below — the 360px "hints overlap Goals" measurement. The message list is a scroll
+     container with a zero content minimum, so min-content here is the head + bars + composer:
+     never shrink below what must stay visible; let `.conversation-wrap` scroll instead. */
+  min-height: min-content;
 }
 
 .conversation-head {
@@ -847,6 +852,12 @@ code {
   flex-direction: column;
   gap: 12px;
   min-height: 0;
+  /* Card 277 C-F1: the transcript is a scroll container, so its own content must not count toward
+     the conversation's intrinsic height — otherwise a long transcript (or a wrapped composer at
+     360px) makes the column claim more room than it has and the footer paints over the module
+     cards below. `contain: size` keeps the intrinsic contribution at zero; the element still gets
+     its height from flex. */
+  contain: size;
 }
 
 .message-list {
