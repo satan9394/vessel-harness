@@ -642,4 +642,4 @@ An unknown write blocks further writes. An operator first inspects GET `/api/ses
 
 Replay of the same invocation key stays prohibited in both cases, so at-most-once dispatch is unchanged. The bar for telling the operator "we lost track of a side effect" is now the bar that statement deserves: a tool that cannot vouch for its own completion must throw or report `TIMEOUT`/`UNKNOWN` rather than return a generic failure.
 
-A pending effect still blocks the session, and the block message now names the blocking `key#attempt(effects)` and the journal path so an operator can act on it without guessing.
+A pending effect still blocks the session, and the block message now names the blocking `key#attempt(effects)`, the journal path, and the exact command that clears it (`vessel effects resolve --session <id> ...`, card 282) — an operator problem stated as an operator problem, not as a tool failure.

@@ -361,7 +361,18 @@ export async function composeHarness(opts: ComposeOptions): Promise<ComposedHarn
     const modPolicy = async (call: ToolCall, spec: import('@vessel/shared').ToolSpec) => policyEngine.decide({ toolName: call.toolName, arguments: call.arguments }, spec);
     const effectJournal = new EffectJournal(path.join(session.dir, 'execution.jsonl'));
     const effectHooks = {
-      beforeDispatch: async (call: ToolCall, spec: import('@vessel/shared').ToolSpec, invocation: import('@vessel/shared').CanonicalToolInvocation, context: import('@vessel/runtime').ExecutorCtx) => effectJournal.begin(call, spec, invocation, context.executionKey),
+      beforeDispatch: async (call: ToolCall, spec: import('@vessel/shared').ToolSpec, invocation: import('@vessel/shared').CanonicalToolInvocation, context: import('@vessel/runtime').ExecutorCtx) => {
+        try {
+          effectJournal.begin(call, spec, invocation, context.executionKey);
+        } catch (error) {
+          // A blocked session is an operator problem, not a model problem. The journal names the
+          // key and attempt; without the command the only reaction left to a model — or to whoever
+          // reads the transcript — is "the tool is broken", which is exactly what happened before.
+          const message = String(error);
+          if (!message.includes('OUTCOME_UNKNOWN')) throw error;
+          throw new Error(`${message}\n\nThis session is blocked by a side effect whose outcome is unknown, so a human must confirm what happened before anything else runs:\n  vessel effects resolve --session ${session.sessionId} --key <key> --attempt <n> --applied|--not-applied --evidence "<what you checked>"`);
+        }
+      },
       afterDispatch: async (call: ToolCall, result: import('@vessel/shared').ToolExecutionResult, context: import('@vessel/runtime').ExecutorCtx) => effectJournal.finish(call, result, context.executionKey),
     };
     const rpcExecutor = new Executor({ decide: modPolicy, permitAuthority: policyEngine.permits, ...effectHooks });
