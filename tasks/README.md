@@ -12,7 +12,7 @@
 
 ## 怎么读这个目录
 
-最近新增交付：[282](282-effect-block-message.md) 会话被未知副作用挡住时，工具结果里直接给出解除命令（带本会话 id）；定向测试通过。前序 [280](280-arch09-traceable-fixtures.md) ARCH-09 的可追溯性收口（14 fixture / 7 类别逐个复核、conformance 25/25、全量两 root 全绿）；跨 harness live 证据仍归 ARCH-04。前序 [279](279-cli-effects-reconcile.md) 未知副作用有了 CLI 出路（`vessel effects list|resolve`，写同样的 `audit/effect_reconciled`）；定向测试与真实 CLI 进程验证通过。前序 [278](278-effect-outcome-classification.md) 一次工具失败不再锁死会话（把「跑完没」与「成功没」分开判定）；定向门禁与真实模型会话通过。前序 [277](277-ui-p2-fixes.md) 两个 UI P2 已实现并通过定向门禁；浏览器几何与方向口径待复验。
+最近新增交付：[277](277-ui-p2-fixes.md) C-F1 首版被浏览器复验判为不通过（360×900 重叠 36.34px），已按真实根因（footer 撑出对话列）重做并在真实 Chrome 复测通过；B-F1 已由用户复验通过。前序 [282](282-effect-block-message.md) 会话被未知副作用挡住时，工具结果里直接给出解除命令（带本会话 id）；定向测试通过。前序 [280](280-arch09-traceable-fixtures.md) ARCH-09 的可追溯性收口（14 fixture / 7 类别逐个复核、conformance 25/25、全量两 root 全绿）；跨 harness live 证据仍归 ARCH-04。前序 [279](279-cli-effects-reconcile.md) 未知副作用有了 CLI 出路（`vessel effects list|resolve`，写同样的 `audit/effect_reconciled`）；定向测试与真实 CLI 进程验证通过。前序 [278](278-effect-outcome-classification.md) 一次工具失败不再锁死会话（把「跑完没」与「成功没」分开判定）；定向门禁与真实模型会话通过。前序 [277](277-ui-p2-fixes.md) 两个 UI P2 已实现并通过定向门禁；浏览器几何与方向口径待复验。
 
 | 本地交付 | 状态 | 任务卡 |
 |---|---|---|
@@ -37,7 +37,7 @@
 | 长输出截断 500 根治与沙箱 Token 权限 (卡 255) | 已实现并通过定向门禁（沙箱启动缺口转卡 256） | [255](255-fix-length-truncation-500-and-sandbox-fallback.md) |
 | Windows 受限沙箱启动链路 (卡 256) | 已完成，原生验收通过 | [256](256-windows-sandbox-launch-console.md) |
 | Shell 权限与联网边界 (卡 276) | 原方案否决（沙箱不限网络）；改为 UI 显式开关 + 工作区准备脚本，已实现 | [276](276-shell-under-workspace-write.md) |
-| UI 两个 P2 缺陷 (卡 277) | 已实现，定向门禁通过；浏览器几何与方向口径待复验 | [277](277-ui-p2-fixes.md) |
+| UI 两个 P2 缺陷 (卡 277) | B-F1 已由用户复验通过；C-F1 首版被浏览器判为不通过，已按真实根因重做并在 Chrome 360×900 复测通过（待用户同条件确认） | [277](277-ui-p2-fixes.md) |
 | apps/web typecheck 门禁修复 (卡 257) | 已实现，门禁全绿 | [257](257-web-typecheck-gate.md) |
 | 消除虚假完成信号 (卡 258) | 已实现，五项定向门禁全绿（待验收） | [258](258-false-completion-signal.md) |
 | 删除的跨阶段一致性 (卡 259) | 已实现，五项定向门禁全绿；待浏览器复验/协调者验收 | [259](259-delete-stage-consistency.md) |
