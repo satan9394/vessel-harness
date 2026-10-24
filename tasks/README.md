@@ -37,7 +37,7 @@
 | 长输出截断 500 根治与沙箱 Token 权限 (卡 255) | 已实现并通过定向门禁（沙箱启动缺口转卡 256） | [255](255-fix-length-truncation-500-and-sandbox-fallback.md) |
 | Windows 受限沙箱启动链路 (卡 256) | 已完成，原生验收通过 | [256](256-windows-sandbox-launch-console.md) |
 | Shell 权限与联网边界 (卡 276) | 原方案否决（沙箱不限网络）；改为 UI 显式开关 + 工作区准备脚本，已实现 | [276](276-shell-under-workspace-write.md) |
-| UI 两个 P2 缺陷 (卡 277) | B-F1 已由用户复验通过；C-F1 首版被浏览器判为不通过，已按真实根因重做并在 Chrome 360×900 复测通过（待用户同条件确认） | [277](277-ui-p2-fixes.md) |
+| UI 两个 P2 缺陷 (卡 277) | 已收口：B-F1 用户复验通过；C-F1 经 PDW 任务 `20261024095132-1bac7e`（accepted_local）修复，几何检查 5 视口全绿 | [277](277-ui-p2-fixes.md) |
 | apps/web typecheck 门禁修复 (卡 257) | 已实现，门禁全绿 | [257](257-web-typecheck-gate.md) |
 | 消除虚假完成信号 (卡 258) | 已实现，五项定向门禁全绿（待验收） | [258](258-false-completion-signal.md) |
 | 删除的跨阶段一致性 (卡 259) | 已实现，五项定向门禁全绿；待浏览器复验/协调者验收 | [259](259-delete-stage-consistency.md) |
