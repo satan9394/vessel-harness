@@ -6,16 +6,16 @@
 
 ## 0. 快速接管协议（当用户直接说「继续未完成的」或「继续」时）
 
-**当前快照（2026-10-23 晚，协调者实测）**
+**当前快照（2026-10-24，协调者实测）。本节会话细节与未完成项另有交接：`evidence/sessions/2026-10-24-session-handoff.md`。**
 
 | 项 | 实况 |
 |---|---|
 | HEAD / 分支 | 本地 `main`，工作树干净（当前 commit 以 `git rev-parse --short HEAD` 为准，本表不再钉死哈希以免过期） |
 | 远端 | `origin/feat/v2.8-taste-ui` 与本地同 commit；**与本节下方 2026-10-06「不再向 GitHub 提交」的旧口径冲突，待维护者确认以哪个为准** |
 | 全量门禁 | `test:all` 根 305 文件 / 3198 通过 + 6 跳过；web 58 文件 / 494 通过；`tsc -b`、`typecheck:tests`、web typecheck、web build 均 exit 0 |
-| PDW | `.pdw/config.json` 1.3.3-local，`doctor` 五角色 ready；C-F1 由任务 `20261024095132-1bac7e`（`accepted_local`）交付，`.pdw/` 不入库 |
-| 最近交付 | 卡 276（完全访问下 Shell 可用）、277（两个 UI P2，C-F1 由真实几何检查收口）、278（工具失败不再锁死会话）、279（`vessel effects list\|resolve`）、280（ARCH-09 可追溯性）、282（阻断消息给出解除命令） |
-| 待用户执行 | 卡 277 的 360×900 几何与键盘复验（提示词 `tasks/prompts/card277-browser-recheck.md`）；卡 281 的 POSIX 降级口径拍板（安全取舍） |
+| PDW | `.pdw/config.json` 1.3.3-local，五角色 ready；`implement` = Codex `gpt-6.1-sol`/medium（`codex-cli 0.164.0`），其余 OC `deepseek-v4.1-flash`；C-F1 由任务 `20261024095132-1bac7e`（`accepted_local`）交付；`.pdw/` 不入库 |
+| 最近交付 | 卡 276（完全访问下 Shell 可用）、277（两个 UI P2；C-F1 由 5 视口几何检查收口）、278（工具失败不再锁死会话）、279（`vessel effects list\|resolve`）、280（ARCH-09 可追溯性）、282（阻断消息给出解除命令） |
+| 待用户执行 | 卡 281 的 POSIX 降级口径拍板（A 保持现状／B 默认拒绝／C 仅 danger 放行，安全取舍）；卡 277 的人眼确认（可选，`tasks/prompts/card277-browser-recheck.md`） |
 | 已知外部阻塞 | ARCH-04 跨 harness live 证据需逐次授权调用本机其他 CLI；UI-10 的 150%/200% 缩放与原生输入法只能在真实浏览器验证 |
 
 下面这段是 2026-10-22 的历史快照，保留原文以便追溯，不要当作现状。
