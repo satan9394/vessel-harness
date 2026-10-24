@@ -79,3 +79,51 @@ nslookup example.com → 2606:4700:10::ac42:93f3 / 104.20.23.154 / 172.66.147.24
 
 被否决的实现已整份 stash 保留（`card276-workspace-write-rejected-network-egress`），未合并。
 逐进程网络隔离（AppContainer/WFP）属独立课题，不在 v0.1 范围。
+
+### 后续（同日）：补上「完全访问也跑不了」的缺口
+
+UI 的完全访问档位落地后，用真实模型会话验证（`danger-full-access` + 普通临时工作区）发现 Shell 仍然必拒：
+
+```
+[DENIED] restricted sandbox denied: sandbox directory requires provisioned
+         Low Integrity and restricted SID ACL: <workspace>
+```
+
+原因是卡 256 的沙箱要求工作区**预先**带 Low 标签且其按路径派生的受限 SID 被授予写权限；此前端到端能过，
+是因为夹具目录被手工准备过。普通项目目录必然没有，于是「完全访问」变成必然拒绝。
+
+试过并**否决**的两条：
+
+1. **A：让 `danger-full-access` 跳过沙箱**（改 `createShellTool` 按 profile 选择 runner）。
+   实现完成后 `test:all` 三个套件红：`B005`、安全包「`no_executed_call` 必须能单独红」、`nativeSandboxIntegration`
+   （它断言真实工具循环会产生原生沙箱审计）。因为 Shell 只在 danger 下可用，A 会让沙箱在整个产品里**不可达**，
+   卡 256 的整条链变成测试里的死代码。已 stash（`card276-danger-bypass-sandbox-rejected-suite-wide`），未合并。
+2. **B：会话内静默给工作区打 ACL**。否决理由：那是改用户目录权限位，不该由一次对话偷偷完成。
+   参照 OpenAI Codex 的 Windows 沙箱——ACL 配置在 setup 阶段、需提权；Claude Code 在原生 Windows 上干脆不隔离。
+
+**采用 C：显式、一次、可撤销的准备命令** `scripts/provision-sandbox.ps1`：
+
+- `-Path <项目目录>`：授予该工作区派生 SID 的 Modify、把目录设为 Low 完整性，并回读验证两项事实。
+- `-Revoke`：移除授权、标签设回 Medium（`icacls /remove:g *<sid>` 对本地不存在的 SID 报 1332，
+  故改用与授权对称的 .NET `RemoveAccessRuleSpecific`；标签判定也改为匹配 `Low Mandatory Level`，
+  因为 Low 与 Medium 都带 `(NW)` 策略位，光看标志位区分不开）。
+- 实测：SID 与 `restrictedWriteSid()` 逐字一致；准备后 `cmd /c echo` 在沙箱内 exit 0、`integrityRid=4096`；
+  撤销后同一命令再次被拒。
+
+准备脚本落地后做真实会话复验，又发现两处必须一起改，否则「已准备」仍然跑不起来：
+
+1. **写根里的 `os.tmpdir()` 是致命项**。预检要求每个写根都已准备，系统临时目录永远不会被准备，
+   所以准备完工作区后仍然被拒，报错路径指向 `%TEMP%`。低完整性令牌本来就写不进 Medium 标签的临时目录，
+   该写根从未提供真实能力，已移除（沙箱路径的写根现在只有工作区）。
+2. **拒绝信息不可操作**。原始错误只是一句路径抱怨，真实模型会话把它读成「Shell 工具不可用」并重试三次。
+   现在命中该错误时补一句 `run: scripts/provision-sandbox.ps1 -Path "<workspace>"`。
+
+复验口径（真实模型、`danger-full-access`、普通临时工作区、隔离的 provider/usage 根）：
+未准备 → `DENIED` 且提示脚本；准备后 → `sandboxed: true`、`outcome: enforced`、`integrityRid: 4096`、
+`allowedWritePaths` 只有工作区，模型贴出的 `echo` 输出与真实一致。
+
+> 教训（已写进 `AGENTS.md`）：一次 `test:all` 之后 `packages/*/dist` 可能落后于 `src`，
+> 而 `vessel serve` 通过包导出走 **dist**。第一次复验就是因为 dist 还留着已回滚的 A 方案，
+> 测出了「能跑」的假象——`tsc -b` 之后重跑才看到真正的 DENIED。
+
+边界如实记录在 `docs/POLICY-SPEC.md` §2.4：未准备的工作区不静默降级，而是 fail-closed 并报出准备方法。

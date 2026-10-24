@@ -43,7 +43,7 @@ it('projects real offline tool-loop native audits despite after_tool omitting me
   try {
     await controller.runTurn('Run the offline tool');
     expect(controller.projections.toolActivity.activities()).toMatchObject([{ toolName: 'Shell', status: 'done', sandbox: {
-      isolationTier: 'passthrough-fallback', sandboxed: false, outcome: 'fallback', allowedWritePaths: [root, os.tmpdir()], reason: 'native-helper-unavailable',
+      isolationTier: 'passthrough-fallback', sandboxed: false, outcome: 'fallback', allowedWritePaths: [root], reason: 'native-helper-unavailable',
       constraints: { memoryLimitBytes: null, readOnlyPaths: [] },
     } }]);
   } finally { await controller.close(); }
