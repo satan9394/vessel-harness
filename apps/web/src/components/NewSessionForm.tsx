@@ -36,7 +36,7 @@ export default function NewSessionForm({ api, onCreated, onClose, initialPermiss
     }).catch(() => { if (live) setLoadFailed(true); }).finally(() => { if (live) setLoading(false); });
     return () => { live = false; };
   }, [api, providerRevision]);
-  const [permission, setPermission] = useState(initialPermission);
+  const [permission, setPermission] = useState<NonNullable<CreateSessionInput['permission']>>(initialPermission);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -77,7 +77,9 @@ export default function NewSessionForm({ api, onCreated, onClose, initialPermiss
         <select id="sessionPermission" className="input" value={permission} onChange={event => setPermission(event.target.value as NonNullable<CreateSessionInput['permission']>)} disabled={busy}>
           <option value="read-only">{t('permissionReadOnly')}</option>
           <option value="workspace-write">{t('permissionWorkspaceWrite')}</option>
+          <option value="danger-full-access">{t('permissionDangerFull')}</option>
         </select>
+        {permission === 'danger-full-access' && <p className="dim" role="note">{t('permissionDangerHint')}</p>}
         <label className="field-label" htmlFor="workspaceRoot">
           {t('workspacePath')} </label>
         <input

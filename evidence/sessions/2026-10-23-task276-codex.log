@@ -1,0 +1,1848 @@
+OpenAI Codex v0.163.0
+--------
+workdir: E:\Code_file\Projects\Vessel_Harness
+model: gpt-6.1-sol
+provider: chatgpt-http
+approval: never
+sandbox: workspace-write [workdir, /tmp, $TMPDIR]
+reasoning effort: medium
+reasoning summaries: none
+session id: 01a16ba4-ee63-7f80-8c7d-0b3bcc64ae85
+--------
+user
+# Codex 执行契约：卡 276 让 Shell 在 workspace-write 下可用（强制沙箱）
+
+仓库 `E:\Code_file\Projects\Vessel_Harness`，分支 `main`，工作树干净。
+
+## 先读
+
+1. `tasks/276-shell-under-workspace-write.md`（范围与验收，唯一权威）
+2. `packages/policy/src/engine/Engine.ts`（约 88–117 行的 profile 比较与 approval 判定）
+3. `packages/tools/src/shell/shellTool.ts`（`requiredPermission` 与 native 沙箱分支）
+4. `packages/application/src/compose.ts:343`（Shell 装配，`nativeAudit` 总是传入）
+5. `evidence/task256/RESULT.md`（沙箱已可用的实测证据）
+
+## 背景
+
+UI 默认会话是 `workspace-write`，而 Shell 要求 `danger-full-access`，于是 UI 里永远调不到 Shell
+（实测拒绝原因：`approval required but approval=never (profile)`）。
+用户已拍板：允许 workspace-write 使用 Shell，但**必须强制走沙箱**。
+
+## 要做
+
+1. `Shell` 的 `requiredPermission` 改为 `workspace-write`；read-only 下仍不可用。
+2. **强制沙箱**：`shellTool` 在没有可用 native runner 时必须返回 `DENIED`，
+   不允许回落到无沙箱的 `sandbox.confine` 直通路径。有 runner 时照常执行。
+3. 测试：
+   - policy：workspace-write + Shell → 允许（不再 needsApproval）；read-only + Shell → 拒绝；
+     danger-full-access 行为不变。
+   - tools：缺 native runner → Shell 返回 DENIED（附错误类别）。
+   - 既有 Shell / 沙箱用例保持通过。
+4. 同步 UI 里关于权限的说明文案（如果有把 Shell 描述成「需要完整权限」的地方）。
+5. `docs/POLICY-SPEC.md` 补一句：Shell 在 workspace-write 下可用，但执行强制经过原生沙箱，
+   不可用时 fail-closed。
+
+## 红线
+
+- 不放宽 `read-only`。
+- 不绕过沙箱、不新增「没有沙箱也照跑」的降级分支。
+- 不改 `packages/core`、不改沙箱实现本身、不引入 approval 交互流。
+- 不 commit/push；不跑 `test:all`（协调者跑）。
+
+## 交付
+
+- 改动 + 新增测试名。
+- 门禁退出码与计数：`tsc -b`、`typecheck:tests`、`vitest run packages/policy packages/tools`、
+  `vitest run apps/local-server`、`test:web`。
+- 最终回复说明：为什么这样改能保证「workspace-write 下也一定在沙箱里」，以及被否的替代方案。
+
+codex
+我会先核对卡 276 与现有沙箱证据，修改权限声明和 fail-closed 分支，再跑指定门禁；不 commit/push，也不跑 `test:all`。
+
+hook: PreToolUse
+hook: PreToolUse
+hook: PreToolUse Completed
+hook: PreToolUse Completed
+exec
+"C:\\work\\AppData\\Local\\Microsoft\\WindowsApps\\Microsoft.PowerShell_8wekyb3d8bbwe\\pwsh.exe" -Command 'Get-Content tasks/276-shell-under-workspace-write.md; Get-Content HANDOFF.md -TotalCount 100; Get-Content .agents/skills/personal-dev-workflow/SKILL.md; rg -n "task256|shell|sandbox" C:/work/.codex/memories/MEMORY.md' in E:\Code_file\Projects\Vessel_Harness
+ exited 1 in 276ms:
+# 浠诲姟鍗?276: 璁?Shell 鍦?workspace-write 涓嬪彲鐢紙寮哄埗娌欑锛?
+**鐘舵€?*: 鎵ц涓?**鍒涘缓鏃堕棿**: 2026-10-23
+**鎵ц鑰?*: Codex (`gpt-6.1-sol`, medium)
+**鍗忚皟鑰?*: OpenCode
+
+---
+
+## 1. 鑳屾櫙锛堝疄娴嬶紝涓嶈閲嶆柊璁鸿瘉锛?
+鍗?275 鐨勬祻瑙堝櫒楠屾敹鍙戠幇锛歎I 姝ｅ父寤哄嚭鏉ョ殑浼氳瘽璋?Shell 蹇呰鎷掞紝鐞嗙敱鏄?`approval required but approval=never (profile)`銆?
+鏍瑰洜锛歚Shell` 鐨?`requiredPermission` 鏄?`danger-full-access`锛岃€?UI 榛樿浼氳瘽鏄?`workspace-write`锛?`packages/policy/src/engine/Engine.ts:100` 瀵?`workspace-write + danger-full-access` 鍒ら渶瑕佸鎵癸紝
+`approval=never` 鏃剁洿鎺?deny銆?
+鍚屾椂鍗?256 宸茶瘉鏄庢矙绠辩湡鐨勮兘宸ヤ綔锛堝彈闄愪护鐗?+ Low + Job Object + 鍐欐牴闄愬埗锛岀湡瀹炴ā鍨嬩細璇濋噷瀹¤璁板綍涓?`enforced`锛岃 `evidence/task256/`锛夈€?
+**鐢ㄦ埛鍐崇瓥锛堝凡纭锛?*锛氬厑璁?`workspace-write` 浣跨敤 Shell锛屼絾**蹇呴』**寮哄埗璧版矙绠便€?
+## 2. Goal
+
+1. `Shell` 鍦?`workspace-write` 涓嬪彲鐢紙涓嶅啀闇€瑕?`danger-full-access`锛夈€?2. 璇ユ潈闄愪笅鎵ц**蹇呴』**缁忚繃鍘熺敓娌欑锛涙矙绠变笉鍙敤鎴栨墽琛岃鎷掓椂 fail-closed锛堣繑鍥?DENIED锛夛紝
+   缁濅笉鍏佽鍥炶惤鍒版棤娌欑鐨?`sandbox.confine` 鐩撮€氳矾寰勩€?3. `read-only` 涓嬩粛涓嶅彲鐢ㄣ€?4. 涓嶆敼鍙?`danger-full-access` 鐨勭幇鏈夎涓恒€?
+## 3. Acceptance Criteria
+
+1. `packages/policy/src/engine/Engine.ts` 鐨?profile 姣旇緝锛歚workspace-write` + Shell 鈫?鍏佽锛堜笉鍐?needsApproval锛夈€?   `read-only` + Shell 鈫?浠嶆嫆缁濄€?2. `packages/tools/src/shell/shellTool.ts`锛氭病鏈夊彲鐢ㄧ殑鍘熺敓娌欑 runner 鏃讹紝杩斿洖
+   `DENIED`锛堜笉寰楅潤榛樿蛋闈炴矙绠辫矾寰勶級锛涙湁 runner 鏃舵墽琛屻€?3. 鏂板娴嬭瘯锛?   - policy锛歚workspace-write` 鍏佽 Shell銆乣read-only` 鎷掔粷 Shell銆乣danger-full-access` 涓嶅彉锛?   - tools锛氱己灏?native runner 鏃?Shell 杩斿洖 DENIED锛?   - 鏃㈡湁 Shell 娌欑鐢ㄤ緥浠嶉€氳繃銆?4. 闂ㄧ锛歚npx tsc -b`銆乣npm run typecheck:tests`銆乣npx vitest run packages/policy packages/tools`銆?   `npx vitest run apps/local-server`銆乣npm run test:web`銆俙test:all` 鐢卞崗璋冭€呰窇銆?5. 鑻?UI 閲屾湁鏉冮檺璇存槑鏂囨锛屽悓姝ユ洿鏂帮紙Shell 鍦?workspace-write 涓嬪彲鐢ㄤ絾寮哄埗娌欑锛夈€?
+## 4. Not Doing
+
+- 涓嶆斁瀹?`read-only`銆?- 涓嶅紩鍏?approval 浜や簰娴侊紙閭ｆ槸鍙︿竴涓€夐」锛屾湰娆′笉鍋氾級銆?- 涓嶆敼 `packages/core`锛涗笉鏀规矙绠卞疄鐜版湰韬€?- 涓?commit/push銆?
+## 5. Blast Radius
+
+`packages/tools/src/shell/shellTool.ts`銆乣packages/policy/src/engine/Engine.ts`锛堜粎 profile 姣旇緝涓庣浉鍏虫祴璇曪級銆?`packages/policy/src/risk/*`锛堣嫢绛栫暐鏂囨湰闇€瑕佸悓姝ワ級銆乣docs/POLICY-SPEC.md`銆乄eb 鏉冮檺璇存槑鏂囨锛堣嫢鏈夛級銆?
+## 6. Result
+
+寰呮墽琛屻€?
+# HANDOFF 鈥?椤圭洰浜ゆ帴
+
+> **鐢ㄩ€?*锛氭柊浼氳瘽 / 鏂?Agent / 鎹汉鎺ユ墜鏃讹紝**鍏堣鏈枃浠?*锛氱幇鐘躲€佹湭瀹屾垚娓呭崟銆侀獙璇佸懡浠ゃ€佸凡鐭ョ害鏉熼兘鍦ㄨ繖閲屻€?> 瑙勫垯鏈韩浠嶅湪 [`AGENTS.md`](AGENTS.md)锛涗細绾︽潫鏈潵鐨勫喅绛栧湪 [`docs/DESIGN-DECISIONS.md`](docs/DESIGN-DECISIONS.md)銆?> **鏈€鍚庢洿鏂?*锛?026-10-17銆傜淮鎶よ€咃細鍗曚汉銆?
+## 0. 蹇€熸帴绠″崗璁紙褰撶敤鎴风洿鎺ヨ銆岀户缁湭瀹屾垚鐨勩€嶆垨銆岀户缁€嶆椂锛?
+**褰撳墠缁帴瑕嗙洊浠ヤ笅鍘嗗彶蹇収锛?026-10-22锛?*锛氭祻瑙堝櫒楠屾敹涓ゆ尝淇12椤瑰凡鏈湴瀹炵幇銆侀獙璇佸苟浜よ瘉锛屽敮涓€褰撳墠浜嬪疄婧愪负[evidence/sessions/2026-10-23-fix-wave-report.md](evidence/sessions/2026-10-23-fix-wave-report.md)銆傚崱272宸蹭氦璇侊紝鏃犻仐鐣欏崐鎴疄鐜帮紱绛夊緟鍗忚皟鑰呴獙鏀?test:all锛屼笉鑷姩寮€鍚柊浠诲姟銆傛寚瀹氱湡瀹炴ā鍨嬩笉鍙橈紝绱17涓慨澶嶇湡瀹炴墽琛屽洖鍚堬紱鐙珛鐨?50%缂╂斁绛夋湭楠岃瘉杈圭晫浠嶅湪鎶ュ憡涓€傜敤鎴锋槑纭姝㈡湰鎵ц鑰呮敼packages/core銆乧ommit/push銆乼est:all锛涗笉閲嶇疆鐜版湁澶瑰叿涓庣姸鎬併€備互涓嬫棫鍗?34/235鐘舵€佸彧浣滃巻鍙茶儗鏅€?
+**浠讳綍 Agent 鍦ㄦ帴鏀跺埌銆岀户缁€?銆岀户缁湭瀹屾垚鐨勩€嶆寚浠ゆ椂锛岀洿鎺ユ牴鎹湰娈典笌 `.agent-state/run-state.json` 鍚戠敤鎴锋眹鎶ュ苟鎵ц锛?*
+
+1. **褰撳墠浜や粯涓庨樁娈电姸鎬?*锛?*Card 235锛堝熀浜?Taste-Skill 鐨?Web 宸ヤ綔鍙板缇庡鏌ヤ笌鍏ㄥ睆閫氭爮 UI 閲嶆瀯锛夊凡浜?2026-10-20 鏈湴浜や粯锛圵eb 50 鏂囦欢 / 404 passed 鍏ㄧ豢锛孋ore 0 鍙樺姩锛?*銆傛牴鎹?[Leonxlnx/taste-skill](https://github.com/Leonxlnx/taste-skill) 瑙勮寖褰诲簳娓呴櫎浜嗗姬褰㈠宀涘崱鐗囥€佸洓鍛?12px 鐣欑櫧缂濋殭涓庡浣欐瘺鐜荤拑鏉愯川锛岃惤鍦伴《澶╃珛鍦般€佷互 1px 缁嗙嚎鍒掑垎鐨勫伐涓氱骇 Edge-to-Edge 鍏ㄥ睆宸ヤ綔鍙般€傚墠搴?**Card 234锛圤penUI 鐢熸垚寮忔帓鐗堜綋绯昏瀺鍏ヤ笌 Web 浣撻獙鐥涚偣鍏ㄦ櫙鏁存敼锛夊凡浜?2026-10-19 鏈湴闂幆閫氳繃锛堝弻 Root 3445 passed / 6 skipped 鍏ㄧ豢锛孋ore 0 鍙樺姩锛?*銆傚嚟鎹厤杈撳鐢ㄣ€佷細璇濆畨鍏ㄥ洖鏀剁珯鍒犻櫎銆佹繁娴呬富棰樺父椹诲垏鎹€佸疄浣撴寜閽氦浜掓暀鑲层€丟FM Markdown 瑙ｆ瀽涓?OpenUI 鐢熸垚寮忓崱鐗囧凡鍏ㄩ潰浜や粯銆傚墠搴?Card 233锛堜緵搴斿晢鑳藉姏缁ф壙涓庡崗鍟嗘嫤鎴慨澶嶏級浜﹀凡鏈湴鍚堝叆銆傚墠搴?Card 225鈥?32 妯″瀷渚涘簲鍟嗗叏灞忕嫭绔嬩腑鏋€侀珮绾фā鍨嬫悳绱㈢瓫閫夊櫒涓?CC-Switch 鏉冨▉棰勮宸插叏閮ㄨ惤鍦般€?*V2.5 Epic 209锛?05鈥?09锛夊凡浜?2026-10-10 鏈湴楠屾敹瀹屾垚锛堝弻 Root 3083 passed / 6 skipped 鍏ㄧ豢锛?*銆?*V2.6 Epic 214锛?10鈥?14锛夊凡浜?2026-10-11 鏈湴楠屾敹瀹屾垚锛堝弻 Root 3146 passed / 6 skipped锛?*銆?*Card 217锛圓RC-01..05 鏋舵瀯鏁存敼锛変笌 Card 218锛圵eb 宸ヤ綔鍙版暣鏀癸級宸蹭簬 2026-10-12/13 鏈湴鍏ㄩ儴楠屾敹瀹屾垚锛堝弻 Root 3228 passed / 6 skipped锛學eb build exit 0锛?2 寮犱腑鑻卞弻璇埅鍥惧叏閮ㄥ埛鏂帮紝core 婧愮爜涓ユ牸 0 鍙樺姩锛?*銆傚墠搴?V2.4 宸叉彁浜よ嚦鏈湴 `main`锛坈ommit `dd8e72c`锛夛紝V2.6+215+216 鍚堝叆 `520492d`锛孋ard 217 鍚堝叆 `6442171`銆?2. **宸插畬鎴愪笌宸查獙璇佸熀绾?*锛?   - 192鈥?95 (V2.2)锛氫笁鎬佹磱钁?Mod 涓棿浠舵祦姘寸嚎銆乄orker 绾跨▼娌欑锛堥槻寰?CVE-2026-82533锛夈€佹竻鍗曟潈闄愬璁′笌 CLI `vessel mod/doctor`锛?   - 196鈥?99 (V2.3)锛氱湡瀹?Red鈫扜reen 缂洪櫡澶嶇幇纭棬绂佷笌 SHA-256 闃蹭吉鍑嵁銆佸閲?AST 绗﹀彿渚濊禆鍥捐氨锛堝潎鍊?10.7ms锛夈€佽嚜閫傚簲涓婁笅鏂囧壀鏋濓紙鍓灊鐜?82.56%锛夛紱
+   - 200鈥?04 (V2.4)锛欳hat 鍐呭祵缁勪欢 IR 涓庡弻鍚?SSE/HTTP 绔偣銆丷eact 灏卞湴寰粍浠剁兢銆佸洓 Tab 甯搁┗ Docked Inspector銆丆LI 缁堢鍔ㄦ€?StatusLine 涓庡僵鑹叉姌鍙?Diff锛?   - 205鈥?09 (V2.5)锛氱敾甯冨崟 Hunk 琛ヤ竵閫夋嫨鍣ㄣ€佹祦寮忔€濊€冩姌鍙犱笌瑙勫垯鏍囨敞銆佸叏灞€鍛戒护闈㈡澘 Ctrl+K銆佹闈㈡敞鎰忓姏閫氱煡涓庨煶棰戝悎鎴愭彁绀猴紙3083 passed / 6 skipped锛夛紱
+   - 210鈥?16 (V2.6+)锛氬叏鍩熺函姝?i18n 瀛楀吀銆佸彲瑙嗗寲澶氭ā鍨嬫帴鍏ヤ腑鏋€佽嚜鍔ㄦ媺鍙栦笌 Schema 褰掍竴鍖栥€丄rchify 鏋舵瀯鍙鍖栦笌涓嫳鍙岃 Retina 鎴浘锛?155 passed / 6 skipped锛夛紱
+   - 217 (V2.7)锛欰RC-01..05 濂戠害涓庢墽琛屽彲闈犳€т腑鏋紙SessionProjection 濂戠害銆丆ompaction 瀹堟亽鏂█銆丗ail-to-compile 绛栫暐闂ㄧ銆丷un 棰勭畻鐔旀柇銆丒xecutionPermit 鍑瘉涓庡壇浣滅敤瀹¤锛?219 passed / 6 skipped锛夛紱
+   - 218 (V2.8)锛歏ESSEL-UI-2026-01 鍙粍鍚?Agent 宸ヤ綔鍙帮紙Workbench / Activity / Agent Studio / Settings 鍥涘ぇ涓€绾у尯鍩熴€佸氨鍦颁换鍔″惎鍔ㄦ祦銆佸垎缁勫懡浠ら潰鏉裤€?00px 鑷€傚簲鎶藉眽锛?228 passed / 6 skipped锛夛紱
+   - 鍏ㄩ噺缁堟€侀棬绂佸熀绾匡細`tsc -b`銆乣typecheck:tests` 鍧?exit 0锛沇eb 鐢熶骇鎵撳寘 exit 0锛涘叏鍘嗗彶 `identity-guard.sh` 0 鍛戒腑銆?3. **褰撳墠璺嚎涓庣洰鏍?*锛?   - **涓や唤鏁存敼瀹炴柦瑙勮寖锛圴ESSEL-ARCH-2026-01 涓?VESSEL-UI-2026-01锛夎惤鍦扮姸鎬?*锛?     - Card 217锛堟灦鏋勬暣鏀硅惤鍦?ARC-01..05锛夊凡楠屾敹鍚堝叆 `6442171`锛?     - Card 218锛圵eb UI/UX 宸ヤ綔鍙版暣鏀硅惤鍦帮級宸查獙鏀堕棴鐜紱
+   - **寮€鍙戞ā寮忎笌绾︽潫**锛氱函鏈湴寮€鍙戯紙涓ョ git push锛岄伒寰?2026-10-06 瑙勭害锛涜杽鏍搁浂渚靛叆 packages/core 婧愮爜锛涘垹闄ゅ繀杩涘洖鏀剁珯锛沇eb 鏋勫缓蹇呴』鎼哄甫 `-- --emptyOutDir false`锛夛紱
+   - **鏋舵瀯鑱岃矗鍒嗗伐锛?026-10-14 鐢ㄦ埛鏄庣‘鎸囦护锛?*锛欰ntigravity (涓讳細璇? 涓ユ牸瀹氫綅涓?*瑙勫垝涓庢寚鎸ヨ€?(Planner/Commander)**锛岃礋璐ｉ渶姹傛媶瑙ｃ€佸绾﹁璁°€佷换鍔″崱缂栧埗銆侀獙鏀朵笌瀵硅处锛?*涓ョ鑷杩涜浠ｇ爜寮€鍙?*銆傚洜 Codex 鍑虹幇绠楀姏涓庡唴缃祻瑙堝櫒鐜鐡堕锛屼唬鐮佸疄鐜颁笌鍏ㄩ噺楠岃瘉闂ㄧ鍏ㄩ潰绉讳氦缁欓殧绂绘墽琛屽櫒 **OpenCode锛堟惌杞?DeepSeek-v4.1-Flash锛屾€濊€冩繁搴﹁涓?high 鏈€楂樻€濊€冩繁搴︼級** 浠?**goal 鐩爣妯″紡** 鎵ц鏀诲潥闂幆锛?   - **妯″瀷閿佸畾瑙勭害**锛氬綋鍓嶆帴鐩樻墽琛屾ā鍨嬪彉鏇翠负 **DeepSeek-v4.1-Flash**锛堟€濊€冩繁搴︼細`high`锛夛紝浠?`goal` 妯″紡鐩磋揪鐩爣銆?
+| 椤?| 褰撳墠瀹炲喌 |
+|---|---|
+| 浠撳簱 / 鍒嗘敮 | `satan9394/vessel-harness` / `main`锛堢函鏈湴寮€鍙戯紝涓嶆帹閫侊級 |
+| 宸ヤ綔鍖虹姸鎬?| HEAD `c7cb0ca`锛堟湭鎻愪氦锛夛紱鏈彁浜ゆ敼鍔?= 鍗?223/224/225/226/227/228/229/230/231 涓?*鍗?232锛堟ā鍨嬩緵搴斿晢鍏ㄥ睆鐙珛涓灑銆侀珮绾фā鍨嬫悳绱㈢瓫閫夊櫒涓?CC-Switch 鏉冨▉棰勮琛ラ綈锛?* |
+| 鏈哄櫒鐘舵€佺湡婧?| `.pdw/`锛?.3.3-local锛岄厤缃氨缁紝doctor exit 0锛?|
+| 褰撳墠浠诲姟鍗?| **Task 234锛圤penUI 鐢熸垚寮忔帓鐗堜綋绯昏瀺鍏ヤ笌 Web 浣撻獙鐥涚偣鍏ㄦ櫙鏁存敼锛屽凡鏈湴楠岃瘉鍚堝叆锛?*锛涘墠搴忓崱 225鈥?33 鍏ㄩ儴鏈湴楠屾敹闂幆 |
+| 鍓嶅簭宸插悎鍏ヤ换鍔?| `tasks/234-openui-generative-ui-and-ux-polish-plan.md`锛堝弻 Root 3445 passed / 6 skipped 鍏ㄧ豢锛孴hin Core 涓ユ牸 0 鍙樺姩锛屽嚟鎹鐢?+ 鍥炴敹绔欏垹闄?+ 涓婚甯搁┗ + 瀹炰綋鎸夐挳 + OpenUI 寮曟搸锛?|
+
+Card 223 鏈湴浜や粯涓庤蛋鏌ラ棴鍚堬紙2026-10-15/16锛孫penCode goal 妯″紡锛夛細鎸?`docs/design-prototypes/IMPLEMENTATION-PLAN.md`锛圴ESSEL-UI-2026-02锛夋妸銆岀幓鐠冭瑙?+ 鍥涙爮宸ヤ綔鍙?瀹￠槄鍙般€嶇殑 **P1鈥揚8 鍏ㄩ噺钀藉湴鍒?`apps/web`**锛坄.tokens` 鐜荤拑浠ょ墝灞?鈫?鐜荤拑澶栧３ 鈫?`Rail.tsx` 58px 鍥炬爣杞?+ `58px 232px 1fr` 缃戞牸 + 300px 瀹￠槄鏍忥紙鐪熷疄 8 Tab 妫€瑙嗗櫒锛夆啋 `PlanChecklist.tsx` 甯搁┗璁″垝娓呭崟 鈫?`ComposerMeters.tsx` 鍥涜兌鍥?+ 甯搁┗璁￠噺 鈫?淇笐鐐?鈫?`FEATURE-COVERAGE.md` 鐨?B1鈥揃18 閫愭潯鏍稿 鈫?鍏ㄧ煩闃?64 寮犳埅鍥撅級銆傞殢鍚庣敤 `browser-skill`锛堢嫭绔?Agent Window锛屾湭鍊熺敤鐢ㄦ埛鏍囩椤碉級鍋氱湡瀹炴祻瑙堝櫒鍔熻兘璧版煡锛屼慨澶?5 澶勭己闄凤紝鍚樆鏂骇涓€澶勶細**Vite 8 浠ｇ悊榛樿 `changeOrigin: true` 鏀瑰啓 Host锛屼护鍚庣 `trustedOrigin()` 鍒や负璺ㄥ煙銆佹嫤鎺夋墍鏈夊甫 Origin 鐨勫啓璇锋眰锛?03锛?* 鈫?`vite.config.ts` 鏀?`changeOrigin: false`銆傞棬绂佸洓闂ㄩ『搴?exit 0锛屽弻 Root **3,037 passed + 6 skipped / web 340 passed**锛宍packages/core` **闆舵敼鍔?*銆傝瘉鎹?`evidence/sessions/2026-10-15-ui-landing/`锛坄PROOF.md`銆乣gallery.html`銆乣bsk-functional/FINDINGS.md`锛夛紱鏈獙璇侀」锛氱湡瀹?provider 鑱旂綉璧版煡銆佺Щ鍔ㄧ鐪熸満銆?
+Card 224 鏈湴浜や粯锛?026-10-16 鈫?宸插崌绾ц嚦 **1.3.2-local**锛夛細PDW `personal-dev-workflow` 鐢?1.0.0锛坄.agent-state` 鎺у埗鍣級閫傞厤涓?1.3.1-local锛岄殢鍚庡崌绾у埌 **1.3.2-local**锛堝畬鏁?Skill 鐩綍 + Node 杩愯鍣?+ 椤圭洰绾?`.pdw/` + 闆跺畨瑁呭叆鍙?`pdw.ps1`锛夛紱`doctor` 瀹炴祴 1.3.2-local锛? 涓鑹插叏閮?`ready`锛坰can/test-plan/review = OC + `workbuddy/deepseek-v4.1-flash`锛沬mplement = Codex `host-default`锛沺lanner = AGY `host-default`锛夛紝鍖呭搱甯岄€愰」涓€鑷淬€乣install` 闃茶鐩栦繚鎶や繚鎸併€佸す鍏风紪鎺掗殧绂?20/20锛涙棫鐘舵€侀浂鏀瑰姩骞跺綊妗ｄ负 `evidence/pdw-migration-1.3.1/LEGACY-STATE.md`銆傝縼绉讳笌鍥炴粴瑙?`evidence/pdw-migration-1.3.1/MIGRATION.md`锛堟枃浠跺悕浠嶅甫 1.3.1锛屽唴瀹瑰 1.3.x 鍚屾牱閫傜敤锛夈€?*娉ㄦ剰**锛歚AGENTS.md`锛圙PT-6.1 Sol / medium锛変笌 `HANDOFF.md`锛圤C + DeepSeek-v4.1-Flash / high锛夌殑妯″瀷鍙ｅ緞浠嶅啿绐侊紝**寰呯淮鎶よ€呮媿鏉?*銆?
+Card 222 鏈湴浜や粯涓庨獙鏀讹紙2026-10-14锛孫penCode goal 妯″紡浜や粯锛夛細渚濇嵁鏋舵瀯鏁存敼瑙勮寖 ARC-10/ARC-11 涓?UI 瑙勮寖 UI-013/UI-015/UI-016/UI-017 涓€娆℃€ф敹瀹樸€傚绾﹀眰鏂板 `AgentInstanceSpec` / `TaskLease` / `TaskTreeNode` / `PermissionScope` 涓庡崟璋冩敹绐勫師璇紙`packages/shared/src/team.ts`锛夛紱`packages/application` 钀藉湴 `TaskTreeScheduler` 涓?`TaskTreeRegistry`锛堜緷璧?DAG 灏辩华鍒ゅ畾銆佺绾?TTL 瓒呮椂銆佺埗瀛愬彇娑堢骇鑱斻€侀樆濉炰緷璧栧彇娑堛€佸鎵归棬绂併€佸瓙缁撴灉褰掑苟銆佹寜**鏈夋晥鐖朵綔鐢ㄥ煙**閫愮骇鏀剁獎锛夛紝鎵ц涓€寰嬪鎵樻敞鍏ョ殑 executor锛?*涓嶅瓨鍦ㄧ浜屽寰幆**锛沴ocal-server 鏂板 `/api/tasks/tree`銆乣/api/activity/runs`銆乣/api/behavior/library`銆乣/api/behavior/compose`銆乣/api/sessions/:id/trace`锛沇eb 鏂板鍥㈤槦浠诲姟鏍戙€佽法椤圭洰娲诲姩涓庨泦涓鎵归槦鍒椼€佷氦浜掑紡 Agent Studio Composer銆佺粨鏋勫寲鑴辨晱 Trace锛屽叏閮ㄤ腑鑻卞弻璇?+ 800px 鍝嶅簲寮忋€侫RC-11 浜や粯鏁呴殰娉ㄥ叆鍥涙柇鐐瑰浠讹紙瀵逛笉鍙€嗗壇浣滅敤璁℃暟姘镐笉澶嶈窇锛夈€丅ehavior Golden Conformance锛圠0鈫扡4 绋冲畾鎬?/ fail-to-compile / Verified 浠呭湪鏈夎繍琛屾椂璇佹嵁鏃舵巿浜堬級銆丆ompaction 100% 瀹堟亽鏂█銆傞棬绂侊細鍥涢棬椤哄簭 exit 0锛屽弻 Root **3,356 passed / 6 skipped** 鍏ㄧ豢锛宍packages/core` 琛屼慨鏀?**0**锛岄攣鏂囦欢涓?`package.json` 鏈彉锛涚绾?Chromium + CDP 瀹炴媿 8 寮狅紙涓?鑻?脳 妗岄潰/800px锛夊苟瀛?`browser-capture-meta.json`銆傝瘉鎹?`evidence/sessions/2026-10-14-card222/PROOF.md`锛堝惈 `REVIEW.md` 瀵规姉璇勫涓庛€屼笉瀹ｇО銆嶆竻鍗曪級銆?
+Card 221 鏈湴浜や粯涓庨獙鏀讹紙2026-10-14锛孫penCode 浜や粯 + Antigravity 楠屾敹锛夛細渚濇嵁鏋舵瀯鏁存敼瑙勮寖锛圓RC-07锛変笌 UI 瑙勮寖锛圲I-014锛夎惤鍦?Behavior 璇箟 IR銆佷簲绾у吋瀹规€ч樁姊笌 Agent Studio 鍙妫€鏌ュ櫒銆傚畾涔変竷澶ц涔夊垎绫讳笌浜旂骇鍏煎闃舵锛坄Importable 鈫?Renderable 鈫?Mappable 鈫?Enforceable 鈫?Verified`锛夛紝澧炲己缂栬瘧鏈熷瓧娈典笉鍙彉銆佸崟璋冩敹绐勩€佹暟缁勫幓閲嶄笌鏉ユ簮婧簮锛涙湭鏄犲皠寮哄埗绛栫暐纭€ф姏鍑?`BehaviorCompileError`锛涜惤鍦?`/api/behavior/inspect` 绔偣骞跺湪 Web 绔?Agent Studio 鍖哄煙闆嗘垚鍙妫€鏌ラ潰鏉匡紙涓嫳鍙岃 + 800px 鑷€傚簲锛夈€傛敾鍧氭敹鍙ｏ細鎸夋巿鏉冨湪 `HybridMemoryStore` 钀藉湴鍐呭瓨鍚戦噺绱㈠紩锛堢儹涓綅 18鈥?4ms 鈫?6.288ms锛夊交搴曟秷闄ゅ苟鍙戠幆澧冩€х孩锛屼笁澶ф绉掗棬绂佺ǔ鍋ュ寲涓烘湁鐣岄噸娴嬶紝绂荤嚎 Chromium 瀹炴媿 6 寮犲叏閲忔埅鍥俱€傞棬绂侊細瀹氬悜娴嬭瘯 53+60 鍏ㄧ豢锛屽洓澶х粓鎬侀棬绂侀『搴?exit 0锛屽弻 Root **3,296 passed / 6 skipped** 鍏ㄧ豢锛宍packages/core` 琛屼慨鏀逛弗鏍间负 **0**銆傝瘉鎹?`evidence/sessions/2026-10-13-card221/PROOF.md`銆?
+Card 220 鏈湴浜や粯涓庨獙鏀讹紙2026-10-13锛孋odex 浜や粯 + Antigravity 楠屾敹锛夛細渚濇嵁鏋舵瀯鏁存敼瑙勮寖锛圓RC-06/08/09锛変笌 UI 瑙勮寖锛圲I-011/UI-009锛夎惤鍦?Provider 鑳藉姏鍗忓晢濂戠害涓?Context 鍒嗗眰鐗堟湰鍖栫紦瀛樸€傚畾涔変笁鎬?`detected | declared | unknown` 鑳藉姏妯″瀷锛岃皟搴﹀墠纭嫤鎴笉鏀寔鐨勫己鍒剁害鏉燂紙鎶涘嚭 `CapabilityMismatchError`锛岄浂缃戠粶璋冪敤锛夛紱钀藉湴 Assembly / Provider Prefix / Projection / Token Estimation 鍥涘眰缂撳瓨鍙婁緷璧?Hash 澶辨晥锛涘己鍖?Compaction 鍘嬬缉涓殑浠诲姟鐩爣銆佺害鏉熴€佹渶鏂版寚浠ゃ€佸伐鍏峰鍋朵笌鎷掔粷璁板綍 100% 瀹堟亽锛沇eb/Local-Server 閫忎紶鑳藉姏涓庣紦瀛樼姸鎬佸苟瀹屾垚涓嫳鍙岃灞曠ず銆傞棬绂侊細瀹氬悜鍗曟祴 120 passed锛屾渶缁堝叏閲忓洓澶ч棬绂侀『搴?exit 0锛屽弻 Root **3,271 passed / 6 skipped** 鍏ㄧ豢锛宍packages/core` 琛屼慨鏀逛弗鏍间负 **0**銆傝瘉鎹?`evidence/sessions/2026-10-13-card220/PROOF.md`銆?
+Card 219 鏈湴浜や粯涓庨獙鏀讹紙2026-10-13锛孋odex 浜や粯 + Antigravity 楠屾敹锛夛細鍏ㄩ噺鍓嶇浜や簰涓庣湡瀹炴棤澶存祻瑙堝櫒锛圥laywright Chromium锛夎蛋鏌ユ祴璇曘€傝蛋鏌?77 椤圭偣鍑绘柇瑷€鍏ㄧ豢锛? console errors锛? uncaught exceptions锛涘彂鐜板苟闈跺悜淇浼氳瘽鍒囨崲鍘嗗彶娑堟伅涓㈠け缂洪櫡锛圵eakMap 鎶曞奖涓庝唬闄呰繛鎺ュ畧鍗級銆傞棬绂侊細鍏ㄩ噺鍙?Root **3,232 passed / 6 skipped** 鍏ㄧ豢锛宍npx tsc -b` / `npm run typecheck:tests` exit 0锛宲ackages/core **0 鍙樺姩**銆傝瘉鎹?`evidence/sessions/2026-10-13-card219/PROOF.md`銆?
+Card 218 鏈湴浜や粯涓庨獙鏀讹紙2026-10-12锛孋odex 浜や粯 + Antigravity 楠屾敹锛夛細渚濇嵁 `docs/plans/Vessel_Web_UI_UX_Improvement_Plan.md` (VESSEL-UI-2026-01) 钀藉湴 UI-P0 绾?Agent 宸ヤ綔鍙颁綋楠屻€傞噸鏋勪俊鎭灦鏋勪负 Workbench / Activity / Agent Studio / Settings 鍥涘ぇ涓€绾у鑸紱棣栭〉闆嗘垚 Project 鈫?Task 鈫?Start 灏卞湴浠诲姟鍚姩鍣紙甯︽ā鍨嬩笌鏉冮檺鐩撮€?Pill锛岀┖杈撳叆鏍￠獙涓庡け璐ュ彲閲嶇紪鑽夌锛夛紱Ctrl+K 鍏ㄥ眬鍛戒护闈㈡澘鎸夌郴缁熸搷浣?鏈€杩戦」鐩?娲昏穬浼氳瘽璇箟鎶樺彔鍒嗙粍锛岄殣钘忚皟璇曡８ ID 涓庨暱璺緞锛涜鍥惧畾鍒朵笌绯荤粺鏉冮檺瑙ｈ€︼紱鈮?00px 绉诲姩绔嚜閫傚簲涓烘棤闅滅鎶藉眽锛岀劍鐐瑰惊鐜笌 Escape 鍥炰綅銆傞棬绂侊細Web 鍗曟祴 34 鏂囦欢 / 291 passed銆乄eb typecheck exit 0銆乄eb 鎵撳寘锛坄-- --emptyOutDir false`锛塭xit 0銆佸叏閲忓弻 Root **3,228 passed / 6 skipped** 鍏ㄧ豢銆?2 寮犱腑鑻卞弻璇?Retina 鎴浘鍏ㄩ儴鍒锋柊銆乸ackages/core **0 鍙樺姩**銆佷緷璧栭攣鏃犲彉鍖栥€傝瘉鎹?`evidence/sessions/2026-10-12-card218/PROOF.md`銆?
+Card 217 鏈湴浜や粯涓庨獙鏀讹紙2026-10-12锛孋odex 浜や粯 + Antigravity 楠屾敹锛夛細渚濇嵁 `docs/plans/Vessel_Harness_Architecture_Improvement_Plan.md` (VESSEL-ARCH-2026-01) 钀藉湴 P0 绾?ARC-01 鑷?ARC-05銆傚畾涔変笉鍙彉 Event Log 涓?SessionProjection/RequestEnvelope 濂戠害锛孋ompaction 钀藉湴鐩爣/瀹夊叏鎷掔粷/宸ュ叿鎴愬瀹堟亽鏂█锛汢ehavior 缂栬瘧鏈熺己灏戝己鍒剁瓥鐣ュ紩鐢ㄦ椂纭€ф姏鍑?`BehaviorCompileError`锛團ail-to-compile锛夛紱Application/Engine 灞傚己鍖?Run/Turn 棰勭畻闄愬埗锛圱oken/Step/鏃堕棿纭绠椾笌 Cancel 纭畾鎬х粓鎬侊級锛汻untime/Policy 钀藉湴鍙傛暟缁戝畾鍨嬪崟娆?`ExecutionPermit` 鍑瘉锛屽璁?EffectJournal 闃查噸鏀俱€傞棬绂侊細瀹氬悜娴嬭瘯 330 passed锛宎ffected CLI 6 passed锛宍tsc -b` / `typecheck:tests` / 鍏ㄩ噺 `npm run test:all` 鍙?Root **3,219 passed / 6 skipped** 鍏ㄧ豢銆俙packages/core/src` 婧愮爜 **0 琛屼慨鏀?*锛岀粡浜虹被鎺堟潈浠呬慨鏀?3 涓?core 娴嬭瘯 fixture 娉ㄥ叆鏈€灏?policy stub锛?3/-3 lines锛夈€傝瘉鎹?`evidence/sessions/2026-10-12-card217/PROOF.md`銆?
+Card 215 鏈湴浜や粯涓庨獙鏀讹紙2026-10-11锛孫penCode 浜や粯 + Antigravity 楠屾敹锛夛細鍚庣鏂板 `normalizeProviderInput` 褰掍竴鍖栧吋瀹瑰櫒锛堝瓧鍏稿瀷 `models` / `options.baseURL|apiKey` 宓屽 / `npm` 鍗忚澹版槑锛夛紝鏂板 `POST /api/providers/pull-models` 绔偣涓?Web銆孭ull models銆嶆寜閽紝渚涘簲鍟嗗垹闄ゆ椂娓呯悊 `secretRef` 鍑嵁锛屽悗绔?*鍏蜂綋閿欒鐮侀€忎紶**锛堜笉鍐嶄竴寰?`provider_request_failed`锛夊苟鐢卞墠绔寜鐮佹湰鍦板寲灞曠ず锛屾湳璇鑼冨寲涓?`OpenAI 鍏煎 (OpenAI Compatible)` / `Anthropic (Claude)` / `API Key`銆傞棬绂侊細瀹氬悜娴嬭瘯 27锛堝悗绔級+ 35锛堝墠绔惈 i18n锛夊叏缁裤€佸弻 Root **3155 passed / 6 skipped**銆乣tsc -b` / `typecheck:tests` / web typecheck / web build锛坄-- --emptyOutDir false`锛夊叏 exit 0銆乣packages/core` **0 鍙樺姩**銆傜函鏈湴銆佹湭鎻愪氦/鎺ㄩ€併€佹棤鍒犻櫎銆佹湭椹卞姩澶栭儴 Agent銆傝瘉鎹?`evidence/sessions/2026-10-11-card215/PROOF.md`銆?
+Card 215 寰呭姙鐧昏锛?026-10-11锛夛細瑙ｅ喅鐢ㄦ埛鎻愬嚭鐨勬ā鍨嬭嚜鍔ㄦ媺鍙栫己澶便€佸崗璁?瀵嗛挜鏈涓嶇鍚堝紑鍙戣€呬範鎯€佸甫鏈?secretRef 鐨勬棦鏈変緵搴斿晢鏃犳硶鍒犻櫎銆佷互鍙婄敤鎴风湡瀹炵敓鎬?Schema锛坵orkbuddy 宓屽 options 涓庡瓧鍏稿瀷 models锛夎鍚庣寮鸿鎷︽埅鎶ラ敊绛夐噸澶ч棶棰樸€備换鍔″崱宸茶惤鐩樸€?
+V2.6 鍚姩鑳屾櫙锛?026-10-11锛夛細瑙ｅ喅 Web 鐣岄潰涓嫳鏂囨贩鏉傘€佺炕璇戠敓纭満缈伙紝浠ュ強鍚庣鏈毚闇?ProviderStore 瀵艰嚧鐢ㄦ埛鏃犳硶鍦ㄥ墠绔坊鍔犳垨鍒囨崲鐪熷疄妯″瀷鐨勯噸澶у彲鐢ㄦ€х棝鐐广€備簲寮犱换鍔″崱 210鈥?14 宸茶鍒掑苟钀界洏銆傚悗鍙板巻鍙?5678/5173 鏈嶅姟宸插畨鍏ㄥ仠姝紝绔彛宸查噴鏀俱€?
+V2.6 鏈€缁堥獙鏀讹紙2026-10-11锛夛細210鈥?14 鎸夊簭闂幆锛涘叏鍩熷己绫诲瀷涓嫳瀛楀吀銆佷緵搴斿晢瀹夊叏 API/鎺㈡祴銆佸彲瑙嗗寲璁剧疆銆佺湡瀹炴ā鍨嬪垱寤轰笌鍔ㄦ€佸垏鎹氦璇併€傛渶鍚庢簮鐮?娴嬭瘯缂栬緫鍚庣殑 root 268 鏂囦欢 / 2869 passed + 6 skipped锛學eb 33 鏂囦欢 / 277 passed锛屽悎璁?3146 passed锛涗竷椤圭粓鎬侀棬绂佸叏閮?exit 0銆傜嫭绔嬭瘎瀹?PASS锛屽疄闄呮祻瑙堝櫒涓嫳/800px銆侀厤缃紩瀵?鍙戠幇/淇濆瓨/鍒涘缓/鍒囨崲銆佸巻鍙蹭笌杈撳叆淇濆叏閫氳繃锛涘嚭绔?fixture-a/2 鈫?fixture-b/4銆俢ore 0銆?25 淇濇姢鍝堝笇鍙婃牴閿佹湭鍙橈紱鏃犲垹闄ゃ€佸閮?Agent銆佹彁浜?鎺ㄩ€?鍙戝竷銆傝瘉鎹?evidence/sessions/2026-10-11-v2.6/PROOF.md銆乤ccepted-gates.json銆乧ompletion-audit.json銆侻ission completed锛寃orkers 0锛涢瑙堝凡鍋滄銆備笉鑷姩缁柊璺嚎銆傚唴閮?hub 韬唤/鏈煡绔偣闄愬埗/鏈畾浠蜂及绠楄 card213-proof.md锛涗笉澹扮О瀹炴椂渚涘簲鍟嗘垨璐﹀崟楠岃瘉銆傛棭鏈熼瑙堜复鏃堕」鐩储寮曡褰曚繚鐣欙紝鏈€缁堥瑙堝凡鏄庣‘闅旂 ProjectRegistry銆?
+V2.5 鏈€缁堥獙鏀讹紙2026-10-10锛夛細205鈥?09鎸夊簭闂幆銆傚崟Hunk閲囩撼/涓㈠純/鍥為€€涓庡弻瑙嗗浘SSE鍚屾銆佺湡瀹炶蹇嗚鍒欏懡涓笌娴佸紡鎶樺彔銆佸懡浠ら潰鏉?閿洏瀵艰埅銆佹柊浼氳瘽鏉冮檺棰勮銆佺鐒︽敞鎰忓姏/鍘熺敓鍚堟垚闊?鎸佷箙闈欓煶鍧囦氦璇併€傛渶缁坮oot266鏂囦欢/2832passed+6skipped锛學eb29鏂囦欢/251passed锛屽悎璁?083passed锛涗竷椤规渶缁堥棬绂佸叏閮╡xit0锛屽潎鍦ㄦ渶鍚庢簮鐮?娴嬭瘯缂栬緫鍚庢墽琛屻€傜嫭绔嬭瘎瀹″彂鐜扮殑瀛楄妭鎹熷潖涓庡懡浠ゅ鑷碽usy涓嶉€€鍑哄凡淇骞跺楠屻€傜湡瀹炴祻瑙堝櫒妗岄潰/800px閫氳繃锛涘師鐢熼€氱煡涓庨煶棰戞寜绂荤嚎Mock楠屾敹锛屼笉澹扮ОOS瀹為檯閫佽揪鎴栧彲鍚€俢ore0銆佷繚鎶ゅ搱甯屼笌鏍归攣涓嶅彉锛涙棤鍒犻櫎銆佸閮ˋgent銆佹彁浜?鎺ㄩ€?鍙戝竷銆傝瘉鎹?`evidence/sessions/2026-10-10-v2.5/PROOF.md`銆乣final-gates.json`銆乣completion-audit.json`銆傚巻鍙叉湇鍔″凡鍋滄銆?
+V2.4 鏈€缁堥獙鏀朵笌鍚堝叆锛?026-10-10锛夛細200鈥?04鏈湴瀹屾垚骞舵彁浜?`dd8e72c`銆傚洓绫籛idget IR+鍙屽悜SSE/HTTP銆丷eact灏卞湴缁勪欢銆佸洓Tab Docked Inspector銆丆LI鐘舵€佹爮/ANSI涓庢柟鍚戦敭瀹℃壒鍏ㄩ儴浜よ瘉銆傛渶缁堝弻Root root263鏂囦欢/2808passed+6skipped銆乄eb22鏂囦欢/201passed锛屽悎璁?009passed锛泃sc銆佹祴璇曠被鍨嬨€乄eb绫诲瀷銆佸畨鍏╓eb鏋勫缓銆乭elp鍏ㄩ儴exit0锛屽潎鍦ㄦ渶鍚庢簮鐮?娴嬭瘯缂栬緫鍚庤繍琛屻€俉eb妗岄潰/800px涓庣绾縏TY鍐掔儫閫氳繃锛岀嫭绔嬭瘎瀹ASS锛沜ore0銆?3淇濇姢鍝堝笇涓嶅彉銆佹牴渚濊禆閿佷笉鍙樸€傛湭鎺ㄩ€?鍙戝竷锛屾棤澶栭儴Agent銆傝瘉鎹?`evidence/sessions/2026-10-09-v2.4/PROOF.md`銆傛湰鍦版湇鍔?`task-557` 浜?`http://127.0.0.1:5678` 姝ｅ父瀹堟姢杩愯涓€?
+V2.1 鎵ц鍋忓樊锛?89 鎵ц鍣ㄤ笁娆￠粯璁?Vite 鏋勫缓娓呯┖鐢熸垚 `apps/web/dist`锛岃繚鍙嶄换鍔″垹闄ょ邯寰嬶紝宸茶褰曪紝涓嶈兘澹版槑绾㈢嚎鍏ㄩ儴閬靛畧銆傚悗缁?Web 鏋勫缓蹇呴』鍔?`-- --emptyOutDir false`銆備负楠岃瘉閿佹枃浠讹紝鏈疆灏嗘棫 `node_modules` 瀹屾暣绉诲姩鍒?`.tmp/2026-10-07/node_modules-before-epic191-npm-ci` 鍚庢墽琛?`npm ci`锛坋xit 0锛夛紱澶囦唤淇濈暀锛屼笉娓呯悊銆傞樁娈垫€ц兘瀹炴祴鏈粨 1673 鏂囦欢 warm 涓綅绾?1285ms锛岃 `phase190-benchmark-final.log`锛屼笉寰楁搮鑷檷浣庨獙鏀舵爣鍑嗐€?
+V2.2 鎭㈠鐐癸細鍥涘崱宸查棴鐜紝鎵€鏈夐棬绂佷笌 CLI 鍐掔儫瀹屾垚锛沺ackages/core 0 鏀瑰姩锛屼緷璧栭攣涓嶅彉锛屾湭椹卞姩澶栭儴 Agent锛屾湭鎻愪氦/鎺ㄩ€?鍙戝竷銆傚彧鏀寔鏃犱緷璧栭缂栬瘧 JS Mod 瀛愰泦銆俈2.3 宸茶幏鏂版巿鏉冿紱鏃㈡湁鏈彁浜ゆ敼鍔ㄤ繚鐣欙紝鐙珛鍩虹嚎鍝堝笇瑙?`evidence/sessions/2026-10-08-v2.3/baseline.json`銆?
+V2.3 鏈€缁堥獙鏀讹紙2026-10-08锛夛細196鈥?99宸瞔ompleted锛宐locked瑙ｉ櫎銆傜敤鎴峰啀娆℃壒鍑?97瀹屾暣閫掑綊寮曠敤/绫诲瀷椹卞姩鍒锋柊鎸囨爣mean鈮?5ms銆乸eak鈮?5ms锛泂coped12椤瑰浘+4椤瑰伐鍏峰叏缁匡紝鐙珛12娆＄湡瀹炴洿鏂癿ean10.767ms/peak21.405ms銆佺簿纭巼100%銆傛渶缁坱est:all root258鏂囦欢/2780passed+6skipped銆乄eb20鏂囦欢/177passed锛屽悎璁?957passed/6skipped锛泃sc鏋勫缓銆佹祴璇曠被鍨嬨€佺嫭绔媁eb娴嬭瘯銆佸甫emptyOutDir=false鐨勭敓浜ф瀯寤哄叏閮╡xit0锛屽潎鍦ㄦ渶鍚庢簮鐮?娴嬭瘯缂栬緫鍚庤繍琛屻€?99鐪熷疄缁勫悎Red1鈫扜reen0/Regression0銆佷袱娆″畬鎴愭嫆缁濄€丼HA-256璇佹槑鏈夋晥锛?98鍓灊82.56%锛岄潤鎬佸墠缂€/浠诲姟/鏈€杩戜笁杞繚鎶ゃ€係QLite淇宸查€氳繃鏈€缁堝叏root锛屽師5ms鏂█涓嶅彉锛沜ore0銆佸熀绾跨己澶?銆傛満鍣∕ission completed銆亀orkers0銆傝瘉鎹?`evidence/sessions/2026-10-08-v2.3/PROOF.md`銆乧ompletion-audit.json涓巃ccepted15-*.log锛涘厛鍓峛locked妫€鏌ョ偣瑙丳ROOF-before15.md锛屽け璐ユ棩蹇?渚濊禆澶囦唤鍏ㄤ繚鐣欍€傜函鏈湴鏈彁浜?鎺ㄩ€侊紝鏃犲閮ˋgent銆備笅涓€姝ョ瓑寰呮柊浠诲姟鎺堟潈锛屼笉鑷姩鎺ㄨ繘鏂拌矾绾裤€?
+V2.1 鍘嗗彶鎭㈠鐐癸細PowerShell session **47315 宸插畬鎴?exit 0**锛屾渶鍚?source 缂栬緫鍚庣殑浜旈」 accepted 闂ㄧ鍏ㄩ儴閫氳繃锛涙牴 236 鏂囦欢 / 2634 passed / 6 skipped锛學eb 20 鏂囦欢 / 177 passed銆備氦浠樻枃浠舵敹榻愬悗鐨勬渶缁堟€ц兘鏃ュ織 `accepted-final-fingerprint-benchmark.log` 閫氳繃 2026-10-08 浜虹被鎵瑰噯鐨勬柊鎸囨爣銆傛墍鏈夊伐浣滃櫒銆佹祴璇曚笌闂ㄧ杩涚▼鍧囩粨鏉燂紱鏃?failed/frozen/renewed/resumed 璁板綍鍙綔鍘嗗彶锛屾湭鍒犳敼銆係QLite <5ms 淇濇寔鍘熸爣鍑嗭紱鎸囩汗鍘?<25ms 琚汉绫绘槑纭浛浠ｏ紝涓嶅啀鏄樆鏂€?
+## 1. 娌荤悊涓庨棬绂侊紙鏀瑰姩鍓嶅繀璇伙級
+
+- **鏈粨鍙仛涓変欢浜?*锛氭彁浜?鈫?PR 瀹℃牳 鈫?CI 娴嬭瘯銆?*涓嶅垱寤?GitHub Release銆佷笉鍚?npm 鍙戝竷鏂扮増鏈?*锛堝喅绛栫偣 21锛夈€?- `main` 鍙楄鍒欓泦 `protect-default-branch`锛坕d **23645929**锛変繚鎶わ紝蹇呴渶妫€鏌?3 鏉★細
+  `build (ubuntu-latest, 22)`銆乣build (windows-latest, 22)`銆乣identity-guard`锛涘彟寮€鍚?strict锛堝垎鏀』涓?`main` 鍚屾锛夈€?- **CI 瑙﹀彂**锛歚push` 鍙 `main`锛汸R 璧?`pull_request`锛?*tag 鎺ㄩ€佷笉瑙﹀彂 CI**锛坱ag 鍙槸鎻愪氦鏍囪锛夈€?- 缁存姢鑰呮湰浜轰粛鍦?`bypass_actors`锛坄bypass_mode: always`锛夐噷鈥斺€?*杩欐槸鍒绘剰淇濈暀鐨?*锛氳繖鏍峰悎骞跺彲浠ョ敤"鏈湴涓€ц韩浠藉悎骞?+ 鏅€氭帹閫?锛坢ain 鐨勪綔鑰呭悕淇濇寔缁熶竴锛夛紝骞朵繚鐣欎竴鏉″簲鎬ョ洿鎺ㄩ€氶亾銆傝鏀规垚纭鐨勫懡浠よ瀹¤鏂囨。 搂F銆?- **鍚堝苟璺緞锛堟帹鑽?A锛?*锛氬缓鍒嗘敮 鈫?鎺ㄩ€?鈫?`gh pr create` 鈫?绛変笁鏉″繀闇€妫€鏌ョ豢 鈫?鏈湴 `git merge --no-ff` 鈫?`git push origin main`銆侴itHub 浼氭纭爣璁?PR 涓?MERGED锛屼笖鍚堝苟鎻愪氦缃插悕涓€ц韩浠姐€?  - 缃戦〉绔竴閿悎骞朵篃鍙敤锛屼絾鍚堝苟鎻愪氦浼氫互璐﹀彿鎻愪氦韬唤 `xuanchen` 缃插悕锛堢綉椤电鐢?noreply 鍦板潃锛?*涓嶄細**甯﹀洖琚Щ闄ょ殑閭锛夈€?
+### 鏈満瀹夊叏闂ㄧ浼氭嫤鎺夎繖浜涘懡浠わ紙涓嶆槸鏉冮檺闂锛屽埆鍐嶈瘯锛?
+`git push --force` / `--force-with-lease`锛?*鍚垎鏀?*鐨?force push锛夈€乣git update-ref -d`銆乣git gc --prune`銆乣git reflog expire`銆乣git restore --staged`銆丳owerShell `Remove-Item -Recurse -Force`銆?闂ㄧ**棰勫厛鎵弿鏁存潯鍛戒护**锛氬懡浠ら噷鍑虹幇琚妯″紡锛屾暣鏉★紙鍚墠闈㈢殑 `git add` / `commit --amend`锛夐兘涓嶆墽琛屻€?鈬?闇€瑕?force push / 鍒?ref / 娓呭璞＄殑鍔ㄤ綔锛?*鍙兘鐢辩淮鎶よ€呭湪鑷繁缁堢鎵ц**銆?
+## 2. 鏈€杩戝仛浜嗕粈涔堬紙鏃ュ織绱㈠紩锛?
+| 鏃堕棿 | 鍐呭 | 鏉冨▉璁板綍 |
+|---|---|---|
+| 2026-09-27 | 浠撳簱杞?Public锛?*鍏ㄩ潰鑴辨晱**锛堝伐浣滄爲 142 鏂囦欢 + **涓ゆ**鍏ㄥ巻鍙叉敼鍐欙級锛汫itHub 娌荤悊瀹氬瀷锛堝喅绛栫偣 21锛夛紱韬唤瀹堝崼涓婄嚎 | `evidence/sessions/2026-09-27-desensitization-and-governance.md` |
+| 2026-09-27 | 娈嬬暀鏆撮湶闈㈤€愰」瀹炴祴锛涗笁椤逛緷璧栧崌绾э紱瑙勫垯闆?bypass 閲嶆柊鍒ゆ柇鍚庝繚鐣?| `evidence/sessions/2026-09-27-residual-exposure-audit.md` |
+| 2026-09-28 | 鏂囨。涓庝唬鐮佸榻愶細4 澶勬閾俱€?63鈥?67 闄堟棫鐘舵€佽銆? 澶勪綔搴熺殑鍙戝竷寰呭姙 | `DEV_LOG.md`锛堢画 6/缁?7锛夈€佷笂杩板璁℃枃妗?搂H/搂I |
+| 2026-09-27 | 鍐崇瓥鐐?19锛堝寘绠＄悊鍣ㄩ攣瀹?npm锛夈€?0锛堜釜浜轰俊鎭竟鐣屼笌涓€娆℃€у巻鍙叉敼鍐欙級銆?1锛堜笉鍙戝竷鐗堟湰锛?| `docs/DESIGN-DECISIONS.md` |
+| 2026-09-25 | V1.3 鍙屽悜瀛?Agent 缃戝叧浣撶郴浜や粯鍚堝叆锛堝崱 163鈥?67锛?| `CHANGELOG.md` `[Unreleased]`銆乣tasks/167-*.md` |
+| 2026-10-12 | Archify 鏋舵瀯鍙鍖栬惤鍦帮紙5 寮犲垎灞傚彲浜や簰鍥?鈫?`docs/diagrams/`锛夛紱淇 `ARCHITECTURE.md` 搂6.1 绛夋枃妗ｅ寘娓呭崟婕傜Щ锛?3鈫?4锛岃ˉ `engine`/`application`锛?| `tasks/216-archify-architecture-visualization-and-doc-drift-repair.md`銆乣DEV_LOG.md`锛?026-10-12锛?|
+| 2026-10-16 | **PDW 宸ヤ綔娴侀€傞厤锛歱ersonal-dev-workflow 1.0.0 鈫?1.3.1-local**锛圫kill 鏁翠綋鏇挎崲 + 鏍?`pdw.ps1` + 椤圭洰绾?`.pdw/`锛沗doctor` exit 0锛涢槻瑕嗙洊淇濇姢淇濇寔锛涙棫 `.agent-state/` 鐘舵€佷笌棰勭畻**闆舵敼鍔?*骞跺綊妗ｏ級 | `tasks/224-pdw-1.3.1-local-adoption.md`銆乣evidence/pdw-migration-1.3.1/MIGRATION.md`銆乣evidence/pdw-migration-1.3.1/LEGACY-STATE.md` |
+
+**杩囩▼鏃ュ織**閫愭潯鍦?`DEV_LOG.md`锛?026-09-27 鏈夌画 1鈥撶画 7锛涙渶鏂颁竴鏉?2026-10-12锛夈€?
+## 3. 鏈畬鎴愭竻鍗?
+### 3.1 闇€瑕佺淮鎶よ€呮湰浜哄仛锛圓gent 鍋氫笉浜嗘垨涓嶈浠ｅ仛锛?
+| # | 浜嬮」 | 涓轰粈涔堣浣犲仛 | 鐘舵€?鏉愭枡 |
+|---|---|---|---|
+| U1 | 鍙?**GitHub Support 宸ュ崟**锛氭竻鐞?`refs/pull/*`锛?2 鏉★級鎸囧悜鐨勬棫瀵硅薄 | Agent 鏃犳硶浠ヤ綘鍚嶄箟瀵瑰鎻愪氦 | 鑻辨枃鑽夌宸插啓濂斤細瀹¤鏂囨。 **搂A-1**锛屽彲鐩存帴绮樿创 |
+| U2 | 鍐冲畾 npm 鍏冩暟鎹畫鐣欐槸鍚︿篃寮€宸ュ崟 | 鍚屼笂锛涗笖 `_npmUser`/`maintainers` 浠嶆槸鏃ч偖绠便€佸凡杩?unpublish 72 灏忔椂绐楀彛 | 瀹¤鏂囨。 **搂B**锛涘€惧悜"鎺ュ彈鍗曠偣娈嬬暀"锛堟湰浠撳凡涓嶅彂甯冩柊鐗堟湰锛屼笉浼氭柊澧炴毚闇诧級 |
+| U3 | 瑙勫垯闆?`bypass_actors` 鏄惁鏀舵潈 | 浼氭敼鍙樹綘鐨勫悎骞朵範鎯紙瑙?搂1 鐨勫彇鑸嶏級 | 鍛戒护鍦ㄥ璁℃枃妗?**搂F** |
+| U4 | 娓呮父绂绘彁浜?`5092ed4`锛堝彲閫夛級 | 闇€瑕?`git gc --prune`锛岃闂ㄧ鎷︼紱鍐呭浠呬负涓€娆℃彁浜や俊鎭枃鏈紝鏃犱釜浜烘爣璇?| 鈥?|
+| U5 | **鐪熷疄 `--live` 璺?harness 鍩虹嚎**锛堣嫢瑕佽窇锛?| 浼氶┍鍔ㄦ湰鏈?`dsh` / `opencode` / `codex` / `claude` / `pi`锛屾秷鑰椾綘鐨勯厤棰?| `tasks/149`/`153`锛?*蹇呴』閫愭鏄惧紡鎺堟潈**锛宍npm run bench:conformance -- --live` 姘镐笉鑷姩璺?|
+
+### 3.2 Agent 鍙互鎺ㄨ繘鐨勶紙涓嬫鑷富宸ヤ綔鐨勫缓璁竻鍗曪級
+
+| # | 浜嬮」 | 鍏ュ彛 |
+|---|---|---|
+| A1 | **浜у搧杈圭晫**锛欵pic 183 宸叉湰鍦板疄鐜板師鐢熸矙绠憋紱Windows ACL 棰勯厤缃?鐪熸満楠屾敹銆乵acOS 閫冪粍鐢熷懡鍛ㄦ湡銆乭elper 缂哄け闄嶇骇浠嶉渶鎸変氦浠樿褰曞垽鏂紱`--live` 澶栭儴鍩虹嚎鏈仛 | `README.md` 鐘舵€佹銆乣docs/SANDBOX-WINDOWS.md` |
+| A2 | 鐜琛ラ綈椤癸細`release-report` 鍒锋柊锛堥渶閰嶉纭锛夈€丳ackaging gate 閲嶈窇锛堥渶 dist锛夈€佸瓧闈?3h 澧欓挓 soak | `tasks/README.md` 鏈棴鍚堟銆乣docs/V1.6-STABLE-CHECKLIST.md` |
+| A3 | Windows runner worker 鍚姩鎶栧姩锛?*鑻ュ啀鍑虹幇绗簩娆?*灏辩珛鍗★紙鍙€夌紦瑙ｏ細缁?CI 璁?`maxWorkers`锛?| 瀹¤鏂囨。 **搂C**锛堝凡瀹氫箟瑙﹀彂鏉′欢锛?|
+| A4 | 鏂囨。璇氬疄鍖栵紙鍚岀被娓呮壂宸插畬鎴愪竴杞紝鑻ユ湁鏂板彂鐜板悓娉曞鐞嗭級 | 瀹¤鏂囨。 搂H/搂I 鐨勫仛娉曪細鍖哄垎銆屽巻鍙插揩鐓с€嶄笌銆岄潰鍚戣鍔ㄧ殑娓呭崟銆?|
+
+#### 寰呯爺绌讹紙鏈珛椤癸紝闇€鍏堟媿鏉匡紝涓嶈鑷姩寮€宸ワ級
+
+- **Harness虏 鍚告敹璇勪及**锛?026-10-20 瀹屾垚鍒嗘瀽锛屾湭绔嬮」锛夈€傚璞℃槸 Google Research 鐨勯€掑綊寮?agent harness 妗嗘灦锛涘凡瀹屾垚浜旂淮鍙鍒嗘瀽涓?P0/P1/P2 鍚告敹娓呭崟锛岀粨璁烘槸鍙惛鏀舵柟娉曡锛堝垽鍒嗕笁鎬佷笉璁?0銆佽杈圭晫闃叉硠婕忋€乭arness 鎸囩汗銆佸伐鍏烽摼闂ㄧ銆侀绠楀悎娴侊級锛屼笉鎼叾 Python 浠ｇ爜涓庢彁绀鸿瘝鍘熸枃銆傚紑宸ュ墠闇€鐢ㄦ埛纭浠庡摢涓€椤瑰紑濮嬶紱P0-1 娑夊強濂戠害瀛楁鍙樻洿锛屼細杩炲甫浜斾釜澶栭儴 adapter 涓?release gate 鍙ｅ緞锛屼笉瀹滈『鎵嬪仛銆傛潗鏂欙細`docs/HARNESS2-ABSORPTION-ASSESSMENT.md`锛堢粨璁轰笌钀界偣锛夈€乣docs/HARNESS2-AGENT-BRIEF.md`锛堟帴鎵?Agent 鐨勫榻愭彁绀鸿瘝锛夈€?
+### 3.3 宸茬煡杈圭晫锛堜笉鍙兘娓呮帀鐨勶紝鍒啀灏濊瘯锛?
+- **GitHub PR 椤甸潰**浠嶆湁鏃ц韩浠斤細#12鈥?16銆?17鈥?20 鍏?**9 涓?PR** 鐨勬彁浜ゅ垪琛ㄦ樉绀鸿绉婚櫎鐨勯偖绠便€侾R 涓嶈兘鍒犻櫎锛堝彧鑳藉叧闂級锛屽叾鎻愪氦鍒楄〃鐢?PR 鑷韩鎸佹湁锛?*涓嶄緷璧?git 瀵硅薄**鈥斺€斿嵆浣?Support 娓呬簡瀵硅薄锛岄〉闈㈠ぇ姒傜巼浠嶆樉绀恒€?- **npm registry 鍏冩暟鎹?*閲岀殑 `_npmUser` / `maintainers` 鏄彂甯冨綋鏃剁殑蹇収锛屾敼鏂囦欢鏀逛笉鍒般€?- **鏈嶅姟绔棫瀵硅薄**鍦?GitHub GC 涔嬪墠鍙兘浠嶅彲鎸?SHA 鍙栧埌锛堝鎴风鏃犺兘涓哄姏锛夈€?
+## 4. 楠岃瘉鍛戒护锛堟帴鎵嬪厛璺戜竴閬嶏級
+
+```powershell
+npm ci                          # 鍙鐜板畨瑁咃紱閿佹枃浠朵笌 package.json 涓嶄竴鑷翠細鐩存帴澶辫触
+npx tsc -b tsconfig.json        # 绫诲瀷 + 缂栬瘧
+npm run typecheck:tests         # 娴嬭瘯鏂囦欢绫诲瀷妫€鏌ワ紙闈?composite锛?npm run test:all                # 鍏ㄩ噺 = 鏍?+ apps/web 涓や釜 root
+npm run -w @vessel/web build -- --emptyOutDir false # web 鐢熶骇鏋勫缓锛坧eer 涓嶄竴鑷村彧鏈夋瀯寤轰細鏆撮湶锛?bash scripts/identity-guard.sh  # 韬唤瀹堝崼锛圙it Bash / WSL / Linux / macOS 鍙窇锛?gh pr checks                    # 鏌愪釜 PR 鐨勫繀闇€妫€鏌?```
+
+棰勬湡锛氫互涓婂叏閮?exit 0锛沗identity-guard` 鎵撳嵃 `no denylisted commit identities in this history`銆?
+> 宸茬煡鎶栧姩锛歐indows runner 涓婂伓鍙?`Worker exited unexpectedly with exit code 3221225794`锛坄0xC0000142`锛夈€?*涓庝唬鐮佹棤鍏?*鈥斺€斿悓鎻愪氦閲嶈窇鍗崇豢锛堝凡鏈夊疄渚嬶紝瑙佸璁℃枃妗?搂C锛夈€傚缃細`gh run rerun <id> --failed`銆?*鍐嶅嚭鐜扮浜屾灏辩珛鍗°€?*
+
+## 5. 涓ユ牸绾緥锛堣秺鐣屼細琚満鍣ㄦ嫤涓嬫垨閫犳垚涓嶅彲閫嗗悗鏋滐級
+
+- **鍒犻櫎**锛氫粨搴撳唴涓€鍒囧垹闄よ蛋鍥炴敹绔欙紙`trash` 宸ュ叿 / `SHFileOperation` + `FOF_ALLOWUNDO`锛夈€傚敮涓€涔﹂潰渚嬪锛?*娴嬭瘯鑷繁鏂板缓銆佷笖浣嶄簬 `os.tmpdir()` 涔嬩笅**鐨勪复鏃剁洰褰曘€?- **涓嶆敼鍐欏凡鎺ㄩ€佸巻鍙?*锛氱姝?force push銆傚敮涓€涔﹂潰渚嬪鏄?2026-09-27 鐨勪竴娆℃€у叏鍘嗗彶鑴辨晱锛堝喅绛栫偣 20锛夛紝宸茬敤瀹屻€?- **涓嶈嚜鍔ㄩ┍鍔ㄦ湰鏈哄叾瀹?agent**锛坄dsh`/`opencode`/`codex`/`claude`/`pi`锛夛細闇€閫愭鏄惧紡鍚屾剰銆?- **鎻愪氦韬唤**锛氭湰浠?`user.name`/`user.email` 宸茶涓轰腑鎬э紙`Vessel Contributors <vessel@users.noreply.github.com>`锛夈€?*鎹㈡満鍣ㄦ垨鎹?Agent 鍚庡厛纭杩欎袱椤?*鈥斺€斿巻鍙蹭笂姝ｆ槸鍥犱负鏀瑰啓鍚庢柊鎻愪氦浠庢湰鏈洪厤缃彇鍥炵湡瀹炶韩浠斤紝鎵嶆妸瀹冮噸鏂板甫杩涗簡鍏紑鍘嗗彶锛堝喅绛栫偣 20 鐨勪簨鏁呰褰曪級銆?- **鏆傚瓨鏂囦欢**锛氶渶瑕佸厛钀芥枃浠跺啀鍏ュ簱鐨勪腑闂翠骇鐗╂斁**褰撳ぉ鏃ユ湡鐩綍**骞剁敤鐐瑰彿鍓嶇紑锛坄.tmp-*`锛夛紝涓嶈鐢ㄧ郴缁熶复鏃剁洰褰曘€?
+## 6. 浠庡摢閲屾帴鎵嬶紙闃呰椤哄簭锛?
+### 鍐峰惎鍔ㄤ笁姝ワ紙鏂颁細璇濆厛璺戯紝鑷瘉鐜锛?
+```powershell
+---
+name: personal-dev-workflow
+description: "Run cost-aware multi-agent project work with OpenCode/DeepSeek, Codex, and optional AGY: create an executable task contract, dispatch isolated role sessions, run checks, review independently, and resume from recorded evidence. Use for substantial implementation, investigation, or explicit PDW workflow requests."
+metadata:
+  version: "1.3.3-local"
+  repository: "https://github.com/satan9394/personal-dev-workflow"
+  skill-path: "skills/personal-dev-workflow"
+  branch: "main"
+  updated: "2026-10-17"
+---
+
+# Personal Dev Workflow 鈥?鍙墽琛岀殑椤圭洰鍗忎綔
+
+鐗堟湰锛?.3.3-local锛涜鏄庤瑷€锛歾h-CN銆?
+杩欐槸鏃㈡湁 PDW 鐨勯」鐩骇鍗囩骇鐗堬細淇濈暀濂戠害銆侀獙璇併€佷氦鎺ャ€佹湁闄愪慨澶嶏紱澧炲姞鐪熷疄 CLI 鎺ュ姏銆傜▼搴忎负鏈?Skill 鐨?`scripts/pdw.mjs`锛屼互 Skill 鐨勭粷瀵逛綅缃皟鐢紝涓嶅亣瀹氬綋鍓嶇洰褰曞惈 scripts銆?
+鑻ヤ綘宸茬粡鏀跺埌绋嬪簭鍒嗘淳鐨?scan/test-plan/implement/repair/review/planner 瑙掕壊鍙婂绾﹁矾寰勶紝鍙墽琛岃瑙掕壊锛屼笉鍐嶅垵濮嬪寲鎴栧惎鍔ㄤ笅绾у伐浣滄祦锛涢伩鍏?Skill 鑷姩鍔犺浇閫犳垚閫掑綊璋冨害銆?
+## 鐢ㄦ埛鎬庢牱浣跨敤
+
+鐢ㄦ埛鍙互鐩存帴璇达細鈥滅敤 PDW 鍦?<椤圭洰> 瀹屾垚 <鐩爣>鈥濄€備綘璐熻矗鎶婄洰鏍囩紪璇戞垚浠诲姟锛屼笉鎶?JSON 閰嶇疆宸ヤ綔鎺ㄧ粰鐢ㄦ埛銆?
+鍏堥€夋嫨鎵ц鏂瑰紡锛氬皬鍒版槑鏄句笖浣庡奖鍝嶇殑淇敼鍙洿鎺ュ畬鎴愬苟妫€鏌ワ紱瀹炶川寮€鍙戜繚鐣欑嫭绔嬪鏍搞€傚涓诲師鐢熷瓙 Agent 宸叉弧瓒宠鑹查殧绂汇€佽瘉鎹強鐩爣妯″瀷鎴愭湰瑕佹眰鏃讹紝鍙湪鍞竴鍗忚皟鑰呬笅浣跨敤杈呭姪妯″紡锛涢渶瑕?OC/DeepSeek 绛夎法宸ュ叿璺嚎鏃剁敤浠ヤ笅 CLI 鎺ュ姏銆備笉鍥哄畾涓変汉鎴栦簲浜猴紝涓嶄负浜嗕娇鐢ㄦ彃浠惰€屽畨瑁呮彃浠讹紝涔熶笉鍥犱富妯″瀷寮哄氨鍙栨秷蹇呰楠屾敹銆傚綋鍓?CLI 绠＄嚎浠嶆槸鍥哄畾闃舵锛屼笉瀹ｇО绋嬪簭宸茶嚜鍔ㄩ€夋嫨鍥㈤槦鎷撴墤銆?
+1. 璇荤洰鏍囬」鐩害瀹氥€佸凡鏈夊疄鐜板拰宸插叧闂褰曘€傝繍琛?`node <skill>/scripts/pdw.mjs init --project <椤圭洰>`锛岀劧鍚?`doctor`銆傚垵濮嬪寲涓嶈鐩栫幇鏈夐厤缃紝涓嶆敼鐧诲綍鎴栧叏灞€璁剧疆銆?2. 鏍规嵁浠诲姟鍐欎竴涓?JSON 濂戠害锛屽瓧娈佃 [references/runtime.md](references/runtime.md)銆傚繀椤绘湁鏄庣‘楠屾敹銆佸厑璁镐慨鏀硅矾寰勫拰鐪熷疄妫€鏌ュ懡浠ゃ€傛鏌ユ湰娆″彉鏇村浣跨敤璇存槑銆侀厤缃€佹帴鍙ｅ拰缁存姢鏂囨。鐨勫奖鍝嶏紱鏈夊奖鍝嶇殑鏂囨。鏇存柊浠庡紑濮嬪氨绾冲叆鑼冨洿涓庨獙鏀讹紝瀹炴柦鑰呭悓姝ヤ慨鏀癸紝澶嶆牳鑰呭鐓у疄鐜版牳楠屻€傛棤褰卞搷灏辫褰曠悊鐢憋紝涓嶆壒閲忛噸鍐?MD锛屼笉鍙︾瓑鐢ㄦ埛鎻愰啋銆傚懡浠ょ敤 executable + args锛屼笉鎷?shell銆傝皟鏌ヤ换鍔＄敤 audit锛涘疄鐜颁换鍔＄敤 develop銆?3. `new --from <濂戠害> --project <椤圭洰>` 鍒涘缓浠诲姟锛涘厛 `plan <id>` 妫€鏌ヨ鑹层€佹ā鍨嬨€佹鏌ラ」銆佽皟鐢ㄤ笂闄愩€傜敤鎴峰凡瑕佹眰瀹屾垚浠诲姟鏃讹紝鍦ㄥ叾鎺堟潈鑼冨洿鍐呯洿鎺?`run <id>`锛屼笉鍙﹂棶鏄惁鍏佽鏅€氭湰鍦板疄鏂姐€?4. 榛樿 OC + DeepSeek 鎵弿涓庨獙鏀跺噯澶囷紝Codex 瀹炵幇锛岀嫭绔?OC + DeepSeek 澶嶆牳銆傚父瑙勫疄鐜板彲鍦ㄩ」鐩厤缃妸 implement 璺敱鍒?OC銆傞渶瑕佹灦鏋勮鍒掓椂鍦ㄥ绾︿腑鍚敤 planner锛屼娇鐢?AGY銆備笉鍚岃鑹叉槸鏂颁細璇濓紝涓嶅叡浜暱鑱婂ぉ銆?5. 绋嬪簭瀹為檯鎵ц楠屾敹鍛戒护锛涘け璐ユ渶澶氬畾鍚戜慨澶嶄竴娆★紝鍐嶅け璐ュ嵆鍋滄銆傞亣鍒拌寖鍥村彉鍖栥€佺幆澧冮樆濉炴垨涓嶆敮鎸佺殑杈撳嚭鍗忚锛屼繚鐣欏師濮嬬粨鏋滃苟浜ゆ帴锛屼笉鑳藉嚟鏂囧瓧瀹ｅ竷閫氳繃銆?6. 鏌ョ湅 `status <id>` 鍜屼换鍔＄洰褰曠殑 REPORT.md銆傛瘡涓樁娈电▼搴忚嚜鍔ㄧ敓鎴?HANDOFF.md锛屽懡浠や笌鎹㈠璇濇祦绋嬭 [涓婁笅鏂囨帴缁璢(references/runtime.md#涓婁笅鏂囨帴缁笌鏂囨。缁存姢)銆備腑鏂悗鐢?`resume <id>`锛涘仠姝㈢敤 `cancel <id>`銆傚垏浼氳瘽涓嶉噸缃搴︼紝涓嶉€氳繃鍙﹀缓浠诲姟瑙勯伩鍘熶换鍔￠檺棰濄€?
+## 鎸夌洰鏍囨ā鍨嬩氦鎺?
+鍒嗘淳鍓嶅厛鎶婄敤鎴烽渶姹傛暣鐞嗕负鐩爣銆佸彲瑙傚療鐨勯獙鏀惰涓恒€佽寖鍥村拰鍏抽敭鍋囪銆傝鍒掓槸瀹炵幇寤鸿锛屼笉瑕嗙洊鐢ㄦ埛鐩爣锛涗細鏀瑰彉楠屾敹鐨勬涔夋墠璇㈤棶鐢ㄦ埛锛屽叾浣欑敱鍗忚皟鑰呭喅瀹氥€備笉鑳藉彧鎶婅鍒掕亰澶╂垨涓€鍙モ€滄寜璁″垝寮€鍙戔€濊浆鍙戠粰鎵ц鑰呫€?
+纭鎵ц瑙掕壊鐨勫疄闄呮ā鍨嬫爣璇嗐€佸涓绘敮鎸佷笌鎬濊€冪瓑绾э紝淇濈暀鐢ㄦ埛鎸囧畾妯″瀷銆傞娆′娇鐢ㄦ垨鍒囨崲妯″瀷鏃舵煡鍏跺畼鏂归€夋嫨/鎻愮ず鎸囧鍙婂涓绘帴鍙ｏ紱璁板綍鏉ユ簮涓庢牳瀵规棩鏈熷埌浠诲姟鍑嗗鏉愭枡銆傛湁鏁堜笖浠嶉€傜敤鐨勮褰曞彲澶嶇敤锛屼笉姣忔閲嶅鑱旂綉銆傛棤娉曡瘑鍒涓婚粯璁ゆā鍨嬫椂涓嶇寽娴嬪叾鐗规€с€?
+鍗忚皟鑰呭皢绠€鐭€侀€傜敤浜庤妯″瀷鍜屽綋鍓嶄换鍔＄殑鎻愮ず鎸囧鍐欏叆瑙掕壊閰嶇疆 `prompt_guidance`锛汣odex 涓?OpenCode 鍙彟璁?`reasoning_effort`銆侽penCode TUI 鐨?`/effort` 閫夋嫨妯″瀷鍙樹綋锛屽崗璋冭€呭簲鏍稿瀹為檯妯″瀷鐨?variants锛屼笉鑳藉嚟 Flash 鍚嶇О鏂█涓嶆敮鎸佹€濊€冦€傜敤娉曚笌闄愬埗瑙?[妯″瀷浜ゆ帴閰嶇疆](references/runtime.md#妯″瀷浜ゆ帴閰嶇疆)銆傚己妯″瀷浠ョ洰鏍囥€佺害鏉熴€佽瘉鎹拰鑷富绌洪棿涓轰富锛涙竻鏅板皬浠诲姟缂╁皬浜ゆ帴鑼冨洿銆備笉瑕佹満姊板鍔犳彁绀洪暱搴︺€佽鑹叉暟鎴栨渶楂樻€濊€冪瓑绾э紝涓嶈姹傚叕寮€鍐呴儴鎬濈淮閾俱€?
+杩愯鍣ㄥ彧浼犻€掑凡閰嶇疆鐨勬ā鍨嬫寚瀵煎拰鍙傛暟锛屼笉鑷姩鑱旂綉閫夋ā鍨嬶紝涔熶笉璇佹槑鎻愪緵鏂规渶缁堥噰鐢ㄤ簡璇锋眰璁剧疆銆傛ā鍨嬫敼鍙樺悗閲嶆柊鏍稿鎸囧涓庡弬鏁帮紱鏈煡妯″瀷娌跨敤閫氱敤濂戠害锛屼笉濂楃敤鍏朵粬妯″瀷缁撹銆傜嫭绔嬪鏍告寜鍘熷闇€姹備笌楠屾敹妫€楠岀粨鏋滐紝涓嶈兘鍙‘璁ゆ槸鍚﹂伒寰鍒掋€?
+## 蹇呴』淇濇寔鐨勮竟鐣?
+- 鍚屼竴璺緞涓€涓疄鐜拌€咃紱鎵弿/澶嶆牳鍙锛涘鐓у綋鍓嶄骇鐗╂鏌ワ紝鏃ц瘉鎹笉鑳芥壒鍑嗘柊淇敼銆?- UI 浠诲姟鐨勫绾﹀繀椤诲寘鍚湡瀹炴祻瑙堝櫒鎿嶄綔璇佹嵁锛沚uild/curl 涓嶆浛浠ｄ笟鍔￠獙鏀躲€傝繍琛屽伐鍏蜂笉鑳藉嚟绌烘彁渚涙祻瑙堝櫒鑳藉姏銆?- 涓嶈嚜琛?commit/push/merge/send/deploy/publish/delete锛涚敤鎴风‘璁ょ偣淇濈暀銆傚凡鏈夋巿鏉冩寜鍏跺疄闄呰寖鍥存墽琛屻€?- CLI 鏉冮檺缁х画鐢卞涓绘帶鍒讹紝绋嬪簭涓嶄紶璺宠繃鏉冮檺鍙傛暟銆傛簮鐮佽寖鍥存鏌ユ槸鎵ц鍚庢娴嬶紝涓嶆槸鏂囦欢绯荤粺娌欑銆?- 鏍稿 status/handoff 鐨?snapshot_coverage锛涢」鐩牴琚?Git 蹇界暐鎴?Git 鍒楄〃涓虹┖鏃朵娇鐢ㄦ枃浠剁郴缁熷揩鐓э紝鏄惧紡浠诲姟 scope 涓嶅彈 Git ignore 闅愯棌銆備笉鑳借瀵熺殑淇濈暀鐩綍鍜岄摼鎺ヨ矾寰勯』鍏堣皟鏁磋寖鍥达紝涓嶈兘鎶婄┖瑕嗙洊褰撴垚閫氳繃銆?- 鏃堕棿涓?CLI 鍚姩娆℃暟鏈夌▼搴忎笂闄愶紱閲戦/Token 鎬讳笂闄愭病鏈夋彁渚涙柟璇佹嵁鏃舵爣 unknown锛屼笉鑳藉绉扮‖闄愬埗銆?- 涓嶅惎鍔ㄥ祵濂?Agent銆佷笉鑷姩鎺?backlog銆佷笉鍗囩骇鍏ㄥ眬宸ュ叿銆佷笉姘镐箙娓呯悊浠诲姟璁板綍銆?
+## 瀹屾垚涓庡け璐?
+`accepted_local` 瑕佹眰瀹為檯妫€鏌ュ叏閮ㄩ€氳繃銆佺嫭绔嬪鏍搁€愰」瑕嗙洊楠屾敹銆佸鏍告湡闂翠骇鐗╂湭鍙樺寲銆佸叏绋嬫湭瓒婂嚭鍏佽璺緞銆俤evelop 杩樿姹傜嫭绔嬪鏍告棤 high/blocker锛沘udit 楠屾敹鐨勬槸璋冩煡瑕嗙洊銆佽瘉鎹笌鐙珛澶嶆牳璐ㄩ噺锛屾姤鍛婂彲浠ュ寘鍚瀹″璞＄殑 high/blocker 鍙戠幇锛屼笉琛ㄧず琚瀵硅薄鏃犵己闄枫€傚畠涓嶇瓑浜庡凡鎻愪氦鎴栧凡鍙戝竷銆?
+鑻?OC/AGY 涓嶅彲鐢紝鍏堟槑纭幆澧冨け璐ャ€傚彲鍦ㄥ凡缁忔巿鏉冪殑瀹夸富瀛愪唬鐞嗚兘鍔涗笅鎵嬪伐鎸夌浉鍚岃鑹蹭笌濂戠害鎵ц锛屼絾蹇呴』鏍囦负杈呭姪妯″紡锛屼笉鎶婂畠姹囨姤鎴?CLI 鑷姩鎺ュ姏宸查€氳繃銆?
+## 鑷富鍐崇瓥涓庣敤鎴峰弽棣?
+榛樿閲囩敤缁撴灉绠€鎶ワ細鍗忚皟鑰呴槄璇诲悇瑙掕壊缁撴灉銆佹鏌ヨ瘉鎹苟澶勭悊鍒嗘锛岀敤鎴蜂笉鎵挎媴闃呰 OC 鎴栧叾浠栬鑹叉棩蹇楃殑宸ヤ綔銆傚父瑙勭殑鏂规閫夋嫨銆佸伐鍏疯矾鐢变笌鎺堟潈鑼冨洿鍐呬慨澶嶈嚜琛屽喅瀹氾紱棰勭畻鍙婁慨澶嶄笂闄愪粛鐒舵湁鏁堛€備笉鍥犵敤鎴蜂笉鎯崇湅杩囩▼鑰岃烦杩囨鏌ユ垨闅愮瀿澶辫触銆?
+鎸夊涓昏姹備繚鐣欏繀瑕佺殑绠€鐭繘搴︼紝鍙姤鍛婃湁鎰忎箟鐨勫彉鍖栵紝涓嶈浆杩拌鑹茶亰澶┿€佹壂鎻忔竻鍗曟垨宸茶嚜琛岃В鍐崇殑鎶ラ敊銆備粎鍦ㄧ己灏戜細鏀瑰彉楠屾敹鐨勫叧閿俊鎭€侀渶瑕佺敤鎴锋巿鏉冪殑鍔ㄤ綔鎴栬€楀敖鎭㈠棰勭畻鏃惰姹備粙鍏ワ紱鍏堝畬鎴愪笉渚濊禆璇ュ洖绛旂殑宸ヤ綔銆?
+鏈€缁堥粯璁ゅ洓琛岋細
+
+- 缁撹锛氬凡瑙ｅ喅 / 閮ㄥ垎瑙ｅ喅 / 鏈В鍐筹紝娉ㄦ槑浠诲姟涓庨獙鏀惰寖鍥达紱涓嶈兘鎵胯姘告棤缂洪櫡銆?- 鏀瑰姩锛氫竴鍙ヨ瘽璇存槑鐢ㄦ埛鍙劅鐭ョ殑缁撴灉銆?- 楠岃瘉锛氫竴鍙ヨ瘽姒傛嫭瀹為檯妫€鏌ワ紝璇︾粏璇佹嵁鏀句竴涓摼鎺ャ€?- 涓嬩竴姝ワ細鏃犻渶鎿嶄綔锛屾垨鍙垪褰卞搷浣跨敤鐨勫墿浣欓棶棰樸€佹槑纭渶瑕佺敤鎴峰仛鐨勪簨銆傚奖鍝嶇粨鏋滃彲淇″害鐨勬湭楠岃瘉椤瑰繀椤绘姭闇层€?
+鐢ㄦ埛杩介棶鏃跺啀灞曞紑缁嗚妭銆傚畬鏁磋鑹插搷搴斻€佷綆浼樺厛绾у彂鐜颁笌宸ュ叿鏃ュ織鐣欏湪 `.pdw/tasks/<id>/`锛屼笉瑕佹眰鐢ㄦ埛閫愪竴闃呰銆傚璁′换鍔＄殑鈥滃凡瑙ｅ喅鈥濅粎鎸囪皟鏌ョ洰鏍囧畬鎴愶紝涓嶈〃绀哄彂鐜扮殑缂洪櫡宸蹭慨澶嶃€?
+## 鏂?Agent 涓庡涓诲瓙 Agent
+
+瑙掕壊鏄亴璐ｏ紝CLI 鏄墽琛屽伐鍏凤紝妯″瀷鏄兘鍔涗笌鎴愭湰閫夋嫨锛涗笁鑰呬笉缁戝畾銆傚綋鍓嶇▼搴忎粎閫傞厤 OC銆丆odex銆丄GY锛汥SH銆丆C 绛夋帴鍏ユ潯浠惰 [杩愯璇存槑鐨勬墿灞曡竟鐣宂(references/runtime.md#绗笁鏂?agent-涓庡涓诲瓙-agent)銆備笉鎶婅鍙?Skill銆佹敮鎸佸瓙 Agent 鎴栦慨鏀?backend 鍚嶇О姹囨姤鎴愯嚜鍔ㄦ帴鍔涘凡鍏煎銆?
+瀹夸富瀛?Agent 鍙互鎵挎帴鐙珛鑱岃矗锛屼絾蹇呴』鐢卞敮涓€鍗忚皟鑰呯鐞嗚寖鍥淬€佽瘉鎹笌棰勭畻銆傚綋鍓?CLI 杩愯鍣ㄤ粛绂佹瑙掕壊鑷宓屽璋冨害锛涢渶瑕佸涓诲師鐢熷洟闃熸椂浠ヨ緟鍔╂ā寮忓彟琛屾墽琛屽悓涓€濂戠害锛屼笉涓?CLI 杩愯鍣ㄤ簤鎶换鍔℃垨浼€犲叾楠屾敹鐘舵€併€?
+鏂颁細璇濆厛鐢?`status` 瀹氫綅鐢ㄦ埛姝ｅ湪缁х画鐨勪换鍔★紝鍐嶇敤 `handoff <id>` 鏍稿鏂伴矞搴︺€佹椿鍔ㄨ繘绋嬪拰鍓╀綑棰勭畻銆備粠濂戠害銆丠ANDOFF.md 鍙婂叾寮曠敤鐨勫師濮嬭瘉鎹仮澶嶏紱鏈夊涓€欓€変笖鏃犳硶鍒ゆ柇鏃舵墠璇㈤棶銆傛簮鐮佹垨濂戠害婕傜Щ涓嶈兘娌跨敤鏃ч€氳繃缁撹锛宺unning 浠诲姟涓嶈兘閲嶅鍚姩銆備氦鎺ュ湪闃舵杈圭晫钀界洏锛屼笉渚濊禆涓婁笅鏂囪揪鍒板浐瀹氱櫨鍒嗘瘮銆傛病鏈夊涓昏鏁版椂涓嶇寽娴嬬櫨鍒嗘瘮锛涘綊妗ｆ棫瀵硅瘽涓嶇敱鏈▼搴忚嚜鍔ㄦ墽琛屻€?
+## 鍒嗗彂涓庢洿鏂?
+- 鍑哄銆佺増鏈笌鍒嗘敮浠ユ湰鏂囦欢 frontmatter 鐨?`metadata` 涓哄噯锛坮epository / version / skill-path / branch锛夈€傚敮涓€鏇存柊婧愭槸璇?repository 鐨?`main` 鍒嗘敮锛屾妧鑳戒綅浜?`skills/personal-dev-workflow/`锛? 涓枃浠讹紝琛屽熬 LF锛夈€?- 鏈妧鑳戒笉缁戝畾浠讳綍鏈満璺緞锛氶」鐩唴鍓湰浣嶄簬 `.agents/skills/personal-dev-workflow/`锛屽悇 agent 浠庤嚜宸辩殑鎶€鑳芥牴璇诲彇锛涙洿鏂颁竴寰嬫潵鑷笂闈㈢殑 repository锛屼笉浠ヤ换浣曟湰鏈虹洰褰曚负鍑嗐€?- 椤圭洰鍐呬竴鏉″懡浠よ嚜鏇存柊锛歚node .agents/skills/personal-dev-workflow/scripts/update.mjs --project <椤圭洰鏍?`銆傚畠鍏堥€愬瓧鑺傛瘮瀵规暣浠芥妧鑳界洰褰曪紝鏈夊樊寮傛墠澶囦唤鍒?`.pdw/skill-upgrade-<YYYYMMDD>/` 鍐嶅師瀛愭浛鎹紝鏈€鍚庤窇 `doctor`锛涘箓绛夈€佷笉鍔?`.pdw/config.json`銆佷笉 commit/push銆佷笉鍒犻櫎浠讳綍鏂囦欢銆傚畠鍙敼鎶€鑳芥枃浠垛€斺€旀ā鍨嬩笌鎬濊€冩。浣嶇瓑灞為」鐩骇閰嶇疆锛屾敼鍔ㄥ墠椤荤粰鐢ㄦ埛 diff 骞剁瓑纭銆傜粏鑺傝 [杩愯璇存槑鐨勫垎鍙戜笌鏇存柊](references/runtime.md#鍒嗗彂涓庢洿鏂?銆?- 鑴氭湰涓嶅彲鐢ㄦ椂鎸夊悓涓€鍘熷垯鎵嬪伐鍏滃簳锛坄git clone --depth 1 --branch main` 鈫?閫愬瓧鑺傛瘮瀵?鈫?鏈夊樊寮傛墠澶囦唤鍚庢暣浠芥浛鎹?鈫?璺?`doctor`锛夛紱缃戠粶涓嶅彲鐢ㄦ椂灏卞湴鎶ュ憡澶辫触锛屼笉闈欓粯娌跨敤鏈満鍓湰銆?
+
+hook: PreToolUse
+hook: PreToolUse
+hook: PreToolUse Completed
+hook: PreToolUse Completed
+exec
+"C:\\work\\AppData\\Local\\Microsoft\\WindowsApps\\Microsoft.PowerShell_8wekyb3d8bbwe\\pwsh.exe" -Command '[Console]::OutputEncoding=[System.Text.Encoding]::UTF8; Get-Content -Encoding utf8 tasks/276-shell-under-workspace-write.md; Get-Content -Encoding utf8 packages/tools/src/shell/shellTool.ts; Get-Content -Encoding utf8 packages/policy/src/engine/Engine.ts; Get-Content -Encoding utf8 evidence/task256/RESULT.md; git status --short; git branch --show-current' in E:\Code_file\Projects\Vessel_Harness
+ succeeded in 397ms:
+# 任务卡 276: 让 Shell 在 workspace-write 下可用（强制沙箱）
+
+**状态**: 执行中
+**创建时间**: 2026-10-23
+**执行者**: Codex (`gpt-6.1-sol`, medium)
+**协调者**: OpenCode
+
+---
+
+## 1. 背景（实测，不要重新论证）
+
+卡 275 的浏览器验收发现：UI 正常建出来的会话调 Shell 必被拒，理由是
+`approval required but approval=never (profile)`。
+
+根因：`Shell` 的 `requiredPermission` 是 `danger-full-access`，而 UI 默认会话是 `workspace-write`；
+`packages/policy/src/engine/Engine.ts:100` 对 `workspace-write + danger-full-access` 判需要审批，
+`approval=never` 时直接 deny。
+
+同时卡 256 已证明沙箱真的能工作（受限令牌 + Low + Job Object + 写根限制，真实模型会话里审计记录为
+`enforced`，见 `evidence/task256/`）。
+
+**用户决策（已确认）**：允许 `workspace-write` 使用 Shell，但**必须**强制走沙箱。
+
+## 2. Goal
+
+1. `Shell` 在 `workspace-write` 下可用（不再需要 `danger-full-access`）。
+2. 该权限下执行**必须**经过原生沙箱；沙箱不可用或执行被拒时 fail-closed（返回 DENIED），
+   绝不允许回落到无沙箱的 `sandbox.confine` 直通路径。
+3. `read-only` 下仍不可用。
+4. 不改变 `danger-full-access` 的现有行为。
+
+## 3. Acceptance Criteria
+
+1. `packages/policy/src/engine/Engine.ts` 的 profile 比较：`workspace-write` + Shell → 允许（不再 needsApproval）。
+   `read-only` + Shell → 仍拒绝。
+2. `packages/tools/src/shell/shellTool.ts`：没有可用的原生沙箱 runner 时，返回
+   `DENIED`（不得静默走非沙箱路径）；有 runner 时执行。
+3. 新增测试：
+   - policy：`workspace-write` 允许 Shell、`read-only` 拒绝 Shell、`danger-full-access` 不变；
+   - tools：缺少 native runner 时 Shell 返回 DENIED；
+   - 既有 Shell 沙箱用例仍通过。
+4. 门禁：`npx tsc -b`、`npm run typecheck:tests`、`npx vitest run packages/policy packages/tools`、
+   `npx vitest run apps/local-server`、`npm run test:web`。`test:all` 由协调者跑。
+5. 若 UI 里有权限说明文案，同步更新（Shell 在 workspace-write 下可用但强制沙箱）。
+
+## 4. Not Doing
+
+- 不放宽 `read-only`。
+- 不引入 approval 交互流（那是另一个选项，本次不做）。
+- 不改 `packages/core`；不改沙箱实现本身。
+- 不 commit/push。
+
+## 5. Blast Radius
+
+`packages/tools/src/shell/shellTool.ts`、`packages/policy/src/engine/Engine.ts`（仅 profile 比较与相关测试）、
+`packages/policy/src/risk/*`（若策略文本需要同步）、`docs/POLICY-SPEC.md`、Web 权限说明文案（若有）。
+
+## 6. Result
+
+待执行。
+import type { ProfileMode, SandboxStatus, ToolSpec } from '@vessel/shared';
+import type { Sandbox } from '@vessel/runtime';
+import { errorCode } from '../execution/selfHealing.js';
+import { tmpdir } from 'node:os';
+import { win32 } from 'node:path';
+import { PlatformSandboxRunner } from '../execution/sandbox/platformSandbox.js';
+import type { NativeSandboxRunner, SandboxAuditEvent } from '../execution/sandbox/types.js';
+
+const WRAPPERS = /^(timeout|time|nice|nohup)\s+/i;
+
+const READONLY_PREFIXES = [
+  'ls',
+  'dir',
+  'cat',
+  'type',
+  'more',
+  'pwd',
+  'grep',
+  'findstr',
+  'find',
+  'git status',
+  'git log',
+  'git diff',
+  'git show',
+  'git branch',
+  'node --version',
+  'npm --version',
+  'node -v',
+  'echo',
+];
+
+/**
+ * Readonly classification — string parsing is ONLY for readonly *identification*
+ * and deny *hints*, never the primary defense (POLICY-SPEC §2.4: 字符串解析只作只读识别).
+ * Hard enforcement lives in the policy engine + sandbox.
+ */
+export function isReadonlyCommand(command: string): boolean {
+  let c = command.trim().replace(WRAPPERS, '');
+  c = c.replace(/^sudo\s+/i, '');
+  const lower = c.toLowerCase();
+  return READONLY_PREFIXES.some((p) => lower === p || lower.startsWith(p + ' '));
+}
+
+/**
+ * task 072 escape-audit event kinds that are OPERATIONAL (an escape happened, a
+ * termination succeeded, a termination failed). Everything else the process-tree
+ * tracker records (`spawn` / `exit` / `attached` / `window-closed`) is routine
+ * bookkeeping and is deliberately NOT forwarded — no noise in the tool result.
+ */
+export const ESCAPE_AUDIT_KINDS = [
+  'escape-detected',
+  'escape-terminated',
+  'escape-terminate-failed',
+] as const;
+
+export type EscapeAuditKind = (typeof ESCAPE_AUDIT_KINDS)[number];
+
+/**
+ * Minimal structural slice of a runtime process-tree audit event — kept local so
+ * @vessel/tools does not grow a hard type dependency on @vessel/runtime.
+ */
+export interface EscapeAuditEvent {
+  kind: string;
+  pid?: number;
+  detail: string;
+  at: number;
+}
+
+/**
+ * Audit channel for escape/termination events. The product decision here is
+ * "never let an escape conclusion die in runtime memory": the events go into the
+ * tool result `meta` (which the AgentLoop persists on the session `tool/result`
+ * record — the durable audit trail) and, when a sink is injected, are ALSO
+ * pushed to the caller's audit channel.
+ *
+ * A plain-function injection (no `vi.fn`) so `restoreAllMocks()` cannot silently
+ * disconnect the audit in tests — same convention as the runtime deps slice.
+ */
+export type EscapeAuditSink = (event: EscapeAuditEvent) => void;
+
+/** Pick only the escape/termination-relevant events out of a process-tree audit. */
+export function selectEscapeAuditEvents(audit: readonly EscapeAuditEvent[]): EscapeAuditEvent[] {
+  const keep = new Set<string>(ESCAPE_AUDIT_KINDS);
+  return (audit ?? [])
+    .filter((e) => keep.has(e.kind))
+    .map((e) => (e.pid === undefined ? { ...e } : { ...e, pid: e.pid }));
+}
+
+/** Stripped status payload surfaced to the caller: the facts, no prose. */
+function statusMeta(status: SandboxStatus): Record<string, unknown> {
+  return {
+    supported: status.supported,
+    active: status.active,
+    backend: status.backend ?? 'none',
+    ...(status.degraded === undefined ? {} : { degraded: status.degraded }),
+    ...(status.fallbackReason === undefined ? {} : { reason: status.fallbackReason }),
+  };
+}
+
+export function createShellTool(opts: {
+  workspaceRoot: string;
+  sandbox: Sandbox;
+  /** optional audit channel; escape/termination events are forwarded here too. */
+  audit?: EscapeAuditSink;
+  nativeSandbox?: NativeSandboxRunner;
+  /** Omitted callers fail closed like the default workspace-write profile. */
+  permission?: ProfileMode;
+  nativeAudit?: (event: SandboxAuditEvent) => void | Promise<void>;
+}): ToolSpec {
+  const { sandbox } = opts;
+  const requireSandbox = opts.permission !== 'danger-full-access';
+  const native = opts.nativeSandbox ?? (opts.nativeAudit ? new PlatformSandboxRunner() : undefined);
+
+  return {
+    name: 'Shell',
+    description: 'Run a shell command in the workspace (Windows: cmd.exe; POSIX: /bin/sh).',
+    family: 'exec',
+    requiredPermission: 'workspace-write',
+    exclusive: true,
+    inputSchema: {
+      type: 'object',
+      properties: {
+        command: { type: 'string', description: 'shell command line' },
+        timeoutMs: { type: 'number', description: 'override timeout (default 30000)' },
+        terminateEscaped: {
+          type: 'boolean',
+          description: 'task 072 hard response: terminate descendants detected outside the confined set (default false = audit only)',
+        },
+      },
+      required: ['command'],
+    },
+    async execute(args, ctx) {
+      const command = String(args.command ?? '');
+      const timeoutMs = Number(args.timeoutMs ?? 30_000);
+      // task 072 hard response is opt-in and OFF by default: the Sandbox default
+      // is audit-only, and a caller can only ask for the terminate response
+      // explicitly (terminateEscaped: true) — this never widens on its own.
+      const terminateEscaped = args.terminateEscaped === true;
+      if (!command) {
+        return { content: '', error: { errorClass: 'INVALID_ARGS', message: 'command required' }, meta: {} };
+      }
+      if (opts.permission === 'read-only' || (requireSandbox && !native)) {
+        return { content: '', error: { errorClass: 'DENIED', message: opts.permission === 'read-only' ? 'Shell requires workspace-write permission' : 'Shell requires a native sandbox runner' }, meta: { retryUnsafe: true } };
+      }
+      if (native) {
+        const allowedWritePaths = [opts.workspaceRoot, tmpdir()];
+        try {
+          if (requireSandbox && !await native.isAvailable()) throw new Error('native sandbox unavailable');
+          // Wrap every command: readonly prefix parsing cannot exclude shell redirection or substitution.
+          const executable = process.platform === 'win32' ? win32.join(process.env.SystemRoot ?? 'C:\\Windows', 'System32', 'cmd.exe') : '/bin/sh';
+          const argv = process.platform === 'win32' ? ['/d', '/s', '/c', command] : ['-c', command];
+          const result = await native.execute(executable, argv, { cwd: opts.workspaceRoot, allowedWritePaths, cpuTimeoutMs: timeoutMs, lowIntegrity: true, signal: ctx?.signal, requireSandbox });
+          if (requireSandbox && !result.sandboxed) throw new Error('native sandbox did not enforce confinement');
+          await opts.nativeAudit?.({ isolationTier: result.isolationTier, sandboxed: result.sandboxed, outcome: result.sandboxed ? 'enforced' : 'fallback', allowedWritePaths,
+            ...(result.constraints ? { constraints: result.constraints } : {}), ...(!result.sandboxed ? { reason: 'native-helper-unavailable' } : {}) });
+          const output = (result.stdout + (result.stderr ? '\n[stderr]\n' + result.stderr : '')).trim();
+          return {
+            content: output || '(no output)',
+            ...(result.exitCode !== 0 ? { error: { errorClass: 'TOOL_FAILURE' as const, message: `exit code ${result.exitCode}`, detail: { exitCode: result.exitCode } } } : {}),
+            meta: { exitCode: result.exitCode, readonly: isReadonlyCommand(command), retryUnsafe: true, sandbox: { active: result.sandboxed, isolationTier: result.isolationTier } },
+          };
+        } catch (error) {
+          await opts.nativeAudit?.({ isolationTier: process.platform === 'win32' ? 'windows-job-restricted' : 'passthrough-fallback', sandboxed: false, outcome: 'denied', allowedWritePaths, reason: String(error) });
+          return { content: '', error: { errorClass: 'DENIED', message: `sandbox execution denied: ${String(error)}` }, meta: { retryUnsafe: true } };
+        }
+      }
+      // confine seam: with the Windows Job Object backend this reports the
+      // enforcement the backend is prepared to provide ('full') and `run` below
+      // actually confines the spawn. It is a PRE-round prediction (it only reads
+      // the failure recorded by an earlier round), so it is surfaced under its
+      // own name — `preRoundEnforcement` — and is never mixed with the
+      // round-scoped facts of this spawn.
+      const confined = await sandbox.confine(command.split(/\s+/));
+      let completed = false;
+      try {
+        const r = await sandbox.run(command, [], {
+          timeoutMs,
+          maxOutputBytes: 1024 * 1024,
+          shell: true,
+          limits: { terminateEscaped },
+          // task 050: turn interrupt kills the child (result resolves killed:true)
+          signal: ctx?.signal,
+        });
+        completed = true;
+        const output = (r.stdout + (r.stderr ? '\n[stderr]\n' + r.stderr : '')).trim();
+        // task 072 truthfulness: the escape conclusion must not stay in runtime
+        // memory. `r.audit` is filtered down to escape/termination events and
+        // carried on the result meta (persisted by the AgentLoop as the
+        // `tool/result` session record) + forwarded to the injected audit sink.
+        // The full audit is NOT dumped into the model-visible content.
+        const escapeEvents = selectEscapeAuditEvents(r.audit);
+        for (const e of escapeEvents) opts.audit?.(e);
+        // Honest sandbox facts for THIS spawn (BRIEF ①). Which round each field
+        // describes is NOT allowed to be ambiguous:
+        //   - `preRoundEnforcement` — what `confine()` predicted BEFORE this round
+        //     opened (a capability statement about the backend, not an outcome).
+        //   - `supported` / `active` / `backend` / `degraded` / `reason` — the
+        //     outcome of THIS round, taken from `r.sandbox`, i.e. the status
+        //     `Sandbox.run` captured AFTER the spawn + attach settled.
+        // Why it must be `r.sandbox`: `run()` opens a fresh round
+        // (`Sandbox.beginRound()` clears `degraded`), so a snapshot taken BEFORE
+        // `run()` describes the PREVIOUS round — it would report `active:true`
+        // (and no `degraded`) for a round whose attach actually failed, and the
+        // durable `tool/result` record would claim confinement that never was.
+        const sandboxMeta: Record<string, unknown> = {
+          preRoundEnforcement: confined.enforcement,
+          ...statusMeta(r.sandbox),
+          ...(escapeEvents.length > 0 ? { audit: escapeEvents } : {}),
+        };
+        if (r.exitCode !== 0 || r.killed) {
+          return {
+            content: output,
+            error: {
+              errorClass: 'TOOL_FAILURE',
+              message: `exit code ${r.exitCode ?? 'null'}${r.timedOut ? ' (timed out)' : ''}${r.killed && !r.timedOut ? ' (interrupted)' : ''}`,
+              detail: { exitCode: r.exitCode, timedOut: r.timedOut, killed: r.killed },
+            },
+            meta: {
+              exitCode: r.exitCode,
+              timedOut: r.timedOut,
+              killed: r.killed,
+              readonly: isReadonlyCommand(command),
+              sandbox: sandboxMeta,
+            },
+          };
+        }
+        return {
+          content: output || '(no output)',
+          meta: {
+            exitCode: r.exitCode,
+            readonly: isReadonlyCommand(command),
+            sandbox: sandboxMeta,
+          },
+        };
+      } catch (err) {
+        return {
+          content: '',
+          error: { errorClass: 'TOOL_FAILURE', message: `spawn failed: ${(err as Error).message}`, ...(!completed && errorCode(err) ? { detail: { code: errorCode(err) } } : {}) },
+          meta: { readonly: isReadonlyCommand(command) },
+        };
+      }
+    },
+  };
+}
+import { createExecutionPermitAuthority, type ExecutionPermitAuthority, type PolicyArtifacts, type Verdict } from '@vessel/shared';
+
+export interface PermissionSpec {
+  requiredPermission?: 'read' | 'workspace-write' | 'danger-full-access';
+}
+
+export type PolicyInterceptor = (call: { toolName: string; arguments: Record<string, unknown> }) => Verdict | undefined;
+
+/**
+ * policy/engine — authoritative decision listener on the BeforeTool chain
+ * (POLICY-SPEC §4.2). Decision order:
+ *   ① denied_tools → ② deny rules → ③ hook override (seam) → ④ ask rules
+ *   → ⑤ allow rules → ⑥ profile compare
+ * then guard monotonic narrowing + fail-closed (approval:never is enforced
+ * service-side BEFORE waterfall dispatch — responders cannot bypass it).
+ */
+export class PolicyEngine {
+  private artifacts: PolicyArtifacts;
+  private revision = 0;
+  readonly permits: ExecutionPermitAuthority = createExecutionPermitAuthority(() => this.revision);
+
+  constructor(artifacts: PolicyArtifacts, private readonly interceptors: readonly PolicyInterceptor[] = []) {
+    this.artifacts = artifacts;
+  }
+
+  /** Re-read artifacts (e.g. after policy reload). */
+  update(artifacts: PolicyArtifacts): void {
+    this.artifacts = artifacts;
+    this.revision++;
+  }
+
+  async decide(call: { toolName: string; arguments: Record<string, unknown> }, spec?: PermissionSpec): Promise<Verdict> {
+    const path: string[] = [];
+    const a = this.artifacts;
+
+    // Mandatory gates may only narrow policy; an interceptor cannot grant access.
+    for (const intercept of this.interceptors) {
+      const verdict = intercept(call);
+      if (verdict?.action === 'deny') return verdict;
+    }
+
+    // ① denied_tools — unconditional, before everything
+    if (a.deniedTools.includes(call.toolName)) {
+      const v: Verdict = {
+        action: 'deny',
+        decisionPath: [`denied_tools:${call.toolName}`],
+        ruleRef: `denied_tools:${call.toolName}`,
+        reason: `tool denied: ${call.toolName}`,
+      };
+      return v;
+    }
+
+    // ② deny rules (most restrictive first — any deny wins over narrower allow)
+    for (const rule of a.rules) {
+      if (rule.action === 'deny' && rule.match(call)) {
+        return {
+          action: 'deny',
+          decisionPath: [...path, `rule:${rule.id}`],
+          ruleRef: rule.id,
+          reason: rule.reason ?? `denied by rule ${rule.id}`,
+        };
+      }
+    }
+
+    // ③ hook override — seam only in v0.1 (external hooks.json bridge lands v0.2)
+    // ④ ask rules
+    let askRef: string | undefined;
+    for (const rule of a.rules) {
+      if (rule.action === 'ask' && rule.match(call)) {
+        askRef = rule.id;
+        path.push(`ask:${rule.id}`);
+        break;
+      }
+    }
+
+    // ⑤ allow rules
+    let allowRef: string | undefined;
+    if (!askRef) {
+      for (const rule of a.rules) {
+        if (rule.action === 'allow' && rule.match(call)) {
+          allowRef = rule.id;
+          path.push(`allow:${rule.id}`);
+          break;
+        }
+      }
+    }
+
+    // ⑥ profile compare (no rule matched): required_permission × profile
+    let needsApproval = false;
+    if (!askRef && !allowRef) {
+      let req = spec?.requiredPermission ?? 'danger-full-access'; // unregistered => danger (D6)
+      // readonly shell allowlist: string parsing is only readonly *identification*,
+      // but allowlisted commands run without approval under workspace-write
+      if (req === 'danger-full-access' && call.toolName === 'Shell' && this.isShellAllowed(call)) {
+        req = 'read';
+      }
+      if (a.profile === 'read-only' && req !== 'read') {
+        needsApproval = true;
+        path.push(`profile:read-only:${req}`);
+      } else if (a.profile === 'workspace-write' && req === 'danger-full-access') {
+        needsApproval = true;
+        path.push(`profile:workspace-write:${req}`);
+      } else {
+        path.push(`profile:${a.profile}:${req}`);
+      }
+    }
+
+    // fail-closed: ask with no responder / approval:never => denied service-side
+    if (askRef || needsApproval) {
+      if (a.approval === 'never') {
+        return {
+          action: 'deny',
+          decisionPath: [...path, 'approval:never'],
+          ruleRef: askRef ?? 'policy-never',
+          reason: askRef ? `approval required but approval=never: ${askRef}` : 'approval required but approval=never (profile)',
+        };
+      }
+      return {
+        action: 'ask',
+        decisionPath: [...path, 'approval:ask'],
+        ruleRef: askRef,
+        reason: askRef ? `requires approval: ${askRef}` : 'requires approval (profile)',
+      };
+    }
+
+    return {
+      action: 'allow',
+      decisionPath: path.length ? path : ['no-rule:allow'],
+      ruleRef: allowRef,
+    };
+  }
+
+  /** readonly shell allowlist check (identification only — not the primary defense). */
+  private isShellAllowed(call: { toolName: string; arguments: Record<string, unknown> }): boolean {
+    const cmd = String(call.arguments.command ?? '').trim();
+    const lower = cmd.toLowerCase();
+    return (this.artifacts.shellAllow ?? []).some((prefix) => {
+      const p = prefix.toLowerCase();
+      return lower === p || lower.startsWith(p + ' ');
+    });
+  }
+}
+# 任务卡 256 交付证据：受限沙箱真正跑起来了
+
+**日期**：2026-10-23
+**执行者**：Codex（候选方案）+ 协调者（定位并修正引号缺陷）
+**结论**：原生验收通过。受限令牌 + Low + Job Object + 写根限制下，子进程能执行命令、能写 provisioned 写根、根外写入被拒。
+
+---
+
+## 1. 根因链（三步，逐步证伪）
+
+卡 255 阶段已知：`CreateRestrictedToken` 的句柄没有 `TOKEN_ADJUST_DEFAULT`，必须在主令牌副本上降级；
+`AccessCheck` 需要描述符自带 owner/group。这两处修完后，子进程仍以 `0xC0000142`（STATUS_DLL_INIT_FAILED）退出。
+
+隔离矩阵（卡 255 证据）：
+
+| 令牌 | 创建标志 | 结果 |
+|---|---|---|
+| 受限 + Low | `CREATE_NO_WINDOW` | `0xC0000142` |
+| 受限 + Low | `CREATE_NEW_CONSOLE` | `0xC0000142` |
+| 受限 + Low | `0`（继承父控制台） | 能启动 |
+| 普通 + Low | `CREATE_NO_WINDOW` | 正常 |
+
+即：受限令牌下**新建控制台**会崩。本轮采用 `CREATE_SUSPENDED | DETACHED_PROCESS (0x4|0x8)`，
+不请求新控制台，标准输入接一条无写端的管道（立即 EOF），stdout/stderr 仍走既有管道。
+
+## 2. 第二个缺陷：无条件加引号把 /c 变成 "/c"
+
+换标志后子进程不再崩，但 `cmd.exe /c ver` 报 `'"ver' 不是内部或外部命令`。
+用批处理回显 `%CMDCMDLINE%` 抓到真实命令行：
+
+```
+CMDLINE="cmd.exe" "/c" "C:\...\dump.bat"
+```
+
+原 `Quote()` 对所有参数无条件加引号。受限令牌下，cmd 对**内置命令**（ver/echo）在 `"/c"` 形式下的解析失败。
+改为「仅在含空格/引号/控制字符时才加引号」，路径含空格仍走完整转义。修后内置命令与外部程序都能跑。
+
+## 3. 第三个问题：whoami 在受限令牌下必崩
+
+`whoami`、`whoami /groups`、`cmd /c whoami /groups` 全部 `0xC0000142`（不是权限拒绝，是 DLL 初始化失败），
+所以不能用它来证明 Low。改为由启动器在创建子进程后，**直接查询子进程令牌的完整性 RID** 并回传
+（`Result.ChildIntegrityRid` → `constraints.integrityRid`），探针据此判定。
+
+## 4. 原生验收输出
+
+`evidence/task256/native-smoke.json`（`node --import tsx evidence/task255/native-token-smoke.mts`，exit 0）：
+
+- `echo`：`sandbox-ok`，退出 0
+- `integrityRid`：**4096**（Low）
+- 写 provisioned 根：写 `probe` 并读回成功，退出 0
+- 写根外目录：退出 1，拒绝
+- `checks`：`{echoOk:true, echoText:true, low:true, writeOk:true, outsideDenied:true}`
+- `pass: true`
+
+## 5. 端到端验证：真实模型 → Shell 工具 → 沙箱
+
+`evidence/task256/e2e-real-session.json`。用 `commandgota-real / deepseek/deepseek-v4.1-flash`，
+起独立服务（端口 5791），工作区是系统临时目录下的夹具，**并把该夹具的 tmp 子目录当作 TEMP**，
+避免改动操作系统真正的临时目录：
+
+- 供应商注册 201、会话创建 201（`permission: danger-full-access`）、回合 200 / `kind: success`
+- 模型最终回复原样贴出了工具输出 `e2e-sandbox-ok`（不是编造）
+- `session.jsonl` 24 条记录，其中：`tool/call` → **`audit/sandbox_enforced`（outcome: enforced, sandboxed: true, isolationTier: windows-job-restricted）** → `tool/result`
+
+即：**模型在真实会话里成功调用 Shell，且确实走的是受限沙箱**，不是 passthrough。
+夹具自带的隔离供应商库已随夹具一并回收，真实 `~/.vessel` 未被写入。
+
+## 6. 未覆盖 / 边界
+
+- 只验证了 `cmd.exe` 与内置命令；`whoami.exe` 在该令牌下无法运行，属已知限制，不代表沙箱失效。
+- Job Object 的进程树清理沿用既有实现，本轮未改。
+- 已用真实模型会话端到端验证过一次 Shell 调用；尚未覆盖「写根外写入被工具链拒绝」在会话内的表现。
+warning: unable to access 'C:\work/.config/git/ignore': Permission denied
+warning: unable to access 'C:\work/.config/git/ignore': Permission denied
+ M apps/web/src/i18n.test.ts
+ M apps/web/src/i18n.ts
+ M docs/POLICY-SPEC.md
+ M packages/application/src/compose.ts
+ M packages/application/src/nativeSandboxIntegration.test.ts
+ M packages/policy/src/policy.test.ts
+ M packages/tools/src/execution/pipeline.test.ts
+ M packages/tools/src/execution/sandbox/platformSandbox.test.ts
+ M packages/tools/src/execution/sandbox/platformSandbox.ts
+ M packages/tools/src/execution/sandbox/types.ts
+ M packages/tools/src/shell/shellTool.ts
+ M packages/tools/src/tools.test.ts
+?? evidence/sessions/2026-10-23-task276-codex.log
+?? evidence/task276/
+?? packages/tools/src/shell/shellTool.test.ts
+?? tasks/276-shell-under-workspace-write.md
+?? tasks/prompts/codex-task-276-shell-permission.md
+main
+
+codex
+当前 `main` 的工作树并非干净：已有卡 276 相关修改，还包含沙箱实现变更。我会先检查这些 diff 和已有证据，保留现有内容，只补本契约内的缺口。另按 PDW 技能的执行者规则，本轮直接交证，不启动下级工作流。
+
+hook: PreToolUse
+hook: PreToolUse
+hook: PreToolUse Completed
+hook: PreToolUse Completed
+exec
+"C:\\work\\AppData\\Local\\Microsoft\\WindowsApps\\Microsoft.PowerShell_8wekyb3d8bbwe\\pwsh.exe" -Command '[Console]::OutputEncoding=[System.Text.Encoding]::UTF8; git diff --stat; git diff -- packages/tools/src/shell/shellTool.ts packages/policy/src/policy.test.ts packages/application/src/compose.ts docs/POLICY-SPEC.md apps/web/src/i18n.ts; Get-Content -Encoding utf8 packages/tools/src/shell/shellTool.test.ts; Get-ChildItem evidence/task276; Get-Content -Encoding utf8 package.json; Get-Content -Encoding utf8 packages/tools/src/execution/sandbox/platformSandbox.ts' in E:\Code_file\Projects\Vessel_Harness
+ succeeded in 529ms:
+ apps/web/src/i18n.test.ts                                    |  2 +-
+ apps/web/src/i18n.ts                                         |  4 ++--
+ docs/POLICY-SPEC.md                                          |  4 +++-
+ packages/application/src/compose.ts                          |  2 +-
+ packages/application/src/nativeSandboxIntegration.test.ts    | 23 ++++++++++++++++++++++-
+ packages/policy/src/policy.test.ts                           | 11 +++++++++++
+ packages/tools/src/execution/pipeline.test.ts                |  2 +-
+ packages/tools/src/execution/sandbox/platformSandbox.test.ts |  9 +++++++++
+ packages/tools/src/execution/sandbox/platformSandbox.ts      |  1 +
+ packages/tools/src/execution/sandbox/types.ts                |  2 ++
+ packages/tools/src/shell/shellTool.ts                        | 14 +++++++++++---
+ packages/tools/src/tools.test.ts                             | 12 ++++++------
+ 12 files changed, 70 insertions(+), 16 deletions(-)
+diff --git a/apps/web/src/i18n.ts b/apps/web/src/i18n.ts
+index 6a6f17f..35bccf6 100644
+--- a/apps/web/src/i18n.ts
++++ b/apps/web/src/i18n.ts
+@@ -1253,7 +1253,7 @@ export const zh: Messages = {
+   newSessionTitle: "新建会话",
+   permissionLabel: "新会话权限（不影响当前会话）",
+   permissionReadOnly: "只读探索权限",
+-  permissionWorkspaceWrite: "工作区读写权限",
++  permissionWorkspaceWrite: "工作区读写权限（Shell 强制沙箱）",
+   workspacePath: "工作区路径",
+   workspacePlaceholder: "输入项目的绝对路径",
+   cancel: "取消",
+@@ -2081,7 +2081,7 @@ export const en: Messages = {
+   newSessionTitle: "New Session",
+   permissionLabel: "New session permission (current session unchanged)",
+   permissionReadOnly: "Read-only",
+-  permissionWorkspaceWrite: "Workspace write",
++  permissionWorkspaceWrite: "Workspace write (Shell requires sandbox)",
+   workspacePath: "workspaceRoot",
+   workspacePlaceholder: "/path/to/project",
+   cancel: "Cancel",
+diff --git a/docs/POLICY-SPEC.md b/docs/POLICY-SPEC.md
+index 6a5a199..7c61968 100644
+--- a/docs/POLICY-SPEC.md
++++ b/docs/POLICY-SPEC.md
+@@ -529,7 +529,9 @@ decisionPath:
+ 
+ - `filesystem`：`protected`（写保护不可豁免）、`deny_read`（凭据默认）、`allow`（显式目录）、scoped 路径规则；canonical 规范化 + symlink/`..` 防逃逸；默认读 = workspace + 显式 allow（比 Claude 保守）。
+ - `shell`：`deny` 危险集合（destructive-delete / disk-format / partition-write，never_auto）、只读命令前缀 allowlist（仅只读识别用）、scoped 规则（命令前缀 + 标志）。
+-- `network`：`default`/`allow_domains`/`deny_domains` 在 v0.1 **仅声明，不作域名级运行期执法**（default: allow 任务书语义）。`deny_domains` 编译到 `PolicyArtifacts.declarationOnly`，每项显式 `enforced: false`，没有 `match`/`action`，不进入可执行的 `rules`；消费方不得将其计作有效拒绝规则。v0.1 无网络工具，也不按 Shell 参数中的域名文本匹配。真正生效的是 profile/approval 门禁（例如 workspace-write 下 Shell 需 danger-full-access，approval=never 时拒绝）；这不证明域名级防护。代理级执法（MITM/出站注入）留待 v0.2，当前未实现。
++- `network`：`default`/`allow_domains`/`deny_domains` 在 v0.1 **仅声明，不作域名级运行期执法**（default: allow 任务书语义）。`deny_domains` 编译到 `PolicyArtifacts.declarationOnly`，每项显式 `enforced: false`，没有 `match`/`action`，不进入可执行的 `rules`；消费方不得将其计作有效拒绝规则。v0.1 无网络工具，也不按 Shell 参数中的域名文本匹配。profile/approval 门禁与原生沙箱不证明域名级防护。代理级执法（MITM/出站注入）留待 v0.2，当前未实现。
++
++**当前 Shell 权限（卡 276）**：内建 Shell 的 `requiredPermission` 为 `workspace-write`。profile 比较下 `workspace-write` 无需审批，`read-only` 仍拒绝（包括只读前缀命令）；显式 deny/ask 规则保持优先。组合根把生效 profile 传给 Shell，省略 profile 的直接调用也按严格模式处理。该模式必须使用原生 runner；缺少 runner、探测失败、启动拒绝或缺少沙箱执行确认均返回 `DENIED`，不重放到 `sandbox.confine/run`。平台 runner 在目标进程启动前禁止 passthrough fallback，避免探测与执行之间可用性变化导致无沙箱执行。`danger-full-access` 保留原有原生 runner / fallback / legacy confine 行为。写根与既有原生沙箱能力边界不变，不因此声称域名级隔离或更强的读取限制。
+ - `git`：`force_push` 布尔 deny/ask（与 shell 层合并去重）。
+ - `tools`：三态规则 + denied_tools（裸名 deny = 移出上下文）+ 工具 required_permission 声明（未注册默认 danger 级）。
+ 
+diff --git a/packages/application/src/compose.ts b/packages/application/src/compose.ts
+index 2687971..af06c63 100644
+--- a/packages/application/src/compose.ts
++++ b/packages/application/src/compose.ts
+@@ -340,7 +340,7 @@ export async function composeHarness(opts: ComposeOptions): Promise<ComposedHarn
+       ...createFsTools({ workspaceRoot, fsPolicy }),
+       ...createSearchTools({ workspaceRoot, fsPolicy }),
+       ...(graphAccess ? [graphAccess.tool] : []),
+-      createShellTool({ workspaceRoot, sandbox, nativeSandbox: opts.nativeSandbox, nativeAudit: async event => {
++      createShellTool({ workspaceRoot, sandbox, permission: artifacts.profile, nativeSandbox: opts.nativeSandbox, nativeAudit: async event => {
+         const record = await session.appendSync({ ...event, type: 'audit/sandbox_enforced', surface: false });
+         await bus.emit('audit/sandbox_enforced', record);
+       } }),
+diff --git a/packages/policy/src/policy.test.ts b/packages/policy/src/policy.test.ts
+index ea07148..b996199 100644
+--- a/packages/policy/src/policy.test.ts
++++ b/packages/policy/src/policy.test.ts
+@@ -51,6 +51,17 @@ describe('policy/risk — Policy Compiler (four artifacts)', () => {
+ });
+ 
+ describe('policy/engine — authoritative BeforeTool decision (POLICY-SPEC §4.2)', () => {
++  it.each(['read-only', 'workspace-write', 'danger-full-access'] as const)('task 276: Shell workspace-write requirement under %s', async profile => {
++    const a = artifacts();
++    a.profile = profile;
++    const e = new PolicyEngine(a);
++    for (const command of ['ls -la', 'node -e "1+1"']) {
++      const verdict = await e.decide({ toolName: 'Shell', arguments: { command } }, { requiredPermission: 'workspace-write' });
++      expect(verdict.action).toBe(profile === 'read-only' ? 'deny' : 'allow');
++      if (profile !== 'read-only') expect(verdict.decisionPath).not.toContain('approval:ask');
++    }
++  });
++
+   it('① denied_tools denies before everything', async () => {
+     const e = new PolicyEngine(artifacts());
+     const v = await e.decide({ toolName: 'AskUserQuestion', arguments: {} });
+diff --git a/packages/tools/src/shell/shellTool.ts b/packages/tools/src/shell/shellTool.ts
+index 6f44a54..d00562e 100644
+--- a/packages/tools/src/shell/shellTool.ts
++++ b/packages/tools/src/shell/shellTool.ts
+@@ -1,4 +1,4 @@
+-import type { SandboxStatus, ToolSpec } from '@vessel/shared';
++import type { ProfileMode, SandboxStatus, ToolSpec } from '@vessel/shared';
+ import type { Sandbox } from '@vessel/runtime';
+ import { errorCode } from '../execution/selfHealing.js';
+ import { tmpdir } from 'node:os';
+@@ -103,16 +103,19 @@ export function createShellTool(opts: {
+   /** optional audit channel; escape/termination events are forwarded here too. */
+   audit?: EscapeAuditSink;
+   nativeSandbox?: NativeSandboxRunner;
++  /** Omitted callers fail closed like the default workspace-write profile. */
++  permission?: ProfileMode;
+   nativeAudit?: (event: SandboxAuditEvent) => void | Promise<void>;
+ }): ToolSpec {
+   const { sandbox } = opts;
++  const requireSandbox = opts.permission !== 'danger-full-access';
+   const native = opts.nativeSandbox ?? (opts.nativeAudit ? new PlatformSandboxRunner() : undefined);
+ 
+   return {
+     name: 'Shell',
+     description: 'Run a shell command in the workspace (Windows: cmd.exe; POSIX: /bin/sh).',
+     family: 'exec',
+-    requiredPermission: 'danger-full-access',
++    requiredPermission: 'workspace-write',
+     exclusive: true,
+     inputSchema: {
+       type: 'object',
+@@ -136,13 +139,18 @@ export function createShellTool(opts: {
+       if (!command) {
+         return { content: '', error: { errorClass: 'INVALID_ARGS', message: 'command required' }, meta: {} };
+       }
++      if (opts.permission === 'read-only' || (requireSandbox && !native)) {
++        return { content: '', error: { errorClass: 'DENIED', message: opts.permission === 'read-only' ? 'Shell requires workspace-write permission' : 'Shell requires a native sandbox runner' }, meta: { retryUnsafe: true } };
++      }
+       if (native) {
+         const allowedWritePaths = [opts.workspaceRoot, tmpdir()];
+         try {
++          if (requireSandbox && !await native.isAvailable()) throw new Error('native sandbox unavailable');
+           // Wrap every command: readonly prefix parsing cannot exclude shell redirection or substitution.
+           const executable = process.platform === 'win32' ? win32.join(process.env.SystemRoot ?? 'C:\\Windows', 'System32', 'cmd.exe') : '/bin/sh';
+           const argv = process.platform === 'win32' ? ['/d', '/s', '/c', command] : ['-c', command];
+-          const result = await native.execute(executable, argv, { cwd: opts.workspaceRoot, allowedWritePaths, cpuTimeoutMs: timeoutMs, lowIntegrity: true, signal: ctx?.signal });
++          const result = await native.execute(executable, argv, { cwd: opts.workspaceRoot, allowedWritePaths, cpuTimeoutMs: timeoutMs, lowIntegrity: true, signal: ctx?.signal, requireSandbox });
++          if (requireSandbox && !result.sandboxed) throw new Error('native sandbox did not enforce confinement');
+           await opts.nativeAudit?.({ isolationTier: result.isolationTier, sandboxed: result.sandboxed, outcome: result.sandboxed ? 'enforced' : 'fallback', allowedWritePaths,
+             ...(result.constraints ? { constraints: result.constraints } : {}), ...(!result.sandboxed ? { reason: 'native-helper-unavailable' } : {}) });
+           const output = (result.stdout + (result.stderr ? '\n[stderr]\n' + result.stderr : '')).trim();
+import { describe, expect, it, vi } from 'vitest';
+import { Sandbox } from '@vessel/runtime';
+import { createShellTool } from './shellTool.js';
+import type { NativeSandboxRunner } from '../execution/sandbox/types.js';
+
+const workspaceRoot = process.cwd();
+const ctx = { workspaceRoot, cwd: workspaceRoot };
+const args = { command: 'echo sandbox-test' };
+
+function fixture() {
+  const sandbox = new Sandbox();
+  const confine = vi.spyOn(sandbox, 'confine');
+  const run = vi.spyOn(sandbox, 'run');
+  const native: NativeSandboxRunner = {
+    isAvailable: vi.fn().mockResolvedValue(true),
+    execute: vi.fn().mockResolvedValue({ stdout: 'sandbox-test', stderr: '', exitCode: 0, sandboxed: true, isolationTier: 'windows-job-restricted' }),
+  };
+  return { sandbox, confine, run, native };
+}
+
+describe('task 276: workspace-write Shell requires native confinement', () => {
+  it('denies missing runners, including callers that omit permission', async () => {
+    for (const permission of [undefined, 'workspace-write'] as const) {
+      const { sandbox, confine, run } = fixture();
+      const tool = createShellTool({ workspaceRoot, sandbox, permission });
+      expect(tool.requiredPermission).toBe('workspace-write');
+      expect((await tool.execute(args, ctx)).error?.errorClass).toBe('DENIED');
+      expect(confine).not.toHaveBeenCalled();
+      expect(run).not.toHaveBeenCalled();
+    }
+  });
+
+  it('denies unavailable runners before execution', async () => {
+    const { sandbox, confine, run, native } = fixture();
+    vi.mocked(native.isAvailable).mockResolvedValue(false);
+    const result = await createShellTool({ workspaceRoot, sandbox, nativeSandbox: native }).execute(args, ctx);
+    expect(result.error?.errorClass).toBe('DENIED');
+    expect(native.execute).not.toHaveBeenCalled();
+    expect(confine).not.toHaveBeenCalled();
+    expect(run).not.toHaveBeenCalled();
+  });
+
+  it('executes with strict native options and enforced audit', async () => {
+    const { sandbox, native } = fixture();
+    const nativeAudit = vi.fn();
+    const result = await createShellTool({ workspaceRoot, sandbox, nativeSandbox: native, nativeAudit }).execute(args, ctx);
+    expect(result.error).toBeUndefined();
+    expect(result.content).toBe('sandbox-test');
+    expect(native.execute).toHaveBeenCalledWith(expect.any(String), expect.any(Array), expect.objectContaining({ requireSandbox: true, lowIntegrity: true, cwd: workspaceRoot }));
+    expect(nativeAudit).toHaveBeenCalledWith(expect.objectContaining({ outcome: 'enforced', sandboxed: true }));
+  });
+
+  it.each(['throw', 'fallback'] as const)('denies %s without replay through the legacy sandbox', async mode => {
+    const { sandbox, confine, run, native } = fixture();
+    if (mode === 'throw') vi.mocked(native.execute).mockRejectedValue(new Error('launcher denied'));
+    else vi.mocked(native.execute).mockResolvedValue({ stdout: '', stderr: '', exitCode: 0, sandboxed: false, isolationTier: 'passthrough-fallback' });
+    const nativeAudit = vi.fn();
+    const result = await createShellTool({ workspaceRoot, sandbox, nativeSandbox: native, nativeAudit }).execute(args, ctx);
+    expect(result.error?.errorClass).toBe('DENIED');
+    expect(native.execute).toHaveBeenCalledOnce();
+    expect(confine).not.toHaveBeenCalled();
+    expect(run).not.toHaveBeenCalled();
+    expect(nativeAudit).toHaveBeenCalledWith(expect.objectContaining({ outcome: 'denied', sandboxed: false }));
+  });
+
+  it('denies read-only even when a native runner exists', async () => {
+    const { sandbox, native } = fixture();
+    expect((await createShellTool({ workspaceRoot, sandbox, nativeSandbox: native, permission: 'read-only' }).execute(args, ctx)).error?.errorClass).toBe('DENIED');
+    expect(native.execute).not.toHaveBeenCalled();
+  });
+
+  it('preserves full-access native fallback behavior', async () => {
+    const { sandbox, native } = fixture();
+    vi.mocked(native.execute).mockResolvedValue({ stdout: 'legacy', stderr: '', exitCode: 0, sandboxed: false, isolationTier: 'passthrough-fallback' });
+    expect((await createShellTool({ workspaceRoot, sandbox, nativeSandbox: native, permission: 'danger-full-access' }).execute(args, ctx)).content).toBe('legacy');
+    expect(native.isAvailable).not.toHaveBeenCalled();
+  });
+});
+
+
+    目录: E:\Code_file\Projects\Vessel_Harness\evidence\task276
+
+
+Mode                 LastWriteTime         Length Name                                                                 
+----                 -------------         ------ ----                                                                 
+-a----        2026/10/23     19:00           1406 application-integration.log                                          
+-a----        2026/10/23     19:01           4250 local-server.log                                                     
+-a----        2026/10/23     19:00           3144 policy-tools.log                                                     
+-a----        2026/10/23     19:00              0 tsc.log                                                              
+-a----        2026/10/23     19:00            200 typecheck-tests.log                                                  
+-a----        2026/10/23     18:59           1194 web.log                                                              
+{
+  "name": "composable-agent-harness",
+  "private": true,
+  "version": "0.10.0",
+  "type": "module",
+  "description": "Vessel — a composable agent harness: thin core loop, behaviour IR compiled into every agent, hard policy enforcement, local-first and model-agnostic (TypeScript, Node >=20)",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "workspaces": [
+    "apps/*",
+    "packages/*",
+    "benchmarks/runners"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "build": "tsc -b tsconfig.json",
+    "build:release": "tsc -p tsconfig.release.json",
+    "typecheck": "tsc -b tsconfig.json --pretty false",
+    "typecheck:tests": "tsc -p tsconfig.test.json --pretty false",
+    "test": "vitest run",
+    "test:web": "vitest run --root apps/web",
+    "test:all": "vitest run && vitest run --root apps/web",
+    "test:watch": "vitest",
+    "vessel": "tsx apps/cli/src/cli.ts",
+    "start": "tsx apps/cli/src/cli.ts",
+    "cli": "tsx apps/cli/src/cli.ts",
+    "setup": "tsx apps/cli/src/cli.ts setup",
+    "smoke": "node apps/cli/dist/cli.js run --prompt \"offline smoke\"",
+    "bench": "tsx apps/cli/src/cli.ts run --bench",
+    "bench:conformance": "tsx benchmarks/runners/src/conformance/run-conformance.ts",
+    "bench:reliability": "tsx benchmarks/runners/src/reliability.ts"
+  },
+  "devDependencies": {
+    "@types/js-yaml": "^4.0.9",
+    "@types/node": "^22.5.0",
+    "js-yaml": "^5.4.2",
+    "tsx": "^4.23.15",
+    "typescript": "^7.0.2",
+    "vitest": "^5.0.1"
+  },
+  "dependencies": {
+    "@clack/prompts": "^1.8.1"
+  }
+}
+import { realpathSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { runCommand, type SpawnOptions, type SpawnResult } from '@vessel/runtime';
+import { WindowsRestrictedRunner } from './windowsRestricted.js';
+import type { NativeSandboxRunner, SandboxAuditEvent, SandboxExecutionOptions, SandboxExecutionResult } from './types.js';
+
+export interface PlatformSandboxDeps {
+  platform?: NodeJS.Platform;
+  run?: typeof runCommand;
+  windows?: NativeSandboxRunner;
+  audit?: (event: SandboxAuditEvent) => void | Promise<void>;
+}
+
+export { allowedWriteRoots } from './options.js';
+import { allowedWriteRoots, validateSandboxOptions } from './options.js';
+
+export class PlatformSandboxRunner implements NativeSandboxRunner {
+  private readonly platform: NodeJS.Platform;
+  private readonly run: typeof runCommand;
+  private readonly windows: NativeSandboxRunner;
+  constructor(private readonly deps: PlatformSandboxDeps = {}) {
+    this.platform = deps.platform ?? process.platform;
+    this.run = deps.run ?? runCommand;
+    this.windows = deps.windows ?? new WindowsRestrictedRunner({ run: this.run });
+  }
+
+  async isAvailable(): Promise<boolean> {
+    if (this.platform === 'win32') return this.windows.isAvailable();
+    if (this.platform !== 'linux' && this.platform !== 'darwin') return false;
+    try {
+      const command = this.platform === 'linux' ? '/usr/bin/bwrap' : '/usr/bin/sandbox-exec';
+      // Probe the actual namespace/profile, not just executable presence.
+      const args = this.platform === 'linux'
+        ? ['--die-with-parent', '--unshare-all', '--ro-bind', '/', '/', '--', '/bin/true']
+        : ['-p', '(version 1) (allow default)', '/usr/bin/true'];
+      return (await this.run(command, args, { cwd: tmpdir(), timeoutMs: 5_000 })).exitCode === 0;
+    } catch { return false; }
+  }
+
+  async execute(command: string, args: string[], options: SandboxExecutionOptions): Promise<SandboxExecutionResult> {
+    validateSandboxOptions(options);
+    const roots = allowedWriteRoots(options);
+    if (this.platform === 'win32') {
+      try {
+        const result = await this.windows.execute(command, args, { ...options, allowedWritePaths: roots });
+        await this.deps.audit?.({ ...pick(result), outcome: result.sandboxed ? 'enforced' : 'fallback', allowedWritePaths: roots });
+        return result;
+      } catch (error) {
+        await this.deps.audit?.({ isolationTier: 'windows-job-restricted', sandboxed: false, outcome: 'denied', allowedWritePaths: roots, reason: String(error) });
+        throw error;
+      }
+    }
+    let executable = command;
+    let argv = args;
+    let tier: SandboxExecutionResult['isolationTier'] = 'passthrough-fallback';
+    if (await this.isAvailable()) {
+      if (this.platform === 'linux') {
+        executable = '/usr/bin/bwrap';
+        argv = ['--die-with-parent', '--unshare-all', '--new-session', '--ro-bind', '/', '/', '--proc', '/proc', '--dev', '/dev', ...roots.flatMap(root => ['--bind', root, root]), '--chdir', realpathSync(options.cwd), '--', command, ...args];
+        tier = 'bwrap-ns';
+      } else {
+        executable = '/usr/bin/sandbox-exec';
+        const quote = (value: string) => JSON.stringify(value);
+        argv = ['-p', `(version 1) (allow default) (deny file-write*) ${roots.map(root => `(allow file-write* (subpath ${quote(root)}))`).join(' ')}`, command, ...args];
+        tier = 'macos-seatbelt';
+      }
+    }
+    if (options.requireSandbox && tier === 'passthrough-fallback') throw new Error('native sandbox unavailable; unconfined execution denied');
+    if (options.maxMemoryBytes !== undefined) throw new Error('native memory limits require Windows Job Object; POSIX helpers do not enforce them');
+    // Execution failure NEVER falls back or replays the command.
+    const result = await this.run(executable, argv, { ...spawnOptions(options), processGroup: true });
+    const converted = convert(result, tier);
+    await this.deps.audit?.({ ...pick(converted), outcome: tier === 'passthrough-fallback' ? 'fallback' : 'enforced', allowedWritePaths: roots, ...(tier === 'passthrough-fallback' ? { reason: 'native-helper-unavailable' } : {}) });
+    return converted;
+  }
+}
+
+export function spawnOptions(options: SandboxExecutionOptions): SpawnOptions {
+  return { cwd: options.cwd, timeoutMs: options.cpuTimeoutMs ?? 30_000, signal: options.signal, maxOutputBytes: 1024 * 1024, shell: false };
+}
+
+function convert(result: SpawnResult, isolationTier: SandboxExecutionResult['isolationTier']): SandboxExecutionResult {
+  return { stdout: result.stdout, stderr: result.stderr, exitCode: result.exitCode ?? 1, isolationTier, sandboxed: isolationTier !== 'passthrough-fallback',
+    constraints: { readOnlyPaths: isolationTier === 'passthrough-fallback' ? [] : ['/'], memoryLimitBytes: null,
+      privilegeReduction: isolationTier === 'bwrap-ns' ? 'Bubblewrap namespace confinement. Root is read-only except write roots and the virtual /proc and /dev mounts.'
+        : isolationTier === 'macos-seatbelt' ? 'Seatbelt denies filesystem writes except configured write roots.' : 'No native privilege reduction.' } };
+}
+function pick(result: SandboxExecutionResult) { return { isolationTier: result.isolationTier, sandboxed: result.sandboxed, ...(result.constraints ? { constraints: result.constraints } : {}) }; }
+
+
+
+hook: PreToolUse
+hook: PreToolUse
+hook: PreToolUse Completed
+hook: PreToolUse Completed
+exec
+"C:\\work\\AppData\\Local\\Microsoft\\WindowsApps\\Microsoft.PowerShell_8wekyb3d8bbwe\\pwsh.exe" -Command "[Console]::OutputEncoding=[System.Text.Encoding]::UTF8; git diff -- packages/application/src/nativeSandboxIntegration.test.ts packages/tools/src/execution/sandbox/types.ts packages/tools/src/execution/sandbox/platformSandbox.test.ts packages/tools/src/tools.test.ts packages/tools/src/execution/pipeline.test.ts apps/web/src/i18n.test.ts; Get-Content -Encoding utf8 evidence/task276/policy-tools.log -Tail 12; Get-Content -Encoding utf8 evidence/task276/local-server.log -Tail 10; rg -n '276|最近已交付' tasks/README.md; rg -n 'Shell.*(danger-full-access|完整权限|full.access)|完整权限.*Shell' apps/web docs/POLICY-SPEC.md; Get-Content -Encoding utf8 packages/tools/src/execution/sandbox/windowsRestricted.ts -TotalCount 130; Get-Content -Encoding utf8 .agents/skills/personal-dev-workflow/SKILL.md -TotalCount 28" in E:\Code_file\Projects\Vessel_Harness
+ succeeded in 474ms:
+diff --git a/apps/web/src/i18n.test.ts b/apps/web/src/i18n.test.ts
+index 375f842..6ea05b4 100644
+--- a/apps/web/src/i18n.test.ts
++++ b/apps/web/src/i18n.test.ts
+@@ -81,7 +81,7 @@ describe('complete V2.6 dictionaries', () => {
+     const t = translate('zh');
+     expect(t('emptyBody')).not.toMatch(/Recent Sessions|New Session/);
+     expect(t('permissionReadOnly')).toBe('只读探索权限');
+-    expect(t('permissionWorkspaceWrite')).toBe('工作区读写权限');
++    expect(t('permissionWorkspaceWrite')).toBe('工作区读写权限（Shell 强制沙箱）');
+     expect(t('inspectorTitle')).toBe('画布检视器');
+     expect(t('acceptHunk')).toBe('采纳此块');
+     expect(t('reasoningRate', { rate: '12.5' })).toContain('推理词元／秒');
+diff --git a/packages/application/src/nativeSandboxIntegration.test.ts b/packages/application/src/nativeSandboxIntegration.test.ts
+index 9f81e6f..1a488fd 100644
+--- a/packages/application/src/nativeSandboxIntegration.test.ts
++++ b/packages/application/src/nativeSandboxIntegration.test.ts
+@@ -1,7 +1,7 @@
+ import * as fs from 'node:fs';
+ import * as os from 'node:os';
+ import * as path from 'node:path';
+-import { afterEach, beforeEach, expect, it } from 'vitest';
++import { afterEach, beforeEach, expect, it, vi } from 'vitest';
+ import { MockProvider } from '@vessel/llm';
+ import { composeHarness, type ComposedHarness } from './compose.js';
+ import { SessionController } from './session/SessionController.js';
+@@ -48,3 +48,24 @@ it('projects real offline tool-loop native audits despite after_tool omitting me
+     } }]);
+   } finally { await controller.close(); }
+ });
++
++it.each([true, false])('workspace-write session tool loop requires native availability=%s', async available => {
++  const execute = vi.fn().mockImplementation(async (_command, _args, options) => {
++    expect(options.requireSandbox).toBe(true);
++    return { stdout: 'workspace-shell-ok', stderr: '', exitCode: 0, sandboxed: true, isolationTier: 'bwrap-ns' };
++  });
++  const controller = await SessionController.create({ workspaceRoot: root, model: 'mock', permission: 'workspace-write',
++    provider: new MockProvider([
++      { when: /.*/, ifNoToolResult: true, response: { toolCalls: [{ name: 'Shell', arguments: { command: 'echo workspace-shell-ok' } }] } },
++      { when: /.*/, minToolResults: 1, response: { text: 'done' } },
++    ]),
++    policySystemPath: path.join(repo, 'configs/policy.default.yaml'), behaviorIRPath: path.join(repo, 'configs/behavior.default.yaml'),
++    nativeSandbox: { isAvailable: async () => available, execute } });
++  try {
++    await controller.runTurn('Run the offline tool');
++    expect(execute).toHaveBeenCalledTimes(available ? 1 : 0);
++    const records = controller.session.replay();
++    expect(records.some(record => record.type === 'audit/sandbox_enforced' && record.outcome === (available ? 'enforced' : 'denied'))).toBe(true);
++    expect(records.some(record => record.type === 'audit/denial' && String(record.reason).includes('approval=never (profile)'))).toBe(false);
++  } finally { await controller.close(); }
++});
+diff --git a/packages/tools/src/execution/pipeline.test.ts b/packages/tools/src/execution/pipeline.test.ts
+index e38b9de..1f5c80b 100644
+--- a/packages/tools/src/execution/pipeline.test.ts
++++ b/packages/tools/src/execution/pipeline.test.ts
+@@ -136,7 +136,7 @@ describe('production tool protection', () => {
+   it('does not retry an already-completed shell command when its audit/output processing fails', async () => {
+     const sandbox = new Sandbox();
+     const runShell = vi.spyOn(sandbox, 'run').mockResolvedValue({ stdout: 'done', stderr: '', exitCode: 0, timedOut: false, killed: false, sandbox: sandbox.status(), processTree: { nodes: [], aliveCount: 0, exitedCount: 0 }, audit: [{ kind: 'escape-detected', detail: 'fixture', at: 1 }] });
+-    const registry = new ToolRegistry([createShellTool({ workspaceRoot: root, sandbox, audit: () => { throw transient(); } })]);
++    const registry = new ToolRegistry([createShellTool({ permission: 'danger-full-access', workspaceRoot: root, sandbox, audit: () => { throw transient(); } })]);
+     const result = await run(registry, 'Shell', { command: 'fixture command' });
+     expect(result.error?.message).toContain('fixture transient'); expect(runShell).toHaveBeenCalledOnce();
+   });
+diff --git a/packages/tools/src/execution/sandbox/platformSandbox.test.ts b/packages/tools/src/execution/sandbox/platformSandbox.test.ts
+index ef91d97..c89ef12 100644
+--- a/packages/tools/src/execution/sandbox/platformSandbox.test.ts
++++ b/packages/tools/src/execution/sandbox/platformSandbox.test.ts
+@@ -46,6 +46,15 @@ describe('native platform sandbox', () => {
+     expect(run).toHaveBeenCalledTimes(2);
+   });
+ 
++  it('strict mode never spawns the target if a helper becomes unavailable', async () => {
++    const run = vi.fn().mockResolvedValueOnce(result()).mockRejectedValueOnce(new Error('helper lost'));
++    const runner = new PlatformSandboxRunner({ platform: 'linux', run });
++    expect(await runner.isAvailable()).toBe(true);
++    await expect(runner.execute('/bin/sh', ['-c', 'must not run'], { cwd, requireSandbox: true })).rejects.toThrow('unconfined execution denied');
++    expect(run).toHaveBeenCalledTimes(2);
++    expect(run.mock.calls.every(call => call[0] === '/usr/bin/bwrap')).toBe(true);
++  });
++
+   it('reports nonzero sandbox child exit without claiming fallback', async () => {
+     const run = vi.fn().mockResolvedValueOnce(result()).mockResolvedValueOnce(result(7));
+     expect(await new PlatformSandboxRunner({ platform: 'linux', run }).execute('/bin/sh', [], { cwd })).toMatchObject({ sandboxed: true, exitCode: 7 });
+diff --git a/packages/tools/src/execution/sandbox/types.ts b/packages/tools/src/execution/sandbox/types.ts
+index 2c481a7..45cd10d 100644
+--- a/packages/tools/src/execution/sandbox/types.ts
++++ b/packages/tools/src/execution/sandbox/types.ts
+@@ -1,6 +1,8 @@
+ import type { SandboxConstraints } from '@vessel/shared';
+ 
+ export interface SandboxExecutionOptions {
++  /** Deny before target spawn when native confinement is unavailable. */
++  requireSandbox?: boolean;
+   cwd: string;
+   allowedWritePaths?: string[];
+   maxMemoryBytes?: number;
+diff --git a/packages/tools/src/tools.test.ts b/packages/tools/src/tools.test.ts
+index a3d10d7..e1b4896 100644
+--- a/packages/tools/src/tools.test.ts
++++ b/packages/tools/src/tools.test.ts
+@@ -29,7 +29,7 @@ describe('6 builtin tools', () => {
+     const tools = [
+       ...createFsTools({ workspaceRoot: dir, fsPolicy: FS_POLICY }),
+       ...createSearchTools({ workspaceRoot: dir, fsPolicy: FS_POLICY }),
+-      createShellTool({ workspaceRoot: dir, sandbox }),
++      createShellTool({ permission: 'danger-full-access', workspaceRoot: dir, sandbox }),
+     ];
+     return new ToolRegistry(tools);
+   }
+@@ -108,7 +108,7 @@ describe('6 builtin tools', () => {
+   it('denied tools are removed from the visible set and rejected at execution', async () => {
+     const sandbox = new Sandbox();
+     const r = new ToolRegistry(
+-      [...createFsTools({ workspaceRoot: dir, fsPolicy: FS_POLICY }), createShellTool({ workspaceRoot: dir, sandbox })],
++      [...createFsTools({ workspaceRoot: dir, fsPolicy: FS_POLICY }), createShellTool({ permission: 'danger-full-access', workspaceRoot: dir, sandbox })],
+       { deniedTools: ['Shell'] },
+     );
+     expect(r.listVisible().map((t) => t.name)).not.toContain('Shell');
+@@ -139,7 +139,7 @@ describe('Shell — escape audit events are surfaced, not dropped in runtime mem
+       attachPidsToJob: async () => 0,
+       createJob: async (pid) => ({ jobName: `j_${pid}`, terminate: async () => {}, dispose: async () => {} }),
+     });
+-    const tool = createShellTool({ workspaceRoot: dir, sandbox, audit: (e) => sink.push({ kind: e.kind, pid: e.pid }) });
++    const tool = createShellTool({ permission: 'danger-full-access', workspaceRoot: dir, sandbox, audit: (e) => sink.push({ kind: e.kind, pid: e.pid }) });
+     const res = await tool.execute({ command: 'node -e "process.exit(0)"' }, { workspaceRoot: dir, cwd: dir });
+ 
+     // the escape conclusion is visible on the result (persisted by the AgentLoop)
+@@ -174,7 +174,7 @@ describe('Shell — escape audit events are surfaced, not dropped in runtime mem
+       },
+       createJob: async (pid) => ({ jobName: `j_${pid}`, terminate: async () => {}, dispose: async () => {} }),
+     });
+-    const tool = createShellTool({ workspaceRoot: dir, sandbox, audit: (e) => sink.push({ kind: e.kind, pid: e.pid }) });
++    const tool = createShellTool({ permission: 'danger-full-access', workspaceRoot: dir, sandbox, audit: (e) => sink.push({ kind: e.kind, pid: e.pid }) });
+     const res = await tool.execute(
+       { command: 'node -e "process.exit(0)"', terminateEscaped: true },
+       { workspaceRoot: dir, cwd: dir },
+@@ -225,7 +225,7 @@ describe('Shell — meta.sandbox describes THIS round, never the previous one (B
+   it('previous round ATTACHED + this round FAILED ⇒ active:false + the real reason (delete the fix ⇒ red)', async () => {
+     const warnings: string[] = [];
+     const sandbox = roundScopedSandbox((m) => warnings.push(m), 2);
+-    const tool = createShellTool({ workspaceRoot: dir, sandbox });
++    const tool = createShellTool({ permission: 'danger-full-access', workspaceRoot: dir, sandbox });
+ 
+     const first = await tool.execute({ command: 'node -e "process.exit(0)"' }, { workspaceRoot: dir, cwd: dir });
+     const firstMeta = first.meta.sandbox as { active?: boolean; degraded?: string; backend?: string };
+@@ -259,7 +259,7 @@ describe('Shell — meta.sandbox describes THIS round, never the previous one (B
+   it('first call reports THIS round — never the pre-round "not-attempted" placeholder', async () => {
+     const warnings: string[] = [];
+     const sandbox = roundScopedSandbox((m) => warnings.push(m), 1);
+-    const tool = createShellTool({ workspaceRoot: dir, sandbox });
++    const tool = createShellTool({ permission: 'danger-full-access', workspaceRoot: dir, sandbox });
+     const res = await tool.execute({ command: 'node -e "process.exit(0)"' }, { workspaceRoot: dir, cwd: dir });
+     const meta = res.meta.sandbox as { active?: boolean; degraded?: string };
+     expect(meta.active).toBe(false);
+(node:10364) [DEP0190] DeprecationWarning: Passing args to a child process with shell option true can lead to security 
+vulnerabilities, as the arguments are not escaped, only concatenated.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+
+ Test Files  30 passed (30)
+      Tests  328 passed | 3 skipped (331)
+   Start at  18:59:27
+   Duration  38.59s (tests 73%, import 16%, transform 8%, setup 2%, worker 1%)
+
+    Isolate  30 workers spawned · ~250ms startup each (spawn + environment, per file)
+             at least ~7.26s faster with isolate: false — reuses workers across files instead of one per file
+
+   ❯ Windows native recycling (2)
+     × closes the actual session writer before native recycling 695ms
+(node:8392) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:8228) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:7972) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:22704) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+176:- **最近已交付（2026-10-19，本地验收通过）：任务 232 模型供应商全屏独立中枢、高级模型搜索筛选器与 CC-Switch 权威预设补齐 (Provider Hub Full-Surface & Advanced Model Picker)**：
+328:- **最近已交付（已合入本地提交 `c7cb0ca`，2026-10-14）：任务 222 [Epic] 架构与UI优化方案全量收官**：
+339:- **前序已交付（已合入本地提交 `1276d39`）：任务 219 全量功能端到端交互与真实点击测试套件**：
+341:- **最近已交付（已合入本地提交 `26ba6fe`）：任务 218 Web UI/UX 工作台整改规范落地**：
+345:- **最近已交付（已合入本地提交 `520492d`）：任务 216 项目整体逻辑架构可视化与文档包清单漂移修复**：
+350:- **最近已交付（待维护者验收）：任务 215 模型端点自动拉取、灵活配置 Schema 兼容与供应商管理自愈**：
+docs/POLICY-SPEC.md:534:**当前 Shell 权限（卡 276）**：内建 Shell 的 `requiredPermission` 为 `workspace-write`。profile 比较下 `workspace-write` 无需审批，`read-only` 仍拒绝（包括只读前缀命令）；显式 deny/ask 规则保持优先。组合根把生效 profile 传给 Shell，省略 profile 的直接调用也按严格模式处理。该模式必须使用原生 runner；缺少 runner、探测失败、启动拒绝或缺少沙箱执行确认均返回 `DENIED`，不重放到 `sandbox.confine/run`。平台 runner 在目标进程启动前禁止 passthrough fallback，避免探测与执行之间可用性变化导致无沙箱执行。`danger-full-access` 保留原有原生 runner / fallback / legacy confine 行为。写根与既有原生沙箱能力边界不变，不因此声称域名级隔离或更强的读取限制。
+import { createHash } from 'node:crypto';
+import { realpathSync } from 'node:fs';
+import { win32 } from 'node:path';
+import { runCommand } from '@vessel/runtime';
+import type { NativeSandboxRunner, SandboxExecutionOptions, SandboxExecutionResult } from './types.js';
+import { WINDOWS_RESTRICTED_SOURCE } from './windowsRestrictedSource.js';
+import { allowedWriteRoots, validateSandboxOptions } from './options.js';
+
+/** Stable per-worktree SID for explicit out-of-band ACL provisioning; never modifies host ACLs. */
+export function restrictedWriteSid(cwd: string): string {
+  const hash = createHash('sha256').update(cwd.toLowerCase()).digest();
+  return `S-1-5-21-${hash.readUInt32LE(0)}-${hash.readUInt32LE(4)}-${hash.readUInt32LE(8)}-183`;
+}
+
+export function buildWindowsRestrictedScript(command: string, args: string[], options: SandboxExecutionOptions): string {
+  const config = Buffer.from(JSON.stringify({ command, args, cwd: options.cwd, roots: options.allowedWritePaths ?? [], sid: restrictedWriteSid(options.cwd), maxMemoryBytes: options.maxMemoryBytes ?? 512 * 1024 * 1024, timeoutMs: options.cpuTimeoutMs ?? 30_000 })).toString('base64');
+  return `$ErrorActionPreference = 'Stop'\nAdd-Type -TypeDefinition @'\n${WINDOWS_RESTRICTED_SOURCE}\n'@\n$c = [Text.Encoding]::UTF8.GetString([Convert]::FromBase64String('${config}')) | ConvertFrom-Json\ntry { [VesselRestricted]::Run($c.command, [string[]]$c.args, $c.cwd, [string[]]$c.roots, $c.sid, [UInt64]$c.maxMemoryBytes, [UInt32]$c.timeoutMs) | ConvertTo-Json -Compress } catch { [Console]::Error.WriteLine($_.Exception.Message); exit 1 }`;
+}
+
+export class WindowsRestrictedRunner implements NativeSandboxRunner {
+  private readonly run: typeof runCommand;
+  private readonly powershell = win32.join(process.env.SystemRoot ?? 'C:\\Windows', 'System32', 'WindowsPowerShell', 'v1.0', 'powershell.exe');
+  constructor(deps: { run?: typeof runCommand } = {}) { this.run = deps.run ?? runCommand; }
+  async isAvailable(): Promise<boolean> {
+    try { return (await this.run(this.powershell, ['-NoProfile', '-NonInteractive', '-Command', '$PSVersionTable.PSVersion.Major'], { cwd: process.cwd(), timeoutMs: 5_000 })).exitCode === 0; }
+    catch { return false; }
+  }
+  async execute(command: string, args: string[], options: SandboxExecutionOptions): Promise<SandboxExecutionResult> {
+    validateSandboxOptions(options);
+    if (options.lowIntegrity === false) throw new Error('sandbox Low Integrity cannot be disabled');
+    const canonical = { ...options, cwd: realpathSync(options.cwd), allowedWritePaths: allowedWriteRoots(options) };
+    const script = buildWindowsRestrictedScript(command, args, canonical);
+    const result = await this.run(this.powershell, ['-NoProfile', '-NonInteractive', '-Command', '[Console]::InputEncoding = [Text.Encoding]::UTF8; & ([ScriptBlock]::Create([Console]::In.ReadToEnd()))'], {
+      cwd: options.cwd, timeoutMs: (options.cpuTimeoutMs ?? 30_000) + 30_000, signal: options.signal, maxOutputBytes: 1024 * 1024, stdin: script,
+    });
+    if (result.killed || result.exitCode !== 0) throw new Error(`restricted sandbox denied: ${result.stderr || 'launcher interrupted/failed'}`);
+    const value: unknown = JSON.parse(result.stdout);
+    if (!value || typeof value !== 'object' || !('Enforced' in value) || value.Enforced !== true || !('Stdout' in value) || typeof value.Stdout !== 'string' || !('Stderr' in value) || typeof value.Stderr !== 'string' || !('ExitCode' in value) || typeof value.ExitCode !== 'number') {
+      throw new Error('restricted sandbox missing enforcement acknowledgement');
+    }
+    const integrityRid = 'ChildIntegrityRid' in value && typeof value.ChildIntegrityRid === 'number' ? value.ChildIntegrityRid : undefined;
+    return { stdout: value.Stdout, stderr: value.Stderr, exitCode: value.ExitCode, sandboxed: true, isolationTier: 'windows-job-restricted',
+      constraints: { readOnlyPaths: [], memoryLimitBytes: options.maxMemoryBytes ?? 512 * 1024 * 1024,
+        privilegeReduction: 'Restricted token, Low Integrity, and Job Object confinement. Reads follow host ACLs; write roots require provisioned restricted SID ACLs.',
+        ...(integrityRid === undefined ? {} : { integrityRid }) } };
+  }
+}
+---
+name: personal-dev-workflow
+description: "Run cost-aware multi-agent project work with OpenCode/DeepSeek, Codex, and optional AGY: create an executable task contract, dispatch isolated role sessions, run checks, review independently, and resume from recorded evidence. Use for substantial implementation, investigation, or explicit PDW workflow requests."
+metadata:
+  version: "1.3.3-local"
+  repository: "https://github.com/satan9394/personal-dev-workflow"
+  skill-path: "skills/personal-dev-workflow"
+  branch: "main"
+  updated: "2026-10-17"
+---
+
+# Personal Dev Workflow — 可执行的项目协作
+
+版本：1.3.3-local；说明语言：zh-CN。
+
+这是既有 PDW 的项目级升级版：保留契约、验证、交接、有限修复；增加真实 CLI 接力。程序为本 Skill 的 `scripts/pdw.mjs`，以 Skill 的绝对位置调用，不假定当前目录含 scripts。
+
+若你已经收到程序分派的 scan/test-plan/implement/repair/review/planner 角色及契约路径，只执行该角色，不再初始化或启动下级工作流；避免 Skill 自动加载造成递归调度。
+
+## 用户怎样使用
+
+用户可以直接说：“用 PDW 在 <项目> 完成 <目标>”。你负责把目标编译成任务，不把 JSON 配置工作推给用户。
+
+先选择执行方式：小到明显且低影响的修改可直接完成并检查；实质开发保留独立复核。宿主原生子 Agent 已满足角色隔离、证据及目标模型成本要求时，可在唯一协调者下使用辅助模式；需要 OC/DeepSeek 等跨工具路线时用以下 CLI 接力。不固定三人或五人，不为了使用插件而安装插件，也不因主模型强就取消必要验收。当前 CLI 管线仍是固定阶段，不宣称程序已自动选择团队拓扑。
+
+1. 读目标项目约定、已有实现和已关闭记录。运行 `node <skill>/scripts/pdw.mjs init --project <项目>`，然后 `doctor`。初始化不覆盖现有配置，不改登录或全局设置。
+2. 根据任务写一个 JSON 契约，字段见 [references/runtime.md](references/runtime.md)。必须有明确验收、允许修改路径和真实检查命令。检查本次变更对使用说明、配置、接口和维护文档的影响；有影响的文档更新从开始就纳入范围与验收，实施者同步修改，复核者对照实现核验。无影响就记录理由，不批量重写 MD，不另等用户提醒。命令用 executable + args，不拼 shell。调查任务用 audit；实现任务用 develop。
+3. `new --from <契约> --project <项目>` 创建任务；先 `plan <id>` 检查角色、模型、检查项、调用上限。用户已要求完成任务时，在其授权范围内直接 `run <id>`，不另问是否允许普通本地实施。
+
+hook: PreToolUse
+hook: PreToolUse
+hook: PreToolUse
+hook: PreToolUse
+hook: PreToolUse
+hook: PreToolUse
+hook: PreToolUse Completed
+hook: PreToolUse Completed
+hook: PreToolUse Completed
+hook: PreToolUse Completed
+hook: PreToolUse Completed
+hook: PreToolUse Completed
+exec
+"C:\\work\\AppData\\Local\\Microsoft\\WindowsApps\\Microsoft.PowerShell_8wekyb3d8bbwe\\pwsh.exe" -Command 'npx vitest run packages/policy packages/tools *> evidence/task276/verification-policy-tools.log; $code = $LASTEXITCODE; Get-Content evidence/task276/verification-policy-tools.log -Tail 12; Write-Output "EXIT_CODE=$code"; exit $code' in E:\Code_file\Projects\Vessel_Harness
+exec
+"C:\\work\\AppData\\Local\\Microsoft\\WindowsApps\\Microsoft.PowerShell_8wekyb3d8bbwe\\pwsh.exe" -Command 'npx tsc -b *> evidence/task276/verification-tsc.log; $code = $LASTEXITCODE; Write-Output "EXIT_CODE=$code"; exit $code' in E:\Code_file\Projects\Vessel_Harness
+exec
+"C:\\work\\AppData\\Local\\Microsoft\\WindowsApps\\Microsoft.PowerShell_8wekyb3d8bbwe\\pwsh.exe" -Command 'npm run typecheck:tests *> evidence/task276/verification-typecheck-tests.log; $code = $LASTEXITCODE; Write-Output "EXIT_CODE=$code"; exit $code' in E:\Code_file\Projects\Vessel_Harness
+ succeeded in 2682ms:
+EXIT_CODE=0
+
+ succeeded in 3152ms:
+EXIT_CODE=0
+
+hook: PreToolUse
+hook: PreToolUse
+hook: PreToolUse
+hook: PreToolUse
+hook: PreToolUse
+hook: PreToolUse
+hook: PreToolUse Completed
+hook: PreToolUse Completed
+hook: PreToolUse Completed
+hook: PreToolUse Completed
+hook: PreToolUse Completed
+hook: PreToolUse Completed
+exec
+"C:\\work\\AppData\\Local\\Microsoft\\WindowsApps\\Microsoft.PowerShell_8wekyb3d8bbwe\\pwsh.exe" -Command 'npx vitest run apps/local-server *> evidence/task276/verification-local-server.log; $code = $LASTEXITCODE; Get-Content evidence/task276/verification-local-server.log -Tail 22; Write-Output "EXIT_CODE=$code"; exit $code' in E:\Code_file\Projects\Vessel_Harness
+exec
+"C:\\work\\AppData\\Local\\Microsoft\\WindowsApps\\Microsoft.PowerShell_8wekyb3d8bbwe\\pwsh.exe" -Command 'npx vitest run packages/application/src/nativeSandboxIntegration.test.ts *> evidence/task276/verification-integration.log; $code = $LASTEXITCODE; Get-Content evidence/task276/verification-integration.log -Tail 12; Write-Output "EXIT_CODE=$code"; exit $code' in E:\Code_file\Projects\Vessel_Harness
+exec
+"C:\\work\\AppData\\Local\\Microsoft\\WindowsApps\\Microsoft.PowerShell_8wekyb3d8bbwe\\pwsh.exe" -Command 'npm run test:web *> evidence/task276/verification-web.log; $code = $LASTEXITCODE; Get-Content evidence/task276/verification-web.log -Tail 12; Write-Output "EXIT_CODE=$code"; exit $code' in E:\Code_file\Projects\Vessel_Harness
+ succeeded in 10658ms:
+ 
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+ Test Files  1 passed (1)
+      Tests  4 passed (4)
+   Start at  19:03:34
+   Duration  7.66s (import 50%, transform 39%, tests 10%)
+
+  Transform  transforming modules took 2.90s · 39% of tracked time, re-done on every run
+             persist transforms across runs with fsModuleCache: true
+             learn more: https://vitest.dev/guide/improving-performance#caching-between-reruns
+
+EXIT_CODE=0
+
+codex
+现有实现已将 Shell 声明为 `workspace-write`，并在该模式下检查 runner 可用性、传入严格执行选项、核验沙箱执行确认；任一步失败均返回 `DENIED`，不会重放到旧执行路径。`Engine.ts` 无需特殊放行，现有 profile 比较即可生效。两项类型门禁已通过，测试正在运行；原有 diff 中的沙箱层改动会单独注明。
+
+ succeeded in 38891ms:
+(node:5424) [DEP0190] DeprecationWarning: Passing args to a child process with shell option true can lead to security v
+ulnerabilities, as the arguments are not escaped, only concatenated.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+
+ Test Files  30 passed (30)
+      Tests  328 passed | 3 skipped (331)
+   Start at  19:03:11
+   Duration  35.81s (tests 69%, import 20%, transform 8%, setup 2%, worker 1%)
+
+    Isolate  30 workers spawned · ~300ms startup each (spawn + environment, per file)
+             at least ~8.69s faster with isolate: false — reuses workers across files instead of one per file
+
+EXIT_CODE=0
+
+hook: PreToolUse
+hook: PreToolUse
+hook: PreToolUse Completed
+hook: PreToolUse Completed
+exec
+"C:\\work\\AppData\\Local\\Microsoft\\WindowsApps\\Microsoft.PowerShell_8wekyb3d8bbwe\\pwsh.exe" -Command "[Console]::OutputEncoding=[System.Text.Encoding]::UTF8; Get-Content -Encoding utf8 tasks/README.md -TotalCount 65; rg -n 'FAIL|Error|×|Test Files|Tests ' evidence/task276/verification-*.log; rg -n 'sandbox|Shell|verified|closed' Notes docs -g '*276*' -g '*256*'; rg -n 'createShellTool\\(' packages apps benchmarks -g '*.ts'" in E:\Code_file\Projects\Vessel_Harness
+ succeeded in 516ms:
+# tasks/ — 任务卡看板
+
+> 个人开发工作流（personal-dev-workflow）在本仓库的进度载体。一张卡一个文件，状态写在卡内首行。
+> 生命周期：拆卡 → 派活 → 交证 → 验证 → 验收 → 复盘。详见 skills/personal-dev-workflow 与根 AGENTS.md。
+
+## 卡命名
+
+`NNN-短横线描述.md`，如 `001-project-memory.md`；V1.1 路线卡用 `V1.1-<字母>-<短横线描述>.md`。
+状态取值：待执行 / 执行中 / 待验收 / 已合入 / 打回。
+
+最近本地交付：[任务卡 259](259-delete-stage-consistency.md) 删除跨阶段一致性已实现，五项定向门禁全绿；待浏览器复验与协调者验收。前序 [任务卡 258](258-false-completion-signal.md) 消除虚假完成信号已实现，五项定向门禁全绿，待协调者验收。前序任务 255 根治长输出截断 HTTP 500 导致 Web 卡死与修复 Windows 沙箱 Token 权限已实现并通过定向门禁（native 复验暴露的沙箱启动缺口转 [任务卡 256](256-windows-sandbox-launch-console.md)）。前序 [任务卡 254](254-browser-audit-remediation.md) 浏览器实测缺陷整改（会话重载历史恢复、Goal 真实状态与 Activity 细节优化）已实现，定向门禁通过，待浏览器复验。前序 [任务卡 253](253-browser-verification.md) 内置浏览器六场景审查报告已交付（产品验收存在失败项，见报告）。前序 [任务卡 252](252-effect-journal-torn-tail-and-lease-rollback.md) F5 修复已实现，待验收（Windows 进程树门禁未通过）。前序 [任务卡 251](251-compaction-keepid-and-ime-hardening.md) 上下文压缩 keepID 守卫接入与输入法回车提交加固（F4/F7）已交付。前序 [任务卡 250](250-session-completion-and-credential-binding.md) 状态机虚假完成消除与免输直测目标强绑定（F1/F2/F3）已交付。前序 [任务卡 249](249-adversarial-audit.md) 独立对抗审计，前序 [任务卡 248](248-taste-workbench-elevation.md) Taste UI 工作台重构。
+
+## 怎么读这个目录
+
+最近新增交付：[274](274-arch09-reliability-fixture-loop.md) ARCH-09 离线可靠性 fixture 闭环已交证，待协调者全量门禁与验收。前序 [272](272-arch01-run-outcome-evidence.md) ARCH-01剩余运行结果证据已修并验证；两波12项本地闭环，完整证据在修复报告，待协调者验收。
+
+| 本地交付 | 状态 | 任务卡 |
+|---|---|---|
+| ARCH-09 可靠性 fixture 闭环 (卡 274) | 已交证，待协调者全量门禁与验收 | [274](274-arch09-reliability-fixture-loop.md) |
+| ARCH-01运行结果证据 (卡 272) | 已修并验证，六项门禁及真实Stop冷启动/刷新通过；待协调者验收 | [272](272-arch01-run-outcome-evidence.md) |
+| ARCH-06断线恢复 (卡 271) | 已修并验证，六项门禁及真实运行中30秒断线/刷新/三会话切换通过；待协调者验收 | [271](271-arch06-session-stream-recovery.md) |
+| UI-09工具细节与Stop (卡 270) | 已修并验证，六项门禁及真实模型24工具/滚动/Stop通过；待协调者验收 | [270](270-ui09-tool-details-stop.md) |
+| UI-07生效Policy汇总 (卡 269) | 已修并验证，六项门禁及真实模型历史会话IAB通过；待协调者验收 | [269](269-ui07-effective-policy.md) |
+| UI-03工作区草稿隔离 (卡 268) | 已修并验证，六项门禁及IAB/真实模型唯一需求通过；待协调者验收 | [268](268-ui03-workspace-drafts.md) |
+| 英文残留国际化 (卡 267) | 已修并验证，六项门禁及IAB英文预设/主题标签通过；待协调者验收 | [267](267-browser-fix-english-residuals.md) |
+| Mock预设可见可用 (卡 266) | 已修并验证，六项门禁及IAB显式Mock运行通过；待协调者验收 | [266](266-browser-fix-mock-preset.md) |
+| 首屏输入焦点 (卡 265) | 已修并验证，六项门禁及IAB直接输入通过；待协调者验收 | [265](265-browser-fix-initial-focus.md) |
+| Activity取消语义 (卡 264) | 已修并验证，六项门禁及真实Stop会话Activity刷新通过；待协调者验收 | [264](264-browser-fix-activity-cancellation.md) |
+| 终止原因刷新恢复 (卡 263) | 已修并验证，六项门禁及真实模型length/Stop刷新通过；待协调者验收 | [263](263-browser-fix-terminal-history.md) |
+| 会话多行输入 (卡 262) | 已修并验证，六项门禁及真实模型IAB通过；待协调者验收 | [262](262-browser-fix-multiline.md) |
+| 真实会话回收失败修复 (卡 261) | 已修并验证，六项门禁及真实模型IAB/OS回收站通过；待协调者验收 | [261](261-browser-fix-delete-recycle.md) |
+| 长输出截断 500 根治与沙箱 Token 权限 (卡 255) | 已实现并通过定向门禁（沙箱启动缺口转卡 256） | [255](255-fix-length-truncation-500-and-sandbox-fallback.md) |
+| Windows 受限沙箱启动链路 (卡 256) | 已完成，原生验收通过 | [256](256-windows-sandbox-launch-console.md) |
+| apps/web typecheck 门禁修复 (卡 257) | 已实现，门禁全绿 | [257](257-web-typecheck-gate.md) |
+| 消除虚假完成信号 (卡 258) | 已实现，五项定向门禁全绿（待验收） | [258](258-false-completion-signal.md) |
+| 删除的跨阶段一致性 (卡 259) | 已实现，五项定向门禁全绿；待浏览器复验/协调者验收 | [259](259-delete-stage-consistency.md) |
+| 浏览器运行时验收 (卡 260) | 待执行（需 Codex 应用内置浏览器） | [260](260-browser-runtime-acceptance.md) |
+| 浏览器实测缺陷整改 (BV-01~04) | 待验收（定向门禁通过，待浏览器复验） | [254](254-browser-audit-remediation.md) |
+| 内置浏览器六场景审查 | 审查已交付 | [253](253-browser-verification.md) |
+| EffectJournal 破损容错与租约回滚 (F5) | 待验收 | [252](252-effect-journal-torn-tail-and-lease-rollback.md) |
+| keepID 压缩守卫接入与输入法回车加固 (F4/F7) | 已交付（定向门禁通过） | [251](251-compaction-keepid-and-ime-hardening.md) |
+| 会话完成真实性与凭据目标强绑定 (F1/F2) | 待验收 | [250](250-session-completion-and-credential-binding.md) |
+| Tasks 236–248 独立对抗审计 | 已交付 | [249](249-adversarial-audit.md) |
+| Taste 工作台审查与优化 | 待验收 | [248](248-taste-workbench-elevation.md) |
+
+本目录是**进度事实源**，不在此维护一份会腐烂的汇总表。查进度请：
+
+1. 看下表「路线层」——每个里程碑/版本收官时更新一次（现状：V0.1–V0.10 + V1.0 + V1.1 全部收官）。
+2. 具体某卡的状态 → 直接读卡首行；卡面由执行者与指挥侧回填，含门禁实测数字与验收结论。
+
+> 历史说明：本文件此前维护过一张止于 018 的硬编码表，早已与目录实况脱节，
+> 且与 `docs/V1.1-ROADMAP.md`、`docs/V1.0-CHECKPOINT.md` 重复。现改为"路线索引 + 指向卡面"，
+> 停止复制易腐的逐卡状态。
+>
+> **2026-09-18 对账**：014–122 的卡状态行此前多为「待执行/执行中/待验收」而实际已合入；
+> 已批量改准为「已合入（2026-09-18 对账）」并在下一行保留**原状态文本**作历史层。
+> 例外：`118`（已合入）、`119`（**部分完成**——S002/S006 恒真判据仍待加锁）。
+
+## 路线层（里程碑级）
+
+| 版本 / 路线 | 卡区间 | 状态 | 权威记录 |
+|---|---|---|---|
+| V0.1–V0.5（任务书主线） | 001-013 | 已合入（独立验收 PASS） | `docs/REVIEW-REPORT-V0{1..5}.md`、`docs/V0x-IMPLEMENTATION-NOTES.md` |
+| V0.6–V0.10（产品化） | 014-031 | 已合入 | `CHANGELOG.md`（V0.1→V0.10 中英双语） |
+| V1.0（Milestone A–G） | 032-084 | 已合入（收官） | `docs/V1.0-CHECKPOINT.md`、`docs/V1.0-ROADMAP-PROGRESS.md` |
+rg: evidence/task276/verification-*.log: IO error for operation on evidence/task276/verification-*.log: 文件名、目录名或卷标语法不正确。 (os error 123)
+rg: Notes: 系统找不到指定的文件。 (os error 2)
+packages\tools\src\tools.test.ts:32:      createShellTool({ permission: 'danger-full-access', workspaceRoot: dir, sandbox }),
+packages\tools\src\tools.test.ts:111:      [...createFsTools({ workspaceRoot: dir, fsPolicy: FS_POLICY }), createShellTool({ permission: 'danger-full-access', workspaceRoot: dir, sandbox })],
+packages\tools\src\tools.test.ts:142:    const tool = createShellTool({ permission: 'danger-full-access', workspaceRoot: dir, sandbox, audit: (e) => sink.push({ kind: e.kind, pid: e.pid }) });
+packages\tools\src\tools.test.ts:177:    const tool = createShellTool({ permission: 'danger-full-access', workspaceRoot: dir, sandbox, audit: (e) => sink.push({ kind: e.kind, pid: e.pid }) });
+packages\tools\src\tools.test.ts:228:    const tool = createShellTool({ permission: 'danger-full-access', workspaceRoot: dir, sandbox });
+packages\tools\src\tools.test.ts:262:    const tool = createShellTool({ permission: 'danger-full-access', workspaceRoot: dir, sandbox });
+packages\tools\src\shell\shellTool.ts:100:export function createShellTool(opts: {
+packages\tools\src\shell\shellTool.test.ts:25:      const tool = createShellTool({ workspaceRoot, sandbox, permission });
+packages\tools\src\shell\shellTool.test.ts:36:    const result = await createShellTool({ workspaceRoot, sandbox, nativeSandbox: native }).execute(args, ctx);
+packages\tools\src\shell\shellTool.test.ts:46:    const result = await createShellTool({ workspaceRoot, sandbox, nativeSandbox: native, nativeAudit }).execute(args, ctx);
+packages\tools\src\shell\shellTool.test.ts:58:    const result = await createShellTool({ workspaceRoot, sandbox, nativeSandbox: native, nativeAudit }).execute(args, ctx);
+packages\tools\src\shell\shellTool.test.ts:68:    expect((await createShellTool({ workspaceRoot, sandbox, nativeSandbox: native, permission: 'read-only' }).execute(args, ctx)).error?.errorClass).toBe('DENIED');
+packages\tools\src\shell\shellTool.test.ts:75:    expect((await createShellTool({ workspaceRoot, sandbox, nativeSandbox: native, permission: 'danger-full-access' }).execute(args, ctx)).content).toBe('legacy');
+packages\tools\src\execution\pipeline.test.ts:139:    const registry = new ToolRegistry([createShellTool({ permission: 'danger-full-access', workspaceRoot: root, sandbox, audit: () => { throw transient(); } })]);
+packages\core\src\agent-loop\AgentLoop.test.ts:21:    createShellTool({ workspaceRoot: dir, sandbox }),
+packages\application\src\compose.ts:343:      createShellTool({ workspaceRoot, sandbox, permission: artifacts.profile, nativeSandbox: opts.nativeSandbox, nativeAudit: async event => {
+
+ succeeded in 29955ms:
+ RUN  v5.0.1 E:/Code_file/Projects/Vessel_Harness/apps/web
+
+
+ Test Files  56 passed (56)
+      Tests  483 passed (483)
+   Start at  19:03:33
+   Duration  28.23s (tests 42%, import 38%, transform 17%, worker 3%)
+
+     Import  146 modules were evaluated 275 times · 5.68s total, 38% of tracked time
+             ~2.66s faster with isolate: false — shared modules are evaluated once per worker instead of once per file
+             learn more: https://vitest.dev/guide/improving-performance#test-isolation
+
+EXIT_CODE=0
+
+hook: PreToolUse
+hook: PreToolUse
+hook: PreToolUse Completed
+hook: PreToolUse Completed
+exec
+"C:\\work\\AppData\\Local\\Microsoft\\WindowsApps\\Microsoft.PowerShell_8wekyb3d8bbwe\\pwsh.exe" -Command "[Console]::OutputEncoding=[System.Text.Encoding]::UTF8; Get-Content -Encoding utf8 packages/core/src/agent-loop/AgentLoop.test.ts -TotalCount 150; Get-Content -Encoding utf8 evidence/task276/verification-local-server.log -Tail 65; rg -n 'verified|closed|回收|Windows native recycling' docs -g '*261*'; Get-Content -Encoding utf8 apps/local-server/src/sessionRoutes.test.ts | Select-String -Pattern 'Windows native recycling' -Context 10,65" in E:\Code_file\Projects\Vessel_Harness
+ exited 1 in 361ms:
+import * as fs from 'node:fs';
+import * as os from 'node:os';
+import * as path from 'node:path';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { MockProvider } from '@vessel/llm';
+import type { MockScriptEntry } from '@vessel/llm';
+import { EventBus, Session, AgentLoop } from '@vessel/core';
+import { ToolRegistry, createFsTools, createSearchTools, createShellTool } from '@vessel/tools';
+import { Executor, Sandbox } from '@vessel/runtime';
+import type { ToolCall, ToolSpec } from '@vessel/shared';
+
+const FS_POLICY = { protected: ['.git', '.git/**', '.env'], denyRead: [], allow: [] };
+
+async function makeLoop(dir: string, script: MockScriptEntry[], prompt: string) {
+  const session = await Session.open({ workspaceRoot: dir, sessionId: 'loop' });
+  const bus = new EventBus();
+  const sandbox = new Sandbox();
+  const tools: ToolSpec[] = [
+    ...createFsTools({ workspaceRoot: dir, fsPolicy: FS_POLICY }),
+    ...createSearchTools({ workspaceRoot: dir, fsPolicy: FS_POLICY }),
+    createShellTool({ workspaceRoot: dir, sandbox }),
+  ];
+  const registry = new ToolRegistry(tools);
+  const executor = new Executor({ decide: async () => ({ action: 'allow', decisionPath: ['fixture:host-policy'] }) });
+  const provider = new MockProvider(script, { model: 'mock', vars: { cwd: dir } });
+  const loop = new AgentLoop({
+    session, bus, provider, model: 'mock',
+    buildContext: async () => ({
+      model: 'mock',
+      messages: [
+        { role: 'system', content: 'test' },
+        ...session.surface().map((r) => {
+          if (r.type === 'user/message') return { role: 'user' as const, content: r.content };
+          if (r.type === 'assistant/message') return { role: 'assistant' as const, content: r.content };
+          return { role: 'tool' as const, content: r.type === 'tool/result' ? (r.content ?? '') : '', toolCallId: (r as { toolCallId: string }).toolCallId };
+        }),
+      ],
+      tools: registry.listVisible().map((t) => ({ type: 'function' as const, function: { name: t.name, description: t.description, parameters: t.inputSchema as unknown as Record<string, unknown> } })),
+      estimateTokens: 10,
+    }),
+    runTool: async (call: ToolCall) => {
+      const spec = registry.spec(call.toolName);
+      if (!spec) return { content: '', error: { errorClass: 'INVALID_ARGS', message: 'unknown' }, meta: {} };
+      const r = await executor.runTool(spec, call, { workspaceRoot: dir, cwd: dir, sandbox });
+      return { content: r.content, error: r.error, meta: r.meta };
+    },
+    getVisibleTools: () => registry.listVisible().map((t) => ({ type: 'function' as const, function: { name: t.name, description: t.description, parameters: t.inputSchema as unknown as Record<string, unknown> } })),
+  });
+  return { session, bus, registry, loop };
+}
+
+describe('AgentLoop (thin core)', () => {
+  let dir: string;
+  beforeEach(() => { dir = fs.mkdtempSync(path.join(os.tmpdir(), 'cah-loop-')); });
+  afterEach(() => { fs.rmSync(dir, { recursive: true, force: true }); });
+
+  it('runs read → tool → answer within one turn (M3 closed loop)', async () => {
+    fs.writeFileSync(path.join(dir, 'README.md'), 'GOLDEN-PHRASE-42', 'utf8');
+    const { session, loop } = await makeLoop(dir, [
+      { when: /read|阅读/i, ifNoToolResult: true, response: { toolCalls: [{ name: 'Read', arguments: { path: 'README.md' } }] } },
+      { when: /.*/, response: { text: 'file content: {last_tool_result}' } },
+    ], '请阅读 README.md');
+
+    const result = await loop.runTurn('请阅读 README.md');
+    expect(result.kind).toBe('success');
+    expect(result.toolCalls).toBe(1);
+    expect(result.finalText).toContain('GOLDEN-PHRASE-42');
+
+    const surface = session.surface();
+    expect(surface.some((r) => r.type === 'tool/result')).toBe(true);
+    const audit = session.replay().filter((r) => r.type === 'audit/denial');
+    expect(audit).toHaveLength(0);
+    await session.close();
+  });
+
+  it('pure-text response stops immediately (no tool dispatch)', async () => {
+    const { session, loop } = await makeLoop(dir, [
+      { when: /.*/, response: { text: '直接回答，不调工具' } },
+    ], '你好');
+    const result = await loop.runTurn('你好');
+    expect(result.kind).toBe('success');
+    expect(result.toolCalls).toBe(0);
+    expect(result.finalText).toContain('直接回答');
+    await session.close();
+  });
+
+  it('denied tool call produces audit/denial and feeds back to the model', async () => {
+    fs.writeFileSync(path.join(dir, '.env'), 'SECRET=1', 'utf8');
+    // no policy engine listener registered here — the executor has no decide hook,
+    // but the Write to .env hits the fs guard (protected path) at the tool layer
+    const { session, loop } = await makeLoop(dir, [
+      { when: /.*/, ifNoToolResult: true, response: { toolCalls: [{ name: 'Write', arguments: { path: '.env', content: 'x' } }] } },
+      { when: /.*/, response: { text: '写操作被守卫拦截。' } },
+    ], '写 .env');
+    const result = await loop.runTurn('写 .env');
+    expect(result.finalText).toContain('拦截');
+    await session.close();
+  });
+
+  it('budget: max steps hard cap stops the turn', async () => {
+    const { session, loop } = await makeLoop(dir, [
+      { when: /.*/, ifNoToolResult: true, response: { toolCalls: [{ name: 'Glob', arguments: { pattern: '**/*' } }] } },
+      { when: /.*/, response: { toolCalls: [{ name: 'Glob', arguments: { pattern: '**/*' } }] } },
+    ], 'loop forever');
+    const result = await loop.runTurn('loop forever');
+    expect(['budget', 'success']).toContain(result.kind);
+    expect(result.steps).toBeGreaterThanOrEqual(1);
+    await session.close();
+  });
+
+  it('denial breaker: same intent denied >=3 closes the turn with kind=error and a paired turn/end', async () => {
+    // MockProvider re-matches the same script entry on every model call (haystack =
+    // the last user message), so the model keeps issuing the identical Shell command.
+    // A before_tool listener denies every Shell call; the third denial of the same
+    // intent trips DenialLimitError, which runTurn must fold into a proper
+    // turn/end (pairing invariant: turn/start -> turn/end) instead of leaking.
+    const { session, bus, loop } = await makeLoop(dir, [
+      { when: /.*/, response: { toolCalls: [{ name: 'Shell', arguments: { command: 'rm -rf ./x' } }] } },
+    ], 'run the delete');
+    bus.on('before_tool', () => ({ kind: 'deny', reason: 'blocked by test listener', ref: 'test:always-deny' }), 'test-deny');
+
+    const result = await loop.runTurn('run the delete');
+    expect(result.kind).toBe('error');
+
+    const records = session.replay();
+    const starts = records.filter((r) => r.type === 'turn/start').length;
+    const ends = records.filter((r) => r.type === 'turn/end').length;
+    const denials = records.filter((r) => r.type === 'audit/denial').length;
+    // turn/start <-> turn/end pairing is intact even on the denial-breaker path
+    expect(starts).toBe(1);
+    expect(ends).toBe(1);
+    expect(denials).toBeGreaterThanOrEqual(3);
+    const endRecord = records.find((r) => r.type === 'turn/end');
+    expect(endRecord).toMatchObject({ turnId: result.turnId, kind: 'error' });
+    await session.close();
+  });
+
+  it('thinking 模式：model 返回 reasoningContent → 落 assistant/attempt 与 assistant/message 记录（task 109 回传链路）', async () => {
+    fs.writeFileSync(path.join(dir, 'README.md'), 'GOLDEN-PHRASE-42', 'utf8');
+    const { session, loop } = await makeLoop(dir, [
+      {
+        when: /read|阅读/i,
+        ifNoToolResult: true,
+        response: { toolCalls: [{ name: 'Read', arguments: { path: 'README.md' } }], reasoningContent: '想：先读文件' },
+      },
+      {
+        when: /.*/,
+        response: { text: 'file content: {last_tool_result}', reasoningContent: '想：都已读完' },
+      },
+    ], '请阅读 README.md');
+
+ RUN  v5.0.1 E:/Code_file/Projects/Vessel_Harness
+
+node.exe : (node:20124) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+所在位置 行:1 字符: 1
++ & "D:\Technology_application\NVM_Windows\nodejs/node.exe" "D:\Technol ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: ((node:20124) Ex...nge at any time:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+(Use `node --trace-warnings ...` to show where the warning was created)
+Get-Content : 找不到路径“E:\Code_file\Projects\Vessel_Harness\apps\local-server\src\sessionRoutes.test.ts”，因为该路径不存在。
+所在位置 行:2 字符: 301
++ ... -g '*261*'; Get-Content -Encoding utf8 apps/local-server/src/sessionR ...
++                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : ObjectNotFound: (E:\Code_file\Pr...nRoutes.test.ts:String) [Get-Content], ItemNotFoundEx 
+   ception
+    + FullyQualifiedErrorId : PathNotFound,Microsoft.PowerShell.Commands.GetContentCommand
+ 
+
+apply patch
+patch: completed
+E:\Code_file\Projects\Vessel_Harness\packages\tools\src\shell\shellTool.test.ts
+diff --git a/packages/tools/src/shell/shellTool.test.ts b/packages/tools/src/shell/shellTool.test.ts
+index fb908536fe985a03c83cf06b911a519b779fb4d8..d830ce4b50954ab8cf34a81dff2fd6371263d0f6
+--- a/packages/tools/src/shell/shellTool.test.ts
++++ b/packages/tools/src/shell/shellTool.test.ts
+@@ -30,9 +30,10 @@
+     }
+   });
+ 
+-  it('denies unavailable runners before execution', async () => {
++  it.each(['unavailable', 'probe failure'] as const)('denies %s before execution', async mode => {
+     const { sandbox, confine, run, native } = fixture();
+-    vi.mocked(native.isAvailable).mockResolvedValue(false);
++    if (mode === 'unavailable') vi.mocked(native.isAvailable).mockResolvedValue(false);
++    else vi.mocked(native.isAvailable).mockRejectedValue(new Error('probe failed'));
+     const result = await createShellTool({ workspaceRoot, sandbox, nativeSandbox: native }).execute(args, ctx);
+     expect(result.error?.errorClass).toBe('DENIED');
+     expect(native.execute).not.toHaveBeenCalled();
+
+hook: PreToolUse
+hook: PreToolUse
+hook: PreToolUse Completed
+hook: PreToolUse Completed
+exec
+"C:\\work\\AppData\\Local\\Microsoft\\WindowsApps\\Microsoft.PowerShell_8wekyb3d8bbwe\\pwsh.exe" -Command "[Console]::OutputEncoding=[System.Text.Encoding]::UTF8; rg -n 'Windows native recycling|closes the actual session writer' apps/local-server; Get-Content -Encoding utf8 evidence/task276/verification-local-server.log -Tail 35; Get-ChildItem evidence/task276/verification-local-server.log | Select-Object Length,LastWriteTime; git diff --check" in E:\Code_file\Projects\Vessel_Harness
+ succeeded in 589ms:
+apps/local-server\src\daemon\daemonRecycle.windows.test.ts:9:describe.runIf(process.platform === 'win32')('Windows native recycling', () => {
+apps/local-server\src\daemon\daemonRecycle.windows.test.ts:27:  it('closes the actual session writer before native recycling', async () => {
+
+ RUN  v5.0.1 E:/Code_file/Projects/Vessel_Harness
+
+node.exe : (node:20124) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+所在位置 行:1 字符: 1
++ & "D:\Technology_application\NVM_Windows\nodejs/node.exe" "D:\Technol ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: ((node:20124) Ex...nge at any time:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+Length LastWriteTime      
+------ -------------      
+  1130 2026/10/23 19:03:43
+
+
+
