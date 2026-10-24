@@ -1,6 +1,6 @@
 # 任务卡 280: ARCH-09 的可追溯 fixture 矩阵与全量门禁收口
 
-**状态**: 待执行（等全量门禁与 bench 复跑后填 Result）
+**状态**: 已完成（三份证据实测通过；跨 harness live 证据归 ARCH-04，需用户授权）
 **创建时间**: 2026-10-23
 **执行者**: OpenCode（协调者自己验证）
 **协调者**: OpenCode
@@ -46,4 +46,34 @@
 
 ## 6. Result
 
-（待填：跑完 `bench:reliability`、`bench:conformance`、`test:all` 后写入实测数字与逐项对照。）
+三份证据都已重新生产，全部 exit 0，日志落 `evidence/sessions/`：
+
+| 命令 | 结果 | 日志 |
+|---|---|---|
+| `npm run bench:reliability` | 14/14 通过，7 类别 | `2026-10-23-card280-reliability.log`（manifest 在 `evidence/sessions/task274-reliability-*/`） |
+| `npm run bench:conformance`（离线车道） | 25 fixture × 1 adapter（vessel），25 runs / 25 passed / 0 failed / 100% | `2026-10-23-card280-conformance.log` |
+| `npm run test:all` | 根 304 文件 / 3197 通过 + 6 跳过；web 57 文件 / 488 通过 | `2026-10-23-final-278-279-test-all.log` |
+
+fixture 分布（manifest 实测）：`crash 4`（四点进程崩溃）、`soft-delete 3`、`adapter-unavailable 2`、
+`capability-negotiation 2`、`retry 1`、`unknown-tool 1`、`event-replay 1`。
+
+### 规范要求 → 当前证据
+
+| 规范要求 | 证据 | 判定 |
+|---|---|---|
+| 启动成功 | conformance 25 runs 全过（含 B/S 两组）；`test:all` 全绿 | 已覆盖 |
+| 任务删除 | R06/R07/R08（`apps/local-server/src/server.test.ts`：回收后确认、失败保留可重试、回滚修复索引） | 已覆盖 |
+| adapter 不存在 | R09/R10（`benchmarks/runners/src/adapters/codex.test.ts`：CLI 缺失标 pending-environment 不抛；非零退出仍是合法 RunResult） | 已覆盖 |
+| 未知写入不重放 | R02–R05（`packages/application/src/session/effect-recovery.test.ts` 四点崩溃 + 显式 reconcile）；`fault-injection-gate.test.ts` 保持 | 已覆盖 |
+| 协议/能力协商 | R13/R14（`packages/llm/src/capabilities.test.ts`：强制未知能力需证据；禁止静默回退到别的模型） | 已覆盖 |
+| 统一 10–20 场景可追溯 fixture | 14 个 fixture，每个带 `id/category/source/title`；7 个 source 文件**逐个 Test-Path 复核存在**（`AgentLoop.llm-retry-record`、`effect-recovery`、`server`、`codex` 适配器、`mcp`、`projections`、`capabilities`） | 已覆盖 |
+| 全量 root 门禁 | 见上表 `test:all` 两行 | 已覆盖 |
+| Web 单测图之前 exit 1 | 当前 57 文件 / 488 通过 | 已消除 |
+
+### 如实标注的边界
+
+- **reliability 是「fixture → 既有测试」的可追溯映射，不是另写一套场景脚本**：它复跑的就是上表那批测试，
+  好处是永不与真实用例漂移，代价是新增场景必须先有对应用例。
+- **live lane 未跑**：conformance 只跑了离线车道（vessel 自适配器）。真实外部 harness
+  （Codex/Claude Code/OpenCode）要求逐次用户授权，见 ARCH-04 的边界，不在本卡范围。
+- ARCH-09 的「可追溯 + 全量门禁」到本卡为止闭环；「跨 harness live 证据」仍归 ARCH-04。

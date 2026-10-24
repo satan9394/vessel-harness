@@ -1,0 +1,23 @@
+{
+  "id": "R13",
+  "category": "capability-negotiation",
+  "source": "packages/llm/src/capabilities.test.ts",
+  "title": "requires evidence for mandatory unknown capabilities and checks context size",
+  "outcome": "passed",
+  "live": false,
+  "assertions": [
+    {
+      "ancestorTitles": [
+        "ARC-08 capability negotiation"
+      ],
+      "fullName": "ARC-08 capability negotiation requires evidence for mandatory unknown capabilities and checks context size",
+      "status": "passed",
+      "title": "requires evidence for mandatory unknown capabilities and checks context size",
+      "duration": 1.9450999999999965,
+      "failureMessages": [],
+      "meta": {},
+      "tags": [],
+      "benchmarks": []
+    }
+  ]
+}
