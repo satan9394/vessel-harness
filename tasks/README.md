@@ -9,7 +9,7 @@
 状态取值：待执行 / 执行中 / 待验收 / 已合入 / 打回。
 PDW 关联：首行状态行下加 `- PDW task: <id>`（未启动写 `none`）；卡写目标/验收/范围，契约从卡派生（规则见 `AGENTS.md` 记录纪律 6）。
 
-最近本地交付：[卡 286](286-pdw-provider-v2-migration.md) 把全局 OpenCode 配置从失效的 `provider`（单数）迁到 v2 `providers`（复数），恢复 `commandcode` 路由并由任务 `20261025074418-69269b` 完成一次真实四段冒烟；[卡 283](283-pdw-role-routing-single-source.md) 把 PDW 角色/模型/档位收成 `AGENTS.md` 唯一源，并修掉"DSH 默认执行器"与"run-state 是真相源"两处冲突；[卡 284](284-pdw-handover-and-index-slimming.md) 收口交接文档与索引；[卡 285](285-pdw-config-routing-and-smoke.md) 生效档位/限额并由任务 `20261024155859-108eea` 交付决策点 22。前序 [任务卡 277](277-ui-p2-fixes.md) 两个 UI P2 已收口（C-F1 由 PDW 任务 `20261024095132-1bac7e` 修复并 5 视口全绿），[任务卡 259](259-delete-stage-consistency.md) 删除跨阶段一致性已实现。
+最近本地交付：[卡 287](287-arch07-posix-fail-closed.md) 把 ARCH-07 的 POSIX helper 缺失行为改成默认拒绝、仅 `VESSEL_ALLOW_UNSANDBOXED=1` 显式放行，PDW 任务 `20261025083644-85ac5b` 验收通过并附 WSL 真进程证据；[卡 286](286-pdw-provider-v2-migration.md) 把全局 OpenCode 配置从失效的 `provider`（单数）迁到 v2 `providers`（复数），恢复 `commandcode` 路由并由任务 `20261025074418-69269b` 完成一次真实四段冒烟；[卡 283](283-pdw-role-routing-single-source.md) 把 PDW 角色/模型/档位收成 `AGENTS.md` 唯一源，并修掉"DSH 默认执行器"与"run-state 是真相源"两处冲突；[卡 284](284-pdw-handover-and-index-slimming.md) 收口交接文档与索引；[卡 285](285-pdw-config-routing-and-smoke.md) 生效档位/限额并由任务 `20261024155859-108eea` 交付决策点 22。前序 [任务卡 277](277-ui-p2-fixes.md) 两个 UI P2 已收口（C-F1 由 PDW 任务 `20261024095132-1bac7e` 修复并 5 视口全绿），[任务卡 259](259-delete-stage-consistency.md) 删除跨阶段一致性已实现。
 
 ## 怎么读这个目录
 
@@ -17,12 +17,13 @@ PDW 关联：首行状态行下加 `- PDW task: <id>`（未启动写 `none`）�
 
 | 本地交付 | 状态 | 任务卡 |
 |---|---|---|
+| ARCH-07 POSIX 默认拒绝 (卡 287) | 已完成：默认 fail-closed + `VESSEL_ALLOW_UNSANDBOXED=1` 显式放行；PDW `20261025083644-85ac5b` + WSL 真进程证据 | [287](287-arch07-posix-fail-closed.md) |
 | PDW 角色路由与口径收口 (卡 283) | 已完成：`AGENTS.md` 成为唯一源；DSH 默认执行器与 run-state 真相源两处冲突修掉 | [283](283-pdw-role-routing-single-source.md) |
 | PDW 交接与索引减重 (卡 284) | 已完成：HANDOFF / 卡 224 / README 收口；孤儿契约归档 | [284](284-pdw-handover-and-index-slimming.md) |
 | PDW 供应商迁移 v2 (卡 286) | 已完成：`provider`（单数）在 OC 2.1.4 已失效，迁到 `providers` 复数；任务 `20261025074418-69269b` `accepted_local` | [286](286-pdw-provider-v2-migration.md) |
 | PDW 配置收口与冒烟 (卡 285) | 已完成：档位/限额生效，任务 `20261024155859-108eea` `accepted_local` | [285](285-pdw-config-routing-and-smoke.md) |
 | 阻断消息给出解除命令 (卡 282) | 已实现，定向测试通过 | [282](282-effect-block-message.md) |
-| ARCH-07 POSIX 降级口径 (卡 281) | 阻塞：需用户对安全口径拍板（默认拒绝 vs 照常执行但标注） | [281](281-arch07-posix-fallback-decision.md) |
+| ARCH-07 POSIX 降级口径 (卡 281) | 已拍板：方案 2（默认拒绝 + 显式放行），实现与证据见卡 287 | [281](281-arch07-posix-fallback-decision.md) |
 | ARCH-09 可追溯 fixture 收口 (卡 280) | 已完成：14 fixture/7 类别复核 + conformance 25/25 + 全量两 root 绿 | [280](280-arch09-traceable-fixtures.md) |
 | 未知副作用的 CLI 出路 (卡 279) | 已实现，定向测试 + 真实 CLI 进程验证通过 | [279](279-cli-effects-reconcile.md) |
 | 工具失败锁死会话 (卡 278) | 已实现，定向门禁 + 真实模型会话通过 | [278](278-effect-outcome-classification.md) |

@@ -111,7 +111,7 @@
 - **Policy Engine**：`BeforeTool` 链上注册的权威裁决监听器，按 §4.2 决策序给出 ALLOW/DENY/ASK。
 - **guard 单调**：全链后强制执行的 ToolGuard——只能收窄（把 allow/ask 收成 deny/更严），任何监听器不得放宽（deepseek-harness.md 行 168/242/411）。
 - **BeforeWrite / BeforeShell 守卫**（D5 A18/A20）：文件写类工具对 canonical 化后的 targetPath 检查受保护路径与 deny_read/读写边界；shell 命令解析出 argv 后做只读识别与危险命令判定。**字符串解析只作只读识别与 deny 判定，不作主防线**（claude-code.md 行 208：解析不了 fail-closed 弹批准；comparison.md H05 行 330）。
-- **沙箱（OS 级兜底）**：`ctx.sandbox.confine(argv, policy)` seam，fail-closed（无后端 `SANDBOX_UNAVAILABLE` 即拒），enforcement full|partial 透明上报。**实现状态（2026-09-18 核实）**：**Windows 已交付 Job Object + process-tree（071/072，`docs/SANDBOX-WINDOWS.md`）**——命名 Job Object 包裹子进程、`TerminateJobObject` 连孙进程终止、活动进程数上限、`os.tmpdir()` 独立工作目录，`status()` 只在**真附加成功**时报 `active`；**受限令牌 + Low 完整性已交付（卡 256，真实模型会话审计记录为 `enforced`）；Linux/macOS 为 passthrough**（H08 Decision 的 bwrap/Seatbelt/Windows ACL 是**规划**，不是现状）。**最终防线**：Behavior Safety/deny 规则管不住任意子进程是各家共识，能拦子进程的只有 OS 级边界。
+- **沙箱（OS 级兜底）**：`ctx.sandbox.confine(argv, policy)` seam，fail-closed（无后端 `SANDBOX_UNAVAILABLE` 即拒），enforcement full|partial 透明上报。**实现状态（含卡 287 的 POSIX 默认拒绝变更）**：**Windows 已交付 Job Object + process-tree（071/072，`docs/SANDBOX-WINDOWS.md`）**——命名 Job Object 包裹子进程、`TerminateJobObject` 连孙进程终止、活动进程数上限、`os.tmpdir()` 独立工作目录，`status()` 只在**真附加成功**时报 `active`；**受限令牌 + Low 完整性已交付（卡 256，真实模型会话审计记录为 `enforced`）**。Linux/macOS Shell 原生 runner 已实现 bwrap/Seatbelt 探测与写目录白名单。helper 缺失或 namespace/profile 不可用时默认拒绝，审计为 `outcome:'denied'`、`sandboxed:false`、reason 含 `native-helper-unavailable`；错误提示安装/启用 `/usr/bin/bwrap`（Linux）或 `/usr/bin/sandbox-exec`（macOS），或显式设置 `VESSEL_ALLOW_UNSANDBOXED=1`。只有字符串 `1` 允许 `passthrough-fallback`，执行一次并记录 `outcome:'fallback'`、`sandboxed:false` 与同一 reason；helper 可用时仍强制隔离，执行失败不回退或重放。**最终防线**：Behavior Safety/deny 规则管不住任意子进程是各家共识，能拦子进程的只有 OS 级边界。
 - **never_auto 危险集合**：关键路径删除（rm -rf /、~ 等 destructive-delete）、需人交互的工具、显式 ask 项——**任何 profile（含 danger-full-access）都不自动放行**（claude-code.md 行 206；comparison.md H07 Proposed Spec `never_auto`）。
 
 - **沙箱边界：只管文件与进程，不管联网（2026-10-23 实测）**。在受限令牌 + Low 完整性 + Job Object 内执行
@@ -570,7 +570,7 @@ decisionPath:
 | 项 | 去向 | 原因 |
 |---|---|---|
 | 网络代理 MITM / 凭据 mask + 出站注入 | v0.2（H07/H08 network layer） | 依赖代理基础设施，超出 v0.1 6 工具平面 |
-| 容器 / 微 VM 沙箱后端（docker/ssh/microVM 同级提供方） | v0.2+（H08 container_seam） | **Windows 已交付 Job Object + process-tree（071/072）**；受限令牌/低完整性与非 Windows（bwrap/seatbelt）未做，故容器/微 VM 后端仍后置 |
+| 容器 / 微 VM 沙箱后端（docker/ssh/microVM 同级提供方） | v0.2+（H08 container_seam） | **Windows 已交付 Job Object + process-tree（071/072）**；Shell 原生 runner 已提供受限令牌/Low Integrity 与 POSIX bwrap/Seatbelt，POSIX helper 不可用默认拒绝（显式放行见上文）；容器/微 VM 后端仍后置 |
 | Guardian / classifier 模型审查入主链 | evaluator/验证层（H12）而非 v0.1 权限主链（comparison.md H07 Why） | 黑盒不可本地审计，违背"安全可审计"取向 |
 | async hooks + rewake | v0.2（D5 §10.3） | v0.1 钩子同步跑带超时 |
 | prompt/agent 型 hook handler | 不进 hook 语义 | 非确定性决策，留 evaluator 扩展 |

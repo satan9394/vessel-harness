@@ -9,7 +9,7 @@
 - Linux：探测固定系统路径 `/usr/bin/bwrap` 的真实 namespace 执行能力（不是仅检查版本）；`--ro-bind / /` 默认只读，只有已 canonicalize 的工作区/临时目录允许 `--bind` 写入。启用 `--unshare-all`、新 session、parent-death 终止。
 - macOS：探测 `/usr/bin/sandbox-exec`；Seatbelt 默认 deny `file-write*`，只放行白名单 subpath。POSIX helper 使用独立进程组，超时/取消终止仍留在该组内的进程，并关闭捕获管道；主动 `setsid` / `setpgid` 逃出进程组的后代可能继续存活（macOS/降级路径不宣称 hostile tree kill），其已继承的 Seatbelt 文件限制仍有效。
 - POSIX 的 `cpuTimeoutMs` 是墙钟超时；Windows 同时将该值映射为 Job 每进程 CPU 时间和墙钟超时。POSIX 不支持 `maxMemoryBytes`，显式传入会拒绝，避免虚假宣称资源执法。
-- Linux/macOS helper 缺失或 namespace 不可用才允许 `passthrough-fallback`，审计说明 `native-helper-unavailable`。helper 执行失败不会回退到直跑。Windows helper/ACL 失败永远拒绝。`isAvailable()` 仅探测系统 helper 能力；写目录授权逐次在执行前验证。
+- Linux/macOS helper 缺失或 namespace/profile 不可用时默认拒绝执行，审计为 `outcome:'denied'`、`sandboxed:false`、reason 含 `native-helper-unavailable`；错误提示安装/启用 `/usr/bin/bwrap`（Linux）或 `/usr/bin/sandbox-exec`（macOS），或显式设置 `VESSEL_ALLOW_UNSANDBOXED=1`。只有字符串 `1` 允许 `passthrough-fallback`，命令执行一次，审计为 `outcome:'fallback'`、`sandboxed:false`、reason 含 `native-helper-unavailable`。helper 可用时仍强制隔离，执行失败不会回退到直跑。Windows helper/ACL 失败永远拒绝。`isAvailable()` 仅探测系统 helper 能力；写目录授权逐次在执行前验证。
 - `audit/sandbox_enforced` 经应用层 EventBus 与 session JSONL 持久化，记录 tier、`sandboxed`、`enforced/fallback/denied` 和允许写目录；Shell 原生执行路径标记 `retryUnsafe`，防止未知副作用被自动重放。
 
 离线可执行门禁：
@@ -90,7 +90,7 @@ Process.ts 注释）；shell tool 已切到 `sandbox.run`（真实接线上路�
    `SetInformationJobObject` 失败则静默降级（tree-kill 不受影响）。CPU/内存上限（JOB_TIME /
    WORKINGSET）未做——受限 struct 在 PowerShell 下的 P/Invoke 布局验证不充分，留 072/073 或原生
    sidecar 补齐。
-4. **仅 Windows**：非 win32 平台 `status()` 保持 passthrough（bwrap/Seatbelt 后续卡）。
+4. **仅 Windows 的 runtime seam 状态**：非 win32 平台 `status()` 不反映 Shell 外层 bwrap/Seatbelt runner；后者按本文开头的能力探测执行，helper 不可用时默认拒绝。
 5. **回收站纪律**：隔离目录清理走 `SendToRecycleBin`（`Microsoft.VisualBasic`），holder 临时脚本
    自删；os.tmpdir 下的自建工件按仓库既有约定清理，绝不触碰主工作区路径。
 
@@ -112,7 +112,7 @@ Process.ts 注释）；shell tool 已切到 `sandbox.run`（真实接线上路�
 3. **逃逸只能在"看得到"时检测**：若某进程脱离我们枚举窗口（如已 exit 被 PID 复用、或 breakaway 进别的 job 且不在 root 后代链），检测不到。Windows 无 TS 侧的秒级进程原语遍历，依赖 CIM 快照。
 4. **时序窗口有最小残窗**：enumeration 与 attach 之间仍有极小竞态（进程在枚举后、attach 前 fork 的新孙进程）。窗口显著小于 071（由"完全不纳管"降为"覆盖枚举时刻已存在的后代"），但仍非数学零窗口。
 5. **CPU/内存上限 best-effort**：struct P/Invoke 布局在 PowerShell 下未做穷尽验证；`SetInformationJobObject` 失败静默降级（tree-kill 不受影响，见 071 限制 3）。
-6. **仅 Windows**：CIM/PowerShell 与 Job Object 均仅 win32；非 win32 `status()` 保持 passthrough。
+6. **仅 Windows**：CIM/PowerShell 与 Job Object 均仅 win32；非 win32 的 runtime seam `status()` 不代表 Shell 外层 POSIX runner 的隔离状态，后者在 helper 不可用时默认拒绝。
 
 ### 新增 API
 

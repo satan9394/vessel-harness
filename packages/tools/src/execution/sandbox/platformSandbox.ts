@@ -64,6 +64,10 @@ export class PlatformSandboxRunner implements NativeSandboxRunner {
         argv = ['-p', `(version 1) (allow default) (deny file-write*) ${roots.map(root => `(allow file-write* (subpath ${quote(root)}))`).join(' ')}`, command, ...args];
         tier = 'macos-seatbelt';
       }
+    } else if (process.env.VESSEL_ALLOW_UNSANDBOXED !== '1') {
+      const reason = 'native-helper-unavailable: install or enable /usr/bin/bwrap (Linux) or /usr/bin/sandbox-exec (macOS), or explicitly set VESSEL_ALLOW_UNSANDBOXED=1 to allow unsandboxed execution';
+      await this.deps.audit?.({ isolationTier: tier, sandboxed: false, outcome: 'denied', allowedWritePaths: roots, reason });
+      throw new Error(reason);
     }
     if (options.maxMemoryBytes !== undefined) throw new Error('native memory limits require Windows Job Object; POSIX helpers do not enforce them');
     // Execution failure NEVER falls back or replays the command.

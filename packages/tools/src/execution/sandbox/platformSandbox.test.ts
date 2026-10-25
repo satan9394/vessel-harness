@@ -3,12 +3,16 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { PlatformSandboxRunner, allowedWriteRoots } from './platformSandbox.js';
+import type { SandboxAuditEvent } from './types.js';
 
 const result = (exitCode = 0) => ({ stdout: 'mock', stderr: '', exitCode, timedOut: false, killed: false });
 describe('native platform sandbox', () => {
   let cwd: string;
-  beforeEach(() => { cwd = mkdtempSync(join(tmpdir(), 'vessel-platform-test-')); });
-  afterEach(() => { rmSync(cwd, { recursive: true, force: true }); });
+  beforeEach(() => {
+    cwd = mkdtempSync(join(tmpdir(), 'vessel-platform-test-'));
+    vi.stubEnv('VESSEL_ALLOW_UNSANDBOXED', undefined);
+  });
+  afterEach(() => { vi.unstubAllEnvs(); rmSync(cwd, { recursive: true, force: true }); });
 
   it('probes usable bubblewrap namespaces and mounts the host read-only plus writable whitelist', async () => {
     const run = vi.fn().mockResolvedValue(result()); const audit = vi.fn();
@@ -33,11 +37,49 @@ describe('native platform sandbox', () => {
   });
 
   it('audits unavailable helper fallback, and awaits the audit sink', async () => {
+    vi.stubEnv('VESSEL_ALLOW_UNSANDBOXED', '1');
     const run = vi.fn().mockRejectedValueOnce(new Error('ENOENT')).mockResolvedValue(result());
     const seen: string[] = [];
-    const runner = new PlatformSandboxRunner({ platform: 'linux', run, audit: async event => { await Promise.resolve(); seen.push(event.outcome); } });
+    const audit = vi.fn(async (event: SandboxAuditEvent) => { await Promise.resolve(); seen.push(event.outcome); });
+    const runner = new PlatformSandboxRunner({ platform: 'linux', run, audit });
     expect(await runner.execute('/bin/sh', ['-c', 'mock'], { cwd })).toMatchObject({ isolationTier: 'passthrough-fallback', sandboxed: false });
+    expect(run).toHaveBeenCalledTimes(2);
     expect(run.mock.calls[1]![0]).toBe('/bin/sh'); expect(seen).toEqual(['fallback']);
+    expect(audit).toHaveBeenCalledWith(expect.objectContaining({ outcome: 'fallback', sandboxed: false, reason: 'native-helper-unavailable' }));
+  });
+
+  it('denies unavailable POSIX helpers before target execution unless the opt-in is exactly 1', async () => {
+    for (const platform of ['linux', 'darwin'] as const) {
+      for (const value of [undefined, '', '0', 'true', ' 1', '1 ', 'ONE']) {
+        vi.stubEnv('VESSEL_ALLOW_UNSANDBOXED', value);
+        const run = vi.fn().mockRejectedValueOnce(new Error('ENOENT'));
+        const seen: string[] = [];
+        const audit = vi.fn(async (event: SandboxAuditEvent) => { await Promise.resolve(); seen.push(event.outcome); });
+        const runner = new PlatformSandboxRunner({ platform, run, audit });
+        const helper = platform === 'linux' ? '/usr/bin/bwrap' : '/usr/bin/sandbox-exec';
+        await expect(runner.execute('/bin/sh', ['-c', 'mock'], { cwd })).rejects.toThrow(`${helper}`);
+        expect(run).toHaveBeenCalledOnce();
+        expect(run.mock.calls[0]![0]).toBe(helper);
+        expect(seen).toEqual(['denied']);
+        expect(audit).toHaveBeenCalledWith(expect.objectContaining({
+          outcome: 'denied', sandboxed: false, allowedWritePaths: expect.arrayContaining([cwd]),
+          reason: expect.stringMatching(/native-helper-unavailable:.*VESSEL_ALLOW_UNSANDBOXED=1/),
+        }));
+      }
+    }
+  });
+
+  it('keeps available POSIX helpers enforced even with the unsandboxed opt-in', async () => {
+    vi.stubEnv('VESSEL_ALLOW_UNSANDBOXED', '1');
+    for (const platform of ['linux', 'darwin'] as const) {
+      const run = vi.fn().mockResolvedValue(result()); const audit = vi.fn();
+      const runner = new PlatformSandboxRunner({ platform, run, audit });
+      expect(await runner.execute('/bin/sh', ['-c', 'mock'], { cwd })).toMatchObject({
+        isolationTier: platform === 'linux' ? 'bwrap-ns' : 'macos-seatbelt', sandboxed: true,
+      });
+      expect(run).toHaveBeenCalledTimes(2);
+      expect(audit).toHaveBeenCalledWith(expect.objectContaining({ outcome: 'enforced', sandboxed: true }));
+    }
   });
 
   it('does not replay an execution failure through fallback', async () => {
