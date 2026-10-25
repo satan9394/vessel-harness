@@ -5,6 +5,12 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { IterationStore, defaultIterationRoot, newIterationEntryId } from './iteration-store.js';
 import type { IterationEntry, IterationTaskRecord } from './iteration-store.js';
 import type { IterationResult } from './LoopEngine.js';
+import { computeHarnessFingerprint } from './fingerprint.js';
+
+vi.mock('./fingerprint.js', async () => {
+  const actual = await vi.importActual<typeof import('./fingerprint.js')>('./fingerprint.js');
+  return { ...actual, computeHarnessFingerprint: vi.fn(actual.computeHarnessFingerprint) };
+});
 
 // node:fs 的 ESM 命名空间导出 non-configurable（vitest 2.1.9 报 "Cannot redefine property"），
 // 沿用 113 vi.mock 方案：默认真实委托的 renameSync，供 task 114 EPERM 有界重试注入；
@@ -154,7 +160,7 @@ describe('engine/iteration-store — IterationStore 迭代日志（task 063）',
 
   function makeStore(): IterationStore {
     let clock = 1_000_000;
-    return new IterationStore({ iterationsRoot: root, now: () => (clock += 7) });
+    return new IterationStore({ iterationsRoot: root, harnessRoot: root, now: () => (clock += 7) });
   }
 
   function engineResult(overrides: Partial<IterationResult> = {}): IterationResult {
@@ -169,6 +175,44 @@ describe('engine/iteration-store — IterationStore 迭代日志（task 063）',
       ...overrides,
     };
   }
+
+  it('records harness identity once per append, retains old identities and reads legacy entries', () => {
+    const source = path.join(root, 'packages', 'test', 'src', 'file.ts');
+    fs.mkdirSync(path.dirname(source), { recursive: true });
+    fs.writeFileSync(source, 'first');
+    const s = makeStore();
+    vi.mocked(computeHarnessFingerprint).mockClear();
+    s.appendIteration(TASK, { verdict: 'met' });
+    expect(computeHarnessFingerprint).toHaveBeenCalledExactlyOnceWith(root);
+    const first = s.get(TASK.taskId)!.iterations[0]!.harnessFingerprint;
+    expect(first).toMatch(/^[0-9a-f]{16}$/);
+    fs.writeFileSync(source, 'second');
+    s.appendEngineResult(TASK, engineResult());
+    expect(computeHarnessFingerprint).toHaveBeenCalledTimes(2);
+    const disk = JSON.parse(fs.readFileSync(s.metaPath(TASK.taskId), 'utf8')) as IterationTaskRecord;
+    expect(disk.iterations[0]!.harnessFingerprint).toBe(first);
+    expect(disk.iterations[1]!.harnessFingerprint).not.toBe(first);
+    delete disk.iterations[0]!.harnessFingerprint;
+    fs.writeFileSync(s.metaPath(TASK.taskId), JSON.stringify(disk));
+    expect(s.replay(TASK.taskId)).toHaveLength(2);
+    expect(s.replay(TASK.taskId)[0]!.harnessFingerprint).toBeUndefined();
+    s.appendIteration(TASK, { verdict: 'met' });
+    expect(s.replay(TASK.taskId)[0]!.harnessFingerprint).toBeUndefined();
+  });
+
+  it('notes a fingerprint computation failure and still persists the iteration', () => {
+    const s = makeStore();
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    vi.mocked(computeHarnessFingerprint).mockImplementationOnce(() => { throw new Error('fingerprint unavailable'); });
+    try {
+      s.appendIteration(TASK, { verdict: 'met' });
+      expect(s.get(TASK.taskId)!.iterations[0]!.harnessFingerprint).toBeUndefined();
+      expect(JSON.parse(fs.readFileSync(s.metaPath(TASK.taskId), 'utf8')).iterations[0]).not.toHaveProperty('harnessFingerprint');
+      expect(warn).toHaveBeenCalledWith(expect.stringContaining('iteration store note: harness fingerprint unavailable'));
+    } finally {
+      warn.mockRestore();
+    }
+  });
 
   it('appendIteration 建目录记录 <root>/<task-id>/meta.json：任务基座快照 + 首个条目（ordinal=1、字段缺省归一）', () => {
     const s = makeStore();

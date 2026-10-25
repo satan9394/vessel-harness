@@ -8,10 +8,11 @@ import { WorkerSandbox } from '@vessel/application';
 import { createDefaultProviderStore } from '../providers/defaultStore.js';
 import { memoryDatabasePath } from './memoryCommand.js';
 import type { ProviderConfig } from '../providers/ProviderStore.js';
+import { checkToolPins, type ToolPinCheck } from '@vessel/shared';
 
 export interface DoctorCheckItem {
   name: string;
-  category: 'runtime' | 'sandbox' | 'database' | 'providers' | 'daemon' | 'mods';
+  category: 'runtime' | 'sandbox' | 'database' | 'providers' | 'daemon' | 'mods' | 'toolchain';
   status: 'pass' | 'warn' | 'fail';
   message: string;
   remedy?: string;
@@ -27,6 +28,7 @@ export interface DoctorDependencies {
   daemon?: () => Promise<boolean>;
   modSandbox?: () => Promise<boolean>;
   fetch?: typeof globalThis.fetch;
+  toolPins?: () => ToolPinCheck[];
 }
 
 export { diagnoseMemoryDatabase } from '@vessel/memory';
@@ -68,6 +70,10 @@ export class VesselDoctorEngine {
     await check('npm lockfile', 'runtime', 'Keep package-lock.json as the only lockfile; use npm.', async () => {
       const locks = ['package-lock.json', 'npm-shrinkwrap.json', 'pnpm-lock.yaml', 'pnpm-workspace.yaml', 'yarn.lock', 'bun.lock', 'bun.lockb'].filter(file => fs.existsSync(path.join(workspace, file)));
       return { status: locks.length === 1 && locks[0] === 'package-lock.json' ? 'pass' : 'fail', message: `Lockfiles: ${locks.join(', ') || 'none'}.` };
+    });
+    await check('Toolchain pins', 'toolchain', 'Upgrade/downgrade the CLI to match configs/tool-pins.json, or update the pin if the bump is intended.', async () => {
+      const pins = (this.deps.toolPins ?? (() => checkToolPins(workspace)))();
+      return { status: pins.some(pin => pin.status === 'warn') ? 'warn' : 'pass', message: pins.map(pin => pin.message).join('\n') };
     });
     await check('SQLite WAL', 'database', 'Check memory database permissions and restore from preserved journals; do not delete state.', this.deps.database ?? (() => diagnoseMemoryDatabase(memoryDatabasePath(workspace))));
     await check('Native sandbox', 'sandbox', 'Configure Windows Low Integrity/restricted SID ACLs, Linux bwrap, or macOS Seatbelt.', async () => {

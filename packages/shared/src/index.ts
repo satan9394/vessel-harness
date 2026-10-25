@@ -27,3 +27,4 @@ export * from './behavior.js';
 export * from './composer.js';
 export * from './team.js';
 export * from './runtimeAdapter.js';
+export * from './toolPins.js';

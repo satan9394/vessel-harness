@@ -1,0 +1,7 @@
+{
+  "version": 1,
+  "tools": {
+    "codex": { "range": ">=0.164.0 <0.165.0", "probe": "codex --version" },
+    "opencode": { "range": ">=2.1.4 <3.0.0", "probe": "opencode --version" }
+  }
+}

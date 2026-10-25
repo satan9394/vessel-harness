@@ -87,6 +87,37 @@ function asRec<T>(m: T): Record<string, unknown> {
 }
 
 describe('contracts/validate — RunResult validation', () => {
+  const scoredResult = (): RunResult => ({ adapterId: 'vessel', adapterVersion: '0', fixtureId: 'SCORE', metrics: validResultFields(), startedAt: '2026-10-25T00:00:00.000Z' });
+
+  it('accepts absent scores and valid graded/ungraded scores without changing metrics', () => {
+    const result = scoredResult();
+    expect(validateRunResult(result)).toEqual([]);
+    for (const score of [
+      { n_passed: 1, n_criteria: 1, all_pass: true, graded: true },
+      { n_passed: 0, n_criteria: 1, all_pass: false, graded: true },
+      { n_passed: 0, n_criteria: 0, all_pass: false, graded: false, reason: 'grader crashed' },
+    ]) expect(validateRunResult({ ...result, score })).toEqual([]);
+    expect(validateRunResult({ ...result, metrics: { ...result.metrics, success: undefined as never } })).toContainEqual(expect.objectContaining({ field: 'metrics.success' }));
+  });
+
+  it.each([
+    [{ n_passed: 0, n_criteria: 0, all_pass: false, graded: false }, 'score.reason'],
+    [{ n_passed: 0, n_criteria: 0, all_pass: false, graded: false, reason: ' ' }, 'score.reason'],
+    [{ n_passed: 2, n_criteria: 1, all_pass: false, graded: true }, 'score.n_passed'],
+    [{ n_passed: 1, n_criteria: 1, all_pass: false, graded: true }, 'score.all_pass'],
+    [{ n_passed: 0, n_criteria: 0, all_pass: true, graded: true }, 'score.n_criteria'],
+    [null, 'score'], [[], 'score'], ['invalid', 'score'],
+    [{ n_passed: '1', n_criteria: 1, all_pass: true, graded: true }, 'score.n_passed'],
+    [{ n_passed: 0, n_criteria: Infinity, all_pass: false, graded: true }, 'score.n_criteria'],
+    [{ n_passed: -1, n_criteria: 0, all_pass: false, graded: false, reason: 'failed' }, 'score.n_passed'],
+    [{ n_passed: 0, n_criteria: 1, all_pass: 0, graded: true }, 'score.all_pass'],
+    [{ n_passed: 0, n_criteria: 1, all_pass: false, graded: 'yes' }, 'score.graded'],
+  ])('rejects invalid score %# at %s', (score, field) => {
+    const result = { ...scoredResult(), score } as unknown as RunResult;
+    expect(validateRunResult(result)).toContainEqual(expect.objectContaining({ field }));
+    expect(() => assertValidRunResult(result)).toThrow(field);
+  });
+
   it('accepts a fully-formed metrics record', () => {
     const issues = validateRunResultMetrics(validResultFields());
     expect(issues).toEqual([]);

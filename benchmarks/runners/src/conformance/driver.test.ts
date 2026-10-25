@@ -1,4 +1,10 @@
 import { describe, it, expect } from 'vitest';
+import * as os from 'node:os';
+import { manifestLeakGlobs } from './run-conformance.js';
+
+it('falls back to undefined leakGlobs when the manifest is missing', () => {
+  expect(manifestLeakGlobs(os.tmpdir(), 'missing-conformance-manifest')).toBeUndefined();
+});
 import {
   runConformance,
   capabilitySkipReason,

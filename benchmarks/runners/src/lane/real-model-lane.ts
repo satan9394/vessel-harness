@@ -339,30 +339,31 @@ export async function runRealModelLane(opts: {
   const startedIso = startedAt.toISOString();
 
   const fixtureCache = new Map<string, HarnessFixture>();
-  // Scenario manifest `policy:` (profile/approval), loaded once per scenario. A
-  // missing/invalid manifest degrades to `undefined` ⇒ base policy, so the lane
-  // never throws here and the offline/conformance path (which passes nothing) is
-  // byte-for-byte unchanged.
-  const policyCache = new Map<string, { profile?: string; approval?: string } | undefined>();
-  const scenarioPolicyFor = (id: string): { profile?: string; approval?: string } | undefined => {
-    if (policyCache.has(id)) return policyCache.get(id);
-    let policy: { profile?: string; approval?: string } | undefined;
+  // Scenario manifest (policy and leak_globs), loaded once per scenario. A
+  // missing/invalid manifest retains the existing fallback to base policy
+  // and no declared exclusions; builtin leak detection still applies.
+  const manifestCache = new Map<string, ReturnType<typeof loadManifest> | undefined>();
+  const scenarioManifestFor = (id: string): ReturnType<typeof loadManifest> | undefined => {
+    if (manifestCache.has(id)) return manifestCache.get(id);
+    let manifest: ReturnType<typeof loadManifest> | undefined;
     try {
-      policy = loadManifest(opts.repoRoot, id).policy;
+      manifest = loadManifest(opts.repoRoot, id);
     } catch {
-      policy = undefined;
+      manifest = undefined;
     }
-    policyCache.set(id, policy);
-    return policy;
+    manifestCache.set(id, manifest);
+    return manifest;
   };
   const makeFixture = (entry: LaneScenarioEntry, model: LaneModel, provider: ChatProvider): HarnessFixture => {
     const key = `${model.id}::${entry.id}`;
     let f = fixtureCache.get(key);
     if (!f) {
-      const scenarioPolicy = scenarioPolicyFor(entry.id);
+      const manifest = scenarioManifestFor(entry.id);
+      const scenarioPolicy = manifest?.policy;
       f = {
         id: entry.id,
         workspaceRoot: scenarioFixtureDir(opts.repoRoot, entry.id),
+        leakGlobs: manifest?.leak_globs,
         options: {
           provider,
           model: model.defaultModel,

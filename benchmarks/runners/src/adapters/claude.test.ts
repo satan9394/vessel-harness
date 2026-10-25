@@ -21,6 +21,18 @@ import {
   assertValidRunResult,
 } from '../contracts/validate.js';
 import type { HarnessFixture } from '../contracts/types.js';
+import { FixtureLeakError } from '../runner.js';
+
+it('preserves FixtureLeakError and leaves no new temporary workspace after a leak', async () => {
+  const id = 'cleanup-leak';
+  const prefix = 'cah-claude-' + id + '-';
+  const before = new Set(fs.readdirSync(os.tmpdir()).filter(entry => entry.startsWith(prefix)));
+  const source = makeFixture(id);
+  fs.writeFileSync(path.join(source, 'RUBRICS.json'), '{}');
+  await expect(runClaudeFixture({ id, workspaceRoot: source, options: { _envResolve: envPresent, runCommand: mockCli({}) } })).rejects.toBeInstanceOf(FixtureLeakError);
+  expect(fs.readdirSync(os.tmpdir()).filter(entry => entry.startsWith(prefix) && !before.has(entry))).toEqual([]);
+  expect(fs.existsSync(path.join(source, 'RUBRICS.json'))).toBe(true);
+});
 
 const REPO_ROOT = fileURLToPath(new URL('../../../../', import.meta.url));
 let tmpRoot: string;

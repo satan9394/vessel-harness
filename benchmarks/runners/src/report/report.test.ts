@@ -122,6 +122,37 @@ const NORMAL_REPORT_MD_LINES = [
 ];
 
 describe('report aggregation (task 083)', () => {
+  it('keeps the denominator unchanged when an ungraded row is added', () => {
+    const passed = run('vessel', 'B001', metrics());
+    const ungraded = run('vessel', 'B001', metrics({ success: false }));
+    ungraded.score = { n_passed: 0, n_criteria: 0, all_pass: false, graded: false, reason: 'grader crashed' };
+    const baseline = buildReportFromRunResults([passed]);
+    const report = buildReportFromRunResults([passed, ungraded]);
+    expect(report.rows[1]).toMatchObject({ graded: false, score: ungraded.score });
+    expect(report.totals.successRate).toBe(baseline.totals.successRate);
+    expect(report.totals).toMatchObject({ runs: 2, passed: 1, failed: 0, ungraded: 1, successRate: 1 });
+    expect(report.harnesses[0]).toMatchObject({ runs: 2, passed: 1, failed: 0, ungraded: 1, successRate: 1 });
+    expect(report.scenarios[0]).toMatchObject({ runs: 2, passed: 1, failed: 0, ungraded: 1, successRate: 1 });
+  });
+
+  it('excludes skipped and pending rows from the denominator', () => {
+    const base = rowFromRunResult(run('vessel', 'B001', metrics()));
+    const rows: ReportRow[] = [base, { ...base, status: 'failed' }, { ...base, status: 'skipped' }, { ...base, status: 'pending' }];
+    const report = buildReport(rows);
+    for (const summary of [report.totals, report.harnesses[0], report.scenarios[0]]) {
+      expect(summary).toMatchObject({ runs: 4, passed: 1, failed: 1, ungraded: 0, successRate: 0.5 });
+    }
+    expect(report.harnesses[0]).toMatchObject({ skipped: 1, pending: 1 });
+  });
+
+  it('returns zero with only ungraded rows and keeps pending mutually exclusive', () => {
+    const base = rowFromRunResult(run('vessel', 'B001', metrics()));
+    const report = buildReport([{ ...base, graded: false }, { ...base, status: 'pending', graded: false }]);
+    expect(report.harnesses[0]).toMatchObject({ runs: 2, passed: 0, failed: 0, ungraded: 1, pending: 1, successRate: 0 });
+    expect(report.totals.successRate).toBe(0);
+    expect(report.scenarios[0]!.successRate).toBe(0);
+  });
+
   it('aggregateRows computes per-harness summary stats and totals', () => {
     const rows: ReportRow[] = [
       rowFromRunResult(run('vessel', 'B001', metrics({ success: true, wallTimeMs: 200, costUsd: 0.02 }))),

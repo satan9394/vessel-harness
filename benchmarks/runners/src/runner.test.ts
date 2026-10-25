@@ -4,8 +4,9 @@ import * as path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, it, expect, afterEach, vi } from 'vitest';
 import type { ChatProvider, ChatResponse } from '@vessel/shared';
+import * as shared from '@vessel/shared';
 import type { NativeSandboxRunner } from '@vessel/tools';
-import { runScenario, loadManifest, OFFLINE_SCRIPTS, auditMeasuredDeclaration, REPORTED_METRICS } from './runner.js';
+import { runScenario, loadManifest, OFFLINE_SCRIPTS, auditMeasuredDeclaration, REPORTED_METRICS, ToolchainPinError, FixtureSetupError } from './runner.js';
 import { runAssert } from './asserts.js';
 import { classifyScenarioRun, type OfflineScenarioOutcome } from './release-gates/gates.js';
 import type { ScenarioReport } from './types.js';
@@ -29,6 +30,62 @@ let tempDirs: string[] = [];
 afterEach(() => {
   for (const d of tempDirs) fs.rmSync(d, { recursive: true, force: true });
   tempDirs = [];
+});
+
+describe('benchmarks/runner — opt-in toolchain pins', () => {
+  function options() {
+    const reportsDir = fs.mkdtempSync(path.join(os.tmpdir(), 'toolpin-run-'));
+    tempDirs.push(reportsDir);
+    return {
+      scenarioId: 'B001', repoRoot: REPO_ROOT, reportsDir, provider: null,
+      model: 'mock-model', policyPath: path.join(REPO_ROOT, 'configs/policy.default.yaml'),
+      behaviorIRPath: path.join(REPO_ROOT, 'configs/behavior.default.yaml'),
+    };
+  }
+
+  it('rejects installed version drift before copying or driving the scenario', async () => {
+    const opts = options();
+    const provider = { chat: vi.fn() } as unknown as ChatProvider;
+    const promise = runScenario({ ...opts, provider, toolPinsProbe: () => '99.0.0' });
+    await expect(promise).rejects.toBeInstanceOf(ToolchainPinError);
+    await expect(promise).rejects.toBeInstanceOf(FixtureSetupError);
+    const error = await promise.catch((err: Error) => err);
+    expect(error).toMatchObject({ message: expect.stringContaining('codex: found 99.0.0, declared >=0.164.0 <0.165.0') });
+    expect(error).toMatchObject({ message: expect.stringContaining('upgrade/downgrade the CLI or update configs/tool-pins.json') });
+    expect(fs.readdirSync(opts.reportsDir)).toEqual([]); // no runDir, workspace or .run-complete.json
+    expect(provider.chat).not.toHaveBeenCalled();
+  });
+
+  it('skips unavailable CLIs with notes and one warning, without changing summary keys', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    try {
+      const report = await runScenario({ ...options(), toolPinsProbe: () => null });
+      expect(report.success).toBe(true);
+      expect(report.toolchainNotes).toEqual([
+        'codex: not installed on this machine; skipped',
+        'opencode: not installed on this machine; skipped',
+      ]);
+      expect(warn.mock.calls.filter(([message]) => String(message).startsWith('[toolchain]'))).toHaveLength(1);
+      const summary = JSON.parse(fs.readFileSync(path.join(path.dirname(report.reportPath), 'summary.json'), 'utf8'));
+      expect(summary).not.toHaveProperty('toolchainNotes');
+    } finally { warn.mockRestore(); }
+  });
+
+  it('completes with matching versions and omits the notes key', async () => {
+    const report = await runScenario({ ...options(), toolPinsProbe: tool => tool === 'codex' ? '0.164.0' : '2.1.4' });
+    expect(report.success).toBe(true);
+    expect(report).not.toHaveProperty('toolchainNotes');
+  });
+
+  it('does not call the pin checker unless a probe is explicitly supplied', async () => {
+    const check = vi.spyOn(shared, 'checkToolPins');
+    try {
+      const report = await runScenario(options());
+      expect(report.success).toBe(true);
+      expect(report).not.toHaveProperty('toolchainNotes');
+      expect(check).not.toHaveBeenCalled();
+    } finally { check.mockRestore(); }
+  });
 });
 
 describe('benchmarks/runner — first batch B001–B005 (offline mock lane)', () => {
@@ -573,6 +630,38 @@ describe('benchmarks/runner — evaluator 臂的 verdict 结构化落点（M13�
     policyPath: path.join(REPO_ROOT, 'configs', 'policy.default.yaml'),
     behaviorIRPath: path.join(REPO_ROOT, 'configs', 'behavior.default.yaml'),
   });
+
+  it('writes harness identity after a successful run summary', async () => {
+    const report = await runScenario(evalArmOpts('B018'));
+    tempDirs.push(report.workspace);
+    expect(report.success).toBe(true);
+    const dir = path.dirname(report.reportPath);
+    expect(JSON.parse(fs.readFileSync(path.join(dir, 'summary.json'), 'utf8')).success).toBe(true);
+    const marker = JSON.parse(fs.readFileSync(path.join(dir, '.run-complete.json'), 'utf8'));
+    expect(Object.keys(marker).sort()).toEqual(['fileCount', 'fingerprint', 'finishedAt', 'version']);
+    expect(marker.version).toBe(1);
+    expect(marker.fingerprint).toMatch(/^[0-9a-f]{16}$/);
+    expect(marker.fileCount).toBeGreaterThan(0);
+    expect(new Date(marker.finishedAt).toISOString()).toBe(marker.finishedAt);
+  }, 60_000);
+
+  it('does not mark an assertion-failed run complete even though it writes a summary', async () => {
+    const original = OFFLINE_SCRIPTS['B018-eval']!;
+    OFFLINE_SCRIPTS['B018-eval'] = [
+      { when: /.*/, ifNoToolResult: true, response: { text: '{"verdict":"met","evidence":[],"reason":"符合验收"}' } },
+    ];
+    try {
+      const report = await runScenario(evalArmOpts('B018'));
+      tempDirs.push(report.workspace);
+      expect(report.success).toBe(false);
+      expect(report.asserts.some((assert) => assert.result === 'fail')).toBe(true);
+      const dir = path.dirname(report.reportPath);
+      expect(JSON.parse(fs.readFileSync(path.join(dir, 'summary.json'), 'utf8')).success).toBe(false);
+      expect(fs.existsSync(path.join(dir, '.run-complete.json'))).toBe(false);
+    } finally {
+      OFFLINE_SCRIPTS['B018-eval'] = original;
+    }
+  }, 60_000);
 
   it('① 判别性：B018 evaluator 臂判 not_met ⇒ M13 如实计 1（改前恒 0）', async () => {
     const report = await runScenario(evalArmOpts('B018'));

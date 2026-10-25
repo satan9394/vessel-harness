@@ -117,11 +117,14 @@ benchmarks/
 ### 2.1 fixtures/ 布局（每 scenario 一个 fixture pack）
 
 > **本节口径（spec ⇄ 实现对账改准，非"新规定"）**：**fixture 的根目录整体就是工作区素材**。
-> `runner.ts:runScenario()` 执行 `copyDir(fixtureDir, workspace)`——把 `benchmarks/fixtures/<sid>/` 的
+> 所有车道共用 `fixtureCopy.ts` 的 `copyFixtureTree(fixtureDir, workspace, isExcluded)`——默认把 `benchmarks/fixtures/<sid>/` 的
 > **全部内容**原样复制进本次 run 的临时工作区（`reports/<sid>/<runId>/workspace`），
+> 只有命中该场景 manifest `leak_globs` 的**判据文件**在复制时被排除（目录保留，见 §2.4 / §3.0 表 A）；
 > **没有** `workspace/`、`expected/`、`harness-config/` 任何一层中间目录（实测：`benchmarks/fixtures/**`
 > 下这三个目录一个都不存在；B001 = `a/ b/ package.json README.md task.md`，B018 = `task.md`）。
-> 判据也不在 fixture 里——**判据的唯一事实源是 `benchmarks/scenarios/<sid>.yaml` 的 `pass:`**（§2.2/§3.0）。
+> 现存 25 个 fixture 里没有任何判据文件（`RUBRIC*.json` 大小写不敏感零命中），但这条不再靠"约定"保证：
+> 内置红线命中且场景未声明 `leak_globs` 时所有车道直接抛 `FixtureLeakError`（§2.4）。
+> **判据的唯一事实源仍是 `benchmarks/scenarios/<sid>.yaml` 的 `pass:`**（§2.2/§3.0）。
 
 ```text
 benchmarks/fixtures/<scenario-id>/     # ← 本目录的**内容**即工作区快照，整包复制（无中间层）
@@ -134,7 +137,7 @@ benchmarks/fixtures/<scenario-id>/     # ← 本目录的**内容**即工作区�
 
 | 旧写法 | 今天的事实 |
 |---|---|
-| `workspace/` 子目录 | 被"**fixture 根即工作区**"取代——没有这一层，`copyDir` 复制的是根 |
+| `workspace/` 子目录 | 被"**fixture 根即工作区**"取代——没有这一层，`copyFixtureTree` 复制的是根 |
 | `expected/asserts.yaml`（黄金断言素材） | **不存在**；判据只在 `benchmarks/scenarios/<sid>.yaml` 的 `pass:`，由 `loadManifest()` 装载 |
 | `harness-config/`（各 harness 接线样例） | **不存在**；今天的接线面是 `<sid>.yaml` 的 `policy:`/`harness:` + runner/adapter 代码（§6.4） |
 
@@ -142,7 +145,7 @@ benchmarks/fixtures/<scenario-id>/     # ← 本目录的**内容**即工作区�
 
 ### 2.2 scenarios/ manifest
 
-每个 scenario 一个 `<scenario-id>.yaml`，字段与 §3 schema 一致（**真实键集见 §3.0 表 A**：`id`/`type`/`goal`/`fixture`/`task_file`/`hidden`/`policy`/`harness`/`pass`/`measured`/`mode`；`expected`（预期行为）/`harnesses`（运行 harness 集合）是**场景卡里的规格意图字段，manifest 不接受**，见 §3.0 表 B）。runner 从 manifest 读判据并实例化断言，**manifest 是判据的唯一事实源**（与 POLICY-SPEC"唯一事实源"同构）。
+每个 scenario 一个 `<scenario-id>.yaml`，字段与 §3 schema 一致（**真实键集见 §3.0 表 A**：`id`/`type`/`goal`/`fixture`/`task_file`/`leak_globs`/`hidden`/`policy`/`harness`/`pass`/`measured`/`mode`；`expected`（预期行为）/`harnesses`（运行 harness 集合）是**场景卡里的规格意图字段，manifest 不接受**，见 §3.0 表 B）。runner 从 manifest 读判据并实例化断言，**manifest 是判据的唯一事实源**（与 POLICY-SPEC"唯一事实源"同构）。
 
 ### 2.3 运行模式
 
@@ -159,7 +162,8 @@ fixture 里**没有** `expected/asserts.yaml` 这一层（§2.1）——旧文�
 ### 2.4 每次 run 的隔离与卫生
 
 1. **复制 fixture 根目录**（不是它下面某个 `workspace/` 子目录，§2.1）到本次 run 的独立临时目录
-   `benchmarks/reports/<sid>/run_<毫秒>_<hex>/workspace`——实现即 `runner.ts` 的 `copyDir(fixtureDir, workspace)`。
+   `benchmarks/reports/<sid>/run_<毫秒>_<hex>/workspace`（runner；adapter 使用系统临时目录）——实现即共用模块 `fixtureCopy.ts` 的 `copyFixtureTree(fixtureDir, workspace, isExcluded)`，按 `leak_globs` 排除判据文件，保留空目录。
+   runner 与 Vessel 在 `prepareFixtureSetup` 后、外部 adapter 在复制后，均于被测执行前复查：任意层级、大小写不敏感的内置红线 `RUBRICS.json` / `RUBRIC.json`，或仍匹配声明模式的文件，均抛 `FixtureLeakError`（继承 `FixtureSetupError`，release gate 判据泄漏 = fail：资产缺陷，不是环境限制）。其余 fixture prepare 失败 = pending-environment。错误列出相对路径、模式与来源；修复方式为移出 fixture 或写进该场景的 `leak_globs`。不扫描正文，不默认排除 `tests/**`。所有车道共用同一份复制与守卫实现：runner、Vessel 自适配器与五个外部 adapter；conformance 与 real-model lane 将 manifest 的 `leak_globs` 透传为 `HarnessFixture.leakGlobs`。
    **"git 仓库 `git reset --hard <初始 commit>`"今天没有实现**：`runner.ts` 里没有任何 `git reset` 调用，
    `benchmarks/fixtures/**` 下也没有一个 `.git` 目录。隔离今天靠"**每次全新复制 + 每次全新 run 目录**"实现，
    `git reset` 是 fixture 为 git 仓库时才可能的做法，属规格意图（未实现）。
@@ -170,20 +174,42 @@ fixture 里**没有** `expected/asserts.yaml` 这一层（§2.1）——旧文�
 3. run 前记录环境快照（harness 版本/commit、node/python 版本、provider/model、日期）写入 report meta。
    **今天 meta 行只有 4 个字段**：`harnessVersion: 'cah@0.1.0'` / `model` / `provider` / `temperature: 0`
    （`runner.ts` 的 `type: 'meta'` 行）；**node/python 版本、日期、harness commit 三个字段未实现**。
+4. harness 指纹仅取 `packages/*/src/**/*.ts`（含测试）、`configs/*.yaml` / `configs/*.json` 与 `package-lock.json`。
+   排除 `dist`、`node_modules`、`.harness`、`.git`、`.tmp*` 与 `*.tsbuildinfo`；不可读文件跳过。
+   按相对路径排序，将路径、NUL 与文件字节依次送入 SHA-256，取前 16 位 hex。
+   成功 run 写完 `summary.json` 后写 `<runDir>/.run-complete.json`：`version: 1`、`fingerprint`、`fileCount`、`finishedAt`（ISO）；失败 run 不写。
+   iteration 条目可选 `harnessFingerprint` 记录同一身份；旧记录仍可读，计算失败记 note 后省略该字段。
+   **只落身份，不做复用判定**；读取方将来可据此拒绝旧 run，目前没有 resume 复用校验。
 
 ---
+
+跑真实 harness 车道前，可用 `vessel doctor` 的 `Toolchain pins` 项核对本机 CLI；doctor 仍只报 advisory warn。
+`runScenario` 默认不检查、不启动 CLI；只有显式传入 `toolPinsProbe` 才在复制 fixture 前读 `configs/tool-pins.json`（opt-in）。
+已安装但版本不在声明区间 → `ToolchainPinError extends FixtureSetupError` → gate `pending-environment`（status 为 pending）。
+可升级/降级 CLI，或更新 `configs/tool-pins.json` 后重跑；阻断时不进入 driver、不写 `.run-complete.json`。
+本机没装 CLI 或 pin 文件缺失/非法 → 放行，返回非空可选 `toolchainNotes` 并在 stderr 警告一条。
+`toolchainNotes` 为空时字段缺席，不写入 `summary.json`。
+
+判分分为互斥三态：`graded`（判分器完成并给出结论）、`ungraded`（判分失败、未运行或结果不可解析）、
+`pending`（环境未就绪，沿用既有语义）。`RunResult.score` 是可选的并列判分描述；缺省视为 graded，
+既有 14 个必填 metrics 字段及 `metrics.success` 的布尔语义不变。
+score 包含 `n_passed`、`n_criteria`、`all_pass`、`graded`；ungraded 必须提供非空 `reason`。
+报告 `successRate = passed / (passed + failed)`，分母为零时返回 0。
+`ungraded`、`skipped`、`pending` 不进分母，单独计数；`runs` 仍包含全部行。
+ungraded 为并列计数，不新增 `ReportRowStatus` 枚举值；pending/skipped 行优先沿用其状态计数。
+既有报告在全是 graded 且已判定 passed/failed 的行时，成功率数字与以前一致。
 
 ## 3. Scenario 规范
 
 ### 3.0 Scenario Schema（统一字段）
 
 > **本节口径（spec ⇄ 实现对账卡改准，非"新规定"）**：`benchmarks/scenarios/<id>.yaml` 的**真实契约** = `benchmarks/runners/src/manifest.ts` 的
-> `KNOWN_KEYS` / `PASS_KEYS` / `HARNESS_KEYS` 三张白名单 + `loadManifest()` 的三次抛错（未知键 / `id` 与文件名不一致 /
-> `pass` 不是非空数组）。**表 A = 实现真正接受的键；表 B = 只活在场景卡里的规格意图字段 —— 两表不得混用**：把表 B 的键
+> `KNOWN_KEYS` / `PASS_KEYS` / `HARNESS_KEYS` 三张白名单 + `loadManifest()` 的校验（未知键 / `id` 与文件名不一致 /
+> `pass` 不是非空数组 / `leak_globs` 不是字符串数组）。**表 A = 实现真正接受的键；表 B = 只活在场景卡里的规格意图字段 —— 两表不得混用**：把表 B 的键
 > 写进 `benchmarks/scenarios/*.yaml` 会以 `unknown key` 抛错。本节的表 A/表 B/表 C 与实现的双向一致性由
 > `benchmarks/runners/src/spec-manifest-parity.test.ts` 守卫（改一侧不同步即红；"必填"列是按 `loadManifest` 的真实抛错行为探针校验的）。
 
-**表 A：manifest 接受的键（= `KNOWN_KEYS`，共 11 个）**
+**表 A：manifest 接受的键（= `KNOWN_KEYS`，共 12 个）**
 
 | 字段 | 含义 | `loadManifest` 校验 |
 |---|---|---|
@@ -192,6 +218,7 @@ fixture 里**没有** `expected/asserts.yaml` 这一层（§2.1）——旧文�
 | `goal` | 一句话目标 | 可选（缺省 `""`） |
 | `fixture` | `fixtures/<sid>`，**相对 `benchmarks/`**、不带尾斜杠；runner 用它定位 fixture 目录 | 可选（缺省字符串 `"undefined"`；**运行期必需**，缺了必炸） |
 | `task_file` | 注入 agent 的任务文本在 fixture 内的相对路径 | 可选（缺省 `task.md`） |
+| `leak_globs` | 相对 fixture 根的文件 glob，用于把判据文件排除在 workspace 之外；大小写不敏感，`*` 不跨目录，`**` 跨目录，`**/` 可匹配零层目录，开头 `/` 锚定 fixture 根；只匹配文件，目录始终保留（整棵目录用 `answers/**`）。内置红线为任意层级的 `RUBRICS.json` / `RUBRIC.json`；声明覆盖后过滤，不声明则报错。不要排除 `task_file`（被测执行需要读取它） | 可选（缺省无排除；值须为字符串数组，非数组或含非字符串元素即抛错） |
 | `hidden` | 隐藏判据注入（判据侧，不注入 agent）：`{source, into, run?}` | 可选 |
 | `policy` | 本场景的策略覆盖：`{profile?, approval?}` | 可选 |
 | `harness` | harness 接线驱动；子键集 = `HARNESS_KEYS`：`subagent` / `mcp` / `planner` / `evaluator` / `taskRouter` / `engine` / `streaming` / `interrupt` / `steering` / `resume` | 可选 |

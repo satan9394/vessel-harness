@@ -9,6 +9,7 @@ export * from './real-generator-adapter.js';
 export * from './real-evaluator-adapter.js';
 export * from './project-task-queue.js';
 export * from './iteration-store.js';
+export * from './fingerprint.js';
 export * from './run-control.js';
 export * from './execution-run.js';
 export * from './session/topic.js';

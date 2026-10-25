@@ -133,6 +133,8 @@ export interface ScenarioManifest {
   goal: string;
   fixture: string;
   task_file: string;
+  /** Fixture-root-relative file globs excluded from the tested workspace. */
+  leak_globs?: string[];
   hidden?: HiddenSpec;
   policy?: PolicyOverride;
   harness?: HarnessSpec;
@@ -226,6 +228,8 @@ export interface ScenarioReport {
    * 说明）——它是**可见化**，不是改判。
    */
   measuredAudit?: MeasuredAudit;
+  /** Opt-in preparation warnings; absent when empty, never written to summary.json. */
+  toolchainNotes?: string[];
 }
 
 /**

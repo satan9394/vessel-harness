@@ -25,6 +25,8 @@ export interface HarnessFixture {
   workspaceRoot: string;
   /** task description file relative to workspaceRoot (default 'task.md'). */
   taskFile?: string;
+  /** Scenario manifest leak_globs: fixture-relative criteria files excluded from the copy. */
+  leakGlobs?: string[];
   /** arbitrary caller context the adapter may need (policy path, model, …). */
   options?: Record<string, unknown>;
 }
@@ -70,6 +72,19 @@ export interface RunResultMetrics {
  * the §15 L3 surface; `artifacts` points at session logs / reports the caller
  * may persist for auditability (never the source of truth for asserts).
  */
+export interface RunScore {
+  /** How many criteria actually passed. */
+  n_passed: number;
+  /** How many criteria the grader was supposed to evaluate. */
+  n_criteria: number;
+  /** n_passed === n_criteria. */
+  all_pass: boolean;
+  /** False when the grader failed, never ran, or produced unparsable output. */
+  graded: boolean;
+  /** Required when graded === false. */
+  reason?: string;
+}
+
 export interface RunResult {
   /** which harness produced this result ('vessel' | 'dsh' | 'opencode' | …). */
   adapterId: string;
@@ -78,6 +93,8 @@ export interface RunResult {
   /** fixture id the run belongs to (echo of HarnessFixture.id). */
   fixtureId: string;
   metrics: RunResultMetrics;
+  /** Optional grading outcome; absent means "graded, see metrics". */
+  score?: RunScore;
   /** ISO timestamp of when the run started. */
   startedAt: string;
   /** optional session/report artifact paths (session JSONL, summary, workspace). */

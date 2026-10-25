@@ -2,7 +2,9 @@ import * as crypto from 'node:crypto';
 import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { envRoot, renameWithRetry, vesselHome } from '@vessel/shared';
+import { computeHarnessFingerprint } from './fingerprint.js';
 import type { IterationResult } from './LoopEngine.js';
 import type { GeneratorRunRecord } from './real-generator-adapter.js';
 import type { EvaluatorRunRecord } from './real-evaluator-adapter.js';
@@ -87,6 +89,8 @@ export interface IterationEntryInput {
 
 /** 一条已落库的迭代记录（不可变追加；回放单元）。 */
 export interface IterationEntry {
+  /** Harness identity only; absent in legacy records or if computation failed. */
+  harnessFingerprint?: string;
   id: string;
   /** per-task 序数（1..n；= 该任务第几次迭代） */
   iteration: number;
@@ -119,6 +123,8 @@ export interface IterationTaskRecord {
 }
 
 export interface IterationStoreOptions {
+  /** Vessel repository root for identity inputs; defaults to this module's repository (src or dist). */
+  harnessRoot?: string;
   /** iterations 根目录（缺省 defaultIterationRoot()）；测试注入 tmp */
   iterationsRoot?: string;
   /** 时钟注入（测试用；缺省 Date.now） */
@@ -140,10 +146,12 @@ function isoOf(ms: number): string {
 export class IterationStore {
   readonly root: string;
   private readonly now: () => number;
+  private readonly harnessRoot: string;
 
   constructor(opts: IterationStoreOptions = {}) {
     this.root = path.resolve(opts.iterationsRoot ?? defaultIterationRoot());
     this.now = opts.now ?? Date.now;
+    this.harnessRoot = opts.harnessRoot ?? fileURLToPath(new URL('../../../', import.meta.url));
   }
 
   /** 任务记录目录：<root>/<task-id>/ */
@@ -216,7 +224,14 @@ export class IterationStore {
       updatedAt: now,
       iterations: [],
     };
+    let harnessFingerprint: string | undefined;
+    try {
+      harnessFingerprint = computeHarnessFingerprint(this.harnessRoot).value;
+    } catch (error) {
+      console.warn(`iteration store note: harness fingerprint unavailable: ${String(error)}`);
+    }
     const e: IterationEntry = {
+      harnessFingerprint,
       id: newIterationEntryId(tsMs),
       iteration: record.iterations.length + 1,
       taskId: task.taskId,

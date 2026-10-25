@@ -36,7 +36,7 @@
  */
 import * as fs from 'node:fs';
 import * as path from 'node:path';
-import type { RunResult, RunResultMetrics } from '../contracts/types.js';
+import type { RunResult, RunResultMetrics, RunScore } from '../contracts/types.js';
 import {
   abnormalTurnKindOf,
   describeAbnormalTurnNote,
@@ -80,6 +80,9 @@ export interface ReportRow {
   startedAt?: string;
   /** finished/derived status. */
   status: ReportRowStatus;
+  /** Absent means graded; independent of the existing status enum. */
+  graded?: boolean;
+  score?: RunScore;
   /** provenance / degrade notes. */
   notes?: string[];
   /**
@@ -138,6 +141,7 @@ export function rowFromRunResult(
     startedAt: result.startedAt,
     status: result.metrics.success && !turnEndedAbnormally ? 'passed' : 'failed',
     notes: noteForAbnormalTurn !== undefined ? [...(result.notes ?? []), noteForAbnormalTurn] : result.notes,
+    ...(result.score !== undefined ? { graded: result.score.graded, score: result.score } : {}),
     // 加法字段：只在异常收尾的行上出现 —— 正常行的键集/取值与改动前逐字一致。
     ...(turnEndedAbnormally
       ? turnKind !== undefined
@@ -184,7 +188,8 @@ export interface HarnessSummary {
   failed: number;
   skipped: number;
   pending: number;
-  /** passed / runs (0..1); 0 when no runs. */
+  ungraded: number;
+  /** passed / (passed + failed) (0..1); 0 when no graded verdicts. */
   successRate: number;
   avgWallTimeMs: number;
   avgToolCalls: number;
@@ -209,6 +214,7 @@ export interface ScenarioSummary {
   runs: number;
   passed: number;
   failed: number;
+  ungraded: number;
   successRate: number;
   totalCostUsd: number;
 }
@@ -265,6 +271,7 @@ export interface OverallSummary {
   runs: number;
   passed: number;
   failed: number;
+  ungraded: number;
   successRate: number;
   harnessCount: number;
   scenarioCount: number;
@@ -305,21 +312,31 @@ function round6(n: number): number {
   return Number(n.toFixed(6));
 }
 
+/** Pending/skipped take precedence; ungraded is a parallel count, not a new status. */
+function gradingCounts(rows: ReportRow[]) {
+  const judged = rows.filter(r => r.status === 'passed' || r.status === 'failed');
+  const isGraded = (r: ReportRow) => r.graded !== false && r.score?.graded !== false;
+  const passed = judged.filter(r => isGraded(r) && r.status === 'passed').length;
+  const failed = judged.filter(r => isGraded(r) && r.status === 'failed').length;
+  return {
+    passed,
+    failed,
+    ungraded: judged.filter(r => !isGraded(r)).length,
+    successRate: passed + failed === 0 ? 0 : round6(passed / (passed + failed)),
+  };
+}
+
 function deriveSummary(harnessId: string, rows: ReportRow[]): HarnessSummary {
   const runs = rows.length;
-  const passed = rows.filter((r) => r.status === 'passed').length;
-  const failed = rows.filter((r) => r.status === 'failed').length;
   const skipped = rows.filter((r) => r.status === 'skipped').length;
   const pending = rows.filter((r) => r.status === 'pending').length;
   const ms = rows.map((r) => r.metrics);
   return {
     harnessId,
     runs,
-    passed,
-    failed,
+    ...gradingCounts(rows),
     skipped,
     pending,
-    successRate: runs === 0 ? 0 : round6(passed / runs),
     avgWallTimeMs: Math.round(mean(ms.map((m) => m.wallTimeMs))),
     avgToolCalls: round6(mean(ms.map((m) => m.toolCalls))),
     avgInvalidCalls: round6(mean(ms.map((m) => m.invalidCalls))),
@@ -364,14 +381,11 @@ export function aggregateRows(rows: ReportRow[]): {
   }
   const scenarios: ScenarioSummary[] = [...byScenario.entries()]
     .map(([scenarioId, rs]) => {
-      const passed = rs.filter((r) => r.status === 'passed').length;
       return {
         scenarioId,
         harnesses: [...new Set(rs.map((r) => r.harnessId))].sort(),
         runs: rs.length,
-        passed,
-        failed: rs.filter((r) => r.status === 'failed').length,
-        successRate: rs.length === 0 ? 0 : round6(passed / rs.length),
+        ...gradingCounts(rs),
         totalCostUsd: round6(sum(rs.map((r) => r.metrics.costUsd))),
       };
     })
@@ -379,9 +393,7 @@ export function aggregateRows(rows: ReportRow[]): {
 
   const totals: OverallSummary = {
     runs: rows.length,
-    passed: harnesses.reduce((a, h) => a + h.passed, 0),
-    failed: harnesses.reduce((a, h) => a + h.failed, 0),
-    successRate: rows.length === 0 ? 0 : round6(rows.filter((r) => r.status === 'passed').length / rows.length),
+    ...gradingCounts(rows),
     harnessCount: harnesses.length,
     scenarioCount: scenarios.length,
     totalWallTimeMs: sum(rows.map((r) => r.metrics.wallTimeMs)),

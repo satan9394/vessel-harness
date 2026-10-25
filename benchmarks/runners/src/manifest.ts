@@ -4,7 +4,7 @@ import * as yaml from 'js-yaml';
 import type { ScenarioManifest } from './types.js';
 
 const KNOWN_KEYS = new Set([
-  'id', 'type', 'goal', 'fixture', 'task_file', 'hidden', 'policy', 'harness', 'pass', 'measured', 'mode',
+  'id', 'type', 'goal', 'fixture', 'task_file', 'leak_globs', 'hidden', 'policy', 'harness', 'pass', 'measured', 'mode',
 ]);
 const PASS_KEYS = new Set([
   'type', 'target', 'golden', 'golden_expr', 'json_path', 'family', 'metric', 'limit',
@@ -23,6 +23,10 @@ export function loadManifest(repoRoot: string, scenarioId: string): ScenarioMani
     if (!KNOWN_KEYS.has(key)) throw new Error(`manifest ${scenarioId}: unknown key "${key}"`);
   }
   if (doc.id !== scenarioId) throw new Error(`manifest ${scenarioId}: id mismatch`);
+  if (doc.leak_globs !== undefined &&
+      (!Array.isArray(doc.leak_globs) || doc.leak_globs.some((value) => typeof value !== 'string'))) {
+    throw new Error(`manifest ${scenarioId}: leak_globs must be a string array`);
+  }
   if (!Array.isArray(doc.pass) || doc.pass.length === 0) {
     throw new Error(`manifest ${scenarioId}: pass required`);
   }
@@ -45,6 +49,7 @@ export function loadManifest(repoRoot: string, scenarioId: string): ScenarioMani
     goal: String(doc.goal ?? ''),
     fixture: String(doc.fixture),
     task_file: String(doc.task_file ?? 'task.md'),
+    leak_globs: doc.leak_globs as string[] | undefined,
     hidden: doc.hidden as ScenarioManifest['hidden'] | undefined,
     policy: doc.policy as ScenarioManifest['policy'] | undefined,
     harness: doc.harness as ScenarioManifest['harness'] | undefined,

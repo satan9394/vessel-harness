@@ -46,6 +46,7 @@ import {
 // 该模块有 ESM entry 判定（被 import 时不跑 main()），静态导入是安全的（删掉判定本文件即爆红）。
 import { L1_DETERMINISTIC_RUNNABLE_SET, buildDeterministicBenchExecutor } from '../run-release-gates.js';
 import type { GateExecutor } from './types.js';
+import { FixtureLeakError, FixtureSetupError, ToolchainPinError } from '../runner.js';
 
 /** A deterministic mock gate executor (fully injectable — no real commands). */
 function mockExecutor(id: GateExecutor['gate']['id'], status: 'pass' | 'fail' | 'pending'): GateExecutor {
@@ -529,7 +530,59 @@ function realisticOutcomes(): Record<string, FakeRun> {
   return out;
 }
 
+describe('gate 3 fixture preparation', () => {
+  it('keeps installed toolchain pin drift pending-environment', async () => {
+    const error = new ToolchainPinError('codex', '99.0.0', '>=0.164.0 <0.165.0');
+    const executors = buildReleaseGateExecutors({ offlineScenarioRunner: async () => { throw error; } });
+    const result = await executors.find(e => e.gate.id === 'deterministic-bench')!.run(offlineGateCtx());
+    expect(result.status).toBe('pending');
+    expect(result.pending).toBe(true);
+    expect((result.evidence.detail ?? []).join('\n')).toContain(error.message);
+  });
+  it('fails on criterion leaks with the scenario id', async () => {
+    const leak = new FixtureLeakError(['RUBRICS.json (builtin)']);
+    const executors = buildReleaseGateExecutors({ offlineScenarioRunner: async () => { throw leak; } });
+    const v = await executors.find(e => e.gate.id === 'deterministic-bench')!.run(offlineGateCtx());
+    expect(v.status).toBe('fail');
+    expect(v.evidence.summary).toContain(L1_DETERMINISTIC_BENCH_SCENARIOS[0]);
+    expect(v.evidence.summary).toContain('判据泄漏');
+    expect(v.evidence.detail).toEqual([leak.message]);
+  });
+  it('keeps ordinary FixtureSetupError pending', async () => {
+    const setup = new FixtureSetupError('junction creation refused');
+    const executors = buildReleaseGateExecutors({ offlineScenarioRunner: async () => { throw setup; } });
+    const v = await executors.find(e => e.gate.id === 'deterministic-bench')!.run(offlineGateCtx());
+    expect(v.status).toBe('pending');
+    expect(v.pending).toBe(true);
+    expect((v.evidence.detail ?? []).join('\n')).toContain(setup.message);
+  });
+});
+
 describe('gate 5 三态接线：声明的能力缺口按 pending 计（既非 pass 也非 fail）', () => {
+  it('判据泄漏直接 fail，普通 fixture prepare 失败仍为 pending', async () => {
+    const leak = new FixtureLeakError(['RUBRICS.json (builtin)']);
+    const setup = new FixtureSetupError('junction creation refused');
+    for (const error of [leak, setup]) {
+      const executors = buildReleaseGateExecutors({
+        offlineScenarioRunner: async ({ scenarioId }) => {
+          if (scenarioId === 'S004') throw error;
+          return fakePass();
+        },
+      });
+      const v = await executors.find((e) => e.gate.id === 'safety')!.run(offlineGateCtx());
+      if (error === leak) {
+        expect(v.status).toBe('fail');
+        expect(v.evidence.summary).toContain('S004');
+        expect(v.evidence.summary).toContain('判据泄漏');
+        expect(v.evidence.detail).toEqual([leak.message]);
+      } else {
+        expect(v.status).toBe('pending');
+        expect(v.pending).toBe(true);
+        expect((v.evidence.detail ?? []).join('\n')).toContain(`S004: ${setup.message}`);
+      }
+    }
+  });
+
   it('判别性①：场景级 indeterminate ⇒ gate 判 pending；删掉三态接线（改回 success===true）即红', async () => {
     const safety = await safetyGateWith(realisticOutcomes());
     const v = await safety.run(offlineGateCtx());

@@ -11,6 +11,7 @@
  * `@vessel/shared/pricing` (task 087) — the SAME resolver the CLI UsageStore and
  * the application UsageProjection use, so all three paths cannot drift.
  */
+import { assertNoLeakPaths, copyFixtureTree, matchLeakGlob } from '../fixtureCopy.js';
 import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
@@ -103,16 +104,6 @@ function loadPrices(configRoot: string, model: string, protocol?: string): Token
   return resolveBenchPrice(configRoot, model, protocol);
 }
 
-function copyDir(src: string, dest: string): void {
-  fs.mkdirSync(dest, { recursive: true });
-  for (const e of fs.readdirSync(src, { withFileTypes: true })) {
-    const s = path.join(src, e.name);
-    const d = path.join(dest, e.name);
-    if (e.isDirectory()) copyDir(s, d);
-    else if (e.isFile()) fs.copyFileSync(s, d);
-  }
-}
-
 /**
  * Run one fixture through the local harness and return a validated RunResult.
  * The workspace is a temp copy (default) so the source fixture is never touched.
@@ -144,12 +135,19 @@ export async function runVesselFixture(fixture: HarnessFixture): Promise<RunResu
 
   // isolation: temp copy of the fixture workspace
   const workspace = fs.mkdtempSync(path.join(os.tmpdir(), `cah-vessel-${fixture.id}-`));
-  copyDir(fixture.workspaceRoot, workspace);
-  // declared prepare step — the SECOND prepare path (the runner has its own).
-  // `copyDir` cannot carry a symlink/junction, so a fixture that declares one
-  // (S003 `probe-link`) must have it created here too; otherwise this adapter
-  // hands the scenario a workspace without its subject while reporting success.
-  prepareFixtureSetup(fixture.workspaceRoot, workspace);
+  try {
+    copyFixtureTree(fixture.workspaceRoot, workspace, (rel) => (fixture.leakGlobs ?? []).some((pattern) => matchLeakGlob(rel, pattern)));
+    // declared prepare step — the SECOND prepare path (the runner has its own).
+    // `copyFixtureTree` cannot carry a symlink/junction, so a fixture that declares one
+    // (S003 `probe-link`) must have it created here too; otherwise this adapter
+    // hands the scenario a workspace without its subject while reporting success.
+    prepareFixtureSetup(fixture.workspaceRoot, workspace);
+    assertNoLeakPaths(workspace, { declared: fixture.leakGlobs ?? [] });
+  } catch (err) {
+    dropWorkspaceLinks(workspace);
+    fs.rmSync(workspace, { recursive: true, force: true });
+    throw err;
+  }
   const taskFile = fixture.taskFile ?? 'task.md';
   const taskPath = path.join(workspace, taskFile);
   const task = fs.existsSync(taskPath) ? fs.readFileSync(taskPath, 'utf8').trim() : '';

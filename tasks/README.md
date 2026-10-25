@@ -9,7 +9,7 @@
 状态取值：待执行 / 执行中 / 待验收 / 已合入 / 打回。
 PDW 关联：首行状态行下加 `- PDW task: <id>`（未启动写 `none`）；卡写目标/验收/范围，契约从卡派生（规则见 `AGENTS.md` 记录纪律 6）。
 
-最近本地交付：[卡 287](287-arch07-posix-fail-closed.md) 把 ARCH-07 的 POSIX helper 缺失行为改成默认拒绝、仅 `VESSEL_ALLOW_UNSANDBOXED=1` 显式放行，PDW 任务 `20261025083644-85ac5b` 验收通过并附 WSL 真进程证据；[卡 286](286-pdw-provider-v2-migration.md) 把全局 OpenCode 配置从失效的 `provider`（单数）迁到 v2 `providers`（复数），恢复 `commandcode` 路由并由任务 `20261025074418-69269b` 完成一次真实四段冒烟；[卡 283](283-pdw-role-routing-single-source.md) 把 PDW 角色/模型/档位收成 `AGENTS.md` 唯一源，并修掉"DSH 默认执行器"与"run-state 是真相源"两处冲突；[卡 284](284-pdw-handover-and-index-slimming.md) 收口交接文档与索引；[卡 285](285-pdw-config-routing-and-smoke.md) 生效档位/限额并由任务 `20261024155859-108eea` 交付决策点 22。前序 [任务卡 277](277-ui-p2-fixes.md) 两个 UI P2 已收口（C-F1 由 PDW 任务 `20261024095132-1bac7e` 修复并 5 视口全绿），[任务卡 259](259-delete-stage-consistency.md) 删除跨阶段一致性已实现。
+最近本地交付：[卡 295](295-toolchain-hard-gate.md) 把工具链 pin 升成 opt-in 硬门禁（`toolPins` 搬到 `packages/shared`、`runScenario` 新增 `toolPinsProbe`、版本不符抛 `ToolchainPinError` → gate pending）；[卡 294](294-harness-fingerprint.md) 落地 harness 指纹（`packages/engine/src/fingerprint.ts` + iteration 记录 `harnessFingerprint` + run 目录 `.run-complete.json`，只落身份不判定复用）；[卡 293](293-scoring-three-state.md) 落地判分三态（`RunScore` 可选字段、`successRate` 分母改为 `passed + failed`、`ungraded` 单列）；[卡 292](292-fixture-followups.md) 收尾三项（conformance 读 manifest 改降级、gate 3 补泄漏断言、六处失败路径清理 tmp 工作区）；[卡 291](291-toolchain-preflight-gate.md) 加跑前工具链 pin（`configs/tool-pins.json` + doctor 的 `toolchain` 项，只 warn 不 fail，dist 冒烟通过）；[卡 290](290-cross-harness-fixture-guard.md) 把 fixture 读边界守卫收成共享 `fixtureCopy.ts`，5 个 adapter 与 vessel 车道全部复用并从 manifest 透传 `leakGlobs`，PDW 任务 `20261025115350-c92efe` 验收通过；[卡 289](289-leak-gate-hard-fail.md) 把判据泄漏在 release gate 上从 `pending-environment` 改成 `fail`（其余 fixture setup 失败仍 pending），PDW 任务 `20261025110345-d1d9cd` 验收通过；[卡 288](288-fixture-leak-guard.md) 给 benchmark runner 加 fixture 读边界防泄漏（manifest `leak_globs` + 复制期过滤 + 复制后复查 + 内置红线 `RUBRICS.json`/`RUBRIC.json`），PDW 任务 `20261025091835-8ee8aa` 验收通过；[卡 287](287-arch07-posix-fail-closed.md) 把 ARCH-07 的 POSIX helper 缺失行为改成默认拒绝、仅 `VESSEL_ALLOW_UNSANDBOXED=1` 显式放行，PDW 任务 `20261025083644-85ac5b` 验收通过并附 WSL 真进程证据；[卡 286](286-pdw-provider-v2-migration.md) 把全局 OpenCode 配置从失效的 `provider`（单数）迁到 v2 `providers`（复数），恢复 `commandcode` 路由并由任务 `20261025074418-69269b` 完成一次真实四段冒烟；[卡 283](283-pdw-role-routing-single-source.md) 把 PDW 角色/模型/档位收成 `AGENTS.md` 唯一源，并修掉"DSH 默认执行器"与"run-state 是真相源"两处冲突；[卡 284](284-pdw-handover-and-index-slimming.md) 收口交接文档与索引；[卡 285](285-pdw-config-routing-and-smoke.md) 生效档位/限额并由任务 `20261024155859-108eea` 交付决策点 22。前序 [任务卡 277](277-ui-p2-fixes.md) 两个 UI P2 已收口（C-F1 由 PDW 任务 `20261024095132-1bac7e` 修复并 5 视口全绿），[任务卡 259](259-delete-stage-consistency.md) 删除跨阶段一致性已实现。
 
 ## 怎么读这个目录
 
@@ -17,6 +17,14 @@ PDW 关联：首行状态行下加 `- PDW task: <id>`（未启动写 `none`）�
 
 | 本地交付 | 状态 | 任务卡 |
 |---|---|---|
+| 工具链 pin 硬门禁 (卡 295) | 已完成：opt-in `toolPinsProbe` + `ToolchainPinError` → gate pending；模块搬到 `packages/shared`；协调者复核（无 PDW review） | [295](295-toolchain-hard-gate.md) |
+| harness 指纹 (卡 294) | 已完成：`computeHarnessFingerprint` + iteration `harnessFingerprint` + `.run-complete.json`；只落身份不判定复用 | [294](294-harness-fingerprint.md) |
+| 判分三态 (卡 293) | 已完成：`RunScore` 可选字段，`successRate = passed/(passed+failed)`，`ungraded` 单列 | [293](293-scoring-three-state.md) |
+| fixture 三项收尾 (卡 292) | 已完成：conformance manifest 降级、gate 3 泄漏断言、六处失败路径清 tmp | [292](292-fixture-followups.md) |
+| 跑前工具链 pin (卡 291) | 已完成：`configs/tool-pins.json` + doctor `toolchain` 项（只 warn）；协调者修掉跨包 import 的 dist 崩溃 | [291](291-toolchain-preflight-gate.md) |
+| 跨 harness 复用复制守卫 (卡 290) | 已完成：共享 `fixtureCopy.ts`，5 adapter + vessel 车道接 `leakGlobs`；PDW `20261025115350-c92efe` `accepted_local` | [290](290-cross-harness-fixture-guard.md) |
+| 判据泄漏改为硬失败 (卡 289) | 已完成：gate 先判 `FixtureLeakError` → fail，其余 setup 失败仍 pending；PDW `20261025110345-d1d9cd` `accepted_local` | [289](289-leak-gate-hard-fail.md) |
+| Fixture 读边界防泄漏 (卡 288) | 已完成：`leak_globs` + 复制期过滤 + 复制后复查；内置红线 `RUBRICS.json`/`RUBRIC.json`；PDW `20261025091835-8ee8aa` `accepted_local` | [288](288-fixture-leak-guard.md) |
 | ARCH-07 POSIX 默认拒绝 (卡 287) | 已完成：默认 fail-closed + `VESSEL_ALLOW_UNSANDBOXED=1` 显式放行；PDW `20261025083644-85ac5b` + WSL 真进程证据 | [287](287-arch07-posix-fail-closed.md) |
 | PDW 角色路由与口径收口 (卡 283) | 已完成：`AGENTS.md` 成为唯一源；DSH 默认执行器与 run-state 真相源两处冲突修掉 | [283](283-pdw-role-routing-single-source.md) |
 | PDW 交接与索引减重 (卡 284) | 已完成：HANDOFF / 卡 224 / README 收口；孤儿契约归档 | [284](284-pdw-handover-and-index-slimming.md) |

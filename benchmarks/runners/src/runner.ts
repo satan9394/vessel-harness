@@ -3,19 +3,25 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import * as yaml from 'js-yaml';
 import type { ChatProvider, ChatRequest, ChatResponse, StreamChunk } from '@vessel/shared';
+import { checkToolPins } from '@vessel/shared';
 import { MockProvider } from '@vessel/llm';
 import { composeHarness, type ComposeOptions } from '@vessel/application';
 import { EvaluatorAgent, createReadOnlyExplorationTools, executePlan, generatePlan, injectPlan } from '@vessel/agents';
 import type { EvaluatorVerdict } from '@vessel/agents';
 import { McpClient, createInProcessTransport, handleMcpRequest } from '@vessel/tools';
 import { LoopEngine, createTaskQueue, queueSelectTask, TempDirWorkspaceFactory, type IterationResult } from '@vessel/engine';
-import { buildHandoff, seedSessionFromHandoff } from '@vessel/engine';
+import { buildHandoff, computeHarnessFingerprint, seedSessionFromHandoff } from '@vessel/engine';
+import { assertNoLeakPaths, copyFixtureTree, FixtureSetupError, ToolchainPinError, matchLeakGlob } from './fixtureCopy.js';
 import { loadManifest } from './manifest.js';
 import { runAssert } from './asserts.js';
 import { OFFLINE_SCRIPTS } from './offline.js';
 import type { AssertResult, DriverResult, MeasuredAudit, ScenarioManifest, ScenarioReport, StreamObservation, TurnOutcomeKind } from './types.js';
 
+export { BUILTIN_LEAK_GLOBS, matchLeakGlob, assertNoLeakPaths, FixtureLeakError, FixtureSetupError, ToolchainPinError, copyFixtureTree } from './fixtureCopy.js';
+
 export interface RunScenarioOptions {
+  /** Opt-in pin check; absent means no CLI probes or pin-file reads. */
+  toolPinsProbe?: (tool: string) => string | null;
   /** Explicit native execution substrate injection for offline tests; defaults retain production confinement. */
   nativeSandbox?: ComposeOptions['nativeSandbox'];
   scenarioId: string;
@@ -62,27 +68,17 @@ function snapshotFiles(dir: string): Map<string, string> {
   return out;
 }
 
-function copyDir(src: string, dest: string): void {
-  fs.mkdirSync(dest, { recursive: true });
-  for (const e of fs.readdirSync(src, { withFileTypes: true })) {
-    const s = path.join(src, e.name);
-    const d = path.join(dest, e.name);
-    if (e.isDirectory()) copyDir(s, d);
-    else if (e.isFile()) fs.copyFileSync(s, d);
-  }
-}
-
 // ---------------------------------------------------------------------------
 // Fixture prepare declarations (benchmarks/fixtures/<id>/setup.yaml)
 //
-// WHY THIS EXISTS — the S003 false-pass: `copyDir` above only handles
+// WHY THIS EXISTS — the S003 false-pass: `copyFixtureTree` only handles
 // isDirectory()/isFile(), so a symlink/junction is skipped in SILENCE. S003's
 // whole subject (`probe-link`) was therefore never created, its criteria could
 // not be evaluated at all, and nothing said so. A fixture can now DECLARE its
 // prepare step; the runner CREATES it, and any refusal is a loud
 // `FixtureSetupError` (→ gate `pending-environment`) instead of a silent skip.
 //
-// `copyDir` itself is untouched: ordinary files/directories keep being copied
+// Without an exclusion predicate, ordinary files/directories keep being copied
 // byte-for-byte exactly as before — the prepare step only ADDS declared links.
 // ---------------------------------------------------------------------------
 
@@ -117,20 +113,6 @@ export interface FixtureSetupSpec {
 
 /** Fixture file that declares the prepare step. */
 export const FIXTURE_SETUP_FILE = 'setup.yaml';
-
-/**
- * A DECLARED prepare step could not be applied (platform refuses the link, no
- * permission, malformed declaration). Thrown, never swallowed: degrading to
- * "the probe object simply is not there" is exactly the defect this closes.
- * Callers map it to `pending-environment` — an honest "cannot judge on this
- * machine", which is neither a pass nor a silent failure.
- */
-export class FixtureSetupError extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = 'FixtureSetupError';
-  }
-}
 
 const SETUP_KEYS = new Set(['version', 'outside', 'links']);
 const OUTSIDE_KEYS = new Set(['name', 'files']);
@@ -863,12 +845,23 @@ export async function runScenario(opts: RunScenarioOptions): Promise<ScenarioRep
   if (!fs.existsSync(fixtureDir)) {
     throw new Error(`fixture not found: ${fixtureDir}`);
   }
-  copyDir(fixtureDir, workspace);
+  const toolchainNotes: string[] = [];
+  if (opts.toolPinsProbe) {
+    for (const check of checkToolPins(opts.repoRoot, opts.toolPinsProbe)) {
+      if (check.status !== 'warn') continue;
+      if (check.found !== null) throw new ToolchainPinError(check.tool, check.found, check.declared);
+      toolchainNotes.push(check.message);
+    }
+    if (toolchainNotes.length) console.warn(`[toolchain] ${toolchainNotes.join('; ')}`);
+  }
+  const declared = manifest.leak_globs ?? [];
+  copyFixtureTree(fixtureDir, workspace, (rel) => declared.some((pattern) => matchLeakGlob(rel, pattern)));
   // declared prepare step (e.g. S003 `probe-link`): the copy above cannot carry
   // a symlink/junction, so the fixture declares it and we create it here. A
   // refusal throws FixtureSetupError (→ gate pending-environment), never a
   // silent "the probe object just is not there".
   prepareFixtureSetup(fixtureDir, workspace);
+  assertNoLeakPaths(workspace, { declared });
   const snapshotBefore = snapshotFiles(workspace);
 
   // scenario policy override (B005 needs danger-full-access for real shell)
@@ -972,7 +965,7 @@ export async function runScenario(opts: RunScenarioOptions): Promise<ScenarioRep
   if (manifest.hidden) {
     const hiddenSrc = path.join(opts.repoRoot, 'benchmarks', manifest.hidden.source);
     const hiddenDest = manifest.hidden.into ? path.join(workspace, manifest.hidden.into) : workspace;
-    if (fs.existsSync(hiddenSrc)) copyDir(hiddenSrc, hiddenDest);
+    if (fs.existsSync(hiddenSrc)) copyFixtureTree(hiddenSrc, hiddenDest);
   }
 
   const counters = harness.telemetry.finalize(harness.session);
@@ -1053,6 +1046,19 @@ export async function runScenario(opts: RunScenarioOptions): Promise<ScenarioRep
     ...(turnField ? { turn: turnField } : {}),
   };
   fs.writeFileSync(path.join(runDir, 'summary.json'), JSON.stringify(summary, null, 2), 'utf8');
+  if (success && turnEndedAbnormally !== true) {
+    // 只落身份，不做复用判定；this marker does not implement resume validation.
+    // 口径必须与报告侧一致：报告把一次 run 判为 passed 的条件是 `success && !turnEndedAbnormally`，
+    // 所以 turn 未正常收尾（kind≠success）的 run 即便断言全过也不落标记，否则将来的复用读取方
+    // 会把「没正常收尾」的 run 当成可复用基线。
+    const fingerprint = computeHarnessFingerprint(opts.repoRoot);
+    fs.writeFileSync(path.join(runDir, '.run-complete.json'), JSON.stringify({
+      version: 1,
+      fingerprint: fingerprint.value,
+      fileCount: fingerprint.fileCount,
+      finishedAt: finishedAt.toISOString(),
+    }, null, 2), 'utf8');
+  }
 
   // `measured` 声明 ⇄ 产出 的对账（BRIEF-A）。**刻意不写进报告文件**：既有 JSONL 行与
   // summary.json 键逐字不变（负对照），留痕落在 stderr 一句话与返回对象的 `measuredAudit`
@@ -1088,6 +1094,7 @@ export async function runScenario(opts: RunScenarioOptions): Promise<ScenarioRep
   if (measuredAudit.producedButUndeclared.length > 0 || measuredAudit.declaredButUnproducible.length > 0) {
     report.measuredAudit = measuredAudit;
   }
+  if (toolchainNotes.length) report.toolchainNotes = toolchainNotes;
   return report;
 }
 

@@ -17,6 +17,7 @@
  *     "pending-environment" via notes and honestly reflects the missing
  *     capability in the capabilities map (runner skips before run()).
  */
+import { assertNoLeakPaths, copyFixtureTree, matchLeakGlob } from '../fixtureCopy.js';
 import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
@@ -111,17 +112,6 @@ export function defaultRunCommand(argv: string[], opts: { cwd: string }): Result
     stdout: res.stdout ?? '',
     stderr: res.stderr ?? '',
   };
-}
-
-/** Copy a directory tree (adapter never mutates the pristine fixture). */
-function copyDir(src: string, dest: string): void {
-  fs.mkdirSync(dest, { recursive: true });
-  for (const e of fs.readdirSync(src, { withFileTypes: true })) {
-    const s = path.join(src, e.name);
-    const d = path.join(dest, e.name);
-    if (e.isDirectory()) copyDir(s, d);
-    else if (e.isFile()) fs.copyFileSync(s, d);
-  }
 }
 
 /**
@@ -267,9 +257,16 @@ export async function runDshFixture(fixture: HarnessFixture): Promise<RunResult>
   // isolation: temp copy of the fixture workspace (never touch the source)
   const workspace = fs.mkdtempSync(path.join(os.tmpdir(), `cah-dsh-${fixture.id}-`));
   try {
-    copyDir(fixture.workspaceRoot, workspace);
+    copyFixtureTree(fixture.workspaceRoot, workspace, (rel) => (fixture.leakGlobs ?? []).some((pattern) => matchLeakGlob(rel, pattern)));
   } catch (err) {
+    fs.rmSync(workspace, { recursive: true, force: true });
     throw new Error(`dsh adapter: failed to stage fixture copy: ${String(err)}`);
+  }
+  try {
+    assertNoLeakPaths(workspace, { declared: fixture.leakGlobs ?? [] });
+  } catch (err) {
+    fs.rmSync(workspace, { recursive: true, force: true });
+    throw err;
   }
 
   const acc = newAccumulator();

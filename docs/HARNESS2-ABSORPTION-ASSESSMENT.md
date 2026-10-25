@@ -77,6 +77,8 @@ Vessel 落点与改法。
 - `benchmarks/runners/src/manifest.ts`：新增 `leakGlobs?: string[]`，同步 `KNOWN_KEYS` / `PASS_KEYS` 与 `spec-manifest-parity.test.ts`。
 - 各 `benchmarks/scenarios/B0xx.yaml` 按需声明，不要全局默认。
 
+> **实施口径更正（2026-10-25，卡 288 已交付）**：落地用的是**顶层键 `leak_globs`**（不是 camelCase `leakGlobs`），只进 `KNOWN_KEYS`；`PASS_KEYS` 是 `pass:` 断言内部的键集，与本字段无关，不要往里加。`assertNoLeakPaths` 插在 `prepareFixtureSetup` 之后、`snapshotBefore` 与 `driveScenario` 之前。内置红线按文件名拦 `RUBRICS.json` / `RUBRIC.json`（任意层级、大小写不敏感），现有 25 个 fixture 零命中，因此没有任何场景被迫声明。跨 harness 车道（`adapters/*.ts`、`contracts/vessel.ts`）与 gate 的 `pending-environment` 分类不在该卡范围，见卡 288 的遗留段。
+
 风险与红线。**不要移植 Harness² 的英文词表**（`benchmark`/`evaluation`/`grader`/`rubric`/`score`）。Vessel 的判据文本是中文 yaml，且 `docs/`、`tasks/` 里正常会出现这些英文词，词表会大面积误伤。应改成"结构化白名单 + 路径 glob"，文本扫描最多作为 warn。
 
 验收信号。故意在 fixture 放一个 `RUBRICS.json`，未声明 `leakGlobs` 时运行应报错并列出路径；声明后该文件不出现在 workspace。

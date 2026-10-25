@@ -953,7 +953,7 @@ export function judgeOfflineWithPendingEnvironment(args: {
  *
  * 为什么导出而不是让 L1 全量 executor 自己再写一份循环：本函数体就是这套语义的**唯一**载体 ——
  * 「逐场景 `classifyScenarioRun` → `indeterminate` 计 pending 并逐个点名（`judgeOfflineWithPendingEnvironment`）
- * → fixture prepare 失败计 pending-environment → 其余按 pass/fail 归约 → 真失败优先」。
+ * → 判据泄漏直接 fail，其余 fixture prepare 失败计 pending-environment → 其余按 pass/fail 归约 → 真失败优先」。
  * 任何一处复制都会漂移出「第二套语义不同的三态归约」（本仓反复出问题的一类），故直接复用本函数；
  * 判据本身**不放宽**：fail 仍然优先，indeterminate 既不计 pass 也掩盖不了 fail。
  * `scenarioRunner` 保持可注入 —— 两条 gate 的三态接线都能被**不真跑场景**的判别性单测覆盖。
@@ -964,7 +964,7 @@ export async function runOfflineScenarios(
   provider: ChatProvider | null,
   scenarioRunner?: OfflineScenarioRunner,
 ): Promise<GateVerdict> {
-  const { runScenario, FixtureSetupError } = await import('../runner.js');
+  const { runScenario, FixtureLeakError, FixtureSetupError } = await import('../runner.js');
   const runOne: OfflineScenarioRunner = scenarioRunner ?? ((o) => runScenario(o));
   const passed: boolean[] = [];
   const ranIds: string[] = [];
@@ -993,6 +993,12 @@ export async function runOfflineScenarios(
       ranIds.push(id);
       passed.push(verdict === 'pass');
     } catch (err) {
+      if (err instanceof FixtureLeakError) {
+        return {
+          status: 'fail',
+          evidence: { summary: `离线场景 ${id} 判据泄漏`, detail: [err.message] },
+        };
+      }
       // A declared prepare step that cannot be applied is an ENVIRONMENT limit,
       // not a scenario failure: record it and keep judging the rest (the old
       // behaviour — a silent skip — is exactly the S003 false-pass).

@@ -1,3 +1,4 @@
+import { loadManifest } from '../manifest.js';
 /**
  * Cross-Harness Conformance — runnable entry (V1.5 proof).
  *
@@ -61,11 +62,20 @@ function availableScenarioIds(): string[] {
     .sort();
 }
 
+export function manifestLeakGlobs(repoRoot: string, id: string): string[] | undefined {
+  try {
+    return loadManifest(repoRoot, id).leak_globs;
+  } catch {
+    return undefined;
+  }
+}
+
 function fixtureFor(id: string): HarnessFixture {
   return {
     id,
     workspaceRoot: path.join(FIXTURES_DIR, id),
     taskFile: 'task.md',
+    leakGlobs: manifestLeakGlobs(REPO_ROOT, id),
     options: { configRoot: REPO_ROOT, model: 'mock-model' },
   };
 }
@@ -155,7 +165,7 @@ async function main(): Promise<number> {
   return 0;
 }
 
-main()
+if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) main()
   .then((code) => process.exit(code))
   .catch((err: unknown) => {
     console.error(`[conformance] fatal: ${err instanceof Error ? err.stack ?? err.message : String(err)}`);

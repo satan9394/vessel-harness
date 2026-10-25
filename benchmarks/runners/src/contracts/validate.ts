@@ -72,6 +72,33 @@ export function validateRunResult(r: RunResult): RunResultValidationIssue[] {
   }
   const metricIssues = validateRunResultMetrics(r.metrics);
   for (const i of metricIssues) issues.push(i);
+  if (r.score !== undefined) {
+    const score = r.score;
+    if (score === null || typeof score !== 'object' || Array.isArray(score)) {
+      issues.push({ field: 'score', message: 'expected object' });
+    } else {
+      for (const key of ['n_passed', 'n_criteria'] as const) {
+        if (!Number.isInteger(score[key]) || score[key] < 0) {
+          issues.push({ field: `score.${key}`, message: `expected integer >= 0, got ${String(score[key])}` });
+        }
+      }
+      for (const key of ['all_pass', 'graded'] as const) {
+        if (typeof score[key] !== 'boolean') issues.push({ field: `score.${key}`, message: `expected boolean, got ${typeof score[key]}` });
+      }
+      if (score.reason !== undefined && typeof score.reason !== 'string') {
+        issues.push({ field: 'score.reason', message: 'expected string' });
+      }
+      if (score.graded === true) {
+        if (score.n_criteria < 1) issues.push({ field: 'score.n_criteria', message: 'expected >= 1 when graded=true' });
+        if (score.n_passed > score.n_criteria) issues.push({ field: 'score.n_passed', message: 'expected <= score.n_criteria' });
+        if (score.all_pass !== (score.n_passed === score.n_criteria)) {
+          issues.push({ field: 'score.all_pass', message: 'expected n_passed === n_criteria when graded=true' });
+        }
+      } else if (score.graded === false && (typeof score.reason !== 'string' || !score.reason.trim())) {
+        issues.push({ field: 'score.reason', message: 'required non-empty string when graded=false' });
+      }
+    }
+  }
   if (r.artifacts !== undefined) {
     if (!Array.isArray(r.artifacts)) {
       issues.push({ field: 'artifacts', message: 'expected array of {kind,path}' });
