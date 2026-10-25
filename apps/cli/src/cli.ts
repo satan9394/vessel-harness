@@ -4,7 +4,7 @@ import * as path from 'node:path';
 import { spawn } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { format as formatUtil } from 'node:util';
-import { VERSION, renameWithRetry } from '@vessel/shared';
+import { VERSION, renameWithRetry, probeToolVersion } from '@vessel/shared';
 import { inspectCombinedPolicy, inspectPolicyLayers, type PolicyLayerFact } from '@vessel/policy';
 import { MockProvider } from '@vessel/llm';
 import {
@@ -1392,6 +1392,7 @@ async function cmdBench(flags: Map<string, string>): Promise<number> {
   const root = repoRoot();
   const report = await runScenario({
     scenarioId,
+    toolPinsProbe: probeToolVersion,
     repoRoot: root,
     reportsDir: outDir,
     provider,

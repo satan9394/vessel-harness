@@ -18,6 +18,7 @@ import * as path from 'node:path';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import type { ChatProvider } from '@vessel/shared';
+import { probeToolVersion } from '@vessel/shared';
 import { runSoak } from '../soak/soak-driver.js';
 import {
   probeModelApi,
@@ -965,7 +966,7 @@ export async function runOfflineScenarios(
   scenarioRunner?: OfflineScenarioRunner,
 ): Promise<GateVerdict> {
   const { runScenario, FixtureLeakError, FixtureSetupError } = await import('../runner.js');
-  const runOne: OfflineScenarioRunner = scenarioRunner ?? ((o) => runScenario(o));
+  const runOne: OfflineScenarioRunner = scenarioRunner ?? ((o) => runScenario({ ...o, toolPinsProbe: probeToolVersion }));
   const passed: boolean[] = [];
   const ranIds: string[] = [];
   const pendingEnvironment: string[] = [];

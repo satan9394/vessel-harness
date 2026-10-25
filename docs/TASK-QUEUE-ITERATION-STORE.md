@@ -103,7 +103,8 @@ pending ──claimNext/claim──▶ in-progress ──settle(met)────
 | `engineIteration` | LoopEngine 实例内顶层迭代号（参考字段，跨引擎不恒唯一） |
 | `transition` | 队列状态转移（如 `{from:'in-progress', to:'met'}`）——队列/迭代 key 贯通点 |
 | `testResults` | 真实链「Tests」步独立产出摘要（若有） |
-| `generator` / `evaluator` | **061 `GeneratorRunRecord` / 062 `EvaluatorRunRecord` 整记录快照**（JSON 可序列化；evaluator.conclusion 即 058 review 结论五字段，含 unmet/suggestions 富反馈） |
+| `generator` / `evaluator` | **061 `GeneratorRunRecord` / `062 `EvaluatorRunRecord` 整记录快照**（JSON 可序列化；evaluator.conclusion 即 058 review 结论五字段，含 unmet/suggestions 富反馈） |
+| `harnessFingerprint` | **可选**：落库时参与本次运行的 harness 源码/配置指纹（`packages/*/src` + `configs/*` + `package-lock.json` 的 sha256 前 16 位）。旧记录与计算失败的记录**缺席**，回放不得把它当作「已判定可复用」——本字段只落身份，复用判定是读取方的事（卡 294） |
 
 ### API
 

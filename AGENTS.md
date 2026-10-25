@@ -156,6 +156,7 @@ PDW 现行版本 **1.3.3-local**：完整 Skill 目录 + Node 运行器 + 项目
 - **不要自动驱动本机其他 agent**（`dsh` / `opencode` / `codex` / `claude` / `pi`）：它们是用户自己的工具，会消耗其配额并在其机器上留下会话记录。为基准/调试/验证而调用它们**必须逐次获得用户显式同意**，且执行前先说明"将调用哪些 agent、大概消耗什么"；`npm run bench:conformance -- --live` **永不自动跑**。需要跨 harness 证据时优先用**离线车道**（只跑 Vessel 自适配器）。见 `tasks/153`。
 - **不要把中文提示词用 PowerShell 管道喂给原生 CLI**（`Get-Content -Raw $f | & codex exec ...`）：PowerShell 会按 ANSI 代码页重编码，中文全变 `?`，agent 只收到 ASCII 骨架（2026-10-23 实测 7 次派单全中，事后从 rollout 逐条比对才确认）。派单统一走 `scripts/dispatch-codex.ps1`——它用 cmd 输入重定向传原始字节并先校验 UTF-8。
 - **也不要用 `Get-Content` / `Set-Content` 改源码**：同样按 ANSI 代码页往返，会把文件里已有的中文注释变成 `鈥?` 之类乱码，`Set-Content -Encoding UTF8` 还会顺手加 BOM（2026-10-23 改 `shellTool.ts` 时实测，已用 `git show HEAD:<path>` 原始字节还原）。改文件用编辑工具或 Node 的 `readFileSync`/`writeFileSync`；若已污染，用 `git checkout -- <path>` 恢复后重做，不要试图修补乱码。
+- **不要把 `vessel doctor --json` 这类依赖 `secretRef` / 用户目录的命令写进 implement 的自验清单**：Codex 的 workspace-write 沙箱取不到 `~/.vessel` 与凭据后端，`providers` 项会误报「凭据不可用」，任务会被判 blocked（2026-10-25 卡 295、296 各中一次）。这类命令只放运行器的 `checks`（宿主进程执行），或在协调者侧手工跑。
 - **别用 PowerShell 控制台回显判断 UTF-8 有没有坏**：`git log`、`node` 的 UTF-8 输出在回显时可能变成 `claim �?it`，但那只是终端解码，仓库里的字节可能是完好的。2026-10-24 实测：一条带破折号的 commit message 在控制台显示为乱码，用 `git log --format=%s` + Node 取码点确认后是正常的 U+2014、无 U+FFFD——我当时按乱码误判并写了一条错误规则，随后更正。判据只认字节：`git cat-file -p <sha>`、Node 读文件、或 `git log --format=%s` 交给 Node 处理；不要把控制台样子当证据。
 
 ---

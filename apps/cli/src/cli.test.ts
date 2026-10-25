@@ -5,7 +5,7 @@ import * as path from 'node:path';
 import type { AddressInfo } from 'node:net';
 import { fileURLToPath } from 'node:url';
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { MAX_FILE_BYTES, type ChatProvider, type ChatRequest, type ChatResponse } from '@vessel/shared';
+import { MAX_FILE_BYTES, probeToolVersion, type ChatProvider, type ChatRequest, type ChatResponse } from '@vessel/shared';
 import { main, startServe } from './cli.js';
 import * as cli from './cli.js';
 import { composeHarness } from '@vessel/application';
@@ -1194,6 +1194,24 @@ describe('vessel bench-runners 安装态不可用（private 包不随 npm 包分
     fs.writeFileSync(p, JSON.stringify([]), 'utf8');
     return p;
   }
+
+  it('run --bench passes the shared toolchain probe to the runner', async () => {
+    const runners = await realLoad();
+    const runScenario = vi.fn<typeof runners.runScenario>().mockResolvedValue({
+      scenarioId: 'B001', runId: 'stub', success: true, asserts: [], metrics: {},
+      finalText: '', startedAt: '', finishedAt: '', durationMs: 0,
+      reportPath: path.join(dir, 'report.jsonl'), workspace: dir, sessionLog: '',
+    });
+    cli.benchRunnersRuntime.load = async () => ({ ...runners, runScenario });
+    const { restore } = captureStreams();
+    try {
+      expect(await main(['run', '--bench', 'B001', '--workspace', dir])).toBe(0);
+      expect(runScenario).toHaveBeenCalledOnce();
+      expect(runScenario).toHaveBeenCalledWith(expect.objectContaining({
+        scenarioId: 'B001', toolPinsProbe: probeToolVersion,
+      }));
+    } finally { restore(); }
+  });
 
   it('run --bench 解析失败 → 人话 + exit 2（不再抛裸 ERR_MODULE_NOT_FOUND）', async () => {
     failResolution();

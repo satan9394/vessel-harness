@@ -39,14 +39,14 @@ export interface ToolPinCheck {
   message: string;
 }
 
-function probeVersion(tool: string): string | null {
+export function probeToolVersion(tool: string): string | null {
   const result = spawnSync(tool, ['--version'], {
     encoding: 'utf8', shell: process.platform === 'win32', timeout: 10000,
   });
   return result.status === 0 ? parseToolVersion(result.stdout ?? '') : null;
 }
 
-export function checkToolPins(repoRoot: string, probe: (tool: string) => string | null = probeVersion): ToolPinCheck[] {
+export function checkToolPins(repoRoot: string, probe: (tool: string) => string | null = probeToolVersion): ToolPinCheck[] {
   try {
     const pins = JSON.parse(fs.readFileSync(path.join(repoRoot, 'configs/tool-pins.json'), 'utf8'));
     if (pins?.version !== 1 || !pins.tools || typeof pins.tools !== 'object' || Array.isArray(pins.tools)) throw new Error('Invalid pins');

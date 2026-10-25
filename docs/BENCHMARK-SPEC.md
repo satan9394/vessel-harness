@@ -185,6 +185,7 @@ fixture 里**没有** `expected/asserts.yaml` 这一层（§2.1）——旧文�
 
 跑真实 harness 车道前，可用 `vessel doctor` 的 `Toolchain pins` 项核对本机 CLI；doctor 仍只报 advisory warn。
 `runScenario` 默认不检查、不启动 CLI；只有显式传入 `toolPinsProbe` 才在复制 fixture 前读 `configs/tool-pins.json`（opt-in）。
+offline release gate 与 `vessel run --bench` 默认传入 shared 导出的 `probeToolVersion`；未安装 CLI 仍放行。
 已安装但版本不在声明区间 → `ToolchainPinError extends FixtureSetupError` → gate `pending-environment`（status 为 pending）。
 可升级/降级 CLI，或更新 `configs/tool-pins.json` 后重跑；阻断时不进入 driver、不写 `.run-complete.json`。
 本机没装 CLI 或 pin 文件缺失/非法 → 放行，返回非空可选 `toolchainNotes` 并在 stderr 警告一条。

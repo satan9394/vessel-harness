@@ -1,7 +1,8 @@
 import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
+import * as shared from '@vessel/shared';
 import {
   GATE_DEFINITIONS,
   GATE_ORDER,
@@ -32,6 +33,7 @@ import {
   judgeSoakResume,
   judgePackagingProbe,
   judgeUxSmoke,
+  runOfflineScenarios,
 } from './gates.js';
 import {
   releaseStatus,
@@ -531,6 +533,48 @@ function realisticOutcomes(): Record<string, FakeRun> {
 }
 
 describe('gate 3 fixture preparation', () => {
+  it.each([
+    { version: null, status: 'pass' },
+    { version: '99.0.0', status: 'pending' },
+  ] as const)('default runner probes tool pins: $version → $status', async ({ version, status }) => {
+    const reportsDir = fs.mkdtempSync(path.join(os.tmpdir(), 'rg-toolpins-'));
+    const probe = vi.spyOn(shared, 'probeToolVersion').mockReturnValue(version);
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    try {
+      const result = await runOfflineScenarios({
+        ...offlineGateCtx(),
+        repoRoot: path.resolve(import.meta.dirname, '../../../..'),
+        reportsDir,
+      }, ['B001'], null);
+      expect(probe).toHaveBeenCalledWith('codex');
+      expect(result.status).toBe(status);
+      if (version === null) {
+        expect(warn).toHaveBeenCalledWith(expect.stringContaining('[toolchain] codex: not installed on this machine; skipped'));
+        expect(warn).toHaveBeenCalledWith(expect.stringContaining('opencode: not installed on this machine; skipped'));
+      } else {
+        expect(result.pending).toBe(true);
+        expect(result.evidence.detail?.join('\n')).toContain('codex: found 99.0.0');
+        expect(fs.readdirSync(reportsDir)).toEqual([]);
+      }
+    } finally {
+      probe.mockRestore();
+      warn.mockRestore();
+      fs.rmSync(reportsDir, { recursive: true, force: true });
+    }
+  });
+
+  it('keeps the injected scenario runner in control without adding a probe', async () => {
+    const probe = vi.spyOn(shared, 'probeToolVersion');
+    const runner = vi.fn(async () => fakePass());
+    try {
+      const result = await runOfflineScenarios(offlineGateCtx(), ['B001'], null, runner);
+      expect(result.status).toBe('pass');
+      expect(runner).toHaveBeenCalledOnce();
+      expect(runner).toHaveBeenCalledWith(expect.not.objectContaining({ toolPinsProbe: expect.anything() }));
+      expect(probe).not.toHaveBeenCalled();
+    } finally { probe.mockRestore(); }
+  });
+
   it('keeps installed toolchain pin drift pending-environment', async () => {
     const error = new ToolchainPinError('codex', '99.0.0', '>=0.164.0 <0.165.0');
     const executors = buildReleaseGateExecutors({ offlineScenarioRunner: async () => { throw error; } });
