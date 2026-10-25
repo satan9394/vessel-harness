@@ -89,7 +89,8 @@ export class VesselDoctorEngine {
         const host = new URL(provider.baseUrl).hostname;
         return ['localhost', '127.0.0.1', '[::1]'].includes(host);
       };
-      if (configured.some(provider => !provider.apiKey?.trim() && !localWithoutAuth(provider))) return { status: 'fail', message: 'One or more configured providers have unavailable credentials.' };
+      const hasCredential = (p: ProviderConfig) => Boolean(p.apiKey?.trim()) || Boolean(p.secretRef);
+      if (configured.some(p => !hasCredential(p) && !localWithoutAuth(p))) return { status: 'fail', message: 'One or more configured providers have unavailable credentials.' };
       if (options.probeNetwork) for (const provider of configured) {
         if (!provider.baseUrl) return { status: 'fail', message: 'A configured provider has no endpoint.' };
         const endpoint = provider.baseUrl.replace(/\/+$/, '');

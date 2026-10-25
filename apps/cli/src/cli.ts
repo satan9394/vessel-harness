@@ -141,6 +141,7 @@ Vessel CLI v${VERSION} — 可组合 Agent Harness（品牌 Vessel）
   vessel settings set <key> <value>  设置（theme: dark|light；locale: zh|en；非法值给说明）
   vessel policy status               显示生效策略层次（system/project：路径 / 是否存在 / 声明条数 / 哈希；只读）
   vessel bench-report --input <json>  基准报告看板：聚合 076 RunResult[]（或 082 lane report）→ 打印 CLI 摘要表 + 写 md/json（任务 083）
+  vessel bench:runs <scenarioId> [--out <dir>] [--json]  只读列出已完成 run 与当前 harness 的指纹匹配
   vessel serve [--port <n>] [--workspace <dir>]  启动本地服务（默认 http://127.0.0.1:5678；工作区默认当前目录并自动入库，不开浏览器）
   vessel daemon start|stop|status    后台服务（--port <n>、--json）
   vessel mesh|swarm status|peers|ping <peer-id>   Mesh control plane
@@ -165,7 +166,7 @@ run 选项:
   --policy <path>                 系统级策略文件（默认 configs/policy.default.yaml）
   --behavior <path>               Behavior IR 文件（默认 configs/behavior.default.yaml）
   --strict                        计价严格模式：只用模型专属价目（model/catalog），未收录模型按 0 计价并标「未收录」
-  --json              以 JSON 输出（stdout 恰好一段可解析 JSON）：run / usage / provider list / models / sessions list / settings list / policy status / bench-report
+  --json              以 JSON 输出（stdout 恰好一段可解析 JSON）：run / usage / provider list / models / sessions list / settings list / policy status / bench-report / bench:runs
 
 provider 协议说明:
   openai-compatible    OpenAI chat/completions 协议：OpenAI / DeepSeek / Qwen / vLLM / Ollama 等
@@ -1357,6 +1358,36 @@ async function loadBenchRunners(): Promise<BenchRunnersModule | null> {
     if (!isBenchRunnersResolutionFailure(err)) throw err;
     return null;
   }
+}
+
+async function cmdBenchRuns(args: string[], flags: Map<string, string>): Promise<number> {
+  const scenarioId = args[0];
+  if (!scenarioId) {
+    const message = '用法: vessel bench:runs <scenarioId> [--out <dir>] [--json]';
+    return fail(2, message, flags, () => console.error(message));
+  }
+  // ponytail: keep the private reader local to this repository, without adding a package export.
+  const source = import.meta.url.endsWith('.ts');
+  const cacheUrl = new URL(`../../../benchmarks/runners/${source ? 'src/runCache.ts' : 'dist/runCache.js'}`, import.meta.url);
+  const { listCompletedRuns } = await import(cacheUrl.href) as typeof import('../../../benchmarks/runners/src/runCache.js');
+  const fingerprintUrl = new URL(`../../../packages/engine/${source ? 'src/fingerprint.ts' : 'dist/fingerprint.js'}`, import.meta.url);
+  const { computeHarnessFingerprint } = await import(fingerprintUrl.href) as typeof import('../../../packages/engine/src/fingerprint.js');
+  const workspace = path.resolve(flags.get('workspace') ?? process.cwd());
+  const outDir = path.resolve(flags.get('out') ?? path.join(workspace, 'benchmarks', 'reports'));
+  const currentFingerprint = computeHarnessFingerprint(repoRoot()).value;
+  const runs = listCompletedRuns(outDir, scenarioId).map((run) => ({
+    runId: run.runId, finishedAt: run.finishedAt, fileCount: run.fileCount,
+    fingerprint: run.fingerprint, reusable: run.fingerprint === currentFingerprint,
+  }));
+  if (isJson(flags)) emitJson({ scenarioId, currentFingerprint, runs });
+  else if (runs.length === 0) console.log('no completed runs found');
+  else {
+    for (const run of runs) {
+      console.log(`${run.runId}  finished=${run.finishedAt}  files=${run.fileCount}  reusable=${run.reusable ? 'yes' : 'no'}`);
+    }
+    console.log(`${runs.length} run(s); ${runs.filter((run) => run.reusable).length} reusable for the current harness`);
+  }
+  return 0;
 }
 
 async function cmdBench(flags: Map<string, string>): Promise<number> {
@@ -3148,6 +3179,7 @@ async function dispatch(parsed: ParsedArgs): Promise<number> {
     return cmdPolicyStatus(parsed.flags);
   }
   if (first === 'bench-report') return cmdBenchReport(parsed.flags);
+  if (first === 'bench:runs') return cmdBenchRuns(parsed.positionals.slice(1), parsed.flags);
   if (first === 'serve') return cmdServe(parsed.flags);
   if (first === 'daemon') return daemonCommands(parsed.positionals, parsed.flags, fileURLToPath(import.meta.url));
   if (first === 'web') return cmdWeb(parsed.flags);

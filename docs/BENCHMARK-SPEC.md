@@ -90,7 +90,7 @@ Benchmark v0.1
 2. **确定性优先，双车道**：offline mock 车道（Claw 式确定性 Anthropic 兼容 mock + 脚本场景，无网络无真实模型，CI 可跑，测机制 parity）与 live 车道（Pi 式真实模型回代，断言最终文本/产物/usage，测行为与质量）并存。机制类场景两车道都跑，行为质量类场景以 live 为准。
 3. **能力如实标注，诚实 skip**：凡某 harness 不具该能力（如 Pi 无 MCP 客户端抽象、无 subagent 原语——README 明示"非目标"，pi.md/comparison.md 行 818），runner 记录 `skipped` + 原因，**不产生伪造通过**（Claw"未落地如实标注"纪律，HARNESS-ANATOMY.md 行 482）。
 4. **口径可比但注明来源**：跨 harness 的 turn/token 口径不同，每项指标在 adapter 层给出归一化定义与 source note，差异写明（§4.4），不假装"数字完全同构"。
-5. **可复现与版本锁定**：每 run 用全新临时 workspace（fixture 快照复制 + git 重置），provider/model/temperature/seed 固定，harness 与模型版本随报告记录（HARNESS-ANATOMY.md 行 528 版本漂移警告）。
+5. **可复现与版本锁定**：每 run 用全新临时 workspace（fixture 快照复制 + 独立 run 目录），provider/model/temperature/seed 固定，harness 与模型版本随报告记录（HARNESS-ANATOMY.md 行 528 版本漂移警告）。
 
 ---
 
@@ -177,9 +177,9 @@ fixture 里**没有** `expected/asserts.yaml` 这一层（§2.1）——旧文�
 4. harness 指纹仅取 `packages/*/src/**/*.ts`（含测试）、`configs/*.yaml` / `configs/*.json` 与 `package-lock.json`。
    排除 `dist`、`node_modules`、`.harness`、`.git`、`.tmp*` 与 `*.tsbuildinfo`；不可读文件跳过。
    按相对路径排序，将路径、NUL 与文件字节依次送入 SHA-256，取前 16 位 hex。
-   成功 run 写完 `summary.json` 后写 `<runDir>/.run-complete.json`：`version: 1`、`fingerprint`、`fileCount`、`finishedAt`（ISO）；失败 run 不写。
+   判据全过且回合未异常结束的 run 写完 `summary.json` 后写 `<runDir>/.run-complete.json`：`version: 1`、`fingerprint`、`fileCount`、`finishedAt`（ISO）；判据失败或回合异常结束时不写。
    iteration 条目可选 `harnessFingerprint` 记录同一身份；旧记录仍可读，计算失败记 note 后省略该字段。
-   **只落身份，不做复用判定**；读取方将来可据此拒绝旧 run，目前没有 resume 复用校验。
+   读取侧已提供 `listCompletedRuns` / `findReusableRun`，并由 `vessel bench:runs` 只读展示当前指纹匹配；**不接自动复用**，`runScenario` 与 release gate 仍重跑。
 
 ---
 
@@ -816,6 +816,7 @@ benchmarks/reports/<sid>/
 └── run_<毫秒>_<hex>/              # 本 run 的目录（runId 即目录名）
     ├── run_<毫秒>_<hex>.jsonl     # §4.2 类型化记录（meta / metric / event / assert）
     ├── summary.json               # per-run 判定 + 指标 + asserts + reportPath/sessionLog
+    ├── .run-complete.json         # 仅判据全过且回合未异常结束时写入的 harness 身份标记
     ├── workspace/                 # 本次 run 的临时工作区（fixture 根复制而来，§2.1）
     └── scenario-policy.yaml       # 仅当 <sid>.yaml 声明了 policy: 时存在
 ```

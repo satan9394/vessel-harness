@@ -1,8 +1,11 @@
-import { afterEach, expect, it } from 'vitest';
+import { afterEach, expect, it, vi } from 'vitest';
+import { spawnSync } from 'node:child_process';
 import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
-import { checkToolPins, parseToolVersion, satisfiesRange } from './toolPins.js';
+import { checkToolPins, parseToolVersion, probeToolVersion, satisfiesRange } from './toolPins.js';
+
+vi.mock('node:child_process', () => ({ spawnSync: vi.fn() }));
 
 const roots: string[] = [];
 afterEach(() => { for (const root of roots.splice(0)) fs.rmSync(root, { recursive: true, force: true }); });
@@ -43,4 +46,20 @@ it('reports missing CLI, mismatch and matching versions without spawning', () =>
   expect(checkToolPins(root, () => { throw new Error('missing'); })[0]!.status).toBe('warn');
   expect(checkToolPins(root, () => '0.165.0')[0]).toMatchObject({ status: 'warn', message: expect.stringContaining('found 0.165.0, declared >=0.164.0 <0.165.0') });
   expect(checkToolPins(root, () => '0.164.0')[0]).toMatchObject({ status: 'pass', found: '0.164.0' });
+});
+
+it.each([
+  ['codex', 'codex-cli 0.164.0', '', '0.164.0'],
+  ['opencode', 'opencode 2.1.4', '', '2.1.4'],
+  ['codex', 'CLI banner\ncodex-cli 0.164.0\n', '', '0.164.0'],
+  ['codex', 'no version available', '', null],
+  ['codex', '', 'codex-cli 0.164.0', null],
+])('probes %s stdout %j and stderr %j without launching a CLI', (tool, stdout, stderr, expected) => {
+  const spawn = vi.mocked(spawnSync);
+  spawn.mockReset();
+  spawn.mockReturnValue({ pid: 0, output: [null, stdout, stderr], stdout, stderr, status: 0, signal: null } as unknown as ReturnType<typeof spawnSync>);
+  expect(probeToolVersion(tool)).toBe(expected);
+  expect(spawn).toHaveBeenCalledExactlyOnceWith(tool, ['--version'], {
+    encoding: 'utf8', shell: process.platform === 'win32', timeout: 10000,
+  });
 });

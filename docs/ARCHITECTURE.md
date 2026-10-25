@@ -412,7 +412,7 @@ composable-agent-harness/
 │   ├── llm/                  # provider / router / profiles（§4.2）
 │   ├── behavior/             # ir / resolver / compiler（§4.3）
 │   ├── context/              # builder / compaction / instructions（§4.4）
-│   ├── tools/                # registry / filesystem / shell / mcp(stub)（§4.5）
+│   ├── tools/                # registry / filesystem / shell / mcp（§4.5）
 │   ├── policy/               # engine / hooks / risk（§4.6）
 │   ├── runtime/              # executor / sandbox / process（§4.7）
 │   ├── memory/               # session（§4.8）

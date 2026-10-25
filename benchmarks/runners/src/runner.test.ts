@@ -645,6 +645,22 @@ describe('benchmarks/runner — evaluator 臂的 verdict 结构化落点（M13�
     expect(new Date(marker.finishedAt).toISOString()).toBe(marker.finishedAt);
   }, 60_000);
 
+  it('does not mark an interrupted run complete even when all manifest assertions pass', async () => {
+    const reportsDir = fs.mkdtempSync(path.join(os.tmpdir(), 'vessel-abnormal-completion-'));
+    tempDirs.push(reportsDir);
+    // B025 injects a real loop interrupt after a streamed tool call.
+    const report = await runScenario({ ...evalArmOpts('B025'), reportsDir });
+    expect(report.asserts.length).toBeGreaterThan(0);
+    expect(report.asserts.every(assert => assert.result === 'pass')).toBe(true);
+    expect(report.success).toBe(true);
+    expect(report.turnKind).toBe('interrupted');
+    expect(report.turnEndedAbnormally).toBe(true);
+    const dir = path.dirname(report.reportPath);
+    expect(fs.existsSync(path.join(dir, 'summary.json'))).toBe(true);
+    expect(readSummary(report)).toMatchObject({ success: true, turn: { kind: 'interrupted', endedAbnormally: true } });
+    expect(fs.existsSync(path.join(dir, '.run-complete.json'))).toBe(false);
+  }, 60_000);
+
   it('does not mark an assertion-failed run complete even though it writes a summary', async () => {
     const original = OFFLINE_SCRIPTS['B018-eval']!;
     OFFLINE_SCRIPTS['B018-eval'] = [

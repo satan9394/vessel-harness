@@ -51,6 +51,24 @@ it('keeps toolchain version drift advisory (warn is not fail)', async () => {
     expect(report.checks.every(check => check.status !== 'fail')).toBe(true);
   } finally { fs.rmSync(root, { recursive: true, force: true }); }
 });
+it('does not fail or expose a secretRef-only provider when network probing is disabled', async () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'doctor-secret-ref-'));
+  fs.writeFileSync(path.join(root, 'package-lock.json'), '{}');
+  const provider = { id: 'secret-ref-provider', name: 'Secret reference', protocol: 'openai-compatible' as const,
+    model: 'mock-model', baseUrl: 'https://example.invalid/v1', secretRef: 'some-ref' };
+  const fetcher = vi.fn();
+  try {
+    expect(provider).not.toHaveProperty('apiKey');
+    const report = await new VesselDoctorEngine({ ...fixture(root), providers: () => [provider], fetch: fetcher }).diagnose();
+    const check = report.checks.find(item => item.category === 'providers');
+    expect(check).toBeDefined();
+    expect(check!.message).not.toContain(provider.secretRef);
+    expect(fetcher).not.toHaveBeenCalled();
+    expect(['pass', 'warn']).toContain(check!.status);
+    expect(check!.status).not.toBe('fail');
+  } finally { fs.rmSync(root, { recursive: true, force: true }); }
+});
+
 it('diagnoses real temporary SQLite WAL and preserves corrupted file bytes', async () => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'doctor-sqlite-')); const file = memoryDatabasePath(root); const store = new HybridMemoryStore(file); let closed = false;
   try {

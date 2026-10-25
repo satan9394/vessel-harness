@@ -42,7 +42,7 @@ Vessel 是一个可组合、可验证、可替换行为层的 Agent Harness，�
 Model + Behavior + Context + Tools + Policy + Memory + Evaluator + Orchestration + Runtime + Surfaces
 ```
 
-其中 **Behavior** 是核心抽象：Approach 定义（`configs/behavior.default.yaml`）经 **Behavior Compiler** 编译进每个 Agent 的 stable system；**Policy** 以硬边界执法（Prompt Guidance + Tool Interceptor + Runtime Deny + Audit）；**Surfaces** 面向 CLI 与本地 Web 双表面（Web 在后续里程碑，见下方命令参考）。
+其中 **Behavior** 是核心抽象：Approach 定义（`configs/behavior.default.yaml`）经 **Behavior Compiler** 编译进每个 Agent 的 stable system；**Policy** 以硬边界执法（Prompt Guidance + Tool Interceptor + Runtime Deny + Audit）；**Surfaces** 面向 CLI 与本地 Web 双表面（Web 通过 `vessel serve` / `vessel web` 提供，见下方命令参考）。
 
 ## 定位
 

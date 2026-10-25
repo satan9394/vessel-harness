@@ -10,6 +10,7 @@ import { main, startServe } from './cli.js';
 import * as cli from './cli.js';
 import { composeHarness } from '@vessel/application';
 import { MockProvider } from '@vessel/llm';
+import { computeHarnessFingerprint } from '@vessel/engine';
 import { ProviderStore } from './providers/ProviderStore.js';
 import { providerStateRoot } from './providers/defaultStore.js';
 // 本卡②：`vessel migrate` 的执行缝注入（`cli.migrateRuntime.run`）需要一个**带类型**的结果对象，
@@ -824,6 +825,83 @@ describe('V0.9 usage/pricing commands (task 031)', () => {
     const out = logs.join('\n');
     expect(out).toContain('无本地日分桶');
     expect(out).toContain('历史条目 1 条无成本分项');
+  });
+});
+
+describe('vessel bench:runs (task 298)', () => {
+  let reports: string;
+  let fingerprint: string;
+  const older = '2026-10-24T15:00:00.000Z';
+  const newer = '2026-10-25T15:00:00.000Z';
+
+  beforeEach(() => {
+    reports = fs.mkdtempSync(path.join(os.tmpdir(), 'vessel-bench-runs-'));
+    fingerprint = computeHarnessFingerprint(REPO_ROOT).value;
+  });
+  afterEach(() => {
+    fs.rmSync(reports, { recursive: true, force: true });
+  });
+
+  function seedRuns(): void {
+    for (const [runId, value] of [
+      ['run_1_aa', JSON.stringify({ version: 1, fingerprint: 'outdated', fileCount: 3, finishedAt: older })],
+      ['run_2_bb', JSON.stringify({ version: 1, fingerprint, fileCount: 4, finishedAt: newer })],
+      ['run_3_cc', '{'],
+    ]) {
+      const dir = path.join(reports, 'B001', runId!);
+      fs.mkdirSync(dir, { recursive: true });
+      fs.writeFileSync(path.join(dir, '.run-complete.json'), value!, 'utf8');
+    }
+  }
+
+  it('lists matching and outdated runs with the correct text totals, skipping damaged markers', async () => {
+    seedRuns();
+    const streams = captureChannels();
+    try {
+      expect(await main(['bench:runs', 'B001', '--out', reports])).toBe(0);
+      expect(streams.lines()).toEqual([
+        `run_2_bb  finished=${newer}  files=4  reusable=yes`,
+        `run_1_aa  finished=${older}  files=3  reusable=no`,
+        '2 run(s); 1 reusable for the current harness',
+      ]);
+      expect(streams.err()).toBe('');
+    } finally { streams.restore(); }
+  });
+
+  it('emits only JSON with the exact fields and newest-first ordering', async () => {
+    seedRuns();
+    const streams = captureChannels();
+    try {
+      expect(await main(['bench:runs', 'B001', '--out', reports, '--json'])).toBe(0);
+      expect(JSON.parse(streams.out())).toEqual({
+        scenarioId: 'B001', currentFingerprint: fingerprint,
+        runs: [
+          { runId: 'run_2_bb', finishedAt: newer, fileCount: 4, fingerprint, reusable: true },
+          { runId: 'run_1_aa', finishedAt: older, fileCount: 3, fingerprint: 'outdated', reusable: false },
+        ],
+      });
+      expect(streams.err()).toBe('');
+    } finally { streams.restore(); }
+  });
+
+  it('treats empty and missing report directories as successful empty results', async () => {
+    fs.mkdirSync(path.join(reports, 'B001'));
+    const streams = captureChannels();
+    try {
+      expect(await main(['bench:runs', 'B001', '--out', reports])).toBe(0);
+      expect(streams.out()).toBe('no completed runs found');
+      expect(await main(['bench:runs', 'B001', '--out', path.join(reports, 'missing'), '--json'])).toBe(0);
+      expect(JSON.parse(streams.lines()[1]!)).toEqual({ scenarioId: 'B001', currentFingerprint: fingerprint, runs: [] });
+    } finally { streams.restore(); }
+  });
+
+  it('prints usage and exits 2 when scenarioId is missing', async () => {
+    const streams = captureChannels();
+    try {
+      expect(await main(['bench:runs'])).toBe(2);
+      expect(streams.err()).toContain('vessel bench:runs <scenarioId> [--out <dir>] [--json]');
+      expect(streams.out()).toBe('');
+    } finally { streams.restore(); }
   });
 });
 
