@@ -25,7 +25,7 @@
 
 - **`HANDOFF.md`：项目交接文档。** 新会话 / 新 Agent / 换人接手时**先读它**——现状、未完成清单、验证命令、已知约束与阅读顺序都在那里。**当用户输入「继续」或「继续未完成的」时**，严格遵照其 §0「快速接管协议」向用户汇报当前断点与未完成项，并直接执行下一步，杜绝漫谈与重头梳理。
 
-- `docs/`：权威文档。MISSION-V0.x.md（执行任务书）、ARCHITECTURE.md（模块边界）、DESIGN-DECISIONS.md（21 决策点，实现必须遵守）、EVENT-SPEC.md（D5 事件词汇）、POLICY-SPEC.md、BEHAVIOR-IR-SPEC.md、BENCHMARK-SPEC.md、V0x-IMPLEMENTATION-NOTES.md（交付说明）、REVIEW-REPORT-V0x.md（独立核验报告）、V0x-PROGRESS.md（进度接力）。
+- `docs/`：权威文档。MISSION-V0.x.md（执行任务书）、ARCHITECTURE.md（模块边界）、DESIGN-DECISIONS.md（23 决策点，实现必须遵守）、EVENT-SPEC.md（D5 事件词汇）、POLICY-SPEC.md、BEHAVIOR-IR-SPEC.md、BENCHMARK-SPEC.md、V0x-IMPLEMENTATION-NOTES.md（交付说明）、REVIEW-REPORT-V0x.md（独立核验报告）、V0x-PROGRESS.md（进度接力）。
 - `packages/`：shared/core/llm/behavior/context/tools/policy/runtime/memory/skills/agents/telemetry/engine/application（14 个）。
 - `apps/`：cli（进程入口，compose.ts = 组合根）、local-server（本地 HTTP+SSE）、web（React+Vite UI）。
 - `benchmarks/`：fixtures/（场景工作区）、scenarios/（判据唯一事实源 yaml）、runners/、reports/。
@@ -49,26 +49,37 @@
 
 10. GitHub 治理（2026-09-27）：本仓在 GitHub 上**只做提交 → PR 审核 → CI 测试**；**不创建 GitHub Release、不向 npm 发布新版本**（历史遗留的 npm 快照冻结在 `0.10.0`，不再更新）。`main` 由规则集 `protect-default-branch` 保护：必须走 PR，且 CI 双腿（Windows + Linux）必须绿。
 
-## 模型选型与执行规约（OpenAI 规范）
+## 执行角色与模型路由（PDW）
 
-> 权威依据：[OpenAI Model Selection Guide](https://developers.openai.com/api/docs/guides/model-selection) 与 [GPT-6.1 Sol 规范](https://developers.openai.com/api/docs/models/gpt-6.1-sol)。后续演进可将该选型指南作为不同任务复杂度的尝试依据。
+> 分工按读写定职责；模型与档位以 `pwsh pdw.ps1 doctor` 为准（看 `effective_model`，Codex 角色的档位看并列的 `reasoning_effort`；任一角色不 ready 时退出码非 0）。本节只写机器推不出来的部分，协调者用哪个模型不锁定。
 
-- **当前锁定开发模型：GPT-6.1 Sol (`gpt-6.1-sol`)**
-  - **当前主力思考深度：二级思考（`reasoning.effort: medium`，总共 5 个思考等级：`none` / `low` / `medium` / `high` / `xhigh`）**：官方推荐用于「复杂的工程技术任务与预期需要反复修改验证的协同交付物（Complex technical work and coordinated deliverables you expect to revise）」。在代码重构、测试修复与系统级开发中平衡推理深度与执行延迟。
-  - **切换规则（免重复确认）**：当前默认开发模型即为 GPT-6.1 Sol（二级思考）；后续若切换模型用户会主动显式说明，**未说明前恒以当前模型执行，杜绝多余询问**。
-  - **分档与后续尝试（依据 OpenAI 选型指南）**：
-    - **轻量微调：一级思考（`reasoning.effort: low`）**：适用于单文件局部编辑、明确的单点修补或文档同步。
-    - **深度攻坚：三/四级思考（`reasoning.effort: high` / `xhigh`）**：当遇到复杂的多模块循环依赖排查或高阶架构设计时可作为后续尝试。
-    - **排除项**：Luna（仅适合简单抽取/分诊，复杂 Monorepo 易出现深层类型漂移）；Astra（全功能旗舰，仅在不计成本与延迟时使用）。
-- **Prompt 与任务书编写原则（面向 Medium/Low 思考深度）**：
-  - **杜绝伪思维链与冗余角色扮演**：推理模型原生内置思维链（CoT），禁止注入 "think step by step" 或大段虚构头衔背景，直接陈述职责、范围与单点目标。
-  - **显式使用分界符（Delimiters）**：用 Markdown 标题、XML 标签或代码块清晰隔离上下文、契约、禁止项与验收门禁。
-  - **接口契约先行（Interface-First）**：中轻度思考下不依赖模型盲目发散推演，Prompt 必须直接给出关键 TypeScript 接口签名与核心断言用例。
-  - **前缀缓存优化**：利用 Prompt Caching（缓存输入享 95% 折扣，低至 $0.1/1M），将通用架构规则、红线与稳定契约置于 Prompt 前半部。
+| 职责 | 执行体 | 写权限 | 唯一产出 |
+|---|---|---|---|
+| 协调者 | 当前宿主会话 | 只写卡与契约 | 读卡 → 写契约 → `run` → 处理分歧 → 收口；不写产品代码 |
+| `scan` | PDW / OpenCode | 只读（`--agent plan`） | 实现位置、调用链、根因；不推演修法 |
+| `test-plan` | PDW / OpenCode | 只读 | 每条验收用哪条命令能真跑、缺哪条判据 |
+| `implement` / `repair` | PDW / Codex | workspace-write，唯一写者 | 代码 + 自验命令结果；只改契约 scope；浏览器验收放 `checks` |
+| `review` | PDW / OpenCode | 只读 | 逐条 AC + 原始证据；同模型换会话不等于跨模型独立 |
+| `planner` | PDW / OpenCode | 只读 | 默认关闭，仅契约 `planner: true` 时启用；只规划不实现 |
+
+- **档位词表按后端分列，以模型声明的 `variants` 为准**（`opencode debug config` 可查）：DeepSeek V4.1 Flash 实测 `low/high/max/off`，写 `medium` 不会变成中等思考；GPT-6.1 Sol 实测 `low/medium/high/xhigh/max/ultra`。换模型后重新核对，不沿用旧结论。
+- **加一个供应商**：在 `~/.config/opencode/opencode.json` 的 `providers`（v2 是复数，v1 才是 `provider`）里配好 `models` / `variants`，角色值写 `<provider>/<model-id>`。三个坑：密钥在 `settings.apiKey`，`opencode auth list` 看不见，目录里有不等于能用；`variants` 不一定包含你要的档位；model id 可能自带 `/`，值里会出现两个斜杠。改完跑 `doctor` 再做一次真实任务。
+- **迭代口径**：改"选择"（哪个模型、开不开 planner、限额）→ 只改 `.pdw/config.json`；改"机制"（加 backend、加目录发现、改证据规则）→ 走上游 `satan9394/personal-dev-workflow`，不在项目副本打补丁；9 个技能文件永不在项目内分叉（`update.mjs` 逐字节覆盖，改了也留不住）。版本号不是身份，只认 sha256。
+- **Codex 提示规约（仅 `implement` / `repair`）**：接口契约先行，用标题 / XML 标签 / 代码块隔离上下文与禁止项；不注入 "think step by step"、不写大段角色扮演；稳定契约放 Prompt 前部以复用前缀缓存。
+
+### PDW 本机适配（实测，核对日期 2026-10-25）
+
+- `pdw.mjs doctor`：五角色 `ready`；`opencode v2.1.4`、`codex-cli 0.164.0`、`authentication: not_checked`。
+- `opencode run --model provider/model#variant` 可用：`review` 的 `#max` 在任务 `20261024095132-1bac7e` 实跑 exit 0（2026-10-24）。
+- `codex exec --sandbox workspace-write` 可写仓库；`--sandbox read-only` 不可写。浏览器需四个参数，见下方 `pdw-entry` 段。
+- `pdw.mjs init` 的模型探测已支持 OC 2.x 的 `providers` 键（2026-10-24 重切修好，本机实测能解析出模型）；识别不到时仍必须显式填 `model`。
+- 技能正文已不再写死本机 provider 与 OpenCode 小版本（2026-10-24 修）；`planner` 的 AGY 只是上游默认值，本机以 `.pdw/config.json` 为准。
+- **cc-switch 会重写全局配置**：它的 OpenCode 集成在切换供应商时写入单数 `provider` 块（v1 形态），日志里把带 `capabilities` 的 v2 块判为 invalid 但保留原样。OpenCode 2.1.4 忽略单数块，真正生效的是复数 `providers`；手动删单数块约 18 秒会被重新写回（2026-10-25 实测）。每次用 cc-switch 切换供应商后跑一次 `pwsh pdw.ps1 doctor`；若 `opencode models` 里 `commandcode` 消失，说明复数块被整体覆盖，按卡 286 的字段重建。
+- **契约草稿放 `.pdw/contracts/`**，不要放 `.pdw/tasks/`：无参 `status` 会把 `tasks` 下每个目录当任务读 `state.json`，遇到没有该文件的草稿目录会 ENOENT。
 
 ## 开发工作流（六步循环）
 
-拆卡 → 派活 → 交证 → 验证 → 验收 → 复盘。详见 `.agents/skills/personal-dev-workflow/`（Codex/OpenCode/DSH/Antigravity 均从此处发现）。做多步开发前先读其 `SKILL.md`。
+拆卡 → 派活 → 交证 → 验证 → 验收 → 复盘。详见 `.agents/skills/personal-dev-workflow/`（Codex / Antigravity 读项目副本；OpenCode 读全局 skills 根下的镜像，两份必须同步，见下方「PDW 技能同步」）。做多步开发前先读其 `SKILL.md`。
 
 <!-- pdw-entry -->
 PDW 现行版本 **1.3.3-local**：完整 Skill 目录 + Node 运行器 + 项目级 `.pdw/`；零安装入口为仓库根 `pdw.ps1`（本块由 `pdw.mjs install` 写入，勿删标记）。
@@ -79,10 +90,10 @@ PDW 现行版本 **1.3.3-local**：完整 Skill 目录 + Node 运行器 + 项目
 <!-- /pdw-entry -->
 
 - 默认 `standard`：一卡一闭环，交证即停，不自动续下一卡。
-- `bounded` 连续自治需显式授权并先定 Mission 信封；其机器真相源 `.agent-state/run-state.json`（已忽略），`RUN_STATE.md` 只是生成视图。
-- 主会话 = 指挥：只留「目标 + 文件指针 + 结果摘要」；长期目标挂 goal。
-- 每张任务卡一个隔离执行器（DSH 子代理默认），干完只回传工作证明（diff + 测试结果）。
-- 大改动另派对抗性评审子代理（全新上下文，只见 diff 和验收标准，反向挑错）。
+- `bounded` 连续自治需显式授权并先定 Mission 信封；PDW 任务的机器真相源是 `.pdw/tasks/<id>/state.json`。`.agent-state/run-state.json` 与 `RUN_STATE.md` 已标 **LEGACY**：只读历史，不是汇报来源（最后写入 2026-10-14 / 10-11）。
+- 主会话 = 指挥：只留「目标 + 文件指针 + 结果摘要」；长期目标挂 goal。**goal 自动续跑只属于协调者会话**，PDW 角色会话不创建 goal、不嵌套 agent。
+- 每张任务卡一个隔离执行器：PDW 的 `implement` 角色（Codex）。DSH / CC 只能担任协调者或宿主子代理辅助模式，不得汇报成 CLI 自动接力已通过。
+- 大改动另派对抗性复核（PDW 的 `review` 角色，全新上下文，只对照验收与当前产物）。跨模型复核更独立，但运行器不支持按任务改路由，需人工改 config 并留 diff。
 - 记忆全在文件里：本文件（规则）+ docs/（决策）+ tasks/（进度）。对话会忘，文件不会。
 
 ### 记录纪律（单一最佳位置，2026-10-12 立）
@@ -94,6 +105,9 @@ PDW 现行版本 **1.3.3-local**：完整 Skill 目录 + Node 运行器 + 项目
 3. **不重复记账**：同一事实禁止同时写"卡 + 日志 + CHANGELOG + RUN_STATE"四处。
 4. **卡完成时收口**：更新卡首行状态 + `tasks/README.md` 路线表一行（+「最近已交付」段）。这是卡自己的索引，不是重复记录。
 5. **无则免写**：没有可复用的教训就别往本文件加"教训"；没有过程记录要留就别写日志。
+6. **PDW 任务必须先有卡**：卡首行状态行下加 `- PDW task: <id>`（未启动写 `none`）；卡写目标/验收/范围，契约由卡派生并冻结。验收要变就回卡改、再新建任务，不要只改 `.pdw/tasks/<id>/contract.json`。
+7. **越界以 artifact 指纹为准**：`new` 之前工作区里已有的未提交改动不算实现者越界，在契约的可选字段 `baseline_dirty` 里列出；复核看 `state.json` 的 artifact 指纹，不拿 `git diff HEAD` 的存量改动当越界证据。
+8. **证据落盘**：`checks` 只写 `%TEMP%`；验收后在卡的结果段写摘要 + accepted artifact 哈希，不把生成物复制进仓库（复制会让下次 `status` 显示漂移）。
 
 > 违规样例（本仓 2026-10-12 实例，已纠正）：把整张卡的目标与验收数字全塞进 `DEV_LOG.md` 却漏建卡 —— 任务卡才是目标/验收的源，日志只放过程记录。
 
@@ -160,8 +174,8 @@ PDW 现行版本 **1.3.3-local**：完整 Skill 目录 + Node 运行器 + 项目
 ## PDW 技能同步（默认配置，2026-10-17 重切后；源 = GitHub）
 
 - **唯一技能源**：GitHub `satan9394/personal-dev-workflow`，分支 `main`（滚动，无 tag / 无 Release），子路径 `skills/personal-dev-workflow/`。
-- **本地镜像（离线兜底）**：`C:\work\.agents_four_skills\personal-dev-workflow`——只在取不到 GitHub 时使用，且版本串须与远端一致才可采用。
-- **本地副本**：`.agents\skills\personal-dev-workflow\`（9 文件，与源逐字节一致）。
+- **两份本地副本，读的人不同**：`.agents\skills\personal-dev-workflow\`（9 文件，与源逐字节一致）供 `pdw.ps1`、`update.mjs` 与 Codex 使用；`C:\work\.agents_four_skills\personal-dev-workflow` 是 OpenCode 角色会话实际读的那份（`opencode.json` 的 `skills` 指向该目录），同时兼作离线兜底。
+- **每次更新后必须同步两份**：`update.mjs` 只写项目副本；跑完把 9 个文件复制到镜像目录并逐文件核 sha256（含 `references/`、`scripts/`、`agents/`、`assets/` 四层）。两份不一致视为更新未完成，以项目副本为准。
 - **改 `.pdw\config.json` 前必须先经用户确认**：模型、思考档位（`reasoning_effort` / `model#variant`）、上限与 `prompt_guidance` 的任何改动，先给出 diff 与预期效果、等用户明确确认后再落盘；确认前不动文件。改前把原文件备份到 `.pdw\skill-upgrade-<YYYYMMDD>\config.json.bak-<用途>-<YYYYMMDD>`。
 - **首选一条命令自更新**：`node .agents\skills\personal-dev-workflow\scripts\update.mjs --project <项目根>`（`--dry-run` 只看差异）。它自带备份、原子替换与 `doctor` 复核，幂等、不动 `.pdw\config.json`、不删除文件、不 commit/push；无差异只回「已是最新（<版本>）」。
 - 手工兜底（脚本不可用或需人工判断时）：

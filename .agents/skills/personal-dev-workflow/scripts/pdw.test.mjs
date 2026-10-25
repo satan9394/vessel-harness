@@ -5,7 +5,7 @@ import assert from 'node:assert/strict';
 import { spawn, spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { parseResult, invocation, modelPromptContext } from './drivers.mjs';
-import { snapshot, withSavedOpenCodeVariant } from './pdw.mjs';
+import { snapshot, withSavedOpenCodeVariant, detectCheapModel } from './pdw.mjs';
 
 const runtime = fileURLToPath(new URL('./pdw.mjs', import.meta.url));
 const project = path.resolve(path.dirname(runtime), fs.existsSync(new URL('../../../package.json', import.meta.url)) ? '../../..' : '../../../..');
@@ -204,6 +204,30 @@ await test('new initialization copies only the exact models saved TUI variant', 
   assert.equal(withSavedOpenCodeVariant(null, file), null);
   fs.writeFileSync(file, '{broken');
   assert.equal(withSavedOpenCodeVariant('fixture/deepseek', file), 'fixture/deepseek');
+});
+await test('host model discovery reads OpenCode v2 providers and still accepts v1 provider', () => {
+  const home = path.join(evidence, 'fake-home');
+  const configFile = path.join(home, '.config', 'opencode', 'opencode.json');
+  fs.mkdirSync(path.dirname(configFile), { recursive: true });
+  const saved = { USERPROFILE: process.env.USERPROFILE, HOME: process.env.HOME };
+  const restore = () => {
+    for (const key of ['USERPROFILE', 'HOME']) {
+      if (saved[key] === undefined) delete process.env[key]; else process.env[key] = saved[key];
+    }
+  };
+  const withHost = body => {
+    fs.writeFileSync(configFile, JSON.stringify(body));
+    process.env.USERPROFILE = home; process.env.HOME = home;
+    try { return detectCheapModel(); } finally { restore(); }
+  };
+  // v2 (current OpenCode): providers is plural and is the only key a real host writes.
+  assert.equal(withHost({ providers: { local: { models: { 'deepseek-v4.1-flash': {} } } } }), 'local/deepseek-v4.1-flash');
+  // v1 (older hosts): provider stays supported.
+  assert.equal(withHost({ provider: { legacy: { models: { 'deepseek-v4.1-flash': {} } } } }), 'legacy/deepseek-v4.1-flash');
+  // An explicit top-level model wins over any provider scan.
+  assert.equal(withHost({ model: 'host/deepseek-flash', providers: { local: { models: { 'deepseek-v4.1-flash': {} } } } }), 'host/deepseek-flash');
+  assert.equal(withHost({ providers: { local: { models: { 'kimi-k3-1': {} } } } }), null);
+  assert.equal(withHost({ providers: [] }), null);
 });
 await test('ambiguous model-specific settings and unsupported effort backends are rejected', () => {
   assert.throws(() => modelPromptContext({ backend: 'codex', prompt_guidance: 'model-specific' }), /explicit model/);
@@ -407,8 +431,12 @@ await test('the bundled updater replaces the copy from its published repository 
   const configFile = path.join(project, '.pdw', 'config.json'), configHash = hash(fs.readFileSync(configFile));
   const installed = path.join(project, '.agents', 'skills', 'personal-dev-workflow');
   fs.writeFileSync(path.join(installed, 'local-note.md'), 'local only\n');
+  const mirror = path.join(evidence, 'mirror-copy');
+  copyTree(published, mirror);
+  fs.appendFileSync(path.join(mirror, 'references', 'runtime.md'), '\nstale mirror line.\n');
+  fs.writeFileSync(path.join(mirror, 'mirror-only.md'), 'mirror only\n');
 
-  const update = spawnSync(process.execPath, [path.join(installed, 'scripts', 'update.mjs'), '--project', project, '--source', path.join(evidence, 'remote-repo'), '--json'], { encoding: 'utf8', timeout: 120000 });
+  const update = spawnSync(process.execPath, [path.join(installed, 'scripts', 'update.mjs'), '--project', project, '--source', path.join(evidence, 'remote-repo'), '--mirror', mirror, '--json'], { encoding: 'utf8', timeout: 120000 });
   assert.equal(update.status, 0, update.stderr);
   const first = JSON.parse(update.stdout.trim().split(/\r?\n/).at(-1));
   assert.equal(first.updated, true);
@@ -419,13 +447,32 @@ await test('the bundled updater replaces the copy from its published repository 
   assert.equal(hash(fs.readFileSync(configFile)), configHash);
   assert.equal(hash(fs.readFileSync(path.join(installed, 'references', 'runtime.md'))), hash(fs.readFileSync(path.join(published, 'references', 'runtime.md'))));
   assert.ok(fs.existsSync(path.join(installed, 'local-note.md')));
+  assert.deepEqual(first.mirror.updated, ['references/runtime.md']);
+  assert.deepEqual(first.mirror.kept, ['mirror-only.md']);
+  assert.equal(first.mirror.root, mirror);
+  assert.equal(hash(fs.readFileSync(path.join(mirror, 'references', 'runtime.md'))), hash(fs.readFileSync(path.join(published, 'references', 'runtime.md'))));
+  assert.ok(fs.existsSync(path.join(first.mirror.backup, 'references', 'runtime.md')));
+  assert.ok(fs.existsSync(path.join(mirror, 'mirror-only.md')));
 
-  const again = spawnSync(process.execPath, [path.join(installed, 'scripts', 'update.mjs'), '--project', project, '--source', path.join(evidence, 'remote-repo'), '--json'], { encoding: 'utf8', timeout: 120000 });
+  const again = spawnSync(process.execPath, [path.join(installed, 'scripts', 'update.mjs'), '--project', project, '--source', path.join(evidence, 'remote-repo'), '--mirror', mirror, '--json'], { encoding: 'utf8', timeout: 120000 });
   assert.equal(again.status, 0, again.stderr);
   const second = JSON.parse(again.stdout.trim().split(/\r?\n/).at(-1));
-  assert.equal(second.updated, false); assert.equal(second.backup, null);
+  assert.equal(second.updated, false); assert.equal(second.backup, null); assert.equal(second.mirror, null);
   assert.match(second.note, /explicit user confirmation/);
   assert.equal(hash(fs.readFileSync(configFile)), configHash);
+
+  // A stale mirror is repaired even when the installed skill is already current.
+  fs.appendFileSync(path.join(mirror, 'references', 'runtime.md'), '\nstale again.\n');
+  const repair = spawnSync(process.execPath, [path.join(installed, 'scripts', 'update.mjs'), '--project', project, '--source', path.join(evidence, 'remote-repo'), '--mirror', mirror, '--json'], { encoding: 'utf8', timeout: 120000 });
+  assert.equal(repair.status, 0, repair.stderr);
+  const third = JSON.parse(repair.stdout.trim().split(/\r?\n/).at(-1));
+  assert.equal(third.updated, false);
+  assert.deepEqual(third.mirror.updated, ['references/runtime.md']);
+  assert.equal(hash(fs.readFileSync(path.join(mirror, 'references', 'runtime.md'))), hash(fs.readFileSync(path.join(published, 'references', 'runtime.md'))));
+
+  const missing = spawnSync(process.execPath, [path.join(installed, 'scripts', 'update.mjs'), '--project', project, '--source', path.join(evidence, 'remote-repo'), '--mirror', path.join(evidence, 'no-such-mirror'), '--json'], { encoding: 'utf8', timeout: 120000 });
+  assert.equal(missing.status, 1);
+  assert.match(missing.stderr, /Mirror directory not found/);
 });
 await test('the updater refuses a source that has no skill directory', () => {
   const empty = path.join(evidence, 'remote-empty'); fs.mkdirSync(empty);

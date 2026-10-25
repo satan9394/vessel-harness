@@ -2,7 +2,7 @@
 
 > **用途**：新会话 / 新 Agent / 换人接手时，**先读本文件**：现状、未完成清单、验证命令、已知约束都在这里。
 > 规则本身仍在 [`AGENTS.md`](AGENTS.md)；会约束未来的决策在 [`docs/DESIGN-DECISIONS.md`](docs/DESIGN-DECISIONS.md)。
-> **最后更新**：2026-10-23（§0 顶部快照由协调者按实测刷新；其下 2026-10-22 及更早段落保留为历史）。维护者：单人。
+> **最后更新**：2026-10-25（§0 顶部快照由协调者按实测刷新；其下 2026-10-22 及更早段落保留为历史）。维护者：单人。
 
 ## 0. 快速接管协议（当用户直接说「继续未完成的」或「继续」时）
 
@@ -13,8 +13,8 @@
 | HEAD / 分支 | 本地 `main`，工作树干净（当前 commit 以 `git rev-parse --short HEAD` 为准，本表不再钉死哈希以免过期） |
 | 远端 | `origin/feat/v2.8-taste-ui` 与本地同 commit；**与本节下方 2026-10-06「不再向 GitHub 提交」的旧口径冲突，待维护者确认以哪个为准** |
 | 全量门禁 | `test:all` 根 305 文件 / 3198 通过 + 6 跳过；web 58 文件 / 494 通过；`tsc -b`、`typecheck:tests`、web typecheck、web build 均 exit 0 |
-| PDW | `.pdw/config.json` 1.3.3-local，五角色 ready；`implement` = Codex `gpt-6.1-sol`/medium（`codex-cli 0.164.0`），其余 OC `deepseek-v4.1-flash`；C-F1 由任务 `20261024095132-1bac7e`（`accepted_local`）交付；`.pdw/` 不入库 |
-| 最近交付 | 卡 276（完全访问下 Shell 可用）、277（两个 UI P2；C-F1 由 5 视口几何检查收口）、278（工具失败不再锁死会话）、279（`vessel effects list\|resolve`）、280（ARCH-09 可追溯性）、282（阻断消息给出解除命令） |
+| PDW | 1.3.3-local，五角色 ready（角色与写权限见 `AGENTS.md`「执行角色与模型路由」；当前模型与档位以 `pwsh pdw.ps1 doctor` 的 `effective_model` 为准）；全局配置已迁到 OpenCode v2 的 `providers` 复数形态（`provider` 单数在 2.1.4 已失效，卡 286）；C-F1 由任务 `20261024095132-1bac7e`（`accepted_local`）交付；决策点 22 由 `20261024155859-108eea`（`accepted_local`）交付；路由冒烟由 `20261025074418-69269b`（`accepted_local`）完成；cc-switch 切换供应商时会重写 v1 单数块，切换后需复核 `doctor`；`.pdw/` 不入库 |
+| 最近交付 | 卡 286（全局 OpenCode 配置迁到 v2 `providers`，恢复 `commandcode` 路由，冒烟任务 `20261025074418-69269b` `accepted_local`）、283–285（PDW 角色路由/交接/配置三卡收口；决策点 22 由 PDW 任务 `20261024155859-108eea` 交付）、276（完全访问下 Shell 可用）、277（两个 UI P2；C-F1 由 5 视口几何检查收口）、278（工具失败不再锁死会话）、279（`vessel effects list\|resolve`）、280（ARCH-09 可追溯性）、282（阻断消息给出解除命令） |
 | 待用户执行 | 卡 281 的 POSIX 降级口径拍板（A 保持现状／B 默认拒绝／C 仅 danger 放行，安全取舍）；卡 277 的人眼确认（可选，`tasks/prompts/card277-browser-recheck.md`） |
 | 已知外部阻塞 | ARCH-04 跨 harness live 证据需逐次授权调用本机其他 CLI；UI-10 的 150%/200% 缩放与原生输入法只能在真实浏览器验证 |
 
@@ -22,7 +22,7 @@
 
 **当前续接覆盖以下历史快照（2026-10-22）**：浏览器验收两波修复12项已本地实现、验证并交证，唯一当前事实源为[evidence/sessions/2026-10-23-fix-wave-report.md](evidence/sessions/2026-10-23-fix-wave-report.md)。卡272已交证，无遗留半截实现；等待协调者验收/test:all，不自动开启新任务。指定真实模型不变，累计17个修复真实执行回合；独立的150%缩放等未验证边界仍在报告中。用户明确禁止本执行者改packages/core、commit/push、test:all；不重置现有夹具与状态。以下旧卡234/235状态只作历史背景。
 
-**任何 Agent 在接收到「继续」/「继续未完成的」指令时，直接根据本段与 `.agent-state/run-state.json` 向用户汇报并执行：**
+**以下 2026-10-22 段落是历史快照，其中"根据 `.agent-state/run-state.json` 汇报"的旧指令已作废（该文件自 2026-10-14 起只作历史）；接手一律以 §0 顶部快照为准。**
 
 1. **当前交付与阶段状态**：**Card 235（基于 Taste-Skill 的 Web 工作台审美审查与全屏通栏 UI 重构）已于 2026-10-20 本地交付（Web 50 文件 / 404 passed 全绿，Core 0 变动）**。根据 [Leonxlnx/taste-skill](https://github.com/Leonxlnx/taste-skill) 规范彻底清除了弧形孤岛卡片、四周 12px 留白缝隙与多余毛玻璃材质，落地顶天立地、以 1px 细线划分的工业级 Edge-to-Edge 全屏工作台。前序 **Card 234（OpenUI 生成式排版体系融入与 Web 体验痛点全景整改）已于 2026-10-19 本地闭环通过（双 Root 3445 passed / 6 skipped 全绿，Core 0 变动）**。凭据免输复用、会话安全回收站删除、深浅主题常驻切换、实体按钮交互教育、GFM Markdown 解析与 OpenUI 生成式卡片已全面交付。前序 Card 233（供应商能力继承与协商拦截修复）亦已本地合入。前序 Card 225–232 模型供应商全屏独立中枢、高级模型搜索筛选器与 CC-Switch 权威预设已全部落地。**V2.5 Epic 209（205–209）已于 2026-10-10 本地验收完成（双 Root 3083 passed / 6 skipped 全绿）**。**V2.6 Epic 214（210–214）已于 2026-10-11 本地验收完成（双 Root 3146 passed / 6 skipped）**。**Card 217（ARC-01..05 架构整改）与 Card 218（Web 工作台整改）已于 2026-10-12/13 本地全部验收完成（双 Root 3228 passed / 6 skipped，Web build exit 0，12 张中英双语截图全部刷新，core 源码严格 0 变动）**。前序 V2.4 已提交至本地 `main`（commit `dd8e72c`），V2.6+215+216 合入 `520492d`，Card 217 合入 `6442171`。
 2. **已完成与已验证基线**：
@@ -39,8 +39,8 @@
      - Card 217（架构整改落地 ARC-01..05）已验收合入 `6442171`；
      - Card 218（Web UI/UX 工作台整改落地）已验收闭环；
    - **开发模式与约束**：纯本地开发（严禁 git push，遵循 2026-10-06 规约；薄核零侵入 packages/core 源码；删除必进回收站；Web 构建必须携带 `-- --emptyOutDir false`）；
-   - **架构职责分工（2026-10-14 用户明确指令）**：Antigravity (主会话) 严格定位为**规划与指挥者 (Planner/Commander)**，负责需求拆解、契约设计、任务卡编制、验收与对账；**严禁自行进行代码开发**。因 Codex 出现算力与内置浏览器环境瓶颈，代码实现与全量验证门禁全面移交给隔离执行器 **OpenCode（搭载 DeepSeek-v4.1-Flash，思考深度设为 high 最高思考深度）** 以 **goal 目标模式** 执行攻坚闭环；
-   - **模型锁定规约**：当前接盘执行模型变更为 **DeepSeek-v4.1-Flash**（思考深度：`high`），以 `goal` 模式直达目标。
+   - **架构职责分工（历史，2026-10-14；分工与模型已被 2026-10-24 的 `AGENTS.md` 角色表取代）**：Antigravity (主会话) 严格定位为**规划与指挥者 (Planner/Commander)**，负责需求拆解、契约设计、任务卡编制、验收与对账；**严禁自行进行代码开发**。因 Codex 出现算力与内置浏览器环境瓶颈，代码实现与全量验证门禁全面移交给隔离执行器 **OpenCode（搭载 DeepSeek-v4.1-Flash，思考深度设为 high 最高思考深度）** 以 **goal 目标模式** 执行攻坚闭环；
+   - **模型锁定规约（历史，已于 2026-10-24 被 `AGENTS.md` 角色表取代）**：当时接盘执行模型为 **DeepSeek-v4.1-Flash**（思考深度：`high`），以 `goal` 模式直达目标。
 
 | 项 | 当前实况 |
 |---|---|
@@ -52,7 +52,7 @@
 
 Card 223 本地交付与走查闭合（2026-10-15/16，OpenCode goal 模式）：按 `docs/design-prototypes/IMPLEMENTATION-PLAN.md`（VESSEL-UI-2026-02）把「玻璃视觉 + 四栏工作台/审阅台」的 **P1–P8 全量落地到 `apps/web`**（`.tokens` 玻璃令牌层 → 玻璃外壳 → `Rail.tsx` 58px 图标轨 + `58px 232px 1fr` 网格 + 300px 审阅栏（真实 8 Tab 检视器）→ `PlanChecklist.tsx` 常驻计划清单 → `ComposerMeters.tsx` 四胶囊 + 常驻计量 → 修丑点 → `FEATURE-COVERAGE.md` 的 B1–B18 逐条核对 → 全矩阵 64 张截图）。随后用 `browser-skill`（独立 Agent Window，未借用用户标签页）做真实浏览器功能走查，修复 5 处缺陷，含阻断级一处：**Vite 8 代理默认 `changeOrigin: true` 改写 Host，令后端 `trustedOrigin()` 判为跨域、拦掉所有带 Origin 的写请求（403）** → `vite.config.ts` 改 `changeOrigin: false`。门禁四门顺序 exit 0，双 Root **3,037 passed + 6 skipped / web 340 passed**，`packages/core` **零改动**。证据 `evidence/sessions/2026-10-15-ui-landing/`（`PROOF.md`、`gallery.html`、`bsk-functional/FINDINGS.md`）；未验证项：真实 provider 联网走查、移动端真机。
 
-Card 224 本地交付（2026-10-16 → 已升级至 **1.3.2-local**）：PDW `personal-dev-workflow` 由 1.0.0（`.agent-state` 控制器）适配为 1.3.1-local，随后升级到 **1.3.2-local**（完整 Skill 目录 + Node 运行器 + 项目级 `.pdw/` + 零安装入口 `pdw.ps1`）；`doctor` 实测 1.3.2-local，5 个角色全部 `ready`（scan/test-plan/review = OC + `workbuddy/deepseek-v4.1-flash`；implement = Codex `host-default`；planner = AGY `host-default`），包哈希逐项一致、`install` 防覆盖保护保持、夹具编排隔离 20/20；旧状态零改动并归档为 `evidence/pdw-migration-1.3.1/LEGACY-STATE.md`。迁移与回滚见 `evidence/pdw-migration-1.3.1/MIGRATION.md`（文件名仍带 1.3.1，内容对 1.3.x 同样适用）。**注意**：`AGENTS.md`（GPT-6.1 Sol / medium）与 `HANDOFF.md`（OC + DeepSeek-v4.1-Flash / high）的模型口径仍冲突，**待维护者拍板**。
+Card 224 本地交付（2026-10-16 → 已升级至 **1.3.2-local**）：PDW `personal-dev-workflow` 由 1.0.0（`.agent-state` 控制器）适配为 1.3.1-local，随后升级到 **1.3.2-local**（完整 Skill 目录 + Node 运行器 + 项目级 `.pdw/` + 零安装入口 `pdw.ps1`）；`doctor` 实测 1.3.2-local，5 个角色全部 `ready`（scan/test-plan/review = OC + `workbuddy/deepseek-v4.1-flash`；implement = Codex `host-default`；planner = AGY `host-default`），包哈希逐项一致、`install` 防覆盖保护保持、夹具编排隔离 20/20；旧状态零改动并归档为 `evidence/pdw-migration-1.3.1/LEGACY-STATE.md`。迁移与回滚见 `evidence/pdw-migration-1.3.1/MIGRATION.md`（文件名仍带 1.3.1，内容对 1.3.x 同样适用）。**模型口径已于 2026-10-24 定案、2026-10-25 改指 doctor**：角色与写权限以 `AGENTS.md`「执行角色与模型路由」为准，当前模型与档位以 `pwsh pdw.ps1 doctor` 的 `effective_model` 为准（实现 = Codex `gpt-6.1-sol`/medium，只读三角 = OC `commandcode/deepseek/deepseek-v4.1-flash` `#high`/`#max`，planner = OC 同款 `#high`）；本段 1.3.2 的 `workbuddy` / `agy` 细节只作历史对照。
 
 Card 222 本地交付与验收（2026-10-14，OpenCode goal 模式交付）：依据架构整改规范 ARC-10/ARC-11 与 UI 规范 UI-013/UI-015/UI-016/UI-017 一次性收官。契约层新增 `AgentInstanceSpec` / `TaskLease` / `TaskTreeNode` / `PermissionScope` 与单调收窄原语（`packages/shared/src/team.ts`）；`packages/application` 落地 `TaskTreeScheduler` 与 `TaskTreeRegistry`（依赖 DAG 就绪判定、租约 TTL 超时、父子取消级联、阻塞依赖取消、审批门禁、子结果归并、按**有效父作用域**逐级收窄），执行一律委托注入的 executor，**不存在第二套循环**；local-server 新增 `/api/tasks/tree`、`/api/activity/runs`、`/api/behavior/library`、`/api/behavior/compose`、`/api/sessions/:id/trace`；Web 新增团队任务树、跨项目活动与集中审批队列、交互式 Agent Studio Composer、结构化脱敏 Trace，全部中英双语 + 800px 响应式。ARC-11 交付故障注入四断点套件（对不可逆副作用计数永不复跑）、Behavior Golden Conformance（L0→L4 稳定性 / fail-to-compile / Verified 仅在有运行时证据时授予）、Compaction 100% 守恒断言。门禁：四门顺序 exit 0，双 Root **3,356 passed / 6 skipped** 全绿，`packages/core` 行修改 **0**，锁文件与 `package.json` 未变；离线 Chromium + CDP 实拍 8 张（中/英 × 桌面/800px）并存 `browser-capture-meta.json`。证据 `evidence/sessions/2026-10-14-card222/PROOF.md`（含 `REVIEW.md` 对抗评审与「不宣称」清单）。
 
@@ -181,7 +181,7 @@ git status -sb         # 应为干净（出现未提交改动 → 先问维护�
 npm ci                 # 依赖与锁文件一致；随后可跑 §4 的完整门禁
 ```
 
-> **执行模型约定**：当前开发主力模型锁定为 Codex（**GPT-6.1 Sol**，思考深度为二级 `reasoning.effort: medium`，共 5 级：`none`/`low`/`medium`/`high`/`xhigh`）。后续若切换模型维护者会显式说明，未说明前恒以本配置执行，无需重复询问确认。微小任务可切 `low`，攻坚任务可尝试更高等级；依据见 `AGENTS.md` 模型选型规约与 [OpenAI 官方选型指南](https://developers.openai.com/api/docs/guides/model-selection)。
+> **执行模型约定**：角色与写权限见 `AGENTS.md`「执行角色与模型路由」；当前模型与档位以 `pwsh pdw.ps1 doctor` 的 `effective_model`（Codex 角色的档位看并列的 `reasoning_effort`）为唯一事实源，协调者用哪个模型不锁定。截至 2026-10-25 实测：实现角色为 Codex `gpt-6.1-sol` / `medium`，只读角色为 OC `commandcode/deepseek/deepseek-v4.1-flash`（`#high` / `#max`）。
 > 若你要替换维护者的角色继续用 CLI 之外的 provider，注意**本仓不发布版本**，也不要顺手引入 pnpm/bun/yarn 锁文件（决策点 19）。
 
 1. 本文件（现状 + 未完成清单）。

@@ -11,7 +11,11 @@
  * machine path in this program.
  *
  * Usage:
- *   node <skill>/scripts/update.mjs [--project <dir>] [--source <url>] [--ref <branch>] [--dry-run] [--json]
+ *   node <skill>/scripts/update.mjs [--project <dir>] [--source <url>] [--ref <branch>] [--mirror <dir>] [--dry-run] [--json]
+ *
+ * `--mirror <dir>` additionally brings a second copy of the skill (for example a shared
+ * agent skill root) to the same bytes. The mirror must already exist and must not contain,
+ * or be contained by, the installed skill; files the published copy does not ship are kept.
  *
  * Exit codes: 0 current or updated (doctor passed), 1 failure. Nothing is left half
  * applied: every file is written through a temporary name and renamed into place.
@@ -124,7 +128,7 @@ function main(argv) {
   const dryRun = take('--dry-run') || take('--check');
   const jsonOnly = take('--json');
   const projectFlag = flag('--project'), sourceFlag = flag('--source'), refFlag = flag('--ref');
-  const skillPathFlag = flag('--skill-path');
+  const skillPathFlag = flag('--skill-path'), mirrorFlag = flag('--mirror');
   if (args.length) throw new Error(`Unknown argument: ${args.join(' ')}`);
 
   const front = frontmatter(path.join(skillRoot, 'SKILL.md'));
@@ -136,6 +140,13 @@ function main(argv) {
   const project = projectRoot(projectFlag);
   const report = line => { if (!jsonOnly) console.log(line); };
   const configNote = 'Skill files only: model, reasoning depth, limits and prompt_guidance are project settings; show a diff and wait for explicit user confirmation before changing them.';
+  const mirrorRoot = mirrorFlag ? path.resolve(mirrorFlag) : null;
+  if (mirrorRoot) {
+    if (sameDirectory(mirrorRoot, skillRoot)) throw new Error('--mirror must not be the installed skill directory');
+    if (inside(skillRoot, mirrorRoot) || inside(mirrorRoot, skillRoot)) throw new Error('--mirror and the installed skill must not contain one another');
+    if (!fs.existsSync(mirrorRoot)) throw new Error(`Mirror directory not found: ${mirrorRoot}; create it before updating`);
+    if (!fs.statSync(mirrorRoot).isDirectory()) throw new Error(`Mirror path is not a directory: ${mirrorRoot}`);
+  }
 
   if (!source) throw new Error('No source: SKILL.md metadata.repository is missing; pass --source <git-url>');
 
@@ -151,24 +162,55 @@ function main(argv) {
   }
   const fetched = path.join(cache, 'source', skillPath);
   const remote = new Map(walk(fetched).map(name => [name, hash(fs.readFileSync(path.join(fetched, name)))]));
+  // The mirror is compared against the published bytes, not against the local copy, so a stale
+  // mirror is repaired even when the installed skill is already current.
+  const mirrorFiles = mirrorRoot ? new Map(walk(mirrorRoot).map(name => [name, hash(fs.readFileSync(path.join(mirrorRoot, name)))])) : null;
+  const mirrorPending = mirrorRoot ? [...remote.keys()].filter(name => mirrorFiles.get(name) !== remote.get(name)) : [];
+  const mirrorKept = mirrorRoot ? [...mirrorFiles.keys()].filter(name => !remote.has(name)) : [];
 
   const changed = [...remote.keys()].filter(name => local.has(name) && local.get(name) !== remote.get(name));
   const added = [...remote.keys()].filter(name => !local.has(name));
   const stale = [...local.keys()].filter(name => !remote.has(name));
   const current = changed.length === 0 && added.length === 0;
   const summary = { updated: false, version, source, ref, skill_path: skillPath, skill_root: skillRoot, project,
-    files: { total: remote.size, changed, added, stale_kept: stale }, backup: null, cache, doctor: null, note: configNote };
+    files: { total: remote.size, changed, added, stale_kept: stale }, mirror: null, backup: null, cache, doctor: null, note: configNote };
+
+  /** Bring the optional second copy to the published bytes; never deletes mirror-only files. */
+  const syncMirror = () => {
+    if (!mirrorRoot || !mirrorPending.length) return null;
+    const result = { root: mirrorRoot, updated: [...mirrorPending], kept: [...mirrorKept], backup: null, dry_run: dryRun };
+    if (dryRun) return result;
+    const backup = backupDirectory(project, `${version}-mirror`);
+    for (const name of mirrorFiles.keys()) writeFile(path.join(backup, name), fs.readFileSync(path.join(mirrorRoot, name)));
+    for (const name of mirrorPending) {
+      const target = path.resolve(mirrorRoot, name);
+      if (!inside(mirrorRoot, target)) throw new Error(`Refusing to write outside the mirror: ${name}`);
+      writeFile(target, fs.readFileSync(path.join(fetched, name)));
+    }
+    result.backup = backup;
+    return result;
+  };
+  const reportMirror = mirror => {
+    if (!mirror) return;
+    if (mirror.dry_run) report(`Mirror ${mirror.root}: ${mirror.updated.length} file(s) would be written.`);
+    else report(`Mirror ${mirror.root}: ${mirror.updated.length} file(s) written; backup ${mirror.backup}`);
+    if (mirror.kept.length) report(`Mirror keeps ${mirror.kept.length} file(s) the published copy does not ship: ${mirror.kept.join(', ')}`);
+  };
 
   if (current) {
     report(`personal-dev-workflow ${version} is already current (${source} ${ref}); nothing changed.`);
     report(configNote);
     if (stale.length) report(`Kept ${stale.length} local file(s) the published copy no longer ships: ${stale.join(', ')}`);
+    summary.mirror = syncMirror();
+    reportMirror(summary.mirror);
     console.log(JSON.stringify(summary));
     return;
   }
   report(`Update available: ${changed.length} changed, ${added.length} added (${source} ${ref}).`);
   if (dryRun) {
     report('Dry run: nothing was written. Drop --dry-run to update.');
+    summary.mirror = syncMirror();
+    reportMirror(summary.mirror);
     console.log(JSON.stringify(summary));
     return;
   }
@@ -182,9 +224,11 @@ function main(argv) {
   }
   summary.updated = true;
   summary.backup = backup;
+  summary.mirror = syncMirror();
   report(`Updated personal-dev-workflow ${version}: ${changed.length} changed, ${added.length} added.`);
   report(`Backup: ${backup}`);
   if (stale.length) report(`Kept ${stale.length} local file(s) the published copy no longer ships: ${stale.join(', ')}`);
+  reportMirror(summary.mirror);
   report(configNote);
 
   const doctor = spawnSync(process.execPath, [path.join(skillRoot, 'scripts', 'pdw.mjs'), 'doctor', '--project', project], { encoding: 'utf8', windowsHide: true, timeout: 120000 });

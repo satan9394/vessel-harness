@@ -4,6 +4,9 @@
 > 纯本地、未提交、未推送、未发布、未改全局配置、未永久删除任何文件。
 > 旧状态存档与续接台账见 [`LEGACY-STATE.md`](LEGACY-STATE.md)；原始证据见 `validation/`、`backup/`。
 
+> **历史记录（2026-10-24 标注）**：本文是 1.3.1 时代的交接，§配置决策 里的 `workbuddy`、宿主默认 model、`planner = agy` 均已过期，技能现为 `1.3.3-local`。
+> 当前路由与档位看 `AGENTS.md`「执行角色与模型路由（PDW）」与 `pwsh pdw.ps1 doctor`；本文的启动与回滚步骤仍然有效。
+
 ## 1. 结论
 
 - 适配**完成**；当前生效版本 **1.3.1-local**（`SKILL.md` 正文标注 `版本：1.3.1-local`）。

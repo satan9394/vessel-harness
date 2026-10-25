@@ -154,14 +154,17 @@ function configFor(root) {
   return config;
 }
 
-function detectCheapModel() {
+export function detectCheapModel() {
   const file = path.join(process.env.USERPROFILE ?? process.env.HOME ?? '', '.config', 'opencode', 'opencode.json');
   if (!fs.existsSync(file)) return null;
   try {
     const config = read(file);
     if (typeof config.model === 'string' && /deepseek.*flash/i.test(config.model)) return config.model;
-    for (const provider of ['workbuddy', ...Object.keys(config.provider ?? {}).filter(p => p !== 'workbuddy')]) {
-      const model = Object.keys(config.provider?.[provider]?.models ?? {}).find(m => /deepseek.*v4[.-]1.*flash/i.test(m));
+    // OpenCode v2 writes `providers` (plural); v1 wrote `provider`. Read both, never silently skip v2.
+    const providers = config.providers ?? config.provider ?? {};
+    if (!providers || typeof providers !== 'object' || Array.isArray(providers)) return null;
+    for (const provider of ['workbuddy', ...Object.keys(providers).filter(p => p !== 'workbuddy')]) {
+      const model = Object.keys(providers?.[provider]?.models ?? {}).find(m => /deepseek.*v4[.-]1.*flash/i.test(m));
       if (model) return `${provider}/${model}`;
     }
   } catch { /* JSONC/custom config: require an explicit project model instead. */ }
