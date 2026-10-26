@@ -23,7 +23,7 @@ magpie 值得吸收的是**「供应商/账号/模型是三层数据 + 用量按
 | 预设与模型目录 | `internal/catalog/catalog.go`：`Model` 带 `Price`/`Efforts`/`APIs`/`Keys`，来源 models.dev + 厂商实时列表 | 预设带 `settingsConfig` 模板 + `templateValues`，约 641 条（10 个 app 文件重复） | 真源 `packages/application/src/providers/presets.data.ts`；Web 使用 `presets.generated.ts`，`presetsData.ts` 为薄壳（T316） |
 | 供应商数据模型 | `internal/provider/provider.go`：`Provider` 含 `Was`/`Gave`（重命名历史）、`Preset`、`Key`、`AccessKeyID`；另有 `Group`/`Order` | `providers` 表（id+app_type）+ `provider_endpoints` + `provider_health` + `ProviderMeta` | `apps/cli/src/providers/ProviderStore.ts`（`~/.vessel/providers.json`）+ `secretRef`；端点已有 `vessel provider endpoint` 子命令 |
 | 端点与容灾 | 账户/端点级 failover + `allowance_*` 系列（池化、最满、最近续期） | `endpointCandidates` + 测速自动选优 + `in_failover_queue` | 有端点候选与 `endpoint test`，已支持同一供应商内的运行时端点失败转移（T321）；无跨供应商失败转移或配额路由 |
-| 切换与 profile | `magpie save work && magpie use work`（整套 agent 配置快照） | `profiles` 表（供应商/MCP/Skills/Prompt 分槽快照） | 只有当前供应商单值（`vessel provider switch`），无快照 |
+| 切换与 profile | `magpie save work && magpie use work`（整套 agent 配置快照） | `profiles` 表（供应商/MCP/Skills/Prompt 分槽快照） | 已有 profile 快照（独立文件 + HTTP API，T325），无跨供应商失败转移或配额路由 |
 | 用量与成本 | `internal/usage/usage.go`：`Record`（`provider`/`host`/`providerKeyId`/`account`）+ `Totals`（`calls/errors/retried/loops/input/output/cache_read/cache_write`） | 明细 `proxy_request_logs` + 日汇 `usage_daily_rollups` + 会话回填 + 去重账本 + `input_token_semantics` 落库 | `apps/cli/src/usage/UsageStore.ts`：键 `provider::model`，已含 `costUsd`/`cacheRead`/`cacheWritePriceSource`；已有按供应商聚合视图（T317/T318）与 input token 口径记录（T320） |
 | 路由与配额 | `internal/routes/strategies.go`（`smart`/`order`/`rotate`/`usage`/`pace`）+ `internal/budget/budget.go`（窗口、在途预留、多窗口） | 无路由；失败转移队列 | 无路由组、无配额窗口；`packages/llm` 只有能力协商 |
 
@@ -59,12 +59,11 @@ magpie 值得吸收的是**「供应商/账号/模型是三层数据 + 用量按
 - 改动量：1–2 人日（要定「哪些错误算可转移」）。
 - 验收信号：注入一个必然失败的端点后，请求落到第二候选且审计留痕；全部失败时错误与现在一致。
 
-### P1-3 供应商快照（profile）
+### P1-3 供应商快照（profile）— 已吸收（T325）
 
-- 解决什么：切供应商只能单值切换，没法「工作日用 A、周末用 B」整套切换。
-- 落点：`apps/cli/src/providers/ProviderStore.ts` 增加命名快照（只存 provider id + model 选择），`vessel provider profile save|use|list`。
-- 改动量：1 人日。
-- 验收信号：保存两份快照后 `use` 能完整还原；快照里引用的供应商被删除时给明确错误。
+- 落点：`apps/local-server/src/providers/ProviderStore.ts`，独立文件 `~/.vessel/provider-profiles.json`，只存 provider id 与可选 model/baseUrl/label，不存凭据或端点池。
+- 入口：四条 profile HTTP API；CLI `vessel provider profile list|save|use|delete`（T327）与 Web 列表/启用（T328）。
+- 验收信号：同名覆盖、排序列表、只覆盖给定字段；供应商被删除时报悬空，损坏文件显式报错，`providers.json` 保持裸数组。
 
 ### P2-1 值守卫式价目修复（cc-switch 的做法）
 
@@ -73,12 +72,11 @@ magpie 值得吸收的是**「供应商/账号/模型是三层数据 + 用量按
 - 改动量：0.5 人日。
 - 验收信号：用户改过的行在版本升级后保持；未改过的行被修到新价。
 
-### P2-2 从 cc-switch 导入供应商
+### P2-2 从 cc-switch 导入供应商 — 已吸收（T324，仅从用户导出文件导入）
 
-- 解决什么：已经有 cc-switch 的用户要重配一遍。
-- 落点：`apps/cli/src/providers/` 新增只读导入器（解析 cc-switch 的 `providers` 表导出或配置文件），冲突默认跳过。
-- 改动量：1 人日。
-- 验收信号：导入 N 条后条目数正确、同名跳过并报告、`secretRef` 语义不被破坏。
+- 落点：`apps/cli/src/providers/ccSwitchImport.ts`，`vessel provider import --from <file>` 只读用户指定的 JSON 导出，不读数据库、不写回。
+- 默认 dry-run，`--yes` 才写盘；同名跳过，`--prefix` 可并存；key 经 CredentialStore 入库，配置只留 `secretRef`。
+- 验收信号：预览无写入、冲突跳过与前缀可测，输出不泄密，详见 `docs/PROVIDER-MANAGEMENT.md` §3.4。
 
 ---
 
@@ -103,4 +101,5 @@ magpie 值得吸收的是**「供应商/账号/模型是三层数据 + 用量按
 
 - **已吸收（T320）**：`input_token_semantics` 口径落库，见 `apps/cli/src/usage/UsageStore.ts` 与 `packages/shared/src/cacheMetrics.ts`。
 - **已吸收（T321）**：同一供应商运行时端点失败转移，见 `apps/cli/src/providers/providerFactory.ts`；不扩展为跨供应商 failover 或配额路由。
-- **尚未实现，留待后续**：profile 快照（P1-3）、价目值守卫（P2-1）、cc-switch 配置导入（P2-2）。
+- **已吸收（T325 / T324）**：profile 独立文件快照（P1-3）与用户导出文件导入（P2-2），详见 §3。
+- **尚未实现，留待后续**：价目值守卫（P2-1）、跨供应商 failover、配额感知路由、profile 自动同步。

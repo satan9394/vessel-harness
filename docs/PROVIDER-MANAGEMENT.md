@@ -191,6 +191,50 @@ vessel run --prompt "ping"
   现在显式注入临时 `VESSEL_PROVIDER_ROOT`（provider 状态根，`secrets.json` 同根）+ `VESSEL_USAGE_ROOT`，
   默认 store 的根目录由 `providerStateRoot()` 断言。把默认 provider 切成真实供应商后这两个文件仍全绿。
 
+## 3.4 从 cc-switch 导出导入
+
+```powershell
+vessel provider import --from <file> [--dry-run] [--yes] [--prefix p] [--json]
+```
+
+- 只读取显式指定的 JSON 导出文件（数组或 `{ providers: [...] }`），不读 cc-switch 数据库、不写回 cc-switch。
+- 默认 dry-run 预览；只有 `--yes` 才写盘，同时传 `--dry-run` 仍只预览。
+- key 只经 `CredentialStore` 存储，`providers.json` 只留 `secretRef`，不写明文 key。
+- 已存在 id 默认跳过；`--prefix p` 给导入 id 加前缀，便于保留两份配置。
+- `--json` 输出预览/写入结果及跳过、缺 key、不可识别条目的摘要，不输出 key。
+
+## 3.5 供应商 profile 快照
+
+- 独立存于 `~/.vessel/provider-profiles.json`；`providers.json` 仍是裸数组，形态不变。
+- 文件形状：`{ "version": 1, "profiles": { "name": { "provider": "id", "model"?: "m", "baseUrl"?: "u", "label"?: "text" } } }`（`?` 表示可选字段）。
+- 不存凭据、不复制端点池；只引用已存在的 provider，`label` 仅用于展示。
+- 文件缺失读为空且不创建；损坏显式报错；写入采用临时文件 + 原子 rename。
+- `GET /api/providers/profiles` → 200 `{ profiles: [...] }`，空列表也返回 200。
+- `POST /api/providers/profiles` 接收 `{ name, provider, model?, baseUrl?, label? }` → 201 `{ profile }`；非法 body/name/provider → 400。
+- `POST /api/providers/profiles/:name/use` → 200 `{ provider }`（常规脱敏 DTO）；未知 name → 404 `unknown_profile`。
+- `DELETE /api/providers/profiles/:name` → 200 `{ ok: true }`；未知 name → 404 `unknown_profile`；非法名称等校验失败 → 400。
+- `use` 选择引用的供应商，只覆盖给定的 `model`/`baseUrl`，未给字段保留；provider 被删后报 400 `dangling_profile_provider`，不自动创建。
+- CLI：`vessel provider profile list [--json]`、`save <name> --provider <id> [--model m] [--base-url u] [--label text]`、`use <name> [--json]`、`delete <name>`；同名保存覆盖，删除幂等。Web Profiles 区块只列出和启用快照。
+
+## 3.6 删除与悬空保护
+
+`vessel provider rm <id>` 默认拒绝删除被 profile 引用的供应商，列出引用名称并提示 `--force`，退出码为 2。使用 `vessel provider rm <id> --force` 时，先级联删除引用它的 profile，再删除供应商，并列出删除的 profile；没有引用时可直接删除。若外部改动造成引用悬空，启用该 profile 会报 `dangling_profile_provider`。
+
+## 3.7 用量导出
+
+`vessel usage --csv` 按 provider 和 model 导出用量，字段顺序如下：
+
+| 字段 | 含义 |
+|---|---|
+| `provider`, `model` | 供应商和模型 |
+| `calls` | 调用次数 |
+| `input_tokens`, `output_tokens` | 输入、输出 token 数 |
+| `cache_read_tokens`, `cache_creation_tokens` | 缓存读取、创建 token 数 |
+| `cost_usd` | 美元成本，保留六位小数 |
+| `estimated` | 成本是否为估算 |
+
+无记录时仅输出表头；`--csv` 与 `--json` 互斥，同时使用退出码为 2。
+
 ## 4. 模型拉取（vessel models）行为
 
 | 供应商协议 | 行为 |
@@ -306,4 +350,4 @@ Successful saved-provider discovery records model IDs, last verification/attempt
 
 吸收了 magpie 的「用量按 provider×model 落账」思路与 cc-switch 的「预设单一真源」；**不吸收**本地网关（127.0.0.1:3425 多协议翻译）、订阅 OAuth 账号复用、明文 key 落盘、中间件插件体系、自动账号发现。理由与逐项对照见 `docs/MAGPIE-ABSORPTION.md`。
 
-当前支持同一供应商内的候选端点失败转移（§3.2.1）；当前**尚未**支持：跨供应商 failover、配额感知路由、配额窗口、profile 快照、cc-switch 配置导入。
+当前支持同一供应商内的候选端点失败转移（§3.2.1）、独立文件 profile 快照（§3.5）和从用户导出文件导入 cc-switch 配置（§3.4）；当前**尚未**支持：跨供应商 failover、配额感知路由、配额窗口、profile 自动同步。

@@ -17,15 +17,17 @@ PDW 关联：首行状态行下加 `- PDW task: <id>`（未启动写 `none`）�
 
 | 本地交付 | 状态 | 任务卡 |
 |---|---|---|
-| PDW 项目级迭代 (卡 333) | 待执行（需用户确认）：`gate-batched.ps1`、`docs/PDW-LOCAL.md`、技能三处本地改动、`prompt_guidance` diff | [333](333-pdw-local-iteration.md) |
-| 执行编排 (卡 334) | 待执行：T333 → 基线 → 四道并行 Codex → 16 步门禁与提交 → PDW 复核 | [334](334-execution-order.md) |
-| Codex 四道计划 (卡 332) | 待执行：L1/L2 Sol medium、L3/L4 Terra low、L5 Terra medium | [332](332-codex-lanes-plan.md) |
-| 模型选型表 (卡 331) | 已完成：AGENTS.md 增六行映射 + 四条细则 + 官方来源 | [331](331-model-routing-playbook.md) |
-| profile 快照 (卡 325) | 执行中：store + routes 半成品已在工作树（编译干净），待补 `server.ts` 四条路由与测试 | [325](325-provider-profiles.md) |
-| CLI profile 命令 (卡 327) | 待执行（依赖 325） | [327](327-cli-profile-commands.md) |
-| Web profile 区块 (卡 328) | 待执行（依赖 325 的 API） | [328](328-web-profile-ui.md) |
-| 文档收口 (卡 326) | 待执行（依赖 325/324 落地） | [326](326-provider-docs-final.md) |
-| 用量最近调用 (卡 329) | 待执行（`byProvider.lastTs` + Web 展示） | [329](329-usage-last-called.md) |
+| PDW 项目级迭代 (卡 333) | 已完成：`gate-batched.ps1`、`docs/PDW-LOCAL.md`、技能两处本地节、`.pdw/skill-local-changes.md`、三条 `prompt_guidance` | [333](333-pdw-local-iteration.md) |
+| 执行编排 (卡 334) | 第 1–4 步完成（PDW 迭代 → 基线 → 六道 Codex → 17 步门禁 → 提交）；第 5 步 PDW 只读复核待跑 | [334](334-execution-order.md) |
+| Codex 六道计划 (卡 332) | 已完成：L1/L2 Sol medium、L3/L4 Terra low、L5 Terra medium，另加 L4b/L4c 两条修复道 | [332](332-codex-lanes-plan.md) |
+| 模型选型表 (卡 331) | 已完成：AGENTS.md 六行映射 + 四条细则 + 官方来源 | [331](331-model-routing-playbook.md) |
+| profile 快照 (卡 325) | 已完成：独立 `provider-profiles.json` + store/HTTP/CLI/Web，四条 API 与 400/404 分支有测试 | [325](325-provider-profiles.md) |
+| CLI profile 命令 (卡 327) | 已完成：list/save/use/delete/rename；delete 回执对齐 HTTP `{ok:true}` | [327](327-cli-profile-commands.md) |
+| Web profile 区块 (卡 328) | 已完成：Profiles 列表 + 一键启用 + 空态与失败隔离 | [328](328-web-profile-ui.md) |
+| 文档收口 (卡 326) | 已完成：§3.4 导入 / §3.5 profile / §3.6 删除保护 / §3.7 CSV + ARCHITECTURE + MAGPIE 表 | [326](326-provider-docs-final.md) |
+| 用量最近调用 (卡 329) | 已完成：`byProvider.lastTs/models/inputTokenSemantics` + Web 相对时间与 Top3 与口径 | [329](329-usage-last-called.md) |
+| 并行道产物 (卡 335) | 已收口：L3 修掉导入丢字段；L4 一致性缺陷由 L4b 修复；L4c 修 server.test 悬空夹具 | [335](335-lane-followups.md) |
+| 批次入口 (卡 330) | 已完成：13 段全部落地，门禁 17 步全绿 | [330](330-codex-round2-batch.md) |
 | 补审修复 (卡 322) | 已完成（PDW `20261026160547-bc5263`）：daemon 注入 usageByProvider、MAGPIE 文档三处失真、`check:web-presets` | [322](322-audit-fixes.md) |
 | 值守卫价目 (卡 323) | 核实为已具备：`vessel pricing override repair` 的 applied / skipped-user-modified / skipped-absent 三态，未改代码 | [323](323-pricing-value-guard.md) |
 | cc-switch 导入 (卡 324) | 已完成（PDW `20261026163022-458501`）：`provider import --from`，默认 dry-run、key 只进 secretRef、已存在跳过、`--prefix` 并存 | [324](324-ccswitch-import.md) |

@@ -285,6 +285,8 @@ L4  Prompt Compiler（组装）                                    → 归属 co
 
 Provider 差异全部下沉此层，不进事件面（D3 决策点 13 影响）。**✗**：多供应商模板并行不做；Gemini/DeepSeek/Qwen 完整 profile 树 v0.2。
 
+供应商配置的 profile 快照由 `apps/local-server/src/providers/ProviderStore.ts` 存于独立文件 `~/.vessel/provider-profiles.json`，不参与凭据解析，也不复制端点池（区别于上表的 L2 Model Profile）。
+
 ### 4.3 behavior/ —— 行为层（✓，项目核心创新一）
 
 | 子模块 | 职责 | 对外接口 | 依赖 |
