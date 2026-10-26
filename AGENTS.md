@@ -64,6 +64,26 @@
 
 - **档位词表按后端分列，以模型声明的 `variants` 为准**（`opencode debug config` 可查）：DeepSeek V4.1 Flash 实测 `low/high/max/off`，写 `medium` 不会变成中等思考；GPT-6.1 Sol 实测 `low/medium/high/xhigh/max/ultra`。换模型后重新核对，不沿用旧结论。
 - **`ultra` 不是「更深一档的单代理思考」**：Codex 应用里它表示**协调并行子代理**。因此走 Codex 应用（不走 PDW）时，执行单必须写死「**同一文件同一时刻只允许一个写者**」，并行只用于只读探索与跑测试；段与段之间用验证命令做闸门（上一段没绿不许开下一段）。PDW 的 `implement` 仍是串行单代理，保持 `medium`。
+
+### 模型与档位选型表（派活前必须查，不等用户提醒）
+
+来源（2026-10-26 核对，规则更新时同步复核）：[模型选择](https://developers.openai.com/api/docs/guides/model-selection)、[GPT-6.1 Sol 提示指导](https://developers.openai.com/api/docs/guides/latest-model?model=gpt-6.1-sol)、[减少过度提示](https://developers.openai.com/blog/rethinking-skills-and-prompts-for-gpt-6-astra)、[Codex 运行配置](https://learn.chatgpt.com/docs/developer-settings)。
+
+| 任务性质（官方原文关键词） | 模型 ID | 档位 | 备注 |
+|---|---|---|---|
+| 细粒度改动、边界清晰的小修（`fine-grained edits, well-scoped`） | `gpt-6-luna` | `low` | 最省；不支持 Ultra |
+| 基于给定材料的写作、有明确结果的小改动（`concise writing based on supplied material` / `scoped code fixes`） | `gpt-6.1-terra` | `low`–`medium` | 文档、单文件 UI 文案、纯测试 |
+| 多文件、需要协调、预期会返工的复杂技术工作（`complex technical work and coordinated deliverables you expect to revise`） | `gpt-6.1-sol` | `medium` | **默认主力** |
+| 需要打磨成品、证据冲突时要拍板（`polished deliverables / decisions built from conflicting evidence`） | `gpt-6.1-sol` | `xhigh` | 首轮红了才升，不预先升 |
+| 质量优先、成本与延迟不敏感（`most powerful`） | `gpt-6-astra` | `medium` | 最后手段，不当默认 |
+| 需要并行子代理且**文件集互不重叠**（Codex 应用/CLI 的 Ultra） | `gpt-6.1-sol` | `ultra` | 有共享文件时禁用；改串行或拆道 |
+
+执行细则：
+
+- **新模型先探测**：本机首次使用某个 ID 前先跑一次 `codex exec -m <id> "print OK"`，确认可用；档位不被接受就退回该模型默认档，**不猜参数**。
+- **每条派活记录三件事**：模型 ID、档位、依据（上表哪一行）。写进卡或任务日志，复核时对照；不许「凭感觉选」。
+- **升级阶梯**：`medium` → `xhigh`（同模型）→ 换 `gpt-6-astra`；每升一级必须先有失败证据（具体红掉的命令），不许预防性升档。
+- **Fast（`service_tier`）默认关**：只有用户当次明确要求才开；开与关都记进卡。
 - **加一个供应商**：在 `~/.config/opencode/opencode.json` 的 `providers`（v2 是复数，v1 才是 `provider`）里配好 `models` / `variants`，角色值写 `<provider>/<model-id>`。三个坑：密钥在 `settings.apiKey`，`opencode auth list` 看不见，目录里有不等于能用；`variants` 不一定包含你要的档位；model id 可能自带 `/`，值里会出现两个斜杠。改完跑 `doctor` 再做一次真实任务。
 - **迭代口径**：改"选择"（哪个模型、开不开 planner、限额）→ 只改 `.pdw/config.json`；改"机制"（加 backend、加目录发现、改证据规则）→ 走上游 `satan9394/personal-dev-workflow`，不在项目副本打补丁；9 个技能文件永不在项目内分叉（`update.mjs` 逐字节覆盖，改了也留不住）。版本号不是身份，只认 sha256。
 - **Codex 提示规约（仅 `implement` / `repair`）**：接口契约先行，用标题 / XML 标签 / 代码块隔离上下文与禁止项；不注入 "think step by step"、不写大段角色扮演；稳定契约放 Prompt 前部以复用前缀缓存。
