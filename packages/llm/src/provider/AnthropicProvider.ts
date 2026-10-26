@@ -408,7 +408,7 @@ export class AnthropicProvider implements ChatProvider {
 
     if (!resp.ok) {
       const text = await resp.text().catch(() => '');
-      throw new Error(`Anthropic ${resp.status} ${resp.statusText}: ${sanitizeErrorBody(text)}`);
+      throw Object.assign(new Error(`Anthropic ${resp.status} ${resp.statusText}: ${sanitizeErrorBody(text)}`), { status: resp.status });
     }
 
     const data = (await resp.json()) as AnthropicResponseBody;
@@ -546,7 +546,7 @@ export class AnthropicProvider implements ChatProvider {
 
       if (!resp.ok) {
         const text = await resp.text().catch(() => '');
-        throw new Error(`Anthropic ${resp.status} ${resp.statusText}: ${sanitizeErrorBody(text)}`);
+        throw Object.assign(new Error(`Anthropic ${resp.status} ${resp.statusText}: ${sanitizeErrorBody(text)}`), { status: resp.status });
       }
 
       const rbody = resp.body;

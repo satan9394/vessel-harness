@@ -1,5 +1,8 @@
+import { randomUUID } from 'node:crypto';
 import {
   createProvider,
+  EndpointFailoverProvider,
+  type EndpointSwitch,
   providerNameForConfig,
   opencodeGoErrorHint,
   opencodeGoKindFromMessage,
@@ -35,6 +38,7 @@ export const REAL_PROVIDER_NAMES: ReadonlySet<string> = new Set<string>([
 
 /** 已存供应商配置的最小面（ProviderStore.ProviderConfig 的子集）。 */
 export interface ProviderPlanConfig {
+  endpoints?: { url: string; label?: string }[];
   modelCapabilities?: Record<string, ProviderCapabilities>;
   id?: string;
   protocol?: string;
@@ -44,6 +48,8 @@ export interface ProviderPlanConfig {
 }
 
 export interface ProviderPlanInput {
+  /** Presence of an override, even when env parsing discarded a blank value. */
+  baseUrlExplicit?: boolean;
   /** 已存供应商配置（有则以其 id/protocol 决定 provider 名） */
   config?: ProviderPlanConfig;
   /** 显式 --provider（无配置时用它决定 provider 名） */
@@ -56,6 +62,7 @@ export interface ProviderPlanInput {
 
 /** 解析结果：给 `createProvider` 用的 provider 名 + 端点参数。 */
 export interface ProviderPlan {
+  endpoints?: string[];
   modelCapabilities?: Record<string, ProviderCapabilities>;
   /** provider 名（可能是 `opencode-go`；mock 为 'mock'） */
   providerName: string;
@@ -111,6 +118,7 @@ export function planProvider(input: ProviderPlanInput): ProviderPlan {
   return {
     providerName,
     baseUrl,
+    ...candidateEndpoints(input, baseUrl),
     ...(input.config?.modelCapabilities && baseUrl === input.config.baseUrl && providerName === providerNameForConfig(input.config)
       ? { modelCapabilities: input.config.modelCapabilities } : {}),
     apiKey: input.apiKey ?? input.config?.apiKey,
@@ -118,6 +126,19 @@ export function planProvider(input: ProviderPlanInput): ProviderPlan {
     model: unsetIfBlank(input.model) ?? unsetIfBlank(input.config?.model) ?? 'mock-model',
     real: REAL_PROVIDER_NAMES.has(providerName),
   };
+}
+
+/** Keep the actual endpoint first and preserve first occurrence spelling. */
+function candidateEndpoints(input: ProviderPlanInput, baseUrl: string | undefined): { endpoints?: string[] } {
+  if (input.baseUrl !== undefined || input.baseUrlExplicit || !baseUrl || !input.config?.endpoints?.length) return {};
+  const seen = new Set<string>();
+  const endpoints = [baseUrl, ...input.config.endpoints.map(endpoint => endpoint.url)].filter(url => {
+    const key = url.replace(/\/+$/, '');
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+  return endpoints.length >= 2 ? { endpoints } : {};
 }
 
 /** plan 的 baseUrl 是否缺失（调用方据此给出 `--base-url` 提示并退出）。 */
@@ -131,16 +152,20 @@ export function missingBaseUrl(plan: ProviderPlan): boolean {
  * `sessionId`：opencode-go 的会话 id（同一会话稳定）。TUI 一个会话生成一次，
  * 于是同会话内换模型/重建 harness 仍复用同一个 `x-opencode-session`；省略则每次构造一个新 UUID。
  */
-export function buildRealProvider(plan: ProviderPlan, opts: { sessionId?: string } = {}): ChatProvider | null {
+export function buildRealProvider(plan: ProviderPlan, opts: { sessionId?: string; onEndpointSwitch?: EndpointSwitch } = {}): ChatProvider | null {
   if (!plan.real) return null;
   if (!plan.baseUrl) throw new Error(`${plan.providerName} 需要 base-url（--base-url / VESSEL_BASE_URL / vessel provider add）`);
-  return createProvider(plan.providerName, {
-    baseUrl: plan.baseUrl,
+  const sessionId = opts.sessionId ?? (plan.endpoints && plan.providerName === OPENCODE_GO_PROVIDER_ID ? randomUUID() : undefined);
+  const create = (baseUrl: string) => createProvider(plan.providerName, {
+    baseUrl,
     apiKey: plan.apiKey,
     model: plan.model,
     modelCapabilities: plan.modelCapabilities,
-    ...(opts.sessionId ? { sessionId: opts.sessionId } : {}),
+    ...(sessionId ? { sessionId } : {}),
+    ...(plan.endpoints ? { maxAttempts: 1 } : {}),
   });
+  if (!plan.endpoints) return create(plan.baseUrl);
+  return new EndpointFailoverProvider(plan.endpoints.map(url => ({ url, provider: create(url) })), opts.onEndpointSwitch);
 }
 
 /**

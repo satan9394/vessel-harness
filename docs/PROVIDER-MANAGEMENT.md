@@ -147,6 +147,18 @@ vessel provider endpoint test ds --timeout 5000                   # 单端点超
 - 结果形状：`{url, label?, probeUrl, reachable, ok, status?, latencyMs, error?}`；排序为「2xx/3xx 优先 → 可达但需鉴权 → 不可达」，同档按延迟升序。
 - **只给建议**：默认只打印建议（`建议：<url>（最快可达，123ms）——仅建议，未改动默认端点。`），**绝不自动改 baseUrl**；只有显式 `--set-default` 才把 baseUrl 改成建议端点（且要求单个 id，`--all --set-default` 直接拒绝）。**全部不可达 → exit 1，配置不变**（单供应商模式）。**`--all` 模式（Round 130 改准）**：**逐供应商**判定——**任一所测供应商的全部端点都不可达即 exit 1 并点名该供应商**；只有**所有**所测供应商都至少有一个端点可达才退 0（改前是"任一供应商有一个端点可达即退 0"，会让坏掉的那家静默过关）。
 
+### 3.2.1 运行时端点失败转移（task 321）
+
+CLI `run`、`mcp-agent` 与 TUI 只在**同一供应商的候选端点之间切换**，沿用该供应商的协议、模型和凭据。当前 `baseUrl` 先尝试，再按已登记候选顺序尝试；去重忽略结尾斜杠。至少两个不同端点才启用包装，每次调用每个端点最多尝试一次（多端点 opencode-go 关闭其单端点内部重试）。成功后在 provider 实例内记住端点，下一次优先用它，不做轮询；该端点失败时按原登记顺序尝试其余端点。全部失败抛最后一个错误。
+
+- 只对结构化网络错误码（含 Node fetch 的 `cause.code`）和 HTTP 408/429/5xx 切换；400/401/403/404/422、AbortError、未知错误原样抛出，不切换。取消请求也不切换，不按错误文案猜测。未列入网络码的 TLS 等错误不会切换。
+- 流式响应尚未向调用方输出任何 chunk 时可切换；输出过任何 chunk（含 `message_start`）后失败，原样抛出，不重放。
+- 显式 `--base-url` 或存在 `VESSEL_BASE_URL`（含空串、纯空白）时禁用候选，保留原 URL 解析规则：空白 env 仍视为无值，空串 flag 仍阻止回落并报缺端点。
+- CLI 实际切换时 stderr 输出一行 `[vessel] 端点失败转移：<from> → <to>`；`--json` 与 TUI 静默，切换照常生效。
+- 偏好只在内存里，不改 `baseUrl`、不写 ProviderStore；新进程或 TUI 重建 harness（如切模型/权限）会重置。测速仍只给建议，需显式采纳才能改默认配置。
+
+**不做跨供应商 failover，不做配额感知路由**；也不增加退避、熔断或配额窗口。
+
 ## 3.3 key 入库（task 105：opencode-go 示例）
 
 **一次入库、之后免 env**：把 key 写进 CredentialStore（DPAPI 密文），`vessel run` 直接消费 store 里的 key。
@@ -294,4 +306,4 @@ Successful saved-provider discovery records model IDs, last verification/attempt
 
 吸收了 magpie 的「用量按 provider×model 落账」思路与 cc-switch 的「预设单一真源」；**不吸收**本地网关（127.0.0.1:3425 多协议翻译）、订阅 OAuth 账号复用、明文 key 落盘、中间件插件体系、自动账号发现。理由与逐项对照见 `docs/MAGPIE-ABSORPTION.md`。
 
-当前**尚未**支持：供应商级 failover、配额窗口、profile 快照、cc-switch 配置导入——这些在吸收清单的 P1/P2 里，未实现。
+当前支持同一供应商内的候选端点失败转移（§3.2.1）；当前**尚未**支持：跨供应商 failover、配额感知路由、配额窗口、profile 快照、cc-switch 配置导入。

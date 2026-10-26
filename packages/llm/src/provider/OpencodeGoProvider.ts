@@ -637,9 +637,9 @@ export class OpencodeGoProvider implements ChatProvider {
   private networkError(err: unknown): OpencodeGoError {
     const msg = sanitizeWireSnippet((err as Error)?.message ?? String(err));
     const aborted = (err as Error)?.name === 'AbortError' || /abort/i.test(msg);
-    return new OpencodeGoError({
+    return Object.assign(new OpencodeGoError({
       kind: aborted ? 'timeout' : 'network',
       message: `opencode-go ${aborted ? 'timeout' : 'network'}: ${msg}`,
-    });
+    }), { cause: err });
   }
 }

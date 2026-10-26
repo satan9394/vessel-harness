@@ -160,6 +160,12 @@ export function envNonBlank(name: string): string | undefined {
   return raw.trim() === '' ? undefined : raw;
 }
 
+function cliEndpointSwitch(flags: Map<string, string>) {
+  return isJson(flags) ? undefined : (from: string, to: string) => {
+    console.error(`[vessel] 端点失败转移：${from} → ${to}`);
+  };
+}
+
 /**
  * 内置默认配置根：CLI **自带的** `configs/` 所在目录（G-15「装在哪儿就在哪儿」）。
  *
@@ -918,6 +924,7 @@ async function cmdRun(flags: Map<string, string>): Promise<number> {
     config: currentCfg,
     explicitProvider,
     baseUrl: flags.get('base-url') ?? envNonBlank('VESSEL_BASE_URL'),
+    baseUrlExplicit: flags.has('base-url') || process.env['VESSEL_BASE_URL'] !== undefined,
     apiKey: flags.get('api-key') ?? envNonBlank('VESSEL_API_KEY'),
     model: flags.get('model') ?? process.env.VESSEL_MODEL,
   });
@@ -926,7 +933,7 @@ async function cmdRun(flags: Map<string, string>): Promise<number> {
     const msg = `[vessel] ${plan.providerName} 需要 --base-url 或 VESSEL_BASE_URL（或先 vessel provider add 配置）`;
     return fail(2, msg, flags, () => console.error(msg));
   }
-  const realProvider = buildRealProvider(plan);
+  const realProvider = buildRealProvider(plan, { onEndpointSwitch: cliEndpointSwitch(flags) });
   // BRIEF-16 1C：本次运行是否落在**离线 mock**。判据与下面 `realProvider ?? new MockProvider(...)`
   // 的构造分支共用**同一个变量**——`buildRealProvider` 对非真实 provider（plan.real=false）
   // 一律返回 `null`（providers/providerFactory.ts:107-108），所以"提示/标记"与实际使用的
@@ -1329,11 +1336,12 @@ async function cmdBench(flags: Map<string, string>): Promise<number> {
   const plan = planProvider({
     explicitProvider: providerName,
     baseUrl: flags.get('base-url') ?? envNonBlank('VESSEL_BASE_URL'),
+    baseUrlExplicit: flags.has('base-url') || process.env['VESSEL_BASE_URL'] !== undefined,
     apiKey: flags.get('api-key') ?? envNonBlank('VESSEL_API_KEY'),
     model: flags.get('model') ?? process.env.VESSEL_MODEL,
   });
   const model = plan.model;
-  const provider = buildRealProvider(plan);
+  const provider = buildRealProvider(plan, { onEndpointSwitch: cliEndpointSwitch(flags) });
   const root = repoRoot();
   const report = await runScenario({
     scenarioId,
@@ -2968,6 +2976,7 @@ export async function cmdServeMcpAgent(flags: Map<string, string>): Promise<numb
       config: currentCfg,
       explicitProvider,
       baseUrl: flags.get('base-url') ?? envNonBlank('VESSEL_BASE_URL'),
+      baseUrlExplicit: flags.has('base-url') || process.env['VESSEL_BASE_URL'] !== undefined,
       apiKey: flags.get('api-key') ?? envNonBlank('VESSEL_API_KEY'),
       model: flags.get('model') ?? process.env.VESSEL_MODEL,
     });
@@ -2976,7 +2985,7 @@ export async function cmdServeMcpAgent(flags: Map<string, string>): Promise<numb
       console.error(message);
       return 2;
     }
-    const realProvider = buildRealProvider(plan);
+    const realProvider = buildRealProvider(plan, { onEndpointSwitch: cliEndpointSwitch(flags) });
     const provider = realProvider ?? new MockProvider(mockSmokeScript(), {
       model: plan.model,
       vars: { cwd: workspace },

@@ -163,7 +163,7 @@ export class OpenAICompatibleProvider implements ChatProvider {
 
     if (!resp.ok) {
       const text = await resp.text().catch(() => '');
-      throw new Error(`OpenAI-compatible ${resp.status} ${resp.statusText}: ${sanitizeErrorBody(text)}`);
+      throw Object.assign(new Error(`OpenAI-compatible ${resp.status} ${resp.statusText}: ${sanitizeErrorBody(text)}`), { status: resp.status });
     }
 
     const body = (await resp.json()) as OpenAIResponseBody;
@@ -294,7 +294,7 @@ export class OpenAICompatibleProvider implements ChatProvider {
 
       if (!resp.ok) {
         const text = await resp.text().catch(() => '');
-        throw new Error(`OpenAI-compatible ${resp.status} ${resp.statusText}: ${sanitizeErrorBody(text)}`);
+        throw Object.assign(new Error(`OpenAI-compatible ${resp.status} ${resp.statusText}: ${sanitizeErrorBody(text)}`), { status: resp.status });
       }
 
       const body = resp.body;
