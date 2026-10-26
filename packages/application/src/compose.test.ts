@@ -70,6 +70,20 @@ describe('reflection suggestions', () => {
     expect(approve).not.toHaveBeenCalled(); expect(reject).not.toHaveBeenCalled();
   });
 
+  it.each([
+    { sourceSequence: 7, sourceId: 'd-1' },
+    { sourceId: 'd-1' },
+  ])('uses returned rule provenance rather than the input event (%j)', async evidenceSource => {
+    vi.spyOn(AutonomousReflectionEngine.prototype, 'processSessionEnd').mockResolvedValue([{ ...rule, evidenceSource }]);
+    const active = await open();
+    await denial(active);
+    await close();
+    expect(suggest).toHaveBeenCalledTimes(1);
+    expect(suggest.mock.calls[0]![0].evidence).toEqual([evidenceSource.sourceSequence !== undefined
+      ? path.join(active.session.dir, 'session.jsonl') + '#seq=7'
+      : `session:${active.session.sessionId}/event:d-1`]);
+  });
+
   it('skips a reflection without evidence and warns once without throwing', async () => {
     vi.spyOn(AutonomousReflectionEngine.prototype, 'processSessionEnd').mockResolvedValue([rule]);
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
@@ -99,7 +113,7 @@ describe('reflection suggestions', () => {
   });
 
   it.each(['', '   ', 'TODO'])('rejects a missing or whole-field placeholder cue %j', async triggerCondition => {
-    vi.spyOn(AutonomousReflectionEngine.prototype, 'processSessionEnd').mockResolvedValue([{ ...rule, triggerCondition }]);
+    vi.spyOn(AutonomousReflectionEngine.prototype, 'processSessionEnd').mockResolvedValue([{ ...rule, triggerCondition, evidenceSource: { sourceSequence: 1 } }]);
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
     const active = await open();
     await denial(active);

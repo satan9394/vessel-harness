@@ -17,6 +17,10 @@ export interface ReflectionOptions {
   minSeverity?: number;
   autoPersist?: boolean;
 }
+export type ReflectedRule = ReflectiveRule & {
+  /** Stable source of the trajectory event that produced this rule; returned only, never persisted. */
+  evidenceSource?: { sourceSequence?: number; sourceId?: string };
+};
 type Lesson = Omit<ReflectiveRule, 'id' | 'frequency' | 'updatedAt'>;
 const severity = { tool_failure: 1, policy_denial: 2, evaluator_reject: 3 } as const;
 
@@ -42,16 +46,20 @@ export class AutonomousReflectionEngine {
         recommendedAction: action, confidence: event.resolved ? 0.85 : 0.55 };
     });
   }
-  async processSessionEnd(sessionId: string, events: SessionTrajectoryEvent[], options: ReflectionOptions = {}): Promise<ReflectiveRule[]> {
+  async processSessionEnd(sessionId: string, events: SessionTrajectoryEvent[], options: ReflectionOptions = {}): Promise<ReflectedRule[]> {
     if (!sessionId || sessionId.length > 256 || !Number.isFinite(options.minSeverity ?? 0) || (options.minSeverity ?? 0) < 0 || (options.minSeverity ?? 0) > 3) throw new RangeError('Invalid reflection options');
     const lessons = await this.extractLessonsFromTrajectory(events);
-    const result: ReflectiveRule[] = [];
+    const result: ReflectedRule[] = [];
     for (let i = 0; i < lessons.length; i++) {
       const event = events[i]!; const lesson = lessons[i]!;
       if (severity[event.type] < (options.minSeverity ?? 0)) continue;
       const source = createHash('sha256').update(JSON.stringify([sessionId, event.sourceId ?? event.sourceSequence ?? i, lesson.category, normalizeRuleTrigger(lesson.triggerCondition)])).digest('hex');
-      if (options.autoPersist === false) result.push({ ...lesson, id: source, frequency: 0, updatedAt: 0 });
-      else result.push(await this.memoryStore.upsertReflectiveRule(lesson, source, event.sourceSequence === undefined ? undefined : { sessionId, seq: event.sourceSequence }));
+      const provenance = event.sourceSequence === undefined && event.sourceId === undefined ? {} : { evidenceSource: {
+        ...(event.sourceSequence !== undefined ? { sourceSequence: event.sourceSequence } : {}),
+        ...(event.sourceId !== undefined ? { sourceId: event.sourceId } : {}),
+      } };
+      if (options.autoPersist === false) result.push({ ...lesson, id: source, frequency: 0, updatedAt: 0, ...provenance });
+      else result.push({ ...await this.memoryStore.upsertReflectiveRule(lesson, source, event.sourceSequence === undefined ? undefined : { sessionId, seq: event.sourceSequence }), ...provenance });
     }
     return result;
   }

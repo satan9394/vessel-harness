@@ -624,13 +624,12 @@ export async function composeHarness(opts: ComposeOptions): Promise<ComposedHarn
         const events = [...collectSessionTrajectory(session.replay()), ...evaluatorEvents];
         const rules = await new AutonomousReflectionEngine(cognitiveStore).processSessionEnd(session.sessionId, events);
         if (!opts.learnedStore) return;
-        for (const [index, rule] of rules.entries()) {
-          const event = events[index];
+        for (const rule of rules) {
           const cue = rule.triggerCondition.trim();
           const lesson = rule.lesson.trim();
-          const evidence = event?.sourceSequence !== undefined
-            ? [path.join(session.dir, 'session.jsonl') + `#seq=${event.sourceSequence}`]
-            : event?.sourceId ? [`session:${session.sessionId}/event:${event.sourceId}`] : [];
+          const evidence = rule.evidenceSource?.sourceSequence !== undefined
+            ? [path.join(session.dir, 'session.jsonl') + `#seq=${rule.evidenceSource.sourceSequence}`]
+            : rule.evidenceSource?.sourceId ? [`session:${session.sessionId}/event:${rule.evidenceSource.sourceId}`] : [];
           // Only whole-field placeholders are missing values; no scan of lesson wording.
           const missing = Object.entries({ cue, lesson, evidence: evidence.join('\n') })
             .filter(([, value]) => !value || /^(?:TODO|TBD|N\/A|unknown|placeholder|\.\.\.|…|[-?]+)$/i.test(value))

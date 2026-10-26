@@ -35,6 +35,29 @@ it('validates severity, filters rules and supports dry extraction without journa
   expect(await engine.processSessionEnd('s', [failure], { autoPersist: false })).toMatchObject([{ frequency: 0 }]);
   expect((await store.memoryStats()).ruleCount).toBe(0); expect(fs.existsSync(store.dbPath + '.rules.jsonl')).toBe(false);
 });
+it.each([false, true])('keeps the surviving event source after severity filtering (autoPersist=%s)', async autoPersist => {
+  const rules = await engine.processSessionEnd('filtered', [
+    { ...failure, sourceSequence: 7 },
+    { ...failure, type: 'policy_denial', sourceId: 'd-1' },
+  ], { minSeverity: 2, autoPersist });
+  expect(rules).toHaveLength(1);
+  expect(rules[0]!.evidenceSource).toEqual({ sourceId: 'd-1' });
+  expect(rules[0]!.evidenceSource!.sourceSequence).toBeUndefined();
+});
+it.each([false, true])('returns ordered provenance without persisting it (autoPersist=%s)', async autoPersist => {
+  const rules = await engine.processSessionEnd('sources', [
+    { ...failure, sourceSequence: 0, sourceId: 'first' },
+    { ...failure, type: 'policy_denial', sourceId: 'second' },
+    { ...failure, type: 'evaluator_reject' },
+  ], { autoPersist });
+  expect(rules.map(rule => rule.category)).toEqual(['tool_failure', 'policy_denial', 'architecture_constraint']);
+  expect(rules.map(rule => rule.evidenceSource)).toEqual([{ sourceSequence: 0, sourceId: 'first' }, { sourceId: 'second' }, undefined]);
+  expect(rules[2]).not.toHaveProperty('evidenceSource');
+  if (autoPersist) {
+    expect(fs.readFileSync(store.dbPath + '.rules.jsonl', 'utf8')).not.toContain('evidenceSource');
+    expect((await store.matchRelevantRules('Read')).every(rule => !('evidenceSource' in rule))).toBe(true);
+  }
+});
 it('pairs only the next same-tool outcome within a turn and preserves event provenance', async () => {
   const failed: SessionRecord = { type: 'tool/result', seq: 1, ts: '', toolName: 'Read', toolCallId: 'a', error: { errorClass: 'TOOL_FAILURE', message: 'not found', detail: { code: 'ENOENT' } }, meta: {}, surface: true };
   const success: SessionRecord = { ...failed, seq: 3, error: undefined };
