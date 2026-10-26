@@ -17,6 +17,10 @@ PDW 关联：首行状态行下加 `- PDW task: <id>`（未启动写 `none`）�
 
 | 本地交付 | 状态 | 任务卡 |
 |---|---|---|
+| PDW 项目级迭代 (卡 333) | 待执行（需用户确认）：`gate-batched.ps1`、`docs/PDW-LOCAL.md`、技能三处本地改动、`prompt_guidance` diff | [333](333-pdw-local-iteration.md) |
+| 执行编排 (卡 334) | 待执行：T333 → 基线 → 四道并行 Codex → 16 步门禁与提交 → PDW 复核 | [334](334-execution-order.md) |
+| Codex 四道计划 (卡 332) | 待执行：L1/L2 Sol medium、L3/L4 Terra low、L5 Terra medium | [332](332-codex-lanes-plan.md) |
+| 模型选型表 (卡 331) | 已完成：AGENTS.md 增六行映射 + 四条细则 + 官方来源 | [331](331-model-routing-playbook.md) |
 | profile 快照 (卡 325) | 执行中：store + routes 半成品已在工作树（编译干净），待补 `server.ts` 四条路由与测试 | [325](325-provider-profiles.md) |
 | CLI profile 命令 (卡 327) | 待执行（依赖 325） | [327](327-cli-profile-commands.md) |
 | Web profile 区块 (卡 328) | 待执行（依赖 325 的 API） | [328](328-web-profile-ui.md) |
