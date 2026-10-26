@@ -45,14 +45,14 @@ foreach ($step in $steps) {
 
 if (-not $Only) {
   foreach ($extra in @(
-    @{ name = 'web-root'; cmd = 'node'; args = @('node_modules/vitest/vitest.mjs', 'run', '--root', 'apps/web') },
-    @{ name = 'tsc-build'; cmd = 'npx'; args = @('tsc', '-b', 'tsconfig.json') },
-    @{ name = 'tsc-tests'; cmd = 'npx'; args = @('tsc', '-p', 'tsconfig.test.json', '--noEmit') },
-    @{ name = 'tsc-web'; cmd = 'npx'; args = @('tsc', '-p', 'apps/web/tsconfig.json', '--noEmit') }
+    @{ name = 'web-root'; args = @('node_modules/vitest/vitest.mjs', 'run', '--root', 'apps/web') },
+    @{ name = 'tsc-build'; args = @('node_modules/typescript/bin/tsc', '-b', 'tsconfig.json') },
+    @{ name = 'tsc-tests'; args = @('node_modules/typescript/bin/tsc', '-p', 'tsconfig.test.json', '--noEmit') },
+    @{ name = 'tsc-web'; args = @('node_modules/typescript/bin/tsc', '-p', 'apps/web/tsconfig.json', '--noEmit') }
   )) {
     $log = Join-Path $logDir ("{0}.log" -f $extra.name)
     $start = Get-Date
-    if ($extra.cmd -eq 'node') { node $extra.args *> $log } else { & npx @($extra.args) *> $log }
+    node @($extra.args) *> $log
     $code = $LASTEXITCODE
     $secs = [int]((Get-Date) - $start).TotalSeconds
     $tail = (Select-String -Path $log -Pattern 'Test Files|Tests  ' | Select-Object -Last 2 | ForEach-Object { $_.Line.Trim() }) -join ' | '
