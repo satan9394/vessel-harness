@@ -152,3 +152,17 @@ node --test <本Skill>/scripts/drivers.test.mjs
 - 自更新**只动技能文件**：模型、思考档位（`reasoning_effort` / `model#variant`）、调用上限与 `prompt_guidance` 属**项目级配置**，改前必须先给出 diff 并等用户明确确认；本程序不会改它们。
 - `--mirror <目录>`：把另一份技能副本（如多个 agent 共用的技能根）一并对齐到远端字节。镜像必须已存在，且不能与已安装的技能目录互相包含；镜像里多出的文件只报告、不删除；镜像落后时即使本副本已是最新也会被修好，覆盖前同样备份到 `.pdw/skill-upgrade-<日期>/personal-dev-workflow-pre-<版本>-mirror/`。写成 `--mirror` 一次，比"更新完再手工拷一遍"可靠——后者漏拷时没有任何报错。
 - 不要改本机镜像当"真身"；镜像只是公开仓库的下游副本。
+
+## 分批门禁与旁路并行（VESSEL 本项目）
+
+- **门禁分批**：本项目单进程 `vitest run` 会在文件切换处挂起（不是代码缺陷）。统一入口
+  `pwsh -NoProfile -File scripts/gate-batched.ps1`：12 段测试（含 `index.test.ts`）+ `--root apps/web`
+  + `tsc -b` + `typecheck:tests` + `apps/web` tsc + 离线 conformance；逐项打印 exit/耗时，
+  日志落 `%TEMP%`，任一红 exit 1 并列失败步骤。契约 `checks` 优先直接调它。
+- **旁路并行**：PDW `implement` 是串行单代理；Codex 应用或协调者按道起的 `codex exec` 可并行，
+  前提是 **同一文件同一时刻只有一个写者**、道间文件集不重叠、段间用该段 Verify 做闸门、
+  全量门禁只由协调者跑一次。冲突表写在卡里，不靠执行者临场判断。
+- **本地改动登记**：本项目允许改技能正文（只服务当前项目）。所有本地改动写进
+  `.pdw/skill-local-changes.md`；`update.mjs` 逐字节覆盖后按该文件重放，避免静默丢失。
+- **选型与 Fast**：派活前查项目 `AGENTS.md` 的模型/档位选型表并记录「模型 ID + 档位 + 依据」；
+  `service_tier` 默认 `default`，开关都记进卡。

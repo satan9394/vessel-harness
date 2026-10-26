@@ -85,3 +85,16 @@ metadata:
 - 本技能不绑定任何本机路径：项目内副本位于 `.agents/skills/personal-dev-workflow/`，各 agent 从自己的技能根读取；更新一律来自上面的 repository，不以任何本机目录为准。
 - 项目内一条命令自更新：`node .agents/skills/personal-dev-workflow/scripts/update.mjs --project <项目根>`（加 `--mirror <目录>` 可同时刷新多个 agent 共用的另一份副本）。它先逐字节比对整份技能目录，有差异才备份到 `.pdw/skill-upgrade-<YYYYMMDD>/` 再原子替换，最后跑 `doctor`；幂等、不动 `.pdw/config.json`、不 commit/push、不删除任何文件。它只改技能文件——模型与思考档位等属项目级配置，改动前须给用户 diff 并等确认。细节见 [运行说明的分发与更新](references/runtime.md#分发与更新)。
 - 脚本不可用时按同一原则手工兜底（`git clone --depth 1 --branch main` → 逐字节比对 → 有差异才备份后整份替换 → 跑 `doctor`）；网络不可用时就地报告失败，不静默沿用本机副本。
+
+## 本项目适配（VESSEL，2026-10-26）
+
+本副本**允许项目本地改动**，只求适用于当前项目；改动登记在 `.pdw/skill-local-changes.md`，
+`update.mjs` 覆盖后按该文件重放。与上游无关的本地口径：
+
+1. **门禁一律分批**：`pwsh -NoProfile -File scripts/gate-batched.ps1`（12 段测试 + web root + 三处 tsc +
+   离线 conformance）。本机单进程全量会在文件切换处挂起，不是代码缺陷；契约的 `checks` 优先调它。
+2. **双通道**：PDW `implement` 是串行单代理；Codex 应用/CLI 旁路可多道并行，但必须
+   「同一文件同一时刻一个写者」+ 段间闸门 + 全量门禁只由协调者跑一次。
+3. **选型**：派活前查项目 `AGENTS.md` 的「模型与档位选型表」，卡里记「模型 ID + 档位 + 依据」；
+   首次使用某 ID 先 `codex exec -m <id> "print OK"` 探测。Fast（`service_tier`）默认关。
+4. 详细操作口径（卡/契约最小字段、证据与收口）见项目 `docs/PDW-LOCAL.md`。
