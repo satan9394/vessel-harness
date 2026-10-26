@@ -175,14 +175,14 @@ PDW 现行版本 **1.3.3-local**：完整 Skill 目录 + Node 运行器 + 项目
 ## PDW 技能同步（默认配置，2026-10-17 重切后；源 = GitHub）
 
 - **唯一技能源**：GitHub `satan9394/personal-dev-workflow`，分支 `main`（滚动，无 tag / 无 Release），子路径 `skills/personal-dev-workflow/`。
-- **两份本地副本，读的人不同**：`.agents\skills\personal-dev-workflow\`（9 文件，与源逐字节一致）供 `pdw.ps1`、`update.mjs` 与 Codex 使用；`C:\work\.agents_four_skills\personal-dev-workflow` 是 OpenCode 角色会话实际读的那份（`opencode.json` 的 `skills` 指向该目录），同时兼作离线兜底。
-- **每次更新后必须同步两份**：`update.mjs` 只写项目副本；跑完把 9 个文件复制到镜像目录并逐文件核 sha256（含 `references/`、`scripts/`、`agents/`、`assets/` 四层）。两份不一致视为更新未完成，以项目副本为准。
+- **两份本地副本，读的人不同**：`.agents\skills\personal-dev-workflow\`（11 文件，与源逐字节一致）供 `pdw.ps1`、`update.mjs` 与 Codex 使用；`C:\work\.agents_four_skills\personal-dev-workflow` 是 OpenCode 角色会话实际读的那份（`opencode.json` 的 `skills` 指向该目录），同时兼作离线兜底。
+- **每次更新后必须同步两份**：`update.mjs` 只写项目副本；跑完把 11 个文件复制到镜像目录并逐文件核 sha256（含 `references/`、`scripts/`、`agents/`、`assets/` 四层）。两份不一致视为更新未完成，以项目副本为准。
 - **改 `.pdw\config.json` 前必须先经用户确认**：模型、思考档位（`reasoning_effort` / `model#variant`）、上限与 `prompt_guidance` 的任何改动，先给出 diff 与预期效果、等用户明确确认后再落盘；确认前不动文件。改前把原文件备份到 `.pdw\skill-upgrade-<YYYYMMDD>\config.json.bak-<用途>-<YYYYMMDD>`。
 - **首选一条命令自更新**：`node .agents\skills\personal-dev-workflow\scripts\update.mjs --project <项目根>`（`--dry-run` 只看差异）。它自带备份、原子替换与 `doctor` 复核，幂等、不动 `.pdw\config.json`、不删除文件、不 commit/push；无差异只回「已是最新（<版本>）」。
 - 手工兜底（脚本不可用或需人工判断时）：
   1. 取远端到临时目录：`git clone --depth 1 --branch main https://github.com/satan9394/personal-dev-workflow <临时目录>`；网络不可用时退回本地镜像，并在报告中写明用了兜底。
-  2. 用远端 `skills/personal-dev-workflow/` 的 9 个文件与本地副本逐字节比对（sha256；缺文件也算差异）；**版本串相同不代表内容相同**，重切过的包按散列判新旧。
+  2. 用远端 `skills/personal-dev-workflow/` 的 11 个文件与本地副本逐字节比对（sha256；缺文件也算差异）；**版本串相同不代表内容相同**，重切过的包按散列判新旧。
   3. 无差异 → 只回一句「已是最新（<版本>）」，不改任何文件。
-  4. 有差异 → 备份本地副本到 `.pdw\skill-upgrade-<YYYYMMDD>\` → 用远端 9 文件整份替换（保留 `agents/ assets/ references/ scripts/` 四层）→ **不要动 `.pdw\config.json`** → 跑 `node .agents\skills\personal-dev-workflow\scripts\pdw.mjs doctor --project <项目根>` → 报告散列与 doctor 结果。
+  4. 有差异 → 备份本地副本到 `.pdw\skill-upgrade-<YYYYMMDD>\` → 用远端 11 文件整份替换（保留 `agents/ assets/ references/ scripts/` 四层）→ **不要动 `.pdw\config.json`** → 跑 `node .agents\skills\personal-dev-workflow\scripts\pdw.mjs doctor --project <项目根>` → 报告散列与 doctor 结果。
 - 不要直接改本地镜像；镜像是 GitHub 的下游副本。
 <!-- /pdw-skill-sync -->

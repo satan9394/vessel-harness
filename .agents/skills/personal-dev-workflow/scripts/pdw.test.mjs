@@ -404,6 +404,32 @@ await test('doctor rejects missing OC models and policy-changing profile prefixe
   assert.ok(report.roles.find(r => r.role === 'implement').configuration_error);
 });
 
+await test('view serves a read-only dashboard for one project', async () => {
+  const root = path.join(evidence, 'view-project');
+  const dir = path.join(root, '.pdw', 'tasks', '20260101000000-abcdef');
+  fs.mkdirSync(dir, { recursive: true });
+  fs.writeFileSync(path.join(dir, 'state.json'), JSON.stringify({
+    id: '20260101000000-abcdef', status: 'accepted_local', phase: 'review', calls_used: 1,
+    repairs_used: 0, elapsed_ms: 1000, attempts: [], checks: [], roles: {},
+    limits: { max_cli_calls: 10, max_repairs: 1 },
+  }));
+  const port = 32000 + Math.floor(Math.random() * 10000);
+  const child = spawn(process.execPath, [runtime, 'view', '--project', root, '--port', String(port)], { stdio: 'ignore', windowsHide: true });
+  try {
+    let meta = null;
+    for (let i = 0; i < 40 && !meta; i += 1) {
+      try { meta = await (await fetch(`http://127.0.0.1:${port}/api/project`)).json(); }
+      catch { await new Promise(resolve => setTimeout(resolve, 150)); }
+    }
+    assert.equal(meta?.name, 'view-project');
+    assert.equal(meta?.project, root);
+    const list = await (await fetch(`http://127.0.0.1:${port}/api/tasks`)).json();
+    assert.equal(list.tasks.length, 1);
+    assert.equal(list.tasks[0].id, '20260101000000-abcdef');
+    const page = await (await fetch(`http://127.0.0.1:${port}/`)).text();
+    assert.match(page, /PDW/);
+  } finally { child.kill(); }
+});
 await test('the bundled updater replaces the copy from its published repository and stays idempotent', () => {
   const skillDirectory = path.dirname(path.dirname(runtime));
   const copyTree = (source, destination) => {

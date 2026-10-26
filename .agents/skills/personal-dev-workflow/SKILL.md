@@ -6,7 +6,7 @@ metadata:
   repository: "https://github.com/satan9394/personal-dev-workflow"
   skill-path: "skills/personal-dev-workflow"
   branch: "main"
-  updated: "2026-10-24"
+  updated: "2026-10-26"
 ---
 
 # Personal Dev Workflow — 可执行的项目协作
@@ -28,7 +28,7 @@ metadata:
 3. `new --from <契约> --project <项目>` 创建任务；先 `plan <id>` 检查角色、模型、检查项、调用上限。用户已要求完成任务时，在其授权范围内直接 `run <id>`，不另问是否允许普通本地实施。
 4. 默认 OC + DeepSeek 扫描与验收准备，Codex 实现，独立 OC + DeepSeek 复核。常规实现可在项目配置把 implement 路由到 OC。需要架构规划时在契约中启用 planner，使用 AGY。不同角色是新会话，不共享长聊天。
 5. 程序实际执行验收命令；失败最多定向修复一次，再失败即停止。遇到范围变化、环境阻塞或不支持的输出协议，保留原始结果并交接，不能凭文字宣布通过。
-6. 查看 `status <id>` 和任务目录的 REPORT.md。每个阶段程序自动生成 HANDOFF.md，命令与换对话流程见 [上下文接续](references/runtime.md#上下文接续与文档维护)。中断后用 `resume <id>`；停止用 `cancel <id>`。切会话不重置额度，不通过另建任务规避原任务限额。
+6. 查看 `status <id>` 和任务目录的 REPORT.md。想看“现在跑到哪、谁在干、用的什么模型”，用 `view` 起只读看板（默认 8891 端口，前台运行，Ctrl+C 结束）；它只读 `.pdw/tasks/` 与本机 Codex 会话日志，不写盘、不起模型。每个阶段程序自动生成 HANDOFF.md，命令与换对话流程见 [上下文接续](references/runtime.md#上下文接续与文档维护)。中断后用 `resume <id>`；停止用 `cancel <id>`。切会话不重置额度，不通过另建任务规避原任务限额。
 
 ## 按目标模型交接
 
@@ -81,7 +81,7 @@ metadata:
 
 ## 分发与更新
 
-- 出处、版本与分支以本文件 frontmatter 的 `metadata` 为准（repository / version / skill-path / branch）。唯一更新源是该 repository 的 `main` 分支，技能位于 `skills/personal-dev-workflow/`（9 个文件，行尾 LF）。
+- 出处、版本与分支以本文件 frontmatter 的 `metadata` 为准（repository / version / skill-path / branch）。唯一更新源是该 repository 的 `main` 分支，技能位于 `skills/personal-dev-workflow/`（11 个文件，行尾 LF）。
 - 本技能不绑定任何本机路径：项目内副本位于 `.agents/skills/personal-dev-workflow/`，各 agent 从自己的技能根读取；更新一律来自上面的 repository，不以任何本机目录为准。
 - 项目内一条命令自更新：`node .agents/skills/personal-dev-workflow/scripts/update.mjs --project <项目根>`（加 `--mirror <目录>` 可同时刷新多个 agent 共用的另一份副本）。它先逐字节比对整份技能目录，有差异才备份到 `.pdw/skill-upgrade-<YYYYMMDD>/` 再原子替换，最后跑 `doctor`；幂等、不动 `.pdw/config.json`、不 commit/push、不删除任何文件。它只改技能文件——模型与思考档位等属项目级配置，改动前须给用户 diff 并等确认。细节见 [运行说明的分发与更新](references/runtime.md#分发与更新)。
 - 脚本不可用时按同一原则手工兜底（`git clone --depth 1 --branch main` → 逐字节比对 → 有差异才备份后整份替换 → 跑 `doctor`）；网络不可用时就地报告失败，不静默沿用本机副本。

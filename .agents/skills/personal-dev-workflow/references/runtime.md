@@ -18,6 +18,7 @@
 - `cancel <id>`：请求运行中的协调者停止其直接子进程树；记录仍在运行的进程时不释放锁。
 - `resume <id>`：保留已完成阶段、调用次数、耗时和修复次数继续；代码基线漂移则拒绝旧证据。路由可由用户调整，任务限额不随配置提高而增加。
 - `demo`：对安装了本 Skill 的项目进行真实模型只读审计，会消耗配置模型额度；它不执行产品代码修改。
+- `view [--port <n>] [--open]`：起一个只读本地看板（默认 `http://127.0.0.1:8891/`），按项目列出任务、七步进度、每次派发的模型与思考档位、验收退出码和 Codex 剩余用量。数据只来自 `.pdw/tasks/` 与本机 Codex 会话日志，不写盘、不起模型；进程前台运行，Ctrl+C 结束。
 - `install --project <已存在目录>`：将本 Skill 完整复制为该项目 `.agents/skills/personal-dev-workflow`。目标已有同名 Skill 时拒绝覆盖，先比较迁移。
 
 所有命令支持 `--project <项目绝对路径>`。运行失败保留 REPORT.md、状态、完整 stdout/stderr 与验收命令输出，不删除证据。
@@ -141,13 +142,13 @@ node --test <本Skill>/scripts/drivers.test.mjs
 
 本 Skill 的更新以公开仓库为准，不以任何本机目录为准。
 
-- 源：本 Skill `SKILL.md` frontmatter `metadata` 里的 `repository`，分支 `main`（滚动），路径 `skills/personal-dev-workflow/`（9 个文件，行尾统一 LF）：`SKILL.md`、`agents/openai.yaml`、`assets/audit-task.json`、`references/runtime.md`、`scripts/{drivers,drivers.test,pdw,pdw.test,update}.mjs`。
+- 源：本 Skill `SKILL.md` frontmatter `metadata` 里的 `repository`，分支 `main`（滚动），路径 `skills/personal-dev-workflow/`（11 个文件，行尾统一 LF）：`SKILL.md`、`agents/openai.yaml`、`assets/{audit-task.json,viewer.html}`、`references/runtime.md`、`scripts/{drivers,drivers.test,pdw,pdw.test,update,viewer}.mjs`。
 - 一条命令自更新（推荐）：在项目根执行 `node .agents/skills/personal-dev-workflow/scripts/update.mjs --project <项目根>`；`--dry-run` 只看差异不写盘，`--json` 只输出摘要；`--mirror <目录>` 同时刷新第二份副本（见下）。
   1. 取远端到 `<项目>/.pdw/update-cache/<时间戳>/source`，`git clone --depth 1 --branch main` 并强制 `core.autocrlf=false`，保证比对与写盘不受操作者 Git 行尾设置影响；该缓存不自动清理。
   2. 逐字节比对整份技能目录（缺文件或散列不同都算差异）；本地多出的文件只报告、不删除。
   3. 无差异 → 报「已是最新（<版本>）」，不改任何文件，退出 0。
   4. 有差异 → 备份当前文件到 `<项目>/.pdw/skill-upgrade-<YYYYMMDD>/personal-dev-workflow-pre-<版本>/` → 逐个原子替换（临时名改到目标名，支持替换自身）→ **不动 `.pdw/config.json`** → 跑 `doctor` 并报告退出码。
-- 脚本不可用时的手工兜底：`git clone --depth 1 --branch main <repository> <临时目录>` → 用远端 9 个文件与当前副本逐字节比对（sha256，缺文件算差异）→ 无差异只回「已是最新（<版本>）」→ 有差异就先备份再整份替换（保留四层目录）→ 跑 `doctor`。网络不可用时就地报告失败并说明用了哪份兜底，不静默沿用本机副本。
+- 脚本不可用时的手工兜底：`git clone --depth 1 --branch main <repository> <临时目录>` → 用远端 11 个文件与当前副本逐字节比对（sha256，缺文件算差异）→ 无差异只回「已是最新（<版本>）」→ 有差异就先备份再整份替换（保留四层目录）→ 跑 `doctor`。网络不可用时就地报告失败并说明用了哪份兜底，不静默沿用本机副本。
 - 自更新**只动技能文件**：模型、思考档位（`reasoning_effort` / `model#variant`）、调用上限与 `prompt_guidance` 属**项目级配置**，改前必须先给出 diff 并等用户明确确认；本程序不会改它们。
 - `--mirror <目录>`：把另一份技能副本（如多个 agent 共用的技能根）一并对齐到远端字节。镜像必须已存在，且不能与已安装的技能目录互相包含；镜像里多出的文件只报告、不删除；镜像落后时即使本副本已是最新也会被修好，覆盖前同样备份到 `.pdw/skill-upgrade-<日期>/personal-dev-workflow-pre-<版本>-mirror/`。写成 `--mirror` 一次，比"更新完再手工拷一遍"可靠——后者漏拷时没有任何报错。
 - 不要改本机镜像当"真身"；镜像只是公开仓库的下游副本。

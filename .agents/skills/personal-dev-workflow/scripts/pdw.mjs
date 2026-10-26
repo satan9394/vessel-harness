@@ -538,7 +538,14 @@ async function main(argv) {
     console.log(JSON.stringify({ installed: target, launcher, initialized: true, next: 'Ask your coding agent: use PDW to complete <goal>. Or run ./pdw.ps1 doctor' }, null, 2)); return;
   }
   if (command === 'help' || !command) {
-    console.log(`PDW ${version}: init | doctor | demo | new --from <contract.json> | plan <id> | run <id> | resume <id> | status [id] | handoff <id> | cancel <id> | install --project <existing-dir>\nAll commands accept --project <dir>. demo invokes configured models for a read-only audit. No dependency installation, commit, publish or destructive cleanup.`); return;
+    console.log(`PDW ${version}: init | doctor | demo | new --from <contract.json> | plan <id> | run <id> | resume <id> | status [id] | handoff <id> | cancel <id> | view [--port <n>] [--open] | install --project <existing-dir>\nAll commands accept --project <dir>. demo invokes configured models for a read-only audit. view serves a read-only local dashboard. No dependency installation, commit, publish or destructive cleanup.`); return;
+  }
+  if (command === 'view') {
+    // 只读看板：读取 .pdw/tasks 与本机 Codex 用量，不写盘、不起模型。
+    const port = Number(flag('--port') ?? 8891);
+    const { startViewer } = await import('./viewer.mjs');
+    startViewer({ project, port, open: args.includes('--open') });
+    return;
   }
   const { root, store } = managedRoot(project);
   if (command === 'demo') {
