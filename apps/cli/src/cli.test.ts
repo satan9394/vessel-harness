@@ -232,6 +232,32 @@ describe('CLI (apps/cli)', () => {
     expect(logs.join('\n')).toContain('可组合 Agent Harness（品牌 Vessel）');
   });
 
+  it('preserves Chinese help lines, spacing, and the default language', async () => {
+    const { logs, restore } = capture();
+    try {
+      expect(await main(['--lang', 'zh', '--help'])).toBe(0);
+      const out = logs.pop()!;
+      const lines = out.split('\n');
+      for (const line of [
+        '  vessel --help                      显示本帮助',
+        '  vessel --version                   显示版本',
+        '  vessel run [选项]                  单发模式：跑一轮用户输入',
+        '  vessel mcp path                    打印 MCP 配置文件路径',
+        '  vessel diff [<id>|--last]           会话改动的只读提示（Write/Edit 文件 + shell + git status；不回滚）',
+        '                                      （超时 15s + 重试 1 次；失败保留旧表并提示；',
+      ]) expect(lines).toContain(line);
+      expect(out).not.toMatch(/\{syncTimeout\}|\{syncRetries\}/);
+      expect(out).toContain('{base}/chat/completions');
+      expect(lines).toHaveLength(102);
+      expect(lines[96]).toBe('');
+      expect(lines[97]).toBe('provider 协议说明:');
+      expect(await main(['--help'])).toBe(0);
+      expect(logs.pop()).toBe(out);
+    } finally {
+      restore();
+    }
+  });
+
   it.each([
     ['--lang', 'en', '--help'],
     ['--help', '--lang', 'en'],
@@ -243,7 +269,11 @@ describe('CLI (apps/cli)', () => {
       expect(out).toContain('Composable Agent Harness (Vessel)');
       expect(out).toContain('Usage:');
       expect(out).toContain('Provider protocols:');
-      expect(out).toContain('vessel run [选项]                  单发模式：跑一轮用户输入');
+      expect(out).toContain('  vessel run [options]               One-shot mode: process one user input');
+      expect(out).not.toMatch(/[\u4e00-\u9fff\u3000-\u303f\uff00-\uffef]/);
+      expect(out).toContain('(timeout 15s + 1 retries;');
+      expect(out).not.toMatch(/\{syncTimeout\}|\{syncRetries\}/);
+      expect(out).toContain('{base}/chat/completions');
     } finally {
       restore();
     }

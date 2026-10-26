@@ -44,7 +44,7 @@ describe('CLI i18n', () => {
     expect(process.env.VESSEL_LANG).toBe('zh');
   });
 
-  it('translates all three keys and interpolates string and number parameters', () => {
+  it('translates help framing and interpolates string and number parameters', () => {
     expect(t('usage.header', { version: 'test' })).toBe('Vessel CLI vtest — 可组合 Agent Harness（品牌 Vessel）');
     expect(t('usage.commandsHint')).toBe('用法:');
     expect(t('usage.footer')).toContain('provider 协议说明:');
@@ -54,6 +54,34 @@ describe('CLI i18n', () => {
     expect(t('usage.footer')).toContain('Provider protocols:');
     expect(t('usage.header')).toContain('{version}');
     expect(t('usage.header', { x: 1 })).toContain('{version}');
+  });
+
+  it.each(['zh', 'en'] as const)('interpolates command defaults under %s while preserving endpoint templates', (value) => {
+    setLocale(value);
+    const template = t('usage.commands');
+    expect(template).toContain('{syncTimeout}');
+    expect(template).toContain('{syncRetries}');
+    const commands = t('usage.commands', { syncTimeout: 23, syncRetries: 4 });
+    expect(commands).not.toMatch(/\{syncTimeout\}|\{syncRetries\}/);
+    expect(commands).toContain(value === 'zh' ? '超时 23s + 重试 4 次' : 'timeout 23s + 4 retries');
+    expect(commands).toContain('{base}/chat/completions');
+    expect(commands).toContain('{base}/v1/messages');
+  });
+
+  it('keeps command order, line count, and indentation across languages', () => {
+    const zhLines = t('usage.commands').split('\n');
+    setLocale('en');
+    const enLines = t('usage.commands').split('\n');
+    expect(zhLines).toHaveLength(87);
+    expect(enLines).toHaveLength(87);
+    for (const [i, zhLine] of zhLines.entries()) {
+      const enLine = enLines[i]!;
+      expect(enLine.match(/^ */)?.[0]).toBe(zhLine.match(/^ */)?.[0]);
+      // Command names and flags keep their order; argument labels may be translated.
+      expect(enLine.match(/^  (?:vessel [\w:|-]+|--[\w-]+)/)?.[0])
+        .toBe(zhLine.match(/^  (?:vessel [\w:|-]+|--[\w-]+)/)?.[0]);
+    }
+    expect(enLines.join('\n')).not.toMatch(/[\u4e00-\u9fff\u3000-\u303f\uff00-\uffef]/);
   });
 
   it.each(['zh', 'en'] as const)('returns unknown keys literally under %s', (value) => {
