@@ -1,5 +1,7 @@
 # T302 — 三轴分离写成文档约束（HARNESS² P2-1）
 
+- Status: 已完成（2026-10-25；Codex 手动执行；未提交、未推送）
+
 > 自包含执行书。项目根 `E:\Code_file\Projects\Vessel_Harness`（Windows）。
 > 目标：把「method / substrate / benchmark 三个轴互不引用」从口头约定变成文档里的显式约束。**零代码改动**。
 
@@ -52,3 +54,9 @@ node node_modules/vitest/vitest.mjs run packages/telemetry/src/turnEndConditionG
 三条规则：<逐条摘录>
 守卫：<两条命令退出码>
 ```
+
+## Result
+
+已完成。`docs/BENCHMARK-SPEC.md` 新增三轴分离一节（method / substrate / benchmark 的定义 + 三条互不引用规则 + 「BenchSpec 是值不是代码路径」+ 明确当前只靠 review 与 parity 测试守护、没有跨轴 import 检查）。零代码改动。
+
+`spec-manifest-parity` 与 `turnEndConditionGuard` 两条守卫 exit 0；卡 305 之后又改过同一文档，守卫重跑仍绿。

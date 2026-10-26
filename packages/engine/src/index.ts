@@ -4,6 +4,7 @@ export * from './breaker/StagnationBreakError.js';
 export * from './bounded-history.js';
 export * from './taskQueue.js';
 export * from './selection.js';
+export * from './candidate-selection.js';
 export * from './workspace.js';
 export * from './real-generator-adapter.js';
 export * from './real-evaluator-adapter.js';

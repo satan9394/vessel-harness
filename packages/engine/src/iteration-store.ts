@@ -65,6 +65,7 @@ export interface IterationTaskInput {
  * （transition / testResults / 061 generator 快照 / 062 evaluator 快照）。
  */
 export interface IterationEntryInput {
+  budgetSnapshot?: { modelSteps: number; consecutiveErrors: number };
   /** evaluator 结论（met/not_met/impossible/error） */
   verdict: IterationVerdict;
   evidence?: readonly string[];
@@ -89,6 +90,7 @@ export interface IterationEntryInput {
 
 /** 一条已落库的迭代记录（不可变追加；回放单元）。 */
 export interface IterationEntry {
+  budgetSnapshot?: { modelSteps: number; consecutiveErrors: number };
   /** Harness identity only; absent in legacy records or if computation failed. */
   harnessFingerprint?: string;
   id: string;
@@ -247,6 +249,7 @@ export class IterationStore {
       testResults: entry.testResults,
       generator: entry.generator,
       evaluator: entry.evaluator,
+      ...(entry.budgetSnapshot ? { budgetSnapshot: { ...entry.budgetSnapshot } } : {}),
     };
     record.iterations.push(e);
     record.updatedAt = now;
@@ -267,6 +270,7 @@ export class IterationStore {
       retryCount: result.retryCount,
       metAfterRetries: result.metAfterRetries,
       engineIteration: result.iteration,
+      ...(result.budgetSnapshot ? { budgetSnapshot: result.budgetSnapshot } : {}),
     });
   }
 

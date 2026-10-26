@@ -1,5 +1,7 @@
 # T303 — benchmark 产物完整性清单（HARNESS² P2-2）
 
+- Status: 已完成（2026-10-25；Codex 手动执行；未提交、未推送）
+
 > 自包含执行书。项目根 `E:\Code_file\Projects\Vessel_Harness`（Windows）。
 > 目标：给 `benchmarks/fixtures/**` 与 `benchmarks/scenarios/*.yaml` 做一份可重算的 sha256 清单与比对工具。**不改既有 8 道 release gate**。
 
@@ -78,3 +80,9 @@ node node_modules/typescript/bin/tsc -p tsconfig.test.json --noEmit
 检查：<三条命令退出码>
 未做：<如实写>
 ```
+
+## Result
+
+已完成。`benchmarks/runners/src/provenance.ts` 提供 `collectProvenance(repoRoot)`（fixtures 下全部普通文件 + scenarios 顶层 yaml，跳过 `.git`/`node_modules`/`dist` 与符号链接，路径字典序）与 `diffProvenance(expected, actual)`（`missing` / `extra` / `changed` 三类）。`configs/benchmark-provenance.json` 收录 **111 条**，与磁盘一致。
+
+5 个用例通过（临时树三条、符号链接一条、真实仓库自证一条），`tsc -b` 与 `typecheck:tests` exit 0。没有改既有 8 道 release gate，也没有做「清单过期即红」的强制守卫。

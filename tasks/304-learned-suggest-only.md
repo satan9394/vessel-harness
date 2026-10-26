@@ -1,5 +1,7 @@
 # T304 — 经验库接线（suggest-only，HARNESS² P1-3）
 
+- Status: 已完成（2026-10-25；Codex 手动执行；未提交、未推送）
+
 > 自包含执行书。项目根 `E:\Code_file\Projects\Vessel_Harness`（Windows）。
 > 目标：把反思（reflection）的结论送进 `LearnedStore.suggest()`，由用户 approve 后才可能进入后续 prompt。**绝不自动采纳**。
 
@@ -68,3 +70,9 @@ node node_modules/typescript/bin/tsc -p tsconfig.test.json --noEmit
 检查：<三条命令退出码>
 未做：<如实写>
 ```
+
+## Result
+
+已完成。`compose.ts` 的 `reflect()` 里，`processSessionEnd` 返回的每条规则先过三要素门（`triggerCondition` / `lesson` / `evidence`，只把整串占位词当缺失，不扫措辞），通过后调 `opts.learnedStore.suggest()`；去重键是 `sha256(turnId + NUL + cue + NUL + lesson)`；**不调用 approve/reject**，不注入 prompt；不传 `learnedStore` 时行为与改动前一致。`compose.test.ts` 16 个用例通过。
+
+**验收缺陷（记录，未阻断）**：evidence 目前用 `events[index]` 与规则配对，这依赖 `processSessionEnd` 的默认 `minSeverity = 0`（该值下 severity 过滤不生效，index 恰好对齐）。一旦调用方传 `minSeverity > 0`，`result.push` 会因 `continue` 与 events 错位，evidence 将指向错误事件。`processSessionEnd` 内部其实已经把 `sourceSequence` 传给了 store，但**返回的 `ReflectiveRule` 不带事件来源**，所以 compose 只能猜。修法：给返回类型加可选 `evidenceSource`，compose 改用它——留给后续卡。

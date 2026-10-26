@@ -1,5 +1,6 @@
 import type { EvaluatorVerdict } from '@vessel/agents';
 import type { RunControl } from './run-control.js';
+import type { ExecutionRun } from './execution-run.js';
 import { StagnationBreakError } from './breaker/StagnationBreakError.js';
 
 /**
@@ -53,6 +54,7 @@ export interface IterationResult {
   retryCount: number;
   /** true when the iteration was admitted with met after prior not_met retries */
   metAfterRetries?: boolean;
+  budgetSnapshot?: { modelSteps: number; consecutiveErrors: number };
 }
 
 /** Injected collaborators — deterministic tests substitute all of them. */
@@ -145,6 +147,8 @@ export interface LoopProgress {
 }
 
 export interface LoopEngineOptions {
+  /** Optional iteration accounting only; budget enforcement belongs to the caller. */
+  executionRun?: ExecutionRun;
   maxIterations?: number;
   /** max generate→evaluate retries per iteration before it is admitted as not_met */
   maxRetries?: number;
@@ -205,6 +209,7 @@ export class LoopEngine {
   private readonly progress?: LoopProgress;
   /** task 066 control seam (optional). When set, it is authoritative for budget + pause. */
   private readonly control?: RunControl;
+  private readonly executionRun?: ExecutionRun;
 
   constructor(deps: LoopEngineDeps, opts: LoopEngineOptions = {}) {
     guardDeps(deps);
@@ -213,6 +218,7 @@ export class LoopEngine {
     this.maxRetries = opts.maxRetries ?? 1;
     this.progress = opts.progress;
     this.control = opts.control;
+    this.executionRun = opts.executionRun;
     if (this.maxIterations < 1) throw new Error('LoopEngine: maxIterations must be ≥ 1');
     if (this.maxRetries < 0) throw new Error('LoopEngine: maxRetries must be ≥ 0');
     if (this.control) {
@@ -318,6 +324,13 @@ export class LoopEngine {
         retryCount: attempts,
         metAfterRetries,
       };
+      if (this.executionRun) {
+        const counters = this.executionRun.counters;
+        counters.modelSteps += 1;
+        counters.consecutiveErrors = finalVerdict.verdict === 'error' ? counters.consecutiveErrors + 1 : 0;
+        // token/cost 由上层养，本层不伪造：provider usage is unavailable here.
+        result.budgetSnapshot = { modelSteps: counters.modelSteps, consecutiveErrors: counters.consecutiveErrors };
+      }
       this.phase('persisting', { iteration, taskId: task.id });
       await this.deps.persist(result);
       return result;

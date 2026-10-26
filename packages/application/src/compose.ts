@@ -1,7 +1,7 @@
 import { observeProviderCacheUsage } from '@vessel/llm';
 import * as path from 'node:path';
 import * as fs from 'node:fs';
-import { randomUUID } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import type { BehaviorInspection, RequestEnvelopeV1, CacheUsageMetrics, ChatUsage, ChatProvider, ChatToolDef, ToolCall, ToolResultRecord } from '@vessel/shared';
 import { AgentLoop, EventBus, Session } from '@vessel/core';
 import { ContextBuilder, AdaptiveContextPruner, CompactionBoundaryGuard, Compaction, createOverflowRecovery, type AdaptiveCompactionOptions, type ContextPruneOptions } from '@vessel/context';
@@ -22,7 +22,7 @@ import {
 } from '@vessel/skills';
 import { Telemetry } from '@vessel/telemetry';
 import { ExternalAgentRuntime, SubagentManager, createSubagentTool, type ExternalAgentConfig } from '@vessel/agents';
-import { ProjectStore, createMemoryTool, HybridMemoryStore, AutonomousReflectionEngine, collectSessionTrajectory, collectEvaluatorTrajectory, type SessionTrajectoryEvent, streamJsonlRecords, resolveSessionDir, type SessionIndexSource } from '@vessel/memory';
+import { ProjectStore, createMemoryTool, HybridMemoryStore, AutonomousReflectionEngine, collectSessionTrajectory, collectEvaluatorTrajectory, type LearnedStore, type SessionTrajectoryEvent, streamJsonlRecords, resolveSessionDir, type SessionIndexSource } from '@vessel/memory';
 import { CacheDriftDetector, AutoTaskRouter, type AutoRoute, type RouteMode, type TierBindings, type TierModelMap } from '@vessel/llm';
 import { EnforcementProjection } from './projections/EnforcementProjection.js';
 import { ExecutionLoop } from './ExecutionLoop.js';
@@ -97,6 +97,8 @@ export interface ComposeOptions {
   mcp?: ComposeMcpConnection[];
   /** V0.3: Project Memory (file-based, .harness/memory) — Memory tool + frozen snapshot injection */
   memory?: { enabled?: boolean };
+  /** Optional suggest-only sink; approval and prompt injection remain separate. */
+  learnedStore?: Pick<LearnedStore, 'suggest'>;
   /** V0.7: permission mode → policy profile override (read-only / workspace-write / danger-full-access) */
   permission?: 'read-only' | 'workspace-write' | 'danger-full-access';
   /**
@@ -611,13 +613,38 @@ export async function composeHarness(opts: ComposeOptions): Promise<ComposedHarn
     // Queue reflection outside the EventBus critical path; close awaits the final flush.
     let reflectionQueue: Promise<void> = Promise.resolve();
     const evaluatorEvents: SessionTrajectoryEvent[] = [];
+    const suggested = new Set<string>();
     const reflect = () => {
       if (!memoryEnabled) return;
+      const turnId = opts.learnedStore ? session.replay().findLast(record => record.type === 'turn/start')?.turnId ?? session.sessionId : '';
       reflectionQueue = reflectionQueue.then(async () => {
         await initializeCognitive();
         if (!cognitiveStore) return;
         await cognitiveStore.indexRecords(session.sessionId, session.replay());
-        await new AutonomousReflectionEngine(cognitiveStore).processSessionEnd(session.sessionId, [...collectSessionTrajectory(session.replay()), ...evaluatorEvents]);
+        const events = [...collectSessionTrajectory(session.replay()), ...evaluatorEvents];
+        const rules = await new AutonomousReflectionEngine(cognitiveStore).processSessionEnd(session.sessionId, events);
+        if (!opts.learnedStore) return;
+        for (const [index, rule] of rules.entries()) {
+          const event = events[index];
+          const cue = rule.triggerCondition.trim();
+          const lesson = rule.lesson.trim();
+          const evidence = event?.sourceSequence !== undefined
+            ? [path.join(session.dir, 'session.jsonl') + `#seq=${event.sourceSequence}`]
+            : event?.sourceId ? [`session:${session.sessionId}/event:${event.sourceId}`] : [];
+          // Only whole-field placeholders are missing values; no scan of lesson wording.
+          const missing = Object.entries({ cue, lesson, evidence: evidence.join('\n') })
+            .filter(([, value]) => !value || /^(?:TODO|TBD|N\/A|unknown|placeholder|\.\.\.|…|[-?]+)$/i.test(value))
+            .map(([field]) => field);
+          if (missing.length) {
+            console.warn(`[vessel] reflection suggestion skipped: missing ${missing.join(', ')}`);
+            continue;
+          }
+          const key = createHash('sha256').update(turnId).update('\0').update(cue).update('\0').update(lesson).digest('hex');
+          if (suggested.has(key)) continue;
+          opts.learnedStore.suggest({ kind: 'memory', name: `reflection-${key.slice(0, 16)}`, reason: cue,
+            content: `${lesson}\n\n${rule.recommendedAction}`, evidence });
+          suggested.add(key);
+        }
       }).catch(error => console.warn('[vessel] session reflection unavailable: ' + String(error)));
     };
     const reflectionDetach = bus.on('after_turn', () => { reflect(); }, 'memory:reflection');

@@ -1,5 +1,7 @@
 # T301 — SurfaceSpec 值化（HARNESS² P1-4 最小版）
 
+- Status: 已完成（2026-10-25；Codex 手动执行；未提交、未推送）
+
 > 自包含执行书。项目根 `E:\Code_file\Projects\Vessel_Harness`（Windows）。
 > 目标：把「改的是 harness 的哪一部分」变成有类型可依的值，而不是散落在代码与文档里的隐含假设。
 
@@ -94,3 +96,9 @@ node node_modules/typescript/bin/tsc -p tsconfig.test.json --noEmit
 检查：<三条命令退出码>
 未做：<如实写>
 ```
+
+## Result
+
+已完成。`packages/behavior/src/surface/SurfaceSpec.ts` 定义 `InstallMode = 'self-hosted'`、`SurfaceCaps`、`SurfaceSpec` 与 `validateSurfaceSpec`（返回问题列表、不抛错），并提供常量 `SELF_HOSTED_SURFACE`；`packages/behavior/src/index.ts` 导出；`docs/BEHAVIOR-IR-SPEC.md` 加 12 行说明「当前只有一种安装方式、它不是运行时开关」。7 个用例通过，`tsc -b` 与 `typecheck:tests` exit 0。
+
+未接 `composeHarness`，没有引入第二种 `installMode`，也没做 prompt 词表扫描。

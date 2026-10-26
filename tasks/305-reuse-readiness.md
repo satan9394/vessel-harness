@@ -1,5 +1,7 @@
 # T305 — reuse 就绪判据（HARNESS² P1-5 的 Vessel 版）
 
+- Status: 已完成（2026-10-25；Codex 手动执行；未提交、未推送）
+
 > 自包含执行书。项目根 `E:\Code_file\Projects\Vessel_Harness`（Windows）。
 > 前置：卡 297（`runCache.ts`）、卡 298（`vessel bench:runs`）已完成。本卡把「指纹相同」升级为「指纹相同 **且** 产物完好」，并把理由暴露到命令输出。
 
@@ -89,3 +91,9 @@ node apps/cli/dist/cli.js bench:runs B001 --json
 检查：<四条命令退出码 + JSON 是否含 reuse>
 未做：<如实写>
 ```
+
+## Result
+
+已完成。`benchmarks/runners/src/reuse.ts` 的 `assessRunReusability(runDir, repoRoot)` 逐项检查：目录存在、`summary.json` 可解析且 `success === true`、`.run-complete.json` 合法、指纹与当前 harness 相等、`reportPath`/`sessionLog`（若声明）存在且非空、`workspace/` 存在；任一失败写进 `reasons`，读错误也转成 reason 不抛。`bench:runs` 的文本输出改为 `reuse=ok` / `reuse=no(原因; 原因)`，`--json` 每条 run 增加 `reuse: { ok, reasons }` 且保留原有四个字段。
+
+**124 个用例通过**（含 cli.test 新增那条），两项类型检查与编译后 CLI 均 exit 0。真实 `benchmarks/reports` 里 B001 目前没有带 marker 的 run，所以实际输出是空列表——这是数据现状，不是功能缺失。**没有**接自动复用。

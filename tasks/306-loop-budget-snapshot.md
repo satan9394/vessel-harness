@@ -1,5 +1,7 @@
 # T306 — 迭代层预算快照（HARNESS² P1-1 的保守版）
 
+- Status: 已完成（2026-10-25；Codex 手动执行；未提交、未推送）
+
 > 自包含执行书。项目根 `E:\Code_file\Projects\Vessel_Harness`（Windows）。
 > 目标：让 `LoopEngine` 的每轮迭代记进 `ExecutionRun`，并把快照落进 iteration 记录。**只记录、不熔断、不改默认迭代上限**。
 
@@ -72,3 +74,9 @@ node node_modules/typescript/bin/tsc -p tsconfig.test.json --noEmit
 检查：<三条命令退出码>
 未做：<如实写>
 ```
+
+## Result
+
+已完成。`LoopEngineOptions` 新增可选 `executionRun?: ExecutionRun`；注入时每完成一轮迭代 `counters.modelSteps += 1`，该轮以 `error` 收尾则 `consecutiveErrors += 1`、否则归零，并把 `budgetSnapshot: { modelSteps, consecutiveErrors }` 挂到 `IterationResult`；不注入则行为逐字不变。`iteration-store` 的 `IterationEntry` / `IterationEntryInput` 加可选同名快照，只在有值时落库，`appendEngineResult` 透传。
+
+**token/cost 一个字段都没写**：`LoopEngine` 的 generator 抽象只返回 `output` + `artifactPaths`，provider usage 不经过这一层，写 0 就是伪造；注释已写明「token/cost 由上层养」。27 个定向用例 + 19 个 loop/control 回归通过，两项类型检查 exit 0。没有加熔断，没有改 `maxIterations`/`maxRetries` 默认值。

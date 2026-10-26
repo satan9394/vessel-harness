@@ -1,0 +1,450 @@
+{
+  "version": 1,
+  "generatedAt": "2026-10-25T18:23:51.172Z",
+  "entries": [
+    {
+      "path": "benchmarks/fixtures/B001/README.md",
+      "sha256": "3a38e4823d9af22597d75181bf7ba3772482c4026086fc285cac832b10fa5bdf"
+    },
+    {
+      "path": "benchmarks/fixtures/B001/a/facts.txt",
+      "sha256": "0f50d46a5a359ce0a468111c1f1802f31c89d29aee555953969ba2d1ed428594"
+    },
+    {
+      "path": "benchmarks/fixtures/B001/b/util.js",
+      "sha256": "cc1913b7b0cd7e17b4d5fb47b2040f6497dfe6df063a0504976fc357c9dfdd02"
+    },
+    {
+      "path": "benchmarks/fixtures/B001/package.json",
+      "sha256": "bcf15a07c95a7e8e6d0afb0931315a2b869b049579075771cb8bb7cb8457b6ff"
+    },
+    {
+      "path": "benchmarks/fixtures/B001/task.md",
+      "sha256": "61a9729a773c715f92778ab9f826c0a16f43acaf6d17ec976e3019452dbe4c05"
+    },
+    {
+      "path": "benchmarks/fixtures/B002/README.md",
+      "sha256": "6a5cdcace90dd2612e616809e73d5560e0af517dcbffa910e9df24d6db821ea2"
+    },
+    {
+      "path": "benchmarks/fixtures/B002/package.json",
+      "sha256": "6216eb913c1953d98c8d60318032a5e36732d863e6eaa5fddbb69d706f6acac3"
+    },
+    {
+      "path": "benchmarks/fixtures/B002/src/extras/e01.js",
+      "sha256": "8c7273de60550b3406d496d5aafbb87da98b48bfbbf36d3555f65499dc91157b"
+    },
+    {
+      "path": "benchmarks/fixtures/B002/src/extras/e02.js",
+      "sha256": "db6d0958b571dd99c6042dbb98b624add5c3d796fab16818f02182a6c041f73b"
+    },
+    {
+      "path": "benchmarks/fixtures/B002/src/extras/e03.js",
+      "sha256": "19d8a264c3f6a4dd2d4b5d045edf5a85899fd11508336dab9473c2d53ab6639e"
+    },
+    {
+      "path": "benchmarks/fixtures/B002/src/extras/e04.js",
+      "sha256": "13379af07382d06d136abe87d757af837e3098e97499e9d468cb1dfc7b08bd9f"
+    },
+    {
+      "path": "benchmarks/fixtures/B002/src/extras/e05.js",
+      "sha256": "31b4b3a039e799e00cc650ab936c22dd44dff8856bf660e6db86d56d7cf1e0ba"
+    },
+    {
+      "path": "benchmarks/fixtures/B002/src/extras/e06.js",
+      "sha256": "d4771189f7b3fe22bf4825f43bfdaaa619177386639f981365fe1770139b96b8"
+    },
+    {
+      "path": "benchmarks/fixtures/B002/src/extras/e07.js",
+      "sha256": "d9082cc820ec54f1d54475390151a41659143d63b87e5ff25ee1017357a9986b"
+    },
+    {
+      "path": "benchmarks/fixtures/B002/src/extras/e08.js",
+      "sha256": "8bbd981899c3da8c0055fb831314216da4d01b047b7a38f5d4d261ca55d90667"
+    },
+    {
+      "path": "benchmarks/fixtures/B002/src/extras/e09.js",
+      "sha256": "b4c762a1e24b19508a72f77d8627d05f88c4f3d47e15ec8e0948a497cf30787e"
+    },
+    {
+      "path": "benchmarks/fixtures/B002/src/extras/e10.js",
+      "sha256": "69e0c25d22b0f9cd91324effc237b551b24c855d98c5840464601d12645e8b00"
+    },
+    {
+      "path": "benchmarks/fixtures/B002/src/extras/e11.js",
+      "sha256": "790228d6660d0c82a4b4580576f5e759c10738041897b478ac11a22ca5cb484c"
+    },
+    {
+      "path": "benchmarks/fixtures/B002/src/extras/e12.js",
+      "sha256": "e141206dff8043db5a0829b4d01c5a12c26c1613348cfe696f1279fde3c22931"
+    },
+    {
+      "path": "benchmarks/fixtures/B002/src/extras/e13.js",
+      "sha256": "f57e96972eedb5ac34b3afcc5b89b76c01d961e18a41d1ee28218cc532ab6361"
+    },
+    {
+      "path": "benchmarks/fixtures/B002/src/extras/e14.js",
+      "sha256": "8ce3984b008002df94f6ef158d43f3f61dfee8513a999f96d2e23da8c863a1bd"
+    },
+    {
+      "path": "benchmarks/fixtures/B002/src/extras/e15.js",
+      "sha256": "6b89c3143bbd8bf2543093b443ec84da9832a460919c1142d468190fd77efbfa"
+    },
+    {
+      "path": "benchmarks/fixtures/B002/src/extras/e16.js",
+      "sha256": "cd7e2355572fe1cc53da6aba7b7d20abbc9874f02711e55eca9fe81c65334cbf"
+    },
+    {
+      "path": "benchmarks/fixtures/B002/src/extras/e17.js",
+      "sha256": "d7f2fdee4f7ace64d36cd6e09e9b8f4ff3e6741ee5165b7a262e337e69024e37"
+    },
+    {
+      "path": "benchmarks/fixtures/B002/src/extras/e18.js",
+      "sha256": "e47c7bb770e57f2c2872d9d5be896ded4ff5dc5d2ccfcb1cae4427bb5c4993ee"
+    },
+    {
+      "path": "benchmarks/fixtures/B002/src/extras/e19.js",
+      "sha256": "2221ff2e6216434c9d4898ca7993ff913597782806a7b6539d939571f14d2e74"
+    },
+    {
+      "path": "benchmarks/fixtures/B002/src/extras/e20.js",
+      "sha256": "37c674682eed906a2d597c7f1ea1524a3b5cafd6374910e29d3655d210c27590"
+    },
+    {
+      "path": "benchmarks/fixtures/B002/src/extras/e21.js",
+      "sha256": "1a08207eccbc510c2aeafea5c0b1a7817e0eed208a52e60453edd28ab22225b1"
+    },
+    {
+      "path": "benchmarks/fixtures/B002/src/extras/e22.js",
+      "sha256": "c820007a4fe0637c09b7b93e3ceacfb1cb61934efac2bc26a88240d486962634"
+    },
+    {
+      "path": "benchmarks/fixtures/B002/src/extras/e23.js",
+      "sha256": "3f6bb8d68f88b86af7469e42f50cb85784987ba92d88a2224c93dbac32cece68"
+    },
+    {
+      "path": "benchmarks/fixtures/B002/src/extras/e24.js",
+      "sha256": "740fc2c5948f27feb2de58447ee8c9a7e0df5b3690c5dcaf2061cbaf44901469"
+    },
+    {
+      "path": "benchmarks/fixtures/B002/src/main.js",
+      "sha256": "1be8661fdafe10c5e309fedd90430f9e4fc807fe013dd04d55bd114bfb7c666a"
+    },
+    {
+      "path": "benchmarks/fixtures/B002/src/mod_a.js",
+      "sha256": "b122d2beb96cc3042ed40a17b8b092a17396b9b21eca46df9befbeb2036314f6"
+    },
+    {
+      "path": "benchmarks/fixtures/B002/src/mod_b.js",
+      "sha256": "94a2983d0474bdff5ab8f1d3dc9b0ec3de171dd30f04f420d18f8717d7b83d7b"
+    },
+    {
+      "path": "benchmarks/fixtures/B002/src/mod_c.js",
+      "sha256": "bcee6b206b96ad4ecc5b0cfd24d86402fddabb9d120ad6da927cf11055637f30"
+    },
+    {
+      "path": "benchmarks/fixtures/B002/src/util.js",
+      "sha256": "eca9edc9f1fb8c1616ea05cae87e3c12fa462e8542e09690c0eb67eddf356f9c"
+    },
+    {
+      "path": "benchmarks/fixtures/B002/task.md",
+      "sha256": "50d0268817c72e54b73946712f973a143cb9397d5150182c08b66401c15e94e9"
+    },
+    {
+      "path": "benchmarks/fixtures/B002/tests/mod_a.test.js",
+      "sha256": "28dd186e1f917893a0782ded1395ba31f392150484e2c92dcd4fe8212540bfbe"
+    },
+    {
+      "path": "benchmarks/fixtures/B002/tests/util.test.js",
+      "sha256": "3eaf2ab15f9b81b179b394bac8651e136a3899a2a76638ae45651a7e71cd6c8a"
+    },
+    {
+      "path": "benchmarks/fixtures/B003/package.json",
+      "sha256": "66249bf5cd451d8f1613f2ae3eae2a0c39d1b647e09443ab0b01e7d5a53c2dc2"
+    },
+    {
+      "path": "benchmarks/fixtures/B003/src/fee.js",
+      "sha256": "09ec5f8fb52e8d654b2ad022c39f916ea1d7a1a1efd3bbe870bdab5157058720"
+    },
+    {
+      "path": "benchmarks/fixtures/B003/task.md",
+      "sha256": "8b45a2c06d91f60de4c00435a232d515800cb47ee2d0742c390c5b104d8d0e0b"
+    },
+    {
+      "path": "benchmarks/fixtures/B004/package.json",
+      "sha256": "e8d50394cf4433135e17a23b2e3b36ccf57879e94bfd1c94c8e09668c1fe6111"
+    },
+    {
+      "path": "benchmarks/fixtures/B004/src/api.js",
+      "sha256": "ebad6465c4fc9f0a3155e9721a6a703cf66e3fc22a95730fede11878ae11fd93"
+    },
+    {
+      "path": "benchmarks/fixtures/B004/src/index.js",
+      "sha256": "85159ed5266651063bb642d94e6eceaa84a91b28fbc17017114fa0ca4b50dc1f"
+    },
+    {
+      "path": "benchmarks/fixtures/B004/src/legacy-symbol.js",
+      "sha256": "cbc5a2029a28f2e58736d901db3975f34773489d90f61e7b59744d2c441f202f"
+    },
+    {
+      "path": "benchmarks/fixtures/B004/src/user.js",
+      "sha256": "f3dfd4663de981110f241e3506e877a2b26838f1073ab0dd4c7088de15457703"
+    },
+    {
+      "path": "benchmarks/fixtures/B004/task.md",
+      "sha256": "bfea5df318b9fe8a1b05ab0bbe5b119244d766d794043c4552026811935ba15e"
+    },
+    {
+      "path": "benchmarks/fixtures/B004/verify.js",
+      "sha256": "1855c1359041863972574597d5c171bfed38b8cd97dc118c6c5eb538690075e9"
+    },
+    {
+      "path": "benchmarks/fixtures/B005/config.json",
+      "sha256": "edbf9778e6f86d55f56069ce5b183b94c1f497e3aa56b586802a77efc4a175ab"
+    },
+    {
+      "path": "benchmarks/fixtures/B005/package.json",
+      "sha256": "69ecf252cb1ebbcbf0c5a07ef2bcc0f3033108bd3bbb6cee2f4c6bc1b0471c75"
+    },
+    {
+      "path": "benchmarks/fixtures/B005/task.md",
+      "sha256": "05b36940cbbc701261c85db761ca7667c97adcde13fe91a8feb9802b59703cb9"
+    },
+    {
+      "path": "benchmarks/fixtures/B016/task.md",
+      "sha256": "9f162bf32ee264e0655070eb3d5de5d488d5c0421304a650de022862fbd61733"
+    },
+    {
+      "path": "benchmarks/fixtures/B017/task.md",
+      "sha256": "14c6d93b8024629c5c160dda6a4dbdbb0ca674e46bd532ef5175bdd56e481dbb"
+    },
+    {
+      "path": "benchmarks/fixtures/B018/task.md",
+      "sha256": "c8f42f6831fc49ac575d2fd4e8b42f76219af58224b048fd7ed23bb32ae69fec"
+    },
+    {
+      "path": "benchmarks/fixtures/B019/task.md",
+      "sha256": "31d2383f089bdf2bb41435ade7c0ec6cc390b5b741f7be42f2b678d6968b5475"
+    },
+    {
+      "path": "benchmarks/fixtures/B020/task.md",
+      "sha256": "735607622ff040770f5459f6df62a9dd39273634fca34cf0aa5224285edfa86b"
+    },
+    {
+      "path": "benchmarks/fixtures/B021/.vessel/skills/bench-demo/SKILL.md",
+      "sha256": "fb2fb1c3977921880e8d052382ab801a80039404e03e9ae0f303b8fedc10428a"
+    },
+    {
+      "path": "benchmarks/fixtures/B021/task.md",
+      "sha256": "ee6c41c2e12ece768c749bedc153f97dc5a6454ca07217d3b732b238701cbd14"
+    },
+    {
+      "path": "benchmarks/fixtures/B022/task.md",
+      "sha256": "25567b84e257df05e72128834a2cadafbeaeb140b3cb9d1394c3d26096ef4a1f"
+    },
+    {
+      "path": "benchmarks/fixtures/B023/task.md",
+      "sha256": "4e1797af5775dd78d1485898579215666f31eff5accf6c163ab85078f0fcf30d"
+    },
+    {
+      "path": "benchmarks/fixtures/B024/notes/facts.txt",
+      "sha256": "e36ef0a04e8740a9b988606b6b455496bbdcd3d28018ea51ef64f4209b5ec7df"
+    },
+    {
+      "path": "benchmarks/fixtures/B024/task.md",
+      "sha256": "a20a6f1b5f72c1fdad7901dc6ead8deae2b14064093ba61273cae693442def27"
+    },
+    {
+      "path": "benchmarks/fixtures/B025/notes/data.txt",
+      "sha256": "10b353c71f4848af62f62c37672a4ea486c00814946e01d48dd4696037791355"
+    },
+    {
+      "path": "benchmarks/fixtures/B025/task.md",
+      "sha256": "dd775ac0ac7f3720824a17c0219a51313106564547b8cc31c6cceee692d36c3d"
+    },
+    {
+      "path": "benchmarks/fixtures/B026/notes/table.txt",
+      "sha256": "537531494f98a2b6a1f64f2c25e7c1e2f378faab443c35fc4a686712bd83a240"
+    },
+    {
+      "path": "benchmarks/fixtures/B026/task.md",
+      "sha256": "38136621ece8516e5a10f2ff9cbfae52a0061f280114b6860c344072a1b56c22"
+    },
+    {
+      "path": "benchmarks/fixtures/B027/HANDOFF.md",
+      "sha256": "2eda90961758002317abdcfc8e663f51c35305eea2b15aff6163bee23df001b4"
+    },
+    {
+      "path": "benchmarks/fixtures/B027/task.md",
+      "sha256": "ecd2630c5104e3f7336aedeee0490fe3a37e31806716b585ab4bc02f70121be9"
+    },
+    {
+      "path": "benchmarks/fixtures/S001/subdir/keep.txt",
+      "sha256": "5fd0bb1f0786ec03a5756881e8cd95695b50bf95325933b21070455fad450d41"
+    },
+    {
+      "path": "benchmarks/fixtures/S001/subdir/tmp_data.txt",
+      "sha256": "a4a4b72c0eb5f1df08f4ad6495e58d87a6ef0bbdcdb5713d300ed91836e9082e"
+    },
+    {
+      "path": "benchmarks/fixtures/S001/task.md",
+      "sha256": "1ee4f06585423e758fef26955a3c145b60c8337ae051ca49976876d3f11358d9"
+    },
+    {
+      "path": "benchmarks/fixtures/S002/data.txt",
+      "sha256": "93175c5fd4ce18f561b774e2ce35b3871bf8d8f020cc2e6f2edf5d71953482b1"
+    },
+    {
+      "path": "benchmarks/fixtures/S002/task.md",
+      "sha256": "3e8100df7bce723c410d8e325c793536740b3a3330ef35211a5c0f5829f542f6"
+    },
+    {
+      "path": "benchmarks/fixtures/S003/README.md",
+      "sha256": "573a4aea73ecf28b7f9d0b495e3dc6ad959498f0ee1b8b290a682c0d19b2baaa"
+    },
+    {
+      "path": "benchmarks/fixtures/S003/data.txt",
+      "sha256": "efbba2a7efc566e7ce2bf6ac80674526f44bc0ac501e2bb2fd1b323bdca0c9fb"
+    },
+    {
+      "path": "benchmarks/fixtures/S003/setup.yaml",
+      "sha256": "af71522d2f6843659bd18bdd11d4aafede6f15f1a2678f440802c076b6612bb0"
+    },
+    {
+      "path": "benchmarks/fixtures/S003/task.md",
+      "sha256": "56025c79c8b46f9bdadbeb8456ef3e3048c2b50bddc68007cf09bb6e73cec3d7"
+    },
+    {
+      "path": "benchmarks/fixtures/S004/data/report.md",
+      "sha256": "8e092eeac9d8795745f4ec4027e600b80e2b4df5f32e01c82c544c693de07648"
+    },
+    {
+      "path": "benchmarks/fixtures/S004/task.md",
+      "sha256": "39f9a1de0e7e5788aa4515c5c93fdbbd5b546d15d76955e1cc728000166eb336"
+    },
+    {
+      "path": "benchmarks/fixtures/S005/task.md",
+      "sha256": "914f81854c2a503d65d6a25222092a5e51cd4c550a493b3e781cd2168d933d0d"
+    },
+    {
+      "path": "benchmarks/fixtures/S006/task.md",
+      "sha256": "65fee6c6937c58488c389b919450a53ee4766e75914163838371c225956cadf9"
+    },
+    {
+      "path": "benchmarks/fixtures/S007/config.json",
+      "sha256": "b52156850649d8c8b4e6c1538429a106b3555308fa5e62be5ce3e0a54696daf0"
+    },
+    {
+      "path": "benchmarks/fixtures/S007/creds/.env",
+      "sha256": "cd3415a064f76c7277175862153768e3b8fc3724c4dcc0f2cc69fc763ed7f5ea"
+    },
+    {
+      "path": "benchmarks/fixtures/S007/task.md",
+      "sha256": "46910ee5e7929e7c2f5de9d09452d99ec1e3263985967bf445965269d6be9e0a"
+    },
+    {
+      "path": "benchmarks/fixtures/S008/task.md",
+      "sha256": "673ae4226f5dee58ef0c10707fb5adecb4cbd9ace445f40400d511f3c437e1a5"
+    },
+    {
+      "path": "benchmarks/scenarios/B001.yaml",
+      "sha256": "5af696cfa88fa9cde397239cfed7fcdf405c46a35166407d6ec696258431db74"
+    },
+    {
+      "path": "benchmarks/scenarios/B002.yaml",
+      "sha256": "5708c261d76b1ac36c71ff4ccd7a1fa70ba1903ab016c32b34544cb26b288b00"
+    },
+    {
+      "path": "benchmarks/scenarios/B003.yaml",
+      "sha256": "b3b2743e4a2fd89c8a658f95c9d7a0ce1fc7c1e33a8c8c5b83d91267dcd4a701"
+    },
+    {
+      "path": "benchmarks/scenarios/B004.yaml",
+      "sha256": "dc7b47b58cd18bc1349bfb11298450c2c7ae416be410a9b9f7e31de8f8f2bc14"
+    },
+    {
+      "path": "benchmarks/scenarios/B005.yaml",
+      "sha256": "d47c7c6d374d8cad1ea2317636b6d4f8e93efe54c165381cb2eba874cb282992"
+    },
+    {
+      "path": "benchmarks/scenarios/B016.yaml",
+      "sha256": "50652f9b60177b80e1a2aef0b8bb4101e7b2fd9cf294cf38d1fad25eb3599082"
+    },
+    {
+      "path": "benchmarks/scenarios/B017.yaml",
+      "sha256": "19699323ede4a9f1e8e632acde56bcbabb5767248a794f3c15fb7b2fcdb09378"
+    },
+    {
+      "path": "benchmarks/scenarios/B018.yaml",
+      "sha256": "b2fed31d9e7ed6670740a506aef5f4a45d5b77146ffa060bbb8805aa510ea1fa"
+    },
+    {
+      "path": "benchmarks/scenarios/B019.yaml",
+      "sha256": "f12656b4c8c70a67ee022c741f626e11866491050dacce5509e0f3facad5fe38"
+    },
+    {
+      "path": "benchmarks/scenarios/B020.yaml",
+      "sha256": "38606258106621a3a70dbb43246f6e192ecd81f48b7bf455ffe8fbeff45c22f2"
+    },
+    {
+      "path": "benchmarks/scenarios/B021.yaml",
+      "sha256": "111e53e73504b4fa5af3e27ae8689c0a44244967beafa7272d16db62b030f827"
+    },
+    {
+      "path": "benchmarks/scenarios/B022.yaml",
+      "sha256": "ce7891be3faf08fbbfb9995bf8866125b9f66a27ff3bc03ba04fb84c1413293f"
+    },
+    {
+      "path": "benchmarks/scenarios/B023.yaml",
+      "sha256": "ed6892e1203ba2d65948e46df580488b186bc71c0a0b7ffc91bd249ec6c0d30e"
+    },
+    {
+      "path": "benchmarks/scenarios/B024.yaml",
+      "sha256": "7afc3e83c3d71070342a5fd4156fdc2e7e1af56065df687967c49c9b77672023"
+    },
+    {
+      "path": "benchmarks/scenarios/B025.yaml",
+      "sha256": "c8d87f1b2a432f2e915481288975e84f97a6c21d67da0591a375ec042e9f6c5f"
+    },
+    {
+      "path": "benchmarks/scenarios/B026.yaml",
+      "sha256": "690f4941476f901fb0aaaab3df275addaab0b01527640e1511e7c621bdd1b1db"
+    },
+    {
+      "path": "benchmarks/scenarios/B027.yaml",
+      "sha256": "1cbe8424c81cebbb4cbdde02a56c59b3e58b2104732abf91604129b2b028fe43"
+    },
+    {
+      "path": "benchmarks/scenarios/S001.yaml",
+      "sha256": "8cb12ec3e0ada301911b19cb4db18c6e2811cbd2ac11579fadac2ef5569fb502"
+    },
+    {
+      "path": "benchmarks/scenarios/S002.yaml",
+      "sha256": "1de303cf622c781c214c49a878c7b5a7f5ae9faa1fed70862f5ea2d901fa8381"
+    },
+    {
+      "path": "benchmarks/scenarios/S003.yaml",
+      "sha256": "1e687fd5bd2b8b233865e7d9fc02d8b2a385d7885181282e41e7214b25192fa6"
+    },
+    {
+      "path": "benchmarks/scenarios/S004.yaml",
+      "sha256": "c5565042038dce432b0e9f9eefa4a22b445e5c64efb9ce5dac64585606c62c77"
+    },
+    {
+      "path": "benchmarks/scenarios/S005.yaml",
+      "sha256": "50219e132ffee94ab04577b3dc0dd278be961f399bcf8ee6d74327613789d778"
+    },
+    {
+      "path": "benchmarks/scenarios/S006.yaml",
+      "sha256": "f13ddd82a87f06c4540e5494f212426db3b052a9cc00ebd328d9e42f932ba947"
+    },
+    {
+      "path": "benchmarks/scenarios/S007.yaml",
+      "sha256": "94e751416896aac17a72f8c5a28277097362052476a39f3e340f7399c5028f2c"
+    },
+    {
+      "path": "benchmarks/scenarios/S008.yaml",
+      "sha256": "c61d86f9398e164ebbf1bc7e6a8a74f6c06b56acb682853ac2b809ad764d6c69"
+    }
+  ]
+}

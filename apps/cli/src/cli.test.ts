@@ -851,6 +851,8 @@ describe('vessel bench:runs (task 298)', () => {
       const dir = path.join(reports, 'B001', runId!);
       fs.mkdirSync(dir, { recursive: true });
       fs.writeFileSync(path.join(dir, '.run-complete.json'), value!, 'utf8');
+      fs.writeFileSync(path.join(dir, 'summary.json'), JSON.stringify({ success: true }), 'utf8');
+      fs.mkdirSync(path.join(dir, 'workspace'));
     }
   }
 
@@ -860,9 +862,9 @@ describe('vessel bench:runs (task 298)', () => {
     try {
       expect(await main(['bench:runs', 'B001', '--out', reports])).toBe(0);
       expect(streams.lines()).toEqual([
-        `run_2_bb  finished=${newer}  files=4  reusable=yes`,
-        `run_1_aa  finished=${older}  files=3  reusable=no`,
-        '2 run(s); 1 reusable for the current harness',
+        `run_2_bb  finished=${newer}  files=4  reuse=ok`,
+        `run_1_aa  finished=${older}  files=3  reuse=no(fingerprint mismatch)`,
+        '2 run(s); 1 reuse-ready for the current harness',
       ]);
       expect(streams.err()).toBe('');
     } finally { streams.restore(); }
@@ -876,11 +878,28 @@ describe('vessel bench:runs (task 298)', () => {
       expect(JSON.parse(streams.out())).toEqual({
         scenarioId: 'B001', currentFingerprint: fingerprint,
         runs: [
-          { runId: 'run_2_bb', finishedAt: newer, fileCount: 4, fingerprint, reusable: true },
-          { runId: 'run_1_aa', finishedAt: older, fileCount: 3, fingerprint: 'outdated', reusable: false },
+          { runId: 'run_2_bb', finishedAt: newer, fileCount: 4, fingerprint, reuse: { ok: true, reasons: [] } },
+          { runId: 'run_1_aa', finishedAt: older, fileCount: 3, fingerprint: 'outdated', reuse: { ok: false, reasons: ['fingerprint mismatch'] } },
         ],
       });
       expect(streams.err()).toBe('');
+    } finally { streams.restore(); }
+  });
+
+  it('adds reuse readiness while retaining all four completed-run fields', async () => {
+    seedRuns();
+    fs.unlinkSync(path.join(reports, 'B001', 'run_2_bb', 'summary.json'));
+    const streams = captureChannels();
+    try {
+      expect(await main(['bench:runs', 'B001', '--out', reports, '--json'])).toBe(0);
+      const output = JSON.parse(streams.out());
+      expect(output.runs).toHaveLength(2);
+      for (const run of output.runs) {
+        for (const field of ['runId', 'finishedAt', 'fileCount', 'fingerprint']) expect(run).toHaveProperty(field);
+        expect(typeof run.reuse.ok).toBe('boolean');
+        expect(Array.isArray(run.reuse.reasons)).toBe(true);
+      }
+      expect(output.runs[0].reuse).toEqual({ ok: false, reasons: ['missing summary.json'] });
     } finally { streams.restore(); }
   });
 

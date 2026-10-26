@@ -1,5 +1,7 @@
 # T307 — 候选匿名选优（HARNESS² P1-2 的算法层）
 
+- Status: 已完成（2026-10-25；Codex 手动执行；未提交、未推送）
+
 > 自包含执行书。项目根 `E:\Code_file\Projects\Vessel_Harness`（Windows）。
 > 目标：先只做**纯算法 + 类型**，回答「同一任务的多个候选，哪个更好、为什么」。**不接运行入口**（跑 N 份的入口成本另计）。
 
@@ -100,3 +102,9 @@ node node_modules/typescript/bin/tsc -p tsconfig.test.json --noEmit
 检查：<三条命令退出码 + selection.test.ts 是否仍绿>
 未做：<如实写"未接运行入口">
 ```
+
+## Result
+
+已完成。`packages/engine/src/candidate-selection.ts` 提供 `anonymizeCandidates(candidates, seed)`（别名 = `sha256(seed + NUL + id)` 前 6 位，按别名字典序）与 `selectCandidate({ candidates, reviews, seed })`：先丢弃无产物候选（`output` 空白且 `artifactPaths` 空），只统计 `met` 票，平票按别名字典序取最小，零票返回 `chosen: null`；未知 candidateId 的 review 忽略并在 `why` 注明。纯函数，不读文件、不读环境、不打印。
+
+5 个用例通过；`selection.test.ts`（既有的 `selectTaskFor` 路由守卫）仍绿；`tsc -b` 与 `typecheck:tests` exit 0。**未接运行入口**（没有改 `LoopEngine` / evaluator / runner / CLI），文档只写「纯算法、未接入口、不得由 Generator 自证」。

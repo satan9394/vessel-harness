@@ -214,6 +214,17 @@ describe('engine/iteration-store — IterationStore 迭代日志（task 063）',
     }
   });
 
+  it('round-trips optional budget snapshots while legacy entries remain readable', () => {
+    const s = makeStore();
+    s.appendIteration(TASK, { verdict: 'met' });
+    const budgetSnapshot = { modelSteps: 2, consecutiveErrors: 1 };
+    s.appendEngineResult(TASK, engineResult({ budgetSnapshot }));
+    budgetSnapshot.modelSteps = 99;
+    const replay = new IterationStore({ iterationsRoot: root }).replay(TASK.taskId);
+    expect(replay[0]).not.toHaveProperty('budgetSnapshot');
+    expect(replay[1]!.budgetSnapshot).toEqual({ modelSteps: 2, consecutiveErrors: 1 });
+  });
+
   it('appendIteration 建目录记录 <root>/<task-id>/meta.json：任务基座快照 + 首个条目（ordinal=1、字段缺省归一）', () => {
     const s = makeStore();
     const rec = s.appendIteration(TASK, { verdict: 'met', evidence: ['e1'], reason: 'ok' });

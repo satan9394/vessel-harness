@@ -179,6 +179,7 @@ fixture 里**没有** `expected/asserts.yaml` 这一层（§2.1）——旧文�
    按相对路径排序，将路径、NUL 与文件字节依次送入 SHA-256，取前 16 位 hex。
    判据全过且回合未异常结束的 run 写完 `summary.json` 后写 `<runDir>/.run-complete.json`：`version: 1`、`fingerprint`、`fileCount`、`finishedAt`（ISO）；判据失败或回合异常结束时不写。
    iteration 条目可选 `harnessFingerprint` 记录同一身份；旧记录仍可读，计算失败记 note 后省略该字段。
+   reuse 判定还要求产物完好：成功的 summary、合法且匹配的 marker、声明的非空报告/日志文件与 workspace 目录须齐备。
    读取侧已提供 `listCompletedRuns` / `findReusableRun`，并由 `vessel bench:runs` 只读展示当前指纹匹配；**不接自动复用**，`runScenario` 与 release gate 仍重跑。
 
 ---
@@ -199,6 +200,31 @@ score 包含 `n_passed`、`n_criteria`、`all_pass`、`graded`；ungraded 必须
 `ungraded`、`skipped`、`pending` 不进分母，单独计数；`runs` 仍包含全部行。
 ungraded 为并列计数，不新增 `ReportRowStatus` 枚举值；pending/skipped 行优先沿用其状态计数。
 既有报告在全是 graded 且已判定 passed/failed 的行时，成功率数字与以前一致。
+
+### 2.5 三轴分离
+
+method / substrate / benchmark 分别表达行为、执行与判据，三者独立演进。
+改动某一轴时，不应把另一轴的具体实现或场景特例固化进来。
+
+- **method**：行为语义，落在 `packages/behavior` 的 IR 与 compiler。
+  它描述行为意图与编译规则，不决定某个 benchmark 的通过条件。
+- **substrate**：执行体，落在 `benchmarks/runners/src/contracts` 与 `adapters`。
+  它定义各 harness 的接入方式，接收 runner 注入的 fixture 与运行上下文。
+- **benchmark**：判据，落在 `benchmarks/scenarios/*.yaml` 的 `pass:`。
+  它声明如何判定产物，由 runner 装载并执行断言。
+
+三条互不引用规则：
+
+1. method 不认识 benchmark 场景 id，不按场景 id 编译行为。
+2. substrate 不读 `scenarios/*.yaml` 的判据，判分留给 runner。
+3. benchmark 不 import method/substrate 的实现，只通过 runner 注入。
+
+`BenchSpec` 是值不是代码路径：场景差异必须写在 yaml 数据里，
+不得靠分支代码表达；同一判据可交给不同执行体运行。
+新增场景与替换执行体都应维持上述边界，不以便捷接线为由跨轴引用。
+
+本约束目前由 code review 与既有 parity 测试守护，
+没有自动化的跨轴 import 检查，不把现有测试表述为这种检查。
 
 ## 3. Scenario 规范
 

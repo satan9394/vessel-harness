@@ -1370,6 +1370,8 @@ async function cmdBenchRuns(args: string[], flags: Map<string, string>): Promise
   const source = import.meta.url.endsWith('.ts');
   const cacheUrl = new URL(`../../../benchmarks/runners/${source ? 'src/runCache.ts' : 'dist/runCache.js'}`, import.meta.url);
   const { listCompletedRuns } = await import(cacheUrl.href) as typeof import('../../../benchmarks/runners/src/runCache.js');
+  const reuseUrl = new URL(`../../../benchmarks/runners/${source ? 'src/reuse.ts' : 'dist/reuse.js'}`, import.meta.url);
+  const { assessRunReusability } = await import(reuseUrl.href) as typeof import('../../../benchmarks/runners/src/reuse.js');
   const fingerprintUrl = new URL(`../../../packages/engine/${source ? 'src/fingerprint.ts' : 'dist/fingerprint.js'}`, import.meta.url);
   const { computeHarnessFingerprint } = await import(fingerprintUrl.href) as typeof import('../../../packages/engine/src/fingerprint.js');
   const workspace = path.resolve(flags.get('workspace') ?? process.cwd());
@@ -1377,15 +1379,15 @@ async function cmdBenchRuns(args: string[], flags: Map<string, string>): Promise
   const currentFingerprint = computeHarnessFingerprint(repoRoot()).value;
   const runs = listCompletedRuns(outDir, scenarioId).map((run) => ({
     runId: run.runId, finishedAt: run.finishedAt, fileCount: run.fileCount,
-    fingerprint: run.fingerprint, reusable: run.fingerprint === currentFingerprint,
+    fingerprint: run.fingerprint, reuse: assessRunReusability(run.dir, repoRoot()),
   }));
   if (isJson(flags)) emitJson({ scenarioId, currentFingerprint, runs });
   else if (runs.length === 0) console.log('no completed runs found');
   else {
     for (const run of runs) {
-      console.log(`${run.runId}  finished=${run.finishedAt}  files=${run.fileCount}  reusable=${run.reusable ? 'yes' : 'no'}`);
+      console.log(`${run.runId}  finished=${run.finishedAt}  files=${run.fileCount}  reuse=${run.reuse.ok ? 'ok' : `no(${run.reuse.reasons.join('; ')})`}`);
     }
-    console.log(`${runs.length} run(s); ${runs.filter((run) => run.reusable).length} reusable for the current harness`);
+    console.log(`${runs.length} run(s); ${runs.filter((run) => run.reuse.ok).length} reuse-ready for the current harness`);
   }
   return 0;
 }

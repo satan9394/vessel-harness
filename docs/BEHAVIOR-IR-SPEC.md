@@ -860,3 +860,15 @@ behavior_ir:
 - v0.1（2026-09-05）：初始发布。12 分类 / 49 条目；来源标注与 UNTRUSTED 处理落地；编译管线 L0–L4 定义；边界声明（与 D5/D6/evals 分工）。
 
 （完）
+
+## SurfaceSpec（当前只有一种安装方式）
+
+`SurfaceSpec` 把 harness 的常驻文本表面表达为值，由 `packages/behavior` 导出。
+`name` 是表面的稳定标识，只接受小写字母、数字、点、下划线与连字符。
+`alwaysOn` 描述常驻注入文本；当前值概述编译后的行为段落与 policy guidance。
+`installMode` 目前只有 `self-hosted`，没有对应 benchmark 支撑的模式一律不做。
+`caps.alwaysOn` 声明文本是否随每轮注入，`caps.maxAlwaysOnChars` 声明字符上限。
+`validateSurfaceSpec` 返回问题列表，空列表表示合法，不抛错，也不审查文本措辞。
+`SELF_HOSTED_SURFACE` 是当前唯一表面的声明值，不是类。
+该值不是运行时开关，修改它不改变 `composeHarness` 的行为。
+本节只定义表面契约，不把声明接入 IR、Compiler 或请求组装。

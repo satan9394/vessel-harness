@@ -488,6 +488,11 @@ benchmarks/（Vitest 工作区跑批）
 
 ---
 
+`packages/engine/src/candidate-selection.ts` 提供候选匿名化与票数选优的纯算法。
+它先排除无产物候选，再按独立评审的 `met` 票数选择，平票按稳定别名排序。
+该模块未接运行入口，不负责生成多份候选，也不调用 evaluator、runner 或 CLI。
+评审必须保持 Generator/Evaluator 分离，不得由 Generator 自证选优。
+
 ## 8. 与 Conformance Suite 的验证闭环
 
 > ARCHITECTURE 的边界声明如何被 D7 BENCHMARK-SPEC 验证——每个架构主张都映射到一条可执行断言链。
