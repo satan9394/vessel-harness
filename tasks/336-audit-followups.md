@@ -1,6 +1,6 @@
 # T336 — 第二批审计（20261026202307-0d050e）后的修复
 
-- Status: 进行中（2026-10-26）
+- Status: 已完成（2026-10-26；R1/R2/R3 全部落地，17 步门禁全绿）
 - 来源：PDW `audit` 任务 `20261026202307-0d050e`（`accepted_local`），复核提交 `d024d44` + `e749a80`。
   A1–A6 全部 pass；本卡处理它挑出的问题。
 
@@ -31,6 +31,8 @@ pwsh -NoProfile -File scripts/gate-batched.ps1
 外加人工核对：`~/.vessel/usage.json` 在跑完 `cli.test.ts` 后元信息未变；HTTP 删除被引用 provider 的 409 body。
 
 ## Result
+
+最终：scripts/gate-batched.ps1 17 步全 exit 0；根 328 文件 / 3599（6 跳过）、web 58 / 519。
 
 R1/R2 已落地，门禁与复核进行中：
 
