@@ -3104,7 +3104,7 @@ async function dispatch(parsed: ParsedArgs): Promise<number> {
   if (first === 'bench-report') return cmdBenchReport(parsed.flags);
   if (first === 'bench:runs') return cmdBenchRuns(parsed.positionals.slice(1), parsed.flags);
   if (first === 'serve') return cmdServe(parsed.flags);
-  if (first === 'daemon') return daemonCommands(parsed.positionals, parsed.flags, fileURLToPath(import.meta.url));
+  if (first === 'daemon') return daemonCommands(parsed.positionals, parsed.flags, fileURLToPath(import.meta.url), { usageByProvider: () => createUsageStore().byProvider() });
   if (first === 'web') return cmdWeb(parsed.flags);
   if (first === 'sessions') {
     const sub = parsed.positionals[1] ?? 'list';

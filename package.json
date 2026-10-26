@@ -30,6 +30,7 @@
     "build:release": "tsc -p tsconfig.release.json",
     "typecheck": "tsc -b tsconfig.json --pretty false",
     "typecheck:tests": "tsc -p tsconfig.test.json --pretty false",
+    "check:web-presets": "node scripts/sync-web-presets.mjs --check",
     "test": "vitest run",
     "test:web": "vitest run --root apps/web",
     "test:all": "vitest run && vitest run --root apps/web",

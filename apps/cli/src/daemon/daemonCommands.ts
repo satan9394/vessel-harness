@@ -31,8 +31,10 @@ export function daemonStaticDir(): string {
   return path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..', '..', 'web', 'dist');
 }
 
-export async function daemonCommands(args: string[], flags: Map<string, string>, entry: string): Promise<number> {
-  if (flags.has('child')) return runDaemonChild(flags);
+type DaemonHooks = Pick<NonNullable<Parameters<typeof createVesselServer>[0]>, 'usageByProvider'>;
+
+export async function daemonCommands(args: string[], flags: Map<string, string>, entry: string, hooks: DaemonHooks = {}): Promise<number> {
+  if (flags.has('child')) return runDaemonChild(flags, hooks);
   const json = flags.has('json');
   const command = args[1] ?? 'status';
   if (!['start', 'stop', 'status'].includes(command)) {
@@ -57,7 +59,7 @@ export async function daemonCommands(args: string[], flags: Map<string, string>,
   }
 }
 
-async function runDaemonChild(flags: Map<string, string>): Promise<number> {
+async function runDaemonChild(flags: Map<string, string>, hooks: DaemonHooks): Promise<number> {
   const root = path.resolve(flags.get('root') ?? daemonRoot());
   const instanceId = flags.get('instance');
   const owner = readDaemonLock(root);
@@ -81,6 +83,7 @@ async function runDaemonChild(flags: Map<string, string>): Promise<number> {
     for (const peer of peers) mesh.trustPeer(peer as MeshNodeDescriptor);
   }
   const server = daemonRuntime.server({
+    ...(hooks.usageByProvider ? { usageByProvider: hooks.usageByProvider } : {}),
     observeWorkspace: root => WorkspaceFingerprinter.compute(root),
     port: Number(flags.get('port')), authToken: token, mesh, notify: createNativeNotifier(), staticDir: daemonStaticDir(),
     daemon: { status: () => ({ ...info, uptimeSeconds: Math.floor(process.uptime()), memoryBytes: process.memoryUsage().rss }), stop: () => stop() },

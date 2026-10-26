@@ -35,7 +35,7 @@ describe('daemon commands (no child process or real store)', () => {
     expect(launch.mock.calls[0]![2]).toMatchObject({ detached: true, stdio: 'ignore', windowsHide: true });
     expect(launch.mock.calls[0]![1]).not.toContain('--token');
   });
-  it('publishes ready state before launching exactly one resident tray and shuts down its own state', async () => {
+  it.each(['omitted', 'empty', 'provided', 'cli'] as const)('publishes ready state and forwards only supplied usage hooks (%s)', async mode => {
     const root = fs.mkdtempSync(path.join(os.tmpdir(), 'vessel-child-mock-'));
     fs.mkdirSync(path.join(root, 'daemon.lock')); fs.writeFileSync(path.join(root, 'daemon.lock', 'owner.json'), JSON.stringify({ pid: process.pid, instanceId: '00000000-0000-4000-8000-000000000001' }));
     fs.writeFileSync(path.join(root, 'daemon.lock', '00000000-0000-4000-8000-000000000001.claim'), '00000000-0000-4000-8000-000000000001');
@@ -46,14 +46,24 @@ describe('daemon commands (no child process or real store)', () => {
     vi.spyOn(daemonRuntime, 'protect').mockImplementation(() => {});
     vi.spyOn(daemonRuntime, 'recycle').mockImplementation(async target => { fs.rmSync(target, { recursive: true, force: true }); });
     const tray = vi.spyOn(daemonRuntime, 'tray').mockImplementation(() => {}); const exit = vi.spyOn(daemonRuntime, 'exit').mockImplementation(() => {});
+    const usageByProvider = vi.fn(() => []);
     try {
-      const run = daemonCommands(['daemon'], new Map([['child', 'true'], ['root', root], ['instance', '00000000-0000-4000-8000-000000000001'], ['parent', String(process.pid)], ['port', '30001'], ['deadline', String(Date.now() + 3000)]]), '/fake/cli.js');
+      const flags = new Map([['child', 'true'], ['root', root], ['instance', '00000000-0000-4000-8000-000000000001'], ['parent', String(process.pid)], ['port', '30001'], ['deadline', String(Date.now() + 3000)]]);
+      const run = mode === 'cli'
+        ? main(['daemon', ...Array.from(flags).flatMap(([key, value]) => [`--${key}`, value])])
+        : mode === 'omitted'
+          ? daemonCommands(['daemon'], flags, '/fake/cli.js')
+          : daemonCommands(['daemon'], flags, '/fake/cli.js', mode === 'provided' ? { usageByProvider } : {});
       await vi.waitFor(() => expect(tray).toHaveBeenCalledTimes(1));
       const saved = JSON.parse(fs.readFileSync(path.join(root, 'daemon.json'), 'utf8'));
       expect(saved.pid).toBe(process.pid); expect(saved.port).toBe(30001); expect(saved.instanceId).toBe('00000000-0000-4000-8000-000000000001');
       expect(options!.staticDir).toBe(daemonStaticDir()); expect(options!.authToken).toHaveLength(48);
       expect(options!.mesh!.local.nodeId).toBe(saved.instanceId);
       expect(options!.mesh!.local.token).toBe(options!.authToken);
+      if (mode === 'provided') expect(options!.usageByProvider).toBe(usageByProvider);
+      else if (mode === 'cli') expect(options!.usageByProvider).toBeTypeOf('function');
+      else expect(Object.hasOwn(options!, 'usageByProvider')).toBe(false);
+      expect(usageByProvider).not.toHaveBeenCalled();
       options!.daemon!.stop(); expect(await run).toBe(0); expect(close).toHaveBeenCalledOnce(); expect(exit).toHaveBeenCalledWith(0);
       expect(fs.readFileSync(path.join(root, 'daemon.token'), 'utf8')).toBe(''); expect(fs.existsSync(path.join(root, 'daemon.lock'))).toBe(false);
     } finally { fs.rmSync(root, { recursive: true, force: true }); }

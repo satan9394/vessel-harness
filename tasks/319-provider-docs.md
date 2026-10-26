@@ -63,3 +63,9 @@ node node_modules/tsx/dist/cli.mjs scripts/sync-web-presets.mjs --check
 - **§12 与 magpie / cc-switch 的边界**：吸收了什么、不吸收什么（指向 `docs/MAGPIE-ABSORPTION.md`），并**明确列出尚未支持**的 failover、配额窗口、profile 快照、cc-switch 导入。
 
 `docs/ARCHITECTURE.md` 未改（package 清单与 provider 归属与本轮实现一致，不需要对账）。
+
+## 实施偏差（2026-10-26，补审后由协调者更正）
+
+- 本卡开头写的 packages/application/src/providers/usageAggregate.ts **并不存在**：聚合保留在 UsageStore.byProvider()，没有另抽纯函数（卡 318 的 Result 已说明理由）。
+- 本卡开头与第 2 条写的 essel usage --by-provider **不是真实旗标**：实际是 essel usage 默认就有「按供应商:」段，--json 里是 yProvider。
+- 以上两处是执行书里的笔误，不影响已交付产出；docs/MAGPIE-ABSORPTION.md 的对应表述已由卡 322 的 PDW 任务修正。
