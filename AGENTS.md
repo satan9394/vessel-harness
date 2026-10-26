@@ -63,6 +63,7 @@
 | `planner` | PDW / OpenCode | 只读 | 默认关闭，仅契约 `planner: true` 时启用；只规划不实现 |
 
 - **档位词表按后端分列，以模型声明的 `variants` 为准**（`opencode debug config` 可查）：DeepSeek V4.1 Flash 实测 `low/high/max/off`，写 `medium` 不会变成中等思考；GPT-6.1 Sol 实测 `low/medium/high/xhigh/max/ultra`。换模型后重新核对，不沿用旧结论。
+- **`ultra` 不是「更深一档的单代理思考」**：Codex 应用里它表示**协调并行子代理**。因此走 Codex 应用（不走 PDW）时，执行单必须写死「**同一文件同一时刻只允许一个写者**」，并行只用于只读探索与跑测试；段与段之间用验证命令做闸门（上一段没绿不许开下一段）。PDW 的 `implement` 仍是串行单代理，保持 `medium`。
 - **加一个供应商**：在 `~/.config/opencode/opencode.json` 的 `providers`（v2 是复数，v1 才是 `provider`）里配好 `models` / `variants`，角色值写 `<provider>/<model-id>`。三个坑：密钥在 `settings.apiKey`，`opencode auth list` 看不见，目录里有不等于能用；`variants` 不一定包含你要的档位；model id 可能自带 `/`，值里会出现两个斜杠。改完跑 `doctor` 再做一次真实任务。
 - **迭代口径**：改"选择"（哪个模型、开不开 planner、限额）→ 只改 `.pdw/config.json`；改"机制"（加 backend、加目录发现、改证据规则）→ 走上游 `satan9394/personal-dev-workflow`，不在项目副本打补丁；9 个技能文件永不在项目内分叉（`update.mjs` 逐字节覆盖，改了也留不住）。版本号不是身份，只认 sha256。
 - **Codex 提示规约（仅 `implement` / `repair`）**：接口契约先行，用标题 / XML 标签 / 代码块隔离上下文与禁止项；不注入 "think step by step"、不写大段角色扮演；稳定契约放 Prompt 前部以复用前缀缓存。
