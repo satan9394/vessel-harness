@@ -32,17 +32,4 @@ Required commands run after final product/test/doc edits, all exit 0:
 - `node node_modules/vitest/vitest.mjs run apps/local-server/src/routes`: 10 files / 113 passed (`profileRoutes.test.ts` absent).
 - `git diff --check`: exit 0.
 
-Remaining: existing HTTP windows filter provider aggregates by their maximum lastTs, while requested CLI/store windows select individual model entries before aggregation. These differ for a provider with models inside/outside the window. An asynchronous scope question asks whether HTTP usage window data sourcing may change despite the explicit prohibition on HTTP success-path changes; no answer received at this checkpoint. Do not claim full HTTP/CLI parity. Tests verify compatible one-entry providers and separately verify mixed-entry CLI selection. No assertions weakened.
-
-Concurrent external edits appeared in cli.test.ts and tasks/325–330,335,336; preserved, not attributed to this task. No commit/push/local agent CLI calls.
-
-Reviewed product/test/doc SHA-256:
-```
-dca50de0b1ca24b03384dd64e5356d68b92ae16612015860f09d9b8f462ce691 apps/cli/src/usage/UsageStore.ts
-b9be4cfd7fe7ee32a827e1906beee7e0b9b03fce0eaf65fe525e832e116b251c apps/cli/src/cli.ts
-c5bc2e70a492b8a79b870a08b28b72296469fce18625d87934d17707a740ea5a apps/cli/src/usage/usage-store.test.ts
-38b85c043c48abb5c4588fb14fac5ca857be3b6cb87289ba8b695b933b975f39 apps/cli/src/usage/window-cli.test.ts
-6cea5757ecf086701b2b6f2605919a60c1ea2bec535cc1f8a053f339ba5706ac apps/local-server/src/server.ts
-03cb9fc9ad3688dac7d1d4d184c2d471aed3d6ef64efd0c5c385ec710b77364b apps/local-server/src/server.test.ts
-eb97eea99bf6922d947edd2d7a5358b73f75dfd6bb0539c2741eaa2276fe9dbf docs/PROVIDER-MANAGEMENT.md
-```
+Remaining（已由卡 338 解决）：HTTP 与 CLI 的窗口口径已统一为「按条目 lastTs 过滤后聚合」；window-cli.test 覆盖同一供应商含窗口内外模型的完全相等。本文件保留为执行证据。

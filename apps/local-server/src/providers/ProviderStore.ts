@@ -439,7 +439,9 @@ export class ProviderStore {
     }
     const references = this.profilesFor(id);
     if (references.length && !options.force) {
-      throw new Error(`provider_in_use: "${id}" profiles: ${references.join(', ')}; use --force`);
+      throw Object.assign(new Error(`provider_in_use: "${id}" profiles: ${references.join(', ')}; use --force`), {
+        code: 'provider_in_use', profiles: references,
+      });
     }
     // 在删除前记录 current，避免宽容回退掩盖（删除后 getCurrent 已读不到 id）。
     const wasCurrent = this.getCurrent() === id;

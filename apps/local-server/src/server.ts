@@ -556,10 +556,12 @@ export function createVesselServer(opts: VesselServerOptions = {}): VesselServer
           try {
             return providerRoutes.remove(decodeURIComponent(url.pathname.slice('/api/providers/'.length))) ? json(res, 200, { ok: true }) : json(res, 404, { error: 'unknown_provider' });
           } catch (error) {
-            if (error instanceof Error && error.message.startsWith('provider_in_use:')) {
+            const code = error instanceof Error && 'code' in error ? error.code : undefined;
+            if (error instanceof Error && (code === 'provider_in_use' || error.message.startsWith('provider_in_use:'))) {
               const detail = /^provider_in_use: "[^"]+" profiles: (.+); use --force$/.exec(error.message);
-              const profiles = detail?.[1]!.split(', ');
-              return profiles?.every(name => name.length > 0 && name.length <= 64 && !/[\s\x00-\x1f\x7f]/u.test(name)) ? json(res, 409, { error: 'provider_in_use', profiles })
+              const profiles = code === 'provider_in_use' && 'profiles' in error && Array.isArray(error.profiles)
+                ? error.profiles : detail?.[1]!.split(', ');
+              return profiles?.length && profiles.every((name: unknown) => typeof name === 'string' && name.length > 0 && name.length <= 64 && !/[\s\x00-\x1f\x7f]/u.test(name)) ? json(res, 409, { error: 'provider_in_use', profiles })
                 : json(res, 400, { error: 'provider_in_use' });
             }
             throw error;

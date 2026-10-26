@@ -1054,8 +1054,8 @@ export class UsageStore {
     return { dryRun, since, until, entries, daily, recent, dailySkipped, legacyRecomputed, changed, written, changes };
   }
 
-  /** aggregate totals across all entries */
-  totals(): {
+  /** Aggregate totals across entries in the local-day window. */
+  totals(query: UsageDailyQuery = {}): {
     inputTokens: number;
     outputTokens: number;
     cacheReadTokens: number;
@@ -1084,7 +1084,8 @@ export class UsageStore {
     let derivedCost = 0, withoutBreakdown = 0;
     let rawCost = 0, multipliedEntries = 0, mixedMultiplierEntries = 0;
     const breakdown = emptyBreakdown();
-    for (const e of Object.values(this.data.entries)) {
+    const entries = this.entriesInWindow(query);
+    for (const e of entries) {
       input += e.inputTokens; output += e.outputTokens; cache += e.cacheReadTokens;
       cacheWrite += e.cacheCreationTokens ?? 0; calls += e.calls; cost += e.costUsd;
       derivedCost += e.cacheWriteDerivedCostUsd ?? 0;
@@ -1104,8 +1105,8 @@ export class UsageStore {
       cacheCreationTokens: cacheWrite, calls, costUsd: cost,
       costBreakdown: breakdown, cacheWriteDerivedCostUsd: derivedCost,
       entriesWithoutBreakdown: withoutBreakdown,
-      models: Object.keys(this.data.entries).length,
-      providers: new Set(Object.values(this.data.entries).map((e) => e.provider)).size,
+      models: entries.length,
+      providers: new Set(entries.map((e) => e.provider)).size,
       estimatedEntries, estimatedCostUsd, unpricedEntries, legacyEntries,
       rawCostUsd: rawCost, multipliedEntries, mixedMultiplierEntries,
     };
@@ -1265,8 +1266,8 @@ export class UsageStore {
     return [...map.values()].map(row => ({ ...row, models: row.models.sort((a, b) => b.costUsd - a.costUsd).slice(0, 3) })).sort((a, b) => b.costUsd - a.costUsd);
   }
 
-  cacheSummary() {
-    const entries = Object.values(this.data.entries);
+  cacheSummary(query: UsageDailyQuery = {}) {
+    const entries = this.entriesInWindow(query);
     const promptTokensTotal = entries.reduce((sum, entry) => sum + (entry.cachePromptTokens ?? 0), 0);
     const cachedTokensTotal = entries.reduce((sum, entry) => sum + (entry.measuredCachedTokens ?? 0), 0);
     return { promptTokensTotal, cachedTokensTotal, overallCacheHitRate: promptTokensTotal > 0 ? cachedTokensTotal / promptTokensTotal : 0,
@@ -1276,13 +1277,16 @@ export class UsageStore {
   }
 
   /** Cumulative model entries selected by lastTs local day, not daily token slices. */
-  private entriesInWindow({ since, until }: UsageDailyQuery): UsageEntry[] {
+  private entriesInWindow(query: UsageDailyQuery): UsageEntry[] {
+    return this.recordsInWindow(Object.values(this.data.entries), entry => entry.lastTs, query);
+  }
+
+  private recordsInWindow<T>(records: T[], timestamp: (record: T) => string | undefined, { since, until }: UsageDailyQuery): T[] {
     if (since !== undefined && !isLocalDateKey(since)) throw new RangeError(`invalid since date: ${since}`);
     if (until !== undefined && !isLocalDateKey(until)) throw new RangeError(`invalid until date: ${until}`);
-    const entries = Object.values(this.data.entries);
-    if (since === undefined && until === undefined) return entries;
-    return entries.filter(entry => {
-      const date = localDateOfTs(entry.lastTs);
+    if (since === undefined && until === undefined) return records;
+    return records.filter(record => {
+      const date = localDateOfTs(timestamp(record));
       return date !== undefined && (since === undefined || date >= since) && (until === undefined || date <= until);
     });
   }
@@ -1291,9 +1295,9 @@ export class UsageStore {
     return this.entriesInWindow(query).sort((a, b) => b.costUsd - a.costUsd);
   }
 
-  recent(n?: number): UsageRecentEntry[] {
+  recent(n?: number, query: UsageDailyQuery = {}): UsageRecentEntry[] {
     const cap = n ?? 10;
-    return this.data.recent.slice(-cap);
+    return this.recordsInWindow(this.data.recent, record => record.ts, query).slice(-cap);
   }
 
   entries(): Record<string, UsageEntry> {

@@ -99,6 +99,15 @@ describe('profile HTTP dispatch', () => {
     expect(store.get('local')).toBeDefined();
     expect(store.listProfiles()).toHaveLength(2);
   });
+  it('returns 409 with profiles when the provider id contains a double quote', async () => {
+    const id = 'quoted"provider';
+    store.add({ id, name: 'Quoted', protocol: 'openai-compatible', model: 'm' });
+    store.saveProfile('work', { provider: id });
+    const response = await fetch(`${base}/api/providers/${encodeURIComponent(id)}`, { method: 'DELETE', headers: { Origin: base } });
+    expect(response.status).toBe(409);
+    expect(await response.json()).toEqual({ error: 'provider_in_use', profiles: ['work'] });
+    expect(store.get(id)).toBeDefined();
+  });
   it.each(['provider_in_use: malformed', 'provider_in_use: "local" profiles: ; use --force',
     'provider_in_use: "local" profiles: bad name; use --force'])('returns safe 400 for malformed reference detail %s', async message => {
     const remove = vi.spyOn(store, 'remove').mockImplementation(() => { throw new Error(message); });

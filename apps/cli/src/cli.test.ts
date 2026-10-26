@@ -1687,6 +1687,29 @@ describe('vessel serve / vessel web (task 044)', () => {
     fs.rmSync(sessionDir, { recursive: true, force: true });
   });
 
+  it('startServe forwards the usage window and agrees with CLI byProvider end to end', async () => {
+    vi.stubEnv('VESSEL_USAGE_ROOT', sessionDir);
+    vi.stubEnv('VESSEL_PROVIDER_ROOT', sessionDir);
+    const store = new UsageStore({ rootDir: sessionDir, now: () => new Date(2026, 9, 24, 12) });
+    store.record({ provider: 'early', model: 'early', inputTokens: 10, outputTokens: 2 });
+    new UsageStore({ rootDir: sessionDir, now: () => new Date(2026, 9, 25, 12) })
+      .record({ provider: 'inside', model: 'inside', inputTokens: 20, outputTokens: 4 });
+    const handle = await startServe({ port: 0 });
+    const { logs, restore } = capture();
+    try {
+      const response = await fetch(`${handle.url}/api/providers/usage?since=2026-10-25`);
+      expect(response.status).toBe(200);
+      const http = await response.json() as { byProvider: unknown[] };
+      expect(await main(['usage', '--json', '--since', '2026-10-25'])).toBe(0);
+      const result = JSON.parse(logs.join('\n'));
+      expect(result.byProvider).toMatchObject([{ provider: 'inside', calls: 1 }]);
+      expect(http.byProvider).toEqual(result.byProvider);
+    } finally {
+      await handle.close();
+      restore();
+    }
+  });
+
   it('startServe with port 0 binds a real server on 127.0.0.1 and close() frees it', async () => {
     const { logs, restore } = capture();
     const handle = await startServe({ port: 0 });

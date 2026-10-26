@@ -2243,21 +2243,21 @@ async function cmdUsage(args: string[], flags: Map<string, string>): Promise<num
     // 字段与人类报表同源（totals/daily/byProvider/byModel/recent 全取自 UsageStore）。
     // 窗口口径必须与人类报表一致：复用同一批取值（since/until 取自 flags、条数同 1096 行口径）。
     emitJson({
-      totals: store.totals(),
-      ...(flags.has('cache') ? { cache: store.cacheSummary() } : {}),
+      totals: store.totals({ since, until }),
+      ...(flags.has('cache') ? { cache: store.cacheSummary({ since, until }) } : {}),
       daily: store.daily({ since, until }),
       byProvider: store.byProvider({ since, until }),
       byModel: store.byModel({ since, until }),
-      recent: store.recent(Number(flags.get('recent') ?? 5)),
+      recent: store.recent(Number(flags.get('recent') ?? 5), { since, until }),
     });
     return 0;
   }
 
   if (flags.has('cache')) {
-    const cache = store.cacheSummary();
+    const cache = store.cacheSummary({ since, until });
     console.log(`Cache ${(cache.overallCacheHitRate * 100).toFixed(1)}% · ${cache.cachedTokensTotal}/${cache.promptTokensTotal} measured prompt tokens · ${cache.estimated ? 'estimated ' : ''}read savings $${cache.estimatedSavingsUsd.toFixed(4)} · ${cache.unmeasuredEntries} unmeasured legacy entries`);
   }
-  const t = store.totals();
+  const t = store.totals({ since, until });
   console.log(`=== 使用统计（${path.join(resolveUsageRoot(), 'usage.json')}）===`);
   console.log(`总消耗: input ${t.inputTokens.toLocaleString()} · output ${t.outputTokens.toLocaleString()} · cache 读 ${t.cacheReadTokens.toLocaleString()} · cache 写 ${t.cacheCreationTokens.toLocaleString()} · 调用 ${t.calls}`);
   console.log(`估算成本: $${t.costUsd.toFixed(4)}（${t.providers} 供应商 / ${t.models} 模型）`);
@@ -2351,7 +2351,7 @@ async function cmdUsage(args: string[], flags: Map<string, string>): Promise<num
       console.log(`  ${m.provider}/${m.model}: $${m.costUsd.toFixed(4)} · ${m.calls} 次${mark}`);
     }
   }
-  const recent = store.recent(Number(flags.get('recent') ?? 5));
+  const recent = store.recent(Number(flags.get('recent') ?? 5), { since, until });
   if (recent.length > 0) {
     console.log(`\n最近 ${recent.length} 条:`);
     for (const r of recent) {

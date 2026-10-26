@@ -346,7 +346,7 @@ Successful saved-provider discovery records model IDs, last verification/attempt
 ## 11. 按供应商看用量（2026-10-26）
 
 - **CLI**：`vessel usage` 默认输出里就有「按供应商:」段（`provider: Nin/Mout · N 次 · $cost`，倍率不一致时显式写出分项合计）；`--json` 里有 `byProvider`。数据来自 `~/.vessel/usage.json`，不改写、不重算倍率。
-- **Web / API**：`GET /api/providers/usage` 返回 `{ byProvider, totals }`，数据由 CLI 组合根注入（`createVesselServer({ usageByProvider })` → `UsageStore.byProvider()`），local-server 不反向依赖 apps/cli。
+- **Web / API**：`GET /api/providers/usage` 返回 `{ byProvider, totals }`，数据由 CLI 组合根注入（`createVesselServer({ usageByProvider: (window) => store.byProvider(window) })`），local-server 不反向依赖 apps/cli。注入必须转发窗口，否则 HTTP 窗口会静默失效。
   - 支持 `?since=YYYY-MM-DD&until=YYYY-MM-DD`，HTTP 与 CLI 使用同一窗口口径：按条目 `lastTs` 本地日过滤后聚合，含首含尾；边界可单独使用，非法日期返回 400 `invalid_date`。窗口由 HTTP 传入 `UsageStore.byProvider(window)`，server 不再过滤供应商汇总行。
   - 每条供应商汇总包含最新有效时间戳 `lastTs`（无有效时间戳则省略）、按成本降序的前三个 `models`（`model` / `tokens` / `costUsd` / `calls`），以及可选的 `inputTokenSemantics`：`cache-inclusive`、`cache-exclusive` 或 `mixed`；未知口径省略，不推断缓存是否已计入输入。
   - Provider Hub 的每张卡片显示 `<tokens> tokens · $<cost>`；**没有记录时显示 `—`**，不显示 0。

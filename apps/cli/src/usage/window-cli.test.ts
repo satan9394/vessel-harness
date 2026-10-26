@@ -99,3 +99,35 @@ it('keeps the exact unwindowed human provider and model output', async () => {
   const output = await cli();
   expect(output.slice(output.indexOf('\n按供应商:'))).toBe('\n按供应商:\n  shared: 30in/6out · 3 次 · $0.6000\n    early · 12 · $0.3000\n    inside · 12 · $0.2000\n    late · 12 · $0.1000\n\n按模型:\n  shared/early: $0.3000 · 1 次\n  shared/inside: $0.2000 · 1 次\n  shared/late: $0.1000 · 1 次');
 });
+
+it('windows totals, cache and recent by local day before taking the recent limit', async () => {
+  seed(true);
+  const file = path.join(home, 'usage.json');
+  const data = JSON.parse(fs.readFileSync(file, 'utf8'));
+  for (const [index, entry] of Object.values(data.entries).entries()) {
+    Object.assign(entry as object, { cachePromptTokens: 100, measuredCachedTokens: (index + 1) * 10, cacheSavingsUsd: (index + 1) / 100 });
+  }
+  data.recent = Object.values(data.entries).map(entry => ({ ...(entry as object), ts: (entry as { lastTs: string }).lastTs }));
+  fs.writeFileSync(file, JSON.stringify(data));
+  for (const [flags, names, cached] of [
+    [['--since', '2026-10-25', '--until', '2026-10-25'], ['inside'], 20],
+    [['--since', '2026-10-25'], ['inside', 'late'], 50],
+    [['--until', '2026-10-25'], ['early', 'inside'], 30],
+    [['--since', '2026-10-27'], [], 0],
+    [[], ['early', 'inside', 'late'], 60],
+  ] as const) {
+    const json = JSON.parse(await cli('--json', '--cache', '--recent', '1', ...flags));
+    expect(json.byModel.map((row: { model: string }) => row.model)).toEqual(names);
+    expect(json.totals).toMatchObject({ calls: names.length, inputTokens: names.length * 10,
+      outputTokens: names.length * 2, models: names.length, providers: names.length ? 1 : 0 });
+    expect(json.totals.costUsd).toBeCloseTo(json.byProvider.reduce((sum: number, row: { costUsd: number }) => sum + row.costUsd, 0));
+    expect(json.cache).toMatchObject({ promptTokensTotal: names.length * 100, cachedTokensTotal: cached,
+      overallCacheHitRate: names.length ? cached / (names.length * 100) : 0, unmeasuredEntries: 0 });
+    expect(json.cache.estimatedSavingsUsd).toBeCloseTo(cached / 1000);
+    expect(json.recent.map((row: { model: string }) => row.model)).toEqual(names.slice(-1));
+    const human = await cli('--cache', '--recent', '1', ...flags);
+    expect(human).toContain(`总消耗: input ${names.length * 10} · output ${names.length * 2} · cache 读 0 · cache 写 0 · 调用 ${names.length}`);
+    expect(human).toContain(`估算成本: $${json.totals.costUsd.toFixed(4)}（${names.length ? 1 : 0} 供应商 / ${names.length} 模型）`);
+    expect(human).toContain(`${cached}/${names.length * 100} measured prompt tokens`);
+  }
+});
