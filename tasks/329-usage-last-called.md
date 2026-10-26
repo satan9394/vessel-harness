@@ -1,6 +1,6 @@
 # T329 — 用量行补「最近调用时间」并在 Web 展示
 
-- Status: 待执行（2026-10-26）
+- Status: 已完成（2026-10-26；L1 执行）
 - 依赖：T325/C 段的 Web 改动之后（同一个 `ProviderSettingsModal.tsx`，必须串行）
 
 > 用户要求「token 消耗可见」，现在只有累计数字，没有「最近一次调用是什么时候」。
@@ -50,4 +50,4 @@ node node_modules/typescript/bin/tsc -p tsconfig.test.json --noEmit
 
 ## Result
 
-（待 Codex 执行后由协调者填写）
+`byProvider` 增 lastTs / models(Top3) / inputTokenSemantics；Web 相对时间与口径展示；usage 11 + 37、web 12/19/43 等断言通过。

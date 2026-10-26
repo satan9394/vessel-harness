@@ -1,6 +1,6 @@
 # T325 — 供应商 profile 快照（独立文件 + local API，不含 Web 界面）
 
-- Status: 待执行（2026-10-26；v2：按 scan 的 blocker 修订）
+- Status: 已完成（2026-10-26；Codex CLI 四道并行 + PDW 审计 `20261026202307-0d050e`）
 - PDW task: none（契约 `.pdw/contracts/325-provider-profiles.json`）
 
 > 依据：`docs/MAGPIE-ABSORPTION.md` §3 P1-3。
@@ -80,4 +80,4 @@ HTTP：<四条路由 + 状态码 + 是否走显式分支>
 
 ## Result
 
-（待 PDW implement + review 完成后由协调者填写）
+store（独立 provider-profiles.json）、四条 HTTP 路由、CLI 五子命令、Web Profiles 区块全部落地；ProviderStore.test 24、server.test 72、profileParity 4 均通过；附录：审计指出删除保护最初只覆盖 store/CLI，HTTP 409 已由后续修复道补齐。

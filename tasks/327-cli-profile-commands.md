@@ -1,6 +1,6 @@
 # T327 — CLI：`vessel provider profile list|save|use|delete`
 
-- Status: 待执行（2026-10-26）
+- Status: 已完成（2026-10-26；Sol medium 执行）
 - 依赖：T325（ProviderStore 的 profile 方法）
 
 > 让 profile 在 CLI 可用，与 Web/API 共用同一份 store 方法，不另写一套解析。
@@ -50,4 +50,4 @@ node node_modules/typescript/bin/tsc -p tsconfig.test.json --noEmit
 
 ## Result
 
-（待 Codex 执行后由协调者填写）
+list/save/use/delete/rename 全部实现；`delete --json` 回执对齐 HTTP `{ok:true}`；cli.test 136 通过。

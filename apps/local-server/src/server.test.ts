@@ -90,6 +90,24 @@ describe('profile HTTP dispatch', () => {
     expect(store.listProfiles()).toEqual([]);
     expect(store.get('local')).toBeDefined();
   });
+  it('returns 409 with referencing profile names and preserves the provider and profiles', async () => {
+    store.saveProfile('work', { provider: 'local' });
+    store.saveProfile('工作', { provider: 'local' });
+    const response = await fetch(`${base}/api/providers/local`, { method: 'DELETE', headers: { Origin: base } });
+    expect(response.status).toBe(409);
+    expect(await response.json()).toEqual({ error: 'provider_in_use', profiles: store.profilesFor('local') });
+    expect(store.get('local')).toBeDefined();
+    expect(store.listProfiles()).toHaveLength(2);
+  });
+  it.each(['provider_in_use: malformed', 'provider_in_use: "local" profiles: ; use --force',
+    'provider_in_use: "local" profiles: bad name; use --force'])('returns safe 400 for malformed reference detail %s', async message => {
+    const remove = vi.spyOn(store, 'remove').mockImplementation(() => { throw new Error(message); });
+    try {
+      const response = await fetch(`${base}/api/providers/local`, { method: 'DELETE', headers: { Origin: base } });
+      expect(response.status).toBe(400);
+      expect(await response.json()).toEqual({ error: 'provider_in_use' });
+    } finally { remove.mockRestore(); }
+  });
   it('returns 400 for dangling use, invalid names and corrupted storage', async () => {
     store.saveProfile('work', { provider: 'local' });
     fs.writeFileSync(store.providersFile, '[]');
@@ -874,12 +892,13 @@ describe('local server HTTP API + SSE', () => {
     const ws2 = path.join(dir2, 'workspace');
     fs.mkdirSync(ws2, { recursive: true });
     const rows: Array<{ models: { model: string; tokens: number; costUsd: number; calls: number }[]; provider: string; inputTokens: number; outputTokens: number; cacheReadTokens: number; cacheCreationTokens: number; calls: number; costUsd: number; estimated: boolean; lastTs?: string }> = [{ models: [], provider: 'demo', inputTokens: 10, outputTokens: 5, cacheReadTokens: 1, cacheCreationTokens: 0, calls: 2, costUsd: 0.25, estimated: false }];
+    const receivedWindows: Array<{ since?: string; until?: string } | undefined> = [];
     const withRows = createVesselServer({
       port: 0,
       projectRegistry: new ProjectRegistry({ vesselHome: home2 }),
       sessionRegistry: new SessionRegistry({ vesselHome: home2 }),
       staticDir: ws2,
-      usageByProvider: () => rows,
+      usageByProvider: (window) => { receivedWindows.push(window); return rows; },
     });
     await withRows.listen();
     try {
@@ -887,6 +906,7 @@ describe('local server HTTP API + SSE', () => {
       expect(res.status).toBe(200);
       const body = await res.json() as { byProvider: unknown[]; totals: { calls: number; costUsd: number; inputTokens: number } };
       expect(body.byProvider).toHaveLength(1);
+      expect(receivedWindows).toEqual([{}]);
       expect(body.totals).toMatchObject({ calls: 2, inputTokens: 10, costUsd: 0.25 });
       rows.push(...[
         { ...rows[0]!, provider: 'early', lastTs: new Date(2026, 9, 24, 23, 59).toISOString() },
@@ -894,24 +914,26 @@ describe('local server HTTP API + SSE', () => {
         { ...rows[0]!, provider: 'late', lastTs: new Date(2026, 9, 26, 0, 0).toISOString() },
         { ...rows[0]!, provider: 'invalid', lastTs: 'invalid' },
       ]);
-      for (const [query, names] of [
-        ['?since=2026-10-25&until=2026-10-25', ['inside']],
-        ['?since=2026-10-25', ['inside', 'late']],
-        ['?until=2026-10-25', ['early', 'inside']],
-        ['?since=2026-10-26&until=2026-10-24', []],
-        ['', ['demo', 'early', 'inside', 'late', 'invalid']],
+      for (const [query, window] of [
+        ['?since=2026-10-25&until=2026-10-25', { since: '2026-10-25', until: '2026-10-25' }],
+        ['?since=2026-10-25', { since: '2026-10-25' }],
+        ['?until=2026-10-25', { until: '2026-10-25' }],
+        ['?since=2026-10-26&until=2026-10-24', { since: '2026-10-26', until: '2026-10-24' }],
+        ['', {}],
       ] as const) {
         const response = await fetch(`http://127.0.0.1:${withRows.port}/api/providers/usage${query}`);
         expect(response.status).toBe(200);
         const result = await response.json() as { byProvider: typeof rows; totals: unknown };
-        expect(result.byProvider).toEqual(rows.filter(row => (names as readonly string[]).includes(row.provider)));
-        expect(result.totals).toEqual({ calls: names.length * 2, inputTokens: names.length * 10, outputTokens: names.length * 5, cacheReadTokens: names.length, cacheCreationTokens: 0, costUsd: names.length * 0.25 });
+        expect(receivedWindows.at(-1)).toEqual(window);
+        expect(result.byProvider).toEqual(rows);
+        expect(result.totals).toEqual({ calls: rows.length * 2, inputTokens: rows.length * 10, outputTokens: rows.length * 5, cacheReadTokens: rows.length, cacheCreationTokens: 0, costUsd: rows.length * 0.25 });
       }
       for (const query of ['since=2026-02-30', 'until=not-a-date', 'since=', 'until=2026-1-01', 'since=2025-02-29']) {
         const response = await fetch(`http://127.0.0.1:${withRows.port}/api/providers/usage?${query}`);
         expect(response.status).toBe(400);
         expect(await response.json()).toEqual({ error: 'invalid_date' });
       }
+      expect(receivedWindows).toHaveLength(6);
     } finally { await withRows.close(); }
 
     const bare = createVesselServer({

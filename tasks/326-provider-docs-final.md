@@ -1,6 +1,6 @@
 # T326 — provider 文档最终收口（import / profile / 架构 / 对照表）
 
-- Status: 待执行（2026-10-26）
+- Status: 已完成（2026-10-26；Terra medium 执行，PDW 审计复核）
 - 依赖：T324（已提交）、T325（profile 落地后）
 
 > 只改文档，不改代码。文风与既有章节一致，中文为主，命令与字段保持英文原文。
@@ -38,4 +38,4 @@ node scripts/sync-web-presets.mjs --check
 
 ## Result
 
-（待 Codex 执行后由协调者填写）
+§3.4 导入 / §3.5 profile / §3.6 删除保护 / §3.7 CSV + ARCHITECTURE + MAGPIE 对照表已写入；审计 A5 逐条对上代码与测试。

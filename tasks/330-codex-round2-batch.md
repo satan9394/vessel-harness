@@ -1,6 +1,6 @@
 # T330 — Codex 应用第二批（E–Q 共 13 段）批次入口
 
-- Status: 执行中（2026-10-26；执行单 `tasks/CODEX-PROMPT-ROUND2.md`）
+- Status: 已完成（2026-10-26）
 - PDW task: none（用户指定由 Codex 应用直接实现；PDW 不参与写作）
 
 > 一个批次、13 段，每段有独立验收与 Done 判据；段间串行、同文件单写者。
@@ -31,4 +31,4 @@
 
 ## Result
 
-（待 Codex 执行 + 协调者验收后填写）
+13 段全部落地；最终门禁 17 步全绿（根 327 文件 / 3591、web 58/519、三处 tsc、conformance 25/25）。

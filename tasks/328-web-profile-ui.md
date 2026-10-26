@@ -1,6 +1,6 @@
 # T328 — Web：Provider Hub 里的 profile 列表与一键启用
 
-- Status: 待执行（2026-10-26）
+- Status: 已完成（2026-10-26；Web 段由 L1 执行）
 - 依赖：T325（四条 API）
 
 > 只在 Provider Hub 里加「profile 列表 + 启用」，不造第二套供应商/模型解析，不动既有卡片行为。
@@ -43,4 +43,4 @@ node node_modules/typescript/bin/tsc -p apps/web/tsconfig.json --noEmit
 
 ## Result
 
-（待 Codex 执行后由协调者填写）
+Profiles 区块（列表 + 一键启用 + 空态 + 失败隔离）与用量增强（最近调用 / Top3 / 口径 / 搜索 / 未配置密钥）均通过；web 58 文件 519 用例。

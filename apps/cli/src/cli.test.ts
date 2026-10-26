@@ -2558,6 +2558,7 @@ describe('vessel provider export/import + endpoint (task 095/096)', { timeout: 1
   let dir: string;
   let outDir: string;
   let oldRoot: string | undefined;
+  let oldUsageRoot: string | undefined;
   let oldSessionRoot: string | undefined;
   const FAKE_KEY = 'sk-fake-cli-export-9876';
 
@@ -2565,8 +2566,10 @@ describe('vessel provider export/import + endpoint (task 095/096)', { timeout: 1
     dir = fs.mkdtempSync(path.join(os.tmpdir(), 'vessel-095-cfg-'));
     outDir = fs.mkdtempSync(path.join(os.tmpdir(), 'vessel-095-out-'));
     oldRoot = process.env.VESSEL_PROVIDER_ROOT;
+    oldUsageRoot = process.env.VESSEL_USAGE_ROOT;
     oldSessionRoot = process.env.VESSEL_SESSION_ROOT;
     process.env.VESSEL_PROVIDER_ROOT = dir;
+    process.env.VESSEL_USAGE_ROOT = dir;
     // G-10：会话登记根同样钉到临时 dir（main() 的默认 SessionRegistry 不碰真实 ~/.vessel）。
     process.env.VESSEL_SESSION_ROOT = dir;
   });
@@ -2574,6 +2577,8 @@ describe('vessel provider export/import + endpoint (task 095/096)', { timeout: 1
   afterEach(() => {
     if (oldRoot === undefined) delete process.env.VESSEL_PROVIDER_ROOT;
     else process.env.VESSEL_PROVIDER_ROOT = oldRoot;
+    if (oldUsageRoot === undefined) delete process.env.VESSEL_USAGE_ROOT;
+    else process.env.VESSEL_USAGE_ROOT = oldUsageRoot;
     if (oldSessionRoot === undefined) delete process.env.VESSEL_SESSION_ROOT;
     else process.env.VESSEL_SESSION_ROOT = oldSessionRoot;
     fs.rmSync(dir, { recursive: true, force: true });

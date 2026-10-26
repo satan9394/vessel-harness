@@ -13,10 +13,14 @@ PDW 关联：首行状态行下加 `- PDW task: <id>`（未启动写 `none`）�
 
 ## 怎么读这个目录
 
+最近补充交付：[卡 338](338-usage-window-parity.md) HTTP / CLI usage 窗口口径统一。
+
 逐卡状态见各卡首行与下表；近期交付见上一段，不在这里重复。
 
 | 本地交付 | 状态 | 任务卡 |
 |---|---|---|
+| usage 窗口统一 (卡 338) | 已完成：指定两组测试 exit 0，详见卡内证据 | [338](338-usage-window-parity.md) |
+| usage 窗口与删除错误码 (卡 337) | 三项指定测试全绿；HTTP 聚合窗口差异待范围澄清，尚未完整验收 | [337](337-usage-window-delete-http.md) |
 | PDW 项目级迭代 (卡 333) | 已完成：`gate-batched.ps1`、`docs/PDW-LOCAL.md`、技能两处本地节、`.pdw/skill-local-changes.md`、三条 `prompt_guidance` | [333](333-pdw-local-iteration.md) |
 | 执行编排 (卡 334) | 第 1–4 步完成（PDW 迭代 → 基线 → 六道 Codex → 17 步门禁 → 提交）；第 5 步 PDW 只读复核待跑 | [334](334-execution-order.md) |
 | Codex 六道计划 (卡 332) | 已完成：L1/L2 Sol medium、L3/L4 Terra low、L5 Terra medium，另加 L4b/L4c 两条修复道 | [332](332-codex-lanes-plan.md) |

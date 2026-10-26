@@ -220,6 +220,8 @@ vessel provider import --from <file> [--dry-run] [--yes] [--prefix p] [--json]
 
 `vessel provider rm <id>` 默认拒绝删除被 profile 引用的供应商，列出引用名称并提示 `--force`，退出码为 2。使用 `vessel provider rm <id> --force` 时，先级联删除引用它的 profile，再删除供应商，并列出删除的 profile；没有引用时可直接删除。若外部改动造成引用悬空，启用该 profile 会报 `dangling_profile_provider`。
 
+HTTP `DELETE /api/providers/:id` 遇到 profile 引用时返回 409 `{ error: 'provider_in_use', profiles: ['work', 'personal'] }`，保留供应商及引用；引用详情无法解析时返回 400 `{ error: 'provider_in_use' }`。
+
 ## 3.7 用量导出
 
 `vessel usage --csv` 按 provider 和 model 导出用量，字段顺序如下：
@@ -234,6 +236,8 @@ vessel provider import --from <file> [--dry-run] [--yes] [--prefix p] [--json]
 | `estimated` | 成本是否为估算 |
 
 无记录时仅输出表头；`--csv` 与 `--json` 互斥，同时使用退出码为 2。
+
+`vessel usage --csv --since YYYY-MM-DD --until YYYY-MM-DD` 按每条 provider×model 累计记录的 `lastTs` 本地日筛选（含首含尾，两个边界均可单独使用）；不是截取窗口内的逐次调用。窗口内无记录时仅输出表头；不传窗口时导出全部历史。
 
 ## 4. 模型拉取（vessel models）行为
 
@@ -343,6 +347,8 @@ Successful saved-provider discovery records model IDs, last verification/attempt
 
 - **CLI**：`vessel usage` 默认输出里就有「按供应商:」段（`provider: Nin/Mout · N 次 · $cost`，倍率不一致时显式写出分项合计）；`--json` 里有 `byProvider`。数据来自 `~/.vessel/usage.json`，不改写、不重算倍率。
 - **Web / API**：`GET /api/providers/usage` 返回 `{ byProvider, totals }`，数据由 CLI 组合根注入（`createVesselServer({ usageByProvider })` → `UsageStore.byProvider()`），local-server 不反向依赖 apps/cli。
+  - 支持 `?since=YYYY-MM-DD&until=YYYY-MM-DD`，HTTP 与 CLI 使用同一窗口口径：按条目 `lastTs` 本地日过滤后聚合，含首含尾；边界可单独使用，非法日期返回 400 `invalid_date`。窗口由 HTTP 传入 `UsageStore.byProvider(window)`，server 不再过滤供应商汇总行。
+  - 每条供应商汇总包含最新有效时间戳 `lastTs`（无有效时间戳则省略）、按成本降序的前三个 `models`（`model` / `tokens` / `costUsd` / `calls`），以及可选的 `inputTokenSemantics`：`cache-inclusive`、`cache-exclusive` 或 `mixed`；未知口径省略，不推断缓存是否已计入输入。
   - Provider Hub 的每张卡片显示 `<tokens> tokens · $<cost>`；**没有记录时显示 `—`**，不显示 0。
   - 该端点只读：不写文件、不改 usage 记录、不做网络请求。
 

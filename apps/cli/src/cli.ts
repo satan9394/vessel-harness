@@ -2232,7 +2232,7 @@ async function cmdUsage(args: string[], flags: Map<string, string>): Promise<num
       return /[",\r\n]/.test(text) ? `"${text.replaceAll('"', '""')}"` : text;
     };
     console.log('provider,model,calls,input_tokens,output_tokens,cache_read_tokens,cache_creation_tokens,cost_usd,estimated');
-    for (const row of store.byModel()) {
+    for (const row of store.byModel({ since, until })) {
       console.log([row.provider, row.model, row.calls, row.inputTokens, row.outputTokens,
         row.cacheReadTokens, row.cacheCreationTokens ?? 0, row.costUsd.toFixed(6), row.estimated].map(cell).join(','));
     }
@@ -2246,8 +2246,8 @@ async function cmdUsage(args: string[], flags: Map<string, string>): Promise<num
       totals: store.totals(),
       ...(flags.has('cache') ? { cache: store.cacheSummary() } : {}),
       daily: store.daily({ since, until }),
-      byProvider: store.byProvider(),
-      byModel: store.byModel(),
+      byProvider: store.byProvider({ since, until }),
+      byModel: store.byModel({ since, until }),
       recent: store.recent(Number(flags.get('recent') ?? 5)),
     });
     return 0;
@@ -2327,7 +2327,7 @@ async function cmdUsage(args: string[], flags: Map<string, string>): Promise<num
     }
   }
 
-  const byProv = store.byProvider();
+  const byProv = store.byProvider({ since, until });
   if (byProv.length > 0) {
     console.log('\n按供应商:');
     for (const p of byProv) {
@@ -2343,7 +2343,7 @@ async function cmdUsage(args: string[], flags: Map<string, string>): Promise<num
       }
     }
   }
-  const byModel = store.byModel();
+  const byModel = store.byModel({ since, until });
   if (byModel.length > 0) {
     console.log('\n按模型:');
     for (const m of byModel.slice(0, 10)) {
@@ -2830,7 +2830,7 @@ export interface ServeHandle {
 export async function startServe(opts: { port?: number; workspace?: string } = {}): Promise<ServeHandle> {
   const port = Number(opts.port ?? 5678);
   const workspace = path.resolve(opts.workspace ?? process.cwd());
-  const server = createVesselServer({ port, workspace, staticDir: undefined, observeWorkspace: root => WorkspaceFingerprinter.compute(root), usageByProvider: () => createUsageStore().byProvider() });
+  const server = createVesselServer({ port, workspace, staticDir: undefined, observeWorkspace: root => WorkspaceFingerprinter.compute(root), usageByProvider: (window) => createUsageStore().byProvider(window) });
   try {
     await server.listen();
   } catch (err) {
@@ -3177,7 +3177,7 @@ async function dispatch(parsed: ParsedArgs): Promise<number> {
   if (first === 'bench-report') return cmdBenchReport(parsed.flags);
   if (first === 'bench:runs') return cmdBenchRuns(parsed.positionals.slice(1), parsed.flags);
   if (first === 'serve') return cmdServe(parsed.flags);
-  if (first === 'daemon') return daemonCommands(parsed.positionals, parsed.flags, fileURLToPath(import.meta.url), { usageByProvider: () => createUsageStore().byProvider() });
+  if (first === 'daemon') return daemonCommands(parsed.positionals, parsed.flags, fileURLToPath(import.meta.url), { usageByProvider: (window) => createUsageStore().byProvider(window) });
   if (first === 'web') return cmdWeb(parsed.flags);
   if (first === 'sessions') {
     const sub = parsed.positionals[1] ?? 'list';

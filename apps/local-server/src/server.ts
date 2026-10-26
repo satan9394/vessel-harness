@@ -68,10 +68,10 @@ export interface VesselServerOptions {
   providerProbeTimeoutMs?: number;
   /**
    * Read-only per-provider usage rows supplied by the CLI composition surface
-   * (`UsageStore.byProvider()`). Never written here; an unset provider yields an
+   * (`UsageStore.byProvider(window)`, filtering entries before aggregation). Never written here; an unset provider yields an
    * empty list so the endpoint stays a pure read.
    */
-  usageByProvider?: () => Array<{
+  usageByProvider?: (window?: { since?: string; until?: string }) => Array<{
     inputTokenSemantics?: 'cache-inclusive' | 'cache-exclusive' | 'mixed';
     models: { model: string; tokens: number; costUsd: number; calls: number }[];
     lastTs?: string;
@@ -537,13 +537,11 @@ export function createVesselServer(opts: VesselServerOptions = {}): VesselServer
               return json(res, 400, { error: 'invalid_date' });
             }
           }
-          const byProvider = (opts.usageByProvider?.() ?? []).filter(row => {
-            if (since === null && until === null) return true;
-            if (!row.lastTs || !Number.isFinite(Date.parse(row.lastTs))) return false;
-            const ts = new Date(row.lastTs);
-            const date = `${ts.getFullYear()}-${String(ts.getMonth() + 1).padStart(2, '0')}-${String(ts.getDate()).padStart(2, '0')}`;
-            return (since === null || date >= since) && (until === null || date <= until);
-          });
+          const window = {
+            ...(since === null ? {} : { since }),
+            ...(until === null ? {} : { until }),
+          };
+          const byProvider = opts.usageByProvider?.(window) ?? [];
           const totals = byProvider.reduce((acc, row) => ({
             calls: acc.calls + row.calls,
             inputTokens: acc.inputTokens + row.inputTokens,
@@ -554,7 +552,19 @@ export function createVesselServer(opts: VesselServerOptions = {}): VesselServer
           }), { calls: 0, inputTokens: 0, outputTokens: 0, cacheReadTokens: 0, cacheCreationTokens: 0, costUsd: 0 });
           return json(res, 200, { byProvider, totals });
         }
-        if (/^\/api\/providers\/[^/]+$/.test(url.pathname) && method === 'DELETE') return providerRoutes.remove(decodeURIComponent(url.pathname.slice('/api/providers/'.length))) ? json(res, 200, { ok: true }) : json(res, 404, { error: 'unknown_provider' });
+        if (/^\/api\/providers\/[^/]+$/.test(url.pathname) && method === 'DELETE') {
+          try {
+            return providerRoutes.remove(decodeURIComponent(url.pathname.slice('/api/providers/'.length))) ? json(res, 200, { ok: true }) : json(res, 404, { error: 'unknown_provider' });
+          } catch (error) {
+            if (error instanceof Error && error.message.startsWith('provider_in_use:')) {
+              const detail = /^provider_in_use: "[^"]+" profiles: (.+); use --force$/.exec(error.message);
+              const profiles = detail?.[1]!.split(', ');
+              return profiles?.every(name => name.length > 0 && name.length <= 64 && !/[\s\x00-\x1f\x7f]/u.test(name)) ? json(res, 409, { error: 'provider_in_use', profiles })
+                : json(res, 400, { error: 'provider_in_use' });
+            }
+            throw error;
+          }
+        }
         return json(res, 405, { error: 'method_not_allowed' });
       } catch (error) {
         // task 215：透传**具体**错误码，不再一律 400 provider_request_failed。

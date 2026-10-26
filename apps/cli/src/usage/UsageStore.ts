@@ -1202,7 +1202,7 @@ export class UsageStore {
     return { costUsd, unpricedEntries, unpricedCostUsd, deltaUsd: this.totals().costUsd - costUsd };
   }
 
-  byProvider(): {
+  byProvider(query: UsageDailyQuery = {}): {
     inputTokenSemantics?: InputTokenSemantics | 'mixed';
     models: { model: string; tokens: number; costUsd: number; calls: number }[];
     lastTs?: string;
@@ -1229,7 +1229,7 @@ export class UsageStore {
       cacheCreationTokens: number; calls: number; costUsd: number; estimated: boolean;
       rawCostUsd: number; costMultiplier?: number; costMultiplierMixed: boolean;
     }>();
-    for (const e of Object.values(this.data.entries)) {
+    for (const e of this.entriesInWindow(query)) {
       const cur = map.get(e.provider) ?? {
         models: [],
         provider: e.provider, inputTokens: 0, outputTokens: 0, cacheReadTokens: 0,
@@ -1275,8 +1275,20 @@ export class UsageStore {
       unmeasuredEntries: entries.filter(entry => entry.cachePromptTokens === undefined).length };
   }
 
-  byModel(): UsageEntry[] {
-    return Object.values(this.data.entries).sort((a, b) => b.costUsd - a.costUsd);
+  /** Cumulative model entries selected by lastTs local day, not daily token slices. */
+  private entriesInWindow({ since, until }: UsageDailyQuery): UsageEntry[] {
+    if (since !== undefined && !isLocalDateKey(since)) throw new RangeError(`invalid since date: ${since}`);
+    if (until !== undefined && !isLocalDateKey(until)) throw new RangeError(`invalid until date: ${until}`);
+    const entries = Object.values(this.data.entries);
+    if (since === undefined && until === undefined) return entries;
+    return entries.filter(entry => {
+      const date = localDateOfTs(entry.lastTs);
+      return date !== undefined && (since === undefined || date >= since) && (until === undefined || date <= until);
+    });
+  }
+
+  byModel(query: UsageDailyQuery = {}): UsageEntry[] {
+    return this.entriesInWindow(query).sort((a, b) => b.costUsd - a.costUsd);
   }
 
   recent(n?: number): UsageRecentEntry[] {

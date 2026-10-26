@@ -78,6 +78,36 @@ describe('usage — UsageStore (V0.9, task 029)', () => {
     expect(store.byProvider()[0]).not.toHaveProperty('lastTs');
   });
 
+  it('filters cumulative model entries by inclusive local lastTs days before provider aggregation', () => {
+    const times = {
+      early: new Date(2026, 9, 24, 23, 59, 59).toISOString(),
+      first: new Date(2026, 9, 25, 0).toISOString(),
+      last: new Date(2026, 9, 26, 23, 59, 59).toISOString(),
+      late: new Date(2026, 9, 27, 0).toISOString(), invalid: 'invalid', missing: '',
+    };
+    for (const [model, lastTs] of Object.entries(times)) {
+      store.record({ provider: 'same', model, inputTokens: 10, outputTokens: 2 });
+      store.entries()[`same::${model}`]!.lastTs = lastTs;
+    }
+    const models = JSON.stringify(store.byModel());
+    const providers = JSON.stringify(store.byProvider());
+    const window = { since: '2026-10-25', until: '2026-10-26' };
+    expect(store.byModel(window).map(row => row.model)).toEqual(['first', 'last']);
+    expect(store.byProvider(window)).toMatchObject([{ provider: 'same', calls: 2, inputTokens: 20, outputTokens: 4,
+      models: [{ model: 'first' }, { model: 'last' }], lastTs: times.last }]);
+    expect(store.byModel({ since: '2026-10-26' }).map(row => row.model)).toEqual(['last', 'late']);
+    expect(store.byModel({ until: '2026-10-25' }).map(row => row.model)).toEqual(['early', 'first']);
+    expect(store.byProvider({ since: '2026-10-27', until: '2026-10-24' })).toEqual([]);
+    expect(JSON.stringify(store.byModel({}))).toBe(models);
+    expect(JSON.stringify(store.byProvider({}))).toBe(providers);
+    expect(JSON.stringify(store.byModel())).toBe(models);
+    expect(JSON.stringify(store.byProvider())).toBe(providers);
+    for (const query of [{ since: '2026-02-30' }, { until: 'invalid' }]) {
+      expect(() => store.byProvider(query)).toThrow(RangeError);
+      expect(() => store.byModel(query)).toThrow(RangeError);
+    }
+  });
+
   it('returns only the three most expensive models with input plus output tokens', () => {
     expect(store.byProvider()).toEqual([]);
     for (const [model, input, output] of [['a', 10, 2], ['b', 40, 8], ['c', 20, 4], ['d', 30, 6]] as const) {
