@@ -17,6 +17,11 @@ PDW 关联：首行状态行下加 `- PDW task: <id>`（未启动写 `none`）�
 
 | 本地交付 | 状态 | 任务卡 |
 |---|---|---|
+| profile 快照 (卡 325) | 执行中：store + routes 半成品已在工作树（编译干净），待补 `server.ts` 四条路由与测试 | [325](325-provider-profiles.md) |
+| CLI profile 命令 (卡 327) | 待执行（依赖 325） | [327](327-cli-profile-commands.md) |
+| Web profile 区块 (卡 328) | 待执行（依赖 325 的 API） | [328](328-web-profile-ui.md) |
+| 文档收口 (卡 326) | 待执行（依赖 325/324 落地） | [326](326-provider-docs-final.md) |
+| 用量最近调用 (卡 329) | 待执行（`byProvider.lastTs` + Web 展示） | [329](329-usage-last-called.md) |
 | 补审修复 (卡 322) | 已完成（PDW `20261026160547-bc5263`）：daemon 注入 usageByProvider、MAGPIE 文档三处失真、`check:web-presets` | [322](322-audit-fixes.md) |
 | 值守卫价目 (卡 323) | 核实为已具备：`vessel pricing override repair` 的 applied / skipped-user-modified / skipped-absent 三态，未改代码 | [323](323-pricing-value-guard.md) |
 | cc-switch 导入 (卡 324) | 已完成（PDW `20261026163022-458501`）：`provider import --from`，默认 dry-run、key 只进 secretRef、已存在跳过、`--prefix` 并存 | [324](324-ccswitch-import.md) |
