@@ -226,6 +226,18 @@ method / substrate / benchmark 分别表达行为、执行与判据，三者独�
 本约束目前由 code review 与既有 parity 测试守护，
 没有自动化的跨轴 import 检查，不把现有测试表述为这种检查。
 
+### 2.6 产物完整性清单
+
+`configs/benchmark-provenance.json` 记录 fixture 普通文件与顶层 scenario YAML 的路径和 SHA-256（不跟随链接，跳过 `.git` / `node_modules` / `dist`）。在仓库根运行：
+
+```sh
+node node_modules/tsx/dist/cli.mjs benchmarks/runners/src/provenance.ts --write
+node node_modules/tsx/dist/cli.mjs benchmarks/runners/src/provenance.ts --check
+```
+
+`--write` 重生成清单并更新 `generatedAt`；默认等同 `--check`，只读比对，差异或清单缺失/损坏时退出 1。差异按 missing / extra / changed 分组，每组最多显示 10 条。可用 `--project <dir>` 指定仓库根；同时传入 `--write` 与 `--check` 时以写入为准，未知参数退出 2。
+同文件导出的 `writeProvenance(repoRoot)` / `checkProvenance(repoRoot)` 可复用；后者对缺失/损坏清单返回 `ok:false`、`manifest:null` 与三组空 diff。清单过期不会被既有 8 道 release gate 拦截，但 `provenance.test.ts` 的真实仓库一致性用例会失败；此入口不新增第 9 道 gate。
+
 ## 3. Scenario 规范
 
 ### 3.0 Scenario Schema（统一字段）
