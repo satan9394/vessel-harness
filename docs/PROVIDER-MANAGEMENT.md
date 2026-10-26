@@ -273,3 +273,25 @@ node apps/cli/dist/cli.js models --provider ant   # anthropic 内置清单
 Provider Hub opens configured providers first; Add provider reveals the preset/custom form. Navigation preserves the unsaved draft. Saved-key testing remains a direct action and never puts the key into the add form.
 
 Successful saved-provider discovery records model IDs, last verification/attempt, and a 24-hour expiry. Failed discovery preserves the previous key, endpoint, model selection and capability snapshot while marking the catalog stale. A model absent from a successful refreshed catalog remains configured but is explicitly listed as stale. Expired catalogs are shown separately from failed refreshes; configurations without a historical receipt remain unknown. Discovery metadata is a provider declaration, not a behavioral capability probe. Its timestamp/expiry is carried separately; mandatory capability negotiation refuses expired positive metadata. User-supplied capability data cannot certify detection or probe timestamps.
+
+## 10. 预设单一真源（2026-10-26）
+
+- 真源只有一个：`packages/application/src/providers/presets.data.ts`（`PROVIDER_CATALOG`）。
+- Web 的 `apps/web/src/components/providers/presets.generated.ts` 是**生成物**，由
+  `node node_modules/tsx/dist/cli.mjs scripts/sync-web-presets.mjs --write` 生成；
+  `--check` 用于守卫（生成物过期会打印首个不一致行并 exit 1）。
+- `presetsData.ts` 只做 re-export 与 UI 派生（`localizePreset` / `PRESET_CATEGORIES`），**不再手写条目**。
+- 改预设的流程：改 `presets.data.ts` → 跑 `--write` → 跑 `--check` 与 Web 测试。手改生成物会被 `--check` 打回。
+
+## 11. 按供应商看用量（2026-10-26）
+
+- **CLI**：`vessel usage` 默认输出里就有「按供应商:」段（`provider: Nin/Mout · N 次 · $cost`，倍率不一致时显式写出分项合计）；`--json` 里有 `byProvider`。数据来自 `~/.vessel/usage.json`，不改写、不重算倍率。
+- **Web / API**：`GET /api/providers/usage` 返回 `{ byProvider, totals }`，数据由 CLI 组合根注入（`createVesselServer({ usageByProvider })` → `UsageStore.byProvider()`），local-server 不反向依赖 apps/cli。
+  - Provider Hub 的每张卡片显示 `<tokens> tokens · $<cost>`；**没有记录时显示 `—`**，不显示 0。
+  - 该端点只读：不写文件、不改 usage 记录、不做网络请求。
+
+## 12. 与 magpie / cc-switch 的边界（2026-10-26）
+
+吸收了 magpie 的「用量按 provider×model 落账」思路与 cc-switch 的「预设单一真源」；**不吸收**本地网关（127.0.0.1:3425 多协议翻译）、订阅 OAuth 账号复用、明文 key 落盘、中间件插件体系、自动账号发现。理由与逐项对照见 `docs/MAGPIE-ABSORPTION.md`。
+
+当前**尚未**支持：供应商级 failover、配额窗口、profile 快照、cc-switch 配置导入——这些在吸收清单的 P1/P2 里，未实现。

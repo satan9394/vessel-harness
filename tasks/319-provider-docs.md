@@ -1,5 +1,7 @@
 # T319 — provider 重构的文档收口
 
+- Status: 已完成（2026-10-26；协调者直接实现，未经 PDW 独立 review；未提交、未推送）
+
 > 自包含执行书。项目根 `E:\Code_file\Projects\Vessel_Harness`（Windows）。
 > 前置：T315（magpie 对照）、T316（Web 预设生成物）、T317（CLI `--by-provider`）、T318（Web 用量）。
 
@@ -51,3 +53,13 @@ node node_modules/tsx/dist/cli.mjs scripts/sync-web-presets.mjs --check
 不声称：<确认没有把未做的写成已做>
 守卫：<两条命令退出码>
 ```
+
+## Result
+
+已完成。`docs/PROVIDER-MANAGEMENT.md` 新增三节（共 30 行）：
+
+- **§10 预设单一真源**：真源是 `packages/application/src/providers/presets.data.ts`；Web 的 `presets.generated.ts` 由 `scripts/sync-web-presets.mjs --write` 生成，`--check` 守卫；改预设的流程与「手改生成物会被打回」。
+- **§11 按供应商看用量**：CLI 的「按供应商:」段与 `--json` 的 `byProvider`（数据来自 `~/.vessel/usage.json`，不重算倍率）；Web 的 `GET /api/providers/usage` 由 CLI 组合根注入、卡片显示 `<tokens> tokens · $<cost>`、无记录 `—`、端点只读。
+- **§12 与 magpie / cc-switch 的边界**：吸收了什么、不吸收什么（指向 `docs/MAGPIE-ABSORPTION.md`），并**明确列出尚未支持**的 failover、配额窗口、profile 快照、cc-switch 导入。
+
+`docs/ARCHITECTURE.md` 未改（package 清单与 provider 归属与本轮实现一致，不需要对账）。
