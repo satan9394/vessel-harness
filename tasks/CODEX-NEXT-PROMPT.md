@@ -145,6 +145,44 @@ node node_modules/typescript/bin/tsc -p apps/web/tsconfig.json --noEmit
 
 ---
 
+## E. 卡 T329：用量行补「最近调用时间」并在 Web 展示
+
+### E.1 要做
+
+1. `apps/cli/src/usage/UsageStore.ts` 的 `byProvider()` 每行加 `lastTs: string`：取该 provider 所有条目里
+   最大的 `lastTs`（ISO 字符串字典序即时间序；非法/缺失跳过）；没有可用时间时**不带该字段**。
+2. `apps/local-server/src/server.ts` 的 `usageByProvider` 行类型补可选 `lastTs?: string`（只透传）。
+3. `apps/web/src/api.ts` 的 `listProviderUsage` 行类型补 `lastTs?: string`。
+4. `ProviderSettingsModal.tsx`：卡片用量行追加「最近：<相对时间>」；没有 `lastTs` 时**不显示这一段**。
+5. `i18n.ts` 中英都加（英文不含 CJK）。
+
+### E.2 边界
+
+不在 Web 重算时间语义（只做相对时间展示，别引新依赖）；不给 `byProvider` 加其它字段；
+不改 `--json` 既有键名。
+
+### E.3 允许修改
+
+```
+apps/cli/src/usage/UsageStore.ts
+apps/cli/src/usage/usage-store.test.ts
+apps/local-server/src/server.ts
+apps/web/src/api.ts
+apps/web/src/components/providers/ProviderSettingsModal.tsx
+apps/web/src/components/providers/ProviderSettingsModal.test.tsx
+apps/web/src/i18n.ts
+```
+
+### E.4 验证
+
+```powershell
+node node_modules/vitest/vitest.mjs run apps/cli/src/usage
+node node_modules/vitest/vitest.mjs run apps/local-server/src/server.test.ts
+node node_modules/vitest/vitest.mjs run --root apps/web src/components/providers/ProviderSettingsModal.test.tsx
+```
+
+---
+
 ## 5. 全量门禁（四段都做完后跑，全部通过才算完成）
 
 本机单进程跑全量会在文件切换处挂起，按批跑：
@@ -170,13 +208,14 @@ node node_modules/typescript/bin/tsc -p apps/web/tsconfig.json --noEmit
 
 任一条红就修到绿再继续；**不要用放宽断言的方式变绿**（尤其别把 `toEqual` 改成 `toMatchObject` 来绕过）。
 
-## 6. 报告格式（最后一条消息只要这八行）
+## 6. 报告格式（最后一条消息只要这九行）
 
 ```
 A profile HTTP：<四条路径 + 状态码 + 测试数>
 B CLI：<四个子命令 + 测试数>
 C Web：<Profiles 区块 + 测试数>
 D 文档：<四处文件与新增小节>
+E 用量最近调用：<byProvider.lastTs + Web 展示 + 测试数>
 providers.json 形态：<未改变的证据>
 门禁：<15 条命令的退出码，或失败项与原因>
 未做/偏离：<如实写，没有写「无」>
