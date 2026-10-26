@@ -19,6 +19,7 @@ PDW 关联：首行状态行下加 `- PDW task: <id>`（未启动写 `none`）�
 |---|---|---|
 | 补审修复 (卡 322) | 已完成（PDW `20261026160547-bc5263`）：daemon 注入 usageByProvider、MAGPIE 文档三处失真、`check:web-presets` | [322](322-audit-fixes.md) |
 | 值守卫价目 (卡 323) | 核实为已具备：`vessel pricing override repair` 的 applied / skipped-user-modified / skipped-absent 三态，未改代码 | [323](323-pricing-value-guard.md) |
+| cc-switch 导入 (卡 324) | 已完成（PDW `20261026163022-458501`）：`provider import --from`，默认 dry-run、key 只进 secretRef、已存在跳过、`--prefix` 并存 | [324](324-ccswitch-import.md) |
 | 运行时端点失败转移 (卡 321) | 已完成（PDW `20261026145001-6ef0f7`）：同供应商候选端点按序切换、记住成功端点、流式已输出不重放；显式 base-url 不出候选 | [321](321-endpoint-failover.md) |
 | input token 口径 (卡 320) | 已完成：usage 记录区分 `cache-inclusive` / `cache-exclusive`（同一条目混用记 `mixed`），旧记录不补值 | [320](320-input-token-semantics.md) |
 | 320 回归修复 (卡 320b) | 已完成（PDW `20261026153155-a85d70`）：三处 `cacheMetrics` 深比较补字面量字段，生产代码零改动 | [320b](320b-cachemetrics-fixtures.md) |

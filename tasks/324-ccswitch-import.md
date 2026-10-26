@@ -1,6 +1,6 @@
 # T324 — 从 cc-switch 导出文件导入供应商（只读、默认 dry-run）
 
-- Status: 待执行（2026-10-26）
+- Status: 已完成（2026-10-26；PDW 任务 `20261026163022-458501`，implement=codex、review=opencode，`accepted_local`）
 - PDW task: none（契约 `.pdw/contracts/324-ccswitch-import.json`）
 
 > 依据：`docs/MAGPIE-ABSORPTION.md` §3 P2-2。
@@ -69,4 +69,26 @@ dry-run 不写盘、`--yes` 落盘且 key 进 CredentialStore（用内存假后�
 
 ## Result
 
-（待 PDW implement + review 完成后由协调者填写）
+已完成（2026-10-26，PDW 任务 `20261026163022-458501`，implement=codex、review=opencode，`accepted_local`）。
+
+- **命令**：`vessel provider import --from <file> [--dry-run] [--yes] [--prefix p] [--json]`。
+  默认预览；`--dry-run` 优先于 `--yes`；文件读不到 / JSON 非法 / 形状不对 → exit 2 且给可操作文案；
+  `--from` 与既有的位置参数导入（Vessel 自家导出、`--on-conflict`）互斥，混用直接报用法。
+- **解析**：接受 `{providers:[...]}` 与数组两种形状；别名 `id|name`、`protocol|app_type`、
+  `baseUrl|base_url|settingsConfig.base_url`、`model|models[0]`、`apiKey|key`；
+  `protocol` 只接受既有 provider 名且不接受 `mock`，其余计入 `unsupported`（1 起行号）。
+- **凭据**：key 只经 `store.save()` 走既有 task 034 迁移路径落 `CredentialStore`（`secretRef`），
+  `providers.json` 不落明文；输出前对 `added/skippedExisting/needsKey` 再做一次 key 替换（`[redacted]`）；
+  无 key 的项进 `needsKey`。
+- **冲突**：已存在 id（含 `mock`）默认 `skippedExisting` 不覆盖；`--prefix` 时新 id 为 `前缀+原 id`。
+- **不改 cc-switch**：只读 `--from` 指向的文件，不碰 `~/.cc-switch`。
+- 检查：PDW 四条 checks 全绿（导入单测 12、`cli.test.ts` 121、`tsc -b`、`tsc --noEmit`）；
+  协调者另跑全量门禁（数字见提交与 HANDOFF）。
+- **留给文档卡**：`docs/PROVIDER-MANAGEMENT.md` 目前仍只写旧的 positional 导入，新 `--from` 尚未记录
+  （review 角色也指出了这点；本卡 scope 不含 docs，交给 T326）。
+
+### 已知风险（review 提出，协调者确认保留）
+
+- cc-switch 导出里 `opencode-go` 形态与 Vessel 的 `opencode-go` 专用 provider 不一定同名同义，
+  导入后可能需要手工确认协议；当前策略是按 `protocol` 字段原样接受，不做猜测式转换。
+

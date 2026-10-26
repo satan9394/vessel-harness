@@ -2269,6 +2269,99 @@ describe('provider 成本倍率：读盘失败必须可见（静默降级族）'
   });
 });
 
+describe('vessel provider import --from', { timeout: 120_000 }, () => {
+  let dir: string;
+  const envNames = ['VESSEL_PROVIDER_ROOT', 'VESSEL_USAGE_ROOT', 'VESSEL_SESSION_ROOT', 'VESSEL_SETTINGS_ROOT'];
+  let previous: (string | undefined)[];
+  const key = 'fake-cli-import-secret-236';
+  beforeEach(() => {
+    dir = fs.mkdtempSync(path.join(os.tmpdir(), 'vessel-import-cli-'));
+    previous = envNames.map((name) => process.env[name]);
+    for (const name of envNames) process.env[name] = dir;
+  });
+  afterEach(() => {
+    envNames.forEach((name, index) => {
+      if (previous[index] === undefined) delete process.env[name];
+      else process.env[name] = previous[index];
+    });
+    fs.rmSync(dir, { recursive: true, force: true });
+  });
+  async function runImport(args: string[]) {
+    const cap = captureChannels();
+    try {
+      const code = await main(['provider', 'import', ...args]);
+      const out = cap.out();
+      const err = cap.err();
+      expect(out + err).not.toContain(key);
+      return { code, out, err };
+    } finally {
+      cap.restore();
+    }
+  }
+  it('previews, saves only with --yes, skips conflicts, and supports JSON and prefix', async () => {
+    const file = path.join(dir, 'export.json');
+    fs.writeFileSync(file, JSON.stringify({ providers: [
+      { id: 'external', protocol: 'anthropic', model: 'claude', apiKey: key },
+      { name: 'no-key', app_type: 'openai-compatible', models: ['m'] },
+      { id: 'unsupported', protocol: 'other', model: 'm', apiKey: key },
+    ] }));
+    const inputBefore = fs.readFileSync(file, 'utf8');
+    const preview = await runImport(['--from', file]);
+    expect(preview.code).toBe(0);
+    expect(preview.out).toContain('[dry-run]');
+    expect(fs.existsSync(path.join(dir, 'providers.json'))).toBe(false);
+    expect(fs.existsSync(path.join(dir, 'secrets.json'))).toBe(false);
+    const forcedPreview = await runImport(['--from', file, '--yes', '--dry-run', '--json']);
+    expect(JSON.parse(forcedPreview.out).written).toBe(false);
+    expect(fs.existsSync(path.join(dir, 'providers.json'))).toBe(false);
+    const saved = await runImport(['--from', file, '--yes', '--json']);
+    expect(saved.code).toBe(0);
+    expect(JSON.parse(saved.out)).toMatchObject({ written: true, added: ['external', 'no-key'], unsupported: [3], needsKey: ['no-key'] });
+    const raw = fs.readFileSync(path.join(dir, 'providers.json'), 'utf8');
+    expect(raw).not.toContain(key);
+    expect(raw).not.toContain('"apiKey"');
+    expect(JSON.parse(raw)[0].secretRef).toBe('credential:vessel/external');
+    const skipped = await runImport(['--from', file, '--yes', '--json']);
+    expect(skipped.code).toBe(0);
+    expect(JSON.parse(skipped.out)).toMatchObject({ written: false, skippedExisting: ['external', 'no-key'] });
+    const prefixed = await runImport(['--from', file, '--yes', '--prefix', 'copy-', '--json']);
+    expect(prefixed.code).toBe(0);
+    expect(JSON.parse(prefixed.out).added).toEqual(['copy-external', 'copy-no-key']);
+    expect(fs.readFileSync(file, 'utf8')).toBe(inputBefore);
+  });
+  it('returns actionable exit 2 errors without echoing invalid JSON or keys', async () => {
+    const file = path.join(dir, 'invalid.json');
+    for (const content of [`{"apiKey":"${key}",`, 'null', '42', '{}']) {
+      fs.writeFileSync(file, content);
+      const result = await runImport(['--from', file, '--json']);
+      expect(result.code).toBe(2);
+      expect(result.out).toBe('');
+      expect(JSON.parse(result.err).error.message).toMatch(/JSON|array/);
+    }
+    const missing = await runImport(['--from', path.join(dir, 'missing.json')]);
+    expect(missing.code).toBe(2);
+    expect(missing.err).toContain('--from path');
+    for (const args of [['--from'], ['--yes'], ['--prefix', 'copy-'], ['--from', file, '--prefix']]) {
+      expect((await runImport(args)).code).toBe(2);
+    }
+  });
+  it('reads only the explicit export and leaves a decoy application directory untouched', async () => {
+    const decoy = path.join(dir, '.cc-switch');
+    fs.mkdirSync(decoy);
+    const decoyFile = path.join(decoy, 'config.json');
+    const decoyText = JSON.stringify([{ id: 'decoy', protocol: 'anthropic', model: 'm', apiKey: key }]);
+    fs.writeFileSync(decoyFile, decoyText);
+    const file = path.join(dir, 'selected.json');
+    fs.writeFileSync(file, '[]');
+    const result = await runImport(['--from', file, '--yes', '--json']);
+    expect(result.code).toBe(0);
+    expect(JSON.parse(result.out).added).toEqual([]);
+    expect(fs.readFileSync(decoyFile, 'utf8')).toBe(decoyText);
+    const source = fs.readFileSync(new URL('./providers/ccSwitchImport.ts', import.meta.url), 'utf8');
+    expect(source).not.toMatch(/homedir|\.cc-switch|sqlite|readdir/);
+  });
+});
+
 describe('vessel provider export/import + endpoint (task 095/096)', { timeout: 120_000 }, () => {
   let dir: string;
   let outDir: string;

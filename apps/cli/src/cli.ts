@@ -26,6 +26,7 @@ import { modCommand } from './commands/modCommand.js';
 import { effectsCommand } from './commands/effectsCommand.js';
 import { ProviderStore, parseBackupKeep, type ProviderConfig } from './providers/ProviderStore.js';
 import { createDefaultProviderStore } from './providers/defaultStore.js';
+import { CcSwitchImportError, importCcSwitch } from './providers/ccSwitchImport.js';
 import {
   PROVIDER_EXPORT_VERSION,
   buildExport,
@@ -1599,6 +1600,7 @@ async function cmdDiff(args: string[], flags: Map<string, string>): Promise<numb
 }
 
 async function cmdProvider(args: string[], flags: Map<string, string>): Promise<number> {
+  if (args[0] === 'import' && flags.has('from')) return cmdProviderImport(args, flags);
   const store = defaultProviderStore();
   const sub = args[0] ?? 'list';
   switch (sub) {
@@ -1807,10 +1809,43 @@ async function cmdProviderExport(store: ProviderStore, flags: Map<string, string
 
 /** `vessel provider import <file>` — 合并导入（同名冲突默认跳过；task 095）。 */
 async function cmdProviderImport(args: string[], flags: Map<string, string>): Promise<number> {
+  if (flags.has('from')) {
+    const file = flags.get('from');
+    const prefix = flags.get('prefix');
+    if (!file || file === 'true' || (flags.has('prefix') && prefix === 'true') || args.length > 1
+      || flags.has('on-conflict') || flags.has('keep')) {
+      return fail(2, 'Usage: vessel provider import --from <file> [--dry-run] [--yes] [--prefix p] [--json]. Preview is the default; --dry-run overrides --yes.', flags);
+    }
+    let text: string;
+    try {
+      text = fs.readFileSync(path.resolve(file), 'utf8');
+    } catch {
+      return fail(2, 'Cannot read export file. Check the --from path and file permissions.', flags);
+    }
+    try {
+      const result = importCcSwitch(defaultProviderStore(), text, {
+        yes: flags.has('yes'), dryRun: flags.has('dry-run'), prefix,
+      });
+      if (isJson(flags)) emitJson(result);
+      else {
+        console.log(`${result.dryRun ? '[dry-run]' : '[import]'} added: ${result.added.length}, skippedExisting: ${result.skippedExisting.length}, unsupported: ${result.unsupported.length}, needsKey: ${result.needsKey.length}`);
+        console.log(JSON.stringify(result));
+      }
+      return 0;
+    } catch (err) {
+      return fail(2, err instanceof CcSwitchImportError ? err.message
+        : 'Cannot initialize provider import. Check provider configuration and credential storage permissions.', flags);
+    }
+  }
+  if (flags.has('yes') || flags.has('prefix')) {
+    return fail(2, '--yes and --prefix require --from <export.json>.', flags);
+  }
   const file = args[1];
   if (!file) {
     const msgLines = [
       '用法: vessel provider import <file> [--on-conflict skip|overwrite] [--dry-run] [--keep <n>]',
+      '  cc-switch JSON: vessel provider import --from <file> [--dry-run] [--yes] [--prefix p] [--json]',
+      '  --from defaults to dry-run; --yes saves via CredentialStore; --dry-run overrides --yes. Existing ids are skipped; --prefix prepends ids.',
       '  --on-conflict：同名 id 冲突策略（默认 skip 跳过；overwrite 用文件内容覆盖，但保留本机密钥引用）',
       '  --keep <n>：本次导入的备份保留份数（默认 5；0 = 不备份）',
     ];
