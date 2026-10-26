@@ -59,10 +59,158 @@ beforeEach(() => {
   hooks.lang = 'en'; vi.stubGlobal('document', doc); vi.stubGlobal('HTMLElement', Element);
   doc.activeElement = new Element(); root.controls = [new Element(), new Element()];
   api = { listProviders: vi.fn(async () => ({ providers: [configured, { ...configured, name: 'mock' }] })), listProviderUsage: vi.fn(async () => ({ byProvider: [], totals: { calls: 0, inputTokens: 0, outputTokens: 0, cacheReadTokens: 0, cacheCreationTokens: 0, costUsd: 0 } })), addProvider: vi.fn(async () => ({ provider: configured })), deleteProvider: vi.fn(async () => ({ ok: true })), testProvider: vi.fn(async () => ({ ok: true, latencyMs: 156, availableModels: ['discovered'] })), pullProviderModels: vi.fn(async () => ({ ok: true, latencyMs: 120, models: ['alpha', 'beta'] })), listModels: vi.fn(async () => ({ models: [] })) } as unknown as ApiClient;
+  api.listProfiles = vi.fn(async () => ({ profiles: [] }));
+  api.useProfile = vi.fn(async () => ({ provider: configured }));
 });
 afterEach(() => { hooks.cleanups.forEach(cleanup => cleanup?.()); hooks.values = []; hooks.effects = []; hooks.cleanups = []; vi.unstubAllGlobals(); vi.clearAllMocks(); });
 
 describe('provider settings', () => {
+  it.each([5, 6])('shows search only above five configured providers (%i)', async count => {
+    vi.mocked(api.listProviders).mockResolvedValue({ providers: Array.from({ length: count }, (_, i) => ({ ...configured, name: `provider-${i}` })) });
+    render(); await settle();
+    expect(render().some(node => node.type === 'input' && node.props.type === 'search')).toBe(count > 5);
+  });
+  it.each([
+    ['PROVIDER-2', ['provider-2']],
+    ['HOST-3', ['provider-3']],
+    ['missing', []],
+  ])('filters names/URLs for %s and restores all providers on clear', async (query, expected) => {
+    vi.mocked(api.listProviders).mockResolvedValue({ providers: Array.from({ length: 6 }, (_, i) => ({ ...configured, name: `provider-${i}`, baseUrl: `https://host-${i}.example/v1` })) });
+    render(); await settle();
+    const search = () => render().find(node => node.type === 'input' && node.props.type === 'search')!;
+    expect(String(search().props['aria-label'])).not.toMatch(/[\u3400-\u9fff]/);
+    invoke(search(), 'onChange', { target: { value: query } });
+    expect(render().filter(node => node.props.className === 'provider-card').map(node => nodes(node).find(child => child.type === 'strong')!.props.children)).toEqual(expected);
+    expect(render().some(node => node.props.children === 'No matching providers')).toBe(expected.length === 0);
+    invoke(search(), 'onChange', { target: { value: '' } });
+    expect(render().filter(node => node.props.className === 'provider-card')).toHaveLength(6);
+    expect(render().some(node => node.props.children === 'No matching providers')).toBe(false);
+  });
+  it.each(['en', 'zh'] as const)('shows a gentle missing-key hint in %s', async lang => {
+    hooks.lang = lang;
+    vi.mocked(api.listProviders).mockResolvedValue({ providers: [{ ...configured, apiKeyMasked: '' }] });
+    render(); await settle();
+    const message = lang === 'en' ? 'API key not configured' : '未配置密钥';
+    expect(render().find(node => node.props.children === message)?.props.className).toBe('dim');
+    if (lang === 'en') expect(message).not.toMatch(/[\u3400-\u9fff]/);
+    expect(render().some(node => node.props.children === '****1234')).toBe(false);
+  });
+  it('preserves the masked-key display', async () => {
+    render(); await settle();
+    expect(render().some(node => node.props.children === '****1234')).toBe(true);
+    expect(render().some(node => node.props.children === 'API key not configured')).toBe(false);
+  });
+  it.each([
+    ['cache-inclusive', 'Cache-inclusive', '输入包含缓存'],
+    ['cache-exclusive', 'Cache-exclusive', '输入不含缓存'],
+    ['mixed', 'Mixed', '混合'],
+    [undefined, undefined, undefined],
+  ] as const)('renders input accounting %s in both languages', async (semantics, en, zh) => {
+    vi.mocked(api.listProviderUsage).mockResolvedValue({ byProvider: [{ provider: 'existing', models: [], inputTokens: 1, outputTokens: 0, cacheReadTokens: 0, cacheCreationTokens: 0, calls: 1, costUsd: 0, estimated: false, ...(semantics ? { inputTokenSemantics: semantics } : {}) }], totals: { calls: 1, inputTokens: 1, outputTokens: 0, cacheReadTokens: 0, cacheCreationTokens: 0, costUsd: 0 } });
+    render(); await settle();
+    const english = render().find(node => node.props.className === 'provider-input-semantics');
+    expect(english?.props.children).toBe(en ? `Input accounting: ${en}` : undefined);
+    if (en) expect(english?.props.children).not.toMatch(/[\u3400-\u9fff]/);
+    hooks.lang = 'zh';
+    expect(render().find(node => node.props.className === 'provider-input-semantics')?.props.children).toBe(zh ? `口径：${zh}` : undefined);
+  });
+  it('expands and collapses the top models in server order', async () => {
+    vi.mocked(api.listProviderUsage).mockResolvedValue({ byProvider: [{ provider: 'existing', models: [{ model: 'expensive', tokens: 20, costUsd: 2, calls: 1 }, { model: 'cheaper', tokens: 10, costUsd: 1, calls: 1 }], inputTokens: 20, outputTokens: 10, cacheReadTokens: 0, cacheCreationTokens: 0, calls: 2, costUsd: 3, estimated: false }], totals: { calls: 2, inputTokens: 20, outputTokens: 10, cacheReadTokens: 0, cacheCreationTokens: 0, costUsd: 3 } });
+    render(); await settle();
+    expect(button('Top 3 models').props['aria-expanded']).toBe(false);
+    expect(render().some(node => node.props.className === 'provider-top-models')).toBe(false);
+    invoke(button('Top 3 models'), 'onClick');
+    expect(button('Top 3 models').props['aria-expanded']).toBe(true);
+    const list = render().find(node => node.props.className === 'provider-top-models')!;
+    expect(nodes(list).filter(node => node.type === 'li').map(node => node.props.children)).toEqual([
+      ['expensive', ' · ', '20 tokens · $2.0000'], ['cheaper', ' · ', '10 tokens · $1.0000'],
+    ]);
+    invoke(button('Top 3 models'), 'onClick');
+    expect(render().some(node => node.props.className === 'provider-top-models')).toBe(false);
+  });
+  it('omits the model expander when there are no models', async () => {
+    render(); await settle();
+    expect(button('Top 3 models')).toBeUndefined();
+  });
+  it.each(['en', 'zh'] as const)('shows relative last-use time in %s', async lang => {
+    hooks.lang = lang;
+    vi.spyOn(Date, 'now').mockReturnValue(Date.parse('2026-10-26T12:00:00Z'));
+    vi.mocked(api.listProviderUsage).mockResolvedValue({ byProvider: [{ models: [], provider: 'existing', inputTokens: 1, outputTokens: 0, cacheReadTokens: 0, cacheCreationTokens: 0, calls: 1, costUsd: 0, estimated: false, lastTs: '2026-10-26T10:00:00Z' }], totals: { calls: 1, inputTokens: 1, outputTokens: 0, cacheReadTokens: 0, cacheCreationTokens: 0, costUsd: 0 } });
+    render(); await settle();
+    expect(render().find(node => node.props.className === 'provider-last-used')?.props.children).toBe(lang === 'en' ? 'Last used: 2 hours ago' : '最近：2小时前');
+    vi.mocked(Date.now).mockRestore();
+  });
+  it('omits last-use text when no timestamp is supplied', async () => {
+    render(); await settle();
+    expect(render().some(node => node.props.className === 'provider-last-used')).toBe(false);
+  });
+  it('renders profile fields, activates through the API and refreshes providers and usage', async () => {
+    vi.mocked(api.listProfiles).mockResolvedValue({ profiles: [{ name: 'work', provider: 'existing', model: 'fast', baseUrl: 'https://work.example/v1' }] });
+    render(); await settle();
+    const section = render().find(node => node.type === 'section' && node.props['aria-label'] === 'Profiles')!;
+    const dump = JSON.stringify(section);
+    for (const text of ['work', 'existing', 'fast', 'https://work.example/v1']) expect(dump).toContain(text);
+    expect(api.listProviders).toHaveBeenCalledTimes(1); expect(api.listProviderUsage).toHaveBeenCalledTimes(1);
+    vi.mocked(api.listProviders).mockResolvedValue({ providers: [{ ...configured, models: ['fast'], isDefault: true }] });
+    vi.mocked(api.listProviderUsage).mockResolvedValue({ byProvider: [{ models: [], provider: 'existing', inputTokens: 100, outputTokens: 20, cacheReadTokens: 0, cacheCreationTokens: 0, calls: 1, costUsd: 0.5, estimated: false }], totals: { calls: 1, inputTokens: 100, outputTokens: 20, cacheReadTokens: 0, cacheCreationTokens: 0, costUsd: 0.5 } });
+    invoke(button('Use'), 'onClick'); await settle();
+    expect(api.useProfile).toHaveBeenCalledWith('work');
+    expect(api.listProviders).toHaveBeenCalledTimes(2); expect(api.listProviderUsage).toHaveBeenCalledTimes(2);
+    expect(onChanged).toHaveBeenCalledOnce();
+    expect(JSON.stringify(render())).toContain('120 tokens · $0.5000');
+    expect(render().some(node => node.props.role === 'status' && node.props.children === 'Profile work is active.')).toBe(true);
+    expect(button('Use').props.disabled).toBe(false);
+  });
+  it('uses a placeholder for empty profiles and omitted overrides without inventing values', async () => {
+    render(); await settle();
+    expect(render().some(node => node.props.children === '— No profiles yet')).toBe(true);
+    vi.mocked(api.listProfiles).mockResolvedValue({ profiles: [{ name: 'plain', provider: 'existing' }] });
+    hooks.values = []; render(); await settle();
+    const section = render().find(node => node.type === 'section' && node.props['aria-label'] === 'Profiles')!;
+    expect(JSON.stringify(section)).not.toContain('model-a');
+    expect(JSON.stringify(section)).not.toContain('https://example.com/v1');
+    expect(nodes(section).filter(node => Array.isArray(node.props.children) && node.props.children.includes('—'))).toHaveLength(2);
+  });
+  it('isolates profile list failures, retries locally and preserves the configured provider list', async () => {
+    vi.mocked(api.listProfiles).mockRejectedValueOnce(new Error('private-profile-error'));
+    render(); await settle();
+    let tree = render();
+    expect(tree.some(node => node.type === 'strong' && node.props.children === 'existing')).toBe(true);
+    const section = tree.find(node => node.type === 'section' && node.props['aria-label'] === 'Profiles')!;
+    expect(nodes(section).some(node => node.props.role === 'alert')).toBe(true);
+    expect(JSON.stringify(tree)).not.toContain('private-profile-error');
+    invoke(button('Retry'), 'onClick'); await settle(); tree = render();
+    expect(tree.some(node => node.props.role === 'alert')).toBe(false);
+    expect(api.listProviders).toHaveBeenCalledTimes(1);
+    expect(button('Save').props.disabled).toBe(false);
+  });
+  it('retains rows after failed activation and localizes profile messages in both languages', async () => {
+    hooks.lang = 'zh';
+    vi.mocked(api.listProfiles).mockResolvedValue({ profiles: [{ name: 'work', provider: 'existing' }] });
+    vi.mocked(api.useProfile).mockRejectedValueOnce(new Error('private-use-error'));
+    render(); await settle(); invoke(button('启用'), 'onClick'); await settle();
+    const section = render().find(node => node.type === 'section' && node.props['aria-label'] === 'Profiles')!;
+    expect(nodes(section).some(node => node.props.role === 'alert')).toBe(true);
+    expect(nodes(section).some(node => node.type === 'strong' && node.props.children === 'work')).toBe(true);
+    expect(JSON.stringify(section)).not.toContain('private-use-error');
+    expect(api.listProviders).toHaveBeenCalledTimes(1); expect(onChanged).not.toHaveBeenCalled();
+    for (const key of ['profilesTitle', 'profilesProvider', 'profilesModel', 'profilesUse', 'profilesUseNamed', 'profilesEmpty', 'profilesUsed', 'profilesLoadFailed', 'profilesUseFailed', 'profilesRefreshFailed'] as const) {
+      expect(translate('en')(key, { name: 'work' })).not.toMatch(/[\u3400-\u9fff]/u);
+      expect(translate('zh')(key, { name: 'work' })).not.toBe(key);
+    }
+  });
+  it('retries failed provider readback locally without activating twice', async () => {
+    vi.mocked(api.listProfiles).mockResolvedValue({ profiles: [{ name: 'work', provider: 'existing' }] });
+    render(); await settle();
+    vi.mocked(api.listProviders).mockRejectedValueOnce(new Error('readback failed'));
+    invoke(button('Use'), 'onClick'); await settle();
+    expect(JSON.stringify(render())).toContain('Profile is active, but providers could not refresh. Retry.');
+    expect(onChanged).toHaveBeenCalledOnce();
+    invoke(button('Retry'), 'onClick'); await settle();
+    expect(render().some(node => node.props.role === 'alert')).toBe(false);
+    expect(api.useProfile).toHaveBeenCalledTimes(1);
+    expect(api.listProviderUsage).toHaveBeenCalledTimes(2);
+  });
   it('selects the built-in Mock preset without credential fields or registration', async () => {
     render(); await settle();
     const mock = PROVIDER_PRESETS_CATALOG.find(preset => preset.id === 'mock');
@@ -85,7 +233,7 @@ describe('provider settings', () => {
 
   it('shows per-provider tokens and cost from the usage endpoint', async () => {
     vi.mocked(api.listProviderUsage).mockResolvedValue({
-      byProvider: [{ provider: 'existing', inputTokens: 10, outputTokens: 5, cacheReadTokens: 0, cacheCreationTokens: 0, calls: 2, costUsd: 0.25, estimated: false }],
+      byProvider: [{ models: [], provider: 'existing', inputTokens: 10, outputTokens: 5, cacheReadTokens: 0, cacheCreationTokens: 0, calls: 2, costUsd: 0.25, estimated: false }],
       totals: { calls: 2, inputTokens: 10, outputTokens: 5, cacheReadTokens: 0, cacheCreationTokens: 0, costUsd: 0.25 },
     });
     render(); await settle();
@@ -266,6 +414,15 @@ describe('provider settings', () => {
 });
 
 describe('provider validation and wire calls', () => {
+  it('calls the four profile endpoints with encoded names and unchanged snapshot bodies', async () => {
+    const fetcher = vi.fn<typeof fetch>(async () => new Response('{}'));
+    const client = createApiClient({ fetch: fetcher });
+    const profile = { name: 'work/one', provider: 'existing', model: 'fast', baseUrl: 'https://work.example/v1', label: 'Work' };
+    await client.listProfiles(); await client.saveProfile(profile); await client.useProfile(profile.name); await client.deleteProfile(profile.name);
+    expect(fetcher.mock.calls.map(call => call[0])).toEqual(['/api/providers/profiles', '/api/providers/profiles', '/api/providers/profiles/work%2Fone/use', '/api/providers/profiles/work%2Fone']);
+    expect(JSON.parse(String(fetcher.mock.calls[1]![1]!.body))).toEqual(profile);
+    expect(fetcher.mock.calls.map(call => call[1]?.method ?? 'GET')).toEqual(['GET', 'POST', 'POST', 'DELETE']);
+  });
   it('rejects unsafe URLs, remote blank keys, reserved/duplicate names and empty models', () => {
     const valid = { ...PROVIDER_PRESETS.DeepSeek!, apiKey: 'key' };
     for (const baseUrl of ['file:///tmp', 'https://user:pass@example.com', 'https://example.com?key=x', 'https://example.com/#x']) expect(validateProvider({ ...valid, baseUrl }, [], true)).toBe('providerInvalidUrl');

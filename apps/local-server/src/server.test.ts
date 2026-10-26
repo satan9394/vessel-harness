@@ -22,6 +22,94 @@ vi.mock('./daemon/daemonLifecycle.js', async (importOriginal) => ({
 const POLICY = path.resolve('configs/policy.default.yaml');
 const BEHAVIOR = path.resolve('configs/behavior.default.yaml');
 
+describe('profile HTTP dispatch', () => {
+  let home: string;
+  let store: ProviderStore;
+  let server: VesselServer;
+  let base: string;
+  beforeEach(async () => {
+    home = fs.mkdtempSync(path.join(os.tmpdir(), 'vessel-profile-http-'));
+    store = new ProviderStore({ rootDir: home });
+    store.add({ id: 'local', name: 'Local', protocol: 'openai-compatible', model: 'old', baseUrl: 'http://localhost:9999/v1' });
+    server = await createVesselServer({ port: 0, providerStore: store,
+      projectRegistry: new ProjectRegistry({ vesselHome: home }), sessionRegistry: new SessionRegistry({ vesselHome: home }),
+    }).listen();
+    base = `http://127.0.0.1:${server.port}`;
+  });
+  afterEach(async () => { await server.close(); fs.rmSync(home, { recursive: true, force: true }); });
+  const route = '/api/providers/profiles';
+  async function call(suffix = '', method = 'GET', body?: unknown, origin?: string) {
+    return fetch(base + route + suffix, { method, headers: { 'Content-Type': 'application/json', Origin: origin ?? base },
+      ...(body !== undefined ? { body: JSON.stringify(body) } : {}),
+    });
+  }
+  it('lists an empty collection without Origin, then saves and lists a snapshot', async () => {
+    const empty = await fetch(base + route);
+    expect(empty.status).toBe(200);
+    expect(await empty.json()).toEqual({ profiles: [] });
+    const saved = await call('', 'POST', { name: 'work', provider: 'local', model: 'new' });
+    expect(saved.status).toBe(201);
+    expect(await saved.json()).toEqual({ profile: { name: 'work', provider: 'local', model: 'new' } });
+    const list = await call();
+    expect(list.status).toBe(200);
+    expect(await list.json()).toEqual({ profiles: [{ name: 'work', provider: 'local', model: 'new' }] });
+  });
+  it.each([null, [], {}, { name: '', provider: 'local' }, { name: 'bad name', provider: 'local' },
+    { name: 'work', provider: 'absent' }, { name: 'work', provider: 42 }])('returns explicit 400 for invalid save %j', async body => {
+    const response = await call('', 'POST', body);
+    expect(response.status).toBe(400);
+    expect(await response.json()).toMatchObject({ error: expect.any(String) });
+    expect(store.listProfiles()).toEqual([]);
+  });
+  it('returns 400 for malformed JSON', async () => {
+    const response = await fetch(base + route, { method: 'POST', headers: { Origin: base }, body: '{broken' });
+    expect(response.status).toBe(400);
+  });
+  it('uses a snapshot and returns the usual provider DTO without credentials', async () => {
+    store.saveProfile('work', { provider: 'local', model: 'new' });
+    const used = await call('/work/use', 'POST');
+    expect(used.status).toBe(200);
+    const body = await used.json();
+    expect(body).toEqual({ provider: new ProviderRoutes(() => store).list()[0] });
+    expect(body).toMatchObject({ provider: { name: 'local', models: ['new'], isDefault: true } });
+    expect(body).not.toHaveProperty('provider.apiKey');
+    expect(body).not.toHaveProperty('provider.secretRef');
+  });
+  it('returns 404 unknown_profile for unknown use and delete', async () => {
+    for (const [suffix, method] of [['/missing/use', 'POST'], ['/missing', 'DELETE']]) {
+      const response = await call(suffix, method);
+      expect(response.status).toBe(404);
+      expect(await response.json()).toEqual({ error: 'unknown_profile' });
+    }
+  });
+  it('deletes a snapshot without removing its provider', async () => {
+    store.saveProfile('work', { provider: 'local' });
+    const response = await call('/work', 'DELETE');
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({ ok: true });
+    expect(store.listProfiles()).toEqual([]);
+    expect(store.get('local')).toBeDefined();
+  });
+  it('returns 400 for dangling use, invalid names and corrupted storage', async () => {
+    store.saveProfile('work', { provider: 'local' });
+    fs.writeFileSync(store.providersFile, '[]');
+    const dangling = await call('/work/use', 'POST');
+    expect(dangling.status).toBe(400);
+    expect(await dangling.json()).toEqual({ error: 'dangling_profile_provider' });
+    expect((await call('/bad%20name', 'DELETE')).status).toBe(400);
+    fs.writeFileSync(store.profilesFile, '{broken');
+    const response = await call();
+    expect(response.status).toBe(400);
+    expect(await response.json()).toEqual({ error: 'provider_profiles_corrupted' });
+  });
+  it('preserves origin enforcement and reserves the collection before generic provider deletion', async () => {
+    expect((await call('', 'POST', { name: 'work', provider: 'local' }, 'https://evil.example')).status).toBe(403);
+    store.add({ id: 'profiles', name: 'Profiles provider', protocol: 'openai-compatible', model: 'm' });
+    expect((await call('', 'DELETE')).status).toBe(405);
+    expect(store.get('profiles')).toBeDefined();
+  });
+});
+
 async function waitFor(fn: () => boolean, timeoutMs = 4000, stepMs = 10): Promise<void> {
   const start = Date.now();
   while (Date.now() - start < timeoutMs) {
@@ -785,7 +873,7 @@ describe('local server HTTP API + SSE', () => {
     const home2 = path.join(dir2, 'vessel-home');
     const ws2 = path.join(dir2, 'workspace');
     fs.mkdirSync(ws2, { recursive: true });
-    const rows = [{ provider: 'demo', inputTokens: 10, outputTokens: 5, cacheReadTokens: 1, cacheCreationTokens: 0, calls: 2, costUsd: 0.25, estimated: false }];
+    const rows: Array<{ models: { model: string; tokens: number; costUsd: number; calls: number }[]; provider: string; inputTokens: number; outputTokens: number; cacheReadTokens: number; cacheCreationTokens: number; calls: number; costUsd: number; estimated: boolean; lastTs?: string }> = [{ models: [], provider: 'demo', inputTokens: 10, outputTokens: 5, cacheReadTokens: 1, cacheCreationTokens: 0, calls: 2, costUsd: 0.25, estimated: false }];
     const withRows = createVesselServer({
       port: 0,
       projectRegistry: new ProjectRegistry({ vesselHome: home2 }),
@@ -800,6 +888,30 @@ describe('local server HTTP API + SSE', () => {
       const body = await res.json() as { byProvider: unknown[]; totals: { calls: number; costUsd: number; inputTokens: number } };
       expect(body.byProvider).toHaveLength(1);
       expect(body.totals).toMatchObject({ calls: 2, inputTokens: 10, costUsd: 0.25 });
+      rows.push(...[
+        { ...rows[0]!, provider: 'early', lastTs: new Date(2026, 9, 24, 23, 59).toISOString() },
+        { ...rows[0]!, provider: 'inside', lastTs: new Date(2026, 9, 25, 0, 0).toISOString() },
+        { ...rows[0]!, provider: 'late', lastTs: new Date(2026, 9, 26, 0, 0).toISOString() },
+        { ...rows[0]!, provider: 'invalid', lastTs: 'invalid' },
+      ]);
+      for (const [query, names] of [
+        ['?since=2026-10-25&until=2026-10-25', ['inside']],
+        ['?since=2026-10-25', ['inside', 'late']],
+        ['?until=2026-10-25', ['early', 'inside']],
+        ['?since=2026-10-26&until=2026-10-24', []],
+        ['', ['demo', 'early', 'inside', 'late', 'invalid']],
+      ] as const) {
+        const response = await fetch(`http://127.0.0.1:${withRows.port}/api/providers/usage${query}`);
+        expect(response.status).toBe(200);
+        const result = await response.json() as { byProvider: typeof rows; totals: unknown };
+        expect(result.byProvider).toEqual(rows.filter(row => (names as readonly string[]).includes(row.provider)));
+        expect(result.totals).toEqual({ calls: names.length * 2, inputTokens: names.length * 10, outputTokens: names.length * 5, cacheReadTokens: names.length, cacheCreationTokens: 0, costUsd: names.length * 0.25 });
+      }
+      for (const query of ['since=2026-02-30', 'until=not-a-date', 'since=', 'until=2026-1-01', 'since=2025-02-29']) {
+        const response = await fetch(`http://127.0.0.1:${withRows.port}/api/providers/usage?${query}`);
+        expect(response.status).toBe(400);
+        expect(await response.json()).toEqual({ error: 'invalid_date' });
+      }
     } finally { await withRows.close(); }
 
     const bare = createVesselServer({

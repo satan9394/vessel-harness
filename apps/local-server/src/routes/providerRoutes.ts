@@ -130,6 +130,20 @@ export class ProviderRoutes {
       name: cfg.id, protocol: cfg.protocol as ProviderDto['protocol'], baseUrl, apiKeyMasked: cfg.apiKey ? cfg.apiKey.length > 8 ? `****${cfg.apiKey.slice(-4)}` : '****' : '', models: providerModels(cfg), modelCapabilities: Object.fromEntries(providerModels(cfg).map(model => [model, capabilitiesFor(providerNameForConfig(cfg), model, cfg.modelCapabilities?.[model])])), isDefault: this.store().getCurrent() === cfg.id };
   }
   list(): ProviderDto[] { return this.store().load().map(cfg => this.dto(cfg)); }
+  /** GET/POST /api/providers/profiles: named snapshots, with no connection secrets. */
+  listProfiles() { return this.store().listProfiles(); }
+  saveProfile(value: unknown) {
+    const body = record(value);
+    return this.store().saveProfile(body.name as string, body as unknown as Parameters<ProviderStore['saveProfile']>[1]);
+  }
+  /** POST /api/providers/profiles/:name/use returns the usual masked provider DTO. */
+  useProfile(name: string): ProviderDto | undefined {
+    try { return this.dto(this.store().useProfile(name)); } catch (error) {
+      if (error instanceof Error && error.message === 'unknown_profile') return undefined;
+      throw error;
+    }
+  }
+  deleteProfile(name: string): boolean { return this.store().deleteProfile(name); }
   save(value: unknown): ProviderDto {
     const b = normalizeProviderInput(value);
     const previous = this.store().get(b.name);

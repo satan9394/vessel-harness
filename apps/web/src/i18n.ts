@@ -494,6 +494,22 @@ export interface ModelMessages {
   providerModelCount: MessageTemplate;
   providerUsageLine: MessageTemplate;
   providerUsageNone: MessageTemplate;
+  providerLastUsed: MessageTemplate;
+  providerTopModels: MessageTemplate;
+  providerInputSemantics: MessageTemplate;
+  providerCacheInclusive: MessageTemplate;
+  providerCacheExclusive: MessageTemplate;
+  providerCacheMixed: MessageTemplate;
+  profilesTitle: MessageTemplate;
+  profilesProvider: MessageTemplate;
+  profilesModel: MessageTemplate;
+  profilesUse: MessageTemplate;
+  profilesUseNamed: MessageTemplate;
+  profilesEmpty: MessageTemplate;
+  profilesUsed: MessageTemplate;
+  profilesLoadFailed: MessageTemplate;
+  profilesUseFailed: MessageTemplate;
+  profilesRefreshFailed: MessageTemplate;
   providerAuthExternal: MessageTemplate;
   capabilitiesTitle: MessageTemplate;
   capabilityDetected: MessageTemplate;
@@ -551,6 +567,9 @@ export interface ModelMessages {
   providerSaved: MessageTemplate;
   providerDeleted: MessageTemplate;
   providerNoKey: MessageTemplate;
+  providerKeyMissing: MessageTemplate;
+  providerSearch: MessageTemplate;
+  providerSearchEmpty: MessageTemplate;
   providerPullModels: MessageTemplate;
   providerPulling: MessageTemplate;
   providerPulled: MessageTemplate;
@@ -936,6 +955,22 @@ export const zh: Messages = {
   providerModelCount: '{count} 个模型',
   providerUsageLine: '{tokens} tokens · ${cost}',
   providerUsageNone: '—',
+  providerLastUsed: '最近：{time}',
+  providerTopModels: '按模型 Top 3',
+  providerInputSemantics: '口径：{value}',
+  providerCacheInclusive: '输入包含缓存',
+  providerCacheExclusive: '输入不含缓存',
+  providerCacheMixed: '混合',
+  profilesTitle: 'Profiles',
+  profilesProvider: '供应商',
+  profilesModel: '模型',
+  profilesUse: '启用',
+  profilesUseNamed: '启用 profile {name}',
+  profilesEmpty: '— 暂无 profile',
+  profilesUsed: '已启用 profile {name}',
+  profilesLoadFailed: '读取 profile 失败，请重试',
+  profilesUseFailed: '启用失败，请检查 profile 及其供应商是否仍存在',
+  profilesRefreshFailed: 'Profile 已启用，刷新供应商失败，请重试',
   providerAuthExternal: '此预设需要外部凭据配置；此表单仅支持 API Key。',
   behaviorInspector: '行为有效快照',
   behaviorSelectSession: '选择一个会话以检查实际生效的行为。',
@@ -1039,6 +1074,9 @@ export const zh: Messages = {
   providerSaved: "供应商已保存。",
   providerDeleted: "供应商已删除。",
   providerNoKey: "无需密钥",
+  providerKeyMissing: '未配置密钥',
+  providerSearch: '搜索供应商名称或地址',
+  providerSearchEmpty: '没有匹配的供应商',
   providerPullModels: "拉取模型",
   providerPulling: "正在拉取模型…",
   providerPulled: "已拉取 {count} 个模型。",
@@ -1767,6 +1805,22 @@ export const en: Messages = {
   providerModelCount: "{count} models",
   providerUsageLine: '{tokens} tokens · ${cost}',
   providerUsageNone: '—',
+  providerLastUsed: 'Last used: {time}',
+  providerTopModels: 'Top 3 models',
+  providerInputSemantics: 'Input accounting: {value}',
+  providerCacheInclusive: 'Cache-inclusive',
+  providerCacheExclusive: 'Cache-exclusive',
+  providerCacheMixed: 'Mixed',
+  profilesTitle: 'Profiles',
+  profilesProvider: 'Provider',
+  profilesModel: 'Model',
+  profilesUse: 'Use',
+  profilesUseNamed: 'Use profile {name}',
+  profilesEmpty: '— No profiles yet',
+  profilesUsed: 'Profile {name} is active.',
+  profilesLoadFailed: 'Could not load profiles. Retry.',
+  profilesUseFailed: 'Could not use this profile. Check that it and its provider still exist.',
+  profilesRefreshFailed: 'Profile is active, but providers could not refresh. Retry.',
   providerAuthExternal: "This preset needs external credentials; this form supports API keys only.",
   behaviorInspector: 'Effective behavior snapshot',
   behaviorSelectSession: 'Select a session to inspect its effective behavior.',
@@ -1870,6 +1924,9 @@ export const en: Messages = {
   providerSaved: "Provider saved.",
   providerDeleted: "Provider deleted.",
   providerNoKey: "No key required",
+  providerKeyMissing: 'API key not configured',
+  providerSearch: 'Search providers by name or URL',
+  providerSearchEmpty: 'No matching providers',
   providerPullModels: "Pull models",
   providerPulling: "Pulling models…",
   providerPulled: "Pulled {count} models.",

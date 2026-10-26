@@ -13,6 +13,7 @@ import { MockProvider } from '@vessel/llm';
 import { computeHarnessFingerprint } from '@vessel/engine';
 import { ProviderStore } from './providers/ProviderStore.js';
 import { providerStateRoot } from './providers/defaultStore.js';
+import { UsageStore } from './usage/UsageStore.js';
 // 本卡②：`vessel migrate` 的执行缝注入（`cli.migrateRuntime.run`）需要一个**带类型**的结果对象，
 // 否则对象字面量的 `status` 会被推断成 `string` 而赋不进去（tsc 报 TS2322）。
 import type { MigrationResult } from './migrate.js';
@@ -595,6 +596,110 @@ describe('CLI provider/models commands (task 016/015)', () => {
     expect(logs.join('\n')).toContain('*');
   });
 
+  it('dispatches provider profile list/save/use/delete with isolated state', async () => {
+    const store = new ProviderStore({ rootDir: cfgDir });
+    store.add({ id: 'local', name: 'Local', protocol: 'openai-compatible', model: 'old', baseUrl: 'http://localhost:9999/v1' });
+    const cap = captureChannels();
+    try {
+      expect(await main(['provider', 'profile', 'list', '--json'])).toBe(0);
+      expect(JSON.parse(cap.lines()[0]!)).toEqual({ profiles: [] });
+      expect(await main(['provider', 'profile', 'save', 'work', '--provider', 'local', '--model', 'new'])).toBe(0);
+      expect(await main(['provider', 'profile', 'use', 'work', '--json'])).toBe(0);
+      expect(JSON.parse(cap.lines()[2]!)).toMatchObject({ provider: { name: 'local', models: ['new'], isDefault: true } });
+      expect(await main(['provider', 'profile', 'save', 'invalid'])).toBe(2);
+      expect(await main(['provider', 'profile', 'use', 'absent'])).toBe(2);
+      expect(await main(['provider', 'profile', 'delete', 'work'])).toBe(0);
+      expect(await main(['provider', 'profile', 'delete', 'work'])).toBe(0);
+      expect(cap.out() + cap.err()).not.toContain('secretRef');
+      expect(cap.out() + cap.err()).not.toMatch(/"apiKey"/);
+    } finally { cap.restore(); }
+  });
+
+  it('provider profile rename changes only the name and supports JSON output', async () => {
+    const store = new ProviderStore({ rootDir: cfgDir });
+    store.add({ id: 'local', name: 'Local', protocol: 'openai-compatible', model: 'old' });
+    store.saveProfile('old', { provider: 'local', model: 'saved', baseUrl: 'http://localhost:9999/v1', label: 'Work' });
+    const before = store.listProfiles()[0]!;
+    const providers = fs.readFileSync(store.providersFile, 'utf8');
+    const cap = captureChannels();
+    try {
+      expect(await main(['provider', 'profile', 'rename', 'old', 'new', '--json'])).toBe(0);
+      expect(JSON.parse(cap.out())).toEqual({ profile: { ...before, name: 'new' } });
+      expect(store.listProfiles()).toEqual([{ ...before, name: 'new' }]);
+      expect(fs.readFileSync(store.providersFile, 'utf8')).toBe(providers);
+      expect(cap.err()).toBe('');
+    } finally { cap.restore(); }
+  });
+  it('provider profile rename rejects an existing target with exit 2', async () => {
+    const store = new ProviderStore({ rootDir: cfgDir });
+    store.add({ id: 'local', name: 'Local', protocol: 'openai-compatible', model: 'old' });
+    store.saveProfile('old', { provider: 'local', model: 'a' });
+    store.saveProfile('new', { provider: 'local', model: 'b' });
+    const before = store.listProfiles();
+    const cap = captureChannels();
+    try {
+      expect(await main(['provider', 'profile', 'rename', 'old', 'new'])).toBe(2);
+      expect(cap.err()).toContain('profile_already_exists');
+      expect(cap.out()).toBe('');
+      expect(store.listProfiles()).toEqual(before);
+    } finally { cap.restore(); }
+  });
+  it('provider profile rename rejects a missing source with exit 2', async () => {
+    const cap = captureChannels();
+    try {
+      expect(await main(['provider', 'profile', 'rename', 'missing', 'new'])).toBe(2);
+      expect(cap.err()).toContain('unknown_profile');
+      expect(new ProviderStore({ rootDir: cfgDir }).listProfiles()).toEqual([]);
+      expect(cap.out()).toBe('');
+    } finally { cap.restore(); }
+  });
+  it('provider profile rename requires both names', async () => {
+    const cap = captureChannels();
+    try {
+      expect(await main(['provider', 'profile', 'rename', 'old'])).toBe(2);
+      expect(cap.err()).toContain('rename <old> <new>');
+      expect(cap.out()).toBe('');
+    } finally { cap.restore(); }
+  });
+
+  it('provider rm refuses referenced profiles and suggests --force', async () => {
+    const store = new ProviderStore({ rootDir: cfgDir });
+    store.add({ id: 'local', name: 'Local', protocol: 'openai-compatible', model: 'old' });
+    store.saveProfile('work', { provider: 'local' });
+    const cap = captureChannels();
+    try {
+      expect(await main(['provider', 'rm', 'local'])).toBe(2);
+      expect(cap.err()).toContain('work');
+      expect(cap.err()).toContain('--force');
+      expect(cap.out()).toBe('');
+      expect(store.profilesFor('local')).toEqual(['work']);
+      expect(store.get('local')).toBeDefined();
+    } finally { cap.restore(); }
+  });
+  it('provider rm --force names each cascaded profile', async () => {
+    const store = new ProviderStore({ rootDir: cfgDir });
+    store.add({ id: 'local', name: 'Local', protocol: 'openai-compatible', model: 'old' });
+    store.saveProfile('work', { provider: 'local' });
+    store.saveProfile('home', { provider: 'local' });
+    const cap = captureChannels();
+    try {
+      expect(await main(['provider', 'rm', 'local', '--force'])).toBe(0);
+      expect(cap.lines()).toEqual(['已删除 profile "home"', '已删除 profile "work"', '已移除 provider "local"']);
+      expect(store.listProfiles()).toEqual([]);
+      expect(store.get('local')).toBeUndefined();
+    } finally { cap.restore(); }
+  });
+  it('provider remove succeeds without referencing profiles', async () => {
+    const store = new ProviderStore({ rootDir: cfgDir });
+    store.add({ id: 'local', name: 'Local', protocol: 'openai-compatible', model: 'old' });
+    const cap = captureChannels();
+    try {
+      expect(await main(['provider', 'remove', 'local'])).toBe(0);
+      expect(cap.lines()).toEqual(['已移除 provider "local"']);
+      expect(store.get('local')).toBeUndefined();
+    } finally { cap.restore(); }
+  });
+
   it('provider add + switch + current round-trip', async () => {
     const addLogs: string[] = [];
     const spyAdd = vi.spyOn(console, 'log').mockImplementation((...a) => addLogs.push(a.join(' ')));
@@ -700,6 +805,93 @@ describe('V0.9 usage/pricing commands (task 031)', () => {
     if (oldSessionRoot === undefined) delete process.env.VESSEL_SESSION_ROOT;
     else process.env.VESSEL_SESSION_ROOT = oldSessionRoot;
     fs.rmSync(cfgDir, { recursive: true, force: true });
+  });
+
+  const csvHeader = 'provider,model,calls,input_tokens,output_tokens,cache_read_tokens,cache_creation_tokens,cost_usd,estimated';
+  it('usage --csv prints the fixed header', async () => {
+    const cap = captureChannels();
+    try {
+      expect(await main(['usage', '--csv'])).toBe(0);
+      expect(cap.lines()[0]).toBe(csvHeader);
+    } finally { cap.restore(); }
+  });
+  it('usage --csv exports two model rows with escaped cells and six decimal costs', async () => {
+    fs.writeFileSync(path.join(cfgDir, 'usage.json'), JSON.stringify({ version: 1, entries: {
+      a: { provider: 'alpha', model: 'one', calls: 2, inputTokens: 10, outputTokens: 20, cacheReadTokens: 3, cacheCreationTokens: 4, costUsd: 0.1234567, estimated: false, lastTs: new Date().toISOString(), events: 1 },
+      b: { provider: 'b,"eta', model: 'two\nlines', calls: 1, inputTokens: 5, outputTokens: 6, cacheReadTokens: 0, cacheCreationTokens: 0, costUsd: 0.01, estimated: true, lastTs: new Date().toISOString(), events: 1 },
+    }, recent: [] }));
+    const cap = captureChannels();
+    try {
+      expect(await main(['usage', '--csv'])).toBe(0);
+      expect(cap.lines()).toEqual([csvHeader, 'alpha,one,2,10,20,3,4,0.123457,false', '"b,""eta","two\nlines",1,5,6,0,0,0.010000,true']);
+    } finally { cap.restore(); }
+  });
+  it('usage --csv without records emits only the header and exits zero', async () => {
+    const cap = captureChannels();
+    try {
+      expect(await main(['usage', '--csv'])).toBe(0);
+      expect(cap.lines()).toEqual([csvHeader]);
+      expect(cap.err()).toBe('');
+    } finally { cap.restore(); }
+  });
+  it('usage rejects mutually exclusive --csv and --json', async () => {
+    const cap = captureChannels();
+    try {
+      expect(await main(['usage', '--csv', '--json'])).toBe(2);
+      expect(JSON.parse(cap.err())).toEqual({ error: { message: '--csv 与 --json 互斥。', code: 2 } });
+      expect(cap.out()).toBe('');
+    } finally { cap.restore(); }
+  });
+
+  function writeTopModels() {
+    const entries = Object.fromEntries([
+      ['cheap', 0.1, 10], ['highest', 0.4, 40], ['second', 0.3, 30], ['third', 0.2, 20],
+    ].map(([model, costUsd, inputTokens]) => [String(model), {
+      provider: 'local', model, costUsd, inputTokens, outputTokens: 2, calls: 1,
+      cacheReadTokens: 0, cacheCreationTokens: 0, estimated: false,
+      lastTs: '2026-10-25T12:00:00.000Z', events: 1, pricingSource: 'model',
+    }]));
+    fs.writeFileSync(path.join(cfgDir, 'usage.json'), JSON.stringify({ version: 1, entries, recent: [] }));
+  }
+  it('usage indents at most three models per provider in descending cost order', async () => {
+    writeTopModels();
+    const cap = captureChannels();
+    try {
+      expect(await main(['usage'])).toBe(0);
+      const lines = cap.lines();
+      const start = lines.indexOf('\n按供应商:');
+      const end = lines.indexOf('\n按模型:');
+      expect(start).toBeGreaterThan(-1);
+      expect(end).toBeGreaterThan(start);
+      expect(lines.slice(start + 2, end)).toEqual([
+        '    highest · 42 · $0.4000', '    second · 32 · $0.3000', '    third · 22 · $0.2000',
+      ]);
+    } finally { cap.restore(); }
+  });
+  it('usage adds no model lines when a provider has no model summaries', async () => {
+    writeTopModels();
+    const rows = new UsageStore({ rootDir: cfgDir }).byProvider().map(row => ({ ...row, models: [] }));
+    const spy = vi.spyOn(UsageStore.prototype, 'byProvider').mockReturnValue(rows);
+    const cap = captureChannels();
+    try {
+      expect(await main(['usage'])).toBe(0);
+      const lines = cap.lines();
+      expect(lines.slice(lines.indexOf('\n按供应商:') + 1, lines.indexOf('\n按模型:'))).toHaveLength(1);
+      expect(lines.filter(line => line.startsWith('    '))).toEqual([]);
+    } finally { cap.restore(); spy.mockRestore(); }
+  });
+  it('usage --json retains the complete store payload without human Top3 lines', async () => {
+    writeTopModels();
+    const store = new UsageStore({ rootDir: cfgDir });
+    const expected = JSON.parse(JSON.stringify({ totals: store.totals(), daily: store.daily({}),
+      byProvider: store.byProvider(), byModel: store.byModel(), recent: store.recent(5) }));
+    const cap = captureChannels();
+    try {
+      expect(await main(['usage', '--json'])).toBe(0);
+      expect(cap.lines()).toHaveLength(1);
+      expect(JSON.parse(cap.out())).toEqual(expected);
+      expect(cap.err()).toBe('');
+    } finally { cap.restore(); }
   });
 
   it('vessel usage shows empty stats when nothing recorded', async () => {

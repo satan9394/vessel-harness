@@ -90,6 +90,7 @@ export interface ProviderInfo {
   modelCapabilities?: Record<string, ProviderCapabilities>;
 }
 export interface AddProviderInput { name: string; protocol: ProviderInfo['protocol']; baseUrl: string; apiKey: string; models: string[]; modelCapabilities?: Record<string, ProviderCapabilities> }
+export interface ProviderProfile { name: string; provider: string; model?: string; baseUrl?: string; label?: string }
 export interface ModelOption { id: string; name: string; providerName: string; protocol: string; capabilities?: ProviderCapabilities }
 export interface TestProviderResult { ok: boolean; latencyMs?: number; availableModels?: string[]; modelCapabilities?: Record<string, ProviderCapabilities>; error?: string }
 /** 「一键拉取模型」结果（task 215）：真实探测 `/v1/models` 后的可用模型清单。 */
@@ -355,9 +356,19 @@ export function createApiClient(opts: ApiOptions = {}) {
     },
     /** GET /api/health */
     async listProviders(): Promise<{ providers: ProviderInfo[] }> { return request('/providers'); },
+    async listProfiles(): Promise<{ profiles: ProviderProfile[] }> { return request('/providers/profiles'); },
+    async saveProfile(input: ProviderProfile): Promise<{ profile: ProviderProfile }> {
+      return request('/providers/profiles', { method: 'POST', body: JSON.stringify(input) });
+    },
+    async useProfile(name: string): Promise<{ provider: ProviderInfo }> {
+      return request(`/providers/profiles/${encodeURIComponent(name)}/use`, { method: 'POST' });
+    },
+    async deleteProfile(name: string): Promise<{ ok: boolean }> {
+      return request(`/providers/profiles/${encodeURIComponent(name)}`, { method: 'DELETE' });
+    },
     /** GET /api/providers/usage — read-only per-provider token/cost rows from UsageStore. */
     async listProviderUsage(): Promise<{
-      byProvider: Array<{ provider: string; inputTokens: number; outputTokens: number; cacheReadTokens: number; cacheCreationTokens: number; calls: number; costUsd: number; estimated: boolean }>;
+      byProvider: Array<{ inputTokenSemantics?: 'cache-inclusive' | 'cache-exclusive' | 'mixed'; models: { model: string; tokens: number; costUsd: number; calls: number }[]; lastTs?: string; provider: string; inputTokens: number; outputTokens: number; cacheReadTokens: number; cacheCreationTokens: number; calls: number; costUsd: number; estimated: boolean }>;
       totals: { calls: number; inputTokens: number; outputTokens: number; cacheReadTokens: number; cacheCreationTokens: number; costUsd: number };
     }> { return request('/providers/usage'); },
     async addProvider(input: AddProviderInput): Promise<{ provider: ProviderInfo }> {

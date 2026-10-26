@@ -198,6 +198,8 @@ export function parseImportFile(
     if (typeof c.note === 'string') entry.note = c.note;
     if (c.costMultiplier !== undefined) entry.costMultiplier = c.costMultiplier as number;
     if (c.endpoints !== undefined) entry.endpoints = c.endpoints as ProviderEndpoint[];
+    if (c.modelCapabilities !== undefined) entry.modelCapabilities = c.modelCapabilities as ProviderConfig['modelCapabilities'];
+    if (c.catalogEvidence !== undefined) entry.catalogEvidence = c.catalogEvidence as ProviderConfig['catalogEvidence'];
     providers.push(entry);
   }
   return { providers, keysStrippedInFile };

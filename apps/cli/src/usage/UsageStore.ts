@@ -1203,6 +1203,9 @@ export class UsageStore {
   }
 
   byProvider(): {
+    inputTokenSemantics?: InputTokenSemantics | 'mixed';
+    models: { model: string; tokens: number; costUsd: number; calls: number }[];
+    lastTs?: string;
     provider: string;
     inputTokens: number;
     outputTokens: number;
@@ -1219,12 +1222,16 @@ export class UsageStore {
     costMultiplierMixed: boolean;
   }[] {
     const map = new Map<string, {
+      inputTokenSemantics?: InputTokenSemantics | 'mixed';
+      models: { model: string; tokens: number; costUsd: number; calls: number }[];
+      lastTs?: string;
       provider: string; inputTokens: number; outputTokens: number; cacheReadTokens: number;
       cacheCreationTokens: number; calls: number; costUsd: number; estimated: boolean;
       rawCostUsd: number; costMultiplier?: number; costMultiplierMixed: boolean;
     }>();
     for (const e of Object.values(this.data.entries)) {
       const cur = map.get(e.provider) ?? {
+        models: [],
         provider: e.provider, inputTokens: 0, outputTokens: 0, cacheReadTokens: 0,
         cacheCreationTokens: 0, calls: 0, costUsd: 0, estimated: false,
         rawCostUsd: 0, costMultiplier: undefined, costMultiplierMixed: false,
@@ -1232,6 +1239,13 @@ export class UsageStore {
       cur.inputTokens += e.inputTokens; cur.outputTokens += e.outputTokens;
       cur.cacheReadTokens += e.cacheReadTokens; cur.cacheCreationTokens += e.cacheCreationTokens ?? 0;
       cur.calls += e.calls; cur.costUsd += e.costUsd;
+      cur.models.push({ model: e.model, tokens: e.inputTokens + e.outputTokens, costUsd: e.costUsd, calls: e.calls });
+      if (e.inputTokenSemantics !== undefined) {
+        cur.inputTokenSemantics = cur.inputTokenSemantics === undefined || cur.inputTokenSemantics === e.inputTokenSemantics
+          ? e.inputTokenSemantics : 'mixed';
+      }
+      if (typeof e.lastTs === 'string' && Number.isFinite(Date.parse(e.lastTs)) &&
+          (cur.lastTs === undefined || Date.parse(e.lastTs) > Date.parse(cur.lastTs))) cur.lastTs = e.lastTs;
       cur.rawCostUsd += UsageStore.rawTotal(e.costBreakdown);
       cur.estimated = cur.estimated || e.estimated;
       // 094：provider 级倍率只在「该 provider 所有条目一致」时才敢报一个数。
@@ -1248,7 +1262,7 @@ export class UsageStore {
       }
       map.set(e.provider, cur);
     }
-    return [...map.values()].sort((a, b) => b.costUsd - a.costUsd);
+    return [...map.values()].map(row => ({ ...row, models: row.models.sort((a, b) => b.costUsd - a.costUsd).slice(0, 3) })).sort((a, b) => b.costUsd - a.costUsd);
   }
 
   cacheSummary() {

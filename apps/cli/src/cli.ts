@@ -27,6 +27,7 @@ import { effectsCommand } from './commands/effectsCommand.js';
 import { ProviderStore, parseBackupKeep, type ProviderConfig } from './providers/ProviderStore.js';
 import { createDefaultProviderStore } from './providers/defaultStore.js';
 import { CcSwitchImportError, importCcSwitch } from './providers/ccSwitchImport.js';
+import { profileCommands } from './providers/profileCommands.js';
 import {
   PROVIDER_EXPORT_VERSION,
   buildExport,
@@ -1604,6 +1605,21 @@ async function cmdProvider(args: string[], flags: Map<string, string>): Promise<
   const store = defaultProviderStore();
   const sub = args[0] ?? 'list';
   switch (sub) {
+    case 'profile': {
+      if (args[1] !== 'rename') return profileCommands(store, args.slice(1), flags);
+      const [, , oldName, newName] = args;
+      if (oldName === undefined || newName === undefined) {
+        return fail(2, '用法: vessel provider profile rename <old> <new>', flags);
+      }
+      try {
+        const profile = store.renameProfile(oldName, newName);
+        if (isJson(flags)) emitJson({ profile });
+        else console.log(`已重命名 profile "${oldName.trim()}" → "${profile.name}"`);
+        return 0;
+      } catch (error) {
+        return fail(2, `[vessel provider profile rename] ${(error as Error).message}`, flags);
+      }
+    }
     case 'list': {
       const current = store.getCurrent();
       if (isJson(flags)) {
@@ -1730,6 +1746,7 @@ async function cmdProvider(args: string[], flags: Map<string, string>): Promise<
         return fail(1, msg, flags, () => console.error(msg));
       }
     }
+    case 'rm':
     case 'remove': {
       const id = args[1];
       if (!id) {
@@ -1737,12 +1754,14 @@ async function cmdProvider(args: string[], flags: Map<string, string>): Promise<
         return fail(2, msg, flags, () => console.error(msg));
       }
       try {
-        store.remove(id);
+        const profiles = store.profilesFor(id);
+        store.remove(id, { force: flags.has('force') });
+        for (const name of profiles) console.log(`已删除 profile "${name}"`);
         console.log(`已移除 provider "${id}"`);
         return 0;
       } catch (err) {
         const msg = `[vessel] ${(err as Error).message}`;
-        return fail(1, msg, flags, () => console.error(msg));
+        return fail((err as Error).message.startsWith('provider_in_use:') ? 2 : 1, msg, flags, () => console.error(msg));
       }
     }
     case 'switch':
@@ -2192,6 +2211,9 @@ async function cmdUsageRecompute(flags: Map<string, string>): Promise<number> {
  * task 091：`vessel usage recompute` 子命令按当前价目重算历史成本（幂等 + dry-run）。
  */
 async function cmdUsage(args: string[], flags: Map<string, string>): Promise<number> {
+  if (flags.has('csv') && isJson(flags)) {
+    return fail(2, '--csv 与 --json 互斥。', flags);
+  }
   if (args[0] === 'recompute') return cmdUsageRecompute(flags);
   const store = createUsageStore();
 
@@ -2202,6 +2224,19 @@ async function cmdUsage(args: string[], flags: Map<string, string>): Promise<num
       const message = `[vessel usage] --${name} 需要本地日 YYYY-MM-DD（收到 "${value}"）。`;
       return fail(2, message, flags, () => console.error(message));
     }
+  }
+
+  if (flags.has('csv')) {
+    const cell = (value: string | number | boolean) => {
+      const text = String(value);
+      return /[",\r\n]/.test(text) ? `"${text.replaceAll('"', '""')}"` : text;
+    };
+    console.log('provider,model,calls,input_tokens,output_tokens,cache_read_tokens,cache_creation_tokens,cost_usd,estimated');
+    for (const row of store.byModel()) {
+      console.log([row.provider, row.model, row.calls, row.inputTokens, row.outputTokens,
+        row.cacheReadTokens, row.cacheCreationTokens ?? 0, row.costUsd.toFixed(6), row.estimated].map(cell).join(','));
+    }
+    return 0;
   }
 
   if (isJson(flags)) {
@@ -2303,6 +2338,9 @@ async function cmdUsage(args: string[], flags: Map<string, string>): Promise<num
           ? `（分项合计 $${p.rawCostUsd.toFixed(4)} × ${p.costMultiplier}）`
           : '';
       console.log(`  ${p.provider}: ${p.inputTokens.toLocaleString()}in/${p.outputTokens.toLocaleString()}out · ${p.calls} 次 · $${p.costUsd.toFixed(4)}${mult}${p.estimated ? '（含估算）' : ''}`);
+      for (const model of p.models.slice().sort((a, b) => b.costUsd - a.costUsd).slice(0, 3)) {
+        console.log(`    ${model.model} · ${model.tokens.toLocaleString()} · $${model.costUsd.toFixed(4)}`);
+      }
     }
   }
   const byModel = store.byModel();

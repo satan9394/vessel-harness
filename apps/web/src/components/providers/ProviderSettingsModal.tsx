@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { ApiError, type AddProviderInput, type ApiClient, type ProviderInfo, type TestProviderResult } from '../../api';
+import { ApiError, type AddProviderInput, type ApiClient, type ProviderInfo, type ProviderProfile, type TestProviderResult } from '../../api';
 import type { ModelMessages } from '../../i18n';
 import CapabilityStatus from './CapabilityStatus';
 import { useI18n } from '../LanguageProvider';
@@ -17,6 +17,14 @@ export const PROVIDER_PRESETS: Record<string, AddProviderInput> = {
   Ollama: { name: 'ollama', protocol: 'openai-compatible', baseUrl: 'http://localhost:11434/v1', apiKey: '', models: [] },
   custom: { name: '', protocol: 'openai-compatible', baseUrl: '', apiKey: '', models: [] },
 };
+
+function relativeTime(ts: string | undefined, lang: string): string | undefined {
+  if (!ts || !Number.isFinite(Date.parse(ts))) return undefined;
+  const seconds = (Date.parse(ts) - Date.now()) / 1000;
+  const [size, unit]: [number, Intl.RelativeTimeFormatUnit] = Math.abs(seconds) >= 86400 ? [86400, 'day']
+    : Math.abs(seconds) >= 3600 ? [3600, 'hour'] : Math.abs(seconds) >= 60 ? [60, 'minute'] : [1, 'second'];
+  return new Intl.RelativeTimeFormat(lang, { numeric: 'auto' }).format(Math.round(seconds / size), unit);
+}
 
 export function validateProvider(input: AddProviderInput, providers: ProviderInfo[], saving: boolean, requireKey = false): keyof ModelMessages | undefined {
   if (saving && (!/^[\p{L}\p{N}_.-]{1,80}$/u.test(input.name) || input.name === 'mock')) return 'providerInvalidName';
@@ -76,6 +84,7 @@ export default function ProviderSettingsModal({ api, onClose, onChanged, initial
   const dialog = useRef<HTMLDivElement>(null);
   const mounted = useRef(true);
   const [providers, setProviders] = useState<ProviderInfo[]>([]);
+  const [providerSearch, setProviderSearch] = useState('');
   const [loading, setLoading] = useState(true);
   const [loaded, setLoaded] = useState(false);
   const [view, setView] = useState<'configured' | 'add'>(initialPreset ? 'add' : 'configured');
@@ -83,7 +92,7 @@ export default function ProviderSettingsModal({ api, onClose, onChanged, initial
   const [form, setForm] = useState(PROVIDER_PRESETS[preset]!);
   const [models, setModels] = useState(form.models.join(', '));
   const [candidates, setCandidates] = useState<string[]>(form.models);
-  const [busy, setBusy] = useState<'test' | 'save' | 'delete' | 'pull'>();
+  const [busy, setBusy] = useState<'test' | 'save' | 'delete' | 'pull' | 'profile'>();
   const [error, setError] = useState<keyof ModelMessages>();
   const [errorParams, setErrorParams] = useState<Record<string, string>>();
   const [notice, setNotice] = useState<keyof ModelMessages>();
@@ -94,7 +103,41 @@ export default function ProviderSettingsModal({ api, onClose, onChanged, initial
   const [savedKey, setSavedKey] = useState('');
   const [savedResults, setSavedResults] = useState<Record<string, TestProviderResult>>({});
   /** Per-provider usage summary (read-only, from GET /api/providers/usage). */
-  const [usageByProvider, setUsageByProvider] = useState<Record<string, { tokens: number; costUsd: number }>>({});
+  const [usageByProvider, setUsageByProvider] = useState<Record<string, { tokens: number; costUsd: number; lastTs?: string; inputTokenSemantics?: 'cache-inclusive' | 'cache-exclusive' | 'mixed'; models: { model: string; tokens: number; costUsd: number; calls: number }[] }>>({});
+  const [expandedUsage, setExpandedUsage] = useState<Record<string, boolean>>({});
+  const [profiles, setProfiles] = useState<ProviderProfile[]>([]);
+  const [profilesLoading, setProfilesLoading] = useState(true);
+  const [profileError, setProfileError] = useState<keyof ModelMessages>();
+  const [profileNotice, setProfileNotice] = useState<string>();
+  async function refreshProfiles() {
+    setProfilesLoading(true);
+    setProfileError(undefined);
+    try {
+      const response = await api.listProfiles();
+      if (mounted.current) setProfiles(response.profiles);
+    } catch {
+      if (mounted.current) setProfileError('profilesLoadFailed');
+    } finally { if (mounted.current) setProfilesLoading(false); }
+  }
+  async function useProfile(name: string) {
+    if (busy || !loaded) return;
+    setBusy('profile'); setProfileError(undefined); setProfileNotice(undefined);
+    try {
+      await api.useProfile(name);
+      if (!mounted.current) return;
+      onChanged?.();
+      try {
+        await refresh();
+        if (mounted.current) setProfileNotice(name);
+      } catch { if (mounted.current) setProfileError('profilesRefreshFailed'); }
+    } catch { if (mounted.current) setProfileError('profilesUseFailed'); }
+    finally { if (mounted.current) setBusy(undefined); }
+  }
+  async function retryProfiles() {
+    if (profileError !== 'profilesRefreshFailed') return refreshProfiles();
+    try { await refresh(); if (mounted.current) setProfileError(undefined); }
+    catch { if (mounted.current) setProfileError('profilesRefreshFailed'); }
+  }
   function fail(key?: keyof ModelMessages, params?: Record<string, string>) { setError(key); setErrorParams(params); }
   async function refresh() {
     const response = await api.listProviders();
@@ -105,7 +148,7 @@ export default function ProviderSettingsModal({ api, onClose, onChanged, initial
       if (mounted.current) {
         setUsageByProvider(Object.fromEntries(usage.byProvider.map(row => [
           row.provider,
-          { tokens: row.inputTokens + row.outputTokens, costUsd: row.costUsd },
+          { tokens: row.inputTokens + row.outputTokens, costUsd: row.costUsd, lastTs: row.lastTs, models: row.models ?? [], inputTokenSemantics: row.inputTokenSemantics },
         ])));
       }
     } catch { /* keep the previous snapshot */ }
@@ -115,6 +158,7 @@ export default function ProviderSettingsModal({ api, onClose, onChanged, initial
     const restore = embedded ? undefined : document.activeElement;
     if (!embedded) dialog.current?.querySelector<HTMLElement>('button')?.focus();
     void refresh().catch((thrown: unknown) => { if (mounted.current) { const failure = providerFailure(thrown); fail(failure.key, failure.params); } }).finally(() => { if (mounted.current) setLoading(false); });
+    void refreshProfiles();
     return () => { mounted.current = false; if (!embedded && restore instanceof HTMLElement && restore.isConnected) restore.focus(); };
   }, [api, embedded]);
   function change(next: Partial<AddProviderInput>) { setForm(previous => ({ ...previous, ...next, modelCapabilities: undefined })); setResult(undefined); fail(undefined); setNotice(undefined); setNoticeParams(undefined); }
@@ -213,6 +257,8 @@ export default function ProviderSettingsModal({ api, onClose, onChanged, initial
   const testText = result?.ok ? t('providerConnected', { ms: String(result.latencyMs ?? 0) })
     : result?.error?.match(/^http_(\d{3})$/) ? t('providerHttp', { status: result.error.slice(5) })
     : t(result?.error === 'connection_timeout' ? 'providerTimeout' : result?.error === 'invalid_models_response' ? 'providerBadResponse' : 'providerFailed');
+  const search = providers.length > 5 ? providerSearch.toLowerCase() : '';
+  const visibleProviders = providers.filter(provider => provider.name.toLowerCase().includes(search) || provider.baseUrl.toLowerCase().includes(search));
   return <div className={embedded ? 'provider-hub' : 'overlay provider-overlay'}>
     <div className={embedded ? 'provider-hub-panel' : 'modal provider-modal'} ref={dialog} role={embedded ? 'region' : 'dialog'} aria-modal={embedded ? undefined : true} aria-label={t('modelSettings')} tabIndex={-1} onKeyDown={event => {
       if (embedded) return;
@@ -235,10 +281,18 @@ export default function ProviderSettingsModal({ api, onClose, onChanged, initial
       <div className="provider-hub-content">
       <section hidden={view !== 'configured'} className="provider-registry" aria-label={t('providerConfigured')}>
       <h3>{t('providerConfigured')}</h3>
-      {loading ? <p role="status">{t('loading')}</p> : providers.length ? <div className="provider-list">{providers.map(provider => <article className="provider-card" key={provider.name}>
+      {providers.length > 5 && <label>{t('providerSearch')}<input type="search" aria-label={t('providerSearch')} value={providerSearch} onChange={event => setProviderSearch(event.target.value)} /></label>}
+      {!loading && providers.length > 0 && visibleProviders.length === 0 && <p role="status">{t('providerSearchEmpty')}</p>}
+      {loading ? <p role="status">{t('loading')}</p> : providers.length ? <div className="provider-list">{visibleProviders.map(provider => <article className="provider-card" key={provider.name}>
         <strong>{provider.name}</strong><span className="provider-badge">{t(provider.protocol === 'anthropic' ? 'providerAnthropic' : 'providerOpenai')}</span>
-        <code>{provider.baseUrl}</code><span>{provider.apiKeyMasked || t('providerNoKey')}</span><span>{t('providerModelCount', { count: String(provider.models.length) })}</span>
+        <code>{provider.baseUrl}</code><span className={provider.apiKeyMasked ? undefined : 'dim'}>{provider.apiKeyMasked || t('providerKeyMissing')}</span><span>{t('providerModelCount', { count: String(provider.models.length) })}</span>
         <span className="provider-usage">{usageByProvider[provider.name] ? t('providerUsageLine', { tokens: usageByProvider[provider.name]!.tokens.toLocaleString(), cost: usageByProvider[provider.name]!.costUsd.toFixed(4) }) : t('providerUsageNone')}</span>
+        {usageByProvider[provider.name]?.inputTokenSemantics && <span className="provider-input-semantics">{t('providerInputSemantics', { value: t(usageByProvider[provider.name]!.inputTokenSemantics === 'cache-inclusive' ? 'providerCacheInclusive' : usageByProvider[provider.name]!.inputTokenSemantics === 'cache-exclusive' ? 'providerCacheExclusive' : 'providerCacheMixed') })}</span>}
+        {!!usageByProvider[provider.name]?.models.length && <div>
+          <button type="button" className="btn" aria-expanded={!!expandedUsage[provider.name]} onClick={() => setExpandedUsage(previous => ({ ...previous, [provider.name]: !previous[provider.name] }))}>{t('providerTopModels')}</button>
+          {expandedUsage[provider.name] && <ul className="provider-top-models">{usageByProvider[provider.name]!.models.map(model => <li key={model.model}>{model.model} · {t('providerUsageLine', { tokens: model.tokens.toLocaleString(), cost: model.costUsd.toFixed(4) })}</li>)}</ul>}
+        </div>}
+        {relativeTime(usageByProvider[provider.name]?.lastTs, lang) && <span className="provider-last-used">{t('providerLastUsed', { time: relativeTime(usageByProvider[provider.name]?.lastTs, lang)! })}</span>}
         <p role="status">{t(provider.catalogState === 'fresh' ? 'providerCatalogFresh' : provider.catalogState === 'stale' ? 'providerCatalogStale' : provider.catalogState === 'expired' ? 'providerCatalogExpired' : 'providerCatalogUnknown')}</p>
         {provider.catalogEvidence && <p className="dim">{t('providerVerifiedAt', { time: new Date(provider.catalogEvidence.verifiedAt).toLocaleString() })}</p>}
         {provider.staleModels?.length ? <p role="status">{t('providerCatalogStale')}: {provider.staleModels.join(', ')}</p> : null}
@@ -259,6 +313,18 @@ export default function ProviderSettingsModal({ api, onClose, onChanged, initial
             : <button className="btn" disabled={!!busy} onClick={() => setDeleting(provider.name)}>{t('delete')}</button>}
         </div>
       </article>)}</div> : <p className="dim">{t('providerEmpty')}</p>}
+      <section aria-label={t('profilesTitle')}>
+        <h3>{t('profilesTitle')}</h3>
+        {profileError && <p role="alert" className="error-text">{t(profileError)} <button type="button" className="btn" disabled={!!busy || profilesLoading} onClick={() => void retryProfiles()}>{t('retry')}</button></p>}
+        {profileNotice && <p role="status">{t('profilesUsed', { name: profileNotice })}</p>}
+        {profilesLoading ? <p role="status">{t('loading')}</p> : profiles.length ? <div className="provider-list">{profiles.map(profile => <article className="provider-card" key={profile.name}>
+          <strong>{profile.name}</strong>
+          <span>{t('profilesProvider')}: {profile.provider}</span>
+          <span>{t('profilesModel')}: {profile.model ?? '—'}</span>
+          <code>{t('providerBaseUrl')}: {profile.baseUrl ?? '—'}</code>
+          <button className="btn" type="button" disabled={!!busy || !loaded} aria-label={t('profilesUseNamed', { name: profile.name })} onClick={() => void useProfile(profile.name)}>{t('profilesUse')}</button>
+        </article>)}</div> : !profileError && <p className="dim">{t('profilesEmpty')}</p>}
+      </section>
       </section>
       <form hidden={view !== 'add'} noValidate onSubmit={event => { event.preventDefault(); void run('save'); }}>
         <h4>{t('providerAdd')}</h4>

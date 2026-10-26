@@ -92,6 +92,40 @@ export interface ProviderConfig {
   note?: string;
 }
 
+/** Named snapshot in provider-profiles.json; label is display-only, never a provider patch. */
+export interface ProviderProfile {
+  provider: string;
+  model?: string;
+  baseUrl?: string;
+  label?: string;
+}
+
+function profileName(value: unknown): string {
+  if (typeof value !== 'string') throw new Error('invalid_profile_name');
+  const name = value.trim();
+  if (!name || name.length > 64 || /[\s\x00-\x1f\x7f]/u.test(name)) throw new Error('invalid_profile_name');
+  return name;
+}
+
+function profileInput(value: unknown): ProviderProfile {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) throw new Error('invalid_profile_input');
+  const raw = value as Record<string, unknown>;
+  if (typeof raw.provider !== 'string' || !raw.provider.trim()) throw new Error('invalid_profile_input');
+  const profile: ProviderProfile = { provider: raw.provider };
+  for (const key of ['model', 'baseUrl', 'label'] as const) {
+    const field = raw[key];
+    if (field === undefined) continue;
+    if (typeof field !== 'string' || !field.trim() || /[\x00-\x1f\x7f]/.test(field)) throw new Error('invalid_profile_input');
+    profile[key] = field;
+  }
+  if (profile.baseUrl !== undefined) {
+    let url: URL;
+    try { url = new URL(profile.baseUrl); } catch { throw new Error('invalid_base_url'); }
+    if (!['http:', 'https:'].includes(url.protocol) || url.username || url.password || url.search || url.hash) throw new Error('invalid_base_url');
+  }
+  return profile;
+}
+
 export interface ProviderStoreOptions {
   /** 覆盖存储根目录（测试注入 os.tmpdir() 下临时目录；默认 ~/.vessel） */
   rootDir?: string;
@@ -242,6 +276,85 @@ export class ProviderStore {
     return path.join(this.rootDir, 'providers.json');
   }
 
+  /** Independent versioned snapshots; providers.json remains a bare array. */
+  get profilesFile(): string {
+    return path.join(this.rootDir, 'provider-profiles.json');
+  }
+
+  listProfiles(): (ProviderProfile & { name: string })[] {
+    return Object.entries(this.readProfiles()).sort(([a], [b]) => a < b ? -1 : a > b ? 1 : 0)
+      .map(([name, profile]) => ({ name, ...profile }));
+  }
+
+  /** Trim names, overwrite by name, and persist only the snapshot field whitelist. */
+  saveProfile(name: string, value: ProviderProfile): ProviderProfile & { name: string } {
+    name = profileName(name);
+    const profile = profileInput(value);
+    if (profile.provider === 'mock') throw new Error('builtin_provider');
+    if (!this.rawLoad().some(provider => provider.id === profile.provider)) throw new Error('unknown_provider');
+    const profiles = this.readProfiles();
+    this.writeJsonAtomic(this.profilesFile, { version: 1, profiles: { ...profiles, [name]: profile } });
+    return { name, ...profile };
+  }
+
+  /** Apply only supplied model/baseUrl overrides and select the referenced provider. */
+  useProfile(name: string): ProviderConfig {
+    const profiles = this.readProfiles();
+    name = profileName(name);
+    if (!Object.hasOwn(profiles, name)) throw new Error('unknown_profile');
+    const profile = profiles[name]!;
+    if (profile.provider === 'mock') throw new Error('builtin_provider');
+    if (!this.rawLoad().some(provider => provider.id === profile.provider)) throw new Error('dangling_profile_provider');
+    const updated = this.update(profile.provider, {
+      ...(profile.model !== undefined ? { model: profile.model } : {}),
+      ...(profile.baseUrl !== undefined ? { baseUrl: profile.baseUrl } : {}),
+    });
+    this.setCurrent(profile.provider);
+    return updated;
+  }
+
+  renameProfile(oldName: string, newName: string): ProviderProfile & { name: string } {
+    oldName = profileName(oldName);
+    newName = profileName(newName);
+    const profiles = this.readProfiles();
+    if (!Object.hasOwn(profiles, oldName)) throw new Error('unknown_profile');
+    if (Object.hasOwn(profiles, newName)) throw new Error('profile_already_exists');
+    const profile = profiles[oldName]!;
+    const renamed = { ...profiles, [newName]: profile };
+    delete renamed[oldName];
+    this.writeJsonAtomic(this.profilesFile, { version: 1, profiles: renamed });
+    return { name: newName, ...profile };
+  }
+
+  deleteProfile(name: string): boolean {
+    name = profileName(name);
+    const profiles = this.readProfiles();
+    if (!Object.hasOwn(profiles, name)) return false;
+    delete profiles[name];
+    this.writeJsonAtomic(this.profilesFile, { version: 1, profiles });
+    return true;
+  }
+
+  private readProfiles(): Record<string, ProviderProfile> {
+    let text: string;
+    try { text = fs.readFileSync(this.profilesFile, 'utf8'); } catch (error) {
+      if ((error as NodeJS.ErrnoException).code === 'ENOENT') return {};
+      throw error;
+    }
+    try {
+      const raw: unknown = JSON.parse(text);
+      if (!raw || typeof raw !== 'object' || Array.isArray(raw)) throw new Error();
+      const data = raw as Record<string, unknown>;
+      if (data.version !== 1 || !data.profiles || typeof data.profiles !== 'object' || Array.isArray(data.profiles)) throw new Error();
+      return Object.fromEntries(Object.entries(data.profiles).map(([name, value]) => {
+        if (profileName(name) !== name) throw new Error();
+        return [name, profileInput(value)];
+      }));
+    } catch (cause) {
+      throw new Error('provider_profiles_corrupted', { cause });
+    }
+  }
+
   /** current.json 的完整路径。 */
   get currentFile(): string {
     return path.join(this.rootDir, 'current.json');
@@ -312,20 +425,43 @@ export class ProviderStore {
   }
 
   /** 删除配置（mock 不可删除）；id 不存在 fail loud。 */
-  remove(id: string): void {
+  profilesFor(id: string): string[] {
+    return this.listProfiles().filter(profile => profile.provider === id).map(profile => profile.name);
+  }
+
+  remove(id: string, options: { force?: boolean } = {}): void {
     if (id === 'mock') {
       throw new Error('provider "mock" is built-in and cannot be removed');
     }
-    const list = this.load();
+    const list = this.rawLoad();
     if (!list.some((c) => c.id === id)) {
       throw new Error(`provider not found: "${id}"`);
     }
+    const references = this.profilesFor(id);
+    if (references.length && !options.force) {
+      throw new Error(`provider_in_use: "${id}" profiles: ${references.join(', ')}; use --force`);
+    }
     // 在删除前记录 current，避免宽容回退掩盖（删除后 getCurrent 已读不到 id）。
     const wasCurrent = this.getCurrent() === id;
-    this.save(list.filter((c) => c.id !== id));
-    // 移除的恰是当前默认 → 复位为 mock 缺省（写 current.json，不删文件）。
-    if (wasCurrent) {
-      this.setCurrent('mock');
+    // Snapshot existing files only; every file changed below already exists.
+    const files = [this.providersFile, ...(references.length ? [this.profilesFile] : []),
+      ...(wasCurrent ? [this.currentFile] : [])];
+    const before = files.map(file => [file, fs.readFileSync(file)] as const);
+    try {
+      if (references.length) {
+        const profiles = this.readProfiles();
+        for (const name of references) delete profiles[name];
+        this.writeJsonAtomic(this.profilesFile, { version: 1, profiles });
+      }
+      if (wasCurrent) this.setCurrent('mock');
+      this.save(list.filter((c) => c.id !== id));
+    } catch (error) {
+      const failures: unknown[] = [];
+      for (const [file, bytes] of before) {
+        try { fs.writeFileSync(file, bytes); } catch (failure) { failures.push(failure); }
+      }
+      if (failures.length) throw new AggregateError([error, ...failures], 'provider_remove_rollback_failed');
+      throw error;
     }
   }
 

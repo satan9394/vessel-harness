@@ -67,6 +67,47 @@ describe('usage — UsageStore (V0.9, task 029)', () => {
     expect(store.totals().models).toBe(2);
   });
 
+  it('reports the latest valid timestamp and omits it when none is usable', () => {
+    for (const model of ['a', 'b', 'c']) store.record({ provider: 'demo', model, inputTokens: 1, outputTokens: 0 });
+    const entries = store.byModel();
+    entries[0]!.lastTs = '2026-10-26T08:00:00Z';
+    entries[1]!.lastTs = '2026-10-26T12:00:00+03:00';
+    entries[2]!.lastTs = 'invalid';
+    expect(store.byProvider()[0]!.lastTs).toBe('2026-10-26T12:00:00+03:00');
+    entries[0]!.lastTs = ''; entries[1]!.lastTs = '';
+    expect(store.byProvider()[0]).not.toHaveProperty('lastTs');
+  });
+
+  it('returns only the three most expensive models with input plus output tokens', () => {
+    expect(store.byProvider()).toEqual([]);
+    for (const [model, input, output] of [['a', 10, 2], ['b', 40, 8], ['c', 20, 4], ['d', 30, 6]] as const) {
+      store.record({ provider: 'demo', model, inputTokens: input, outputTokens: output, cacheReadTokens: 100 });
+    }
+    const expected = store.byModel().slice(0, 3).map(entry => ({ model: entry.model, tokens: entry.inputTokens + entry.outputTokens, costUsd: entry.costUsd, calls: entry.calls }));
+    expect(expected.map(row => row.model)).toEqual(['b', 'd', 'c']);
+    expect(store.byProvider()[0]!.models).toEqual(expected);
+    expect(store.byProvider()[0]!.models.map(row => row.tokens)).toEqual([48, 36, 24]);
+    expect(store.byProvider()[0]!.calls).toBe(4);
+  });
+
+  it.each([
+    [undefined, undefined, undefined],
+    ['cache-inclusive', 'cache-inclusive', 'cache-inclusive'],
+    ['cache-exclusive', 'cache-exclusive', 'cache-exclusive'],
+    ['cache-inclusive', 'cache-exclusive', 'mixed'],
+    ['cache-exclusive', 'cache-inclusive', 'mixed'],
+    ['mixed', 'cache-exclusive', 'mixed'],
+    ['cache-inclusive', undefined, 'cache-inclusive'],
+  ] as const)('aggregates provider input accounting %s / %s as %s', (first, second, expected) => {
+    store.record({ provider: 'demo', model: 'a', inputTokens: 1, outputTokens: 0 });
+    store.record({ provider: 'demo', model: 'b', inputTokens: 1, outputTokens: 0 });
+    store.entries()['demo::a']!.inputTokenSemantics = first;
+    store.entries()['demo::b']!.inputTokenSemantics = second;
+    const row = store.byProvider()[0]!;
+    if (expected === undefined) expect(row).not.toHaveProperty('inputTokenSemantics');
+    else expect(row.inputTokenSemantics).toBe(expected);
+  });
+
   it('persists across instances (reopen reads the same file)', () => {
     store.record({ provider: 'deepseek', model: 'deepseek-chat', inputTokens: 500, outputTokens: 250 });
     const store2 = new UsageStore({ rootDir: dir, pricing: PRICING });

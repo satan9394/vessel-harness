@@ -72,6 +72,9 @@ export interface VesselServerOptions {
    * empty list so the endpoint stays a pure read.
    */
   usageByProvider?: () => Array<{
+    inputTokenSemantics?: 'cache-inclusive' | 'cache-exclusive' | 'mixed';
+    models: { model: string; tokens: number; costUsd: number; calls: number }[];
+    lastTs?: string;
     provider: string;
     inputTokens: number;
     outputTokens: number;
@@ -501,13 +504,46 @@ export function createVesselServer(opts: VesselServerOptions = {}): VesselServer
     if (providerRoute) {
       if (!sameOrigin) return json(res, 403, { error: 'cross_origin_denied' });
       try {
+        const profileUse = /^\/api\/providers\/profiles\/([^/]+)\/use$/.exec(url.pathname);
+        const profileItem = /^\/api\/providers\/profiles\/([^/]+)$/.exec(url.pathname);
+        if (url.pathname === '/api/providers/profiles' || profileUse || profileItem) {
+          try {
+            if (url.pathname === '/api/providers/profiles' && method === 'GET') return json(res, 200, { profiles: providerRoutes.listProfiles() });
+            if (url.pathname === '/api/providers/profiles' && method === 'POST') return json(res, 201, { profile: providerRoutes.saveProfile(await readJsonBody(req)) });
+            if (profileUse && method === 'POST') {
+              const provider = providerRoutes.useProfile(decodeURIComponent(profileUse[1]!));
+              return provider ? json(res, 200, { provider }) : json(res, 404, { error: 'unknown_profile' });
+            }
+            if (profileItem && method === 'DELETE') return providerRoutes.deleteProfile(decodeURIComponent(profileItem[1]!))
+              ? json(res, 200, { ok: true }) : json(res, 404, { error: 'unknown_profile' });
+            return json(res, 405, { error: 'method_not_allowed' });
+          } catch (error) {
+            return json(res, 400, { error: providerErrorCode(error) });
+          }
+        }
         if (url.pathname === '/api/models' && method === 'GET') return json(res, 200, { models: providerRoutes.models() });
         if (url.pathname === '/api/providers' && method === 'GET') return json(res, 200, { providers: providerRoutes.list() });
         if (url.pathname === '/api/providers' && method === 'POST') return json(res, 201, { provider: providerRoutes.save(await readJsonBody(req)) });
         if (url.pathname === '/api/providers/test' && method === 'POST') return json(res, 200, await providerRoutes.test(await readJsonBody(req)));
         if (url.pathname === '/api/providers/pull-models' && method === 'POST') return json(res, 200, await providerRoutes.pullModels(await readJsonBody(req)));
         if (url.pathname === '/api/providers/usage' && method === 'GET') {
-          const byProvider = opts.usageByProvider?.() ?? [];
+          const since = url.searchParams.get('since');
+          const until = url.searchParams.get('until');
+          for (const value of [since, until]) {
+            if (value === null) continue;
+            const [year, month, day] = value.split('-').map(Number);
+            const probe = new Date(year!, month! - 1, day);
+            if (!/^\d{4}-\d{2}-\d{2}$/.test(value) || probe.getFullYear() !== year || probe.getMonth() !== month! - 1 || probe.getDate() !== day) {
+              return json(res, 400, { error: 'invalid_date' });
+            }
+          }
+          const byProvider = (opts.usageByProvider?.() ?? []).filter(row => {
+            if (since === null && until === null) return true;
+            if (!row.lastTs || !Number.isFinite(Date.parse(row.lastTs))) return false;
+            const ts = new Date(row.lastTs);
+            const date = `${ts.getFullYear()}-${String(ts.getMonth() + 1).padStart(2, '0')}-${String(ts.getDate()).padStart(2, '0')}`;
+            return (since === null || date >= since) && (until === null || date <= until);
+          });
           const totals = byProvider.reduce((acc, row) => ({
             calls: acc.calls + row.calls,
             inputTokens: acc.inputTokens + row.inputTokens,
