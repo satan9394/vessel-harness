@@ -1,5 +1,21 @@
 import type { PriceResolution, TokenPrice } from './pricing.js';
 
+/**
+ * How the provider's wire format counts prompt tokens.
+ * - `cache-exclusive`: `input_tokens` excludes cache reads/writes (Anthropic-style).
+ * - `cache-inclusive`: `prompt_tokens` already includes cache hits (OpenAI/Gemini-style).
+ * Recorded per usage row so cross-provider cost differences stay explainable.
+ */
+export type InputTokenSemantics = 'cache-inclusive' | 'cache-exclusive';
+
+/**
+ * Wire fields, not the provider label, decide the semantics: an `input_tokens`
+ * field is the Anthropic shape, everything else reports a prompt total.
+ */
+export function inputTokenSemanticsOf(rawUsage: Record<string, unknown>): InputTokenSemantics {
+  return 'input_tokens' in rawUsage ? 'cache-exclusive' : 'cache-inclusive';
+}
+
 /** Prompt total includes cache reads/writes exactly once, unlike legacy raw inputTokens. */
 export interface CacheUsageMetrics {
   promptTokens: number;
@@ -10,6 +26,8 @@ export interface CacheUsageMetrics {
   provider: string;
   model: string;
   estimated?: boolean;
+  /** Optional so hand-built fixtures stay valid; extraction always fills it. */
+  inputTokenSemantics?: InputTokenSemantics;
 }
 const count = (value: unknown): number => typeof value === 'number' && Number.isSafeInteger(value) && value >= 0 ? value : 0;
 export function extractProviderCacheMetrics(rawUsage: Record<string, unknown>, provider: string, model: string): CacheUsageMetrics {
@@ -23,7 +41,7 @@ export function extractProviderCacheMetrics(rawUsage: Record<string, unknown>, p
     : count(rawUsage.prompt_tokens ?? rawUsage.promptTokenCount ?? (count(rawUsage.prompt_cache_hit_tokens) + count(rawUsage.prompt_cache_miss_tokens)));
   const cachedTokens = Math.min(cached, promptTokens);
   return { promptTokens, cachedTokens, creationTokens, billedHitRate: promptTokens > 0 ? cachedTokens / promptTokens : 0,
-    estimatedSavingsUsd: 0, provider, model };
+    estimatedSavingsUsd: 0, provider, model, inputTokenSemantics: inputTokenSemanticsOf(rawUsage) };
 }
 /** Read savings against the same tokens at normal input price; no guessed cache tariff. */
 export function priceCacheMetrics(metrics: CacheUsageMetrics, resolution: PriceResolution, multiplier = 1): CacheUsageMetrics {

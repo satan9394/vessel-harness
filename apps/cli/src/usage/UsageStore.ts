@@ -1,7 +1,7 @@
 import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
-import { cacheTariffEstimated, unknownCacheInputTokens, priceCacheMetrics, type CacheUsageMetrics, renameWithRetry } from '@vessel/shared';
+import { cacheTariffEstimated, unknownCacheInputTokens, priceCacheMetrics, type CacheUsageMetrics, type InputTokenSemantics, renameWithRetry } from '@vessel/shared';
 import { envRoot, vesselHome } from '../envRoot.js';
 import {
   costBreakdown,
@@ -67,6 +67,8 @@ export interface UsageCostBreakdown {
 export interface UsageEntry {
   /** Uncached billable input for calls carrying explicit wire metrics; legacy counts remain raw. */
   billableInputTokens?: number;
+  /** Wire accounting seen for this entry; `mixed` when calls reported different shapes (T320). */
+  inputTokenSemantics?: InputTokenSemantics | 'mixed';
   cachePromptTokens?: number;
   measuredCachedTokens?: number;
   measuredCreationTokens?: number;
@@ -117,6 +119,8 @@ export interface UsageRecentEntry {
   measuredCreationTokens?: number;
   /** Uncached billable input for calls carrying explicit wire metrics; legacy counts remain raw. */
   billableInputTokens?: number;
+  /** Wire accounting for this call; absent when the provider reported no cache metrics (T320). */
+  inputTokenSemantics?: InputTokenSemantics;
   ts: string;
   provider: string;
   model: string;
@@ -708,6 +712,13 @@ export class UsageStore {
 
     const k = this.key(provider, model);
     const prev = this.data.entries[k];
+    // T320：本次 wire 口径。缺省不改已有值；历次不一致记 'mixed'，不假装唯一。
+    const semantics = input.cacheMetrics?.inputTokenSemantics;
+    const prevSemantics = prev?.inputTokenSemantics;
+    const entrySemantics: UsageEntry['inputTokenSemantics'] = semantics === undefined ? prevSemantics
+      : prevSemantics === undefined ? semantics
+        : prevSemantics === semantics ? semantics
+          : 'mixed';
     const now = this.clock();
     const ts = now.toISOString();
     const date = input.date ?? localDateKey(now);
@@ -745,6 +756,7 @@ export class UsageStore {
         cacheSavingsUsd: (prev?.cacheSavingsUsd ?? 0) + priceCacheMetrics(input.cacheMetrics, resolved, multiplier).estimatedSavingsUsd,
       } : prev?.cachePromptTokens !== undefined ? { cachePromptTokens: prev.cachePromptTokens, measuredCachedTokens: prev.measuredCachedTokens, measuredCreationTokens: prev.measuredCreationTokens, cacheSavingsUsd: prev.cacheSavingsUsd } : {}),
       billableInputTokens: (prev?.billableInputTokens ?? prev?.inputTokens ?? 0) + billableInput,
+      ...(entrySemantics !== undefined ? { inputTokenSemantics: entrySemantics } : {}),
       inputTokens: (prev?.inputTokens ?? 0) + inT,
       outputTokens: (prev?.outputTokens ?? 0) + outT,
       cacheReadTokens: (prev?.cacheReadTokens ?? 0) + cacheT,
@@ -802,6 +814,7 @@ export class UsageStore {
       model,
       inputTokens: inT,
       billableInputTokens: billableInput,
+      ...(semantics !== undefined ? { inputTokenSemantics: semantics } : {}),
       measuredCachedTokens: input.cacheMetrics?.cachedTokens,
       measuredCreationTokens: input.cacheMetrics?.creationTokens,
       outputTokens: outT,

@@ -17,6 +17,7 @@ PDW 关联：首行状态行下加 `- PDW task: <id>`（未启动写 `none`）�
 
 | 本地交付 | 状态 | 任务卡 |
 |---|---|---|
+| input token 口径 (卡 320) | 已完成：usage 记录区分 `cache-inclusive` / `cache-exclusive`（同一条目混用记 `mixed`），旧记录不补值 | [320](320-input-token-semantics.md) |
 | provider 文档收口 (卡 319) | 已完成：PROVIDER-MANAGEMENT 补 §10 预设单一真源 / §11 按供应商看用量 / §12 与 magpie、cc-switch 边界 | [319](319-provider-docs.md) |
 | Web/API 按供应商用量 (卡 318) | 已完成：`GET /api/providers/usage` + Provider Hub 卡片显示 tokens/成本，无记录显示 `—` | [318](318-web-provider-usage.md) |
 | CLI 按供应商用量 (卡 317) | 核实为已具备：`vessel usage` 默认段 + `--json` 的 `byProvider`（未改代码） | [317](317-usage-by-provider.md) |

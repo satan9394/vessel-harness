@@ -3,6 +3,7 @@ import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { UsageStore, isLocalDateKey, localDateKey } from './UsageStore.js';
+import { extractProviderCacheMetrics } from '@vessel/shared';
 import { catalogPriceSource } from '../providers/modelCatalog.js';
 import type { PricingTable } from '../providers/pricing.js';
 
@@ -503,5 +504,55 @@ describe('usage — 090 cache_creation 计价', () => {
     });
     expect(b.costUsd).toBeCloseTo(a.costUsd, 10);
     expect(store.totals().cacheCreationTokens).toBe(0);
+  });
+});
+
+describe('usage — input token semantics (T320)', () => {
+  let dir: string;
+  let store: UsageStore;
+  beforeEach(() => {
+    dir = fs.mkdtempSync(path.join(os.tmpdir(), 'vessel-usage-sem-'));
+    store = new UsageStore({ rootDir: dir, pricing: PRICING });
+  });
+  afterEach(() => {
+    fs.rmSync(dir, { recursive: true, force: true });
+  });
+
+  const anthropicMetrics = () => extractProviderCacheMetrics({ input_tokens: 100, cache_read_input_tokens: 800, cache_creation_input_tokens: 100 }, 'anthropic', 'claude-3-5-sonnet');
+  const openaiMetrics = () => extractProviderCacheMetrics({ prompt_tokens: 1000, prompt_tokens_details: { cached_tokens: 800 } }, 'anthropic', 'claude-3-5-sonnet');
+
+  it('records the wire accounting and keeps it when a call reports no cache metrics', () => {
+    store.record({ provider: 'anthropic', model: 'claude-3-5-sonnet', inputTokens: 100, outputTokens: 10, cacheMetrics: anthropicMetrics() });
+    expect(store.entries()['anthropic::claude-3-5-sonnet']!.inputTokenSemantics).toBe('cache-exclusive');
+    expect(store.recent()[0]!.inputTokenSemantics).toBe('cache-exclusive');
+
+    // 没有 cacheMetrics 的调用不改已有口径（缺省 ≠ 重置）。
+    store.record({ provider: 'anthropic', model: 'claude-3-5-sonnet', inputTokens: 10, outputTokens: 1 });
+    expect(store.entries()['anthropic::claude-3-5-sonnet']!.inputTokenSemantics).toBe('cache-exclusive');
+    expect(store.recent()[1]!.inputTokenSemantics).toBeUndefined();
+  });
+
+  it('marks mixed when one entry sees both wire shapes, without rewriting history', () => {
+    store.record({ provider: 'anthropic', model: 'claude-3-5-sonnet', inputTokens: 100, outputTokens: 10, cacheMetrics: anthropicMetrics() });
+    store.record({ provider: 'anthropic', model: 'claude-3-5-sonnet', inputTokens: 1000, outputTokens: 10, cacheMetrics: openaiMetrics() });
+    expect(store.entries()['anthropic::claude-3-5-sonnet']!.inputTokenSemantics).toBe('mixed');
+    // 第三条又是同一种口径时仍保持 mixed——已经不唯一，不假装变回唯一值。
+    store.record({ provider: 'anthropic', model: 'claude-3-5-sonnet', inputTokens: 100, outputTokens: 10, cacheMetrics: anthropicMetrics() });
+    expect(store.entries()['anthropic::claude-3-5-sonnet']!.inputTokenSemantics).toBe('mixed');
+    // 历史记录本身不改：recent 逐条保留各自口径。
+    expect(store.recent().map(e => e.inputTokenSemantics)).toEqual(['cache-exclusive', 'cache-inclusive', 'cache-exclusive']);
+  });
+
+  it('persists the marker and leaves legacy records without it untouched', () => {
+    store.record({ provider: 'anthropic', model: 'claude-3-5-sonnet', inputTokens: 100, outputTokens: 10, cacheMetrics: anthropicMetrics() });
+    const reloaded = new UsageStore({ rootDir: dir, pricing: PRICING });
+    expect(reloaded.entries()['anthropic::claude-3-5-sonnet']!.inputTokenSemantics).toBe('cache-exclusive');
+
+    // 旧记录（无字段）读回后仍是「未记录」，不补默认值。
+    const raw = JSON.parse(fs.readFileSync(path.join(dir, 'usage.json'), 'utf8')) as { entries: Record<string, Record<string, unknown>> };
+    delete raw.entries['anthropic::claude-3-5-sonnet']!.inputTokenSemantics;
+    fs.writeFileSync(path.join(dir, 'usage.json'), JSON.stringify(raw), 'utf8');
+    const legacy = new UsageStore({ rootDir: dir, pricing: PRICING });
+    expect(legacy.entries()['anthropic::claude-3-5-sonnet']!.inputTokenSemantics).toBeUndefined();
   });
 });

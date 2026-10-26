@@ -23,6 +23,18 @@ describe('wire cache economics', () => {
     expect(extractProviderCacheMetrics({ prompt_cache_hit_tokens: 90, prompt_cache_miss_tokens: 10 }, 'custom', 'm')).toMatchObject({ promptTokens: 100, billedHitRate: 0.9 });
     expect(extractProviderCacheMetrics({ promptTokenCount: 100, cachedContentTokenCount: 90 }, 'google', 'm')).toMatchObject({ promptTokens: 100, billedHitRate: 0.9 });
   });
+  it('labels the wire accounting so cross-protocol input tokens stay comparable', () => {
+    // Anthropic-style: input_tokens excludes cache reads/writes.
+    expect(extractProviderCacheMetrics({ input_tokens: 100, cache_read_input_tokens: 800, cache_creation_input_tokens: 100 }, 'anthropic', 'm').inputTokenSemantics).toBe('cache-exclusive');
+    // OpenAI/Gemini/DeepSeek-style: the prompt total already includes cache hits.
+    expect(extractProviderCacheMetrics({ prompt_tokens: 1000, prompt_tokens_details: { cached_tokens: 800 } }, 'openai', 'm').inputTokenSemantics).toBe('cache-inclusive');
+    expect(extractProviderCacheMetrics({ prompt_cache_hit_tokens: 90, prompt_cache_miss_tokens: 10 }, 'deepseek', 'm').inputTokenSemantics).toBe('cache-inclusive');
+    expect(extractProviderCacheMetrics({ promptTokenCount: 100, cachedContentTokenCount: 90 }, 'google', 'm').inputTokenSemantics).toBe('cache-inclusive');
+    // The marker survives pricing (spread), and a bare unknown wire stays cache-inclusive.
+    const metrics = extractProviderCacheMetrics({ prompt_tokens: 10 }, 'p', 'm');
+    expect(priceCacheMetrics(metrics, resolvePrice({ models: { m: { input: 1, output: 1 } }, protocols: {} }, 'm')).inputTokenSemantics).toBe('cache-inclusive');
+    expect(extractProviderCacheMetrics({}, 'p', 'm').inputTokenSemantics).toBe('cache-inclusive');
+  });
   it.each([-1, NaN, Infinity, 1.5, Number.MAX_SAFE_INTEGER + 1, '10'])('rejects invalid token count %s', value => {
     expect(extractProviderCacheMetrics({ prompt_tokens: value, prompt_tokens_details: null }, 'p', 'm').promptTokens).toBe(0);
   });
