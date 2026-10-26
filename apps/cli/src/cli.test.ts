@@ -190,6 +190,7 @@ describe('CLI (apps/cli)', () => {
   let oldProviderRoot: string | undefined;
   let oldUsageRoot: string | undefined;
   let oldSessionRoot: string | undefined;
+  let oldLang: string | undefined;
 
   // task 106 隔离：`main()` 内部的默认 store / usage store 一律落在临时目录，
   // 绝不读写真实 ~/.vessel（否则机器上 current=真实供应商时 run smoke 会打真网络）。
@@ -202,6 +203,8 @@ describe('CLI (apps/cli)', () => {
     oldProviderRoot = process.env.VESSEL_PROVIDER_ROOT;
     oldUsageRoot = process.env.VESSEL_USAGE_ROOT;
     oldSessionRoot = process.env.VESSEL_SESSION_ROOT;
+    oldLang = process.env.VESSEL_LANG;
+    delete process.env.VESSEL_LANG;
     process.env.VESSEL_PROVIDER_ROOT = cfgDir;
     process.env.VESSEL_USAGE_ROOT = usageDir;
     process.env.VESSEL_SESSION_ROOT = usageDir; // 会话登记同样落在临时 root（sessions.json 随 usageDir 一起清掉）
@@ -213,6 +216,8 @@ describe('CLI (apps/cli)', () => {
     else process.env.VESSEL_USAGE_ROOT = oldUsageRoot;
     if (oldSessionRoot === undefined) delete process.env.VESSEL_SESSION_ROOT;
     else process.env.VESSEL_SESSION_ROOT = oldSessionRoot;
+    if (oldLang === undefined) delete process.env.VESSEL_LANG;
+    else process.env.VESSEL_LANG = oldLang;
     fs.rmSync(dir, { recursive: true, force: true });
     fs.rmSync(cfgDir, { recursive: true, force: true });
     fs.rmSync(usageDir, { recursive: true, force: true });
@@ -224,6 +229,50 @@ describe('CLI (apps/cli)', () => {
     restore();
     expect(code).toBe(0);
     expect(logs.join('\n')).toContain('用法');
+    expect(logs.join('\n')).toContain('可组合 Agent Harness（品牌 Vessel）');
+  });
+
+  it.each([
+    ['--lang', 'en', '--help'],
+    ['--help', '--lang', 'en'],
+  ])('prints English help for %j', async (...argv) => {
+    const { logs, restore } = capture();
+    try {
+      expect(await main(argv)).toBe(0);
+      const out = logs.join('\n');
+      expect(out).toContain('Composable Agent Harness (Vessel)');
+      expect(out).toContain('Usage:');
+      expect(out).toContain('Provider protocols:');
+      expect(out).toContain('vessel run [选项]                  单发模式：跑一轮用户输入');
+    } finally {
+      restore();
+    }
+  });
+
+  it('resets help locale on each main call and lets --lang override VESSEL_LANG', async () => {
+    const { logs, restore } = capture();
+    try {
+      process.env.VESSEL_LANG = 'en';
+      expect(await main(['--help'])).toBe(0);
+      expect(logs.pop()).toContain('Composable Agent Harness (Vessel)');
+      expect(await main(['--lang', 'zh', '--help'])).toBe(0);
+      expect(logs.pop()).toContain('可组合 Agent Harness（品牌 Vessel）');
+      delete process.env.VESSEL_LANG;
+      expect(await main(['--help'])).toBe(0);
+      expect(logs.pop()).toContain('可组合 Agent Harness（品牌 Vessel）');
+    } finally {
+      restore();
+    }
+  });
+
+  it('--lang is accepted before an unknown command', async () => {
+    const { logs, restore } = captureBoth();
+    try {
+      expect(await main(['--lang', 'en', 'status'])).toBe(2);
+      expect(logs.join('\n')).not.toMatch(/unknown flag/i);
+    } finally {
+      restore();
+    }
   });
 
   it('--version prints the version', async () => {

@@ -1,6 +1,6 @@
 # T310 — CLI i18n 骨架：`--lang` 预扫描与 `t()` 三级回退
 
-- Status: 进行中（2026-10-26）
+- Status: 已完成（2026-10-26；PDW 任务 `20261026090840-c004c3` `accepted_local`；未提交、未推送）
 - PDW task: none
 - Mode: standard（机制骨架，不做全量文案抽取）
 - Source: HARNESS² 评估 P2-3（只搬机制）
@@ -59,4 +59,19 @@ export function t(key: string, params?: Record<string, string | number>): string
 
 ## Result
 
-（待实现与验收后填写）
+已完成骨架。`apps/cli/src/i18n.ts` 导出 `Locale` / `resolveLocale` / `setLocale` / `currentLocale` / `t`：`--lang <zh|en>` 优先，其次 `VESSEL_LANG`，默认 `zh`，未知值回落 `en`；`t()` 三级回退（当前 → en → key 原样）并支持 `{name}` 占位；字典只有 `usage.header` / `usage.commandsHint` / `usage.footer` 三个键。`cli.ts` 在 `main` 的 `parseArgs` 之前设 locale，`parseArgs` 接受 `--lang` 不再当未知 flag，`USAGE` 的 header/footer 走 `t()`，帮助正文其余部分未动。
+
+真实 CLI 验证（`spawnSync` 读输出，避开控制台解码）：
+
+| 参数 | exit | header |
+|---|---|---|
+| `--lang en --help` | 0 | `Vessel CLI v0.10.0 — Composable Agent Harness (Vessel)` |
+| `--help --lang en` | 0 | 同上（预扫描不依赖位置） |
+| `--help` | 0 | `Vessel CLI v0.10.0 — 可组合 Agent Harness（品牌 Vessel）` |
+| `--lang en nope` | 2 | 未知命令 `nope`（不是未知 flag，说明 `--lang` 已被接受） |
+
+**更正一处卡内笔误**：AC4 原本写 `vessel --lang en status`，但 `status` 不是 CLI 命令（`vessel status` 不存在），改用 `nope` 验证同一语义；这不是实现问题。
+
+验收：定向 **129 passed**（`i18n.test` + `cli.test`）；`tsc -b`、`typecheck:tests` exit 0；全量根 **317 文件 / 3388 passed + 6 skipped**、web **58 / 494**。文件字节核查：`i18n.ts` 零个 U+FFFD，中文为正常码点（控制台里的乱码只是显示问题）。
+
+未做：全量文案抽取与双语校对（评估报告估 3–5 人日）、Web 与 CLI catalog 合并（明确不做）、`vessel guide --locale` 的行为保持不变。

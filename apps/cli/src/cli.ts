@@ -75,11 +75,12 @@ import { mockSmokeScript } from './mockSmoke.js';
 // 本卡：windowsShim 判定的**唯一实现**（零依赖叶子模块）——CLI 与 TUI 各自 import 同一份，
 // 不再各写一份（改前两份 + 全仓零测试 ⇒ 只改一面必无声分叉，见 windowsShim.ts 的文件头）。
 import { windowsShimHint } from './windowsShim.js';
+import { resolveLocale, setLocale, t } from './i18n.js';
 
-const USAGE = `${VESSEL_LOGO}
-Vessel CLI v${VERSION} — 可组合 Agent Harness（品牌 Vessel）
+const USAGE = () => `${VESSEL_LOGO}
+${t('usage.header', { version: VERSION })}
 
-用法:
+${t('usage.commandsHint')}
   vessel --help                      显示本帮助
   vessel --version                   显示版本
   vessel run [选项]                  单发模式：跑一轮用户输入
@@ -168,10 +169,7 @@ run 选项:
   --strict                        计价严格模式：只用模型专属价目（model/catalog），未收录模型按 0 计价并标「未收录」
   --json              以 JSON 输出（stdout 恰好一段可解析 JSON）：run / usage / provider list / models / sessions list / settings list / policy status / bench-report / bench:runs
 
-provider 协议说明:
-  openai-compatible    OpenAI chat/completions 协议：OpenAI / DeepSeek / Qwen / vLLM / Ollama 等
-  anthropic            Anthropic Messages API 协议：Anthropic Claude 及兼容端点
-  mock                 确定性离线脚本（测试 / 冒烟，不发网络请求）
+${t('usage.footer')}
 `;
 
 interface ParsedArgs {
@@ -3263,7 +3261,7 @@ async function dispatch(parsed: ParsedArgs): Promise<number> {
   }
   switch (parsed.command) {
     case 'help':
-      console.log(USAGE);
+      console.log(USAGE());
       return 0;
     case 'version':
       console.log(`${VESSEL_LOGO}Vessel CLI v${VERSION} — ${VESSEL_TAGLINE}`);
@@ -3292,6 +3290,7 @@ async function dispatch(parsed: ParsedArgs): Promise<number> {
  * 退出码 1 保持逐字不变。
  */
 export async function main(argv: string[] = process.argv.slice(2)): Promise<number> {
+  setLocale(resolveLocale(argv));
   const parsed = parseArgs(argv);
   try {
     return await dispatch(parsed);
