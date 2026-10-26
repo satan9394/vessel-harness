@@ -93,10 +93,22 @@ export default function ProviderSettingsModal({ api, onClose, onChanged, initial
   const [testingSaved, setTestingSaved] = useState<string>();
   const [savedKey, setSavedKey] = useState('');
   const [savedResults, setSavedResults] = useState<Record<string, TestProviderResult>>({});
+  /** Per-provider usage summary (read-only, from GET /api/providers/usage). */
+  const [usageByProvider, setUsageByProvider] = useState<Record<string, { tokens: number; costUsd: number }>>({});
   function fail(key?: keyof ModelMessages, params?: Record<string, string>) { setError(key); setErrorParams(params); }
   async function refresh() {
     const response = await api.listProviders();
     if (mounted.current) { setProviders(response.providers.filter(provider => provider.name !== 'mock')); setLoaded(true); }
+    // Usage is advisory: a server without the endpoint (or an empty log) must not break the provider list.
+    try {
+      const usage = await api.listProviderUsage();
+      if (mounted.current) {
+        setUsageByProvider(Object.fromEntries(usage.byProvider.map(row => [
+          row.provider,
+          { tokens: row.inputTokens + row.outputTokens, costUsd: row.costUsd },
+        ])));
+      }
+    } catch { /* keep the previous snapshot */ }
   }
   useEffect(() => {
     mounted.current = true;
@@ -226,6 +238,7 @@ export default function ProviderSettingsModal({ api, onClose, onChanged, initial
       {loading ? <p role="status">{t('loading')}</p> : providers.length ? <div className="provider-list">{providers.map(provider => <article className="provider-card" key={provider.name}>
         <strong>{provider.name}</strong><span className="provider-badge">{t(provider.protocol === 'anthropic' ? 'providerAnthropic' : 'providerOpenai')}</span>
         <code>{provider.baseUrl}</code><span>{provider.apiKeyMasked || t('providerNoKey')}</span><span>{t('providerModelCount', { count: String(provider.models.length) })}</span>
+        <span className="provider-usage">{usageByProvider[provider.name] ? t('providerUsageLine', { tokens: usageByProvider[provider.name]!.tokens.toLocaleString(), cost: usageByProvider[provider.name]!.costUsd.toFixed(4) }) : t('providerUsageNone')}</span>
         <p role="status">{t(provider.catalogState === 'fresh' ? 'providerCatalogFresh' : provider.catalogState === 'stale' ? 'providerCatalogStale' : provider.catalogState === 'expired' ? 'providerCatalogExpired' : 'providerCatalogUnknown')}</p>
         {provider.catalogEvidence && <p className="dim">{t('providerVerifiedAt', { time: new Date(provider.catalogEvidence.verifiedAt).toLocaleString() })}</p>}
         {provider.staleModels?.length ? <p role="status">{t('providerCatalogStale')}: {provider.staleModels.join(', ')}</p> : null}

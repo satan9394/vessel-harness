@@ -2749,7 +2749,7 @@ export interface ServeHandle {
 export async function startServe(opts: { port?: number; workspace?: string } = {}): Promise<ServeHandle> {
   const port = Number(opts.port ?? 5678);
   const workspace = path.resolve(opts.workspace ?? process.cwd());
-  const server = createVesselServer({ port, workspace, staticDir: undefined, observeWorkspace: root => WorkspaceFingerprinter.compute(root) });
+  const server = createVesselServer({ port, workspace, staticDir: undefined, observeWorkspace: root => WorkspaceFingerprinter.compute(root), usageByProvider: () => createUsageStore().byProvider() });
   try {
     await server.listen();
   } catch (err) {

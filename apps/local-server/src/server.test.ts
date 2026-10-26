@@ -778,6 +778,49 @@ describe('local server HTTP API + SSE', () => {
     expect(gotConversation).toBe(true);
   });
 
+  it('GET /api/providers/usage returns injected rows, and an empty list when nothing is injected', async () => {
+    // Private home: a second SessionRegistry on the shared beforeEach home keeps SQLite locks
+    // open across files, which makes the vitest worker hang before the next file starts.
+    const dir2 = fs.mkdtempSync(path.join(os.tmpdir(), 'cah-provider-usage-'));
+    const home2 = path.join(dir2, 'vessel-home');
+    const ws2 = path.join(dir2, 'workspace');
+    fs.mkdirSync(ws2, { recursive: true });
+    const rows = [{ provider: 'demo', inputTokens: 10, outputTokens: 5, cacheReadTokens: 1, cacheCreationTokens: 0, calls: 2, costUsd: 0.25, estimated: false }];
+    const withRows = createVesselServer({
+      port: 0,
+      projectRegistry: new ProjectRegistry({ vesselHome: home2 }),
+      sessionRegistry: new SessionRegistry({ vesselHome: home2 }),
+      staticDir: ws2,
+      usageByProvider: () => rows,
+    });
+    await withRows.listen();
+    try {
+      const res = await fetch(`http://127.0.0.1:${withRows.port}/api/providers/usage`);
+      expect(res.status).toBe(200);
+      const body = await res.json() as { byProvider: unknown[]; totals: { calls: number; costUsd: number; inputTokens: number } };
+      expect(body.byProvider).toHaveLength(1);
+      expect(body.totals).toMatchObject({ calls: 2, inputTokens: 10, costUsd: 0.25 });
+    } finally { await withRows.close(); }
+
+    const bare = createVesselServer({
+      port: 0,
+      projectRegistry: new ProjectRegistry({ vesselHome: home2 }),
+      sessionRegistry: new SessionRegistry({ vesselHome: home2 }),
+      staticDir: ws2,
+    });
+    await bare.listen();
+    try {
+      const res = await fetch(`http://127.0.0.1:${bare.port}/api/providers/usage`);
+      expect(res.status).toBe(200);
+      const body = await res.json() as { byProvider: unknown[]; totals: { calls: number } };
+      expect(body.byProvider).toEqual([]);
+      expect(body.totals.calls).toBe(0);
+    } finally {
+      await bare.close();
+      fs.rmSync(dir2, { recursive: true, force: true });
+    }
+  });
+
   it('projects reasoning stream chunks into thinking SSE start, delta, and end frames', async () => {
     const dir2 = fs.mkdtempSync(path.join(os.tmpdir(), 'cah-thinking-sse-'));
     const ws2 = path.join(dir2, 'workspace');

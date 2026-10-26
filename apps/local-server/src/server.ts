@@ -66,6 +66,21 @@ export interface VesselServerOptions {
   providerStore?: ProviderStore;
   providerFetch?: typeof fetch;
   providerProbeTimeoutMs?: number;
+  /**
+   * Read-only per-provider usage rows supplied by the CLI composition surface
+   * (`UsageStore.byProvider()`). Never written here; an unset provider yields an
+   * empty list so the endpoint stays a pure read.
+   */
+  usageByProvider?: () => Array<{
+    provider: string;
+    inputTokens: number;
+    outputTokens: number;
+    cacheReadTokens: number;
+    cacheCreationTokens: number;
+    calls: number;
+    costUsd: number;
+    estimated: boolean;
+  }>;
   providerBuilder?: (config: ProviderConfig) => ChatProvider;
   /** Optional read-only workspace observer supplied by the CLI composition surface. */
   observeWorkspace?: WorkspaceObserver;
@@ -491,6 +506,18 @@ export function createVesselServer(opts: VesselServerOptions = {}): VesselServer
         if (url.pathname === '/api/providers' && method === 'POST') return json(res, 201, { provider: providerRoutes.save(await readJsonBody(req)) });
         if (url.pathname === '/api/providers/test' && method === 'POST') return json(res, 200, await providerRoutes.test(await readJsonBody(req)));
         if (url.pathname === '/api/providers/pull-models' && method === 'POST') return json(res, 200, await providerRoutes.pullModels(await readJsonBody(req)));
+        if (url.pathname === '/api/providers/usage' && method === 'GET') {
+          const byProvider = opts.usageByProvider?.() ?? [];
+          const totals = byProvider.reduce((acc, row) => ({
+            calls: acc.calls + row.calls,
+            inputTokens: acc.inputTokens + row.inputTokens,
+            outputTokens: acc.outputTokens + row.outputTokens,
+            cacheReadTokens: acc.cacheReadTokens + row.cacheReadTokens,
+            cacheCreationTokens: acc.cacheCreationTokens + row.cacheCreationTokens,
+            costUsd: acc.costUsd + row.costUsd,
+          }), { calls: 0, inputTokens: 0, outputTokens: 0, cacheReadTokens: 0, cacheCreationTokens: 0, costUsd: 0 });
+          return json(res, 200, { byProvider, totals });
+        }
         if (/^\/api\/providers\/[^/]+$/.test(url.pathname) && method === 'DELETE') return providerRoutes.remove(decodeURIComponent(url.pathname.slice('/api/providers/'.length))) ? json(res, 200, { ok: true }) : json(res, 404, { error: 'unknown_provider' });
         return json(res, 405, { error: 'method_not_allowed' });
       } catch (error) {

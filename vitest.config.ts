@@ -57,6 +57,9 @@ export default defineConfig({
       'apps/local-server/src/**/*.test.ts',
       'benchmarks/runners/src/**/*.test.ts',
     ],
+    // `.harness/` holds read-only reference checkouts (a 72 MB magpie tree) and
+    // `benchmarks/reports/` holds run artifacts; neither may enter the glob scan.
+    exclude: ['**/node_modules/**', '**/dist/**', '.harness/**', 'benchmarks/reports/**'],
     testTimeout: 30000,
     hookTimeout: 30000,
   },

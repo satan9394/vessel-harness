@@ -58,7 +58,7 @@ function button(text: string) { return render().find(node => node.type === 'butt
 beforeEach(() => {
   hooks.lang = 'en'; vi.stubGlobal('document', doc); vi.stubGlobal('HTMLElement', Element);
   doc.activeElement = new Element(); root.controls = [new Element(), new Element()];
-  api = { listProviders: vi.fn(async () => ({ providers: [configured, { ...configured, name: 'mock' }] })), addProvider: vi.fn(async () => ({ provider: configured })), deleteProvider: vi.fn(async () => ({ ok: true })), testProvider: vi.fn(async () => ({ ok: true, latencyMs: 156, availableModels: ['discovered'] })), pullProviderModels: vi.fn(async () => ({ ok: true, latencyMs: 120, models: ['alpha', 'beta'] })), listModels: vi.fn(async () => ({ models: [] })) } as unknown as ApiClient;
+  api = { listProviders: vi.fn(async () => ({ providers: [configured, { ...configured, name: 'mock' }] })), listProviderUsage: vi.fn(async () => ({ byProvider: [], totals: { calls: 0, inputTokens: 0, outputTokens: 0, cacheReadTokens: 0, cacheCreationTokens: 0, costUsd: 0 } })), addProvider: vi.fn(async () => ({ provider: configured })), deleteProvider: vi.fn(async () => ({ ok: true })), testProvider: vi.fn(async () => ({ ok: true, latencyMs: 156, availableModels: ['discovered'] })), pullProviderModels: vi.fn(async () => ({ ok: true, latencyMs: 120, models: ['alpha', 'beta'] })), listModels: vi.fn(async () => ({ models: [] })) } as unknown as ApiClient;
 });
 afterEach(() => { hooks.cleanups.forEach(cleanup => cleanup?.()); hooks.values = []; hooks.effects = []; hooks.cleanups = []; vi.unstubAllGlobals(); vi.clearAllMocks(); });
 
@@ -81,6 +81,22 @@ describe('provider settings', () => {
     const protocol = render().find(node => node.props.id === 'provider-protocol')!;
     expect(protocol.props.value).toBe('openai-compatible');
     expect(nodes(protocol.props.children as ReactNode).filter(node => node.type === 'option').map(node => node.props.value)).toEqual(['openai-compatible', 'anthropic']);
+  });
+
+  it('shows per-provider tokens and cost from the usage endpoint', async () => {
+    vi.mocked(api.listProviderUsage).mockResolvedValue({
+      byProvider: [{ provider: 'existing', inputTokens: 10, outputTokens: 5, cacheReadTokens: 0, cacheCreationTokens: 0, calls: 2, costUsd: 0.25, estimated: false }],
+      totals: { calls: 2, inputTokens: 10, outputTokens: 5, cacheReadTokens: 0, cacheCreationTokens: 0, costUsd: 0.25 },
+    });
+    render(); await settle();
+    const shown = render().find(node => node.props.className === 'provider-usage');
+    expect(String(shown?.props.children)).toContain('15 tokens');
+    expect(String(shown?.props.children)).toContain('0.2500');
+  });
+
+  it('shows an em dash when the provider has no recorded usage', async () => {
+    render(); await settle();
+    expect(render().some(node => node.props.className === 'provider-usage' && node.props.children === '—')).toBe(true);
   });
 
   it('prefills the form from a gallery card and persists the chip default first', async () => {

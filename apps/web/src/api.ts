@@ -355,6 +355,11 @@ export function createApiClient(opts: ApiOptions = {}) {
     },
     /** GET /api/health */
     async listProviders(): Promise<{ providers: ProviderInfo[] }> { return request('/providers'); },
+    /** GET /api/providers/usage — read-only per-provider token/cost rows from UsageStore. */
+    async listProviderUsage(): Promise<{
+      byProvider: Array<{ provider: string; inputTokens: number; outputTokens: number; cacheReadTokens: number; cacheCreationTokens: number; calls: number; costUsd: number; estimated: boolean }>;
+      totals: { calls: number; inputTokens: number; outputTokens: number; cacheReadTokens: number; cacheCreationTokens: number; costUsd: number };
+    }> { return request('/providers/usage'); },
     async addProvider(input: AddProviderInput): Promise<{ provider: ProviderInfo }> {
       return request('/providers', { method: 'POST', body: JSON.stringify(input) });
     },

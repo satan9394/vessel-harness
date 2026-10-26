@@ -492,6 +492,8 @@ export interface ModelMessages {
   onboardingCustomHint: MessageTemplate;
   modelRemove: MessageTemplate;
   providerModelCount: MessageTemplate;
+  providerUsageLine: MessageTemplate;
+  providerUsageNone: MessageTemplate;
   providerAuthExternal: MessageTemplate;
   capabilitiesTitle: MessageTemplate;
   capabilityDetected: MessageTemplate;
@@ -932,6 +934,8 @@ export const zh: Messages = {
   onboardingCustomHint: '接入自定义兼容端点',
   modelRemove: '移除模型',
   providerModelCount: '{count} 个模型',
+  providerUsageLine: '{tokens} tokens · ${cost}',
+  providerUsageNone: '—',
   providerAuthExternal: '此预设需要外部凭据配置；此表单仅支持 API Key。',
   behaviorInspector: '行为有效快照',
   behaviorSelectSession: '选择一个会话以检查实际生效的行为。',
@@ -1761,6 +1765,8 @@ export const en: Messages = {
   onboardingCustomHint: "Connect a custom compatible endpoint",
   modelRemove: "Remove model",
   providerModelCount: "{count} models",
+  providerUsageLine: '{tokens} tokens · ${cost}',
+  providerUsageNone: '—',
   providerAuthExternal: "This preset needs external credentials; this form supports API keys only.",
   behaviorInspector: 'Effective behavior snapshot',
   behaviorSelectSession: 'Select a session to inspect its effective behavior.',

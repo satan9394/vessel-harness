@@ -1,5 +1,7 @@
 # T318 — Web：Provider Hub 里能看到 token 与成本
 
+- Status: 已完成（2026-10-26；协调者直接实现，未经 PDW 独立 review；未提交、未推送）
+
 > 自包含执行书。项目根 `E:\Code_file\Projects\Vessel_Harness`（Windows）。
 > 前置：卡 T317（CLI 的 `--by-provider` 聚合）。本卡把同一份聚合搬到 Web。
 
@@ -63,3 +65,15 @@ i18n：<新增键 + 英文是否含 CJK>
 检查：<五条命令退出码>
 未做：<如实写>
 ```
+
+## Result
+
+已完成。三处改动：
+
+1. **local-server**（`apps/local-server/src/server.ts`）：`VesselServerOptions` 新增只读 `usageByProvider`；路由 `GET /api/providers/usage` 返回 `{ byProvider, totals }`；**未注入时返回空数组 + 200**（不是 404/503），totals 全 0。
+2. **CLI 组合根**（`apps/cli/src/cli.ts` 的 serve 调用）：注入 `usageByProvider: () => createUsageStore().byProvider()`——local-server 不反向依赖 `apps/cli`，聚合逻辑保持单份（`UsageStore.byProvider()`）。
+3. **Web**：`api.ts` 新增 `listProviderUsage()`；`ProviderSettingsModal` 在 `refresh()` 里并行拉取（失败只吞掉 usage、不影响 provider 列表），卡片显示 `<tokens> tokens · $<cost>`；无记录显示 `—`。i18n 加 `providerUsageLine` / `providerUsageNone`（中英，英文无 CJK）。
+
+测试：server **58 passed**（新增 2 条：有注入返回行与 totals、无注入返回空数组）；Web `ProviderSettingsModal` **28 passed**（新增 2 条：显示 `15 tokens`/`0.2500`、无记录显示 `—`）；`tsc -b`、`typecheck:tests`、Web tsc 三处干净。
+
+未做：没有把聚合抽成跨包纯函数（`UsageStore.byProvider()` 已是单一实现，再抽一层只会多一个转发）；Web 不做任何计算，只展示 API 返回的数字。
