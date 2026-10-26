@@ -1,5 +1,7 @@
 # T316 — Web 预设改为生成物（单一真源）
 
+- Status: 已完成（2026-10-26；协调者直接实现，未经 PDW 独立 review；未提交、未推送）
+
 > 自包含执行书。项目根 `E:\Code_file\Projects\Vessel_Harness`（Windows）。
 > 目标：`packages/application/src/providers/presets.data.ts` 是唯一真源；Web 的预设目录不再手抄。
 
@@ -61,3 +63,11 @@ node node_modules/tsx/dist/cli.mjs scripts/sync-web-presets.mjs --check
 检查：<六条命令退出码，特别是 write→check 两步>
 未做：<如实写>
 ```
+
+## Result
+
+已完成。新增 `scripts/sync-web-presets.mjs`（用 tsx 跑，直接 import application 的 `PROVIDER_CATALOG` 生成，不靠文本解析）；`apps/web/src/components/providers/presets.generated.ts` 共 91 行（72 个 preset + 类型定义，头部带 `// GENERATED ... do not edit`）；`presetsData.ts` 从 161 行降到 78 行的薄壳——只 re-export 数据与类型，保留 `PRESET_CATEGORIES` / `ENGLISH_PRESETS` / `localizePreset`。
+
+`--write` 幂等：写完再 `--check` 仍 exit 0（`ok … (91 lines)`）。Web `tsc --noEmit` exit 0；`presetsData.test` / `PresetsGallery` / `ProviderHub` 三个文件 **13 passed**；根 `tsc -b` 与 `typecheck:tests` exit 0。
+
+未做：没有给 `apps/web` 增加 `@vessel/*` 依赖（保持浏览器包依赖面不变），生成脚本只在开发期用 tsx 跑。

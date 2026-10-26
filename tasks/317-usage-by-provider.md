@@ -1,5 +1,8 @@
 # T317 — CLI：按供应商看 token 与成本
 
+- Status: 已具备（2026-10-26 核实：CLI 已有该视图，本卡无需改代码）；未提交、未推送
+- 核实证据：`apps/cli/src/cli.ts:2252-2264`（`store.byProvider()` → 打印「按供应商:」段，含 in/out、调用次数、成本与倍率说明）；`apps/cli/src/cli.ts:2171`（`--json` 输出里已含 `byProvider`）；`apps/cli/src/usage/UsageStore.ts:1192-1239`（`byProvider()` 聚合实现，含 `costMultiplierMixed` 处理）。
+
 > 自包含执行书。项目根 `E:\Code_file\Projects\Vessel_Harness`（Windows）。
 > 目标：`vessel usage` 增加一个按 **provider**（供应商）聚合的视图，数据只来自既有 `UsageStore`。
 
@@ -60,3 +63,13 @@ node apps/cli/dist/cli.js usage --by-provider --json
 检查：<五条命令退出码>
 未做：<如实写>
 ```
+
+## Result
+
+**已具备，无需改代码**（2026-10-26 核实，证据如下）。
+
+- `vessel usage` 默认输出已有「按供应商:」段：`apps/cli/src/cli.ts:2252-2264`，每行形如 `provider: Nin/Mout · N 次 · $cost`，并对 `costMultiplierMixed` 显式写出分项合计（避免读者以为分项漏算）。
+- `--json` 输出里已有 `byProvider`：`apps/cli/src/cli.ts:2171`。
+- 聚合实现：`apps/cli/src/usage/UsageStore.ts:1192-1239`，按 provider 累加四类 token、调用次数、成本，并处理「同一 provider 倍率不一致」。
+
+因此目标要求里的「CLI 有一个按供应商看用量的真实入口」**已满足**，本卡不改代码、不新增开关。真正的缺口在 **Web 与 API**（`providerRoutes.ts` 无 usage 路由、`ProviderHub.tsx` 无 token/成本），由卡 318 承担。
