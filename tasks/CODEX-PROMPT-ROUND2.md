@@ -16,7 +16,7 @@
 ## 上下文
 
 仓库 `E:\Code_file\Projects\Vessel_Harness`。TypeScript + Node + npm workspaces + Vitest。
-目标是补齐 provider 模块的用量与完整性能力。按 E → F → G → H → I → J → D 顺序做。
+目标是补齐 provider 模块的用量与完整性能力。按 E → F → G → H → I → J → K → L → M → N → P → Q → D 顺序做。
 
 ## 约束
 
@@ -29,12 +29,12 @@
 
 | 文件 | 顺序 |
 |---|---|
-| `apps/cli/src/usage/UsageStore.ts` | E → J |
-| `apps/local-server/src/server.ts` | E → F → J |
-| `apps/web/src/api.ts` | E → J |
-| `apps/web/src/components/providers/ProviderSettingsModal.tsx` | E → J |
-| `apps/cli/src/cli.ts` | G → H |
-| `apps/local-server/src/providers/ProviderStore.ts` | H |
+| `apps/cli/src/usage/UsageStore.ts` | E → J → Q |
+| `apps/local-server/src/server.ts` | E → F → J → Q |
+| `apps/web/src/api.ts` | E → J → Q |
+| `apps/web/src/components/providers/ProviderSettingsModal.tsx` | E → J → L → P → Q |
+| `apps/cli/src/cli.ts` | G → H → K → M |
+| `apps/local-server/src/providers/ProviderStore.ts` | H → M |
 
 ## 前置
 
@@ -137,8 +137,87 @@ node node_modules/vitest/vitest.mjs run --root apps/web src/components/providers
 ```
 Done：排序/截断有断言；展开与收起可用。
 
-## D · 文档（只改文档）
+## K · CLI 人读「按供应商 Top 3 模型」
 
+Goal：`vessel usage` 人读输出里，每个供应商段后缩进列出最多 3 行 `model · tokens · $cost`（成本降序）；
+`--json` 输出不变。
+
+Files：`apps/cli/src/cli.ts`、`apps/cli/src/cli.test.ts`（依赖 J 的 `models` 字段）。
+
+Verify：
+```powershell
+node node_modules/vitest/vitest.mjs run apps/cli/src/cli.test.ts
+```
+Done：有模型时缩进行数与顺序正确；无模型时不额外输出；`--json` 未变。
+
+## L · Web 显示「未配置密钥」
+
+Goal：`apiKeyMasked` 为空时卡片显示温和提示「未配置密钥」；有掩码时保持现状。
+
+Files：`ProviderSettingsModal.tsx`、`i18n.ts`、`ProviderSettingsModal.test.tsx`。
+
+Verify：
+```powershell
+node node_modules/vitest/vitest.mjs run --root apps/web src/components/providers/ProviderSettingsModal.test.tsx
+```
+Done：两种状态各一条断言；英文无 CJK。
+
+## M · `provider profile rename`
+
+Goal：`vessel provider profile rename <old> <new>`；`new` 已存在 → exit 2；`old` 不存在 → exit 2；
+profile 内容与引用的 provider 不变。
+
+Files：`apps/local-server/src/providers/ProviderStore.ts` 及测试、`apps/cli/src/cli.ts` 及测试。
+
+Verify：
+```powershell
+node node_modules/vitest/vitest.mjs run apps/local-server/src/providers
+node node_modules/vitest/vitest.mjs run apps/cli/src/cli.test.ts
+```
+Done：重命名前后 `listProfiles` 内容一致、name 变化；两种失败路径有断言。
+
+## N · API 与 CLI 的 profile 行为一致性快照
+
+Goal：同一临时 store 上，CLI 与 HTTP API 的 list/save/use/delete 结果一致（字段集合与顺序）；
+捕获两套 DTO 漂移。只补测试，不改生产。
+
+Files：新增 `apps/local-server/src/routes/profileParity.test.ts`。
+
+Verify：
+```powershell
+node node_modules/vitest/vitest.mjs run apps/local-server/src/routes/profileParity.test.ts
+```
+Done：四个操作的一致性断言全绿；失败时能指出哪一侧字段不同。
+
+## P · Provider Hub 按名称过滤
+
+Goal：供应商多于 5 个时显示搜索框，按 `name`/`baseUrl` 子串过滤（大小写不敏感）；清空恢复全部。
+
+Files：`ProviderSettingsModal.tsx`、`i18n.ts`、`ProviderSettingsModal.test.tsx`。
+
+Verify：
+```powershell
+node node_modules/vitest/vitest.mjs run --root apps/web src/components/providers/ProviderSettingsModal.test.tsx
+```
+Done：过滤命/未命中/清空三条断言；英文无 CJK。
+
+## Q · 用量口径可见（T320 字段）
+
+Goal：`byProvider()` 行加 `inputTokenSemantics?: 'cache-inclusive' | 'cache-exclusive' | 'mixed'`
+（该 provider 各条目不一致 → `mixed`；无值时不带字段）；server/api 类型同步；
+Web 卡片显示「口径：…」，无值不显示。
+
+Files：`apps/cli/src/usage/UsageStore.ts` 及测试、`apps/local-server/src/server.ts`、`apps/web/src/api.ts`、
+`ProviderSettingsModal.tsx` 及测试、`i18n.ts`。
+
+Verify：
+```powershell
+node node_modules/vitest/vitest.mjs run apps/cli/src/usage
+node node_modules/vitest/vitest.mjs run --root apps/web src/components/providers/ProviderSettingsModal.test.tsx
+```
+Done：聚合规则（同值/不一致/无值）有断言；Web 三种状态渲染正确。
+
+## D · 文档（只改文档）
 Files：`docs/PROVIDER-MANAGEMENT.md`、`docs/ARCHITECTURE.md`、`docs/MAGPIE-ABSORPTION.md`。
 - `§3.4 从 cc-switch 导出导入`：命令、默认 dry-run、key 只进 `CredentialStore(secretRef)`、已存在跳过、`--prefix`、不读 cc-switch 库不写回。
 - `§3.5 供应商 profile 快照`：独立文件 `~/.vessel/provider-profiles.json` 与形状；不存凭据不复制端点；四条 API 与状态码；`use` 只覆盖给定字段；provider 被删报悬空。
@@ -186,6 +265,12 @@ G：<CSV 表头 + 互斥 + 用例数>
 H：<拒绝 + 级联 + 用例数>
 I：<往返差异 + key 是否出现>
 J：<排序截断 + 展开>
+K：<CLI Top3 输出 + 用例数>
+L：<未配置密钥提示 + 用例数>
+M：<rename 成功/两种失败 + 用例数>
+N：<API/CLI 一致性 + 用例数>
+P：<过滤三条 + 用例数>
+Q：<口径聚合 + Web 三态>
 D：<新增小节标题>
 门禁：<16 条退出码，或失败项>
 ```
