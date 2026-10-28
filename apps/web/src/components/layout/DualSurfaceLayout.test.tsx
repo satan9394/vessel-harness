@@ -18,6 +18,7 @@ import {
 } from './DualSurfaceLayout';
 import { isInspectorObservation } from '../../inspector';
 import { createEventStream } from '../../sse';
+import InlineDiffInspector from '../widgets/InlineDiffInspector';
 
 const cache = { promptTokens: 100, cachedTokens: 70, creationTokens: 20, billedHitRate: .7, estimatedSavingsUsd: .012, provider: 'provider', model: 'model' };
 afterEach(() => vi.unstubAllGlobals());
@@ -55,6 +56,23 @@ describe('Inspector layout and state controller', () => {
     expect(applyPatch).toHaveBeenCalledWith('session', 'proposal', 'a.txt#hunk-0', 'accept');
     expect(renderToStaticMarkup(tree)).toContain('Interactive patch picker');
     expect(renderToStaticMarkup(<PatchCanvasPanel sessionId="empty" />)).toContain('No patch proposals');
+  });
+
+  it('renders actual file creation as read-only in the inline Inspector and Patch canvas', () => {
+    const widget: import('@vessel/shared').DiffInspectorWidget = { id: 'created', kind: 'diff_inspector', status: 'resolved', turnIndex: 0, timestamp: 'now',
+      payload: { filePath: 'fixture.txt', additions: 2, deletions: 0, patch: '--- /dev/null\n+++ b/fixture.txt\n@@ -0,0 +1,2 @@\n+before\n+second\n' } };
+    const applyPatch = vi.fn();
+    const surfaces = [<PatchCanvasPanel sessionId="session" patches={[widget]} api={{ applyPatch }} />,
+      <InlineDiffInspector widget={widget} sessionId="session" />];
+    for (const surface of surfaces) {
+      const html = renderToStaticMarkup(surface);
+      expect(html).toContain('+before'); expect(html).toContain('+second'); expect(html).toContain('+2');
+      expect(html).toContain('Old line, new line, patch');
+      expect(html).not.toContain('Interactive patch picker');
+      expect(html).not.toMatch(/Accept hunk|Discard hunk|Revert hunk|Reapply hunk/);
+      expect(html.match(/<button\b/g)).toHaveLength(1); // Collapse is the only control, never an apply/reject entrance.
+    }
+    expect(applyPatch).not.toHaveBeenCalled();
   });
 
   it('honors default visibility and persisted visibility/tab independently with patch default', () => {

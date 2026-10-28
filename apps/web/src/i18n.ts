@@ -329,6 +329,7 @@ export interface CommonMessages {
   inputPlaceholder: MessageTemplate;
   serverDown: MessageTemplate;
   statusOk: MessageTemplate;
+  statusConnecting: MessageTemplate;
   statusDown: MessageTemplate;
   placeholderDev: MessageTemplate;
   unimplemented: MessageTemplate;
@@ -1604,6 +1605,7 @@ export const zh: Messages = {
   inputPlaceholder: "输入消息…（Enter 发送，Shift+Enter 换行）",
   serverDown: "无法连接本地服务，请先运行 vessel serve（127.0.0.1:5678）。",
   statusOk: "Vessel 本地服务运行正常（版本 {version}）",
+  statusConnecting: "正在连接本地服务…",
   statusDown: "本地服务未连接，请先运行 vessel serve（127.0.0.1:5678）。",
   emptyTitle: '选择或新建会话',
   emptyBody: "从左侧历史会话选择一个会话开始对话，或点击“新建会话”打开项目。",
@@ -2454,6 +2456,7 @@ export const en: Messages = {
   inputPlaceholder: 'Type a message… (Enter to send, Shift+Enter for newline)',
   serverDown: 'Cannot reach local server — please run `vessel serve` (127.0.0.1:5678).',
   statusOk: 'Vessel local server ok (v{version})',
+  statusConnecting: 'Connecting to the local server…',
   statusDown: 'Local server not connected — please run `vessel serve` (127.0.0.1:5678).',
   emptyTitle: 'Select or start a session',
   emptyBody:

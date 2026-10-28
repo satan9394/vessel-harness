@@ -432,6 +432,13 @@ export default function ConversationView({ sessionId, api, onSessionUpdated, vie
     }
   }, [items, busy]);
 
+  // Reveal a new failure immediately without overriding later manual scrolling.
+  useEffect(() => {
+    if (error && listRef.current) {
+      listRef.current.scrollTo({ top: listRef.current.scrollHeight, behavior: 'auto' });
+    }
+  }, [error]);
+
   // When switching sessions, reset scroll state to bottom.
   useEffect(() => {
     isAtBottomRef.current = true;

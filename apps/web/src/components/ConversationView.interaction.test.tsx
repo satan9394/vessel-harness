@@ -218,6 +218,62 @@ describe('ConversationView Task 246: Scroll guard, IME protection, and SSE recon
     expect(tree.find(node => node.type === 'textarea')!.props.value).toBe('keep draft');
   });
 
+  it('scrolls an inserted Stop failure fully into the transcript viewport without another message', async () => {
+    vi.mocked(api.interruptSession).mockRejectedValueOnce(new Error('fixture stop failure'));
+    let tree = render();
+    streams[0].handlers.onRun?.({ active: true });
+    tree = render();
+    const container = tree.find(node => String(node.props.className ?? '').includes('message-list-scroll'))!;
+    // Model a short transcript viewport. This verifies scroll behavior, not browser layout.
+    // The new 48px banner initially extends beyond the bottom; scrollTo models native clamping.
+    const banner = { top: 480, height: 48 };
+    const scroller = {
+      clientHeight: 120, scrollHeight: 480, scrollTop: 360,
+      scrollTo: vi.fn(({ top }: ScrollToOptions) => {
+        scroller.scrollTop = Math.min(top ?? 0, scroller.scrollHeight - scroller.clientHeight);
+      }),
+    };
+    (container.props.ref as { current: unknown }).current = scroller;
+    expect(banner.top + banner.height - scroller.scrollTop).toBeGreaterThan(scroller.clientHeight);
+    (tree.find(node => node.props.title === 'interruptTitle')!.props.onClick as () => void)();
+    render();
+    scroller.scrollTo.mockClear();
+    await Promise.resolve(); await Promise.resolve(); await Promise.resolve();
+    // React commits the new banner before running the scroll effect.
+    scroller.scrollHeight = banner.top + banner.height + 24;
+    tree = render();
+    expect(tree.find(node => typeof node.props.text === 'string')!.props.text).toBe('stopFailed');
+    expect(scroller.scrollTo).toHaveBeenCalledWith({ top: 552, behavior: 'auto' });
+    expect(banner.top - scroller.scrollTop).toBeGreaterThanOrEqual(0);
+    expect(banner.top + banner.height - scroller.scrollTop).toBeLessThanOrEqual(scroller.clientHeight);
+    expect(tree.find(node => node.props.title === 'interruptTitle')!.props.disabled).toBe(false);
+  });
+
+  it('preserves manual scroll-up after a Stop failure while the run continues receiving messages', async () => {
+    vi.mocked(api.interruptSession).mockRejectedValueOnce(new Error('fixture stop failure'));
+    render();
+    streams[0].handlers.onRun?.({ active: true });
+    const tree = render();
+    const container = tree.find(node => String(node.props.className ?? '').includes('message-list-scroll'))!;
+    const scroller = { clientHeight: 120, scrollHeight: 552, scrollTop: 432, scrollTo: vi.fn() };
+    (container.props.ref as { current: unknown }).current = scroller;
+    (tree.find(node => node.props.title === 'interruptTitle')!.props.onClick as () => void)();
+    render();
+    await Promise.resolve(); await Promise.resolve(); await Promise.resolve();
+    expect(render().find(node => typeof node.props.text === 'string')!.props.text).toBe('stopFailed');
+    expect(scroller.scrollTo).toHaveBeenCalledWith({ top: 552, behavior: 'auto' });
+    scroller.scrollTo.mockClear();
+    scroller.scrollTop = 0;
+    (container.props.onScroll as () => void)();
+    render();
+    streams[0].handlers.onConversation?.({ role: 'assistant', text: 'run continues', ts: 1 });
+    const updated = render();
+    expect(updated.find(node => typeof node.props.text === 'string')!.props.text).toBe('stopFailed');
+    expect(updated.find(node => node.props.className === 'scroll-to-bottom-pill')).toBeDefined();
+    expect(scroller.scrollTo).not.toHaveBeenCalled();
+    expect(scroller.scrollTop).toBe(0);
+  });
+
   it.each([false, true])('focuses only an unclaimed input after async history becomes ready (other control focused=%s)', async otherFocused => {
     let resolve!: (value: import('../sse').SessionTranscript) => void;
     api.sessionMessages = vi.fn(() => new Promise<import('../sse').SessionTranscript>(done => { resolve = done; }));

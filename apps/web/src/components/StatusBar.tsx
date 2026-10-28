@@ -7,17 +7,17 @@ export interface ServerStatusProps {
   error: boolean;
 }
 
-/** Main-area server status row: green ok / red down, with the version. */
+/** Main-area server status row: connecting, ok, or down. */
 export default function StatusBar({ health, error }: ServerStatusProps) {
   const { t } = useI18n();
   const isOk = !error && !!health?.ok;
   return (
     <div className="statusbar">
-      <span className={`dot ${isOk ? 'dot-ok' : 'dot-err'}`} aria-hidden="true" />
-      <span className={`status-text ${isOk ? '' : 'status-err'}`}>
-        {isOk
+      <span className={`dot ${error ? 'dot-err' : isOk ? 'dot-ok' : ''}`} style={!error && !isOk ? { background: 'var(--dim)' } : undefined} aria-hidden="true" />
+      <span className={`status-text ${error ? 'status-err' : ''}`}>
+        {error ? t('statusDown') : isOk
           ? t('statusOk', { version: health?.version ?? '' })
-          : t('statusDown')}
+          : t('statusConnecting')}
       </span>
     </div>
   );
