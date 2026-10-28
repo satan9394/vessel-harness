@@ -1,0 +1,23 @@
+{
+  "id": "R07",
+  "category": "soft-delete",
+  "source": "apps/local-server/src/server.test.ts",
+  "title": "reports recycling failure and retains the session for a successful retry",
+  "outcome": "passed",
+  "live": false,
+  "assertions": [
+    {
+      "ancestorTitles": [
+        "local server HTTP API + SSE"
+      ],
+      "fullName": "local server HTTP API + SSE reports recycling failure and retains the session for a successful retry",
+      "status": "passed",
+      "title": "reports recycling failure and retains the session for a successful retry",
+      "duration": 175.88630000000012,
+      "failureMessages": [],
+      "meta": {},
+      "tags": [],
+      "benchmarks": []
+    }
+  ]
+}

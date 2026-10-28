@@ -1,0 +1,72 @@
+{
+  "session": "sess_1793198065937_144d6f22",
+  "journal": "C:\\work\\AppData\\Local\\Temp\\vessel-iab-run5-QGhkps\\workspace\\.harness\\sessions\\sess_1793198065937_144d6f22\\session.jsonl",
+  "initiallyAbsent": true,
+  "absencePreparation": "First capture file moved intact to TEMP root/fixture-first-capture.txt before final capture; no deletion.",
+  "beforeControl": "6265666f72650a7365636f6e640a",
+  "afterControl": "6265666f72650a7365636f6e640a",
+  "expectedHex": "6265666f72650a7365636f6e640a",
+  "unchanged": true,
+  "positive": {
+    "calls": 1,
+    "results": 1,
+    "call": {
+      "type": "tool/call",
+      "toolCallId": "fixture-write-1793198066279",
+      "toolName": "Write",
+      "arguments": {
+        "path": "fixture.txt",
+        "content": "before\nsecond\n"
+      },
+      "mode": "auto",
+      "surface": false,
+      "seq": 12,
+      "ts": "2026-10-28T14:34:26.292Z"
+    },
+    "result": {
+      "type": "tool/result",
+      "toolCallId": "fixture-write-1793198066279",
+      "toolName": "Write",
+      "content": "wrote fixture.txt (14 bytes)",
+      "meta": {
+        "path": "fixture.txt",
+        "bytes": 14
+      },
+      "surface": true,
+      "seq": 13,
+      "ts": "2026-10-28T14:34:26.339Z"
+    }
+  },
+  "negative": {
+    "calls": 1,
+    "results": 1,
+    "call": {
+      "type": "tool/call",
+      "toolCallId": "fixture-write-1793198120753",
+      "toolName": "Write",
+      "arguments": {
+        "path": "fixture.txt",
+        "content": "before\nsecond\n"
+      },
+      "mode": "auto",
+      "surface": false,
+      "seq": 35,
+      "ts": "2026-10-28T14:35:20.757Z"
+    },
+    "result": {
+      "type": "tool/result",
+      "toolCallId": "fixture-write-1793198120753",
+      "toolName": "Write",
+      "content": "wrote fixture.txt (14 bytes)",
+      "meta": {
+        "path": "fixture.txt",
+        "bytes": 14
+      },
+      "surface": true,
+      "seq": 36,
+      "ts": "2026-10-28T14:35:20.788Z"
+    }
+  },
+  "totalCalls": 2,
+  "totalResults": 2
+}

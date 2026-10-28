@@ -1,0 +1,64 @@
+[
+  {
+    "file": "disk-and-journal.json",
+    "bytes": 2005,
+    "sha256": "e41a6f55805d5490f0cb79991ed871cfa35920ca89b0388a24eae7bb7d48e2e7",
+    "magic": "7b0a202022736573"
+  },
+  {
+    "file": "w1-measurements.json",
+    "bytes": 8287,
+    "sha256": "d6f289c758189a22231abf07a858169d8edc3610f316cf2492a83bb742bfde38",
+    "magic": "7b0a202022736573"
+  },
+  {
+    "file": "w1-raw-cdp-cropped.png",
+    "bytes": 62073,
+    "sha256": "043f27a8e8df1688d11ee7627eceed86bd532ff5304d0529b9f2292bd6f37f43",
+    "magic": "89504e470d0a1a0a",
+    "width": 917,
+    "height": 567
+  },
+  {
+    "file": "w1-stop-failed-917x567.jpg",
+    "bytes": 43587,
+    "sha256": "1a5634aa41e7b3e30836d5cdb7fb5c84bce801df0f21029dbf0452b2f0c19732",
+    "magic": "ffd8ffe000104a46"
+  },
+  {
+    "file": "w1-stop-failed-917x567.png",
+    "bytes": 189639,
+    "sha256": "763812b25963d6c35df684ff1b77e3a2c194bcf19674ae3924919bb51cb73c92",
+    "magic": "89504e470d0a1a0a",
+    "width": 917,
+    "height": 567
+  },
+  {
+    "file": "w2-measurements.json",
+    "bytes": 1311,
+    "sha256": "5f1e22c6cecb9cbb219398a4f056674a75e7a4c2b4da659c1e56f4371f0658ae",
+    "magic": "7b0a202022696e73"
+  },
+  {
+    "file": "w2-new-file-diff-917x567.jpg",
+    "bytes": 36245,
+    "sha256": "c5bb2f29bccb00d7758caac8d9840242deedd4bc5c5876eb26000e90062f063f",
+    "magic": "ffd8ffe000104a46"
+  },
+  {
+    "file": "w2-new-file-diff-917x567.png",
+    "bytes": 155387,
+    "sha256": "9fb2e7be5462222ecb3ae054458c092313ab70fdb5e3a3754718bed93ffcbb1a",
+    "magic": "89504e470d0a1a0a",
+    "width": 917,
+    "height": 567
+  },
+  {
+    "file": "w2-raw-cdp-cropped.png",
+    "bytes": 49590,
+    "sha256": "a382866ec68076fdc633f2ef1117aff906940bcc328a964222c099b239eb0a06",
+    "magic": "89504e470d0a1a0a",
+    "width": 917,
+    "height": 567
+  }
+]

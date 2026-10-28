@@ -1,0 +1,162 @@
+[
+  {
+    "boxShadow": "rgba(31, 35, 40, 0.08) 0px 1px 2px 0px, rgba(255, 255, 255, 0.27) 0px 1px 0px 0px inset",
+    "height": 31.992904663085938,
+    "name": "关闭检视器",
+    "outline": "solid",
+    "tag": "BUTTON",
+    "width": 51.43406295776367,
+    "x": 1376.6632080078125,
+    "y": 59.99408721923828
+  },
+  {
+    "boxShadow": "rgba(0, 0, 0, 0.08) 0px 1px 3px 0px",
+    "height": 31.992904663085938,
+    "name": "变更",
+    "outline": "solid",
+    "tag": "BUTTON",
+    "width": 87.01951599121094,
+    "x": 1156.031982421875,
+    "y": 110.97723388671876
+  },
+  {
+    "boxShadow": "rgba(31, 35, 40, 0.08) 0px 1px 2px 0px, rgba(255, 255, 255, 0.27) 0px 1px 0px 0px inset",
+    "height": 31.992904663085938,
+    "name": "执行",
+    "outline": "solid",
+    "tag": "BUTTON",
+    "width": 87.02690887451172,
+    "x": 1247.050537109375,
+    "y": 110.97723388671876
+  },
+  {
+    "boxShadow": "rgba(31, 35, 40, 0.08) 0px 1px 2px 0px, rgba(255, 255, 255, 0.27) 0px 1px 0px 0px inset",
+    "height": 31.992904663085938,
+    "name": "诊断",
+    "outline": "solid",
+    "tag": "BUTTON",
+    "width": 87.02690887451172,
+    "x": 1338.07666015625,
+    "y": 110.97723388671876
+  },
+  {
+    "boxShadow": "rgba(31, 35, 40, 0.08) 0px 1px 2px 0px, rgba(255, 255, 255, 0.27) 0px 1px 0px 0px inset",
+    "height": 31.992904663085938,
+    "name": "代码补丁",
+    "outline": "solid",
+    "tag": "BUTTON",
+    "width": 76.9810791015625,
+    "x": 1153.0382080078125,
+    "y": 151.9589080810547
+  },
+  {
+    "boxShadow": "none",
+    "height": 38.88970947265625,
+    "name": "",
+    "outline": "auto",
+    "tag": "INPUT",
+    "width": 161.11029052734375,
+    "x": 283.98876953125,
+    "y": 706.4680786132812
+  },
+  {
+    "boxShadow": "none",
+    "height": 900.2957153320312,
+    "name": "关闭Vessel‹+ 新建会话项目workspace历史会话显示已归档workspace今天Keyboard end to end06:34long fixture06:30pending persistence06:27tool error fixture06:21http error fixture06:19pending fixture06:19Keyboard fixture lin06:10项目 → 会话 → 运行 → 子代理工作台活动Agent Studio设置Light☰Vessel 本地服务运行正常（版本 0.10.0）命令偏好设置关闭提示音开启桌面通知工作台视图中文收起检视器会话 · Keyboard end to end当前模型fixture / fixture-modelfixture / fixture-model⌄模型能力工具调用已声明 · 支持 · openai-compatible adapter流式输出已声明 · 支持 · openai-compatible adapter上下文窗口未知结构化输出已声明 · 不支持 · openai-compatible adapter推理已声明 · 支持 · openai-compatible adapter多模态输入已声明 · 不支持 · openai-compatible adapter多模态输出已声明 · 不支持 · openai-compatible adapter用量报告已声明 · 支持 · openai-compatible adapter新会话权限（不影响当前会话）: 工作区读写权限配置新模型次调用 13+2 词元~$0.0000计划 · 0 / 0本会话暂无计划步骤——启动一次任务后会在此常驻显示进度。您Keyboard end-to-end fixtureVesselFixture complete提示3 词元输出2 词元推理—缓存读取0 词元时延53 毫秒估算成本$0.0000会话沙箱审计暂无沙箱执行审计记录。项目workspace模型fixture / fixture-model审批档位工作区读写权限模式自动快速专业确定模型为本会话固定模型发送停止上下文占用—⚡ 缓存0%费用$0.0000计划0/0键位提示命令（Ctrl/Cmd+K）切换画布检视器（Ctrl/Cmd+I）发送⏎换行画布检视器关闭变更执行诊断代码补丁影响范围代码补丁审阅逐块审阅代码修改。回退可安全撤回已采纳的代码块，重新应用可恢复该块。本会话暂无补丁提案。目标任务加入队列任务队列0 个任务暂无任务添加目标并运行，每次迭代都会显示生成结果与评估结论。暂停可挂起运行，恢复可继续执行；预算用于设置最大迭代数与重试数，默认均为 1。",
+    "outline": "none",
+    "tag": "BODY",
+    "width": 1440.0946044921875,
+    "x": 0,
+    "y": 0
+  },
+  {
+    "boxShadow": "rgba(31, 35, 40, 0.08) 0px 1px 2px 0px, rgba(255, 255, 255, 0.27) 0px 1px 0px 0px inset",
+    "height": 31.992904663085938,
+    "name": "收起侧边栏",
+    "outline": "solid",
+    "tag": "BUTTON",
+    "width": 39.9985237121582,
+    "x": 191.91307067871097,
+    "y": -0.19958604872226715
+  },
+  {
+    "boxShadow": "rgba(31, 35, 40, 0.08) 0px 1px 2px 0px, rgba(255, 255, 255, 0.27) 0px 1px 0px 0px inset",
+    "height": 31.992904663085938,
+    "name": "+ 新建会话",
+    "outline": "solid",
+    "tag": "BUTTON",
+    "width": 219.9142608642578,
+    "x": 11.997339248657228,
+    "y": 43.79065704345703
+  },
+  {
+    "boxShadow": "none",
+    "height": 29.96747589111328,
+    "name": "workspace",
+    "outline": "solid",
+    "tag": "BUTTON",
+    "width": 203.9178009033203,
+    "x": 19.99556541442871,
+    "y": 116.81697082519533
+  },
+  {
+    "boxShadow": "rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px",
+    "height": 34.4692497253418,
+    "name": "搜索会话…",
+    "outline": "none",
+    "tag": "INPUT",
+    "width": 219.9142608642578,
+    "x": 11.997339248657228,
+    "y": 193.8202362060547
+  },
+  {
+    "boxShadow": "none",
+    "height": 12.995269775390623,
+    "name": "",
+    "outline": "auto",
+    "tag": "INPUT",
+    "width": 12.995269775390623,
+    "x": 21.991426467895508,
+    "y": 241.3069305419922
+  },
+  {
+    "boxShadow": "rgb(255, 255, 255) 0px 0px 0px 1px, rgb(9, 105, 218) 0px 0px 0px 2.5px, rgba(9, 105, 218, 0.1) 0px 0px 8px 1px",
+    "height": 28.149024963378903,
+    "name": "Keyboard end to end",
+    "outline": "none",
+    "tag": "BUTTON",
+    "width": 125.93879699707033,
+    "x": 11.997339248657228,
+    "y": 337.3965148925781
+  },
+  {
+    "boxShadow": "rgb(255, 255, 255) 0px 0px 0px 1px, rgb(9, 105, 218) 0px 0px 0px 2.5px, rgba(9, 105, 218, 0.1) 0px 0px 8px 1px",
+    "height": 27.993791580200195,
+    "name": "重命名会话",
+    "outline": "none",
+    "tag": "BUTTON",
+    "width": 27.993791580200195,
+    "x": 137.93614196777344,
+    "y": 337.4704284667969
+  },
+  {
+    "boxShadow": "rgb(255, 255, 255) 0px 0px 0px 1px, rgb(9, 105, 218) 0px 0px 0px 2.5px, rgba(9, 105, 218, 0.1) 0px 0px 8px 1px",
+    "height": 27.993791580200195,
+    "name": "归档会话",
+    "outline": "none",
+    "tag": "BUTTON",
+    "width": 27.993791580200195,
+    "x": 169.92904663085938,
+    "y": 337.4704284667969
+  },
+  {
+    "boxShadow": "rgb(255, 255, 255) 0px 0px 0px 1px, rgb(9, 105, 218) 0px 0px 0px 2.5px, rgba(9, 105, 218, 0.1) 0px 0px 8px 1px",
+    "height": 27.993791580200195,
+    "name": "删除",
+    "outline": "none",
+    "tag": "BUTTON",
+    "width": 27.993791580200195,
+    "x": 201.9219512939453,
+    "y": 337.4704284667969
+  }
+]

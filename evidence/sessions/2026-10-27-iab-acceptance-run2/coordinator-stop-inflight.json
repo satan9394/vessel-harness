@@ -1,0 +1,36 @@
+{
+  "pausedStop": {
+    "cursor": 67,
+    "events": [
+      {
+        "sequence": 67,
+        "source": {
+          "tabId": 2
+        },
+        "method": "Fetch.requestPaused",
+        "params": {
+          "frameId": "DF396C3A3AFB8E2B941CCCCE4319CFDE",
+          "request": {
+            "initialPriority": "High",
+            "method": "POST",
+            "referrerPolicy": "strict-origin-when-cross-origin",
+            "url": "http://127.0.0.1:5678/api/sessions/sess_1793110195852_cdd3c84b/interrupt"
+          },
+          "requestId": "interception-job-951.0",
+          "resourceType": "XHR"
+        }
+      }
+    ],
+    "hasMore": false,
+    "truncated": false
+  },
+  "inflightStop": {
+    "buttons": [
+      {
+        "disabled": true,
+        "text": "正在请求停止…"
+      }
+    ],
+    "text": "☰\nVessel 本地服务运行正常（版本 0.10.0）\n命令\n偏好设置\n打开检视器\n会话 · 新会话\n当前模型\nfixture / fixture-model\n⌄\n模型能力\n新会话权限（不影响当前会话）: 工作区读写权限\n配置新模型\n计划 · 0 / 0\n\n本会话暂无计划步骤——启动一次任务后会在此常驻显示进度。\n\n您\n\npending stop controlled fixture\n\nVESSEL\n思考推演中…\n会话沙箱审计\n项目\nworkspace\n模型\nfixture / fixture-model\n审批档位\n工作区读写权限\n模式\n自动\n快速\n专业\n确定模型\n为本会话固定模型\n运行中…\n正在请求停止…\n上下文占用\n—\n⚡ 缓存\n—\n费用\n$0.0000\n计划\n0/0\n键位提示\n命令（Ctrl/Cmd+K）\n切换画布检视器（Ctrl/Cmd+I）\n发送\n⏎\n换行\n目标任务\n加入队列\n任务队列\n0 个任务\n暂无任务\n添加目标并运行，每次迭代都会显示生成结果与评估结论。\n暂停可挂起运行，恢复可继续执行；预算用于设置最大迭代数与重试数，默认均为 1。"
+  }
+}

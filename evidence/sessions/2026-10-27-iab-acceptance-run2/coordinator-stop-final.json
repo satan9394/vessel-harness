@@ -1,0 +1,12 @@
+{
+  "interceptionCleared": true,
+  "stopFinal": {
+    "buttons": [
+      {
+        "disabled": true,
+        "text": "停止"
+      }
+    ],
+    "text": "☰\nVessel 本地服务运行正常（版本 0.10.0）\n命令\n偏好设置\n打开检视器\n会话 · pending stop control\n当前模型\nfixture / fixture-model\n⌄\n模型能力\n新会话权限（不影响当前会话）: 工作区读写权限\n配置新模型\n次调用 1\n0+0 词元\n~$0.0000\n计划 · 0 / 0\n\n本会话暂无计划步骤——启动一次任务后会在此常驻显示进度。\n\n您\n\npending stop controlled fixture\n\n停止请求失败，尚未确认中断。请重试；运行状态与未发送草稿已保留。\n提示\n0 词元\n输出\n0 词元\n推理\n—\n缓存读取\n0 词元\n时延\n30047 毫秒\n估算成本\n$0.0000\n会话沙箱审计\n项目\nworkspace\n模型\nfixture / fixture-model\n审批档位\n工作区读写权限\n模式\n自动\n快速\n专业\n确定模型\n为本会话固定模型\n发送\n停止\n上下文占用\n—\n⚡ 缓存\n0%\n费用\n$0.0000\n计划\n0/0\n键位提示\n命令（Ctrl/Cmd+K）\n切换画布检视器（Ctrl/Cmd+I）\n发送\n⏎\n换行\n目标任务\n加入队列\n任务队列\n0 个任务\n暂无任务\n添加目标并运行，每次迭代都会显示生成结果与评估结论。\n暂停可挂起运行，恢复可继续执行；预算用于设置最大迭代数与重试数，默认均为 1。"
+  }
+}

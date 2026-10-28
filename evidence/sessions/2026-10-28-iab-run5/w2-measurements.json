@@ -1,0 +1,24 @@
+{
+  "inspectorText": "代码补丁审阅\n\n逐块审阅代码修改。回退可安全撤回已采纳的代码块，重新应用可恢复该块。\n\nfixture.txt\n+2\n−0\n收起差异\n\t\t--- /dev/null\n\t\t+++ b/fixture.txt\n\t\t@@ -0,0 +1,2 @@\n\t1\t+before\n\t2\t+second\n\t\t ",
+  "buttons": [
+    "收起差异"
+  ],
+  "viewport": {
+    "height": 567,
+    "width": 917
+  },
+  "widgetCountBefore": 1,
+  "widgetCountAfter": 1,
+  "additionalWidgets": 0,
+  "finalText": "您\n\nW2 SSE create fixture.txt\n\nWrite\n已完成\n30 毫秒\n工具详情\nfixture.txt\n+2\n−0\n收起差异\n\t\t--- /dev/null\n\t\t+++ b/fixture.txt\n\t\t@@ -0,0 +1,2 @@\n\t1\t+before\n\t2\t+second\n\t\t \nVESSEL\n\nFixture complete\n\n您\n\nW2 overwrite existing fixture.txt negative control\n\nWrite\n已完成\n22 毫秒\n工具详情\nVESSEL\n\nFixture complete",
+  "finalCapture": {
+    "text": "代码补丁审阅\n\n逐块审阅代码修改。回退可安全撤回已采纳的代码块，重新应用可恢复该块。\n\nfixture.txt\n+2\n−0\n收起差异\n\t\t--- /dev/null\n\t\t+++ b/fixture.txt\n\t\t@@ -0,0 +1,2 @@\n\t1\t+before\n\t2\t+second\n\t\t ",
+    "buttons": [
+      "收起差异"
+    ],
+    "widgetCountBefore": 1,
+    "widgetCountAfter": 1,
+    "additionalWidgets": 0,
+    "completedWriteCards": 2
+  }
+}

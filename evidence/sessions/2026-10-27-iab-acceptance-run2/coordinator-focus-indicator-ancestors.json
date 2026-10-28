@@ -1,0 +1,62 @@
+{
+  "indicatorFocused": [
+    {
+      "border": "0px none rgb(31, 35, 40)",
+      "class": "input",
+      "outline": "rgb(31, 35, 40) none 2.83856px",
+      "shadow": "none",
+      "tag": "SELECT"
+    },
+    {
+      "border": "0.473093px solid rgb(183, 192, 202)",
+      "class": "capsule-select",
+      "outline": "rgb(31, 35, 40) none 2.83856px",
+      "shadow": "rgb(255, 255, 255) 0px 0px 0px 1px, rgb(9, 105, 218) 0px 0px 0px 2.5px, rgba(9, 105, 218, 0.1) 0px 0px 8px 1px",
+      "tag": "SPAN"
+    },
+    {
+      "border": "0px none rgb(31, 35, 40)",
+      "class": "",
+      "outline": "rgb(31, 35, 40) none 2.83856px",
+      "shadow": "none",
+      "tag": "LABEL"
+    },
+    {
+      "border": "0px none rgb(31, 35, 40)",
+      "class": "composer-options composer-pills",
+      "outline": "rgb(31, 35, 40) none 2.83856px",
+      "shadow": "none",
+      "tag": "DIV"
+    }
+  ],
+  "indicatorBlurred": [
+    {
+      "border": "0px none rgb(31, 35, 40)",
+      "class": "input",
+      "outline": "rgb(31, 35, 40) none 2.83856px",
+      "shadow": "none",
+      "tag": "SELECT"
+    },
+    {
+      "border": "0.473093px solid rgb(209, 217, 224)",
+      "class": "capsule-select",
+      "outline": "rgb(31, 35, 40) none 2.83856px",
+      "shadow": "none",
+      "tag": "SPAN"
+    },
+    {
+      "border": "0px none rgb(31, 35, 40)",
+      "class": "",
+      "outline": "rgb(31, 35, 40) none 2.83856px",
+      "shadow": "none",
+      "tag": "LABEL"
+    },
+    {
+      "border": "0px none rgb(31, 35, 40)",
+      "class": "composer-options composer-pills",
+      "outline": "rgb(31, 35, 40) none 2.83856px",
+      "shadow": "none",
+      "tag": "DIV"
+    }
+  ]
+}

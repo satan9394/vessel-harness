@@ -1,0 +1,187 @@
+{
+  "head": "40cd6a95c920dc2beba4b90b95d759872407dcae",
+  "node": "v24.22.1",
+  "npm": "12.2.1",
+  "startedAt": "2026-10-27T02:29:18.430Z",
+  "mode": "offline",
+  "live": false,
+  "platform": "win32",
+  "arch": "x64",
+  "worktreeStatus": "?? tasks/340-board-backlog-closeout.md",
+  "diffSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "sourceHashes": {
+    "packages/core/src/agent-loop/AgentLoop.llm-retry-record.test.ts": "95ff1d1b218d6daed0682dc2100189072bee03b908c14ac22a16bfa24f855c6c",
+    "packages/application/src/session/effect-recovery.test.ts": "87aa0a0b4aceefecd00084e645fdfe5bd43b8e173b06d526857b56427b075e12",
+    "apps/local-server/src/server.test.ts": "99d5462c8b2a2f8917d574fa5a831eac14f47d9acbf7f41fb9fad37bc53d79ef",
+    "benchmarks/runners/src/adapters/codex.test.ts": "cdb7330d2a7179dcb8ede447dd9b51d5994707fba461cb03a851985fceda524c",
+    "packages/tools/src/mcp/mcp.test.ts": "8cf4822c0d7cdc04f3657d9847d601794d15d1a8e62c575b9b059d61aee73077",
+    "packages/application/src/projections/projections.test.ts": "e3f5bb8baddf035b7016dcdf9199f2ac78c27f63ebf661c30145301c1d30ccee",
+    "packages/llm/src/capabilities.test.ts": "47d9629a538ff29f3071350758e35d8c697cc789d5699fb69ab20221018f7c40",
+    "benchmarks/runners/src/reliability.ts": "76f128b6d6d99b446d64c56f8680cdeadbdbbb3b6756df66869d4f0671e501ad",
+    "vitest.config.ts": "1ab4ece152d9dfb5cb5582ee826ed9291e4eb9b6f6b578b5dd6325dd61dfa20c",
+    "vitest.setup.ts": "61f363a28a3bd180b894a392a8a6bcd53734ef30f60d7d08c771b3e15a0678a0",
+    "package.json": "56981770f85d2ca7b377bc9c02fd06e2d05fac979aff3456a723c5e6199d3396",
+    "package-lock.json": "677e249480d638b853be4bf82ba1d2b2064181149324b83344f29109f6669b97"
+  },
+  "finishedAt": "2026-10-27T02:29:32.080Z",
+  "categories": {
+    "retry": [
+      "R01"
+    ],
+    "crash": [
+      "R02",
+      "R03",
+      "R04",
+      "R05"
+    ],
+    "soft-delete": [
+      "R06",
+      "R07",
+      "R08"
+    ],
+    "adapter-unavailable": [
+      "R09",
+      "R10"
+    ],
+    "unknown-tool": [
+      "R11"
+    ],
+    "event-replay": [
+      "R12"
+    ],
+    "capability-negotiation": [
+      "R13",
+      "R14"
+    ]
+  },
+  "fixtures": [
+    {
+      "id": "R01",
+      "category": "retry",
+      "source": "packages/core/src/agent-loop/AgentLoop.llm-retry-record.test.ts",
+      "title": "① 一次可重试失败 ⇒ 会话日志出现一条 llm/retry：字段如实、且在任何等待之前落盘",
+      "outcome": "passed",
+      "live": false,
+      "evidence": "evidence/sessions/task274-reliability-2026-10-27T02-29-18-430Z-b8dd800c/R01.json"
+    },
+    {
+      "id": "R02",
+      "category": "crash",
+      "source": "packages/application/src/session/effect-recovery.test.ts",
+      "title": "recovers a real policy/executor process exit at before_intent through SessionController and explicit reconcile",
+      "outcome": "passed",
+      "live": false,
+      "evidence": "evidence/sessions/task274-reliability-2026-10-27T02-29-18-430Z-b8dd800c/R02.json"
+    },
+    {
+      "id": "R03",
+      "category": "crash",
+      "source": "packages/application/src/session/effect-recovery.test.ts",
+      "title": "recovers a real policy/executor process exit at after_intent through SessionController and explicit reconcile",
+      "outcome": "passed",
+      "live": false,
+      "evidence": "evidence/sessions/task274-reliability-2026-10-27T02-29-18-430Z-b8dd800c/R03.json"
+    },
+    {
+      "id": "R04",
+      "category": "crash",
+      "source": "packages/application/src/session/effect-recovery.test.ts",
+      "title": "recovers a real policy/executor process exit at after_effect through SessionController and explicit reconcile",
+      "outcome": "passed",
+      "live": false,
+      "evidence": "evidence/sessions/task274-reliability-2026-10-27T02-29-18-430Z-b8dd800c/R04.json"
+    },
+    {
+      "id": "R05",
+      "category": "crash",
+      "source": "packages/application/src/session/effect-recovery.test.ts",
+      "title": "recovers a real policy/executor process exit at after_outcome through SessionController and explicit reconcile",
+      "outcome": "passed",
+      "live": false,
+      "evidence": "evidence/sessions/task274-reliability-2026-10-27T02-29-18-430Z-b8dd800c/R05.json"
+    },
+    {
+      "id": "R06",
+      "category": "soft-delete",
+      "source": "apps/local-server/src/server.test.ts",
+      "title": "waits for recycling before acknowledging deletion, after durably removing the session index",
+      "outcome": "passed",
+      "live": false,
+      "evidence": "evidence/sessions/task274-reliability-2026-10-27T02-29-18-430Z-b8dd800c/R06.json"
+    },
+    {
+      "id": "R07",
+      "category": "soft-delete",
+      "source": "apps/local-server/src/server.test.ts",
+      "title": "reports recycling failure and retains the session for a successful retry",
+      "outcome": "passed",
+      "live": false,
+      "evidence": "evidence/sessions/task274-reliability-2026-10-27T02-29-18-430Z-b8dd800c/R07.json"
+    },
+    {
+      "id": "R08",
+      "category": "soft-delete",
+      "source": "apps/local-server/src/server.test.ts",
+      "title": "reports stale index on failed recycle rollback, retains metadata and repairs on retry",
+      "outcome": "passed",
+      "live": false,
+      "evidence": "evidence/sessions/task274-reliability-2026-10-27T02-29-18-430Z-b8dd800c/R08.json"
+    },
+    {
+      "id": "R09",
+      "category": "adapter-unavailable",
+      "source": "benchmarks/runners/src/adapters/codex.test.ts",
+      "title": "marks run pending-environment when Codex CLI is absent, without throwing",
+      "outcome": "passed",
+      "live": false,
+      "evidence": "evidence/sessions/task274-reliability-2026-10-27T02-29-18-430Z-b8dd800c/R09.json"
+    },
+    {
+      "id": "R10",
+      "category": "adapter-unavailable",
+      "source": "benchmarks/runners/src/adapters/codex.test.ts",
+      "title": "surface a run-time failure (CLI non-zero exit) as metrics.success=false, still a valid RunResult",
+      "outcome": "passed",
+      "live": false,
+      "evidence": "evidence/sessions/task274-reliability-2026-10-27T02-29-18-430Z-b8dd800c/R10.json"
+    },
+    {
+      "id": "R11",
+      "category": "unknown-tool",
+      "source": "packages/tools/src/mcp/mcp.test.ts",
+      "title": "unknown MCP tool calls surface as TOOL_FAILURE (never crash the registry)",
+      "outcome": "passed",
+      "live": false,
+      "evidence": "evidence/sessions/task274-reliability-2026-10-27T02-29-18-430Z-b8dd800c/R11.json"
+    },
+    {
+      "id": "R12",
+      "category": "event-replay",
+      "source": "packages/application/src/projections/projections.test.ts",
+      "title": "foldSession is idempotent: folding the same session twice never double-counts",
+      "outcome": "passed",
+      "live": false,
+      "evidence": "evidence/sessions/task274-reliability-2026-10-27T02-29-18-430Z-b8dd800c/R12.json"
+    },
+    {
+      "id": "R13",
+      "category": "capability-negotiation",
+      "source": "packages/llm/src/capabilities.test.ts",
+      "title": "requires evidence for mandatory unknown capabilities and checks context size",
+      "outcome": "passed",
+      "live": false,
+      "evidence": "evidence/sessions/task274-reliability-2026-10-27T02-29-18-430Z-b8dd800c/R13.json"
+    },
+    {
+      "id": "R14",
+      "category": "capability-negotiation",
+      "source": "packages/llm/src/capabilities.test.ts",
+      "title": "blocks stream and model-specific declarations without falling back to another model",
+      "outcome": "passed",
+      "live": false,
+      "evidence": "evidence/sessions/task274-reliability-2026-10-27T02-29-18-430Z-b8dd800c/R14.json"
+    }
+  ],
+  "errors": [],
+  "success": true
+}

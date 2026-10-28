@@ -1,0 +1,299 @@
+{
+  "focusMeta": {
+    "height": 720,
+    "scrollX": 0,
+    "scrollY": 0,
+    "width": 1280
+  },
+  "focusAudit": [
+    {
+      "label": "workbench-initial",
+      "border": "rgb(31, 35, 40)",
+      "focusVisible": true,
+      "name": "描述目标、范围与验收标准…",
+      "outline": "rgb(31, 35, 40) none 2.83856px",
+      "rect": {
+        "height": 150,
+        "width": 939.2667236328124,
+        "x": 300.45831298828125,
+        "y": 319.0198059082031
+      },
+      "shadow": "none",
+      "tag": "TEXTAREA",
+      "unobscured": true
+    },
+    {
+      "label": "workbench-model",
+      "border": "rgb(209, 217, 224)",
+      "focusVisible": true,
+      "name": "fixture / fixture-model\n⌄",
+      "outline": "rgb(9, 105, 218) solid 1.89237px",
+      "rect": {
+        "height": 33.50088882446289,
+        "width": 176.08663940429688,
+        "x": 300.45831298828125,
+        "y": 507.9686584472656
+      },
+      "shadow": "rgba(31, 35, 40, 0.08) 0px 1px 2px 0px, rgba(255, 255, 255, 0.27) 0px 1px 0px 0px inset",
+      "tag": "BUTTON",
+      "unobscured": true
+    },
+    {
+      "label": "workbench-permission",
+      "border": "rgb(31, 35, 40)",
+      "focusVisible": true,
+      "name": "新会话权限（不影响当前会话）",
+      "outline": "rgb(31, 35, 40) none 2.83856px",
+      "rect": {
+        "height": 34.5875244140625,
+        "width": 294.2046203613281,
+        "x": 848.0706787109375,
+        "y": 506.408935546875
+      },
+      "shadow": "none",
+      "tag": "SELECT",
+      "unobscured": true
+    },
+    {
+      "label": "advanced-new-session",
+      "border": "rgb(209, 217, 224)",
+      "focusVisible": true,
+      "name": "高级新会话",
+      "outline": "rgb(9, 105, 218) solid 1.89237px",
+      "rect": {
+        "height": 31.992904663085938,
+        "width": 89.75458526611328,
+        "x": 283.98876953125,
+        "y": 569.9364624023438
+      },
+      "shadow": "rgba(31, 35, 40, 0.08) 0px 1px 2px 0px, rgba(255, 255, 255, 0.27) 0px 1px 0px 0px inset",
+      "tag": "BUTTON",
+      "unobscured": true
+    },
+    {
+      "label": "new-dialog-workspace",
+      "border": "rgb(209, 217, 224)",
+      "focusVisible": true,
+      "name": "输入项目的绝对路径",
+      "outline": "rgb(238, 238, 238) auto 0.946186px",
+      "rect": {
+        "height": 33.97397994995117,
+        "width": 378.112060546875,
+        "x": 451.034912109375,
+        "y": 319.04937744140625
+      },
+      "shadow": "none",
+      "tag": "INPUT",
+      "unobscured": true
+    },
+    {
+      "label": "new-dialog-cancel",
+      "border": "rgb(209, 217, 224)",
+      "focusVisible": true,
+      "name": "取消",
+      "outline": "rgb(9, 105, 218) solid 1.89237px",
+      "rect": {
+        "height": 31.992904663085938,
+        "width": 51.43406295776367,
+        "x": 718.2806396484375,
+        "y": 369.0198059082031
+      },
+      "shadow": "rgba(31, 35, 40, 0.08) 0px 1px 2px 0px, rgba(255, 255, 255, 0.27) 0px 1px 0px 0px inset",
+      "tag": "BUTTON",
+      "unobscured": true
+    },
+    {
+      "label": "new-dialog-create",
+      "border": "rgb(9, 105, 218)",
+      "focusVisible": true,
+      "name": "创建",
+      "outline": "rgb(9, 105, 218) solid 1.89237px",
+      "rect": {
+        "height": 31.992904663085938,
+        "width": 51.43406295776367,
+        "x": 777.712890625,
+        "y": 369.0198059082031
+      },
+      "shadow": "rgba(31, 35, 40, 0.08) 0px 1px 2px 0px, rgba(255, 255, 255, 0.27) 0px 1px 0px 0px inset",
+      "tag": "BUTTON",
+      "unobscured": true
+    },
+    {
+      "label": "conversation-ready",
+      "border": "rgb(209, 217, 224)",
+      "focusVisible": true,
+      "name": "输入消息…（Enter 发送，Shift+Enter 换行）",
+      "outline": "rgb(238, 238, 238) auto 0.946186px",
+      "rect": {
+        "height": 37.995269775390625,
+        "width": 554.19873046875,
+        "x": 275.99053955078125,
+        "y": 398.6546630859375
+      },
+      "shadow": "none",
+      "tag": "TEXTAREA",
+      "unobscured": true
+    },
+    {
+      "label": "inspector-toggle-close",
+      "border": "rgb(209, 217, 224)",
+      "focusVisible": true,
+      "name": "输入消息…（Enter 发送，Shift+Enter 换行）",
+      "outline": "rgb(238, 238, 238) auto 0.946186px",
+      "rect": {
+        "height": 37.995269775390625,
+        "width": 554.19873046875,
+        "x": 275.99053955078125,
+        "y": 428.6369018554687
+      },
+      "shadow": "none",
+      "tag": "TEXTAREA",
+      "unobscured": true
+    },
+    {
+      "label": "inspector-open-close-control",
+      "border": "rgb(209, 217, 224)",
+      "focusVisible": true,
+      "name": "输入消息…（Enter 发送，Shift+Enter 换行）",
+      "outline": "rgb(238, 238, 238) auto 0.946186px",
+      "rect": {
+        "height": 37.995269775390625,
+        "width": 554.19873046875,
+        "x": 275.99053955078125,
+        "y": 428.6369018554687
+      },
+      "shadow": "none",
+      "tag": "TEXTAREA",
+      "unobscured": true
+    },
+    {
+      "label": "inspector-close-focused",
+      "border": "rgb(209, 217, 224)",
+      "focusVisible": true,
+      "name": "关闭检视器",
+      "outline": "rgb(9, 105, 218) solid 1.89237px",
+      "rect": {
+        "height": 31.992904663085938,
+        "width": 51.43406295776367,
+        "x": 1201.618896484375,
+        "y": 59.99408721923828
+      },
+      "shadow": "rgba(31, 35, 40, 0.08) 0px 1px 2px 0px, rgba(255, 255, 255, 0.27) 0px 1px 0px 0px inset",
+      "tag": "BUTTON",
+      "unobscured": true
+    },
+    {
+      "label": "inspector-escape-return",
+      "border": "rgb(209, 217, 224)",
+      "focusVisible": true,
+      "name": "关闭检视器",
+      "outline": "rgb(9, 105, 218) solid 1.89237px",
+      "rect": {
+        "height": 31.992904663085938,
+        "width": 51.43406295776367,
+        "x": 1201.618896484375,
+        "y": 59.99408721923828
+      },
+      "shadow": "rgba(31, 35, 40, 0.08) 0px 1px 2px 0px, rgba(255, 255, 255, 0.27) 0px 1px 0px 0px inset",
+      "tag": "BUTTON",
+      "unobscured": true
+    },
+    {
+      "label": "sidebar-delete",
+      "border": "rgb(209, 217, 224)",
+      "focusVisible": true,
+      "name": "删除",
+      "outline": "rgb(89, 99, 110) none 2.83856px",
+      "rect": {
+        "height": 27.993791580200195,
+        "width": 27.993791580200195,
+        "x": 186.7829742431641,
+        "y": 345.9861145019531
+      },
+      "shadow": "rgb(255, 255, 255) 0px 0px 0px 1px, rgb(9, 105, 218) 0px 0px 0px 2.5px, rgba(9, 105, 218, 0.1) 0px 0px 8px 1px",
+      "tag": "BUTTON",
+      "unobscured": true
+    },
+    {
+      "label": "delete-dialog-cancel",
+      "border": "rgb(209, 217, 224)",
+      "focusVisible": true,
+      "name": "取消",
+      "outline": "rgb(9, 105, 218) solid 1.89237px",
+      "rect": {
+        "height": 27.993791580200195,
+        "width": 40.59728240966797,
+        "x": 56.59373092651367,
+        "y": 430.9728088378906
+      },
+      "shadow": "rgba(31, 35, 40, 0.08) 0px 1px 2px 0px, rgba(255, 255, 255, 0.27) 0px 1px 0px 0px inset",
+      "tag": "BUTTON",
+      "unobscured": true
+    },
+    {
+      "label": "delete-dialog-confirm",
+      "border": "rgb(180, 41, 46)",
+      "focusVisible": true,
+      "name": "确认",
+      "outline": "rgb(9, 105, 218) solid 1.89237px",
+      "rect": {
+        "height": 27.993791580200195,
+        "width": 40.59728240966797,
+        "x": 11.997339248657228,
+        "y": 430.9728088378906
+      },
+      "shadow": "rgba(31, 35, 40, 0.08) 0px 1px 2px 0px, rgba(255, 255, 255, 0.27) 0px 1px 0px 0px inset",
+      "tag": "BUTTON",
+      "unobscured": true
+    },
+    {
+      "label": "delete-escape-restored",
+      "border": "rgb(209, 217, 224)",
+      "focusVisible": true,
+      "name": "删除",
+      "outline": "rgb(89, 99, 110) none 2.83856px",
+      "rect": {
+        "height": 27.993791580200195,
+        "width": 27.993791580200195,
+        "x": 186.7829742431641,
+        "y": 345.9861145019531
+      },
+      "shadow": "rgb(255, 255, 255) 0px 0px 0px 1px, rgb(9, 105, 218) 0px 0px 0px 2.5px, rgba(9, 105, 218, 0.1) 0px 0px 8px 1px",
+      "tag": "BUTTON",
+      "unobscured": true
+    },
+    {
+      "label": "permission-focused-recheck",
+      "border": "rgb(31, 35, 40)",
+      "focusVisible": true,
+      "name": "新会话权限（不影响当前会话）",
+      "outline": "rgb(31, 35, 40) none 2.83856px",
+      "rect": {
+        "height": 34.5875244140625,
+        "width": 294.2046203613281,
+        "x": 848.0706787109375,
+        "y": 506.408935546875
+      },
+      "shadow": "none",
+      "tag": "SELECT",
+      "unobscured": true
+    }
+  ],
+  "selectStyleBefore": {
+    "bg": "rgba(0, 0, 0, 0)",
+    "border": "0px none rgb(31, 35, 40)",
+    "color": "rgb(31, 35, 40)",
+    "focus": false,
+    "outline": "rgb(31, 35, 40) none 2.83856px",
+    "shadow": "none"
+  },
+  "focusedStyle": {
+    "bg": "rgba(0, 0, 0, 0)",
+    "border": "0px none rgb(31, 35, 40)",
+    "color": "rgb(31, 35, 40)",
+    "focus": true,
+    "outline": "rgb(31, 35, 40) none 2.83856px",
+    "shadow": "none",
+    "tag": "SELECT"
+  }
+}

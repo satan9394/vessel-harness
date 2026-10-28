@@ -1,0 +1,314 @@
+{
+  "session": "sess_1793197528609_c059b01e",
+  "pending": {
+    "text": "正在请求停止…",
+    "disabled": true
+  },
+  "interception": {
+    "cursor": 60,
+    "events": [
+      {
+        "sequence": 60,
+        "source": {
+          "tabId": 1
+        },
+        "method": "Fetch.requestPaused",
+        "params": {
+          "frameId": "0E5C6CE3F58CC877CD99630E8856D5B3",
+          "request": {
+            "headers": {
+              "Accept": "*/*",
+              "Origin": "http://127.0.0.1:5678",
+              "Referer": "http://127.0.0.1:5678/",
+              "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/156.0.0.0 Safari/537.36",
+              "content-type": "application/json",
+              "sec-ch-ua": "\"Not:A-Brand\";v=\"8\", \"Chromium\";v=\"156\", \"Google Chrome\";v=\"156\"",
+              "sec-ch-ua-mobile": "?0",
+              "sec-ch-ua-platform": "\"Windows\""
+            },
+            "initialPriority": "High",
+            "method": "POST",
+            "referrerPolicy": "strict-origin-when-cross-origin",
+            "url": "http://127.0.0.1:5678/api/sessions/sess_1793197528609_c059b01e/interrupt"
+          },
+          "requestId": "interception-job-47.0",
+          "resourceType": "XHR"
+        }
+      }
+    ],
+    "hasMore": false,
+    "truncated": false
+  },
+  "measurement": {
+    "ancestors": [
+      {
+        "class": "message-list-scroll scroll-fade-mask",
+        "clientHeight": 87,
+        "rect": {
+          "bottom": 195.2173309326172,
+          "height": 87.38912200927734,
+          "top": 107.82820892333984,
+          "width": 902.1880493164062,
+          "x": 0,
+          "y": 107.82820892333984
+        },
+        "scrollHeight": 1267,
+        "scrollTop": 1178.9473876953125,
+        "tag": "DIV"
+      },
+      {
+        "class": "conversation",
+        "clientHeight": 378,
+        "rect": {
+          "bottom": 361.546422958374,
+          "height": 378.0085754394531,
+          "top": -16.4621524810791,
+          "width": 902.1880493164062,
+          "x": 0,
+          "y": -16.4621524810791
+        },
+        "scrollHeight": 378,
+        "scrollTop": 0,
+        "tag": "DIV"
+      },
+      {
+        "class": "chat-surface",
+        "clientHeight": 420,
+        "rect": {
+          "bottom": 361.5464324951172,
+          "height": 419.9955749511719,
+          "top": -58.44914245605469,
+          "width": 902.1880493164062,
+          "x": 0,
+          "y": -58.44914245605469
+        },
+        "scrollHeight": 420,
+        "scrollTop": 0,
+        "tag": "DIV"
+      },
+      {
+        "class": "dual-surface",
+        "clientHeight": 420,
+        "rect": {
+          "bottom": 361.5464324951172,
+          "height": 419.9955749511719,
+          "top": -58.44914245605469,
+          "width": 902.1880493164062,
+          "x": 0,
+          "y": -58.44914245605469
+        },
+        "scrollHeight": 420,
+        "scrollTop": 0,
+        "tag": "DIV"
+      },
+      {
+        "class": "conversation-wrap",
+        "clientHeight": 519,
+        "rect": {
+          "bottom": 567.2383270263672,
+          "height": 519.2415771484375,
+          "top": 47.99674987792969,
+          "width": 917.3270263671876,
+          "x": 0,
+          "y": 47.99674987792969
+        },
+        "scrollHeight": 657,
+        "scrollTop": 106.44589233398438,
+        "tag": "DIV"
+      },
+      {
+        "class": "workbench-region",
+        "clientHeight": 519,
+        "rect": {
+          "bottom": 567.2383270263672,
+          "height": 519.2415771484375,
+          "top": 47.99674987792969,
+          "width": 917.3270263671876,
+          "x": 0,
+          "y": 47.99674987792969
+        },
+        "scrollHeight": 519,
+        "scrollTop": 0,
+        "tag": "DIV"
+      },
+      {
+        "class": "main",
+        "clientHeight": 567,
+        "rect": {
+          "bottom": 567.2383422851562,
+          "height": 567.2383422851562,
+          "top": 0,
+          "width": 917.3270263671876,
+          "x": 0,
+          "y": 0
+        },
+        "scrollHeight": 567,
+        "scrollTop": 0,
+        "tag": "MAIN"
+      },
+      {
+        "class": "app",
+        "clientHeight": 567,
+        "rect": {
+          "bottom": 567.2383422851562,
+          "height": 567.2383422851562,
+          "top": 0,
+          "width": 917.3270263671876,
+          "x": 0,
+          "y": 0
+        },
+        "scrollHeight": 567,
+        "scrollTop": 0,
+        "tag": "DIV"
+      },
+      {
+        "class": "",
+        "clientHeight": 567,
+        "rect": {
+          "bottom": 567.2383422851562,
+          "height": 567.2383422851562,
+          "top": 0,
+          "width": 917.3270263671876,
+          "x": 0,
+          "y": 0
+        },
+        "scrollHeight": 567,
+        "scrollTop": 0,
+        "tag": "DIV"
+      },
+      {
+        "class": "",
+        "clientHeight": 567,
+        "rect": {
+          "bottom": 567.2383422851562,
+          "height": 567.2383422851562,
+          "top": 0,
+          "width": 917.3270263671876,
+          "x": 0,
+          "y": 0
+        },
+        "scrollHeight": 567,
+        "scrollTop": 0,
+        "tag": "BODY"
+      },
+      {
+        "class": "tokens light",
+        "clientHeight": 567,
+        "rect": {
+          "bottom": 567.2383422851562,
+          "height": 567.2383422851562,
+          "top": 0,
+          "width": 917.3270263671876,
+          "x": 0,
+          "y": 0
+        },
+        "scrollHeight": 567,
+        "scrollTop": 0,
+        "tag": "HTML"
+      }
+    ],
+    "lines": [
+      {
+        "bottom": 169.98817443847656,
+        "left": 225.30308532714844,
+        "right": 661.7460174560547,
+        "top": 152.01065063476562
+      }
+    ],
+    "rect": {
+      "bottom": 171.51094436645508,
+      "height": 20.919574737548828,
+      "top": 150.59136962890625,
+      "width": 839.0597534179688,
+      "x": 23.994678497314453,
+      "y": 150.59136962890625
+    },
+    "text": "停止请求失败，尚未确认中断。请重试；运行状态与未发送草稿已保留。",
+    "viewport": {
+      "height": 567,
+      "width": 917
+    }
+  },
+  "failedStopEnabled": true,
+  "thinking": false,
+  "thinkingEvidence": {
+    "rect": {
+      "bottom": 138.59403228759766,
+      "height": 44.91425323486328,
+      "left": 63.52750015258789,
+      "right": 157.57687759399414,
+      "top": 93.67977905273438,
+      "width": 94.04937744140624,
+      "x": 63.52750015258789,
+      "y": 93.67977905273438
+    },
+    "text": "思考推演中… "
+  },
+  "scrollAfterWheel": {
+    "clientHeight": 87,
+    "scrollHeight": 1267,
+    "scrollTop": 545.0029907226562
+  },
+  "scrollAfterWait": {
+    "clientHeight": 87,
+    "scrollHeight": 1267,
+    "scrollTop": 545.0029907226562
+  },
+  "recapturePending": false,
+  "recapture": {
+    "clientHeight": 87,
+    "container": {
+      "bottom": 195.2173309326172,
+      "height": 87.38912200927734,
+      "left": 0,
+      "right": 902.1880493164062,
+      "top": 107.82820892333984,
+      "width": 902.1880493164062,
+      "x": 0,
+      "y": 107.82820892333984
+    },
+    "lines": [
+      {
+        "bottom": 169.98817443847656,
+        "height": 17.977523803710938,
+        "left": 225.30308532714844,
+        "right": 661.7460174560547,
+        "top": 152.01065063476562,
+        "width": 436.44293212890625,
+        "x": 225.30308532714844,
+        "y": 152.01065063476562
+      }
+    ],
+    "rect": {
+      "bottom": 171.51094436645508,
+      "height": 20.919574737548828,
+      "left": 23.994678497314453,
+      "right": 863.0544319152832,
+      "top": 150.59136962890625,
+      "width": 839.0597534179688,
+      "x": 23.994678497314453,
+      "y": 150.59136962890625
+    },
+    "scrollHeight": 1267,
+    "scrollTop": 1178.9473876953125,
+    "text": "停止请求失败，尚未确认中断。请重试；运行状态与未发送草稿已保留。",
+    "viewport": {
+      "height": 567,
+      "width": 917
+    }
+  },
+  "recaptureThinking": {
+    "rect": {
+      "bottom": 138.59403228759766,
+      "height": 44.91425323486328,
+      "left": 63.52750015258789,
+      "right": 157.57687759399414,
+      "top": 93.67977905273438,
+      "width": 94.04937744140624,
+      "x": 63.52750015258789,
+      "y": 93.67977905273438
+    },
+    "text": "思考推演中… "
+  },
+  "recaptureStopEnabled": true
+}

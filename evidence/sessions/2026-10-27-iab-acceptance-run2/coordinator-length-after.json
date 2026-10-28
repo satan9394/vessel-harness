@@ -1,0 +1,5 @@
+{
+  "alerts": [],
+  "text": "Vessel\n‹\n+ 新建会话\n项目\nworkspace\n历史会话\n显示已归档\nworkspace\n今天\nlength fixture coord\n06:54\nlong fixture\n06:30\npending persistence\n06:27\ntool error fixture\n06:21\nhttp error fixture\n06:19\npending fixture\n06:19\nKeyboard fixture lin\n06:10\n\n项目 → 会话 → 运行 → 子代理\n\n工作台\n活动\nAgent Studio\n设置\nLight\nVessel 本地服务运行正常（版本 0.10.0）\n命令\n偏好设置\n收起检视器\n会话 · length fixture coord\n当前模型\nfixture / fixture-model\n⌄\n模型能力\n新会话权限（不影响当前会话）: 工作区读写权限\n配置新模型\n次调用 1\n3+2 词元\n~$0.0000\n计划 · 0 / 0\n\n本会话暂无计划步骤——启动一次任务后会在此常驻显示进度。\n\n您\n\nlength fixture coordinator\n\nVESSEL\n\nFixture length-limited answer\n\n内容达到模型长度上限，可继续生成。\n提示\n3 词元\n输出\n2 词元\n推理\n—\n缓存读取\n0 词元\n估算成本\n$0.0000\n会话沙箱审计\n项目\nworkspace\n模型\nfixture / fixture-model\n审批档位\n工作区读写权限\n模式\n自动\n快速\n专业\n确定模型\n为本会话固定模型\n发送\n停止\n上下文占用\n—\n⚡ 缓存\n—\n费用\n$0.0000\n计划\n0/0\n键位提示\n命令（Ctrl/Cmd+K）\n切换画布检视器（Ctrl/Cmd+I）\n发送\n⏎\n换行\n画布检视器\n关闭\n变更\n执行\n诊断\n代码补丁\n影响范围\n代码补丁审阅\n\n逐块审阅代码修改。回退可安全撤回已采纳的代码块，重新应用可恢复该块。\n\n本会话暂无补丁提案。\n\n目标任务\n加入队列\n任务队列\n0 个任务\n暂无任务\n添加目标并运行，每次迭代都会显示生成结果与评估结论。\n暂停可挂起运行，恢复可继续执行；预算用于设置最大迭代数与重试数，默认均为 1。",
+  "url": "http://127.0.0.1:5678/"
+}

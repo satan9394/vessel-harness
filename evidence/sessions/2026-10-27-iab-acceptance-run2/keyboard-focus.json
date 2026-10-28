@@ -1,0 +1,158 @@
+[
+  {
+    "name": "fixture / fixture-model⌄",
+    "outline": "solid 1.89237px",
+    "rect": [
+      300.931396484375,
+      509.387939453125,
+      177.03282165527344,
+      34.44707489013672
+    ],
+    "tag": "BUTTON",
+    "visible": true
+  },
+  {
+    "name": "新会话权限（不影响当前会话）",
+    "outline": "none 2.83856px",
+    "rect": [
+      928.4964599609376,
+      508.3013000488281,
+      372.738037109375,
+      34.5875244140625
+    ],
+    "tag": "SELECT",
+    "visible": true
+  },
+  {
+    "name": "高级新会话",
+    "outline": "solid 1.89237px",
+    "rect": [
+      283.98876953125,
+      572.7750244140625,
+      89.75458526611328,
+      31.992904663085938
+    ],
+    "tag": "BUTTON",
+    "visible": true
+  },
+  {
+    "name": "配置新模型",
+    "outline": "solid 1.89237px",
+    "rect": [
+      381.7415771484375,
+      572.7750244140625,
+      89.75458526611328,
+      31.992904663085938
+    ],
+    "tag": "BUTTON",
+    "visible": true
+  },
+  {
+    "name": "关闭Vessel‹+ 新建会话项目workspace历史会话显示已归档workspace今天long fixture06:30pending persistence06:27tool error fixture06:21http error fixture06:19pending fixture06:19Keyboard fixture lin06:10项目 → 会话 → 运行 → 子代理工作台活动Agent Studio设置Light☰Vessel 本地服务运行正常（版本 0.10.0）命令偏好设置关闭提示音开启桌面通知工作台视图中文项目 → 会话 → 运行 → 子代理让 Vessel 完成什么任务？选择项目打开项目目录workspaceC:\\work\\AppData\\Local\\Temp\\vessel-iab-run2-1b21431d\\workspace让 Vessel 完成什么任务？fixture / fixture-model⌄新会话权限（不影响当前会话）只读探索权限工作区读写权限完全访问权限（可执行命令、可联网）开始任务高级新会话配置新模型",
+    "outline": "none 2.83856px",
+    "rect": [
+      0,
+      0,
+      1440.0946044921875,
+      900.2957153320312
+    ],
+    "tag": "BODY",
+    "visible": true
+  },
+  {
+    "name": "收起侧边栏",
+    "outline": "solid 1.89237px",
+    "rect": [
+      191.91307067871097,
+      13.993199348449709,
+      39.9985237121582,
+      31.992904663085938
+    ],
+    "tag": "BUTTON",
+    "visible": true
+  },
+  {
+    "name": "+ 新建会话",
+    "outline": "solid 1.89237px",
+    "rect": [
+      11.997339248657228,
+      57.98344421386719,
+      219.9142608642578,
+      31.992904663085938
+    ],
+    "tag": "BUTTON",
+    "visible": true
+  },
+  {
+    "name": "workspace",
+    "outline": "solid 1.89237px",
+    "rect": [
+      19.99556541442871,
+      131.009765625,
+      203.9178009033203,
+      29.96747589111328
+    ],
+    "tag": "BUTTON",
+    "visible": true
+  },
+  {
+    "name": "搜索会话…",
+    "outline": "none 2.83856px",
+    "rect": [
+      11.997339248657228,
+      208.0130157470703,
+      219.9142608642578,
+      34.4692497253418
+    ],
+    "tag": "INPUT",
+    "visible": true
+  },
+  {
+    "name": null,
+    "outline": "auto 0.946186px",
+    "rect": [
+      21.991426467895508,
+      255.4997100830078,
+      12.995269775390623,
+      12.995269775390623
+    ],
+    "tag": "INPUT",
+    "visible": true
+  },
+  {
+    "name": "long fixture",
+    "outline": "none 2.83856px",
+    "rect": [
+      11.997339248657228,
+      351.58929443359375,
+      125.93879699707033,
+      28.149024963378903
+    ],
+    "tag": "BUTTON",
+    "visible": true
+  },
+  {
+    "name": "重命名会话",
+    "outline": "none 2.83856px",
+    "rect": [
+      137.93614196777344,
+      351.6632385253906,
+      27.993791580200195,
+      27.993791580200195
+    ],
+    "tag": "BUTTON",
+    "visible": true
+  },
+  {
+    "name": "归档会话",
+    "outline": "none 2.83856px",
+    "rect": [
+      169.92904663085938,
+      351.6632385253906,
+      27.993791580200195,
+      27.993791580200195
+    ],
+    "tag": "BUTTON",
+    "visible": true
+  }
+]
