@@ -59,4 +59,5 @@ id_ed25519
 .pypirc
 secrets.json
 .pdw/
+.codex/
 *.zip

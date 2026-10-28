@@ -17,9 +17,12 @@
 - 包管理器锁定 **npm**：`package-lock.json` 是唯一权威，禁止在仓库内引入 pnpm/bun/yarn 锁文件（`pnpm-lock.yaml`、`pnpm-workspace.yaml`、`bun.lockb`、`yarn.lock`）。不迁移 pnpm 的依据见 `docs/DESIGN-DECISIONS.md` 决策点 19。
 - 测试 Vitest：**全量 = `npm run test:all`**（两个 root：根 `npx vitest run` + `npx vitest run --root apps/web`；**web 有独立 vitest 配置，根 `include` 不含它**——只跑根会漏掉 `apps/web` 的近百项，见纪律 26）；类型构建 `npx tsc -b tsconfig.json`；CLI 直跑 `npx tsx apps/cli/src/cli.ts`。
 - Windows / PowerShell。删除铁律：所有删除走回收站（`[Microsoft.VisualBasic.FileIO.FileSystem]::Delete*`），禁止任何永久删除命令。
-  **唯一的书面例外（2026-09-12 决策，Round 43）**：**"测试自己刚创建、且位于系统临时根（`os.tmpdir()`）之下的临时目录/文件"**允许用 Node 的删除 API 清理——本仓既有约定如此（`packages/**` 测试里约 82 处 `fs.rmSync(dir, { recursive: true, force: true })` 都在 `afterEach`/`finally` 里删自己建的 tmp 目录），**不要去把它们改成回收站**：每次全量测试会产生成百上千个临时目录，回收站化会让回收站爆满、磁盘只增不减、测试变慢，属于给用户添垃圾而非保护数据。
+  **第一处书面例外（2026-09-12 决策，Round 43）**：**"测试自己刚创建、且位于系统临时根（`os.tmpdir()`）之下的临时目录/文件"**允许用 Node 的删除 API 清理——本仓既有约定如此（`packages/**` 测试里约 82 处 `fs.rmSync(dir, { recursive: true, force: true })` 都在 `afterEach`/`finally` 里删自己建的 tmp 目录），**不要去把它们改成回收站**：每次全量测试会产生成百上千个临时目录，回收站化会让回收站爆满、磁盘只增不减、测试变慢，属于给用户添垃圾而非保护数据。
   例外成立的条件（必须**同时**满足，缺一不可）：① 该路径是**本次测试进程自己创建**的；② 它**位于 `os.tmpdir()` 之下**（不是仓库内、不是 `~/.vessel`、不是用户目录）；③ 无其它进程/用例在引用。
-  **此例外之外一切照旧走回收站**——仓库内文件、`docs/`、`tasks/`、`configs/`、`~/.vessel` 状态、以及任何用户数据，永久删除一律禁止。
+  **第二处书面例外（2026-10-26 决策，决策点 24；细则见 `docs/DELETION-AND-RETENTION.md`）**：**产品运行时**按「删除分级」处置自己产生的东西，分两条——
+  ① 用户可感知的数据（会话目录、运行产物）先移入应用内暂存区（服务端为 `<workspace>/.harness/trash/`；CLI 根依次取 `--root`、`VESSEL_TRASH_ROOT`、`<cwd>/.harness/trash/`），**默认保留 7 天**；`VESSEL_TRASH_TTL_DAYS=0` 关闭 serve/daemon 自动清理并使新条目无限保留，但不禁用手工 `vessel trash purge`。CLI 子命令仅 `list`、`restore <id>`、`purge [--dry-run] [--older-than <days>]`。删除目标固定在 trash 根内，须通过路径/链接/`entry.json` 结构检查、先写 `_purge.jsonl` 审计；元数据无来源认证，伪造元数据也不得导致根外删除/修改。restore 在创建目录前校验根外绝对目标及无链接父链，session 还限定 `.harness/sessions/<id>` 布局。会话暂存失败仍为 `session_recycle_failed`；准确范围与回滚见 `docs/DELETION-AND-RETENTION.md`。
+  ② 纯运行时临时文件（会话 `.lease`、`os.tmpdir()` 下的 engine 临时工作区、sandbox 隔离目录）**允许直接删除**——必须同时满足：本进程/本次运行创建、不含用户内容、删掉可由会话日志或下一次运行重建。理由是这类文件每次会话关闭都会产生，回收站化只会把回收站刷屏，且 Windows 上每个对象要多起一次 PowerShell（约 200ms），真正的用户数据反而更难找。
+  **例外二只约束产品运行时的行为，Agent 在仓库里干活时不许拿它给自己开路**：仓库内文件、`docs/`、`tasks/`、`configs/`、`~/.vessel` 里的真实用户状态，仍然是「除上述两处例外之外一切照旧走回收站，永久删除一律禁止」。
 
 ## 目录结构
 
@@ -39,7 +42,7 @@
 3. Prompt 与 Runtime 分离：安全规则落 Policy Engine 硬执法（四件套：Prompt Guidance + Tool Interceptor + Runtime Deny + Audit Event），禁止只写 prompt。
 4. Generator/Evaluator 分离：产出必须经独立评估（Evaluator Agent / 确定性判据），Generator 不得自证完成。
 5. 模块化单体、依赖零环（core 只依赖 shared 类型契约；policy 不反向依赖 tools）。
-6. 默认技术栈 TypeScript + Node；无任何永久删除（回收站纪律；**唯一例外见"技术栈与运行环境"一节的书面例外：测试自建且位于 `os.tmpdir()` 下的临时目录**）；禁止 force push（**唯一书面例外：2026-09-27 一次性全历史脱敏，见 `docs/DESIGN-DECISIONS.md` 决策点 20**）。
+6. 默认技术栈 TypeScript + Node；无任何永久删除（回收站纪律；**两处书面例外见"技术栈与运行环境"一节：测试自建且位于 `os.tmpdir()` 下的临时目录；产品运行时删除分级——用户数据进暂存区满 7 天才永久删、纯运行时临时文件可直接删**）；禁止 force push（**唯一书面例外：2026-09-27 一次性全历史脱敏，见 `docs/DESIGN-DECISIONS.md` 决策点 20**）。
 7. 新功能必须有 Vitest 测试；不得回归既有测试与 benchmark（**"全量"= `npm run test:all`**：根 + `--root apps/web` 两个 root 都跑过、加 `npx tsc -b` 干净，且**两项都在最后一次编辑之后**执行；只跑根不算全量）。
 8. 测试隔离（task 106 起）：凡是会构造**默认** ProviderStore / UsageStore 的用例（`main()`、`runChat()` 的默认路径），
    必须显式注入临时 `VESSEL_PROVIDER_ROOT` / `VESSEL_USAGE_ROOT`（`mkdtemp` + afterEach 还原环境变量），
@@ -85,7 +88,9 @@
 - **升级阶梯**：`medium` → `xhigh`（同模型）→ 换 `gpt-6-astra`；每升一级必须先有失败证据（具体红掉的命令），不许预防性升档。
 - **Fast（`service_tier`）默认关**：只有用户当次明确要求才开；开与关都记进卡。
 - **加一个供应商**：在 `~/.config/opencode/opencode.json` 的 `providers`（v2 是复数，v1 才是 `provider`）里配好 `models` / `variants`，角色值写 `<provider>/<model-id>`。三个坑：密钥在 `settings.apiKey`，`opencode auth list` 看不见，目录里有不等于能用；`variants` 不一定包含你要的档位；model id 可能自带 `/`，值里会出现两个斜杠。改完跑 `doctor` 再做一次真实任务。
-- **迭代口径**：改"选择"（哪个模型、开不开 planner、限额）→ 只改 `.pdw/config.json`；改"机制"（加 backend、加目录发现、改证据规则）→ 走上游 `satan9394/personal-dev-workflow`，不在项目副本打补丁；9 个技能文件永不在项目内分叉（`update.mjs` 逐字节覆盖，改了也留不住）。版本号不是身份，只认 sha256。
+- **档位预算按失败代价分，不按模型强弱排**：scan / test-plan 用 DeepSeek `high`（1M 上下文、按量便宜）；review 用 `max`（改动 ≤2 文件且纯文档时可临时降 `high`）；implement 用 Codex `medium`（scope >6 文件、返工轮或上轮失败时提到 `high`，**PDW 单代理以 `high` 封顶**；Codex 应用的 `medium → xhigh → astra` 阶梯见上条，两套不混用）；planner 用 `max`（默认关）。repair 复用 implement 的配置，当前无法单独降档（`pdw.mjs` 里 repair → implement 是固定映射，属上游限制）。
+- **读交给 DeepSeek，写留给 Codex**：DeepSeek 只在只读角色；Codex 是唯一写者。PDW 车道上每个角色只起一个进程，不派子代理；UI 硬门禁仍是契约里的 `checks`。
+- **迭代口径**：改"选择"（哪个模型、开不开 planner、限额）→ 只改 `.pdw/config.json`；改"机制"（加 backend、加目录发现、改证据规则）→ 走上游 `satan9394/personal-dev-workflow`，不在项目副本打补丁；技能文件永不在项目内分叉（`update.mjs` 逐字节覆盖，改了也留不住）。版本号不是身份，只认 sha256。
 - **Codex 提示规约（仅 `implement` / `repair`）**：接口契约先行，用标题 / XML 标签 / 代码块隔离上下文与禁止项；不注入 "think step by step"、不写大段角色扮演；稳定契约放 Prompt 前部以复用前缀缓存。
 
 ### PDW 本机适配（实测，核对日期 2026-10-25）
@@ -97,6 +102,8 @@
 - 技能正文已不再写死本机 provider 与 OpenCode 小版本（2026-10-24 修）；`planner` 的 AGY 只是上游默认值，本机以 `.pdw/config.json` 为准。
 - **cc-switch 会重写全局配置**：它的 OpenCode 集成在切换供应商时写入单数 `provider` 块（v1 形态），日志里把带 `capabilities` 的 v2 块判为 invalid 但保留原样。OpenCode 2.1.4 忽略单数块，真正生效的是复数 `providers`；手动删单数块约 18 秒会被重新写回（2026-10-25 实测）。每次用 cc-switch 切换供应商后跑一次 `pwsh pdw.ps1 doctor`；若 `opencode models` 里 `commandcode` 消失，说明复数块被整体覆盖，按卡 286 的字段重建。
 - **契约草稿放 `.pdw/contracts/`**，不要放 `.pdw/tasks/`：无参 `status` 会把 `tasks` 下每个目录当任务读 `state.json`，遇到没有该文件的草稿目录会 ENOENT。
+- **任务运行期间不要编辑仓库**：`pdw.mjs` 每个阶段都会比对产物指纹，任务 `running` 时改任何被 scope 覆盖的文件都会以 `Source drift detected` 失败（2026-10-26 统计：129 次派发里这是最大单一失败源，6 次）。要改先 `cancel`，或等 `status` 不再是 running。
+- **契约先自检再冻结**：AC 之间、AC 与 `notes` 不得互相矛盾（例：AC 要求"未安装 CLI 时写 summary"，notes 又要求"CI 未安装也通过"）。矛盾时模型会如实报 `blocked`——这是契约问题，不是模型能力问题（2026-10-26 统计：5 次 blocked 里至少 3 次属此类），先改卡再新建任务，不要靠升档硬顶。
 
 ## 开发工作流（六步循环）
 
@@ -172,7 +179,7 @@ PDW 现行版本 **1.3.3-local**：完整 Skill 目录 + Node 运行器 + 项目
 - 不要把安全规则只写进 prompt（软约束引导、硬约束执法）。
 - 不要大批量并行后台 subagent（本环境实测会中途失败；并发 1–3、串行里程碑、进度落盘）。
 - 不要在沙箱受限会话里期待 `npx vitest run` 可用（esbuild spawn EPERM）——非沙箱环境为准，或走 scripts/dev-test 通道。
-- 不要做任何永久删除（回收站铁律，全项目通用；**唯一书面例外见上方"技术栈与运行环境"：测试自建且位于 `os.tmpdir()` 下的临时目录**）。
+- 不要做任何永久删除（回收站铁律，全项目通用；**书面例外见上方"技术栈与运行环境"，Agent 干活时只有第一处适用：测试自建且位于 `os.tmpdir()` 下的临时目录；第二处是产品运行时的删除分级，不能用来给 Agent 开路**）。
 - 不要只做功能列表不验证：每张卡必须跑对应测试并留证据。
 - **不要自动驱动本机其他 agent**（`dsh` / `opencode` / `codex` / `claude` / `pi`）：它们是用户自己的工具，会消耗其配额并在其机器上留下会话记录。为基准/调试/验证而调用它们**必须逐次获得用户显式同意**，且执行前先说明"将调用哪些 agent、大概消耗什么"；`npm run bench:conformance -- --live` **永不自动跑**。需要跨 harness 证据时优先用**离线车道**（只跑 Vessel 自适配器）。见 `tasks/153`。
 - **不要把中文提示词用 PowerShell 管道喂给原生 CLI**（`Get-Content -Raw $f | & codex exec ...`）：PowerShell 会按 ANSI 代码页重编码，中文全变 `?`，agent 只收到 ASCII 骨架（2026-10-23 实测 7 次派单全中，事后从 rollout 逐条比对才确认）。派单统一走 `scripts/dispatch-codex.ps1`——它用 cmd 输入重定向传原始字节并先校验 UTF-8。

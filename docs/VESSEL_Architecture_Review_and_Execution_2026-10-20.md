@@ -177,7 +177,7 @@ npm ci
 npm run build
 npm run typecheck:tests
 npm run -w @vessel/web typecheck
-npm run -w @vessel/web build -- --emptyOutDir false
+npm run -w @vessel/web build
 npm run test:all
 ```
 
@@ -219,7 +219,7 @@ npm run test:all
 - npm run build:
 - npm run typecheck:tests:
 - npm run -w @vessel/web typecheck:
-- npm run -w @vessel/web build -- --emptyOutDir false:
+- npm run -w @vessel/web build:
 - npm run test:all (root + Web):
 - Golden fixture / browser trace:
 - Reviewer verdict + evidence:

@@ -146,5 +146,5 @@ TUI：`vessel run`（无 `--prompt` 且 TTY）。
 
 - **B1–B18 全部有可达入口**（见 §B 证据列），无一项退化为"只有原型、真实 app 无入口"。
 - **C 项 4 模块保持 `t('unimplemented')` 占位语义**，未包装成已实现。
-- 门禁：`npx tsc -b` / `npm run typecheck:tests` / `npm run -w @vessel/web build -- --emptyOutDir false` / `npm run test:all`（根 + `apps/web` 双 root）全 exit 0；`packages/core` 零改动。
+- 门禁：`npx tsc -b` / `npm run typecheck:tests` / `npm run -w @vessel/web build` / `npm run test:all`（根 + `apps/web` 双 root）全 exit 0；`packages/core` 零改动。
 - 截图矩阵与门禁日志：`evidence/sessions/2026-10-15-ui-landing/`。

@@ -29,7 +29,7 @@
 - 不引入新依赖；包管理器锁 npm；禁止 pnpm/bun/yarn 锁文件；不引入 Tailwind
 - 浅色默认 + 深色跟随 prefers-color-scheme；产品不提供手动浅深切换
 - 颜色只写 CSS 变量，禁止组件内硬编码 hex
-- Web 构建必须带 -- --emptyOutDir false（历史事故，勿重犯）
+- Web 构建用 `npm run -w @vessel/web build`（默认保留 dist，无需额外参数；要清空时用 `npm run -w @vessel/web build:clean`）
 - 中英双语不回退，文案一律走 apps/web/src/i18n.ts 字典
 - 删除一律进回收站，禁止任何永久删除命令
 - 纯本地：不 commit / 不 push / 不 publish；不驱动本机其它 agent
@@ -56,7 +56,7 @@ INSPECTOR_TABS = ['swarm','cognition','context','cache','ast','patch','tasks','t
 【完成定义（DoD）】
 - FEATURE-COVERAGE.md 的 B1–B18 逐条有可达入口，并在该表上标注证据
 - 门禁四项全 exit 0：npx tsc -b / npm run typecheck:tests /
-  npm run -w @vessel/web build -- --emptyOutDir false / npm run test:all（根 + apps/web 双 root）
+  npm run -w @vessel/web build / npm run test:all（根 + apps/web 双 root）
 - packages/core 零改动；双 root 测试全绿
 - 中英双语无新增硬编码；prefers-reduced-motion 生效；≤1023px 检视器模态正确
 - 截图矩阵（中英 × 浅/深 × 桌面/1366/1023/800）齐备并留档

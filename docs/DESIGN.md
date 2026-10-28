@@ -14,7 +14,7 @@
 1. **颜色只写 CSS 变量**；浅色值放 `:root`，深色值放 `:root[data-theme="dark"]`（并保留 `@media (prefers-color-scheme: dark)` 作为无 JS 回退）。禁止组件里硬编码 hex。
 2. **浅色为默认，深色可跟随系统或手动切换**；保留用户主题偏好。实现见 `apps/web/src/utils/theme.ts`。
 3. **不引入 Tailwind / 新依赖 / 非 npm 锁文件**。依据 `docs/DESIGN-DECISIONS.md` 决策点 19。
-4. `packages/core` 零改动；Web 构建携带 `-- --emptyOutDir false`。
+4. `packages/core` 零改动；Web 构建用 `npm run -w @vessel/web build`（默认保留 dist；要清空时用 `npm run -w @vessel/web build:clean`）。
 5. 中英双语与响应式不回退。
 
 ## 2. 视觉：玻璃（Glass）
@@ -144,4 +144,4 @@
 | 玻璃质感 | `.navigation-shell`、`.topbar`、浮层加 `--glass` 与 `backdrop-filter` |
 | 计划清单 | 会话视图顶部新增（数据源：现有 goal/task 状态） |
 
-**验收**：按 `visual-acceptance` 出中英 × 浅/深 × 桌面/800px 截图矩阵；门禁 = `apps/web` 单测 + web typecheck + `npm run -w @vessel/web build -- --emptyOutDir false` + 根 `npx tsc -b` + `npm run typecheck:tests` 全 exit 0；`packages/core` 不变。
+**验收**：按 `visual-acceptance` 出中英 × 浅/深 × 桌面/800px 截图矩阵；门禁 = `apps/web` 单测 + web typecheck + `npm run -w @vessel/web build` + 根 `npx tsc -b` + `npm run typecheck:tests` 全 exit 0；`packages/core` 不变。

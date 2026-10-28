@@ -65,12 +65,16 @@ magpie 值得吸收的是**「供应商/账号/模型是三层数据 + 用量按
 - 入口：四条 profile HTTP API；CLI `vessel provider profile list|save|use|delete`（T327）与 Web 列表/启用（T328）。
 - 验收信号：同名覆盖、排序列表、只覆盖给定字段；供应商被删除时报悬空，损坏文件显式报错，`providers.json` 保持裸数组。
 
-### P2-1 值守卫式价目修复（cc-switch 的做法）
+### P2-1 值守卫式价目修复（cc-switch 的做法）— 已具备（T323）
 
-- 解决什么：`configs/pricing.json` 现在谁改谁赢，升级内置价会覆盖用户手改。
-- 落点：`apps/cli/src/usage/pricingOverride.ts` 之外的「内置价修复」路径（新增 patch 表：旧值匹配才改）。
-- 改动量：0.5 人日。
-- 验收信号：用户改过的行在版本升级后保持；未改过的行被修到新价。
+- 原始描述（历史设想，现状见下）：
+  - 解决什么：`configs/pricing.json` 现在谁改谁赢，升级内置价会覆盖用户手改。
+  - 落点：`apps/cli/src/usage/pricingOverride.ts` 之外的「内置价修复」路径（新增 patch 表：旧值匹配才改）。
+  - 改动量：0.5 人日。
+  - 验收信号：用户改过的行在版本升级后保持；未改过的行被修到新价。
+- 已有落点：`apps/cli/src/usage/pricingOverride.ts:500` 的 `repair()` 对覆盖价逐条返回 `applied`、`skipped-absent` 或 `skipped-user-modified`；匹配旧值才应用，用户手改与不存在的覆盖键均跳过。`applied` 是判定结果，仍须检查 `persisted` 才能确认落盘。
+- 入口：`vessel pricing override repair --file <repairs.json>`（`apps/cli/src/cli.ts:2506`）；当前 repairs 条目需人工准备。覆盖文件与版本维护的 `configs/pricing.json` 分离。
+- 验收信号：`apps/cli/src/usage/pricing-override.test.ts:132` 验证三态及用户手改不被覆盖。
 
 ### P2-2 从 cc-switch 导入供应商 — 已吸收（T324，仅从用户导出文件导入）
 
@@ -102,4 +106,6 @@ magpie 值得吸收的是**「供应商/账号/模型是三层数据 + 用量按
 - **已吸收（T320）**：`input_token_semantics` 口径落库，见 `apps/cli/src/usage/UsageStore.ts` 与 `packages/shared/src/cacheMetrics.ts`。
 - **已吸收（T321）**：同一供应商运行时端点失败转移，见 `apps/cli/src/providers/providerFactory.ts`；不扩展为跨供应商 failover 或配额路由。
 - **已吸收（T325 / T324）**：profile 独立文件快照（P1-3）与用户导出文件导入（P2-2），详见 §3。
-- **尚未实现，留待后续**：价目值守卫（P2-1）、跨供应商 failover、配额感知路由、profile 自动同步。
+- **已具备（T323）**：价目值守卫（P2-1），见 §3；需人工提供 repairs 文件。
+- **真实缺口**：没有对比两版内置 `configs/pricing.json` 并自动生成 `repairs.json` 的命令。
+- **尚未实现，留待后续**：跨供应商 failover、配额感知路由、profile 自动同步。

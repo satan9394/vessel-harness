@@ -36,7 +36,7 @@
 | 3 | **不引入 Tailwind**；样式继续用 CSS 变量 + 既有 CSS 文件 | 决策点 19 + `UI-THEME.md` |
 | 4 | **浅色默认，深色跟随 `prefers-color-scheme`**；产品**不提供**手动浅深切换 | `docs/UI-THEME.md` 铁律 |
 | 5 | **颜色只写 CSS 变量**，禁止组件内硬编码 hex | `UI-THEME.md` 铁律 1 |
-| 6 | Web 构建必须带 **`-- --emptyOutDir false`** | 历史事故（V2.1 执行偏差） |
+| 6 | Web 构建用 **`npm run -w @vessel/web build`**（默认保留 dist；要清空时用 `npm run -w @vessel/web build:clean`） | 历史事故（V2.1 执行偏差） |
 | 7 | **中英双语不回退**（走 `apps/web/src/i18n.ts` 字典，不新增硬编码文案） | `AGENTS.md` |
 | 8 | **删除一律进回收站**，禁止 `rm`/`Remove-Item` 等永久删除 | 删除铁律 |
 | 9 | **纯本地**：不 commit / 不 push / 不 publish；不驱动其它 agent | `AGENTS.md` |
@@ -144,7 +144,7 @@
 ```powershell
 npx tsc -b tsconfig.json                                              # 必须 exit 0
 npm run typecheck:tests                                               # 必须 exit 0
-npm run -w @vessel/web build -- --emptyOutDir false                   # 必须 exit 0
+npm run -w @vessel/web build                   # 必须 exit 0
 npm run test:all                                                      # 根 + apps/web 双 root 全绿
 git diff --stat packages/core/                                        # 必须为空
 ```
@@ -169,7 +169,7 @@ git diff --stat packages/core/                                        # 必须�
 | 窄屏行为回退 | 显式测 1023 / 800 两档；沿用既有 `matchMedia('(max-width: 1023px)')` 判据 |
 | 深色下白块 / 对比度不足 | 每次截图**必须浅深各一张**；对比度 ≥ 4.5:1 |
 | 误把"设计前瞻"当已实现 | `UNIMPLEMENTED` 四模块保持占位语义 |
-| 构建产出被清空（历史事故） | 构建命令固定带 `-- --emptyOutDir false` |
+| 构建产出被清空（历史事故） | 使用 `npm run -w @vessel/web build`，脚本已内置保留 dist；要清空时用 `npm run -w @vessel/web build:clean` |
 
 ## 7. 交付物清单
 
