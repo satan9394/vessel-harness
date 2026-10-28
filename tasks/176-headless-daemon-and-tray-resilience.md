@@ -4,7 +4,7 @@
 - 优先级：P1
 - 关联模块：`apps/local-server`, `apps/cli`
 - 推荐执行配置：Codex (GPT-6.1 Sol · `reasoning.effort: medium`)
-- 状态：本地全门禁与独立审查通过；待用户验收（2026-10-02）→ **2026-10-28 起被卡 359 阻断**：真跑 `vessel daemon start` 构造期必崩（见文末），detached 存活验收要等 359 修完
+- 状态：本地全门禁与独立审查通过；2026-10-28：**detached 存活已验收**（卡 359 修复后真机证明，见文末），剩原生 tray/toast 的桌面可见性待真机
 - 创建日期：2026-10-01
 
 ---
@@ -86,3 +86,9 @@ export interface DaemonControlContract {
 - 附带第二个缺陷：`daemonLifecycle.ts:55-58` 用 `powershell.exe` 跑 `Set-Acl`，从 pwsh 7 启动时继承了 PS7 的 `PSModulePath` → `CommandNotFoundException: Set-Acl`；把 `PSModulePath` 钉回 5.1 经典值后同一调用成功。同卡 359 一并修。
 - 因果对照（`%TEMP%\vessel-176-c4b7e0a1\mesh-check.log`）：`status: () => ({})` 抛；`status: () => ({ instanceId })` 不抛；不传 daemon 选项不抛。
 - 结论：本卡的「真实 detached 存活」**仍无证据**，等 359 修完用同一套脚本重跑；tray / toast 仍只能人眼看桌面（通知区与通知中心不是浏览器可见面）。
+
+### 2026-10-28 · detached 存活已证（协调者）
+
+卡 359 修完（含 `protectDaemonPath` 幂等化）后重跑：隔离根下 `daemon start` ready（pid 4068），起它的 launcher 进程已退出（`ESRCH`），重新查 `daemon status --json` 仍是同一 pid、uptime 4→6 秒，`/api/health` 200，`/api/team/stages` 无 token 401 / 带 token 200，`daemon stop` 后端口监听 0。原始 `proof.json` 在 `%TEMP%\vessel-359-proof-t6t8An\`。
+
+因此本卡「真实 detached daemon 在启动它的终端关闭后存活」这一条**已验收**。仍留：原生 tray/toast 的桌面可见性（通知区/通知中心不是任何浏览器可见面，只能人眼看），以及本条之外的生命周期细节。

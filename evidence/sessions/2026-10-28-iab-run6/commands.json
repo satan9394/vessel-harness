@@ -1,0 +1,97 @@
+[
+  {
+    "command": "node node_modules/vitest/vitest.mjs run apps/cli/src/daemon/daemonCommands.test.ts -t \"constructs the real server\"",
+    "exit": 1,
+    "expected": true,
+    "log": "C:\\work\\AppData\\Local\\Temp\\vessel-359-BdjyS5\\regression-before.log"
+  },
+  {
+    "command": "node node_modules/vitest/vitest.mjs run apps/cli/src/daemon/daemonCommands.test.ts apps/local-server/src/daemon/daemonProtection.test.ts",
+    "exit": 1,
+    "expected": false,
+    "log": "C:\\work\\AppData\\Local\\Temp\\vessel-359-BdjyS5\\regression-after.log",
+    "reason": "Initial test mock omitted execFile; repaired with a typed partial module mock."
+  },
+  {
+    "command": "node node_modules/vitest/vitest.mjs run apps/cli/src/daemon/daemonCommands.test.ts apps/local-server/src/daemon/daemonProtection.test.ts",
+    "exit": 0,
+    "log": "C:\\work\\AppData\\Local\\Temp\\vessel-359-BdjyS5\\regression-green.log",
+    "tests": 11
+  },
+  {
+    "command": "node node_modules/vitest/vitest.mjs run apps/local-server apps/cli",
+    "exit": 0,
+    "log": "C:\\work\\AppData\\Local\\Temp\\vessel-359-BdjyS5\\targeted-tests-final.log",
+    "files": 93,
+    "passed": 1101
+  },
+  {
+    "command": "node node_modules/typescript/bin/tsc -b tsconfig.json",
+    "exit": 0,
+    "log": "C:\\work\\AppData\\Local\\Temp\\vessel-359-BdjyS5\\tsc-build-final.log"
+  },
+  {
+    "command": "node node_modules/typescript/bin/tsc -p tsconfig.test.json --noEmit",
+    "exit": 0,
+    "log": "C:\\work\\AppData\\Local\\Temp\\vessel-359-BdjyS5\\tsc-tests-final.log"
+  },
+  {
+    "command": "node C:\\work\\AppData\\Local\\Temp\\vessel-359-BdjyS5\\live-proof.cjs",
+    "attempt": 1,
+    "exit": 1,
+    "result": {
+      "startedAt": "2026-10-28T15:55:34.331Z",
+      "portChecks": [
+        {
+          "port": 5700,
+          "free": true
+        }
+      ],
+      "port": 5700,
+      "listenersBefore": 0,
+      "launcherPid": 6376,
+      "error": "Error: daemon start exit 1: {\"error\":\"daemon exited before becoming ready\"}\n",
+      "finishedAt": "2026-10-28T15:55:48.794Z"
+    }
+  },
+  {
+    "executable": "D:\\Technology_application\\NVM_Windows\\nodejs\\node.exe",
+    "args": [
+      "E:/Code_file/Projects/Vessel_Harness/apps/cli/dist/cli.js",
+      "daemon",
+      "--child",
+      "--root",
+      "C:\\work\\AppData\\Local\\Temp\\vessel-359-BdjyS5\\diagnostic-child",
+      "--instance",
+      "3227b95f-5427-446f-a479-6ea473794aff",
+      "--parent",
+      "20488",
+      "--port",
+      "5700",
+      "--deadline",
+      "1793203005780"
+    ],
+    "exit": null,
+    "error": "spawnSync D:\\Technology_application\\NVM_Windows\\nodejs\\node.exe ETIMEDOUT",
+    "reason": "Direct child diagnostic reached ready, then the explicit spawnSync timeout (20 seconds) terminated it; this is not detached survival proof."
+  },
+  {
+    "command": "node C:\\work\\AppData\\Local\\Temp\\vessel-359-BdjyS5\\live-proof.cjs",
+    "attempt": 2,
+    "exit": 1,
+    "result": {
+      "startedAt": "2026-10-28T15:58:12.440Z",
+      "portChecks": [
+        {
+          "port": 5700,
+          "free": true
+        }
+      ],
+      "port": 5700,
+      "listenersBefore": 0,
+      "launcherPid": 7368,
+      "error": "Error: daemon start exit 1: {\"error\":\"Command failed: powershell.exe -NoProfile -NonInteractive -EncodedCommand JABwAD0AJwBDADoAXABVAHMAZQByAHMAXABTAEEAVABBAE4AQwB+ADEAXABBAHAAcABEAGEAdABhAFwATABvAGMAYQBsAFwAVABlAG0AcABcAHYAZQBzAHMAZQBsAC0AMwA1ADkALQBCAGQAagB5AFMANQBcAGkAcwBvAGwAYQB0AGUAZABcAFYARQBTAFMARQBMAF8ARABBAEUATQBPAE4AXwBSAE8ATwBUAFwAZABhAGUAbQBvAG4ALgB0AG8AawBlAG4AJwA7ACAAJABhAGMAbAA9AE4AZQB3AC0ATwBiAGoAZQBjAHQAIABTAHkAcwB0AGUAbQAuAFMAZQBjAHUAcgBpAHQAeQAuAEEAYwBjAGUAcwBzAEMAbwBuAHQAcgBvAGwALgBGAGkAbABlAFMAZQBjAHUAcgBpAHQAeQA7ACAAJABzAGkAZAA9AE4AZQB3AC0ATwBiAGoAZQBjAHQAIABTAHkAcwB0AGUAbQAuAFMAZQBjAHUAcgBpAHQAeQAuAFAAcgBpAG4AYwBpAHAAYQBsAC4AUwBlAGMAdQByAGkAdAB5AEkAZABlAG4AdABpAGYAaQBlAHIAKAAnAFMALQAxAC0ANQAtADIAMQAtADEAOAA2ADYAOQA4ADQAMgAwADUALQAzADcANAA4ADUAMAA4ADEAOQA4AC0AOAAyADQANgA4ADEANgA5ADAALQAxADAAMAAyACcAKQA7ACAAJABhAGMAbAAuAFMAZQB0AE8AdwBuAGUAcgAoACQAcwBpAGQAKQA7ACAAJABhAGMAbAAuAFMAZQB0AEEAYwBjAGUAcwBzAFIAdQBsAGUAUAByAG8AdABlAGMAdABpAG8AbgAoACQAdAByAHUAZQAsACQAZgBhAGwAcwBlACkAOwAgACQAYQBjAGwALgBBAGQAZABBAGMAYwBlAHMAcwBSAHUAbABlACgAWwBTAHkAcwB0AGUAbQAuAFMAZQBjAHUAcgBpAHQAeQAuAEEAYwBjAGUAcwBzAEMAbwBuAHQAcgBvAGwALgBGAGkAbABlAFMAeQBzAHQAZQBtAEEAYwBjAGUAcwBzAFIAdQBsAGUAXQA6ADoAbgBlAHcAKAAkAHMAaQBkACwAJwBGAHUAbABsAEMAbwBuAHQAcgBvAGwAJwAsACcAQQBsAGwAbwB3ACcAKQApADsAIABTAGUAdAAtAEEAYwBsACAALQBMAGkAdABlAHIAYQBsAFAAYQB0AGgAIAAkAHAAIAAtAEEAYwBsAE8AYgBqAGUAYwB0ACAAJABhAGMAbAA=\"}\n",
+      "finishedAt": "2026-10-28T15:58:23.845Z"
+    }
+  }
+]

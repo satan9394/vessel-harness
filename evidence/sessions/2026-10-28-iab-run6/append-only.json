@@ -1,0 +1,30 @@
+[
+  {
+    "file": "tasks/359-daemon-start-mesh-identity-crash.md",
+    "originalBytes": 5735,
+    "appendedBytes": 9399,
+    "originalSha256": "a14711ccc62c088e74701b8fa882362b8573d6b3e647a560b84cf6b3d4fe8e80",
+    "originalPrefixPreserved": true
+  },
+  {
+    "file": "tasks/175-visual-team-dag-canvas-and-staged-approval.md",
+    "originalBytes": 4887,
+    "appendedBytes": 702,
+    "originalSha256": "3a585ac558296fa48e854a223c9f55c102485997ded645db0a41b13e76fdd140",
+    "originalPrefixPreserved": true
+  },
+  {
+    "file": "tasks/179-epic-universal-team-workspace-and-daemon-mesh.md",
+    "originalBytes": 9216,
+    "appendedBytes": 777,
+    "originalSha256": "b3f01749588e6383bdd5ce0ddb4ae1e3aa92e7d2baed29a86ec35b6d2b8ca5b6",
+    "originalPrefixPreserved": true
+  },
+  {
+    "file": "tasks/277-ui-p2-fixes.md",
+    "originalBytes": 18148,
+    "appendedBytes": 702,
+    "originalSha256": "51a9f4bd9f06cabe439541a784c8ee51e012cabe87c936d6f4dec58a838a64ac",
+    "originalPrefixPreserved": true
+  }
+]

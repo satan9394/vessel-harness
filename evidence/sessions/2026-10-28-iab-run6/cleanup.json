@@ -1,0 +1,8 @@
+{
+  "CheckedAt": "2026-10-28T16:01:38.7352417Z",
+  "Port": 5700,
+  "ListenerCount": 0,
+  "FixtureProcessCount": 0,
+  "FixtureProcesses": [],
+  "Note": "Excludes this read-only measurement process and its ancestor shells. No existing listener was killed."
+}

@@ -1,0 +1,3 @@
+node -e "const fs=require('fs'),p=require('path');const root='C:/work/AppData/Local/Temp/vessel-359-BdjyS5';const proof=JSON.parse(fs.readFileSync(p.join(root,'live-proof.json'),'utf8'));fs.renameSync(p.join(root,'live-proof.json'),p.join(root,'live-proof-attempt1.json'));for(const name of ['start.stdout.log','start.stderr.log','start.exit.log','caller-module-path.log','pwsh-version.log'])fs.renameSync(p.join(root,name),p.join(root,'attempt1-'+name));fs.writeFileSync(p.join(root,'startup-probe.cjs'),\"process.on('uncaughtExceptionMonitor',error=>{require('node:fs').appendFileSync(__dirname+'/startup-errors.log',process.pid+' '+error.stack+'\\n')});\");"
+
+ParserError: Missing expression after ','.

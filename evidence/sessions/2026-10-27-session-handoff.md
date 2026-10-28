@@ -136,3 +136,12 @@
 - **我判不做**：154 release-report（配额且仍 partial）、155 字面 3h soak（边际信号低）、ARCH-04 `--live`（需逐次授权且 adapter 脱节）。
 
 
+
+## 13. daemon 启动修复与 run 7 派活（2026-10-28 稍晚）
+
+- Codex 按卡 359 交了 Part A 的两处修复（身份回落到 `{ instanceId }`、ACL 调用钉 `PSModulePath`），但真机两次失败，第二处报 `Set-Acl` 非零且 `stdio:'ignore'` 吞掉了原因。它按停止条件停了，没开浏览器。
+- **我复现后查出第三个缺陷**：同一条 ACL 脚本对**新文件**第一次成功、对**同一文件**第二次起必报 `'SeSecurityPrivilege'`；而 `writeDaemonFile` 对已存在文件是先 `protect` 再写、`daemon stop` 还会重写 token，于是「第二次用同一个 daemon 根启动」与 stop 都必然失败。
+- 修法：`protectDaemonPath` 换成 `whoami /user /fo csv /nh` 取 SID + `icacls /setowner` + `icacls /inheritance:r /grant:r`，完全不走 PowerShell，实测同文件连跑 3 次、目录 2 次全 exit 0，ACL 无 `(I)`。回归用例改成真跑（连保护多次 + 断言无继承项 + 字节不变）。
+- 真机五步复验全过：`daemon.json` pid 4068；launcher 退出（ESRCH）后同一 pid、uptime 4→6；`/api/health` 200；无 token 401 / 带 token 200；stop 后监听 0。原始 `%TEMP%\vessel-359-proof-t6t8An\proof.json`。**卡 176 的 detached 存活随之验收**。
+- 浏览器部分单独成了新单：`tasks/prompts/codex-handoff-2026-10-28-iab-run7.md`（只做 175/179/277，明确本轮不许改源码）。
+- 已知 flake（新记录，供下次参考）：`apps/local-server` 与 `apps/cli` 合在一次 vitest 调用里跑时，`teamStageApi.test.ts > checks the opened descriptor identity…` 失败过一次（`expected [Function] to throw`）；该文件单跑 2/2 全绿，**同一组命令重跑一遍 93 文件 / 1,101 全绿 exit 0**，与 daemon 改动无关。门禁脚本本来就是分段跑的，判为合跑时的负载/隔离问题，不追。

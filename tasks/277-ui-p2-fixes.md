@@ -213,3 +213,9 @@ Self-checks for this contract after the CSS/test edit: `node node_modules/vitest
 - `node scripts/ui-geom-check.mjs` → **exit 0**，stdout 末行 `geometry check passed (5 cases)`；报告写 `%TEMP%\vessel-ui-geom-check.json`（脚本按设计只写 %TEMP%，不落仓库，避免 PDW checks 判 source drift）。这一项只覆盖几何/重叠，不含键盘焦点，也不含「看起来对」。
 - 键盘/焦点与 1440×900 人眼确认已写成 Codex 主线程任务：`tasks/prompts/codex-handoff-2026-10-28-daemon-and-ui.md` 的 **Part B1**（7 步剧本 + `document.activeElement` 记录 + 整屏截图），执行前置是主线程可见 IAB（2026-10-28 run 5 已验证可用）。
 - 因此本卡的人眼/键盘确认**仍未签收**，但不再是「没人能做」：已有明确执行入口与判据。
+
+## 2026-10-28 · run6 执行边界（只追加，未签收）
+
+Part A 卡 359 两次真实 detached 启动连续失败（第二次为 Set-Acl 调用非零），按用户停止条件结束；因此有序 Part B 未启动。7 步键盘剧本、1440×900 焦点矩形/截图、Esc 与 Shift+Tab 落点、Console 全部 UNVERIFIED；未读取 activeElement、未启动 IAB。协调者已记录的五例 geometry check 不重跑、不否认。
+
+证据：evidence/sessions/2026-10-28-iab-run6/report.md；测量 JSON 为空值并明确标注 UNVERIFIED，无旧截图替代。最终夹具端口 5700 监听数 0、夹具进程数 0（cleanup.json）。卡首行状态与看板未改，签收归协调者。

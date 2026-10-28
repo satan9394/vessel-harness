@@ -119,3 +119,9 @@ Codex 在执行超长开发时可按需查阅以下权威技术资产（已落�
 - **继承的浏览器项**：卡 175 的画布/抽屉/预审视觉，与卡 277 的键盘焦点，一起写成 Codex 主线程任务 `tasks/prompts/codex-handoff-2026-10-28-daemon-and-ui.md` 的 Part B（B1/B2）；本 Epic 只引用其结果，不单独做新工作。
 - **继承的真机项**：卡 176 的 detached 存活**仍无证据**——真跑发现 `vessel daemon start` 构造期必崩，已立卡 359；tray / toast 仍只能人眼看桌面。
 - 结论：本 Epic 仍**不整体签收**，剩余就是上面三类（浏览器视觉待 B1/B2、daemon 待 359、tray/toast 待真机）。
+
+## 2026-10-28 · run6 执行边界（只追加，未签收）
+
+Part A 卡 359 两次真实 detached 启动连续失败（第二次为 Set-Acl 调用非零），按用户停止条件结束；因此有序 Part B 未启动。B1/B2 本次全部 UNVERIFIED，不能据此推进 Epic 签收。沿用本卡上一段协调者双 Root 证据（npm run test:all exit 0：根 333 文件 / 3,694 passed + 8 skipped，web 59 / 528）；本执行者按指令未重跑，也不把卡 359 的 93 文件定向测试冒充全量。
+
+证据：evidence/sessions/2026-10-28-iab-run6/report.md；测量 JSON 为空值并明确标注 UNVERIFIED，无旧截图替代。最终夹具端口 5700 监听数 0、夹具进程数 0（cleanup.json）。卡首行状态与看板未改，签收归协调者。
