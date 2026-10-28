@@ -24,6 +24,7 @@ import { memoryCommand } from './commands/memoryCommand.js';
 import { doctorCommand } from './commands/doctorCommand.js';
 import { modCommand } from './commands/modCommand.js';
 import { effectsCommand } from './commands/effectsCommand.js';
+import { trashCommand } from './commands/trashCommand.js';
 import { ProviderStore, parseBackupKeep, type ProviderConfig } from './providers/ProviderStore.js';
 import { createDefaultProviderStore } from './providers/defaultStore.js';
 import { CcSwitchImportError, importCcSwitch } from './providers/ccSwitchImport.js';
@@ -3152,6 +3153,7 @@ async function dispatch(parsed: ParsedArgs): Promise<number> {
   if (first === 'memory' || first === 'mem') return memoryCommand(parsed.positionals.slice(1), parsed.flags);
   if (first === 'doctor' || first === 'diagnose') return doctorCommand(parsed.positionals.slice(1), parsed.flags);
   if (first === 'mod') return modCommand(parsed.positionals.slice(1), { workspaceRoot: parsed.flags.get('workspace') });
+  if (first === 'trash') return trashCommand(parsed.positionals.slice(1), parsed.flags);
   if (first === 'provider') return cmdProvider(parsed.positionals.slice(1), parsed.flags);
   if (first === 'mcp') return cmdMcp(parsed.positionals.slice(1), parsed.flags);
   if (first === 'diff') return cmdDiff(parsed.positionals.slice(1), parsed.flags);

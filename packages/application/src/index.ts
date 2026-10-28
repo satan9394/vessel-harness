@@ -43,6 +43,10 @@ export * from './team/index.js';
 
 export * from './behavior/index.js';
 
+// task 345b: trash/retention primitives, namespaced so the generic
+// `list`/`restore`/`purge` names never collide with other application exports.
+export * as trashStore from './deletion/trash.js';
+
 // The CLI's trusted Mod diagnostic uses the existing application/runtime edge.
 export { WorkerSandbox } from '@vessel/runtime';
 

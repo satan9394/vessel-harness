@@ -1,7 +1,7 @@
 import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
-import { execFileSync } from 'node:child_process';
+import { recyclePath } from '@vessel/shared';
 import { vesselHome } from './envRoot.js';
 
 /**
@@ -151,15 +151,8 @@ export async function defaultRecycle(dir: string, platform: NodeJS.Platform = pr
   if (platform !== 'win32') {
     throw new RecycleUnsupportedError(dir, platform);
   }
-  const escaped = dir.replace(/'/g, "''");
-  const script =
-    'Add-Type -AssemblyName Microsoft.VisualBasic; ' +
-    `[Microsoft.VisualBasic.FileIO.FileSystem]::DeleteDirectory('${escaped}', 'OnlyErrorDialogs', 'SendToRecycleBin')`;
-  execFileSync('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', script], {
-    stdio: 'pipe',
-    windowsHide: true,
-    timeout: 30_000,
-  });
+  const result = await recyclePath(dir, { platform });
+  if (!result.ok) throw new Error(`recycle failed: ${result.reason}: ${result.detail}`);
 }
 
 /**

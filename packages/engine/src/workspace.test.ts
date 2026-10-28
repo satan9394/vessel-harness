@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, afterEach, vi } from 'vitest';
 import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
@@ -36,9 +36,37 @@ describe('engine — TempDirWorkspaceFactory (V0.5-M3)', () => {
     ws = await f.create(TASK);
     fs.writeFileSync(path.join(ws.root, 'artifact.txt'), 'hello', 'utf8');
     const root = ws.root;
-    await f.dispose(ws);
+    expect(await f.dispose(ws)).toEqual({ disposed: true });
     ws = undefined;
     expect(fs.existsSync(root)).toBe(false);
+  });
+
+  it('refuses a forged repository workspace outside os.tmpdir and warns', async () => {
+    const root = process.cwd();
+    const f = new TempDirWorkspaceFactory(path.basename(root));
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    try {
+      expect(await f.dispose({ root })).toEqual({ disposed: false, reason: 'not-owned' });
+      expect(fs.existsSync(root)).toBe(true);
+      expect(fs.existsSync(path.join(root, 'package.json'))).toBe(true);
+      expect(warn).toHaveBeenCalledWith(`[engine/workspace] Refusing to dispose non-owned workspace: ${root}`);
+    } finally {
+      warn.mockRestore();
+    }
+  });
+
+  it('refuses a temp directory whose basename does not match the factory prefix and warns', async () => {
+    const root = tmpDir('cah-not-owned-');
+    const f = new TempDirWorkspaceFactory();
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    try {
+      expect(await f.dispose({ root })).toEqual({ disposed: false, reason: 'not-owned' });
+      expect(fs.existsSync(root)).toBe(true);
+      expect(warn).toHaveBeenCalledWith(`[engine/workspace] Refusing to dispose non-owned workspace: ${root}`);
+    } finally {
+      warn.mockRestore();
+      fs.rmSync(root, { recursive: true, force: true });
+    }
   });
 
   it('artifact writes stay inside the isolated dir (main workspace untouched)', async () => {
@@ -54,7 +82,7 @@ describe('engine — TempDirWorkspaceFactory (V0.5-M3)', () => {
         evaluate: async () => ({ verdict: 'met', evidence: ['GOLDEN'], reason: 'ok' }) as EvaluatorVerdict,
         persist: async () => {},
         workspaceFactory: f.create.bind(f),
-        disposeWorkspace: f.dispose.bind(f),
+        disposeWorkspace: async (workspace) => { await f.dispose(workspace); },
       },
       {},
     );
@@ -97,10 +125,14 @@ describe('engine — createDefaultWorkspaceFactory (V0.5-M3)', () => {
     const repoRoot = tmpDir('cah-wtrepo-');
     const f = new GitWorktreeWorkspaceFactory({ repoRoot, run: fakeRun as never, baseDir: worktreeDir });
     const handle = { repoRoot, path: path.join(worktreeDir, 'wt_test'), branch: 'it-t1' };
+    fs.mkdirSync(handle.path);
+    fs.writeFileSync(path.join(handle.path, 'artifact.txt'), 'git owns removal', 'utf8');
     await f.dispose({ root: handle.path, meta: { worktree: handle } });
     expect(calls.length).toBeGreaterThan(0);
     expect(calls[0]![0]).toBe('worktree');
     expect(calls[0]![1]).toBe('remove');
+    // A fake git runner does no removal: the factory must not delete it itself.
+    expect(fs.readFileSync(path.join(handle.path, 'artifact.txt'), 'utf8')).toBe('git owns removal');
     fs.rmSync(worktreeDir, { recursive: true, force: true });
     fs.rmSync(repoRoot, { recursive: true, force: true });
   });

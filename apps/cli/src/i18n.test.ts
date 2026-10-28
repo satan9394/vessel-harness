@@ -72,8 +72,8 @@ describe('CLI i18n', () => {
     const zhLines = t('usage.commands').split('\n');
     setLocale('en');
     const enLines = t('usage.commands').split('\n');
-    expect(zhLines).toHaveLength(87);
-    expect(enLines).toHaveLength(87);
+    expect(zhLines).toHaveLength(90);
+    expect(enLines).toHaveLength(90);
     for (const [i, zhLine] of zhLines.entries()) {
       const enLine = enLines[i]!;
       expect(enLine.match(/^ */)?.[0]).toBe(zhLine.match(/^ */)?.[0]);

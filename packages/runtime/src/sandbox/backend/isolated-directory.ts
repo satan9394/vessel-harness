@@ -7,15 +7,14 @@
  * path) and cleans it up on dispose.
  *
  * Cleanup follows the repo deletion rule: our OWN ephemeral os.tmpdir artifacts
- * are removed, and the removal goes through the recycle bin (SendToRecycleBin)
- * rather than a permanent delete, consistent with the project-wide no-permanent-
- * delete discipline.
+ * go to the recycle bin through the shared `recyclePath` primitive
+ * (packages/shared/src/deletion/recycle.ts), never a permanent delete.
  */
 
 import { mkdtemp } from 'node:fs/promises';
-import { spawn } from 'node:child_process';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { recyclePath } from '@vessel/shared';
 
 export interface IsolatedDirectory {
   /** absolute path to the fresh, empty isolation directory. */
@@ -38,24 +37,8 @@ export async function createIsolatedDirectory(
   return {
     path,
     async dispose(): Promise<void> {
-      await new Promise<void>((resolve) => {
-        // recycle bin via Microsoft.VisualBasic, consistent with repo discipline.
-        const script =
-          'param([string]$d)\n' +
-          'try { Add-Type -AssemblyName Microsoft.VisualBasic; ' +
-          '[Microsoft.VisualBasic.FileIO.FileSystem]::DeleteDirectory($d,"OnlyErrorDialogs","SendToRecycleBin") } catch {}';
-        const child = spawn('powershell', [
-          '-NoProfile',
-          '-NonInteractive',
-          '-ExecutionPolicy',
-          'Bypass',
-          '-Command',
-          script,
-          path,
-        ], { windowsHide: true, stdio: 'ignore' });
-        child.on('exit', () => resolve());
-        child.on('error', () => resolve());
-      });
+      // Recycle bin via the shared primitive; dispose stays idempotent and never throws.
+      await recyclePath(path).catch(() => undefined);
     },
   };
 }

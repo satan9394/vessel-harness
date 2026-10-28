@@ -23,7 +23,7 @@ import type { Workspace, LoopTask } from './LoopEngine.js';
 
 export interface WorkspaceFactory {
   create(task: LoopTask): Promise<Workspace>;
-  dispose(ws: Workspace): Promise<void>;
+  dispose(ws: Workspace): Promise<void | { disposed: boolean; reason?: string }>;
 }
 
 /** Temp-dir factory: an isolated directory under os.tmpdir() (non-git default). */
@@ -39,11 +39,17 @@ export class TempDirWorkspaceFactory implements WorkspaceFactory {
     return { root, meta: { mode: 'tempdir' } };
   }
 
-  async dispose(ws: Workspace): Promise<void> {
-    // os.tmpdir() isolated test/product temp dir — same cleanup convention the
-    // whole repo uses in tests (see packages/tools/src/git/worktree.test.ts);
-    // never a main-workspace path.
-    fs.rmSync(ws.root, { recursive: true, force: true });
+  async dispose(ws: Workspace): Promise<{ disposed: boolean; reason?: string }> {
+    const root = path.resolve(ws.root);
+    const relative = path.relative(path.resolve(os.tmpdir()), root);
+    if (!relative || relative === '..' || relative.startsWith(`..${path.sep}`)
+      || path.isAbsolute(relative) || !path.basename(root).startsWith(this.prefix)) {
+      console.warn(`[engine/workspace] Refusing to dispose non-owned workspace: ${root}`);
+      return { disposed: false, reason: 'not-owned' };
+    }
+    // Decision 24: owned runtime temp directories are rebuildable B-class data.
+    fs.rmSync(root, { recursive: true, force: true });
+    return { disposed: true };
   }
 }
 

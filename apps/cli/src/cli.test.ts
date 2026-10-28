@@ -246,12 +246,13 @@ describe('CLI (apps/cli)', () => {
         '  vessel mcp path                    打印 MCP 配置文件路径',
         '  vessel diff [<id>|--last]           会话改动的只读提示（Write/Edit 文件 + shell + git status；不回滚）',
         '                                      （超时 15s + 重试 1 次；失败保留旧表并提示；',
+        '  vessel trash purge [--dry-run] [--older-than <days>] [--json] [--root <path>]',
       ]) expect(lines).toContain(line);
       expect(out).not.toMatch(/\{syncTimeout\}|\{syncRetries\}/);
       expect(out).toContain('{base}/chat/completions');
-      expect(lines).toHaveLength(102);
-      expect(lines[96]).toBe('');
-      expect(lines[97]).toBe('provider 协议说明:');
+      expect(lines).toHaveLength(105);
+      expect(lines[99]).toBe('');
+      expect(lines[100]).toBe('provider 协议说明:');
       expect(await main(['--help'])).toBe(0);
       expect(logs.pop()).toBe(out);
     } finally {

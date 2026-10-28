@@ -6,6 +6,7 @@ import * as path from 'node:path';
 import { ExternalInteractiveAdapter, probeExternalRuntime, type ProbeCommand } from './InteractiveAdapter.js';
 import { EventBus } from '@vessel/core';
 import type { ChatToolCall, ChatUsage, StreamChunk, SubagentResultContract } from '@vessel/shared';
+import { recyclePath } from '@vessel/shared';
 import {
   createWorktree,
   type GitRunner,
@@ -708,23 +709,11 @@ async function moveToSystemTrash(targetPath: string): Promise<void> {
   const target = path.resolve(targetPath);
   const stat = fs.lstatSync(target);
   if (stat.isSymbolicLink()) throw new Error('refusing to recycle a symlinked managed path');
-  if (process.platform === 'win32') {
-    const quoted = `'${target.replace(/'/gu, "''")}'`;
-    const operation = stat.isDirectory() ? 'DeleteDirectory' : 'DeleteFile';
-    const script = `Add-Type -AssemblyName Microsoft.VisualBasic; [Microsoft.VisualBasic.FileIO.FileSystem]::${operation}(${quoted}, [Microsoft.VisualBasic.FileIO.UIOption]::OnlyErrorDialogs, [Microsoft.VisualBasic.FileIO.RecycleOption]::SendToRecycleBin)`;
-    await runExecutable('powershell.exe', ['-NoLogo', '-NoProfile', '-NonInteractive', '-Command', script]);
-    return;
-  }
-  if (process.platform === 'darwin') {
-    const appleLiteral = JSON.stringify(target).replace(/\\/gu, '\\\\').replace(/"/gu, '\\"');
-    await runExecutable('osascript', ['-e', `tell application "Finder" to delete POSIX file ${appleLiteral}`]);
-    return;
-  }
-  try {
-    await runExecutable('gio', ['trash', '--', target]);
-  } catch (error) {
-    if (process.platform !== 'linux' || !moveToXdgTrash(target, stat.dev)) throw error;
-  }
+  const result = await recyclePath(target);
+  if (result.ok) return;
+  // Linux without gio still has the XDG trash layout; keep the existing fallback.
+  if (process.platform === 'linux' && moveToXdgTrash(target, stat.dev)) return;
+  throw new Error(`failed to recycle ${target}: ${result.reason}: ${result.detail}`);
 }
 
 function moveToXdgTrash(target: string, sourceDevice: number): boolean {
@@ -750,14 +739,6 @@ function moveToXdgTrash(target: string, sourceDevice: number): boolean {
   const deletionDate = new Date().toISOString().replace(/[-:]/gu, '').replace(/\.\d{3}/u, '');
   fs.writeFileSync(path.join(infoRoot, name + '.trashinfo'), `[Trash Info]\nPath=${encodedPath}\nDeletionDate=${deletionDate}\n`, { flag: 'wx', mode: 0o600 });
   return true;
-}
-
-function runExecutable(command: string, args: string[]): Promise<void> {
-  return new Promise<void>((resolve, reject) => {
-    const child = spawn(command, args, { windowsHide: true, stdio: 'ignore' });
-    child.once('error', reject);
-    child.once('close', (code) => code === 0 ? resolve() : reject(new Error(`${command} exited with code ${code}`)));
-  });
 }
 
 function writeNewLease(lease: WorkspaceLease): void {

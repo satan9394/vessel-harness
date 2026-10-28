@@ -92,7 +92,7 @@ export interface LoopEngineDeps {
    * the factory seam (TempDir rmSync / git worktree remove); never touches the
    * main workspace.
    */
-  disposeWorkspace?: (ws: Workspace) => Promise<void>;
+  disposeWorkspace?: (ws: Workspace) => Promise<void | { disposed: boolean; reason?: string }>;
 }
 
 /** A candidate task fed to the engine. */

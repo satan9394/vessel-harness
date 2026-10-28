@@ -71,6 +71,9 @@ const zh: Record<string, string> = {
   vessel mod list|inspect <name>|verify <path>|audit <path> Static Mod inspection
   vessel serve --mode mcp-agent      通过 stdio 启动 MCP 子代理服务（协议仅占用 stdout）
   vessel web [--workspace <dir>]      启动本地服务并打开浏览器（工作区默认当前目录并自动入库）
+  vessel trash list [--json] [--root <path>]
+  vessel trash restore <id> [--root <path>]
+  vessel trash purge [--dry-run] [--older-than <days>] [--json] [--root <path>]
 
 run 选项:
   --prompt <text>                 用户输入（缺省从 stdin 读取）
@@ -167,6 +170,9 @@ const en: Record<string, string> = {
   vessel mod list|inspect <name>|verify <path>|audit <path> Static Mod inspection
   vessel serve --mode mcp-agent      Start MCP subagent server over stdio (stdout reserved for the protocol)
   vessel web [--workspace <dir>]      Start local server and open browser (workspace defaults to current directory and is registered automatically)
+  vessel trash list [--json] [--root <path>]
+  vessel trash restore <id> [--root <path>]
+  vessel trash purge [--dry-run] [--older-than <days>] [--json] [--root <path>]
 
 run options:
   --prompt <text>                 User input (read from stdin by default)
