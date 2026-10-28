@@ -37,6 +37,8 @@ export class Session {
   private seq = 0;
   private fd: fs.promises.FileHandle | null = null;
   private leasePath: string;
+  // open() acquires the lease before constructing; a lazy fd does not release it.
+  private leaseHeld = true;
 
   private constructor(opts: SessionOptions, handle: SessionHandle) {
     this.workspaceRoot = opts.workspaceRoot;
@@ -110,6 +112,7 @@ export class Session {
         // 陈旧（pid 不存在 / 内容不可解析）→ 回收
         console.warn(`[session] 回收陈旧租约（原属 pid=${owner ?? 'unknown'}）：${leasePath}`);
         try {
+          // Decision 24: stale .lease files are rebuildable B-class runtime data.
           fs.rmSync(leasePath, { force: true });
         } catch {
           /* 删不掉就让下一轮 openSync 抛出 fail-closed 错误 */
@@ -180,6 +183,10 @@ export class Session {
   }
 
   async append(record: Omit<SessionRecord, 'seq' | 'ts'> & { seq?: number; ts?: string }): Promise<SessionRecord> {
+    if (!this.leaseHeld) {
+      Session.acquireLease(this.dir);
+      this.leaseHeld = true;
+    }
     const full: SessionRecord = {
       ...(record as SessionRecord),
       seq: this.seq + 1,
@@ -275,10 +282,12 @@ export class Session {
       this.fd = null;
     }
     try {
+      // Decision 24: this session's .lease is rebuildable B-class runtime data.
       fs.rmSync(this.leasePath, { force: true });
     } catch {
       // best effort
     }
+    this.leaseHeld = false;
   }
 }
 

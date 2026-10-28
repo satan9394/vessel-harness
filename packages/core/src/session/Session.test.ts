@@ -109,6 +109,9 @@ describe('Session (append-only JSONL event log)', () => {
     expect(removed).toBe(1);
     const seqs = s.replay().map((r) => r.seq);
     expect(seqs).toEqual([1, 2]);
+    const appended = await s.appendSync({ type: 'user/message', msgId: 'm3', role: 'user', content: 'after compaction', surface: true });
+    expect(appended.seq).toBe(3);
+    expect(fs.readFileSync(s.logPath, 'utf8').trim().split('\n')).toHaveLength(3);
     await s.close();
   });
 

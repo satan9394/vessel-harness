@@ -164,4 +164,60 @@ describe('Session lease (fail-closed + stale reclaim)', () => {
     expect(leaseOwnerLine()).toBe(String(process.pid));
     await second.close();
   });
+
+  it('reacquires the lease when the same Session appends after close', async () => {
+    const session = await Session.open({ workspaceRoot: tmpRoot, sessionId: 'lease-reopen', sessionDir });
+    try {
+      await session.append({ type: 'user/message', msgId: 'm1', role: 'user', content: 'before close', surface: true });
+      await session.close();
+      expect(fs.existsSync(leasePath())).toBe(false);
+
+      const appended = await session.append({ type: 'user/message', msgId: 'm2', role: 'user', content: 'after close', surface: true });
+      expect(appended.seq).toBe(2);
+      expect(fs.readFileSync(session.logPath, 'utf8').trim().split('\n')).toHaveLength(2);
+      const leaseLines = fs.readFileSync(leasePath(), 'utf8').split('\n');
+      expect(leaseLines).toHaveLength(3);
+      expect(leaseLines[0]).toBe(String(process.pid));
+      expect(new Date(leaseLines[1]!).toISOString()).toBe(leaseLines[1]);
+      expect(leaseLines[2]).toBe('');
+      await expect(Session.open({ workspaceRoot: tmpRoot, sessionId: 'lease-reopen', sessionDir })).rejects.toThrow(/already open/);
+    } finally {
+      await session.close();
+    }
+  });
+
+  it('rejects append after close when a live writer holds the lease without changing log bytes', async () => {
+    const session = await Session.open({ workspaceRoot: tmpRoot, sessionId: 'lease-reopen-busy', sessionDir });
+    try {
+      await session.append({ type: 'user/message', msgId: 'm1', role: 'user', content: 'before close', surface: true });
+      await session.close();
+      const logBefore = fs.readFileSync(session.logPath);
+      const recordsBefore = [...session.replay()];
+      const foreignLease = `${process.pid}\n${new Date().toISOString()}\n`;
+      writeLease(foreignLease);
+
+      await expect(session.append({ type: 'user/message', msgId: 'm2', role: 'user', content: 'must not persist', surface: true }))
+        .rejects.toThrow(`Session is already open by process ${process.pid}: ${sessionDir}`);
+      expect(fs.readFileSync(session.logPath)).toEqual(logBefore);
+      expect(session.replay()).toEqual(recordsBefore);
+      expect(fs.readFileSync(leasePath(), 'utf8')).toBe(foreignLease);
+    } finally {
+      await session.close();
+    }
+  });
+
+  it('reclaims a stale lease when appending after close', async () => {
+    const session = await Session.open({ workspaceRoot: tmpRoot, sessionId: 'lease-reopen-stale', sessionDir });
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    try {
+      await session.close();
+      writeLease(`${pickDeadPid()}\n${new Date().toISOString()}\n`);
+      await session.append({ type: 'user/message', msgId: 'm1', role: 'user', content: 'after stale lease', surface: true });
+      expect(leaseOwnerLine()).toBe(String(process.pid));
+      expect(warn).toHaveBeenCalledTimes(1);
+    } finally {
+      warn.mockRestore();
+      await session.close();
+    }
+  });
 });
