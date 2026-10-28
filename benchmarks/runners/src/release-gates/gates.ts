@@ -259,14 +259,14 @@ export const REAL_MODEL_BENCH_GATE_CRITERION =
  * 审计发现（本卡，同族）：旧 criterion 写「build 产物检查（npm pack / 等价产物）**存在且完整**；
  * 工具缺失时显式 pending」，而默认 executor 实际**只做两次 `fs.existsSync`**
  * （`<repoRoot>/dist` 与 `<repoRoot>/dist/index.js`）—— 它不校验产物内容、完整性、可安装性，
- * 也不解析 tarball 清单；那条 `npm pack --dry-run --json` 的**输出被丢弃**
- * （只在 `ctx.exec` 抛出时置 `probeFailed`，用于把「命令没跑起来」判成 pending）。
+ * 也不解析 tarball 清单；`npm pack --dry-run --json` 必须退出 0 且至少一个输出非空，
+ * 否则（包括 `ctx.exec` 抛出）以探针失败计 pending。
  *
  * 处置（(ii)「让判据为真」而非 (i)「让执行为真」的理由）：真正的发布物形状校验已经在
  * `run-release-gates.ts` 的 `buildPublishArtifactExecutor()` + `PUBLISH_ARTIFACT_CRITERION` 上
  * 落地（pack 期脚本静态断言 + tarball 清单必需/违禁文件），发布驱动会**覆盖**本 gate 的 executor；
  * 默认装配不该再复制一套（复制就会漂移出第二套语义）。故默认装配的判据如实缩到
- * 「探测这两个路径」，并显式声明它**不是**完整性校验。
+ * 「探针取得可判定结果后探测这两个路径」，并显式声明它**不是**完整性校验。
  *
  * 纪律：criterion 的字面量由本常量唯一持有（`GATE_DEFINITIONS` 只引用它），
  * `release-gates.test.ts` 用 `toBe(PACKAGING_GATE_CRITERION)` 锁住注册表接线，
@@ -275,14 +275,14 @@ export const REAL_MODEL_BENCH_GATE_CRITERION =
  * 下的判定结果逐条比对（改文案不改 executor、或反过来，都必红）。
  */
 export const PACKAGING_GATE_CRITERION =
-  'build 产物检查（默认装配的 packaging executor）：**判据 = 探测两个路径是否存在** —— ' +
+  'build 产物检查（默认装配的 packaging executor）：**判据 = npm 探针正常且两个路径存在** —— ' +
   '`<repoRoot>/dist` 与 `<repoRoot>/dist/index.js`（后者可经 `BuildGateExecutorsOptions.packageEntry` 注入），' +
   '各一次 `fs.existsSync`。' +
-  '三态：① `dist` 缺失、或 npm 探测本身失败（`ctx.exec` 抛出，命令未执行）⇒ **pending**；' +
-  '② 两者都存在 ⇒ **pass**；③ `dist` 存在但入口缺失 ⇒ **fail**。' +
-  '执行器另会跑一次 `npm pack --dry-run --json`（只为探测 npm 是否可用：该命令抛出才算探测失败），' +
-  '**其输出不参与判定**。' +
-  '故本 gate **不校验**产物完整性/内容/可安装性，也**不看** tarball 清单 —— 它判 pass 只等于「那两个路径存在」。' +
+  '三态：① `dist` 缺失、或 npm 探测本身失败（`ctx.exec` 抛出、退出码非零、或 stdout/stderr 同时为空白）⇒ **pending**；' +
+  '② 探针正常且两者都存在 ⇒ **pass**；③ 探针正常、`dist` 存在但入口缺失 ⇒ **fail**。' +
+  '执行器会跑一次 `npm pack --dry-run --json`，退出码 0 且 stdout/stderr 至少一个非空白才算探针正常；' +
+  '探针失败时明确注明「探针失败，未取得可判定结果」。' +
+  '故本 gate **不校验**产物完整性/内容/可安装性，也**不看** tarball 清单 —— 它判 pass 只等于「探针正常且那两个路径存在」。' +
   '（真正的发布物形状校验由发布驱动把它换成 `buildPublishArtifactExecutor()` + `PUBLISH_ARTIFACT_CRITERION` 承担，' +
   '见 `run-release-gates.ts`；届时报告里的 criterion 是那一条，不是本条。）';
 
@@ -759,24 +759,27 @@ export function judgePackagingProbe(args: {
   entryExists: boolean;
   probeFailed: boolean;
 }): GateVerdict {
+  const detail = [`dist=${String(args.rootHasDist)}`, `entry=${String(args.entryExists)}`, `probeFailed=${String(args.probeFailed)}`];
   if (args.probeFailed || !args.rootHasDist) {
     return {
       status: 'pending',
       pending: true,
-      evidence: { summary: args.probeFailed ? '包装探测失败（受限环境无法执行 npm pack）' : '未发现 build 产物（dist 缺失）' },
-      note: 'packaging gate: 需要非受限环境构建出 dist 后重跑；当前显式 pending 不静默通过。',
+      evidence: { summary: args.probeFailed ? '探针失败，未取得可判定结果' : '未发现 build 产物（dist 缺失）', detail },
+      note: args.probeFailed
+        ? 'packaging gate: 探针失败，未取得可判定结果；修复 npm 探针后重跑，当前显式 pending 不静默通过。'
+        : 'packaging gate: 需要构建出 dist 后重跑；当前显式 pending 不静默通过。',
     };
   }
   return {
     status: args.entryExists ? 'pass' : 'fail',
     evidence: {
-      // 文案纪律（与 PACKAGING_GATE_CRITERION 同口径）：判据只是**两次路径存在性探测**，
+      // 文案纪律（与 PACKAGING_GATE_CRITERION 同口径）：探针正常后只做两次路径存在性探测，
       // 故这里不得写「产物完整」——那正是本卡治的「声称 > 实做」。旧串是
       // 'build 产物完整（dist + 入口存在）'，它把「两个路径存在」说成了「产物完整」。
       summary: args.entryExists
-        ? 'build 产物在位（dist 与入口均存在）——本 gate 只探测这两个路径存在，未校验产物完整性/内容'
+        ? 'npm 探针正常，build 产物在位（dist 与入口均存在）——未校验产物完整性/内容'
         : 'dist 存在但入口缺失',
-      detail: [`dist=${String(args.rootHasDist)}`, `entry=${String(args.entryExists)}`],
+      detail,
     },
   };
 }
@@ -824,13 +827,28 @@ export function judgeUxSmoke(args: { webDistPresent: boolean; probeFailed: boole
 // own RunCommand (spawn-with-piped-stdio may be EPERM under a file sandbox).
 // ---------------------------------------------------------------------------
 
-function execAsync(command: string, args: string[], opts: { cwd?: string; env?: Record<string, string | undefined>; timeoutMs?: number }): Promise<CommandOutcome> {
+type GateExecFile = (command: string, args: string[], opts: {
+  cwd?: string;
+  env?: Record<string, string | undefined>;
+  timeout: number;
+  windowsHide: boolean;
+  shell?: boolean;
+}) => Promise<{ stdout: string | Buffer; stderr: string | Buffer }>;
+
+/** Injectable execution seam for platform routing tests; production uses execFile. */
+export function createGateRunCommand(exec: GateExecFile = execFileAsync, platform: NodeJS.Platform = process.platform): RunCommand {
+  return (command, args, opts) => execAsync(command, args, opts, exec, platform);
+}
+
+function execAsync(command: string, args: string[], opts: { cwd?: string; env?: Record<string, string | undefined>; timeoutMs?: number }, exec: GateExecFile, platform: NodeJS.Platform): Promise<CommandOutcome> {
   return new Promise((resolve) => {
-    execFileAsync(command, args, {
+    exec(command, args, {
       cwd: opts.cwd,
       env: opts.env,
       timeout: opts.timeoutMs ?? 120_000,
       windowsHide: true,
+      // Windows npm is a .cmd shim; execFile cannot launch it without a shell.
+      ...(platform === 'win32' && command === 'npm' ? { shell: true } : {}),
     })
       .then(({ stdout, stderr }) => resolve({ code: 0, stdout: String(stdout), stderr: String(stderr) }))
       .catch((err: NodeJS.ErrnoException & { stdout?: string; stderr?: string; code?: string | number }) =>
@@ -840,7 +858,7 @@ function execAsync(command: string, args: string[], opts: { cwd?: string; env?: 
 }
 
 /** The default real command runner (shells via child_process). */
-export const gateDefaultRunCommand: RunCommand = (command, args, opts) => execAsync(command, args, opts);
+export const gateDefaultRunCommand: RunCommand = createGateRunCommand();
 
 // ---------------------------------------------------------------------------
 // Real executors — one per gate, injectable, built on judges + injected deps.
@@ -1219,7 +1237,15 @@ export function buildReleaseGateExecutors(opts: BuildGateExecutorsOptions = {}):
           });
         const rootHasDist = fs.existsSync(path.join(ctx.repoRoot, 'dist'));
         const entryExists = fs.existsSync(path.join(ctx.repoRoot, opts.packageEntry ?? 'dist/index.js'));
-        return judgePackagingProbe({ rootHasDist, probeFailed, entryExists });
+        probeFailed ||= outcome.code !== 0 || (!outcome.stdout.trim() && !outcome.stderr.trim());
+        const verdict = judgePackagingProbe({ rootHasDist, probeFailed, entryExists });
+        verdict.evidence.detail = [
+          ...(verdict.evidence.detail ?? []),
+          `npm pack exit=${outcome.code}`,
+          `stdoutBytes=${Buffer.byteLength(outcome.stdout)}`,
+          `stderrBytes=${Buffer.byteLength(outcome.stderr)}`,
+        ];
+        return verdict;
       },
     },
   ];

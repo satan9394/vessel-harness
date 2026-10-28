@@ -17,6 +17,7 @@ import {
   UNIT_GATE_CRITERION,
   UNIT_TEST_ROOTS,
   buildReleaseGateExecutors,
+  createGateRunCommand,
   classifyScenarioRun,
   gateDefinition,
   judgeBuild,
@@ -1163,6 +1164,54 @@ describe('gate 4 real-model-bench：判据声明的判定输入 == executor 实�
   });
 });
 
+describe('default command runner platform routing', () => {
+  it.each([
+    { platform: 'win32' as const, command: 'npm', shell: true },
+    { platform: 'linux' as const, command: 'npm', shell: undefined },
+    { platform: 'darwin' as const, command: 'npm', shell: undefined },
+    { platform: 'win32' as const, command: 'node', shell: undefined },
+  ])('$platform $command: preserves arguments and routes only Windows npm through a shell', async ({ platform, command, shell }) => {
+    const exec = vi.fn(async () => ({ stdout: 'pack output\n', stderr: 'pack warning\n' }));
+    const run = createGateRunCommand(exec, platform);
+    const args = ['pack', '--dry-run', '--json'];
+    const env = { VESSEL_GATE_TEST: '1' };
+    expect(await run(command, args, { cwd: '/fixture', env, timeoutMs: 4321 })).toEqual({
+      code: 0, stdout: 'pack output\n', stderr: 'pack warning\n',
+    });
+    expect(exec).toHaveBeenCalledExactlyOnceWith(command, args, {
+      cwd: '/fixture', env, timeout: 4321, windowsHide: true,
+      ...(shell ? { shell } : {}),
+    });
+  });
+
+  it.each([0, 7])('Windows npm exit %i retains output and packaging verdict semantics', async (code) => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'vessel-rg-win-npm-'));
+    try {
+      fs.mkdirSync(path.join(root, 'dist'));
+      fs.writeFileSync(path.join(root, 'dist/index.js'), '// entry\n');
+      const exec = vi.fn(async () => {
+        if (code !== 0) throw Object.assign(new Error('pack failed'), { code, stdout: 'partial output', stderr: 'pack error' });
+        return { stdout: '[]', stderr: '' };
+      });
+      const run = createGateRunCommand(exec, 'win32');
+      const pkg = buildReleaseGateExecutors().find((e) => e.gate.id === 'packaging')!;
+      const verdict = await pkg.run({ repoRoot: root, reportsDir: root, exec: run });
+      expect(exec).toHaveBeenCalledExactlyOnceWith('npm', ['pack', '--dry-run', '--json'], {
+        cwd: root, env: undefined, timeout: 120_000, windowsHide: true, shell: true,
+      });
+      expect(verdict.status).toBe(code === 0 ? 'pass' : 'pending');
+      expect(verdict.evidence.detail).toEqual([
+        'dist=true', 'entry=true', `probeFailed=${code !== 0}`, `npm pack exit=${code}`,
+        `stdoutBytes=${Buffer.byteLength(code === 0 ? '[]' : 'partial output')}`,
+        `stderrBytes=${Buffer.byteLength(code === 0 ? '' : 'pack error')}`,
+      ]);
+      if (code !== 0) expect(verdict.pending).toBe(true);
+    } finally {
+      fs.rmSync(root, { recursive: true, force: true });
+    }
+  });
+});
+
 describe('gate 8 packaging：判据点名的命令/探测路径 == executor 实发命令/实际判定路径（判别性守卫）', () => {
   it('判别性①：文本点名的 npm 命令逐条等于实发命令；按文本点名的路径搭布局，判定与文本三态一致', async () => {
     const criterion = gateDefinition('packaging').criterion;
@@ -1177,6 +1226,9 @@ describe('gate 8 packaging：判据点名的命令/探测路径 == executor 实�
     expect(criterion).not.toContain('存在且完整');
     expect(criterion).not.toContain('等价产物）存在');
     expect(criterion).toContain('不校验');
+    expect(criterion).toContain('退出码非零');
+    expect(criterion).toContain('stdout/stderr 同时为空白');
+    expect(criterion).not.toContain('其输出不参与判定');
 
     const root = fs.mkdtempSync(path.join(os.tmpdir(), 'cah-rg-pkg-'));
     try {
@@ -1187,7 +1239,7 @@ describe('gate 8 packaging：判据点名的命令/探测路径 == executor 实�
         reportsDir: path.join(root, 'reports'),
         exec: async (command: string, args: string[]) => {
           invoked.push([command, ...args].join(' '));
-          return { code: 0, stdout: '', stderr: '' };
+          return { code: 0, stdout: '[]', stderr: '' };
         },
       };
 
@@ -1220,6 +1272,55 @@ describe('gate 8 packaging：判据点名的命令/探测路径 == executor 实�
           })
         ).status,
       ).toBe('pending');
+    } finally {
+      fs.rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it.each([
+    { name: 'nonzero probe', code: 1, stdout: '[]', stderr: 'pack failed', dist: true, entry: true, throws: false, status: 'pending', failed: true },
+    { name: 'valid probe and both paths', code: 0, stdout: '[]', stderr: '', dist: true, entry: true, throws: false, status: 'pass', failed: false },
+    { name: 'missing dist', code: 0, stdout: '[]', stderr: '', dist: false, entry: false, throws: false, status: 'pending', failed: false },
+    { name: 'missing entry', code: 0, stdout: '[]', stderr: '', dist: true, entry: false, throws: false, status: 'fail', failed: false },
+    { name: 'exit zero with empty outputs', code: 0, stdout: '', stderr: '', dist: true, entry: true, throws: false, status: 'pending', failed: true },
+    { name: 'exit zero with whitespace outputs', code: 0, stdout: ' \n', stderr: '\t', dist: true, entry: true, throws: false, status: 'pending', failed: true },
+    { name: 'thrown probe', code: 1, stdout: '', stderr: 'probe failed', dist: true, entry: true, throws: true, status: 'pending', failed: true },
+    { name: 'stderr-only probe result', code: 0, stdout: '', stderr: 'pack result', dist: true, entry: true, throws: false, status: 'pass', failed: false },
+  ])('$name: verdict and probe/path evidence', async (testCase) => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'cah-rg-pkg-result-'));
+    try {
+      if (testCase.dist) fs.mkdirSync(path.join(root, 'dist'));
+      if (testCase.entry) fs.writeFileSync(path.join(root, 'dist/index.js'), '// entry\n');
+      const pkg = buildReleaseGateExecutors().find((e) => e.gate.id === 'packaging')!;
+      const verdict = await pkg.run({
+        repoRoot: root,
+        reportsDir: path.join(root, 'reports'),
+        exec: async () => {
+          if (testCase.throws) throw new Error('spawn EPERM');
+          return { code: testCase.code, stdout: testCase.stdout, stderr: testCase.stderr };
+        },
+      });
+      expect(verdict.status).toBe(testCase.status);
+      expect(verdict.evidence.detail).toEqual([
+        `dist=${testCase.dist}`,
+        `entry=${testCase.entry}`,
+        `probeFailed=${testCase.failed}`,
+        `npm pack exit=${testCase.code}`,
+        `stdoutBytes=${Buffer.byteLength(testCase.stdout)}`,
+        `stderrBytes=${Buffer.byteLength(testCase.stderr)}`,
+      ]);
+      if (testCase.failed) {
+        expect(verdict.pending).toBe(true);
+        expect(verdict.note).toContain('探针失败，未取得可判定结果');
+        expect(verdict.evidence.summary).toBe('探针失败，未取得可判定结果');
+      } else if (!testCase.dist) {
+        expect(verdict.pending).toBe(true);
+        expect(verdict.evidence.summary).toContain('dist 缺失');
+      } else if (!testCase.entry) {
+        expect(verdict.evidence.summary).toBe('dist 存在但入口缺失');
+      } else {
+        expect(verdict.evidence.summary).toContain('npm 探针正常');
+      }
     } finally {
       fs.rmSync(root, { recursive: true, force: true });
     }
