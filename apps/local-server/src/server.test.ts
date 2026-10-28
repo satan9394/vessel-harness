@@ -3,7 +3,7 @@ import * as os from 'node:os';
 import * as path from 'node:path';
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { MockProvider } from '@vessel/llm';
-import { SessionRegistry, ProjectRegistry, ReviewHandoffStore, type SessionController } from '@vessel/application';
+import { SessionRegistry, ProjectRegistry, ReviewHandoffStore, trashStore, type SessionController } from '@vessel/application';
 import { IterationStore, ProjectTaskQueue } from '@vessel/engine';
 import { createVesselServer, type VesselServer } from './server.js';
 import type { ChatProvider, ChatRequest, ChatResponse, StreamChunk } from '@vessel/shared';
@@ -13,14 +13,164 @@ import { ProviderRoutes } from './routes/providerRoutes.js';
 import { ProviderStore } from './providers/ProviderStore.js';
 import type { EffectJournal } from '@vessel/runtime';
 
-const { recyclePath } = vi.hoisted(() => ({ recyclePath: vi.fn<() => Promise<void>>() }));
-vi.mock('./daemon/daemonLifecycle.js', async (importOriginal) => ({
-  ...await importOriginal<typeof import('./daemon/daemonLifecycle.js')>(),
-  recycleDaemonPath: recyclePath,
-}));
+vi.mock('@vessel/application', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@vessel/application')>();
+  return { ...actual, trashStore: { ...actual.trashStore,
+    trashEntry: vi.fn(actual.trashStore.trashEntry), purge: vi.fn(actual.trashStore.purge),
+  } };
+});
+const stageSession = vi.mocked(trashStore.trashEntry);
+const purgeTrash = vi.mocked(trashStore.purge);
+const originalStage = stageSession.getMockImplementation()!;
+const originalPurge = purgeTrash.getMockImplementation()!;
+beforeEach(() => {
+  stageSession.mockReset().mockImplementation(originalStage);
+  purgeTrash.mockReset().mockImplementation(originalPurge);
+});
 
 const POLICY = path.resolve('configs/policy.default.yaml');
 const BEHAVIOR = path.resolve('configs/behavior.default.yaml');
+
+describe('local server startup trash retention', () => {
+  let dir: string;
+  let workspace: string;
+  let root: string;
+  let server: VesselServer | undefined;
+
+  beforeEach(() => {
+    dir = fs.mkdtempSync(path.join(os.tmpdir(), 'vessel-startup-trash-'));
+    workspace = path.join(dir, 'workspace');
+    root = path.join(workspace, '.harness', 'trash');
+    fs.mkdirSync(workspace);
+    server = undefined;
+    vi.stubEnv('VESSEL_TRASH_TTL_DAYS', '7');
+  });
+  afterEach(async () => {
+    await server?.close();
+    vi.unstubAllEnvs();
+    fs.rmSync(dir, { recursive: true, force: true });
+  });
+
+  function expiredEntry() {
+    const target = path.join(workspace, 'expired-artifact');
+    fs.writeFileSync(target, 'recoverable fixture');
+    const entry = trashStore.trashEntry({ root, target, kind: 'artifact', reason: 'test', ttlDays: 1 });
+    const expired = { ...entry, deletedAt: '2020-01-01T00:00:00.000Z', expiresAt: '2020-01-02T00:00:00.000Z' };
+    fs.writeFileSync(path.join(root, entry.id, 'entry.json'), JSON.stringify(expired));
+    return expired;
+  }
+  function start(): Promise<VesselServer> {
+    const home = path.join(dir, 'home');
+    server = createVesselServer({ port: 0, workspace,
+      projectRegistry: new ProjectRegistry({ vesselHome: home }), sessionRegistry: new SessionRegistry({ vesselHome: home }),
+    });
+    return server.listen();
+  }
+  const nextImmediate = (): Promise<void> => new Promise(resolve => setImmediate(resolve));
+
+  it('binds before startup purge removes expired entries and preserves unexpired data', async () => {
+    const expired = expiredEntry();
+    const target = path.join(workspace, 'recent-artifact');
+    fs.writeFileSync(target, 'keep');
+    const recent = trashStore.trashEntry({ root, target, kind: 'artifact', reason: 'test', ttlDays: 7 });
+    await start();
+    expect(server!.port).toBeGreaterThan(0);
+    expect(purgeTrash).not.toHaveBeenCalled();
+    expect(fs.existsSync(path.join(root, expired.id))).toBe(true);
+    await nextImmediate();
+    expect(purgeTrash).toHaveBeenCalledExactlyOnceWith({ root });
+    expect(fs.existsSync(path.join(root, expired.id))).toBe(false);
+    expect(trashStore.list({ root }).entries.map(entry => entry.id)).toEqual([recent.id]);
+    expect(fs.readFileSync(path.join(root, '_purge.jsonl'), 'utf8')).toContain('retention/purge:pending');
+  });
+
+  it('leaves already expired entries untouched when TTL is zero', async () => {
+    const entry = expiredEntry();
+    vi.stubEnv('VESSEL_TRASH_TTL_DAYS', '0');
+    await start();
+    await nextImmediate();
+    expect(purgeTrash).not.toHaveBeenCalled();
+    expect(fs.readFileSync(path.join(root, entry.id, 'data'), 'utf8')).toBe('recoverable fixture');
+    expect(fs.existsSync(path.join(root, '_purge.jsonl'))).toBe(false);
+  });
+
+  it('silently skips a missing startup trash root without creating it', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    try {
+      await start();
+      await nextImmediate();
+      expect(purgeTrash).not.toHaveBeenCalled();
+      expect(fs.existsSync(root)).toBe(false);
+      expect(warn).not.toHaveBeenCalled();
+    } finally {
+      warn.mockRestore();
+    }
+  });
+
+  it('warns on purge failure while the server remains available', async () => {
+    const entry = expiredEntry();
+    purgeTrash.mockImplementationOnce(() => { throw new Error('audit unavailable'); });
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    try {
+      await start();
+      await nextImmediate();
+      expect(warn).toHaveBeenCalledExactlyOnceWith('[vessel] startup trash purge failed: Error: audit unavailable');
+      expect((await fetch(`http://127.0.0.1:${server!.port}/api/health`)).status).toBe(200);
+      expect(fs.existsSync(path.join(root, entry.id, 'data'))).toBe(true);
+    } finally {
+      warn.mockRestore();
+    }
+  });
+
+  it('returns an empty trash listing without creating the missing root', async () => {
+    vi.stubEnv('VESSEL_TRASH_TTL_DAYS', '0');
+    await start();
+    const response = await fetch(`http://127.0.0.1:${server!.port}/api/trash`);
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({ entries: [], skipped: [] });
+    expect(fs.existsSync(root)).toBe(false);
+    expect(purgeTrash).not.toHaveBeenCalled();
+  });
+
+  it('returns only metadata and never writes or purges while listing', async () => {
+    vi.stubEnv('VESSEL_TRASH_TTL_DAYS', '0');
+    const entry = expiredEntry();
+    const invalid = path.join(root, 'invalid');
+    fs.mkdirSync(invalid);
+    fs.writeFileSync(path.join(invalid, 'entry.json'), '{"secret":"fixture-secret-content"');
+    const metadataPath = path.join(root, entry.id, 'entry.json');
+    const dataPath = path.join(root, entry.id, 'data');
+    const before = [fs.readFileSync(metadataPath), fs.readFileSync(dataPath), fs.readFileSync(path.join(invalid, 'entry.json'))];
+    await start();
+    const response = await fetch(`http://127.0.0.1:${server!.port}/api/trash`);
+    const text = await response.text();
+    expect(response.status).toBe(200);
+    expect(JSON.parse(text)).toEqual({ entries: [{ id: entry.id, origin: entry.origin, kind: entry.kind, reason: entry.reason,
+      deletedAt: entry.deletedAt, expiresAt: entry.expiresAt, sizeBytes: entry.sizeBytes }],
+      skipped: [{ id: 'invalid', reason: 'invalid_entry' }] });
+    expect(text).not.toContain('recoverable fixture');
+    expect(text).not.toContain('fixture-secret-content');
+    expect([fs.readFileSync(metadataPath), fs.readFileSync(dataPath), fs.readFileSync(path.join(invalid, 'entry.json'))]).toEqual(before);
+    expect(fs.readdirSync(root).sort()).toEqual([entry.id, 'invalid'].sort());
+    expect(purgeTrash).not.toHaveBeenCalled();
+  });
+
+  it('rejects cross-origin reads and does not expose write methods', async () => {
+    vi.stubEnv('VESSEL_TRASH_TTL_DAYS', '0');
+    await start();
+    const url = `http://127.0.0.1:${server!.port}/api/trash`;
+    const denied = await fetch(url, { headers: { Origin: 'https://example.com' } });
+    expect(denied.status).toBe(403);
+    expect(await denied.json()).toEqual({ error: 'cross_origin_denied' });
+    for (const method of ['POST', 'DELETE']) {
+      const response = await fetch(url, { method });
+      expect(response.status).toBe(404);
+      expect(await response.json()).toEqual({ error: 'not_found' });
+    }
+    expect(fs.existsSync(root)).toBe(false);
+    expect(purgeTrash).not.toHaveBeenCalled();
+  });
+});
 
 describe('profile HTTP dispatch', () => {
   let home: string;
@@ -31,7 +181,7 @@ describe('profile HTTP dispatch', () => {
     home = fs.mkdtempSync(path.join(os.tmpdir(), 'vessel-profile-http-'));
     store = new ProviderStore({ rootDir: home });
     store.add({ id: 'local', name: 'Local', protocol: 'openai-compatible', model: 'old', baseUrl: 'http://localhost:9999/v1' });
-    server = await createVesselServer({ port: 0, providerStore: store,
+    server = await createVesselServer({ port: 0, workspace: home, providerStore: store,
       projectRegistry: new ProjectRegistry({ vesselHome: home }), sessionRegistry: new SessionRegistry({ vesselHome: home }),
     }).listen();
     base = `http://127.0.0.1:${server.port}`;
@@ -208,7 +358,6 @@ describe('local server HTTP API + SSE', () => {
 
   beforeEach(async () => {
     providerOverride = undefined;
-    recyclePath.mockReset().mockResolvedValue(undefined);
     dir = fs.mkdtempSync(path.join(os.tmpdir(), 'cah-local-server-'));
     ws = path.join(dir, 'workspace');
     home = path.join(dir, 'vessel-home');
@@ -219,6 +368,7 @@ describe('local server HTTP API + SSE', () => {
 
     server = createVesselServer({
       port: 0,
+      workspace: ws,
       projectRegistry,
       sessionRegistry,
       sessionFactory: async (input) => {
@@ -528,6 +678,7 @@ describe('local server HTTP API + SSE', () => {
     });
     expect(create.status).toBe(201);
     const { session } = (await create.json()) as { session: { id: string } };
+    await controller.session.appendSync({ type: 'user/message', msgId: 'delete-fixture', role: 'user', content: 'persisted before deletion', surface: true });
 
     // Cross-origin DELETE is denied
     const denied = await fetch(`${base}/api/sessions/${session.id}`, {
@@ -542,6 +693,14 @@ describe('local server HTTP API + SSE', () => {
     });
     expect(deleted.status).toBe(200);
     expect(await deleted.json()).toEqual({ ok: true, id: session.id });
+    const root = path.join(ws, '.harness', 'trash');
+    const entries = trashStore.list({ root }).entries;
+    expect(entries).toHaveLength(1);
+    expect(entries[0]).toMatchObject({ origin: path.join(ws, '.harness', 'sessions', session.id), kind: 'session', reason: 'user_delete' });
+    expect(fs.existsSync(path.join(root, entries[0]!.id, 'data', 'session.jsonl'))).toBe(true);
+    expect(fs.existsSync(entries[0]!.origin)).toBe(false);
+    const listing = await fetch(`${base}/api/sessions`).then(response => response.json()) as { sessions: { id: string }[] };
+    expect(listing.sessions.some(item => item.id === session.id)).toBe(false);
 
     // Subsequent GET returns 404
     const getAfter = await fetch(`${base}/api/sessions/${session.id}`);
@@ -554,17 +713,73 @@ describe('local server HTTP API + SSE', () => {
     expect(repeated.status).toBe(404);
   });
 
-  it('waits for recycling before acknowledging deletion, after durably removing the session index', async () => {
+  it('restores a trashed session directory with the original log bytes', async () => {
     const created = await fetch(`${base}/api/sessions`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ workspaceRoot: ws }),
     });
     const { session } = await created.json() as { session: { id: string } };
-    const close = vi.spyOn(controller, 'close');
+    await controller.session.appendSync({ type: 'user/message', msgId: 'restore-fixture', role: 'user', content: 'persisted before restoration', surface: true });
+    const sessionDir = path.join(ws, '.harness', 'sessions', session.id);
+    const logBefore = fs.readFileSync(path.join(sessionDir, 'session.jsonl'));
+    expect((await fetch(`${base}/api/sessions/${session.id}`, { method: 'DELETE' })).status).toBe(200);
+    const root = path.join(ws, '.harness', 'trash');
+    const [entry] = trashStore.list({ root }).entries;
+    expect(entry).toBeDefined();
+    expect(trashStore.restore({ root, id: entry!.id }).origin).toBe(sessionDir);
+    expect(fs.readFileSync(path.join(sessionDir, 'session.jsonl'))).toEqual(logBefore);
+    expect(fs.existsSync(path.join(sessionDir, '.lease'))).toBe(false);
+    expect(trashStore.list({ root }).entries).toEqual([]);
+  });
+
+  it('lists an externally restored session without restarting or replacing live registry metadata', async () => {
+    const create = async () => (await (await fetch(`${base}/api/sessions`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ workspaceRoot: ws }),
+    })).json() as { session: { id: string } }).session;
+    const removed = await create();
+    await controller.session.appendSync({ type: 'user/message', msgId: 'external-restore', role: 'user', content: 'restore bytes', surface: true });
+    const sessionDir = path.join(ws, '.harness', 'sessions', removed.id);
+    const logBefore = fs.readFileSync(path.join(sessionDir, 'session.jsonl'));
+    const live = await create();
+    // Open the SQL list before deletion/restoration, exercising its incremental update path.
+    expect((await fetch(`${base}/api/sessions`)).status).toBe(200);
+    expect((await fetch(`${base}/api/sessions/${removed.id}`, { method: 'DELETE' })).status).toBe(200);
+    const deletedList = await (await fetch(`${base}/api/sessions`)).json() as { sessions: { id: string }[] };
+    expect(deletedList.sessions.map(item => item.id)).not.toContain(removed.id);
+    const root = path.join(ws, '.harness', 'trash');
+    const [entry] = trashStore.list({ root }).entries;
+    trashStore.restore({ root, id: entry!.id });
+    const external = new SessionRegistry({ vesselHome: home, index: false });
+    external.restoreRemoved(removed.id, ws);
+    external.renameTopic(live.id, 'External stale title');
+    const liveMeta = sessionRegistry.get(live.id)!;
+    const bytes = fs.readFileSync(path.join(home, 'sessions.metadata.jsonl'));
+    const listed = await (await fetch(`${base}/api/sessions`)).json() as { sessions: { id: string; recordCount: number }[] };
+    expect(listed.sessions.filter(item => item.id === removed.id)).toHaveLength(1);
+    expect(listed.sessions.find(item => item.id === removed.id)!.recordCount).toBeGreaterThan(0);
+    expect(sessionRegistry.get(live.id)).toBe(liveMeta);
+    expect(liveMeta.topic).toBeUndefined();
+    expect(fs.readFileSync(path.join(home, 'sessions.metadata.jsonl'))).toEqual(bytes);
+    expect(fs.readFileSync(path.join(sessionDir, 'session.jsonl'))).toEqual(logBefore);
+    const repeated = await (await fetch(`${base}/api/sessions`)).json() as { sessions: { id: string }[] };
+    expect(repeated.sessions.filter(item => item.id === removed.id)).toHaveLength(1);
+  });
+
+  it('waits for controller close before staging, after durably removing the session index', async () => {
+    const created = await fetch(`${base}/api/sessions`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ workspaceRoot: ws }),
+    });
+    const { session } = await created.json() as { session: { id: string } };
+    const originalClose = controller.close.bind(controller);
     let release!: () => void;
-    recyclePath.mockImplementationOnce(() => {
+    const close = vi.spyOn(controller, 'close').mockImplementationOnce(async () => {
+      await new Promise<void>(resolve => { release = resolve; });
+      await originalClose();
+    });
+    stageSession.mockImplementationOnce(options => {
       expect(close).toHaveBeenCalledTimes(1);
       expect(fs.existsSync(path.join(ws, '.harness', 'sessions', session.id, '.lease'))).toBe(false);
-      return new Promise<void>(resolve => { release = resolve; });
+      expect(new SessionRegistry({ vesselHome: home }).get(session.id)).toBeUndefined();
+      return originalStage(options);
     });
     let acknowledged = false;
     const deletion = fetch(`${base}/api/sessions/${session.id}`, { method: 'DELETE' }).then(response => {
@@ -572,7 +787,7 @@ describe('local server HTTP API + SSE', () => {
       return response;
     });
     try {
-      await waitFor(() => recyclePath.mock.calls.length === 1);
+      await waitFor(() => release !== undefined);
       expect(acknowledged).toBe(false);
       const competingDelete = await fetch(`${base}/api/sessions/${session.id}`, { method: 'DELETE' });
       expect(competingDelete.status).toBe(409);
@@ -581,7 +796,7 @@ describe('local server HTTP API + SSE', () => {
       });
       expect(competingTurn.status).toBe(409);
       expect(await competingTurn.json()).toEqual({ error: 'session_deleting', id: session.id });
-      expect(recyclePath).toHaveBeenCalledTimes(1);
+      expect(stageSession).not.toHaveBeenCalled();
       const listing = await fetch(`${base}/api/sessions`).then(response => response.json()) as { sessions: { id: string }[] };
       expect(listing.sessions.some(item => item.id === session.id)).toBe(false);
       expect(new SessionRegistry({ vesselHome: home }).get(session.id)).toBeUndefined();
@@ -589,14 +804,15 @@ describe('local server HTTP API + SSE', () => {
       release?.();
     }
     expect((await deletion).status).toBe(200);
+    expect(stageSession).toHaveBeenCalledTimes(1);
   });
 
-  it('reports recycling failure and retains the session for a successful retry', async () => {
+  it('reports staging failure and retains the session for a successful retry', async () => {
     const created = await fetch(`${base}/api/sessions`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ workspaceRoot: ws }),
     });
     const { session } = await created.json() as { session: { id: string } };
-    recyclePath.mockRejectedValueOnce(new Error('recycle unavailable'));
+    stageSession.mockImplementationOnce(() => { throw new Error('trash unavailable'); });
     const failed = await fetch(`${base}/api/sessions/${session.id}`, { method: 'DELETE' });
     expect(failed.status).toBe(500);
     expect(await failed.json()).toEqual({ error: 'session_recycle_failed', id: session.id, stage: 'recycle' });
@@ -626,7 +842,7 @@ describe('local server HTTP API + SSE', () => {
     const failed = await fetch(`${base}/api/sessions/${session.id}`, { method: 'DELETE' });
     expect(failed.status).toBe(500);
     expect(await failed.json()).toEqual({ error: 'session_index_failed', id: session.id, stage: 'index' });
-    expect(recyclePath).not.toHaveBeenCalled();
+    expect(stageSession).not.toHaveBeenCalled();
     expect(close).not.toHaveBeenCalled();
     expect(restore).toHaveBeenCalledWith(previous);
     expect(sessionRegistry.get(session.id)).toEqual(previous);
@@ -642,7 +858,7 @@ describe('local server HTTP API + SSE', () => {
     const previous = sessionRegistry.get(session.id);
     const close = vi.spyOn(controller, 'close');
     const persist = vi.spyOn(sessionRegistry as unknown as { persist(): void }, 'persist');
-    recyclePath.mockImplementationOnce(async () => {
+    stageSession.mockImplementationOnce(() => {
       persist.mockImplementationOnce(() => { throw new Error('rollback unavailable'); });
       throw new Error('recycle unavailable');
     });
@@ -670,7 +886,7 @@ describe('local server HTTP API + SSE', () => {
     const deleted = await fetch(`${base}/api/sessions/${session.id}`, { method: 'DELETE' });
     expect(deleted.status).toBe(500);
     expect(await deleted.json()).toEqual({ error: 'session_controller_close_failed', id: session.id, stage: 'controller' });
-    expect(recyclePath).not.toHaveBeenCalled();
+    expect(stageSession).not.toHaveBeenCalled();
     expect(new SessionRegistry({ vesselHome: home }).get(session.id)).toBeDefined();
     expect((await fetch(`${base}/api/sessions/${session.id}`)).status).toBe(200);
     expect((await fetch(`${base}/api/sessions/${session.id}`, { method: 'DELETE' })).status).toBe(200);
@@ -904,6 +1120,7 @@ describe('local server HTTP API + SSE', () => {
     const receivedWindows: Array<{ since?: string; until?: string } | undefined> = [];
     const withRows = createVesselServer({
       port: 0,
+      workspace: ws2,
       projectRegistry: new ProjectRegistry({ vesselHome: home2 }),
       sessionRegistry: new SessionRegistry({ vesselHome: home2 }),
       staticDir: ws2,
@@ -947,6 +1164,7 @@ describe('local server HTTP API + SSE', () => {
 
     const bare = createVesselServer({
       port: 0,
+      workspace: ws2,
       projectRegistry: new ProjectRegistry({ vesselHome: home2 }),
       sessionRegistry: new SessionRegistry({ vesselHome: home2 }),
       staticDir: ws2,
@@ -971,6 +1189,7 @@ describe('local server HTTP API + SSE', () => {
     fs.mkdirSync(ws2, { recursive: true });
     const srv = createVesselServer({
       port: 0,
+      workspace: ws2,
       projectRegistry: new ProjectRegistry({ vesselHome: home2 }),
       sessionRegistry: new SessionRegistry({ vesselHome: home2 }),
       sessionFactory: async (input) => {
@@ -1056,6 +1275,7 @@ describe('local server HTTP API + SSE', () => {
     fs.mkdirSync(ws2, { recursive: true });
     const srv = createVesselServer({
       port: 0,
+      workspace: ws2,
       projectRegistry: new ProjectRegistry({ vesselHome: home2 }),
       sessionRegistry: new SessionRegistry({ vesselHome: home2 }),
       sessionFactory: async (input) => {
@@ -1146,6 +1366,8 @@ describe('local server — POST /interrupt stops an in-flight turn (task 050)', 
     const sessionRegistry = new SessionRegistry({ vesselHome: home });
     server = createVesselServer({
       port: 0,
+      workspace: ws,
+      projectRegistry: new ProjectRegistry({ vesselHome: home }),
       sessionRegistry,
       sessionFactory: async (input) => {
         const { SessionController: SC } = await import('@vessel/application');
@@ -1172,7 +1394,10 @@ describe('local server — POST /interrupt stops an in-flight turn (task 050)', 
   });
 
   it('settles the interrupted writer before recycling a session', async () => {
-    recyclePath.mockReset().mockImplementation(async () => { expect(ctl!.loop.turnActive).toBe(false); });
+    stageSession.mockImplementationOnce(options => {
+      expect(ctl!.loop.turnActive).toBe(false);
+      return originalStage(options);
+    });
     const created = await fetch(`${base}/api/sessions`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ workspaceRoot: ws }),
     }).then(response => response.json()) as { session: { id: string } };
@@ -1185,13 +1410,13 @@ describe('local server — POST /interrupt stops an in-flight turn (task 050)', 
     const deletion = fetch(`${base}/api/sessions/${id}`, { method: 'DELETE' });
     try {
       await waitFor(() => interrupt.mock.calls.length > 0);
-      expect(recyclePath).not.toHaveBeenCalled();
+      expect(stageSession).not.toHaveBeenCalled();
     } finally {
       gated.release();
     }
     expect((await turn).status).toBe(200);
     expect((await deletion).status).toBe(200);
-    expect(recyclePath).toHaveBeenCalledTimes(1);
+    expect(stageSession).toHaveBeenCalledTimes(1);
   });
 
   it('a turn in flight ends kind=interrupted with turn/start → turn/end pairing kept', async () => {
@@ -1255,6 +1480,8 @@ describe('local server — POST /steer caches mid-turn and injects at the next b
     const sessionRegistry = new SessionRegistry({ vesselHome: home });
     server = createVesselServer({
       port: 0,
+      workspace: ws,
+      projectRegistry: new ProjectRegistry({ vesselHome: home }),
       sessionRegistry,
       sessionFactory: async (input) => {
         const { SessionController: SC } = await import('@vessel/application');
@@ -1382,6 +1609,7 @@ describe('local server — task 060 seams (route mode/pin + team runs + external
     const sessionRegistry = new SessionRegistry({ vesselHome: home });
     server = createVesselServer({
       port: 0,
+      workspace: ws,
       projectRegistry,
       sessionRegistry,
       reviewStore: new ReviewHandoffStore({ reviewsRoot }),
@@ -1686,6 +1914,7 @@ describe('local server — task 065 goal seam (task queue + iterations + run con
     });
     server = createVesselServer({
       port: 0,
+      workspace: ws,
       projectRegistry,
       sessionRegistry,
       goalSeam,

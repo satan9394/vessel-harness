@@ -111,6 +111,8 @@ export class SessionRegistry {
   private index?: SessionIndexStore;
   private indexReady?: Promise<void>;
   private indexDisabled = false;
+  private journalReadOffset = 0;
+  private additionsRefresh?: Promise<void>;
 
   constructor(opts: SessionRegistryOptions = {}) {
     // 显式注入最优先（测试传 tmp），其次 env 覆盖，最后 ~/.vessel 缺省。
@@ -147,6 +149,65 @@ export class SessionRegistry {
     this.sessions.clear(); this.sessionIdsByTopic.clear(); this.topicBySession.clear();
     for (const metadata of restored.values()) { this.sessions.set(metadata.id, metadata); this.indexTopic(metadata); this.persistedMetadata.set(metadata.id, JSON.stringify(metadata)); }
     if (malformed) console.warn(`[vessel] skipped ${malformed} malformed metadata journal line(s); valid JSONL facts retained`);
+  }
+
+  /** Import journal additions from other processes without replacing live metadata or persisting a snapshot. */
+  refreshAddedSessions(): Promise<void> {
+    if (!this.additionsRefresh) {
+      this.additionsRefresh = this.readJournalAdditions().finally(() => { this.additionsRefresh = undefined; });
+    }
+    return this.additionsRefresh;
+  }
+
+  private async readJournalAdditions(): Promise<void> {
+    if (this.journalFailure) throw this.journalFailure;
+    if (!fs.existsSync(this.journal)) return;
+    const fd = fs.openSync(this.journal, 'r');
+    const latest = new Map<string, SessionMeta | null>();
+    try {
+      const size = fs.fstatSync(fd).size;
+      if (size < this.journalReadOffset) this.journalReadOffset = 0;
+      const bytes = Buffer.alloc(size - this.journalReadOffset);
+      const count = fs.readSync(fd, bytes, 0, bytes.length, this.journalReadOffset);
+      const end = bytes.subarray(0, count).lastIndexOf(10);
+      if (end < 0) return; // A concurrent append may not have finished its final line yet.
+      for (const line of bytes.subarray(0, end + 1).toString('utf8').split('\n')) {
+        if (!line.trim()) continue;
+        try {
+          const record = JSON.parse(line) as MetadataJournalRecord;
+          if (!record || record.type !== 'registry/session' || !Number.isSafeInteger(record.seq) || record.seq < 1 ||
+              typeof record.sessionId !== 'string' || !record.sessionId) continue;
+          const meta = record.metadata;
+          if (meta !== null && (!meta || meta.id !== record.sessionId || typeof meta.workspaceRoot !== 'string' || !path.isAbsolute(meta.workspaceRoot) ||
+              typeof meta.provider !== 'string' || typeof meta.model !== 'string' ||
+              !['read-only', 'workspace-write', 'danger-full-access'].includes(meta.permission) ||
+              typeof meta.createdAt !== 'string' || !Number.isFinite(Date.parse(meta.createdAt)) ||
+              typeof meta.updatedAt !== 'string' || !Number.isFinite(Date.parse(meta.updatedAt)) ||
+              meta.topic !== undefined && !isSessionTopic(meta.topic))) continue;
+          this.journalSeq = Math.max(this.journalSeq, record.seq);
+          latest.set(record.sessionId, meta);
+        } catch { /* A malformed/torn line must not hide later valid facts. */ }
+      }
+      this.journalReadOffset += end + 1;
+    } finally { fs.closeSync(fd); }
+    const added: string[] = [];
+    for (const [id, meta] of latest) {
+      if (!meta || this.sessions.has(id)) continue;
+      const normalized = { ...meta, workspaceRoot: path.resolve(meta.workspaceRoot) };
+      this.sessions.set(id, normalized);
+      this.indexTopic(normalized);
+      this.persistedMetadata.set(id, JSON.stringify(normalized));
+      added.push(id);
+    }
+    // The first list initializes from the merged map; an already-open index needs only the additions.
+    await this.indexReady;
+    for (const id of added) {
+      const meta = this.sessions.get(id);
+      if (this.index && meta) {
+        try { await this.index.reconcileSession(this.source(meta)); }
+        catch (error) { this.disableIndex(error); }
+      }
+    }
   }
 
   private source(meta: SessionMeta): SessionIndexSource {
@@ -450,6 +511,33 @@ export class SessionRegistry {
     this.sessions.set(meta.id, meta);
     this.indexTopic(meta);
     this.persist();
+  }
+
+  /** Re-register a removed session using its last durable metadata, never trash-supplied metadata. */
+  restoreRemoved(id: string, workspaceRoot: string): SessionMeta {
+    if (this.sessions.has(id)) throw new Error(`Session already registered: ${id}`);
+    if (this.journalFailure) throw this.journalFailure;
+    let previous: SessionMeta | undefined;
+    if (fs.existsSync(this.journal)) {
+      for (const line of jsonlLinesSync(this.journal)) {
+        if (!line.trim()) continue;
+        let record: MetadataJournalRecord;
+        try { record = JSON.parse(line) as MetadataJournalRecord; } catch { continue; }
+        if (!record || record.type !== 'registry/session' || record.sessionId !== id || !Number.isSafeInteger(record.seq) || record.seq < 1 || record.metadata === null) continue;
+        const meta = record.metadata;
+        if (!meta || meta.id !== id || typeof meta.workspaceRoot !== 'string' || !path.isAbsolute(meta.workspaceRoot) ||
+          typeof meta.provider !== 'string' || typeof meta.model !== 'string' ||
+          !['read-only', 'workspace-write', 'danger-full-access'].includes(meta.permission) ||
+          typeof meta.createdAt !== 'string' || !Number.isFinite(Date.parse(meta.createdAt)) ||
+          typeof meta.updatedAt !== 'string' || !Number.isFinite(Date.parse(meta.updatedAt)) ||
+          meta.topic !== undefined && !isSessionTopic(meta.topic)) continue;
+        previous = meta;
+      }
+    }
+    if (!previous) throw new Error(`No historical session metadata in this registry: ${id}`);
+    if (path.resolve(previous.workspaceRoot) !== path.resolve(workspaceRoot)) throw new Error(`Historical session workspace mismatch: ${id}`);
+    this.restore(previous);
+    return previous;
   }
 
   private indexTopic(meta: SessionMeta): void {

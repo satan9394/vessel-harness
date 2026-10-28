@@ -2,10 +2,10 @@ import { observeProviderCacheUsage } from '@vessel/llm';
 import * as path from 'node:path';
 import * as fs from 'node:fs';
 import { createHash, randomUUID } from 'node:crypto';
-import type { BehaviorInspection, RequestEnvelopeV1, CacheUsageMetrics, ChatUsage, ChatProvider, ChatToolDef, ToolCall, ToolResultRecord } from '@vessel/shared';
+import type { BehaviorInspection, RequestEnvelopeV1, CacheUsageMetrics, ChatUsage, ChatProvider, ChatToolDef, ToolCall, ToolResultRecord, ToolExecutionResult, DiffInspectorWidget } from '@vessel/shared';
 import { AgentLoop, EventBus, Session } from '@vessel/core';
 import { ContextBuilder, AdaptiveContextPruner, CompactionBoundaryGuard, Compaction, createOverflowRecovery, type AdaptiveCompactionOptions, type ContextPruneOptions } from '@vessel/context';
-import { NoProgressGuard, ToolRegistry, createFsTools, createSearchTools, createShellTool, createSymbolGraphAccess, McpClient, registerMcpTools, type McpTransport, type NativeSandboxRunner } from '@vessel/tools';
+import { NoProgressGuard, ToolRegistry, createFsTools, canonicalize, createSearchTools, createShellTool, createSymbolGraphAccess, McpClient, registerMcpTools, type McpTransport, type NativeSandboxRunner } from '@vessel/tools';
 import { PolicyEngine, loadPolicyArtifacts, ModPipeline, RedGreenGate } from '@vessel/policy';
 import { guardBugfixCompletion } from './redGreenCompletion.js';
 import { Executor, Sandbox, ClaudeModAdapter, EffectJournal } from '@vessel/runtime';
@@ -338,8 +338,27 @@ export async function composeHarness(opts: ComposeOptions): Promise<ComposedHarn
     };
     if (opts.adaptivePruning && !opts.symbolGraph) throw new Error('adaptivePruning requires symbolGraph');
     const graphAccess = opts.symbolGraph ? createSymbolGraphAccess({ workspaceRoot, fsPolicy, ...opts.symbolGraph }) : undefined;
+    const createdFiles = new WeakMap<ToolExecutionResult, { filePath: string; content: string }>();
+    const pendingCreationDiffs = new Map<string, { filePath: string; content: string; callSequence: number; turnSequence: number }>();
     const tools = [
-      ...createFsTools({ workspaceRoot, fsPolicy }),
+      ...createFsTools({ workspaceRoot, fsPolicy }).map(tool => {
+        if (tool.name !== 'Write') return tool;
+        const execute: typeof tool.execute = async (args, ctx) => {
+          let newPath: string | undefined;
+          try {
+            const target = canonicalize(workspaceRoot, String(args.path ?? ''), fsPolicy);
+            const relative = path.relative(workspaceRoot, target);
+            if (relative && relative !== '..' && !relative.startsWith(`..${path.sep}`) && !path.isAbsolute(relative)) {
+              try { fs.lstatSync(target); }
+              catch (error) { if ((error as NodeJS.ErrnoException).code === 'ENOENT') newPath = relative.split(path.sep).join('/'); }
+            }
+          } catch { /* Presentation probes never change the tool's own guard verdict. */ }
+          const result = await tool.execute(args, ctx);
+          if (newPath && !result.error) createdFiles.set(result, { filePath: newPath, content: String(args.content ?? '') });
+          return result;
+        };
+        return { ...tool, execute };
+      }),
       ...createSearchTools({ workspaceRoot, fsPolicy }),
       ...(graphAccess ? [graphAccess.tool] : []),
       createShellTool({ workspaceRoot, sandbox, nativeSandbox: opts.nativeSandbox, nativeAudit: async event => {
@@ -453,12 +472,44 @@ export async function composeHarness(opts: ComposeOptions): Promise<ComposedHarn
       // task 050: forward the turn's AbortSignal so in-flight tools (shell/MCP/subagent) can stop
       // Observations follow the policy waterfall, whose allow verdict short-circuits later listeners.
       await bus.emit('application/tool_started', { toolCallId: call.toolCallId, toolName: call.toolName, arguments: call.arguments });
+      const invocation = session.replay().findLast(item => item.type === 'tool/call' && item.toolCallId === call.toolCallId);
+      const turn = session.replay().findLast(item => item.type === 'turn/start' || item.type === 'turn/end');
       const result = await executor.runTool(spec, call, { workspaceRoot, cwd, sandbox, signal: exec?.signal ?? undefined,
         executionKey: `${session.sessionId}:${session.replay().filter(record => record.type === 'tool/call').at(-1)?.seq ?? 0}:${call.toolCallId}`,
         subject: { sessionId: session.sessionId, runId: loop.executionRunId, agentInstanceId: 'primary' },
       });
+      const created = createdFiles.get(result);
+      if (created && !result.error && !exec?.signal?.aborted && invocation && turn?.type === 'turn/start'
+        && session.replay().findLast(item => item.type === 'turn/start' || item.type === 'turn/end')?.seq === turn.seq
+        && session.replay().findLast(item => item.type === 'tool/call' && item.toolCallId === call.toolCallId)?.seq === invocation.seq) {
+        pendingCreationDiffs.set(call.toolCallId, { ...created, callSequence: invocation.seq, turnSequence: turn.seq });
+      }
       return { record: null, content: result.content, error: result.error, meta: result.meta };
     });
+
+    bus.on('after_tool', async payload => {
+      const { toolCallId, toolName } = payload as { toolCallId: string; toolName: string };
+      if (toolName !== 'Write') return;
+      const created = pendingCreationDiffs.get(toolCallId);
+      if (!created) return;
+      const record = session.replay().findLast((item): item is ToolResultRecord => item.type === 'tool/result' && item.toolCallId === toolCallId);
+      const invocation = session.replay().findLast(item => item.type === 'tool/call' && item.toolCallId === toolCallId);
+      const turn = session.replay().findLast(item => item.type === 'turn/start' || item.type === 'turn/end');
+      if (!record || record.toolName !== 'Write' || record.seq <= created.callSequence || invocation?.seq !== created.callSequence
+        || turn?.type !== 'turn/start' || turn.seq !== created.turnSequence) return;
+      pendingCreationDiffs.delete(toolCallId);
+      if (record.error) return;
+      const lines = created.content.replace(/\r\n/g, '\n').split('\n');
+      if (lines.at(-1) === '') lines.pop();
+      const patch = ['--- /dev/null', `+++ b/${created.filePath}`, `@@ -0,0 +${lines.length ? 1 : 0},${lines.length} @@`,
+        ...lines.map(line => `+${line}`), ...(created.content && !created.content.endsWith('\n') ? ['\\ No newline at end of file'] : [])].join('\n') + '\n';
+      // ponytail: creation diffs use the existing read-only fallback; file creation is not a reversible hunk proposal.
+      const widget: DiffInspectorWidget = { id: `write:${session.sessionId}:${record.seq}`, kind: 'diff_inspector', status: 'resolved',
+        turnIndex: session.replay().filter(item => item.type === 'turn/start').length - 1, timestamp: record.ts,
+        payload: { filePath: created.filePath, additions: lines.length, deletions: 0, patch } };
+      await bus.emit('ui/widget_block', widget);
+    }, 'application:new-file-diff');
+    bus.on('after_turn', () => pendingCreationDiffs.clear(), 'application:new-file-diff-cleanup');
 
     // V0.2 subagent: manager + `Subagent` tool (isolated child sessions, caps 1–3)
     let subagentManager: SubagentManager | undefined;

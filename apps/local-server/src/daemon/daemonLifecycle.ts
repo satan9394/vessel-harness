@@ -2,9 +2,11 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import * as os from 'node:os';
 import { randomBytes, randomUUID } from 'node:crypto';
-import { execFileSync, spawn } from 'node:child_process';
+import { execFileSync } from 'node:child_process';
 import { createServer } from 'node:net';
 import type { DaemonControlContract, DaemonInfo } from './types.js';
+import { recyclePath } from '@vessel/shared';
+import { trashStore } from '@vessel/application';
 
 export interface DaemonLaunch {
   root: string;
@@ -72,16 +74,8 @@ export function writeDaemonFile(target: string, content: string, protect = prote
 /** Runtime state follows the same recycle discipline as user files. */
 export async function recycleDaemonPath(target: string): Promise<void> {
   assertPlain(target);
-  const quoted = `'${target.replace(/'/g, "''")}'`;
-  const command = process.platform === 'win32' ? 'powershell.exe' : process.platform === 'darwin' ? 'osascript' : 'gio';
-  const args = process.platform === 'win32'
-    ? ['-NoProfile', '-NonInteractive', '-Command', `Add-Type -AssemblyName Microsoft.VisualBasic; [Microsoft.VisualBasic.FileIO.FileSystem]::${fs.statSync(target).isDirectory() ? 'DeleteDirectory' : 'DeleteFile'}(${quoted}, 'OnlyErrorDialogs', 'SendToRecycleBin')`]
-    : process.platform === 'darwin' ? ['-e', `tell application "Finder" to delete POSIX file ${JSON.stringify(target)}`] : ['trash', '--', target];
-  await new Promise<void>((resolve, reject) => {
-    const child = spawn(command, args, { windowsHide: true, stdio: 'ignore' });
-    child.once('error', reject);
-    child.once('close', code => code === 0 ? resolve() : reject(new Error('daemon state recycle failed')));
-  });
+  const result = await recyclePath(target);
+  if (!result.ok) throw new Error(`daemon state recycle failed: ${result.reason}: ${result.detail}`);
 }
 
 interface LockOwner { pid: number; instanceId: string }
@@ -225,11 +219,23 @@ export class DaemonLifecycle implements DaemonControlContract {
 }
 
 /** Force fallback runs inside the authenticated process, so PID reuse is harmless. */
-export function gracefulDaemonStop(close: () => Promise<void>, exit: (code: number) => void, timeoutMs = 10000): () => void {
+export function gracefulDaemonStop(close: () => Promise<void>, exit: (code: number) => void, timeoutMs = 10000, workspace?: string): () => void {
   let stopping = false;
+  // ponytail: this factory runs in the resident child; the launcher exits after readiness.
+  const trashRoot = path.resolve(workspace ?? process.cwd(), '.harness', 'trash');
+  const retention = setInterval(() => {
+    if (process.env.VESSEL_TRASH_TTL_DAYS === '0') return;
+    try {
+      if (fs.existsSync(trashRoot)) trashStore.purge({ root: trashRoot });
+    } catch (error) {
+      console.warn('[vessel] daemon trash purge failed: ' + String(error));
+    }
+  }, 86_400_000);
+  retention.unref();
   return () => {
     if (stopping) return;
     stopping = true;
+    clearInterval(retention);
     const timer = setTimeout(() => exit(1), timeoutMs);
     void close().then(() => { clearTimeout(timer); exit(0); }, () => { clearTimeout(timer); exit(1); });
   };

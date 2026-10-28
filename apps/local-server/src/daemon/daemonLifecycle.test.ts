@@ -4,6 +4,7 @@ import * as path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { DaemonLifecycle, gracefulDaemonStop, readDaemonLock, releaseDaemonLock, writeDaemonFile, type DaemonLaunch } from './daemonLifecycle.js';
 import type { DaemonInfo } from './types.js';
+import { trashStore } from '@vessel/application';
 
 let root: string;
 let running: boolean;
@@ -23,7 +24,7 @@ const fetchMock = vi.fn(async (_url: string | URL | Request, init?: RequestInit)
 });
 const make = () => new DaemonLifecycle({ root, launch, alive, fetch: fetchMock as typeof fetch, protect, recycle, timeoutMs: 1000, pollMs: 1, portAvailable: async () => true });
 beforeEach(() => { root = fs.mkdtempSync(path.join(os.tmpdir(), 'vessel-daemon-life-')); running = false; vi.clearAllMocks(); });
-afterEach(() => { vi.useRealTimers(); fs.rmSync(root, { recursive: true, force: true }); });
+afterEach(() => { vi.useRealTimers(); vi.restoreAllMocks(); vi.unstubAllEnvs(); fs.rmSync(root, { recursive: true, force: true }); });
 
 describe('daemon lifecycle with mocked child and native operations', () => {
   it('generates 24 random bytes, protects files, waits for authenticated ready identity and starts idempotently', async () => {
@@ -98,5 +99,87 @@ describe('daemon lifecycle with mocked child and native operations', () => {
     stop(); stop(); await Promise.resolve(); expect(close).toHaveBeenCalledTimes(1); expect(exit).toHaveBeenCalledWith(0);
     const forced = vi.fn(); gracefulDaemonStop(() => new Promise(() => {}), forced, 20)();
     await vi.advanceTimersByTimeAsync(20); expect(forced).toHaveBeenCalledWith(1);
+  });
+});
+
+describe('resident daemon daily retention', () => {
+  const day = 86_400_000;
+  const trashRoot = () => path.join(root, '.harness', 'trash');
+  const entry = (name: string) => {
+    const target = path.join(root, name);
+    fs.writeFileSync(target, name);
+    return trashStore.trashEntry({ root: trashRoot(), target, kind: 'fixture', reason: 'test' });
+  };
+  beforeEach(() => {
+    vi.stubEnv('VESSEL_TRASH_TTL_DAYS', '7');
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-10-01T00:00:00Z'));
+  });
+
+  it('purges exactly once at the daily boundary, retaining unexpired payloads in the selected workspace', async () => {
+    const expired = entry('expired');
+    vi.setSystemTime(new Date('2026-10-08T00:00:00Z'));
+    const retained = entry('retained');
+    const purge = vi.spyOn(trashStore, 'purge');
+    const stop = gracefulDaemonStop(async () => {}, vi.fn(), 10000, root);
+    expect(vi.getTimerCount()).toBe(1);
+    await vi.advanceTimersByTimeAsync(day - 1);
+    expect(purge).not.toHaveBeenCalled();
+    expect(fs.existsSync(path.join(trashRoot(), expired.id, 'data'))).toBe(true);
+    await vi.advanceTimersByTimeAsync(1);
+    expect(purge).toHaveBeenCalledExactlyOnceWith({ root: trashRoot() });
+    expect(fs.existsSync(path.join(trashRoot(), expired.id))).toBe(false);
+    expect(fs.readFileSync(path.join(trashRoot(), retained.id, 'data'), 'utf8')).toBe('retained');
+    expect(trashStore.list({ root: trashRoot() }).entries.map(item => item.id)).toEqual([retained.id]);
+    stop();
+    await vi.advanceTimersByTimeAsync(0);
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it.each(['closed', 'failed', 'hung'] as const)('clears retention before a %s shutdown and prevents later purges', async outcome => {
+    entry('expired');
+    vi.setSystemTime(new Date('2026-10-09T00:00:00Z'));
+    const purge = vi.spyOn(trashStore, 'purge');
+    const exit = vi.fn();
+    const close = vi.fn(() => outcome === 'hung' ? new Promise<void>(() => {})
+      : outcome === 'failed' ? Promise.reject(new Error('close failed')) : Promise.resolve());
+    const stop = gracefulDaemonStop(close, exit, 10000, root);
+    stop(); stop();
+    await vi.advanceTimersByTimeAsync(day * 2);
+    expect(close).toHaveBeenCalledTimes(1);
+    expect(exit).toHaveBeenCalledExactlyOnceWith(outcome === 'closed' ? 0 : 1);
+    expect(purge).not.toHaveBeenCalled();
+    expect(trashStore.list({ root: trashRoot() }).entries).toHaveLength(1);
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it('disables automatic purge with TTL zero even for previously expired entries', async () => {
+    const expired = entry('expired');
+    vi.setSystemTime(new Date('2026-10-09T00:00:00Z'));
+    vi.stubEnv('VESSEL_TRASH_TTL_DAYS', '0');
+    const purge = vi.spyOn(trashStore, 'purge');
+    const stop = gracefulDaemonStop(async () => {}, vi.fn(), 10000, root);
+    await vi.advanceTimersByTimeAsync(day * 2);
+    expect(purge).not.toHaveBeenCalled();
+    expect(fs.readFileSync(path.join(trashRoot(), expired.id, 'data'), 'utf8')).toBe('expired');
+    stop();
+    await vi.advanceTimersByTimeAsync(0);
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it('warns once on purge failure without retries and remains stoppable', async () => {
+    entry('expired');
+    const purge = vi.spyOn(trashStore, 'purge').mockImplementation(() => { throw new Error('audit unavailable'); });
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const stop = gracefulDaemonStop(async () => {}, vi.fn(), 10000, root);
+    await vi.advanceTimersByTimeAsync(day);
+    expect(purge).toHaveBeenCalledTimes(1);
+    expect(warn).toHaveBeenCalledExactlyOnceWith('[vessel] daemon trash purge failed: Error: audit unavailable');
+    await vi.advanceTimersByTimeAsync(day - 1);
+    expect(purge).toHaveBeenCalledTimes(1);
+    stop();
+    await vi.advanceTimersByTimeAsync(day * 2);
+    expect(purge).toHaveBeenCalledTimes(1);
+    expect(vi.getTimerCount()).toBe(0);
   });
 });

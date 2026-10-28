@@ -7,9 +7,8 @@ import * as path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { once } from 'node:events';
 import { spawn } from 'node:child_process';
-import { SessionController, SessionRegistry, ProjectRegistry, ReviewHandoffStore, TaskTreeRegistry, loadBehaviorLibrary, observeRun } from '@vessel/application';
+import { SessionController, SessionRegistry, ProjectRegistry, ReviewHandoffStore, TaskTreeRegistry, loadBehaviorLibrary, observeRun, trashStore } from '@vessel/application';
 import { resolveSessionDir } from '@vessel/memory';
-import { recycleDaemonPath } from './daemon/daemonLifecycle.js';
 import type { SessionPermission, ReviewHandoffRecord } from '@vessel/application';
 import type { Listener, TurnResult } from '@vessel/core';
 import { MockProvider, createProvider, providerNameForConfig } from '@vessel/llm';
@@ -636,9 +635,22 @@ export function createVesselServer(opts: VesselServerOptions = {}): VesselServer
 
   async function handleApi(method: string, segs: string[], req: http.IncomingMessage, res: http.ServerResponse, url: URL): Promise<void> {
     const sameOrigin = trustedOrigin(req, url, Boolean(opts.authToken));
+    if (segs.length === 2 && segs[1] === 'trash' && method === 'GET') {
+      if (!sameOrigin) return json(res, 403, { error: 'cross_origin_denied' });
+      const { entries, skipped } = trashStore.list({ root: path.join(workspace ?? process.cwd(), '.harness', 'trash') });
+      return json(res, 200, {
+        entries: entries.map(({ id, origin, kind, reason, deletedAt, expiresAt, sizeBytes }) =>
+          ({ id, origin, kind, reason, deletedAt, expiresAt, sizeBytes })),
+        // Parser errors can contain metadata bytes; never expose them over HTTP.
+        skipped: skipped.map(({ id }) => ({ id, reason: 'invalid_entry' })),
+      });
+    }
     if (segs.length === 2 && segs[1] === 'sessions' && method === 'GET') {
       const limit = Number(url.searchParams.get('limit') ?? 1000); const offset = Number(url.searchParams.get('offset') ?? 0);
-      try { return json(res, 200, { sessions: await sessionRegistry.listIndexed(limit, offset, url.searchParams.get('topicId') ?? undefined) }); }
+      try {
+        await sessionRegistry.refreshAddedSessions();
+        return json(res, 200, { sessions: await sessionRegistry.listIndexed(limit, offset, url.searchParams.get('topicId') ?? undefined) });
+      }
       catch (error) { if (error instanceof RangeError) return json(res, 400, { error: 'invalid_pagination' }); throw error; }
     }
     if (segs.length === 3 && segs[1] === 'sessions' && segs[2] === 'search' && method === 'GET') {
@@ -891,14 +903,14 @@ export function createVesselServer(opts: VesselServerOptions = {}): VesselServer
         deletingSessions.add(id);
         try {
           ctl?.interrupt();
-          // Let the interrupted writer settle before recycling its session directory.
+          // Let the interrupted writer settle before staging its session directory.
           await activeTurns.get(id)?.catch(() => {});
           try {
             sessionRegistry.remove(id);
           } catch (error) {
             return json(res, 500, { error: error instanceof AggregateError ? 'session_index_stale' : 'session_index_failed', id, stage: 'index' });
           }
-          // Windows recycling cannot move a directory with an open JSONL writer.
+          // Windows cannot move a directory with an open JSONL writer.
           // On failure, restore the index and lazily reopen a fresh controller.
           let stage: 'controller' | 'recycle' = 'controller';
           try {
@@ -906,7 +918,10 @@ export function createVesselServer(opts: VesselServerOptions = {}): VesselServer
             stage = 'recycle';
             if (existing?.workspaceRoot) {
               const sessionDir = resolveSessionDir(existing.workspaceRoot, id);
-              if (fs.existsSync(sessionDir)) await recycleDaemonPath(sessionDir);
+              if (fs.existsSync(sessionDir)) trashStore.trashEntry({
+                root: path.join(existing.workspaceRoot, '.harness', 'trash'),
+                target: sessionDir, kind: 'session', reason: 'user_delete',
+              });
             }
           } catch {
             try {
@@ -1626,6 +1641,15 @@ export function createVesselServer(opts: VesselServerOptions = {}): VesselServer
         if (advertised.port === '0') { advertised.port = String(vesselServer.port); opts.mesh.local.endpoint = advertised.origin; }
         opts.mesh.startHeartbeat();
       }
+      setImmediate(() => {
+        if (process.env.VESSEL_TRASH_TTL_DAYS === '0') return;
+        const root = path.join(workspace ?? process.cwd(), '.harness', 'trash');
+        try {
+          if (fs.existsSync(root)) trashStore.purge({ root });
+        } catch (error) {
+          console.warn('[vessel] startup trash purge failed: ' + String(error));
+        }
+      });
       return vesselServer;
     },
     async close() {

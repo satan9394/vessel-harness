@@ -131,6 +131,99 @@ describe('SessionRegistry', () => {
     expect(reg2.get(b.id)).toBeDefined();
   });
 
+  it('re-registers removed metadata from journal after restart, preserving topic and timestamps', () => {
+    const reg = new SessionRegistry({ vesselHome: home, index: false });
+    const meta = reg.create({ workspaceRoot: ws });
+    reg.nameTopicFromPrompt(meta.id, 'Keep historical topic');
+    const previous = structuredClone(reg.get(meta.id)!);
+    reg.remove(meta.id);
+    const restarted = new SessionRegistry({ vesselHome: home, index: false });
+    expect(restarted.restoreRemoved(meta.id, ws)).toEqual(previous);
+    const persisted = new SessionRegistry({ vesselHome: home, index: false });
+    expect(persisted.list()).toEqual([previous]);
+    expect(persisted.listByTopic(previous.topic!.topicId)).toEqual([previous]);
+    const bytes = fs.readFileSync(path.join(home, 'sessions.metadata.jsonl'));
+    expect(() => persisted.restoreRemoved(meta.id, ws)).toThrow('already registered');
+    expect(fs.readFileSync(path.join(home, 'sessions.metadata.jsonl'))).toEqual(bytes);
+  });
+
+  it('imports only new journal metadata, honoring tombstones without overwriting live entries or writing files', async () => {
+    const reg = new SessionRegistry({ vesselHome: home, index: false });
+    const live = reg.create({ workspaceRoot: ws, model: 'live-model' });
+    const removed = reg.create({ workspaceRoot: ws, model: 'restored-model' });
+    reg.nameTopicFromPrompt(removed.id, 'Restored topic');
+    reg.remove(removed.id);
+    await reg.refreshAddedSessions();
+    expect(reg.get(removed.id)).toBeUndefined();
+    const external = new SessionRegistry({ vesselHome: home, index: false });
+    external.restoreRemoved(removed.id, ws);
+    external.put({ ...live, model: 'external-stale-model' });
+    const transient = external.create({ workspaceRoot: ws });
+    external.remove(transient.id);
+    const journal = path.join(home, 'sessions.metadata.jsonl');
+    const bytes = fs.readFileSync(journal);
+    const snapshot = fs.readFileSync(path.join(home, 'sessions.json'));
+    await Promise.all([reg.refreshAddedSessions(), reg.refreshAddedSessions()]);
+    expect(reg.get(live.id)).toBe(live);
+    expect(reg.get(live.id)!.model).toBe('live-model');
+    expect(reg.get(removed.id)).toEqual(external.get(removed.id));
+    expect(reg.listByTopic(external.get(removed.id)!.topic!.topicId).map(meta => meta.id)).toEqual([removed.id]);
+    expect(reg.get(transient.id)).toBeUndefined();
+    await reg.refreshAddedSessions();
+    expect(fs.readFileSync(journal)).toEqual(bytes);
+    expect(fs.readFileSync(path.join(home, 'sessions.json'))).toEqual(snapshot);
+    // A later local mutation must retain imported metadata rather than append its tombstone.
+    reg.touch(live.id);
+    expect(new SessionRegistry({ vesselHome: home, index: false }).get(removed.id)).toEqual(external.get(removed.id));
+  });
+
+  it('waits for a complete UTF-8 journal tail and skips malformed records before later additions', async () => {
+    const reg = new SessionRegistry({ vesselHome: home, index: false });
+    const historical = reg.create({ workspaceRoot: ws, model: '完整' });
+    reg.remove(historical.id);
+    await reg.refreshAddedSessions();
+    const journal = path.join(home, 'sessions.metadata.jsonl');
+    const record = Buffer.from(JSON.stringify({ seq: 100, type: 'registry/session', sessionId: historical.id, metadata: historical }) + '\n');
+    const split = record.indexOf(Buffer.from('完整')) + 1;
+    fs.appendFileSync(journal, record.subarray(0, split));
+    await reg.refreshAddedSessions();
+    expect(reg.get(historical.id)).toBeUndefined();
+    fs.appendFileSync(journal, Buffer.concat([record.subarray(split), Buffer.from('{malformed}\n' + JSON.stringify({
+      seq: 101, type: 'registry/session', sessionId: 'invalid', metadata: { ...historical, id: 'invalid', permission: 'invalid' },
+    }) + '\n')]));
+    await reg.refreshAddedSessions();
+    expect(reg.get(historical.id)).toEqual(historical);
+    expect(reg.get('invalid')).toBeUndefined();
+    const external = new SessionRegistry({ vesselHome: home, index: false });
+    const later = external.create({ workspaceRoot: ws });
+    await reg.refreshAddedSessions();
+    expect(reg.get(later.id)).toEqual(later);
+  });
+
+  it('refuses unknown ids and mismatched workspaces without changing persisted metadata', () => {
+    const reg = new SessionRegistry({ vesselHome: home, index: false });
+    const meta = reg.create({ workspaceRoot: ws });
+    reg.remove(meta.id);
+    const bytes = fs.readFileSync(path.join(home, 'sessions.metadata.jsonl'));
+    expect(() => reg.restoreRemoved('missing', ws)).toThrow('No historical session metadata');
+    expect(() => reg.restoreRemoved(meta.id, path.join(dir, 'other-workspace'))).toThrow('workspace mismatch');
+    expect(fs.readFileSync(path.join(home, 'sessions.metadata.jsonl'))).toEqual(bytes);
+    expect(new SessionRegistry({ vesselHome: home, index: false }).list()).toEqual([]);
+  });
+
+  it('skips malformed historical metadata and restores the last valid record', () => {
+    const reg = new SessionRegistry({ vesselHome: home, index: false });
+    const meta = reg.create({ workspaceRoot: ws });
+    const latest = { ...meta, model: 'latest-valid-model' };
+    const metadata = [{ ...meta, permission: 'invalid' }, latest, null];
+    fs.appendFileSync(path.join(home, 'sessions.metadata.jsonl'), '\n' + metadata.map((value, i) => JSON.stringify({
+      seq: 100 + i, ts: meta.updatedAt, type: 'registry/session', sessionId: meta.id, metadata: value,
+    })).join('\n') + '\n');
+    const restarted = new SessionRegistry({ vesselHome: home, index: false });
+    expect(restarted.restoreRemoved(meta.id, ws)).toEqual(latest);
+    expect(new SessionRegistry({ vesselHome: home, index: false }).get(meta.id)).toEqual(latest);
+  });
+
   it('restores exact memory, topic, journal and snapshot after a removal snapshot fails', () => {
     const reg = new SessionRegistry({ vesselHome: home });
     const meta = reg.create({ workspaceRoot: ws });
