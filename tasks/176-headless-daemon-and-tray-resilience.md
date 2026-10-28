@@ -4,7 +4,7 @@
 - 优先级：P1
 - 关联模块：`apps/local-server`, `apps/cli`
 - 推荐执行配置：Codex (GPT-6.1 Sol · `reasoning.effort: medium`)
-- 状态：本地全门禁与独立审查通过；2026-10-28：**detached 存活已验收**（卡 359 修复后真机证明，见文末），剩原生 tray/toast 的桌面可见性待真机
+- 状态：本地全门禁与独立审查通过；2026-10-28：**detached 存活已验收**（卡 359 修复后真机证明，见文末）；tray/toast 同日晚用 ffmpeg 整桌面截图尝试过一次，**UNVERIFIED**（图标应在溢出面板、toast 无事件可触发），详见文末
 - 创建日期：2026-10-01
 
 ---
@@ -92,3 +92,18 @@ export interface DaemonControlContract {
 卡 359 修完（含 `protectDaemonPath` 幂等化）后重跑：隔离根下 `daemon start` ready（pid 4068），起它的 launcher 进程已退出（`ESRCH`），重新查 `daemon status --json` 仍是同一 pid、uptime 4→6 秒，`/api/health` 200，`/api/team/stages` 无 token 401 / 带 token 200，`daemon stop` 后端口监听 0。原始 `proof.json` 在 `%TEMP%\vessel-359-proof-t6t8An\`。
 
 因此本卡「真实 detached daemon 在启动它的终端关闭后存活」这一条**已验收**。仍留：原生 tray/toast 的桌面可见性（通知区/通知中心不是任何浏览器可见面，只能人眼看），以及本条之外的生命周期细节。
+
+
+## 2026-10-28 final sweep - bounded evidence (not card acceptance)
+
+T4 UNVERIFIED: isolated daemon start on free port 5700 exited 0 (1.878s; one listener). The single prescribed desktop-capture command was rejected by the local PreToolUse hook because Add-Type cannot be statically verified. No desktop image was produced; tray icon, Open/Stop context menu and native toast visibility were not observed. The bounded attempt stopped immediately, with no alternative capture. Daemon stop exited 0, listener count returned to 0, and final fixture Node processes were 0. Existing detached-lifecycle acceptance is unchanged. Exact command/rejection: `evidence/sessions/2026-10-28-final-sweep/report.md`; shutdown: `cleanup.json`.
+
+### 2026-10-28 final sweep · tray/toast 复验尝试（协调者，UNVERIFIED）
+
+Codex 那一轮的桌面截屏被本机安全钩子拒了（它用的 `Add-Type` 无法静态校验），按停止条件没换手段。我改用 ffmpeg 绕开：
+
+1. 隔离根起 `daemon start --port 50641` → `running:true`，pid 10652（daemon 本身正常）；
+2. `ffmpeg -f gdigrab -i desktop -frames:v 1` 截整桌面，并单独放大右下角通知区（2560×1600 → 裁 340×52 再 3× 放大）；
+3. 可见通知区只有电量 97%、日期、通知铃；**没有 Vessel 图标**。tray 脚本用的是 `SystemIcons.Application` 通用图标，默认落进溢出面板（`^`），展开它需要动维护者的鼠标，我没有代做；toast 也没有触发事件（要真正的完成/失败/审批门禁事件）。
+
+结论：**UNVERIFIED**，理由是「图标在溢出面板里、且 toast 无事件可触发」，不是「代理做不到」。收尾 `daemon stop` → `{"stopped":true}`，端口 50641 监听 0。证据 `%TEMP%\vessel-tray-c098a8\desktop.png`、`tray-corner.png`（未入库，按纪律只写 TEMP）。

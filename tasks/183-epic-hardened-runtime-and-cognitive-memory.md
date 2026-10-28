@@ -72,3 +72,10 @@
 - Windows 需预配置 Low Integrity / 专用受限 SID ACL；缺失时拒绝，原生运行契约使用 Mock 验证。
 
 仍待用户验收（2026-10-27 对账仅追加证据边界：本次原生沙箱/混合记忆/上下文 5 文件 34 passed / exit 0，完整命令见卡 354 Result / `t8-v17.log`；180 的 Windows ACL/Low Integrity 真机及 macOS 逃组生命周期仍缺本次证据，181 本地契约已复验。`tasks/README.md` 的 183「已合入（2026-10-03 本地验收）」历史结论按任务要求保持原样；本行不撤销历史本地验收，只区分当前真机边界，见 `docs/V1.7-IMPLEMENTATION-NOTES.md:21`。）
+
+
+## 2026-10-28 final sweep - bounded evidence (not card acceptance)
+
+T5 PASS for offline contracts only: five requested commands each exit 0, 5 files / 32 tests (windowsRestricted 14, platformSandbox 9, Process.sandbox 4, nativeSandboxIntegration 2, shellTool.sandbox 3). Offline npm bench:conformance, with --out pointing to TEMP, passed 25/25, 0 failed, $0 in 4.7380032s; Vessel adapter only, no --live or external Agent CLI. First npm argument-forwarding attempt failed before scenarios and is retained; one literal-argument retry passed. Evidence: `evidence/sessions/2026-10-28-final-sweep/t5-checks.json` and `report.md`; raw logs remain in TEMP. This does not verify Windows ACL / Low Integrity host enforcement or macOS escaped-process lifecycle; those remain maintainer-only boundaries.
+
+**协调者复跑（2026-10-28）**：T5 的五条离线命令与离线 conformance 我独立复跑过（32 passed、25/25、$0），与卡 180 同日段一致。本 Epic 的真机边界不变：Windows ACL/Low Integrity 与 macOS 逃组仍无本次证据，只能维护者做。

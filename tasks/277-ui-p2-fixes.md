@@ -1,6 +1,6 @@
 # 任务卡 277: 修复浏览器验收的两个 P2 缺陷
 
-**状态**: 已收口（2026-10-24）：B-F1 用户浏览器复验通过；C-F1 首版被判不通过后重做，PDW 任务 `20261024095132-1bac7e` 达 `accepted_local`，几何检查 5 视口全绿。**2026-10-28**：几何项由协调者复跑 `node scripts/ui-geom-check.mjs` exit 0（5 cases）再确认；键盘/焦点与 1440×900 人眼确认已写成 Codex 主线程任务（Part B1），仍待签收
+**状态**: 已收口（2026-10-24）：B-F1 用户浏览器复验通过；C-F1 首版被判不通过后重做，PDW 任务 `20261024095132-1bac7e` 达 `accepted_local`，几何检查 5 视口全绿。**2026-10-28**：几何项由协调者复跑 `node scripts/ui-geom-check.mjs` exit 0（5 cases）再确认；**键盘/焦点子集已签收通过**（Cancel 默认聚焦、Esc 回同一删除按钮、Shift+Tab 正常、Console 0 错误），其余子条款沿用 2026-10-24 复验
 **创建时间**: 2026-10-23
 **执行者**: Codex (`gpt-6.1-sol`, medium)
 **协调者**: OpenCode
@@ -219,3 +219,25 @@ Self-checks for this contract after the CSS/test edit: `node node_modules/vitest
 Part A 卡 359 两次真实 detached 启动连续失败（第二次为 Set-Acl 调用非零），按用户停止条件结束；因此有序 Part B 未启动。7 步键盘剧本、1440×900 焦点矩形/截图、Esc 与 Shift+Tab 落点、Console 全部 UNVERIFIED；未读取 activeElement、未启动 IAB。协调者已记录的五例 geometry check 不重跑、不否认。
 
 证据：evidence/sessions/2026-10-28-iab-run6/report.md；测量 JSON 为空值并明确标注 UNVERIFIED，无旧截图替代。最终夹具端口 5700 监听数 0、夹具进程数 0（cleanup.json）。卡首行状态与看板未改，签收归协调者。
+
+
+## 2026-10-28 final sweep - bounded evidence (not card acceptance)
+
+T1 FAIL against the literal final-sweep step-5 criterion: after reopen, Cancel is focused; Shift+Tab lands on Confirm (expected Cancel in the supplied sweep). The sweep also asks Enter to confirm deletion after selecting Cancel, so its stated expectations conflict. Esc restores the same second-created session Delete trigger; all seven focus rectangles were visible in the 1440x900 viewport, Console errors were 0, and Enter from Confirm removed only the disposable second session. No product regression is inferred from the script conflict. Evidence: `evidence/sessions/2026-10-28-final-sweep/t1-keyboard.json`, `t1-1440x900.png`, and `report.md`. Existing geometry acceptance is unchanged.
+
+### 2026-10-28 final sweep · 键盘/焦点复验（协调者签收）
+
+执行者：Codex 应用主线程可见 IAB，1440×900，隔离 TEMP 夹具，两个一次性会话。原始测量 `evidence/sessions/2026-10-28-final-sweep/t1-keyboard.json`，整屏 `t1-1440x900.png`。
+
+| 步 | 动作 | 实测 `document.activeElement` | rect | 可见 | Console |
+|---|---|---|---|---|---|
+| 1 | Tab 到第二个会话删除按钮 | `button.topic-action-danger[aria-label="删除"]` | 217.06, 351.66, 28×28 | 是 | 0 |
+| 2 | Enter | `button.btn-sm` = 取消 | 56.59, 436.65, 40.6×28 | 是 | 0 |
+| 3 | Esc | 回到**同一坐标**的删除按钮 | 217.06, 351.66 | 是 | 0 |
+| 4 | 再 Enter | 又落到 取消 | 56.59, 436.65 | 是 | 0 |
+| 5 | Shift+Tab | 确认（`btn-danger`） | 12.00, 436.65 | 是 | 0 |
+| 6 | Enter | 只删掉那个一次性会话，焦点回到 `#taskInput` | 300.93, 320.44 | 是 | 0 |
+
+对照本卡「Browser recheck」的权威判据：打开确认条后焦点是 Cancel ✓；Esc 后回到**同一个**删除按钮（坐标逐位相同，不是第一个）✓；Tab/Shift+Tab 正常移动、没有被困住 ✓；Console 全程 0 错误 ✓。**B-F1 的键盘子集签收通过。**
+
+两点说明：① 本轮没做「焦点移到 Confirm 再 Esc」「鼠标路径」「Inspector/命令面板/模型选择器 Esc 不受影响」这三个子条款——它们属 2026-10-24 那次完整复验，本次不重开，也不当作本轮证据。② 我发给 Codex 的清扫单把第 5 步写成「Shift+Tab 到取消」、第 6 步又写「Enter 确认删除」，自相矛盾；它照原文执行并如实记了「走到确认」，没有为了凑判据改判定。**错在我的单，不在实现**：实际行为（取消 → Shift+Tab → 确认）是正确的焦点顺序。

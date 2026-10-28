@@ -4,7 +4,7 @@
 - 优先级：P1
 - 关联模块：`apps/web`, `apps/local-server`, `packages/agents`, `packages/shared`
 - 推荐执行配置：Codex (GPT-6.1 Sol · `reasoning.effort: medium`)
-- 状态：本地全门禁与独立审查通过；待用户验收（2026-10-02）
+- 状态：本地全门禁与独立审查通过；2026-10-28 final sweep：预审横幅 / 批准执行（3 节点完成）/ 节点抽屉主链**已通过**，三色状态、300 字截断、产物链接因离线 mock 不可达保持 UNVERIFIED；用户视觉签字可选
 - 创建日期：2026-10-01
 
 ---
@@ -71,3 +71,26 @@
 Part A 卡 359 两次真实 detached 启动连续失败（第二次为 Set-Acl 调用非零），按用户停止条件结束；因此有序 Part B 未启动。画布三状态色/连线、预审 roster/routeSnapshot/Approve & Run/Reject、节点抽屉与运行转换全部 UNVERIFIED；本次没有新建 UI 会话、没有同源 POST stage、没有截图或 Console 读数。
 
 证据：evidence/sessions/2026-10-28-iab-run6/report.md；测量 JSON 为空值并明确标注 UNVERIFIED，无旧截图替代。最终夹具端口 5700 监听数 0、夹具进程数 0（cleanup.json）。卡首行状态与看板未改，签收归协调者。
+
+
+## 2026-10-28 final sweep - bounded evidence (not card acceptance)
+
+T2: UI-created disposable mock session; same-origin HTTP POST created a real staged plan, then the public revise endpoint produced a three-node/two-edge pending DAG (the superseded plan is rejected). Staged roster developer and routeSnapshot mock/mock-pro, Approve & Run and Reject were simultaneously visible. A node click opened the drawer with dependency draft. UI approval was observed running, then finished with 3/3 completed; actual drawer output is 23 characters, artifacts [], Console errors 0. Screenshots: `evidence/sessions/2026-10-28-final-sweep/t2-staged-banner.png`, `t2-canvas.png`, `t2-drawer.png`, `t2-approved.png`, `t2-drawer-completed.png`; details: `t2-measurements.json`. UNVERIFIED: three distinct state colours (only pending/completed captured), 300-character truncation, artifact links, and simultaneous visibility of the full horizontally clipped DAG. This is partial browser evidence, not whole-card/user visual acceptance.
+
+### 2026-10-28 final sweep · 画布/抽屉/预审（协调者验收，部分通过）
+
+执行者 Codex 主线程可见 IAB，1440×900，离线 mock 团队供应商，夹具与数据造法：UI 新建会话 → 同源 `POST /api/sessions/<id>/team-stages` → 公共 revise 接口改成三节点依赖链（报告已写明用了 POST，未直接写 `.harness`）。证据 `evidence/sessions/2026-10-28-final-sweep/t2-*.png/t2-measurements.json`。
+
+**通过的项目**（我逐张看过图）：
+- 预审横幅：`审阅团队计划 · 3 个任务`、队员 roster（`developer · 生成者 · mock/mock-pro`）、路由快照、`批准并运行` 与 `拒绝` 同时可见 → `t2-staged-banner.png`。
+- 批准执行：三个 mock 节点全部完成（`finished`，`Check dependencies` 显示 `已完成`），Console 无错误 → `t2-approved.png`。
+- 节点抽屉：`状态: 已完成 · 执行者: developer`、`依赖任务: draft`、成员输出 `(mock team member turn)` → `t2-drawer.png` / `t2-drawer-completed.png`。
+
+**未验证（不是缺陷，是夹具不可达）**：
+- 三种以上状态色：只截到「待处理」与「已完成」两态；`running` 只在 AX 快照里出现过一瞬，没来得及截图；`failed` 离线 mock 造不出来。
+- 输出摘要 300 字截断：该 mock 成员的输出只有 23 字符，截断分支没走到。
+- 产物文件链接：默认离线 mock 不产出文件，链接区为空。
+
+**观察（不是本轮引入，也没新开卡）**：1440×900 下团队面板渲染在 482px 宽的左列里，DAG 的 SVG 宽约 724px，需横向滚动才能看全，抽屉文字也在同一窄列内被截。连线与状态色本身正常。若要改是布局问题，另立 UI 卡再动。
+
+**结论**：本卡「预审 → 批准 → 三节点完成 → 抽屉依赖可见」这条主链**通过**；上面三项视觉细节保持 UNVERIFIED，等有真实多 agent 运行或可控夹具时再补。

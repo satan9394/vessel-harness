@@ -125,3 +125,18 @@ Codex 在执行超长开发时可按需查阅以下权威技术资产（已落�
 Part A 卡 359 两次真实 detached 启动连续失败（第二次为 Set-Acl 调用非零），按用户停止条件结束；因此有序 Part B 未启动。B1/B2 本次全部 UNVERIFIED，不能据此推进 Epic 签收。沿用本卡上一段协调者双 Root 证据（npm run test:all exit 0：根 333 文件 / 3,694 passed + 8 skipped，web 59 / 528）；本执行者按指令未重跑，也不把卡 359 的 93 文件定向测试冒充全量。
 
 证据：evidence/sessions/2026-10-28-iab-run6/report.md；测量 JSON 为空值并明确标注 UNVERIFIED，无旧截图替代。最终夹具端口 5700 监听数 0、夹具进程数 0（cleanup.json）。卡首行状态与看板未改，签收归协调者。
+
+
+## 2026-10-28 final sweep - T3 references only (not card acceptance)
+
+T1: FAIL against the supplied literal step-5 criterion: Shift+Tab from Cancel lands on Confirm; Esc restores the same Delete trigger, focus rectangles remain visible, final Enter deletes the disposable session, Console errors 0. The supplied step-5/6 expectations conflict; no product regression is inferred. Evidence: `evidence/sessions/2026-10-28-final-sweep/t1-keyboard.json`, `t1-1440x900.png`.
+
+T2: staged roster/routes and Approve/Reject visible; UI approval ran the offline mock DAG, pending -> running -> completed (3/3), Console errors 0. Screenshots: `t2-staged-banner.png`, `t2-canvas.png`, `t2-drawer.png`, `t2-approved.png`; measurements: `t2-measurements.json` in the same evidence directory. Three distinct state colours, 300-character output truncation, artifact links and simultaneous full-DAG visibility remain UNVERIFIED; inherit these limits.
+
+Dual-root full testing was already run by the coordinator (334 files / 3,704 passed + 8 skipped; web 59 files / 528 passed, as instructed in sweep T3). This is a supplied historical attribution, not a rerun. The sweep preamble quotes different older totals and a latest 335 / 3,706 + 8 run; this entry does not reconcile or replace those historical snapshots. No new fixture or operation was performed for T3.
+
+### 2026-10-28 final sweep · Epic 两项状态
+
+- **浏览器侧**：卡 175 的预审横幅 / 批准执行 / 节点抽屉主链**已通过**（详见卡 175 同日段与 `evidence/sessions/2026-10-28-final-sweep/`）；三色状态、300 字截断、产物链接因离线 mock 不可达，保持 UNVERIFIED。卡 277 的键盘焦点子集**已签收通过**。本 Epic 继承这两项结论，不另做验证。
+- **真机侧**：卡 176 的 detached 存活已于同日验收；tray/toast 仍未验证——协调者用 ffmpeg `gdigrab` 截了整桌面，可见通知区里没有 Vessel 图标（`SystemIcons.Application` 通用图标），它很可能在溢出面板里，展开要动维护者的鼠标，没有代做，也没有触发 toast 事件。
+- Epic 仍**不整体签收**：剩 tray/toast 一项真机观感。

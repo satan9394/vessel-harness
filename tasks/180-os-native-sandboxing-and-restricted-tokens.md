@@ -82,3 +82,10 @@ export interface NativeSandboxRunner {
 - Windows 需预配置 Low Integrity / 专用受限 SID ACL；缺失时拒绝，原生运行契约使用 Mock 验证。
 
 仍待用户验收（2026-10-27 对账：本次 `windowsRestricted.test.ts`、`platformSandbox.test.ts`、`hybridSearch.test.ts`、`reflectiveRules.test.ts`、`reflectiveContext.test.ts` 共 5 文件 34 passed / exit 0，完整命令见卡 354 Result / `t8-v17.log`；源码 `packages/tools/src/execution/sandbox/windowsRestricted.ts:28`、`platformSandbox.ts:40`；受限参数/白名单/默认拒绝仍可复验，缺 Windows ACL/Low Integrity 真机执法与 macOS 脱离进程组生命周期验证，沿用 `docs/V1.7-IMPLEMENTATION-NOTES.md:21` 原有边界。）
+
+
+## 2026-10-28 final sweep - bounded evidence (not card acceptance)
+
+T5 PASS for offline contracts only: five requested commands each exit 0, 5 files / 32 tests (windowsRestricted 14, platformSandbox 9, Process.sandbox 4, nativeSandboxIntegration 2, shellTool.sandbox 3). Offline npm bench:conformance, with --out pointing to TEMP, passed 25/25, 0 failed, $0 in 4.7380032s; Vessel adapter only, no --live or external Agent CLI. First npm argument-forwarding attempt failed before scenarios and is retained; one literal-argument retry passed. Evidence: `evidence/sessions/2026-10-28-final-sweep/t5-checks.json` and `report.md`; raw logs remain in TEMP. This does not verify Windows ACL / Low Integrity host enforcement or macOS escaped-process lifecycle; those remain maintainer-only boundaries.
+
+**协调者复跑（2026-10-28）**：上面那五条命令我自己又跑了一遍，逐条 exit 0、14+9+4+2+3 = **32 passed**；离线 `bench:conformance --out %TEMP%` 得 **25/25、0 failed、$0**（`runs/passed/failed = 25/25/0`）。结论与 Codex 那段一致：这是**离线契约**证据，**不**构成 Windows ACL / Low Integrity 真机执法，也不覆盖 macOS；那两项仍是维护者边界。
