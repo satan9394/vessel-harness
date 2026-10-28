@@ -126,3 +126,13 @@
 - **V5 审计**：只审计未清理，`.tmp` 目录与 62 行绝对 TEMP 引用保留；关键词扫描未识别真实凭据。
 - 落卡与同步：`tasks/351`、`tasks/345`、`tasks/275`、`evidence/sessions/2026-10-28-final-gate.md`（追加第三次执行）、`tasks/README.md`（行与未闭合段）、`HANDOFF.md` §0（门禁/最近交付/待执行/未提交）。**未 commit**；未提交路径仍为 236。
 
+## 12. 收尾与下一批（2026-10-28 晚）
+
+- **已提交**：236 路径按依赖顺序拆成 8 条（`365bebe` core 租约 → `324cc7d` 证据归档），工作树干净后才开始下一批。回撤：整批 `git reset --hard 40cd6a9`，单层 `git revert <sha>`（退 02 要连 03）。
+- **run 5 已签收**：Codex 主线程可见 IAB 拍成 917×567 两张图，我逐字看过才签；卡 260/275 的 W1/W2 闭合，只剩 150%/200% 缩放与原生 IME（真机）。
+- **本机已补的 B 类**：`npm run test:all` exit 0（根 333 / 3,694 + 8，web 59 / 528）；`node scripts/ui-geom-check.mjs` exit 0（5 cases）。
+- **新发现**：`vessel daemon start` 在任何机器上都崩——`createVesselServer:297` 在构造期读 `daemon.status().instanceId`，而 CLI 的 `info` 要 `listen()` 之后才赋值；另 `Set-Acl` 从 pwsh 7 启动会因 `PSModulePath` 污染失败。已立卡 359。
+- **交给 Codex**：`tasks/prompts/codex-handoff-2026-10-28-daemon-and-ui.md`（Part A 修 359 + Part B 175/179/277 浏览器验收，主线程，禁子代理）。
+- **我判不做**：154 release-report（配额且仍 partial）、155 字面 3h soak（边际信号低）、ARCH-04 `--live`（需逐次授权且 adapter 脱节）。
+
+

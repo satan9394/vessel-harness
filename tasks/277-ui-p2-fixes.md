@@ -1,6 +1,6 @@
 # 任务卡 277: 修复浏览器验收的两个 P2 缺陷
 
-**状态**: 已收口（2026-10-24）：B-F1 用户浏览器复验通过；C-F1 首版被判不通过后重做，PDW 任务 `20261024095132-1bac7e` 达 `accepted_local`，几何检查 5 视口全绿
+**状态**: 已收口（2026-10-24）：B-F1 用户浏览器复验通过；C-F1 首版被判不通过后重做，PDW 任务 `20261024095132-1bac7e` 达 `accepted_local`，几何检查 5 视口全绿。**2026-10-28**：几何项由协调者复跑 `node scripts/ui-geom-check.mjs` exit 0（5 cases）再确认；键盘/焦点与 1440×900 人眼确认已写成 Codex 主线程任务（Part B1），仍待签收
 **创建时间**: 2026-10-23
 **执行者**: Codex (`gpt-6.1-sol`, medium)
 **协调者**: OpenCode
@@ -205,3 +205,11 @@ Geometry is intentionally delegated to the runner's checks stage; this implement
 Contract 20261024095132-1bac7e: retained the existing content-based column minimums in both width branches and the 60px transcript reservation. Added transcript `overscroll-behavior-y: contain` so reaching its scroll boundary does not chain the same gesture into the module wrapper; the regression guard also rejects later overrides of this behavior. The outer wrapper remains available for reaching modules on short/narrow viewports. No usage, configuration, or component interface changed; documentation belongs here and in the CSS comments. Browser geometry and content-filled scrolling remain runner/reviewer checks, not implementation self-test claims.
 
 Self-checks for this contract after the CSS/test edit: `node node_modules/vitest/vitest.mjs run --root apps/web` exit 0 (58 files / 494 tests passed, 27.68s); `node node_modules/typescript/bin/tsc -p apps/web/tsconfig.json --noEmit` exit 0; `git diff --check` exit 0. AC4's six static layout tests passed within that suite. The pre-existing edits to the out-of-scope geometry instrument and its historical evidence were left untouched; no browser or geometry check was launched by this role.
+
+---
+
+## 2026-10-28 · 几何项复跑 + 剩余项的明确入口
+
+- `node scripts/ui-geom-check.mjs` → **exit 0**，stdout 末行 `geometry check passed (5 cases)`；报告写 `%TEMP%\vessel-ui-geom-check.json`（脚本按设计只写 %TEMP%，不落仓库，避免 PDW checks 判 source drift）。这一项只覆盖几何/重叠，不含键盘焦点，也不含「看起来对」。
+- 键盘/焦点与 1440×900 人眼确认已写成 Codex 主线程任务：`tasks/prompts/codex-handoff-2026-10-28-daemon-and-ui.md` 的 **Part B1**（7 步剧本 + `document.activeElement` 记录 + 整屏截图），执行前置是主线程可见 IAB（2026-10-28 run 5 已验证可用）。
+- 因此本卡的人眼/键盘确认**仍未签收**，但不再是「没人能做」：已有明确执行入口与判据。

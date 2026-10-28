@@ -4,7 +4,7 @@
 - 优先级：P1
 - 关联模块：`apps/local-server`, `apps/cli`
 - 推荐执行配置：Codex (GPT-6.1 Sol · `reasoning.effort: medium`)
-- 状态：本地全门禁与独立审查通过；待用户验收（2026-10-02）
+- 状态：本地全门禁与独立审查通过；待用户验收（2026-10-02）→ **2026-10-28 起被卡 359 阻断**：真跑 `vessel daemon start` 构造期必崩（见文末），detached 存活验收要等 359 修完
 - 创建日期：2026-10-01
 
 ---
@@ -76,3 +76,13 @@ export interface DaemonControlContract {
    - `npx tsc -b tsconfig.json` exit 0。
 
 仍待用户验收（2026-10-27 对账：`apps/local-server/src/daemon/daemonLifecycle.ts:169`、`authMiddleware.ts:5`、`notifications.ts:7`、`apps/cli/src/daemon/daemonCommands.ts:9` 与原有定向测试仍在；本次 auth/lifecycle/tray/CLI 定向命令与结果见卡 354 Result。缺真实 detached daemon 在终端关闭后的存活、原生 tray/toast 的本次真机验收；`docs/V1.6-IMPLEMENTATION-NOTES.md:50` 已明确历史证据为 mock，本次不把 mock 通知/派生参数断言提升为原生验证。）
+
+---
+
+## 2026-10-28 · 真机 detached 验收被卡 359 阻断（协调者子代理实测）
+
+- 在隔离 TEMP 根（`%TEMP%\vessel-176-c4b7e0a1`）按本卡验收真跑 `vessel daemon start --port 5731`：daemon 子进程**启动即退出**，`daemon.json` 从未写出，所以「杀 shell 后同 pid 存活 / uptime 增长 / health 200 / 401 鉴权 / stop 后端口归零」五步一步都没能执行。原文日志与 launcher/verify 脚本保留在该目录。
+- 根因不是环境：`createVesselServer`（`apps/local-server/src/server.ts:297`）在**构造期**比较 `mesh.local.nodeId !== daemon.status().instanceId`，而 `apps/cli/src/daemon/daemonCommands.ts` 的 `info` 要到 `await server.listen()` 之后（`:102`）才赋值 → 构造期 `instanceId` 恒为 undefined → 任何机器上都必抛 `mesh identity must match daemon`。已立**卡 359**。
+- 附带第二个缺陷：`daemonLifecycle.ts:55-58` 用 `powershell.exe` 跑 `Set-Acl`，从 pwsh 7 启动时继承了 PS7 的 `PSModulePath` → `CommandNotFoundException: Set-Acl`；把 `PSModulePath` 钉回 5.1 经典值后同一调用成功。同卡 359 一并修。
+- 因果对照（`%TEMP%\vessel-176-c4b7e0a1\mesh-check.log`）：`status: () => ({})` 抛；`status: () => ({ instanceId })` 不抛；不传 daemon 选项不抛。
+- 结论：本卡的「真实 detached 存活」**仍无证据**，等 359 修完用同一套脚本重跑；tray / toast 仍只能人眼看桌面（通知区与通知中心不是浏览器可见面）。

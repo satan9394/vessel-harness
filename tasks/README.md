@@ -28,6 +28,7 @@ PDW 关联：首行状态行下加 `- PDW task: <id>`（未启动写 `none`）�
 | 陈旧状态卡对账 (卡 355) | 已核对 8 卡（2026-10-27）：071→255/256/287；281→287；196→199；同号旧217→architecture 217/236/244/247；149行动口径→153（live仍未做）；mission-02两卡→121最终交付；119的S002/S006现可证伪。9文件/121测试通过；append-only原门禁与字节前缀结果见Result | [355](355-stale-cards-reconcile.md) |
 | 看板对账 170–183 (卡 354) | 对账完成：13 卡 EOF 追加；6 项本地契约已验收、2 项无法确认、5 项仍待用户；原始韧性门禁失败保留 | [354](354-board-reconcile-170-183.md) |
 | Packaging gate 实跑 (卡 351) | 已验收（2026-10-28）：判据按 T2 收紧为「探针正常 + 两路径存在」，第五波 V1 修好 Windows npm 执行层（仅 `win32` + `npm` 加 shell，判据未放宽），默认 gate 实跑 status=pass、npm exit 0 / stdout 1130 字节 / stderr 0；协调者独立复跑 release-gates 67、benchmarks 541 并自跑一次真 gate 复现同样 detail。仍只证明探针与路径存在，非完整打包/安装证明 | [351](351-packaging-gate-run.md) |
+| `vessel daemon start` 构造期必崩 (卡 359) | 待执行（2026-10-28 实测，HEAD `324cc7d`）：`createVesselServer:297` 在构造期读 `daemon.status().instanceId`，而 CLI 的 `info` 要到 `listen()` 之后才赋值 → 任何机器上都抛 `mesh identity must match daemon`；附带 `Set-Acl` 继承 pwsh 7 的 `PSModulePath` 失败。已交 Codex 单 Part A | [359](359-daemon-start-mesh-identity-crash.md) |
 | 单写者绕过租约 (卡 353) | 已验收（2026-10-27）：`append()` 重开前重取 `.lease`（`leaseHeld` 标志），`close()` 后重开可写、被存活进程持有时 fail-closed；core/session 27 项、core 133 | [353](353-session-append-lease-bypass.md) |
 | profileParity 退出码歧义 (卡 350c) | 已验收（2026-10-27）：损坏 `provider-profiles.json` 下 CLI 断言 exit 2 + 映射文案、HTTP 同根断言 `provider_profiles_corrupted`；parity 5/5、local-server 313 | [350c](350c-profile-parity-exit2.md) |
 | profileParity 偶发 (卡 350) | 已加固、根因未定位（2026-10-27）：`providerStateRoot`/`profilesOnDisk` 两条守卫 + stderr 取证已落地并复跑绿；PDW audit 判 fail（未覆盖 exit 2），结论见卡内 §7 | [350](350-profile-parity-isolation.md) |
@@ -261,9 +262,10 @@ PDW 关联：首行状态行下加 `- PDW task: <id>`（未启动写 `none`）�
 
 - **当前未闭合（2026-10-28 复核）**：
   1. **第五波已收口（2026-10-28 协调者验收）**：V1（card 351）已验收——Windows npm 执行层修好、判据未放宽，真 gate `status=pass`（npm exit 0 / stdout 1130 / stderr 0）；V3（345e）已验收——运行中 serve 首次 GET 即可见恢复会话，协调者另起真实 serve + 独立 CLI restore 复现（PID 全程不变、journal/快照未被 GET 改写）；V4 全量门禁由协调者在最后源码状态下又跑一次，17 步全绿（根 334 / 3,704 passed + 8 skipped；web 59 / 528；conformance 25/25、$0），证据 `evidence/sessions/2026-10-28-final-gate.md` 末尾；V5 只审计不清理，冻结 235 路径 / 11 组，发现 `.tmp` 目录与 62 行历史绝对 TEMP 引用，关键词扫描未识别真实凭据，**不能称全净**。**V2 的视口缺口已由 run 5 补上**（Codex 应用主线程可见 IAB，见第 2 项）。
-  2. **待用户验收（本地契约已通过，缺真机/真实终端）**：175、176、179、180、183；卡 260/275 的 W1/W2 视口已于 2026-10-28 run 5 签收（`evidence/sessions/2026-10-28-iab-run5/`），**只剩 150%/200% 真实缩放与原生输入法**——IAB 做不了（`Ctrl+=` 无效、`deviceScaleFactor` 只改 DPR），必须真机。
-  3. **只能人或需授权**：卡 277 人眼确认；沙箱 Windows ACL/Low Integrity 真机与 macOS 逃组（A1）；154 `release-report`、155 3h soak、156 门槛复核；ARCH-04 live 与 `--live` 基线；U1–U5。
-  4. **已闭合**：341、346、345d、345e、350c、351、353–358、第四波 T1/T2/T3/T5、第五波 V1/V3/V4/V5（V2 仅视口未闭合，见第 2 项）。
+  2. **正在推进（2026-10-28 已派活）**：175 的画布/抽屉/预审、179 的继承项、277 的键盘焦点，写成 Codex 主线程任务 `tasks/prompts/codex-handoff-2026-10-28-daemon-and-ui.md` Part B。**176 的 detached 存活被卡 359 阻断**——真跑 `vessel daemon start` 在构造期必崩（`createVesselServer:297` 读到未初始化的 `info`），同单 Part A 修它。179 的「双 Root 全量」已由协调者 `npm run test:all` exit 0 闭合（根 333 文件 / 3,694 + 8，web 59 / 528）。
+  3. **只能维护者本人（8 条）**：卡 260/275 的 150%/200% 真实缩放与原生输入法；176/179 的 tray/toast 桌面可见性；180/183 的 Windows ACL/Low Integrity 真机执法（`scripts/provision-sandbox.ps1` 预配置 → 真机对照 → `-Revoke`，可回滚）与 macOS 逃组；175/277 的用户视觉签字（可选，证据已能覆盖）。
+  4. **需授权或配额——本轮我判不做**：154 `release-report` 刷新（要 opencode-go 配额，且刷完仍是 partial）；155 字面 3h 墙钟 soak（占机 3 小时、边际信号低，`benchmarks/reports/SOAK-068.md` 已论证等价压力）；ARCH-04 的 `--live`（会驱动本机 dsh/opencode/codex/claude，须你逐次同意，且 adapter 已与真实 CLI 脱节，跑了也只是 fail 基线）——三项都保留为已知阻塞，不花配额；U1–U5 对外工单/规则集/privacy 窗口只能你以自己名义办。
+  5. **已闭合**：341、346、345d、345e、350c、351、353–358、第四波 T1/T2/T3/T5、第五波 V1/V2/V3/V4/V5（含 run 5 视口）、156（`docs/V1.6-STABLE-CHECKLIST.md` 已按 2026-10-28 事实复核）。
 
 - **最近已交付（2026-10-19，本地验收通过）：任务 232 模型供应商全屏独立中枢、高级模型搜索筛选器与 CC-Switch 权威预设补齐 (Provider Hub Full-Surface & Advanced Model Picker)**：
   - 交付内容：

@@ -110,3 +110,12 @@ Codex 在执行超长开发时可按需查阅以下权威技术资产（已落�
 - 不自动提交、推送、发布或调用本机真实 Agent。
 
 仍待用户验收（2026-10-27 对账：177/178 定向 44 passed exit 0，175 Web 独立 root 8 passed exit 0，服务端/daemon 定向命令与结果见卡 354 Result；四阶段源码与指定测试均在。继承 175 当前浏览器视觉/端到端与 176 真机 detached/tray/toast 未复验边界；历史 `docs/V1.6-IMPLEMENTATION-NOTES.md:58` 浏览器证据保持有效记录，本次不重写成未曾验证，也不据 unit/mock 宣称 Epic 整体已验收。）
+
+---
+
+## 2026-10-28 · Epic 级两项目的现状（协调者实测）
+
+- **双 Root 全量**：在本地提交后的干净工作树上跑 `npm run test:all` → **exit 0**；根 **333 文件 / 3,694 passed + 8 skipped**，web **59 文件 / 528 passed**（日志 `%TEMP%\opencode\wave6\test-all.log`）。同一份代码上的 17 步分批门禁也是 17/17 exit 0。这条 Epic DoD 现在有当日证据，不再依赖「只跑定向」的历史口径。
+- **继承的浏览器项**：卡 175 的画布/抽屉/预审视觉，与卡 277 的键盘焦点，一起写成 Codex 主线程任务 `tasks/prompts/codex-handoff-2026-10-28-daemon-and-ui.md` 的 Part B（B1/B2）；本 Epic 只引用其结果，不单独做新工作。
+- **继承的真机项**：卡 176 的 detached 存活**仍无证据**——真跑发现 `vessel daemon start` 构造期必崩，已立卡 359；tray / toast 仍只能人眼看桌面。
+- 结论：本 Epic 仍**不整体签收**，剩余就是上面三类（浏览器视觉待 B1/B2、daemon 待 359、tray/toast 待真机）。
