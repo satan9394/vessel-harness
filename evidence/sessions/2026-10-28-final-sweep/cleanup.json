@@ -1,0 +1,22 @@
+{
+  "serveListeners": 0,
+  "at": "2026-10-28T16:49:08.6015184Z",
+  "fixtureNodeProcesses": 0,
+  "remainingPids": [],
+  "servePort": 5678,
+  "daemonListeners": 0,
+  "browserTabClosed": true,
+  "teamPreferenceRestored": true,
+  "viewportOverrideReset": true,
+  "daemonPort": 5700,
+  "fixturePreserved": "C:\\work\\AppData\\Local\\Temp\\vessel-final-sweep-1eKEKs",
+  "daemonStart": {
+    "exit": 0,
+    "elapsedSeconds": 1.8776721,
+    "listeners": 1
+  },
+  "daemonStop": {
+    "exit": 0,
+    "listeners": 0
+  }
+}

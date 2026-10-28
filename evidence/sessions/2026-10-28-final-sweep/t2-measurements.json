@@ -1,0 +1,310 @@
+{
+  "viewport": {
+    "width": 1440,
+    "height": 900
+  },
+  "fixture": "C:/work/AppData/Local/Temp/vessel-final-sweep-1eKEKs",
+  "sessionId": "sess_1793205593871_4f45b186",
+  "stageId": "stage_35944e95-2874-4538-af05-642d0a68d461",
+  "setup": "UI session; same-origin HTTP POST stage, then public revise API for a three-node dependency chain; all routes mock/mock-pro",
+  "before": [
+    {
+      "html": "<section aria-label=\"团队计划 stage_b0c2fd65-2094-44d9-b452-14a12e77c4a1\"><p>已放弃</p><div class=\"team-dag-scroll\"><svg aria-label=\"团队任务依赖\" role=\"group\" width=\"320\" height=\"140\"><g transform=\"translate(24,24)\"><foreignObject width=\"200\" height=\"76\"><button type=\"button\" class=\"team-dag-node status-pending\" aria-pressed=\"false\"><strong>Generate</strong><span>待处理</span></button></foreignObject></g></svg></div></section>",
+      "label": "团队计划 stage_b0c2fd65-2094-44d9-b452-14a12e77c4a1",
+      "text": "已放弃Generate待处理"
+    },
+    {
+      "html": "<section aria-label=\"团队计划 stage_35944e95-2874-4538-af05-642d0a68d461\"><section class=\"team-staged-banner\" aria-label=\"团队计划等待审批\"><strong>审阅团队计划 · 3 个任务</strong><ul><li>developer · 生成者 · mock/mock-pro</li></ul><button class=\"btn btn-primary\">批准并运行</button> <button class=\"btn\">拒绝</button></section><details><summary>审批前编辑计划</summary><form aria-label=\"编辑待审批的团队计划\"><fieldset><legend>成员模型配置</legend><div class=\"team-plan-editor-row\"><strong>developer</strong><label>角色 <select><option value=\"lead\">负责人</option><option value=\"developer\">生成者</option><option value=\"reviewer\">评估者</option></select></label><label>供应商 <select><option value=\"mock\">mock</option></select></label><label>模型 <input required=\"\" value=\"mock-pro\"></label><label>推理深度 <select><option value=\"\">默认</option><option value=\"low\">浅度</option><option value=\"medium\">中度</option><option value=\"high\">深度</option></select></label><label>采样温度 <input min=\"0\" max=\"2\" step=\"0.1\" type=\"number\" value=\"\"></label></div></fieldset><fieldset><legend>任务参数<",
+      "label": "团队计划 stage_35944e95-2874-4538-af05-642d0a68d461",
+      "text": "审阅团队计划 · 3 个任务developer · 生成者 · mock/mock-pro批准并运行 拒绝审批前编辑计划成员模型配置developer角色 负责人生成者评估者供应商 mock模型 推理深度 默认浅度中度深度采样温度 任务参数draft标题 执行角色 生成者评估者说明 Write a concise offline checklist as text.依赖任务（以逗号分隔） check标题 执行角色 生成者评估者说明 Check the checklist for missing dependencies.依赖任务（以逗号分隔） final标题 执行角色 生成者评估者说明 Summarize the final offline checklist as text.依赖任务（以逗号分隔） 保存修改后的预览待审批Draft checklist待处理Check dependencies待处理Summarize checklist待处理关闭Check dependenciesCheck the checklist for missing dependencies.状态： 待处理  · 执行器： 待认领依赖任务： draft"
+    },
+    {
+      "html": "<section class=\"team-staged-banner\" aria-label=\"团队计划等待审批\"><strong>审阅团队计划 · 3 个任务</strong><ul><li>developer · 生成者 · mock/mock-pro</li></ul><button class=\"btn btn-primary\">批准并运行</button> <button class=\"btn\">拒绝</button></section>",
+      "label": "团队计划等待审批",
+      "text": "审阅团队计划 · 3 个任务developer · 生成者 · mock/mock-pro批准并运行 拒绝"
+    }
+  ],
+  "after": [
+    {
+      "label": "团队计划 stage_b0c2fd65-2094-44d9-b452-14a12e77c4a1",
+      "links": [],
+      "nodes": [],
+      "svgPaths": 0,
+      "text": "已放弃Generate待处理"
+    },
+    {
+      "label": "团队计划 stage_35944e95-2874-4538-af05-642d0a68d461",
+      "links": [],
+      "nodes": [],
+      "svgPaths": 2,
+      "text": "finishedDraft checklist已完成Check dependencies已完成Summarize checklist已完成关闭Check dependenciesCheck the checklist for missing dependencies.状态： 已完成  · 执行器： developer依赖任务： draft(mock team member turn)"
+    }
+  ],
+  "observedStateDistribution": {
+    "staged": {
+      "pending": 3
+    },
+    "immediatelyAfterApprove": {
+      "running": 1,
+      "pending": 2,
+      "evidence": "live accessibility snapshot"
+    },
+    "finished": {
+      "completed": 3
+    }
+  },
+  "screenshots": {
+    "pending": "t2-canvas.png",
+    "completed": "t2-approved.png",
+    "running": "UNVERIFIED: transient state observed in AX; no screenshot captured while running"
+  },
+  "consoleErrors": [],
+  "unverified": [
+    "Three distinct status colours in screenshot: only pending and completed captured; ready/running/failed colour not captured",
+    "Output truncation at 300 characters: actual output only 23 characters",
+    "Artifact file links: default offline mock provider returns text and creates no artifacts",
+    "Whole DAG simultaneous visibility: 724px SVG is horizontally clipped by approximately 242px canvas viewport; connected line segments are visible"
+  ],
+  "actualFinalStage": {
+    "id": "stage_35944e95-2874-4538-af05-642d0a68d461",
+    "roster": [
+      {
+        "memberId": "developer",
+        "presetId": "developer",
+        "preset": {
+          "id": "developer",
+          "role": "generator",
+          "modelTier": "pro",
+          "write": true,
+          "description": "Developer（产出者）：pro 档（按任务复杂度可降 fast）+ 允许写文件"
+        },
+        "routeSnapshot": {
+          "providerId": "mock",
+          "model": "mock-pro",
+          "snapshottedAt": 1793205774961
+        },
+        "role": "generator",
+        "phase": "generate",
+        "model": "mock-pro",
+        "providerId": "mock"
+      }
+    ],
+    "tasks": [
+      {
+        "id": "draft",
+        "title": "Draft checklist",
+        "description": "Write a concise offline checklist as text.",
+        "assignedRole": "generator",
+        "dependencies": [],
+        "status": "completed",
+        "claimedBy": "developer",
+        "result": {
+          "output": "(mock team member turn)",
+          "artifacts": []
+        }
+      },
+      {
+        "id": "check",
+        "title": "Check dependencies",
+        "description": "Check the checklist for missing dependencies.",
+        "assignedRole": "generator",
+        "dependencies": [
+          "draft"
+        ],
+        "status": "completed",
+        "claimedBy": "developer",
+        "result": {
+          "output": "(mock team member turn)",
+          "artifacts": []
+        }
+      },
+      {
+        "id": "final",
+        "title": "Summarize checklist",
+        "description": "Summarize the final offline checklist as text.",
+        "assignedRole": "generator",
+        "dependencies": [
+          "check"
+        ],
+        "status": "completed",
+        "claimedBy": "developer",
+        "result": {
+          "output": "(mock team member turn)",
+          "artifacts": []
+        }
+      }
+    ],
+    "status": "finished",
+    "createdAt": 1793205774961,
+    "approvedAt": 1793205849150,
+    "sessionId": "sess_1793205593871_4f45b186",
+    "availableProviders": [
+      "mock"
+    ]
+  },
+  "nodeCount": 3,
+  "edgeCount": 2,
+  "stateCounts": {
+    "completed": 3
+  },
+  "outputLength": 23,
+  "artifactLinkCount": 0,
+  "apiRequestEvidence": {
+    "create": {
+      "method": "POST",
+      "url": "http://127.0.0.1:5678/api/sessions/sess_1793205593871_4f45b186/team-stages",
+      "origin": "http://127.0.0.1:5678",
+      "body": {
+        "task": "Generate an offline verification checklist and independently review its clarity.",
+        "mode": "pro"
+      },
+      "status": 201,
+      "response": {
+        "stage": {
+          "id": "stage_b0c2fd65-2094-44d9-b452-14a12e77c4a1",
+          "roster": [
+            {
+              "memberId": "developer",
+              "presetId": "developer",
+              "preset": {
+                "id": "developer",
+                "role": "generator",
+                "modelTier": "pro",
+                "write": true,
+                "description": "Developer（产出者）：pro 档（按任务复杂度可降 fast）+ 允许写文件"
+              },
+              "routeSnapshot": {
+                "providerId": "mock",
+                "model": "mock-pro",
+                "snapshottedAt": 1793205621534
+              },
+              "role": "generator",
+              "phase": "generate",
+              "tier": "pro",
+              "model": "mock-pro",
+              "providerId": "mock"
+            }
+          ],
+          "tasks": [
+            {
+              "id": "task_1",
+              "title": "Generate",
+              "description": "Generate an offline verification checklist and independently review its clarity.",
+              "assignedRole": "generator",
+              "dependencies": [],
+              "status": "pending"
+            }
+          ],
+          "status": "staged",
+          "createdAt": 1793205621535
+        }
+      }
+    },
+    "revise": {
+      "method": "POST",
+      "url": "http://127.0.0.1:5678/api/team/stages/stage_b0c2fd65-2094-44d9-b452-14a12e77c4a1/revise",
+      "origin": "http://127.0.0.1:5678",
+      "body": {
+        "roster": [
+          {
+            "memberId": "developer",
+            "presetId": "developer",
+            "providerId": "mock",
+            "model": "mock-pro",
+            "snapshottedAt": 1793205621534
+          }
+        ],
+        "tasks": [
+          {
+            "id": "draft",
+            "title": "Draft checklist",
+            "description": "Write a concise offline checklist as text.",
+            "assignedRole": "generator",
+            "dependencies": [],
+            "status": "pending"
+          },
+          {
+            "id": "check",
+            "title": "Check dependencies",
+            "description": "Check the checklist for missing dependencies.",
+            "assignedRole": "generator",
+            "dependencies": [
+              "draft"
+            ],
+            "status": "pending"
+          },
+          {
+            "id": "final",
+            "title": "Summarize checklist",
+            "description": "Summarize the final offline checklist as text.",
+            "assignedRole": "generator",
+            "dependencies": [
+              "check"
+            ],
+            "status": "pending"
+          }
+        ]
+      },
+      "status": 201,
+      "response": {
+        "stage": {
+          "id": "stage_35944e95-2874-4538-af05-642d0a68d461",
+          "roster": [
+            {
+              "memberId": "developer",
+              "presetId": "developer",
+              "preset": {
+                "id": "developer",
+                "role": "generator",
+                "modelTier": "pro",
+                "write": true,
+                "description": "Developer（产出者）：pro 档（按任务复杂度可降 fast）+ 允许写文件"
+              },
+              "routeSnapshot": {
+                "providerId": "mock",
+                "model": "mock-pro",
+                "snapshottedAt": 1793205774961
+              },
+              "role": "generator",
+              "phase": "generate",
+              "model": "mock-pro",
+              "providerId": "mock"
+            }
+          ],
+          "tasks": [
+            {
+              "id": "draft",
+              "title": "Draft checklist",
+              "description": "Write a concise offline checklist as text.",
+              "assignedRole": "generator",
+              "dependencies": [],
+              "status": "pending"
+            },
+            {
+              "id": "check",
+              "title": "Check dependencies",
+              "description": "Check the checklist for missing dependencies.",
+              "assignedRole": "generator",
+              "dependencies": [
+                "draft"
+              ],
+              "status": "pending"
+            },
+            {
+              "id": "final",
+              "title": "Summarize checklist",
+              "description": "Summarize the final offline checklist as text.",
+              "assignedRole": "generator",
+              "dependencies": [
+                "check"
+              ],
+              "status": "pending"
+            }
+          ],
+          "status": "staged",
+          "createdAt": 1793205774961
+        }
+      }
+    }
+  }
+}

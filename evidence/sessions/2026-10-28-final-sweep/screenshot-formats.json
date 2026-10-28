@@ -1,0 +1,62 @@
+[
+  {
+    "file": "t1-1440x900.png",
+    "source_magic": "ffd8ffe000104a46",
+    "source_format": "JPEG",
+    "size": [
+      1440,
+      900
+    ],
+    "png_magic": "89504e470d0a1a0a"
+  },
+  {
+    "file": "t2-approved.png",
+    "source_magic": "ffd8ffe000104a46",
+    "source_format": "JPEG",
+    "size": [
+      1440,
+      900
+    ],
+    "png_magic": "89504e470d0a1a0a"
+  },
+  {
+    "file": "t2-canvas.png",
+    "source_magic": "ffd8ffe000104a46",
+    "source_format": "JPEG",
+    "size": [
+      1440,
+      900
+    ],
+    "png_magic": "89504e470d0a1a0a"
+  },
+  {
+    "file": "t2-drawer-completed.png",
+    "source_magic": "ffd8ffe000104a46",
+    "source_format": "JPEG",
+    "size": [
+      1440,
+      900
+    ],
+    "png_magic": "89504e470d0a1a0a"
+  },
+  {
+    "file": "t2-drawer.png",
+    "source_magic": "ffd8ffe000104a46",
+    "source_format": "JPEG",
+    "size": [
+      1440,
+      900
+    ],
+    "png_magic": "89504e470d0a1a0a"
+  },
+  {
+    "file": "t2-staged-banner.png",
+    "source_magic": "ffd8ffe000104a46",
+    "source_format": "JPEG",
+    "size": [
+      1440,
+      900
+    ],
+    "png_magic": "89504e470d0a1a0a"
+  }
+]

@@ -1,0 +1,167 @@
+{
+  "at": "2026-10-28T16:54:06.545Z",
+  "baselineAt": "2026-10-28T16:36:46.980Z",
+  "head": "ba67265ab3894ba57eb0915f14eefbefc3c031cf",
+  "trackedFilesChecked": 4959,
+  "unchangedTrackedFiles": 4953,
+  "trackedChanges": [
+    {
+      "path": "tasks/175-visual-team-dag-canvas-and-staged-approval.md",
+      "originalBytes": 5589,
+      "appendedBytes": 1022,
+      "originalSha256": "700ff132a1fa8a11b6f98394b7b906bda994af9ff452904b1ba5310bac0016da",
+      "currentSha256": "e79950756a52cedf68f5f12be7d7a684db473834b7e7bafecda3efaa614a5950",
+      "originalPrefixUnchanged": true
+    },
+    {
+      "path": "tasks/176-headless-daemon-and-tray-resilience.md",
+      "originalBytes": 7038,
+      "appendedBytes": 727,
+      "originalSha256": "bfe44b608f29cb47089c2999742324c38b05af56202a016ec68bbe531dc12160",
+      "currentSha256": "9bbabf7188988f5c7ce322aa2b2701f9c6efd7ffd5d82e31d90fc4a7cb07fcd4",
+      "originalPrefixUnchanged": true
+    },
+    {
+      "path": "tasks/179-epic-universal-team-workspace-and-daemon-mesh.md",
+      "originalBytes": 9993,
+      "appendedBytes": 1346,
+      "originalSha256": "49dda89342f525abaa2be2a52f35f05fbb20b5dfd8fbb2d3a5b8939f15dc55d6",
+      "currentSha256": "040d795ecdcb5bd4463971c8cdd7c40832ad689c26470c9db4dc7c3986409ab3",
+      "originalPrefixUnchanged": true
+    },
+    {
+      "path": "tasks/180-os-native-sandboxing-and-restricted-tokens.md",
+      "originalBytes": 5437,
+      "appendedBytes": 796,
+      "originalSha256": "eb3371bc102119c4d750355ac553c2a1bf0e5f1b666ef8d59475a19d87df4035",
+      "currentSha256": "1e9f989a979d765b0e8c1a507bbe1e897b471aa674a18da8edcdfd2fb29c9f56",
+      "originalPrefixUnchanged": true
+    },
+    {
+      "path": "tasks/183-epic-hardened-runtime-and-cognitive-memory.md",
+      "originalBytes": 5094,
+      "appendedBytes": 796,
+      "originalSha256": "5055f5376bf1a073d153da8b526113fcfaa1a340d676db269ca2394da6f0d2ee",
+      "currentSha256": "10ead5c9b91475a8f27909adc5da11bd4055a9c8fb21fba3f10d27eddc96ff08",
+      "originalPrefixUnchanged": true
+    },
+    {
+      "path": "tasks/277-ui-p2-fixes.md",
+      "originalBytes": 18850,
+      "appendedBytes": 763,
+      "originalSha256": "7c353a0528c3886e050ef403325d4ee62a95793c567257591d8a29e0a6fb0dee",
+      "currentSha256": "9809688b88309f01f8084077aac914b03febeff40abebf6441aa82cdae9ffe92",
+      "originalPrefixUnchanged": true
+    }
+  ],
+  "newEvidenceFiles": [
+    {
+      "path": "evidence/sessions/2026-10-28-final-sweep/build-freshness.json",
+      "bytes": 555,
+      "sha256": "d75ba0de35509861de7ac25d55bcf6692a3f926b17078e1377245a947621f9c5"
+    },
+    {
+      "path": "evidence/sessions/2026-10-28-final-sweep/cleanup.json",
+      "bytes": 522,
+      "sha256": "40b5f30c0d18a9f1b1f04598a757f7b43ee01a345f7d693dcc295aaa1cb1c07d"
+    },
+    {
+      "path": "evidence/sessions/2026-10-28-final-sweep/report.md",
+      "bytes": 22085,
+      "sha256": "338be065142f1b32106b558901fa9af1f55f167a30e8a69c7fc7e4b89b4e20ff"
+    },
+    {
+      "path": "evidence/sessions/2026-10-28-final-sweep/screenshot-formats.json",
+      "bytes": 1140,
+      "sha256": "55a61cf0e0215df7bb4efd29da9b319e72bfbe8480b34c0c45953a7935066325"
+    },
+    {
+      "path": "evidence/sessions/2026-10-28-final-sweep/t1-1440x900.png",
+      "bytes": 228770,
+      "sha256": "42cf7a6da2c5818445f01feff0381642f9b99a75bf8954b6b88db28031d906ac",
+      "pngSignature": "89504e470d0a1a0a",
+      "dimensions": {
+        "width": 1440,
+        "height": 900
+      }
+    },
+    {
+      "path": "evidence/sessions/2026-10-28-final-sweep/t1-keyboard.json",
+      "bytes": 7778,
+      "sha256": "ed45589e3ecdc6c61b842349ca29b4aeb6f23669b945210129f26edd39cce234"
+    },
+    {
+      "path": "evidence/sessions/2026-10-28-final-sweep/t2-approved.png",
+      "bytes": 225954,
+      "sha256": "c2413d752896efd6c4f5c40d92b83990fe0de81024c36fbb5576b4a1e8a7aadb",
+      "pngSignature": "89504e470d0a1a0a",
+      "dimensions": {
+        "width": 1440,
+        "height": 900
+      }
+    },
+    {
+      "path": "evidence/sessions/2026-10-28-final-sweep/t2-canvas.png",
+      "bytes": 235413,
+      "sha256": "de5cde1b410ed790f0510149a649106dae45a96a00c3fc710e1d0f4183b97d37",
+      "pngSignature": "89504e470d0a1a0a",
+      "dimensions": {
+        "width": 1440,
+        "height": 900
+      }
+    },
+    {
+      "path": "evidence/sessions/2026-10-28-final-sweep/t2-drawer-completed.png",
+      "bytes": 225954,
+      "sha256": "c2413d752896efd6c4f5c40d92b83990fe0de81024c36fbb5576b4a1e8a7aadb",
+      "pngSignature": "89504e470d0a1a0a",
+      "dimensions": {
+        "width": 1440,
+        "height": 900
+      }
+    },
+    {
+      "path": "evidence/sessions/2026-10-28-final-sweep/t2-drawer.png",
+      "bytes": 225938,
+      "sha256": "060a3e1891601767db18c12f92c8957d6a280165a5342ea865439e45dacd58ed",
+      "pngSignature": "89504e470d0a1a0a",
+      "dimensions": {
+        "width": 1440,
+        "height": 900
+      }
+    },
+    {
+      "path": "evidence/sessions/2026-10-28-final-sweep/t2-measurements.json",
+      "bytes": 12560,
+      "sha256": "ec5ca8eb3c4205bf3cb2f06ab3c8d89bf421ec7c314c9c896cc45c81a443d544"
+    },
+    {
+      "path": "evidence/sessions/2026-10-28-final-sweep/t2-staged-banner.png",
+      "bytes": 310069,
+      "sha256": "5b273a8c509887e9fe38cafab4cd61a1183e1e31849e4a2cbf873403d4ea5045",
+      "pngSignature": "89504e470d0a1a0a",
+      "dimensions": {
+        "width": 1440,
+        "height": 900
+      }
+    },
+    {
+      "path": "evidence/sessions/2026-10-28-final-sweep/t5-checks.json",
+      "bytes": 3000,
+      "sha256": "70ffed216a1ac19e7e46ff750536e222f801b63f57230e583cb49de58804980f"
+    }
+  ],
+  "untrackedOutsideAllowlist": [],
+  "diffCheck": {
+    "exit": 0,
+    "stdout": "",
+    "stderr": ""
+  },
+  "unexpected": [],
+  "passed": true,
+  "limitations": [
+    "Initial tracked-file snapshot covers git-tracked files only; ignored build output was intentionally rebuilt by the authorized prerequisites.",
+    "Transient generated PowerShell cache write was relocated and disclosed in report.md; final allowlist does not assert no transient writes occurred.",
+    "No independent host-effective model/effort telemetry was available."
+  ]
+}

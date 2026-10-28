@@ -1,0 +1,18 @@
+{
+  "typescript": {
+    "command": "node node_modules/typescript/bin/tsc -b tsconfig.json",
+    "exit": 0,
+    "log": "C:\\work\\AppData\\Local\\Temp\\vessel-final-sweep-1eKEKs\\tsc.log"
+  },
+  "web": {
+    "command": "npm run -w @vessel/web build",
+    "exit": 0,
+    "log": "C:\\work\\AppData\\Local\\Temp\\vessel-final-sweep-1eKEKs\\web-build.log",
+    "indexMtime": "2026-10-28T16:37:03.078Z",
+    "assets": [
+      "assets/index-CXJPjUxG.js"
+    ],
+    "script": "vite build --emptyOutDir false"
+  },
+  "fullGateRerun": false
+}

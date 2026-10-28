@@ -1,0 +1,218 @@
+{
+  "target": "second-created disposable session; newest-first sidebar places it first",
+  "tabTrace": [
+    {
+      "html": "<input class=\"input composer-input\" placeholder=\"输入目标，加入本项目的任务队列…\" value=\"\">",
+      "label": null,
+      "text": "加入队列任务队列0 个任务暂无任务添加目标并运行，每次迭代都会显示生成结果与评估结论。暂停可挂起运行，恢复可继续执行；预算用于设置最大迭代数与重试数，默认均为 1。 "
+    },
+    {
+      "html": "<body>\n    <div id=\"root\"><div class=\"app\" data-provider-revision=\"0\"><div class=\"navigation-shell\"><button class=\"btn n",
+      "label": null
+    },
+    {
+      "html": "<button type=\"button\" class=\"btn sidebar-collapse\" aria-label=\"收起侧边栏\">‹</button>",
+      "label": "收起侧边栏",
+      "text": "Vessel‹+ 新建会话项目workspace历史会话显示已归档workspace今天T1 second disposable focus session09:38T1 first disposable focus session09:38项目 → 会话 → 运行 → 子代理工作台活动Agent Studio设置Light"
+    },
+    {
+      "html": "<button type=\"button\" class=\"btn btn-primary\">+ 新建会话</button>",
+      "label": null,
+      "text": "Vessel‹+ 新建会话项目workspace历史会话显示已归档workspace今天T1 second disposable focus session09:38T1 first disposable focus session09:38项目 → 会话 → 运行 → 子代理工作台活动Agent Studio设置Light"
+    },
+    {
+      "html": "<button type=\"button\" class=\"project-select side-item-active\">workspace</button>",
+      "label": null,
+      "text": "workspace"
+    },
+    {
+      "html": "<input class=\"topic-search\" aria-label=\"搜索会话…\" placeholder=\"搜索会话…\" type=\"search\" value=\"\">",
+      "label": "搜索会话…",
+      "text": "历史会话显示已归档workspace今天T1 second disposable focus session09:38T1 first disposable focus session09:38"
+    },
+    {
+      "html": "<input type=\"checkbox\">",
+      "label": null,
+      "text": "历史会话显示已归档workspace今天T1 second disposable focus session09:38T1 first disposable focus session09:38"
+    },
+    {
+      "html": "<button type=\"button\" class=\"topic-title\" title=\"T1 second disposable focus session\">T1 second disposable focus session<",
+      "label": null,
+      "text": "T1 second disposable focus session09:38"
+    },
+    {
+      "html": "<button type=\"button\" class=\"topic-action\" aria-label=\"重命名会话\" title=\"重命名会话\"><svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=",
+      "label": "重命名会话",
+      "text": "T1 second disposable focus session"
+    },
+    {
+      "html": "<button type=\"button\" class=\"topic-action\" aria-label=\"归档会话\" title=\"归档会话\"><svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"c",
+      "label": "归档会话",
+      "text": "T1 second disposable focus session"
+    },
+    {
+      "html": "<button type=\"button\" class=\"topic-action topic-action-danger\" aria-label=\"删除\" title=\"删除\"><svg viewBox=\"0 0 24 24\" fill=",
+      "label": "删除",
+      "text": "T1 second disposable focus session"
+    }
+  ],
+  "steps": [
+    {
+      "deleteButtons": [],
+      "outerHTML": "<button type=\"button\" class=\"topic-action topic-action-danger\" aria-label=\"删除\" title=\"删除\"><svg viewBox=\"0 0 24 24\" fill=",
+      "rect": {
+        "h": 27.993791580200195,
+        "w": 27.993791580200195,
+        "x": 217.0609130859375,
+        "y": 351.6632385253906
+      },
+      "tag": "BUTTON",
+      "text": "",
+      "viewport": {
+        "dpr": 1.0000000111675431,
+        "height": 900,
+        "width": 1440
+      },
+      "visible": true,
+      "step": 1,
+      "key": "Tab until second-created session Delete",
+      "consoleErrors": []
+    },
+    {
+      "deleteButtons": [],
+      "outerHTML": "<button type=\"button\" class=\"btn btn-sm\">取消</button>",
+      "rect": {
+        "h": 27.993791580200195,
+        "w": 40.59728240966797,
+        "x": 56.59373092651367,
+        "y": 436.6499328613281
+      },
+      "tag": "BUTTON",
+      "text": "取消",
+      "viewport": {
+        "dpr": 1.0000000111675431,
+        "height": 900,
+        "width": 1440
+      },
+      "visible": true,
+      "step": 2,
+      "key": "Enter",
+      "consoleErrors": []
+    },
+    {
+      "deleteButtons": [],
+      "outerHTML": "<button type=\"button\" class=\"topic-action topic-action-danger\" aria-label=\"删除\" title=\"删除\"><svg viewBox=\"0 0 24 24\" fill=",
+      "rect": {
+        "h": 27.993791580200195,
+        "w": 27.993791580200195,
+        "x": 217.0609130859375,
+        "y": 351.6632385253906
+      },
+      "tag": "BUTTON",
+      "text": "",
+      "viewport": {
+        "dpr": 1.0000000111675431,
+        "height": 900,
+        "width": 1440
+      },
+      "visible": true,
+      "step": 3,
+      "key": "Esc",
+      "consoleErrors": []
+    },
+    {
+      "deleteButtons": [],
+      "outerHTML": "<button type=\"button\" class=\"btn btn-sm\">取消</button>",
+      "rect": {
+        "h": 27.993791580200195,
+        "w": 40.59728240966797,
+        "x": 56.59373092651367,
+        "y": 436.6499328613281
+      },
+      "tag": "BUTTON",
+      "text": "取消",
+      "viewport": {
+        "dpr": 1.0000000111675431,
+        "height": 900,
+        "width": 1440
+      },
+      "visible": true,
+      "step": 4,
+      "key": "Enter",
+      "consoleErrors": []
+    },
+    {
+      "deleteButtons": [],
+      "outerHTML": "<button type=\"button\" class=\"btn btn-sm btn-danger\">确认</button>",
+      "rect": {
+        "h": 27.993791580200195,
+        "w": 40.59728240966797,
+        "x": 11.997339248657228,
+        "y": 436.6499328613281
+      },
+      "tag": "BUTTON",
+      "text": "确认",
+      "viewport": {
+        "dpr": 1.0000000111675431,
+        "height": 900,
+        "width": 1440
+      },
+      "visible": true,
+      "step": 5,
+      "key": "Shift+Tab",
+      "consoleErrors": []
+    },
+    {
+      "deleteButtons": [],
+      "outerHTML": "<textarea id=\"taskInput\" class=\"input task-input\" placeholder=\"描述目标、范围与验收标准…\"></textarea>",
+      "rect": {
+        "h": 150,
+        "w": 1098.2259521484375,
+        "x": 300.931396484375,
+        "y": 320.4390869140625
+      },
+      "tag": "TEXTAREA",
+      "text": "",
+      "viewport": {
+        "dpr": 1.0000000111675431,
+        "height": 900,
+        "width": 1440
+      },
+      "visible": true,
+      "step": 6,
+      "key": "Enter",
+      "consoleErrors": []
+    },
+    {
+      "deleteButtons": [],
+      "outerHTML": "<textarea id=\"taskInput\" class=\"input task-input\" placeholder=\"描述目标、范围与验收标准…\"></textarea>",
+      "rect": {
+        "h": 150,
+        "w": 1098.2259521484375,
+        "x": 300.931396484375,
+        "y": 320.4390869140625
+      },
+      "tag": "TEXTAREA",
+      "text": "",
+      "viewport": {
+        "dpr": 1.0000000111675431,
+        "height": 900,
+        "width": 1440
+      },
+      "visible": true,
+      "step": 7,
+      "key": "Screenshot",
+      "consoleErrors": []
+    }
+  ],
+  "verdict": "FAIL",
+  "reason": "Step 5 Shift+Tab moves Cancel to Confirm; prompt expects Cancel. Other observed focus/deletion clauses passed.",
+  "scriptConflict": "The final-sweep prompt says Shift+Tab lands on Cancel and then Enter confirms deletion; reopening actually focuses Cancel, so Shift+Tab lands on Confirm. Verdict follows the literal final-sweep criterion and does not assert a product regression.",
+  "deleteOutcome": {
+    "before": 2,
+    "after": 1,
+    "secondCreatedSessionRemoved": true,
+    "firstCreatedSessionPreserved": true,
+    "recovery": "application trash; TTL automatic purge disabled"
+  }
+}

@@ -1,0 +1,73 @@
+{
+  "targeted": [
+    {
+      "name": "windowsRestricted",
+      "command": "node node_modules/vitest/vitest.mjs run packages/tools/src/execution/sandbox/windowsRestricted.test.ts",
+      "exit": 0,
+      "files": 1,
+      "passed": 14,
+      "duration": "1.31s (import 40%, transform 35%, tests 24%, setup 1%)",
+      "log": "C:\\work\\AppData\\Local\\Temp\\vessel-final-sweep-1eKEKs\\t5-windowsRestricted.log"
+    },
+    {
+      "name": "platformSandbox",
+      "command": "node node_modules/vitest/vitest.mjs run packages/tools/src/execution/sandbox/platformSandbox.test.ts",
+      "exit": 0,
+      "files": 1,
+      "passed": 9,
+      "duration": "1.05s (transform 43%, import 40%, tests 15%, setup 1%, worker 1%)",
+      "log": "C:\\work\\AppData\\Local\\Temp\\vessel-final-sweep-1eKEKs\\t5-platformSandbox.log"
+    },
+    {
+      "name": "Process.sandbox",
+      "command": "node node_modules/vitest/vitest.mjs run packages/runtime/src/process/Process.sandbox.test.ts",
+      "exit": 0,
+      "files": 1,
+      "passed": 4,
+      "duration": "266ms (transform 52%, import 24%, tests 10%, setup 10%, worker 4%)",
+      "log": "C:\\work\\AppData\\Local\\Temp\\vessel-final-sweep-1eKEKs\\t5-Process-sandbox.log"
+    },
+    {
+      "name": "nativeSandboxIntegration",
+      "command": "node node_modules/vitest/vitest.mjs run packages/application/src/nativeSandboxIntegration.test.ts",
+      "exit": 0,
+      "files": 1,
+      "passed": 2,
+      "duration": "3.83s (import 51%, transform 43%, tests 5%)",
+      "log": "C:\\work\\AppData\\Local\\Temp\\vessel-final-sweep-1eKEKs\\t5-nativeSandboxIntegration.log"
+    },
+    {
+      "name": "shellTool.sandbox",
+      "command": "node node_modules/vitest/vitest.mjs run packages/tools/src/shell/shellTool.sandbox.test.ts",
+      "exit": 0,
+      "files": 1,
+      "passed": 3,
+      "duration": "1.96s (import 52%, transform 46%, setup 1%, tests 1%)",
+      "log": "C:\\work\\AppData\\Local\\Temp\\vessel-final-sweep-1eKEKs\\t5-shellTool-sandbox.log"
+    }
+  ],
+  "totals": {
+    "files": 5,
+    "passed": 32
+  },
+  "conformance": {
+    "exit": 0,
+    "elapsedSeconds": 4.7380032,
+    "command": "cmd.exe /d /c \"npm run bench:conformance -- --out C:\\work\\AppData\\Local\\Temp\\vessel-final-sweep-1eKEKs\\conformance\"",
+    "passed": 25,
+    "failed": 0,
+    "skipped": 0,
+    "errors": 0,
+    "costUSD": 0,
+    "adapters": [
+      "vessel"
+    ],
+    "live": false,
+    "reportFiles": [
+      "C:\\work\\AppData\\Local\\Temp\\vessel-final-sweep-1eKEKs\\conformance\\benchmark-report-2026-10-28T16-48-14-306Z.json",
+      "C:\\work\\AppData\\Local\\Temp\\vessel-final-sweep-1eKEKs\\conformance\\benchmark-report-2026-10-28T16-48-14-306Z.md"
+    ],
+    "log": "C:\\work\\AppData\\Local\\Temp\\vessel-final-sweep-1eKEKs\\t5-conformance-retry.log"
+  },
+  "boundary": "Offline contracts only; not Windows ACL / Low Integrity enforcement on the host."
+}
