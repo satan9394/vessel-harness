@@ -5,7 +5,7 @@ import * as path from 'node:path';
 import * as fs from 'node:fs';
 import * as os from 'node:os';
 import { main } from '../cli.js';
-import type { DaemonInfo } from '@vessel/local-server';
+import { createVesselServer, type DaemonInfo } from '@vessel/local-server';
 const info: DaemonInfo = { pid: 12345, port: 30001, startedAt: '2026-10-01T00:00:00Z', uptimeSeconds: 42, memoryBytes: 123456, tokenPath: '/fake/daemon.token', version: '0.10.0', instanceId: 'mock' };
 afterEach(() => { vi.restoreAllMocks(); vi.useRealTimers(); });
 describe('daemon commands (no child process or real store)', () => {
@@ -34,6 +34,48 @@ describe('daemon commands (no child process or real store)', () => {
     child.emit('spawn'); expect(await ready).toBe(12345); expect(child.unref).toHaveBeenCalled();
     expect(launch.mock.calls[0]![2]).toMatchObject({ detached: true, stdio: 'ignore', windowsHide: true });
     expect(launch.mock.calls[0]![1]).not.toContain('--token');
+  });
+  it('constructs the real server with matching daemon and mesh identity before listen', async () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'vessel-child-real-'));
+    const instanceId = '00000000-0000-4000-8000-000000000003';
+    for (const name of ['VESSEL_SESSION_ROOT', 'VESSEL_PROVIDER_ROOT', 'VESSEL_USAGE_ROOT', 'VESSEL_REVIEWS_ROOT', 'HOME', 'USERPROFILE', 'APPDATA', 'LOCALAPPDATA']) {
+      const isolated = path.join(root, name);
+      fs.mkdirSync(isolated);
+      vi.stubEnv(name, isolated);
+    }
+    fs.mkdirSync(path.join(root, 'daemon.lock'));
+    fs.writeFileSync(path.join(root, 'daemon.lock', 'owner.json'), JSON.stringify({ pid: process.pid, instanceId }));
+    fs.writeFileSync(path.join(root, 'daemon.lock', instanceId + '.claim'), instanceId);
+    fs.writeFileSync(path.join(root, 'daemon.token'), 'ab'.repeat(24));
+    let options: Parameters<typeof createVesselServer>[0];
+    let beforeListen: DaemonInfo | undefined;
+    let realServer: ReturnType<typeof createVesselServer> | undefined;
+    vi.spyOn(daemonRuntime, 'server').mockImplementation(input => {
+      options = input;
+      beforeListen = input!.daemon!.status();
+      // Exercise the actual constructor and its identity guard, without a fake server.
+      return realServer = createVesselServer(input);
+    });
+    vi.spyOn(daemonRuntime, 'protect').mockImplementation(() => {});
+    vi.spyOn(daemonRuntime, 'recycle').mockImplementation(async target => { fs.rmSync(target, { recursive: true, force: true }); });
+    const tray = vi.spyOn(daemonRuntime, 'tray').mockImplementation(() => {});
+    vi.spyOn(daemonRuntime, 'exit').mockImplementation(() => {});
+    const run = daemonCommands(['daemon'], new Map([['child', 'true'], ['root', root], ['instance', instanceId], ['parent', String(process.pid)], ['port', '0'], ['deadline', String(Date.now() + 10000)]]), '/fake/cli.js');
+    try {
+      await Promise.race([run, vi.waitFor(() => expect(tray).toHaveBeenCalledOnce())]);
+      expect(beforeListen?.instanceId).toBe(instanceId);
+      expect(beforeListen?.instanceId).toBe(options!.mesh!.local.nodeId);
+      const saved = JSON.parse(fs.readFileSync(path.join(root, 'daemon.json'), 'utf8')) as DaemonInfo;
+      expect(saved.port).toBeGreaterThan(0);
+      expect(saved.instanceId).toBe(instanceId);
+      options!.daemon!.stop();
+      expect(await run).toBe(0);
+    } finally {
+      if (realServer) options?.daemon?.stop();
+      await run.catch(() => {});
+      vi.unstubAllEnvs();
+      fs.rmSync(root, { recursive: true, force: true });
+    }
   });
   it.each(['omitted', 'empty', 'provided', 'cli'] as const)('publishes ready state and forwards only supplied usage hooks (%s)', async mode => {
     const root = fs.mkdtempSync(path.join(os.tmpdir(), 'vessel-child-mock-'));

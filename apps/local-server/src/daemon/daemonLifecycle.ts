@@ -52,10 +52,15 @@ function assertPlain(target: string): void {
 export function protectDaemonPath(target: string, directory: boolean): void {
   assertPlain(target);
   if (process.platform === 'win32') {
-    const sid = execFileSync('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', '[System.Security.Principal.WindowsIdentity]::GetCurrent().User.Value'], { encoding: 'utf8', windowsHide: true }).trim();
+    // whoami/icacls are native and idempotent. Re-applying Set-Acl to an already protected
+    // object fails with SeSecurityPrivilege, and Windows PowerShell cannot even load its
+    // Security module when launched from pwsh 7 — both are avoided here.
+    const sid = execFileSync('whoami', ['/user', '/fo', 'csv', '/nh'], { encoding: 'utf8', windowsHide: true })
+      .trim().split(',').at(-1)?.replace(/"/g, '').trim() ?? '';
     if (!/^S-1-[0-9-]+$/.test(sid)) throw new Error('cannot resolve daemon owner SID');
-    const script = `$p='${target.replace(/'/g, "''")}'; $acl=${directory ? 'New-Object System.Security.AccessControl.DirectorySecurity' : 'New-Object System.Security.AccessControl.FileSecurity'}; $sid=New-Object System.Security.Principal.SecurityIdentifier('${sid}'); $acl.SetOwner($sid); $acl.SetAccessRuleProtection($true,$false); $acl.AddAccessRule([System.Security.AccessControl.FileSystemAccessRule]::new($sid,'FullControl',${directory ? "'ContainerInherit, ObjectInherit','None'," : ''}'Allow')); Set-Acl -LiteralPath $p -AclObject $acl`;
-    execFileSync('powershell.exe', ['-NoProfile', '-NonInteractive', '-EncodedCommand', Buffer.from(script, 'utf16le').toString('base64')], { stdio: 'ignore', windowsHide: true });
+    const grant = directory ? `*${sid}:(OI)(CI)F` : `*${sid}:F`;
+    execFileSync('icacls', [target, '/setowner', `*${sid}`], { stdio: 'ignore', windowsHide: true });
+    execFileSync('icacls', [target, '/inheritance:r', '/grant:r', grant], { stdio: 'ignore', windowsHide: true });
   } else fs.chmodSync(target, directory ? 0o700 : 0o600);
 }
 

@@ -86,7 +86,7 @@ async function runDaemonChild(flags: Map<string, string>, hooks: DaemonHooks): P
     ...(hooks.usageByProvider ? { usageByProvider: hooks.usageByProvider } : {}),
     observeWorkspace: root => WorkspaceFingerprinter.compute(root),
     port: Number(flags.get('port')), authToken: token, mesh, notify: createNativeNotifier(), staticDir: daemonStaticDir(),
-    daemon: { status: () => ({ ...info, uptimeSeconds: Math.floor(process.uptime()), memoryBytes: process.memoryUsage().rss }), stop: () => stop() },
+    daemon: { status: () => ({ ...info, instanceId, uptimeSeconds: Math.floor(process.uptime()), memoryBytes: process.memoryUsage().rss }), stop: () => stop() },
   });
   const stop = gracefulDaemonStop(async () => {
     await server.close();
