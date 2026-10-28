@@ -80,3 +80,5 @@ export interface NativeSandboxRunner {
 - 离线 conformance 25/25；未调用真实外部 Agent，无提交、push、发布或宿主 ACL 修改。
 - 完整修改清单、原生边界与可复跑日志：[V1.7 交付记录](../docs/V1.7-IMPLEMENTATION-NOTES.md)，证据目录：evidence/sessions/2026-10-02-epic183/（accepted-* 为最终门禁）。
 - Windows 需预配置 Low Integrity / 专用受限 SID ACL；缺失时拒绝，原生运行契约使用 Mock 验证。
+
+仍待用户验收（2026-10-27 对账：本次 `windowsRestricted.test.ts`、`platformSandbox.test.ts`、`hybridSearch.test.ts`、`reflectiveRules.test.ts`、`reflectiveContext.test.ts` 共 5 文件 34 passed / exit 0，完整命令见卡 354 Result / `t8-v17.log`；源码 `packages/tools/src/execution/sandbox/windowsRestricted.ts:28`、`platformSandbox.ts:40`；受限参数/白名单/默认拒绝仍可复验，缺 Windows ACL/Low Integrity 真机执法与 macOS 脱离进程组生命周期验证，沿用 `docs/V1.7-IMPLEMENTATION-NOTES.md:21` 原有边界。）

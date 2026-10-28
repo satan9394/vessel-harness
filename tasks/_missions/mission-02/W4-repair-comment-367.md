@@ -60,3 +60,8 @@
 
 - 结果：
 - 备注：
+
+
+## 2026-10-27 对账（卡 355）
+
+已被 121 §8.2 的 W4 后第三轮交付取代（2026-10-27 对账）：121:239-305 记录 final3、W4 唯一措辞修复与第三轮 PASS；现行 telemetry.test.ts:367 明确“未被执行、不声称”，并准确区分边界①/②。归档卡空白回填不代表代码未修。本次 telemetry.test.ts 与 turnEndConditionGuard.test.ts 纳入 9 文件 / 121 passed、exit 0。旧 .dsh-mission/evidence 原件当前不存在，第三轮判决仅从已合入卡 121 引用，不伪称原件复核。

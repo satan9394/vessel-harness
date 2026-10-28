@@ -1,6 +1,6 @@
 # Task 253 — Browser verification
 
-Status: Delivered (audit complete; product acceptance has failures)
+Status: Accepted (2026-10-26 reconciliation; audit deliverable closed, and every finding was taken over by tasks 254 and 261-272 - see tasks/340-board-backlog-closeout.md)
 
 ## Goal
 Execute the six scenarios in `docs/VESSEL_BROWSER_ALIGNMENT_AND_TESTING_SPEC.md` through the built-in browser.

@@ -1,6 +1,6 @@
 # 任务卡 273: Compaction provenance 的性能回归修复
 
-**状态**: 执行中
+**状态**: 已验收（2026-10-26 对账；实现已提交 6df04ab 而卡面漏回填，证据见 [卡 340](340-board-backlog-closeout.md)）
 **创建时间**: 2026-10-23
 **执行者**: Codex (`gpt-6.1-sol`, medium + fast)
 **协调者**: OpenCode

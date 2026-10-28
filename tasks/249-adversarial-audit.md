@@ -1,6 +1,6 @@
 # 249 — Adversarial audit of Tasks 236–248
 
-Status: 已完成审计 / 待验收（被审计控制结论 FAIL）
+Status: 已验收（2026-10-26 对账；审计交付收口，F1–F5/F7/F8 均已有承接卡，F6 残留见 [卡 340](340-board-backlog-closeout.md) §7）
 
 ## Goal
 Independently verify lifecycle, deletion, credential, streaming and compaction controls against pre-236 commit 3a1bf2f, HEAD and the working tree.

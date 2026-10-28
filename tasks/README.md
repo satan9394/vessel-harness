@@ -13,12 +13,30 @@ PDW 关联：首行状态行下加 `- PDW task: <id>`（未启动写 `none`）�
 
 ## 怎么读这个目录
 
-最近补充交付：[卡 339](339-incremental-audit-fixes.md) 增量审计 F1/F2/F5/F8 定向修复；[卡 338](338-usage-window-parity.md) HTTP / CLI usage 窗口口径统一。
+最近补充交付：[卡 342](342-status-bar-cold-load-flash.md) 把状态栏冷启动误报断连改成三态（灰「正在连接」/绿带版本/红断连，`statusDown` 只在真失败出现）；[卡 344](344-f6-runtime-delete-ownership.md) 给 engine 临时工作区的 `dispose` 加所有权守卫（越界只 warn + 返回 `not-owned`，`.lease` 仍直接删）；[卡 345](345-app-trash-and-retention.md) 的 345b 落 `vessel trash list/restore/purge`（`--root`/`VESSEL_TRASH_ROOT`/工作区默认根三级，JSON 只出元数据）；[卡 340](340-board-backlog-closeout.md) 把 248–279 的「待验收」积压逐张对账收口（260/275 明确保持未执行，F6 残留待拍板）；[卡 339](339-incremental-audit-fixes.md) 增量审计 F1/F2/F5/F8 定向修复；[卡 338](338-usage-window-parity.md) HTTP / CLI usage 窗口口径统一。
 
 逐卡状态见各卡首行与下表；近期交付见上一段，不在这里重复。
 
 | 本地交付 | 状态 | 任务卡 |
 |---|---|---|
+| PDW 路由按能力适配 (卡 348) | 已完成（2026-10-26）：scan/test-plan `high`、review/planner `max`、implement `medium`；移除 `pdw_explorer` 引用（方案 A） | [348](348-pdw-model-fit-routing.md) |
+| Codex 项目级子 Agent (卡 347) | 已完成（2026-10-26）：`.codex/agents/pdw-explorer.toml`（Luna high）与 `pdw-ui-verifier.toml`，实测子 Agent 按自身模型跑；已 gitignore，PDW 不引用 | [347](347-codex-project-subagents.md) |
+| 删除与保留·收口 (卡 346) | 已验收（2026-10-27）：六条逃逸对抗 + 跨平台矩阵（Windows 实测、Linux/macOS 标未实测）+ 文档一致性 + 三档回滚；真机边界明示 | [346](346-deletion-retention-closeout.md) |
+| daemon 清理 tick (卡 358) | 已验收（2026-10-27）：`gracefulDaemonStop` 注册 24h `unref` interval + `stop()` 清除；根＝启动 cwd（daemon 无 `--workspace`，已写入文档）；daemon 32 项、local-server 312 | [358](358-daemon-trash-tick.md) |
+| 只读 `GET /api/trash` (卡 357) | 已验收（2026-10-27）：7 字段白名单 DTO、`skipped` 只给 `invalid_entry`、同源 403、POST/DELETE 404；local-server 312 | [357](357-trash-http-readonly.md) |
+| 价目值守卫文档诚实化 (卡 356) | 已验收（2026-10-28）：P2-1 改回「已具备」，另补 `scripts/pricing-upgrade-diff.mjs`（两版内置价目 → `repairs.json`，原子写、跳过新增/删除模型），3 条单测 + 真实 CLI 消费验证（保留用户改价） | [356](356-pricing-value-guard-docs.md) |
+| 陈旧状态卡对账 (卡 355) | 已核对 8 卡（2026-10-27）：071→255/256/287；281→287；196→199；同号旧217→architecture 217/236/244/247；149行动口径→153（live仍未做）；mission-02两卡→121最终交付；119的S002/S006现可证伪。9文件/121测试通过；append-only原门禁与字节前缀结果见Result | [355](355-stale-cards-reconcile.md) |
+| 看板对账 170–183 (卡 354) | 对账完成：13 卡 EOF 追加；6 项本地契约已验收、2 项无法确认、5 项仍待用户；原始韧性门禁失败保留 | [354](354-board-reconcile-170-183.md) |
+| Packaging gate 实跑 (卡 351) | 已验收（2026-10-28）：判据按 T2 收紧为「探针正常 + 两路径存在」，第五波 V1 修好 Windows npm 执行层（仅 `win32` + `npm` 加 shell，判据未放宽），默认 gate 实跑 status=pass、npm exit 0 / stdout 1130 字节 / stderr 0；协调者独立复跑 release-gates 67、benchmarks 541 并自跑一次真 gate 复现同样 detail。仍只证明探针与路径存在，非完整打包/安装证明 | [351](351-packaging-gate-run.md) |
+| 单写者绕过租约 (卡 353) | 已验收（2026-10-27）：`append()` 重开前重取 `.lease`（`leaseHeld` 标志），`close()` 后重开可写、被存活进程持有时 fail-closed；core/session 27 项、core 133 | [353](353-session-append-lease-bypass.md) |
+| profileParity 退出码歧义 (卡 350c) | 已验收（2026-10-27）：损坏 `provider-profiles.json` 下 CLI 断言 exit 2 + 映射文案、HTTP 同根断言 `provider_profiles_corrupted`；parity 5/5、local-server 313 | [350c](350c-profile-parity-exit2.md) |
+| profileParity 偶发 (卡 350) | 已加固、根因未定位（2026-10-27）：`providerStateRoot`/`profilesOnDisk` 两条守卫 + stderr 取证已落地并复跑绿；PDW audit 判 fail（未覆盖 exit 2），结论见卡内 §7 | [350](350-profile-parity-isolation.md) |
+| 删除与保留·暂存区 (卡 345) | 已验收（2026-10-28）：345a–345e 全部通过，前置收口卡 346 亦验收。345e 让运行中 serve 的 GET 按 journal 增量合并新增会话；协调者另起真实 serve（PID 全程不变）+ 独立 CLI restore（exit 0）复现「首次 GET 即可见、重复 GET 不重复、journal/快照/日志未被 GET 改写、无 lease」。仅新增同步，不双向同步其它进程的修改/删除 | [345](345-app-trash-and-retention.md) |
+| 删除与保留·F6 接线 (卡 344) | 已验收（2026-10-27）：engine `dispose` 加 `os.tmpdir()` 包含 + 工厂前缀守卫（越界 warn + `not-owned`），`.lease` 保持直接删并写注释 | [344](344-f6-runtime-delete-ownership.md) |
+| 删除与保留·回收原语 (卡 343) | 已完成（2026-10-26 复跑门禁；2026-10-27 三次全量门禁 17 步全绿再确认）：四份回收实现收成 `packages/shared/src/deletion/recycle.ts`，四处调用点收口 | [343](343-unify-recycle-primitive.md) |
+| web 构建命令失效 (卡 341) | 已验收（2026-10-27 复验）：`npm run -w @vessel/web build` exit 0，`dist` 内哨兵文件存活（无参 build 不再清空），另有 `build:clean`；七份规范文档已更新 | [341](341-web-build-command-npm12.md) |
+| 状态栏冷启动误报断连 (卡 342) | 已验收（2026-10-27）：三态（连接中/绿/红），`statusDown` 只在真失败出现，中英各测一遍；首帧真实浏览器采样待 T10 | [342](342-status-bar-cold-load-flash.md) |
+| 看板积压收口 (卡 340) | 已完成：248–279 共 25 张卡对账落「已验收」，17 步门禁全绿；260/275 保持未执行，见卡内 §6–§8 | [340](340-board-backlog-closeout.md) |
 | 增量审计四项修复 (卡 339) | 已完成：四条指定命令 exit 0，未提交 | [339](339-incremental-audit-fixes.md) |
 | usage 窗口统一 (卡 338) | 已完成：指定两组测试 exit 0，详见卡内证据 | [338](338-usage-window-parity.md) |
 | usage 窗口与删除错误码 (卡 337) | 已并入卡 336；其记录的 HTTP 聚合窗口差异已由卡 338 消除 | [337](337-usage-window-delete-http.md) |
@@ -76,38 +94,40 @@ PDW 关联：首行状态行下加 `- PDW task: <id>`（未启动写 `none`）�
 | PDW 供应商迁移 v2 (卡 286) | 已完成：`provider`（单数）在 OC 2.1.4 已失效，迁到 `providers` 复数；任务 `20261025074418-69269b` `accepted_local` | [286](286-pdw-provider-v2-migration.md) |
 | PDW 配置收口与冒烟 (卡 285) | 已完成：档位/限额生效，任务 `20261024155859-108eea` `accepted_local` | [285](285-pdw-config-routing-and-smoke.md) |
 | 阻断消息给出解除命令 (卡 282) | 已实现，定向测试通过 | [282](282-effect-block-message.md) |
-| ARCH-07 POSIX 降级口径 (卡 281) | 已拍板：方案 2（默认拒绝 + 显式放行），实现与证据见卡 287 | [281](281-arch07-posix-fallback-decision.md) |
+| ARCH-07 POSIX 降级口径 (卡 281) | 已被 287 取代（2026-10-27 对账）：方案 2 默认拒绝 + 显式放行已实现；WSL既有证据，macOS实机未验证 | [281](281-arch07-posix-fallback-decision.md) |
 | ARCH-09 可追溯 fixture 收口 (卡 280) | 已完成：14 fixture/7 类别复核 + conformance 25/25 + 全量两 root 绿 | [280](280-arch09-traceable-fixtures.md) |
-| 未知副作用的 CLI 出路 (卡 279) | 已实现，定向测试 + 真实 CLI 进程验证通过 | [279](279-cli-effects-reconcile.md) |
-| 工具失败锁死会话 (卡 278) | 已实现，定向门禁 + 真实模型会话通过 | [278](278-effect-outcome-classification.md) |
-| ARCH-09 可靠性 fixture 闭环 (卡 274) | 已交证，待协调者全量门禁与验收 | [274](274-arch09-reliability-fixture-loop.md) |
-| ARCH-01运行结果证据 (卡 272) | 已修并验证，六项门禁及真实Stop冷启动/刷新通过；待协调者验收 | [272](272-arch01-run-outcome-evidence.md) |
-| ARCH-06断线恢复 (卡 271) | 已修并验证，六项门禁及真实运行中30秒断线/刷新/三会话切换通过；待协调者验收 | [271](271-arch06-session-stream-recovery.md) |
-| UI-09工具细节与Stop (卡 270) | 已修并验证，六项门禁及真实模型24工具/滚动/Stop通过；待协调者验收 | [270](270-ui09-tool-details-stop.md) |
-| UI-07生效Policy汇总 (卡 269) | 已修并验证，六项门禁及真实模型历史会话IAB通过；待协调者验收 | [269](269-ui07-effective-policy.md) |
-| UI-03工作区草稿隔离 (卡 268) | 已修并验证，六项门禁及IAB/真实模型唯一需求通过；待协调者验收 | [268](268-ui03-workspace-drafts.md) |
-| 英文残留国际化 (卡 267) | 已修并验证，六项门禁及IAB英文预设/主题标签通过；待协调者验收 | [267](267-browser-fix-english-residuals.md) |
-| Mock预设可见可用 (卡 266) | 已修并验证，六项门禁及IAB显式Mock运行通过；待协调者验收 | [266](266-browser-fix-mock-preset.md) |
-| 首屏输入焦点 (卡 265) | 已修并验证，六项门禁及IAB直接输入通过；待协调者验收 | [265](265-browser-fix-initial-focus.md) |
-| Activity取消语义 (卡 264) | 已修并验证，六项门禁及真实Stop会话Activity刷新通过；待协调者验收 | [264](264-browser-fix-activity-cancellation.md) |
-| 终止原因刷新恢复 (卡 263) | 已修并验证，六项门禁及真实模型length/Stop刷新通过；待协调者验收 | [263](263-browser-fix-terminal-history.md) |
-| 会话多行输入 (卡 262) | 已修并验证，六项门禁及真实模型IAB通过；待协调者验收 | [262](262-browser-fix-multiline.md) |
-| 真实会话回收失败修复 (卡 261) | 已修并验证，六项门禁及真实模型IAB/OS回收站通过；待协调者验收 | [261](261-browser-fix-delete-recycle.md) |
+| 未知副作用的 CLI 出路 (卡 279) | 已验收（2026-10-26 对账，见卡 340） | [279](279-cli-effects-reconcile.md) |
+| 工具失败锁死会话 (卡 278) | 已验收（2026-10-26 对账，见卡 340） | [278](278-effect-outcome-classification.md) |
+| Compaction provenance 性能回归 (卡 273) | 已验收（2026-10-26 对账：实现已提交 6df04ab，卡面漏回填） | [273](273-compaction-provenance-performance.md) |
+| ARCH-09 可靠性 fixture 闭环 (卡 274) | 已验收（2026-10-26 对账：`bench:reliability` 14/14 exit 0，见卡 340） | [274](274-arch09-reliability-fixture-loop.md) |
+| ARCH-01运行结果证据 (卡 272) | 已验收（2026-10-26 对账，见卡 340） | [272](272-arch01-run-outcome-evidence.md) |
+| ARCH-06断线恢复 (卡 271) | 已验收（2026-10-26 对账，见卡 340） | [271](271-arch06-session-stream-recovery.md) |
+| UI-09工具细节与Stop (卡 270) | 已验收（2026-10-26 对账，见卡 340） | [270](270-ui09-tool-details-stop.md) |
+| UI-07生效Policy汇总 (卡 269) | 已验收（2026-10-26 对账，见卡 340） | [269](269-ui07-effective-policy.md) |
+| UI-03工作区草稿隔离 (卡 268) | 已验收（2026-10-26 对账，见卡 340） | [268](268-ui03-workspace-drafts.md) |
+| 英文残留国际化 (卡 267) | 已验收（2026-10-26 对账，见卡 340） | [267](267-browser-fix-english-residuals.md) |
+| Mock预设可见可用 (卡 266) | 已验收（2026-10-26 对账，见卡 340） | [266](266-browser-fix-mock-preset.md) |
+| 首屏输入焦点 (卡 265) | 已验收（2026-10-26 对账，见卡 340） | [265](265-browser-fix-initial-focus.md) |
+| Activity取消语义 (卡 264) | 已验收（2026-10-26 对账，见卡 340） | [264](264-browser-fix-activity-cancellation.md) |
+| 终止原因刷新恢复 (卡 263) | 已验收（2026-10-26 对账，见卡 340） | [263](263-browser-fix-terminal-history.md) |
+| 会话多行输入 (卡 262) | 已验收（2026-10-26 对账，见卡 340） | [262](262-browser-fix-multiline.md) |
+| 真实会话回收失败修复 (卡 261) | 已验收（2026-10-26 对账，见卡 340） | [261](261-browser-fix-delete-recycle.md) |
 | 长输出截断 500 根治与沙箱 Token 权限 (卡 255) | 已实现并通过定向门禁（沙箱启动缺口转卡 256） | [255](255-fix-length-truncation-500-and-sandbox-fallback.md) |
 | Windows 受限沙箱启动链路 (卡 256) | 已完成，原生验收通过 | [256](256-windows-sandbox-launch-console.md) |
 | Shell 权限与联网边界 (卡 276) | 原方案否决（沙箱不限网络）；改为 UI 显式开关 + 工作区准备脚本，已实现 | [276](276-shell-under-workspace-write.md) |
 | UI 两个 P2 缺陷 (卡 277) | 已收口：B-F1 用户复验通过；C-F1 经 PDW 任务 `20261024095132-1bac7e`（accepted_local）修复，几何检查 5 视口全绿 | [277](277-ui-p2-fixes.md) |
 | apps/web typecheck 门禁修复 (卡 257) | 已实现，门禁全绿 | [257](257-web-typecheck-gate.md) |
-| 消除虚假完成信号 (卡 258) | 已实现，五项定向门禁全绿（待验收） | [258](258-false-completion-signal.md) |
-| 删除的跨阶段一致性 (卡 259) | 已实现，五项定向门禁全绿；待浏览器复验/协调者验收 | [259](259-delete-stage-consistency.md) |
-| 浏览器运行时验收 (卡 260) | 待执行（需 Codex 应用内置浏览器） | [260](260-browser-runtime-acceptance.md) |
-| 浏览器实测缺陷整改 (BV-01~04) | 待验收（定向门禁通过，待浏览器复验） | [254](254-browser-audit-remediation.md) |
-| 内置浏览器六场景审查 | 审查已交付 | [253](253-browser-verification.md) |
-| EffectJournal 破损容错与租约回滚 (F5) | 待验收 | [252](252-effect-journal-torn-tail-and-lease-rollback.md) |
-| keepID 压缩守卫接入与输入法回车加固 (F4/F7) | 已交付（定向门禁通过） | [251](251-compaction-keepid-and-ime-hardening.md) |
-| 会话完成真实性与凭据目标强绑定 (F1/F2) | 待验收 | [250](250-session-completion-and-credential-binding.md) |
-| Tasks 236–248 独立对抗审计 | 已交付 | [249](249-adversarial-audit.md) |
-| Taste 工作台审查与优化 | 待验收 | [248](248-taste-workbench-elevation.md) |
+| 消除虚假完成信号 (卡 258) | 已验收（2026-10-26 对账，见卡 340） | [258](258-false-completion-signal.md) |
+| 删除的跨阶段一致性 (卡 259) | 已验收（2026-10-26 对账，见卡 340） | [259](259-delete-stage-consistency.md) |
+| 浏览器运行时验收 (卡 260) | W1/W2 视口已签收（2026-10-28 run 5，917×567：Stop 失败提示整句可读、新建文件 Diff 只读可见）；整卡仍差 150%/200% 真实缩放与原生输入法（只能真机） | [260](260-browser-runtime-acceptance.md) |
+| UI 最终验收（缩放/无障碍/E2E 签收）(卡 275) | W1/W2 视口已签收（2026-10-28 协调者逐字看两张 917×567 图）：Stop 失败提示完整不裁切、新建文件 Diff 的 `+2 −0`/hunk/两行可读且只有「收起差异」；整卡仍差 150%/200% 真实缩放与原生输入法（IAB 做不了，只能真机） | [275](275-ui-final-acceptance.md) |
+| 浏览器实测缺陷整改 (BV-01~04) | 已验收（2026-10-26 对账；BV-01 由 263/272 真机补证，见卡 340） | [254](254-browser-audit-remediation.md) |
+| 内置浏览器六场景审查 | 已验收（2026-10-26 对账：审计交付收口，发现项转 254 与 261–272） | [253](253-browser-verification.md) |
+| EffectJournal 破损容错与租约回滚 (F5) | 已验收（2026-10-26 对账；进程树抖动按环境性记录，见卡 340） | [252](252-effect-journal-torn-tail-and-lease-rollback.md) |
+| keepID 压缩守卫接入与输入法回车加固 (F4/F7) | 已验收（2026-10-26 对账，见卡 340） | [251](251-compaction-keepid-and-ime-hardening.md) |
+| 会话完成真实性与凭据目标强绑定 (F1/F2) | 已验收（2026-10-26 对账，见卡 340） | [250](250-session-completion-and-credential-binding.md) |
+| Tasks 236–248 独立对抗审计 | 已验收（2026-10-26 对账；F6 已定案为决策点 24，实现见卡 343–346） | [249](249-adversarial-audit.md) |
+| Taste 工作台审查与优化 | 已验收（2026-10-26 对账，见卡 340） | [248](248-taste-workbench-elevation.md) |
 
 本目录是**进度事实源**，不在此维护一份会腐烂的汇总表。查进度请：
 
@@ -144,7 +164,7 @@ PDW 关联：首行状态行下加 `- PDW task: <id>`（未启动写 `none`）�
 | 残留清算 B2–B5：已核实闭合 | 146 | 已合入 | `tasks/146-residual-b2-b5-verified-closed.md` |
 | 记忆同步 #4 | 147 | 已合入 | `tasks/147-memory-sync-4.md` |
 | 全量偶发红：`cli.test.ts` real-IO 用例补显式超时 | 148 | 已合入 | `tasks/148-cli-test-real-io-timeouts.md` |
-| `--live` 基线尝试 → 发现外部 adapter 与真实 CLI 不匹配（blocked） | 149 | blocked（已记录根因） | `tasks/149-live-baseline-blocked.md` |
+| `--live` 基线尝试 → 发现外部 adapter 与真实 CLI 不匹配（历史 blocked） | 149 | 行动建议已被153取代；live仍未做，不自动修复/实跑，需逐次授权（2026-10-27对账） | `tasks/149-live-baseline-blocked.md` |
 | 回退 `--live` adapter 工作 + 立"不自动驱动本机其他 agent"口径 | 153 | 已合入 | `tasks/153-live-revert-and-external-agent-policy.md` |
 | 第三方模型供应商动态自省与探测引擎 (Dynamic Model Discovery) | 157 | 已合入 | `tasks/157-dynamic-model-discovery.md` |
 | OpenAI 协议 Reasoning 思考流解析标准化 (Stream Reasoning Ingestion) | 158 | 已合入 | `tasks/158-openai-reasoning-stream.md` |
@@ -159,18 +179,18 @@ PDW 关联：首行状态行下加 `- PDW task: <id>`（未启动写 `none`）�
 | [Epic] 双向子 Agent 网关体系与保全度评测套件 (融合 163–166) | 167 | 已合入（2026-09-25） | `tasks/167-epic-universal-subagent-mesh.md` |
 | 公开化脱敏与 GitHub 治理（转 Public / 身份与本机路径脱敏 / 不发布版本 / 必须走 PR + CI） | 168 | 已合入（2026-09-27） | `tasks/168-desensitize-and-public-hygiene.md`、`evidence/sessions/2026-09-27-desensitization-and-governance.md`、决策点 20/21 |
 | [Epic] 工业级多 Agent 协作工作台与分布式可观察性控制面 | 169 | 已合入（本地验收；Git 未提交） | `tasks/169-epic-universal-subagent-workspace.md` |
-| 动态自适应上下文压实与 400 溢出自愈防线 | 170 | 本地全门禁通过；待验收 | `tasks/170-adaptive-compaction-and-overflow-recovery.md` |
-| MCP 进程树 Job Object 绑定、disabled 规范化与延迟代理 | 171 | 本地全门禁通过；待验收 | `tasks/171-mcp-process-tree-job-object-and-lazy-proxy.md` |
-| Agent-Teams 反应式 DAG 编排与队员模型快照隔离 | 172 | 本地全门禁通过；待验收 | `tasks/172-agent-teams-dag-orchestration-and-route-snapshots.md` |
-| 多帧增量会话持久化与极限长会话韧性评测套件 | 173 | 本地全门禁通过；待验收 | `tasks/173-session-streaming-and-multiframe-zstd-eval.md` |
-| [Epic] V1.5 工业级韧性、高密持久化与多 Agent 协同网格体系 | 174 | 本地全门禁通过；待验收 | `tasks/174-epic-industrial-resilience-and-teams-mesh.md` |
-| Web 交互式 DAG 拓扑画布与方案预审控制台 | 175 | 本地全门禁通过；待验收 | `tasks/175-visual-team-dag-canvas-and-staged-approval.md` |
-| 后台常驻 Daemon 守护进程与系统通知驻留 | 176 | 本地全门禁通过；待验收 | `tasks/176-headless-daemon-and-tray-resilience.md` |
-| 工具级自愈退避与大载荷动态截断管道 | 177 | 本地全门禁通过；待验收 | `tasks/177-tool-self-healing-and-bounded-output.md` |
-| SQLite WAL 模式高性能会话元数据与全文检索 | 178 | 本地全门禁通过；待验收 | `tasks/178-sqlite-wal-session-index-and-fts5-search.md` |
-| [Epic] V1.6 工业级团队协同工作台、常驻守护进程与高性能会话中枢 | 179 | 本地全门禁通过；待验收 | `tasks/179-epic-universal-team-workspace-and-daemon-mesh.md` |
-| 原生级操作系统沙箱与低完整性安全隔离 | 180 | 本地全门禁通过；待验收 | `tasks/180-os-native-sandboxing-and-restricted-tokens.md` |
-| 自主演进经验图谱与轻量混合记忆检索 | 181 | 本地全门禁通过；待验收 | `tasks/181-evolving-knowledge-graph-and-hybrid-memory.md` |
+| 动态自适应上下文压实与 400 溢出自愈防线 | 170 | 已验收（2026-10-27 本地定向对账；非全门禁） | `tasks/170-adaptive-compaction-and-overflow-recovery.md` |
+| MCP 进程树 Job Object 绑定、disabled 规范化与延迟代理 | 171 | 已验收（2026-10-27 mock/CLI 契约；原生时延边界保留） | `tasks/171-mcp-process-tree-job-object-and-lazy-proxy.md` |
+| Agent-Teams 反应式 DAG 编排与队员模型快照隔离 | 172 | 已验收（2026-10-27 DAG/快照/审批定向；同批韧性失败另计） | `tasks/172-agent-teams-dag-orchestration-and-route-snapshots.md` |
+| 多帧增量会话持久化与极限长会话韧性评测套件 | 173 | 无法确认（2026-10-27 原始韧性门禁 timeout / exit 1） | `tasks/173-session-streaming-and-multiframe-zstd-eval.md` |
+| [Epic] V1.5 工业级韧性、高密持久化与多 Agent 协同网格体系 | 174 | 无法确认（2026-10-27 子卡 173 原始门禁失败） | `tasks/174-epic-industrial-resilience-and-teams-mesh.md` |
+| Web 交互式 DAG 拓扑画布与方案预审控制台 | 175 | 仍待用户验收（本次组件/API 通过；当前浏览器未复验） | `tasks/175-visual-team-dag-canvas-and-staged-approval.md` |
+| 后台常驻 Daemon 守护进程与系统通知驻留 | 176 | 仍待用户验收（本次 mock/鉴权通过；真机 daemon/tray/toast 未复验） | `tasks/176-headless-daemon-and-tray-resilience.md` |
+| 工具级自愈退避与大载荷动态截断管道 | 177 | 已验收（2026-10-27 输出边界/重试安全定向） | `tasks/177-tool-self-healing-and-bounded-output.md` |
+| SQLite WAL 模式高性能会话元数据与全文检索 | 178 | 已验收（2026-10-27 SQLite/FTS/本机 warm 延迟定向） | `tasks/178-sqlite-wal-session-index-and-fts5-search.md` |
+| [Epic] V1.6 工业级团队协同工作台、常驻守护进程与高性能会话中枢 | 179 | 仍待用户验收（本次四阶段定向通过；175/176 真机边界保留） | `tasks/179-epic-universal-team-workspace-and-daemon-mesh.md` |
+| 原生级操作系统沙箱与低完整性安全隔离 | 180 | 仍待用户验收（mock 契约通过；原生 ACL/平台真机边界保留） | `tasks/180-os-native-sandboxing-and-restricted-tokens.md` |
+| 自主演进经验图谱与轻量混合记忆检索 | 181 | 已验收（2026-10-27 混合检索/规则/有界上下文定向） | `tasks/181-evolving-knowledge-graph-and-hybrid-memory.md` |
 | 跨实例异构 Swarm 网格与分布式事件总线 | 182 | 已合入（2026-10-03 本地验收） | `tasks/182-cross-instance-swarm-mesh-and-event-bus.md` |
 | [Epic] V1.7 原生级安全沙箱与认知记忆体系 (180+181) | 183 | 已合入（2026-10-03 本地验收） | `tasks/183-epic-hardened-runtime-and-cognitive-memory.md` |
 | Mesh/Memory CLI 控制面与 `vessel doctor` 系统健康自检引擎 | 184 | 已合入（2026-10-03 本地验收） | `tasks/184-mesh-memory-cli-and-doctor-diagnostic.md` |
@@ -185,7 +205,7 @@ PDW 关联：首行状态行下加 `- PDW task: <id>`（未启动写 `none`）�
 | Claude Code Mods 沙箱化兼容适配器与防提权网关 | 193 | 已本地验证（33 定向测试；独立评审受阻） | `tasks/193-sandboxed-claude-mods-adapter.md` |
 | Mod 权限清单静态审计、CLI 控制面与 Doctor 诊断 | 194 | 已本地验证（26 定向测试） | `tasks/194-mod-manifest-permissions-and-cli-doctor.md` |
 | [Epic] V2.2 沙箱化 Mod 中间件网络与插件生态兼容 | 195 | 已合入（2026-10-09，commit `3e6a56f`，双Root 2957 passed） | `tasks/195-epic-v2-2-sandboxed-mods-and-middleware-mesh.md` |
-| 评估器 Red→Green 缺陷复现前置硬门禁 | 196 | 已合入（2026-10-09，commit `3e6a56f`） | `tasks/196-evaluator-red-green-reproduction-gate.md` |
+| 评估器 Red→Green 缺陷复现前置硬门禁 | 196 | 已合入（2026-10-09，commit `3e6a56f`）；“Epic199门禁待执行”已由199最终交证取代（2026-10-27对账） | `tasks/196-evaluator-red-green-reproduction-gate.md` |
 | 轻量 AST 符号索引与依赖图谱 | 197 | 已合入（2026-10-09，批准mean≤15ms/peak≤25ms，commit `3e6a56f`） | `tasks/197-ast-code-awareness-and-dependency-graph.md` |
 | 变更影响面自适应上下文剪枝 | 198 | 已合入（2026-10-09，commit `3e6a56f`，剪枝率 82.56%） | `tasks/198-impact-driven-context-pruning.md` |
 | [Epic] V2.3 结构化代码感知与 Red→Green 复现前置硬门禁 | 199 | 已合入（2026-10-09，commit `3e6a56f`，双Root 2957 passed） | `tasks/199-epic-v2-3-ast-code-awareness-and-red-green-gates.md` |
@@ -206,7 +226,7 @@ PDW 关联：首行状态行下加 `- PDW task: <id>`（未启动写 `none`）�
 | [Epic] V2.6 全域纯正国际化与可视化多模型接入中枢 (Epic Pure i18n & Visual Model Hub) | 214 | 已验证（3146 passed / 6 skipped） | `tasks/214-epic-v2-6-pure-i18n-and-visual-model-hub.md` |
 | 模型端点自动拉取、灵活配置 Schema 兼容与供应商管理自愈 (Provider Hub Model Pull & Schema Repair) | 215 | 已验证（2026-10-11 本地完成，双 Root 3155 passed / 6 skipped） | `tasks/215-provider-hub-model-pull-and-schema-repair.md` |
 | 项目整体逻辑架构可视化与文档包清单漂移修复 (Archify Architecture Visualization & Doc-Drift Repair) | 216 | 已验证（2026-10-12 本地完成，双 Root 2873 passed / 6 skipped） | `tasks/216-archify-architecture-visualization-and-doc-drift-repair.md`、`docs/diagrams/README.md` |
-| Vessel 架构整改与实施规范落地 (Architecture Improvement Plan Implementation) | 217 | 已验证（已合入本地提交 `6442171`；双 Root 3219 passed / 6 skipped） | `tasks/217-architecture-improvement-plan-implementation.md` |
+| Vessel 架构整改与实施规范落地 (Architecture Improvement Plan Implementation) | 217 | 已验证（本地提交 `6442171`；双 Root 3219 passed / 6 skipped）；同号event-projection旧草稿已被本卡及236/244/247取代，见355对账 | `tasks/217-architecture-improvement-plan-implementation.md` |
 | Vessel Web UI/UX 工作台整改规范落地 (Web UI/UX Workbench Improvement) | 218 | 已验证（已合入本地提交 `26ba6fe`；双 Root 3228 passed / 6 skipped） | `tasks/218-web-ui-ux-workbench-improvement-implementation.md` |
 | 全量功能端到端交互与真实点击测试套件 (Full Surface Click-Testing Suite) | 219 | 已验证（2026-10-13；交证即停） | `tasks/219-full-surface-interactive-click-testing-suite.md` |
 | Provider 能力协商契约与 Context 分层版本化缓存落地 (Provider Capability Contract & Context Layered Cache) | 220 | 已验证（已合入本地提交 `030fc0f`；双 Root 3271 passed / 6 skipped） | `tasks/220-provider-capability-contract-and-layered-cache.md` |
@@ -238,6 +258,12 @@ PDW 关联：首行状态行下加 `- PDW task: <id>`（未启动写 `none`）�
 | Compaction 守恒断言与全景真实走查 (ARCH-08 + ARCH-09 + UI-10) | 247 | **已完成（2026-10-20）**：强化 Compaction 守恒断言对齐 OpenCode 2.1 metadata.keepID 引用、真实 Chromium 走查 7/7 PASSED 零报错存证；双 Root 3045+413 passed 全绿 | `tasks/247-arch-08-09-ui-10-compaction-conservation-and-walkthrough.md` |
 
 ## 未闭合 / 下一目标
+
+- **当前未闭合（2026-10-28 复核）**：
+  1. **第五波已收口（2026-10-28 协调者验收）**：V1（card 351）已验收——Windows npm 执行层修好、判据未放宽，真 gate `status=pass`（npm exit 0 / stdout 1130 / stderr 0）；V3（345e）已验收——运行中 serve 首次 GET 即可见恢复会话，协调者另起真实 serve + 独立 CLI restore 复现（PID 全程不变、journal/快照未被 GET 改写）；V4 全量门禁由协调者在最后源码状态下又跑一次，17 步全绿（根 334 / 3,704 passed + 8 skipped；web 59 / 528；conformance 25/25、$0），证据 `evidence/sessions/2026-10-28-final-gate.md` 末尾；V5 只审计不清理，冻结 235 路径 / 11 组，发现 `.tmp` 目录与 62 行历史绝对 TEMP 引用，关键词扫描未识别真实凭据，**不能称全净**。**V2 的视口缺口已由 run 5 补上**（Codex 应用主线程可见 IAB，见第 2 项）。
+  2. **待用户验收（本地契约已通过，缺真机/真实终端）**：175、176、179、180、183；卡 260/275 的 W1/W2 视口已于 2026-10-28 run 5 签收（`evidence/sessions/2026-10-28-iab-run5/`），**只剩 150%/200% 真实缩放与原生输入法**——IAB 做不了（`Ctrl+=` 无效、`deviceScaleFactor` 只改 DPR），必须真机。
+  3. **只能人或需授权**：卡 277 人眼确认；沙箱 Windows ACL/Low Integrity 真机与 macOS 逃组（A1）；154 `release-report`、155 3h soak、156 门槛复核；ARCH-04 live 与 `--live` 基线；U1–U5。
+  4. **已闭合**：341、346、345d、345e、350c、351、353–358、第四波 T1/T2/T3/T5、第五波 V1/V3/V4/V5（V2 仅视口未闭合，见第 2 项）。
 
 - **最近已交付（2026-10-19，本地验收通过）：任务 232 模型供应商全屏独立中枢、高级模型搜索筛选器与 CC-Switch 权威预设补齐 (Provider Hub Full-Surface & Advanced Model Picker)**：
   - 交付内容：

@@ -28,3 +28,5 @@
 
 核实完成，未改代码。证据见上表；`vessel pricing override repair` 与
 `skipped-user-modified` 分支均已被既有测试覆盖（`pricing-override.test.ts`）。
+
+- 2026-10-27 补充：真实缺口是没有对比两版内置价目并自动生成 repairs.json 的命令；值守卫已具备。

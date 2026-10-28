@@ -71,3 +71,8 @@ Node 也在现场打了 `DEP0190`（"Passing args to a child process with shell 
 
 - 本卡**只记录与判定**，不改代码；修复落在 `tasks/150`，重跑基线落在 `tasks/151`。
 - 真实 provider 调用：本卡仅 1 场景 × 4 harness 的**失败**调用（in=0/out=0，未产生模型 token）。
+
+
+## 2026-10-27 对账（卡 355）
+
+已被 153 取代（2026-10-27 对账）：取代的是“可自主修复 + 实跑”的行动建议，不是宣告 live 基线成功。153:19-37 记录回退 150/151、逐次授权及 live 未做边界；adapter 不匹配的历史事实保留。本次仅跑 conformance/driver.test.ts 离线驱动单测（纳入 9 文件 / 121 passed、exit 0），不把它冒充 live 或本次离线25/25；未调用本机其他 agent。

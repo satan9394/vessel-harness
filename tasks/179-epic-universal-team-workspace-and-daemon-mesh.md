@@ -108,3 +108,5 @@ Codex 在执行超长开发时可按需查阅以下权威技术资产（已落�
 - 根 Vitest 不包含 Web：第一组命令之后还须显式运行 `npx vitest run --root apps/web src/components/team/TeamDagCanvas.test.tsx`，避免漏测。
 - 176 的鉴权采用本次用户指令的 Bearer Token；旧卡查询参数令牌描述不能降低此要求。
 - 不自动提交、推送、发布或调用本机真实 Agent。
+
+仍待用户验收（2026-10-27 对账：177/178 定向 44 passed exit 0，175 Web 独立 root 8 passed exit 0，服务端/daemon 定向命令与结果见卡 354 Result；四阶段源码与指定测试均在。继承 175 当前浏览器视觉/端到端与 176 真机 detached/tray/toast 未复验边界；历史 `docs/V1.6-IMPLEMENTATION-NOTES.md:58` 浏览器证据保持有效记录，本次不重写成未曾验证，也不据 unit/mock 宣称 Epic 整体已验收。）

@@ -1,6 +1,6 @@
 # Task 252: EffectJournal Torn-Tail Fault Recovery & Session Lease Rollback Hardening (Fixes F5)
 
-状态：待验收（F5 修复与定向验证通过；Windows 进程树门禁未通过）
+状态：已验收（2026-10-26 对账；原「待验收」，本轮门禁未复现进程树失败，该限制按环境性记录，依据见 [卡 340](340-board-backlog-closeout.md)）
 负责人：Codex (`gpt-6.1-sol`, medium reasoning effort)
 规划 / 架构监督：Antigravity
 前序依赖：[任务卡 249](249-adversarial-audit.md) 对抗审计揭露的 F5 漏洞；前序 [任务卡 251](251-compaction-keepid-and-ime-hardening.md) 已交付

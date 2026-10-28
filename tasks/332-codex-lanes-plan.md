@@ -43,3 +43,7 @@ codex exec --sandbox workspace-write -C E:\Code_file\Projects\Vessel_Harness \
 ## Result
 
 （待执行）
+
+> **2026-10-27 协调者注**：本卡是 2026-10-26 的 Codex CLI 文档执行**计划**；对应的 provider 交付已由
+> 卡 315–330 批次完成并在 `tasks/README.md` 记录，本卡不再单独推进。若将来要核对 E–Q 十六段里是否有
+> 未被覆盖的段落，请另立任务逐段核，不要按本卡整段重跑。

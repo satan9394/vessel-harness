@@ -1,6 +1,6 @@
 # Task 250: Session Completion Integrity & Stored Credential Destination Binding (Fixes F1 & F2)
 
-状态：待验收（F1/F2/F3 已修复；历史全量门禁限制见 Result）
+状态：已验收（2026-10-26 对账；原状态「待验收」，门禁数字见 [卡 340](340-board-backlog-closeout.md)）
 负责人：Codex (`gpt-6.1-sol`, medium reasoning effort)
 规划 / 架构监督：Antigravity
 前序依赖：[任务卡 249](249-adversarial-audit.md) 对抗审计揭露的 F1 与 F2 高危漏洞

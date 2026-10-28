@@ -116,3 +116,8 @@ npm run typecheck:tests
 npm run test:all
 git diff --stat packages/core
 ```
+
+
+## 2026-10-27 对账（卡 355）
+
+已被 217（217-architecture-improvement-plan-implementation.md）/236/244/247 取代（2026-10-27 对账）。这是同号旧草稿，不是另一张已验收的 architecture 卡。architecture 卡 Result 已交付 SessionProjection 与压缩守恒；236 补状态真实性，244 是副作用日志故障注入证据（不冒充 compaction 实现），247 补 keepID 守恒。现行 shared/src/projection.ts:22-113 与 context/src/compaction/assertCompactionConservation.ts:13-71 包含契约、追加投影及 goal/denial/tool-pair/keepID 守恒；本次 projectionCommit.test.ts 与 assertCompactionConservation.test.ts 纳入 9 文件 / 121 passed、exit 0。旧草稿不再作为待执行接口合同。

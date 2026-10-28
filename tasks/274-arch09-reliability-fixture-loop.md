@@ -1,6 +1,6 @@
 # 任务卡 274: ARCH-09 可靠性 fixture 闭环
 
-**状态**: 待验收（离线闭环已交证，协调者全量门禁待跑）
+**状态**: 已验收（2026-10-26 对账；`npm run bench:reliability` 实跑 exit 0，依据见 [卡 340](340-board-backlog-closeout.md)）
 **创建时间**: 2026-10-23
 **执行者**: Codex (`gpt-6.1-sol`, medium)
 **协调者**: OpenCode

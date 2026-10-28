@@ -115,3 +115,5 @@ export function isContextOverflowError(error: unknown): boolean;
 - 输出预算优先级为显式 `compactionBudget` → 已生效 Provider 的 `defaultMaxOutputTokens` → `4096`，阈值与请求共用同一预算，保留供应商已有默认值。隔离运行时测试验证默认 `8192` 与显式 `4096` 的请求字段及主动压实差异。
 - `npx vitest run packages/context packages/core/src/agent-loop packages/agents/src/subagent/subagent.test.ts`：18 文件 / 139 passed，exit 0。
 - `npx tsc -b tsconfig.json` 与 `npm run typecheck:tests`：均 exit 0。
+
+已验收（2026-10-27 对账，仅本地确定性功能：动态阈值/CJK 校准、溢出识别、单次恢复及重复溢出终止；本次 `node node_modules/vitest/vitest.mjs run packages/context/src/compaction/adaptiveCompaction.test.ts packages/tools/src/mcp/boundedStdio.test.ts packages/tools/src/mcp/lazyProxy.test.ts apps/cli/src/mcp/mcpCommands.test.ts packages/application/src/mcp/connections.test.ts` exit 0，58 passed + 2 skipped；源码 `packages/context/src/compaction/adaptiveThreshold.ts:8`、`packages/context/src/compaction/overflowRecovery.ts:15`；原始日志与逐卡映射见卡 354 Result，不代表本次重跑历史全门禁。）

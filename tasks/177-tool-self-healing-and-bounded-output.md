@@ -92,3 +92,5 @@ export function executeWithSelfHealing<T>(
 2. **回归门禁**：
    - `npx vitest run packages/tools` 全部通过；
    - `npx tsc -b tsconfig.json` exit 0。
+
+已验收（2026-10-27 对账，仅本地输出边界与重试安全契约；本次 `boundedOutput.test.ts`、`selfHealing.test.ts`、`pipeline.test.ts` 与 SQLite 两套共 5 文件 44 passed / exit 0，完整命令见卡 354 Result / `t8-v16-storage-tools.log`；源码 `packages/tools/src/execution/boundedOutput.ts:33`、`selfHealing.ts:51`；覆盖 UTF-8/严格字节上限、瞬态重试、Policy/取消/非幂等副作用不重放及磁盘输入不截断，不声称限制工具生产者全部内存分配。）

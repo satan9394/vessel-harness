@@ -156,3 +156,8 @@ stderr 复现一条 `DEP0137`（`FileHandle` GC 告警，即既有残余 ⑤）�
 
 - 结果：
 - 备注：
+
+
+## 2026-10-27 对账（卡 355）
+
+已被 121 的最终交付与本卡既有 E1–E4 工作证明取代（2026-10-27 对账）：待执行标题是归档残留。现行 telemetry.test.ts:341-342 已说明 fail-fast 与新增裸词绊线；turnEndConditionGuard.test.ts:28 已为“四份 docs”；121:28/146/215/221/239-305 保留历史坐标并指向 final3；PRODUCT-GAP-MAP.md:439 使用不变式符号名及行号漂移声明。本次两个 telemetry 定向文件纳入 9 文件 / 121 passed、exit 0。旧 .dsh-mission/evidence 原件当前不存在，未宣称本次读到其判决或重验历史补丁。

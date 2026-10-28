@@ -1,6 +1,6 @@
 # Task 254: Browser Audit Findings Remediation — History Hydration, Goal Status Truth, and Activity Polish (Fixes BV-01, BV-02, BV-03, BV-04)
 
-状态：待验收（整改已实现，定向门禁通过；真实浏览器复验待环境恢复）
+状态：已验收（2026-10-26 对账；原「待验收」，BV-01 由 263/272 真机补证，依据见 [卡 340](340-board-backlog-closeout.md)）
 负责人：Codex (`gpt-6.1-sol`, medium reasoning effort)
 规划 / 架构监督：Antigravity
 前序依赖：[任务卡 253](253-browser-verification.md) 浏览器六场景实测报告揭示的 4 项产品缺陷

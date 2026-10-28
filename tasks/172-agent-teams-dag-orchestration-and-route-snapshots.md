@@ -125,3 +125,5 @@ export class TeamDagScheduler {
 - DAG 环检测、菱形并发、失败传播与状态机已落地；定向调度测试 4 passed。模型快照与 Approve & Run 测试纳入 Epic 全量门禁。
 - 对抗评审修复 evaluator 依赖证据、拒绝结果保留、stage/member 事件归属与 300 字符外部预览。
 - API、路由透传与限制见 docs/V1.5-IMPLEMENTATION-NOTES.md；最终门禁见任务 174。
+
+已验收（2026-10-27 对账，仅本地 DAG、快照与审批契约；本次 `dagScheduler.test.ts`、`teamRouteSnapshot.test.ts`、`teamApproveAndRun.test.ts` 三套及 `chunkedSession.test.ts` 合计 24 passed；同批长会话套件使整条命令 exit 1，不能称整批通过，详见卡 354 Result / `t8-v15-b.log`；源码 `packages/agents/src/team/dag/DagScheduler.ts:9`、`packages/agents/src/team/TeamRuntime.ts:104`、`:139`，独立分支、环检测、失败传播、实际路由透传和未批准不执行均有本次通过断言。）

@@ -94,3 +94,5 @@ export class SessionIndexStore {
 2. **回归门禁**：
    - `npx vitest run packages/memory` 全部通过；
    - `npx tsc -b tsconfig.json` exit 0。
+
+已验收（2026-10-27 对账，仅本地 SQLite/FTS 投影契约与原有 warm 延迟断言；本次 `sessionIndex.test.ts`、`ftsSearch.test.ts` 与工具三套共 5 文件 44 passed / exit 0，完整命令见卡 354 Result / `t8-v16-storage-tools.log`；源码 `packages/memory/src/sqlite/SessionIndexStore.ts:77`、`:90`；WAL/NORMAL、增量分页、JSONL 重建、FTS 前缀/高亮和本机延迟断言可复验，不扩展为任意硬件 SLA。）

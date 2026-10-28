@@ -1,6 +1,6 @@
 # 248 — Taste workbench elevation
 
-Status: 待验收（本地交付；指定门禁通过，全仓额外诊断有两项失败）
+Status: 已验收（2026-10-26 对账；原状态「待验收」，原述两项 Windows 运行时诊断失败在本次门禁中未复现，依据见 [卡 340](340-board-backlog-closeout.md)）
 
 ## Goal
 Audit and refine the Web workbench using the local Taste-Skill: edge-to-edge surfaces, tangible controls, readable Markdown and stable light/dark themes.

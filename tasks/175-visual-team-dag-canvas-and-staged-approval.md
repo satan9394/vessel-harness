@@ -63,3 +63,5 @@
 ## 5. 本地交证（2026-10-01）
 
 实现及独立审查纠正已完成：含路线图要求的角色/模型/参数预审编辑、实际 Write/Edit 会话记录产物路径、工作区相对 HEAD Diff、有效父会话 Policy 继承与异步 Diff 防串图。定向服务端/DAG 17 passed，Web 8 passed；类型构建、测试类型检查、Web typecheck/build 全部 exit 0。证据与最终回归入口：`docs/V1.6-IMPLEMENTATION-NOTES.md`。
+
+仍待用户验收（2026-10-27 对账：本次 Web 独立 root 的 `TeamDagCanvas.test.tsx` 8 passed / exit 0；`TeamDagCanvas.tsx:5`、`TeamStagedBanner.tsx:5`、`TeamNodeDrawer.tsx:29` 与服务端审批实现仍在。服务端定向结果及完整命令见卡 354 Result；`docs/V1.6-IMPLEMENTATION-NOTES.md:58` 已有历史浏览器走查，不否认该记录；本次未复跑真实浏览器的画布、抽屉、预审编辑视觉/端到端验收，单测不代替用户视觉验收。）

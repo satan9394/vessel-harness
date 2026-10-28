@@ -74,3 +74,5 @@ export interface DaemonControlContract {
 2. **回归门禁**：
    - `npx vitest run apps/local-server apps/cli` 全绿通过；
    - `npx tsc -b tsconfig.json` exit 0。
+
+仍待用户验收（2026-10-27 对账：`apps/local-server/src/daemon/daemonLifecycle.ts:169`、`authMiddleware.ts:5`、`notifications.ts:7`、`apps/cli/src/daemon/daemonCommands.ts:9` 与原有定向测试仍在；本次 auth/lifecycle/tray/CLI 定向命令与结果见卡 354 Result。缺真实 detached daemon 在终端关闭后的存活、原生 tray/toast 的本次真机验收；`docs/V1.6-IMPLEMENTATION-NOTES.md:50` 已明确历史证据为 mock，本次不把 mock 通知/派生参数断言提升为原生验证。）

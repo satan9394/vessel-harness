@@ -111,3 +111,5 @@ export class LazyMcpClientProxy implements McpTransport {
 - `npx tsc -b tsconfig.json`、`npm run typecheck:tests`：exit 0。未增加依赖或锁文件。
 - 本卡保留既有 Job Object 异步绑定机制与原有最大 30 秒 readiness；attach 期间关闭会先启动 stdio 的 2 秒根进程兜底，再等待晚到句柄完成清理。Epic 最终双 root 全量与 Web build 由 174 顺序执行。
 - 对抗评审 P1 修复：部分挂载时先处置 Job 可能杀死父/中间进程，随后按父链枚举看不到逃逸孙进程。现在保留挂载前观测的 PID，错误收尸复用 `terminatePids` 独立处理这些 PID；用 `process.kill(pid, 0)` 验证消失（允许 2 秒异步退出），不能把返回的已终止 PID 列表冒充最终存活度。忠实内存进程图 `123 → 124 → 125` 中删除 `123/124` 后树枚举确实找不到 `125`，保留 PID 收尸仍消灭 `125`；拒绝终止的负例明确让 close 失败。
+
+已验收（2026-10-27 对账，仅本地 mock 进程树契约、延迟唤醒与 enable/disable 往返；本次定向 MCP/CLI/装配与 adaptiveCompaction 共 5 文件 58 passed + 2 skipped，exit 0，完整命令见卡 354 Result / `t8-v15-a.log`；源码 `packages/tools/src/mcp/BoundedStdioTransport.ts:13`、`packages/tools/src/mcp/LazyMcpClientProxy.ts:4`；真实 Windows 进程树/原生 2 秒时延仍未由这些 mock 测试建立，原有限制保留。）

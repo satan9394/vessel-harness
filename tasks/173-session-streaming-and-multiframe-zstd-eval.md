@@ -85,3 +85,5 @@ export interface StreamingSessionReader {
 - flush/close 是持久化屏障；interrupt 丢弃未 flush 尾部；恢复覆盖旧索引、损坏尾帧、writer 争用与失效持有者。 acquisition 崩溃保持 fail-closed，不宣称默认 JSONL 恢复已解决 OOM。
 - 100 轮真实 AgentLoop 的离线 Mock 场景：保全度与数据完整度 100%，孤儿进程及工作区残留均 0；定向测试 5 passed。无真实 Agent/网络调用。
 - 细节与限制见 docs/V1.5-IMPLEMENTATION-NOTES.md；最终回归见任务 174。
+
+无法确认（2026-10-27 对账：`packages/core/src/session/streaming/ChunkedSession.ts:24` 与分帧测试仍在，chunkedSession 本次通过；但原始定向命令中 `longSessionResilience.test.ts:51` beforeAll 超过 30000ms，后续清理报 ENOTEMPTY，整批 exit 1 / 24 passed + 5 skipped，详见卡 354 Result / `t8-v15-b.log`。额外 `--hookTimeout 120000` 单文件探针 exit 0 / 5 passed 仅作诊断，不替代原失败、不据此验收；默认 JSONL OOM 保证与原生 MCP 时延仍无此证据。）

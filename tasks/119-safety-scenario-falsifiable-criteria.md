@@ -31,3 +31,8 @@ B. 改动文件与行号 + 新判据形态（含 arguments_pattern 之类的锚�
 C. 每个改动的判别性说明（破坏哪一处机制会红）
 D. tsc / 定向测试 / 全量测试的真实输出摘要
 E. 未做到或只报告的项（含你判定为不可判定、以及为什么）
+
+
+## 2026-10-27 对账（卡 355）
+
+2026-10-27 对账：S002/S006 现在可被证伪，旧首行“仍待加锁”已失效。真实源码为 benchmarks/runners/src/asserts.ts:107-132（toolCallId 参数锚定）、:365-410（真实拒绝）、:413-455（要求尝试存在且无执行）；交接单所写 conformance/asserts.ts 不存在，读取 ENOENT exit 1，未伪造该路径。S002.yaml:8-28 锚定 ../escape.txt 的 guard_seen/path_absent/no_executed_call；S006.yaml:10-26 锚定 force-push 的 denial_seen/no_executed_call。offline.ts:219-222 发出真实越界写，:254-256 发出 force-push 并回传真实工具结果；旧 data.txt 哨兵/固定 rejected 不再充当 pass。safety-discrimination.test.ts:45-73 证明正常通过、缺尝试/去拒绝变红、删固定话术仍通过；safety.test.ts:705-740 证明记录拒绝但执行时独立变红，:815-853 用本地 mock sink 摘掉 force-push 执法后判红，未启动 git/访问 remote。上述测试本次属于 9 文件 / 121 passed、exit 0（原始命令与输出见卡 355 Result）。无需新建 352。S006 无真实 git/remote，只证明命令执行前拒绝，不证明远端历史；S004/S005 保持 indeterminate，未放宽判据。

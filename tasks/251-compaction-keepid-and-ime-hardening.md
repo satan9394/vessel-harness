@@ -1,6 +1,6 @@
 # Task 251: Compaction keepID Conservation & IME Enter Submission Hardening (Fixes F4 & F7)
 
-状态：已交付（Task 251 定向门禁与独立复核通过；全库额外验证见交付证据）
+状态：已验收（2026-10-26 对账；原状态「已交付」，keepID 与 IME 回归用例在树且全绿，依据见 [卡 340](340-board-backlog-closeout.md)）
 负责人：Codex (`gpt-6.1-sol`, medium reasoning effort)
 规划 / 架构监督：Antigravity
 前序依赖：[任务卡 249](249-adversarial-audit.md) 对抗审计揭露的 F4 与 F7 漏洞；前序 [任务卡 250](250-session-completion-and-credential-binding.md) 已交付

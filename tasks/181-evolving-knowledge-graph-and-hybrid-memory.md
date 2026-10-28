@@ -96,3 +96,5 @@ export class HybridMemoryStore {
 - 离线 conformance 25/25；未调用真实外部 Agent，无提交、push、发布或宿主 ACL 修改。
 - 完整修改清单、原生边界与可复跑日志：[V1.7 交付记录](../docs/V1.7-IMPLEMENTATION-NOTES.md)，证据目录：evidence/sessions/2026-10-02-epic183/（accepted-* 为最终门禁）。
 - Windows 需预配置 Low Integrity / 专用受限 SID ACL；缺失时拒绝，原生运行契约使用 Mock 验证。
+
+已验收（2026-10-27 对账，仅本地混合检索、持久化规则和有界不可信上下文注入；本次 `hybridSearch.test.ts`、`reflectiveRules.test.ts`、`reflectiveContext.test.ts` 及沙箱两套共 5 文件 34 passed / exit 0，完整命令见卡 354 Result / `t8-v17.log`；源码 `packages/memory/src/sqlite/HybridMemoryStore.ts:42`、`:214`、`:261`、`packages/context/src/builder/Builder.ts:231`；包含重建/去重、RRF、向量校验及本机 warm <15ms 断言；实现以 user-level memory 隔离引导，不提升为 system/policy 权威，沿用原交付说明。）

@@ -97,3 +97,8 @@ Windows Sandbox Backend：在既有 runtime/sandbox（Sandbox.ts）基础上落�
   （超时/abort 整树 kill）；Sandbox.ts 诚实状态上报 backend='job-object'；070 关系明确（TS 原生不走协议，机制须在
   spawn 点，占位保留注明）。限制诚实记录（受限令牌未实现不宣称、attach 时序窗口、CPU/内存上限留后续）。
   下一张：072（process-tree confinement）。
+
+
+## 2026-10-27 对账（卡 355）
+
+已被 255/256/287 取代（2026-10-27 对账）。本卡首段与末段已记录合入 c834e0a，工作证明中的“待验收”只是历史。现行 Windows 启动/受限令牌证据见卡 255 Result 更正、卡 256 §7 与 evidence/task256/RESULT.md；源码 windowsRestrictedSource.ts:136 使用 CREATE_SUSPENDED | DETACHED_PROCESS。POSIX 281 的方案 2 由 287 落地（platformSandbox.ts:67-76）；本次 platformSandbox.test.ts 纳入 9 文件 / 121 passed 定向测试 exit 0。卡 256 的 native probe 为既有记录，本次未重跑；macOS 实机仍未验证。

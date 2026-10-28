@@ -115,3 +115,5 @@ Codex 在执行超长开发时可按需查阅以下权威技术备份（已落�
 - 离线 100 轮指标：overallPreservationScore 100%，dataIntegrityRate 100%，orphanProcessCount 0，workspaceResidueCount 0。评分器独立检查哈希、单调序号、记忆事实与故障恢复；负例能拒绝损坏、缺失、错序、重复与残留。
 - 所有新增场景使用 Mock；没有调用本机其它 Agent 或真实模型。已有 task 169 改动保留；未 commit/push/publish。
 - 范围限制：原 JSONL Session 仍为默认；分块 archive 为显式可选 API。Windows 2 秒清理证据来自假进程树；既有 Job 异步绑定最多 30 秒。归档 acquisition 中途崩溃保持 fail-closed。详见实施说明，不把离线证据当成原生时延保证。
+
+无法确认（2026-10-27 对账：170/171 的本次 58 passed + 2 skipped exit 0 与 172/分帧本次通过仅支持对应部分；173 长会话默认 30 秒 setup 门禁失败，`longSessionResilience.test.ts:51` timeout + ENOTEMPTY，原始整批 exit 1，日志 `t8-v15-b.log`；因此不提升 Epic 整体为已验收，完整命令与后续非验收诊断探针见卡 354 Result。未重跑全门禁，所有既有原生/可选 API 限制保留。）

@@ -93,3 +93,8 @@ export interface IRedGreenGate {
 
 实现与信任边界：`evidence/sessions/2026-10-08-v2.3/card196.md`。
 父会话 41 项定向测试及测试类型检查 exit 0；追加来源新鲜度、Red 运行中基线变更与跨工作区凭据拒绝后，14 项门禁/组合测试 exit 0，见 `card196-final-scope-freshness.log`。全量双 Root、构建与 Web 门禁统一在 Epic 199 最后一次源码编辑之后执行。
+
+
+## 2026-10-27 对账（卡 355）
+
+已被 199 取代（2026-10-27 对账）：仅指“Epic 199 全量门禁待执行”的旧状态，196 实现继续有效。199:58-72 记录 196/197/198 闭环、最终双 Root 2957 passed + 6 skipped、构建/类型/Web exit 0 与历史失败保留；README 已记录 2026-10-09 commit 3e6a56f。现行 redGreenGate.ts:109-157 校验 Red/Green、凭据与完成门禁；本次 redGreenGate.test.ts 纳入 9 文件 / 121 passed、exit 0。未重跑全量，也未重写历史失败记录。
