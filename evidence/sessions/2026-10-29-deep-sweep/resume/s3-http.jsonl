@@ -1,0 +1,2 @@
+{"route":"/api/sessions","status":201,"body":{"session":{"id":"sess_1793265229864_d250d238","workspaceRoot":"C:\\work\\AppData\\Local\\Temp\\vessel-deep-resume-QClxiD\\workspace","provider":"mock","model":"mock-pro","permission":"workspace-write","createdAt":"2026-10-29T09:13:49.872Z","updatedAt":"2026-10-29T09:13:49.878Z"}}}
+{"route":"/api/sessions/sess_1793265229864_d250d238/turns","status":200,"body":{"finalText":"(mock) mock-pro","kind":"success","steps":1,"turnId":"turn_1793265229908_aef9d5"}}

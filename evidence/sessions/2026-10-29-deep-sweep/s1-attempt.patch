@@ -1,0 +1,79 @@
+diff --git a/docs/SANDBOX-WINDOWS.md b/docs/SANDBOX-WINDOWS.md
+index 61981ed..0323c58 100644
+--- a/docs/SANDBOX-WINDOWS.md
++++ b/docs/SANDBOX-WINDOWS.md
+@@ -20,6 +20,8 @@ npx vitest run packages/tools/src/execution/sandbox/windowsRestricted.test.ts pa
+ 
+ 测试使用本地 Mock 验证参数、ACL 缺失拒绝、挂载、取消、探测/执行差异和持久审计；不修改本机权限，也不调用外部 Agent。实机 helper 编译可单独验证，而真实写权限隔离须在维护者预配置的目录验收。
+ 
++`scripts/provision-sandbox.ps1` 支持 Windows PowerShell 5.1 与 PowerShell 7（pwsh），均可配置并用 `-Revoke` 撤销。
++
+ > 状态：任务 071（Job Object 后端）+ 072（process-tree confinement）交付
+ > 关联：`packages/runtime/src/sandbox/`、`packages/runtime/src/process/Process.ts`、路线文档 §13.1–13.3
+ > 本文档描述 071/072 落地后的**真实能力**与**诚实限制**——不宣称"看起来启用、实际 passthrough"（§13.3）。
+diff --git a/scripts/provision-sandbox.ps1 b/scripts/provision-sandbox.ps1
+index 51b6138..24a0523 100644
+--- a/scripts/provision-sandbox.ps1
++++ b/scripts/provision-sandbox.ps1
+@@ -17,6 +17,23 @@ param(
+ )
+ 
+ $ErrorActionPreference = 'Stop'
++
++# Windows PowerShell 5.1 keeps these APIs on DirectoryInfo; PowerShell 7 uses extensions.
++function Get-DirectoryAcl([System.IO.DirectoryInfo]$Directory) {
++  if ($PSVersionTable.PSEdition -eq 'Core') {
++    return [System.IO.FileSystemAclExtensions]::GetAccessControl($Directory)
++  }
++  return $Directory.GetAccessControl()
++}
++
++function Set-DirectoryAcl([System.IO.DirectoryInfo]$Directory, [System.Security.AccessControl.DirectorySecurity]$Acl) {
++  if ($PSVersionTable.PSEdition -eq 'Core') {
++    [System.IO.FileSystemAclExtensions]::SetAccessControl($Directory, $Acl)
++  } else {
++    $Directory.SetAccessControl($Acl)
++  }
++}
++
+ $resolved = (Resolve-Path -LiteralPath $Path).Path
+ if (-not (Test-Path -LiteralPath $resolved -PathType Container)) { throw "not a directory: $resolved" }
+ 
+@@ -28,15 +45,15 @@ if ($Revoke) {
+   # for a SID that does not exist in the local account database, so remove the ACE through .NET
+   # (the same API that added it) instead.
+   $di = New-Object System.IO.DirectoryInfo $resolved
+-  $acl = $di.GetAccessControl()
++  $acl = Get-DirectoryAcl $di
+   $sidObject = New-Object System.Security.Principal.SecurityIdentifier $sid
+   foreach ($ace in @($acl.Access)) {
+     if ($ace.IdentityReference -eq $sidObject) { $acl.RemoveAccessRuleSpecific($ace) | Out-Null }
+   }
+-  $di.SetAccessControl($acl)
++  Set-DirectoryAcl $di $acl
+   & icacls $resolved /setintegritylevel '(OI)(CI)Medium' | Out-Null
+ 
+-  $sddl = (New-Object System.IO.DirectoryInfo $resolved).GetAccessControl().Sddl
++  $sddl = (Get-DirectoryAcl (New-Object System.IO.DirectoryInfo $resolved)).Sddl
+   $stillGranted = $sddl.Contains(';;;' + $sid)
+   # Match the level *name*: Low and Medium labels both carry the (NW) no-write-up policy, so the
+   # flag pattern alone cannot tell them apart.
+@@ -50,15 +67,15 @@ if ($Revoke) {
+ }
+ 
+ $di = New-Object System.IO.DirectoryInfo $resolved
+-$acl = $di.GetAccessControl()
++$acl = Get-DirectoryAcl $di
+ $sidObject = New-Object System.Security.Principal.SecurityIdentifier $sid
+ $rule = New-Object System.Security.AccessControl.FileSystemAccessRule $sidObject, 'Modify', 'ContainerInherit,ObjectInherit', 'None', 'Allow'
+ $acl.AddAccessRule($rule)
+-$di.SetAccessControl($acl)
++Set-DirectoryAcl $di $acl
+ & icacls $resolved /setintegritylevel '(OI)(CI)Low' | Out-Null
+ 
+ # Verify with the same two facts the launcher checks before it will start a child.
+-$sddl = (New-Object System.IO.DirectoryInfo $resolved).GetAccessControl().Sddl
++$sddl = (Get-DirectoryAcl (New-Object System.IO.DirectoryInfo $resolved)).Sddl
+ $hasGrant = $sddl.Contains(';;;' + $sid)
+ $label = & icacls $resolved
+ $hasLow = ($label -join "`n") -match 'Low Mandatory Level'

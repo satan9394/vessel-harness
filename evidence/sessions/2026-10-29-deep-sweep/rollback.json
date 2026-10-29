@@ -1,0 +1,15 @@
+{
+  "restoredOwnAttemptOnly": [
+    "scripts/provision-sandbox.ps1",
+    "docs/SANDBOX-WINDOWS.md"
+  ],
+  "equalToHeadBytes": true,
+  "attemptedPatch": "s1-attempt.patch",
+  "fixturesRetained": [
+    "ps5",
+    "ps7"
+  ],
+  "deletions": 0,
+  "daemonStarted": false,
+  "stoppedAfterTwoFailedPwshCommands": true
+}

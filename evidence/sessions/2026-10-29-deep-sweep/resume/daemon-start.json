@@ -1,0 +1,17 @@
+{
+  "command": "D:\\Technology_application\\NVM_Windows\\nodejs\\node.exe",
+  "args": [
+    "--import",
+    "file:///E:/Code_file/Projects/Vessel_Harness/node_modules/tsx/dist/loader.mjs",
+    "E:\\Code_file\\Projects\\Vessel_Harness\\apps\\cli\\src\\cli.ts",
+    "daemon",
+    "start",
+    "--port",
+    "5700",
+    "--json"
+  ],
+  "exitCode": 0,
+  "stdout": "{\"running\":true,\"daemon\":{\"pid\":11804,\"port\":5700,\"startedAt\":\"2026-10-29T09:12:30.861Z\",\"uptimeSeconds\":2,\"memoryBytes\":166920192,\"tokenPath\":\"C:\\\\Users\\\\WORK\\\\AppData\\\\Local\\\\Temp\\\\vessel-deep-resume-QClxiD\\\\isolated\\\\vessel_daemon_root\\\\daemon.token\",\"version\":\"0.10.0\",\"instanceId\":\"e30cd7f5-0f6d-450f-bfef-7631bc70c7c7\"}}\n",
+  "stderr": "",
+  "observedAt": "2026-10-29T09:12:31.232Z"
+}

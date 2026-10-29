@@ -1,0 +1,66 @@
+{
+  "base": "http://127.0.0.1:5678",
+  "records": [
+    {
+      "route": "/api/sessions",
+      "body": {
+        "workspaceRoot": "C:\\work\\AppData\\Local\\Temp\\vessel-deep-resume-QClxiD\\workspace",
+        "provider": "mock",
+        "model": "mock-pro"
+      },
+      "method": "POST",
+      "status": 201,
+      "result": {
+        "session": {
+          "id": "sess_1793265345773_d7297581",
+          "workspaceRoot": "C:\\work\\AppData\\Local\\Temp\\vessel-deep-resume-QClxiD\\workspace",
+          "provider": "mock",
+          "model": "mock-pro",
+          "permission": "workspace-write",
+          "createdAt": "2026-10-29T09:15:45.781Z",
+          "updatedAt": "2026-10-29T09:15:45.791Z"
+        }
+      }
+    },
+    {
+      "route": "/api/sessions/sess_1793265345773_d7297581/turns",
+      "body": {
+        "prompt": "S4 layout proof: return one short offline mock response."
+      },
+      "method": "POST",
+      "status": 200,
+      "result": {
+        "finalText": "(mock) mock-pro",
+        "kind": "success",
+        "steps": 1,
+        "turnId": "turn_1793265345829_f929dc"
+      }
+    },
+    {
+      "route": "/api/sessions/sess_1793265345773_d7297581/topic",
+      "body": {
+        "title": "S4 布局检查：这是一条用于观察侧边栏省略行为的较长会话标题"
+      },
+      "method": "PATCH",
+      "status": 200,
+      "result": {
+        "session": {
+          "id": "sess_1793265345773_d7297581",
+          "workspaceRoot": "C:\\work\\AppData\\Local\\Temp\\vessel-deep-resume-QClxiD\\workspace",
+          "provider": "mock",
+          "model": "mock-pro",
+          "permission": "workspace-write",
+          "createdAt": "2026-10-29T09:15:45.781Z",
+          "updatedAt": "2026-10-29T09:15:45.955Z",
+          "topic": {
+            "topicId": "topic_sess_1793265345773_d7297581",
+            "title": "S4 布局检查：这是一条用于观察侧边栏省略行为的较长会话标题",
+            "createdAt": 1793265345817,
+            "updatedAt": 1793265345955,
+            "isArchived": false
+          }
+        }
+      }
+    }
+  ]
+}

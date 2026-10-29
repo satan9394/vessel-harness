@@ -1,0 +1,8 @@
+[
+  {
+    "command": "node C:\\work\\AppData\\Local\\Temp\\vessel-deep-sweep-kYFWsO\\archive.cjs",
+    "exitCode": 1,
+    "stderr": "SyntaxError: Unexpected identifier 'tasks'",
+    "impact": "Evidence generator failed to parse before any side effect. Markdown was then read from a separate template file; successful archive created the directory and appended cards exactly once."
+  }
+]

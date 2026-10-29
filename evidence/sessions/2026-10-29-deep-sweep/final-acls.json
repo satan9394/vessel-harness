@@ -1,0 +1,24 @@
+[
+  {
+    "command": "icacls.exe",
+    "args": [
+      "C:\\work\\AppData\\Local\\Temp\\vessel-deep-sweep-kYFWsO\\ps5"
+    ],
+    "exitCode": 0,
+    "stdout": "C:\\work\\AppData\\Local\\Temp\\vessel-deep-sweep-kYFWsO\\ps5 USER\\CodexSandboxUsers:(I)(OI)(CI)(M)\n                                                                  S-1-5-21-3947725030-4112060225-1420970742-466446691:(I)(OI)(CI)(M)\n                                                                  NT AUTHORITY\\SYSTEM:(I)(OI)(CI)(F)\n                                                                  BUILTIN\\Administrators:(I)(OI)(CI)(F)\n                                                                  USER\\user:(I)(OI)(CI)(F)\n                                                                  Mandatory Label\\Medium Mandatory Level:(OI)(CI)(NW)\n\n已成功处理 1 个文件; 处理 0 个文件时失败\r\n",
+    "stderr": "",
+    "stdoutBase64": "QzpcVXNlcnNcU0FUQU5DfjFcQXBwRGF0YVxMb2NhbFxUZW1wXHZlc3NlbC1kZWVwLXN3ZWVwLWtZRldzT1xwczUgU0FUQU5DSEVOXENvZGV4U2FuZGJveFVzZXJzOihJKShPSSkoQ0kpKE0pCiAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIFMtMS01LTIxLTM5NDc3MjUwMzAtNDExMjA2MDIyNS0xNDIwOTcwNzQyLTQ2NjQ0NjY5MTooSSkoT0kpKENJKShNKQogICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICBOVCBBVVRIT1JJVFlcU1lTVEVNOihJKShPSSkoQ0kpKEYpCiAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIEJVSUxUSU5cQWRtaW5pc3RyYXRvcnM6KEkpKE9JKShDSSkoRikKICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgU0FUQU5DSEVOXFNhdGFuY2hlbjooSSkoT0kpKENJKShGKQogICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICBNYW5kYXRvcnkgTGFiZWxcTWVkaXVtIE1hbmRhdG9yeSBMZXZlbDooT0kpKENJKShOVykKCtLRs8m5prSmwO0gMSC49s7EvP47ILSmwO0gMCC49s7EvP7KscqnsNwNCg==",
+    "stderrBase64": ""
+  },
+  {
+    "command": "icacls.exe",
+    "args": [
+      "C:\\work\\AppData\\Local\\Temp\\vessel-deep-sweep-kYFWsO\\ps7"
+    ],
+    "exitCode": 0,
+    "stdout": "C:\\work\\AppData\\Local\\Temp\\vessel-deep-sweep-kYFWsO\\ps7 USER\\CodexSandboxUsers:(I)(OI)(CI)(M)\n                                                                  S-1-5-21-3947725030-4112060225-1420970742-466446691:(I)(OI)(CI)(M)\n                                                                  NT AUTHORITY\\SYSTEM:(I)(OI)(CI)(F)\n                                                                  BUILTIN\\Administrators:(I)(OI)(CI)(F)\n                                                                  USER\\user:(I)(OI)(CI)(F)\n                                                                  Mandatory Label\\Medium Mandatory Level:(OI)(CI)(NW)\n\n已成功处理 1 个文件; 处理 0 个文件时失败\r\n",
+    "stderr": "",
+    "stdoutBase64": "QzpcVXNlcnNcU0FUQU5DfjFcQXBwRGF0YVxMb2NhbFxUZW1wXHZlc3NlbC1kZWVwLXN3ZWVwLWtZRldzT1xwczcgU0FUQU5DSEVOXENvZGV4U2FuZGJveFVzZXJzOihJKShPSSkoQ0kpKE0pCiAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIFMtMS01LTIxLTM5NDc3MjUwMzAtNDExMjA2MDIyNS0xNDIwOTcwNzQyLTQ2NjQ0NjY5MTooSSkoT0kpKENJKShNKQogICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICBOVCBBVVRIT1JJVFlcU1lTVEVNOihJKShPSSkoQ0kpKEYpCiAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIEJVSUxUSU5cQWRtaW5pc3RyYXRvcnM6KEkpKE9JKShDSSkoRikKICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgU0FUQU5DSEVOXFNhdGFuY2hlbjooSSkoT0kpKENJKShGKQogICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICBNYW5kYXRvcnkgTGFiZWxcTWVkaXVtIE1hbmRhdG9yeSBMZXZlbDooT0kpKENJKShOVykKCtLRs8m5prSmwO0gMSC49s7EvP47ILSmwO0gMCC49s7EvP7KscqnsNwNCg==",
+    "stderrBase64": ""
+  }
+]

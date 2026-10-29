@@ -1,0 +1,7 @@
+{
+    "setting":  "Enabled",
+    "querySucceeded":  true,
+    "vesselTaskHistory":  [
+                              "\u003ctoast\u003e\u003cvisual\u003e\u003cbinding template=\"ToastGeneric\"\u003e\u003ctext\u003eVessel task finished\u003c/text\u003e\u003ctext\u003eSession sess_1793265229864_d250d238: success\u003c/text\u003e\u003c/binding\u003e\u003c/visual\u003e\u003c/toast\u003e"
+                          ]
+}

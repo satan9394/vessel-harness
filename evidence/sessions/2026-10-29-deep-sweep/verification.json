@@ -1,0 +1,90 @@
+{
+  "checkedAt": "2026-10-29T09:03:27.325Z",
+  "pass": true,
+  "scopePass": true,
+  "cards": [
+    {
+      "path": "tasks/180-os-native-sandboxing-and-restricted-tokens.md",
+      "originalBytes": 7524,
+      "appendedBytes": 470,
+      "prefixSha256": "ce9a875634e2c3a7b43ae4fd0d38c024662316590cb905ba0a02679b99235379",
+      "prefixMatchesBaseline": true,
+      "originalMatchesHead": true,
+      "firstLineUnchanged": true
+    },
+    {
+      "path": "tasks/183-epic-hardened-runtime-and-cognitive-memory.md",
+      "originalBytes": 6171,
+      "appendedBytes": 387,
+      "prefixSha256": "894d11a926d64c420ac22dc408b4b70ab3c950e852660eb2cc311aa18f55fa02",
+      "prefixMatchesBaseline": true,
+      "originalMatchesHead": true,
+      "firstLineUnchanged": true
+    },
+    {
+      "path": "tasks/176-headless-daemon-and-tray-resilience.md",
+      "originalBytes": 8991,
+      "appendedBytes": 441,
+      "prefixSha256": "acc12a1f38c6857145b3a731e41dc4fbdfa6eff6ce99fae45de43793f704be54",
+      "prefixMatchesBaseline": true,
+      "originalMatchesHead": true,
+      "firstLineUnchanged": true
+    },
+    {
+      "path": "tasks/260-browser-runtime-acceptance.md",
+      "originalBytes": 7007,
+      "appendedBytes": 429,
+      "prefixSha256": "19351b29dcfc8e8f0feb63f00fccda4c0f17156384d1c5659287a9874cb62c30",
+      "prefixMatchesBaseline": true,
+      "originalMatchesHead": true,
+      "firstLineUnchanged": true
+    },
+    {
+      "path": "tasks/275-ui-final-acceptance.md",
+      "originalBytes": 26974,
+      "appendedBytes": 372,
+      "prefixSha256": "880e1b22978cc0e0a61dfcff8476370f105645535d3f54e0b59ca89a9fe5c004",
+      "prefixMatchesBaseline": true,
+      "originalMatchesHead": true,
+      "firstLineUnchanged": true
+    }
+  ],
+  "sourceRestored": [
+    {
+      "path": "scripts/provision-sandbox.ps1",
+      "equalToHeadBytes": true
+    },
+    {
+      "path": "docs/SANDBOX-WINDOWS.md",
+      "equalToHeadBytes": true
+    }
+  ],
+  "diffCheck": {
+    "command": "git diff --check",
+    "exitCode": 0,
+    "stdout": "",
+    "stderr": "warning: in the working copy of 'scripts/provision-sandbox.ps1', LF will be replaced by CRLF the next time Git touches it\n"
+  },
+  "changedPathsAtCheck": [
+    "tasks/176-headless-daemon-and-tray-resilience.md",
+    "tasks/180-os-native-sandboxing-and-restricted-tokens.md",
+    "tasks/183-epic-hardened-runtime-and-cognitive-memory.md",
+    "tasks/260-browser-runtime-acceptance.md",
+    "tasks/275-ui-final-acceptance.md",
+    "evidence/sessions/2026-10-29-deep-sweep/authoring-errors.json",
+    "evidence/sessions/2026-10-29-deep-sweep/baseline.json",
+    "evidence/sessions/2026-10-29-deep-sweep/cleanup.json",
+    "evidence/sessions/2026-10-29-deep-sweep/final-acls.json",
+    "evidence/sessions/2026-10-29-deep-sweep/inspection.json",
+    "evidence/sessions/2026-10-29-deep-sweep/manifest.json",
+    "evidence/sessions/2026-10-29-deep-sweep/ps5-metadata.json",
+    "evidence/sessions/2026-10-29-deep-sweep/report.md",
+    "evidence/sessions/2026-10-29-deep-sweep/rollback.json",
+    "evidence/sessions/2026-10-29-deep-sweep/s1-attempt.patch",
+    "evidence/sessions/2026-10-29-deep-sweep/s1-results.json",
+    "evidence/sessions/2026-10-29-deep-sweep/verification.json"
+  ],
+  "taskGateStatus": "FAILED_STOPPED_AT_S1",
+  "noWholeCardAcceptance": true,
+  "objectiveComplete": false
+}

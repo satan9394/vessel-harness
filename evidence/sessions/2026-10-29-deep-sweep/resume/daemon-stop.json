@@ -1,0 +1,15 @@
+{
+  "command": "D:\\Technology_application\\NVM_Windows\\nodejs\\node.exe",
+  "args": [
+    "--import",
+    "file:///E:/Code_file/Projects/Vessel_Harness/node_modules/tsx/dist/loader.mjs",
+    "E:\\Code_file\\Projects\\Vessel_Harness\\apps\\cli\\src\\cli.ts",
+    "daemon",
+    "stop",
+    "--json"
+  ],
+  "exitCode": 0,
+  "stdout": "{\"stopped\":true}\n",
+  "stderr": "",
+  "observedAt": "2026-10-29T09:14:56.833Z"
+}

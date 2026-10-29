@@ -1,0 +1,14 @@
+{
+  "command": "powershell.exe",
+  "args": [
+    "-NoProfile",
+    "-File",
+    "C:\\work\\AppData\\Local\\Temp\\vessel-deep-resume-QClxiD\\registry.ps1",
+    "-OutputPath",
+    "C:\\work\\AppData\\Local\\Temp\\vessel-deep-resume-QClxiD\\registry-stopped.json"
+  ],
+  "exitCode": 0,
+  "stdout": "snapshot keys: 84\r\n",
+  "stderr": "",
+  "observedAt": "2026-10-29T09:14:57.802Z"
+}

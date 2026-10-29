@@ -1,0 +1,90 @@
+[
+  {
+    "name": "s260-zoom150-960x600",
+    "command": "D:/Technology_application/ffmpeg_all/ffmpeg/bin/ffmpeg.exe",
+    "args": [
+      "-hide_banner",
+      "-loglevel",
+      "error",
+      "-i",
+      "C:\\work\\AppData\\Local\\Temp\\vessel-deep-resume-QClxiD\\s260-zoom150-960x600.jpg",
+      "-frames:v",
+      "1",
+      "-y",
+      "C:\\work\\AppData\\Local\\Temp\\vessel-deep-resume-QClxiD\\s260-zoom150-960x600.png"
+    ],
+    "exitCode": 0,
+    "stderr": "",
+    "inputSha256": "de4a4d1ec0f4af227293a1347ef337f96d6be1e7edaeb11a2d5f47a1ce070f9d",
+    "pngSignature": "89504e470d0a1a0a",
+    "width": 960,
+    "height": 600,
+    "noResizeOrCrop": true
+  },
+  {
+    "name": "s260-zoom200-720x450",
+    "command": "D:/Technology_application/ffmpeg_all/ffmpeg/bin/ffmpeg.exe",
+    "args": [
+      "-hide_banner",
+      "-loglevel",
+      "error",
+      "-i",
+      "C:\\work\\AppData\\Local\\Temp\\vessel-deep-resume-QClxiD\\s260-zoom200-720x450.jpg",
+      "-frames:v",
+      "1",
+      "-y",
+      "C:\\work\\AppData\\Local\\Temp\\vessel-deep-resume-QClxiD\\s260-zoom200-720x450.png"
+    ],
+    "exitCode": 0,
+    "stderr": "",
+    "inputSha256": "5effbe68adedacc1d220db609ab18122f7f1f2bc048050b5463cd5b23ee79eac",
+    "pngSignature": "89504e470d0a1a0a",
+    "width": 720,
+    "height": 450,
+    "noResizeOrCrop": true
+  },
+  {
+    "name": "s260-zoom150-sidebar",
+    "command": "D:/Technology_application/ffmpeg_all/ffmpeg/bin/ffmpeg.exe",
+    "args": [
+      "-hide_banner",
+      "-loglevel",
+      "error",
+      "-i",
+      "C:\\work\\AppData\\Local\\Temp\\vessel-deep-resume-QClxiD\\s260-zoom150-sidebar.jpg",
+      "-frames:v",
+      "1",
+      "-y",
+      "C:\\work\\AppData\\Local\\Temp\\vessel-deep-resume-QClxiD\\s260-zoom150-sidebar.png"
+    ],
+    "exitCode": 0,
+    "stderr": "",
+    "inputSha256": "4846fa8156475a74ad844fe2e23f95d2221fbaa152476f5f86ac9669228f6f75",
+    "pngSignature": "89504e470d0a1a0a",
+    "width": 960,
+    "height": 600,
+    "noResizeOrCrop": true
+  },
+  {
+    "name": "s260-zoom200-sidebar",
+    "command": "D:/Technology_application/ffmpeg_all/ffmpeg/bin/ffmpeg.exe",
+    "args": [
+      "-hide_banner",
+      "-loglevel",
+      "error",
+      "-i",
+      "C:\\work\\AppData\\Local\\Temp\\vessel-deep-resume-QClxiD\\s260-zoom200-sidebar.jpg",
+      "-frames:v",
+      "1",
+      "-y",
+      "C:\\work\\AppData\\Local\\Temp\\vessel-deep-resume-QClxiD\\s260-zoom200-sidebar.png"
+    ],
+    "exitCode": 0,
+    "stderr": "",
+    "inputSha256": "c27eabffbcc04ec7aeee8e5b0b0b0d5f7fcc31e5e61f2d5667c5e7f7c5a6518f",
+    "pngSignature": "89504e470d0a1a0a",
+    "width": 720,
+    "height": 450,
+    "noResizeOrCrop": true
+  }
+]

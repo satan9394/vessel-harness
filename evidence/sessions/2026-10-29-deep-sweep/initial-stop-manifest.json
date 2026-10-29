@@ -1,0 +1,62 @@
+{
+  "generatedAt": "2026-10-29T09:03:27.334Z",
+  "algorithm": "sha256",
+  "excludesSelf": true,
+  "files": [
+    {
+      "file": "authoring-errors.json",
+      "bytes": 397,
+      "sha256": "b90526231f53f574342860bd7d18326d2afc74d786f3e8bc8d3a58a8725b1d91"
+    },
+    {
+      "file": "baseline.json",
+      "bytes": 1102,
+      "sha256": "c506d6a18be92972d6818c058a66efbe274875e023f6a026f3f0cca3c518fff3"
+    },
+    {
+      "file": "cleanup.json",
+      "bytes": 11811,
+      "sha256": "fc01eb4602af9aa89808071299fd714551b28cf655c2b516061cb2ca7966c95b"
+    },
+    {
+      "file": "final-acls.json",
+      "bytes": 3874,
+      "sha256": "ca39869f742543ee26d822125b3852dc7886886ff1d900591e5e43005b851108"
+    },
+    {
+      "file": "inspection.json",
+      "bytes": 850,
+      "sha256": "31adffa03f5d08c428b7bf04cfc219f432352452ac285e6622e298ff57dec677"
+    },
+    {
+      "file": "ps5-metadata.json",
+      "bytes": 412,
+      "sha256": "a14ea6c8962d5f49891148e3476a9bf030452718bfaddc2c3ab47f6ecbda7e6e"
+    },
+    {
+      "file": "report.md",
+      "bytes": 8218,
+      "sha256": "ec41816d1c87f2088c44ec425f9ad0f3adf3a8836f6cd2ef35331e1d275ef5f7"
+    },
+    {
+      "file": "rollback.json",
+      "bytes": 311,
+      "sha256": "e196d913820c19293696f1b5b479004dd8acab8aecda2de21de6dbf8e8834d8c"
+    },
+    {
+      "file": "s1-attempt.patch",
+      "bytes": 3939,
+      "sha256": "246183030d87562ef783f50322a4d5e8c674081ddeef14720877b27f28ae7b5e"
+    },
+    {
+      "file": "s1-results.json",
+      "bytes": 6488,
+      "sha256": "e47dfb5d4e28ca14e0d58d0cadd2ab130ef7c1e0dacb2cc3ae7e5159218c4b6e"
+    },
+    {
+      "file": "verification.json",
+      "bytes": 3339,
+      "sha256": "70f04bd348cc7a391960074d7216da9a1960a48585a44b41709ecb6f4d67c4eb"
+    }
+  ]
+}

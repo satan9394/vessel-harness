@@ -1,0 +1,59 @@
+[
+  {
+    "command": "powershell.exe",
+    "args": [
+      "-NoProfile",
+      "-ExecutionPolicy",
+      "Bypass",
+      "-File",
+      "E:\\Code_file\\Projects\\Vessel_Harness\\scripts\\provision-sandbox.ps1",
+      "-Path",
+      "C:\\work\\AppData\\Local\\Temp\\vessel-deep-sweep-kYFWsO\\ps7",
+      "-Revoke"
+    ],
+    "exitCode": 0,
+    "stdout": "workspace : C:\\work\\AppData\\Local\\Temp\\vessel-deep-sweep-kYFWsO\\ps7\nsandbox SID: S-1-5-21-2327723602-1634786665-4276103583-183 (removed=True)\nlow label  : False\nrevoked sandbox preparation from C:\\work\\AppData\\Local\\Temp\\vessel-deep-sweep-kYFWsO\\ps7 (SID S-1-5-21-2327723602-1634786665-4276103583-183)\n",
+    "stderr": ""
+  },
+  {
+    "command": "icacls.exe",
+    "args": [
+      "C:\\work\\AppData\\Local\\Temp\\vessel-deep-sweep-kYFWsO\\ps5"
+    ],
+    "exitCode": 0,
+    "stdout": "C:\\work\\AppData\\Local\\Temp\\vessel-deep-sweep-kYFWsO\\ps5 USER\\CodexSandboxUsers:(I)(OI)(CI)(M)\n                                                                  S-1-5-21-3947725030-4112060225-1420970742-466446691:(I)(OI)(CI)(M)\n                                                                  NT AUTHORITY\\SYSTEM:(I)(OI)(CI)(F)\n                                                                  BUILTIN\\Administrators:(I)(OI)(CI)(F)\n                                                                  USER\\user:(I)(OI)(CI)(F)\n                                                                  Mandatory Label\\Medium Mandatory Level:(OI)(CI)(NW)\n\n�ѳɹ����� 1 ���ļ�; ���� 0 ���ļ�ʱʧ��\r\n",
+    "stderr": ""
+  },
+  {
+    "command": "icacls.exe",
+    "args": [
+      "C:\\work\\AppData\\Local\\Temp\\vessel-deep-sweep-kYFWsO\\ps7"
+    ],
+    "exitCode": 0,
+    "stdout": "C:\\work\\AppData\\Local\\Temp\\vessel-deep-sweep-kYFWsO\\ps7 USER\\CodexSandboxUsers:(I)(OI)(CI)(M)\n                                                                  S-1-5-21-3947725030-4112060225-1420970742-466446691:(I)(OI)(CI)(M)\n                                                                  NT AUTHORITY\\SYSTEM:(I)(OI)(CI)(F)\n                                                                  BUILTIN\\Administrators:(I)(OI)(CI)(F)\n                                                                  USER\\user:(I)(OI)(CI)(F)\n                                                                  Mandatory Label\\Medium Mandatory Level:(OI)(CI)(NW)\n\n�ѳɹ����� 1 ���ļ�; ���� 0 ���ļ�ʱʧ��\r\n",
+    "stderr": ""
+  },
+  {
+    "command": "pwsh.exe",
+    "args": [
+      "-NoProfile",
+      "-Command",
+      "$a = [System.IO.FileSystemAclExtensions]::GetAccessControl([System.IO.DirectoryInfo]::new($args[0])); [pscustomobject]@{ sddlPropertyAvailable = $null -ne $a.Sddl; accessPropertyAvailable = $null -ne $a.Access; accessRulesViaMethod = $a.GetAccessRules($true,$true,[System.Security.Principal.SecurityIdentifier]).Count; sddlViaMethod = $a.GetSecurityDescriptorSddlForm([System.Security.AccessControl.AccessControlSections]::Access) } | ConvertTo-Json",
+      "C:\\work\\AppData\\Local\\Temp\\vessel-deep-sweep-kYFWsO\\ps7"
+    ],
+    "exitCode": 1,
+    "stdout": "",
+    "stderr": "MethodInvocationException: Exception calling \".ctor\" with \"1\" argument(s): \"The path is empty. (Parameter 'path')\"\r\nInvalidOperation: You cannot call a method on a null-valued expression.\r\n"
+  },
+  {
+    "command": "powershell.exe",
+    "args": [
+      "-NoProfile",
+      "-Command",
+      "$ports = @(Get-NetTCPConnection -State Listen -ErrorAction SilentlyContinue | Where-Object { $_.LocalPort -in 5678,5173 }); $daemons = @(Get-CimInstance Win32_Process | Where-Object { $_.Name -eq 'node.exe' -and $_.CommandLine -match 'apps[/\\]cli[/\\]src[/\\]cli\\.(ts|js).*daemon' }); [pscustomobject]@{ listening5678or5173 = $ports.Count; matchingCliDaemons = $daemons.Count; observedAt = [DateTime]::UtcNow.ToString('o') } | ConvertTo-Json"
+    ],
+    "exitCode": 0,
+    "stdout": "{\r\n    \"listening5678or5173\":  0,\r\n    \"matchingCliDaemons\":  0,\r\n    \"observedAt\":  \"2026-10-29T08:59:06.6123777Z\"\r\n}\r\n",
+    "stderr": "���ڷ�����apps[/\\]cli[/\\]src[/\\]cli\\.(ts|js).*daemon���� δ��ֹ�� [] ����\r\n����λ�� ��:1 �ַ�: 185\r\n+ ... re-Object { $_.Name -eq 'node.exe' -and $_.CommandLine -match 'apps[/ ...\r\n+                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\r\n    + CategoryInfo          : OperationStopped: (:) [], ArgumentException\r\n    + FullyQualifiedErrorId : System.ArgumentException\r\n \r\n���ڷ�����apps[/\\]cli[/\\]src[/\\]cli\\.(ts|js).*daemon���� δ��ֹ�� [] ����\r\n����λ�� ��:1 �ַ�: 185\r\n+ ... re-Object { $_.Name -eq 'node.exe' -and $_.CommandLine -match 'apps[/ ...\r\n+                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\r\n    + CategoryInfo          : OperationStopped: (:) [], ArgumentException\r\n    + FullyQualifiedErrorId : System.ArgumentException\r\n \r\n���ڷ�����apps[/\\]cli[/\\]src[/\\]cli\\.(ts|js).*daemon���� δ��ֹ�� [] ����\r\n����λ�� ��:1 �ַ�: 185\r\n+ ... re-Object { $_.Name -eq 'node.exe' -and $_.CommandLine -match 'apps[/ ...\r\n+                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\r\n    + CategoryInfo          : OperationStopped: (:) [], ArgumentException\r\n    + FullyQualifiedErrorId : System.ArgumentException\r\n \r\n���ڷ�����apps[/\\]cli[/\\]src[/\\]cli\\.(ts|js).*daemon���� δ��ֹ�� [] ����\r\n����λ�� ��:1 �ַ�: 185\r\n+ ... re-Object { $_.Name -eq 'node.exe' -and $_.CommandLine -match 'apps[/ ...\r\n+                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\r\n    + CategoryInfo          : OperationStopped: (:) [], ArgumentException\r\n    + FullyQualifiedErrorId : System.ArgumentException\r\n \r\n���ڷ�����apps[/\\]cli[/\\]src[/\\]cli\\.(ts|js).*daemon���� δ��ֹ�� [] ����\r\n����λ�� ��:1 �ַ�: 185\r\n+ ... re-Object { $_.Name -eq 'node.exe' -and $_.CommandLine -match 'apps[/ ...\r\n+                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\r\n    + CategoryInfo          : OperationStopped: (:) [], ArgumentException\r\n    + FullyQualifiedErrorId : System.ArgumentException\r\n \r\n���ڷ�����apps[/\\]cli[/\\]src[/\\]cli\\.(ts|js).*daemon���� δ��ֹ�� [] ����\r\n����λ�� ��:1 �ַ�: 185\r\n+ ... re-Object { $_.Name -eq 'node.exe' -and $_.CommandLine -match 'apps[/ ...\r\n+                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\r\n    + CategoryInfo          : OperationStopped: (:) [], ArgumentException\r\n    + FullyQualifiedErrorId : System.ArgumentException\r\n \r\n���ڷ�����apps[/\\]cli[/\\]src[/\\]cli\\.(ts|js).*daemon���� δ��ֹ�� [] ����\r\n����λ�� ��:1 �ַ�: 185\r\n+ ... re-Object { $_.Name -eq 'node.exe' -and $_.CommandLine -match 'apps[/ ...\r\n+                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\r\n    + CategoryInfo          : OperationStopped: (:) [], ArgumentException\r\n    + FullyQualifiedErrorId : System.ArgumentException\r\n \r\n���ڷ�����apps[/\\]cli[/\\]src[/\\]cli\\.(ts|js).*daemon���� δ��ֹ�� [] ����\r\n����λ�� ��:1 �ַ�: 185\r\n+ ... re-Object { $_.Name -eq 'node.exe' -and $_.CommandLine -match 'apps[/ ...\r\n+                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\r\n    + CategoryInfo          : OperationStopped: (:) [], ArgumentException\r\n    + FullyQualifiedErrorId : System.ArgumentException\r\n \r\n���ڷ�����apps[/\\]cli[/\\]src[/\\]cli\\.(ts|js).*daemon���� δ��ֹ�� [] ����\r\n����λ�� ��:1 �ַ�: 185\r\n+ ... re-Object { $_.Name -eq 'node.exe' -and $_.CommandLine -match 'apps[/ ...\r\n+                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\r\n    + CategoryInfo          : OperationStopped: (:) [], ArgumentException\r\n    + FullyQualifiedErrorId : System.ArgumentException\r\n \r\n���ڷ�����apps[/\\]cli[/\\]src[/\\]cli\\.(ts|js).*daemon���� δ��ֹ�� [] ����\r\n����λ�� ��:1 �ַ�: 185\r\n+ ... re-Object { $_.Name -eq 'node.exe' -and $_.CommandLine -match 'apps[/ ...\r\n+                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\r\n    + CategoryInfo          : OperationStopped: (:) [], ArgumentException\r\n    + FullyQualifiedErrorId : System.ArgumentException\r\n \r\n���ڷ�����apps[/\\]cli[/\\]src[/\\]cli\\.(ts|js).*daemon���� δ��ֹ�� [] ����\r\n����λ�� ��:1 �ַ�: 185\r\n+ ... re-Object { $_.Name -eq 'node.exe' -and $_.CommandLine -match 'apps[/ ...\r\n+                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\r\n    + CategoryInfo          : OperationStopped: (:) [], ArgumentException\r\n    + FullyQualifiedErrorId : System.ArgumentException\r\n \r\n���ڷ�����apps[/\\]cli[/\\]src[/\\]cli\\.(ts|js).*daemon���� δ��ֹ�� [] ����\r\n����λ�� ��:1 �ַ�: 185\r\n+ ... re-Object { $_.Name -eq 'node.exe' -and $_.CommandLine -match 'apps[/ ...\r\n+                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\r\n    + CategoryInfo          : OperationStopped: (:) [], ArgumentException\r\n    + FullyQualifiedErrorId : System.ArgumentException\r\n \r\n���ڷ�����apps[/\\]cli[/\\]src[/\\]cli\\.(ts|js).*daemon���� δ��ֹ�� [] ����\r\n����λ�� ��:1 �ַ�: 185\r\n+ ... re-Object { $_.Name -eq 'node.exe' -and $_.CommandLine -match 'apps[/ ...\r\n+                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\r\n    + CategoryInfo          : OperationStopped: (:) [], ArgumentException\r\n    + FullyQualifiedErrorId : System.ArgumentException\r\n \r\n���ڷ�����apps[/\\]cli[/\\]src[/\\]cli\\.(ts|js).*daemon���� δ��ֹ�� [] ����\r\n����λ�� ��:1 �ַ�: 185\r\n+ ... re-Object { $_.Name -eq 'node.exe' -and $_.CommandLine -match 'apps[/ ...\r\n+                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\r\n    + CategoryInfo          : OperationStopped: (:) [], ArgumentException\r\n    + FullyQualifiedErrorId : System.ArgumentException\r\n \r\n���ڷ�����apps[/\\]cli[/\\]src[/\\]cli\\.(ts|js).*daemon���� δ��ֹ�� [] ����\r\n����λ�� ��:1 �ַ�: 185\r\n+ ... re-Object { $_.Name -eq 'node.exe' -and $_.CommandLine -match 'apps[/ ...\r\n+                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\r\n    + CategoryInfo          : OperationStopped: (:) [], ArgumentException\r\n    + FullyQualifiedErrorId : System.ArgumentException\r\n \r\n���ڷ�����apps[/\\]cli[/\\]src[/\\]cli\\.(ts|js).*daemon���� δ��ֹ�� [] ����\r\n����λ�� ��:1 �ַ�: 185\r\n+ ... re-Object { $_.Name -eq 'node.exe' -and $_.CommandLine -match 'apps[/ ...\r\n+                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\r\n    + CategoryInfo          : OperationStopped: (:) [], ArgumentException\r\n    + FullyQualifiedErrorId : System.ArgumentException\r\n \r\n"
+  }
+]

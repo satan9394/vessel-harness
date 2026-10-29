@@ -1,0 +1,32 @@
+{
+  "root": "C:\\work\\AppData\\Local\\Temp\\vessel-deep-sweep-kYFWsO",
+  "startedAt": "2026-10-29T08:56:30.897Z",
+  "head": "cd0142b3b33986d5ad10f99922c360d2008e51b4",
+  "cards": [
+    {
+      "path": "tasks/180-os-native-sandboxing-and-restricted-tokens.md",
+      "bytes": 7524,
+      "sha256": "ce9a875634e2c3a7b43ae4fd0d38c024662316590cb905ba0a02679b99235379"
+    },
+    {
+      "path": "tasks/183-epic-hardened-runtime-and-cognitive-memory.md",
+      "bytes": 6171,
+      "sha256": "894d11a926d64c420ac22dc408b4b70ab3c950e852660eb2cc311aa18f55fa02"
+    },
+    {
+      "path": "tasks/176-headless-daemon-and-tray-resilience.md",
+      "bytes": 8991,
+      "sha256": "acc12a1f38c6857145b3a731e41dc4fbdfa6eff6ce99fae45de43793f704be54"
+    },
+    {
+      "path": "tasks/260-browser-runtime-acceptance.md",
+      "bytes": 7007,
+      "sha256": "19351b29dcfc8e8f0feb63f00fccda4c0f17156384d1c5659287a9874cb62c30"
+    },
+    {
+      "path": "tasks/275-ui-final-acceptance.md",
+      "bytes": 26974,
+      "sha256": "880e1b22978cc0e0a61dfcff8476370f105645535d3f54e0b59ca89a9fe5c004"
+    }
+  ]
+}

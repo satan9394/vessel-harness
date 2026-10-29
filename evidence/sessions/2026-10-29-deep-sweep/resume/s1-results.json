@@ -1,0 +1,116 @@
+[
+  {
+    "command": "powershell.exe",
+    "args": [
+      "-NoProfile",
+      "-ExecutionPolicy",
+      "Bypass",
+      "-File",
+      "E:\\Code_file\\Projects\\Vessel_Harness\\scripts\\provision-sandbox.ps1",
+      "-Path",
+      "C:\\work\\AppData\\Local\\Temp\\vessel-deep-resume-QClxiD\\ps5"
+    ],
+    "exitCode": 0,
+    "stdout": "workspace : C:\\work\\AppData\\Local\\Temp\\vessel-deep-resume-QClxiD\\ps5\nsandbox SID: S-1-5-21-2537803287-3501312116-2249498222-183 (granted=True)\nlow label  : True\ndone - Shell under a full-access session can now use the restricted sandbox here.\n",
+    "stderr": "",
+    "stdoutBase64": "d29ya3NwYWNlIDogQzpcVXNlcnNcU0FUQU5DfjFcQXBwRGF0YVxMb2NhbFxUZW1wXHZlc3NlbC1kZWVwLXJlc3VtZS1RQ2x4aURccHM1CnNhbmRib3ggU0lEOiBTLTEtNS0yMS0yNTM3ODAzMjg3LTM1MDEzMTIxMTYtMjI0OTQ5ODIyMi0xODMgKGdyYW50ZWQ9VHJ1ZSkKbG93IGxhYmVsICA6IFRydWUKZG9uZSAtIFNoZWxsIHVuZGVyIGEgZnVsbC1hY2Nlc3Mgc2Vzc2lvbiBjYW4gbm93IHVzZSB0aGUgcmVzdHJpY3RlZCBzYW5kYm94IGhlcmUuCg==",
+    "stderrBase64": ""
+  },
+  {
+    "command": "icacls.exe",
+    "args": [
+      "C:\\work\\AppData\\Local\\Temp\\vessel-deep-resume-QClxiD\\ps5"
+    ],
+    "exitCode": 0,
+    "stdout": "C:\\work\\AppData\\Local\\Temp\\vessel-deep-resume-QClxiD\\ps5 S-1-5-21-2537803287-3501312116-2249498222-183:(OI)(CI)(M)\n                                                                   USER\\CodexSandboxUsers:(I)(OI)(CI)(M)\n                                                                   S-1-5-21-3947725030-4112060225-1420970742-466446691:(I)(OI)(CI)(M)\n                                                                   NT AUTHORITY\\SYSTEM:(I)(OI)(CI)(F)\n                                                                   BUILTIN\\Administrators:(I)(OI)(CI)(F)\n                                                                   USER\\user:(I)(OI)(CI)(F)\n                                                                   Mandatory Label\\Low Mandatory Level:(OI)(CI)(NW)\n\n已成功处理 1 个文件; 处理 0 个文件时失败\r\n",
+    "stderr": "",
+    "stdoutBase64": "QzpcVXNlcnNcU0FUQU5DfjFcQXBwRGF0YVxMb2NhbFxUZW1wXHZlc3NlbC1kZWVwLXJlc3VtZS1RQ2x4aURccHM1IFMtMS01LTIxLTI1Mzc4MDMyODctMzUwMTMxMjExNi0yMjQ5NDk4MjIyLTE4MzooT0kpKENJKShNKQogICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgU0FUQU5DSEVOXENvZGV4U2FuZGJveFVzZXJzOihJKShPSSkoQ0kpKE0pCiAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICBTLTEtNS0yMS0zOTQ3NzI1MDMwLTQxMTIwNjAyMjUtMTQyMDk3MDc0Mi00NjY0NDY2OTE6KEkpKE9JKShDSSkoTSkKICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIE5UIEFVVEhPUklUWVxTWVNURU06KEkpKE9JKShDSSkoRikKICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIEJVSUxUSU5cQWRtaW5pc3RyYXRvcnM6KEkpKE9JKShDSSkoRikKICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIFNBVEFOQ0hFTlxTYXRhbmNoZW46KEkpKE9JKShDSSkoRikKICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIE1hbmRhdG9yeSBMYWJlbFxMb3cgTWFuZGF0b3J5IExldmVsOihPSSkoQ0kpKE5XKQoK0tGzybmmtKbA7SAxILj2zsS8/jsgtKbA7SAwILj2zsS8/sqxyqew3A0K",
+    "stderrBase64": ""
+  },
+  {
+    "command": "powershell.exe",
+    "args": [
+      "-NoProfile",
+      "-ExecutionPolicy",
+      "Bypass",
+      "-File",
+      "E:\\Code_file\\Projects\\Vessel_Harness\\scripts\\provision-sandbox.ps1",
+      "-Path",
+      "C:\\work\\AppData\\Local\\Temp\\vessel-deep-resume-QClxiD\\ps5",
+      "-Revoke"
+    ],
+    "exitCode": 0,
+    "stdout": "workspace : C:\\work\\AppData\\Local\\Temp\\vessel-deep-resume-QClxiD\\ps5\nsandbox SID: S-1-5-21-2537803287-3501312116-2249498222-183 (removed=True)\nlow label  : False\nrevoked sandbox preparation from C:\\work\\AppData\\Local\\Temp\\vessel-deep-resume-QClxiD\\ps5 (SID S-1-5-21-2537803287-3501312116-2249498222-183)\n",
+    "stderr": "",
+    "stdoutBase64": "d29ya3NwYWNlIDogQzpcVXNlcnNcU0FUQU5DfjFcQXBwRGF0YVxMb2NhbFxUZW1wXHZlc3NlbC1kZWVwLXJlc3VtZS1RQ2x4aURccHM1CnNhbmRib3ggU0lEOiBTLTEtNS0yMS0yNTM3ODAzMjg3LTM1MDEzMTIxMTYtMjI0OTQ5ODIyMi0xODMgKHJlbW92ZWQ9VHJ1ZSkKbG93IGxhYmVsICA6IEZhbHNlCnJldm9rZWQgc2FuZGJveCBwcmVwYXJhdGlvbiBmcm9tIEM6XFVzZXJzXFNBVEFOQ34xXEFwcERhdGFcTG9jYWxcVGVtcFx2ZXNzZWwtZGVlcC1yZXN1bWUtUUNseGlEXHBzNSAoU0lEIFMtMS01LTIxLTI1Mzc4MDMyODctMzUwMTMxMjExNi0yMjQ5NDk4MjIyLTE4MykK",
+    "stderrBase64": ""
+  },
+  {
+    "command": "icacls.exe",
+    "args": [
+      "C:\\work\\AppData\\Local\\Temp\\vessel-deep-resume-QClxiD\\ps5"
+    ],
+    "exitCode": 0,
+    "stdout": "C:\\work\\AppData\\Local\\Temp\\vessel-deep-resume-QClxiD\\ps5 USER\\CodexSandboxUsers:(I)(OI)(CI)(M)\n                                                                   S-1-5-21-3947725030-4112060225-1420970742-466446691:(I)(OI)(CI)(M)\n                                                                   NT AUTHORITY\\SYSTEM:(I)(OI)(CI)(F)\n                                                                   BUILTIN\\Administrators:(I)(OI)(CI)(F)\n                                                                   USER\\user:(I)(OI)(CI)(F)\n                                                                   Mandatory Label\\Medium Mandatory Level:(OI)(CI)(NW)\n\n已成功处理 1 个文件; 处理 0 个文件时失败\r\n",
+    "stderr": "",
+    "stdoutBase64": "QzpcVXNlcnNcU0FUQU5DfjFcQXBwRGF0YVxMb2NhbFxUZW1wXHZlc3NlbC1kZWVwLXJlc3VtZS1RQ2x4aURccHM1IFNBVEFOQ0hFTlxDb2RleFNhbmRib3hVc2VyczooSSkoT0kpKENJKShNKQogICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgUy0xLTUtMjEtMzk0NzcyNTAzMC00MTEyMDYwMjI1LTE0MjA5NzA3NDItNDY2NDQ2NjkxOihJKShPSSkoQ0kpKE0pCiAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICBOVCBBVVRIT1JJVFlcU1lTVEVNOihJKShPSSkoQ0kpKEYpCiAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICBCVUlMVElOXEFkbWluaXN0cmF0b3JzOihJKShPSSkoQ0kpKEYpCiAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICBTQVRBTkNIRU5cU2F0YW5jaGVuOihJKShPSSkoQ0kpKEYpCiAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICBNYW5kYXRvcnkgTGFiZWxcTWVkaXVtIE1hbmRhdG9yeSBMZXZlbDooT0kpKENJKShOVykKCtLRs8m5prSmwO0gMSC49s7EvP47ILSmwO0gMCC49s7EvP7KscqnsNwNCg==",
+    "stderrBase64": ""
+  },
+  {
+    "command": "pwsh.exe",
+    "args": [
+      "-NoProfile",
+      "-ExecutionPolicy",
+      "Bypass",
+      "-File",
+      "E:\\Code_file\\Projects\\Vessel_Harness\\scripts\\provision-sandbox.ps1",
+      "-Path",
+      "C:\\work\\AppData\\Local\\Temp\\vessel-deep-resume-QClxiD\\ps7 space"
+    ],
+    "exitCode": 0,
+    "stdout": "workspace : C:\\work\\AppData\\Local\\Temp\\vessel-deep-resume-QClxiD\\ps7 space\nsandbox SID: S-1-5-21-1671495670-1330957329-3335588843-183 (granted=True)\nlow label  : True\ndone - Shell under a full-access session can now use the restricted sandbox here.\n",
+    "stderr": "",
+    "stdoutBase64": "d29ya3NwYWNlIDogQzpcVXNlcnNcU0FUQU5DfjFcQXBwRGF0YVxMb2NhbFxUZW1wXHZlc3NlbC1kZWVwLXJlc3VtZS1RQ2x4aURccHM3IHNwYWNlCnNhbmRib3ggU0lEOiBTLTEtNS0yMS0xNjcxNDk1NjcwLTEzMzA5NTczMjktMzMzNTU4ODg0My0xODMgKGdyYW50ZWQ9VHJ1ZSkKbG93IGxhYmVsICA6IFRydWUKZG9uZSAtIFNoZWxsIHVuZGVyIGEgZnVsbC1hY2Nlc3Mgc2Vzc2lvbiBjYW4gbm93IHVzZSB0aGUgcmVzdHJpY3RlZCBzYW5kYm94IGhlcmUuCg==",
+    "stderrBase64": ""
+  },
+  {
+    "command": "icacls.exe",
+    "args": [
+      "C:\\work\\AppData\\Local\\Temp\\vessel-deep-resume-QClxiD\\ps7 space"
+    ],
+    "exitCode": 0,
+    "stdout": "C:\\work\\AppData\\Local\\Temp\\vessel-deep-resume-QClxiD\\ps7 space S-1-5-21-1671495670-1330957329-3335588843-183:(OI)(CI)(M)\n                                                                         USER\\CodexSandboxUsers:(I)(OI)(CI)(M)\n                                                                         S-1-5-21-3947725030-4112060225-1420970742-466446691:(I)(OI)(CI)(M)\n                                                                         NT AUTHORITY\\SYSTEM:(I)(OI)(CI)(F)\n                                                                         BUILTIN\\Administrators:(I)(OI)(CI)(F)\n                                                                         USER\\user:(I)(OI)(CI)(F)\n                                                                         Mandatory Label\\Low Mandatory Level:(OI)(CI)(NW)\n\n已成功处理 1 个文件; 处理 0 个文件时失败\r\n",
+    "stderr": "",
+    "stdoutBase64": "QzpcVXNlcnNcU0FUQU5DfjFcQXBwRGF0YVxMb2NhbFxUZW1wXHZlc3NlbC1kZWVwLXJlc3VtZS1RQ2x4aURccHM3IHNwYWNlIFMtMS01LTIxLTE2NzE0OTU2NzAtMTMzMDk1NzMyOS0zMzM1NTg4ODQzLTE4MzooT0kpKENJKShNKQogICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgU0FUQU5DSEVOXENvZGV4U2FuZGJveFVzZXJzOihJKShPSSkoQ0kpKE0pCiAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICBTLTEtNS0yMS0zOTQ3NzI1MDMwLTQxMTIwNjAyMjUtMTQyMDk3MDc0Mi00NjY0NDY2OTE6KEkpKE9JKShDSSkoTSkKICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIE5UIEFVVEhPUklUWVxTWVNURU06KEkpKE9JKShDSSkoRikKICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIEJVSUxUSU5cQWRtaW5pc3RyYXRvcnM6KEkpKE9JKShDSSkoRikKICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIFNBVEFOQ0hFTlxTYXRhbmNoZW46KEkpKE9JKShDSSkoRikKICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIE1hbmRhdG9yeSBMYWJlbFxMb3cgTWFuZGF0b3J5IExldmVsOihPSSkoQ0kpKE5XKQoK0tGzybmmtKbA7SAxILj2zsS8/jsgtKbA7SAwILj2zsS8/sqxyqew3A0K",
+    "stderrBase64": ""
+  },
+  {
+    "command": "pwsh.exe",
+    "args": [
+      "-NoProfile",
+      "-ExecutionPolicy",
+      "Bypass",
+      "-File",
+      "E:\\Code_file\\Projects\\Vessel_Harness\\scripts\\provision-sandbox.ps1",
+      "-Path",
+      "C:\\work\\AppData\\Local\\Temp\\vessel-deep-resume-QClxiD\\ps7 space",
+      "-Revoke"
+    ],
+    "exitCode": 0,
+    "stdout": "workspace : C:\\work\\AppData\\Local\\Temp\\vessel-deep-resume-QClxiD\\ps7 space\nsandbox SID: S-1-5-21-1671495670-1330957329-3335588843-183 (removed=True)\nlow label  : False\nrevoked sandbox preparation from C:\\work\\AppData\\Local\\Temp\\vessel-deep-resume-QClxiD\\ps7 space (SID S-1-5-21-1671495670-1330957329-3335588843-183)\n",
+    "stderr": "",
+    "stdoutBase64": "d29ya3NwYWNlIDogQzpcVXNlcnNcU0FUQU5DfjFcQXBwRGF0YVxMb2NhbFxUZW1wXHZlc3NlbC1kZWVwLXJlc3VtZS1RQ2x4aURccHM3IHNwYWNlCnNhbmRib3ggU0lEOiBTLTEtNS0yMS0xNjcxNDk1NjcwLTEzMzA5NTczMjktMzMzNTU4ODg0My0xODMgKHJlbW92ZWQ9VHJ1ZSkKbG93IGxhYmVsICA6IEZhbHNlCnJldm9rZWQgc2FuZGJveCBwcmVwYXJhdGlvbiBmcm9tIEM6XFVzZXJzXFNBVEFOQ34xXEFwcERhdGFcTG9jYWxcVGVtcFx2ZXNzZWwtZGVlcC1yZXN1bWUtUUNseGlEXHBzNyBzcGFjZSAoU0lEIFMtMS01LTIxLTE2NzE0OTU2NzAtMTMzMDk1NzMyOS0zMzM1NTg4ODQzLTE4MykK",
+    "stderrBase64": ""
+  },
+  {
+    "command": "icacls.exe",
+    "args": [
+      "C:\\work\\AppData\\Local\\Temp\\vessel-deep-resume-QClxiD\\ps7 space"
+    ],
+    "exitCode": 0,
+    "stdout": "C:\\work\\AppData\\Local\\Temp\\vessel-deep-resume-QClxiD\\ps7 space USER\\CodexSandboxUsers:(I)(OI)(CI)(M)\n                                                                         S-1-5-21-3947725030-4112060225-1420970742-466446691:(I)(OI)(CI)(M)\n                                                                         NT AUTHORITY\\SYSTEM:(I)(OI)(CI)(F)\n                                                                         BUILTIN\\Administrators:(I)(OI)(CI)(F)\n                                                                         USER\\user:(I)(OI)(CI)(F)\n                                                                         Mandatory Label\\Medium Mandatory Level:(OI)(CI)(NW)\n\n已成功处理 1 个文件; 处理 0 个文件时失败\r\n",
+    "stderr": "",
+    "stdoutBase64": "QzpcVXNlcnNcU0FUQU5DfjFcQXBwRGF0YVxMb2NhbFxUZW1wXHZlc3NlbC1kZWVwLXJlc3VtZS1RQ2x4aURccHM3IHNwYWNlIFNBVEFOQ0hFTlxDb2RleFNhbmRib3hVc2VyczooSSkoT0kpKENJKShNKQogICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgUy0xLTUtMjEtMzk0NzcyNTAzMC00MTEyMDYwMjI1LTE0MjA5NzA3NDItNDY2NDQ2NjkxOihJKShPSSkoQ0kpKE0pCiAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICBOVCBBVVRIT1JJVFlcU1lTVEVNOihJKShPSSkoQ0kpKEYpCiAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICBCVUlMVElOXEFkbWluaXN0cmF0b3JzOihJKShPSSkoQ0kpKEYpCiAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICBTQVRBTkNIRU5cU2F0YW5jaGVuOihJKShPSSkoQ0kpKEYpCiAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICBNYW5kYXRvcnkgTGFiZWxcTWVkaXVtIE1hbmRhdG9yeSBMZXZlbDooT0kpKENJKShOVykKCtLRs8m5prSmwO0gMSC49s7EvP47ILSmwO0gMCC49s7EvP7KscqnsNwNCg==",
+    "stderrBase64": ""
+  }
+]

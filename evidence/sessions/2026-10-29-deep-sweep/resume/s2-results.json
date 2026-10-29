@@ -1,0 +1,178 @@
+{
+  "records": [
+    {
+      "kind": "availability",
+      "available": true
+    },
+    {
+      "kind": "provision",
+      "command": "powershell.exe",
+      "args": [
+        "-NoProfile",
+        "-ExecutionPolicy",
+        "Bypass",
+        "-File",
+        "E:\\Code_file\\Projects\\Vessel_Harness\\scripts\\provision-sandbox.ps1",
+        "-Path",
+        "C:\\work\\AppData\\Local\\Temp\\vessel-deep-resume-QClxiD\\sandbox-workspace"
+      ],
+      "exitCode": 0,
+      "stdout": "workspace : C:\\work\\AppData\\Local\\Temp\\vessel-deep-resume-QClxiD\\sandbox-workspace\nsandbox SID: S-1-5-21-1898488365-1874705704-4283515242-183 (granted=True)\nlow label  : True\ndone - Shell under a full-access session can now use the restricted sandbox here.\n",
+      "stderr": ""
+    },
+    {
+      "label": "allowed-write-attempt-1",
+      "command": "D:\\Technology_application\\NVM_Windows\\nodejs\\node.exe",
+      "args": [
+        "-e",
+        "require(\"fs\").writeFileSync(process.argv[1], \"x\")",
+        "C:\\work\\AppData\\Local\\Temp\\vessel-deep-resume-QClxiD\\sandbox-workspace\\in-1.txt"
+      ],
+      "options": {
+        "cwd": "C:\\work\\AppData\\Local\\Temp\\vessel-deep-resume-QClxiD\\sandbox-workspace",
+        "allowedWritePaths": [
+          "C:\\work\\AppData\\Local\\Temp\\vessel-deep-resume-QClxiD\\sandbox-workspace"
+        ],
+        "cpuTimeoutMs": 10000
+      },
+      "result": {
+        "stdout": "",
+        "stderr": "",
+        "exitCode": -1073741502,
+        "sandboxed": true,
+        "isolationTier": "windows-job-restricted",
+        "constraints": {
+          "readOnlyPaths": [],
+          "memoryLimitBytes": 536870912,
+          "privilegeReduction": "Restricted token, Low Integrity, and Job Object confinement. Reads follow host ACLs; write roots require provisioned restricted SID ACLs.",
+          "integrityRid": 4096
+        }
+      },
+      "exists": false,
+      "audit": [
+        {
+          "isolationTier": "windows-job-restricted",
+          "sandboxed": true,
+          "constraints": {
+            "readOnlyPaths": [],
+            "memoryLimitBytes": 536870912,
+            "privilegeReduction": "Restricted token, Low Integrity, and Job Object confinement. Reads follow host ACLs; write roots require provisioned restricted SID ACLs.",
+            "integrityRid": 4096
+          },
+          "outcome": "enforced",
+          "allowedWritePaths": [
+            "C:\\work\\AppData\\Local\\Temp\\vessel-deep-resume-QClxiD\\sandbox-workspace"
+          ]
+        }
+      ]
+    },
+    {
+      "label": "allowed-write-attempt-2",
+      "command": "D:\\Technology_application\\NVM_Windows\\nodejs\\node.exe",
+      "args": [
+        "-e",
+        "require(\"fs\").writeFileSync(process.argv[1], \"x\")",
+        "C:\\work\\AppData\\Local\\Temp\\vessel-deep-resume-QClxiD\\sandbox-workspace\\in-2.txt"
+      ],
+      "options": {
+        "cwd": "C:\\work\\AppData\\Local\\Temp\\vessel-deep-resume-QClxiD\\sandbox-workspace",
+        "allowedWritePaths": [
+          "C:\\work\\AppData\\Local\\Temp\\vessel-deep-resume-QClxiD\\sandbox-workspace"
+        ],
+        "cpuTimeoutMs": 10000
+      },
+      "result": {
+        "stdout": "",
+        "stderr": "",
+        "exitCode": -1073741502,
+        "sandboxed": true,
+        "isolationTier": "windows-job-restricted",
+        "constraints": {
+          "readOnlyPaths": [],
+          "memoryLimitBytes": 536870912,
+          "privilegeReduction": "Restricted token, Low Integrity, and Job Object confinement. Reads follow host ACLs; write roots require provisioned restricted SID ACLs.",
+          "integrityRid": 4096
+        }
+      },
+      "exists": false,
+      "audit": [
+        {
+          "isolationTier": "windows-job-restricted",
+          "sandboxed": true,
+          "constraints": {
+            "readOnlyPaths": [],
+            "memoryLimitBytes": 536870912,
+            "privilegeReduction": "Restricted token, Low Integrity, and Job Object confinement. Reads follow host ACLs; write roots require provisioned restricted SID ACLs.",
+            "integrityRid": 4096
+          },
+          "outcome": "enforced",
+          "allowedWritePaths": [
+            "C:\\work\\AppData\\Local\\Temp\\vessel-deep-resume-QClxiD\\sandbox-workspace"
+          ]
+        }
+      ]
+    },
+    {
+      "kind": "step-stop",
+      "reason": "Two allowed-write attempts failed; do not substitute a mock or passthrough. Move to S3/S4."
+    },
+    {
+      "kind": "revoke",
+      "command": "powershell.exe",
+      "args": [
+        "-NoProfile",
+        "-ExecutionPolicy",
+        "Bypass",
+        "-File",
+        "E:\\Code_file\\Projects\\Vessel_Harness\\scripts\\provision-sandbox.ps1",
+        "-Path",
+        "C:\\work\\AppData\\Local\\Temp\\vessel-deep-resume-QClxiD\\sandbox-workspace",
+        "-Revoke"
+      ],
+      "exitCode": 0,
+      "stdout": "workspace : C:\\work\\AppData\\Local\\Temp\\vessel-deep-resume-QClxiD\\sandbox-workspace\nsandbox SID: S-1-5-21-1898488365-1874705704-4283515242-183 (removed=True)\nlow label  : False\nrevoked sandbox preparation from C:\\work\\AppData\\Local\\Temp\\vessel-deep-resume-QClxiD\\sandbox-workspace (SID S-1-5-21-1898488365-1874705704-4283515242-183)\n",
+      "stderr": ""
+    },
+    {
+      "kind": "final-acl",
+      "command": "icacls.exe",
+      "args": [
+        "C:\\work\\AppData\\Local\\Temp\\vessel-deep-resume-QClxiD\\sandbox-workspace"
+      ],
+      "exitCode": 0,
+      "stdout": "C:\\work\\AppData\\Local\\Temp\\vessel-deep-resume-QClxiD\\sandbox-workspace USER\\CodexSandboxUsers:(I)(OI)(CI)(M)\n                                                                                 S-1-5-21-3947725030-4112060225-1420970742-466446691:(I)(OI)(CI)(M)\n                                                                                 NT AUTHORITY\\SYSTEM:(I)(OI)(CI)(F)\n                                                                                 BUILTIN\\Administrators:(I)(OI)(CI)(F)\n                                                                                 USER\\user:(I)(OI)(CI)(F)\n                                                                                 Mandatory Label\\Medium Mandatory Level:(OI)(CI)(NW)\n\n已成功处理 1 个文件; 处理 0 个文件时失败\r\n",
+      "stdoutBase64": "QzpcVXNlcnNcU0FUQU5DfjFcQXBwRGF0YVxMb2NhbFxUZW1wXHZlc3NlbC1kZWVwLXJlc3VtZS1RQ2x4aURcc2FuZGJveC13b3Jrc3BhY2UgU0FUQU5DSEVOXENvZGV4U2FuZGJveFVzZXJzOihJKShPSSkoQ0kpKE0pCiAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIFMtMS01LTIxLTM5NDc3MjUwMzAtNDExMjA2MDIyNS0xNDIwOTcwNzQyLTQ2NjQ0NjY5MTooSSkoT0kpKENJKShNKQogICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICBOVCBBVVRIT1JJVFlcU1lTVEVNOihJKShPSSkoQ0kpKEYpCiAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIEJVSUxUSU5cQWRtaW5pc3RyYXRvcnM6KEkpKE9JKShDSSkoRikKICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgU0FUQU5DSEVOXFNhdGFuY2hlbjooSSkoT0kpKENJKShGKQogICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICBNYW5kYXRvcnkgTGFiZWxcTWVkaXVtIE1hbmRhdG9yeSBMZXZlbDooT0kpKENJKShOVykKCtLRs8m5prSmwO0gMSC49s7EvP47ILSmwO0gMCC49s7EvP7KscqnsNwNCg==",
+      "stderrBase64": ""
+    }
+  ],
+  "audit": [
+    {
+      "isolationTier": "windows-job-restricted",
+      "sandboxed": true,
+      "constraints": {
+        "readOnlyPaths": [],
+        "memoryLimitBytes": 536870912,
+        "privilegeReduction": "Restricted token, Low Integrity, and Job Object confinement. Reads follow host ACLs; write roots require provisioned restricted SID ACLs.",
+        "integrityRid": 4096
+      },
+      "outcome": "enforced",
+      "allowedWritePaths": [
+        "C:\\work\\AppData\\Local\\Temp\\vessel-deep-resume-QClxiD\\sandbox-workspace"
+      ]
+    },
+    {
+      "isolationTier": "windows-job-restricted",
+      "sandboxed": true,
+      "constraints": {
+        "readOnlyPaths": [],
+        "memoryLimitBytes": 536870912,
+        "privilegeReduction": "Restricted token, Low Integrity, and Job Object confinement. Reads follow host ACLs; write roots require provisioned restricted SID ACLs.",
+        "integrityRid": 4096
+      },
+      "outcome": "enforced",
+      "allowedWritePaths": [
+        "C:\\work\\AppData\\Local\\Temp\\vessel-deep-resume-QClxiD\\sandbox-workspace"
+      ]
+    }
+  ]
+}

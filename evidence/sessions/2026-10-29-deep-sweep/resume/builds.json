@@ -1,0 +1,31 @@
+{
+  "source": "Observed command results from this resumed turn; these are not new test executions.",
+  "checks": [
+    {
+      "command": "npx tsc -b tsconfig.json",
+      "exitCode": 0
+    },
+    {
+      "command": "npm run -w @vessel/web build",
+      "exitCode": 0,
+      "warning": "Chunk >500 kB; build succeeded."
+    }
+  ],
+  "assets": [
+    {
+      "path": "apps/web/dist/index.html",
+      "mtime": "2026-10-29T09:10:27.028Z",
+      "sha256": "224e00e18394074465cd727d054fb62856377c9b4ef5b55208a9d330c944af37"
+    },
+    {
+      "path": "apps/web/dist/assets/index-CXJPjUxG.js",
+      "mtime": "2026-10-29T09:10:27.027Z",
+      "sha256": "5eafbe9e21b362610233d768a7c9eba111ddab2e03ded88f2066c411dc0ca4c1"
+    },
+    {
+      "path": "apps/web/dist/assets/index-WPay7jgN.css",
+      "mtime": "2026-10-29T09:10:27.028Z",
+      "sha256": "15eaee0667ecf8fdf2be3c00ff315cff1479f157c41341b4032c51ee2f59c081"
+    }
+  ]
+}

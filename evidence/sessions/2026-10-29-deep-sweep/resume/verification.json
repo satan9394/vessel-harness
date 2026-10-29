@@ -1,0 +1,168 @@
+{
+  "checkedAt": "2026-10-29T09:30:17.020Z",
+  "deliveryIntegrityPass": true,
+  "scriptOnlyRelaunchAdded": true,
+  "scriptSha256": "904c901d59a15bfdc2c46a52d4ebafd0a9ee2884a8a1de0f5e8ee1b3ec26fa7e",
+  "docOnlySupportSentenceAdded": true,
+  "cards": [
+    {
+      "path": "tasks/180-os-native-sandboxing-and-restricted-tokens.md",
+      "preservedPreviousBytes": true,
+      "originalHeadPrefixPreserved": true,
+      "firstLineUnchanged": true,
+      "addedBytes": 586
+    },
+    {
+      "path": "tasks/183-epic-hardened-runtime-and-cognitive-memory.md",
+      "preservedPreviousBytes": true,
+      "originalHeadPrefixPreserved": true,
+      "firstLineUnchanged": true,
+      "addedBytes": 530
+    },
+    {
+      "path": "tasks/176-headless-daemon-and-tray-resilience.md",
+      "preservedPreviousBytes": true,
+      "originalHeadPrefixPreserved": true,
+      "firstLineUnchanged": true,
+      "addedBytes": 640
+    },
+    {
+      "path": "tasks/260-browser-runtime-acceptance.md",
+      "preservedPreviousBytes": true,
+      "originalHeadPrefixPreserved": true,
+      "firstLineUnchanged": true,
+      "addedBytes": 654
+    },
+    {
+      "path": "tasks/275-ui-final-acceptance.md",
+      "preservedPreviousBytes": true,
+      "originalHeadPrefixPreserved": true,
+      "firstLineUnchanged": true,
+      "addedBytes": 546
+    }
+  ],
+  "s1Pass": true,
+  "s2FailureRecorded": true,
+  "s2Stopped": true,
+  "actualToastHistory": true,
+  "registryResultRecorded": true,
+  "captureChecks": [
+    {
+      "file": "s260-zoom150-960x600.png",
+      "png": true,
+      "width": 960,
+      "height": 600,
+      "expectedSize": [
+        960,
+        600
+      ]
+    },
+    {
+      "file": "s260-zoom200-720x450.png",
+      "png": true,
+      "width": 720,
+      "height": 450,
+      "expectedSize": [
+        720,
+        450
+      ]
+    },
+    {
+      "file": "s260-zoom150-sidebar.png",
+      "png": true,
+      "width": 960,
+      "height": 600,
+      "expectedSize": [
+        960,
+        600
+      ]
+    },
+    {
+      "file": "s260-zoom200-sidebar.png",
+      "png": true,
+      "width": 720,
+      "height": 450,
+      "expectedSize": [
+        720,
+        450
+      ]
+    }
+  ],
+  "layoutPass": true,
+  "titleHits": true,
+  "consoleErrorCount": 0,
+  "cleanupPass": true,
+  "scopePass": true,
+  "changedPaths": [
+    "docs/SANDBOX-WINDOWS.md",
+    "scripts/provision-sandbox.ps1",
+    "tasks/176-headless-daemon-and-tray-resilience.md",
+    "tasks/180-os-native-sandboxing-and-restricted-tokens.md",
+    "tasks/183-epic-hardened-runtime-and-cognitive-memory.md",
+    "tasks/260-browser-runtime-acceptance.md",
+    "tasks/275-ui-final-acceptance.md",
+    "evidence/sessions/2026-10-29-deep-sweep/authoring-errors.json",
+    "evidence/sessions/2026-10-29-deep-sweep/baseline.json",
+    "evidence/sessions/2026-10-29-deep-sweep/cleanup.json",
+    "evidence/sessions/2026-10-29-deep-sweep/final-acls.json",
+    "evidence/sessions/2026-10-29-deep-sweep/initial-stop-manifest.json",
+    "evidence/sessions/2026-10-29-deep-sweep/initial-stop-report.md",
+    "evidence/sessions/2026-10-29-deep-sweep/inspection.json",
+    "evidence/sessions/2026-10-29-deep-sweep/manifest.json",
+    "evidence/sessions/2026-10-29-deep-sweep/ps5-metadata.json",
+    "evidence/sessions/2026-10-29-deep-sweep/report.md",
+    "evidence/sessions/2026-10-29-deep-sweep/resume/browser-cleanup.json",
+    "evidence/sessions/2026-10-29-deep-sweep/resume/builds.json",
+    "evidence/sessions/2026-10-29-deep-sweep/resume/card-baselines.json",
+    "evidence/sessions/2026-10-29-deep-sweep/resume/cleanup.json",
+    "evidence/sessions/2026-10-29-deep-sweep/resume/corner.png",
+    "evidence/sessions/2026-10-29-deep-sweep/resume/daemon-meta.json",
+    "evidence/sessions/2026-10-29-deep-sweep/resume/daemon-processes.json",
+    "evidence/sessions/2026-10-29-deep-sweep/resume/daemon-start.json",
+    "evidence/sessions/2026-10-29-deep-sweep/resume/daemon-stop.json",
+    "evidence/sessions/2026-10-29-deep-sweep/resume/final-acls.json",
+    "evidence/sessions/2026-10-29-deep-sweep/resume/helper-sources.json",
+    "evidence/sessions/2026-10-29-deep-sweep/resume/orchestration-errors.json",
+    "evidence/sessions/2026-10-29-deep-sweep/resume/registry-after-command.json",
+    "evidence/sessions/2026-10-29-deep-sweep/resume/registry-after.json",
+    "evidence/sessions/2026-10-29-deep-sweep/resume/registry-before-command.json",
+    "evidence/sessions/2026-10-29-deep-sweep/resume/registry-before.json",
+    "evidence/sessions/2026-10-29-deep-sweep/resume/registry-diff.json",
+    "evidence/sessions/2026-10-29-deep-sweep/resume/registry-stopped-command.json",
+    "evidence/sessions/2026-10-29-deep-sweep/resume/registry-stopped.json",
+    "evidence/sessions/2026-10-29-deep-sweep/resume/run.json",
+    "evidence/sessions/2026-10-29-deep-sweep/resume/s1-results.json",
+    "evidence/sessions/2026-10-29-deep-sweep/resume/s2-results.json",
+    "evidence/sessions/2026-10-29-deep-sweep/resume/s260-zoom150-960x600.png",
+    "evidence/sessions/2026-10-29-deep-sweep/resume/s260-zoom150-sidebar.png",
+    "evidence/sessions/2026-10-29-deep-sweep/resume/s260-zoom200-720x450.png",
+    "evidence/sessions/2026-10-29-deep-sweep/resume/s260-zoom200-sidebar.png",
+    "evidence/sessions/2026-10-29-deep-sweep/resume/s3-http.jsonl",
+    "evidence/sessions/2026-10-29-deep-sweep/resume/s4-conversation150.json",
+    "evidence/sessions/2026-10-29-deep-sweep/resume/s4-conversation200.json",
+    "evidence/sessions/2026-10-29-deep-sweep/resume/s4-seed.json",
+    "evidence/sessions/2026-10-29-deep-sweep/resume/s4-sidebar150.json",
+    "evidence/sessions/2026-10-29-deep-sweep/resume/s4-sidebar200.json",
+    "evidence/sessions/2026-10-29-deep-sweep/resume/screenshots.json",
+    "evidence/sessions/2026-10-29-deep-sweep/resume/script-diff.patch",
+    "evidence/sessions/2026-10-29-deep-sweep/resume/serve-meta.json",
+    "evidence/sessions/2026-10-29-deep-sweep/resume/toast-after-completion.png",
+    "evidence/sessions/2026-10-29-deep-sweep/resume/toast-capture.json",
+    "evidence/sessions/2026-10-29-deep-sweep/resume/toast-history-command.json",
+    "evidence/sessions/2026-10-29-deep-sweep/resume/toast-history.json",
+    "evidence/sessions/2026-10-29-deep-sweep/resume/tray.png",
+    "evidence/sessions/2026-10-29-deep-sweep/rollback.json",
+    "evidence/sessions/2026-10-29-deep-sweep/s1-attempt.patch",
+    "evidence/sessions/2026-10-29-deep-sweep/s1-results.json",
+    "evidence/sessions/2026-10-29-deep-sweep/verification.json"
+  ],
+  "diffCheck": {
+    "command": "git diff --check",
+    "exitCode": 0,
+    "stdout": "",
+    "stderr": "warning: in the working copy of 'scripts/provision-sandbox.ps1', LF will be replaced by CRLF the next time Git touches it\n"
+  },
+  "head": "cd0142b3b33986d5ad10f99922c360d2008e51b4",
+  "productSandboxAccepted": false,
+  "wholeCardsAccepted": false
+}

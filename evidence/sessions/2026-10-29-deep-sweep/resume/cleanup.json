@@ -1,0 +1,12 @@
+{
+  "trayStartedPid": 4652,
+  "observedAt": "2026-10-29T09:22:31.3717843Z",
+  "portsChecked": [
+    5678,
+    5700
+  ],
+  "serverStopped": true,
+  "listeners": 0,
+  "daemonStartedPid": 11804,
+  "remainingOwnedPids": []
+}

@@ -1,0 +1,17 @@
+[
+  {
+    "path": "packages/tools/src/execution/sandbox/windowsRestricted.ts",
+    "sha256": "bae99ea160ce45bae73de0bc10f3b814c855686a5e0769375b1842fbf1cab98a",
+    "matchesHead": true
+  },
+  {
+    "path": "packages/tools/src/execution/sandbox/windowsRestrictedSource.ts",
+    "sha256": "ff3ddc1f59972a50852d9063c265db1872a1a22cac50c4895300d5f69a2aa194",
+    "matchesHead": false
+  },
+  {
+    "path": "packages/tools/src/execution/sandbox/platformSandbox.ts",
+    "sha256": "0bcf82e974f847717633504274f82d64762982a651b1619d8f98ca55824e71a7",
+    "matchesHead": true
+  }
+]

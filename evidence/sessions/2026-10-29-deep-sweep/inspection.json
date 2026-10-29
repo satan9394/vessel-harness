@@ -1,0 +1,13 @@
+{
+  "command": "pwsh.exe",
+  "args": [
+    "-NoProfile",
+    "-File",
+    "C:\\work\\AppData\\Local\\Temp\\vessel-deep-sweep-kYFWsO\\inspect-closeout.ps1",
+    "-Root",
+    "C:/work/AppData/Local/Temp/vessel-deep-sweep-kYFWsO"
+  ],
+  "exitCode": 0,
+  "stdout": "{\r\n  \"shellVersion\": \"7.6.5\",\r\n  \"sddlPropertyAvailable\": false,\r\n  \"accessPropertyAvailable\": false,\r\n  \"accessRulesViaMethod\": 5,\r\n  \"sddlViaMethod\": \"D:AI(A;OICIID;0x1301bf;;;S-1-5-21-1866984205-3748508198-824681690-1009)(A;OICIID;0x1301bf;;;S-1-5-21-3947725030-4112060225-1420970742-466446691)(A;OICIID;FA;;;SY)(A;OICIID;FA;;;BA)(A;OICIID;FA;;;S-1-5-21-1866984205-3748508198-824681690-1002)\",\r\n  \"listening5678or5173\": 0,\r\n  \"matchingCliDaemons\": 0,\r\n  \"observedAt\": \"2026-10-29T08:59:34.1397727Z\"\r\n}\r\n",
+  "stderr": ""
+}

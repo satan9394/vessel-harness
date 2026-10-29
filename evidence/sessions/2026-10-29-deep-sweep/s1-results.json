@@ -1,0 +1,100 @@
+[
+  {
+    "command": "powershell.exe",
+    "args": [
+      "-NoProfile",
+      "-ExecutionPolicy",
+      "Bypass",
+      "-File",
+      "E:\\Code_file\\Projects\\Vessel_Harness\\scripts\\provision-sandbox.ps1",
+      "-Path",
+      "C:\\work\\AppData\\Local\\Temp\\vessel-deep-sweep-kYFWsO\\ps5"
+    ],
+    "exitCode": 0,
+    "stdout": "workspace : C:\\work\\AppData\\Local\\Temp\\vessel-deep-sweep-kYFWsO\\ps5\nsandbox SID: S-1-5-21-455781120-802476142-2444903493-183 (granted=True)\nlow label  : True\ndone - Shell under a full-access session can now use the restricted sandbox here.\n",
+    "stderr": ""
+  },
+  {
+    "command": "icacls.exe",
+    "args": [
+      "C:\\work\\AppData\\Local\\Temp\\vessel-deep-sweep-kYFWsO\\ps5"
+    ],
+    "exitCode": 0,
+    "stdout": "C:\\work\\AppData\\Local\\Temp\\vessel-deep-sweep-kYFWsO\\ps5 S-1-5-21-455781120-802476142-2444903493-183:(OI)(CI)(M)\n                                                                  USER\\CodexSandboxUsers:(I)(OI)(CI)(M)\n                                                                  S-1-5-21-3947725030-4112060225-1420970742-466446691:(I)(OI)(CI)(M)\n                                                                  NT AUTHORITY\\SYSTEM:(I)(OI)(CI)(F)\n                                                                  BUILTIN\\Administrators:(I)(OI)(CI)(F)\n                                                                  USER\\user:(I)(OI)(CI)(F)\n                                                                  Mandatory Label\\Low Mandatory Level:(OI)(CI)(NW)\n\n�ѳɹ����� 1 ���ļ�; ���� 0 ���ļ�ʱʧ��\r\n",
+    "stderr": ""
+  },
+  {
+    "command": "powershell.exe",
+    "args": [
+      "-NoProfile",
+      "-ExecutionPolicy",
+      "Bypass",
+      "-File",
+      "E:\\Code_file\\Projects\\Vessel_Harness\\scripts\\provision-sandbox.ps1",
+      "-Path",
+      "C:\\work\\AppData\\Local\\Temp\\vessel-deep-sweep-kYFWsO\\ps5",
+      "-Revoke"
+    ],
+    "exitCode": 0,
+    "stdout": "workspace : C:\\work\\AppData\\Local\\Temp\\vessel-deep-sweep-kYFWsO\\ps5\nsandbox SID: S-1-5-21-455781120-802476142-2444903493-183 (removed=True)\nlow label  : False\nrevoked sandbox preparation from C:\\work\\AppData\\Local\\Temp\\vessel-deep-sweep-kYFWsO\\ps5 (SID S-1-5-21-455781120-802476142-2444903493-183)\n",
+    "stderr": ""
+  },
+  {
+    "command": "icacls.exe",
+    "args": [
+      "C:\\work\\AppData\\Local\\Temp\\vessel-deep-sweep-kYFWsO\\ps5"
+    ],
+    "exitCode": 0,
+    "stdout": "C:\\work\\AppData\\Local\\Temp\\vessel-deep-sweep-kYFWsO\\ps5 USER\\CodexSandboxUsers:(I)(OI)(CI)(M)\n                                                                  S-1-5-21-3947725030-4112060225-1420970742-466446691:(I)(OI)(CI)(M)\n                                                                  NT AUTHORITY\\SYSTEM:(I)(OI)(CI)(F)\n                                                                  BUILTIN\\Administrators:(I)(OI)(CI)(F)\n                                                                  USER\\user:(I)(OI)(CI)(F)\n                                                                  Mandatory Label\\Medium Mandatory Level:(OI)(CI)(NW)\n\n�ѳɹ����� 1 ���ļ�; ���� 0 ���ļ�ʱʧ��\r\n",
+    "stderr": ""
+  },
+  {
+    "command": "pwsh.exe",
+    "args": [
+      "-NoProfile",
+      "-ExecutionPolicy",
+      "Bypass",
+      "-File",
+      "E:\\Code_file\\Projects\\Vessel_Harness\\scripts\\provision-sandbox.ps1",
+      "-Path",
+      "C:\\work\\AppData\\Local\\Temp\\vessel-deep-sweep-kYFWsO\\ps7"
+    ],
+    "exitCode": 1,
+    "stdout": "",
+    "stderr": "provision-sandbox.ps1: You cannot call a method on a null-valued expression.\r\n"
+  },
+  {
+    "command": "icacls.exe",
+    "args": [
+      "C:\\work\\AppData\\Local\\Temp\\vessel-deep-sweep-kYFWsO\\ps7"
+    ],
+    "exitCode": 0,
+    "stdout": "C:\\work\\AppData\\Local\\Temp\\vessel-deep-sweep-kYFWsO\\ps7 S-1-5-21-2327723602-1634786665-4276103583-183:(OI)(CI)(M)\n                                                                  USER\\CodexSandboxUsers:(I)(OI)(CI)(M)\n                                                                  S-1-5-21-3947725030-4112060225-1420970742-466446691:(I)(OI)(CI)(M)\n                                                                  NT AUTHORITY\\SYSTEM:(I)(OI)(CI)(F)\n                                                                  BUILTIN\\Administrators:(I)(OI)(CI)(F)\n                                                                  USER\\user:(I)(OI)(CI)(F)\n                                                                  Mandatory Label\\Low Mandatory Level:(OI)(CI)(NW)\n\n�ѳɹ����� 1 ���ļ�; ���� 0 ���ļ�ʱʧ��\r\n",
+    "stderr": ""
+  },
+  {
+    "command": "pwsh.exe",
+    "args": [
+      "-NoProfile",
+      "-ExecutionPolicy",
+      "Bypass",
+      "-File",
+      "E:\\Code_file\\Projects\\Vessel_Harness\\scripts\\provision-sandbox.ps1",
+      "-Path",
+      "C:\\work\\AppData\\Local\\Temp\\vessel-deep-sweep-kYFWsO\\ps7",
+      "-Revoke"
+    ],
+    "exitCode": 1,
+    "stdout": "",
+    "stderr": "provision-sandbox.ps1: You cannot call a method on a null-valued expression.\r\n"
+  },
+  {
+    "command": "icacls.exe",
+    "args": [
+      "C:\\work\\AppData\\Local\\Temp\\vessel-deep-sweep-kYFWsO\\ps7"
+    ],
+    "exitCode": 0,
+    "stdout": "C:\\work\\AppData\\Local\\Temp\\vessel-deep-sweep-kYFWsO\\ps7 S-1-5-21-2327723602-1634786665-4276103583-183:(OI)(CI)(M)\n                                                                  USER\\CodexSandboxUsers:(I)(OI)(CI)(M)\n                                                                  S-1-5-21-3947725030-4112060225-1420970742-466446691:(I)(OI)(CI)(M)\n                                                                  NT AUTHORITY\\SYSTEM:(I)(OI)(CI)(F)\n                                                                  BUILTIN\\Administrators:(I)(OI)(CI)(F)\n                                                                  USER\\user:(I)(OI)(CI)(F)\n                                                                  Mandatory Label\\Medium Mandatory Level:(OI)(CI)(NW)\n\n�ѳɹ����� 1 ���ļ�; ���� 0 ���ļ�ʱʧ��\r\n",
+    "stderr": ""
+  }
+]

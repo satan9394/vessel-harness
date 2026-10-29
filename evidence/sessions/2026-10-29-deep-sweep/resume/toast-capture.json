@@ -1,0 +1,20 @@
+{
+  "command": "D:/Technology_application/ffmpeg_all/ffmpeg/bin/ffmpeg.exe",
+  "args": [
+    "-hide_banner",
+    "-loglevel",
+    "error",
+    "-f",
+    "gdigrab",
+    "-i",
+    "desktop",
+    "-frames:v",
+    "1",
+    "-y",
+    "C:\\work\\AppData\\Local\\Temp\\vessel-deep-resume-QClxiD\\toast-after-completion.png"
+  ],
+  "exitCode": 0,
+  "stdout": "",
+  "stderr": "",
+  "observedAt": "2026-10-29T09:13:50.367Z"
+}

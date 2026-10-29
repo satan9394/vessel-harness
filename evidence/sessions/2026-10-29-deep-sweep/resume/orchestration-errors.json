@@ -1,0 +1,28 @@
+[
+  {
+    "phase": "S1 TEMP harness setup, before gate execution",
+    "commandPreview": "node -e \"... fs.writeFileSync(dst,fs.readFileSync(src,'utf8').replace(...)) ...\"; node C:\\work\\AppData\\Local\\Temp\\vessel-deep-resume-QClxiD\\s1-proof.cjs",
+    "exitCode": 1,
+    "stderrExcerpt": "SyntaxError: Invalid or unexpected token; Expected unicode escape; MODULE_NOT_FOUND",
+    "outcome": "Saved the harness with the editing tool; the single actual S1 gate then passed."
+  },
+  {
+    "phase": "S2 TEMP script import, before runner call",
+    "command": "node --import tsx C:\\work\\AppData\\Local\\Temp\\vessel-deep-resume-QClxiD\\s2-proof.mts",
+    "exitCode": 1,
+    "stderrExcerpt": "Error [ERR_UNSUPPORTED_ESM_URL_SCHEME]: Only URLs with a scheme in: file, data, and node are supported by the default ESM loader. On Windows, absolute paths must be valid file:// URLs. Received protocol 'e:'",
+    "outcome": "Changed only the TEMP import to file:///E:/...; actual runner results preserved separately."
+  },
+  {
+    "phase": "Browser documentation lookup",
+    "command": "nodeRepl.write(await (await browser.capabilities.get('viewport')).documentation()); nodeRepl.write(await agent.documentation.get('local-web-development')); nodeRepl.write(await agent.documentation.get('screenshots')); nodeRepl.write(await tab.playwright.domSnapshot());",
+    "error": "browser is not defined",
+    "outcome": "Bound the already-selected browser ID 2; no UI action happened in the failed call."
+  },
+  {
+    "phase": "Combined serve launch and absent-PID check",
+    "command": "node C:\\work\\AppData\\Local\\Temp\\vessel-deep-resume-QClxiD\\control.cjs serve; Get-NetTCPConnection -State Listen -ErrorAction SilentlyContinue | Where-Object { $_.LocalPort -eq 5700 } | Select-Object LocalPort,OwningProcess; Get-Process -Id 11804,4652 -ErrorAction SilentlyContinue | Select-Object Id,ProcessName",
+    "exitCode": 1,
+    "outcome": "Serve started as PID 10936; the last command found the already-stopped PIDs absent. Real subsequent API calls passed; final explicit cleanup counts are authoritative."
+  }
+]

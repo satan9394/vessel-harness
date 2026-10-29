@@ -1,0 +1,11 @@
+{
+  "command": "powershell.exe",
+  "args": [
+    "-NoProfile",
+    "-Command",
+    "[pscustomobject]@{ shellVersion = $PSVersionTable.PSVersion.ToString(); extensionTypeAvailable = $null -ne ('System.IO.FileSystemAclExtensions' -as [type]) } | ConvertTo-Json"
+  ],
+  "exitCode": 0,
+  "stdout": "{\r\n    \"shellVersion\":  \"5.1.26100.9711\",\r\n    \"extensionTypeAvailable\":  false\r\n}\r\n",
+  "stderr": ""
+}

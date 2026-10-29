@@ -1,0 +1,31 @@
+diff --git a/docs/SANDBOX-WINDOWS.md b/docs/SANDBOX-WINDOWS.md
+index 61981ed..7d9b9ea 100644
+--- a/docs/SANDBOX-WINDOWS.md
++++ b/docs/SANDBOX-WINDOWS.md
+@@ -20,6 +20,8 @@ npx vitest run packages/tools/src/execution/sandbox/windowsRestricted.test.ts pa
+ 
+ 测试使用本地 Mock 验证参数、ACL 缺失拒绝、挂载、取消、探测/执行差异和持久审计；不修改本机权限，也不调用外部 Agent。实机 helper 编译可单独验证，而真实写权限隔离须在维护者预配置的目录验收。
+ 
++`scripts/provision-sandbox.ps1` 支持 Windows PowerShell 5.1 与 PowerShell 7（pwsh）；pwsh 7 会保留参数转调系统 Windows PowerShell 5.1 完成配置或 `-Revoke` 撤销。
++
+ > 状态：任务 071（Job Object 后端）+ 072（process-tree confinement）交付
+ > 关联：`packages/runtime/src/sandbox/`、`packages/runtime/src/process/Process.ts`、路线文档 §13.1–13.3
+ > 本文档描述 071/072 落地后的**真实能力**与**诚实限制**——不宣称"看起来启用、实际 passthrough"（§13.3）。
+diff --git a/scripts/provision-sandbox.ps1 b/scripts/provision-sandbox.ps1
+index 51b6138..c5ec754 100644
+--- a/scripts/provision-sandbox.ps1
++++ b/scripts/provision-sandbox.ps1
+@@ -16,6 +16,13 @@ param(
+   [switch]$Revoke
+ )
+ 
++if ($PSVersionTable.PSVersion.Major -ge 7) {
++  $forwardArgs = @('-Path', $Path)
++  if ($Revoke) { $forwardArgs += '-Revoke' }
++  & (Join-Path $env:SystemRoot 'System32\WindowsPowerShell\v1.0\powershell.exe') -NoProfile -ExecutionPolicy Bypass -File $PSCommandPath @forwardArgs @args
++  exit $LASTEXITCODE
++}
++
+ $ErrorActionPreference = 'Stop'
+ $resolved = (Resolve-Path -LiteralPath $Path).Path
+ if (-not (Test-Path -LiteralPath $resolved -PathType Container)) { throw "not a directory: $resolved" }

@@ -1,0 +1,74 @@
+{
+  "scope": "Authorized bounded S1-S4 sweep, including permitted per-step FAIL/UNVERIFIED outcomes; not acceptance of product defects.",
+  "requirements": [
+    {
+      "id": "S1",
+      "required": "System 5.1 relaunch with bound parameter forwarding; four shell gate commands; doc sentence",
+      "evidence": [
+        "resume/s1-results.json",
+        "resume/final-acls.json",
+        "resume/script-diff.patch",
+        "resume/verification.json"
+      ],
+      "complete": true
+    },
+    {
+      "id": "S2",
+      "required": "Real runner, availability and allow-write attempts; stop after two failures and record missing enforcement cases; revoke ACL",
+      "evidence": [
+        "resume/s2-results.json",
+        "resume/helper-sources.json",
+        "resume/final-acls.json"
+      ],
+      "complete": true,
+      "outcome": "FAIL; enforcement remains unaccepted; remaining cases UNVERIFIED under explicit stop rule"
+    },
+    {
+      "id": "S3",
+      "required": "Registry before/after, requested desktop/corner captures, actual terminal event and toast observation, daemon stop and no listener",
+      "evidence": [
+        "resume/registry-before.json",
+        "resume/registry-after.json",
+        "resume/registry-diff.json",
+        "resume/tray.png",
+        "resume/corner.png",
+        "resume/daemon-processes.json",
+        "resume/s3-http.jsonl",
+        "resume/toast-history.json",
+        "resume/toast-after-completion.png",
+        "resume/daemon-stop.json",
+        "resume/cleanup.json"
+      ],
+      "complete": true,
+      "outcome": "Registry inconclusive; tray child observed; visible icon absent; real OS toast history present; banner UNVERIFIED"
+    },
+    {
+      "id": "S4",
+      "required": "Visible IAB at both exact dimensions, actual DOM widths/truncation hits, two named PNGs and layout-equivalence boundary",
+      "evidence": [
+        "resume/s4-conversation150.json",
+        "resume/s4-conversation200.json",
+        "resume/s4-sidebar150.json",
+        "resume/s4-sidebar200.json",
+        "resume/s260-zoom150-960x600.png",
+        "resume/s260-zoom200-720x450.png",
+        "resume/s260-zoom150-sidebar.png",
+        "resume/s260-zoom200-sidebar.png",
+        "resume/browser-cleanup.json"
+      ],
+      "complete": true,
+      "outcome": "Horizontal-width criteria PASS; long titles truncated; 720 assistant text below initial viewport"
+    },
+    {
+      "id": "delivery",
+      "required": "Five append-only card results, report, raw evidence, allowed edits, cleanup, no unrelated work",
+      "evidence": [
+        "report.md",
+        "resume/verification.json",
+        "manifest.json"
+      ],
+      "complete": true
+    }
+  ],
+  "allRequestedWorkPerformed": true
+}

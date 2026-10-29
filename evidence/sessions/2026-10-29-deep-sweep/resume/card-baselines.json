@@ -1,0 +1,32 @@
+[
+  {
+    "path": "tasks/180-os-native-sandboxing-and-restricted-tokens.md",
+    "bytes": 7994,
+    "sha256": "d57de0ae2317ddf8a71ed822f0a09689c206c570749dfc018189285fe900d401",
+    "firstLine": "# 180 — 原生级操作系统沙箱与低完整性安全隔离 (Native OS Sandboxing & Low Integrity Boundary)"
+  },
+  {
+    "path": "tasks/183-epic-hardened-runtime-and-cognitive-memory.md",
+    "bytes": 6558,
+    "sha256": "b210eabac44554072e4e6de306ba18de1ded0873faeeff9f6e38a6a365fc23fe",
+    "firstLine": "# 183 — [Epic] V1.7 原生级安全沙箱与认知记忆体系 (Hardened Runtime & Cognitive Memory Mesh)"
+  },
+  {
+    "path": "tasks/176-headless-daemon-and-tray-resilience.md",
+    "bytes": 9432,
+    "sha256": "696ecdf6095c265617de75700f285623d461e1350624ac429e5feca68073e508",
+    "firstLine": "# 176 — 后台常驻 Daemon 守护进程与系统通知驻留 (Headless Daemon & Tray Resilience)"
+  },
+  {
+    "path": "tasks/260-browser-runtime-acceptance.md",
+    "bytes": 7436,
+    "sha256": "73e4d2deb2ffcb1a18fcc6b238f48247ff8991d817aa8710a44ad360b58c2333",
+    "firstLine": "# 任务卡 260: 浏览器运行时验收（静态审计无法覆盖的部分）"
+  },
+  {
+    "path": "tasks/275-ui-final-acceptance.md",
+    "bytes": 27346,
+    "sha256": "86b51bb8bd1ef72b231a79cba0032177959ff089fe62b515467b1909551f00d3",
+    "firstLine": "# 任务卡 275: UI 最终验收（只能在真实浏览器里判定）"
+  }
+]

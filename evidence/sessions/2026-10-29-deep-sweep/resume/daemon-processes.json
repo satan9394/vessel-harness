@@ -1,0 +1,13 @@
+{
+    "daemonPid":  11804,
+    "observedAt":  "2026-10-29T09:14:54.4412537Z",
+    "children":  [
+                     {
+                         "createdAt":  "2026-10-29T09:12:31.1115960Z",
+                         "pid":  4652,
+                         "name":  "powershell.exe",
+                         "parentPid":  11804,
+                         "vesselTrayScript":  true
+                     }
+                 ]
+}
