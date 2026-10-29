@@ -1,0 +1,18 @@
+{
+  "measurements": [],
+  "requests": [
+    {
+      "sequence": 1209,
+      "url": "http://127.0.0.1:5700/api/sessions/sess_1793292749028_d73538b5/team-stages/stage_d6b04613-1bb5-444d-b44d-ae8e9c377649/tasks/summary_4800/result",
+      "method": "GET"
+    },
+    {
+      "sequence": 1451,
+      "url": "http://127.0.0.1:5700/api/sessions/sess_1793292748860_67817e61/team-stages/stage_626768c6-467b-476c-a160-7367b1af73ba/tasks/summary_570/result",
+      "method": "GET"
+    }
+  ],
+  "networkTruncated": false,
+  "networkHasMore": false,
+  "console": []
+}

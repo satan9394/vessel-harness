@@ -1,0 +1,11 @@
+{
+  "ports": [
+    5700,
+    5701
+  ],
+  "listenerCount": 0,
+  "ownedProcessCount": 0,
+  "browserTabsClosed": true,
+  "viewportReset": true,
+  "initialPortProbeListeners": 0
+}

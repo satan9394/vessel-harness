@@ -1,0 +1,171 @@
+{
+  "measurements": [
+    {
+      "label": "4800-first-expanded-final",
+      "activeElement": {
+        "expanded": "true",
+        "tag": "BUTTON",
+        "text": "收起"
+      },
+      "bodyBackground": "rgb(13, 17, 23)",
+      "bottom": 490.1241912841797,
+      "buttonText": "收起",
+      "expanded": "true",
+      "innerHeight": 900,
+      "innerWidth": 1440,
+      "outputLength": 4800,
+      "preMaxHeight": "none",
+      "preOverflowY": "visible",
+      "title": "Summary 4800",
+      "top": 458.13128662109375
+    },
+    {
+      "label": "4800-collapsed-final",
+      "activeElement": {
+        "expanded": "false",
+        "tag": "BUTTON",
+        "text": "展开全文"
+      },
+      "bodyBackground": "rgb(13, 17, 23)",
+      "bottom": 490.1241912841797,
+      "buttonText": "展开全文",
+      "expanded": "false",
+      "innerHeight": 900,
+      "innerWidth": 1440,
+      "outputLength": 301,
+      "preMaxHeight": "none",
+      "preOverflowY": "visible",
+      "title": "Summary 4800",
+      "top": 458.13128662109375
+    },
+    {
+      "label": "4800-cached-expanded-final",
+      "activeElement": {
+        "expanded": "true",
+        "tag": "BUTTON",
+        "text": "收起"
+      },
+      "bodyBackground": "rgb(13, 17, 23)",
+      "bottom": 490.1241912841797,
+      "buttonText": "收起",
+      "expanded": "true",
+      "innerHeight": 900,
+      "innerWidth": 1440,
+      "outputLength": 4800,
+      "preMaxHeight": "none",
+      "preOverflowY": "visible",
+      "title": "Summary 4800",
+      "top": 458.13128662109375
+    },
+    {
+      "label": "4800-recollapsed-final",
+      "activeElement": {
+        "expanded": "false",
+        "tag": "BUTTON",
+        "text": "展开全文"
+      },
+      "bodyBackground": "rgb(13, 17, 23)",
+      "bottom": 490.1241912841797,
+      "buttonText": "展开全文",
+      "expanded": "false",
+      "innerHeight": 900,
+      "innerWidth": 1440,
+      "outputLength": 301,
+      "preMaxHeight": "none",
+      "preOverflowY": "visible",
+      "title": "Summary 4800",
+      "top": 458.13128662109375
+    },
+    {
+      "label": "570-first-expanded-final",
+      "activeElement": {
+        "expanded": "true",
+        "tag": "BUTTON",
+        "text": "收起"
+      },
+      "bodyBackground": "rgb(13, 17, 23)",
+      "bottom": 490.1241912841797,
+      "buttonText": "收起",
+      "expanded": "true",
+      "innerHeight": 900,
+      "innerWidth": 1440,
+      "outputLength": 570,
+      "preMaxHeight": "none",
+      "preOverflowY": "visible",
+      "title": "Summary 570",
+      "top": 458.13128662109375
+    },
+    {
+      "label": "570-collapsed-final",
+      "activeElement": {
+        "expanded": "false",
+        "tag": "BUTTON",
+        "text": "展开全文"
+      },
+      "bodyBackground": "rgb(13, 17, 23)",
+      "bottom": 490.1241912841797,
+      "buttonText": "展开全文",
+      "expanded": "false",
+      "innerHeight": 900,
+      "innerWidth": 1440,
+      "outputLength": 301,
+      "preMaxHeight": "none",
+      "preOverflowY": "visible",
+      "title": "Summary 570",
+      "top": 458.13128662109375
+    },
+    {
+      "label": "570-cached-expanded-final",
+      "activeElement": {
+        "expanded": "true",
+        "tag": "BUTTON",
+        "text": "收起"
+      },
+      "bodyBackground": "rgb(13, 17, 23)",
+      "bottom": 490.1241912841797,
+      "buttonText": "收起",
+      "expanded": "true",
+      "innerHeight": 900,
+      "innerWidth": 1440,
+      "outputLength": 570,
+      "preMaxHeight": "none",
+      "preOverflowY": "visible",
+      "title": "Summary 570",
+      "top": 458.13128662109375
+    },
+    {
+      "label": "570-recollapsed-final",
+      "activeElement": {
+        "expanded": "false",
+        "tag": "BUTTON",
+        "text": "展开全文"
+      },
+      "bodyBackground": "rgb(13, 17, 23)",
+      "bottom": 490.1241912841797,
+      "buttonText": "展开全文",
+      "expanded": "false",
+      "innerHeight": 900,
+      "innerWidth": 1440,
+      "outputLength": 301,
+      "preMaxHeight": "none",
+      "preOverflowY": "visible",
+      "title": "Summary 570",
+      "top": 458.13128662109375
+    }
+  ],
+  "requests": [
+    {
+      "sequence": 177,
+      "url": "http://127.0.0.1:5700/api/sessions/sess_1793293170483_fa99763c/team-stages/stage_0c8301c1-9116-4e27-9036-db21def44b7d/tasks/summary_4800/result",
+      "method": "GET"
+    },
+    {
+      "sequence": 500,
+      "url": "http://127.0.0.1:5700/api/sessions/sess_1793293170306_808d83e5/team-stages/stage_1708aff2-e1b9-4356-93df-2795b00b630c/tasks/summary_570/result",
+      "method": "GET"
+    }
+  ],
+  "networkTruncated": false,
+  "networkHasMore": false,
+  "console": []
+}

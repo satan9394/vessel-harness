@@ -1,0 +1,170 @@
+{
+  "measurements": [
+    {
+      "label": "4800-expanded-pointer",
+      "activeElement": {
+        "expanded": null,
+        "tag": "BODY",
+        "text": null
+      },
+      "bodyBackground": "rgb(13, 17, 23)",
+      "bottom": 490.1241912841797,
+      "buttonText": "收起",
+      "expanded": "true",
+      "innerHeight": 900,
+      "innerWidth": 1440,
+      "outputLength": 4800,
+      "preMaxHeight": "none",
+      "preOverflowY": "visible",
+      "title": "Summary 4800",
+      "top": 458.13128662109375
+    },
+    {
+      "label": "4800-collapsed-keyboard",
+      "activeElement": {
+        "expanded": "false",
+        "tag": "BUTTON",
+        "text": "展开全文"
+      },
+      "bodyBackground": "rgb(13, 17, 23)",
+      "bottom": 490.1241912841797,
+      "buttonText": "展开全文",
+      "expanded": "false",
+      "innerHeight": 900,
+      "innerWidth": 1440,
+      "outputLength": 301,
+      "preMaxHeight": "none",
+      "preOverflowY": "visible",
+      "title": "Summary 4800",
+      "top": 458.13128662109375
+    },
+    {
+      "label": "4800-cached-expanded-keyboard",
+      "activeElement": {
+        "expanded": "true",
+        "tag": "BUTTON",
+        "text": "收起"
+      },
+      "bodyBackground": "rgb(13, 17, 23)",
+      "bottom": 490.1241912841797,
+      "buttonText": "收起",
+      "expanded": "true",
+      "innerHeight": 900,
+      "innerWidth": 1440,
+      "outputLength": 4800,
+      "preMaxHeight": "none",
+      "preOverflowY": "visible",
+      "title": "Summary 4800",
+      "top": 458.13128662109375
+    },
+    {
+      "label": "4800-final-collapsed",
+      "activeElement": {
+        "expanded": "false",
+        "tag": "BUTTON",
+        "text": "展开全文"
+      },
+      "bodyBackground": "rgb(13, 17, 23)",
+      "bottom": 490.1241912841797,
+      "buttonText": "展开全文",
+      "expanded": "false",
+      "innerHeight": 900,
+      "innerWidth": 1440,
+      "outputLength": 301,
+      "preMaxHeight": "none",
+      "preOverflowY": "visible",
+      "title": "Summary 4800",
+      "top": 458.13128662109375
+    },
+    {
+      "label": "570-expanded-keyboard",
+      "activeElement": {
+        "expanded": null,
+        "tag": "BODY",
+        "text": null
+      },
+      "bodyBackground": "rgb(13, 17, 23)",
+      "bottom": 490.1241912841797,
+      "buttonText": "收起",
+      "expanded": "true",
+      "innerHeight": 900,
+      "innerWidth": 1440,
+      "outputLength": 570,
+      "preMaxHeight": "none",
+      "preOverflowY": "visible",
+      "title": "Summary 570",
+      "top": 458.13128662109375
+    },
+    {
+      "label": "570-collapsed-keyboard",
+      "activeElement": {
+        "expanded": "false",
+        "tag": "BUTTON",
+        "text": "展开全文"
+      },
+      "bodyBackground": "rgb(13, 17, 23)",
+      "bottom": 490.1241912841797,
+      "buttonText": "展开全文",
+      "expanded": "false",
+      "innerHeight": 900,
+      "innerWidth": 1440,
+      "outputLength": 301,
+      "preMaxHeight": "none",
+      "preOverflowY": "visible",
+      "title": "Summary 570",
+      "top": 458.13128662109375
+    },
+    {
+      "label": "570-cached-expanded-keyboard",
+      "activeElement": {
+        "expanded": "true",
+        "tag": "BUTTON",
+        "text": "收起"
+      },
+      "bodyBackground": "rgb(13, 17, 23)",
+      "bottom": 490.1241912841797,
+      "buttonText": "收起",
+      "expanded": "true",
+      "innerHeight": 900,
+      "innerWidth": 1440,
+      "outputLength": 570,
+      "preMaxHeight": "none",
+      "preOverflowY": "visible",
+      "title": "Summary 570",
+      "top": 458.13128662109375
+    },
+    {
+      "label": "570-final-collapsed",
+      "activeElement": {
+        "expanded": "false",
+        "tag": "BUTTON",
+        "text": "展开全文"
+      },
+      "bodyBackground": "rgb(13, 17, 23)",
+      "bottom": 490.1241912841797,
+      "buttonText": "展开全文",
+      "expanded": "false",
+      "innerHeight": 900,
+      "innerWidth": 1440,
+      "outputLength": 301,
+      "preMaxHeight": "none",
+      "preOverflowY": "visible",
+      "title": "Summary 570",
+      "top": 458.13128662109375
+    }
+  ],
+  "requests": [
+    {
+      "sequence": 60,
+      "url": "http://127.0.0.1:5700/api/sessions/sess_1793292749028_d73538b5/team-stages/stage_d6b04613-1bb5-444d-b44d-ae8e9c377649/tasks/summary_4800/result",
+      "method": "GET"
+    },
+    {
+      "sequence": 547,
+      "url": "http://127.0.0.1:5700/api/sessions/sess_1793292748860_67817e61/team-stages/stage_626768c6-467b-476c-a160-7367b1af73ba/tasks/summary_570/result",
+      "method": "GET"
+    }
+  ],
+  "console": [],
+  "note": "Initial pass revealed native focus loss while disabling the control; final pass follows repair."
+}

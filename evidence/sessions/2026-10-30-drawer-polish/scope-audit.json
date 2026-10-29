@@ -1,0 +1,45 @@
+{
+  "baseline": "5dc1c421a93340b4ed9534c40187cffb37043161",
+  "productPaths": [
+    "apps/web/src/components/team/TeamNodeDrawer.test.tsx",
+    "apps/web/src/components/team/TeamNodeDrawer.tsx",
+    "apps/web/src/i18n.ts"
+  ],
+  "sourceScopePass": true,
+  "dictionaries": {
+    "zh": {
+      "existingValuesUnchanged": true,
+      "added": {
+        "uiTeamOutputExpand": "展开全文",
+        "uiTeamOutputCollapse": "收起",
+        "uiTeamOutputLoading": "正在加载…",
+        "uiTeamOutputFailed": "全文加载失败，请重试。",
+        "uiTeamOutputCapped": "输出超过 64 KiB，仅显示前 64 KiB。"
+      }
+    },
+    "en": {
+      "existingValuesUnchanged": true,
+      "added": {
+        "uiTeamOutputExpand": "Expand full output",
+        "uiTeamOutputCollapse": "Collapse",
+        "uiTeamOutputLoading": "Loading…",
+        "uiTeamOutputFailed": "Could not load full output. Please retry.",
+        "uiTeamOutputCapped": "Output exceeds 64 KiB; showing the first 64 KiB."
+      }
+    }
+  },
+  "sourceHashes": {
+    "apps/web/src/components/team/TeamNodeDrawer.tsx": "9ab34bdb3f6f2d1f29b51047d036df9f8d229b03542e21a6b78f1e1ebbb253c8",
+    "apps/web/src/components/team/TeamNodeDrawer.test.tsx": "0069161c3d55195103c622023bf1cfdc887128b136e5114cbbdde39188966d55",
+    "apps/web/src/i18n.ts": "44aaa551b4aef10dd08e48e75fd262d9fd52001e1aae0f51bf5fc64de9314d1c"
+  },
+  "cardExistingBytesPreserved": true,
+  "boardUnchanged": true,
+  "build": {
+    "directory": "E:\\Code_file\\Projects\\Vessel_Harness\\apps\\web\\dist",
+    "assets": {
+      "/assets/index-BnpHX6ao.js": "baa253e74938437a08361dadf97da5346a13c7ef1978392cc022e81aec67b3be",
+      "/assets/index-DUltVpcM.css": "778a73d5800e642903408be013ff4b749eae2ea85869f4844e0adb6749a07819"
+    }
+  }
+}

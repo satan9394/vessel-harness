@@ -1,0 +1,8 @@
+{
+  "command": "node node_modules/vitest/vitest.mjs run --root apps/web",
+  "started": "2026-10-29T16:58:56.515Z",
+  "ended": "2026-10-29T16:59:30.840Z",
+  "code": 0,
+  "stdout": "\n RUN  v5.0.1 E:/Code_file/Projects/Vessel_Harness/apps/web\n\n\n Test Files  61 passed (61)\n      Tests  543 passed (543)\n   Start at  09:58:57\n   Duration  33.13s (import 32%, tests 31%, environment 20%, transform 14%, worker 3%)\n\n     Import  154 modules were evaluated 299 times · 5.89s total, 32% of tracked time\n             ~2.86s faster with isolate: false — shared modules are evaluated once per worker instead of once per file\n             learn more: https://vitest.dev/guide/improving-performance#test-isolation\n\n",
+  "stderr": ""
+}

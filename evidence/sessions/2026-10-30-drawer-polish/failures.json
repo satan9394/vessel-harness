@@ -1,0 +1,45 @@
+{
+  "policyDenied": [],
+  "testFailure": {
+    "command": "node node_modules/vitest/vitest.mjs run --root apps/web",
+    "record": "web-tests-focus-repair-failed.json",
+    "result": "Two TeamDagCanvas tests called TeamNodeDetails directly; newly added useRef caused invalid-hook failures. Focus lifecycle moved into existing stateful drawer; final suite 543 passed."
+  },
+  "toolFailures": [
+    {
+      "command": ".\\.agents\\skills\\impeccable\\scripts\\impeccable.cmd context --target apps/web/src/components/team/TeamNodeDrawer.tsx",
+      "error": "The term '.\\.agents\\skills\\impeccable\\scripts\\impeccable.cmd' is not recognized as a name of a cmdlet, function, script file, or executable program.",
+      "resolution": "Read skill references and incumbent source directly; PRODUCT.md and DESIGN.md absent."
+    },
+    {
+      "command": "rg -n \"uiTeam|team-node-drawer|createServer|fixtures|570|5700\" apps/web/src/i18n.ts apps/web/src/styles.css evidence/sessions/2026-10-29* tasks/364*",
+      "error": "Windows rg path glob arguments: filename, directory name, or volume label syntax is incorrect (os error 123).",
+      "resolution": "Used concrete paths and rg --files. Same issue affected the subsequent tasks/364-team* and Workbench*/Preferences*/Header* searches."
+    },
+    {
+      "command": "rg -n \"teamStage|TeamWorkspace|TeamNodeDrawer|team-stages|teamStage\" apps/web/src/App.tsx apps/web/src/components/SessionView.tsx apps/web/src/components -g '*.tsx' -g '!*.test.tsx'",
+      "error": "apps/web/src/components/SessionView.tsx: system cannot find the file specified (os error 2).",
+      "resolution": "Read actual TeamModule and App call sites. A later search similarly referenced the nonexistent apps/web/src/workbench directory."
+    },
+    {
+      "command": "Browser measure(): b.compareDocumentPosition(p)",
+      "error": "TypeError: b.compareDocumentPosition is not a function",
+      "resolution": "Removed unsupported proxy API from browser measurement; unit test verifies DOM order using real jsdom API."
+    },
+    {
+      "command": "measure('4800-first-expanded-final') after closing original tab and creating a fresh tab",
+      "error": "Tab 1 is not part of browser session 01a1888f-ee08-73c1-a4f9-fee2848ddde7",
+      "resolution": "Rebound measurement helper to new tab 2 and completed final acceptance."
+    },
+    {
+      "command": "PowerShell cleanup object | ConvertTo-Json -Depth 5 | node -e (JSON.parse stdin)",
+      "error": "SyntaxError: Unexpected token '﻿', JSON input starts with a BOM.",
+      "resolution": "Strip leading U+FEFF before JSON.parse; cleanup audit passed."
+    },
+    {
+      "command": "node evidence/sessions/2026-10-30-drawer-polish/audit.mjs",
+      "error": "ERR_MODULE_NOT_FOUND: node_modules/typescript/lib/typescript.js",
+      "resolution": "Installed TypeScript CLI has no JS compiler library. Evaluated the two existing plain dictionary object literals directly for before/after equality; audit exit 0."
+    }
+  ]
+}
