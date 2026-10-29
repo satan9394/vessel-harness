@@ -1,0 +1,13 @@
+{
+  "head": "0fb4f9b",
+  "initialTree": "clean",
+  "requestedRoute": {
+    "model": "gpt-6.1-sol",
+    "effort": "medium",
+    "fast": false
+  },
+  "effectiveHostRoute": "not independently queried",
+  "tempRoot": "C:\\work\\AppData\\Local\\Temp\\vessel-remaining-nfItcn",
+  "mainThreadOnly": true,
+  "fullGateRun": false
+}

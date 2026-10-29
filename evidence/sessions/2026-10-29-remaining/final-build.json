@@ -1,0 +1,6 @@
+{
+  "command": "node node_modules/typescript/bin/tsc -b tsconfig.json",
+  "status": 0,
+  "seconds": 0.362,
+  "log": "C:\\work\\AppData\\Local\\Temp\\vessel-remaining-nfItcn\\final-build.log"
+}

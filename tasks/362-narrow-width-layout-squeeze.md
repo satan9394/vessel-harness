@@ -1,6 +1,6 @@
 # 任务卡 362: 窄宽下的两处布局挤压（960px 费用列竖排 / 团队面板横向裁切）
 
-- Status: 待执行（2026-10-29 观察，未修）
+- Status: 部分完成（2026-10-29）：DAG 溢出提示已验收（截图 + jsdom 测试）；费用列那次改错了元素（改的是底部 `.meters`），真正的头部 `.usage-bar` 由协调者补 CSS，**改后观感复核待一次真实 UI**
 - PDW task: none
 - 来源：`evidence/sessions/2026-10-29-zoom-render/`（缩放）与 `evidence/sessions/2026-10-28-final-sweep/`（团队面板）两组截图。
 
@@ -34,3 +34,17 @@
 ## 6. Result
 
 待执行。
+
+## 2026-10-29 remaining run — measured results; sign-off reserved
+
+A1–A4: 通过 / PASS for the measured fixture. Original vertical stacking did not reproduce at 960×600 or 720×450 in the fresh session; supplied zoom150.png shows the task start screen, not these meters. Added whole-metric wrapping protection. Dark/light matrix at 960×600, 720×450, 1440×900 and 1920×900: context clientWidth/scrollWidth 72/72px, cost 67/67px, one-line labels; no document horizontal overflow. DAG at 1440: scroller 242px / content 724px; visible Chinese scroll hint, keyboard-focusable scroller; each node title 180/180px, full text reachable with horizontal navigation. Node size preserved. No claim to revalidate the historical 80-case matrix. Web tests 60 files / 530 passed; web typecheck and TEMP-output production build exit 0. Evidence: `evidence/sessions/2026-10-29-remaining/t2-matrix.json`, `t2-dag.json`, screenshots and `t2-comparison.html`. No API/data contract change; requested route as recorded in environment.json.
+
+## 7. Result（协调者验收，2026-10-29 —— 一半合格，另一半改错了元素）
+
+**DAG 那一半通过。** 1440 下滚器 242px、内容 724px，现在有可见提示 `↔ 横向滚动查看完整任务图`（浅/深两主题各一张截图），容器在溢出时 `tabIndex=0`、不溢出时移除；jsdom 测试覆盖「溢出才提示、不溢出无提示、节点宽度不变（200）、点击选中精确节点、卸载时 disconnect」。这条我认。
+
+**费用列那一半没打中。** 执行方量的是页面底部 `.meters > .meter`（那里本来就正常），加的 `composerMeters.css` 只作用于它；而 960 下真正被压成竖排的是**头部** `.usage-bar` 里的四个 span（截图 `t2-before-960.jpg` 右侧那列「次/调/用/元」）。根因是 `.conversation-head` 是 `justify-content: space-between` 的 flex，窄宽时子项默认可收缩，span 被压到一两个字宽后逐字换行。
+
+**我补的修法**（`apps/web/src/styles.css`）：`.usage-bar` 加 `flex-wrap: wrap`，`.usage-bar > span` 加 `flex: 0 0 auto; white-space: nowrap`。效果是整条指标会换行，而不是把每个指标压成竖排。改后 `apps/web` 单测 **60 文件 / 530 passed**、`tsc -p apps/web/tsconfig.json --noEmit` exit 0。
+
+**仍未完成**：这一处的**真实观感复核**。无头浏览器没有会话深链（应用用 React state 选会话），我用 CDP 点侧边栏也没命中会话项，所以只验证了「CSS 规则正确、测试不回归」，没拿到改后的会话页截图。下次有可见 IAB 时补一张 960 宽的头部件即可收口；在那之前不要把这条当已验。

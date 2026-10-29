@@ -1,0 +1,14 @@
+{
+  "listeners": [],
+  "ownedServers": [],
+  "acl": {
+    "sid": "S-1-5-21-3399625824-1627311308-3274667044-183",
+    "grantPresent": false,
+    "lowLabelPresent": false,
+    "revokeExit": 0
+  },
+  "downloadOutsideTempAbsent": true,
+  "retainedTemp": "C:\\work\\AppData\\Local\\Temp\\vessel-remaining-nfItcn",
+  "browserClosed": true,
+  "viewportReset": true
+}

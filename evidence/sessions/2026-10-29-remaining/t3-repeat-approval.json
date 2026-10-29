@@ -1,0 +1,7 @@
+{
+  "status": 409,
+  "body": {
+    "error": "stage_conflict",
+    "message": "stage is not awaiting approval"
+  }
+}

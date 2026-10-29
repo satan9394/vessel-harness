@@ -1,0 +1,917 @@
+{
+  "pairs": [
+    {
+      "i": 0,
+      "numberA": 72339069015209970,
+      "numberB": 40250921670195180,
+      "bigA": "72339069015209969",
+      "bigB": "40250921670195186",
+      "numberEqual": false,
+      "bigEqual": false
+    },
+    {
+      "i": 1,
+      "numberA": 67835469387839490,
+      "numberB": 66991044457707530,
+      "bigA": "67835469387839490",
+      "bigB": "66991044457707531",
+      "numberEqual": false,
+      "bigEqual": false
+    },
+    {
+      "i": 2,
+      "numberA": 18014398510053396,
+      "numberB": 17732923533342746,
+      "bigA": "18014398510053396",
+      "bigB": "17732923533342746",
+      "numberEqual": false,
+      "bigEqual": false
+    },
+    {
+      "i": 3,
+      "numberA": 52917295622174750,
+      "numberB": 20829148277159984,
+      "bigA": "52917295622174756",
+      "bigB": "20829148277159984",
+      "numberEqual": false,
+      "bigEqual": false
+    },
+    {
+      "i": 4,
+      "numberA": 15199648742946868,
+      "numberB": 20266198323738708,
+      "bigA": "15199648742946867",
+      "bigB": "20266198323738707",
+      "numberEqual": false,
+      "bigEqual": false
+    },
+    {
+      "i": 5,
+      "numberA": 12947848929261654,
+      "numberB": 31525197392164950,
+      "bigA": "12947848929261654",
+      "bigB": "31525197392164953",
+      "numberEqual": false,
+      "bigEqual": false
+    },
+    {
+      "i": 6,
+      "numberA": 14918173766236272,
+      "numberB": 18858823440185468,
+      "bigA": "14918173766236272",
+      "bigB": "18858823440185469",
+      "numberEqual": false,
+      "bigEqual": false
+    },
+    {
+      "i": 7,
+      "numberA": 53198770598885530,
+      "numberB": 36591746972956830,
+      "bigA": "53198770598885526",
+      "bigB": "36591746972956835",
+      "numberEqual": false,
+      "bigEqual": false
+    },
+    {
+      "i": 8,
+      "numberA": 35184372089403556,
+      "numberB": 24206847997687990,
+      "bigA": "35184372089403557",
+      "bigB": "24206847997687994",
+      "numberEqual": false,
+      "bigEqual": false
+    },
+    {
+      "i": 9,
+      "numberA": 43910096367433920,
+      "numberB": 60798594970073280,
+      "bigA": "43910096367433917",
+      "bigB": "60798594970073280",
+      "numberEqual": false,
+      "bigEqual": false
+    },
+    {
+      "i": 10,
+      "numberA": 14918173766236422,
+      "numberB": 19984723347028240,
+      "bigA": "14918173766236422",
+      "bigB": "19984723347028242",
+      "numberEqual": false,
+      "bigEqual": false
+    },
+    {
+      "i": 11,
+      "numberA": 26740122788084040,
+      "numberB": 25895697857952070,
+      "bigA": "26740122788084041",
+      "bigB": "25895697857952074",
+      "numberEqual": false,
+      "bigEqual": false
+    },
+    {
+      "i": 12,
+      "numberA": 18295873486764370,
+      "numberB": 30399297485322576,
+      "bigA": "18295873486764366",
+      "bigB": "30399297485322577",
+      "numberEqual": false,
+      "bigEqual": false
+    },
+    {
+      "i": 13,
+      "numberA": 23643898044266840,
+      "numberB": 28710447625058650,
+      "bigA": "23643898044266839",
+      "bigB": "28710447625058648",
+      "numberEqual": false,
+      "bigEqual": false
+    },
+    {
+      "i": 14,
+      "numberA": 21955048184002904,
+      "numberB": 33214047252429144,
+      "bigA": "21955048184002905",
+      "bigB": "33214047252429146",
+      "numberEqual": false,
+      "bigEqual": false
+    },
+    {
+      "i": 15,
+      "numberA": 16888498603211100,
+      "numberB": 21110623253870940,
+      "bigA": "16888498603211099",
+      "bigB": "21110623253870941",
+      "numberEqual": false,
+      "bigEqual": false
+    },
+    {
+      "i": 16,
+      "numberA": 17732923533343070,
+      "numberB": 24206847997688160,
+      "bigA": "17732923533343070",
+      "bigB": "24206847997688159",
+      "numberEqual": false,
+      "bigEqual": false
+    },
+    {
+      "i": 17,
+      "numberA": 20829148277160290,
+      "numberB": 33495522229139824,
+      "bigA": "20829148277160288",
+      "bigB": "33495522229139822",
+      "numberEqual": false,
+      "bigEqual": false
+    },
+    {
+      "i": 18,
+      "numberA": 23925373020977524,
+      "numberB": 21392098230581628,
+      "bigA": "23925373020977525",
+      "bigB": "21392098230581629",
+      "numberEqual": false,
+      "bigEqual": false
+    },
+    {
+      "i": 19,
+      "numberA": 27303072741505420,
+      "numberB": 12103423999129996,
+      "bigA": "27303072741505419",
+      "bigB": "12103423999129997",
+      "numberEqual": false,
+      "bigEqual": false
+    },
+    {
+      "i": 20,
+      "numberA": 18014398510053776,
+      "numberB": 37154696926378380,
+      "bigA": "18014398510053775",
+      "bigB": "37154696926378386",
+      "numberEqual": false,
+      "bigEqual": false
+    },
+    {
+      "i": 21,
+      "numberA": 19421773393607068,
+      "numberB": 26458647811373470,
+      "bigA": "19421773393607068",
+      "bigB": "26458647811373472",
+      "numberEqual": false,
+      "bigEqual": false
+    },
+    {
+      "i": 22,
+      "numberA": 19140298416896430,
+      "numberB": 25332747904530868,
+      "bigA": "19140298416896430",
+      "bigB": "25332747904530868",
+      "numberEqual": false,
+      "bigEqual": false
+    },
+    {
+      "i": 23,
+      "numberA": 23643898044266936,
+      "numberB": 18577348463475140,
+      "bigA": "23643898044266937",
+      "bigB": "18577348463475141",
+      "numberEqual": false,
+      "bigEqual": false
+    },
+    {
+      "i": 24,
+      "numberA": 19140298416896456,
+      "numberB": 30962247438744012,
+      "bigA": "19140298416896454",
+      "bigB": "30962247438744013",
+      "numberEqual": false,
+      "bigEqual": false
+    },
+    {
+      "i": 25,
+      "numberA": 21673573207292370,
+      "numberB": 14073748836104656,
+      "bigA": "21673573207292366",
+      "bigB": "14073748836104655",
+      "numberEqual": false,
+      "bigEqual": false
+    },
+    {
+      "i": 26,
+      "numberA": 15481123719657938,
+      "numberB": 20829148277160410,
+      "bigA": "15481123719657938",
+      "bigB": "20829148277160408",
+      "numberEqual": false,
+      "bigEqual": false
+    },
+    {
+      "i": 27,
+      "numberA": 22236523160713690,
+      "numberB": 9288674232023514,
+      "bigA": "22236523160713689",
+      "bigB": "9288674232023514",
+      "numberEqual": false,
+      "bigEqual": false
+    },
+    {
+      "i": 28,
+      "numberA": 20829148277160412,
+      "numberB": 23362423067556316,
+      "bigA": "20829148277160411",
+      "bigB": "23362423067556317",
+      "numberEqual": false,
+      "bigEqual": false
+    },
+    {
+      "i": 29,
+      "numberA": 33214047252429284,
+      "numberB": 12103423999130086,
+      "bigA": "33214047252429283",
+      "bigB": "12103423999130086",
+      "numberEqual": false,
+      "bigEqual": false
+    },
+    {
+      "i": 30,
+      "numberA": 16607023626500584,
+      "numberB": 15481123719657962,
+      "bigA": "16607023626500584",
+      "bigB": "15481123719657962",
+      "numberEqual": false,
+      "bigEqual": false
+    },
+    {
+      "i": 31,
+      "numberA": 12666373952551404,
+      "numberB": 10696049115576814,
+      "bigA": "12666373952551404",
+      "bigB": "10696049115576814",
+      "numberEqual": false,
+      "bigEqual": false
+    },
+    {
+      "i": 32,
+      "numberA": 13792273859394032,
+      "numberB": 23925373020977652,
+      "bigA": "13792273859394031",
+      "bigB": "23925373020977652",
+      "numberEqual": false,
+      "bigEqual": false
+    },
+    {
+      "i": 33,
+      "numberA": 33214047252429304,
+      "numberB": 18858823440185852,
+      "bigA": "33214047252429303",
+      "bigB": "18858823440185853",
+      "numberEqual": false,
+      "bigEqual": false
+    },
+    {
+      "i": 34,
+      "numberA": 11821949022419454,
+      "numberB": 34339947159271936,
+      "bigA": "11821949022419454",
+      "bigB": "34339947159271935",
+      "numberEqual": false,
+      "bigEqual": false
+    },
+    {
+      "i": 35,
+      "numberA": 25051272927820290,
+      "numberB": 15481123719657988,
+      "bigA": "25051272927820290",
+      "bigB": "15481123719657987",
+      "numberEqual": false,
+      "bigEqual": false
+    },
+    {
+      "i": 36,
+      "numberA": 22236523160713744,
+      "numberB": 28991922601769490,
+      "bigA": "22236523160713745",
+      "bigB": "28991922601769490",
+      "numberEqual": false,
+      "bigEqual": false
+    },
+    {
+      "i": 37,
+      "numberA": 54887620459149840,
+      "numberB": 19421773393607188,
+      "bigA": "54887620459149843",
+      "bigB": "19421773393607188",
+      "numberEqual": false,
+      "bigEqual": false
+    },
+    {
+      "i": 38,
+      "numberA": 86412817850743330,
+      "numberB": 32651097299008030,
+      "bigA": "86412817850743325",
+      "bigB": "32651097299008030",
+      "numberEqual": false,
+      "bigEqual": false
+    },
+    {
+      "i": 39,
+      "numberA": 39125021763353120,
+      "numberB": 26458647811373610,
+      "bigA": "39125021763353122",
+      "bigB": "26458647811373606",
+      "numberEqual": false,
+      "bigEqual": false
+    },
+    {
+      "i": 40,
+      "numberA": 39125021763353130,
+      "numberB": 33495522229140016,
+      "bigA": "39125021763353129",
+      "bigB": "33495522229140014",
+      "numberEqual": false,
+      "bigEqual": false
+    },
+    {
+      "i": 41,
+      "numberA": 40250921670195760,
+      "numberB": 37717646879799860,
+      "bigA": "40250921670195760",
+      "bigB": "37717646879799858",
+      "numberEqual": false,
+      "bigEqual": false
+    },
+    {
+      "i": 42,
+      "numberA": 52917295622175300,
+      "numberB": 36028797019535944,
+      "bigA": "52917295622175293",
+      "bigB": "36028797019535945",
+      "numberEqual": false,
+      "bigEqual": false
+    },
+    {
+      "i": 43,
+      "numberA": 26458647811373640,
+      "numberB": 23643898044267084,
+      "bigA": "26458647811373642",
+      "bigB": "23643898044267084",
+      "numberEqual": false,
+      "bigEqual": false
+    },
+    {
+      "i": 44,
+      "numberA": 61361544923494990,
+      "numberB": 30962247438744148,
+      "bigA": "61361544923494993",
+      "bigB": "30962247438744147",
+      "numberEqual": false,
+      "bigEqual": false
+    },
+    {
+      "i": 45,
+      "numberA": 29836347531901524,
+      "numberB": 26740122788084310,
+      "bigA": "29836347531901524",
+      "bigB": "26740122788084312",
+      "numberEqual": false,
+      "bigEqual": false
+    },
+    {
+      "i": 46,
+      "numberA": 94012642221931100,
+      "numberB": 27021597764794972,
+      "bigA": "94012642221931099",
+      "bigB": "27021597764794972",
+      "numberEqual": false,
+      "bigEqual": false
+    },
+    {
+      "i": 47,
+      "numberA": 36591746972957280,
+      "numberB": 21392098230581860,
+      "bigA": "36591746972957280",
+      "bigB": "21392098230581860",
+      "numberEqual": false,
+      "bigEqual": false
+    },
+    {
+      "i": 48,
+      "numberA": 39969446693485160,
+      "numberB": 24769797951109750,
+      "bigA": "39969446693485159",
+      "bigB": "24769797951109751",
+      "numberEqual": false,
+      "bigEqual": false
+    },
+    {
+      "i": 49,
+      "numberA": 27584547718216310,
+      "numberB": 26740122788084348,
+      "bigA": "27584547718216313",
+      "bigB": "26740122788084347",
+      "numberEqual": false,
+      "bigEqual": false
+    },
+    {
+      "i": 50,
+      "numberA": 25332747904531068,
+      "numberB": 22517998137424516,
+      "bigA": "25332747904531068",
+      "bigB": "22517998137424517",
+      "numberEqual": false,
+      "bigEqual": false
+    },
+    {
+      "i": 51,
+      "numberA": 31243722415454860,
+      "numberB": 16325548649790104,
+      "bigA": "31243722415454859",
+      "bigB": "16325548649790105",
+      "numberEqual": false,
+      "bigEqual": false
+    },
+    {
+      "i": 52,
+      "numberA": 25051272927820456,
+      "numberB": 26177172834663080,
+      "bigA": "25051272927820456",
+      "bigB": "26177172834663082",
+      "numberEqual": false,
+      "bigEqual": false
+    },
+    {
+      "i": 53,
+      "numberA": 26740122788084396,
+      "numberB": 28710447625058988,
+      "bigA": "26740122788084396",
+      "bigB": "28710447625058989",
+      "numberEqual": false,
+      "bigEqual": false
+    },
+    {
+      "i": 54,
+      "numberA": 24206847997688496,
+      "numberB": 25614222881241776,
+      "bigA": "24206847997688494",
+      "bigB": "25614222881241776",
+      "numberEqual": false,
+      "bigEqual": false
+    },
+    {
+      "i": 55,
+      "numberA": 16044073673079472,
+      "numberB": 36310271996246700,
+      "bigA": "16044073673079473",
+      "bigB": "36310271996246706",
+      "numberEqual": false,
+      "bigEqual": false
+    },
+    {
+      "i": 56,
+      "numberA": 28147497671637684,
+      "numberB": 30680772462033590,
+      "bigA": "28147497671637685",
+      "bigB": "30680772462033592",
+      "numberEqual": false,
+      "bigEqual": false
+    },
+    {
+      "i": 57,
+      "numberA": 21673573207292600,
+      "numberB": 22799473114135228,
+      "bigA": "21673573207292601",
+      "bigB": "22799473114135228",
+      "numberEqual": false,
+      "bigEqual": false
+    },
+    {
+      "i": 58,
+      "numberA": 35465847066114750,
+      "numberB": 25895697857952450,
+      "bigA": "35465847066114750",
+      "bigB": "25895697857952449",
+      "numberEqual": false,
+      "bigEqual": false
+    },
+    {
+      "i": 59,
+      "numberA": 30117822508612292,
+      "numberB": 35747322042825430,
+      "bigA": "30117822508612291",
+      "bigB": "35747322042825431",
+      "numberEqual": false,
+      "bigEqual": false
+    },
+    {
+      "i": 60,
+      "numberA": 41095346600327900,
+      "numberB": 40532396646906616,
+      "bigA": "41095346600327905",
+      "bigB": "40532396646906614",
+      "numberEqual": false,
+      "bigEqual": false
+    },
+    {
+      "i": 61,
+      "numberA": 32088147345586936,
+      "numberB": 18858823440186108,
+      "bigA": "32088147345586938",
+      "bigB": "18858823440186107",
+      "numberEqual": false,
+      "bigEqual": false
+    },
+    {
+      "i": 62,
+      "numberA": 34902897112693504,
+      "numberB": 69524319248104190,
+      "bigA": "34902897112693504",
+      "bigB": "69524319248104193",
+      "numberEqual": false,
+      "bigEqual": false
+    },
+    {
+      "i": 63,
+      "numberA": 37717646879800060,
+      "numberB": 36028797019536130,
+      "bigA": "37717646879800066",
+      "bigB": "36028797019536131",
+      "numberEqual": false,
+      "bigEqual": false
+    },
+    {
+      "i": 64,
+      "numberA": 43628621390723850,
+      "numberB": 51791395715332920,
+      "bigA": "43628621390723847",
+      "bigB": "51791395715332917",
+      "numberEqual": false,
+      "bigEqual": false
+    },
+    {
+      "i": 65,
+      "numberA": 28147497671637824,
+      "numberB": 51228445761911620,
+      "bigA": "28147497671637825",
+      "bigB": "51228445761911619",
+      "numberEqual": false,
+      "bigEqual": false
+    },
+    {
+      "i": 66,
+      "numberA": 40813871623617350,
+      "numberB": 41095346600328020,
+      "bigA": "40813871623617353",
+      "bigB": "41095346600328018",
+      "numberEqual": false,
+      "bigEqual": false
+    },
+    {
+      "i": 67,
+      "numberA": 68116944364551000,
+      "numberB": 28147497671637852,
+      "bigA": "68116944364550998",
+      "bigB": "28147497671637851",
+      "numberEqual": false,
+      "bigEqual": false
+    },
+    {
+      "i": 68,
+      "numberA": 41376821577038690,
+      "numberB": 26458647811373940,
+      "bigA": "41376821577038692",
+      "bigB": "26458647811373941",
+      "numberEqual": false,
+      "bigEqual": false
+    },
+    {
+      "i": 69,
+      "numberA": 30117822508612470,
+      "numberB": 35747322042825596,
+      "bigA": "30117822508612471",
+      "bigB": "35747322042825595",
+      "numberEqual": false,
+      "bigEqual": false
+    },
+    {
+      "i": 70,
+      "numberA": 30399297485323150,
+      "numberB": 37436171903089550,
+      "bigA": "30399297485323150",
+      "bigB": "37436171903089553",
+      "numberEqual": false,
+      "bigEqual": false
+    },
+    {
+      "i": 71,
+      "numberA": 39125021763353490,
+      "numberB": 27021597764795290,
+      "bigA": "39125021763353491",
+      "bigB": "27021597764795286",
+      "numberEqual": false,
+      "bigEqual": false
+    },
+    {
+      "i": 72,
+      "numberA": 30399297485323160,
+      "numberB": 28710447625059228,
+      "bigA": "30399297485323162",
+      "bigB": "28710447625059227",
+      "numberEqual": false,
+      "bigEqual": false
+    },
+    {
+      "i": 73,
+      "numberA": 29273397578480540,
+      "numberB": 26740122788084650,
+      "bigA": "29273397578480540",
+      "bigB": "26740122788084647",
+      "numberEqual": false,
+      "bigEqual": false
+    },
+    {
+      "i": 74,
+      "numberA": 33495522229140396,
+      "numberB": 22517998137424820,
+      "bigA": "33495522229140396",
+      "bigB": "22517998137424820",
+      "numberEqual": false,
+      "bigEqual": false
+    },
+    {
+      "i": 75,
+      "numberA": 53761720552307650,
+      "numberB": 29554872555191236,
+      "bigA": "53761720552307647",
+      "bigB": "29554872555191235",
+      "numberEqual": false,
+      "bigEqual": false
+    },
+    {
+      "i": 76,
+      "numberA": 24206847997688784,
+      "numberB": 57702370226256850,
+      "bigA": "24206847997688785",
+      "bigB": "57702370226256852",
+      "numberEqual": false,
+      "bigEqual": false
+    },
+    {
+      "i": 77,
+      "numberA": 46161896181119960,
+      "numberB": 45880421204409304,
+      "bigA": "46161896181119960",
+      "bigB": "45880421204409305",
+      "numberEqual": false,
+      "bigEqual": false
+    },
+    {
+      "i": 78,
+      "numberA": 38562071809932264,
+      "numberB": 39406496740064230,
+      "bigA": "38562071809932264",
+      "bigB": "39406496740064234",
+      "numberEqual": false,
+      "bigEqual": false
+    },
+    {
+      "i": 79,
+      "numberA": 40532396646906860,
+      "numberB": 21955048184003570,
+      "bigA": "40532396646906860",
+      "bigB": "21955048184003569",
+      "numberEqual": false,
+      "bigEqual": false
+    },
+    {
+      "i": 80,
+      "numberA": 28710447625059316,
+      "numberB": 36873221949668340,
+      "bigA": "28710447625059315",
+      "bigB": "36873221949668340",
+      "numberEqual": false,
+      "bigEqual": false
+    },
+    {
+      "i": 81,
+      "numberA": 41939771530460150,
+      "numberB": 26177172834663416,
+      "bigA": "41939771530460149",
+      "bigB": "26177172834663414",
+      "numberEqual": false,
+      "bigEqual": false
+    },
+    {
+      "i": 82,
+      "numberA": 35465847066115064,
+      "numberB": 40813871623617530,
+      "bigA": "35465847066115063",
+      "bigB": "40813871623617528",
+      "numberEqual": false,
+      "bigEqual": false
+    },
+    {
+      "i": 83,
+      "numberA": 101612466593119230,
+      "numberB": 24769797951110148,
+      "bigA": "101612466593119229",
+      "bigB": "24769797951110148",
+      "numberEqual": false,
+      "bigEqual": false
+    },
+    {
+      "i": 84,
+      "numberA": 64176294690601990,
+      "numberB": 21392098230582280,
+      "bigA": "64176294690601990",
+      "bigB": "21392098230582282",
+      "numberEqual": false,
+      "bigEqual": false
+    },
+    {
+      "i": 85,
+      "numberA": 36310271996247050,
+      "numberB": 53480245575597070,
+      "bigA": "36310271996247051",
+      "bigB": "53480245575597069",
+      "numberEqual": false,
+      "bigEqual": false
+    },
+    {
+      "i": 86,
+      "numberA": 52917295622175760,
+      "numberB": 41095346600328216,
+      "bigA": "52917295622175761",
+      "bigB": "41095346600328213",
+      "numberEqual": false,
+      "bigEqual": false
+    },
+    {
+      "i": 87,
+      "numberA": 28991922601770010,
+      "numberB": 76561193665870880,
+      "bigA": "28991922601770007",
+      "bigB": "76561193665870872",
+      "numberEqual": false,
+      "bigEqual": false
+    },
+    {
+      "i": 88,
+      "numberA": 42784196460592160,
+      "numberB": 24488322974399524,
+      "bigA": "42784196460592163",
+      "bigB": "24488322974399524",
+      "numberEqual": false,
+      "bigEqual": false
+    },
+    {
+      "i": 89,
+      "numberA": 15762598696369190,
+      "numberB": 42784196460592170,
+      "bigA": "15762598696369190",
+      "bigB": "42784196460592169",
+      "numberEqual": false,
+      "bigEqual": false
+    },
+    {
+      "i": 90,
+      "numberA": 43347146414013480,
+      "numberB": 58546795156388910,
+      "bigA": "43347146414013482",
+      "bigB": "58546795156388913",
+      "numberEqual": false,
+      "bigEqual": false
+    },
+    {
+      "i": 91,
+      "numberA": 31525197392165936,
+      "numberB": 30680772462033980,
+      "bigA": "31525197392165938",
+      "bigB": "30680772462033980",
+      "numberEqual": false,
+      "bigEqual": false
+    },
+    {
+      "i": 92,
+      "numberA": 34902897112693820,
+      "numberB": 29836347531902016,
+      "bigA": "34902897112693821",
+      "bigB": "29836347531902014",
+      "numberEqual": false,
+      "bigEqual": false
+    },
+    {
+      "i": 93,
+      "numberA": 47569271064673340,
+      "numberB": 79094468456266820,
+      "bigA": "47569271064673343",
+      "bigB": "79094468456266816",
+      "numberEqual": false,
+      "bigEqual": false
+    },
+    {
+      "i": 94,
+      "numberA": 78250043526134850,
+      "numberB": 41658296553749576,
+      "bigA": "78250043526134850",
+      "bigB": "41658296553749573",
+      "numberEqual": false,
+      "bigEqual": false
+    },
+    {
+      "i": 95,
+      "numberA": 24769797951110216,
+      "numberB": 41095346600328270,
+      "bigA": "24769797951110218",
+      "bigB": "41095346600328268",
+      "numberEqual": false,
+      "bigEqual": false
+    },
+    {
+      "i": 96,
+      "numberA": 21955048184003660,
+      "numberB": 76561193665870930,
+      "bigA": "21955048184003661",
+      "bigB": "76561193665870930",
+      "numberEqual": false,
+      "bigEqual": false
+    },
+    {
+      "i": 97,
+      "numberA": 25051272927820884,
+      "numberB": 58828270133099610,
+      "bigA": "25051272927820885",
+      "bigB": "58828270133099609",
+      "numberEqual": false,
+      "bigEqual": false
+    },
+    {
+      "i": 98,
+      "numberA": 55732045389282390,
+      "numberB": 47569271064673380,
+      "bigA": "55732045389282394",
+      "bigB": "47569271064673372",
+      "numberEqual": false,
+      "bigEqual": false
+    },
+    {
+      "i": 99,
+      "numberA": 26740122788084830,
+      "numberB": 90916417478114400,
+      "bigA": "26740122788084833",
+      "bigB": "90916417478114402",
+      "numberEqual": false,
+      "bigEqual": false
+    }
+  ],
+  "collisions": [
+    {
+      "i": 375,
+      "numberA": 9288674232026648,
+      "numberB": 9288674232026648,
+      "bigA": "9288674232026648",
+      "bigB": "9288674232026649",
+      "numberEqual": true,
+      "bigEqual": false
+    }
+  ],
+  "probeNote": "Checked 376 fresh file pairs (indices 0..375); pairs[] retains the initial 100 measurements, collision[] retains the first later collision.",
+  "attemptedPairs": 376
+}

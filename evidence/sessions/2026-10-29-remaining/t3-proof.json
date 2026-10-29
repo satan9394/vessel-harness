@@ -1,0 +1,181 @@
+{
+  "stages": {
+    "done": {
+      "stage": {
+        "id": "stage_16183211-ea4b-4fc0-ac8d-221d022440c4",
+        "roster": [
+          {
+            "memberId": "developer",
+            "presetId": "developer",
+            "preset": {
+              "id": "developer",
+              "role": "generator",
+              "modelTier": "pro",
+              "write": true,
+              "description": "Developer（产出者）：pro 档（按任务复杂度可降 fast）+ 允许写文件"
+            },
+            "routeSnapshot": {
+              "providerId": "fixture",
+              "model": "fixture-model",
+              "snapshottedAt": 1793272054783
+            },
+            "role": "generator",
+            "phase": "generate",
+            "tier": "pro",
+            "model": "fixture-model",
+            "providerId": "fixture"
+          }
+        ],
+        "tasks": [
+          {
+            "id": "draft",
+            "title": "Write artifact",
+            "description": "RUN_ARTIFACT: produce artifact.txt and a long summary.",
+            "assignedRole": "generator",
+            "dependencies": [],
+            "status": "completed",
+            "claimedBy": "developer",
+            "result": {
+              "output": "摘要验证段落。摘要验证段落。摘要验证段落。摘要验证段落。摘要验证段落。摘要验证段落。摘要验证段落。摘要验证段落。摘要验证段落。摘要验证段落。摘要验证段落。摘要验证段落。摘要验证段落。摘要验证段落。摘要验证段落。摘要验证段落。摘要验证段落。摘要验证段落。摘要验证段落。摘要验证段落。摘要验证段落。摘要验证段落。摘要验证段落。摘要验证段落。摘要验证段落。摘要验证段落。摘要验证段落。摘要验证段落。摘要验证段落。摘要验证段落。摘要验证段落。摘要验证段落。摘要验证段落。摘要验证段落。摘要验证段落。摘要验证段落。摘要验证段落。摘要验证段落。摘要验证段落。摘要验证段落。摘要验证段落。摘要验证段落。摘要验证段落…",
+              "artifacts": [
+                "artifact.txt"
+              ]
+            }
+          },
+          {
+            "id": "check",
+            "title": "Check result",
+            "description": "Confirm the previous result.",
+            "assignedRole": "generator",
+            "dependencies": [
+              "draft"
+            ],
+            "status": "completed",
+            "claimedBy": "developer",
+            "result": {
+              "output": "Fixture connected.",
+              "artifacts": []
+            }
+          },
+          {
+            "id": "final",
+            "title": "Finalize result",
+            "description": "Confirm the previous result.",
+            "assignedRole": "generator",
+            "dependencies": [
+              "check"
+            ],
+            "status": "completed",
+            "claimedBy": "developer",
+            "result": {
+              "output": "Fixture connected.",
+              "artifacts": []
+            }
+          }
+        ],
+        "status": "finished",
+        "createdAt": 1793272054783,
+        "approvedAt": 1793272082327,
+        "sessionId": "sess_1793272032235_6c91502c",
+        "availableProviders": [
+          "fixture"
+        ]
+      }
+    },
+    "failure": {
+      "stage": {
+        "id": "stage_ec1d92d5-fcd9-441f-8c7a-c76c657eda4d",
+        "roster": [
+          {
+            "memberId": "developer",
+            "presetId": "developer",
+            "preset": {
+              "id": "developer",
+              "role": "generator",
+              "modelTier": "pro",
+              "write": true,
+              "description": "Developer（产出者）：pro 档（按任务复杂度可降 fast）+ 允许写文件"
+            },
+            "routeSnapshot": {
+              "providerId": "fixture",
+              "model": "fixture-model",
+              "snapshottedAt": 1793272155833
+            },
+            "role": "generator",
+            "phase": "generate",
+            "tier": "fast",
+            "model": "fixture-model",
+            "providerId": "fixture"
+          }
+        ],
+        "tasks": [
+          {
+            "id": "failure",
+            "title": "Controlled failure",
+            "description": "CONTROLLED_FAILURE: fixture HTTP 500",
+            "assignedRole": "generator",
+            "dependencies": [],
+            "status": "failed",
+            "claimedBy": "developer",
+            "error": "Model call failed after 6 attempt(s): OpenAI-compatible 500 Internal Server Error: {\"error\":{\"message\":\"CONTROLLED_FAILURE: fixture HTTP 500\"}}"
+          }
+        ],
+        "status": "finished",
+        "createdAt": 1793272155833,
+        "approvedAt": 1793272166780,
+        "sessionId": "sess_1793272032235_6c91502c",
+        "availableProviders": [
+          "fixture"
+        ]
+      }
+    }
+  },
+  "artifactHttp": {
+    "status": 200,
+    "bytes": 72,
+    "content": "Actual fixture artifact\nWritten once through the production Write tool.\n",
+    "matchesWorkspace": true
+  },
+  "sessions": [
+    "C:\\work\\AppData\\Local\\Temp\\vessel-remaining-nfItcn\\t3\\ws\\.harness\\sessions\\sess_1793272032235_6c91502c\\session.jsonl",
+    "C:\\work\\AppData\\Local\\Temp\\vessel-remaining-nfItcn\\t3\\ws\\.harness\\sessions\\sub_1793272082328_49b010ac\\session.jsonl",
+    "C:\\work\\AppData\\Local\\Temp\\vessel-remaining-nfItcn\\t3\\ws\\.harness\\sessions\\sub_1793272093176_7f5f0009\\session.jsonl",
+    "C:\\work\\AppData\\Local\\Temp\\vessel-remaining-nfItcn\\t3\\ws\\.harness\\sessions\\sub_1793272093201_f3263234\\session.jsonl",
+    "C:\\work\\AppData\\Local\\Temp\\vessel-remaining-nfItcn\\t3\\ws\\.harness\\sessions\\sub_1793272166780_824921b7\\session.jsonl"
+  ],
+  "writeResults": [
+    {
+      "file": "C:\\work\\AppData\\Local\\Temp\\vessel-remaining-nfItcn\\t3\\ws\\.harness\\sessions\\sub_1793272082328_49b010ac\\session.jsonl",
+      "record": {
+        "type": "tool/result",
+        "toolCallId": "fixture-write-once",
+        "toolName": "Write",
+        "content": "wrote artifact.txt (72 bytes)",
+        "meta": {
+          "path": "artifact.txt",
+          "bytes": 72
+        },
+        "surface": true,
+        "seq": 8,
+        "ts": "2026-10-29T11:08:13.157Z"
+      }
+    }
+  ],
+  "writeCount": 1,
+  "widgetRecordCount": 0,
+  "widgets": [],
+  "sourceOutputLength": 301,
+  "scriptSha256": "aaac9563cea277344304ebb3d42d177901fd3b11027bba1ea4f88831c2743fcd",
+  "script": "C:\\work\\AppData\\Local\\Temp\\vessel-remaining-nfItcn\\t3-fixture.mjs",
+  "generatedAssistantLengths": [
+    11,
+    570,
+    18,
+    18
+  ],
+  "generatedLongOutputLength": 570,
+  "stageSummaryLength": 301,
+  "stageHasEllipsis": true,
+  "downloadMovedTo": "C:\\work\\AppData\\Local\\Temp\\vessel-remaining-nfItcn\\t3-downloaded-artifact.txt",
+  "originalDownloadAbsent": true
+}

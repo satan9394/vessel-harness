@@ -1,0 +1,15 @@
+{
+  "output": "C:\\work\\AppData\\Local\\Temp\\vessel-remaining-nfItcn\\web",
+  "assets": [
+    {
+      "asset": "/assets/index-B2LJIJL6.js",
+      "sha256": "8622e4899ca4ddbf60fff05941c66eb9790f9efd4fcbbd6693362a67ef6e2688",
+      "mtime": "2026-10-29T11:02:34.803Z"
+    },
+    {
+      "asset": "/assets/index-DlR0pyzO.css",
+      "sha256": "1ec69eca986e739e8cd6fc4bf3b738c868c6e4ea88732882aeea997750b5ef07",
+      "mtime": "2026-10-29T11:02:34.803Z"
+    }
+  ]
+}

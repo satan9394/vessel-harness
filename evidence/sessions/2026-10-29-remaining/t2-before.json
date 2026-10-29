@@ -1,0 +1,54 @@
+{
+  "dag": [
+    {
+      "clientWidth": 242,
+      "rect": {
+        "bottom": 646.1265563964844,
+        "height": 160.14932250976562,
+        "left": 283.98876953125,
+        "right": 526.2936248779297,
+        "top": 485.9772338867187,
+        "width": 242.3048553466797,
+        "x": 283.98876953125,
+        "y": 485.9772338867187
+      },
+      "scrollWidth": 724
+    }
+  ],
+  "meters": [
+    {
+      "clientWidth": 72,
+      "height": 17.822294235229492,
+      "scrollWidth": 72,
+      "text": "上下文占用—"
+    },
+    {
+      "clientWidth": 61,
+      "height": 17.822294235229492,
+      "scrollWidth": 61,
+      "text": "⚡ 缓存0%"
+    },
+    {
+      "clientWidth": 67,
+      "height": 17.822294235229492,
+      "scrollWidth": 67,
+      "text": "费用$0.0000"
+    },
+    {
+      "clientWidth": 45,
+      "height": 17.822294235229492,
+      "scrollWidth": 45,
+      "text": "计划0/0"
+    },
+    {
+      "clientWidth": 397,
+      "height": 17.822294235229492,
+      "scrollWidth": 397,
+      "text": "键位提示命令（Ctrl/Cmd+K）切换画布检视器（Ctrl/Cmd+I）发送⏎换行"
+    }
+  ],
+  "viewport": [
+    1440,
+    900
+  ]
+}

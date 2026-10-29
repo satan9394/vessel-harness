@@ -1,0 +1,6 @@
+{
+  "command": "node node_modules/typescript/bin/tsc -p tsconfig.test.json --noEmit",
+  "status": 0,
+  "seconds": 2.213,
+  "log": "C:\\work\\AppData\\Local\\Temp\\vessel-remaining-nfItcn\\final-test-types.log"
+}

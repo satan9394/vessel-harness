@@ -98,3 +98,7 @@ T2: UI-created disposable mock session; same-origin HTTP POST created a real sta
 ### 2026-10-29 · 签收口径与遗留
 
 主链（预审横幅 → 批准执行 → 三节点完成 → 抽屉依赖）已由协调者逐张看图签收；三色状态 / 300 字截断 / 产物链接三项在离线 mock 下不可达，保持 UNVERIFIED 且不阻塞。原先挂的「用户视觉签字」改为「协调者按证据签字，原图可复核」，不再排期。
+
+## 2026-10-29 remaining fixture follow-up (append-only)
+
+Three residual branches now exercised through real TeamRuntime with a local scripted provider. Truncation bound PASS (570 generated → 301 stage summary → 300 drawer); ellipsis/expand FAIL (drawer removes runtime ellipsis). Real artifact download PASS (72 bytes, one Write, HTTP/download/workspace equality). Four actual status colors PASS, including controlled HTTP 500. Nonempty-widget deduplication remains UNVERIFIED (zero widgets in fixture). This does not sign off the whole card. Source of detailed results: card 361 appendix and `evidence/sessions/2026-10-29-remaining/t3-proof.json`.

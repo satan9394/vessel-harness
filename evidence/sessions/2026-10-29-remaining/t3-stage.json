@@ -1,0 +1,62 @@
+{
+  "sessionId": "sess_1793272032235_6c91502c",
+  "status": 201,
+  "stage": {
+    "id": "stage_16183211-ea4b-4fc0-ac8d-221d022440c4",
+    "roster": [
+      {
+        "memberId": "developer",
+        "presetId": "developer",
+        "preset": {
+          "id": "developer",
+          "role": "generator",
+          "modelTier": "pro",
+          "write": true,
+          "description": "Developer（产出者）：pro 档（按任务复杂度可降 fast）+ 允许写文件"
+        },
+        "routeSnapshot": {
+          "providerId": "fixture",
+          "model": "fixture-model",
+          "snapshottedAt": 1793272054783
+        },
+        "role": "generator",
+        "phase": "generate",
+        "tier": "pro",
+        "model": "fixture-model",
+        "providerId": "fixture"
+      }
+    ],
+    "tasks": [
+      {
+        "id": "draft",
+        "title": "Write artifact",
+        "description": "RUN_ARTIFACT: produce artifact.txt and a long summary.",
+        "assignedRole": "generator",
+        "dependencies": [],
+        "status": "pending"
+      },
+      {
+        "id": "check",
+        "title": "Check result",
+        "description": "Confirm the previous result.",
+        "assignedRole": "generator",
+        "dependencies": [
+          "draft"
+        ],
+        "status": "pending"
+      },
+      {
+        "id": "final",
+        "title": "Finalize result",
+        "description": "Confirm the previous result.",
+        "assignedRole": "generator",
+        "dependencies": [
+          "check"
+        ],
+        "status": "pending"
+      }
+    ],
+    "status": "staged",
+    "createdAt": 1793272054783
+  }
+}

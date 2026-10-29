@@ -1,6 +1,6 @@
 # 任务卡 361: 卡 175 三项「夹具不可达」残余的可证伪化
 
-- Status: 待执行（2026-10-29）
+- Status: 已验收（2026-10-29）：300 字截断与产物下载通过（截断处缺省略号，记为遗留）；四态颜色通过；内联 widget 去重本轮未覆盖
 - PDW task: none
 - 来源：卡 175 的 2026-10-28 final sweep 段——三色状态、300 字截断、产物链接在离线 mock 下 UNVERIFIED。
 
@@ -32,3 +32,29 @@
 ## 5. Result
 
 待执行。
+
+## 2026-10-29 remaining run — falsifiable fixture verdicts; sign-off reserved
+
+Used `evidence/sessions/2026-10-29-remaining/` (handoff-authorized directory). No product edits for T3. A local keyless OpenAI-compatible stub was configured through normal provider UI; supported server fixture options teamProviders/tierBindings bind it to the real TeamRuntime (normal serve defaults to mock). All stages/approvals used public same-origin HTTP/UI, no invented task states.
+
+- Summary: 300-character bound 通过 / PASS, ellipsis/expand 不通过 / FAIL. Stub emits 570 characters; stage API returns 301 (runtime summary + ellipsis); drawer renders exactly 300 and removes the ellipsis, with no expand control. `t3-drawer.json`, `t3-proof.json`, `t3-summary-300.jpg`. Product source unchanged as required.
+- Artifact control: 通过 / PASS for real clickable download (button rather than anchor). One actual Write result, artifact.txt 72 bytes; HTTP content 200 matches workspace and downloaded bytes. `t3-artifact-proof.json`, `t3-artifact.jpg`. Browser default download initially landed in Downloads; verified matching contents and moved the owned file to TEMP immediately, leaving no download there.
+- Colors: 通过 / PASS. Actual pending grey rgb(72,79,88), running blue rgb(121,184,255) with team-pulse, completed green, controlled HTTP-500 failure red; `t3-colors.json` and four state screenshots. Failure exhausted six model attempts; error retained in screenshot/JSON.
+- A3: repeated approval 409; one Write tool/result and one recorded artifact. No duplicate widget observed, but fixture generates zero widget records, so nonempty-widget deduplication remains 无法验证 / UNVERIFIED.
+
+All raw requests/scripts/session logs remain in TEMP, with script path/hash in t3-proof.json.
+
+## 7. Result（协调者验收，2026-10-29）
+
+结论：**两项通过、一项通过但带缺陷、一项未覆盖。**
+
+| 项 | 结论 | 实测 |
+|---|---|---|
+| 300 字截断 | **通过，但有缺陷** | 桩 provider 产出 **570 字符**摘要，抽屉显示 **恰好 300 字符**；缺陷是**没有省略号、也没有展开控件**——run 时已在末尾加了省略号，抽屉再按 300 切掉，于是省略标记被切走。截图上表现为文字戛然而止。 |
+| 产物链接 | **通过** | 节点真的 Write 出 `artifact.txt`，抽屉里是可点的 `artifact.txt` 按钮，触发真实下载；文件内容与写入一致。 |
+| 三色以上状态 | **通过** | 待处理 / 运行中 / 已完成 / 失败 四态各一张截图（`t3-pending/running/completed/failed.jpg`），状态色取自计算样式而非口头判断；失败态由桩 provider 连续 500 触发（重试 6 次后转失败）。 |
+| 内联 widget 去重 | **未覆盖** | 本轮没有产生 populated widget 流，所以「只写一次、不重复发」没被这次夹具触到。 |
+
+**新发现（不新开卡，记在这里）**：摘要区缺省略号与展开入口，属真实可用性缺陷但不是阻塞。要修的话，是在切 300 字之前先剥离末尾省略号并补一个「展开全文」控件，改动面很小；排在下次 UI 批次即可。
+
+边界：本轮没有改产品代码，符合卡内要求；截图与 JSON 在 `evidence/sessions/2026-10-29-remaining/`。

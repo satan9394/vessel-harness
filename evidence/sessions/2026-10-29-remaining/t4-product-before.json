@@ -1,0 +1,18 @@
+{
+  "collision": {
+    "i": 375,
+    "numberA": 9288674232026648,
+    "numberB": 9288674232026648,
+    "bigA": "9288674232026648",
+    "bigB": "9288674232026649",
+    "numberEqual": true,
+    "bigEqual": false
+  },
+  "swaps": 1,
+  "returned": {
+    "path": "public-375",
+    "content": "private",
+    "diff": "Git comparison unavailable for this workspace.",
+    "comparison": "Current workspace against Git HEAD"
+  }
+}

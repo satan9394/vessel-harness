@@ -1,0 +1,6 @@
+{
+  "command": "node node_modules/typescript/bin/tsc -p apps/web/tsconfig.json --noEmit",
+  "status": 0,
+  "seconds": 0.883,
+  "log": "C:\\work\\AppData\\Local\\Temp\\vessel-remaining-nfItcn\\final-web-types.log"
+}

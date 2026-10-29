@@ -1,0 +1,26 @@
+{
+  "sessions": [
+    {
+      "id": "sess_1793271521096_aca7dc36",
+      "workspaceRoot": "C:\\work\\AppData\\Local\\Temp\\vessel-remaining-nfItcn\\ws",
+      "provider": "mock",
+      "model": "mock",
+      "permission": "workspace-write",
+      "createdAt": "2026-10-29T10:58:41.144Z",
+      "updatedAt": "2026-10-29T10:58:43.785Z",
+      "topic": {
+        "topicId": "topic_sess_1793271521096_aca7dc36",
+        "createdAt": 1793271521184,
+        "isArchived": false,
+        "title": "T2 layout fixture",
+        "updatedAt": 1793271521184
+      },
+      "recordCount": 14,
+      "totalTokens": 120,
+      "inputTokens": 100,
+      "outputTokens": 20,
+      "cacheReadTokens": 0,
+      "cacheCreationTokens": 0
+    }
+  ]
+}

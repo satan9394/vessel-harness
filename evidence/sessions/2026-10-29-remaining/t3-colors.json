@@ -1,0 +1,243 @@
+[
+  {
+    "name": "pending",
+    "nodes": [
+      {
+        "animation": "none",
+        "border": "rgb(72, 79, 88)",
+        "color": "rgb(230, 237, 243)",
+        "rect": {
+          "bottom": 578.0065078735352,
+          "height": 67.99970245361328,
+          "left": 307.98876953125,
+          "right": 507.98876953125,
+          "top": 510.0068054199219,
+          "width": 200,
+          "x": 307.98876953125,
+          "y": 510.0068054199219
+        },
+        "status": "team-dag-node status-pending",
+        "text": "Write artifact待处理"
+      },
+      {
+        "animation": "none",
+        "border": "rgb(72, 79, 88)",
+        "color": "rgb(230, 237, 243)",
+        "rect": {
+          "bottom": 578.0065078735352,
+          "height": 67.99970245361328,
+          "left": 547.98876953125,
+          "right": 747.98876953125,
+          "top": 510.0068054199219,
+          "width": 200,
+          "x": 547.98876953125,
+          "y": 510.0068054199219
+        },
+        "status": "team-dag-node status-pending",
+        "text": "Check result待处理"
+      },
+      {
+        "animation": "none",
+        "border": "rgb(72, 79, 88)",
+        "color": "rgb(230, 237, 243)",
+        "rect": {
+          "bottom": 578.0065078735352,
+          "height": 67.99970245361328,
+          "left": 787.98876953125,
+          "right": 987.9888305664062,
+          "top": 510.0068054199219,
+          "width": 200.00006103515625,
+          "x": 787.98876953125,
+          "y": 510.0068054199219
+        },
+        "status": "team-dag-node status-pending",
+        "text": "Finalize result待处理"
+      }
+    ]
+  },
+  {
+    "name": "running",
+    "nodes": [
+      {
+        "animation": "team-pulse",
+        "border": "rgb(121, 184, 255)",
+        "color": "rgb(230, 237, 243)",
+        "rect": {
+          "bottom": 508.1513748168946,
+          "height": 67.99970245361328,
+          "left": 307.98876953125,
+          "right": 507.98876953125,
+          "top": 440.1516723632813,
+          "width": 200,
+          "x": 307.98876953125,
+          "y": 440.1516723632813
+        },
+        "status": "team-dag-node status-running",
+        "text": "Write artifact运行中"
+      },
+      {
+        "animation": "none",
+        "border": "rgb(72, 79, 88)",
+        "color": "rgb(230, 237, 243)",
+        "rect": {
+          "bottom": 508.1513748168946,
+          "height": 67.99970245361328,
+          "left": 547.98876953125,
+          "right": 747.98876953125,
+          "top": 440.1516723632813,
+          "width": 200,
+          "x": 547.98876953125,
+          "y": 440.1516723632813
+        },
+        "status": "team-dag-node status-pending",
+        "text": "Check result待处理"
+      },
+      {
+        "animation": "none",
+        "border": "rgb(72, 79, 88)",
+        "color": "rgb(230, 237, 243)",
+        "rect": {
+          "bottom": 508.1513748168946,
+          "height": 67.99970245361328,
+          "left": 787.98876953125,
+          "right": 987.9888305664062,
+          "top": 440.1516723632813,
+          "width": 200.00006103515625,
+          "x": 787.98876953125,
+          "y": 440.1516723632813
+        },
+        "status": "team-dag-node status-pending",
+        "text": "Finalize result待处理"
+      }
+    ]
+  },
+  {
+    "name": "completed",
+    "nodes": [
+      {
+        "animation": "none",
+        "border": "rgb(74, 222, 148)",
+        "color": "rgb(230, 237, 243)",
+        "rect": {
+          "bottom": 508.1513748168946,
+          "height": 67.99970245361328,
+          "left": 307.98876953125,
+          "right": 507.98876953125,
+          "top": 440.1516723632813,
+          "width": 200,
+          "x": 307.98876953125,
+          "y": 440.1516723632813
+        },
+        "status": "team-dag-node status-completed",
+        "text": "Write artifact已完成"
+      },
+      {
+        "animation": "none",
+        "border": "rgb(74, 222, 148)",
+        "color": "rgb(230, 237, 243)",
+        "rect": {
+          "bottom": 508.1513748168946,
+          "height": 67.99970245361328,
+          "left": 547.98876953125,
+          "right": 747.98876953125,
+          "top": 440.1516723632813,
+          "width": 200,
+          "x": 547.98876953125,
+          "y": 440.1516723632813
+        },
+        "status": "team-dag-node status-completed",
+        "text": "Check result已完成"
+      },
+      {
+        "animation": "none",
+        "border": "rgb(74, 222, 148)",
+        "color": "rgb(230, 237, 243)",
+        "rect": {
+          "bottom": 508.1513748168946,
+          "height": 67.99970245361328,
+          "left": 787.98876953125,
+          "right": 987.9888305664062,
+          "top": 440.1516723632813,
+          "width": 200.00006103515625,
+          "x": 787.98876953125,
+          "y": 440.1516723632813
+        },
+        "status": "team-dag-node status-completed",
+        "text": "Finalize result已完成"
+      }
+    ]
+  },
+  {
+    "name": "failed",
+    "nodes": [
+      {
+        "animation": "none",
+        "border": "rgb(74, 222, 148)",
+        "color": "rgb(230, 237, 243)",
+        "rect": {
+          "bottom": -5.154350280761719,
+          "height": 67.99970245361328,
+          "left": 307.98876953125,
+          "right": 507.98876953125,
+          "top": -73.154052734375,
+          "width": 200,
+          "x": 307.98876953125,
+          "y": -73.154052734375
+        },
+        "status": "team-dag-node status-completed",
+        "text": "Write artifact已完成"
+      },
+      {
+        "animation": "none",
+        "border": "rgb(74, 222, 148)",
+        "color": "rgb(230, 237, 243)",
+        "rect": {
+          "bottom": -5.154350280761719,
+          "height": 67.99970245361328,
+          "left": 547.98876953125,
+          "right": 747.98876953125,
+          "top": -73.154052734375,
+          "width": 200,
+          "x": 547.98876953125,
+          "y": -73.154052734375
+        },
+        "status": "team-dag-node status-completed",
+        "text": "Check result已完成"
+      },
+      {
+        "animation": "none",
+        "border": "rgb(74, 222, 148)",
+        "color": "rgb(230, 237, 243)",
+        "rect": {
+          "bottom": -5.154350280761719,
+          "height": 67.99970245361328,
+          "left": 787.98876953125,
+          "right": 987.9888305664062,
+          "top": -73.154052734375,
+          "width": 200.00006103515625,
+          "x": 787.98876953125,
+          "y": -73.154052734375
+        },
+        "status": "team-dag-node status-completed",
+        "text": "Finalize result已完成"
+      },
+      {
+        "animation": "none",
+        "border": "rgb(255, 124, 114)",
+        "color": "rgb(230, 237, 243)",
+        "rect": {
+          "bottom": 234.28237915039065,
+          "height": 67.99969482421875,
+          "left": 307.98876953125,
+          "right": 507.98876953125,
+          "top": 166.28268432617188,
+          "width": 200,
+          "x": 307.98876953125,
+          "y": 166.28268432617188
+        },
+        "status": "team-dag-node status-failed",
+        "text": "Controlled failure失败"
+      }
+    ]
+  }
+]

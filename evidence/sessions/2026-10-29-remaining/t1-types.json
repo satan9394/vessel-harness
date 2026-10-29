@@ -1,0 +1,12 @@
+[
+  {
+    "command": "node node_modules/typescript/bin/tsc -b tsconfig.json",
+    "status": 0,
+    "log": "C:\\work\\AppData\\Local\\Temp\\vessel-remaining-nfItcn\\t1-build.log"
+  },
+  {
+    "command": "node node_modules/typescript/bin/tsc -p tsconfig.test.json --noEmit",
+    "status": 0,
+    "log": "C:\\work\\AppData\\Local\\Temp\\vessel-remaining-nfItcn\\t1-test-types.log"
+  }
+]

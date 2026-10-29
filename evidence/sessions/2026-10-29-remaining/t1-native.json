@@ -1,0 +1,97 @@
+{
+  "ws": "C:\\work\\AppData\\Local\\Temp\\vessel-remaining-nfItcn\\ws",
+  "results": [
+    {
+      "command": "echo hi",
+      "content": "hi",
+      "meta": {
+        "exitCode": 0,
+        "readonly": true,
+        "retryUnsafe": true,
+        "sandbox": {
+          "active": true,
+          "isolationTier": "windows-job-restricted"
+        }
+      }
+    },
+    {
+      "command": "echo x> in.txt",
+      "content": "(no output)",
+      "meta": {
+        "exitCode": 0,
+        "readonly": true,
+        "retryUnsafe": true,
+        "sandbox": {
+          "active": true,
+          "isolationTier": "windows-job-restricted"
+        }
+      }
+    },
+    {
+      "command": "echo x> %USERPROFILE%\\vessel-remaining-escape.txt",
+      "content": "[stderr]\n????????\n[hint] Command failed; stderr may use a non-UTF-8 code page. If writing files, check that the target is inside the sandbox allowed write roots.",
+      "error": {
+        "errorClass": "TOOL_FAILURE",
+        "message": "exit code 1",
+        "detail": {
+          "exitCode": 1
+        }
+      },
+      "meta": {
+        "exitCode": 1,
+        "readonly": true,
+        "retryUnsafe": true,
+        "sandbox": {
+          "active": true,
+          "isolationTier": "windows-job-restricted"
+        }
+      }
+    }
+  ],
+  "audits": [
+    {
+      "isolationTier": "windows-job-restricted",
+      "sandboxed": true,
+      "outcome": "enforced",
+      "allowedWritePaths": [
+        "C:\\work\\AppData\\Local\\Temp\\vessel-remaining-nfItcn\\ws"
+      ],
+      "constraints": {
+        "readOnlyPaths": [],
+        "memoryLimitBytes": 536870912,
+        "privilegeReduction": "Restricted token, Low Integrity, and Job Object confinement. Reads follow host ACLs; write roots require provisioned restricted SID ACLs.",
+        "integrityRid": 4096
+      }
+    },
+    {
+      "isolationTier": "windows-job-restricted",
+      "sandboxed": true,
+      "outcome": "enforced",
+      "allowedWritePaths": [
+        "C:\\work\\AppData\\Local\\Temp\\vessel-remaining-nfItcn\\ws"
+      ],
+      "constraints": {
+        "readOnlyPaths": [],
+        "memoryLimitBytes": 536870912,
+        "privilegeReduction": "Restricted token, Low Integrity, and Job Object confinement. Reads follow host ACLs; write roots require provisioned restricted SID ACLs.",
+        "integrityRid": 4096
+      }
+    },
+    {
+      "isolationTier": "windows-job-restricted",
+      "sandboxed": true,
+      "outcome": "enforced",
+      "allowedWritePaths": [
+        "C:\\work\\AppData\\Local\\Temp\\vessel-remaining-nfItcn\\ws"
+      ],
+      "constraints": {
+        "readOnlyPaths": [],
+        "memoryLimitBytes": 536870912,
+        "privilegeReduction": "Restricted token, Low Integrity, and Job Object confinement. Reads follow host ACLs; write roots require provisioned restricted SID ACLs.",
+        "integrityRid": 4096
+      }
+    }
+  ],
+  "inFile": "x\r\n",
+  "escapedFileExists": false
+}

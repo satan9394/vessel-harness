@@ -1,0 +1,8 @@
+{
+  "command": "node node_modules/vitest/vitest.mjs run packages/tools",
+  "exit": 0,
+  "files": 19,
+  "passed": 169,
+  "skipped": 3,
+  "log": "C:\\work\\AppData\\Local\\Temp\\vessel-remaining-nfItcn\\t1-tools.log"
+}

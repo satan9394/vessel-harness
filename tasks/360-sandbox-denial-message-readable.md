@@ -1,6 +1,6 @@
 # 任务卡 360: 沙箱拒绝时的错误信息不可读（管道里变成问号）
 
-- Status: 待执行（2026-10-29 协调者实测于 HEAD `a974edd`）
+- Status: 已验收（2026-10-29，协调者复跑：白名单内 `hi` 逐字不变；越界写 exit 1 + 可读 `[hint]`，目标文件不存在）
 - PDW task: none
 - 来源：卡 180/183 的真机执法验证。白名单内写成功、越界写被拒都成立，但**被拒时模型读不懂原因**。
 
@@ -34,3 +34,20 @@
 ## 6. Result
 
 待执行。
+
+## 2026-10-29 remaining run — evidence only; sign-off reserved
+
+A1–A4: 通过 / PASS. Added an ASCII hint only for nonzero native results with replacement characters or repeated question marks in stderr; preserves raw output and does not infer a denial. This avoids locale-specific decoding and leaves successful output unchanged. Regression cases cover GBK bytes decoded as UTF-8, literal question marks, readable failures and success. Tools: 19 files, 169 passed + 3 skipped; build and test typecheck exit 0. Real provisioned fixture: `echo hi` → 0 / `hi`; `echo x> in.txt` → 0, file `x\r\n`; `echo x> %USERPROFILE%\vessel-remaining-escape.txt` → 1 / TOOL_FAILURE plus ASCII hint, escaped file absent. ACL revoked (SID removed=True; Low label=False). Evidence: `evidence/sessions/2026-10-29-remaining/t1-native.json`, `t1-types.json`; raw log in TEMP recorded by environment.json. Requested route gpt-6.1-sol / medium, Fast off (bounded multi-file task); no Agent CLI/model probe.
+
+## 7. Result（协调者验收，2026-10-29）
+
+**通过。** 我自己复跑（隔离夹具、真 provision）：
+
+| 用例 | 结果 |
+|---|---|
+| 工作区内 `echo hi` | exit 0，content 仍是 `hi`（逐字未变） |
+| 越界写 `%USERPROFILE%\vessel-t1-escape-*.txt` | exit **1**，content 带原文问号 + `[hint] Command failed; stderr may use a non-UTF-8 code page. If writing files, check that the target is inside the sandbox allowed write roots.`，目标文件不存在 |
+
+非零退出没有被改判成功，提示是「可能」而不是断言权限拒绝——符合卡里要求的口径。门禁里 tools+policy 从 324 涨到 329（新增 5 条：含替换字符与 `?{3,}` 两变体、以及「成功输出不带 hint」「可读 stderr 不带 hint」的反向用例）。收尾 `-Revoke` 已执行。
+
+遗留（不阻塞）：提示是英文常量。若要中文化，需按语言注入，本轮没做也不要求。

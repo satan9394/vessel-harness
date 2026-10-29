@@ -1,0 +1,61 @@
+{
+  "status": 201,
+  "stage": {
+    "id": "stage_a3a849e8-bdcd-4992-8b24-18683bfe2fd0",
+    "roster": [
+      {
+        "memberId": "developer",
+        "presetId": "developer",
+        "preset": {
+          "id": "developer",
+          "role": "generator",
+          "modelTier": "pro",
+          "write": true,
+          "description": "Developer（产出者）：pro 档（按任务复杂度可降 fast）+ 允许写文件"
+        },
+        "routeSnapshot": {
+          "providerId": "mock",
+          "model": "mock-pro",
+          "snapshottedAt": 1793271686398
+        },
+        "role": "generator",
+        "phase": "generate",
+        "tier": "pro",
+        "model": "mock-pro",
+        "providerId": "mock"
+      }
+    ],
+    "tasks": [
+      {
+        "id": "draft",
+        "title": "Draft result",
+        "description": "T2 layout fixture",
+        "assignedRole": "generator",
+        "dependencies": [],
+        "status": "pending"
+      },
+      {
+        "id": "check",
+        "title": "Check dependencies",
+        "description": "T2 layout fixture",
+        "assignedRole": "generator",
+        "dependencies": [
+          "draft"
+        ],
+        "status": "pending"
+      },
+      {
+        "id": "final",
+        "title": "Finalize output",
+        "description": "T2 layout fixture",
+        "assignedRole": "generator",
+        "dependencies": [
+          "check"
+        ],
+        "status": "pending"
+      }
+    ],
+    "status": "staged",
+    "createdAt": 1793271686399
+  }
+}

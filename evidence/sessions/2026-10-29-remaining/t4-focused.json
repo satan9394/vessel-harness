@@ -1,0 +1,6 @@
+{
+  "command": "node node_modules/vitest/vitest.mjs run apps/local-server/src/teamStageApi.test.ts",
+  "status": 0,
+  "seconds": 8.65,
+  "log": "C:\\work\\AppData\\Local\\Temp\\vessel-remaining-nfItcn\\t4-focused.log"
+}

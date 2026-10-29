@@ -1,0 +1,41 @@
+{
+  "status": 201,
+  "stage": {
+    "id": "stage_ec1d92d5-fcd9-441f-8c7a-c76c657eda4d",
+    "roster": [
+      {
+        "memberId": "developer",
+        "presetId": "developer",
+        "preset": {
+          "id": "developer",
+          "role": "generator",
+          "modelTier": "pro",
+          "write": true,
+          "description": "Developer（产出者）：pro 档（按任务复杂度可降 fast）+ 允许写文件"
+        },
+        "routeSnapshot": {
+          "providerId": "fixture",
+          "model": "fixture-model",
+          "snapshottedAt": 1793272155833
+        },
+        "role": "generator",
+        "phase": "generate",
+        "tier": "fast",
+        "model": "fixture-model",
+        "providerId": "fixture"
+      }
+    ],
+    "tasks": [
+      {
+        "id": "failure",
+        "title": "Controlled failure",
+        "description": "CONTROLLED_FAILURE: fixture HTTP 500",
+        "assignedRole": "generator",
+        "dependencies": [],
+        "status": "pending"
+      }
+    ],
+    "status": "staged",
+    "createdAt": 1793272155833
+  }
+}

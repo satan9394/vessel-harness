@@ -1,0 +1,6 @@
+{
+  "command": "node node_modules/vitest/vitest.mjs run --root apps/web",
+  "status": 0,
+  "seconds": 29.01,
+  "log": "C:\\work\\AppData\\Local\\Temp\\vessel-remaining-nfItcn\\t2-web-final.log"
+}

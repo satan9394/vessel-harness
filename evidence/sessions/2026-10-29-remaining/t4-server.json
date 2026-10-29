@@ -1,0 +1,6 @@
+{
+  "command": "node node_modules/vitest/vitest.mjs run apps/local-server",
+  "status": 0,
+  "seconds": 111.901,
+  "log": "C:\\work\\AppData\\Local\\Temp\\vessel-remaining-nfItcn\\t4-server.log"
+}
