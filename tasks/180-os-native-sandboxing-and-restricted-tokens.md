@@ -122,3 +122,25 @@ S1 的 5.1 与 pwsh→5.1 配置/撤销全 exit 0。S2 真 runner 两次允许�
 所以「白名单内可写、越界写被拒」在真机成立，Windows ACL + Low Integrity 的执法**有本次证据**了。
 
 两条观察（不是阻塞）：① 越界被拒时 stderr 是不可解码的本地化文本（管道里出来是一串 `?`），除非知道这是「拒绝访问」，否则模型读不懂——建议后续把拒绝原因结构化，别依赖 OEM 代码页；② Low Integrity 硬编码不可关（`windowsRestricted.ts:30` 直接抛），所以「cmd 在低完整性下偶发 DLL 初始化失败」这类抖动目前只能记进已知 flake，不能靠关掉 Low IL 规避。
+
+### 2026-10-29 · Linux 分支真机验证（WSL2 Ubuntu），以及 macOS 到底还剩什么
+
+结论先写：**「POSIX 脱离进程组」这半条不需要 Mac**——它的内核语义 Linux 与 macOS 同源，我在本机 WSL2 里真跑完了；只有 Seatbelt 那一小块是 macOS 独占。
+
+环境：WSL2 `Ubuntu`（内核 `6.18.54.1-microsoft-standard-WSL2`），`node v22.22.2`，非 root（uid 1000），`sudo -n` 免密。装了 bubblewrap 0.9.0（`sudo apt-get install -y bubblewrap`，回滚：`sudo apt-get remove bubblewrap`）。用仓库构建产物直接跑 Linux 分支：`packages/tools/dist/execution/sandbox/platformSandbox.js`，`PlatformSandboxRunner.isAvailable()` → **true**。
+
+实测（工作区 `mktemp -d /tmp/...`，`allowedWritePaths: [ws]`，tier 全程 `bwrap-ns`）：
+
+| 用例 | 结果 |
+|---|---|
+| 白名单内写 `echo inside > ws/in.txt` | exit 0，读回 `inside` |
+| 写 `/tmp/vessel-escape-test.txt` | exit 2，`cannot create ... Read-only file system`，文件不存在 |
+| 写 `/usr/local/vessel-escape-test.txt` | exit 2，同上，文件不存在 |
+| 读 `/etc/hostname` | exit 0，`user`（`--ro-bind / /` 生效） |
+| `setsid` 逃逸后代（先写白名单内、再写 `/tmp`） | 7 秒后：白名单内的 `late.txt` **没有出现**，`/tmp` 也没有，`ps` 里无残留进程 |
+
+也就是说 Linux 分支比文档写得**更强**：bwrap 的 namespace + parent-death 把整个沙箱会话一起收掉了，逃逸的后代既没活下来也没写出任何东西。文档里「POSIX 逃组后代可能继续存活」的保守说法在 Linux 上并没有发生——它是给 macOS/降级路径留的余地。
+
+**macOS 还剩三件，且都只在 macOS 分支里**：① `/usr/bin/sandbox-exec` 的能力探测（Linux 走的是 `/usr/bin/bwrap`，两套探测不通用）；② Seatbelt 配置行为（默认 deny `file-write*`、白名单 `subpath`）；③ 逃出进程组的后代是否仍受已继承的 Seatbelt 约束。现有覆盖只有 `platformSandbox.test.ts` 的 darwin 用例——它证参数与调用顺序，不证内核行为。
+
+**判定**：Linux 分支的写隔离与逃组行为**已有真机证据**；macOS 分支保持「单测覆盖 + 文档声明」，不再作为阻塞项挂账——除非本仓要正式支持 macOS，那时再按需上 Mac 或云 Mac 复核。这条口径记在这里，免得下一轮又把它当待办。
