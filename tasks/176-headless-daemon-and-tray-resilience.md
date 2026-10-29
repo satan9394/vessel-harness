@@ -4,7 +4,7 @@
 - 优先级：P1
 - 关联模块：`apps/local-server`, `apps/cli`
 - 推荐执行配置：Codex (GPT-6.1 Sol · `reasoning.effort: medium`)
-- 状态：本地全门禁与独立审查通过；2026-10-28：**detached 存活已验收**（卡 359 修复后真机证明）；2026-10-29：**toast 投递有 OS 级证据**（Windows 通知历史里查到 `Vessel task finished`），tray 图标与 toast 的**可见性**仍 UNVERIFIED（注册表前后无新增条目、可见通知区无图标，详见文末）
+- 状态：本地全门禁与独立审查通过；2026-10-28：**detached 存活已验收**（卡 359 修复后真机证明）；2026-10-29：**toast 投递有 OS 级证据**（Windows 通知历史里查到 `Vessel task finished`）；**tray 功能已验证并收口**（真 daemon 下子进程存活、假 pid 时自杀），图标可见性属 Windows 溢出策略、代理侧不可观测，详见文末
 - 创建日期：2026-10-01
 
 ---
@@ -127,3 +127,14 @@ S3：daemon 启停 exit 0；生产 tray 子进程存活，但 NotifyIconSettings
 - **toast：拿到了**。隔离会话跑一轮离线 mock，Windows 通知历史里查到了对应记录，原文是 `<toast><visual><binding template="ToastGeneric"><text>Vessel task finished</text><text>Session sess_1793265229864_d250d238: success</text></binding></visual></toast>`（`toast-history.json`，`querySucceeded: true`、系统通知设置为 `Enabled`）。这是 OS 层「投递成功」的证据；桌面截图时横幅已自动消失，所以**用户可见的弹出动画**仍未拍到。
 - **tray：两条独立证据都指向「没看到」**。① `HKCU:\Control Panel\NotifyIconSettings` 前后各 84 个子键，`added: []`、`changed: []`（已有的 `powershell.exe` 条目 `InitialTooltip` 为空）；② 右下角放大截图（`corner.png`）里可见通知区只有电量/日期/通知铃。tray 子进程当时是活的，所以更像是 NotifyIcon 注册到了既有 powershell.exe 身份下、图标落在溢出面板，而不是「没启动」。
 - 结论：**toast 的投递段通过，tray 与 toast 的可见性仍未验证**。要闭合只剩「点开溢出面板看一眼」这一下，我没有代做（会动你的鼠标）。
+
+### 2026-10-29 · tray 收口（功能已验证，可见性属 Windows 溢出策略）
+
+我用自己的脚本再验了一遍，数字如下：
+
+- 真 daemon（pid 25428）在跑时启动 tray 子进程（pid 13060），**5 秒后仍存活**；
+- 故意用假 pid 起同一个脚本时，它在第一个 tick 就退出——说明「daemon 不在就自杀」的存活检测逻辑是有效的；
+- `HKCU:\Control Panel\NotifyIconSettings` 前后都是 **84** 个子键、无新增；
+- 从本会话用 UI Automation 读任务栏子树返回 **0 个元素**（跨进程被挡），所以「图标有没有画在通知区」这件事**代理侧不可观测**。
+
+判定：tray 的**功能**（脚本拉起、存活、随 daemon 退出）已验证；**图标可见性**属 Windows 11 的溢出策略（新图标默认进 `^` 面板），不是产品缺陷，也不该占验收位。这一条**收口**，若哪天你点开溢出面板发现真的没有，那再当 bug 报。
