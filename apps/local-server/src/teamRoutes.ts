@@ -51,14 +51,15 @@ export class TeamStageRoutes {
     const fd = fs.openSync(target, 'r');
     let content: string;
     try {
-      const stat = fs.fstatSync(fd);
+      // NTFS file IDs can exceed Number.MAX_SAFE_INTEGER; rounded IDs can hide a path swap.
+      const stat = fs.fstatSync(fd, { bigint: true });
       const current = fs.realpathSync(target);
       const currentRelative = path.relative(root, current);
       if (currentRelative.startsWith(`..${path.sep}`) || currentRelative === '..' || path.isAbsolute(currentRelative)) throw new Error('artifact outside workspace');
-      const identity = fs.statSync(current);
+      const identity = fs.statSync(current, { bigint: true });
       if (identity.dev !== stat.dev || identity.ino !== stat.ino) throw new Error('artifact changed during open');
-      if (!stat.isFile() || stat.size > 65536) throw new Error('artifact must be a text file up to 64 KiB');
-      const bytes = Buffer.alloc(stat.size); fs.readSync(fd, bytes, 0, bytes.length, 0);
+      if (!stat.isFile() || stat.size > 65536n) throw new Error('artifact must be a text file up to 64 KiB');
+      const bytes = Buffer.alloc(Number(stat.size)); fs.readSync(fd, bytes, 0, bytes.length, 0);
       if (bytes.includes(0)) throw new Error('binary artifact');
       content = bytes.toString('utf8');
     } finally { fs.closeSync(fd); }

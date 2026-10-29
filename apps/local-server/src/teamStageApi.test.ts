@@ -194,4 +194,27 @@ describe('team stage HTTP API', () => {
     vi.spyOn(fs, 'openSync').mockImplementationOnce(() => open(path.join(root, 'secret.txt'), 'r'));
     expect(() => stages.artifact(stage.id, 'a', 0)).toThrow('artifact changed during open');
   });
+
+  it('rejects distinct Windows file identities that round to the same JavaScript number', () => {
+    const target = path.join(root, 'artifact.txt'); fs.writeFileSync(target, 'public');
+    const runtime = new TeamRuntime({ workspaceRoot: root, providers: { mock: provider }, tools: [], policyArtifacts: loadPolicyArtifacts({ systemPath: path.resolve('configs/policy.default.yaml') }) });
+    const stage = stages.stage(sessionId, runtime, { task: 'fixture', roster: [{ presetId: 'developer', providerId: 'mock', model: 'm' }], tasks: [{ id: 'a', title: 'A', description: 'A', assignedRole: 'generator', dependencies: [], status: 'pending' }] }, root);
+    const snapshot = runtime.getStage(stage.id); snapshot.tasks[0]!.result = { output: 'done', artifacts: ['artifact.txt'] };
+    vi.spyOn(runtime, 'getStage').mockImplementation(() => structuredClone(snapshot));
+    // Measured NTFS pair: these identities are different, but both become 9288674232026648.
+    const named = 9288674232026648n, opened = named + 1n;
+    expect(Number(named)).toBe(Number(opened));
+    const fstat = fs.fstatSync, stat = fs.statSync;
+    vi.spyOn(fs, 'fstatSync').mockImplementation((fd, options) => {
+      const value = options?.bigint ? fstat(fd, { bigint: true }) : fstat(fd);
+      value.ino = options?.bigint ? opened : Number(opened);
+      return value;
+    });
+    vi.spyOn(fs, 'statSync').mockImplementation((file, options) => {
+      const value = options?.bigint ? stat(file, { bigint: true }) : stat(file);
+      value.ino = options?.bigint ? named : Number(named);
+      return value;
+    });
+    expect(() => stages.artifact(stage.id, 'a', 0)).toThrow('artifact changed during open');
+  });
 });
