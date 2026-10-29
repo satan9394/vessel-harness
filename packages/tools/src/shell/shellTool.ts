@@ -149,7 +149,12 @@ export function createShellTool(opts: {
           const result = await native.execute(executable, argv, { cwd: opts.workspaceRoot, allowedWritePaths, cpuTimeoutMs: timeoutMs, lowIntegrity: true, signal: ctx?.signal });
           await opts.nativeAudit?.({ isolationTier: result.isolationTier, sandboxed: result.sandboxed, outcome: result.sandboxed ? 'enforced' : 'fallback', allowedWritePaths,
             ...(result.constraints ? { constraints: result.constraints } : {}), ...(!result.sandboxed ? { reason: 'native-helper-unavailable' } : {}) });
-          const output = (result.stdout + (result.stderr ? '\n[stderr]\n' + result.stderr : '')).trim();
+          let output = (result.stdout + (result.stderr ? '\n[stderr]\n' + result.stderr : '')).trim();
+          // The native launcher can lose local-code-page stderr before it reaches TypeScript.
+          // Keep the failure and raw text; the hint does not infer a permission denial.
+          if (result.exitCode !== 0 && /\uFFFD|\?{3,}/.test(result.stderr)) {
+            output += '\n[hint] Command failed; stderr may use a non-UTF-8 code page. If writing files, check that the target is inside the sandbox allowed write roots.';
+          }
           return {
             content: output || '(no output)',
             ...(result.exitCode !== 0 ? { error: { errorClass: 'TOOL_FAILURE' as const, message: `exit code ${result.exitCode}`, detail: { exitCode: result.exitCode } } } : {}),
