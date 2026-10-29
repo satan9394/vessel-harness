@@ -1,15 +1,30 @@
 import { localizedValue } from '../../i18n';
 import { useI18n } from '../LanguageProvider';
 import { layoutDag, type TeamDagTask } from '../../teamStages';
+import { useEffect, useRef, useState } from 'react';
 
 export default function TeamDagCanvas({ tasks, activeTaskId, onSelectTask }: {
   tasks: TeamDagTask[]; activeTaskId?: string; onSelectTask: (id: string) => void;
 }) {
-  const { t } = useI18n();
+  const { t, lang } = useI18n();
   const nodes = layoutDag(tasks);
   const positions = new Map(nodes.map(node => [node.task.id, node]));
-  return <div className="team-dag-scroll"><svg aria-label={t('uiTeamTaskDependencies')} role="group"
-    width={Math.max(320, ...nodes.map(node => node.x + 220))} height={Math.max(140, ...nodes.map(node => node.y + 100))}>
+  const width = Math.max(320, ...nodes.map(node => node.x + 220));
+  const scroll = useRef<HTMLDivElement>(null);
+  const [overflow, setOverflow] = useState(false);
+  useEffect(() => {
+    const element = scroll.current;
+    if (!element) return;
+    const measure = () => setOverflow(element.scrollWidth > element.clientWidth + 1);
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, [width]);
+  return <>
+    {overflow && <p className="dim" role="status">{lang === 'zh' ? '↔ 横向滚动查看完整任务图' : '↔ Scroll horizontally to see all tasks'}</p>}
+    <div className="team-dag-scroll" ref={scroll} tabIndex={overflow ? 0 : undefined} aria-label={t('uiTeamTaskDependencies')}><svg aria-label={t('uiTeamTaskDependencies')} role="group"
+    width={width} height={Math.max(140, ...nodes.map(node => node.y + 100))}>
     {nodes.flatMap(node => node.task.dependencies.map(id => {
       const from = positions.get(id);
       if (!from) return null;
@@ -22,5 +37,5 @@ export default function TeamDagCanvas({ tasks, activeTaskId, onSelectTask }: {
         <strong>{task.title}</strong><span>{localizedValue(task.status, t)}</span>
       </button></foreignObject>
     </g>)}
-  </svg></div>;
+  </svg></div></>;
 }

@@ -1142,10 +1142,18 @@ code {
 .usage-bar {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 12px;
   font-size: 12px;
   color: var(--dim);
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+
+/* Siblings shrink first; the usage items must stay whole instead of collapsing to one
+   character per line when the header is narrow (measured at 960px with a long title). */
+.usage-bar > span {
+  flex: 0 0 auto;
+  white-space: nowrap;
 }
 
 .talking-metrics {

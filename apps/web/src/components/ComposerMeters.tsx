@@ -5,6 +5,7 @@ import { projectName } from './TaskComposer';
 import { ROUTE_MODES, routeLabel, type RouteMode, type RouteState } from '../team';
 import type { UsageTotals } from './UsageBar';
 import type { TalkingMetrics } from './TalkingMetricsBar';
+import './composerMeters.css';
 
 /** Permission tier → dictionary key (B16 status dictionary reuse, no new words). */
 export function permissionLabelKey(permission: unknown): 'permissionReadOnly' | 'permissionWorkspaceWrite' | 'permissionDangerFull' | null {

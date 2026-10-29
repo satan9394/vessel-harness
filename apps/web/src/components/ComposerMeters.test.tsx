@@ -12,6 +12,12 @@ function render(node: ReactNode): string {
 }
 
 describe('P5 composer capsules + meters', () => {
+  it('wraps whole metric groups instead of stacking individual label characters', () => {
+    const css = readFileSync(new URL('./composerMeters.css', import.meta.url), 'utf8');
+    expect(css).toContain('.meters > .meter:not(.meter-keys)');
+    expect(css).toMatch(/flex-shrink:\s*0\s*;/);
+    expect(css).toMatch(/white-space:\s*nowrap\s*;/);
+  });
   it('keeps English key hints visible with wrapping classes and non-shrinking composer CSS', () => {
     const css = readFileSync(new URL('../styles.css', import.meta.url), 'utf8');
     const shell = css.match(/\.composer-shell\s*\{([^}]+)\}/)![1];

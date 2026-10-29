@@ -1,0 +1,5 @@
+/* Wrap whole metrics, keeping each label and value readable in a narrow column. */
+.meters > .meter:not(.meter-keys) {
+  flex-shrink: 0;
+  white-space: nowrap;
+}

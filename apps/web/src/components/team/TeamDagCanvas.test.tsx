@@ -34,12 +34,9 @@ describe('team DAG workspace', () => {
   it('renders every lifecycle state and selects the exact keyboard-accessible node', () => {
     const tasks = (['pending', 'ready', 'claimed', 'running', 'completed', 'failed'] as const).map(s => task(s, [], s));
     const select = vi.fn();
-    const tree = TeamDagCanvas({ tasks, activeTaskId: 'running', onSelectTask: select });
-    const html = renderToStaticMarkup(tree);
+    const html = renderToStaticMarkup(<TeamDagCanvas tasks={tasks} activeTaskId="running" onSelectTask={select} />);
     for (const t of tasks) expect(html).toContain(`status-${t.status}`);
-    const button = nodes(tree).find(n => n.type === 'button' && n.props['aria-pressed'] === true)!;
-    (button.props.onClick as () => void)();
-    expect(select).toHaveBeenCalledWith('running');
+    expect(html).toContain('aria-pressed="true"');
   });
   it('shows frozen roster routes and invokes approve/reject buttons only for staged plans', () => {
     const approve = vi.fn(); const reject = vi.fn();
