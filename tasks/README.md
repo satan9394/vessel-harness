@@ -32,6 +32,7 @@ PDW 关联：首行状态行下加 `- PDW task: <id>`（未启动写 `none`）�
 | 卡 175 三项残余可证伪 (卡 361) | 已验收（2026-10-29）：570 字符摘要→抽屉恰好 300（**缺省略号**，记为遗留）；产物按钮可真实下载；四态颜色齐；内联 widget 去重本轮未覆盖 | [361](361-card175-fixture-residuals.md) |
 | 窄宽布局挤压 (卡 362) | 部分（2026-10-29）：DAG 溢出提示已验（242/724 + jsdom）；费用列那次改错元素（改的是底部 `.meters`），头部 `.usage-bar` 由协调者补 CSS（`flex-wrap` + span 不收缩），**观感复核待一次真实 UI** | [362](362-narrow-width-layout-squeeze.md) |
 | teamStageApi 合跑偶发 (卡 363) | 已验收（2026-10-29，产品缺陷）：file id 超 `MAX_SAFE_INTEGER` 时 path-swap 守卫失效（修复前 10/10 读到私有文件），改 bigint + 真实碰撞回归；local-server 319 | [363](363-teamstage-flake-under-combined-run.md) |
+| 团队抽屉截断无省略号 (卡 364) | 待执行（2026-10-29 由卡 361 夹具发现）：570 字符→显示 300 但既无 `…` 也无展开入口（运行时补的省略号被抽屉切片切掉）。已交 closeout 单 T2 | [364](364-team-drawer-truncation-affordance.md) |
 | `vessel daemon start` 构造期必崩 (卡 359) | 已验收（2026-10-28）：`daemon.status()` 在 `info` 就绪前回落到 `{ instanceId }`（身份守卫未放宽）；另查出「二次 `Set-Acl` 必报 SeSecurityPrivilege」，把 `protectDaemonPath` 改成幂等的 `whoami` + `icacls`。真机五步全过：launcher 退出后同一 pid 存活、uptime 4→6、health 200、401/200、stop 后监听 0 | [359](359-daemon-start-mesh-identity-crash.md) |
 | 单写者绕过租约 (卡 353) | 已验收（2026-10-27）：`append()` 重开前重取 `.lease`（`leaseHeld` 标志），`close()` 后重开可写、被存活进程持有时 fail-closed；core/session 27 项、core 133 | [353](353-session-append-lease-bypass.md) |
 | profileParity 退出码歧义 (卡 350c) | 已验收（2026-10-27）：损坏 `provider-profiles.json` 下 CLI 断言 exit 2 + 映射文案、HTTP 同根断言 `provider_profiles_corrupted`；parity 5/5、local-server 313 | [350c](350c-profile-parity-exit2.md) |
