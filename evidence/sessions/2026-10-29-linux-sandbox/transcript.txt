@@ -1,0 +1,24 @@
+# probe-write-and-read
+ws=/tmp/vessel-linux-ws-uU0LKV
+{"probe":"isAvailable","value":true}
+{"label":"write inside","exitCode":0,"sandboxed":true,"tier":"bwrap-ns","out":"inside\n","err":""}
+{"label":"write outside tmp","exitCode":2,"sandboxed":true,"tier":"bwrap-ns","out":"","err":"/bin/sh: 1: cannot create /tmp/vessel-escape-test.txt: Read-only file system\n"}
+{"label":"write usr","exitCode":2,"sandboxed":true,"tier":"bwrap-ns","out":"","err":"/bin/sh: 1: cannot create /usr/local/vessel-escape-test.txt: Read-only file system\n"}
+{"label":"read root","exitCode":0,"sandboxed":true,"tier":"bwrap-ns","out":"user\n","err":""}
+{"label":"escape setsid","exitCode":0,"sandboxed":true,"tier":"bwrap-ns","out":"spawned\n","err":""}
+--- 6s later: did the setsid-escaped child survive and write? ---
+late file exists: no
+escape tmp file exists: no
+usr file exists: no
+in.txt: inside
+--- leftover processes named sleep/escaped ---
+(none)
+
+# probe-setsid-escape
+ws=/tmp/vessel-linux-ws2-UqSRsL
+{"exitCode":0,"tier":"bwrap-ns","out":"spawned"}
+--- waiting 7s ---
+late.txt inside allowed root: no
+late-outside.txt in /tmp: no
+--- leftover setsid/sleep processes ---
+(none)
