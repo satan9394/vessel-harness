@@ -267,6 +267,11 @@ export interface CommonMessages {
   uiApproveAmpRun: MessageTemplate;
   uiReject: MessageTemplate;
   uiTeamTaskDependencies: MessageTemplate;
+  uiTeamOutputExpand: MessageTemplate;
+  uiTeamOutputCollapse: MessageTemplate;
+  uiTeamOutputLoading: MessageTemplate;
+  uiTeamOutputFailed: MessageTemplate;
+  uiTeamOutputCapped: MessageTemplate;
   uiDetails: MessageTemplate;
   uiCollapsed: MessageTemplate;
   uiCardSpaceToExpand: MessageTemplate;
@@ -1525,6 +1530,11 @@ export const zh: Messages = {
   uiApproveAmpRun: "批准并运行",
   uiReject: "拒绝",
   uiTeamTaskDependencies: "团队任务依赖",
+  uiTeamOutputExpand: "展开全文",
+  uiTeamOutputCollapse: "收起",
+  uiTeamOutputLoading: "正在加载…",
+  uiTeamOutputFailed: "全文加载失败，请重试。",
+  uiTeamOutputCapped: "输出超过 64 KiB，仅显示前 64 KiB。",
   uiDetails: "详情",
   uiCollapsed: "已折叠",
   uiCardSpaceToExpand: "卡片 · 按空格展开",
@@ -2376,6 +2386,11 @@ export const en: Messages = {
   uiApproveAmpRun: "Approve & Run",
   uiReject: "Reject",
   uiTeamTaskDependencies: "Team task dependencies",
+  uiTeamOutputExpand: "Expand full output",
+  uiTeamOutputCollapse: "Collapse",
+  uiTeamOutputLoading: "Loading…",
+  uiTeamOutputFailed: "Could not load full output. Please retry.",
+  uiTeamOutputCapped: "Output exceeds 64 KiB; showing the first 64 KiB.",
   uiDetails: "Details",
   uiCollapsed: "Collapsed",
   uiCardSpaceToExpand: "card · Space to expand",

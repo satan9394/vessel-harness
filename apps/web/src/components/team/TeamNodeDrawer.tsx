@@ -4,21 +4,15 @@ import type { TeamDagTask } from '../../teamStages';
 import { useEffect, useRef, useState } from 'react';
 import type { ApiClient } from '../../api';
 
-const outputCopy = {
-  zh: { expand: '展开全文', collapse: '收起', loading: '正在加载…', failed: '全文加载失败，请重试。', capped: '输出超过 64 KiB，仅显示前 64 KiB。' },
-  en: { expand: 'Expand full output', collapse: 'Collapse', loading: 'Loading…', failed: 'Could not load full output. Please retry.', capped: 'Output exceeds 64 KiB; showing the first 64 KiB.' },
-};
-
 export function TeamNodeDetails({ task, onClose, artifact, onArtifact, artifactUrl, onDownload, expanded = false, fullOutput, outputTruncated, outputLoading, outputError, onToggleOutput }: {
   task: TeamDagTask; onClose: () => void;
   artifact?: { path?: string; diff: string; comparison: string; error?: string };
   onArtifact?: (index: number) => void; artifactUrl?: (index: number) => string;
   onDownload?: (index: number) => void;
   expanded?: boolean; fullOutput?: string; outputTruncated?: boolean;
-  outputLoading?: boolean; outputError?: boolean; onToggleOutput?: () => void;
+  outputLoading?: boolean; outputError?: boolean; onToggleOutput?: (button: HTMLButtonElement) => void;
 }) {
-  const { t, lang } = useI18n();
-  const copy = outputCopy[lang === 'zh' ? 'zh' : 'en'];
+  const { t } = useI18n();
   const longOutput = (task.result?.output.length ?? 0) > 300;
   return <aside className="team-node-drawer" aria-label={t('taskDetails', { title: task.title })}>
     <button className="btn" onClick={onClose} aria-label={t('uiCloseTaskDetails')}>{t('close')}</button>
@@ -26,12 +20,12 @@ export function TeamNodeDetails({ task, onClose, artifact, onArtifact, artifactU
     <p>{t('uiStatusLabel')} {localizedValue(task.status, t)}  {t('uiExecutor')} {task.claimedBy ?? t('uiUnclaimed')}</p>
     <p>{t('uiDependencies')} {task.dependencies.join(', ') || t('uiNone')}</p>
     {task.result && <>
+      {longOutput && <div><button type="button" className="btn" aria-expanded={expanded} disabled={outputLoading} onClick={event => onToggleOutput?.(event.currentTarget)}>
+        {outputLoading ? t('uiTeamOutputLoading') : expanded ? t('uiTeamOutputCollapse') : t('uiTeamOutputExpand')}
+      </button></div>}
       <pre>{expanded ? fullOutput : task.result.output.slice(0, 300) + (longOutput ? '…' : '')}</pre>
-      {longOutput && <button type="button" className="btn" aria-expanded={expanded} disabled={outputLoading} onClick={onToggleOutput}>
-        {outputLoading ? copy.loading : expanded ? copy.collapse : copy.expand}
-      </button>}
-      {outputError && <p role="status">{copy.failed}</p>}
-      {expanded && outputTruncated && <p role="status">{copy.capped}</p>}
+      {outputError && <p role="status">{t('uiTeamOutputFailed')}</p>}
+      {expanded && outputTruncated && <p role="status">{t('uiTeamOutputCapped')}</p>}
     </>}
     {task.error && <p role="alert">{task.error}</p>}
     {task.result?.artifacts.map((file, index) => <p key={file}>
@@ -57,18 +51,27 @@ export default function TeamNodeDrawer({ task, onClose, api, sessionId, stageId 
   const [outputLoading, setOutputLoading] = useState(false);
   const [outputError, setOutputError] = useState(false);
   const loading = useRef(false);
+  const outputFocus = useRef<HTMLButtonElement | null>(null);
   const outputRevision = useRef(0);
   const revision = useRef(0);
+  useEffect(() => {
+    if (!outputLoading && outputFocus.current) {
+      // Disabling the focused control during the fetch moves native focus to body.
+      if (document.activeElement === document.body) outputFocus.current.focus();
+      outputFocus.current = null;
+    }
+  }, [outputLoading]);
   useEffect(() => {
     setOutput(undefined); setExpanded(false); setOutputLoading(false); setOutputError(false); loading.current = false;
     return () => { revision.current++; outputRevision.current++; };
   }, [api, sessionId, stageId, task.id]);
   return <TeamNodeDetails task={task} onClose={onClose} artifact={artifact}
     expanded={expanded} fullOutput={output?.output} outputTruncated={output?.truncated} outputLoading={outputLoading} outputError={outputError}
-    onToggleOutput={() => {
+    onToggleOutput={button => {
       if (expanded) { setExpanded(false); return; }
       if (output) { setExpanded(true); return; }
       if (loading.current) return;
+      outputFocus.current = document.activeElement === button ? button : null;
       loading.current = true; setOutputLoading(true); setOutputError(false);
       const selected = outputRevision.current;
       void api.getTeamTaskResult(sessionId, stageId, task.id).then(result => {
