@@ -1,0 +1,8 @@
+{
+  "command": "node node_modules/vitest/vitest.mjs run packages/agents/src/team/teamApproveAndRun.test.ts apps/local-server/src/teamStageApi.test.ts",
+  "startedAt": "2026-10-29T15:59:55.447Z",
+  "completedAt": "2026-10-29T16:00:17.458Z",
+  "exitCode": 0,
+  "stdout": "\n RUN  v5.0.1 E:/Code_file/Projects/Vessel_Harness\n\n\n Test Files  2 passed (2)\n      Tests  19 passed (19)\n   Start at  08:59:56\n   Duration  20.30s (transform 36%, tests 35%, import 28%)\n\n  Transform  transforming modules took 6.92s · 36% of tracked time, re-done on every run\n             persist transforms across runs with fsModuleCache: true\n             learn more: https://vitest.dev/guide/improving-performance#caching-between-reruns\n\n",
+  "stderr": ""
+}

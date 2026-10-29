@@ -1,0 +1,6 @@
+{
+  "command": "node node_modules/typescript/bin/tsc -p apps/web/tsconfig.json --noEmit",
+  "exitCode": 0,
+  "stdout": "",
+  "stderr": ""
+}

@@ -1,0 +1,35 @@
+{
+  "documentWidth": 960,
+  "innerHeight": 600,
+  "innerWidth": 960,
+  "spans": [
+    {
+      "clientWidth": 50,
+      "flexShrink": "0",
+      "height": 18.5910701751709,
+      "lineHeight": "18.6px",
+      "scrollWidth": 50,
+      "text": "次调用 5",
+      "whiteSpace": "nowrap"
+    },
+    {
+      "clientWidth": 83,
+      "flexShrink": "0",
+      "height": 18.5910701751709,
+      "lineHeight": "18.6px",
+      "scrollWidth": 83,
+      "text": "500+3000 词元",
+      "whiteSpace": "nowrap"
+    },
+    {
+      "clientWidth": 52,
+      "flexShrink": "0",
+      "height": 18.5910701751709,
+      "lineHeight": "18.6px",
+      "scrollWidth": 52,
+      "text": "~$0.0000",
+      "whiteSpace": "nowrap"
+    }
+  ],
+  "title": "会话 · 头部观感复核：这是用于挤压会话头部的超长标题，检查调用次数、用量与费用在窄视口仍然完整可读。头部观感复核：这是用于挤压会话头部的超长标题，检查调用次数、用量与费当前模型fixture / fixture-modelfixture / fixture-model⌄模型能力工具调用已声明 · 支持 · openai-compatible adapter流式输出已声明 · 支持 · openai-compatible adapter上下文窗口未知结构化输出已声明 · 不支持 · openai-compatible adapter推理已声明 · 支持 · openai-compatible adapter多模态输入已声明 · 不支持 · openai-compatible adapter多模态输出已声明 · 不支持 · openai-compatible adapter用量报告已声明 · 支持 · openai-compatible adapter新会话权限（不影响当前会话）: 工作区读写权限配置新模型次调用 5500+3000 词元~$0.0000"
+}

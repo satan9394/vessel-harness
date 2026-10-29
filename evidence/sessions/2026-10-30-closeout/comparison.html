@@ -1,0 +1,9 @@
+<!doctype html><html lang="en"><meta charset="utf-8"><title>Closeout evidence comparison</title>
+<style>body{font:16px system-ui;margin:24px;background:#f5f5f5;color:#171717}main{display:grid;grid-template-columns:1fr 1fr;gap:24px}img{width:100%;border:1px solid #bbb}figure{margin:0}figcaption{padding:12px 0}h2{grid-column:1/-1}a{color:#205aa7}</style>
+<h1>Visible IAB evidence</h1><p><a href="report.md">Report</a> · Different runtime usage counts reflect the intervening Write turns.</p>
+<main><h2>960px header: stale dist and current-source build</h2>
+<figure><img src="t1-header-before-stale-960.png"><figcaption>Before: labels wrap vertically in the stale build.</figcaption></figure>
+<figure><img src="t1-header-960.png"><figcaption>After: each metric stays on one line; 18.59px high, no horizontal overflow.</figcaption></figure>
+<h2>Team drawer</h2><figure><img src="t2-drawer-before.png"><figcaption>Before: 300 characters, no ellipsis or expansion.</figcaption></figure>
+<figure><img src="t2-drawer-570.png"><figcaption>After: 300 characters plus ellipsis and Expand full output. DOM evidence proves the 570-character expanded text and one request.</figcaption></figure>
+</main></html>

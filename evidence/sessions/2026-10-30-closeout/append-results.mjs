@@ -1,0 +1,14 @@
+import fs from 'node:fs';
+import path from 'node:path';
+const repo = path.resolve(import.meta.dirname, '../../..');
+const marker = '## 2026-10-29 closeout — final measured result';
+const results = {
+  'tasks/362-narrow-width-layout-squeeze.md': `通过 / PASS. Visible IAB verified the actual .usage-bar at 960×600, 720×450, 1440×900 and 1920×900 with a long session title and real assistant output. All three rendered spans are nowrap, flex-shrink 0, 18.591px high, scrollWidth = clientWidth; document scrollWidth equals innerWidth at every size. No source CSS edit needed: the initial web dist was stale; the current-source TEMP build passes, and its CSS is identical to the final T2 build. Screenshots t1-header-960/720/1440/1920.png and measurements t1-header.json are in evidence/sessions/2026-10-30-closeout/. Normal web dist still needs coordinator refresh. Full gate not run.`,
+  'tasks/364-team-drawer-truncation-affordance.md': `通过 / PASS under the scope extension approved above. The original ellipsis is added by packages/agents/src/team/TeamRuntime.ts:getStage()/trim(), not local-server; that preview remains unchanged. Added one session-bound read-only stored-result endpoint with origin/token handling, 404 bounds and a UTF-8-safe 64 KiB cap. Drawer now shows 300 + …, fetches/caches full text once, toggles both ways, and shows a short safe inline failure. Visible IAB lengths: 298, 300, 301 → 570 → 301 → 570; one GET, console []. Final web 61 files / 535 passed; focused runtime/server 19 passed; web typecheck, runtime build and TEMP web build exit 0. Evidence: evidence/sessions/2026-10-30-closeout/report.md, t2-drawer.json, screenshots and gate records. Full gate not run.`,
+  'tasks/361-card175-fixture-residuals.md': `内联 widget 去重：通过 / PASS with a populated real Write stream. New file: one widget_block plus one compatibility widget, same event/widget ID (one logical diff), and one Write call/result. Transcript counts: 1 live, 1 after browser refresh/reopen, 1 after overwriting the existing file. Overwrite: one additional Write call/result, zero new widget events; old bootstrap frames distinguished by original turn/ID. Session JSONL contains tool records but no standalone widget records; SSE originals and counts are in t3-widget.json, t3-create.json and t3-overwrite.json, with t3-widget.png. No T3 product changes. Evidence: evidence/sessions/2026-10-30-closeout/.`,
+};
+for (const [file, result] of Object.entries(results)) {
+  const target = path.join(repo, file);
+  if (fs.readFileSync(target, 'utf8').includes(marker)) throw new Error(`already appended: ${file}`);
+  fs.appendFileSync(target, `\n${marker}\n\n${result}\n\nCleanup: owned ports 5694–5698, processes and children all 0; cleanup.json. No downloads, subagents, external Agent CLI or commit/push. Existing card status and lines preserved.\n`, 'utf8');
+}

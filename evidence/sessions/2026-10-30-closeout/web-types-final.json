@@ -1,0 +1,8 @@
+{
+  "command": "node node_modules/typescript/bin/tsc -p apps/web/tsconfig.json --noEmit",
+  "startedAt": "2026-10-29T15:59:55.489Z",
+  "completedAt": "2026-10-29T15:59:58.010Z",
+  "exitCode": 0,
+  "stdout": "",
+  "stderr": ""
+}

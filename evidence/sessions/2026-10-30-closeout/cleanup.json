@@ -1,0 +1,21 @@
+{
+  "children": [],
+  "processes": [],
+  "listeners": [],
+  "checkedAt": "2026-10-29T16:12:01.026Z",
+  "checkedPorts": [
+    5694,
+    5695,
+    5696,
+    5697,
+    5698
+  ],
+  "ownedPids": [
+    20208,
+    21216,
+    10656,
+    28356
+  ],
+  "command": "$ports = @(5694,5695,5696,5697,5698); $owned = @(20208,21216,10656,28356); $listeners = @(Get-NetTCPConnection -State Listen | Where-Object { $_.LocalPort -in $ports } | Select-Object LocalPort,OwningProcess); $processes = @(Get-Process -Id $owned -ErrorAction SilentlyContinue | Select-Object Id,ProcessName); $children = @(Get-CimInstance Win32_Process | Where-Object { $_.ParentProcessId -in $owned } | Select-Object ProcessId,ParentProcessId,Name); @{ listeners=$listeners; processes=$processes; children=$children } | ConvertTo-Json -Compress -Depth 4",
+  "downloads": "No browser downloads were triggered. Screenshot JPEGs were written directly under TEMP and encoded to PNG in evidence."
+}

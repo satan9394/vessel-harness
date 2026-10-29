@@ -1,0 +1,128 @@
+[
+  {
+    "source": "C:\\work\\AppData\\Local\\Temp\\vessel-closeout-IUIsOI\\t1-header-1440.jpg",
+    "target": "t1-header-1440.png",
+    "size": [
+      1440,
+      900
+    ],
+    "encoding": "IAB JPEG decoded to PNG, no resize or content edits"
+  },
+  {
+    "source": "C:\\work\\AppData\\Local\\Temp\\vessel-closeout-IUIsOI\\t1-header-1920.jpg",
+    "target": "t1-header-1920.png",
+    "size": [
+      1920,
+      900
+    ],
+    "encoding": "IAB JPEG decoded to PNG, no resize or content edits"
+  },
+  {
+    "source": "C:\\work\\AppData\\Local\\Temp\\vessel-closeout-IUIsOI\\t1-header-720.jpg",
+    "target": "t1-header-720.png",
+    "size": [
+      720,
+      450
+    ],
+    "encoding": "IAB JPEG decoded to PNG, no resize or content edits"
+  },
+  {
+    "source": "C:\\work\\AppData\\Local\\Temp\\vessel-closeout-IUIsOI\\t1-header-960.jpg",
+    "target": "t1-header-960.png",
+    "size": [
+      960,
+      600
+    ],
+    "encoding": "IAB JPEG decoded to PNG, no resize or content edits"
+  },
+  {
+    "source": "C:\\work\\AppData\\Local\\Temp\\vessel-closeout-IUIsOI\\t1-header-before-stale-960.jpg",
+    "target": "t1-header-before-stale-960.png",
+    "size": [
+      960,
+      600
+    ],
+    "encoding": "IAB JPEG decoded to PNG, no resize or content edits"
+  },
+  {
+    "source": "C:\\work\\AppData\\Local\\Temp\\vessel-closeout-IUIsOI\\t1-header-light-960.jpg",
+    "target": "t1-header-light-960.png",
+    "size": [
+      960,
+      600
+    ],
+    "encoding": "IAB JPEG decoded to PNG, no resize or content edits"
+  },
+  {
+    "source": "C:\\work\\AppData\\Local\\Temp\\vessel-closeout-IUIsOI\\t2-drawer-298.jpg",
+    "target": "t2-drawer-298.png",
+    "size": [
+      1440,
+      900
+    ],
+    "encoding": "IAB JPEG decoded to PNG, no resize or content edits"
+  },
+  {
+    "source": "C:\\work\\AppData\\Local\\Temp\\vessel-closeout-IUIsOI\\t2-drawer-300.jpg",
+    "target": "t2-drawer-300.png",
+    "size": [
+      1440,
+      900
+    ],
+    "encoding": "IAB JPEG decoded to PNG, no resize or content edits"
+  },
+  {
+    "source": "C:\\work\\AppData\\Local\\Temp\\vessel-closeout-IUIsOI\\t2-drawer-570.jpg",
+    "target": "t2-drawer-570.png",
+    "size": [
+      1440,
+      900
+    ],
+    "encoding": "IAB JPEG decoded to PNG, no resize or content edits"
+  },
+  {
+    "source": "C:\\work\\AppData\\Local\\Temp\\vessel-closeout-IUIsOI\\t2-drawer-before.jpg",
+    "target": "t2-drawer-before.png",
+    "size": [
+      1440,
+      900
+    ],
+    "encoding": "IAB JPEG decoded to PNG, no resize or content edits"
+  },
+  {
+    "source": "C:\\work\\AppData\\Local\\Temp\\vessel-closeout-IUIsOI\\t2-drawer-expanded.jpg",
+    "target": "t2-drawer-expanded.png",
+    "size": [
+      1440,
+      900
+    ],
+    "encoding": "IAB JPEG decoded to PNG, no resize or content edits"
+  },
+  {
+    "source": "C:\\work\\AppData\\Local\\Temp\\vessel-closeout-IUIsOI\\t3-widget-live.jpg",
+    "target": "t3-widget-live.png",
+    "size": [
+      1440,
+      675
+    ],
+    "encoding": "IAB JPEG decoded to PNG, no resize or content edits"
+  },
+  {
+    "source": "C:\\work\\AppData\\Local\\Temp\\vessel-closeout-IUIsOI\\t3-widget-reload.jpg",
+    "target": "t3-widget-reload.png",
+    "size": [
+      1440,
+      900
+    ],
+    "encoding": "IAB JPEG decoded to PNG, no resize or content edits"
+  },
+  {
+    "source": "C:\\work\\AppData\\Local\\Temp\\vessel-closeout-IUIsOI\\t3-widget.jpg",
+    "target": "t3-widget.png",
+    "size": [
+      1440,
+      900
+    ],
+    "encoding": "IAB JPEG decoded to PNG, no resize or content edits"
+  }
+]

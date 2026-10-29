@@ -1,0 +1,188 @@
+{
+  "pid": 28356,
+  "port": 5698,
+  "root": "C:\\work\\AppData\\Local\\Temp\\vessel-closeout-IUIsOI\\t2-final",
+  "ws": "C:\\work\\AppData\\Local\\Temp\\vessel-closeout-IUIsOI\\t2-final\\ws",
+  "session": {
+    "id": "sess_1793289631998_d209f294",
+    "workspaceRoot": "C:\\work\\AppData\\Local\\Temp\\vessel-closeout-IUIsOI\\t2-final\\ws",
+    "provider": "fixture",
+    "model": "fixture-model",
+    "permission": "workspace-write",
+    "createdAt": "2026-10-29T16:00:32.009Z",
+    "updatedAt": "2026-10-29T16:00:32.016Z"
+  },
+  "stages": [
+    {
+      "requestedLength": 298,
+      "stage": {
+        "id": "stage_c7951550-d168-48e3-ad3b-08fa95dc68e4",
+        "roster": [
+          {
+            "memberId": "developer",
+            "presetId": "developer",
+            "preset": {
+              "id": "developer",
+              "role": "generator",
+              "modelTier": "pro",
+              "write": true,
+              "description": "Developer（产出者）：pro 档（按任务复杂度可降 fast）+ 允许写文件"
+            },
+            "routeSnapshot": {
+              "providerId": "fixture",
+              "model": "fixture-model",
+              "snapshottedAt": 1793289632046
+            },
+            "role": "generator",
+            "phase": "generate",
+            "tier": "fast",
+            "model": "fixture-model",
+            "providerId": "fixture"
+          }
+        ],
+        "tasks": [
+          {
+            "id": "summary_298",
+            "title": "Summary 298",
+            "description": "SUMMARY_298",
+            "assignedRole": "generator",
+            "dependencies": [],
+            "status": "completed",
+            "claimedBy": "developer",
+            "result": {
+              "output": "摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证END!",
+              "artifacts": []
+            }
+          }
+        ],
+        "status": "finished",
+        "createdAt": 1793289632047,
+        "approvedAt": 1793289632059,
+        "sessionId": "sess_1793289631998_d209f294",
+        "availableProviders": [
+          "fixture"
+        ]
+      },
+      "result": {
+        "status": "completed",
+        "output": "摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证END!",
+        "artifacts": [],
+        "truncated": false
+      }
+    },
+    {
+      "requestedLength": 300,
+      "stage": {
+        "id": "stage_f1004aa6-a4c5-4b6c-8b4b-402940772941",
+        "roster": [
+          {
+            "memberId": "developer",
+            "presetId": "developer",
+            "preset": {
+              "id": "developer",
+              "role": "generator",
+              "modelTier": "pro",
+              "write": true,
+              "description": "Developer（产出者）：pro 档（按任务复杂度可降 fast）+ 允许写文件"
+            },
+            "routeSnapshot": {
+              "providerId": "fixture",
+              "model": "fixture-model",
+              "snapshottedAt": 1793289632194
+            },
+            "role": "generator",
+            "phase": "generate",
+            "tier": "fast",
+            "model": "fixture-model",
+            "providerId": "fixture"
+          }
+        ],
+        "tasks": [
+          {
+            "id": "summary_300",
+            "title": "Summary 300",
+            "description": "SUMMARY_300",
+            "assignedRole": "generator",
+            "dependencies": [],
+            "status": "completed",
+            "claimedBy": "developer",
+            "result": {
+              "output": "摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘END!",
+              "artifacts": []
+            }
+          }
+        ],
+        "status": "finished",
+        "createdAt": 1793289632194,
+        "approvedAt": 1793289632197,
+        "sessionId": "sess_1793289631998_d209f294",
+        "availableProviders": [
+          "fixture"
+        ]
+      },
+      "result": {
+        "status": "completed",
+        "output": "摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘END!",
+        "artifacts": [],
+        "truncated": false
+      }
+    },
+    {
+      "requestedLength": 570,
+      "stage": {
+        "id": "stage_13bd0935-01a3-447e-be92-7948e08b8991",
+        "roster": [
+          {
+            "memberId": "developer",
+            "presetId": "developer",
+            "preset": {
+              "id": "developer",
+              "role": "generator",
+              "modelTier": "pro",
+              "write": true,
+              "description": "Developer（产出者）：pro 档（按任务复杂度可降 fast）+ 允许写文件"
+            },
+            "routeSnapshot": {
+              "providerId": "fixture",
+              "model": "fixture-model",
+              "snapshottedAt": 1793289632313
+            },
+            "role": "generator",
+            "phase": "generate",
+            "tier": "fast",
+            "model": "fixture-model",
+            "providerId": "fixture"
+          }
+        ],
+        "tasks": [
+          {
+            "id": "summary_570",
+            "title": "Summary 570",
+            "description": "SUMMARY_570",
+            "assignedRole": "generator",
+            "dependencies": [],
+            "status": "completed",
+            "claimedBy": "developer",
+            "result": {
+              "output": "摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。…",
+              "artifacts": []
+            }
+          }
+        ],
+        "status": "finished",
+        "createdAt": 1793289632313,
+        "approvedAt": 1793289632315,
+        "sessionId": "sess_1793289631998_d209f294",
+        "availableProviders": [
+          "fixture"
+        ]
+      },
+      "result": {
+        "status": "completed",
+        "output": "摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘END!",
+        "artifacts": [],
+        "truncated": false
+      }
+    }
+  ]
+}

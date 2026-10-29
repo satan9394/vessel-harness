@@ -1,0 +1,32 @@
+{
+  "live": {
+    "allWidgets": [
+      {
+        "label": "差异检视器",
+        "text": "fixture.txt+2−0收起差异--- /dev/null+++ b/fixture.txt@@ -0,0 +1,2 @@1+before2+second "
+      }
+    ],
+    "at": "2026-10-29T15:47:21.917Z",
+    "inlineCount": 1
+  },
+  "afterReload": {
+    "allWidgets": [
+      {
+        "label": "差异检视器",
+        "text": "fixture.txt+2−0收起差异--- /dev/null+++ b/fixture.txt@@ -0,0 +1,2 @@1+before2+second "
+      }
+    ],
+    "at": "2026-10-29T15:47:39.904Z",
+    "inlineCount": 1
+  },
+  "afterOverwrite": {
+    "allWidgets": [
+      {
+        "label": "差异检视器",
+        "text": "fixture.txt+2−0收起差异--- /dev/null+++ b/fixture.txt@@ -0,0 +1,2 @@1+before2+second "
+      }
+    ],
+    "at": "2026-10-29T15:48:58.976Z",
+    "inlineCount": 1
+  }
+}

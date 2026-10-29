@@ -1,0 +1,42 @@
+{
+  "policyDeniedCommands": [],
+  "failingTests": [],
+  "failedSearches": [
+    {
+      "command": "rg -n \"summary.*300|slice\\(0, 300|outputSummary|fullOutput|output:\" packages/agents/src apps/local-server/src/routes/team* apps/web/src/components/team apps/web/src/api*",
+      "result": "Windows rg received literal wildcard paths: os error 123. Corrected to concrete files/directories."
+    },
+    {
+      "command": "rg -n \"register.*provider|baseUrl|apiKey|providerRoot\" apps/local-server/src/routes/provider*",
+      "result": "Literal wildcard path: os error 123. Corrected to providerRoutes.ts."
+    },
+    {
+      "command": "rg -n \"PATCH|title|turns|events|widgets\" apps/local-server/src/routes/sessionRoutes.ts",
+      "result": "File not present, os error 2. Actual routes are in server.ts."
+    },
+    {
+      "command": "rg -n \"trim\\(|SUMMARY|summary|output|sessionId\" apps/local-server/src/teamStages.ts apps/local-server/src/teamStage* packages/agents/src/team/TeamRuntime.ts apps/web/src/api.ts",
+      "result": "teamStages.ts not present and wildcard path invalid. Found teamRoutes.ts using rg --files."
+    },
+    {
+      "command": "rg -n 'serve --|case .serve.|--workspace|--host' apps/cli/src/serve.ts apps/cli/src/cli.ts",
+      "result": "serve.ts not present. cmdServe/startServe are in cli.ts."
+    }
+  ],
+  "browserCapture": {
+    "command": "let metrics=await cdp.send('Page.getLayoutMetrics'); let pngCorrect=await cdp.send('Page.captureScreenshot',{format:'png',clip:{x:0,y:0,width:metrics.layoutViewport.clientWidth,height:metrics.layoutViewport.clientHeight,scale:960/metrics.layoutViewport.clientWidth},captureBeyondViewport:false});",
+    "error": "Timed out running CDP command \"Page.captureScreenshot\" for tab 1",
+    "recovery": "Used supported tab.screenshot(), stored JPEG bytes in TEMP, encoded to PNG. Inspected images and replaced incomplete resize frames at 1440 and 1920 after settled page state. Final screenshot dimensions match all four requested viewports."
+  },
+  "cleanupCombinedProbe": {
+    "command": "node -e \"Promise.all([fetch('http://127.0.0.1:5697/fixture-stop').then(r=>r.text()),fetch('http://127.0.0.1:5695/control/stop').then(r=>r.text())]).then(r=>console.log(JSON.stringify(r)));\"; Stop-Process -Id 28356 -ErrorAction Stop; Get-NetTCPConnection -State Listen | Where-Object { $_.LocalPort -ge 5694 -and $_.LocalPort -le 5698 } | Select-Object LocalAddress,LocalPort,OwningProcess; Get-Process -Id 20208,21216,10656,28356 -ErrorAction SilentlyContinue | Select-Object Id,ProcessName",
+    "exitCode": 1,
+    "stdout": "[\"stopping\",\"stopping\"]",
+    "stderr": "No further failure text was returned.",
+    "recovery": "Separate ownership-checked process and listener probe returned 0/0. Independent audit.mjs then confirmed 0 listeners, 0 owned processes, 0 children. See cleanup.json."
+  },
+  "nonfatalWarnings": [
+    "Vite warns that some chunks exceed 500 kB after minification; full stderr is in web-build-final.json.",
+    "git diff --check: warning: in the working copy of 'packages/agents/src/team/teamApproveAndRun.test.ts', CRLF will be replaced by LF the next time Git touches it. Exit code 0."
+  ]
+}

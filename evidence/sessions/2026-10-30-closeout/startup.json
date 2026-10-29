@@ -1,0 +1,19 @@
+{
+  "root": "C:\\work\\AppData\\Local\\Temp\\vessel-closeout-IUIsOI",
+  "ws": "C:\\work\\AppData\\Local\\Temp\\vessel-closeout-IUIsOI\\ws",
+  "ports": {
+    "serve": 5694,
+    "provider": 5695,
+    "team": 5696
+  },
+  "fixturePid": 20208,
+  "servePid": 21216,
+  "startedAt": "2026-10-29T15:41:14.795Z",
+  "requestedRoute": {
+    "model": "gpt-6.1-sol",
+    "reasoningEffort": "medium",
+    "fast": false,
+    "agents": false
+  },
+  "writes": "TEMP only except evidence"
+}

@@ -1,0 +1,58 @@
+{
+  "measurement": {
+    "documentWidth": 960,
+    "header": {
+      "bottom": 264.1114730834961,
+      "height": 174.1277313232422,
+      "left": 0,
+      "right": 945.239501953125,
+      "top": 89.9837417602539,
+      "width": 945.239501953125,
+      "x": 0,
+      "y": 89.9837417602539
+    },
+    "innerHeight": 600,
+    "innerWidth": 960,
+    "spans": [
+      {
+        "clientWidth": 12,
+        "flexShrink": "1",
+        "height": 74.3642807006836,
+        "lineHeight": "18.6px",
+        "scrollWidth": 12,
+        "text": "次调用 1",
+        "whiteSpace": "normal"
+      },
+      {
+        "clientWidth": 46,
+        "flexShrink": "1",
+        "height": 37.1821403503418,
+        "lineHeight": "18.6px",
+        "scrollWidth": 46,
+        "text": "100+600 词元",
+        "whiteSpace": "normal"
+      },
+      {
+        "clientWidth": 52,
+        "flexShrink": "1",
+        "height": 18.5910701751709,
+        "lineHeight": "18.6px",
+        "scrollWidth": 52,
+        "text": "~$0.0000",
+        "whiteSpace": "normal"
+      }
+    ],
+    "title": "会话 · 头部观感复核：这是用于挤压会话头部的超长标题，检查调用次数、用量与费用在窄视口仍然完整可读。头部观感复核：这是用于挤压会话头部的超长标题，检查调用次数、用量与费当前模型fixture / fixture-modelfixture / fixture-model⌄模型能力工具调用已声明 · 支持 · openai-compatible adapter流式输出已声明 · 支持 · openai-compatible adapter上下文窗口未知结构化输出已声明 · 不支持 · openai-compatible adapter推理已声明 · 支持 · openai-compatible adapter多模态输入已声明 · 不支持 · openai-compatible adapter多模态输出已声明 · 不支持 · openai-compatible adapter用量报告已声明 · 支持 · openai-compatible adapter新会话权限（不影响当前会话）: 工作区读写权限配置新模型次调用 1100+600 词元~$0.0000"
+  },
+  "viewportFacts": {
+    "dpr": 1.0000000111675431,
+    "styles": [
+      "http://127.0.0.1:5694/assets/index-WPay7jgN.css"
+    ],
+    "visualViewport": {
+      "height": 600.3547973632812,
+      "scale": 1,
+      "width": 960.3784790039062
+    }
+  }
+}

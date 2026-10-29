@@ -1,0 +1,724 @@
+{
+  "mode": "create",
+  "sessionId": "sess_1793288514459_cf2091dc",
+  "turnStatus": 200,
+  "turn": {
+    "finalText": "Fixture complete",
+    "kind": "success",
+    "steps": 2,
+    "turnId": "turn_1793288817213_0eb7d1"
+  },
+  "fileContent": "before\nsecond\n",
+  "logPath": "C:\\work\\AppData\\Local\\Temp\\vessel-closeout-IUIsOI\\ws\\.harness\\sessions\\sess_1793288514459_cf2091dc\\session.jsonl",
+  "counts": {
+    "widget_block": 1,
+    "widget": 1
+  },
+  "widgets": [
+    {
+      "version": 1,
+      "sessionId": "sess_1793288514459_cf2091dc",
+      "streamId": "c7f47e15-79e5-49b4-8d39-6b09588a91a2",
+      "cursor": 7,
+      "eventId": "c7f47e15-79e5-49b4-8d39-6b09588a91a2:7",
+      "turnId": "turn_1793288817213_0eb7d1",
+      "type": "widget_block",
+      "delta": {
+        "id": "write:sess_1793288514459_cf2091dc:27",
+        "kind": "diff_inspector",
+        "status": "resolved",
+        "turnIndex": 1,
+        "timestamp": "2026-10-29T15:46:57.284Z",
+        "payload": {
+          "filePath": "fixture.txt",
+          "additions": 2,
+          "deletions": 0,
+          "patch": "--- /dev/null\n+++ b/fixture.txt\n@@ -0,0 +1,2 @@\n+before\n+second\n"
+        }
+      },
+      "ts": 1793288817286
+    },
+    {
+      "version": 1,
+      "sessionId": "sess_1793288514459_cf2091dc",
+      "streamId": "c7f47e15-79e5-49b4-8d39-6b09588a91a2",
+      "cursor": 7,
+      "eventId": "c7f47e15-79e5-49b4-8d39-6b09588a91a2:7",
+      "turnId": "turn_1793288817213_0eb7d1",
+      "type": "widget",
+      "delta": {
+        "id": "write:sess_1793288514459_cf2091dc:27",
+        "kind": "diff_inspector",
+        "status": "resolved",
+        "turnIndex": 1,
+        "timestamp": "2026-10-29T15:46:57.284Z",
+        "payload": {
+          "filePath": "fixture.txt",
+          "additions": 2,
+          "deletions": 0,
+          "patch": "--- /dev/null\n+++ b/fixture.txt\n@@ -0,0 +1,2 @@\n+before\n+second\n"
+        }
+      },
+      "ts": 1793288817286
+    }
+  ],
+  "widgetRecords": [],
+  "toolRecords": [
+    {
+      "type": "tool/call",
+      "toolCallId": "fixture-write-4",
+      "toolName": "Write",
+      "arguments": {
+        "path": "fixture.txt",
+        "content": "before\nsecond\n"
+      },
+      "mode": "auto",
+      "surface": false,
+      "seq": 26,
+      "ts": "2026-10-29T15:46:57.251Z"
+    },
+    {
+      "type": "tool/result",
+      "toolCallId": "fixture-write-4",
+      "toolName": "Write",
+      "content": "wrote fixture.txt (14 bytes)",
+      "meta": {
+        "path": "fixture.txt",
+        "bytes": 14
+      },
+      "surface": true,
+      "seq": 27,
+      "ts": "2026-10-29T15:46:57.284Z"
+    }
+  ],
+  "events": [
+    {
+      "version": 1,
+      "sessionId": "sess_1793288514459_cf2091dc",
+      "streamId": "c7f47e15-79e5-49b4-8d39-6b09588a91a2",
+      "cursor": 1,
+      "eventId": "c7f47e15-79e5-49b4-8d39-6b09588a91a2:checkpoint:1",
+      "turnId": "turn_1793288514509_940994",
+      "type": "transcript",
+      "delta": {
+        "messages": [
+          {
+            "id": "record:5",
+            "kind": "message",
+            "msg": {
+              "role": "user",
+              "text": "Please provide one assistant reply for the header verification fixture.",
+              "ts": 1793288514510
+            }
+          },
+          {
+            "id": "record:9",
+            "kind": "message",
+            "msg": {
+              "role": "assistant",
+              "text": "Assistant reply for the long-title header fixture.",
+              "ts": 1793288514625
+            }
+          }
+        ],
+        "usage": [
+          {
+            "inputTokens": 100,
+            "outputTokens": 600,
+            "costUsd": 0,
+            "estimated": false,
+            "calls": 1,
+            "ts": 1793288514628,
+            "summary": {
+              "inputTokens": 100,
+              "outputTokens": 600,
+              "cacheReadTokens": 0,
+              "cacheCreationTokens": 0,
+              "calls": 1,
+              "costUsd": 0,
+              "estimated": false
+            }
+          }
+        ],
+        "summary": {
+          "inputTokens": 100,
+          "outputTokens": 600,
+          "cacheReadTokens": 0,
+          "cacheCreationTokens": 0,
+          "calls": 1,
+          "costUsd": 0,
+          "estimated": false
+        },
+        "run": {
+          "active": false,
+          "turnId": "turn_1793288514509_940994",
+          "kind": "success"
+        },
+        "inspector": {
+          "observedAt": 1793288514578,
+          "cacheLayers": [
+            {
+              "layer": "assembly",
+              "dependencyHash": "9fc946a976f4596462f59952dfdfab6e424d457910c80b5e7ed8a7adae3f387f",
+              "hits": 0,
+              "misses": 2,
+              "invalidations": 0,
+              "entries": 2
+            },
+            {
+              "layer": "provider-prefix",
+              "dependencyHash": "227a177265a871d41392de564d547d5fd8ea002aa0f0718e28dfd70f3eb0b894",
+              "hits": 0,
+              "misses": 1,
+              "invalidations": 0,
+              "entries": 1
+            },
+            {
+              "layer": "projection",
+              "dependencyHash": "62b4ccf772d22863465555701d3efd886c2e709ac593d334036155669ccce01e",
+              "hits": 0,
+              "misses": 1,
+              "invalidations": 0,
+              "entries": 1
+            },
+            {
+              "layer": "token-estimation",
+              "dependencyHash": "ee50246892a19b669180c738aec465d4a5430486914542fa3137d5e9b9e3915a",
+              "hits": 0,
+              "misses": 2,
+              "invalidations": 0,
+              "entries": 2
+            }
+          ],
+          "projectionRevision": 0,
+          "prefix": {
+            "stableBytes": 7094,
+            "scopedBytes": 0,
+            "volatileBytes": 71,
+            "sha256": "376d3d2c39240a21c43fb5c6e7642b201901236c75f8a8cb1815a00ec02dbf18"
+          },
+          "workspace": {
+            "timestamp": 1793288514578,
+            "trackedFilesHash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            "uncommittedDiffBytes": 0,
+            "fileCount": 0
+          }
+        }
+      },
+      "ts": 1793288816990
+    },
+    {
+      "version": 1,
+      "sessionId": "sess_1793288514459_cf2091dc",
+      "streamId": "c7f47e15-79e5-49b4-8d39-6b09588a91a2",
+      "cursor": 1,
+      "eventId": "c7f47e15-79e5-49b4-8d39-6b09588a91a2:bootstrap:inspector:1",
+      "turnId": "turn_1793288514509_940994",
+      "type": "inspector",
+      "delta": {
+        "observedAt": 1793288514578,
+        "cacheLayers": [
+          {
+            "layer": "assembly",
+            "dependencyHash": "9fc946a976f4596462f59952dfdfab6e424d457910c80b5e7ed8a7adae3f387f",
+            "hits": 0,
+            "misses": 2,
+            "invalidations": 0,
+            "entries": 2
+          },
+          {
+            "layer": "provider-prefix",
+            "dependencyHash": "227a177265a871d41392de564d547d5fd8ea002aa0f0718e28dfd70f3eb0b894",
+            "hits": 0,
+            "misses": 1,
+            "invalidations": 0,
+            "entries": 1
+          },
+          {
+            "layer": "projection",
+            "dependencyHash": "62b4ccf772d22863465555701d3efd886c2e709ac593d334036155669ccce01e",
+            "hits": 0,
+            "misses": 1,
+            "invalidations": 0,
+            "entries": 1
+          },
+          {
+            "layer": "token-estimation",
+            "dependencyHash": "ee50246892a19b669180c738aec465d4a5430486914542fa3137d5e9b9e3915a",
+            "hits": 0,
+            "misses": 2,
+            "invalidations": 0,
+            "entries": 2
+          }
+        ],
+        "projectionRevision": 0,
+        "prefix": {
+          "stableBytes": 7094,
+          "scopedBytes": 0,
+          "volatileBytes": 71,
+          "sha256": "376d3d2c39240a21c43fb5c6e7642b201901236c75f8a8cb1815a00ec02dbf18"
+        },
+        "workspace": {
+          "timestamp": 1793288514578,
+          "trackedFilesHash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "uncommittedDiffBytes": 0,
+          "fileCount": 0
+        }
+      },
+      "ts": 1793288816990
+    },
+    {
+      "version": 1,
+      "sessionId": "sess_1793288514459_cf2091dc",
+      "streamId": "c7f47e15-79e5-49b4-8d39-6b09588a91a2",
+      "cursor": 2,
+      "eventId": "c7f47e15-79e5-49b4-8d39-6b09588a91a2:2",
+      "turnId": "turn_1793288817213_0eb7d1",
+      "type": "run",
+      "delta": {
+        "active": true,
+        "turnId": "turn_1793288817213_0eb7d1"
+      },
+      "ts": 1793288817214
+    },
+    {
+      "version": 1,
+      "sessionId": "sess_1793288514459_cf2091dc",
+      "streamId": "c7f47e15-79e5-49b4-8d39-6b09588a91a2",
+      "cursor": 3,
+      "eventId": "c7f47e15-79e5-49b4-8d39-6b09588a91a2:3",
+      "turnId": "turn_1793288817213_0eb7d1",
+      "type": "inspector",
+      "delta": {
+        "observedAt": 1793288817226,
+        "cacheLayers": [
+          {
+            "layer": "assembly",
+            "dependencyHash": "9fc946a976f4596462f59952dfdfab6e424d457910c80b5e7ed8a7adae3f387f",
+            "hits": 2,
+            "misses": 2,
+            "invalidations": 0,
+            "entries": 2
+          },
+          {
+            "layer": "provider-prefix",
+            "dependencyHash": "227a177265a871d41392de564d547d5fd8ea002aa0f0718e28dfd70f3eb0b894",
+            "hits": 1,
+            "misses": 1,
+            "invalidations": 0,
+            "entries": 1
+          },
+          {
+            "layer": "projection",
+            "dependencyHash": "cd9be307a0efaa5588008c8988596ebd9544d7107e8c2200889c0f9fe6e7151d",
+            "hits": 0,
+            "misses": 2,
+            "invalidations": 1,
+            "entries": 1
+          },
+          {
+            "layer": "token-estimation",
+            "dependencyHash": "ee50246892a19b669180c738aec465d4a5430486914542fa3137d5e9b9e3915a",
+            "hits": 1,
+            "misses": 3,
+            "invalidations": 1,
+            "entries": 2
+          }
+        ],
+        "projectionRevision": 0,
+        "prefix": {
+          "stableBytes": 7094,
+          "scopedBytes": 0,
+          "volatileBytes": 192,
+          "sha256": "376d3d2c39240a21c43fb5c6e7642b201901236c75f8a8cb1815a00ec02dbf18"
+        },
+        "workspace": {
+          "timestamp": 1793288514578,
+          "trackedFilesHash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "uncommittedDiffBytes": 0,
+          "fileCount": 0
+        }
+      },
+      "ts": 1793288817226
+    },
+    {
+      "version": 1,
+      "sessionId": "sess_1793288514459_cf2091dc",
+      "streamId": "c7f47e15-79e5-49b4-8d39-6b09588a91a2",
+      "cursor": 4,
+      "eventId": "c7f47e15-79e5-49b4-8d39-6b09588a91a2:4",
+      "turnId": "turn_1793288817213_0eb7d1",
+      "type": "inspector",
+      "delta": {
+        "observedAt": 1793288817232,
+        "cacheLayers": [
+          {
+            "layer": "assembly",
+            "dependencyHash": "9fc946a976f4596462f59952dfdfab6e424d457910c80b5e7ed8a7adae3f387f",
+            "hits": 2,
+            "misses": 2,
+            "invalidations": 0,
+            "entries": 2
+          },
+          {
+            "layer": "provider-prefix",
+            "dependencyHash": "227a177265a871d41392de564d547d5fd8ea002aa0f0718e28dfd70f3eb0b894",
+            "hits": 1,
+            "misses": 1,
+            "invalidations": 0,
+            "entries": 1
+          },
+          {
+            "layer": "projection",
+            "dependencyHash": "cd9be307a0efaa5588008c8988596ebd9544d7107e8c2200889c0f9fe6e7151d",
+            "hits": 0,
+            "misses": 2,
+            "invalidations": 1,
+            "entries": 1
+          },
+          {
+            "layer": "token-estimation",
+            "dependencyHash": "ee50246892a19b669180c738aec465d4a5430486914542fa3137d5e9b9e3915a",
+            "hits": 1,
+            "misses": 3,
+            "invalidations": 1,
+            "entries": 2
+          }
+        ],
+        "projectionRevision": 0,
+        "prefix": {
+          "stableBytes": 7094,
+          "scopedBytes": 0,
+          "volatileBytes": 192,
+          "sha256": "376d3d2c39240a21c43fb5c6e7642b201901236c75f8a8cb1815a00ec02dbf18"
+        },
+        "workspace": {
+          "timestamp": 1793288817232,
+          "trackedFilesHash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "uncommittedDiffBytes": 0,
+          "fileCount": 0
+        }
+      },
+      "ts": 1793288817232
+    },
+    {
+      "version": 1,
+      "sessionId": "sess_1793288514459_cf2091dc",
+      "streamId": "c7f47e15-79e5-49b4-8d39-6b09588a91a2",
+      "cursor": 5,
+      "eventId": "c7f47e15-79e5-49b4-8d39-6b09588a91a2:5",
+      "turnId": "turn_1793288817213_0eb7d1",
+      "type": "usage",
+      "delta": {
+        "costUsd": 0,
+        "estimated": false,
+        "summary": {
+          "inputTokens": 200,
+          "outputTokens": 1200,
+          "cacheReadTokens": 0,
+          "cacheCreationTokens": 0,
+          "calls": 2,
+          "promptTokensTotal": 0,
+          "measuredCalls": 0,
+          "cachedTokensTotal": 0,
+          "overallCacheHitRate": 0,
+          "estimatedSavingsUsd": 0,
+          "costUsd": 0,
+          "costBreakdown": {
+            "inputUsd": 0,
+            "outputUsd": 0,
+            "cacheReadUsd": 0,
+            "cacheWriteUsd": 0,
+            "rawTotalUsd": 0,
+            "totalUsd": 0,
+            "costMultiplier": 1,
+            "cacheWritePriceSource": "explicit",
+            "cacheWriteDerived": false
+          },
+          "pricingSource": "unpriced",
+          "estimated": false
+        },
+        "inputTokens": 100,
+        "outputTokens": 600,
+        "cacheReadTokens": 0,
+        "cacheCreationTokens": 0,
+        "latencyMs": 17,
+        "calls": 2
+      },
+      "ts": 1793288817249
+    },
+    {
+      "version": 1,
+      "sessionId": "sess_1793288514459_cf2091dc",
+      "streamId": "c7f47e15-79e5-49b4-8d39-6b09588a91a2",
+      "cursor": 6,
+      "eventId": "c7f47e15-79e5-49b4-8d39-6b09588a91a2:6",
+      "turnId": "turn_1793288817213_0eb7d1",
+      "type": "tool",
+      "delta": {
+        "toolCallId": "fixture-write-4",
+        "toolName": "Write",
+        "status": "started",
+        "argsSummary": "{\"path\":\"fixture.txt\",\"content\":\"before\\nsecond\\n\"}"
+      },
+      "ts": 1793288817260
+    },
+    {
+      "version": 1,
+      "sessionId": "sess_1793288514459_cf2091dc",
+      "streamId": "c7f47e15-79e5-49b4-8d39-6b09588a91a2",
+      "cursor": 7,
+      "eventId": "c7f47e15-79e5-49b4-8d39-6b09588a91a2:7",
+      "turnId": "turn_1793288817213_0eb7d1",
+      "type": "widget_block",
+      "delta": {
+        "id": "write:sess_1793288514459_cf2091dc:27",
+        "kind": "diff_inspector",
+        "status": "resolved",
+        "turnIndex": 1,
+        "timestamp": "2026-10-29T15:46:57.284Z",
+        "payload": {
+          "filePath": "fixture.txt",
+          "additions": 2,
+          "deletions": 0,
+          "patch": "--- /dev/null\n+++ b/fixture.txt\n@@ -0,0 +1,2 @@\n+before\n+second\n"
+        }
+      },
+      "ts": 1793288817286
+    },
+    {
+      "version": 1,
+      "sessionId": "sess_1793288514459_cf2091dc",
+      "streamId": "c7f47e15-79e5-49b4-8d39-6b09588a91a2",
+      "cursor": 7,
+      "eventId": "c7f47e15-79e5-49b4-8d39-6b09588a91a2:7",
+      "turnId": "turn_1793288817213_0eb7d1",
+      "type": "widget",
+      "delta": {
+        "id": "write:sess_1793288514459_cf2091dc:27",
+        "kind": "diff_inspector",
+        "status": "resolved",
+        "turnIndex": 1,
+        "timestamp": "2026-10-29T15:46:57.284Z",
+        "payload": {
+          "filePath": "fixture.txt",
+          "additions": 2,
+          "deletions": 0,
+          "patch": "--- /dev/null\n+++ b/fixture.txt\n@@ -0,0 +1,2 @@\n+before\n+second\n"
+        }
+      },
+      "ts": 1793288817286
+    },
+    {
+      "version": 1,
+      "sessionId": "sess_1793288514459_cf2091dc",
+      "streamId": "c7f47e15-79e5-49b4-8d39-6b09588a91a2",
+      "cursor": 8,
+      "eventId": "c7f47e15-79e5-49b4-8d39-6b09588a91a2:8",
+      "turnId": "turn_1793288817213_0eb7d1",
+      "type": "tool",
+      "delta": {
+        "toolCallId": "fixture-write-4",
+        "toolName": "Write",
+        "status": "done"
+      },
+      "ts": 1793288817287
+    },
+    {
+      "version": 1,
+      "sessionId": "sess_1793288514459_cf2091dc",
+      "streamId": "c7f47e15-79e5-49b4-8d39-6b09588a91a2",
+      "cursor": 9,
+      "eventId": "c7f47e15-79e5-49b4-8d39-6b09588a91a2:9",
+      "turnId": "turn_1793288817213_0eb7d1",
+      "type": "inspector",
+      "delta": {
+        "observedAt": 1793288817295,
+        "cacheLayers": [
+          {
+            "layer": "assembly",
+            "dependencyHash": "9fc946a976f4596462f59952dfdfab6e424d457910c80b5e7ed8a7adae3f387f",
+            "hits": 4,
+            "misses": 2,
+            "invalidations": 0,
+            "entries": 2
+          },
+          {
+            "layer": "provider-prefix",
+            "dependencyHash": "227a177265a871d41392de564d547d5fd8ea002aa0f0718e28dfd70f3eb0b894",
+            "hits": 2,
+            "misses": 1,
+            "invalidations": 0,
+            "entries": 1
+          },
+          {
+            "layer": "projection",
+            "dependencyHash": "555e89f6a3517e3aef7ee85531b3f5924490faba7a2278a84b437915373d54bb",
+            "hits": 0,
+            "misses": 3,
+            "invalidations": 2,
+            "entries": 1
+          },
+          {
+            "layer": "token-estimation",
+            "dependencyHash": "ee50246892a19b669180c738aec465d4a5430486914542fa3137d5e9b9e3915a",
+            "hits": 2,
+            "misses": 4,
+            "invalidations": 2,
+            "entries": 2
+          }
+        ],
+        "projectionRevision": 0,
+        "prefix": {
+          "stableBytes": 7094,
+          "scopedBytes": 0,
+          "volatileBytes": 222,
+          "sha256": "376d3d2c39240a21c43fb5c6e7642b201901236c75f8a8cb1815a00ec02dbf18"
+        },
+        "workspace": {
+          "timestamp": 1793288817232,
+          "trackedFilesHash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "uncommittedDiffBytes": 0,
+          "fileCount": 0
+        }
+      },
+      "ts": 1793288817296
+    },
+    {
+      "version": 1,
+      "sessionId": "sess_1793288514459_cf2091dc",
+      "streamId": "c7f47e15-79e5-49b4-8d39-6b09588a91a2",
+      "cursor": 10,
+      "eventId": "c7f47e15-79e5-49b4-8d39-6b09588a91a2:10",
+      "turnId": "turn_1793288817213_0eb7d1",
+      "type": "inspector",
+      "delta": {
+        "observedAt": 1793288817307,
+        "cacheLayers": [
+          {
+            "layer": "assembly",
+            "dependencyHash": "9fc946a976f4596462f59952dfdfab6e424d457910c80b5e7ed8a7adae3f387f",
+            "hits": 4,
+            "misses": 2,
+            "invalidations": 0,
+            "entries": 2
+          },
+          {
+            "layer": "provider-prefix",
+            "dependencyHash": "227a177265a871d41392de564d547d5fd8ea002aa0f0718e28dfd70f3eb0b894",
+            "hits": 2,
+            "misses": 1,
+            "invalidations": 0,
+            "entries": 1
+          },
+          {
+            "layer": "projection",
+            "dependencyHash": "555e89f6a3517e3aef7ee85531b3f5924490faba7a2278a84b437915373d54bb",
+            "hits": 0,
+            "misses": 3,
+            "invalidations": 2,
+            "entries": 1
+          },
+          {
+            "layer": "token-estimation",
+            "dependencyHash": "ee50246892a19b669180c738aec465d4a5430486914542fa3137d5e9b9e3915a",
+            "hits": 2,
+            "misses": 4,
+            "invalidations": 2,
+            "entries": 2
+          }
+        ],
+        "projectionRevision": 0,
+        "prefix": {
+          "stableBytes": 7094,
+          "scopedBytes": 0,
+          "volatileBytes": 222,
+          "sha256": "376d3d2c39240a21c43fb5c6e7642b201901236c75f8a8cb1815a00ec02dbf18"
+        },
+        "workspace": {
+          "timestamp": 1793288817307,
+          "trackedFilesHash": "d6354e0b086dfc23d00bd89cb1016e4e4d90c7a56d43a9d235d698213f9f9fd3",
+          "uncommittedDiffBytes": 14,
+          "fileCount": 1
+        }
+      },
+      "ts": 1793288817307
+    },
+    {
+      "version": 1,
+      "sessionId": "sess_1793288514459_cf2091dc",
+      "streamId": "c7f47e15-79e5-49b4-8d39-6b09588a91a2",
+      "cursor": 11,
+      "eventId": "c7f47e15-79e5-49b4-8d39-6b09588a91a2:11",
+      "turnId": "turn_1793288817213_0eb7d1",
+      "type": "conversation",
+      "delta": {
+        "role": "assistant",
+        "text": "Fixture complete"
+      },
+      "ts": 1793288817327
+    },
+    {
+      "version": 1,
+      "sessionId": "sess_1793288514459_cf2091dc",
+      "streamId": "c7f47e15-79e5-49b4-8d39-6b09588a91a2",
+      "cursor": 12,
+      "eventId": "c7f47e15-79e5-49b4-8d39-6b09588a91a2:12",
+      "turnId": "turn_1793288817213_0eb7d1",
+      "type": "usage",
+      "delta": {
+        "costUsd": 0,
+        "estimated": false,
+        "summary": {
+          "inputTokens": 300,
+          "outputTokens": 1800,
+          "cacheReadTokens": 0,
+          "cacheCreationTokens": 0,
+          "calls": 3,
+          "promptTokensTotal": 0,
+          "measuredCalls": 0,
+          "cachedTokensTotal": 0,
+          "overallCacheHitRate": 0,
+          "estimatedSavingsUsd": 0,
+          "costUsd": 0,
+          "costBreakdown": {
+            "inputUsd": 0,
+            "outputUsd": 0,
+            "cacheReadUsd": 0,
+            "cacheWriteUsd": 0,
+            "rawTotalUsd": 0,
+            "totalUsd": 0,
+            "costMultiplier": 1,
+            "cacheWritePriceSource": "explicit",
+            "cacheWriteDerived": false
+          },
+          "pricingSource": "unpriced",
+          "estimated": false
+        },
+        "inputTokens": 100,
+        "outputTokens": 600,
+        "cacheReadTokens": 0,
+        "cacheCreationTokens": 0,
+        "latencyMs": 26,
+        "calls": 3
+      },
+      "ts": 1793288817328
+    },
+    {
+      "version": 1,
+      "sessionId": "sess_1793288514459_cf2091dc",
+      "streamId": "c7f47e15-79e5-49b4-8d39-6b09588a91a2",
+      "cursor": 13,
+      "eventId": "c7f47e15-79e5-49b4-8d39-6b09588a91a2:13",
+      "turnId": "turn_1793288817213_0eb7d1",
+      "type": "run",
+      "delta": {
+        "active": false,
+        "turnId": "turn_1793288817213_0eb7d1",
+        "kind": "success"
+      },
+      "ts": 1793288817332
+    }
+  ],
+  "raw": "id: c7f47e15-79e5-49b4-8d39-6b09588a91a2:1\ndata: {\"version\":1,\"sessionId\":\"sess_1793288514459_cf2091dc\",\"streamId\":\"c7f47e15-79e5-49b4-8d39-6b09588a91a2\",\"cursor\":1,\"eventId\":\"c7f47e15-79e5-49b4-8d39-6b09588a91a2:checkpoint:1\",\"turnId\":\"turn_1793288514509_940994\",\"type\":\"transcript\",\"delta\":{\"messages\":[{\"id\":\"record:5\",\"kind\":\"message\",\"msg\":{\"role\":\"user\",\"text\":\"Please provide one assistant reply for the header verification fixture.\",\"ts\":1793288514510}},{\"id\":\"record:9\",\"kind\":\"message\",\"msg\":{\"role\":\"assistant\",\"text\":\"Assistant reply for the long-title header fixture.\",\"ts\":1793288514625}}],\"usage\":[{\"inputTokens\":100,\"outputTokens\":600,\"costUsd\":0,\"estimated\":false,\"calls\":1,\"ts\":1793288514628,\"summary\":{\"inputTokens\":100,\"outputTokens\":600,\"cacheReadTokens\":0,\"cacheCreationTokens\":0,\"calls\":1,\"costUsd\":0,\"estimated\":false}}],\"summary\":{\"inputTokens\":100,\"outputTokens\":600,\"cacheReadTokens\":0,\"cacheCreationTokens\":0,\"calls\":1,\"costUsd\":0,\"estimated\":false},\"run\":{\"active\":false,\"turnId\":\"turn_1793288514509_940994\",\"kind\":\"success\"},\"inspector\":{\"observedAt\":1793288514578,\"cacheLayers\":[{\"layer\":\"assembly\",\"dependencyHash\":\"9fc946a976f4596462f59952dfdfab6e424d457910c80b5e7ed8a7adae3f387f\",\"hits\":0,\"misses\":2,\"invalidations\":0,\"entries\":2},{\"layer\":\"provider-prefix\",\"dependencyHash\":\"227a177265a871d41392de564d547d5fd8ea002aa0f0718e28dfd70f3eb0b894\",\"hits\":0,\"misses\":1,\"invalidations\":0,\"entries\":1},{\"layer\":\"projection\",\"dependencyHash\":\"62b4ccf772d22863465555701d3efd886c2e709ac593d334036155669ccce01e\",\"hits\":0,\"misses\":1,\"invalidations\":0,\"entries\":1},{\"layer\":\"token-estimation\",\"dependencyHash\":\"ee50246892a19b669180c738aec465d4a5430486914542fa3137d5e9b9e3915a\",\"hits\":0,\"misses\":2,\"invalidations\":0,\"entries\":2}],\"projectionRevision\":0,\"prefix\":{\"stableBytes\":7094,\"scopedBytes\":0,\"volatileBytes\":71,\"sha256\":\"376d3d2c39240a21c43fb5c6e7642b201901236c75f8a8cb1815a00ec02dbf18\"},\"workspace\":{\"timestamp\":1793288514578,\"trackedFilesHash\":\"e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855\",\"uncommittedDiffBytes\":0,\"fileCount\":0}}},\"ts\":1793288816990}\n\nid: c7f47e15-79e5-49b4-8d39-6b09588a91a2:1\nevent: inspector\ndata: {\"version\":1,\"sessionId\":\"sess_1793288514459_cf2091dc\",\"streamId\":\"c7f47e15-79e5-49b4-8d39-6b09588a91a2\",\"cursor\":1,\"eventId\":\"c7f47e15-79e5-49b4-8d39-6b09588a91a2:bootstrap:inspector:1\",\"turnId\":\"turn_1793288514509_940994\",\"type\":\"inspector\",\"delta\":{\"observedAt\":1793288514578,\"cacheLayers\":[{\"layer\":\"assembly\",\"dependencyHash\":\"9fc946a976f4596462f59952dfdfab6e424d457910c80b5e7ed8a7adae3f387f\",\"hits\":0,\"misses\":2,\"invalidations\":0,\"entries\":2},{\"layer\":\"provider-prefix\",\"dependencyHash\":\"227a177265a871d41392de564d547d5fd8ea002aa0f0718e28dfd70f3eb0b894\",\"hits\":0,\"misses\":1,\"invalidations\":0,\"entries\":1},{\"layer\":\"projection\",\"dependencyHash\":\"62b4ccf772d22863465555701d3efd886c2e709ac593d334036155669ccce01e\",\"hits\":0,\"misses\":1,\"invalidations\":0,\"entries\":1},{\"layer\":\"token-estimation\",\"dependencyHash\":\"ee50246892a19b669180c738aec465d4a5430486914542fa3137d5e9b9e3915a\",\"hits\":0,\"misses\":2,\"invalidations\":0,\"entries\":2}],\"projectionRevision\":0,\"prefix\":{\"stableBytes\":7094,\"scopedBytes\":0,\"volatileBytes\":71,\"sha256\":\"376d3d2c39240a21c43fb5c6e7642b201901236c75f8a8cb1815a00ec02dbf18\"},\"workspace\":{\"timestamp\":1793288514578,\"trackedFilesHash\":\"e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855\",\"uncommittedDiffBytes\":0,\"fileCount\":0}},\"ts\":1793288816990}\n\nid: c7f47e15-79e5-49b4-8d39-6b09588a91a2:2\ndata: {\"version\":1,\"sessionId\":\"sess_1793288514459_cf2091dc\",\"streamId\":\"c7f47e15-79e5-49b4-8d39-6b09588a91a2\",\"cursor\":2,\"eventId\":\"c7f47e15-79e5-49b4-8d39-6b09588a91a2:2\",\"turnId\":\"turn_1793288817213_0eb7d1\",\"type\":\"run\",\"delta\":{\"active\":true,\"turnId\":\"turn_1793288817213_0eb7d1\"},\"ts\":1793288817214}\n\nid: c7f47e15-79e5-49b4-8d39-6b09588a91a2:3\nevent: inspector\ndata: {\"version\":1,\"sessionId\":\"sess_1793288514459_cf2091dc\",\"streamId\":\"c7f47e15-79e5-49b4-8d39-6b09588a91a2\",\"cursor\":3,\"eventId\":\"c7f47e15-79e5-49b4-8d39-6b09588a91a2:3\",\"turnId\":\"turn_1793288817213_0eb7d1\",\"type\":\"inspector\",\"delta\":{\"observedAt\":1793288817226,\"cacheLayers\":[{\"layer\":\"assembly\",\"dependencyHash\":\"9fc946a976f4596462f59952dfdfab6e424d457910c80b5e7ed8a7adae3f387f\",\"hits\":2,\"misses\":2,\"invalidations\":0,\"entries\":2},{\"layer\":\"provider-prefix\",\"dependencyHash\":\"227a177265a871d41392de564d547d5fd8ea002aa0f0718e28dfd70f3eb0b894\",\"hits\":1,\"misses\":1,\"invalidations\":0,\"entries\":1},{\"layer\":\"projection\",\"dependencyHash\":\"cd9be307a0efaa5588008c8988596ebd9544d7107e8c2200889c0f9fe6e7151d\",\"hits\":0,\"misses\":2,\"invalidations\":1,\"entries\":1},{\"layer\":\"token-estimation\",\"dependencyHash\":\"ee50246892a19b669180c738aec465d4a5430486914542fa3137d5e9b9e3915a\",\"hits\":1,\"misses\":3,\"invalidations\":1,\"entries\":2}],\"projectionRevision\":0,\"prefix\":{\"stableBytes\":7094,\"scopedBytes\":0,\"volatileBytes\":192,\"sha256\":\"376d3d2c39240a21c43fb5c6e7642b201901236c75f8a8cb1815a00ec02dbf18\"},\"workspace\":{\"timestamp\":1793288514578,\"trackedFilesHash\":\"e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855\",\"uncommittedDiffBytes\":0,\"fileCount\":0}},\"ts\":1793288817226}\n\nid: c7f47e15-79e5-49b4-8d39-6b09588a91a2:4\nevent: inspector\ndata: {\"version\":1,\"sessionId\":\"sess_1793288514459_cf2091dc\",\"streamId\":\"c7f47e15-79e5-49b4-8d39-6b09588a91a2\",\"cursor\":4,\"eventId\":\"c7f47e15-79e5-49b4-8d39-6b09588a91a2:4\",\"turnId\":\"turn_1793288817213_0eb7d1\",\"type\":\"inspector\",\"delta\":{\"observedAt\":1793288817232,\"cacheLayers\":[{\"layer\":\"assembly\",\"dependencyHash\":\"9fc946a976f4596462f59952dfdfab6e424d457910c80b5e7ed8a7adae3f387f\",\"hits\":2,\"misses\":2,\"invalidations\":0,\"entries\":2},{\"layer\":\"provider-prefix\",\"dependencyHash\":\"227a177265a871d41392de564d547d5fd8ea002aa0f0718e28dfd70f3eb0b894\",\"hits\":1,\"misses\":1,\"invalidations\":0,\"entries\":1},{\"layer\":\"projection\",\"dependencyHash\":\"cd9be307a0efaa5588008c8988596ebd9544d7107e8c2200889c0f9fe6e7151d\",\"hits\":0,\"misses\":2,\"invalidations\":1,\"entries\":1},{\"layer\":\"token-estimation\",\"dependencyHash\":\"ee50246892a19b669180c738aec465d4a5430486914542fa3137d5e9b9e3915a\",\"hits\":1,\"misses\":3,\"invalidations\":1,\"entries\":2}],\"projectionRevision\":0,\"prefix\":{\"stableBytes\":7094,\"scopedBytes\":0,\"volatileBytes\":192,\"sha256\":\"376d3d2c39240a21c43fb5c6e7642b201901236c75f8a8cb1815a00ec02dbf18\"},\"workspace\":{\"timestamp\":1793288817232,\"trackedFilesHash\":\"e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855\",\"uncommittedDiffBytes\":0,\"fileCount\":0}},\"ts\":1793288817232}\n\nid: c7f47e15-79e5-49b4-8d39-6b09588a91a2:5\ndata: {\"version\":1,\"sessionId\":\"sess_1793288514459_cf2091dc\",\"streamId\":\"c7f47e15-79e5-49b4-8d39-6b09588a91a2\",\"cursor\":5,\"eventId\":\"c7f47e15-79e5-49b4-8d39-6b09588a91a2:5\",\"turnId\":\"turn_1793288817213_0eb7d1\",\"type\":\"usage\",\"delta\":{\"costUsd\":0,\"estimated\":false,\"summary\":{\"inputTokens\":200,\"outputTokens\":1200,\"cacheReadTokens\":0,\"cacheCreationTokens\":0,\"calls\":2,\"promptTokensTotal\":0,\"measuredCalls\":0,\"cachedTokensTotal\":0,\"overallCacheHitRate\":0,\"estimatedSavingsUsd\":0,\"costUsd\":0,\"costBreakdown\":{\"inputUsd\":0,\"outputUsd\":0,\"cacheReadUsd\":0,\"cacheWriteUsd\":0,\"rawTotalUsd\":0,\"totalUsd\":0,\"costMultiplier\":1,\"cacheWritePriceSource\":\"explicit\",\"cacheWriteDerived\":false},\"pricingSource\":\"unpriced\",\"estimated\":false},\"inputTokens\":100,\"outputTokens\":600,\"cacheReadTokens\":0,\"cacheCreationTokens\":0,\"latencyMs\":17,\"calls\":2},\"ts\":1793288817249}\n\nid: c7f47e15-79e5-49b4-8d39-6b09588a91a2:6\ndata: {\"version\":1,\"sessionId\":\"sess_1793288514459_cf2091dc\",\"streamId\":\"c7f47e15-79e5-49b4-8d39-6b09588a91a2\",\"cursor\":6,\"eventId\":\"c7f47e15-79e5-49b4-8d39-6b09588a91a2:6\",\"turnId\":\"turn_1793288817213_0eb7d1\",\"type\":\"tool\",\"delta\":{\"toolCallId\":\"fixture-write-4\",\"toolName\":\"Write\",\"status\":\"started\",\"argsSummary\":\"{\\\"path\\\":\\\"fixture.txt\\\",\\\"content\\\":\\\"before\\\\nsecond\\\\n\\\"}\"},\"ts\":1793288817260}\n\nid: c7f47e15-79e5-49b4-8d39-6b09588a91a2:7\nevent: widget_block\ndata: {\"version\":1,\"sessionId\":\"sess_1793288514459_cf2091dc\",\"streamId\":\"c7f47e15-79e5-49b4-8d39-6b09588a91a2\",\"cursor\":7,\"eventId\":\"c7f47e15-79e5-49b4-8d39-6b09588a91a2:7\",\"turnId\":\"turn_1793288817213_0eb7d1\",\"type\":\"widget_block\",\"delta\":{\"id\":\"write:sess_1793288514459_cf2091dc:27\",\"kind\":\"diff_inspector\",\"status\":\"resolved\",\"turnIndex\":1,\"timestamp\":\"2026-10-29T15:46:57.284Z\",\"payload\":{\"filePath\":\"fixture.txt\",\"additions\":2,\"deletions\":0,\"patch\":\"--- /dev/null\\n+++ b/fixture.txt\\n@@ -0,0 +1,2 @@\\n+before\\n+second\\n\"}},\"ts\":1793288817286}\n\nid: c7f47e15-79e5-49b4-8d39-6b09588a91a2:7\nevent: widget\ndata: {\"version\":1,\"sessionId\":\"sess_1793288514459_cf2091dc\",\"streamId\":\"c7f47e15-79e5-49b4-8d39-6b09588a91a2\",\"cursor\":7,\"eventId\":\"c7f47e15-79e5-49b4-8d39-6b09588a91a2:7\",\"turnId\":\"turn_1793288817213_0eb7d1\",\"type\":\"widget\",\"delta\":{\"id\":\"write:sess_1793288514459_cf2091dc:27\",\"kind\":\"diff_inspector\",\"status\":\"resolved\",\"turnIndex\":1,\"timestamp\":\"2026-10-29T15:46:57.284Z\",\"payload\":{\"filePath\":\"fixture.txt\",\"additions\":2,\"deletions\":0,\"patch\":\"--- /dev/null\\n+++ b/fixture.txt\\n@@ -0,0 +1,2 @@\\n+before\\n+second\\n\"}},\"ts\":1793288817286}\n\nid: c7f47e15-79e5-49b4-8d39-6b09588a91a2:8\ndata: {\"version\":1,\"sessionId\":\"sess_1793288514459_cf2091dc\",\"streamId\":\"c7f47e15-79e5-49b4-8d39-6b09588a91a2\",\"cursor\":8,\"eventId\":\"c7f47e15-79e5-49b4-8d39-6b09588a91a2:8\",\"turnId\":\"turn_1793288817213_0eb7d1\",\"type\":\"tool\",\"delta\":{\"toolCallId\":\"fixture-write-4\",\"toolName\":\"Write\",\"status\":\"done\"},\"ts\":1793288817287}\n\nid: c7f47e15-79e5-49b4-8d39-6b09588a91a2:9\nevent: inspector\ndata: {\"version\":1,\"sessionId\":\"sess_1793288514459_cf2091dc\",\"streamId\":\"c7f47e15-79e5-49b4-8d39-6b09588a91a2\",\"cursor\":9,\"eventId\":\"c7f47e15-79e5-49b4-8d39-6b09588a91a2:9\",\"turnId\":\"turn_1793288817213_0eb7d1\",\"type\":\"inspector\",\"delta\":{\"observedAt\":1793288817295,\"cacheLayers\":[{\"layer\":\"assembly\",\"dependencyHash\":\"9fc946a976f4596462f59952dfdfab6e424d457910c80b5e7ed8a7adae3f387f\",\"hits\":4,\"misses\":2,\"invalidations\":0,\"entries\":2},{\"layer\":\"provider-prefix\",\"dependencyHash\":\"227a177265a871d41392de564d547d5fd8ea002aa0f0718e28dfd70f3eb0b894\",\"hits\":2,\"misses\":1,\"invalidations\":0,\"entries\":1},{\"layer\":\"projection\",\"dependencyHash\":\"555e89f6a3517e3aef7ee85531b3f5924490faba7a2278a84b437915373d54bb\",\"hits\":0,\"misses\":3,\"invalidations\":2,\"entries\":1},{\"layer\":\"token-estimation\",\"dependencyHash\":\"ee50246892a19b669180c738aec465d4a5430486914542fa3137d5e9b9e3915a\",\"hits\":2,\"misses\":4,\"invalidations\":2,\"entries\":2}],\"projectionRevision\":0,\"prefix\":{\"stableBytes\":7094,\"scopedBytes\":0,\"volatileBytes\":222,\"sha256\":\"376d3d2c39240a21c43fb5c6e7642b201901236c75f8a8cb1815a00ec02dbf18\"},\"workspace\":{\"timestamp\":1793288817232,\"trackedFilesHash\":\"e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855\",\"uncommittedDiffBytes\":0,\"fileCount\":0}},\"ts\":1793288817296}\n\nid: c7f47e15-79e5-49b4-8d39-6b09588a91a2:10\nevent: inspector\ndata: {\"version\":1,\"sessionId\":\"sess_1793288514459_cf2091dc\",\"streamId\":\"c7f47e15-79e5-49b4-8d39-6b09588a91a2\",\"cursor\":10,\"eventId\":\"c7f47e15-79e5-49b4-8d39-6b09588a91a2:10\",\"turnId\":\"turn_1793288817213_0eb7d1\",\"type\":\"inspector\",\"delta\":{\"observedAt\":1793288817307,\"cacheLayers\":[{\"layer\":\"assembly\",\"dependencyHash\":\"9fc946a976f4596462f59952dfdfab6e424d457910c80b5e7ed8a7adae3f387f\",\"hits\":4,\"misses\":2,\"invalidations\":0,\"entries\":2},{\"layer\":\"provider-prefix\",\"dependencyHash\":\"227a177265a871d41392de564d547d5fd8ea002aa0f0718e28dfd70f3eb0b894\",\"hits\":2,\"misses\":1,\"invalidations\":0,\"entries\":1},{\"layer\":\"projection\",\"dependencyHash\":\"555e89f6a3517e3aef7ee85531b3f5924490faba7a2278a84b437915373d54bb\",\"hits\":0,\"misses\":3,\"invalidations\":2,\"entries\":1},{\"layer\":\"token-estimation\",\"dependencyHash\":\"ee50246892a19b669180c738aec465d4a5430486914542fa3137d5e9b9e3915a\",\"hits\":2,\"misses\":4,\"invalidations\":2,\"entries\":2}],\"projectionRevision\":0,\"prefix\":{\"stableBytes\":7094,\"scopedBytes\":0,\"volatileBytes\":222,\"sha256\":\"376d3d2c39240a21c43fb5c6e7642b201901236c75f8a8cb1815a00ec02dbf18\"},\"workspace\":{\"timestamp\":1793288817307,\"trackedFilesHash\":\"d6354e0b086dfc23d00bd89cb1016e4e4d90c7a56d43a9d235d698213f9f9fd3\",\"uncommittedDiffBytes\":14,\"fileCount\":1}},\"ts\":1793288817307}\n\nid: c7f47e15-79e5-49b4-8d39-6b09588a91a2:11\ndata: {\"version\":1,\"sessionId\":\"sess_1793288514459_cf2091dc\",\"streamId\":\"c7f47e15-79e5-49b4-8d39-6b09588a91a2\",\"cursor\":11,\"eventId\":\"c7f47e15-79e5-49b4-8d39-6b09588a91a2:11\",\"turnId\":\"turn_1793288817213_0eb7d1\",\"type\":\"conversation\",\"delta\":{\"role\":\"assistant\",\"text\":\"Fixture complete\"},\"ts\":1793288817327}\n\nid: c7f47e15-79e5-49b4-8d39-6b09588a91a2:12\ndata: {\"version\":1,\"sessionId\":\"sess_1793288514459_cf2091dc\",\"streamId\":\"c7f47e15-79e5-49b4-8d39-6b09588a91a2\",\"cursor\":12,\"eventId\":\"c7f47e15-79e5-49b4-8d39-6b09588a91a2:12\",\"turnId\":\"turn_1793288817213_0eb7d1\",\"type\":\"usage\",\"delta\":{\"costUsd\":0,\"estimated\":false,\"summary\":{\"inputTokens\":300,\"outputTokens\":1800,\"cacheReadTokens\":0,\"cacheCreationTokens\":0,\"calls\":3,\"promptTokensTotal\":0,\"measuredCalls\":0,\"cachedTokensTotal\":0,\"overallCacheHitRate\":0,\"estimatedSavingsUsd\":0,\"costUsd\":0,\"costBreakdown\":{\"inputUsd\":0,\"outputUsd\":0,\"cacheReadUsd\":0,\"cacheWriteUsd\":0,\"rawTotalUsd\":0,\"totalUsd\":0,\"costMultiplier\":1,\"cacheWritePriceSource\":\"explicit\",\"cacheWriteDerived\":false},\"pricingSource\":\"unpriced\",\"estimated\":false},\"inputTokens\":100,\"outputTokens\":600,\"cacheReadTokens\":0,\"cacheCreationTokens\":0,\"latencyMs\":26,\"calls\":3},\"ts\":1793288817328}\n\nid: c7f47e15-79e5-49b4-8d39-6b09588a91a2:13\ndata: {\"version\":1,\"sessionId\":\"sess_1793288514459_cf2091dc\",\"streamId\":\"c7f47e15-79e5-49b4-8d39-6b09588a91a2\",\"cursor\":13,\"eventId\":\"c7f47e15-79e5-49b4-8d39-6b09588a91a2:13\",\"turnId\":\"turn_1793288817213_0eb7d1\",\"type\":\"run\",\"delta\":{\"active\":false,\"turnId\":\"turn_1793288817213_0eb7d1\",\"kind\":\"success\"},\"ts\":1793288817332}\n\n"
+}

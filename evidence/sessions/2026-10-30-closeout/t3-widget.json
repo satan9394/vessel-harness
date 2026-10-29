@@ -1,0 +1,238 @@
+{
+  "verdict": "PASS",
+  "sessionId": "sess_1793288514459_cf2091dc",
+  "create": {
+    "turn": {
+      "finalText": "Fixture complete",
+      "kind": "success",
+      "steps": 2,
+      "turnId": "turn_1793288817213_0eb7d1"
+    },
+    "counts": {
+      "widget_block": 1,
+      "widget": 1
+    },
+    "uniqueWidgetIds": [
+      "write:sess_1793288514459_cf2091dc:27"
+    ],
+    "events": [
+      {
+        "version": 1,
+        "sessionId": "sess_1793288514459_cf2091dc",
+        "streamId": "c7f47e15-79e5-49b4-8d39-6b09588a91a2",
+        "cursor": 7,
+        "eventId": "c7f47e15-79e5-49b4-8d39-6b09588a91a2:7",
+        "turnId": "turn_1793288817213_0eb7d1",
+        "type": "widget_block",
+        "delta": {
+          "id": "write:sess_1793288514459_cf2091dc:27",
+          "kind": "diff_inspector",
+          "status": "resolved",
+          "turnIndex": 1,
+          "timestamp": "2026-10-29T15:46:57.284Z",
+          "payload": {
+            "filePath": "fixture.txt",
+            "additions": 2,
+            "deletions": 0,
+            "patch": "--- /dev/null\n+++ b/fixture.txt\n@@ -0,0 +1,2 @@\n+before\n+second\n"
+          }
+        },
+        "ts": 1793288817286
+      },
+      {
+        "version": 1,
+        "sessionId": "sess_1793288514459_cf2091dc",
+        "streamId": "c7f47e15-79e5-49b4-8d39-6b09588a91a2",
+        "cursor": 7,
+        "eventId": "c7f47e15-79e5-49b4-8d39-6b09588a91a2:7",
+        "turnId": "turn_1793288817213_0eb7d1",
+        "type": "widget",
+        "delta": {
+          "id": "write:sess_1793288514459_cf2091dc:27",
+          "kind": "diff_inspector",
+          "status": "resolved",
+          "turnIndex": 1,
+          "timestamp": "2026-10-29T15:46:57.284Z",
+          "payload": {
+            "filePath": "fixture.txt",
+            "additions": 2,
+            "deletions": 0,
+            "patch": "--- /dev/null\n+++ b/fixture.txt\n@@ -0,0 +1,2 @@\n+before\n+second\n"
+          }
+        },
+        "ts": 1793288817286
+      }
+    ],
+    "writeCalls": 1,
+    "writeResults": 1
+  },
+  "replay": {
+    "browser": {
+      "allWidgets": [
+        {
+          "label": "差异检视器",
+          "text": "fixture.txt+2−0收起差异--- /dev/null+++ b/fixture.txt@@ -0,0 +1,2 @@1+before2+second "
+        }
+      ],
+      "at": "2026-10-29T15:47:39.904Z",
+      "inlineCount": 1
+    },
+    "bootstrapEvents": [
+      {
+        "version": 1,
+        "sessionId": "sess_1793288514459_cf2091dc",
+        "streamId": "c7f47e15-79e5-49b4-8d39-6b09588a91a2",
+        "cursor": 13,
+        "eventId": "c7f47e15-79e5-49b4-8d39-6b09588a91a2:bootstrap:widget_block:13",
+        "turnId": "turn_1793288817213_0eb7d1",
+        "type": "widget_block",
+        "delta": {
+          "id": "write:sess_1793288514459_cf2091dc:27",
+          "kind": "diff_inspector",
+          "status": "resolved",
+          "turnIndex": 1,
+          "timestamp": "2026-10-29T15:46:57.284Z",
+          "payload": {
+            "filePath": "fixture.txt",
+            "additions": 2,
+            "deletions": 0,
+            "patch": "--- /dev/null\n+++ b/fixture.txt\n@@ -0,0 +1,2 @@\n+before\n+second\n"
+          }
+        },
+        "ts": 1793288890393
+      },
+      {
+        "version": 1,
+        "sessionId": "sess_1793288514459_cf2091dc",
+        "streamId": "c7f47e15-79e5-49b4-8d39-6b09588a91a2",
+        "cursor": 13,
+        "eventId": "c7f47e15-79e5-49b4-8d39-6b09588a91a2:bootstrap:widget_block:13",
+        "turnId": "turn_1793288817213_0eb7d1",
+        "type": "widget",
+        "delta": {
+          "id": "write:sess_1793288514459_cf2091dc:27",
+          "kind": "diff_inspector",
+          "status": "resolved",
+          "turnIndex": 1,
+          "timestamp": "2026-10-29T15:46:57.284Z",
+          "payload": {
+            "filePath": "fixture.txt",
+            "additions": 2,
+            "deletions": 0,
+            "patch": "--- /dev/null\n+++ b/fixture.txt\n@@ -0,0 +1,2 @@\n+before\n+second\n"
+          }
+        },
+        "ts": 1793288890393
+      }
+    ],
+    "explanation": "Re-subscribing replays the existing widget. Bootstrap frames retain the original turn and widget id; they are not a new publication."
+  },
+  "overwrite": {
+    "turn": {
+      "finalText": "Fixture complete",
+      "kind": "success",
+      "steps": 2,
+      "turnId": "turn_1793288890619_113d29"
+    },
+    "newWidgetEvents": [],
+    "newWidgetCount": 0,
+    "newWriteCalls": 1,
+    "newWriteResults": 1
+  },
+  "browser": {
+    "live": {
+      "allWidgets": [
+        {
+          "label": "差异检视器",
+          "text": "fixture.txt+2−0收起差异--- /dev/null+++ b/fixture.txt@@ -0,0 +1,2 @@1+before2+second "
+        }
+      ],
+      "at": "2026-10-29T15:47:21.917Z",
+      "inlineCount": 1
+    },
+    "afterReload": {
+      "allWidgets": [
+        {
+          "label": "差异检视器",
+          "text": "fixture.txt+2−0收起差异--- /dev/null+++ b/fixture.txt@@ -0,0 +1,2 @@1+before2+second "
+        }
+      ],
+      "at": "2026-10-29T15:47:39.904Z",
+      "inlineCount": 1
+    },
+    "afterOverwrite": {
+      "allWidgets": [
+        {
+          "label": "差异检视器",
+          "text": "fixture.txt+2−0收起差异--- /dev/null+++ b/fixture.txt@@ -0,0 +1,2 @@1+before2+second "
+        }
+      ],
+      "at": "2026-10-29T15:48:58.976Z",
+      "inlineCount": 1
+    }
+  },
+  "sessionLog": {
+    "path": "C:\\work\\AppData\\Local\\Temp\\vessel-closeout-IUIsOI\\ws\\.harness\\sessions\\sess_1793288514459_cf2091dc\\session.jsonl",
+    "widgetRecords": 0,
+    "writeRecords": [
+      {
+        "type": "tool/call",
+        "toolCallId": "fixture-write-4",
+        "toolName": "Write",
+        "arguments": {
+          "path": "fixture.txt",
+          "content": "before\nsecond\n"
+        },
+        "mode": "auto",
+        "surface": false,
+        "seq": 26,
+        "ts": "2026-10-29T15:46:57.251Z"
+      },
+      {
+        "type": "tool/result",
+        "toolCallId": "fixture-write-4",
+        "toolName": "Write",
+        "content": "wrote fixture.txt (14 bytes)",
+        "meta": {
+          "path": "fixture.txt",
+          "bytes": 14
+        },
+        "surface": true,
+        "seq": 27,
+        "ts": "2026-10-29T15:46:57.284Z"
+      },
+      {
+        "type": "tool/call",
+        "toolCallId": "fixture-write-6",
+        "toolName": "Write",
+        "arguments": {
+          "path": "fixture.txt",
+          "content": "before\nsecond\n"
+        },
+        "mode": "auto",
+        "surface": false,
+        "seq": 49,
+        "ts": "2026-10-29T15:48:10.646Z"
+      },
+      {
+        "type": "tool/result",
+        "toolCallId": "fixture-write-6",
+        "toolName": "Write",
+        "content": "wrote fixture.txt (14 bytes)",
+        "meta": {
+          "path": "fixture.txt",
+          "bytes": 14
+        },
+        "surface": true,
+        "seq": 50,
+        "ts": "2026-10-29T15:48:10.666Z"
+      }
+    ],
+    "note": "Widget publication is an SSE projection; the session JSONL has tool records, no standalone widget records. Counts proved against populated SSE rather than a vacuous zero-log assertion."
+  },
+  "fileContent": "before\nsecond\n",
+  "rawEvidence": [
+    "t3-create.json",
+    "t3-overwrite.json"
+  ]
+}

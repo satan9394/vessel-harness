@@ -1,0 +1,8 @@
+{
+  "command": "node node_modules/typescript/bin/tsc -b tsconfig.json --pretty false",
+  "startedAt": "2026-10-29T15:59:55.510Z",
+  "completedAt": "2026-10-29T15:59:58.865Z",
+  "exitCode": 0,
+  "stdout": "",
+  "stderr": ""
+}

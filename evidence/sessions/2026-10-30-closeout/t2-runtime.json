@@ -1,0 +1,175 @@
+{
+  "teamSession": {
+    "id": "sess_1793288514710_687f634a",
+    "workspaceRoot": "C:\\work\\AppData\\Local\\Temp\\vessel-closeout-IUIsOI\\ws",
+    "provider": "fixture",
+    "model": "fixture-model",
+    "permission": "workspace-write",
+    "createdAt": "2026-10-29T15:41:54.721Z",
+    "updatedAt": "2026-10-29T15:41:54.727Z"
+  },
+  "expected": {
+    "298": "摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证END!",
+    "300": "摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘END!",
+    "570": "摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘END!"
+  },
+  "stages": [
+    {
+      "requestedLength": 298,
+      "stage": {
+        "id": "stage_0c503e74-4a0a-438c-b5b3-a70a9c7cdf46",
+        "roster": [
+          {
+            "memberId": "developer",
+            "presetId": "developer",
+            "preset": {
+              "id": "developer",
+              "role": "generator",
+              "modelTier": "pro",
+              "write": true,
+              "description": "Developer（产出者）：pro 档（按任务复杂度可降 fast）+ 允许写文件"
+            },
+            "routeSnapshot": {
+              "providerId": "fixture",
+              "model": "fixture-model",
+              "snapshottedAt": 1793288514746
+            },
+            "role": "generator",
+            "phase": "generate",
+            "tier": "fast",
+            "model": "fixture-model",
+            "providerId": "fixture"
+          }
+        ],
+        "tasks": [
+          {
+            "id": "summary_298",
+            "title": "Summary 298",
+            "description": "SUMMARY_298",
+            "assignedRole": "generator",
+            "dependencies": [],
+            "status": "completed",
+            "claimedBy": "developer",
+            "result": {
+              "output": "摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证END!",
+              "artifacts": []
+            }
+          }
+        ],
+        "status": "finished",
+        "createdAt": 1793288514747,
+        "approvedAt": 1793288514753,
+        "sessionId": "sess_1793288514710_687f634a",
+        "availableProviders": [
+          "fixture"
+        ]
+      },
+      "receivedLength": 298
+    },
+    {
+      "requestedLength": 300,
+      "stage": {
+        "id": "stage_5c3f2ac3-9af7-46f2-a337-82deeac45d4b",
+        "roster": [
+          {
+            "memberId": "developer",
+            "presetId": "developer",
+            "preset": {
+              "id": "developer",
+              "role": "generator",
+              "modelTier": "pro",
+              "write": true,
+              "description": "Developer（产出者）：pro 档（按任务复杂度可降 fast）+ 允许写文件"
+            },
+            "routeSnapshot": {
+              "providerId": "fixture",
+              "model": "fixture-model",
+              "snapshottedAt": 1793288514868
+            },
+            "role": "generator",
+            "phase": "generate",
+            "tier": "fast",
+            "model": "fixture-model",
+            "providerId": "fixture"
+          }
+        ],
+        "tasks": [
+          {
+            "id": "summary_300",
+            "title": "Summary 300",
+            "description": "SUMMARY_300",
+            "assignedRole": "generator",
+            "dependencies": [],
+            "status": "completed",
+            "claimedBy": "developer",
+            "result": {
+              "output": "摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘END!",
+              "artifacts": []
+            }
+          }
+        ],
+        "status": "finished",
+        "createdAt": 1793288514868,
+        "approvedAt": 1793288514870,
+        "sessionId": "sess_1793288514710_687f634a",
+        "availableProviders": [
+          "fixture"
+        ]
+      },
+      "receivedLength": 300
+    },
+    {
+      "requestedLength": 570,
+      "stage": {
+        "id": "stage_532f75b1-7853-4555-a7ae-692a25e7f21c",
+        "roster": [
+          {
+            "memberId": "developer",
+            "presetId": "developer",
+            "preset": {
+              "id": "developer",
+              "role": "generator",
+              "modelTier": "pro",
+              "write": true,
+              "description": "Developer（产出者）：pro 档（按任务复杂度可降 fast）+ 允许写文件"
+            },
+            "routeSnapshot": {
+              "providerId": "fixture",
+              "model": "fixture-model",
+              "snapshottedAt": 1793288514992
+            },
+            "role": "generator",
+            "phase": "generate",
+            "tier": "fast",
+            "model": "fixture-model",
+            "providerId": "fixture"
+          }
+        ],
+        "tasks": [
+          {
+            "id": "summary_570",
+            "title": "Summary 570",
+            "description": "SUMMARY_570",
+            "assignedRole": "generator",
+            "dependencies": [],
+            "status": "completed",
+            "claimedBy": "developer",
+            "result": {
+              "output": "摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。摘要验证。…",
+              "artifacts": []
+            }
+          }
+        ],
+        "status": "finished",
+        "createdAt": 1793288514992,
+        "approvedAt": 1793288514993,
+        "sessionId": "sess_1793288514710_687f634a",
+        "availableProviders": [
+          "fixture"
+        ]
+      },
+      "receivedLength": 301
+    }
+  ],
+  "scopeBlocker": "packages/agents/src/team/TeamRuntime.ts:getStage trims output at 300 before HTTP; apps/local-server/src/teamRoutes.ts:get calls getStage; no full task-result HTTP route. Drawer cannot reconstruct 570 original characters from the 301-character projection."
+}

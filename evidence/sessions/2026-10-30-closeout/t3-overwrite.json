@@ -1,0 +1,812 @@
+{
+  "mode": "overwrite",
+  "sessionId": "sess_1793288514459_cf2091dc",
+  "turnStatus": 200,
+  "turn": {
+    "finalText": "Fixture complete",
+    "kind": "success",
+    "steps": 2,
+    "turnId": "turn_1793288890619_113d29"
+  },
+  "fileContent": "before\nsecond\n",
+  "logPath": "C:\\work\\AppData\\Local\\Temp\\vessel-closeout-IUIsOI\\ws\\.harness\\sessions\\sess_1793288514459_cf2091dc\\session.jsonl",
+  "counts": {
+    "widget_block": 1,
+    "widget": 1
+  },
+  "widgets": [
+    {
+      "version": 1,
+      "sessionId": "sess_1793288514459_cf2091dc",
+      "streamId": "c7f47e15-79e5-49b4-8d39-6b09588a91a2",
+      "cursor": 13,
+      "eventId": "c7f47e15-79e5-49b4-8d39-6b09588a91a2:bootstrap:widget_block:13",
+      "turnId": "turn_1793288817213_0eb7d1",
+      "type": "widget_block",
+      "delta": {
+        "id": "write:sess_1793288514459_cf2091dc:27",
+        "kind": "diff_inspector",
+        "status": "resolved",
+        "turnIndex": 1,
+        "timestamp": "2026-10-29T15:46:57.284Z",
+        "payload": {
+          "filePath": "fixture.txt",
+          "additions": 2,
+          "deletions": 0,
+          "patch": "--- /dev/null\n+++ b/fixture.txt\n@@ -0,0 +1,2 @@\n+before\n+second\n"
+        }
+      },
+      "ts": 1793288890393
+    },
+    {
+      "version": 1,
+      "sessionId": "sess_1793288514459_cf2091dc",
+      "streamId": "c7f47e15-79e5-49b4-8d39-6b09588a91a2",
+      "cursor": 13,
+      "eventId": "c7f47e15-79e5-49b4-8d39-6b09588a91a2:bootstrap:widget_block:13",
+      "turnId": "turn_1793288817213_0eb7d1",
+      "type": "widget",
+      "delta": {
+        "id": "write:sess_1793288514459_cf2091dc:27",
+        "kind": "diff_inspector",
+        "status": "resolved",
+        "turnIndex": 1,
+        "timestamp": "2026-10-29T15:46:57.284Z",
+        "payload": {
+          "filePath": "fixture.txt",
+          "additions": 2,
+          "deletions": 0,
+          "patch": "--- /dev/null\n+++ b/fixture.txt\n@@ -0,0 +1,2 @@\n+before\n+second\n"
+        }
+      },
+      "ts": 1793288890393
+    }
+  ],
+  "widgetRecords": [],
+  "toolRecords": [
+    {
+      "type": "tool/call",
+      "toolCallId": "fixture-write-4",
+      "toolName": "Write",
+      "arguments": {
+        "path": "fixture.txt",
+        "content": "before\nsecond\n"
+      },
+      "mode": "auto",
+      "surface": false,
+      "seq": 26,
+      "ts": "2026-10-29T15:46:57.251Z"
+    },
+    {
+      "type": "tool/result",
+      "toolCallId": "fixture-write-4",
+      "toolName": "Write",
+      "content": "wrote fixture.txt (14 bytes)",
+      "meta": {
+        "path": "fixture.txt",
+        "bytes": 14
+      },
+      "surface": true,
+      "seq": 27,
+      "ts": "2026-10-29T15:46:57.284Z"
+    },
+    {
+      "type": "tool/call",
+      "toolCallId": "fixture-write-6",
+      "toolName": "Write",
+      "arguments": {
+        "path": "fixture.txt",
+        "content": "before\nsecond\n"
+      },
+      "mode": "auto",
+      "surface": false,
+      "seq": 49,
+      "ts": "2026-10-29T15:48:10.646Z"
+    },
+    {
+      "type": "tool/result",
+      "toolCallId": "fixture-write-6",
+      "toolName": "Write",
+      "content": "wrote fixture.txt (14 bytes)",
+      "meta": {
+        "path": "fixture.txt",
+        "bytes": 14
+      },
+      "surface": true,
+      "seq": 50,
+      "ts": "2026-10-29T15:48:10.666Z"
+    }
+  ],
+  "events": [
+    {
+      "version": 1,
+      "sessionId": "sess_1793288514459_cf2091dc",
+      "streamId": "c7f47e15-79e5-49b4-8d39-6b09588a91a2",
+      "cursor": 13,
+      "eventId": "c7f47e15-79e5-49b4-8d39-6b09588a91a2:checkpoint:13",
+      "turnId": "turn_1793288817213_0eb7d1",
+      "type": "transcript",
+      "delta": {
+        "messages": [
+          {
+            "id": "record:5",
+            "kind": "message",
+            "msg": {
+              "role": "user",
+              "text": "Please provide one assistant reply for the header verification fixture.",
+              "ts": 1793288514510
+            }
+          },
+          {
+            "id": "record:9",
+            "kind": "message",
+            "msg": {
+              "role": "assistant",
+              "text": "Assistant reply for the long-title header fixture.",
+              "ts": 1793288514625
+            }
+          },
+          {
+            "id": "record:19",
+            "kind": "message",
+            "msg": {
+              "role": "user",
+              "text": "WRITE_FIXTURE: create new fixture.txt with before and second lines.",
+              "ts": 1793288817216
+            }
+          },
+          {
+            "id": "tool:fixture-write-4",
+            "kind": "tool",
+            "tool": {
+              "toolCallId": "fixture-write-4",
+              "toolName": "Write",
+              "status": "done",
+              "argsSummary": "{\"path\":\"fixture.txt\",\"content\":\"before\\nsecond\\n\"}",
+              "ts": 1793288817284
+            }
+          },
+          {
+            "id": "record:32",
+            "kind": "message",
+            "msg": {
+              "role": "assistant",
+              "text": "Fixture complete",
+              "ts": 1793288817319
+            }
+          },
+          {
+            "id": "widget:write:sess_1793288514459_cf2091dc:27",
+            "kind": "widget",
+            "widget": {
+              "id": "write:sess_1793288514459_cf2091dc:27",
+              "kind": "diff_inspector",
+              "status": "resolved",
+              "turnIndex": 1,
+              "timestamp": "2026-10-29T15:46:57.284Z",
+              "payload": {
+                "filePath": "fixture.txt",
+                "additions": 2,
+                "deletions": 0,
+                "patch": "--- /dev/null\n+++ b/fixture.txt\n@@ -0,0 +1,2 @@\n+before\n+second\n"
+              }
+            }
+          }
+        ],
+        "usage": [
+          {
+            "inputTokens": 100,
+            "outputTokens": 600,
+            "costUsd": 0,
+            "estimated": false,
+            "calls": 1,
+            "ts": 1793288514628
+          },
+          {
+            "inputTokens": 100,
+            "outputTokens": 600,
+            "costUsd": 0,
+            "estimated": false,
+            "calls": 2,
+            "ts": 1793288817247
+          },
+          {
+            "inputTokens": 100,
+            "outputTokens": 600,
+            "costUsd": 0,
+            "estimated": false,
+            "calls": 3,
+            "ts": 1793288817326,
+            "summary": {
+              "inputTokens": 300,
+              "outputTokens": 1800,
+              "cacheReadTokens": 0,
+              "cacheCreationTokens": 0,
+              "calls": 3,
+              "costUsd": 0,
+              "estimated": false
+            }
+          }
+        ],
+        "summary": {
+          "inputTokens": 300,
+          "outputTokens": 1800,
+          "cacheReadTokens": 0,
+          "cacheCreationTokens": 0,
+          "calls": 3,
+          "costUsd": 0,
+          "estimated": false
+        },
+        "run": {
+          "active": false,
+          "turnId": "turn_1793288817213_0eb7d1",
+          "kind": "success"
+        },
+        "inspector": {
+          "observedAt": 1793288817307,
+          "cacheLayers": [
+            {
+              "layer": "assembly",
+              "dependencyHash": "9fc946a976f4596462f59952dfdfab6e424d457910c80b5e7ed8a7adae3f387f",
+              "hits": 4,
+              "misses": 2,
+              "invalidations": 0,
+              "entries": 2
+            },
+            {
+              "layer": "provider-prefix",
+              "dependencyHash": "227a177265a871d41392de564d547d5fd8ea002aa0f0718e28dfd70f3eb0b894",
+              "hits": 2,
+              "misses": 1,
+              "invalidations": 0,
+              "entries": 1
+            },
+            {
+              "layer": "projection",
+              "dependencyHash": "555e89f6a3517e3aef7ee85531b3f5924490faba7a2278a84b437915373d54bb",
+              "hits": 0,
+              "misses": 3,
+              "invalidations": 2,
+              "entries": 1
+            },
+            {
+              "layer": "token-estimation",
+              "dependencyHash": "ee50246892a19b669180c738aec465d4a5430486914542fa3137d5e9b9e3915a",
+              "hits": 2,
+              "misses": 4,
+              "invalidations": 2,
+              "entries": 2
+            }
+          ],
+          "projectionRevision": 0,
+          "prefix": {
+            "stableBytes": 7094,
+            "scopedBytes": 0,
+            "volatileBytes": 222,
+            "sha256": "376d3d2c39240a21c43fb5c6e7642b201901236c75f8a8cb1815a00ec02dbf18"
+          },
+          "workspace": {
+            "timestamp": 1793288817307,
+            "trackedFilesHash": "d6354e0b086dfc23d00bd89cb1016e4e4d90c7a56d43a9d235d698213f9f9fd3",
+            "uncommittedDiffBytes": 14,
+            "fileCount": 1
+          }
+        }
+      },
+      "ts": 1793288890393
+    },
+    {
+      "version": 1,
+      "sessionId": "sess_1793288514459_cf2091dc",
+      "streamId": "c7f47e15-79e5-49b4-8d39-6b09588a91a2",
+      "cursor": 13,
+      "eventId": "c7f47e15-79e5-49b4-8d39-6b09588a91a2:bootstrap:widget_block:13",
+      "turnId": "turn_1793288817213_0eb7d1",
+      "type": "widget_block",
+      "delta": {
+        "id": "write:sess_1793288514459_cf2091dc:27",
+        "kind": "diff_inspector",
+        "status": "resolved",
+        "turnIndex": 1,
+        "timestamp": "2026-10-29T15:46:57.284Z",
+        "payload": {
+          "filePath": "fixture.txt",
+          "additions": 2,
+          "deletions": 0,
+          "patch": "--- /dev/null\n+++ b/fixture.txt\n@@ -0,0 +1,2 @@\n+before\n+second\n"
+        }
+      },
+      "ts": 1793288890393
+    },
+    {
+      "version": 1,
+      "sessionId": "sess_1793288514459_cf2091dc",
+      "streamId": "c7f47e15-79e5-49b4-8d39-6b09588a91a2",
+      "cursor": 13,
+      "eventId": "c7f47e15-79e5-49b4-8d39-6b09588a91a2:bootstrap:widget_block:13",
+      "turnId": "turn_1793288817213_0eb7d1",
+      "type": "widget",
+      "delta": {
+        "id": "write:sess_1793288514459_cf2091dc:27",
+        "kind": "diff_inspector",
+        "status": "resolved",
+        "turnIndex": 1,
+        "timestamp": "2026-10-29T15:46:57.284Z",
+        "payload": {
+          "filePath": "fixture.txt",
+          "additions": 2,
+          "deletions": 0,
+          "patch": "--- /dev/null\n+++ b/fixture.txt\n@@ -0,0 +1,2 @@\n+before\n+second\n"
+        }
+      },
+      "ts": 1793288890393
+    },
+    {
+      "version": 1,
+      "sessionId": "sess_1793288514459_cf2091dc",
+      "streamId": "c7f47e15-79e5-49b4-8d39-6b09588a91a2",
+      "cursor": 13,
+      "eventId": "c7f47e15-79e5-49b4-8d39-6b09588a91a2:bootstrap:inspector:13",
+      "turnId": "turn_1793288817213_0eb7d1",
+      "type": "inspector",
+      "delta": {
+        "observedAt": 1793288817307,
+        "cacheLayers": [
+          {
+            "layer": "assembly",
+            "dependencyHash": "9fc946a976f4596462f59952dfdfab6e424d457910c80b5e7ed8a7adae3f387f",
+            "hits": 4,
+            "misses": 2,
+            "invalidations": 0,
+            "entries": 2
+          },
+          {
+            "layer": "provider-prefix",
+            "dependencyHash": "227a177265a871d41392de564d547d5fd8ea002aa0f0718e28dfd70f3eb0b894",
+            "hits": 2,
+            "misses": 1,
+            "invalidations": 0,
+            "entries": 1
+          },
+          {
+            "layer": "projection",
+            "dependencyHash": "555e89f6a3517e3aef7ee85531b3f5924490faba7a2278a84b437915373d54bb",
+            "hits": 0,
+            "misses": 3,
+            "invalidations": 2,
+            "entries": 1
+          },
+          {
+            "layer": "token-estimation",
+            "dependencyHash": "ee50246892a19b669180c738aec465d4a5430486914542fa3137d5e9b9e3915a",
+            "hits": 2,
+            "misses": 4,
+            "invalidations": 2,
+            "entries": 2
+          }
+        ],
+        "projectionRevision": 0,
+        "prefix": {
+          "stableBytes": 7094,
+          "scopedBytes": 0,
+          "volatileBytes": 222,
+          "sha256": "376d3d2c39240a21c43fb5c6e7642b201901236c75f8a8cb1815a00ec02dbf18"
+        },
+        "workspace": {
+          "timestamp": 1793288817307,
+          "trackedFilesHash": "d6354e0b086dfc23d00bd89cb1016e4e4d90c7a56d43a9d235d698213f9f9fd3",
+          "uncommittedDiffBytes": 14,
+          "fileCount": 1
+        }
+      },
+      "ts": 1793288890393
+    },
+    {
+      "version": 1,
+      "sessionId": "sess_1793288514459_cf2091dc",
+      "streamId": "c7f47e15-79e5-49b4-8d39-6b09588a91a2",
+      "cursor": 14,
+      "eventId": "c7f47e15-79e5-49b4-8d39-6b09588a91a2:14",
+      "turnId": "turn_1793288890619_113d29",
+      "type": "run",
+      "delta": {
+        "active": true,
+        "turnId": "turn_1793288890619_113d29"
+      },
+      "ts": 1793288890619
+    },
+    {
+      "version": 1,
+      "sessionId": "sess_1793288514459_cf2091dc",
+      "streamId": "c7f47e15-79e5-49b4-8d39-6b09588a91a2",
+      "cursor": 15,
+      "eventId": "c7f47e15-79e5-49b4-8d39-6b09588a91a2:15",
+      "turnId": "turn_1793288890619_113d29",
+      "type": "inspector",
+      "delta": {
+        "observedAt": 1793288890629,
+        "cacheLayers": [
+          {
+            "layer": "assembly",
+            "dependencyHash": "9fc946a976f4596462f59952dfdfab6e424d457910c80b5e7ed8a7adae3f387f",
+            "hits": 6,
+            "misses": 2,
+            "invalidations": 0,
+            "entries": 2
+          },
+          {
+            "layer": "provider-prefix",
+            "dependencyHash": "227a177265a871d41392de564d547d5fd8ea002aa0f0718e28dfd70f3eb0b894",
+            "hits": 3,
+            "misses": 1,
+            "invalidations": 0,
+            "entries": 1
+          },
+          {
+            "layer": "projection",
+            "dependencyHash": "024d3d4a373c74009e4456f24b9192d42e46d70d5cbc0b5ec2736490c69f4b0d",
+            "hits": 0,
+            "misses": 4,
+            "invalidations": 3,
+            "entries": 1
+          },
+          {
+            "layer": "token-estimation",
+            "dependencyHash": "ee50246892a19b669180c738aec465d4a5430486914542fa3137d5e9b9e3915a",
+            "hits": 3,
+            "misses": 5,
+            "invalidations": 3,
+            "entries": 2
+          }
+        ],
+        "projectionRevision": 0,
+        "prefix": {
+          "stableBytes": 7094,
+          "scopedBytes": 0,
+          "volatileBytes": 317,
+          "sha256": "376d3d2c39240a21c43fb5c6e7642b201901236c75f8a8cb1815a00ec02dbf18"
+        },
+        "workspace": {
+          "timestamp": 1793288817307,
+          "trackedFilesHash": "d6354e0b086dfc23d00bd89cb1016e4e4d90c7a56d43a9d235d698213f9f9fd3",
+          "uncommittedDiffBytes": 14,
+          "fileCount": 1
+        }
+      },
+      "ts": 1793288890629
+    },
+    {
+      "version": 1,
+      "sessionId": "sess_1793288514459_cf2091dc",
+      "streamId": "c7f47e15-79e5-49b4-8d39-6b09588a91a2",
+      "cursor": 16,
+      "eventId": "c7f47e15-79e5-49b4-8d39-6b09588a91a2:16",
+      "turnId": "turn_1793288890619_113d29",
+      "type": "inspector",
+      "delta": {
+        "observedAt": 1793288890634,
+        "cacheLayers": [
+          {
+            "layer": "assembly",
+            "dependencyHash": "9fc946a976f4596462f59952dfdfab6e424d457910c80b5e7ed8a7adae3f387f",
+            "hits": 6,
+            "misses": 2,
+            "invalidations": 0,
+            "entries": 2
+          },
+          {
+            "layer": "provider-prefix",
+            "dependencyHash": "227a177265a871d41392de564d547d5fd8ea002aa0f0718e28dfd70f3eb0b894",
+            "hits": 3,
+            "misses": 1,
+            "invalidations": 0,
+            "entries": 1
+          },
+          {
+            "layer": "projection",
+            "dependencyHash": "024d3d4a373c74009e4456f24b9192d42e46d70d5cbc0b5ec2736490c69f4b0d",
+            "hits": 0,
+            "misses": 4,
+            "invalidations": 3,
+            "entries": 1
+          },
+          {
+            "layer": "token-estimation",
+            "dependencyHash": "ee50246892a19b669180c738aec465d4a5430486914542fa3137d5e9b9e3915a",
+            "hits": 3,
+            "misses": 5,
+            "invalidations": 3,
+            "entries": 2
+          }
+        ],
+        "projectionRevision": 0,
+        "prefix": {
+          "stableBytes": 7094,
+          "scopedBytes": 0,
+          "volatileBytes": 317,
+          "sha256": "376d3d2c39240a21c43fb5c6e7642b201901236c75f8a8cb1815a00ec02dbf18"
+        },
+        "workspace": {
+          "timestamp": 1793288890634,
+          "trackedFilesHash": "d6354e0b086dfc23d00bd89cb1016e4e4d90c7a56d43a9d235d698213f9f9fd3",
+          "uncommittedDiffBytes": 14,
+          "fileCount": 1
+        }
+      },
+      "ts": 1793288890634
+    },
+    {
+      "version": 1,
+      "sessionId": "sess_1793288514459_cf2091dc",
+      "streamId": "c7f47e15-79e5-49b4-8d39-6b09588a91a2",
+      "cursor": 17,
+      "eventId": "c7f47e15-79e5-49b4-8d39-6b09588a91a2:17",
+      "turnId": "turn_1793288890619_113d29",
+      "type": "usage",
+      "delta": {
+        "costUsd": 0,
+        "estimated": false,
+        "summary": {
+          "inputTokens": 400,
+          "outputTokens": 2400,
+          "cacheReadTokens": 0,
+          "cacheCreationTokens": 0,
+          "calls": 4,
+          "promptTokensTotal": 0,
+          "measuredCalls": 0,
+          "cachedTokensTotal": 0,
+          "overallCacheHitRate": 0,
+          "estimatedSavingsUsd": 0,
+          "costUsd": 0,
+          "costBreakdown": {
+            "inputUsd": 0,
+            "outputUsd": 0,
+            "cacheReadUsd": 0,
+            "cacheWriteUsd": 0,
+            "rawTotalUsd": 0,
+            "totalUsd": 0,
+            "costMultiplier": 1,
+            "cacheWritePriceSource": "explicit",
+            "cacheWriteDerived": false
+          },
+          "pricingSource": "unpriced",
+          "estimated": false
+        },
+        "inputTokens": 100,
+        "outputTokens": 600,
+        "cacheReadTokens": 0,
+        "cacheCreationTokens": 0,
+        "latencyMs": 13,
+        "calls": 4
+      },
+      "ts": 1793288890645
+    },
+    {
+      "version": 1,
+      "sessionId": "sess_1793288514459_cf2091dc",
+      "streamId": "c7f47e15-79e5-49b4-8d39-6b09588a91a2",
+      "cursor": 18,
+      "eventId": "c7f47e15-79e5-49b4-8d39-6b09588a91a2:18",
+      "turnId": "turn_1793288890619_113d29",
+      "type": "tool",
+      "delta": {
+        "toolCallId": "fixture-write-6",
+        "toolName": "Write",
+        "status": "started",
+        "argsSummary": "{\"path\":\"fixture.txt\",\"content\":\"before\\nsecond\\n\"}"
+      },
+      "ts": 1793288890652
+    },
+    {
+      "version": 1,
+      "sessionId": "sess_1793288514459_cf2091dc",
+      "streamId": "c7f47e15-79e5-49b4-8d39-6b09588a91a2",
+      "cursor": 19,
+      "eventId": "c7f47e15-79e5-49b4-8d39-6b09588a91a2:19",
+      "turnId": "turn_1793288890619_113d29",
+      "type": "tool",
+      "delta": {
+        "toolCallId": "fixture-write-6",
+        "toolName": "Write",
+        "status": "done"
+      },
+      "ts": 1793288890667
+    },
+    {
+      "version": 1,
+      "sessionId": "sess_1793288514459_cf2091dc",
+      "streamId": "c7f47e15-79e5-49b4-8d39-6b09588a91a2",
+      "cursor": 20,
+      "eventId": "c7f47e15-79e5-49b4-8d39-6b09588a91a2:20",
+      "turnId": "turn_1793288890619_113d29",
+      "type": "inspector",
+      "delta": {
+        "observedAt": 1793288890677,
+        "cacheLayers": [
+          {
+            "layer": "assembly",
+            "dependencyHash": "9fc946a976f4596462f59952dfdfab6e424d457910c80b5e7ed8a7adae3f387f",
+            "hits": 8,
+            "misses": 2,
+            "invalidations": 0,
+            "entries": 2
+          },
+          {
+            "layer": "provider-prefix",
+            "dependencyHash": "227a177265a871d41392de564d547d5fd8ea002aa0f0718e28dfd70f3eb0b894",
+            "hits": 4,
+            "misses": 1,
+            "invalidations": 0,
+            "entries": 1
+          },
+          {
+            "layer": "projection",
+            "dependencyHash": "522f194611d195836cee471f4403b58b13986919b7f595b821bde13e0fecba53",
+            "hits": 0,
+            "misses": 5,
+            "invalidations": 4,
+            "entries": 1
+          },
+          {
+            "layer": "token-estimation",
+            "dependencyHash": "ee50246892a19b669180c738aec465d4a5430486914542fa3137d5e9b9e3915a",
+            "hits": 4,
+            "misses": 6,
+            "invalidations": 4,
+            "entries": 2
+          }
+        ],
+        "projectionRevision": 0,
+        "prefix": {
+          "stableBytes": 7094,
+          "scopedBytes": 0,
+          "volatileBytes": 347,
+          "sha256": "376d3d2c39240a21c43fb5c6e7642b201901236c75f8a8cb1815a00ec02dbf18"
+        },
+        "workspace": {
+          "timestamp": 1793288890634,
+          "trackedFilesHash": "d6354e0b086dfc23d00bd89cb1016e4e4d90c7a56d43a9d235d698213f9f9fd3",
+          "uncommittedDiffBytes": 14,
+          "fileCount": 1
+        }
+      },
+      "ts": 1793288890677
+    },
+    {
+      "version": 1,
+      "sessionId": "sess_1793288514459_cf2091dc",
+      "streamId": "c7f47e15-79e5-49b4-8d39-6b09588a91a2",
+      "cursor": 21,
+      "eventId": "c7f47e15-79e5-49b4-8d39-6b09588a91a2:21",
+      "turnId": "turn_1793288890619_113d29",
+      "type": "inspector",
+      "delta": {
+        "observedAt": 1793288890685,
+        "cacheLayers": [
+          {
+            "layer": "assembly",
+            "dependencyHash": "9fc946a976f4596462f59952dfdfab6e424d457910c80b5e7ed8a7adae3f387f",
+            "hits": 8,
+            "misses": 2,
+            "invalidations": 0,
+            "entries": 2
+          },
+          {
+            "layer": "provider-prefix",
+            "dependencyHash": "227a177265a871d41392de564d547d5fd8ea002aa0f0718e28dfd70f3eb0b894",
+            "hits": 4,
+            "misses": 1,
+            "invalidations": 0,
+            "entries": 1
+          },
+          {
+            "layer": "projection",
+            "dependencyHash": "522f194611d195836cee471f4403b58b13986919b7f595b821bde13e0fecba53",
+            "hits": 0,
+            "misses": 5,
+            "invalidations": 4,
+            "entries": 1
+          },
+          {
+            "layer": "token-estimation",
+            "dependencyHash": "ee50246892a19b669180c738aec465d4a5430486914542fa3137d5e9b9e3915a",
+            "hits": 4,
+            "misses": 6,
+            "invalidations": 4,
+            "entries": 2
+          }
+        ],
+        "projectionRevision": 0,
+        "prefix": {
+          "stableBytes": 7094,
+          "scopedBytes": 0,
+          "volatileBytes": 347,
+          "sha256": "376d3d2c39240a21c43fb5c6e7642b201901236c75f8a8cb1815a00ec02dbf18"
+        },
+        "workspace": {
+          "timestamp": 1793288890685,
+          "trackedFilesHash": "c9cb65c7ed92e99846abdfe02efdb3d9983290ae3e190c878ef45258dd995b01",
+          "uncommittedDiffBytes": 14,
+          "fileCount": 1
+        }
+      },
+      "ts": 1793288890685
+    },
+    {
+      "version": 1,
+      "sessionId": "sess_1793288514459_cf2091dc",
+      "streamId": "c7f47e15-79e5-49b4-8d39-6b09588a91a2",
+      "cursor": 22,
+      "eventId": "c7f47e15-79e5-49b4-8d39-6b09588a91a2:22",
+      "turnId": "turn_1793288890619_113d29",
+      "type": "conversation",
+      "delta": {
+        "role": "assistant",
+        "text": "Fixture complete"
+      },
+      "ts": 1793288890700
+    },
+    {
+      "version": 1,
+      "sessionId": "sess_1793288514459_cf2091dc",
+      "streamId": "c7f47e15-79e5-49b4-8d39-6b09588a91a2",
+      "cursor": 23,
+      "eventId": "c7f47e15-79e5-49b4-8d39-6b09588a91a2:23",
+      "turnId": "turn_1793288890619_113d29",
+      "type": "usage",
+      "delta": {
+        "costUsd": 0,
+        "estimated": false,
+        "summary": {
+          "inputTokens": 500,
+          "outputTokens": 3000,
+          "cacheReadTokens": 0,
+          "cacheCreationTokens": 0,
+          "calls": 5,
+          "promptTokensTotal": 0,
+          "measuredCalls": 0,
+          "cachedTokensTotal": 0,
+          "overallCacheHitRate": 0,
+          "estimatedSavingsUsd": 0,
+          "costUsd": 0,
+          "costBreakdown": {
+            "inputUsd": 0,
+            "outputUsd": 0,
+            "cacheReadUsd": 0,
+            "cacheWriteUsd": 0,
+            "rawTotalUsd": 0,
+            "totalUsd": 0,
+            "costMultiplier": 1,
+            "cacheWritePriceSource": "explicit",
+            "cacheWriteDerived": false
+          },
+          "pricingSource": "unpriced",
+          "estimated": false
+        },
+        "inputTokens": 100,
+        "outputTokens": 600,
+        "cacheReadTokens": 0,
+        "cacheCreationTokens": 0,
+        "latencyMs": 20,
+        "calls": 5
+      },
+      "ts": 1793288890701
+    },
+    {
+      "version": 1,
+      "sessionId": "sess_1793288514459_cf2091dc",
+      "streamId": "c7f47e15-79e5-49b4-8d39-6b09588a91a2",
+      "cursor": 24,
+      "eventId": "c7f47e15-79e5-49b4-8d39-6b09588a91a2:24",
+      "turnId": "turn_1793288890619_113d29",
+      "type": "run",
+      "delta": {
+        "active": false,
+        "turnId": "turn_1793288890619_113d29",
+        "kind": "success"
+      },
+      "ts": 1793288890702
+    }
+  ],
+  "raw": "id: c7f47e15-79e5-49b4-8d39-6b09588a91a2:13\ndata: {\"version\":1,\"sessionId\":\"sess_1793288514459_cf2091dc\",\"streamId\":\"c7f47e15-79e5-49b4-8d39-6b09588a91a2\",\"cursor\":13,\"eventId\":\"c7f47e15-79e5-49b4-8d39-6b09588a91a2:checkpoint:13\",\"turnId\":\"turn_1793288817213_0eb7d1\",\"type\":\"transcript\",\"delta\":{\"messages\":[{\"id\":\"record:5\",\"kind\":\"message\",\"msg\":{\"role\":\"user\",\"text\":\"Please provide one assistant reply for the header verification fixture.\",\"ts\":1793288514510}},{\"id\":\"record:9\",\"kind\":\"message\",\"msg\":{\"role\":\"assistant\",\"text\":\"Assistant reply for the long-title header fixture.\",\"ts\":1793288514625}},{\"id\":\"record:19\",\"kind\":\"message\",\"msg\":{\"role\":\"user\",\"text\":\"WRITE_FIXTURE: create new fixture.txt with before and second lines.\",\"ts\":1793288817216}},{\"id\":\"tool:fixture-write-4\",\"kind\":\"tool\",\"tool\":{\"toolCallId\":\"fixture-write-4\",\"toolName\":\"Write\",\"status\":\"done\",\"argsSummary\":\"{\\\"path\\\":\\\"fixture.txt\\\",\\\"content\\\":\\\"before\\\\nsecond\\\\n\\\"}\",\"ts\":1793288817284}},{\"id\":\"record:32\",\"kind\":\"message\",\"msg\":{\"role\":\"assistant\",\"text\":\"Fixture complete\",\"ts\":1793288817319}},{\"id\":\"widget:write:sess_1793288514459_cf2091dc:27\",\"kind\":\"widget\",\"widget\":{\"id\":\"write:sess_1793288514459_cf2091dc:27\",\"kind\":\"diff_inspector\",\"status\":\"resolved\",\"turnIndex\":1,\"timestamp\":\"2026-10-29T15:46:57.284Z\",\"payload\":{\"filePath\":\"fixture.txt\",\"additions\":2,\"deletions\":0,\"patch\":\"--- /dev/null\\n+++ b/fixture.txt\\n@@ -0,0 +1,2 @@\\n+before\\n+second\\n\"}}}],\"usage\":[{\"inputTokens\":100,\"outputTokens\":600,\"costUsd\":0,\"estimated\":false,\"calls\":1,\"ts\":1793288514628},{\"inputTokens\":100,\"outputTokens\":600,\"costUsd\":0,\"estimated\":false,\"calls\":2,\"ts\":1793288817247},{\"inputTokens\":100,\"outputTokens\":600,\"costUsd\":0,\"estimated\":false,\"calls\":3,\"ts\":1793288817326,\"summary\":{\"inputTokens\":300,\"outputTokens\":1800,\"cacheReadTokens\":0,\"cacheCreationTokens\":0,\"calls\":3,\"costUsd\":0,\"estimated\":false}}],\"summary\":{\"inputTokens\":300,\"outputTokens\":1800,\"cacheReadTokens\":0,\"cacheCreationTokens\":0,\"calls\":3,\"costUsd\":0,\"estimated\":false},\"run\":{\"active\":false,\"turnId\":\"turn_1793288817213_0eb7d1\",\"kind\":\"success\"},\"inspector\":{\"observedAt\":1793288817307,\"cacheLayers\":[{\"layer\":\"assembly\",\"dependencyHash\":\"9fc946a976f4596462f59952dfdfab6e424d457910c80b5e7ed8a7adae3f387f\",\"hits\":4,\"misses\":2,\"invalidations\":0,\"entries\":2},{\"layer\":\"provider-prefix\",\"dependencyHash\":\"227a177265a871d41392de564d547d5fd8ea002aa0f0718e28dfd70f3eb0b894\",\"hits\":2,\"misses\":1,\"invalidations\":0,\"entries\":1},{\"layer\":\"projection\",\"dependencyHash\":\"555e89f6a3517e3aef7ee85531b3f5924490faba7a2278a84b437915373d54bb\",\"hits\":0,\"misses\":3,\"invalidations\":2,\"entries\":1},{\"layer\":\"token-estimation\",\"dependencyHash\":\"ee50246892a19b669180c738aec465d4a5430486914542fa3137d5e9b9e3915a\",\"hits\":2,\"misses\":4,\"invalidations\":2,\"entries\":2}],\"projectionRevision\":0,\"prefix\":{\"stableBytes\":7094,\"scopedBytes\":0,\"volatileBytes\":222,\"sha256\":\"376d3d2c39240a21c43fb5c6e7642b201901236c75f8a8cb1815a00ec02dbf18\"},\"workspace\":{\"timestamp\":1793288817307,\"trackedFilesHash\":\"d6354e0b086dfc23d00bd89cb1016e4e4d90c7a56d43a9d235d698213f9f9fd3\",\"uncommittedDiffBytes\":14,\"fileCount\":1}}},\"ts\":1793288890393}\n\nid: c7f47e15-79e5-49b4-8d39-6b09588a91a2:13\nevent: widget_block\ndata: {\"version\":1,\"sessionId\":\"sess_1793288514459_cf2091dc\",\"streamId\":\"c7f47e15-79e5-49b4-8d39-6b09588a91a2\",\"cursor\":13,\"eventId\":\"c7f47e15-79e5-49b4-8d39-6b09588a91a2:bootstrap:widget_block:13\",\"turnId\":\"turn_1793288817213_0eb7d1\",\"type\":\"widget_block\",\"delta\":{\"id\":\"write:sess_1793288514459_cf2091dc:27\",\"kind\":\"diff_inspector\",\"status\":\"resolved\",\"turnIndex\":1,\"timestamp\":\"2026-10-29T15:46:57.284Z\",\"payload\":{\"filePath\":\"fixture.txt\",\"additions\":2,\"deletions\":0,\"patch\":\"--- /dev/null\\n+++ b/fixture.txt\\n@@ -0,0 +1,2 @@\\n+before\\n+second\\n\"}},\"ts\":1793288890393}\n\nid: c7f47e15-79e5-49b4-8d39-6b09588a91a2:13\nevent: widget\ndata: {\"version\":1,\"sessionId\":\"sess_1793288514459_cf2091dc\",\"streamId\":\"c7f47e15-79e5-49b4-8d39-6b09588a91a2\",\"cursor\":13,\"eventId\":\"c7f47e15-79e5-49b4-8d39-6b09588a91a2:bootstrap:widget_block:13\",\"turnId\":\"turn_1793288817213_0eb7d1\",\"type\":\"widget\",\"delta\":{\"id\":\"write:sess_1793288514459_cf2091dc:27\",\"kind\":\"diff_inspector\",\"status\":\"resolved\",\"turnIndex\":1,\"timestamp\":\"2026-10-29T15:46:57.284Z\",\"payload\":{\"filePath\":\"fixture.txt\",\"additions\":2,\"deletions\":0,\"patch\":\"--- /dev/null\\n+++ b/fixture.txt\\n@@ -0,0 +1,2 @@\\n+before\\n+second\\n\"}},\"ts\":1793288890393}\n\nid: c7f47e15-79e5-49b4-8d39-6b09588a91a2:13\nevent: inspector\ndata: {\"version\":1,\"sessionId\":\"sess_1793288514459_cf2091dc\",\"streamId\":\"c7f47e15-79e5-49b4-8d39-6b09588a91a2\",\"cursor\":13,\"eventId\":\"c7f47e15-79e5-49b4-8d39-6b09588a91a2:bootstrap:inspector:13\",\"turnId\":\"turn_1793288817213_0eb7d1\",\"type\":\"inspector\",\"delta\":{\"observedAt\":1793288817307,\"cacheLayers\":[{\"layer\":\"assembly\",\"dependencyHash\":\"9fc946a976f4596462f59952dfdfab6e424d457910c80b5e7ed8a7adae3f387f\",\"hits\":4,\"misses\":2,\"invalidations\":0,\"entries\":2},{\"layer\":\"provider-prefix\",\"dependencyHash\":\"227a177265a871d41392de564d547d5fd8ea002aa0f0718e28dfd70f3eb0b894\",\"hits\":2,\"misses\":1,\"invalidations\":0,\"entries\":1},{\"layer\":\"projection\",\"dependencyHash\":\"555e89f6a3517e3aef7ee85531b3f5924490faba7a2278a84b437915373d54bb\",\"hits\":0,\"misses\":3,\"invalidations\":2,\"entries\":1},{\"layer\":\"token-estimation\",\"dependencyHash\":\"ee50246892a19b669180c738aec465d4a5430486914542fa3137d5e9b9e3915a\",\"hits\":2,\"misses\":4,\"invalidations\":2,\"entries\":2}],\"projectionRevision\":0,\"prefix\":{\"stableBytes\":7094,\"scopedBytes\":0,\"volatileBytes\":222,\"sha256\":\"376d3d2c39240a21c43fb5c6e7642b201901236c75f8a8cb1815a00ec02dbf18\"},\"workspace\":{\"timestamp\":1793288817307,\"trackedFilesHash\":\"d6354e0b086dfc23d00bd89cb1016e4e4d90c7a56d43a9d235d698213f9f9fd3\",\"uncommittedDiffBytes\":14,\"fileCount\":1}},\"ts\":1793288890393}\n\nid: c7f47e15-79e5-49b4-8d39-6b09588a91a2:14\ndata: {\"version\":1,\"sessionId\":\"sess_1793288514459_cf2091dc\",\"streamId\":\"c7f47e15-79e5-49b4-8d39-6b09588a91a2\",\"cursor\":14,\"eventId\":\"c7f47e15-79e5-49b4-8d39-6b09588a91a2:14\",\"turnId\":\"turn_1793288890619_113d29\",\"type\":\"run\",\"delta\":{\"active\":true,\"turnId\":\"turn_1793288890619_113d29\"},\"ts\":1793288890619}\n\nid: c7f47e15-79e5-49b4-8d39-6b09588a91a2:15\nevent: inspector\ndata: {\"version\":1,\"sessionId\":\"sess_1793288514459_cf2091dc\",\"streamId\":\"c7f47e15-79e5-49b4-8d39-6b09588a91a2\",\"cursor\":15,\"eventId\":\"c7f47e15-79e5-49b4-8d39-6b09588a91a2:15\",\"turnId\":\"turn_1793288890619_113d29\",\"type\":\"inspector\",\"delta\":{\"observedAt\":1793288890629,\"cacheLayers\":[{\"layer\":\"assembly\",\"dependencyHash\":\"9fc946a976f4596462f59952dfdfab6e424d457910c80b5e7ed8a7adae3f387f\",\"hits\":6,\"misses\":2,\"invalidations\":0,\"entries\":2},{\"layer\":\"provider-prefix\",\"dependencyHash\":\"227a177265a871d41392de564d547d5fd8ea002aa0f0718e28dfd70f3eb0b894\",\"hits\":3,\"misses\":1,\"invalidations\":0,\"entries\":1},{\"layer\":\"projection\",\"dependencyHash\":\"024d3d4a373c74009e4456f24b9192d42e46d70d5cbc0b5ec2736490c69f4b0d\",\"hits\":0,\"misses\":4,\"invalidations\":3,\"entries\":1},{\"layer\":\"token-estimation\",\"dependencyHash\":\"ee50246892a19b669180c738aec465d4a5430486914542fa3137d5e9b9e3915a\",\"hits\":3,\"misses\":5,\"invalidations\":3,\"entries\":2}],\"projectionRevision\":0,\"prefix\":{\"stableBytes\":7094,\"scopedBytes\":0,\"volatileBytes\":317,\"sha256\":\"376d3d2c39240a21c43fb5c6e7642b201901236c75f8a8cb1815a00ec02dbf18\"},\"workspace\":{\"timestamp\":1793288817307,\"trackedFilesHash\":\"d6354e0b086dfc23d00bd89cb1016e4e4d90c7a56d43a9d235d698213f9f9fd3\",\"uncommittedDiffBytes\":14,\"fileCount\":1}},\"ts\":1793288890629}\n\nid: c7f47e15-79e5-49b4-8d39-6b09588a91a2:16\nevent: inspector\ndata: {\"version\":1,\"sessionId\":\"sess_1793288514459_cf2091dc\",\"streamId\":\"c7f47e15-79e5-49b4-8d39-6b09588a91a2\",\"cursor\":16,\"eventId\":\"c7f47e15-79e5-49b4-8d39-6b09588a91a2:16\",\"turnId\":\"turn_1793288890619_113d29\",\"type\":\"inspector\",\"delta\":{\"observedAt\":1793288890634,\"cacheLayers\":[{\"layer\":\"assembly\",\"dependencyHash\":\"9fc946a976f4596462f59952dfdfab6e424d457910c80b5e7ed8a7adae3f387f\",\"hits\":6,\"misses\":2,\"invalidations\":0,\"entries\":2},{\"layer\":\"provider-prefix\",\"dependencyHash\":\"227a177265a871d41392de564d547d5fd8ea002aa0f0718e28dfd70f3eb0b894\",\"hits\":3,\"misses\":1,\"invalidations\":0,\"entries\":1},{\"layer\":\"projection\",\"dependencyHash\":\"024d3d4a373c74009e4456f24b9192d42e46d70d5cbc0b5ec2736490c69f4b0d\",\"hits\":0,\"misses\":4,\"invalidations\":3,\"entries\":1},{\"layer\":\"token-estimation\",\"dependencyHash\":\"ee50246892a19b669180c738aec465d4a5430486914542fa3137d5e9b9e3915a\",\"hits\":3,\"misses\":5,\"invalidations\":3,\"entries\":2}],\"projectionRevision\":0,\"prefix\":{\"stableBytes\":7094,\"scopedBytes\":0,\"volatileBytes\":317,\"sha256\":\"376d3d2c39240a21c43fb5c6e7642b201901236c75f8a8cb1815a00ec02dbf18\"},\"workspace\":{\"timestamp\":1793288890634,\"trackedFilesHash\":\"d6354e0b086dfc23d00bd89cb1016e4e4d90c7a56d43a9d235d698213f9f9fd3\",\"uncommittedDiffBytes\":14,\"fileCount\":1}},\"ts\":1793288890634}\n\nid: c7f47e15-79e5-49b4-8d39-6b09588a91a2:17\ndata: {\"version\":1,\"sessionId\":\"sess_1793288514459_cf2091dc\",\"streamId\":\"c7f47e15-79e5-49b4-8d39-6b09588a91a2\",\"cursor\":17,\"eventId\":\"c7f47e15-79e5-49b4-8d39-6b09588a91a2:17\",\"turnId\":\"turn_1793288890619_113d29\",\"type\":\"usage\",\"delta\":{\"costUsd\":0,\"estimated\":false,\"summary\":{\"inputTokens\":400,\"outputTokens\":2400,\"cacheReadTokens\":0,\"cacheCreationTokens\":0,\"calls\":4,\"promptTokensTotal\":0,\"measuredCalls\":0,\"cachedTokensTotal\":0,\"overallCacheHitRate\":0,\"estimatedSavingsUsd\":0,\"costUsd\":0,\"costBreakdown\":{\"inputUsd\":0,\"outputUsd\":0,\"cacheReadUsd\":0,\"cacheWriteUsd\":0,\"rawTotalUsd\":0,\"totalUsd\":0,\"costMultiplier\":1,\"cacheWritePriceSource\":\"explicit\",\"cacheWriteDerived\":false},\"pricingSource\":\"unpriced\",\"estimated\":false},\"inputTokens\":100,\"outputTokens\":600,\"cacheReadTokens\":0,\"cacheCreationTokens\":0,\"latencyMs\":13,\"calls\":4},\"ts\":1793288890645}\n\nid: c7f47e15-79e5-49b4-8d39-6b09588a91a2:18\ndata: {\"version\":1,\"sessionId\":\"sess_1793288514459_cf2091dc\",\"streamId\":\"c7f47e15-79e5-49b4-8d39-6b09588a91a2\",\"cursor\":18,\"eventId\":\"c7f47e15-79e5-49b4-8d39-6b09588a91a2:18\",\"turnId\":\"turn_1793288890619_113d29\",\"type\":\"tool\",\"delta\":{\"toolCallId\":\"fixture-write-6\",\"toolName\":\"Write\",\"status\":\"started\",\"argsSummary\":\"{\\\"path\\\":\\\"fixture.txt\\\",\\\"content\\\":\\\"before\\\\nsecond\\\\n\\\"}\"},\"ts\":1793288890652}\n\nid: c7f47e15-79e5-49b4-8d39-6b09588a91a2:19\ndata: {\"version\":1,\"sessionId\":\"sess_1793288514459_cf2091dc\",\"streamId\":\"c7f47e15-79e5-49b4-8d39-6b09588a91a2\",\"cursor\":19,\"eventId\":\"c7f47e15-79e5-49b4-8d39-6b09588a91a2:19\",\"turnId\":\"turn_1793288890619_113d29\",\"type\":\"tool\",\"delta\":{\"toolCallId\":\"fixture-write-6\",\"toolName\":\"Write\",\"status\":\"done\"},\"ts\":1793288890667}\n\nid: c7f47e15-79e5-49b4-8d39-6b09588a91a2:20\nevent: inspector\ndata: {\"version\":1,\"sessionId\":\"sess_1793288514459_cf2091dc\",\"streamId\":\"c7f47e15-79e5-49b4-8d39-6b09588a91a2\",\"cursor\":20,\"eventId\":\"c7f47e15-79e5-49b4-8d39-6b09588a91a2:20\",\"turnId\":\"turn_1793288890619_113d29\",\"type\":\"inspector\",\"delta\":{\"observedAt\":1793288890677,\"cacheLayers\":[{\"layer\":\"assembly\",\"dependencyHash\":\"9fc946a976f4596462f59952dfdfab6e424d457910c80b5e7ed8a7adae3f387f\",\"hits\":8,\"misses\":2,\"invalidations\":0,\"entries\":2},{\"layer\":\"provider-prefix\",\"dependencyHash\":\"227a177265a871d41392de564d547d5fd8ea002aa0f0718e28dfd70f3eb0b894\",\"hits\":4,\"misses\":1,\"invalidations\":0,\"entries\":1},{\"layer\":\"projection\",\"dependencyHash\":\"522f194611d195836cee471f4403b58b13986919b7f595b821bde13e0fecba53\",\"hits\":0,\"misses\":5,\"invalidations\":4,\"entries\":1},{\"layer\":\"token-estimation\",\"dependencyHash\":\"ee50246892a19b669180c738aec465d4a5430486914542fa3137d5e9b9e3915a\",\"hits\":4,\"misses\":6,\"invalidations\":4,\"entries\":2}],\"projectionRevision\":0,\"prefix\":{\"stableBytes\":7094,\"scopedBytes\":0,\"volatileBytes\":347,\"sha256\":\"376d3d2c39240a21c43fb5c6e7642b201901236c75f8a8cb1815a00ec02dbf18\"},\"workspace\":{\"timestamp\":1793288890634,\"trackedFilesHash\":\"d6354e0b086dfc23d00bd89cb1016e4e4d90c7a56d43a9d235d698213f9f9fd3\",\"uncommittedDiffBytes\":14,\"fileCount\":1}},\"ts\":1793288890677}\n\nid: c7f47e15-79e5-49b4-8d39-6b09588a91a2:21\nevent: inspector\ndata: {\"version\":1,\"sessionId\":\"sess_1793288514459_cf2091dc\",\"streamId\":\"c7f47e15-79e5-49b4-8d39-6b09588a91a2\",\"cursor\":21,\"eventId\":\"c7f47e15-79e5-49b4-8d39-6b09588a91a2:21\",\"turnId\":\"turn_1793288890619_113d29\",\"type\":\"inspector\",\"delta\":{\"observedAt\":1793288890685,\"cacheLayers\":[{\"layer\":\"assembly\",\"dependencyHash\":\"9fc946a976f4596462f59952dfdfab6e424d457910c80b5e7ed8a7adae3f387f\",\"hits\":8,\"misses\":2,\"invalidations\":0,\"entries\":2},{\"layer\":\"provider-prefix\",\"dependencyHash\":\"227a177265a871d41392de564d547d5fd8ea002aa0f0718e28dfd70f3eb0b894\",\"hits\":4,\"misses\":1,\"invalidations\":0,\"entries\":1},{\"layer\":\"projection\",\"dependencyHash\":\"522f194611d195836cee471f4403b58b13986919b7f595b821bde13e0fecba53\",\"hits\":0,\"misses\":5,\"invalidations\":4,\"entries\":1},{\"layer\":\"token-estimation\",\"dependencyHash\":\"ee50246892a19b669180c738aec465d4a5430486914542fa3137d5e9b9e3915a\",\"hits\":4,\"misses\":6,\"invalidations\":4,\"entries\":2}],\"projectionRevision\":0,\"prefix\":{\"stableBytes\":7094,\"scopedBytes\":0,\"volatileBytes\":347,\"sha256\":\"376d3d2c39240a21c43fb5c6e7642b201901236c75f8a8cb1815a00ec02dbf18\"},\"workspace\":{\"timestamp\":1793288890685,\"trackedFilesHash\":\"c9cb65c7ed92e99846abdfe02efdb3d9983290ae3e190c878ef45258dd995b01\",\"uncommittedDiffBytes\":14,\"fileCount\":1}},\"ts\":1793288890685}\n\nid: c7f47e15-79e5-49b4-8d39-6b09588a91a2:22\ndata: {\"version\":1,\"sessionId\":\"sess_1793288514459_cf2091dc\",\"streamId\":\"c7f47e15-79e5-49b4-8d39-6b09588a91a2\",\"cursor\":22,\"eventId\":\"c7f47e15-79e5-49b4-8d39-6b09588a91a2:22\",\"turnId\":\"turn_1793288890619_113d29\",\"type\":\"conversation\",\"delta\":{\"role\":\"assistant\",\"text\":\"Fixture complete\"},\"ts\":1793288890700}\n\nid: c7f47e15-79e5-49b4-8d39-6b09588a91a2:23\ndata: {\"version\":1,\"sessionId\":\"sess_1793288514459_cf2091dc\",\"streamId\":\"c7f47e15-79e5-49b4-8d39-6b09588a91a2\",\"cursor\":23,\"eventId\":\"c7f47e15-79e5-49b4-8d39-6b09588a91a2:23\",\"turnId\":\"turn_1793288890619_113d29\",\"type\":\"usage\",\"delta\":{\"costUsd\":0,\"estimated\":false,\"summary\":{\"inputTokens\":500,\"outputTokens\":3000,\"cacheReadTokens\":0,\"cacheCreationTokens\":0,\"calls\":5,\"promptTokensTotal\":0,\"measuredCalls\":0,\"cachedTokensTotal\":0,\"overallCacheHitRate\":0,\"estimatedSavingsUsd\":0,\"costUsd\":0,\"costBreakdown\":{\"inputUsd\":0,\"outputUsd\":0,\"cacheReadUsd\":0,\"cacheWriteUsd\":0,\"rawTotalUsd\":0,\"totalUsd\":0,\"costMultiplier\":1,\"cacheWritePriceSource\":\"explicit\",\"cacheWriteDerived\":false},\"pricingSource\":\"unpriced\",\"estimated\":false},\"inputTokens\":100,\"outputTokens\":600,\"cacheReadTokens\":0,\"cacheCreationTokens\":0,\"latencyMs\":20,\"calls\":5},\"ts\":1793288890701}\n\nid: c7f47e15-79e5-49b4-8d39-6b09588a91a2:24\ndata: {\"version\":1,\"sessionId\":\"sess_1793288514459_cf2091dc\",\"streamId\":\"c7f47e15-79e5-49b4-8d39-6b09588a91a2\",\"cursor\":24,\"eventId\":\"c7f47e15-79e5-49b4-8d39-6b09588a91a2:24\",\"turnId\":\"turn_1793288890619_113d29\",\"type\":\"run\",\"delta\":{\"active\":false,\"turnId\":\"turn_1793288890619_113d29\",\"kind\":\"success\"},\"ts\":1793288890702}\n\n"
+}

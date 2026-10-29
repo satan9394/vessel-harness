@@ -1,0 +1,139 @@
+{
+  "checkedAt": "2026-10-29T16:12:01.849Z",
+  "verdicts": {
+    "T1": "PASS",
+    "T2": "PASS",
+    "T3": "PASS"
+  },
+  "baselineHead": "4ffce9a",
+  "expectedHead": "af0bb33",
+  "currentHead": "4ffce9a",
+  "products": [
+    {
+      "path": "apps/local-server/src/server.ts",
+      "sha256": "0ffa64947c2be524d73c28f0181d3e14178631ebd07f7747795fcdc6ca7c3099"
+    },
+    {
+      "path": "apps/local-server/src/teamRoutes.ts",
+      "sha256": "48d26a600408c6e4eb5431ed2e31956ced00ba38045d40abc755c7c2706b60c8"
+    },
+    {
+      "path": "apps/local-server/src/teamStageApi.test.ts",
+      "sha256": "f2c6a89a107bb06192997f6d490cefed09fa34de4b40ec43426d206556df56c3"
+    },
+    {
+      "path": "apps/web/src/api.ts",
+      "sha256": "9a3b4e062e7c027d28e638b6e575c007960bd39d9721aeac5038f375937de327"
+    },
+    {
+      "path": "apps/web/src/components/team/TeamNodeDrawer.tsx",
+      "sha256": "ad13601b434cd2865a9403b6b234341f14ba77f842bb6a420487d82e3685b9da"
+    },
+    {
+      "path": "apps/web/src/components/team/TeamNodeDrawer.test.tsx",
+      "sha256": "36f600d7e55670d8e6deb9f58a66ea8205c2105aebc9c9734b9b2cf00da3a4a3"
+    },
+    {
+      "path": "apps/web/src/components/team/TeamStagesPanel.tsx",
+      "sha256": "bc97233bf7fd82ddbeba23c69a326bbfb5acc1908f04d43815ae719953f816c5"
+    },
+    {
+      "path": "packages/agents/src/team/teamApproveAndRun.test.ts",
+      "sha256": "e7a9442b7b889407f5263916c81dd3009d3f27892836b93c1bfcd01717ba6ac0"
+    }
+  ],
+  "cards": [
+    {
+      "path": "tasks/362-narrow-width-layout-squeeze.md",
+      "originalPrefixUnchanged": true,
+      "originalBytes": 4709,
+      "appendedBytes": 874
+    },
+    {
+      "path": "tasks/364-team-drawer-truncation-affordance.md",
+      "originalPrefixUnchanged": true,
+      "originalBytes": 2067,
+      "appendedBytes": 2622
+    },
+    {
+      "path": "tasks/361-card175-fixture-residuals.md",
+      "originalPrefixUnchanged": true,
+      "originalBytes": 5335,
+      "appendedBytes": 903
+    }
+  ],
+  "changed": [
+    "apps/local-server/src/server.ts",
+    "apps/local-server/src/teamRoutes.ts",
+    "apps/local-server/src/teamStageApi.test.ts",
+    "apps/web/src/api.ts",
+    "apps/web/src/components/team/TeamNodeDrawer.tsx",
+    "apps/web/src/components/team/TeamStagesPanel.tsx",
+    "packages/agents/src/team/teamApproveAndRun.test.ts",
+    "tasks/361-card175-fixture-residuals.md",
+    "tasks/362-narrow-width-layout-squeeze.md",
+    "tasks/364-team-drawer-truncation-affordance.md"
+  ],
+  "untracked": [
+    "apps/web/src/components/team/TeamNodeDrawer.test.tsx",
+    "evidence/sessions/2026-10-30-closeout/append-results.mjs",
+    "evidence/sessions/2026-10-30-closeout/audit.mjs",
+    "evidence/sessions/2026-10-30-closeout/browser-console.json",
+    "evidence/sessions/2026-10-30-closeout/cleanup.json",
+    "evidence/sessions/2026-10-30-closeout/comparison.html",
+    "evidence/sessions/2026-10-30-closeout/encode-screenshots.py",
+    "evidence/sessions/2026-10-30-closeout/failures.json",
+    "evidence/sessions/2026-10-30-closeout/fixture-data.json",
+    "evidence/sessions/2026-10-30-closeout/fixture.mjs",
+    "evidence/sessions/2026-10-30-closeout/frontend.json",
+    "evidence/sessions/2026-10-30-closeout/frontend.mjs",
+    "evidence/sessions/2026-10-30-closeout/prepare.mjs",
+    "evidence/sessions/2026-10-30-closeout/report.md",
+    "evidence/sessions/2026-10-30-closeout/runtime-build.json",
+    "evidence/sessions/2026-10-30-closeout/scope-audit.json",
+    "evidence/sessions/2026-10-30-closeout/screenshots.json",
+    "evidence/sessions/2026-10-30-closeout/startup.json",
+    "evidence/sessions/2026-10-30-closeout/t1-header-1440.png",
+    "evidence/sessions/2026-10-30-closeout/t1-header-1920.png",
+    "evidence/sessions/2026-10-30-closeout/t1-header-720.png",
+    "evidence/sessions/2026-10-30-closeout/t1-header-960.png",
+    "evidence/sessions/2026-10-30-closeout/t1-header-before-stale-960.png",
+    "evidence/sessions/2026-10-30-closeout/t1-header-before.json",
+    "evidence/sessions/2026-10-30-closeout/t1-header-light-960.png",
+    "evidence/sessions/2026-10-30-closeout/t1-header-light.json",
+    "evidence/sessions/2026-10-30-closeout/t1-header.json",
+    "evidence/sessions/2026-10-30-closeout/t2-drawer-298.png",
+    "evidence/sessions/2026-10-30-closeout/t2-drawer-300.png",
+    "evidence/sessions/2026-10-30-closeout/t2-drawer-570.png",
+    "evidence/sessions/2026-10-30-closeout/t2-drawer-before.json",
+    "evidence/sessions/2026-10-30-closeout/t2-drawer-before.png",
+    "evidence/sessions/2026-10-30-closeout/t2-drawer-expanded.png",
+    "evidence/sessions/2026-10-30-closeout/t2-drawer.json",
+    "evidence/sessions/2026-10-30-closeout/t2-final-fixture.json",
+    "evidence/sessions/2026-10-30-closeout/t2-fixture.mjs",
+    "evidence/sessions/2026-10-30-closeout/t2-focused-final.json",
+    "evidence/sessions/2026-10-30-closeout/t2-runtime.json",
+    "evidence/sessions/2026-10-30-closeout/t3-browser.json",
+    "evidence/sessions/2026-10-30-closeout/t3-create.json",
+    "evidence/sessions/2026-10-30-closeout/t3-overwrite.json",
+    "evidence/sessions/2026-10-30-closeout/t3-widget-live.png",
+    "evidence/sessions/2026-10-30-closeout/t3-widget-reload.png",
+    "evidence/sessions/2026-10-30-closeout/t3-widget.json",
+    "evidence/sessions/2026-10-30-closeout/t3-widget.png",
+    "evidence/sessions/2026-10-30-closeout/verify.mjs",
+    "evidence/sessions/2026-10-30-closeout/web-build-final.json",
+    "evidence/sessions/2026-10-30-closeout/web-build.json",
+    "evidence/sessions/2026-10-30-closeout/web-tests-final.json",
+    "evidence/sessions/2026-10-30-closeout/web-tests.json",
+    "evidence/sessions/2026-10-30-closeout/web-types-final.json",
+    "evidence/sessions/2026-10-30-closeout/web-types.json",
+    "evidence/sessions/2026-10-30-closeout/widget.mjs"
+  ],
+  "outside": [],
+  "cssMatches": true,
+  "cssSha256": "778a73d5800e642903408be013ff4b749eae2ea85869f4844e0adb6749a07819",
+  "fullGateRun": false,
+  "externalAgentCliRun": false,
+  "subagents": false,
+  "commitPush": false
+}
