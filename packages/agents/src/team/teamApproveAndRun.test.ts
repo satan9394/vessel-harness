@@ -81,5 +81,11 @@ describe('Approve & Run', () => {
     const done = await team.approve(preview.id);
     expect(done.tasks[0]!.result!.output.length).toBeLessThanOrEqual(301);
     expect(requests[1]!.messages.some(m => m.content.includes(full))).toBe(true);
+    expect(team.getTaskResult(preview.id, 'A').result?.output).toBe(full);
+    const other = team.stageTeam({ task: 'other', roster: [{ presetId: 'developer', model: 'm', providerId: 'mock' }], tasks: [node('C')] });
+    expect(() => team.getTaskResult('missing', 'A')).toThrow('unknown stage task');
+    expect(() => team.getTaskResult(preview.id, 'missing')).toThrow('unknown stage task');
+    expect(() => team.getTaskResult(other.id, 'A')).toThrow('unknown stage task');
+    expect(() => team.getTaskResult(preview.id, 'C')).toThrow('unknown stage task');
   });
 });

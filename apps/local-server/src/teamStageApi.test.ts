@@ -77,6 +77,36 @@ describe('team stage HTTP API', () => {
     expect((await request(`/team/stages/${stage.id}/reject`, {})).status).toBe(409);
   });
 
+  it('reads only the stored full result with session/task bounds and the existing origin gate', async () => {
+    const full = '摘要验证。'.repeat(114);
+    const runtime = new TeamRuntime({ workspaceRoot: root, providers: { mock: new MockProvider([{ when: /.*/, response: { text: full } }]) }, tools: [], policyArtifacts: loadPolicyArtifacts({ systemPath: path.resolve('configs/policy.default.yaml') }) });
+    const stage = stages.stage(sessionId, runtime, { task: 'fixture', roster: [{ presetId: 'developer', providerId: 'mock', model: 'mock' }], tasks: [{ id: 'a', title: 'A', description: 'A', assignedRole: 'generator', dependencies: [], status: 'pending' }] }, root);
+    await runtime.approve(stage.id);
+    const url = `/sessions/${sessionId}/team-stages/${stage.id}/tasks/a/result`;
+    const result = await request(url);
+    expect(result.status).toBe(200);
+    expect(await result.json()).toEqual({ status: 'completed', output: full, artifacts: [], truncated: false });
+    expect(stages.get(stage.id)!.tasks[0]!.result!.output).toHaveLength(301);
+    expect((await request(url.replace('/tasks/a/', '/tasks/missing/'))).status).toBe(404);
+    expect((await request(url.replace(stage.id, 'missing'))).status).toBe(404);
+    const other = await request('/sessions', { workspaceRoot: root });
+    const otherId = (await other.json() as { session: { id: string } }).session.id;
+    expect((await request(url.replace(sessionId, otherId))).status).toBe(404);
+    const otherStage = await create({ tasks: [{ id: 'b', title: 'B', description: 'B', assignedRole: 'generator', dependencies: [], status: 'pending' }] });
+    expect((await request(url.replace(stage.id, otherStage.id))).status).toBe(404);
+    const denied = await fetch(`${base}/api${url}`, { headers: { Origin: 'https://untrusted.example' } });
+    expect(denied.status).toBe(403); expect(await denied.json()).toEqual({ error: 'origin_denied' });
+    expect((await request(url, {})).status).toBe(405);
+    const read = vi.spyOn(fs, 'readFileSync'); const open = vi.spyOn(fs, 'openSync');
+    expect(stages.result(sessionId, stage.id, 'a')?.output).toBe(full);
+    expect(read).not.toHaveBeenCalled(); expect(open).not.toHaveBeenCalled();
+    const stored = runtime.getTaskResult(stage.id, 'a');
+    vi.spyOn(runtime, 'getTaskResult').mockReturnValue({ ...stored, result: { output: '汉'.repeat(22000), artifacts: [] } });
+    const capped = stages.result(sessionId, stage.id, 'a')!;
+    expect(capped.truncated).toBe(true); expect(Buffer.byteLength(capped.output)).toBe(65535);
+    expect(capped.output).not.toContain('\ufffd');
+  });
+
   it('rejects without model calls; rejects repeat actions and returns 404 for unknown ids', async () => {
     const spy = vi.spyOn(provider, 'stream');
     const stage = await create();
@@ -135,6 +165,8 @@ describe('team stage HTTP API', () => {
     await stages.close();
     const done = stages.get(stage.id)!;
     expect(done.tasks[0]!.result?.artifacts).toEqual(['generated.txt']);
+    const stored = await request(`/sessions/${sessionId}/team-stages/${stage.id}/tasks/${done.tasks[0]!.id}/result`);
+    expect(await stored.json()).toEqual({ status: 'completed', output: 'OFFLINE DAG RESULT', artifacts: ['generated.txt'], truncated: false });
     expect(fs.readFileSync(path.join(root, 'generated.txt'), 'utf8')).toBe('actual tool artifact\n');
     const res = await request(`/team/stages/${stage.id}/tasks/${done.tasks[0]!.id}/artifacts/0`);
     expect(res.status).toBe(200);

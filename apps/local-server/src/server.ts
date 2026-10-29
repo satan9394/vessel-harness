@@ -1079,6 +1079,13 @@ export function createVesselServer(opts: VesselServerOptions = {}): VesselServer
         return json(res, 200, teamStateFor(id).route.state());
       }
 
+      if (segs.length === 8 && sub === 'team-stages' && segs[5] === 'tasks' && segs[7] === 'result') {
+        if (!sameOrigin) return json(res, 403, { error: 'origin_denied' });
+        if (method !== 'GET') return json(res, 405, { error: 'read_only' });
+        if (!ctl) return json(res, 404, suggestNotFound(id));
+        const result = teamStages.result(id, decodeURIComponent(segs[4]!), decodeURIComponent(segs[6]!));
+        return result ? json(res, 200, result) : json(res, 404, { error: 'task_result_not_found' });
+      }
       if (segs.length === 4 && sub === 'team-stages') {
         if (!ctl) return json(res, 404, suggestNotFound(id));
         if (method === 'GET') return json(res, 200, { stages: teamStages.list(id) });

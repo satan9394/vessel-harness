@@ -26,6 +26,20 @@ export class TeamStageRoutes {
     return { ...entry.runtime.getStage(id), sessionId: entry.sessionId, error: entry.error, availableProviders: [...entry.availableProviders] };
   }
 
+  result(sessionId: string, stageId: string, taskId: string) {
+    const entry = this.stages.get(stageId);
+    if (!entry || entry.sessionId !== sessionId || !entry.runtime.getStage(stageId).tasks.some(task => task.id === taskId)) return undefined;
+    const task = entry.runtime.getTaskResult(stageId, taskId);
+    const bytes = Buffer.from(task.result?.output ?? '', 'utf8');
+    let end = Math.min(bytes.length, 65536);
+    // Keep the byte cap without splitting a UTF-8 character.
+    while (end < bytes.length && (bytes[end]! & 0xc0) === 0x80) end--;
+    // Artifact references are already in the stage projection; file contents remain
+    // exclusively behind artifact() and its path/descriptor guards. No file I/O here.
+    return { status: task.status, output: bytes.subarray(0, end).toString('utf8'),
+      artifacts: task.result?.artifacts ?? [], truncated: end < bytes.length };
+  }
+
   revise(id: string, changes: unknown) {
     const entry = this.stages.get(id);
     if (!entry || entry.runtime.getStage(id).status !== 'staged') throw new Error('stage is not awaiting approval');

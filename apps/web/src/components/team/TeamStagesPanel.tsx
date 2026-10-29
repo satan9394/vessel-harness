@@ -50,7 +50,7 @@ export default function TeamStagesPanel({ api, sessionId }: { api: ApiClient; se
       <TeamPlanEditor stage={stage} busy={busy} onSave={plan => void act(() => api.reviseTeamStage(stage.id, plan))} />
       <p>{localizedValue(stage.status, t)}</p>{stage.error && <p role="alert">{stage.error}</p>}
       <TeamDagCanvas tasks={stage.tasks} activeTaskId={stage.tasks.find(node => `${stage.id}:${node.id}` === selected)?.id} onSelectTask={id => setSelected(`${stage.id}:${id}`)} />
-      {stage.tasks.filter(node => `${stage.id}:${node.id}` === selected).map(node => <TeamNodeDrawer key={`${stage.id}:${node.id}`} api={api} stageId={stage.id} task={node} onClose={() => setSelected(undefined)} />)}
+      {stage.tasks.filter(node => `${stage.id}:${node.id}` === selected).map(node => <TeamNodeDrawer key={`${stage.id}:${node.id}`} api={api} sessionId={sessionId} stageId={stage.id} task={node} onClose={() => setSelected(undefined)} />)}
     </section>)}
   </section>;
 }

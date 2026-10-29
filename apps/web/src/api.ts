@@ -517,6 +517,9 @@ export function createApiClient(opts: ApiOptions = {}) {
     async listTeamStages(sessionId: string): Promise<{ stages: TeamPlanStage[] }> {
       return request(`/sessions/${encodeURIComponent(sessionId)}/team-stages`);
     },
+    async getTeamTaskResult(sessionId: string, stageId: string, taskId: string): Promise<{ status: import('./teamStages').TeamDagTask['status']; output: string; artifacts: string[]; truncated: boolean }> {
+      return request(`/sessions/${encodeURIComponent(sessionId)}/team-stages/${encodeURIComponent(stageId)}/tasks/${encodeURIComponent(taskId)}/result`);
+    },
     async stageTeam(sessionId: string, input: { task: string; mode?: RouteMode }): Promise<{ stage: TeamPlanStage }> {
       return request(`/sessions/${encodeURIComponent(sessionId)}/team-stages`, { method: 'POST', body: JSON.stringify(input) });
     },
