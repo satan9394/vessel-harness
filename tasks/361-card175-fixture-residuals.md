@@ -1,6 +1,6 @@
 # 任务卡 361: 卡 175 三项「夹具不可达」残余的可证伪化
 
-- Status: 已验收（2026-10-29）：300 字截断与产物下载通过（截断处缺省略号，记为遗留）；四态颜色通过；内联 widget 去重本轮未覆盖
+- Status: 已验收（2026-10-29，closeout T3 补齐最后一项）：300 字截断与产物下载通过（省略号遗留已由卡 364 解决）；四态颜色通过；内联 widget 去重以真实写入流验到 1 → 1 → 1（覆盖写零新增）
 - PDW task: none
 - 来源：卡 175 的 2026-10-28 final sweep 段——三色状态、300 字截断、产物链接在离线 mock 下 UNVERIFIED。
 
@@ -58,3 +58,19 @@ All raw requests/scripts/session logs remain in TEMP, with script path/hash in t
 **新发现（不新开卡，记在这里）**：摘要区缺省略号与展开入口，属真实可用性缺陷但不是阻塞。要修的话，是在切 300 字之前先剥离末尾省略号并补一个「展开全文」控件，改动面很小；排在下次 UI 批次即可。
 
 边界：本轮没有改产品代码，符合卡内要求；截图与 JSON 在 `evidence/sessions/2026-10-29-remaining/`。
+
+## 2026-10-29 closeout — final measured result
+
+内联 widget 去重：通过 / PASS with a populated real Write stream. New file: one widget_block plus one compatibility widget, same event/widget ID (one logical diff), and one Write call/result. Transcript counts: 1 live, 1 after browser refresh/reopen, 1 after overwriting the existing file. Overwrite: one additional Write call/result, zero new widget events; old bootstrap frames distinguished by original turn/ID. Session JSONL contains tool records but no standalone widget records; SSE originals and counts are in t3-widget.json, t3-create.json and t3-overwrite.json, with t3-widget.png. No T3 product changes. Evidence: evidence/sessions/2026-10-30-closeout/.
+
+Cleanup: owned ports 5694–5698, processes and children all 0; cleanup.json. No downloads, subagents, external Agent CLI or commit/push. Existing card status and lines preserved.
+
+## 协调者验收（2026-10-29，closeout T3）
+
+采信。此前这一项停在「未覆盖」，因为上一轮的夹具只跑到「三节点完成」，没造出真实的写入流——离线 mock 下 `widget_block` 压根不会出现，硬断言只会是空的。这轮换成了真实 SSE 流：新建文件那一轮里 `widget_block` 与兼容 `widget` 各 1 条、同 event / 同 widget ID（同一个逻辑 diff），会话里只有 1 次 Write 调用与 1 次结果；刷新重开后 transcript 仍是 1 个；对已存在文件覆盖写再来一次 Write，**新增 widget 事件 0**。
+
+我自己核对：`t3-widget.json` 里 `uniqueWidgetIds` 只有一个 `write:sess_...:27`，`create.counts` 是 `widget_block:1 / widget:1`，bootstrap 帧被单独归到 `replay.bootstrapEvents` 并用原 turnId 标注——这条区分很关键，否则「重连补发」会被误算成第二个 widget。`t3-widget-live.png` 里会话内确实只有一个 `差异检视器`，内容 `+before/+second` 两行；`t3-widget-reload.png` 同形。
+
+独立复跑：`apps/cli` 65 / 783、`apps/local-server` 28 / 320、`--root apps/web` 61 / 535、三处 tsc exit 0、全量门禁 17/17 exit 0（根 335 / 3,713 + 8，web 61 / 535，conformance 25/25 $0，日志 `%TEMP%/vessel-gate-384557f6`）。
+
+边界：`session.jsonl` 里没有独立的 widget 记录（只有 tool call / result），所以「widget 只发一次」的证据只能来自 SSE 原始帧 + 浏览器计数，不能只查会话文件。
