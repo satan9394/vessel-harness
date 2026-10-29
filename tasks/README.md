@@ -28,6 +28,10 @@ PDW 关联：首行状态行下加 `- PDW task: <id>`（未启动写 `none`）�
 | 陈旧状态卡对账 (卡 355) | 已核对 8 卡（2026-10-27）：071→255/256/287；281→287；196→199；同号旧217→architecture 217/236/244/247；149行动口径→153（live仍未做）；mission-02两卡→121最终交付；119的S002/S006现可证伪。9文件/121测试通过；append-only原门禁与字节前缀结果见Result | [355](355-stale-cards-reconcile.md) |
 | 看板对账 170–183 (卡 354) | 对账完成：13 卡 EOF 追加；6 项本地契约已验收、2 项无法确认、5 项仍待用户；原始韧性门禁失败保留 | [354](354-board-reconcile-170-183.md) |
 | Packaging gate 实跑 (卡 351) | 已验收（2026-10-28）：判据按 T2 收紧为「探针正常 + 两路径存在」，第五波 V1 修好 Windows npm 执行层（仅 `win32` + `npm` 加 shell，判据未放宽），默认 gate 实跑 status=pass、npm exit 0 / stdout 1130 字节 / stderr 0；协调者独立复跑 release-gates 67、benchmarks 541 并自跑一次真 gate 复现同样 detail。仍只证明探针与路径存在，非完整打包/安装证明 | [351](351-packaging-gate-run.md) |
+| 沙箱拒绝信息不可读 (卡 360) | 待执行（2026-10-29 实测）：越界写被拒时 `content` 是一串问号（GBK 文本按 UTF-8 解码）；要求在不改判成功的前提下让拒绝可读。已交 remaining 单 T1 | [360](360-sandbox-denial-message-readable.md) |
+| 卡 175 三项残余可证伪 (卡 361) | 待执行：300 字截断 / 产物链接 / 三色状态，用脚本桩造可控夹具各判一次。已交 remaining 单 T3 | [361](361-card175-fixture-residuals.md) |
+| 窄宽布局挤压 (卡 362) | 待执行：960 宽费用列竖排、1440 下团队面板 482px 需横拖。已交 remaining 单 T2 | [362](362-narrow-width-layout-squeeze.md) |
+| teamStageApi 合跑偶发 (卡 363) | 待执行（可选，20 分钟封顶）：合并 vitest 调用下偶发 `expected [Function] to throw`，单跑与重跑均绿。已交 remaining 单 T4 | [363](363-teamstage-flake-under-combined-run.md) |
 | `vessel daemon start` 构造期必崩 (卡 359) | 已验收（2026-10-28）：`daemon.status()` 在 `info` 就绪前回落到 `{ instanceId }`（身份守卫未放宽）；另查出「二次 `Set-Acl` 必报 SeSecurityPrivilege」，把 `protectDaemonPath` 改成幂等的 `whoami` + `icacls`。真机五步全过：launcher 退出后同一 pid 存活、uptime 4→6、health 200、401/200、stop 后监听 0 | [359](359-daemon-start-mesh-identity-crash.md) |
 | 单写者绕过租约 (卡 353) | 已验收（2026-10-27）：`append()` 重开前重取 `.lease`（`leaseHeld` 标志），`close()` 后重开可写、被存活进程持有时 fail-closed；core/session 27 项、core 133 | [353](353-session-append-lease-bypass.md) |
 | profileParity 退出码歧义 (卡 350c) | 已验收（2026-10-27）：损坏 `provider-profiles.json` 下 CLI 断言 exit 2 + 映射文案、HTTP 同根断言 `provider_profiles_corrupted`；parity 5/5、local-server 313 | [350c](350c-profile-parity-exit2.md) |
