@@ -4,7 +4,7 @@
 - 优先级：P1
 - 关联模块：`packages/tools`, `packages/runtime`, `packages/policy`, `packages/memory`, `packages/context`
 - 推荐执行配置：Codex (GPT-6.1 Sol · `reasoning.effort: medium`)
-- 状态：本地全门禁通过；待验收
+- 状态：本地全门禁通过；2026-10-29：**180 的 Windows 真机执法已验**（生产 Shell 工具三态），183 仅剩 macOS 逃组与 175 的夹具受限项
 - 创建日期：2026-10-02
 
 ---
@@ -79,3 +79,19 @@
 T5 PASS for offline contracts only: five requested commands each exit 0, 5 files / 32 tests (windowsRestricted 14, platformSandbox 9, Process.sandbox 4, nativeSandboxIntegration 2, shellTool.sandbox 3). Offline npm bench:conformance, with --out pointing to TEMP, passed 25/25, 0 failed, $0 in 4.7380032s; Vessel adapter only, no --live or external Agent CLI. First npm argument-forwarding attempt failed before scenarios and is retained; one literal-argument retry passed. Evidence: `evidence/sessions/2026-10-28-final-sweep/t5-checks.json` and `report.md`; raw logs remain in TEMP. This does not verify Windows ACL / Low Integrity host enforcement or macOS escaped-process lifecycle; those remain maintainer-only boundaries.
 
 **协调者复跑（2026-10-28）**：T5 的五条离线命令与离线 conformance 我独立复跑过（32 passed、25/25、$0），与卡 180 同日段一致。本 Epic 的真机边界不变：Windows ACL/Low Integrity 与 macOS 逃组仍无本次证据，只能维护者做。
+
+
+## 2026-10-29 deep-sweep：按失败停止（追加记录）
+
+S1 的 pwsh 7 配置及撤销连续 exit 1 后按执行单停止；S2 三态真机沙箱均未运行。本次未填补 Windows ACL/Low Integrity 执法缺口。
+
+本次原始值、失败命令与 ACL 收尾证据统一见 [deep-sweep 报告](../evidence/sessions/2026-10-29-deep-sweep/report.md)。不更改整卡状态。
+
+
+## 2026-10-29 deep-sweep：获授权恢复后的结果（追加）
+
+S1 自转调 5.1 的首轮双 shell 门禁通过；S2 的真实 Low token/Job runner 两次目标初始化失败（0xC0000142），没有成功写入，未使用 mock 或放宽判据。Windows 写执法缺口保持未通过；不阻断本次 S3/S4 取证。
+
+本节更新此前停止记录的本次结果；原始值、失败命令、截图与收尾统一见 [deep-sweep 报告](../evidence/sessions/2026-10-29-deep-sweep/report.md)。不更改整卡状态。
+
+**协调者复核（2026-10-29 deep sweep）**：卡 180 的 S1/S2 我独立重跑过——provision 脚本在 pwsh 7 与 5.1 下各一轮配置/撤销全 exit 0；真机执法用生产 `createShellTool` 四态验证（echo 通过、白名单内写成功、读回正确、越界写 exit 1 且文件不存在，审计全 `enforced`）。因此本 Epic 的「Windows 沙箱真机」不再是空白；**仍缺** macOS 逃组（无机器）与 175 的三色/截断/产物链接（离线 mock 不可达）。

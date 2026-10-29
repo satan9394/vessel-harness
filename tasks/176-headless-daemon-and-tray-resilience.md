@@ -4,7 +4,7 @@
 - 优先级：P1
 - 关联模块：`apps/local-server`, `apps/cli`
 - 推荐执行配置：Codex (GPT-6.1 Sol · `reasoning.effort: medium`)
-- 状态：本地全门禁与独立审查通过；2026-10-28：**detached 存活已验收**（卡 359 修复后真机证明，见文末）；tray/toast 同日晚用 ffmpeg 整桌面截图尝试过一次，**UNVERIFIED**（图标应在溢出面板、toast 无事件可触发），详见文末
+- 状态：本地全门禁与独立审查通过；2026-10-28：**detached 存活已验收**（卡 359 修复后真机证明）；2026-10-29：**toast 投递有 OS 级证据**（Windows 通知历史里查到 `Vessel task finished`），tray 图标与 toast 的**可见性**仍 UNVERIFIED（注册表前后无新增条目、可见通知区无图标，详见文末）
 - 创建日期：2026-10-01
 
 ---
@@ -107,3 +107,23 @@ Codex 那一轮的桌面截屏被本机安全钩子拒了（它用的 `Add-Type`
 3. 可见通知区只有电量 97%、日期、通知铃；**没有 Vessel 图标**。tray 脚本用的是 `SystemIcons.Application` 通用图标，默认落进溢出面板（`^`），展开它需要动维护者的鼠标，我没有代做；toast 也没有触发事件（要真正的完成/失败/审批门禁事件）。
 
 结论：**UNVERIFIED**，理由是「图标在溢出面板里、且 toast 无事件可触发」，不是「代理做不到」。收尾 `daemon stop` → `{"stopped":true}`，端口 50641 监听 0。证据 `%TEMP%\vessel-tray-c098a8\desktop.png`、`tray-corner.png`（未入库，按纪律只写 TEMP）。
+
+
+## 2026-10-29 deep-sweep：按失败停止（追加记录）
+
+执行在 S1 连续两条 pwsh 7 命令 exit 1 后停止；S3 未启动 daemon，tray 登记 / 可见图标 / toast 均未观察。收尾 5678/5173 监听 0、匹配 CLI daemon 0，未改注册表或桌面焦点。
+
+本次原始值、失败命令与 ACL 收尾证据统一见 [deep-sweep 报告](../evidence/sessions/2026-10-29-deep-sweep/report.md)。不更改整卡状态。
+
+
+## 2026-10-29 deep-sweep：获授权恢复后的结果（追加）
+
+S3：daemon 启停 exit 0；生产 tray 子进程存活，但 NotifyIconSettings 84→84、0 新增/变化，登记仍无法确认；可见区未见 Vessel 图标。真实离线 mock 完成后，OS toast history 有匹配 session 的 Vessel task finished（通知历史通过），截图未见横幅（视觉仍 UNVERIFIED）。监听 0，daemon/tray PID 均退出。
+
+本节更新此前停止记录的本次结果；原始值、失败命令、截图与收尾统一见 [deep-sweep 报告](../evidence/sessions/2026-10-29-deep-sweep/report.md)。不更改整卡状态。
+
+### 2026-10-29 deep sweep · tray/toast 第二次尝试（toast 有 OS 级证据，tray 仍 UNVERIFIED）
+
+- **toast：拿到了**。隔离会话跑一轮离线 mock，Windows 通知历史里查到了对应记录，原文是 `<toast><visual><binding template="ToastGeneric"><text>Vessel task finished</text><text>Session sess_1793265229864_d250d238: success</text></binding></visual></toast>`（`toast-history.json`，`querySucceeded: true`、系统通知设置为 `Enabled`）。这是 OS 层「投递成功」的证据；桌面截图时横幅已自动消失，所以**用户可见的弹出动画**仍未拍到。
+- **tray：两条独立证据都指向「没看到」**。① `HKCU:\Control Panel\NotifyIconSettings` 前后各 84 个子键，`added: []`、`changed: []`（已有的 `powershell.exe` 条目 `InitialTooltip` 为空）；② 右下角放大截图（`corner.png`）里可见通知区只有电量/日期/通知铃。tray 子进程当时是活的，所以更像是 NotifyIcon 注册到了既有 powershell.exe 身份下、图标落在溢出面板，而不是「没启动」。
+- 结论：**toast 的投递段通过，tray 与 toast 的可见性仍未验证**。要闭合只剩「点开溢出面板看一眼」这一下，我没有代做（会动你的鼠标）。
