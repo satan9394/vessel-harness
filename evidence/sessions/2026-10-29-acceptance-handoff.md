@@ -3,9 +3,11 @@
 > 上一会话上下文用到 60%，交接到这里。新会话**先读 `HANDOFF.md` §0，再读本文件**；不需要上一轮对话的任何内容。
 > 本文件只写「现在是什么状态」和「报告到了以后照什么顺序验」。
 
-## 1. 当前状态（2026-10-29，HEAD `4ffce9a`）
+## 1. 当前状态（2026-10-29，HEAD `785597a`）
 
-- 分支 `main`，**工作树干净**；本机全量门禁最近一次 **17/17 exit 0**：根 **335 文件 / 3,712 passed + 8 skipped**，web **60 文件 / 530 passed**，离线 conformance **25/25、$0**（日志 `%TEMP%/vessel-gate-bebb650d/`）。
+> **先看这条**：交接时 Codex 的收尾任务**正在运行**，工作树里有它尚未提交的改动（当时 10 个已修改 + 53 个未跟踪，含 `apps/local-server/src/server.ts`、`teamRoutes.ts`、`apps/web/src/api.ts`、`TeamNodeDrawer.tsx` 等——即 T2 的只读端点）。**不要在这个时候验收或提交**：先确认它已停跑（`git status` 不再变化、rollout 文件不再增长），再按本文件第 3 节走。否则会出现「验的是半截实现」和「把它未完成的改动一起提交」。
+
+- 分支 `main`；本机全量门禁最近一次 **17/17 exit 0**（在上述改动之前）：根 **335 文件 / 3,712 passed + 8 skipped**，web **60 文件 / 530 passed**，离线 conformance **25/25、$0**（日志 `%TEMP%/vessel-gate-bebb650d/`）。
 - 已验收并提交：卡 360（沙箱拒绝信息加 `[hint]`）、卡 363（artifact 身份比较改 bigint，**安全相关**）、卡 362 的 DAG 溢出提示、卡 361 主链（300 字截断、产物下载、四态颜色）。
 - 已判定不做：154、155 字面 3h、ARCH-04 `--live`、V5 卫生项（`.tmp/` 与 62 行 TEMP 引用）、macOS Seatbelt 三件、原生输入法。
 
