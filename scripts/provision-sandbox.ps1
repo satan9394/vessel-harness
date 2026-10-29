@@ -16,6 +16,13 @@ param(
   [switch]$Revoke
 )
 
+if ($PSVersionTable.PSVersion.Major -ge 7) {
+  $forwardArgs = @('-Path', $Path)
+  if ($Revoke) { $forwardArgs += '-Revoke' }
+  & (Join-Path $env:SystemRoot 'System32\WindowsPowerShell\v1.0\powershell.exe') -NoProfile -ExecutionPolicy Bypass -File $PSCommandPath @forwardArgs @args
+  exit $LASTEXITCODE
+}
+
 $ErrorActionPreference = 'Stop'
 $resolved = (Resolve-Path -LiteralPath $Path).Path
 if (-not (Test-Path -LiteralPath $resolved -PathType Container)) { throw "not a directory: $resolved" }
