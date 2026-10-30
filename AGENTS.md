@@ -190,16 +190,15 @@ PDW 现行版本 **1.3.3-local**：完整 Skill 目录 + Node 运行器 + 项目
 
 ---
 
-## 远端 GitHub 状态（2026-10-06）
+## 远端 GitHub 状态（2026-10-30 按实测重写；旧版 2026-10-06 的口径已被证伪）
 
-- 本项目已转为**纯本地开发**，不再向 GitHub 提交。
-- 远端 `satan9394/vessel-harness` 的 **GitHub Actions 已整体停用**
-  （`actions/permissions.enabled = false`）：不再触发任何 CI / CodeQL / Dependabot 运行。
-- CodeQL 默认扫描已从 `configured` 改为 `not-configured`。
-- 本地 `main` 领先 `origin/main`（未推送），按约定**不推送**。
-- 恢复方式（如需）：`gh api --method PUT repos/satan9394/vessel-harness/actions/permissions --input -`
-  （body `{"enabled":true}`）；CodeQL 用 `PATCH repos/satan9394/vessel-harness/code-scanning/default-setup`
-  （body `{"state":"configured"}`）。
+- 本项目仍是**纯本地开发**：本地 `main` 领先 `origin/main`，按约定**不推送**（2026-10-30 实测领先 **169 个提交**，远端停在 `b147ae4` / 2026-10-11）。
+- **但「Actions 已整体停用」是错的**：2026-10-30 实测 `actions/permissions.enabled = true`（`allowed_actions: selected`、`sha_pinning_required: true`），CI 在 PR 上真跑，main 上还有 Dependabot Updates 的定时运行（最近 `2026-10-30T10:13:54Z` success）。
+- **「CodeQL 已改为 not-configured」也是错的**：实测 `default-setup.state = configured`（javascript / typescript / python / actions，weekly），最近分析 `2026-10-18`，**开放告警 0**；Dependabot 漏洞告警 0、secret scanning 开放告警 0。
+- 规则集 `protect-default-branch`（id `23645929`）`active`：必须走 PR，必需检查为 `build (ubuntu-latest, 22)`、`build (windows-latest, 22)`、`identity-guard`，且 strict。**这与 `ci.yml` 的版本矩阵强耦合**——本地 matrix 现为 `[22, 26]`；只留 26 会让那两个必需检查永不出现。改版本的正确顺序：先让 26 的 check 在远端跑绿 → 改 ruleset 的 context → 再从 matrix 删 22。
+- 六条 Dependabot PR 与逐条 CI 结论、以及「本地领先 / 审计信号过期」的完整清单见 `evidence/sessions/2026-10-30-project-health/github-health.md`（卡 369）。
+- 恢复推送时要动的两处（如需）：`gh api --method PUT repos/satan9394/vessel-harness/actions/permissions --input -`（body `{"enabled":true}`）、
+  `PATCH repos/satan9394/vessel-harness/code-scanning/default-setup`（body `{"state":"configured"}`）——注意这两条现在**已经是启用状态**，别再重复「恢复」。
 <!-- pdw-skill-sync -->
 ## PDW 技能同步（默认配置，2026-10-17 重切后；源 = GitHub）
 

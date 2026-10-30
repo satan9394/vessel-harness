@@ -1,6 +1,6 @@
 # 任务卡 368: 全面适配 Node 26（把 26 变成正式支持的运行时，而不是"打补丁让它绿"）
 
-- Status: 已完成（2026-10-30）：`.nvmrc`=26.13.0、`engines`≥26/npm≥12、npm 12 的 `allowScripts` 批准 esbuild、CI matrix 26、文档契约改 ≥26；干净 `npm ci` + web build + 测试实测通过；全量门禁 17/17（根 3,726 / 8 skipped、web 61 / 543）
+- Status: 已完成（2026-10-30）：`.nvmrc`=26.13.0、`engines`≥26/npm≥12、npm 12 的 `allowScripts` 批准 esbuild、CI matrix 22→`[22,26]`（耦合 ruleset，见卡 369）、文档契约改 ≥26；干净 `npm ci` + web build + 测试实测通过；全量门禁 17/17（根 3,726 / 8 skipped、web 61 / 543）
 - PDW task: none
 - 来源：用户问「不能全面适配最新版吗」。卡 367 只是把三处红修到绿，版本契约、npm 12 行为、CI 与文档仍按旧版本写着——那些才是"全面"。
 
@@ -45,7 +45,7 @@
 - **A1** `.nvmrc` = `26.13.0`（已安装，仓库目录内 shim 正常解析）；`node v26.13.0` / `npm 12.2.1`。
 - **A2** `engines` 改为 `{ "node": ">=26", "npm": ">=12" }`；`npm install-scripts approve esbuild` 把 `allowScripts: { "esbuild@0.28.2": true }` 落进 `package.json`；`npm install-scripts ls` → 「No packages with unreviewed install scripts」；`npm ci --dry-run` exit 0，不再出现 blocked 警告。**注意 approve 写的是带版本号的条目**：升 esbuild 之后必须重新 `npm install-scripts approve esbuild`，否则干净 `npm ci` 会拿到没跑 postinstall 的 esbuild。仓库根无 `.npmrc`；npm 提示「用户级 .npmrc 的 allow-scripts 被 package.json 覆盖」属预期。
 - **A3** 干净安装实测：`node_modules` 改名备份 → `npm ci` **exit 0**（118 包 / 42s）→ `npm ls --depth=0` exit 0、`npm install-scripts ls` 无未审项、`npm run -w @vessel/web build` exit 0、`packages/shared` 测试 exit 0；备份随后进回收站。**登记一项待定**：`npm ci` 报 **4 个漏洞（2 moderate / 2 high）**，属 npm 12 的审计库口径，本卡不处理。
-- **A4** CI matrix 22 → **26**（Actions 仍停用，只是让文件不再说谎）；`AGENTS.md` / `README.md` / `docs/PROJECT-BRIEF.md` 的版本契约改为 **≥26 / npm ≥12** 并指向 `.nvmrc`；`HANDOFF.md` 门禁行同步。`grep "npm 11|Node ≥20"` 的残留只出现在**历史报告**（`REVIEW-REPORT-*`、`TEST-REPORT-*`）与 `DESIGN-DECISIONS.md` 决策点 19 的理由句里，两者都是历史记录，按本卡约定不动。
+- **A4** CI matrix 22 → **`[22, 26]`**（Actions **没有**停用，实测 `enabled=true`；保留 22 的原因是 ruleset 的必需检查 context 写着 `build (…, 22)`，只留 26 会让那两个必需检查永不出现。见卡 369 §2）。`AGENTS.md` / `README.md` / `docs/PROJECT-BRIEF.md` 的版本契约改为 **≥26 / npm ≥12** 并指向 `.nvmrc`；`HANDOFF.md` 门禁行同步。`grep "npm 11|Node ≥20"` 的残留只出现在**历史报告**（`REVIEW-REPORT-*`、`TEST-REPORT-*`）与 `DESIGN-DECISIONS.md` 决策点 19 的理由句里，两者都是历史记录，按本卡约定不动。
 - **A5** 全量门禁（26.13.0，最后一次源码编辑之后）**17/17 exit 0**：根 **335 文件 / 3,726 passed + 8 skipped**、web **61 / 543**、三处 tsc exit 0、离线 conformance **25/25 $0**，日志 `%TEMP%/vessel-gate-fd93d536`。比卡 367 的 3,725 多 1，正是新增的 doctor 边界用例（cli 784）。
 - **A6** 未放宽任何测试或门禁判据。
 
