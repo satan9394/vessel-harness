@@ -27,7 +27,12 @@ jobs:
       fail-fast: false
       matrix:
         os: [windows-latest, ubuntu-latest]
-        node-version: [26]
+        # 22 is kept only because the active ruleset still requires the
+        # "build (…, 22)" check contexts; dropping it here without updating the
+        # ruleset first would leave PRs permanently waiting on checks that never
+        # report. Order once a 26 run is green on main: flip the ruleset
+        # contexts to 26, then remove 22 from this matrix (card 369).
+        node-version: [22, 26]
 
     steps:
       - name: Checkout
