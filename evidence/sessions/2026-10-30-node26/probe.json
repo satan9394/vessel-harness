@@ -1,0 +1,45 @@
+{
+  "red": {
+    "node": "v26.13.0",
+    "exit": 1,
+    "stdoutEmpty": true,
+    "prefix": false,
+    "versionTail": true,
+    "assertionCount": 1,
+    "otherError": false,
+    "baselineReason": true
+  },
+  "links": [
+    {
+      "type": "dir",
+      "code": "EPERM",
+      "message": "EPERM: operation not permitted, symlink 'C:\\work\\AppData\\Local\\Temp\\vessel-node26-probe-xvvW2e\\outside' -> 'C:\\work\\AppData\\Local\\Temp\\vessel-node26-probe-xvvW2e\\dir'"
+    },
+    {
+      "type": "junction",
+      "isSymbolicLink": true,
+      "isDirectory": false,
+      "ino": 12103423999364132,
+      "bigintIno": "12103423999364132",
+      "realpath": "C:\\work\\AppData\\Local\\Temp\\vessel-node26-probe-xvvW2e\\outside",
+      "readlink": "C:\\work\\AppData\\Local\\Temp\\vessel-node26-probe-xvvW2e\\outside"
+    }
+  ],
+  "inodes": [
+    {
+      "name": "trash",
+      "ino": 16888498603445288,
+      "bigintIno": "16888498603445287"
+    },
+    {
+      "name": "directory-link",
+      "ino": 17169973580155944,
+      "bigintIno": "17169973580155944"
+    },
+    {
+      "name": "other",
+      "ino": 10977524092521514,
+      "bigintIno": "10977524092521514"
+    }
+  ]
+}

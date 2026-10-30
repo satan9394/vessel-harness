@@ -1,0 +1,41 @@
+shared+core        exit=0   14s  Test Files  31 passed (31) | Tests  279 passed | 1 skipped (280)
+llm                exit=0    9s  Test Files  20 passed (20) | Tests  336 passed (336)
+behavior+context   exit=0    9s  Test Files  18 passed (18) | Tests  164 passed (164)
+tools+policy       exit=0   32s  Test Files  31 passed (31) | Tests  339 passed | 3 skipped (342)
+runtime+memory     exit=0   30s  Test Files  24 passed (24) | Tests  205 passed | 1 skipped (206)
+skills+agents      exit=0   25s  Test Files  23 passed (23) | Tests  196 passed (196)
+telemetry+engine   exit=0   31s  Test Files  22 passed (22) | Tests  223 passed (223)
+application        exit=0   46s  Test Files  36 passed (36) | Tests  325 passed | 3 skipped (328)
+cli                exit=0  126s  Test Files  65 passed (65) | Tests  783 passed (783)
+local-server       exit=0   57s  Test Files  28 passed (28) | Tests  320 passed (320)
+benchmarks         exit=0  103s  Test Files  35 passed (35) | Tests  541 passed (541)
+root-index         exit=0    1s  Test Files  2 passed (2) | Tests  14 passed (14)
+web-root           exit=0   26s  Test Files  61 passed (61) | Tests  543 passed (543)
+tsc-build          exit=0    0s  
+tsc-tests          exit=0    2s  
+tsc-web            exit=0    1s  
+conformance        exit=0    5s  totals: 25 runs, 25 passed, 0 failed, success 100%, cost $0
+---
+
+step             exit seconds
+----             ---- -------
+shared+core         0      14
+llm                 0       9
+behavior+context    0       9
+tools+policy        0      32
+runtime+memory      0      30
+skills+agents       0      25
+telemetry+engine    0      31
+application         0      46
+cli                 0     126
+local-server        0      57
+benchmarks          0     103
+root-index          0       1
+web-root            0      26
+tsc-build           0       0
+tsc-tests           0       2
+tsc-web             0       1
+conformance         0       5
+
+
+all steps green; logs: C:\work\AppData\Local\Temp\vessel-gate-f4f6e2f3

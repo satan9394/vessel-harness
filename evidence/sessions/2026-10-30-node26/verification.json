@@ -1,0 +1,172 @@
+{
+  "node": "v26.13.0",
+  "focused": {
+    "command": "node node_modules/vitest/vitest.mjs run packages/policy packages/application packages/skills packages/agents",
+    "exit": 0,
+    "files": 71,
+    "passed": 691,
+    "skipped": 3
+  },
+  "full": {
+    "command": "pwsh -NoProfile -File scripts/gate-batched.ps1",
+    "exit": 0,
+    "steps": 17,
+    "root": {
+      "files": 335,
+      "passed": 3725,
+      "skipped": 8
+    },
+    "web": {
+      "name": "web-root",
+      "exit": 0,
+      "seconds": 26,
+      "files": 61,
+      "passed": 543,
+      "skipped": 0
+    },
+    "conformance": {
+      "runs": 25,
+      "passed": 25,
+      "cost": 0
+    },
+    "originalLogs": "C:\\work\\AppData\\Local\\Temp\\vessel-gate-f4f6e2f3",
+    "results": [
+      {
+        "name": "shared+core",
+        "exit": 0,
+        "seconds": 14,
+        "files": 31,
+        "passed": 279,
+        "skipped": 1
+      },
+      {
+        "name": "llm",
+        "exit": 0,
+        "seconds": 9,
+        "files": 20,
+        "passed": 336,
+        "skipped": 0
+      },
+      {
+        "name": "behavior+context",
+        "exit": 0,
+        "seconds": 9,
+        "files": 18,
+        "passed": 164,
+        "skipped": 0
+      },
+      {
+        "name": "tools+policy",
+        "exit": 0,
+        "seconds": 32,
+        "files": 31,
+        "passed": 339,
+        "skipped": 3
+      },
+      {
+        "name": "runtime+memory",
+        "exit": 0,
+        "seconds": 30,
+        "files": 24,
+        "passed": 205,
+        "skipped": 1
+      },
+      {
+        "name": "skills+agents",
+        "exit": 0,
+        "seconds": 25,
+        "files": 23,
+        "passed": 196,
+        "skipped": 0
+      },
+      {
+        "name": "telemetry+engine",
+        "exit": 0,
+        "seconds": 31,
+        "files": 22,
+        "passed": 223,
+        "skipped": 0
+      },
+      {
+        "name": "application",
+        "exit": 0,
+        "seconds": 46,
+        "files": 36,
+        "passed": 325,
+        "skipped": 3
+      },
+      {
+        "name": "cli",
+        "exit": 0,
+        "seconds": 126,
+        "files": 65,
+        "passed": 783,
+        "skipped": 0
+      },
+      {
+        "name": "local-server",
+        "exit": 0,
+        "seconds": 57,
+        "files": 28,
+        "passed": 320,
+        "skipped": 0
+      },
+      {
+        "name": "benchmarks",
+        "exit": 0,
+        "seconds": 103,
+        "files": 35,
+        "passed": 541,
+        "skipped": 0
+      },
+      {
+        "name": "root-index",
+        "exit": 0,
+        "seconds": 1,
+        "files": 2,
+        "passed": 14,
+        "skipped": 0
+      },
+      {
+        "name": "web-root",
+        "exit": 0,
+        "seconds": 26,
+        "files": 61,
+        "passed": 543,
+        "skipped": 0
+      },
+      {
+        "name": "tsc-build",
+        "exit": 0,
+        "seconds": 0,
+        "files": 0,
+        "passed": 0,
+        "skipped": 0
+      },
+      {
+        "name": "tsc-tests",
+        "exit": 0,
+        "seconds": 2,
+        "files": 0,
+        "passed": 0,
+        "skipped": 0
+      },
+      {
+        "name": "tsc-web",
+        "exit": 0,
+        "seconds": 1,
+        "files": 0,
+        "passed": 0,
+        "skipped": 0
+      },
+      {
+        "name": "conformance",
+        "exit": 0,
+        "seconds": 5,
+        "files": 0,
+        "passed": 0,
+        "skipped": 0
+      }
+    ]
+  }
+}

@@ -1,0 +1,53 @@
+
+ RUN  v5.0.1 E:/Code_file/Projects/Vessel_Harness
+
+ ❯ packages/agents/src/subagent/subagent.test.ts (16 tests | 2 failed | 14 skipped) 115ms
+   ❯ V0.2-M1 subagent — delegation (H11) (16)
+     × explicitly closes child session handles when provider throws=false 68ms
+     × explicitly closes child session handles when provider throws=true 39ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  packages/agents/src/subagent/subagent.test.ts > V0.2-M1 subagent — delegation (H11) > explicitly closes child session handles when provider throws=false
+AssertionError: expected 'error' to be 'completed' // Object.is equality
+
+Expected: "completed"
+Received: "error"
+
+ ❯ packages/agents/src/subagent/subagent.test.ts:85:33
+     83|     try {
+     84|       const result = await manager.delegate({ prompt: 'close probe', d…
+     85|       expect(result.stopReason).toBe(throws ? 'error' : 'completed');
+       |                                 ^
+     86|       if (throws) expect(result.diagnostic).toContain('PROVIDER_FAILUR…
+     87|       expect(manager.activeChildren).toBe(0);
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯
+
+ FAIL  packages/agents/src/subagent/subagent.test.ts > V0.2-M1 subagent — delegation (H11) > explicitly closes child session handles when provider throws=true
+AssertionError: expected [ 4 ] to deeply equal [ -1 ]
+
+- Expected
++ Received
+
+  [
+-   -1,
++   4,
+  ]
+
+ ❯ packages/agents/src/subagent/subagent.test.ts:89:48
+     87|       expect(manager.activeChildren).toBe(0);
+     88|       expect(handles).toHaveLength(1);
+     89|       expect(handles.map(handle => handle.fd)).toEqual([-1]);
+       |                                                ^
+     90|       const directory = path.join(workspace, '.harness', 'sessions', r…
+     91|       expect(fs.existsSync(path.join(directory, '.lease'))).toBe(false…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/2]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  2 failed | 14 skipped (16)
+   Start at  02:03:51
+   Duration  3.57s (import 56%, transform 40%, tests 3%)
+

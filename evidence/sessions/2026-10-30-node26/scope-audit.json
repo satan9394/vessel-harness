@@ -1,0 +1,17 @@
+{
+  "node": "v26.13.0",
+  "hasNodeOptions": false,
+  "cardAppendOnly": true,
+  "sourceHashesUnchanged": true,
+  "rawLogCopiesExact": true,
+  "protectedDiff": "",
+  "nvmrcExists": false,
+  "trackedEdits": [
+    "packages/agents/src/subagent/SubagentManager.ts",
+    "packages/agents/src/subagent/subagent.test.ts",
+    "packages/application/src/deletion/trash.escape.test.ts",
+    "packages/policy/src/gates/redGreenGate.ts",
+    "packages/policy/tests/redGreenGate.test.ts",
+    "tasks/367-node26-compat.md"
+  ]
+}

@@ -1,0 +1,11 @@
+{
+  "node": "v26.13.0",
+  "head": "3499d09cce50610b356c7a0b6f1d20da37b46864",
+  "hashes": {
+    "packages/agents/src/subagent/SubagentManager.ts": "14abbb130a0fe676d5ec93cd3c2a76670f8fad4067e9c4ff63a07b3b9b5097c7",
+    "packages/agents/src/subagent/subagent.test.ts": "1daa4cf2fbbd3e6807ccac2364ce666cfb486982575b1167b29c1f00e9eb9748",
+    "packages/application/src/deletion/trash.escape.test.ts": "03525ed41671085d2da9eb58b22b5fc6a027c8be1da06aa8d0e9681b7dceca8e",
+    "packages/policy/src/gates/redGreenGate.ts": "d81507adfb7a599fd78d11df5ea7d7a43b04ea716207eb238bdc9648de798b52",
+    "packages/policy/tests/redGreenGate.test.ts": "06beed397b0a0a00f0aaa5b252e50b6e19a3e80868b6227541275a9c030388a4"
+  }
+}

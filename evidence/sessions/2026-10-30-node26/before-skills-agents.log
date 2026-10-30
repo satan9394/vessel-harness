@@ -1,0 +1,29 @@
+
+ RUN  v5.0.1 E:/Code_file/Projects/Vessel_Harness
+
+⎯⎯⎯⎯⎯⎯ Unhandled Errors ⎯⎯⎯⎯⎯⎯
+
+Vitest caught 1 unhandled error during the test run.
+This might cause false positive tests. Resolve unhandled errors to make sure your tests are not affected.
+
+⎯⎯⎯⎯⎯ Uncaught Exception ⎯⎯⎯⎯⎯
+Error: A FileHandle object was closed during garbage collection. This used to be allowed with a deprecation warning but is now considered an error. Please close FileHandle objects explicitly. File descriptor: 5 (\\?\C:\work\AppData\Local\Temp\cah-team-RriXSh\.harness\sessions\sub_1793350850679_19f66a38\session.jsonl)
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯
+Serialized Error: { code: 'ERR_INVALID_STATE' }
+This error originated in "packages/agents/src/team/team-runtime.test.ts" test file. It doesn't mean the error was thrown inside the file itself, but while it was running.
+The last test to run before this error was "058 异常路径：reviewer 产出非 JSON → review.verdict error（如实暴露、运行不崩）". This means either:
+- the error was thrown while Vitest was running this test, or
+- the error was thrown after the test completed, and this was the most recent test at that point.
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯
+
+
+ Test Files  23 passed (23)
+      Tests  194 passed (194)
+     Errors  1 error
+   Start at  02:00:28
+   Duration  35.17s (tests 65%, import 26%, transform 7%, setup 1%)
+
+     Import  189 modules were evaluated 324 times · 8.07s total, 26% of tracked time
+             ~3.36s faster with isolate: false — shared modules are evaluated once per worker instead of once per file
+             learn more: https://vitest.dev/guide/improving-performance#test-isolation
+

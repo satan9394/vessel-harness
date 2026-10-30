@@ -1,0 +1,77 @@
+
+ RUN  v5.0.1 E:/Code_file/Projects/Vessel_Harness
+
+ ❯ packages/policy/tests/redGreenGate.test.ts (8 tests | 3 failed) 1908ms
+   × records real target assertion failure and refuses unfinished repairs 196ms
+   × rejects a changing Red baseline and an unchanged source repair 146ms
+   × permits completion only after real Green plus full suite; later edits invalidate it 134ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 3 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  packages/policy/tests/redGreenGate.test.ts > records real target assertion failure and refuses unfinished repairs
+AssertionError: expected false to be true // Object.is equality
+
+- Expected
++ Received
+
+- true
++ false
+
+ ❯ packages/policy/tests/redGreenGate.test.ts:26:23
+     24| it('records real target assertion failure and refuses unfinished repai…
+     25|   const gate = new RedGreenGate(); const red = await gate.verifyRedPha…
+     26|   expect(red.success).toBe(true); expect(red.proof.redExecution.stderr…
+       |                       ^
+     27|   expect(red.proof.signature).toMatch(/^[a-f0-9]{64}$/);
+     28|   fs.writeFileSync(path.join(root, 'value.cjs'), 'module.exports=2');
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/3]⎯
+
+ FAIL  packages/policy/tests/redGreenGate.test.ts > rejects a changing Red baseline and an unchanged source repair
+AssertionError: expected 'Error: Missing, changed or untrusted …' to contain 'No source repair'
+
+Expected: "No source repair"
+Received: "Error: Missing, changed or untrusted Red proof/test identity"
+
+ ❯ packages/policy/tests/redGreenGate.test.ts:47:66
+     45|   const gate = new RedGreenGate();
+     46|   const red = await gate.verifyRedPhase(config);
+     47|   expect((await gate.verifyGreenPhase(red.proof, config)).error).toCon…
+       |                                                                  ^
+     48|   config.reproductionCommand = { executable: process.execPath, args: […
+     49|   expect((await gate.verifyRedPhase(config)).success).toBe(false);
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/3]⎯
+
+ FAIL  packages/policy/tests/redGreenGate.test.ts > permits completion only after real Green plus full suite; later edits invalidate it
+AssertionError: expected { success: false, …(2) } to match object { success: true, proof: { …(3) } }
+(9 matching properties omitted from actual)
+
+- Expected
++ Received
+
+  {
+    "proof": {
+-     "phase": "green_verified",
+-     "regressionExecution": {
+-       "exitCode": 0,
+-     },
+-     "regressionPassed": true,
++     "phase": "rejected",
++     "regressionPassed": false,
+    },
+-   "success": true,
++   "success": false,
+  }
+
+ ❯ packages/policy/tests/redGreenGate.test.ts:54:17
+
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/3]⎯
+
+
+ Test Files  1 failed | 1 passed (2)
+      Tests  3 failed | 14 passed | 1 skipped (18)
+   Start at  01:59:51
+   Duration  4.56s (tests 65%, import 20%, transform 14%, setup 1%)
+
