@@ -64,11 +64,14 @@ describe('trash escape rejection leaves disk and listing unchanged', () => {
     fs.mkdirSync(directory);
     fs.writeFileSync(path.join(directory, 'data'), 'fixture is a real directory, not a native link');
     const disk = snapshot(base);
-    const inode = fs.lstatSync(directory).ino;
     // Windows native directory symlink creation requires unavailable privilege.
-    // Keep the real junction test below; mock only this inode's link predicate.
-    const linked = vi.spyOn(fs.Stats.prototype, 'isSymbolicLink').mockImplementation(function (this: fs.Stats) {
-      return this.ino === inode;
+    // ponytail: target the exact path; Windows Number inodes can alias above 2^53.
+    // Keep native metadata everywhere else, including ancestors and real junctions.
+    const lstat = fs.lstatSync;
+    const linked = vi.spyOn(fs, 'lstatSync').mockImplementation((target, options) => {
+      const stat = lstat(target, options);
+      if (target === directory) Object.defineProperty(stat, 'isSymbolicLink', { value: () => true });
+      return stat;
     });
     const listing = list({ root });
     const result = purge({ root, now: new Date('2099-01-01T00:00:00.000Z') });

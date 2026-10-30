@@ -37,7 +37,8 @@ function targetOnlyFailure(execution: GateExecution, config: RedGreenGateConfig)
   // ponytail: accept one complete uncaught Node assertion; ambiguous runner reports fail closed.
   // A target substring in a whole suite does not prove that every failure is attributable to it.
   const output = execution.stderr.trim();
-  return !execution.stdout.trim() && /^node:assert[:/]/.test(output)
+  // Node 26 moved the uncaught assertion throw site into this internal helper.
+  return !execution.stdout.trim() && /^(?:node:assert[:/]|node:internal\/assert\/utils:\d+\r?\n)/.test(output)
     && /\nNode\.js v\d+\.\d+\.\d+$/.test(output)
     && (output.match(/^AssertionError(?: \[ERR_ASSERTION\])?:/gm) ?? []).length === 1
     && !/^(?!AssertionError)[A-Za-z]*Error(?: \[[^\]]+\])?:/m.test(output)

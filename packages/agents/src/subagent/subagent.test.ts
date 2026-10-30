@@ -59,7 +59,41 @@ describe('V0.2-M1 subagent — delegation (H11)', () => {
     workspace = tempDir();
   });
   afterEach(() => {
+    vi.restoreAllMocks();
     fs.rmSync(workspace, { recursive: true, force: true });
+  });
+
+  it.each([false, true])('explicitly closes child session handles when provider throws=%s', async (throws) => {
+    const handles: fs.promises.FileHandle[] = [];
+    const open = fs.promises.open;
+    vi.spyOn(fs.promises, 'open').mockImplementation(async (...args) => {
+      const handle = await open(...args);
+      if (String(args[0]).endsWith('session.jsonl')) handles.push(handle);
+      return handle;
+    });
+    const provider: ChatProvider = {
+      id: 'close-probe',
+      async chat(request) {
+        if (throws) throw new Error('PROVIDER_FAILURE');
+        return new MockProvider([{ when: /.*/, response: { text: 'done' } }], { model: 'mock' }).chat(request);
+      },
+    };
+    const manager = new SubagentManager({ workspaceRoot: workspace, provider,
+      model: 'mock', policyArtifacts: artifacts(), tools: [], bus: new EventBus() });
+    try {
+      const result = await manager.delegate({ prompt: 'close probe', delegationDepth: 0 });
+      expect(result.stopReason).toBe(throws ? 'error' : 'completed');
+      if (throws) expect(result.diagnostic).toContain('PROVIDER_FAILURE');
+      expect(manager.activeChildren).toBe(0);
+      expect(handles).toHaveLength(1);
+      expect(handles.map(handle => handle.fd)).toEqual([-1]);
+      const directory = path.join(workspace, '.harness', 'sessions', result.childSessionId);
+      expect(fs.existsSync(path.join(directory, '.lease'))).toBe(false);
+      expect(fs.readFileSync(path.join(directory, 'session.jsonl'), 'utf8')).toContain('session/created');
+    } finally {
+      // Even the intentionally failing pre-fix run must release its own fixtures.
+      await Promise.all(handles.filter(handle => handle.fd !== -1).map(handle => handle.close()));
+    }
   });
 
   it('delegates a task to an isolated child session and returns the result contract', async () => {

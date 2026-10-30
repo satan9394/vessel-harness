@@ -2,6 +2,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { createHash } from 'node:crypto';
+import { spawnSync } from 'node:child_process';
 import { afterEach, beforeEach, expect, it } from 'vitest';
 import { RedGreenGate, PolicyEngine, compilePolicyYaml, type RedGreenGateConfig } from '../src/index.js';
 
@@ -28,6 +29,35 @@ it('records real target assertion failure and refuses unfinished repairs', async
   fs.writeFileSync(path.join(root, 'value.cjs'), 'module.exports=2');
   expect(await gate.verifyGreenPhase(red.proof, config)).toMatchObject({ success: false, proof: { phase: 'rejected', greenExecution: { exitCode: 1 } } });
   expect(gate.completionVerdict()?.action).toBe('deny');
+});
+it.each([
+  ['legacy assertion header', true],
+  ['Node 26 assertion header', true],
+  ['unknown internal header', false],
+  ['missing line number', false],
+  ['second assertion', false],
+  ['unrelated error', false],
+  ['missing target', false],
+  ['missing version tail', false],
+  ['trailing diagnostic', false],
+  ['stdout diagnostic', false],
+] as const)('keeps uncaught assertion classification strict: %s', async (variant, accepted) => {
+  const actual = spawnSync(process.execPath, ['repro.cjs'], { cwd: root, encoding: 'utf8' });
+  expect(actual.status).toBe(1);
+  let stderr = actual.stderr.trim().replace(/^.*\n/, 'node:internal/assert/utils:146\n');
+  if (variant === 'legacy assertion header') stderr = stderr.replace(/^.*\n/, 'node:assert:95\n');
+  if (variant === 'unknown internal header') stderr = stderr.replace('assert/utils', 'errors');
+  if (variant === 'missing line number') stderr = stderr.replace('utils:146', 'utils:');
+  if (variant === 'second assertion') stderr = stderr.replace('\nNode.js', '\nAssertionError: TARGET_BUG\nNode.js');
+  if (variant === 'unrelated error') stderr = stderr.replace('\nNode.js', '\nTypeError: unrelated\nNode.js');
+  if (variant === 'missing target') stderr = stderr.replaceAll('TARGET_BUG', 'OTHER_BUG');
+  if (variant === 'missing version tail') stderr = stderr.replace(/\nNode\.js v.*$/, '');
+  if (variant === 'trailing diagnostic') stderr += '\nextra diagnostic';
+  // Diagnostic fixtures exercise classification, not authenticity of arbitrary child output.
+  const script = `process.stderr.write(${JSON.stringify(stderr)});${variant === 'stdout diagnostic' ? "console.log('extra diagnostic');" : ''}process.exit(1)`;
+  const result = await new RedGreenGate().verifyRedPhase({ ...config,
+    reproductionCommand: { executable: process.execPath, args: ['-e', script] } });
+  expect(result.success).toBe(accepted);
 });
 it('rejects mixed real test failures and ambiguous reports even when a target assertion is present', async () => {
   const gate = new RedGreenGate();

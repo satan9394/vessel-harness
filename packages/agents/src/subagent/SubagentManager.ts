@@ -296,92 +296,96 @@ export class SubagentManager {
         policyGuidance: this.opts.policyGuidance,
         maxSteps: req.maxSteps,
       });
-      childSessionId = runtime.session.sessionId;
-      childAgentId = `agent_${childSessionId}`;
-
-      // A23 SubagentStart (emit) — child session is running independently
-      await this.opts.bus.emit('subagent_start', {
-        delegateId,
-        childAgentId,
-        childSessionId,
-        preset: req.preset,
-        isContinuable: false,
-      });
-
-      // task 050: thread the parent turn's signal into the child. An abort
-      // interrupts the child's own loop (child turn ends kind='interrupted' →
-      // stopReason 'aborted'), so the delegation resolves promptly instead of
-      // the parent waiting out the whole child turn. Note the child's interrupt
-      // scope opens synchronously when its runTurn() is invoked below, so
-      // interrupting an already-aborted parent still lands on an active scope.
-      const childTurn = runtime.loop.runTurn(req.prompt);
-      let detachAbort: (() => void) | null = null;
-      const stopChild = () => {
-        try {
-          runtime.loop.interrupt();
-        } catch {
-          // best-effort: the child may already be closing
-        }
-      };
-      const parentSignal = opts.signal;
-      if (parentSignal) {
-        if (parentSignal.aborted) stopChild();
-        else {
-          parentSignal.addEventListener('abort', stopChild, { once: true });
-          detachAbort = () => parentSignal.removeEventListener('abort', stopChild);
-        }
-      }
-
-      let turn!: TurnResult;
+      // The manager owns the runtime even when the provider/turn throws.
       try {
-        turn = await childTurn;
+        childSessionId = runtime.session.sessionId;
+        childAgentId = `agent_${childSessionId}`;
+
+        // A23 SubagentStart (emit) — child session is running independently
+        await this.opts.bus.emit('subagent_start', {
+          delegateId,
+          childAgentId,
+          childSessionId,
+          preset: req.preset,
+          isContinuable: false,
+        });
+
+        // task 050: thread the parent turn's signal into the child. An abort
+        // interrupts the child's own loop (child turn ends kind='interrupted' →
+        // stopReason 'aborted'), so the delegation resolves promptly instead of
+        // the parent waiting out the whole child turn. Note the child's interrupt
+        // scope opens synchronously when its runTurn() is invoked below, so
+        // interrupting an already-aborted parent still lands on an active scope.
+        const childTurn = runtime.loop.runTurn(req.prompt);
+        let detachAbort: (() => void) | null = null;
+        const stopChild = () => {
+          try {
+            runtime.loop.interrupt();
+          } catch {
+            // best-effort: the child may already be closing
+          }
+        };
+        const parentSignal = opts.signal;
+        if (parentSignal) {
+          if (parentSignal.aborted) stopChild();
+          else {
+            parentSignal.addEventListener('abort', stopChild, { once: true });
+            detachAbort = () => parentSignal.removeEventListener('abort', stopChild);
+          }
+        }
+
+        let turn!: TurnResult;
+        try {
+          turn = await childTurn;
+        } finally {
+          detachAbort?.();
+        }
+
+        // BRIEF：唯一实现（../turnStopReason.js），与 EvaluatorAgent / TeamRuntime 同一份词表
+        const stopReason: SubagentStopReason = mapTurnKindToStopReason(turn.kind);
+        const result: SubagentResult = {
+          output: turn.finalText,
+          stopReason,
+          // 兜底降级的原因与错误原因共用 diagnostic 通道（isError 仍如实反映 stopReason）
+          diagnostic:
+            stopReason === 'error'
+              ? 'child turn ended with kind=error'
+              : presetNote !== undefined
+                ? `preset 收窄降级：${presetNote}`
+                : undefined,
+          durationMs: Date.now() - startedAt,
+          childAgentId,
+          childSessionId,
+          delegationDepth: childDepth,
+          isError: stopReason !== 'completed',
+          presetNarrowing,
+        };
+        if (req.outputSchema && turn.finalText) {
+          result.structured = tryParseJson(turn.finalText);
+        }
+
+        // A24 SubagentStop (emit) — result contract frozen; mirror is tool/result on the parent side
+        await this.opts.bus.emit('subagent_stop', {
+          delegateId,
+          childAgentId,
+          childSessionId,
+          result: contractOf(result),
+          isError: result.isError,
+          durationMs: result.durationMs,
+          delegationDepth: childDepth,
+        });
+
+        // A25 AfterDelegate (serial) — delegation closed on the parent side
+        await this.opts.bus.serial('after_delegate', {
+          delegateId,
+          result: contractOf(result),
+          followUp: { continuable: false, canSendMessage: false },
+        });
+
+        return result;
       } finally {
-        detachAbort?.();
+        await runtime.close();
       }
-
-      // BRIEF：唯一实现（../turnStopReason.js），与 EvaluatorAgent / TeamRuntime 同一份词表
-      const stopReason: SubagentStopReason = mapTurnKindToStopReason(turn.kind);
-      const result: SubagentResult = {
-        output: turn.finalText,
-        stopReason,
-        // 兜底降级的原因与错误原因共用 diagnostic 通道（isError 仍如实反映 stopReason）
-        diagnostic:
-          stopReason === 'error'
-            ? 'child turn ended with kind=error'
-            : presetNote !== undefined
-              ? `preset 收窄降级：${presetNote}`
-              : undefined,
-        durationMs: Date.now() - startedAt,
-        childAgentId,
-        childSessionId,
-        delegationDepth: childDepth,
-        isError: stopReason !== 'completed',
-        presetNarrowing,
-      };
-      if (req.outputSchema && turn.finalText) {
-        result.structured = tryParseJson(turn.finalText);
-      }
-
-      // A24 SubagentStop (emit) — result contract frozen; mirror is tool/result on the parent side
-      await this.opts.bus.emit('subagent_stop', {
-        delegateId,
-        childAgentId,
-        childSessionId,
-        result: contractOf(result),
-        isError: result.isError,
-        durationMs: result.durationMs,
-        delegationDepth: childDepth,
-      });
-
-      // A25 AfterDelegate (serial) — delegation closed on the parent side
-      await this.opts.bus.serial('after_delegate', {
-        delegateId,
-        result: contractOf(result),
-        followUp: { continuable: false, canSendMessage: false },
-      });
-
-      await runtime.close();
-      return result;
     } catch (err) {
       const result: SubagentResult = {
         output: '',
