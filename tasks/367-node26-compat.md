@@ -1,6 +1,6 @@
 # 任务卡 367: Node 26 适配（红绿门禁三连 + FileHandle GC 关闭变硬错 + 目录联接判定）
 
-- Status: 待执行（2026-10-30，Node 24 → 26.13.0 后全量门禁首次复跑暴露）
+- Status: 待执行（2026-10-30，已派 Codex）：Node 24 → 26.13.0 后全量门禁 3 步红；派单 `tasks/prompts/codex-handoff-2026-10-30-node26.md`（`gpt-6.1-sol` / medium）
 - PDW task: none
 - 来源：2026-10-30 01:00 本机 nvm v1→v2 迁移把 Node 从 24.14.0 升到 **26.13.0**（迁移 STEP 6 删旧目录报 AccessDenied，但 PATH 与 registry 已指向新 nvm）。之后在 26 上复跑 `scripts/gate-batched.ps1`，**17 步里 3 步红**；同一份代码在 24 上是 17/17 全绿。
 
@@ -45,6 +45,8 @@
 ## 5. Result
 
 待执行。
+
+已派单：`tasks/prompts/codex-handoff-2026-10-30-node26.md`（2026-10-30，Codex 应用，`gpt-6.1-sol` / medium）。派单里把三处红的**判定点**都指到了行：`packages/policy/src/gates/redGreenGate.ts:36` 的 `targetOnlyFailure()` 五条正则、`packages/agents/src/team/team-runtime.test.ts` 泄漏的 `sub_*/session.jsonl` 句柄、`trash.escape` 的目录联接判定；并写明「判据只能跟住 26 的新格式，不许放宽语义」。
 
 ## 6. 运行时的两种走法（记录事实，供拍板）
 
