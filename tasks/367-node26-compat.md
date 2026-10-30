@@ -1,6 +1,6 @@
 # 任务卡 367: Node 26 适配（红绿门禁三连 + FileHandle GC 关闭变硬错 + 目录联接判定）
 
-- Status: 待执行（2026-10-30，已派 Codex）：Node 24 → 26.13.0 后全量门禁 3 步红；派单 `tasks/prompts/codex-handoff-2026-10-30-node26.md`（`gpt-6.1-sol` / medium）
+- Status: 已验收（2026-10-30，协调者独立复跑）：Node 26.13.0 上全量门禁 **17/17 exit 0**（根 335 文件 / 3,725 + 8、web 61 / 543、conformance 25/25 $0，日志 `%TEMP%/vessel-gate-2ffd7094`）。三处：红相首行判定跟随 26 的 `node:internal/assert/utils:<n>`（其余四条未动、十变体反例只有两条 accepted）；`SubagentManager` 的 `close()` 移入 `finally`（产品侧真实句柄泄漏，26 把 GC 关闭变硬错照出来的）；trash 链接用例改成按路径匹配的夹具 mock（产品守卫零改动，实测它不比较 inode）
 - PDW task: none
 - 来源：2026-10-30 01:00 本机 nvm v1→v2 迁移把 Node 从 24.14.0 升到 **26.13.0**（迁移 STEP 6 删旧目录报 AccessDenied，但 PATH 与 registry 已指向新 nvm）。之后在 26 上复跑 `scripts/gate-batched.ps1`，**17 步里 3 步红**；同一份代码在 24 上是 17/17 全绿。
 
@@ -75,3 +75,38 @@
 1. 重试 `nvm install 24.14.0`（代理偶快时能过 3 秒预算）。
 2. 手工铺 portable 副本：`curl -L -o %TEMP%\n24.zip https://nodejs.org/dist/v24.14.0/node-v24.14.0-win-x64.zip` → 解到 `%LOCALAPPDATA%\vessel-runtime\node-v24.14.0-win-x64` → 只在跑门禁的终端里把该目录前置 PATH（不动 nvm 状态，删目录即回滚）。
 3. 留在 26，按本卡 §2 修三处（改动落在红绿门禁与删除逃逸守卫上，必须独立复核）。
+
+## 8. Codex 执行交证（2026-10-30，未代签收）
+
+执行单：`tasks/prompts/codex-handoff-2026-10-30-node26.md`。主线程执行，未启动子代理或外部 agent，未 commit/push；卡首行状态与 `tasks/README.md` 未动。
+
+报告与三处修前原始输出、反例、完整门禁日志：[`evidence/sessions/2026-10-30-node26/report.md`](../evidence/sessions/2026-10-30-node26/report.md)。源码产物 SHA-256：同目录 `source-hashes.json`；结构化验收：`verification.json`。
+
+- 红相：真实子进程 stderr 只有首行前缀检查不符（26 为 `node:internal/assert/utils:146`），其它四项均符合；只增加该精确格式，保留目标归因、单断言、无其它错误、版本尾行等判据。
+- FileHandle：确认是已有的产品资源生命周期缺陷，`SubagentManager` 的成功路径 close 在 `runTurn` 抛错时被绕过；按本卡已明确授权的异常路径清理要求，改为 finally 关闭，既有错误结果语义不变。新增真实句柄断言，成功/异常返回后 fd=-1、租约不存在、会话日志仍保留。未扩展产品语义修复。
+- trash：实测原生 dir symlink 为 EPERM、junction 可建且被拒；另捕获两目录 bigint inode 不同但 Number 相同，证明全局 inode mock 会误标祖先。只修测试 mock 的路径身份，精确 `Linked path refused: <directory-link>` 与磁盘不变断言保留，产品删除守卫零改动。
+
+最终自验（Node v26.13.0，最后一次源码编辑后）：聚焦命令 exit 0，71 文件 / 691 passed + 3 skipped；全量 `scripts/gate-batched.ps1` **17/17 exit 0**，根 **335 文件 / 3,725 passed + 8 skipped**，web **61 / 543**，三处 tsc exit 0、离线 conformance **25/25，$0**。原始日志 `%TEMP%/vessel-gate-f4f6e2f3` 已完整存入证据目录。`git diff --check` exit 0。未改 Node/engines/.nvmrc/CI/Web/依赖/vitest 配置，未设 NODE_OPTIONS。
+
+未运行独立复核（执行单明确禁止子代理）；本段仅交执行证据，协调者仍须独立复核后签收。反例包括：目标不失败、混合无关错误、第二个断言、缺目标理由、未知内部前缀、缺版本尾行、尾随诊断/stdout 污染、伪造 proof、基线/测试变更、回归失败、链接逃逸；完整用例名见报告末段。
+
+自查：未放宽任何门禁判据。
+
+## 9. 协调者验收（2026-10-30，Node 26.13.0 独立复跑）
+
+采信，三处判据我逐条核过 diff，并自己复跑了聚焦与全量。
+
+**全量（我自己跑的，不是它的数字）**：`pwsh -NoProfile -File scripts/gate-batched.ps1` **17/17 exit 0**——根 **335 文件 / 3,725 passed + 8 skipped**、web **61 / 543**、三处 tsc exit 0、离线 conformance **25/25、$0**，日志 `%TEMP%/vessel-gate-2ffd7094`。聚焦面另跑一次 `packages/policy packages/application packages/skills packages/agents`：**71 文件 / 691 passed + 3 skipped，exit 0**。`git diff --check` exit 0；`package.json` / `package-lock.json` / `vitest.config.ts` / `apps/web` 零改动。数字对得上基线：根 3,713 + 12（新参数化 10 + 句柄 2）= 3,725。
+
+**逐项核对**：
+
+1. **红相首行**——我自己在本机跑了一场未捕获断言，原始 stderr 第一行确实是 `node:internal/assert/utils:146`，与它报告里的一致。改动只是把首行判定从 `^node:assert[:/]` 换成「老格式 或 `node:internal/assert/utils:<n>` + 换行」，另外四条（版本尾行、单个 `AssertionError`、无其它 `Error`、基线理由齐全）一字未动。**没有放宽**：新增的 10 条参数化用例里只有「老格式」「26 格式」两条 accepted，其余八条（未知内部前缀、缺行号、第二个断言、无关错误、缺目标理由、缺版本尾行、尾随诊断、stdout 污染）全部要求拒绝。
+2. **FileHandle**——它把 `SubagentManager.delegate()` 里「只有成功返回才 `close()`」改成整块 `try { … } finally { await runtime.close() }`。这是**产品侧真实泄漏**，26 只是把 GC 关闭从警告变成硬错把它照出来了；改动是收尾位置，不碰结果契约、事件词汇与重试策略。新增用例在成功与抛错两条路径上断言 `fd === -1`、`.lease` 不存在、`session.jsonl` 仍保留——是真的回归护栏，不是把断言改软。
+3. **trash 链接用例**——根因在测试夹具而不在守卫：旧 mock 重写 `Stats.prototype.isSymbolicLink` 并按 `ino` 匹配，而两个不同目录的 Number inode（`…33107` / `…33108`）在 2^53 以上会相等，于是 ancestors 也被误标成链接。它改成包装 `fs.lstatSync`、只对目标路径注入谓词。我另外查了产品侧：`packages/application/src/deletion/trash.ts` 只用 `isSymbolicLink()`，**根本不比较 inode**，所以没有遗留精度风险；拒绝理由（精确到 `Linked path refused: <directory-link>`）与「磁盘/列表不变」断言都还在。
+
+**两处我在验收记录里留档、但不阻塞**：
+
+- `finally { await runtime.close() }` 在**错误路径**上若 `close()` 自己抛错，会顶掉原始错误，外层 catch 拿到的就是 close 的错。当前没有用例覆盖这一点，未来可以做「主错误优先、close 失败只记诊断」的加固。
+- 首行正则的两个分支不对称：新分支要求行号后紧跟换行，老分支不要求。效果是**更严**（无换行的形态会 fail-closed），不是漏洞，但读代码的人容易以为是笔误，值得加一行注释。
+
+**边界**：Node 24 未复测（本机只有 26.13.0，`nvm install` 受 3 秒预算限制装不上）。三处改动按构造都是跨版本中性的——首行判定接受两种格式、句柄关闭与版本无关、夹具按路径匹配。真要在 24 上跑，需要在能装 24 的机器上补一次。
