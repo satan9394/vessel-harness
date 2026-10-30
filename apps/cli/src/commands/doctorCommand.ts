@@ -63,9 +63,9 @@ export class VesselDoctorEngine {
       await checkMods();
       return { timestamp: Date.now(), checks, allPassed: checks.every(item => item.status === 'pass') };
     }
-    await check('Node.js', 'runtime', 'Install Node.js >=20 (>=22.13 for built-in SQLite).', async () => {
+    await check('Node.js', 'runtime', 'Install Node.js >=26 (npm >=12 ships with it).', async () => {
       const version = this.deps.nodeVersion ?? process.versions.node;
-      return { status: /^\d+\./.test(version) && Number(version.split('.')[0]) >= 20 ? 'pass' : 'fail', message: `Node.js ${version}; required >=20.` };
+      return { status: /^\d+\./.test(version) && Number(version.split('.')[0]) >= 26 ? 'pass' : 'fail', message: `Node.js ${version}; required >=26.` };
     });
     await check('npm lockfile', 'runtime', 'Keep package-lock.json as the only lockfile; use npm.', async () => {
       const locks = ['package-lock.json', 'npm-shrinkwrap.json', 'pnpm-lock.yaml', 'pnpm-workspace.yaml', 'yarn.lock', 'bun.lock', 'bun.lockb'].filter(file => fs.existsSync(path.join(workspace, file)));

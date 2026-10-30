@@ -9,7 +9,7 @@ import { main } from '../cli.js';
 
 afterEach(() => vi.restoreAllMocks());
 function fixture(root: string) {
-  return { workspace: root, nodeVersion: '24.14.0', toolPins: () => [], sandbox: async () => true, database: async () => ({ status: 'pass' as const, message: 'healthy' }),
+  return { workspace: root, nodeVersion: '26.13.0', toolPins: () => [], sandbox: async () => true, database: async () => ({ status: 'pass' as const, message: 'healthy' }),
     providers: () => [{ id: 'fake', name: 'Fake', protocol: 'openai-compatible' as const, model: 'mock-model', apiKey: 'SECRET', baseUrl: 'https://mock.invalid/v1' }], daemon: async () => true };
 }
 it('checks seven health categories offline and renders diagnosis without credentials', async () => {
@@ -29,6 +29,14 @@ it('fails old Node and competing lockfiles; warns unavailable sandbox/daemon and
     const report = await new VesselDoctorEngine({ ...fixture(root), nodeVersion: '18.0.0', sandbox: async () => false, providers: () => [], daemon: async () => false }).diagnose();
     expect(report.checks.map(check => check.status)).toEqual(['fail', 'fail', 'pass', 'pass', 'warn', 'warn', 'warn']);
     expect(report.checks[0]!.remedy).toContain('Node.js');
+  } finally { fs.rmSync(root, { recursive: true, force: true }); }
+});
+it('rejects the Node 24 line now that the floor is 26', async () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'doctor-node24-')); fs.writeFileSync(path.join(root, 'package-lock.json'), '{}');
+  try {
+    const report = await new VesselDoctorEngine({ ...fixture(root), nodeVersion: '24.14.0' }).diagnose();
+    expect(report.checks[0]).toMatchObject({ name: 'Node.js', status: 'fail' });
+    expect(report.checks[0]!.message).toContain('required >=26');
   } finally { fs.rmSync(root, { recursive: true, force: true }); }
 });
 it('uses bounded mock credential probe and redacts failures', async () => {

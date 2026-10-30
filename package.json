@@ -23,7 +23,8 @@
     "benchmarks/runners"
   ],
   "engines": {
-    "node": ">=20"
+    "node": ">=26",
+    "npm": ">=12"
   },
   "scripts": {
     "build": "tsc -b tsconfig.json",
@@ -54,5 +55,8 @@
   },
   "dependencies": {
     "@clack/prompts": "^1.8.1"
+  },
+  "allowScripts": {
+    "esbuild@0.28.2": true
   }
 }
