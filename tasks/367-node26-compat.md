@@ -50,3 +50,26 @@
 
 - **走法 A（最省）**：回到 Node 24 —— `nvm install 24.14.0` + `nvm use 24.14.0`，本机现在只装了 26.13.0，需要联网下载；代码零改动，门禁回复全绿。代价是机器上又多一个运行时版本。
 - **走法 B**：留在 26，按本卡修三处。代价是要动 `packages/policy` 与 `packages/application` 的门禁代码，属**安全相关改动**，必须独立复核（红绿门禁与删除逃逸守卫都是防线）。
+
+## 7. 环境对齐（2026-10-30 实测；哪些该动、哪些别动）
+
+| 位置 | 现状 | 处置 |
+|---|---|---|
+| `package.json` `engines` | `node: ">=20"` | **不动**：这是对外契约（也覆盖 CI 的 22），不是本机版本钉 |
+| 仓库根 `.nvmrc` | 之前没有。2026-10-30 我试过写入 `24.14.0`，**当场撤销**（原因见下） | 等 24 真装上再落：`nvm pin 24.14.0`（nvm v2 自带该命令） |
+| `AGENTS.md` 技术栈行 | 原来写死「本机 Node v24.14.0」 | 已改为「≥20 + 26 三红见卡 367 + `.nvmrc` 的 shim 陷阱」 |
+| `HANDOFF.md §0 全量门禁` | 原来只有 24 的全绿 | 已改：26 上 3 步红、24 上 17/17 |
+| `.github/workflows/ci.yml` | `node-version: [22]` 单值 | **不动**：仓库已转纯本地开发、Actions 整体停用（见 HANDOFF「远端 GitHub 状态」）。若哪天恢复 CI，再把 matrix 与目标版本对齐 |
+| `docs/DESIGN-DECISIONS.md`、`PROJECT-BRIEF.md` | 写「Node ≥20」 | 不动，仍然成立 |
+| `REVIEW-REPORT-V0x.md`、旧 HANDOFF 段 | 历史报告写 v24 | **不动**：历史快照 |
+| 本机 nvm | v2.0.1，只装了 26.13.0（default） | 待办：装 24；见下 |
+
+**为什么 `.nvmrc` 被撤掉了**：nvm v2 的 shim（`.nodejs` → `.shim`）会读 `.nvmrc` 并**强制**用它。写入 `24.14.0` 之后，仓库里任何 `node` 调用立刻变成 `Node.js v24.14.0 is not installed or cannot be found`——连 pre-commit hook 和 `vitest` 都跑不了。钉一个没装的版本等于把工具链锁死，所以先不留文件。
+
+**为什么装不上 24**：`nvm install 24.14.0` 报 `failed to fetch version manifests from any server (budget 3s)`，官方源与 npmmirror 都超时；但同一时刻 `curl https://nodejs.org/dist/v24.14.0/node-v24.14.0-win-x64.zip` 是 **HTTP 200、36,217,529 字节**可取的。也就是说网络通、**nvm v2.0.1 的 index.tab 预算只有 3 秒**，打不过 Bitz Net 代理的握手延迟（约 2 秒）。`nvm config list` / `config docs` 都没有超时项，改 `node_mirror` 也救不了（已改回默认 `https://nodejs.org/dist`）。
+
+**三条可行路径（任选一条）**：
+
+1. 重试 `nvm install 24.14.0`（代理偶快时能过 3 秒预算）。
+2. 手工铺 portable 副本：`curl -L -o %TEMP%\n24.zip https://nodejs.org/dist/v24.14.0/node-v24.14.0-win-x64.zip` → 解到 `%LOCALAPPDATA%\vessel-runtime\node-v24.14.0-win-x64` → 只在跑门禁的终端里把该目录前置 PATH（不动 nvm 状态，删目录即回滚）。
+3. 留在 26，按本卡 §2 修三处（改动落在红绿门禁与删除逃逸守卫上，必须独立复核）。
