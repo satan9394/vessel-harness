@@ -1,6 +1,6 @@
 # 任务卡 366: 剩余视觉项——tray 图标可见性 + 175/277 原图复核
 
-- Status: 待执行（2026-10-29，HANDOFF §0「只剩可选人手项」那两件事转成可执行验收）
+- Status: 部分执行（2026-10-30）：第一次派发在 `cua.getState` 后 3 秒被中断，未交证、未追加卡；但留下了一条真证据——执行方的 Computer Use **枚举不到任务栏/Explorer 桌面窗口**（`windows-inventory.json`），所以 A 项在它的能力边界外。B/C 的判据已按「一张图实际能证明什么」收窄，见 §6。
 - PDW task: none
 - 来源：2026-10-29 收口时把 tray 图标与 175/277 原图复核都降级成「可选、不做也不影响结论」。现在改为由执行方的视觉能力一次性判掉：**A 是真的没验过（图标在 Windows 溢出面板里），B/C 是把已有原图交给第二双眼睛复核**。
 
@@ -38,3 +38,24 @@
 ## 5. Result
 
 待执行。
+
+## 6. 第一次派发的执行记录与判据修正（2026-10-30）
+
+**发生了什么**：rollout `01a18b99` 共 136 行、1 次工具调用（`cua.getState()`），在 07:02:33Z（本地 00:02）以「Task 366 was interrupted before completion」结束。卡未追加、报告未写、`evidence/sessions/2026-10-30-visual-recheck/` 只有两个文件：一份把全仓每个文件都做了 sha256 的 `baseline.json`（679 KB，对判据没有增量，已进回收站）与 `windows-inventory.json`。
+
+**留下的真证据**：`windows-inventory.json` 是 Computer Use 的 `list_apps/list_windows` 输出——只有微信、ChatGPT、Bitz Net、CC Switch、Notepad 五个应用窗口，`taskbarExposed: false`，理由写着「没有返回任务栏/Explorer 桌面窗口，无法安全绑定 `^` 目标或用猜的句柄」。这条把 A 定性了：**执行方的视觉拿不到任务栏**，不是它偷懒。
+
+**协调者侧同样够不到**：我试了宿主 PowerShell 的 UIA 路线（`Add-Type -AssemblyName UIAutomationClient`），被本机安全门禁直接拦（`POLICY: PERMANENT_DELETE_POWERSHELL` / fail-closed，不让运行时编译脚本块）；`ffmpeg -f gdigrab` 只能抓屏、不能点击。**所以「点 `^` 看一眼」这件事只有坐在机器前的人能做**，或者要开 LCU（会弹「允许」框，也只有人能答）。
+
+**按实际能力收窄后的判据**（A/B2/C1 三条改动，其余不变）：
+
+- **A（改为人工一步 + 执行方只记能力边界）**：执行方只需在报告里写明「CUA 无任务栏窗口」并附 `windows-inventory.json`，不再要求它点开溢出面板。真结论由人在机器上取：`node apps/cli/dist/cli.js daemon start --port 5715` → `daemon status --json` 确认在跑 → 点任务栏 `^` → 用下面四项写回，然后 `daemon stop`：
+  1. 溢出面板里有没有 Vessel 图标（默认应用图标、提示 `Vessel daemon`）？
+  2. 在溢出面板内，还是常驻通知区？
+  3. 右键是否出现 `Open Vessel` / `Stop Vessel daemon`？
+  4. 一张整桌面截图（落 `%TEMP%`）与时间戳。
+- **B2**：原判据「看得出显示到 300 就被截住」无法由一张图证明（图里没有字符计数）。改为 **「截断是否可见」**：看出文字在某处中断且带省略号即算通过；「恰好 300」不再由本项主张（该数字由卡 361 的字符串断言与卡 364 的长度实测覆盖）。
+- **C1**：原判据要「七处焦点框」逐一可见，但 `t1-1440x900.png` 只拍了**最终态**（焦点在 `#taskInput`），中间六步没有画面。改为 **「最终态可见 + 与 `t1-keyboard.json` 的最终坐标一致」**；六步过程只认 JSON，不再声称由图可证。
+
+**下次派发**：同一张卡，按收尾单 `tasks/prompts/codex-handoff-2026-10-29-visual-recheck.md` 的 2026-10-30 版执行（A 只写能力边界、B/C 按收窄后的判据）；**被中断时先把已经看出来的结论落盘**，不要等全部做完再写。
+

@@ -10,19 +10,18 @@
 
 ---
 
-## A · tray 图标到底在不在
+## A · tray 图标：只写能力边界（2026-10-30 改判据，别再试点开面板）
 
-背景：`vessel daemon start` 会在 Windows 上起一个 resident tray 进程（`apps/local-server/src/daemon/tray.ts`，PowerShell STA + `System.Windows.Forms.NotifyIcon`，`Text='Vessel daemon'`，菜单 `Open Vessel` / `Stop Vessel daemon`）。Windows 11 默认把**新出现的**通知区图标丢进溢出面板，所以现有整桌面截图（`evidence/sessions/2026-10-29-deep-sweep/resume/tray.png`）里「通知区没图标」不能算结论——图标可能在 `^` 后面。
+**这一项已经定性过一次**：上一次派发里你的 Computer Use `list_apps/list_windows` 只返回五个应用窗口，`taskbarExposed: false`——**拿不到任务栏/Explorer 桌面窗口**，也就点不到 `^`。这条本身就是本项要交的证据，不是你的失败。
 
-做法建议：
+所以 A 现在只做两件事，都不用点任务栏：
 
-1. 隔离起 daemon：`node apps/cli/dist/cli.js daemon start --port 5710`（`apps/cli/dist` 已是最新 `tsc -b` 产物；若 CLI 需要额外的工作区/根参数，以 `--help` 为准，并在报告里写你实际用的命令与所有 `VESSEL_*` 环境变量）。
-2. 确认它真在跑：`daemon status --json` 给 pid 与 instanceId，`/api/health` 200（带 token）。
-3. 抓通知区：先抓一张整桌面（例如 `ffmpeg -f gdigrab -i desktop -frames:v 1 shot.jpg`，或你手上任何能抓桌面的方式）；再**尝试打开溢出面板**（任务栏 `^`；若能用 UIA，找按钮名如「显示隐藏的图标 / Show hidden icons」），打开后再抓一张。
-4. 判三态：**图标存在**（常驻还是溢出面板内？写明）/ **图标不存在**（daemon 确定在跑、至少换一次通知再试）/ **无法验证**（写清哪一步被拦：抓不到桌面、点不到任务栏、拿不到 UIA）。
-5. 若图标可见，追加一句「能不能点」：右键菜单是否出现 `Open Vessel` / `Stop Vessel daemon`（能看到就说明是真图标，不是任务栏残留）。**点了要能恢复原状**；收尾用 `daemon stop`。
+1. 复述能力边界：用你手上的 `list_apps/list_windows` 再跑一次，把窗口清单与 `taskbarExposed`（或等价字段）写进报告，附 JSON。若你的能力这轮变了（确实枚举到任务栏），再往下做第 2 项，否则到此为止。
+2. 若确实能枚举到任务栏：起隔离 daemon（`node apps/cli/dist/cli.js daemon start --port 5715`，`daemon status --json` 确认 pid/instanceId）→ 打开溢出面板 → 若溢出项能被读出名字，找 `Vessel daemon`；读不到名字就抓整桌面图。收尾 `daemon stop`，贴「监听 0 / 进程 0」。
 
-禁止：把窗口截图/浏览器截图当作「桌面通知区」证据；不要把「ffmpeg 抓不到」直接判成「图标不存在」。
+**不要**为了凑结论去猜句柄、去点未知坐标、或把浏览器/应用窗口截图当作桌面通知区证据。
+
+**真正的 A 结论由人在机器上取**（已写进卡 366 §6 的四问模板）：点 `^` → 有没有 Vessel 图标、在溢出面板还是常驻、右键有没有 `Open Vessel` / `Stop Vessel daemon`、一张整桌面图。你在报告里只需注明「A 的人工部分待维护者执行」，不算未完成。
 
 ## B · 卡 175 的原图复核（只读已有图）
 
@@ -34,16 +33,18 @@
 | `t3-running.jpg` | 运行中的态色，同上 |
 | `t3-completed.jpg` | 完成的态色，同上 |
 | `t3-failed.jpg` | 失败的态色，同上（与 completed 是否一眼可分） |
-| `t3-summary-300.jpg` | 是否看得出「长度到 300 就被截住」 |
+| `t3-summary-300.jpg` | **截断是否可见**（文字在某处中断并带 `…`）。**别判「恰好 300」**：一张图没有字符计数，那个数字由卡 361 的字符串断言与卡 364 的长度实测负责 |
 | `t3-artifact.jpg` | 产物入口（文件名按钮/链接）是否可见、可辨、不像纯文本 |
 
 配套 JSON：`evidence/sessions/2026-10-29-remaining/` 下的记录可作对照。
 
 **硬约束**：这些图拍于卡 364/365 之前，那时抽屉**没有**「展开全文 / 收起」按钮。**不要因为图里没有该按钮就报缺陷**——那个按钮由卡 364/365 的验收覆盖（`evidence/sessions/2026-10-30-closeout/`、`2026-10-30-drawer-polish/`）。本项只判「当时能验证的那几件事」。
 
-## C · 卡 277 的键盘/焦点原图复核
+## C · 卡 277 的键盘/焦点原图复核（2026-10-30 改判据：只判最终态）
 
-看 `evidence/sessions/2026-10-28-final-sweep/t1-1440x900.png`（整屏，1440×900），对照 `evidence/sessions/2026-10-28-final-sweep/t1-keyboard.json` 里六步、七处焦点框的坐标，逐条写：
+`t1-1440x900.png` 是**最终态**一张图（焦点已回到 `#taskInput`），中间六步没有被拍下来——上次派发已经指出了这一点，是对的。所以本项拆成两半：**由图可判**的是最终态（`#taskInput` 的焦点框可见、坐标与 `t1-keyboard.json` 的最终值约 301,320 一致、删除按钮与确认条没有残留）；**只认 JSON** 的是六步过程（217,352 → 取消 57,437 → Esc 回同一坐标 → 再 Enter → Shift+Tab 到 12,437 → Enter 回 301,320），你可以核 JSON 内部是否自洽，但不要写成「图中可见七处焦点框」。
+
+逐条写的时候用下面的口径（六步只做 JSON 自洽性核对）：
 
 1. 第二个会话的删除按钮（约 217,352，28×28）；
 2. 确认条里的「取消」（约 57,437）；
@@ -52,7 +53,7 @@
 5. Shift+Tab 到「确认」（约 12,437）；
 6. Enter 后焦点回到 `#taskInput`（约 301,320）。
 
-每处只写「可见 / 不可见 / 看不清（附原因）」，并说明是否与 JSON 坐标一致。**不要**写「都正常」这种合并结论。
+每处只写「可见 / 不可见 / 看不清（附原因）/ 仅 JSON 可证」，并说明是否与 JSON 坐标一致。**不要**写「都正常」这种合并结论。
 
 ---
 
@@ -66,3 +67,5 @@
 ## 停止条件
 
 A 连续两次拿不到桌面就停，写「无法验证」并附两次的命令与报错；B/C 是纯看图，做完为止。任何一步需要改源码、加测试、动配置，视为越界，直接报 blocked。收尾必须 `daemon stop`，并贴「监听 0 / 进程 0」。
+
+**被中断时先落盘**：上一轮派发在 `cua.getState()` 后 3 秒就结束了，看图结论全部丢失，只剩两个文件。这次请**边看边写**——每看完一张图就把那一行写进报告（或先追加到卡），不要攒到最后一次性收尾。
