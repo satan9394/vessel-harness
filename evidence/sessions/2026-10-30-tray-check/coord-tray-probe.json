@@ -1,0 +1,38 @@
+{
+  "at": "2026-10-30T01:32:33.2757728-07:00",
+  "root": "C:\\work\\AppData\\Local\\Temp\\vessel-tray-probe-a16cb1",
+  "daemonPid": 23892,
+  "startOutput": "Vessel daemon PID 23892 路 port 5715 路 uptime 1s 路 memory 113909760 bytes\r\nBrowser: http://127.0.0.1:5715/api/health\r\nLaunch token file: C:\\work\\AppData\\Local\\Temp\\vessel-tray-probe-a16cb1\\daemon.token",
+  "statusJson": "{\"running\":true,\"daemon\":{\"pid\":23892,\"port\":5715,\"startedAt\":\"2026-10-30T08:32:04.460Z\",\"uptimeSeconds\":2,\"memoryBytes\":113963008,\"tokenPath\":\"C:\\\\Users\\\\WORK\\\\AppData\\\\Local\\\\Temp\\\\vessel-tray-probe-a16cb1\\\\daemon.token\",\"version\":\"0.10.0\",\"instanceId\":\"3df2ea1e-c020-4ce1-bb9e-c72a177c469f\"}}",
+  "trayAt3s": [
+    {
+      "pid": 5252,
+      "parent": 23892,
+      "started": "2026-10-30T01:32:04.6289633-07:00",
+      "hasNotifyIcon": true,
+      "hasVesselText": true
+    }
+  ],
+  "trayAt13s": [
+    {
+      "pid": 5252,
+      "parent": 23892,
+      "started": "2026-10-30T01:32:04.6289633-07:00",
+      "hasNotifyIcon": true,
+      "hasVesselText": true
+    }
+  ],
+  "registryNewKeys": [],
+  "registryCountBefore": 84,
+  "registryCountAfter": 84,
+  "screenshot": {
+    "screen": "x",
+    "full": "tray-desktop-31b398.png",
+    "fullBytes": 2242808,
+    "crop": "coord-notification-area.png",
+    "cropExists": true
+  },
+  "stopOutput": "Vessel daemon stopped.",
+  "trayAfterStop": [],
+  "listeners5715After": 0
+}

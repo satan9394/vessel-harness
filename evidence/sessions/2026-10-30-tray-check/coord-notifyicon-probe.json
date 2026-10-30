@@ -1,0 +1,17 @@
+{
+  "at": "2026-10-30T01:31:17.4116674-07:00",
+  "root": "C:\\work\\AppData\\Local\\Temp\\vessel-tray-a-4660ae",
+  "startOutput": "Vessel daemon PID 8088 路 port 5715 路 uptime 1s 路 memory 125120512 bytes\r\nBrowser: http://127.0.0.1:5715/api/health\r\nLaunch token file: C:\\work\\.vessel\\daemon.token",
+  "statusJson": "{\"running\":true,\"daemon\":{\"pid\":8088,\"port\":5715,\"startedAt\":\"2026-10-30T08:31:03.982Z\",\"uptimeSeconds\":7,\"memoryBytes\":114737152,\"tokenPath\":\"C:\\\\Users\\\\user\\\\.vessel\\\\daemon.token\",\"version\":\"0.10.0\",\"instanceId\":\"4932558f-ed66-458e-82b7-21d320bac5b0\"}}",
+  "entriesBefore": 84,
+  "entriesAfter": 84,
+  "newKeys": [],
+  "changedKeys": [],
+  "powershellEntries": [],
+  "trayProcsDuringStop": [],
+  "stopOutput": "Vessel daemon stopped.",
+  "entriesFinal": 84,
+  "newKeysStillPresentAfterStop": [],
+  "trayProcsAfterStop": [],
+  "listeners5715After": 0
+}

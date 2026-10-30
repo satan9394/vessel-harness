@@ -1,0 +1,13 @@
+{
+  "daemonPid": 21960,
+  "trayPid": 20420,
+  "trayName": "powershell.exe",
+  "trayParentPid": 21960,
+  "listener": {
+    "address": "127.0.0.1",
+    "port": 5715,
+    "pid": 21960
+  },
+  "source": "Get-CimInstance Win32_Process / Get-NetTCPConnection",
+  "observedAt": "2026-10-30T08:26:02.529Z"
+}

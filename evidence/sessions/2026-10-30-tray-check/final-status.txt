@@ -1,0 +1,13 @@
+ M tasks/366-visual-recheck-tray-and-original-captures.md
+?? evidence/sessions/2026-10-30-tray-check/apps-inventory.json
+?? evidence/sessions/2026-10-30-tray-check/baseline-status.txt
+?? evidence/sessions/2026-10-30-tray-check/cleanup.json
+?? evidence/sessions/2026-10-30-tray-check/daemon-start.txt
+?? evidence/sessions/2026-10-30-tray-check/daemon-status-after.json
+?? evidence/sessions/2026-10-30-tray-check/daemon-status.json
+?? evidence/sessions/2026-10-30-tray-check/daemon-stop.txt
+?? evidence/sessions/2026-10-30-tray-check/health.json
+?? evidence/sessions/2026-10-30-tray-check/port-probe.json
+?? evidence/sessions/2026-10-30-tray-check/processes-before.json
+?? evidence/sessions/2026-10-30-tray-check/report.md
+?? evidence/sessions/2026-10-30-tray-check/windows-inventory.json

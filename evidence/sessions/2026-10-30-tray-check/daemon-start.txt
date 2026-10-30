@@ -1,0 +1,3 @@
+Vessel daemon PID 21960 · port 5715 · uptime 1s · memory 115896320 bytes
+Browser: http://127.0.0.1:5715/api/health
+Launch token file: C:\work\AppData\Local\Temp\vessel-tray-366-0xiueH\daemon.token

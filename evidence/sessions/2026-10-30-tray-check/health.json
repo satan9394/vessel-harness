@@ -1,0 +1,9 @@
+{
+  "status": 200,
+  "body": {
+    "ok": true,
+    "version": "0.10.0",
+    "webUi": true
+  },
+  "at": "2026-10-30T08:25:02.840Z"
+}

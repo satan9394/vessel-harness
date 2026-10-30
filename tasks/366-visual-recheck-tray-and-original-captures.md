@@ -1,6 +1,6 @@
 # 任务卡 366: 剩余视觉项——tray 图标可见性 + 175/277 原图复核
 
-- Status: 部分完成（2026-10-30）：**B/C 已复核签收**（四态颜色/标签可分、产物入口是按钮且点击路径已走、277 最终态焦点轮廓与 JSON 矩形对得上；B2 那条判据在旧图上失效，由卡 364/365 覆盖）。**A（tray 图标）改派 Codex 应用**（已装 Computer Use + 浏览器插件），派单 `tasks/prompts/codex-handoff-2026-10-30-tray-a.md`；早前 `windows-inventory.json` 的 `taskbarExposed: false` 是未装插件时的结论。
+- Status: 已完成（2026-10-30，留一条边界）：**B/C 已签收**（四态颜色/标签可分、产物入口是按钮且点击路径已走、277 最终态焦点轮廓与 JSON 矩形对得上）。**A 补测到「图标已创建且宿主存活、未提升到常驻区」**：tray 宿主 powershell pid 5252 存活 13 秒以上，解码后的脚本含 `NotifyIcon` 与 `'Vessel daemon'`；2560×1600 整桌面截图里常驻通知区没有它。唯一未目视的是**溢出面板内那一枚**——需要一个能点任务栏的接口（Codex 应用的 Computer Use 带插件后仍枚举不到任务栏，宿主 UIA 被安全门禁拦）。
 - PDW task: none
 - 来源：2026-10-29 收口时把 tray 图标与 175/277 原图复核都降级成「可选、不做也不影响结论」。现在改为由执行方的视觉能力一次性判掉：**A 是真的没验过（图标在 Windows 溢出面板里），B/C 是把已有原图交给第二双眼睛复核**。
 
@@ -76,3 +76,26 @@
 - **A 仍缺，但已改派**：这一轮的派单把 A 移出了，它没碰任务栏是对的。现在 Codex 应用装上了 Computer Use + 浏览器插件，A 重新变成可派活（`tasks/prompts/codex-handoff-2026-10-30-tray-a.md`），不再需要人工点 `^`。
 
 两处小修（都在它自己那段里，其余一字未动）：路径写成了 `vidence/sessions/…` 且前面混进了一个 ESC 控制字符，已改回 `evidence/` 并清掉控制符。全量门禁与测试都没跑——本轮零源码改动（`git status` 只有卡与证据目录），不需要跑。
+
+
+## 2026-10-30 · A 项 Codex 应用 Computer Use 实测
+
+- **三态结论：无法验证**。本轮已加载 computer-use 技能并直接使用 `@oai/sky`；`list_windows` 返回 7 个窗口，`list_apps` 也已查过。Explorer 只暴露「回收站」与「AI_Engineering」文件夹窗口，没有任务栏/桌面目标；卡在点 `^` 之前。未猜句柄或坐标，未点击、悬停或右键；不能据此判图标不存在。
+- daemon 实跑：5715–5719 均空闲，选 5715；PID `21960`，instanceId `58de5272-b8da-405e-a855-77a3d05abff8`，health HTTP 200；等 2.5 秒后枚举，tray 子进程 `20420`（powershell.exe，父 PID 21960）存在。
+- 三张整桌面截图未生成：常驻通知区、溢出面板、右键菜单均无法安全绑定；菜单两项未验证。未用应用窗口图冒充桌面图。
+- 收尾：`daemon stop` exit 0，`status` running=false；监听 **0** / 进程 **0**，daemon 与 tray 均消失。
+- 证据：`evidence/sessions/2026-10-30-tray-check/report.md`、`windows-inventory.json`、`apps-inventory.json`、`daemon-status.json`、`health.json`、`processes-before.json`、`cleanup.json`。逐步写入 report，未改代码、未跑测试/门禁、未 commit/push、未新建卡或改变首行状态、未派子代理。
+
+## 协调者补测（2026-10-30，A 项，宿主侧，不需要点任务栏）
+
+执行方这轮的「无法验证」我认：带了插件，`list_windows` 仍只有 7 个窗口、`list_apps` 只暴露 Explorer 的文件夹窗口，没有任务栏/桌面目标；它没有用应用截图冒充桌面图，也没有猜句柄。但「无法验证」不等于「什么都没查到」，我在宿主侧补了三条不需要点任务栏的证据：
+
+1. **tray 宿主进程确实起来了，而且活着**。隔离根 `%TEMP%\vessel-tray-probe-a16cb1`，daemon pid `23892`；它的子进程是 **powershell pid `5252`**，在 daemon 启动后 0.17 秒创建、13 秒后仍在。把这个进程 `-EncodedCommand` 的 base64 按 UTF-16LE 解码，脚本里含 `NotifyIcon` 与 `'Vessel daemon'`——这是脚本内容匹配，比「进程名像 powershell」硬。`daemon stop` 之后该进程消失（`trayAfterStop: []`）。
+2. **常驻通知区里没有它**。2560×1600 整桌面截图（`%TEMP%\tray-desktop-31b398.png`，01:32 抓，daemon 正在跑）裁出任务栏右侧 960×80（`coord-taskbar-right.png`）：能看到 Edge 与两个应用图标、`^`、输入法「中」、头像、Wi-Fi、音量、电池 92%、时钟、通知铃——**没有 Vessel 图标**。所以它没有被提升到常驻区，默认进了溢出面板，与卡 176 的历史结论一致。
+3. **注册表这条路走不通**：`HKCU\Control Panel\NotifyIconSettings` 前后都是 84 条，没有新增也没有变化（此构建不为新图标落条目），因此读不到 `IsPromoted` 之类的状态。以后要查 promotion 别指望这个键。
+
+**A 的当前结论**：图标已被创建、宿主进程存活、**未提升到常驻区**；唯一还没有的就是溢出面板里那一枚的像素。拿到它需要一个能点任务栏的接口——Codex 应用带插件仍枚举不到任务栏，宿主侧 UIA 被安全门禁拦（`Add-Type` fail-closed），`ffmpeg` 只能抓不能点。所以这一条按「溢出面板内未目视」记边界，不再转给维护者手动点。
+
+侧记：第一次探针我漏设 `VESSEL_DAEMON_ROOT`，起过一次用真实 `~/.vessel` 根的 daemon（已 `stop`，监听 0），第二次才用隔离根；`coord-notifyicon-probe.json` 就是那次的结果，保留作对照。
+
+证据：`evidence/sessions/2026-10-30-tray-check/coord-tray-probe.json`、`coord-taskbar-right.png`、`coord-notification-area.png`、`coord-notifyicon-probe.json`。
