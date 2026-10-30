@@ -38,7 +38,7 @@ Interceptor + Runtime Deny + Audit）是核心抽象。口号：Carry intelligen
 - **本地优先**：状态/配置/会话在 `~/.vessel/`，不上云；无 Remote Control/Cloud/插件市场/技能注册表/后台调度器
   （路线明确排除）。
 - **克制**：不追求 Agent 数量（并行 1-3）；不加几十个 Provider；不做无关重构；不照抄竞品功能（clean-room）。
-- **技术栈**：TypeScript + Node ≥20，npm workspaces monorepo（apps/cli, apps/local-server, apps/web, packages/*,
+- **技术栈**：TypeScript + Node ≥26（npm 12；本机开发版本以仓库根 `.nvmrc` = `26.13.0` 为准），npm workspaces monorepo（apps/cli, apps/local-server, apps/web, packages/*,
   benchmarks/runners）；Vitest；`tsc -b`；Windows/PowerShell 为主环境。
 - **纪律**：删除走回收站；凭据存储**按平台如实分级**——Windows 且 PowerShell/DPAPI 可用 → **DPAPI 密文**
   （`~/.vessel/secrets.json`，绑定当前 Windows 用户）；**其它平台 / DPAPI 不可用 → 显式降级明文**

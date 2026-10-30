@@ -56,7 +56,7 @@ Model + Behavior + Context + Tools + Policy + Memory + Evaluator + Orchestration
 
 ## 快速开始（< 5 分钟）
 
-前置：Node ≥ 20（本机在 Node v24 下开发）。
+前置：Node ≥ 26 / npm ≥ 12（本机开发版本以仓库根 `.nvmrc` 为准，当前 `26.13.0`）。
 
 ### 方式一：从源码（推荐；本仓不再发布新版本）
 

@@ -12,7 +12,7 @@
 
 ## 技术栈与运行环境
 
-- 主语言 TypeScript，Runtime **Node ≥20**；**本机开发运行时以实际安装的 `.nvmrc` 为准（该文件在确定版本前不落）**。2026-10-30 本机 nvm v1→v2 迁移把默认版本升到 **26.13.0**；在 26 上首次复跑全量门禁曾是 3 步红（红绿门禁红相、`FileHandle` GC 关闭、目录联接判定），已由卡 367 修掉并独立复测 **17/17 exit 0**。**Node 24 那条线自本次改动后未复测**（本机只剩 26.13.0，`nvm install 24` 撞 nvm v2 的 3 秒预算）。**注意 nvm v2 的 shim 会读 `.nvmrc`**：钉一个没装的版本会让整个仓库的 `node` 直接报 `Node.js vX is not installed`（2026-10-30 实测），所以先装好再 `nvm pin <version>`。
+- 主语言 TypeScript，Runtime **Node ≥26 / npm ≥12**；**本机开发运行时以仓库根 `.nvmrc` 为准（`26.13.0`）**。2026-10-30 全量门禁在 **26.13.0** 上 **17/17 exit 0**（根 335 / 3,725 + 8、web 61 / 543、conformance 25/25）；由 Node 24 升上来时曾出现三处红（红绿门禁红相、`FileHandle` GC 关闭、目录联接判定），已由卡 367 修掉。**Node 24 自那之后未复测**（本机只剩 26.13.0，`nvm install 24` 撞 nvm v2 的 3 秒预算），现行基线只认 26。**npm 12 默认拦截依赖的 install script**：`package.json` 的 `allowScripts` 已批准 `esbuild@0.28.2`，**升 esbuild 后要重新 `npm install-scripts approve esbuild`**，否则干净 `npm ci` 装不出可用工具链（卡 368）。**注意 nvm v2 的 shim 会读 `.nvmrc`**：钉一个没装的版本会让整个仓库的 `node` 直接报 `Node.js vX is not installed`（2026-10-30 实测），改版本要先装再改文件。
 - monorepo：npm workspaces（apps/*、packages/*、benchmarks/runners）；模块化单体，禁止提前微服务化。
 - 包管理器锁定 **npm**：`package-lock.json` 是唯一权威，禁止在仓库内引入 pnpm/bun/yarn 锁文件（`pnpm-lock.yaml`、`pnpm-workspace.yaml`、`bun.lockb`、`yarn.lock`）。不迁移 pnpm 的依据见 `docs/DESIGN-DECISIONS.md` 决策点 19。
 - 测试 Vitest：**全量 = `npm run test:all`**（两个 root：根 `npx vitest run` + `npx vitest run --root apps/web`；**web 有独立 vitest 配置，根 `include` 不含它**——只跑根会漏掉 `apps/web` 的近百项，见纪律 26）；类型构建 `npx tsc -b tsconfig.json`；CLI 直跑 `npx tsx apps/cli/src/cli.ts`。
