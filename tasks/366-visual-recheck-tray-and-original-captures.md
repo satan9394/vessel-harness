@@ -1,6 +1,6 @@
 # 任务卡 366: 剩余视觉项——tray 图标可见性 + 175/277 原图复核
 
-- Status: 部分完成（2026-10-30）：**B/C 已复核签收**（四态颜色/标签可分、产物入口是按钮且点击路径已走、277 最终态焦点轮廓与 JSON 矩形对得上；B2 那条判据在旧图上失效，由卡 364/365 覆盖）。**A（tray 图标）待人工**：执行方 Computer Use 枚举不到任务栏（`windows-inventory.json`，`taskbarExposed: false`），宿主侧 UIA 也被安全门禁拦，只能人在机器前点 `^` 按 §6 四问答。
+- Status: 部分完成（2026-10-30）：**B/C 已复核签收**（四态颜色/标签可分、产物入口是按钮且点击路径已走、277 最终态焦点轮廓与 JSON 矩形对得上；B2 那条判据在旧图上失效，由卡 364/365 覆盖）。**A（tray 图标）改派 Codex 应用**（已装 Computer Use + 浏览器插件），派单 `tasks/prompts/codex-handoff-2026-10-30-tray-a.md`；早前 `windows-inventory.json` 的 `taskbarExposed: false` 是未装插件时的结论。
 - PDW task: none
 - 来源：2026-10-29 收口时把 tray 图标与 175/277 原图复核都降级成「可选、不做也不影响结论」。现在改为由执行方的视觉能力一次性判掉：**A 是真的没验过（图标在 Windows 溢出面板里），B/C 是把已有原图交给第二双眼睛复核**。
 
@@ -49,7 +49,7 @@
 
 **按实际能力收窄后的判据**（A/B2/C1 三条改动，其余不变）：
 
-- **A（改为人工一步 + 执行方只记能力边界）**：执行方只需在报告里写明「CUA 无任务栏窗口」并附 `windows-inventory.json`，不再要求它点开溢出面板。真结论由人在机器上取：`node apps/cli/dist/cli.js daemon start --port 5715` → `daemon status --json` 确认在跑 → 点任务栏 `^` → 用下面四项写回，然后 `daemon stop`：
+- **A（2026-10-30 二次改判：交给 Codex 应用执行，不再丢给维护者）**：Codex 应用现已装 **Computer Use + 浏览器** 两个插件，任务栏在它的能力范围内，所以这一项重新变成可派活（派单 `tasks/prompts/codex-handoff-2026-10-30-tray-a.md`）；`windows-inventory.json` 里 `taskbarExposed: false` 是**没装插件时**的结论，只作历史对照，不是能力上限。步骤：`node apps/cli/dist/cli.js daemon start --port 5715` → `daemon status --json` 确认 pid/instanceId → Computer Use 绑任务栏、点 `^` 开溢出面板 → 按下面四项取证 → `daemon stop`：
   1. 溢出面板里有没有 Vessel 图标（默认应用图标、提示 `Vessel daemon`）？
   2. 在溢出面板内，还是常驻通知区？
   3. 右键是否出现 `Open Vessel` / `Stop Vessel daemon`？
@@ -73,6 +73,6 @@
 - **B2 旧摘要图：判据失效，不算它的失败，是我的第三次同类错误**。`t3-summary-300.jpg` 里文字结束处确实没有 `…`，紧接着就是 `artifact.txt` / `查看差异` 两个按钮——但这张图拍在卡 364/365 **之前**，那时本来就没有省略号与展开控件，所以「截断是否可见」在这张图上必然为假、零信息量。它的表述是对的（不据此判新按钮、不判字符数）。**现状由卡 364/365 的验收覆盖**：`evidence/sessions/2026-10-30-closeout/t2-drawer-570.png` 与 `2026-10-30-drawer-polish/570-before.jpg` 里都是「300 + `…` + 展开全文」。教训记在这里：**别拿修复前的图去判修复后的行为**——这条线上我已经错了三次（前两次是「Shift+Tab 到取消」与「用一张图证明恰好 300 字」）。
 - **B3 产物入口：通过，且比它自述的更强**。`artifact.txt` 与 `查看差异` 都是带边框的按钮形控件，而且图里面板**已经被打开**、显示「artifact.txt · Current workspace against Git HEAD / Git comparison unavailable for this workspace.」——这不只是「长得像按钮」，点击路径当场走过。它写「静态图不能证明实际点击或下载」偏保守：下载确实证不了，点击已证。
 - **C（277 最终态）：通过，保留项正确**。`t1-1440x900.png` 里输入区外层有一圈蓝色焦点轮廓；`t1-keyboard.json` 的 `#taskInput` 矩形 (300.93,320.44,1098.23,150) 落在轮廓**内部**（轮廓罩住整个输入卡片，比 textarea 本身大），所以「位置一致」应读作「在框内」而非「等于框」。它主动声明「单凭像素不能证明 textarea 本身是 activeElement」——这个保留是对的，别改。六步过程只认 JSON、原始 FAIL 未被改写，符合 §6 的口径。
-- **A 仍缺**：tray 图标需要人在机器前点 `^`（§6 的四问）。它没有越界去碰任务栏，符合派单。
+- **A 仍缺，但已改派**：这一轮的派单把 A 移出了，它没碰任务栏是对的。现在 Codex 应用装上了 Computer Use + 浏览器插件，A 重新变成可派活（`tasks/prompts/codex-handoff-2026-10-30-tray-a.md`），不再需要人工点 `^`。
 
 两处小修（都在它自己那段里，其余一字未动）：路径写成了 `vidence/sessions/…` 且前面混进了一个 ESC 控制字符，已改回 `evidence/` 并清掉控制符。全量门禁与测试都没跑——本轮零源码改动（`git status` 只有卡与证据目录），不需要跑。

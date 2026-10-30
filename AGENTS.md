@@ -100,6 +100,7 @@
 - `codex exec --sandbox workspace-write` 可写仓库；`--sandbox read-only` 不可写。浏览器需四个参数，见下方 `pdw-entry` 段。
 - `pdw.mjs init` 的模型探测已支持 OC 2.x 的 `providers` 键（2026-10-24 重切修好，本机实测能解析出模型）；识别不到时仍必须显式填 `model`。
 - 技能正文已不再写死本机 provider 与 OpenCode 小版本（2026-10-24 修）；`planner` 的 AGY 只是上游默认值，本机以 `.pdw/config.json` 为准。
+- **Codex 应用已装「浏览器操作 + Computer Use」两插件（2026-10-30 起）**：**桌面与浏览器类验收直接派给 Codex 应用**——托盘/任务栏、系统通知、真实点击、页面走查都算；CLI 形态调不到这两个插件，所以这类单要写明「在应用里跑」。**不要把这类活转给维护者手动做**（2026-10-30 用户明确纠正过一次：`^` 溢出面板那次我连续两轮把结论推回给人）。
 - **cc-switch 会重写全局配置**：它的 OpenCode 集成在切换供应商时写入单数 `provider` 块（v1 形态），日志里把带 `capabilities` 的 v2 块判为 invalid 但保留原样。OpenCode 2.1.4 忽略单数块，真正生效的是复数 `providers`；手动删单数块约 18 秒会被重新写回（2026-10-25 实测）。每次用 cc-switch 切换供应商后跑一次 `pwsh pdw.ps1 doctor`；若 `opencode models` 里 `commandcode` 消失，说明复数块被整体覆盖，按卡 286 的字段重建。
 - **契约草稿放 `.pdw/contracts/`**，不要放 `.pdw/tasks/`：无参 `status` 会把 `tasks` 下每个目录当任务读 `state.json`，遇到没有该文件的草稿目录会 ENOENT。
 - **任务运行期间不要编辑仓库**：`pdw.mjs` 每个阶段都会比对产物指纹，任务 `running` 时改任何被 scope 覆盖的文件都会以 `Source drift detected` 失败（2026-10-26 统计：129 次派发里这是最大单一失败源，6 次）。要改先 `cancel`，或等 `status` 不再是 running。
