@@ -1,5 +1,5 @@
 import type { ConfinedArgv, SandboxStatus } from '@vessel/shared';
-import { runCommand, type SpawnOptions, type SpawnResult } from '../process/Process.js';
+import { runCommand, runShellCommand, type SpawnOptions, type SpawnResult } from '../process/Process.js';
 import {
   WindowsJobObject,
   createJobObject,
@@ -425,6 +425,9 @@ export class Sandbox {
       audit: ProcessTreeAuditEvent[];
     }
   > {
+    if (opts.shell === true && args.length > 0) {
+      throw new TypeError('Sandbox.run: shell mode takes a whole command line, not an argv array');
+    }
     // round-scoped honest state: the status returned below reflects THIS spawn.
     const attemptable = this.canAttempt();
     this.beginRound();
@@ -493,7 +496,7 @@ export class Sandbox {
       }
     };
 
-    const result = await runCommand(command, args, {
+    const base: SpawnOptions = {
       cwd: opts.cwd ?? isolation.path,
       env: {
         ...opts.env,
@@ -507,7 +510,10 @@ export class Sandbox {
       onSpawn: ({ pid }) => {
         if (attemptable && pid != null) attachHolder.promise = attachRootAndWindow(pid);
       },
-    });
+    };
+    const result = opts.shell === true
+      ? await runShellCommand(command, base)
+      : await runCommand(command, args, base);
     // wait for the async attach (job create + timing-window closure) to settle so
     // the audit/escape view reflects the real confinement state before dispose.
     if (attachHolder.promise) await attachHolder.promise.catch(() => undefined);

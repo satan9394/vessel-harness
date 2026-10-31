@@ -67,6 +67,25 @@ function pidAlive(pid: number): boolean {
 }
 
 describe('Sandbox — backend selection & honest status (task 071)', () => {
+  it('rejects shell mode with argv before allocating isolation resources', async () => {
+    const makeIsolatedDir = vi.fn();
+    const s = new Sandbox({ makeIsolatedDir });
+    await expect(s.run('echo', ['unexpected'], { shell: true })).rejects.toThrow(/whole command line/);
+    expect(makeIsolatedDir).not.toHaveBeenCalled();
+  });
+
+  it('dispatches a whole command line to the shell and disposes isolation', async () => {
+    const dispose = vi.fn(async () => {});
+    const s = new Sandbox({
+      platform: 'linux',
+      makeIsolatedDir: async () => ({ path: process.cwd(), dispose }),
+    });
+    const result = await s.run('echo vessel-sandbox-shell', [], { shell: true });
+    expect(result.exitCode).toBe(0);
+    expect(result.stdout.trim()).toBe('vessel-sandbox-shell');
+    expect(dispose).toHaveBeenCalledOnce();
+  });
+
   it('does NOT claim an active backend on win32 until the job object really attached', () => {
     const s = new Sandbox({ platform: 'win32', makeIsolatedDir: async () => ({ path: 'x', dispose: async () => {} }) });
     const st = s.statusSnapshot();

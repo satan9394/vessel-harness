@@ -52,4 +52,11 @@ describe('terminal status and widgets', () => {
     expect(terminalText(hostile)).toBe('bad');
     expect(renderAnsiWidget({ ...action, payload: { ...action.payload, description: hostile } })).not.toContain('\x1b');
   });
+  it('preserves link text between OSC hyperlink commands terminated by ESC backslash', () => {
+    expect(terminalText('\x1b]8;;https://e.com\x1b\\link\x1b]8;;\x1b\\')).toBe('link');
+  });
+  it('preserves link text with BEL terminators and handles repeated incomplete OSC starts', () => {
+    expect(terminalText('\x1b]8;;https://e.com\x07link\x1b]8;;\x07')).toBe('link');
+    expect(terminalText('\x1b]'.repeat(8000) + 'visible')).toBe('visible');
+  });
 });

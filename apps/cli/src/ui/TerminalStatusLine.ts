@@ -1,6 +1,6 @@
 /** Strip terminal commands from untrusted model, path and label text. */
 export function terminalText(value: string): string {
-  return value.replace(/\x1b(?:\][^\x07]*(?:\x07|\x1b\\)|\[[0-?]*[ -/]*[@-~]|.)/g, '').replace(/[\x00-\x08\x0b-\x1f\x7f-\x9f]/g, '');
+  return value.replace(/\x1b(?:\][^\x07\x1b]*(?:\x07|\x1b\\)|\[[0-?]*[ -/]*[@-~]|.)/g, '').replace(/[\x00-\x08\x0b-\x1f\x7f-\x9f]/g, '');
 }
 
 export interface StatusLineState {

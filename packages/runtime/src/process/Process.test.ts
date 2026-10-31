@@ -1,5 +1,28 @@
 import { describe, it, expect } from 'vitest';
-import { runCommand } from './Process.js';
+import { runCommand, runShellCommand } from './Process.js';
+
+describe('process command boundaries', () => {
+  it('rejects shell mode on the argv entry point with a migration hint', async () => {
+    await expect(runCommand(process.execPath, ['-e', '0'], {
+      cwd: process.cwd(), shell: true,
+    })).rejects.toThrow(/runShellCommand/);
+  });
+
+  it('preserves shell metacharacters as literal argv', async () => {
+    const value = 'one & echo two | three > four';
+    const result = await runCommand(process.execPath, ['-e', 'process.stdout.write(process.argv[1])', value], {
+      cwd: process.cwd(),
+    });
+    expect(result.exitCode).toBe(0);
+    expect(result.stdout).toBe(value);
+  });
+
+  it('runs a whole command line through the explicit shell entry point', async () => {
+    const result = await runShellCommand('echo vessel-shell-boundary', { cwd: process.cwd() });
+    expect(result.exitCode).toBe(0);
+    expect(result.stdout.trim()).toBe('vessel-shell-boundary');
+  });
+});
 
 describe('runCommand — abort signal (task 050)', () => {
   it('an already-aborted signal kills the child and resolves with killed=true', async () => {

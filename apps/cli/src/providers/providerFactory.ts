@@ -128,12 +128,19 @@ export function planProvider(input: ProviderPlanInput): ProviderPlan {
   };
 }
 
+/** A single backwards scan avoids quadratic retries on a long slash run followed by text. */
+function withoutTrailingSlashes(value: string): string {
+  let end = value.length;
+  while (end > 0 && value.charCodeAt(end - 1) === 0x2f) end -= 1;
+  return end === value.length ? value : value.slice(0, end);
+}
+
 /** Keep the actual endpoint first and preserve first occurrence spelling. */
 function candidateEndpoints(input: ProviderPlanInput, baseUrl: string | undefined): { endpoints?: string[] } {
   if (input.baseUrl !== undefined || input.baseUrlExplicit || !baseUrl || !input.config?.endpoints?.length) return {};
   const seen = new Set<string>();
   const endpoints = [baseUrl, ...input.config.endpoints.map(endpoint => endpoint.url)].filter(url => {
-    const key = url.replace(/\/+$/, '');
+    const key = withoutTrailingSlashes(url);
     if (seen.has(key)) return false;
     seen.add(key);
     return true;

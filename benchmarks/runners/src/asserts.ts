@@ -3,7 +3,7 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import type { SessionRecord } from '@vessel/shared';
 import type { TelemetryCounters } from '@vessel/telemetry';
-import { runCommand } from '@vessel/runtime';
+import { runShellCommand } from '@vessel/runtime';
 import type { AssertResult, AssertionSpec, StreamObservation } from './types.js';
 
 /** minimal glob -> regex (runner-local; supports **, *, ?) */
@@ -266,7 +266,7 @@ export async function runAssert(spec: AssertionSpec, ctx: AssertContext, index: 
 
     case 'run_check': {
       const cmd = spec.command ?? '';
-      const r = await runCommand(cmd, [], { cwd: ctx.workspace, timeoutMs: 60_000, shell: true, maxOutputBytes: 1024 * 1024 });
+      const r = await runShellCommand(cmd, { cwd: ctx.workspace, timeoutMs: 60_000, shell: true, maxOutputBytes: 1024 * 1024 });
       return {
         ...base,
         result: r.exitCode === 0 ? 'pass' : 'fail',

@@ -6,7 +6,7 @@ export interface SpawnOptions {
   env?: Record<string, string>;
   /** max stdout+stderr bytes captured (default 1 MiB) */
   maxOutputBytes?: number;
-  /** run through the platform shell (cmd.exe /bin/sh) — required for command strings */
+  /** Only used by Sandbox.run command-line mode; runCommand rejects shell mode. */
   shell?: boolean;
   /**
    * turn-level cancellation (task 050): when the signal aborts the child is
@@ -46,26 +46,41 @@ export interface SpawnResult {
 }
 
 /**
- * runtime/process — controlled spawn point (ARCHITECTURE §4.7).
- * All OS process derivation goes through here; supports timeout + cancel token.
+ * Two spawn shapes, deliberately separate, because only one hands text to a shell:
+ *  - runCommand(argv): no shell option at all, so a path with spaces stays one word;
+ *  - runShellCommand(commandLine): the single intentional shell boundary.
  */
 export function runCommand(
   command: string,
   args: string[],
   opts: SpawnOptions,
 ): Promise<SpawnResult> {
+  if (opts.shell) return Promise.reject(new TypeError('runCommand: argv is not shell-interpreted; use runShellCommand(commandLine)'));
+  return supervise(() => spawn(command, args, {
+    cwd: opts.cwd,
+    env: { ...process.env, ...opts.env },
+    windowsHide: true,
+    detached: opts.processGroup === true && process.platform !== 'win32',
+  }), opts, command);
+}
+
+export function runShellCommand(command: string, opts: SpawnOptions): Promise<SpawnResult> {
+  return supervise(() => spawn(command, [], {
+    cwd: opts.cwd,
+    env: { ...process.env, ...opts.env },
+    windowsHide: true,
+    shell: true,
+    detached: opts.processGroup === true && process.platform !== 'win32',
+  }), opts, command);
+}
+
+function supervise(spawnChild: () => ChildProcess, opts: SpawnOptions, command: string): Promise<SpawnResult> {
   return new Promise<SpawnResult>((resolve, reject) => {
     const timeoutMs = opts.timeoutMs ?? 30_000;
     const maxOut = opts.maxOutputBytes ?? 1024 * 1024;
     let child: ChildProcess;
     try {
-      child = spawn(command, args, {
-        cwd: opts.cwd,
-        env: { ...process.env, ...opts.env },
-        windowsHide: true,
-        shell: opts.shell ?? false,
-        detached: opts.processGroup === true && process.platform !== 'win32',
-      });
+      child = spawnChild();
     } catch (err) {
       reject(err);
       return;
