@@ -190,15 +190,14 @@ PDW 现行版本 **1.3.3-local**：完整 Skill 目录 + Node 运行器 + 项目
 
 ---
 
-## 远端 GitHub 状态（2026-10-30 按实测重写；旧版 2026-10-06 的口径已被证伪）
+## 远端 GitHub 状态（2026-10-31 已恢复推送；旧口径见下方历史）
 
-- 本项目仍是**纯本地开发**：本地 `main` 领先 `origin/main`，按约定**不推送**（2026-10-30 实测领先 **169 个提交**，远端停在 `b147ae4` / 2026-10-11）。
-- **但「Actions 已整体停用」是错的**：2026-10-30 实测 `actions/permissions.enabled = true`（`allowed_actions: selected`、`sha_pinning_required: true`），CI 在 PR 上真跑，main 上还有 Dependabot Updates 的定时运行（最近 `2026-10-30T10:13:54Z` success）。
-- **「CodeQL 已改为 not-configured」也是错的**：实测 `default-setup.state = configured`（javascript / typescript / python / actions，weekly），最近分析 `2026-10-18`，**开放告警 0**；Dependabot 漏洞告警 0、secret scanning 开放告警 0。
-- 规则集 `protect-default-branch`（id `23645929`）`active`：必须走 PR，必需检查为 `build (ubuntu-latest, 22)`、`build (windows-latest, 22)`、`identity-guard`，且 strict。**这与 `ci.yml` 的版本矩阵强耦合**——本地 matrix 现为 `[22, 26]`；只留 26 会让那两个必需检查永不出现。改版本的正确顺序：先让 26 的 check 在远端跑绿 → 改 ruleset 的 context → 再从 matrix 删 22。
-- 六条 Dependabot PR 与逐条 CI 结论、以及「本地领先 / 审计信号过期」的完整清单见 `evidence/sessions/2026-10-30-project-health/github-health.md`（卡 369）。
-- 恢复推送时要动的两处（如需）：`gh api --method PUT repos/satan9394/vessel-harness/actions/permissions --input -`（body `{"enabled":true}`）、
-  `PATCH repos/satan9394/vessel-harness/code-scanning/default-setup`（body `{"state":"configured"}`）——注意这两条现在**已经是启用状态**，别再重复「恢复」。
+- **本地与远端已同步**：`main` = `4cd98dd3`（远端同 commit）。做法是按仓库既有路径走了一遍：建分支 → 推 → PR #46 → 四条 build（22/26 × Windows/Linux）+ identity-guard 全绿 → 本地 `merge --no-ff` → 推 `main`。**main 上的 CI 也全绿**（run `41230329244`，五个 job 全 success）。
+- **推送前做过历史脱敏**：171 个未推提交里的 `C:\Users\<user>\…` 一类路径替换为 `C:\work` / `WORK` / `USER`（远端此前一处都没有），因此这批提交的 SHA 全部变了；文档里引用的短 SHA 已按映射更新，旧 SHA 只存在于本地 `backup/pre-sanitize-20261030`。
+- **Actions 与 CodeQL 一直都是启用状态**（旧文「已停用 / not-configured」是错的）：`allowed_actions: selected`、`sha_pinning_required: true`；CodeQL `configured`，weekly。
+- **CodeQL 首次全量扫描开出 9 条告警**（不是回归，是这 169 个提交的代码此前从未被扫过）：2 条 `error` 级 `js/shell-command-constructed-from-input`（`packages/tools/src/git/Worktree.ts:62`，同一位置两处），其余为 ReDoS / stack-trace / 一处 insufficient-password-hash。逐条定性见 `tasks/370-codeql-first-scan-triage.md`。
+- 规则集 `protect-default-branch`（id `23645929`）`active`：必须走 PR，必需检查为 `build (ubuntu-latest, 22)`、`build (windows-latest, 22)`、`identity-guard`，strict。**这与 `ci.yml` 的 matrix 强耦合**——matrix 现为 `[22, 26]`；等 26 的腿稳定后再改 ruleset 的 context、最后才从 matrix 删 22。
+- 历史记录（2026-10-06 旧文）：曾一度把 Actions 判为停用、CodeQL 判为未配置，并在 2026-10-06～10-30 期间按「纯本地开发」不推送；实际情况与之不符，已按实测更正。恢复/关闭的 API 备用命令：`gh api --method PUT repos/satan9394/vessel-harness/actions/permissions --input -`（body `{"enabled":true|false}`）、`PATCH …/code-scanning/default-setup`（body `{"state":"configured"|"not-configured"}`）。
 <!-- pdw-skill-sync -->
 ## PDW 技能同步（默认配置，2026-10-17 重切后；源 = GitHub）
 
