@@ -2,6 +2,8 @@
 
 > 上一会话上下文到 62% 时主动收口。**不需要上一轮对话的任何内容**：先读 `HANDOFF.md` §0，再读本文件。
 > 本文件只写「现在是什么状态」「下一步做什么」「哪些坑已经踩过」。
+>
+> **2026-10-31 后续更新（权威）**：卡 371 已验收并入库——产品+测试 `92ae681f`、证据 `9d0f0cf0`，协调者复跑全量 17/17（根 3,746 + 8 skipped）。**§2b 与 §3 保留为过程记录，不要照着再做一遍**；唯一剩余项是推分支触发 CodeQL 重扫并确认 7 条归零，验收记录见 `evidence/sessions/2026-10-31-codeql-seven/ACCEPTANCE.md`。
 
 ## 1. 现在的状态（实测）
 
@@ -33,7 +35,7 @@
 
 **工作树现在是有意脏的**——Codex 在 12:27 开工、12:55 报完成，7 处源码修复 + 6 个测试文件 + 20 条新测试已经在工作树里，**没有提交**。新会话**不要** `git checkout` / `reset` / `read-tree --reset`，那会把它的成果抹掉。
 
-- rollout：`C:\Users\Satanchen\.codex\sessions\2026\10\31\rollout-2026-10-31T12-27-31-01a1936e-72dd-7a02-b574-e2954558cf6b.jsonl`，`task_complete` 于 `2026-10-31T19:55:10Z`。
+- rollout：`%USERPROFILE%\.codex\sessions\2026\10\31\rollout-2026-10-31T12-27-31-01a1936e-72dd-7a02-b574-e2954558cf6b.jsonl`，`task_complete` 于 `2026-10-31T19:55:10Z`。
 - 改动文件（实测 `git status`）：`apps/cli/src/providers/providerFactory.ts`、`apps/cli/src/ui/TerminalStatusLine.ts`、`benchmarks/runners/src/asserts.ts`、`packages/memory/src/reflection/autonomousReflection.ts`、`packages/runtime/src/process/Process.ts`、`packages/runtime/src/sandbox/Sandbox.ts`、`packages/shared/src/toolPins.ts` + 对应 6 个测试文件；`packages/tools/src/git/Worktree.ts` 应保持零改动（**验收时要核**）。
 - 证据目录：`evidence/sessions/2026-10-31-codeql-seven/`（未跟踪，含各批日志、scope audit、report）。
 - 它自报：聚焦两批 exit 0（79 passed + 1 skipped；139 passed）、`tsc -b` 与 test typecheck 都 0；**首次全量 16/17**（`tsc-tests` 报新测试表的元组推断错误，只修了显式类型、没有改断言），修完**全量 17/17**，根「3746 passed + 8 skipped」、web 61 / 543、conformance 25/25。**这个 3,746 与我基线的 3,726 不一致**（它说这是「invocation totals，root-index 那条会重复 sessionIndex 测试」，待核）。
