@@ -58,17 +58,15 @@ function metaOf(id: string, workspaceRoot: string, updatedAt: string): SessionMe
  * 会让「最近活动在前」的断言变成偶然。除 updatedAt 外其余字段原样保留。
  */
 function seedSessions(home: string, metas: SessionMeta[]): void {
-  const reg = new SessionRegistry({ vesselHome: home });
-  for (const m of metas) reg.put(m);
-
-  const file = path.join(home, 'sessions.json');
-  const data = JSON.parse(fs.readFileSync(file, 'utf8')) as { sessions: SessionMeta[] };
-  const pinned = new Map(metas.map((m) => [m.id, m.updatedAt]));
-  for (const s of data.sessions) {
-    const ts = pinned.get(s.id);
-    if (ts !== undefined) s.updatedAt = ts;
+  // 用注入时钟走真实写入路径：`put()` 会把 `now()` 的结果写进 sessions.json，
+  // **同时**写进元数据 journal，而 journal 的优先级高于 JSON 视图。旧做法「put 完
+  // 再回写 sessions.json」只改了 JSON，journal 仍保留 put 的时刻 —— 两条 entry 落进
+  // 同一毫秒后成为并列，排序退化为「按 id 倒序」，于是 `--last` 可能选中 sess_older
+  // （CI 上 stability 就是这么丢的）。让时钟给出确定值，两个视图天然一致。
+  for (const meta of metas) {
+    const at = Date.parse(meta.updatedAt);
+    new SessionRegistry({ vesselHome: home, now: () => at }).put(meta);
   }
-  fs.writeFileSync(file, JSON.stringify(data, null, 2), 'utf8');
 }
 
 /** 收集输出行（替代 console.log / console.error）。 */
