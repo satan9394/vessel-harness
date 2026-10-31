@@ -2,7 +2,6 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { createHash } from 'node:crypto';
-import { spawnSync } from 'node:child_process';
 import { afterEach, beforeEach, expect, it } from 'vitest';
 import { RedGreenGate, PolicyEngine, compilePolicyYaml, type RedGreenGateConfig } from '../src/index.js';
 
@@ -42,9 +41,19 @@ it.each([
   ['trailing diagnostic', false],
   ['stdout diagnostic', false],
 ] as const)('keeps uncaught assertion classification strict: %s', async (variant, accepted) => {
-  const actual = spawnSync(process.execPath, ['repro.cjs'], { cwd: root, encoding: 'utf8' });
-  expect(actual.status).toBe(1);
-  let stderr = actual.stderr.trim().replace(/^.*\n/, 'node:internal/assert/utils:146\n');
+  // 固定模板：不给分类器喂「本机 Node 版本 + 平台」决定的真实 stderr。
+  // 真实形状（Node 26）：首行 node:internal/assert/utils:<n>，末行 Node.js vX.Y.Z。
+  // 之前从 process.execPath 实跑一遍再替换首行，Windows/Node 22 上首行结构不同，
+  // 导致某些本该被拒的变体反而通过（CI windows-latest, 22）。
+  let stderr = [
+    'node:internal/assert/utils:146',
+    '  throw error;',
+    '  ^',
+    '',
+    'AssertionError [ERR_ASSERTION]: TARGET_BUG',
+    '',
+    'Node.js v26.13.0',
+  ].join('\n');
   if (variant === 'legacy assertion header') stderr = stderr.replace(/^.*\n/, 'node:assert:95\n');
   if (variant === 'unknown internal header') stderr = stderr.replace('assert/utils', 'errors');
   if (variant === 'missing line number') stderr = stderr.replace('utils:146', 'utils:');
