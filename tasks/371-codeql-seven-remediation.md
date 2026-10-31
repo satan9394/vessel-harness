@@ -1,6 +1,6 @@
 # 任务卡 371: CodeQL 剩余 7 条告警——按已定性的方案修掉
 
-- Status: 已验收（2026-10-31；本地全量 17/17 通过，CodeQL 重扫待推送后确认）
+- Status: 已验收（2026-10-31；源码/门禁合格，**CodeQL 重扫实为 7→3 而非 7→0**，剩余三条待决策）
 - PDW task: none
 - 来源：卡 370 的 7 条剩余告警。子代理逐条读了源码、核了 CodeQL 查询源码里 `executesArrayAsShell` 的判定条件、并用极端输入实测了复杂度，结论如下（**这是决定，不是候选**）。
 
@@ -45,7 +45,8 @@
 - 门禁：聚焦 11 文件 / **155 passed + 1 skipped**（协调者选的超集口径，覆盖执行方两批全部用例）；`npx tsc -b`、`npm run typecheck:tests`、`git diff --check` 均 exit 0；`scripts/gate-batched.ps1` **17/17 exit 0**——根 12 批 335 文件执行 / **3,746 passed + 8 skipped**、web 61 / 543、三处 tsc 0、离线 conformance 25/25（$0）。
 - **3,746 与基线 3,726 的差已核清**：差的正好是本卡新增的 20 条测试（3,726 + 20 = 3,746），skipped 仍是 8；`root-index` 重复跑 `sessionIndex.test.ts`（10 条）在基线里本来也算着，所以它只解释「不是去重计数」，不构成增量来源。
 - 证据脱敏：执行方的 6 份日志/JSON 里带本机账号路径，已就地改成 `C:\work`（manifest 只覆盖 13 个源/测试文件与卡，不受影响）；
-- **未完成项（不影响本卡验收）**：CodeQL 重扫需推送后才见结果；若在 `runShellCommand` 冒出新告警，按 `report.md` 的评论草稿 dismiss（单一有意 shell 边界）。
+- **CodeQL 重扫已做，结果不是 7→0**：推分支持 PR #47 后，**#18/#19/#20/#21 四条 ReDoS 全部消失**，但 **#15/#16 仍在**、`#14` 以新编号 `#22` 重新出现（`Process.ts:59`）。用与 GitHub 完全相同的工具链（CodeQL 2.27.3 + `javascript-queries` 2.4.8）在本地复现并定位了原因：`spawn` 只有在可执行文件本身是 `cmd.exe /c`（或 `sh -c`）时才被判为「间接 shell 执行」（`isIndirectCommandArgument`），而沙箱的 Windows 逃逸探针正是用 argv 跑 `cmd.exe /c`（`evidence/task256/native-boundaries.mts`、`platformSandbox.test.ts`、`windowsRestricted.test.ts`）。这些调用都走同一个 `runCommand` 节点，于是该节点被整体判为 shell 执行，**所有调用方的 argv（含 `Worktree` 的 `path.resolve(...)`）都被当成 shell 命令**。⇒ **本卡「去掉 `shell` 键」这条决策对 #15/#16 无效，前提判断错了**（`isShellInterpreted` 对本仓两个 spawn 都是 false，去掉 `shell` 键扫出来的结果与改前完全一致）。`#22` 是另一条规则（`ShellCommandSink = any(SystemCommandExecution).isShellInterpreted(...)`），源是 `process.cwd()`/`__dirname`/`path.resolve` 输出——任何带 workspace cwd 的 shell 工具都会命中。
+- **下一步是决策，不是实现**：① 继续拆（把「故意执行任意 argv」的沙箱出口单独拆成一个 spawn 函数，让 `runCommand` 不再有 `cmd.exe /c` 调用方，#15/#16 才会消失，告警会移到沙箱出口）；② 把 #15/#16/#22 按「有意边界」dismiss。理由与证据：`evidence/sessions/2026-10-31-codeql-seven/codeql-rescan-2026-10-31.md`。**没有 dismiss、没有合并**。
 
 协调者验收记录（复跑命令与逐条核对）：`evidence/sessions/2026-10-31-codeql-seven/ACCEPTANCE.md`。
 
