@@ -6,7 +6,7 @@
 
 ## 0. 快速接管协议（当用户直接说「继续未完成的」或「继续」时）
 
-**当前快照（2026-10-29，协调者实测）。下一会话先读 `evidence/sessions/2026-10-29-acceptance-handoff.md`（现状、待收报告、逐项验收顺序、已知坑）；更早的过程与入口见 `evidence/sessions/2026-10-27-session-handoff.md`（§9 为 27–28 流水，§10 是拿报告后的步骤）。**
+**当前快照（2026-10-31，协调者实测）。下一会话先读 `evidence/sessions/2026-10-31-session-handoff.md`（现状、下一步、验收顺序、这一轮踩过的坑）；更早的交接见 `evidence/sessions/2026-10-29-acceptance-handoff.md`（其内容已收口）与 `evidence/sessions/2026-10-27-session-handoff.md`。**
 
 | 项 | 实况 |
 |---|---|
