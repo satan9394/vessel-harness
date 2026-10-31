@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "generatedAt": "2026-10-25T18:23:51.172Z",
+  "generatedAt": "2026-10-31T17:38:17.128Z",
   "entries": [
     {
       "path": "benchmarks/fixtures/B001/README.md",
@@ -24,139 +24,139 @@
     },
     {
       "path": "benchmarks/fixtures/B002/README.md",
-      "sha256": "6a5cdcace90dd2612e616809e73d5560e0af517dcbffa910e9df24d6db821ea2"
+      "sha256": "e8546e7c2a28655d5f2b67fcc4ab028e7efcee4c52881927d81d55f83a154bd7"
     },
     {
       "path": "benchmarks/fixtures/B002/package.json",
-      "sha256": "6216eb913c1953d98c8d60318032a5e36732d863e6eaa5fddbb69d706f6acac3"
+      "sha256": "44bbb2a530e57cb2fc6abb8c4fc3407e46e42672774100680b97e4d5adebed81"
     },
     {
       "path": "benchmarks/fixtures/B002/src/extras/e01.js",
-      "sha256": "8c7273de60550b3406d496d5aafbb87da98b48bfbbf36d3555f65499dc91157b"
+      "sha256": "0f566029152f65320f1d231ab6c154ba5790b15a9189605acb6e0705ae358ec1"
     },
     {
       "path": "benchmarks/fixtures/B002/src/extras/e02.js",
-      "sha256": "db6d0958b571dd99c6042dbb98b624add5c3d796fab16818f02182a6c041f73b"
+      "sha256": "635cae1bfa8841bf5a063a644a4f2155c03e1a83e46b1cdcef693abfcd1f10f5"
     },
     {
       "path": "benchmarks/fixtures/B002/src/extras/e03.js",
-      "sha256": "19d8a264c3f6a4dd2d4b5d045edf5a85899fd11508336dab9473c2d53ab6639e"
+      "sha256": "7f472443e5d545c23163aa417ff697f8ca19cde5d8a7138fdf98f22b00425141"
     },
     {
       "path": "benchmarks/fixtures/B002/src/extras/e04.js",
-      "sha256": "13379af07382d06d136abe87d757af837e3098e97499e9d468cb1dfc7b08bd9f"
+      "sha256": "5a39bb5ea070e0106877174a2929d5cd74e892536a34ab684c9c58031528d424"
     },
     {
       "path": "benchmarks/fixtures/B002/src/extras/e05.js",
-      "sha256": "31b4b3a039e799e00cc650ab936c22dd44dff8856bf660e6db86d56d7cf1e0ba"
+      "sha256": "8d254d910c74b5b3a4289336ce780b576684b354584fce2b1b168fd4ca2ab00d"
     },
     {
       "path": "benchmarks/fixtures/B002/src/extras/e06.js",
-      "sha256": "d4771189f7b3fe22bf4825f43bfdaaa619177386639f981365fe1770139b96b8"
+      "sha256": "705ab145b9ba37852171ed6809766acf36965df9a574892415fc85606f7c9a8a"
     },
     {
       "path": "benchmarks/fixtures/B002/src/extras/e07.js",
-      "sha256": "d9082cc820ec54f1d54475390151a41659143d63b87e5ff25ee1017357a9986b"
+      "sha256": "59035a0f271553c830d65f73ea496eb06847e4296654e17ab1c0a2c9ec146bd0"
     },
     {
       "path": "benchmarks/fixtures/B002/src/extras/e08.js",
-      "sha256": "8bbd981899c3da8c0055fb831314216da4d01b047b7a38f5d4d261ca55d90667"
+      "sha256": "fa37de285f592d8fbc66704f2458d681a072afa6da895ac4dd0fe71962e670a3"
     },
     {
       "path": "benchmarks/fixtures/B002/src/extras/e09.js",
-      "sha256": "b4c762a1e24b19508a72f77d8627d05f88c4f3d47e15ec8e0948a497cf30787e"
+      "sha256": "5c6779c42776ef9ca9b48ab9c6d77c9c481f70e5733e63f097640aec1acde955"
     },
     {
       "path": "benchmarks/fixtures/B002/src/extras/e10.js",
-      "sha256": "69e0c25d22b0f9cd91324effc237b551b24c855d98c5840464601d12645e8b00"
+      "sha256": "f8131e27b329d93010b7945634bb6149c156f2a768973ce9219c72cc3431e710"
     },
     {
       "path": "benchmarks/fixtures/B002/src/extras/e11.js",
-      "sha256": "790228d6660d0c82a4b4580576f5e759c10738041897b478ac11a22ca5cb484c"
+      "sha256": "8634ff2f13ee1c1074ec9d35809801a16375456326c3d0497591145cce436672"
     },
     {
       "path": "benchmarks/fixtures/B002/src/extras/e12.js",
-      "sha256": "e141206dff8043db5a0829b4d01c5a12c26c1613348cfe696f1279fde3c22931"
+      "sha256": "6e9910c392f20bef2752f5e494593dc7d5f726831a3bf74b60b2b406b9c27b8a"
     },
     {
       "path": "benchmarks/fixtures/B002/src/extras/e13.js",
-      "sha256": "f57e96972eedb5ac34b3afcc5b89b76c01d961e18a41d1ee28218cc532ab6361"
+      "sha256": "27543f89e02be3f6234b74006d34400d8df0604f512187149349ca7ab290b20d"
     },
     {
       "path": "benchmarks/fixtures/B002/src/extras/e14.js",
-      "sha256": "8ce3984b008002df94f6ef158d43f3f61dfee8513a999f96d2e23da8c863a1bd"
+      "sha256": "c84ae994850c19a49ee9e6a5918126fc7005fe304bfb0a72289d66eb0f197e25"
     },
     {
       "path": "benchmarks/fixtures/B002/src/extras/e15.js",
-      "sha256": "6b89c3143bbd8bf2543093b443ec84da9832a460919c1142d468190fd77efbfa"
+      "sha256": "57a0996ae390deb712776e25dac31b988e7768aac039e8fc72d476d14b53401a"
     },
     {
       "path": "benchmarks/fixtures/B002/src/extras/e16.js",
-      "sha256": "cd7e2355572fe1cc53da6aba7b7d20abbc9874f02711e55eca9fe81c65334cbf"
+      "sha256": "430ae11df3f0987518eeab9a73d5d401d700d2566b485305142c12d605777cc3"
     },
     {
       "path": "benchmarks/fixtures/B002/src/extras/e17.js",
-      "sha256": "d7f2fdee4f7ace64d36cd6e09e9b8f4ff3e6741ee5165b7a262e337e69024e37"
+      "sha256": "87e94bc1b4b45e6bb1bcb63eb495f344750d814a55eb62b9dfe9a274fe06cdfd"
     },
     {
       "path": "benchmarks/fixtures/B002/src/extras/e18.js",
-      "sha256": "e47c7bb770e57f2c2872d9d5be896ded4ff5dc5d2ccfcb1cae4427bb5c4993ee"
+      "sha256": "75713593314725a5e62af4bccd5082052dae7b3192bc7415fc4a96731482910e"
     },
     {
       "path": "benchmarks/fixtures/B002/src/extras/e19.js",
-      "sha256": "2221ff2e6216434c9d4898ca7993ff913597782806a7b6539d939571f14d2e74"
+      "sha256": "952da962b30022be09d95ae5a35d93e70ceb540f7bfd44c5067b4ffa0f1e537d"
     },
     {
       "path": "benchmarks/fixtures/B002/src/extras/e20.js",
-      "sha256": "37c674682eed906a2d597c7f1ea1524a3b5cafd6374910e29d3655d210c27590"
+      "sha256": "7ccc6a530e14fab4d088da037fc002267594081f9143024a87278be9842fe603"
     },
     {
       "path": "benchmarks/fixtures/B002/src/extras/e21.js",
-      "sha256": "1a08207eccbc510c2aeafea5c0b1a7817e0eed208a52e60453edd28ab22225b1"
+      "sha256": "6608d423fdc03fe29473ad070bcbd07980889a5bba194b073b3ee1766b4b90ca"
     },
     {
       "path": "benchmarks/fixtures/B002/src/extras/e22.js",
-      "sha256": "c820007a4fe0637c09b7b93e3ceacfb1cb61934efac2bc26a88240d486962634"
+      "sha256": "ee7b3a57719778d7ccae55e9bb72fec1fdb26a0a3e5a96f49b3e43fc5a829119"
     },
     {
       "path": "benchmarks/fixtures/B002/src/extras/e23.js",
-      "sha256": "3f6bb8d68f88b86af7469e42f50cb85784987ba92d88a2224c93dbac32cece68"
+      "sha256": "7b743e69b1fa8efa2404e8dbe4bccea78fc5ab78a08316c38ac38489e98742ee"
     },
     {
       "path": "benchmarks/fixtures/B002/src/extras/e24.js",
-      "sha256": "740fc2c5948f27feb2de58447ee8c9a7e0df5b3690c5dcaf2061cbaf44901469"
+      "sha256": "349debca56b2f0faa8a4a9de0ea58b2408f92953cc2bd96d3032c01926b9a712"
     },
     {
       "path": "benchmarks/fixtures/B002/src/main.js",
-      "sha256": "1be8661fdafe10c5e309fedd90430f9e4fc807fe013dd04d55bd114bfb7c666a"
+      "sha256": "8e903875eac157b97a02543494a8254e7175ca16f1e6e744e7fb3ff552cfc19f"
     },
     {
       "path": "benchmarks/fixtures/B002/src/mod_a.js",
-      "sha256": "b122d2beb96cc3042ed40a17b8b092a17396b9b21eca46df9befbeb2036314f6"
+      "sha256": "1ac902800bd174805c1fc7b4430d5b48909244b5df2a6ecb28a159311f70eeca"
     },
     {
       "path": "benchmarks/fixtures/B002/src/mod_b.js",
-      "sha256": "94a2983d0474bdff5ab8f1d3dc9b0ec3de171dd30f04f420d18f8717d7b83d7b"
+      "sha256": "bc8774aa0c5347fec8999b00ae6c8eb808fe31c454f219d04e44670f729b5441"
     },
     {
       "path": "benchmarks/fixtures/B002/src/mod_c.js",
-      "sha256": "bcee6b206b96ad4ecc5b0cfd24d86402fddabb9d120ad6da927cf11055637f30"
+      "sha256": "f8ef557314afb3b3943a36473cf7d0bc6c48bdc539936674005771b927a5c1c7"
     },
     {
       "path": "benchmarks/fixtures/B002/src/util.js",
-      "sha256": "eca9edc9f1fb8c1616ea05cae87e3c12fa462e8542e09690c0eb67eddf356f9c"
+      "sha256": "33524a5518d5a5d5a361efd36eb1dc3a6a041c01bd90dc70cac87493712bc0c3"
     },
     {
       "path": "benchmarks/fixtures/B002/task.md",
-      "sha256": "50d0268817c72e54b73946712f973a143cb9397d5150182c08b66401c15e94e9"
+      "sha256": "7542b1247de5a8d511e15d7fea1d98625d804b03541200c9e39cc548049ccff3"
     },
     {
       "path": "benchmarks/fixtures/B002/tests/mod_a.test.js",
-      "sha256": "28dd186e1f917893a0782ded1395ba31f392150484e2c92dcd4fe8212540bfbe"
+      "sha256": "1aafcad417b8576c4fbd9e0f08d5896ddd29d6d3e8f435f2066e882fba3a5b89"
     },
     {
       "path": "benchmarks/fixtures/B002/tests/util.test.js",
-      "sha256": "3eaf2ab15f9b81b179b394bac8651e136a3899a2a76638ae45651a7e71cd6c8a"
+      "sha256": "51176bec2adfb9e017428c452e93f1e783fd1936f73c08e63ad5f46a77908638"
     },
     {
       "path": "benchmarks/fixtures/B003/package.json",

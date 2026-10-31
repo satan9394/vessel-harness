@@ -23,9 +23,15 @@ export function collectProvenance(repoRoot: string): ProvenanceEntry[] {
   };
   walk('benchmarks/fixtures', true);
   walk('benchmarks/scenarios', false);
+  // Text fixtures arrive as LF on CI and can be CRLF on a Windows worktree, so
+  // hash newline-normalized bytes: the manifest must not depend on checkout.
+  const digest = (buffer: Buffer): string => {
+    const normalized = buffer.includes(0) ? buffer : Buffer.from(buffer.toString('latin1').replace(/\r\n/g, '\n'), 'latin1');
+    return createHash('sha256').update(normalized).digest('hex');
+  };
   return files.sort().map(rel => ({
     path: rel,
-    sha256: createHash('sha256').update(fs.readFileSync(path.join(repoRoot, rel))).digest('hex'),
+    sha256: digest(fs.readFileSync(path.join(repoRoot, rel))),
   }));
 }
 
