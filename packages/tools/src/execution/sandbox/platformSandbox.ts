@@ -1,12 +1,12 @@
 import { realpathSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { runCommand, type SpawnOptions, type SpawnResult } from '@vessel/runtime';
+import { runDirectedCommand, type SpawnOptions, type SpawnResult } from '@vessel/runtime';
 import { WindowsRestrictedRunner } from './windowsRestricted.js';
 import type { NativeSandboxRunner, SandboxAuditEvent, SandboxExecutionOptions, SandboxExecutionResult } from './types.js';
 
 export interface PlatformSandboxDeps {
   platform?: NodeJS.Platform;
-  run?: typeof runCommand;
+  run?: typeof runDirectedCommand;
   windows?: NativeSandboxRunner;
   audit?: (event: SandboxAuditEvent) => void | Promise<void>;
 }
@@ -16,11 +16,11 @@ import { allowedWriteRoots, validateSandboxOptions } from './options.js';
 
 export class PlatformSandboxRunner implements NativeSandboxRunner {
   private readonly platform: NodeJS.Platform;
-  private readonly run: typeof runCommand;
+  private readonly run: typeof runDirectedCommand;
   private readonly windows: NativeSandboxRunner;
   constructor(private readonly deps: PlatformSandboxDeps = {}) {
     this.platform = deps.platform ?? process.platform;
-    this.run = deps.run ?? runCommand;
+    this.run = deps.run ?? runDirectedCommand;
     this.windows = deps.windows ?? new WindowsRestrictedRunner({ run: this.run });
   }
 

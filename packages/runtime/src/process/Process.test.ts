@@ -1,11 +1,26 @@
 import { describe, it, expect } from 'vitest';
-import { runCommand, runShellCommand } from './Process.js';
+import { runCommand, runDirectedCommand, runShellCommand } from './Process.js';
 
 describe('process command boundaries', () => {
   it('rejects shell mode on the argv entry point with a migration hint', async () => {
     await expect(runCommand(process.execPath, ['-e', '0'], {
       cwd: process.cwd(), shell: true,
     })).rejects.toThrow(/runShellCommand/);
+  });
+
+  it('rejects shell mode on the caller-directed argv entry point as well', async () => {
+    await expect(runDirectedCommand(process.execPath, ['-e', '0'], {
+      cwd: process.cwd(), shell: true,
+    })).rejects.toThrow(/runShellCommand/);
+  });
+
+  it('runs caller-directed argv without a shell, like the internal argv entry point', async () => {
+    const value = 'alpha & beta | gamma';
+    const result = await runDirectedCommand(process.execPath, ['-e', 'process.stdout.write(process.argv[1])', value], {
+      cwd: process.cwd(),
+    });
+    expect(result.exitCode).toBe(0);
+    expect(result.stdout).toBe(value);
   });
 
   it('preserves shell metacharacters as literal argv', async () => {

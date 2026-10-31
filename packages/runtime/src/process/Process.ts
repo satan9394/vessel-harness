@@ -46,9 +46,12 @@ export interface SpawnResult {
 }
 
 /**
- * Two spawn shapes, deliberately separate, because only one hands text to a shell:
- *  - runCommand(argv): no shell option at all, so a path with spaces stays one word;
- *  - runShellCommand(commandLine): the single intentional shell boundary.
+ * Three spawn shapes, deliberately separate, because they differ in what the caller is allowed to hand over:
+ *  - runCommand(argv): a program this codebase names itself, with arguments it builds itself;
+ *  - runShellCommand(commandLine): the single intentional shell boundary;
+ *  - runDirectedCommand(argv): an arbitrary executable the caller names (the sandbox), kept as its own spawn
+ *    site so "run the program we chose" and "run whatever the confinement layer was asked to run" never share
+ *    one process-derivation node — audit trails and static analysis both read that distinction.
  */
 export function runCommand(
   command: string,
@@ -56,12 +59,7 @@ export function runCommand(
   opts: SpawnOptions,
 ): Promise<SpawnResult> {
   if (opts.shell) return Promise.reject(new TypeError('runCommand: argv is not shell-interpreted; use runShellCommand(commandLine)'));
-  return supervise(() => spawn(command, args, {
-    cwd: opts.cwd,
-    env: { ...process.env, ...opts.env },
-    windowsHide: true,
-    detached: opts.processGroup === true && process.platform !== 'win32',
-  }), opts, command);
+  return supervise(() => spawn(command, args, argvSpawnOptions(opts)), opts, command);
 }
 
 export function runShellCommand(command: string, opts: SpawnOptions): Promise<SpawnResult> {
@@ -72,6 +70,28 @@ export function runShellCommand(command: string, opts: SpawnOptions): Promise<Sp
     shell: true,
     detached: opts.processGroup === true && process.platform !== 'win32',
   }), opts, command);
+}
+
+/**
+ * Executes an executable chosen by the caller plus its argv, under whatever confinement the caller applied
+ * around this call. Same mechanics as `runCommand`, deliberately a separate spawn site (see the note above).
+ */
+export function runDirectedCommand(
+  command: string,
+  args: string[],
+  opts: SpawnOptions,
+): Promise<SpawnResult> {
+  if (opts.shell) return Promise.reject(new TypeError('runDirectedCommand: argv is not shell-interpreted; use runShellCommand(commandLine)'));
+  return supervise(() => spawn(command, args, argvSpawnOptions(opts)), opts, command);
+}
+
+function argvSpawnOptions(opts: SpawnOptions) {
+  return {
+    cwd: opts.cwd,
+    env: { ...process.env, ...opts.env },
+    windowsHide: true,
+    detached: opts.processGroup === true && process.platform !== 'win32',
+  };
 }
 
 function supervise(spawnChild: () => ChildProcess, opts: SpawnOptions, command: string): Promise<SpawnResult> {
