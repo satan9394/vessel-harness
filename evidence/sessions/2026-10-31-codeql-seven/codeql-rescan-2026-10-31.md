@@ -73,6 +73,11 @@ Verified locally before pushing, with the same database settings as above:
 
 So #15/#16 should close on the next default-branch analysis; #22 is expected to remain (see above).
 
+**Outcome on GitHub (same day):** PR #48 (`2e374f0b`) reported a single alert, #23 — the env rule at
+`Process.ts:85` (`runDirectedCommand`'s spawn). After merge into `main` (`9f61c457`), the default-branch analysis
+confirmed #15/#16 closed; #23 was dismissed `won't fix` as the documented boundary (three deliberate spawn shapes,
+workspace-derived cwd, OS-enforced containment), leaving **0 open alerts** on the repository.
+
 ## The two options that were on the table
 
 1. **#15/#16**: give the "deliberately arbitrary argv" boundary its own spawn function (e.g. a

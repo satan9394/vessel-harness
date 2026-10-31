@@ -1,6 +1,6 @@
 # 任务卡 372: 把沙箱的任意 argv 出口拆成独立 spawn 点（CodeQL #15/#16）
 
-- Status: 执行中（2026-10-31）
+- Status: 已验收（2026-10-31；PR #48 合入 `9f61c457`，重扫后 #15/#16 关闭）
 - PDW task: none
 - 来源：卡 371 的验收发现。卡 371 的「去掉 `runCommand` 的 `shell` 键」对 #15/#16 无效，原因已定位（见
   `evidence/sessions/2026-10-31-codeql-seven/codeql-rescan-2026-10-31.md`）：CodeQL 对 `spawn` 的
@@ -60,6 +60,11 @@
 - A4：`npx tsc -b` exit 0；`scripts/gate-batched.ps1` **17/17 exit 0**（根 12 批 **3,748 passed + 8 skipped**——比 371 多出的
   2 条正是本卡新增用例；web 61 / 543；三处 tsc 0；conformance 25/25 $0）。
 - A5：推分支后由 GitHub 重扫确认（见下方后续记录）。
+- **A5 实测（2026-10-31）**：PR #48（head `2e374f0b`）的 CodeQL 分析里 **#15/#16 已消失**，只剩 1 条
+  `js/shell-command-injection-from-environment`（新编号 #23，`Process.ts:85` = `runDirectedCommand` 的 spawn，warning 级）。
+  合入 main（`9f61c457`）后 main 的分析确认：**开放告警 1 条（#23）**，#15/#16 关闭。该条按「有意边界」以
+  `won't fix` dismiss（评论：三种 spawn 出口是刻意分开的、环境值是用户选定的 workspace cwd、可执行文件与 argv 来自本仓自身工具、
+  约束由 OS 强制），随后 **仓库开放告警 = 0**。
 
 没有为了消警弱化行为：沙箱照旧用 argv 跑 `cmd.exe /c`（Windows 逃逸探针不变），`Worktree.ts`、`McpClient.ts`、`packages/core`、
 `apps/web`、CI 配置零改动。
