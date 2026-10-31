@@ -1,9 +1,15 @@
-import { describe, expect, it } from 'vitest';
+// @vitest-environment jsdom
+import { beforeEach, describe, expect, it } from 'vitest';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { LanguageProvider } from './LanguageProvider';
+import { LANG_STORAGE_KEY } from '../i18n';
 import type { ReactNode } from 'react';
 import PlanChecklist, { derivePlanSteps, elapsedText, planStepState, PlanStrip } from './PlanChecklist';
 import type { GoalTask } from '../goal';
+
+// 语言必须由测试自己钉住：LanguageProvider 的种子是 navigator.language，
+// 在 CI（en-US）下会渲染英文，本地 zh 机器上则通过 —— 这条断言不能依赖宿主 locale。
+beforeEach(() => { localStorage.setItem(LANG_STORAGE_KEY, 'zh'); });
 
 function render(node: ReactNode): string {
   return renderToStaticMarkup(<LanguageProvider>{node}</LanguageProvider>);
