@@ -29,6 +29,18 @@
 4. **#20**：`autonomousReflection.ts:36` 的 `core.*import` → `core[^\n\r\u2028\u2029]{0,200}import`；仍被判 ReDoS 就用手写扫描版（单里有现成代码）。
 5. **#21**：`toolPins.ts:8` 的 `\d+\.\d+\.\d+` → `(\d{1,9})\.(\d{1,9})\.(\d{1,9})`。
 
+## 2b. 重要：卡 371 已经有执行结果了（未验收、未提交）
+
+**工作树现在是有意脏的**——Codex 在 12:27 开工、12:55 报完成，7 处源码修复 + 6 个测试文件 + 20 条新测试已经在工作树里，**没有提交**。新会话**不要** `git checkout` / `reset` / `read-tree --reset`，那会把它的成果抹掉。
+
+- rollout：`C:\Users\Satanchen\.codex\sessions\2026\10\31\rollout-2026-10-31T12-27-31-01a1936e-72dd-7a02-b574-e2954558cf6b.jsonl`，`task_complete` 于 `2026-10-31T19:55:10Z`。
+- 改动文件（实测 `git status`）：`apps/cli/src/providers/providerFactory.ts`、`apps/cli/src/ui/TerminalStatusLine.ts`、`benchmarks/runners/src/asserts.ts`、`packages/memory/src/reflection/autonomousReflection.ts`、`packages/runtime/src/process/Process.ts`、`packages/runtime/src/sandbox/Sandbox.ts`、`packages/shared/src/toolPins.ts` + 对应 6 个测试文件；`packages/tools/src/git/Worktree.ts` 应保持零改动（**验收时要核**）。
+- 证据目录：`evidence/sessions/2026-10-31-codeql-seven/`（未跟踪，含各批日志、scope audit、report）。
+- 它自报：聚焦两批 exit 0（79 passed + 1 skipped；139 passed）、`tsc -b` 与 test typecheck 都 0；**首次全量 16/17**（`tsc-tests` 报新测试表的元组推断错误，只修了显式类型、没有改断言），修完**全量 17/17**，根「3746 passed + 8 skipped」、web 61 / 543、conformance 25/25。**这个 3,746 与我基线的 3,726 不一致**（它说这是「invocation totals，root-index 那条会重复 sessionIndex 测试」，待核）。
+- **CodeQL 重扫未验证**：它没有 CLI、也没授权推送。
+
+**新会话的第一件事就是验收它**，顺序见 §3；至少要做：① `Process.ts` 的 diff 里是否真的没有 `shell` 键；② `Worktree.ts` 零改动；③ `Sandbox.run` 的 shell 分支语义未变；④ 自己重跑聚焦 + 全量门禁并解释 3,746 与 3,726 的差；⑤ 推分支触发 CodeQL 重扫。
+
 ## 3. 验收步骤（报告到了以后照这个顺序做）
 
 1. 解析 rollout，确认 `task_complete` 且工作树静止；**先看 `Process.ts` 的 diff 是否真的不再出现 `shell` 键**（写 `shell:false` 骗扫描不算修好）。
