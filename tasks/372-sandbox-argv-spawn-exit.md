@@ -45,4 +45,21 @@
 
 ## 5. Result
 
-待执行。
+**已完成（2026-10-31）。** 新增 `runDirectedCommand` 作为第三个 spawn 出口（`Process.ts` 里三个 `spawn(...)` 调用点各自独立），
+`PlatformSandboxRunner` 与 `WindowsRestrictedRunner` 的默认 `run` 改为它；`runCommand` 只剩「本仓自己指定程序」的调用方
+（`Worktree` 的 git、POSIX 的 `bwrap`/`sandbox-exec` 探测、测试里的 `process.execPath`）。同时把重复的 spawn 选项抽成
+`argvSpawnOptions()`，`runShellCommand` 仍持有唯一字面量 `shell: true`。
+
+验证：
+
+- A1/A3：新增两条用例（`runDirectedCommand` 传 `shell:true` 会 reject 并指向 `runShellCommand`；无 shell 时 `& | >` 仍是字面 argv），
+  `packages/runtime/src/process` + `packages/tools/src/execution/sandbox` 5 文件 / 37 passed。
+- A3 本地 CodeQL（CodeQL 2.27.3 + `javascript-queries` 2.4.8，`git archive HEAD` 建库）：`UnsafeShellCommandConstruction.ql`
+  里 **`Worktree.ts` 的两条 path concatenation 结果消失**（改前 12 行 → 改后只剩 `McpClient.ts`/`cli.js` 那些未改动文件的
+  shell-argument 行）。
+- A4：`npx tsc -b` exit 0；`scripts/gate-batched.ps1` **17/17 exit 0**（根 12 批 **3,748 passed + 8 skipped**——比 371 多出的
+  2 条正是本卡新增用例；web 61 / 543；三处 tsc 0；conformance 25/25 $0）。
+- A5：推分支后由 GitHub 重扫确认（见下方后续记录）。
+
+没有为了消警弱化行为：沙箱照旧用 argv 跑 `cmd.exe /c`（Windows 逃逸探针不变），`Worktree.ts`、`McpClient.ts`、`packages/core`、
+`apps/web`、CI 配置零改动。

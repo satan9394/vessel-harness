@@ -59,7 +59,21 @@ Consequences:
   `process.cwd()`, `__dirname` and `path.resolve(...)` outputs. Any agent shell tool that runs a command with a
   workspace-derived cwd matches it; the local run reproduces 38 such rows.
 
-## What would actually clear them
+## Follow-up: card 372 (2026-10-31)
+
+Option 1 was chosen (split the sandbox's arbitrary-argv exit). Implemented as `runDirectedCommand` — the third,
+documented spawn shape — with `Process`, `PlatformSandboxRunner` and `WindowsRestrictedRunner` using it, so
+`runCommand` keeps only self-chosen programs (git, the POSIX helper probes, tests' `process.execPath`).
+
+Verified locally before pushing, with the same database settings as above:
+
+| query | before (db1, `f61f82d8`) | after (db3, card 372 branch) |
+|---|---|---|
+| `UnsafeShellCommandConstruction.ql` | 12 rows, incl. both `Worktree.ts` path concatenations | **no result in `Worktree.ts`** (remaining rows are `McpClient.ts` / `cli.js` shell-argument sinks, untouched files) |
+
+So #15/#16 should close on the next default-branch analysis; #22 is expected to remain (see above).
+
+## The two options that were on the table
 
 1. **#15/#16**: give the "deliberately arbitrary argv" boundary its own spawn function (e.g. a
    `runDirectedCommand` used only by `PlatformSandboxRunner`/`WindowsRestrictedRunner`), so `runCommand`'s node
@@ -70,4 +84,8 @@ Consequences:
    cwd from the environment (not viable).
 
 Both are decisions, not implementation details, which is why this stopped here instead of being decided
-unilaterally. Nothing was dismissed and nothing was merged while this file was written.
+unilaterally. Nothing was dismissed, and the PR was still open, when this file was first written.
+
+**After the maintainer's decision (same day):** PR #47 was merged into `main` as `51f7198f`, whose analysis closed
+#18–#21 on the default branch (7 open alerts → 3: #15, #16, #22). Option 1 was taken for #15/#16 and is recorded
+in `tasks/372-sandbox-argv-spawn-exit.md`; `#22` is still a decision (dismiss as design, or keep it open).
