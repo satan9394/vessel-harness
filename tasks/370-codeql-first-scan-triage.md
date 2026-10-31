@@ -39,4 +39,9 @@
 
 ## 5. Result
 
-待执行。
+部分处理（2026-10-31，协调者）：**2 条已定性并 dismiss，7 条待做**。
+
+- **#13 `js/insufficient-password-hash` → false positive（已 dismiss）**。`packages/shared/src/execution.ts:33` 的 `sha256(canonical(value))` 是**工具参数指纹**，用于 ExecutionPermit 的防重放比对：同一 permit 换参数就不能通过。这里没有密码、没有凭据，取值必须可复现，用慢 KDF 反而是错的。dismiss 理由原文已写进告警。
+- **#17 `js/stack-trace-exposure` → won't fix（已 dismiss）**。与 2026-09-18 已 dismiss 的 #10 同族：`apps/local-server/src/server.ts:213` 只是 `res.end(JSON.stringify(body))` 这个通用 sink，实际下发的是 `{error, message}`，服务只绑 `127.0.0.1`，调用方是同机 CLI/TUI；stack 从不上线。理由与 #10 保持一致，避免同一件事两套口径。
+- **剩余 7 条待做**：15/16（`js/shell-command-constructed-from-input`，`packages/tools/src/git/Worktree.ts:62`，同一位置两处）、14（`js/shell-command-injection-from-environment`，`packages/runtime/src/process/Process.ts:62`）、18–21（`js/polynomial-redos`：`toolPins.ts:8`、`autonomousReflection.ts:36`、`TerminalStatusLine.ts:3`、`providerFactory.ts:136`）。这批要按 §2 的顺序做：先确认 shell 那三处是否真走 shell（Windows `.cmd` shim），再逐条看正则的输入上界，能改写成线性等价的就改、不能的加长度上限并补测试。
+- 收尾时 `code-scanning/alerts?state=open` 实测 **7 条**，与本段一致。
