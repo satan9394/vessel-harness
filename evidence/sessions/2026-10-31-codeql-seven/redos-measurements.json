@@ -1,0 +1,144 @@
+{
+  "baseline": "07c43d3fb55ed139f60843513755f1aa35faa322",
+  "node": "v26.13.0",
+  "measuredAt": "2026-10-31T19:32:00.964Z",
+  "samples": 7,
+  "warmups": 3,
+  "method": "Median milliseconds per call; exact functions/expressions extracted from HEAD and working-tree source. Timings are observations, not test thresholds.",
+  "sourceHashes": {
+    "provider": {
+      "before": "08b9e7b4d75e7b3a65a05aa721eafeea4aed3a5208d3b94ad2883e1deb58351f",
+      "after": "c66712c744d549fa231454a692088ef1b14a162b3728e6beef09f7a96e53aae5"
+    },
+    "terminal": {
+      "before": "2538658969853c8ab93176b22e2d2cb424fddac27993dc7f7d33a21424c91a52",
+      "after": "af40e141bac31c758a45e24368ce194588bb9d5d39a286b2104331949064945b"
+    },
+    "reflection": {
+      "before": "a12d2df0d9a47d56ac89656f63af40905a124e2697fa6f4bce1dc30e046741b5",
+      "after": "99ef30943fafa670ca7cfa381bfd1bb6f74060e1ddcf9fbf78ff226c39f4a65d"
+    },
+    "version": {
+      "before": "8a5c0b1909e6e7cdeec416d2e3e2c98c1fdc3ccb3ce3aad21232a9a6c1586d6a",
+      "after": "22fbb251530213ec78230adcf85b5686ed863dbce97f3866f72e99b3daa0db0a"
+    }
+  },
+  "oscRegression": {
+    "before": "",
+    "after": "link"
+  },
+  "measurements": [
+    {
+      "name": "provider",
+      "size": 1000,
+      "inputLength": 1011,
+      "beforeMs": 0.6961999999999762,
+      "afterMs": 0.0006000000000199179
+    },
+    {
+      "name": "provider",
+      "size": 2000,
+      "inputLength": 2011,
+      "beforeMs": 2.766900000000021,
+      "afterMs": 0.00029999999992469384
+    },
+    {
+      "name": "provider",
+      "size": 4000,
+      "inputLength": 4011,
+      "beforeMs": 9.755199999999945,
+      "afterMs": 0.0003000000000383807
+    },
+    {
+      "name": "provider",
+      "size": 8000,
+      "inputLength": 8011,
+      "beforeMs": 29.917599999999993,
+      "afterMs": 0.0001999999999497959
+    },
+    {
+      "name": "terminal",
+      "size": 1000,
+      "inputLength": 2000,
+      "beforeMs": 1.1919000000000324,
+      "afterMs": 0.011400000000094224
+    },
+    {
+      "name": "terminal",
+      "size": 2000,
+      "inputLength": 4000,
+      "beforeMs": 4.862300000000005,
+      "afterMs": 0.023000000000138243
+    },
+    {
+      "name": "terminal",
+      "size": 4000,
+      "inputLength": 8000,
+      "beforeMs": 26.008199999999988,
+      "afterMs": 0.08619999999996253
+    },
+    {
+      "name": "terminal",
+      "size": 8000,
+      "inputLength": 16000,
+      "beforeMs": 92.91080000000011,
+      "afterMs": 0.09549999999990177
+    },
+    {
+      "name": "reflection",
+      "size": 1000,
+      "inputLength": 4000,
+      "beforeMs": 2.94380000000001,
+      "afterMs": 0.4911000000001877
+    },
+    {
+      "name": "reflection",
+      "size": 2000,
+      "inputLength": 8000,
+      "beforeMs": 12.467499999999745,
+      "afterMs": 1.1804999999999382
+    },
+    {
+      "name": "reflection",
+      "size": 4000,
+      "inputLength": 16000,
+      "beforeMs": 48.93020000000024,
+      "afterMs": 3.272100000000137
+    },
+    {
+      "name": "reflection",
+      "size": 8000,
+      "inputLength": 32000,
+      "beforeMs": 172.58320000000003,
+      "afterMs": 4.680400000000191
+    },
+    {
+      "name": "version",
+      "size": 1024,
+      "inputLength": 1024,
+      "beforeMs": 0.5354999999999563,
+      "afterMs": 0.043299999999362626
+    },
+    {
+      "name": "version",
+      "size": 2048,
+      "inputLength": 2048,
+      "beforeMs": 2.6958000000004176,
+      "afterMs": 0.06790000000000873
+    },
+    {
+      "name": "version",
+      "size": 4096,
+      "inputLength": 4096,
+      "beforeMs": 11.451700000000528,
+      "afterMs": 0.1786999999994805
+    },
+    {
+      "name": "version",
+      "size": 8192,
+      "inputLength": 8192,
+      "beforeMs": 30.86920000000009,
+      "afterMs": 0.3405000000002474
+    }
+  ]
+}

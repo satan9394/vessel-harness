@@ -1,0 +1,15 @@
+
+ RUN  v5.0.5 E:/Code_file/Projects/Vessel_Harness
+
+warning: in the working copy of 'code.ts', LF will be replaced by CRLF the next time Git touches it
+(node:28188) [DEP0190] DeprecationWarning: Passing args to a child process with shell option true can lead to security vulnerabilities, as the arguments are not escaped, only concatenated.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+
+ Test Files  31 passed (31)
+      Tests  339 passed | 3 skipped (342)
+   Start at  12:32:54
+   Duration  38.20s (tests 90%, import 7%, transform 2%, setup 1%, worker 1%)
+
+    Isolate  31 workers spawned · ~156ms startup each (spawn + environment, per file)
+             at least ~4.68s faster with isolate: false — reuses workers across files instead of one per file
+

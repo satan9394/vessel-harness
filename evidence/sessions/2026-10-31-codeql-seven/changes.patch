@@ -1,0 +1,367 @@
+diff --git a/apps/cli/src/providers/providerFactory.failover.test.ts b/apps/cli/src/providers/providerFactory.failover.test.ts
+index 9e387d7f..5d768cce 100644
+--- a/apps/cli/src/providers/providerFactory.failover.test.ts
++++ b/apps/cli/src/providers/providerFactory.failover.test.ts
+@@ -14,6 +14,17 @@ it('puts actual baseUrl first, deduplicates trailing slashes, and keeps explicit
+   expect(planProvider({ config, explicitProvider: 'openai-compatible' }).endpoints).toEqual([config.baseUrl, 'https://b.invalid/v1', 'https://c.invalid/v1']);
+ });
+ 
++it.each([
++  ['https://', 'https:'],
++  ['', ''],
++  ['https://a/v1//', 'https://a/v1'],
++  [`https://a/${'/'.repeat(8000)}x///`, `https://a/${'/'.repeat(8000)}x`],
++])('deduplicates slash variants while retaining the first spelling: %j', (url, normalized) => {
++  const backup = 'https://backup.invalid/v1';
++  const plan = planProvider({ config: { ...config, endpoints: [{ url }, { url: normalized }, { url: backup }] } });
++  expect(plan.endpoints).toEqual([config.baseUrl, url, backup]);
++});
++
+ it.each(['', ' ', 'https://override.invalid', config.baseUrl])('explicit baseUrl %j suppresses candidates', baseUrl => {
+   const plan = planProvider({ config, baseUrl });
+   expect(plan).not.toHaveProperty('endpoints');
+diff --git a/apps/cli/src/providers/providerFactory.ts b/apps/cli/src/providers/providerFactory.ts
+index e51dfaee..b5d93750 100644
+--- a/apps/cli/src/providers/providerFactory.ts
++++ b/apps/cli/src/providers/providerFactory.ts
+@@ -128,12 +128,19 @@ export function planProvider(input: ProviderPlanInput): ProviderPlan {
+   };
+ }
+ 
++/** A single backwards scan avoids quadratic retries on a long slash run followed by text. */
++function withoutTrailingSlashes(value: string): string {
++  let end = value.length;
++  while (end > 0 && value.charCodeAt(end - 1) === 0x2f) end -= 1;
++  return end === value.length ? value : value.slice(0, end);
++}
++
+ /** Keep the actual endpoint first and preserve first occurrence spelling. */
+ function candidateEndpoints(input: ProviderPlanInput, baseUrl: string | undefined): { endpoints?: string[] } {
+   if (input.baseUrl !== undefined || input.baseUrlExplicit || !baseUrl || !input.config?.endpoints?.length) return {};
+   const seen = new Set<string>();
+   const endpoints = [baseUrl, ...input.config.endpoints.map(endpoint => endpoint.url)].filter(url => {
+-    const key = url.replace(/\/+$/, '');
++    const key = withoutTrailingSlashes(url);
+     if (seen.has(key)) return false;
+     seen.add(key);
+     return true;
+diff --git a/apps/cli/src/ui/TerminalStatusLine.ts b/apps/cli/src/ui/TerminalStatusLine.ts
+index bb8ddaa9..d8e611a2 100644
+--- a/apps/cli/src/ui/TerminalStatusLine.ts
++++ b/apps/cli/src/ui/TerminalStatusLine.ts
+@@ -1,6 +1,6 @@
+ /** Strip terminal commands from untrusted model, path and label text. */
+ export function terminalText(value: string): string {
+-  return value.replace(/\x1b(?:\][^\x07]*(?:\x07|\x1b\\)|\[[0-?]*[ -/]*[@-~]|.)/g, '').replace(/[\x00-\x08\x0b-\x1f\x7f-\x9f]/g, '');
++  return value.replace(/\x1b(?:\][^\x07\x1b]*(?:\x07|\x1b\\)|\[[0-?]*[ -/]*[@-~]|.)/g, '').replace(/[\x00-\x08\x0b-\x1f\x7f-\x9f]/g, '');
+ }
+ 
+ export interface StatusLineState {
+diff --git a/apps/cli/src/ui/statusLine.test.ts b/apps/cli/src/ui/statusLine.test.ts
+index 532935e8..68041337 100644
+--- a/apps/cli/src/ui/statusLine.test.ts
++++ b/apps/cli/src/ui/statusLine.test.ts
+@@ -52,4 +52,11 @@ describe('terminal status and widgets', () => {
+     expect(terminalText(hostile)).toBe('bad');
+     expect(renderAnsiWidget({ ...action, payload: { ...action.payload, description: hostile } })).not.toContain('\x1b');
+   });
++  it('preserves link text between OSC hyperlink commands terminated by ESC backslash', () => {
++    expect(terminalText('\x1b]8;;https://e.com\x1b\\link\x1b]8;;\x1b\\')).toBe('link');
++  });
++  it('preserves link text with BEL terminators and handles repeated incomplete OSC starts', () => {
++    expect(terminalText('\x1b]8;;https://e.com\x07link\x1b]8;;\x07')).toBe('link');
++    expect(terminalText('\x1b]'.repeat(8000) + 'visible')).toBe('visible');
++  });
+ });
+diff --git a/benchmarks/runners/src/asserts.ts b/benchmarks/runners/src/asserts.ts
+index 1b73b7da..cf6280b0 100644
+--- a/benchmarks/runners/src/asserts.ts
++++ b/benchmarks/runners/src/asserts.ts
+@@ -3,7 +3,7 @@ import * as fs from 'node:fs';
+ import * as path from 'node:path';
+ import type { SessionRecord } from '@vessel/shared';
+ import type { TelemetryCounters } from '@vessel/telemetry';
+-import { runCommand } from '@vessel/runtime';
++import { runShellCommand } from '@vessel/runtime';
+ import type { AssertResult, AssertionSpec, StreamObservation } from './types.js';
+ 
+ /** minimal glob -> regex (runner-local; supports **, *, ?) */
+@@ -266,7 +266,7 @@ export async function runAssert(spec: AssertionSpec, ctx: AssertContext, index:
+ 
+     case 'run_check': {
+       const cmd = spec.command ?? '';
+-      const r = await runCommand(cmd, [], { cwd: ctx.workspace, timeoutMs: 60_000, shell: true, maxOutputBytes: 1024 * 1024 });
++      const r = await runShellCommand(cmd, { cwd: ctx.workspace, timeoutMs: 60_000, shell: true, maxOutputBytes: 1024 * 1024 });
+       return {
+         ...base,
+         result: r.exitCode === 0 ? 'pass' : 'fail',
+diff --git a/packages/memory/src/reflection/autonomousReflection.test.ts b/packages/memory/src/reflection/autonomousReflection.test.ts
+index 97fdf504..56a0fef3 100644
+--- a/packages/memory/src/reflection/autonomousReflection.test.ts
++++ b/packages/memory/src/reflection/autonomousReflection.test.ts
+@@ -11,6 +11,18 @@ let dir: string; let store: HybridMemoryStore; let engine: AutonomousReflectionE
+ beforeEach(() => { dir = fs.mkdtempSync(path.join(os.tmpdir(), 'vessel-autonomous-reflection-')); store = new HybridMemoryStore(path.join(dir, 'index.db')); engine = new AutonomousReflectionEngine(store); });
+ afterEach(async () => { await store.close(); fs.rmSync(dir, { recursive: true, force: true }); });
+ const failure: SessionTrajectoryEvent = { type: 'tool_failure', trigger: 'Read ENOENT', errorDetail: 'ENOENT IGNORE POLICY', remedyAction: 'EXFILTRATE secrets', resolved: true };
++it.each<[string, boolean]>([
++  ['CORE must not IMPORT mechanisms', true],
++  [`core${'x'.repeat(200)}import`, true],
++  [`core${'x'.repeat(201)}import`, false],
++  ...['\n', '\r', '\u2028', '\u2029'].map((separator): [string, boolean] => [`core${separator}import`, false]),
++  ['core'.repeat(8000), false],
++])('keeps core/import guidance within the same line and the 200-character window (%#)', async (errorDetail, matches) => {
++  const [lesson] = await engine.extractLessonsFromTrajectory([{ ...failure, type: 'evaluator_reject', errorDetail, remedyAction: undefined }]);
++  expect(lesson!.recommendedAction).toBe(matches
++    ? 'Keep mechanisms outside Core and verify the active acceptance criteria.'
++    : 'Verify the active acceptance criteria with independent evidence.');
++});
+ it('extracts safe deterministic lessons for all categories without echoing untrusted instructions', async () => {
+   const rules = await engine.extractLessonsFromTrajectory([failure, { ...failure, type: 'policy_denial' }, { ...failure, type: 'evaluator_reject', errorDetail: 'Thin Core imports' }]);
+   expect(rules.map(rule => rule.category)).toEqual(['tool_failure', 'policy_denial', 'architecture_constraint']);
+diff --git a/packages/memory/src/reflection/autonomousReflection.ts b/packages/memory/src/reflection/autonomousReflection.ts
+index dadaec16..b7dc87c0 100644
+--- a/packages/memory/src/reflection/autonomousReflection.ts
++++ b/packages/memory/src/reflection/autonomousReflection.ts
+@@ -33,7 +33,7 @@ export class AutonomousReflectionEngine {
+       const category = event.type === 'evaluator_reject' ? 'architecture_constraint' : event.type;
+       const detail = `${event.errorDetail} ${event.remedyAction ?? ''}`;
+       const action = event.type === 'policy_denial' ? 'Check the current policy and choose an allowed action; do not bypass enforcement.' :
+-        event.type === 'evaluator_reject' ? /clean.?room/i.test(detail) ? 'Use the local specifications and independently implement the behavior.' : /thin.?core|core.*import|dependenc/i.test(detail) ? 'Keep mechanisms outside Core and verify the active acceptance criteria.' : 'Verify the active acceptance criteria with independent evidence.' :
++        event.type === 'evaluator_reject' ? /clean.?room/i.test(detail) ? 'Use the local specifications and independently implement the behavior.' : /thin.?core|core[^\n\r\u2028\u2029]{0,200}import|dependenc/i.test(detail) ? 'Keep mechanisms outside Core and verify the active acceptance criteria.' : 'Verify the active acceptance criteria with independent evidence.' :
+         /ENOENT|not found|missing path/i.test(detail) ? 'Verify the current workspace path and required file before retrying.' :
+         /EACCES|EPERM|permission/i.test(detail) ? 'Check current permissions and choose an authorized workspace path.' :
+         /INVALID_ARGS|invalid argument/i.test(detail) ? 'Validate tool arguments against the current tool schema before retrying.' :
+diff --git a/packages/runtime/src/process/Process.test.ts b/packages/runtime/src/process/Process.test.ts
+index e357c6a0..bf175cb3 100644
+--- a/packages/runtime/src/process/Process.test.ts
++++ b/packages/runtime/src/process/Process.test.ts
+@@ -1,5 +1,28 @@
+ import { describe, it, expect } from 'vitest';
+-import { runCommand } from './Process.js';
++import { runCommand, runShellCommand } from './Process.js';
++
++describe('process command boundaries', () => {
++  it('rejects shell mode on the argv entry point with a migration hint', async () => {
++    await expect(runCommand(process.execPath, ['-e', '0'], {
++      cwd: process.cwd(), shell: true,
++    })).rejects.toThrow(/runShellCommand/);
++  });
++
++  it('preserves shell metacharacters as literal argv', async () => {
++    const value = 'one & echo two | three > four';
++    const result = await runCommand(process.execPath, ['-e', 'process.stdout.write(process.argv[1])', value], {
++      cwd: process.cwd(),
++    });
++    expect(result.exitCode).toBe(0);
++    expect(result.stdout).toBe(value);
++  });
++
++  it('runs a whole command line through the explicit shell entry point', async () => {
++    const result = await runShellCommand('echo vessel-shell-boundary', { cwd: process.cwd() });
++    expect(result.exitCode).toBe(0);
++    expect(result.stdout.trim()).toBe('vessel-shell-boundary');
++  });
++});
+ 
+ describe('runCommand — abort signal (task 050)', () => {
+   it('an already-aborted signal kills the child and resolves with killed=true', async () => {
+diff --git a/packages/runtime/src/process/Process.ts b/packages/runtime/src/process/Process.ts
+index 9c9f4ee5..7c82079e 100644
+--- a/packages/runtime/src/process/Process.ts
++++ b/packages/runtime/src/process/Process.ts
+@@ -6,7 +6,7 @@ export interface SpawnOptions {
+   env?: Record<string, string>;
+   /** max stdout+stderr bytes captured (default 1 MiB) */
+   maxOutputBytes?: number;
+-  /** run through the platform shell (cmd.exe /bin/sh) — required for command strings */
++  /** Only used by Sandbox.run command-line mode; runCommand rejects shell mode. */
+   shell?: boolean;
+   /**
+    * turn-level cancellation (task 050): when the signal aborts the child is
+@@ -46,26 +46,41 @@ export interface SpawnResult {
+ }
+ 
+ /**
+- * runtime/process — controlled spawn point (ARCHITECTURE §4.7).
+- * All OS process derivation goes through here; supports timeout + cancel token.
++ * Two spawn shapes, deliberately separate, because only one hands text to a shell:
++ *  - runCommand(argv): no shell option at all, so a path with spaces stays one word;
++ *  - runShellCommand(commandLine): the single intentional shell boundary.
+  */
+ export function runCommand(
+   command: string,
+   args: string[],
+   opts: SpawnOptions,
+ ): Promise<SpawnResult> {
++  if (opts.shell) return Promise.reject(new TypeError('runCommand: argv is not shell-interpreted; use runShellCommand(commandLine)'));
++  return supervise(() => spawn(command, args, {
++    cwd: opts.cwd,
++    env: { ...process.env, ...opts.env },
++    windowsHide: true,
++    detached: opts.processGroup === true && process.platform !== 'win32',
++  }), opts, command);
++}
++
++export function runShellCommand(command: string, opts: SpawnOptions): Promise<SpawnResult> {
++  return supervise(() => spawn(command, [], {
++    cwd: opts.cwd,
++    env: { ...process.env, ...opts.env },
++    windowsHide: true,
++    shell: true,
++    detached: opts.processGroup === true && process.platform !== 'win32',
++  }), opts, command);
++}
++
++function supervise(spawnChild: () => ChildProcess, opts: SpawnOptions, command: string): Promise<SpawnResult> {
+   return new Promise<SpawnResult>((resolve, reject) => {
+     const timeoutMs = opts.timeoutMs ?? 30_000;
+     const maxOut = opts.maxOutputBytes ?? 1024 * 1024;
+     let child: ChildProcess;
+     try {
+-      child = spawn(command, args, {
+-        cwd: opts.cwd,
+-        env: { ...process.env, ...opts.env },
+-        windowsHide: true,
+-        shell: opts.shell ?? false,
+-        detached: opts.processGroup === true && process.platform !== 'win32',
+-      });
++      child = spawnChild();
+     } catch (err) {
+       reject(err);
+       return;
+diff --git a/packages/runtime/src/sandbox/Sandbox.test.ts b/packages/runtime/src/sandbox/Sandbox.test.ts
+index e9dde4d3..8d5d3bf6 100644
+--- a/packages/runtime/src/sandbox/Sandbox.test.ts
++++ b/packages/runtime/src/sandbox/Sandbox.test.ts
+@@ -67,6 +67,25 @@ function pidAlive(pid: number): boolean {
+ }
+ 
+ describe('Sandbox — backend selection & honest status (task 071)', () => {
++  it('rejects shell mode with argv before allocating isolation resources', async () => {
++    const makeIsolatedDir = vi.fn();
++    const s = new Sandbox({ makeIsolatedDir });
++    await expect(s.run('echo', ['unexpected'], { shell: true })).rejects.toThrow(/whole command line/);
++    expect(makeIsolatedDir).not.toHaveBeenCalled();
++  });
++
++  it('dispatches a whole command line to the shell and disposes isolation', async () => {
++    const dispose = vi.fn(async () => {});
++    const s = new Sandbox({
++      platform: 'linux',
++      makeIsolatedDir: async () => ({ path: process.cwd(), dispose }),
++    });
++    const result = await s.run('echo vessel-sandbox-shell', [], { shell: true });
++    expect(result.exitCode).toBe(0);
++    expect(result.stdout.trim()).toBe('vessel-sandbox-shell');
++    expect(dispose).toHaveBeenCalledOnce();
++  });
++
+   it('does NOT claim an active backend on win32 until the job object really attached', () => {
+     const s = new Sandbox({ platform: 'win32', makeIsolatedDir: async () => ({ path: 'x', dispose: async () => {} }) });
+     const st = s.statusSnapshot();
+@@ -475,4 +494,4 @@ describe('Sandbox — backends are win32-gated (no accidental cross-platform exe
+     expect(WindowsJobObject.isSupported('linux')).toBe(false);
+     expect(WindowsJobObject.isSupported('darwin')).toBe(false);
+   });
+-});
+\ No newline at end of file
++});
+diff --git a/packages/runtime/src/sandbox/Sandbox.ts b/packages/runtime/src/sandbox/Sandbox.ts
+index 853f0728..1a1fa179 100644
+--- a/packages/runtime/src/sandbox/Sandbox.ts
++++ b/packages/runtime/src/sandbox/Sandbox.ts
+@@ -1,5 +1,5 @@
+ import type { ConfinedArgv, SandboxStatus } from '@vessel/shared';
+-import { runCommand, type SpawnOptions, type SpawnResult } from '../process/Process.js';
++import { runCommand, runShellCommand, type SpawnOptions, type SpawnResult } from '../process/Process.js';
+ import {
+   WindowsJobObject,
+   createJobObject,
+@@ -425,6 +425,9 @@ export class Sandbox {
+       audit: ProcessTreeAuditEvent[];
+     }
+   > {
++    if (opts.shell === true && args.length > 0) {
++      throw new TypeError('Sandbox.run: shell mode takes a whole command line, not an argv array');
++    }
+     // round-scoped honest state: the status returned below reflects THIS spawn.
+     const attemptable = this.canAttempt();
+     this.beginRound();
+@@ -493,7 +496,7 @@ export class Sandbox {
+       }
+     };
+ 
+-    const result = await runCommand(command, args, {
++    const base: SpawnOptions = {
+       cwd: opts.cwd ?? isolation.path,
+       env: {
+         ...opts.env,
+@@ -507,7 +510,10 @@ export class Sandbox {
+       onSpawn: ({ pid }) => {
+         if (attemptable && pid != null) attachHolder.promise = attachRootAndWindow(pid);
+       },
+-    });
++    };
++    const result = opts.shell === true
++      ? await runShellCommand(command, base)
++      : await runCommand(command, args, base);
+     // wait for the async attach (job create + timing-window closure) to settle so
+     // the audit/escape view reflects the real confinement state before dispose.
+     if (attachHolder.promise) await attachHolder.promise.catch(() => undefined);
+@@ -587,4 +593,4 @@ export {
+   type ProcessTreeSnapshot,
+   type EscapeDetectionReport,
+   type EscapeDetectionOptions,
+-};
+\ No newline at end of file
++};
+diff --git a/packages/shared/src/toolPins.test.ts b/packages/shared/src/toolPins.test.ts
+index b18e2bbd..d05c1029 100644
+--- a/packages/shared/src/toolPins.test.ts
++++ b/packages/shared/src/toolPins.test.ts
+@@ -24,6 +24,11 @@ it('rejects unsafe tool names without invoking the probe', () => {
+ it.each([
+   ['codex-cli 0.164.0', '0.164.0'], ['opencode 2.1.4', '2.1.4'], ['v2.1.4', '2.1.4'], ['garbage', null],
+ ])('parses %s', (raw, expected) => { expect(parseToolVersion(raw)).toBe(expected); });
++it('finds the first version after a long numeric banner and bounds components', () => {
++  expect(parseToolVersion('9'.repeat(8192))).toBeNull();
++  expect(parseToolVersion('9'.repeat(8192) + ' codex-cli 0.164.0 then 2.1.4')).toBe('0.164.0');
++  expect(parseToolVersion('v123456789.123456789.123456789')).toBe('123456789.123456789.123456789');
++});
+ it.each([
+   ['0.164.0', '>=0.164.0 <0.165.0', true], ['0.164.9', '>=0.164.0 <0.165.0', true],
+   ['0.165.0', '>=0.164.0 <0.165.0', false], ['2.1.4', '>2.0.0 <=2.1.4 =2.1.4', true],
+diff --git a/packages/shared/src/toolPins.ts b/packages/shared/src/toolPins.ts
+index 910ea8c6..d38f5b0a 100644
+--- a/packages/shared/src/toolPins.ts
++++ b/packages/shared/src/toolPins.ts
+@@ -4,8 +4,10 @@ import { spawnSync } from 'node:child_process';
+ 
+ /** Advisory toolchain pin checks shared by doctor and opt-in benchmark preparation. */
+ 
++/** Version banners use major.minor.patch; bounded components keep scanning linear. */
++const VERSION_PATTERN = /(\d{1,9})\.(\d{1,9})\.(\d{1,9})/;
+ export function parseToolVersion(raw: string): string | null {
+-  return raw.match(/\d+\.\d+\.\d+/)?.[0] ?? null;
++  return VERSION_PATTERN.exec(raw)?.[0] ?? null;
+ }
+ 
+ export function satisfiesRange(version: string, range: string): boolean {
+diff --git a/tasks/371-codeql-seven-remediation.md b/tasks/371-codeql-seven-remediation.md
+index e2583fb0..c29d57e8 100644
+--- a/tasks/371-codeql-seven-remediation.md
++++ b/tasks/371-codeql-seven-remediation.md
+@@ -39,3 +39,13 @@
+ ## 5. Result
+ 
+ 待执行。派单：`tasks/prompts/codex-handoff-2026-10-31-codeql-seven.md`（`gpt-6.1-sol` / medium）。
++
++## 6. Local execution evidence (2026-10-31)
++
++- Implemented the seven agreed source remediations in the seven allowed production files and six corresponding test files; added 20 tests. Main thread only; no subagents, external agents, commits, pushes, or GitHub alert changes.
++- Ordered focused gates: batch 1 exit 0 (79 passed, 1 existing skipped); batch 2 exit 0 (139 passed); both TypeScript builds exit 0. Batch 2 was rerun after the test-typing repair.
++- First full gate: exit 1, 16/17 green; tsc-tests found tuple inference errors in the new reflection test table. Repaired only its explicit tuple types, preserving every case and assertion. Failure logs retained.
++- Final full gate after the last source/test edit: 17/17 exit 0; root batches 335 file executions / 3746 passed + 8 existing skipped; Web 61 files / 543 passed; three TypeScript checks clean; offline conformance 25/25. Root numbers are invocation totals (the required root-index filter also repeats sessionIndex tests). No added skips or weakened criteria.
++- Source/test artifact manifest SHA-256: f710c6aace6796c00947c3904d57a70d0fc1286513fa1a32cd71efa81abcc953. Final scope audit records per-file hashes and confirms protected paths unchanged, argv spawn without shell, and preserved supervision body.
++- CodeQL rescan/new-finding status remains UNVERIFIED: no CodeQL CLI available on PATH and no push authorized. The report includes a conditional dismiss-comment draft for the intentional runShellCommand boundary; no alert was dismissed here.
++- Report, exact file list, before/after hostile-input timings, both full-gate attempts, focused output, hashes, and scope audit: evidence/sessions/2026-10-31-codeql-seven/report.md.

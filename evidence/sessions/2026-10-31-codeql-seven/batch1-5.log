@@ -1,0 +1,2 @@
+npm notice run composable-agent-harness@0.10.0 npx
+npm notice run tsc -b tsconfig.json
