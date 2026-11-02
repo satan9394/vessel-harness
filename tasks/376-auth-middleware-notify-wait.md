@@ -1,6 +1,6 @@
 # 任务卡 376: authMiddleware 通知用例的 1s 轮询窗口（首次观测）
 
-- Status: 已完成（2026-11-02；等下一次 CI 确认）
+- Status: 已验收（2026-11-02；修复后 CI 未再复发）
 - PDW task: none
 - 现象：`main` `30972220`（纯文档 + 脚本提交）的 `build (windows-latest, 22)` 红，唯一失败是
   `apps/local-server/src/daemon/authMiddleware.test.ts` → `notifies for a staged approval gate and completed offline

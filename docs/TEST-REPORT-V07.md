@@ -7,7 +7,7 @@
 - 环境：Windows / PowerShell；Node v24.14.0；npm 11.9.0；Vitest v2.1.9
 - 工作区：`C:\work\Vessel_Harness`
 - 命令入口：`npx tsc -b` 构建后统一用 `node apps/cli/dist/cli.js`（等价 `cah`）。
-  注：`Get-Command cah` 命中全局链接 `D:\tools\NVM_Windows\nodejs\cah.ps1`
+  注：`Get-Command cah` 命中全局链接 `D:\tools\NVM_Windows\nodejs\cah.ps1` <!-- tool-path-guard: allow -->
   （指向全局安装的 `@vessel/cli`，非本次刚构建产物），故证据统一取自本地 dist。
 - 隔离：`$env:CAH_PROVIDER_ROOT` 指向临时目录（不触碰 `~/.dsh`），用后置 `$null`；
   临时目录与冒烟会话日志按回收站纪律清理（`FileSystem.DeleteDirectory 'OnlyErrorDialogs' 'SendToRecycleBin'`）。

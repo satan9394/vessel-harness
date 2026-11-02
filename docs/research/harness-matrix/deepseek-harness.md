@@ -433,7 +433,7 @@ H12 在 dsh 中呈现为"验证是外围测试体系 + 人工评审门 + 结构�
   - packages/**（core/agent, core/agent-loop, core/session, core/system-prompt, core/tools, llm/llm-retry, compaction/*, sandbox/*, shell/*, fs/*, interaction/*, skill/*, subagent/*, hooks/*, plan, preset, session/*, web, context/*, workflow, goal, todo）
   - .agents/notes/implemented/**（architecture/feature 目录，如 2026-07-16-explicit-turn-cancellation、2026-07-10-parallel-tool-call-execution、2026-08-08-windows-acl-restricted-token-sandbox、2026-08-05-profile-plugin-bundles 等设计决策记录）
 - 本机安装（0.1.2-alpha.5 发布形态，用于验证发行包结构）：
-  - `D:\tools\NVM_Windows\nvm_a\v24.14.0\node_modules\@deepseek-ai\dsh`（CLI 启动器：lib/bin.js、lib/profile-boot-*.js、package.json 依赖清单）
+  - `D:\tools\NVM_Windows\nvm_a\v24.14.0\node_modules\@deepseek-ai\dsh`（CLI 启动器：lib/bin.js、lib/profile-boot-*.js、package.json 依赖清单） <!-- tool-path-guard: allow -->
   - `C:\Users\USER\.dsh\profiles\node_modules\@deepseek-ai\`（dsh-base/cordis.patch.yml 498 行组合清单、dsh-agent-loop、dsh-agent-instructions、dsh-sandbox-local、dsh-compaction-basic、dsh-llm-retry、dsh-plan-mode、dsh-hook-protocol、dsh-hooks-claude-code、dsh-tool-fs、dsh-mcp-client 等包的 README.zh.md 与 lib/）
   - `C:\Users\USER\.dsh\`（profiles/web/cordis.patch.yml 实际用户覆盖、sessions/ 会话存储布局实证）
 - 外部参考：Cordis 上游 https://github.com/cordiverse/cordis ；论文 arXiv:2608.25512《A Programming Paradigm for Spatiotemporal Composability》（经 README 引用，未直接核读论文原文）。
