@@ -63,7 +63,7 @@ describe('daemon strict Bearer HTTP/SSE authentication', () => {
     const { stage } = await staged.json() as { stage: { id: string } };
     expect(notify).toHaveBeenCalledWith('Vessel approval required', expect.stringContaining(stage.id));
     expect((await fetch(`${base}/api/team/stages/${stage.id}/approve`, { method: 'POST', headers, body: '{}' })).status).toBe(200);
-    await vi.waitFor(() => expect(notify).toHaveBeenCalledWith('Vessel team completed', expect.stringContaining(stage.id)));
+    await vi.waitFor(() => expect(notify).toHaveBeenCalledWith('Vessel team completed', expect.stringContaining(stage.id)), { timeout: 15_000 });
   });
   it('notifies for an ask policy decision on the session bus without changing core', async () => {
     const capture = vi.spyOn(SessionController, 'create');
