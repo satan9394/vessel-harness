@@ -106,6 +106,7 @@
 - **契约草稿放 `.pdw/contracts/`**，不要放 `.pdw/tasks/`：无参 `status` 会把 `tasks` 下每个目录当任务读 `state.json`，遇到没有该文件的草稿目录会 ENOENT。
 - **任务运行期间不要编辑仓库**：`pdw.mjs` 每个阶段都会比对产物指纹，任务 `running` 时改任何被 scope 覆盖的文件都会以 `Source drift detected` 失败（2026-10-26 统计：129 次派发里这是最大单一失败源，6 次）。要改先 `cancel`，或等 `status` 不再是 running。
 - **契约先自检再冻结**：AC 之间、AC 与 `notes` 不得互相矛盾（例：AC 要求"未安装 CLI 时写 summary"，notes 又要求"CI 未安装也通过"）。矛盾时模型会如实报 `blocked`——这是契约问题，不是模型能力问题（2026-10-26 统计：5 次 blocked 里至少 3 次属此类），先改卡再新建任务，不要靠升档硬顶。
+- **可执行路径一律指向 nvm 的 `.nodejs` 目录（2026-11-02）**：`C:\Users\Satanchen\AppData\Local\Author Software\nvm\.nodejs\{codex,opencode}.exe`。nvm 在 2026-10-30 把根从 `D:\Technology_application\NVM_Windows` 搬到 C 盘且旧目录已删，写死 `installs\vX.Y.Z\...` 或旧 D: 路径的配置会静默失效——表现为 `.pdw/config.json` 五个角色全 `ready:false`、`doctor` 退出码 1、派活报 `process failed (1)` 且 `process.stderr.log` 是 0 字节。`.nodejs` 是 nvm 的当前版本指针，换 node 版本自动跟随。改完必须 `pwsh pdw.ps1 doctor`（exit 0 + 五角色 ready）复核；`scripts\dispatch-codex.ps1`、`scripts\pdw-route.ps1` 里的同类路径同步改。
 
 ## 开发工作流（六步循环）
 

@@ -48,8 +48,8 @@ $root = Split-Path -Parent $PSScriptRoot
 $configPath = Join-Path $root '.pdw/config.json'
 if (-not (Test-Path $configPath)) { throw "找不到 $configPath；先在本项目根跑一次 pwsh pdw.ps1 doctor" }
 
-$opencodeExe = 'D:\Technology_application\NVM_Windows\nodejs\node_modules\@opencode\cli\bin\opencode.exe'
-$codexExe = 'D:\Technology_application\NVM_Windows\nodejs\node_modules\@openai\codex\node_modules\@openai\codex-win32-x64\vendor\x86_64-pc-windows-msvc\bin\codex.exe'
+$opencodeExe = 'C:\Users\Satanchen\AppData\Local\Author Software\nvm\.nodejs\opencode.exe'
+$codexExe = 'C:\Users\Satanchen\AppData\Local\Author Software\nvm\.nodejs\codex.exe'
 
 $routes = @{
   'code-heavy' = @{ backend = 'codex'; executable = $codexExe; model = 'gpt-6.1-sol'; effort = 'high'; why = '跨包签名 / core 安全语义 / 并发竞态 / 删除主链路' }
