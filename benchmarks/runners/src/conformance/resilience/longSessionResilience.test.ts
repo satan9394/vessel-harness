@@ -51,8 +51,8 @@ async function cleanupUnresponsiveMcp() {
 beforeAll(async () => {
   root = await fs.mkdtemp(path.join(os.tmpdir(), 'vessel-long-resilience-'));
   evidence = await runLongSessionResilience({ root, cleanupUnresponsiveMcp, retireArtifact: file => fs.rm(file) });
-}, 30_000);
-afterAll(async () => { vi.restoreAllMocks(); if (root) await fs.rm(root, { recursive: true, force: true }); });
+}, 120_000);
+afterAll(async () => { vi.restoreAllMocks(); if (root) await fs.rm(root, { recursive: true, force: true }); }, 120_000);
 
 describe('100-round offline blind resilience', () => {
   it('preserves facts, durable events and sequences through overflow, hung MCP and restart', () => {

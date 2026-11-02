@@ -146,7 +146,7 @@ V2.1 历史恢复点：PowerShell session **47315 已完成 exit 0**，最后 so
 |---|---|---|
 | A1 | **产品边界**：Epic 183 已本地实现原生沙箱；Windows ACL 预配置/真机验收、macOS 逃组生命周期仍需按交付记录判断；POSIX helper 缺失已改为默认拒绝（卡 287，显式放行 `VESSEL_ALLOW_UNSANDBOXED=1`）；`--live` 外部基线未做 | `README.md` 状态段、`docs/SANDBOX-WINDOWS.md` |
 | A2 | 环境补齐项：`release-report` 刷新（需配额确认）、Packaging gate 重跑（需 dist）、字面 3h 墙钟 soak | `tasks/README.md` 未闭合段、`docs/V1.6-STABLE-CHECKLIST.md` |
-| A3 | Windows runner worker 启动抖动：**若再出现第二次**就立卡（可选缓解：给 CI 设 `maxWorkers`） | 审计文档 **§C**（已定义触发条件） |
+| A3 | Windows runner 抖动**第二次已发生并立卡**：2026-10-31（`windows-latest, 26`）与 2026-11-02（`windows-latest, 22`）都是 `longSessionResilience.test.ts` 的 `Hook timed out in 30000ms`，本地复跑 5 passed / 6.6s。卡 374 把该套件 `beforeAll`/`afterAll` 显式放到 120s（断言与场景零改动）。**若再复发**：说明 120s 也不够，改按 maxWorkers / 拆场景处理，不要继续抬超时 | [374](374-long-session-hook-timeout.md)、审计文档 **§C** |
 | A4 | 文档诚实化（同类清扫已完成一轮，若有新发现同法处理） | 审计文档 §H/§I 的做法：区分「历史快照」与「面向行动的清单」 |
 
 #### 待研究（未立项，需先拍板，不要自动开工）
