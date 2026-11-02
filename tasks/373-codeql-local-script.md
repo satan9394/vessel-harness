@@ -44,5 +44,8 @@
 - 查询映射纠正过一次：ReDoS 在 pack 里是 `Performance/PolynomialReDoS.ql`，不是想当然的 `Security/CWE-1333/`；
   第一次跑因此 exit=2，脚本已改成「查询失败时 verdict 明说失败条数并 exit 1」，不再谎报「无结果」。
 - 产物只写 `%TEMP%`；`git status` 在跑完后仍干净（A4）。
+- A3 前半（CLI 缺失）实测：把 bundle 临时改名后运行，脚本打印下载命令并 **exit 2**（随后已改回，bundle 完好）。
+  A3 后半（查询失败 → verdict 明说并 exit 1）只做了代码核对：改 mapping 前那次运行确实以 exit=2 结束，但当时
+  verdict 文案还是旧的「no results」，未再制造一次失败去验证新文案。
 - 坑都写进文档：`database analyze` 在 8.3 短名路径下崩（改用 `query run` + `bqrs decode`）、本地行数多于 PR 页条数、
   快照不含 `node_modules`/`dist`、`-WorkingTree` 不处理删除、临时库留给人清。
