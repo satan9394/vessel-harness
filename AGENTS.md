@@ -67,17 +67,18 @@
 
 - **档位词表按后端分列，以模型声明的 `variants` 为准**（`opencode debug config` 可查）：DeepSeek V4.1 Flash 实测 `low/high/max/off`，写 `medium` 不会变成中等思考；GPT-6.1 Sol 实测 `low/medium/high/xhigh/max/ultra`。换模型后重新核对，不沿用旧结论。
 - **`ultra` 不是「更深一档的单代理思考」**：Codex 应用里它表示**协调并行子代理**。因此走 Codex 应用（不走 PDW）时，执行单必须写死「**同一文件同一时刻只允许一个写者**」，并行只用于只读探索与跑测试；段与段之间用验证命令做闸门（上一段没绿不许开下一段）。PDW 的 `implement` 仍是串行单代理，保持 `medium`。
+- **桌面 app 的档位名与「默认隐藏」不是下线**（2026-11-01 核对）：app 里 `low` 显示为 **Light**、`xhigh` 显示为 **Extra High**，是同一档的两种叫法，别当新档位。滑块默认只给四格（Light/Medium/High/Extra High）是因为 `~/.codex/config.toml` 的 `[desktop]` 里 `show-ultra-in-model-picker-slider` 默认 false、且默认启用列表 `enabled-reasoning-efforts = ["low","medium","high","xhigh","ultra","persistent"]` **不含 `max`**；服务端目录 `~/.codex/models_cache.json` 里 Sol/Astra/Terra 仍报满 `low/medium/high/xhigh/max/ultra`，Luna 到 `max` 为止。想用 Max/Ultra 就改这两项再重启 app（Ultra 也可在 Settings > Configuration 勾）；CLI 不受影响，`/model` → 选模型 → **More reasoning…** 可直达 max/ultra。
 
 ### 模型与档位选型表（派活前必须查，不等用户提醒）
 
-来源（2026-10-26 核对，规则更新时同步复核）：[模型选择](https://developers.openai.com/api/docs/guides/model-selection)、[GPT-6.1 Sol 提示指导](https://developers.openai.com/api/docs/guides/latest-model?model=gpt-6.1-sol)、[减少过度提示](https://developers.openai.com/blog/rethinking-skills-and-prompts-for-gpt-6-astra)、[Codex 运行配置](https://learn.chatgpt.com/docs/developer-settings)。
+来源（2026-10-26 核对，2026-11-01 复核：官网推荐档位措辞已统一为 Low / Medium / High / Extra high，Max 与 Ultra 单独成节，Ultra = 子代理并行、Luna 不支持 Ultra；规则更新时同步复核）：[模型选择](https://developers.openai.com/api/docs/guides/model-selection)、[GPT-6.1 Sol 提示指导](https://developers.openai.com/api/docs/guides/latest-model?model=gpt-6.1-sol)、[减少过度提示](https://developers.openai.com/blog/rethinking-skills-and-prompts-for-gpt-6-astra)、[Codex 运行配置](https://learn.chatgpt.com/docs/developer-settings)。
 
 | 任务性质（官方原文关键词） | 模型 ID | 档位 | 备注 |
 |---|---|---|---|
 | 细粒度改动、边界清晰的小修（`fine-grained edits, well-scoped`） | `gpt-6-luna` | `low` | 最省；不支持 Ultra |
 | 基于给定材料的写作、有明确结果的小改动（`concise writing based on supplied material` / `scoped code fixes`） | `gpt-6.1-terra` | `low`–`medium` | 文档、单文件 UI 文案、纯测试 |
 | 多文件、需要协调、预期会返工的复杂技术工作（`complex technical work and coordinated deliverables you expect to revise`） | `gpt-6.1-sol` | `medium` | **默认主力** |
-| 需要打磨成品、证据冲突时要拍板（`polished deliverables / decisions built from conflicting evidence`） | `gpt-6.1-sol` | `xhigh` | 首轮红了才升，不预先升 |
+| 需要打磨成品、证据冲突时要拍板（`polished deliverables / decisions built from conflicting evidence`） | `gpt-6.1-sol` | `xhigh`（app 显示 *Extra High*） | 首轮红了才升，不预先升 |
 | 质量优先、成本与延迟不敏感（`most powerful`） | `gpt-6-astra` | `medium` | 最后手段，不当默认 |
 | 需要并行子代理且**文件集互不重叠**（Codex 应用/CLI 的 Ultra） | `gpt-6.1-sol` | `ultra` | 有共享文件时禁用；改串行或拆道 |
 
