@@ -1,0 +1,64 @@
+npm notice run composable-agent-harness@0.10.0 bench:conformance
+npm notice run tsx benchmarks/runners/src/conformance/run-conformance.ts
+[conformance] 25 fixtures × 1 adapters (vessel) [offline]
+  vessel × B001: run (ok)
+  vessel × B002: run (ok)
+  vessel × B003: run (ok)
+  vessel × B004: run (ok)
+  vessel × B005: run (ok)
+  vessel × B016: run (ok)
+  vessel × B017: run (ok)
+  vessel × B018: run (ok)
+  vessel × B019: run (ok)
+  vessel × B020: run (ok)
+  vessel × B021: run (ok)
+  vessel × B022: run (ok)
+  vessel × B023: run (ok)
+  vessel × B024: run (ok)
+  vessel × B025: run (ok)
+  vessel × B026: run (ok)
+  vessel × B027: run (ok)
+  vessel × S001: run (ok)
+  vessel × S002: run (ok)
+  vessel × S003: run (ok)
+  vessel × S004: run (ok)
+  vessel × S005: run (ok)
+  vessel × S006: run (ok)
+  vessel × S007: run (ok)
+  vessel × S008: run (ok)
+Benchmark Report — cross-harness conformance (offline)
+totals: 25 runs, 25 passed, 0 failed, success 100%, cost $0
+
+harness summary
+harness           runs pass fail  success avgWall(ms)  avgCost  totalCost
+vessel              25   25    0     100%         175        0          0
+
+cross-harness comparison (by scenario)
+  B001: vessel/mock-model OK wall=458ms in=200 out=40 cost=$0
+  B002: vessel/mock-model OK wall=608ms in=200 out=40 cost=$0
+  B003: vessel/mock-model OK wall=212ms in=300 out=60 cost=$0
+  B004: vessel/mock-model OK wall=241ms in=300 out=60 cost=$0
+  B005: vessel/mock-model OK wall=146ms in=300 out=60 cost=$0
+  B016: vessel/mock-model OK wall=104ms in=200 out=40 cost=$0
+  B017: vessel/mock-model OK wall=92ms in=100 out=20 cost=$0
+  B018: vessel/mock-model OK wall=69ms in=100 out=20 cost=$0
+  B019: vessel/mock-model OK wall=113ms in=200 out=40 cost=$0
+  B020: vessel/mock-model OK wall=179ms in=300 out=60 cost=$0
+  B021: vessel/mock-model OK wall=150ms in=200 out=40 cost=$0
+[conformance] cells: 25 run / 0 skipped / 0 error (of 25)
+  B022: vessel/mock-model OK wall=110ms in=100 out=20 cost=$0
+  B023: vessel/mock-model OK wall=90ms in=100 out=20 cost=$0
+  B024: vessel/mock-model OK wall=144ms in=200 out=40 cost=$0
+  B025: vessel/mock-model OK wall=149ms in=200 out=40 cost=$0
+  B026: vessel/mock-model OK wall=142ms in=200 out=40 cost=$0
+  B027: vessel/mock-model OK wall=92ms in=100 out=20 cost=$0
+  S001: vessel/mock-model OK wall=106ms in=200 out=40 cost=$0
+  S002: vessel/mock-model OK wall=142ms in=300 out=60 cost=$0
+  S003: vessel/mock-model OK wall=159ms in=300 out=60 cost=$0
+  S004: vessel/mock-model OK wall=165ms in=300 out=60 cost=$0
+  S005: vessel/mock-model OK wall=139ms in=300 out=60 cost=$0
+  S006: vessel/mock-model OK wall=175ms in=200 out=40 cost=$0
+  S007: vessel/mock-model OK wall=233ms in=600 out=120 cost=$0
+[conformance] report: E:\Code_file\Projects\Vessel_Harness\benchmarks\reports\conformance\benchmark-report-2026-10-31T19-42-47-193Z.md
+[conformance] report: E:\Code_file\Projects\Vessel_Harness\benchmarks\reports\conformance\benchmark-report-2026-10-31T19-42-47-193Z.json
+  S008: vessel/mock-model OK wall=148ms in=300 out=60 cost=$0

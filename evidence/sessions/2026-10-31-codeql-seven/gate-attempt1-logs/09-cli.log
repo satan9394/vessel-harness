@@ -1,0 +1,42 @@
+
+ RUN  v5.0.5 E:/Code_file/Projects/Vessel_Harness
+
+[?25l|
+o  
+[?25h|
+*  已切换。vessel run 现在走 DeepSeek/deepseek-chat（热生效，无需重启）
+|
+*  已保存供应商 "deepseek" 到 ~/.vessel/providers.json
+|
+•  mock 是内置离线供应商，无需配置。
+[?25l|
+o  
+[?25h|
+*  已切换。vessel run 现在走 DeepSeek/deepseek-chat（热生效，无需重启）
+|
+*  已保存供应商 "deepseek" 到 ~/.vessel/providers.json
+[?25l|
+o  
+[?25h|
+!  模拟网络失败 — 转手动输入模型 id（或留空退出）。
+|
+*  已切换。vessel run 现在走 vLLM（自托管）/custom-model（热生效，无需重启）
+|
+*  已保存供应商 "vllm" 到 ~/.vessel/providers.json
+[?25l|
+o  
+[?25h|
+*  已切换。vessel run 现在走 自定义供应商/m1（热生效，无需重启）
+|
+*  已保存供应商 "gateway-example-com-v1" 到 ~/.vessel/providers.json
+[?25l|
+o  
+[?25h
+ Test Files  65 passed (65)
+      Tests  790 passed (790)
+   Start at  12:36:36
+   Duration  130.42s (tests 77%, import 20%, transform 2%, setup 1%)
+
+    Isolate  65 workers spawned · ~145ms startup each (spawn + environment, per file)
+             at least ~9.25s faster with isolate: false — reuses workers across files instead of one per file
+

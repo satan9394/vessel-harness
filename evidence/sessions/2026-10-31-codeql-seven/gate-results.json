@@ -1,0 +1,123 @@
+{
+  "command": "pwsh -NoProfile -File scripts/gate-batched.ps1",
+  "exit": 0,
+  "steps": [
+    {
+      "step": "shared+core",
+      "exit": 0,
+      "seconds": 12,
+      "summary": "Test Files  31 passed (31) | Tests  280 passed | 1 skipped (281)"
+    },
+    {
+      "step": "llm",
+      "exit": 0,
+      "seconds": 8,
+      "summary": "Test Files  20 passed (20) | Tests  336 passed (336)"
+    },
+    {
+      "step": "behavior+context",
+      "exit": 0,
+      "seconds": 9,
+      "summary": "Test Files  18 passed (18) | Tests  164 passed (164)"
+    },
+    {
+      "step": "tools+policy",
+      "exit": 0,
+      "seconds": 30,
+      "summary": "Test Files  31 passed (31) | Tests  339 passed | 3 skipped (342)"
+    },
+    {
+      "step": "runtime+memory",
+      "exit": 0,
+      "seconds": 30,
+      "summary": "Test Files  24 passed (24) | Tests  218 passed | 1 skipped (219)"
+    },
+    {
+      "step": "skills+agents",
+      "exit": 0,
+      "seconds": 27,
+      "summary": "Test Files  23 passed (23) | Tests  196 passed (196)"
+    },
+    {
+      "step": "telemetry+engine",
+      "exit": 0,
+      "seconds": 41,
+      "summary": "Test Files  22 passed (22) | Tests  223 passed (223)"
+    },
+    {
+      "step": "application",
+      "exit": 0,
+      "seconds": 48,
+      "summary": "Test Files  36 passed (36) | Tests  325 passed | 3 skipped (328)"
+    },
+    {
+      "step": "cli",
+      "exit": 0,
+      "seconds": 150,
+      "summary": "Test Files  65 passed (65) | Tests  790 passed (790)"
+    },
+    {
+      "step": "local-server",
+      "exit": 0,
+      "seconds": 59,
+      "summary": "Test Files  28 passed (28) | Tests  320 passed (320)"
+    },
+    {
+      "step": "benchmarks",
+      "exit": 0,
+      "seconds": 102,
+      "summary": "Test Files  35 passed (35) | Tests  541 passed (541)"
+    },
+    {
+      "step": "root-index",
+      "exit": 0,
+      "seconds": 2,
+      "summary": "Test Files  2 passed (2) | Tests  14 passed (14)"
+    },
+    {
+      "step": "web-root",
+      "exit": 0,
+      "seconds": 53,
+      "summary": "Test Files  61 passed (61) | Tests  543 passed (543)"
+    },
+    {
+      "step": "tsc-build",
+      "exit": 0,
+      "seconds": 0,
+      "summary": ""
+    },
+    {
+      "step": "tsc-tests",
+      "exit": 0,
+      "seconds": 2,
+      "summary": ""
+    },
+    {
+      "step": "tsc-web",
+      "exit": 0,
+      "seconds": 2,
+      "summary": ""
+    },
+    {
+      "step": "conformance",
+      "exit": 0,
+      "seconds": 10,
+      "summary": "totals: 25 runs, 25 passed, 0 failed, success 100%, cost $0"
+    }
+  ],
+  "totals": {
+    "root": {
+      "files": 335,
+      "passed": 3746,
+      "skipped": 8
+    },
+    "web": {
+      "files": 61,
+      "passed": 543,
+      "skipped": 0
+    }
+  },
+  "totalsMeaning": "Sum of invocation summaries, not deduplicated tests: root-index also matches memory/sessionIndex.test.ts.",
+  "runnerTempLogs": "C:\\work\\AppData\\Local\\Temp\\vessel-gate-41e4abc2",
+  "copiedLogs": "gate-logs/"
+}

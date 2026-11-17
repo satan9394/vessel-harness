@@ -1,0 +1,68 @@
+[
+  {
+    "command": "C:\\work\\AppData\\Local\\Author Software\\nvm\\installs\\v26.13.0\\node.exe",
+    "args": [
+      "node_modules/vitest/vitest.mjs",
+      "run",
+      "apps/cli/src/providers/providerFactory.failover.test.ts"
+    ],
+    "exit": 0,
+    "seconds": 1.918,
+    "log": "batch2-1.log"
+  },
+  {
+    "command": "C:\\work\\AppData\\Local\\Author Software\\nvm\\installs\\v26.13.0\\node.exe",
+    "args": [
+      "node_modules/vitest/vitest.mjs",
+      "run",
+      "apps/cli/src/ui"
+    ],
+    "exit": 0,
+    "seconds": 0.985,
+    "log": "batch2-2.log"
+  },
+  {
+    "command": "C:\\work\\AppData\\Local\\Author Software\\nvm\\installs\\v26.13.0\\node.exe",
+    "args": [
+      "node_modules/vitest/vitest.mjs",
+      "run",
+      "packages/memory"
+    ],
+    "exit": 0,
+    "seconds": 6.835,
+    "log": "batch2-3.log"
+  },
+  {
+    "command": "C:\\work\\AppData\\Local\\Author Software\\nvm\\installs\\v26.13.0\\node.exe",
+    "args": [
+      "node_modules/vitest/vitest.mjs",
+      "run",
+      "packages/shared/src/toolPins.test.ts"
+    ],
+    "exit": 0,
+    "seconds": 0.615,
+    "log": "batch2-4.log"
+  },
+  {
+    "command": "C:\\work\\AppData\\Local\\Author Software\\nvm\\installs\\v26.13.0\\node.exe",
+    "args": [
+      "node_modules/vitest/vitest.mjs",
+      "run",
+      "apps/cli/src/commands/toolPins.test.ts"
+    ],
+    "exit": 0,
+    "seconds": 0.719,
+    "log": "batch2-5.log"
+  },
+  {
+    "command": "pwsh",
+    "args": [
+      "-NoProfile",
+      "-Command",
+      "npx tsc -b tsconfig.json"
+    ],
+    "exit": 0,
+    "seconds": 3.437,
+    "log": "batch2-6.log"
+  }
+]

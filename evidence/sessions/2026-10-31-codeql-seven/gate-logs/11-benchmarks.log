@@ -1,0 +1,12 @@
+
+ RUN  v5.0.5 E:/Code_file/Projects/Vessel_Harness
+
+
+ Test Files  35 passed (35)
+      Tests  541 passed (541)
+   Start at  12:50:57
+   Duration  101.15s (tests 81%, import 16%, transform 2%)
+
+    Isolate  35 workers spawned · ~195ms startup each (spawn + environment, per file)
+             at least ~6.62s faster with isolate: false — reuses workers across files instead of one per file
+

@@ -1,0 +1,24 @@
+
+ RUN  v5.0.5 E:/Code_file/Projects/Vessel_Harness/apps/web
+
+(node:8564) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:6640) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:15416) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:8084) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:24040) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:23732) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+ Test Files  61 passed (61)
+      Tests  543 passed (543)
+   Start at  12:41:39
+   Duration  34.45s (environment 46%, tests 26%, import 18%, transform 7%, worker 3%)
+
+    Isolate  61 workers spawned · ~386ms startup each (spawn + environment, per file)
+             at least ~23.14s faster with isolate: false — reuses workers across files instead of one per file
+

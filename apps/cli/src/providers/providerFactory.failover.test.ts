@@ -14,6 +14,17 @@ it('puts actual baseUrl first, deduplicates trailing slashes, and keeps explicit
   expect(planProvider({ config, explicitProvider: 'openai-compatible' }).endpoints).toEqual([config.baseUrl, 'https://b.invalid/v1', 'https://c.invalid/v1']);
 });
 
+it.each([
+  ['https://', 'https:'],
+  ['', ''],
+  ['https://a/v1//', 'https://a/v1'],
+  [`https://a/${'/'.repeat(8000)}x///`, `https://a/${'/'.repeat(8000)}x`],
+])('deduplicates slash variants while retaining the first spelling: %j', (url, normalized) => {
+  const backup = 'https://backup.invalid/v1';
+  const plan = planProvider({ config: { ...config, endpoints: [{ url }, { url: normalized }, { url: backup }] } });
+  expect(plan.endpoints).toEqual([config.baseUrl, url, backup]);
+});
+
 it.each(['', ' ', 'https://override.invalid', config.baseUrl])('explicit baseUrl %j suppresses candidates', baseUrl => {
   const plan = planProvider({ config, baseUrl });
   expect(plan).not.toHaveProperty('endpoints');

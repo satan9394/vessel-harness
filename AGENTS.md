@@ -67,17 +67,18 @@
 
 - **档位词表按后端分列，以模型声明的 `variants` 为准**（`opencode debug config` 可查）：DeepSeek V4.1 Flash 实测 `low/high/max/off`，写 `medium` 不会变成中等思考；GPT-6.1 Sol 实测 `low/medium/high/xhigh/max/ultra`。换模型后重新核对，不沿用旧结论。
 - **`ultra` 不是「更深一档的单代理思考」**：Codex 应用里它表示**协调并行子代理**。因此走 Codex 应用（不走 PDW）时，执行单必须写死「**同一文件同一时刻只允许一个写者**」，并行只用于只读探索与跑测试；段与段之间用验证命令做闸门（上一段没绿不许开下一段）。PDW 的 `implement` 仍是串行单代理，保持 `medium`。
+- **桌面 app 的档位名与「默认隐藏」不是下线**（2026-11-01 核对）：app 里 `low` 显示为 **Light**、`xhigh` 显示为 **Extra High**，是同一档的两种叫法，别当新档位。滑块默认只给四格（Light/Medium/High/Extra High）是因为 `~/.codex/config.toml` 的 `[desktop]` 里 `show-ultra-in-model-picker-slider` 默认 false、且默认启用列表 `enabled-reasoning-efforts = ["low","medium","high","xhigh","ultra","persistent"]` **不含 `max`**；服务端目录 `~/.codex/models_cache.json` 里 Sol/Astra/Terra 仍报满 `low/medium/high/xhigh/max/ultra`，Luna 到 `max` 为止。想用 Max/Ultra 就改这两项再重启 app（Ultra 也可在 Settings > Configuration 勾）；CLI 不受影响，`/model` → 选模型 → **More reasoning…** 可直达 max/ultra。
 
 ### 模型与档位选型表（派活前必须查，不等用户提醒）
 
-来源（2026-10-26 核对，规则更新时同步复核）：[模型选择](https://developers.openai.com/api/docs/guides/model-selection)、[GPT-6.1 Sol 提示指导](https://developers.openai.com/api/docs/guides/latest-model?model=gpt-6.1-sol)、[减少过度提示](https://developers.openai.com/blog/rethinking-skills-and-prompts-for-gpt-6-astra)、[Codex 运行配置](https://learn.chatgpt.com/docs/developer-settings)。
+来源（2026-10-26 核对，2026-11-01 复核：官网推荐档位措辞已统一为 Low / Medium / High / Extra high，Max 与 Ultra 单独成节，Ultra = 子代理并行、Luna 不支持 Ultra；规则更新时同步复核）：[模型选择](https://developers.openai.com/api/docs/guides/model-selection)、[GPT-6.1 Sol 提示指导](https://developers.openai.com/api/docs/guides/latest-model?model=gpt-6.1-sol)、[减少过度提示](https://developers.openai.com/blog/rethinking-skills-and-prompts-for-gpt-6-astra)、[Codex 运行配置](https://learn.chatgpt.com/docs/developer-settings)。
 
 | 任务性质（官方原文关键词） | 模型 ID | 档位 | 备注 |
 |---|---|---|---|
 | 细粒度改动、边界清晰的小修（`fine-grained edits, well-scoped`） | `gpt-6-luna` | `low` | 最省；不支持 Ultra |
 | 基于给定材料的写作、有明确结果的小改动（`concise writing based on supplied material` / `scoped code fixes`） | `gpt-6.1-terra` | `low`–`medium` | 文档、单文件 UI 文案、纯测试 |
 | 多文件、需要协调、预期会返工的复杂技术工作（`complex technical work and coordinated deliverables you expect to revise`） | `gpt-6.1-sol` | `medium` | **默认主力** |
-| 需要打磨成品、证据冲突时要拍板（`polished deliverables / decisions built from conflicting evidence`） | `gpt-6.1-sol` | `xhigh` | 首轮红了才升，不预先升 |
+| 需要打磨成品、证据冲突时要拍板（`polished deliverables / decisions built from conflicting evidence`） | `gpt-6.1-sol` | `xhigh`（app 显示 *Extra High*） | 首轮红了才升，不预先升 |
 | 质量优先、成本与延迟不敏感（`most powerful`） | `gpt-6-astra` | `medium` | 最后手段，不当默认 |
 | 需要并行子代理且**文件集互不重叠**（Codex 应用/CLI 的 Ultra） | `gpt-6.1-sol` | `ultra` | 有共享文件时禁用；改串行或拆道 |
 
@@ -105,6 +106,7 @@
 - **契约草稿放 `.pdw/contracts/`**，不要放 `.pdw/tasks/`：无参 `status` 会把 `tasks` 下每个目录当任务读 `state.json`，遇到没有该文件的草稿目录会 ENOENT。
 - **任务运行期间不要编辑仓库**：`pdw.mjs` 每个阶段都会比对产物指纹，任务 `running` 时改任何被 scope 覆盖的文件都会以 `Source drift detected` 失败（2026-10-26 统计：129 次派发里这是最大单一失败源，6 次）。要改先 `cancel`，或等 `status` 不再是 running。
 - **契约先自检再冻结**：AC 之间、AC 与 `notes` 不得互相矛盾（例：AC 要求"未安装 CLI 时写 summary"，notes 又要求"CI 未安装也通过"）。矛盾时模型会如实报 `blocked`——这是契约问题，不是模型能力问题（2026-10-26 统计：5 次 blocked 里至少 3 次属此类），先改卡再新建任务，不要靠升档硬顶。
+- **可执行路径一律指向 nvm 的 `.nodejs` 目录（2026-11-02）**：`C:\Users\Satanchen\AppData\Local\Author Software\nvm\.nodejs\{codex,opencode}.exe`。nvm 在 2026-10-30 把根从 `D:\Technology_application\NVM_Windows` 搬到 C 盘且旧目录已删，写死 `installs\vX.Y.Z\...` 或旧 D: 路径的配置会静默失效——表现为 `.pdw/config.json` 五个角色全 `ready:false`、`doctor` 退出码 1、派活报 `process failed (1)` 且 `process.stderr.log` 是 0 字节。`.nodejs` 是 nvm 的当前版本指针，换 node 版本自动跟随。改完必须 `pwsh pdw.ps1 doctor`（exit 0 + 五角色 ready）复核；`scripts\dispatch-codex.ps1`、`scripts\pdw-route.ps1` 里的同类路径同步改。
 
 ## 开发工作流（六步循环）
 
@@ -190,15 +192,14 @@ PDW 现行版本 **1.3.3-local**：完整 Skill 目录 + Node 运行器 + 项目
 
 ---
 
-## 远端 GitHub 状态（2026-10-30 按实测重写；旧版 2026-10-06 的口径已被证伪）
+## 远端 GitHub 状态（2026-10-31 已恢复推送；旧口径见下方历史）
 
-- 本项目仍是**纯本地开发**：本地 `main` 领先 `origin/main`，按约定**不推送**（2026-10-30 实测领先 **169 个提交**，远端停在 `b147ae4` / 2026-10-11）。
-- **但「Actions 已整体停用」是错的**：2026-10-30 实测 `actions/permissions.enabled = true`（`allowed_actions: selected`、`sha_pinning_required: true`），CI 在 PR 上真跑，main 上还有 Dependabot Updates 的定时运行（最近 `2026-10-30T10:13:54Z` success）。
-- **「CodeQL 已改为 not-configured」也是错的**：实测 `default-setup.state = configured`（javascript / typescript / python / actions，weekly），最近分析 `2026-10-18`，**开放告警 0**；Dependabot 漏洞告警 0、secret scanning 开放告警 0。
-- 规则集 `protect-default-branch`（id `23645929`）`active`：必须走 PR，必需检查为 `build (ubuntu-latest, 22)`、`build (windows-latest, 22)`、`identity-guard`，且 strict。**这与 `ci.yml` 的版本矩阵强耦合**——本地 matrix 现为 `[22, 26]`；只留 26 会让那两个必需检查永不出现。改版本的正确顺序：先让 26 的 check 在远端跑绿 → 改 ruleset 的 context → 再从 matrix 删 22。
-- 六条 Dependabot PR 与逐条 CI 结论、以及「本地领先 / 审计信号过期」的完整清单见 `evidence/sessions/2026-10-30-project-health/github-health.md`（卡 369）。
-- 恢复推送时要动的两处（如需）：`gh api --method PUT repos/satan9394/vessel-harness/actions/permissions --input -`（body `{"enabled":true}`）、
-  `PATCH repos/satan9394/vessel-harness/code-scanning/default-setup`（body `{"state":"configured"}`）——注意这两条现在**已经是启用状态**，别再重复「恢复」。
+- **本地与远端已同步**：`main` = `4cd98dd3`（远端同 commit）。做法是按仓库既有路径走了一遍：建分支 → 推 → PR #46 → 四条 build（22/26 × Windows/Linux）+ identity-guard 全绿 → 本地 `merge --no-ff` → 推 `main`。**main 上的 CI 也全绿**（run `41230329244`，五个 job 全 success）。
+- **推送前做过历史脱敏**：171 个未推提交里的 `C:\Users\<user>\…` 一类路径替换为 `C:\work` / `WORK` / `USER`（远端此前一处都没有），因此这批提交的 SHA 全部变了；文档里引用的短 SHA 已按映射更新，旧 SHA 只存在于本地 `backup/pre-sanitize-20261030`。
+- **Actions 与 CodeQL 一直都是启用状态**（旧文「已停用 / not-configured」是错的）：`allowed_actions: selected`、`sha_pinning_required: true`；CodeQL `configured`，weekly。
+- **CodeQL 首次全量扫描开出 9 条告警**（不是回归，是这 169 个提交的代码此前从未被扫过）：2 条 `error` 级 `js/shell-command-constructed-from-input`（`packages/tools/src/git/Worktree.ts:62`，同一位置两处），其余为 ReDoS / stack-trace / 一处 insufficient-password-hash。逐条定性见 `tasks/370-codeql-first-scan-triage.md`。
+- 规则集 `protect-default-branch`（id `23645929`）`active`：必须走 PR，必需检查为 `build (ubuntu-latest, 22)`、`build (windows-latest, 22)`、`identity-guard`，strict。**这与 `ci.yml` 的 matrix 强耦合**——matrix 现为 `[22, 26]`；等 26 的腿稳定后再改 ruleset 的 context、最后才从 matrix 删 22。
+- 历史记录（2026-10-06 旧文）：曾一度把 Actions 判为停用、CodeQL 判为未配置，并在 2026-10-06～10-30 期间按「纯本地开发」不推送；实际情况与之不符，已按实测更正。恢复/关闭的 API 备用命令：`gh api --method PUT repos/satan9394/vessel-harness/actions/permissions --input -`（body `{"enabled":true|false}`）、`PATCH …/code-scanning/default-setup`（body `{"state":"configured"|"not-configured"}`）。
 <!-- pdw-skill-sync -->
 ## PDW 技能同步（默认配置，2026-10-17 重切后；源 = GitHub）
 

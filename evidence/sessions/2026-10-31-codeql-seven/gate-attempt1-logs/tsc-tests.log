@@ -1,0 +1,7 @@
+packages/memory/src/reflection/autonomousReflection.test.ts(20,89): error TS2345: Argument of type '(errorDetail: string | boolean, matches: string | boolean) => Promise<void>' is not assignable to parameter of type '(...args: ExtractEachCallbackArgs<(string | boolean)[] | readonly [`core${string}import`, false]>) => Awaitable<void>'.
+  Types of parameters 'errorDetail' and 'args' are incompatible.
+    Type 'ExtractEachCallbackArgs<(string | boolean)[] | readonly [`core${string}import`, false]>' is not assignable to type '[errorDetail: string | boolean, matches: string | boolean]'.
+      Type '(string | boolean)[]' is not assignable to type '[errorDetail: string | boolean, matches: string | boolean]'.
+        Target requires 2 element(s) but source may have fewer.
+packages/memory/src/reflection/autonomousReflection.test.ts(21,103): error TS2322: Type 'string | boolean' is not assignable to type 'string'.
+  Type 'boolean' is not assignable to type 'string'.

@@ -33,7 +33,7 @@ export class AutonomousReflectionEngine {
       const category = event.type === 'evaluator_reject' ? 'architecture_constraint' : event.type;
       const detail = `${event.errorDetail} ${event.remedyAction ?? ''}`;
       const action = event.type === 'policy_denial' ? 'Check the current policy and choose an allowed action; do not bypass enforcement.' :
-        event.type === 'evaluator_reject' ? /clean.?room/i.test(detail) ? 'Use the local specifications and independently implement the behavior.' : /thin.?core|core.*import|dependenc/i.test(detail) ? 'Keep mechanisms outside Core and verify the active acceptance criteria.' : 'Verify the active acceptance criteria with independent evidence.' :
+        event.type === 'evaluator_reject' ? /clean.?room/i.test(detail) ? 'Use the local specifications and independently implement the behavior.' : /thin.?core|core[^\n\r\u2028\u2029]{0,200}import|dependenc/i.test(detail) ? 'Keep mechanisms outside Core and verify the active acceptance criteria.' : 'Verify the active acceptance criteria with independent evidence.' :
         /ENOENT|not found|missing path/i.test(detail) ? 'Verify the current workspace path and required file before retrying.' :
         /EACCES|EPERM|permission/i.test(detail) ? 'Check current permissions and choose an authorized workspace path.' :
         /INVALID_ARGS|invalid argument/i.test(detail) ? 'Validate tool arguments against the current tool schema before retrying.' :

@@ -4,8 +4,10 @@ import { spawnSync } from 'node:child_process';
 
 /** Advisory toolchain pin checks shared by doctor and opt-in benchmark preparation. */
 
+/** Version banners use major.minor.patch; bounded components keep scanning linear. */
+const VERSION_PATTERN = /(\d{1,9})\.(\d{1,9})\.(\d{1,9})/;
 export function parseToolVersion(raw: string): string | null {
-  return raw.match(/\d+\.\d+\.\d+/)?.[0] ?? null;
+  return VERSION_PATTERN.exec(raw)?.[0] ?? null;
 }
 
 export function satisfiesRange(version: string, range: string): boolean {

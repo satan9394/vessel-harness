@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto';
 import { realpathSync } from 'node:fs';
 import { win32 } from 'node:path';
-import { runCommand } from '@vessel/runtime';
+import { runDirectedCommand } from '@vessel/runtime';
 import type { NativeSandboxRunner, SandboxExecutionOptions, SandboxExecutionResult } from './types.js';
 import { WINDOWS_RESTRICTED_SOURCE } from './windowsRestrictedSource.js';
 import { allowedWriteRoots, validateSandboxOptions } from './options.js';
@@ -18,9 +18,9 @@ export function buildWindowsRestrictedScript(command: string, args: string[], op
 }
 
 export class WindowsRestrictedRunner implements NativeSandboxRunner {
-  private readonly run: typeof runCommand;
+  private readonly run: typeof runDirectedCommand;
   private readonly powershell = win32.join(process.env.SystemRoot ?? 'C:\\Windows', 'System32', 'WindowsPowerShell', 'v1.0', 'powershell.exe');
-  constructor(deps: { run?: typeof runCommand } = {}) { this.run = deps.run ?? runCommand; }
+  constructor(deps: { run?: typeof runDirectedCommand } = {}) { this.run = deps.run ?? runDirectedCommand; }
   async isAvailable(): Promise<boolean> {
     try { return (await this.run(this.powershell, ['-NoProfile', '-NonInteractive', '-Command', '$PSVersionTable.PSVersion.Major'], { cwd: process.cwd(), timeoutMs: 5_000 })).exitCode === 0; }
     catch { return false; }

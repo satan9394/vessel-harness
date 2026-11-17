@@ -24,6 +24,11 @@ it('rejects unsafe tool names without invoking the probe', () => {
 it.each([
   ['codex-cli 0.164.0', '0.164.0'], ['opencode 2.1.4', '2.1.4'], ['v2.1.4', '2.1.4'], ['garbage', null],
 ])('parses %s', (raw, expected) => { expect(parseToolVersion(raw)).toBe(expected); });
+it('finds the first version after a long numeric banner and bounds components', () => {
+  expect(parseToolVersion('9'.repeat(8192))).toBeNull();
+  expect(parseToolVersion('9'.repeat(8192) + ' codex-cli 0.164.0 then 2.1.4')).toBe('0.164.0');
+  expect(parseToolVersion('v123456789.123456789.123456789')).toBe('123456789.123456789.123456789');
+});
 it.each([
   ['0.164.0', '>=0.164.0 <0.165.0', true], ['0.164.9', '>=0.164.0 <0.165.0', true],
   ['0.165.0', '>=0.164.0 <0.165.0', false], ['2.1.4', '>2.0.0 <=2.1.4 =2.1.4', true],

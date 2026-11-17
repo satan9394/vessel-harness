@@ -1,0 +1,57 @@
+[
+  {
+    "command": "C:\\work\\AppData\\Local\\Author Software\\nvm\\installs\\v26.13.0\\node.exe",
+    "args": [
+      "node_modules/vitest/vitest.mjs",
+      "run",
+      "packages/runtime/src/process"
+    ],
+    "exit": 0,
+    "seconds": 1.701,
+    "log": "batch1-1.log"
+  },
+  {
+    "command": "C:\\work\\AppData\\Local\\Author Software\\nvm\\installs\\v26.13.0\\node.exe",
+    "args": [
+      "node_modules/vitest/vitest.mjs",
+      "run",
+      "packages/runtime/src/sandbox"
+    ],
+    "exit": 0,
+    "seconds": 28.023,
+    "log": "batch1-2.log"
+  },
+  {
+    "command": "C:\\work\\AppData\\Local\\Author Software\\nvm\\installs\\v26.13.0\\node.exe",
+    "args": [
+      "node_modules/vitest/vitest.mjs",
+      "run",
+      "packages/tools/src/git/worktree.test.ts"
+    ],
+    "exit": 0,
+    "seconds": 1.765,
+    "log": "batch1-3.log"
+  },
+  {
+    "command": "C:\\work\\AppData\\Local\\Author Software\\nvm\\installs\\v26.13.0\\node.exe",
+    "args": [
+      "node_modules/vitest/vitest.mjs",
+      "run",
+      "packages/tools/src/tools.test.ts"
+    ],
+    "exit": 0,
+    "seconds": 25.98,
+    "log": "batch1-4.log"
+  },
+  {
+    "command": "pwsh",
+    "args": [
+      "-NoProfile",
+      "-Command",
+      "npx tsc -b tsconfig.json"
+    ],
+    "exit": 0,
+    "seconds": 7.5,
+    "log": "batch1-5.log"
+  }
+]
