@@ -19,7 +19,7 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
-$codex = 'D:\Technology_application\NVM_Windows\nodejs\node_modules\@openai\codex\node_modules\@openai\codex-win32-x64\vendor\x86_64-pc-windows-msvc\bin\codex.exe'
+$codex = 'C:\Users\Satanchen\AppData\Local\Author Software\nvm\.nodejs\codex.exe'
 if (-not (Test-Path $codex)) { throw "codex.exe not found at $codex" }
 if (-not (Test-Path $PromptFile)) { throw "prompt file not found: $PromptFile" }
 
