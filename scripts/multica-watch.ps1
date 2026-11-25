@@ -34,9 +34,14 @@ if ((Test-Path -LiteralPath $log) -and (Get-Item -LiteralPath $log).Length -gt 5
     Move-Item -LiteralPath $log -Destination "$log.1" -Force
 }
 
+$script:lastStderr = ''
+$script:lastJsonError = ''
 function Invoke-Multica([string[]]$Arguments) {
-    $out = & multica @Arguments 2>&1 | Out-String
-    return $out
+    $all = & multica @Arguments 2>&1
+    $stdout = ($all | Where-Object { $_ -isnot [System.Management.Automation.ErrorRecord] }) -join "`n"
+    $err = ($all | Where-Object { $_ -is [System.Management.Automation.ErrorRecord] } | ForEach-Object { $_.ToString() }) -join ' '
+    $script:lastStderr = $err
+    return $stdout
 }
 
 function ConvertFrom-JsonSafe([string]$Text) {
@@ -49,7 +54,11 @@ function ConvertFrom-JsonSafe([string]$Text) {
     $end = $body.LastIndexOfAny([char[]]('}', ']'))
     if ($end -ge 0 -and $end -lt ($body.Length - 1)) { $body = $body.Substring(0, $end + 1) }
     try { return $body | ConvertFrom-Json } catch {
-        try { return $Text | ConvertFrom-Json } catch { return $null }
+        $first = $_.Exception.Message
+        try { return $Text | ConvertFrom-Json } catch {
+            $script:lastJsonError = "$first | $($_.Exception.Message)"
+            return $null
+        }
     }
 }
 
@@ -69,51 +78,61 @@ if ($status -notmatch 'running') {
 
 $nowUtc = [DateTime]::UtcNow
 
-# A transient CLI/network failure must never look like "nothing is running".
-$listRaw = $null
-$issues = $null
-for ($attempt = 1; $attempt -le 3; $attempt++) {
-    $listRaw = Invoke-Multica @('issue', 'list', '--status', 'in_progress', '--output', 'json')
-    $issues = ConvertFrom-JsonSafe $listRaw
-    if ($issues -and $null -ne $issues.issues) { break }
-    if ($attempt -lt 3) { Start-Sleep -Seconds 4 }
+# Read the board as a table and take the issue identifiers. The JSON form can come back
+# truncated when the CLI runs under Task Scheduler (observed 2026-11-25: 7,275 chars and
+# no JSON error on stderr), and a truncated payload must not read as "nothing running".
+$table = Invoke-Multica @('issue', 'list', '--status', 'in_progress')
+$keys = @()
+foreach ($line in ($table -split "`r?`n")) {
+    if ($line -match '^\s*([A-Z][A-Z0-9]*-\d+)\s') { $keys += $Matches[1] }
 }
-if (-not $issues -or $null -eq $issues.issues) {
-    $snippet = ($listRaw -replace '\s+', ' ')
+$keys = @($keys | Select-Object -Unique)
+if ($keys.Count -eq 0 -and $table -notmatch 'KEY') {
+    $snippet = ($table -replace '\s+', ' ')
     if ($snippet.Length -gt 160) { $snippet = $snippet.Substring(0, 160) }
-    Write-Log "WARN cannot read the in_progress list after 3 tries: $snippet"
-    $list = @()
+    Write-Log "WARN cannot read the in_progress board (len=$($table.Length)): $snippet"
 }
-else {
-    $list = @($issues.issues)
-    Write-Log "in_progress issues: $($list.Count)"
-}
+Write-Log "in_progress issues: $($keys.Count)"
 
-foreach ($issue in $list) {
-    $key = if ($issue.identifier) { $issue.identifier } else { $issue.key }
-    if (-not $key) { Write-Log "WARN issue without identifier: $($issue.id)"; continue }
-    $runsRaw = Invoke-Multica @('issue', 'runs', $key, '--active', '--output', 'json')
+foreach ($key in $keys) {
+    # Table form for the same reason as the board: the runs JSON is invalid whenever a
+    # trigger summary carries a raw newline (observed 2026-11-25:
+    # "After parsing a value an unexpected character was encountered: w ... trigger_summary").
+    $runsTable = Invoke-Multica @('issue', 'runs', $key, '--active')
     $runs = @()
-    $parsed = ConvertFrom-JsonSafe $runsRaw
-    if ($null -eq $parsed -and $runsRaw -notmatch '^\s*\[\s*\]\s*$') {
-        $snippet = ($runsRaw -replace '\s+', ' ')
-        if ($snippet.Length -gt 120) { $snippet = $snippet.Substring(0, 120) }
-        Write-Log "WARN $key cannot read active runs: $snippet"
+    foreach ($line in ($runsTable -split "`r?`n")) {
+        if ($line -match '^\s*([0-9a-f]{8})\s{2,}') {
+            $cols = @($line.Trim() -split '\s{2,}')
+            $runs += [pscustomobject]@{
+                id         = $cols[0]
+                agent      = if ($cols.Count -gt 1) { $cols[1] } else { '?' }
+                status     = if ($cols.Count -gt 2) { $cols[2] } else { '?' }
+                started_at = if ($cols.Count -gt 3) { $cols[3] } else { $null }
+            }
+        }
+    }
+    if ($runs.Count -eq 0 -and $runsTable -match 'running') {
+        $snippet = ($runsTable -replace '\s+', ' ')
+        if ($snippet.Length -gt 160) { $snippet = $snippet.Substring(0, 160) }
+        Write-Log "WARN $key has a running row but the columns could not be parsed: $snippet"
         continue
     }
-    if ($parsed) { $runs = @($parsed) }
 
     if ($runs.Count -eq 0) {
-        # idle check: last run finish time from the full run list
-        $allRaw = Invoke-Multica @('issue', 'runs', $key, '--output', 'json')
-        $all = @()
-        $allParsed = ConvertFrom-JsonSafe $allRaw
-        if ($allParsed) { $all = @($allParsed) }
-        $last = $all | Sort-Object { $_.completed_at } | Select-Object -Last 1
+        # idle check: last run finish time from the full run list (table form again)
+        $allRaw = Invoke-Multica @('issue', 'runs', $key)
+        $completions = @()
+        foreach ($line in ($allRaw -split "`r?`n")) {
+            if ($line -match '^\s*[0-9a-f]{8}\s{2,}') {
+                $cols = @($line.Trim() -split '\s{2,}')
+                if ($cols.Count -ge 5 -and $cols[4] -match '^\d{4}-\d{2}-\d{2}') { $completions += $cols[4] }
+            }
+        }
+        $lastDone = $completions | Sort-Object | Select-Object -Last 1
         $idle = $true
         $detail = 'no runs'
-        if ($last -and $last.completed_at) {
-            $done = [DateTime]::Parse($last.completed_at, [Globalization.CultureInfo]::InvariantCulture, [Globalization.DateTimeStyles]::AdjustToUniversal)
+        if ($lastDone) {
+            $done = [DateTime]::Parse($lastDone, [Globalization.CultureInfo]::InvariantCulture, [Globalization.DateTimeStyles]::AdjustToUniversal)
             $mins = [int]($nowUtc - $done).TotalMinutes
             $detail = "last run finished ${mins}m ago"
             $idle = $mins -ge $IdleMinutes
@@ -129,7 +148,7 @@ foreach ($issue in $list) {
 
     foreach ($run in $runs) {
         $rid = if ($run.id) { $run.id.ToString().Substring(0, 8) } else { '?' }
-        $agent = if ($run.agent_id) { $run.agent_id.ToString().Substring(0, 8) } else { '?' }
+        $agent = if ($run.agent) { $run.agent } else { '?' }
         $started = $run.started_at
         $ageMin = -1
         if ($started) {
