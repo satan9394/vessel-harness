@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createApiClient, sessionDeleteMessage, type ApiClient, type Health, type Project, type SessionMeta, type CreateSessionInput } from './api';
 import type { MessageKey } from './i18n';
 import CommandPalette, { trapFocus } from './components/common/CommandPalette';
@@ -6,7 +6,7 @@ import type { CommandItem } from './components/palette/types';
 import { INSPECTOR_TABS, INSPECTOR_LABELS, type InspectorTab } from './components/layout/DualSurfaceLayout';
 import Sidebar from './components/Sidebar';
 import SubagentWorkspace from './components/SubagentPanel';
-import TaskComposer, { projectName, readableSessionTitle } from './components/TaskComposer';
+import TaskComposer, { labelFor, projectLabels, readableSessionTitle } from './components/TaskComposer';
 import StatusBar from './components/StatusBar';
 import NewSessionForm, { type NewSessionResult } from './components/NewSessionForm';
 import ConversationView from './components/ConversationView';
@@ -178,6 +178,10 @@ function AppShell() {
   const nothingSelected = !selectedSessionId || !sessions.some((s) => s.id === selectedSessionId);
 
   const requestView = (action: 'clear' | 'collapse' | 'expand' | 'export' | InspectorTab) => setViewRequest(previous => ({ action, serial: (previous?.serial ?? 0) + 1 }));
+  const rootLabels = useMemo(() => projectLabels([
+    ...projects.map(project => project.root),
+    ...sessions.map(session => session.workspaceRoot),
+  ]), [projects, sessions]);
   const commands: CommandItem[] = [
     { id: 'area:workbench', title: t('workbench'), category: 'navigation', execute: () => { setArea('workbench'); setDrawer(false); } },
     { id: 'area:activity', title: t('activity'), category: 'navigation', execute: () => { setArea('activity'); setDrawer(false); } },
@@ -186,8 +190,8 @@ function AppShell() {
     { id: 'providers', title: t('modelSettings'), category: 'action', keywords: ['provider', 'model'], execute: () => setShowProviders(true) },
     { id: 'new', title: t('newSessionTitle'), category: 'action', execute: () => { if (taskStarting) return; setArea('workbench'); setSelectedSessionId(null); } },
     ...(['read-only', 'workspace-write'] as const).map(permission => ({ id: `sandbox:${permission}`, title: t('paletteSandbox', { permission: t(permission === 'read-only' ? 'permissionReadOnly' : 'permissionWorkspaceWrite') }), category: 'action' as const, keywords: ['security'], execute: () => { if (taskStarting) return; setNewPermission(permission); setShowNew(true); } })),
-    ...projects.map(project => ({ id: `project:${project.root}`, title: projectName(project.root), category: 'project' as const, keywords: [project.root], execute: () => { if (taskStarting) return; setProjectRoot(project.root); setArea('workbench'); setSelectedSessionId(null); } })),
-    ...sessions.filter(session => !session.topic?.isArchived).map(session => ({ id: `session:${session.id}`, title: `${readableSessionTitle(session, t('sessionNew'))} · ${projectName(session.workspaceRoot)}`, category: 'session' as const, keywords: [session.id, session.workspaceRoot], execute: () => { if (taskStarting) return; setArea('workbench'); setSelectedSessionId(session.id); } })),
+    ...projects.map(project => ({ id: `project:${project.root}`, title: labelFor(rootLabels, project.root), category: 'project' as const, keywords: [project.root], execute: () => { if (taskStarting) return; setProjectRoot(project.root); setArea('workbench'); setSelectedSessionId(null); } })),
+    ...sessions.filter(session => !session.topic?.isArchived).map(session => ({ id: `session:${session.id}`, title: `${readableSessionTitle(session, t('sessionNew'))} · ${labelFor(rootLabels, session.workspaceRoot)}`, category: 'session' as const, keywords: [session.id, session.workspaceRoot], execute: () => { if (taskStarting) return; setArea('workbench'); setSelectedSessionId(session.id); } })),
     ...(!nothingSelected ? [
       ...INSPECTOR_TABS.map(tab => ({ id: `inspector:${tab}`, title: t('paletteInspector', { tab: t(INSPECTOR_LABELS[tab]) }), category: 'navigation' as const, execute: () => requestView(tab) })),
       { id: 'export', title: t('paletteExportJson'), category: 'action' as const, execute: () => requestView('export') },
@@ -253,7 +257,7 @@ function AppShell() {
           </section>
         ) : (
           <div className="conversation-wrap">
-            <ConversationView initialTask={initialTask} onInitialTaskConsumed={() => setInitialTask(undefined)} sessionTitle={readableSessionTitle(sessions.find(session => session.id === selectedSessionId)!, t('sessionNew'))} providerRevision={providerRevision} onConfigureModels={() => setShowProviders(true)} attention={attention} viewRequest={viewRequest} sessionId={selectedSessionId as string} api={api} onSessionUpdated={() => void connect()} />
+            <ConversationView initialTask={initialTask} onInitialTaskConsumed={() => setInitialTask(undefined)} sessionTitle={readableSessionTitle(sessions.find(session => session.id === selectedSessionId)!, t('sessionNew'))} providerRevision={providerRevision} onConfigureModels={() => setShowProviders(true)} attention={attention} viewRequest={viewRequest} sessionId={selectedSessionId as string} api={api} onSessionUpdated={() => void connect()} projectLabel={labelFor(rootLabels, sessions.find(session => session.id === selectedSessionId)?.workspaceRoot ?? projectRoot)} />
             <ModuleSections modules={modules} api={api} sessionId={selectedSessionId as string} />
           </div>
         )}

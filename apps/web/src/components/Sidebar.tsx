@@ -3,7 +3,7 @@ import type { Project, SessionMeta } from '../api';
 import type { MessageKey } from '../i18n';
 import { VesselLogo } from './VesselLogo';
 import { useI18n } from './LanguageProvider';
-import { projectName, readableSessionTitle } from './TaskComposer';
+import { projectLabels, labelFor, readableSessionTitle } from './TaskComposer';
 import { formatClock } from '../utils/timeFormat';
 import { applyTheme, getStoredTheme, type ThemeMode } from '../utils/theme';
 import { RAIL_AREAS, GLYPHS, type RailArea } from './layout/Rail';
@@ -144,6 +144,12 @@ export default function Sidebar({
       periods: groupSessionsByDateAndTopic(filterSessionsByTopic(sessions.filter(session => session.workspaceRoot === root), query, showArchived)),
     })).filter(group => group.periods.length > 0 || projects.some(project => project.root === group.root));
   }, [projects, sessions, query, showArchived]);
+  // One label map for the whole sidebar: duplicate basenames are disambiguated
+  // the same way in the project rows and in the session group headings.
+  const rootLabels = useMemo(() => projectLabels([
+    ...projects.map(project => project.root),
+    ...sessions.map(session => session.workspaceRoot),
+  ]), [projects, sessions]);
 
   function beginRename(group: SidebarTopicGroup) {
     setEditingTopicId(group.topicId);
@@ -177,7 +183,7 @@ export default function Sidebar({
             ) : (
               projects.map((project) => (
                 <li key={project.root} className="side-item" title={project.root}>
-                  <button type="button" className={`project-select${project.root === selectedProjectRoot ? ' side-item-active' : ''}`} onClick={() => onSelectProject?.(project.root)}>{projectName(project.root)}</button>
+                  <button type="button" className={`project-select${project.root === selectedProjectRoot ? ' side-item-active' : ''}`} onClick={() => onSelectProject?.(project.root)}>{labelFor(rootLabels, project.root)}</button>
                 </li>
               ))
             )}
@@ -211,7 +217,7 @@ export default function Sidebar({
                 <section className="topic-period" key={workspace.root}>
                   {/* F9: the projects section above already lists every root, so the workspace
                       name is only repeated when sessions from several roots share this list. */}
-                  {workspaceGroups.length > 1 && workspace.periods.length > 0 && <div className="side-label">{projectName(workspace.root)}</div>}
+                  {workspaceGroups.length > 1 && workspace.periods.length > 0 && <div className="side-label">{labelFor(rootLabels, workspace.root)}</div>}
                   {workspace.periods.map(period => (
                     <section className="topic-period" key={period.key}>
                       <div className="side-label topic-period-label">{t(period.key)}</div>

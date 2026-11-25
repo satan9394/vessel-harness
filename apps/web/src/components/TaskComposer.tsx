@@ -4,11 +4,25 @@ import { useI18n } from './LanguageProvider';
 import { modelKey } from './NewSessionForm';
 import { ModelQuickSwitcher } from './providers/ModelQuickSwitcher';
 import { localizePreset, PROVIDER_PRESETS_CATALOG } from './providers/presetsData';
+import { projectLabels, labelFor } from '../utils/projectLabels';
+
+export { projectName, projectLabels, labelFor } from '../utils/projectLabels';
 
 // Page-local drafts survive navigation without writing task text to disk.
 const draftsByClient = new WeakMap<ApiClient, Map<string, string>>();
-
-export function projectName(root: string): string { return root.split(/[\\/]/).filter(Boolean).at(-1) || root; }
+// Label map memoized on the projects array identity. A `useMemo` here would be
+// consistent with Sidebar/App, but this component's test harness fakes
+// useState/useRef/useEffect and calls it outside React, so a real hook throws
+// "Invalid hook call"; the WeakMap gives the same one-map-per-project-list
+// behaviour without touching hook order.
+const labelsByProjects = new WeakMap<Project[], Map<string, string>>();
+function labelsForProjects(projects: Project[]): Map<string, string> {
+  const cached = labelsByProjects.get(projects);
+  if (cached) return cached;
+  const labels = projectLabels(projects.map(project => project.root));
+  labelsByProjects.set(projects, labels);
+  return labels;
+}
 export function readableSessionTitle(session: SessionMeta, fallback: string): string {
   const title = session.topic?.title?.trim();
   return title && !/^sess_|^untitled topic$|^未命名主题$/i.test(title) ? title : fallback;
@@ -33,6 +47,7 @@ export default function TaskComposer({ api, projects, selectedRoot, onSelectProj
   onStarted: (session: SessionMeta, task: string) => void;
 }) {
   const { t, lang } = useI18n();
+  const projectLabelMap = labelsForProjects(projects);
   const [path, setPath] = useState('');
   const root = selectedRoot || path.trim();
   const [drafts, setDrafts] = useState(() => new Map(draftsByClient.get(api)));
@@ -105,7 +120,7 @@ export default function TaskComposer({ api, projects, selectedRoot, onSelectProj
           <label htmlFor="taskProject" className="visually-hidden">{t('chooseProject')}</label>
           <select id="taskProject" className="composer-select" value={selectedRoot} disabled={busy} onChange={event => onSelectProject(event.target.value)}>
             <option value="">{t('openProjectPath')}</option>
-            {projects.map(project => <option key={project.root} value={project.root}>{projectName(project.root)}</option>)}
+            {projects.map(project => <option key={project.root} value={project.root}>{labelFor(projectLabelMap, project.root)}</option>)}
           </select>
         </span>
         <ModelQuickSwitcher models={models} current={selectedModel ? { provider: selectedModel.providerName, model: selectedModel.id } : null}

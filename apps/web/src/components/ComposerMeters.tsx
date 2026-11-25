@@ -61,6 +61,8 @@ export interface ComposerCapsulesProps {
   /** Default route mode before the server snapshot resolves. */
   fallbackMode?: RouteMode;
   onModeChange?: (mode: RouteMode) => void;
+  /** Disambiguated project label for this root (falls back to the basename). */
+  projectLabel?: string;
 }
 
 /**
@@ -94,7 +96,7 @@ export function useContextWindow(api: ApiClient, sessionId: string, revision = 0
  * permission, and the Auto/Fast/Pro route mode from `GET /api/sessions/:id/route`.
  * Nothing here invents a value it cannot source.
  */
-export default function ComposerCapsules({ api, sessionId, fallbackMode = 'auto', onModeChange }: ComposerCapsulesProps) {
+export default function ComposerCapsules({ api, sessionId, fallbackMode = 'auto', onModeChange, projectLabel }: ComposerCapsulesProps) {
   const { t } = useI18n();
   const [session, setSession] = useState<SessionMeta>();
   const [route, setRoute] = useState<RouteState | null>(null);
@@ -126,7 +128,7 @@ export default function ComposerCapsules({ api, sessionId, fallbackMode = 'auto'
   }, [api, sessionId, route?.pinned]);
   return (
     <div className="composer-capsules" role="group" aria-label={t('uiMode')}>
-      <span className="capsule"><span className="capsule-k">{t('uiProject')}</span><b>{session ? projectName(session.workspaceRoot) : '—'}</b></span>
+      <span className="capsule"><span className="capsule-k">{t('uiProject')}</span><b>{projectLabel ?? (session ? projectName(session.workspaceRoot) : '—')}</b></span>
       {/* F7: model and approval tier are shown by components/ModelSelector.tsx (its
           interactive switcher, plus `.effective-permission` at line 72), so this row keeps
           only the path and the mode controls instead of repeating them as static capsules. */}

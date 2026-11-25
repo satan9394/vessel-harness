@@ -27,6 +27,8 @@ interface Props {
   api: ApiClient;
   onSessionUpdated?: () => void;
   viewRequest?: { action: 'clear' | 'collapse' | 'expand' | 'export' | InspectorTab; serial: number };
+  /** Disambiguated project label for the composer capsule. */
+  projectLabel?: string;
 }
 
 let counter = 0;
@@ -56,7 +58,7 @@ const snapshotsByClient = new WeakMap<ApiClient, Map<string, ConversationSnapsho
  * live SSE stream over /api/sessions/:id/events that appends assistant text,
  * tool activity, usage and policy deltas as they happen.
  */
-export default function ConversationView({ sessionId, api, onSessionUpdated, viewRequest, attention, providerRevision, onConfigureModels, initialTask, onInitialTaskConsumed, sessionTitle }: Props) {
+export default function ConversationView({ sessionId, api, onSessionUpdated, viewRequest, attention, providerRevision, onConfigureModels, initialTask, onInitialTaskConsumed, sessionTitle, projectLabel }: Props) {
   const { t } = useI18n();
   const saved = snapshotsByClient.get(api)?.get(sessionId);
   const [items, setItems] = useState<ChatItem[]>(() => saved?.items ?? []);
@@ -477,7 +479,7 @@ export default function ConversationView({ sessionId, api, onSessionUpdated, vie
       <TalkingMetricsBar metrics={turnMetrics} />
       <SandboxAuditHistory api={api} sessionId={sessionId} revision={auditRevision} />
       <div className="composer-shell">
-        <ComposerCapsules api={api} sessionId={sessionId} fallbackMode="auto" onModeChange={mode => setRouteMode(mode)} />
+        <ComposerCapsules api={api} sessionId={sessionId} fallbackMode="auto" onModeChange={mode => setRouteMode(mode)} projectLabel={projectLabel} />
         <form
           className="composer"
           onSubmit={event => {
