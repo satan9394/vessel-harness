@@ -41,7 +41,16 @@ function Invoke-Multica([string[]]$Arguments) {
 
 function ConvertFrom-JsonSafe([string]$Text) {
     if ([string]::IsNullOrWhiteSpace($Text)) { return $null }
-    try { return $Text | ConvertFrom-Json } catch { return $null }
+    # The CLI may prepend notices/warnings on stderr (merged into the same stream by
+    # Invoke-Multica), so take the outermost JSON payload and drop everything else.
+    $body = $Text
+    $start = $body.IndexOfAny([char[]]('{', '['))
+    if ($start -gt 0) { $body = $body.Substring($start) }
+    $end = $body.LastIndexOfAny([char[]]('}', ']'))
+    if ($end -ge 0 -and $end -lt ($body.Length - 1)) { $body = $body.Substring(0, $end + 1) }
+    try { return $body | ConvertFrom-Json } catch {
+        try { return $Text | ConvertFrom-Json } catch { return $null }
+    }
 }
 
 # 1. daemon ---------------------------------------------------------------
