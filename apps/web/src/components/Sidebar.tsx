@@ -209,7 +209,9 @@ export default function Sidebar({
             <div className="topic-period-list">
               {workspaceGroups.map((workspace) => (
                 <section className="topic-period" key={workspace.root}>
-                  <div className="side-label">{projectName(workspace.root)}</div>
+                  {/* F9: the projects section above already lists every root, so the workspace
+                      name is only repeated when sessions from several roots share this list. */}
+                  {workspaceGroups.length > 1 && workspace.periods.length > 0 && <div className="side-label">{projectName(workspace.root)}</div>}
                   {workspace.periods.map(period => (
                     <section className="topic-period" key={period.key}>
                       <div className="side-label topic-period-label">{t(period.key)}</div>
@@ -303,7 +305,6 @@ export default function Sidebar({
             </div>
           )}
         </section>
-        <p className="dim hierarchy-hint">{t('hierarchyHint')}</p>
       </nav>
 
       <div className="sidebar-footer">

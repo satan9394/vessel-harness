@@ -242,9 +242,14 @@ function AppShell() {
         <div className="workbench-region" hidden={area !== 'workbench'}>
         {nothingSelected ? (
           <section className="main-body workbench-home">
-            <p className="dim">{t('hierarchyHint')}</p>
-            {serverError && <p role="alert" className="error-text">{t('serverDown')} <code>vessel serve</code> <button className="btn" onClick={() => void connect()}>{t('modelRetry')}</button></p>}
-            <TaskComposer onBusyChange={setTaskStarting} api={api} projects={projects} selectedRoot={projectRoot} onSelectProject={setProjectRoot} providerRevision={providerRevision} disabled={serverError || !health?.ok} onConfigureModels={() => setShowProviders(true)} onAdvanced={() => setShowNew(true)} onStarted={(session, task) => { setSessions(current => [session, ...current.filter(item => item.id !== session.id)]); setProjectRoot(session.workspaceRoot); setInitialTask({ sessionId: session.id, text: task }); setSelectedSessionId(session.id); void connect(); }} />
+            <div className="home-inner">
+              <header className="home-hero">
+                <h1>{t('taskPrompt')}</h1>
+                <p>{t('hierarchyHint')}</p>
+              </header>
+              {serverError && <p role="alert" className="error-text">{t('serverDown')} <code>vessel serve</code> <button className="btn" onClick={() => void connect()}>{t('modelRetry')}</button></p>}
+              <TaskComposer onBusyChange={setTaskStarting} api={api} projects={projects} selectedRoot={projectRoot} onSelectProject={setProjectRoot} providerRevision={providerRevision} disabled={serverError || !health?.ok} onConfigureModels={() => setShowProviders(true)} onAdvanced={() => setShowNew(true)} onStarted={(session, task) => { setSessions(current => [session, ...current.filter(item => item.id !== session.id)]); setProjectRoot(session.workspaceRoot); setInitialTask({ sessionId: session.id, text: task }); setSelectedSessionId(session.id); void connect(); }} />
+            </div>
           </section>
         ) : (
           <div className="conversation-wrap">

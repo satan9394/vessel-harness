@@ -5,21 +5,21 @@
    so the app and the pre-hydration skeleton share one source of truth. */
 .tokens {
   /* 玻璃令牌（浅色默认），值取自 docs/DESIGN.md §2.1 与原型 :root */
-  --bg: #f6f8fa;
+  --bg: #ffffff;
   --panel: #ffffff;
-  --panel-2: #f6f8fa;
-  --panel-3: #eaeef2;
-  --ring: #d1d9e0;
-  --ring-2: #b7c0ca;
-  --text: #1f2328;
-  --text-2: #59636e;
-  --text-3: #656d76;
-  --accent: #0969da;
+  --panel-2: #f7f7f8;
+  --panel-3: #efeff1;
+  --ring: #e6e6e9;
+  --ring-2: #d3d3d8;
+  --text: #0f0f11;
+  --text-2: #5c5c64;
+  --text-3: #6b6b73;
+  --accent: #1a5cff;
   --accent-fg: #ffffff;
-  --accent-soft: rgba(9, 105, 218, 0.1);
-  --ok: #0b6b49;
+  --accent-soft: rgba(26, 92, 255, 0.08);
+  --ok: #16794c;
   --warn: #8a6100;
-  --danger: #b4292e;
+  --danger: #b42318;
   --ok-soft: rgba(15, 122, 85, 0.1);
   --warn-soft: rgba(138, 97, 0, 0.11);
   --danger-soft: rgba(180, 41, 46, 0.09);
@@ -28,11 +28,11 @@
   --hl: none;
   --shadow-1: none;
   --shadow-2: none;
-  --control-shadow: 0 1px 2px #1f232814, inset 0 1px 0 #ffffff45;
-  --shadow-3: 0 8px 24px #0003;
-  --glow-a: rgba(122, 132, 255, 0.5);
-  --glow-b: rgba(94, 220, 196, 0.42);
-  --glow-c: rgba(255, 178, 150, 0.36);
+  --control-shadow: none;
+  --shadow-3: 0 0 0 1px var(--ring);
+  --glow-a: transparent;
+  --glow-b: transparent;
+  --glow-c: transparent;
   /* 尺度 */
   --r-0: 4px;
   --r-sm: 6px;
@@ -40,7 +40,7 @@
   --r-panel: 6px;
   --r-composer: 6px;
   --ring-hairline: 1px;
-  --focus-ring: 0 0 0 1px var(--panel), 0 0 0 2.5px var(--accent), 0 0 8px 1px var(--accent-soft);
+  --focus-ring: 0 0 0 1px var(--accent);
   --r-1: 6px;
   --r-2: 6px;
   --r-3: 6px;
@@ -56,9 +56,6 @@
   --ease-enter: cubic-bezier(0.22, 1, 0.36, 1);
   /* 时间轴泳道语义色（DESIGN.md §4.3） */
   --think: #456c9b;
-  --tools: #0e8a9b;
-  --approve: #c08a00;
-  --policy: #b24a5e;
 
   /* 旧变量名保留为别名：既有组件 CSS 零改动仍可用（IMPLEMENTATION-PLAN §3） */
   --border: var(--ring);
@@ -85,18 +82,18 @@
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) .tokens,
   :root:not([data-theme="light"]).tokens {
-    --bg: #0d1117;
-    --panel: #0d1117;
-    --panel-2: #161b22;
-    --panel-3: #21262d;
-    --ring: #30363d;
-    --ring-2: #484f58;
-    --text: #e6edf3;
-    --text-2: #a0abb8;
-    --text-3: #8b949e;
-    --accent: #79b8ff;
-    --accent-fg: #0a0c18;
-    --accent-soft: rgba(121, 184, 255, 0.14);
+    --bg: #0d0d0f;
+    --panel: #0d0d0f;
+    --panel-2: #17171a;
+    --panel-3: #202024;
+    --ring: #26262b;
+    --ring-2: #38383f;
+    --text: #f2f2f4;
+    --text-2: #a2a2ab;
+    --text-3: #8b8b95;
+    --accent: #7c96ff;
+    --accent-fg: #0d0d0f;
+    --accent-soft: rgba(124, 150, 255, 0.14);
     --ok: #4ade94;
     --warn: #f4c151;
     --danger: #ff7c72;
@@ -107,32 +104,29 @@
     --hl: none;
     --shadow-1: none;
     --shadow-2: none;
-    --shadow-3: 0 8px 24px #0003;
-    --glow-a: rgba(112, 124, 255, 0.42);
-    --glow-b: rgba(46, 180, 166, 0.34);
-    --glow-c: rgba(255, 140, 120, 0.26);
+    --shadow-3: 0 0 0 1px var(--ring);
+    --glow-a: transparent;
+    --glow-b: transparent;
+    --glow-c: transparent;
     --think: #8eb8e5;
-    --tools: #3dd6e8;
-    --approve: #f4c151;
-    --policy: #ff8fa3;
   }
 }
 
 :root[data-theme="dark"] .tokens,
 :root[data-theme="dark"].tokens,
 html.dark .tokens {
-  --bg: #0d1117;
-  --panel: #0d1117;
-  --panel-2: #161b22;
-  --panel-3: #21262d;
-  --ring: #30363d;
-  --ring-2: #484f58;
-  --text: #e6edf3;
-  --text-2: #a0abb8;
-  --text-3: #8b949e;
-  --accent: #79b8ff;
-  --accent-fg: #0a0c18;
-  --accent-soft: rgba(121, 184, 255, 0.14);
+  --bg: #0d0d0f;
+  --panel: #0d0d0f;
+  --panel-2: #17171a;
+  --panel-3: #202024;
+  --ring: #26262b;
+  --ring-2: #38383f;
+  --text: #f2f2f4;
+  --text-2: #a2a2ab;
+  --text-3: #8b8b95;
+  --accent: #7c96ff;
+  --accent-fg: #0d0d0f;
+  --accent-soft: rgba(124, 150, 255, 0.14);
   --ok: #4ade94;
   --warn: #f4c151;
   --danger: #ff7c72;
@@ -143,34 +137,31 @@ html.dark .tokens {
   --hl: none;
   --shadow-1: none;
   --shadow-2: none;
-  --shadow-3: 0 8px 24px #0003;
-  --glow-a: rgba(112, 124, 255, 0.42);
-  --glow-b: rgba(46, 180, 166, 0.34);
-  --glow-c: rgba(255, 140, 120, 0.26);
+  --shadow-3: 0 0 0 1px var(--ring);
+  --glow-a: transparent;
+  --glow-b: transparent;
+  --glow-c: transparent;
   --think: #8eb8e5;
-  --tools: #3dd6e8;
-  --approve: #f4c151;
-  --policy: #ff8fa3;
 }
 
 :root[data-theme="light"] .tokens,
 :root[data-theme="light"].tokens,
 html.light .tokens {
-  --bg: #f6f8fa;
+  --bg: #ffffff;
   --panel: #ffffff;
-  --panel-2: #f6f8fa;
-  --panel-3: #eaeef2;
-  --ring: #d1d9e0;
-  --ring-2: #b7c0ca;
-  --text: #1f2328;
-  --text-2: #59636e;
-  --text-3: #656d76;
-  --accent: #0969da;
+  --panel-2: #f7f7f8;
+  --panel-3: #efeff1;
+  --ring: #e6e6e9;
+  --ring-2: #d3d3d8;
+  --text: #0f0f11;
+  --text-2: #5c5c64;
+  --text-3: #6b6b73;
+  --accent: #1a5cff;
   --accent-fg: #ffffff;
-  --accent-soft: rgba(9, 105, 218, 0.1);
-  --ok: #0b6b49;
+  --accent-soft: rgba(26, 92, 255, 0.08);
+  --ok: #16794c;
   --warn: #8a6100;
-  --danger: #b4292e;
+  --danger: #b42318;
   --ok-soft: rgba(15, 122, 85, 0.1);
   --warn-soft: rgba(138, 97, 0, 0.11);
   --danger-soft: rgba(180, 41, 46, 0.09);
@@ -178,14 +169,11 @@ html.light .tokens {
   --hl: none;
   --shadow-1: none;
   --shadow-2: none;
-  --shadow-3: 0 8px 24px #0003;
-  --glow-a: rgba(122, 132, 255, 0.5);
-  --glow-b: rgba(94, 220, 196, 0.42);
-  --glow-c: rgba(255, 178, 150, 0.36);
+  --shadow-3: 0 0 0 1px var(--ring);
+  --glow-a: transparent;
+  --glow-b: transparent;
+  --glow-c: transparent;
   --think: #456c9b;
-  --tools: #0e8a9b;
-  --approve: #c08a00;
-  --policy: #b24a5e;
 }
 
 * {
@@ -986,7 +974,7 @@ code {
 .thinking-block {
   width: min(760px, 100%);
   border: var(--ring-hairline) solid var(--ring);
-  border-left: 3px solid var(--think);
+  border-left: 3px solid var(--ring);
   border-radius: var(--r-sm);
   background: var(--panel-2);
   interpolate-size: allow-keywords;
@@ -1006,7 +994,7 @@ code {
 }
 
 .thinking-block summary:hover {
-  color: var(--think);
+  color: var(--text);
 }
 
 .thinking-block summary .thinking-dot {
@@ -1089,9 +1077,10 @@ code {
 .tool-head { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; min-height: 24px; }
 .tool-badge { min-width: 0; max-width: 100%; }
 
+/* a running tool breathes by opacity only; the status dot never glows */
 @keyframes tool-pulse {
   0%, 100% { transform: scale(0.86); opacity: 0.8; }
-  50% { transform: scale(1.1); opacity: 1; box-shadow: 0 0 6px var(--warn); }
+  50% { transform: scale(1); opacity: 1; }
 }
 
 @media (max-width: 600px) {
@@ -1823,7 +1812,14 @@ code {
 .session-navigation { display: flex; flex-direction: column; flex: 1; min-height: 0; }
 .session-navigation[inert] { opacity: .65; }
 .navigation-close { display: none; }
-@media (max-width: 1180px) { .navigation-close { display: block; margin: 12px 12px 0; } }
+/* the drawer's close control is a text button in the corner, not a full-width box */
+@media (max-width: 1180px) {
+  .navigation-close {
+    display: block; width: fit-content; margin: 8px 10px 0 auto; padding: 2px 8px; min-height: 26px;
+    border: 0; background: transparent; color: var(--text-3); font-size: 12px; border-radius: 6px;
+  }
+  .navigation-close:hover { background: var(--panel-3); color: var(--text); }
+}
 
 /* Read-only behavior inspection: keep long source refs and snapshots bounded.
    P6: the bordered card wall is flattened into sections + borderless lists. */
@@ -2019,4 +2015,249 @@ code {
 @media (pointer: coarse) {
   :is(.btn, .topic-action, .markdown-code-copy, .model-switcher-trigger) { min-height: 44px; }
   :is(.topic-action, .rail-item) { min-width: 44px; min-height: 44px; }
+}
+
+/* ==========================================================================
+   UI 2026-11 — minimal console restyle
+   One accent, hairline borders, no glow. Loaded last so it wins over the
+   legacy glass rules above.
+   ========================================================================== */
+
+/* Palette and elevation tokens live in the `.tokens` layer at the top of this file:
+   one source of truth, and no later block can silently lose the specificity race to
+   `:root[data-theme="light"] .tokens`. Only component rules belong below. */
+
+/* ---------- shell ---------- */
+/* Only above the drawer breakpoint: below 1180px the shell is a single column
+   (see the `max-width: 1180px` block earlier), and an unconditional rule here
+   would squeeze `.main` into a 244px strip on a 390px screen. */
+@media (min-width: 1181px) {
+  .app { grid-template-columns: 244px minmax(0, 1fr); }
+}
+.sidebar { gap: 10px; padding: 12px 10px 10px; background: var(--panel-2); border-right: 1px solid var(--ring); }
+.brand { gap: 7px; font-size: 14px; font-weight: 600; letter-spacing: 0; }
+.brand-name { letter-spacing: 0; }
+.sidebar-collapse { min-width: 28px; min-height: 28px; border: 0; background: transparent; color: var(--text-3); }
+
+/* The rail never competes with the composer's primary button: this is a text
+   action (no fill, no border), hover only tints the row. */
+.sidebar > .btn-primary {
+  width: 100%; min-height: 30px; border: 0; border-radius: 7px;
+  background: transparent; color: var(--text-2); font-size: 12.5px; font-weight: 500;
+  justify-content: flex-start; padding-inline: 8px;
+  transition: background-color var(--dur-snap) var(--ease-swift), color var(--dur-snap) var(--ease-swift);
+}
+.sidebar > .btn-primary:hover:not(:disabled) { background: var(--panel-3); color: var(--text); }
+
+.side-label { font-size: 10.5px; font-weight: 500; letter-spacing: 0; text-transform: none; color: var(--text-3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* No hard height cap on the projects list: the rail's two sections share the available
+   height, and each list scrolls inside its own container. */
+.side-list { max-height: none; overflow-y: auto; min-height: 0; gap: 1px; }
+/* Rows keep their own height: as flex children they used to shrink to ~10px
+   and the capped list painted as an empty band. The <li> is only a wrapper
+   around the project button, so it carries no padding of its own. */
+.side-list > * { flex: 0 0 auto; }
+.side-list > .side-item { padding: 0; }
+.side-item { padding: 5px 8px; font-size: 12.5px; color: var(--text-2); }
+/* The rail itself never scrolls: projects and history each own a scroll container. */
+.side-nav { flex: 1 1 auto; min-height: 0; overflow: hidden; }
+.side-nav > section { display: flex; flex-direction: column; min-height: 0; }
+.side-nav > section > .side-label,
+.side-nav > section > .side-search,
+.side-nav > section > .topic-archived-toggle,
+.side-nav > section > .side-empty { flex: 0 0 auto; }
+.side-nav > section:first-of-type { flex: 0 0 auto; max-height: 40%; }
+.side-nav > section:last-of-type { flex: 1 1 auto; }
+.topic-period-list { max-height: none; overflow-y: auto; min-height: 0; flex: 1 1 auto; }
+.project-select { width: 100%; border: 0; background: transparent; color: inherit; text-align: left; font: inherit; font-size: 12.5px; line-height: 1.4; padding: 3px 8px; border-radius: 6px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; cursor: pointer; }
+.project-select:hover { background: var(--panel-3); color: var(--text); }
+.project-select.side-item-active { background: var(--panel-3); color: var(--text); font-weight: 500; }
+.side-item-active { font-weight: 500; }
+.topic-title { font-size: 12.5px; font-weight: 500; }
+.side-item.topic-session { font-size: 11.5px; }
+.topic-search { border-radius: 7px; background: var(--panel); font-size: 12px; padding: 6px 10px 6px 28px; }
+.topic-action { border: 0; background: transparent; box-shadow: none; color: var(--text-3); }
+.topic-action:hover { background: var(--panel-3); }
+
+/* bottom area nav: flat, no boxes */
+.sidebar-footer { border-top: 1px solid var(--ring); padding: 8px 0 0; background: transparent; }
+.sidebar-area-tabs { gap: 2px; }
+.sidebar-area-btn { border: 0; padding: 6px 7px; font-size: 11.5px; color: var(--text-3); border-radius: 6px; }
+.sidebar-area-btn:hover { background: var(--panel-3); color: var(--text-2); }
+.sidebar-area-btn.active { background: var(--panel-3); color: var(--text); }
+.sidebar-theme-toggle { border: 0; background: transparent; color: var(--text-3); font-size: 11.5px; }
+.sidebar-theme-toggle:hover { background: var(--panel-3); color: var(--text-2); }
+
+/* ---------- top bar ---------- */
+.topbar { min-height: 44px; padding: 0 12px; gap: 8px; border-bottom: 1px solid var(--ring); }
+.topbar-actions { gap: 2px; }
+.topbar .btn, .preferences-menu summary.btn {
+  border: 0; background: transparent; color: var(--text-2);
+  font-size: 12px; padding: 5px 8px; border-radius: 6px; min-height: 30px;
+}
+.topbar .btn:hover, .preferences-menu summary.btn:hover { background: var(--panel-2); color: var(--text); }
+.statusbar { font-size: 12px; color: var(--text-2); }
+.preferences-content { border-radius: 10px; box-shadow: var(--shadow-3); width: 300px; }
+
+/* ---------- home: one centered column ---------- */
+.workbench-home { display: block; padding: 0; overflow-y: auto; }
+.home-inner { width: 100%; max-width: 780px; margin: 0 auto; padding: clamp(40px, 9vh, 96px) 24px 40px; display: flex; flex-direction: column; gap: 22px; }
+.home-hero h1 { margin: 0 0 6px; font-size: clamp(22px, 2.4vw, 27px); font-weight: 600; letter-spacing: -.02em; text-wrap: balance; }
+.home-hero p { margin: 0; font-size: 13px; color: var(--text-3); }
+
+/* ---------- composer: one surface, footer row inside ---------- */
+.task-composer { display: grid; gap: 8px; width: 100%; }
+.task-composer h2 { display: none; }
+.composer-surface {
+  display: grid; grid-template-columns: minmax(0, 1fr); gap: 4px;
+  padding: 12px 12px 10px; background: var(--panel);
+  border: 1px solid var(--ring); border-radius: 14px; box-shadow: none;
+  transition: border-color var(--dur-snap) var(--ease-swift);
+}
+.composer-surface:hover { border-color: var(--ring-2); }
+.composer-surface:focus-within { border-color: var(--ring-2); box-shadow: none; }
+.composer-surface .task-input {
+  width: 100%; min-width: 0; min-height: 84px; max-height: 320px; padding: 6px;
+  border: 0; border-radius: 8px; background: transparent; box-shadow: none;
+  font: inherit; font-size: 14px; line-height: 1.6; resize: none; color: var(--text);
+}
+.composer-surface .task-input:focus { outline: none; }
+.composer-surface .task-input::placeholder { color: var(--text-3); }
+.composer-options { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; padding: 0 2px; }
+.composer-chip {
+  display: inline-flex; align-items: center; min-width: 0;
+  border: 1px solid transparent; border-radius: 7px; background: var(--panel-2);
+}
+.composer-chip:hover { border-color: var(--ring); }
+.composer-select {
+  appearance: none; max-width: 190px; border: 0; background: transparent; color: var(--text-2);
+  font: inherit; font-size: 12px; padding: 5px 20px 5px 8px; border-radius: 7px; cursor: pointer;
+  background-image: linear-gradient(45deg, transparent 50%, currentColor 50%), linear-gradient(135deg, currentColor 50%, transparent 50%);
+  background-position: calc(100% - 11px) 52%, calc(100% - 7px) 52%;
+  background-size: 4px 4px, 4px 4px; background-repeat: no-repeat;
+  text-overflow: ellipsis;
+}
+.composer-select:focus { outline: none; }
+.composer-select option { background: var(--panel); color: var(--text); }
+.composer-send {
+  margin-left: auto; min-height: 30px; padding: 5px 14px; border: 0; border-radius: 8px;
+  background: var(--text); color: var(--panel); font-size: 12.5px; font-weight: 500;
+  transition: opacity var(--dur-snap) var(--ease-swift), transform var(--dur-fast) var(--ease-swift);
+}
+.composer-send:hover:not(:disabled) { opacity: .88; }
+/* Disabled is still recognisable as the primary: it keeps a hairline border and a
+   readable label instead of dissolving into the panel tint. */
+.composer-send:disabled { background: var(--panel-3); color: var(--text-2); border: 1px solid var(--ring-2); opacity: 1; }
+.composer-send:active:not(:disabled) { transform: scale(.985); }
+.composer-path { border-radius: 8px; font-size: 12.5px; }
+.composer-note { margin: 0; font-size: 12px; color: var(--text-3); }
+.composer-secondary { display: flex; gap: 10px; }
+.composer-secondary .btn { border: 0; background: transparent; color: var(--text-3); font-size: 12px; padding: 2px; min-height: 24px; }
+.composer-secondary .btn:hover { color: var(--text); background: transparent; }
+
+/* model chip keeps its dot but loses the capsule weight */
+.model-pill { background: var(--panel-2); border: 1px solid transparent; border-radius: 7px; }
+.model-pill:hover { border-color: var(--ring); }
+.model-switcher-trigger { font-size: 12px; color: var(--text-2); padding: 5px 8px; background: transparent; }
+.model-switcher-panel { border-radius: 10px; box-shadow: var(--shadow-3); }
+
+/* onboarding reads as a quiet list of short choices: no outline, no fill —
+   only a hover tint, so the composer keeps the screen's single primary.
+   Two columns, because four squeezed the provider names into an ellipsis. */
+.onboarding-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 4px 12px; }
+.onboarding-card {
+  border: 0; border-radius: 8px; box-shadow: none; background: transparent;
+  text-align: left; padding: 8px 10px; gap: 2px;
+  transition: background-color var(--dur-snap) var(--ease-swift);
+}
+.onboarding-card:hover { background: var(--panel-2); border-color: transparent; }
+.onboarding-card strong { font-weight: 500; font-size: 13px; display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.onboarding-card small { color: var(--text-3); font-size: 11.5px; display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.task-composer-onboarding h3 { font-size: 13px; font-weight: 600; }
+
+/* headings in non-workbench areas stay quiet */
+.main-body h2 { font-size: 16px; font-weight: 600; letter-spacing: -.01em; }
+.main-body > .dim { font-size: 12.5px; }
+
+/* one visible focus treatment, no glow */
+:where(button, a, input, select, textarea, summary):focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; box-shadow: none; }
+
+/* ---------- elevation: hairline only ----------
+   Overlays keep a 1px ring instead of a blurred shadow. Every one of these
+   selectors carries a hard-coded `box-shadow` (blur radius 12-36px) further
+   up in this file; this block is the single place that neutralises them. */
+.modal,
+.scroll-to-bottom-pill,
+.scroll-to-bottom-pill:hover,
+.lang-switch-popover,
+.customize-popover,
+.preferences-content,
+.model-switcher-panel,
+.subagent-drawer,
+.navigation-shell { box-shadow: none; }
+
+.navigation-shell { border-right: 1px solid var(--ring); }
+
+/* pressed state: a 1px shift, never an inset shadow */
+:is(.btn, .topic-action, .rail-item, .markdown-code-copy, .model-switcher-trigger, .command-group-toggle, .project-select):active:not(:disabled) { box-shadow: none; }
+
+/* ---------- conversation: one primary action, hairline composer ---------- */
+/* The send button is the screen's only solid action; every other control in the
+   transcript area is a text action (no outline, no fill). */
+.conversation .btn:not(.btn-primary):not(.btn-danger):not(.widget-danger),
+.conversation-head .btn:not(.btn-danger):not(.widget-danger),
+.inspector-toolbar .btn:not(.btn-danger):not(.widget-danger),
+.docked-inspector .btn:not(.btn-primary):not(.btn-danger):not(.widget-danger):not(.is-active):not([aria-selected='true']),
+.goal-module .btn:not(.btn-primary):not(.btn-danger):not(.widget-danger),
+.composer-shell .btn:not(.btn-primary):not(.btn-danger):not(.widget-danger) {
+  border: 0; background: transparent; color: var(--text-2);
+  transition: background-color var(--dur-snap) var(--ease-swift), color var(--dur-snap) var(--ease-swift);
+}
+.conversation .btn:not(.btn-primary):not(.btn-danger):not(.widget-danger):hover:not(:disabled),
+.conversation-head .btn:not(.btn-danger):not(.widget-danger):hover:not(:disabled),
+.inspector-toolbar .btn:not(.btn-danger):not(.widget-danger):hover:not(:disabled),
+.docked-inspector .btn:not(.btn-primary):not(.btn-danger):not(.widget-danger):not(.is-active):not([aria-selected='true']):hover:not(:disabled),
+.goal-module .btn:not(.btn-primary):not(.btn-danger):not(.widget-danger):hover:not(:disabled),
+.composer-shell .btn:not(.btn-primary):not(.btn-danger):not(.widget-danger):hover:not(:disabled) { background: var(--panel-2); color: var(--text); }
+
+/* The session composer is the same single card as the home one: textarea and the
+   action row share one border, and focus only moves that border's colour. */
+.composer-shell .composer {
+  display: flex; flex-wrap: wrap; align-items: flex-end; gap: 8px;
+  width: 100%; max-width: 780px; margin: 0 auto; padding: 10px 12px;
+  border: 1px solid var(--ring); border-radius: 14px;
+  background: var(--panel); box-shadow: none;
+  transition: border-color var(--dur-snap) var(--ease-swift);
+}
+.composer-shell .composer:focus-within { border-color: var(--ring-2); }
+.composer-shell .composer-input { border: 0; background: transparent; box-shadow: none; }
+.composer-shell .composer-input:focus { outline: none; }
+
+/* keyboard focus on the project/permission chips is visible again (it was lost when
+   the composer chip replaced the old .capsule-select) */
+.composer-chip:focus-within { border-color: var(--ring-2); }
+
+/* narrow widths: a capsule or mode pill wraps as a whole, its label never splits */
+.capsule, .mode-pill, .capsule b, .capsule-k { white-space: nowrap; }
+.composer-capsules { row-gap: 6px; }
+
+@media (pointer: coarse) {
+  .composer-send { min-height: 44px; }
+}
+
+/* utility */
+.visually-hidden { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
+
+@media (max-width: 800px) {
+  .home-inner { padding: 28px 16px 24px; }
+  .composer-select { max-width: 130px; }
+  .composer-send { width: 100%; margin-left: 0; }
+  /* one column: four provider rows must not squeeze their labels into each other */
+  .onboarding-grid { grid-template-columns: minmax(0, 1fr); gap: 2px; }
+  .onboarding-card strong, .onboarding-card small { white-space: nowrap; }
+}
+
+/* the status line is the first thing to give way when the bar is narrow */
+@media (max-width: 620px) {
+  .statusbar { display: none; }
 }

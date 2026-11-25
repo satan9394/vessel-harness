@@ -58,8 +58,6 @@ export function resolveModelLabel(provider?: string | null, model?: string | nul
 export interface ComposerCapsulesProps {
   api: ApiClient;
   sessionId: string;
-  /** Default permission for a not-yet-materialised session (workbench composer). */
-  fallbackPermission?: string;
   /** Default route mode before the server snapshot resolves. */
   fallbackMode?: RouteMode;
   onModeChange?: (mode: RouteMode) => void;
@@ -96,7 +94,7 @@ export function useContextWindow(api: ApiClient, sessionId: string, revision = 0
  * permission, and the Auto/Fast/Pro route mode from `GET /api/sessions/:id/route`.
  * Nothing here invents a value it cannot source.
  */
-export default function ComposerCapsules({ api, sessionId, fallbackPermission, fallbackMode = 'auto', onModeChange }: ComposerCapsulesProps) {
+export default function ComposerCapsules({ api, sessionId, fallbackMode = 'auto', onModeChange }: ComposerCapsulesProps) {
   const { t } = useI18n();
   const [session, setSession] = useState<SessionMeta>();
   const [route, setRoute] = useState<RouteState | null>(null);
@@ -108,9 +106,6 @@ export default function ComposerCapsules({ api, sessionId, fallbackPermission, f
     return () => { alive = false; };
   }, [api, sessionId]);
   const mode = route?.mode ?? fallbackMode;
-  const permission = approvalTier(session, fallbackPermission);
-  const permissionKey = permissionLabelKey(permission);
-  const modelLabel = resolveModelLabel(session?.provider, session?.model);
   const resolved = routeLabel(route?.route);
   // B1: set mode / resolve the actual model / lock (pin) the resolution for the session.
   const changeMode = useCallback(async (next: RouteMode) => {
@@ -132,8 +127,9 @@ export default function ComposerCapsules({ api, sessionId, fallbackPermission, f
   return (
     <div className="composer-capsules" role="group" aria-label={t('uiMode')}>
       <span className="capsule"><span className="capsule-k">{t('uiProject')}</span><b>{session ? projectName(session.workspaceRoot) : '—'}</b></span>
-      <span className="capsule"><span className="capsule-k">{t('uiModel')}</span><b title={modelLabel.kind === 'named' ? modelLabel.text : undefined}>{modelLabel.kind === 'offline' ? t('modelOffline') : modelLabel.kind === 'named' ? modelLabel.text : '—'}</b></span>
-      <span className="capsule capsule-solid"><span className="capsule-k">{t('uiApprovalTier')}</span><b>{permissionKey ? t(permissionKey) : '—'}</b></span>
+      {/* F7: model and approval tier are shown by components/ModelSelector.tsx (its
+          interactive switcher, plus `.effective-permission` at line 72), so this row keeps
+          only the path and the mode controls instead of repeating them as static capsules. */}
       <span className="capsule capsule-modes">
         <span className="capsule-k">{t('uiMode')}</span>
         {ROUTE_MODES.map((value) => (

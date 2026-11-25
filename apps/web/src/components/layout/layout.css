@@ -38,7 +38,6 @@
   border-color: var(--ring);
   color: var(--accent);
   font-weight: 600;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
 }
 
 .inspector-subtabs { display: flex; flex-wrap: wrap; gap: 4px; }
