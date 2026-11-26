@@ -499,3 +499,10 @@ PDW 关联：首行状态行下加 `- PDW task: <id>`（未启动写 `none`）�
   **`--live` 真实基线未做且不再自动尝试**：事实登记在 `tasks/149`。未经用户逐次显式同意，不得运行 `--live`。
 - **发布准备**：**已按决策点 21 作废**（2026-09-28 追注）——本仓不再发布版本（不建 GitHub Release、不向 npm 发布新版本），`tasks/152` 的 release notes 与 1.0 门槛核对保留为**历史记录**，不再作为待办。
 - **外部阻塞（登记不空等）**：154 `release-report` 刷新；155 3h 墙钟 soak；156 1.0 门槛最终核验（停在 tag 前）。
+
+## 最近已交付（2026-11-24 ~ 11-26）
+
+- [377](377-web-ui-minimal-restyle-round3.md) Web UI 第三轮（F8–F11）：侧栏分段、组标题去重、禁用主按钮可辨；F11 核销未复现。提交 `ee7f0e6e`，web 547 用例。
+- [378](378-multica-squad-watchdog.md) Multica 小队健康巡检：`scripts/multica-watch.ps1` + 计划任务 `Multica_Watch`（10 分钟）+ 两个自动化。提交 `8f8df1ce` / `d18a725c` / `b938f135`。
+- ACRU-36 侧栏同名项目去重（`utils/projectLabels.ts`）：提交 `49bbfa43`，新增 9 条单测，556 用例。
+- ACRU-38 hover 不再覆盖 `.is-active` / danger 状态：`styles.css` +12/−3，提交 `edae9219`，556 用例。
