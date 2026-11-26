@@ -17,15 +17,6 @@
 
 export type GoalTaskStatus = 'pending' | 'in-progress' | 'paused' | 'met' | 'not_met' | 'cancelled';
 
-export const GOAL_TASK_STATUSES: readonly GoalTaskStatus[] = [
-  'pending',
-  'in-progress',
-  'paused',
-  'met',
-  'not_met',
-  'cancelled',
-];
-
 /** Display name for a queue status (UI labels stay language-neutral). */
 export const GOAL_STATUS_LABELS: Record<GoalTaskStatus, string> = {
   pending: 'Pending',
