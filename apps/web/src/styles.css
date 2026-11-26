@@ -29,7 +29,6 @@
   --shadow-1: none;
   --shadow-2: none;
   --control-shadow: none;
-  --shadow-3: 0 0 0 1px var(--ring);
   --glow-a: transparent;
   --glow-b: transparent;
   --glow-c: transparent;
@@ -104,7 +103,6 @@
     --hl: none;
     --shadow-1: none;
     --shadow-2: none;
-    --shadow-3: 0 0 0 1px var(--ring);
     --glow-a: transparent;
     --glow-b: transparent;
     --glow-c: transparent;
@@ -137,7 +135,6 @@ html.dark .tokens {
   --hl: none;
   --shadow-1: none;
   --shadow-2: none;
-  --shadow-3: 0 0 0 1px var(--ring);
   --glow-a: transparent;
   --glow-b: transparent;
   --glow-c: transparent;
@@ -169,7 +166,6 @@ html.light .tokens {
   --hl: none;
   --shadow-1: none;
   --shadow-2: none;
-  --shadow-3: 0 0 0 1px var(--ring);
   --glow-a: transparent;
   --glow-b: transparent;
   --glow-c: transparent;
@@ -582,7 +578,6 @@ body::before { content: none; }
 .capsule { display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border: 1px solid var(--ring); border-radius: var(--r-pill); background: var(--panel-2); font-size: 11.5px; max-width: 100%; }
 .capsule-k { color: var(--text-3); letter-spacing: 0.1em; text-transform: uppercase; font-size: 10px; }
 .capsule b { color: var(--text); font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 220px; }
-.capsule-solid { background: var(--accent-soft); border-color: var(--ring-2); }
 .capsule-modes { gap: 4px; }
 .mode-pill { border: 1px solid transparent; background: transparent; color: var(--text-2); border-radius: var(--r-pill); padding: 2px 9px; font: inherit; font-size: 11px; cursor: pointer; transition: background 200ms var(--ease), color 200ms var(--ease); }
 .mode-pill:hover { background: var(--panel); color: var(--text); }
@@ -1750,7 +1745,6 @@ code {
 .home-session time { font-variant-numeric: tabular-nums; }
 .task-composer { width: 100%; display: grid; gap: 12px; margin: 0; padding: 0; border: 0; border-radius: 0; background: transparent; }
 .workbench-home .task-composer { width: 100%; margin: 0; }
-.task-composer h2 { margin: 0 0 12px; }
 .composer-surface {
   display: grid; grid-template-columns: minmax(0, 1fr); gap: 12px; min-width: 0; padding: 16px; background: var(--panel);
   border-radius: var(--r-composer); border: var(--ring-hairline) solid var(--ring);
@@ -1761,25 +1755,10 @@ code {
 .composer-surface:focus-within { border-color: var(--ring-2); box-shadow: var(--focus-ring); }
 .composer-surface .task-input { width: 100%; min-width: 0; min-height: 150px; resize: vertical; font: inherit; border: 0; border-radius: var(--r-sm); background: transparent; box-shadow: none; }
 .composer-surface .task-input:focus { outline: none; }
-.composer-root { margin: 0; overflow-wrap: anywhere; font-size: 12px; }
 .composer-options { display: flex; flex-wrap: wrap; gap: 12px; align-items: end; min-width: 0; }
 .composer-options > * { min-width: 0; max-width: 100%; }
 .composer-options > .model-switcher { flex: 1 1 240px; }
 .composer-options label { display: grid; gap: 4px; flex: 1; min-width: 0; }
-.capsule-select {
-  position: relative; display: flex; align-items: center; min-width: 0; border-radius: var(--r-pill);
-  border: var(--ring-hairline) solid var(--ring); background: var(--panel-2);
-  transition: border-color var(--dur-snap) var(--ease-swift), box-shadow var(--dur-snap) var(--ease-swift);
-}
-.capsule-select:hover { border-color: var(--ring-2); }
-.capsule-select:focus-within { border-color: var(--ring-2); box-shadow: var(--focus-ring); }
-.capsule-select select.input {
-  appearance: none; width: 100%; min-width: 0; border: 0; border-radius: inherit; padding: 8px 30px 8px 12px;
-  background: transparent; color: var(--text); font: inherit; font-size: 12px; text-overflow: ellipsis; cursor: pointer;
-}
-.capsule-select select:focus { outline: none; box-shadow: none; }
-.capsule-select option { background: var(--panel); color: var(--text); }
-.capsule-select > svg { position: absolute; right: 10px; width: 14px; height: 14px; color: var(--text-3); pointer-events: none; }
 .composer-send { border-radius: var(--r-pill); min-height: 36px; padding: 8px 16px; transition: transform var(--dur-fast) var(--ease-swift), background-color var(--dur-snap) var(--ease-swift); }
 .composer-send:active:not(:disabled) { transform: scale(0.98); }
 .composer-secondary { display: flex; flex-wrap: wrap; gap: 8px; }
@@ -2059,8 +2038,11 @@ code {
 .sidebar > .btn-primary:hover:not(:disabled) { background: var(--panel-3); color: var(--text); }
 
 .side-label { font-size: 10.5px; font-weight: 500; letter-spacing: 0; text-transform: none; color: var(--text-3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-/* No hard height cap on the projects list: the rail's two sections share the available
-   height, and each list scrolls inside its own container. */
+/* The projects list itself carries no height cap — `.side-list` is `max-height: none`
+   and scrolls. The cap sits on the section that wraps it: `max-height` on the first
+   `.side-nav > section` below limits projects to a fraction of the rail height, and the
+   sessions section (`flex: 1 1 auto`) takes the remainder. The two sections therefore
+   split the rail by ratio; they do not share it evenly. */
 .side-list { max-height: none; overflow-y: auto; min-height: 0; gap: 1px; }
 /* Rows keep their own height: as flex children they used to shrink to ~10px
    and the capped list painted as an empty band. The <li> is only a wrapper
@@ -2106,7 +2088,7 @@ code {
 }
 .topbar .btn:hover, .preferences-menu summary.btn:hover { background: var(--panel-2); color: var(--text); }
 .statusbar { font-size: 12px; color: var(--text-2); }
-.preferences-content { border-radius: 10px; box-shadow: var(--shadow-3); width: 300px; }
+.preferences-content { border-radius: 10px; width: 300px; }
 
 /* ---------- home: one centered column ---------- */
 .workbench-home { display: block; padding: 0; overflow-y: auto; }
@@ -2116,7 +2098,6 @@ code {
 
 /* ---------- composer: one surface, footer row inside ---------- */
 .task-composer { display: grid; gap: 8px; width: 100%; }
-.task-composer h2 { display: none; }
 .composer-surface {
   display: grid; grid-template-columns: minmax(0, 1fr); gap: 4px;
   padding: 12px 12px 10px; background: var(--panel);
@@ -2168,7 +2149,7 @@ code {
 .model-pill { background: var(--panel-2); border: 1px solid transparent; border-radius: 7px; }
 .model-pill:hover { border-color: var(--ring); }
 .model-switcher-trigger { font-size: 12px; color: var(--text-2); padding: 5px 8px; background: transparent; }
-.model-switcher-panel { border-radius: 10px; box-shadow: var(--shadow-3); }
+.model-switcher-panel { border-radius: 10px; }
 
 /* onboarding reads as a quiet list of short choices: no outline, no fill —
    only a hover tint, so the composer keeps the screen's single primary.
