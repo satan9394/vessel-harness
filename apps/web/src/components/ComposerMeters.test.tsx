@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { LanguageProvider } from './LanguageProvider';
 import type { ReactNode } from 'react';
-import { approvalTier, contextOccupancy, formatCount, MetersRow, permissionLabelKey, resolveModelLabel } from './ComposerMeters';
+import ComposerCapsules, { approvalTier, contextOccupancy, formatCount, MetersRow, permissionLabelKey, resolveModelLabel } from './ComposerMeters';
 import { emptyUsage, applyUsageDelta } from './UsageBar';
 import type { SessionMeta } from '../api';
 
@@ -65,7 +65,18 @@ describe('P5 composer capsules + meters', () => {
     expect(formatCount(1500)).toBe('1.5k');
   });
 
-  it('renders the four capsules (project/model/approval/mode) and the meters row', () => {
+  it('renders only the project and mode capsules; model and approval live in the header', () => {
+    vi.stubGlobal('localStorage', { getItem: () => 'en' });
+    const html = render(<ComposerCapsules api={{ } as never} sessionId="s1" />);
+    const kinds = [...html.matchAll(/class="capsule-k">([^<]*)</g)].map(match => match[1]);
+    expect(kinds).toEqual(['Project', 'Mode']);
+    expect(html).not.toMatch(/>Model</);
+    expect(html).not.toMatch(/>Approval</);
+    const pills = [...html.matchAll(/class="mode-pill[^"]*"[^>]*>([^<]*)</g)].map(match => match[1]);
+    expect(pills.slice(0, 3)).toEqual(['Auto', 'Fast', 'Pro']);
+  });
+
+  it('renders the meters row (context %, cache %, plan) from usage totals', () => {
     const usage = applyUsageDelta(emptyUsage(), { inputTokens: 4600, outputTokens: 100, calls: 2 });
     const html = render(<>
       <MetersRow usage={usage} metrics={{ inputTokens: 4600, cacheMetrics: { promptTokens: 4600, cachedTokens: 2800, creationTokens: 0, billedHitRate: 0.61, estimatedSavingsUsd: 0.0124, provider: 'p', model: 'm' } }} contextWindow={10000} plan={{ done: 3, total: 5 }} />

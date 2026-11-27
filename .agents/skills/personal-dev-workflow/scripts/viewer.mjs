@@ -25,9 +25,10 @@ const readJson = file => { try { return JSON.parse(fs.readFileSync(file, 'utf8')
 const inside = (base, target) => { const r = path.resolve(target); return r === base || r.startsWith(base + path.sep); };
 const mtime = file => { try { return fs.statSync(file).mtimeMs; } catch { return 0; } };
 
-export function startViewer({ project, port = 8891, open = false } = {}) {
+export function startViewer({ project, store, port = 8891, open = false } = {}) {
   const root = path.resolve(project ?? process.cwd());
-  const tasksRoot = path.join(root, '.pdw', 'tasks');
+  const storeRoot = path.resolve(store ?? path.join(root, '.pdw'));
+  const tasksRoot = path.join(storeRoot, 'tasks');
   if (!fs.existsSync(tasksRoot)) {
     throw new Error(`这里没有 PDW 任务目录：${tasksRoot}；在项目根运行，或用 --project 指定`);
   }
@@ -35,7 +36,7 @@ export function startViewer({ project, port = 8891, open = false } = {}) {
 
   /** 角色路由：未跑过的角色也能显示模型与档位。 */
   function routing() {
-    const cfg = readJson(path.join(root, '.pdw', 'config.json')) ?? {};
+    const cfg = readJson(path.join(storeRoot, 'config.json')) ?? {};
     const roles = {};
     for (const [name, r] of Object.entries(cfg.roles ?? {})) {
       const effort = r.reasoning_effort ?? (typeof r.model === 'string' && r.model.includes('#') ? r.model.split('#')[1] : null);
@@ -84,6 +85,7 @@ export function startViewer({ project, port = 8891, open = false } = {}) {
       created_at: state.created_at, updated_at: state.updated_at ?? state.created_at,
       calls_used: state.calls_used, repairs_used: state.repairs_used, elapsed_ms: state.elapsed_ms,
       artifact: state.artifact, failure: state.failure ?? null,
+      project: state.project ?? root, worktree: state.worktree ?? null,
       goal: contract?.goal ?? null,
       changed: Array.isArray(changed) ? changed : [],
       attempts: attemptsOf(state),
@@ -185,7 +187,7 @@ export function startViewer({ project, port = 8891, open = false } = {}) {
       if (url.pathname === '/' || url.pathname === '/index.html') {
         return send(res, fs.readFileSync(HTML, 'utf8'), 200, 'text/html; charset=utf-8');
       }
-      if (url.pathname === '/api/project') return send(res, { project: root, name: path.basename(root), ...routing(), silence_warn_seconds: SILENCE_WARN });
+      if (url.pathname === '/api/project') return send(res, { project: root, store: storeRoot, name: path.basename(root), ...routing(), silence_warn_seconds: SILENCE_WARN });
       if (url.pathname === '/api/tasks') return send(res, { tasks: listTasks() });
       if (url.pathname === '/api/task') {
         const id = url.searchParams.get('id');
@@ -231,13 +233,25 @@ export function startViewer({ project, port = 8891, open = false } = {}) {
   return server;
 }
 
-if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+/** Compare real paths: Node resolves the ESM entry to its realpath, so a junction invocation never matches a plain resolve. */
+function invokedAsScript() {
+  if (!process.argv[1]) return false;
+  const self = fileURLToPath(import.meta.url);
+  try { return fs.realpathSync.native(process.argv[1]) === fs.realpathSync.native(self); }
+  catch { return path.resolve(process.argv[1]) === self; }
+}
+
+if (invokedAsScript()) {
   const argv = process.argv.slice(2);
   const value = name => { const i = argv.indexOf(name); return i < 0 ? null : argv[i + 1] ?? null; };
   try {
-    startViewer({ project: value('--project') ?? process.cwd(), port: Number(value('--port') ?? 8891), open: argv.includes('--open') });
+    const ws = (await import('./pdw.mjs')).workspace(value('--project') ?? process.cwd());
+    startViewer({ project: ws.work, store: ws.store, port: Number(value('--port') ?? 8891), open: argv.includes('--open') });
   } catch (error) {
     console.error(`PDW view: ${error.message}`);
     process.exitCode = 1;
   }
+} else if (process.argv[1] && path.basename(process.argv[1]) === 'viewer.mjs') {
+  console.error('PDW view: entry point not recognised; this copy cannot run as a script (junction or stale duplicate)');
+  process.exitCode = 1;
 }

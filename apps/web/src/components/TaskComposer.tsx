@@ -4,11 +4,25 @@ import { useI18n } from './LanguageProvider';
 import { modelKey } from './NewSessionForm';
 import { ModelQuickSwitcher } from './providers/ModelQuickSwitcher';
 import { localizePreset, PROVIDER_PRESETS_CATALOG } from './providers/presetsData';
+import { projectLabels, labelFor } from '../utils/projectLabels';
+
+export { projectName, projectLabels, labelFor } from '../utils/projectLabels';
 
 // Page-local drafts survive navigation without writing task text to disk.
 const draftsByClient = new WeakMap<ApiClient, Map<string, string>>();
-
-export function projectName(root: string): string { return root.split(/[\\/]/).filter(Boolean).at(-1) || root; }
+// Label map memoized on the projects array identity. A `useMemo` here would be
+// consistent with Sidebar/App, but this component's test harness fakes
+// useState/useRef/useEffect and calls it outside React, so a real hook throws
+// "Invalid hook call"; the WeakMap gives the same one-map-per-project-list
+// behaviour without touching hook order.
+const labelsByProjects = new WeakMap<Project[], Map<string, string>>();
+function labelsForProjects(projects: Project[]): Map<string, string> {
+  const cached = labelsByProjects.get(projects);
+  if (cached) return cached;
+  const labels = projectLabels(projects.map(project => project.root));
+  labelsByProjects.set(projects, labels);
+  return labels;
+}
 export function readableSessionTitle(session: SessionMeta, fallback: string): string {
   const title = session.topic?.title?.trim();
   return title && !/^sess_|^untitled topic$|^未命名主题$/i.test(title) ? title : fallback;
@@ -33,6 +47,7 @@ export default function TaskComposer({ api, projects, selectedRoot, onSelectProj
   onStarted: (session: SessionMeta, task: string) => void;
 }) {
   const { t, lang } = useI18n();
+  const projectLabelMap = labelsForProjects(projects);
   const [path, setPath] = useState('');
   const root = selectedRoot || path.trim();
   const [drafts, setDrafts] = useState(() => new Map(draftsByClient.get(api)));
@@ -88,39 +103,40 @@ export default function TaskComposer({ api, projects, selectedRoot, onSelectProj
       onStarted(session, task.trim());
     } catch { setError(t('sessionCreateFailed')); } finally { setBusy(false); }
   }
-  return <form className="task-composer" onSubmit={submit}>
-    <h2>{t('taskPrompt')}</h2>
-    <label htmlFor="taskProject">{t('chooseProject')}</label>
-    <div className="capsule-select">
-    <select id="taskProject" className="input" value={selectedRoot} disabled={busy} onChange={event => onSelectProject(event.target.value)}>
-      <option value="">{t('openProjectPath')}</option>
-      {projects.map(project => <option key={project.root} value={project.root}>{projectName(project.root)}</option>)}
-    </select>
-    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true"><path d="m4 6 4 4 4-4" /></svg>
-    </div>
-    {selectedRoot ? <p className="composer-root dim" title={root}>{root}</p> : <input className="input" aria-label={t('workspacePath')} placeholder={t('workspacePlaceholder')} value={path} onChange={event => setPath(event.target.value)} disabled={busy} />}
+  return <form className="task-composer" onSubmit={submit} aria-label={t('taskPrompt')}>
     <div className="composer-surface">
-    <label htmlFor="taskInput">{t('taskPrompt')}</label>
-    <textarea ref={taskInput} id="taskInput" className="input task-input" placeholder={t('taskPlaceholder')} value={task} onChange={event => setTask(event.target.value)} disabled={busy} autoFocus
-      onCompositionStart={() => { isComposingRef.current = true; }}
-      onCompositionEnd={() => { isComposingRef.current = false; }}
-      onKeyDown={event => {
-        if (event.key === 'Enter' && !event.shiftKey) {
-          if (isComposingRef.current || event.nativeEvent.isComposing || event.keyCode === 229) return;
-          event.preventDefault(); void submit(event);
-        }
-      }} />
-    <div className="composer-options composer-pills">
-      <ModelQuickSwitcher models={models} current={selectedModel ? { provider: selectedModel.providerName, model: selectedModel.id } : null}
-        disabled={busy || loading || failed || disabled} onSelect={model => setSelection(JSON.stringify([model.provider, model.model]))} onOpenSettings={() => onConfigureModels()} />
-      <label>{t('permissionLabel')}<span className="capsule-select"><select className="input" aria-label={t('permissionLabel')} value={permission} disabled={busy} onChange={event => setPermission(event.target.value as typeof permission)}>
-        <option value="read-only">{t('permissionReadOnly')}</option><option value="workspace-write">{t('permissionWorkspaceWrite')}</option><option value="danger-full-access">{t('permissionDangerFull')}</option>
-      </select><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true"><path d="m4 6 4 4 4-4" /></svg></span></label>
-      <button className="btn btn-primary composer-send" type="submit" disabled={busy || disabled || loading || failed || unavailable || !root || !task.trim()}>{busy ? t('creating') : t('startTask')}</button>
+      <label htmlFor="taskInput" className="visually-hidden">{t('taskPrompt')}</label>
+      <textarea ref={taskInput} id="taskInput" className="task-input" placeholder={t('taskPlaceholder')} value={task} onChange={event => setTask(event.target.value)} disabled={busy} autoFocus
+        onCompositionStart={() => { isComposingRef.current = true; }}
+        onCompositionEnd={() => { isComposingRef.current = false; }}
+        onKeyDown={event => {
+          if (event.key === 'Enter' && !event.shiftKey) {
+            if (isComposingRef.current || event.nativeEvent.isComposing || event.keyCode === 229) return;
+            event.preventDefault(); void submit(event);
+          }
+        }} />
+      <div className="composer-options composer-pills">
+        <span className="composer-chip" title={root}>
+          <label htmlFor="taskProject" className="visually-hidden">{t('chooseProject')}</label>
+          <select id="taskProject" className="composer-select" value={selectedRoot} disabled={busy} onChange={event => onSelectProject(event.target.value)}>
+            <option value="">{t('openProjectPath')}</option>
+            {projects.map(project => <option key={project.root} value={project.root}>{labelFor(projectLabelMap, project.root)}</option>)}
+          </select>
+        </span>
+        <ModelQuickSwitcher models={models} current={selectedModel ? { provider: selectedModel.providerName, model: selectedModel.id } : null}
+          disabled={busy || loading || failed || disabled} onSelect={model => setSelection(JSON.stringify([model.provider, model.model]))} onOpenSettings={() => onConfigureModels()} />
+        <span className="composer-chip">
+          <label htmlFor="taskPermission" className="visually-hidden">{t('permissionLabel')}</label>
+          <select id="taskPermission" className="composer-select" aria-label={t('permissionLabel')} value={permission} disabled={busy} onChange={event => setPermission(event.target.value as typeof permission)}>
+            <option value="read-only">{t('permissionReadOnly')}</option><option value="workspace-write">{t('permissionWorkspaceWrite')}</option><option value="danger-full-access">{t('permissionDangerFull')}</option>
+          </select>
+        </span>
+        <button className="btn btn-primary composer-send" type="submit" disabled={busy || disabled || loading || failed || unavailable || !root || !task.trim()}>{busy ? t('creating') : t('startTask')}</button>
+      </div>
     </div>
-    </div>
+    {!selectedRoot && <input className="input composer-path" aria-label={t('workspacePath')} placeholder={t('workspacePlaceholder')} value={path} onChange={event => setPath(event.target.value)} disabled={busy} />}
     {unavailable && !loading && <p role="alert" className="error-text">{t('modelUnavailable')}</p>}
-    {loading && <p role="status" className="dim">{t('loading')}</p>}
+    {loading && <p role="status" className="composer-note">{t('loading')}</p>}
     {failed && <p role="alert" className="error-text">{t('modelLoadFailed')} <button className="btn" type="button" onClick={() => setRetry(value => value + 1)}>{t('modelRetry')}</button></p>}
     {!loading && !failed && !models.some(model => model.providerName !== 'mock') && <section className="task-composer-onboarding" aria-label={t('onboardingTitle')}>
       <h3>{t('onboardingTitle')}</h3><p className="dim">{t('onboardingSubtitle')}</p>

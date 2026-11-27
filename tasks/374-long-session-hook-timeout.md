@@ -1,6 +1,6 @@
 # 任务卡 374: longSessionResilience 的 30s hook 超时（Windows runner 抖动第二次）
 
-- Status: 已完成待观察（2026-11-02；本地与类型检查绿，CI 两腿待这次推送确认）
+- Status: 已完成、观察中（2026-11-02；修复后 CI 连续绿、未复发；120s 是否够仍看后续 run）
 - PDW task: none
 - 触发条件：`AGENTS.md` §3.2 A3 写着「Windows runner worker 启动抖动，**若再出现第二次**就立卡」。实测第二次：
   - 2026-10-31 PR #48 `build (windows-latest, 26)`：`benchmarks/runners/src/conformance/resilience/longSessionResilience.test.ts`

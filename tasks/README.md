@@ -43,7 +43,7 @@ PDW 关联：首行状态行下加 `- PDW task: <id>`（未启动写 `none`）�
 | CodeQL #15/#16 清零（沙箱 argv 出口拆分，卡 372） | **已验收（2026-10-31）**：新增第三个 spawn 出口 `runDirectedCommand`（沙箱/`WindowsRestrictedRunner` 的「调用方指定任意程序」专用），`runCommand` 只剩本仓自选程序（git 等）。本地 CodeQL（2.27.3 + 同版本 pack）先验证 `Worktree.ts` 两条 path concatenation 消失，再推 PR #48 → 重扫只剩 1 条有意边界告警并 `won't fix` dismiss ⇒ **仓库开放告警 0**。全量 17/17（根 3,748 + 8 skipped）。合入 `9f61c457` | [372](372-sandbox-argv-spawn-exit.md) |
 | CodeQL 本地复现脚本（卡 373） | **已验收（2026-11-01）**：`scripts/codeql-local.ps1` + `docs/CODEQL-LOCAL.md`，一条命令用与 GitHub 同版本的 CLI 在 `%TEMP%` 建库跑三条查询（`UnsafeShellCommandConstruction` / `ShellCommandInjectionFromEnvironment` / `PolynomialReDoS`），产物不写仓库。实测：`shell` 3 + 26 行、`redos` 0 行；ReDoS 的 pack 路径纠正为 `Performance/PolynomialReDoS.ql`，查询失败不再谎报「无结果」 | [373](373-codeql-local-script.md) |
 | Windows runner 抖动第二次（卡 374） | **执行中（2026-11-02）**：同一套件 `longSessionResilience.test.ts` 的 30s hook 超时在 10-31（win/26）与 11-02（win/22）各挂一次，本地 5 passed / 6.6s；把该套件 `beforeAll`/`afterAll` 显式放到 120s，断言与 100 轮场景零改动 | [374](374-long-session-hook-timeout.md) |
-| nvm 路径迁移收尾（卡 375） | **迁移已入库（2026-11-02）**：`dispatch-codex.ps1` / `pdw-route.ps1` 改指 `.nodejs\{codex,opencode}.exe`（用户手工改，协调者验证 `doctor` exit 0 / 五角色 ready / `-DryRun` exit 0 后提交）。**守卫脚本派给 Codex**：`scripts/check-tool-paths.mjs`（扫活文件里的旧 `NVM_Windows` / `installs\v*` / 旧 codex vendor 布局，排除 `evidence/`、`tasks/`、`docs/diagrams/*.finalize.json`），派单 `tasks/prompts/CODEX-375-nvm-path-guard.md` | [375](375-nvm-path-migration-closeout.md) |
+| nvm 路径迁移收尾（卡 375） | **已验收（2026-11-02）**：迁移入库（`dispatch-codex.ps1` / `pdw-route.ps1` 指向 `.nodejs`——实测是 Junction → `.shim`，node 26.13.0 / codex 0.166.0，`doctor` exit 0 五角色 ready）。Codex 独立审查两处代做改动，**均判 KEEP**（`7d92786a`、`d88883d3`）。守卫脚本 `scripts/check-tool-paths.mjs` 落地（零依赖、`--self-test`、`--root`），协调者补了行级豁免 `tool-path-guard: allow` 并给 4 行合法引述加标记；复跑 1882 文件 0 命中、探针能抓出并 exit 1 | [375](375-nvm-path-migration-closeout.md) |
 | 通知用例的轮询窗口（卡 376） | **已完成（2026-11-02）**：`authMiddleware.test.ts` 的「团队完成」通知用 `vi.waitFor` 默认 1s，在 2 核 Windows runner 上等不到三跳（HTTP → 团队阶段 → 通知派发）；只把这一条显式放到 15s，断言零改动。另有 13 处默认 1s 记录为观察项 | [376](376-auth-middleware-notify-wait.md) |
 | `vessel daemon start` 构造期必崩 (卡 359) | 已验收（2026-10-28）：`daemon.status()` 在 `info` 就绪前回落到 `{ instanceId }`（身份守卫未放宽）；另查出「二次 `Set-Acl` 必报 SeSecurityPrivilege」，把 `protectDaemonPath` 改成幂等的 `whoami` + `icacls`。真机五步全过：launcher 退出后同一 pid 存活、uptime 4→6、health 200、401/200、stop 后监听 0 | [359](359-daemon-start-mesh-identity-crash.md) |
 | 单写者绕过租约 (卡 353) | 已验收（2026-10-27）：`append()` 重开前重取 `.lease`（`leaseHeld` 标志），`close()` 后重开可写、被存活进程持有时 fail-closed；core/session 27 项、core 133 | [353](353-session-append-lease-bypass.md) |
@@ -499,3 +499,10 @@ PDW 关联：首行状态行下加 `- PDW task: <id>`（未启动写 `none`）�
   **`--live` 真实基线未做且不再自动尝试**：事实登记在 `tasks/149`。未经用户逐次显式同意，不得运行 `--live`。
 - **发布准备**：**已按决策点 21 作废**（2026-09-28 追注）——本仓不再发布版本（不建 GitHub Release、不向 npm 发布新版本），`tasks/152` 的 release notes 与 1.0 门槛核对保留为**历史记录**，不再作为待办。
 - **外部阻塞（登记不空等）**：154 `release-report` 刷新；155 3h 墙钟 soak；156 1.0 门槛最终核验（停在 tag 前）。
+
+## 最近已交付（2026-11-24 ~ 11-26）
+
+- [377](377-web-ui-minimal-restyle-round3.md) Web UI 第三轮（F8–F11）：侧栏分段、组标题去重、禁用主按钮可辨；F11 核销未复现。提交 `ee7f0e6e`，web 547 用例。
+- [378](378-multica-squad-watchdog.md) Multica 小队健康巡检：`scripts/multica-watch.ps1` + 计划任务 `Multica_Watch`（10 分钟）+ 两个自动化。提交 `8f8df1ce` / `d18a725c` / `b938f135`。
+- ACRU-36 侧栏同名项目去重（`utils/projectLabels.ts`）：提交 `49bbfa43`，新增 9 条单测，556 用例。
+- ACRU-38 hover 不再覆盖 `.is-active` / danger 状态：`styles.css` +12/−3，提交 `edae9219`，556 用例。

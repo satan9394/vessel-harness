@@ -52,6 +52,8 @@
 
 10. GitHub 治理（2026-09-27）：本仓在 GitHub 上**只做提交 → PR 审核 → CI 测试**；**不创建 GitHub Release、不向 npm 发布新版本**（历史遗留的 npm 快照冻结在 `0.10.0`，不再更新）。`main` 由规则集 `protect-default-branch` 保护：必须走 PR，且 CI 双腿（Windows + Linux）必须绿。
 
+11. **推送闸门（2026-11-02，用户明确要求）**：本仓的 Actions 跑在用户的 GitHub **免费额度**上，**不要「每改必推」**。默认**只在本地提交**，攒着；只有下列情形才推：① 需要远端 CI / CodeQL 证据（例如改完要确认告警归零、要跨平台验证）；② 用户当次明确要求；③ 跨机器或跨人交接需要远端有该状态。**纯文档、任务卡、派单、证据整理、测试超时调整一类小改动一律留在本地**，与后续实质改动合并成一次推送。推之前先问自己「这次推送能换来什么只有远端才有的证据」，答不上来就不推。判据不确定时按「本地」处理，并向用户说明攒了哪些提交、打算何时一起推。
+
 ## 执行角色与模型路由（PDW）
 
 > 分工按读写定职责；模型与档位以 `pwsh pdw.ps1 doctor` 为准（看 `effective_model`，Codex 角色的档位看并列的 `reasoning_effort`；任一角色不 ready 时退出码非 0）。本节只写机器推不出来的部分，协调者用哪个模型不锁定。
@@ -106,14 +108,14 @@
 - **契约草稿放 `.pdw/contracts/`**，不要放 `.pdw/tasks/`：无参 `status` 会把 `tasks` 下每个目录当任务读 `state.json`，遇到没有该文件的草稿目录会 ENOENT。
 - **任务运行期间不要编辑仓库**：`pdw.mjs` 每个阶段都会比对产物指纹，任务 `running` 时改任何被 scope 覆盖的文件都会以 `Source drift detected` 失败（2026-10-26 统计：129 次派发里这是最大单一失败源，6 次）。要改先 `cancel`，或等 `status` 不再是 running。
 - **契约先自检再冻结**：AC 之间、AC 与 `notes` 不得互相矛盾（例：AC 要求"未安装 CLI 时写 summary"，notes 又要求"CI 未安装也通过"）。矛盾时模型会如实报 `blocked`——这是契约问题，不是模型能力问题（2026-10-26 统计：5 次 blocked 里至少 3 次属此类），先改卡再新建任务，不要靠升档硬顶。
-- **可执行路径一律指向 nvm 的 `.nodejs` 目录（2026-11-02）**：`C:\Users\Satanchen\AppData\Local\Author Software\nvm\.nodejs\{codex,opencode}.exe`。nvm 在 2026-10-30 把根从 `D:\Technology_application\NVM_Windows` 搬到 C 盘且旧目录已删，写死 `installs\vX.Y.Z\...` 或旧 D: 路径的配置会静默失效——表现为 `.pdw/config.json` 五个角色全 `ready:false`、`doctor` 退出码 1、派活报 `process failed (1)` 且 `process.stderr.log` 是 0 字节。`.nodejs` 是 nvm 的当前版本指针，换 node 版本自动跟随。改完必须 `pwsh pdw.ps1 doctor`（exit 0 + 五角色 ready）复核；`scripts\dispatch-codex.ps1`、`scripts\pdw-route.ps1` 里的同类路径同步改。
+- **可执行路径一律指向 nvm 的 `.nodejs` 目录（2026-11-02）**：`C:\Users\Satanchen\AppData\Local\Author Software\nvm\.nodejs\{codex,opencode}.exe`。nvm 在 2026-10-30 把根从 `D:\Technology_application\NVM_Windows` 搬到 C 盘且旧目录已删，写死 `installs\vX.Y.Z\...` 或旧 D: 路径的配置会静默失效——表现为 `.pdw/config.json` 五个角色全 `ready:false`、`doctor` 退出码 1、派活报 `process failed (1)` 且 `process.stderr.log` 是 0 字节。`.nodejs` 是 nvm 的当前版本指针，换 node 版本自动跟随。改完必须 `pwsh pdw.ps1 doctor`（exit 0 + 五角色 ready）复核；`scripts\dispatch-codex.ps1`、`scripts\pdw-route.ps1` 里的同类路径同步改。 <!-- tool-path-guard: allow -->
 
 ## 开发工作流（六步循环）
 
 拆卡 → 派活 → 交证 → 验证 → 验收 → 复盘。详见 `.agents/skills/personal-dev-workflow/`（Codex / Antigravity 读项目副本；OpenCode 读全局 skills 根下的镜像，两份必须同步，见下方「PDW 技能同步」）。做多步开发前先读其 `SKILL.md`。
 
 <!-- pdw-entry -->
-PDW 现行版本 **1.3.3-local**：完整 Skill 目录 + Node 运行器 + 项目级 `.pdw/`；零安装入口为仓库根 `pdw.ps1`（本块由 `pdw.mjs install` 写入，勿删标记）。
+PDW 现行版本 **1.5.0-local**：完整 Skill 目录 + Node 运行器 + 项目级 `.pdw/`；零安装入口为仓库根 `pdw.ps1`（本块由 `pdw.mjs install` 写入，勿删标记）。
 实质性 PDW / 多 Agent 任务：由协调者把目标编译成可执行契约（`node .agents/skills/personal-dev-workflow/scripts/pdw.mjs new --from <contract.json>`）并驱动运行器，**不把 JSON 配置或角色聊天推给用户**。自动执行后端目前仅 OC / Codex / AGY；CC、DSH 只能担任协调者或辅助模式，不得汇报成 CLI 自动接力已通过。
 启动命令、旧状态（`.agent-state/`、`RUN_STATE.md`、`tasks/`）如何保留、以及回滚步骤见 `evidence/pdw-migration-1.3.1/MIGRATION.md`。
 
@@ -185,6 +187,8 @@ PDW 现行版本 **1.3.3-local**：完整 Skill 目录 + Node 运行器 + 项目
 - 不要做任何永久删除（回收站铁律，全项目通用；**书面例外见上方"技术栈与运行环境"，Agent 干活时只有第一处适用：测试自建且位于 `os.tmpdir()` 下的临时目录；第二处是产品运行时的删除分级，不能用来给 Agent 开路**）。
 - 不要只做功能列表不验证：每张卡必须跑对应测试并留证据。
 - **不要自动驱动本机其他 agent**（`dsh` / `opencode` / `codex` / `claude` / `pi`）：它们是用户自己的工具，会消耗其配额并在其机器上留下会话记录。为基准/调试/验证而调用它们**必须逐次获得用户显式同意**，且执行前先说明"将调用哪些 agent、大概消耗什么"；`npm run bench:conformance -- --live` **永不自动跑**。需要跨 harness 证据时优先用**离线车道**（只跑 Vessel 自适配器）。见 `tasks/153`。
+- **不要为 Multica 任务克隆仓库**（2026-11-26 补，三次落空后）：本仓按推送闸门只做本地提交，克隆出来的是 origin 的旧 HEAD（实测拿到 `2cbdbfc`，主树已在 `edae9219`），改完既落不到主工作树、补丁也带回来要做二次搬运。squad 任务一律在 `E:\Code_file\Projects\Vessel_Harness` 主工作树作业，派单里写死路径与当前 HEAD；协调者验收也只认主树的 `git status`。
+- **交付必须自带「我在哪棵树上」的证明**（2026-11-26 补，对应上一条）：派单要求报告首两块就是 `git -C <主树> rev-parse --short HEAD` 与 `git status --porcelain` 的前 10 行；补丁一律在主树里 `git diff > .tmp/<issue>.patch` 落盘。协调者先看这两行再读内容——缺了直接判未交付，不进入验收。
 - **不要把中文提示词用 PowerShell 管道喂给原生 CLI**（`Get-Content -Raw $f | & codex exec ...`）：PowerShell 会按 ANSI 代码页重编码，中文全变 `?`，agent 只收到 ASCII 骨架（2026-10-23 实测 7 次派单全中，事后从 rollout 逐条比对才确认）。派单统一走 `scripts/dispatch-codex.ps1`——它用 cmd 输入重定向传原始字节并先校验 UTF-8。
 - **也不要用 `Get-Content` / `Set-Content` 改源码**：同样按 ANSI 代码页往返，会把文件里已有的中文注释变成 `鈥?` 之类乱码，`Set-Content -Encoding UTF8` 还会顺手加 BOM（2026-10-23 改 `shellTool.ts` 时实测，已用 `git show HEAD:<path>` 原始字节还原）。改文件用编辑工具或 Node 的 `readFileSync`/`writeFileSync`；若已污染，用 `git checkout -- <path>` 恢复后重做，不要试图修补乱码。
 - **不要把 `vessel doctor --json` 这类依赖 `secretRef` / 用户目录的命令写进 implement 的自验清单**：Codex 的 workspace-write 沙箱取不到 `~/.vessel` 与凭据后端，`providers` 项会误报「凭据不可用」，任务会被判 blocked（2026-10-25 卡 295、296 各中一次）。这类命令只放运行器的 `checks`（宿主进程执行），或在协调者侧手工跑。

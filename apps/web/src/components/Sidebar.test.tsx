@@ -58,6 +58,27 @@ describe('Sidebar date and topic grouping', () => {
     expect(html).toContain('topic-actions-inline');
     expect(html).not.toContain('<details');
   });
+  it('names a single workspace once: no second copy as a history group label', () => {
+    const html = renderToStaticMarkup(<Sidebar projects={[{ root: 'E:/solo' }]}
+      sessions={[{ ...session('today', now), workspaceRoot: 'E:/solo' }]} selectedSessionId="today" onNewSession={() => {}} onSelectSession={() => {}} />);
+    expect(html).toContain('>solo<');                       // the project row keeps the name
+    expect(html).not.toMatch(/class="side-label[^"]*">solo</); // the history group label does not
+  });
+  it('labels each workspace group when sessions span several roots', () => {
+    const html = renderToStaticMarkup(<Sidebar projects={[]}
+      sessions={[session('today', now), { ...session('other', now), workspaceRoot: 'E:/other' }]} selectedSessionId="today" onNewSession={() => {}} onSelectSession={() => {}} />);
+    expect(html).toMatch(/class="side-label[^"]*">workspace</);
+    expect(html).toMatch(/class="side-label[^"]*">other</);
+    expect(html.match(/topic-period-label/g)).toHaveLength(2);
+  });
+  it('does not render a bare workspace label for a project with no sessions', () => {
+    const html = renderToStaticMarkup(<Sidebar projects={[{ root: 'E:/empty' }, { root: 'E:/workspace' }]}
+      sessions={[session('today', now)]} selectedSessionId="today" onNewSession={() => {}} onSelectSession={() => {}} />);
+    // several roots: the group that owns sessions keeps its label...
+    expect(html).toMatch(/class="side-label[^"]*">workspace</);
+    // ...the project with no periods must not paint an empty heading
+    expect(html).not.toMatch(/class="side-label[^"]*">empty</);
+  });
 });
 
 describe('Sidebar unified area footer navigation', () => {
