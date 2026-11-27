@@ -115,7 +115,7 @@
 拆卡 → 派活 → 交证 → 验证 → 验收 → 复盘。详见 `.agents/skills/personal-dev-workflow/`（Codex / Antigravity 读项目副本；OpenCode 读全局 skills 根下的镜像，两份必须同步，见下方「PDW 技能同步」）。做多步开发前先读其 `SKILL.md`。
 
 <!-- pdw-entry -->
-PDW 现行版本 **1.3.3-local**：完整 Skill 目录 + Node 运行器 + 项目级 `.pdw/`；零安装入口为仓库根 `pdw.ps1`（本块由 `pdw.mjs install` 写入，勿删标记）。
+PDW 现行版本 **1.5.0-local**：完整 Skill 目录 + Node 运行器 + 项目级 `.pdw/`；零安装入口为仓库根 `pdw.ps1`（本块由 `pdw.mjs install` 写入，勿删标记）。
 实质性 PDW / 多 Agent 任务：由协调者把目标编译成可执行契约（`node .agents/skills/personal-dev-workflow/scripts/pdw.mjs new --from <contract.json>`）并驱动运行器，**不把 JSON 配置或角色聊天推给用户**。自动执行后端目前仅 OC / Codex / AGY；CC、DSH 只能担任协调者或辅助模式，不得汇报成 CLI 自动接力已通过。
 启动命令、旧状态（`.agent-state/`、`RUN_STATE.md`、`tasks/`）如何保留、以及回滚步骤见 `evidence/pdw-migration-1.3.1/MIGRATION.md`。
 
@@ -188,6 +188,7 @@ PDW 现行版本 **1.3.3-local**：完整 Skill 目录 + Node 运行器 + 项目
 - 不要只做功能列表不验证：每张卡必须跑对应测试并留证据。
 - **不要自动驱动本机其他 agent**（`dsh` / `opencode` / `codex` / `claude` / `pi`）：它们是用户自己的工具，会消耗其配额并在其机器上留下会话记录。为基准/调试/验证而调用它们**必须逐次获得用户显式同意**，且执行前先说明"将调用哪些 agent、大概消耗什么"；`npm run bench:conformance -- --live` **永不自动跑**。需要跨 harness 证据时优先用**离线车道**（只跑 Vessel 自适配器）。见 `tasks/153`。
 - **不要为 Multica 任务克隆仓库**（2026-11-26 补，三次落空后）：本仓按推送闸门只做本地提交，克隆出来的是 origin 的旧 HEAD（实测拿到 `2cbdbfc`，主树已在 `edae9219`），改完既落不到主工作树、补丁也带回来要做二次搬运。squad 任务一律在 `E:\Code_file\Projects\Vessel_Harness` 主工作树作业，派单里写死路径与当前 HEAD；协调者验收也只认主树的 `git status`。
+- **交付必须自带「我在哪棵树上」的证明**（2026-11-26 补，对应上一条）：派单要求报告首两块就是 `git -C <主树> rev-parse --short HEAD` 与 `git status --porcelain` 的前 10 行；补丁一律在主树里 `git diff > .tmp/<issue>.patch` 落盘。协调者先看这两行再读内容——缺了直接判未交付，不进入验收。
 - **不要把中文提示词用 PowerShell 管道喂给原生 CLI**（`Get-Content -Raw $f | & codex exec ...`）：PowerShell 会按 ANSI 代码页重编码，中文全变 `?`，agent 只收到 ASCII 骨架（2026-10-23 实测 7 次派单全中，事后从 rollout 逐条比对才确认）。派单统一走 `scripts/dispatch-codex.ps1`——它用 cmd 输入重定向传原始字节并先校验 UTF-8。
 - **也不要用 `Get-Content` / `Set-Content` 改源码**：同样按 ANSI 代码页往返，会把文件里已有的中文注释变成 `鈥?` 之类乱码，`Set-Content -Encoding UTF8` 还会顺手加 BOM（2026-10-23 改 `shellTool.ts` 时实测，已用 `git show HEAD:<path>` 原始字节还原）。改文件用编辑工具或 Node 的 `readFileSync`/`writeFileSync`；若已污染，用 `git checkout -- <path>` 恢复后重做，不要试图修补乱码。
 - **不要把 `vessel doctor --json` 这类依赖 `secretRef` / 用户目录的命令写进 implement 的自验清单**：Codex 的 workspace-write 沙箱取不到 `~/.vessel` 与凭据后端，`providers` 项会误报「凭据不可用」，任务会被判 blocked（2026-10-25 卡 295、296 各中一次）。这类命令只放运行器的 `checks`（宿主进程执行），或在协调者侧手工跑。
