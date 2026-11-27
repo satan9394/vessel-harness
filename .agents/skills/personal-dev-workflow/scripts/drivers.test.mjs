@@ -63,6 +63,7 @@ test('OpenCode effort selects the same explicit variant as TUI /effort', () => {
   const run = invocation(profile, 'scan', files);
   assert.equal(run.args[run.args.indexOf('--model') + 1], 'workbuddy/deepseek-v4.1-flash#high');
   assert.ok(!run.args.includes('--config'));
+  assert.ok(run.args.includes('--archived'), 'scripted role sessions must not pollute the app inbox and session lists');
   assert.match(modelPromptContext(profile), /deepseek-v4\.1-flash#high/);
   for (const bad of [
     { ...profile, model: undefined },

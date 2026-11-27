@@ -104,7 +104,7 @@ export function invocation(profile, role, files) {
   if (!profile?.executable || !fs.existsSync(profile.executable)) throw new Error(`Missing executable for ${role}; run doctor and configure this role`);
   const prefix = profile.args ?? [];
   if (profile.backend === 'opencode') return { executable: profile.executable, args: [
-    ...prefix, 'run', ...(profile.standalone ? ['--standalone'] : []), '--format', 'json', '--agent', role === 'implement' || role === 'repair' ? 'build' : 'plan',
+    ...prefix, 'run', ...(profile.standalone ? ['--standalone'] : []), '--archived', '--format', 'json', '--agent', role === 'implement' || role === 'repair' ? 'build' : 'plan',
     ...(profile.model ? ['--model', modelSettings(profile).effective_model] : []), '--file', files.prompt,
     'Read the attached task instructions. Return the required final JSON.',
   ] };

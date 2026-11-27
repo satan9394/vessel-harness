@@ -2,16 +2,16 @@
 name: personal-dev-workflow
 description: "Run cost-aware multi-agent project work with OpenCode/DeepSeek, Codex, and optional AGY: create an executable task contract, dispatch isolated role sessions, run checks, review independently, and resume from recorded evidence. Use for substantial implementation, investigation, or explicit PDW workflow requests."
 metadata:
-  version: "1.3.3-local"
+  version: "1.5.0-local"
   repository: "https://github.com/satan9394/personal-dev-workflow"
   skill-path: "skills/personal-dev-workflow"
   branch: "main"
-  updated: "2026-10-26"
+  updated: "2026-11-22"
 ---
 
 # Personal Dev Workflow — 可执行的项目协作
 
-版本：1.3.3-local；说明语言：zh-CN。
+版本：1.5.0-local；说明语言：zh-CN。
 
 这是既有 PDW 的项目级升级版：保留契约、验证、交接、有限修复；增加真实 CLI 接力。程序为本 Skill 的 `scripts/pdw.mjs`，以 Skill 的绝对位置调用，不假定当前目录含 scripts。
 
@@ -30,6 +30,25 @@ metadata:
 5. 程序实际执行验收命令；失败最多定向修复一次，再失败即停止。遇到范围变化、环境阻塞或不支持的输出协议，保留原始结果并交接，不能凭文字宣布通过。
 6. 查看 `status <id>` 和任务目录的 REPORT.md。想看“现在跑到哪、谁在干、用的什么模型”，用 `view` 起只读看板（默认 8891 端口，前台运行，Ctrl+C 结束）；它只读 `.pdw/tasks/` 与本机 Codex 会话日志，不写盘、不起模型。每个阶段程序自动生成 HANDOFF.md，命令与换对话流程见 [上下文接续](references/runtime.md#上下文接续与文档维护)。中断后用 `resume <id>`；停止用 `cancel <id>`。切会话不重置额度，不通过另建任务规避原任务限额。
 
+## 决策卡与两个只读门
+
+- 占地起步先填 `assets/DECISION.md`：问题、目标形态、范围边界、验收草案、预算与停止条件、留给运行时的假设。填完按卡片末尾的映射表转成契约。
+- `check --from <契约>` 只校验不创建：字段、scope 是否越出项目、命令是否像 shell 串、验收描述是否短到无法判定。退出码 0 才继续 `new`。
+- `verify <id>` 只复核不重跑：状态是否 `accepted_local`、契约是否被改、源码是否漂移、快照覆盖是否为空、检查是否全绿、复核是否覆盖每条验收。退出码 0 才能引用这次通过。
+
+## 在 Multica 工作区里使用时
+
+Multica 的 squad 自带 leader / worker 与 runtime 调度，和 PDW 的「唯一协调者」在同一层，两套同时开工会互相派活。在这个宿主里按四条走：
+
+- 只有 squad 的 leader（或正在和用户对话的那个 agent）可以 init、建契约、派角色；其他成员收到这段 Skill 文本时不初始化、不建卡、不派活，只执行被分到的部分。
+- 一个任务只走一条编排：要么 squad 调度，要么 PDW 的 CLI 接力；不要一边用 squad 派活、一边再让 PDW 起会话。
+- Multica 里那份 Skill 是 workspace 内的独立副本，不读丙区也不读本仓库，更新用 multica skill refresh（id 见 DEPLOYMENT.md 第一节那张表）。
+- 完成判据不变：以退出码与检查项为准，不以 agent 说自己做完为准；squad 的完成通知不算验收。
+
+## 工作树模式
+
+若你在该仓库的一棵 linked worktree 里运行，程序自动把代码根设为该工作树、状态根仍留在主 checkout 的 `.pdw`；新任务记录任务分支与基线提交，允许在该分支上提交，但禁止 push、合并、rebase、切分支和越界提交。主 checkout 未初始化、或工作树自己带 `.pdw` 时直接拒绝，不静默分叉状态。程序不创建、也不删除工作树——创建与清理交给宿主的工作树工具（如 OpenCode 的 worktree 操作）或你手工执行。
+
 ## 按目标模型交接
 
 分派前先把用户需求整理为目标、可观察的验收行为、范围和关键假设。计划是实现建议，不覆盖用户目标；会改变验收的歧义才询问用户，其余由协调者决定。不能只把规划聊天或一句“按计划开发”转发给执行者。
@@ -44,7 +63,7 @@ metadata:
 
 - 同一路径一个实现者；扫描/复核只读；对照当前产物检查，旧证据不能批准新修改。
 - UI 任务的契约必须包含真实浏览器操作证据；build/curl 不替代业务验收。运行工具不能凭空提供浏览器能力。
-- 不自行 commit/push/merge/send/deploy/publish/delete；用户确认点保留。已有授权按其实际范围执行。
+- 不自行 push/merge/send/deploy/publish/delete；默认也不 commit，唯一例外是工作树模式下对任务分支的提交（见「工作树模式」）。用户确认点保留，已有授权按其实际范围执行。
 - CLI 权限继续由宿主控制，程序不传跳过权限参数。源码范围检查是执行后检测，不是文件系统沙箱。
 - 核对 status/handoff 的 snapshot_coverage；项目根被 Git 忽略或 Git 列表为空时使用文件系统快照，显式任务 scope 不受 Git ignore 隐藏。不能观察的保留目录和链接路径须先调整范围，不能把空覆盖当成通过。
 - 时间与 CLI 启动次数有程序上限；金额/Token 总上限没有提供方证据时标 unknown，不能宣称硬限制。
@@ -85,16 +104,3 @@ metadata:
 - 本技能不绑定任何本机路径：项目内副本位于 `.agents/skills/personal-dev-workflow/`，各 agent 从自己的技能根读取；更新一律来自上面的 repository，不以任何本机目录为准。
 - 项目内一条命令自更新：`node .agents/skills/personal-dev-workflow/scripts/update.mjs --project <项目根>`（加 `--mirror <目录>` 可同时刷新多个 agent 共用的另一份副本）。它先逐字节比对整份技能目录，有差异才备份到 `.pdw/skill-upgrade-<YYYYMMDD>/` 再原子替换，最后跑 `doctor`；幂等、不动 `.pdw/config.json`、不 commit/push、不删除任何文件。它只改技能文件——模型与思考档位等属项目级配置，改动前须给用户 diff 并等确认。细节见 [运行说明的分发与更新](references/runtime.md#分发与更新)。
 - 脚本不可用时按同一原则手工兜底（`git clone --depth 1 --branch main` → 逐字节比对 → 有差异才备份后整份替换 → 跑 `doctor`）；网络不可用时就地报告失败，不静默沿用本机副本。
-
-## 本项目适配（VESSEL，2026-10-26）
-
-本副本**允许项目本地改动**，只求适用于当前项目；改动登记在 `.pdw/skill-local-changes.md`，
-`update.mjs` 覆盖后按该文件重放。与上游无关的本地口径：
-
-1. **门禁一律分批**：`pwsh -NoProfile -File scripts/gate-batched.ps1`（12 段测试 + web root + 三处 tsc +
-   离线 conformance）。本机单进程全量会在文件切换处挂起，不是代码缺陷；契约的 `checks` 优先调它。
-2. **双通道**：PDW `implement` 是串行单代理；Codex 应用/CLI 旁路可多道并行，但必须
-   「同一文件同一时刻一个写者」+ 段间闸门 + 全量门禁只由协调者跑一次。
-3. **选型**：派活前查项目 `AGENTS.md` 的「模型与档位选型表」，卡里记「模型 ID + 档位 + 依据」；
-   首次使用某 ID 先 `codex exec -m <id> "print OK"` 探测。Fast（`service_tier`）默认关。
-4. 详细操作口径（卡/契约最小字段、证据与收口）见项目 `docs/PDW-LOCAL.md`。

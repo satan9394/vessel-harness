@@ -16,7 +16,7 @@ const mock = path.join(evidence, 'fake-cli.mjs');
 fs.writeFileSync(mock, `
 import fs from 'node:fs';
 import path from 'node:path';
-import {spawn} from 'node:child_process';
+import {spawn,spawnSync} from 'node:child_process';
 const args=process.argv.slice(2), mode=args.shift();
 if(args.includes('--version')){console.log('fixture');process.exit(0)}
 const index=args.indexOf('--file');
@@ -34,6 +34,10 @@ if(mode==='hang'){
   if(mode==='scope')fs.writeFileSync('outside.txt','unexpected');
   if(mode==='ignored-scope')fs.writeFileSync('.agents/outside.txt','unexpected');
   if(mode==='linked-scope')fs.symlinkSync(path.resolve('target-dir'),'source-dir',process.platform==='win32'?'junction':'dir');
+  const commit=()=>{const g=(...a)=>spawnSync('git',a,{stdio:'ignore'});g('add','-A');g('commit','-qm','fixture');};
+  if(mode==='commit-in-scope')commit();
+  if(mode==='commit-out'){fs.writeFileSync('outside.txt','leak');commit();}
+  if(mode==='switch-branch'){spawnSync('git',['checkout','-q','-b','other'],{stdio:'ignore'});commit();}
  }
  if(mode==='mutating-review'&&role==='review')fs.writeFileSync('result.txt','mutated');
  if(mode==='mutating-ignored-review'&&role==='review')fs.writeFileSync('.agents/inside.txt','mutated');
@@ -43,11 +47,20 @@ if(mode==='hang'){
 }
 `);
 const outcomes = [];
-function command(root, args, expected = 0) {
-  const result = spawnSync(process.execPath, [runtime, ...args, '--project', root], { encoding: 'utf8', timeout: 30000, windowsHide: true });
+function command(root, args, expected = 0, env = {}) {
+  const result = spawnSync(process.execPath, [runtime, ...args, '--project', root], { encoding: 'utf8', timeout: 30000, windowsHide: true, env: { ...process.env, ...env } });
   assert.equal(result.status, expected, `${args.join(' ')}\n${result.stdout}\n${result.stderr}`);
   return result;
 }
+/** A throwaway host profile so route checks never read the real OpenCode config. */
+function hostHome(name, body) {
+  const home = path.join(evidence, name);
+  const file = path.join(home, '.config', 'opencode', 'opencode.json');
+  fs.mkdirSync(path.dirname(file), { recursive: true });
+  if (body !== undefined) fs.writeFileSync(file, typeof body === 'string' ? body : JSON.stringify(body));
+  return home;
+}
+const routeEnv = home => ({ USERPROFILE: home, HOME: home, XDG_STATE_HOME: path.join(home, '.local', 'state') });
 function setup(name, mode = 'success', limits = {}, audit = false, options = {}) {
   const root = path.join(evidence, name); fs.mkdirSync(root);
   if (options.git) {
@@ -69,6 +82,42 @@ function setup(name, mode = 'success', limits = {}, audit = false, options = {})
   const id = JSON.parse(command(root, ['new', '--from', contractFile]).stdout).id;
   const stateFile = path.join(root, '.pdw', 'tasks', id, 'state.json');
   return { root, id, state: () => JSON.parse(fs.readFileSync(stateFile, 'utf8')), config, stateFile };
+}
+
+/** A real repository plus a linked worktree, used by the worktree-mode cases. */
+function gitRepo(name, branch = 'main') {
+  const root = path.join(evidence, name);
+  fs.mkdirSync(root, { recursive: true });
+  const run = (cwd, ...args) => {
+    const result = spawnSync('git', args, { cwd, encoding: 'utf8' });
+    assert.equal(result.status, 0, `${args.join(' ')}\n${result.stderr}`);
+    return result.stdout.trim();
+  };
+  run(root, 'init', '--quiet');
+  run(root, 'config', 'user.email', 'fixture@example.com');
+  run(root, 'config', 'user.name', 'fixture');
+  run(root, 'checkout', '-q', '-b', branch);
+  fs.writeFileSync(path.join(root, '.gitignore'), '.pdw/\n');
+  fs.writeFileSync(path.join(root, 'README.md'), 'base\n');
+  run(root, 'add', '-A');
+  run(root, 'commit', '-q', '-m', 'base');
+  return { root, run };
+}
+
+function worktreeFixture(name, mode = 'success', { branch = 'task/fixture', init = true, detach = false, baseBranch = 'main' } = {}) {
+  const { root, run } = gitRepo(`${name}-main`, baseBranch);
+  const work = path.join(evidence, `${name}-work`);
+  run(root, 'worktree', 'add', '--quiet', ...(detach ? ['--detach', work] : ['-b', branch, work]));
+  if (init) command(root, ['init']);
+  const profile = { backend: 'opencode', executable: process.execPath, args: [mock, mode], model: 'fixture/deepseek' };
+  const config = { roles: { scan: profile, 'test-plan': profile, implement: profile, review: profile }, limits: {
+    max_cli_calls: 8, max_repairs: 1, call_timeout_seconds: 10, task_timeout_seconds: 60 }, cost: { status: 'unknown' } };
+  if (init) fs.writeFileSync(path.join(root, '.pdw', 'config.json'), JSON.stringify(config));
+  const contract = path.join(evidence, `${name}-contract.json`);
+  fs.writeFileSync(contract, JSON.stringify({ goal: 'Create result.txt containing correct in the task worktree', mode: 'develop', scope: ['result.txt'],
+    acceptance: [{ id: 'AC1', description: 'result.txt contains correct' }],
+    checks: [{ id: 'contents', command: process.execPath, args: ['-e', "const fs=require('node:fs');if(!fs.readFileSync('result.txt','utf8').startsWith('correct'))process.exit(3)"] }] }));
+  return { root, work, run, contract };
 }
 async function test(name, action) {
   const started = Date.now();
@@ -404,6 +453,94 @@ await test('doctor rejects missing OC models and policy-changing profile prefixe
   assert.ok(report.roles.find(r => r.role === 'implement').configuration_error);
 });
 
+await test('plan resolves every role route and says where the variant came from', () => {
+  const t = setup('route-plan');
+  const home = hostHome('route-plan-home', { providers: { magpie: { models: { 'auto/deepseek-v4.1-flash': {} } } } });
+  fs.mkdirSync(path.join(home, '.local', 'state', 'opencode'), { recursive: true });
+  fs.writeFileSync(path.join(home, '.local', 'state', 'opencode', 'model.json'), JSON.stringify({ variant: { 'magpie/auto/deepseek-v4.1-flash': 'high' } }));
+  const scan = { ...t.config.roles.scan, model: 'magpie/auto/deepseek-v4.1-flash#max' };
+  const testPlan = { ...t.config.roles['test-plan'], model: 'magpie/auto/deepseek-v4.1-flash' };
+  const review = { ...t.config.roles.review, model: 'magpie/auto/deepseek-v4.1-flash', reasoning_effort: 'high' };
+  t.config.roles = { ...t.config.roles, scan, 'test-plan': testPlan, implement: { backend: 'codex', executable: process.execPath, model: null }, review };
+  fs.writeFileSync(path.join(t.root, '.pdw/config.json'), JSON.stringify(t.config));
+  const plan = JSON.parse(command(t.root, ['plan', t.id], 0, routeEnv(home)).stdout);
+  assert.deepEqual(plan.routes.scan, { backend: 'opencode', provider: 'magpie', model: 'auto/deepseek-v4.1-flash', variant: 'max', source: 'explicit' });
+  assert.deepEqual(plan.routes['test-plan'], { backend: 'opencode', provider: 'magpie', model: 'auto/deepseek-v4.1-flash', variant: 'high', source: 'saved-variant' });
+  assert.deepEqual(plan.routes.review, { backend: 'opencode', provider: 'magpie', model: 'auto/deepseek-v4.1-flash', variant: 'high', source: 'explicit' });
+  assert.deepEqual(plan.routes.implement, { backend: 'codex', provider: null, model: null, variant: null, source: 'host-default' });
+  // Existing plan fields keep their names and values.
+  assert.equal(plan.roles.scan.model, 'magpie/auto/deepseek-v4.1-flash#max');
+  assert.equal(plan.roles['test-plan'].model, 'magpie/auto/deepseek-v4.1-flash');
+  assert.equal(plan.roles.implement.model, null);
+  assert.equal(plan.checks[0].id, 'contents');
+});
+await test('doctor reports an extra provider layer, a malformed model and an undeclared provider', () => {
+  const t = setup('route-shape');
+  const home = hostHome('route-shape-home', { providers: { magpie: {}, fixture: {} } });
+  const env = routeEnv(home);
+  t.config.roles = { ...t.config.roles,
+    scan: { ...t.config.roles.scan, model: 'opengateway/deepseek/deepseek-v4-pro' },
+    review: { ...t.config.roles.review, model: 'magpie/' } };
+  fs.writeFileSync(path.join(t.root, '.pdw/config.json'), JSON.stringify(t.config));
+  // A nested model id is legal (magpie routes `auto/<model>`), so the extra gateway layer is caught by
+  // the provider lookup; the truncated string is caught by the shape. Neither gates ready.
+  const report = JSON.parse(command(t.root, ['doctor'], 0, env).stdout);
+  const scan = report.roles.find(r => r.role === 'scan'), review = report.roles.find(r => r.role === 'review');
+  assert.equal(scan.model_shape, 'ok'); assert.equal(scan.provider_known, false);
+  assert.equal(review.model_shape, 'invalid'); assert.equal(review.provider_known, true);
+  assert.equal(scan.ready, true); assert.equal(review.ready, true);
+  assert.equal(report.route_warnings.length, 2);
+  assert.ok(report.route_warnings.some(text => text.includes('scan') && text.includes('opengateway')));
+  assert.ok(report.route_warnings.some(text => text.includes('review') && text.includes('magpie/')));
+  const plan = JSON.parse(command(t.root, ['plan', t.id], 0, env).stdout);
+  assert.deepEqual(plan.routes.scan, { backend: 'opencode', provider: 'opengateway', model: 'deepseek/deepseek-v4-pro', variant: null, source: 'explicit' });
+});
+await test('an unreadable host config degrades provider checks to unknown instead of blocking', () => {
+  const t = setup('route-host-missing');
+  const missing = hostHome('route-host-missing-home');
+  let report = JSON.parse(command(t.root, ['doctor'], 0, routeEnv(missing)).stdout);
+  for (const role of report.roles) {
+    assert.equal(role.provider_known, 'unknown');
+    assert.equal(role.model_shape, 'ok');
+    assert.equal(role.ready, true);
+  }
+  assert.deepEqual(report.route_warnings, []);
+  const broken = hostHome('route-host-broken', '{broken');
+  report = JSON.parse(command(t.root, ['doctor'], 0, routeEnv(broken)).stdout);
+  assert.ok(report.roles.every(role => role.provider_known === 'unknown'));
+  assert.deepEqual(report.route_warnings, []);
+});
+
+await test('a codex role keeps its bare model id and is never asked for a provider', () => {
+  const t = setup('route-codex-bare');
+  const home = hostHome('route-codex-bare-home', { providers: { magpie: {}, fixture: {} } });
+  const env = routeEnv(home);
+  t.config.roles = { ...t.config.roles, implement: { backend: 'codex', executable: process.execPath, model: 'gpt-6.1-sol', reasoning_effort: 'medium' } };
+  fs.writeFileSync(path.join(t.root, '.pdw/config.json'), JSON.stringify(t.config));
+  const report = JSON.parse(command(t.root, ['doctor'], 0, env).stdout);
+  const implement = report.roles.find(r => r.role === 'implement');
+  assert.equal(implement.model_shape, 'ok');
+  assert.equal(implement.provider_known, 'unknown');
+  assert.equal(implement.ready, true);
+  assert.deepEqual(report.route_warnings, []);
+  const plan = JSON.parse(command(t.root, ['plan', t.id], 0, env).stdout);
+  assert.deepEqual(plan.routes.implement, { backend: 'codex', provider: null, model: 'gpt-6.1-sol', variant: null, source: 'explicit' });
+});
+await test('an opencode role with a bare model id is flagged for the missing provider segment', () => {
+  const t = setup('route-opencode-bare');
+  const home = hostHome('route-opencode-bare-home', { providers: { magpie: {}, fixture: {} } });
+  const env = routeEnv(home);
+  t.config.roles = { ...t.config.roles, scan: { ...t.config.roles.scan, model: 'gpt-6.1-sol' } };
+  fs.writeFileSync(path.join(t.root, '.pdw/config.json'), JSON.stringify(t.config));
+  const report = JSON.parse(command(t.root, ['doctor'], 0, env).stdout);
+  const scan = report.roles.find(r => r.role === 'scan');
+  assert.equal(scan.model_shape, 'invalid');
+  assert.equal(scan.provider_known, 'unknown');
+  assert.equal(scan.ready, true);
+  assert.equal(report.route_warnings.length, 1);
+  assert.ok(report.route_warnings[0].includes('scan') && report.route_warnings[0].includes('gpt-6.1-sol'));
+});
+
 await test('view serves a read-only dashboard for one project', async () => {
   const root = path.join(evidence, 'view-project');
   const dir = path.join(root, '.pdw', 'tasks', '20260101000000-abcdef');
@@ -510,6 +647,213 @@ await test('the updater refuses a source that has no skill directory', () => {
   const result = spawnSync(process.execPath, [path.join(path.dirname(path.dirname(runtime)), 'scripts', 'update.mjs'), '--project', project, '--source', empty, '--json'], { encoding: 'utf8', timeout: 120000 });
   assert.equal(result.status, 1);
   assert.match(result.stderr, /Skill directory not found/);
+});
+
+await test('a linked worktree keeps task state in the main checkout', () => {
+  const t = worktreeFixture('wt-attach');
+  const id = JSON.parse(command(t.work, ['new', '--from', t.contract]).stdout).id;
+  const stateFile = path.join(t.root, '.pdw', 'tasks', id, 'state.json');
+  assert.ok(fs.existsSync(stateFile), 'state must live in the main checkout');
+  assert.equal(fs.existsSync(path.join(t.work, '.pdw')), false, 'the worktree must not own .pdw');
+  const state = JSON.parse(fs.readFileSync(stateFile, 'utf8'));
+  const baseline = JSON.parse(fs.readFileSync(path.join(path.dirname(stateFile), 'baseline.json'), 'utf8'));
+  assert.equal(state.schema_version, 2);
+  assert.equal(state.project, fs.realpathSync(t.work));
+  assert.equal(state.worktree.mode, 'attach');
+  assert.equal(state.worktree.branch, 'task/fixture');
+  assert.equal(state.worktree.base_head, baseline.head);
+  assert.equal(state.artifact, baseline.content);
+});
+
+await test('a linked worktree without main state refuses to start', () => {
+  const t = worktreeFixture('wt-no-state', 'success', { init: false });
+  const refused = command(t.work, ['new', '--from', t.contract], 1);
+  assert.match(refused.stderr, /not initialized in the main checkout/);
+  assert.equal(fs.existsSync(path.join(t.root, '.pdw')), false, 'must not create state in the worktree');
+});
+
+await test('a worktree that owns its own .pdw is refused', () => {
+  const t = worktreeFixture('wt-stray');
+  fs.mkdirSync(path.join(t.work, '.pdw'));
+  const refused = command(t.work, ['new', '--from', t.contract], 1);
+  assert.match(refused.stderr, /has its own \.pdw/);
+});
+
+await test('commits on the task branch inside scope are accepted', () => {
+  const t = worktreeFixture('wt-commit', 'commit-in-scope');
+  const id = JSON.parse(command(t.work, ['new', '--from', t.contract]).stdout).id;
+  command(t.work, ['run', id]);
+  const state = JSON.parse(fs.readFileSync(path.join(t.root, '.pdw', 'tasks', id, 'state.json'), 'utf8'));
+  assert.equal(state.status, 'accepted_local', state.failure);
+  assert.equal(t.run(t.work, 'rev-list', '--count', 'HEAD'), '2');
+});
+
+await test('a commit outside scope is rejected and the worktree is kept', () => {
+  const t = worktreeFixture('wt-commit-out', 'commit-out');
+  const id = JSON.parse(command(t.work, ['new', '--from', t.contract]).stdout).id;
+  command(t.work, ['run', id], 1);
+  const state = JSON.parse(fs.readFileSync(path.join(t.root, '.pdw', 'tasks', id, 'state.json'), 'utf8'));
+  assert.match(state.failure, /Out-of-scope commits: outside\.txt/);
+  assert.ok(fs.existsSync(t.work), 'the blocked worktree must stay inspectable');
+});
+
+await test('a worktree on the default branch is refused', () => {
+  const t = worktreeFixture('wt-main', 'success', { branch: 'main', baseBranch: 'base' });
+  const refused = command(t.work, ['new', '--from', t.contract], 1);
+  assert.match(refused.stderr, /Refusing to run a task on main/);
+});
+
+await test('a detached worktree is refused', () => {
+  const t = worktreeFixture('wt-detached', 'success', { detach: true });
+  const refused = command(t.work, ['new', '--from', t.contract], 1);
+  assert.match(refused.stderr, /detached HEAD/);
+});
+
+await test('switching the task branch mid-run is rejected', () => {
+  const t = worktreeFixture('wt-switch', 'switch-branch');
+  const id = JSON.parse(command(t.work, ['new', '--from', t.contract]).stdout).id;
+  command(t.work, ['run', id], 1);
+  const state = JSON.parse(fs.readFileSync(path.join(t.root, '.pdw', 'tasks', id, 'state.json'), 'utf8'));
+  assert.match(state.failure, /Task branch changed: expected task\/fixture, found other/);
+});
+
+await test('legacy schema 1 tasks keep the head-bound artifact', () => {
+  const t = setup('legacy-schema');
+  const baselineFile = path.join(path.dirname(t.stateFile), 'baseline.json');
+  const baseline = JSON.parse(fs.readFileSync(baselineFile, 'utf8'));
+  const state = t.state();
+  state.schema_version = 1; state.artifact = baseline.fingerprint;
+  fs.writeFileSync(t.stateFile, JSON.stringify(state, null, 2));
+  fs.writeFileSync(baselineFile, JSON.stringify({ ...baseline, schema_version: 1 }, null, 2));
+  const status = JSON.parse(command(t.root, ['status', t.id]).stdout);
+  assert.equal(status.evidence_current, true);
+});
+
+await test('a worktree task cannot run from the main checkout', () => {
+  const t = worktreeFixture('wt-cross-root');
+  const id = JSON.parse(command(t.work, ['new', '--from', t.contract]).stdout).id;
+  const status = JSON.parse(command(t.root, ['status', id]).stdout);
+  assert.equal(status.evidence_current, true);
+  const refused = command(t.root, ['run', id], 1);
+  assert.match(refused.stderr, /belongs to the linked worktree/);
+});
+
+await test('a config without schema_version is read as schema 1 and is not migrated', () => {
+  const t = setup('config-no-schema');
+  const file = path.join(t.root, '.pdw', 'config.json'), written = JSON.parse(fs.readFileSync(file, 'utf8'));
+  delete written.schema_version; fs.writeFileSync(file, JSON.stringify(written));
+  const report = JSON.parse(command(t.root, ['doctor']).stdout);
+  assert.equal(report.roles.length, 4);
+  assert.equal(JSON.parse(fs.readFileSync(file, 'utf8')).schema_version, undefined);
+  const plan = JSON.parse(command(t.root, ['plan', t.id]).stdout);
+  assert.equal(plan.id, t.id); assert.equal(plan.limits.max_cli_calls, 8);
+});
+await test('an unknown config schema_version is rejected with the actual and supported values', () => {
+  const t = setup('config-schema-unknown');
+  t.config.schema_version = 2;
+  fs.writeFileSync(path.join(t.root, '.pdw', 'config.json'), JSON.stringify(t.config));
+  const refused = command(t.root, ['doctor'], 1);
+  assert.match(refused.stderr, /Unsupported config schema_version 2/);
+  assert.match(refused.stderr, /supported: 1/);
+});
+await test('an unknown top-level config key is rejected instead of ignored', () => {
+  const t = setup('config-top-key');
+  t.config.role_limits = { max_cli_calls: 100 };
+  fs.writeFileSync(path.join(t.root, '.pdw', 'config.json'), JSON.stringify(t.config));
+  const refused = command(t.root, ['plan', t.id], 1);
+  assert.ok(refused.stderr.includes('role_limits'));
+  assert.ok(refused.stderr.includes('supported: schema_version, roles, limits, cost'));
+});
+await test('an unknown limits key is rejected with the supported limit keys', () => {
+  const t = setup('config-limit-key');
+  t.config.limits.max_tokens = 48000;
+  fs.writeFileSync(path.join(t.root, '.pdw', 'config.json'), JSON.stringify(t.config));
+  const refused = command(t.root, ['doctor'], 1);
+  assert.ok(refused.stderr.includes('limits.max_tokens'));
+  assert.ok(refused.stderr.includes('supported: max_cli_calls, max_repairs, call_timeout_seconds, task_timeout_seconds'));
+});
+await test('an unknown field inside a role profile is rejected with its path', () => {
+  const t = setup('config-role-key');
+  t.config.roles.scan.temperature = 0.2;
+  fs.writeFileSync(path.join(t.root, '.pdw', 'config.json'), JSON.stringify(t.config));
+  const refused = command(t.root, ['run', t.id], 1);
+  assert.ok(refused.stderr.includes('roles.scan.temperature'));
+  assert.ok(refused.stderr.includes('supported: backend, executable, model, args, standalone, reasoning_effort, prompt_guidance'));
+});
+await test('a task directory without state.json is reported as broken, not fatal', () => {
+  const t = setup('status-broken-task');
+  const broken = path.join(t.root, '.pdw', 'tasks', 'half-made');
+  fs.mkdirSync(broken);
+  fs.writeFileSync(path.join(broken, 'contract.json'), JSON.stringify({ goal: 'x', mode: 'develop', scope: [], acceptance: [], checks: [] }));
+  const report = JSON.parse(command(t.root, ['status'], 0).stdout);
+  assert.equal(report.length, 2);
+  const entry = report.find(item => item.id === 'half-made');
+  assert.equal(entry.status, 'broken');
+  assert.match(entry.failure, /state\.json unreadable/);
+  assert.ok(report.some(item => item.id === t.id && item.status !== 'broken'));
+});
+await test('status reports an empty list when the project has no tasks directory', () => {
+  const root = path.join(evidence, 'status-no-tasks');
+  fs.mkdirSync(path.join(root, '.pdw'), { recursive: true });
+  fs.writeFileSync(path.join(root, '.pdw', 'config.json'), JSON.stringify({ roles: {}, limits: { max_cli_calls: 8, max_repairs: 1, call_timeout_seconds: 10, task_timeout_seconds: 60 }, cost: { status: 'unknown' } }));
+  const report = JSON.parse(command(root, ['status'], 0).stdout);
+  assert.deepEqual(report, []);
+});
+
+await test('a refused config leaves no half-created task directory', () => {
+  const t = setup('config-new-atomic');
+  t.config.roles.scan.temperature = 0.2;
+  fs.writeFileSync(path.join(t.root, '.pdw', 'config.json'), JSON.stringify(t.config));
+  const tasks = path.join(t.root, '.pdw', 'tasks'), before = fs.readdirSync(tasks);
+  const refused = command(t.root, ['new', '--from', path.join(t.root, '.pdw', 'input.json')], 1);
+  assert.ok(refused.stderr.includes('roles.scan.temperature'));
+  assert.deepEqual(fs.readdirSync(tasks), before, 'a refused new must not leave a task directory');
+  command(t.root, ['status'], 0);
+});
+
+await test('a junction to the skill runs the same CLI instead of exiting silently', () => {
+  const t = setup('entry-junction');
+  const link = path.join(evidence, 'entry-junction-link');
+  fs.symlinkSync(path.dirname(path.dirname(runtime)), link, process.platform === 'win32' ? 'junction' : 'dir');
+  const viaReal = spawnSync(process.execPath, [runtime, 'status', '--project', t.root], { encoding: 'utf8', timeout: 30000 });
+  const viaLink = spawnSync(process.execPath, [path.join(link, 'scripts', 'pdw.mjs'), 'status', '--project', t.root], { encoding: 'utf8', timeout: 30000 });
+  assert.equal(viaLink.status, viaReal.status, viaLink.stderr);
+  assert.equal(viaLink.stdout, viaReal.stdout);
+  assert.ok(viaLink.stdout.includes(t.id));
+});
+
+await test('check accepts a complete contract and rejects one without checks', () => {
+  const t = setup('check-contract');
+  const report = JSON.parse(command(t.root, ['check', '--from', path.join(t.root, '.pdw', 'input.json')], 0).stdout);
+  assert.equal(report.valid, true);
+  const broken = { ...JSON.parse(fs.readFileSync(path.join(t.root, '.pdw', 'input.json'), 'utf8')), checks: [] };
+  const file = path.join(evidence, 'check-broken.json'); fs.writeFileSync(file, JSON.stringify(broken));
+  const refused = command(t.root, ['check', '--from', file], 1);
+  const body = JSON.parse(refused.stdout);
+  assert.equal(body.valid, false);
+  assert.ok(body.errors.join(' ').includes('real check'), body.errors.join(' '));
+});
+
+await test('verify fails before the run and passes after an accepted run', () => {
+  const t = setup('verify-task');
+  const before = JSON.parse(command(t.root, ['verify', t.id], 1).stdout);
+  assert.equal(before.verdict, 'fail');
+  assert.ok(before.reasons.join(' ').includes('status is ready'));
+  command(t.root, ['run', t.id], 0);
+  const after = JSON.parse(command(t.root, ['verify', t.id], 0).stdout);
+  assert.equal(after.verdict, 'pass', after.reasons.join(' '));
+  assert.equal(after.evidence_current, true);
+});
+
+await test('run is refused under Multica while status stays available', () => {
+  const t = setup('host-guard');
+  const refused = command(t.root, ['run', t.id], 1, { MULTICA_WORKSPACE_ID: 'fixture' });
+  assert.ok(refused.stderr.includes('disabled under Multica'), refused.stderr);
+  command(t.root, ['status'], 0, { MULTICA_WORKSPACE_ID: 'fixture' });
+  t.config.host = 'multica';
+  fs.writeFileSync(path.join(t.root, '.pdw', 'config.json'), JSON.stringify(t.config));
+  const configured = command(t.root, ['run', t.id], 1);
+  assert.ok(configured.stderr.includes('host=multica'), configured.stderr);
 });
 
 fs.writeFileSync(path.join(evidence, 'results.json'), JSON.stringify({ scope: 'Fixture CLI orchestration, not live provider integration', outcomes }, null, 2));

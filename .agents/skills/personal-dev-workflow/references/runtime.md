@@ -1,4 +1,4 @@
-# PDW 1.3.3 本地运行工具
+# PDW 1.5.0 本地运行工具
 
 仅依赖 Node.js 18+ 与已经安装、登录的 CLI；代码使用 Node 标准库，沿用 PDW 的 JavaScript 脚本形式，不安装 TypeScript/Next.js 或新依赖。
 
@@ -8,7 +8,7 @@
 
 在项目根目录用 `node <本Skill绝对路径>/scripts/pdw.mjs <命令>`；当前研究项目还提供 `pdw.ps1` 包装。
 
-- `init`：创建 `.pdw/config.json`、任务目录，并给项目 `.gitignore` 追加 `.pdw/`；已有配置保持原样。
+- `init`：创建 `.pdw/config.json`、任务目录，并给项目 `.gitignore` 追加 `.pdw/`；已有配置保持原样。在 linked worktree 里不写任何文件，只报告主 checkout 的状态根。
 - `doctor`：核对原生可执行文件、版本与角色配置。model_explicit 只表示显式填写模型；Codex/AGY 的 host-default 不再被标成 explicit。ready 可接受这两个后端的宿主默认，OC 则必须显式指定模型；退出码 0 仅表示非 planner 角色 ready，**不等于登录、模型路由、调用或输出协议已通过**。
 - `new --from <JSON文件>`：冻结一张任务卡、基线和任务限额，返回任务 ID。
 - `plan <id>`：列出会用的角色、模型、检查与预算；不调用模型。
@@ -19,13 +19,30 @@
 - `resume <id>`：保留已完成阶段、调用次数、耗时和修复次数继续；代码基线漂移则拒绝旧证据。路由可由用户调整，任务限额不随配置提高而增加。
 - `demo`：对安装了本 Skill 的项目进行真实模型只读审计，会消耗配置模型额度；它不执行产品代码修改。
 - `view [--port <n>] [--open]`：起一个只读本地看板（默认 `http://127.0.0.1:8891/`），按项目列出任务、七步进度、每次派发的模型与思考档位、验收退出码和 Codex 剩余用量。数据只来自 `.pdw/tasks/` 与本机 Codex 会话日志，不写盘、不起模型；进程前台运行，Ctrl+C 结束。
-- `install --project <已存在目录>`：将本 Skill 完整复制为该项目 `.agents/skills/personal-dev-workflow`。目标已有同名 Skill 时拒绝覆盖，先比较迁移。
+- `install --project <已存在目录>`：将本 Skill 完整复制为该项目 `.agents/skills/personal-dev-workflow`；链接工作树里拒绝安装，去主 checkout 执行。目标已有同名 Skill 时拒绝覆盖，先比较迁移。
 
 所有命令支持 `--project <项目绝对路径>`。运行失败保留 REPORT.md、状态、完整 stdout/stderr 与验收命令输出，不删除证据。
 
 Windows 的 init 按 PATH 查找原生 exe；Codex 的 npm 壳会解析到官方可选平台包或旧 vendor 布局中的 codex.exe，不执行 .cmd/.ps1 壳。原生 exe 优先，支持中文路径；找不到就由 doctor 明确报不可用。init 不覆盖已有配置，因此宿主升级后旧 hash 路径失效时，仍需重新核对并显式更新该项目 executable；不要复制其他机器路径。
 
 已有同名 Skill 的升级仍需先比较与可回滚备份，再迁移完整目录、入口及必要的 Hook 引用；没有自动 upgrade 命令或旧 runstate 状态转换。保留进行中的 Mission、原始证据与已用预算，到安全边界切换，不能用重装重置额度。新配置初始化成功后先 doctor，再做隔离小任务确认实际登录/输出协议；不要仅凭 doctor 放行真实业务任务。
+
+## 工作树与状态目录
+
+PDW 可以在仓库的 linked worktree 里运行，也可以在主 checkout 里运行；程序自己判断，不新增配置项：
+
+```text
+git rev-parse --show-toplevel      # 代码根（必须等于当前目录）
+git rev-parse --git-common-dir     # 主库的 .git
+```
+
+`--show-toplevel` 等于当前目录、且 common dir 的父目录不是当前目录时，判为 linked worktree：代码根 = 当前工作树，状态根 = 主 checkout 的 `.pdw`。快照、检查命令与角色进程都在工作树里；`state`、`baseline`、`HANDOFF`、运行锁都在主库。主 checkout 的普通子目录不会被误判为工作树，它仍按原有规则被快照拒绝。
+
+三种情况直接失败，不静默处理：工作树里已存在 `.pdw`（状态会分叉，先人工搬走）；主 checkout 没有 `.pdw/config.json`（去主库 init）；工作树是分离 HEAD 或在 `main`/`master` 上（先建或切任务分支）。
+
+提交策略：工作树模式允许在任务分支上提交；每次角色调用后校验分支未变、基线提交是 HEAD 的祖先、`base..HEAD` 的每个提交路径都在 scope 内。违规会 blocked，工作树保留供排查。程序不 push、不合并、不 rebase，也不删除工作树；创建与清理交给宿主的工作树工具或人工执行。
+
+快照指纹分两段：`content` 只含文件内容，`fingerprint` 沿用旧的 head+内容。新任务写 `schema_version: 2` 并以 `content` 比较，因此提交不会让内容证据失效；旧任务（schema 1）继续按 head+内容比较，不会被静默改写。`status`/`handoff` 里的 `worktree`、`branch`、`base_head` 是运行事实，可以重算，但不能由角色改写。
 
 ## 上下文接续与文档维护
 
@@ -66,9 +83,17 @@ audit 模式不启动实现或修复。审计报告可以包含被审对象的 h
 
 init 仅从现有 OpenCode 配置中的标识选择 DeepSeek V4.1 Flash，不复制配置或密钥：先看顶层 `model`，再按 `providers`（OpenCode 2.x）或 `provider`（1.x）里的 `models` 找匹配项，两者都读、都不写回。选中的只是提议值，不证明它最便宜；没有识别到就要求协调者从实际模型列表填写，不能静默使用昂贵默认模型。Codex/AGY 默认沿用宿主模型，可在项目配置显式指定。
 
+plan 在既有 roles/checks 之外新增 `routes`，启动前把每个角色的路由摊开：`backend`、从 model 第一段解析出的 `provider`、去掉 provider 前缀与 `#variant` 的 `model`、`variant`，以及 `source`。`source` 说明这个 variant 从哪来：`explicit` 是配置自己写明（model 里带 `#variant`，或设置了 `reasoning_effort`；只写 provider/model 且没有别的来源时 variant 为 null）；`saved-variant` 是模型串没写 variant，值取自宿主 OpenCode 状态目录 `model.json` 里为该 model 保存的选择（init 会把同一个值写进新配置；配置不写 `#variant` 时宿主按这份自存状态选档，TUI 改选也会跟着变，这正是 init 要固定的原因）；`host-default` 是角色 model 为空，PDW 不传 `--model`。routes 只做字符串解析与一次宿主配置读取，不认证、不发请求，不证明宿主真按它路由。
+
+provider 写错不是拼写问题：`provider/model` 的第一段决定请求实际打到哪个提供方，把网关名或宿主内置 provider 名写混（把 `opencodex/...` 写成上一层的 `opengateway/...`）会让请求静默改道，账单照常产生且没有告警。doctor 因此为每个角色补两个字段，并把发现写进顶层 `route_warnings`，文本里指名角色、model 串与 provider 键。`model_shape` 按 backend 分形态，取 `ok`/`invalid`。opencode 必须是 `provider/model-id[#variant]`，匹配 `^[A-Za-z0-9][A-Za-z0-9._-]*/[^\s#]+(#[\w.-]+)?$`：第一段是 provider、其后是 model id、可带 `#variant`；model id 内部允许再出现 `/`（magpie 的 `auto/<model>` 就是这种形态），所以 `opengateway/deepseek/deepseek-v4-pro` 这类多一层前缀的串形态仍算 ok，要由 provider 键那一步把它分开；`magpie/` 这种缺 model id 的串、含空白或空 variant 的串才是 invalid。codex 与 agy 的 model 本来就是宿主解析的裸 id（`gpt-6.2-sol` 就是一例），接受 `^[A-Za-z0-9][A-Za-z0-9._:-]*$`；给它们补 provider 前缀不是“更完整”，那个前缀会被当成模型名的一部分，同样判 invalid。model 为空（host-default）时两种 backend 都是 ok，因为不存在待校验的串，是否显式由 `model_explicit` 表示。`provider_known` 取 `true`/`false`/`unknown`：第一段出现在宿主 OpenCode 配置 `providers`（2.x）或 `provider`（1.x）的键里为 true，不在为 false，读不到宿主配置（文件缺失或 JSONC 解析失败）或配置里没有 provider 表时为 unknown；非 opencode backend 一律 unknown，因为这类角色没有 provider 段（routes 里 provider 为 null），无法据此判断路由对错，也就不发告警。
+
+这两个字段只产生告警文本，不参与 `ready`。读不到宿主配置是环境差异（换机器、无网络、配置带注释），provider 不在宿主列表也可能是刚装上的 provider 或另一台机器的配置，判成硬失败会让 doctor 在常见环境下整片变红，最后没人再看告警；形态非法若直接阻断，升级到本版的项目会在没改任何配置的情况下启动即失败，超出这两个字段的范围。要处理的是告警本身：先对照 plan 的 routes 与宿主 provider 键，再改配置或换 model。出现告警时 PDW 仍会照原样把 model 传给宿主，不会替人猜测正确写法。
+
 OpenCode 2.0.x 的私有 standalone 模型查询曾报插件激活失败，因此默认用现有服务；可设置某项 `standalone: true` 在其他已验证环境使用私有进程。原有权限/风险插件不被禁用。
 
 ## 模型交接配置
+
+`.pdw/config.json` 先按 `schema_version` 解析：字段缺失按 1 读取——旧项目照常工作，文件不写回也不迁移；值为 1 通过；其他值直接报错，信息里带实际值与支持值（`1`）。随后每层做键白名单：顶层只有 `schema_version`、`roles`、`limits`、`cost`；`roles` 下只有 `scan`、`test-plan`、`implement`、`review`、`planner`（`repair` 不是配置项，运行时映射到 implement）；角色对象内只有 `backend`、`executable`、`model`、`args`、`standalone`、`reasoning_effort`、`prompt_guidance`；`limits` 只有 `max_cli_calls`、`max_repairs`、`call_timeout_seconds`、`task_timeout_seconds`；`cost` 只有 `status`、`hard_money_limit`。未知键在 doctor/plan/new/run 读取配置时就报错（init 只负责在没有配置时生成一份，不读旧配置；旧配置里的退役键由下一个读配置的命令报出），且 `new` 先校验再写任务文件，被拒时不会留下没有 `state.json` 的目录，错误给键路径与该层支持的键列表，不静默忽略：项目副本常带着退役或拼错的键，忽略会让它按默认值运行，而配置文件看上去像已经生效。校验顺序为顶层键 → 角色集合 → 角色内字段 → limits → cost，第一条错误就指到要改的那一层。
 
 角色可选 `prompt_guidance`（非空文本，须显式指定 model），用于协调者根据已核实的模型指导和本任务编写的简短执行提示。程序将其连同契约、角色职责和前序证据写入每次 `attempts/.../prompt.md`。模型指导不能覆盖范围、权限或验收；计划须结合当前源码验证。
 
@@ -77,11 +102,23 @@ Codex 角色还可设 `reasoning_effort`，通过 `--config model_reasoning_effo
 ```json
 {
   "backend": "codex",
-  "model": "gpt-6.1-sol",
+  "model": "gpt-6.2-sol",
   "reasoning_effort": "medium",
   "prompt_guidance": "保持现有接口，先核对保存与重启读取路径；在允许范围内自主选择最小实现，运行契约检查。"
 }
 ```
+
+
+### Codex 的模型与档位（2026-11-18 核对）
+
+Codex 侧现在有两个新模型，本机 0.170.0 实测都能跑通：
+
+- gpt-6.2-sol：官方定位是日常与编码的主力，输入 2 美元、输出 10 美元每百万 token。实测 -m gpt-6.2-sol 配 model_reasoning_effort=medium 正常返回。
+- gpt-6.2-astra：面向最难的整体任务，输入 8 美元、输出 40 美元，是 Sol 的 4 倍价。
+
+两件事要知道：两者都拒绝 reasoning_effort 为 none；Codex 桌面端的全局默认是 ultra（最贵档），角色配置不要靠继承，要在 roles.implement 里显式钉住 model 与 reasoning_effort。
+
+建议：implement 用 gpt-6.2-sol 加 medium；跨文件重构或反复失败的修复再升 high / xhigh；astra 只在真正接近能力边界、且接受 4 倍价格时才用。换模型或换 provider 要重测，不能平移。
 
 OpenCode TUI 的 `/effort`（`/thinking`、`/variants`）选择模型 variant。已核对后台 `run` 使用 `--model provider/model#variant`（OpenCode 2.0.x 与 2.1.x 均如此，最后核对 2026-10-24）。PDW 支持以下角色配置，转换为 `--model <provider>/<model-id>#<variant>`，不发送 Codex 的 `--config`：
 
@@ -89,9 +126,11 @@ OpenCode TUI 的 `/effort`（`/thinking`、`/variants`）选择模型 variant。
 { "backend": "opencode", "model": "<provider>/<model-id>", "reasoning_effort": "high" }
 ```
 
-也可直接写 `model: "<provider>/<model-id>#high"`，自定义 variant 使用此形式；不能同时再设置 reasoning_effort。不要给其他 OpenCode 版本猜测参数：先核对其 run --help，旧版可能使用不同入口。档位词表由该模型在宿主里声明的 `variants` 决定，不同提供方不同：DeepSeek V4.1 Flash 实测为 `low/high/max/off`（`off` 关闭思考），**没有** `medium`；GPT-6.1 Sol 实测为 `low/medium/high/xhigh/max/ultra`。写之前查声明，不能由 flash 后缀推断能力。
+也可直接写 `model: "<provider>/<model-id>#high"`，自定义 variant 使用此形式；不能同时再设置 reasoning_effort。不要给其他 OpenCode 版本猜测参数：先核对其 run --help，旧版可能使用不同入口。档位词表由该模型在宿主里声明的 `variants` 决定，不同提供方不同：DeepSeek V4.1 Flash 的 variants 是 `none/low/high/max`（网关侧最低档叫 `none`，不叫 `off`；它仍有思考，不是关思考），**没有** `medium`；GPT-6.1 Sol 实测为 `low/medium/high/xhigh/max/ultra`。写之前查声明，不能由 flash 后缀推断能力。
 
 2026-10-17 核对官方 v2.0.32 源码：[TUI effort 别名](https://github.com/anomalyco/opencode/blob/v2.0.32/packages/tui/src/app.tsx#L950)、[后台模型变体解析](https://github.com/anomalyco/opencode/blob/v2.0.32/packages/cli/src/run/run.ts#L176)。TUI 和 run 属于同一安装的不同入口；界面能切换不意味着已有 PDW 配置自动继承。
+
+后台角色会话固定带 `--archived`：`run` 建出的会话直接归档，不进 app 收件箱与会话列表，脚本跑任务时桌面端不会冒出一串半成品会话。该参数在 OpenCode 2.2.7 的 `run --help` 里实测存在（2026-11-08 起 driver 无条件附加）；旧版本没有它时报 unknown option，按普通角色失败处理，先升级 OpenCode，不要退回到「跑完再手动归档」或改成 TUI 会话。
 
 新建配置时，init 对识别到的模型读取 OpenCode TUI 状态目录 model.json 的 variant 映射，将该模型已保存的变体固定到项目配置。状态目录为 XDG_STATE_HOME/opencode，默认 ~/.local/state/opencode。已有配置、显式 #variant 和缺失状态均不会被覆盖；之后 TUI 改选不会自动改变已有 PDW 项目。升级旧项目时由协调者核对该项目是否有活动任务，备份配置后只调整相关角色，不重置任务或预算。
 
@@ -99,7 +138,21 @@ OpenCode TUI 的 `/effort`（`/thinking`、`/variants`）选择模型 variant。
 
 核对 TUI 与模型时只提取模型 ID、variants 与对应的 effort 字段。OpenCode 2.0 的 api model.list 原始返回包含认证设置，禁止直接打印或保存整个响应。
 
-2026-10-16 核对来源：[OpenAI 模型选择](https://developers.openai.com/api/docs/guides/model-selection)、[模型与提示指导](https://developers.openai.com/api/docs/guides/latest-model?model=gpt-6.1-sol)、[减少过度提示](https://developers.openai.com/blog/rethinking-skills-and-prompts-for-gpt-6-astra)、[Codex 单次运行配置](https://learn.chatgpt.com/docs/developer-settings)。运行器不自动检索这些页面，也不自动生成最佳提示；这些判断由使用 Skill 的协调者完成，效果仍须真实任务验证。
+2026-10-16 核对来源：[OpenAI 模型选择](https://developers.openai.com/api/docs/guides/model-selection)、[模型与提示指导](https://developers.openai.com/api/docs/guides/latest-model?model=gpt-6.2-sol)、[减少过度提示](https://developers.openai.com/blog/rethinking-skills-and-prompts-for-gpt-6-astra)、[Codex 单次运行配置](https://learn.chatgpt.com/docs/developer-settings)。运行器不自动检索这些页面，也不自动生成最佳提示；这些判断由使用 Skill 的协调者完成，效果仍须真实任务验证。
+
+### 思考档位怎么选（2026-11-18，依据 ds-effort-compare 的 SELECTION.md）
+
+适用 magpie/auto/deepseek-v4.1-flash（variants 为 none/low/high/max）。换模型或换路由要重测，不能平移。
+
+- 取数、格式转换、整理文件、跑现成命令：none。GSM8K 24/24 四档持平，合成 A 组 48/48。
+- 写业务代码、改单文件、做总结、中等调试：low。HumanEval 16/16 全档通过，low 的成本与 none 接近。
+- 硬数学、跨文件重构、根因排查、长链条推理：low 或 high。AIME 全 30 题 low 30/30（16.9s、0.068 美元），high 30/30（20.0s、0.078 美元）。
+- 默认档与交互式会话：none。max 不设默认：32k 上限下 29/30、42.5s、0.119 美元；4k 上限下 7/16 且直接 502。
+- 角色落点：scan 用 none，test-plan 用 low，review 用 high；implement 走 Codex、planner 走 AGY，不在本表范围。
+- none 不等于关思考：整体中位约 129 token，AIME 这类硬题上中位约 1400 token；档位与 reasoning 量不单调，不能用 token 数反推档位是否生效。
+- 带 tools 的多轮会话里 reasoning_content 会逐轮回传，高档每轮都更贵，子会话与 worker 用最低档；判断够不够只看结果与成本，同分选便宜的那档。
+
+边界：题目无工具、单轮、多数在舒适区；agentic 硬题不在样本内，max 在那类任务上仍可能抬高上限。别把日常用 none 读成 max 没用。
 
 ## 第三方 Agent 与宿主子 Agent
 
@@ -142,7 +195,7 @@ node --test <本Skill>/scripts/drivers.test.mjs
 
 本 Skill 的更新以公开仓库为准，不以任何本机目录为准。
 
-- 源：本 Skill `SKILL.md` frontmatter `metadata` 里的 `repository`，分支 `main`（滚动），路径 `skills/personal-dev-workflow/`（11 个文件，行尾统一 LF）：`SKILL.md`、`agents/openai.yaml`、`assets/{audit-task.json,viewer.html}`、`references/runtime.md`、`scripts/{drivers,drivers.test,pdw,pdw.test,update,viewer}.mjs`。
+- 源：本 Skill `SKILL.md` frontmatter `metadata` 里的 `repository`，分支 `main`（滚动），路径 `skills/personal-dev-workflow/`（12 个文件，行尾统一 LF）：`SKILL.md`、`agents/openai.yaml`、`assets/{audit-task.json,DECISION.md,viewer.html}`、`references/runtime.md`、`scripts/{drivers,drivers.test,pdw,pdw.test,update,viewer}.mjs`。
 - 一条命令自更新（推荐）：在项目根执行 `node .agents/skills/personal-dev-workflow/scripts/update.mjs --project <项目根>`；`--dry-run` 只看差异不写盘，`--json` 只输出摘要；`--mirror <目录>` 同时刷新第二份副本（见下）。
   1. 取远端到 `<项目>/.pdw/update-cache/<时间戳>/source`，`git clone --depth 1 --branch main` 并强制 `core.autocrlf=false`，保证比对与写盘不受操作者 Git 行尾设置影响；该缓存不自动清理。
   2. 逐字节比对整份技能目录（缺文件或散列不同都算差异）；本地多出的文件只报告、不删除。
@@ -153,16 +206,10 @@ node --test <本Skill>/scripts/drivers.test.mjs
 - `--mirror <目录>`：把另一份技能副本（如多个 agent 共用的技能根）一并对齐到远端字节。镜像必须已存在，且不能与已安装的技能目录互相包含；镜像里多出的文件只报告、不删除；镜像落后时即使本副本已是最新也会被修好，覆盖前同样备份到 `.pdw/skill-upgrade-<日期>/personal-dev-workflow-pre-<版本>-mirror/`。写成 `--mirror` 一次，比"更新完再手工拷一遍"可靠——后者漏拷时没有任何报错。
 - 不要改本机镜像当"真身"；镜像只是公开仓库的下游副本。
 
-## 分批门禁与旁路并行（VESSEL 本项目）
+## 宿主闸门与两个只读命令（1.5.0-local）
 
-- **门禁分批**：本项目单进程 `vitest run` 会在文件切换处挂起（不是代码缺陷）。统一入口
-  `pwsh -NoProfile -File scripts/gate-batched.ps1`：12 段测试（含 `index.test.ts`）+ `--root apps/web`
-  + `tsc -b` + `typecheck:tests` + `apps/web` tsc + 离线 conformance；逐项打印 exit/耗时，
-  日志落 `%TEMP%`，任一红 exit 1 并列失败步骤。契约 `checks` 优先直接调它。
-- **旁路并行**：PDW `implement` 是串行单代理；Codex 应用或协调者按道起的 `codex exec` 可并行，
-  前提是 **同一文件同一时刻只有一个写者**、道间文件集不重叠、段间用该段 Verify 做闸门、
-  全量门禁只由协调者跑一次。冲突表写在卡里，不靠执行者临场判断。
-- **本地改动登记**：本项目允许改技能正文（只服务当前项目）。所有本地改动写进
-  `.pdw/skill-local-changes.md`；`update.mjs` 逐字节覆盖后按该文件重放，避免静默丢失。
-- **选型与 Fast**：派活前查项目 `AGENTS.md` 的模型/档位选型表并记录「模型 ID + 档位 + 依据」；
-  `service_tier` 默认 `default`，开关都记进卡。
+- 配置新增可选键 `host`：`auto`（默认）| `local` | `multica`。`auto` 下只要环境里存在任一非空的 `MULTICA_*` 变量，就判为 Multica 宿主。
+- Multica 宿主内 `run` / `resume` / `demo` 直接拒绝并返回非零：squad 已经拥有派发权，两套调度同开会让同一任务被派两次。`status` / `handoff` / `check` / `verify` 不受限制。确实要在该机器上单机接力，才把 `host` 设为 `local`。
+- `check --from <契约>`：只读校验，不建任务。除契约必需字段外，检查 scope 不得是绝对路径或含 `..`、命令不得是 shell 串（应拆成 executable + args）、验收描述不得短到无法判定；未知顶层键只警告。退出码 0 才允许 `new`。
+- `verify <id>`：只读复核，不重跑。逐项给出 `contract_current`、`evidence_current`、`snapshot_coverage`、每个检查的退出码、复核是否覆盖全部验收；任一项不成立即 `verdict=fail` 且退出码 1。它回答的是"这次通过现在还能不能引用"，不是"代码是否正确"。
+- 决策卡模板在 `assets/DECISION.md`：六栏（问题、目标形态、范围边界、验收草案、预算与停止条件、运行时假设），末尾附到契约字段的映射表。它是给人填的，不是第二个 schema。
