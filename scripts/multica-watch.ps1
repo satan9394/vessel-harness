@@ -179,3 +179,17 @@ foreach ($key in $keys) {
 # memory headroom: the squad runs have failed before at <300MB free
 $freeMB = [int]((Get-CimInstance Win32_OperatingSystem).FreePhysicalMemory / 1KB)
 if ($freeMB -lt 400) { Write-Log "WARN low memory ${freeMB}MB free" }
+
+# MCP health: report only. Restarting the opencode service kills live sessions, so the
+# remedy stays manual (see AGENT-OPS.md "MCP 报错速查").
+try {
+    $mcpRaw = & opencode mcp list 2>&1 | Out-String
+    $bad = [regex]::Matches($mcpRaw, '✗\s+(\S+)')
+    if ($bad.Count -gt 0) {
+        $names = ($bad | ForEach-Object { $_.Groups[1].Value }) -join ','
+        Write-Log "WARN mcp failed: $($bad.Count) ($names) -> opencode service restart"
+    }
+}
+catch {
+    Write-Log "WARN mcp check failed: $($_.Exception.Message)"
+}
